@@ -1528,7 +1528,7 @@ extern void uITRON4_free(void *p) ;
     #undef HAVE_GMTIME_R /* don't trust macro with windows */
 #endif /* WOLFSSL_MYSQL_COMPATIBLE */
 
-#ifdef WOLFSSL_NGINX
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     #define SSL_OP_NO_COMPRESSION    SSL_OP_NO_COMPRESSION
     #define OPENSSL_NO_ENGINE
     #define X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT
@@ -1547,6 +1547,9 @@ extern void uITRON4_free(void *p) ;
     #ifndef HAVE_SNI
         #define HAVE_SNI
     #endif
+#endif
+
+#if defined(WOLFSSL_NGINX)
     #define SSL_CTRL_SET_TLSEXT_HOSTNAME
 #endif
 

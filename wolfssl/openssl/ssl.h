@@ -118,6 +118,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_use_PrivateKey         wolfSSL_use_PrivateKey
 #define SSL_use_PrivateKey_ASN1    wolfSSL_use_PrivateKey_ASN1
 #define SSL_use_RSAPrivateKey_ASN1 wolfSSL_use_RSAPrivateKey_ASN1
+#define SSL_get_privatekey         wolfSSL_get_privatekey
 
 #define SSLv23_method       wolfSSLv23_method
 #define SSLv3_server_method wolfSSLv3_server_method
@@ -322,6 +323,8 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define X509_OBJECT_free_contents wolfSSL_X509_OBJECT_free_contents
 #define EVP_PKEY_new              wolfSSL_PKEY_new
 #define EVP_PKEY_free             wolfSSL_EVP_PKEY_free
+#define EVP_PKEY_type             wolfSSL_EVP_PKEY_type
+#define EVP_PKEY_base_id          wolfSSL_EVP_PKEY_base_id
 #define X509_cmp_current_time     wolfSSL_X509_cmp_current_time
 #define sk_X509_REVOKED_num       wolfSSL_sk_X509_REVOKED_num
 #define X509_CRL_get_REVOKED      wolfSSL_X509_CRL_get_REVOKED
@@ -338,6 +341,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define ASN1_INTEGER_cmp wolfSSL_ASN1_INTEGER_cmp
 #define ASN1_INTEGER_get wolfSSL_ASN1_INTEGER_get
 #define ASN1_INTEGER_to_BN wolfSSL_ASN1_INTEGER_to_BN
+#define ASN1_STRING_to_UTF8 wolfSSL_ASN1_STRING_to_UTF8
 
 #define SSL_load_client_CA_file wolfSSL_load_client_CA_file
 
@@ -473,7 +477,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 #if defined(HAVE_LIGHTY)  || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
     defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
-    defined(HAVE_POCO_LIB)
+    defined(HAVE_POCO_LIB) || defined(WOLFSSL_HAPROXY) 
 typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #define X509_NAME_free wolfSSL_X509_NAME_free
@@ -508,7 +512,20 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define PEM_read_bio_DSAparams wolfSSL_PEM_read_bio_DSAparams
 #define PEM_write_bio_X509 wolfSSL_PEM_write_bio_X509
 
-#endif /* HAVE_STUNNEL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || WOLFSSL_NGINX || HAVE_POCO_LIB */
+
+#ifdef WOLFSSL_HAPROXY
+#define SSL_get_rbio                      wolfSSL_SSL_get_rbio
+#define SSL_get_wbio                      wolfSSL_SSL_get_wbio
+#define SSL_do_handshake                  wolfSSL_SSL_do_handshake
+#define SSL_get_ciphers(x)                wolfSSL_get_ciphers_compat(x)
+#define SSL_SESSION_get_id                wolfSSL_SESSION_get_id
+#define ASN1_STRING_get0_data             wolfSSL_ASN1_STRING_data
+#define SSL_get_cipher_bits(s,np)         wolfSSL_CIPHER_get_bits(SSL_get_current_cipher(s),np)
+#define sk_SSL_CIPHER_num                 wolfSSL_sk_SSL_CIPHER_num
+#define sk_SSL_COMP_zero                  wolfSSL_sk_SSL_COMP_zero
+#define sk_SSL_CIPHER_value               wolfSSL_sk_SSL_CIPHER_value
+#endif /* WOLFSSL_HAPROXY */
+#endif /* HAVE_STUNNEL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || WOLFSSL_NGINX || HAVE_POCO_LIB || WOLFSSL_HAPROXY */
 
 #define SSL_CTX_set_tmp_dh wolfSSL_CTX_set_tmp_dh
 
@@ -703,7 +720,9 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define NID_inhibit_any_policy        168 /* 2.5.29.54 */
 #define NID_tlsfeature                92  /* id-pe 24 */
 
-#ifdef WOLFSSL_NGINX
+
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+
 #include <wolfssl/error-ssl.h>
 
 #define OPENSSL_STRING    WOLFSSL_STRING
@@ -713,7 +732,6 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define OPENSSL_NPN_UNSUPPORTED 0
 #define OPENSSL_NPN_NEGOTIATED  1
 #define OPENSSL_NPN_NO_OVERLAP  2
-
 
 /* Nginx checks these to see if the error was a handshake error. */
 #define SSL_R_BAD_CHANGE_CIPHER_SPEC               LENGTH_ERROR
@@ -775,6 +793,9 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define SSL_get0_alpn_selected            wolfSSL_get0_alpn_selected
 #define SSL_select_next_proto             wolfSSL_select_next_proto
 #define SSL_CTX_set_alpn_select_cb        wolfSSL_CTX_set_alpn_select_cb
+#define SSL_CTX_set_next_protos_advertised_cb wolfSSL_CTX_set_next_protos_advertised_cb
+#define SSL_CTX_set_next_proto_select_cb  wolfSSL_CTX_set_next_proto_select_cb
+#define SSL_get0_next_proto_negotiated    wolfSSL_get0_next_proto_negotiated
 
 #endif
 

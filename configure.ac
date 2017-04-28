@@ -191,6 +191,7 @@ then
     enable_certservice=yes
     enable_jni=yes
     enable_lighty=yes
+    enable_haproxy=yes
     enable_stunnel=yes
     enable_nginx=yes
     enable_pwdbased=yes
@@ -280,6 +281,14 @@ AC_ARG_ENABLE([nginx],
     [ ENABLED_NGINX=$enableval ],
     [ ENABLED_NGINX=no ]
     )
+
+# haproxy compatibility build
+AC_ARG_ENABLE([haproxy],
+    [  --enable-haproxy         Enable haproxy (default: disabled)],
+    [ ENABLED_HAPROXY=$enableval ],
+    [ ENABLED_HAPROXY=no ]
+    )
+
 
 # OPENSSL Extra Compatibility
 AC_ARG_ENABLE([opensslextra],
@@ -1828,9 +1837,10 @@ AC_ARG_ENABLE([ocspstapling],
     [ ENABLED_CERTIFICATE_STATUS_REQUEST=no ]
     )
 
-if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_WPAS" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_WPAS" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes"
 then
-    ENABLED_CERTIFICATE_STATUS_REQUEST=yes
+    echo "ELLO"
+    ENABLED_CERTIFICATE_STATUS_REQUEST="yes"
 fi
 
 if test "x$ENABLED_CERTIFICATE_STATUS_REQUEST" = "xyes"
@@ -1855,7 +1865,7 @@ AC_ARG_ENABLE([ocspstapling2],
     [ ENABLED_CERTIFICATE_STATUS_REQUEST_V2=no ]
     )
 
-if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_WPAS" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_WPAS" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes"
 then
     ENABLED_CERTIFICATE_STATUS_REQUEST_V2=yes
 fi
@@ -1883,7 +1893,7 @@ AC_ARG_ENABLE([crl],
     )
 
 
-if test "x$ENABLED_NGINX" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes"
 then
     ENABLED_CRL=yes
 fi
@@ -2160,7 +2170,7 @@ AC_ARG_ENABLE([session-ticket],
     [ ENABLED_SESSION_TICKET=no ]
     )
 
-if test "x$ENABLED_NGINX" = "xyes" || test "$ENABLED_WPAS" = "yes"
+if test "x$ENABLED_NGINX" = "xyes" || test "$ENABLED_WPAS" = "yes" || test "x$ENABLED_HAPROXY" = "xyes"
 then
     ENABLED_SESSION_TICKET=yes
 fi
@@ -2189,7 +2199,7 @@ AC_ARG_ENABLE([tlsx],
     [ ENABLED_TLSX=no ]
     )
 
-if test "x$ENABLED_NGINX" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes"
 then
     ENABLED_TLSX=yes
 fi
@@ -2440,6 +2450,21 @@ fi
 if test "$ENABLED_NGINX" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NGINX"
+fi
+
+if test "$ENABLED_HAPROXY" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAPROXY"
+    # Requires opensslextra make sure on
+    if test "x$ENABLED_OPENSSLEXTRA" = "xno"
+    then
+        ENABLED_OPENSSLEXTRA="yes"
+        AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
+    fi
+fi
+
+if test "$ENABLED_NGINX" = "yes"|| test "x$ENABLED_HAPROXY" = "xyes"
+then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_VERIFY_CB"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
     AM_CFLAGS="$AM_CFLAGS -DKEEP_OUR_CERT -DKEEP_PEER_CERT"
@@ -3587,6 +3612,7 @@ echo "   * CODING:                     $ENABLED_CODING"
 echo "   * MEMORY:                     $ENABLED_MEMORY"
 echo "   * I/O POOL:                   $ENABLED_IOPOOL"
 echo "   * LIGHTY:                     $ENABLED_LIGHTY"
+echo "   * HAPROXY:                    $ENABLED_HAPROXY"
 echo "   * STUNNEL:                    $ENABLED_STUNNEL"
 echo "   * NGINX:                      $ENABLED_NGINX"
 echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"

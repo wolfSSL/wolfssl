@@ -105,7 +105,7 @@ WOLFSSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
     #if !defined(NO_RSA) || defined(HAVE_ECC)
         static int DoCertificateVerify(WOLFSSL* ssl, byte*, word32*, word32);
     #endif
-    #if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX)
+    #if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined (WOLFSSL_HAPROXY)
         static int SNI_Callback(WOLFSSL* ssl);
     #endif
     #ifdef WOLFSSL_DTLS
@@ -1497,7 +1497,7 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
             ctx->ca_names = next;
         }
     #endif
-    #ifdef WOLFSSL_NGINX
+    #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
         while (ctx->x509Chain != NULL) {
             WOLFSSL_STACK *next = ctx->x509Chain->next;
             wolfSSL_X509_free(ctx->x509Chain->data.x509);
@@ -3601,7 +3601,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
 #ifdef HAVE_ALPN
     ssl->alpn_client_list = NULL;
-    #ifdef WOLFSSL_NGINX
+    #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
         ssl->alpnSelect    = ctx->alpnSelect;
         ssl->alpnSelectArg = ctx->alpnSelectArg;
     #endif
@@ -11852,7 +11852,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
             }
 
             if (ret == 0) {
-            #ifdef WOLFSSL_NGINX
+            #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
                 request->ssl = ssl;
             #endif
                 ret = CheckOcspRequest(ssl->ctx->cm->ocsp_stapling, request,
@@ -11955,7 +11955,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
             }
 
             if (ret == 0) {
-            #ifdef WOLFSSL_NGINX
+            #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
                 request->ssl = ssl;
             #endif
                 ret = CheckOcspRequest(ssl->ctx->cm->ocsp_stapling, request,
@@ -12030,7 +12030,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
                                     &ssl->ctx->cm->ocsp_stapling->ocspLock);
                         }
 
-                    #ifdef WOLFSSL_NGINX
+                    #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
                         request->ssl = ssl;
                     #endif
                         ret = CheckOcspRequest(ssl->ctx->cm->ocsp_stapling,
@@ -12058,7 +12058,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
             else {
                 while (ret == 0 &&
                             NULL != (request = ssl->ctx->chainOcspRequest[i])) {
-                #ifdef WOLFSSL_NGINX
+                #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
                     request->ssl = ssl;
                 #endif
                     ret = CheckOcspRequest(ssl->ctx->cm->ocsp_stapling,
@@ -20307,7 +20307,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 if ((ret = TLSX_Parse(ssl, (byte *) input + i,
                                                      totalExtSz, 1, &clSuites)))
                     return ret;
-#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX)
+#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
                 if((ret=SNI_Callback(ssl)))
                     return ret;
                 ssl->options.side = WOLFSSL_SERVER_END;
@@ -22004,7 +22004,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 
 
-#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX)
+#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     static int SNI_Callback(WOLFSSL* ssl)
     {
         /* Stunnel supports a custom sni callback to switch an SSL's ctx

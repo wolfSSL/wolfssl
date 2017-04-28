@@ -24,7 +24,7 @@ WOLFSSL_API unsigned long wolfSSLeay(void);
 #define SSLEAY_VERSION 0x0090600fL
 #define SSLEAY_VERSION_NUMBER SSLEAY_VERSION
 
-#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX)
+#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 #define CRYPTO_set_mem_ex_functions      wolfSSL_CRYPTO_set_mem_ex_functions
 #define FIPS_mode                        wolfSSL_FIPS_mode
 #define FIPS_mode_set                    wolfSSL_FIPS_mode_set
@@ -44,7 +44,7 @@ typedef void (CRYPTO_free_func)(void*parent, void*ptr, CRYPTO_EX_DATA *ad, int i
 
 #define OPENSSL_malloc(a)  XMALLOC(a, NULL, DYNAMIC_TYPE_OPENSSL)
 
-#endif /* HAVE_STUNNEL || WOLFSSL_NGINX */
+#endif /* HAVE_STUNNEL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 
 #endif /* header */
 

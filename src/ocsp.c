@@ -402,7 +402,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
     if (ret != OCSP_INVALID_STATUS)
         return ret;
 
-#ifdef WOLFSSL_NGINX
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     if (ocsp->statusCb != NULL && ocspRequest->ssl != NULL) {
         ret = ocsp->statusCb((WOLFSSL*)ocspRequest->ssl, ocsp->cm->ocspIOCtx);
         if (ret == 0) {
@@ -460,7 +460,7 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
     return ret;
 }
 
-#ifdef WOLFSSL_NGINX
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 
 int wolfSSL_OCSP_resp_find_status(WOLFSSL_OCSP_BASICRESP *bs,
     WOLFSSL_OCSP_CERTID* id, int* status, int* reason,

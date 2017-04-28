@@ -224,7 +224,7 @@ void WOLFSSL_LEAVE(const char* msg, int ret)
  * mapped to new funtion WOLFSSL_ERROR_LINE which gets the line # and function
  * name where WOLFSSL_ERROR is called at.
  */
-#if (defined(DEBUG_WOLFSSL) || defined(WOLFSSL_NGINX))
+#if (defined(DEBUG_WOLFSSL) || defined(WOLFSSL_NGINX)) || defined(WOLFSSL_HAPROXY)
     #if (defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE))
 void WOLFSSL_ERROR_LINE(int error, const char* func, unsigned int line,
             const char* file, void* usrCtx)
@@ -266,7 +266,7 @@ void WOLFSSL_ERROR(int error)
     }
 }
 
-#endif  /* DEBUG_WOLFSSL || WOLFSSL_NGINX */
+#endif  /* DEBUG_WOLFSSL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
 /* Internal function that is called by wolfCrypt_Init() */
@@ -313,7 +313,7 @@ int wc_LoggingCleanup(void)
 }
 
 
-#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_NGINX)
+#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 /* peek at an error node
  *
  * index : if -1 then the most recent node is looked at, otherwise search
@@ -499,7 +499,7 @@ void wc_ClearErrorNodes(void)
     wc_last_node = NULL;
     wc_UnLockMutex(&debug_mutex);
 }
-#endif /* DEBUG_WOLFSSL || WOLFSSL_NGINX */
+#endif /* DEBUG_WOLFSSL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 
 
 int wc_SetLoggingHeap(void* h)
