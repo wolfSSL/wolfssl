@@ -16777,6 +16777,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
                         ERROR_OUT(PSK_KEY_ERROR, exit_scke);
                     }
+                    ssl->arrays->client_identity[MAX_PSK_ID_LEN] = '\0'; /* null term */
                     args->encSz = (word32)XSTRLEN(ssl->arrays->client_identity);
                     if (args->encSz > MAX_PSK_ID_LEN) {
                         ERROR_OUT(CLIENT_ID_ERROR, exit_scke);
@@ -16813,6 +16814,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                                      ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
                         ERROR_OUT(PSK_KEY_ERROR, exit_scke);
                     }
+                    ssl->arrays->client_identity[MAX_PSK_ID_LEN] = '\0'; /* null term */
                     esSz = (word32)XSTRLEN(ssl->arrays->client_identity);
 
                     if (esSz > MAX_PSK_ID_LEN) {
@@ -16870,7 +16872,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                                      ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
                         ERROR_OUT(PSK_KEY_ERROR, exit_scke);
                     }
-
+                    ssl->arrays->client_identity[MAX_PSK_ID_LEN] = '\0'; /* null term */
                     esSz = (word32)XSTRLEN(ssl->arrays->client_identity);
                     if (esSz > MAX_PSK_ID_LEN) {
                         ERROR_OUT(CLIENT_ID_ERROR, exit_scke);

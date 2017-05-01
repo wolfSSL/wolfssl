@@ -1019,9 +1019,8 @@ static INLINE unsigned int my_psk_client_cb(WOLFSSL* ssl, const char* hint,
     (void)hint;
     (void)key_max_len;
 
-    /* id_max_len allows + 1 for null termination */
     /* see internal.h MAX_PSK_ID_LEN for PSK identity limit */
-    strncpy(identity, kIdentityStr, id_max_len + 1);
+    strncpy(identity, kIdentityStr, id_max_len);
 
     /* test key in hex is 0x1a2b3c4d , in decimal 439,041,101 , we're using
        unsigned binary */
@@ -1041,7 +1040,7 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
     (void)key_max_len;
 
     /* see internal.h MAX_PSK_ID_LEN for PSK identity limit */
-    if (strncmp(identity, kIdentityStr, strlen(kIdentityStr) + 1) != 0)
+    if (strncmp(identity, kIdentityStr, strlen(kIdentityStr)) != 0)
         return 0;
 
     /* test key in hex is 0x1a2b3c4d , in decimal 439,041,101 , we're using
