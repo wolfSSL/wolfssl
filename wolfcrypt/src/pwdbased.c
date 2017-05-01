@@ -611,7 +611,7 @@ static void scryptSalsa(word32* out, word32* in)
         out[i] = in[i] + x[i];
 #else
     for (i = 0; i < 16; i++)
-        out[i] = ByteReverseWord32(in[i] + x[i]);
+        out[i] = ByteReverseWord32(ByteReverseWord32(in[i]) + x[i]);
 #endif
 }
 

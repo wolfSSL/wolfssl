@@ -110,9 +110,9 @@ void FreeOCSP(WOLFSSL_OCSP* ocsp, int dynamic)
 }
 
 
-static int xstat2err(int stat)
+static int xstat2err(int st)
 {
-    switch (stat) {
+    switch (st) {
         case CERT_GOOD:
             return 0;
         case CERT_REVOKED:
