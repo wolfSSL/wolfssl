@@ -45,6 +45,10 @@
 
 #include <wolfssl/wolfcrypt/mpi_class.h>
 
+/* wolf big int and common functions */
+#include <wolfssl/wolfcrypt/wolfmath.h>
+
+
 #ifdef WOLFSSL_PUBLIC_MP
     #define MP_API   WOLFSSL_API
 #else
@@ -184,14 +188,20 @@ typedef int           mp_err;
    BITS_PER_DIGIT*2) */
 #define MP_WARRAY  (1 << (sizeof(mp_word) * CHAR_BIT - 2 * DIGIT_BIT + 1))
 
-/* the infamous mp_int structure */
+#ifdef HAVE_WOLF_BIGINT
+    struct WC_BIGINT;
+#endif
+
+/* the mp_int structure */
 typedef struct mp_int {
     int used, alloc, sign;
     mp_digit *dp;
-#ifdef WOLFSSL_ASYNC_CRYPT
-    byte* dpraw; /* Used for hardware crypto */
+
+#ifdef HAVE_WOLF_BIGINT
+    struct WC_BIGINT raw; /* unsigned binary (big endian) */
 #endif
 } mp_int;
+#define MP_INT_DEFINED
 
 /* callback for mp_prime_random, should fill dst with random bytes and return
    how many read [up to len] */
@@ -242,6 +252,7 @@ extern const char *mp_s_rmap;
 /* 6 functions needed by Rsa */
 MP_API int  mp_init (mp_int * a);
 MP_API void mp_clear (mp_int * a);
+MP_API void mp_free (mp_int * a);
 MP_API void mp_forcezero(mp_int * a);
 MP_API int  mp_unsigned_bin_size(mp_int * a);
 MP_API int  mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c);

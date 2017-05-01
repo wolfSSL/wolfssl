@@ -74,6 +74,16 @@ int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  mf,
     return res;
 }
 
+int wolfSSL_GetAllocators(wolfSSL_Malloc_cb*  mf,
+                          wolfSSL_Free_cb*    ff,
+                          wolfSSL_Realloc_cb* rf)
+{
+    if (mf) *mf = malloc_function;
+    if (ff) *ff = free_function;
+    if (rf) *rf = realloc_function;
+    return 0;
+}
+
 #ifndef WOLFSSL_STATIC_MEMORY
 #ifdef WOLFSSL_DEBUG_MEMORY
 void* wolfSSL_Malloc(size_t size, const char* func, unsigned int line)

@@ -32,12 +32,14 @@
 #include <wolfssl/wolfcrypt/arc4.h>
 
 
-void wc_Arc4SetKey(Arc4* arc4, const byte* key, word32 length)
+int wc_Arc4SetKey(Arc4* arc4, const byte* key, word32 length)
 {
+    int ret = 0;
     word32 i;
     word32 keyIndex = 0, stateIndex = 0;
 
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM) && !defined(HAVE_CAVIUM_V)
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ARC4) && \
+        defined(HAVE_CAVIUM) && !defined(HAVE_CAVIUM_V)
     if (arc4->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ARC4) {
         return NitroxArc4SetKey(arc4, key, length);
     }
@@ -59,6 +61,8 @@ void wc_Arc4SetKey(Arc4* arc4, const byte* key, word32 length)
         if (++keyIndex >= length)
             keyIndex = 0;
     }
+
+    return ret;
 }
 
 
@@ -76,12 +80,14 @@ static INLINE byte MakeByte(word32* x, word32* y, byte* s)
 }
 
 
-void wc_Arc4Process(Arc4* arc4, byte* out, const byte* in, word32 length)
+int wc_Arc4Process(Arc4* arc4, byte* out, const byte* in, word32 length)
 {
+    int ret = 0;
     word32 x;
     word32 y;
 
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM) && !defined(HAVE_CAVIUM_V)
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ARC4) && \
+        defined(HAVE_CAVIUM) && !defined(HAVE_CAVIUM_V)
     if (arc4->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ARC4) {
         return NitroxArc4Process(arc4, out, in, length);
     }
@@ -95,31 +101,41 @@ void wc_Arc4Process(Arc4* arc4, byte* out, const byte* in, word32 length)
 
     arc4->x = (byte)x;
     arc4->y = (byte)y;
+
+    return ret;
 }
 
-
-#ifdef WOLFSSL_ASYNC_CRYPT
-
-/* Initialize Arc4 for use with Nitrox device */
-int wc_Arc4AsyncInit(Arc4* arc4, int devId)
+/* Initialize Arc4 for use with async device */
+int wc_Arc4Init(Arc4* arc4, void* heap, int devId)
 {
+    int ret = 0;
+
     if (arc4 == NULL)
         return BAD_FUNC_ARG;
 
-    return wolfAsync_DevCtxInit(&arc4->asyncDev, WOLFSSL_ASYNC_MARKER_ARC4, devId);
+    arc4->heap = heap;
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ARC4)
+    ret = wolfAsync_DevCtxInit(&arc4->asyncDev, WOLFSSL_ASYNC_MARKER_ARC4,
+        arc4->heap, devId);
+#else
+    (void)devId;
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
+    return ret;
 }
 
 
-/* Free Arc4 from use with Nitrox device */
-void wc_Arc4AsyncFree(Arc4* arc4)
+/* Free Arc4 from use with async device */
+void wc_Arc4Free(Arc4* arc4)
 {
     if (arc4 == NULL)
         return;
 
-    wolfAsync_DevCtxFree(&arc4->asyncDev);
-}
-
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ARC4)
+    wolfAsync_DevCtxFree(&arc4->asyncDev, WOLFSSL_ASYNC_MARKER_ARC4);
 #endif /* WOLFSSL_ASYNC_CRYPT */
+}
 
 #endif /* NO_RC4 */
 
