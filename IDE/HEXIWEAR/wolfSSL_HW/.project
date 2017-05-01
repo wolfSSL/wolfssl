@@ -44,7 +44,7 @@
 	<variableList>
 		<variable>
 			<name>PROJECT_KSDK_PATH</name>
-			<value>file:/home/michael/Work/.KSDK_1.3.0</value>
+			<value>file:/.KSDK_1.3.0</value>
 		</variable>
 	</variableList>
 </projectDescription>
