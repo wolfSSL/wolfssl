@@ -7387,7 +7387,7 @@ static int SetOidValue(byte* out, word32 outSz, const byte *oid, word32 oidSz,
 
 /* encode Subject Key Identifier, return total bytes written
  * RFC5280 : non-critical */
-static int SetSKID(byte* output, word32 outSz, byte *input, word32 length)
+static int SetSKID(byte* output, word32 outSz, const byte *input, word32 length)
 {
     byte skid_len[1 + MAX_LENGTH_SZ];
     byte skid_enc_len[MAX_LENGTH_SZ];
@@ -7921,9 +7921,11 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     /* SKID */
     if (cert->skidSz) {
         /* check the provided SKID size */
-        if (cert->skidSz > (int)sizeof(der->skid))
+        if (cert->skidSz > (int)sizeof(cert->skid))
             return SKID_E;
 
+        /* Note: different skid buffers sizes for der (MAX_KID_SZ) and
+            cert (CTC_MAX_SKID_SIZE). */
         der->skidSz = SetSKID(der->skid, sizeof(der->skid),
                               cert->skid, cert->skidSz);
         if (der->skidSz <= 0)
@@ -8645,9 +8647,11 @@ int wc_SignCert(int requestSz, int sType, byte* buffer, word32 buffSz,
         heap = eccKey->heap;
     }
 
+#ifdef WOLFSSL_ASYNC_CRYPT
     if (certSignCtx == NULL) {
         return BAD_FUNC_ARG;
     }
+#endif
 
     if (certSignCtx->sig == NULL) {
         certSignCtx->sig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, heap,
@@ -8984,6 +8988,7 @@ int wc_SetAuthKeyId(Cert *cert, const char* file)
 /* Set KeyUsage from human readable string */
 int wc_SetKeyUsage(Cert *cert, const char *value)
 {
+    int ret = 0;
     char *token, *str, *ptr;
     word32 len;
 
@@ -9025,14 +9030,16 @@ int wc_SetKeyUsage(Cert *cert, const char *value)
             cert->keyUsage |= KEYUSE_ENCIPHER_ONLY;
         else if (!XSTRNCASECMP(token, "decipherOnly", len))
             cert->keyUsage |= KEYUSE_DECIPHER_ONLY;
-        else
-            return KEYUSAGE_E;
+        else {
+            ret = KEYUSAGE_E;
+            break;
+        }
 
         token = XSTRTOK(NULL, ",", &ptr);
     }
 
     XFREE(str, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    return 0;
+    return ret;
 }
 #endif /* WOLFSSL_CERT_EXT */
 

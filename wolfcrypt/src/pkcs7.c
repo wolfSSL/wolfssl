@@ -4100,8 +4100,11 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
     /* encrypt content */
     ret = wc_PKCS7_GenerateIV(NULL, tmpIv, blockSz);
-    if (ret != 0)
+    if (ret != 0) {
+        XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return ret;
+    }
 
     ret = wc_PKCS7_EncryptContent(pkcs7->encryptOID, pkcs7->encryptionKey,
             pkcs7->encryptionKeySz, tmpIv, blockSz, plain, encryptedOutSz,
@@ -4181,7 +4184,7 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         WOLFSSL_MSG("PKCS#7 output buffer too small");
         if (pkcs7->unprotectedAttribsSz != 0) {
             XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS);
-            XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+            XFREE(flatAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS);
         }
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);

@@ -360,7 +360,7 @@ int wc_Md5Update(Md5* md5, const byte* data, word32 len)
     local = (byte*)md5->buffer;
 
     /* check that internal buffLen is valid */
-    if (md5->buffLen > MD5_BLOCK_SIZE)
+    if (md5->buffLen >= MD5_BLOCK_SIZE)
         return BUFFER_E;
 
     while (len) {

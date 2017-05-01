@@ -674,8 +674,8 @@ const char* wolfSSL_get_shared_ciphers(WOLFSSL* ssl, char* buf, int len)
     if (ssl == NULL)
         return NULL;
 
-    cipher = wolfSSL_get_cipher_name_from_suite(ssl->options.cipherSuite0,
-                                                ssl->options.cipherSuite);
+    cipher = wolfSSL_get_cipher_name_from_suite(ssl->options.cipherSuite,
+                                                ssl->options.cipherSuite0);
     len = min(len, (int)(XSTRLEN(cipher) + 1));
     XMEMCPY(buf, cipher, len);
     return buf;
@@ -9000,9 +9000,11 @@ static int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
         copyInto->ticket = copyInto->staticTicket;
     }
 
-    if (wc_UnLockMutex(&session_mutex) != 0) {
-        if (ret == SSL_SUCCESS)
-            ret = BAD_MUTEX_E;
+    if (doDynamicCopy) {
+        if (wc_UnLockMutex(&session_mutex) != 0) {
+            if (ret == SSL_SUCCESS)
+                ret = BAD_MUTEX_E;
+        }
     }
 
     if (ret != SSL_SUCCESS) {
@@ -16317,7 +16319,7 @@ void wolfSSL_DES_set_odd_parity(WOLFSSL_DES_cblock* myDes)
 
 
 #ifdef WOLFSSL_DES_ECB
-/* Encrpyt or decrypt input message desa with key and get output in desb. 
+/* Encrpyt or decrypt input message desa with key and get output in desb.
  * if enc is DES_ENCRYPT,input message is encrypted or
  * if enc is DES_DECRYPT,input message is decrypted.
  * */
@@ -19566,6 +19568,7 @@ static int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
 
     /* set the cipher name on info */
     XSTRNCPY(info->name, cipher, NAME_SZ);
+    info->name[NAME_SZ-1] = '\0'; /* null term */
 
     /* Generate a random salt */
     if (wolfSSL_RAND_bytes(info->iv, info->ivSz) != SSL_SUCCESS) {
@@ -20737,16 +20740,15 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
     mp_clear(&a);
     mp_clear(&prime);
 
-    if (ret != MP_OKAY) {
-        ret = SSL_FAILURE;
-    }
-
-    /* set the external value for the computed point */
-    if (ret != SSL_FAILURE) {
+    if (ret == MP_OKAY) {
+        /* set the external value for the computed point */
         ret = SetECPointInternal(r);
         if (ret != SSL_SUCCESS) {
             WOLFSSL_MSG("SetECPointInternal r failed");
         }
+    }
+    else {
+        ret = SSL_FAILURE;
     }
 
     return ret;
@@ -22019,9 +22021,18 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
 
             /* Read in next certificate from file but no more. */
             i = XFTELL(bp->file);
+            if (i < 0)
+                return NULL;
             XFSEEK(bp->file, 0, SEEK_END);
             l = XFTELL(bp->file);
+            if (l < 0)
+                return NULL;
             XFSEEK(bp->file, i, SEEK_SET);
+
+            /* check calulated length */
+            if (l - i <= 0)
+                return NULL;
+
             pem = (unsigned char*)XMALLOC(l - i, 0, DYNAMIC_TYPE_TMP_BUFFER);
             if (pem == NULL)
                 return NULL;
@@ -22583,10 +22594,13 @@ WOLFSSL_BIO *wolfSSL_BIO_new_file(const char *filename, const char *mode)
         return NULL;
 
     bio = wolfSSL_BIO_new(wolfSSL_BIO_s_file());
-    if (bio == NULL)
+    if (bio == NULL) {
+        XFCLOSE(fp);
         return bio;
+    }
 
     if (wolfSSL_BIO_set_fp(bio, fp, BIO_CLOSE) != SSL_SUCCESS) {
+        XFCLOSE(fp);
         wolfSSL_BIO_free(bio);
         bio = NULL;
     }

@@ -12869,13 +12869,13 @@ int pkcs7encrypted_test(void)
 
         ret = (int)fwrite(encrypted, encryptedSz, 1, pkcs7File);
         fclose(pkcs7File);
+
+        if (ret > 0)
+            ret = 0;
 #endif
 
         wc_PKCS7_Free(&pkcs7);
     }
-
-    if (ret > 0)
-        return 0;
 
     return ret;
 }

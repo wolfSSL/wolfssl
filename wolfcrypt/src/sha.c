@@ -432,7 +432,7 @@ int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
     /* check that internal buffLen is valid */
-    if (sha->buffLen > SHA_BLOCK_SIZE)
+    if (sha->buffLen >= SHA_BLOCK_SIZE)
         return BUFFER_E;
 
     while (len) {

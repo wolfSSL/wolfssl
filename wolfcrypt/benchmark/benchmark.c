@@ -592,12 +592,13 @@ static INLINE int bench_stats_sym_check(double start)
 
 static void bench_stats_sym_finish(const char* desc, int doAsync, int count, double start)
 {
-    double total, persec;
+    double total, persec = 0;
 
     END_INTEL_CYCLES
     total = current_time(0) - start;
 
-    persec = 1 / total * count;
+    if (count > 0)
+        persec = 1 / total * count;
 #ifdef BENCH_EMBEDDED
     /* since using kB, convert to MB/s */
     persec = persec / 1024;
@@ -618,10 +619,11 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count, dou
 static void bench_stats_asym_finish(const char* algo, int strength,
     const char* desc, int doAsync, int count, double start)
 {
-    double total, each, opsSec, milliEach;
+    double total, each = 0, opsSec, milliEach;
 
     total = current_time(0) - start;
-    each  = total / count;     /* per second  */
+    if (count > 0)
+        each  = total / count; /* per second  */
     opsSec = count / total;    /* ops/per second */
     milliEach = each * 1000;   /* milliseconds */
 
@@ -1570,7 +1572,7 @@ void bench_chacha(void)
 void bench_chacha20_poly1305_aead(void)
 {
     double start;
-    int    i, count;
+    int    ret, i, count;
 
     byte authTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
     XMEMSET(authTag, 0, sizeof(authTag));
@@ -1578,8 +1580,12 @@ void bench_chacha20_poly1305_aead(void)
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < numBlocks; i++) {
-            wc_ChaCha20Poly1305_Encrypt(bench_key, bench_iv, NULL, 0,
+            ret = wc_ChaCha20Poly1305_Encrypt(bench_key, bench_iv, NULL, 0,
                 bench_plain, BENCH_SIZE, bench_cipher, authTag);
+            if (ret < 0) {
+                printf("wc_ChaCha20Poly1305_Encrypt error: %d\n", ret);
+                break;
+            }
         }
         count += i;
     } while (bench_stats_sym_check(start));

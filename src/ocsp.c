@@ -608,7 +608,7 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE_bio(WOLFSSL_BIO* bio,
     byte*         p;
     int           len;
     int           dataAlloced = 0;
-    OcspResponse* ret;
+    OcspResponse* ret = NULL;
 
     if (bio == NULL)
         return NULL;
@@ -624,9 +624,18 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE_bio(WOLFSSL_BIO* bio,
         long l;
 
         i = XFTELL(bio->file);
+        if (i < 0)
+            return NULL;
         XFSEEK(bio->file, 0, SEEK_END);
         l = XFTELL(bio->file);
+        if (l < 0)
+            return NULL;
         XFSEEK(bio->file, i, SEEK_SET);
+
+        /* check calulated length */
+        if (l - i <= 0)
+            return NULL;
+
         data = (byte*)XMALLOC(l - i, 0, DYNAMIC_TYPE_TMP_BUFFER);
         if (data == NULL)
             return NULL;
@@ -637,8 +646,10 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE_bio(WOLFSSL_BIO* bio,
     else
         return NULL;
 
-    p = data;
-    ret = wolfSSL_d2i_OCSP_RESPONSE(response, (const unsigned char **)&p, len);
+    if (len > 0) {
+        p = data;
+        ret = wolfSSL_d2i_OCSP_RESPONSE(response, (const unsigned char **)&p, len);
+    }
 
     if (dataAlloced)
         XFREE(data, 0, DYNAMIC_TYPE_TMP_BUFFER);
@@ -687,8 +698,8 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE(OcspResponse** response,
         return NULL;
     }
 
-    GetSequence(*data, &idx, &length, len);
-    (*data) += idx + length;
+    if (GetSequence(*data, &idx, &length, len) >= 0)
+        (*data) += idx + length;
 
     return resp;
 }

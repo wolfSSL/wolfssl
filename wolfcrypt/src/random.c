@@ -257,9 +257,8 @@ static int Hash_df(DRBG* drbg, byte* out, word32 outSz, byte type,
         if (ret == 0)
             ret = wc_Sha256Final(&sha, digest);
 
+        wc_Sha256Free(&sha);
         if (ret == 0) {
-            wc_Sha256Free(&sha);
-
             if (outSz > OUTPUT_BLOCK_LEN) {
                 XMEMCPY(out, digest, OUTPUT_BLOCK_LEN);
                 outSz -= OUTPUT_BLOCK_LEN;
@@ -342,8 +341,7 @@ static int Hash_gen(DRBG* drbg, byte* out, word32 outSz, const byte* V)
             ret = wc_Sha256Update(&sha, data, sizeof(data));
         if (ret == 0)
             ret = wc_Sha256Final(&sha, digest);
-        if (ret == 0)
-            wc_Sha256Free(&sha);
+        wc_Sha256Free(&sha);
 
         if (ret == 0) {
             XMEMCPY(&checkBlock, digest, sizeof(word32));
@@ -363,14 +361,14 @@ static int Hash_gen(DRBG* drbg, byte* out, word32 outSz, const byte* V)
                 drbg->lastBlock = checkBlock;
             }
 
-            if (out != NULL) {
+            if (out != NULL && outSz != 0) {
                 if (outSz >= OUTPUT_BLOCK_LEN) {
                     XMEMCPY(out, digest, OUTPUT_BLOCK_LEN);
                     outSz -= OUTPUT_BLOCK_LEN;
                     out += OUTPUT_BLOCK_LEN;
                     array_add_one(data, DRBG_SEED_LEN);
                 }
-                else if (out != NULL && outSz != 0) {
+                else if (out != NULL) {
                     XMEMCPY(out, digest, outSz);
                     outSz = 0;
                 }
@@ -430,8 +428,8 @@ static int Hash_DRBG_Generate(DRBG* drbg, byte* out, word32 outSz)
                 ret = wc_Sha256Update(&sha, drbg->V, sizeof(drbg->V));
             if (ret == 0)
                 ret = wc_Sha256Final(&sha, digest);
-            if (ret == 0)
-                wc_Sha256Free(&sha);
+
+            wc_Sha256Free(&sha);
 
             if (ret == 0) {
                 array_add(drbg->V, sizeof(drbg->V), digest, SHA256_DIGEST_SIZE);
