@@ -262,7 +262,7 @@ enum {
 };
 
 /* An ECC Key */
-typedef struct ecc_key {
+struct ecc_key {
     int type;           /* Public or Private */
     int idx;            /* Index into the ecc_sets[] for the parameters of
                            this curve if -1, this key is using user supplied
@@ -287,7 +287,12 @@ typedef struct ecc_key {
         CertSignCtx certSignCtx; /* context info for cert sign (MakeSignature) */
     #endif
 #endif /* WOLFSSL_ASYNC_CRYPT */
-} ecc_key;
+};
+
+#ifndef WC_ECCKEY_TYPE_DEFINED
+    typedef struct ecc_key ecc_key;
+    #define WC_ECCKEY_TYPE_DEFINED
+#endif
 
 
 /* ECC predefined curve sets  */

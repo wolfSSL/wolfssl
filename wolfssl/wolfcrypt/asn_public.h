@@ -25,24 +25,21 @@
 #define WOLF_CRYPT_ASN_PUBLIC_H
 
 #include <wolfssl/wolfcrypt/types.h>
-#ifdef HAVE_ECC
-    #include <wolfssl/wolfcrypt/ecc.h>
-#endif
-#if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
-    #include <wolfssl/wolfcrypt/rsa.h>
-#endif
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 
-#ifndef HAVE_ECC
+/* guard on redeclaration */
+#ifndef WC_ECCKEY_TYPE_DEFINED
     typedef struct ecc_key ecc_key;
+    #define WC_ECCKEY_TYPE_DEFINED
 #endif
-#ifdef NO_RSA
+#ifndef WC_RSAKEY_TYPE_DEFINED
     typedef struct RsaKey RsaKey;
+    #define WC_RSAKEY_TYPE_DEFINED
 #endif
-#ifndef WC_RNG_TYPE_DEFINED /* guard on redeclaration */
+#ifndef WC_RNG_TYPE_DEFINED
     typedef struct WC_RNG WC_RNG;
     #define WC_RNG_TYPE_DEFINED
 #endif
