@@ -1173,8 +1173,13 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
         return -1;
     }
 
-    ret = (int)XFREAD(loadBuf, fileSz, 1, file);
+    ret = (int)XFREAD(loadBuf, 1, fileSz, file);
     XFCLOSE(file);
+
+    if (ret != fileSz) {
+        free(loadBuf);
+        return -1;
+    }
 
     if (typeKey == SSL_FILETYPE_PEM) {
         byte* saveBuf   = (byte*)malloc(fileSz);

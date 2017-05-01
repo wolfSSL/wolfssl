@@ -537,7 +537,6 @@ WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_cert_to_id(
     if (cm == NULL)
         return NULL;
 
-
     ret = AllocDer(&derCert, issuer->derCert->length,
         issuer->derCert->type, NULL);
     if (ret == 0) {
@@ -556,8 +555,13 @@ WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_cert_to_id(
             XFREE(certId, NULL, DYNAMIC_TYPE_OPENSSL);
             certId = NULL;
         }
-        else
-            InitOcspRequest(certId, &cert, 0, NULL);
+        else {
+            ret = InitOcspRequest(certId, &cert, 0, NULL);
+            if (ret != 0) {
+                XFREE(certId, NULL, DYNAMIC_TYPE_OPENSSL);
+                certId = NULL;
+            }
+        }
         FreeDecodedCert(&cert);
     }
 

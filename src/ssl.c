@@ -4550,9 +4550,10 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 #ifdef HAVE_ECC
                     /* could have DER ECC (or pkcs8 ecc), no easy way to tell */
                     eccKey = 1;  /* so try it out */
+                #else
+                    WOLFSSL_MSG("RSA decode failed and ECC not enabled to try");
+                    ret = SSL_BAD_FILE;
                 #endif
-                    if (!eccKey)
-                        ret = SSL_BAD_FILE;
                 } else {
                     /* check that the size of the RSA key is enough */
                     int RsaSz = wc_RsaEncryptSize((RsaKey*)key);
@@ -5395,12 +5396,12 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
         }
         dynamic = 1;
     }
-    else if (sz < 0) {
+    else if (sz <= 0) {
         XFCLOSE(file);
         return SSL_BAD_FILE;
     }
 
-    if ( (ret = (int)XFREAD(myBuffer, sz, 1, file)) < 0)
+    if ( (ret = (int)XFREAD(myBuffer, 1, sz, file)) != sz)
         ret = SSL_BAD_FILE;
     else {
         if ((type == CA_TYPE || type == TRUSTED_PEER_TYPE)
@@ -5514,7 +5515,7 @@ int wolfSSL_CertManagerVerify(WOLFSSL_CERT_MANAGER* cm, const char* fname,
     sz = XFTELL(file);
     XREWIND(file);
 
-    if (sz > MAX_WOLFSSL_FILE_SIZE || sz < 0) {
+    if (sz > MAX_WOLFSSL_FILE_SIZE || sz <= 0) {
         WOLFSSL_MSG("CertManagerVerify file bad size");
         XFCLOSE(file);
         return SSL_BAD_FILE;
@@ -5530,7 +5531,7 @@ int wolfSSL_CertManagerVerify(WOLFSSL_CERT_MANAGER* cm, const char* fname,
         dynamic = 1;
     }
 
-    if ( (ret = (int)XFREAD(myBuffer, sz, 1, file)) < 0)
+    if ( (ret = (int)XFREAD(myBuffer, 1, sz, file)) != sz)
         ret = SSL_BAD_FILE;
     else
         ret = wolfSSL_CertManagerVerifyBuffer(cm, myBuffer, sz, format);
@@ -5829,7 +5830,7 @@ int wolfSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
         sz = XFTELL(file);
         XREWIND(file);
 
-        if (sz < 0) {
+        if (sz <= 0) {
             ret = SSL_BAD_FILE;
         }
         else if (sz > (long)sizeof(staticBuffer)) {
@@ -5845,7 +5846,7 @@ int wolfSSL_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
         }
 
         if (ret == 0) {
-            if ( (ret = (int)XFREAD(fileBuf, sz, 1, file)) < 0) {
+            if ( (ret = (int)XFREAD(fileBuf, 1, sz, file)) != sz) {
                 ret = SSL_BAD_FILE;
             }
             else {
@@ -5915,7 +5916,7 @@ int wolfSSL_PemPubKeyToDer(const char* fileName,
         sz = XFTELL(file);
         XREWIND(file);
 
-        if (sz < 0) {
+        if (sz <= 0) {
             ret = SSL_BAD_FILE;
         }
         else if (sz > (long)sizeof(staticBuffer)) {
@@ -5930,7 +5931,7 @@ int wolfSSL_PemPubKeyToDer(const char* fileName,
                 dynamic = 1;
         }
         if (ret == 0) {
-            if ( (ret = (int)XFREAD(fileBuf, sz, 1, file)) < 0)
+            if ( (ret = (int)XFREAD(fileBuf, 1, sz, file)) != sz)
                 ret = SSL_BAD_FILE;
             else
                 ret = PemToDer(fileBuf, sz, PUBLICKEY_TYPE, &converted,
@@ -6082,12 +6083,12 @@ static int wolfSSL_SetTmpDH_file_wrapper(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
         }
         dynamic = 1;
     }
-    else if (sz < 0) {
+    else if (sz <= 0) {
         XFCLOSE(file);
         return SSL_BAD_FILE;
     }
 
-    if ( (ret = (int)XFREAD(myBuffer, sz, 1, file)) < 0)
+    if ( (ret = (int)XFREAD(myBuffer, 1, sz, file)) != sz)
         ret = SSL_BAD_FILE;
     else {
         if (ssl)
@@ -7873,6 +7874,8 @@ int wolfSSL_dtls_got_timeout(WOLFSSL* ssl)
 int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                                  const byte* secret, word32 secretSz)
 {
+    int ret = 0;
+
     WOLFSSL_ENTER("wolfSSL_DTLS_SetCookieSecret");
 
     if (ssl == NULL) {
@@ -7911,14 +7914,15 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
     }
 
     /* If the supplied secret is NULL, randomly generate a new secret. */
-    if (secret == NULL)
-        wc_RNG_GenerateBlock(ssl->rng,
+    if (secret == NULL) {
+        ret = wc_RNG_GenerateBlock(ssl->rng,
                              ssl->buffers.dtlsCookieSecret.buffer, secretSz);
+    }
     else
         XMEMCPY(ssl->buffers.dtlsCookieSecret.buffer, secret, secretSz);
 
     WOLFSSL_LEAVE("wolfSSL_DTLS_SetCookieSecret", 0);
-    return 0;
+    return ret;
 }
 
 #endif /* WOLFSSL_DTLS && !NO_WOLFSSL_SERVER */
@@ -12098,14 +12102,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 else
                     wc_Des_CbcDecrypt(&ctx->cipher.des, dst, src, len);
                 break;
-#ifdef WOLFSSL_DES_ECB
-            case DES_ECB_TYPE :
-                if (ctx->enc)
-                    ret = wc_Des_EcbEncrypt(&ctx->cipher.des, dst, src, len);
-            else
-                    ret = wc_Des_EcbDecrypt(&ctx->cipher.des, dst, src, len);
-            break;
-#endif
             case DES_EDE3_CBC_TYPE :
                 if (ctx->enc)
                     ret = wc_Des3_CbcEncrypt(&ctx->cipher.des3, dst, src, len);
@@ -12113,14 +12109,14 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                     ret = wc_Des3_CbcDecrypt(&ctx->cipher.des3, dst, src, len);
                 break;
 #ifdef WOLFSSL_DES_ECB
-                case DES_EDE3_ECB_TYPE :
-                if (ctx->enc)
-                    ret = wc_Des3_EcbEncrypt(&ctx->cipher.des3, dst, src, len);
-                else
-                    ret = wc_Des3_EcbDecrypt(&ctx->cipher.des3, dst, src, len);
+            case DES_ECB_TYPE :
+                ret = wc_Des_EcbEncrypt(&ctx->cipher.des, dst, src, len);
+                break;
+            case DES_EDE3_ECB_TYPE :
+                ret = wc_Des3_EcbEncrypt(&ctx->cipher.des3, dst, src, len);
                 break;
 #endif
-#endif
+#endif /* !NO_DES3 */
 
 #ifndef NO_RC4
             case ARC4_TYPE :
@@ -12148,7 +12144,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
         if (ret != 0) {
             WOLFSSL_MSG("wolfSSL_EVP_Cipher failure");
-            return 0;  /* failuer */
+            return 0;  /* failure */
         }
 
         WOLFSSL_MSG("wolfSSL_EVP_Cipher success");
@@ -13613,8 +13609,8 @@ WOLFSSL_X509* wolfSSL_X509_d2i_fp(WOLFSSL_X509** x509, XFILE file)
 
         fileBuffer = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE);
         if (fileBuffer != NULL) {
-            int ret = (int)XFREAD(fileBuffer, sz, 1, file);
-            if (ret > 0) {
+            int ret = (int)XFREAD(fileBuffer, 1, sz, file);
+            if (ret == sz) {
                 newX509 = wolfSSL_X509_d2i(NULL, fileBuffer, (int)sz);
             }
             XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
@@ -13670,8 +13666,8 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
         return NULL;
     }
 
-    ret = (int)XFREAD(fileBuffer, sz, 1, file);
-    if (ret < 0) {
+    ret = (int)XFREAD(fileBuffer, 1, sz, file);
+    if (ret != sz) {
         XFCLOSE(file);
         if (dynamic)
             XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
@@ -15908,7 +15904,7 @@ WOLFSSL_API WOLFSSL_CIPHER* wolfSSL_sk_SSL_CIPHER_value(void *ciphers, int idx)
     WOLFSSL_STUB("wolfSSL_sk_SSL_CIPHER_value");
     return NULL;
 }
-    
+
 WOLFSSL_API void ERR_load_SSL_strings(void)
 {
 
@@ -16339,16 +16335,9 @@ void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* desa,
             WOLFSSL_MSG("wc_Des_SetKey return error.");
             return;
         }
-        if (enc){
-            if (wc_Des_EcbEncrypt(&myDes, (byte*) desb,
-                                   (const byte*) desa, sizeof(WOLFSSL_DES_cblock)) != 0){
-                WOLFSSL_MSG("wc_Des_EcbEncrpyt return error.");
-            }
-        } else {
-            if (wc_Des_EcbDecrypt(&myDes, (byte*) desb,
-                                   (const byte*) desa, sizeof(WOLFSSL_DES_cblock)) != 0){
-                WOLFSSL_MSG("wc_Des_EcbDecrpyt return error.");
-            }
+        if (wc_Des_EcbEncrypt(&myDes, (byte*) desb,
+                              (const byte*)desa, sizeof(WOLFSSL_DES_cblock)) != 0){
+            WOLFSSL_MSG("wc_Des_EcbEncrypt return error.");
         }
     }
 }
@@ -16771,7 +16760,7 @@ int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
         byte*          myBuffer  = staticBuffer;
         int            dynamic   = 0;
         XFILE          file      = XBADFILE;
-        long           sz        = 0;
+        size_t         sz        = 0;
         int            eccKey    = 0;
         WOLFSSL_CTX*   ctx       = ssl->ctx;
         WOLFSSL_X509*  peer_cert = &ssl->peerCert;
@@ -16805,7 +16794,7 @@ int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
 
             if ((myBuffer != NULL) &&
                 (sz > 0) &&
-                (XFREAD(myBuffer, sz, 1, file) > 0) &&
+                (XFREAD(myBuffer, 1, sz, file) == sz) &&
                 (PemToDer(myBuffer, sz, CERT_TYPE,
                           &fileDer, ctx->heap, info, &eccKey) == 0) &&
                 (fileDer->length != 0) &&
@@ -17062,8 +17051,13 @@ const WOLFSSL_BIGNUM* wolfSSL_BN_value_one(void)
 
     if (bn_one == NULL) {
         bn_one = wolfSSL_BN_new();
-        if (bn_one)
-            mp_set_int((mp_int*)bn_one->internal, 1);
+        if (bn_one) {
+            if (mp_set_int((mp_int*)bn_one->internal, 1) != MP_OKAY) {
+                /* handle error by freeing BN and returning NULL */
+                wolfSSL_BN_free(bn_one);
+                bn_one = NULL;
+            }
+        }
     }
 
     return bn_one;
@@ -22160,22 +22154,22 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
     int wolfSSL_BIO_read_filename(WOLFSSL_BIO *b, const char *name) {
     #ifndef NO_FILESYSTEM
         XFILE fp;
-    
+
         WOLFSSL_ENTER("wolfSSL_BIO_new_file");
 
         if ((wolfSSL_BIO_get_fp(b, &fp) == SSL_SUCCESS) && (fp != NULL))
         {
             XFCLOSE(fp);
         }
-    
+
         fp = XFOPEN(name, "r");
         if (fp == NULL)
             return SSL_BAD_FILE;
-    
+
         if (wolfSSL_BIO_set_fp(b, fp, BIO_CLOSE) != SSL_SUCCESS) {
             return SSL_BAD_FILE;
         }
-    
+
         return SSL_SUCCESS;
     #else
         (void)name;

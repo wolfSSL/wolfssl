@@ -349,8 +349,9 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
     /* Set k = H(N, g) */
             r = SrpHashInit(&hash, srp->type);
     if (!r) r = SrpHashUpdate(&hash, (byte*) N, nSz);
-    for (i = 0; (word32)i < nSz - gSz; i++)
-        SrpHashUpdate(&hash, &pad, 1);
+    for (i = 0; (word32)i < nSz - gSz; i++) {
+        if (!r) r = SrpHashUpdate(&hash, &pad, 1);
+    }
     if (!r) r = SrpHashUpdate(&hash, (byte*) g, gSz);
     if (!r) r = SrpHashFinal(&hash, srp->k);
 

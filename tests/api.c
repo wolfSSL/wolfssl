@@ -347,8 +347,9 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
     AssertFalse(wolfSSL_CTX_load_verify_locations(NULL, caCertFile, 0));
 
     /* invalid ca file */
-    AssertFalse(wolfSSL_CTX_load_verify_locations(ctx, NULL,      0));
-    AssertFalse(wolfSSL_CTX_load_verify_locations(ctx, bogusFile, 0));
+    AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_load_verify_locations(ctx, NULL,      0));
+    AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_load_verify_locations(ctx, bogusFile, 0));
+
 
 #ifndef WOLFSSL_TIRTOS
     /* invalid path */
@@ -3060,7 +3061,7 @@ static void test_wolfSSL_DES_ecb_encrypt(void)
 
     /* Decrypt messages */
     int ret1 = 0;
-    int ret2 = 0; 
+    int ret2 = 0;
     wolfSSL_DES_ecb_encrypt(&output1,&back1,&key,DES_DECRYPT);
     ret1 = memcmp((unsigned char *) back1,(unsigned char *) input1,sizeof(WOLFSSL_DES_cblock));
     AssertIntEQ(ret1,0);
