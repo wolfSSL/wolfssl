@@ -2813,7 +2813,7 @@ static int wc_PKCS7_GenerateIV(WC_RNG* rng, byte* iv, word32 ivSz)
         return BAD_FUNC_ARG;
 
     /* input RNG is optional, init local one if input rng is NULL */
-    if (rnd == NULL) {
+    if (rng == NULL) {
         rnd = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
         if (rnd == NULL)
             return MEMORY_E;
