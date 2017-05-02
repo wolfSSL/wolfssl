@@ -18766,14 +18766,19 @@ void* wolfSSL_X509_STORE_CTX_get_ex_data(WOLFSSL_X509_STORE_CTX* ctx, int idx)
     return 0;
 }
 
-#ifndef NO_WOLFSSL_STUB
+
+/* Gets an index to store SSL structure at.
+ *
+ * Returns positive index on success and negative values on failure
+ */
 int wolfSSL_get_ex_data_X509_STORE_CTX_idx(void)
 {
-    WOLFSSL_ENTER("SSL_get_ex_data_X509_STORE_CTX_idx");
-    WOLFSSL_STUB("SSL_get_ex_data_X509_STORE_CTX_idx");
+    WOLFSSL_ENTER("wolfSSL_get_ex_data_X509_STORE_CTX_idx");
+
+    /* store SSL at index 0 */
     return 0;
 }
-#endif
+
 
 /* Sets a function callback that will send information about the state of all
  * WOLFSSL objects that have been created by the WOLFSSL_CTX structure passed

@@ -14325,6 +14325,47 @@ static void test_wolfSSL_ERR_peek_last_error_line(void)
              !defined(NO_FILESYSTEM) && !defined(DEBUG_WOLFSSL) */
 }
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+       !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+static int verify_cb(int ok, X509_STORE_CTX *ctx)
+{
+    (void) ok;
+    (void) ctx;
+    printf("ENTER verify_cb\n");
+    return SSL_SUCCESS;
+}
+#endif
+
+
+
+static void test_wolfSSL_X509_STORE_CTX(void)
+{
+    #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+       !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+
+    X509_STORE_CTX* ctx;
+    X509_STORE* str;
+    X509* x509;
+
+    printf(testingFmt, "wolfSSL_X509_STORE_CTX()");
+    AssertNotNull(ctx = X509_STORE_CTX_new());
+    AssertNotNull((str = wolfSSL_X509_STORE_new()));
+    AssertNotNull((x509 =
+                wolfSSL_X509_load_certificate_file(svrCertFile, SSL_FILETYPE_PEM)));
+    AssertIntEQ(X509_STORE_add_cert(str, x509), SSL_SUCCESS);
+    AssertIntEQ(X509_STORE_CTX_init(ctx, str, x509, NULL), SSL_SUCCESS);
+    AssertIntEQ(SSL_get_ex_data_X509_STORE_CTX_idx(), 0);
+
+    X509_STORE_CTX_free(ctx);
+
+    AssertNotNull(ctx = X509_STORE_CTX_new());
+    X509_STORE_CTX_set_verify_cb(ctx, (void *)verify_cb);
+    X509_STORE_CTX_free(ctx);
+
+    printf(resultFmt, passed);
+    #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+             !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
+}
 
 static void test_wolfSSL_X509_STORE_set_flags(void)
 {
@@ -14334,7 +14375,7 @@ static void test_wolfSSL_X509_STORE_set_flags(void)
     X509_STORE* store;
     X509* x509;
 
-    printf(testingFmt, "wolfSSL_ERR_peek_last_error_line()");
+    printf(testingFmt, "wolfSSL_X509_STORE_set_flags()");
     AssertNotNull((store = wolfSSL_X509_STORE_new()));
     AssertNotNull((x509 =
                 wolfSSL_X509_load_certificate_file(svrCertFile, WOLFSSL_FILETYPE_PEM)));
@@ -14858,29 +14899,6 @@ static void test_wolfSSL_set_options(void)
     printf(resultFmt, passed);
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
              !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
-}
-
-#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
-static int verify_cb(int ok, X509_STORE_CTX *ctx)
-{
-    (void) ok;
-    (void) ctx;
-    printf("ENTER verify_cb\n");
-    return SSL_SUCCESS;
-}
-#endif
-
-static void test_wolfSSL_X509_STORE_CTX(void)
-{
-#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
-    X509_STORE_CTX *ctx   = NULL ;
-
-    printf(testingFmt, "test_wolfSSL_X509_STORE_CTX(()");
-    AssertNotNull(ctx = X509_STORE_CTX_new());
-    X509_STORE_CTX_set_verify_cb(ctx, (void *)verify_cb);
-    X509_STORE_CTX_free(ctx);
-    printf(resultFmt, passed);
-    #endif
 }
 
 /* Testing  wolfSSL_set_tlsext_status_type funciton.
@@ -16790,8 +16808,6 @@ void ApiTest(void)
     test_wolfSSL_X509_NID();
     test_wolfSSL_X509_STORE_CTX_set_time();
     test_wolfSSL_BN();
-    test_wolfSSL_set_options();
-    test_wolfSSL_X509_STORE_CTX();
     test_wolfSSL_PEM_read_bio();
     test_wolfSSL_BIO();
     test_wolfSSL_ASN1_STRING();
