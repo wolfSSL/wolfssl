@@ -22168,9 +22168,11 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
             return SSL_BAD_FILE;
 
         if (wolfSSL_BIO_set_fp(b, fp, BIO_CLOSE) != SSL_SUCCESS) {
+            XFCLOSE(fp);
             return SSL_BAD_FILE;
         }
 
+        /* file is closed when bio is free'd */
         return SSL_SUCCESS;
     #else
         (void)name;
@@ -22600,6 +22602,7 @@ WOLFSSL_BIO *wolfSSL_BIO_new_file(const char *filename, const char *mode)
         bio = NULL;
     }
 
+    /* file is closed when BIO is free'd */
     return bio;
 #else
     (void)filename;
