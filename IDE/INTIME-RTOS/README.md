@@ -2,7 +2,7 @@
 
 ## Overview
 
-This port is for the tenAsys INtime RTOS available [here](http://www.tenasys.com/tenasys-products/intime-rtos-family/overview-rtos).
+This port is for the tenAsys INtime RTOS available [here](http://www.tenasys.com/intime).
 
 To enable use the define `INTIME_RTOS`.
 
