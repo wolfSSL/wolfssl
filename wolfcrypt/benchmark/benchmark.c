@@ -621,7 +621,12 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count, dou
 #endif
 }
 
-static void bench_stats_asym_finish(const char* algo, int strength,
+/* declare here rather than creating a static function to avoid warning of not
+ * used in the case of something like a leanpsk only build */
+void bench_stats_asym_finish(const char* algo, int strength,
+    const char* desc, int doAsync, int count, double start);
+
+void bench_stats_asym_finish(const char* algo, int strength,
     const char* desc, int doAsync, int count, double start)
 {
     double total, each = 0, opsSec, milliEach;
