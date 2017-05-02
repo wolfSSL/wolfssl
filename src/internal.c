@@ -5330,8 +5330,10 @@ static INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
 #if WOLFSSL_GENERAL_ALIGNMENT > 0
     byte  hdrSz = ssl->options.dtls ? DTLS_RECORD_HEADER_SZ :
                                       RECORD_HEADER_SZ;
-#endif
+    byte align = WOLFSSL_GENERAL_ALIGNMENT;
+#else
     const byte align = WOLFSSL_GENERAL_ALIGNMENT;
+#endif
 
 #if WOLFSSL_GENERAL_ALIGNMENT > 0
     /* the encrypted data will be offset from the front of the buffer by
@@ -5384,7 +5386,7 @@ static INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
 int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength)
 {
     byte* tmp;
-#ifdef WOLFSSL_DTLS
+#if defined(WOLFSSL_DTLS) || WOLFSSL_GENERAL_ALIGNMENT > 0
     byte  align = ssl->options.dtls ? WOLFSSL_GENERAL_ALIGNMENT : 0;
     byte  hdrSz = DTLS_RECORD_HEADER_SZ;
 #else
