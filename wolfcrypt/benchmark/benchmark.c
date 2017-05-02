@@ -52,6 +52,11 @@
     #else
         #include <nio.h>
     #endif
+#elif defined(FREESCALE_KSDK_BM)
+    #include "fsl_debug_console.h"
+    #include "fsl_os_abstraction.h"
+    #undef printf
+    #define printf PRINTF
 #else
     #include <stdio.h>
 #endif
@@ -3292,6 +3297,13 @@ exit_ed_verify:
         _time_get(&tv);
 
         return (double)tv.SECONDS + (double)tv.MILLISECONDS / 1000;
+    }
+
+#elif defined(FREESCALE_KSDK_BM)
+
+    double current_time(int reset)
+    {
+        return (double)OSA_TimeGetMsec() / 1000;
     }
 
 #elif defined(WOLFSSL_EMBOS)

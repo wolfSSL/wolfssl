@@ -163,6 +163,10 @@
     #else
         #include <nio.h>
     #endif
+#elif defined(FREESCALE_KSDK_BM)
+    #include "fsl_debug_console.h"
+    #undef printf
+    #define printf PRINTF
 #else
     #include <stdio.h>
 #endif

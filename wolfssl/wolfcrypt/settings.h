@@ -367,7 +367,7 @@
     #define USE_CERT_BUFFERS_2048
 
     /* uTasker port uses RAW sockets, use I/O callbacks
-	 * See wolfSSL uTasker example for sample callbacks */
+     * See wolfSSL uTasker example for sample callbacks */
     #define WOLFSSL_USER_IO
 
     /* uTasker filesystem not ported  */
@@ -421,26 +421,26 @@
 #endif
 
 #ifdef WOLFSSL_NRF5x
-		#define SIZEOF_LONG 4
-		#define SIZEOF_LONG_LONG 8
-		#define NO_ASN_TIME
-		#define NO_DEV_RANDOM
-		#define NO_FILESYSTEM
-		#define NO_MAIN_DRIVER
-		#define NO_WRITEV
-		#define SINGLE_THREADED
-		#define USE_FAST_MATH
-		#define TFM_TIMING_RESISTANT
-		#define USE_WOLFSSL_MEMORY
-		#define WOLFSSL_NRF51
-		#define WOLFSSL_USER_IO
-		#define NO_SESSION_CACHE
+        #define SIZEOF_LONG 4
+        #define SIZEOF_LONG_LONG 8
+        #define NO_ASN_TIME
+        #define NO_DEV_RANDOM
+        #define NO_FILESYSTEM
+        #define NO_MAIN_DRIVER
+        #define NO_WRITEV
+        #define SINGLE_THREADED
+        #define USE_FAST_MATH
+        #define TFM_TIMING_RESISTANT
+        #define USE_WOLFSSL_MEMORY
+        #define WOLFSSL_NRF51
+        #define WOLFSSL_USER_IO
+        #define NO_SESSION_CACHE
 #endif
 
 /* Micrium will use Visual Studio for compilation but not the Win32 API */
 #if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && \
-	!defined(FREERTOS_TCP) && !defined(EBSNET) && !defined(WOLFSSL_EROAD) && \
-	!defined(WOLFSSL_UTASKER) && !defined(INTIME_RTOS)
+    !defined(FREERTOS_TCP) && !defined(EBSNET) && !defined(WOLFSSL_EROAD) && \
+    !defined(WOLFSSL_UTASKER) && !defined(INTIME_RTOS)
     #define USE_WINDOWS_API
 #endif
 
@@ -759,7 +759,9 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_USER_IO
     #define SINGLE_THREADED
     #define NO_FILESYSTEM
-    #define USER_TICKS
+    #ifndef TIME_OVERRIDES
+        #define USER_TICKS
+    #endif
 #endif /* FREESCALE_KSDK_BM */
 
 #ifdef FREESCALE_COMMON
@@ -800,14 +802,24 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_AES_DIRECT
     #endif
 
-    #include "fsl_common.h"
+    #ifdef FREESCALE_KSDK_1_3
+        #include "fsl_device_registers.h"
+    #else
+        #include "fsl_common.h"
+    #endif
 
     /* random seed */
     #define NO_OLD_RNGNAME
     #if defined(FSL_FEATURE_SOC_TRNG_COUNT) && (FSL_FEATURE_SOC_TRNG_COUNT > 0)
         #define FREESCALE_KSDK_2_0_TRNG
     #elif defined(FSL_FEATURE_SOC_RNG_COUNT) && (FSL_FEATURE_SOC_RNG_COUNT > 0)
-        #define FREESCALE_KSDK_2_0_RNGA
+        #ifdef FREESCALE_KSDK_1_3
+            #include "fsl_rnga_driver.h"
+            #define FREESCALE_RNGA
+            #define RNGA_INSTANCE (0)
+        #else
+            #define FREESCALE_KSDK_2_0_RNGA
+        #endif
     #elif !defined(FREESCALE_KSDK_BM) && !defined(FREESCALE_FREE_RTOS) && !defined(FREESCALE_KSDK_FREERTOS)
         #define FREESCALE_RNGA
         #define RNGA_INSTANCE (0)
@@ -948,9 +960,9 @@ extern void uITRON4_free(void *p) ;
     #define NO_OLD_RNGNAME
     #ifdef WOLFSSL_STM32_CUBEMX
         #include "stm32f2xx_hal.h"
-		#ifndef STM32_HAL_TIMEOUT
-        	#define STM32_HAL_TIMEOUT   0xFF
-		#endif
+        #ifndef STM32_HAL_TIMEOUT
+            #define STM32_HAL_TIMEOUT   0xFF
+        #endif
     #else
         #include "stm32f2xx.h"
         #include "stm32f2xx_cryp.h"
@@ -974,9 +986,9 @@ extern void uITRON4_free(void *p) ;
     #endif
     #ifdef WOLFSSL_STM32_CUBEMX
         #include "stm32f4xx_hal.h"
-		#ifndef STM32_HAL_TIMEOUT
-        	#define STM32_HAL_TIMEOUT   0xFF
-		#endif
+        #ifndef STM32_HAL_TIMEOUT
+            #define STM32_HAL_TIMEOUT   0xFF
+        #endif
     #else
         #include "stm32f4xx.h"
         #include "stm32f4xx_cryp.h"
