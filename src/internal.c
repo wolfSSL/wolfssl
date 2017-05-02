@@ -10603,13 +10603,7 @@ int ProcessReply(WOLFSSL* ssl)
             /* more messages per record */
             else if ((ssl->buffers.inputBuffer.idx - startIdx) < ssl->curSize) {
                 WOLFSSL_MSG("More messages in record");
-                #ifdef WOLFSSL_DTLS
-                    /* read-ahead but dtls doesn't bundle messages per record */
-                    if (ssl->options.dtls) {
-                        ssl->options.processReply = doProcessInit;
-                        continue;
-                    }
-                #endif
+
                 ssl->options.processReply = runProcessingOneMessage;
 
                 if (IsEncryptionOn(ssl, 0)) {
