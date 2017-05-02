@@ -1055,6 +1055,7 @@ enum Misc {
     DTLS_TIMEOUT_MULTIPLIER =  2, /* default timeout multiplier for DTLS recv */
 
     MAX_PSK_ID_LEN     = 128,  /* max psk identity/hint supported */
+    NULL_TERM_LEN      =   1,  /* length of null '\0' termination character */
     MAX_PSK_KEY_LEN    =  64,  /* max psk key supported */
 
     MAX_WOLFSSL_FILE_SIZE = 1024 * 1024 * 4,  /* 4 mb file size alloc limit */
@@ -2015,7 +2016,7 @@ struct WOLFSSL_CTX {
     byte        havePSK;                /* psk key set by user */
     wc_psk_client_callback client_psk_cb;  /* client callback */
     wc_psk_server_callback server_psk_cb;  /* server callback */
-    char        server_hint[MAX_PSK_ID_LEN];
+    char        server_hint[MAX_PSK_ID_LEN + NULL_TERM_LEN];
 #endif /* NO_PSK */
 #ifdef HAVE_ANON
     byte        haveAnon;               /* User wants to allow Anon suites */
@@ -2523,8 +2524,8 @@ typedef struct Arrays {
     word32          pendingMsgOffset;   /* current offset into defrag buffer */
 #ifndef NO_PSK
     word32          psk_keySz;          /* actual size */
-    char            client_identity[MAX_PSK_ID_LEN];
-    char            server_hint[MAX_PSK_ID_LEN];
+    char            client_identity[MAX_PSK_ID_LEN + NULL_TERM_LEN];
+    char            server_hint[MAX_PSK_ID_LEN + NULL_TERM_LEN];
     byte            psk_key[MAX_PSK_KEY_LEN];
 #endif
     byte            clientRandom[RAN_LEN];

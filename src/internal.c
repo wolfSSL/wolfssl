@@ -3307,8 +3307,9 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 
 #ifndef NO_PSK
         if (ctx->server_hint[0]) {   /* set in CTX */
-            XSTRNCPY(ssl->arrays->server_hint, ctx->server_hint,MAX_PSK_ID_LEN);
-            ssl->arrays->server_hint[MAX_PSK_ID_LEN - 1] = '\0';
+            XSTRNCPY(ssl->arrays->server_hint, ctx->server_hint,
+                                    sizeof(ssl->arrays->server_hint));
+            ssl->arrays->server_hint[MAX_PSK_ID_LEN] = '\0'; /* null term */
         }
 #endif /* NO_PSK */
 
@@ -15312,10 +15313,10 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     }
 
                     /* get PSK server hint from the wire */
-                    srvHintLen = min(length, MAX_PSK_ID_LEN - 1);
+                    srvHintLen = min(length, MAX_PSK_ID_LEN);
                     XMEMCPY(ssl->arrays->server_hint, input + args->idx,
                                                                     srvHintLen);
-                    ssl->arrays->server_hint[srvHintLen] = 0;
+                    ssl->arrays->server_hint[srvHintLen] = '\0'; /* null term */
                     args->idx += length;
                     break;
                 }
@@ -15490,10 +15491,10 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     }
 
                     /* get PSK server hint from the wire */
-                    srvHintLen = min(length, MAX_PSK_ID_LEN - 1);
+                    srvHintLen = min(length, MAX_PSK_ID_LEN);
                     XMEMCPY(ssl->arrays->server_hint, input + args->idx,
                                                                 srvHintLen);
-                    ssl->arrays->server_hint[srvHintLen] = 0;
+                    ssl->arrays->server_hint[srvHintLen] = '\0'; /* null term */
                     args->idx += length;
 
                     /* p */
@@ -15601,9 +15602,10 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     }
 
                     /* get PSK server hint from the wire */
-                    srvHintLen = min(length, MAX_PSK_ID_LEN - 1);
-                    XMEMCPY(ssl->arrays->server_hint, input + args->idx, srvHintLen);
-                    ssl->arrays->server_hint[srvHintLen] = 0;
+                    srvHintLen = min(length, MAX_PSK_ID_LEN);
+                    XMEMCPY(ssl->arrays->server_hint, input + args->idx,
+                                                                    srvHintLen);
+                    ssl->arrays->server_hint[srvHintLen] = '\0'; /* null term */
 
                     args->idx += length;
 
@@ -16768,6 +16770,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
                         ERROR_OUT(PSK_KEY_ERROR, exit_scke);
                     }
+                    ssl->arrays->client_identity[MAX_PSK_ID_LEN] = '\0'; /* null term */
                     args->encSz = (word32)XSTRLEN(ssl->arrays->client_identity);
                     if (args->encSz > MAX_PSK_ID_LEN) {
                         ERROR_OUT(CLIENT_ID_ERROR, exit_scke);
@@ -16804,6 +16807,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                                      ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
                         ERROR_OUT(PSK_KEY_ERROR, exit_scke);
                     }
+                    ssl->arrays->client_identity[MAX_PSK_ID_LEN] = '\0'; /* null term */
                     esSz = (word32)XSTRLEN(ssl->arrays->client_identity);
 
                     if (esSz > MAX_PSK_ID_LEN) {
@@ -16861,7 +16865,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                                      ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
                         ERROR_OUT(PSK_KEY_ERROR, exit_scke);
                     }
-
+                    ssl->arrays->client_identity[MAX_PSK_ID_LEN] = '\0'; /* null term */
                     esSz = (word32)XSTRLEN(ssl->arrays->client_identity);
                     if (esSz > MAX_PSK_ID_LEN) {
                         ERROR_OUT(CLIENT_ID_ERROR, exit_scke);
@@ -21364,8 +21368,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                                     input + args->idx, ci_sz);
                         args->idx += ci_sz;
 
-                        ssl->arrays->client_identity[
-                                        min(ci_sz, MAX_PSK_ID_LEN-1)] = 0;
+                        ssl->arrays->client_identity[ci_sz] = '\0'; /* null term */
                         ssl->arrays->psk_keySz = ssl->options.server_psk_cb(ssl,
                             ssl->arrays->client_identity, ssl->arrays->psk_key,
                             MAX_PSK_KEY_LEN);
@@ -21571,8 +21574,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         XMEMCPY(ssl->arrays->client_identity, input + args->idx,
                                                                     clientSz);
                         args->idx += clientSz;
-                        ssl->arrays->client_identity[
-                            min(clientSz, MAX_PSK_ID_LEN-1)] = 0;
+                        ssl->arrays->client_identity[clientSz] = '\0'; /* null term */
 
                         /* Read in the DHE business */
                         if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
@@ -21625,8 +21627,7 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         XMEMCPY(ssl->arrays->client_identity,
                                                    input + args->idx, clientSz);
                         args->idx += clientSz;
-                        ssl->arrays->client_identity[
-                            min(clientSz, MAX_PSK_ID_LEN-1)] = 0;
+                        ssl->arrays->client_identity[clientSz] = '\0'; /* null term */
 
                         /* import peer ECC key */
                         if ((args->idx - args->begin) + OPAQUE8_LEN > size) {

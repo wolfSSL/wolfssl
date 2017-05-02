@@ -1008,6 +1008,9 @@ static INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
 
 #ifndef NO_PSK
 
+/* identity is OpenSSL testing default for openssl s_client, keep same */
+static const char* kIdentityStr = "Client_identity";
+
 static INLINE unsigned int my_psk_client_cb(WOLFSSL* ssl, const char* hint,
         char* identity, unsigned int id_max_len, unsigned char* key,
         unsigned int key_max_len)
@@ -1016,9 +1019,8 @@ static INLINE unsigned int my_psk_client_cb(WOLFSSL* ssl, const char* hint,
     (void)hint;
     (void)key_max_len;
 
-    /* identity is OpenSSL testing default for openssl s_client, keep same */
-    strncpy(identity, "Client_identity", id_max_len);
-
+    /* see internal.h MAX_PSK_ID_LEN for PSK identity limit */
+    strncpy(identity, kIdentityStr, id_max_len);
 
     /* test key in hex is 0x1a2b3c4d , in decimal 439,041,101 , we're using
        unsigned binary */
@@ -1037,8 +1039,8 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
     (void)ssl;
     (void)key_max_len;
 
-    /* identity is OpenSSL testing default for openssl s_client, keep same */
-    if (strncmp(identity, "Client_identity", 15) != 0)
+    /* see internal.h MAX_PSK_ID_LEN for PSK identity limit */
+    if (strncmp(identity, kIdentityStr, strlen(kIdentityStr)) != 0)
         return 0;
 
     /* test key in hex is 0x1a2b3c4d , in decimal 439,041,101 , we're using
