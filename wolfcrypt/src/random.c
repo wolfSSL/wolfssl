@@ -368,7 +368,7 @@ static int Hash_gen(DRBG* drbg, byte* out, word32 outSz, const byte* V)
                     out += OUTPUT_BLOCK_LEN;
                     array_add_one(data, DRBG_SEED_LEN);
                 }
-                else if (out != NULL) {
+                else {
                     XMEMCPY(out, digest, outSz);
                     outSz = 0;
                 }

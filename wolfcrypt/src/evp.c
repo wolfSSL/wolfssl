@@ -172,15 +172,17 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out,
                                    const unsigned char *in, int inl)
 {
+    int ret = 0;
+
     switch (ctx->cipherType) {
     #if !defined(NO_AES) && defined(HAVE_AES_CBC)
         case AES_128_CBC_TYPE:
         case AES_192_CBC_TYPE:
         case AES_256_CBC_TYPE:
             if (ctx->enc)
-                wc_AesCbcEncrypt(&ctx->cipher.aes, out, in, inl);
+                ret = wc_AesCbcEncrypt(&ctx->cipher.aes, out, in, inl);
             else
-                wc_AesCbcDecrypt(&ctx->cipher.aes, out, in, inl);
+                ret = wc_AesCbcDecrypt(&ctx->cipher.aes, out, in, inl);
             break;
     #endif
     #if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER)
@@ -198,43 +200,45 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
         case AES_192_ECB_TYPE:
         case AES_256_ECB_TYPE:
             if (ctx->enc)
-                wc_AesEcbEncrypt(&ctx->cipher.aes, out, in, inl);
+                ret = wc_AesEcbEncrypt(&ctx->cipher.aes, out, in, inl);
             else
-                wc_AesEcbDecrypt(&ctx->cipher.aes, out, in, inl);
+                ret = wc_AesEcbDecrypt(&ctx->cipher.aes, out, in, inl);
             break;
     #endif
     #ifndef NO_DES3
         case DES_CBC_TYPE:
             if (ctx->enc)
-                wc_Des_CbcEncrypt(&ctx->cipher.des, out, in, inl);
+                ret = wc_Des_CbcEncrypt(&ctx->cipher.des, out, in, inl);
             else
-                wc_Des_CbcDecrypt(&ctx->cipher.des, out, in, inl);
+                ret = wc_Des_CbcDecrypt(&ctx->cipher.des, out, in, inl);
             break;
         case DES_EDE3_CBC_TYPE:
             if (ctx->enc)
-                wc_Des3_CbcEncrypt(&ctx->cipher.des3, out, in, inl);
+                ret = wc_Des3_CbcEncrypt(&ctx->cipher.des3, out, in, inl);
             else
-                wc_Des3_CbcDecrypt(&ctx->cipher.des3, out, in, inl);
+                ret = wc_Des3_CbcDecrypt(&ctx->cipher.des3, out, in, inl);
             break;
         #if defined(WOLFSSL_DES_ECB)
         case DES_ECB_TYPE:
-            wc_Des_EcbEncrypt(&ctx->cipher.des, out, in, inl);
+            ret = wc_Des_EcbEncrypt(&ctx->cipher.des, out, in, inl);
             break;
         case DES_EDE3_ECB_TYPE:
-            if (ctx->enc)
-                wc_Des3_EcbEncrypt(&ctx->cipher.des3, out, in, inl);
-            else
-                wc_Des3_EcbDecrypt(&ctx->cipher.des3, out, in, inl);
+            ret = wc_Des3_EcbEncrypt(&ctx->cipher.des3, out, in, inl);
             break;
         #endif /* WOLFSSL_DES_ECB */
     #endif /* !NO_DES3 */
         default:
             return 0;
-        }
-        (void)in;
-        (void)inl;
-        (void)out;
-        return 1;
+    }
+
+    if (ret != 0)
+        return 0; /* failure */
+
+    (void)in;
+    (void)inl;
+    (void)out;
+
+    return 1; /* success */
 }
 
 WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,

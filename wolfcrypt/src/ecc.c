@@ -1864,16 +1864,16 @@ int ecc_map(ecc_point* P, mp_int* modulus, mp_digit mp)
        err = mp_copy(P->y, y);
    if (err == MP_OKAY)
        err = mp_copy(P->z, z);
+
+   if (err != MP_OKAY) {
+      goto done;
+   }
 #else
    /* Use destination directly */
    x = P->x;
    y = P->y;
    z = P->z;
 #endif
-
-   if (err != MP_OKAY) {
-      goto done;
-   }
 
    /* first map z back to normal */
    err = mp_montgomery_reduce(z, modulus, mp);
@@ -1913,10 +1913,11 @@ int ecc_map(ecc_point* P, mp_int* modulus, mp_digit mp)
       err = mp_copy(y, P->y);
    if (err == MP_OKAY)
       err = mp_copy(z, P->z);
-#endif
 
 done:
-  /* clean up */
+#endif
+
+   /* clean up */
    mp_clear(&t1);
    mp_clear(&t2);
 
@@ -6132,8 +6133,6 @@ static int build_lut(int idx, mp_int* a, mp_int* modulus, mp_digit mp,
        if (err != MP_OKAY)
            break;
        for (y = 0; y < (1UL<<FP_LUT); y++) {
-           if (err != MP_OKAY)
-             break;
            if (lut_orders[y].ham != (int)x) continue;
 
            /* perform the add */

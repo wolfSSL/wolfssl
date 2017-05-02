@@ -1648,7 +1648,7 @@ static int TLSX_SNI_VerifyParse(WOLFSSL* ssl,  byte isRequest)
 int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size,
                                                                      void* heap)
 {
-    TLSX* extension = TLSX_Find(*extensions, TLSX_SERVER_NAME);
+    TLSX* extension;
     SNI*  sni       = NULL;
 
     if (extensions == NULL || data == NULL)
@@ -1657,6 +1657,7 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size,
     if ((sni = TLSX_SNI_New(type, data, size, heap)) == NULL)
         return MEMORY_E;
 
+    extension = TLSX_Find(*extensions, TLSX_SERVER_NAME);
     if (!extension) {
         int ret = TLSX_Push(extensions, TLSX_SERVER_NAME, (void*)sni, heap);
         if (ret != 0) {
@@ -1698,7 +1699,8 @@ word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type, void** data)
     if (sni && sni->status != WOLFSSL_SNI_NO_MATCH) {
         switch (sni->type) {
             case WOLFSSL_SNI_HOST_NAME:
-                *data = sni->data.host_name;
+                if (data)
+                    *data = sni->data.host_name;
                 return (word16)XSTRLEN((char*)*data);
         }
     }
@@ -3175,7 +3177,7 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
 
 int TLSX_UseSupportedCurve(TLSX** extensions, word16 name, void* heap)
 {
-    TLSX*          extension = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
+    TLSX*          extension;
     EllipticCurve* curve     = NULL;
     int            ret       = 0;
 
@@ -3185,6 +3187,7 @@ int TLSX_UseSupportedCurve(TLSX** extensions, word16 name, void* heap)
     if ((ret = TLSX_EllipticCurve_Append(&curve, name, heap)) != 0)
         return ret;
 
+    extension = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
     if (!extension) {
         if ((ret = TLSX_Push(extensions, TLSX_SUPPORTED_GROUPS, curve, heap))
                                                                          != 0) {

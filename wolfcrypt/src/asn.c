@@ -2372,56 +2372,63 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         int* algoID, void* heap)
 {
     word32 tmpIdx = 0;
-
-    #ifdef HAVE_ECC
+#ifdef HAVE_ECC
     ecc_key ecc;
-    #endif
-    #ifndef NO_RSA
+#endif
+#ifndef NO_RSA
     RsaKey rsa;
-    #endif
+#endif
 
     if (algoID == NULL) {
         return BAD_FUNC_ARG;
     }
     *algoID = 0;
 
-    #ifndef NO_RSA
-    wc_InitRsaKey(&rsa, heap);
-    if (wc_RsaPrivateKeyDecode(key, &tmpIdx, &rsa, keySz) == 0) {
-        *algoID = RSAk;
-    }
-    else {
-        WOLFSSL_MSG("Not RSA DER key");
-    }
-    wc_FreeRsaKey(&rsa);
-    #endif /* NO_RSA */
-    #ifdef HAVE_ECC
-    if (*algoID != RSAk) {
-        tmpIdx = 0;
-        wc_ecc_init_ex(&ecc, heap, INVALID_DEVID);
-        if (wc_EccPrivateKeyDecode(key, &tmpIdx, &ecc, keySz) == 0) {
-            *algoID = ECDSAk;
-
-            /* sanity check on arguments */
-            if (curveOID == NULL || oidSz == NULL) {
-                WOLFSSL_MSG("Error getting ECC curve OID");
-                wc_ecc_free(&ecc);
-                return BAD_FUNC_ARG;
-            }
-
-            /* now find oid */
-            if (wc_ecc_get_oid(ecc.dp->oidSum, curveOID, oidSz) < 0) {
-                WOLFSSL_MSG("Error getting ECC curve OID");
-                wc_ecc_free(&ecc);
-                return BAD_FUNC_ARG;
-            }
+#ifndef NO_RSA
+    if (wc_InitRsaKey(&rsa, heap) == 0) {
+        if (wc_RsaPrivateKeyDecode(key, &tmpIdx, &rsa, keySz) == 0) {
+            *algoID = RSAk;
         }
         else {
-            WOLFSSL_MSG("Not ECC DER key either");
+            WOLFSSL_MSG("Not RSA DER key");
         }
-        wc_ecc_free(&ecc);
+        wc_FreeRsaKey(&rsa);
     }
-    #endif /* HAVE_ECC */
+    else {
+        WOLFSSL_MSG("GetKeyOID wc_InitRsaKey failed");
+    }
+#endif /* NO_RSA */
+#ifdef HAVE_ECC
+    if (*algoID != RSAk) {
+        tmpIdx = 0;
+        if (wc_ecc_init_ex(&ecc, heap, INVALID_DEVID) == 0) {
+            if (wc_EccPrivateKeyDecode(key, &tmpIdx, &ecc, keySz) == 0) {
+                *algoID = ECDSAk;
+
+                /* sanity check on arguments */
+                if (curveOID == NULL || oidSz == NULL) {
+                    WOLFSSL_MSG("Error getting ECC curve OID");
+                    wc_ecc_free(&ecc);
+                    return BAD_FUNC_ARG;
+                }
+
+                /* now find oid */
+                if (wc_ecc_get_oid(ecc.dp->oidSum, curveOID, oidSz) < 0) {
+                    WOLFSSL_MSG("Error getting ECC curve OID");
+                    wc_ecc_free(&ecc);
+                    return BAD_FUNC_ARG;
+                }
+            }
+            else {
+                WOLFSSL_MSG("Not ECC DER key either");
+            }
+            wc_ecc_free(&ecc);
+        }
+        else {
+            WOLFSSL_MSG("GetKeyOID wc_ecc_init_ex failed");
+        }
+    }
+#endif /* HAVE_ECC */
 
     /* if flag is not set then is neither RSA or ECC key that could be
      * found */
@@ -6405,9 +6412,13 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
 
     /* extra header information for encrypted key */
     if (cipher_info != NULL) {
+        size_t cipherInfoStrLen = XSTRLEN((char*)cipher_info);
+        if (cipherInfoStrLen > HEADER_ENCRYPTED_KEY_SIZE - (23+10+2))
+            cipherInfoStrLen = HEADER_ENCRYPTED_KEY_SIZE - (23+10+2);
+
         XSTRNCAT(header, "Proc-Type: 4,ENCRYPTED\n", 23);
         XSTRNCAT(header, "DEK-Info: ", 10);
-        XSTRNCAT(header, (char*)cipher_info, XSTRLEN((char*)cipher_info));
+        XSTRNCAT(header, (char*)cipher_info, cipherInfoStrLen);
         XSTRNCAT(header, "\n\n", 2);
     }
 
@@ -7438,27 +7449,26 @@ static int SetAKID(byte* output, word32 outSz,
 {
     byte    *enc_val;
     int     ret, enc_valSz;
-    static const byte akid_oid[] = { 0x06, 0x03, 0x55, 0x1d, 0x23, 0x04};
+    static const byte akid_oid[] = { 0x06, 0x03, 0x55, 0x1d, 0x23, 0x04 };
     static const byte akid_cs[] = { 0x80 };
 
     if (output == NULL || input == NULL)
         return BAD_FUNC_ARG;
 
-    enc_val = (byte *)XMALLOC(length+3+sizeof(akid_cs), heap,
-                               DYNAMIC_TYPE_TMP_BUFFER);
+    enc_valSz = length + 3 + sizeof(akid_cs);
+    enc_val = (byte *)XMALLOC(enc_valSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (enc_val == NULL)
         return MEMORY_E;
 
     /* sequence for ContentSpec & value */
-    enc_valSz = SetOidValue(enc_val, length+3+sizeof(akid_cs),
-                            akid_cs, sizeof(akid_cs), input, length);
-    if (enc_valSz == 0) {
-        XFREE(enc_val, heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return 0;
-    }
+    ret = SetOidValue(enc_val, enc_valSz, akid_cs, sizeof(akid_cs),
+                      input, length);
+    if (ret > 0) {
+        enc_valSz = ret;
 
-    ret = SetOidValue(output, outSz, akid_oid,
-                      sizeof(akid_oid), enc_val, enc_valSz);
+        ret = SetOidValue(output, outSz, akid_oid, sizeof(akid_oid),
+                          enc_val, enc_valSz);
+    }
 
     XFREE(enc_val, heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
@@ -7921,7 +7931,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     /* SKID */
     if (cert->skidSz) {
         /* check the provided SKID size */
-        if (cert->skidSz > (int)sizeof(cert->skid))
+        if (cert->skidSz > (int)sizeof(der->skid))
             return SKID_E;
 
         /* Note: different skid buffers sizes for der (MAX_KID_SZ) and

@@ -5328,9 +5328,15 @@ int SendBuffered(WOLFSSL* ssl)
 static INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
 {
     byte* tmp;
+#if WOLFSSL_GENERAL_ALIGNMENT > 0
     byte  hdrSz = ssl->options.dtls ? DTLS_RECORD_HEADER_SZ :
                                       RECORD_HEADER_SZ;
-    byte  align = WOLFSSL_GENERAL_ALIGNMENT;
+    byte align = WOLFSSL_GENERAL_ALIGNMENT;
+#else
+    const byte align = WOLFSSL_GENERAL_ALIGNMENT;
+#endif
+
+#if WOLFSSL_GENERAL_ALIGNMENT > 0
     /* the encrypted data will be offset from the front of the buffer by
        the header, if the user wants encrypted alignment they need
        to define their alignment requirement */
@@ -5339,14 +5345,19 @@ static INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
        while (align < hdrSz)
            align *= 2;
     }
+#endif
 
-    tmp = (byte*) XMALLOC(size + ssl->buffers.outputBuffer.length + align,
-                          ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
+    tmp = (byte*)XMALLOC(size + ssl->buffers.outputBuffer.length + align,
+                             ssl->heap, DYNAMIC_TYPE_OUT_BUFFER);
     WOLFSSL_MSG("growing output buffer\n");
 
-    if (!tmp) return MEMORY_E;
+    if (tmp == NULL)
+        return MEMORY_E;
+
+#if WOLFSSL_GENERAL_ALIGNMENT > 0
     if (align)
         tmp += align - hdrSz;
+#endif
 
     if (ssl->buffers.outputBuffer.length)
         XMEMCPY(tmp, ssl->buffers.outputBuffer.buffer,
@@ -5357,10 +5368,14 @@ static INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
               ssl->buffers.outputBuffer.offset, ssl->heap,
               DYNAMIC_TYPE_OUT_BUFFER);
     ssl->buffers.outputBuffer.dynamicFlag = 1;
+
+#if WOLFSSL_GENERAL_ALIGNMENT > 0
     if (align)
         ssl->buffers.outputBuffer.offset = align - hdrSz;
     else
+#endif
         ssl->buffers.outputBuffer.offset = 0;
+
     ssl->buffers.outputBuffer.buffer = tmp;
     ssl->buffers.outputBuffer.bufferSize = size +
                                            ssl->buffers.outputBuffer.length;
@@ -5372,8 +5387,14 @@ static INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
 int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength)
 {
     byte* tmp;
-    byte  hdrSz = DTLS_RECORD_HEADER_SZ;
+#if defined(WOLFSSL_DTLS) || WOLFSSL_GENERAL_ALIGNMENT > 0
     byte  align = ssl->options.dtls ? WOLFSSL_GENERAL_ALIGNMENT : 0;
+    byte  hdrSz = DTLS_RECORD_HEADER_SZ;
+#else
+    const byte align = WOLFSSL_GENERAL_ALIGNMENT;
+#endif
+
+#if defined(WOLFSSL_DTLS) || WOLFSSL_GENERAL_ALIGNMENT > 0
     /* the encrypted data will be offset from the front of the buffer by
        the dtls record header, if the user wants encrypted alignment they need
        to define their alignment requirement. in tls we read record header
@@ -5383,19 +5404,24 @@ int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength)
        while (align < hdrSz)
            align *= 2;
     }
+#endif
 
     if (usedLength < 0 || size < 0) {
         WOLFSSL_MSG("GrowInputBuffer() called with negative number");
         return BAD_FUNC_ARG;
     }
 
-    tmp = (byte*) XMALLOC(size + usedLength + align, ssl->heap,
-                          DYNAMIC_TYPE_IN_BUFFER);
+    tmp = (byte*)XMALLOC(size + usedLength + align,
+                             ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
     WOLFSSL_MSG("growing input buffer\n");
 
-    if (!tmp) return MEMORY_E;
+    if (tmp == NULL)
+        return MEMORY_E;
+
+#if defined(WOLFSSL_DTLS) || WOLFSSL_GENERAL_ALIGNMENT > 0
     if (align)
         tmp += align - hdrSz;
+#endif
 
     if (usedLength)
         XMEMCPY(tmp, ssl->buffers.inputBuffer.buffer +
@@ -5406,10 +5432,13 @@ int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength)
               ssl->heap,DYNAMIC_TYPE_IN_BUFFER);
 
     ssl->buffers.inputBuffer.dynamicFlag = 1;
+#if defined(WOLFSSL_DTLS) || WOLFSSL_GENERAL_ALIGNMENT > 0
     if (align)
         ssl->buffers.inputBuffer.offset = align - hdrSz;
     else
+#endif
         ssl->buffers.inputBuffer.offset = 0;
+
     ssl->buffers.inputBuffer.buffer = tmp;
     ssl->buffers.inputBuffer.bufferSize = size + usedLength;
     ssl->buffers.inputBuffer.idx    = 0;
@@ -6945,16 +6974,14 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                     ret = ParseCertRelative(args->dCert, CERT_TYPE,
                                     !ssl->options.verifyNone, ssl->ctx->cm);
-                    if (ret != 0) {
-                    #ifdef WOLFSSL_ASYNC_CRYPT
-                        if (ret == WC_PENDING_E) {
-                            ret = wolfSSL_AsyncPush(ssl,
-                                args->dCert->sigCtx.asyncDev,
-                                WC_ASYNC_FLAG_CALL_AGAIN);
-                        }
-                    #endif
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    if (ret == WC_PENDING_E) {
+                        ret = wolfSSL_AsyncPush(ssl,
+                            args->dCert->sigCtx.asyncDev,
+                            WC_ASYNC_FLAG_CALL_AGAIN);
                         goto exit_dc;
                     }
+                #endif
 
                 #ifndef NO_SKID
                     subjectHash = args->dCert->extSubjKeyId;
@@ -7111,16 +7138,14 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 { /* only parse if not already present in dCert from above */
                     ret = ParseCertRelative(args->dCert, CERT_TYPE,
                                     !ssl->options.verifyNone, ssl->ctx->cm);
-                    if (ret != 0) {
-                    #ifdef WOLFSSL_ASYNC_CRYPT
-                        if (ret == WC_PENDING_E) {
-                            ret = wolfSSL_AsyncPush(ssl,
-                                args->dCert->sigCtx.asyncDev,
-                                WC_ASYNC_FLAG_CALL_AGAIN);
-                        }
-                    #endif
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    if (ret == WC_PENDING_E) {
+                        ret = wolfSSL_AsyncPush(ssl,
+                            args->dCert->sigCtx.asyncDev,
+                            WC_ASYNC_FLAG_CALL_AGAIN);
                         goto exit_dc;
                     }
+                #endif
                 }
 
                 if (ret == 0) {
@@ -16069,11 +16094,6 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
             }
         #endif
 
-            /* Check for error */
-            if (ret != 0) {
-                goto exit_dske;
-            }
-
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_END;
         } /* case TLS_ASYNC_FINALIZE */
@@ -17284,11 +17304,6 @@ int SendClientKeyExchange(WOLFSSL* ssl)
 
                 XMEMCPY(args->input, args->output + RECORD_HEADER_SZ,
                                                                 args->inputSz);
-            }
-
-            /* Check for error */
-            if (ret != 0) {
-                goto exit_scke;
             }
 
             /* Advance state and proceed */
@@ -19557,11 +19572,6 @@ int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         args->output, args->sendSz, ssl->heap);
                 }
             #endif
-
-                /* Check for error */
-                if (ret != 0) {
-                    goto exit_sske;
-                }
 
                 /* Advance state and proceed */
                 ssl->options.asyncState = TLS_ASYNC_END;
