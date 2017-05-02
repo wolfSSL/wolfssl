@@ -18418,14 +18418,6 @@ int wolfSSL_X509_CRL_verify(WOLFSSL_X509_CRL* crl, WOLFSSL_EVP_PKEY* key)
 }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
-void wolfSSL_X509_STORE_CTX_set_error(WOLFSSL_X509_STORE_CTX* ctx, int err)
-{
-    (void)ctx;
-    (void)err;
-    WOLFSSL_STUB("X509_STORE_CTX_set_error");
-}
-#endif
 
 #ifdef OPENSSL_EXTRA
 void wolfSSL_X509_STORE_CTX_set_time(WOLFSSL_X509_STORE_CTX* ctx,
@@ -18777,6 +18769,20 @@ int wolfSSL_get_ex_data_X509_STORE_CTX_idx(void)
 
     /* store SSL at index 0 */
     return 0;
+}
+
+
+/* Set an error stat in the X509 STORE CTX
+ *
+ * Returns positive index on success and negative values on failure
+ */
+void wolfSSL_X509_STORE_CTX_set_error(WOLFSSL_X509_STORE_CTX* ctx, int er)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_set_error");
+
+    if (ctx != NULL) {
+        ctx->error = er;
+    }
 }
 
 

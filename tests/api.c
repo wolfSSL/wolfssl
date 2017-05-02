@@ -14355,6 +14355,8 @@ static void test_wolfSSL_X509_STORE_CTX(void)
     AssertIntEQ(X509_STORE_add_cert(str, x509), SSL_SUCCESS);
     AssertIntEQ(X509_STORE_CTX_init(ctx, str, x509, NULL), SSL_SUCCESS);
     AssertIntEQ(SSL_get_ex_data_X509_STORE_CTX_idx(), 0);
+    X509_STORE_CTX_set_error(ctx, -5);
+    X509_STORE_CTX_set_error(NULL, -5);
 
     X509_STORE_CTX_free(ctx);
 
