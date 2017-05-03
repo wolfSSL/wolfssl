@@ -10633,7 +10633,13 @@ int ProcessReply(WOLFSSL* ssl)
 
                 if (IsEncryptionOn(ssl, 0)) {
                     WOLFSSL_MSG("Bundled encrypted messages, remove middle pad");
-                    ssl->buffers.inputBuffer.idx -= ssl->keys.padSz;
+                    if (ssl->buffers.inputBuffer.idx >= ssl->keys.padSz) {
+                        ssl->buffers.inputBuffer.idx -= ssl->keys.padSz;
+                    }
+                    else {
+                        WOLFSSL_MSG("\tmiddle padding error");
+                        return FATAL_ERROR;
+                    }
                 }
 
                 continue;
