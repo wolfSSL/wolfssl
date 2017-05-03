@@ -22168,9 +22168,11 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
             return SSL_BAD_FILE;
 
         if (wolfSSL_BIO_set_fp(b, fp, BIO_CLOSE) != SSL_SUCCESS) {
+            XFCLOSE(fp);
             return SSL_BAD_FILE;
         }
 
+        /* file is closed when bio is free'd */
         return SSL_SUCCESS;
     #else
         (void)name;
@@ -22600,6 +22602,7 @@ WOLFSSL_BIO *wolfSSL_BIO_new_file(const char *filename, const char *mode)
         bio = NULL;
     }
 
+    /* file is closed when BIO is free'd */
     return bio;
 #else
     (void)filename;
@@ -23146,18 +23149,6 @@ int wolfSSL_X509_NAME_get_sz(WOLFSSL_X509_NAME* name)
 }
 
 
-const byte* wolfSSL_SESSION_get_id(WOLFSSL_SESSION* sess, unsigned int* idLen)
-{
-    WOLFSSL_ENTER("wolfSSL_SESSION_get_id");
-    WOLFSSL_STUB("wolfSSL_SESSION_get_id");
-    if(!sess || !idLen) {
-        WOLFSSL_MSG("Bad func args. Please provide idLen");
-        return NULL;
-    }
-    *idLen = sess->sessionIDSz;
-    return sess->sessionID;
-}
-
 #ifdef HAVE_SNI
 int wolfSSL_set_tlsext_host_name(WOLFSSL* ssl, const char* host_name)
 {
@@ -23270,7 +23261,21 @@ void wolfSSL_sk_X509_pop_free(STACK_OF(WOLFSSL_X509)* sk, void f (WOLFSSL_X509*)
 }
 
 #endif /* OPENSSL_EXTRA and HAVE_STUNNEL */
+#if defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX))\
+    || defined(WOLFSSL_HAPROXY)
 
+
+const byte* wolfSSL_SESSION_get_id(WOLFSSL_SESSION* sess, unsigned int* idLen)
+{
+    WOLFSSL_ENTER("wolfSSL_SESSION_get_id");
+    if(!sess || !idLen) {
+        WOLFSSL_MSG("Bad func args. Please provide idLen");
+        return NULL;
+    }
+    *idLen = sess->sessionIDSz;
+    return sess->sessionID;
+}
+#endif
 
 #if (defined(OPENSSL_EXTRA) && defined(HAVE_STUNNEL)) \
     || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX)

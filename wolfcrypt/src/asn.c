@@ -9637,7 +9637,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
 /* build DER formatted ECC key, include optional public key if requested,
  * return length on success, negative on error */
 static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 inLen,
-                             int public)
+                             int pubIn)
 {
     byte   curve[MAX_ALGO_SZ+2];
     byte   ver[MAX_VERSION_SZ];
@@ -9678,8 +9678,8 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 inLen,
     }
     prvidx += privSz;
 
-    /* public */
-    if (public) {
+    /* pubIn */
+    if (pubIn) {
         ret = wc_ecc_export_x963(key, NULL, &pubSz);
         if (ret != LENGTH_ONLY_E) {
             XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -9717,7 +9717,7 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 inLen,
     totalSz = prvidx + pubidx + curveidx + verSz + seqSz;
     if (totalSz > (int)inLen) {
         XFREE(prv, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        if (public) {
+        if (pubIn) {
             XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
         }
         return BAD_FUNC_ARG;
@@ -9741,8 +9741,8 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 inLen,
     XMEMCPY(output + idx, curve, curveidx);
     idx += curveidx;
 
-    /* public */
-    if (public) {
+    /* pubIn */
+    if (pubIn) {
         XMEMCPY(output + idx, pub, pubidx);
         /* idx += pubidx;  not used after write, if more data remove comment */
         XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);

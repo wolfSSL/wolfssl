@@ -761,15 +761,15 @@ int wc_scrypt(byte* output, const byte* passwd, int passLen,
 
     bSz = 128 * blockSize;
     blocksSz = bSz * parallel;
-    blocks = XMALLOC(blocksSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    blocks = (byte*)XMALLOC(blocksSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (blocks == NULL)
         goto end;
     /* Temporary for scryptROMix. */
-    v = XMALLOC((1 << cost) * bSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    v = (byte*)XMALLOC((1 << cost) * bSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (v == NULL)
         goto end;
     /* Temporary for scryptBlockMix. */
-    y = XMALLOC(blockSize * 128, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    y = (byte*)XMALLOC(blockSize * 128, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (y == NULL)
         goto end;
 

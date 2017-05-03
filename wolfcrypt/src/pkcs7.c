@@ -834,8 +834,7 @@ static int wc_PKCS7_SignedDataBuildSignature(PKCS7* pkcs7,
  * type  - [OUT] pointer to wc_HashType for output
  *
  * returns hash digest size on success, negative on error */
-static enum wc_HashType wc_PKCS7_SetHashType(PKCS7* pkcs7,
-                                             enum wc_HashType* type)
+static int wc_PKCS7_SetHashType(PKCS7* pkcs7, enum wc_HashType* type)
 {
     if (pkcs7 == NULL || type == NULL)
         return BAD_FUNC_ARG;
