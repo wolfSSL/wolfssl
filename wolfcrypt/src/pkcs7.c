@@ -545,24 +545,18 @@ static int wc_PKCS7_EcdsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
  * esd   - pointer to initialized ESD structure, used for output
  *
  * return 0 on success, negative on error */
-static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd)
+static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd,
+                    byte* contentTypeOid, word32 contentTypeOidSz,
+                    byte* contentType, word32 contentTypeSz,
+                    byte* messageDigestOid, word32 messageDigestOidSz)
 {
     int hashSz;
-
-    byte contentTypeOid[] =
-            { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xF7, 0x0d, 0x01,
-                             0x09, 0x03 };
-    byte contentType[] =
-            { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
-                             0x07, 0x01 };
-    byte messageDigestOid[] =
-            { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
-                             0x09, 0x04 };
 
     PKCS7Attrib cannedAttribs[2];
     word32 cannedAttribsCount;
 
-    if (pkcs7 == NULL || esd == NULL)
+    if (pkcs7 == NULL || esd == NULL || contentTypeOid == NULL ||
+        contentType == NULL || messageDigestOid == NULL)
         return BAD_FUNC_ARG;
 
     hashSz = wc_HashGetDigestSize(esd->hashType);
@@ -572,11 +566,11 @@ static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd)
     cannedAttribsCount = sizeof(cannedAttribs)/sizeof(PKCS7Attrib);
 
     cannedAttribs[0].oid     = contentTypeOid;
-    cannedAttribs[0].oidSz   = sizeof(contentTypeOid);
+    cannedAttribs[0].oidSz   = contentTypeOidSz;
     cannedAttribs[0].value   = contentType;
-    cannedAttribs[0].valueSz = sizeof(contentType);
+    cannedAttribs[0].valueSz = contentTypeSz;
     cannedAttribs[1].oid     = messageDigestOid;
-    cannedAttribs[1].oidSz   = sizeof(messageDigestOid);
+    cannedAttribs[1].oidSz   = messageDigestOidSz;
     cannedAttribs[1].value   = esd->contentDigest;
     cannedAttribs[1].valueSz = hashSz + 2;  /* ASN.1 heading */
 
@@ -884,6 +878,16 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         { ASN_OBJECT_ID, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01,
                          0x07, 0x01 };
 
+    byte contentTypeOid[] =
+            { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xF7, 0x0d, 0x01,
+                             0x09, 0x03 };
+    byte contentType[] =
+            { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
+                             0x07, 0x01 };
+    byte messageDigestOid[] =
+            { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
+                             0x09, 0x04 };
+
 #ifdef WOLFSSL_SMALL_STACK
     ESD* esd = NULL;
 #else
@@ -989,7 +993,10 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     if (pkcs7->signedAttribsSz != 0) {
 
         /* build up signed attributes */
-        ret = wc_PKCS7_BuildSignedAttributes(pkcs7, esd);
+        ret = wc_PKCS7_BuildSignedAttributes(pkcs7, esd,
+                                    contentTypeOid, sizeof(contentTypeOid),
+                                    contentType, sizeof(contentType),
+                                    messageDigestOid, sizeof(messageDigestOid));
         if (ret < 0) {
 #ifdef WOLFSSL_SMALL_STACK
             XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
