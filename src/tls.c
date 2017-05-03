@@ -1699,9 +1699,10 @@ word16 TLSX_SNI_GetRequest(TLSX* extensions, byte type, void** data)
     if (sni && sni->status != WOLFSSL_SNI_NO_MATCH) {
         switch (sni->type) {
             case WOLFSSL_SNI_HOST_NAME:
-                if (data)
+                if (data) {
                     *data = sni->data.host_name;
-                return (word16)XSTRLEN((char*)*data);
+                    return (word16)XSTRLEN((char*)*data);
+                }
         }
     }
 
