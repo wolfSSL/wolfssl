@@ -16,6 +16,7 @@
 #                       1024/client-cert.pem
 #                       server-ecc-comp.pem
 #                       client-ca.pem
+#                       test/digsigku.pem
 # updates the following crls:
 #                       crl/cliCrl.pem
 #                       crl/crl.pem
@@ -224,6 +225,22 @@ function run_renewcerts(){
     echo "Updating client-ca.pem"
     echo ""
     cat client-cert.pem client-ecc-cert.pem > client-ca.pem
+
+    ############################################################
+    ###### update the self-signed test/digsigku.pem   ##########
+    ############################################################
+    echo "Updating test/digsigku.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\nWashington\nSeattle\nFoofarah\nArglebargle\nfoobarbaz\ninfo@worlss.com\n.\n.\n" | openssl req -new -key ecc-key.pem -nodes -sha1 -out digsigku.csr
+
+
+    openssl x509 -req -in digsigku.csr -days 1000 -extfile wolfssl.cnf -extensions digsigku -signkey ecc-key.pem -sha1 -set_serial 16393466893990650224 -out digsigku.pem
+    rm digsigku.csr
+
+    openssl x509 -in digsigku.pem -text > tmp.pem
+    mv tmp.pem digsigku.pem
+    mv digsigku.pem test/digsigku.pem
 
     ############################################################
     ########## make .der files from .pem files #################
