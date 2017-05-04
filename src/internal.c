@@ -9239,6 +9239,7 @@ static INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
         case wolfssl_aes_ccm:/* GCM AEAD macros use same size as CCM */
         {
             wc_AesAuthEncryptFunc aes_auth_fn;
+            const byte* additionalSrc;
         #if defined(BUILD_AESGCM) && defined(HAVE_AESCCM)
             aes_auth_fn = (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm)
                             ? wc_AesGcmEncrypt : wc_AesCcmEncrypt;
@@ -9247,7 +9248,7 @@ static INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
         #else
             aes_auth_fn = wc_AesCcmEncrypt;
         #endif
-            const byte* additionalSrc = input - 5;
+            additionalSrc = input - 5;
 
             XMEMSET(ssl->encrypt.additional, 0, AEAD_AUTH_DATA_SZ);
 
