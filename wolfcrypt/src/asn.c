@@ -986,6 +986,17 @@ static int CheckBitString(const byte* input, word32* inOutIdx, int* len,
     if (GetLength(input, &idx, &length, maxIdx) < 0)
         return ASN_PARSE_E;
 
+    /* extra sanity check that length is greater than 0 */
+    if (length <= 0) {
+        WOLFSSL_MSG("Error length was 0 in CheckBitString");
+        return BUFFER_E;
+    }
+
+    if (idx + 1 > maxIdx) {
+        WOLFSSL_MSG("Attempted buffer read larger than input buffer");
+        return BUFFER_E;
+    }
+
     b = input[idx];
     if (zeroBits && b != 0x00)
         return ASN_EXPECT_0_E;
@@ -998,7 +1009,7 @@ static int CheckBitString(const byte* input, word32* inOutIdx, int* len,
             return ASN_PARSE_E;
     }
     idx++;
-    length--;
+    length--; /* length has been checked for greater than 0 */
 
     *inOutIdx = idx;
     if (len != NULL)
