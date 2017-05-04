@@ -6597,7 +6597,8 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
             ret = MEMORY_E;
     }
 
-    if (dCert->signature != NULL && dCert->sigLength != 0) {
+    if (dCert->signature != NULL && dCert->sigLength != 0 &&
+            dCert->sigLength <= MAX_ENCODED_SIG_SZ) {
         x509->sig.buffer = (byte*)XMALLOC(
                           dCert->sigLength, x509->heap, DYNAMIC_TYPE_SIGNATURE);
         if (x509->sig.buffer == NULL) {
@@ -7158,8 +7159,8 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     ssl->peerVerifyRet = X509_V_ERR_CERT_REJECTED;
         #endif
                 }
-                else if (ret == ASN_PARSE_E) {
-                    WOLFSSL_MSG("Got Peer cert ASN PARSE ERROR, fatal");
+                else if (ret == ASN_PARSE_E || ret == BUFFER_E) {
+                    WOLFSSL_MSG("Got Peer cert ASN PARSE or BUFFER ERROR");
                     fatal = 1;
                 }
                 else {
@@ -7257,8 +7258,8 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             #endif /* HAVE_OCSP || HAVE_CRL */
 
             #ifdef KEEP_PEER_CERT
-                {
-                    /* set X509 format for peer cert even if fatal */
+                if (fatal == 0) {
+                    /* set X509 format for peer cert */
                     int copyRet = CopyDecodedToX509(&ssl->peerCert,
                                                                 args->dCert);
                     if (copyRet == MEMORY_E)
