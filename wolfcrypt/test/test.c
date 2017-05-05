@@ -4087,10 +4087,16 @@ int aes192_test(void)
 #endif
 
     ret = wc_AesCbcEncrypt(&enc, cipher, msg, (int) sizeof(msg));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0)
         return -21005;
 #ifdef HAVE_AES_DECRYPT
     ret = wc_AesCbcDecrypt(&dec, plain, cipher, (int) sizeof(cipher));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &dec.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0)
         return -21006;
     if (XMEMCMP(plain, msg, (int) sizeof(plain))) {
@@ -4161,10 +4167,16 @@ int aes256_test(void)
 #endif
 
     ret = wc_AesCbcEncrypt(&enc, cipher, msg, (int) sizeof(msg));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0)
         return -22005;
 #ifdef HAVE_AES_DECRYPT
     ret = wc_AesCbcDecrypt(&dec, plain, cipher, (int) sizeof(cipher));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &dec.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0)
         return -22006;
     if (XMEMCMP(plain, msg, (int) sizeof(plain))) {
