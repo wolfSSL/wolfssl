@@ -1025,7 +1025,7 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
                                             flatSignedAttribsSz, esd);
     if (ret < 0) {
         if (pkcs7->signedAttribsSz != 0)
-            XFREE(flatSignedAttribs, 0, NULL);
+            XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS);
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
