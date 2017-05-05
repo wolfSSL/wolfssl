@@ -1053,8 +1053,109 @@ int SetCipherSpecs(WOLFSSL* ssl)
         return UNSUPPORTED_SUITE;
     }   /* switch */
     }   /* if     */
-    if (ssl->options.cipherSuite0 != ECC_BYTE &&
-            ssl->options.cipherSuite0 != CHACHA_BYTE) {   /* normal suites */
+
+    /* TLSi v1.3 cipher suites, 0x13 */
+    if (ssl->options.cipherSuite0 == TLS13_BYTE) {
+        switch (ssl->options.cipherSuite) {
+
+#ifdef WOLFSSL_TLS13
+    #ifdef BUILD_TLS_AES_128_GCM_SHA256
+        case TLS_AES_128_GCM_SHA256 :
+            ssl->specs.bulk_cipher_algorithm = wolfssl_aes_gcm;
+            ssl->specs.cipher_type           = aead;
+            ssl->specs.mac_algorithm         = sha256_mac;
+            ssl->specs.kea                   = 0;
+            ssl->specs.sig_algo              = 0;
+            ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+            ssl->specs.pad_size              = PAD_SHA;
+            ssl->specs.static_ecdh           = 0;
+            ssl->specs.key_size              = AES_128_KEY_SIZE;
+            ssl->specs.block_size            = AES_BLOCK_SIZE;
+            ssl->specs.iv_size               = AESGCM_NONCE_SZ;
+            ssl->specs.aead_mac_size         = AES_GCM_AUTH_SZ;
+
+            break;
+    #endif
+
+    #ifdef BUILD_TLS_AES_256_GCM_SHA384
+        case TLS_AES_256_GCM_SHA384 :
+            ssl->specs.bulk_cipher_algorithm = wolfssl_aes_gcm;
+            ssl->specs.cipher_type           = aead;
+            ssl->specs.mac_algorithm         = sha384_mac;
+            ssl->specs.kea                   = 0;
+            ssl->specs.sig_algo              = 0;
+            ssl->specs.hash_size             = SHA384_DIGEST_SIZE;
+            ssl->specs.pad_size              = PAD_SHA;
+            ssl->specs.static_ecdh           = 0;
+            ssl->specs.key_size              = AES_256_KEY_SIZE;
+            ssl->specs.block_size            = AES_BLOCK_SIZE;
+            ssl->specs.iv_size               = AESGCM_NONCE_SZ;
+            ssl->specs.aead_mac_size         = AES_GCM_AUTH_SZ;
+
+            break;
+    #endif
+
+    #ifdef BUILD_TLS_CHACHA20_POLY1305_SHA256
+        case TLS_CHACHA20_POLY1305_SHA256 :
+            ssl->specs.bulk_cipher_algorithm = wolfssl_chacha;
+            ssl->specs.cipher_type           = aead;
+            ssl->specs.mac_algorithm         = sha256_mac;
+            ssl->specs.kea                   = 0;
+            ssl->specs.sig_algo              = 0;
+            ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+            ssl->specs.pad_size              = PAD_SHA;
+            ssl->specs.static_ecdh           = 0;
+            ssl->specs.key_size              = CHACHA20_256_KEY_SIZE;
+            ssl->specs.block_size            = CHACHA20_BLOCK_SIZE;
+            ssl->specs.iv_size               = CHACHA20_IV_SIZE;
+            ssl->specs.aead_mac_size         = POLY1305_AUTH_SZ;
+            ssl->options.oldPoly             = 0; /* use recent padding RFC */
+
+            break;
+    #endif
+
+    #ifdef BUILD_TLS_AES_128_CCM_SHA256
+        case TLS_AES_128_CCM_SHA256 :
+            ssl->specs.bulk_cipher_algorithm = wolfssl_aes_ccm;
+            ssl->specs.cipher_type           = aead;
+            ssl->specs.mac_algorithm         = sha256_mac;
+            ssl->specs.kea                   = 0;
+            ssl->specs.sig_algo              = 0;
+            ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+            ssl->specs.pad_size              = PAD_SHA;
+            ssl->specs.static_ecdh           = 0;
+            ssl->specs.key_size              = AES_128_KEY_SIZE;
+            ssl->specs.block_size            = AES_BLOCK_SIZE;
+            ssl->specs.iv_size               = AESGCM_NONCE_SZ;
+            ssl->specs.aead_mac_size         = AES_CCM_16_AUTH_SZ;
+
+            break;
+    #endif
+
+    #ifdef BUILD_TLS_AES_128_CCM_8_SHA256
+        case TLS_AES_128_CCM_8_SHA256 :
+            ssl->specs.bulk_cipher_algorithm = wolfssl_aes_ccm;
+            ssl->specs.cipher_type           = aead;
+            ssl->specs.mac_algorithm         = sha256_mac;
+            ssl->specs.kea                   = 0;
+            ssl->specs.sig_algo              = 0;
+            ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+            ssl->specs.pad_size              = PAD_SHA;
+            ssl->specs.static_ecdh           = 0;
+            ssl->specs.key_size              = AES_128_KEY_SIZE;
+            ssl->specs.block_size            = AES_BLOCK_SIZE;
+            ssl->specs.iv_size               = AESGCM_NONCE_SZ;
+            ssl->specs.aead_mac_size         = AES_CCM_8_AUTH_SZ;
+
+            break;
+    #endif
+#endif /* WOLFSSL_TLS13 */
+        }
+    }
+
+    if (ssl->options.cipherSuite0 != ECC_BYTE && 
+            ssl->options.cipherSuite0 != CHACHA_BYTE &&
+            ssl->options.cipherSuite0 != TLS13_BYTE) {   /* normal suites */
     switch (ssl->options.cipherSuite) {
 
 #ifdef BUILD_SSL_RSA_WITH_RC4_128_SHA
@@ -1993,8 +2094,11 @@ int SetCipherSpecs(WOLFSSL* ssl)
 #ifndef NO_TLS
         ssl->options.tls = 1;
         ssl->hmac = TLS_hmac;
-        if (ssl->version.minor >= 2)
+        if (ssl->version.minor >= 2) {
             ssl->options.tls1_1 = 1;
+            if (ssl->version.minor >= 4)
+                ssl->options.tls1_3 = 1;
+        }
 #endif
     }
 
@@ -2452,14 +2556,14 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                                       specs->key_size);
                 if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_enc_imp_IV, keys->client_write_IV,
-                        AESGCM_IMP_IV_SZ);
+                        AEAD_MAX_IMP_SZ);
             }
             if (dec) {
                 gcmRet = wc_AesGcmSetKey(dec->aes, keys->server_write_key,
                                       specs->key_size);
                 if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_dec_imp_IV, keys->server_write_IV,
-                        AESGCM_IMP_IV_SZ);
+                        AEAD_MAX_IMP_SZ);
             }
         }
         else {
@@ -2468,14 +2572,14 @@ static int SetKeys(Ciphers* enc, Ciphers* dec, Keys* keys, CipherSpecs* specs,
                                       specs->key_size);
                 if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_enc_imp_IV, keys->server_write_IV,
-                        AESGCM_IMP_IV_SZ);
+                        AEAD_MAX_IMP_SZ);
             }
             if (dec) {
                 gcmRet = wc_AesGcmSetKey(dec->aes, keys->client_write_key,
                                       specs->key_size);
                 if (gcmRet != 0) return gcmRet;
                 XMEMCPY(keys->aead_dec_imp_IV, keys->client_write_IV,
-                        AESGCM_IMP_IV_SZ);
+                        AEAD_MAX_IMP_SZ);
             }
         }
         if (enc)
