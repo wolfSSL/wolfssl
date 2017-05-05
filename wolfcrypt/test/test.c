@@ -1506,7 +1506,7 @@ int blake2b_test(void)
             return -1920 - i;
 
         if (XMEMCMP(digest, blake2b_vec[i], 64) != 0) {
-            return -193o - i;
+            return -1930 - i;
         }
     }
 
