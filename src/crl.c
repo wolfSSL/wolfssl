@@ -870,7 +870,7 @@ int LoadCRL(WOLFSSL_CRL* crl, const char* path, int type, int monitor)
     ret = SSL_SUCCESS; /* load failures not reported, for backwards compat */
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(readCtx, ctx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(readCtx, crl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     if (monitor & WOLFSSL_CRL_MONITOR) {
