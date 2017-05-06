@@ -7142,7 +7142,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 totalSz
                         ret = wolfSSL_AsyncPush(ssl,
                             args->dCert->sigCtx.asyncDev,
                             WC_ASYNC_FLAG_CALL_AGAIN);
-                        goto exit_dc;
+                        goto exit_ppc;
                     }
                 #endif
 
@@ -7306,7 +7306,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 totalSz
                         ret = wolfSSL_AsyncPush(ssl,
                             args->dCert->sigCtx.asyncDev,
                             WC_ASYNC_FLAG_CALL_AGAIN);
-                        goto exit_dc;
+                        goto exit_ppc;
                     }
                 #endif
                 }
