@@ -212,6 +212,7 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
                 byte* sig = NULL;
                 word32 sigSz = crle->signatureSz;
                 word32 sigOID = crle->signatureOID;
+                SignatureCtx sigCtx;
 
                 tbs = XMALLOC(tbsSz, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
                 if (tbs == NULL)
@@ -245,7 +246,8 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
                     return ASN_CRL_NO_SIGNER_E;
                 }
 
-                ret = VerifyCRL_Signature(tbs, tbsSz, sig, sigSz, sigOID, ca);
+                ret = VerifyCRL_Signature(&sigCtx, tbs, tbsSz, sig, sigSz,
+                                          sigOID, ca, crl->heap);
 
                 XFREE(sig, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
                 XFREE(tbs, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);

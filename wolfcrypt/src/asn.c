@@ -10704,9 +10704,9 @@ static int GetCRL_Signature(const byte* source, word32* idx, DecodedCRL* dcrl,
     return 0;
 }
 
-int VerifyCRL_Signature(const byte* toBeSigned, word32 tbsSz,
-                        const byte* signature, word32 sigSz,
-                        word32 signatureOID, Signer *ca)
+int VerifyCRL_Signature(SignatureCtx* sigCtx, const byte* toBeSigned,
+                        word32 tbsSz, const byte* signature, word32 sigSz,
+                        word32 signatureOID, Signer *ca, void* heap)
 {
     /* try to confirm/verify signature */
 #ifndef IGNORE_KEY_EXTENSIONS
@@ -10716,9 +10716,10 @@ int VerifyCRL_Signature(const byte* toBeSigned, word32 tbsSz,
     }
 #endif /* IGNORE_KEY_EXTENSIONS */
 
-    InitSignatureCtx(&sigCtx, dcrl->heap, INVALID_DEVID);
-    if (ConfirmSignature(toBeSigned, tbsSz, ca->publicKey, ca->pubKeySize,
-                       ca->keyOID, signature, sigSz, signatureOID, NULL) != 0) {
+    InitSignatureCtx(sigCtx, heap, INVALID_DEVID);
+    if (ConfirmSignature(sigCtx, toBeSigned, tbsSz, ca->publicKey,
+                         ca->pubKeySize, ca->keyOID, signature, sigSz,
+                         signatureOID) != 0) {
         WOLFSSL_MSG("CRL Confirm signature failed");
         return ASN_CRL_CONFIRM_E;
     }
@@ -10729,9 +10730,10 @@ int VerifyCRL_Signature(const byte* toBeSigned, word32 tbsSz,
 /* prase crl buffer into decoded state, 0 on success */
 int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
 {
-    int     ret = 0, version, len, doNextDate = 1;
-    word32  oid, idx = 0, dateIdx;
-    Signer* ca = NULL;
+    int          version, len, doNextDate = 1;
+    word32       oid, idx = 0, dateIdx;
+    Signer*      ca = NULL;
+    SignatureCtx sigCtx;
 
     WOLFSSL_MSG("ParseCRL");
 
@@ -10828,9 +10830,9 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
     }
 
     WOLFSSL_MSG("Found CRL issuer CA");
-    return VerifyCRL_Signature(buff + dcrl->certBegin,
+    return VerifyCRL_Signature(&sigCtx, buff + dcrl->certBegin,
            dcrl->sigIndex - dcrl->certBegin, dcrl->signature, dcrl->sigLength,
-           dcrl->signatureOID, ca);
+           dcrl->signatureOID, ca, dcrl->heap);
 }
 
 #endif /* HAVE_CRL */
