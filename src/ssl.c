@@ -20160,9 +20160,16 @@ void wolfSSL_DES_ecb_encrypt(WOLFSSL_DES_cblock* desa,
             WOLFSSL_MSG("wc_Des_SetKey return error.");
             return;
         }
-        if (wc_Des_EcbEncrypt(&myDes, (byte*) desb,
-                              (const byte*)desa, sizeof(WOLFSSL_DES_cblock)) != 0){
-            WOLFSSL_MSG("wc_Des_EcbEncrypt return error.");
+        if (enc){
+            if (wc_Des_EcbEncrypt(&myDes, (byte*) desb, (const byte*) desa,
+                        sizeof(WOLFSSL_DES_cblock)) != 0){
+                WOLFSSL_MSG("wc_Des_EcbEncrpyt return error.");
+            }
+        } else {
+            if (wc_Des_EcbDecrypt(&myDes, (byte*) desb, (const byte*) desa,
+                        sizeof(WOLFSSL_DES_cblock)) != 0){
+                WOLFSSL_MSG("wc_Des_EcbDecrpyt return error.");
+            }
         }
     }
 }
