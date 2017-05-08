@@ -16015,6 +16015,105 @@ static void test_wolfSSL_verify_depth(void)
 #endif
 }
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_HMAC)
+/* helper function for test_wolfSSL_HMAC_CTX, digest size is expected to be a
+ * buffer of 64 bytes.
+ *
+ * returns the size of the digest buffer on success and a negative value on
+ * failure.
+ */
+static int test_HMAC_CTX_helper(const EVP_MD* type, unsigned char* digest)
+{
+    HMAC_CTX ctx1;
+    HMAC_CTX ctx2;
+
+    unsigned char key[] = "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
+                          "\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
+    unsigned char msg[] = "message to hash";
+    unsigned int  digestSz = 64;
+    int keySz = sizeof(key);
+    int msgSz = sizeof(msg);
+
+    unsigned char digest2[64];
+    unsigned int digestSz2 = 64;
+
+    HMAC_CTX_init(&ctx1);
+
+    AssertIntEQ(HMAC_Init(&ctx1, (const void*)key, keySz, type), SSL_SUCCESS);
+    AssertIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
+    AssertIntEQ(HMAC_CTX_copy(&ctx2, &ctx1), SSL_SUCCESS);
+
+    AssertIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
+    AssertIntEQ(HMAC_Final(&ctx1, digest, &digestSz), SSL_SUCCESS);
+    HMAC_CTX_cleanup(&ctx1);
+
+    AssertIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
+    AssertIntEQ(HMAC_Final(&ctx2, digest2, &digestSz2), SSL_SUCCESS);
+    HMAC_CTX_cleanup(&ctx2);
+
+    AssertIntEQ(digestSz, digestSz2);
+    AssertIntEQ(XMEMCMP(digest, digest2, digestSz), 0);
+
+    return digestSz;
+}
+#endif /* defined(OPENSSL_EXTRA) && !defined(NO_HMAC) */
+
+static void test_wolfSSL_HMAC_CTX(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_HMAC)
+    unsigned char digest[64];
+    int digestSz;
+
+    printf(testingFmt, "wolfSSL_HMAC_CTX()");
+
+    #ifndef NO_SHA
+    AssertIntEQ((digestSz = test_HMAC_CTX_helper(EVP_sha1(), digest)), 20);
+    AssertIntEQ(XMEMCMP("\xD9\x68\x77\x23\x70\xFB\x53\x70\x53\xBA\x0E\xDC\xDA"
+                          "\xBF\x03\x98\x31\x19\xB2\xCC", digest, digestSz), 0);
+    #endif /* !NO_SHA */
+    #ifdef WOLFSSL_SHA224
+    AssertIntEQ((digestSz = test_HMAC_CTX_helper(EVP_sha224(), digest)), 28);
+    AssertIntEQ(XMEMCMP("\x57\xFD\xF4\xE1\x2D\xB0\x79\xD7\x4B\x25\x7E\xB1\x95"
+                          "\x9C\x11\xAC\x2D\x1E\x78\x94\x4F\x3A\x0F\xED\xF8\xAD"
+                          "\x02\x0E", digest, digestSz), 0);
+
+    #endif /* WOLFSSL_SHA224 */
+    #ifndef NO_SHA256
+    AssertIntEQ((digestSz = test_HMAC_CTX_helper(EVP_sha256(), digest)), 32);
+    AssertIntEQ(XMEMCMP("\x13\xAB\x76\x91\x0C\x37\x86\x8D\xB3\x7E\x30\x0C\xFC"
+                          "\xB0\x2E\x8E\x4A\xD7\xD4\x25\xCC\x3A\xA9\x0F\xA2\xF2"
+                          "\x47\x1E\x62\x6F\x5D\xF2", digest, digestSz), 0);
+
+    #endif /* !NO_SHA256 */
+
+    #ifdef WOLFSSL_SHA512
+    #ifdef WOLFSSL_SHA384
+    AssertIntEQ((digestSz = test_HMAC_CTX_helper(EVP_sha384(), digest)), 48);
+    AssertIntEQ(XMEMCMP("\x9E\xCB\x07\x0C\x11\x76\x3F\x23\xC3\x25\x0E\xC4\xB7"
+                          "\x28\x77\x95\x99\xD5\x9D\x7A\xBB\x1A\x9F\xB7\xFD\x25"
+                          "\xC9\x72\x47\x9F\x8F\x86\x76\xD6\x20\x57\x87\xB7\xE7"
+                          "\xCD\xFB\xC2\xCC\x9F\x2B\xC5\x41\xAB",
+                          digest, digestSz), 0);
+    #endif /* WOLFSSL_SHA384 */
+    AssertIntEQ((digestSz = test_HMAC_CTX_helper(EVP_sha512(), digest)), 64);
+    AssertIntEQ(XMEMCMP("\xD4\x21\x0C\x8B\x60\x6F\xF4\xBF\x07\x2F\x26\xCC\xAD"
+                          "\xBC\x06\x0B\x34\x78\x8B\x4F\xD6\xC0\x42\xF1\x33\x10"
+                          "\x6C\x4F\x1E\x55\x59\xDD\x2A\x9F\x15\x88\x62\xF8\x60"
+                          "\xA3\x99\x91\xE2\x08\x7B\xF7\x95\x3A\xB0\x92\x48\x60"
+                          "\x88\x8B\x5B\xB8\x5F\xE9\xB6\xB1\x96\xE3\xB5\xF0",
+                          digest, digestSz), 0);
+    #endif /* WOLFSSL_SHA512 */
+
+    #ifndef NO_MD5
+    AssertIntEQ((digestSz = test_HMAC_CTX_helper(EVP_md5(), digest)), 16);
+    AssertIntEQ(XMEMCMP("\xB7\x27\xC4\x41\xE5\x2E\x62\xBA\x54\xED\x72\x70\x9F"
+                          "\xE4\x98\xDD", digest, digestSz), 0);
+    #endif /* !NO_MD5 */
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_no_op_functions(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -16837,6 +16936,7 @@ void ApiTest(void)
     test_wolfSSL_MD4();
     test_wolfSSL_RSA();
     test_wolfSSL_verify_depth();
+    test_wolfSSL_HMAC_CTX();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();
