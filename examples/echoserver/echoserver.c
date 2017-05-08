@@ -392,7 +392,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                     err = 0; /* reset error */
                     ret = CyaSSL_write(write_ssl, command, echoSz);
                     if (ret <= 0) {
-                        err = CyaSSL_get_error(ssl, 0);
+                        err = CyaSSL_get_error(write_ssl, 0);
                     #ifdef WOLFSSL_ASYNC_CRYPT
                         if (err == WC_PENDING_E) {
                             ret = wolfSSL_AsyncPoll(write_ssl, WOLF_POLL_FLAG_CHECK_HW);

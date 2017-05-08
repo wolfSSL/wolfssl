@@ -5837,25 +5837,23 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     int ret = 0;
 #ifdef WOLFSSL_SHA384
 #ifdef WOLFSSL_SMALL_STACK
-    Sha384* sha384 = (Sha384*)XMALLOC(sizeof(Sha384), ssl->heap,
-                                                DYNAMIC_TYPE_TMP_BUFFER);
+    Sha384* sha384;
 #else
     Sha384 sha384[1];
 #endif /* WOLFSSL_SMALL_STACK */
 #endif /* WOLFSSL_SHA384 */
 
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_SHA384
 #ifdef WOLFSSL_SMALL_STACK
-    if (ssl == NULL
-    #ifdef WOLFSSL_SHA384
-        || sha384 == NULL
-    #endif
-        ) {
-    #ifdef WOLFSSL_SHA384
-        XFREE(sha384, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+    sha384 = (Sha384*)XMALLOC(sizeof(Sha384), ssl->heap,
+                                                DYNAMIC_TYPE_TMP_BUFFER);
+    if (sha384 == NULL)
         return MEMORY_E;
-    }
-#endif
+#endif /* WOLFSSL_SMALL_STACK */
+#endif /* WOLFSSL_SHA384 */
 
     /* store current states, building requires get_digest which resets state */
 #ifdef WOLFSSL_SHA384
@@ -11279,12 +11277,6 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                                  hashOutput, sizeOnly);
     }
 #endif
-
-    /* catch mistaken sizeOnly parameter */
-    if (sizeOnly && (output || input) ) {
-        WOLFSSL_MSG("BuildMessage with sizeOnly doesn't need input or output");
-        return BAD_FUNC_ARG;
-    }
 
     ret = WC_NOT_PENDING_E;
 #ifdef WOLFSSL_ASYNC_CRYPT

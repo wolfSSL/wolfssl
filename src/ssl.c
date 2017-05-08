@@ -5052,9 +5052,10 @@ int wolfSSL_CertManagerVerifyBuffer(WOLFSSL_CERT_MANAGER* cm, const byte* buff,
         ret = PemToDer(buff, sz, CERT_TYPE, &der, cm->heap, info, &eccKey);
         if (ret != 0) {
             FreeDer(&der);
-            #ifdef WOLFSSL_SMALL_STACK
-                XFREE(info, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            #endif
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(cert, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(info, cm->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
             return ret;
         }
         InitDecodedCert(cert, der->buffer, der->length, cm->heap);
@@ -5452,7 +5453,7 @@ int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
         ReadDirCtx* readCtx = NULL;
         readCtx = (ReadDirCtx*)XMALLOC(sizeof(ReadDirCtx), ctx->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
-        if (name == NULL)
+        if (readCtx == NULL)
             return MEMORY_E;
     #else
         ReadDirCtx readCtx[1];

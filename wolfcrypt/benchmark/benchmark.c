@@ -129,7 +129,8 @@
     #define BEGIN_INTEL_CYCLES total_cycles = get_intel_cycles();
     #define END_INTEL_CYCLES   total_cycles = get_intel_cycles() - total_cycles;
     #define SHOW_INTEL_CYCLES  printf(" Cycles per byte = %6.2f", \
-                               (float)total_cycles / (count*BENCH_SIZE));
+                                   count == 0 ? 0 : \
+                                   (float)total_cycles / (count*BENCH_SIZE));
 #elif defined(LINUX_CYCLE_COUNT)
     #include <linux/perf_event.h>
     #include <sys/syscall.h>

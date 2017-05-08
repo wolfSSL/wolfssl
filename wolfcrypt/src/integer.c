@@ -4253,14 +4253,16 @@ static int mp_div_d (mp_int * a, mp_digit b, mp_int * c, mp_digit * d)
   /* no easy answer [c'est la vie].  Just division */
   if (c != NULL) {
       if ((res = mp_init_size(&q, a->used)) != MP_OKAY) {
-        return res;
+         return res;
       }
 
       q.used = a->used;
       q.sign = a->sign;
   }
   else {
-      mp_init(&q); /* initialize to help static analysis */
+      if ((res = mp_init(&q)) != MP_OKAY) {
+         return res;
+      }
   }
 
 

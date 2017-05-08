@@ -806,8 +806,13 @@ int wolfSSL_GetHmacMaxSize(void)
         Hmac   myHmac;
         int    ret;
         const  byte* localSalt;  /* either points to user input or tmp */
-        int    hashSz = wc_HmacSizeByType(type);
+        int    hashSz;
 
+        ret = wc_HmacSizeByType(type);
+        if (ret < 0)
+            return ret;
+
+        hashSz = ret;
         localSalt = salt;
         if (localSalt == NULL) {
             XMEMSET(tmp, 0, hashSz);
