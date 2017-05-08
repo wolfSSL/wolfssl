@@ -49,7 +49,7 @@ before calling wolfSSL_new();  Though it's not recommended.
 - Update Arduino script to handle recent files and additions
 - Added support for PKCS#7 Signed Data with ECDSA
 - Fix for interoperability with ChaCha20-Poly1305 suites using older draft versions
-- DTLS update to allow multiple handshake messages in one DTLS record
+- DTLS update to allow multiple handshake messages in one DTLS record. Thanks to Eric Samsel over at Welch Allyn for reporting this bug.
 - Intel QuickAssist asynchronous support (PR #715 - https://www.wolfssl.com/wolfSSL/Blog/Entries/2017/1/18_wolfSSL_Asynchronous_Intel_QuickAssist_Support.html)
 - Added support for HAproxy load balancer
 - Added option to allow SHA1 with TLS 1.2 for IIS compatibility (WOLFSSL_ALLOW_TLS_SHA1)
@@ -83,7 +83,6 @@ session ID as part of session tickets
 - Extended test code coverage in bundled test.c
 - Added a sanity check for minimum authentication tag size with AES-GCM. Thanks to Yueh-Hsun Lin and Peng Li at KNOX Security at Samsung Research America for suggesting this.
 - Added a sanity check that subject key identifier is marked as non-critical and a check that no policy OIDS appear more than once in the cert policies extension. Thanks to the report from Professor Zhenhua Duan, Professor Cong Tian, and Ph.D candidate Chu Chen from Institute of Computing Theory and Technology (ICTT) of Xidian University, China. Profs. Zhenhua Duan and Cong Tian are supervisors of Ph.D candidate Chu Chen.
-
 
 This release of wolfSSL fixes 5 low and 1 medium level security vulnerability.
 

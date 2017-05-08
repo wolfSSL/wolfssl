@@ -45,7 +45,7 @@ Release 3.11.0 of wolfSSL has bug fixes and new features including:
 - Update Arduino script to handle recent files and additions
 - Added support for PKCS#7 Signed Data with ECDSA
 - Fix for interoperability with ChaCha20-Poly1305 suites using older draft versions
-- DTLS update to allow multiple handshake messages in one DTLS record
+- DTLS update to allow multiple handshake messages in one DTLS record. Thanks to Eric Samsel over at Welch Allyn for reporting this bug.
 - Intel QuickAssist asynchronous support (PR #715 - https://www.wolfssl.com/wolfSSL/Blog/Entries/2017/1/18_wolfSSL_Asynchronous_Intel_QuickAssist_Support.html)
 - Added support for HAproxy load balancer
 - Added option to allow SHA1 with TLS 1.2 for IIS compatibility (WOLFSSL_ALLOW_TLS_SHA1)
