@@ -2350,10 +2350,10 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     ssl->options.clientState = CLIENT_HELLO_COMPLETE;
 
 #ifdef WOLFSSL_CALLBACKS
-    if (ssl->hsInfoOn) AddPacketName("ClientHello", &ssl->handShakeInfo);
+    if (ssl->hsInfoOn) AddPacketName(ssl, "ClientHello");
     if (ssl->toInfoOn) {
-        AddPacketInfo("ClientHello", &ssl->timeoutInfo, output, sendSz,
-                      ssl->heap);
+        AddPacketInfo(ssl, "ClientHello", handshake, output, sendSz,
+                      WRITE_PROTO, ssl->heap);
     }
 #endif
 
@@ -2500,7 +2500,7 @@ static int DoTls13HelloRetryRequest(WOLFSSL* ssl, const byte* input,
     WOLFSSL_ENTER("DoTls13HelloRetryRequest");
 
 #ifdef WOLFSSL_CALLBACKS
-    if (ssl->hsInfoOn) AddPacketName("HelloRetryRequest", &ssl->handShakeInfo);
+    if (ssl->hsInfoOn) AddPacketName(ssl, "HelloRetryRequest");
     if (ssl->toInfoOn) AddLateName("HelloRetryRequest", &ssl->timeoutInfo);
 #endif
 
@@ -2582,7 +2582,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     WOLFSSL_ENTER("DoTls13ServerHello");
 
 #ifdef WOLFSSL_CALLBACKS
-    if (ssl->hsInfoOn) AddPacketName("ServerHello", &ssl->handShakeInfo);
+    if (ssl->hsInfoOn) AddPacketName(ssl, "ServerHello");
     if (ssl->toInfoOn) AddLateName("ServerHello", &ssl->timeoutInfo);
 #endif
 
@@ -2693,8 +2693,7 @@ static int DoTls13EncryptedExtensions(WOLFSSL* ssl, const byte* input,
     WOLFSSL_ENTER("DoTls13EncryptedExtensions");
 
 #ifdef WOLFSSL_CALLBACKS
-    if (ssl->hsInfoOn) AddPacketName("EncryptedExtensions",
-                                     &ssl->handShakeInfo);
+    if (ssl->hsInfoOn) AddPacketName(ssl, "EncryptedExtensions");
     if (ssl->toInfoOn) AddLateName("EncryptedExtensions", &ssl->timeoutInfo);
 #endif
 
@@ -2757,7 +2756,7 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     WOLFSSL_ENTER("DoTls13CertificateRequest");
 
 #ifdef WOLFSSL_CALLBACKS
-    if (ssl->hsInfoOn) AddPacketName("CertificateRequest", &ssl->handShakeInfo);
+    if (ssl->hsInfoOn) AddPacketName(ssl, "CertificateRequest");
     if (ssl->toInfoOn) AddLateName("CertificateRequest", &ssl->timeoutInfo);
 #endif
 
@@ -3297,7 +3296,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     WOLFSSL_ENTER("DoTls13ClientHello");
 
 #ifdef WOLFSSL_CALLBACKS
-    if (ssl->hsInfoOn) AddPacketName("ClientHello", &ssl->handShakeInfo);
+    if (ssl->hsInfoOn) AddPacketName(ssl, "ClientHello");
     if (ssl->toInfoOn) AddLateName("ClientHello", &ssl->timeoutInfo);
 #endif
 
@@ -3528,10 +3527,10 @@ int SendTls13HelloRetryRequest(WOLFSSL* ssl)
 
 #ifdef WOLFSSL_CALLBACKS
     if (ssl->hsInfoOn)
-        AddPacketName("HelloRetryRequest", &ssl->handShakeInfo);
+        AddPacketName(ssl, "HelloRetryRequest");
     if (ssl->toInfoOn) {
-        AddPacketInfo("HelloRetryRequest", &ssl->timeoutInfo, output, sendSz,
-                      ssl->heap);
+        AddPacketInfo(ssl, "HelloRetryRequest", handshake, output, sendSz,
+                      WRITE_PROTO, ssl->heap);
     }
 #endif
 
@@ -3617,10 +3616,10 @@ static int SendTls13ServerHello(WOLFSSL* ssl)
 
     #ifdef WOLFSSL_CALLBACKS
     if (ssl->hsInfoOn)
-        AddPacketName("ServerHello", &ssl->handShakeInfo);
+        AddPacketName(ssl, "ServerHello");
     if (ssl->toInfoOn) {
-        AddPacketInfo("ServerHello", &ssl->timeoutInfo, output, sendSz,
-                      ssl->heap);
+        AddPacketInfo(ssl, "ServerHello", handshake, output, sendSz,
+                      WRITE_PROTO, ssl->heap);
     }
     #endif
 
@@ -3697,10 +3696,10 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
 
 #ifdef WOLFSSL_CALLBACKS
     if (ssl->hsInfoOn)
-        AddPacketName("EncryptedExtensions", &ssl->handShakeInfo);
+        AddPacketName(ssl, "EncryptedExtensions");
     if (ssl->toInfoOn) {
-        AddPacketInfo("EncryptedExtensions", &ssl->timeoutInfo, output,
-                      sendSz, ssl->heap);
+        AddPacketInfo(ssl, "EncryptedExtensions", handshake, output,
+                      sendSz, WRITE_PROTO, ssl->heap);
     }
 #endif
 
@@ -3834,10 +3833,10 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
 
     #ifdef WOLFSSL_CALLBACKS
         if (ssl->hsInfoOn)
-            AddPacketName("CertificateRequest", &ssl->handShakeInfo);
+            AddPacketName(ssl, "CertificateRequest");
         if (ssl->toInfoOn) {
-            AddPacketInfo("CertificateRequest", &ssl->timeoutInfo, output,
-                          sendSz, ssl->heap);
+            AddPacketInfo(ssl, "CertificateRequest", handshake, output,
+                          sendSz, WRITE_PROTO, ssl->heap);
         }
     #endif
 
@@ -4427,10 +4426,10 @@ static int SendTls13Certificate(WOLFSSL* ssl)
 
         #ifdef WOLFSSL_CALLBACKS
             if (ssl->hsInfoOn)
-                AddPacketName("Certificate", &ssl->handShakeInfo);
+                AddPacketName(ssl, "Certificate");
             if (ssl->toInfoOn) {
-                AddPacketInfo("Certificate", &ssl->timeoutInfo, output, sendSz,
-                               ssl->heap);
+                AddPacketInfo(ssl, "Certificate", handshake, output,
+                        sendSz, WRITE_PROTO, ssl->heap);
             }
         #endif
 
@@ -4767,10 +4766,10 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
 
         #ifdef WOLFSSL_CALLBACKS
             if (ssl->hsInfoOn)
-                AddPacketName("CertificateVerify", &ssl->handShakeInfo);
+                AddPacketName(ssl, "CertificateVerify");
             if (ssl->toInfoOn) {
-                AddPacketInfo("CertificateVerify", &ssl->timeoutInfo,
-                              args->output, args->sendSz, ssl->heap);
+                AddPacketInfo(ssl, "CertificateVerify", handshake,
+                            args->output, args->sendSz, WRITE_PROTO, ssl->heap);
             }
         #endif
 
@@ -4917,8 +4916,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         case TLS_ASYNC_BEGIN:
         {
         #ifdef WOLFSSL_CALLBACKS
-            if (ssl->hsInfoOn) AddPacketName("CertificateVerify",
-                                             &ssl->handShakeInfo);
+            if (ssl->hsInfoOn) AddPacketName(ssl, "CertificateVerify");
             if (ssl->toInfoOn) AddLateName("CertificateVerify",
                                            &ssl->timeoutInfo);
         #endif
@@ -5200,7 +5198,7 @@ static int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return BUFFER_ERROR;
 
     #ifdef WOLFSSL_CALLBACKS
-        if (ssl->hsInfoOn) AddPacketName("Finished", &ssl->handShakeInfo);
+        if (ssl->hsInfoOn) AddPacketName(ssl, "Finished");
         if (ssl->toInfoOn) AddLateName("Finished", &ssl->timeoutInfo);
     #endif
 
@@ -5312,10 +5310,10 @@ static int SendTls13Finished(WOLFSSL* ssl)
     }
 
     #ifdef WOLFSSL_CALLBACKS
-        if (ssl->hsInfoOn) AddPacketName("Finished", &ssl->handShakeInfo);
+        if (ssl->hsInfoOn) AddPacketName(ssl, "Finished");
         if (ssl->toInfoOn) {
-            AddPacketInfo("Finished", &ssl->timeoutInfo, output, sendSz,
-                          ssl->heap);
+            AddPacketInfo(ssl, "Finished", handshake, output, sendSz,
+                          WRITE_PROTO, ssl->heap);
         }
     #endif
 
@@ -5432,10 +5430,10 @@ static int SendTls13KeyUpdate(WOLFSSL* ssl)
         return BUILD_MSG_ERROR;
 
     #ifdef WOLFSSL_CALLBACKS
-        if (ssl->hsInfoOn) AddPacketName("KeyUpdate", &ssl->handShakeInfo);
+        if (ssl->hsInfoOn) AddPacketName(ssl, "KeyUpdate");
         if (ssl->toInfoOn) {
-            AddPacketInfo("KeyUpdate", &ssl->timeoutInfo, output, sendSz,
-                          ssl->heap);
+            AddPacketInfo(ssl, "KeyUpdate", handshake, output, sendSz,
+                          WRITE_PROTO, ssl->heap);
         }
     #endif
 
@@ -6139,8 +6137,8 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     /* add name later, add on record and handshake header part back on */
     if (ssl->toInfoOn) {
         int add = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
-        AddPacketInfo(0, &ssl->timeoutInfo, input + *inOutIdx - add,
-                      size + add, ssl->heap);
+        AddPacketInfo(ssl, 0, handshake, input + *inOutIdx - add,
+                      size + add, READ_PROTO, ssl->heap);
         AddLateRecordHeader(&ssl->curRL, &ssl->timeoutInfo);
     }
 #endif

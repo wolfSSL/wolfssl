@@ -108,8 +108,10 @@
 
 #include <wolfssl/wolfcrypt/hash.h>
 
-#ifdef WOLFSSL_CALLBACKS
+#if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
     #include <wolfssl/callbacks.h>
+#endif
+#ifdef WOLFSSL_CALLBACKS
     #include <signal.h>
 #endif
 
@@ -1178,7 +1180,9 @@ enum Misc {
 
     PREV_ORDER         = -1,   /* Sequence number is in previous epoch. */
     PEER_ORDER         = 1,    /* Peer sequence number for verify. */
-    CUR_ORDER          = 0     /* Current sequence number. */
+    CUR_ORDER          = 0,    /* Current sequence number. */
+    WRITE_PROTO        = 1,    /* writing a protocol message */
+    READ_PROTO         = 0     /* reading a protocol message */
 };
 
 
@@ -3415,8 +3419,8 @@ struct WOLFSSL {
 #endif /* WOLFSSL_DTLS_DROP_STATS */
 #endif /* WOLFSSL_DTLS */
 #ifdef WOLFSSL_CALLBACKS
-    HandShakeInfo   handShakeInfo;      /* info saved during handshake */
     TimeoutInfo     timeoutInfo;        /* info saved during handshake */
+    HandShakeInfo   handShakeInfo;      /* info saved during handshake */
 #endif
 #ifdef OPENSSL_EXTRA
     SSL_Msg_Cb      protoMsgCb;         /* inspect protocol message callback */
@@ -3589,20 +3593,21 @@ typedef struct EncryptedInfo {
 #endif
 
 
-#ifdef WOLFSSL_CALLBACKS
+#if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
     WOLFSSL_LOCAL
     void InitHandShakeInfo(HandShakeInfo*, WOLFSSL*);
     WOLFSSL_LOCAL
     void FinishHandShakeInfo(HandShakeInfo*);
     WOLFSSL_LOCAL
-    void AddPacketName(const char*, HandShakeInfo*);
+    void AddPacketName(WOLFSSL* ssl, const char* name);
 
     WOLFSSL_LOCAL
     void InitTimeoutInfo(TimeoutInfo*);
     WOLFSSL_LOCAL
     void FreeTimeoutInfo(TimeoutInfo*, void*);
     WOLFSSL_LOCAL
-    void AddPacketInfo(const char*, TimeoutInfo*, const byte*, int, void*);
+    void AddPacketInfo(WOLFSSL* ssl, const char* name, int type,
+                               const byte* data, int sz, int write, void* heap);
     WOLFSSL_LOCAL
     void AddLateName(const char*, TimeoutInfo*);
     WOLFSSL_LOCAL

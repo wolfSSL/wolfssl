@@ -24415,6 +24415,10 @@ int wolfSSL_HMAC_Final(WOLFSSL_HMAC_CTX* ctx, unsigned char* hash,
                 *len = WC_MD5_DIGEST_SIZE;
                 break;
 
+            case WC_SHA:
+                *len = WC_SHA_DIGEST_SIZE;
+                break;
+
             case WC_SHA224:
                 *len = WC_SHA224_DIGEST_SIZE;
                 break;
@@ -31616,22 +31620,29 @@ int wolfSSL_CTX_set_msg_callback(WOLFSSL_CTX *ctx, SSL_Msg_Cb cb)
 }
 #endif
 
+
+/* Sets a callback for when sending and receiving protocol messages.
+ *
+ * ssl WOLFSSL structure to set callback in
+ * cb  callback to use
+ *
+ * return SSL_SUCCESS on success and SSL_FAILURE with error case
+ */
 int wolfSSL_set_msg_callback(WOLFSSL *ssl, SSL_Msg_Cb cb)
 {
-  WOLFSSL_ENTER("wolfSSL_set_msg_callback");
+    WOLFSSL_ENTER("wolfSSL_set_msg_callback");
 
-  if (ssl == NULL) {
-      return SSL_FAILURE;
-  }
+    if (ssl == NULL) {
+        return SSL_FAILURE;
+    }
 
-  if (cb != NULL) {
-      ssl->toInfoOn = 1;
-  }
+    if (cb != NULL) {
+        ssl->toInfoOn = 1;
+    }
 
-  ssl->protoMsgCb = cb;
-  return SSL_SUCCESS;
+    ssl->protoMsgCb = cb;
+    return SSL_SUCCESS;
 }
-
 #ifndef NO_WOLFSSL_STUB
 int wolfSSL_CTX_set_msg_callback_arg(WOLFSSL_CTX *ctx, void* arg)
 {

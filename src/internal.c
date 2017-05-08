@@ -7886,7 +7886,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
         #ifdef WOLFSSL_CALLBACKS
             if (ssl->hsInfoOn)
-                AddPacketName("Certificate", &ssl->handShakeInfo);
+                AddPacketName(ssl, "Certificate");
             if (ssl->toInfoOn)
                 AddLateName("Certificate", &ssl->timeoutInfo);
         #endif
@@ -9286,7 +9286,7 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
         return BUFFER_E;
 
     #ifdef WOLFSSL_CALLBACKS
-        if (ssl->hsInfoOn) AddPacketName("Finished", &ssl->handShakeInfo);
+        if (ssl->hsInfoOn) AddPacketName(ssl, "Finished");
         if (ssl->toInfoOn) AddLateName("Finished", &ssl->timeoutInfo);
     #endif
 
@@ -9671,13 +9671,15 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         return ret;
     }
 
-#ifdef WOLFSSL_CALLBACKS
+#if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
     /* add name later, add on record and handshake header part back on */
     if (ssl->toInfoOn) {
         int add = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
-        AddPacketInfo(0, &ssl->timeoutInfo, input + *inOutIdx - add,
-                      size + add, ssl->heap);
+        AddPacketInfo(ssl, 0, handshake, input + *inOutIdx - add,
+                      size + add, READ_PROTO, ssl->heap);
+        #ifdef WOLFSSL_CALLBACKS
         AddLateRecordHeader(&ssl->curRL, &ssl->timeoutInfo);
+        #endif
     }
 #endif
 
@@ -9774,7 +9776,7 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         WOLFSSL_MSG("processing server hello done");
     #ifdef WOLFSSL_CALLBACKS
         if (ssl->hsInfoOn)
-            AddPacketName("ServerHelloDone", &ssl->handShakeInfo);
+            AddPacketName(ssl, "ServerHelloDone");
         if (ssl->toInfoOn)
             AddLateName("ServerHelloDone", &ssl->timeoutInfo);
     #endif
@@ -11605,14 +11607,14 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type,
     byte level;
     byte code;
 
-    #ifdef WOLFSSL_CALLBACKS
+    #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
         if (ssl->hsInfoOn)
-            AddPacketName("Alert", &ssl->handShakeInfo);
+            AddPacketName(ssl, "Alert");
         if (ssl->toInfoOn)
             /* add record header back on to info + alert bytes level/code */
-            AddPacketInfo("Alert", &ssl->timeoutInfo, input + *inOutIdx -
+            AddPacketInfo(ssl, "Alert", alert, input + *inOutIdx -
                           RECORD_HEADER_SZ, RECORD_HEADER_SZ + ALERT_SIZE,
-                          ssl->heap);
+                          READ_PROTO, ssl->heap);
     #endif
 
     if (++ssl->options.alertCount >= WOLFSSL_ALERT_COUNT_MAX) {
@@ -12174,16 +12176,19 @@ int ProcessReply(WOLFSSL* ssl)
 
                 case change_cipher_spec:
                     WOLFSSL_MSG("got CHANGE CIPHER SPEC");
-                    #ifdef WOLFSSL_CALLBACKS
+                    #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
                         if (ssl->hsInfoOn)
-                            AddPacketName("ChangeCipher", &ssl->handShakeInfo);
+                            AddPacketName(ssl, "ChangeCipher");
                         /* add record header back on info */
                         if (ssl->toInfoOn) {
-                            AddPacketInfo("ChangeCipher", &ssl->timeoutInfo,
+                            AddPacketInfo(ssl, "ChangeCipher",
+                                change_cipher_spec,
                                 ssl->buffers.inputBuffer.buffer +
                                 ssl->buffers.inputBuffer.idx - RECORD_HEADER_SZ,
-                                1 + RECORD_HEADER_SZ, ssl->heap);
+                                1 + RECORD_HEADER_SZ, READ_PROTO, ssl->heap);
+                            #ifdef WOLFSSL_CALLBACKS
                             AddLateRecordHeader(&ssl->curRL, &ssl->timeoutInfo);
+                            #endif
                         }
                     #endif
 
@@ -12408,11 +12413,11 @@ int SendChangeCipher(WOLFSSL* ssl)
                 return ret;
         }
     #endif
-    #ifdef WOLFSSL_CALLBACKS
-        if (ssl->hsInfoOn) AddPacketName("ChangeCipher", &ssl->handShakeInfo);
+    #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
+        if (ssl->hsInfoOn) AddPacketName(ssl, "ChangeCipher");
         if (ssl->toInfoOn)
-            AddPacketInfo("ChangeCipher", &ssl->timeoutInfo, output, sendSz,
-                           ssl->heap);
+            AddPacketInfo(ssl, "ChangeCipher", change_cipher_spec, output,
+                    sendSz, WRITE_PROTO, ssl->heap);
     #endif
     ssl->buffers.outputBuffer.length += sendSz;
 
@@ -13062,11 +13067,11 @@ int SendFinished(WOLFSSL* ssl)
         }
     }
 
-    #ifdef WOLFSSL_CALLBACKS
-        if (ssl->hsInfoOn) AddPacketName("Finished", &ssl->handShakeInfo);
+    #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
+        if (ssl->hsInfoOn) AddPacketName(ssl, "Finished");
         if (ssl->toInfoOn)
-            AddPacketInfo("Finished", &ssl->timeoutInfo, output, sendSz,
-                          ssl->heap);
+            AddPacketInfo(ssl, "Finished", handshake, output, sendSz,
+                          WRITE_PROTO, ssl->heap);
     #endif
 
     ssl->buffers.outputBuffer.length += sendSz;
@@ -13294,12 +13299,12 @@ int SendCertificate(WOLFSSL* ssl)
         }
     #endif
 
-    #ifdef WOLFSSL_CALLBACKS
+    #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
         if (ssl->hsInfoOn)
-            AddPacketName("Certificate", &ssl->handShakeInfo);
+            AddPacketName(ssl, "Certificate");
         if (ssl->toInfoOn)
-            AddPacketInfo("Certificate", &ssl->timeoutInfo, output, sendSz,
-                           ssl->heap);
+            AddPacketInfo(ssl, "Certificate", handshake, output, sendSz,
+                           WRITE_PROTO, ssl->heap);
     #endif
 
         ssl->buffers.outputBuffer.length += sendSz;
@@ -13429,12 +13434,12 @@ int SendCertificateRequest(WOLFSSL* ssl)
     if (ret != 0)
         return ret;
 
-    #ifdef WOLFSSL_CALLBACKS
+    #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
         if (ssl->hsInfoOn)
-            AddPacketName("CertificateRequest", &ssl->handShakeInfo);
+            AddPacketName(ssl, "CertificateRequest");
         if (ssl->toInfoOn)
-            AddPacketInfo("CertificateRequest", &ssl->timeoutInfo, output,
-                          sendSz, ssl->heap);
+            AddPacketInfo(ssl, "CertificateRequest", handshake, output, sendSz,
+                    WRITE_PROTO, ssl->heap);
     #endif
     ssl->buffers.outputBuffer.length += sendSz;
     if (ssl->options.groupMessages)
@@ -13527,12 +13532,12 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
             ret = DtlsMsgPoolSave(ssl, output, sendSz);
     #endif
 
-    #ifdef WOLFSSL_CALLBACKS
+    #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
         if (ret == 0 && ssl->hsInfoOn)
-            AddPacketName("CertificateStatus", &ssl->handShakeInfo);
+            AddPacketName(ssl, "CertificateStatus");
         if (ret == 0 && ssl->toInfoOn)
-            AddPacketInfo("CertificateStatus", &ssl->timeoutInfo, output,
-                                                             sendSz, ssl->heap);
+            AddPacketInfo(ssl, "CertificateStatus", handshake, output, sendSz,
+                    WRITE_PROTO, ssl->heap);
     #endif
 
         if (ret == 0) {
@@ -14241,11 +14246,12 @@ int SendAlert(WOLFSSL* ssl, int severity, int type)
     if (sendSz < 0)
         return BUILD_MSG_ERROR;
 
-    #ifdef WOLFSSL_CALLBACKS
+    #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
         if (ssl->hsInfoOn)
-            AddPacketName("Alert", &ssl->handShakeInfo);
+            AddPacketName(ssl, "Alert");
         if (ssl->toInfoOn)
-            AddPacketInfo("Alert", &ssl->timeoutInfo, output, sendSz,ssl->heap);
+            AddPacketInfo(ssl, "Alert", alert, output, sendSz, WRITE_PROTO,
+                    ssl->heap);
     #endif
 
     ssl->buffers.outputBuffer.length += sendSz;
@@ -16303,7 +16309,7 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
 }
 #endif /* !defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS) */
 
-#ifdef WOLFSSL_CALLBACKS
+#if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
 
     /* Initialisze HandShakeInfo */
     void InitHandShakeInfo(HandShakeInfo* info, WOLFSSL* ssl)
@@ -16339,15 +16345,21 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
 
 
     /* Add name to info packet names, increase packet name count */
-    void AddPacketName(const char* name, HandShakeInfo* info)
+    void AddPacketName(WOLFSSL* ssl, const char* name)
     {
+    #ifdef WOLFSSL_CALLBACKS
+        HandShakeInfo* info = &ssl->handShakeInfo;
         if (info->numberPackets < MAX_PACKETS_HANDSHAKE) {
             XSTRNCPY(info->packetNames[info->numberPackets++], name,
                     MAX_PACKETNAME_SZ);
         }
+    #endif
+        (void)ssl;
+        (void)name;
     }
 
 
+    #ifdef WOLFSSL_CALLBACKS
     /* Initialisze TimeoutInfo */
     void InitTimeoutInfo(TimeoutInfo* info)
     {
@@ -16382,11 +16394,51 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
 
     }
 
-
-    /* Add PacketInfo to TimeoutInfo */
-    void AddPacketInfo(const char* name, TimeoutInfo* info, const byte* data,
-                       int sz, void* heap)
+    /* Add packet name to previsouly added packet info */
+    void AddLateName(const char* name, TimeoutInfo* info)
     {
+        /* make sure we have a valid previous one */
+        if (info->numberPackets > 0 && info->numberPackets <
+                                                        MAX_PACKETS_HANDSHAKE) {
+            XSTRNCPY(info->packets[info->numberPackets - 1].packetName, name,
+                    MAX_PACKETNAME_SZ);
+        }
+    }
+
+    /* Add record header to previsouly added packet info */
+    void AddLateRecordHeader(const RecordLayerHeader* rl, TimeoutInfo* info)
+    {
+        /* make sure we have a valid previous one */
+        if (info->numberPackets > 0 && info->numberPackets <
+                                                        MAX_PACKETS_HANDSHAKE) {
+            if (info->packets[info->numberPackets - 1].bufferValue)
+                XMEMCPY(info->packets[info->numberPackets - 1].bufferValue, rl,
+                       RECORD_HEADER_SZ);
+            else
+                XMEMCPY(info->packets[info->numberPackets - 1].value, rl,
+                       RECORD_HEADER_SZ);
+        }
+    }
+
+    #endif /* WOLFSSL_CALLBACKS */
+
+
+    /* Add PacketInfo to TimeoutInfo
+     *
+     * ssl   WOLFSSL structure sending or receiving packet
+     * name  name of packet being sent
+     * type  type of packet being sent
+     * data  data bing sent with packet
+     * sz    size of data buffer
+     * write 1 if this packet is being written to wire, 0 if being read
+     * heap  custom heap to use for mallocs/frees
+     */
+    void AddPacketInfo(WOLFSSL* ssl, const char* name, int type,
+            const byte* data, int sz, int write, void* heap)
+    {
+    #ifdef WOLFSSL_CALLBACKS
+        TimeoutInfo* info = &ssl->timeoutInfo;
+
         if (info->numberPackets < (MAX_PACKETS_HANDSHAKE - 1)) {
             Timeval currTime;
 
@@ -16416,6 +16468,7 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
                                                              currTime.tv_usec;
             info->numberPackets++;
         }
+    #endif /* WOLFSSL_CALLBACKS */
     #ifdef OPENSSL_EXTRA
         if (ssl->protoMsgCb != NULL && sz > RECORD_HEADER_SZ) {
             /* version from hex to dec  16 is 16^1, 256 from 16^2 and
@@ -16425,39 +16478,17 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
                           (ssl->version.major & 0X0F) * 256 +
                           (ssl->version.major & 0xF0) * 4096;
 
-            ssl->protoMsgCb(written, version, type,
+            ssl->protoMsgCb(write, version, type,
                          (const void *)(data + RECORD_HEADER_SZ),
                          (size_t)(sz - RECORD_HEADER_SZ),
                          ssl, ssl->protoMsgCtx);
         }
     #endif /* OPENSSL_EXTRA */
-    }
-
-
-    /* Add packet name to previsouly added packet info */
-    void AddLateName(const char* name, TimeoutInfo* info)
-    {
-        /* make sure we have a valid previous one */
-        if (info->numberPackets > 0 && info->numberPackets <
-                                                        MAX_PACKETS_HANDSHAKE) {
-            XSTRNCPY(info->packets[info->numberPackets - 1].packetName, name,
-                    MAX_PACKETNAME_SZ);
-        }
-    }
-
-    /* Add record header to previsouly added packet info */
-    void AddLateRecordHeader(const RecordLayerHeader* rl, TimeoutInfo* info)
-    {
-        /* make sure we have a valid previous one */
-        if (info->numberPackets > 0 && info->numberPackets <
-                                                        MAX_PACKETS_HANDSHAKE) {
-            if (info->packets[info->numberPackets - 1].bufferValue)
-                XMEMCPY(info->packets[info->numberPackets - 1].bufferValue, rl,
-                       RECORD_HEADER_SZ);
-            else
-                XMEMCPY(info->packets[info->numberPackets - 1].value, rl,
-                       RECORD_HEADER_SZ);
-        }
+        (void)write;
+        (void)name;
+        (void)heap;
+        (void)type;
+        (void)ssl;
     }
 
 #endif /* WOLFSSL_CALLBACKS */
@@ -16680,11 +16711,11 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
 
         ssl->options.clientState = CLIENT_HELLO_COMPLETE;
 
-#ifdef WOLFSSL_CALLBACKS
-        if (ssl->hsInfoOn) AddPacketName("ClientHello", &ssl->handShakeInfo);
+#if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
+        if (ssl->hsInfoOn) AddPacketName(ssl, "ClientHello");
         if (ssl->toInfoOn)
-            AddPacketInfo("ClientHello", &ssl->timeoutInfo, output, sendSz,
-                          ssl->heap);
+            AddPacketInfo(ssl, "ClientHello", handshake, output, sendSz,
+                          WRITE_PROTO, ssl->heap);
 #endif
 
         ssl->buffers.outputBuffer.length += sendSz;
@@ -16701,8 +16732,7 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
         word32          begin = *inOutIdx;
 
 #ifdef WOLFSSL_CALLBACKS
-        if (ssl->hsInfoOn) AddPacketName("HelloVerifyRequest",
-                                         &ssl->handShakeInfo);
+        if (ssl->hsInfoOn) AddPacketName(ssl, "HelloVerifyRequest");
         if (ssl->toInfoOn) AddLateName("HelloVerifyRequest", &ssl->timeoutInfo);
 #endif
 
@@ -16891,7 +16921,7 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
         int             ret;
 
 #ifdef WOLFSSL_CALLBACKS
-        if (ssl->hsInfoOn) AddPacketName("ServerHello", &ssl->handShakeInfo);
+        if (ssl->hsInfoOn) AddPacketName(ssl, "ServerHello");
         if (ssl->toInfoOn) AddLateName("ServerHello", &ssl->timeoutInfo);
 #endif
 
@@ -17175,7 +17205,7 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
 
         #ifdef WOLFSSL_CALLBACKS
             if (ssl->hsInfoOn)
-                AddPacketName("CertificateRequest", &ssl->handShakeInfo);
+                AddPacketName(ssl, "CertificateRequest");
             if (ssl->toInfoOn)
                 AddLateName("CertificateRequest", &ssl->timeoutInfo);
         #endif
@@ -17404,7 +17434,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
         {
         #ifdef WOLFSSL_CALLBACKS
             if (ssl->hsInfoOn)
-                AddPacketName("ServerKeyExchange", &ssl->handShakeInfo);
+                AddPacketName(ssl, "ServerKeyExchange");
             if (ssl->toInfoOn)
                 AddLateName("ServerKeyExchange", &ssl->timeoutInfo);
         #endif
@@ -19659,12 +19689,12 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             }
         #endif
 
-        #ifdef WOLFSSL_CALLBACKS
+        #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
             if (ssl->hsInfoOn)
-                AddPacketName("ClientKeyExchange", &ssl->handShakeInfo);
+                AddPacketName(ssl, "ClientKeyExchange");
             if (ssl->toInfoOn)
-                AddPacketInfo("ClientKeyExchange", &ssl->timeoutInfo,
-                              args->output, args->sendSz, ssl->heap);
+                AddPacketInfo(ssl, "ClientKeyExchange", handshake,
+                            args->output, args->sendSz, WRITE_PROTO, ssl->heap);
         #endif
 
             ssl->buffers.outputBuffer.length += args->sendSz;
@@ -20252,12 +20282,12 @@ int SendCertificateVerify(WOLFSSL* ssl)
         #endif
 
 
-        #ifdef WOLFSSL_CALLBACKS
+        #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
             if (ssl->hsInfoOn)
-                AddPacketName("CertificateVerify", &ssl->handShakeInfo);
+                AddPacketName(ssl, "CertificateVerify");
             if (ssl->toInfoOn)
-                AddPacketInfo("CertificateVerify", &ssl->timeoutInfo,
-                              args->output, args->sendSz, ssl->heap);
+                AddPacketInfo(ssl, "CertificateVerify", handshake,
+                            args->output, args->sendSz, WRITE_PROTO, ssl->heap);
         #endif
 
             ssl->buffers.outputBuffer.length += args->sendSz;
@@ -20561,13 +20591,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ret != 0)
             return ret;
 
-
-    #ifdef WOLFSSL_CALLBACKS
+    #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
         if (ssl->hsInfoOn)
-            AddPacketName("ServerHello", &ssl->handShakeInfo);
+            AddPacketName(ssl, "ServerHello");
         if (ssl->toInfoOn)
-            AddPacketInfo("ServerHello", &ssl->timeoutInfo, output, sendSz,
-                          ssl->heap);
+            AddPacketInfo(ssl, "ServerHello", handshake, output, sendSz,
+                          WRITE_PROTO, ssl->heap);
     #endif
 
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
@@ -22067,13 +22096,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     goto exit_sske;
                 }
 
-            #ifdef WOLFSSL_CALLBACKS
+            #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
                 if (ssl->hsInfoOn) {
-                    AddPacketName("ServerKeyExchange", &ssl->handShakeInfo);
+                    AddPacketName(ssl, "ServerKeyExchange");
                 }
                 if (ssl->toInfoOn) {
-                    AddPacketInfo("ServerKeyExchange", &ssl->timeoutInfo,
-                        args->output, args->sendSz, ssl->heap);
+                    AddPacketInfo(ssl, "ServerKeyExchange", handshake,
+                        args->output, args->sendSz, WRITE_PROTO, ssl->heap);
                 }
             #endif
 
@@ -22337,7 +22366,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         WOLFSSL_MSG("Got old format client hello");
 #ifdef WOLFSSL_CALLBACKS
         if (ssl->hsInfoOn)
-            AddPacketName("ClientHello", &ssl->handShakeInfo);
+            AddPacketName(ssl, "ClientHello");
         if (ssl->toInfoOn)
             AddLateName("ClientHello", &ssl->timeoutInfo);
 #endif
@@ -22538,7 +22567,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif /* WOLFSSL_DTLS */
 
 #ifdef WOLFSSL_CALLBACKS
-        if (ssl->hsInfoOn) AddPacketName("ClientHello", &ssl->handShakeInfo);
+        if (ssl->hsInfoOn) AddPacketName(ssl, "ClientHello");
         if (ssl->toInfoOn) AddLateName("ClientHello", &ssl->timeoutInfo);
 #endif
 
@@ -23131,7 +23160,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             {
             #ifdef WOLFSSL_CALLBACKS
                 if (ssl->hsInfoOn)
-                    AddPacketName("CertificateVerify", &ssl->handShakeInfo);
+                    AddPacketName(ssl, "CertificateVerify");
                 if (ssl->toInfoOn)
                     AddLateName("CertificateVerify", &ssl->timeoutInfo);
             #endif
@@ -23433,12 +23462,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             if (ret != 0)
                 return ret;
 
-    #ifdef WOLFSSL_CALLBACKS
+    #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
         if (ssl->hsInfoOn)
-            AddPacketName("ServerHelloDone", &ssl->handShakeInfo);
+            AddPacketName(ssl, "ServerHelloDone");
         if (ssl->toInfoOn)
-            AddPacketInfo("ServerHelloDone", &ssl->timeoutInfo, output, sendSz,
-                          ssl->heap);
+            AddPacketInfo(ssl, "ServerHelloDone", handshake, output, sendSz,
+                    WRITE_PROTO, ssl->heap);
     #endif
         ssl->options.serverState = SERVER_HELLODONE_COMPLETE;
 
@@ -23753,12 +23782,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         XMEMCPY(output + idx, cookie, cookieSz);
 
-#ifdef WOLFSSL_CALLBACKS
+#if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
         if (ssl->hsInfoOn)
-            AddPacketName("HelloVerifyRequest", &ssl->handShakeInfo);
+            AddPacketName(ssl, "HelloVerifyRequest");
         if (ssl->toInfoOn)
-            AddPacketInfo("HelloVerifyRequest", &ssl->timeoutInfo, output,
-                          sendSz, ssl->heap);
+            AddPacketInfo(ssl, "HelloVerifyRequest", handshake, output,
+                          sendSz, WRITE_PROTO, ssl->heap);
 #endif
 
         ssl->buffers.outputBuffer.length += sendSz;
@@ -23858,9 +23887,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 }
             #endif /* !NO_CERTS */
 
-            #ifdef WOLFSSL_CALLBACKS
+            #if defined(WOLFSSL_CALLBACKS)
                 if (ssl->hsInfoOn) {
-                    AddPacketName("ClientKeyExchange", &ssl->handShakeInfo);
+                    AddPacketName(ssl, "ClientKeyExchange");
                 }
                 if (ssl->toInfoOn) {
                     AddLateName("ClientKeyExchange", &ssl->timeoutInfo);

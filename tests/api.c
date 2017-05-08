@@ -14299,7 +14299,7 @@ static void test_wolfSSL_ERR_peek_last_error_line(void)
 
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
-    test_client_nofail(&client_args);
+    test_client_nofail(&client_args, NULL);
     join_thread(serverThread);
 
     FreeTcpReady(&ready);

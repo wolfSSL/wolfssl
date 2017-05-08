@@ -819,9 +819,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    disableCRL    = 0;
     int    externalTest  = 0;
     int    ret;
-#ifndef WOLFSSL_CALLBACKS
     int    err           = 0;
-#endif
     int    scr           = 0;    /* allow secure renegotiation */
     int    forceScr      = 0;    /* force client initiaed scr */
     int    useClientCert = 1;
@@ -2007,8 +2005,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     ret = NonBlockingSSL_Connect(ssl);  /* will keep retrying on timeout */
 #endif
     if (ret != WOLFSSL_SUCCESS) {
-        printf("wolfSSL_connect error %d, %s\n", err,
-            wolfSSL_ERR_error_string(err, buffer));
+        printf("wolfSSL_connect error %d, %s\n", ret,
+            wolfSSL_ERR_error_string(ret, buffer));
         wolfSSL_free(ssl);
         wolfSSL_CTX_free(ctx);
         err_sys("wolfSSL_connect failed");
