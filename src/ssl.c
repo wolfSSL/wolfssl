@@ -24171,16 +24171,16 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
 }
 #endif /* NO_RSA */
 
-int wolfSSL_HMAC_CTX_init(WOLFSSL_HMAC_CTX* ctx)
+int wolfSSL_HMAC_CTX_Init(WOLFSSL_HMAC_CTX* ctx)
 {
-    WOLFSSL_MSG("wolfSSL_HMAC_CTX_init");
+    WOLFSSL_MSG("wolfSSL_HMAC_CTX_Init");
 
     if (ctx != NULL) {
         /* wc_HmacSetKey sets up ctx->hmac */
         XMEMSET(ctx, 0, sizeof(WOLFSSL_HMAC_CTX));
     }
 
-    return SSL_SUCCESS;
+    return WOLFSSL_SUCCESS;
 }
 
 
@@ -24192,6 +24192,101 @@ int wolfSSL_HMAC_Init_ex(WOLFSSL_HMAC_CTX* ctx, const void* key,
     /* WOLFSSL_ENGINE not used, call wolfSSL_HMAC_Init */
     (void)e;
     return wolfSSL_HMAC_Init(ctx, key, keylen, type);
+}
+
+
+/* Deep copy of information from src to des structure
+ *
+ * des destination to copy information to
+ * src structure to get infromation from
+ *
+ * Returns SSL_SUCCESS on success and SSL_FAILURE on error
+ */
+int wolfSSL_HMAC_CTX_copy(WOLFSSL_HMAC_CTX* des, WOLFSSL_HMAC_CTX* src)
+{
+
+    WOLFSSL_ENTER("wolfSSL_HMAC_CTX_copy");
+
+    if (des == NULL || src == NULL) {
+        return SSL_FAILURE;
+    }
+
+    if (wc_HmacInit(&des->hmac, src->hmac.heap, 0) != 0) {
+        WOLFSSL_MSG("Error initializing HMAC");
+        return SSL_FAILURE;
+    }
+
+    des->type = src->type;
+
+    /* requires that hash structures have no dynamic parts to them */
+    switch (src->hmac.macType) {
+    #ifndef NO_MD5
+        case MD5:
+            XMEMCPY(&des->hmac.hash.md5, &src->hmac.hash.md5, sizeof(Md5));
+            break;
+    #endif /* !NO_MD5 */
+
+    #ifndef NO_SHA
+        case SHA:
+            XMEMCPY(&des->hmac.hash.sha, &src->hmac.hash.sha, sizeof(Sha));
+            break;
+    #endif /* !NO_SHA */
+
+    #ifdef WOLFSSL_SHA224
+        case SHA224:
+            XMEMCPY(&des->hmac.hash.sha224, &src->hmac.hash.sha224,
+                    sizeof(Sha224));
+            break;
+    #endif /* WOLFSSL_SHA224 */
+
+    #ifndef NO_SHA256
+        case SHA256:
+            XMEMCPY(&des->hmac.hash.sha256, &src->hmac.hash.sha256,
+                    sizeof(Sha256));
+            break;
+    #endif /* !NO_SHA256 */
+
+    #ifdef WOLFSSL_SHA512
+    #ifdef WOLFSSL_SHA384
+        case SHA384:
+            XMEMCPY(&des->hmac.hash.sha384, &src->hmac.hash.sha384,
+                    sizeof(Sha384));
+            break;
+    #endif /* WOLFSSL_SHA384 */
+        case SHA512:
+            XMEMCPY(&des->hmac.hash.sha512, &src->hmac.hash.sha512,
+                    sizeof(Sha512));
+            break;
+    #endif /* WOLFSSL_SHA512 */
+
+        default:
+            WOLFSSL_MSG("Unknown or unsupported hash type");
+            return SSL_FAILURE;
+    }
+
+    XMEMCPY((byte*)des->hmac.ipad, (byte*)src->hmac.ipad, HMAC_BLOCK_SIZE);
+    XMEMCPY((byte*)des->hmac.opad, (byte*)src->hmac.opad, HMAC_BLOCK_SIZE);
+    XMEMCPY((byte*)des->hmac.innerHash, (byte*)src->hmac.innerHash,
+                                                               MAX_DIGEST_SIZE);
+    des->hmac.heap    = src->hmac.heap;
+    des->hmac.macType = src->hmac.macType;
+    des->hmac.innerHashKeyed = src->hmac.innerHashKeyed;
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    XMEMCPY(des->hmac.asyncDev, src->hmac.asyncDev, sizeof(WC_ASYNC_DEV));
+    XMEMCPY(des->hmac.keyRaw, src->hmac.keyRaw, HMAC_BLOCK_SIZE);
+    des->hmac.keyLen = src->hmac.keyLen;
+    #ifdef HAVE_CAVIUM
+        des->hmac.data = (byte*)XMALLOC(src->hmac.dataLen, des->heap,
+                DYNAMIC_TYPE_HMAC);
+        if (des->hmac.data == NULL) {
+            return BUFFER_E;
+        }
+        XMEMCPY(des->hmac.data, src->hmac.data, src->hmac.dataLen);
+        des->hmac.dataLen = src->hmac.dataLen;
+    #endif /* HAVE_CAVIUM */
+#endif /* WOLFSSL_ASYNC_CRYPT */
+        return SSL_SUCCESS;
 }
 
 
@@ -24214,9 +24309,21 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
             WOLFSSL_MSG("md5 hmac");
             ctx->type = WC_MD5;
         }
+        else if (XSTRNCMP(type, "SHA224", 6) == 0) {
+            WOLFSSL_MSG("sha224 hmac");
+            ctx->type = SHA224;
+        }
         else if (XSTRNCMP(type, "SHA256", 6) == 0) {
             WOLFSSL_MSG("sha256 hmac");
             ctx->type = WC_SHA256;
+        }
+        else if (XSTRNCMP(type, "SHA384", 6) == 0) {
+            WOLFSSL_MSG("sha384 hmac");
+            ctx->type = SHA384;
+        }
+        else if (XSTRNCMP(type, "SHA512", 6) == 0) {
+            WOLFSSL_MSG("sha512 hmac");
+            ctx->type = SHA512;
         }
 
         /* has to be last since would pick or 256, 384, or 512 too */
@@ -24297,23 +24404,32 @@ int wolfSSL_HMAC_Final(WOLFSSL_HMAC_CTX* ctx, unsigned char* hash,
     if (len) {
         WOLFSSL_MSG("setting output len");
         switch (ctx->type) {
-        case WC_MD5:
-            *len = WC_MD5_DIGEST_SIZE;
-            break;
+            case WC_MD5:
+                *len = WC_MD5_DIGEST_SIZE;
+                break;
 
-        case WC_SHA:
-            *len = WC_SHA_DIGEST_SIZE;
-            break;
+            case WC_SHA224:
+                *len = WC_SHA224_DIGEST_SIZE;
+                break;
 
-        case WC_SHA256:
-            *len = WC_SHA256_DIGEST_SIZE;
-            break;
+            case WC_SHA256:
+                *len = WC_SHA256_DIGEST_SIZE;
+                break;
 
-        default:
-            WOLFSSL_MSG("bad hmac type");
-            return WOLFSSL_FAILURE;
+            case WC_SHA384:
+                *len = WC_SHA384_DIGEST_SIZE;
+                break;
+
+            case WC_SHA512:
+                *len = WC_SHA512_DIGEST_SIZE;
+                break;
+
+            default:
+                WOLFSSL_MSG("bad hmac type");
+                return WOLFSSL_FAILURE;
         }
     }
+
     return WOLFSSL_SUCCESS;
 }
 
