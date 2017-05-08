@@ -549,13 +549,13 @@ static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd)
 {
     int hashSz;
 
-    byte contentTypeOid[] =
+    static byte contentTypeOid[] =
             { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xF7, 0x0d, 0x01,
                              0x09, 0x03 };
-    byte contentType[] =
+    static byte contentType[] =
             { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
                              0x07, 0x01 };
-    byte messageDigestOid[] =
+    static byte messageDigestOid[] =
             { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
                              0x09, 0x04 };
 
