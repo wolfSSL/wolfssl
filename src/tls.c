@@ -4349,6 +4349,9 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL *ssl, byte* input,
         /* TODO: [TLS13] Remove code when TLS v1.3 becomes an RFC. */
         if (input[i] == 0x7f && input[i + OPAQUE8_LEN] == 18) {
             ssl->version.minor = TLSv1_3_MINOR;
+            ssl->options.tls1_3 = 1;
+            TLSX_Push(&ssl->extensions, TLSX_SUPPORTED_VERSIONS, input,
+                      ssl->heap);
             break;
         }
 
@@ -4364,10 +4367,15 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL *ssl, byte* input,
 #endif
         if (input[i + OPAQUE8_LEN] == TLSv1_2_MINOR) {
             ssl->version.minor = input[i + OPAQUE8_LEN];
+            TLSX_Push(&ssl->extensions, TLSX_SUPPORTED_VERSIONS, input,
+                      ssl->heap);
             break;
         }
         if (input[i + OPAQUE8_LEN] == TLSv1_3_MINOR) {
             ssl->version.minor = input[i + OPAQUE8_LEN];
+            ssl->options.tls1_3 = 1;
+            TLSX_Push(&ssl->extensions, TLSX_SUPPORTED_VERSIONS, input,
+                      ssl->heap);
             break;
         }
     }
@@ -7239,10 +7247,6 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
             case TLSX_RENEGOTIATION_INFO:
                 WOLFSSL_MSG("Secure Renegotiation extension received");
 
-#ifdef WOLFSSL_TLS13
-                if (IsAtLeastTLSv1_3(ssl->version))
-                    return EXT_NOT_ALLOWED;
-#endif
                 ret = SCR_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
