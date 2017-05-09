@@ -2051,7 +2051,7 @@ typedef struct PreSharedKey {
     word16               identityLen;             /* Length of identity */
     byte*                identity;                /* PSK identity       */
     word32               ticketAge;               /* Age of the ticket  */
-    byte                 binderLen;               /* Length of HMAC     */
+    word32               binderLen;               /* Length of HMAC     */
     byte                 binder[MAX_DIGEST_SIZE]; /* HMAC of hanshake   */
     byte                 hmac;                    /* HMAC algorithm     */
     byte                 resumption:1;            /* Resumption PSK     */

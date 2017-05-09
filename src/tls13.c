@@ -1784,7 +1784,7 @@ static int WritePSKBinders(WOLFSSL* ssl, byte* output, word32 idx)
 
         /* Build the HMAC of the handshake message data = binder. */
         ret = BuildTls13HandshakeHmac(ssl, ssl->keys.client_write_MAC_secret,
-            current->binder, current->binderLen);
+            current->binder, &current->binderLen);
         if (ret != 0)
             return ret;
 
@@ -2247,7 +2247,7 @@ static int DoPreSharedKeys(WOLFSSL *ssl, const byte* input, word32 helloSz,
     PreSharedKey* current;
     byte          binderKey[MAX_DIGEST_SIZE];
     byte          binder[MAX_DIGEST_SIZE];
-    word16        binderLen;
+    word32        binderLen;
     word16        modes;
 
     ext = TLSX_Find(ssl->extensions, TLSX_PRE_SHARED_KEY);
