@@ -16114,6 +16114,50 @@ static void test_wolfSSL_HMAC_CTX(void)
 #endif
 }
 
+#if defined(OPENSSL_EXTRA)
+static void sslMsgCb(int write, int version, int type, const void* buf,
+        size_t sz, SSL* ssl, void* arg)
+{
+    int i;
+    unsigned char* pt = (unsigned char*)buf;
+
+    printf("%s %d bytes of version %d , type %d : ", (write)?"Writing":"Reading",
+            (int)sz, version, type);
+    for (i = 0; i < (int)sz; i++) printf("%02X", pt[i]);
+    printf("\n");
+    (void)ssl;
+    (void)arg;
+}
+#endif /* OPENSSL_EXTRA */
+
+static void test_wolfSSL_msg_callback(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
+    WOLFSSL*     ssl;
+    WOLFSSL_CTX* ctx;
+
+    printf(testingFmt, "wolfSSL_msg_callback()");
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, cliCertFile,
+                SSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile,
+                SSL_FILETYPE_PEM));
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0),
+                SSL_SUCCESS);
+
+    AssertNotNull(ssl = SSL_new(ctx));
+    AssertIntEQ(SSL_set_msg_callback(ssl, NULL), SSL_SUCCESS);
+    AssertIntEQ(SSL_set_msg_callback(ssl, &sslMsgCb), SSL_SUCCESS);
+    AssertIntEQ(SSL_set_msg_callback(NULL, &sslMsgCb), SSL_FAILURE);
+
+    SSL_CTX_free(ctx);
+    SSL_free(ssl);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_no_op_functions(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -16937,6 +16981,7 @@ void ApiTest(void)
     test_wolfSSL_RSA();
     test_wolfSSL_verify_depth();
     test_wolfSSL_HMAC_CTX();
+    test_wolfSSL_msg_callback();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();
