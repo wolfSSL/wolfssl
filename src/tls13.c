@@ -1816,8 +1816,8 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     AddTls13Headers(output, length, client_hello, ssl);
 
     /* Protocol version. */
-    output[idx++] = ssl->version.major;
-    output[idx++] = ssl->version.minor;
+    output[idx++] = SSLv3_MAJOR;
+    output[idx++] = TLSv1_2_MINOR;
     ssl->chVersion = ssl->version;
 
     /* Client Random */
@@ -2600,9 +2600,16 @@ int SendTls13ServerHello(WOLFSSL* ssl)
     /* Put the record and handshake headers on. */
     AddTls13Headers(output, length, server_hello, ssl);
 
-    /* Protocol version. */
-    output[idx++] = ssl->version.major;
-    output[idx++] = ssl->version.minor;
+    /* TODO: [TLS13] Replace existing code with code in comment.
+     * Use the TLS v1.3 draft version for now.
+     *
+     * Change to:
+     * output[idx++] = ssl->version.major;
+     * output[idx++] = ssl->version.minor;
+     */
+    /* The negotiated protocol version. */
+    output[idx++] = TLS_DRAFT_MAJOR;
+    output[idx++] = TLS_DRAFT_MINOR;
 
     /* TODO: [TLS13] Last 8 bytes have special meaning. */
     /* Generate server random. */
@@ -2987,6 +2994,55 @@ static int CreateRSAEncodedSig(byte* sig, byte* sigData, int sigDataSz,
     /* Encode the signature data as per PKCS #1.5 */
     return wc_EncodeSignature(sig, sigData, hashSz, hashOid);
 }
+
+#ifdef HAVE_ECC
+/* Encode the ECC signature.
+ *
+ * sigData    The data to be signed.
+ * sigDataSz  The size of the data to be signed.
+ * hashAlgo   The hash algorithm to use when signing.
+ * returns the length of the encoded signature or negative on error.
+ */
+static int CreateECCEncodedSig(byte* sigData, int sigDataSz, int hashAlgo)
+{
+    Digest digest;
+    int    hashSz = 0;
+
+    /* Digest the signature data. */
+    switch (hashAlgo) {
+#ifndef NO_WOLFSSL_SHA256
+        case sha256_mac:
+            wc_InitSha256(&digest.sha256);
+            wc_Sha256Update(&digest.sha256, sigData, sigDataSz);
+            wc_Sha256Final(&digest.sha256, sigData);
+            wc_Sha256Free(&digest.sha256);
+            hashSz = SHA256_DIGEST_SIZE;
+            break;
+#endif
+#ifdef WOLFSSL_SHA384
+        case sha384_mac:
+            wc_InitSha384(&digest.sha384);
+            wc_Sha384Update(&digest.sha384, sigData, sigDataSz);
+            wc_Sha384Final(&digest.sha384, sigData);
+            wc_Sha384Free(&digest.sha384);
+            hashSz = SHA384_DIGEST_SIZE;
+            break;
+#endif
+#ifdef WOLFSSL_SHA512
+        case sha512_mac:
+            wc_InitSha512(&digest.sha512);
+            wc_Sha512Update(&digest.sha512, sigData, sigDataSz);
+            wc_Sha512Final(&digest.sha512, sigData);
+            wc_Sha512Free(&digest.sha512);
+            hashSz = SHA512_DIGEST_SIZE;
+            break;
+#endif
+    }
+
+    return hashSz;
+}
+#endif
+
 
 /* Check that the decrypted signature matches the encoded signature
  * based on the digest of the signature data.
@@ -3437,8 +3493,12 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
             }
         #endif /* !NO_RSA */
         #ifdef HAVE_ECC
-            if (ssl->hsType == DYNAMIC_TYPE_ECC)
-                sig->length = args->sendSz - args->idx - HASH_SIG_SIZE - VERIFY_HEADER;
+            if (ssl->hsType == DYNAMIC_TYPE_ECC) {
+                sig->length = args->sendSz - args->idx - HASH_SIG_SIZE -
+                              VERIFY_HEADER;
+                args->sigDataSz = CreateECCEncodedSig(args->sigData,
+                    args->sigDataSz, ssl->suites->hashAlgo);
+            }
         #endif /* HAVE_ECC */
 
             /* Advance state and proceed */
@@ -3713,12 +3773,14 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
             args->idx += OPAQUE16_LEN;
 
             /* Signature data. */
-            if ((args->idx - args->begin) + args->sz > totalSz || args->sz > ENCRYPT_LEN) {
+            if ((args->idx - args->begin) + args->sz > totalSz ||
+                                                       args->sz > ENCRYPT_LEN) {
                 ERROR_OUT(BUFFER_ERROR, exit_dcv);
             }
 
             /* Check for public key of required type. */
-            if (args->sigAlgo == ecc_dsa_sa_algo && !ssl->peerEccDsaKeyPresent) {
+            if (args->sigAlgo == ecc_dsa_sa_algo &&
+                                                   !ssl->peerEccDsaKeyPresent) {
                 WOLFSSL_MSG("Oops, peer sent ECC key but not in verify");
             }
             if (args->sigAlgo == rsa_sa_algo &&
@@ -3744,6 +3806,8 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 }
 
                 CreateSigData(ssl, args->sigData, &args->sigDataSz, 1);
+                args->sigDataSz = CreateECCEncodedSig(args->sigData,
+                    args->sigDataSz, args->hashAlgo);
             }
         #endif
 
