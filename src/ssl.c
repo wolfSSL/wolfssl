@@ -28708,16 +28708,38 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(HAVE_POCO_LIB) \
     || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
 
-#ifndef NO_WOLFSSL_STUB
     unsigned char *wolfSSL_SHA1(const unsigned char *d, size_t n, unsigned char *md)
     {
-        (void) *d; (void) n; (void) *md;
-        WOLFSSL_ENTER("wolfSSL_SHA1");
-        WOLFSSL_STUB("SHA1");
+        static byte dig[SHA_DIGEST_SIZE];
+        Sha sha;
 
-        return NULL;
+        WOLFSSL_ENTER("wolfSSL_SHA1");
+
+        if (wc_InitSha_ex(&sha, NULL, 0) != 0) {
+            WOLFSSL_MSG("SHA1 Init failed");
+            return NULL;
+        }
+
+        if (wc_ShaUpdate(&sha, (const byte*)d, (word32)n) != 0) {
+            WOLFSSL_MSG("SHA1 Update failed");
+            return NULL;
+        }
+
+        if (wc_ShaFinal(&sha, dig) != 0) {
+            WOLFSSL_MSG("SHA1 Final failed");
+            return NULL;
+        }
+
+        wc_ShaFree(&sha);
+
+        if (md != NULL) {
+            XMEMCPY(md, dig, SHA_DIGEST_SIZE);
+            return md;
+        }
+        else {
+            return (unsigned char*)dig;
+        }
     }
-#endif
 
     char wolfSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x)
     {

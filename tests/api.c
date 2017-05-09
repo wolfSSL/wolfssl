@@ -16158,6 +16158,27 @@ static void test_wolfSSL_msg_callback(void)
 #endif
 }
 
+static void test_wolfSSL_SHA(void)
+{
+#if defined(OPENSSL_EXTRA)
+    printf(testingFmt, "wolfSSL_SHA()");
+
+    #if !defined(NO_SHA)
+    {
+        const unsigned char in[] = "abc";
+        unsigned char expected[] = "\xA9\x99\x3E\x36\x47\x06\x81\x6A\xBA\x3E"
+                                    "\x25\x71\x78\x50\xC2\x6C\x9C\xD0\xD8\x9D";
+        unsigned char out[SHA_DIGEST_SIZE];
+
+        XMEMSET(out, 0, SHA_DIGEST_SIZE);
+        AssertNotNull(SHA1(in, XSTRLEN((char*)in), out));
+        AssertIntEQ(XMEMCMP(out, expected, SHA_DIGEST_SIZE), 0);
+    }
+    #endif
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_no_op_functions(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -16982,6 +17003,7 @@ void ApiTest(void)
     test_wolfSSL_verify_depth();
     test_wolfSSL_HMAC_CTX();
     test_wolfSSL_msg_callback();
+    test_wolfSSL_SHA();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();
