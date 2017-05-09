@@ -28708,6 +28708,17 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(HAVE_POCO_LIB) \
     || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
 
+    /* One shot SHA1 hash of message.
+     *
+     * d  message to hash
+     * n  size of d buffer
+     * md buffer to hold digest. Should be SHA_DIGEST_SIZE.
+     *
+     * Note: if md is null then a static buffer of SHA_DIGEST_SIZE is used.
+     *       When the static buffer is used this function is not thread safe.
+     *
+     * Returns a pointer to the message digest on success and NULL on failure.
+     */
     unsigned char *wolfSSL_SHA1(const unsigned char *d, size_t n, unsigned char *md)
     {
         static byte dig[SHA_DIGEST_SIZE];
