@@ -24411,29 +24411,41 @@ int wolfSSL_HMAC_Final(WOLFSSL_HMAC_CTX* ctx, unsigned char* hash,
     if (len) {
         WOLFSSL_MSG("setting output len");
         switch (ctx->type) {
+            #ifndef NO_MD5
             case WC_MD5:
                 *len = WC_MD5_DIGEST_SIZE;
                 break;
+            #endif
 
+            #ifndef NO_SHA
             case WC_SHA:
                 *len = WC_SHA_DIGEST_SIZE;
                 break;
+            #endif
 
+            #ifdef WOLFSSL_SHA224
             case WC_SHA224:
                 *len = WC_SHA224_DIGEST_SIZE;
                 break;
+            #endif
 
+            #ifndef NO_SHA256
             case WC_SHA256:
                 *len = WC_SHA256_DIGEST_SIZE;
                 break;
+            #endif
 
+            #ifdef WOLFSSL_SHA384
             case WC_SHA384:
                 *len = WC_SHA384_DIGEST_SIZE;
                 break;
+            #endif
 
+            #ifdef WOLFSSL_SHA512
             case WC_SHA512:
                 *len = WC_SHA512_DIGEST_SIZE;
                 break;
+            #endif
 
             default:
                 WOLFSSL_MSG("bad hmac type");
@@ -28704,10 +28716,12 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         return bufSz;
     }
 
-#if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
-    defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(HAVE_POCO_LIB) \
-    || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) || defined(HAVE_LIGHTY) || \
+    defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(HAVE_STUNNEL) || \
+    defined(WOLFSSL_NGINX) || defined(HAVE_POCO_LIB) || \
+    defined(WOLFSSL_HAPROXY)
 
+#ifndef NO_SHA
     /* One shot SHA1 hash of message.
      *
      * d  message to hash
@@ -28751,6 +28765,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             return (unsigned char*)dig;
         }
     }
+#endif /* ! NO_SHA */
 
     char wolfSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x)
     {
