@@ -1747,6 +1747,7 @@ typedef enum {
     TLSX_TRUNCATED_HMAC             = 0x0004,
     TLSX_STATUS_REQUEST             = 0x0005, /* a.k.a. OCSP stapling   */
     TLSX_SUPPORTED_GROUPS           = 0x000a, /* a.k.a. Supported Curves */
+    TLSX_SIGNATURE_ALGORITHMS       = 0x000d,
     TLSX_APPLICATION_LAYER_PROTOCOL = 0x0010, /* a.k.a. ALPN */
     TLSX_STATUS_REQUEST_V2          = 0x0011, /* a.k.a. OCSP stapling v2 */
     TLSX_QUANTUM_SAFE_HYBRID        = 0x0018, /* a.k.a. QSH  */
@@ -2344,10 +2345,11 @@ enum KeyExchangeAlgorithm {
 
 /* Supported Authentication Schemes */
 enum SignatureAlgorithm {
-    anonymous_sa_algo,
-    rsa_sa_algo,
-    dsa_sa_algo,
-    ecc_dsa_sa_algo
+    anonymous_sa_algo = 0,
+    rsa_sa_algo       = 1,
+    dsa_sa_algo       = 2,
+    ecc_dsa_sa_algo   = 4,
+    rsa_pss_sa_algo   = 8
 };
 
 
@@ -3406,7 +3408,8 @@ WOLFSSL_LOCAL int VerifyClientSuite(WOLFSSL* ssl);
         WOLFSSL_LOCAL int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
             word32* outSz, RsaKey* key, const byte* keyBuf, word32 keySz, void* ctx);
         WOLFSSL_LOCAL int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz,
-            byte** out, RsaKey* key, const byte* keyBuf, word32 keySz, void* ctx);
+            byte** out, int sigAlgo, int hashAlgo, RsaKey* key,
+            const byte* keyBuf, word32 keySz, void* ctx);
         WOLFSSL_LOCAL int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out,
             word32* outSz, RsaKey* key, const byte* keyBuf, word32 keySz, void* ctx);
         WOLFSSL_LOCAL int RsaEnc(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,

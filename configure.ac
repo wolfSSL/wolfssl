@@ -243,6 +243,7 @@ AC_ARG_ENABLE([tls13],
 if test "$ENABLED_TLS13" = "yes"
 then
   AM_CFLAGS="-DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS -DHAVE_FFDHE_2048 $AM_CFLAGS"
+  AM_CFLAGS="-DWC_RSA_PSS $AM_CFLAGS"
 fi
 
 # check if TLS v1.3 was enabled for conditionally running tls13.test script

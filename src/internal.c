@@ -2773,8 +2773,9 @@ int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
     return ret;
 }
 
-int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz,
-    byte** out, RsaKey* key, const byte* keyBuf, word32 keySz, void* ctx)
+int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, int sigAlgo,
+              int hashAlgo, RsaKey* key, const byte* keyBuf, word32 keySz,
+              void* ctx)
 {
     int ret;
 
@@ -2782,6 +2783,8 @@ int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz,
     (void)keyBuf;
     (void)keySz;
     (void)ctx;
+    (void)sigAlgo;
+    (void)hashAlgo;
 
     WOLFSSL_ENTER("RsaVerify");
 
@@ -2792,7 +2795,37 @@ int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz,
     else
 #endif /*HAVE_PK_CALLBACKS */
     {
-        ret = wc_RsaSSL_VerifyInline(in, inSz, out, key);
+#ifdef WOLFSSL_TLS13
+    #ifdef WC_RSA_PSS
+        if (sigAlgo == rsa_pss_sa_algo) {
+            enum wc_HashType hashType = WC_HASH_TYPE_NONE;
+            int mgf = 0;
+            switch (hashAlgo) {
+                case sha512_mac:
+                #ifdef WOLFSSL_SHA512
+                    hashType = WC_HASH_TYPE_SHA512;
+                    mgf = WC_MGF1SHA512;
+                #endif
+                    break;
+                case sha384_mac:
+                #ifdef WOLFSSL_SHA384
+                    hashType = WC_HASH_TYPE_SHA384;
+                    mgf = WC_MGF1SHA384;
+                #endif
+                    break;
+                case sha256_mac:
+                #ifndef NO_SHA256
+                    hashType = WC_HASH_TYPE_SHA256;
+                    mgf = WC_MGF1SHA256;
+                #endif
+                    break;
+            }
+            ret = wc_RsaPSS_VerifyInline(in, inSz, out, hashType, mgf, key);
+        }
+        else
+    #endif
+#endif
+            ret = wc_RsaSSL_VerifyInline(in, inSz, out, key);
     }
 
     /* Handle async pending response */
@@ -16323,6 +16356,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                             ret = RsaVerify(ssl,
                                 args->verifySig, args->verifySigSz,
                                 &args->output,
+                                rsa_sa_algo, no_mac,
                                 ssl->peerRsaKey,
                             #ifdef HAVE_PK_CALLBACKS
                                 ssl->buffers.peerRsaKey.buffer,
@@ -21091,6 +21125,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         input + args->idx,
                         args->sz,
                         &args->output,
+                        rsa_sa_algo, no_mac,
                         ssl->peerRsaKey,
                     #ifdef HAVE_PK_CALLBACKS
                         ssl->buffers.peerRsaKey.buffer,

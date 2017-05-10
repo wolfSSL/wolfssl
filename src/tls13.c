@@ -2851,12 +2851,18 @@ static INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
 static INLINE void DecodeSigAlg(byte* input, byte* hashAlgo, byte* hsType)
 {
     switch (input[0]) {
-        /* PSS signatures: 0x080[4-6] */
+        case 0x08:
+           /* PSS signatures: 0x080[4-6] */
+           if (input[1] <= 0x06) {
+               *hsType   = input[0];
+               *hashAlgo = input[1];
+           }
+           break;
         /* ED25519: 0x0807 */
         /* ED448: 0x0808 */
         default:
             *hashAlgo = input[0];
-            *hsType  = input[1];
+            *hsType   = input[1];
             break;
     }
 }
@@ -3048,13 +3054,14 @@ static int CreateECCEncodedSig(byte* sigData, int sigDataSz, int hashAlgo)
  * based on the digest of the signature data.
  *
  * ssl       The SSL/TLS object.
+ * hashAlgo  The signature algorithm used to generate signature.
  * hashAlgo  The hash algorithm used to generate signature.
  * decSig    The decrypted signature.
  * decSigSz  The size of the decrypted signature.
  * returns 0 on success, otherwise failure.
  */
-static int CheckRSASignature(WOLFSSL* ssl, int hashAlgo, byte* decSig,
-                             word32 decSigSz)
+static int CheckRSASignature(WOLFSSL* ssl, int sigAlgo, int hashAlgo,
+                             byte* decSig, word32 decSigSz)
 {
     int    ret = 0;
     byte   sigData[MAX_SIG_DATA_SZ];
@@ -3066,21 +3073,38 @@ static int CheckRSASignature(WOLFSSL* ssl, int hashAlgo, byte* decSig,
 #endif
     word32 sigSz;
 
+    if (sigAlgo == rsa_sa_algo) {
 #ifdef WOLFSSL_SMALL_STACK
-    encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, ssl->heap,
-                                DYNAMIC_TYPE_TMP_BUFFER);
-    if (encodedSig == NULL) {
-        ret = MEMORY_E;
-        goto end;
-    }
+        encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, ssl->heap,
+                                    DYNAMIC_TYPE_TMP_BUFFER);
+        if (encodedSig == NULL) {
+            ret = MEMORY_E;
+            goto end;
+        }
 #endif
 
-    CreateSigData(ssl, sigData, &sigDataSz, 1);
-    sigSz = CreateRSAEncodedSig(encodedSig, sigData, sigDataSz, hashAlgo);
-    /* Check the encoded and decrypted signature data match. */
-    if (decSigSz != sigSz || decSig == NULL ||
-            XMEMCMP(decSig, encodedSig, sigSz) != 0) {
-        ret = VERIFY_CERT_ERROR;
+        CreateSigData(ssl, sigData, &sigDataSz, 1);
+        sigSz = CreateRSAEncodedSig(encodedSig, sigData, sigDataSz, hashAlgo);
+        /* Check the encoded and decrypted signature data match. */
+        if (decSigSz != sigSz || decSig == NULL ||
+                XMEMCMP(decSig, encodedSig, sigSz) != 0) {
+            ret = VERIFY_CERT_ERROR;
+        }
+    }
+    else {
+        CreateSigData(ssl, sigData, &sigDataSz, 1);
+        sigSz = CreateECCEncodedSig(sigData, sigDataSz, hashAlgo);
+        if (decSigSz != sigSz || decSig == NULL)
+            ret = VERIFY_CERT_ERROR;
+        else {
+            decSig -= 2 * decSigSz;
+            XMEMCPY(decSig, sigData, decSigSz);
+            decSig -= 8;
+            XMEMSET(decSig, 0, 8);
+            CreateECCEncodedSig(decSig, 8 + decSigSz * 2, hashAlgo);
+            if (XMEMCMP(decSig, decSig + 8 + decSigSz * 2, decSigSz) != 0)
+                ret = VERIFY_CERT_ERROR;
+        }
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -3783,8 +3807,9 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                                                    !ssl->peerEccDsaKeyPresent) {
                 WOLFSSL_MSG("Oops, peer sent ECC key but not in verify");
             }
-            if (args->sigAlgo == rsa_sa_algo &&
-                (ssl->peerRsaKey == NULL || !ssl->peerRsaKeyPresent)) {
+            if ((args->sigAlgo == rsa_sa_algo ||
+                 args->sigAlgo == rsa_pss_sa_algo) &&
+                         (ssl->peerRsaKey == NULL || !ssl->peerRsaKeyPresent)) {
                 WOLFSSL_MSG("Oops, peer sent RSA key but not in verify");
             }
 
@@ -3818,11 +3843,12 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         case TLS_ASYNC_DO:
         {
         #ifndef NO_RSA
-            if (ssl->peerRsaKey != NULL && ssl->peerRsaKeyPresent) {
+            if (args->sigAlgo ==  rsa_sa_algo ||
+                                             args->sigAlgo == rsa_pss_sa_algo) {
                 WOLFSSL_MSG("Doing RSA peer cert verify");
 
                 ret = RsaVerify(ssl, sig->buffer, sig->length, &args->output,
-                    ssl->peerRsaKey,
+                    args->sigAlgo, args->hashAlgo, ssl->peerRsaKey,
                 #ifdef HAVE_PK_CALLBACKS
                     ssl->buffers.peerRsaKey.buffer,
                     ssl->buffers.peerRsaKey.length,
@@ -3868,7 +3894,8 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         {
         #ifndef NO_RSA
             if (ssl->peerRsaKey != NULL && ssl->peerRsaKeyPresent != 0) {
-                ret = CheckRSASignature(ssl, args->hashAlgo, args->output, args->sendSz);
+                ret = CheckRSASignature(ssl, args->sigAlgo, args->hashAlgo,
+                                        args->output, args->sendSz);
                 if (ret != 0)
                     goto exit_dcv;
             }
