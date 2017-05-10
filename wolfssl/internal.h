@@ -1747,6 +1747,7 @@ typedef enum {
     TLSX_TRUNCATED_HMAC             = 0x0004,
     TLSX_STATUS_REQUEST             = 0x0005, /* a.k.a. OCSP stapling   */
     TLSX_SUPPORTED_GROUPS           = 0x000a, /* a.k.a. Supported Curves */
+    TLSX_SIGNATURE_ALGORITHMS       = 0x000d,
     TLSX_APPLICATION_LAYER_PROTOCOL = 0x0010, /* a.k.a. ALPN */
     TLSX_STATUS_REQUEST_V2          = 0x0011, /* a.k.a. OCSP stapling v2 */
     TLSX_QUANTUM_SAFE_HYBRID        = 0x0018, /* a.k.a. QSH  */
