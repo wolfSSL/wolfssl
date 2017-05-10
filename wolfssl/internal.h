@@ -2345,10 +2345,11 @@ enum KeyExchangeAlgorithm {
 
 /* Supported Authentication Schemes */
 enum SignatureAlgorithm {
-    anonymous_sa_algo,
-    rsa_sa_algo,
-    dsa_sa_algo,
-    ecc_dsa_sa_algo
+    anonymous_sa_algo = 0,
+    rsa_sa_algo       = 1,
+    dsa_sa_algo       = 2,
+    ecc_dsa_sa_algo   = 4,
+    rsa_pss_sa_algo   = 8
 };
 
 
@@ -3407,7 +3408,8 @@ WOLFSSL_LOCAL int VerifyClientSuite(WOLFSSL* ssl);
         WOLFSSL_LOCAL int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
             word32* outSz, RsaKey* key, const byte* keyBuf, word32 keySz, void* ctx);
         WOLFSSL_LOCAL int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz,
-            byte** out, RsaKey* key, const byte* keyBuf, word32 keySz, void* ctx);
+            byte** out, int sigAlgo, int hashAlgo, RsaKey* key,
+            const byte* keyBuf, word32 keySz, void* ctx);
         WOLFSSL_LOCAL int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out,
             word32* outSz, RsaKey* key, const byte* keyBuf, word32 keySz, void* ctx);
         WOLFSSL_LOCAL int RsaEnc(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,

@@ -261,7 +261,7 @@ int wc_FreeRsaKey(RsaKey* key)
 }
 
 
-#ifndef WC_NO_RSA_OAEP
+#if !defined(WC_NO_RSA_OAEP) || defined(WC_RSA_PSS)
 /* Uses MGF1 standard as a mask generation function
    hType: hash type used
    seed:  seed to use for generating mask
@@ -572,6 +572,50 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
 }
 #endif /* !WC_NO_RSA_OAEP */
 
+#ifdef WC_RSA_PSS
+static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
+        word32 pkcsBlockLen, WC_RNG* rng, enum wc_HashType hType, int mgf,
+        void* heap)
+{
+    int   ret;
+    int   hLen, i;
+    byte* s;
+    byte* m;
+    byte* h;
+    byte  salt[WC_MAX_DIGEST_SIZE];
+
+    hLen = wc_HashGetDigestSize(hType);
+    if (hLen < 0)
+        return hLen;
+
+    s = m = pkcsBlock;
+    XMEMSET(m, 0, 8);
+    m += 8;
+    XMEMCPY(m, input, inputLen);
+    m += inputLen;
+    if ((ret = wc_RNG_GenerateBlock(rng, salt, hLen)) != 0)
+        return ret;
+    XMEMCPY(m, salt, hLen);
+    m += hLen;
+
+    h = pkcsBlock + pkcsBlockLen - 1 - hLen;
+    if ((ret = wc_Hash(hType, s, (word32)(m - s), h, hLen)) != 0)
+        return ret;
+    pkcsBlock[pkcsBlockLen - 1] = 0xbc;
+
+    ret = RsaMGF(mgf, h, hLen, pkcsBlock, pkcsBlockLen - hLen - 1, heap);
+    if (ret != 0)
+        return ret;
+    pkcsBlock[0] &= 0x7f;
+
+    m = pkcsBlock + pkcsBlockLen - 1 - hLen - hLen - 1;
+    *(m++) ^= 0x01;
+    for (i = 0; i < hLen; i++)
+        m[i] ^= salt[i];
+
+    return 0;
+}
+#endif
 
 static int RsaPad(const byte* input, word32 inputLen, byte* pkcsBlock,
                            word32 pkcsBlockLen, byte padValue, WC_RNG* rng)
@@ -635,16 +679,25 @@ static int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
         case WC_RSA_PKCSV15_PAD:
             /*WOLFSSL_MSG("wolfSSL Using RSA PKCSV15 padding");*/
             ret = RsaPad(input, inputLen, pkcsBlock, pkcsBlockLen,
-                                                             padValue, rng);
+                                                                 padValue, rng);
             break;
 
     #ifndef WC_NO_RSA_OAEP
         case WC_RSA_OAEP_PAD:
             WOLFSSL_MSG("wolfSSL Using RSA OAEP padding");
             ret = RsaPad_OAEP(input, inputLen, pkcsBlock, pkcsBlockLen,
-                         padValue, rng, hType, mgf, optLabel, labelLen, heap);
+                           padValue, rng, hType, mgf, optLabel, labelLen, heap);
             break;
     #endif
+
+    #ifdef WC_RSA_PSS
+        case WC_RSA_PSS_PAD:
+            WOLFSSL_MSG("wolfSSL Using RSA PSS padding");
+            ret = RsaPad_PSS(input, inputLen, pkcsBlock, pkcsBlockLen,
+                                                         rng, hType, mgf, heap);
+            break;
+    #endif
+
         default:
             WOLFSSL_MSG("Unknown RSA Pad Type");
             ret = RSA_PAD_E;
@@ -748,6 +801,53 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
 }
 #endif /* WC_NO_RSA_OAEP */
 
+#ifdef WC_RSA_PSS
+static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
+                        byte **output, enum wc_HashType hType, int mgf,
+                        void* heap)
+{
+    int   ret;
+    byte* tmp;
+    int   hLen, i;
+
+    hLen = wc_HashGetDigestSize(hType);
+    if (hLen < 0)
+        return hLen;
+
+    if (pkcsBlock[pkcsBlockLen - 1] != 0xbc)
+        return BAD_PADDING_E;
+
+    tmp = (byte*)XMALLOC(pkcsBlockLen, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp == NULL) {
+        return MEMORY_E;
+    }
+
+    if ((ret = RsaMGF(mgf, pkcsBlock + pkcsBlockLen - 1 - hLen, hLen,
+                                    tmp, pkcsBlockLen - 1 - hLen, heap)) != 0) {
+        XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+
+    tmp[0] &= 0x7f;
+    for (i = 0; i < (int)(pkcsBlockLen - 1 - hLen - hLen - 1); i++) {
+        if (tmp[i] != pkcsBlock[i]) {
+            XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
+            return BAD_PADDING_E;
+        }
+    }
+    if (tmp[i] != (pkcsBlock[i] ^ 0x01)) {
+        XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return BAD_PADDING_E;
+    }
+    for (i++; i < (int)(pkcsBlockLen - 1 - hLen); i++)
+        pkcsBlock[i] ^= tmp[i];
+
+    XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    *output = pkcsBlock + i;
+    return hLen;
+}
+#endif
 
 /* UnPad plaintext, set start to *output, return length of plaintext,
  * < 0 on error */
@@ -814,6 +914,14 @@ static int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
             WOLFSSL_MSG("wolfSSL Using RSA OAEP un-padding");
             ret = RsaUnPad_OAEP((byte*)pkcsBlock, pkcsBlockLen, out,
                                         hType, mgf, optLabel, labelLen, heap);
+            break;
+    #endif
+
+    #ifdef WC_RSA_PSS
+        case WC_RSA_PSS_PAD:
+            WOLFSSL_MSG("wolfSSL Using RSA PSS un-padding");
+            ret = RsaUnPad_PSS((byte*)pkcsBlock, pkcsBlockLen, out, hType, mgf,
+                                                                          heap);
             break;
     #endif
 
@@ -1105,7 +1213,8 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
    rsa_type  : type of RSA: RSA_PUBLIC_ENCRYPT, RSA_PUBLIC_DECRYPT,
         RSA_PRIVATE_ENCRYPT or RSA_PRIVATE_DECRYPT
    pad_value: RSA_BLOCK_TYPE_1 or RSA_BLOCK_TYPE_2
-   pad_type  : type of padding: WC_RSA_PKCSV15_PAD or  WC_RSA_OAEP_PAD
+   pad_type  : type of padding: WC_RSA_PKCSV15_PAD, WC_RSA_OAEP_PAD or
+        WC_RSA_PSS_PAD
    hash  : type of hash algorithm to use found in wolfssl/wolfcrypt/hash.h
    mgf   : type of mask generation function to use
    label : optional label
@@ -1212,7 +1321,8 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
    rsa_type  : type of RSA: RSA_PUBLIC_ENCRYPT, RSA_PUBLIC_DECRYPT,
         RSA_PRIVATE_ENCRYPT or RSA_PRIVATE_DECRYPT
    pad_value: RSA_BLOCK_TYPE_1 or RSA_BLOCK_TYPE_2
-   pad_type  : type of padding: WC_RSA_PKCSV15_PAD or  WC_RSA_OAEP_PAD
+   pad_type  : type of padding: WC_RSA_PKCSV15_PAD, WC_RSA_OAEP_PAD
+        WC_RSA_PSS_PAD
    hash  : type of hash algorithm to use found in wolfssl/wolfcrypt/hash.h
    mgf   : type of mask generation function to use
    label : optional label
@@ -1446,6 +1556,19 @@ int wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
         WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0, rng);
 }
 
+#ifdef WC_RSA_PSS
+int wc_RsaPSS_VerifyInline(byte* in, word32 inLen, byte** out,
+                           enum wc_HashType hash, int mgf, RsaKey* key)
+{
+    WC_RNG* rng = NULL;
+#ifdef WC_RSA_BLINDING
+    rng = key->rng;
+#endif
+    return RsaPrivateDecryptEx(in, inLen, in, inLen, out, key,
+        RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, WC_RSA_PSS_PAD,
+        hash, mgf, NULL, 0, rng);
+}
+#endif
 
 int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
                                                    RsaKey* key, WC_RNG* rng)

@@ -4445,6 +4445,17 @@ static word16 TLSX_SignatureAlgorithms_GetSize(byte* data)
     #ifdef HAVE_SHA512
         cnt++;
     #endif
+    #ifdef WC_RSA_PSS
+        #ifndef NO_SHA256
+            cnt++;
+        #endif
+        #ifdef HAVE_SHA384
+            cnt++;
+        #endif
+        #ifdef HAVE_SHA512
+            cnt++;
+        #endif
+    #endif
 #endif
 
 #ifdef HAVE_ECC
@@ -4496,6 +4507,20 @@ static word16 TLSX_SignatureAlgorithms_Write(byte* data, byte* output)
     #ifdef HAVE_SHA512
         output[idx++] = 0x06;
         output[idx++] = 0x01;
+    #endif
+    #ifdef WC_RSA_PSS
+        #ifndef NO_SHA256
+            output[idx++] = 0x08;
+            output[idx++] = 0x04;
+        #endif
+        #ifdef HAVE_SHA384
+            output[idx++] = 0x08;
+            output[idx++] = 0x05;
+        #endif
+        #ifdef HAVE_SHA512
+            output[idx++] = 0x08;
+            output[idx++] = 0x06;
+        #endif
     #endif
 #endif
 
