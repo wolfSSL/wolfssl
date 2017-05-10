@@ -18774,7 +18774,6 @@ int wolfSSL_get_ex_data_X509_STORE_CTX_idx(void)
 
 /* Set an error stat in the X509 STORE CTX
  *
- * Returns positive index on success and negative values on failure
  */
 void wolfSSL_X509_STORE_CTX_set_error(WOLFSSL_X509_STORE_CTX* ctx, int er)
 {
