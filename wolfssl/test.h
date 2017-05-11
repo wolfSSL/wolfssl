@@ -1204,12 +1204,11 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
 
 static INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
 {
-    (void)preverify;
     char buffer[WOLFSSL_MAX_ERROR_SZ];
-
 #ifdef OPENSSL_EXTRA
     WOLFSSL_X509* peer;
 #endif
+    (void)preverify;
 
     printf("In verification callback, error = %d, %s\n", store->error,
                                  wolfSSL_ERR_error_string(store->error, buffer));
