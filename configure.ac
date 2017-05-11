@@ -113,7 +113,6 @@ OPTIMIZE_HUGE_CFLAGS="-funroll-loops -DTFM_SMALL_SET -DTFM_HUGE_SET"
 DEBUG_CFLAGS="-g -DDEBUG -DDEBUG_WOLFSSL"
 LIB_ADD=
 LIB_STATIC_ADD=
-SWITCH_FALLTHROUGH="-Wimplicit-fallthrough=5"
 
 thread_ls_on=no
 # Thread local storage
@@ -3422,9 +3421,6 @@ case $host_os in
             fi
         fi ;;
 esac
-
-# add strict checking for switch fall-through
-CFLAGS="$CFLAGS $SWITCH_FALLTHROUGH"
 
 
 # add user C_EXTRA_FLAGS back
