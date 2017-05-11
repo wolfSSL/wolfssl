@@ -8095,6 +8095,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             }
             ssl->options.connectState = CLIENT_HELLO_SENT;
             WOLFSSL_MSG("connect state: CLIENT_HELLO_SENT");
+            FALL_THROUGH;
 
         case CLIENT_HELLO_SENT :
             neededState = ssl->options.resuming ? SERVER_FINISHED_COMPLETE :
@@ -8124,6 +8125,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
             ssl->options.connectState = HELLO_AGAIN;
             WOLFSSL_MSG("connect state: HELLO_AGAIN");
+            FALL_THROUGH;
 
         case HELLO_AGAIN :
             if (ssl->options.certOnly)
@@ -8150,6 +8152,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
             ssl->options.connectState = HELLO_AGAIN_REPLY;
             WOLFSSL_MSG("connect state: HELLO_AGAIN_REPLY");
+            FALL_THROUGH;
 
         case HELLO_AGAIN_REPLY :
             #ifdef WOLFSSL_DTLS
@@ -8173,6 +8176,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
             ssl->options.connectState = FIRST_REPLY_DONE;
             WOLFSSL_MSG("connect state: FIRST_REPLY_DONE");
+            FALL_THROUGH;
 
         case FIRST_REPLY_DONE :
             #ifndef NO_CERTS
@@ -8187,6 +8191,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             #endif
             ssl->options.connectState = FIRST_REPLY_FIRST;
             WOLFSSL_MSG("connect state: FIRST_REPLY_FIRST");
+            FALL_THROUGH;
 
         case FIRST_REPLY_FIRST :
             if (!ssl->options.resuming) {
@@ -8199,6 +8204,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
             ssl->options.connectState = FIRST_REPLY_SECOND;
             WOLFSSL_MSG("connect state: FIRST_REPLY_SECOND");
+            FALL_THROUGH;
 
         case FIRST_REPLY_SECOND :
             #ifndef NO_CERTS
@@ -8212,6 +8218,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             #endif
             ssl->options.connectState = FIRST_REPLY_THIRD;
             WOLFSSL_MSG("connect state: FIRST_REPLY_THIRD");
+            FALL_THROUGH;
 
         case FIRST_REPLY_THIRD :
             if ( (ssl->error = SendChangeCipher(ssl)) != 0) {
@@ -8221,6 +8228,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             WOLFSSL_MSG("sent: change cipher spec");
             ssl->options.connectState = FIRST_REPLY_FOURTH;
             WOLFSSL_MSG("connect state: FIRST_REPLY_FOURTH");
+            FALL_THROUGH;
 
         case FIRST_REPLY_FOURTH :
             if ( (ssl->error = SendFinished(ssl)) != 0) {
@@ -8230,6 +8238,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             WOLFSSL_MSG("sent: finished");
             ssl->options.connectState = FINISHED_DONE;
             WOLFSSL_MSG("connect state: FINISHED_DONE");
+            FALL_THROUGH;
 
         case FINISHED_DONE :
             /* get response */
@@ -8241,6 +8250,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
             ssl->options.connectState = SECOND_REPLY_DONE;
             WOLFSSL_MSG("connect state: SECOND_REPLY_DONE");
+            FALL_THROUGH;
 
         case SECOND_REPLY_DONE:
 #ifndef NO_HANDSHAKE_DONE_CB
@@ -8441,6 +8451,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 #ifdef WOLFSSL_TLS13
             ssl->options.acceptState = ACCEPT_CLIENT_HELLO_DONE;
             WOLFSSL_MSG("accept state ACCEPT_CLIENT_HELLO_DONE");
+            FALL_THROUGH;
 
         case ACCEPT_CLIENT_HELLO_DONE :
             if (ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST) {
@@ -8451,6 +8462,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             }
             ssl->options.acceptState = ACCEPT_HELLO_RETRY_REQUEST_DONE;
             WOLFSSL_MSG("accept state ACCEPT_HELLO_RETRY_REQUEST_DONE");
+            FALL_THROUGH;
 
         case ACCEPT_HELLO_RETRY_REQUEST_DONE :
             if (ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST) {
@@ -8462,6 +8474,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 #endif
             ssl->options.acceptState = ACCEPT_FIRST_REPLY_DONE;
             WOLFSSL_MSG("accept state ACCEPT_FIRST_REPLY_DONE");
+            FALL_THROUGH;
 
         case ACCEPT_FIRST_REPLY_DONE :
 #ifdef WOLFSSL_TLS13
@@ -8475,6 +8488,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             }
             ssl->options.acceptState = SERVER_HELLO_SENT;
             WOLFSSL_MSG("accept state SERVER_HELLO_SENT");
+            FALL_THROUGH;
 
         case SERVER_HELLO_SENT :
             #ifndef NO_CERTS
@@ -8486,6 +8500,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             #endif
             ssl->options.acceptState = CERT_SENT;
             WOLFSSL_MSG("accept state CERT_SENT");
+            FALL_THROUGH;
 
         case CERT_SENT :
             #ifndef NO_CERTS
@@ -8497,6 +8512,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             #endif
             ssl->options.acceptState = CERT_STATUS_SENT;
             WOLFSSL_MSG("accept state CERT_STATUS_SENT");
+            FALL_THROUGH;
 
         case CERT_STATUS_SENT :
             if (!ssl->options.resuming)
@@ -8506,6 +8522,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 }
             ssl->options.acceptState = KEY_EXCHANGE_SENT;
             WOLFSSL_MSG("accept state KEY_EXCHANGE_SENT");
+            FALL_THROUGH;
 
         case KEY_EXCHANGE_SENT :
             #ifndef NO_CERTS
@@ -8520,6 +8537,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             #endif
             ssl->options.acceptState = CERT_REQ_SENT;
             WOLFSSL_MSG("accept state CERT_REQ_SENT");
+            FALL_THROUGH;
 
         case CERT_REQ_SENT :
             if (!ssl->options.resuming)
@@ -8529,6 +8547,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                 }
             ssl->options.acceptState = SERVER_HELLO_DONE;
             WOLFSSL_MSG("accept state SERVER_HELLO_DONE");
+            FALL_THROUGH;
 
         case SERVER_HELLO_DONE :
             if (!ssl->options.resuming) {
@@ -8540,6 +8559,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             }
             ssl->options.acceptState = ACCEPT_SECOND_REPLY_DONE;
             WOLFSSL_MSG("accept state  ACCEPT_SECOND_REPLY_DONE");
+            FALL_THROUGH;
 
         case ACCEPT_SECOND_REPLY_DONE :
 #ifdef HAVE_SESSION_TICKET
@@ -8552,6 +8572,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 #endif /* HAVE_SESSION_TICKET */
             ssl->options.acceptState = TICKET_SENT;
             WOLFSSL_MSG("accept state  TICKET_SENT");
+            FALL_THROUGH;
 
         case TICKET_SENT:
             if ( (ssl->error = SendChangeCipher(ssl)) != 0) {
@@ -8560,6 +8581,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             }
             ssl->options.acceptState = CHANGE_CIPHER_SENT;
             WOLFSSL_MSG("accept state  CHANGE_CIPHER_SENT");
+            FALL_THROUGH;
 
         case CHANGE_CIPHER_SENT :
             if ( (ssl->error = SendFinished(ssl)) != 0) {
@@ -8569,6 +8591,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
             ssl->options.acceptState = ACCEPT_FINISHED_DONE;
             WOLFSSL_MSG("accept state ACCEPT_FINISHED_DONE");
+            FALL_THROUGH;
 
         case ACCEPT_FINISHED_DONE :
             if (ssl->options.resuming)
@@ -8580,6 +8603,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
             ssl->options.acceptState = ACCEPT_THIRD_REPLY_DONE;
             WOLFSSL_MSG("accept state ACCEPT_THIRD_REPLY_DONE");
+            FALL_THROUGH;
 
         case ACCEPT_THIRD_REPLY_DONE :
 #ifndef NO_HANDSHAKE_DONE_CB
@@ -24017,10 +24041,13 @@ int wolfSSL_i2a_ASN1_INTEGER(BIO *bp, const WOLFSSL_ASN1_INTEGER *a)
         switch (a->data[i++] - 0x80) {
             case 4:
                 len |= a->data[i++] << 24;
+                FALL_THROUGH;
             case 3:
                 len |= a->data[i++] << 16;
+                FALL_THROUGH;
             case 2:
                 len |= a->data[i++] <<  8;
+                FALL_THROUGH;
             case 1:
                 len |= a->data[i++];
                 break;

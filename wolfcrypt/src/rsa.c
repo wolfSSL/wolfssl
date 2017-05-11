@@ -1282,7 +1282,8 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
         }
 
         key->state = RSA_STATE_ENCRYPT_EXPTMOD;
-        /* fall through */
+
+        FALL_THROUGH;
 
     case RSA_STATE_ENCRYPT_EXPTMOD:
 
@@ -1296,7 +1297,7 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
             break;
         }
 
-        /* fall through */
+        FALL_THROUGH;
 
     case RSA_STATE_ENCRYPT_RES:
         ret = key->dataLen;
@@ -1402,7 +1403,7 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
             break;
         }
 
-        /* fall through */
+        FALL_THROUGH;
 
     case RSA_STATE_DECRYPT_UNPAD:
     {
@@ -1426,7 +1427,8 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
         }
 
         key->state = RSA_STATE_DECRYPT_RES;
-        /* fall through */
+
+        FALL_THROUGH;
     }
     case RSA_STATE_DECRYPT_RES:
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA) && \

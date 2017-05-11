@@ -3557,6 +3557,7 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_BUILD;
         } /* case TLS_ASYNC_BEGIN */
+        FALL_THROUGH;
 
         case TLS_ASYNC_BUILD:
         {
@@ -3618,6 +3619,7 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_DO;
         } /* case TLS_ASYNC_BUILD */
+        FALL_THROUGH;
 
         case TLS_ASYNC_DO:
         {
@@ -3666,6 +3668,7 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_VERIFY;
         } /* case TLS_ASYNC_DO */
+        FALL_THROUGH;
 
         case TLS_ASYNC_VERIFY:
         {
@@ -3699,6 +3702,7 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_FINALIZE;
         } /* case TLS_ASYNC_VERIFY */
+        FALL_THROUGH;
 
         case TLS_ASYNC_FINALIZE:
         {
@@ -3723,6 +3727,7 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_END;
         } /* case TLS_ASYNC_FINALIZE */
+        FALL_THROUGH;
 
         case TLS_ASYNC_END:
         {
@@ -3868,6 +3873,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_BUILD;
         } /* case TLS_ASYNC_BEGIN */
+        FALL_THROUGH;
 
         case TLS_ASYNC_BUILD:
         {
@@ -3933,6 +3939,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_DO;
         } /* case TLS_ASYNC_BUILD */
+        FALL_THROUGH;
 
         case TLS_ASYNC_DO:
         {
@@ -3983,6 +3990,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_VERIFY;
         } /* case TLS_ASYNC_DO */
+        FALL_THROUGH;
 
         case TLS_ASYNC_VERIFY:
         {
@@ -3998,6 +4006,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_FINALIZE;
         } /* case TLS_ASYNC_VERIFY */
+        FALL_THROUGH;
 
         case TLS_ASYNC_FINALIZE:
         {
@@ -5024,6 +5033,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
 
             ssl->options.connectState = CLIENT_HELLO_SENT;
             WOLFSSL_MSG("connect state: CLIENT_HELLO_SENT");
+            FALL_THROUGH;
 
         case CLIENT_HELLO_SENT:
             neededState = ssl->options.resuming ? SERVER_FINISHED_COMPLETE :
@@ -5043,6 +5053,8 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
 
             ssl->options.connectState = HELLO_AGAIN;
             WOLFSSL_MSG("connect state: HELLO_AGAIN");
+            FALL_THROUGH;
+
         case HELLO_AGAIN:
             if (ssl->options.certOnly)
                 return SSL_SUCCESS;
@@ -5061,6 +5073,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
 
             ssl->options.connectState = HELLO_AGAIN_REPLY;
             WOLFSSL_MSG("connect state: HELLO_AGAIN_REPLY");
+            FALL_THROUGH;
 
         case HELLO_AGAIN_REPLY:
             if (ssl->options.serverState == NULL_STATE) {
@@ -5083,6 +5096,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
 
             ssl->options.connectState = FIRST_REPLY_DONE;
             WOLFSSL_MSG("connect state: FIRST_REPLY_DONE");
+            FALL_THROUGH;
 
         case FIRST_REPLY_DONE:
             #ifndef NO_CERTS
@@ -5098,6 +5112,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
 
             ssl->options.connectState = FIRST_REPLY_FIRST;
             WOLFSSL_MSG("connect state: FIRST_REPLY_FIRST");
+            FALL_THROUGH;
 
         case FIRST_REPLY_FIRST:
             #ifndef NO_CERTS
@@ -5113,6 +5128,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
 
             ssl->options.connectState = FIRST_REPLY_SECOND;
             WOLFSSL_MSG("connect state: FIRST_REPLY_SECOND");
+            FALL_THROUGH;
 
         case FIRST_REPLY_SECOND:
             if ((ssl->error = SendTls13Finished(ssl)) != 0) {
@@ -5123,6 +5139,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
 
             ssl->options.connectState = FINISHED_DONE;
             WOLFSSL_MSG("connect state: FINISHED_DONE");
+            FALL_THROUGH;
 
         case FINISHED_DONE:
 #ifndef NO_HANDSHAKE_DONE_CB
@@ -5366,6 +5383,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 
             ssl->options.acceptState = ACCEPT_CLIENT_HELLO_DONE;
             WOLFSSL_MSG("accept state ACCEPT_CLIENT_HELLO_DONE");
+            FALL_THROUGH;
 
         case ACCEPT_CLIENT_HELLO_DONE :
             if (ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST) {
@@ -5376,6 +5394,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
             }
             ssl->options.acceptState = ACCEPT_HELLO_RETRY_REQUEST_DONE;
             WOLFSSL_MSG("accept state ACCEPT_HELLO_RETRY_REQUEST_DONE");
+            FALL_THROUGH;
 
         case ACCEPT_HELLO_RETRY_REQUEST_DONE :
             if (ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST) {
@@ -5386,6 +5405,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
             }
             ssl->options.acceptState = ACCEPT_FIRST_REPLY_DONE;
             WOLFSSL_MSG("accept state ACCEPT_FIRST_REPLY_DONE");
+            FALL_THROUGH;
 
         case ACCEPT_FIRST_REPLY_DONE :
             if ((ssl->error = SendTls13ServerHello(ssl)) != 0) {
@@ -5394,6 +5414,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
             }
             ssl->options.acceptState = SERVER_HELLO_SENT;
             WOLFSSL_MSG("accept state SERVER_HELLO_SENT");
+            FALL_THROUGH;
 
         case SERVER_HELLO_SENT :
             if ((ssl->error = SendTls13EncryptedExtensions(ssl)) != 0) {
@@ -5402,6 +5423,8 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
             }
             ssl->options.acceptState = SERVER_EXTENSIONS_SENT;
             WOLFSSL_MSG("accept state SERVER_EXTENSIONS_SENT");
+            FALL_THROUGH;
+
         case SERVER_EXTENSIONS_SENT :
 #ifndef NO_CERTS
             if (!ssl->options.resuming) {
@@ -5416,6 +5439,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 #endif
             ssl->options.acceptState = CERT_REQ_SENT;
             WOLFSSL_MSG("accept state CERT_REQ_SENT");
+            FALL_THROUGH;
 
         case CERT_REQ_SENT :
             ssl->options.acceptState = KEY_EXCHANGE_SENT;
@@ -5429,6 +5453,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 #endif
             ssl->options.acceptState = CERT_SENT;
             WOLFSSL_MSG("accept state CERT_SENT");
+            FALL_THROUGH;
 
         case CERT_SENT :
 #ifndef NO_CERTS
@@ -5441,6 +5466,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 #endif
             ssl->options.acceptState = CERT_STATUS_SENT;
             WOLFSSL_MSG("accept state CERT_STATUS_SENT");
+            FALL_THROUGH;
 
         case CERT_VERIFY_SENT :
             if ((ssl->error = SendTls13Finished(ssl)) != 0) {
@@ -5450,6 +5476,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 
             ssl->options.acceptState = ACCEPT_FINISHED_DONE;
             WOLFSSL_MSG("accept state ACCEPT_FINISHED_DONE");
+            FALL_THROUGH;
 
         case ACCEPT_FINISHED_DONE :
 #ifdef HAVE_SESSION_TICKET
@@ -5464,6 +5491,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 #endif /* HAVE_SESSION_TICKET */
             ssl->options.acceptState = TICKET_SENT;
             WOLFSSL_MSG("accept state  TICKET_SENT");
+            FALL_THROUGH;
 
         case TICKET_SENT:
             while (ssl->options.clientState < CLIENT_FINISHED_COMPLETE)
@@ -5474,6 +5502,8 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 
             ssl->options.acceptState = ACCEPT_SECOND_REPLY_DONE;
             WOLFSSL_MSG("accept state ACCEPT_SECOND_REPLY_DONE");
+            FALL_THROUGH;
+
         case ACCEPT_SECOND_REPLY_DONE :
 #ifdef HAVE_SESSION_TICKET
             if (!ssl->options.resuming && ssl->options.verifyPeer &&
@@ -5486,6 +5516,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 #endif /* HAVE_SESSION_TICKET */
             ssl->options.acceptState = ACCEPT_THIRD_REPLY_DONE;
             WOLFSSL_MSG("accept state ACCEPT_THIRD_REPLY_DONE");
+            FALL_THROUGH;
 
         case ACCEPT_THIRD_REPLY_DONE:
 #ifndef NO_HANDSHAKE_DONE_CB

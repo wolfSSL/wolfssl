@@ -2900,8 +2900,8 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
             if (err < 0) {
                 break;
             }
+            FALL_THROUGH;
 
-            /* fall through */
         case ECC_STATE_SHARED_SEC_RES:
             private_key->state = ECC_STATE_SHARED_SEC_RES;
             err = 0;
@@ -3393,8 +3393,8 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
             }
 
         #endif /* WOLFSSL_ATECC508A */
+            FALL_THROUGH;
 
-            /* fall through */
         case ECC_STATE_SIGN_ENCODE:
             key->state = ECC_STATE_SIGN_ENCODE;
 
@@ -3924,8 +3924,8 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
             if (err < 0) {
                 break;
             }
+            FALL_THROUGH;
 
-            /* fall through */
         case ECC_STATE_VERIFY_DO:
             key->state = ECC_STATE_VERIFY_DO;
 
@@ -3933,8 +3933,8 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
             if (err < 0) {
                 break;
             }
+            FALL_THROUGH;
 
-            /* fall through */
         case ECC_STATE_VERIFY_RES:
             key->state = ECC_STATE_VERIFY_RES;
             err = 0;
