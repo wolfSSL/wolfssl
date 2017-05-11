@@ -4428,7 +4428,8 @@ static int TLSX_SetSupportedVersions(TLSX** extensions, const void* data,
  */
 static word16 TLSX_SignatureAlgorithms_GetSize(byte* data)
 {
-    int cnt = 0;
+    WOLFSSL* ssl = (WOLFSSL*)data;
+    int      cnt = 0;
 
     (void)data;
 
@@ -4446,6 +4447,7 @@ static word16 TLSX_SignatureAlgorithms_GetSize(byte* data)
         cnt++;
     #endif
     #ifdef WC_RSA_PSS
+        if (IsAtLeastTLSv1_3(ssl->version)) {
         #ifndef NO_SHA256
             cnt++;
         #endif
@@ -4455,6 +4457,7 @@ static word16 TLSX_SignatureAlgorithms_GetSize(byte* data)
         #ifdef HAVE_SHA512
             cnt++;
         #endif
+        }
     #endif
 #endif
 
@@ -4487,9 +4490,9 @@ static word16 TLSX_SignatureAlgorithms_GetSize(byte* data)
  */
 static word16 TLSX_SignatureAlgorithms_Write(byte* data, byte* output)
 {
-    int idx = OPAQUE16_LEN;
+    WOLFSSL* ssl = (WOLFSSL*)data;
+    int      idx = OPAQUE16_LEN;
 
-    (void)data;
 
 #ifndef NO_RSA
     #ifndef NO_SHA1
@@ -4509,6 +4512,7 @@ static word16 TLSX_SignatureAlgorithms_Write(byte* data, byte* output)
         output[idx++] = 0x01;
     #endif
     #ifdef WC_RSA_PSS
+        if (IsAtLeastTLSv1_3(ssl->version)) {
         #ifndef NO_SHA256
             output[idx++] = 0x08;
             output[idx++] = 0x04;
@@ -4521,6 +4525,7 @@ static word16 TLSX_SignatureAlgorithms_Write(byte* data, byte* output)
             output[idx++] = 0x08;
             output[idx++] = 0x06;
         #endif
+        }
     #endif
 #endif
 
@@ -7065,16 +7070,16 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
     } /* is not server */
 
     #ifdef WOLFSSL_TLS13
+        WOLFSSL_MSG("Adding signature algorithms extension");
+        if ((ret = TLSX_SetSignatureAlgorithms(&ssl->extensions, ssl,
+                                               ssl->heap)) != 0)
+            return ret;
+
         if (!isServer && IsAtLeastTLSv1_3(ssl->version)) {
             /* Add mandatory TLS v1.3 extension: supported version */
             WOLFSSL_MSG("Adding supported versions extension");
             if ((ret = TLSX_SetSupportedVersions(&ssl->extensions, ssl,
                                                  ssl->heap)) != 0)
-                return ret;
-            /* Add TLS v1.3 extension: signature algorithms */
-            WOLFSSL_MSG("Adding signature algorithms extension");
-            if ((ret = TLSX_SetSignatureAlgorithms(&ssl->extensions, NULL,
-                                                   ssl->heap)) != 0)
                 return ret;
 
             /* Add FFDHE supported groups. */
@@ -7201,9 +7206,10 @@ word16 TLSX_GetRequestSize(WOLFSSL* ssl)
         QSH_VALIDATE_REQUEST(ssl, semaphore);
         WOLF_STK_VALIDATE_REQUEST(ssl);
 #if defined(WOLFSSL_TLS13)
+        if (!IsAtLeastTLSv1_2(ssl))
+            TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SUPPORTED_VERSIONS));
         if (!IsAtLeastTLSv1_3(ssl->version)) {
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SUPPORTED_VERSIONS));
-            TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
     #ifndef NO_PSK
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
@@ -7252,9 +7258,10 @@ word16 TLSX_WriteRequest(WOLFSSL* ssl, byte* output)
         WOLF_STK_VALIDATE_REQUEST(ssl);
         QSH_VALIDATE_REQUEST(ssl, semaphore);
 #if defined(WOLFSSL_TLS13)
+        if (!IsAtLeastTLSv1_2(ssl))
+            TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SUPPORTED_VERSIONS));
         if (!IsAtLeastTLSv1_3(ssl->version)) {
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SUPPORTED_VERSIONS));
-            TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
     #ifndef NO_PSK
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_PSK_KEY_EXCHANGE_MODES));
@@ -7637,7 +7644,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
             case TLSX_SIGNATURE_ALGORITHMS:
                 WOLFSSL_MSG("Signature Algorithms extension received");
 
-                if (!IsAtLeastTLSv1_3(ssl->version))
+                if (!IsAtLeastTLSv1_2(ssl))
                     break;
 
                 if (IsAtLeastTLSv1_3(ssl->version) &&

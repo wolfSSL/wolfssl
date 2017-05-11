@@ -162,7 +162,7 @@ echo ""
 # TLS 1.3 cipher suites server / client.
 echo -e "\n\nOnly TLS v1.3 cipher suites"
 port=0
-./examples/server/server -v 4 -R $ready_file -p $port -l TLS13-AES128-GCM-SHA256:TLS13-AES256-GCM-SHA384:TLS13-CHACH20-POLY1305-SHA256:TLS13-AES128-CCM-SHA256:TLS13-AES128-CCM-8-SHA256 &
+./examples/server/server -v 4 -R $ready_file -p $port -l TLS13-AES128-GCM-SHA256:TLS13-AES256-GCM-SHA384:TLS13-CHACHA20-POLY1305-SHA256:TLS13-AES128-CCM-SHA256:TLS13-AES128-CCM-8-SHA256 &
 server_pid=$!
 create_port
 ./examples/client/client -v 4 -p $port
@@ -210,7 +210,7 @@ echo ""
 # TLS 1.3 cipher suites server / client.
 echo -e "\n\nOnly TLS v1.3 cipher suite - CHACHA20-POLY1305 SHA-256"
 port=0
-./examples/server/server -v 4 -R $ready_file -p $port -l TLS13-CHACH20-POLY1305-SHA256 &
+./examples/server/server -v 4 -R $ready_file -p $port -l TLS13-CHACHA20-POLY1305-SHA256 &
 server_pid=$!
 create_port
 ./examples/client/client -v 4 -p $port

@@ -2348,7 +2348,7 @@ enum SignatureAlgorithm {
     anonymous_sa_algo = 0,
     rsa_sa_algo       = 1,
     dsa_sa_algo       = 2,
-    ecc_dsa_sa_algo   = 4,
+    ecc_dsa_sa_algo   = 3,
     rsa_pss_sa_algo   = 8
 };
 

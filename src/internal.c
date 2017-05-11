@@ -13621,7 +13621,7 @@ static const char* const cipher_names[] =
 #endif
 
 #ifdef BUILD_TLS_CHACHA20_POLY1305_SHA256
-    "TLS13-CHACH20-POLY1305-SHA256",
+    "TLS13-CHACHA20-POLY1305-SHA256",
 #endif
 
 #ifdef BUILD_TLS_AES_128_CCM_SHA256
@@ -14655,9 +14655,9 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
                 }
             #endif /* WOLFSSL_DTLS */
 
-                suites->suites[idx++] = (XSTRSTR(name, "CHACHA")) ? CHACHA_BYTE
+                suites->suites[idx++] = (XSTRSTR(name, "TLS13"))  ? TLS13_BYTE
+                                      : (XSTRSTR(name, "CHACHA")) ? CHACHA_BYTE
                                       : (XSTRSTR(name, "QSH"))    ? QSH_BYTE
-                                      : (XSTRSTR(name, "TLS13"))  ? TLS13_BYTE
                                       : (XSTRSTR(name, "EC"))     ? ECC_BYTE
                                       : (XSTRSTR(name, "CCM"))    ? ECC_BYTE
                                       : 0x00; /* normal */
