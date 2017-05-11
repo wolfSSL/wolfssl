@@ -195,25 +195,32 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
     key->rng = NULL;
 #endif
 
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
-    /* handle as async */
-    ret = wolfAsync_DevCtxInit(&key->asyncDev, WOLFSSL_ASYNC_MARKER_RSA,
-                                                            key->heap, devId);
+#ifdef WOLFSSL_ASYNC_CRYPT
     #ifdef WOLFSSL_CERT_GEN
         XMEMSET(&key->certSignCtx, 0, sizeof(CertSignCtx));
     #endif
+
+    #ifdef WC_ASYNC_ENABLE_RSA
+        /* handle as async */
+        ret = wolfAsync_DevCtxInit(&key->asyncDev, WOLFSSL_ASYNC_MARKER_RSA,
+                                                            key->heap, devId);
+        if (ret != 0)
+            return ret;
+    #endif /* WC_ASYNC_ENABLE_RSA */
 #else
     (void)devId;
-#endif
+#endif /* WOLFSSL_ASYNC_CRYPT */
 
-    mp_init(&key->n);
-    mp_init(&key->e);
-    mp_init(&key->d);
-    mp_init(&key->p);
-    mp_init(&key->q);
-    mp_init(&key->dP);
-    mp_init(&key->dQ);
-    mp_init(&key->u);
+    ret = mp_init_multi(&key->n, &key->e, NULL, NULL, NULL, NULL);
+    if (ret != MP_OKAY)
+        return ret;
+
+    ret = mp_init_multi(&key->d, &key->p, &key->q, &key->dP, &key->dQ, &key->u);
+    if (ret != MP_OKAY) {
+        mp_clear(&key->n);
+        mp_clear(&key->e);
+        return ret;
+    }
 
     return ret;
 }

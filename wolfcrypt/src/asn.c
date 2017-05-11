@@ -9532,8 +9532,13 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     XMEMCPY(priv, &input[*inOutIdx], privSz);
     *inOutIdx += length;
 
-    if ((*inOutIdx + 1) > inSz)
+    if ((*inOutIdx + 1) > inSz) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(priv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         return BUFFER_E;
+    }
 
     /* prefix 0, may have */
     b = input[*inOutIdx];

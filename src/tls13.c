@@ -314,34 +314,44 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
     const byte* protocol;
     word32      protocolLen;
     int         digestAlg;
+    int         ret = BAD_FUNC_ARG;
 
     switch (hashAlgo) {
 #ifndef NO_WOLFSSL_SHA256
         case sha256_mac:
-            wc_InitSha256(&digest.sha256);
-            wc_Sha256Update(&digest.sha256, msg, msgLen);
-            wc_Sha256Final(&digest.sha256, hash);
-            wc_Sha256Free(&digest.sha256);
+            ret = wc_InitSha256_ex(&digest.sha256, ssl->heap, INVALID_DEVID);
+            if (ret == 0) {
+                    ret = wc_Sha256Update(&digest.sha256, msg, msgLen);
+                if (ret == 0)
+                    ret = wc_Sha256Final(&digest.sha256, hash);
+                wc_Sha256Free(&digest.sha256);
+            }
             hashSz = SHA256_DIGEST_SIZE;
             digestAlg = SHA256;
             break;
 #endif
 #ifdef WOLFSSL_SHA384
         case sha384_mac:
-            wc_InitSha384(&digest.sha384);
-            wc_Sha384Update(&digest.sha384, msg, msgLen);
-            wc_Sha384Final(&digest.sha384, hash);
-            wc_Sha384Free(&digest.sha384);
+            ret = wc_InitSha384_ex(&digest.sha384, ssl->heap, INVALID_DEVID);
+            if (ret == 0) {
+                ret = wc_Sha384Update(&digest.sha384, msg, msgLen);
+                if (ret == 0)
+                    ret = wc_Sha384Final(&digest.sha384, hash);
+                wc_Sha384Free(&digest.sha384);
+            }
             hashSz = SHA384_DIGEST_SIZE;
             digestAlg = SHA384;
             break;
 #endif
 #ifdef WOLFSSL_SHA512
         case sha512_mac:
-            wc_InitSha512(&digest.sha512);
-            wc_Sha512Update(&digest.sha512, msg, msgLen);
-            wc_Sha512Final(&digest.sha512, hash);
-            wc_Sha512Free(&digest.sha512);
+            ret = wc_InitSha512_ex(&digest.sha512, ssl->heap, INVALID_DEVID);
+            if (ret == 0) {
+                ret = wc_Sha512Update(&digest.sha512, msg, msgLen);
+                if (ret == 0)
+                    ret = wc_Sha512Final(&digest.sha512, hash);
+                wc_Sha512Free(&digest.sha512);
+            }
             hashSz = SHA512_DIGEST_SIZE;
             digestAlg = SHA512;
             break;
@@ -350,6 +360,9 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
         default:
             return BAD_FUNC_ARG;
     }
+
+    if (ret != 0)
+        return ret;
 
     switch (ssl->version.minor) {
         case TLSv1_3_MINOR:
@@ -728,11 +741,13 @@ static int DeriveMasterSecret(WOLFSSL* ssl)
  * hash  The hash result - verify data.
  * returns length of verify data generated.
  */
-static int BuildTls13HandshakeHmac(WOLFSSL* ssl, byte* key, byte* hash)
+static int BuildTls13HandshakeHmac(WOLFSSL* ssl, byte* key, byte* hash,
+    word32* pHashSz)
 {
     Hmac verifyHmac;
     int  hashType = SHA256;
     int  hashSz = SHA256_DIGEST_SIZE;
+    int  ret = BAD_FUNC_ARG;
 
     /* Get the hash of the previous handshake messages. */
     switch (ssl->specs.mac_algorithm) {
@@ -740,31 +755,42 @@ static int BuildTls13HandshakeHmac(WOLFSSL* ssl, byte* key, byte* hash)
         case sha256_mac:
             hashType = SHA256;
             hashSz = SHA256_DIGEST_SIZE;
-            wc_Sha256GetHash(&ssl->hsHashes->hashSha256, hash);
+            ret = wc_Sha256GetHash(&ssl->hsHashes->hashSha256, hash);
             break;
     #endif /* !NO_SHA256 */
     #ifdef WOLFSSL_SHA384
         case sha384_mac:
             hashType = SHA384;
             hashSz = SHA384_DIGEST_SIZE;
-            wc_Sha384GetHash(&ssl->hsHashes->hashSha384, hash);
+            ret = wc_Sha384GetHash(&ssl->hsHashes->hashSha384, hash);
             break;
     #endif /* WOLFSSL_SHA384 */
     #ifdef WOLFSSL_SHA512
         case sha512_mac:
             hashType = SHA512;
             hashSz = SHA512_DIGEST_SIZE;
-            wc_Sha512GetHash(&ssl->hsHashes->hashSha512, hash);
+            ret = wc_Sha512GetHash(&ssl->hsHashes->hashSha512, hash);
             break;
     #endif /* WOLFSSL_SHA512 */
     }
+    if (ret != 0)
+        return ret;
 
     /* Calculate the verify data. */
-    wc_HmacSetKey(&verifyHmac, hashType, key, ssl->specs.hash_size);
-    wc_HmacUpdate(&verifyHmac, hash, hashSz);
-    wc_HmacFinal(&verifyHmac, hash);
+    ret = wc_HmacInit(&verifyHmac, ssl->heap, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_HmacSetKey(&verifyHmac, hashType, key, ssl->specs.hash_size);
+        if (ret == 0)
+            ret = wc_HmacUpdate(&verifyHmac, hash, hashSz);
+        if (ret == 0)
+            ret = wc_HmacFinal(&verifyHmac, hash);
+        wc_HmacFree(&verifyHmac);
+    }
 
-    return hashSz;
+    if (pHashSz)
+        *pHashSz = hashSz;
+
+    return ret;
 }
 
 /* The length of the label to use when deriving keys. */
@@ -1125,16 +1151,20 @@ end:
  */
 static int HashInputRaw(WOLFSSL* ssl, const byte* input, int sz)
 {
-    int ret = 0;
+    int ret = BAD_FUNC_ARG;
 
 #ifndef NO_OLD_TLS
 #ifndef NO_SHA
-    wc_ShaUpdate(&ssl->hsHashes->hashSha, input, sz);
+    ret = wc_ShaUpdate(&ssl->hsHashes->hashSha, input, sz);
+    if (ret != 0)
+        return ret;
 #endif
 #ifndef NO_MD5
-    wc_Md5Update(&ssl->hsHashes->hashMd5, input, sz);
+    ret = wc_Md5Update(&ssl->hsHashes->hashMd5, input, sz);
+    if (ret != 0)
+        return ret;
 #endif
-#endif
+#endif /* !NO_OLD_TLS */
 
 #ifndef NO_SHA256
     ret = wc_Sha256Update(&ssl->hsHashes->hashSha256, input, sz);
@@ -1723,9 +1753,13 @@ static int WritePSKBinders(WOLFSSL* ssl, byte* output, word32 idx)
             XMEMCPY(ssl->arrays->psk_key, ssl->session.masterSecret,
                     ssl->arrays->psk_keySz);
             /* Derive the early secret using the PSK. */
-            DeriveEarlySecret(ssl);
+            ret = DeriveEarlySecret(ssl);
+            if (ret != 0)
+                return ret;
             /* Derive the binder key to use to with HMAC. */
-            DeriveBinderKeyResume(ssl, binderKey);
+            ret = DeriveBinderKeyResume(ssl, binderKey);
+            if (ret != 0)
+                return ret;
         }
         else {
             /* TODO: [TLS13] Support non-ticket PSK. */
@@ -1734,16 +1768,25 @@ static int WritePSKBinders(WOLFSSL* ssl, byte* output, word32 idx)
                     (char *)current->identity, ssl->arrays->client_identity,
                     MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
             /* Derive the early secret using the PSK. */
-            DeriveEarlySecret(ssl);
+            ret = DeriveEarlySecret(ssl);
+            if (ret != 0)
+                return ret;
             /* Derive the binder key to use to with HMAC. */
-            DeriveBinderKey(ssl, binderKey);
+            ret = DeriveBinderKey(ssl, binderKey);
+            if (ret != 0)
+                return ret;
         }
 
         /* Derive the Finished message secret. */
-        DeriveFinishedSecret(ssl, binderKey, ssl->keys.client_write_MAC_secret);
+        ret = DeriveFinishedSecret(ssl, binderKey, ssl->keys.client_write_MAC_secret);
+        if (ret != 0)
+            return ret;
+
         /* Build the HMAC of the handshake message data = binder. */
-        current->binderLen = BuildTls13HandshakeHmac(ssl,
-            ssl->keys.client_write_MAC_secret, current->binder);
+        ret = BuildTls13HandshakeHmac(ssl, ssl->keys.client_write_MAC_secret,
+            current->binder, &current->binderLen);
+        if (ret != 0)
+            return ret;
 
         current = current->next;
     }
@@ -2204,7 +2247,7 @@ static int DoPreSharedKeys(WOLFSSL *ssl, const byte* input, word32 helloSz,
     PreSharedKey* current;
     byte          binderKey[MAX_DIGEST_SIZE];
     byte          binder[MAX_DIGEST_SIZE];
-    word16        binderLen;
+    word32        binderLen;
     word16        modes;
 
     ext = TLSX_Find(ssl->extensions, TLSX_PRE_SHARED_KEY);
@@ -2260,9 +2303,13 @@ static int DoPreSharedKeys(WOLFSSL *ssl, const byte* input, word32 helloSz,
             XMEMCPY(ssl->arrays->psk_key, ssl->session.masterSecret,
                     ssl->specs.hash_size);
             /* Derive the early secret using the PSK. */
-            DeriveEarlySecret(ssl);
+            ret = DeriveEarlySecret(ssl);
+            if (ret != 0)
+                return ret;
             /* Derive the binder key to use to with HMAC. */
-            DeriveBinderKeyResume(ssl, binderKey);
+            ret = DeriveBinderKeyResume(ssl, binderKey);
+            if (ret != 0)
+                return ret;
         }
         else {
             /* PSK age is always zero. */
@@ -2274,16 +2321,26 @@ static int DoPreSharedKeys(WOLFSSL *ssl, const byte* input, word32 helloSz,
                     (char*)current->identity, ssl->arrays->client_identity,
                     MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
             /* Derive the early secret using the PSK. */
-            DeriveEarlySecret(ssl);
+            ret = DeriveEarlySecret(ssl);
+            if (ret != 0)
+                return ret;
             /* Derive the binder key to use to with HMAC. */
-            DeriveBinderKey(ssl, binderKey);
+            ret = DeriveBinderKey(ssl, binderKey);
+            if (ret != 0)
+                return ret;
         }
 
         /* Derive the Finished message secret. */
-        DeriveFinishedSecret(ssl, binderKey, ssl->keys.client_write_MAC_secret);
+        ret = DeriveFinishedSecret(ssl, binderKey,
+                                            ssl->keys.client_write_MAC_secret);
+        if (ret != 0)
+            return ret;
+
         /* Derive the binder and compare with the one in the extension. */
-        binderLen = BuildTls13HandshakeHmac(ssl,
-                ssl->keys.client_write_MAC_secret, binder);
+        ret = BuildTls13HandshakeHmac(ssl,
+                ssl->keys.client_write_MAC_secret, binder, &binderLen);
+        if (ret != 0)
+            return ret;
         if (binderLen != current->binderLen ||
                 XMEMCMP(binder, current->binder, binderLen) != 0) {
             return BAD_BINDER;
@@ -2962,40 +3019,53 @@ static int CreateRSAEncodedSig(byte* sig, byte* sigData, int sigDataSz,
     Digest digest;
     int    hashSz = 0;
     int    hashOid = 0;
+    int    ret = BAD_FUNC_ARG;
 
     /* Digest the signature data. */
     switch (hashAlgo) {
 #ifndef NO_WOLFSSL_SHA256
         case sha256_mac:
-            wc_InitSha256(&digest.sha256);
-            wc_Sha256Update(&digest.sha256, sigData, sigDataSz);
-            wc_Sha256Final(&digest.sha256, sigData);
-            wc_Sha256Free(&digest.sha256);
+            ret = wc_InitSha256(&digest.sha256);
+            if (ret == 0) {
+                ret = wc_Sha256Update(&digest.sha256, sigData, sigDataSz);
+                if (ret == 0)
+                    ret = wc_Sha256Final(&digest.sha256, sigData);
+                wc_Sha256Free(&digest.sha256);
+            }
             hashSz = SHA256_DIGEST_SIZE;
             hashOid = SHA256h;
             break;
 #endif
 #ifdef WOLFSSL_SHA384
         case sha384_mac:
-            wc_InitSha384(&digest.sha384);
-            wc_Sha384Update(&digest.sha384, sigData, sigDataSz);
-            wc_Sha384Final(&digest.sha384, sigData);
-            wc_Sha384Free(&digest.sha384);
+            ret = wc_InitSha384(&digest.sha384);
+            if (ret == 0) {
+                ret = wc_Sha384Update(&digest.sha384, sigData, sigDataSz);
+                if (ret == 0)
+                    ret = wc_Sha384Final(&digest.sha384, sigData);
+                wc_Sha384Free(&digest.sha384);
+            }
             hashSz = SHA384_DIGEST_SIZE;
             hashOid = SHA384h;
             break;
 #endif
 #ifdef WOLFSSL_SHA512
         case sha512_mac:
-            wc_InitSha512(&digest.sha512);
-            wc_Sha512Update(&digest.sha512, sigData, sigDataSz);
-            wc_Sha512Final(&digest.sha512, sigData);
-            wc_Sha512Free(&digest.sha512);
+            ret = wc_InitSha512(&digest.sha512);
+            if (ret == 0) {
+                ret = wc_Sha512Update(&digest.sha512, sigData, sigDataSz);
+                if (ret == 0)
+                    ret = wc_Sha512Final(&digest.sha512, sigData);
+                wc_Sha512Free(&digest.sha512);
+            }
             hashSz = SHA512_DIGEST_SIZE;
             hashOid = SHA512h;
             break;
 #endif
     }
+
+    if (ret != 0)
+        return ret;
 
     /* Encode the signature data as per PKCS #1.5 */
     return wc_EncodeSignature(sig, sigData, hashSz, hashOid);
@@ -3013,37 +3083,50 @@ static int CreateECCEncodedSig(byte* sigData, int sigDataSz, int hashAlgo)
 {
     Digest digest;
     int    hashSz = 0;
+    int    ret = BAD_FUNC_ARG;
 
     /* Digest the signature data. */
     switch (hashAlgo) {
 #ifndef NO_WOLFSSL_SHA256
         case sha256_mac:
-            wc_InitSha256(&digest.sha256);
-            wc_Sha256Update(&digest.sha256, sigData, sigDataSz);
-            wc_Sha256Final(&digest.sha256, sigData);
-            wc_Sha256Free(&digest.sha256);
+            ret = wc_InitSha256(&digest.sha256);
+            if (ret == 0) {
+                ret = wc_Sha256Update(&digest.sha256, sigData, sigDataSz);
+                if (ret == 0)
+                    ret = wc_Sha256Final(&digest.sha256, sigData);
+                wc_Sha256Free(&digest.sha256);
+            }
             hashSz = SHA256_DIGEST_SIZE;
             break;
 #endif
 #ifdef WOLFSSL_SHA384
         case sha384_mac:
-            wc_InitSha384(&digest.sha384);
-            wc_Sha384Update(&digest.sha384, sigData, sigDataSz);
-            wc_Sha384Final(&digest.sha384, sigData);
-            wc_Sha384Free(&digest.sha384);
+            ret = wc_InitSha384(&digest.sha384);
+            if (ret == 0) {
+                ret = wc_Sha384Update(&digest.sha384, sigData, sigDataSz);
+                if (ret == 0)
+                    ret = wc_Sha384Final(&digest.sha384, sigData);
+                wc_Sha384Free(&digest.sha384);
+            }
             hashSz = SHA384_DIGEST_SIZE;
             break;
 #endif
 #ifdef WOLFSSL_SHA512
         case sha512_mac:
-            wc_InitSha512(&digest.sha512);
-            wc_Sha512Update(&digest.sha512, sigData, sigDataSz);
-            wc_Sha512Final(&digest.sha512, sigData);
-            wc_Sha512Free(&digest.sha512);
+            ret = wc_InitSha512(&digest.sha512);
+            if (ret == 0) {
+                ret = wc_Sha512Update(&digest.sha512, sigData, sigDataSz);
+                if (ret == 0)
+                    ret = wc_Sha512Final(&digest.sha512, sigData);
+                wc_Sha512Free(&digest.sha512);
+            }
             hashSz = SHA512_DIGEST_SIZE;
             break;
 #endif
     }
+
+    if (ret != 0)
+        return ret;
 
     return hashSz;
 }
@@ -3503,14 +3586,17 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
                 sig->length = MAX_ENCODED_SIG_SZ;
                 sig->buffer = (byte*)XMALLOC(sig->length, ssl->heap,
                                                     DYNAMIC_TYPE_TMP_BUFFER);
-                if (sig->buffer == NULL)
-                    return MEMORY_E;
+                if (sig->buffer == NULL) {
+                    ERROR_OUT(MEMORY_E, exit_scv);
+                }
 
                 /* Digest the signature data and encode. Used in verify too. */
-                sig->length = CreateRSAEncodedSig(sig->buffer, args->sigData,
+                ret = CreateRSAEncodedSig(sig->buffer, args->sigData,
                     args->sigDataSz, ssl->suites->hashAlgo);
-                if (ret != 0)
+                if (ret < 0)
                     goto exit_scv;
+                sig->length = ret;
+                ret = 0;
 
                 /* Maximum size of RSA Signature. */
                 args->sigLen = args->length;
@@ -3520,8 +3606,12 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
             if (ssl->hsType == DYNAMIC_TYPE_ECC) {
                 sig->length = args->sendSz - args->idx - HASH_SIG_SIZE -
                               VERIFY_HEADER;
-                args->sigDataSz = CreateECCEncodedSig(args->sigData,
+                ret = CreateECCEncodedSig(args->sigData,
                     args->sigDataSz, ssl->suites->hashAlgo);
+                if (ret < 0)
+                    goto exit_scv;
+                args->sigDataSz = ret;
+                ret = 0;
             }
         #endif /* HAVE_ECC */
 
@@ -3831,8 +3921,12 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 }
 
                 CreateSigData(ssl, args->sigData, &args->sigDataSz, 1);
-                args->sigDataSz = CreateECCEncodedSig(args->sigData,
+                ret = CreateECCEncodedSig(args->sigData,
                     args->sigDataSz, args->hashAlgo);
+                if (ret < 0)
+                    goto exit_dcv;
+                args->sigDataSz = ret;
+                ret = 0;
             }
         #endif
 
@@ -3991,7 +4085,10 @@ static int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
     else
         secret = ssl->keys.client_write_MAC_secret;
-    finishedSz = BuildTls13HandshakeHmac(ssl, secret, mac);
+
+    ret = BuildTls13HandshakeHmac(ssl, secret, mac, &finishedSz);
+    if (ret != 0)
+        return ret;
     if (size != finishedSz)
         return BUFFER_ERROR;
 
@@ -4085,7 +4182,9 @@ int SendTls13Finished(WOLFSSL* ssl)
 
         secret = ssl->keys.server_write_MAC_secret;
     }
-    BuildTls13HandshakeHmac(ssl, secret, &input[headerSz]);
+    ret = BuildTls13HandshakeHmac(ssl, secret, &input[headerSz], NULL);
+    if (ret != 0)
+        return ret;
 
     /* This message is always encrypted. */
     sendSz = BuildTls13Message(ssl, output, outputSz, input,

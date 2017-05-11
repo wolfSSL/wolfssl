@@ -4850,9 +4850,11 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
 
     if (err == MP_OKAY) {
         int keysize;
+    #ifdef HAVE_COMP_KEY
         /* adjust inLen if compressed */
         if (compressed)
             inLen = (inLen-1)*2 + 1;  /* used uncompressed len */
+    #endif
 
         /* determine key size */
         keysize = ((inLen-1)>>1);

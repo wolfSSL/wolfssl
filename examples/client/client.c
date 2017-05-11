@@ -1056,6 +1056,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 #ifdef WOLFSSL_TLS13
                     updateKeysIVs = 1;
                 #endif
+                break;
 
             case 'y' :
                 #if defined(WOLFSSL_TLS13) && !defined(NO_DH)
