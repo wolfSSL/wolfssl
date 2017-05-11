@@ -1045,26 +1045,6 @@ int fp_addmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 
 #ifdef TFM_TIMING_RESISTANT
 
-#ifndef WC_NO_CACHE_RESISTANT
-/* all off / all on pointer addresses for constant calculations */
-/* ecc.c uses same table */
-const wolfssl_word wc_off_on_addr[2] =
-{
-#if defined(WC_64BIT_CPU)
-    W64LIT(0x0000000000000000),
-    W64LIT(0xffffffffffffffff)
-#elif defined(WC_16BIT_CPU)
-    0x0000U,
-    0xffffU
-#else
-    /* 32 bit */
-    0x00000000U,
-    0xffffffffU
-#endif
-};
-
-#endif /* WC_NO_CACHE_RESISTANT */
-
 /* timing resistant montgomery ladder based exptmod
    Based on work by Marc Joye, Sung-Ming Yen, "The Montgomery Powering Ladder",
    Cryptographic Hardware and Embedded Systems, CHES 2002
