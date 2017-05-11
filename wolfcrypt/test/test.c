@@ -3642,9 +3642,9 @@ int aes_test(void)
     byte iv[]  = "1234567890abcdef   ";  /* align */
 
 #ifdef WOLFSSL_ASYNC_CRYPT
-    if (wc_AesAsyncInit(&enc, devId) != 0)
+    if (wc_AesInit(&enc, HEAP_HINT, devId) != 0)
         return -4200;
-    if (wc_AesAsyncInit(&dec, devId) != 0)
+    if (wc_AesInit(&dec, HEAP_HINT, devId) != 0)
         return -4201;
 #endif
 

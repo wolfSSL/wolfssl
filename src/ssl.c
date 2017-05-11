@@ -8509,12 +8509,14 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
         case KEY_EXCHANGE_SENT :
             #ifndef NO_CERTS
-                if (!ssl->options.resuming)
-                    if (ssl->options.verifyPeer)
+                if (!ssl->options.resuming) {
+                    if (ssl->options.verifyPeer) {
                         if ( (ssl->error = SendCertificateRequest(ssl)) != 0) {
                             WOLFSSL_ERROR(ssl->error);
                             return SSL_FATAL_ERROR;
                         }
+                    }
+                }
             #endif
             ssl->options.acceptState = CERT_REQ_SENT;
             WOLFSSL_MSG("accept state CERT_REQ_SENT");

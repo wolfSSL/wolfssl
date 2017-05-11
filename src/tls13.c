@@ -5404,13 +5404,15 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
             WOLFSSL_MSG("accept state SERVER_EXTENSIONS_SENT");
         case SERVER_EXTENSIONS_SENT :
 #ifndef NO_CERTS
-            if (!ssl->options.resuming)
-                if (ssl->options.verifyPeer)
+            if (!ssl->options.resuming) {
+                if (ssl->options.verifyPeer) {
                     ssl->error = SendTls13CertificateRequest(ssl);
                     if (ssl->error != 0) {
                         WOLFSSL_ERROR(ssl->error);
                         return SSL_FATAL_ERROR;
                     }
+                }
+            }
 #endif
             ssl->options.acceptState = CERT_REQ_SENT;
             WOLFSSL_MSG("accept state CERT_REQ_SENT");

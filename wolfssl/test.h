@@ -597,7 +597,7 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
 
 #ifndef TEST_IPV6
     /* peer could be in human readable form */
-    if ( (peer != INADDR_ANY) && isalpha((int)peer[0])) {
+    if ( ((size_t)peer != INADDR_ANY) && isalpha((int)peer[0])) {
         #if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
             int err;
             struct hostent* entry = gethostbyname(peer, &err);
@@ -627,7 +627,7 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
         addr->sin_family = AF_INET_V;
     #endif
     addr->sin_port = XHTONS(port);
-    if (peer == INADDR_ANY)
+    if ((size_t)peer == INADDR_ANY)
         addr->sin_addr.s_addr = INADDR_ANY;
     else {
         if (!useLookup)
