@@ -34,6 +34,20 @@ before calling wolfSSL_new();  Though it's not recommended.
 
 *** end Notes ***
 
+********* wolfSSL (Formerly CyaSSL) Release 3.11.1 (5/11/2017)
+
+Release 3.11.1 of wolfSSL is a TLS 1.3 BETA release, which includes:
+
+- TLS 1.3 client and server support for TLS 1.3 with Draft 18 support
+
+This is strictly a BETA release, and designed for testing and user feedback.
+Please send any comments, testing results, or feedback to wolfSSL at
+support@wolfssl.com.
+
+See INSTALL file for build instructions.
+More info can be found on-line at http://wolfssl.com/wolfSSL/Docs.html
+
+
 ********* wolfSSL (Formerly CyaSSL) Release 3.11.0 (5/04/2017)
 
 Release 3.11.0 of wolfSSL has bug fixes and new features including:
