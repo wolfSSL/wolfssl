@@ -2130,6 +2130,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void) verifyCert;
     (void) ourCert;
     (void) ourKey;
+    (void) useVerifyCb;
 
 #if !defined(WOLFSSL_TIRTOS)
     return 0;
