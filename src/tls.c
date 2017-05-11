@@ -5710,7 +5710,7 @@ int TLSX_KeyShare_Establish(WOLFSSL *ssl)
 
     /* Move private key to client entry. */
     if (clientKSE->key != NULL)
-        XFREE(clientKSE->key, heap, DYNAMIC_TYPE_TLSX);
+        XFREE(clientKSE->key, ssl->heap, DYNAMIC_TYPE_TLSX);
     clientKSE->key = serverKSE->key;
     serverKSE->key = NULL;
     clientKSE->keyLen = serverKSE->keyLen;

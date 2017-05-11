@@ -7175,7 +7175,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 totalSz
                         ret = wolfSSL_AsyncPush(ssl,
                             args->dCert->sigCtx.asyncDev,
                             WC_ASYNC_FLAG_CALL_AGAIN);
-                        goto exit_dc;
+                        goto exit_ppc;
                     }
                 #endif
 
@@ -7339,7 +7339,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 totalSz
                         ret = wolfSSL_AsyncPush(ssl,
                             args->dCert->sigCtx.asyncDev,
                             WC_ASYNC_FLAG_CALL_AGAIN);
-                        goto exit_dc;
+                        goto exit_ppc;
                     }
                 #endif
                 }
@@ -15461,20 +15461,20 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz
         if (ssl->options.resuming) {
             if (DSH_CheckSessionId(ssl)) {
                 if (SetCipherSpecs(ssl) == 0) {
-                    ret = -1;
 
                     XMEMCPY(ssl->arrays->masterSecret,
                             ssl->session.masterSecret, SECRET_LEN);
-                    #ifdef NO_OLD_TLS
+            #ifdef NO_OLD_TLS
+                    ret = DeriveTlsKeys(ssl);
+            #else
+                    ret = -1; /* default value */
+                #ifndef NO_TLS
+                    if (ssl->options.tls)
                         ret = DeriveTlsKeys(ssl);
-                    #else
-                        #ifndef NO_TLS
-                            if (ssl->options.tls)
-                                ret = DeriveTlsKeys(ssl);
-                        #endif
-                            if (!ssl->options.tls)
-                                ret = DeriveKeys(ssl);
-                    #endif
+                #endif
+                    if (!ssl->options.tls)
+                        ret = DeriveKeys(ssl);
+            #endif /* NO_OLD_TLS */
                     ssl->options.serverState = SERVER_HELLODONE_COMPLETE;
 
                     return ret;
