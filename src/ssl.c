@@ -26488,9 +26488,6 @@ int wolfSSL_PEM_write_bio_X509_REQ(WOLFSSL_BIO *bp, WOLFSSL_X509 *x)
     /* get PEM size */
     pemSz = wc_DerToPemEx(der, derSz, NULL, 0, NULL, CERTREQ_TYPE);
     if (pemSz < 0) {
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
         return SSL_FAILURE;
     }
 
