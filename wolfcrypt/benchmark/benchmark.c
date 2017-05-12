@@ -52,6 +52,11 @@
     #else
         #include <nio.h>
     #endif
+#elif defined(FREESCALE_KSDK_BM)
+    #include "fsl_debug_console.h"
+    #include "fsl_os_abstraction.h"
+    #undef printf
+    #define printf PRINTF
 #else
     #include <stdio.h>
 #endif
@@ -592,12 +597,13 @@ static INLINE int bench_stats_sym_check(double start)
 
 static void bench_stats_sym_finish(const char* desc, int doAsync, int count, double start)
 {
-    double total, persec;
+    double total, persec = 0;
 
     END_INTEL_CYCLES
     total = current_time(0) - start;
 
-    persec = 1 / total * count;
+    if (count > 0)
+        persec = 1 / total * count;
 #ifdef BENCH_EMBEDDED
     /* since using kB, convert to MB/s */
     persec = persec / 1024;
@@ -615,13 +621,19 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count, dou
 #endif
 }
 
-static void bench_stats_asym_finish(const char* algo, int strength,
+/* declare here rather than creating a static function to avoid warning of not
+ * used in the case of something like a leanpsk only build */
+void bench_stats_asym_finish(const char* algo, int strength,
+    const char* desc, int doAsync, int count, double start);
+
+void bench_stats_asym_finish(const char* algo, int strength,
     const char* desc, int doAsync, int count, double start)
 {
-    double total, each, opsSec, milliEach;
+    double total, each = 0, opsSec, milliEach;
 
     total = current_time(0) - start;
-    each  = total / count;     /* per second  */
+    if (count > 0)
+        each  = total / count; /* per second  */
     opsSec = count / total;    /* ops/per second */
     milliEach = each * 1000;   /* milliseconds */
 
@@ -1315,7 +1327,11 @@ void bench_poly1305()
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < numBlocks; i++) {
-            wc_Poly1305Update(&enc, bench_plain, BENCH_SIZE);
+            ret = wc_Poly1305Update(&enc, bench_plain, BENCH_SIZE);
+            if (ret != 0) {
+                printf("Poly1305Update failed: %d\n", ret);
+                break;
+            }
         }
         wc_Poly1305Final(&enc, mac);
         count += i;
@@ -1570,7 +1586,7 @@ void bench_chacha(void)
 void bench_chacha20_poly1305_aead(void)
 {
     double start;
-    int    i, count;
+    int    ret, i, count;
 
     byte authTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
     XMEMSET(authTag, 0, sizeof(authTag));
@@ -1578,8 +1594,12 @@ void bench_chacha20_poly1305_aead(void)
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < numBlocks; i++) {
-            wc_ChaCha20Poly1305_Encrypt(bench_key, bench_iv, NULL, 0,
+            ret = wc_ChaCha20Poly1305_Encrypt(bench_key, bench_iv, NULL, 0,
                 bench_plain, BENCH_SIZE, bench_cipher, authTag);
+            if (ret < 0) {
+                printf("wc_ChaCha20Poly1305_Encrypt error: %d\n", ret);
+                break;
+            }
         }
         count += i;
     } while (bench_stats_sym_check(start));
@@ -2110,14 +2130,14 @@ void bench_cmac(void)
     double  start;
     int     ret, i, count;
 
-    ret = wc_InitCmac(&cmac, bench_key, 16, WC_CMAC_AES, NULL);
-    if (ret != 0) {
-        printf("InitCmac failed, ret = %d\n", ret);
-        return;
-    }
-
     bench_stats_start(&count, &start);
     do {
+        ret = wc_InitCmac(&cmac, bench_key, 16, WC_CMAC_AES, NULL);
+        if (ret != 0) {
+            printf("InitCmac failed, ret = %d\n", ret);
+            return;
+        }
+
         for (i = 0; i < numBlocks; i++) {
             ret = wc_CmacUpdate(&cmac, bench_plain, BENCH_SIZE);
             if (ret != 0) {
@@ -2125,6 +2145,7 @@ void bench_cmac(void)
                 return;
             }
         }
+        /* Note: final force zero's the Cmac struct */
         ret = wc_CmacFinal(&cmac, digest, &digestSz);
         if (ret != 0) {
             printf("CmacFinal failed, ret = %d\n", ret);
@@ -2281,7 +2302,9 @@ void bench_rsa(int doAsync)
         }
 
     #ifdef WC_RSA_BLINDING
-        wc_RsaSetRNG(&rsaKey[i], &rng);
+        ret = wc_RsaSetRNG(&rsaKey[i], &rng);
+        if (ret != 0)
+            goto exit;
     #endif
 
         /* decode the private key */
@@ -3014,11 +3037,24 @@ void bench_eccEncrypt(void)
     int     ret, i, count;
     double start;
 
-    wc_ecc_init_ex(&userA, HEAP_HINT, devId);
+    ret = wc_ecc_init_ex(&userA, HEAP_HINT, devId);
+    if (ret != 0) {
+        printf("wc_ecc_encrypt make key A failed: %d\n", ret);
+        return;
+    }
     wc_ecc_init_ex(&userB, HEAP_HINT, devId);
+    if (ret != 0) {
+        printf("wc_ecc_encrypt make key B failed: %d\n", ret);
+        wc_ecc_free(&userA);
+        return;
+    }
 
-    wc_ecc_make_key(&rng, keySize, &userA);
-    wc_ecc_make_key(&rng, keySize, &userB);
+    ret = wc_ecc_make_key(&rng, keySize, &userA);
+    if (ret != 0)
+        goto exit;
+    ret = wc_ecc_make_key(&rng, keySize, &userB);
+    if (ret != 0)
+        goto exit;
 
     for (i = 0; i < (int)sizeof(msg); i++)
         msg[i] = i;
@@ -3053,6 +3089,12 @@ exit_enc:
 exit_dec:
     bench_stats_asym_finish("ECC", keySize * 8, "decrypt", 0, count, start);
 
+exit:
+
+    if (ret != 0) {
+        printf("bench_eccEncrypt failed! %d\n", ret);
+    }
+
     /* cleanup */
     wc_ecc_free(&userB);
     wc_ecc_free(&userA);
@@ -3065,14 +3107,18 @@ void bench_curve25519KeyGen(void)
 {
     curve25519_key genKey;
     double start;
-    int    i, count;
+    int    ret, i, count;
 
     /* Key Gen */
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < genTimes; i++) {
-            wc_curve25519_make_key(&rng, 32, &genKey);
+            ret = wc_curve25519_make_key(&rng, 32, &genKey);
             wc_curve25519_free(&genKey);
+            if (ret != 0) {
+                printf("wc_curve25519_make_key failed: %d\n", ret);
+                break;
+            }
         }
         count += i;
     } while (bench_stats_sym_check(start));
@@ -3098,7 +3144,8 @@ void bench_curve25519KeyAgree(void)
     }
     ret = wc_curve25519_make_key(&rng, 32, &genKey2);
     if (ret != 0) {
-        printf("curve25519_make_key failed\n");
+        printf("curve25519_make_key failed: %d\n", ret);
+        wc_curve25519_free(&genKey);
         return;
     }
 
@@ -3109,7 +3156,7 @@ void bench_curve25519KeyAgree(void)
             x = sizeof(shared);
             ret = wc_curve25519_shared_secret(&genKey, &genKey2, shared, &x);
             if (ret != 0) {
-                printf("curve25519_shared_secret failed\n");
+                printf("curve25519_shared_secret failed: %d\n", ret);
                 goto exit;
             }
         }
@@ -3286,6 +3333,13 @@ exit_ed_verify:
         _time_get(&tv);
 
         return (double)tv.SECONDS + (double)tv.MILLISECONDS / 1000;
+    }
+
+#elif defined(FREESCALE_KSDK_BM)
+
+    double current_time(int reset)
+    {
+        return (double)OSA_TimeGetMsec() / 1000;
     }
 
 #elif defined(WOLFSSL_EMBOS)

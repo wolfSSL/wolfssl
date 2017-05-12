@@ -209,7 +209,7 @@ static int Hash_df(DRBG* drbg, byte* out, word32 outSz, byte type,
                                                   const byte* inA, word32 inASz,
                                                   const byte* inB, word32 inBSz)
 {
-    int ret;
+    int ret = DRBG_FAILURE;
     byte ctr;
     int i;
     int len;
@@ -257,9 +257,8 @@ static int Hash_df(DRBG* drbg, byte* out, word32 outSz, byte type,
         if (ret == 0)
             ret = wc_Sha256Final(&sha, digest);
 
+        wc_Sha256Free(&sha);
         if (ret == 0) {
-            wc_Sha256Free(&sha);
-
             if (outSz > OUTPUT_BLOCK_LEN) {
                 XMEMCPY(out, digest, OUTPUT_BLOCK_LEN);
                 outSz -= OUTPUT_BLOCK_LEN;
@@ -342,8 +341,7 @@ static int Hash_gen(DRBG* drbg, byte* out, word32 outSz, const byte* V)
             ret = wc_Sha256Update(&sha, data, sizeof(data));
         if (ret == 0)
             ret = wc_Sha256Final(&sha, digest);
-        if (ret == 0)
-            wc_Sha256Free(&sha);
+        wc_Sha256Free(&sha);
 
         if (ret == 0) {
             XMEMCPY(&checkBlock, digest, sizeof(word32));
@@ -363,14 +361,14 @@ static int Hash_gen(DRBG* drbg, byte* out, word32 outSz, const byte* V)
                 drbg->lastBlock = checkBlock;
             }
 
-            if (out != NULL) {
+            if (out != NULL && outSz != 0) {
                 if (outSz >= OUTPUT_BLOCK_LEN) {
                     XMEMCPY(out, digest, OUTPUT_BLOCK_LEN);
                     outSz -= OUTPUT_BLOCK_LEN;
                     out += OUTPUT_BLOCK_LEN;
                     array_add_one(data, DRBG_SEED_LEN);
                 }
-                else if (out != NULL && outSz != 0) {
+                else {
                     XMEMCPY(out, digest, outSz);
                     outSz = 0;
                 }
@@ -430,8 +428,8 @@ static int Hash_DRBG_Generate(DRBG* drbg, byte* out, word32 outSz)
                 ret = wc_Sha256Update(&sha, drbg->V, sizeof(drbg->V));
             if (ret == 0)
                 ret = wc_Sha256Final(&sha, digest);
-            if (ret == 0)
-                wc_Sha256Free(&sha);
+
+            wc_Sha256Free(&sha);
 
             if (ret == 0) {
                 array_add(drbg->V, sizeof(drbg->V), digest, SHA256_DIGEST_SIZE);
@@ -533,7 +531,8 @@ int wc_InitRng_ex(WC_RNG* rng, void* heap, int devId)
 
     /* configure async RNG source if available */
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
-    ret = wolfAsync_DevCtxInit(&rng->asyncDev, WOLFSSL_ASYNC_MARKER_RNG, devId);
+    ret = wolfAsync_DevCtxInit(&rng->asyncDev, WOLFSSL_ASYNC_MARKER_RNG,
+                                                        rng->heap, rng->devId);
     if (ret != 0)
         return ret;
 #endif
@@ -612,7 +611,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 #endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
-    if (aes->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RNG) {
+    if (rng->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RNG) {
         return NitroxRngGenerateBlock(rng, output, sz);
     }
 #endif
@@ -687,7 +686,7 @@ int wc_FreeRng(WC_RNG* rng)
         return BAD_FUNC_ARG;
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
-    wolfAsync_DevCtxFree(&rng->asyncDev);
+    wolfAsync_DevCtxFree(&rng->asyncDev, WOLFSSL_ASYNC_MARKER_RNG);
 #endif
 
 #ifdef HAVE_HASHDRBG

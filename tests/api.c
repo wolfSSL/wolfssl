@@ -373,8 +373,9 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
     AssertFalse(wolfSSL_CTX_load_verify_locations(NULL, caCertFile, 0));
 
     /* invalid ca file */
-    AssertFalse(wolfSSL_CTX_load_verify_locations(ctx, NULL,      0));
-    AssertFalse(wolfSSL_CTX_load_verify_locations(ctx, bogusFile, 0));
+    AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_load_verify_locations(ctx, NULL,      0));
+    AssertIntNE(SSL_SUCCESS, wolfSSL_CTX_load_verify_locations(ctx, bogusFile, 0));
+
 
 #ifndef WOLFSSL_TIRTOS
     /* invalid path */
@@ -2031,7 +2032,7 @@ static void test_wolfSSL_X509_NAME_get_entry(void)
 {
 #if !defined(NO_CERTS) && !defined(NO_RSA)
 #if defined(OPENSSL_EXTRA) && (defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)) \
-    && (defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE))
+    && (defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE)) || defined(WOLFSSL_HAPROXY)
     printf(testingFmt, "wolfSSL_X509_NAME_get_entry()");
 
     {
@@ -4108,7 +4109,39 @@ static void test_wolfSSL_BIO(void)
     #endif
 }
 
+static void test_wolfSSL_DES_ecb_encrypt(void)
+{
+    #if defined(OPENSSL_EXTRA) && !defined(NO_DES3) && defined(WOLFSSL_DES_ECB)
+    WOLFSSL_DES_cblock input1,input2,output1,output2,back1,back2;
+    WOLFSSL_DES_key_schedule key;
 
+    printf(testingFmt, "wolfSSL_DES_ecb_encrypt()");
+
+    XMEMCPY(key,"12345678",sizeof(WOLFSSL_DES_key_schedule));
+    XMEMCPY(input1, "Iamhuman",sizeof(WOLFSSL_DES_cblock));
+    XMEMCPY(input2, "Whoisit?",sizeof(WOLFSSL_DES_cblock));
+    XMEMSET(output1, 0, sizeof(WOLFSSL_DES_cblock));
+    XMEMSET(output2, 0, sizeof(WOLFSSL_DES_cblock));
+    XMEMSET(back1, 0, sizeof(WOLFSSL_DES_cblock));
+    XMEMSET(back2, 0, sizeof(WOLFSSL_DES_cblock));
+
+    /* Encrypt messages */
+    wolfSSL_DES_ecb_encrypt(&input1,&output1,&key,DES_ENCRYPT);
+    wolfSSL_DES_ecb_encrypt(&input2,&output2,&key,DES_ENCRYPT);
+
+    /* Decrypt messages */
+    int ret1 = 0;
+    int ret2 = 0;
+    wolfSSL_DES_ecb_encrypt(&output1,&back1,&key,DES_DECRYPT);
+    ret1 = memcmp((unsigned char *) back1,(unsigned char *) input1,sizeof(WOLFSSL_DES_cblock));
+    AssertIntEQ(ret1,0);
+    wolfSSL_DES_ecb_encrypt(&output2,&back2,&key,DES_DECRYPT);
+    ret2 = memcmp((unsigned char *) back2,(unsigned char *) input2,sizeof(WOLFSSL_DES_cblock));
+    AssertIntEQ(ret2,0);
+
+    printf(resultFmt, passed);
+    #endif
+}
 /*----------------------------------------------------------------------------*
  | wolfCrypt ASN
  *----------------------------------------------------------------------------*/
@@ -4466,7 +4499,7 @@ void ApiTest(void)
     test_wolfSSL_set_options();
     test_wolfSSL_PEM_read_bio();
     test_wolfSSL_BIO();
-
+    test_wolfSSL_DES_ecb_encrypt();
     AssertIntEQ(test_wolfSSL_Cleanup(), SSL_SUCCESS);
 
     /* wolfCrypt ASN tests */

@@ -302,8 +302,8 @@ static INLINE void InitTcpReady(tcp_ready* ready)
     ready->srfName = NULL;
 #ifdef SINGLE_THREADED
 #elif defined(_POSIX_THREADS) && !defined(__MINGW32__)
-      pthread_mutex_init(&ready->mutex, 0);
-      pthread_cond_init(&ready->cond, 0);
+    pthread_mutex_init(&ready->mutex, 0);
+    pthread_cond_init(&ready->cond, 0);
 #endif
 }
 
@@ -1008,6 +1008,9 @@ static INLINE void tcp_set_nonblocking(SOCKET_T* sockfd)
 
 #ifndef NO_PSK
 
+/* identity is OpenSSL testing default for openssl s_client, keep same */
+static const char* kIdentityStr = "Client_identity";
+
 static INLINE unsigned int my_psk_client_cb(WOLFSSL* ssl, const char* hint,
         char* identity, unsigned int id_max_len, unsigned char* key,
         unsigned int key_max_len)
@@ -1016,9 +1019,8 @@ static INLINE unsigned int my_psk_client_cb(WOLFSSL* ssl, const char* hint,
     (void)hint;
     (void)key_max_len;
 
-    /* identity is OpenSSL testing default for openssl s_client, keep same */
-    strncpy(identity, "Client_identity", id_max_len);
-
+    /* see internal.h MAX_PSK_ID_LEN for PSK identity limit */
+    strncpy(identity, kIdentityStr, id_max_len);
 
     /* test key in hex is 0x1a2b3c4d , in decimal 439,041,101 , we're using
        unsigned binary */
@@ -1037,8 +1039,8 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
     (void)ssl;
     (void)key_max_len;
 
-    /* identity is OpenSSL testing default for openssl s_client, keep same */
-    if (strncmp(identity, "Client_identity", 15) != 0)
+    /* see internal.h MAX_PSK_ID_LEN for PSK identity limit */
+    if (strncmp(identity, kIdentityStr, strlen(kIdentityStr)) != 0)
         return 0;
 
     /* test key in hex is 0x1a2b3c4d , in decimal 439,041,101 , we're using
@@ -1109,6 +1111,7 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
     static INLINE int load_file(const char* fname, byte** buf, size_t* bufLen)
     {
         int ret;
+        long int fileSz;
         FILE* file;
 
         if (fname == NULL || buf == NULL || bufLen == NULL)
@@ -1126,9 +1129,10 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
         }
 
         fseek(file, 0, SEEK_END);
-        *bufLen = ftell(file);
+        fileSz = (int)ftell(file);
         rewind(file);
-        if (*bufLen > 0) {
+        if (fileSz  > 0) {
+            *bufLen = (size_t)fileSz;
             *buf = (byte*)malloc(*bufLen);
             if (*buf == NULL) {
                 ret = MEMORY_E;
@@ -1736,12 +1740,13 @@ static INLINE int myEccSign(WOLFSSL* ssl, const byte* in, word32 inSz,
     if (ret != 0)
         return ret;
 
-    wc_ecc_init(&myKey);
-
-    ret = wc_EccPrivateKeyDecode(key, &idx, &myKey, keySz);
-    if (ret == 0)
-        ret = wc_ecc_sign_hash(in, inSz, out, outSz, &rng, &myKey);
-    wc_ecc_free(&myKey);
+    ret = wc_ecc_init(&myKey);
+    if (ret == 0) {
+        ret = wc_EccPrivateKeyDecode(key, &idx, &myKey, keySz);
+        if (ret == 0)
+            ret = wc_ecc_sign_hash(in, inSz, out, outSz, &rng, &myKey);
+        wc_ecc_free(&myKey);
+    }
     wc_FreeRng(&rng);
 
     return ret;
@@ -1758,12 +1763,13 @@ static INLINE int myEccVerify(WOLFSSL* ssl, const byte* sig, word32 sigSz,
     (void)ssl;
     (void)ctx;
 
-    wc_ecc_init(&myKey);
-
-    ret = wc_ecc_import_x963(key, keySz, &myKey);
-    if (ret == 0)
-        ret = wc_ecc_verify_hash(sig, sigSz, hash, hashSz, result, &myKey);
-    wc_ecc_free(&myKey);
+    ret = wc_ecc_init(&myKey);
+    if (ret == 0) {
+        ret = wc_ecc_import_x963(key, keySz, &myKey);
+        if (ret == 0)
+            ret = wc_ecc_verify_hash(sig, sigSz, hash, hashSz, result, &myKey);
+        wc_ecc_free(&myKey);
+    }
 
     return ret;
 }
@@ -1843,16 +1849,17 @@ static INLINE int myRsaSign(WOLFSSL* ssl, const byte* in, word32 inSz,
     if (ret != 0)
         return ret;
 
-    wc_InitRsaKey(&myKey, NULL);
-
-    ret = wc_RsaPrivateKeyDecode(key, &idx, &myKey, keySz);
-    if (ret == 0)
-        ret = wc_RsaSSL_Sign(in, inSz, out, *outSz, &myKey, &rng);
-    if (ret > 0) {  /* save and convert to 0 success */
-        *outSz = ret;
-        ret = 0;
+    ret = wc_InitRsaKey(&myKey, NULL);
+    if (ret == 0) {
+        ret = wc_RsaPrivateKeyDecode(key, &idx, &myKey, keySz);
+        if (ret == 0)
+            ret = wc_RsaSSL_Sign(in, inSz, out, *outSz, &myKey, &rng);
+        if (ret > 0) {  /* save and convert to 0 success */
+            *outSz = ret;
+            ret = 0;
+        }
+        wc_FreeRsaKey(&myKey);
     }
-    wc_FreeRsaKey(&myKey);
     wc_FreeRng(&rng);
 
     return ret;
@@ -1871,12 +1878,13 @@ static INLINE int myRsaVerify(WOLFSSL* ssl, byte* sig, word32 sigSz,
     (void)ssl;
     (void)ctx;
 
-    wc_InitRsaKey(&myKey, NULL);
-
-    ret = wc_RsaPublicKeyDecode(key, &idx, &myKey, keySz);
-    if (ret == 0)
-        ret = wc_RsaSSL_VerifyInline(sig, sigSz, out, &myKey);
-    wc_FreeRsaKey(&myKey);
+    ret = wc_InitRsaKey(&myKey, NULL);
+    if (ret == 0) {
+        ret = wc_RsaPublicKeyDecode(key, &idx, &myKey, keySz);
+        if (ret == 0)
+            ret = wc_RsaSSL_VerifyInline(sig, sigSz, out, &myKey);
+        wc_FreeRsaKey(&myKey);
+    }
 
     return ret;
 }
@@ -1898,17 +1906,18 @@ static INLINE int myRsaEnc(WOLFSSL* ssl, const byte* in, word32 inSz,
     if (ret != 0)
         return ret;
 
-    wc_InitRsaKey(&myKey, NULL);
-
-    ret = wc_RsaPublicKeyDecode(key, &idx, &myKey, keySz);
+    ret = wc_InitRsaKey(&myKey, NULL);
     if (ret == 0) {
-        ret = wc_RsaPublicEncrypt(in, inSz, out, *outSz, &myKey, &rng);
-        if (ret > 0) {
-            *outSz = ret;
-            ret = 0;  /* reset to success */
+        ret = wc_RsaPublicKeyDecode(key, &idx, &myKey, keySz);
+        if (ret == 0) {
+            ret = wc_RsaPublicEncrypt(in, inSz, out, *outSz, &myKey, &rng);
+            if (ret > 0) {
+                *outSz = ret;
+                ret = 0;  /* reset to success */
+            }
         }
+        wc_FreeRsaKey(&myKey);
     }
-    wc_FreeRsaKey(&myKey);
     wc_FreeRng(&rng);
 
     return ret;
@@ -1925,20 +1934,21 @@ static INLINE int myRsaDec(WOLFSSL* ssl, byte* in, word32 inSz,
     (void)ssl;
     (void)ctx;
 
-    wc_InitRsaKey(&myKey, NULL);
-
-    ret = wc_RsaPrivateKeyDecode(key, &idx, &myKey, keySz);
+    ret = wc_InitRsaKey(&myKey, NULL);
     if (ret == 0) {
-        #ifdef WC_RSA_BLINDING
-            ret = wc_RsaSetRNG(&myKey, wolfSSL_GetRNG(ssl));
-            if (ret != 0) {
-                wc_FreeRsaKey(&myKey);
-                return ret;
-            }
-        #endif
-        ret = wc_RsaPrivateDecryptInline(in, inSz, out, &myKey);
+        ret = wc_RsaPrivateKeyDecode(key, &idx, &myKey, keySz);
+        if (ret == 0) {
+            #ifdef WC_RSA_BLINDING
+                ret = wc_RsaSetRNG(&myKey, wolfSSL_GetRNG(ssl));
+                if (ret != 0) {
+                    wc_FreeRsaKey(&myKey);
+                    return ret;
+                }
+            #endif
+            ret = wc_RsaPrivateDecryptInline(in, inSz, out, &myKey);
+        }
+        wc_FreeRsaKey(&myKey);
     }
-    wc_FreeRsaKey(&myKey);
 
     return ret;
 }

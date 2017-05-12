@@ -30,10 +30,19 @@
     extern "C" {
 #endif
 
-/* Opaque keys. Only key pointers are used for arguments */
-typedef struct ecc_key ecc_key;
-typedef struct RsaKey RsaKey;
-typedef struct WC_RNG WC_RNG;
+/* guard on redeclaration */
+#ifndef WC_ECCKEY_TYPE_DEFINED
+    typedef struct ecc_key ecc_key;
+    #define WC_ECCKEY_TYPE_DEFINED
+#endif
+#ifndef WC_RSAKEY_TYPE_DEFINED
+    typedef struct RsaKey RsaKey;
+    #define WC_RSAKEY_TYPE_DEFINED
+#endif
+#ifndef WC_RNG_TYPE_DEFINED
+    typedef struct WC_RNG WC_RNG;
+    #define WC_RNG_TYPE_DEFINED
+#endif
 
 /* Certificate file Type */
 enum CertType {

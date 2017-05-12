@@ -90,6 +90,9 @@
         #include <netdb.h>
         #include <netinet/in.h>
         #include <io.h>
+        /* <sys/socket.h> defines these, to avoid conflict, do undef */
+        #undef SOCKADDR
+        #undef SOCKADDR_IN
     #elif defined(WOLFSSL_PRCONNECT_PRO)
         #include <prconnect_pro/prconnect_pro.h>
         #include <sys/types.h>

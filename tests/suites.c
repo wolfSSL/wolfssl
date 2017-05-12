@@ -564,6 +564,16 @@ int SuiteTest(void)
     /* any extra cases will need another argument */
     args.argc = 2;
 
+#ifdef WOLFSSL_TLS13
+    /* add TLSv13 extra suites */
+    strcpy(argv0[1], "tests/test-tls13.conf");
+    printf("starting TLSv13 extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);
+    }
+#endif
 #ifdef WOLFSSL_DTLS
     /* add dtls extra suites */
     strcpy(argv0[1], "tests/test-dtls.conf");

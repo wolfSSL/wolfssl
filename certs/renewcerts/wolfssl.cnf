@@ -163,6 +163,13 @@ userNotice.1=@policy_usr
 [ policy_usr ]
 explicitText="Test of duplicate OIDs with different qualifiers"
 
+# create certificate without the digitalSignature bit set and uses sha1 sig
+[ digsigku ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=critical, CA:TRUE
+keyUsage=critical, nonRepudiation, keyEncipherment
+
 #tsa default
 [ tsa ]
 default_tsa = tsa_config1

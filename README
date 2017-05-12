@@ -3,7 +3,7 @@
 Note 1)
 wolfSSL as of 3.6.6 no longer enables SSLv3 by default.  wolfSSL also no
 longer supports static key cipher suites with PSK, RSA, or ECDH.  This means
-if you plan to use TLS cipher suites you must enable DH (DH is on  by default),
+if you plan to use TLS cipher suites you must enable DH (DH is on by default),
 or enable ECC (ECC is on by default on 64bit systems), or you must enable static
 key cipher suites with
     WOLFSSL_STATIC_DH
@@ -12,11 +12,11 @@ key cipher suites with
     WOLFSSL_STATIC_PSK
 
 though static key cipher suites are deprecated and will be removed from future
-versions of TLS.  They also lower your security by removing PFS. Since current
+versions of TLS.  They also lower your security by removing PFS.  Since current
 NTRU suites available do not use ephemeral keys, WOLFSSL_STATIC_RSA needs to be
 used in order to build with NTRU suites.
 
-When compiling ssl.c wolfSSL will now issue a compiler error if no cipher suites
+When compiling ssl.c, wolfSSL will now issue a compiler error if no cipher suites
 are available.  You can remove this error by defining WOLFSSL_ALLOW_NO_SUITES
 in the event that you desire that, i.e., you're not using TLS cipher suites.
 
@@ -33,6 +33,71 @@ wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 before calling wolfSSL_new();  Though it's not recommended.
 
 *** end Notes ***
+
+********* wolfSSL (Formerly CyaSSL) Release 3.11.0 (5/04/2017)
+
+Release 3.11.0 of wolfSSL has bug fixes and new features including:
+
+- Code updates for warnings reported by Coverity scans
+- Testing and warning fixes for FreeBSD on PowerPC
+- Updates and refactoring done to ASN1 parsing functions
+- Change max PSK identity buffer to account for an identity length of 128 characters
+- Update Arduino script to handle recent files and additions
+- Added support for PKCS#7 Signed Data with ECDSA
+- Fix for interoperability with ChaCha20-Poly1305 suites using older draft versions
+- DTLS update to allow multiple handshake messages in one DTLS record. Thanks to Eric Samsel over at Welch Allyn for reporting this bug.
+- Intel QuickAssist asynchronous support (PR #715 - https://www.wolfssl.com/wolfSSL/Blog/Entries/2017/1/18_wolfSSL_Asynchronous_Intel_QuickAssist_Support.html)
+- Added support for HAproxy load balancer
+- Added option to allow SHA1 with TLS 1.2 for IIS compatibility (WOLFSSL_ALLOW_TLS_SHA1)
+- Added Curve25519 51-bit Implementation, increasing performance on systems that have 128 bit types
+- Fix to not send session ID on server side if session cache is off unless we're echoing
+session ID as part of session tickets
+- Fixes for ensuring all default ciphers are setup correctly (see PR #830)
+- Added NXP Hexiwear example in `IDE/HEXIWEAR`.
+- Added wolfSSL_write_dup() to create write only WOLFSSL object for concurrent access
+- Fixes for TLS elliptic curve selection on private key import.
+- Fixes for RNG with Intel rdrand and rdseed speedups.
+- Improved performance with Intel rdrand to use full 64-bit output
+- Added new --enable-intelrand option to indicate use of RDRAND preference for RNG source
+- Removed RNG ARC4 support
+- Added ECC helpers to get size and id from curve name.
+- Added ECC Cofactor DH (ECC-CDH) support
+- Added ECC private key only import / export functions.
+- Added PKCS8 create function
+- Improvements to TLS layer CTX handling for switching keys / certs.
+- Added check for duplicate certificate policy OID in certificates.
+- Normal math speed-up to not allocate on mp_int and defer until mp_grow
+- Reduce heap usage with fast math when not using ALT_ECC_SIZE
+- Fixes for building CRL with Windows
+- Added support for inline CRL lookup when HAVE_CRL_IO is defined
+- Added port for tenAsys INtime RTOS
+- Improvements to uTKernel port (WOLFSSL_uTKERNEL2)
+- Updated WPA Supplicant support
+- Added support for Nginx
+- Update stunnel port for version 5.40
+- Fixes for STM32 hardware crypto acceleration
+- Extended test code coverage in bundled test.c
+- Added a sanity check for minimum authentication tag size with AES-GCM. Thanks to Yueh-Hsun Lin and Peng Li at KNOX Security at Samsung Research America for suggesting this.
+- Added a sanity check that subject key identifier is marked as non-critical and a check that no policy OIDS appear more than once in the cert policies extension. Thanks to the report from Professor Zhenhua Duan, Professor Cong Tian, and Ph.D candidate Chu Chen from Institute of Computing Theory and Technology (ICTT) of Xidian University, China. Profs. Zhenhua Duan and Cong Tian are supervisors of Ph.D candidate Chu Chen.
+
+
+This release of wolfSSL fixes 5 low and 1 medium level security vulnerability.
+
+3 Low level fixes reported by Yueh-Hsun Lin and Peng Li from KNOX Security, Samsung Research America.
+- Fix for out of bounds memory access in wc_DhParamsLoad() when GetLength() returns a zero. Before this fix there is a case where wolfSSL would read out of bounds memory in the function wc_DhParamsLoad.
+- Fix for DH key accepted by wc_DhAgree when the key was malformed.
+- Fix for a double free case when adding CA cert into X509_store.
+
+Low level fix for memory management with static memory feature enabled. By default static memory is disabled. Thanks to GitHub user hajjihraf for reporting this.
+
+Low level fix for out of bounds write in the function wolfSSL_X509_NAME_get_text_by_NID. This function is not used by TLS or crypto operations but could result in a buffer out of bounds write by one if called explicitly in an application. Discovered by Aleksandar Nikolic of Cisco Talos. http://talosintelligence.com/vulnerability-reports/
+
+Medium level fix for check on certificate signature. There is a case in release versions 3.9.10, 3.10.0 and 3.10.2 where a corrupted signature on a peer certificate would not be properly flagged. Thanks to Wens Lo, James Tsai, Kenny Chang, and Oscar Yang at Castles Technology.
+
+
+See INSTALL file for build instructions.
+More info can be found on-line at http://wolfssl.com/wolfSSL/Docs.html
+
 
 ********* wolfSSL (Formerly CyaSSL) Release 3.10.2 (2/10/2017)
 

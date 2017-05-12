@@ -2133,7 +2133,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     {
         int ret = 0;
         CRYP_HandleTypeDef hcryp;
-
+        XMEMSET(&hcryp, 0, sizeof(CRYP_HandleTypeDef));
         /* load key into correct registers */
         switch(aes->rounds) {
             case 10: /* 128-bit key */
@@ -2148,8 +2148,6 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             default:
                 break;
         }
-
-        XMEMSET(&hcryp, 0, sizeof(CRYP_HandleTypeDef));
         hcryp.Instance = CRYP;
         hcryp.Init.DataType = CRYP_DATATYPE_8B;
         hcryp.Init.pKey = (uint8_t*)aes->key;
@@ -4445,7 +4443,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     /* argument checks */
     if (aes == NULL || out == NULL || in == NULL || sz == 0 || iv == NULL ||
-        authTag == NULL || authIn == NULL || authTagSz > AES_BLOCK_SIZE) {
+        authTag == NULL || authTagSz > AES_BLOCK_SIZE) {
         return BAD_FUNC_ARG;
     }
 

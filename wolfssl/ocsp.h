@@ -37,7 +37,7 @@
 
 typedef struct WOLFSSL_OCSP WOLFSSL_OCSP;
 
-#ifdef WOLFSSL_NGINX
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 typedef struct OcspResponse WOLFSSL_OCSP_BASICRESP;
 
 typedef struct OcspRequest WOLFSSL_OCSP_CERTID;
@@ -54,7 +54,7 @@ WOLFSSL_LOCAL int  CheckOcspRequest(WOLFSSL_OCSP* ocsp,
                    OcspRequest* ocspRequest, WOLFSSL_BUFFER_INFO* responseBuffer);
 
 
-#ifdef WOLFSSL_NGINX
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 
 WOLFSSL_API int wolfSSL_OCSP_resp_find_status(WOLFSSL_OCSP_BASICRESP *bs,
     WOLFSSL_OCSP_CERTID* id, int* status, int* reason,

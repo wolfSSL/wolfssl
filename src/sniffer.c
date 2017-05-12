@@ -1175,8 +1175,13 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
         return -1;
     }
 
-    ret = (int)XFREAD(loadBuf, fileSz, 1, file);
+    ret = (int)XFREAD(loadBuf, 1, fileSz, file);
     XFCLOSE(file);
+
+    if (ret != fileSz) {
+        free(loadBuf);
+        return -1;
+    }
 
     if (typeKey == SSL_FILETYPE_PEM) {
         byte* saveBuf   = (byte*)malloc(fileSz);
@@ -2208,6 +2213,9 @@ static int Decrypt(SSL* ssl, byte* output, const byte* input, word32 sz)
         case wolfssl_aes_gcm:
             if (sz >= (word32)(AESGCM_EXP_IV_SZ + ssl->specs.aead_mac_size))
             {
+                /* scratch buffer, sniffer ignores auth tag*/
+                byte authTag[WOLFSSL_MIN_AUTH_TAG_SZ];
+
                 byte nonce[AESGCM_NONCE_SZ];
                 XMEMCPY(nonce, ssl->keys.aead_dec_imp_IV, AESGCM_IMP_IV_SZ);
                 XMEMCPY(nonce + AESGCM_IMP_IV_SZ, input, AESGCM_EXP_IV_SZ);
@@ -2217,7 +2225,7 @@ static int Decrypt(SSL* ssl, byte* output, const byte* input, word32 sz)
                             input + AESGCM_EXP_IV_SZ,
                             sz - AESGCM_EXP_IV_SZ - ssl->specs.aead_mac_size,
                             nonce, AESGCM_NONCE_SZ,
-                            NULL, 0,
+                            authTag, sizeof(authTag),
                             NULL, 0) < 0) {
                     Trace(BAD_DECRYPT);
                     ret = -1;

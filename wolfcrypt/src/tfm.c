@@ -2283,6 +2283,8 @@ void fp_free(fp_int* a)
 /* clear one (frees)  */
 void mp_clear (mp_int * a)
 {
+    if (a == NULL)
+        return;
     fp_clear(a);
 }
 

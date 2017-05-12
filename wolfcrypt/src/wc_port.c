@@ -74,17 +74,31 @@ int wolfCrypt_Init(void)
     int ret = 0;
 
     if (initRefCount == 0) {
+        WOLFSSL_ENTER("wolfCrypt_Init");
+
     #ifdef WOLFSSL_ASYNC_CRYPT
-        wolfAsync_HardwareStart();
+        ret = wolfAsync_HardwareStart();
+        if (ret != 0) {
+            WOLFSSL_MSG("Async hardware start failed");
+            return ret;
+        }
     #endif
 
     #if defined(WOLFSSL_TRACK_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
-        InitMemoryTracker();
+        ret = InitMemoryTracker();
+        if (ret != 0) {
+            WOLFSSL_MSG("InitMemoryTracker failed");
+            return ret;
+        }
     #endif
 
     #if WOLFSSL_CRYPT_HW_MUTEX
         /* If crypto hardware mutex protection is enabled, then initialize it */
-        wolfSSL_CryptHwMutexInit();
+        ret = wolfSSL_CryptHwMutexInit();
+        if (ret != 0) {
+            WOLFSSL_MSG("Hw crypt mutex init failed");
+            return ret;
+        }
     #endif
 
     /* if defined have fast RSA then initialize Intel IPP */
@@ -102,7 +116,11 @@ int wolfCrypt_Init(void)
     #endif
 
     #if defined(FREESCALE_LTC_TFM) || defined(FREESCALE_LTC_ECC)
-        ksdk_port_init();
+        ret = ksdk_port_init();
+        if (ret != 0) {
+            WOLFSSL_MSG("KSDK port init failed");
+            return ret;
+        }
     #endif
 
     #ifdef WOLFSSL_ATMEL
@@ -124,14 +142,14 @@ int wolfCrypt_Init(void)
         }
     #endif
 
-    #ifdef HAVE_ECC
-        #ifdef ECC_CACHE_CURVE
-            if ((ret = wc_ecc_curve_cache_init()) != 0) {
-                WOLFSSL_MSG("Error creating curve cache");
-                return ret;
-            }
-        #endif
+#ifdef HAVE_ECC
+    #ifdef ECC_CACHE_CURVE
+        if ((ret = wc_ecc_curve_cache_init()) != 0) {
+            WOLFSSL_MSG("Error creating curve cache");
+            return ret;
+        }
     #endif
+#endif
 
         initRefCount = 1;
     }
@@ -145,7 +163,8 @@ int wolfCrypt_Cleanup(void)
 {
     int ret = 0;
 
-    WOLFSSL_ENTER("wolfCrypt_Cleanup");
+    if (initRefCount == 1) {
+        WOLFSSL_ENTER("wolfCrypt_Cleanup");
 
 #ifdef HAVE_ECC
     #ifdef FP_ECC
@@ -154,21 +173,22 @@ int wolfCrypt_Cleanup(void)
     #ifdef ECC_CACHE_CURVE
         wc_ecc_curve_cache_free();
     #endif
-#endif
+#endif /* HAVE_ECC */
 
-#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
-    ret = wc_LoggingCleanup();
-#endif
+    #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+        ret = wc_LoggingCleanup();
+    #endif
 
-#if defined(WOLFSSL_TRACK_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
-    ShowMemoryTracker();
-#endif
+    #if defined(WOLFSSL_TRACK_MEMORY) && !defined(WOLFSSL_STATIC_MEMORY)
+        ShowMemoryTracker();
+    #endif
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-    wolfAsync_HardwareStop();
-#endif
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        wolfAsync_HardwareStop();
+    #endif
 
-    initRefCount = 0; /* allow re-init */
+        initRefCount = 0; /* allow re-init */
+    }
 
     return ret;
 }
@@ -310,11 +330,17 @@ wolfSSL_Mutex* wc_InitAndAllocMutex()
 {
     wolfSSL_Mutex* m = (wolfSSL_Mutex*) XMALLOC(sizeof(wolfSSL_Mutex), NULL,
             DYNAMIC_TYPE_MUTEX);
-    if (m && wc_InitMutex(m) == 0)
-        return m;
+    if (m != NULL) {
+        if (wc_InitMutex(m) != 0) {
+            WOLFSSL_MSG("Init Mutex failed");
+            XFREE(m, NULL, DYNAMIC_TYPE_MUTEX);
+            m = NULL;
+        }
+    }
+    else {
+        WOLFSSL_MSG("Memory error with Mutex allocation");
+    }
 
-    XFREE(m, NULL, DYNAMIC_TYPE_MUTEX);
-    m = NULL;
     return m;
 }
 
@@ -1006,9 +1032,6 @@ int wolfSSL_CryptHwMutexUnLock(void) {
     }
 
 #elif defined(INTIME_RTOS)
-    #ifndef INTIME_RTOS_MUTEX_MAX
-        #define INTIME_RTOS_MUTEX_MAX 10
-    #endif
 
     int wc_InitMutex(wolfSSL_Mutex* m)
     {
@@ -1019,7 +1042,7 @@ int wolfSSL_CryptHwMutexUnLock(void) {
 
         *m = CreateRtSemaphore(
             1,                      /* initial unit count */
-            INTIME_RTOS_MUTEX_MAX,  /* maximum unit count */
+            1,                      /* maximum unit count */
             PRIORITY_QUEUING        /* creation flags: FIFO_QUEUING or PRIORITY_QUEUING */
         );
         if (*m == BAD_RTHANDLE) {

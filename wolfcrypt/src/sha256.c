@@ -522,7 +522,7 @@ static int InitSha256(Sha256* sha256)
         local = (byte*)sha256->buffer;
 
         /* check that internal buffLen is valid */
-        if (sha256->buffLen > SHA256_BLOCK_SIZE)
+        if (sha256->buffLen >= SHA256_BLOCK_SIZE)
             return BUFFER_E;
 
         SAVE_XMM_YMM; /* for Intel AVX */

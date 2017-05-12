@@ -62,6 +62,10 @@ dist_noinst_SCRIPTS+= scripts/openssl.test
 endif
 endif
 
+if BUILD_TLS13
+dist_noinst_SCRIPTS+= scripts/tls13.test
+endif
+
 EXTRA_DIST +=  scripts/testsuite.pcap \
                scripts/ping.test
 

@@ -91,7 +91,18 @@ ecc-key.pem
 certreq.der
 certreq.pem
 pkcs7cert.der
-pkcs7signedData.der
+pkcs7signedData_RSA_SHA.der
+pkcs7signedData_RSA_SHA_noattr.der
+pkcs7signedData_RSA_SHA224.der
+pkcs7signedData_RSA_SHA256.der
+pkcs7signedData_RSA_SHA384.der
+pkcs7signedData_RSA_SHA512.der
+pkcs7signedData_ECDSA_SHA.der
+pkcs7signedData_ECDSA_SHA_noattr.der
+pkcs7signedData_ECDSA_SHA224.der
+pkcs7signedData_ECDSA_SHA256.der
+pkcs7signedData_ECDSA_SHA384.der
+pkcs7signedData_ECDSA_SHA512.der
 pkcs7envelopedDataDES3.der
 pkcs7envelopedDataAES128CBC.der
 pkcs7envelopedDataAES192CBC.der
@@ -196,7 +207,11 @@ wrapper/CSharp/x64/
 
 # Visual Studio Code Workspace Files
 *.vscode
+
 IDE/INTIME-RTOS/Debug_*
+
+# Hexiwear
+IDE/HEXIWEAR/wolfSSL_HW/Debug
 
 # Binaries
 wolfcrypt/src/port/intel/qat_test

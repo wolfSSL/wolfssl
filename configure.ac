@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([wolfssl],[3.10.4],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
+AC_INIT([wolfssl],[3.11.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -35,7 +35,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h:config.in])dnl Keep filename to 8.3 for MS-DOS.
 
 #shared library versioning
-WOLFSSL_LIBRARY_VERSION=11:0:0
+WOLFSSL_LIBRARY_VERSION=12:0:0
 #                       | | |
 #                +------+ | +---+
 #                |        |     |
@@ -140,6 +140,7 @@ then
     enable_shared=yes
     enable_static=yes
     enable_dtls=yes
+    enable_tls13=yes
     enable_openssh=yes
     enable_opensslextra=yes
     enable_savesession=yes
@@ -148,6 +149,7 @@ then
     enable_pkcallbacks=yes
     enable_aesgcm=yes
     enable_aesccm=yes
+    enable_aesctr=yes
     enable_camellia=yes
     enable_ripemd=yes
     enable_sha512=yes
@@ -190,6 +192,7 @@ then
     enable_certservice=yes
     enable_jni=yes
     enable_lighty=yes
+    enable_haproxy=yes
     enable_stunnel=yes
     enable_nginx=yes
     enable_pwdbased=yes
@@ -229,6 +232,22 @@ if test "$ENABLED_DTLS" = "yes"
 then
   AM_CFLAGS="-DWOLFSSL_DTLS $AM_CFLAGS"
 fi
+
+
+# TLS v1.3
+AC_ARG_ENABLE([tls13],
+    [  --enable-tls13          Enable wolfSSL TLS v1.3 (default: disabled)],
+    [ ENABLED_TLS13=$enableval ],
+    [ ENABLED_TLS13=no ]
+    )
+if test "$ENABLED_TLS13" = "yes"
+then
+  AM_CFLAGS="-DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS -DHAVE_FFDHE_2048 $AM_CFLAGS"
+  AM_CFLAGS="-DWC_RSA_PSS $AM_CFLAGS"
+fi
+
+# check if TLS v1.3 was enabled for conditionally running tls13.test script
+AM_CONDITIONAL([BUILD_TLS13], [test "x$ENABLED_TLS13" = "xyes"])
 
 
 AC_ARG_ENABLE([rng],
@@ -279,6 +298,14 @@ AC_ARG_ENABLE([nginx],
     [ ENABLED_NGINX=$enableval ],
     [ ENABLED_NGINX=no ]
     )
+
+# haproxy compatibility build
+AC_ARG_ENABLE([haproxy],
+    [  --enable-haproxy         Enable haproxy (default: disabled)],
+    [ ENABLED_HAPROXY=$enableval ],
+    [ ENABLED_HAPROXY=no ]
+    )
+
 
 # OPENSSL Extra Compatibility
 AC_ARG_ENABLE([opensslextra],
@@ -602,6 +629,23 @@ fi
 AM_CONDITIONAL([BUILD_AESCCM], [test "x$ENABLED_AESCCM" = "xyes"])
 
 
+# AES-CTR
+AC_ARG_ENABLE([aesctr],
+    [  --enable-aesctr         Enable wolfSSL AES-CTR support (default: disabled)],
+    [ ENABLED_AESCTR=$enableval ],
+    [ ENABLED_AESCTR=no ]
+    )
+
+if test "$ENABLED_AESCTR" = "yes"
+then
+    if test "x$ENABLED_FORTRESS" != "xyes"
+    then
+        # This is already implied by fortress build
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_COUNTER -DWOLFSSL_AES_DIRECT"
+    fi
+fi
+
+
 # AES-ARM
 AC_ARG_ENABLE([armasm],
     [AS_HELP_STRING([--enable-armasm],[Enable wolfSSL ARMv8 ASM support (default: disabled)])],
@@ -818,6 +862,10 @@ if test "x$ENABLED_NGINX" = "xyes"
 then
     ENABLED_SESSIONCERTS=yes
 fi
+if test "$ENABLED_TLS13" = "yes" && test "$ENABLED_PSK" = "yes"
+then
+    ENABLED_SESSIONCERTS=yes
+fi
 
 if test "$ENABLED_SESSIONCERTS" = "yes"
 then
@@ -903,6 +951,10 @@ AC_ARG_ENABLE([hkdf],
     [ ENABLED_HKDF=$enableval ],
     [ ENABLED_HKDF=no ]
     )
+if test "$ENABLED_TLS13" = "yes"
+then
+  ENABLED_HKDF="yes"
+fi
 if test "$ENABLED_HKDF" = "yes"
 then
   AM_CFLAGS="$AM_CFLAGS -DHAVE_HKDF"
@@ -1369,6 +1421,10 @@ then
     then
         AC_MSG_ERROR([AESCCM requires AES.])
     fi
+    if test "$ENABLED_AESCTR" = "yes"
+    then
+        AC_MSG_ERROR([AESCTR requires AES.])
+    fi
 else
     # turn off AES if leanpsk on
     if test "$ENABLED_LEANPSK" = "yes"
@@ -1806,9 +1862,10 @@ AC_ARG_ENABLE([ocspstapling],
     [ ENABLED_CERTIFICATE_STATUS_REQUEST=no ]
     )
 
-if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_WPAS" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_WPAS" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes"
 then
-    ENABLED_CERTIFICATE_STATUS_REQUEST=yes
+    echo "ELLO"
+    ENABLED_CERTIFICATE_STATUS_REQUEST="yes"
 fi
 
 if test "x$ENABLED_CERTIFICATE_STATUS_REQUEST" = "xyes"
@@ -1833,7 +1890,7 @@ AC_ARG_ENABLE([ocspstapling2],
     [ ENABLED_CERTIFICATE_STATUS_REQUEST_V2=no ]
     )
 
-if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_WPAS" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_WPAS" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes"
 then
     ENABLED_CERTIFICATE_STATUS_REQUEST_V2=yes
 fi
@@ -1861,7 +1918,7 @@ AC_ARG_ENABLE([crl],
     )
 
 
-if test "x$ENABLED_NGINX" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes"
 then
     ENABLED_CRL=yes
 fi
@@ -2138,7 +2195,7 @@ AC_ARG_ENABLE([session-ticket],
     [ ENABLED_SESSION_TICKET=no ]
     )
 
-if test "x$ENABLED_NGINX" = "xyes" || test "$ENABLED_WPAS" = "yes"
+if test "x$ENABLED_NGINX" = "xyes" || test "$ENABLED_WPAS" = "yes" || test "x$ENABLED_HAPROXY" = "xyes"
 then
     ENABLED_SESSION_TICKET=yes
 fi
@@ -2167,7 +2224,7 @@ AC_ARG_ENABLE([tlsx],
     [ ENABLED_TLSX=no ]
     )
 
-if test "x$ENABLED_NGINX" = "xyes"
+if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes"
 then
     ENABLED_TLSX=yes
 fi
@@ -2418,6 +2475,21 @@ fi
 if test "$ENABLED_NGINX" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NGINX"
+fi
+
+if test "$ENABLED_HAPROXY" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAPROXY"
+    # Requires opensslextra make sure on
+    if test "x$ENABLED_OPENSSLEXTRA" = "xno"
+    then
+        ENABLED_OPENSSLEXTRA="yes"
+        AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
+    fi
+fi
+
+if test "$ENABLED_NGINX" = "yes"|| test "x$ENABLED_HAPROXY" = "xyes"
+then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_VERIFY_CB"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_KEEP_SNI"
     AM_CFLAGS="$AM_CFLAGS -DKEEP_OUR_CERT -DKEEP_PEER_CERT"
@@ -3023,7 +3095,12 @@ AC_ARG_ENABLE([mcapi],
 
 if test "$ENABLED_MCAPI" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_MCAPI -DWOLFSSL_AES_COUNTER -DWOLFSSL_AES_DIRECT"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_MCAPI"
+    if test "x$ENABLED_AESCTR" != "xyes"
+    then
+        # These flags are already implied by --enable-aesctr
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_COUNTER -DWOLFSSL_AES_DIRECT"
+    fi
 fi
 
 if test "$ENABLED_MCAPI" = "yes" && test "$ENABLED_SHA512" = "no"
@@ -3516,6 +3593,7 @@ echo "   * AES:                        $ENABLED_AES"
 echo "   * AES-NI:                     $ENABLED_AESNI"
 echo "   * AES-GCM:                    $ENABLED_AESGCM"
 echo "   * AES-CCM:                    $ENABLED_AESCCM"
+echo "   * AES-CTR:                    $ENABLED_AESCTR"
 echo "   * DES3:                       $ENABLED_DES3"
 echo "   * IDEA:                       $ENABLED_IDEA"
 echo "   * Camellia:                   $ENABLED_CAMELLIA"
@@ -3559,6 +3637,7 @@ echo "   * CODING:                     $ENABLED_CODING"
 echo "   * MEMORY:                     $ENABLED_MEMORY"
 echo "   * I/O POOL:                   $ENABLED_IOPOOL"
 echo "   * LIGHTY:                     $ENABLED_LIGHTY"
+echo "   * HAPROXY:                    $ENABLED_HAPROXY"
 echo "   * STUNNEL:                    $ENABLED_STUNNEL"
 echo "   * NGINX:                      $ENABLED_NGINX"
 echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
@@ -3566,6 +3645,7 @@ echo "   * DTLS:                       $ENABLED_DTLS"
 echo "   * SCTP:                       $ENABLED_SCTP"
 echo "   * Old TLS Versions:           $ENABLED_OLD_TLS"
 echo "   * SSL version 3.0:            $ENABLED_SSLV3"
+echo "   * TLS v1.3:                   $ENABLED_TLS13"
 echo "   * OCSP:                       $ENABLED_OCSP"
 echo "   * OCSP Stapling:              $ENABLED_CERTIFICATE_STATUS_REQUEST"
 echo "   * OCSP Stapling v2:           $ENABLED_CERTIFICATE_STATUS_REQUEST_V2"
