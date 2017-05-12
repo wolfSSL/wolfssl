@@ -2107,38 +2107,49 @@ int wolfSSL_shutdown(WOLFSSL* ssl)
 
     if (ssl->options.quietShutdown) {
         WOLFSSL_MSG("quiet shutdown, no close notify sent");
-        return SSL_SUCCESS;
+        ret = SSL_SUCCESS;
     }
-
-    /* try to send close notify, not an error if can't */
-    if (!ssl->options.isClosed && !ssl->options.connReset &&
-                                  !ssl->options.sentNotify) {
-        ssl->error = SendAlert(ssl, alert_warning, close_notify);
-        if (ssl->error < 0) {
-            WOLFSSL_ERROR(ssl->error);
-            return SSL_FATAL_ERROR;
+    else {
+        /* try to send close notify, not an error if can't */
+        if (!ssl->options.isClosed && !ssl->options.connReset &&
+                                      !ssl->options.sentNotify) {
+            ssl->error = SendAlert(ssl, alert_warning, close_notify);
+            if (ssl->error < 0) {
+                WOLFSSL_ERROR(ssl->error);
+                return SSL_FATAL_ERROR;
+            }
+            ssl->options.sentNotify = 1;  /* don't send close_notify twice */
+            if (ssl->options.closeNotify)
+                ret = SSL_SUCCESS;
+            else {
+                ret = SSL_SHUTDOWN_NOT_DONE;
+                WOLFSSL_LEAVE("SSL_shutdown()", ret);
+                return ret;
+            }
         }
-        ssl->options.sentNotify = 1;  /* don't send close_notify twice */
-        if (ssl->options.closeNotify)
-            ret = SSL_SUCCESS;
-        else
-            ret = SSL_SHUTDOWN_NOT_DONE;
 
-        WOLFSSL_LEAVE("SSL_shutdown()", ret);
-        return ret;
+        /* call wolfSSL_shutdown again for bidirectional shutdown */
+        if (ssl->options.sentNotify && !ssl->options.closeNotify) {
+            ret = wolfSSL_read(ssl, &tmp, 0);
+            if (ret < 0) {
+                WOLFSSL_ERROR(ssl->error);
+                ret = SSL_FATAL_ERROR;
+            } else if (ssl->options.closeNotify) {
+                ssl->error = SSL_ERROR_SYSCALL;   /* simulate OpenSSL behavior */
+                ret = SSL_SUCCESS;
+            }
+        }
     }
 
-    /* call wolfSSL_shutdown again for bidirectional shutdown */
-    if (ssl->options.sentNotify && !ssl->options.closeNotify) {
-        ret = wolfSSL_read(ssl, &tmp, 0);
-        if (ret < 0) {
-            WOLFSSL_ERROR(ssl->error);
+#ifdef OPENSSL_EXTRA
+    /* reset WOLFSSL structure state for possible re-use */
+    if (ret == SSL_SUCCESS) {
+        if (wolfSSL_clear(ssl) != SSL_SUCCESS) {
+            WOLFSSL_MSG("could not clear WOLFSSL");
             ret = SSL_FATAL_ERROR;
-        } else if (ssl->options.closeNotify) {
-            ssl->error = SSL_ERROR_SYSCALL;   /* simulate OpenSSL behavior */
-            ret = SSL_SUCCESS;
         }
     }
+#endif
 
     WOLFSSL_LEAVE("SSL_shutdown()", ret);
 
@@ -12716,6 +12727,10 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
     int wolfSSL_clear(WOLFSSL* ssl)
     {
+        if (ssl == NULL) {
+            return SSL_FAILURE;
+        }
+
         ssl->options.isClosed = 0;
         ssl->options.connReset = 0;
         ssl->options.sentNotify = 0;
@@ -12731,27 +12746,29 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         ssl->keys.encryptionOn = 0;
         XMEMSET(&ssl->msgsReceived, 0, sizeof(ssl->msgsReceived));
 
+        if (ssl->hsHashes != NULL) {
 #ifndef NO_OLD_TLS
 #ifndef NO_MD5
-        wc_InitMd5(&ssl->hsHashes->hashMd5);
+            wc_InitMd5(&ssl->hsHashes->hashMd5);
 #endif
 #ifndef NO_SHA
-        if (wc_InitSha(&ssl->hsHashes->hashSha) != 0)
-            return SSL_FAILURE;
+            if (wc_InitSha(&ssl->hsHashes->hashSha) != 0)
+                return SSL_FAILURE;
 #endif
 #endif
 #ifndef NO_SHA256
-        if (wc_InitSha256(&ssl->hsHashes->hashSha256) != 0)
-            return SSL_FAILURE;
+            if (wc_InitSha256(&ssl->hsHashes->hashSha256) != 0)
+                return SSL_FAILURE;
 #endif
 #ifdef WOLFSSL_SHA384
-        if (wc_InitSha384(&ssl->hsHashes->hashSha384) != 0)
-            return SSL_FAILURE;
+            if (wc_InitSha384(&ssl->hsHashes->hashSha384) != 0)
+                return SSL_FAILURE;
 #endif
 #ifdef WOLFSSL_SHA512
-        if (wc_InitSha512(&ssl->hsHashes->hashSha512) != 0)
-            return SSL_FAILURE;
+            if (wc_InitSha512(&ssl->hsHashes->hashSha512) != 0)
+                return SSL_FAILURE;
 #endif
+        }
 
 #ifdef KEEP_PEER_CERT
         FreeX509(&ssl->peerCert);
