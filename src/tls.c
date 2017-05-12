@@ -4566,7 +4566,7 @@ static word16 TLSX_SignatureAlgorithms_Write(byte* data, byte* output)
 static int TLSX_SignatureAlgorithms_Parse(WOLFSSL *ssl, byte* input,
                                           word16 length)
 {
-    int    ret = 0;
+    int    i;
     word16 len;
 
     (void)ssl;
@@ -4581,9 +4581,13 @@ static int TLSX_SignatureAlgorithms_Parse(WOLFSSL *ssl, byte* input,
     if (length != OPAQUE16_LEN + len)
         return BUFFER_ERROR;
 
-    /* Ignore for now. */
+    ssl->pssAlgo = 0;
+    for (i = 0; i < len; i += 2) {
+        if (input[i] == 0x08 && input[i + 1] <= 0x06)
+            ssl->pssAlgo |= 1 << input[i + 1];
+    }
 
-    return ret;
+    return 0;
 }
 
 /* Sets a new SupportedVersions extension into the extension list.
