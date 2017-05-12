@@ -575,6 +575,7 @@ static void Usage(void)
     printf("-f          Fewer packets/group messages\n");
     printf("-x          Disable client cert/key loading\n");
     printf("-X          Driven by eXternal test case\n");
+    printf("-j          Use verify callback override\n");
 #ifdef SHOW_SIZES
     printf("-z          Print structure sizes\n");
 #endif
@@ -627,7 +628,7 @@ static void Usage(void)
 #ifdef HAVE_ECC
     printf("-Y          Key Share with ECC named groups only\n");
 #endif
-#endif
+#endif /* WOLFSSL_TLS13 */
 }
 
 THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
@@ -698,6 +699,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     int   doSTARTTLS    = 0;
     char* starttlsProt = NULL;
+    int   useVerifyCb = 0;
 
 #ifdef WOLFSSL_TRUST_PEER_CERT
     const char* trustCert  = NULL;
@@ -767,9 +769,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     StackTrap();
 
 #ifndef WOLFSSL_VXWORKS
-    /* Not used: j, t, Q */
+    /* Not used: t, Q */
     while ((ch = mygetopt(argc, argv, "?"
-            "ab:c:defgh:ik:l:mnop:q:rsuv:wxyz"
+            "ab:c:defgh:ijk:l:mnop:q:rsuv:wxyz"
             "A:B:CDE:F:GHIJKL:M:NO:PRS:TUVW:XYZ:")) != -1) {
         switch (ch) {
             case '?' :
@@ -1070,6 +1072,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 #endif
                 break;
 
+            case 'j' :
+                useVerifyCb = 1;
+                break;
+
             default:
                 Usage();
                 exit(MY_EX_USAGE);
@@ -1336,9 +1342,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     wolfSSL_CTX_SetCACb(ctx, CaCb);
 #endif
 
-#ifdef VERIFY_CALLBACK
-    wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myVerify);
-#endif
 #if !defined(NO_CERTS)
     if (useClientCert){
 #if !defined(NO_FILESYSTEM)
@@ -1361,7 +1364,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif  /* !defined(NO_FILESYSTEM) */
     }
 
-    if (!usePsk && !useAnon) {
+    if (!usePsk && !useAnon && !useVerifyCb) {
 #if !defined(NO_FILESYSTEM)
         if (wolfSSL_CTX_load_verify_locations(ctx, verifyCert,0)
                                                                != SSL_SUCCESS) {
@@ -1392,9 +1395,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
 #endif /* WOLFSSL_TRUST_PEER_CERT && !NO_FILESYSTEM */
     }
-    if (!usePsk && !useAnon && doPeerCheck == 0)
+    if (useVerifyCb)
+        wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myVerify);
+    else if (!usePsk && !useAnon && doPeerCheck == 0)
         wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
-    if (!usePsk && !useAnon && overrideDateErrors == 1)
+    else if (!usePsk && !useAnon && overrideDateErrors == 1)
         wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, myDateCb);
 #endif /* !defined(NO_CERTS) */
 
@@ -2126,6 +2131,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void) verifyCert;
     (void) ourCert;
     (void) ourKey;
+    (void) useVerifyCb;
 
 #if !defined(WOLFSSL_TIRTOS)
     return 0;
