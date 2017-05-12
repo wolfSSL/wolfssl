@@ -5246,7 +5246,8 @@ int random_test(void)
         return -5003;
 
     /* Basic RNG generate block test */
-    random_rng_test();
+    if (random_rng_test() != 0)
+        return -5004;
 
     return 0;
 }
@@ -7658,7 +7659,14 @@ exit_rsa:
     FREE_VAR(out, HEAP_HINT);
     FREE_VAR(plain, HEAP_HINT);
 
-    return 0;
+    /* ret can be greater then 0 with certgen but all negative values should
+     * be returned and treated as an error */
+    if (ret >= 0) {
+        return 0;
+    }
+    else {
+        return ret;
+    }
 }
 
 #endif
