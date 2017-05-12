@@ -161,6 +161,15 @@
 	    #define THREAD_LS_T
 	#endif
 
+    /* GCC 7 has new switch() fall-through detection */
+    #if defined(__GNUC__)
+        #if ((__GNUC__ > 7) || ((__GNUC__ == 7) && (__GNUC_MINOR__ >= 1)))
+            #define FALL_THROUGH __attribute__ ((fallthrough));
+        #endif
+    #endif
+    #ifndef FALL_THROUGH
+        #define FALL_THROUGH
+    #endif
 
 	/* Micrium will use Visual Studio for compilation but not the Win32 API */
 	#if defined(_WIN32) && !defined(MICRIUM) && !defined(FREERTOS) && \

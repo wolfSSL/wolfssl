@@ -7084,6 +7084,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 totalSz
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_BUILD;
         } /* case TLS_ASYNC_BEGIN */
+        FALL_THROUGH;
 
         case TLS_ASYNC_BUILD:
         {
@@ -7308,6 +7309,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 totalSz
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_DO;
         } /* case TLS_ASYNC_BUILD */
+        FALL_THROUGH;
 
         case TLS_ASYNC_DO:
         {
@@ -7513,6 +7515,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 totalSz
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_VERIFY;
         } /* case TLS_ASYNC_DO */
+        FALL_THROUGH;
 
         case TLS_ASYNC_VERIFY:
         {
@@ -7697,6 +7700,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 totalSz
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_FINALIZE;
         } /* case TLS_ASYNC_VERIFY */
+        FALL_THROUGH;
 
         case TLS_ASYNC_FINALIZE:
         {
@@ -7826,6 +7830,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 totalSz
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_END;
         } /* case TLS_ASYNC_FINALIZE */
+        FALL_THROUGH;
 
         case TLS_ASYNC_END:
         {
@@ -9593,6 +9598,8 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz,
             /* Advance state and proceed */
             ssl->encrypt.state = CIPHER_STATE_DO;
         }
+        FALL_THROUGH;
+
         case CIPHER_STATE_DO:
         {
             ret = EncryptDo(ssl, out, input, sz, asyncOkay);
@@ -9607,6 +9614,7 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz,
             }
         #endif
         }
+        FALL_THROUGH;
 
         case CIPHER_STATE_END:
         {
@@ -9826,6 +9834,7 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
             /* Advance state and proceed */
             ssl->decrypt.state = CIPHER_STATE_DO;
         }
+        FALL_THROUGH;
         case CIPHER_STATE_DO:
         {
             ret = DecryptDo(ssl, plain, input, sz);
@@ -9840,7 +9849,7 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
             }
         #endif
         }
-
+        FALL_THROUGH;
         case CIPHER_STATE_END:
         {
         #if defined(BUILD_AESGCM) || defined(HAVE_AESCCM)
@@ -10527,6 +10536,7 @@ int ProcessReply(WOLFSSL* ssl)
                 ssl->options.processReply = getRecordLayerHeader;
                 continue;
             }
+            FALL_THROUGH;
 
         /* in the WOLFSSL_SERVER case, run the old client hello */
         case runProcessOldClientHello:
@@ -10561,6 +10571,7 @@ int ProcessReply(WOLFSSL* ssl)
             }
 
 #endif  /* OLD_HELLO_ALLOWED */
+            FALL_THROUGH;
 
         /* get the record layer header */
         case getRecordLayerHeader:
@@ -10588,6 +10599,7 @@ int ProcessReply(WOLFSSL* ssl)
                 return ret;
 
             ssl->options.processReply = getData;
+            FALL_THROUGH;
 
         /* retrieve record layer data */
         case getData:
@@ -10609,6 +10621,7 @@ int ProcessReply(WOLFSSL* ssl)
 
             ssl->options.processReply = decryptMessage;
             startIdx = ssl->buffers.inputBuffer.idx;  /* in case > 1 msg per */
+            FALL_THROUGH;
 
         /* decrypt message */
         case decryptMessage:
@@ -10679,6 +10692,7 @@ int ProcessReply(WOLFSSL* ssl)
             }
 
             ssl->options.processReply = verifyMessage;
+            FALL_THROUGH;
 
         /* verify digest of message */
         case verifyMessage:
@@ -10713,6 +10727,7 @@ int ProcessReply(WOLFSSL* ssl)
             }
 
             ssl->options.processReply = runProcessingOneMessage;
+            FALL_THROUGH;
 
         /* the record layer is here */
         case runProcessingOneMessage:
@@ -11351,7 +11366,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 
             ssl->options.buildMsgState = BUILD_MSG_SIZE;
         }
-
+        FALL_THROUGH;
         case BUILD_MSG_SIZE:
         {
             args->digestSz = ssl->specs.hash_size;
@@ -11430,6 +11445,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 
             ssl->options.buildMsgState = BUILD_MSG_HASH;
         }
+        FALL_THROUGH;
         case BUILD_MSG_HASH:
         {
             word32 i;
@@ -11448,6 +11464,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 
             ssl->options.buildMsgState = BUILD_MSG_VERIFY_MAC;
         }
+        FALL_THROUGH;
         case BUILD_MSG_VERIFY_MAC:
         {
             /* User Record Layer Callback handling */
@@ -11499,6 +11516,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 
             ssl->options.buildMsgState = BUILD_MSG_ENCRYPT;
         }
+        FALL_THROUGH;
         case BUILD_MSG_ENCRYPT:
         {
             ret = Encrypt(ssl, output + args->headerSz, output + args->headerSz, args->size,
@@ -11982,7 +12000,7 @@ static int BuildCertificateStatus(WOLFSSL* ssl, byte type, buffer* status,
     switch (type) {
         case WOLFSSL_CSR2_OCSP_MULTI:
             length += OPAQUE24_LEN;
-            /* followed by */
+            FALL_THROUGH; /* followed by */
 
         case WOLFSSL_CSR2_OCSP:
             for (i = 0; i < count; i++)
@@ -16134,6 +16152,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_BUILD;
         } /* case TLS_ASYNC_BEGIN */
+        FALL_THROUGH;
 
         case TLS_ASYNC_BUILD:
         {
@@ -16307,6 +16326,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_DO;
         } /* case TLS_ASYNC_BUILD */
+        FALL_THROUGH;
 
         case TLS_ASYNC_DO:
         {
@@ -16405,6 +16425,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_VERIFY;
         } /* case TLS_ASYNC_DO */
+        FALL_THROUGH;
 
         case TLS_ASYNC_VERIFY:
         {
@@ -16500,6 +16521,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_FINALIZE;
         } /* case TLS_ASYNC_VERIFY */
+        FALL_THROUGH;
 
         case TLS_ASYNC_FINALIZE:
         {
@@ -16536,6 +16558,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_END;
         } /* case TLS_ASYNC_FINALIZE */
+        FALL_THROUGH;
 
         case TLS_ASYNC_END:
         {
@@ -17153,6 +17176,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_BUILD;
         } /* case TLS_ASYNC_BEGIN */
+        FALL_THROUGH;
 
         case TLS_ASYNC_BUILD:
         {
@@ -17403,6 +17427,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_DO;
         } /* case TLS_ASYNC_BUILD */
+        FALL_THROUGH;
 
         case TLS_ASYNC_DO:
         {
@@ -17535,6 +17560,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_VERIFY;
         } /* case TLS_ASYNC_DO */
+        FALL_THROUGH;
 
         case TLS_ASYNC_VERIFY:
         {
@@ -17645,6 +17671,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_FINALIZE;
         } /* case TLS_ASYNC_VERIFY */
+        FALL_THROUGH;
 
         case TLS_ASYNC_FINALIZE:
         {
@@ -17748,6 +17775,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_END;
         } /* case TLS_ASYNC_FINALIZE */
+        FALL_THROUGH;
 
         case TLS_ASYNC_END:
         {
@@ -18026,6 +18054,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_BUILD;
         } /* case TLS_ASYNC_BEGIN */
+        FALL_THROUGH;
 
         case TLS_ASYNC_BUILD:
         {
@@ -18150,6 +18179,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_DO;
         } /* case TLS_ASYNC_BUILD */
+        FALL_THROUGH;
 
         case TLS_ASYNC_DO:
         {
@@ -18201,6 +18231,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_VERIFY;
         } /* case TLS_ASYNC_DO */
+        FALL_THROUGH;
 
         case TLS_ASYNC_VERIFY:
         {
@@ -18248,6 +18279,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_FINALIZE;
         } /* case TLS_ASYNC_VERIFY */
+        FALL_THROUGH;
 
         case TLS_ASYNC_FINALIZE:
         {
@@ -18282,6 +18314,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_END;
         } /* case TLS_ASYNC_FINALIZE */
+        FALL_THROUGH;
 
         case TLS_ASYNC_END:
         {
@@ -18955,6 +18988,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 /* Advance state and proceed */
                 ssl->options.asyncState = TLS_ASYNC_BUILD;
             } /* case TLS_ASYNC_BEGIN */
+            FALL_THROUGH;
 
             case TLS_ASYNC_BUILD:
             {
@@ -19737,6 +19771,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 /* Advance state and proceed */
                 ssl->options.asyncState = TLS_ASYNC_DO;
             } /* case TLS_ASYNC_BUILD */
+            FALL_THROUGH;
 
             case TLS_ASYNC_DO:
             {
@@ -19859,6 +19894,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 /* Advance state and proceed */
                 ssl->options.asyncState = TLS_ASYNC_VERIFY;
             } /* case TLS_ASYNC_DO */
+            FALL_THROUGH;
 
             case TLS_ASYNC_VERIFY:
             {
@@ -19988,6 +20024,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 /* Advance state and proceed */
                 ssl->options.asyncState = TLS_ASYNC_FINALIZE;
             } /* case TLS_ASYNC_VERIFY */
+            FALL_THROUGH;
 
             case TLS_ASYNC_FINALIZE:
             {
@@ -20057,6 +20094,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 /* Advance state and proceed */
                 ssl->options.asyncState = TLS_ASYNC_END;
             } /* case TLS_ASYNC_FINALIZE */
+            FALL_THROUGH;
 
             case TLS_ASYNC_END:
             {
@@ -21028,6 +21066,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 /* Advance state and proceed */
                 ssl->options.asyncState = TLS_ASYNC_BUILD;
             } /* case TLS_ASYNC_BEGIN */
+            FALL_THROUGH;
 
             case TLS_ASYNC_BUILD:
             {
@@ -21106,6 +21145,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 /* Advance state and proceed */
                 ssl->options.asyncState = TLS_ASYNC_DO;
             } /* case TLS_ASYNC_BUILD */
+            FALL_THROUGH;
 
             case TLS_ASYNC_DO:
             {
@@ -21160,6 +21200,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 /* Advance state and proceed */
                 ssl->options.asyncState = TLS_ASYNC_VERIFY;
             } /* case TLS_ASYNC_DO */
+            FALL_THROUGH;
 
             case TLS_ASYNC_VERIFY:
             {
@@ -21253,6 +21294,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 /* Advance state and proceed */
                 ssl->options.asyncState = TLS_ASYNC_FINALIZE;
             } /* case TLS_ASYNC_VERIFY */
+            FALL_THROUGH;
 
             case TLS_ASYNC_FINALIZE:
             {
@@ -21825,6 +21867,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 /* Advance state and proceed */
                 ssl->options.asyncState = TLS_ASYNC_BUILD;
             } /* TLS_ASYNC_BEGIN */
+            FALL_THROUGH;
 
             case TLS_ASYNC_BUILD:
             {
@@ -22232,6 +22275,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 /* Advance state and proceed */
                 ssl->options.asyncState = TLS_ASYNC_DO;
             } /* TLS_ASYNC_BUILD */
+            FALL_THROUGH;
 
             case TLS_ASYNC_DO:
             {
@@ -22350,6 +22394,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 /* Advance state and proceed */
                 ssl->options.asyncState = TLS_ASYNC_VERIFY;
             } /* TLS_ASYNC_DO */
+            FALL_THROUGH;
 
             case TLS_ASYNC_VERIFY:
             {
@@ -22478,6 +22523,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 /* Advance state and proceed */
                 ssl->options.asyncState = TLS_ASYNC_FINALIZE;
             } /* TLS_ASYNC_VERIFY */
+            FALL_THROUGH;
 
             case TLS_ASYNC_FINALIZE:
             {
@@ -22516,6 +22562,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 /* Advance state and proceed */
                 ssl->options.asyncState = TLS_ASYNC_END;
             } /* TLS_ASYNC_FINALIZE */
+            FALL_THROUGH;
 
             case TLS_ASYNC_END:
             {

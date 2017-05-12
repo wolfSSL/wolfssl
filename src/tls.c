@@ -2666,7 +2666,7 @@ int TLSX_CSR2_InitRequests(TLSX* extensions, DecodedCert* cert, byte isPeer,
                 if (!isPeer || csr2->requests != 0)
                     break;
 
-                /* followed by */
+                FALL_THROUGH; /* followed by */
 
             case WOLFSSL_CSR2_OCSP_MULTI: {
                 if (csr2->requests < 1 + MAX_CHAIN_DEPTH) {

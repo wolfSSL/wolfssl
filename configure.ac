@@ -3422,6 +3422,7 @@ case $host_os in
         fi ;;
 esac
 
+
 # add user C_EXTRA_FLAGS back
 # For distro disable custom build options that interfere with symbol generation
 if test "$ENABLED_DISTRO" = "no"
@@ -3429,6 +3430,8 @@ then
     CFLAGS="$CFLAGS $USER_C_EXTRA_FLAGS"
 fi
 OPTION_FLAGS="$USER_CFLAGS $USER_C_EXTRA_FLAGS $AM_CFLAGS"
+
+
 
 CREATE_HEX_VERSION
 AC_SUBST([AM_CPPFLAGS])

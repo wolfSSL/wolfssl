@@ -4472,9 +4472,9 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 ERROR_OUT(MEMORY_E, exit_cs);
             }
 
-            /* fall through */
             sigCtx->state = SIG_STATE_HASH;
         } /* SIG_STATE_BEGIN */
+        FALL_THROUGH;
 
         case SIG_STATE_HASH:
         {
@@ -4550,9 +4550,9 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 goto exit_cs;
             }
 
-            /* fall through */
             sigCtx->state = SIG_STATE_KEY;
         } /* SIG_STATE_HASH */
+        FALL_THROUGH;
 
         case SIG_STATE_KEY:
         {
@@ -4625,9 +4625,9 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 goto exit_cs;
             }
 
-            /* fall through */
             sigCtx->state = SIG_STATE_DO;
         } /* SIG_STATE_KEY */
+        FALL_THROUGH;
 
         case SIG_STATE_DO:
         {
@@ -4667,9 +4667,9 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 goto exit_cs;
             }
 
-            /* fall through */
             sigCtx->state = SIG_STATE_CHECK;
         } /* SIG_STATE_DO */
+        FALL_THROUGH;
 
         case SIG_STATE_CHECK:
         {
@@ -8207,8 +8207,8 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buffer, int sz,
         if (ret != 0) {
             goto exit_ms;
         }
+        FALL_THROUGH;
 
-        /* fall-through */
     case CERTSIGN_STATE_ENCODE:
     #ifndef NO_RSA
         if (rsaKey) {
@@ -8223,8 +8223,8 @@ static int MakeSignature(CertSignCtx* certSignCtx, const byte* buffer, int sz,
                                           certSignCtx->digest, digestSz, typeH);
         }
     #endif /* !NO_RSA */
+        FALL_THROUGH;
 
-        /* fall-through */
     case CERTSIGN_STATE_DO:
         certSignCtx->state = CERTSIGN_STATE_DO;
         ret = ALGO_ID_E; /* default to error */
