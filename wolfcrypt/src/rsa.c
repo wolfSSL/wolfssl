@@ -1587,6 +1587,15 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
         WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0, rng);
 }
 
+#ifdef WC_RSA_PSS
+int wc_RsaPSS_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
+                       enum wc_HashType hash, int mgf, RsaKey* key, WC_RNG* rng)
+{
+    return RsaPublicEncryptEx(in, inLen, out, outLen, key,
+        RSA_PRIVATE_ENCRYPT, RSA_BLOCK_TYPE_1, WC_RSA_PSS_PAD,
+        hash, mgf, NULL, 0, rng);
+}
+#endif
 
 int wc_RsaEncryptSize(RsaKey* key)
 {

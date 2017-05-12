@@ -2882,18 +2882,24 @@ static INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
 {
     switch (hsType) {
 #ifdef HAVE_ECC
-        case DYNAMIC_TYPE_ECC:
+        case ecc_dsa_sa_algo:
             output[0] = hashAlgo;
             output[1] = ecc_dsa_sa_algo;
             break;
 #endif
 #ifndef NO_RSA
-        case DYNAMIC_TYPE_RSA:
+        case rsa_sa_algo:
             output[0] = hashAlgo;
             output[1] = rsa_sa_algo;
             break;
-#endif
+    #ifdef WC_RSA_PSS
         /* PSS signatures: 0x080[4-6] */
+        case rsa_pss_sa_algo:
+            output[0] = rsa_pss_sa_algo;
+            output[1] = hashAlgo;
+            break;
+    #endif
+#endif
         /* ED25519: 0x0807 */
         /* ED448: 0x0808 */
     }
@@ -2908,6 +2914,7 @@ static INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
 static INLINE void DecodeSigAlg(byte* input, byte* hashAlgo, byte* hsType)
 {
     switch (input[0]) {
+    #ifdef WC_RSA_PSS
         case 0x08:
            /* PSS signatures: 0x080[4-6] */
            if (input[1] <= 0x06) {
@@ -2915,6 +2922,7 @@ static INLINE void DecodeSigAlg(byte* input, byte* hashAlgo, byte* hsType)
                *hashAlgo = input[1];
            }
            break;
+    #endif
         /* ED25519: 0x0807 */
         /* ED448: 0x0808 */
         default:
@@ -3014,12 +3022,22 @@ static void CreateSigData(WOLFSSL* ssl, byte* sigData, word16* sigDataSz,
  * returns the length of the encoded signature or negative on error.
  */
 static int CreateRSAEncodedSig(byte* sig, byte* sigData, int sigDataSz,
-                               int hashAlgo)
+                               int sigAlgo, int hashAlgo)
 {
     Digest digest;
     int    hashSz = 0;
     int    hashOid = 0;
     int    ret = BAD_FUNC_ARG;
+    byte*  hash;
+
+    (void)sigAlgo;
+
+#ifdef WC_RSA_PSS
+    if (sigAlgo == rsa_pss_sa_algo)
+        hash = sig;
+    else
+#endif
+        hash = sigData;
 
     /* Digest the signature data. */
     switch (hashAlgo) {
@@ -3029,7 +3047,7 @@ static int CreateRSAEncodedSig(byte* sig, byte* sigData, int sigDataSz,
             if (ret == 0) {
                 ret = wc_Sha256Update(&digest.sha256, sigData, sigDataSz);
                 if (ret == 0)
-                    ret = wc_Sha256Final(&digest.sha256, sigData);
+                    ret = wc_Sha256Final(&digest.sha256, hash);
                 wc_Sha256Free(&digest.sha256);
             }
             hashSz = SHA256_DIGEST_SIZE;
@@ -3042,7 +3060,7 @@ static int CreateRSAEncodedSig(byte* sig, byte* sigData, int sigDataSz,
             if (ret == 0) {
                 ret = wc_Sha384Update(&digest.sha384, sigData, sigDataSz);
                 if (ret == 0)
-                    ret = wc_Sha384Final(&digest.sha384, sigData);
+                    ret = wc_Sha384Final(&digest.sha384, hash);
                 wc_Sha384Free(&digest.sha384);
             }
             hashSz = SHA384_DIGEST_SIZE;
@@ -3055,7 +3073,7 @@ static int CreateRSAEncodedSig(byte* sig, byte* sigData, int sigDataSz,
             if (ret == 0) {
                 ret = wc_Sha512Update(&digest.sha512, sigData, sigDataSz);
                 if (ret == 0)
-                    ret = wc_Sha512Final(&digest.sha512, sigData);
+                    ret = wc_Sha512Final(&digest.sha512, hash);
                 wc_Sha512Free(&digest.sha512);
             }
             hashSz = SHA512_DIGEST_SIZE;
@@ -3067,8 +3085,15 @@ static int CreateRSAEncodedSig(byte* sig, byte* sigData, int sigDataSz,
     if (ret != 0)
         return ret;
 
-    /* Encode the signature data as per PKCS #1.5 */
-    return wc_EncodeSignature(sig, sigData, hashSz, hashOid);
+#ifdef WC_RSA_PSS
+    if (sigAlgo == rsa_pss_sa_algo)
+        return hashSz;
+    else
+#endif
+    {
+        /* Encode the signature data as per PKCS #1.5 */
+        return wc_EncodeSignature(sig, hash, hashSz, hashOid);
+    }
 }
 
 #ifdef HAVE_ECC
@@ -3156,7 +3181,39 @@ static int CheckRSASignature(WOLFSSL* ssl, int sigAlgo, int hashAlgo,
 #endif
     word32 sigSz;
 
-    if (sigAlgo == rsa_sa_algo) {
+    CreateSigData(ssl, sigData, &sigDataSz, 1);
+#ifdef WC_RSA_PSS
+    if (sigAlgo == rsa_pss_sa_algo) {
+        int hashType = WC_HASH_TYPE_NONE;
+
+        switch (hashAlgo) {
+            case sha512_mac:
+            #ifdef WOLFSSL_SHA512
+                hashType = WC_HASH_TYPE_SHA512;
+            #endif
+                break;
+            case sha384_mac:
+            #ifdef WOLFSSL_SHA384
+                hashType = WC_HASH_TYPE_SHA384;
+            #endif
+                break;
+            case sha256_mac:
+            #ifndef NO_SHA256
+                hashType = WC_HASH_TYPE_SHA256;
+            #endif
+                break;
+        }
+
+        ret = sigSz = CreateRSAEncodedSig(sigData, sigData, sigDataSz,
+                                    rsa_pss_sa_algo, hashAlgo);
+        if (ret < 0)
+            return ret;
+
+        ret = CheckRsaPssPadding(sigData, sigSz, decSig, decSigSz, hashType);
+    }
+    else
+#endif
+    {
 #ifdef WOLFSSL_SMALL_STACK
         encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, ssl->heap,
                                     DYNAMIC_TYPE_TMP_BUFFER);
@@ -3166,27 +3223,12 @@ static int CheckRSASignature(WOLFSSL* ssl, int sigAlgo, int hashAlgo,
         }
 #endif
 
-        CreateSigData(ssl, sigData, &sigDataSz, 1);
-        sigSz = CreateRSAEncodedSig(encodedSig, sigData, sigDataSz, hashAlgo);
+        sigSz = CreateRSAEncodedSig(encodedSig, sigData, sigDataSz,
+                                    DYNAMIC_TYPE_RSA, hashAlgo);
         /* Check the encoded and decrypted signature data match. */
         if (decSigSz != sigSz || decSig == NULL ||
                 XMEMCMP(decSig, encodedSig, sigSz) != 0) {
             ret = VERIFY_CERT_ERROR;
-        }
-    }
-    else {
-        CreateSigData(ssl, sigData, &sigDataSz, 1);
-        sigSz = CreateECCEncodedSig(sigData, sigDataSz, hashAlgo);
-        if (decSigSz != sigSz || decSig == NULL)
-            ret = VERIFY_CERT_ERROR;
-        else {
-            decSig -= 2 * decSigSz;
-            XMEMCPY(decSig, sigData, decSigSz);
-            decSig -= 8;
-            XMEMSET(decSig, 0, 8);
-            CreateECCEncodedSig(decSig, 8 + decSigSz * 2, hashAlgo);
-            if (XMEMCMP(decSig, decSig + 8 + decSigSz * 2, decSigSz) != 0)
-                ret = VERIFY_CERT_ERROR;
         }
     }
 
@@ -3465,6 +3507,7 @@ typedef struct Scv13Args {
     int    sendSz;
     word16 length;
 
+    int    sigAlgo;
     byte*  sigData;
     word16 sigDataSz;
 } Scv13Args;
@@ -3570,7 +3613,17 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
                 goto exit_scv;
 
             /* Add signature algorithm. */
-            EncodeSigAlg(ssl->suites->hashAlgo, ssl->hsType, args->verify);
+            if (ssl->hsType == DYNAMIC_TYPE_RSA) {
+        #ifdef WC_RSA_PSS
+                if (ssl->pssAlgo | (1 << ssl->suites->hashAlgo))
+                    args->sigAlgo = rsa_pss_sa_algo;
+                else
+        #endif
+                    args->sigAlgo = rsa_sa_algo;
+            }
+            else if (ssl->hsType == DYNAMIC_TYPE_ECC)
+                args->sigAlgo = ecc_dsa_sa_algo;
+            EncodeSigAlg(ssl->suites->hashAlgo, args->sigAlgo, args->verify);
 
             /* Create the data to be signed. */
             args->sigData = (byte*)XMALLOC(MAX_SIG_DATA_SZ, ssl->heap,
@@ -3591,9 +3644,8 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
                     ERROR_OUT(MEMORY_E, exit_scv);
                 }
 
-                /* Digest the signature data and encode. Used in verify too. */
                 ret = CreateRSAEncodedSig(sig->buffer, args->sigData,
-                    args->sigDataSz, ssl->suites->hashAlgo);
+                    args->sigDataSz, args->sigAlgo, ssl->suites->hashAlgo);
                 if (ret < 0)
                     goto exit_scv;
                 sig->length = ret;
@@ -3645,6 +3697,7 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
 
                 ret = RsaSign(ssl, sig->buffer, sig->length,
                     args->verify + HASH_SIG_SIZE + VERIFY_HEADER, &args->sigLen,
+                    args->sigAlgo, ssl->suites->hashAlgo,
                     (RsaKey*)ssl->hsKey,
                     ssl->buffers.key->buffer, ssl->buffers.key->length,
                 #ifdef HAVE_PK_CALLBACKS
@@ -3690,7 +3743,8 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
 
                 /* check for signature faults */
                 ret = VerifyRsaSign(ssl, args->verifySig, args->sigLen,
-                    sig->buffer, sig->length, (RsaKey*)ssl->hsKey);
+                    sig->buffer, sig->length, args->sigAlgo,
+                    ssl->suites->hashAlgo, (RsaKey*)ssl->hsKey);
             }
         #endif /* !NO_RSA */
 

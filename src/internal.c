@@ -2732,8 +2732,41 @@ void FreeX509(WOLFSSL_X509* x509)
 
 #ifndef NO_RSA
 
+#if defined(WOLFSSL_TLS13) && defined(WC_RSA_PSS)
+static int ConvertHashPss(int hashAlgo, enum wc_HashType* hashType, int* mgf) {
+    switch (hashAlgo) {
+        #ifdef WOLFSSL_SHA512
+        case sha512_mac:
+            *hashType = WC_HASH_TYPE_SHA512;
+            if (mgf != NULL)
+                *mgf = WC_MGF1SHA512;
+            break;
+        #endif
+        #ifdef WOLFSSL_SHA384
+        case sha384_mac:
+            *hashType = WC_HASH_TYPE_SHA384;
+            if (mgf != NULL)
+                *mgf = WC_MGF1SHA384;
+            break;
+        #endif
+        #ifndef NO_SHA256
+        case sha256_mac:
+            *hashType = WC_HASH_TYPE_SHA256;
+            if (mgf != NULL)
+                *mgf = WC_MGF1SHA256;
+            break;
+        #endif
+        default:
+            return BAD_FUNC_ARG;
+    }
+
+    return 0;
+}
+#endif
+
 int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
-    word32* outSz, RsaKey* key, const byte* keyBuf, word32 keySz, void* ctx)
+            word32* outSz, int sigAlgo, int hashAlgo, RsaKey* key,
+            const byte* keyBuf, word32 keySz, void* ctx)
 {
     int ret;
 
@@ -2741,6 +2774,8 @@ int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
     (void)keyBuf;
     (void)keySz;
     (void)ctx;
+    (void)sigAlgo;
+    (void)hashAlgo;
 
     WOLFSSL_ENTER("RsaSign");
 
@@ -2752,7 +2787,20 @@ int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
     else
 #endif /*HAVE_PK_CALLBACKS */
     {
-        ret = wc_RsaSSL_Sign(in, inSz, out, *outSz, key, ssl->rng);
+#if defined(WOLFSSL_TLS13) && defined(WC_RSA_PSS)
+        if (sigAlgo == rsa_pss_sa_algo) {
+            enum wc_HashType hashType = WC_HASH_TYPE_NONE;
+            int mgf = 0;
+
+            ret = ConvertHashPss(hashAlgo, &hashType, &mgf);
+            if (ret != 0)
+                return ret;
+            ret = wc_RsaPSS_Sign(in, inSz, out, *outSz, hashType, mgf, key,
+                                                                      ssl->rng);
+        }
+        else
+#endif
+            ret = wc_RsaSSL_Sign(in, inSz, out, *outSz, key, ssl->rng);
     }
 
     /* Handle async pending response */
@@ -2795,35 +2843,17 @@ int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, int sigAlgo,
     else
 #endif /*HAVE_PK_CALLBACKS */
     {
-#ifdef WOLFSSL_TLS13
-    #ifdef WC_RSA_PSS
+#if defined(WOLFSSL_TLS13) && defined(WC_RSA_PSS)
         if (sigAlgo == rsa_pss_sa_algo) {
             enum wc_HashType hashType = WC_HASH_TYPE_NONE;
             int mgf = 0;
-            switch (hashAlgo) {
-                case sha512_mac:
-                #ifdef WOLFSSL_SHA512
-                    hashType = WC_HASH_TYPE_SHA512;
-                    mgf = WC_MGF1SHA512;
-                #endif
-                    break;
-                case sha384_mac:
-                #ifdef WOLFSSL_SHA384
-                    hashType = WC_HASH_TYPE_SHA384;
-                    mgf = WC_MGF1SHA384;
-                #endif
-                    break;
-                case sha256_mac:
-                #ifndef NO_SHA256
-                    hashType = WC_HASH_TYPE_SHA256;
-                    mgf = WC_MGF1SHA256;
-                #endif
-                    break;
-            }
+
+            ret = ConvertHashPss(hashAlgo, &hashType, &mgf);
+            if (ret != 0)
+                return ret;
             ret = wc_RsaPSS_VerifyInline(in, inSz, out, hashType, mgf, key);
         }
         else
-    #endif
 #endif
             ret = wc_RsaSSL_VerifyInline(in, inSz, out, key);
     }
@@ -2840,14 +2870,40 @@ int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, int sigAlgo,
     return ret;
 }
 
+#if defined(WOLFSSL_TLS13) && defined(WC_RSA_PSS)
+int CheckRsaPssPadding(const byte* plain, word32 plainSz, byte* out,
+                       word32 sigSz, enum wc_HashType hashType)
+{
+    int ret;
+
+    if (plainSz != sigSz || out == NULL)
+        ret = VERIFY_CERT_ERROR;
+    else {
+        out -= 2 * sigSz;
+        XMEMCPY(out, plain, plainSz);
+        out -= 8;
+        XMEMSET(out, 0, 8);
+        wc_Hash(hashType, out, 8 + plainSz * 2, out, plainSz);
+        if (XMEMCMP(out, out + 8 + plainSz * 2, plainSz) != 0)
+            ret = VERIFY_CERT_ERROR;
+        else
+            ret = 0;
+    }
+
+    return ret;
+}
+#endif
+
 /* Verify RSA signature, 0 on success */
 int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
-    const byte* plain, word32 plainSz, RsaKey* key)
+    const byte* plain, word32 plainSz, int sigAlgo, int hashAlgo, RsaKey* key)
 {
     byte* out = NULL;  /* inline result */
     int   ret;
 
     (void)ssl;
+    (void)sigAlgo;
+    (void)hashAlgo;
 
     WOLFSSL_ENTER("VerifyRsaSign");
 
@@ -2860,15 +2916,31 @@ int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
         return BUFFER_E;
     }
 
-    ret = wc_RsaSSL_VerifyInline(verifySig, sigSz, &out, key);
+#if defined(WOLFSSL_TLS13) && defined(WC_RSA_PSS)
+    if (sigAlgo == rsa_pss_sa_algo) {
+        enum wc_HashType hashType = WC_HASH_TYPE_NONE;
+        int mgf = 0;
 
-    if (ret > 0) {
-        if (ret != (int)plainSz || !out ||
-                                        XMEMCMP(plain, out, plainSz) != 0) {
-            WOLFSSL_MSG("RSA Signature verification failed");
-            ret = RSA_SIGN_FAULT;
-        } else {
-            ret = 0;  /* RSA reset */
+        ret = ConvertHashPss(hashAlgo, &hashType, &mgf);
+        if (ret != 0)
+            return ret;
+        ret = wc_RsaPSS_VerifyInline(verifySig, sigSz, &out, hashType, mgf,
+                                                                           key);
+        if (ret > 0)
+            ret = CheckRsaPssPadding(plain, plainSz, out, ret, hashType);
+    }
+    else
+#endif
+    {
+        ret = wc_RsaSSL_VerifyInline(verifySig, sigSz, &out, key);
+        if (ret > 0) {
+            if (ret != (int)plainSz || !out ||
+                                            XMEMCMP(plain, out, plainSz) != 0) {
+                WOLFSSL_MSG("RSA Signature verification failed");
+                ret = RSA_SIGN_FAULT;
+            } else {
+                ret = 0;  /* RSA reset */
+            }
         }
     }
 
@@ -18216,7 +18288,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
                 ret = RsaSign(ssl,
                     ssl->buffers.sig.buffer, ssl->buffers.sig.length,
                     args->verify + args->extraSz + VERIFY_HEADER, &args->sigSz,
-                    key,
+                    rsa_sa_algo, no_mac, key,
                     ssl->buffers.key->buffer,
                     ssl->buffers.key->length,
                 #ifdef HAVE_PK_CALLBACKS
@@ -18271,7 +18343,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
                 ret = VerifyRsaSign(ssl,
                     args->verifySig, args->sigSz,
                     ssl->buffers.sig.buffer, ssl->buffers.sig.length,
-                    key
+                    rsa_sa_algo, no_mac, key
                 );
             }
         #endif /* !NO_RSA */
@@ -19816,7 +19888,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     ssl->buffers.sig.length,
                                     args->output + args->idx,
                                     &args->sigSz,
-                                    key,
+                                    rsa_sa_algo, no_mac, key,
                                     ssl->buffers.key->buffer,
                                     ssl->buffers.key->length,
                             #ifdef HAVE_PK_CALLBACKS
@@ -19872,7 +19944,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     ssl->buffers.sig.length,
                                     args->output + args->idx,
                                     &args->sigSz,
-                                    key,
+                                    rsa_sa_algo, no_mac, key,
                                     ssl->buffers.key->buffer,
                                     ssl->buffers.key->length,
                                 #ifdef HAVE_PK_CALLBACKS
@@ -19955,7 +20027,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     args->verifySig, args->sigSz,
                                     ssl->buffers.sig.buffer,
                                     ssl->buffers.sig.length,
-                                    key
+                                    rsa_sa_algo, no_mac, key
                                 );
                                 break;
                             }
@@ -20010,7 +20082,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     args->verifySig, args->sigSz,
                                     ssl->buffers.sig.buffer,
                                     ssl->buffers.sig.length,
-                                    key
+                                    rsa_sa_algo, no_mac, key
                                 );
                                 break;
                             }

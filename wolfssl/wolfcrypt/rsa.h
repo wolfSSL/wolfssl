@@ -122,6 +122,9 @@ WOLFSSL_API int  wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
                                   word32 outLen, RsaKey* key);
 WOLFSSL_API int  wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
                             word32 outLen, RsaKey* key, WC_RNG* rng);
+WOLFSSL_API int  wc_RsaPSS_Sign(const byte* in, word32 inLen, byte* out,
+                                word32 outLen, enum wc_HashType hash, int mgf,
+                                RsaKey* key, WC_RNG* rng);
 WOLFSSL_API int  wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out,
                                     RsaKey* key);
 WOLFSSL_API int  wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out,
