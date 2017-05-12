@@ -554,6 +554,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define X509_check_private_key wolfSSL_X509_check_private_key
 #define SSL_dup_CA_list wolfSSL_dup_CA_list
 
+
 #define NID_commonName 0x03 /* matchs ASN_COMMON_NAME in asn.h */
 
  /* matchs ASN_..._NAME in asn.h */
@@ -585,7 +586,6 @@ enum {
 #define PEM_write_bio_X509     wolfSSL_PEM_write_bio_X509
 #define PEM_write_bio_X509_REQ wolfSSL_PEM_write_bio_X509_REQ
 #define PEM_write_bio_X509_AUX wolfSSL_PEM_write_bio_X509_AUX
-
 
 #ifdef WOLFSSL_HAPROXY
 #define SSL_get_rbio                      wolfSSL_SSL_get_rbio
