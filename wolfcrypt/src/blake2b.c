@@ -126,6 +126,7 @@ int blake2b_init( blake2b_state *S, const byte outlen )
 
   if ( ( !outlen ) || ( outlen > BLAKE2B_OUTBYTES ) ) return -1;
 
+#ifdef WOLFSSL_BLAKE2B_INIT_EACH_FIELD
   P->digest_length = outlen;
   P->key_length    = 0;
   P->fanout        = 1;
@@ -137,6 +138,12 @@ int blake2b_init( blake2b_state *S, const byte outlen )
   XMEMSET( P->reserved, 0, sizeof( P->reserved ) );
   XMEMSET( P->salt,     0, sizeof( P->salt ) );
   XMEMSET( P->personal, 0, sizeof( P->personal ) );
+#else
+  XMEMSET( P, 0, sizeof( *P ) );
+  P->digest_length = outlen;
+  P->fanout        = 1;
+  P->depth         = 1;
+#endif
   return blake2b_init_param( S, P );
 }
 
@@ -150,6 +157,7 @@ int blake2b_init_key( blake2b_state *S, const byte outlen, const void *key,
 
   if ( !key || !keylen || keylen > BLAKE2B_KEYBYTES ) return -1;
 
+#ifdef WOLFSSL_BLAKE2B_INIT_EACH_FIELD
   P->digest_length = outlen;
   P->key_length    = keylen;
   P->fanout        = 1;
@@ -161,6 +169,13 @@ int blake2b_init_key( blake2b_state *S, const byte outlen, const void *key,
   XMEMSET( P->reserved, 0, sizeof( P->reserved ) );
   XMEMSET( P->salt,     0, sizeof( P->salt ) );
   XMEMSET( P->personal, 0, sizeof( P->personal ) );
+#else
+  XMEMSET( P, 0, sizeof( *P ) );
+  P->digest_length = outlen;
+  P->key_length    = keylen;
+  P->fanout        = 1;
+  P->depth         = 1;
+#endif
 
   if( blake2b_init_param( S, P ) < 0 ) return -1;
 
