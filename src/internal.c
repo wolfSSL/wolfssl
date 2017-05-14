@@ -16430,11 +16430,11 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
      * type  type of packet being sent
      * data  data bing sent with packet
      * sz    size of data buffer
-     * write 1 if this packet is being written to wire, 0 if being read
+     * written 1 if this packet is being written to wire, 0 if being read
      * heap  custom heap to use for mallocs/frees
      */
     void AddPacketInfo(WOLFSSL* ssl, const char* name, int type,
-            const byte* data, int sz, int write, void* heap)
+            const byte* data, int sz, int written, void* heap)
     {
     #ifdef WOLFSSL_CALLBACKS
         TimeoutInfo* info = &ssl->timeoutInfo;
@@ -16478,13 +16478,13 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
                           (ssl->version.major & 0X0F) * 256 +
                           (ssl->version.major & 0xF0) * 4096;
 
-            ssl->protoMsgCb(write, version, type,
+            ssl->protoMsgCb(written, version, type,
                          (const void *)(data + RECORD_HEADER_SZ),
                          (size_t)(sz - RECORD_HEADER_SZ),
                          ssl, ssl->protoMsgCtx);
         }
     #endif /* OPENSSL_EXTRA */
-        (void)write;
+        (void)written;
         (void)name;
         (void)heap;
         (void)type;
