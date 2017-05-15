@@ -7142,7 +7142,9 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     }
 #endif
 
-    ret = 0;
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = 0;
+    #endif
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &privKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -7303,7 +7305,9 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     }
 #endif
 
-    ret = 0;
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = 0;
+    #endif
     do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
         ret = wc_AsyncWait(ret, &privKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
