@@ -215,11 +215,14 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
                 SignatureCtx sigCtx;
 
                 tbs = XMALLOC(tbsSz, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
-                if (tbs == NULL)
+                if (tbs == NULL) {
+                    wc_UnLockMutex(&crl->crlLock);
                     return MEMORY_E;
+                }
                 sig = XMALLOC(sigSz, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
                 if (sig == NULL) {
                     XFREE(tbs, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
+                    wc_UnLockMutex(&crl->crlLock);
                     return MEMORY_E;
                 }
 
