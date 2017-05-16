@@ -33,13 +33,13 @@
 
 /* fips wrapper calls, user can call direct */
 #ifdef HAVE_FIPS
-	int wc_InitSha(Sha* sha)
-	{
+    int wc_InitSha(Sha* sha)
+    {
         if (sha == NULL) {
             return BAD_FUNC_ARG;
         }
-	    return InitSha_fips(sha);
-	}
+        return InitSha_fips(sha);
+    }
     int wc_InitSha_ex(Sha* sha, void* heap, int devId)
     {
         (void)heap;
@@ -50,20 +50,20 @@
         return InitSha_fips(sha);
     }
 
-	int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
-	{
+    int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
+    {
         if (sha == NULL || (data == NULL && len > 0)) {
             return BAD_FUNC_ARG;
         }
-	    return ShaUpdate_fips(sha, data, len);
-	}
+        return ShaUpdate_fips(sha, data, len);
+    }
 
-	int wc_ShaFinal(Sha* sha, byte* out)
-	{
+    int wc_ShaFinal(Sha* sha, byte* out)
+    {
         if (sha == NULL || out == NULL) {
             return BAD_FUNC_ARG;
         }
-	    return ShaFinal_fips(sha,out);
+        return ShaFinal_fips(sha,out);
     }
     void wc_ShaFree(Sha* sha)
     {

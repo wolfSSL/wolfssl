@@ -1153,7 +1153,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
         }
     }
 
-    if (ssl->options.cipherSuite0 != ECC_BYTE && 
+    if (ssl->options.cipherSuite0 != ECC_BYTE &&
             ssl->options.cipherSuite0 != CHACHA_BYTE &&
             ssl->options.cipherSuite0 != TLS13_BYTE) {   /* normal suites */
     switch (ssl->options.cipherSuite) {
@@ -3108,7 +3108,7 @@ int DeriveKeys(WOLFSSL* ssl)
             XMEMCPY(shaInput + idx, ssl->arrays->serverRandom, RAN_LEN);
             idx += RAN_LEN;
             XMEMCPY(shaInput + idx, ssl->arrays->clientRandom, RAN_LEN);
-            if (ret == 0) { /* ret could be PREFIX_ERROR. */
+            if (ret == 0) {
                 ret = wc_ShaUpdate(sha, shaInput,
                     (KEY_PREFIX + SECRET_LEN + 2 * RAN_LEN) - KEY_PREFIX + j);
             }
@@ -3237,7 +3237,7 @@ static int MakeSslMasterSecret(WOLFSSL* ssl)
             idx += RAN_LEN;
             XMEMCPY(shaInput + idx, ssl->arrays->serverRandom, RAN_LEN);
             idx += RAN_LEN;
-            if (ret == 0) { /* ret could be PREFIX_ERROR. */
+            if (ret == 0) {
                 ret = wc_ShaUpdate(sha, shaInput, idx);
             }
             if (ret == 0) {

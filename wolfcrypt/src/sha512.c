@@ -36,9 +36,9 @@
 #ifdef HAVE_FIPS
     int wc_InitSha512(Sha512* sha)
     {
-		if (sha == NULL) {
-        	return BAD_FUNC_ARG;
-    	}
+        if (sha == NULL) {
+            return BAD_FUNC_ARG;
+        }
 
         return InitSha512_fips(sha);
     }
@@ -53,17 +53,17 @@
     }
     int wc_Sha512Update(Sha512* sha, const byte* data, word32 len)
     {
-		if (sha == NULL || (data == NULL && len > 0)) {
-        	return BAD_FUNC_ARG;
-    	}
+        if (sha == NULL || (data == NULL && len > 0)) {
+            return BAD_FUNC_ARG;
+        }
 
         return Sha512Update_fips(sha, data, len);
     }
     int wc_Sha512Final(Sha512* sha, byte* out)
     {
-		if (sha == NULL || out == NULL) {
-        	return BAD_FUNC_ARG;
-    	}
+        if (sha == NULL || out == NULL) {
+            return BAD_FUNC_ARG;
+        }
 
         return Sha512Final_fips(sha, out);
     }
@@ -322,8 +322,8 @@ static int InitSha512(Sha512* sha512)
             if(cpuid_flag(7, 0, EBX, 8)) { cpuid_flags |= CPUID_BMI2 ; }
             if(cpuid_flag(1, 0, ECX, 30)){ cpuid_flags |= CPUID_RDRAND ;  }
             if(cpuid_flag(7, 0, EBX, 18)){ cpuid_flags |= CPUID_RDSEED ;  }
-    		cpuid_check = 1 ;
-    		return 0 ;
+            cpuid_check = 1 ;
+            return 0 ;
         }
         return 1 ;
     }
@@ -412,46 +412,46 @@ static int InitSha512(Sha512* sha512)
 #endif
 
 static const word64 K512[80] = {
-	W64LIT(0x428a2f98d728ae22), W64LIT(0x7137449123ef65cd),
-	W64LIT(0xb5c0fbcfec4d3b2f), W64LIT(0xe9b5dba58189dbbc),
-	W64LIT(0x3956c25bf348b538), W64LIT(0x59f111f1b605d019),
-	W64LIT(0x923f82a4af194f9b), W64LIT(0xab1c5ed5da6d8118),
-	W64LIT(0xd807aa98a3030242), W64LIT(0x12835b0145706fbe),
-	W64LIT(0x243185be4ee4b28c), W64LIT(0x550c7dc3d5ffb4e2),
-	W64LIT(0x72be5d74f27b896f), W64LIT(0x80deb1fe3b1696b1),
-	W64LIT(0x9bdc06a725c71235), W64LIT(0xc19bf174cf692694),
-	W64LIT(0xe49b69c19ef14ad2), W64LIT(0xefbe4786384f25e3),
-	W64LIT(0x0fc19dc68b8cd5b5), W64LIT(0x240ca1cc77ac9c65),
-	W64LIT(0x2de92c6f592b0275), W64LIT(0x4a7484aa6ea6e483),
-	W64LIT(0x5cb0a9dcbd41fbd4), W64LIT(0x76f988da831153b5),
-	W64LIT(0x983e5152ee66dfab), W64LIT(0xa831c66d2db43210),
-	W64LIT(0xb00327c898fb213f), W64LIT(0xbf597fc7beef0ee4),
-	W64LIT(0xc6e00bf33da88fc2), W64LIT(0xd5a79147930aa725),
-	W64LIT(0x06ca6351e003826f), W64LIT(0x142929670a0e6e70),
-	W64LIT(0x27b70a8546d22ffc), W64LIT(0x2e1b21385c26c926),
-	W64LIT(0x4d2c6dfc5ac42aed), W64LIT(0x53380d139d95b3df),
-	W64LIT(0x650a73548baf63de), W64LIT(0x766a0abb3c77b2a8),
-	W64LIT(0x81c2c92e47edaee6), W64LIT(0x92722c851482353b),
-	W64LIT(0xa2bfe8a14cf10364), W64LIT(0xa81a664bbc423001),
-	W64LIT(0xc24b8b70d0f89791), W64LIT(0xc76c51a30654be30),
-	W64LIT(0xd192e819d6ef5218), W64LIT(0xd69906245565a910),
-	W64LIT(0xf40e35855771202a), W64LIT(0x106aa07032bbd1b8),
-	W64LIT(0x19a4c116b8d2d0c8), W64LIT(0x1e376c085141ab53),
-	W64LIT(0x2748774cdf8eeb99), W64LIT(0x34b0bcb5e19b48a8),
-	W64LIT(0x391c0cb3c5c95a63), W64LIT(0x4ed8aa4ae3418acb),
-	W64LIT(0x5b9cca4f7763e373), W64LIT(0x682e6ff3d6b2b8a3),
-	W64LIT(0x748f82ee5defb2fc), W64LIT(0x78a5636f43172f60),
-	W64LIT(0x84c87814a1f0ab72), W64LIT(0x8cc702081a6439ec),
-	W64LIT(0x90befffa23631e28), W64LIT(0xa4506cebde82bde9),
-	W64LIT(0xbef9a3f7b2c67915), W64LIT(0xc67178f2e372532b),
-	W64LIT(0xca273eceea26619c), W64LIT(0xd186b8c721c0c207),
-	W64LIT(0xeada7dd6cde0eb1e), W64LIT(0xf57d4f7fee6ed178),
-	W64LIT(0x06f067aa72176fba), W64LIT(0x0a637dc5a2c898a6),
-	W64LIT(0x113f9804bef90dae), W64LIT(0x1b710b35131c471b),
-	W64LIT(0x28db77f523047d84), W64LIT(0x32caab7b40c72493),
-	W64LIT(0x3c9ebe0a15c9bebc), W64LIT(0x431d67c49c100d4c),
-	W64LIT(0x4cc5d4becb3e42b6), W64LIT(0x597f299cfc657e2a),
-	W64LIT(0x5fcb6fab3ad6faec), W64LIT(0x6c44198c4a475817)
+    W64LIT(0x428a2f98d728ae22), W64LIT(0x7137449123ef65cd),
+    W64LIT(0xb5c0fbcfec4d3b2f), W64LIT(0xe9b5dba58189dbbc),
+    W64LIT(0x3956c25bf348b538), W64LIT(0x59f111f1b605d019),
+    W64LIT(0x923f82a4af194f9b), W64LIT(0xab1c5ed5da6d8118),
+    W64LIT(0xd807aa98a3030242), W64LIT(0x12835b0145706fbe),
+    W64LIT(0x243185be4ee4b28c), W64LIT(0x550c7dc3d5ffb4e2),
+    W64LIT(0x72be5d74f27b896f), W64LIT(0x80deb1fe3b1696b1),
+    W64LIT(0x9bdc06a725c71235), W64LIT(0xc19bf174cf692694),
+    W64LIT(0xe49b69c19ef14ad2), W64LIT(0xefbe4786384f25e3),
+    W64LIT(0x0fc19dc68b8cd5b5), W64LIT(0x240ca1cc77ac9c65),
+    W64LIT(0x2de92c6f592b0275), W64LIT(0x4a7484aa6ea6e483),
+    W64LIT(0x5cb0a9dcbd41fbd4), W64LIT(0x76f988da831153b5),
+    W64LIT(0x983e5152ee66dfab), W64LIT(0xa831c66d2db43210),
+    W64LIT(0xb00327c898fb213f), W64LIT(0xbf597fc7beef0ee4),
+    W64LIT(0xc6e00bf33da88fc2), W64LIT(0xd5a79147930aa725),
+    W64LIT(0x06ca6351e003826f), W64LIT(0x142929670a0e6e70),
+    W64LIT(0x27b70a8546d22ffc), W64LIT(0x2e1b21385c26c926),
+    W64LIT(0x4d2c6dfc5ac42aed), W64LIT(0x53380d139d95b3df),
+    W64LIT(0x650a73548baf63de), W64LIT(0x766a0abb3c77b2a8),
+    W64LIT(0x81c2c92e47edaee6), W64LIT(0x92722c851482353b),
+    W64LIT(0xa2bfe8a14cf10364), W64LIT(0xa81a664bbc423001),
+    W64LIT(0xc24b8b70d0f89791), W64LIT(0xc76c51a30654be30),
+    W64LIT(0xd192e819d6ef5218), W64LIT(0xd69906245565a910),
+    W64LIT(0xf40e35855771202a), W64LIT(0x106aa07032bbd1b8),
+    W64LIT(0x19a4c116b8d2d0c8), W64LIT(0x1e376c085141ab53),
+    W64LIT(0x2748774cdf8eeb99), W64LIT(0x34b0bcb5e19b48a8),
+    W64LIT(0x391c0cb3c5c95a63), W64LIT(0x4ed8aa4ae3418acb),
+    W64LIT(0x5b9cca4f7763e373), W64LIT(0x682e6ff3d6b2b8a3),
+    W64LIT(0x748f82ee5defb2fc), W64LIT(0x78a5636f43172f60),
+    W64LIT(0x84c87814a1f0ab72), W64LIT(0x8cc702081a6439ec),
+    W64LIT(0x90befffa23631e28), W64LIT(0xa4506cebde82bde9),
+    W64LIT(0xbef9a3f7b2c67915), W64LIT(0xc67178f2e372532b),
+    W64LIT(0xca273eceea26619c), W64LIT(0xd186b8c721c0c207),
+    W64LIT(0xeada7dd6cde0eb1e), W64LIT(0xf57d4f7fee6ed178),
+    W64LIT(0x06f067aa72176fba), W64LIT(0x0a637dc5a2c898a6),
+    W64LIT(0x113f9804bef90dae), W64LIT(0x1b710b35131c471b),
+    W64LIT(0x28db77f523047d84), W64LIT(0x32caab7b40c72493),
+    W64LIT(0x3c9ebe0a15c9bebc), W64LIT(0x431d67c49c100d4c),
+    W64LIT(0x4cc5d4becb3e42b6), W64LIT(0x597f299cfc657e2a),
+    W64LIT(0x5fcb6fab3ad6faec), W64LIT(0x6c44198c4a475817)
 };
 
 
