@@ -322,8 +322,8 @@ static int InitSha512(Sha512* sha512)
             if(cpuid_flag(7, 0, EBX, 8)) { cpuid_flags |= CPUID_BMI2 ; }
             if(cpuid_flag(1, 0, ECX, 30)){ cpuid_flags |= CPUID_RDRAND ;  }
             if(cpuid_flag(7, 0, EBX, 18)){ cpuid_flags |= CPUID_RDSEED ;  }
-            cpuid_check = 1 ;
-            return 0 ;
+                cpuid_check = 1 ;
+                return 0 ;
         }
         return 1 ;
     }
