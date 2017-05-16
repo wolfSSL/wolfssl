@@ -54,16 +54,16 @@
     }
     int wc_Sha256Update(Sha256* sha, const byte* data, word32 len)
     {
-		if (sha == NULL ||  (data == NULL && len > 0)) {
-        	return BAD_FUNC_ARG;
+	    if (sha == NULL ||  (data == NULL && len > 0)) {
+            return BAD_FUNC_ARG;
     	}
         return Sha256Update_fips(sha, data, len);
     }
     int wc_Sha256Final(Sha256* sha, byte* out)
     {
-		if (sha == NULL || out == NULL) {
-        	return BAD_FUNC_ARG;
-    	}
+        if (sha == NULL || out == NULL) {
+            return BAD_FUNC_ARG;
+        }
         return Sha256Final_fips(sha, out);
     }
     void wc_Sha256Free(Sha256* sha)

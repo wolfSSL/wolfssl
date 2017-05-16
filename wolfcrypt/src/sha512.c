@@ -36,9 +36,9 @@
 #ifdef HAVE_FIPS
     int wc_InitSha512(Sha512* sha)
     {
-		if (sha == NULL) {
-        	return BAD_FUNC_ARG;
-    	}
+	    if (sha == NULL) {
+            return BAD_FUNC_ARG;
+        }
 
         return InitSha512_fips(sha);
     }
@@ -53,17 +53,17 @@
     }
     int wc_Sha512Update(Sha512* sha, const byte* data, word32 len)
     {
-		if (sha == NULL || (data == NULL && len > 0)) {
-        	return BAD_FUNC_ARG;
-    	}
+	    if (sha == NULL || (data == NULL && len > 0)) {
+            return BAD_FUNC_ARG;
+        }
 
         return Sha512Update_fips(sha, data, len);
     }
     int wc_Sha512Final(Sha512* sha, byte* out)
     {
-		if (sha == NULL || out == NULL) {
-        	return BAD_FUNC_ARG;
-    	}
+	    if (sha == NULL || out == NULL) {
+            return BAD_FUNC_ARG;
+        }
 
         return Sha512Final_fips(sha, out);
     }
