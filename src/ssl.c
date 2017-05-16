@@ -4833,7 +4833,7 @@ static int ProcessChainBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                          NULL) == 0) {
                 WOLFSSL_MSG("   Proccessed a CRL");
                 wolfSSL_CertManagerLoadCRLBuffer(ctx->cm, der->buffer,
-                                                 der->length,SSL_FILETYPE_ASN1);
+                                              der->length,SSL_FILETYPE_ASN1, 0);
                 FreeDer(&der);
                 used += info.consumed;
                 continue;
@@ -4937,7 +4937,7 @@ int wolfSSL_CertManagerLoadCRLBuffer(WOLFSSL_CERT_MANAGER* cm,
         }
     }
 
-    return BufferLoadCRL(cm->crl, buff, sz, type);
+    return BufferLoadCRL(cm->crl, buff, sz, type, 0);
 }
 
 
@@ -5428,7 +5428,7 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
             ret = ProcessChainBuffer(ctx, myBuffer, sz, format, type, ssl);
 #ifdef HAVE_CRL
         else if (type == CRL_TYPE)
-            ret = BufferLoadCRL(crl, myBuffer, sz, format);
+            ret = BufferLoadCRL(crl, myBuffer, sz, format, 0);
 #endif
         else
             ret = ProcessBuffer(ctx, myBuffer, sz, format, type, ssl, NULL,
@@ -14704,6 +14704,8 @@ int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
     XFILE         fp;
     long          sz;
     byte*         pem = NULL;
+    byte*         curr = NULL;
+    byte*         prev = NULL;
     WOLFSSL_X509* x509;
 
     if (type != X509_FILETYPE_PEM)
@@ -14726,23 +14728,51 @@ int wolfSSL_X509_LOOKUP_load_file(WOLFSSL_X509_LOOKUP* lookup,
         goto end;
     }
 
-    /* Read in file which may be a CRL or certificate. */
+    /* Read in file which may be CRLs or certificates. */
     if (XFREAD(pem, (size_t)sz, 1, fp) != 1)
         goto end;
 
-    if (XSTRNSTR((char*)pem, BEGIN_X509_CRL, (unsigned int)sz) != NULL) {
+    prev = curr = pem;
+    do {
+        if (XSTRNSTR((char*)curr, BEGIN_X509_CRL, (unsigned int)sz) != NULL) {
 #ifdef HAVE_CRL
-        ret = wolfSSL_CertManagerLoadCRLBuffer(lookup->store->cm, pem, sz,
-                SSL_FILETYPE_PEM);
+            WOLFSSL_CERT_MANAGER* cm = lookup->store->cm;
+
+            if (cm->crl == NULL) {
+                if (wolfSSL_CertManagerEnableCRL(cm, 0) != SSL_SUCCESS) {
+                    WOLFSSL_MSG("Enable CRL failed");
+                    goto end;
+                }
+            }
+
+            ret = BufferLoadCRL(cm->crl, curr, sz, SSL_FILETYPE_PEM, 1);
+            if (ret != SSL_SUCCESS)
+                goto end;
 #endif
+            curr = (byte*)XSTRNSTR((char*)curr, END_X509_CRL, (unsigned int)sz);
+        }
+        else if (XSTRNSTR((char*)curr, BEGIN_CERT, (unsigned int)sz) != NULL) {
+            x509 = wolfSSL_X509_load_certificate_buffer(curr, (int)sz,
+                                                        SSL_FILETYPE_PEM);
+            if (x509 == NULL)
+                 goto end;
+            ret = wolfSSL_X509_STORE_add_cert(lookup->store, x509);
+            wolfSSL_X509_free(x509);
+            if (ret != SSL_SUCCESS)
+                goto end;
+            curr = (byte*)XSTRNSTR((char*)curr, END_CERT, (unsigned int)sz);
+        }
+        else
+            goto end;
+
+        if (curr == NULL)
+            goto end;
+
+        curr++;
+        sz -= (long)(curr - prev);
+        prev = curr;
     }
-    else {
-        x509 = wolfSSL_X509_load_certificate_buffer(pem, (int)sz,
-                                                    SSL_FILETYPE_PEM);
-        if (x509 == NULL)
-             goto end;
-        ret = wolfSSL_X509_STORE_add_cert(lookup->store, x509);
-    }
+    while (ret == SSL_SUCCESS);
 
 end:
     if (pem != NULL)

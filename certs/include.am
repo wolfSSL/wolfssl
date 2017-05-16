@@ -9,6 +9,7 @@ EXTRA_DIST += \
 	     certs/client-keyEnc.pem \
 	     certs/client-key.pem \
 	     certs/ecc-key.pem \
+	     certs/ecc-privkey.pem \
 	     certs/ecc-keyPkcs8Enc.pem \
 	     certs/ecc-key-comp.pem \
 	     certs/ecc-keyPkcs8.pem \
@@ -53,7 +54,7 @@ EXTRA_DIST += \
 	     certs/server-ecc-comp.der \
 	     certs/server-ecc.der \
 	     certs/server-ecc-rsa.der \
-         certs/server-cert-chain.der
+	     certs/server-cert-chain.der
 
 dist_doc_DATA+= certs/taoCert.txt
 

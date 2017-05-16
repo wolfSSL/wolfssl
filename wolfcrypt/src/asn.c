@@ -9481,7 +9481,7 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
 {
     word32 oidSum;
     int    version, length;
-    int    privSz, pubSz;
+    int    privSz, pubSz = 0;
     byte   b;
     int    ret = 0;
     int    curve_id = ECC_CURVE_DEF;
@@ -9492,6 +9492,7 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     byte priv[ECC_MAXSIZE+1];
     byte pub[2*(ECC_MAXSIZE+1)]; /* public key has two parts plus header */
 #endif
+    byte* pubData = NULL;
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
         return BAD_FUNC_ARG;
@@ -9560,7 +9561,7 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
         }
     }
 
-    if (ret == 0) {
+    if (ret == 0 && (*inOutIdx + 1) < inSz) {
         /* prefix 1 */
         b = input[*inOutIdx];
         *inOutIdx += 1;
@@ -9580,13 +9581,16 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
                 if (pubSz < 2*(ECC_MAXSIZE+1)) {
                     XMEMCPY(pub, &input[*inOutIdx], pubSz);
                     *inOutIdx += length;
-                    ret = wc_ecc_import_private_key_ex(priv, privSz, pub,
-                                                    pubSz, key, curve_id);
                 }
                 else
                     ret = BUFFER_E;
             }
         }
+    }
+
+    if (ret == 0) {
+        ret = wc_ecc_import_private_key_ex(priv, privSz, pubData, pubSz, key,
+                                                                      curve_id);
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -10700,13 +10704,36 @@ static int GetCRL_Signature(const byte* source, word32* idx, DecodedCRL* dcrl,
     return 0;
 }
 
+int VerifyCRL_Signature(SignatureCtx* sigCtx, const byte* toBeSigned,
+                        word32 tbsSz, const byte* signature, word32 sigSz,
+                        word32 signatureOID, Signer *ca, void* heap)
+{
+    /* try to confirm/verify signature */
+#ifndef IGNORE_KEY_EXTENSIONS
+    if ((ca->keyUsage & KEYUSE_CRL_SIGN) == 0) {
+        WOLFSSL_MSG("CA cannot sign CRLs");
+        return ASN_CRL_NO_SIGNER_E;
+    }
+#endif /* IGNORE_KEY_EXTENSIONS */
+
+    InitSignatureCtx(sigCtx, heap, INVALID_DEVID);
+    if (ConfirmSignature(sigCtx, toBeSigned, tbsSz, ca->publicKey,
+                         ca->pubKeySize, ca->keyOID, signature, sigSz,
+                         signatureOID) != 0) {
+        WOLFSSL_MSG("CRL Confirm signature failed");
+        return ASN_CRL_CONFIRM_E;
+    }
+
+    return 0;
+}
 
 /* prase crl buffer into decoded state, 0 on success */
 int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
 {
-    int     ret = 0, version, len, doNextDate = 1;
-    word32  oid, idx = 0, dateIdx;
-    Signer* ca = NULL;
+    int          version, len, doNextDate = 1;
+    word32       oid, idx = 0, dateIdx;
+    Signer*      ca = NULL;
+    SignatureCtx sigCtx;
 
     WOLFSSL_MSG("ParseCRL");
 
@@ -10797,33 +10824,15 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
 #endif /* !NO_SKID && CRL_SKID_READY */
     WOLFSSL_MSG("About to verify CRL signature");
 
-    if (ca) {
-        SignatureCtx sigCtx;
-
-        WOLFSSL_MSG("Found CRL issuer CA");
-        /* try to confirm/verify signature */
-    #ifndef IGNORE_KEY_EXTENSIONS
-        if ((ca->keyUsage & KEYUSE_CRL_SIGN) == 0) {
-            WOLFSSL_MSG("CA cannot sign CRLs");
-            return ASN_CRL_NO_SIGNER_E;
-        }
-    #endif /* IGNORE_KEY_EXTENSIONS */
-
-        InitSignatureCtx(&sigCtx, dcrl->heap, INVALID_DEVID);
-        if (ConfirmSignature(&sigCtx, buff + dcrl->certBegin,
-                dcrl->sigIndex - dcrl->certBegin,
-                ca->publicKey, ca->pubKeySize, ca->keyOID,
-                dcrl->signature, dcrl->sigLength, dcrl->signatureOID) != 0) {
-            WOLFSSL_MSG("CRL Confirm signature failed");
-            return ASN_CRL_CONFIRM_E;
-        }
-    }
-    else {
+    if (ca == NULL) {
         WOLFSSL_MSG("Did NOT find CRL issuer CA");
         return ASN_CRL_NO_SIGNER_E;
     }
 
-    return ret;
+    WOLFSSL_MSG("Found CRL issuer CA");
+    return VerifyCRL_Signature(&sigCtx, buff + dcrl->certBegin,
+           dcrl->sigIndex - dcrl->certBegin, dcrl->signature, dcrl->sigLength,
+           dcrl->signatureOID, ca, dcrl->heap);
 }
 
 #endif /* HAVE_CRL */
