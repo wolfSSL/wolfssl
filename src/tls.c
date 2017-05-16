@@ -3073,6 +3073,12 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
                 octets = 32;
                 break;
         #endif /* HAVE_ECC_BRAINPOOL */
+        #ifdef HAVE_CURVE25519
+            case WOLFSSL_ECC_X25519:
+                oid = ECC_X25519_OID;
+                octets = 32;
+                break;
+        #endif /* HAVE_ECC_BRAINPOOL */
     #endif
     #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
@@ -3148,6 +3154,10 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
                 case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384:
                 case TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256:
                 case TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384:
+                    if (oid == ECC_X25519_OID && defOid == oid) {
+                        defOid = 0;
+                        defSz = 80;
+                    }
                     sig |= ssl->pkCurveOID == oid;
                     key |= ssl->pkCurveOID == oid;
                 break;
@@ -3177,13 +3187,22 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
                 case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384:
                 case TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256:
                 case TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384:
+                    if (oid == ECC_X25519_OID && defOid == oid) {
+                        defOid = 0;
+                        defSz = 80;
+                    }
                     sig = 1;
                     key |= ssl->pkCurveOID == oid;
                 break;
 #endif /* WOLFSSL_STATIC_DH */
 #endif
                 default:
-                    sig = 1;
+                    if (oid == ECC_X25519_OID && defOid == oid) {
+                        defOid = 0;
+                        defSz = 80;
+                    }
+                    if (oid != ECC_X25519_OID)
+                        sig = 1;
                     key = 1;
                 break;
             }
@@ -7014,6 +7033,11 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             #endif
         #endif
         #if !defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)
+            #ifdef HAVE_CURVE25519
+                ret = TLSX_UseSupportedCurve(&ssl->extensions,
+                                        WOLFSSL_ECC_X25519, ssl->heap);
+                if (ret != SSL_SUCCESS) return ret;
+            #endif
             #ifndef NO_ECC_SECP
                 ret = TLSX_UseSupportedCurve(&ssl->extensions,
                                               WOLFSSL_ECC_SECP256R1, ssl->heap);
@@ -7056,15 +7080,6 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 if (ret != SSL_SUCCESS) return ret;
             #endif
         #endif
-    #ifdef WOLFSSL_TLS13
-        #if defined(HAVE_CURVE25519)
-            #ifndef NO_ECC_SECP
-                ret = TLSX_UseSupportedCurve(&ssl->extensions,
-                                                 WOLFSSL_ECC_X25519, ssl->heap);
-                if (ret != SSL_SUCCESS) return ret;
-            #endif
-        #endif
-    #endif
         }
 #endif /* HAVE_ECC && HAVE_SUPPORTED_CURVES */
     } /* is not server */

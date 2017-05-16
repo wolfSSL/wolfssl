@@ -72,6 +72,9 @@
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif
+#ifdef HAVE_CURVE25519
+    #include <wolfssl/wolfcrypt/curve25519.h>
+#endif
 #ifndef NO_SHA256
     #include <wolfssl/wolfcrypt/sha256.h>
 #endif
@@ -2256,6 +2259,10 @@ struct WOLFSSL_CTX {
         CallbackEccSign   EccSignCb;    /* User EccSign   Callback handler */
         CallbackEccVerify EccVerifyCb;  /* User EccVerify Callback handler */
         CallbackEccSharedSecret EccSharedSecretCb;     /* User EccVerify Callback handler */
+        #ifdef HAVE_CURVE25519
+            /* User EccSharedSecret Callback handler */
+            CallbackX25519SharedSecret X25519SharedSecretCb;
+        #endif
     #endif /* HAVE_ECC */
     #ifndef NO_RSA
         CallbackRsaSign   RsaSignCb;    /* User RsaSign   Callback handler */
@@ -3116,6 +3123,10 @@ struct WOLFSSL {
     byte            peerEccKeyPresent;
     byte            peerEccDsaKeyPresent;
     byte            eccTempKeyPresent;
+#ifdef HAVE_CURVE25519
+    curve25519_key* peerX25519Key;
+    byte            peerX25519KeyPresent;
+#endif
 #endif
 #ifdef HAVE_LIBZ
     z_stream        c_stream;           /* compression   stream */
@@ -3219,6 +3230,9 @@ struct WOLFSSL {
         void* EccSignCtx;     /* Ecc Sign   Callback Context */
         void* EccVerifyCtx;   /* Ecc Verify Callback Context */
         void* EccSharedSecretCtx; /* Ecc Pms Callback Context */
+        #ifdef HAVE_CURVE25519
+            void* X25519SharedSecretCtx; /* X25519 Pms Callback Context */
+        #endif
     #endif /* HAVE_ECC */
     #ifndef NO_RSA
         void* RsaSignCtx;     /* Rsa Sign   Callback Context */

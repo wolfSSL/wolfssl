@@ -14234,6 +14234,8 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
         return NULL;
     if (ssl->ecdhCurveOID == 0)
         return NULL;
+    if (ssl->ecdhCurveOID == ECC_X25519_OID)
+        return "X25519";
     return wc_ecc_get_name(wc_ecc_get_oid(ssl->ecdhCurveOID, NULL, NULL));
 }
 #endif
@@ -21989,6 +21991,30 @@ void* wolfSSL_GetEccSharedSecretCtx(WOLFSSL* ssl)
 
     return NULL;
 }
+
+#ifdef HAVE_CURVE25519
+void wolfSSL_CTX_SetX25519SharedSecretCb(WOLFSSL_CTX* ctx,
+        CallbackX25519SharedSecret cb)
+{
+    if (ctx)
+        ctx->X25519SharedSecretCb = cb;
+}
+
+void  wolfSSL_SetX25519SharedSecretCtx(WOLFSSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->X25519SharedSecretCtx = ctx;
+}
+
+
+void* wolfSSL_GetX25519SharedSecretCtx(WOLFSSL* ssl)
+{
+    if (ssl)
+        return ssl->X25519SharedSecretCtx;
+
+    return NULL;
+}
+#endif
 #endif /* HAVE_ECC */
 
 #ifndef NO_RSA

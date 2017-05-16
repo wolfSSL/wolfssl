@@ -1505,6 +1505,18 @@ WOLFSSL_API void  wolfSSL_CTX_SetEccSharedSecretCb(WOLFSSL_CTX*, CallbackEccShar
 WOLFSSL_API void  wolfSSL_SetEccSharedSecretCtx(WOLFSSL* ssl, void *ctx);
 WOLFSSL_API void* wolfSSL_GetEccSharedSecretCtx(WOLFSSL* ssl);
 
+struct curve25519_key;
+typedef int (*CallbackX25519SharedSecret)(WOLFSSL* ssl,
+        struct curve25519_key* otherKey,
+        unsigned char* pubKeyDer, unsigned int* pubKeySz,
+        unsigned char* out, unsigned int* outlen,
+        int side, void* ctx);
+        /* side is WOLFSSL_CLIENT_END or WOLFSSL_SERVER_END */
+WOLFSSL_API void  wolfSSL_CTX_SetX25519SharedSecretCb(WOLFSSL_CTX*,
+        CallbackX25519SharedSecret);
+WOLFSSL_API void  wolfSSL_SetX25519SharedSecretCtx(WOLFSSL* ssl, void *ctx);
+WOLFSSL_API void* wolfSSL_GetX25519SharedSecretCtx(WOLFSSL* ssl);
+
 typedef int (*CallbackRsaSign)(WOLFSSL* ssl,
        const unsigned char* in, unsigned int inSz,
        unsigned char* out, unsigned int* outSz,
@@ -1841,9 +1853,8 @@ enum {
     WOLFSSL_ECC_BRAINPOOLP256R1 = 26,
     WOLFSSL_ECC_BRAINPOOLP384R1 = 27,
     WOLFSSL_ECC_BRAINPOOLP512R1 = 28,
-#ifdef WOLFSSL_TLS13
-    /* Not implemented. */
     WOLFSSL_ECC_X25519    = 29,
+#ifdef WOLFSSL_TLS13
     /* Not implemented. */
     WOLFSSL_ECC_X448      = 30,
 
