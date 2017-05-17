@@ -90,10 +90,22 @@ int wc_PBKDF1(byte* output, const byte* passwd, int pLen, const byte* salt,
     switch (hashType) {
 #ifndef NO_MD5
         case MD5:
-            wc_InitMd5(&md5);
-            wc_Md5Update(&md5, passwd, pLen);
-            wc_Md5Update(&md5, salt,   sLen);
-            wc_Md5Final(&md5,  buffer);
+            ret = wc_InitMd5(&md5);
+            if (ret != 0) {
+                return ret;
+            }
+            ret = wc_Md5Update(&md5, passwd, pLen);
+            if (ret != 0) {
+                return ret;
+            }
+            ret = wc_Md5Update(&md5, salt,   sLen);
+            if (ret != 0) {
+                return ret;
+            }
+            ret = wc_Md5Final(&md5,  buffer);
+            if (ret != 0) {
+                return ret;
+            }
             break;
 #endif /* NO_MD5 */
         case SHA:
@@ -114,8 +126,14 @@ int wc_PBKDF1(byte* output, const byte* passwd, int pLen, const byte* salt,
         }
 #ifndef NO_MD5
         else {
-            wc_Md5Update(&md5, buffer, hLen);
-            wc_Md5Final(&md5,  buffer);
+            ret = wc_Md5Update(&md5, buffer, hLen);
+            if (ret != 0) {
+                return ret;
+            }
+            ret = wc_Md5Final(&md5,  buffer);
+            if (ret != 0) {
+                return ret;
+            }
         }
 #endif
     }
@@ -302,13 +320,28 @@ int DoPKCS12Hash(int hashType, byte* buffer, word32 totalLen,
         case MD5:
             {
                 Md5 md5;
-                wc_InitMd5(&md5);
-                wc_Md5Update(&md5, buffer, totalLen);
-                wc_Md5Final(&md5, Ai);
+                ret = wc_InitMd5(&md5);
+                if (ret != 0) {
+                    break;
+                }
+                ret = wc_Md5Update(&md5, buffer, totalLen);
+                if (ret != 0) {
+                    break;
+                }
+                ret = wc_Md5Final(&md5, Ai);
+                if (ret != 0) {
+                    break;
+                }
 
                 for (i = 1; i < iterations; i++) {
-                    wc_Md5Update(&md5, Ai, u);
-                    wc_Md5Final(&md5, Ai);
+                    ret = wc_Md5Update(&md5, Ai, u);
+                    if (ret != 0) {
+                        break;
+                    }
+                    ret = wc_Md5Final(&md5, Ai);
+                    if (ret != 0) {
+                        break;
+                    }
                 }
             }
             break;
@@ -320,12 +353,24 @@ int DoPKCS12Hash(int hashType, byte* buffer, word32 totalLen,
                 ret = wc_InitSha(&sha);
                 if (ret != 0)
                     break;
-                wc_ShaUpdate(&sha, buffer, totalLen);
-                wc_ShaFinal(&sha, Ai);
+                ret = wc_ShaUpdate(&sha, buffer, totalLen);
+                if (ret != 0) {
+                    break;
+                }
+                ret = wc_ShaFinal(&sha, Ai);
+                if (ret != 0) {
+                    break;
+                }
 
                 for (i = 1; i < iterations; i++) {
-                    wc_ShaUpdate(&sha, Ai, u);
-                    wc_ShaFinal(&sha, Ai);
+                    ret = wc_ShaUpdate(&sha, Ai, u);
+                    if (ret != 0) {
+                        break;
+                    }
+                    ret = wc_ShaFinal(&sha, Ai);
+                    if (ret != 0) {
+                        break;
+                    }
                 }
             }
             break;

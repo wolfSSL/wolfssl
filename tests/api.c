@@ -46,6 +46,22 @@
 #include <wolfssl/test.h>
 #include <tests/unit.h>
 
+#ifndef NO_MD5
+    #include <wolfssl/wolfcrypt/md5.h>
+#endif
+#ifndef NO_SHA
+    #include <wolfssl/wolfcrypt/sha.h>
+#endif
+#ifndef NO_SHA256
+    #include <wolfssl/wolfcrypt/sha256.h>
+#endif
+#ifdef WOLFSSL_SHA512
+    #include <wolfssl/wolfcrypt/sha512.h>
+#endif
+#ifdef WOLFSSL_SHA384
+    #include <wolfssl/wolfcrypt/sha512.h>
+#endif
+
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/ssl.h>
     #include <wolfssl/openssl/pkcs12.h>
@@ -63,6 +79,16 @@
     #define USE_CERT_BUFFERS_2048
 #endif
 #include <wolfssl/certs_test.h>
+
+
+typedef struct testVector {
+    const char* input;
+    const char* output;
+    size_t inLen;
+    size_t outLen;
+
+} testVector;
+
 
 /*----------------------------------------------------------------------------*
  | Constants
@@ -2211,7 +2237,7 @@ static int test_wolfSSL_UseOCSPStapling(void)
  * check.
  * PRE: HAVE_CERTIFICATE_STATUS_REQUEST_V2 and HAVE_OCSP defined.
  */
-static int test_wolfSSL_UseOCSPStaplingV2(void)
+static int test_wolfSSL_UseOCSPStaplingV2 (void)
 {
     #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && defined(HAVE_OCSP)
         int                 ret;
@@ -2231,7 +2257,7 @@ static int test_wolfSSL_UseOCSPStaplingV2(void)
         wolfSSL_free(ssl);
         wolfSSL_CTX_free(ctx);
 
-        if(ret != SSL_SUCCESS){
+        if (ret != SSL_SUCCESS){
             wolfSSL_Cleanup();
             return SSL_FAILURE;
         }
@@ -2242,6 +2268,1050 @@ static int test_wolfSSL_UseOCSPStaplingV2(void)
     #endif
 
 } /*END test_wolfSSL_UseOCSPStaplingV2*/
+
+/*----------------------------------------------------------------------------*
+ |  Wolfcrypt
+ *----------------------------------------------------------------------------*/
+
+/*
+ * Unit test for the wc_InitMd5()
+ */
+static int test_wc_InitMd5 (void)
+{
+#ifndef NO_MD5
+
+    Md5 md5;
+    int ret, flag;
+
+    printf(testingFmt, "wc_InitMd5()");
+
+    flag = 0;
+
+    /* Test good arg. */
+    ret = wc_InitMd5(&md5);
+    if (ret != 0) {
+        flag = SSL_FATAL_ERROR;
+    }
+
+    /* Test bad arg. */
+    if (!flag) {
+        ret = wc_InitMd5(NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+}     /* END test_wc_InitMd5 */
+
+/*
+ * Unit test for the wc_InitSha()
+ */
+static int test_wc_InitSha(void)
+{
+#ifndef NO_SHA
+    Sha sha;
+    int ret, flag;
+
+    flag = 0;
+
+    printf(testingFmt, "wc_InitSha()");
+
+    /* Test good arg. */
+    ret = wc_InitSha(&sha);
+    if (ret != 0) {
+        flag = SSL_FATAL_ERROR;
+    }
+
+    /* Test bad arg. */
+    if (!flag) {
+        ret = wc_InitSha(NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_InitSha */
+
+/*
+ * Unit test for wc_InitSha256()
+ */
+static int test_wc_InitSha256 (void)
+{
+#ifndef NO_SHA256
+    Sha256 sha256;
+    int ret, flag;
+
+    flag = 0;
+
+    printf(testingFmt, "wc_InitSha256()");
+
+    /* Test good arg. */
+    ret = wc_InitSha256(&sha256);
+    if (ret != 0) {
+        flag = SSL_FATAL_ERROR;
+    }
+
+    /* Test bad arg. */
+    if (!flag) {
+        ret = wc_InitSha256(NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_InitSha256 */
+
+
+/*
+ * Testing wc_InitSha512()
+ */
+static int test_wc_InitSha512 (void)
+{
+#ifdef WOLFSSL_SHA512
+    Sha512 sha512;
+    int ret, flag;
+
+    flag = 0;
+
+    printf(testingFmt, "wc_InitSha512()");
+
+    /* Test good arg. */
+    ret = wc_InitSha512(&sha512);
+    if (ret != 0) {
+        flag  = SSL_FATAL_ERROR;
+    }
+
+    /* Test bad arg. */
+    if (!flag) {
+        ret = wc_InitSha512(NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_InitSha512 */
+
+/*
+ * Testing wc_InitSha384()
+ */
+static int test_wc_InitSha384 (void)
+{
+#ifdef WOLFSSL_SHA384
+    Sha384 sha384;
+    int ret, flag;
+
+    flag = 0;
+
+    printf(testingFmt, "wc_InitSha384()");
+
+    /* Test good arg. */
+    ret = wc_InitSha384(&sha384);
+    if (ret != 0) {
+        flag = SSL_FATAL_ERROR;
+    }
+
+    /* Test bad arg. */
+    if (!flag) {
+        ret = wc_InitSha384(NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_InitSha384 */
+
+
+/*
+ * Testing wc_UpdateMd5()
+ */
+static int test_wc_Md5Update (void)
+{
+
+#ifndef NO_MD5
+    Md5 md5;
+    byte hash[MD5_DIGEST_SIZE];
+    testVector a, b, c;
+    int ret, flag;
+
+    flag = 0;
+
+    ret = wc_InitMd5(&md5);
+    if (ret != 0) {
+        flag = ret;
+    }
+
+    printf(testingFmt, "wc_Md5Update()");
+
+    /* Input */
+    if (!flag) {
+        a.input = "a";
+        a.inLen = XSTRLEN(a.input);
+    }
+
+    if (!flag){
+        ret = wc_Md5Update(&md5, (byte*)a.input, (word32)a.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_Md5Final(&md5, hash);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    /* Update input. */
+    if (!flag) {
+        a.input = "abc";
+        a.output = "\x90\x01\x50\x98\x3c\xd2\x4f\xb0\xd6\x96\x3f\x7d\x28\xe1\x7f"
+                    "\x72";
+        a.inLen = XSTRLEN(a.input);
+        a.outLen = XSTRLEN(a.output);
+
+        ret = wc_Md5Update(&md5, (byte*) a.input, (word32) a.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_Md5Final(&md5, hash);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        if (XMEMCMP(hash, a.output, MD5_DIGEST_SIZE) != 0) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    /*Pass in bad values. */
+    if (!flag) {
+        b.input = NULL;
+        b.inLen = 0;
+
+        ret = wc_Md5Update(&md5, (byte*)b.input, (word32)b.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        c.input = NULL;
+        c.inLen = MD5_DIGEST_SIZE;
+
+        ret = wc_Md5Update(&md5, (byte*)c.input, (word32)c.inLen);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_Md5Update(NULL, (byte*)a.input, (word32)a.inLen);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_Md5Update()  */
+
+/*
+ *  Tesing wc_ShaUpdate()
+ */
+static int test_wc_ShaUpdate (void)
+{
+
+#ifndef NO_SHA
+    Sha sha;
+    byte hash[SHA_DIGEST_SIZE];
+    testVector a, b, c;
+    int ret, flag;
+
+    flag = 0;
+
+    ret = wc_InitSha(&sha);
+    if (ret != 0) {
+        flag = ret;
+    }
+
+    printf(testingFmt, "wc_ShaUpdate()");
+
+    /* Input. */
+    if (!flag) {
+        a.input = "a";
+        a.inLen = XSTRLEN(a.input);
+    }
+
+    if (!flag) {
+        ret = wc_ShaUpdate(&sha, (byte*)a.input, (word32)a.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_ShaFinal(&sha, hash);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    /* Update input. */
+    if (!flag) {
+        a.input = "abc";
+        a.output = "\xA9\x99\x3E\x36\x47\x06\x81\x6A\xBA\x3E\x25\x71\x78\x50\xC2"
+                    "\x6C\x9C\xD0\xD8\x9D";
+        a.inLen = XSTRLEN(a.input);
+        a.outLen = XSTRLEN(a.output);
+
+        ret = wc_ShaUpdate(&sha, (byte*)a.input, (word32)a.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_ShaFinal(&sha, hash);
+        if (ret !=0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        if (XMEMCMP(hash, a.output, SHA_DIGEST_SIZE) != 0) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    /* Try passing in bad values. */
+    if (!flag) {
+        b.input = NULL;
+        b.inLen = 0;
+
+        ret = wc_ShaUpdate(&sha, (byte*)b.input, (word32)b.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        c.input = NULL;
+        c.inLen = SHA_DIGEST_SIZE;
+
+        ret = wc_ShaUpdate(&sha, (byte*)c.input, (word32)c.inLen);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_ShaUpdate(NULL, (byte*)a.input, (word32)a.inLen);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    /* If not returned then the unit test passed test vectors. */
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_ShaUpdate() */
+
+
+/*
+ * Unit test for wc_Sha256Update()
+ */
+static int test_wc_Sha256Update (void)
+{
+#ifndef NO_SHA256
+    Sha256 sha256;
+    byte hash[SHA256_DIGEST_SIZE];
+    testVector a, b, c;
+    int ret, flag;
+
+    flag = 0;
+
+    ret = wc_InitSha256(&sha256);
+    if (ret != 0) {
+        flag = ret;
+    }
+
+    printf(testingFmt, "wc_Sha256Update()");
+
+    /*  Input. */
+    if (!flag) {
+        a.input = "a";
+        a.inLen = XSTRLEN(a.input);
+    }
+
+    if (!flag) {
+        ret = wc_Sha256Update(&sha256, (byte*)a.input, (word32)a.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_Sha256Final(&sha256, hash);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    /* Update input. */
+    if (!flag) {
+        a.input = "abc";
+        a.output = "\xBA\x78\x16\xBF\x8F\x01\xCF\xEA\x41\x41\x40\xDE\x5D\xAE\x22"
+                    "\x23\xB0\x03\x61\xA3\x96\x17\x7A\x9C\xB4\x10\xFF\x61\xF2\x00"
+                    "\x15\xAD";
+        a.inLen = XSTRLEN(a.input);
+        a.outLen = XSTRLEN(a.output);
+
+        ret = wc_Sha256Update(&sha256, (byte*)a.input, (word32)a.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_Sha256Final(&sha256, hash);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        if (XMEMCMP(hash, a.output, SHA256_DIGEST_SIZE) != 0) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    /* Try passing in bad values */
+    if (!flag) {
+        b.input = NULL;
+        b.inLen = 0;
+
+        ret = wc_Sha256Update(&sha256, (byte*)b.input, (word32)b.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        c.input = NULL;
+        c.inLen = SHA256_DIGEST_SIZE;
+
+        ret = wc_Sha256Update(&sha256, (byte*)c.input, (word32)c.inLen);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_Sha256Update(NULL, (byte*)a.input, (word32)a.inLen);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    /* If not returned then the unit test passed. */
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_Sha256Update */
+
+/*
+ * test wc_Sha384Update()
+ */
+static int test_wc_Sha384Update (void)
+{
+
+#ifdef WOLFSSL_SHA384
+    Sha384 sha384;
+    byte hash[SHA384_DIGEST_SIZE];
+    testVector a, b, c;
+    int ret, flag;
+
+    flag = 0;
+
+    ret = wc_InitSha384(&sha384);
+    if (ret != 0) {
+        flag = ret;
+    }
+
+    printf(testingFmt, "wc_Sha384Update()");
+
+    /* Input */
+    if (!flag) {
+        a.input = "a";
+        a.inLen = XSTRLEN(a.input);
+    }
+
+    if (!flag) {
+        ret = wc_Sha384Update(&sha384, (byte*)a.input, (word32)a.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_Sha384Final(&sha384, hash);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    /* Update input. */
+    if (!flag) {
+        a.input = "abc";
+        a.output = "\xcb\x00\x75\x3f\x45\xa3\x5e\x8b\xb5\xa0\x3d\x69\x9a\xc6\x50"
+                   "\x07\x27\x2c\x32\xab\x0e\xde\xd1\x63\x1a\x8b\x60\x5a\x43\xff"
+                   "\x5b\xed\x80\x86\x07\x2b\xa1\xe7\xcc\x23\x58\xba\xec\xa1\x34"
+                   "\xc8\x25\xa7";
+        a.inLen = XSTRLEN(a.input);
+        a.outLen = XSTRLEN(a.output);
+
+        ret = wc_Sha384Update(&sha384, (byte*)a.input, (word32)a.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_Sha384Final(&sha384, hash);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        if (XMEMCMP(hash, a.output, SHA384_DIGEST_SIZE) != 0) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    /* Pass in bad values. */
+    if (!flag) {
+        b.input = NULL;
+        b.inLen = 0;
+
+        ret = wc_Sha384Update(&sha384, (byte*)b.input, (word32)b.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        c.input = NULL;
+        c.inLen = SHA384_DIGEST_SIZE;
+
+        ret = wc_Sha384Update(&sha384, (byte*)c.input, (word32)c.inLen);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_Sha384Update(NULL, (byte*)a.input, (word32)a.inLen);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    /* If not returned then the unit test passed test vectors. */
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_Sha384Update */
+
+/*
+ *  wc_Sha512Update() test.
+ */
+static int test_wc_Sha512Update (void)
+{
+
+#ifdef WOLFSSL_SHA512
+    Sha512 sha512;
+    byte hash[SHA512_DIGEST_SIZE];
+    testVector a, b, c;
+    int ret, flag;
+
+    flag = 0;
+
+    ret = wc_InitSha512(&sha512);
+    if (ret != 0) {
+        flag = ret;
+    }
+
+    printf(testingFmt, "wc_Sha512Update()");
+
+    /* Input. */
+    if (!flag) {
+        a.input = "a";
+        a.inLen = XSTRLEN(a.input);
+    }
+
+    if (!flag) {
+        ret = wc_Sha512Update(&sha512, (byte*)a.input, (word32)a.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_Sha512Final(&sha512, hash);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    /* Update input. */
+    if (!flag) {
+        a.input = "abc";
+        a.output = "\xdd\xaf\x35\xa1\x93\x61\x7a\xba\xcc\x41\x73\x49\xae\x20\x41\x31"
+                   "\x12\xe6\xfa\x4e\x89\xa9\x7e\xa2\x0a\x9e\xee\xe6\x4b\x55\xd3"
+                   "\x9a\x21\x92\x99\x2a\x27\x4f\xc1\xa8\x36\xba\x3c\x23\xa3\xfe"
+                   "\xeb\xbd\x45\x4d\x44\x23\x64\x3c\xe8\x0e\x2a\x9a\xc9\x4f\xa5"
+                   "\x4c\xa4\x9f";
+        a.inLen = XSTRLEN(a.input);
+        a.outLen = XSTRLEN(a.output);
+
+        ret = wc_Sha512Update(&sha512, (byte*) a.input, (word32) a.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_Sha512Final(&sha512, hash);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        if (XMEMCMP(hash, a.output, SHA512_DIGEST_SIZE) != 0) {
+            flag = SSL_FAILURE;
+        }
+    }
+
+    /* Try passing in bad values */
+    if (!flag) {
+        b.input = NULL;
+        b.inLen = 0;
+
+        ret = wc_Sha512Update(&sha512, (byte*)b.input, (word32)b.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        c.input = NULL;
+        c.inLen = SHA512_DIGEST_SIZE;
+
+        ret = wc_Sha512Update(&sha512, (byte*)c.input, (word32)c.inLen);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_Sha512Update(NULL, (byte*)a.input, (word32)a.inLen);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    /* If not returned then the unit test passed test vectors. */
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_Sha512Update  */
+
+/*
+ *  Unit test on wc_Md5Final() in wolfcrypt/src/md5.c
+ */
+static int test_wc_Md5Final (void)
+{
+
+#ifndef NO_MD5
+    /* Instantiate */
+    Md5 md5;
+    byte* hash_test[3];
+    byte hash1[MD5_DIGEST_SIZE];
+    byte hash2[2*MD5_DIGEST_SIZE];
+    byte hash3[5*MD5_DIGEST_SIZE];
+    int times, i, flag, ret;
+
+    flag = 0;
+
+    /* Initialize */
+    ret = wc_InitMd5(&md5);
+    if (ret != 0)  {
+        flag = ret;
+    }
+
+    if (!flag) {
+        hash_test[0] = hash1;
+        hash_test[1] = hash2;
+        hash_test[2] = hash3;
+    }
+
+    times = sizeof(hash_test)/sizeof(byte*);
+
+    /* Test good args. */
+    printf(testingFmt, "wc_Md5Final()");
+
+    for (i = 0; i < times; i++) {
+        if (!flag) {
+            ret = wc_Md5Final(&md5, hash_test[i]);
+            if (ret != 0) {
+                flag = SSL_FATAL_ERROR;
+            }
+        }
+    }
+
+    /* Test bad args. */
+    if (!flag) {
+        ret = wc_Md5Final(NULL, NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_Md5Final(NULL, hash1);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_Md5Final(&md5, NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+}
+
+/*
+ * Unit test on wc_ShaFinal
+ */
+static int test_wc_ShaFinal (void)
+{
+#ifndef NO_SHA
+    Sha sha;
+    byte* hash_test[3];
+    byte hash1[SHA_DIGEST_SIZE];
+    byte hash2[2*SHA_DIGEST_SIZE];
+    byte hash3[5*SHA_DIGEST_SIZE];
+    int times, i, ret, flag;
+
+    flag = 0;
+
+    /*Initialize*/
+    ret = wc_InitSha(&sha);
+    if (ret) {
+        flag =  ret;
+    }
+
+    if (!flag) {
+        hash_test[0] = hash1;
+        hash_test[1] = hash2;
+        hash_test[2] = hash3;
+    }
+
+    times = sizeof(hash_test)/sizeof(byte*);
+
+    /* Good test args. */
+    printf(testingFmt, "wc_ShaFinal()");
+
+    for (i = 0; i < times; i++) {
+        if (!flag) {
+            ret = wc_ShaFinal(&sha, hash_test[i]);
+            if (ret != 0) {
+                flag = SSL_FATAL_ERROR;
+            }
+        }
+    }
+
+    /* Test bad args. */
+    if (!flag) {
+        ret = wc_ShaFinal(NULL, NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_ShaFinal(NULL, hash1);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_ShaFinal(&sha, NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_ShaFinal */
+
+/*
+ * Unit test function for wc_Sha256Final()
+ */
+static int test_wc_Sha256Final (void)
+{
+#ifndef NO_SHA256
+    Sha256 sha256;
+    byte* hash_test[3];
+    byte hash1[SHA256_DIGEST_SIZE];
+    byte hash2[2*SHA256_DIGEST_SIZE];
+    byte hash3[5*SHA256_DIGEST_SIZE];
+    int times, i, ret, flag;
+
+    flag = 0;
+
+    /* Initialize */
+    ret = wc_InitSha256(&sha256);
+    if (ret != 0) {
+        flag =  ret;
+    }
+
+    if (!flag) {
+        hash_test[0] = hash1;
+        hash_test[1] = hash2;
+        hash_test[2] = hash3;
+    }
+
+    times = sizeof(hash_test) / sizeof(byte*);
+
+    /* Good test args. */
+    printf(testingFmt, "wc_Sha256Final()");
+
+    for (i = 0; i < times; i++) {
+        if (!flag) {
+            ret = wc_Sha256Final(&sha256, hash_test[i]);
+            if (ret != 0) {
+                flag = SSL_FATAL_ERROR;
+            }
+        }
+    }
+
+    /* Test bad args. */
+    if (!flag ) {
+        ret = wc_Sha256Final(NULL, NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_Sha256Final(NULL, hash1);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_Sha256Final(&sha256, NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_Sha256Final */
+
+/*
+ * Unit test function for wc_Sha512Final()
+ */
+static int test_wc_Sha512Final (void)
+{
+#ifdef WOLFSSL_SHA512
+    Sha512 sha512;
+    byte* hash_test[3];
+    byte hash1[SHA512_DIGEST_SIZE];
+    byte hash2[2*SHA512_DIGEST_SIZE];
+    byte hash3[5*SHA512_DIGEST_SIZE];
+    int times, i, ret, flag;
+
+    flag = 0;
+
+    /* Initialize  */
+    ret = wc_InitSha512(&sha512);
+    if (ret != 0) {
+        flag =  ret;
+    }
+
+    if (!flag) {
+        hash_test[0] = hash1;
+        hash_test[1] = hash2;
+        hash_test[2] = hash3;
+    }
+
+    times = sizeof(hash_test) / sizeof(byte *);
+
+    /* Good test args. */
+    printf(testingFmt, "wc_Sha512Final()");
+
+    for (i = 0; i < times; i++) {
+        if (!flag) {
+            ret = wc_Sha512Final(&sha512, hash_test[i]);
+            if (ret != 0) {
+                flag = SSL_FATAL_ERROR;
+            }
+        }
+    }
+    /* Test bad args. */
+    if (!flag) {
+        ret = wc_Sha512Final(NULL, NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+
+    if (!flag) {}
+        ret = wc_Sha512Final(NULL, hash1);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_Sha512Final(&sha512, NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_Sha512Final */
+
+/*
+ * Unit test functionf or wc_Sha384Final();
+ */
+static int test_wc_Sha384Final (void)
+{
+#ifdef WOLFSSL_SHA384
+    Sha384 sha384;
+    byte* hash_test[3];
+    byte hash1[SHA384_DIGEST_SIZE];
+    byte hash2[2*SHA384_DIGEST_SIZE];
+    byte hash3[5*SHA384_DIGEST_SIZE];
+    int times, i, ret, flag;
+
+    flag = 0;
+
+    /* Initialize */
+    ret = wc_InitSha384(&sha384);
+    if (ret) {
+        flag = ret;
+    }
+
+    if (!flag) {
+        hash_test[0] = hash1;
+        hash_test[1] = hash2;
+        hash_test[2] = hash3;
+    }
+
+    times = sizeof(hash_test) / sizeof(byte*);
+
+    /* Good test args. */
+    printf(testingFmt, "wc_Sha384Final()");
+
+    for (i = 0; i < times; i++) {
+        if (!flag) {
+            ret = wc_Sha384Final(&sha384, hash_test[i]);
+            if (ret != 0) {
+                flag = SSL_FATAL_ERROR;
+            }
+        }
+    }
+
+    /* Test bad args. */
+    if (!flag) {
+        ret = wc_Sha384Final(NULL, NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_Sha384Final(NULL, hash1);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_Sha384Final(&sha384, NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_Sha384Final */
 
 
 /*----------------------------------------------------------------------------*
@@ -3412,7 +4482,6 @@ void ApiTest(void)
     printf(" Begin API Tests\n");
     AssertIntEQ(test_wolfSSL_Init(), SSL_SUCCESS);
     /* wolfcrypt initialization tests */
-    AssertFalse(test_wolfCrypt_Init());
     test_wolfSSL_Method_Allocators();
     test_wolfSSL_CTX_new(wolfSSLv23_server_method());
     test_wolfSSL_CTX_use_certificate_file();
@@ -3479,6 +4548,24 @@ void ApiTest(void)
     AssertIntEQ(test_RsaSigFailure_cm(), ASN_SIG_CONFIRM_E);
 #endif /* NO_CERTS */
 
+    /*wolfcrypt */
+    printf("\n-----------------wolfcrypt unit tests------------------\n");
+    AssertFalse(test_wolfCrypt_Init());
+    AssertFalse(test_wc_InitMd5());
+    AssertFalse(test_wc_Md5Update());
+    AssertFalse(test_wc_Md5Final());
+    AssertFalse(test_wc_InitSha());
+    AssertFalse(test_wc_ShaUpdate());
+    AssertFalse(test_wc_ShaFinal());
+    AssertFalse(test_wc_InitSha256());
+    AssertFalse(test_wc_Sha256Update());
+    AssertFalse(test_wc_Sha256Final());
+    AssertFalse(test_wc_InitSha512());
+    AssertFalse(test_wc_Sha512Update());
+    AssertFalse(test_wc_Sha512Final());
+    AssertFalse(test_wc_InitSha384());
+    AssertFalse(test_wc_Sha384Update());
+    AssertFalse(test_wc_Sha384Final());
     printf(" End API Tests\n");
 
 }

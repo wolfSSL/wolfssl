@@ -38,20 +38,32 @@
 
     int wc_InitSha256(Sha256* sha)
     {
+        if (sha == NULL) {
+            return BAD_FUNC_ARG;
+        }
         return InitSha256_fips(sha);
     }
     int wc_InitSha256_ex(Sha256* sha, void* heap, int devId)
     {
         (void)heap;
         (void)devId;
+        if (sha == NULL) {
+            return BAD_FUNC_ARG;
+        }
         return InitSha256_fips(sha);
     }
     int wc_Sha256Update(Sha256* sha, const byte* data, word32 len)
     {
+        if (sha == NULL ||  (data == NULL && len > 0)) {
+            return BAD_FUNC_ARG;
+        }
         return Sha256Update_fips(sha, data, len);
     }
     int wc_Sha256Final(Sha256* sha, byte* out)
     {
+        if (sha == NULL || out == NULL) {
+            return BAD_FUNC_ARG;
+        }
         return Sha256Final_fips(sha, out);
     }
     void wc_Sha256Free(Sha256* sha)
@@ -553,8 +565,13 @@ static int InitSha256(Sha256* sha256)
 
     static INLINE int Sha256Final(Sha256* sha256)
     {
+
         int ret;
         byte* local = (byte*)sha256->buffer;
+
+        if (sha256 == NULL) {
+            return BAD_FUNC_ARG;
+        }
 
         SAVE_XMM_YMM; /* for Intel AVX */
 

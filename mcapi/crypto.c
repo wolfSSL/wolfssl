@@ -52,9 +52,7 @@ int CRYPT_MD5_Initialize(CRYPT_MD5_CTX* md5)
     if (md5 == NULL)
         return BAD_FUNC_ARG;
 
-    wc_InitMd5((Md5*)md5);
-
-    return 0;
+    return wc_InitMd5((Md5*)md5);
 }
 
 
@@ -65,9 +63,7 @@ int CRYPT_MD5_DataAdd(CRYPT_MD5_CTX* md5, const unsigned char* input,
     if (md5 == NULL || input == NULL)
         return BAD_FUNC_ARG;
 
-    wc_Md5Update((Md5*)md5, input, sz);
-
-    return 0;
+    return wc_Md5Update((Md5*)md5, input, sz);
 }
 
 
@@ -77,9 +73,7 @@ int CRYPT_MD5_Finalize(CRYPT_MD5_CTX* md5, unsigned char* digest)
     if (md5 == NULL || digest == NULL)
         return BAD_FUNC_ARG;
 
-    wc_Md5Final((Md5*)md5, digest);
-
-    return 0;
+    return wc_Md5Final((Md5*)md5, digest);
 }
 
 

@@ -443,6 +443,9 @@ int wc_Md5Final(Md5* md5, byte* hash)
 
 int wc_InitMd5(Md5* md5)
 {
+    if (md5 == NULL) {
+        return BAD_FUNC_ARG;
+    }
     return wc_InitMd5_ex(md5, NULL, INVALID_DEVID);
 }
 
