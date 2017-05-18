@@ -154,6 +154,7 @@ ASN Options:
 #elif defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS) || defined(FREESCALE_KSDK_FREERTOS)
     #include <time.h>
     #ifndef XTIME
+        /*extern time_t ksdk_time(time_t* timer);*/
         #define XTIME(t1)   ksdk_time((t1))
     #endif
     #define XGMTIME(c, t)   gmtime((c))
@@ -238,10 +239,6 @@ ASN Options:
 #elif defined(WOLFSSL_GMTIME)
     struct tm* gmtime(const time_t* timer);
 #endif
-
-#if defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS)
-    /* extern time_t ksdk_time(time_t* timer); */
-#endif /* FREESCALE_KSDK_BM || FREESCALE_FREE_RTOS */
 
 
 #if defined(_WIN32_WCE)

@@ -2283,6 +2283,8 @@ exit:
    return err;
 }
 
+#endif /* !FREESCALE_LTC_ECC */
+
 /** ECC Fixed Point mulmod global
     k        The multiplicand
     G        Base point to multiply
@@ -2298,8 +2300,6 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
 {
     return wc_ecc_mulmod_ex(k, G, R, a, modulus, map, NULL);
 }
-
-#endif /* !FREESCALE_LTC_ECC */
 
 
 #ifdef ALT_ECC_SIZE

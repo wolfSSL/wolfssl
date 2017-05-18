@@ -52,9 +52,10 @@
     #else
         #include <nio.h>
     #endif
-#elif defined(FREESCALE_KSDK_BM)
+#elif defined(FREESCALE_KSDK_1_3)
     #include "fsl_debug_console.h"
     #include "fsl_os_abstraction.h"
+
     #undef printf
     #define printf PRINTF
 #else
