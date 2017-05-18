@@ -2260,6 +2260,10 @@ struct WOLFSSL_CTX {
     #ifndef NO_RSA
         CallbackRsaSign   RsaSignCb;    /* User RsaSign   Callback handler */
         CallbackRsaVerify RsaVerifyCb;  /* User RsaVerify Callback handler */
+        #ifdef WC_RSA_PSS
+            CallbackRsaPssSign   RsaPssSignCb;    /* User RsaPssSign */
+            CallbackRsaPssVerify RsaPssVerifyCb;  /* User RsaPssVerify */
+        #endif
         CallbackRsaEnc    RsaEncCb;     /* User Rsa Public Encrypt  handler */
         CallbackRsaDec    RsaDecCb;     /* User Rsa Private Decrypt handler */
     #endif /* NO_RSA */
@@ -3099,8 +3103,8 @@ struct WOLFSSL {
 #endif
 #ifdef WOLFSSL_TLS13
     word16          namedGroup;
-    byte            pssAlgo;
 #endif
+    byte            pssAlgo;
 #ifdef HAVE_NTRU
     word16          peerNtruKeyLen;
     byte            peerNtruKey[MAX_NTRU_PUB_KEY_SZ];
@@ -3224,6 +3228,10 @@ struct WOLFSSL {
     #ifndef NO_RSA
         void* RsaSignCtx;     /* Rsa Sign   Callback Context */
         void* RsaVerifyCtx;   /* Rsa Verify Callback Context */
+        #ifdef WC_RSA_PSS
+            void* RsaPssSignCtx;     /* Rsa PSS Sign   Callback Context */
+            void* RsaPssVerifyCtx;   /* Rsa PSS Verify Callback Context */
+        #endif
         void* RsaEncCtx;      /* Rsa Public  Encrypt   Callback Context */
         void* RsaDecCtx;      /* Rsa Private Decrypt   Callback Context */
     #endif /* NO_RSA */

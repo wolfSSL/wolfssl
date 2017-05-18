@@ -580,6 +580,10 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
 #endif /* !WC_NO_RSA_OAEP */
 
 #ifdef WC_RSA_PSS
+/* 0x00 .. 0x00 0x01 | Salt | Gen Hash | 0xbc
+ * XOR MGF over all bytes down to end of Salt
+ * Gen Hash = HASH(8 * 0x00 | Message Hash | Salt)
+ */
 static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
         word32 pkcsBlockLen, WC_RNG* rng, enum wc_HashType hType, int mgf,
         void* heap)
@@ -613,7 +617,8 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
     ret = RsaMGF(mgf, h, hLen, pkcsBlock, pkcsBlockLen - hLen - 1, heap);
     if (ret != 0)
         return ret;
-    pkcsBlock[0] &= 0x7f;
+    /* TODO: use the number of bits in the prime */
+    pkcsBlock[0] &= (1 << 7) - 1;
 
     m = pkcsBlock + pkcsBlockLen - 1 - hLen - hLen - 1;
     *(m++) ^= 0x01;
@@ -835,7 +840,8 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
         return ret;
     }
 
-    tmp[0] &= 0x7f;
+    /* TODO: use the number of bits in the prime */
+    tmp[0] &= (1 << 7) - 1;
     for (i = 0; i < (int)(pkcsBlockLen - 1 - hLen - hLen - 1); i++) {
         if (tmp[i] != pkcsBlock[i]) {
             XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -851,8 +857,11 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
 
     XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
 
+    i = pkcsBlockLen - (RSA_PSS_PAD_SZ + 3 * hLen + 1);
+    XMEMSET(pkcsBlock + i, 0, RSA_PSS_PAD_SZ);
+
     *output = pkcsBlock + i;
-    return hLen;
+    return RSA_PSS_PAD_SZ + 3 * hLen;
 }
 #endif
 
@@ -1576,6 +1585,30 @@ int wc_RsaPSS_VerifyInline(byte* in, word32 inLen, byte** out,
     return RsaPrivateDecryptEx(in, inLen, in, inLen, out, key,
         RSA_PUBLIC_DECRYPT, RSA_BLOCK_TYPE_1, WC_RSA_PSS_PAD,
         hash, mgf, NULL, 0, rng);
+}
+
+/* Sig = 8 * 0x00 | Space for Message Hash | Salt | Exp Hash
+ * Exp Hash = HASH(8 * 0x00 | Message Hash | Salt)
+ */
+int wc_RsaPSS_CheckPadding(const byte* in, word32 inSz, byte* sig,
+                           word32 sigSz, enum wc_HashType hashType)
+{
+    int ret;
+
+    if (in == NULL || sig == NULL ||
+                      inSz != (word32)wc_HashGetDigestSize(hashType) ||
+                      sigSz != RSA_PSS_PAD_SZ + inSz * 3)
+        ret = BAD_FUNC_ARG;
+    else {
+        XMEMCPY(sig + RSA_PSS_PAD_SZ, in, inSz);
+        wc_Hash(hashType, sig, RSA_PSS_PAD_SZ + inSz * 2, sig, inSz);
+        if (XMEMCMP(sig, sig + RSA_PSS_PAD_SZ + inSz * 2, inSz) != 0)
+            ret = BAD_PADDING_E;
+        else
+            ret = 0;
+    }
+
+    return ret;
 }
 #endif
 

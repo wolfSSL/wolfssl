@@ -22038,6 +22038,53 @@ void* wolfSSL_GetRsaVerifyCtx(WOLFSSL* ssl)
     return NULL;
 }
 
+#ifdef WC_RSA_PSS
+void  wolfSSL_CTX_SetRsaPssSignCb(WOLFSSL_CTX* ctx, CallbackRsaPssSign cb)
+{
+    if (ctx)
+        ctx->RsaPssSignCb = cb;
+}
+
+
+void  wolfSSL_SetRsaPssSignCtx(WOLFSSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->RsaPssSignCtx = ctx;
+}
+
+
+void* wolfSSL_GetRsaPssSignCtx(WOLFSSL* ssl)
+{
+    if (ssl)
+        return ssl->RsaPssSignCtx;
+
+    return NULL;
+}
+
+
+void  wolfSSL_CTX_SetRsaPssVerifyCb(WOLFSSL_CTX* ctx, CallbackRsaPssVerify cb)
+{
+    if (ctx)
+        ctx->RsaPssVerifyCb = cb;
+}
+
+
+void  wolfSSL_SetRsaPssVerifyCtx(WOLFSSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->RsaPssVerifyCtx = ctx;
+}
+
+
+void* wolfSSL_GetRsaPssVerifyCtx(WOLFSSL* ssl)
+{
+    if (ssl)
+        return ssl->RsaPssVerifyCtx;
+
+    return NULL;
+}
+#endif
+
 void  wolfSSL_CTX_SetRsaEncCb(WOLFSSL_CTX* ctx, CallbackRsaEnc cb)
 {
     if (ctx)

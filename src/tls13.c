@@ -3205,11 +3205,12 @@ static int CheckRSASignature(WOLFSSL* ssl, int sigAlgo, int hashAlgo,
         }
 
         ret = sigSz = CreateRSAEncodedSig(sigData, sigData, sigDataSz,
-                                    rsa_pss_sa_algo, hashAlgo);
+                                          rsa_pss_sa_algo, hashAlgo);
         if (ret < 0)
             return ret;
 
-        ret = CheckRsaPssPadding(sigData, sigSz, decSig, decSigSz, hashType);
+        ret = wc_RsaPSS_CheckPadding(sigData, sigSz, decSig, decSigSz,
+                                     hashType);
     }
     else
 #endif
@@ -3507,7 +3508,7 @@ typedef struct Scv13Args {
     int    sendSz;
     word16 length;
 
-    int    sigAlgo;
+    byte   sigAlgo;
     byte*  sigData;
     word16 sigDataSz;
 } Scv13Args;
@@ -3937,7 +3938,6 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
             }
             DecodeSigAlg(input + args->idx, &args->hashAlgo, &args->sigAlgo);
             args->idx += OPAQUE16_LEN;
-            /* TODO: [TLS13] was it in SignatureAlgorithms extension? */
 
             /* Signature length. */
             if ((args->idx - args->begin) + OPAQUE16_LEN > totalSz) {

@@ -1693,9 +1693,11 @@ void InitCipherSpecs(CipherSpecs* cs)
 }
 
 static void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
-                                                  int haveRSAsig, int haveAnon)
+                                  int haveRSAsig, int haveAnon, int tls1_2)
 {
     int idx = 0;
+
+    (void)tls1_2;
 
     if (haveECDSAsig) {
         #ifdef WOLFSSL_SHA512
@@ -1718,6 +1720,22 @@ static void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
     }
 
     if (haveRSAsig) {
+        #ifdef WC_RSA_PSS
+            if (tls1_2) {
+            #ifdef WOLFSSL_SHA512
+                suites->hashSigAlgo[idx++] = rsa_pss_sa_algo;
+                suites->hashSigAlgo[idx++] = sha512_mac;
+            #endif
+            #ifdef WOLFSSL_SHA384
+                suites->hashSigAlgo[idx++] = rsa_pss_sa_algo;
+                suites->hashSigAlgo[idx++] = sha384_mac;
+            #endif
+            #ifndef NO_SHA256
+                suites->hashSigAlgo[idx++] = rsa_pss_sa_algo;
+                suites->hashSigAlgo[idx++] = sha256_mac;
+            #endif
+            }
+        #endif
         #ifdef WOLFSSL_SHA512
             suites->hashSigAlgo[idx++] = sha512_mac;
             suites->hashSigAlgo[idx++] = rsa_sa_algo;
@@ -2615,9 +2633,67 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
 
     suites->suiteSz = idx;
 
-    InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig, 0);
+    InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig, 0, tls1_2);
 }
 
+#if !defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS)
+/* Decode the signature algorithm.
+ *
+ * input     The encoded signature algorithm.
+ * hashalgo  The hash algorithm.
+ * hsType   The signature type.
+ */
+static INLINE void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsType)
+{
+    switch (input[0]) {
+    #ifdef WC_RSA_PSS
+        case rsa_pss_sa_algo:
+           /* PSS signatures: 0x080[4-6] */
+           if (input[1] <= sha512_mac) {
+               *hsType   = input[0];
+               *hashAlgo = input[1];
+           }
+           break;
+    #endif
+        /* ED25519: 0x0807 */
+        /* ED448: 0x0808 */
+        default:
+            *hashAlgo = input[0];
+            *hsType   = input[1];
+            break;
+    }
+}
+#endif /* !NO_WOLFSSL_SERVER || !NO_CERTS */
+
+#if !defined(NO_DH) || defined(HAVE_ECC)
+
+static enum wc_HashType HashType(int hashAlgo)
+{
+    switch (hashAlgo) {
+    #ifdef WOLFSSL_SHA512
+        case sha512_mac:
+            return WC_HASH_TYPE_SHA512;
+    #endif
+    #ifdef WOLFSSL_SHA384
+        case sha384_mac:
+            return WC_HASH_TYPE_SHA384;
+    #endif
+    #ifndef NO_SHA256
+        case sha256_mac:
+            return WC_HASH_TYPE_SHA256;
+    #endif
+    #if !defined(NO_SHA) && (!defined(NO_OLD_TLS) || \
+                             defined(WOLFSSL_ALLOW_TLS_SHA1))
+        case sha_mac:
+            return WC_HASH_TYPE_SHA;
+    #endif
+        default:
+            WOLFSSL_MSG("Bad hash sig algo");
+            break;
+    }
+
+    return WC_HASH_TYPE_NONE;
+}
 
 #ifndef NO_CERTS
 
@@ -2729,10 +2805,98 @@ void FreeX509(WOLFSSL_X509* x509)
         FreeAltNames(x509->altNames, NULL);
 }
 
+#endif /* !NO_DH || HAVE_ECC */
+
+#if !defined(NO_RSA) || defined(HAVE_ECC)
+/* Encode the signature algorithm into buffer.
+ *
+ * hashalgo  The hash algorithm.
+ * hsType   The signature type.
+ * output    The buffer to encode into.
+ */
+static INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
+{
+    switch (hsType) {
+#ifdef HAVE_ECC
+        case ecc_dsa_sa_algo:
+            output[0] = hashAlgo;
+            output[1] = ecc_dsa_sa_algo;
+            break;
+#endif
+#ifndef NO_RSA
+        case rsa_sa_algo:
+            output[0] = hashAlgo;
+            output[1] = rsa_sa_algo;
+            break;
+    #ifdef WC_RSA_PSS
+        /* PSS signatures: 0x080[4-6] */
+        case rsa_pss_sa_algo:
+            output[0] = rsa_pss_sa_algo;
+            output[1] = hashAlgo;
+            break;
+    #endif
+#endif
+        /* ED25519: 0x0807 */
+        /* ED448: 0x0808 */
+    }
+}
+static void SetDigest(WOLFSSL* ssl, int hashAlgo)
+{
+    switch (hashAlgo) {
+        #ifndef NO_SHA
+        case sha_mac:
+            ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha;
+            ssl->buffers.digest.length = SHA_DIGEST_SIZE;
+            break;
+        #endif /* !NO_SHA */
+        #ifndef NO_SHA256
+        case sha256_mac:
+            ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha256;
+            ssl->buffers.digest.length = SHA256_DIGEST_SIZE;
+            break;
+        #endif /* !NO_SHA256 */
+        #ifdef WOLFSSL_SHA384
+        case sha384_mac:
+            ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha384;
+            ssl->buffers.digest.length = SHA384_DIGEST_SIZE;
+            break;
+        #endif /* WOLFSSL_SHA384 */
+        #ifdef WOLFSSL_SHA512
+        case sha512_mac:
+            ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha512;
+            ssl->buffers.digest.length = SHA512_DIGEST_SIZE;
+            break;
+        #endif /* WOLFSSL_SHA512 */
+    } /* switch */
+}
+#endif
 
 #ifndef NO_RSA
+static int TypeHash(int hashAlgo)
+{
+    switch (hashAlgo) {
+    #ifdef WOLFSSL_SHA512
+        case sha512_mac:
+            return SHA512h;
+    #endif
+    #ifdef WOLFSSL_SHA384
+        case sha384_mac:
+            return SHA384h;
+    #endif
+    #ifndef NO_SHA256
+        case sha256_mac:
+            return SHA256h;
+    #endif
+    #ifndef NO_SHA
+        case sha_mac:
+            return SHAh;
+    #endif
+    }
 
-#if defined(WOLFSSL_TLS13) && defined(WC_RSA_PSS)
+    return 0;
+}
+
+#if defined(WC_RSA_PSS)
 static int ConvertHashPss(int hashAlgo, enum wc_HashType* hashType, int* mgf) {
     switch (hashAlgo) {
         #ifdef WOLFSSL_SHA512
@@ -2779,6 +2943,30 @@ int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
 
     WOLFSSL_ENTER("RsaSign");
 
+#if defined(WC_RSA_PSS)
+    if (sigAlgo == rsa_pss_sa_algo) {
+        enum wc_HashType hashType = WC_HASH_TYPE_NONE;
+        int mgf = 0;
+
+        ret = ConvertHashPss(hashAlgo, &hashType, &mgf);
+        if (ret != 0)
+            return ret;
+
+    #if defined(HAVE_PK_CALLBACKS)
+        if (ssl->ctx->RsaPssSignCb) {
+            ret = ssl->ctx->RsaPssSignCb(ssl, in, inSz, out, outSz,
+                                         TypeHash(hashAlgo), mgf,
+                                         keyBuf, keySz, ctx);
+        }
+        else
+    #endif
+        {
+            ret = wc_RsaPSS_Sign(in, inSz, out, *outSz, hashType, mgf, key,
+                                                                      ssl->rng);
+        }
+    }
+    else
+#endif
 #if defined(HAVE_PK_CALLBACKS)
     if (ssl->ctx->RsaSignCb) {
         ret = ssl->ctx->RsaSignCb(ssl, in, inSz, out, outSz, keyBuf, keySz,
@@ -2786,22 +2974,7 @@ int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
     }
     else
 #endif /*HAVE_PK_CALLBACKS */
-    {
-#if defined(WOLFSSL_TLS13) && defined(WC_RSA_PSS)
-        if (sigAlgo == rsa_pss_sa_algo) {
-            enum wc_HashType hashType = WC_HASH_TYPE_NONE;
-            int mgf = 0;
-
-            ret = ConvertHashPss(hashAlgo, &hashType, &mgf);
-            if (ret != 0)
-                return ret;
-            ret = wc_RsaPSS_Sign(in, inSz, out, *outSz, hashType, mgf, key,
-                                                                      ssl->rng);
-        }
-        else
-#endif
-            ret = wc_RsaSSL_Sign(in, inSz, out, *outSz, key, ssl->rng);
-    }
+        ret = wc_RsaSSL_Sign(in, inSz, out, *outSz, key, ssl->rng);
 
     /* Handle async pending response */
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -2836,6 +3009,26 @@ int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, int sigAlgo,
 
     WOLFSSL_ENTER("RsaVerify");
 
+#if defined(WC_RSA_PSS)
+    if (sigAlgo == rsa_pss_sa_algo) {
+        enum wc_HashType hashType = WC_HASH_TYPE_NONE;
+        int mgf = 0;
+
+        ret = ConvertHashPss(hashAlgo, &hashType, &mgf);
+        if (ret != 0)
+            return ret;
+#ifdef HAVE_PK_CALLBACKS
+        if (ssl->ctx->RsaPssVerifyCb) {
+            ret = ssl->ctx->RsaPssVerifyCb(ssl, in, inSz, out,
+                                           TypeHash(hashAlgo), mgf,
+                                           keyBuf, keySz, ctx);
+        }
+        else
+#endif /*HAVE_PK_CALLBACKS */
+            ret = wc_RsaPSS_VerifyInline(in, inSz, out, hashType, mgf, key);
+    }
+    else
+#endif
 #ifdef HAVE_PK_CALLBACKS
     if (ssl->ctx->RsaVerifyCb) {
         ret = ssl->ctx->RsaVerifyCb(ssl, in, inSz, out, keyBuf, keySz, ctx);
@@ -2843,19 +3036,7 @@ int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, int sigAlgo,
     else
 #endif /*HAVE_PK_CALLBACKS */
     {
-#if defined(WOLFSSL_TLS13) && defined(WC_RSA_PSS)
-        if (sigAlgo == rsa_pss_sa_algo) {
-            enum wc_HashType hashType = WC_HASH_TYPE_NONE;
-            int mgf = 0;
-
-            ret = ConvertHashPss(hashAlgo, &hashType, &mgf);
-            if (ret != 0)
-                return ret;
-            ret = wc_RsaPSS_VerifyInline(in, inSz, out, hashType, mgf, key);
-        }
-        else
-#endif
-            ret = wc_RsaSSL_VerifyInline(in, inSz, out, key);
+        ret = wc_RsaSSL_VerifyInline(in, inSz, out, key);
     }
 
     /* Handle async pending response */
@@ -2869,30 +3050,6 @@ int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, int sigAlgo,
 
     return ret;
 }
-
-#if defined(WOLFSSL_TLS13) && defined(WC_RSA_PSS)
-int CheckRsaPssPadding(const byte* plain, word32 plainSz, byte* out,
-                       word32 sigSz, enum wc_HashType hashType)
-{
-    int ret;
-
-    if (plainSz != sigSz || out == NULL)
-        ret = VERIFY_CERT_ERROR;
-    else {
-        out -= 2 * sigSz;
-        XMEMCPY(out, plain, plainSz);
-        out -= 8;
-        XMEMSET(out, 0, 8);
-        wc_Hash(hashType, out, 8 + plainSz * 2, out, plainSz);
-        if (XMEMCMP(out, out + 8 + plainSz * 2, plainSz) != 0)
-            ret = VERIFY_CERT_ERROR;
-        else
-            ret = 0;
-    }
-
-    return ret;
-}
-#endif
 
 /* Verify RSA signature, 0 on success */
 int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
@@ -2916,7 +3073,7 @@ int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
         return BUFFER_E;
     }
 
-#if defined(WOLFSSL_TLS13) && defined(WC_RSA_PSS)
+#if defined(WC_RSA_PSS)
     if (sigAlgo == rsa_pss_sa_algo) {
         enum wc_HashType hashType = WC_HASH_TYPE_NONE;
         int mgf = 0;
@@ -2927,7 +3084,9 @@ int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
         ret = wc_RsaPSS_VerifyInline(verifySig, sigSz, &out, hashType, mgf,
                                                                            key);
         if (ret > 0)
-            ret = CheckRsaPssPadding(plain, plainSz, out, ret, hashType);
+            ret = wc_RsaPSS_CheckPadding(plain, plainSz, out, ret, hashType);
+            if (ret != 0)
+                ret = VERIFY_CERT_ERROR;
     }
     else
 #endif
@@ -14773,7 +14932,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
     if (ret) {
         suites->setSuites = 1;
         suites->suiteSz   = (word16)idx;
-        InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig, haveAnon);
+        InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig, haveAnon, 1);
     }
 
     (void)ctx;
@@ -14782,7 +14941,8 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
 }
 
 #if !defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS)
-void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz)
+void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
+                     word32 hashSigAlgoSz)
 {
     word32 i;
 
@@ -14802,25 +14962,33 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz
 
     /* i+1 since peek a byte ahead for type */
     for (i = 0; (i+1) < hashSigAlgoSz; i += HELLO_EXT_SIGALGO_SZ) {
-        if (hashSigAlgo[i+1] == ssl->specs.sig_algo) {
-            if (hashSigAlgo[i] == sha_mac) {
+        byte hashAlgo = 0, sigAlgo = 0;
+
+        DecodeSigAlg(&hashSigAlgo[i], &hashAlgo, &sigAlgo);
+        if (sigAlgo == ssl->specs.sig_algo || (sigAlgo == rsa_pss_sa_algo &&
+                                          ssl->specs.sig_algo == rsa_sa_algo)) {
+            if (hashAlgo == sha_mac) {
+                ssl->suites->sigAlgo = sigAlgo;
                 break;
             }
             #ifndef NO_SHA256
-            else if (hashSigAlgo[i] == sha256_mac) {
+            else if (hashAlgo == sha256_mac) {
                 ssl->suites->hashAlgo = sha256_mac;
+                ssl->suites->sigAlgo = sigAlgo;
                 break;
             }
             #endif
             #ifdef WOLFSSL_SHA384
-            else if (hashSigAlgo[i] == sha384_mac) {
+            else if (hashAlgo == sha384_mac) {
                 ssl->suites->hashAlgo = sha384_mac;
+                ssl->suites->sigAlgo = sigAlgo;
                 break;
             }
             #endif
             #ifdef WOLFSSL_SHA512
-            else if (hashSigAlgo[i] == sha512_mac) {
+            else if (hashAlgo == sha512_mac) {
                 ssl->suites->hashAlgo = sha512_mac;
+                ssl->suites->sigAlgo = sigAlgo;
                 break;
             }
             #endif
@@ -14829,6 +14997,7 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo, word32 hashSigAlgoSz
             ssl->suites->hashAlgo = ssl->specs.mac_algorithm;
         }
     }
+
 }
 #endif /* !defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS) */
 
@@ -15773,14 +15942,12 @@ typedef struct DskeArgs {
 #endif
     word32 idx;
     word32 begin;
-#ifndef NO_RSA
-    int    typeH;
-#endif
 #if !defined(NO_DH) || defined(HAVE_ECC)
     word16 verifySigSz;
 #endif
     word16 sigSz;
     byte   sigAlgo;
+    byte   hashAlgo;
 } DskeArgs;
 
 static void FreeDskeArgs(WOLFSSL* ssl, void* pArgs)
@@ -15829,6 +15996,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
         args->idx = *inOutIdx;
         args->begin = *inOutIdx;
         args->sigAlgo = ssl->specs.sig_algo;
+        args->hashAlgo = sha_mac;
     #ifdef WOLFSSL_ASYNC_CRYPT
         ssl->async.freeArgs = FreeDskeArgs;
     #endif
@@ -16249,8 +16417,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
             #if defined(NO_DH) && !defined(HAVE_ECC)
                     ERROR_OUT(NOT_COMPILED_IN, exit_dske);
             #else
-                    byte    hashAlgo = sha_mac;
-                    enum wc_HashType hashType = WC_HASH_TYPE_NONE;
+                    enum wc_HashType hashType;
                     word16  verifySz;
 
                     if (ssl->options.usingAnon_cipher) {
@@ -16268,37 +16435,10 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                             ERROR_OUT(BUFFER_ERROR, exit_dske);
                         }
 
-                        hashAlgo = input[args->idx++];
-                        args->sigAlgo  = input[args->idx++];
-
-                        switch (hashAlgo) {
-                            case sha512_mac:
-                            #ifdef WOLFSSL_SHA512
-                                hashType = WC_HASH_TYPE_SHA512;
-                            #endif
-                                break;
-                            case sha384_mac:
-                            #ifdef WOLFSSL_SHA384
-                                hashType = WC_HASH_TYPE_SHA384;
-                            #endif
-                                break;
-                            case sha256_mac:
-                            #ifndef NO_SHA256
-                                hashType = WC_HASH_TYPE_SHA256;
-                            #endif
-                                break;
-                            case sha_mac:
-                                #if !defined(NO_SHA) && \
-                                      (!defined(NO_OLD_TLS) || \
-                                        defined(WOLFSSL_ALLOW_TLS_SHA1))
-                                    hashType = WC_HASH_TYPE_SHA;
-                                #endif
-                                break;
-                            default:
-                                WOLFSSL_MSG("Bad hash sig algo");
-                                break;
-                        }
-
+                        DecodeSigAlg(&input[args->idx], &args->hashAlgo,
+                                     &args->sigAlgo);
+                        args->idx += 2;
+                        hashType = HashType(args->hashAlgo);
                         if (hashType == WC_HASH_TYPE_NONE) {
                             ERROR_OUT(ALGO_ID_E, exit_dske);
                         }
@@ -16313,9 +16453,6 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                             ERROR_OUT(ALGO_ID_E, exit_dske);
                         #endif
                     }
-                #ifndef NO_RSA
-                    args->typeH = wc_HashGetOID(hashType);
-                #endif
 
                     /* signature */
                     if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
@@ -16365,6 +16502,9 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     switch (args->sigAlgo)
                     {
                     #ifndef NO_RSA
+                    #ifdef WC_RSA_PSS
+                        case rsa_pss_sa_algo:
+                    #endif
                         case rsa_sa_algo:
                         {
                             if (ssl->peerRsaKey == NULL ||
@@ -16440,12 +16580,15 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     switch (args->sigAlgo)
                     {
                     #ifndef NO_RSA
+                    #ifdef WC_RSA_PSS
+                        case rsa_pss_sa_algo:
+                    #endif
                         case rsa_sa_algo:
                         {
                             ret = RsaVerify(ssl,
                                 args->verifySig, args->verifySigSz,
                                 &args->output,
-                                rsa_sa_algo, no_mac,
+                                args->sigAlgo, args->hashAlgo,
                                 ssl->peerRsaKey,
                             #ifdef HAVE_PK_CALLBACKS
                                 ssl->buffers.peerRsaKey.buffer,
@@ -16532,6 +16675,17 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     switch(args->sigAlgo)
                     {
                     #ifndef NO_RSA
+                    #ifdef WC_RSA_PSS
+                        case rsa_pss_sa_algo:
+                            ret = wc_RsaPSS_CheckPadding(
+                                                     ssl->buffers.digest.buffer,
+                                                     ssl->buffers.digest.length,
+                                                     args->output, args->sigSz,
+                                                     HashType(args->hashAlgo));
+                            if (ret != 0)
+                                return ret;
+                            break;
+                    #endif
                         case rsa_sa_algo:
                         {
                             if (IsAtLeastTLSv1_2(ssl)) {
@@ -16552,7 +16706,8 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
 
                                 encSigSz = wc_EncodeSignature(encodedSig,
                                     ssl->buffers.digest.buffer,
-                                    ssl->buffers.digest.length, args->typeH);
+                                    ssl->buffers.digest.length,
+                                    TypeHash(args->hashAlgo));
                                 if (encSigSz != args->sigSz || !args->output ||
                                     XMEMCMP(args->output, encodedSig,
                                             min(encSigSz, MAX_ENCODED_SIG_SZ)) != 0) {
@@ -18054,6 +18209,7 @@ typedef struct ScvArgs {
     int    sendSz;
     int    length;
     int    inputSz;
+    byte   sigAlgo;
 } ScvArgs;
 
 static void FreeScvArgs(WOLFSSL* ssl, void* pArgs)
@@ -18135,8 +18291,6 @@ int SendCertificateVerify(WOLFSSL* ssl)
 
         case TLS_ASYNC_BUILD:
         {
-            int    typeH;
-
             ret = BuildCertHashes(ssl, &ssl->hsHashes->certHashes);
             if (ret != 0) {
                 goto exit_scv;
@@ -18171,59 +18325,33 @@ int SendCertificateVerify(WOLFSSL* ssl)
     #ifndef NO_OLD_TLS
         #ifndef NO_SHA
             /* old tls default */
-            ssl->buffers.digest.length = SHA_DIGEST_SIZE;
-            ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha;
-            typeH = SHAh;
+            SetDigest(ssl, sha_mac);
         #endif
     #else
         #ifndef NO_SHA256
             /* new tls default */
-            ssl->buffers.digest.length = SHA256_DIGEST_SIZE;
-            ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha256;
-            typeH = SHA256h;
+            SetDigest(ssl, sha256_mac);
         #endif
     #endif /* !NO_OLD_TLS */
 
-            if (IsAtLeastTLSv1_2(ssl)) {
-                args->verify[0] = ssl->suites->hashAlgo;
-                args->verify[1] = (ssl->hsType == DYNAMIC_TYPE_ECC) ?
-                                                ecc_dsa_sa_algo : rsa_sa_algo;
-                args->extraSz = HASH_SIG_SIZE;
+            if (ssl->hsType == DYNAMIC_TYPE_RSA) {
+        #ifdef WC_RSA_PSS
+                if (IsAtLeastTLSv1_2(ssl) &&
+                                (ssl->pssAlgo | (1 << ssl->suites->hashAlgo))) {
+                    args->sigAlgo = rsa_pss_sa_algo;
+                }
+                else
+        #endif
+                    args->sigAlgo = rsa_sa_algo;
+            }
+            else if (ssl->hsType == DYNAMIC_TYPE_ECC)
+                args->sigAlgo = ecc_dsa_sa_algo;
 
-                switch (ssl->suites->hashAlgo) {
-                #ifndef NO_SHA
-                    case sha_mac:
-                        ssl->buffers.digest.length = SHA_DIGEST_SIZE;
-                        ssl->buffers.digest.buffer =
-                            ssl->hsHashes->certHashes.sha;
-                        typeH    = SHAh;
-                        break;
-                #endif /* NO_SHA */
-                #ifndef NO_SHA256
-                    case sha256_mac:
-                        ssl->buffers.digest.length = SHA256_DIGEST_SIZE;
-                        ssl->buffers.digest.buffer =
-                            ssl->hsHashes->certHashes.sha256;
-                        typeH    = SHA256h;
-                        break;
-                #endif /* !NO_SHA256 */
-                #ifdef WOLFSSL_SHA384
-                    case sha384_mac:
-                        ssl->buffers.digest.length = SHA384_DIGEST_SIZE;
-                        ssl->buffers.digest.buffer =
-                            ssl->hsHashes->certHashes.sha384;
-                        typeH    = SHA384h;
-                        break;
-                #endif /* WOLFSSL_SHA384 */
-                #ifdef WOLFSSL_SHA512
-                    case sha512_mac:
-                        ssl->buffers.digest.length = SHA512_DIGEST_SIZE;
-                        ssl->buffers.digest.buffer =
-                            ssl->hsHashes->certHashes.sha512;
-                        typeH    = SHA512h;
-                        break;
-                #endif /* WOLFSSL_SHA512 */
-                } /* switch */
+            if (IsAtLeastTLSv1_2(ssl)) {
+                EncodeSigAlg(ssl->suites->hashAlgo, args->sigAlgo,
+                             args->verify);
+                args->extraSz = HASH_SIG_SIZE;
+                SetDigest(ssl, ssl->suites->hashAlgo);
             }
         #ifndef NO_OLD_TLS
             else {
@@ -18233,20 +18361,26 @@ int SendCertificateVerify(WOLFSSL* ssl)
             }
         #endif
 
-            if (typeH == 0) {
-                ERROR_OUT(ALGO_ID_E, exit_scv);
-            }
-
         #ifndef NO_RSA
-            if (ssl->hsType == DYNAMIC_TYPE_RSA) {
+            if (args->sigAlgo == rsa_sa_algo) {
                 ssl->buffers.sig.length = FINISHED_SZ;
                 args->sigSz = ENCRYPT_LEN;
 
                 if (IsAtLeastTLSv1_2(ssl)) {
                     ssl->buffers.sig.length = wc_EncodeSignature(
                             ssl->buffers.sig.buffer, ssl->buffers.digest.buffer,
-                            ssl->buffers.digest.length, typeH);
+                            ssl->buffers.digest.length,
+                            TypeHash(ssl->suites->hashAlgo));
                 }
+
+                /* prepend hdr */
+                c16toa((word16)args->length, args->verify + args->extraSz);
+            }
+            else if (args->sigAlgo == rsa_pss_sa_algo) {
+                XMEMCPY(ssl->buffers.sig.buffer, ssl->buffers.digest.buffer,
+                        ssl->buffers.digest.length);
+                ssl->buffers.sig.length = ssl->buffers.digest.length;
+                args->sigSz = ENCRYPT_LEN;
 
                 /* prepend hdr */
                 c16toa((word16)args->length, args->verify + args->extraSz);
@@ -18288,9 +18422,8 @@ int SendCertificateVerify(WOLFSSL* ssl)
                 ret = RsaSign(ssl,
                     ssl->buffers.sig.buffer, ssl->buffers.sig.length,
                     args->verify + args->extraSz + VERIFY_HEADER, &args->sigSz,
-                    rsa_sa_algo, no_mac, key,
-                    ssl->buffers.key->buffer,
-                    ssl->buffers.key->length,
+                    args->sigAlgo, ssl->suites->hashAlgo, key,
+                    ssl->buffers.key->buffer, ssl->buffers.key->length,
                 #ifdef HAVE_PK_CALLBACKS
                     ssl->RsaSignCtx
                 #else
@@ -18343,7 +18476,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
                 ret = VerifyRsaSign(ssl,
                     args->verifySig, args->sigSz,
                     ssl->buffers.sig.buffer, ssl->buffers.sig.length,
-                    rsa_sa_algo, no_mac, key
+                    args->sigAlgo, ssl->suites->hashAlgo, key
                 );
             }
         #endif /* !NO_RSA */
@@ -19281,7 +19414,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 #ifdef HAVE_ECC
                     case ecc_diffie_hellman_kea:
                     {
-                        enum wc_HashType hashType = WC_HASH_TYPE_NONE;
+                        enum wc_HashType hashType;
 
                         /* curve type, named curve, length(1) */
                         args->idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
@@ -19303,9 +19436,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         preSigSz  = args->length;
                         preSigIdx = args->idx;
 
-                        switch(ssl->specs.sig_algo)
+                        switch(ssl->suites->sigAlgo)
                         {
                         #ifndef NO_RSA
+                        #ifdef WC_RSA_PSS
+                            case rsa_pss_sa_algo:
+                        #endif
                             case rsa_sa_algo:
                             {
                                 word32 i = 0;
@@ -19416,37 +19552,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
                         /* Determine hash type */
                         if (IsAtLeastTLSv1_2(ssl)) {
-                            args->output[args->idx++] = ssl->suites->hashAlgo;
-                            args->output[args->idx++] = ssl->suites->sigAlgo;
+                            EncodeSigAlg(ssl->suites->hashAlgo,
+                                         ssl->suites->sigAlgo,
+                                         &args->output[args->idx]);
+                            args->idx += 2;
 
-                            switch (ssl->suites->hashAlgo) {
-                                case sha512_mac:
-                                #ifdef WOLFSSL_SHA512
-                                    hashType = WC_HASH_TYPE_SHA512;
-                                #endif
-                                    break;
-                                case sha384_mac:
-                                #ifdef WOLFSSL_SHA384
-                                    hashType = WC_HASH_TYPE_SHA384;
-                                #endif
-                                    break;
-                                case sha256_mac:
-                                #ifndef NO_SHA256
-                                    hashType = WC_HASH_TYPE_SHA256;
-                                #endif
-                                    break;
-                                case sha_mac:
-                                    #if !defined(NO_SHA) && \
-                                            (!defined(NO_OLD_TLS) || \
-                                              defined(WOLFSSL_ALLOW_TLS_SHA1))
-                                        hashType = WC_HASH_TYPE_SHA;
-                                    #endif
-                                    break;
-                                default:
-                                    WOLFSSL_MSG("Bad hash sig algo");
-                                    break;
-                            }
-
+                            hashType = HashType(ssl->suites->hashAlgo);
                             if (hashType == WC_HASH_TYPE_NONE) {
                                 ERROR_OUT(ALGO_ID_E, exit_sske);
                             }
@@ -19505,14 +19616,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         args->sigSz = args->tmpSigSz;
 
                         /* Sign hash to create signature */
-                        switch (ssl->specs.sig_algo)
+                        switch (ssl->suites->sigAlgo)
                         {
                         #ifndef NO_RSA
                             case rsa_sa_algo:
                             {
                                 /* For TLS 1.2 re-encode signature */
                                 if (IsAtLeastTLSv1_2(ssl)) {
-                                    int typeH = 0;
                                     byte* encodedSig = (byte*)XMALLOC(
                                                   MAX_ENCODED_SIG_SZ, ssl->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
@@ -19520,37 +19630,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                         ERROR_OUT(MEMORY_E, exit_sske);
                                     }
 
-                                    switch (ssl->suites->hashAlgo) {
-                                        case sha512_mac:
-                                        #ifdef WOLFSSL_SHA512
-                                            typeH    = SHA512h;
-                                        #endif
-                                            break;
-                                        case sha384_mac:
-                                        #ifdef WOLFSSL_SHA384
-                                            typeH    = SHA384h;
-                                        #endif
-                                            break;
-                                        case sha256_mac:
-                                        #ifndef NO_SHA256
-                                            typeH    = SHA256h;
-                                        #endif
-                                            break;
-                                        case sha_mac:
-                                            #if !defined(NO_SHA) && \
-                                              (!defined(NO_OLD_TLS) || \
-                                                defined(WOLFSSL_ALLOW_TLS_SHA1))
-                                                typeH    = SHAh;
-                                            #endif
-                                            break;
-                                        default:
-                                            break;
-                                    }
-
                                     ssl->buffers.sig.length =
                                         wc_EncodeSignature(encodedSig,
-                                        ssl->buffers.sig.buffer,
-                                        ssl->buffers.sig.length, typeH);
+                                            ssl->buffers.sig.buffer,
+                                            ssl->buffers.sig.length,
+                                            TypeHash(ssl->suites->hashAlgo));
 
                                     /* Replace sig buffer with new one */
                                     XFREE(ssl->buffers.sig.buffer, ssl->heap,
@@ -19564,6 +19648,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 args->idx += LENGTH_SZ;
                                 break;
                             }
+                        #ifdef WC_RSA_PSS
+                            case rsa_pss_sa_algo:
+                                /* write sig size here */
+                                c16toa((word16)args->sigSz,
+                                    args->output + args->idx);
+                                args->idx += LENGTH_SZ;
+                                break;
+                        #endif
                         #endif /* !NO_RSA */
                             case ecc_dsa_sa_algo:
                             {
@@ -19576,7 +19668,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 #if !defined(NO_DH) && !defined(NO_RSA)
                     case diffie_hellman_kea:
                     {
-                        enum wc_HashType hashType = WC_HASH_TYPE_NONE;
+                        enum wc_HashType hashType;
 
                         args->idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
                         args->length = LENGTH_SZ * 3;  /* p, g, pub */
@@ -19696,37 +19788,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
                         /* Determine hash type */
                         if (IsAtLeastTLSv1_2(ssl)) {
-                            args->output[args->idx++] = ssl->suites->hashAlgo;
-                            args->output[args->idx++] = ssl->suites->sigAlgo;
+                            EncodeSigAlg(ssl->suites->hashAlgo,
+                                         ssl->suites->sigAlgo,
+                                         &args->output[args->idx]);
+                            args->idx += 2;
 
-                            switch (ssl->suites->hashAlgo) {
-                                case sha512_mac:
-                                #ifdef WOLFSSL_SHA512
-                                    hashType = WC_HASH_TYPE_SHA512;
-                                #endif
-                                    break;
-                                case sha384_mac:
-                                #ifdef WOLFSSL_SHA384
-                                    hashType = WC_HASH_TYPE_SHA384;
-                                #endif
-                                    break;
-                                case sha256_mac:
-                                #ifndef NO_SHA256
-                                    hashType = WC_HASH_TYPE_SHA256;
-                                #endif
-                                    break;
-                                case sha_mac:
-                                    #if !defined(NO_SHA) && \
-                                            (!defined(NO_OLD_TLS) || \
-                                              defined(WOLFSSL_ALLOW_TLS_SHA1))
-                                        hashType = WC_HASH_TYPE_SHA;
-                                    #endif
-                                    break;
-                                default:
-                                    WOLFSSL_MSG("Bad hash sig algo");
-                                    break;
-                            }
-
+                            hashType = HashType(ssl->suites->hashAlgo);
                             if (hashType == WC_HASH_TYPE_NONE) {
                                 ERROR_OUT(ALGO_ID_E, exit_sske);
                             }
@@ -19786,7 +19853,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             {
                                 /* For TLS 1.2 re-encode signature */
                                 if (IsAtLeastTLSv1_2(ssl)) {
-                                    int typeH = 0;
                                     byte* encodedSig = (byte*)XMALLOC(
                                                   MAX_ENCODED_SIG_SZ, ssl->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
@@ -19794,37 +19860,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                         ERROR_OUT(MEMORY_E, exit_sske);
                                     }
 
-                                    switch (ssl->suites->hashAlgo) {
-                                        case sha512_mac:
-                                        #ifdef WOLFSSL_SHA512
-                                            typeH    = SHA512h;
-                                        #endif
-                                            break;
-                                        case sha384_mac:
-                                        #ifdef WOLFSSL_SHA384
-                                            typeH    = SHA384h;
-                                        #endif
-                                            break;
-                                        case sha256_mac:
-                                        #ifndef NO_SHA256
-                                            typeH    = SHA256h;
-                                        #endif
-                                            break;
-                                        case sha_mac:
-                                            #if !defined(NO_SHA) && \
-                                              (!defined(NO_OLD_TLS) || \
-                                                defined(WOLFSSL_ALLOW_TLS_SHA1))
-                                                typeH    = SHAh;
-                                            #endif
-                                            break;
-                                        default:
-                                            break;
-                                    }
-
                                     ssl->buffers.sig.length =
-                                    wc_EncodeSignature(encodedSig,
-                                        ssl->buffers.sig.buffer,
-                                        ssl->buffers.sig.length, typeH);
+                                        wc_EncodeSignature(encodedSig,
+                                            ssl->buffers.sig.buffer,
+                                            ssl->buffers.sig.length,
+                                            TypeHash(ssl->suites->hashAlgo));
 
                                     /* Replace sig buffer with new one */
                                     XFREE(ssl->buffers.sig.buffer, ssl->heap,
@@ -19876,9 +19916,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     case ecc_diffie_hellman_kea:
                     {
                         /* Sign hash to create signature */
-                        switch (ssl->specs.sig_algo)
+                        switch (ssl->suites->sigAlgo)
                         {
                         #ifndef NO_RSA
+                        #ifdef WC_RSA_PSS
+                            case rsa_pss_sa_algo:
+                        #endif
                             case rsa_sa_algo:
                             {
                                 RsaKey* key = (RsaKey*)ssl->hsKey;
@@ -19888,7 +19931,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     ssl->buffers.sig.length,
                                     args->output + args->idx,
                                     &args->sigSz,
-                                    rsa_sa_algo, no_mac, key,
+                                    ssl->suites->sigAlgo, ssl->suites->hashAlgo,
+                                    key,
                                     ssl->buffers.key->buffer,
                                     ssl->buffers.key->length,
                             #ifdef HAVE_PK_CALLBACKS
@@ -19931,6 +19975,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         switch (ssl->suites->sigAlgo)
                         {
                         #ifndef NO_RSA
+                        #ifdef WC_RSA_PSS
+                            case rsa_pss_sa_algo:
+                        #endif
                             case rsa_sa_algo:
                             {
                                 RsaKey* key = (RsaKey*)ssl->hsKey;
@@ -19944,7 +19991,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     ssl->buffers.sig.length,
                                     args->output + args->idx,
                                     &args->sigSz,
-                                    rsa_sa_algo, no_mac, key,
+                                    ssl->suites->sigAlgo, ssl->suites->hashAlgo,
+                                    key,
                                     ssl->buffers.key->buffer,
                                     ssl->buffers.key->length,
                                 #ifdef HAVE_PK_CALLBACKS
@@ -20001,9 +20049,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 #ifdef HAVE_ECC
                     case ecc_diffie_hellman_kea:
                     {
-                        switch(ssl->specs.sig_algo)
+                        switch(ssl->suites->sigAlgo)
                         {
                         #ifndef NO_RSA
+                        #ifdef WC_RSA_PSS
+                            case rsa_pss_sa_algo:
+                        #endif
                             case rsa_sa_algo:
                             {
                                 RsaKey* key = (RsaKey*)ssl->hsKey;
@@ -20027,7 +20078,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     args->verifySig, args->sigSz,
                                     ssl->buffers.sig.buffer,
                                     ssl->buffers.sig.length,
-                                    rsa_sa_algo, no_mac, key
+                                    ssl->suites->sigAlgo, ssl->suites->hashAlgo,
+                                    key
                                 );
                                 break;
                             }
@@ -20055,6 +20107,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         switch (ssl->suites->sigAlgo)
                         {
                         #ifndef NO_RSA
+                        #ifndef WC_RSA_PSS
+                            case rsa_pss_sa_algo:
+                        #endif
                             case rsa_sa_algo:
                             {
                                 RsaKey* key = (RsaKey*)ssl->hsKey;
@@ -20082,7 +20137,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     args->verifySig, args->sigSz,
                                     ssl->buffers.sig.buffer,
                                     ssl->buffers.sig.length,
-                                    rsa_sa_algo, no_mac, key
+                                    ssl->suites->sigAlgo, ssl->suites->hashAlgo,
+                                    key
                                 );
                                 break;
                             }
@@ -20361,7 +20417,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 result = SetCipherSpecs(ssl);
                 if (result == 0)
                     PickHashSigAlgo(ssl, peerSuites->hashSigAlgo,
-                                         peerSuites->hashSigAlgoSz);
+                                    peerSuites->hashSigAlgoSz);
                 return result;
             }
             else {
@@ -21152,9 +21208,18 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         ERROR_OUT(BUFFER_ERROR, exit_dcv);
                     }
 
-                    args->hashAlgo = input[args->idx++];
-                    args->sigAlgo  = input[args->idx++];
+                    DecodeSigAlg(&input[args->idx], &args->hashAlgo,
+                                 &args->sigAlgo);
+                    args->idx += 2;
                 }
+            #ifndef NO_RSA
+                else if (ssl->peerRsaKey != NULL && ssl->peerRsaKeyPresent != 0)
+                    args->sigAlgo = rsa_sa_algo;
+            #endif
+            #ifdef HAVE_ECC
+                else if (ssl->peerEccDsaKeyPresent)
+                    args->sigAlgo = ecc_dsa_sa_algo;
+            #endif
 
                 if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
                     ERROR_OUT(BUFFER_ERROR, exit_dcv);
@@ -21175,17 +21240,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
                 /* make sure a default is defined */
                 #if !defined(NO_SHA)
-                    ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha;
-                    ssl->buffers.digest.length = SHA_DIGEST_SIZE;
+                    SetDigest(ssl, sha_mac);
                 #elif !defined(NO_SHA256)
-                    ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha256;
-                    ssl->buffers.digest.length = SHA256_DIGEST_SIZE;
+                    SetDigest(ssl, sha256_mac);
                 #elif defined(WOLFSSL_SHA384)
-                    ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha384;
-                    ssl->buffers.digest.length = SHA384_DIGEST_SIZE;
+                    SetDigest(ssl, sha384_mac);
                 #elif defined(WOLFSSL_SHA512)
-                    ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha512;
-                    ssl->buffers.digest.length = SHA512_DIGEST_SIZE;
+                    SetDigest(ssl, sha512_mac);
                 #else
                     #error No digest enabled for ECC sig verify
                 #endif
@@ -21195,26 +21256,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             WOLFSSL_MSG("Oops, peer sent ECC key but not in verify");
                         }
 
-                        switch (args->hashAlgo) {
-                            case sha256_mac:
-                            #ifndef NO_SHA256
-                                ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha256;
-                                ssl->buffers.digest.length = SHA256_DIGEST_SIZE;
-                            #endif
-                                break;
-                            case sha384_mac:
-                            #ifdef WOLFSSL_SHA384
-                                ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha384;
-                                ssl->buffers.digest.length = SHA384_DIGEST_SIZE;
-                            #endif
-                                break;
-                            case sha512_mac:
-                            #ifdef WOLFSSL_SHA512
-                                ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha512;
-                                ssl->buffers.digest.length = SHA512_DIGEST_SIZE;
-                            #endif
-                                break;
-                        }
+                        SetDigest(ssl, args->hashAlgo);
                     }
                 }
             #endif /* HAVE_ECC */
@@ -21234,7 +21276,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         input + args->idx,
                         args->sz,
                         &args->output,
-                        rsa_sa_algo, no_mac,
+                        args->sigAlgo, args->hashAlgo,
                         ssl->peerRsaKey,
                     #ifdef HAVE_PK_CALLBACKS
                         ssl->buffers.peerRsaKey.buffer,
@@ -21245,7 +21287,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     #endif
                     );
                     if (ret >= 0) {
-                        args->sendSz = ret;
+                        if (args->sigAlgo == rsa_sa_algo)
+                            args->sendSz = ret;
+                        else {
+                            args->sigSz = ret;
+                            args->sendSz = ssl->buffers.digest.length;
+                        }
                         ret = 0;
                     }
                 }
@@ -21284,79 +21331,56 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             #ifndef NO_RSA
                 if (ssl->peerRsaKey != NULL && ssl->peerRsaKeyPresent != 0) {
                     if (IsAtLeastTLSv1_2(ssl)) {
-                    #ifdef WOLFSSL_SMALL_STACK
-                        byte* encodedSig = NULL;
-                    #else
-                        byte  encodedSig[MAX_ENCODED_SIG_SZ];
-                    #endif
-                        int   typeH = SHAh;
+                    #ifdef WC_RSA_PSS
+                        if (args->sigAlgo == rsa_pss_sa_algo) {
+                            SetDigest(ssl, args->hashAlgo);
 
-                    /* make sure a default is defined */
-                    #if !defined(NO_SHA)
-                        ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha;
-                        ssl->buffers.digest.length = SHA_DIGEST_SIZE;
-                    #elif !defined(NO_SHA256)
-                        ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha256;
-                        ssl->buffers.digest.length = SHA256_DIGEST_SIZE;
-                    #elif defined(WOLFSSL_SHA384)
-                        ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha384;
-                        ssl->buffers.digest.length = SHA384_DIGEST_SIZE;
-                    #elif defined(WOLFSSL_SHA512)
-                        ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha512;
-                        ssl->buffers.digest.length = SHA512_DIGEST_SIZE;
-                    #else
-                        #error No digest enabled for RSA sig verify
-                    #endif
-
-                    #ifdef WOLFSSL_SMALL_STACK
-                        encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ,
-                                            ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-                        if (encodedSig == NULL) {
-                            ERROR_OUT(MEMORY_E, exit_dcv);
+                            ret = wc_RsaPSS_CheckPadding(
+                                                     ssl->buffers.digest.buffer,
+                                                     ssl->buffers.digest.length,
+                                                     args->output, args->sigSz,
+                                                     HashType(args->hashAlgo));
+                            if (ret != 0)
+                                return ret;
                         }
+                        else
                     #endif
+                        {
+                        #ifdef WOLFSSL_SMALL_STACK
+                            byte* encodedSig = NULL;
+                        #else
+                            byte  encodedSig[MAX_ENCODED_SIG_SZ];
+                        #endif
 
-                        if (args->sigAlgo != rsa_sa_algo) {
-                            WOLFSSL_MSG("Oops, peer sent RSA key but not in verify");
+                        #ifdef WOLFSSL_SMALL_STACK
+                            encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ,
+                                                ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                            if (encodedSig == NULL) {
+                                ERROR_OUT(MEMORY_E, exit_dcv);
+                            }
+                        #endif
+
+                            if (args->sigAlgo != rsa_sa_algo) {
+                                WOLFSSL_MSG("Oops, peer sent RSA key but not in verify");
+                            }
+
+                            SetDigest(ssl, args->hashAlgo);
+
+                            args->sigSz = wc_EncodeSignature(encodedSig,
+                                ssl->buffers.digest.buffer,
+                                ssl->buffers.digest.length,
+                                TypeHash(args->hashAlgo));
+
+                            if (args->sendSz != args->sigSz || !args->output ||
+                                XMEMCMP(args->output, encodedSig,
+                                    min(args->sigSz, MAX_ENCODED_SIG_SZ)) != 0) {
+                                ret = VERIFY_CERT_ERROR;
+                            }
+
+                        #ifdef WOLFSSL_SMALL_STACK
+                            XFREE(encodedSig, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                        #endif
                         }
-
-                        switch (args->hashAlgo) {
-                            case sha256_mac:
-                            #ifndef NO_SHA256
-                                typeH    = SHA256h;
-                                ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha256;
-                                ssl->buffers.digest.length = SHA256_DIGEST_SIZE;
-                            #endif /* !NO_SHA256 */
-                                break;
-                            case sha384_mac:
-                            #ifdef WOLFSSL_SHA384
-                                typeH    = SHA384h;
-                                ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha384;
-                                ssl->buffers.digest.length = SHA384_DIGEST_SIZE;
-                            #endif /* WOLFSSL_SHA384 */
-                                break;
-                            case sha512_mac:
-                            #ifdef WOLFSSL_SHA512
-                                typeH    = SHA512h;
-                                ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha512;
-                                ssl->buffers.digest.length = SHA512_DIGEST_SIZE;
-                            #endif /* WOLFSSL_SHA512 */
-                                break;
-                        } /* switch */
-
-                        args->sigSz = wc_EncodeSignature(encodedSig,
-                            ssl->buffers.digest.buffer,
-                            ssl->buffers.digest.length, typeH);
-
-                        if (args->sendSz != args->sigSz || !args->output ||
-                            XMEMCMP(args->output, encodedSig,
-                                min(args->sigSz, MAX_ENCODED_SIG_SZ)) != 0) {
-                            ret = VERIFY_CERT_ERROR;
-                        }
-
-                    #ifdef WOLFSSL_SMALL_STACK
-                        XFREE(encodedSig, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-                    #endif
                     }
                     else {
                         if (args->sendSz != FINISHED_SZ || !args->output ||

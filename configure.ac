@@ -243,7 +243,6 @@ AC_ARG_ENABLE([tls13],
 if test "$ENABLED_TLS13" = "yes"
 then
   AM_CFLAGS="-DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS -DHAVE_FFDHE_2048 $AM_CFLAGS"
-  AM_CFLAGS="-DWC_RSA_PSS $AM_CFLAGS"
 fi
 
 # check if TLS v1.3 was enabled for conditionally running tls13.test script
@@ -1299,6 +1298,28 @@ else
 fi
 
 AM_CONDITIONAL([BUILD_RSA], [test "x$ENABLED_RSA" = "xyes"])
+
+
+# RSA-PSS
+AC_ARG_ENABLE([rsapss],
+    [  --enable-rsapss         Enable RSA-PSS (default: disabled)],
+    [ ENABLED_RSAPSS=$enableval ],
+    [ ENABLED_RSAPSS=no ]
+    )
+
+if test "$ENABLED_RSA" = "no"
+then
+    ENABLED_RSAPSS="no"
+else
+    if test "$ENABLED_TLS13" = "yes"
+    then
+        ENABLED_RSAPSS="yes"
+    fi
+fi
+if test "$ENABLED_RSAPSS" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWC_RSA_PSS"
+fi
 
 
 # DH
@@ -3627,6 +3648,7 @@ echo "   * Poly1305:                   $ENABLED_POLY1305"
 echo "   * LEANPSK:                    $ENABLED_LEANPSK"
 echo "   * LEANTLS:                    $ENABLED_LEANTLS"
 echo "   * RSA:                        $ENABLED_RSA"
+echo "   * RSA-PSS:                    $ENABLED_RSAPSS"
 echo "   * DSA:                        $ENABLED_DSA"
 echo "   * DH:                         $ENABLED_DH"
 echo "   * ECC:                        $ENABLED_ECC"
