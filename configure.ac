@@ -1244,7 +1244,7 @@ fi
 
 # STACK SIZE info for examples
 AC_ARG_ENABLE([stacksize],
-    [  --enable-stacksize      Enable stack size info on examples (default: disabled)],
+    [AS_HELP_STRING([--enable-stacksize],[Enable stack size info on examples (default: disabled)])],
     [ ENABLED_STACKSIZE=$enableval ],
     [ ENABLED_STACKSIZE=no ]
     )
@@ -1254,6 +1254,19 @@ then
     AC_CHECK_FUNC([posix_memalign], [], [AC_MSG_ERROR(stacksize needs posix_memalign)])
     AC_CHECK_FUNC([pthread_attr_setstack], [], AC_CHECK_LIB([pthread],[pthread_attr_setstack]))
     AM_CFLAGS="$AM_CFLAGS -DHAVE_STACK_SIZE -DWOLFSSL_LOW_MEMORY"
+fi
+
+
+# MEMORY SIZE info
+AC_ARG_ENABLE([trackmemory],
+    [AS_HELP_STRING([--enable-trackmemory],[Enable memory use info on wolfCrypt and wolfSSL cleanup (default: disabled)])],
+    [ ENABLED_TRACKMEMORY=$enableval ],
+    [ ENABLED_TRACKMEMORY=no ]
+    )
+
+if test "$ENABLED_TRACKMEMORY" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TRACK_MEMORY"
 fi
 
 

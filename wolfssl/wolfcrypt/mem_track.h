@@ -219,15 +219,15 @@
     STATIC INLINE void ShowMemoryTracker(void)
     {
     #ifdef DO_MEM_STATS
-        printf("total   Allocs = %9lu\n",
+        printf("total   Allocs   = %9lu\n",
                                        (unsigned long)ourMemStats.totalAllocs);
         printf("total   Deallocs = %9lu\n",
                                        (unsigned long)ourMemStats.totalDeallocs);
-        printf("total   Bytes  = %9lu\n",
+        printf("total   Bytes    = %9lu\n",
                                        (unsigned long)ourMemStats.totalBytes);
-        printf("peak    Bytes  = %9lu\n",
+        printf("peak    Bytes    = %9lu\n",
                                        (unsigned long)ourMemStats.peakBytes);
-        printf("current Bytes  = %9lu\n",
+        printf("current Bytes    = %9lu\n",
                                        (unsigned long)ourMemStats.currentBytes);
     #endif
     }
