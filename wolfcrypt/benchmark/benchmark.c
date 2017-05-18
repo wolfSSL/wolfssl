@@ -424,8 +424,7 @@ static THREAD_LS_T int devId = INVALID_DEVID;
         genTimes   = BENCH_MAX_PENDING,
         agreeTimes = 2
     };
-    static const char blockType[] = "kB";   /* used in printf output */
-    #define BENCH_SIZE (1024ul)
+    static word32 bench_size = (1024ul);
 #else
     enum BenchmarkBounds {
         numBlocks  = 5, /* how many megs to test (en/de)cryption */
@@ -434,19 +433,16 @@ static THREAD_LS_T int devId = INVALID_DEVID;
         genTimes   = BENCH_MAX_PENDING, /* must be at least BENCH_MAX_PENDING */
         agreeTimes = 100
     };
-    static const char blockType[] = "megs"; /* used in printf output */
-    #define BENCH_SIZE (1024*1024ul)
+    static word32 bench_size = (1024*1024ul);
 #endif
 
+/* for compatibility */
+#define BENCH_SIZE bench_size
 
 /* globals for cipher tests */
-#ifdef WOLFSSL_ASYNC_CRYPT
-    static byte* bench_plain = NULL;
-    static byte* bench_cipher = NULL;
-#else
-    static byte bench_plain[BENCH_SIZE];
-    static byte bench_cipher[BENCH_SIZE];
-#endif
+static byte* bench_plain = NULL;
+static byte* bench_cipher = NULL;
+
 static const XGEN_ALIGN byte bench_key_buf[] =
 {
     0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,
@@ -564,8 +560,6 @@ static byte* bench_iv = (byte*)bench_iv_buf;
                         BENCH_ASYNC_GET_NAME(stat->doAsync), stat->perfsec);
                 }
             }
-
-            (void)blockType;
         }
         else {
             pthread_mutex_unlock(&bench_lock);
@@ -598,28 +592,44 @@ static INLINE int bench_stats_sym_check(double start)
 
 static void bench_stats_sym_finish(const char* desc, int doAsync, int count, double start)
 {
-    double total, persec = 0;
+    double total, persec = 0, blocks = count;
+    const char* blockType;
 
     END_INTEL_CYCLES
     total = current_time(0) - start;
 
-    if (count > 0)
-        persec = 1 / total * count;
-#ifdef BENCH_EMBEDDED
-    /* since using kB, convert to MB/s */
-    persec = persec / 1024;
-#endif
+    /* calculate actual bytes */
+    blocks *= bench_size;
 
-    printf("%-8s%s %5d %s took %5.3f seconds, %8.3f MB/s",
-        desc, BENCH_ASYNC_GET_NAME(doAsync), count, blockType, total, persec);
+    /* determine if we should show as KB or MB */
+    if (blocks > (1024 * 1024)) {
+        blocks /= (1024 * 1024);
+        blockType = "MB";
+    }
+    else if (blocks > 1024) {
+        blocks /= 1024; /* make KB */
+        blockType = "KB";
+    }
+    else {
+        blockType = "bytes";
+    }
+
+    /* caclulcate blocks per second */
+    if (total > 0) {
+        persec = (1 / total) * blocks;
+    }
+
+    printf("%-8s%s %5.0f %s took %5.3f seconds, %8.3f %s/s",
+        desc, BENCH_ASYNC_GET_NAME(doAsync), blocks, blockType, total,
+        persec, blockType);
     SHOW_INTEL_CYCLES
     printf("\n");
-    (void)doAsync;
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
     /* Add to thread stats */
     bench_stats_add(BENCH_STAT_SYM, NULL, 0, desc, doAsync, persec);
 #endif
+    (void)doAsync;
 }
 
 /* declare here rather than creating a static function to avoid warning of not
@@ -635,7 +645,7 @@ void bench_stats_asym_finish(const char* algo, int strength,
     total = current_time(0) - start;
     if (count > 0)
         each  = total / count; /* per second  */
-    opsSec = count / total;    /* ops/per second */
+    opsSec = count / total;    /* ops second */
     milliEach = each * 1000;   /* milliseconds */
 
     printf("%-5s %4d %-9s %s %6d ops took %5.3f sec, avg %5.3f ms,"
@@ -914,6 +924,7 @@ int benchmark_test(void *args)
 #endif
 {
     int ret = 0;
+    int block_size;
 
 #ifdef WOLFSSL_STATIC_MEMORY
     ret = wc_LoadStaticMemory(&HEAP_HINT, gBenchMemory, sizeof(gBenchMemory),
@@ -934,7 +945,8 @@ int benchmark_test(void *args)
     wolfSSL_Debugging_ON();
 #endif
 
-    printf("wolfCrypt Benchmark (min %.1f sec each)\n", BENCH_MIN_RUNTIME_SEC);
+    printf("wolfCrypt Benchmark (block bytes %d, min %.1f sec each)\n",
+        BENCH_SIZE, BENCH_MIN_RUNTIME_SEC);
 
 #ifdef HAVE_WNR
     ret = wc_InitNetRandom(wnrConfigFile, NULL, 5000);
@@ -944,23 +956,31 @@ int benchmark_test(void *args)
     }
 #endif /* HAVE_WNR */
 
+    /* make sure bench buffer is multiple of 16 (AES block size) */
+    block_size = bench_size + BENCH_CIPHER_ADD;
+    if (block_size % 16)
+        block_size += 16 - (block_size % 16);
+
     /* setup bench plain, cipher, key and iv globals */
+    bench_plain = (byte*)XMALLOC(block_size, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+    bench_cipher = (byte*)XMALLOC(block_size, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+    if (bench_plain == NULL || bench_cipher == NULL) {
+        printf("Benchmark block buffer alloc failed!\n");
+        EXIT_TEST(EXIT_FAILURE);
+    }
+    XMEMSET(bench_plain, 0, block_size);
+    XMEMSET(bench_cipher, 0, block_size);
+
 #ifdef WOLFSSL_ASYNC_CRYPT
-    bench_plain = (byte*)XMALLOC(BENCH_SIZE+BENCH_CIPHER_ADD, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
-    bench_cipher = (byte*)XMALLOC(BENCH_SIZE+BENCH_CIPHER_ADD, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
     bench_key = (byte*)XMALLOC(sizeof(bench_key_buf), HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
     bench_iv = (byte*)XMALLOC(sizeof(bench_iv_buf), HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
-    if (bench_plain == NULL || bench_cipher == NULL || bench_key == NULL || bench_iv == NULL) {
+    if (bench_key == NULL || bench_iv == NULL) {
         printf("Benchmark cipher buffer alloc failed!\n");
         EXIT_TEST(EXIT_FAILURE);
     }
     XMEMCPY(bench_key, bench_key_buf, sizeof(bench_key_buf));
     XMEMCPY(bench_iv, bench_iv_buf, sizeof(bench_iv_buf));
-    XMEMSET(bench_plain, 0, BENCH_SIZE+BENCH_CIPHER_ADD);
-    XMEMSET(bench_cipher, 0, BENCH_SIZE+BENCH_CIPHER_ADD);
 #endif
-    (void)bench_plain;
-    (void)bench_cipher;
     (void)bench_key;
     (void)bench_iv;
 
@@ -1001,9 +1021,9 @@ int benchmark_test(void *args)
     benchmarks_do(NULL);
 #endif
 
-#ifdef WOLFSSL_ASYNC_CRYPT
     XFREE(bench_plain, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
     XFREE(bench_cipher, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+#ifdef WOLFSSL_ASYNC_CRYPT
     XFREE(bench_key, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
     XFREE(bench_iv, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
 #endif
@@ -3393,20 +3413,30 @@ static INLINE word64 get_intel_cycles(void)
 
 #endif /* HAVE_GET_CYCLES */
 
+void benchmark_configure(int block_size)
+{
+    /* must be greater than 0 */
+    if (block_size > 0) {
+        bench_size = block_size;
+    }
+}
+
 #ifndef NO_MAIN_DRIVER
 
 int main(int argc, char** argv)
 {
     int ret = 0;
 
+    if (argc > 1) {
+        /* parse for block size */
+        benchmark_configure(atoi(argv[1]));
+    }
+
 #ifdef HAVE_STACK_SIZE
     ret = StackSizeCheck(NULL, benchmark_test);
 #else
     ret = benchmark_test(NULL);
 #endif
-
-    (void)argc;
-    (void)argv;
 
     return ret;
 }

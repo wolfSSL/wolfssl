@@ -34,6 +34,8 @@ THREAD_RETURN WOLFSSL_THREAD benchmark_test(void* args);
 int benchmark_test(void *args);
 #endif
 
+void benchmark_configure(int block_size);
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif
