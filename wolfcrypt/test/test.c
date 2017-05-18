@@ -41,6 +41,7 @@
 
 #include <wolfssl/wolfcrypt/wc_port.h>
 #include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 #ifdef WOLFSSL_TEST_CERT
     #include <wolfssl/wolfcrypt/asn.h>
@@ -12687,7 +12688,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
             wc_ShaFree(&sha);
 
             for (j = 0, k = 2; j < SHA_DIGEST_SIZE; j++, k += 2) {
-                snprintf((char*)&transId[k], 3, "%02x", digest[j]);
+                XSNPRINTF((char*)&transId[k], 3, "%02x", digest[j]);
             }
         }
 

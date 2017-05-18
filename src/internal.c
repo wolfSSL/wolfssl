@@ -1190,7 +1190,7 @@ int wolfSSL_dtls_export_internal(WOLFSSL* ssl, byte* buf, word32 sz)
 #ifdef WOLFSSL_SESSION_EXPORT_DEBUG
     {
         char debug[256];
-        snprintf(debug, sizeof(debug), "Exporting DTLS session\n"
+        XSNPRINTF(debug, sizeof(debug), "Exporting DTLS session\n"
                    "\tVersion  : %d\n\tProtocol : %02X%01X\n\tLength of: %d\n\n"
                , (int)DTLS_EXPORT_VERSION, buf[0], (buf[1] >> 4), idx - 2);
         WOLFSSL_MSG(debug);
@@ -1234,7 +1234,7 @@ int wolfSSL_dtls_import_internal(WOLFSSL* ssl, byte* buf, word32 sz)
 #ifdef WOLFSSL_SESSION_EXPORT_DEBUG
     {
         char debug[256];
-        snprintf(debug, sizeof(debug), "Importing DTLS session\n"
+        XSNPRINTF(debug, sizeof(debug), "Importing DTLS session\n"
                    "\tVersion  : %d\n\tProtocol : %02X%01X\n\tLength of: %d\n\n"
                , (int)version, buf[0], (buf[1] >> 4), length);
         WOLFSSL_MSG(debug);

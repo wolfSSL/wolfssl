@@ -302,13 +302,12 @@
 	        #define XSTRNCASECMP(s1,s2,n) _strnicmp((s1),(s2),(n))
 	    #endif
 
-        #if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
-	        #ifndef USE_WINDOWS_API
-	            #define XSNPRINTF snprintf
-	        #else
-	            #define XSNPRINTF _snprintf
-	        #endif
-        #endif /* WOLFSSL_MYSQL_COMPATIBLE */
+        /* snprintf is used in asn.c for GetTimeString and PKCS7 test */
+        #ifndef USE_WINDOWS_API
+            #define XSNPRINTF snprintf
+        #else
+            #define XSNPRINTF _snprintf
+        #endif
 
         #if defined(WOLFSSL_CERT_EXT) || defined(HAVE_ALPN)
             /* use only Thread Safe version of strtok */
