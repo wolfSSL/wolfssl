@@ -101,7 +101,7 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
         crle->signature = XMALLOC(crle->signatureSz, heap,
                                   DYNAMIC_TYPE_CRL_ENTRY);
         if (crle->signature == NULL) {
-            XFREE(crle->toBeSigned, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
+            XFREE(crle->toBeSigned, heap, DYNAMIC_TYPE_CRL_ENTRY);
             return -1;
         }
         XMEMCPY(crle->toBeSigned, buff + dcrl->certBegin, crle->tbsSz);
