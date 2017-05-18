@@ -12147,6 +12147,10 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
 
     for (i = 0; i < testSz; i++) {
 
+        ret = wc_PKCS7_Init(&pkcs7, HEAP_HINT, devId);
+        if (ret != 0)
+            return -7419;
+
         ret = wc_PKCS7_InitWithCert(&pkcs7, testVectors[i].cert,
                                     (word32)testVectors[i].certSz);
         if (ret != 0)
@@ -12419,6 +12423,7 @@ int pkcs7encrypted_test(void)
         pkcs7.encryptionKeySz      = testVectors[i].encryptionKeySz;
         pkcs7.unprotectedAttribs   = testVectors[i].attribs;
         pkcs7.unprotectedAttribsSz = testVectors[i].attribsSz;
+        pkcs7.heap                 = HEAP_HINT;
 
         /* encode encryptedData */
         encryptedSz = wc_PKCS7_EncodeEncryptedData(&pkcs7, encrypted,
@@ -12638,6 +12643,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
 
     for (i = 0; i < testSz; i++) {
 
+        pkcs7.heap = HEAP_HINT;
         ret = wc_PKCS7_InitWithCert(&pkcs7, testVectors[i].cert,
                                     (word32)testVectors[i].certSz);
 
