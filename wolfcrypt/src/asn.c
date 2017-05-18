@@ -4816,34 +4816,44 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
         Base_entry* base = signer->excludedNames;
 
         while (base != NULL) {
-            if (base->type == ASN_DNS_TYPE) {
-                DNS_entry* name = cert->altNames;
-                while (name != NULL) {
-                    if (MatchBaseName(ASN_DNS_TYPE,
+            switch (base->type) {
+                case ASN_DNS_TYPE:
+                {
+                    DNS_entry* name = cert->altNames;
+                    while (name != NULL) {
+                        if (MatchBaseName(ASN_DNS_TYPE,
                                           name->name, (int)XSTRLEN(name->name),
-                                          base->name, base->nameSz))
-                        return 0;
-                    name = name->next;
+                                          base->name, base->nameSz)) {
+                            return 0;
+                        }
+                        name = name->next;
+                    }
+                    break;
                 }
-            }
-            else if (base->type == ASN_RFC822_TYPE) {
-                DNS_entry* name = cert->altEmailNames;
-                while (name != NULL) {
-                    if (MatchBaseName(ASN_RFC822_TYPE,
+                case ASN_RFC822_TYPE:
+                {
+                    DNS_entry* name = cert->altEmailNames;
+                    while (name != NULL) {
+                        if (MatchBaseName(ASN_RFC822_TYPE,
                                           name->name, (int)XSTRLEN(name->name),
-                                          base->name, base->nameSz))
+                                          base->name, base->nameSz)) {
+                            return 0;
+                        }
+                        name = name->next;
+                    }
+                    break;
+                }
+                case ASN_DIR_TYPE:
+                {
+                    /* allow permitted dirName smaller than actual subject */
+                    if (cert->subjectRawLen >= base->nameSz &&
+                        XMEMCMP(cert->subjectRaw, base->name,
+                                                        base->nameSz) == 0) {
                         return 0;
-
-                    name = name->next;
+                    }
+                    break;
                 }
-            }
-            else if (base->type == ASN_DIR_TYPE) {
-                if (cert->subjectRawLen == base->nameSz &&
-                    XMEMCMP(cert->subjectRaw, base->name, base->nameSz) == 0) {
-
-                    return 0;
-                }
-            }
+            }; /* switch */
             base = base->next;
         }
     }
@@ -4859,47 +4869,56 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
         Base_entry* base = signer->permittedNames;
 
         while (base != NULL) {
-            if (base->type == ASN_DNS_TYPE) {
-                DNS_entry* name = cert->altNames;
+            switch (base->type) {
+                case ASN_DNS_TYPE:
+                {
+                    DNS_entry* name = cert->altNames;
 
-                if (name != NULL)
-                    needDns = 1;
+                    if (name != NULL)
+                        needDns = 1;
 
-                while (name != NULL) {
-                    matchDns = MatchBaseName(ASN_DNS_TYPE,
+                    while (name != NULL) {
+                        matchDns = MatchBaseName(ASN_DNS_TYPE,
                                           name->name, (int)XSTRLEN(name->name),
                                           base->name, base->nameSz);
-                    name = name->next;
+                        name = name->next;
+                    }
+                    break;
                 }
-            }
-            else if (base->type == ASN_RFC822_TYPE) {
-                DNS_entry* name = cert->altEmailNames;
+                case ASN_RFC822_TYPE:
+                {
+                    DNS_entry* name = cert->altEmailNames;
 
-                if (name != NULL)
-                    needEmail = 1;
+                    if (name != NULL)
+                        needEmail = 1;
 
-                while (name != NULL) {
-                    matchEmail = MatchBaseName(ASN_DNS_TYPE,
+                    while (name != NULL) {
+                        matchEmail = MatchBaseName(ASN_DNS_TYPE,
                                           name->name, (int)XSTRLEN(name->name),
                                           base->name, base->nameSz);
-                    name = name->next;
+                        name = name->next;
+                    }
+                    break;
                 }
-            }
-            else if (base->type == ASN_DIR_TYPE) {
-                needDir = 1;
-                if (cert->subjectRaw != NULL &&
-                    cert->subjectRawLen == base->nameSz &&
-                    XMEMCMP(cert->subjectRaw, base->name, base->nameSz) == 0) {
-
-                    matchDir = 1;
+                case ASN_DIR_TYPE:
+                {
+                    /* allow permitted dirName smaller than actual subject */
+                    needDir = 1;
+                    if (cert->subjectRaw != NULL &&
+                        cert->subjectRawLen >= base->nameSz &&
+                        XMEMCMP(cert->subjectRaw, base->name,
+                                                        base->nameSz) == 0) {
+                        matchDir = 1;
+                    }
+                    break;
                 }
-            }
+            } /* switch */
             base = base->next;
         }
 
-        if ((needDns && !matchDns) || (needEmail && !matchEmail) ||
-            (needDir && !matchDir)) {
-
+        if ((needDns   && !matchDns) ||
+            (needEmail && !matchEmail) ||
+            (needDir   && !matchDir)) {
             return 0;
         }
     }
@@ -5408,6 +5427,7 @@ static int DecodeExtKeyUsage(byte* input, int sz, DecodedCert* cert)
 
 
 #ifndef IGNORE_NAME_CONSTRAINTS
+#define ASN_TYPE_MASK 0xF
 static int DecodeSubtree(byte* input, int sz, Base_entry** head, void* heap)
 {
     word32 idx = 0;
@@ -5417,27 +5437,37 @@ static int DecodeSubtree(byte* input, int sz, Base_entry** head, void* heap)
     while (idx < (word32)sz) {
         int seqLength, strLength;
         word32 nameIdx;
-        byte b;
+        byte b, bType;
 
         if (GetSequence(input, &idx, &seqLength, sz) < 0) {
             WOLFSSL_MSG("\tfail: should be a SEQUENCE");
             return ASN_PARSE_E;
         }
-
         nameIdx = idx;
         b = input[nameIdx++];
+
         if (GetLength(input, &nameIdx, &strLength, sz) <= 0) {
             WOLFSSL_MSG("\tinvalid length");
             return ASN_PARSE_E;
         }
 
-        if (b == (ASN_CONTEXT_SPECIFIC | ASN_DNS_TYPE) ||
-            b == (ASN_CONTEXT_SPECIFIC | ASN_RFC822_TYPE) ||
-            b == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | ASN_DIR_TYPE)) {
+        /* Get type, LSB 4-bits */
+        bType = (b & ASN_TYPE_MASK);
 
-            Base_entry* entry = (Base_entry*)XMALLOC(sizeof(Base_entry),
-                                                    heap, DYNAMIC_TYPE_ALTNAME);
+        if (bType == ASN_DNS_TYPE || bType == ASN_RFC822_TYPE ||
+                                                        bType == ASN_DIR_TYPE) {
+            Base_entry* entry;
 
+            /* if constructed has leading sequence */
+            if (b & ASN_CONSTRUCTED) {
+                if (GetSequence(input, &nameIdx, &strLength, sz) < 0) {
+                    WOLFSSL_MSG("\tfail: constructed be a SEQUENCE");
+                    return ASN_PARSE_E;
+                }
+            }
+
+            entry = (Base_entry*)XMALLOC(sizeof(Base_entry), heap,
+                                                          DYNAMIC_TYPE_ALTNAME);
             if (entry == NULL) {
                 WOLFSSL_MSG("allocate error");
                 return MEMORY_E;
@@ -5452,7 +5482,7 @@ static int DecodeSubtree(byte* input, int sz, Base_entry** head, void* heap)
 
             XMEMCPY(entry->name, &input[nameIdx], strLength);
             entry->nameSz = strLength;
-            entry->type = b & 0x0F;
+            entry->type = bType;
 
             entry->next = *head;
             *head = entry;
@@ -5612,8 +5642,8 @@ static int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
             return ASN_PARSE_E;
         }
 
-        /* Validate total length (2 is the CERT_POLICY_OID+SEQ) */
-        if ((total_length + 2) != sz) {
+        /* Validate total length */
+        if (total_length > (sz - (int)idx)) {
             WOLFSSL_MSG("\tCertPolicy length mismatch");
             return ASN_PARSE_E;
         }
@@ -5638,7 +5668,7 @@ static int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
                     return ASN_PARSE_E;
                 }
 
-    #if defined(WOLFSSL_SEP)
+        #if defined(WOLFSSL_SEP)
                 cert->deviceType = (byte*)XMALLOC(length, cert->heap,
                                                   DYNAMIC_TYPE_X509_EXT);
                 if (cert->deviceType == NULL) {
@@ -5648,14 +5678,14 @@ static int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
                 cert->deviceTypeSz = length;
                 XMEMCPY(cert->deviceType, input + idx, length);
                 break;
-    #elif defined(WOLFSSL_CERT_EXT)
+        #elif defined(WOLFSSL_CERT_EXT)
                 /* decode cert policy */
                 if (DecodePolicyOID(cert->extCertPolicies[cert->extCertPoliciesNb], MAX_CERTPOL_SZ,
                                     input + idx, length) != 0) {
                     WOLFSSL_MSG("\tCouldn't decode CertPolicy");
                     return ASN_PARSE_E;
                 }
-                #ifndef WOLFSSL_DUP_CERTPOL
+            #ifndef WOLFSSL_DUP_CERTPOL
                 /* From RFC 5280 section 4.2.1.3 "A certificate policy OID MUST
                  * NOT appear more than once in a certificate policies
                  * extension". This is a sanity check for duplicates.
@@ -5670,12 +5700,12 @@ static int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
                             return CERTPOLICIES_E;
                     }
                 }
-                #endif /* !defined(WOLFSSL_DUP_CERTPOL) */
+            #endif /* !WOLFSSL_DUP_CERTPOL */
                 cert->extCertPoliciesNb++;
-    #else
+        #else
                 WOLFSSL_LEAVE("DecodeCertPolicy : unsupported mode", 0);
                 return 0;
-    #endif
+        #endif
             }
             idx += policy_length;
         } while((int)idx < total_length
@@ -5985,7 +6015,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 
             /* save extensions */
             cert->extensions    = &cert->source[cert->srcIdx];
-            cert->extensionsSz  =  cert->sigIndex - cert->srcIdx;
+            cert->extensionsSz  = cert->sigIndex - cert->srcIdx;
             cert->extensionsIdx = cert->srcIdx;   /* for potential later use */
 
             if ((ret = DecodeCertExtensions(cert)) < 0) {
@@ -6120,10 +6150,10 @@ Signer* MakeSigner(void* heap)
         signer->publicKey  = NULL;
         signer->nameLen    = 0;
         signer->name       = NULL;
-        #ifndef IGNORE_NAME_CONSTRAINTS
-            signer->permittedNames = NULL;
-            signer->excludedNames = NULL;
-        #endif /* IGNORE_NAME_CONSTRAINTS */
+    #ifndef IGNORE_NAME_CONSTRAINTS
+        signer->permittedNames = NULL;
+        signer->excludedNames = NULL;
+    #endif /* IGNORE_NAME_CONSTRAINTS */
         signer->pathLengthSet = 0;
         signer->pathLength = 0;
         signer->next       = NULL;
@@ -6139,12 +6169,12 @@ void FreeSigner(Signer* signer, void* heap)
 {
     XFREE(signer->name, heap, DYNAMIC_TYPE_SUBJECT_CN);
     XFREE(signer->publicKey, heap, DYNAMIC_TYPE_PUBLIC_KEY);
-    #ifndef IGNORE_NAME_CONSTRAINTS
-        if (signer->permittedNames)
-            FreeNameSubtrees(signer->permittedNames, heap);
-        if (signer->excludedNames)
-            FreeNameSubtrees(signer->excludedNames, heap);
-    #endif
+#ifndef IGNORE_NAME_CONSTRAINTS
+    if (signer->permittedNames)
+        FreeNameSubtrees(signer->permittedNames, heap);
+    if (signer->excludedNames)
+        FreeNameSubtrees(signer->excludedNames, heap);
+#endif
     XFREE(signer, heap, DYNAMIC_TYPE_SIGNER);
 
     (void)heap;
@@ -6182,12 +6212,12 @@ void FreeTrustedPeer(TrustedPeerCert* tp, void* heap)
     if (tp->sig) {
         XFREE(tp->sig, heap, DYNAMIC_TYPE_SIGNATURE);
     }
-    #ifndef IGNORE_NAME_CONSTRAINTS
-        if (tp->permittedNames)
-            FreeNameSubtrees(tp->permittedNames, heap);
-        if (tp->excludedNames)
-            FreeNameSubtrees(tp->excludedNames, heap);
-    #endif
+#ifndef IGNORE_NAME_CONSTRAINTS
+    if (tp->permittedNames)
+        FreeNameSubtrees(tp->permittedNames, heap);
+    if (tp->excludedNames)
+        FreeNameSubtrees(tp->excludedNames, heap);
+#endif
     XFREE(tp, heap, DYNAMIC_TYPE_CERT);
 
     (void)heap;
