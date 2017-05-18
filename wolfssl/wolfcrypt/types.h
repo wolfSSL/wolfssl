@@ -89,10 +89,18 @@
 	/* These platforms have 64-bit CPU registers.  */
 	#if (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) || \
 	     defined(__mips64)  || defined(__x86_64__) || defined(_M_X64)) || \
-         defined(__aarch64__)
+         defined(__aarch64__) || defined(__sparc64__)
 	    typedef word64 wolfssl_word;
         #define WC_64BIT_CPU
-	#else
+	#elif (defined(sun) || defined(__sun)) && \
+          (defined(LP64) || defined(_LP64))
+        /* LP64 with GNU GCC compiler is reserved for when long int is 64 bits
+         * and int uses 32 bits. When using Solaris Studio sparc and __sparc are
+         * avialable for 32 bit detection but __sparc64__ could be missed. This
+         * uses LP64 for checking 64 bit CPU arch. */
+	    typedef word64 wolfssl_word;
+        #define WC_64BIT_CPU
+    #else
 	    typedef word32 wolfssl_word;
 	    #ifdef WORD64_AVAILABLE
 	        #define WOLFCRYPT_SLOW_WORD64
