@@ -1018,7 +1018,7 @@ int benchmark_test(void *args)
 
     bench_stats_free();
 
-	if (wolfCrypt_Cleanup() != 0) {
+    if (wolfCrypt_Cleanup() != 0) {
         printf("error with wolfCrypt_Cleanup\n");
     }
 
@@ -2080,20 +2080,20 @@ int bench_ripemd(void)
     do {
         for (i = 0; i < numBlocks; i++) {
             ret = wc_RipeMdUpdate(&hash, bench_plain, BENCH_SIZE);
-			if (ret != 0) {
-				return ret;
-			}
+            if (ret != 0) {
+                return ret;
+            }
         }
         ret = wc_RipeMdFinal(&hash, digest);
-		if (ret != 0) {
-			return ret;
-		}
+        if (ret != 0) {
+            return ret;
+        }
 
         count += i;
     } while (bench_stats_sym_check(start));
     bench_stats_sym_finish("RIPEMD", 0, count, start);
 
-	return 0;
+    return 0;
 }
 #endif
 

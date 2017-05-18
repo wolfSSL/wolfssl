@@ -1427,24 +1427,24 @@ int ripemd_test(void)
     test_ripemd[3] = d;
 
     ret = wc_InitRipeMd(&ripemd);
-    if (ret) {
-        return ret;
+    if (ret != 0) {
+        return -1800;
     }
 
     for (i = 0; i < times; ++i) {
         ret = wc_RipeMdUpdate(&ripemd, (byte*)test_ripemd[i].input,
                               (word32)test_ripemd[i].inLen);
-        if (ret) {
-            return ret;
+        if (ret != 0) {
+            return -1810 - i;
         }
 
         ret = wc_RipeMdFinal(&ripemd, hash);
-        if (ret) {
-            return ret;
+        if (ret != 0) {
+            return -1820 - i;
         }
 
         if (XMEMCMP(hash, test_ripemd[i].output, RIPEMD_DIGEST_SIZE) != 0)
-            return -1800 - i;
+            return -1830 - i;
     }
 
     return 0;
