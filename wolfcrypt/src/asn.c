@@ -34,6 +34,11 @@ ASN Options:
  * ASN_DUMP_OID: Allows dump of OID information for debugging.
  * RSA_DECODE_EXTRA: Decodes extra information in RSA public key.
  * WOLFSSL_CERT_GEN: Cert generation. Saves extra certificate info in GetName.
+ * WOLFSSL_NO_OCSP_OPTIONAL_CERTS: Skip optional OCSP certs (responder issuer
+    must still be trusted)
+ * WOLFSSL_NO_TRUSTED_CERTS_VERIFY: Workaround for sitatuon where entire cert
+    chain is not loaded. This only matches on subject and public key and
+    does not perform a PKI validation, so it is not a secure solution.
 */
 
 #ifndef NO_ASN
@@ -6026,14 +6031,33 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 
         if (verify != NO_VERIFY && type != CA_TYPE && type != TRUSTED_PEER_TYPE) {
             cert->ca = NULL;
-        #ifndef NO_SKID
+    #ifndef NO_SKID
             if (cert->extAuthKeyIdSet)
                 cert->ca = GetCA(cm, cert->extAuthKeyId);
             if (cert->ca == NULL)
                 cert->ca = GetCAByName(cm, cert->issuerHash);
-        #else
+
+            /* alternate lookup method using subject and match on public key */
+        #ifdef WOLFSSL_NO_TRUSTED_CERTS_VERIFY
+            if (cert->ca == NULL) {
+                if (cert->extSubjKeyIdSet) {
+                    cert->ca = GetCA(cm, cert->extSubjKeyId);
+                }
+                if (cert->ca == NULL) {
+                    cert->ca = GetCAByName(cm, cert->subjectHash);
+                }
+                if (cert->ca) {
+                    if ((cert->ca->pubKeySize == cert->pubKeySize) &&
+                        (XMEMCMP(cert->ca->publicKey, cert->publicKey,
+                                                cert->ca->pubKeySize) == 0)) {
+                        return 0;
+                    }
+                }
+            }
+        #endif /* WOLFSSL_NO_TRUSTED_CERTS_VERIFY */
+    #else
             cert->ca = GetCA(cm, cert->issuerHash);
-        #endif /* !NO_SKID */
+    #endif /* !NO_SKID */
 
             WOLFSSL_MSG("About to verify certificate signature");
             if (cert->ca) {
