@@ -139,6 +139,19 @@ if test "$ENABLED_DISTRO" = "yes"
 then
     enable_shared=yes
     enable_static=yes
+    enable_all=yes
+fi
+AM_CONDITIONAL([BUILD_DISTRO], [test "x$ENABLED_DISTRO" = "xyes"])
+
+
+# ALL FEATURES
+AC_ARG_ENABLE([all],
+    [  --enable-all            Enable all wolfSSL features (default: disabled)],
+    [ ENABLED_ALL=$enableval ],
+    [ ENABLED_ALL=no ]
+    )
+if test "$ENABLED_ALL" = "yes"
+then
     enable_dtls=yes
     enable_tls13=yes
     enable_openssh=yes
@@ -200,7 +213,7 @@ then
     enable_x963kdf=yes
     enable_scrypt=yes
 fi
-AM_CONDITIONAL([BUILD_DISTRO], [test "x$ENABLED_DISTRO" = "xyes"])
+AM_CONDITIONAL([BUILD_ALL], [test "x$ENABLED_ALL" = "xyes"])
 
 
 # SINGLE THREADED
@@ -1049,8 +1062,8 @@ if test "$ENABLED_ECCCUSTCURVES" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CUSTOM_CURVES"
 
-    # For distro build, enable all curve types
-    if test "$ENABLED_DISTRO" = "yes"
+    # For distro or all builds, enable all curve types
+    if test "$ENABLED_DISTRO" = "yes" || test "$ENABLED_ALL" = "yes"
     then
         AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC_SECPR2 -DHAVE_ECC_SECPR3 -DHAVE_ECC_BRAINPOOL -DHAVE_ECC_KOBLITZ"
     fi
