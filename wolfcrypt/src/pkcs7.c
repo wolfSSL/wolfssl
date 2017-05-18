@@ -213,21 +213,49 @@ static int wc_PKCS7_GetOIDKeySize(int oid)
 }
 
 
-/* init PKCS7 struct with recipient cert, decode into DecodedCert */
+/* This is to initialize a PKCS7 structure. It sets all values to 0 and can be
+ * used to set the heap hint.
+ *
+ * pkcs7 PKCS7 structure to initialize
+ * heap  memory heap hint for PKCS7 structure to use
+ * devId currently not used but a place holder for async operations
+ *
+ * returns 0 on success or a negative value for failure
+ */
+int wc_PKCS7_Init(PKCS7* pkcs7, void* heap, int devId)
+{
+    WOLFSSL_ENTER("wc_PKCS7_Init");
+
+    if (pkcs7 == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    XMEMSET(pkcs7, 0, sizeof(PKCS7));
+    pkcs7->heap = heap;
+
+    (void)devId; /* silence unused warning */
+    return 0;
+}
+
+
+/* init PKCS7 struct with recipient cert, decode into DecodedCert
+ * NOTE: keeps previously set pkcs7 memory heap hint */
 int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz)
 {
     int ret = 0;
+    void* heap;
 
-    XMEMSET(pkcs7, 0, sizeof(PKCS7));
 
-    /* default heap hint is null or test value */
 #ifdef WOLFSSL_HEAP_TEST
-    pkcs7->heap = (void*)WOLFSSL_HEAP_TEST;
+    heap = (void*)WOLFSSL_HEAP_TEST;
 #else
-    pkcs7->heap = NULL;
+    heap = pkcs7->heap;
 #endif
 
-     if (cert != NULL && certSz > 0) {
+    XMEMSET(pkcs7, 0, sizeof(PKCS7));
+    pkcs7->heap = heap;
+
+    if (cert != NULL && certSz > 0) {
 #ifdef WOLFSSL_SMALL_STACK
         DecodedCert* dCert;
 
@@ -1940,7 +1968,7 @@ static int wc_PKCS7_KariParseRecipCert(WC_PKCS7_KARI* kari, const byte* cert,
         return BAD_FUNC_ARG;
     }
 
-    ret = wc_ecc_init(kari->recipKey);
+    ret = wc_ecc_init_ex(kari->recipKey, kari->heap, INVALID_DEVID);
     if (ret != 0)
         return ret;
 
@@ -2810,7 +2838,7 @@ static int wc_PKCS7_DecryptContent(int encryptOID, byte* key, int keySz,
 
 
 /* generate random IV, place in iv, return 0 on success negative on error */
-static int wc_PKCS7_GenerateIV(WC_RNG* rng, byte* iv, word32 ivSz)
+static int wc_PKCS7_GenerateIV(PKCS7* pkcs7, WC_RNG* rng, byte* iv, word32 ivSz)
 {
     int ret;
     WC_RNG* rnd = NULL;
@@ -2820,13 +2848,13 @@ static int wc_PKCS7_GenerateIV(WC_RNG* rng, byte* iv, word32 ivSz)
 
     /* input RNG is optional, init local one if input rng is NULL */
     if (rng == NULL) {
-        rnd = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
+        rnd = (WC_RNG*)XMALLOC(sizeof(WC_RNG), pkcs7->heap, DYNAMIC_TYPE_RNG);
         if (rnd == NULL)
             return MEMORY_E;
 
-        ret = wc_InitRng(rnd);
+        ret = wc_InitRng_ex(rnd, pkcs7->heap, INVALID_DEVID);
         if (ret != 0) {
-            XFREE(rnd, NULL, DYNAMIC_TYPE_RNG);
+            XFREE(rnd, pkcs7->heap, DYNAMIC_TYPE_RNG);
             return ret;
         }
 
@@ -2838,7 +2866,7 @@ static int wc_PKCS7_GenerateIV(WC_RNG* rng, byte* iv, word32 ivSz)
 
     if (rng == NULL) {
         wc_FreeRng(rnd);
-        XFREE(rnd, NULL, DYNAMIC_TYPE_RNG);
+        XFREE(rnd, pkcs7->heap, DYNAMIC_TYPE_RNG);
     }
 
     return ret;
@@ -3024,7 +3052,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     recipSetSz = SetSet(recipSz, recipSet);
 
     /* generate IV for block cipher */
-    ret = wc_PKCS7_GenerateIV(&rng, tmpIv, blockSz);
+    ret = wc_PKCS7_GenerateIV(pkcs7, &rng, tmpIv, blockSz);
     wc_FreeRng(&rng);
     if (ret != 0) {
 #ifdef WOLFSSL_SMALL_STACK
@@ -3306,7 +3334,7 @@ static int wc_PKCS7_DecodeKtri(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
 
     /* decrypt encryptedKey */
     #ifdef WC_RSA_BLINDING
-    ret = wc_InitRng(&rng);
+    ret = wc_InitRng_ex(&rng, pkcs7->heap, INVALID_DEVID);
     if (ret == 0) {
         ret = wc_RsaSetRNG(privKey, &rng);
     }
@@ -3394,7 +3422,7 @@ static int wc_PKCS7_KariGetOriginatorIdentifierOrKey(WC_PKCS7_KARI* kari,
         return ASN_EXPECT_0_E;
 
     /* get sender ephemeral public ECDSA key */
-    ret = wc_ecc_init(kari->senderKey);
+    ret = wc_ecc_init_ex(kari->senderKey, kari->heap, INVALID_DEVID);
     if (ret != 0)
         return ret;
 
@@ -4105,7 +4133,7 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     }
 
     /* encrypt content */
-    ret = wc_PKCS7_GenerateIV(NULL, tmpIv, blockSz);
+    ret = wc_PKCS7_GenerateIV(pkcs7, NULL, tmpIv, blockSz);
     if (ret != 0) {
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);

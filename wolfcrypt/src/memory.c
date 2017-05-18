@@ -536,6 +536,9 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
             res = malloc(size);
         #else
             WOLFSSL_MSG("No heap hint found to use and no malloc");
+            #ifdef WOLFSSL_DEBUG_MEMORY
+            printf("ERROR: at %s:%d\n", func, line);
+            #endif
         #endif /* WOLFSSL_NO_MALLOC */
         #endif /* WOLFSSL_HEAP_TEST */
     }
@@ -611,6 +614,9 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
         }
         else {
             WOLFSSL_MSG("ERROR ran out of static memory");
+            #ifdef WOLFSSL_DEBUG_MEMORY
+            printf("Looking for %lu bytes at %s:%d\n", size, func, line);
+            #endif
         }
 
         wc_UnLockMutex(&(mem->memory_mutex));
