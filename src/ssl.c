@@ -15938,6 +15938,7 @@ WOLFSSL_API int i2t_ASN1_OBJECT(char *buf, int buf_len, WOLFSSL_ASN1_OBJECT *a)
     return -1;
 }
 
+#ifdef WOLFSSL_HAPROXY
 /*** TBD ***/
 WOLFSSL_API size_t SSL_get_finished(const WOLFSSL *s, void *buf, size_t count)
 {
@@ -15957,6 +15958,7 @@ WOLFSSL_API size_t SSL_get_peer_finished(const WOLFSSL *s, void *buf, size_t cou
     WOLFSSL_STUB("SSL_get_peer_finished");
     return SSL_FAILURE;
 }
+#endif /* WOLFSSL_HAPROXY */
 
 /*** TBD ***/
 WOLFSSL_API void SSL_CTX_set_tmp_dh_callback(WOLFSSL_CTX *ctx, WOLFSSL_DH *(*dh) (WOLFSSL *ssl, int is_export, int keylength))
