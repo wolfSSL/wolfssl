@@ -2375,7 +2375,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         CRYP_IVStructInit(&AES_CRYP_IVInitStructure);
 
         /* if input and output same will overwrite input iv */
-        XMEMCPY(aes->tmp, in + len - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+        XMEMCPY(aes->tmp, in + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
 
         /* reset registers to their default values */
         CRYP_DeInit();
