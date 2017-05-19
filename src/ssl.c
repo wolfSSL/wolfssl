@@ -1598,6 +1598,7 @@ int wolfSSL_UseSupportedCurve(WOLFSSL* ssl, word16 name)
         case WOLFSSL_ECC_BRAINPOOLP256R1:
         case WOLFSSL_ECC_BRAINPOOLP384R1:
         case WOLFSSL_ECC_BRAINPOOLP512R1:
+        case WOLFSSL_ECC_X25519:
             break;
 
 #ifdef WOLFSSL_TLS13
@@ -14229,7 +14230,7 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
 {
     if (ssl == NULL)
         return NULL;
-    if (ssl->specs.kea != ecdhe_psk_kea &&
+    if (!IsAtLeastTLSv1_3(ssl->version) && ssl->specs.kea != ecdhe_psk_kea &&
             ssl->specs.kea != ecc_diffie_hellman_kea)
         return NULL;
     if (ssl->ecdhCurveOID == 0)

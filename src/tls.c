@@ -3061,6 +3061,12 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
                 octets = 32;
                 break;
         #endif /* !NO_ECC_SECP */
+        #ifdef HAVE_CURVE25519
+            case WOLFSSL_ECC_X25519:
+                oid = ECC_X25519_OID;
+                octets = 32;
+                break;
+        #endif /* HAVE_CURVE25519 */
         #ifdef HAVE_ECC_KOBLITZ
             case WOLFSSL_ECC_SECP256K1:
                 oid = ECC_SECP256K1_OID;
@@ -3070,12 +3076,6 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
         #ifdef HAVE_ECC_BRAINPOOL
             case WOLFSSL_ECC_BRAINPOOLP256R1:
                 oid = ECC_BRAINPOOLP256R1_OID;
-                octets = 32;
-                break;
-        #endif /* HAVE_ECC_BRAINPOOL */
-        #ifdef HAVE_CURVE25519
-            case WOLFSSL_ECC_X25519:
-                oid = ECC_X25519_OID;
                 octets = 32;
                 break;
         #endif /* HAVE_ECC_BRAINPOOL */
@@ -5083,6 +5083,7 @@ static int TLSX_KeyShare_ProcessDh(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
 
     if (params->p_len != keyShareEntry->keLen)
         return BUFFER_ERROR;
+    ssl->options.dhKeySz = params->p_len;
 
     /* TODO: [TLS13] move this check down into wolfcrypt. */
     /* Check that public DH key is not 0 or 1. */
@@ -5221,6 +5222,7 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
                     EC25519_LITTLE_ENDIAN);
                 wc_curve25519_free(peerEccKey);
                 XFREE(peerEccKey, ssl->heap, DYNAMIC_TYPE_TLSX);
+                ssl->ecdhCurveOID = ECC_X25519_OID;
                 return ret;
             }
     #endif
@@ -5244,6 +5246,7 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
                               ssl->peerEccKey, curveId) != 0) {
         return ECC_PEERKEY_ERROR;
     }
+    ssl->ecdhCurveOID = ssl->peerEccKey->dp->oidSum;
 
     ssl->arrays->preMasterSz = ENCRYPT_LEN;
     do {
@@ -5607,6 +5610,10 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
             break;
         #endif /* !NO_ECC_SECP */
     #endif
+    #ifdef HAVE_CURVE25519
+        case WOLFSSL_ECC_X25519:
+            break;
+    #endif
     #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
         case WOLFSSL_ECC_SECP384R1:
@@ -5618,10 +5625,6 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
         case WOLFSSL_ECC_SECP521R1:
             break;
         #endif /* !NO_ECC_SECP */
-    #endif
-    #ifdef HAVE_CURVE25519
-        case WOLFSSL_ECC_X25519:
-            break;
     #endif
     #ifdef HAVE_X448
         case WOLFSSL_ECC_X448:
@@ -7033,14 +7036,14 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             #endif
         #endif
         #if !defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)
-            #ifdef HAVE_CURVE25519
-                ret = TLSX_UseSupportedCurve(&ssl->extensions,
-                                        WOLFSSL_ECC_X25519, ssl->heap);
-                if (ret != SSL_SUCCESS) return ret;
-            #endif
             #ifndef NO_ECC_SECP
                 ret = TLSX_UseSupportedCurve(&ssl->extensions,
                                               WOLFSSL_ECC_SECP256R1, ssl->heap);
+                if (ret != SSL_SUCCESS) return ret;
+            #endif
+            #ifdef HAVE_CURVE25519
+                ret = TLSX_UseSupportedCurve(&ssl->extensions,
+                                        WOLFSSL_ECC_X25519, ssl->heap);
                 if (ret != SSL_SUCCESS) return ret;
             #endif
             #ifdef HAVE_ECC_KOBLITZ
@@ -7135,6 +7138,8 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
         !defined(NO_ECC_SECP)
                 ret = TLSX_KeyShare_Use(ssl, WOLFSSL_ECC_SECP256R1, 0, NULL,
                                         NULL);
+    #elif defined(HAVE_CURVE25519)
+                ret = TLSX_KeyShare_Use(ssl, WOLFSSL_ECC_X25519, 0, NULL, NULL);
     #elif (!defined(NO_ECC384)  || defined(HAVE_ALL_CURVES)) && \
           !defined(NO_ECC_SECP)
                 ret = TLSX_KeyShare_Use(ssl, WOLFSSL_ECC_SECP384R1, 0, NULL,
