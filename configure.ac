@@ -131,7 +131,7 @@ AS_IF([test "$ax_enable_debug" = "yes"],
 
 # Distro build feature subset (Debian, Ubuntu, etc.)
 AC_ARG_ENABLE([distro],
-    [  --enable-distro         Enable wolfSSL distro build (default: disabled)],
+    [AS_HELP_STRING([--enable-distro],[Enable wolfSSL distro build (default: disabled)])],
     [ ENABLED_DISTRO=$enableval ],
     [ ENABLED_DISTRO=no ]
     )
@@ -146,7 +146,7 @@ AM_CONDITIONAL([BUILD_DISTRO], [test "x$ENABLED_DISTRO" = "xyes"])
 
 # ALL FEATURES
 AC_ARG_ENABLE([all],
-    [  --enable-all            Enable all wolfSSL features (default: disabled)],
+    [AS_HELP_STRING([--enable-all],[Enable all wolfSSL features, except SSLv3 (default: disabled)])],
     [ ENABLED_ALL=$enableval ],
     [ ENABLED_ALL=no ]
     )
@@ -218,7 +218,7 @@ AM_CONDITIONAL([BUILD_ALL], [test "x$ENABLED_ALL" = "xyes"])
 
 # SINGLE THREADED
 AC_ARG_ENABLE([singlethreaded],
-    [  --enable-singlethreaded Enable wolfSSL single threaded (default: disabled)],
+    [AS_HELP_STRING([--enable-singlethreaded],[Enable wolfSSL single threaded (default: disabled)])],
     [ ENABLED_SINGLETHREADED=$enableval ],
     [ ENABLED_SINGLETHREADED=no ])
 
@@ -237,7 +237,7 @@ AS_IF([ test "x$ENABLED_SINGLETHREADED" = "xyes" ],[ AM_CFLAGS="-DSINGLE_THREADE
 
 # DTLS
 AC_ARG_ENABLE([dtls],
-    [  --enable-dtls           Enable wolfSSL DTLS (default: disabled)],
+    [AS_HELP_STRING([--enable-dtls],[Enable wolfSSL DTLS (default: disabled)])],
     [ ENABLED_DTLS=$enableval ],
     [ ENABLED_DTLS=no ]
     )
@@ -249,7 +249,7 @@ fi
 
 # TLS v1.3
 AC_ARG_ENABLE([tls13],
-    [  --enable-tls13          Enable wolfSSL TLS v1.3 (default: disabled)],
+    [AS_HELP_STRING([--enable-tls13],[Enable wolfSSL TLS v1.3 (default: disabled)])],
     [ ENABLED_TLS13=$enableval ],
     [ ENABLED_TLS13=no ]
     )
@@ -264,7 +264,7 @@ AM_CONDITIONAL([BUILD_TLS13], [test "x$ENABLED_TLS13" = "xyes"])
 
 
 AC_ARG_ENABLE([rng],
-    [AS_HELP_STRING([--enable-rng            Enable compiling and using RNG (default: enabled)])],
+    [AS_HELP_STRING([--enable-rng],[Enable compiling and using RNG (default: enabled)])],
     [ ENABLED_RNG=$enableval ],
     [ ENABLED_RNG=yes ]
     )
@@ -307,14 +307,14 @@ AC_ARG_ENABLE([openssh],
 
 # nginx compatibility build
 AC_ARG_ENABLE([nginx],
-    [  --enable-nginx          Enable nginx (default: disabled)],
+    [AS_HELP_STRING([--enable-nginx],[Enable nginx (default: disabled)])],
     [ ENABLED_NGINX=$enableval ],
     [ ENABLED_NGINX=no ]
     )
 
 # haproxy compatibility build
 AC_ARG_ENABLE([haproxy],
-    [  --enable-haproxy         Enable haproxy (default: disabled)],
+    [AS_HELP_STRING([--enable-haproxy],[Enable haproxy (default: disabled)])],
     [ ENABLED_HAPROXY=$enableval ],
     [ ENABLED_HAPROXY=no ]
     )
@@ -322,7 +322,7 @@ AC_ARG_ENABLE([haproxy],
 
 # OPENSSL Extra Compatibility
 AC_ARG_ENABLE([opensslextra],
-    [  --enable-opensslextra   Enable extra OpenSSL API, size+ (default: disabled)],
+    [AS_HELP_STRING([--enable-opensslextra],[Enable extra OpenSSL API, size+ (default: disabled)])],
     [ ENABLED_OPENSSLEXTRA=$enableval ],
     [ ENABLED_OPENSSLEXTRA=no ]
     )
@@ -363,7 +363,7 @@ fi
 
 # IPv6 Test Apps
 AC_ARG_ENABLE([ipv6],
-    [  --enable-ipv6           Enable testing of IPV6 (default: disabled)],
+    [AS_HELP_STRING([--enable-ipv6],[Enable testing of IPV6 (default: disabled)])],
     [ ENABLED_IPV6=$enableval ],
     [ ENABLED_IPV6=no ]
     )
@@ -378,7 +378,7 @@ AM_CONDITIONAL([BUILD_IPV6], [test "x$ENABLED_IPV6" = "xyes"])
 
 # wpa_supplicant support
 AC_ARG_ENABLE([wpas],
-    [  --enable-wpas           Enable wpa_supplicant support (default: disabled)],
+    [AS_HELP_STRING([--enable-wpas],[Enable wpa_supplicant support (default: disabled)])],
     [ ENABLED_WPAS=$enableval ],
     [ ENABLED_WPAS=no ]
     )
@@ -394,7 +394,7 @@ fi
 
 # Fortress build
 AC_ARG_ENABLE([fortress],
-    [  --enable-fortress       Enable SSL fortress build (default: disabled)],
+    [AS_HELP_STRING([--enable-fortress],[Enable SSL fortress build (default: disabled)])],
     [ ENABLED_FORTRESS=$enableval ],
     [ ENABLED_FORTRESS=no ]
     )
@@ -412,7 +412,7 @@ fi
 
 # ssl bump build
 AC_ARG_ENABLE([bump],
-    [  --enable-bump           Enable SSL Bump build (default: disabled)],
+    [AS_HELP_STRING([--enable-bump],[Enable SSL Bump build (default: disabled)])],
     [ ENABLED_BUMP=$enableval ],
     [ ENABLED_BUMP=no ]
     )
@@ -426,7 +426,7 @@ ENABLED_SLOWMATH="yes"
 
 # lean psk build
 AC_ARG_ENABLE([leanpsk],
-    [  --enable-leanpsk        Enable Lean PSK build (default: disabled)],
+    [AS_HELP_STRING([--enable-leanpsk],[Enable Lean PSK build (default: disabled)])],
     [ ENABLED_LEANPSK=$enableval ],
     [ ENABLED_LEANPSK=no ]
     )
@@ -443,7 +443,7 @@ AM_CONDITIONAL([BUILD_LEANPSK], [test "x$ENABLED_LEANPSK" = "xyes"])
 
 # lean TLS build (TLS 1.2 client only (no client auth), ECC256, AES128 and SHA256 w/o Shamir)
 AC_ARG_ENABLE([leantls],
-    [  --enable-leantls        Enable Lean TLS build (default: disabled)],
+    [AS_HELP_STRING([--enable-leantls],[Enable Lean TLS build (default: disabled)])],
     [ ENABLED_LEANTLS=$enableval ],
     [ ENABLED_LEANTLS=no ]
     )
@@ -458,7 +458,7 @@ AM_CONDITIONAL([BUILD_LEANTLS], [test "x$ENABLED_LEANTLS" = "xyes"])
 
 # big cache
 AC_ARG_ENABLE([bigcache],
-    [  --enable-bigcache       Enable big session cache (default: disabled)],
+    [AS_HELP_STRING([--enable-bigcache],[Enable big session cache (default: disabled)])],
     [ ENABLED_BIGCACHE=$enableval ],
     [ ENABLED_BIGCACHE=no ]
     )
@@ -471,7 +471,7 @@ fi
 
 # HUGE cache
 AC_ARG_ENABLE([hugecache],
-    [  --enable-hugecache      Enable huge session cache (default: disabled)],
+    [AS_HELP_STRING([--enable-hugecache],[Enable huge session cache (default: disabled)])],
     [ ENABLED_HUGECACHE=$enableval ],
     [ ENABLED_HUGECACHE=no ]
     )
@@ -484,7 +484,7 @@ fi
 
 # SMALL cache
 AC_ARG_ENABLE([smallcache],
-    [  --enable-smallcache     Enable small session cache (default: disabled)],
+    [AS_HELP_STRING([--enable-smallcache],[Enable small session cache (default: disabled)])],
     [ ENABLED_SMALLCACHE=$enableval ],
     [ ENABLED_SMALLCACHE=no ]
     )
@@ -497,7 +497,7 @@ fi
 
 # Persistent session cache
 AC_ARG_ENABLE([savesession],
-    [  --enable-savesession    Enable persistent session cache (default: disabled)],
+    [AS_HELP_STRING([--enable-savesession],[Enable persistent session cache (default: disabled)])],
     [ ENABLED_SAVESESSION=$enableval ],
     [ ENABLED_SAVESESSION=no ]
     )
@@ -510,7 +510,7 @@ fi
 
 # Persistent cert cache
 AC_ARG_ENABLE([savecert],
-    [  --enable-savecert       Enable persistent cert cache (default: disabled)],
+    [AS_HELP_STRING([--enable-savecert],[Enable persistent cert cache (default: disabled)])],
     [ ENABLED_SAVECERT=$enableval ],
     [ ENABLED_SAVECERT=no ]
     )
@@ -523,7 +523,7 @@ fi
 
 # Write duplicate WOLFSSL object
 AC_ARG_ENABLE([writedup],
-    [  --enable-writedup       Enable write duplication of WOLFSSL objects (default: disabled)],
+    [AS_HELP_STRING([--enable-writedup],[Enable write duplication of WOLFSSL objects (default: disabled)])],
     [ ENABLED_WRITEDUP=$enableval ],
     [ ENABLED_WRITEDUP=no ]
     )
@@ -536,7 +536,7 @@ fi
 
 # Atomic User Record Layer
 AC_ARG_ENABLE([atomicuser],
-    [  --enable-atomicuser     Enable Atomic User Record Layer (default: disabled)],
+    [AS_HELP_STRING([--enable-atomicuser],[Enable Atomic User Record Layer (default: disabled)])],
     [ ENABLED_ATOMICUSER=$enableval ],
     [ ENABLED_ATOMICUSER=no ]
     )
@@ -549,7 +549,7 @@ fi
 
 # Public Key Callbacks
 AC_ARG_ENABLE([pkcallbacks],
-    [  --enable-pkcallbacks    Enable Public Key Callbacks (default: disabled)],
+    [AS_HELP_STRING([--enable-pkcallbacks],[Enable Public Key Callbacks (default: disabled)])],
     [ ENABLED_PKCALLBACKS=$enableval ],
     [ ENABLED_PKCALLBACKS=no ]
     )
@@ -629,7 +629,7 @@ AM_CONDITIONAL([BUILD_AESGCM], [test "x$ENABLED_AESGCM" = "xyes"])
 
 # AES-CCM
 AC_ARG_ENABLE([aesccm],
-    [  --enable-aesccm         Enable wolfSSL AES-CCM support (default: disabled)],
+    [AS_HELP_STRING([--enable-aesccm],[Enable wolfSSL AES-CCM support (default: disabled)])],
     [ ENABLED_AESCCM=$enableval ],
     [ ENABLED_AESCCM=no ]
     )
@@ -644,7 +644,7 @@ AM_CONDITIONAL([BUILD_AESCCM], [test "x$ENABLED_AESCCM" = "xyes"])
 
 # AES-CTR
 AC_ARG_ENABLE([aesctr],
-    [  --enable-aesctr         Enable wolfSSL AES-CTR support (default: disabled)],
+    [AS_HELP_STRING([--enable-aesctr],[Enable wolfSSL AES-CTR support (default: disabled)])],
     [ ENABLED_AESCTR=$enableval ],
     [ ENABLED_AESCTR=no ]
     )
@@ -740,7 +740,7 @@ AM_CONDITIONAL([BUILD_AESNI], [test "x$ENABLED_AESNI" = "xyes"])
 
 # Camellia
 AC_ARG_ENABLE([camellia],
-    [  --enable-camellia       Enable wolfSSL Camellia support (default: disabled)],
+    [AS_HELP_STRING([--enable-camellia],[Enable wolfSSL Camellia support (default: disabled)])],
     [ ENABLED_CAMELLIA=$enableval ],
     [ ENABLED_CAMELLIA=no ]
     )
@@ -755,7 +755,7 @@ AM_CONDITIONAL([BUILD_CAMELLIA], [test "x$ENABLED_CAMELLIA" = "xyes"])
 
 # MD2
 AC_ARG_ENABLE([md2],
-    [  --enable-md2            Enable wolfSSL MD2 support (default: disabled)],
+    [AS_HELP_STRING([--enable-md2],[Enable wolfSSL MD2 support (default: disabled)])],
     [ ENABLED_MD2=$enableval ],
     [ ENABLED_MD2=no ]
     )
@@ -775,7 +775,7 @@ AM_CONDITIONAL([BUILD_MD2], [test "x$ENABLED_MD2" = "xyes"])
 
 # NULL CIPHER
 AC_ARG_ENABLE([nullcipher],
-    [  --enable-nullcipher     Enable wolfSSL NULL cipher support (default: disabled)],
+    [AS_HELP_STRING([--enable-nullcipher],[Enable wolfSSL NULL cipher support (default: disabled)])],
     [ ENABLED_NULL_CIPHER=$enableval ],
     [ ENABLED_NULL_CIPHER=no ]
     )
@@ -792,7 +792,7 @@ fi
 
 # RIPEMD
 AC_ARG_ENABLE([ripemd],
-    [  --enable-ripemd         Enable wolfSSL RIPEMD-160 support (default: disabled)],
+    [AS_HELP_STRING([--enable-ripemd],[Enable wolfSSL RIPEMD-160 support (default: disabled)])],
     [ ENABLED_RIPEMD=$enableval ],
     [ ENABLED_RIPEMD=no ]
     )
@@ -812,7 +812,7 @@ AM_CONDITIONAL([BUILD_RIPEMD], [test "x$ENABLED_RIPEMD" = "xyes"])
 
 # BLAKE2
 AC_ARG_ENABLE([blake2],
-    [  --enable-blake2         Enable wolfSSL BLAKE2 support (default: disabled)],
+    [AS_HELP_STRING([--enable-blake2],[Enable wolfSSL BLAKE2 support (default: disabled)])],
     [ ENABLED_BLAKE2=$enableval ],
     [ ENABLED_BLAKE2=no ]
     )
@@ -866,7 +866,7 @@ AM_CONDITIONAL([BUILD_SHA512], [test "x$ENABLED_SHA512" = "xyes"])
 
 # SESSION CERTS
 AC_ARG_ENABLE([sessioncerts],
-    [  --enable-sessioncerts   Enable session cert storing (default: disabled)],
+    [AS_HELP_STRING([--enable-sessioncerts],[Enable session cert storing (default: disabled)])],
     [ ENABLED_SESSIONCERTS=$enableval ],
     [ ENABLED_SESSIONCERTS=no ]
     )
@@ -888,7 +888,7 @@ fi
 
 # KEY GENERATION
 AC_ARG_ENABLE([keygen],
-    [  --enable-keygen         Enable key generation (default: disabled)],
+    [AS_HELP_STRING([--enable-keygen],[Enable key generation (default: disabled)])],
     [ ENABLED_KEYGEN=$enableval ],
     [ ENABLED_KEYGEN=no ]
     )
@@ -901,7 +901,7 @@ fi
 
 # CERT GENERATION
 AC_ARG_ENABLE([certgen],
-    [  --enable-certgen        Enable cert generation (default: disabled)],
+    [AS_HELP_STRING([--enable-certgen],[Enable cert generation (default: disabled)])],
     [ ENABLED_CERTGEN=$enableval ],
     [ ENABLED_CERTGEN=no ]
     )
@@ -914,7 +914,7 @@ fi
 
 # CERT REQUEST GENERATION
 AC_ARG_ENABLE([certreq],
-    [  --enable-certreq        Enable cert request generation (default: disabled)],
+    [AS_HELP_STRING([--enable-certreq],[Enable cert request generation (default: disabled)])],
     [ ENABLED_CERTREQ=$enableval ],
     [ ENABLED_CERTREQ=no ]
     )
@@ -931,7 +931,7 @@ fi
 
 # CERT REQUEST EXTENSION
 AC_ARG_ENABLE([certext],
-    [  --enable-certext        Enable cert request extensions (default: disabled)],
+    [AS_HELP_STRING([--enable-certext],[Enable cert request extensions (default: disabled)])],
     [ ENABLED_CERTEXT=$enableval ],
     [ ENABLED_CERTEXT=no ]
     )
@@ -948,7 +948,7 @@ fi
 
 # SEP
 AC_ARG_ENABLE([sep],
-    [  --enable-sep            Enable sep extensions (default: disabled)],
+    [AS_HELP_STRING([--enable-sep],[Enable sep extensions (default: disabled)])],
     [ ENABLED_SEP=$enableval ],
     [ ENABLED_SEP=no ]
     )
@@ -960,7 +960,7 @@ fi
 
 # HKDF
 AC_ARG_ENABLE([hkdf],
-    [  --enable-hkdf           Enable HKDF (HMAC-KDF) support (default: disabled)],
+    [AS_HELP_STRING([--enable-hkdf],[Enable HKDF (HMAC-KDF) support (default: disabled)])],
     [ ENABLED_HKDF=$enableval ],
     [ ENABLED_HKDF=no ]
     )
@@ -976,7 +976,7 @@ fi
 
 # X9.63 KDF
 AC_ARG_ENABLE([x963kdf],
-    [  --enable-x963kdf        Enable X9.63 KDF support (default: disabled)],
+    [AS_HELP_STRING([--enable-x963kdf],[Enable X9.63 KDF support (default: disabled)])],
     [ ENABLED_X963KDF=$enableval ],
     [ ENABLED_X963KDF=no ]
     )
@@ -988,7 +988,7 @@ fi
 
 # DSA
 AC_ARG_ENABLE([dsa],
-    [  --enable-dsa            Enable DSA (default: disabled)],
+    [AS_HELP_STRING([--enable-dsa],[Enable DSA (default: disabled)])],
     [ ENABLED_DSA=$enableval ],
     [ ENABLED_DSA=no ]
     )
@@ -1158,7 +1158,7 @@ AM_CONDITIONAL([BUILD_GEMATH],  [test "x$ENABLED_GEMATH" = "xyes"])
 
 # FP ECC, Fixed Point cache ECC
 AC_ARG_ENABLE([fpecc],
-    [  --enable-fpecc          Enable Fixed Point cache ECC (default: disabled)],
+    [AS_HELP_STRING([--enable-fpecc],[Enable Fixed Point cache ECC (default: disabled)])],
     [ ENABLED_FPECC=$enableval ],
     [ ENABLED_FPECC=no ]
     )
@@ -1175,7 +1175,7 @@ fi
 
 # ECC encrypt
 AC_ARG_ENABLE([eccencrypt],
-    [  --enable-eccencrypt     Enable ECC encrypt (default: disabled)],
+    [AS_HELP_STRING([--enable-eccencrypt],[Enable ECC encrypt (default: disabled)])],
     [ ENABLED_ECC_ENCRYPT=$enableval ],
     [ ENABLED_ECC_ENCRYPT=no ]
     )
@@ -1196,7 +1196,7 @@ fi
 
 # PSK
 AC_ARG_ENABLE([psk],
-    [  --enable-psk            Enable PSK (default: disabled)],
+    [AS_HELP_STRING([--enable-psk],[Enable PSK (default: disabled)])],
     [ ENABLED_PSK=$enableval ],
     [ ENABLED_PSK=no ]
     )
@@ -1204,7 +1204,7 @@ AC_ARG_ENABLE([psk],
 
 # ERROR STRINGS
 AC_ARG_ENABLE([errorstrings],
-    [  --enable-errorstrings   Enable error strings table (default: enabled)],
+    [AS_HELP_STRING([--enable-errorstrings],[Enable error strings table (default: enabled)])],
     [ ENABLED_ERROR_STRINGS=$enableval ],
     [ ENABLED_ERROR_STRINGS=yes ]
     )
@@ -1224,7 +1224,7 @@ fi
 
 # OLD TLS
 AC_ARG_ENABLE([oldtls],
-    [  --enable-oldtls         Enable old TLS versions < 1.2 (default: enabled)],
+    [AS_HELP_STRING([--enable-oldtls],[Enable old TLS versions < 1.2 (default: enabled)])],
     [ ENABLED_OLD_TLS=$enableval ],
     [ ENABLED_OLD_TLS=yes ]
     )
@@ -1257,7 +1257,7 @@ fi
 
 # STACK SIZE info for examples
 AC_ARG_ENABLE([stacksize],
-    [  --enable-stacksize      Enable stack size info on examples (default: disabled)],
+    [AS_HELP_STRING([--enable-stacksize],[Enable stack size info on examples (default: disabled)])],
     [ ENABLED_STACKSIZE=$enableval ],
     [ ENABLED_STACKSIZE=no ]
     )
@@ -1272,7 +1272,7 @@ fi
 
 # MEMORY
 AC_ARG_ENABLE([memory],
-    [  --enable-memory         Enable memory callbacks (default: enabled)],
+    [AS_HELP_STRING([--enable-memory],[Enable memory callbacks (default: enabled)])],
     [ ENABLED_MEMORY=$enableval ],
     [ ENABLED_MEMORY=yes ]
     )
@@ -1294,7 +1294,7 @@ AM_CONDITIONAL([BUILD_MEMORY], [test "x$ENABLED_MEMORY" = "xyes"])
 
 # RSA
 AC_ARG_ENABLE([rsa],
-    [  --enable-rsa            Enable RSA (default: enabled)],
+    [AS_HELP_STRING([--enable-rsa],[Enable RSA (default: enabled)])],
     [ ENABLED_RSA=$enableval ],
     [ ENABLED_RSA=yes ]
     )
@@ -1366,7 +1366,7 @@ fi
 # turn off asn, which means no certs, no rsa, no dsa, no ecc,
 # and no big int (unless dh is on)
 AC_ARG_ENABLE([asn],
-    [  --enable-asn            Enable ASN (default: enabled)],
+    [AS_HELP_STRING([--enable-asn],[Enable ASN (default: enabled)])],
     [ ENABLED_ASN=$enableval ],
     [ ENABLED_ASN=yes ]
     )
@@ -1410,7 +1410,7 @@ AM_CONDITIONAL([BUILD_ASN], [test "x$ENABLED_ASN" = "xyes"])
 
 # AES
 AC_ARG_ENABLE([aes],
-    [  --enable-aes            Enable AES (default: enabled)],
+    [AS_HELP_STRING([--enable-aes],[Enable AES (default: enabled)])],
     [ ENABLED_AES=$enableval ],
     [ ENABLED_AES=yes ]
     )
@@ -1452,7 +1452,7 @@ AM_CONDITIONAL([BUILD_AES], [test "x$ENABLED_AES" = "xyes"])
 
 # CODING
 AC_ARG_ENABLE([coding],
-    [  --enable-coding         Enable Coding base 16/64 (default: enabled)],
+    [AS_HELP_STRING([--enable-coding],[Enable Coding base 16/64 (default: enabled)])],
     [ ENABLED_CODING=$enableval ],
     [ ENABLED_CODING=yes ]
     )
@@ -1479,7 +1479,7 @@ then
 BASE64ENCODE_DEFAULT=yes
 fi
 AC_ARG_ENABLE([base64encode],
-    [  --enable-base64encode   Enable Base64 encoding (default: enabled on x86_64)],
+    [AS_HELP_STRING([--enable-base64encode],[Enable Base64 encoding (default: enabled on x86_64)])],
     [ ENABLED_BASE64ENCODE=$enableval ],
     [ ENABLED_BASE64ENCODE=$BASE64ENCODE_DEFAULT ]
     )
@@ -1499,14 +1499,14 @@ AC_ARG_ENABLE([des3],
 
 # IDEA
 AC_ARG_ENABLE([idea],
-[AS_HELP_STRING([--enable-idea],[Enable IDEA Cipher (default: disabled)])],
-[ ENABLED_IDEA=$enableval ],
-[ ENABLED_IDEA=no ]
-)
+    [AS_HELP_STRING([--enable-idea],[Enable IDEA Cipher (default: disabled)])],
+    [ ENABLED_IDEA=$enableval ],
+    [ ENABLED_IDEA=no ]
+    )
 
 if test "x$ENABLED_IDEA" = "xyes"
 then
-AM_CFLAGS="$AM_CFLAGS -DHAVE_IDEA"
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_IDEA"
 fi
 
 AM_CONDITIONAL([BUILD_IDEA], [test "x$ENABLED_IDEA" = "xyes"])
@@ -1515,7 +1515,7 @@ AM_CONDITIONAL([BUILD_IDEA], [test "x$ENABLED_IDEA" = "xyes"])
 
 # ARC4
 AC_ARG_ENABLE([arc4],
-    [  --enable-arc4           Enable ARC4 (default: disabled)],
+    [AS_HELP_STRING([--enable-arc4],[Enable ARC4 (default: disabled)])],
     [ ENABLED_ARC4=$enableval ],
     [ ENABLED_ARC4=no ]
     )
@@ -1542,7 +1542,7 @@ AM_CONDITIONAL([BUILD_RC4], [test "x$ENABLED_ARC4" = "xyes"])
 
 # MD5
 AC_ARG_ENABLE([md5],
-    [  --enable-md5            Enable MD5 (default: enabled)],
+    [AS_HELP_STRING([--enable-md5],[Enable MD5 (default: enabled)])],
     [ ENABLED_MD5=$enableval ],
     [ ENABLED_MD5=yes ]
     )
@@ -1564,7 +1564,7 @@ AM_CONDITIONAL([BUILD_MD5], [test "x$ENABLED_MD5" = "xyes"])
 
 # SHA
 AC_ARG_ENABLE([sha],
-    [  --enable-sha            Enable SHA (default: enabled)],
+    [AS_HELP_STRING([--enable-sha],[Enable SHA (default: enabled)])],
     [ ENABLED_SHA=$enableval ],
     [ ENABLED_SHA=yes ]
     )
@@ -1604,7 +1604,7 @@ AM_CONDITIONAL([BUILD_CMAC], [test "x$ENABLED_CMAC" = "xyes"])
 
 # Web Server Build
 AC_ARG_ENABLE([webserver],
-    [  --enable-webserver      Enable Web Server (default: disabled)],
+    [AS_HELP_STRING([--enable-webserver],[Enable Web Server (default: disabled)])],
     [ ENABLED_WEBSERVER=$enableval ],
     [ ENABLED_WEBSERVER=no ]
     )
@@ -1618,7 +1618,7 @@ fi
 
 # HC128
 AC_ARG_ENABLE([hc128],
-    [  --enable-hc128          Enable HC-128 (default: disabled)],
+    [AS_HELP_STRING([--enable-hc128],[Enable HC-128 (default: disabled)])],
     [ ENABLED_HC128=$enableval ],
     [ ENABLED_HC128=no ]
     )
@@ -1635,7 +1635,7 @@ AM_CONDITIONAL([BUILD_HC128], [test "x$ENABLED_HC128" = "xyes"])
 
 # RABBIT
 AC_ARG_ENABLE([rabbit],
-    [  --enable-rabbit         Enable RABBIT (default: disabled)],
+    [AS_HELP_STRING([--enable-rabbit],[Enable RABBIT (default: disabled)])],
     [ ENABLED_RABBIT=$enableval ],
     [ ENABLED_RABBIT=no ]
     )
@@ -1758,7 +1758,7 @@ fi
 
 # CHACHA
 AC_ARG_ENABLE([chacha],
-    [  --enable-chacha         Enable CHACHA (default: enabled)],
+    [AS_HELP_STRING([--enable-chacha],[Enable CHACHA (default: enabled)])],
     [ ENABLED_CHACHA=$enableval ],
     [ ENABLED_CHACHA=$CHACHA_DEFAULT]
     )
@@ -1779,7 +1779,7 @@ AM_CONDITIONAL([BUILD_CHACHA], [test "x$ENABLED_CHACHA" = "xyes"])
 
 # Hash DRBG
 AC_ARG_ENABLE([hashdrbg],
-    [  --enable-hashdrbg       Enable Hash DRBG support (default: enabled)],
+    [AS_HELP_STRING([--enable-hashdrbg],[Enable Hash DRBG support (default: enabled)])],
     [ ENABLED_HASHDRBG=$enableval ],
     [ ENABLED_HASHDRBG=yes ]
     )
@@ -1801,7 +1801,7 @@ fi
 
 # Filesystem Build
 AC_ARG_ENABLE([filesystem],
-    [  --enable-filesystem     Enable Filesystem support (default: enabled)],
+    [AS_HELP_STRING([--enable-filesystem],[Enable Filesystem support (default: enabled)])],
     [ ENABLED_FILESYSTEM=$enableval ],
     [ ENABLED_FILESYSTEM=yes ]
     )
@@ -1821,7 +1821,7 @@ fi
 
 # inline Build
 AC_ARG_ENABLE([inline],
-    [  --enable-inline         Enable inline functions (default: enabled)],
+    [AS_HELP_STRING([--enable-inline],[Enable inline functions (default: enabled)])],
     [ ENABLED_INLINE=$enableval ],
     [ ENABLED_INLINE=yes ]
     )
@@ -1836,7 +1836,7 @@ AM_CONDITIONAL([BUILD_INLINE], [test "x$ENABLED_INLINE" = "xyes"])
 
 # OCSP
 AC_ARG_ENABLE([ocsp],
-    [  --enable-ocsp           Enable OCSP (default: disabled)],
+    [AS_HELP_STRING([--enable-ocsp],[Enable OCSP (default: disabled)])],
     [ ENABLED_OCSP=$enableval ],
     [ ENABLED_OCSP=no ],
     )
@@ -1925,7 +1925,7 @@ AM_CONDITIONAL([BUILD_OCSP_STAPLING_V2], [test "x$ENABLED_CERTIFICATE_STATUS_REQ
 
 # CRL
 AC_ARG_ENABLE([crl],
-    [  --enable-crl            Enable CRL (default: disabled)],
+    [AS_HELP_STRING([--enable-crl],[Enable CRL (default: disabled)])],
     [ ENABLED_CRL=$enableval ],
     [ ENABLED_CRL=no ],
     )
@@ -1945,7 +1945,7 @@ AM_CONDITIONAL([BUILD_CRL], [test "x$ENABLED_CRL" = "xyes"])
 
 # CRL Monitor
 AC_ARG_ENABLE([crl-monitor],
-    [  --enable-crl-monitor    Enable CRL Monitor (default: disabled)],
+    [AS_HELP_STRING([--enable-crl-monitor],[Enable CRL Monitor (default: disabled)])],
     [ ENABLED_CRL_MONITOR=$enableval ],
     [ ENABLED_CRL_MONITOR=no ],
     )
@@ -2113,7 +2113,7 @@ AM_CONDITIONAL([BUILD_WNR], [test "x$ENABLED_WNR" = "xyes"])
 
 # SNI
 AC_ARG_ENABLE([sni],
-    [  --enable-sni            Enable SNI (default: disabled)],
+    [AS_HELP_STRING([--enable-sni],[Enable SNI (default: disabled)])],
     [ ENABLED_SNI=$enableval ],
     [ ENABLED_SNI=no ]
     )
@@ -2125,14 +2125,14 @@ fi
 
 # Maximum Fragment Length
 AC_ARG_ENABLE([maxfragment],
-    [  --enable-maxfragment    Enable Maximum Fragment Length (default: disabled)],
+    [AS_HELP_STRING([--enable-maxfragment],[Enable Maximum Fragment Length (default: disabled)])],
     [ ENABLED_MAX_FRAGMENT=$enableval ],
     [ ENABLED_MAX_FRAGMENT=no ]
     )
 
 # ALPN
 AC_ARG_ENABLE([alpn],
-    [  --enable-alpn           Enable ALPN (default: disabled)],
+    [AS_HELP_STRING([--enable-alpn],[Enable ALPN (default: disabled)])],
     [ ENABLED_ALPN=$enableval ],
     [ ENABLED_ALPN=no ]
     )
@@ -2150,7 +2150,7 @@ fi
 
 # Truncated HMAC
 AC_ARG_ENABLE([truncatedhmac],
-    [  --enable-truncatedhmac  Enable Truncated HMAC (default: disabled)],
+    [AS_HELP_STRING([--enable-truncatedhmac],[Enable Truncated HMAC (default: disabled)])],
     [ ENABLED_TRUNCATED_HMAC=$enableval ],
     [ ENABLED_TRUNCATED_HMAC=no ]
     )
@@ -2232,7 +2232,7 @@ fi
 
 # TLS Extensions
 AC_ARG_ENABLE([tlsx],
-    [  --enable-tlsx           Enable all TLS Extensions (default: disabled)],
+    [AS_HELP_STRING([--enable-tlsx],[Enable all TLS Extensions (default: disabled)])],
     [ ENABLED_TLSX=$enableval ],
     [ ENABLED_TLSX=no ]
     )
@@ -2265,7 +2265,7 @@ AC_ARG_ENABLE([pkcs7],
 
 # Simple Certificate Enrollment Protocol (SCEP)
 AC_ARG_ENABLE([scep],
-    [  --enable-scep           Enable wolfSCEP (default: disabled)],
+    [AS_HELP_STRING([--enable-scep],[Enable wolfSCEP (default: disabled)])],
     [ ENABLED_WOLFSCEP=$enableval ],
     [ ENABLED_WOLFSCEP=no ]
     )
@@ -2273,7 +2273,7 @@ AC_ARG_ENABLE([scep],
 
 # Secure Remote Password
 AC_ARG_ENABLE([srp],
-    [  --enable-srp            Enable Secure Remote Password (default: disabled)],
+    [AS_HELP_STRING([--enable-srp],[Enable Secure Remote Password (default: disabled)])],
     [ ENABLED_SRP=$enableval ],
     [ ENABLED_SRP=no ]
     )
@@ -2289,7 +2289,7 @@ AM_CONDITIONAL([BUILD_SRP], [test "x$ENABLED_SRP" = "xyes"])
 
 # Small Stack
 AC_ARG_ENABLE([smallstack],
-    [  --enable-smallstack     Enable Small Stack Usage (default: disabled)],
+    [AS_HELP_STRING([--enable-smallstack],[Enable Small Stack Usage (default: disabled)])],
     [ ENABLED_SMALL_STACK=$enableval ],
     [ ENABLED_SMALL_STACK=no ]
     )
@@ -2302,7 +2302,7 @@ fi
 
 #valgrind
 AC_ARG_ENABLE([valgrind],
-    [  --enable-valgrind       Enable valgrind for unit tests (default: disabled)],
+    [AS_HELP_STRING([--enable-valgrind],[Enable valgrind for unit tests (default: disabled)])],
     [ ENABLED_VALGRIND=$enableval ],
     [ ENABLED_VALGRIND=no ]
     )
@@ -2325,7 +2325,7 @@ AM_CONDITIONAL([USE_VALGRIND], [test "x$ENABLED_VALGRIND" = "xyes"])
 
 # Test certs, use internal cert functions for extra testing
 AC_ARG_ENABLE([testcert],
-    [  --enable-testcert       Enable Test Cert (default: disabled)],
+    [AS_HELP_STRING([--enable-testcert],[Enable Test Cert (default: disabled)])],
     [ ENABLED_TESTCERT=$enableval ],
     [ ENABLED_TESTCERT=no ]
     )
@@ -2339,7 +2339,7 @@ fi
 # I/O Pool, an example to show user how to override memory handler and use
 # a pool for the input/output buffer requests
 AC_ARG_ENABLE([iopool],
-    [  --enable-iopool         Enable I/O Pool example (default: disabled)],
+    [AS_HELP_STRING([--enable-iopool],[Enable I/O Pool example (default: disabled)])],
     [ ENABLED_IOPOOL=$enableval ],
     [ ENABLED_IOPOOL=no ]
     )
@@ -2356,7 +2356,7 @@ fi
 
 # Certificate Service Support
 AC_ARG_ENABLE([certservice],
-    [  --enable-certservice    Enable cert service (default: disabled)],
+    [AS_HELP_STRING([--enable-certservice],[Enable cert service (default: disabled)])],
     [ ENABLED_CERT_SERVICE=$enableval ],
     [ ENABLED_CERT_SERVICE=no ]
     )
@@ -2390,7 +2390,7 @@ fi
 
 # wolfSSL JNI
 AC_ARG_ENABLE([jni],
-    [  --enable-jni            Enable wolfSSL JNI (default: disabled)],
+    [AS_HELP_STRING([--enable-jni],[Enable wolfSSL JNI (default: disabled)])],
     [ ENABLED_JNI=$enableval ],
     [ ENABLED_JNI=no ]
     )
@@ -2470,7 +2470,7 @@ fi
 
 # lighty Support
 AC_ARG_ENABLE([lighty],
-    [  --enable-lighty         Enable lighttpd/lighty (default: disabled)],
+    [AS_HELP_STRING([--enable-lighty],[Enable lighttpd/lighty (default: disabled)])],
     [ ENABLED_LIGHTY=$enableval ],
     [ ENABLED_LIGHTY=no ]
     )
@@ -2512,7 +2512,7 @@ fi
 
 # stunnel Support
 AC_ARG_ENABLE([stunnel],
-    [  --enable-stunnel        Enable stunnel (default: disabled)],
+    [AS_HELP_STRING([--enable-stunnel],[Enable stunnel (default: disabled)])],
     [ ENABLED_STUNNEL=$enableval ],
     [ ENABLED_STUNNEL=no ]
     )
@@ -2603,7 +2603,7 @@ fi
 
 # MD4
 AC_ARG_ENABLE([md4],
-    [  --enable-md4            Enable MD4 (default: disabled)],
+    [AS_HELP_STRING([--enable-md4],[Enable MD4 (default: disabled)])],
     [ ENABLED_MD4=$enableval ],
     [ ENABLED_MD4=no ]
     )
@@ -2626,7 +2626,7 @@ AM_CONDITIONAL([BUILD_MD4], [test "x$ENABLED_MD4" = "xyes"])
 # PWDBASED has to come after certservice since we want it on w/o explicit on
 # PWDBASED
 AC_ARG_ENABLE([pwdbased],
-    [  --enable-pwdbased       Enable PWDBASED (default: disabled)],
+    [AS_HELP_STRING([--enable-pwdbased],[Enable PWDBASED (default: disabled)])],
     [ ENABLED_PWDBASED=$enableval ],
     [ ENABLED_PWDBASED=no ]
     )
@@ -2646,7 +2646,7 @@ AM_CONDITIONAL([BUILD_PWDBASED], [test "x$ENABLED_PWDBASED" = "xyes"])
 
 
 AC_ARG_ENABLE([scrypt],
-    [  --enable-scrypt         Enable SCRYPT (default: disabled)],
+    [AS_HELP_STRING([--enable-scrypt],[Enable SCRYPT (default: disabled)])],
     [ ENABLED_SCRYPT=$enableval ],
     [ ENABLED_SCRYPT=no ]
     )
@@ -2700,7 +2700,7 @@ fi
 
 # fastmath
 AC_ARG_ENABLE([fastmath],
-    [  --enable-fastmath       Enable fast math ops (default: enabled on x86_64)],
+    [AS_HELP_STRING([--enable-fastmath],[Enable fast math ops (default: enabled on x86_64)])],
     [ ENABLED_FASTMATH=$enableval ],
     [ ENABLED_FASTMATH=$FASTMATH_DEFAULT]
     )
@@ -2731,7 +2731,7 @@ fi
 
 # fast HUGE math
 AC_ARG_ENABLE([fasthugemath],
-    [  --enable-fasthugemath   Enable fast math + huge code (default: disabled)],
+    [AS_HELP_STRING([--enable-fasthugemath],[Enable fast math + huge code (default: disabled)])],
     [ ENABLED_FASTHUGEMATH=$enableval ],
     [ ENABLED_FASTHUGEMATH=no ]
     )
@@ -2754,7 +2754,7 @@ AM_CONDITIONAL([BUILD_SLOWMATH], [test "x$ENABLED_SLOWMATH" = "xyes"])
 
 # Enable Examples, used to disable examples
 AC_ARG_ENABLE([examples],
-    [  --enable-examples       Enable Examples  (default: enabled)],
+    [AS_HELP_STRING([--enable-examples],[Enable Examples  (default: enabled)])],
     [ ENABLED_EXAMPLES=$enableval ],
     [ ENABLED_EXAMPLES=yes ]
     )
@@ -2768,7 +2768,7 @@ AM_CONDITIONAL([BUILD_TESTS], [test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENA
 
 # Enable wolfCrypt test and benchmark
 AC_ARG_ENABLE([crypttests],
-    [  --enable-crypttests     Enable Crypt Bench/Test  (default: enabled)],
+    [AS_HELP_STRING([--enable-crypttests],[Enable Crypt Bench/Test  (default: enabled)])],
     [ ENABLED_CRYPT_TESTS=$enableval ],
     [ ENABLED_CRYPT_TESTS=yes ]
     )
@@ -3101,7 +3101,7 @@ fi
 
 # microchip api
 AC_ARG_ENABLE([mcapi],
-    [  --enable-mcapi          Enable Microchip API (default: disabled)],
+    [AS_HELP_STRING([--enable-mcapi],[Enable Microchip API (default: disabled)])],
     [ ENABLED_MCAPI=$enableval ],
     [ ENABLED_MCAPI=no ]
     )
@@ -3136,7 +3136,7 @@ AM_CONDITIONAL([BUILD_MCAPI], [test "x$ENABLED_MCAPI" = "xyes"])
 
 # Asynchronous Crypto
 AC_ARG_ENABLE([asynccrypt],
-    [  --enable-asynccrypt     Enable Asynchronous Crypto (default: disabled)],
+    [AS_HELP_STRING([--enable-asynccrypt],[Enable Asynchronous Crypto (default: disabled)])],
     [ ENABLED_ASYNCCRYPT=$enableval ],
     [ ENABLED_ASYNCCRYPT=no ]
     )
@@ -3167,7 +3167,7 @@ fi
 
 # Asynchronous threading
 AC_ARG_ENABLE([asyncthreads],
-    [  --enable-asyncthreads   Enable Asynchronous Threading (default: enabled)],
+    [AS_HELP_STRING([--enable-asyncthreads],[Enable Asynchronous Threading (default: enabled)])],
     [ ENABLED_ASYNCTHREADS=$enableval ],
     [ ENABLED_ASYNCTHREADS=yes ]
     )
