@@ -64,6 +64,10 @@
 #ifdef WOLFSSL_RIPEMD
     #include <wolfssl/wolfcrypt/ripemd.h>
 #endif
+#ifndef NO_DES3
+    #include <wolfssl/wolfcrypt/des3.h>
+    #include <wolfssl/wolfcrypt/wc_encrypt.h>
+#endif
 
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/ssl.h>
@@ -3728,6 +3732,294 @@ static int test_wc_Sha224Final (void)
 } /* END test_wc_Sha224Final */
 
 
+/*
+ * unit test for wc_Des3_SetIV()
+ */
+static int test_wc_Des3_SetIV (void)
+{
+#ifndef NO_DES3
+    Des3 des;
+    int  ret;
+    const byte key[] =
+    {
+        0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,
+        0xfe,0xde,0xba,0x98,0x76,0x54,0x32,0x10,
+        0x89,0xab,0xcd,0xef,0x01,0x23,0x45,0x67
+    };
+
+    const byte iv[] =
+    {
+        0x12,0x34,0x56,0x78,0x90,0xab,0xcd,0xef,
+        0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
+        0x11,0x21,0x31,0x41,0x51,0x61,0x71,0x81
+    };
+
+    printf(testingFmt, "wc_Des3_SetIV()");
+
+    /* DES_ENCRYPTION or DES_DECRYPTION */
+    ret = wc_Des3_SetKey(&des, key, iv, DES_ENCRYPTION);
+
+    AssertIntEQ(XMEMCMP(iv, des.reg, DES_BLOCK_SIZE), 0);
+
+    /* Test explicitly wc_Des3_SetIV()  */
+    if (ret == 0) {
+        ret = wc_Des3_SetIV(NULL, iv);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Des3_SetIV(&des, NULL);
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_Des3_SetIV */
+
+/*
+ * unit test for wc_Des3_SetKey()
+ */
+static int test_wc_Des3_SetKey (void)
+{
+#ifndef NO_DES3
+    Des3 des;
+    int  ret;
+    const byte key[] =
+    {
+        0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,
+        0xfe,0xde,0xba,0x98,0x76,0x54,0x32,0x10,
+        0x89,0xab,0xcd,0xef,0x01,0x23,0x45,0x67
+    };
+
+    const byte iv[] =
+    {
+        0x12,0x34,0x56,0x78,0x90,0xab,0xcd,0xef,
+        0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
+        0x11,0x21,0x31,0x41,0x51,0x61,0x71,0x81
+    };
+
+    printf(testingFmt, "wc_Des3_SetKey()");
+
+    /* DES_ENCRYPTION or DES_DECRYPTION */
+    ret = wc_Des3_SetKey(&des, key, iv, DES_ENCRYPTION);
+
+    AssertIntEQ(XMEMCMP(iv, des.reg, DES_BLOCK_SIZE), 0);
+
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_Des3_SetKey(NULL, key, iv, DES_ENCRYPTION);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Des3_SetKey(&des, NULL, iv, DES_ENCRYPTION);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Des3_SetKey(&des, key, iv, -1);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            /* Default case. Should return 0. */
+            ret = wc_Des3_SetKey(&des, key, NULL, DES_ENCRYPTION);
+        }
+    } /* END if ret != 0 */
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_Des3_SetKey */
+
+/*
+ * Test function for wc_Des3_CbcEncrypt and wc_Des3_CbcDecrypt
+ */
+static int test_wc_Des3_CbcEncryptDecrypt (void)
+{
+#ifndef NO_DES3
+    Des3 des;
+
+    #ifndef WOLFSSL_SMALL_STACK
+        byte cipher[24];
+        byte plain[24];
+    #elif defined(WOLFSSL_SMALL_STACK)
+        byte* cipher = (byte*) malloc(sizeof(byte) * 24);
+        byte* plain = (byte*) malloc(sizeof(byte) * 24);
+    #endif
+
+    int ret;
+
+    const byte key[] =
+    {
+        0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,
+        0xfe,0xde,0xba,0x98,0x76,0x54,0x32,0x10,
+        0x89,0xab,0xcd,0xef,0x01,0x23,0x45,0x67
+    };
+
+    const byte iv[] =
+    {
+        0x12,0x34,0x56,0x78,0x90,0xab,0xcd,0xef,
+        0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
+        0x11,0x21,0x31,0x41,0x51,0x61,0x71,0x81
+    };
+
+    const byte vector[] = { /* "Now is the time for all " w/o trailing 0 */
+        0x4e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
+        0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
+        0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20
+    };
+
+    printf(testingFmt, "wc_Des3_CbcEncrypt()");
+
+    AssertIntEQ(wc_Des3_SetKey(&des, key, iv, DES_ENCRYPTION), 0);
+
+    ret = wc_Des3_CbcEncrypt(&des, cipher, vector, 24);
+
+    AssertIntEQ(wc_Des3_SetKey(&des, key, iv, DES_DECRYPTION), 0);
+
+    if (ret == 0) {
+        ret = wc_Des3_CbcDecrypt(&des, plain, cipher, 24);
+    }
+
+    AssertIntEQ(XMEMCMP(plain, vector, 24), 0);
+
+    /* Pass in bad args. */
+    if (ret == 0) {
+        ret = wc_Des3_CbcEncrypt(NULL, cipher, vector, 24);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Des3_CbcEncrypt(&des, NULL, vector, 24);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Des3_CbcEncrypt(&des, cipher, NULL, sizeof(vector));
+        }
+        if (ret != BAD_FUNC_ARG) {
+            printf("\nReturn code: %d\n", ret);
+            ret = SSL_FAILURE;
+        } else {
+        ret = 0;
+        }
+    }
+
+    if (ret == 0) {
+        ret = wc_Des3_CbcDecrypt(NULL, plain, cipher, 24);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Des3_CbcDecrypt(&des, NULL, cipher, 24);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Des3_CbcDecrypt(&des, plain, NULL, 24);
+        }
+        if (ret != BAD_FUNC_ARG) {
+            printf("\nReturn code: %d\n", ret);
+            ret = SSL_FAILURE;
+        } else {
+            ret = 0;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(plain, NULL, DYNAMIC_TYPE_NONE);
+        XFREE(cipher, NULL, DYNAMIC_TYPE_CIPHER);
+    #endif
+#endif
+    return 0;
+
+} /* END wc_Des3_CbcEncrypt */
+
+/*
+ *  Unit test for wc_Des3_CbcEncryptWithKey and wc_Des3_CbcDecryptWithKey
+ */
+static int test_wc_Des3_CbcEncryptDecryptWithKey (void)
+{
+#ifndef NO_DES3
+
+    word32 vectorSz, cipherSz;
+    int ret;
+
+    #ifndef WOLFSSL_SMALL_STACK
+        byte cipher[24];
+        byte plain[24];
+    #elif defined(WOLFSSL_SMALL_STACK)
+        byte* cipher = (byte*) malloc(sizeof(byte) * 24);
+        byte* plain = (byte*) malloc(sizeof(byte) * 24);
+    #endif
+
+    byte vector[] = /* Now is the time for all w/o trailing 0 */
+    {
+        0x4e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
+        0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
+        0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20
+    };
+
+    byte key[] =
+    {
+        0x01,0x23,0x45,0x67,0x89,0xab,0xcd,0xef,
+        0xfe,0xde,0xba,0x98,0x76,0x54,0x32,0x10,
+        0x89,0xab,0xcd,0xef,0x01,0x23,0x45,0x67
+    };
+
+    byte iv[] =
+    {
+        0x12,0x34,0x56,0x78,0x90,0xab,0xcd,0xef,
+        0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
+        0x11,0x21,0x31,0x41,0x51,0x61,0x71,0x81
+    };
+
+    vectorSz = sizeof(byte) * 24;
+    cipherSz = sizeof(byte) * 24;
+
+    printf(testingFmt, "wc_Des3_CbcEncryptWithKey()");
+
+    ret = wc_Des3_CbcEncryptWithKey(cipher, vector, vectorSz, key, iv);
+    if (ret == 0) {
+        ret = wc_Des3_CbcDecryptWithKey(plain, cipher, cipherSz, key, iv);
+        AssertIntEQ(XMEMCMP(plain, vector, 24), 0);
+    }
+
+    /* pass in bad args. */
+    if (ret == 0) {
+        ret = wc_Des3_CbcEncryptWithKey(NULL, vector, vectorSz, key, iv);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Des3_CbcEncryptWithKey(cipher, NULL, vectorSz, key, iv);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Des3_CbcEncryptWithKey(cipher, vector, vectorSz, NULL, iv);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Des3_CbcEncryptWithKey(cipher, vector, vectorSz,
+                                                                    key, NULL);
+        } else {
+            /* Return code catch. */
+            printf("\nReturn code: %d\n", ret);
+            ret = SSL_FAILURE;
+        }
+    }
+
+    if (ret == 0) {
+        ret = wc_Des3_CbcDecryptWithKey(NULL, cipher, cipherSz, key, iv);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Des3_CbcDecryptWithKey(plain, NULL, cipherSz, key, iv);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Des3_CbcDecryptWithKey(plain, cipher, cipherSz, NULL, iv);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Des3_CbcDecryptWithKey(plain, cipher, cipherSz, key, NULL);
+        } else {
+            printf("\nReturn code: %d\n", ret);
+            ret = SSL_FAILURE;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(plain, NULL, DYNAMIC_TYPE_NONE);
+        XFREE(cipher, NULL, DYNAMIC_TYPE_CIPHER);
+    #endif
+
+#endif
+    return 0;
+} /* END test_wc_Des3_CbcEncryptDecryptWithKey */
+
+
 /*----------------------------------------------------------------------------*
  | Compatibility Tests
  *----------------------------------------------------------------------------*/
@@ -4986,6 +5278,11 @@ void ApiTest(void)
     AssertFalse(test_wc_InitRipeMd());
     AssertFalse(test_wc_RipeMdUpdate());
     AssertFalse(test_wc_RipeMdFinal());
+
+    AssertIntEQ(test_wc_Des3_SetIV(), 0);
+    AssertIntEQ(test_wc_Des3_SetKey(), 0);
+    AssertIntEQ(test_wc_Des3_CbcEncryptDecrypt(), 0);
+    AssertIntEQ(test_wc_Des3_CbcEncryptDecryptWithKey(), 0);
     printf(" End API Tests\n");
 
 }
