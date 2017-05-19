@@ -2516,6 +2516,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         uint32_t keySize;
         status_t status;
         byte *iv, *enc_key;
+        word32 blocks = (sz / AES_BLOCK_SIZE);
 
         iv      = (byte*)aes->reg;
         enc_key = (byte*)aes->key;
@@ -2525,7 +2526,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             return status;
         }
 
-        status = LTC_AES_EncryptCbc(LTC_BASE, in, out, sz,
+        status = LTC_AES_EncryptCbc(LTC_BASE, in, out, blocks * AES_BLOCK_SIZE,
             iv, enc_key, keySize);
         return (status == kStatus_Success) ? 0 : -1;
     }
@@ -2536,6 +2537,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         uint32_t keySize;
         status_t status;
         byte* iv, *dec_key;
+        word32 blocks = (sz / AES_BLOCK_SIZE);
 
         iv      = (byte*)aes->reg;
         dec_key = (byte*)aes->key;
@@ -2545,7 +2547,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             return status;
         }
 
-        status = LTC_AES_DecryptCbc(LTC_BASE, in, out, sz,
+        status = LTC_AES_DecryptCbc(LTC_BASE, in, out, blocks * AES_BLOCK_SIZE,
             iv, dec_key, keySize, kLTC_EncryptKey);
         return (status == kStatus_Success) ? 0 : -1;
     }
@@ -2556,15 +2558,13 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     {
         int i;
         int offset = 0;
-        int len = sz;
-
+        word32 blocks = (sz / AES_BLOCK_SIZE);
         byte *iv;
         byte temp_block[AES_BLOCK_SIZE];
 
         iv      = (byte*)aes->reg;
 
-        while (len > 0)
-        {
+        while (blocks--) {
             XMEMCPY(temp_block, in + offset, AES_BLOCK_SIZE);
 
             /* XOR block with IV for CBC */
@@ -2573,7 +2573,6 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
             wc_AesEncrypt(aes, temp_block, out + offset);
 
-            len    -= AES_BLOCK_SIZE;
             offset += AES_BLOCK_SIZE;
 
             /* store IV for next block */
@@ -2587,16 +2586,13 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     {
         int i;
         int offset = 0;
-        int len = sz;
-
+        word32 blocks = (sz / AES_BLOCK_SIZE);
         byte* iv;
         byte temp_block[AES_BLOCK_SIZE];
 
         iv      = (byte*)aes->reg;
 
-
-        while (len > 0)
-        {
+        while (blocks--) {
             XMEMCPY(temp_block, in + offset, AES_BLOCK_SIZE);
 
             wc_AesDecrypt(aes, in + offset, out + offset);
@@ -2608,7 +2604,6 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             /* store IV for next block */
             XMEMCPY(iv, temp_block, AES_BLOCK_SIZE);
 
-            len    -= AES_BLOCK_SIZE;
             offset += AES_BLOCK_SIZE;
         }
 
@@ -2623,7 +2618,6 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     {
         securityAssociation *sa_p;
         bufferDescriptor *bd_p;
-
         volatile securityAssociation sa __attribute__((aligned (8)));
         volatile bufferDescriptor bd __attribute__((aligned (8)));
         volatile int k;
@@ -2633,7 +2627,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         bd_p = KVA0_TO_KVA1(&bd);
 
         /* Sync cache and physical memory */
-        if(PIC32MZ_IF_RAM(in)) {
+        if (PIC32MZ_IF_RAM(in)) {
             XMEMCPY((void *)KVA0_TO_KVA1(in), (void *)in, sz);
         }
         XMEMSET((void *)KVA0_TO_KVA1(out), 0, sz);
@@ -2646,17 +2640,17 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         sa_p->SA_CTRL.ENCTYPE = dir; /* Encryption/Decryption */
         sa_p->SA_CTRL.CRYPTOALGO = cryptoalgo;
 
-        if(cryptoalgo == PIC32_CRYPTOALGO_AES_GCM){
+        if (cryptoalgo == PIC32_CRYPTOALGO_AES_GCM) {
             switch(aes->keylen) {
-            case 32:
-                sa_p->SA_CTRL.KEYSIZE = PIC32_AES_KEYSIZE_256;
-                break;
-            case 24:
-                sa_p->SA_CTRL.KEYSIZE = PIC32_AES_KEYSIZE_192;
-                break;
-            case 16:
-                sa_p->SA_CTRL.KEYSIZE = PIC32_AES_KEYSIZE_128;
-                break;
+                case 32:
+                    sa_p->SA_CTRL.KEYSIZE = PIC32_AES_KEYSIZE_256;
+                    break;
+                case 24:
+                    sa_p->SA_CTRL.KEYSIZE = PIC32_AES_KEYSIZE_192;
+                    break;
+                case 16:
+                    sa_p->SA_CTRL.KEYSIZE = PIC32_AES_KEYSIZE_128;
+                    break;
             }
         } else
             sa_p->SA_CTRL.KEYSIZE = PIC32_AES_KEYSIZE_128;
@@ -2670,7 +2664,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         XMEMSET((byte *)KVA0_TO_KVA1(&bd), 0, sizeof(bd));
         /* Set up the Buffer Descriptor */
         bd_p->BD_CTRL.BUFLEN = sz;
-        if(cryptoalgo == PIC32_CRYPTOALGO_AES_GCM) {
+        if (cryptoalgo == PIC32_CRYPTOALGO_AES_GCM) {
             if(sz % 0x10)
                 bd_p->BD_CTRL.BUFLEN = (sz/0x10 + 1) * 0x10;
         }
@@ -2698,7 +2692,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
            (cryptoalgo == PIC32_CRYPTOALGO_TCBC)||
            (cryptoalgo == PIC32_CRYPTOALGO_RCBC)) {
             /* set iv for the next call */
-            if(dir == PIC32_ENCRYPTION) {
+            if (dir == PIC32_ENCRYPTION) {
                 XMEMCPY((void *)aes->iv_ce,
                         (void*)KVA0_TO_KVA1(out + sz - AES_BLOCK_SIZE),
                         AES_BLOCK_SIZE);
@@ -2730,7 +2724,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #else
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
-        word32 blocks = sz / AES_BLOCK_SIZE;
+        word32 blocks = (sz / AES_BLOCK_SIZE);
 
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
         /* if async and byte count above threshold */
