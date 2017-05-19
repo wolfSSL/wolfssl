@@ -10234,6 +10234,8 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             WOLFSSL_MSG("\tOCSP Confirm signature failed");
             return ASN_OCSP_CONFIRM_E;
         }
+
+        (void)noVerify;
     }
 
     *ioIndex = idx;
