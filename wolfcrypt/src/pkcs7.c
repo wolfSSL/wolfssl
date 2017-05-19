@@ -974,7 +974,7 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         return ret;
         }
         esd->contentDigest[0] = ASN_OCTET_STRING;
-        esd->contentDigest[1] = hashSz;
+        esd->contentDigest[1] = (byte)hashSz;
         ret = wc_HashFinal(&esd->hash, esd->hashType,
                            &esd->contentDigest[2]);
         if (ret < 0) {

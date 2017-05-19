@@ -4963,8 +4963,6 @@ int wc_AesKeyWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
 int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
                     byte* out, word32 outSz, const byte* iv)
 {
-    (void)iv;
-
     Aes aes;
     byte* r;
     word32 i, n;
@@ -4977,6 +4975,8 @@ int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
     const byte defaultIV[] = {
         0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6, 0xA6
     };
+
+    (void)iv;
 
     if (key == NULL || in == NULL || inSz < 3 ||
         out == NULL || outSz < (inSz - KEYWRAP_BLOCK_SIZE))
