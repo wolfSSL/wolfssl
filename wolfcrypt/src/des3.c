@@ -25,6 +25,8 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
 
 #ifndef NO_DES3
@@ -39,6 +41,10 @@
     }
     int wc_Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
     {
+        if (des == NULL || key == NULL || dir < 0) {
+            return BAD_FUNC_ARG;
+        }
+
         return Des3_SetKey_fips(des, key, iv, dir);
     }
     int wc_Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
@@ -51,10 +57,16 @@
     }
     int wc_Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
     {
+        if (des == NULL || out == NULL || in == NULL) {
+            return BAD_FUNC_ARG;
+        }
         return Des3_CbcEncrypt_fips(des, out, in, sz);
     }
     int wc_Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
     {
+        if (des == NULL || out == NULL || in == NULL) {
+            return BAD_FUNC_ARG;
+        }
         return Des3_CbcDecrypt_fips(des, out, in, sz);
     }
 
@@ -102,8 +114,6 @@
     #include <wolfcrypt/src/port/ti/ti-des3.c>
 #else
 
-#include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
