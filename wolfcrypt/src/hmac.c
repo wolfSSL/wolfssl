@@ -510,6 +510,10 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
 {
     int ret = 0;
 
+    if (hmac == NULL || msg == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
     if (hmac->asyncDev.marker == WOLFSSL_ASYNC_MARKER_HMAC) {
     #if defined(HAVE_CAVIUM)
@@ -580,6 +584,10 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
 int wc_HmacFinal(Hmac* hmac, byte* hash)
 {
     int ret;
+
+    if (hmac == NULL || hash == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
     if (hmac->asyncDev.marker == WOLFSSL_ASYNC_MARKER_HMAC) {
