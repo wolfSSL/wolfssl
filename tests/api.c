@@ -4473,13 +4473,14 @@ static int test_wc_Md5HmacFinal (void)
         }
     }
 
+#ifndef HAVE_FIPS
     if (!flag) {
         ret = wc_HmacFinal(&hmac, NULL);
         if (ret != BAD_FUNC_ARG) {
             flag = SSL_FATAL_ERROR;
         }
     }
-
+#endif
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
@@ -4544,13 +4545,14 @@ static int test_wc_ShaHmacFinal (void)
         }
     }
 
+#ifndef HAVE_FIPS
     if (!flag) {
         ret = wc_HmacFinal(&hmac, NULL);
         if (ret != BAD_FUNC_ARG) {
             flag = SSL_FATAL_ERROR;
         }
     }
-
+#endif
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
@@ -4616,13 +4618,14 @@ static int test_wc_Sha224HmacFinal (void)
         }
     }
 
+#ifndef HAVE_FIPS
     if (!flag) {
         ret = wc_HmacFinal(&hmac, NULL);
         if (ret != BAD_FUNC_ARG) {
             flag = SSL_FATAL_ERROR;
         }
     }
-
+#endif
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
@@ -4687,13 +4690,14 @@ static int test_wc_Sha256HmacFinal (void)
         }
     }
 
+#ifndef HAVE_FIPS
     if (!flag) {
         ret = wc_HmacFinal(&hmac, NULL);
         if (ret != BAD_FUNC_ARG) {
             flag = SSL_FATAL_ERROR;
         }
     }
-
+#endif
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
@@ -4758,14 +4762,14 @@ static int test_wc_Sha384HmacFinal (void)
             flag = SSL_FATAL_ERROR;
         }
     }
-
+#ifndef HAVE_FIPS
     if (!flag) {
         ret = wc_HmacFinal(&hmac, NULL);
         if (ret != BAD_FUNC_ARG) {
             flag = SSL_FATAL_ERROR;
         }
     }
-
+#endif
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
