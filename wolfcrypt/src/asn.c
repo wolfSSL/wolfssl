@@ -364,8 +364,6 @@ static int GetASNInt(const byte* input, word32* inOutIdx, int* len,
             if (*len > 0 && (input[*inOutIdx] & 0x80) == 0)
                 return ASN_PARSE_E;
         }
-        else if ((input[*inOutIdx] & 0x80) == 0x80)
-            return ASN_PARSE_E;
     }
 
     return 0;
