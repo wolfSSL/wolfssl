@@ -265,7 +265,6 @@ static void Usage(void)
     printf("-d          Disable client cert check\n");
     printf("-b          Bind to any interface instead of localhost only\n");
     printf("-s          Use pre Shared keys\n");
-    printf("-t          Track wolfSSL memory use\n");
     printf("-u          Use UDP DTLS,"
            " add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default)\n");
 #ifdef WOLFSSL_SCTP

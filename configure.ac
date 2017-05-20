@@ -1244,7 +1244,7 @@ fi
 
 # STACK SIZE info for examples
 AC_ARG_ENABLE([stacksize],
-    [  --enable-stacksize      Enable stack size info on examples (default: disabled)],
+    [AS_HELP_STRING([--enable-stacksize],[Enable stack size info on examples (default: disabled)])],
     [ ENABLED_STACKSIZE=$enableval ],
     [ ENABLED_STACKSIZE=no ]
     )
@@ -1277,6 +1277,24 @@ else
 fi
 
 AM_CONDITIONAL([BUILD_MEMORY], [test "x$ENABLED_MEMORY" = "xyes"])
+
+
+# MEMORY SIZE info
+AC_ARG_ENABLE([trackmemory],
+    [AS_HELP_STRING([--enable-trackmemory],[Enable memory use info on wolfCrypt and wolfSSL cleanup (default: disabled)])],
+    [ ENABLED_TRACKMEMORY=$enableval ],
+    [ ENABLED_TRACKMEMORY=no ]
+    )
+
+if test "$ENABLED_TRACKMEMORY" = "yes"
+then
+    if test "$ENABLED_MEMORY" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TRACK_MEMORY"
+    else
+        AC_MSG_ERROR([trackmemory requires using wolfSSL memory (--enable-memory).])
+    fi
+fi
 
 
 # RSA
