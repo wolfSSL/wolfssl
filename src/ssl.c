@@ -1642,6 +1642,7 @@ int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx, word16 name)
         case WOLFSSL_ECC_BRAINPOOLP256R1:
         case WOLFSSL_ECC_BRAINPOOLP384R1:
         case WOLFSSL_ECC_BRAINPOOLP512R1:
+        case WOLFSSL_ECC_X25519:
             break;
 
 #ifdef WOLFSSL_TLS13

@@ -628,10 +628,10 @@ static void Usage(void)
 #ifdef HAVE_ECC
     printf("-Y          Key Share with ECC named groups only\n");
 #endif
+#endif /* WOLFSSL_TLS13 */
 #ifdef HAVE_CURVE25519
     printf("-t          Use X25519 for key exchange\n");
 #endif
-#endif /* WOLFSSL_TLS13 */
 }
 
 THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
@@ -1458,6 +1458,18 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             err_sys("DisableExtendedMasterSecret failed");
         }
 #endif
+#ifdef HAVE_CURVE25519
+    if (useX25519) {
+        if (wolfSSL_CTX_UseSupportedCurve(ctx, WOLFSSL_ECC_X25519)
+                                                               != SSL_SUCCESS) {
+            err_sys("unable to support X25519");
+        }
+        if (wolfSSL_CTX_UseSupportedCurve(ctx, WOLFSSL_ECC_SECP256R1)
+                                                               != SSL_SUCCESS) {
+            err_sys("unable to support secp256r1");
+        }
+    }
+#endif
 
     if (benchmark) {
         ((func_args*)args)->return_code =
@@ -1503,11 +1515,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     #ifdef OPENSSL_EXTRA
     wolfSSL_KeepArrays(ssl);
-    #endif
-
-    #ifdef HAVE_CURVE25519
-    if (useX25519)
-        wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_X25519);
     #endif
 
     #ifdef WOLFSSL_TLS13
@@ -1941,11 +1948,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef HAVE_SESSION_TICKET
         wolfSSL_set_SessionTicket_cb(sslResume, sessionTicketCB,
                                     (void*)"resumed session");
-#endif
-
-#ifdef HAVE_CURVE25519
-    if (useX25519)
-        wolfSSL_UseSupportedCurve(sslResume, WOLFSSL_ECC_X25519);
 #endif
 
     #ifdef WOLFSSL_TLS13
