@@ -3892,6 +3892,7 @@ int aes_test(void)
         if (XMEMCMP(cipher, ctr128Cipher, sizeof(oddCipher)))
             return -4216;
 
+#if !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO) /* test not supported on STM32 crypto HW */
         /* and an additional 9 bytes to reuse tmp left buffer */
         wc_AesCtrEncrypt(&enc, cipher, ctrPlain, sizeof(oddCipher));
         wc_AesCtrEncrypt(&dec, plain, cipher, sizeof(oddCipher));
@@ -3901,6 +3902,7 @@ int aes_test(void)
 
         if (XMEMCMP(cipher, oddCipher, sizeof(oddCipher)))
             return -4218;
+#endif
 
         /* 192 bit key */
         wc_AesSetKeyDirect(&enc, ctr192Key, sizeof(ctr192Key),
@@ -4217,7 +4219,8 @@ int aesgcm_test(void)
         0xcd, 0xdf, 0x88, 0x53, 0xbb, 0x2d, 0x55, 0x1b
     };
 
-#if !defined(HAVE_FIPS) && !defined(HAVE_INTEL_QA)
+#if !defined(HAVE_FIPS) && !defined(HAVE_INTEL_QA) && \
+        !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO)
     /* Test Case 12, uses same plaintext and AAD data. */
     const byte k2[] =
     {
@@ -4255,7 +4258,7 @@ int aesgcm_test(void)
         0xdc, 0xf5, 0x66, 0xff, 0x29, 0x1c, 0x25, 0xbb,
         0xb8, 0x56, 0x8f, 0xc3, 0xd3, 0x76, 0xa6, 0xd9
     };
-#endif /* !HAVE_FIPS && !HAVE_INTEL_QA */
+#endif /* !HAVE_FIPS && !HAVE_INTEL_QA && !STM32F2_CRYPTO && !STM32F4_CRYPTO */
 
     byte resultT[sizeof(t1)];
     byte resultP[sizeof(p)];
@@ -4297,8 +4300,9 @@ int aesgcm_test(void)
     if (XMEMCMP(p, resultP, sizeof(resultP)))
         return -4306;
 
-    /* QAT only supports 12-byte IV */
-#if !defined(HAVE_FIPS) && !defined(HAVE_INTEL_QA)
+    /* FIPS, QAT and STM32F2/4 HW Crypto only support 12-byte IV */
+#if !defined(HAVE_FIPS) && !defined(HAVE_INTEL_QA) && \
+        !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO)
     XMEMSET(resultT, 0, sizeof(resultT));
     XMEMSET(resultC, 0, sizeof(resultC));
     XMEMSET(resultP, 0, sizeof(resultP));
@@ -4326,7 +4330,7 @@ int aesgcm_test(void)
         return -4310;
     if (XMEMCMP(p, resultP, sizeof(resultP)))
         return -4311;
-#endif /* !HAVE_FIPS && !HAVE_INTEL_QA */
+#endif /* !HAVE_FIPS && !HAVE_INTEL_QA && !STM32F2_CRYPTO && !STM32F4_CRYPTO */
 
     wc_AesFree(&enc);
 
