@@ -53,7 +53,7 @@ typedef struct {
 }ECPoint;
 
 /* A CURVE25519 Key */
-typedef struct {
+typedef struct curve25519_key {
     int idx;            /* Index into the ecc_sets[] for the parameters of
                            this curve if -1, this key is using user supplied
                            curve in dp */
