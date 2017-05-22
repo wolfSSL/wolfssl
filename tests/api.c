@@ -3839,8 +3839,10 @@ static int test_wc_Des3_CbcEncryptDecrypt (void)
         byte cipher[24];
         byte plain[24];
     #elif defined(WOLFSSL_SMALL_STACK)
-        byte* cipher = (byte*) malloc(sizeof(byte) * 24);
-        byte* plain = (byte*) malloc(sizeof(byte) * 24);
+        byte* cipher = (byte*) XMALLOC(sizeof(byte) * 24, NULL,
+                                                    DYNAMIC_TYPE_TMP_BUFFER);
+        byte* plain = (byte*) XMALLOC(sizeof(byte) * 24, NULL,
+                                                    DYNAMIC_TYPE_TMP_BUFFER);
     #endif
 
     int ret;
@@ -3889,10 +3891,9 @@ static int test_wc_Des3_CbcEncryptDecrypt (void)
             ret = wc_Des3_CbcEncrypt(&des, cipher, NULL, sizeof(vector));
         }
         if (ret != BAD_FUNC_ARG) {
-            printf("\nReturn code: %d\n", ret);
-            ret = SSL_FAILURE;
+            ret = SSL_FATAL_ERROR;;
         } else {
-        ret = 0;
+            ret = 0;
         }
     }
 
@@ -3905,8 +3906,7 @@ static int test_wc_Des3_CbcEncryptDecrypt (void)
             ret = wc_Des3_CbcDecrypt(&des, plain, NULL, 24);
         }
         if (ret != BAD_FUNC_ARG) {
-            printf("\nReturn code: %d\n", ret);
-            ret = SSL_FAILURE;
+            ret = SSL_FATAL_ERROR;
         } else {
             ret = 0;
         }
@@ -3915,8 +3915,8 @@ static int test_wc_Des3_CbcEncryptDecrypt (void)
     printf(resultFmt, ret == 0 ? passed : failed);
 
     #ifdef WOLFSSL_SMALL_STACK
-        XFREE(plain, NULL, DYNAMIC_TYPE_NONE);
-        XFREE(cipher, NULL, DYNAMIC_TYPE_CIPHER);
+        XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(cipher, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
 #endif
     return 0;
@@ -3937,8 +3937,10 @@ static int test_wc_Des3_CbcEncryptDecryptWithKey (void)
         byte cipher[24];
         byte plain[24];
     #elif defined(WOLFSSL_SMALL_STACK)
-        byte* cipher = (byte*) malloc(sizeof(byte) * 24);
-        byte* plain = (byte*) malloc(sizeof(byte) * 24);
+        byte* cipher = (byte*) XMALLOC(sizeof(byte) * 24, NULL,
+                                                    DYNAMIC_TYPE_TMP_BUFFER);
+        byte* plain = (byte*) XMALLOC(sizeof(byte) * 24, NULL,
+                                                    DYNAMIC_TYPE_TMP_BUFFER);
     #endif
 
     byte vector[] = /* Now is the time for all w/o trailing 0 */
@@ -3987,7 +3989,6 @@ static int test_wc_Des3_CbcEncryptDecryptWithKey (void)
                                                                     key, NULL);
         } else {
             /* Return code catch. */
-            printf("\nReturn code: %d\n", ret);
             ret = SSL_FAILURE;
         }
     }
@@ -4003,7 +4004,6 @@ static int test_wc_Des3_CbcEncryptDecryptWithKey (void)
         if (ret == BAD_FUNC_ARG) {
             ret = wc_Des3_CbcDecryptWithKey(plain, cipher, cipherSz, key, NULL);
         } else {
-            printf("\nReturn code: %d\n", ret);
             ret = SSL_FAILURE;
         }
     }
@@ -4011,8 +4011,8 @@ static int test_wc_Des3_CbcEncryptDecryptWithKey (void)
     printf(resultFmt, ret == 0 ? passed : failed);
 
     #ifdef WOLFSSL_SMALL_STACK
-        XFREE(plain, NULL, DYNAMIC_TYPE_NONE);
-        XFREE(cipher, NULL, DYNAMIC_TYPE_CIPHER);
+        XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(cipher, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
 
 #endif
