@@ -1730,14 +1730,15 @@ static int WritePSKBinders(WOLFSSL* ssl, byte* output, word32 idx)
         return SANITY_MSG_E;
 
     /* Get the size of the binders to determine where to write binders. */
-    idx -= TLSX_PreSharedKey_GetSizeBinders(ext->data, client_hello);
+    idx -= TLSX_PreSharedKey_GetSizeBinders((PreSharedKey*)ext->data,
+                                            client_hello);
 
     /* Hash truncated ClientHello - up to binders. */
     ret = HashOutput(ssl, output, idx, 0);
     if (ret != 0)
         return ret;
 
-    current = ext->data;
+    current = (PreSharedKey*)ext->data;
     /* Calculate the binder for each identity based on previous handshake data.
      */
     while (current != NULL) {
@@ -1792,7 +1793,8 @@ static int WritePSKBinders(WOLFSSL* ssl, byte* output, word32 idx)
     }
 
     /* Data entered into extension, now write to message. */
-    len = TLSX_PreSharedKey_WriteBinders(ext->data, output + idx, client_hello);
+    len = TLSX_PreSharedKey_WriteBinders((PreSharedKey*)ext->data, output + idx,
+                                         client_hello);
 
     /* Hash binders to complete the hash of the ClientHello. */
     return HashOutputRaw(ssl, output + idx, len);
@@ -2264,7 +2266,8 @@ static int DoPreSharedKeys(WOLFSSL *ssl, const byte* input, word32 helloSz,
     /* Find the pre-shared key extension and calculate hash of truncated
      * ClientHello for binders.
      */
-    bindersLen = TLSX_PreSharedKey_GetSizeBinders(ext->data, client_hello);
+    bindersLen = TLSX_PreSharedKey_GetSizeBinders((PreSharedKey*)ext->data,
+                                                  client_hello);
 
     /* Hash data up to binders for deriving binders in PSK extension. */
     ret = HashInput(ssl, input,  helloSz - bindersLen);
@@ -3909,7 +3912,8 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 WOLFSSL_MSG("Oops, peer sent RSA key but not in verify");
             }
 
-            sig->buffer = XMALLOC(args->sz, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            sig->buffer = (byte*)XMALLOC(args->sz, ssl->heap,
+                                         DYNAMIC_TYPE_TMP_BUFFER);
             if (sig->buffer == NULL) {
                 ERROR_OUT(MEMORY_E, exit_dcv);
             }

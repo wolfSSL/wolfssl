@@ -21874,7 +21874,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         else {
 #ifdef WOLFSSL_TLS13
             /* Client adds to ticket age to obfuscate. */
-            ret = wc_RNG_GenerateBlock(ssl->rng, (void*)&it.ageAdd,
+            ret = wc_RNG_GenerateBlock(ssl->rng, (byte*)&it.ageAdd,
                                        sizeof(it.ageAdd));
             if (ret != 0)
                 return BAD_TICKET_ENCRYPT;
