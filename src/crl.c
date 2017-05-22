@@ -95,11 +95,12 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
         crle->tbsSz = dcrl->sigIndex - dcrl->certBegin;
         crle->signatureSz = dcrl->sigLength;
         crle->signatureOID = dcrl->signatureOID;
-        crle->toBeSigned = XMALLOC(crle->tbsSz, heap, DYNAMIC_TYPE_CRL_ENTRY);
+        crle->toBeSigned = (byte*)XMALLOC(crle->tbsSz, heap,
+                                          DYNAMIC_TYPE_CRL_ENTRY);
         if (crle->toBeSigned == NULL)
             return -1;
-        crle->signature = XMALLOC(crle->signatureSz, heap,
-                                  DYNAMIC_TYPE_CRL_ENTRY);
+        crle->signature = (byte*)XMALLOC(crle->signatureSz, heap,
+                                         DYNAMIC_TYPE_CRL_ENTRY);
         if (crle->signature == NULL) {
             XFREE(crle->toBeSigned, heap, DYNAMIC_TYPE_CRL_ENTRY);
             return -1;
@@ -214,12 +215,12 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
                 word32 sigOID = crle->signatureOID;
                 SignatureCtx sigCtx;
 
-                tbs = XMALLOC(tbsSz, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
+                tbs = (byte*)XMALLOC(tbsSz, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
                 if (tbs == NULL) {
                     wc_UnLockMutex(&crl->crlLock);
                     return MEMORY_E;
                 }
-                sig = XMALLOC(sigSz, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
+                sig = (byte*)XMALLOC(sigSz, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
                 if (sig == NULL) {
                     XFREE(tbs, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
                     wc_UnLockMutex(&crl->crlLock);

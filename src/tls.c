@@ -4269,7 +4269,7 @@ int TLSX_UseQSHScheme(TLSX** extensions, word16 name, byte* pKey, word16 pkeySz,
  * data       The SSL/TLS object.
  * returns the length of data that will be in the extension.
  */
-static word16 TLSX_SupportedVersions_GetSize(byte* data)
+static word16 TLSX_SupportedVersions_GetSize(void* data)
 {
     (void)data;
 
@@ -4290,7 +4290,7 @@ static word16 TLSX_SupportedVersions_GetSize(byte* data)
  * output  The buffer to write the extension into.
  * returns the length of data that was written.
  */
-static word16 TLSX_SupportedVersions_Write(byte* data, byte* output)
+static word16 TLSX_SupportedVersions_Write(void* data, byte* output)
 {
     WOLFSSL* ssl = (WOLFSSL*)data;
     ProtocolVersion pv = ssl->ctx->method->version;
@@ -4426,7 +4426,7 @@ static int TLSX_SetSupportedVersions(TLSX** extensions, const void* data,
  * data  Unused
  * returns the length of data that will be in the extension.
  */
-static word16 TLSX_SignatureAlgorithms_GetSize(byte* data)
+static word16 TLSX_SignatureAlgorithms_GetSize(void* data)
 {
     WOLFSSL* ssl = (WOLFSSL*)data;
     int      cnt = 0;
@@ -4488,7 +4488,7 @@ static word16 TLSX_SignatureAlgorithms_GetSize(byte* data)
  * output  The buffer to write the extension into.
  * returns the length of data that was written.
  */
-static word16 TLSX_SignatureAlgorithms_Write(byte* data, byte* output)
+static word16 TLSX_SignatureAlgorithms_Write(void* data, byte* output)
 {
     WOLFSSL* ssl = (WOLFSSL*)data;
     int      idx = OPAQUE16_LEN;
@@ -4700,7 +4700,8 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
         goto end;
 
     /* Generate a new key pair. */
-    ret = wc_DhGenerateKeyPair(&dhKey, ssl->rng, key, &keySz, keyData, &dataSz);
+    ret = wc_DhGenerateKeyPair(&dhKey, ssl->rng, (byte*)key, &keySz, keyData,
+                               &dataSz);
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* TODO: Make this function non-blocking */
     if (ret == WC_PENDING_E) {
@@ -4812,7 +4813,8 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
                     goto end;
 
                 /* Allocate space for the public key. */
-                keyData = XMALLOC(dataSize, ssl->heap, DYNAMIC_TYPE_TLSX);
+                keyData = (byte*)XMALLOC(dataSize, ssl->heap,
+                                         DYNAMIC_TYPE_TLSX);
                 if (keyData == NULL) {
                     WOLFSSL_MSG("Key data Memory error");
                     ret = MEMORY_E;
@@ -4870,7 +4872,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
         goto end;
 
     /* Allocate space for the public key. */
-    keyData = XMALLOC(dataSize, ssl->heap, DYNAMIC_TYPE_TLSX);
+    keyData = (byte*)XMALLOC(dataSize, ssl->heap, DYNAMIC_TYPE_TLSX);
     if (keyData == NULL) {
         WOLFSSL_MSG("Key data Memory error");
         ret = MEMORY_E;
@@ -5100,7 +5102,7 @@ static int TLSX_KeyShare_ProcessDh(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     /* Derive secret from private key and peer's public key. */
     ret = wc_DhAgree(&dhKey,
         ssl->arrays->preMasterSecret, &ssl->arrays->preMasterSz,
-        keyShareEntry->key, keyShareEntry->keyLen,
+        (const byte*)keyShareEntry->key, keyShareEntry->keyLen,
         keyShareEntry->ke, keyShareEntry->keLen);
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* TODO: Make this function non-blocking */
@@ -5313,7 +5315,7 @@ static int TLSX_KeyShareEntry_Parse(WOLFSSL* ssl, byte* input, word16 length,
         return BUFFER_ERROR;
 
     /* Store a copy in the key share object. */
-    ke = XMALLOC(keLen, ssl->heap, DYNAMIC_TYPE_TLSX);
+    ke = (byte*)XMALLOC(keLen, ssl->heap, DYNAMIC_TYPE_TLSX);
     if (ke == NULL)
         return MEMORY_E;
     XMEMCPY(ke, &input[offset], keLen);
@@ -5547,7 +5549,7 @@ int TLSX_KeyShare_Empty(WOLFSSL* ssl)
         ret = TLSX_Push(&ssl->extensions, TLSX_KEY_SHARE, NULL, ssl->heap);
     }
     else if (extension->data != NULL) {
-        TLSX_KeyShare_FreeAll(extension->data, ssl->heap);
+        TLSX_KeyShare_FreeAll((KeyShareEntry*)extension->data, ssl->heap);
         extension->data = NULL;
     }
 
@@ -5643,7 +5645,7 @@ static int TLSX_KeyShare_SetSupported(WOLFSSL* ssl)
     /* Delete the old key share data list. */
     extension = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
     if (extension != NULL) {
-        TLSX_KeyShare_FreeAll(extension->data, ssl->heap);
+        TLSX_KeyShare_FreeAll((KeyShareEntry*)extension->data, ssl->heap);
         extension->data = NULL;
     }
 
@@ -6532,12 +6534,12 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType)
                 break;
 
             case TLSX_KEY_SHARE:
-                length += KS_GET_SIZE(extension->data, msgType);
+                length += KS_GET_SIZE((KeyShareEntry*)extension->data, msgType);
                 break;
 
     #ifndef NO_PSK
             case TLSX_PRE_SHARED_KEY:
-                length += PSK_GET_SIZE(extension->data, msgType);
+                length += PSK_GET_SIZE((PreSharedKey*)extension->data, msgType);
                 break;
 
             case TLSX_PSK_KEY_EXCHANGE_MODES:
@@ -6659,13 +6661,15 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 
             case TLSX_KEY_SHARE:
                 WOLFSSL_MSG("Key Share extension to write");
-                offset += KS_WRITE(extension->data, output + offset, msgType);
+                offset += KS_WRITE((KeyShareEntry*)extension->data,
+                                   output + offset, msgType);
                 break;
 
     #ifndef NO_PSK
             case TLSX_PRE_SHARED_KEY:
                 WOLFSSL_MSG("Pre-Shared Key extension to write");
-                offset += PSK_WRITE(extension->data, output + offset, msgType);
+                offset += PSK_WRITE((PreSharedKey*)extension->data,
+                                    output + offset, msgType);
                 break;
 
             case TLSX_PSK_KEY_EXCHANGE_MODES:
@@ -7160,7 +7164,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 /* Pre-shared key is mandatory extension for resumption. */
                 ret = TLSX_PreSharedKey_Use(ssl, sess->ticket, sess->ticketLen,
                                             milli, ssl->specs.mac_algorithm, 1,
-                                            ssl->heap);
+                                            NULL);
                 if (ret != 0)
                     return ret;
 
