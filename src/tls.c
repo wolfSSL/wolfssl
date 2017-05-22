@@ -4432,16 +4432,31 @@ static word16 TLSX_SignatureAlgorithms_GetSize(void* data)
     return OPAQUE16_LEN + ssl->suites->hashSigAlgoSz;
 }
 
-static void TLSX_SignatureAlgorithms_MapPss(WOLFSSL *ssl, byte* input,
-                                            word16 length)
+/* Creates a bit string of supported hash algorithms with RSA PSS.
+ * The bit string is used when determining which signature algorithm to use
+ * when creating the CertificateVerify message.
+ * Note: Valid data has an even length as each signature algorithm is two bytes.
+ *
+ * ssl     The SSL/TLS object.
+ * input   The buffer with the list of supported signature algorithms.
+ * length  The length of the list in bytes.
+ * returns 0 on success, BUFFER_ERROR when the length is not even.
+ */
+static int TLSX_SignatureAlgorithms_MapPss(WOLFSSL *ssl, byte* input,
+                                           word16 length)
 {
     word16 i;
+
+    if ((length & 1) == 1)
+        return BUFFER_ERROR;
 
     ssl->pssAlgo = 0;
     for (i = 0; i < length; i += 2) {
         if (input[i] == rsa_pss_sa_algo && input[i + 1] <= sha512_mac)
             ssl->pssAlgo |= 1 << input[i + 1];
     }
+
+    return 0;
 }
 
 /* Writes the SignatureAlgorithms extension into the buffer.
@@ -4489,12 +4504,10 @@ static int TLSX_SignatureAlgorithms_Parse(WOLFSSL *ssl, byte* input,
     if (length != OPAQUE16_LEN + len)
         return BUFFER_ERROR;
 
-    TLSX_SignatureAlgorithms_MapPss(ssl, input, len);
-
     XMEMCPY(suites->hashSigAlgo, input, len);
     suites->hashSigAlgoSz = len;
 
-    return 0;
+    return TLSX_SignatureAlgorithms_MapPss(ssl, input, len);
 }
 
 /* Sets a new SupportedVersions extension into the extension list.
