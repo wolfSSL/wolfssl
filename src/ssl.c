@@ -634,6 +634,33 @@ char* wolfSSL_get_cipher_list(int priority)
 }
 
 
+/**
+  * Get the name of cipher at priority level passed in.
+  */
+char* wolfSSL_get_cipher_list_ex(WOLFSSL* ssl, int priority)
+{
+
+    if (ssl == NULL) {
+        return NULL;
+    }
+    else {
+        const char* cipher;
+
+        if ((cipher = wolfSSL_get_cipher_name_internal(ssl)) != NULL) {
+            if (priority == 0) {
+                return (char*)cipher;
+            }
+            else {
+                return NULL;
+            }
+        }
+        else {
+            return wolfSSL_get_cipher_list(priority);
+        }
+    }
+}
+
+
 int wolfSSL_get_ciphers(char* buf, int len)
 {
     const char* const* ciphers = GetCipherNames();

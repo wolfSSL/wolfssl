@@ -98,8 +98,8 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 #define SSL_get_client_random(ssl,out,outSz) \
                                   wolfSSL_get_client_random((ssl),(out),(outSz))
-#define SSL_get_cipher_list(ctx,i)          wolfSSL_get_cipher_list((i))
-#define SSL_get_cipher_name(ctx)            wolfSSL_get_cipher((ctx))
+#define SSL_get_cipher_list(ctx,i)         wolfSSL_get_cipher_list_ex((ctx),(i))
+#define SSL_get_cipher_name(ctx)           wolfSSL_get_cipher((ctx))
 #define SSL_get_shared_ciphers(ctx,buf,len) \
                                    wolfSSL_get_shared_ciphers((ctx),(buf),(len))
 
