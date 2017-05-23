@@ -2999,7 +2999,7 @@ typedef struct HS_Hashes {
 
 
 #ifdef WOLFSSL_ASYNC_CRYPT
-    #define MAX_ASYNC_ARGS 16
+    #define MAX_ASYNC_ARGS 18
     typedef void (*FreeArgsCb)(struct WOLFSSL* ssl, void* pArgs);
 
     struct WOLFSSL_ASYNC {
