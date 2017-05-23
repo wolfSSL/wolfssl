@@ -7728,6 +7728,9 @@ static int dh_generate_test(WC_RNG *rng)
 
     /* Use API. */
     ret = wc_DhGenerateKeyPair(&smallKey, rng, priv, &privSz, pub, &pubSz);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &smallKey.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         ret = -5707;
     }
