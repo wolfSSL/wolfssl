@@ -142,7 +142,7 @@ WOLFSSL_API int wc_AesEcbDecrypt(Aes* aes, byte* out,
 
 /* AES-CTR */
 #ifdef WOLFSSL_AES_COUNTER
- WOLFSSL_API void wc_AesCtrEncrypt(Aes* aes, byte* out,
+ WOLFSSL_API int wc_AesCtrEncrypt(Aes* aes, byte* out,
                                    const byte* in, word32 sz);
 #endif
 /* AES-DIRECT */
