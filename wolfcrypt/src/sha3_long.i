@@ -20,19 +20,17 @@
  */
 
 
-/**
- * Rotate a 64-bit value left.
+/* Rotate a 64-bit value left.
  *
- * @param [in] a  The number to rotate left.
- * @param [in] r  The number od bits to rotate left.
- * @return  The rotated number.
+ * a  The number to rotate left.
+ * r  The number od bits to rotate left.
+ * returns the rotated number.
  */
 #define ROTL64(a, n)    (((a)<<(n))|((a)>>(64-(n))))
 
-/**
- * The block operation performed on the state.
+/* The block operation performed on the state.
  *
- * @param [in] s  The state.
+ * s  The state.
  */
 static void BlockSha3(word64 *s)
 {

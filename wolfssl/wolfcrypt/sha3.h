@@ -20,8 +20,6 @@
  */
 
 
-/* code submitted by raphael.huck@efixo.com */
-
 #ifndef WOLF_CRYPT_SHA3_H
 #define WOLF_CRYPT_SHA3_H
 
