@@ -76,6 +76,7 @@
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/sha512.h>
+#include <wolfssl/wolfcrypt/sha3.h>
 #include <wolfssl/wolfcrypt/rsa.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/ripemd.h>
@@ -208,6 +209,10 @@ void bench_sha224(int);
 void bench_sha256(int);
 void bench_sha384(int);
 void bench_sha512(int);
+void bench_sha3_224(int);
+void bench_sha3_256(int);
+void bench_sha3_384(int);
+void bench_sha3_512(int);
 int  bench_ripemd(void);
 void bench_cmac(void);
 void bench_scrypt(void);
@@ -822,6 +827,32 @@ static void* benchmarks_do(void* args)
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
         bench_sha512(1);
+    #endif
+#endif
+#ifdef WOLFSSL_SHA3
+    #ifndef NO_SW_BENCH
+        bench_sha3_224(0);
+    #endif
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
+        bench_sha3_224(1);
+    #endif
+    #ifndef NO_SW_BENCH
+        bench_sha3_256(0);
+    #endif
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
+        bench_sha3_256(1);
+    #endif
+    #ifndef NO_SW_BENCH
+        bench_sha3_384(0);
+    #endif
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
+        bench_sha3_384(1);
+    #endif
+    #ifndef NO_SW_BENCH
+        bench_sha3_512(0);
+    #endif
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
+        bench_sha3_512(1);
     #endif
 #endif
 #ifdef WOLFSSL_RIPEMD
@@ -2083,6 +2114,302 @@ exit:
     bench_async_end();
 }
 #endif
+
+
+#ifdef WOLFSSL_SHA3
+void bench_sha3_224(int doAsync)
+{
+    Sha3   hash[BENCH_MAX_PENDING];
+    double start;
+    int    ret, i, count = 0, times;
+    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, SHA224_DIGEST_SIZE, HEAP_HINT);
+
+    bench_async_begin();
+
+    /* clear for done cleanup */
+    XMEMSET(hash, 0, sizeof(hash));
+
+    /* init keys */
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        ret = wc_InitSha3_224(&hash[i], HEAP_HINT,
+            doAsync ? devId : INVALID_DEVID);
+        if (ret != 0) {
+            printf("InitSha3_224 failed, ret = %d\n", ret);
+            goto exit;
+        }
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+        for (times = 0; times < numBlocks || BENCH_ASYNC_IS_PEND(); ) {
+            bench_async_poll();
+
+            /* while free pending slots in queue, submit ops */
+            for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&hash[i]), 0, &times, numBlocks)) {
+                    ret = wc_Sha3_224_Update(&hash[i], bench_plain,
+                        BENCH_SIZE);
+                    if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&hash[i]), 0, &times)) {
+                        goto exit_sha3_224;
+                    }
+                }
+            } /* for i */
+        } /* for times */
+        count += times;
+
+        times = 0;
+        do {
+            bench_async_poll();
+            for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&hash[i]), 0, &times, numBlocks)) {
+                    ret = wc_Sha3_224_Final(&hash[i], digest[i]);
+                    if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&hash[i]), 0, &times)) {
+                        goto exit_sha3_224;
+                    }
+                }
+            } /* for i */
+        } while (BENCH_ASYNC_IS_PEND());
+    } while (bench_stats_sym_check(start));
+exit_sha3_224:
+    bench_stats_sym_finish("SHA3-224", doAsync, count, start);
+
+exit:
+
+    if (ret < 0) {
+        printf("bench_sha3_224 failed: %d\n", ret);
+    }
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        wc_Sha3_224_Free(&hash[i]);
+    }
+#endif
+
+    FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+
+    bench_async_end();
+}
+
+void bench_sha3_256(int doAsync)
+{
+    Sha3   hash[BENCH_MAX_PENDING];
+    double start;
+    int    ret, i, count = 0, times;
+    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, SHA3_256_DIGEST_SIZE, HEAP_HINT);
+
+    bench_async_begin();
+
+    /* clear for done cleanup */
+    XMEMSET(hash, 0, sizeof(hash));
+
+    /* init keys */
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        ret = wc_InitSha3_256(&hash[i], HEAP_HINT,
+            doAsync ? devId : INVALID_DEVID);
+        if (ret != 0) {
+            printf("InitSha3_256 failed, ret = %d\n", ret);
+            goto exit;
+        }
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+        for (times = 0; times < numBlocks || BENCH_ASYNC_IS_PEND(); ) {
+            bench_async_poll();
+
+            /* while free pending slots in queue, submit ops */
+            for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&hash[i]), 0, &times, numBlocks)) {
+                    ret = wc_Sha3_256_Update(&hash[i], bench_plain,
+                        BENCH_SIZE);
+                    if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&hash[i]), 0, &times)) {
+                        goto exit_sha3_256;
+                    }
+                }
+            } /* for i */
+        } /* for times */
+        count += times;
+
+        times = 0;
+        do {
+            bench_async_poll();
+            for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&hash[i]), 0, &times, numBlocks)) {
+                    ret = wc_Sha3_256_Final(&hash[i], digest[i]);
+                    if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&hash[i]), 0, &times)) {
+                        goto exit_sha3_256;
+                    }
+                }
+            } /* for i */
+        } while (BENCH_ASYNC_IS_PEND());
+    } while (bench_stats_sym_check(start));
+exit_sha3_256:
+    bench_stats_sym_finish("SHA3-256", doAsync, count, start);
+
+exit:
+
+    if (ret < 0) {
+        printf("bench_sha3_256 failed: %d\n", ret);
+    }
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        wc_Sha3_256_Free(&hash[i]);
+    }
+#endif
+
+    FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+
+    bench_async_end();
+}
+
+void bench_sha3_384(int doAsync)
+{
+    Sha3   hash[BENCH_MAX_PENDING];
+    double start;
+    int    ret, i, count = 0, times;
+    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, SHA3_384_DIGEST_SIZE, HEAP_HINT);
+
+    bench_async_begin();
+
+    /* clear for done cleanup */
+    XMEMSET(hash, 0, sizeof(hash));
+
+    /* init keys */
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        ret = wc_InitSha3_384(&hash[i], HEAP_HINT,
+            doAsync ? devId : INVALID_DEVID);
+        if (ret != 0) {
+            printf("InitSha3_384 failed, ret = %d\n", ret);
+            goto exit;
+        }
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+        for (times = 0; times < numBlocks || BENCH_ASYNC_IS_PEND(); ) {
+            bench_async_poll();
+
+            /* while free pending slots in queue, submit ops */
+            for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&hash[i]), 0, &times, numBlocks)) {
+                    ret = wc_Sha3_384_Update(&hash[i], bench_plain,
+                        BENCH_SIZE);
+                    if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&hash[i]), 0, &times)) {
+                        goto exit_sha3_384;
+                    }
+                }
+            } /* for i */
+        } /* for times */
+        count += times;
+
+        times = 0;
+        do {
+            bench_async_poll();
+            for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&hash[i]), 0, &times, numBlocks)) {
+                    ret = wc_Sha3_384_Final(&hash[i], digest[i]);
+                    if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&hash[i]), 0, &times)) {
+                        goto exit_sha3_384;
+                    }
+                }
+            } /* for i */
+        } while (BENCH_ASYNC_IS_PEND());
+    } while (bench_stats_sym_check(start));
+exit_sha3_384:
+    bench_stats_sym_finish("SHA3-384", doAsync, count, start);
+
+exit:
+
+    if (ret < 0) {
+        printf("bench_sha3_384 failed: %d\n", ret);
+    }
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        wc_Sha3_384_Free(&hash[i]);
+    }
+#endif
+
+    FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+
+    bench_async_end();
+}
+
+void bench_sha3_512(int doAsync)
+{
+    Sha3   hash[BENCH_MAX_PENDING];
+    double start;
+    int    ret, i, count = 0, times;
+    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, SHA3_512_DIGEST_SIZE, HEAP_HINT);
+
+    bench_async_begin();
+
+    /* clear for done cleanup */
+    XMEMSET(hash, 0, sizeof(hash));
+
+    /* init keys */
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        ret = wc_InitSha3_512(&hash[i], HEAP_HINT,
+            doAsync ? devId : INVALID_DEVID);
+        if (ret != 0) {
+            printf("InitSha3_512 failed, ret = %d\n", ret);
+            goto exit;
+        }
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+        for (times = 0; times < numBlocks || BENCH_ASYNC_IS_PEND(); ) {
+            bench_async_poll();
+
+            /* while free pending slots in queue, submit ops */
+            for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&hash[i]), 0, &times, numBlocks)) {
+                    ret = wc_Sha3_512_Update(&hash[i], bench_plain,
+                        BENCH_SIZE);
+                    if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&hash[i]), 0, &times)) {
+                        goto exit_sha3_512;
+                    }
+                }
+            } /* for i */
+        } /* for times */
+        count += times;
+
+        times = 0;
+        do {
+            bench_async_poll();
+            for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&hash[i]), 0, &times, numBlocks)) {
+                    ret = wc_Sha3_512_Final(&hash[i], digest[i]);
+                    if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&hash[i]), 0, &times)) {
+                        goto exit_sha3_512;
+                    }
+                }
+            } /* for i */
+        } while (BENCH_ASYNC_IS_PEND());
+    } while (bench_stats_sym_check(start));
+exit_sha3_512:
+    bench_stats_sym_finish("SHA3-512", doAsync, count, start);
+
+exit:
+
+    if (ret < 0) {
+        printf("bench_sha3_512 failed: %d\n", ret);
+    }
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        wc_Sha3_512_Free(&hash[i]);
+    }
+#endif
+
+    FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+
+    bench_async_end();
+}
+#endif
+
 
 #ifdef WOLFSSL_RIPEMD
 int bench_ripemd(void)
