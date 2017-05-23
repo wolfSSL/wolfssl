@@ -3072,9 +3072,15 @@ void bench_eccEncrypt(void)
     }
 
     ret = wc_ecc_make_key(&rng, keySize, &userA);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ret = wc_AsyncWait(ret, &userA.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0)
         goto exit;
     ret = wc_ecc_make_key(&rng, keySize, &userB);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ret = wc_AsyncWait(ret, &userB.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0)
         goto exit;
 
