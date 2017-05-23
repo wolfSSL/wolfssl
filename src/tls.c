@@ -6395,7 +6395,8 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType)
 {
     TLSX*  extension;
     word16 length = 0;
-    byte   isRequest = (msgType == client_hello);
+    byte   isRequest = (msgType == client_hello ||
+                        msgType == certificate_request);
 
     while ((extension = list)) {
         list = extension->next;
@@ -6501,7 +6502,8 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
     TLSX* extension;
     word16 offset = 0;
     word16 length_offset = 0;
-    byte   isRequest = (msgType == client_hello);
+    byte   isRequest = (msgType == client_hello ||
+                        msgType == certificate_request);
 
     while ((extension = list)) {
         list = extension->next;
@@ -7269,6 +7271,12 @@ word16 TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType)
     #ifndef NO_PSK
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
     #endif
+            break;
+    #ifndef NO_CERTS
+        case certificate_request:
+            XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
+            TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
+    #endif
 #endif
             break;
     }
@@ -7324,6 +7332,13 @@ word16 TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType)
     #ifndef NO_PSK
                 TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
     #endif
+                break;
+    #ifndef NO_CERTS
+            case certificate_request:
+                XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
+                TURN_OFF(semaphore,
+                                   TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
+    #endif
 #endif
                 break;
         }
@@ -7357,7 +7372,8 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 {
     int ret = 0;
     word16 offset = 0;
-    byte isRequest = (msgType == client_hello);
+    byte isRequest = (msgType == client_hello ||
+                      msgType == certificate_request);
 #ifdef HAVE_EXTENDED_MASTER
     byte pendingEMS = 0;
 #endif
@@ -7523,7 +7539,8 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                     break;
 
                 if (IsAtLeastTLSv1_3(ssl->version) &&
-                        msgType != client_hello) {
+                        msgType != client_hello &&
+                        msgType != certificate_request) {
                     return EXT_NOT_ALLOWED;
                 }
                 ret = SA_PARSE(ssl, input + offset, size, suites);

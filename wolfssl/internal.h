@@ -924,7 +924,11 @@ enum Misc {
     TLSv1_2_MINOR   = 3,        /* TLSv1_2 minor version number */
     TLSv1_3_MINOR   = 4,        /* TLSv1_3 minor version number */
     TLS_DRAFT_MAJOR = 0x7f,     /* Draft TLS major version number */
+#ifdef WOLFSSL_TLS13_DRAFT_18
     TLS_DRAFT_MINOR = 0x12,     /* Minor version number of TLS draft */
+#else
+    TLS_DRAFT_MINOR = 0x14,     /* Minor version number of TLS draft */
+#endif
     OLD_HELLO_ID    = 0x01,     /* SSLv2 Client Hello Indicator */
     INVALID_BYTE    = 0xff,     /* Used to initialize cipher specs values */
     NO_COMPRESSION  =  0,
