@@ -4439,7 +4439,6 @@ static int TLSX_SetSupportedVersions(TLSX** extensions, const void* data,
 /* Sugnature Algorithms                                                       */
 /******************************************************************************/
 
-#ifdef WOLFSSL_TLS13
 /* Return the size of the SignatureAlgorithms extension's data.
  *
  * data  Unused
@@ -4448,57 +4447,35 @@ static int TLSX_SetSupportedVersions(TLSX** extensions, const void* data,
 static word16 TLSX_SignatureAlgorithms_GetSize(void* data)
 {
     WOLFSSL* ssl = (WOLFSSL*)data;
-    int      cnt = 0;
 
-    (void)data;
+    return OPAQUE16_LEN + ssl->suites->hashSigAlgoSz;
+}
 
-#ifndef NO_RSA
-    #ifndef NO_SHA1
-        cnt++;
-    #endif
-    #ifndef NO_SHA256
-        cnt++;
-    #endif
-    #ifdef HAVE_SHA384
-        cnt++;
-    #endif
-    #ifdef HAVE_SHA512
-        cnt++;
-    #endif
-    #ifdef WC_RSA_PSS
-        if (IsAtLeastTLSv1_3(ssl->version)) {
-        #ifndef NO_SHA256
-            cnt++;
-        #endif
-        #ifdef HAVE_SHA384
-            cnt++;
-        #endif
-        #ifdef HAVE_SHA512
-            cnt++;
-        #endif
-        }
-    #endif
-#endif
+/* Creates a bit string of supported hash algorithms with RSA PSS.
+ * The bit string is used when determining which signature algorithm to use
+ * when creating the CertificateVerify message.
+ * Note: Valid data has an even length as each signature algorithm is two bytes.
+ *
+ * ssl     The SSL/TLS object.
+ * input   The buffer with the list of supported signature algorithms.
+ * length  The length of the list in bytes.
+ * returns 0 on success, BUFFER_ERROR when the length is not even.
+ */
+static int TLSX_SignatureAlgorithms_MapPss(WOLFSSL *ssl, byte* input,
+                                           word16 length)
+{
+    word16 i;
 
-#ifdef HAVE_ECC
-    #if !defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)
-        #ifndef NO_ECC_SECP
-            cnt++;
-        #endif
-    #endif
-    #if !defined(NO_ECC384)  || defined(HAVE_ALL_CURVES)
-        #ifndef NO_ECC_SECP
-            cnt++;
-        #endif
-    #endif
-    #if !defined(NO_ECC521)  || defined(HAVE_ALL_CURVES)
-        #ifndef NO_ECC_SECP
-            cnt++;
-        #endif
-    #endif
-#endif
+    if ((length & 1) == 1)
+        return BUFFER_ERROR;
 
-    return OPAQUE16_LEN + cnt * OPAQUE16_LEN;
+    ssl->pssAlgo = 0;
+    for (i = 0; i < length; i += 2) {
+        if (input[i] == rsa_pss_sa_algo && input[i + 1] <= sha512_mac)
+            ssl->pssAlgo |= 1 << input[i + 1];
+    }
+
+    return 0;
 }
 
 /* Writes the SignatureAlgorithms extension into the buffer.
@@ -4510,69 +4487,15 @@ static word16 TLSX_SignatureAlgorithms_GetSize(void* data)
 static word16 TLSX_SignatureAlgorithms_Write(void* data, byte* output)
 {
     WOLFSSL* ssl = (WOLFSSL*)data;
-    int      idx = OPAQUE16_LEN;
 
+    c16toa(ssl->suites->hashSigAlgoSz, output);
+    XMEMCPY(output + OPAQUE16_LEN, ssl->suites->hashSigAlgo,
+            ssl->suites->hashSigAlgoSz);
 
-#ifndef NO_RSA
-    #ifndef NO_SHA1
-        output[idx++] = 0x02;
-        output[idx++] = 0x01;
-    #endif
-    #ifndef NO_SHA256
-        output[idx++] = 0x04;
-        output[idx++] = 0x01;
-    #endif
-    #ifdef HAVE_SHA384
-        output[idx++] = 0x05;
-        output[idx++] = 0x01;
-    #endif
-    #ifdef HAVE_SHA512
-        output[idx++] = 0x06;
-        output[idx++] = 0x01;
-    #endif
-    #ifdef WC_RSA_PSS
-        if (IsAtLeastTLSv1_3(ssl->version)) {
-        #ifndef NO_SHA256
-            output[idx++] = 0x08;
-            output[idx++] = 0x04;
-        #endif
-        #ifdef HAVE_SHA384
-            output[idx++] = 0x08;
-            output[idx++] = 0x05;
-        #endif
-        #ifdef HAVE_SHA512
-            output[idx++] = 0x08;
-            output[idx++] = 0x06;
-        #endif
-        }
-    #endif
-#endif
+    TLSX_SignatureAlgorithms_MapPss(ssl, output + OPAQUE16_LEN,
+                                    ssl->suites->hashSigAlgoSz);
 
-#ifdef HAVE_ECC
-    #if !defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)
-        #ifndef NO_ECC_SECP
-            output[idx++] = 0x04;
-            output[idx++] = 0x03;
-        #endif
-    #endif
-    #if !defined(NO_ECC384)  || defined(HAVE_ALL_CURVES)
-        #ifndef NO_ECC_SECP
-            output[idx++] = 0x05;
-            output[idx++] = 0x03;
-        #endif
-    #endif
-    #if !defined(NO_ECC521)  || defined(HAVE_ALL_CURVES)
-        #ifndef NO_ECC_SECP
-            output[idx++] = 0x06;
-            output[idx++] = 0x03;
-        #endif
-    #endif
-#endif
-
-    output[0] = (idx - OPAQUE16_LEN) >> 8;
-    output[1] = idx - OPAQUE16_LEN;
-
-    return idx;
+    return OPAQUE16_LEN + ssl->suites->hashSigAlgoSz;
 }
 
 /* Parse the SignatureAlgorithms extension.
@@ -4583,9 +4506,8 @@ static word16 TLSX_SignatureAlgorithms_Write(void* data, byte* output)
  * returns 0 on success, otherwise failure.
  */
 static int TLSX_SignatureAlgorithms_Parse(WOLFSSL *ssl, byte* input,
-                                          word16 length)
+                                          word16 length, Suites* suites)
 {
-    int    ret = 0;
     word16 len;
 
     (void)ssl;
@@ -4595,14 +4517,16 @@ static int TLSX_SignatureAlgorithms_Parse(WOLFSSL *ssl, byte* input,
         return BUFFER_ERROR;
 
     ato16(input, &len);
+    input += OPAQUE16_LEN;
 
     /* Algorithm array must fill rest of data. */
     if (length != OPAQUE16_LEN + len)
         return BUFFER_ERROR;
 
-    /* Ignore for now. */
+    XMEMCPY(suites->hashSigAlgo, input, len);
+    suites->hashSigAlgoSz = len;
 
-    return ret;
+    return TLSX_SignatureAlgorithms_MapPss(ssl, input, len);
 }
 
 /* Sets a new SupportedVersions extension into the extension list.
@@ -4625,13 +4549,6 @@ static int TLSX_SetSignatureAlgorithms(TLSX** extensions, const void* data,
 #define SA_WRITE     TLSX_SignatureAlgorithms_Write
 #define SA_PARSE     TLSX_SignatureAlgorithms_Parse
 
-#else
-
-#define SA_GET_SIZE(a)       0
-#define SA_WRITE(a, b)       0
-#define SA_PARSE(a, b, c)    0
-
-#endif
 
 /******************************************************************************/
 /* Key Share                                                                  */
@@ -6545,9 +6462,7 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType)
                 break;
 
             case TLSX_SIGNATURE_ALGORITHMS:
-#ifdef WOLFSSL_TLS13
                 length += SA_GET_SIZE(extension->data);
-#endif
                 break;
 
 #ifdef WOLFSSL_TLS13
@@ -6669,10 +6584,8 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 break;
 
             case TLSX_SIGNATURE_ALGORITHMS:
-#ifdef WOLFSSL_TLS13
                 WOLFSSL_MSG("Signature Algorithms extension to write");
                 offset += SA_WRITE(extension->data, output + offset);
-#endif
                 break;
 
 #ifdef WOLFSSL_TLS13
@@ -7091,12 +7004,12 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 #endif /* HAVE_ECC && HAVE_SUPPORTED_CURVES */
     } /* is not server */
 
-    #ifdef WOLFSSL_TLS13
         WOLFSSL_MSG("Adding signature algorithms extension");
         if ((ret = TLSX_SetSignatureAlgorithms(&ssl->extensions, ssl,
                                                ssl->heap)) != 0)
             return ret;
 
+    #ifdef WOLFSSL_TLS13
         if (!isServer && IsAtLeastTLSv1_3(ssl->version)) {
             /* Add mandatory TLS v1.3 extension: supported version */
             WOLFSSL_MSG("Adding supported versions extension");
@@ -7229,6 +7142,8 @@ word16 TLSX_GetRequestSize(WOLFSSL* ssl)
         EC_VALIDATE_REQUEST(ssl, semaphore);
         QSH_VALIDATE_REQUEST(ssl, semaphore);
         WOLF_STK_VALIDATE_REQUEST(ssl);
+        if (ssl->suites->hashSigAlgoSz == 0)
+            TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
 #if defined(WOLFSSL_TLS13)
         if (!IsAtLeastTLSv1_2(ssl))
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SUPPORTED_VERSIONS));
@@ -7249,12 +7164,6 @@ word16 TLSX_GetRequestSize(WOLFSSL* ssl)
             length += TLSX_GetSize(ssl->ctx->extensions, semaphore,
                                    client_hello);
         }
-
-#ifndef WOLFSSL_TLS13
-        if (IsAtLeastTLSv1_2(ssl) && ssl->suites->hashSigAlgoSz)
-            length += HELLO_EXT_SZ + OPAQUE16_LEN +
-                   + ssl->suites->hashSigAlgoSz;
-#endif
 
 #ifdef HAVE_EXTENDED_MASTER
         if (ssl->options.haveEMS)
@@ -7281,6 +7190,8 @@ word16 TLSX_WriteRequest(WOLFSSL* ssl, byte* output)
         EC_VALIDATE_REQUEST(ssl, semaphore);
         WOLF_STK_VALIDATE_REQUEST(ssl);
         QSH_VALIDATE_REQUEST(ssl, semaphore);
+        if (ssl->suites->hashSigAlgoSz == 0)
+            TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
 #if defined(WOLFSSL_TLS13)
         if (!IsAtLeastTLSv1_2(ssl))
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SUPPORTED_VERSIONS));
@@ -7303,28 +7214,6 @@ word16 TLSX_WriteRequest(WOLFSSL* ssl, byte* output)
         if (ssl->ctx && ssl->ctx->extensions)
             offset += TLSX_Write(ssl->ctx->extensions, output + offset,
                                  semaphore, client_hello);
-
-#ifndef WOLFSSL_TLS13
-        if (IsAtLeastTLSv1_2(ssl) && ssl->suites->hashSigAlgoSz) {
-            int i;
-            /* extension type */
-            c16toa(TLSX_SIGNATURE_ALGORITHMS, output + offset);
-            offset += HELLO_EXT_TYPE_SZ;
-
-            /* extension data length */
-            c16toa(OPAQUE16_LEN + ssl->suites->hashSigAlgoSz,
-                   output + offset);
-            offset += OPAQUE16_LEN;
-
-            /* sig algos length */
-            c16toa(ssl->suites->hashSigAlgoSz, output + offset);
-            offset += OPAQUE16_LEN;
-
-            /* sig algos */
-            for (i = 0; i < ssl->suites->hashSigAlgoSz; i++, offset++)
-                output[offset] = ssl->suites->hashSigAlgo[i];
-        }
-#endif
 
 #ifdef HAVE_EXTENDED_MASTER
         if (ssl->options.haveEMS) {
@@ -7627,29 +7516,18 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                 ret = ALPN_PARSE(ssl, input + offset, size, isRequest);
                 break;
 
-#ifndef WOLFSSL_TLS13
             case TLSX_SIGNATURE_ALGORITHMS:
-                WOLFSSL_MSG("Extended signature algorithm extension received");
+                WOLFSSL_MSG("Signature Algorithms extension received");
 
-                if (isRequest) {
-                    /* do not mess with offset inside the switch! */
-                    if (IsAtLeastTLSv1_2(ssl)) {
-                        ato16(input + offset, &suites->hashSigAlgoSz);
+                if (!IsAtLeastTLSv1_2(ssl))
+                    break;
 
-                        if (suites->hashSigAlgoSz > size - OPAQUE16_LEN)
-                            return BUFFER_ERROR;
-
-                        XMEMCPY(suites->hashSigAlgo,
-                                input + offset + OPAQUE16_LEN,
-                                min(suites->hashSigAlgoSz,
-                                                        HELLO_EXT_SIGALGO_MAX));
-                    }
-                } else {
-                    WOLFSSL_MSG("Servers MUST NOT send SIG ALGO extension.");
+                if (IsAtLeastTLSv1_3(ssl->version) &&
+                        msgType != client_hello) {
+                    return EXT_NOT_ALLOWED;
                 }
-
+                ret = SA_PARSE(ssl, input + offset, size, suites);
                 break;
-#endif
 
 #ifdef WOLFSSL_TLS13
             case TLSX_SUPPORTED_VERSIONS:
@@ -7663,19 +7541,6 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                     return EXT_NOT_ALLOWED;
                 }
                 ret = SV_PARSE(ssl, input + offset, size);
-                break;
-
-            case TLSX_SIGNATURE_ALGORITHMS:
-                WOLFSSL_MSG("Signature Algorithms extension received");
-
-                if (!IsAtLeastTLSv1_2(ssl))
-                    break;
-
-                if (IsAtLeastTLSv1_3(ssl->version) &&
-                        msgType != client_hello) {
-                    return EXT_NOT_ALLOWED;
-                }
-                ret = SA_PARSE(ssl, input + offset, size);
                 break;
 
             case TLSX_KEY_SHARE:

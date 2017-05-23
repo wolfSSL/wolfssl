@@ -76,7 +76,9 @@ enum {
     RSA_MIN_SIZE = 512,
     RSA_MAX_SIZE = 4096,
 
-    RSA_MIN_PAD_SZ   = 11      /* separator + 0 + pad value + 8 pads */
+    RSA_MIN_PAD_SZ   = 11,     /* separator + 0 + pad value + 8 pads */
+
+    RSA_PSS_PAD_SZ = 8
 };
 
 
@@ -122,6 +124,9 @@ WOLFSSL_API int  wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
                                   word32 outLen, RsaKey* key);
 WOLFSSL_API int  wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
                             word32 outLen, RsaKey* key, WC_RNG* rng);
+WOLFSSL_API int  wc_RsaPSS_Sign(const byte* in, word32 inLen, byte* out,
+                                word32 outLen, enum wc_HashType hash, int mgf,
+                                RsaKey* key, WC_RNG* rng);
 WOLFSSL_API int  wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out,
                                     RsaKey* key);
 WOLFSSL_API int  wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out,
@@ -129,6 +134,10 @@ WOLFSSL_API int  wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out,
 WOLFSSL_API int  wc_RsaPSS_VerifyInline(byte* in, word32 inLen, byte** out,
                                         enum wc_HashType hash, int mgf,
                                         RsaKey* key);
+WOLFSSL_API int  wc_RsaPSS_CheckPadding(const byte* in, word32 inLen, byte* sig,
+                                        word32 sigSz,
+                                        enum wc_HashType hashType);
+
 WOLFSSL_API int  wc_RsaEncryptSize(RsaKey* key);
 
 #ifndef HAVE_FIPS /* to avoid asn duplicate symbols @wc_fips */

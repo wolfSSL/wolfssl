@@ -1535,6 +1535,29 @@ WOLFSSL_API void  wolfSSL_CTX_SetRsaVerifyCb(WOLFSSL_CTX*, CallbackRsaVerify);
 WOLFSSL_API void  wolfSSL_SetRsaVerifyCtx(WOLFSSL* ssl, void *ctx);
 WOLFSSL_API void* wolfSSL_GetRsaVerifyCtx(WOLFSSL* ssl);
 
+#ifdef WC_RSA_PSS
+typedef int (*CallbackRsaPssSign)(WOLFSSL* ssl,
+       const unsigned char* in, unsigned int inSz,
+       unsigned char* out, unsigned int* outSz,
+       int hash, int mgf,
+       const unsigned char* keyDer, unsigned int keySz,
+       void* ctx);
+WOLFSSL_API void  wolfSSL_CTX_SetRsaPssSignCb(WOLFSSL_CTX*, CallbackRsaPssSign);
+WOLFSSL_API void  wolfSSL_SetRsaPssSignCtx(WOLFSSL* ssl, void *ctx);
+WOLFSSL_API void* wolfSSL_GetRsaPssSignCtx(WOLFSSL* ssl);
+
+typedef int (*CallbackRsaPssVerify)(WOLFSSL* ssl,
+       unsigned char* sig, unsigned int sigSz,
+       unsigned char** out,
+       int hash, int mgf,
+       const unsigned char* keyDer, unsigned int keySz,
+       void* ctx);
+WOLFSSL_API void  wolfSSL_CTX_SetRsaPssVerifyCb(WOLFSSL_CTX*,
+                                                CallbackRsaPssVerify);
+WOLFSSL_API void  wolfSSL_SetRsaPssVerifyCtx(WOLFSSL* ssl, void *ctx);
+WOLFSSL_API void* wolfSSL_GetRsaPssVerifyCtx(WOLFSSL* ssl);
+#endif
+
 /* RSA Public Encrypt cb */
 typedef int (*CallbackRsaEnc)(WOLFSSL* ssl,
        const unsigned char* in, unsigned int inSz,
