@@ -3620,7 +3620,7 @@ static int test_wc_RipeMdFinal (void)
 
     /* Good test args. */
     printf(testingFmt, "wc_RipeMdFinal()");
-
+    /* Testing oversized buffers. */
     for (i = 0; i < times; i++) {
         if (!flag) {
             ret = wc_RipeMdFinal(&ripemd, hash_test[i]);
@@ -3689,7 +3689,7 @@ static int test_wc_Sha224Final (void)
 
     /* Good test args. */
     printf(testingFmt, "wc_sha224Final()");
-
+    /* Testing oversized buffers. */
     for (i = 0; i < times; i++) {
         if (!flag) {
             ret = wc_Sha224Final(&sha224, hash_test[i]);
