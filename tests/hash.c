@@ -590,6 +590,7 @@ int sha384_test()
 int ripemd_test(void)
 {
     RipeMd  ripemd;
+    int ret;
     byte hash[RIPEMD_DIGEST_SIZE];
 
     testVector a, b, c, d;
@@ -626,12 +627,22 @@ int ripemd_test(void)
     test_ripemd[2] = c;
     test_ripemd[3] = d;
 
-    wc_InitRipeMd(&ripemd);
+    ret = wc_InitRipeMd(&ripemd);
+    if (ret) {
+        return ret;
+    }
 
     for (i = 0; i < times; ++i) {
-        wc_RipeMdUpdate(&ripemd, (byte*)test_ripemd[i].input,
-                     (word32)test_ripemd[i].inLen);
-        wc_RipeMdFinal(&ripemd, hash);
+        ret = wc_RipeMdUpdate(&ripemd, (byte*)test_ripemd[i].input,
+                             (word32)test_ripemd[i].inLen);
+        if (ret) {
+            return ret;
+        }
+
+        ret = wc_RipeMdFinal(&ripemd, hash);
+        if (ret) {
+            return ret;
+        }
 
         if (XMEMCMP(hash, test_ripemd[i].output, RIPEMD_DIGEST_SIZE) != 0)
             return -10 - i;

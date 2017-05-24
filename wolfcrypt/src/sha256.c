@@ -1818,7 +1818,12 @@ static int Transform_AVX2(Sha256* sha256)
 #ifdef WOLFSSL_SHA224
     static int InitSha224(Sha224* sha224)
     {
+
         int ret = 0;
+
+        if (sha224 == NULL) {
+            return BAD_FUNC_ARG;
+        }
 
         sha224->digest[0] = 0xc1059ed8;
         sha224->digest[1] = 0x367cd507;
@@ -1873,6 +1878,10 @@ static int Transform_AVX2(Sha256* sha256)
     {
         int ret;
 
+        if (sha224 == NULL || (data == NULL && len > 0)) {
+            return BAD_FUNC_ARG;
+        }
+
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA224)
         if (sha224->asyncDev.marker == WOLFSSL_ASYNC_MARKER_SHA224) {
         #if defined(HAVE_INTEL_QA)
@@ -1889,6 +1898,10 @@ static int Transform_AVX2(Sha256* sha256)
     int wc_Sha224Final(Sha224* sha224, byte* hash)
     {
         int ret;
+
+        if (sha224 == NULL || hash == NULL) {
+            return BAD_FUNC_ARG;
+        }
 
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA224)
         if (sha224->asyncDev.marker == WOLFSSL_ASYNC_MARKER_SHA224) {

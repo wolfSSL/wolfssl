@@ -37,10 +37,14 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
-
-void wc_InitRipeMd(RipeMd* ripemd)
+int wc_InitRipeMd(RipeMd* ripemd)
 {
+    if (ripemd == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     ripemd->digest[0] = 0x67452301L;
     ripemd->digest[1] = 0xEFCDAB89L;
     ripemd->digest[2] = 0x98BADCFEL;
@@ -50,6 +54,8 @@ void wc_InitRipeMd(RipeMd* ripemd)
     ripemd->buffLen = 0;
     ripemd->loLen   = 0;
     ripemd->hiLen   = 0;
+
+    return 0;
 }
 
 
@@ -273,10 +279,16 @@ static INLINE void AddLength(RipeMd* ripemd, word32 len)
 }
 
 
-void wc_RipeMdUpdate(RipeMd* ripemd, const byte* data, word32 len)
+int wc_RipeMdUpdate(RipeMd* ripemd, const byte* data, word32 len)
 {
     /* do block size increments */
-    byte* local = (byte*)ripemd->buffer;
+    byte* local;
+   
+    if (ripemd == NULL || (data == NULL && len > 0)) {
+        return BAD_FUNC_ARG;
+    }
+   
+    local = (byte*)ripemd->buffer;
 
     while (len) {
         word32 add = min(len, RIPEMD_BLOCK_SIZE - ripemd->buffLen);
@@ -296,12 +308,19 @@ void wc_RipeMdUpdate(RipeMd* ripemd, const byte* data, word32 len)
             ripemd->buffLen = 0;
         }
     }
+    return 0;
 }
 
 
-void wc_RipeMdFinal(RipeMd* ripemd, byte* hash)
+int wc_RipeMdFinal(RipeMd* ripemd, byte* hash)
 {
-    byte* local = (byte*)ripemd->buffer;
+    byte* local;
+   
+    if (ripemd == NULL || hash == NULL) {
+        return BAD_FUNC_ARG;
+    }
+   
+    local = (byte*)ripemd->buffer;
 
     AddLength(ripemd, ripemd->buffLen);               /* before adding pads */
 
@@ -340,7 +359,7 @@ void wc_RipeMdFinal(RipeMd* ripemd, byte* hash)
     #endif
     XMEMCPY(hash, ripemd->digest, RIPEMD_DIGEST_SIZE);
 
-    wc_InitRipeMd(ripemd);  /* reset state */
+    return wc_InitRipeMd(ripemd);  /* reset state */
 }
 
 

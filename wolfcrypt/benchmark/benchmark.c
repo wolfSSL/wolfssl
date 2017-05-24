@@ -208,7 +208,7 @@ void bench_sha224(int);
 void bench_sha256(int);
 void bench_sha384(int);
 void bench_sha512(int);
-void bench_ripemd(void);
+int  bench_ripemd(void);
 void bench_cmac(void);
 void bench_scrypt(void);
 
@@ -1039,7 +1039,7 @@ int benchmark_test(void *args)
 
     bench_stats_free();
 
-	if (wolfCrypt_Cleanup() != 0) {
+    if (wolfCrypt_Cleanup() != 0) {
         printf("error with wolfCrypt_Cleanup\n");
     }
 
@@ -2085,24 +2085,36 @@ exit:
 #endif
 
 #ifdef WOLFSSL_RIPEMD
-void bench_ripemd(void)
+int bench_ripemd(void)
 {
     RipeMd hash;
     byte   digest[RIPEMD_DIGEST_SIZE];
     double start;
-    int    i, count;
+    int    i, count, ret;
 
-    wc_InitRipeMd(&hash);
+    ret = wc_InitRipeMd(&hash);
+    if (ret != 0) {
+        return ret;
+    }
 
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < numBlocks; i++) {
-            wc_RipeMdUpdate(&hash, bench_plain, BENCH_SIZE);
+            ret = wc_RipeMdUpdate(&hash, bench_plain, BENCH_SIZE);
+            if (ret != 0) {
+                return ret;
+            }
         }
-        wc_RipeMdFinal(&hash, digest);
+        ret = wc_RipeMdFinal(&hash, digest);
+        if (ret != 0) {
+            return ret;
+        }
+
         count += i;
     } while (bench_stats_sym_check(start));
     bench_stats_sym_finish("RIPEMD", 0, count, start);
+
+    return 0;
 }
 #endif
 
