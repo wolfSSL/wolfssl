@@ -114,6 +114,10 @@
     #endif
 #endif
 
+#ifdef HAVE_AESCCM
+    #include <wolfssl/wolfcrypt/aes.h>
+#endif
+
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/ssl.h>
     #include <wolfssl/openssl/pkcs12.h>
@@ -7955,6 +7959,242 @@ static int test_wc_RsaFlattenPublicKey (void)
 
 
 
+/*
+ * unit test for wc_AesCcmSetKey
+ */
+static int test_wc_AesCcmSetKey (void)
+{
+#ifdef HAVE_AESCCM
+    Aes aes;
+    const byte  key16[] =
+    {
+        0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7,
+        0xc8, 0xc9, 0xca, 0xcb, 0xcc, 0xcd, 0xce, 0xcf
+    };
+    const byte  key24[] =
+    {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37
+    };
+    const byte  key32[] =
+    {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    int ret;
+
+    printf(testingFmt, "wc_AesCcmSetKey()");
+
+    ret = wc_AesCcmSetKey(&aes, key16, sizeof(key16));
+    if (ret == 0) {
+        ret = wc_AesCcmSetKey(&aes, key24, sizeof(key24));
+        if (ret == 0) {
+            ret = wc_AesCcmSetKey(&aes, key32, sizeof(key32));
+        }
+    }
+
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_AesCcmSetKey(&aes, key16, sizeof(key16) - 1);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_AesCcmSetKey(&aes, key24, sizeof(key24) - 1);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_AesCcmSetKey(&aes, key32, sizeof(key32) - 1);
+        }
+        if (ret != BAD_FUNC_ARG) {
+            ret = SSL_FATAL_ERROR;
+        } else {
+            ret = 0;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_AesCcmSetKey */
+
+/*
+ * Unit test function for wc_AesCcmEncrypt and wc_AesCcmDecrypt
+ */
+static int test_wc_AesCcmEncryptDecrypt (void)
+{
+#ifdef HAVE_AESCCM
+    Aes aes;
+    const byte  key16[] =
+    {
+        0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7,
+        0xc8, 0xc9, 0xca, 0xcb, 0xcc, 0xcd, 0xce, 0xcf
+    };
+    /* plaintext */
+    const byte plainT[] =
+    {
+        0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+        0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e
+    };
+    /* nonce */
+    const byte iv[] =
+    {
+        0x00, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0xa0,
+        0xa1, 0xa2, 0xa3, 0xa4, 0xa5
+    };
+    const byte c[] =  /* cipher text. */
+    {
+        0x58, 0x8c, 0x97, 0x9a, 0x61, 0xc6, 0x63, 0xd2,
+        0xf0, 0x66, 0xd0, 0xc2, 0xc0, 0xf9, 0x89, 0x80,
+        0x6d, 0x5f, 0x6b, 0x61, 0xda, 0xc3, 0x84
+    };
+    const byte t[] =  /* Auth tag */
+    {
+        0x17, 0xe8, 0xd1, 0x2c, 0xfd, 0xf9, 0x26, 0xe0
+    };
+    const byte authIn[] =
+    {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07
+    };
+    byte cipherOut[sizeof(plainT)];
+    byte authTag[sizeof(t)];
+    int ccmE = SSL_FATAL_ERROR;
+    int ret;
+    #ifdef HAVE_AES_DECRYPT
+        int ccmD = SSL_FATAL_ERROR;
+        byte plainOut[sizeof(cipherOut)];
+    #endif
+
+    ret = wc_AesCcmSetKey(&aes, key16, sizeof(key16));
+    if (ret == 0) {
+        ccmE = wc_AesCcmEncrypt(&aes, cipherOut, plainT, sizeof(cipherOut),
+                                    iv, sizeof(iv), authTag, sizeof(authTag),
+                                    authIn , sizeof(authIn));
+        if ((XMEMCMP(cipherOut, c, sizeof(c)) && ccmE == 0) ||
+                XMEMCMP(t, authTag, sizeof(t))) {
+            ccmE = SSL_FATAL_ERROR;
+            ret = SSL_FATAL_ERROR;
+        }
+        #ifdef HAVE_AES_DECRYPT
+            if (ret == 0) {
+                ccmD = wc_AesCcmDecrypt(&aes, plainOut, cipherOut,
+                                        sizeof(plainOut), iv, sizeof(iv),
+                                        authTag, sizeof(authTag),
+                                        authIn, sizeof(authIn));
+             }
+            if (XMEMCMP(plainOut, plainT, sizeof(plainT)) && ccmD == 0) {
+                ccmD = SSL_FATAL_ERROR;
+            }
+        #endif
+    }
+
+    printf(testingFmt, "wc_AesCcmEncrypt()");
+
+    /* Pass in bad args. Encrypt*/
+    if (ret == 0 && ccmE == 0) {
+        ccmE = wc_AesCcmEncrypt(NULL, cipherOut, plainT, sizeof(cipherOut),
+                                    iv, sizeof(iv), authTag, sizeof(authTag),
+                                    authIn , sizeof(authIn));
+        if (ccmE == BAD_FUNC_ARG) {
+            ccmE = wc_AesCcmEncrypt(&aes, NULL, plainT, sizeof(cipherOut),
+                                    iv, sizeof(iv), authTag, sizeof(authTag),
+                                    authIn , sizeof(authIn));
+        }
+        if (ccmE == BAD_FUNC_ARG) {
+            ccmE = wc_AesCcmEncrypt(&aes, cipherOut, NULL, sizeof(cipherOut),
+                                    iv, sizeof(iv), authTag, sizeof(authTag),
+                                    authIn , sizeof(authIn));
+        }
+        if (ccmE == BAD_FUNC_ARG) {
+            ccmE = wc_AesCcmEncrypt(&aes, cipherOut, plainT, sizeof(cipherOut),
+                                    NULL, sizeof(iv), authTag, sizeof(authTag),
+                                    authIn , sizeof(authIn));
+        }
+        if (ccmE == BAD_FUNC_ARG) {
+            ccmE = wc_AesCcmEncrypt(&aes, cipherOut, plainT, sizeof(cipherOut),
+                                    iv, sizeof(iv), NULL, sizeof(authTag),
+                                    authIn , sizeof(authIn));
+        }
+        if (ccmE == BAD_FUNC_ARG) {
+            ccmE = wc_AesCcmEncrypt(&aes, cipherOut, plainT, sizeof(cipherOut),
+                                    iv, sizeof(iv) + 1, authTag, sizeof(authTag),
+                                    authIn , sizeof(authIn));
+        }
+        if (ccmE == BAD_FUNC_ARG) {
+            ccmE = wc_AesCcmEncrypt(&aes, cipherOut, plainT, sizeof(cipherOut),
+                                    iv, sizeof(iv) - 7, authTag, sizeof(authTag),
+                                    authIn , sizeof(authIn));
+        }
+
+        if (ccmE != BAD_FUNC_ARG) {
+            ccmE = SSL_FATAL_ERROR;
+        } else {
+            ccmE = 0;
+        }
+    } /* End Encrypt */
+
+    printf(resultFmt, ccmE == 0 ? passed : failed);
+    #ifdef HAVE_AES_DECRYPT
+        printf(testingFmt, "wc_AesCcmDecrypt()");
+
+        /* Pass in bad args. Decrypt*/
+        if (ret == 0 && ccmD == 0) {
+            ccmD = wc_AesCcmDecrypt(NULL, plainOut, cipherOut, sizeof(plainOut),
+                                        iv, sizeof(iv), authTag, sizeof(authTag),
+                                        authIn, sizeof(authIn));
+            if (ccmD == BAD_FUNC_ARG) {
+                ccmD = wc_AesCcmDecrypt(&aes, NULL, cipherOut, sizeof(plainOut),
+                                        iv, sizeof(iv), authTag, sizeof(authTag),
+                                        authIn, sizeof(authIn));
+            }
+            if (ccmD == BAD_FUNC_ARG) {
+                ccmD = wc_AesCcmDecrypt(&aes, plainOut, NULL, sizeof(plainOut),
+                                        iv, sizeof(iv), authTag, sizeof(authTag),
+                                        authIn, sizeof(authIn));
+            }
+            if (ccmD == BAD_FUNC_ARG) {
+                ccmD = wc_AesCcmDecrypt(&aes, plainOut, cipherOut,
+                                        sizeof(plainOut), NULL, sizeof(iv),
+                                        authTag, sizeof(authTag),
+                                        authIn, sizeof(authIn));
+            }
+            if (ccmD == BAD_FUNC_ARG) {
+                ccmD = wc_AesCcmDecrypt(&aes, plainOut, cipherOut,
+                                        sizeof(plainOut), iv, sizeof(iv), NULL,
+                                        sizeof(authTag), authIn, sizeof(authIn));
+            }
+            if (ccmD == BAD_FUNC_ARG) {
+                ccmD = wc_AesCcmDecrypt(&aes, plainOut, cipherOut,
+                                        sizeof(plainOut), iv, sizeof(iv) + 1,
+                                        authTag, sizeof(authTag),
+                                        authIn, sizeof(authIn));
+            }
+            if (ccmD == BAD_FUNC_ARG) {
+                ccmD = wc_AesCcmDecrypt(&aes, plainOut, cipherOut,
+                                        sizeof(plainOut), iv, sizeof(iv) - 7,
+                                        authTag, sizeof(authTag),
+                                        authIn, sizeof(authIn));
+            }
+            if (ccmD != BAD_FUNC_ARG) {
+                ccmD = SSL_FATAL_ERROR;
+            } else {
+                ccmD = 0;
+            }
+        } /* END Decrypt */
+
+        printf(resultFmt, ccmD == 0 ? passed : failed);
+    #endif
+
+#endif  /* HAVE_AESCCM */
+
+    return 0;
+
+} /* END test_wc_AesCcmEncryptDecrypt */
+
+
+
 /*----------------------------------------------------------------------------*
  | Compatibility Tests
  *----------------------------------------------------------------------------*/
@@ -9466,6 +9706,8 @@ void ApiTest(void)
     AssertIntEQ(test_wc_RsaEncryptSize(), 0);
     AssertIntEQ(test_wc_RsaSSL_SignVerify(), 0);
     AssertIntEQ(test_wc_RsaFlattenPublicKey(), 0);
+    AssertIntEQ(test_wc_AesCcmSetKey(), 0);
+    AssertIntEQ(test_wc_AesCcmEncryptDecrypt(), 0);
     printf(" End API Tests\n");
 
 }
