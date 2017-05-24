@@ -239,10 +239,11 @@ enum Block_Sum {
 
 
 enum Key_Sum {
-    DSAk   = 515,
-    RSAk   = 645,
-    NTRUk  = 274,
-    ECDSAk = 518
+    DSAk     = 515,
+    RSAk     = 645,
+    NTRUk    = 274,
+    ECDSAk   = 518,
+    ED25519k = 256
 };
 
 
@@ -434,10 +435,13 @@ struct SignatureCtx {
 #endif
     union {
     #ifndef NO_RSA
-        struct RsaKey* rsa;
+        struct RsaKey*      rsa;
     #endif
     #ifdef HAVE_ECC
-        struct ecc_key* ecc;
+        struct ecc_key*     ecc;
+    #endif
+    #ifdef HAVE_ED25519
+        struct ed25519_key* ed25519;
     #endif
         void* ptr;
     } key;
@@ -814,7 +818,8 @@ enum cert_enums {
     EMAIL_JOINT_LEN =  9,
     RSA_KEY         = 10,
     NTRU_KEY        = 11,
-    ECC_KEY         = 12
+    ECC_KEY         = 12,
+    ED25519_KEY     = 13
 };
 
 #ifndef WOLFSSL_PEMCERT_TODER_DEFINED
