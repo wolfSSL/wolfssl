@@ -115,6 +115,10 @@ if BUILD_SHA512
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sha512.c
 endif
 
+if BUILD_SHA3
+src_libwolfssl_la_SOURCES += wolfcrypt/src/sha3.c
+endif
+
 src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/logging.c \
                wolfcrypt/src/wc_encrypt.c \
