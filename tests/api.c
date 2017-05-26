@@ -3770,6 +3770,8 @@ static int test_wc_Des3_SetIV (void)
         ret = wc_Des3_SetIV(NULL, iv);
         if (ret == BAD_FUNC_ARG) {
             ret = wc_Des3_SetIV(&des, NULL);
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
         }
     }
 
@@ -3825,6 +3827,9 @@ static int test_wc_Des3_SetKey (void)
         if (ret == BAD_FUNC_ARG) {
             /* Default case. Should return 0. */
             ret = wc_Des3_SetKey(&des, key, NULL, DES_ENCRYPTION);
+        }
+        if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
         }
     } /* END if ret != 0 */
 
