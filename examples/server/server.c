@@ -307,6 +307,7 @@ static void Usage(void)
 #ifdef WOLFSSL_TLS13
     printf("-K          Key Exchange for PSK not using (EC)DHE\n");
     printf("-U          Update keys and IVs before sending\n");
+#endif
 #ifdef WOLFSSL_MULTICAST
     printf("-3 <grpid>  Multicast, grpid < 256\n");
 #endif
