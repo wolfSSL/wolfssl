@@ -17195,6 +17195,31 @@ int wolfSSL_BN_mod_exp(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *a,
     return SSL_FAILURE;
 }
 
+/* r = (a * p) % m */
+int wolfSSL_BN_mod_mul(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *a,
+        const WOLFSSL_BIGNUM *p, const WOLFSSL_BIGNUM *m, WOLFSSL_BN_CTX *ctx)
+{
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_BN_mod_mul");
+
+    (void) ctx;
+    if (r == NULL || a == NULL || p == NULL || m == NULL) {
+        WOLFSSL_MSG("Bad Argument");
+        return SSL_FAILURE;
+    }
+
+    if ((ret = mp_mulmod((mp_int*)a->internal,(mp_int*)p->internal,
+               (mp_int*)m->internal, (mp_int*)r->internal)) == MP_OKAY) {
+        return SSL_SUCCESS;
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_BN_mod_mul", ret);
+    (void)ret;
+
+    return SSL_FAILURE;
+}
+
 const WOLFSSL_BIGNUM* wolfSSL_BN_value_one(void)
 {
     static WOLFSSL_BIGNUM* bn_one = NULL;

@@ -37,6 +37,8 @@ WOLFSSL_API int wolfSSL_BN_mod(WOLFSSL_BIGNUM*, const WOLFSSL_BIGNUM*,
                              const WOLFSSL_BIGNUM*, const WOLFSSL_BN_CTX*);
 WOLFSSL_API int wolfSSL_BN_mod_exp(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *a,
         const WOLFSSL_BIGNUM *p, const WOLFSSL_BIGNUM *m, WOLFSSL_BN_CTX *ctx);
+WOLFSSL_API int wolfSSL_BN_mod_mul(WOLFSSL_BIGNUM *r, const WOLFSSL_BIGNUM *a,
+        const WOLFSSL_BIGNUM *b, const WOLFSSL_BIGNUM *m, WOLFSSL_BN_CTX *ctx);
 WOLFSSL_API const WOLFSSL_BIGNUM* wolfSSL_BN_value_one(void);
 
 
@@ -111,6 +113,7 @@ typedef WOLFSSL_BN_GENCB BN_GENCB;
 
 #define BN_mod       wolfSSL_BN_mod
 #define BN_mod_exp   wolfSSL_BN_mod_exp
+#define BN_mod_mul   wolfSSL_BN_mod_mul
 #define BN_sub       wolfSSL_BN_sub
 #define BN_value_one wolfSSL_BN_value_one
 
