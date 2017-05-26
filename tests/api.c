@@ -3759,7 +3759,11 @@ static int test_wc_Des3_SetIV (void)
     /* DES_ENCRYPTION or DES_DECRYPTION */
     ret = wc_Des3_SetKey(&des, key, iv, DES_ENCRYPTION);
 
-    AssertIntEQ(XMEMCMP(iv, des.reg, DES_BLOCK_SIZE), 0);
+    if (ret == 0) {
+        if (XMEMCMP(iv, des.reg, DES_BLOCK_SIZE) != 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
 
     /* Test explicitly wc_Des3_SetIV()  */
     if (ret == 0) {
@@ -3803,7 +3807,11 @@ static int test_wc_Des3_SetKey (void)
     /* DES_ENCRYPTION or DES_DECRYPTION */
     ret = wc_Des3_SetKey(&des, key, iv, DES_ENCRYPTION);
 
-    AssertIntEQ(XMEMCMP(iv, des.reg, DES_BLOCK_SIZE), 0);
+    if (ret == 0) {
+        if (XMEMCMP(iv, des.reg, DES_BLOCK_SIZE) != 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
 
     /* Test bad args. */
     if (ret == 0) {
@@ -3869,17 +3877,24 @@ static int test_wc_Des3_CbcEncryptDecrypt (void)
 
     printf(testingFmt, "wc_Des3_CbcEncrypt()");
 
-    AssertIntEQ(wc_Des3_SetKey(&des, key, iv, DES_ENCRYPTION), 0);
-
-    ret = wc_Des3_CbcEncrypt(&des, cipher, vector, 24);
-
-    AssertIntEQ(wc_Des3_SetKey(&des, key, iv, DES_DECRYPTION), 0);
+    ret = wc_Des3_SetKey(&des, key, iv, DES_ENCRYPTION);
 
     if (ret == 0) {
-        ret = wc_Des3_CbcDecrypt(&des, plain, cipher, 24);
+        ret = wc_Des3_CbcEncrypt(&des, cipher, vector, 24);
+
+        if (ret == 0) {
+            ret = wc_Des3_SetKey(&des, key, iv, DES_DECRYPTION);
+        }
+        if (ret == 0) {
+            ret = wc_Des3_CbcDecrypt(&des, plain, cipher, 24);
+        }
     }
 
-    AssertIntEQ(XMEMCMP(plain, vector, 24), 0);
+    if (ret == 0) {
+        if (XMEMCMP(plain, vector, 24) != 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
 
     /* Pass in bad args. */
     if (ret == 0) {
@@ -3972,7 +3987,11 @@ static int test_wc_Des3_CbcEncryptDecryptWithKey (void)
     ret = wc_Des3_CbcEncryptWithKey(cipher, vector, vectorSz, key, iv);
     if (ret == 0) {
         ret = wc_Des3_CbcDecryptWithKey(plain, cipher, cipherSz, key, iv);
-        AssertIntEQ(XMEMCMP(plain, vector, 24), 0);
+        if (ret == 0) {
+            if (XMEMCMP(plain, vector, 24) !=  0) {
+                ret = SSL_FATAL_ERROR;
+            }
+        }
     }
 
     /* pass in bad args. */
