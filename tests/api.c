@@ -10293,7 +10293,17 @@ static void test_wolfSSL_BN(void)
     /* check result  3^2 mod 5 */
     value[0] = 0;
     AssertIntEQ(BN_bn2bin(d, value), WOLFSSL_SUCCESS);
-    AssertIntEQ((int)(value[0] & 0x04), 4);
+    AssertIntEQ(BN_bn2bin(d, value), SSL_SUCCESS);
+    AssertIntEQ((int)(value[0]), 4);
+
+    /* a*b mod c = */
+    AssertIntEQ(BN_mod_mul(d, NULL, b, c, NULL), SSL_FAILURE);
+    AssertIntEQ(BN_mod_mul(d, a, b, c, NULL), SSL_SUCCESS);
+
+    /* check result  3*2 mod 5 */
+    value[0] = 0;
+    AssertIntEQ(BN_bn2bin(d, value), SSL_SUCCESS);
+    AssertIntEQ((int)(value[0]), 1);
 
     /* BN_mod_inverse test */
     value[0] = 0;
