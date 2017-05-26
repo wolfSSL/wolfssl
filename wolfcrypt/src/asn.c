@@ -6123,7 +6123,10 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         }
     }
 
+#ifdef WOLFSSL_NO_TRUSTED_CERTS_VERIFY
 exit_pcr:
+#endif
+
     if (badDate != 0)
         return badDate;
 
