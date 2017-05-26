@@ -412,8 +412,10 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 #define RAND_status wolfSSL_RAND_status
 #define RAND_bytes wolfSSL_RAND_bytes
-#define SSLv23_server_method wolfSSLv23_server_method
-#define SSL_CTX_set_options wolfSSL_CTX_set_options
+#define SSLv23_server_method  wolfSSLv23_server_method
+#define SSL_CTX_set_options   wolfSSL_CTX_set_options
+#define SSL_CTX_clear_options wolfSSL_CTX_clear_options
+
 #define SSL_CTX_check_private_key wolfSSL_CTX_check_private_key
 
 #define ERR_free_strings wolfSSL_ERR_free_strings
