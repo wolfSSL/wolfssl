@@ -1073,6 +1073,7 @@ WOLFSSL_API int  wolfSSL_RAND_status(void);
 WOLFSSL_API int  wolfSSL_RAND_bytes(unsigned char* buf, int num);
 WOLFSSL_API WOLFSSL_METHOD *wolfSSLv23_server_method(void);
 WOLFSSL_API long wolfSSL_CTX_set_options(WOLFSSL_CTX*, long);
+WOLFSSL_API long wolfSSL_CTX_clear_options(WOLFSSL_CTX*, long);
 #ifndef NO_CERTS
   WOLFSSL_API int  wolfSSL_CTX_check_private_key(WOLFSSL_CTX*);
 #endif /* !NO_CERTS */
