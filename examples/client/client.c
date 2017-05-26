@@ -1183,7 +1183,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 #endif
                 break;
 
-<<<<<<< HEAD
             case 'J' :
                 #ifdef WOLFSSL_TLS13
                     helloRetry = 1;
