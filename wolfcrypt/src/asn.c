@@ -39,6 +39,7 @@ ASN Options:
  * WOLFSSL_NO_TRUSTED_CERTS_VERIFY: Workaround for sitatuon where entire cert
     chain is not loaded. This only matches on subject and public key and
     does not perform a PKI validation, so it is not a secure solution.
+    Only enabled for OCSP.
 */
 
 #ifndef NO_ASN
@@ -4109,10 +4110,10 @@ static int GetValidity(DecodedCert* cert, int verify)
     if (GetSequence(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
         return ASN_PARSE_E;
 
-    if (GetDate(cert, BEFORE) < 0 && verify)
+    if (GetDate(cert, BEFORE) < 0 && verify != NO_VERIFY)
         badDate = ASN_BEFORE_DATE_E;           /* continue parsing */
 
-    if (GetDate(cert, AFTER) < 0 && verify)
+    if (GetDate(cert, AFTER) < 0 && verify != NO_VERIFY)
         return ASN_AFTER_DATE_E;
 
     if (badDate != 0)
@@ -6066,7 +6067,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 
             /* alternate lookup method using subject and match on public key */
         #ifdef WOLFSSL_NO_TRUSTED_CERTS_VERIFY
-            if (cert->ca == NULL) {
+            if (cert->ca == NULL && verify == VERIFY_OCSP) {
                 if (cert->extSubjKeyIdSet) {
                     cert->ca = GetCA(cm, cert->extSubjKeyId);
                 }
@@ -6077,7 +6078,8 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                     if ((cert->ca->pubKeySize == cert->pubKeySize) &&
                         (XMEMCMP(cert->ca->publicKey, cert->publicKey,
                                                 cert->ca->pubKeySize) == 0)) {
-                        return 0;
+                        ret = 0; /* success */
+                        goto exit_pcr;
                     }
                 }
             }
@@ -6121,7 +6123,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 
     if (verify != NO_VERIFY && type != CA_TYPE && type != TRUSTED_PEER_TYPE) {
         if (cert->ca) {
-            if (verify == VERIFY) {
+            if (verify == VERIFY || verify == VERIFY_OCSP) {
                 /* try to confirm/verify signature */
                 if ((ret = ConfirmSignature(&cert->sigCtx,
                         cert->source + cert->certBegin,
@@ -6150,6 +6152,10 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             return ASN_NO_SIGNER_E;
         }
     }
+
+#ifdef WOLFSSL_NO_TRUSTED_CERTS_VERIFY
+exit_pcr:
+#endif
 
     if (badDate != 0)
         return badDate;
@@ -10219,8 +10225,8 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
 
         InitDecodedCert(&cert, resp->cert, resp->certSz, heap);
         /* Don't verify if we don't have access to Cert Manager. */
-        ret = ParseCertRelative(&cert, CERT_TYPE, noVerify ? NO_VERIFY : VERIFY,
-                                cm);
+        ret = ParseCertRelative(&cert, CERT_TYPE,
+                                noVerify ? NO_VERIFY : VERIFY_OCSP, cm);
         if (ret < 0) {
             WOLFSSL_MSG("\tOCSP Responder certificate parsing failed");
             FreeDecodedCert(&cert);
@@ -10264,6 +10270,8 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             WOLFSSL_MSG("\tOCSP Confirm signature failed");
             return ASN_OCSP_CONFIRM_E;
         }
+
+        (void)noVerify;
     }
 
     *ioIndex = idx;
