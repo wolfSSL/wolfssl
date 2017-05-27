@@ -7989,6 +7989,9 @@ static int dh_generate_test(WC_RNG *rng)
 
     /* Use API. */
     ret = wc_DhGenerateKeyPair(&smallKey, rng, priv, &privSz, pub, &pubSz);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &smallKey.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         ret = -5707;
     }
@@ -9193,6 +9196,8 @@ int scrypt_test(void)
     if (XMEMCMP(derived, verify2, sizeof(verify2)) != 0)
         return -6003;
 
+    /* Don't run these test on embedded, since they use large mallocs */
+#ifndef BENCH_EMBEDDED
     ret = wc_scrypt(derived, (byte*)"pleaseletmein", 13,
                     (byte*)"SodiumChloride", 14, 14, 8, 1, sizeof(verify3));
     if (ret != 0)
@@ -9208,6 +9213,7 @@ int scrypt_test(void)
     if (XMEMCMP(derived, verify4, sizeof(verify4)) != 0)
         return -6007;
 #endif
+#endif /* !BENCH_EMBEDDED */
 
     return 0;
 }
