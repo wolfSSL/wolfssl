@@ -18,7 +18,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
-.PHONY : all clean clean-build clean-pyc clean-test clean-docs install test docs upload
+.PHONY : all clean clean-test clean-build clean-pyc install test check upload
 
 # builds the module
 all :
@@ -29,7 +29,7 @@ install : all
 	python ./setup.py install
 
 ## removes all build, test, coverage and Python artifacts
-clean : clean-test clean-build clean-pyc clean-docs
+clean : clean-test clean-build clean-pyc
 
 ## removes test and coverage artifacts
 clean-test :
@@ -47,18 +47,11 @@ clean-pyc :
 	find src test -name '*.pyc' -exec rm -f {} +
 	find src test -name '*.pyo' -exec rm -f {} +
 
-## removes documentation file artifacts
-clean-docs :
-	$(MAKE) -C docs clean
-
 # runs unit tests
 check : test
 
 test : clean-pyc
 	tox
-
-docs :
-	$(MAKE) -C docs singlehtml
 
 # publishes module at pypi
 upload : test
