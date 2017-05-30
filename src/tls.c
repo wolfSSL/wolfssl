@@ -1591,6 +1591,7 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
         switch(type) {
             case WOLFSSL_SNI_HOST_NAME: {
                 int matchStat;
+                byte matched;
 #ifdef WOLFSSL_TLS13
                 /* Don't process the second ClientHello SNI extension if there
                  * was problems with the first.
@@ -1598,10 +1599,11 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
                 if (sni->status != 0)
                     break;
 #endif
-                byte matched = cacheOnly ||
-                            ((XSTRLEN(sni->data.host_name) == size)
-                            && (XSTRNCMP(sni->data.host_name,
-                                       (const char*)input + offset, size) == 0));
+                matched = (cacheOnly ||
+                           ((XSTRLEN(sni->data.host_name) == size) &&
+                            (XSTRNCMP(sni->data.host_name,
+                                      (const char*)input + offset,
+                                      size) == 0)));
 
                 if (matched || sni->options & WOLFSSL_SNI_ANSWER_ON_MISMATCH) {
                     int r = TLSX_UseSNI(&ssl->extensions,
@@ -4290,10 +4292,10 @@ int TLSX_UseQSHScheme(TLSX** extensions, word16 name, byte* pKey, word16 pkeySz,
  */
 static word16 TLSX_SupportedVersions_GetSize(void* data)
 {
-    (void)data;
-
     /* TLS v1.2 and TLS v1.3  */
     int cnt = 2;
+
+    (void)data;
 
 #ifndef NO_OLD_TLS
     /* TLS v1 and TLS v1.1  */
