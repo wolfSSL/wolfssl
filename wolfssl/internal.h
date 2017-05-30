@@ -72,6 +72,9 @@
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif
+#ifdef HAVE_ED25519
+    #include <wolfssl/wolfcrypt/ed25519.h>
+#endif
 #ifdef HAVE_CURVE25519
     #include <wolfssl/wolfcrypt/curve25519.h>
 #endif
@@ -909,7 +912,7 @@ enum Misc {
     ECC_BYTE    = 0xC0,            /* ECC first cipher suite byte */
     QSH_BYTE    = 0xD0,            /* Quantum-safe Handshake cipher suite */
     CHACHA_BYTE = 0xCC,            /* ChaCha first cipher suite */
-    TLS13_BYTE  = 0x13,            /* TLS v.13 first byte of cipher suite */
+    TLS13_BYTE  = 0x13,            /* TLS v1.3 first byte of cipher suite */
 
     SEND_CERT       = 1,
     SEND_BLANK_CERT = 2,
@@ -1092,6 +1095,12 @@ enum Misc {
 
     ECDHE_SIZE          = 32,  /* ECHDE server size defaults to 256 bit */
     MAX_EXPORT_ECC_SZ   = 256, /* Export ANS X9.62 max future size */
+
+    NEW_SA_MAJOR        = 8,   /* Most signicant byte used with new sig algos */
+    ED25519_SA_MAJOR    = 8,   /* Most significant byte for ED25519 */
+    ED25519_SA_MINOR    = 7,   /* Least significant byte for ED25519 */
+    ED448_SA_MAJOR      = 8,   /* Most significant byte for ED448 */
+    ED448_SA_MINOR      = 8,   /* Least significant byte for ED448 */
 
 #ifdef HAVE_QSH
     /* qsh handshake sends 600+ size keys over hello extensions */
@@ -2263,6 +2272,12 @@ struct WOLFSSL_CTX {
         CallbackEccSign   EccSignCb;    /* User EccSign   Callback handler */
         CallbackEccVerify EccVerifyCb;  /* User EccVerify Callback handler */
         CallbackEccSharedSecret EccSharedSecretCb;     /* User EccVerify Callback handler */
+        #ifdef HAVE_ED25519
+            /* User Ed25519Sign   Callback handler */
+            CallbackEd25519Sign   Ed25519SignCb;
+            /* User Ed25519Verify Callback handler */
+            CallbackEd25519Verify Ed25519VerifyCb;
+        #endif
         #ifdef HAVE_CURVE25519
             /* User EccSharedSecret Callback handler */
             CallbackX25519SharedSecret X25519SharedSecretCb;
@@ -2374,7 +2389,8 @@ enum SignatureAlgorithm {
     rsa_sa_algo       = 1,
     dsa_sa_algo       = 2,
     ecc_dsa_sa_algo   = 3,
-    rsa_pss_sa_algo   = 8
+    rsa_pss_sa_algo   = 8,
+    ed25519_sa_algo   = 9
 };
 
 
@@ -2637,6 +2653,9 @@ typedef struct Buffers {
     #ifdef HAVE_ECC
         buffer peerEccDsaKey;              /* we own for Ecc Verify Callbacks */
     #endif /* HAVE_ECC */
+    #ifdef HAVE_ED25519
+        buffer peerEd25519Key;             /* for Ed25519 Verify Callbacks */
+    #endif /* HAVE_ED25519 */
     #ifndef NO_RSA
         buffer peerRsaKey;                 /* we own for Rsa Verify Callbacks */
     #endif /* NO_RSA */
@@ -3134,6 +3153,10 @@ struct WOLFSSL {
     byte            peerEccKeyPresent;
     byte            peerEccDsaKeyPresent;
     byte            eccTempKeyPresent;
+#ifdef HAVE_ED25519
+    ed25519_key*    peerEd25519Key;
+    byte            peerEd25519KeyPresent;
+#endif
 #ifdef HAVE_CURVE25519
     curve25519_key* peerX25519Key;
     byte            peerX25519KeyPresent;
@@ -3241,6 +3264,10 @@ struct WOLFSSL {
         void* EccSignCtx;     /* Ecc Sign   Callback Context */
         void* EccVerifyCtx;   /* Ecc Verify Callback Context */
         void* EccSharedSecretCtx; /* Ecc Pms Callback Context */
+        #ifdef HAVE_ED25519
+            void* Ed25519SignCtx;     /* ED25519 Sign   Callback Context */
+            void* Ed25519VerifyCtx;   /* ED25519 Verify Callback Context */
+        #endif
         #ifdef HAVE_CURVE25519
             void* X25519SharedSecretCtx; /* X25519 Pms Callback Context */
         #endif
@@ -3472,6 +3499,15 @@ WOLFSSL_LOCAL int VerifyClientSuite(WOLFSSL* ssl);
             ecc_key* pub_key, byte* pubKeyDer, word32* pubKeySz, byte* out,
             word32* outlen, int side, void* ctx);
     #endif /* HAVE_ECC */
+    #ifdef HAVE_ED25519
+        WOLFSSL_LOCAL int Ed25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz,
+            byte* out, word32* outSz, ed25519_key* key, byte* keyBuf,
+            word32 keySz, void* ctx);
+        WOLFSSL_LOCAL int Ed25519Verify(WOLFSSL* ssl, const byte* in,
+            word32 inSz, const byte* msg, word32 msgSz, ed25519_key* key,
+            byte* keyBuf, word32 keySz, void* ctx);
+    #endif /* HAVE_ED25519 */
+
 
     #ifdef WOLFSSL_TRUST_PEER_CERT
 

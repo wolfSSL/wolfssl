@@ -2502,7 +2502,7 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
     }
 #endif /* HAVE_ECC */
 #ifdef HAVE_ED25519
-    if (*algoID != RSAk && *algoId != ECDSAk) {
+    if (*algoID != RSAk && *algoID != ECDSAk) {
         if (wc_ed25519_init(&ed25519) == 0) {
             if (wc_Ed25519PrivateKeyDecode(key, &tmpIdx, &ed25519, keySz)
                                                                          == 0) {
@@ -3447,6 +3447,8 @@ static int GetKey(DecodedCert* cert)
         case ED25519k:
         {
             int ret;
+
+            cert->pkCurveOID = ED25519k;
 
             ret = CheckBitString(cert->source, &cert->srcIdx, &length,
                                  cert->maxIdx, 1, NULL);
@@ -4637,7 +4639,7 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
             WOLFSSL_MSG("Hash for Signature has unsupported type");
     }
 
-    return 0;
+    return ret;
 }
 
 /* Return codes: 0=Success, Negative (see error-crypt.h), ASN_SIG_CONFIRM_E */
@@ -10227,6 +10229,15 @@ int wc_Ed25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
         return BAD_FUNC_ARG;
+
+    if (GetOctetString(input, inOutIdx, &privSz, inSz) >= 0) {
+        priv = input + *inOutIdx;
+        *inOutIdx += privSz;
+
+        if (*inOutIdx != inSz)
+            return ASN_PARSE_E;
+        return wc_ed25519_import_private_only(priv, privSz, key);
+    }
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;

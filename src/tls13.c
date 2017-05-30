@@ -3087,6 +3087,13 @@ static INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
             output[0] = hashAlgo;
             output[1] = ecc_dsa_sa_algo;
             break;
+    #ifdef HAVE_ED25519
+        /* ED25519: 0x0807 */
+        case ed25519_sa_algo:
+            output[0] = ED25519_SA_MAJOR;
+            output[1] = ED25519_SA_MINOR;
+            break;
+    #endif
 #endif
 #ifndef NO_RSA
         case rsa_sa_algo:
@@ -3101,7 +3108,6 @@ static INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
             break;
     #endif
 #endif
-        /* ED25519: 0x0807 */
         /* ED448: 0x0808 */
     }
 }
@@ -3115,17 +3121,24 @@ static INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
 static INLINE void DecodeSigAlg(byte* input, byte* hashAlgo, byte* hsType)
 {
     switch (input[0]) {
+        case NEW_SA_MAJOR:
     #ifdef WC_RSA_PSS
-        case 0x08:
-           /* PSS signatures: 0x080[4-6] */
-           if (input[1] <= 0x06) {
-               *hsType   = input[0];
-               *hashAlgo = input[1];
-           }
-           break;
+            /* PSS signatures: 0x080[4-6] */
+            if (input[1] <= sha512_mac) {
+                *hsType   = input[0];
+                *hashAlgo = input[1];
+            }
     #endif
-        /* ED25519: 0x0807 */
-        /* ED448: 0x0808 */
+    #ifdef HAVE_ED25519
+            /* ED25519: 0x0807 */
+            if (input[1] == ED25519_SA_MINOR) {
+                *hsType = ed25519_sa_algo;
+                /* Hash performed as part of sign/verify operation. */
+                *hashAlgo = sha512_mac;
+            }
+    #endif
+            /* ED448: 0x0808 */
+            break;
         default:
             *hashAlgo = input[0];
             *hsType   = input[1];
@@ -3825,6 +3838,8 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
             }
             else if (ssl->hsType == DYNAMIC_TYPE_ECC)
                 args->sigAlgo = ecc_dsa_sa_algo;
+            else if (ssl->hsType == DYNAMIC_TYPE_ED25519)
+                args->sigAlgo = ed25519_sa_algo;
             EncodeSigAlg(ssl->suites->hashAlgo, args->sigAlgo, args->verify);
 
             /* Create the data to be signed. */
@@ -3869,6 +3884,12 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
                 ret = 0;
             }
         #endif /* HAVE_ECC */
+        #ifdef HAVE_ED25519
+            if (ssl->hsType == DYNAMIC_TYPE_ED25519) {
+                /* Nothing to do */
+                sig->length = ED25519_SIG_SIZE;
+            }
+        #endif /* HAVE_ECC */
 
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_DO;
@@ -3892,6 +3913,21 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
                 args->length = sig->length;
             }
         #endif /* HAVE_ECC */
+        #ifdef HAVE_ED25519
+            if (ssl->hsType == DYNAMIC_TYPE_ED25519) {
+                ret = Ed25519Sign(ssl, args->sigData, args->sigDataSz,
+                    args->verify + HASH_SIG_SIZE + VERIFY_HEADER,
+                    &sig->length, (ed25519_key*)ssl->hsKey,
+            #if defined(HAVE_PK_CALLBACKS)
+                    ssl->buffers.key->buffer, ssl->buffers.key->length,
+                    ssl->Ed25519SignCtx
+            #else
+                    NULL, 0, NULL
+            #endif
+                );
+                args->length = sig->length;
+            }
+        #endif
         #ifndef NO_RSA
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
                 /* restore verify pointer */
@@ -4154,6 +4190,10 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
             }
 
             /* Check for public key of required type. */
+            if (args->sigAlgo == ed25519_sa_algo &&
+                                                  !ssl->peerEd25519KeyPresent) {
+                WOLFSSL_MSG("Oops, peer sent ED25519 key but not in verify");
+            }
             if (args->sigAlgo == ecc_dsa_sa_algo &&
                                                    !ssl->peerEccDsaKeyPresent) {
                 WOLFSSL_MSG("Oops, peer sent ECC key but not in verify");
@@ -4188,6 +4228,20 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 if (ret < 0)
                     goto exit_dcv;
                 args->sigDataSz = ret;
+                ret = 0;
+            }
+        #endif
+        #ifdef HAVE_ED25519
+            if (ssl->peerEd25519KeyPresent) {
+                WOLFSSL_MSG("Doing ED25519 peer cert verify");
+
+                args->sigData = (byte*)XMALLOC(MAX_SIG_DATA_SZ, ssl->heap,
+                                                    DYNAMIC_TYPE_TMP_BUFFER);
+                if (args->sigData == NULL) {
+                    ERROR_OUT(MEMORY_E, exit_dcv);
+                }
+
+                CreateSigData(ssl, args->sigData, &args->sigDataSz, 1);
                 ret = 0;
             }
         #endif
@@ -4237,6 +4291,23 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 );
             }
         #endif /* HAVE_ECC */
+        #ifdef HAVE_ED25519
+            if (ssl->peerEd25519KeyPresent) {
+                WOLFSSL_MSG("Doing ED25519 peer cert verify");
+
+                ret = Ed25519Verify(ssl, input + args->idx, args->sz,
+                    args->sigData, args->sigDataSz,
+                    ssl->peerEd25519Key,
+                #ifdef HAVE_PK_CALLBACKS
+                    ssl->buffers.peerEd25519Key.buffer,
+                    ssl->buffers.peerEd25519Key.length,
+                    ssl->Ed25519VerifyCtx
+                #else
+                    NULL, 0, NULL
+                #endif
+                );
+            }
+        #endif
 
             /* Check for error */
             if (ret != 0) {
