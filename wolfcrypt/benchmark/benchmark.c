@@ -1416,8 +1416,12 @@ void bench_camellia(void)
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < numBlocks; i++) {
-            wc_CamelliaCbcEncrypt(&cam, bench_plain, bench_cipher,
-                BENCH_SIZE);
+            ret = wc_CamelliaCbcEncrypt(&cam, bench_plain, bench_cipher,
+                                                            BENCH_SIZE);
+            if (ret <= 0) {
+                printf("CamelliaCbcEncrypt failed: %d\n", ret);
+                return;
+            }
         }
         count += i;
     } while (bench_stats_sym_check(start));

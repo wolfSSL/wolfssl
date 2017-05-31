@@ -83,6 +83,10 @@
     #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
 #endif
 
+#ifdef HAVE_CAMELLIA
+    #include <wolfssl/wolfcrypt/camellia.h>
+#endif
+
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/ssl.h>
     #include <wolfssl/openssl/pkcs12.h>
@@ -5571,6 +5575,293 @@ static int test_wc_ChaCha20Poly1305_aead (void)
 
 
 
+/*
+ * testing wc_CamelliaSetKey
+ */
+static int test_wc_CamelliaSetKey (void)
+{
+#ifdef HAVE_CAMELLIA
+    Camellia camellia;
+    /*128-bit key*/
+    static const byte key16[] =
+    {
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10
+    };
+    /* 192-bit key */
+    static const byte key24[] =
+    {
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77
+    };
+    /* 256-bit key */
+    static const byte key32[] =
+    {
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+        0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff
+    };
+    static const byte iv[] =
+    {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F
+    };
+    int ret;
+
+    printf(testingFmt, "wc_CamelliaSetKey()");
+
+    ret = wc_CamelliaSetKey(&camellia, key16, (word32)sizeof(key16), iv);
+    if (ret == 0) {
+        ret = wc_CamelliaSetKey(&camellia, key16,
+                                        (word32)sizeof(key16), NULL);
+        if (ret == 0) {
+            ret = wc_CamelliaSetKey(&camellia, key24,
+                                        (word32)sizeof(key24), iv);
+        }
+        if (ret == 0) {
+            ret = wc_CamelliaSetKey(&camellia, key24,
+                                        (word32)sizeof(key24), NULL);
+        }
+        if (ret == 0) {
+            ret = wc_CamelliaSetKey(&camellia, key32,
+                                        (word32)sizeof(key32), iv);
+        }
+        if (ret == 0) {
+            ret = wc_CamelliaSetKey(&camellia, key32,
+                                        (word32)sizeof(key32), NULL);
+        }
+    }
+    /* Bad args. */
+    if (ret == 0) {
+        ret = wc_CamelliaSetKey(NULL, key32, (word32)sizeof(key32), iv);
+        if (ret != BAD_FUNC_ARG) {
+            ret = SSL_FATAL_ERROR;
+        } else {
+            ret = 0;
+        }
+    } /* END bad args. */
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_CammeliaSetKey */
+
+/*
+ * Testing wc_CamelliaSetIV()
+ */
+static int test_wc_CamelliaSetIV (void)
+{
+#ifdef HAVE_CAMELLIA
+    Camellia    camellia;
+    static const byte iv[] =
+    {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F
+    };
+    int ret;
+
+    printf(testingFmt, "wc_CamelliaSetIV()");
+
+    ret = wc_CamelliaSetIV(&camellia, iv);
+    if (ret == 0) {
+        ret = wc_CamelliaSetIV(&camellia, NULL);
+    }
+    /* Bad args. */
+    if (ret == 0) {
+        ret = wc_CamelliaSetIV(NULL, NULL);
+        if (ret != BAD_FUNC_ARG) {
+            ret = SSL_FATAL_ERROR;
+        } else {
+            ret = 0;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /*END test_wc_CamelliaSetIV*/
+
+/*
+ * Test wc_CamelliaEncryptDirect and wc_CamelliaDecryptDirect
+ */
+static int test_wc_CamelliaEncryptDecryptDirect (void)
+{
+#ifdef HAVE_CAMELLIA
+    Camellia camellia;
+    static const byte key24[] =
+    {
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77
+    };
+    static const byte iv[] =
+    {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F
+    };
+    static const byte plainT[] =
+    {
+        0x6B, 0xC1, 0xBE, 0xE2, 0x2E, 0x40, 0x9F, 0x96,
+        0xE9, 0x3D, 0x7E, 0x11, 0x73, 0x93, 0x17, 0x2A
+    };
+    byte    enc[sizeof(plainT)];
+    byte    dec[sizeof(enc)];
+    int     camE = SSL_FATAL_ERROR;
+    int     camD = SSL_FATAL_ERROR;
+    int     ret;
+
+    /*Init stack variables.*/
+    XMEMSET(enc, 0, 16);
+    XMEMSET(enc, 0, 16);
+
+    ret = wc_CamelliaSetKey(&camellia, key24, (word32)sizeof(key24), iv);
+    if (ret == 0) {
+        ret = wc_CamelliaEncryptDirect(&camellia, enc, plainT);
+        if (ret == 0) {
+            ret = wc_CamelliaDecryptDirect(&camellia, dec, enc);
+            if (XMEMCMP(plainT, dec, CAMELLIA_BLOCK_SIZE)) {
+                ret = SSL_FATAL_ERROR;
+            }
+        }
+    }
+    printf(testingFmt, "wc_CamelliaEncryptDirect()");
+    /* Pass bad args. */
+    if (ret == 0) {
+        camE = wc_CamelliaEncryptDirect(NULL, enc, plainT);
+        if (camE == BAD_FUNC_ARG) {
+            camE = wc_CamelliaEncryptDirect(&camellia, NULL, plainT);
+        }
+        if (camE == BAD_FUNC_ARG) {
+            camE = wc_CamelliaEncryptDirect(&camellia, enc, NULL);
+        }
+        if (camE == BAD_FUNC_ARG) {
+            camE = 0;
+        } else {
+            camE = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, camE == 0 ? passed : failed);
+    printf(testingFmt, "wc_CamelliaDecryptDirect()");
+
+    if (ret == 0) {
+        camD = wc_CamelliaDecryptDirect(NULL, dec, enc);
+        if (camD == BAD_FUNC_ARG) {
+            camD = wc_CamelliaDecryptDirect(&camellia, NULL, enc);
+        }
+        if (camD == BAD_FUNC_ARG) {
+            camD = wc_CamelliaDecryptDirect(&camellia, dec, NULL);
+        }
+        if (camD == BAD_FUNC_ARG) {
+            camD = 0;
+        } else {
+            camD = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, camD == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test-wc_CamelliaEncryptDecryptDirect */
+
+/*
+ * Testing wc_CamelliaCbcEncrypt and wc_CamelliaCbcDecrypt
+ */
+static int test_wc_CamelliaCbcEncryptDecrypt (void)
+{
+#ifdef HAVE_CAMELLIA
+    Camellia camellia;
+    static const byte key24[] =
+    {
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77
+    };
+    static const byte plainT[] =
+    {
+        0x6B, 0xC1, 0xBE, 0xE2, 0x2E, 0x40, 0x9F, 0x96,
+        0xE9, 0x3D, 0x7E, 0x11, 0x73, 0x93, 0x17, 0x2A
+    };
+    byte    enc[CAMELLIA_BLOCK_SIZE];
+    byte    dec[CAMELLIA_BLOCK_SIZE];
+    int     camCbcE = SSL_FATAL_ERROR;
+    int     camCbcD = SSL_FATAL_ERROR;
+    int     ret;
+
+    /* Init stack variables. */
+    XMEMSET(enc, 0, CAMELLIA_BLOCK_SIZE);
+    XMEMSET(enc, 0, CAMELLIA_BLOCK_SIZE);
+
+    ret = wc_CamelliaSetKey(&camellia, key24, (word32)sizeof(key24), NULL);
+    if (ret == 0) {
+        ret = wc_CamelliaCbcEncrypt(&camellia, enc, plainT, CAMELLIA_BLOCK_SIZE);
+        if (ret != 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_CamelliaSetKey(&camellia, key24, (word32)sizeof(key24), NULL);
+        if (ret == 0) {
+            ret = wc_CamelliaCbcDecrypt(&camellia, dec, enc, CAMELLIA_BLOCK_SIZE);
+            if (XMEMCMP(plainT, dec, CAMELLIA_BLOCK_SIZE)) {
+                ret = SSL_FATAL_ERROR;
+            }
+        }
+    }
+
+    printf(testingFmt, "wc_CamelliaCbcEncrypt");
+    /* Pass in bad args. */
+    if (ret == 0) {
+        camCbcE = wc_CamelliaCbcEncrypt(NULL, enc, plainT, CAMELLIA_BLOCK_SIZE);
+        if (camCbcE == BAD_FUNC_ARG) {
+            camCbcE = wc_CamelliaCbcEncrypt(&camellia, NULL, plainT,
+                                                    CAMELLIA_BLOCK_SIZE);
+        }
+        if (camCbcE == BAD_FUNC_ARG) {
+            camCbcE = wc_CamelliaCbcEncrypt(&camellia, enc, NULL,
+                                                    CAMELLIA_BLOCK_SIZE);
+        }
+        if (camCbcE == BAD_FUNC_ARG) {
+            camCbcE = 0;
+        } else {
+            camCbcE = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, camCbcE == 0 ? passed : failed);
+    printf(testingFmt, "wc_CamelliaCbcDecrypt()");
+
+    if (ret == 0) {
+        camCbcD = wc_CamelliaCbcDecrypt(NULL, dec, enc, CAMELLIA_BLOCK_SIZE);
+        if (camCbcD == BAD_FUNC_ARG) {
+            camCbcD = wc_CamelliaCbcDecrypt(&camellia, NULL, enc,
+                                                    CAMELLIA_BLOCK_SIZE);
+        }
+        if (camCbcD == BAD_FUNC_ARG) {
+            camCbcD = wc_CamelliaCbcDecrypt(&camellia, dec, NULL,
+                                                    CAMELLIA_BLOCK_SIZE);
+        }
+        if (camCbcD == BAD_FUNC_ARG) {
+            camCbcD = 0;
+        } else {
+            camCbcD = SSL_FATAL_ERROR;
+        }
+    } /* END bad args. */
+
+    printf(resultFmt, camCbcD == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_CamelliaCbcEncryptDecrypt */
+
 /*----------------------------------------------------------------------------*
  | Compatibility Tests
  *----------------------------------------------------------------------------*/
@@ -6859,6 +7150,12 @@ void ApiTest(void)
     AssertIntEQ(test_wc_Chacha_SetKey(), 0);
     AssertIntEQ(test_wc_Chacha_Process(), 0);
     AssertIntEQ(test_wc_ChaCha20Poly1305_aead(), 0);
+
+    AssertIntEQ(test_wc_CamelliaSetKey(), 0);
+    AssertIntEQ(test_wc_CamelliaSetIV(), 0);
+    AssertIntEQ(test_wc_CamelliaEncryptDecryptDirect(), 0);
+    AssertIntEQ(test_wc_CamelliaCbcEncryptDecrypt(), 0);
+
     printf(" End API Tests\n");
 
 }
