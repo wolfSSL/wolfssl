@@ -32,126 +32,6 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 /* fips wrapper calls, user can call direct */
-#ifdef HAVE_FIPS
-
-    int wc_InitSha3_224(Sha3* sha, void* heap, int devId)
-    {
-        (void)heap;
-        (void)devId;
-        if (sha == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        return InitSha3_224_fips(sha);
-    }
-    int wc_Sha3_224_Update(Sha3* sha, const byte* data, word32 len)
-    {
-        if (sha == NULL ||  (data == NULL && len > 0)) {
-            return BAD_FUNC_ARG;
-        }
-        return Sha3_224_Update_fips(sha, data, len);
-    }
-    int wc_Sha3_224_Final(Sha3* sha, byte* out)
-    {
-        if (sha == NULL || out == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        return Sha3_224_Final_fips(sha, out);
-    }
-    void wc_Sha3_224_Free(Sha3* sha)
-    {
-        (void)sha;
-        /* Not supported in FIPS */
-    }
-
-    int wc_InitSha3_256(Sha3* sha, void* heap, int devId)
-    {
-        (void)heap;
-        (void)devId;
-        if (sha == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        return InitSha3_256_fips(sha);
-    }
-    int wc_Sha3_256_Update(Sha3* sha, const byte* data, word32 len)
-    {
-        if (sha == NULL ||  (data == NULL && len > 0)) {
-            return BAD_FUNC_ARG;
-        }
-        return Sha3_256_Update_fips(sha, data, len);
-    }
-    int wc_Sha3_256_Final(Sha3* sha, byte* out)
-    {
-        if (sha == NULL || out == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        return Sha3_256_Final_fips(sha, out);
-    }
-    void wc_Sha3_256_Free(Sha3* sha)
-    {
-        (void)sha;
-        /* Not supported in FIPS */
-    }
-
-    int wc_InitSha3_384(Sha3* sha, void* heap, int devId)
-    {
-        (void)heap;
-        (void)devId;
-        if (sha == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        return InitSha3_384_fips(sha);
-    }
-    int wc_Sha3_384_Update(Sha3* sha, const byte* data, word32 len)
-    {
-        if (sha == NULL ||  (data == NULL && len > 0)) {
-            return BAD_FUNC_ARG;
-        }
-        return Sha3_384_Update_fips(sha, data, len);
-    }
-    int wc_Sha3_384_Final(Sha3* sha, byte* out)
-    {
-        if (sha == NULL || out == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        return Sha3_384_Final_fips(sha, out);
-    }
-    void wc_Sha3_384_Free(Sha3* sha)
-    {
-        (void)sha;
-        /* Not supported in FIPS */
-    }
-
-    int wc_InitSha3_512(Sha3* sha, void* heap, int devId)
-    {
-        (void)heap;
-        (void)devId;
-        if (sha == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        return InitSha3_512_fips(sha);
-    }
-    int wc_Sha3_512_Update(Sha3* sha, const byte* data, word32 len)
-    {
-        if (sha == NULL ||  (data == NULL && len > 0)) {
-            return BAD_FUNC_ARG;
-        }
-        return Sha3_512_Update_fips(sha, data, len);
-    }
-    int wc_Sha3_512_Final(Sha3* sha, byte* out)
-    {
-        if (sha == NULL || out == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        return Sha3_512_Final_fips(sha, out);
-    }
-    void wc_Sha3_512_Free(Sha3* sha)
-    {
-        (void)sha;
-        /* Not supported in FIPS */
-    }
-
-#else /* else build without fips */
-
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -438,11 +318,11 @@ static int Sha3Update(Sha3* sha3, const byte* data, word32 len, byte p)
         for (i = 0; i < l; i++)
             t[i] = data[i];
         data += i;
-        len -= i; 
+        len -= i;
         sha3->i += i;
 
         if (sha3->i == p * 8)
-        {   
+        {
             for (i = 0; i < p; i++)
                 sha3->s[i] ^= Load64BitBigEndian(sha3->t + 8 * i);
             BlockSha3(sha3->s);
@@ -501,7 +381,10 @@ static int Sha3Final(Sha3* sha3, byte* hash, byte p, byte l)
  * devId  Device identifier for asynchronous operation.
  * returns 0 on success.
  */
-static int wc_InitSha3(Sha3* sha3, void* heap, int devId)
+#ifndef HAVE_FIPS
+static
+#endif
+int wc_InitSha3(Sha3* sha3, void* heap, int devId)
 {
     int ret = 0;
 
@@ -531,7 +414,10 @@ static int wc_InitSha3(Sha3* sha3, void* heap, int devId)
  * p     Number of 64-bit numbers in a block of data to process.
  * returns 0 on success.
  */
-static int wc_Sha3Update(Sha3* sha3, const byte* data, word32 len, byte p)
+#ifndef HAVE_FIPS
+static
+#endif
+int wc_Sha3Update(Sha3* sha3, const byte* data, word32 len, byte p)
 {
     int ret = 0;
 
@@ -560,7 +446,10 @@ static int wc_Sha3Update(Sha3* sha3, const byte* data, word32 len, byte p)
  * len   Number of bytes in output.
  * returns 0 on success.
  */
-static int wc_Sha3Final(Sha3* sha3, byte* hash, byte p, byte len)
+#ifndef HAVE_FIPS
+static
+#endif
+int wc_Sha3Final(Sha3* sha3, byte* hash, byte p, byte len)
 {
     int ret;
 
@@ -584,6 +473,7 @@ static int wc_Sha3Final(Sha3* sha3, byte* hash, byte p, byte len)
     return InitSha3(sha3);  /* reset state */
 }
 
+#ifndef HAVE_FIPS
 /* Dispose of any dynamically allocated data from the SHA3-384 operation.
  * (Required for async ops.)
  *
@@ -601,55 +491,127 @@ static void wc_Sha3Free(Sha3* sha3)
     wolfAsync_DevCtxFree(&sha3->asyncDev, WOLFSSL_ASYNC_MARKER_SHA3);
 #endif /* WOLFSSL_ASYNC_CRYPT */
 }
-#endif /* HAVE_FIPS */
-
-/* Copy the state of the SHA3 operation.
- *
- * src  Sha3 object holding state top copy.
- * dst  Sha3 object to copy into.
- * returns 0 on success.
- */
-static int wc_Sha3Copy(Sha3* src, Sha3* dst)
-{
-    int ret = 0;
-
-    if (src == NULL || dst == NULL)
-        return BAD_FUNC_ARG;
-
-    XMEMCPY(dst, src, sizeof(Sha3));
-
-#ifdef WOLFSSL_ASYNC_CRYPT
-    ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
 #endif
 
-    return ret;
-}
+#ifdef HAVE_FIPS
 
-/* Calculate the SHA3-224 hash based on all the message data so far.
- * More message data can be added, after this operation, using the current
- * state.
- *
- * sha3  Sha3 object holding state.
- * hash  Buffer to hold the hash result. Must be at least 28 bytes.
- * p     Number of 64-bit numbers in a block of data to process.
- * len   Number of bytes in output.
- * returns 0 on success.
- */
-static int wc_Sha3GetHash(Sha3* sha3, byte* hash, byte p, byte len)
-{
-    int ret;
-    Sha3 tmpSha3;
-
-    if (sha3 == NULL || hash == NULL)
-        return BAD_FUNC_ARG;
-
-    ret = wc_Sha3Copy(sha3, &tmpSha3);
-    if (ret == 0) {
-        ret = wc_Sha3Final(&tmpSha3, hash, p, len);
+    int wc_InitSha3_224(Sha3* sha, void* heap, int devId)
+    {
+        (void)heap;
+        (void)devId;
+        if (sha == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        return InitSha3_224_fips(sha);
     }
-    return ret;
-}
+    int wc_Sha3_224_Update(Sha3* sha, const byte* data, word32 len)
+    {
+        if (sha == NULL ||  (data == NULL && len > 0)) {
+            return BAD_FUNC_ARG;
+        }
+        return Sha3_224_Update_fips(sha, data, len);
+    }
+    int wc_Sha3_224_Final(Sha3* sha, byte* out)
+    {
+        if (sha == NULL || out == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        return Sha3_224_Final_fips(sha, out);
+    }
+    void wc_Sha3_224_Free(Sha3* sha)
+    {
+        (void)sha;
+        /* Not supported in FIPS */
+    }
 
+    int wc_InitSha3_256(Sha3* sha, void* heap, int devId)
+    {
+        (void)heap;
+        (void)devId;
+        if (sha == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        return InitSha3_256_fips(sha);
+    }
+    int wc_Sha3_256_Update(Sha3* sha, const byte* data, word32 len)
+    {
+        if (sha == NULL ||  (data == NULL && len > 0)) {
+            return BAD_FUNC_ARG;
+        }
+        return Sha3_256_Update_fips(sha, data, len);
+    }
+    int wc_Sha3_256_Final(Sha3* sha, byte* out)
+    {
+        if (sha == NULL || out == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        return Sha3_256_Final_fips(sha, out);
+    }
+    void wc_Sha3_256_Free(Sha3* sha)
+    {
+        (void)sha;
+        /* Not supported in FIPS */
+    }
+
+    int wc_InitSha3_384(Sha3* sha, void* heap, int devId)
+    {
+        (void)heap;
+        (void)devId;
+        if (sha == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        return InitSha3_384_fips(sha);
+    }
+    int wc_Sha3_384_Update(Sha3* sha, const byte* data, word32 len)
+    {
+        if (sha == NULL ||  (data == NULL && len > 0)) {
+            return BAD_FUNC_ARG;
+        }
+        return Sha3_384_Update_fips(sha, data, len);
+    }
+    int wc_Sha3_384_Final(Sha3* sha, byte* out)
+    {
+        if (sha == NULL || out == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        return Sha3_384_Final_fips(sha, out);
+    }
+    void wc_Sha3_384_Free(Sha3* sha)
+    {
+        (void)sha;
+        /* Not supported in FIPS */
+    }
+
+    int wc_InitSha3_512(Sha3* sha, void* heap, int devId)
+    {
+        (void)heap;
+        (void)devId;
+        if (sha == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        return InitSha3_512_fips(sha);
+    }
+    int wc_Sha3_512_Update(Sha3* sha, const byte* data, word32 len)
+    {
+        if (sha == NULL ||  (data == NULL && len > 0)) {
+            return BAD_FUNC_ARG;
+        }
+        return Sha3_512_Update_fips(sha, data, len);
+    }
+    int wc_Sha3_512_Final(Sha3* sha, byte* out)
+    {
+        if (sha == NULL || out == NULL) {
+            return BAD_FUNC_ARG;
+        }
+        return Sha3_512_Final_fips(sha, out);
+    }
+    void wc_Sha3_512_Free(Sha3* sha)
+    {
+        (void)sha;
+        /* Not supported in FIPS */
+    }
+
+#else
 
 /* Initialize the state for a SHA3-224 hash operation.
  *
@@ -696,30 +658,6 @@ WOLFSSL_API int wc_Sha3_224_Final(Sha3* sha3, byte* hash)
 WOLFSSL_API void wc_Sha3_224_Free(Sha3* sha3)
 {
     wc_Sha3Free(sha3);
-}
-
-/* Calculate the SHA3-224 hash based on all the message data so far.
- * More message data can be added, after this operation, using the current
- * state.
- *
- * sha3  Sha3 object holding state.
- * hash  Buffer to hold the hash result. Must be at least 28 bytes.
- * returns 0 on success.
- */
-WOLFSSL_API int wc_Sha3_224_GetHash(Sha3* sha3, byte* hash)
-{
-    return wc_Sha3GetHash(sha3, hash, SHA3_224_COUNT, SHA3_224_DIGEST_SIZE);
-}
-
-/* Copy the state of the SHA3-224 operation.
- *
- * src  Sha3 object holding state top copy.
- * dst  Sha3 object to copy into.
- * returns 0 on success.
- */
-WOLFSSL_API int wc_Sha3_224_Copy(Sha3* src, Sha3* dst)
-{
-    return wc_Sha3Copy(src, dst);
 }
 
 
@@ -770,30 +708,6 @@ WOLFSSL_API void wc_Sha3_256_Free(Sha3* sha3)
     wc_Sha3Free(sha3);
 }
 
-/* Calculate the SHA3-256 hash based on all the message data so far.
- * More message data can be added, after this operation, using the current
- * state.
- *
- * sha3  Sha3 object holding state.
- * hash  Buffer to hold the hash result. Must be at least 32 bytes.
- * returns 0 on success.
- */
-WOLFSSL_API int wc_Sha3_256_GetHash(Sha3* sha3, byte* hash)
-{
-    return wc_Sha3GetHash(sha3, hash, SHA3_256_COUNT, SHA3_256_DIGEST_SIZE);
-}
-
-/* Copy the state of the SHA3-256 operation.
- *
- * src  Sha3 object holding state top copy.
- * dst  Sha3 object to copy into.
- * returns 0 on success.
- */
-WOLFSSL_API int wc_Sha3_256_Copy(Sha3* src, Sha3* dst)
-{
-    return wc_Sha3Copy(src, dst);
-}
-
 
 /* Initialize the state for a SHA3-384 hash operation.
  *
@@ -842,30 +756,6 @@ WOLFSSL_API void wc_Sha3_384_Free(Sha3* sha3)
     wc_Sha3Free(sha3);
 }
 
-/* Calculate the SHA3-384 hash based on all the message data so far.
- * More message data can be added, after this operation, using the current
- * state.
- *
- * sha3  Sha3 object holding state.
- * hash  Buffer to hold the hash result. Must be at least 48 bytes.
- * returns 0 on success.
- */
-WOLFSSL_API int wc_Sha3_384_GetHash(Sha3* sha3, byte* hash)
-{
-    return wc_Sha3GetHash(sha3, hash, SHA3_384_COUNT, SHA3_384_DIGEST_SIZE);
-}
-
-/* Copy the state of the SHA3-384 operation.
- *
- * src  Sha3 object holding state top copy.
- * dst  Sha3 object to copy into.
- * returns 0 on success.
- */
-WOLFSSL_API int wc_Sha3_384_Copy(Sha3* src, Sha3* dst)
-{
-    return wc_Sha3Copy(src, dst);
-}
-
 
 /* Initialize the state for a SHA3-512 hash operation.
  *
@@ -912,6 +802,127 @@ WOLFSSL_API int wc_Sha3_512_Final(Sha3* sha3, byte* hash)
 WOLFSSL_API void wc_Sha3_512_Free(Sha3* sha3)
 {
     wc_Sha3Free(sha3);
+}
+
+#endif /* HAVE_FIPS */
+
+/* Copy the state of the SHA3 operation.
+ *
+ * src  Sha3 object holding state top copy.
+ * dst  Sha3 object to copy into.
+ * returns 0 on success.
+ */
+static int wc_Sha3Copy(Sha3* src, Sha3* dst)
+{
+    int ret = 0;
+
+    if (src == NULL || dst == NULL)
+        return BAD_FUNC_ARG;
+
+    XMEMCPY(dst, src, sizeof(Sha3));
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
+#endif
+
+    return ret;
+}
+
+/* Calculate the SHA3-224 hash based on all the message data so far.
+ * More message data can be added, after this operation, using the current
+ * state.
+ *
+ * sha3  Sha3 object holding state.
+ * hash  Buffer to hold the hash result. Must be at least 28 bytes.
+ * p     Number of 64-bit numbers in a block of data to process.
+ * len   Number of bytes in output.
+ * returns 0 on success.
+ */
+static int wc_Sha3GetHash(Sha3* sha3, byte* hash, byte p, byte len)
+{
+    int ret;
+    Sha3 tmpSha3;
+
+    if (sha3 == NULL || hash == NULL)
+        return BAD_FUNC_ARG;
+
+    ret = wc_Sha3Copy(sha3, &tmpSha3);
+    if (ret == 0) {
+        ret = wc_Sha3Final(&tmpSha3, hash, p, len);
+    }
+    return ret;
+}
+
+/* Calculate the SHA3-224 hash based on all the message data so far.
+ * More message data can be added, after this operation, using the current
+ * state.
+ *
+ * sha3  Sha3 object holding state.
+ * hash  Buffer to hold the hash result. Must be at least 28 bytes.
+ * returns 0 on success.
+ */
+WOLFSSL_API int wc_Sha3_224_GetHash(Sha3* sha3, byte* hash)
+{
+    return wc_Sha3GetHash(sha3, hash, SHA3_224_COUNT, SHA3_224_DIGEST_SIZE);
+}
+
+/* Copy the state of the SHA3-224 operation.
+ *
+ * src  Sha3 object holding state top copy.
+ * dst  Sha3 object to copy into.
+ * returns 0 on success.
+ */
+WOLFSSL_API int wc_Sha3_224_Copy(Sha3* src, Sha3* dst)
+{
+    return wc_Sha3Copy(src, dst);
+}
+
+/* Calculate the SHA3-256 hash based on all the message data so far.
+ * More message data can be added, after this operation, using the current
+ * state.
+ *
+ * sha3  Sha3 object holding state.
+ * hash  Buffer to hold the hash result. Must be at least 32 bytes.
+ * returns 0 on success.
+ */
+WOLFSSL_API int wc_Sha3_256_GetHash(Sha3* sha3, byte* hash)
+{
+    return wc_Sha3GetHash(sha3, hash, SHA3_256_COUNT, SHA3_256_DIGEST_SIZE);
+}
+
+/* Copy the state of the SHA3-256 operation.
+ *
+ * src  Sha3 object holding state top copy.
+ * dst  Sha3 object to copy into.
+ * returns 0 on success.
+ */
+WOLFSSL_API int wc_Sha3_256_Copy(Sha3* src, Sha3* dst)
+{
+    return wc_Sha3Copy(src, dst);
+}
+
+/* Calculate the SHA3-384 hash based on all the message data so far.
+ * More message data can be added, after this operation, using the current
+ * state.
+ *
+ * sha3  Sha3 object holding state.
+ * hash  Buffer to hold the hash result. Must be at least 48 bytes.
+ * returns 0 on success.
+ */
+WOLFSSL_API int wc_Sha3_384_GetHash(Sha3* sha3, byte* hash)
+{
+    return wc_Sha3GetHash(sha3, hash, SHA3_384_COUNT, SHA3_384_DIGEST_SIZE);
+}
+
+/* Copy the state of the SHA3-384 operation.
+ *
+ * src  Sha3 object holding state top copy.
+ * dst  Sha3 object to copy into.
+ * returns 0 on success.
+ */
+WOLFSSL_API int wc_Sha3_384_Copy(Sha3* src, Sha3* dst)
+{
+    return wc_Sha3Copy(src, dst);
 }
 
 /* Calculate the SHA3-512 hash based on all the message data so far.

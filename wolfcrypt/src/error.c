@@ -425,6 +425,9 @@ const char* wc_GetErrorString(int error)
     case ASYNC_OP_E:
         return "Async operation error";
 
+    case SHA3_KAT_FIPS_E:
+        return "wolfcrypt FIPS SHA-3 Known Answer Test Failure";
+
     default:
         return "unknown error number";
 

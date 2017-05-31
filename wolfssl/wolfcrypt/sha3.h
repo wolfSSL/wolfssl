@@ -27,16 +27,9 @@
 
 #ifdef WOLFSSL_SHA3
 
-#ifdef HAVE_FIPS
-    /* for fips @wc_fips */
-    #include <cyassl/ctaocrypt/sha3.h>
-#endif
-
 #ifdef __cplusplus
     extern "C" {
 #endif
-
-#ifndef HAVE_FIPS /* avoid redefinition of structs */
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
@@ -78,7 +71,32 @@ typedef struct Sha3 {
 #endif /* WOLFSSL_ASYNC_CRYPT */
 } Sha3;
 
-#endif /* HAVE_FIPS */
+#ifdef HAVE_FIPS
+WOLFSSL_LOCAL int InitSha3_224_fips(Sha3* sha3);
+WOLFSSL_LOCAL int Sha3_224_Update_fips(Sha3* sha3, const byte* data,
+                                       word32 len);
+WOLFSSL_LOCAL int Sha3_224_Final_fips(Sha3* sha3, byte* hash);
+
+WOLFSSL_LOCAL int InitSha3_256_fips(Sha3* sha3);
+WOLFSSL_LOCAL int Sha3_256_Update_fips(Sha3* sha3, const byte* data,
+                                       word32 len);
+WOLFSSL_LOCAL int Sha3_256_Final_fips(Sha3* sha3, byte* hash);
+
+WOLFSSL_LOCAL int InitSha3_384_fips(Sha3* sha3);
+WOLFSSL_LOCAL int Sha3_384_Update_fips(Sha3* sha3, const byte* data,
+                                       word32 len);
+WOLFSSL_LOCAL int Sha3_384_Final_fips(Sha3* sha3, byte* hash);
+
+WOLFSSL_LOCAL int InitSha3_512_fips(Sha3* sha3);
+WOLFSSL_LOCAL int Sha3_512_Update_fips(Sha3* sha3, const byte* data,
+                                       word32 len);
+WOLFSSL_LOCAL int Sha3_512_Final_fips(Sha3* sha3, byte* hash);
+
+WOLFSSL_LOCAL int wc_InitSha3(Sha3*, void*, int);
+WOLFSSL_LOCAL int wc_Sha3Update(Sha3*, const byte*, word32, byte);
+WOLFSSL_LOCAL int wc_Sha3Final(Sha3*, byte*, byte, byte);
+#endif
+
 
 WOLFSSL_API int wc_InitSha3_224(Sha3*, void*, int);
 WOLFSSL_API int wc_Sha3_224_Update(Sha3*, const byte*, word32);
