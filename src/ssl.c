@@ -18410,6 +18410,23 @@ int wolfSSL_BN_sub(WOLFSSL_BIGNUM* r, const WOLFSSL_BIGNUM* a,
     return 0;
 }
 
+int wolfSSL_BN_div(WOLFSSL_BIGNUM* r, WOLFSSL_BIGNUM* m, const WOLFSSL_BIGNUM* a,
+  const WOLFSSL_BIGNUM* b, const WOLFSSL_BN_CTX* c)
+  {
+    (void)c;
+    WOLFSSL_MSG("wolfSSL_BN_div");
+
+    if (r == NULL || a == NULL || b == NULL)
+        return SSL_FAILURE;
+
+    if (mp_div((mp_int*)a->internal,(mp_int*)b->internal,
+            (mp_int*)r->internal,(mp_int*)m->internal) == MP_OKAY)
+        return SSL_SUCCESS;
+
+    WOLFSSL_MSG("wolfSSL_BN_div mp_div failed");
+    return SSL_FAILURE;
+  }
+
 /* WOLFSSL_SUCCESS on ok */
 int wolfSSL_BN_mod(WOLFSSL_BIGNUM* r, const WOLFSSL_BIGNUM* a,
                   const WOLFSSL_BIGNUM* b, const WOLFSSL_BN_CTX* c)

@@ -10284,6 +10284,10 @@ static void test_wolfSSL_BN(void)
     value[0] = 0x05;
     AssertNotNull(BN_bin2bn(value, sizeof(value), c));
 
+    /* BN_div a/b */
+    AssertIntEQ(BN_div(d, a, b, NULL, NULL), SSL_FAILURE);
+    AssertIntEQ(BN_div(d, a, b, c, NULL), SSL_SUCCESS);
+
     /* a^b mod c = */
     AssertIntEQ(BN_mod_exp(d, NULL, b, c, NULL), WOLFSSL_FAILURE);
     AssertIntEQ(BN_mod_exp(d, a, b, c, NULL), WOLFSSL_SUCCESS);
