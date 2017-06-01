@@ -38,6 +38,10 @@ int wc_Arc4SetKey(Arc4* arc4, const byte* key, word32 length)
     word32 i;
     word32 keyIndex = 0, stateIndex = 0;
 
+    if (arc4 == NULL || key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ARC4) && \
         defined(HAVE_CAVIUM) && !defined(HAVE_CAVIUM_V)
     if (arc4->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ARC4) {
@@ -85,6 +89,10 @@ int wc_Arc4Process(Arc4* arc4, byte* out, const byte* in, word32 length)
     int ret = 0;
     word32 x;
     word32 y;
+
+    if (arc4 == NULL || out == NULL || in == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ARC4) && \
         defined(HAVE_CAVIUM) && !defined(HAVE_CAVIUM_V)
