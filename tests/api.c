@@ -4036,7 +4036,8 @@ static void test_wolfSSL_PEM_PrivateKey(void)
 static void test_wolfSSL_tmp_dh(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
-       !defined(NO_FILESYSTEM) && !defined(NO_DSA) && !defined(NO_RSA)
+       !defined(NO_FILESYSTEM) && !defined(NO_DSA) && !defined(NO_RSA) && \
+       !defined(NO_DH)
     byte buffer[5300];
     char file[] = "./certs/dsaparams.pem";
     FILE *f;
