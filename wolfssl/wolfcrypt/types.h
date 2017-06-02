@@ -286,11 +286,12 @@
         #define FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP)  /* nothing to free, its stack */
     #endif
 
+    #ifndef WOLFSSL_LEANPSK
+	    char* mystrnstr(const char* s1, const char* s2, unsigned int n);
+    #endif
 
 	#ifndef STRING_USER
 	    #include <string.h>
-	    char* mystrnstr(const char* s1, const char* s2, unsigned int n);
-
 	    #define XMEMCPY(d,s,l)    memcpy((d),(s),(l))
 	    #define XMEMSET(b,c,l)    memset((b),(c),(l))
 	    #define XMEMCMP(s1,s2,n)  memcmp((s1),(s2),(n))
