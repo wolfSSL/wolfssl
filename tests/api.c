@@ -87,6 +87,10 @@
     #include <wolfssl/wolfcrypt/camellia.h>
 #endif
 
+#ifndef NO_RABBIT
+    #include <wolfssl/wolfcrypt/rabbit.h>
+#endif
+
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/ssl.h>
     #include <wolfssl/openssl/pkcs12.h>
@@ -5862,6 +5866,102 @@ static int test_wc_CamelliaCbcEncryptDecrypt (void)
 
 } /* END test_wc_CamelliaCbcEncryptDecrypt */
 
+/*
+ * Testing wc_RabbitSetKey()
+ */
+static int test_wc_RabbitSetKey (void)
+{
+#ifndef NO_RABBIT
+    Rabbit  rabbit;
+    int     ret;
+    const char* key =  "\xAC\xC3\x51\xDC\xF1\x62\xFC\x3B"
+                        "\xFE\x36\x3D\x2E\x29\x13\x28\x91";
+    const char* iv =   "\x59\x7E\x26\xC1\x75\xF5\x73\xC3";
+
+    printf(testingFmt, "wc_RabbitSetKey()");
+
+    ret = wc_RabbitSetKey(&rabbit, (byte*)key, (byte*)iv);
+
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_RabbitSetKey(NULL, (byte*)key, (byte*)iv);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_RabbitSetKey(&rabbit, NULL, (byte*)iv);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_RabbitSetKey(&rabbit, (byte*)key, NULL);
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_RabbitSetKey */
+
+/*
+ * Test wc_RabbitProcess()
+ */
+static int test_wc_RabbitProcess (void)
+{
+#ifndef NO_RABBIT
+    Rabbit  enc, dec;
+    byte    cipher[25];
+    byte    plain[25];
+    int     ret;
+    const char* key     =  "\xAC\xC3\x51\xDC\xF1\x62\xFC\x3B"
+                            "\xFE\x36\x3D\x2E\x29\x13\x28\x91";
+    const char* iv      =   "\x59\x7E\x26\xC1\x75\xF5\x73\xC3";
+    const char* input   =   "Everyone gets Friday off.";
+    unsigned long int inlen = XSTRLEN(input);
+
+    /* Initialize stack variables. */
+    XMEMSET(cipher, 0, sizeof(cipher));
+    XMEMSET(plain, 0, sizeof(plain));
+
+    printf(testingFmt, "wc_RabbitProcess()");
+
+    ret = wc_RabbitSetKey(&enc, (byte*)key, (byte*)iv);
+    if (ret == 0) {
+        ret = wc_RabbitSetKey(&dec, (byte*)key, (byte*)iv);
+    }
+    if (ret == 0) {
+       ret = wc_RabbitProcess(&enc, cipher, (byte*)input, (word32)inlen);
+    }
+    if (ret == 0) {
+        ret = wc_RabbitProcess(&dec, plain, cipher, (word32)inlen);
+        if (ret != 0 || XMEMCMP(input, plain, inlen)) {
+            ret = SSL_FATAL_ERROR;
+        } else {
+            ret = 0;
+        }
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_RabbitProcess(NULL, plain, cipher, (word32)inlen);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_RabbitProcess(&dec, NULL, cipher, (word32)inlen);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_RabbitProcess(&dec, plain, NULL, (word32)inlen);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_RabbitProcess */
+
+
+
 /*----------------------------------------------------------------------------*
  | Compatibility Tests
  *----------------------------------------------------------------------------*/
@@ -7155,6 +7255,10 @@ void ApiTest(void)
     AssertIntEQ(test_wc_CamelliaSetIV(), 0);
     AssertIntEQ(test_wc_CamelliaEncryptDecryptDirect(), 0);
     AssertIntEQ(test_wc_CamelliaCbcEncryptDecrypt(), 0);
+
+
+    AssertIntEQ(test_wc_RabbitSetKey(), 0);
+    AssertIntEQ(test_wc_RabbitProcess(), 0);
 
     printf(" End API Tests\n");
 
