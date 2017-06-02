@@ -143,6 +143,12 @@ enum cipherState {
     CIPHER_STATE_END,
 };
 
+/* Server random bytes for TLS v1.3 described downgrade protection mechanism. */
+static const byte tls13Downgrade[7] = {
+    0x44, 0x4f, 0x47, 0x4e, 0x47, 0x52, 0x44
+};
+#define TLS13_DOWNGRADE_SZ  sizeof(tls13Downgrade)
+
 
 #ifndef NO_OLD_TLS
 static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
@@ -15741,6 +15747,33 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
         XMEMCPY(ssl->arrays->serverRandom, input + i, RAN_LEN);
         i += RAN_LEN;
 
+#ifdef WOLFSSL_TLS13
+        if (IsAtLeastTLSv1_3(ssl->ctx->method->version)) {
+            /* TLS v1.3 capable client not allowed to downgrade when connecting
+             * to TLS v1.3 capable server.
+             */
+            if (XMEMCMP(input + i - (TLS13_DOWNGRADE_SZ + 1),
+                             tls13Downgrade, TLS13_DOWNGRADE_SZ) == 0 &&
+                             (*(input + i - 1) == 0 || *(input + i - 1) == 1)) {
+                SendAlert(ssl, alert_fatal, illegal_parameter);
+                return VERSION_ERROR;
+            }
+        }
+        else
+#endif
+        if (ssl->ctx->method->version.major == SSLv3_MAJOR &&
+                             ssl->ctx->method->version.minor == TLSv1_2_MINOR) {
+            /* TLS v1.2 capable client not allowed to downgrade when connecting
+             * to TLS v1.2 capable server.
+             */
+            if (XMEMCMP(input + i - (TLS13_DOWNGRADE_SZ + 1),
+                        tls13Downgrade, TLS13_DOWNGRADE_SZ) == 0 &&
+                                                        *(input + i - 1) == 0) {
+                SendAlert(ssl, alert_fatal, illegal_parameter);
+                return VERSION_ERROR;
+            }
+        }
+
         /* session id */
         ssl->arrays->sessionIDSz = input[i++];
 
@@ -19049,7 +19082,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #endif /* NO_WOLFSSL_CLIENT */
 
-
 #ifndef NO_WOLFSSL_SERVER
 
     int SendServerHello(WOLFSSL* ssl)
@@ -19137,6 +19169,24 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 RAN_LEN + sizeof(sessIdSz) + sessIdSz);
             if (ret != 0)
                 return ret;
+
+#ifdef WOLFSSL_TLS13
+            if (IsAtLeastTLSv1_3(ssl->ctx->method->version)) {
+                /* TLS v1.3 capable server downgraded. */
+                XMEMCPY(output + idx + RAN_LEN - (TLS13_DOWNGRADE_SZ + 1),
+                        tls13Downgrade, TLS13_DOWNGRADE_SZ);
+                output[idx + RAN_LEN - 1] = IsAtLeastTLSv1_2(ssl);
+            }
+            else
+#endif
+            if (ssl->ctx->method->version.major == SSLv3_MAJOR &&
+                          ssl->ctx->method->version.minor == TLSv1_2_MINOR &&
+                                                       !IsAtLeastTLSv1_2(ssl)) {
+                /* TLS v1.2 capable server downgraded. */
+                XMEMCPY(output + idx + RAN_LEN - (TLS13_DOWNGRADE_SZ + 1),
+                        tls13Downgrade, TLS13_DOWNGRADE_SZ);
+                output[idx + RAN_LEN - 1] = 0;
+            }
 
             /* store info in SSL for later */
             XMEMCPY(ssl->arrays->serverRandom, output + idx, RAN_LEN);
