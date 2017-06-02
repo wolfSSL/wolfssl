@@ -350,7 +350,7 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
             ret = crl->crlIOCb(crl, (const char*)cert->extCrlInfo,
                                                         cert->extCrlInfoSz);
             if (ret == WOLFSSL_CBIO_ERR_WANT_READ) {
-                ret = WC_PENDING_E;
+                ret = WANT_READ;
             }
             else if (ret >= 0) {
                 /* try again */

@@ -7693,8 +7693,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 totalSz
                             ret = CheckCertOCSP(ssl->ctx->cm->ocsp, args->dCert,
                                                                           NULL);
                         #ifdef WOLFSSL_ASYNC_CRYPT
-                            /* Handle WC_PENDING_E */
-                            if (ret == WC_PENDING_E) {
+                            /* non-blocking socket re-entry requires async */
+                            if (ret == WANT_READ) {
                                 goto exit_ppc;
                             }
                         #endif
@@ -7713,7 +7713,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 totalSz
                             WOLFSSL_MSG("Doing Non Leaf CRL check");
                             ret = CheckCertCRL(ssl->ctx->cm->crl, args->dCert);
                         #ifdef WOLFSSL_ASYNC_CRYPT
-                            if (ret == WC_PENDING_E) {
+                            /* non-blocking socket re-entry requires async */
+                            if (ret == WANT_READ) {
                                 goto exit_ppc;
                             }
                         #endif
@@ -7859,7 +7860,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 totalSz
                         ret = CheckCertOCSP(ssl->ctx->cm->ocsp, args->dCert,
                                                                           NULL);
                     #ifdef WOLFSSL_ASYNC_CRYPT
-                        if (ret == WC_PENDING_E) {
+                        /* non-blocking socket re-entry requires async */
+                        if (ret == WANT_READ) {
                             goto exit_ppc;
                         }
                     #endif
@@ -7879,7 +7881,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 totalSz
                         WOLFSSL_MSG("Doing Leaf CRL check");
                         ret = CheckCertCRL(ssl->ctx->cm->crl, args->dCert);
                     #ifdef WOLFSSL_ASYNC_CRYPT
-                        if (ret == WC_PENDING_E) {
+                        /* non-blocking socket re-entry requires async */
+                        if (ret == WANT_READ) {
                             goto exit_ppc;
                         }
                     #endif
@@ -8289,8 +8292,7 @@ exit_ppc:
     WOLFSSL_LEAVE("ProcessPeerCerts", ret);
 
 #ifdef WOLFSSL_ASYNC_CRYPT
-    /* Handle WC_PENDING_E */
-    if (ret == WC_PENDING_E) {
+    if (ret == WC_PENDING_E || ret == WANT_READ) {
         /* Mark message as not recevied so it can process again */
         ssl->msgsReceived.got_certificate = 0;
 
