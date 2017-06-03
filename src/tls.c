@@ -2056,21 +2056,23 @@ int TLSX_UseMaxFragment(TLSX** extensions, byte mfl, void* heap)
 static int TLSX_THM_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
 {
-    (void)isRequest;
-
     if (length != 0 || input == NULL)
         return BUFFER_ERROR;
 
-#ifndef NO_WOLFSSL_SERVER
-    if (isRequest) {
-        int r = TLSX_UseTruncatedHMAC(&ssl->extensions, ssl->heap);
-
-        if (r != WOLFSSL_SUCCESS)
-            return r; /* throw error */
-
-        TLSX_SetResponse(ssl, TLSX_TRUNCATED_HMAC);
+    if (!isRequest) {
+        if (TLSX_CheckUnsupportedExtension(ssl, TLSX_TRUNCATED_HMAC))
+            return TLSX_HandleUnsupportedExtension(ssl);
     }
-#endif
+    else {
+        #ifndef NO_WOLFSSL_SERVER
+            int ret = TLSX_UseTruncatedHMAC(&ssl->extensions, ssl->heap);
+
+            if (ret != WOLFSSL_SUCCESS)
+                return ret; /* throw error */
+
+            TLSX_SetResponse(ssl, TLSX_TRUNCATED_HMAC);
+        #endif
+    }
 
     ssl->truncated_hmac = 1;
 
@@ -2084,7 +2086,8 @@ int TLSX_UseTruncatedHMAC(TLSX** extensions, void* heap)
     if (extensions == NULL)
         return BAD_FUNC_ARG;
 
-    if ((ret = TLSX_Push(extensions, TLSX_TRUNCATED_HMAC, NULL, heap)) != 0)
+    ret = TLSX_Push(extensions, TLSX_TRUNCATED_HMAC, NULL, heap);
+    if (ret != 0)
         return ret;
 
     return WOLFSSL_SUCCESS;
