@@ -2213,8 +2213,8 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
             extension = TLSX_Find(ssl->ctx->extensions, TLSX_STATUS_REQUEST);
             csr = extension ? (CertificateStatusRequest*)extension->data : NULL;
 
-            if (!csr)
-                return BUFFER_ERROR; /* unexpected extension */
+            if (!csr) /* unexpected extension */
+                return TLSX_HandleUnsupportedExtension(ssl);
 
             /* enable extension at ssl level */
             ret = TLSX_UseCertificateStatusRequest(&ssl->extensions,
@@ -2577,8 +2577,8 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, byte* input, word16 length,
             csr2 = extension ?
                         (CertificateStatusRequestItemV2*)extension->data : NULL;
 
-            if (!csr2)
-                return BUFFER_ERROR; /* unexpected extension */
+            if (!csr2) /* unexpected extension */
+                return TLSX_HandleUnsupportedExtension(ssl);
 
             /* enable extension at ssl level */
             for (; csr2; csr2 = csr2->next) {
