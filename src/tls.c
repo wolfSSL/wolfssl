@@ -1219,9 +1219,8 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, byte *input, word16 length,
 #endif
 
     if (extension == NULL || extension->data == NULL) {
-        WOLFSSL_MSG("No ALPN extensions not used or bad");
-        return isRequest ? 0             /* not using ALPN */
-                         : BUFFER_ERROR; /* unexpected ALPN response */
+        return isRequest ? 0
+                         : TLSX_HandleUnsupportedExtension(ssl);
     }
 
     /* validating alpn list length */
