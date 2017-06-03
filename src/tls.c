@@ -3077,7 +3077,8 @@ static int TLSX_SupportedCurve_Parse(WOLFSSL* ssl, byte* input, word16 length,
     word16 name;
     int ret;
 
-    (void) isRequest; /* shut up compiler! */
+    if(!isRequest)
+        return BUFFER_ERROR; /* servers doesn't send this extension. */
 
     if (OPAQUE16_LEN > length || length % OPAQUE16_LEN)
         return BUFFER_ERROR;
@@ -3092,7 +3093,6 @@ static int TLSX_SupportedCurve_Parse(WOLFSSL* ssl, byte* input, word16 length,
         ato16(input + offset, &name);
 
         ret = TLSX_UseSupportedCurve(&ssl->extensions, name, ssl->heap);
-
         if (ret != WOLFSSL_SUCCESS)
             return ret; /* throw error */
     }
@@ -3763,7 +3763,9 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, byte* input, word16 length,
     (void) input; /* avoid unused parameter if NO_WOLFSSL_SERVER defined */
 
     if (!isRequest) {
-        /* client side */
+        if (TLSX_CheckUnsupportedExtension(ssl, TLSX_SESSION_TICKET))
+            return TLSX_HandleUnsupportedExtension(ssl);
+        
         if (length != 0)
             return BUFFER_ERROR;
 
