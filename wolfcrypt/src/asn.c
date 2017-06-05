@@ -8711,16 +8711,24 @@ int wc_SignCert(int requestSz, int sType, byte* buffer, word32 buffSz,
 
     /* locate ctx */
     if (rsaKey) {
+    #ifndef NO_RSA
     #ifdef WOLFSSL_ASYNC_CRYPT
         certSignCtx = &rsaKey->certSignCtx;
     #endif
         heap = rsaKey->heap;
+    #else
+        return NOT_COMPILED_IN;
+    #endif /* NO_RSA */
     }
     else if (eccKey) {
+    #ifdef HAVE_ECC
     #ifdef WOLFSSL_ASYNC_CRYPT
         certSignCtx = &eccKey->certSignCtx;
     #endif
         heap = eccKey->heap;
+    #else
+        return NOT_COMPILED_IN;
+    #endif /* HAVE_ECC */
     }
 
 #ifdef WOLFSSL_ASYNC_CRYPT
