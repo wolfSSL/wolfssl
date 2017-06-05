@@ -188,7 +188,9 @@ enum {
 
     ASYNC_OP_E          = -245,  /* Async operation error */
 
-    WC_LAST_E           = -245,  /* Update this to indicate last error */
+    SHA3_KAT_FIPS_E     = -246,  /* SHA3 Known Answer Test failure */
+
+    WC_LAST_E           = -246,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes

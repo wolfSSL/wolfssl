@@ -2122,7 +2122,7 @@ void bench_sha3_224(int doAsync)
     Sha3   hash[BENCH_MAX_PENDING];
     double start;
     int    ret, i, count = 0, times;
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, SHA224_DIGEST_SIZE, HEAP_HINT);
+    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, SHA3_224_DIGEST_SIZE, HEAP_HINT);
 
     bench_async_begin();
 
