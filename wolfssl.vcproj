@@ -172,15 +172,15 @@
 				>
 			</File>
 			<File
-				RelativePath=".\wolfcrypt\src\coding.c"
-				>
-			</File>
-			<File
 				RelativePath=".\wolfcrypt\src\chacha.c"
 				>
 			</File>
 			<File
 				RelativePath=".\wolfcrypt\src\chacha20_poly1305.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\coding.c"
 				>
 			</File>
 			<File
@@ -256,23 +256,15 @@
 				>
 			</File>
 			<File
-				RelativePath=".\wolfcrypt\src\pkcs7.c"
-				>
-			</File>
-			<File
 				RelativePath=".\wolfcrypt\src\pkcs12.c"
 				>
 			</File>
 			<File
+				RelativePath=".\wolfcrypt\src\pkcs7.c"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\poly1305.c"
-				>
-			</File>
-			<File
-				RelativePath=".\wolfcrypt\src\wc_port.c"
-				>
-			</File>
-			<File
-				RelativePath=".\wolfcrypt\src\wolfmath.c"
 				>
 			</File>
 			<File
@@ -320,11 +312,23 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\tls13.c"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\wc_encrypt.c"
 				>
 			</File>
 			<File
+				RelativePath=".\wolfcrypt\src\wc_port.c"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\wolfevent.c"
+				>
+			</File>
+			<File
+				RelativePath=".\wolfcrypt\src\wolfmath.c"
 				>
 			</File>
 		</Filter>

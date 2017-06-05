@@ -1520,12 +1520,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #ifdef WOLFSSL_TLS13
     if (!helloRetry) {
         if (onlyKeyShare == 0 || onlyKeyShare == 2) {
+        #ifdef HAVE_CURVE25519
             if (useX25519) {
                 if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519)
                         != SSL_SUCCESS) {
                     err_sys("unable to use curve secp256r1");
                 }
             }
+        #endif
             if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_SECP256R1)
                     != SSL_SUCCESS) {
                 err_sys("unable to use curve secp256r1");
@@ -1951,11 +1953,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 
     #ifdef WOLFSSL_TLS13
+    #ifdef HAVE_CURVE25519
         if (useX25519) {
             if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519) != SSL_SUCCESS) {
                 err_sys("unable to use curve secp256r1");
             }
         }
+    #endif
         if (wolfSSL_UseKeyShare(sslResume,
                                 WOLFSSL_ECC_SECP256R1) != SSL_SUCCESS) {
             err_sys("unable to use curve secp256r1");
