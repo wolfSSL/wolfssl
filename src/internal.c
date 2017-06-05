@@ -7692,6 +7692,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 totalSz
                             WOLFSSL_MSG("Doing Non Leaf OCSP check");
                             ret = CheckCertOCSP(ssl->ctx->cm->ocsp, args->dCert,
                                                                           NULL);
+                        #ifdef WOLFSSL_ASYNC_CRYPT
+                            /* non-blocking socket re-entry requires async */
+                            if (ret == WANT_READ) {
+                                goto exit_ppc;
+                            }
+                        #endif
                             doCrlLookup = (ret == OCSP_CERT_UNKNOWN);
                             if (ret != 0) {
                                 doCrlLookup = 0;
@@ -7706,6 +7712,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 totalSz
                                                 ssl->ctx->cm->crlCheckAll) {
                             WOLFSSL_MSG("Doing Non Leaf CRL check");
                             ret = CheckCertCRL(ssl->ctx->cm->crl, args->dCert);
+                        #ifdef WOLFSSL_ASYNC_CRYPT
+                            /* non-blocking socket re-entry requires async */
+                            if (ret == WANT_READ) {
+                                goto exit_ppc;
+                            }
+                        #endif
                             if (ret != 0) {
                                 WOLFSSL_MSG("\tCRL check not ok");
                             }
@@ -7845,8 +7857,14 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 totalSz
                 #ifdef HAVE_OCSP
                     if (doLookup && ssl->ctx->cm->ocspEnabled) {
                         WOLFSSL_MSG("Doing Leaf OCSP check");
-                        ret = CheckCertOCSP(ssl->ctx->cm->ocsp,
-                                                            args->dCert, NULL);
+                        ret = CheckCertOCSP(ssl->ctx->cm->ocsp, args->dCert,
+                                                                          NULL);
+                    #ifdef WOLFSSL_ASYNC_CRYPT
+                        /* non-blocking socket re-entry requires async */
+                        if (ret == WANT_READ) {
+                            goto exit_ppc;
+                        }
+                    #endif
                         doLookup = (ret == OCSP_CERT_UNKNOWN);
                         if (ret != 0) {
                             WOLFSSL_MSG("\tOCSP Lookup not ok");
@@ -7862,6 +7880,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 totalSz
                     if (doLookup && ssl->ctx->cm->crlEnabled) {
                         WOLFSSL_MSG("Doing Leaf CRL check");
                         ret = CheckCertCRL(ssl->ctx->cm->crl, args->dCert);
+                    #ifdef WOLFSSL_ASYNC_CRYPT
+                        /* non-blocking socket re-entry requires async */
+                        if (ret == WANT_READ) {
+                            goto exit_ppc;
+                        }
+                    #endif
                         if (ret != 0) {
                             WOLFSSL_MSG("\tCRL check not ok");
                             args->fatal = 0;
@@ -8268,8 +8292,7 @@ exit_ppc:
     WOLFSSL_LEAVE("ProcessPeerCerts", ret);
 
 #ifdef WOLFSSL_ASYNC_CRYPT
-    /* Handle WC_PENDING_E */
-    if (ret == WC_PENDING_E) {
+    if (ret == WC_PENDING_E || ret == WANT_READ) {
         /* Mark message as not recevied so it can process again */
         ssl->msgsReceived.got_certificate = 0;
 
