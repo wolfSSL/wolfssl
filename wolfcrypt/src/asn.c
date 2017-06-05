@@ -1859,6 +1859,9 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 {
     int version, length;
 
+    if (inOutIdx == NULL) {
+        return BAD_FUNC_ARG;
+    }
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
@@ -6994,8 +6997,12 @@ int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen)
    selfSigned = 1 (true) use subject as issuer
    subject    = blank
 */
-void wc_InitCert(Cert* cert)
+int wc_InitCert(Cert* cert)
 {
+    if (cert == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     cert->version    = 2;   /* version 3 is hex 2 */
     cert->sigType    = CTC_SHAwRSA;
     cert->daysValid  = 500;
@@ -7059,6 +7066,8 @@ void wc_InitCert(Cert* cert)
 #else
     cert->heap = NULL;
 #endif
+
+    return 0;
 }
 
 
