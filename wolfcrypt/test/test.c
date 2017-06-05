@@ -7198,7 +7198,9 @@ int rsa_test(void)
             ERROR_OUT(-5571, exit_rsa);
         }
 
-        wc_InitCert(&myCert);
+        if (wc_InitCert(&myCert)) {
+            ERROR_OUT(-5582, exit_rsa);
+        }
 
         strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
         strncpy(myCert.subject.state, "OR", CTC_NAME_SIZE);
@@ -7344,7 +7346,9 @@ int rsa_test(void)
             ERROR_OUT(-5604, exit_rsa);
         }
 
-        wc_InitCert(&myCert);
+        if (wc_InitCert(&myCert)) {
+            ERROR_OUT(-5617, exit_rsa);
+        }
 
     #ifdef NO_SHA
         myCert.sigType = CTC_SHA256wRSA;
@@ -7518,7 +7522,9 @@ int rsa_test(void)
             ERROR_OUT(-5624, exit_rsa);
         }
 
-        wc_InitCert(&myCert);
+        if (wc_InitCert(&myCert)) {
+            ERROR_OUT(-5640, exit_rsa);
+        }
         myCert.sigType = CTC_SHA256wECDSA;
 
         strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
@@ -7738,7 +7744,9 @@ int rsa_test(void)
             ERROR_OUT(-5658, exit_rsa);
         }
 
-        wc_InitCert(&myCert);
+        if (wc_InitCert(&myCert)) {
+            ERROR_OUT(-5573, exit_rsa);
+        }
 
         strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
         strncpy(myCert.subject.state, "OR", CTC_NAME_SIZE);
@@ -7885,7 +7893,9 @@ int rsa_test(void)
             ERROR_OUT(-5681, exit_rsa);
         }
 
-        wc_InitCert(&req);
+        if (wc_InitCert(&req)) {
+            ERROR_OUT(-5691, exit_rsa);
+        }
 
         req.version = 0;
         req.isCA    = 1;

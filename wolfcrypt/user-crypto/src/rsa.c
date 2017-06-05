@@ -928,6 +928,10 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     int  ctxSz, pSz, qSz;
     IppStatus ret;
 
+    if (input == NULL || inOutIdx == NULL || key == NULL) {
+        return USER_CRYPTO_ERROR;
+    }
+
     USER_DEBUG(("Entering wc_RsaPrivateKeyDecode\n"));
 
     /* read in key information */
@@ -1065,6 +1069,10 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 #if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
     byte b;
 #endif
+
+    if (input == NULL || inOutIdx == NULL || key == NULL) {
+        return USER_CRYPTO_ERROR;
+    }
 
     USER_DEBUG(("Entering wc_RsaPublicKeyDecode\n"));
 
@@ -1246,7 +1254,7 @@ int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
     key->eSz = eSz;
     key->type = RSA_PUBLIC;
 
-    return USER_CRYPTO_ERROR;
+    return 0;
 }
 
 
@@ -1636,12 +1644,13 @@ int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
 
     USER_DEBUG(("Entering wc_RsaSSL_Sign\n"));
 
-    sz = key->sz;
-
     if (in == NULL || out == NULL || key == NULL || rng == NULL) {
         USER_DEBUG(("Bad argument to wc_RsaSSL_Sign\n"));
         return USER_CRYPTO_ERROR;
     }
+
+    sz = key->sz;
+
 
     /* sanity check on key being used */
     if (key->pipp == NULL || key->qipp == NULL || key->uipp == NULL ||
