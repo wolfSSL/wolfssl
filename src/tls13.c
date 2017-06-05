@@ -2164,7 +2164,6 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     /* Server random - keep for debugging. */
     XMEMCPY(ssl->arrays->serverRandom, input + i, RAN_LEN);
     i += RAN_LEN;
-    /* TODO: [TLS13] Check last 8 bytes. */
 
     /* Set the cipher suite from the message. */
     ssl->options.cipherSuite0 = input[i++];
@@ -2779,7 +2778,6 @@ int SendTls13ServerHello(WOLFSSL* ssl)
     output[idx++] = TLS_DRAFT_MAJOR;
     output[idx++] = TLS_DRAFT_MINOR;
 
-    /* TODO: [TLS13] Last 8 bytes have special meaning. */
     /* Generate server random. */
     ret = wc_RNG_GenerateBlock(ssl->rng, output + idx, RAN_LEN);
     if (ret != 0)
