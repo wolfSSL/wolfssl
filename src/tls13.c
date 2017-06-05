@@ -286,10 +286,17 @@ static int HKDF_Expand_Label(byte* okm, word32 okmLen,
     return ret;
 }
 
+#ifdef WOLFSSL_TLS13_DRAFT_18
 /* Size of the TLS v1.3 label use when deriving keys. */
 #define TLS13_PROTOCOL_LABEL_SZ    9
 /* The protocol label for TLS v1.3. */
 static const byte tls13ProtocolLabel[TLS13_PROTOCOL_LABEL_SZ + 1] = "TLS 1.3, ";
+#else
+/* Size of the TLS v1.3 label use when deriving keys. */
+#define TLS13_PROTOCOL_LABEL_SZ    6
+/* The protocol label for TLS v1.3. */
+static const byte tls13ProtocolLabel[TLS13_PROTOCOL_LABEL_SZ + 1] = "tls13 ";
+#endif
 
 /* Derive a key from a message.
  *
@@ -456,11 +463,19 @@ static int DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
 
 
 #if defined(HAVE_SESSION_TICKET) && !defined(NO_PSK)
+#ifdef WOLFSSL_TLS13_DRAFT_18
 /* The length of the binder key label. */
 #define BINDER_KEY_LABEL_SZ         23
 /* The binder key label. */
 static const byte binderKeyLabel[BINDER_KEY_LABEL_SZ + 1] =
     "external psk binder key";
+#else
+/* The length of the binder key label. */
+#define BINDER_KEY_LABEL_SZ         10
+/* The binder key label. */
+static const byte binderKeyLabel[BINDER_KEY_LABEL_SZ + 1] =
+    "ext binder";
+#endif
 /* Derive the binder key.
  *
  * ssl  The SSL/TLS object.
@@ -475,11 +490,19 @@ static int DeriveBinderKey(WOLFSSL* ssl, byte* key)
                         NULL, 0, ssl->specs.mac_algorithm);
 }
 
+#ifdef WOLFSSL_TLS13_DRAFT_18
 /* The length of the binder key resume label. */
 #define BINDER_KEY_RESUME_LABEL_SZ  25
 /* The binder key resume label. */
 static const byte binderKeyResumeLabel[BINDER_KEY_RESUME_LABEL_SZ + 1] =
     "resumption psk binder key";
+#else
+/* The length of the binder key resume label. */
+#define BINDER_KEY_RESUME_LABEL_SZ  10
+/* The binder key resume label. */
+static const byte binderKeyResumeLabel[BINDER_KEY_RESUME_LABEL_SZ + 1] =
+    "res binder";
+#endif
 /* Derive the binder resumption key.
  *
  * ssl  The SSL/TLS object.
@@ -496,11 +519,19 @@ static int DeriveBinderKeyResume(WOLFSSL* ssl, byte* key)
 #endif
 
 #ifdef TLS13_SUPPORTS_0RTT
+#ifdef WOLFSSL_TLS13_DRAFT_18
 /* The length of the early traffic label. */
 #define EARLY_TRAFFIC_LABEL_SZ      27
 /* The early traffic label. */
 static const byte earlyTrafficLabel[EARLY_TRAFFIC_LABEL_SZ + 1] =
     "client early traffic secret";
+#else
+/* The length of the early traffic label. */
+#define EARLY_TRAFFIC_LABEL_SZ      11
+/* The early traffic label. */
+static const byte earlyTrafficLabel[EARLY_TRAFFIC_LABEL_SZ + 1] =
+    "c e traffic";
+#endif
 /* Derive the early traffic key.
  *
  * ssl  The SSL/TLS object.
@@ -516,11 +547,19 @@ static int DeriveEarlyTrafficSecret(WOLFSSL* ssl, byte* key)
 }
 
     #ifdef TLS13_SUPPORTS_EXPORTERS
+#ifdef WOLFSSL_TLS13_DRAFT_18
 /* The length of the early exporter label. */
 #define EARLY_EXPORTER_LABEL_SZ     28
 /* The early exporter label. */
 static const byte earlyExporterLabel[EARLY_EXPORTER_LABEL_SZ + 1] =
     "early exporter master secret";
+#else
+/* The length of the early exporter label. */
+#define EARLY_EXPORTER_LABEL_SZ     12
+/* The early exporter label. */
+static const byte earlyExporterLabel[EARLY_EXPORTER_LABEL_SZ + 1] =
+    "e exp master";
+#endif
 /* Derive the early exporter key.
  *
  * ssl  The SSL/TLS object.
@@ -537,11 +576,19 @@ static int DeriveEarlyExporterSecret(WOLFSSL* ssl, byte* key)
     #endif
 #endif
 
+#ifdef WOLFSSL_TLS13_DRAFT_18
 /* The length of the client hanshake label. */
 #define CLIENT_HANDSHAKE_LABEL_SZ   31
 /* The client hanshake label. */
 static const byte clientHandshakeLabel[CLIENT_HANDSHAKE_LABEL_SZ + 1] =
     "client handshake traffic secret";
+#else
+/* The length of the client hanshake label. */
+#define CLIENT_HANDSHAKE_LABEL_SZ   12
+/* The client hanshake label. */
+static const byte clientHandshakeLabel[CLIENT_HANDSHAKE_LABEL_SZ + 1] =
+    "c hs traffic";
+#endif
 /* Derive the client handshake key.
  *
  * ssl  The SSL/TLS object.
@@ -556,11 +603,19 @@ static int DeriveClientHandshakeSecret(WOLFSSL* ssl, byte* key)
                      ssl->specs.mac_algorithm, 1);
 }
 
+#ifdef WOLFSSL_TLS13_DRAFT_18
 /* The length of the server handshake label. */
 #define SERVER_HANDSHAKE_LABEL_SZ   31
 /* The server handshake label. */
 static const byte serverHandshakeLabel[SERVER_HANDSHAKE_LABEL_SZ + 1] =
     "server handshake traffic secret";
+#else
+/* The length of the server handshake label. */
+#define SERVER_HANDSHAKE_LABEL_SZ   12
+/* The server handshake label. */
+static const byte serverHandshakeLabel[SERVER_HANDSHAKE_LABEL_SZ + 1] =
+    "s hs traffic";
+#endif
 /* Derive the server handshake key.
  *
  * ssl  The SSL/TLS object.
@@ -575,11 +630,19 @@ static int DeriveServerHandshakeSecret(WOLFSSL* ssl, byte* key)
                      ssl->specs.mac_algorithm, 1);
 }
 
+#ifdef WOLFSSL_TLS13_DRAFT_18
 /* The length of the client application traffic label. */
 #define CLIENT_APP_LABEL_SZ         33
 /* The client application traffic label. */
 static const byte clientAppLabel[CLIENT_APP_LABEL_SZ + 1] =
     "client application traffic secret";
+#else
+/* The length of the client application traffic label. */
+#define CLIENT_APP_LABEL_SZ         12
+/* The client application traffic label. */
+static const byte clientAppLabel[CLIENT_APP_LABEL_SZ + 1] =
+    "c ap traffic";
+#endif
 /* Derive the client application traffic key.
  *
  * ssl  The SSL/TLS object.
@@ -594,11 +657,19 @@ static int DeriveClientTrafficSecret(WOLFSSL* ssl, byte* key)
                      ssl->specs.mac_algorithm, 1);
 }
 
+#ifdef WOLFSSL_TLS13_DRAFT_18
 /* The length of the server application traffic label. */
 #define SERVER_APP_LABEL_SZ         33
 /* The  server application traffic label. */
 static const byte serverAppLabel[SERVER_APP_LABEL_SZ + 1] =
     "server application traffic secret";
+#else
+/* The length of the server application traffic label. */
+#define SERVER_APP_LABEL_SZ         12
+/* The  server application traffic label. */
+static const byte serverAppLabel[SERVER_APP_LABEL_SZ + 1] =
+    "s ap traffic";
+#endif
 /* Derive the server application traffic key.
  *
  * ssl  The SSL/TLS object.
@@ -614,11 +685,19 @@ static int DeriveServerTrafficSecret(WOLFSSL* ssl, byte* key)
 }
 
 #ifdef TLS13_SUPPORTS_EXPORTERS
+#ifdef WOLFSSL_TLS13_DRAFT_18
 /* The length of the exporter master secret label. */
 #define EXPORTER_MASTER_LABEL_SZ    22
 /* The exporter master secret label. */
 static const byte exporterMasterLabel[EXPORTER_MASTER_LABEL_SZ + 1] =
     "exporter master secret";
+#else
+/* The length of the exporter master secret label. */
+#define EXPORTER_MASTER_LABEL_SZ    10
+/* The exporter master secret label. */
+static const byte exporterMasterLabel[EXPORTER_MASTER_LABEL_SZ + 1] =
+    "exp master";
+#endif
 /* Derive the exporter secret.
  *
  * ssl  The SSL/TLS object.
@@ -635,11 +714,19 @@ static int DeriveExporterSecret(WOLFSSL* ssl, byte* key)
 #endif
 
 #ifndef NO_PSK
+#ifdef WOLFSSL_TLS13_DRAFT_18
 /* The length of the resumption master secret label. */
 #define RESUME_MASTER_LABEL_SZ      24
 /* The resumption master secret label. */
 static const byte resumeMasterLabel[RESUME_MASTER_LABEL_SZ + 1] =
     "resumption master secret";
+#else
+/* The length of the resumption master secret label. */
+#define RESUME_MASTER_LABEL_SZ      10
+/* The resumption master secret label. */
+static const byte resumeMasterLabel[RESUME_MASTER_LABEL_SZ + 1] =
+    "res master";
+#endif
 /* Derive the resumption secret.
  *
  * ssl  The SSL/TLS object.
@@ -673,11 +760,19 @@ static int DeriveFinishedSecret(WOLFSSL* ssl, byte* key, byte* secret)
                      ssl->specs.mac_algorithm, 0);
 }
 
+#ifdef WOLFSSL_TLS13_DRAFT_18
 /* The length of the application traffic label. */
 #define APP_TRAFFIC_LABEL_SZ        26
 /* The application traffic label. */
 static const byte appTrafficLabel[APP_TRAFFIC_LABEL_SZ + 1] =
     "application traffic secret";
+#else
+/* The length of the application traffic label. */
+#define APP_TRAFFIC_LABEL_SZ        11
+/* The application traffic label. */
+static const byte appTrafficLabel[APP_TRAFFIC_LABEL_SZ + 1] =
+    "traffic upd";
+#endif
 /* Update the traffic secret.
  *
  * ssl     The SSL/TLS object.
@@ -709,17 +804,42 @@ static int DeriveEarlySecret(WOLFSSL* ssl)
 #endif
 }
 
+#ifndef WOLFSSL_TLS13_DRAFT_18
+/* The length of the derived label. */
+#define DERIVED_LABEL_SZ        7
+/* The derived label. */
+static const byte derivedLabel[DERIVED_LABEL_SZ + 1] =
+    "derived";
+#endif
 /* Derive the handshake secret using HKDF Extract.
  *
  * ssl  The SSL/TLS object.
  */
 static int DeriveHandshakeSecret(WOLFSSL* ssl)
 {
+#ifdef WOLFSSL_TLS13_DRAFT_18
     WOLFSSL_MSG("Derive Handshake Secret");
     return Tls13_HKDF_Extract(ssl->arrays->preMasterSecret,
             ssl->arrays->secret, ssl->specs.hash_size,
             ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz,
             ssl->specs.mac_algorithm);
+#else
+    byte key[WC_MAX_DIGEST_SIZE];
+    int ret;
+
+    WOLFSSL_MSG("Derive Handshake Secret");
+
+    ret = DeriveKeyMsg(ssl, key, -1, ssl->arrays->secret,
+                        derivedLabel, DERIVED_LABEL_SZ,
+                        NULL, 0, ssl->specs.mac_algorithm);
+    if (ret != 0)
+        return ret;
+
+    return Tls13_HKDF_Extract(ssl->arrays->preMasterSecret,
+            key, ssl->specs.hash_size,
+            ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz,
+            ssl->specs.mac_algorithm);
+#endif
 }
 
 /* Derive the master secret using HKDF Extract.
@@ -728,10 +848,27 @@ static int DeriveHandshakeSecret(WOLFSSL* ssl)
  */
 static int DeriveMasterSecret(WOLFSSL* ssl)
 {
+#ifdef WOLFSSL_TLS13_DRAFT_18
     WOLFSSL_MSG("Derive Master Secret");
     return Tls13_HKDF_Extract(ssl->arrays->masterSecret,
             ssl->arrays->preMasterSecret, ssl->specs.hash_size,
             ssl->arrays->masterSecret, 0, ssl->specs.mac_algorithm);
+#else
+    byte key[WC_MAX_DIGEST_SIZE];
+    int ret;
+
+    WOLFSSL_MSG("Derive Master Secret");
+
+    ret = DeriveKeyMsg(ssl, key, -1, ssl->arrays->preMasterSecret,
+                        derivedLabel, DERIVED_LABEL_SZ,
+                        NULL, 0, ssl->specs.mac_algorithm);
+    if (ret != 0)
+        return ret;
+
+    return Tls13_HKDF_Extract(ssl->arrays->masterSecret,
+            key, ssl->specs.hash_size,
+            ssl->arrays->masterSecret, 0, ssl->specs.mac_algorithm);
+#endif
 }
 
 /* Calculate the HMAC of message data to this point.
@@ -2148,6 +2285,8 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
 {
     word16 len;
     word32 begin = *inOutIdx;
+    int    ret;
+    Suites peerSuites;
 
     #ifdef WOLFSSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName("CertificateRequest",
@@ -2172,41 +2311,6 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
      */
     *inOutIdx += len;
 
-    /* Signature and hash algorithms. */
-    if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
-        return BUFFER_ERROR;
-    ato16(input + *inOutIdx, &len);
-    *inOutIdx += OPAQUE16_LEN;
-    if ((*inOutIdx - begin) + len > size)
-        return BUFFER_ERROR;
-    PickHashSigAlgo(ssl, input + *inOutIdx, len);
-    *inOutIdx += len;
-
-    /* Length of certificate authority data. */
-    if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
-        return BUFFER_ERROR;
-    ato16(input + *inOutIdx, &len);
-    *inOutIdx += OPAQUE16_LEN;
-    if ((*inOutIdx - begin) + len > size)
-        return BUFFER_ERROR;
-
-    /* Certificate authorities. */
-    while (len) {
-        word16 dnSz;
-
-        if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
-            return BUFFER_ERROR;
-
-        ato16(input + *inOutIdx, &dnSz);
-        *inOutIdx += OPAQUE16_LEN;
-
-        if ((*inOutIdx - begin) + dnSz > size)
-            return BUFFER_ERROR;
-
-        *inOutIdx += dnSz;
-        len -= OPAQUE16_LEN + dnSz;
-    }
-
     /* TODO: [TLS13] Add extension handling. */
     /* Certificate extensions */
     if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
@@ -2215,8 +2319,12 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     *inOutIdx += OPAQUE16_LEN;
     if ((*inOutIdx - begin) + len > size)
         return BUFFER_ERROR;
-    /* Skip over extensions for now. */
+    if ((ret = TLSX_Parse(ssl, (byte *)(input + *inOutIdx), len,
+                          certificate_request, &peerSuites)))
+        return ret;
     *inOutIdx += len;
+
+    PickHashSigAlgo(ssl, peerSuites.hashSigAlgo, peerSuites.hashSigAlgoSz);
 
     ssl->options.sendVerify = SEND_CERT;
 
@@ -2807,9 +2915,8 @@ int SendTls13CertificateRequest(WOLFSSL* ssl)
     int    reqCtxLen = 0;
     word32 i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
 
-    int  reqSz = OPAQUE8_LEN + reqCtxLen + REQ_HEADER_SZ + REQ_HEADER_SZ;
-
-    reqSz += LENGTH_SZ + ssl->suites->hashSigAlgoSz;
+    int  reqSz = OPAQUE8_LEN + reqCtxLen +
+                 TLSX_GetResponseSize(ssl, certificate_request);
 
     if (ssl->options.usingPSK_cipher || ssl->options.usingAnon_cipher)
         return 0;  /* not needed */
@@ -2835,21 +2942,8 @@ int SendTls13CertificateRequest(WOLFSSL* ssl)
      */
     output[i++] = reqCtxLen;
 
-    /* supported hash/sig */
-    c16toa(ssl->suites->hashSigAlgoSz, &output[i]);
-    i += LENGTH_SZ;
-
-    XMEMCPY(&output[i], ssl->suites->hashSigAlgo, ssl->suites->hashSigAlgoSz);
-    i += ssl->suites->hashSigAlgoSz;
-
-    /* Certificate authorities not supported yet - empty buffer. */
-    c16toa(0, &output[i]);
-    i += REQ_HEADER_SZ;
-
     /* Certificate extensions. */
-    /* TODO: [TLS13] Add extension handling. */
-    c16toa(0, &output[i]);  /* auth's */
-    i += REQ_HEADER_SZ;
+    i += TLSX_WriteResponse(ssl, output + i, certificate_request);
 
     /* Always encrypted. */
     sendSz = BuildTls13Message(ssl, output, sendSz, output + RECORD_HEADER_SZ,
