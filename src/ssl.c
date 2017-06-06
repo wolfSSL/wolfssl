@@ -4035,16 +4035,28 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     switch (type) {
         case CA_TYPE:       /* same as below */
         case TRUSTED_PEER_TYPE:
-        case CERT_TYPE:      header=BEGIN_CERT;     footer=END_CERT;     break;
-        case CRL_TYPE:       header=BEGIN_X509_CRL; footer=END_X509_CRL; break;
-        case DH_PARAM_TYPE:  header=BEGIN_DH_PARAM; footer=END_DH_PARAM; break;
-        case DSA_PARAM_TYPE: header=BEGIN_DSA_PARAM; footer=END_DSA_PARAM; break;
-        case CERTREQ_TYPE:   header=BEGIN_CERT_REQ; footer=END_CERT_REQ; break;
-        case DSA_TYPE:       header=BEGIN_DSA_PRIV; footer=END_DSA_PRIV; break;
-        case ECC_TYPE:       header=BEGIN_EC_PRIV;  footer=END_EC_PRIV;  break;
-        case RSA_TYPE:       header=BEGIN_RSA_PRIV; footer=END_RSA_PRIV; break;
-        case PUBLICKEY_TYPE: header=BEGIN_PUB_KEY;  footer=END_PUB_KEY;  break;
-        default:             header=BEGIN_RSA_PRIV; footer=END_RSA_PRIV; break;
+        case CERT_TYPE:      header=BEGIN_CERT;       footer=END_CERT;
+                             break;
+        case CRL_TYPE:       header=BEGIN_X509_CRL;   footer=END_X509_CRL;
+                             break;
+        case DH_PARAM_TYPE:  header=BEGIN_DH_PARAM;   footer=END_DH_PARAM;
+                             break;
+        case DSA_PARAM_TYPE: header=BEGIN_DSA_PARAM;  footer=END_DSA_PARAM;
+                             break;
+        case CERTREQ_TYPE:   header=BEGIN_CERT_REQ;   footer=END_CERT_REQ;
+                             break;
+        case DSA_TYPE:       header=BEGIN_DSA_PRIV;   footer=END_DSA_PRIV;
+                             break;
+        case ECC_TYPE:       header=BEGIN_EC_PRIV;    footer=END_EC_PRIV;
+                             break;
+        case RSA_TYPE:       header=BEGIN_RSA_PRIV;   footer=END_RSA_PRIV;
+                             break;
+        case ED25519_TYPE:   header=BEGIN_EDDSA_PRIV; footer=END_EDDSA_PRIV;
+                             break;
+        case PUBLICKEY_TYPE: header=BEGIN_PUB_KEY;    footer=END_PUB_KEY;
+                             break;
+        default:             header=BEGIN_RSA_PRIV;   footer=END_RSA_PRIV;
+                             break;
     }
 
     /* find header */
@@ -4061,6 +4073,8 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                    header =  BEGIN_EC_PRIV;        footer = END_EC_PRIV;
         } else if (header == BEGIN_EC_PRIV) {
                    header =  BEGIN_DSA_PRIV;       footer = END_DSA_PRIV;
+        } else if (header == BEGIN_DSA_PRIV) {
+                   header =  BEGIN_EDDSA_PRIV;     footer = END_EDDSA_PRIV;
         } else
             break;
     }
@@ -4685,6 +4699,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                         resetSuites = 1;
                     }
                 }
+                else
+                    eccKey = 0;
 
                 wc_ecc_free(&key);
             }
@@ -4707,7 +4723,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 return SSL_BAD_FILE;
             }
 
-            /* check for minimum ECC key size and then free */
+            /* check for minimum key size and then free */
             if (ssl) {
                 if (ED25519_KEY_SIZE < ssl->options.minEccKeySz) {
                     wc_ed25519_free(&key);
@@ -4725,12 +4741,6 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
             wc_ed25519_free(&key);
             ed25519Key = 1;
-            if (ssl) {
-                ssl->options.haveStaticECC = 1;
-            }
-            else if (ctx) {
-                ctx->haveStaticECC = 1;
-            }
 
             if (ssl && ssl->options.side == WOLFSSL_SERVER_END) {
                 resetSuites = 1;

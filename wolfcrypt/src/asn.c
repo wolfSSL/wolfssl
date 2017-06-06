@@ -6550,6 +6550,8 @@ const char* BEGIN_DSA_PRIV     = "-----BEGIN DSA PRIVATE KEY-----";
 const char* END_DSA_PRIV       = "-----END DSA PRIVATE KEY-----";
 const char* BEGIN_PUB_KEY      = "-----BEGIN PUBLIC KEY-----";
 const char* END_PUB_KEY        = "-----END PUBLIC KEY-----";
+const char* BEGIN_EDDSA_PRIV   = "-----BEGIN EDDSA PRIVATE KEY-----";
+const char* END_EDDSA_PRIV     = "-----END EDDSA PRIVATE KEY-----";
 
 #if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA)
 
@@ -6622,6 +6624,15 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
         XSTRNCAT(header, "\n", 1);
 
         XSTRNCPY(footer, END_EC_PRIV, footerLen);
+        XSTRNCAT(footer, "\n", 1);
+    }
+#endif
+#ifdef HAVE_ED25519
+    else if (type == EDDSA_PRIVATEKEY_TYPE) {
+        XSTRNCPY(header, BEGIN_EDDSA_PRIV, headerLen);
+        XSTRNCAT(header, "\n", 1);
+
+        XSTRNCPY(footer, END_EDDSA_PRIV, footerLen);
         XSTRNCAT(footer, "\n", 1);
     }
 #endif
@@ -10229,15 +10240,6 @@ int wc_Ed25519PrivateKeyDecode(const byte* input, word32* inOutIdx,
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
         return BAD_FUNC_ARG;
-
-    if (GetOctetString(input, inOutIdx, &privSz, inSz) >= 0) {
-        priv = input + *inOutIdx;
-        *inOutIdx += privSz;
-
-        if (*inOutIdx != inSz)
-            return ASN_PARSE_E;
-        return wc_ed25519_import_private_only(priv, privSz, key);
-    }
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;

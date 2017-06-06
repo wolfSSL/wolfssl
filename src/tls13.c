@@ -4190,10 +4190,12 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
             }
 
             /* Check for public key of required type. */
+        #ifdef HAVE_ED25519
             if (args->sigAlgo == ed25519_sa_algo &&
                                                   !ssl->peerEd25519KeyPresent) {
                 WOLFSSL_MSG("Oops, peer sent ED25519 key but not in verify");
             }
+        #endif
             if (args->sigAlgo == ecc_dsa_sa_algo &&
                                                    !ssl->peerEccDsaKeyPresent) {
                 WOLFSSL_MSG("Oops, peer sent ECC key but not in verify");

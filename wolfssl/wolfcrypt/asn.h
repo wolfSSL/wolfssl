@@ -660,6 +660,8 @@ extern const char* BEGIN_DSA_PRIV;
 extern const char* END_DSA_PRIV;
 extern const char* BEGIN_PUB_KEY;
 extern const char* END_PUB_KEY;
+extern const char* BEGIN_EDDSA_PRIV;
+extern const char* END_EDDSA_PRIV;
 
 #ifdef NO_SHA
     #define SIGNER_DIGEST_SIZE SHA256_DIGEST_SIZE
