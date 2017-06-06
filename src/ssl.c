@@ -16822,13 +16822,86 @@ int wolfSSL_ASN1_INTEGER_cmp(const WOLFSSL_ASN1_INTEGER* a,
     return 0;
 }
 
-
 long wolfSSL_ASN1_INTEGER_get(const WOLFSSL_ASN1_INTEGER* i)
 {
-    (void)i;
-    return 0;
+  int e;
+  signed_word64 r;
+
+  if (i == NULL)
+      WOLFSSL_MSG("input parameter is NULL")
+      return 0;
+
+  e = wolfSSL_ASN1_INTEGER_get_int64(&r, i);
+
+  if (e == 0)
+      return -1;
+
+  if (r > LONG_MAX || r < LONG_MIN)
+      WOLFSSL_MSG("result is larger than LONG_MAX or smaller than LONG_MIN")
+      return -1;
+
+  return (long)r;
 }
 
+int wolfSSL_ASN1_INTEGER_get_int64(signed_word64 *p, const WOLFSSL_ASN1_INTEGER *i)
+{
+
+  WOLFSSL_ASN1_STRING *s;
+  s = (WOLFSSL_ASN1_STRING *)i;
+
+  int data_length = (*s).length;
+  int negative = (*s).type & WOLFSSL_V_ASN1_NEG;
+  word64 *r;
+  int itr;
+
+  if (i == NULL) {
+      WOLFSSL_MSG("input parameter is NULL")
+      return 0;
+  }
+
+  /* INTGER_TYPE check */
+  if (((*s).type & ~WOLFSSL_V_ASN1_NEG) != WOLFSSL_V_ASN1_INTEGER) {
+      WOLFSSL_MSG("bad interger type")
+      return 0;
+  }
+
+  r = (word64 *)p;
+
+  /* ASN1 length check */
+  if (data_length > (signed)sizeof(*r)) {
+      WOLFSSL_MSG("too large data length")
+      return 0;
+  }
+
+  /* data check */
+  if (data_length == 0){
+      WOLFSSL_MSG("no data")
+      return 0;
+  }
+
+  *r = 0;
+  for (itr = 0; itr < data_length; itr++) {
+      *r <<= 8;
+      *r |= s->data[itr];
+  }
+
+  p = (signed_word64 *)r;
+
+  if (negative) {
+      if (*r > WOLFSSL_ABS_INT64_MIN) {
+          WOLFSSL_MSG("too small");
+          return 0;
+      }
+      *p = 0 - (word64)*r;
+  } else {
+      if (*r > WOLFSSL_INT64_MAX) {
+          WOLFSSL_MSG("too large");
+          return 0;
+      }
+      *p = (signed_word64)*r;
+  }
+  return 1;
+}
 
 void* wolfSSL_X509_STORE_CTX_get_ex_data(WOLFSSL_X509_STORE_CTX* ctx, int idx)
 {

@@ -79,10 +79,12 @@
 	    #define WORD64_AVAILABLE
 	    #define W64LIT(x) x##LL
 	    typedef unsigned long word64;
+			typedef long signed_word64;
 	#elif defined(SIZEOF_LONG_LONG) && SIZEOF_LONG_LONG == 8
 	    #define WORD64_AVAILABLE
 	    #define W64LIT(x) x##LL
 	    typedef unsigned long long word64;
+			typedef long long signed_word64;
 	#elif defined(__SIZEOF_LONG_LONG__) && __SIZEOF_LONG_LONG__ == 8
 	    #define WORD64_AVAILABLE
 	    #define W64LIT(x) x##LL
