@@ -5564,6 +5564,27 @@ ProtocolVersion MakeDTLSv1_2(void)
     {
         return (word32) Seconds_get();
     }
+#elif defined(WOLFSSL_XILINX)
+    #include "xrtcpsu.h"
+
+    word32 LowResTimer(void)
+    {
+        XRtcPsu_Config* con;
+        XRtcPsu         rtc;
+
+        con = XRtcPsu_LookupConfig(XPAR_XRTCPSU_0_DEVICE_ID);
+        if (con != NULL) {
+            if (XRtcPsu_CfgInitialize(&rtc, con, con->BaseAddr)
+                    == XST_SUCCESS) {
+                return (word32)XRtcPsu_GetCurrentTime(&rtc);
+            }
+            else {
+                WOLFSSL_MSG("Unable to initialize RTC");
+            }
+        }
+
+        return 0;
+    }
 
 #elif defined(WOLFSSL_UTASKER)
 

@@ -62,6 +62,9 @@ enum {
 };
 
 
+#ifdef WOLFSSL_XILINX_CRYPT
+    #include "wolfssl/wolfcrypt/port/xilinx/xil-sha3.h"
+#else
 /* Sha3 digest */
 typedef struct Sha3 {
     /* State data that is processed for each block. */
@@ -77,7 +80,7 @@ typedef struct Sha3 {
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
 } Sha3;
-
+#endif
 #endif /* HAVE_FIPS */
 
 WOLFSSL_API int wc_InitSha3_224(Sha3*, void*, int);

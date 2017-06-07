@@ -104,6 +104,11 @@
 #endif
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/types.h>
+
+#ifndef EXIT_FAILURE
+#define EXIT_FAILURE 1
+#endif
 
 /* only for stack size check */
 #ifdef HAVE_STACK_SIZE
@@ -837,30 +842,38 @@ static void* benchmarks_do(void* args)
     #endif
 #endif
 #ifdef WOLFSSL_SHA3
+    #ifndef WOLFSSL_NOSHA3_224
     #ifndef NO_SW_BENCH
         bench_sha3_224(0);
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
         bench_sha3_224(1);
     #endif
+    #endif /* WOLFSSL_NOSHA3_224 */
+    #ifndef WOLFSSL_NOSHA3_256
     #ifndef NO_SW_BENCH
         bench_sha3_256(0);
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
         bench_sha3_256(1);
     #endif
+    #endif /* WOLFSSL_NOSHA3_256 */
+    #ifndef WOLFSSL_NOSHA3_384
     #ifndef NO_SW_BENCH
         bench_sha3_384(0);
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
         bench_sha3_384(1);
     #endif
+    #endif /* WOLFSSL_NOSHA3_384 */
+    #ifndef WOLFSSL_NOSHA3_512
     #ifndef NO_SW_BENCH
         bench_sha3_512(0);
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
         bench_sha3_512(1);
     #endif
+    #endif /* WOLFSSL_NOSHA3_512 */
 #endif
 #ifdef WOLFSSL_RIPEMD
     bench_ripemd();
@@ -2131,6 +2144,7 @@ exit:
 
 
 #ifdef WOLFSSL_SHA3
+#ifndef WOLFSSL_NOSHA3_224
 void bench_sha3_224(int doAsync)
 {
     Sha3   hash[BENCH_MAX_PENDING];
@@ -2203,7 +2217,9 @@ exit:
 
     bench_async_end();
 }
+#endif /* WOLFSSL_NOSHA3_224 */
 
+#ifndef WOLFSSL_NOSHA3_256
 void bench_sha3_256(int doAsync)
 {
     Sha3   hash[BENCH_MAX_PENDING];
@@ -2276,7 +2292,9 @@ exit:
 
     bench_async_end();
 }
+#endif /* WOLFSSL_NOSHA3_256 */
 
+#ifndef WOLFSSL_NOSHA3_384
 void bench_sha3_384(int doAsync)
 {
     Sha3   hash[BENCH_MAX_PENDING];
@@ -2349,7 +2367,9 @@ exit:
 
     bench_async_end();
 }
+#endif /* WOLFSSL_NOSHA3_384 */
 
+#ifndef WOLFSSL_NOSHA3_512
 void bench_sha3_512(int doAsync)
 {
     Sha3   hash[BENCH_MAX_PENDING];
@@ -2422,6 +2442,7 @@ exit:
 
     bench_async_end();
 }
+#endif /* WOLFSSL_NOSHA3_512 */
 #endif
 
 

@@ -12525,6 +12525,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return SSL_SUCCESS;  /* success */
     }
 
+#define WOLFSSL_EVP_INCLUDED
 #include "wolfcrypt/src/evp.c"
 
 
@@ -23112,6 +23113,7 @@ WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSAparams(WOLFSSL_BIO *bp, WOLFSSL_DSA **x,
 }
 #endif /* NO_DSA */
 
+#define WOLFSSL_BIO_INCLUDED
 #include "src/bio.c"
 
 #endif /* OPENSSL_EXTRA */

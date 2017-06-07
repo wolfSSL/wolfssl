@@ -301,7 +301,7 @@ int mp_test(void);
 #endif
 int logging_test(void);
 int mutex_test(void);
-#ifdef USE_WOLFSSL_MEMORY
+#if defined(USE_WOLFSSL_MEMORY) && !defined(FREERTOS)
 int memcb_test(void);
 #endif
 
@@ -851,7 +851,7 @@ int wolfcrypt_test(void* args)
     else
         printf( "mutex    test passed!\n");
 
-#ifdef USE_WOLFSSL_MEMORY
+#if defined(USE_WOLFSSL_MEMORY) && !defined(FREERTOS)
     if ( (ret = memcb_test()) != 0)
         return err_sys("memcb    test failed!\n", ret);
     else
@@ -1783,6 +1783,7 @@ int sha384_test(void)
 #endif /* WOLFSSL_SHA384 */
 
 #ifdef WOLFSSL_SHA3
+#ifndef WOLFSSL_NOSHA3_224
 static int sha3_224_test(void)
 {
     Sha3  sha;
@@ -1834,7 +1835,9 @@ static int sha3_224_test(void)
 
     return 0;
 }
+#endif /* WOLFSSL_NOSHA3_224 */
 
+#ifndef WOLFSSL_NOSHA3_256
 static int sha3_256_test(void)
 {
     Sha3  sha;
@@ -1888,7 +1891,9 @@ static int sha3_256_test(void)
 
     return 0;
 }
+#endif /* WOLFSSL_NOSHA3_256 */
 
+#ifndef WOLFSSL_NOSHA3_384
 static int sha3_384_test(void)
 {
     Sha3  sha;
@@ -1944,7 +1949,9 @@ static int sha3_384_test(void)
 
     return 0;
 }
+#endif /* WOLFSSL_NOSHA3_384 */
 
+#ifndef WOLFSSL_NOSHA3_512
 static int sha3_512_test(void)
 {
     Sha3  sha;
@@ -2002,19 +2009,28 @@ static int sha3_512_test(void)
 
     return 0;
 }
+#endif /* WOLFSSL_NOSHA3_512 */
 
 int sha3_test(void)
 {
     int ret;
 
+#ifndef WOLFSSL_NOSHA3_224
     if ((ret = sha3_224_test()) != 0)
         return ret;
+#endif
+#ifndef WOLFSSL_NOSHA3_256
     if ((ret = sha3_256_test()) != 0)
         return ret;
+#endif
+#ifndef WOLFSSL_NOSHA3_384
     if ((ret = sha3_384_test()) != 0)
         return ret;
+#endif
+#ifndef WOLFSSL_NOSHA3_512
     if ((ret = sha3_512_test()) != 0)
         return ret;
+#endif
 
     return 0;
 }
@@ -4532,7 +4548,8 @@ int aesgcm_test(void)
     };
 
 #if !defined(HAVE_FIPS) && !defined(HAVE_INTEL_QA) && \
-        !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO)
+        !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO) && \
+        !defined(WOLFSSL_XILINX_CRYPT)
     /* Test Case 12, uses same plaintext and AAD data. */
     const byte k2[] =
     {
@@ -4614,7 +4631,8 @@ int aesgcm_test(void)
 
     /* FIPS, QAT and STM32F2/4 HW Crypto only support 12-byte IV */
 #if !defined(HAVE_FIPS) && !defined(HAVE_INTEL_QA) && \
-        !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO)
+        !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO) && \
+        !defined(WOLFSSL_XILINX_CRYPT)
     XMEMSET(resultT, 0, sizeof(resultT));
     XMEMSET(resultC, 0, sizeof(resultC));
     XMEMSET(resultP, 0, sizeof(resultP));
@@ -13674,7 +13692,7 @@ int mutex_test(void)
     return 0;
 }
 
-#ifdef USE_WOLFSSL_MEMORY
+#if defined(USE_WOLFSSL_MEMORY) && !defined(FREERTOS)
 static int malloc_cnt = 0;
 static int realloc_cnt = 0;
 static int free_cnt = 0;

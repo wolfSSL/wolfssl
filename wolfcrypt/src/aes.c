@@ -3522,6 +3522,10 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     }
 #endif /* FREESCALE_LTC_AES_GCM */
 
+#if defined(WOLFSSL_XILINX_CRYPT)
+    wc_AesGcmSetKey_ex(aes, key, len, XSECURE_CSU_AES_KEY_SRC_KUP);
+#endif
+
     return ret;
 }
 
@@ -3987,7 +3991,7 @@ static void GMULT(byte* X, byte* Y)
 }
 
 
-static void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
+void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
     word32 cSz, byte* s, word32 sSz)
 {
     byte x[AES_BLOCK_SIZE];
@@ -4136,7 +4140,7 @@ static void GMULT(byte *x, byte m[256][AES_BLOCK_SIZE])
 }
 
 
-static void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
+void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
     word32 cSz, byte* s, word32 sSz)
 {
     byte x[AES_BLOCK_SIZE];
@@ -4231,7 +4235,7 @@ static void GMULT(word64* X, word64* Y)
 }
 
 
-static void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
+void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
     word32 cSz, byte* s, word32 sSz)
 {
     word64 x[2] = {0,0};
@@ -4368,7 +4372,7 @@ static void GMULT(word32* X, word32* Y)
 }
 
 
-static void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
+void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
     word32 cSz, byte* s, word32 sSz)
 {
     word32 x[4] = {0,0,0,0};
@@ -4467,6 +4471,7 @@ static void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
 #endif /* end GCM_WORD32 */
 
 
+#if !defined(WOLFSSL_XILINX_CRYPT)
 int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                    const byte* iv, word32 ivSz,
                    byte* authTag, word32 authTagSz,
@@ -4965,6 +4970,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 }
 
 #endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
+#endif /* (WOLFSSL_XILINX_CRYPT) */
 
 WOLFSSL_API int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len)
 {

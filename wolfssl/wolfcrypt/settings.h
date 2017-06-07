@@ -150,6 +150,12 @@
 /* Uncomment next line if building for RIOT-OS */
 /* #define WOLFSSL_RIOT_OS */
 
+/* Uncomment next line if building for using XILINX hardened crypto */
+/* #define WOLFSSL_XILINX_CRYPT */
+
+/* Uncomment next line if building for using XILINX */
+/* #define WOLFSSL_XILINX */
+
 #include <wolfssl/wolfcrypt/visibility.h>
 
 #ifdef WOLFSSL_USER_SETTINGS
@@ -1233,6 +1239,28 @@ extern void uITRON4_free(void *p) ;
 #endif /* WOLFSSL_QL */
 
 
+#if defined(WOLFSSL_XILINX)
+    #define USER_TIME /* XTIME in asn.c */
+    #define NO_WOLFSSL_DIR
+    #define NO_DEV_RANDOM
+    #define HAVE_AESGCM
+#endif
+
+#if defined(WOLFSSL_XILINX_CRYPT)
+    #if defined(WOLFSSL_ARMASM)
+        #error can not use both ARMv8 instructions and XILINX hardened crypto
+    #endif
+    #if defined(WOLFSSL_SHA3)
+        /* only SHA3-384 is supported */
+        #undef WOLFSSL_NOSHA3_224
+        #undef WOLFSSL_NOSHA3_256
+        #undef WOLFSSL_NOSHA3_512
+        #define WOLFSSL_NOSHA3_224
+        #define WOLFSSL_NOSHA3_256
+        #define WOLFSSL_NOSHA3_512
+    #endif
+#endif /*(WOLFSSL_XILINX_CRYPT)*/
+
 #if !defined(XMALLOC_USER) && !defined(MICRIUM_MALLOC) && \
     !defined(WOLFSSL_LEANPSK) && !defined(NO_WOLFSSL_MEMORY) && \
     !defined(XMALLOC_OVERRIDE)
@@ -1595,10 +1623,9 @@ extern void uITRON4_free(void *p) ;
 
 /* both CURVE and ED small math should be enabled */
 #ifdef CURVED25519_SMALL
-    #define CURVE25519_SMALL
-    #define ED25519_SMALL
+        #define CURVE25519_SMALL
+        #define ED25519_SMALL
 #endif
-
 
 /* warning for not using harden build options (default with ./configure) */
 #ifndef WC_NO_HARDEN

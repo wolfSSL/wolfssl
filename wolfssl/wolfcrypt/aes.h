@@ -48,6 +48,10 @@
 
 #endif /* WOLFSSL_AESNI */
 
+#ifdef WOLFSSL_XILINX_CRYPT
+#include "xsecure_aes.h"
+#endif
+
 #endif /* HAVE_FIPS */
 
 #ifdef __cplusplus
@@ -99,6 +103,12 @@ typedef struct Aes {
 #ifdef WOLFSSL_PIC32MZ_CRYPT
     word32 key_ce[AES_BLOCK_SIZE*2/sizeof(word32)] ;
     word32 iv_ce [AES_BLOCK_SIZE  /sizeof(word32)] ;
+#endif
+#ifdef WOLFSSL_XILINX_CRYPT
+    XSecure_Aes xilAes;
+    XCsuDma     dma;
+    word32      key_init[8];
+    word32      kup;
 #endif
     void*  heap; /* memory hint to use */
 } Aes;
@@ -153,6 +163,10 @@ WOLFSSL_API int wc_AesEcbDecrypt(Aes* aes, byte* out,
                                 const byte* iv, int dir);
 #endif
 #ifdef HAVE_AESGCM
+#ifdef WOLFSSL_XILINX_CRYPT
+ WOLFSSL_API int  wc_AesGcmSetKey_ex(Aes* aes, const byte* key, word32 len,
+         word32 kup);
+#endif
  WOLFSSL_API int  wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len);
  WOLFSSL_API int  wc_AesGcmEncrypt(Aes* aes, byte* out,
                                    const byte* in, word32 sz,
@@ -169,6 +183,8 @@ WOLFSSL_API int wc_AesEcbDecrypt(Aes* aes, byte* out,
  WOLFSSL_API int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
                                const byte* authIn, word32 authInSz,
                                byte* authTag, word32 authTagSz);
+ WOLFSSL_LOCAL void GHASH(Aes* aes, const byte* a, word32 aSz, const byte* c,
+                               word32 cSz, byte* s, word32 sSz);
 #endif /* HAVE_AESGCM */
 #ifdef HAVE_AESCCM
  WOLFSSL_API int  wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz);

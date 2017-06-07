@@ -19,6 +19,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#if !defined(WOLFSSL_EVP_INCLUDED)
+    #warning evp.c does not need to be compiled seperatly from ssl.c
+#else
+
 static unsigned int cipherType(const WOLFSSL_EVP_CIPHER *cipher);
 
 WOLFSSL_API int  wolfSSL_EVP_EncryptInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
@@ -537,3 +541,5 @@ WOLFSSL_API int wolfSSL_EVP_add_digest(const WOLFSSL_EVP_MD *digest)
     /* nothing to do */
     return 0;
 }
+#endif /* WOLFSSL_EVP_INCLUDED */
+
