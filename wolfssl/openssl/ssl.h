@@ -220,6 +220,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define X509_digest wolfSSL_X509_digest
 #define X509_free wolfSSL_X509_free
 #define OPENSSL_free wolfSSL_OPENSSL_free
+#define OPENSSL_malloc wolfSSL_OPENSSL_malloc
 
 #define OCSP_parse_url wolfSSL_OCSP_parse_url
 #define SSLv23_client_method wolfSSLv23_client_method
@@ -776,6 +777,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #endif
 
 #define OPENSSL_config	                  wolfSSL_OPENSSL_config
+#define OPENSSL_memdup                    wolfSSL_OPENSSL_memdup
 #define X509_get_ex_new_index             wolfSSL_X509_get_ex_new_index
 #define X509_get_ex_data                  wolfSSL_X509_get_ex_data
 #define X509_set_ex_data                  wolfSSL_X509_set_ex_data

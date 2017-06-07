@@ -21215,6 +21215,10 @@ void wolfSSL_OPENSSL_free(void* p)
     XFREE(p, NULL, DYNAMIC_TYPE_OPENSSL);
 }
 
+void *wolfSSL_OPENSSL_malloc(size_t a)
+{
+  return XMALLOC(a, NULL, DYNAMIC_TYPE_OPENSSL);
+}
 #if defined(WOLFSSL_KEY_GEN)
 
 static int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
@@ -26402,6 +26406,35 @@ int wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg)
     WOLFSSL_ENTER("wolfSSL_set_msg_callback_arg");
     ssl->protoMsgCtx = arg;
     return SSL_SUCCESS;
+}
+
+void *wolfSSL_OPENSSL_memdup(const void *data, size_t siz, const char* file, int line)
+{
+    (void)file;
+    (void)line;
+    void *ret;
+
+    if (data == NULL || siz >= INT_MAX)
+        return NULL;
+
+    ret = OPENSSL_malloc(siz);
+    if (ret == NULL) {
+        return NULL;
+    }
+    return XMEMCPY(ret, data, siz);
+}
+
+int wolfSSL_CTX_set_alpn_protos(WOLFSSL_CTX *ctx, const unsigned char *p,
+                            unsigned int p_len)
+{
+    wolfSSL_OPENSSL_free((void *)ctx->alpn_cli_protos);
+    ctx->alpn_cli_protos = wolfSSL_OPENSSL_memdup(p, p_len, NULL, 0);
+    if (ctx->alpn_cli_protos == NULL) {
+        return 1;
+    }
+    ctx->alpn_cli_protos_len = p_len;
+
+    return 0;
 }
 
 #endif
