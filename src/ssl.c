@@ -25083,6 +25083,11 @@ void wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX* ctx, void* arg)
         ctx->sniRecvCbArg = arg;
 }
 
+void wolfSSL_ERR_load_BIO_strings(void) {
+    WOLFSSL_ENTER("ERR_load_BIO_strings");
+    /* do nothing */
+}
+
 void wolfSSL_THREADID_set_callback(void(*threadid_func)(void*))
 {
     WOLFSSL_ENTER("wolfSSL_THREADID_set_callback");

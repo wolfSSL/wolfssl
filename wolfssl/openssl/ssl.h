@@ -794,6 +794,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define X509_check_host                   wolfSSL_X509_check_host
 #define i2a_ASN1_INTEGER                  wolfSSL_i2a_ASN1_INTEGER
 #define ERR_peek_error_line_data          wolfSSL_ERR_peek_error_line_data
+#define ERR_load_BIO_strings              wolfSSL_ERR_load_BIO_strings
 #define SSL_CTX_set_tlsext_ticket_key_cb  wolfSSL_CTX_set_tlsext_ticket_key_cb
 #define X509_email_free                   wolfSSL_X509_email_free
 #define X509_get1_ocsp                    wolfSSL_X509_get1_ocsp

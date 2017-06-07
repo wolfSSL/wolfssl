@@ -2516,6 +2516,7 @@ WOLFSSL_API int wolfSSL_CTX_set_alpn_protos(WOLFSSL_CTX *ctx,
     const unsigned char *protos, unsigned int protos_len);
 WOLFSSL_API void *wolfSSL_OPENSSL_memdup(const void *data,
     size_t siz, const char* file, int line);
+WOLFSSL_API void wolfSSL_ERR_load_BIO_strings(void);
 #endif
 
 #if defined WOLFSSL_NGINX || defined WOLFSSL_HAPROXY
