@@ -11570,6 +11570,12 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return ctx->error_depth;
         return WOLFSSL_FATAL_ERROR;
     }
+
+    void wolfSSL_X509_STORE_CTX_set_verify_cb(WOLFSSL_X509_STORE_CTX *ctx,
+                                  WOLFSSL_X509_STORE_CTX_verify_cb verify_cb)
+    {
+        ctx->verify_cb = verify_cb;
+    }
 #endif
 
 
