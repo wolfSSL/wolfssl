@@ -295,6 +295,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define X509_STORE_CTX_get_current_cert wolfSSL_X509_STORE_CTX_get_current_cert
 #define X509_STORE_add_cert             wolfSSL_X509_STORE_add_cert
 #define X509_STORE_set_flags            wolfSSL_X509_STORE_set_flags
+#define X509_STORE_CTX_set_verify_cb    wolfSSL_X509_STORE_CTX_set_verify_cb
 #define X509_STORE_CTX_get_chain        wolfSSL_X509_STORE_CTX_get_chain
 #define X509_STORE_CTX_get_error wolfSSL_X509_STORE_CTX_get_error
 #define X509_STORE_CTX_get_error_depth wolfSSL_X509_STORE_CTX_get_error_depth

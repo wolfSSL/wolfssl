@@ -89,6 +89,8 @@ typedef struct WOLFSSL_CERT_MANAGER WOLFSSL_CERT_MANAGER;
 typedef struct WOLFSSL_SOCKADDR     WOLFSSL_SOCKADDR;
 typedef struct WOLFSSL_CRL          WOLFSSL_CRL;
 
+typedef void  *WOLFSSL_X509_STORE_CTX_verify_cb; /* verify callback */
+
 /* redeclare guard */
 #define WOLFSSL_TYPES_DEFINED
 
@@ -227,6 +229,7 @@ typedef struct WOLFSSL_X509_STORE_CTX {
     int   discardSessionCerts;   /* so verify callback can flag for discard */
     int   totalCerts;            /* number of peer cert buffers */
     WOLFSSL_BUFFER_INFO* certs;  /* peer certs */
+    WOLFSSL_X509_STORE_CTX_verify_cb verify_cb; /* verify callback */
 } WOLFSSL_X509_STORE_CTX;
 
 typedef char* WOLFSSL_STRING;
@@ -638,7 +641,8 @@ WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_STORE_CTX_get_current_cert(
                                                         WOLFSSL_X509_STORE_CTX*);
 WOLFSSL_API int   wolfSSL_X509_STORE_CTX_get_error(WOLFSSL_X509_STORE_CTX*);
 WOLFSSL_API int   wolfSSL_X509_STORE_CTX_get_error_depth(WOLFSSL_X509_STORE_CTX*);
-
+WOLFSSL_API void  wolfSSL_X509_STORE_CTX_set_verify_cb(WOLFSSL_X509_STORE_CTX *ctx,
+                                  WOLFSSL_X509_STORE_CTX_verify_cb verify_cb);
 WOLFSSL_API char*       wolfSSL_X509_NAME_oneline(WOLFSSL_X509_NAME*, char*, int);
 WOLFSSL_API WOLFSSL_X509_NAME*  wolfSSL_X509_get_issuer_name(WOLFSSL_X509*);
 WOLFSSL_API WOLFSSL_X509_NAME*  wolfSSL_X509_get_subject_name(WOLFSSL_X509*);
