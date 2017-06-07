@@ -9128,7 +9128,7 @@ int SetSession(WOLFSSL* ssl, WOLFSSL_SESSION* session)
             ssl->options.resuming = 1;
 
 #if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
-                               defined(HAVE_SESSION_TICKET) && !defined(NO_PSK))
+                               defined(HAVE_SESSION_TICKET))
             ssl->version              = session->version;
             ssl->options.cipherSuite0 = session->cipherSuite0;
             ssl->options.cipherSuite  = session->cipherSuite;
@@ -9278,13 +9278,13 @@ int AddSession(WOLFSSL* ssl)
     }
 #endif /* SESSION_CERTS */
 #if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
-                               defined(HAVE_SESSION_TICKET) && !defined(NO_PSK))
+                               defined(HAVE_SESSION_TICKET))
     if (error == 0) {
         session->version      = ssl->version;
         session->cipherSuite0 = ssl->options.cipherSuite0;
         session->cipherSuite  = ssl->options.cipherSuite;
     }
-#endif /* SESSION_CERTS || (WOLFSSL_TLS13 & !NO_PSK) */
+#endif /* SESSION_CERTS || (WOLFSSL_TLS13 & HAVE_SESSION_TICKET) */
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
     if (error == 0) {
         session->namedGroup = ssl->session.namedGroup;
