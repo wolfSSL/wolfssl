@@ -23101,6 +23101,10 @@ int wolfSSL_SESSION_set_ex_data(WOLFSSL_SESSION* session, int idx, void* data)
         session->ex_data[idx] = data;
         return SSL_SUCCESS;
     }
+#else
+    (void)session;
+    (void)idx;
+    (void)data;
 #endif
     return SSL_FAILURE;
 }
@@ -23130,6 +23134,9 @@ void* wolfSSL_SESSION_get_ex_data(const WOLFSSL_SESSION* session, int idx)
 #ifdef HAVE_EX_DATA
     if (session != NULL && idx < MAX_EX_DATA && idx >= 0)
         return session->ex_data[idx];
+#else
+    (void)session;
+    (void)idx;
 #endif
     return NULL;
 }
@@ -23467,16 +23474,6 @@ void wolfSSL_CTX_set_servername_arg(WOLFSSL_CTX* ctx, void* arg)
     WOLFSSL_ENTER("wolfSSL_CTX_set_servername_arg");
     if (ctx)
         ctx->sniRecvCbArg = arg;
-}
-
-
-long wolfSSL_CTX_clear_options(WOLFSSL_CTX* ctx, long opt)
-{
-    WOLFSSL_ENTER("SSL_CTX_clear_options");
-    WOLFSSL_STUB("SSL_CTX_clear_options");
-    (void)ctx;
-    (void)opt;
-    return opt;
 }
 
 void wolfSSL_THREADID_set_callback(void(*threadid_func)(void*))
@@ -24715,6 +24712,7 @@ void wolfSSL_get0_next_proto_negotiated(const WOLFSSL *s, const unsigned char **
 #endif /* WOLFSSL_NGINX  / WOLFSSL_HAPROXY */
 
 #ifdef OPENSSL_EXTRA
+#ifndef NO_WOLFSSL_STUB
 int wolfSSL_CTX_set_msg_callback(WOLFSSL_CTX *ctx, SSL_Msg_Cb cb)
 {
     WOLFSSL_STUB("SSL_CTX_set_msg_callback");
@@ -24722,13 +24720,25 @@ int wolfSSL_CTX_set_msg_callback(WOLFSSL_CTX *ctx, SSL_Msg_Cb cb)
     (void)cb;
     return SSL_FAILURE;
 }
+#endif
+
 int wolfSSL_set_msg_callback(WOLFSSL *ssl, SSL_Msg_Cb cb)
 {
-    WOLFSSL_STUB("SSL_set_msg_callback");
-    (void)ssl;
-    (void)cb;
-    return SSL_FAILURE;
+  WOLFSSL_ENTER("wolfSSL_set_msg_callback");
+
+  if (ssl == NULL) {
+      return SSL_FAILURE;
+  }
+
+  if (cb != NULL) {
+      ssl->toInfoOn = 1;
+  }
+
+  ssl->protoMsgCb = cb;
+  return SSL_SUCCESS;
 }
+
+#ifndef NO_WOLFSSL_STUB
 int wolfSSL_CTX_set_msg_callback_arg(WOLFSSL_CTX *ctx, void* arg)
 {
     WOLFSSL_STUB("SSL_CTX_set_msg_callback_arg");
@@ -24744,6 +24754,6 @@ int wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg)
     return SSL_FAILURE;
 }
 #endif
-
+#endif
 
 #endif /* WOLFCRYPT_ONLY */
