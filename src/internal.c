@@ -16259,6 +16259,21 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
                                                              currTime.tv_usec;
             info->numberPackets++;
         }
+    #ifdef OPENSSL_EXTRA
+        if (ssl->protoMsgCb != NULL && sz > RECORD_HEADER_SZ) {
+            /* version from hex to dec  16 is 16^1, 256 from 16^2 and
+               4096 from 16^3 */
+            int version = (ssl->version.minor & 0X0F) +
+                          (ssl->version.minor & 0xF0) * 16  +
+                          (ssl->version.major & 0X0F) * 256 +
+                          (ssl->version.major & 0xF0) * 4096;
+
+            ssl->protoMsgCb(written, version, type,
+                         (const void *)(data + RECORD_HEADER_SZ),
+                         (size_t)(sz - RECORD_HEADER_SZ),
+                         ssl, ssl->protoMsgCtx);
+        }
+    #endif /* OPENSSL_EXTRA */
     }
 
 
