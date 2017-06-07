@@ -24746,14 +24746,15 @@ int wolfSSL_CTX_set_msg_callback_arg(WOLFSSL_CTX *ctx, void* arg)
     (void)arg;
     return SSL_FAILURE;
 }
+#endif
+
 int wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg)
 {
-    WOLFSSL_STUB("SSL_set_msg_callback_arg");
-    (void)ssl;
-    (void)arg;
+    WOLFSSL_ENTER("wolfSSL_set_msg_callback_arg");
+    ssl->protoMsgCtx = arg;
     return SSL_FAILURE;
 }
-#endif
+
 #endif
 
 #endif /* WOLFCRYPT_ONLY */
