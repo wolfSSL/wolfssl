@@ -9082,7 +9082,9 @@ int wc_SetKeyUsage(Cert *cert, const char *value)
     XSTRNCPY(str, value, XSTRLEN(value));
 
     /* parse value, and set corresponding Key Usage value */
-    token = XSTRTOK(str, ",", &ptr);
+    if ((token = XSTRTOK(str, ",", &ptr)) == NULL) {
+        return KEYUSAGE_E;
+    }
     while (token != NULL)
     {
         len = (word32)XSTRLEN(token);
