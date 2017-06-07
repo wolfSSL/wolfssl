@@ -2073,132 +2073,107 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
  * der   : a initialized and parsed DecodedCert holding a certificate */
 int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
 {
+    int ret;
+
     if (key == NULL || der == NULL) {
         return BAD_FUNC_ARG;
     }
 
     #if !defined(NO_RSA)
-    {
+    /* test if RSA key */
+    if (der->keyOID == RSAk) {
         RsaKey a, b;
         word32 keyIdx = 0;
-        int    ret    = 0;
 
-        /* test if RSA key */
-        if (der->keyOID == RSAk) {
-            if (wc_InitRsaKey(&a, NULL) == 0 &&
-                wc_RsaPrivateKeyDecode(key, &keyIdx, &a, keySz) == 0) {
-                WOLFSSL_MSG("Checking RSA key pair");
-                keyIdx = 0; /* reset to 0 for parsing public key */
-
-                if (wc_InitRsaKey(&b, NULL) == 0) {
-                    if ((ret = wc_RsaPublicKeyDecode(der->publicKey, &keyIdx,
-                                                   &b, der->pubKeySize)) == 0) {
-                        /* limit for user RSA crypto because of RsaKey
-                         * dereference. */
-                        #if defined(HAVE_USER_RSA)
-                            WOLFSSL_MSG("Cannot verify RSA pair with user RSA");
-                            wc_FreeRsaKey(&b);
-                            wc_FreeRsaKey(&a);
-                            return 1; /* return first RSA cert as match */
-                        #else
-                        /* both keys extracted successfully now check n and e
-                         * values are the same. This is dereferencing RsaKey */
-                        if (mp_cmp(&(a.n), &(b.n)) != MP_EQ ||
-                            mp_cmp(&(a.e), &(b.e)) != MP_EQ) {
-                            ret = MP_CMP_E;
-                        }
-                        else {
-                            /* match found, free keys and return success */
-                            wc_FreeRsaKey(&b);
-                            wc_FreeRsaKey(&a);
-                            return 1;
-                        }
-                        #endif
-                    }
-                    wc_FreeRsaKey(&b);
-                }
-            }
+        if ((ret = wc_InitRsaKey(&a, NULL)) < 0)
+            return ret;
+        if ((ret = wc_InitRsaKey(&b, NULL)) < 0) {
             wc_FreeRsaKey(&a);
-        }
-
-        /* if ret is not 0 then there was a failed comparision attempt */
-        if (ret != 0) {
             return ret;
         }
+        if ((ret = wc_RsaPrivateKeyDecode(key, &keyIdx, &a, keySz)) == 0) {
+            WOLFSSL_MSG("Checking RSA key pair");
+            keyIdx = 0; /* reset to 0 for parsing public key */
+
+            if ((ret = wc_RsaPublicKeyDecode(der->publicKey, &keyIdx, &b,
+                                                       der->pubKeySize)) == 0) {
+                /* limit for user RSA crypto because of RsaKey
+                 * dereference. */
+            #if defined(HAVE_USER_RSA)
+                WOLFSSL_MSG("Cannot verify RSA pair with user RSA");
+                ret = 1; /* return first RSA cert as match */
+            #else
+                /* both keys extracted successfully now check n and e
+                 * values are the same. This is dereferencing RsaKey */
+                if (mp_cmp(&(a.n), &(b.n)) != MP_EQ ||
+                    mp_cmp(&(a.e), &(b.e)) != MP_EQ) {
+                    ret = MP_CMP_E;
+                }
+                else
+                    ret = 1;
+            #endif
+            }
+        }
+        wc_FreeRsaKey(&b);
+        wc_FreeRsaKey(&a);
     }
+    else
     #endif /* NO_RSA */
 
     #ifdef HAVE_ECC
-    {
-        int ret = 0;
+    if (der->keyOID == ECDSAk) {
         word32  keyIdx = 0;
         ecc_key key_pair;
 
-        if (der->keyOID == ECDSAk) {
-            if ((ret = wc_ecc_init(&key_pair)) == 0 &&
-                wc_EccPrivateKeyDecode(key, &keyIdx, &key_pair, keySz) == 0) {
-                WOLFSSL_MSG("Checking ECC key pair");
-                keyIdx = 0;
-                if ((ret = wc_ecc_import_x963(der->publicKey, der->pubKeySize,
-                                                             &key_pair)) == 0) {
-                    /* public and private extracted successfuly no check if is
-                     * a pair and also do sanity checks on key. wc_ecc_check_key
-                     * checks that private * base generator equals pubkey */
-                    if ((ret = wc_ecc_check_key(&key_pair)) == 0) {
-                        /* found a match */
-                        wc_ecc_free(&key_pair);
-                        return 1;
-                    }
-
-                }
-            }
-            wc_ecc_free(&key_pair);
-        }
-
-        /* error on attempt to match */
-        if (ret != 0) {
+        if ((ret = wc_ecc_init(&key_pair)) < 0)
             return ret;
+        if ((ret = wc_EccPrivateKeyDecode(key, &keyIdx, &key_pair,
+                                                                 keySz)) == 0) {
+            WOLFSSL_MSG("Checking ECC key pair");
+            keyIdx = 0;
+            if ((ret = wc_ecc_import_x963(der->publicKey, der->pubKeySize,
+                                                             &key_pair)) == 0) {
+                /* public and private extracted successfuly no check if is
+                 * a pair and also do sanity checks on key. wc_ecc_check_key
+                 * checks that private * base generator equals pubkey */
+                if ((ret = wc_ecc_check_key(&key_pair)) == 0)
+                    ret = 1;
+            }
         }
+        wc_ecc_free(&key_pair);
     }
+    else
     #endif /* HAVE_ECC */
 
     #ifdef HAVE_ED25519
-    {
-        int ret = 0;
+    if (der->keyOID == ED25519k) {
         word32  keyIdx = 0;
         ed25519_key key_pair;
 
-        if (der->keyOID == ED25519k) {
-            if ((ret = wc_ed25519_init(&key_pair)) == 0 &&
-                wc_Ed25519PrivateKeyDecode(key, &keyIdx, &key_pair, keySz)
-                                                                         == 0) {
-                WOLFSSL_MSG("Checking ED25519 key pair");
-                keyIdx = 0;
-                if ((ret = wc_ed25519_import_public(der->publicKey,
-                                            der->pubKeySize, &key_pair)) == 0) {
-                    /* public and private extracted successfuly no check if is
-                     * a pair and also do sanity checks on key. wc_ecc_check_key
-                     * checks that private * base generator equals pubkey */
-                    if ((ret = wc_ed25519_check_key(&key_pair)) == 0) {
-                        /* found a match */
-                        wc_ed25519_free(&key_pair);
-                        return 1;
-                    }
-
-                }
-            }
-            wc_ed25519_free(&key_pair);
-        }
-
-        /* error on attempt to match */
-        if (ret != 0) {
+        if ((ret = wc_ed25519_init(&key_pair)) < 0)
             return ret;
+        if ((ret = wc_Ed25519PrivateKeyDecode(key, &keyIdx, &key_pair,
+                                                                 keySz)) == 0) {
+            WOLFSSL_MSG("Checking ED25519 key pair");
+            keyIdx = 0;
+            if ((ret = wc_ed25519_import_public(der->publicKey, der->pubKeySize,
+                                                             &key_pair)) == 0) {
+                /* public and private extracted successfuly no check if is
+                 * a pair and also do sanity checks on key. wc_ecc_check_key
+                 * checks that private * base generator equals pubkey */
+                if ((ret = wc_ed25519_check_key(&key_pair)) == 0)
+                    ret = 1;
+            }
         }
+        wc_ed25519_free(&key_pair);
     }
+    else
     #endif
+    {
+        ret = 0;
+    }
 
-    /* no match found */
-    return 0;
+    return ret;
 }
 
 #ifndef NO_PWDBASED
