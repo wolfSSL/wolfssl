@@ -2181,6 +2181,8 @@ struct WOLFSSL_CTX {
 #endif
 #ifdef OPENSSL_EXTRA
     unsigned long     mask;       /* store SSL_OP_ flags */
+    const unsigned char *alpn_cli_protos;/* ALPN client protocol list */
+    unsigned int         alpn_cli_protos_len;
 #endif
     CallbackIORecv CBIORecv;
     CallbackIOSend CBIOSend;

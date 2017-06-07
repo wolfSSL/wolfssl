@@ -543,6 +543,7 @@ WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl);
 
 WOLFSSL_API void wolfSSL_X509_free(WOLFSSL_X509*);
 WOLFSSL_API void wolfSSL_OPENSSL_free(void*);
+WOLFSSL_API void *wolfSSL_OPENSSL_malloc(size_t a);
 
 WOLFSSL_API int wolfSSL_OCSP_parse_url(char* url, char** host, char** port,
                                      char** path, int* ssl);
@@ -2291,6 +2292,10 @@ WOLFSSL_API int wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg);
 #ifdef OPENSSL_EXTRA
 WOLFSSL_API unsigned long wolfSSL_ERR_peek_error_line_data(const char **file,
     int *line, const char **data, int *flags);
+WOLFSSL_API int wolfSSL_CTX_set_alpn_protos(WOLFSSL_CTX *ctx,
+    const unsigned char *protos, unsigned int protos_len);
+WOLFSSL_API void *wolfSSL_OPENSSL_memdup(const void *data,
+    size_t siz, const char* file, int line);
 #endif
 
 #if defined WOLFSSL_NGINX || defined WOLFSSL_HAPROXY
