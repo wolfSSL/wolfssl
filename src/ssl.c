@@ -24983,16 +24983,14 @@ int wolfSSL_version(WOLFSSL* ssl)
     return WOLFSSL_FAILURE;
 }
 
-
-WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL* ssl)
+STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL* ssl)
 {
-    (void)ssl;
     WOLFSSL_ENTER("wolfSSL_get_peer_cert_chain");
-    WOLFSSL_STUB("wolfSSL_get_peer_cert_chain");
-
-    return NULL;
+    if (ssl == NULL)
+        return NULL;
+    else
+        return (STACK_OF(WOLFSSL_X509)* )&ssl->session.chain;
 }
-
 
 WOLFSSL_CTX* wolfSSL_get_SSL_CTX(WOLFSSL* ssl)
 {
@@ -26403,7 +26401,7 @@ int wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg)
 {
     WOLFSSL_ENTER("wolfSSL_set_msg_callback_arg");
     ssl->protoMsgCtx = arg;
-    return SSL_FAILURE;
+    return SSL_SUCCESS;
 }
 
 #endif
