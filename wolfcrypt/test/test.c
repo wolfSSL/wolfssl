@@ -307,7 +307,13 @@ int memcb_test(void);
 
 #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND) && \
         !defined(OPENSSL_EXTRA) && !defined(HAVE_STACK_SIZE)
-    int  wolfSSL_Debugging_ON(void);
+#ifdef __cplusplus
+    extern "C" {
+#endif
+    WOLFSSL_API int wolfSSL_Debugging_ON();
+#ifdef __cplusplus
+    }  /* extern "C" */
+#endif
 #endif
 
 /* General big buffer size for many tests. */

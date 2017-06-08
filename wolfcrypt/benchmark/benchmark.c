@@ -253,8 +253,14 @@ void bench_rng(void);
 
 #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND) && \
         !defined(HAVE_STACK_SIZE)
+#ifdef __cplusplus
+    extern "C" {
+#endif
     WOLFSSL_API int wolfSSL_Debugging_ON(void);
     WOLFSSL_API void wolfSSL_Debugging_OFF(void);
+#ifdef __cplusplus
+    }  /* extern "C" */
+#endif
 #endif
 
 #if !defined(NO_RSA) || !defined(NO_DH) \

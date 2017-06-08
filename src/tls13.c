@@ -784,9 +784,9 @@ static const byte appTrafficLabel[APP_TRAFFIC_LABEL_SZ + 1] =
 static int DeriveTrafficSecret(WOLFSSL* ssl, byte* secret)
 {
     WOLFSSL_MSG("Derive New Application Traffic Secret");
-    return DeriveKeyMsg(ssl, secret, -1, secret,
-                        appTrafficLabel, APP_TRAFFIC_LABEL_SZ,
-                        NULL, 0, ssl->specs.mac_algorithm);
+    return DeriveKey(ssl, secret, -1, secret,
+                     appTrafficLabel, APP_TRAFFIC_LABEL_SZ,
+                     ssl->specs.mac_algorithm, 0);
 }
 
 /* Derive the early secret using HKDF Extract.
@@ -2607,10 +2607,13 @@ static int DoTls13EncryptedExtensions(WOLFSSL* ssl, const byte* input,
 static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
                                      word32* inOutIdx, word32 size)
 {
-    word16 len;
-    word32 begin = *inOutIdx;
-    int    ret;
-    Suites peerSuites;
+    word16      len;
+    word32      begin = *inOutIdx;
+    int         ret;
+    Suites      peerSuites;
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+    CertReqCtx* certReqCtx;
+#endif
 
     WOLFSSL_ENTER("DoTls13CertificateRequest");
 
@@ -2629,14 +2632,21 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     if (ssl->options.connectState < FINISHED_DONE && len > 0)
         return BUFFER_ERROR;
 
-    /* Request context parsed here. */
-    /* TODO: [TLS13] Request context for post-handshake auth.
-     * Store the value and return it in Certificate message.
-     * Must be unique in the scope of the connection.
-     */
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+    certReqCtx = XMALLOC(sizeof(CertReqCtx) + len - 1, ssl->heap,
+                         DYNAMIC_TYPE_TMP_BUFFER);
+    if (certReqCtx == NULL)
+        return MEMORY_E;
+    certReqCtx->next = ssl->certReqCtx;
+    certReqCtx->len = len;
+    XMEMCPY(&certReqCtx->ctx, input + *inOutIdx, len);
+    ssl->certReqCtx = certReqCtx;
+#endif
     *inOutIdx += len;
 
-    /* TODO: [TLS13] Add extension handling. */
+    /* TODO: Add support for more extensions:
+     *   signed_certificate_timestamp, certificate_authorities, oid_filters.
+     */
     /* Certificate extensions */
     if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
         return BUFFER_ERROR;
@@ -2644,6 +2654,8 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     *inOutIdx += OPAQUE16_LEN;
     if ((*inOutIdx - begin) + len > size)
         return BUFFER_ERROR;
+    if (len == 0)
+        return INVALID_PARAMETER;
     if ((ret = TLSX_Parse(ssl, (byte *)(input + *inOutIdx), len,
                           certificate_request, &peerSuites)))
         return ret;
@@ -2651,10 +2663,24 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
 
     PickHashSigAlgo(ssl, peerSuites.hashSigAlgo, peerSuites.hashSigAlgoSz);
 
-    ssl->options.sendVerify = SEND_CERT;
+    if (ssl->buffers.certificate && ssl->buffers.certificate->buffer &&
+        ssl->buffers.key && ssl->buffers.key->buffer)
+        ssl->options.sendVerify = SEND_CERT;
+    else
+        ssl->options.sendVerify = SEND_BLANK_CERT;
 
     /* This message is always encrypted so add encryption padding. */
     *inOutIdx += ssl->keys.padSz;
+
+#if !defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+    if (ssl->options.side == WOLFSSL_CLIENT_END &&
+                                ssl->options.handShakeState == HANDSHAKE_DONE) {
+        /* reset handshake states */
+        ssl->options.clientState = CLIENT_HELLO_COMPLETE;
+        ssl->options.connectState  = FIRST_REPLY_DONE;
+        ssl->options.handShakeState = CLIENT_HELLO_COMPLETE;
+    }
+#endif
 
     return ret;
 }
@@ -2719,11 +2745,14 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     #ifdef HAVE_SESSION_TICKET
         /* Decode the identity. */
         if ((ret = DoClientTicket(ssl, current->identity, current->identityLen))                                                     == WOLFSSL_TICKET_RET_OK) {
-            /* Check the ticket isn't too old or new. */
-            int diff = TimeNowInMilliseconds() - ssl->session.ticketSeen;
+            word32 now = TimeNowInMilliseconds();
+            int diff = now - ssl->session.ticketSeen;
             diff -= current->ticketAge - ssl->session.ticketAdd;
-            /* TODO: [TLS13] What should the value be? Configurable? */
-            if (diff < -1000 || diff > 1000) {
+            /* Check session and ticket age timeout.
+             * Allow +/- 1000 milliseconds on ticket age.
+             */
+            if ((ssl->session.bornOn + ssl->session.timeout) * 1000 >= now ||
+                     diff < -1000 || diff - MAX_TICKET_AGE_SECS * 1000 > 1000) {
                 /* Invalid difference, fallback to full handshake. */
                 ssl->options.resuming = 0;
                 break;
@@ -3268,15 +3297,16 @@ int SendTls13EncryptedExtensions(WOLFSSL* ssl)
  * This message is always encrypted in TLS v1.3.
  * Only a server will send this message.
  *
- * ssl  The SSL/TLS object.
+ * ssl        SSL/TLS object.
+ * reqCtx     Request context.
+ * reqCtxLen  Length of context. 0 when sending as part of handshake.
  * returns 0 on success, otherwise failure.
  */
-int SendTls13CertificateRequest(WOLFSSL* ssl)
+int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx, int reqCtxLen)
 {
     byte*   output;
     int    ret;
     int    sendSz;
-    int    reqCtxLen = 0;
     word32 i;
     int    reqSz;
 
@@ -3305,10 +3335,11 @@ int SendTls13CertificateRequest(WOLFSSL* ssl)
     AddTls13Headers(output, reqSz, certificate_request, ssl);
 
     /* Certificate request context. */
-    /* TODO: [TLS13] Request context for post-handshake auth.
-     * Must be unique in the scope of the connection.
-     */
     output[i++] = reqCtxLen;
+    if (reqCtxLen != 0) {
+        XMEMCPY(output + i, reqCtx, reqCtxLen);
+        i += reqCtxLen;
+    }
 
     /* Certificate extensions. */
     i += TLSX_WriteResponse(ssl, output + i, certificate_request);
@@ -3801,12 +3832,17 @@ int SendTls13Certificate(WOLFSSL* ssl)
     word32 idx = 0;
     word32 offset = OPAQUE16_LEN;
     byte*  p = NULL;
+    byte   certReqCtxLen = 0;
+    byte*  certReqCtx = NULL;
 
     WOLFSSL_ENTER("SendTls13Certificate");
 
-    /* TODO: [TLS13] Request context for post-handshake auth.
-     * Taken from request if post-handshake.
-     */
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+    if (ssl->options.side == WOLFSSL_CLIENT_END && ssl->certReqCtx != NULL) {
+        certReqCtxLen = ssl->certReqCtx->len;
+        certReqCtx = &ssl->certReqCtx->ctx;
+    }
+#endif
 
     if (ssl->options.sendVerify == SEND_BLANK_CERT) {
         certSz = 0;
@@ -3822,8 +3858,9 @@ int SendTls13Certificate(WOLFSSL* ssl)
         }
         /* Certificate Data */
         certSz = ssl->buffers.certificate->length;
-        /* Cert Req Ctx Len | Cert List Len | Cert Data Len */
-        headerSz = OPAQUE8_LEN + CERT_HEADER_SZ + CERT_HEADER_SZ;
+        /* Cert Req Ctx Len | Cert Req Ctx | Cert List Len | Cert Data Len */
+        headerSz = OPAQUE8_LEN + certReqCtxLen + CERT_HEADER_SZ +
+                   CERT_HEADER_SZ;
         /* Length of message data with one certificate and empty extensions. */
         length = headerSz + certSz + OPAQUE16_LEN;
         /* Length of list data with one certificate and empty extensions. */
@@ -3892,9 +3929,13 @@ int SendTls13Certificate(WOLFSSL* ssl)
             AddTls13FragHeaders(output, fragSz, 0, payloadSz, certificate, ssl);
 
             /* Request context. */
-            output[i++] = 0;
-            length -= 1;
-            fragSz -= 1;
+            output[i++] = certReqCtxLen;
+            if (certReqCtxLen > 0) {
+                XMEMCPY(output + i, certReqCtx, certReqCtxLen);
+                i += certReqCtxLen;
+            }
+            length -= OPAQUE8_LEN + certReqCtxLen;
+            fragSz -= OPAQUE8_LEN + certReqCtxLen;
             /* Certificate list length. */
             c32to24(listSz, output + i);
             i += CERT_HEADER_SZ;
@@ -3977,6 +4018,14 @@ int SendTls13Certificate(WOLFSSL* ssl)
         if (ssl->options.side == WOLFSSL_SERVER_END)
             ssl->options.serverState = SERVER_CERT_COMPLETE;
     }
+
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+    if (ssl->options.side == WOLFSSL_CLIENT_END && ssl->certReqCtx != NULL) {
+        CertReqCtx* ctx = ssl->certReqCtx;
+        ssl->certReqCtx = ssl->certReqCtx->next;
+        XFREE(ctx, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+#endif
 
     return ret;
 }
@@ -4344,7 +4393,23 @@ exit_scv:
 static int DoTls13Certificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                               word32 totalSz)
 {
-    return ProcessPeerCerts(ssl, input, inOutIdx, totalSz);
+    int ret;
+
+    ret = ProcessPeerCerts(ssl, input, inOutIdx, totalSz);
+    if (ret != 0)
+        return ret;
+
+#if !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+    if (ssl->options.side == WOLFSSL_SERVER_END &&
+                                ssl->options.handShakeState == HANDSHAKE_DONE) {
+        /* reset handshake states */
+        ssl->options.serverState = SERVER_FINISHED_COMPLETE;
+        ssl->options.acceptState  = TICKET_SENT;
+        ssl->options.handShakeState = SERVER_FINISHED_COMPLETE;
+    }
+#endif
+
+    return 0;
 }
 
 #if !defined(NO_RSA) || defined(HAVE_ECC)
@@ -4679,6 +4744,8 @@ static int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     byte*  secret;
     byte   mac[MAX_DIGEST_SIZE];
 
+    WOLFSSL_ENTER("DoTls13Finished");
+
     /* check against totalSz */
     if (*inOutIdx + size + ssl->keys.padSz > totalSz)
         return BUFFER_E;
@@ -4724,28 +4791,26 @@ static int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     /* Force input exhaustion at ProcessReply by consuming padSz. */
     *inOutIdx += size + ssl->keys.padSz;
 
-    if (ssl->options.side == WOLFSSL_SERVER_END) {
+    if (ssl->options.side == WOLFSSL_SERVER_END &&
+                                                  !ssl->options.handShakeDone) {
         /* Setup keys for application data messages from client. */
         if ((ret = SetKeysSide(ssl, DECRYPT_SIDE_ONLY)) != 0)
             return ret;
     }
 
-#ifndef NO_WOLFSSL_SERVER
-    if (ssl->options.side == WOLFSSL_CLIENT_END) {
-        ssl->options.serverState = SERVER_FINISHED_COMPLETE;
-        if (!ssl->options.resuming) {
-            ssl->options.handShakeState = HANDSHAKE_DONE;
-            ssl->options.handShakeDone  = 1;
-        }
-    }
-#endif
 #ifndef NO_WOLFSSL_CLIENT
+    if (ssl->options.side == WOLFSSL_CLIENT_END)
+        ssl->options.serverState = SERVER_FINISHED_COMPLETE;
+#endif
+#ifndef NO_WOLFSSL_SERVER
     if (ssl->options.side == WOLFSSL_SERVER_END) {
         ssl->options.clientState = CLIENT_FINISHED_COMPLETE;
         ssl->options.handShakeState = HANDSHAKE_DONE;
         ssl->options.handShakeDone  = 1;
     }
 #endif
+
+    WOLFSSL_LEAVE("DoTls13Finished", 0);
 
     return 0;
 }
@@ -4766,6 +4831,8 @@ int SendTls13Finished(WOLFSSL* ssl)
     int   headerSz = HANDSHAKE_HEADER_SZ;
     int   outputSz;
     byte* secret;
+
+    WOLFSSL_ENTER("SendTls13Finished");
 
     outputSz = MAX_DIGEST_SIZE + DTLS_HANDSHAKE_HEADER_SZ + MAX_MSG_EXTRA;
     /* Check buffers are big enough and grow if needed. */
@@ -4813,12 +4880,6 @@ int SendTls13Finished(WOLFSSL* ssl)
         AddSession(ssl);    /* just try */
 #endif
     }
-    else {
-        if (ssl->options.side == WOLFSSL_CLIENT_END) {
-            ssl->options.handShakeState = HANDSHAKE_DONE;
-            ssl->options.handShakeDone  = 1;
-        }
-    }
 
     #ifdef WOLFSSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName("Finished", &ssl->handShakeInfo);
@@ -4844,7 +4905,8 @@ int SendTls13Finished(WOLFSSL* ssl)
             return ret;
     }
 
-    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+    if (ssl->options.side == WOLFSSL_CLIENT_END &&
+                                                  !ssl->options.handShakeDone) {
         /* Setup keys for application data messages. */
         if ((ret = SetKeysSide(ssl, ENCRYPT_AND_DECRYPT_SIDE)) != 0)
             return ret;
@@ -4853,6 +4915,23 @@ int SendTls13Finished(WOLFSSL* ssl)
         ret = DeriveResumptionSecret(ssl, ssl->session.masterSecret);
 #endif
     }
+
+    if (ssl->options.resuming) {
+        if (ssl->options.side == WOLFSSL_CLIENT_END) {
+            ssl->options.handShakeState = HANDSHAKE_DONE;
+            ssl->options.handShakeDone  = 1;
+        }
+    }
+#ifndef NO_WOLFSSL_CLIENT
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+        if (!ssl->options.resuming) {
+            ssl->options.handShakeState = HANDSHAKE_DONE;
+            ssl->options.handShakeDone  = 1;
+        }
+    }
+#endif
+
+    WOLFSSL_LEAVE("SendTls13Finished", ret);
 
     return ret;
 }
@@ -4871,6 +4950,8 @@ static int SendTls13KeyUpdate(WOLFSSL* ssl)
     int    headerSz = HANDSHAKE_HEADER_SZ;
     int    outputSz;
     word32 i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+
+    WOLFSSL_ENTER("SendTls13KeyUpdate");
 
     outputSz = OPAQUE8_LEN + MAX_MSG_EXTRA;
     /* Check buffers are big enough and grow if needed. */
@@ -4920,6 +5001,8 @@ static int SendTls13KeyUpdate(WOLFSSL* ssl)
     if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
         return ret;
 
+    WOLFSSL_LEAVE("SendTls13KeyUpdate", ret);
+
     return ret;
 }
 
@@ -4937,6 +5020,8 @@ static int DoTls13KeyUpdate(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 {
     int    ret;
     word32 i = *inOutIdx;
+
+    WOLFSSL_ENTER("DoTls13KeyUpdate");
 
     /* check against totalSz */
     if (OPAQUE8_LEN != totalSz)
@@ -4970,6 +5055,9 @@ static int DoTls13KeyUpdate(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     if (ssl->keys.keyUpdateRespond)
         return SendTls13KeyUpdate(ssl);
+
+    WOLFSSL_LEAVE("DoTls13KeyUpdate", ret);
+
     return 0;
 }
 
@@ -5244,6 +5332,11 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
 
 #ifndef NO_WOLFSSL_CLIENT
         case certificate_request:
+    #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+            if (ssl->msgsReceived.got_finished)
+                ;
+            else
+    #endif
             if (ssl->msgsReceived.got_certificate_request) {
                 WOLFSSL_MSG("Duplicate CertificateRequest received");
                 return DUPLICATE_MSG_E;
@@ -5267,6 +5360,11 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
             break;
 
         case finished:
+    #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+            if (1) {
+            }
+            else
+    #endif
             if (ssl->msgsReceived.got_finished) {
                 WOLFSSL_MSG("Duplicate Finished received");
                 return DUPLICATE_MSG_E;
@@ -5331,7 +5429,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     if (ssl->options.handShakeState == HANDSHAKE_DONE &&
             type != session_ticket && type != certificate_request &&
-            type != key_update) {
+            type != certificate && type != key_update) {
         WOLFSSL_MSG("HandShake message after handshake complete");
         SendAlert(ssl, alert_fatal, unexpected_message);
         return OUT_OF_ORDER_E;
@@ -5766,7 +5864,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             }
 #endif /* NO_HANDSHAKE_DONE_CB */
 
-            WOLFSSL_LEAVE("SSL_connect()", SSL_SUCCESS);
+            WOLFSSL_LEAVE("wolfSSL_connect_TLSv13()", SSL_SUCCESS);
             return SSL_SUCCESS;
 
         default:
@@ -5906,6 +6004,84 @@ int wolfSSL_update_keys(WOLFSSL* ssl)
     return ret;
 }
 
+#if !defined(NO_CERTS) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+/* Allow post-handshake authentication in TLS v1.3 connections.
+ *
+ * ctx  The SSL/TLS CTX object.
+ * returns BAD_FUNC_ARG when ctx is NULL, SIDE_ERROR when not a server and
+ * 0 on success.
+ */
+int wolfSSL_CTX_allow_post_handshake_auth(WOLFSSL_CTX* ctx)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+    if (ctx->method->side == WOLFSSL_SERVER_END)
+        return SIDE_ERROR;
+
+    ctx->postHandshakeAuth = 1;
+
+    return 0;
+}
+
+/* Allow post-handshake authentication in TLS v1.3 connection.
+ *
+ * ssl  The SSL/TLS object.
+ * returns BAD_FUNC_ARG when ssl is NULL, or not using TLS v1.3,
+ * SIDE_ERROR when not a server and 0 on success.
+ */
+int wolfSSL_allow_post_handshake_auth(WOLFSSL* ssl)
+{
+    if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
+        return BAD_FUNC_ARG;
+        return BAD_FUNC_ARG;
+    if (ssl->options.side == WOLFSSL_SERVER_END)
+        return SIDE_ERROR;
+
+    ssl->options.postHandshakeAuth = 1;
+
+    return 0;
+}
+
+/* Request a certificate of the client.
+ * Can be called any time after handshake completion.
+ * A maximum of 256 requests can be sent on a connection.
+ *
+ * ssl  SSL/TLS object.
+ */
+int wolfSSL_request_certificate(WOLFSSL* ssl)
+{
+    int         ret;
+    CertReqCtx* certReqCtx;
+
+    if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version))
+        return BAD_FUNC_ARG;
+    if (ssl->options.side == WOLFSSL_CLIENT_END)
+        return SIDE_ERROR;
+    if (ssl->options.handShakeState != HANDSHAKE_DONE)
+        return NOT_READY_ERROR;
+    if (!ssl->options.postHandshakeAuth)
+        return POST_HAND_AUTH_ERROR;
+
+    certReqCtx = XMALLOC(sizeof(CertReqCtx), ssl->heap,
+                         DYNAMIC_TYPE_TMP_BUFFER);
+    if (certReqCtx == NULL)
+        return MEMORY_E;
+    XMEMSET(certReqCtx, 0, sizeof(CertReqCtx));
+    certReqCtx->next = ssl->certReqCtx;
+    certReqCtx->len = 1;
+    if (certReqCtx->next != NULL)
+        certReqCtx->ctx = certReqCtx->next->ctx + 1;
+    ssl->certReqCtx = certReqCtx;
+
+    ret = SendTls13CertificateRequest(ssl, &certReqCtx->ctx, certReqCtx->len);
+    if (ret == WANT_WRITE)
+        ret = SSL_ERROR_WANT_WRITE;
+    else if (ret == 0)
+        ret = SSL_SUCCESS;
+    return ret;
+}
+#endif /* !NO_CERTS && WOLFSSL_POST_HANDSHAKE_AUTH */
+
 /* The server accepting a connection from a client.
  * The protocol version is expecting to be TLS v1.3.
  * If the client downgrades, and older versions of the protocol are compiled
@@ -6042,7 +6218,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 #ifndef NO_CERTS
             if (!ssl->options.resuming) {
                 if (ssl->options.verifyPeer) {
-                    ssl->error = SendTls13CertificateRequest(ssl);
+                    ssl->error = SendTls13CertificateRequest(ssl, NULL, 0);
                     if (ssl->error != 0) {
                         WOLFSSL_ERROR(ssl->error);
                         return SSL_FATAL_ERROR;

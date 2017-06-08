@@ -1121,6 +1121,7 @@ enum Misc {
     MAX_PSK_KEY_LEN    =  64,  /* max psk key supported */
     MIN_PSK_ID_LEN     =   6,  /* min length of identities */
     MIN_PSK_BINDERS_LEN=  33,  /* min length of binders */
+    MAX_TICKET_AGE_SECS=  10,  /* maximum ticket age in seconds */
 
     MAX_WOLFSSL_FILE_SIZE = 1024 * 1024 * 4,  /* 4 mb file size alloc limit */
 
@@ -1787,6 +1788,9 @@ typedef enum {
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     TLSX_PSK_KEY_EXCHANGE_MODES     = 0x002d,
     #endif
+    #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+    TLSX_POST_HANDSHAKE_AUTH        = 0x0031,
+    #endif
 #endif
     TLSX_RENEGOTIATION_INFO         = 0xff01
 } TLSX_Type;
@@ -2178,6 +2182,9 @@ struct WOLFSSL_CTX {
 #ifdef WOLFSSL_TLS13
     byte        noTicketTls13;    /* Server won't create new Ticket */
     byte        noPskDheKe;       /* Don't use (EC)DHE with PSK */
+#endif
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+    byte        postHandshakeAuth;/* Post-handshake authentication supported. */
 #endif
 #if defined(WOLFSSL_SCTP) && defined(WOLFSSL_DTLS)
     byte        dtlsSctp;         /* DTLS-over-SCTP mode */
@@ -2771,6 +2778,10 @@ typedef struct Options {
 #endif
     word16            keepResources:1;    /* Keep resources after handshake */
     word16            useClientOrder:1;   /* Use client's cipher order */
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+    word16            postHandshakeAuth:1;/* Client send post_handshake_auth
+                                           * extendion. */
+#endif
 
     /* need full byte values for this section */
     byte            processReply;           /* nonblocking resume */
@@ -3069,6 +3080,15 @@ typedef struct HS_Hashes {
     WOLFSSL_LOCAL int  NotifyWriteSide(WOLFSSL* ssl, int err);
 #endif /* HAVE_WRITE_DUP */
 
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+typedef struct CertReqCtx CertReqCtx;
+
+struct CertReqCtx {
+    CertReqCtx* next;
+    byte        len;
+    byte        ctx;
+};
+#endif
 
 /* wolfSSL ssl type */
 struct WOLFSSL {
@@ -3208,8 +3228,8 @@ struct WOLFSSL {
     CallbackFuzzer  fuzzerCb;           /* for testing with using fuzzer */
     void*           fuzzerCtx;          /* user defined pointer */
 #endif
-#ifdef WOLFSSL_TLS13
-    buffer          clientCertCtx;      /* Certificate context in request */
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+    CertReqCtx*     certReqCtx;
 #endif
 #ifdef KEEP_PEER_CERT
     WOLFSSL_X509     peerCert;           /* X509 peer cert */
@@ -3452,7 +3472,8 @@ WOLFSSL_LOCAL int SendTls13Certificate(WOLFSSL*);
 #endif
 WOLFSSL_LOCAL int SendCertificateRequest(WOLFSSL*);
 #ifdef WOLFSSL_TLS13
-WOLFSSL_LOCAL int SendTls13CertificateRequest(WOLFSSL*);
+WOLFSSL_LOCAL int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
+                                              int reqCtxLen);
 #endif
 WOLFSSL_LOCAL int SendCertificateStatus(WOLFSSL*);
 WOLFSSL_LOCAL int SendServerKeyExchange(WOLFSSL*);

@@ -4131,10 +4131,13 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->options.useClientOrder = ctx->useClientOrder;
 
 #ifdef WOLFSSL_TLS13
-#ifdef HAVE_SESSION_TICKET
-    ssl->options.noTicketTls13 = ctx->noTicketTls13;
-#endif
+    #ifdef HAVE_SESSION_TICKET
+        ssl->options.noTicketTls13 = ctx->noTicketTls13;
+    #endif
     ssl->options.noPskDheKe = ctx->noPskDheKe;
+    #if defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+        ssl->options.postHandshakeAuth = ctx->postHandshakeAuth;
+    #endif
 #endif
 
 #ifdef HAVE_TLS_EXTENSIONS
@@ -4625,6 +4628,14 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #ifdef HAVE_WRITE_DUP
     if (ssl->dupWrite) {
         FreeWriteDup(ssl);
+    }
+#endif
+
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+    while (ssl->certReqCtx != NULL) {
+        CertReqCtx* curr = ssl->certReqCtx;
+        ssl->certReqCtx = curr->next;
+        XFREE(curr, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif
 
@@ -7533,12 +7544,34 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 totalSz
                 }
             #endif
             #ifndef NO_WOLFSSL_SERVER
-                /* Must contain value sent in request when received from client. */
+                /* Must contain value sent in request. */
                 if (ssl->options.side == WOLFSSL_SERVER_END) {
-                    if (ssl->clientCertCtx.length != ctxSz ||
-                        XMEMCMP(ssl->clientCertCtx.buffer,
-                            input + args->idx, ctxSz) != 0) {
+                    if (ssl->options.handShakeState != HANDSHAKE_DONE &&
+                                                                   ctxSz != 0) {
                         return INVALID_CERT_CTX_E;
+                    }
+                    else if (ssl->options.handShakeState == HANDSHAKE_DONE) {
+                #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+                         CertReqCtx* curr = ssl->certReqCtx;
+                         CertReqCtx* prev = NULL;
+                         while (curr != NULL) {
+                             if ((ctxSz == curr->len) &&
+                                 XMEMCMP(&curr->ctx, input + args->idx, ctxSz)
+                                                                         == 0) {
+                                     if (prev != NULL)
+                                         prev->next = curr->next;
+                                     else
+                                         ssl->certReqCtx = curr->next;
+                                     XFREE(curr, ssl->heap,
+                                           DYNAMIC_TYPE_TMP_BUFFER);
+                                     break;
+                             }
+                             prev = curr;
+                             curr = curr->next;
+                        }
+                        if (curr == NULL)
+                #endif
+                            return INVALID_CERT_CTX_E;
                     }
                 }
             #endif
@@ -13835,6 +13868,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case KEY_SHARE_ERROR:
         return "Key share extension did not contain a valid named group";
+
+    case POST_HAND_AUTH_ERROR:
+        return "Client will not do post handshake authentication";
 
     default :
         return "unknown error number";

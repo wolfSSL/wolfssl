@@ -846,13 +846,25 @@ int wolfSSL_negotiate(WOLFSSL* ssl)
 
     WOLFSSL_ENTER("wolfSSL_negotiate");
 #ifndef NO_WOLFSSL_SERVER
-    if (ssl->options.side == WOLFSSL_SERVER_END)
-        err = wolfSSL_accept(ssl);
+    if (ssl->options.side == WOLFSSL_SERVER_END) {
+#ifdef WOLFSSL_TLS13
+        if (IsAtLeastTLSv1_3(ssl->version))
+            err = wolfSSL_accept_TLSv13(ssl);
+        else
+#endif
+            err = wolfSSL_accept(ssl);
+    }
 #endif
 
 #ifndef NO_WOLFSSL_CLIENT
-    if (ssl->options.side == WOLFSSL_CLIENT_END)
-        err = wolfSSL_connect(ssl);
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+#ifdef WOLFSSL_TLS13
+        if (IsAtLeastTLSv1_3(ssl->version))
+            err = wolfSSL_connect_TLSv13(ssl);
+        else
+#endif
+            err = wolfSSL_connect(ssl);
+    }
 #endif
 
     WOLFSSL_LEAVE("wolfSSL_negotiate", err);
