@@ -11949,6 +11949,15 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return ret;
     }
 
+    int wolfSSL_BIO_puts(WOLFSSL_BIO* bio, const char* data)
+    {
+        WOLFSSL_ENTER("BIO_puts");
+        int length;
+
+        for(length=0; data[length] !='\0'; length += 1);
+
+        return wolfSSL_BIO_write(bio, data,length);
+    }
 
     WOLFSSL_BIO* wolfSSL_BIO_push(WOLFSSL_BIO* top, WOLFSSL_BIO* append)
     {

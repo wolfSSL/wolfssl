@@ -239,6 +239,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define BIO_nwrite0  wolfSSL_BIO_nwrite0
 #define BIO_nwrite   wolfSSL_BIO_nwrite
 #define BIO_write    wolfSSL_BIO_write
+#define BIO_puts     wolfSSL_BIO_puts
 #define BIO_push     wolfSSL_BIO_push
 #define BIO_pop      wolfSSL_BIO_pop
 #define BIO_flush    wolfSSL_BIO_flush

@@ -10594,6 +10594,35 @@ static void test_wolfSSL_BIO(void)
     #endif
 }
 
+static void test_wolfSSL_BIO_puts(void)
+{
+    #if defined(OPENSSL_EXTRA)
+    char buffer[20];
+    BIO* bio1;
+    BIO* bio2;
+
+    printf(testingFmt, "wolfSSL_BIO_puts()");
+
+    /* Creating and testing type BIO_s_bio */
+    AssertNotNull(bio1 = BIO_new(BIO_s_bio()));
+    AssertNotNull(bio2 = BIO_new(BIO_s_bio()));
+
+    AssertIntEQ(BIO_set_write_buf_size(bio1, 20), SSL_SUCCESS);
+    AssertIntEQ(BIO_set_write_buf_size(bio2, 8),  SSL_SUCCESS);
+    AssertIntEQ(BIO_make_bio_pair(bio1, bio2),    SSL_SUCCESS);
+
+    buffer[0]='a';buffer[1]='b';buffer[2]='c';buffer[3]='\0';
+    AssertIntEQ(BIO_puts(bio1, buffer), 3);
+
+    buffer[0]='\0';
+    AssertIntEQ(BIO_puts(bio1, buffer), SSL_FAILURE);
+
+    BIO_free(bio1);
+    BIO_free(bio2);
+
+    #endif /*OPENSSL_EXTRA*/
+}
+
 static void test_wolfSSL_DES_ecb_encrypt(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_DES3) && defined(WOLFSSL_DES_ECB)
@@ -11301,6 +11330,7 @@ void ApiTest(void)
     test_wolfSSL_set_options();
     test_wolfSSL_PEM_read_bio();
     test_wolfSSL_BIO();
+    test_wolfSSL_BIO_puts();
     test_wolfSSL_DES_ecb_encrypt();
     test_wolfSSL_set_tlsext_status_type();
     test_wolfSSL_ASN1_TIME_adj();
