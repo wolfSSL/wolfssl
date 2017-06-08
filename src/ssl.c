@@ -1439,6 +1439,27 @@ int wolfSSL_CTX_UseAsync(WOLFSSL_CTX* ctx, int devId)
 
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
+/* helpers to get device id and heap */
+int wolfSSL_CTX_GetDevId(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
+{
+    int devId = INVALID_DEVID;
+    if (ctx != NULL)
+        devId = ctx->devId;
+    else if (ssl != NULL)
+        devId = ssl->devId;
+    return devId;
+}
+void* wolfSSL_CTX_GetHeap(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
+{
+    void* heap = NULL;
+    if (ctx != NULL)
+        heap = ctx->heap;
+    else if (ssl != NULL)
+        heap = ssl->heap;
+    return heap;
+}
+
+
 #ifdef HAVE_SNI
 
 int wolfSSL_UseSNI(WOLFSSL* ssl, byte type, const void* data, word16 size)
@@ -4260,7 +4281,7 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
                          long* used, EncryptedInfo* info)
 {
     int ret = 0;
-    void* heap = ctx ? ctx->heap : ((ssl) ? ssl->heap : NULL);
+    void* heap = wolfSSL_CTX_GetHeap(ctx, ssl);
 #ifdef WOLFSSL_TLS13
     int cnt = 0;
 #endif
@@ -4401,8 +4422,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     int           ed25519Key = 0;
     int           rsaKey = 0;
     int           resetSuites = 0;
-    void*         heap = ctx ? ctx->heap : ((ssl) ? ssl->heap : NULL);
-    int           devId = ctx ? ctx->devId : ((ssl) ? ssl->devId : INVALID_DEVID);
+    void*         heap = wolfSSL_CTX_GetHeap(ctx, ssl);
+    int           devId = wolfSSL_CTX_GetDevId(ctx, ssl);
 #ifdef WOLFSSL_SMALL_STACK
     EncryptedInfo* info = NULL;
 #else
@@ -4965,7 +4986,7 @@ static int ProcessChainBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                          NULL) == 0) {
                 WOLFSSL_MSG("   Proccessed a CRL");
                 wolfSSL_CertManagerLoadCRLBuffer(ctx->cm, der->buffer,
-                                              der->length,SSL_FILETYPE_ASN1);
+                                                der->length, SSL_FILETYPE_ASN1);
                 FreeDer(&der);
                 used += info.consumed;
                 continue;
@@ -5525,7 +5546,7 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
     int    ret;
     long   sz = 0;
     XFILE  file;
-    void*  heapHint = ctx ? ctx->heap : ((ssl) ? ssl->heap : NULL);
+    void*  heapHint = wolfSSL_CTX_GetHeap(ctx, ssl);
 
     (void)crl;
     (void)heapHint;
@@ -8199,6 +8220,11 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             return SSL_FATAL_ERROR;
         }
 
+        #ifdef WOLFSSL_TLS13
+            if (ssl->options.tls1_3)
+                return wolfSSL_connect_TLSv13(ssl);
+        #endif
+
         #ifdef WOLFSSL_DTLS
             if (ssl->version.major == DTLS_MAJOR) {
                 ssl->options.dtls   = 1;
@@ -8274,10 +8300,10 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             if (ssl->options.certOnly)
                 return SSL_SUCCESS;
 
-#ifdef WOLFSSL_TLS13
+        #ifdef WOLFSSL_TLS13
             if (ssl->options.tls1_3)
                 return wolfSSL_connect_TLSv13(ssl);
-#endif
+        #endif
 
             #ifdef WOLFSSL_DTLS
                 if (IsDtlsNotSctpMode(ssl)) {
@@ -8322,6 +8348,10 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             FALL_THROUGH;
 
         case FIRST_REPLY_DONE :
+            #ifdef WOLFSSL_TLS13
+                if (ssl->options.tls1_3)
+                    return wolfSSL_connect_TLSv13(ssl);
+            #endif
             #ifndef NO_CERTS
                 if (ssl->options.sendVerify) {
                     if ( (ssl->error = SendCertificate(ssl)) != 0) {
@@ -8337,6 +8367,10 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             FALL_THROUGH;
 
         case FIRST_REPLY_FIRST :
+        #ifdef WOLFSSL_TLS13
+            if (ssl->options.tls1_3)
+                return wolfSSL_connect_TLSv13(ssl);
+        #endif
             if (!ssl->options.resuming) {
                 if ( (ssl->error = SendClientKeyExchange(ssl)) != 0) {
                     WOLFSSL_ERROR(ssl->error);
@@ -8620,11 +8654,11 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             FALL_THROUGH;
 
         case ACCEPT_FIRST_REPLY_DONE :
-#ifdef WOLFSSL_TLS13
+        #ifdef WOLFSSL_TLS13
             if (ssl->options.tls1_3) {
                 return wolfSSL_accept_TLSv13(ssl);
             }
-#endif
+        #endif
             if ( (ssl->error = SendServerHello(ssl)) != 0) {
                 WOLFSSL_ERROR(ssl->error);
                 return SSL_FATAL_ERROR;
@@ -8634,6 +8668,11 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             FALL_THROUGH;
 
         case SERVER_HELLO_SENT :
+        #ifdef WOLFSSL_TLS13
+            if (ssl->options.tls1_3) {
+                return wolfSSL_accept_TLSv13(ssl);
+            }
+        #endif
             #ifndef NO_CERTS
                 if (!ssl->options.resuming)
                     if ( (ssl->error = SendCertificate(ssl)) != 0) {
@@ -8658,6 +8697,11 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             FALL_THROUGH;
 
         case CERT_STATUS_SENT :
+        #ifdef WOLFSSL_TLS13
+            if (ssl->options.tls1_3) {
+                return wolfSSL_accept_TLSv13(ssl);
+            }
+        #endif
             if (!ssl->options.resuming)
                 if ( (ssl->error = SendServerKeyExchange(ssl)) != 0) {
                     WOLFSSL_ERROR(ssl->error);

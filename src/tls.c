@@ -4775,7 +4775,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
                 kse->key = key;
 
 #ifdef WOLFSSL_DEBUG_TLS
-                WOLFSSL_MSG("Public ECC Key");
+                WOLFSSL_MSG("Public Curve25519 Key");
                 WOLFSSL_BUFFER(keyData, dataSize);
 #endif
 
@@ -5130,7 +5130,7 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
                 if (ret != 0)
                     return ret;
 #ifdef WOLFSSL_DEBUG_TLS
-                WOLFSSL_MSG("Peer ECC Key");
+                WOLFSSL_MSG("Peer Curve25519 Key");
                 WOLFSSL_BUFFER(keyShareEntry->ke, keyShareEntry->keLen);
 #endif
 

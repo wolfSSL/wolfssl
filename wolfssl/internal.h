@@ -2672,6 +2672,22 @@ enum asyncState {
     TLS_ASYNC_END
 };
 
+/* sub-states for build message */
+enum buildMsgState {
+    BUILD_MSG_BEGIN = 0,
+    BUILD_MSG_SIZE,
+    BUILD_MSG_HASH,
+    BUILD_MSG_VERIFY_MAC,
+    BUILD_MSG_ENCRYPT,
+};
+
+/* sub-states for cipher operations */
+enum cipherState {
+    CIPHER_STATE_BEGIN = 0,
+    CIPHER_STATE_DO,
+    CIPHER_STATE_END,
+};
+
 typedef struct Options {
 #ifndef NO_PSK
     wc_psk_client_callback client_psk_cb;
@@ -3468,9 +3484,12 @@ WOLFSSL_LOCAL void ShrinkOutputBuffer(WOLFSSL* ssl);
 WOLFSSL_LOCAL int VerifyClientSuite(WOLFSSL* ssl);
 #ifndef NO_CERTS
     #ifndef NO_RSA
-        WOLFSSL_LOCAL int CheckRsaPssPadding(const byte* plain, word32 plainSz,
-                                             byte* out, word32 sigSz,
-                                             enum wc_HashType hashType);
+        #ifdef WC_RSA_PSS
+            WOLFSSL_LOCAL int CheckRsaPssPadding(const byte* plain, word32 plainSz,
+                                                 byte* out, word32 sigSz,
+                                                 enum wc_HashType hashType);
+            WOLFSSL_LOCAL int ConvertHashPss(int hashAlgo, enum wc_HashType* hashType, int* mgf);
+        #endif
         WOLFSSL_LOCAL int VerifyRsaSign(WOLFSSL* ssl,
                                         byte* verifySig, word32 sigSz,
                                         const byte* plain, word32 plainSz,
@@ -3637,7 +3656,7 @@ WOLFSSL_LOCAL int BuildMessage(WOLFSSL* ssl, byte* output, int outSz,
 
 #ifdef WOLFSSL_TLS13
 int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
-                      int inSz, int type, int hashOutput, int sizeOnly);
+               int inSz, int type, int hashOutput, int sizeOnly, int asyncOkay);
 #endif
 
 WOLFSSL_LOCAL int AllocKey(WOLFSSL* ssl, int type, void** pKey);
