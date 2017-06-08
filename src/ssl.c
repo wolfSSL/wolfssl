@@ -4862,7 +4862,7 @@ static int ProcessChainBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                          NULL) == 0) {
                 WOLFSSL_MSG("   Proccessed a CRL");
                 wolfSSL_CertManagerLoadCRLBuffer(ctx->cm, der->buffer,
-                                              der->length,SSL_FILETYPE_ASN1, 0);
+                                              der->length,SSL_FILETYPE_ASN1);
                 FreeDer(&der);
                 used += info.consumed;
                 continue;
