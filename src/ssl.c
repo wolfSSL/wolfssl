@@ -16836,18 +16836,21 @@ long wolfSSL_ASN1_INTEGER_get(const WOLFSSL_ASN1_INTEGER* i)
   int e;
   signed_word64 r;
 
-  if (i == NULL)
-      WOLFSSL_MSG("input parameter is NULL")
+  if (i == NULL){
+      WOLFSSL_MSG("input parameter is NULL");
       return 0;
+  }
 
   e = wolfSSL_ASN1_INTEGER_get_int64(&r, i);
 
-  if (e == 0)
+  if (e == 0){
       return -1;
+  }
 
-  if (r > LONG_MAX || r < LONG_MIN)
-      WOLFSSL_MSG("result is larger than LONG_MAX or smaller than LONG_MIN")
+  if (r > LONG_MAX || r < LONG_MIN){
+      WOLFSSL_MSG("result is larger than LONG_MAX or smaller than LONG_MIN");
       return -1;
+  }
 
   return (long)r;
 }
@@ -16864,7 +16867,7 @@ int wolfSSL_ASN1_INTEGER_get_int64(signed_word64 *p, const WOLFSSL_ASN1_INTEGER 
   int itr;
 
   if (i == NULL) {
-      WOLFSSL_MSG("input parameter is NULL")
+      WOLFSSL_MSG("input parameter is NULL");
       return 0;
   }
 
@@ -16878,13 +16881,13 @@ int wolfSSL_ASN1_INTEGER_get_int64(signed_word64 *p, const WOLFSSL_ASN1_INTEGER 
 
   /* ASN1 length check */
   if (data_length > (signed)sizeof(*r)) {
-      WOLFSSL_MSG("too large data length")
+      WOLFSSL_MSG("too large data length");
       return 0;
   }
 
   /* data check */
   if (data_length == 0){
-      WOLFSSL_MSG("no data")
+      WOLFSSL_MSG("no data");
       return 0;
   }
 
