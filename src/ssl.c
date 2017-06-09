@@ -12968,6 +12968,10 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         const unsigned char macType;
         const char *name;
     } md_tbl[] = {
+    #ifndef NO_MD4
+         {MD4, "MD4"},
+    #endif /* NO_MD4 */
+    
     #ifndef NO_MD5
         {WC_MD5, "MD5"},
     #endif /* NO_MD5 */
