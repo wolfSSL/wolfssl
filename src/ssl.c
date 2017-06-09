@@ -16859,12 +16859,14 @@ int wolfSSL_ASN1_INTEGER_get_int64(signed_word64 *p, const WOLFSSL_ASN1_INTEGER 
 {
 
   WOLFSSL_ASN1_STRING *s;
-  s = (WOLFSSL_ASN1_STRING *)i;
-
-  int data_length = (*s).length;
-  int negative = (*s).type & WOLFSSL_V_ASN1_NEG;
+  int data_length;
+  int negative;
   word64 *r;
   int itr;
+
+  s = (WOLFSSL_ASN1_STRING *)i;
+  data_length = (*s).length;
+  negative = (*s).type & WOLFSSL_V_ASN1_NEG;
 
   if (i == NULL) {
       WOLFSSL_MSG("input parameter is NULL");
@@ -16873,7 +16875,7 @@ int wolfSSL_ASN1_INTEGER_get_int64(signed_word64 *p, const WOLFSSL_ASN1_INTEGER 
 
   /* INTGER_TYPE check */
   if (((*s).type & ~WOLFSSL_V_ASN1_NEG) != WOLFSSL_V_ASN1_INTEGER) {
-      WOLFSSL_MSG("bad interger type")
+      WOLFSSL_MSG("bad interger type");
       return 0;
   }
 
