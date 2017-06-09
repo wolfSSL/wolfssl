@@ -128,7 +128,9 @@
 #endif
 
 #ifdef OPENSSL_EXTRA
+  #ifndef WOLFCRYPT_ONLY
     #include <wolfssl/openssl/evp.h>
+  #endif
     #include <wolfssl/openssl/rand.h>
     #include <wolfssl/openssl/hmac.h>
     #include <wolfssl/openssl/aes.h>
@@ -249,7 +251,9 @@ int  random_test(void);
 #endif /* WC_NO_RNG */
 int  pwdbased_test(void);
 int  ripemd_test(void);
-int  openssl_test(void);   /* test mini api */
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
+    int  openssl_test(void);   /* test mini api */
+#endif
 int pbkdf1_test(void);
 int pkcs12_test(void);
 int pbkdf2_test(void);
@@ -751,7 +755,7 @@ int wolfcrypt_test(void* args)
         printf( "PWDBASED test passed!\n");
 #endif
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
     if ( (ret = openssl_test()) != 0)
         return err_sys("OPENSSL  test failed!\n", ret);
     else
@@ -8430,7 +8434,7 @@ int srp_test(void)
 
 #endif /* WOLFCRYPT_HAVE_SRP */
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
 
 int openssl_test(void)
 {
@@ -9121,12 +9125,11 @@ int openssl_test(void)
 
     }
 #endif /* ifndef NO_AES */
-
     return 0;
 }
 
 
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA && !WOLFCRYPT_ONLY */
 
 
 #ifndef NO_PWDBASED
