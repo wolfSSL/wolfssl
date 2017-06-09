@@ -11951,8 +11951,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     int wolfSSL_BIO_puts(WOLFSSL_BIO* bio, const char* data)
     {
-        WOLFSSL_ENTER("BIO_puts");
         int len;
+        WOLFSSL_ENTER("BIO_puts");
 
         for(len=0; data[len] !='\0'; len += 1);
 
