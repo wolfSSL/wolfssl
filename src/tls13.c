@@ -1594,6 +1594,7 @@ static int ChaCha20Poly1305_Encrypt(WOLFSSL* ssl, byte* output,
  *         May be the same pointer as input.
  * input   The data to encrypt.
  * sz      The number of bytes to encrypt.
+ * asyncOkay If non-zero can return WC_PENDING_E, otherwise blocks on crypto
  * returns 0 on success, otherwise failure.
  */
 static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
@@ -1963,6 +1964,7 @@ static void FreeBuildMsg13Args(WOLFSSL* ssl, void* pArgs)
  * type        The recorder header content type.
  * hashOutput  Whether to hash the unencrypted record data.
  * sizeOnly    Only want the size of the record message.
+ * asyncOkay   If non-zero can return WC_PENDING_E, otherwise blocks on crypto
  * returns the size of the encrypted record message or negative value on error.
  */
 int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
