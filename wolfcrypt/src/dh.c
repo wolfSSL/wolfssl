@@ -701,7 +701,9 @@ static int wc_DhGenerateKeyPair_Async(DhKey* key, WC_RNG* rng,
 #endif
 
     /* otherwise use software DH */
-    return wc_DhGenerateKeyPair_Sync(key, rng, priv, privSz, pub, pubSz);
+    ret = wc_DhGenerateKeyPair_Sync(key, rng, priv, privSz, pub, pubSz);
+
+    return ret;
 }
 #endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_DH */
 
