@@ -360,7 +360,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 #define SSL_CTX_set_timeout(ctx, to) wolfSSL_CTX_set_timeout(ctx, (unsigned int) to)
 #define SSL_CTX_set_info_callback wolfSSL_CTX_set_info_callback
-
+#define SSL_CTX_set_alpn_protos   wolfSSL_CTX_set_alpn_protos
 #define ERR_peek_error wolfSSL_ERR_peek_error
 #define ERR_peek_last_error_line  wolfSSL_ERR_peek_last_error_line
 #define ERR_peek_errors_fp         wolfSSL_ERR_peek_errors_fp
@@ -725,7 +725,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define NID_tlsfeature                92  /* id-pe 24 */
 
 
-#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
 
 #include <wolfssl/error-ssl.h>
 
