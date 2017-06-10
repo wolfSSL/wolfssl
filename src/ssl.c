@@ -26438,14 +26438,15 @@ void *wolfSSL_OPENSSL_memdup(const void *data, size_t siz, const char* file, int
 int wolfSSL_CTX_set_alpn_protos(WOLFSSL_CTX *ctx, const unsigned char *p,
                             unsigned int p_len)
 {
-    wolfSSL_OPENSSL_free((void *)ctx->alpn_cli_protos);
+    if((void *)ctx->alpn_cli_protos != NULL)
+        wolfSSL_OPENSSL_free((void *)ctx->alpn_cli_protos);
     ctx->alpn_cli_protos = wolfSSL_OPENSSL_memdup(p, p_len, NULL, 0);
     if (ctx->alpn_cli_protos == NULL) {
-        return 1;
+        return SSL_FAILURE;
     }
     ctx->alpn_cli_protos_len = p_len;
 
-    return 0;
+    return SSL_SUCCESS;
 }
 
 #endif
