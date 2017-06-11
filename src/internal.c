@@ -16058,6 +16058,11 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
 
             PickHashSigAlgo(ssl, input + *inOutIdx, len);
             *inOutIdx += len;
+    #ifdef WC_RSA_PSS
+            ssl->pssAlgo = 0;
+            if (ssl->suites->sigAlgo == rsa_pss_sa_algo)
+                ssl->pssAlgo |= 1 << ssl->suites->hashAlgo;
+    #endif
         }
 
         /* authorities */
@@ -18746,7 +18751,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
         #ifdef WC_RSA_PSS
                 if (IsAtLeastTLSv1_2(ssl) &&
-                                (ssl->pssAlgo | (1 << ssl->suites->hashAlgo))) {
+                                (ssl->pssAlgo & (1 << ssl->suites->hashAlgo))) {
                     args->sigAlgo = rsa_pss_sa_algo;
                 }
                 else
