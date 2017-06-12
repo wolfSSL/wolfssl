@@ -3635,6 +3635,15 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
                 }
                 break;
             #endif /* HAVE_ECC */
+            #ifdef HAVE_ED25519
+            case ED25519k:
+                if (cm->minEccKeySz < 0 ||
+                                   ED25519_KEY_SIZE < (word16)cm->minEccKeySz) {
+                    ret = ECC_KEY_SIZE_E;
+                    WOLFSSL_MSG("\tCA ECC key size error");
+                }
+                break;
+            #endif /* HAVE_ED25519 */
 
             default:
                 WOLFSSL_MSG("\tNo key size check done on CA");
@@ -4026,16 +4035,28 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     switch (type) {
         case CA_TYPE:       /* same as below */
         case TRUSTED_PEER_TYPE:
-        case CERT_TYPE:      header=BEGIN_CERT;     footer=END_CERT;     break;
-        case CRL_TYPE:       header=BEGIN_X509_CRL; footer=END_X509_CRL; break;
-        case DH_PARAM_TYPE:  header=BEGIN_DH_PARAM; footer=END_DH_PARAM; break;
-        case DSA_PARAM_TYPE: header=BEGIN_DSA_PARAM; footer=END_DSA_PARAM; break;
-        case CERTREQ_TYPE:   header=BEGIN_CERT_REQ; footer=END_CERT_REQ; break;
-        case DSA_TYPE:       header=BEGIN_DSA_PRIV; footer=END_DSA_PRIV; break;
-        case ECC_TYPE:       header=BEGIN_EC_PRIV;  footer=END_EC_PRIV;  break;
-        case RSA_TYPE:       header=BEGIN_RSA_PRIV; footer=END_RSA_PRIV; break;
-        case PUBLICKEY_TYPE: header=BEGIN_PUB_KEY;  footer=END_PUB_KEY;  break;
-        default:             header=BEGIN_RSA_PRIV; footer=END_RSA_PRIV; break;
+        case CERT_TYPE:      header=BEGIN_CERT;       footer=END_CERT;
+                             break;
+        case CRL_TYPE:       header=BEGIN_X509_CRL;   footer=END_X509_CRL;
+                             break;
+        case DH_PARAM_TYPE:  header=BEGIN_DH_PARAM;   footer=END_DH_PARAM;
+                             break;
+        case DSA_PARAM_TYPE: header=BEGIN_DSA_PARAM;  footer=END_DSA_PARAM;
+                             break;
+        case CERTREQ_TYPE:   header=BEGIN_CERT_REQ;   footer=END_CERT_REQ;
+                             break;
+        case DSA_TYPE:       header=BEGIN_DSA_PRIV;   footer=END_DSA_PRIV;
+                             break;
+        case ECC_TYPE:       header=BEGIN_EC_PRIV;    footer=END_EC_PRIV;
+                             break;
+        case RSA_TYPE:       header=BEGIN_RSA_PRIV;   footer=END_RSA_PRIV;
+                             break;
+        case ED25519_TYPE:   header=BEGIN_EDDSA_PRIV; footer=END_EDDSA_PRIV;
+                             break;
+        case PUBLICKEY_TYPE: header=BEGIN_PUB_KEY;    footer=END_PUB_KEY;
+                             break;
+        default:             header=BEGIN_RSA_PRIV;   footer=END_RSA_PRIV;
+                             break;
     }
 
     /* find header */
@@ -4052,6 +4073,8 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                    header =  BEGIN_EC_PRIV;        footer = END_EC_PRIV;
         } else if (header == BEGIN_EC_PRIV) {
                    header =  BEGIN_DSA_PRIV;       footer = END_DSA_PRIV;
+        } else if (header == BEGIN_DSA_PRIV) {
+                   header =  BEGIN_EDDSA_PRIV;     footer = END_EDDSA_PRIV;
         } else
             break;
     }
@@ -4375,6 +4398,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     DerBuffer*    der = NULL;        /* holds DER or RAW (for NTRU) */
     int           ret = 0;
     int           eccKey = 0;
+    int           ed25519Key = 0;
     int           rsaKey = 0;
     int           resetSuites = 0;
     void*         heap = ctx ? ctx->heap : ((ssl) ? ssl->heap : NULL);
@@ -4574,7 +4598,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
     if (type == PRIVATEKEY_TYPE && format != SSL_FILETYPE_RAW) {
     #ifndef NO_RSA
-        if (!eccKey) {
+        if (!eccKey && !ed25519Key) {
             /* make sure RSA key can be used */
             word32 idx = 0;
         #ifdef WOLFSSL_SMALL_STACK
@@ -4638,52 +4662,96 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         }
     #endif
     #ifdef HAVE_ECC
-        if (!rsaKey) {
+        if (!rsaKey && !ed25519Key) {
             /* make sure ECC key can be used */
             word32  idx = 0;
             ecc_key key;
 
-            ret = wc_ecc_init_ex(&key, heap, devId);
+            if (wc_ecc_init_ex(&key, heap, devId) == 0) {
+                if (wc_EccPrivateKeyDecode(der->buffer, &idx, &key,
+                                                            der->length) == 0) {
+
+                    /* check for minimum ECC key size and then free */
+                    if (ssl) {
+                        if (wc_ecc_size(&key) < ssl->options.minEccKeySz) {
+                            wc_ecc_free(&key);
+                            WOLFSSL_MSG("ECC private key too small");
+                            return ECC_KEY_SIZE_E;
+                        }
+                    }
+                    else if (ctx) {
+                        if (wc_ecc_size(&key) < ctx->minEccKeySz) {
+                            wc_ecc_free(&key);
+                            WOLFSSL_MSG("ECC private key too small");
+                            return ECC_KEY_SIZE_E;
+                        }
+                    }
+
+                    eccKey = 1;
+                    if (ssl) {
+                        ssl->options.haveStaticECC = 1;
+                    }
+                    else if (ctx) {
+                        ctx->haveStaticECC = 1;
+                    }
+
+                    if (ssl && ssl->options.side == WOLFSSL_SERVER_END) {
+                        resetSuites = 1;
+                    }
+                }
+                else
+                    eccKey = 0;
+
+                wc_ecc_free(&key);
+            }
+        }
+    #endif /* HAVE_ECC */
+    #ifdef HAVE_ED25519
+        if (!rsaKey && !eccKey) {
+            /* make sure Ed25519 key can be used */
+            word32      idx = 0;
+            ed25519_key key;
+
+            ret = wc_ed25519_init(&key);
             if (ret != 0) {
                 return ret;
             }
 
-            if (wc_EccPrivateKeyDecode(der->buffer, &idx, &key,
-                                                        der->length) != 0) {
-                wc_ecc_free(&key);
+            if (wc_Ed25519PrivateKeyDecode(der->buffer, &idx, &key,
+                                                            der->length) != 0) {
+                wc_ed25519_free(&key);
                 return SSL_BAD_FILE;
             }
 
-            /* check for minimum ECC key size and then free */
+            /* check for minimum key size and then free */
             if (ssl) {
-                if (wc_ecc_size(&key) < ssl->options.minEccKeySz) {
-                    wc_ecc_free(&key);
-                    WOLFSSL_MSG("ECC private key too small");
+                if (ED25519_KEY_SIZE < ssl->options.minEccKeySz) {
+                    wc_ed25519_free(&key);
+                    WOLFSSL_MSG("ED25519 private key too small");
                     return ECC_KEY_SIZE_E;
                 }
             }
             else if (ctx) {
-                if (wc_ecc_size(&key) < ctx->minEccKeySz) {
-                    wc_ecc_free(&key);
-                    WOLFSSL_MSG("ECC private key too small");
+                if (ED25519_KEY_SIZE < ctx->minEccKeySz) {
+                    wc_ed25519_free(&key);
+                    WOLFSSL_MSG("ED25519 private key too small");
                     return ECC_KEY_SIZE_E;
                 }
             }
 
-            wc_ecc_free(&key);
-            eccKey = 1;
-            if (ssl) {
-                ssl->options.haveStaticECC = 1;
-            }
-            else if (ctx) {
-                ctx->haveStaticECC = 1;
-            }
+            wc_ed25519_free(&key);
+            ed25519Key = 1;
 
             if (ssl && ssl->options.side == WOLFSSL_SERVER_END) {
                 resetSuites = 1;
             }
         }
-    #endif /* HAVE_ECC */
+    #endif
+
+        if (!rsaKey && !eccKey && !ed25519Key)
+            return SSL_BAD_FILE;
+
+        (void)ed25519Key;
     }
     else if (type == CERT_TYPE) {
     #ifdef WOLFSSL_SMALL_STACK
@@ -4730,6 +4798,13 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 else if (ctx)
                     ctx->haveECDSAsig = 1;
                 break;
+            case CTC_ED25519:
+                WOLFSSL_MSG("ED25519 cert signature");
+                if (ssl)
+                    ssl->options.haveECDSAsig = 1;
+                else if (ctx)
+                    ctx->haveECDSAsig = 1;
+                break;
             default:
                 WOLFSSL_MSG("Not ECDSA cert signature");
                 break;
@@ -4742,6 +4817,11 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             if (cert->keyOID == ECDSAk) {
                 ssl->options.haveECC = 1;
             }
+            #ifdef HAVE_ED25519
+                else if (cert->keyOID == ED25519k) {
+                    ssl->options.haveECC = 1;
+                }
+            #endif
         #else
             ssl->options.haveECC = ssl->options.haveECDSAsig;
         #endif
@@ -4752,6 +4832,11 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             if (cert->keyOID == ECDSAk) {
                 ctx->haveECC = 1;
             }
+            #ifdef HAVE_ED25519
+                else if (cert->keyOID == ED25519k) {
+                    ctx->haveECC = 1;
+                }
+            #endif
         #else
             ctx->haveECC = ctx->haveECDSAsig;
         #endif
@@ -4777,7 +4862,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                     }
                 }
                 break;
-            #endif /* !NO_RSA */
+        #endif /* !NO_RSA */
         #ifdef HAVE_ECC
             case ECDSAk:
                 if (ssl && !ssl->options.verifyNone) {
@@ -4795,7 +4880,25 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                     }
                 }
                 break;
-            #endif /* HAVE_ECC */
+        #endif /* HAVE_ECC */
+        #ifdef HAVE_ED25519
+            case ED25519k:
+                if (ssl && !ssl->options.verifyNone) {
+                    if (ssl->options.minEccKeySz < 0 ||
+                          ED25519_KEY_SIZE < (word16)ssl->options.minEccKeySz) {
+                        ret = ECC_KEY_SIZE_E;
+                        WOLFSSL_MSG("Certificate Ed key size error");
+                    }
+                }
+                else if (ctx && !ctx->verifyNone) {
+                    if (ctx->minEccKeySz < 0 ||
+                                  ED25519_KEY_SIZE < (word16)ctx->minEccKeySz) {
+                        ret = ECC_KEY_SIZE_E;
+                        WOLFSSL_MSG("Certificate ECC key size error");
+                    }
+                }
+                break;
+        #endif /* HAVE_ED25519 */
 
             default:
                 WOLFSSL_MSG("No key size check done on certificate");
@@ -22022,6 +22125,54 @@ void* wolfSSL_GetEccSharedSecretCtx(WOLFSSL* ssl)
 
     return NULL;
 }
+#endif /* HAVE_ECC */
+
+#ifdef HAVE_ED25519
+void  wolfSSL_CTX_SetEd25519SignCb(WOLFSSL_CTX* ctx, CallbackEd25519Sign cb)
+{
+    if (ctx)
+        ctx->Ed25519SignCb = cb;
+}
+
+
+void  wolfSSL_SetEd25519SignCtx(WOLFSSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->Ed25519SignCtx = ctx;
+}
+
+
+void* wolfSSL_GetEd25519SignCtx(WOLFSSL* ssl)
+{
+    if (ssl)
+        return ssl->Ed25519SignCtx;
+
+    return NULL;
+}
+
+
+void  wolfSSL_CTX_SetEd25519VerifyCb(WOLFSSL_CTX* ctx, CallbackEd25519Verify cb)
+{
+    if (ctx)
+        ctx->Ed25519VerifyCb = cb;
+}
+
+
+void  wolfSSL_SetEd25519VerifyCtx(WOLFSSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->Ed25519VerifyCtx = ctx;
+}
+
+
+void* wolfSSL_GetEd25519VerifyCtx(WOLFSSL* ssl)
+{
+    if (ssl)
+        return ssl->Ed25519VerifyCtx;
+
+    return NULL;
+}
+#endif
 
 #ifdef HAVE_CURVE25519
 void wolfSSL_CTX_SetX25519SharedSecretCb(WOLFSSL_CTX* ctx,
@@ -22046,7 +22197,6 @@ void* wolfSSL_GetX25519SharedSecretCtx(WOLFSSL* ssl)
     return NULL;
 }
 #endif
-#endif /* HAVE_ECC */
 
 #ifndef NO_RSA
 
@@ -22365,6 +22515,9 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
             case RSAk:
                 ctx->haveRSA = 1;
                 break;
+        #ifdef HAVE_ED25519
+            case ED25519k:
+        #endif
             case ECDSAk:
                 ctx->haveECC = 1;
                 ctx->pkCurveOID = x->pkCurveOID;

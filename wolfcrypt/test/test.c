@@ -5716,6 +5716,14 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
             static const char* eccCaKeyPubFile  = CERT_ROOT "ecc-keyPub.der";
         #endif
     #endif /* HAVE_ECC */
+    #ifdef HAVE_ED25519
+        #ifdef WOLFSSL_TEST_CERT
+            static const char* serverEd25519Cert =
+                                         CERT_ROOT "ed25519/server-ed25519.der";
+            static const char* caEd25519Cert     =
+                                             CERT_ROOT "ed25519/ca-ed25519.der";
+        #endif
+    #endif
 #endif /* !USE_CERT_BUFFER_* */
 
 #ifndef NO_WRITE_TEMP_FILES
@@ -11445,6 +11453,213 @@ int curve25519_test(void)
 
 
 #ifdef HAVE_ED25519
+#ifdef WOLFSSL_TEST_CERT
+static int ed25519_test_cert(void)
+{
+    DecodedCert  cert[2];
+    DecodedCert* serverCert = NULL;
+    DecodedCert* caCert = NULL;
+#ifdef HAVE_ED25519_VERIFY
+    ed25519_key  key;
+    ed25519_key* pubKey = NULL;
+    int          verify;
+#endif /* HAVE_ED25519_VERIFY */
+    int          ret;
+    byte*        tmp;
+    int          bytes;
+    FILE*        file;
+
+    tmp = XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp == NULL) {
+        ret = -7200;
+        goto done;
+    }
+
+#ifdef USE_CERT_BUFFERS_256
+    XMEMCPY(tmp, ca_ed25519_cert, sizeof_ca_ed25519_cert);
+    bytes = sizeof_ca_ed25519_cert;
+#elif !defined(NO_FILESYSTEM)
+    file = fopen(caEd25519Cert, "rb");
+    if (file == NULL) {
+        ret = -7201;
+        goto done;
+    }
+    bytes = fread(tmp, 1, FOURK_BUF, file);
+    fclose(file);
+#else
+    /* No certificate to use. */
+    ret = -7202;
+    goto done;
+#endif
+
+    InitDecodedCert(&cert[0], tmp, (word32)bytes, 0);
+    caCert = &cert[0];
+    ret = ParseCert(caCert, CERT_TYPE, NO_VERIFY, NULL);
+    if (ret != 0) {
+        ret = -7203;
+        goto done;
+    }
+
+#ifdef USE_CERT_BUFFERS_256
+    XMEMCPY(tmp, server_ed25519_cert, sizeof_server_ed25519_cert);
+    bytes = sizeof_server_ed25519_cert;
+#elif !defined(NO_FILESYSTEM)
+    file = fopen(serverEd25519Cert, "rb");
+    if (file == NULL) {
+        ret = -7204;
+        goto done;
+    }
+    bytes = fread(tmp, 1, FOURK_BUF, file);
+    fclose(file);
+#else
+    /* No certificate to use. */
+    ret = -7205;
+    goto done;
+#endif
+
+    InitDecodedCert(&cert[1], tmp, (word32)bytes, 0);
+    serverCert = &cert[1];
+    ret = ParseCert(serverCert, CERT_TYPE, NO_VERIFY, NULL);
+    if (ret != 0) {
+        ret = -7206;
+        goto done;
+    }
+
+#ifdef HAVE_ED25519_VERIFY
+    ret = wc_ed25519_init(&key);
+    if (ret < 0) {
+        ret = -7207;
+        goto done;
+    }
+    pubKey = &key;
+    ret = wc_ed25519_import_public(caCert->publicKey, caCert->pubKeySize,
+                                                                        pubKey);
+    if (ret < 0) {
+        ret = -7208;
+        goto done;
+    }
+
+    if (wc_ed25519_verify_msg(serverCert->signature, serverCert->sigLength,
+                              serverCert->source + serverCert->certBegin,
+                              serverCert->sigIndex - serverCert->certBegin,
+                              &verify, pubKey) < 0 || verify != 1) {
+        ret = -7209;
+        goto done;
+    }
+#endif /* HAVE_ED25519_VERIFY */
+
+done:
+    if (tmp != NULL)
+        XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef HAVE_ED25519_VERIFY
+    wc_ed25519_free(pubKey);
+#endif /* HAVE_ED25519_VERIFY */
+    if (caCert != NULL)
+        FreeDecodedCert(caCert);
+    if (serverCert != NULL)
+        FreeDecodedCert(serverCert);
+
+    return ret;
+}
+
+#ifdef WOLFSSL_CERT_GEN
+static const CertName defaultName = {
+    "US",               CTC_PRINTABLE,
+    "Montana",          CTC_UTF8,
+    "Bozeman",          CTC_UTF8,
+    "Test",             CTC_UTF8,
+    "wolfSSL",          CTC_UTF8,
+    "ED25519",          CTC_UTF8,
+    "www.wolfssl.com",  CTC_UTF8,
+    "info@wolfssl.com"
+};
+#ifdef WOLFSSL_CERT_EXT
+static const char leafKeyUsage[] = "digitalSignature,nonRepudiation";
+#endif
+
+static int ed25519_test_make_cert(void)
+{
+    WC_RNG       rng;
+    Cert         cert;
+    DecodedCert  decode;
+    ed25519_key  key;
+    ed25519_key* privKey = NULL;
+    int          ret = 0;
+    byte*        tmp = NULL;
+
+    wc_InitCert(&cert);
+
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+#else
+    ret = wc_InitRng(&rng);
+#endif
+    if (ret != 0)
+        return -7220;
+
+    wc_ed25519_init(&key);
+    privKey = &key;
+    wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, privKey);
+
+    cert.daysValid = 365 * 2;
+    cert.selfSigned = 1;
+    XMEMCPY(&cert.issuer, &defaultName, sizeof(CertName));
+    XMEMCPY(&cert.subject, &defaultName, sizeof(CertName));
+    cert.isCA = 0;
+#ifdef WOLFSSL_CERT_EXT
+    ret = wc_SetKeyUsage(&cert, leafKeyUsage);
+    if (ret < 0) {
+        ret = -7221;
+        goto done;
+    }
+    ret = wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ED25519_TYPE, privKey);
+    if (ret < 0) {
+        ret = -7222;
+        goto done;
+    }
+    ret = wc_SetAuthKeyIdFromPublicKey_ex(&cert, ED25519_TYPE, privKey);
+    if (ret < 0) {
+        ret = -7223;
+        goto done;
+    }
+#endif
+    tmp = XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp == NULL) {
+        ret = -7224;
+        goto done;
+    }
+
+    cert.sigType = CTC_ED25519;
+    ret = wc_MakeCert_ex(&cert, tmp, FOURK_BUF, ED25519_TYPE, privKey, &rng);
+    if (ret < 0) {
+        ret = -7225;
+        goto done;
+    }
+    ret = wc_SignCert_ex(cert.bodySz, cert.sigType, tmp, FOURK_BUF,
+                                                   ED25519_TYPE, privKey, &rng);
+    if (ret < 0) {
+        ret = -7226;
+        goto done;
+    }
+
+    InitDecodedCert(&decode, tmp, ret, HEAP_HINT);
+    ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
+    FreeDecodedCert(&decode);
+    if (ret != 0) {
+        ret = -7227;
+        goto done;
+    }
+
+done:
+    if (tmp != NULL)
+        XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_ed25519_free(privKey);
+    wc_FreeRng(&rng);
+    return ret;
+}
+#endif /* WOLFSSL_CERT_GEN */
+#endif /* WOLFSSL_TEST_CERT */
+
 int ed25519_test(void)
 {
     WC_RNG rng;
@@ -11873,6 +12088,17 @@ int ed25519_test(void)
     /* hush warnings of unused keySz and sigSz */
     (void)keySz;
     (void)sigSz;
+
+#ifdef WOLFSSL_TEST_CERT
+    ret = ed25519_test_cert();
+    if (ret < 0)
+        return ret;
+#ifdef WOLFSSL_CERT_GEN
+    ret = ed25519_test_make_cert();
+    if (ret < 0)
+        return ret;
+#endif /* WOLFSSL_CERT_GEN */
+#endif /* WOLFSSL_TEST_CERT */
 
     return 0;
 }

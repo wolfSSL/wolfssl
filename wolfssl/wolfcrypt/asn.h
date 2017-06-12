@@ -239,10 +239,11 @@ enum Block_Sum {
 
 
 enum Key_Sum {
-    DSAk   = 515,
-    RSAk   = 645,
-    NTRUk  = 274,
-    ECDSAk = 518
+    DSAk     = 515,
+    RSAk     = 645,
+    NTRUk    = 274,
+    ECDSAk   = 518,
+    ED25519k = 256
 };
 
 
@@ -286,6 +287,7 @@ enum Ecc_Sum {
     ECC_SECP256K1_OID = 186,
     ECC_BRAINPOOLP256R1_OID = 104,
     ECC_X25519_OID = 365,
+    ECC_ED25519_OID = 256,
     ECC_BRAINPOOLP320R1_OID = 106,
     ECC_SECP384R1_OID = 210,
     ECC_BRAINPOOLP384R1_OID = 108,
@@ -434,10 +436,13 @@ struct SignatureCtx {
 #endif
     union {
     #ifndef NO_RSA
-        struct RsaKey* rsa;
+        struct RsaKey*      rsa;
     #endif
     #ifdef HAVE_ECC
-        struct ecc_key* ecc;
+        struct ecc_key*     ecc;
+    #endif
+    #ifdef HAVE_ED25519
+        struct ed25519_key* ed25519;
     #endif
         void* ptr;
     } key;
@@ -655,6 +660,8 @@ extern const char* BEGIN_DSA_PRIV;
 extern const char* END_DSA_PRIV;
 extern const char* BEGIN_PUB_KEY;
 extern const char* END_PUB_KEY;
+extern const char* BEGIN_EDDSA_PRIV;
+extern const char* END_EDDSA_PRIV;
 
 #ifdef NO_SHA
     #define SIGNER_DIGEST_SIZE SHA256_DIGEST_SIZE
@@ -814,7 +821,8 @@ enum cert_enums {
     EMAIL_JOINT_LEN =  9,
     RSA_KEY         = 10,
     NTRU_KEY        = 11,
-    ECC_KEY         = 12
+    ECC_KEY         = 12,
+    ED25519_KEY     = 13
 };
 
 #ifndef WOLFSSL_PEMCERT_TODER_DEFINED

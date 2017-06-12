@@ -416,6 +416,7 @@
         DYNAMIC_TYPE_ASYNC_NUMA   = 67,
         DYNAMIC_TYPE_ASYNC_NUMA64 = 68,
         DYNAMIC_TYPE_CURVE25519   = 69,
+        DYNAMIC_TYPE_ED25519      = 70,
 	};
 
 	/* max error buffer string size */

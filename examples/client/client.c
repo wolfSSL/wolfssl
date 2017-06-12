@@ -156,7 +156,7 @@ static void ShowVersions(void)
 /* Measures average time to create, connect and disconnect a connection (TPS).
 Benchmark = number of connections. */
 static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
-    int dtlsUDP, int dtlsSCTP, int benchmark, int resumeSession)
+    int dtlsUDP, int dtlsSCTP, int benchmark, int resumeSession, int useX25519)
 {
     /* time passed in number of connects give average */
     int times = benchmark;
@@ -171,6 +171,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
 #endif
 
     (void)resumeSession;
+    (void)useX25519;
 
     while (loops--) {
     #ifndef NO_SESSION_CACHE
@@ -190,6 +191,16 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     #ifndef NO_SESSION_CACHE
             if (benchResume)
                 wolfSSL_set_session(ssl, benchSession);
+    #endif
+    #ifdef WOLFSSL_TLS13
+        #ifdef HAVE_CURVE25519
+            else if (useX25519) {
+                if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519)
+                        != SSL_SUCCESS) {
+                    err_sys("unable to use curve secp256r1");
+                }
+            }
+        #endif
     #endif
             if (wolfSSL_set_fd(ssl, sockfd) != SSL_SUCCESS) {
                 err_sys("error in setting fd");
@@ -247,7 +258,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
 
 /* Measures throughput in kbps. Throughput = number of bytes */
 static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
-    int dtlsUDP, int dtlsSCTP, int throughput)
+    int dtlsUDP, int dtlsSCTP, int throughput, int useX25519)
 {
     double start, conn_time = 0, tx_time = 0, rx_time = 0;
     SOCKET_T sockfd;
@@ -263,6 +274,18 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
     if (wolfSSL_set_fd(ssl, sockfd) != SSL_SUCCESS) {
         err_sys("error in setting fd");
     }
+
+    (void)useX25519;
+    #ifdef WOLFSSL_TLS13
+        #ifdef HAVE_CURVE25519
+            if (useX25519) {
+                if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519)
+                        != SSL_SUCCESS) {
+                    err_sys("unable to use curve secp256r1");
+                }
+            }
+        #endif
+    #endif
 
     do {
         err = 0; /* reset error */
@@ -735,9 +758,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    useOcsp  = 0;
     char*  ocspUrl  = NULL;
 #endif
-#ifdef HAVE_CURVE25519
     int useX25519 = 0;
-#endif
 
 #ifdef HAVE_WNR
     const char* wnrConfigFile = wnrConfig;
@@ -771,6 +792,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)alpnList;
     (void)alpn_opt;
     (void)updateKeysIVs;
+    (void)useX25519;
 
     StackTrap();
 
@@ -1479,7 +1501,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (benchmark) {
         ((func_args*)args)->return_code =
             ClientBenchmarkConnections(ctx, host, port, dtlsUDP, dtlsSCTP,
-                                       benchmark, resumeSession);
+                                       benchmark, resumeSession, useX25519);
         wolfSSL_CTX_free(ctx);
         exit(EXIT_SUCCESS);
     }
@@ -1487,7 +1509,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if(throughput) {
         ((func_args*)args)->return_code =
             ClientBenchmarkThroughput(ctx, host, port, dtlsUDP, dtlsSCTP,
-                                      throughput);
+                                      throughput, useX25519);
         wolfSSL_CTX_free(ctx);
         exit(EXIT_SUCCESS);
     }

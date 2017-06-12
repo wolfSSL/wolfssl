@@ -2985,6 +2985,7 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
                              : NULL;
     EllipticCurve* curve     = NULL;
     word32         oid       = 0;
+    word32         pkOid     = 0;
     word32         defOid    = 0;
     word32         defSz     = 80; /* Maximum known curve size is 66. */
     word32         nextOid   = 0;
@@ -3009,19 +3010,19 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
     #if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP160R1:
-                oid = ECC_SECP160R1_OID;
+                pkOid = oid = ECC_SECP160R1_OID;
                 octets = 20;
                 break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_SECPR2
             case WOLFSSL_ECC_SECP160R2:
-                oid = ECC_SECP160R2_OID;
+                pkOid = oid = ECC_SECP160R2_OID;
                 octets = 20;
                 break;
         #endif /* HAVE_ECC_SECPR2 */
         #ifdef HAVE_ECC_KOBLITZ
             case WOLFSSL_ECC_SECP160K1:
-                oid = ECC_SECP160K1_OID;
+                pkOid = oid = ECC_SECP160K1_OID;
                 octets = 20;
                 break;
         #endif /* HAVE_ECC_KOBLITZ */
@@ -3029,13 +3030,13 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
     #if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP192R1:
-                oid = ECC_SECP192R1_OID;
+                pkOid = oid = ECC_SECP192R1_OID;
                 octets = 24;
                 break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_KOBLITZ
             case WOLFSSL_ECC_SECP192K1:
-                oid = ECC_SECP192K1_OID;
+                pkOid = oid = ECC_SECP192K1_OID;
                 octets = 24;
                 break;
         #endif /* HAVE_ECC_KOBLITZ */
@@ -3043,13 +3044,13 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
     #if defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP224R1:
-                oid = ECC_SECP224R1_OID;
+                pkOid = oid = ECC_SECP224R1_OID;
                 octets = 28;
                 break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_KOBLITZ
             case WOLFSSL_ECC_SECP224K1:
-                oid = ECC_SECP224K1_OID;
+                pkOid = oid = ECC_SECP224K1_OID;
                 octets = 28;
                 break;
         #endif /* HAVE_ECC_KOBLITZ */
@@ -3057,25 +3058,30 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
     #if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP256R1:
-                oid = ECC_SECP256R1_OID;
+                pkOid = oid = ECC_SECP256R1_OID;
                 octets = 32;
                 break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_CURVE25519
             case WOLFSSL_ECC_X25519:
                 oid = ECC_X25519_OID;
+            #ifdef HAVE_ED25519
+                pkOid = ECC_ED25519_OID;
+            #else
+                pkOid = ECC_X25519_OID;
+            #endif
                 octets = 32;
                 break;
         #endif /* HAVE_CURVE25519 */
         #ifdef HAVE_ECC_KOBLITZ
             case WOLFSSL_ECC_SECP256K1:
-                oid = ECC_SECP256K1_OID;
+                pkOid = oid = ECC_SECP256K1_OID;
                 octets = 32;
                 break;
         #endif /* HAVE_ECC_KOBLITZ */
         #ifdef HAVE_ECC_BRAINPOOL
             case WOLFSSL_ECC_BRAINPOOLP256R1:
-                oid = ECC_BRAINPOOLP256R1_OID;
+                pkOid = oid = ECC_BRAINPOOLP256R1_OID;
                 octets = 32;
                 break;
         #endif /* HAVE_ECC_BRAINPOOL */
@@ -3083,13 +3089,13 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
     #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP384R1:
-                oid = ECC_SECP384R1_OID;
+                pkOid = oid = ECC_SECP384R1_OID;
                 octets = 48;
                 break;
         #endif /* !NO_ECC_SECP */
         #ifdef HAVE_ECC_BRAINPOOL
             case WOLFSSL_ECC_BRAINPOOLP384R1:
-                oid = ECC_BRAINPOOLP384R1_OID;
+                pkOid = oid = ECC_BRAINPOOLP384R1_OID;
                 octets = 48;
                 break;
         #endif /* HAVE_ECC_BRAINPOOL */
@@ -3097,7 +3103,7 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
     #if defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)
         #ifdef HAVE_ECC_BRAINPOOL
             case WOLFSSL_ECC_BRAINPOOLP512R1:
-                oid = ECC_BRAINPOOLP512R1_OID;
+                pkOid = oid = ECC_BRAINPOOLP512R1_OID;
                 octets = 64;
                 break;
         #endif /* HAVE_ECC_BRAINPOOL */
@@ -3105,7 +3111,7 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
     #if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP521R1:
-                oid = ECC_SECP521R1_OID;
+                pkOid = oid = ECC_SECP521R1_OID;
                 octets = 66;
                 break;
         #endif /* !NO_ECC_SECP */
@@ -3139,7 +3145,7 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
                 case TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:
                 case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8:
                 case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8:
-                    sig |= ssl->pkCurveOID == oid;
+                    sig |= ssl->pkCurveOID == pkOid;
                     key |= ssl->ecdhCurveOID == oid;
                     ephmSuite = 1;
                 break;
@@ -3158,7 +3164,7 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
                         defOid = 0;
                         defSz = 80;
                     }
-                    sig |= ssl->pkCurveOID == oid;
+                    sig |= ssl->pkCurveOID == pkOid;
                     key |= ssl->pkCurveOID == oid;
                 break;
 #endif /* WOLFSSL_STATIC_DH */
@@ -3192,7 +3198,7 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
                         defSz = 80;
                     }
                     sig = 1;
-                    key |= ssl->pkCurveOID == oid;
+                    key |= ssl->pkCurveOID == pkOid;
                 break;
 #endif /* WOLFSSL_STATIC_DH */
 #endif
@@ -3214,7 +3220,7 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
                 /* ECDHE_ECDSA */
                 case TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 :
                 case TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256 :
-                    sig |= ssl->pkCurveOID == oid;
+                    sig |= ssl->pkCurveOID == pkOid;
                     key |= ssl->ecdhCurveOID == oid;
                     ephmSuite = 1;
                 break;
@@ -6969,9 +6975,9 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                                               WOLFSSL_ECC_SECP256R1, ssl->heap);
                 if (ret != SSL_SUCCESS) return ret;
             #endif
-            #ifdef HAVE_CURVE25519
+            #if defined(HAVE_CURVE25519)
                 ret = TLSX_UseSupportedCurve(&ssl->extensions,
-                                        WOLFSSL_ECC_X25519, ssl->heap);
+                                                 WOLFSSL_ECC_X25519, ssl->heap);
                 if (ret != SSL_SUCCESS) return ret;
             #endif
             #ifdef HAVE_ECC_KOBLITZ
@@ -7028,38 +7034,40 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                                                  ssl->heap)) != 0)
                 return ret;
 
-            /* Add FFDHE supported groups. */
-    #ifdef HAVE_FFDHE_2048
-            ret = TLSX_UseSupportedCurve(&ssl->extensions,
-                                         WOLFSSL_FFDHE_2048, ssl->heap);
-            if (ret != SSL_SUCCESS)
-                return ret;
-    #endif
-    #ifdef HAVE_FFDHE_3072
-            ret = TLSX_UseSupportedCurve(&ssl->extensions,
-                                         WOLFSSL_FFDHE_3072, ssl->heap);
-            if (ret != SSL_SUCCESS)
-                return ret;
-    #endif
-    #ifdef HAVE_FFDHE_4096
-            ret = TLSX_UseSupportedCurve(&ssl->extensions,
-                                         WOLFSSL_FFDHE_4096, ssl->heap);
-            if (ret != SSL_SUCCESS)
-                return ret;
-    #endif
-    #ifdef HAVE_FFDHE_6144
-            ret = TLSX_UseSupportedCurve(&ssl->extensions,
-                                         WOLFSSL_FFDHE_6144, ssl->heap);
-            if (ret != SSL_SUCCESS)
-                return ret;
-    #endif
-    #ifdef HAVE_FFDHE_8192
-            ret = TLSX_UseSupportedCurve(&ssl->extensions,
-                                         WOLFSSL_FFDHE_8192, ssl->heap);
-            if (ret != SSL_SUCCESS)
-                return ret;
-    #endif
-            ret = 0;
+            if (!ssl->options.userCurves && !ssl->ctx->userCurves) {
+                /* Add FFDHE supported groups. */
+        #ifdef HAVE_FFDHE_2048
+                ret = TLSX_UseSupportedCurve(&ssl->extensions,
+                                             WOLFSSL_FFDHE_2048, ssl->heap);
+                if (ret != SSL_SUCCESS)
+                    return ret;
+        #endif
+        #ifdef HAVE_FFDHE_3072
+                ret = TLSX_UseSupportedCurve(&ssl->extensions,
+                                             WOLFSSL_FFDHE_3072, ssl->heap);
+                if (ret != SSL_SUCCESS)
+                    return ret;
+        #endif
+        #ifdef HAVE_FFDHE_4096
+                ret = TLSX_UseSupportedCurve(&ssl->extensions,
+                                             WOLFSSL_FFDHE_4096, ssl->heap);
+                if (ret != SSL_SUCCESS)
+                    return ret;
+        #endif
+        #ifdef HAVE_FFDHE_6144
+                ret = TLSX_UseSupportedCurve(&ssl->extensions,
+                                             WOLFSSL_FFDHE_6144, ssl->heap);
+                if (ret != SSL_SUCCESS)
+                    return ret;
+        #endif
+        #ifdef HAVE_FFDHE_8192
+                ret = TLSX_UseSupportedCurve(&ssl->extensions,
+                                             WOLFSSL_FFDHE_8192, ssl->heap);
+                if (ret != SSL_SUCCESS)
+                    return ret;
+        #endif
+                ret = 0;
+            }
 
             if (TLSX_Find(ssl->extensions, TLSX_KEY_SHARE) == NULL) {
     #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && \

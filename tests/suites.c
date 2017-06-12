@@ -574,6 +574,16 @@ int SuiteTest(void)
         exit(EXIT_FAILURE);
     }
 #endif
+#if defined(HAVE_CURVE25519) && defined(HAVE_ED25519)
+    /* add ED25519 certificate cipher suite tests */
+    strcpy(argv0[1], "tests/test-ed25519.conf");
+    printf("starting ED25519 extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);
+    }
+#endif
 #ifdef WOLFSSL_DTLS
     /* add dtls extra suites */
     strcpy(argv0[1], "tests/test-dtls.conf");
