@@ -1616,6 +1616,10 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
     switch (ssl->specs.bulk_cipher_algorithm) {
         #ifdef BUILD_AESGCM
         case wolfssl_aes_gcm:
+#ifdef WOLFSSL_DEBUG_TLS
+            WOLFSSL_MSG("Nonce");
+            WOLFSSL_BUFFER(nonce, AESGCM_NONCE_SZ);
+#endif
             ret = wc_AesGcmEncrypt(ssl->encrypt.aes, output, input, dataSz,
                 nonce, AESGCM_NONCE_SZ, output + dataSz, macSz, NULL, 0);
             break;
@@ -1623,6 +1627,10 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
 
         #ifdef HAVE_AESCCM
         case wolfssl_aes_ccm:
+#ifdef WOLFSSL_DEBUG_TLS
+            WOLFSSL_MSG("Nonce");
+            WOLFSSL_BUFFER(nonce, AESCCM_NONCE_SZ);
+#endif
             ret = wc_AesCcmEncrypt(ssl->encrypt.aes, output, input, dataSz,
                 nonce, AESCCM_NONCE_SZ, output + dataSz, macSz, NULL, 0);
             break;
@@ -1630,6 +1638,10 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
 
         #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
         case wolfssl_chacha:
+#ifdef WOLFSSL_DEBUG_TLS
+            WOLFSSL_MSG("Nonce");
+            WOLFSSL_BUFFER(nonce, CHACHA_IV_BYTES);
+#endif
             ret = ChaCha20Poly1305_Encrypt(ssl, output, input, dataSz, nonce,
                 output + dataSz);
             break;
@@ -1740,6 +1752,10 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz)
     switch (ssl->specs.bulk_cipher_algorithm) {
         #ifdef BUILD_AESGCM
         case wolfssl_aes_gcm:
+#ifdef WOLFSSL_DEBUG_TLS
+            WOLFSSL_MSG("Nonce");
+            WOLFSSL_BUFFER(nonce, AESGCM_NONCE_SZ);
+#endif
             ret = wc_AesGcmDecrypt(ssl->decrypt.aes, output, input, dataSz,
                 nonce, AESGCM_NONCE_SZ, input + dataSz, macSz, NULL, 0);
             break;
@@ -1747,6 +1763,10 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz)
 
         #ifdef HAVE_AESCCM
         case wolfssl_aes_ccm:
+#ifdef WOLFSSL_DEBUG_TLS
+            WOLFSSL_MSG("Nonce");
+            WOLFSSL_BUFFER(nonce, AESCCM_NONCE_SZ);
+#endif
             ret = wc_AesCcmDecrypt(ssl->decrypt.aes, output, input, dataSz,
                 nonce, AESCCM_NONCE_SZ, input + dataSz, macSz, NULL, 0);
             break;
@@ -1754,6 +1774,10 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz)
 
         #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
         case wolfssl_chacha:
+#ifdef WOLFSSL_DEBUG_TLS
+            WOLFSSL_MSG("Nonce");
+            WOLFSSL_BUFFER(nonce, CHACHA_IV_BYTES);
+#endif
             ret = ChaCha20Poly1305_Decrypt(ssl, output, input, dataSz, nonce,
                 input + dataSz);
             break;
