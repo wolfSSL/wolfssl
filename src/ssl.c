@@ -929,6 +929,16 @@ int wolfSSL_GetObjectSize(void)
 
     return sizeof(WOLFSSL);
 }
+
+int wolfSSL_CTX_GetObjectSize(void)
+{
+    return sizeof(WOLFSSL_CTX);
+}
+
+int wolfSSL_METHOD_GetObjectSize(void)
+{
+    return sizeof(WOLFSSL_METHOD);
+}
 #endif
 
 
