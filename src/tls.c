@@ -1595,7 +1595,7 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
                 /* Don't process the second ClientHello SNI extension if there
                  * was problems with the first.
                  */
-                if (sni->status != 0)
+                if (!cacheOnly && sni->status != 0)
                     break;
 #endif
                 byte matched = cacheOnly ||
