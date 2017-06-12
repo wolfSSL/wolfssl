@@ -916,7 +916,7 @@ static int BuildTls13HandshakeHmac(WOLFSSL* ssl, byte* key, byte* hash,
         return ret;
 
     /* Calculate the verify data. */
-    ret = wc_HmacInit(&verifyHmac, ssl->heap, INVALID_DEVID);
+    ret = wc_HmacInit(&verifyHmac, ssl->heap, ssl->devId);
     if (ret == 0) {
         ret = wc_HmacSetKey(&verifyHmac, hashType, key, ssl->specs.hash_size);
         if (ret == 0)
