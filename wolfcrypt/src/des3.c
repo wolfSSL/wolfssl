@@ -25,6 +25,8 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
 
 #ifndef NO_DES3
@@ -39,6 +41,10 @@
     }
     int wc_Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
     {
+        if (des == NULL || key == NULL || dir < 0) {
+            return BAD_FUNC_ARG;
+        }
+
         return Des3_SetKey_fips(des, key, iv, dir);
     }
     int wc_Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
@@ -51,10 +57,16 @@
     }
     int wc_Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
     {
+        if (des == NULL || out == NULL || in == NULL) {
+            return BAD_FUNC_ARG;
+        }
         return Des3_CbcEncrypt_fips(des, out, in, sz);
     }
     int wc_Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
     {
+        if (des == NULL || out == NULL || in == NULL) {
+            return BAD_FUNC_ARG;
+        }
         return Des3_CbcDecrypt_fips(des, out, in, sz);
     }
 
@@ -102,8 +114,6 @@
     #include <wolfcrypt/src/port/ti/ti-des3.c>
 #else
 
-#include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -1395,6 +1405,10 @@
     {
         int ret;
 
+        if (des == NULL || key == NULL || dir < 0) {
+            return BAD_FUNC_ARG;
+        }
+
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES)
         if (des->asyncDev.marker == WOLFSSL_ASYNC_MARKER_3DES) {
             /* key_raw holds orignal key copy */
@@ -1535,6 +1549,10 @@
     {
         word32 blocks;
 
+        if (des == NULL || out == NULL || in == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES)
         if (des->asyncDev.marker == WOLFSSL_ASYNC_MARKER_3DES &&
                                             sz >= WC_ASYNC_THRESH_DES3_CBC) {
@@ -1573,6 +1591,10 @@
     int wc_Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
     {
         word32 blocks;
+
+        if (des == NULL || out == NULL || in == NULL) {
+            return BAD_FUNC_ARG;
+        }
 
     #if defined(WOLFSSL_ASYNC_CRYPT)
         if (des->asyncDev.marker == WOLFSSL_ASYNC_MARKER_3DES &&
@@ -1661,6 +1683,9 @@ void wc_Des_SetIV(Des* des, const byte* iv)
 
 int wc_Des3_SetIV(Des3* des, const byte* iv)
 {
+    if (des == NULL) {
+        return BAD_FUNC_ARG;
+    }
     if (des && iv)
         XMEMCPY(des->reg, iv, DES_BLOCK_SIZE);
     else if (des)
