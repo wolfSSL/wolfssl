@@ -2283,6 +2283,42 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
             decryptionType = RC4_TYPE;
             break;
 
+        case PBE_SHA256_DES:
+            typeH = SHA256;
+            derivedLen = 16;           /* may need iv for v1.5 */
+            decryptionType = DES_TYPE;
+            break;
+
+        case PBE_SHA384_DES:
+            typeH = SHA384;
+            derivedLen = 16;           /* may need iv for v1.5 */
+            decryptionType = DES_TYPE;
+            break;
+
+        case PBE_SHA512_DES:
+            typeH = SHA512;
+            derivedLen = 16;           /* may need iv for v1.5 */
+            decryptionType = DES_TYPE;
+            break;
+
+        case PBE_SHA256_DES3:
+            typeH = SHA256;
+            derivedLen = 32;           /* may need iv for v1.5 */
+            decryptionType = DES3_TYPE;
+            break;
+
+        case PBE_SHA384_DES3:
+            typeH = SHA384;
+            derivedLen = 32;           /* may need iv for v1.5 */
+            decryptionType = DES3_TYPE;
+            break;
+
+        case PBE_SHA512_DES3:
+            typeH = SHA512;
+            derivedLen = 32;           /* may need iv for v1.5 */
+            decryptionType = DES3_TYPE;
+            break;
+
         default:
             return ALGO_ID_E;
     }
@@ -2591,6 +2627,40 @@ int ToTraditionalEnc(byte* input, word32 sz,const char* password,int passwordSz)
         if (GetAlgoId(input, &inOutIdx, &oid, oidBlkType, sz) < 0) {
             ERROR_OUT(ASN_PARSE_E, exit_tte);
         }
+        if (input[inOutIdx - 2] == ASN_TAG_NULL &&
+            input[inOutIdx - 1] == 0) {
+            /*NULL object tag, we think it should be hmacWithSHA2*/
+            switch (oid) {
+                case 653: // hmacWithSHA256
+                    id = 1;
+                    break;
+                case 654: // hmacWithSHA384
+                    id = 2;
+                    break;
+                case 655: // hmacWithSHA512
+                    id = 3;
+                    break;
+                default:
+                    ERROR_OUT(ASN_PARSE_E, exit_tte);
+            }
+            if (GetAlgoId(input, &inOutIdx, &oid, sz) < 0) {
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(salt,  NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(cbcIv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+                ERROR_OUT(ASN_PARSE_E, exit_tte);
+            }
+            switch (oid) {
+                case 69:
+                    id += 3; // 3 offset for des
+                    break;
+                case 652:
+                    id += 6; // 6 offset for des3
+                    break;
+                default:
+                    ERROR_OUT(ASN_PARSE_E, exit_tte);
+            }
+        } else
 
         if (CheckAlgoV2(oid, &id) < 0) {
             ERROR_OUT(ASN_PARSE_E, exit_tte); /* PKCS v2 algo id error */
