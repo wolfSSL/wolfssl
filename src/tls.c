@@ -102,14 +102,14 @@ static int p_hash(byte* result, word32 resLen, const byte* secret,
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-    previous = (byte*)XMALLOC(P_HASH_MAX_SIZE, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    current  = (byte*)XMALLOC(P_HASH_MAX_SIZE, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    hmac     = (Hmac*)XMALLOC(sizeof(Hmac),    heap, DYNAMIC_TYPE_TMP_BUFFER);
+    previous = (byte*)XMALLOC(P_HASH_MAX_SIZE, heap, DYNAMIC_TYPE_DIGEST);
+    current  = (byte*)XMALLOC(P_HASH_MAX_SIZE, heap, DYNAMIC_TYPE_DIGEST);
+    hmac     = (Hmac*)XMALLOC(sizeof(Hmac),    heap, DYNAMIC_TYPE_HMAC);
 
     if (previous == NULL || current == NULL || hmac == NULL) {
-        if (previous) XFREE(previous, heap, DYNAMIC_TYPE_TMP_BUFFER);
-        if (current)  XFREE(current,  heap, DYNAMIC_TYPE_TMP_BUFFER);
-        if (hmac)     XFREE(hmac,     heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (previous) XFREE(previous, heap, DYNAMIC_TYPE_DIGEST);
+        if (current)  XFREE(current,  heap, DYNAMIC_TYPE_DIGEST);
+        if (hmac)     XFREE(hmac,     heap, DYNAMIC_TYPE_HMAC);
 
         return MEMORY_E;
     }
@@ -196,9 +196,9 @@ static int p_hash(byte* result, word32 resLen, const byte* secret,
     ForceZero(hmac,      sizeof(Hmac));
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(previous, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(current,  heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(hmac,     heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(previous, heap, DYNAMIC_TYPE_DIGEST);
+    XFREE(current,  heap, DYNAMIC_TYPE_DIGEST);
+    XFREE(hmac,     heap, DYNAMIC_TYPE_HMAC);
 #endif
 
     return ret;
@@ -249,19 +249,19 @@ static int doPRF(byte* digest, word32 digLen, const byte* secret,word32 secLen,
         return BUFFER_E;
 
 #ifdef WOLFSSL_SMALL_STACK
-    md5_half   = (byte*)XMALLOC(MAX_PRF_HALF,    heap, DYNAMIC_TYPE_TMP_BUFFER);
-    sha_half   = (byte*)XMALLOC(MAX_PRF_HALF,    heap, DYNAMIC_TYPE_TMP_BUFFER);
-    labelSeed  = (byte*)XMALLOC(MAX_PRF_LABSEED, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    md5_result = (byte*)XMALLOC(MAX_PRF_DIG,     heap, DYNAMIC_TYPE_TMP_BUFFER);
-    sha_result = (byte*)XMALLOC(MAX_PRF_DIG,     heap, DYNAMIC_TYPE_TMP_BUFFER);
+    md5_half   = (byte*)XMALLOC(MAX_PRF_HALF,    heap, DYNAMIC_TYPE_DIGEST);
+    sha_half   = (byte*)XMALLOC(MAX_PRF_HALF,    heap, DYNAMIC_TYPE_DIGEST);
+    labelSeed  = (byte*)XMALLOC(MAX_PRF_LABSEED, heap, DYNAMIC_TYPE_SEED);
+    md5_result = (byte*)XMALLOC(MAX_PRF_DIG,     heap, DYNAMIC_TYPE_DIGEST);
+    sha_result = (byte*)XMALLOC(MAX_PRF_DIG,     heap, DYNAMIC_TYPE_DIGEST);
 
     if (md5_half == NULL || sha_half == NULL || labelSeed == NULL ||
                                      md5_result == NULL || sha_result == NULL) {
-        if (md5_half)   XFREE(md5_half,   heap, DYNAMIC_TYPE_TMP_BUFFER);
-        if (sha_half)   XFREE(sha_half,   heap, DYNAMIC_TYPE_TMP_BUFFER);
-        if (labelSeed)  XFREE(labelSeed,  heap, DYNAMIC_TYPE_TMP_BUFFER);
-        if (md5_result) XFREE(md5_result, heap, DYNAMIC_TYPE_TMP_BUFFER);
-        if (sha_result) XFREE(sha_result, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (md5_half)   XFREE(md5_half,   heap, DYNAMIC_TYPE_DIGEST);
+        if (sha_half)   XFREE(sha_half,   heap, DYNAMIC_TYPE_DIGEST);
+        if (labelSeed)  XFREE(labelSeed,  heap, DYNAMIC_TYPE_SEED);
+        if (md5_result) XFREE(md5_result, heap, DYNAMIC_TYPE_DIGEST);
+        if (sha_result) XFREE(sha_result, heap, DYNAMIC_TYPE_DIGEST);
 
         return MEMORY_E;
     }
@@ -285,11 +285,11 @@ static int doPRF(byte* digest, word32 digLen, const byte* secret,word32 secLen,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(md5_half,   heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(sha_half,   heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(labelSeed,  heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(md5_result, heap, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(sha_result, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(md5_half,   heap, DYNAMIC_TYPE_DIGEST);
+    XFREE(sha_half,   heap, DYNAMIC_TYPE_DIGEST);
+    XFREE(labelSeed,  heap, DYNAMIC_TYPE_SEED);
+    XFREE(md5_result, heap, DYNAMIC_TYPE_DIGEST);
+    XFREE(sha_result, heap, DYNAMIC_TYPE_DIGEST);
 #endif
 
     return ret;
@@ -317,8 +317,7 @@ static int PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
             return BUFFER_E;
 
 #ifdef WOLFSSL_SMALL_STACK
-        labelSeed = (byte*)XMALLOC(MAX_PRF_LABSEED, heap,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        labelSeed = (byte*)XMALLOC(MAX_PRF_LABSEED, heap, DYNAMIC_TYPE_SEED);
         if (labelSeed == NULL)
            return MEMORY_E;
 #endif
@@ -334,7 +333,7 @@ static int PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
                      labLen + seedLen, hash_type, heap, devId);
 
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(labelSeed, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(labelSeed, heap, DYNAMIC_TYPE_SEED);
 #endif
     }
 #ifndef NO_OLD_TLS
@@ -404,7 +403,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     word32      hashSz = HSHASH_SZ;
 
     /* using allocate here to allow async hardware to use buffer directly */
-    handshake_hash = (byte*)XMALLOC(hashSz, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    handshake_hash = (byte*)XMALLOC(hashSz, ssl->heap, DYNAMIC_TYPE_DIGEST);
     if (handshake_hash == NULL)
         return MEMORY_E;
 
@@ -421,7 +420,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                    ssl->heap, ssl->devId);
     }
 
-    XFREE(handshake_hash, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(handshake_hash, ssl->heap, DYNAMIC_TYPE_DIGEST);
 
     return ret;
 }
@@ -522,7 +521,7 @@ int DeriveTlsKeys(WOLFSSL* ssl)
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-    key_data = (byte*)XMALLOC(MAX_PRF_DIG, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    key_data = (byte*)XMALLOC(MAX_PRF_DIG, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
     if (key_data == NULL) {
         return MEMORY_E;
     }
@@ -537,7 +536,7 @@ int DeriveTlsKeys(WOLFSSL* ssl)
         ret = StoreKeys(ssl, key_data);
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(key_data, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key_data, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
 #endif
 
     return ret;
@@ -602,13 +601,14 @@ int MakeTlsMasterSecret(WOLFSSL* ssl)
         byte*  handshake_hash;
         word32 hashSz = HSHASH_SZ;
 
-        handshake_hash = (byte*)XMALLOC(HSHASH_SZ, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        handshake_hash = (byte*)XMALLOC(HSHASH_SZ, ssl->heap,
+                                        DYNAMIC_TYPE_DIGEST);
         if (handshake_hash == NULL)
             return MEMORY_E;
 
         ret = BuildTlsHandshakeHash(ssl, handshake_hash, &hashSz);
         if (ret < 0) {
-            XFREE(handshake_hash, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(handshake_hash, ssl->heap, DYNAMIC_TYPE_DIGEST);
             return ret;
         }
 
@@ -619,7 +619,7 @@ int MakeTlsMasterSecret(WOLFSSL* ssl)
                 IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm,
                 ssl->heap, ssl->devId);
 
-        XFREE(handshake_hash, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(handshake_hash, ssl->heap, DYNAMIC_TYPE_DIGEST);
     } else
 #endif
     ret = _MakeTlsMasterSecret(ssl->arrays->masterSecret, SECRET_LEN,
@@ -658,7 +658,7 @@ int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* msk, unsigned int len,
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-    seed = (byte*)XMALLOC(SEED_LEN, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    seed = (byte*)XMALLOC(SEED_LEN, ssl->heap, DYNAMIC_TYPE_SEED);
     if (seed == NULL)
         return MEMORY_E;
 #endif
@@ -676,7 +676,7 @@ int wolfSSL_make_eap_keys(WOLFSSL* ssl, void* msk, unsigned int len,
               ssl->heap, ssl->devId);
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(seed, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(seed, ssl->heap, DYNAMIC_TYPE_SEED);
 #endif
 
     return ret;
@@ -1232,10 +1232,10 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, byte *input, word16 length,
     /* keep the list sent by client */
     if (isRequest) {
         if (ssl->alpn_client_list != NULL)
-            XFREE(ssl->alpn_client_list, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(ssl->alpn_client_list, ssl->heap, DYNAMIC_TYPE_ALPN);
 
         ssl->alpn_client_list = (char *)XMALLOC(size, ssl->heap,
-                                                DYNAMIC_TYPE_TMP_BUFFER);
+                                                DYNAMIC_TYPE_ALPN);
         if (ssl->alpn_client_list == NULL)
             return MEMORY_ERROR;
     }
@@ -4633,13 +4633,13 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
     /* Allocate space for the public key. */
     dataSz = params->p_len;
-    keyData = (byte*)XMALLOC(dataSz, ssl->heap, DYNAMIC_TYPE_TLSX);
+    keyData = (byte*)XMALLOC(dataSz, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
     if (keyData == NULL) {
         ret = MEMORY_E;
         goto end;
     }
     /* Allocate space for the private key. */
-    key = (byte*)XMALLOC(keySz, ssl->heap, DYNAMIC_TYPE_TLSX);
+    key = (byte*)XMALLOC(keySz, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
     if (key == NULL) {
         ret = MEMORY_E;
         goto end;
@@ -4687,9 +4687,9 @@ end:
     if (ret != 0) {
         /* Data owned by key share entry otherwise. */
         if (keyData != NULL)
-            XFREE(keyData, ssl->heap, DYNAMIC_TYPE_TLSX);
+            XFREE(keyData, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
         if (key != NULL)
-            XFREE(key, ssl->heap, DYNAMIC_TYPE_TLSX);
+            XFREE(key, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
     }
 
     return ret;
@@ -4767,7 +4767,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
                 /* Allocate space for the public key. */
                 keyData = (byte*)XMALLOC(dataSize, ssl->heap,
-                                         DYNAMIC_TYPE_TLSX);
+                                         DYNAMIC_TYPE_KEY_BUFFER);
                 if (keyData == NULL) {
                     WOLFSSL_MSG("Key data Memory error");
                     ret = MEMORY_E;
@@ -4825,7 +4825,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
         goto end;
 
     /* Allocate space for the public key. */
-    keyData = (byte*)XMALLOC(dataSize, ssl->heap, DYNAMIC_TYPE_TLSX);
+    keyData = (byte*)XMALLOC(dataSize, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
     if (keyData == NULL) {
         WOLFSSL_MSG("Key data Memory error");
         ret = MEMORY_E;
@@ -4889,8 +4889,8 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
 
     while ((current = list) != NULL) {
         list = current->next;
-        XFREE(current->key, heap, DYNAMIC_TYPE_TLSX);
-        XFREE(current->ke, heap, DYNAMIC_TYPE_TLSX);
+        XFREE(current->key, heap, DYNAMIC_TYPE_KEY_BUFFER);
+        XFREE(current->ke, heap, DYNAMIC_TYPE_KEY_BUFFER);
         XFREE(current, heap, DYNAMIC_TYPE_TLSX);
     }
 
@@ -5283,7 +5283,7 @@ static int TLSX_KeyShareEntry_Parse(WOLFSSL* ssl, byte* input, word16 length,
         return BUFFER_ERROR;
 
     /* Store a copy in the key share object. */
-    ke = (byte*)XMALLOC(keLen, ssl->heap, DYNAMIC_TYPE_TLSX);
+    ke = (byte*)XMALLOC(keLen, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
     if (ke == NULL)
         return MEMORY_E;
     XMEMCPY(ke, &input[offset], keLen);
@@ -5513,7 +5513,7 @@ int TLSX_KeyShare_Use(WOLFSSL* ssl, word16 group, word16 len, byte* data,
     if (data != NULL) {
         /* Keep the public key data and free when finished. */
         if (keyShareEntry->ke != NULL)
-            XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_TLSX);
+            XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
         keyShareEntry->ke = data;
         keyShareEntry->keLen = len;
     }
@@ -5719,7 +5719,7 @@ int TLSX_KeyShare_Establish(WOLFSSL *ssl)
 
     /* Move private key to client entry. */
     if (clientKSE->key != NULL)
-        XFREE(clientKSE->key, ssl->heap, DYNAMIC_TYPE_TLSX);
+        XFREE(clientKSE->key, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
     clientKSE->key = serverKSE->key;
     serverKSE->key = NULL;
     clientKSE->keyLen = serverKSE->keyLen;
