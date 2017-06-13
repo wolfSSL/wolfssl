@@ -69,6 +69,10 @@
     #include <wolfssl/wolfcrypt/wc_encrypt.h>
 #endif
 
+#ifndef NO_HMAC
+    #include <wolfssl/wolfcrypt/hmac.h>
+#endif
+
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/ssl.h>
     #include <wolfssl/openssl/pkcs12.h>
@@ -3733,6 +3737,1052 @@ static int test_wc_Sha224Final (void)
 
 
 /*
+ * Test function for wc_HmacSetKey
+ */
+static int test_wc_Md5HmacSetKey (void)
+{
+#if !defined(NO_HMAC) && !defined(NO_MD5)
+    Hmac hmac;
+    int ret, flag, times, itr;
+
+    const char* keys[]=
+    {
+        "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b",
+        "Jefe",
+        "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
+    };
+
+    times = sizeof(keys) / sizeof(char*);
+    flag = 0;
+
+    printf(testingFmt, "wc_HmacSetKey() with MD5");
+
+    for (itr = 0; itr < times; itr++) {
+        ret = wc_HmacSetKey(&hmac, MD5, (byte*)keys[itr],
+                            (word32)XSTRLEN(keys[itr]));
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    /* Bad args. */
+    if (!flag) {
+        ret = wc_HmacSetKey(NULL, MD5, (byte*)keys[0],
+                                        (word32)XSTRLEN(keys[0]));
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacSetKey(&hmac, MD5, NULL, (word32)XSTRLEN(keys[0]));
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacSetKey(&hmac, 20, (byte*)keys[0],
+                                        (word32)XSTRLEN(keys[0]));
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacSetKey(&hmac, MD5, (byte*)keys[0], 0);
+        if (ret != 0) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_Md5HmacSetKey */
+
+
+/*
+ * testing wc_HmacSetKey() on Sha hash.
+ */
+static int test_wc_ShaHmacSetKey (void)
+{
+
+#if !defined(NO_HMAC) && !defined(NO_SHA)
+    Hmac hmac;
+    int ret, flag, times, itr;
+
+    const char* keys[]=
+    {
+        "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
+                                                                "\x0b\x0b\x0b",
+        "Jefe",
+        "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
+                                                                "\xAA\xAA\xAA"
+    };
+
+    times = sizeof(keys) / sizeof(char*);
+    flag = 0;
+
+    printf(testingFmt, "wc_HmacSetKey() with SHA");
+
+    for (itr = 0; itr < times; itr++) {
+        ret = wc_HmacSetKey(&hmac, SHA, (byte*)keys[itr],
+                                        (word32)XSTRLEN(keys[itr]));
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    /* Bad args. */
+    if (!flag) {
+        ret = wc_HmacSetKey(NULL, SHA, (byte*)keys[0],
+                                        (word32)XSTRLEN(keys[0]));
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacSetKey(&hmac, SHA, NULL, (word32)XSTRLEN(keys[0]));
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacSetKey(&hmac, 20, (byte*)keys[0],
+                                        (word32)XSTRLEN(keys[0]));
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacSetKey(&hmac, SHA, (byte*)keys[0], 0);
+        if (ret != 0) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_ShaHmacSetKey() */
+
+/*
+ * testing wc_HmacSetKey() on Sha224 hash.
+ */
+static int test_wc_Sha224HmacSetKey (void)
+{
+
+#if !defined(NO_HMAC) && defined(WOLFSSL_SHA224)
+    Hmac hmac;
+    int ret, flag, times, itr;
+
+    const char* keys[]=
+    {
+        "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
+                                                                "\x0b\x0b\x0b",
+        "Jefe",
+        "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
+                                                                "\xAA\xAA\xAA"
+    };
+
+    times = sizeof(keys) / sizeof(char*);
+    flag = 0;
+
+    printf(testingFmt, "wc_HmacSetKey() with SHA 224");
+
+    for (itr = 0; itr < times; itr++) {
+        ret = wc_HmacSetKey(&hmac, SHA224, (byte*)keys[itr],
+                                            (word32)XSTRLEN(keys[itr]));
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    /* Bad args. */
+    if (!flag) {
+        ret = wc_HmacSetKey(NULL, SHA224, (byte*)keys[0],
+                                            (word32)XSTRLEN(keys[0]));
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacSetKey(&hmac, SHA224, NULL, (word32)XSTRLEN(keys[0]));
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacSetKey(&hmac, 20, (byte*)keys[0],
+                                            (word32)XSTRLEN(keys[0]));
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacSetKey(&hmac, SHA224, (byte*)keys[0], 0);
+        if (ret != 0) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_Sha224HmacSetKey() */
+
+ /*
+  * testing wc_HmacSetKey() on Sha256 hash
+  */
+static int test_wc_Sha256HmacSetKey (void)
+{
+
+#if !defined(NO_HMAC) && !defined(NO_SHA256)
+    Hmac hmac;
+    int ret, flag, times, itr;
+
+    const char* keys[]=
+    {
+        "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
+                                                                "\x0b\x0b\x0b",
+        "Jefe",
+        "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
+                                                                "\xAA\xAA\xAA"
+    };
+
+    times = sizeof(keys) / sizeof(char*);
+    flag = 0;
+
+    printf(testingFmt, "wc_HmacSetKey() with SHA256");
+
+    for (itr = 0; itr < times; itr++) {
+        ret = wc_HmacSetKey(&hmac, SHA256, (byte*)keys[itr],
+                                            (word32)XSTRLEN(keys[itr]));
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    /* Bad args. */
+    if (!flag) {
+        ret = wc_HmacSetKey(NULL, SHA256, (byte*)keys[0],
+                                            (word32)XSTRLEN(keys[0]));
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacSetKey(&hmac, SHA256, NULL, (word32)XSTRLEN(keys[0]));
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacSetKey(&hmac, 20, (byte*)keys[0],
+                                            (word32)XSTRLEN(keys[0]));
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacSetKey(&hmac, SHA256, (byte*)keys[0], 0);
+        if (ret != 0) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_Sha256HmacSetKey() */
+
+
+/*
+ * testing wc_HmacSetKey on Sha384 hash.
+ */
+static int test_wc_Sha384HmacSetKey (void)
+{
+#if !defined(NO_HMAC) && defined(WOLFSSL_SHA384)
+    Hmac hmac;
+    int ret, flag, times, itr;
+
+    const char* keys[]=
+    {
+        "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
+                                                                "\x0b\x0b\x0b",
+        "Jefe",
+        "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
+                                                                "\xAA\xAA\xAA"
+    };
+
+    times = sizeof(keys) / sizeof(char*);
+    flag = 0;
+
+    printf(testingFmt, "wc_HmacSetKey() with SHA384");
+
+    for (itr = 0; itr < times; itr++) {
+        ret = wc_HmacSetKey(&hmac, SHA384, (byte*)keys[itr],
+                                            (word32)XSTRLEN(keys[itr]));
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    /* Bad args. */
+    if (!flag) {
+        ret = wc_HmacSetKey(NULL, SHA384, (byte*)keys[0],
+                                            (word32)XSTRLEN(keys[0]));
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacSetKey(&hmac, SHA384, NULL, (word32)XSTRLEN(keys[0]));
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacSetKey(&hmac, 20, (byte*)keys[0],
+                                            (word32)XSTRLEN(keys[0]));
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacSetKey(&hmac, SHA384, (byte*)keys[0], 0);
+        if (ret != 0) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_Sha384HmacSetKey() */
+
+
+/*
+ * testing wc_HmacUpdate on Md5 hash.
+ */
+static int test_wc_Md5HmacUpdate (void)
+{
+#if !defined(NO_HMAC) && !defined(NO_MD5)
+    Hmac hmac;
+    testVector a, b;
+    int ret, flag;
+    const char* keys = "Jefe";
+
+    a.input = "what do ya want for nothing?";
+    a.inLen  = XSTRLEN(a.input);
+
+    b.input = "Hi There";
+    b.inLen = XSTRLEN(b.input);
+
+    flag = 0;
+
+    printf(testingFmt, "wc_HmacUpdate() with MD5");
+
+    ret = wc_HmacSetKey(&hmac, MD5, (byte*)keys, (word32)XSTRLEN(keys));
+    if (ret != 0) {
+        flag = ret;
+    }
+
+    if (!flag) {
+        ret = wc_HmacUpdate(&hmac, (byte*)b.input, (word32)b.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+    /* Update Hmac. */
+    if (!flag) {
+        ret = wc_HmacUpdate(&hmac, (byte*)a.input, (word32)a.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    /* Test bad args. */
+    if (!flag) {
+        ret = wc_HmacUpdate(NULL, (byte*)a.input, (word32)a.inLen);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacUpdate(&hmac, NULL, (word32)a.inLen);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacUpdate(&hmac, (byte*)a.input, 0);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_Md5HmacUpdate */
+
+/*
+ * testing wc_HmacUpdate on SHA hash.
+ */
+static int test_wc_ShaHmacUpdate (void)
+{
+#if !defined(NO_HMAC) && !defined(NO_SHA)
+    Hmac hmac;
+    testVector a, b;
+    int ret, flag;
+    const char* keys = "Jefe";
+
+    a.input = "what do ya want for nothing?";
+    a.inLen  = XSTRLEN(a.input);
+
+    b.input = "Hi There";
+    b.inLen = XSTRLEN(b.input);
+
+    flag = 0;
+
+    printf(testingFmt, "wc_HmacUpdate() with SHA");
+
+    ret = wc_HmacSetKey(&hmac, SHA, (byte*)keys, (word32)XSTRLEN(keys));
+    if (ret != 0) {
+        flag = ret;
+    }
+
+    if (!flag) {
+        ret = wc_HmacUpdate(&hmac, (byte*)b.input, (word32)b.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+    /* Update Hmac. */
+    if (!flag) {
+        ret = wc_HmacUpdate(&hmac, (byte*)a.input, (word32)a.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    /* Test bad args. */
+    if (!flag) {
+        ret = wc_HmacUpdate(NULL, (byte*)a.input, (word32)a.inLen);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacUpdate(&hmac, NULL, (word32)a.inLen);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacUpdate(&hmac, (byte*)a.input, 0);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_ShaHmacUpdate */
+
+/*
+ * testing wc_HmacUpdate on SHA224 hash.
+ */
+static int test_wc_Sha224HmacUpdate (void)
+{
+#if !defined(NO_HMAC) && defined(WOLFSSL_SHA224)
+    Hmac hmac;
+    testVector a, b;
+    int ret, flag;
+    const char* keys = "Jefe";
+
+    a.input = "what do ya want for nothing?";
+    a.inLen  = XSTRLEN(a.input);
+
+    b.input = "Hi There";
+    b.inLen = XSTRLEN(b.input);
+
+    flag = 0;
+
+    printf(testingFmt, "wc_HmacUpdate() with SHA224");
+
+    ret = wc_HmacSetKey(&hmac, SHA224, (byte*)keys, (word32)XSTRLEN(keys));
+    if (ret != 0) {
+        flag = ret;
+    }
+
+    if (!flag) {
+        ret = wc_HmacUpdate(&hmac, (byte*)b.input, (word32)b.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+    /* Update Hmac. */
+    if (!flag) {
+        ret = wc_HmacUpdate(&hmac, (byte*)a.input, (word32)a.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    /* Test bad args. */
+    if (!flag) {
+        ret = wc_HmacUpdate(NULL, (byte*)a.input, (word32)a.inLen);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacUpdate(&hmac, NULL, (word32)a.inLen);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacUpdate(&hmac, (byte*)a.input, 0);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_Sha224HmacUpdate */
+
+/*
+ * testing wc_HmacUpdate on SHA256 hash.
+ */
+static int test_wc_Sha256HmacUpdate (void)
+{
+#if !defined(NO_HMAC) && !defined(NO_SHA256)
+    Hmac hmac;
+    testVector a, b;
+    int ret, flag;
+    const char* keys = "Jefe";
+
+    a.input = "what do ya want for nothing?";
+    a.inLen  = XSTRLEN(a.input);
+
+    b.input = "Hi There";
+    b.inLen = XSTRLEN(b.input);
+
+    flag = 0;
+
+    printf(testingFmt, "wc_HmacUpdate() with SHA256");
+
+    ret = wc_HmacSetKey(&hmac, SHA256, (byte*)keys, (word32)XSTRLEN(keys));
+    if (ret != 0) {
+        flag = ret;
+    }
+
+    if (!flag) {
+        ret = wc_HmacUpdate(&hmac, (byte*)b.input, (word32)b.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+    /* Update Hmac. */
+    if (!flag) {
+        ret = wc_HmacUpdate(&hmac, (byte*)a.input, (word32)a.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    /* Test bad args. */
+    if (!flag) {
+        ret = wc_HmacUpdate(NULL, (byte*)a.input, (word32)a.inLen);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacUpdate(&hmac, NULL, (word32)a.inLen);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacUpdate(&hmac, (byte*)a.input, 0);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_Sha256HmacUpdate */
+
+/*
+ * testing wc_HmacUpdate on SHA384  hash.
+ */
+static int test_wc_Sha384HmacUpdate (void)
+{
+#if !defined(NO_HMAC) && defined(WOLFSSL_SHA384)
+    Hmac hmac;
+    testVector a, b;
+    int ret, flag;
+    const char* keys = "Jefe";
+
+    a.input = "what do ya want for nothing?";
+    a.inLen  = XSTRLEN(a.input);
+
+    b.input = "Hi There";
+    b.inLen = XSTRLEN(b.input);
+
+    flag = 0;
+
+    printf(testingFmt, "wc_HmacUpdate() with SHA384");
+
+    ret = wc_HmacSetKey(&hmac, SHA384, (byte*)keys, (word32)XSTRLEN(keys));
+    if (ret != 0) {
+        flag = ret;
+    }
+
+    if (!flag) {
+        ret = wc_HmacUpdate(&hmac, (byte*)b.input, (word32)b.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+    /* Update Hmac. */
+    if (!flag) {
+        ret = wc_HmacUpdate(&hmac, (byte*)a.input, (word32)a.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    /* Test bad args. */
+    if (!flag) {
+        ret = wc_HmacUpdate(NULL, (byte*)a.input, (word32)a.inLen);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacUpdate(&hmac, NULL, (word32)a.inLen);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacUpdate(&hmac, (byte*)a.input, 0);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_Sha384HmacUpdate */
+
+/*
+ * Testing wc_HmacFinal() with MD5
+ */
+
+static int test_wc_Md5HmacFinal (void)
+{
+#if !defined(NO_HMAC) && !defined(NO_MD5)
+    Hmac hmac;
+    byte hash[MD5_DIGEST_SIZE];
+    testVector a;
+    int ret, flag;
+    const char* key;
+
+    key = "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
+    a.input = "Hi There";
+    a.output = "\x92\x94\x72\x7a\x36\x38\xbb\x1c\x13\xf4\x8e\xf8\x15\x8b\xfc"
+               "\x9d";
+    a.inLen  = XSTRLEN(a.input);
+    a.outLen = XSTRLEN(a.output);
+
+    flag = 0;
+
+    printf(testingFmt, "wc_HmacFinal() with MD5");
+
+    ret = wc_HmacSetKey(&hmac, MD5, (byte*)key, (word32)XSTRLEN(key));
+    if (ret != 0) {
+        flag = ret;
+    }
+
+    if (!flag) {
+        ret = wc_HmacUpdate(&hmac, (byte*)a.input, (word32)a.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacFinal(&hmac, hash);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        if (XMEMCMP(hash, a.output, MD5_DIGEST_SIZE) != 0) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    /* Try bad parameters. */
+    if (!flag) {
+        ret = wc_HmacFinal(NULL, hash);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+#ifndef HAVE_FIPS
+    if (!flag) {
+        ret = wc_HmacFinal(&hmac, NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+#endif
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_Md5HmacFinal */
+
+/*
+ * Testing wc_HmacFinal() with SHA
+ */
+static int test_wc_ShaHmacFinal (void)
+{
+#if !defined(NO_HMAC) && !defined(NO_SHA)
+    Hmac hmac;
+    byte hash[SHA_DIGEST_SIZE];
+    testVector a;
+    int ret, flag;
+    const char* key;
+
+    key = "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
+                                                                "\x0b\x0b\x0b";
+    a.input = "Hi There";
+    a.output = "\xb6\x17\x31\x86\x55\x05\x72\x64\xe2\x8b\xc0\xb6\xfb\x37\x8c"
+               "\x8e\xf1\x46\xbe\x00";
+    a.inLen  = XSTRLEN(a.input);
+    a.outLen = XSTRLEN(a.output);
+
+    flag = 0;
+
+    printf(testingFmt, "wc_HmacFinal() with SHA");
+
+    ret = wc_HmacSetKey(&hmac, SHA, (byte*)key, (word32)XSTRLEN(key));
+    if (ret != 0) {
+        flag = ret;
+    }
+
+    if (!flag) {
+        ret = wc_HmacUpdate(&hmac, (byte*)a.input, (word32)a.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacFinal(&hmac, hash);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        if (XMEMCMP(hash, a.output, SHA_DIGEST_SIZE) != 0) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    /* Try bad parameters. */
+    if (!flag) {
+        ret = wc_HmacFinal(NULL, hash);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+#ifndef HAVE_FIPS
+    if (!flag) {
+        ret = wc_HmacFinal(&hmac, NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+#endif
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_ShaHmacFinal */
+
+
+/*
+ * Testing wc_HmacFinal() with SHA224
+ */
+static int test_wc_Sha224HmacFinal (void)
+{
+#if !defined(NO_HMAC) && defined(WOLFSSL_SHA224)
+    Hmac hmac;
+    byte hash[SHA224_DIGEST_SIZE];
+    testVector a;
+    int ret, flag;
+    const char* key;
+
+    key = "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
+                                                                "\x0b\x0b\x0b";
+    a.input = "Hi There";
+    a.output = "\x89\x6f\xb1\x12\x8a\xbb\xdf\x19\x68\x32\x10\x7c\xd4\x9d\xf3"
+               "\x3f\x47\xb4\xb1\x16\x99\x12\xba\x4f\x53\x68\x4b\x22";
+    a.inLen  = XSTRLEN(a.input);
+    a.outLen = XSTRLEN(a.output);
+
+    flag = 0;
+
+    printf(testingFmt, "wc_HmacFinal() with SHA224");
+
+    ret = wc_HmacSetKey(&hmac, SHA224, (byte*)key, (word32)XSTRLEN(key));
+    if (ret != 0) {
+        flag = ret;
+    }
+
+    if (!flag) {
+        ret = wc_HmacUpdate(&hmac, (byte*)a.input, (word32)a.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacFinal(&hmac, hash);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        if (XMEMCMP(hash, a.output, SHA224_DIGEST_SIZE) != 0) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    /* Try bad parameters. */
+    if (!flag) {
+        ret = wc_HmacFinal(NULL, hash);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+#ifndef HAVE_FIPS
+    if (!flag) {
+        ret = wc_HmacFinal(&hmac, NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+#endif
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_Sha224HmacFinal */
+
+/*
+ * Testing wc_HmacFinal() with SHA256
+ */
+static int test_wc_Sha256HmacFinal (void)
+{
+#if !defined(NO_HMAC) && !defined(NO_SHA256)
+    Hmac hmac;
+    byte hash[SHA256_DIGEST_SIZE];
+    testVector a;
+    int ret, flag;
+    const char* key;
+
+    key = "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
+                                                                "\x0b\x0b\x0b";
+    a.input = "Hi There";
+    a.output = "\xb0\x34\x4c\x61\xd8\xdb\x38\x53\x5c\xa8\xaf\xce\xaf\x0b\xf1"
+               "\x2b\x88\x1d\xc2\x00\xc9\x83\x3d\xa7\x26\xe9\x37\x6c\x2e\x32"
+               "\xcf\xf7";
+    a.inLen  = XSTRLEN(a.input);
+    a.outLen = XSTRLEN(a.output);
+
+    flag = 0;
+
+    printf(testingFmt, "wc_HmacFinal() with SHA256");
+
+    ret = wc_HmacSetKey(&hmac, SHA256, (byte*)key, (word32)XSTRLEN(key));
+    if (ret != 0) {
+        flag = ret;
+    }
+
+    if (!flag) {
+        ret = wc_HmacUpdate(&hmac, (byte*)a.input, (word32)a.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacFinal(&hmac, hash);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        if (XMEMCMP(hash, a.output, SHA256_DIGEST_SIZE) != 0) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    /* Try bad parameters. */
+    if (!flag) {
+        ret = wc_HmacFinal(NULL, hash);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+#ifndef HAVE_FIPS
+    if (!flag) {
+        ret = wc_HmacFinal(&hmac, NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+#endif
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_Sha256HmacFinal */
+
+/*
+ * Testing wc_HmacFinal() with SHA384
+ */
+static int test_wc_Sha384HmacFinal (void)
+{
+#if !defined(NO_HMAC) && defined(WOLFSSL_SHA384)
+    Hmac hmac;
+    byte hash[SHA384_DIGEST_SIZE];
+    testVector a;
+    int ret, flag;
+    const char* key;
+
+    key = "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
+                                                                "\x0b\x0b\x0b";
+    a.input = "Hi There";
+    a.output = "\xaf\xd0\x39\x44\xd8\x48\x95\x62\x6b\x08\x25\xf4\xab\x46\x90"
+               "\x7f\x15\xf9\xda\xdb\xe4\x10\x1e\xc6\x82\xaa\x03\x4c\x7c\xeb"
+               "\xc5\x9c\xfa\xea\x9e\xa9\x07\x6e\xde\x7f\x4a\xf1\x52\xe8\xb2"
+               "\xfa\x9c\xb6";
+    a.inLen  = XSTRLEN(a.input);
+    a.outLen = XSTRLEN(a.output);
+
+    flag = 0;
+
+    printf(testingFmt, "wc_HmacFinal() with SHA384");
+
+    ret = wc_HmacSetKey(&hmac, SHA384, (byte*)key, (word32)XSTRLEN(key));
+    if (ret != 0) {
+        flag = ret;
+    }
+
+    if (!flag) {
+        ret = wc_HmacUpdate(&hmac, (byte*)a.input, (word32)a.inLen);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        ret = wc_HmacFinal(&hmac, hash);
+        if (ret != 0) {
+            flag = ret;
+        }
+    }
+
+    if (!flag) {
+        if (XMEMCMP(hash, a.output, SHA384_DIGEST_SIZE) != 0) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+
+    /* Try bad parameters. */
+    if (!flag) {
+        ret = wc_HmacFinal(NULL, hash);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+#ifndef HAVE_FIPS
+    if (!flag) {
+        ret = wc_HmacFinal(&hmac, NULL);
+        if (ret != BAD_FUNC_ARG) {
+            flag = SSL_FATAL_ERROR;
+        }
+    }
+#endif
+    printf(resultFmt, flag == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_Sha384HmacFinal */
+
+
+
+/*
  * unit test for wc_Des3_SetIV()
  */
 static int test_wc_Des3_SetIV (void)
@@ -3808,7 +4858,6 @@ static int test_wc_Des3_SetKey (void)
 
     /* DES_ENCRYPTION or DES_DECRYPTION */
     ret = wc_Des3_SetKey(&des, key, iv, DES_ENCRYPTION);
-
     if (ret == 0) {
         if (XMEMCMP(iv, des.reg, DES_BLOCK_SIZE) != 0) {
             ret = SSL_FATAL_ERROR;
@@ -3828,9 +4877,6 @@ static int test_wc_Des3_SetKey (void)
             /* Default case. Should return 0. */
             ret = wc_Des3_SetKey(&des, key, NULL, DES_ENCRYPTION);
         }
-        if (ret == 0) {
-            ret = SSL_FATAL_ERROR;
-        }
     } /* END if ret != 0 */
 
     printf(resultFmt, ret == 0 ? passed : failed);
@@ -3847,17 +4893,8 @@ static int test_wc_Des3_CbcEncryptDecrypt (void)
 {
 #ifndef NO_DES3
     Des3 des;
-
-    #ifndef WOLFSSL_SMALL_STACK
-        byte cipher[24];
-        byte plain[24];
-    #elif defined(WOLFSSL_SMALL_STACK)
-        byte* cipher = (byte*) XMALLOC(sizeof(byte) * 24, NULL,
-                                                    DYNAMIC_TYPE_TMP_BUFFER);
-        byte* plain = (byte*) XMALLOC(sizeof(byte) * 24, NULL,
-                                                    DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-
+    byte cipher[24];
+    byte plain[24];
     int ret;
 
     const byte key[] =
@@ -3934,10 +4971,6 @@ static int test_wc_Des3_CbcEncryptDecrypt (void)
 
     printf(resultFmt, ret == 0 ? passed : failed);
 
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(cipher, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
 #endif
     return 0;
 
@@ -3951,17 +4984,8 @@ static int test_wc_Des3_CbcEncryptDecryptWithKey (void)
 #ifndef NO_DES3
 
     word32 vectorSz, cipherSz;
-    int ret;
-
-    #ifndef WOLFSSL_SMALL_STACK
-        byte cipher[24];
-        byte plain[24];
-    #elif defined(WOLFSSL_SMALL_STACK)
-        byte* cipher = (byte*) XMALLOC(sizeof(byte) * 24, NULL,
-                                                    DYNAMIC_TYPE_TMP_BUFFER);
-        byte* plain = (byte*) XMALLOC(sizeof(byte) * 24, NULL,
-                                                    DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+    byte cipher[24];
+    byte plain[24];
 
     byte vector[] = /* Now is the time for all w/o trailing 0 */
     {
@@ -3983,6 +5007,8 @@ static int test_wc_Des3_CbcEncryptDecryptWithKey (void)
         0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
         0x11,0x21,0x31,0x41,0x51,0x61,0x71,0x81
     };
+
+    int ret;
 
     vectorSz = sizeof(byte) * 24;
     cipherSz = sizeof(byte) * 24;
@@ -4033,11 +5059,6 @@ static int test_wc_Des3_CbcEncryptDecryptWithKey (void)
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
-
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(plain, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(cipher, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
 
 #endif
     return 0;
@@ -4352,7 +5373,8 @@ static void test_wolfSSL_PEM_PrivateKey(void)
 static void test_wolfSSL_tmp_dh(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
-       !defined(NO_FILESYSTEM) && !defined(NO_DSA) && !defined(NO_RSA)
+       !defined(NO_FILESYSTEM) && !defined(NO_DSA) && !defined(NO_RSA) && \
+       !defined(NO_DH)
     byte buffer[5300];
     char file[] = "./certs/dsaparams.pem";
     FILE *f;
@@ -5302,6 +6324,23 @@ void ApiTest(void)
     AssertFalse(test_wc_InitRipeMd());
     AssertFalse(test_wc_RipeMdUpdate());
     AssertFalse(test_wc_RipeMdFinal());
+
+    AssertFalse(test_wc_Md5HmacSetKey());
+    AssertFalse(test_wc_Md5HmacUpdate());
+    AssertFalse(test_wc_Md5HmacFinal());
+    AssertFalse(test_wc_ShaHmacSetKey());
+    AssertFalse(test_wc_ShaHmacUpdate());
+    AssertFalse(test_wc_ShaHmacFinal());
+    AssertFalse(test_wc_Sha224HmacSetKey());
+    AssertFalse(test_wc_Sha224HmacUpdate());
+    AssertFalse(test_wc_Sha224HmacFinal());
+    AssertFalse(test_wc_Sha256HmacSetKey());
+    AssertFalse(test_wc_Sha256HmacUpdate());
+    AssertFalse(test_wc_Sha256HmacFinal());
+    AssertFalse(test_wc_Sha384HmacSetKey());
+    AssertFalse(test_wc_Sha384HmacUpdate());
+    AssertFalse(test_wc_Sha384HmacFinal());
+
 
     AssertIntEQ(test_wc_Des3_SetIV(), 0);
     AssertIntEQ(test_wc_Des3_SetKey(), 0);

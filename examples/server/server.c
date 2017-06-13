@@ -866,14 +866,19 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
         if (cipherList == NULL && !usePskPlus) {
             const char *defaultCipherList;
-            #if defined(HAVE_AESGCM) && !defined(NO_DH)
-                defaultCipherList = "DHE-PSK-AES128-GCM-SHA256";
-                needDH = 1;
-            #elif defined(HAVE_NULL_CIPHER)
-                defaultCipherList = "PSK-NULL-SHA256";
+        #if defined(HAVE_AESGCM) && !defined(NO_DH)
+            #ifdef WOLFSSL_TLS13
+                defaultCipherList = "DHE-PSK-AES128-GCM-SHA256:"
+                                    "TLS13-AES128-GCM-SHA256";
             #else
-                defaultCipherList = "PSK-AES128-CBC-SHA256";
+                defaultCipherList = "DHE-PSK-AES128-GCM-SHA256";
             #endif
+                needDH = 1;
+        #elif defined(HAVE_NULL_CIPHER)
+                defaultCipherList = "PSK-NULL-SHA256";
+        #else
+                defaultCipherList = "PSK-AES128-CBC-SHA256";
+        #endif
             if (SSL_CTX_set_cipher_list(ctx, defaultCipherList) != SSL_SUCCESS)
                 err_sys("server can't set cipher list 2");
         }

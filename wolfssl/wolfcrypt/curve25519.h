@@ -30,6 +30,10 @@
 #include <wolfssl/wolfcrypt/fe_operations.h>
 #include <wolfssl/wolfcrypt/random.h>
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -50,7 +54,7 @@ typedef struct {
     #ifdef FREESCALE_LTC_ECC
         byte pointY[CURVE25519_KEYSIZE];
     #endif
-}ECPoint;
+} ECPoint;
 
 /* A CURVE25519 Key */
 typedef struct curve25519_key {
@@ -61,6 +65,10 @@ typedef struct curve25519_key {
                                    curves (idx >= 0) or user supplied */
     ECPoint   p;        /* public key  */
     ECPoint   k;        /* private key */
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    WC_ASYNC_DEV asyncDev;
+#endif
 } curve25519_key;
 
 enum {

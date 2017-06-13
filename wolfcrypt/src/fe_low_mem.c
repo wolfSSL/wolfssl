@@ -20,7 +20,7 @@
  */
 
 
-/* Based from Daniel Beer's public domain word. */
+/* Based from Daniel Beer's public domain work. */
 
 #ifdef HAVE_CONFIG_H
     #include <config.h>

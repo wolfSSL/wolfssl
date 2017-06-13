@@ -156,7 +156,7 @@ static void ShowVersions(void)
 /* Measures average time to create, connect and disconnect a connection (TPS).
 Benchmark = number of connections. */
 static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
-    int dtlsUDP, int dtlsSCTP, int benchmark, int resumeSession)
+    int dtlsUDP, int dtlsSCTP, int benchmark, int resumeSession, int useX25519)
 {
     /* time passed in number of connects give average */
     int times = benchmark;
@@ -171,6 +171,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
 #endif
 
     (void)resumeSession;
+    (void)useX25519;
 
     while (loops--) {
     #ifndef NO_SESSION_CACHE
@@ -190,6 +191,16 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     #ifndef NO_SESSION_CACHE
             if (benchResume)
                 wolfSSL_set_session(ssl, benchSession);
+    #endif
+    #ifdef WOLFSSL_TLS13
+        #ifdef HAVE_CURVE25519
+            else if (useX25519) {
+                if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519)
+                        != SSL_SUCCESS) {
+                    err_sys("unable to use curve secp256r1");
+                }
+            }
+        #endif
     #endif
             if (wolfSSL_set_fd(ssl, sockfd) != SSL_SUCCESS) {
                 err_sys("error in setting fd");
@@ -247,7 +258,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
 
 /* Measures throughput in kbps. Throughput = number of bytes */
 static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
-    int dtlsUDP, int dtlsSCTP, int throughput)
+    int dtlsUDP, int dtlsSCTP, int throughput, int useX25519)
 {
     double start, conn_time = 0, tx_time = 0, rx_time = 0;
     SOCKET_T sockfd;
@@ -263,6 +274,18 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
     if (wolfSSL_set_fd(ssl, sockfd) != SSL_SUCCESS) {
         err_sys("error in setting fd");
     }
+
+    (void)useX25519;
+    #ifdef WOLFSSL_TLS13
+        #ifdef HAVE_CURVE25519
+            if (useX25519) {
+                if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519)
+                        != SSL_SUCCESS) {
+                    err_sys("unable to use curve secp256r1");
+                }
+            }
+        #endif
+    #endif
 
     do {
         err = 0; /* reset error */
@@ -735,9 +758,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    useOcsp  = 0;
     char*  ocspUrl  = NULL;
 #endif
-#ifdef HAVE_CURVE25519
     int useX25519 = 0;
-#endif
 
 #ifdef HAVE_WNR
     const char* wnrConfigFile = wnrConfig;
@@ -771,6 +792,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)alpnList;
     (void)alpn_opt;
     (void)updateKeysIVs;
+    (void)useX25519;
 
     StackTrap();
 
@@ -1280,13 +1302,18 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_CTX_set_psk_client_callback(ctx, my_psk_client_cb);
         if (cipherList == NULL) {
             const char *defaultCipherList;
-            #if defined(HAVE_AESGCM) && !defined(NO_DH)
-                defaultCipherList = "DHE-PSK-AES128-GCM-SHA256";
-            #elif defined(HAVE_NULL_CIPHER)
-                defaultCipherList = "PSK-NULL-SHA256";
+        #if defined(HAVE_AESGCM) && !defined(NO_DH)
+            #ifdef WOLFSSL_TLS13
+                defaultCipherList = "DHE-PSK-AES128-GCM-SHA256:"
+                                    "TLS13-AES128-GCM-SHA256";
             #else
-                defaultCipherList = "PSK-AES128-CBC-SHA256";
+                defaultCipherList = "DHE-PSK-AES128-GCM-SHA256";
             #endif
+        #elif defined(HAVE_NULL_CIPHER)
+                defaultCipherList = "PSK-NULL-SHA256";
+        #else
+                defaultCipherList = "PSK-AES128-CBC-SHA256";
+        #endif
             if (wolfSSL_CTX_set_cipher_list(ctx,defaultCipherList)
                                                                 !=SSL_SUCCESS) {
                 wolfSSL_CTX_free(ctx);
@@ -1474,7 +1501,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (benchmark) {
         ((func_args*)args)->return_code =
             ClientBenchmarkConnections(ctx, host, port, dtlsUDP, dtlsSCTP,
-                                       benchmark, resumeSession);
+                                       benchmark, resumeSession, useX25519);
         wolfSSL_CTX_free(ctx);
         exit(EXIT_SUCCESS);
     }
@@ -1482,7 +1509,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if(throughput) {
         ((func_args*)args)->return_code =
             ClientBenchmarkThroughput(ctx, host, port, dtlsUDP, dtlsSCTP,
-                                      throughput);
+                                      throughput, useX25519);
         wolfSSL_CTX_free(ctx);
         exit(EXIT_SUCCESS);
     }
@@ -1520,12 +1547,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #ifdef WOLFSSL_TLS13
     if (!helloRetry) {
         if (onlyKeyShare == 0 || onlyKeyShare == 2) {
+        #ifdef HAVE_CURVE25519
             if (useX25519) {
                 if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519)
                         != SSL_SUCCESS) {
                     err_sys("unable to use curve secp256r1");
                 }
             }
+        #endif
             if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_SECP256R1)
                     != SSL_SUCCESS) {
                 err_sys("unable to use curve secp256r1");
@@ -1950,12 +1979,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                                     (void*)"resumed session");
 #endif
 
-    #ifdef WOLFSSL_TLS13
+#ifdef WOLFSSL_TLS13
+    #ifdef HAVE_CURVE25519
         if (useX25519) {
             if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519) != SSL_SUCCESS) {
                 err_sys("unable to use curve secp256r1");
             }
         }
+    #endif
         if (wolfSSL_UseKeyShare(sslResume,
                                 WOLFSSL_ECC_SECP256R1) != SSL_SUCCESS) {
             err_sys("unable to use curve secp256r1");
@@ -1964,12 +1995,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                                 WOLFSSL_ECC_SECP384R1) != SSL_SUCCESS) {
             err_sys("unable to use curve secp384r1");
         }
-        #ifdef HAVE_FFDHE_2048
+    #ifdef HAVE_FFDHE_2048
         if (wolfSSL_UseKeyShare(sslResume, WOLFSSL_FFDHE_2048) != SSL_SUCCESS) {
             err_sys("unable to use DH 2048-bit parameters");
         }
-        #endif
     #endif
+#endif
 
 #ifndef WOLFSSL_CALLBACKS
         if (nonBlocking) {

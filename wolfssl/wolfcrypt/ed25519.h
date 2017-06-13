@@ -32,6 +32,10 @@
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/sha512.h>
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -54,8 +58,14 @@
 /* both private and public key */
 #define ED25519_PRV_KEY_SIZE (ED25519_PUB_KEY_SIZE+ED25519_KEY_SIZE)
 
+
+#ifndef WC_ED25519KEY_TYPE_DEFINED
+    typedef struct ed25519_key ed25519_key;
+    #define WC_ED25519KEY_TYPE_DEFINED
+#endif
+
 /* An ED25519 Key */
-typedef struct {
+struct ed25519_key {
     byte    p[ED25519_PUB_KEY_SIZE]; /* compressed public key */
     byte    k[ED25519_PRV_KEY_SIZE]; /* private key : 32 secret -- 32 public */
 #ifdef FREESCALE_LTC_ECC
@@ -63,7 +73,10 @@ typedef struct {
     byte pointX[ED25519_KEY_SIZE]; /* recovered X coordinate */
     byte pointY[ED25519_KEY_SIZE]; /* Y coordinate is the public key with The most significant bit of the final octet always zero. */
 #endif
-} ed25519_key;
+#ifdef WOLFSSL_ASYNC_CRYPT
+    WC_ASYNC_DEV asyncDev;
+#endif
+};
 
 
 WOLFSSL_API
@@ -72,7 +85,7 @@ WOLFSSL_API
 int wc_ed25519_sign_msg(const byte* in, word32 inlen, byte* out,
                         word32 *outlen, ed25519_key* key);
 WOLFSSL_API
-int wc_ed25519_verify_msg(byte* sig, word32 siglen, const byte* msg,
+int wc_ed25519_verify_msg(const byte* sig, word32 siglen, const byte* msg,
                           word32 msglen, int* stat, ed25519_key* key);
 WOLFSSL_API
 int wc_ed25519_init(ed25519_key* key);
@@ -80,6 +93,9 @@ WOLFSSL_API
 void wc_ed25519_free(ed25519_key* key);
 WOLFSSL_API
 int wc_ed25519_import_public(const byte* in, word32 inLen, ed25519_key* key);
+WOLFSSL_API
+int wc_ed25519_import_private_only(const byte* priv, word32 privSz,
+                                                              ed25519_key* key);
 WOLFSSL_API
 int wc_ed25519_import_private_key(const byte* priv, word32 privSz,
                                const byte* pub, word32 pubSz, ed25519_key* key);
@@ -93,6 +109,8 @@ WOLFSSL_API
 int wc_ed25519_export_key(ed25519_key* key,
                           byte* priv, word32 *privSz,
                           byte* pub, word32 *pubSz);
+
+int wc_ed25519_check_key(ed25519_key* key);
 
 /* size helper */
 WOLFSSL_API

@@ -445,6 +445,9 @@ int CheckOcspRequest(WOLFSSL_OCSP* ocsp, OcspRequest* ocspRequest,
         responseSz = ocsp->cm->ocspIOCb(ocsp->cm->ocspIOCtx, url, urlSz,
                                         request, requestSz, &response);
     }
+    if (responseSz == WOLFSSL_CBIO_ERR_WANT_READ) {
+        ret = WANT_READ;
+    }
 
     XFREE(request, ocsp->cm->heap, DYNAMIC_TYPE_OCSP);
 

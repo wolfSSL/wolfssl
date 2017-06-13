@@ -95,6 +95,9 @@
 #ifdef HAVE_BLAKE2
     #include <wolfssl/wolfcrypt/blake2.h>
 #endif
+#ifdef WOLFSSL_SHA3
+    #include <wolfssl/wolfcrypt/sha3.h>
+#endif
 #ifdef HAVE_LIBZ
     #include <wolfssl/wolfcrypt/compress.h>
 #endif
@@ -125,7 +128,9 @@
 #endif
 
 #ifdef OPENSSL_EXTRA
+  #ifndef WOLFCRYPT_ONLY
     #include <wolfssl/openssl/evp.h>
+  #endif
     #include <wolfssl/openssl/rand.h>
     #include <wolfssl/openssl/hmac.h>
     #include <wolfssl/openssl/aes.h>
@@ -209,6 +214,7 @@ int  sha224_test(void);
 int  sha256_test(void);
 int  sha512_test(void);
 int  sha384_test(void);
+int  sha3_test(void);
 int  hash_test(void);
 int  hmac_md5_test(void);
 int  hmac_sha_test(void);
@@ -245,7 +251,9 @@ int  random_test(void);
 #endif /* WC_NO_RNG */
 int  pwdbased_test(void);
 int  ripemd_test(void);
-int  openssl_test(void);   /* test mini api */
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
+    int  openssl_test(void);   /* test mini api */
+#endif
 int pbkdf1_test(void);
 int pkcs12_test(void);
 int pbkdf2_test(void);
@@ -477,6 +485,13 @@ int wolfcrypt_test(void* args)
         return err_sys("SHA-512  test failed!\n", ret);
     else
         printf( "SHA-512  test passed!\n");
+#endif
+
+#ifdef WOLFSSL_SHA3
+    if ( (ret = sha3_test()) != 0)
+        return err_sys("SHA-3    test failed!\n", ret);
+    else
+        printf( "SHA-3    test passed!\n");
 #endif
 
     if ( (ret = hash_test()) != 0)
@@ -740,7 +755,7 @@ int wolfcrypt_test(void* args)
         printf( "PWDBASED test passed!\n");
 #endif
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
     if ( (ret = openssl_test()) != 0)
         return err_sys("OPENSSL  test failed!\n", ret);
     else
@@ -1759,6 +1774,245 @@ int sha384_test(void)
     return 0;
 }
 #endif /* WOLFSSL_SHA384 */
+
+#ifdef WOLFSSL_SHA3
+static int sha3_224_test(void)
+{
+    Sha3  sha;
+    byte  hash[SHA3_224_DIGEST_SIZE];
+    byte  hashcopy[SHA3_224_DIGEST_SIZE];
+
+    testVector a, b;
+    testVector test_sha[2];
+    int ret;
+    int times = sizeof(test_sha) / sizeof(struct testVector), i;
+
+    a.input  = "abc";
+    a.output = "\xe6\x42\x82\x4c\x3f\x8c\xf2\x4a\xd0\x92\x34\xee\x7d\x3c\x76"
+               "\x6f\xc9\xa3\xa5\x16\x8d\x0c\x94\xad\x73\xb4\x6f\xdf";
+    a.inLen  = XSTRLEN(a.input);
+    a.outLen = SHA3_224_DIGEST_SIZE;
+
+    b.input  = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
+    b.output = "\x8a\x24\x10\x8b\x15\x4a\xda\x21\xc9\xfd\x55\x74\x49\x44\x79"
+               "\xba\x5c\x7e\x7a\xb7\x6e\xf2\x64\xea\xd0\xfc\xce\x33";
+    b.inLen  = XSTRLEN(b.input);
+    b.outLen = SHA3_224_DIGEST_SIZE;
+
+    test_sha[0] = a;
+    test_sha[1] = b;
+
+    ret = wc_InitSha3_224(&sha, HEAP_HINT, devId);
+    if (ret != 0)
+        return -2000;
+
+    for (i = 0; i < times; ++i) {
+        ret = wc_Sha3_224_Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
+        if (ret != 0)
+            return -2010 - i;
+        ret = wc_Sha3_224_GetHash(&sha, hashcopy);
+        if (ret != 0)
+            return -2020 - i;
+        ret = wc_Sha3_224_Final(&sha, hash);
+        if (ret != 0)
+            return -2030 - i;
+
+        if (XMEMCMP(hash, test_sha[i].output, SHA3_224_DIGEST_SIZE) != 0)
+            return -2040 - i;
+
+        if (XMEMCMP(hash, hashcopy, SHA3_224_DIGEST_SIZE) != 0)
+            return -2050 - i;
+    }
+    wc_Sha3_224_Free(&sha);
+
+    return 0;
+}
+
+static int sha3_256_test(void)
+{
+    Sha3  sha;
+    byte  hash[SHA3_256_DIGEST_SIZE];
+    byte  hashcopy[SHA3_256_DIGEST_SIZE];
+
+    testVector a, b;
+    testVector test_sha[2];
+    int ret;
+    int times = sizeof(test_sha) / sizeof(struct testVector), i;
+
+    a.input  = "abc";
+    a.output = "\x3a\x98\x5d\xa7\x4f\xe2\x25\xb2\x04\x5c\x17\x2d\x6b\xd3\x90"
+               "\xbd\x85\x5f\x08\x6e\x3e\x9d\x52\x5b\x46\xbf\xe2\x45\x11\x43"
+               "\x15\x32";
+    a.inLen  = XSTRLEN(a.input);
+    a.outLen = SHA3_256_DIGEST_SIZE;
+
+    b.input  = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
+    b.output = "\x41\xc0\xdb\xa2\xa9\xd6\x24\x08\x49\x10\x03\x76\xa8\x23\x5e"
+               "\x2c\x82\xe1\xb9\x99\x8a\x99\x9e\x21\xdb\x32\xdd\x97\x49\x6d"
+               "\x33\x76";
+    b.inLen  = XSTRLEN(b.input);
+    b.outLen = SHA3_256_DIGEST_SIZE;
+
+    test_sha[0] = a;
+    test_sha[1] = b;
+
+    ret = wc_InitSha3_256(&sha, HEAP_HINT, devId);
+    if (ret != 0)
+        return -2100;
+
+    for (i = 0; i < times; ++i) {
+        ret = wc_Sha3_256_Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
+        if (ret != 0)
+            return -2110 - i;
+        ret = wc_Sha3_256_GetHash(&sha, hashcopy);
+        if (ret != 0)
+            return -2120 - i;
+        ret = wc_Sha3_256_Final(&sha, hash);
+        if (ret != 0)
+            return -2130 - i;
+
+        if (XMEMCMP(hash, test_sha[i].output, SHA3_256_DIGEST_SIZE) != 0)
+            return -2140 - i;
+
+        if (XMEMCMP(hash, hashcopy, SHA3_256_DIGEST_SIZE) != 0)
+            return -2150 - i;
+    }
+    wc_Sha3_256_Free(&sha);
+
+    return 0;
+}
+
+static int sha3_384_test(void)
+{
+    Sha3  sha;
+    byte  hash[SHA3_384_DIGEST_SIZE];
+    byte  hashcopy[SHA3_384_DIGEST_SIZE];
+
+    testVector a, b;
+    testVector test_sha[2];
+    int ret;
+    int times = sizeof(test_sha) / sizeof(struct testVector), i;
+
+    a.input  = "abc";
+    a.output = "\xec\x01\x49\x82\x88\x51\x6f\xc9\x26\x45\x9f\x58\xe2\xc6\xad"
+               "\x8d\xf9\xb4\x73\xcb\x0f\xc0\x8c\x25\x96\xda\x7c\xf0\xe4\x9b"
+               "\xe4\xb2\x98\xd8\x8c\xea\x92\x7a\xc7\xf5\x39\xf1\xed\xf2\x28"
+               "\x37\x6d\x25";
+    a.inLen  = XSTRLEN(a.input);
+    a.outLen = SHA3_384_DIGEST_SIZE;
+
+    b.input  = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
+    b.output = "\x99\x1c\x66\x57\x55\xeb\x3a\x4b\x6b\xbd\xfb\x75\xc7\x8a\x49"
+               "\x2e\x8c\x56\xa2\x2c\x5c\x4d\x7e\x42\x9b\xfd\xbc\x32\xb9\xd4"
+               "\xad\x5a\xa0\x4a\x1f\x07\x6e\x62\xfe\xa1\x9e\xef\x51\xac\xd0"
+               "\x65\x7c\x22";
+    b.inLen  = XSTRLEN(b.input);
+    b.outLen = SHA3_384_DIGEST_SIZE;
+
+    test_sha[0] = a;
+    test_sha[1] = b;
+
+    ret = wc_InitSha3_384(&sha, HEAP_HINT, devId);
+    if (ret != 0)
+        return -2200;
+
+    for (i = 0; i < times; ++i) {
+        ret = wc_Sha3_384_Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
+        if (ret != 0)
+            return -2210 - i;
+        ret = wc_Sha3_384_GetHash(&sha, hashcopy);
+        if (ret != 0)
+            return -2220 - i;
+        ret = wc_Sha3_384_Final(&sha, hash);
+        if (ret != 0)
+            return -2230 - i;
+
+        if (XMEMCMP(hash, test_sha[i].output, SHA3_384_DIGEST_SIZE) != 0)
+            return -2240 - i;
+
+        if (XMEMCMP(hash, hashcopy, SHA3_384_DIGEST_SIZE) != 0)
+            return -2250 - i;
+    }
+    wc_Sha3_384_Free(&sha);
+
+    return 0;
+}
+
+static int sha3_512_test(void)
+{
+    Sha3  sha;
+    byte  hash[SHA3_512_DIGEST_SIZE];
+    byte  hashcopy[SHA3_512_DIGEST_SIZE];
+
+    testVector a, b;
+    testVector test_sha[2];
+    int ret;
+    int times = sizeof(test_sha) / sizeof(struct testVector), i;
+
+    a.input  = "abc";
+    a.output = "\xb7\x51\x85\x0b\x1a\x57\x16\x8a\x56\x93\xcd\x92\x4b\x6b\x09"
+               "\x6e\x08\xf6\x21\x82\x74\x44\xf7\x0d\x88\x4f\x5d\x02\x40\xd2"
+               "\x71\x2e\x10\xe1\x16\xe9\x19\x2a\xf3\xc9\x1a\x7e\xc5\x76\x47"
+               "\xe3\x93\x40\x57\x34\x0b\x4c\xf4\x08\xd5\xa5\x65\x92\xf8\x27"
+               "\x4e\xec\x53\xf0";
+    a.inLen  = XSTRLEN(a.input);
+    a.outLen = SHA3_512_DIGEST_SIZE;
+
+    b.input  = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
+    b.output = "\x04\xa3\x71\xe8\x4e\xcf\xb5\xb8\xb7\x7c\xb4\x86\x10\xfc\xa8"
+               "\x18\x2d\xd4\x57\xce\x6f\x32\x6a\x0f\xd3\xd7\xec\x2f\x1e\x91"
+               "\x63\x6d\xee\x69\x1f\xbe\x0c\x98\x53\x02\xba\x1b\x0d\x8d\xc7"
+               "\x8c\x08\x63\x46\xb5\x33\xb4\x9c\x03\x0d\x99\xa2\x7d\xaf\x11"
+               "\x39\xd6\xe7\x5e";
+    b.inLen  = XSTRLEN(b.input);
+    b.outLen = SHA3_512_DIGEST_SIZE;
+
+    test_sha[0] = a;
+    test_sha[1] = b;
+
+    ret = wc_InitSha3_512(&sha, HEAP_HINT, devId);
+    if (ret != 0)
+        return -2300;
+
+    for (i = 0; i < times; ++i) {
+        ret = wc_Sha3_512_Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
+        if (ret != 0)
+            return -2310 - i;
+        ret = wc_Sha3_512_GetHash(&sha, hashcopy);
+        if (ret != 0)
+            return -2320 - i;
+        ret = wc_Sha3_512_Final(&sha, hash);
+        if (ret != 0)
+            return -2330 - i;
+
+        if (XMEMCMP(hash, test_sha[i].output, SHA3_512_DIGEST_SIZE) != 0)
+            return -2340 - i;
+
+        if (XMEMCMP(hash, hashcopy, SHA3_512_DIGEST_SIZE) != 0)
+            return -2350 - i;
+    }
+    wc_Sha3_512_Free(&sha);
+
+    return 0;
+}
+
+int sha3_test(void)
+{
+    int ret;
+
+    if ((ret = sha3_224_test()) != 0)
+        return ret;
+    if ((ret = sha3_256_test()) != 0)
+        return ret;
+    if ((ret = sha3_384_test()) != 0)
+        return ret;
+    if ((ret = sha3_512_test()) != 0)
+        return ret;
+
+    return 0;
+}
+#endif
+
 
 int hash_test(void)
 {
@@ -5462,6 +5716,14 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
             static const char* eccCaKeyPubFile  = CERT_ROOT "ecc-keyPub.der";
         #endif
     #endif /* HAVE_ECC */
+    #ifdef HAVE_ED25519
+        #ifdef WOLFSSL_TEST_CERT
+            static const char* serverEd25519Cert =
+                                         CERT_ROOT "ed25519/server-ed25519.der";
+            static const char* caEd25519Cert     =
+                                             CERT_ROOT "ed25519/ca-ed25519.der";
+        #endif
+    #endif
 #endif /* !USE_CERT_BUFFER_* */
 
 #ifndef NO_WRITE_TEMP_FILES
@@ -7739,6 +8001,9 @@ static int dh_generate_test(WC_RNG *rng)
 
     /* Use API. */
     ret = wc_DhGenerateKeyPair(&smallKey, rng, priv, &privSz, pub, &pubSz);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &smallKey.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         ret = -5707;
     }
@@ -8177,7 +8442,7 @@ int srp_test(void)
 
 #endif /* WOLFCRYPT_HAVE_SRP */
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
 
 int openssl_test(void)
 {
@@ -8868,12 +9133,11 @@ int openssl_test(void)
 
     }
 #endif /* ifndef NO_AES */
-
     return 0;
 }
 
 
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA && !WOLFCRYPT_ONLY */
 
 
 #ifndef NO_PWDBASED
@@ -8943,6 +9207,8 @@ int scrypt_test(void)
     if (XMEMCMP(derived, verify2, sizeof(verify2)) != 0)
         return -6003;
 
+    /* Don't run these test on embedded, since they use large mallocs */
+#ifndef BENCH_EMBEDDED
     ret = wc_scrypt(derived, (byte*)"pleaseletmein", 13,
                     (byte*)"SodiumChloride", 14, 14, 8, 1, sizeof(verify3));
     if (ret != 0)
@@ -8958,6 +9224,7 @@ int scrypt_test(void)
     if (XMEMCMP(derived, verify4, sizeof(verify4)) != 0)
         return -6007;
 #endif
+#endif /* !BENCH_EMBEDDED */
 
     return 0;
 }
@@ -11186,6 +11453,213 @@ int curve25519_test(void)
 
 
 #ifdef HAVE_ED25519
+#ifdef WOLFSSL_TEST_CERT
+static int ed25519_test_cert(void)
+{
+    DecodedCert  cert[2];
+    DecodedCert* serverCert = NULL;
+    DecodedCert* caCert = NULL;
+#ifdef HAVE_ED25519_VERIFY
+    ed25519_key  key;
+    ed25519_key* pubKey = NULL;
+    int          verify;
+#endif /* HAVE_ED25519_VERIFY */
+    int          ret;
+    byte*        tmp;
+    int          bytes;
+    FILE*        file;
+
+    tmp = XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp == NULL) {
+        ret = -7200;
+        goto done;
+    }
+
+#ifdef USE_CERT_BUFFERS_256
+    XMEMCPY(tmp, ca_ed25519_cert, sizeof_ca_ed25519_cert);
+    bytes = sizeof_ca_ed25519_cert;
+#elif !defined(NO_FILESYSTEM)
+    file = fopen(caEd25519Cert, "rb");
+    if (file == NULL) {
+        ret = -7201;
+        goto done;
+    }
+    bytes = fread(tmp, 1, FOURK_BUF, file);
+    fclose(file);
+#else
+    /* No certificate to use. */
+    ret = -7202;
+    goto done;
+#endif
+
+    InitDecodedCert(&cert[0], tmp, (word32)bytes, 0);
+    caCert = &cert[0];
+    ret = ParseCert(caCert, CERT_TYPE, NO_VERIFY, NULL);
+    if (ret != 0) {
+        ret = -7203;
+        goto done;
+    }
+
+#ifdef USE_CERT_BUFFERS_256
+    XMEMCPY(tmp, server_ed25519_cert, sizeof_server_ed25519_cert);
+    bytes = sizeof_server_ed25519_cert;
+#elif !defined(NO_FILESYSTEM)
+    file = fopen(serverEd25519Cert, "rb");
+    if (file == NULL) {
+        ret = -7204;
+        goto done;
+    }
+    bytes = fread(tmp, 1, FOURK_BUF, file);
+    fclose(file);
+#else
+    /* No certificate to use. */
+    ret = -7205;
+    goto done;
+#endif
+
+    InitDecodedCert(&cert[1], tmp, (word32)bytes, 0);
+    serverCert = &cert[1];
+    ret = ParseCert(serverCert, CERT_TYPE, NO_VERIFY, NULL);
+    if (ret != 0) {
+        ret = -7206;
+        goto done;
+    }
+
+#ifdef HAVE_ED25519_VERIFY
+    ret = wc_ed25519_init(&key);
+    if (ret < 0) {
+        ret = -7207;
+        goto done;
+    }
+    pubKey = &key;
+    ret = wc_ed25519_import_public(caCert->publicKey, caCert->pubKeySize,
+                                                                        pubKey);
+    if (ret < 0) {
+        ret = -7208;
+        goto done;
+    }
+
+    if (wc_ed25519_verify_msg(serverCert->signature, serverCert->sigLength,
+                              serverCert->source + serverCert->certBegin,
+                              serverCert->sigIndex - serverCert->certBegin,
+                              &verify, pubKey) < 0 || verify != 1) {
+        ret = -7209;
+        goto done;
+    }
+#endif /* HAVE_ED25519_VERIFY */
+
+done:
+    if (tmp != NULL)
+        XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef HAVE_ED25519_VERIFY
+    wc_ed25519_free(pubKey);
+#endif /* HAVE_ED25519_VERIFY */
+    if (caCert != NULL)
+        FreeDecodedCert(caCert);
+    if (serverCert != NULL)
+        FreeDecodedCert(serverCert);
+
+    return ret;
+}
+
+#ifdef WOLFSSL_CERT_GEN
+static const CertName defaultName = {
+    "US",               CTC_PRINTABLE,
+    "Montana",          CTC_UTF8,
+    "Bozeman",          CTC_UTF8,
+    "Test",             CTC_UTF8,
+    "wolfSSL",          CTC_UTF8,
+    "ED25519",          CTC_UTF8,
+    "www.wolfssl.com",  CTC_UTF8,
+    "info@wolfssl.com"
+};
+#ifdef WOLFSSL_CERT_EXT
+static const char leafKeyUsage[] = "digitalSignature,nonRepudiation";
+#endif
+
+static int ed25519_test_make_cert(void)
+{
+    WC_RNG       rng;
+    Cert         cert;
+    DecodedCert  decode;
+    ed25519_key  key;
+    ed25519_key* privKey = NULL;
+    int          ret = 0;
+    byte*        tmp = NULL;
+
+    wc_InitCert(&cert);
+
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+#else
+    ret = wc_InitRng(&rng);
+#endif
+    if (ret != 0)
+        return -7220;
+
+    wc_ed25519_init(&key);
+    privKey = &key;
+    wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, privKey);
+
+    cert.daysValid = 365 * 2;
+    cert.selfSigned = 1;
+    XMEMCPY(&cert.issuer, &defaultName, sizeof(CertName));
+    XMEMCPY(&cert.subject, &defaultName, sizeof(CertName));
+    cert.isCA = 0;
+#ifdef WOLFSSL_CERT_EXT
+    ret = wc_SetKeyUsage(&cert, leafKeyUsage);
+    if (ret < 0) {
+        ret = -7221;
+        goto done;
+    }
+    ret = wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ED25519_TYPE, privKey);
+    if (ret < 0) {
+        ret = -7222;
+        goto done;
+    }
+    ret = wc_SetAuthKeyIdFromPublicKey_ex(&cert, ED25519_TYPE, privKey);
+    if (ret < 0) {
+        ret = -7223;
+        goto done;
+    }
+#endif
+    tmp = XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp == NULL) {
+        ret = -7224;
+        goto done;
+    }
+
+    cert.sigType = CTC_ED25519;
+    ret = wc_MakeCert_ex(&cert, tmp, FOURK_BUF, ED25519_TYPE, privKey, &rng);
+    if (ret < 0) {
+        ret = -7225;
+        goto done;
+    }
+    ret = wc_SignCert_ex(cert.bodySz, cert.sigType, tmp, FOURK_BUF,
+                                                   ED25519_TYPE, privKey, &rng);
+    if (ret < 0) {
+        ret = -7226;
+        goto done;
+    }
+
+    InitDecodedCert(&decode, tmp, ret, HEAP_HINT);
+    ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
+    FreeDecodedCert(&decode);
+    if (ret != 0) {
+        ret = -7227;
+        goto done;
+    }
+
+done:
+    if (tmp != NULL)
+        XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_ed25519_free(privKey);
+    wc_FreeRng(&rng);
+    return ret;
+}
+#endif /* WOLFSSL_CERT_GEN */
+#endif /* WOLFSSL_TEST_CERT */
+
 int ed25519_test(void)
 {
     WC_RNG rng;
@@ -11614,6 +12088,17 @@ int ed25519_test(void)
     /* hush warnings of unused keySz and sigSz */
     (void)keySz;
     (void)sigSz;
+
+#ifdef WOLFSSL_TEST_CERT
+    ret = ed25519_test_cert();
+    if (ret < 0)
+        return ret;
+#ifdef WOLFSSL_CERT_GEN
+    ret = ed25519_test_make_cert();
+    if (ret < 0)
+        return ret;
+#endif /* WOLFSSL_CERT_GEN */
+#endif /* WOLFSSL_TEST_CERT */
 
     return 0;
 }

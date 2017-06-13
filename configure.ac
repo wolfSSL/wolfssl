@@ -167,6 +167,7 @@ then
     enable_ripemd=yes
     enable_sha512=yes
     enable_sha224=yes
+    enable_sha3=yes
     enable_sessioncerts=yes
     enable_keygen=yes
     enable_certgen=yes
@@ -1756,6 +1757,37 @@ then
 fi
 
 AM_CONDITIONAL([BUILD_SHA224], [test "x$ENABLED_SHA224" = "xyes"])
+
+
+# set sha3 default
+SHA3_DEFAULT=no
+if test "$host_cpu" = "x86_64"
+then
+    if test "x$ENABLED_FIPS" = "xno"
+    then
+        SHA3_DEFAULT=yes
+    fi
+fi
+
+# SHA3
+AC_ARG_ENABLE([sha3],
+    [AS_HELP_STRING([--enable-sha3],[Enable wolfSSL SHA-3 support (default: enabled on x86_64)])],
+    [ ENABLED_SHA3=$enableval ],
+    [ ENABLED_SHA3=$SHA3_DEFAULT ]
+    )
+
+if test "$ENABLED_SHA3" = "small"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA3_SMALL"
+    ENABLED_SHA3="yes"
+fi
+
+if test "$ENABLED_SHA3" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA3"
+fi
+
+AM_CONDITIONAL([BUILD_SHA3], [test "x$ENABLED_SHA3" = "xyes"])
 
 
 # set POLY1305 default
@@ -3658,6 +3690,7 @@ echo "   * RIPEMD:                     $ENABLED_RIPEMD"
 echo "   * SHA:                        $ENABLED_SHA"
 echo "   * SHA-224:                    $ENABLED_SHA224"
 echo "   * SHA-512:                    $ENABLED_SHA512"
+echo "   * SHA3:                       $ENABLED_SHA3"
 echo "   * BLAKE2:                     $ENABLED_BLAKE2"
 echo "   * CMAC:                       $ENABLED_CMAC"
 echo "   * keygen:                     $ENABLED_KEYGEN"

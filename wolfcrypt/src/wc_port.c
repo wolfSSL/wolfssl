@@ -131,7 +131,8 @@ int wolfCrypt_Init(void)
         WOLFSSL_MSG("Using ARM hardware acceleration");
     #endif
 
-    #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+    #if !defined(WOLFCRYPT_ONLY) && \
+        ( defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) )
         wolfSSL_EVP_init();
     #endif
 

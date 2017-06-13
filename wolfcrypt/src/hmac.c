@@ -25,6 +25,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifndef NO_HMAC
 
@@ -43,14 +44,28 @@
     /* does init */
     int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 keySz)
     {
+        if (hmac == NULL || (key == NULL && keySz != 0) ||
+           !(type == MD5 || type == SHA    || type == SHA256 || type == SHA384
+                         || type == SHA512 || type == BLAKE2B_ID)) {
+            return BAD_FUNC_ARG;
+        }
+
         return HmacSetKey_fips(hmac, type, key, keySz);
     }
     int wc_HmacUpdate(Hmac* hmac, const byte* in, word32 sz)
     {
+        if (hmac == NULL || in == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
         return HmacUpdate_fips(hmac, in, sz);
     }
     int wc_HmacFinal(Hmac* hmac, byte* out)
     {
+        if (hmac == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
         return HmacFinal_fips(hmac, out);
     }
     int wolfSSL_GetHmacMaxSize(void)
@@ -86,9 +101,6 @@
     #endif /* HAVE_HKDF */
 
 #else /* else build without fips */
-
-
-#include <wolfssl/wolfcrypt/error-crypt.h>
 
 
 #ifdef WOLFSSL_PIC32MZ_HASH
@@ -510,6 +522,10 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
 {
     int ret = 0;
 
+    if (hmac == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
     if (hmac->asyncDev.marker == WOLFSSL_ASYNC_MARKER_HMAC) {
     #if defined(HAVE_CAVIUM)
@@ -580,6 +596,10 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
 int wc_HmacFinal(Hmac* hmac, byte* hash)
 {
     int ret;
+
+    if (hmac == NULL || hash == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
     if (hmac->asyncDev.marker == WOLFSSL_ASYNC_MARKER_HMAC) {
