@@ -2956,29 +2956,6 @@ static int TLSX_EllipticCurve_Parse(WOLFSSL* ssl, byte* input, word16 length,
     return 0;
 }
 
-#ifdef WOLFSSL_TLS13
-/* Searches the supported groups extension for the specified named group.
- *
- * ssl   The SSL/TLS object.
- * name  The group name to match.
- * returns 1 when the extension has the group name and 0 otherwise.
- */
-static int TLSX_SupportedGroups_Find(WOLFSSL* ssl, word16 name)
-{
-    TLSX*          extension;
-    EllipticCurve* curve = NULL;
-
-    if ((extension = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS)) == NULL)
-        return 0;
-
-    for (curve = (EllipticCurve*)extension->data; curve; curve = curve->next) {
-        if (curve->name == name)
-            return 1;
-    }
-    return 0;
-}
-#endif /* WOLFSSL_TLS13 */
-
 int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
     TLSX*          extension = (first == ECC_BYTE || first == CHACHA_BYTE)
                              ? TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS)
@@ -4685,7 +4662,7 @@ end:
 }
 #endif
 
-#ifndef NO_ECC
+#ifdef HAVE_ECC
 /* Create a key share entry using named elliptic curve parameters group.
  * Generates a key pair.
  *
@@ -4846,7 +4823,7 @@ end:
     }
     return ret;
 }
-#endif /* !NO_ECC */
+#endif /* HAVE_ECC */
 
 /* Generate a secret/key using the key share entry.
  *
@@ -4855,10 +4832,16 @@ end:
  */
 static int TLSX_KeyShare_GenKey(WOLFSSL *ssl, KeyShareEntry *kse)
 {
+#ifndef NO_DH
     /* Named FFHE groups have a bit set to identify them. */
     if ((kse->group & NAMED_DH_MASK) == NAMED_DH_MASK)
         return TLSX_KeyShare_GenDhKey(ssl, kse);
+#endif
+#ifdef HAVE_ECC
     return TLSX_KeyShare_GenEccKey(ssl, kse);
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 
 /* Free the key share dynamic data.
@@ -5070,8 +5053,9 @@ static int TLSX_KeyShare_ProcessDh(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
  */
 static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
 {
-#ifndef NO_ECC
     int ret;
+
+#ifdef HAVE_ECC
     int curveId;
     ecc_key* keyShareKey = (ecc_key*)keyShareEntry->key;
 
@@ -5197,10 +5181,15 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     );
 #endif
 
-    return ret;
+
 #else
-    return PEER_KEY_ERROR;
-#endif
+    (void)ssl;
+    (void)keyShareEntry;
+
+    ret = PEER_KEY_ERROR;
+#endif /* HAVE_ECC */
+
+    return ret;
 }
 
 /* Process the key share extension on the client side.
@@ -5299,6 +5288,35 @@ static int TLSX_KeyShare_Find(WOLFSSL* ssl, word16 group)
 
     return 0;
 }
+
+
+/* Searches the supported groups extension for the specified named group.
+ *
+ * ssl   The SSL/TLS object.
+ * name  The group name to match.
+ * returns 1 when the extension has the group name and 0 otherwise.
+ */
+static int TLSX_SupportedGroups_Find(WOLFSSL* ssl, word16 name)
+{
+#ifdef HAVE_SUPPORTED_CURVES
+    TLSX*          extension;
+    EllipticCurve* curve = NULL;
+
+    if ((extension = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS)) == NULL)
+        return 0;
+
+    for (curve = (EllipticCurve*)extension->data; curve; curve = curve->next) {
+        if (curve->name == name)
+            return 1;
+    }
+#endif
+
+    (void)ssl;
+    (void)name;
+
+    return 0;
+}
+
 
 /* Parse the KeyShare extension.
  * Different formats in different messages.
@@ -5572,6 +5590,7 @@ static int TLSX_KeyShare_IsSupported(int namedGroup)
 static int TLSX_KeyShare_SetSupported(WOLFSSL* ssl)
 {
     int            ret;
+#ifdef HAVE_SUPPORTED_CURVES
     TLSX*          extension;
     EllipticCurve* curve = NULL;
 
@@ -5603,8 +5622,13 @@ static int TLSX_KeyShare_SetSupported(WOLFSSL* ssl)
     /* Set extension to be in reponse. */
     extension = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
     extension->resp = 1;
+#else
 
-    return 0;
+    (void)ssl;
+    ret = NOT_COMPILED_IN;
+#endif
+
+    return ret;
 }
 
 /* Establish the secret based on the key shares received from the client.
@@ -7034,6 +7058,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                                                  ssl->heap)) != 0)
                 return ret;
 
+#ifdef HAVE_SUPPORTED_CURVES
             if (!ssl->options.userCurves && !ssl->ctx->userCurves) {
                 /* Add FFDHE supported groups. */
         #ifdef HAVE_FFDHE_2048
@@ -7068,6 +7093,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
         #endif
                 ret = 0;
             }
+#endif
 
             if (TLSX_Find(ssl->extensions, TLSX_KEY_SHARE) == NULL) {
     #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && \
