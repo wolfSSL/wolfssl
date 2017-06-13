@@ -33,8 +33,60 @@
 #if defined(WOLFSSL_STATIC_MEMORY)
     #include <wolfssl/wolfcrypt/memory.h>
 #endif /* WOLFSSL_STATIC_MEMORY */
+#ifdef WOLFSSL_ASNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>   /* wc_ecc_fp_free */
+    #ifndef ECC_ASN963_MAX_BUF_SZ
+        #define ECC_ASN963_MAX_BUF_SZ 133
+    #endif
+    #ifndef ECC_PRIV_KEY_BUF
+        #define ECC_PRIV_KEY_BUF 66  /* For non user defined curves. */
+    #endif
+    /* ecc key sizes: 14, 16, 20, 24, 28, 30, 32, 40, 48, 64*/
+    #ifndef KEY14
+        #define KEY14 14
+    #endif
+    #if !defined(KEY16)
+        #define KEY16 16
+    #endif
+    #if !defined(KEY20)
+        #define KEY20 20
+    #endif
+    #if !defined(KEY24)
+        #define KEY24 24
+    #endif
+    #if !defined(KEY28)
+        #define KEY28 28
+    #endif
+    #if !defined(KEY30)
+        #define KEY30 30
+    #endif
+    #if !defined(KEY32)
+        #define KEY32 32
+    #endif
+    #if !defined(KEY40)
+        #define KEY40 40
+    #endif
+    #if !defined(KEY48)
+        #define KEY48 48
+    #endif
+    #if !defined(KEY64)
+        #define KEY64 64
+    #endif
+    #if !defined(HAVE_COMP_KEY)
+        #if !defined(NOCOMP)
+            #define NOCOMP 0
+        #endif
+    #else
+        #if !defined(COMP)
+            #define COMP 1
+        #endif
+    #endif
+    #if !defined(DER_SZ)
+        #define DER_SZ (keySz * 2 + 1)
+    #endif
 #endif
 #ifndef NO_ASN
     #include <wolfssl/wolfcrypt/asn_public.h>
@@ -8577,6 +8629,1773 @@ static int test_wc_Hc128_Process (void)
 } /* END test_wc_Hc128_Process */
 
 
+/*
+ * Testing wc_ecc_make_key.
+ */
+static int test_wc_ecc_make_key (void)
+{
+    int     ret = 0;
+
+#if defined(HAVE_ECC)
+    WC_RNG rng;
+    ecc_key key;
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_ecc_init(&key);
+    }
+
+    printf(testingFmt, "wc_ecc_make_key()");
+
+    if (ret == 0) {
+        ret = wc_ecc_make_key(&rng, KEY14, &key);
+    }
+
+    /* Pass in bad args. */
+    if (ret == 0) {
+        ret = wc_ecc_make_key(NULL, KEY14, &key);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_make_key(&rng, KEY14, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    wc_ecc_free(&key);
+
+#endif
+    return ret;
+
+} /* END test_wc_ecc_make_key */
+
+
+/*
+ * Testing wc_ecc_init()
+ */
+static int test_wc_ecc_init (void)
+{
+    int         ret = 0;
+
+#ifdef HAVE_ECC
+    ecc_key     key;
+
+    printf(testingFmt, "wc_ecc_init()");
+
+    ret = wc_ecc_init(&key);
+    /* Pass in bad args. */
+    if (ret == 0) {
+        ret = wc_ecc_init(NULL);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    wc_ecc_free(&key);
+
+#endif
+    return ret;
+
+} /* END test_wc_ecc_init */
+
+/*
+ * Testing wc_ecc_check_key()
+ */
+static int test_wc_ecc_check_key (void)
+{
+    int         ret = 0;
+
+#if defined(HAVE_ECC)
+    WC_RNG      rng;
+    ecc_key     key;
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_ecc_init(&key);
+        if (ret == 0) {
+            ret = wc_ecc_make_key(&rng, KEY14, &key);
+        }
+    }
+
+    printf(testingFmt, "wc_ecc_check_key()");
+
+    if (ret == 0) {
+        ret = wc_ecc_check_key(&key);
+    }
+
+    /* Pass in bad args. */
+    if (ret == 0) {
+        ret = wc_ecc_check_key(NULL);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+    wc_ecc_free(&key);
+
+#endif
+    return ret;
+
+} /* END test_wc_ecc_check_key */
+
+/*
+ * Testing wc_ecc_size()
+ */
+static int test_wc_ecc_size (void)
+{
+    int         ret = 0;
+
+#if defined(HAVE_ECC)
+    WC_RNG      rng;
+    ecc_key     key;
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_ecc_init(&key);
+        if (ret == 0) {
+            ret = wc_ecc_make_key(&rng, KEY14, &key);
+        }
+    }
+
+    printf(testingFmt, "wc_ecc_size()");
+
+    if (ret == 0) {
+        ret = wc_ecc_size(&key);
+        if (ret == KEY14) {
+            ret = 0;
+        } else if (ret == 0){
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        /* Returns Zero for bad arg. */
+        ret = wc_ecc_size(NULL);
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+    wc_ecc_free(&key);
+
+#endif
+    return ret;
+} /* END test_wc_ecc_size */
+
+/*
+ * Testing wc_ecc_sign_hash() and wc_ecc_verify_hash()
+ */
+static int test_wc_ecc_signVerify_hash (void)
+{
+    int         ret = 0;
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN) && !defined(NO_ASN)
+    WC_RNG      rng;
+    ecc_key     key;
+    int         signH = SSL_FATAL_ERROR;
+    #ifdef HAVE_ECC_VERIFY
+        int     verifyH = SSL_FATAL_ERROR;
+        int     verify  = 0;
+    #endif
+    word32      siglen = ECC_BUFSIZE;
+    byte        sig[ECC_BUFSIZE];
+    byte        digest[] = "Everyone gets Friday off.";
+    word32      digestlen = (word32)XSTRLEN((char*)digest);
+
+    /* Init stack var */
+    XMEMSET(sig, 0, siglen);
+
+    /* Init structs. */
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_ecc_init(&key);
+        if (ret == 0) {
+            ret = wc_ecc_make_key(&rng, KEY14, &key);
+        }
+    }
+
+    printf(testingFmt, "wc_ecc_sign_hash()");
+
+    if (ret == 0) {
+        ret = wc_ecc_sign_hash(digest, digestlen, sig, &siglen, &rng, &key);
+    }
+
+    /* Checkk bad args. */
+    if (ret == 0) {
+        signH = wc_ecc_sign_hash(NULL, digestlen, sig, &siglen, &rng, &key);
+        if (signH == ECC_BAD_ARG_E) {
+            signH = wc_ecc_sign_hash(digest, digestlen, NULL, &siglen,
+                                                                &rng, &key);
+        }
+        if (signH == ECC_BAD_ARG_E) {
+            signH = wc_ecc_sign_hash(digest, digestlen, sig, NULL,
+                                                                &rng, &key);
+        }
+        if (signH == ECC_BAD_ARG_E) {
+            signH = wc_ecc_sign_hash(digest, digestlen, sig, &siglen,
+                                                                NULL, &key);
+        }
+        if (signH == ECC_BAD_ARG_E) {
+            signH = wc_ecc_sign_hash(digest, digestlen, sig, &siglen,
+                                                                &rng, NULL);
+        }
+        if (signH == ECC_BAD_ARG_E) {
+            signH = 0;
+        } else if (ret == 0) {
+            signH = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, signH == 0 ? passed : failed);
+
+    #ifdef HAVE_ECC_VERIFY
+        printf(testingFmt, "wc_ecc_verify_hash()");
+
+        ret = wc_ecc_verify_hash(sig, siglen, digest, digestlen, &verify, &key);
+        if (verify != 1 && ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+        /* Test bad args. */
+        if (ret == 0) {
+            verifyH = wc_ecc_verify_hash(NULL, siglen, digest, digestlen,
+                                                            &verify, &key);
+            if (verifyH == ECC_BAD_ARG_E) {
+                verifyH = wc_ecc_verify_hash(sig, siglen, NULL, digestlen,
+                                                            &verify, &key);
+            }
+            if (verifyH == ECC_BAD_ARG_E) {
+                verifyH = wc_ecc_verify_hash(sig, siglen, digest, digestlen,
+                                                                NULL, &key);
+            }
+            if (verifyH == ECC_BAD_ARG_E) {
+                verifyH = wc_ecc_verify_hash(sig, siglen, digest, digestlen,
+                                                            &verify, NULL);
+            }
+            if (verifyH == ECC_BAD_ARG_E) {
+                verifyH = 0;
+            } else if (ret == 0) {
+                verifyH = SSL_FATAL_ERROR;
+            }
+        }
+
+        printf(resultFmt, verifyH == 0 ? passed : failed);
+
+    #endif /* HAVE_ECC_VERIFY */
+
+        if (wc_FreeRng(&rng) && ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+        wc_ecc_free(&key);
+#endif
+    return ret;
+
+} /*  END test_wc_ecc_sign_hash */
+
+
+/*
+ * Testing wc_ecc_shared_secret()
+ */
+static int test_wc_ecc_shared_secret (void)
+{
+    int         ret = 0;
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_DHE)
+    ecc_key     key, pubKey;
+    WC_RNG      rng;
+    int         keySz = KEY16;
+    byte        out[keySz];
+    word32      outlen = (word32)sizeof(out);
+
+    /* Initialize variables. */
+    XMEMSET(out, 0, keySz);
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_ecc_init(&key);
+        if (ret == 0) {
+            ret = wc_ecc_init(&pubKey);
+        }
+    }
+    if (ret == 0) {
+        ret = wc_ecc_make_key(&rng, keySz, &key);
+    }
+    if (ret == 0) {
+        ret = wc_ecc_make_key(&rng, keySz, &pubKey);
+    }
+
+    printf(testingFmt, "wc_ecc_shared_secret()");
+    if (ret == 0) {
+        ret = wc_ecc_shared_secret(&key, &pubKey, out, &outlen);
+        /* Test bad args. */
+        if (ret == 0) {
+            ret = wc_ecc_shared_secret(NULL, &pubKey, out, &outlen);
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_ecc_shared_secret(&key, NULL, out, &outlen);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_ecc_shared_secret(&key, &pubKey, NULL, &outlen);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_ecc_shared_secret(&key, &pubKey, out, NULL);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            } else if (ret == 0) {
+                ret = SSL_FATAL_ERROR;
+            }
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+    wc_ecc_free(&key);
+    wc_ecc_free(&pubKey);
+
+#endif
+    return ret;
+
+} /* END tests_wc_ecc_shared_secret */
+
+/*
+ * testint wc_ecc_export_x963()
+ */
+static int test_wc_ecc_export_x963 (void)
+{
+    int     ret = 0;
+
+#ifdef HAVE_ECC
+    ecc_key key;
+    WC_RNG  rng;
+    byte    out[ECC_ASN963_MAX_BUF_SZ];
+    word32  outlen = sizeof(out);
+
+    /* Initialize variables. */
+    XMEMSET(out, 0, outlen);
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_ecc_init(&key);
+        if (ret == 0) {
+            ret = wc_ecc_make_key(&rng, KEY20, &key);
+        }
+    }
+    printf(testingFmt, "wc_ecc_export_x963()");
+
+    if (ret == 0) {
+        ret = wc_ecc_export_x963(&key, out, &outlen);
+    }
+
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_ecc_export_x963(NULL, out, &outlen);
+        if (ret == ECC_BAD_ARG_E) {
+            ret = wc_ecc_export_x963(&key, NULL, &outlen);
+        }
+        if (ret == LENGTH_ONLY_E) {
+            ret = wc_ecc_export_x963(&key, out, NULL);
+        }
+        if (ret == ECC_BAD_ARG_E) {
+            key.idx = -4;
+            ret = wc_ecc_export_x963(&key, out, &outlen);
+        }
+        if (ret == ECC_BAD_ARG_E) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+    wc_ecc_free(&key);
+
+#endif
+    return ret;
+
+} /* END test_wc_ecc_export_x963 */
+
+/*
+ * Testing wc_ecc_export_x963_ex()
+ * compile with --enable-compkey will use compression.
+ */
+static int test_wc_ecc_export_x963_ex (void)
+{
+    int     ret = 0;
+
+#if defined(HAVE_ECC)
+    ecc_key key;
+    WC_RNG  rng;
+    byte    out[ECC_ASN963_MAX_BUF_SZ];
+    word32  outlen = sizeof(out);
+    #ifdef HAVE_COMP_KEY
+        word32  badOutLen = 5;
+    #endif
+
+    /* Init stack variables. */
+    XMEMSET(out, 0, outlen);
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_ecc_init(&key);
+        if (ret == 0) {
+            ret = wc_ecc_make_key(&rng, KEY64, &key);
+        }
+    }
+
+    printf(testingFmt, "wc_ecc_export_x963_ex()");
+
+    #ifdef HAVE_COMP_KEY
+        if (ret == 0) {
+            ret = wc_ecc_export_x963_ex(&key, out, &outlen, COMP);
+        }
+    #else
+        if (ret == 0) {
+            ret = wc_ecc_export_x963_ex(&key, out, &outlen, NOCOMP);
+        }
+    #endif
+
+    /* Test bad args. */
+    #ifdef HAVE_COMP_KEY
+    if (ret == 0) {
+        ret = wc_ecc_export_x963_ex(NULL, out, &outlen, COMP);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_export_x963_ex(&key, NULL, &outlen, COMP);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_export_x963_ex(&key, out, NULL, COMP);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_export_x963_ex(&key, out, &badOutLen, COMP);
+        }
+        if (ret == BUFFER_E) {
+            key.idx = -4;
+            ret = wc_ecc_export_x963_ex(&key, out, &outlen, COMP);
+        }
+        if (ret == ECC_BAD_ARG_E) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+    #else
+        if (ret == 0) {
+            ret = wc_ecc_export_x963_ex(NULL, out, &outlen, NOCOMP);
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_ecc_export_x963_ex(&key, NULL, &outlen, NOCOMP);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_ecc_export_x963_ex(&key, out, &outlen, 1);
+            }
+            if (ret == NOT_COMPILED_IN) {
+                ret = wc_ecc_export_x963_ex(&key, out, NULL, NOCOMP);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                key.idx = -4;
+                ret = wc_ecc_export_x963_ex(&key, out, &outlen, NOCOMP);
+            }
+            if (ret == ECC_BAD_ARG_E) {
+                ret = 0;
+            } else if (ret == 0) {
+                ret = SSL_FATAL_ERROR;
+            }
+        }
+    #endif
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+    wc_ecc_free(&key);
+
+#endif
+    return ret;
+
+} /* END test_wc_ecc_export_x963_ex */
+
+/*
+ * testing wc_ecc_import_x963()
+ */
+static int test_wc_ecc_import_x963 (void)
+{
+    int     ret = 0;
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT)
+    ecc_key pubKey, key;
+    WC_RNG  rng;
+    byte    x963[ECC_ASN963_MAX_BUF_SZ];
+    word32  x963Len = (word32)sizeof(x963);
+
+    /* Init stack variables. */
+    XMEMSET(x963, 0, x963Len);
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_ecc_init(&pubKey);
+        if (ret == 0) {
+            ret = wc_ecc_init(&key);
+        }
+        if (ret == 0) {
+            ret = wc_ecc_make_key(&rng, KEY24, &pubKey);
+        }
+        if (ret == 0) {
+            ret = wc_ecc_make_key(&rng, KEY24, &key);
+        }
+        if (ret == 0) {
+            ret = wc_ecc_export_x963(&key, x963, &x963Len);
+        }
+    }
+
+    printf(testingFmt, "wc_ecc_import_x963()");
+    if (ret == 0) {
+        ret = wc_ecc_import_x963(x963, x963Len, &pubKey);
+    }
+
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_ecc_import_x963(NULL, x963Len, &pubKey);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_import_x963(x963, x963Len, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_import_x963(x963, x963Len + 1, &pubKey);
+        }
+        if (ret == ECC_BAD_ARG_E) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+    wc_ecc_free(&key);
+    wc_ecc_free(&pubKey);
+
+#endif
+    return ret;
+
+} /* END wc_ecc_import_x963 */
+
+/*
+ * testing wc_ecc_import_private_key()
+ */
+static int ecc_import_private_key (void)
+{
+    int     ret = 0;
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT)
+    ecc_key key, keyImp;
+    WC_RNG  rng;
+    byte    privKey[ECC_PRIV_KEY_BUF]; /* Raw private key.*/
+    byte    x963Key[ECC_ASN963_MAX_BUF_SZ];
+    word32  privKeySz = (word32)sizeof(privKey);
+    word32  x963KeySz = (word32)sizeof(x963Key);
+
+    /* Init stack variables. */
+    XMEMSET(privKey, 0, privKeySz);
+    XMEMSET(x963Key, 0, x963KeySz);
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_ecc_init(&key);
+        if (ret == 0) {
+            ret = wc_ecc_init(&keyImp);
+        }
+        if (ret == 0) {
+            ret = wc_ecc_make_key(&rng, KEY48, &key);
+        }
+        if (ret == 0) {
+            ret = wc_ecc_export_x963(&key, x963Key, &x963KeySz);
+        }
+        if (ret == 0) {
+            ret = wc_ecc_export_private_only(&key, privKey, &privKeySz);
+        }
+    }
+
+    printf(testingFmt, "wc_ecc_import_private_key()");
+
+    if (ret == 0) {
+        ret = wc_ecc_import_private_key(privKey, privKeySz, x963Key,
+                                                x963KeySz, &keyImp);
+    }
+    /* Pass in bad args. */
+    if (ret == 0) {
+        ret = wc_ecc_import_private_key(privKey, privKeySz, x963Key,
+                                                x963KeySz, NULL);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_import_private_key(NULL, privKeySz, x963Key,
+                                                x963KeySz, &keyImp);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+    wc_ecc_free(&key);
+    wc_ecc_free(&keyImp);
+
+#endif
+    return ret;
+
+} /* END wc_ecc_import_private_key */
+
+
+/*
+ * Testing wc_ecc_export_private_only()
+ */
+static int test_wc_ecc_export_private_only (void)
+{
+    int     ret = 0;
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
+    ecc_key key;
+    WC_RNG  rng;
+    byte    out[ECC_PRIV_KEY_BUF];
+    word32  outlen = sizeof(out);
+
+    /* Init stack variables. */
+    XMEMSET(out, 0, outlen);
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_ecc_init(&key);
+        if (ret == 0) {
+            ret = wc_ecc_make_key(&rng, KEY32, &key);
+        }
+    }
+    printf(testingFmt, "wc_ecc_export_private_only()");
+
+    if (ret == 0) {
+        ret = wc_ecc_export_private_only(&key, out, &outlen);
+    }
+    /* Pass in bad args. */
+    if (ret == 0) {
+        ret = wc_ecc_export_private_only(NULL, out, &outlen);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_export_private_only(&key, NULL, &outlen);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_export_private_only(&key, out, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+    wc_ecc_free(&key);
+
+#endif
+    return ret;
+
+} /* END test_wc_ecc_export_private_only */
+
+
+/*
+ * Testing wc_ecc_rs_to_sig()
+ */
+static int test_wc_ecc_rs_to_sig (void)
+{
+
+    int           ret = 0;
+
+#if defined(HAVE_ECC) && !defined(NO_ASN)
+    /* first [P-192,SHA-1] vector from FIPS 186-3 NIST vectors */
+    const char*   R = "6994d962bdd0d793ffddf855ec5bf2f91a9698b46258a63e";
+    const char*   S = "02ba6465a234903744ab02bc8521405b73cf5fc00e1a9f41";
+    byte          sig[ECC_MAX_SIG_SIZE];
+    word32        siglen = (word32)sizeof(sig);
+    /*R and S max size is the order of curve. 2^192.*/
+    int           keySz = KEY24;
+    byte          r[keySz];
+    byte          s[keySz];
+    word32        rlen = (word32)sizeof(r);
+    word32        slen = (word32)sizeof(s);
+
+    /* Init stack variables. */
+    XMEMSET(sig, 0, ECC_MAX_SIG_SIZE);
+    XMEMSET(r, 0, keySz);
+    XMEMSET(s, 0, keySz);
+
+    printf(testingFmt, "wc_ecc_rs_to_sig()");
+
+    ret = wc_ecc_rs_to_sig(R, S, sig, &siglen);
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_ecc_rs_to_sig(NULL, S, sig, &siglen);
+        if (ret == ECC_BAD_ARG_E) {
+            ret = wc_ecc_rs_to_sig(R, NULL, sig, &siglen);
+        }
+        if (ret == ECC_BAD_ARG_E) {
+            ret = wc_ecc_rs_to_sig(R, S, sig, NULL);
+        }
+        if (ret == ECC_BAD_ARG_E) {
+            ret = wc_ecc_rs_to_sig(R, S, NULL, &siglen);
+        }
+        if (ret == ECC_BAD_ARG_E) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+    printf(testingFmt, "wc_ecc_sig_to_rs()");
+    if (ret == 0) {
+        ret = wc_ecc_sig_to_rs(sig, siglen, r, &rlen, s, &slen);
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_ecc_sig_to_rs(NULL, siglen, r, &rlen, s, &slen);
+        if (ret == ECC_BAD_ARG_E) {
+            ret = wc_ecc_sig_to_rs(sig, siglen, NULL, &rlen, s, &slen);
+        }
+        if (ret == ECC_BAD_ARG_E) {
+            ret = wc_ecc_sig_to_rs(sig, siglen, r, NULL, s, &slen);
+        }
+        if (ret == ECC_BAD_ARG_E) {
+            ret = wc_ecc_sig_to_rs(sig, siglen, r, &rlen, NULL, &slen);
+        }
+        if (ret == ECC_BAD_ARG_E) {
+            ret = wc_ecc_sig_to_rs(sig, siglen, r, &rlen, s, NULL);
+        }
+        if (ret == ECC_BAD_ARG_E) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+
+} /* END test_wc_ecc_rs_to_sig */
+
+static int test_wc_ecc_import_raw (void)
+{
+    int         ret = 0;
+
+#ifdef HAVE_ECC
+    ecc_key     key;
+    const char* qx = "07008ea40b08dbe76432096e80a2494c94982d2d5bcf98e6";
+    const char* qy = "76fab681d00b414ea636ba215de26d98c41bd7f2e4d65477";
+    const char* d  = "e14f37b3d1374ff8b03f41b9b3fdd2f0ebccf275d660d7f3";
+    const char* curveName = "SECP192R1";
+
+    ret = wc_ecc_init(&key);
+
+    printf(testingFmt, "wc_ecc_import_raw()");
+
+    if (ret == 0) {
+        ret = wc_ecc_import_raw(&key, qx, qy, d, curveName);
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_ecc_import_raw(NULL, qx, qy, d, curveName);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_import_raw(&key, NULL, qy, d, curveName);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_import_raw(&key, qx, NULL, d, curveName);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_import_raw(&key, qx, qy, d, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    wc_ecc_free(&key);
+
+#endif
+
+    return ret;
+
+} /* END test_wc_ecc_import_raw */
+
+
+/*
+ * Testing wc_ecc_sig_size()
+ */
+static int test_wc_ecc_sig_size (void)
+{
+   int         ret = 0;
+
+#ifdef HAVE_ECC
+    ecc_key     key;
+    WC_RNG      rng;
+    int         keySz = KEY16;
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_ecc_init(&key);
+        if (ret == 0) {
+            ret = wc_ecc_make_key(&rng, keySz, &key);
+        }
+    }
+
+    printf(testingFmt, "wc_ecc_sig_size()");
+
+    if (ret == 0) {
+        ret = wc_ecc_sig_size(&key);
+        if (ret == (2 * keySz + SIG_HEADER_SZ + 4)) {
+            ret = 0;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+    wc_ecc_free(&key);
+
+#endif
+    return ret;
+
+} /* END test_wc_ecc_sig_size */
+
+/*
+ * Testing wc_ecc_ctx_new()
+ */
+static int test_wc_ecc_ctx_new (void)
+{
+    int         ret = 0;
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT)
+    WC_RNG      rng;
+    ecEncCtx*   cli = NULL;
+    ecEncCtx*   srv = NULL;
+
+    ret = wc_InitRng(&rng);
+
+    printf(testingFmt, "wc_ecc_ctx_new()");
+    if (ret == 0) {
+        cli = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng);
+        srv = wc_ecc_ctx_new(REQ_RESP_SERVER, &rng);
+    }
+    if (ret == 0 && (cli == NULL || srv == NULL)) {
+        ret = SSL_FATAL_ERROR;
+    }
+
+    wc_ecc_ctx_free(cli);
+    wc_ecc_ctx_free(srv);
+
+    /* Test bad args. */
+    if (ret == 0) {
+        /* wc_ecc_ctx_new_ex() will free if returned NULL. */
+        cli = wc_ecc_ctx_new(0, &rng);
+        if (cli != NULL) {
+            ret = SSL_FATAL_ERROR;
+        }
+        cli = wc_ecc_ctx_new(REQ_RESP_CLIENT, NULL);
+        if (cli != NULL) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+    wc_ecc_ctx_free(cli);
+
+#endif
+    return ret;
+
+} /* END test_wc_ecc_ctx_new */
+
+/*
+ * Tesing wc_ecc_reset()
+ */
+static int test_wc_ecc_ctx_reset (void)
+{
+    int         ret = 0;
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT)
+    ecEncCtx*   ctx = NULL;
+    WC_RNG      rng;
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        if ( (ctx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng)) == NULL ) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(testingFmt, "wc_ecc_ctx_reset()");
+
+    if (ret == 0) {
+        ret = wc_ecc_ctx_reset(ctx, &rng);
+    }
+
+    /* Pass in bad args. */
+    if (ret == 0) {
+        ret = wc_ecc_ctx_reset(NULL, &rng);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_ctx_reset(ctx, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+    wc_ecc_ctx_free(ctx);
+
+#endif
+    return ret;
+
+} /* END test_wc_ecc_ctx_reset */
+
+/*
+ * Testing wc_ecc_ctx_set_peer_salt() and wc_ecc_ctx_get_own_salt()
+ */
+static int test_wc_ecc_ctx_set_peer_salt (void)
+{
+    int         ret = 0;
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT)
+    WC_RNG          rng;
+    ecEncCtx*       cliCtx      = NULL;
+    ecEncCtx*       servCtx     = NULL;
+    const byte*     cliSalt     = NULL;
+    const byte*     servSalt    = NULL;
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        if ( ( (cliCtx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng)) == NULL ) ||
+           ( (servCtx = wc_ecc_ctx_new(REQ_RESP_SERVER, &rng)) == NULL) ) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(testingFmt, "wc_ecc_ctx_get_own_salt()");
+
+    /* Test bad args. */
+    if (ret == 0) {
+        cliSalt  = wc_ecc_ctx_get_own_salt(NULL);
+        if (cliSalt != NULL) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (ret == 0) {
+        cliSalt  = wc_ecc_ctx_get_own_salt(cliCtx);
+        servSalt = wc_ecc_ctx_get_own_salt(servCtx);
+        if (cliSalt == NULL || servSalt == NULL) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+    printf(testingFmt, "wc_ecc_ctx_set_peer_salt()");
+
+    if (ret == 0) {
+        ret = wc_ecc_ctx_set_peer_salt(cliCtx, servSalt);
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_ecc_ctx_set_peer_salt(NULL, servSalt);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_ctx_set_peer_salt(cliCtx, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+    wc_ecc_ctx_free(cliCtx);
+    wc_ecc_ctx_free(servCtx);
+
+#endif
+    return ret;
+
+} /* END test_wc_ecc_ctx_set_peer_salt */
+
+/*
+ * Testing wc_ecc_ctx_set_info()
+ */
+static int test_wc_ecc_ctx_set_info (void)
+{
+    int         ret = 0;
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT)
+    ecEncCtx*   ctx = NULL;
+    WC_RNG      rng;
+    const char* optInfo = "Optional Test Info.";
+    int         optInfoSz = (int)XSTRLEN(optInfo);
+    const char* badOptInfo = NULL;
+
+    ret = wc_InitRng(&rng);
+    if ( (ctx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng)) == NULL || ret != 0 ) {
+        ret = SSL_FATAL_ERROR;
+    }
+
+    printf(testingFmt, "wc_ecc_ctx_set_info()");
+
+    if (ret == 0) {
+        ret = wc_ecc_ctx_set_info(ctx, (byte*)optInfo, optInfoSz);
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_ecc_ctx_set_info(NULL, (byte*)optInfo, optInfoSz);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_ctx_set_info(ctx, (byte*)badOptInfo, optInfoSz);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_ctx_set_info(ctx, (byte*)optInfo, -1);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+    wc_ecc_ctx_free(ctx);
+
+#endif
+    return ret;
+
+} /* END test_wc_ecc_ctx_set_info */
+
+/*
+ * Testing wc_ecc_encrypt() and wc_ecc_decrypt()
+ */
+static int test_wc_ecc_encryptDecrypt (void)
+{
+    int         ret = 0;
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT)
+    ecc_key     srvKey, cliKey;
+    WC_RNG      rng;
+    const char* msg   = "EccBlock Size 16";
+    word32      msgSz = (word32)XSTRLEN(msg);
+    byte        out[XSTRLEN(msg) + SHA256_DIGEST_SIZE];
+    word32      outSz = (word32)sizeof(out);
+    byte        plain[XSTRLEN(msg)];
+    word32      plainSz = (word32)sizeof(plain);
+    int         keySz = KEY20;
+
+    /* Init stack variables. */
+    XMEMSET(out, 0, outSz);
+    XMEMSET(plain, 0, plainSz);
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_ecc_init(&cliKey);
+        if (ret == 0) {
+            ret = wc_ecc_make_key(&rng, keySz, &cliKey);
+        }
+        if (ret == 0) {
+            ret = wc_ecc_init(&srvKey);
+        }
+        if (ret == 0) {
+            ret = wc_ecc_make_key(&rng, keySz, &srvKey);
+        }
+    }
+
+    printf(testingFmt, "wc_ecc_encrypt()");
+
+    if (ret == 0) {
+        ret = wc_ecc_encrypt(&cliKey, &srvKey, (byte*)msg, msgSz, out,
+                                                            &outSz, NULL);
+    }
+    if (ret == 0) {
+        ret = wc_ecc_encrypt(NULL, &srvKey, (byte*)msg, msgSz, out,
+                                                            &outSz, NULL);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_encrypt(&cliKey, NULL, (byte*)msg, msgSz, out,
+                                                            &outSz, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_encrypt(&cliKey, &srvKey, NULL, msgSz, out,
+                                                            &outSz, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_encrypt(&cliKey, &srvKey, (byte*)msg, msgSz, NULL,
+                                                            &outSz, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_encrypt(&cliKey, &srvKey, (byte*)msg, msgSz, out,
+                                                            NULL, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+    printf(testingFmt, "wc_ecc_decrypt()");
+
+    if (ret == 0) {
+        ret = wc_ecc_decrypt(&srvKey, &cliKey, out, outSz, plain,
+                                                        &plainSz, NULL);
+    }
+    if (ret == 0) {
+        ret = wc_ecc_decrypt(NULL, &cliKey, out, outSz, plain,
+                                                        &plainSz, NULL);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_decrypt(&srvKey, NULL, out, outSz, plain,
+                                                        &plainSz, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_decrypt(&srvKey, &cliKey, NULL, outSz, plain,
+                                                        &plainSz, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_decrypt(&srvKey, &cliKey, out, outSz, NULL,
+                                                        &plainSz, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_decrypt(&srvKey, &cliKey, out, outSz,
+                                                        plain, NULL, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (XMEMCMP(msg, plain, msgSz) != 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+    wc_ecc_free(&cliKey);
+    wc_ecc_free(&srvKey);
+
+#endif
+    return ret;
+
+} /* END test_wc_ecc_encryptDecrypt */
+
+/*
+ * Testing wc_ecc_del_point() and wc_ecc_new_point()
+ */
+static int test_wc_ecc_del_point (void)
+{
+    int         ret = 0;
+
+#if defined(HAVE_ECC)
+    ecc_point*   pt;
+
+    printf(testingFmt, "wc_ecc_new_point()");
+
+    pt = wc_ecc_new_point();
+    if (!pt) {
+        ret = SSL_FATAL_ERROR;
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    wc_ecc_del_point(pt);
+
+#endif
+    return ret;
+
+} /* END test_wc_ecc_del_point */
+
+/*
+ * Testing wc_ecc_point_is_at_infinity(), wc_ecc_export_point_der(),
+ * wc_ecc_import_point_der(), wc_ecc_copy_point(), and wc_ecc_cmp_point()
+ */
+static int test_wc_ecc_pointFns (void)
+{
+    int         ret = 0;
+
+#if defined(HAVE_ECC)
+    ecc_key     key;
+    WC_RNG      rng;
+    ecc_point*  point = NULL;
+    ecc_point*  cpypt = NULL;
+    int         idx = 0;
+    int         keySz = KEY32;
+    byte        der[DER_SZ];
+    word32      derlenChk = 0;
+    word32      derSz = (int)sizeof(der);
+
+    /* Init stack variables. */
+    XMEMSET(der, 0, derSz);
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_ecc_init(&key);
+        if (ret == 0) {
+            ret = wc_ecc_make_key(&rng, keySz, &key);
+        }
+    }
+
+    if (ret == 0) {
+        point = wc_ecc_new_point();
+        if (!point) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (ret == 0) {
+        cpypt = wc_ecc_new_point();
+        if (!cpypt) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    /* Export */
+    printf(testingFmt, "wc_ecc_export_point_der()");
+    if (ret == 0) {
+        ret = wc_ecc_export_point_der((idx = key.idx), &key.pubkey,
+                                                       NULL, &derlenChk);
+        /* Check length value. */
+        if (derSz == derlenChk && ret == LENGTH_ONLY_E) {
+            ret = wc_ecc_export_point_der((idx = key.idx), &key.pubkey,
+                                                           der, &derSz);
+        }
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_ecc_export_point_der(-2, &key.pubkey, der, &derSz);
+        if (ret == ECC_BAD_ARG_E) {
+            ret = wc_ecc_export_point_der((idx = key.idx), NULL, der, &derSz);
+        }
+        if (ret == ECC_BAD_ARG_E) {
+            ret = wc_ecc_export_point_der((idx = key.idx), &key.pubkey,
+                                                                der, NULL);
+        }
+        if (ret == ECC_BAD_ARG_E) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    /* Import */
+    printf(testingFmt, "wc_ecc_import_point_der()");
+
+    if (ret == 0) {
+        ret = wc_ecc_import_point_der(der, derSz, idx, point);
+        /* Condition double checks wc_ecc_cmp_point().  */
+        if (ret == 0 && XMEMCMP(&key.pubkey, point, sizeof(key.pubkey))) {
+            ret = wc_ecc_cmp_point(&key.pubkey, point);
+        }
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_ecc_import_point_der(NULL, derSz, idx, point);
+        if (ret == ECC_BAD_ARG_E) {
+            ret = wc_ecc_import_point_der(der, derSz, idx, NULL);
+        }
+        if (ret == ECC_BAD_ARG_E) {
+            ret = wc_ecc_import_point_der(der, derSz, -1, point);
+        }
+        if (ret == ECC_BAD_ARG_E) {
+            ret = wc_ecc_import_point_der(der, derSz + 1, idx, point);
+        }
+        if (ret == ECC_BAD_ARG_E) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    /* Copy */
+    printf(testingFmt, "wc_ecc_copy_point()");
+
+    if (ret == 0) {
+        ret = wc_ecc_copy_point(point, cpypt);
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_ecc_copy_point(NULL, cpypt);
+        if (ret == ECC_BAD_ARG_E) {
+            ret = wc_ecc_copy_point(point, NULL);
+        }
+        if (ret == ECC_BAD_ARG_E) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    printf(testingFmt, "wc_ecc_cmp_point()");
+    /* Compare point */
+    if (ret == 0) {
+        ret = wc_ecc_cmp_point(point, cpypt);
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_ecc_cmp_point(NULL, cpypt);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_cmp_point(point, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    printf(testingFmt, "wc_ecc_point_is_at_infinity()");
+    /* At infinity if return == 1, otherwise return == 0. */
+    if (ret == 0) {
+        ret = wc_ecc_point_is_at_infinity(point);
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_ecc_point_is_at_infinity(NULL);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    /* Free */
+    wc_ecc_del_point(point);
+    wc_ecc_del_point(cpypt);
+    wc_ecc_free(&key);
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+
+#endif
+    return ret;
+
+} /* END test_wc_ecc_pointFns */
+
+
+/*
+ * Testing wc_ecc_sahred_secret_ssh()
+ */
+static int test_wc_ecc_shared_secret_ssh (void)
+{
+    int         ret = 0;
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_DHE)
+    ecc_key     key, key2;
+    WC_RNG      rng;
+    int         keySz = 32;
+    int         key2Sz = 24;
+    byte        secret[keySz];
+    word32      secretLen = keySz;
+
+    /* Init stack variables. */
+    XMEMSET(secret, 0, secretLen);
+
+    /* Make keys */
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_ecc_init(&key);
+        if (ret == 0) {
+            ret = wc_ecc_make_key(&rng, keySz, &key);
+        }
+        if (wc_FreeRng(&rng) && ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_InitRng(&rng);
+        if (ret == 0) {
+            ret = wc_ecc_init(&key2);
+        }
+        if (ret == 0) {
+            ret = wc_ecc_make_key(&rng, key2Sz, &key2);
+        }
+    }
+
+    printf(testingFmt, "ecc_shared_secret_ssh()");
+
+    if (ret == 0) {
+        ret = wc_ecc_shared_secret_ssh(&key, &key2.pubkey, secret, &secretLen);
+    }
+    /* Pass in bad args. */
+    if (ret == 0) {
+        ret = wc_ecc_shared_secret_ssh(NULL, &key2.pubkey, secret, &secretLen);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_shared_secret_ssh(&key, NULL, secret, &secretLen);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_shared_secret_ssh(&key, &key2.pubkey, NULL, &secretLen);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ecc_shared_secret_ssh(&key, &key2.pubkey, secret, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+        key.type = ECC_PUBLICKEY;
+        ret = wc_ecc_shared_secret_ssh(&key, &key2.pubkey, secret, &secretLen);
+            if (ret == ECC_BAD_ARG_E) {
+                ret = 0;
+            } else if (ret == 0) {
+                ret = SSL_FATAL_ERROR;
+            }
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+    wc_ecc_free(&key);
+    wc_ecc_free(&key2);
+
+#endif
+    return ret;
+
+} /* END test_wc_ecc_shared_secret_ssh */
+
+/*
+ * Testing wc_ecc_verify_hash_ex() and wc_ecc_verify_hash_ex()
+ */
+static int test_wc_ecc_verify_hash_ex (void)
+{
+    int             ret = 0;
+
+#if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN) && defined(WOLFSSL_PUBLIC_MP)\
+        && WOLFSSL_ATECC508A
+    ecc_key         key;
+    WC_RNG          rng;
+    mp_int          r;
+    mp_int          s;
+    unsigned char   hash[] = "Everyone gets Friday off.EccSig";
+    unsigned char   iHash[] = "Everyone gets Friday off.......";
+    unsigned char   shortHash[] = "Everyone gets Friday off.";
+    word32          hashlen = sizeof(hash);
+    word32          iHashLen = sizeof(iHash);
+    word32          shortHashLen = sizeof(shortHash);
+    int             keySz = KEY32;
+    int             sig = SSL_FATAL_ERROR;
+    int             ver = SSL_FATAL_ERROR;
+    int             stat = 0;
+
+    /* Initialize r and s. */
+    ret = mp_init_multi(&r, &s, NULL, NULL, NULL, NULL);
+    if (ret != MP_OKAY) {
+        return MP_INIT_E;
+    }
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_ecc_init(&key);
+        if (ret == 0) {
+            ret = wc_ecc_make_key(&rng, keySz, &key);
+        }
+    }
+    if (ret == 0) {
+        ret = wc_ecc_sign_hash_ex(hash, hashlen, &rng, &key, &r, &s);
+        if (ret == 0) {
+            /* stat should be 1. */
+            ret = wc_ecc_verify_hash_ex(&r, &s, hash, hashlen, &stat, &key);
+            if (stat != 1 && ret == 0) {
+                ret = SSL_FATAL_ERROR;
+            }
+        }
+        if (ret == 0) {
+            /* stat should be 0 */
+            ret = wc_ecc_verify_hash_ex(&r, &s, iHash, iHashLen,
+                                                    &stat, &key);
+            if (stat != 0 && ret == 0) {
+                ret = SSL_FATAL_ERROR;
+            }
+        }
+        if (ret == 0) {
+            /* stat should be 0. */
+            ret = wc_ecc_verify_hash_ex(&r, &s, shortHash, shortHashLen,
+                                                            &stat, &key);
+            if (stat != 0 && ret == 0) {
+                ret = SSL_FATAL_ERROR;
+            }
+        }
+    }
+
+    printf(testingFmt, "wc_ecc_sign_hash_ex()");
+    /* Test bad args. */
+    if (ret == 0) {
+        if (wc_ecc_sign_hash_ex(NULL, hashlen, &rng, &key, &r, &s)
+                                                == ECC_BAD_ARG_E) {
+            sig = 0;
+        }
+        if (sig == 0 && wc_ecc_sign_hash_ex(hash, hashlen, NULL, &key, &r, &s)
+                                                            != ECC_BAD_ARG_E) {
+            sig = SSL_FATAL_ERROR;
+        }
+        if (sig == 0 && wc_ecc_sign_hash_ex(hash, hashlen, &rng, NULL, &r, &s)
+                                                            != ECC_BAD_ARG_E) {
+            sig = SSL_FATAL_ERROR;
+        }
+        if (sig == 0 && wc_ecc_sign_hash_ex(hash, hashlen, &rng, &key, NULL, &s)
+                                                            != ECC_BAD_ARG_E) {
+            sig = SSL_FATAL_ERROR;
+        }
+        if (sig == 0 && wc_ecc_sign_hash_ex(hash, hashlen, &rng, &key, &r, NULL)
+                                                            != ECC_BAD_ARG_E) {
+            sig = SSL_FATAL_ERROR;
+        }
+    }
+    printf(resultFmt, sig == 0 ? passed : failed);
+    printf(testingFmt, "wc_ecc_verify_hash_ex()");
+    /* Test bad args. */
+    if (ret == 0) {
+        if (wc_ecc_verify_hash_ex(NULL, &s, shortHash, shortHashLen, &stat, &key)
+                                                            == ECC_BAD_ARG_E) {
+            ver = 0;
+        }
+        if (ver == 0 && wc_ecc_verify_hash_ex(&r, NULL, shortHash, shortHashLen,
+                                                &stat, &key) != ECC_BAD_ARG_E) {
+            ver = SSL_FATAL_ERROR;
+        }
+        if (ver == 0 && wc_ecc_verify_hash_ex(&r, &s, NULL, shortHashLen, &stat,
+                                                       &key) != ECC_BAD_ARG_E) {
+            ver = SSL_FATAL_ERROR;
+        }
+        if (ver == 0 && wc_ecc_verify_hash_ex(&r, &s, shortHash, shortHashLen,
+                                                NULL, &key) != ECC_BAD_ARG_E) {
+            ver = SSL_FATAL_ERROR;
+        }
+        if (ver == 0 && wc_ecc_verify_hash_ex(&r, &s, shortHash, shortHashLen,
+                                                &stat, NULL) != ECC_BAD_ARG_E) {
+            ver = SSL_FATAL_ERROR;
+        }
+    }
+    printf(resultFmt, ver == 0 ? passed : failed);
+
+    wc_ecc_free(&key);
+    mp_free(&r);
+    mp_free(&s);
+    if (wc_FreeRng(&rng)) {
+        return SSL_FATAL_ERROR;
+    }
+    if (ret == 0 && (sig != 0 || ver != 0)) {
+        ret = SSL_FATAL_ERROR;
+    }
+#endif
+    return ret;
+
+} /* END test_wc_ecc_verify_hash_ex */
+
+/*
+ * Testing wc_ecc_mulmod()
+ */
+
+static int test_wc_ecc_mulmod (void)
+{
+    int         ret = 0;
+
+#if defined(HAVE_ECC)
+    ecc_key     key1, key2, key3;
+    WC_RNG      rng;
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        if (ret == 0) {
+            ret = wc_ecc_init(&key1);
+        }
+        if (ret == 0) {
+            ret = wc_ecc_init(&key2);
+        }
+        if (ret == 0) {
+            ret = wc_ecc_init(&key3);
+        }
+        if (ret == 0) {
+            ret = wc_ecc_make_key(&rng, KEY32, &key1);
+        }
+    }
+    if (ret == 0) {
+        ret = wc_ecc_import_raw_ex(&key2, key1.dp->Gx, key1.dp->Gy, key1.dp->Af,
+                                                                 ECC_SECP256R1);
+        if (ret == 0) {
+            ret = wc_ecc_import_raw_ex(&key3, key1.dp->Gx, key1.dp->Gy,
+                                        key1.dp->prime, ECC_SECP256R1);
+        }
+    }
+
+    printf(testingFmt, "wc_ecc_mulmod()");
+    if (ret == 0) {
+        ret = wc_ecc_mulmod(&key1.k, &key2.pubkey, &key3.pubkey, &key2.k,
+                                                            &key3.k, 1);
+    }
+
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_ecc_mulmod(NULL, &key2.pubkey, &key3.pubkey, &key2.k,
+                                                            &key3.k, 1);
+        if (ret == ECC_BAD_ARG_E) {
+            ret = wc_ecc_mulmod(&key1.k, NULL, &key3.pubkey, &key2.k,
+                                                            &key3.k, 1);
+        }
+        if (ret == ECC_BAD_ARG_E) {
+            ret = wc_ecc_mulmod(&key1.k, &key2.pubkey, NULL, &key2.k,
+                                                            &key3.k, 1);
+        }
+        if (ret == ECC_BAD_ARG_E) {
+            ret = wc_ecc_mulmod(&key1.k, &key2.pubkey, &key3.pubkey,
+                                                            &key2.k, NULL, 1);
+        }
+        if (ret == ECC_BAD_ARG_E) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+    wc_ecc_free(&key1);
+    wc_ecc_free(&key2);
+    wc_ecc_free(&key3);
+
+
+#endif
+    return ret;
+
+
+} /* END test_wc_ecc_mulmod */
+
+/*
+ * Testing wc_ecc_is_valid_idx()
+ */
+static int test_wc_ecc_is_valid_idx (void)
+{
+    int         ret = 0;
+
+#if defined(HAVE_ECC)
+    ecc_key     key;
+    WC_RNG      rng;
+    int         iVal = -2;
+    int         iVal2 = 3000;
+
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_ecc_init(&key);
+        if (ret == 0) {
+            ret = wc_ecc_make_key(&rng, 32, &key);
+        }
+    }
+
+    printf(testingFmt, "wc_ecc_is_valid_idx()");
+    if (ret == 0) {
+        ret = wc_ecc_is_valid_idx(key.idx);
+        if (ret == 1) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_ecc_is_valid_idx(iVal); /* should return 0 */
+        if (ret == 0) {
+            ret = wc_ecc_is_valid_idx(iVal2);
+        }
+        if (ret != 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+    wc_ecc_free(&key);
+
+#endif
+    return ret;
+
+
+} /* END test_wc_ecc_is_valid_idx */
+
 
 
 
@@ -10099,6 +11918,32 @@ void ApiTest(void)
     AssertIntEQ(test_wc_AesCcmEncryptDecrypt(), 0);
     AssertIntEQ(test_wc_Hc128_SetKey(), 0);
     AssertIntEQ(test_wc_Hc128_Process(), 0);
+
+    AssertIntEQ(test_wc_ecc_make_key(), 0);
+    AssertIntEQ(test_wc_ecc_init(), 0);
+    AssertIntEQ(test_wc_ecc_check_key(), 0);
+    AssertIntEQ(test_wc_ecc_size(), 0);
+    AssertIntEQ(test_wc_ecc_signVerify_hash(), 0);
+    AssertIntEQ(test_wc_ecc_shared_secret(), 0);
+    AssertIntEQ(test_wc_ecc_export_x963(), 0);
+    AssertIntEQ(test_wc_ecc_export_x963_ex(), 0);
+    AssertIntEQ(test_wc_ecc_import_x963(), 0);
+    AssertIntEQ(ecc_import_private_key(), 0);
+    AssertIntEQ(test_wc_ecc_export_private_only(), 0);
+    AssertIntEQ(test_wc_ecc_rs_to_sig(), 0);
+    AssertIntEQ(test_wc_ecc_import_raw(), 0);
+    AssertIntEQ(test_wc_ecc_sig_size(), 0);
+    AssertIntEQ(test_wc_ecc_ctx_new(), 0);
+    AssertIntEQ(test_wc_ecc_ctx_reset(), 0);
+    AssertIntEQ(test_wc_ecc_ctx_set_peer_salt(), 0);
+    AssertIntEQ(test_wc_ecc_ctx_set_info(), 0);
+    AssertIntEQ(test_wc_ecc_encryptDecrypt(), 0);
+    AssertIntEQ(test_wc_ecc_del_point(), 0);
+    AssertIntEQ(test_wc_ecc_pointFns(), 0);
+    AssertIntEQ(test_wc_ecc_shared_secret_ssh(), 0);
+    AssertIntEQ(test_wc_ecc_verify_hash_ex(), 0);
+    AssertIntEQ(test_wc_ecc_mulmod(), 0);
+    AssertIntEQ(test_wc_ecc_is_valid_idx(), 0);
     printf(" End API Tests\n");
 
 }
