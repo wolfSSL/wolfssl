@@ -32,6 +32,10 @@
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/sha512.h>
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #include <wolfssl/wolfcrypt/async.h>
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -68,6 +72,9 @@ struct ed25519_key {
     /* uncompressed point coordinates */
     byte pointX[ED25519_KEY_SIZE]; /* recovered X coordinate */
     byte pointY[ED25519_KEY_SIZE]; /* Y coordinate is the public key with The most significant bit of the final octet always zero. */
+#endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    WC_ASYNC_DEV asyncDev;
 #endif
 };
 

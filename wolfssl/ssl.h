@@ -1701,6 +1701,10 @@ WOLFSSL_API int wolfSSL_UseClientSuites(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_UseAsync(WOLFSSL*, int devId);
 WOLFSSL_API int wolfSSL_CTX_UseAsync(WOLFSSL_CTX*, int devId);
 
+/* helpers to get device id and heap */
+WOLFSSL_API int   wolfSSL_CTX_GetDevId(WOLFSSL_CTX* ctx, WOLFSSL* ssl);
+WOLFSSL_API void* wolfSSL_CTX_GetHeap(WOLFSSL_CTX* ctx, WOLFSSL* ssl);
+
 /* TLS Extensions */
 
 /* Server Name Indication */

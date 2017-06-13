@@ -127,21 +127,6 @@ enum processReply {
     runProcessingOneMessage
 };
 
-/* sub-states for build message */
-enum buildMsgState {
-    BUILD_MSG_BEGIN = 0,
-    BUILD_MSG_SIZE,
-    BUILD_MSG_HASH,
-    BUILD_MSG_VERIFY_MAC,
-    BUILD_MSG_ENCRYPT,
-};
-
-/* sub-states for cipher operations */
-enum cipherState {
-    CIPHER_STATE_BEGIN = 0,
-    CIPHER_STATE_DO,
-    CIPHER_STATE_END,
-};
 
 /* Server random bytes for TLS v1.3 described downgrade protection mechanism. */
 static const byte tls13Downgrade[7] = {
@@ -2919,7 +2904,8 @@ static int TypeHash(int hashAlgo)
 }
 
 #if defined(WC_RSA_PSS)
-static int ConvertHashPss(int hashAlgo, enum wc_HashType* hashType, int* mgf) {
+int ConvertHashPss(int hashAlgo, enum wc_HashType* hashType, int* mgf)
+{
     switch (hashAlgo) {
         #ifdef WOLFSSL_SHA512
         case sha512_mac:
@@ -3105,10 +3091,11 @@ int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
             return ret;
         ret = wc_RsaPSS_VerifyInline(verifySig, sigSz, &out, hashType, mgf,
                                                                            key);
-        if (ret > 0)
+        if (ret > 0) {
             ret = wc_RsaPSS_CheckPadding(plain, plainSz, out, ret, hashType);
             if (ret != 0)
                 ret = VERIFY_CERT_ERROR;
+        }
     }
     else
 #endif
@@ -3362,7 +3349,9 @@ int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key, ecc_key* pub_key,
         int side, void* ctx)
 {
     int ret;
-
+#ifdef WOLFSSL_ASYNC_CRYPT
+    WC_ASYNC_DEV* asyncDev;
+#endif
     (void)ssl;
     (void)pubKeyDer;
     (void)pubKeySz;
@@ -3380,18 +3369,23 @@ int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key, ecc_key* pub_key,
             ret = ssl->ctx->EccSharedSecretCb(ssl, otherKey, pubKeyDer,
                 pubKeySz, out, outlen, side, ctx);
         }
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        asyncDev = &otherKey->asyncDev;
+    #endif
     }
     else
 #endif
     {
         ret = wc_ecc_shared_secret(priv_key, pub_key, out, outlen);
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        asyncDev = &priv_key->asyncDev;
+    #endif
     }
 
     /* Handle async pending response */
 #if defined(WOLFSSL_ASYNC_CRYPT)
     if (ret == WC_PENDING_E) {
-        ret = wolfSSL_AsyncPush(ssl, &priv_key->asyncDev,
-                                                    WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wolfSSL_AsyncPush(ssl, asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
@@ -5557,6 +5551,9 @@ int HashOutputRaw(WOLFSSL* ssl, const byte* output, int sz)
 
     (void)output;
     (void)sz;
+
+    if (ssl->hsHashes == NULL)
+        return BAD_FUNC_ARG;
 
 #ifdef HAVE_FUZZER
     if (ssl->fuzzerCb)
@@ -9307,7 +9304,7 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* if async, offset index so this msg will be processed again */
-    if (ret == WC_PENDING_E) {
+    if (ret == WC_PENDING_E && *inOutIdx > 0) {
         *inOutIdx -= HANDSHAKE_HEADER_SZ;
     #ifdef WOLFSSL_DTLS
         if (ssl->options.dtls) {
@@ -9575,6 +9572,10 @@ static int DtlsMsgDrain(WOLFSSL* ssl)
         ssl->keys.dtls_expected_peer_handshake_number++;
         ret = DoHandShakeMsgType(ssl, item->msg,
                                  &idx, item->type, item->sz, item->sz);
+        if (ret == WC_PENDING_E) {
+            ssl->keys.dtls_expected_peer_handshake_number--;
+            break;
+        }
         ssl->dtls_rx_msg_list = item->next;
         DtlsMsgDelete(item, ssl->heap);
         item = ssl->dtls_rx_msg_list;
@@ -9594,10 +9595,24 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     int ret = 0;
 
     WOLFSSL_ENTER("DoDtlsHandShakeMsg()");
+
+    /* process any pending DTLS messages - this flow can happen with async */
+    if (ssl->dtls_rx_msg_list != NULL) {
+        ret = DtlsMsgDrain(ssl);
+        if (ret != 0)
+            return ret;
+
+        /* if done processing fragment exit with success */
+        if (totalSz == *inOutIdx)
+            return ret;
+    }
+
+    /* parse header */
     if (GetDtlsHandShakeHeader(ssl, input, inOutIdx, &type,
                                &size, &fragOffset, &fragSz, totalSz) != 0)
         return PARSE_ERROR;
 
+    /* check that we have complete fragment */
     if (*inOutIdx + fragSz > totalSz)
         return INCOMPLETE_DATA;
 
@@ -10209,7 +10224,7 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz,
     int ret = 0;
 
 #ifdef WOLFSSL_ASYNC_CRYPT
-    if (asyncOkay && ssl->error == WC_PENDING_E) {
+    if (ssl->error == WC_PENDING_E) {
         ssl->error = 0; /* clear async */
     }
 #endif
@@ -11956,12 +11971,12 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
              int inSz, int type, int hashOutput, int sizeOnly, int asyncOkay)
 {
     int ret = 0;
+    BuildMsgArgs* args;
+    BuildMsgArgs  lcl_args;
 #ifdef WOLFSSL_ASYNC_CRYPT
-    BuildMsgArgs* args = (BuildMsgArgs*)ssl->async.args;
+    args = (BuildMsgArgs*)ssl->async.args;
     typedef char args_test[sizeof(ssl->async.args) >= sizeof(*args) ? 1 : -1];
     (void)sizeof(args_test);
-#else
-    BuildMsgArgs  args[1];
 #endif
 
     WOLFSSL_ENTER("BuildMessage");
@@ -11973,7 +11988,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
 #ifdef WOLFSSL_TLS13
     if (ssl->options.tls1_3) {
         return BuildTls13Message(ssl, output, outSz, input, inSz, type,
-                                 hashOutput, sizeOnly);
+                                 hashOutput, sizeOnly, asyncOkay);
     }
 #endif
 
@@ -11987,7 +12002,11 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 goto exit_buildmsg;
         }
     }
+    else
 #endif
+    {
+        args = &lcl_args;
+    }
 
     /* Reset state */
     if (ret == WC_NOT_PENDING_E) {
@@ -13189,7 +13208,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         else {
 #ifdef WOLFSSL_TLS13
             sendSz = BuildTls13Message(ssl, out, outputSz, sendBuffer, buffSz,
-                                       application_data, 0, 0);
+                                       application_data, 0, 0, 1);
 #else
             sendSz = BUFFER_ERROR;
 #endif
@@ -17921,7 +17940,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 {
                     ecc_key* peerKey;
 
-                #ifdef HAVE_PK_CALLBACKS
+            #ifdef HAVE_PK_CALLBACKS
                     /* if callback then use it for shared secret */
                 #ifdef HAVE_CURVE25519
                     if (ssl->ecdhCurveOID == ECC_X25519_OID) {
@@ -17933,7 +17952,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     if (ssl->ctx->EccSharedSecretCb != NULL) {
                         break;
                     }
-                #endif
+            #endif /* HAVE_PK_CALLBACKS */
 
                 #ifdef HAVE_CURVE25519
                     if (ssl->peerX25519KeyPresent) {
@@ -18261,7 +18280,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         break;
                     }
                 #endif
-                 #ifdef HAVE_PK_CALLBACKS
+                #ifdef HAVE_PK_CALLBACKS
                     /* if callback then use it for shared secret */
                     if (ssl->ctx->EccSharedSecretCb != NULL) {
                         break;
@@ -18679,11 +18698,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
         {
             if (IsEncryptionOn(ssl, 1)) {
                 ret = BuildMessage(ssl, args->output, args->sendSz,
-                            args->input, args->inputSz, handshake, 1, 0, 1);
-            #ifdef WOLFSSL_ASYNC_CRYPT
-                if (ret == WC_PENDING_E)
-                    goto exit_scke;
-            #endif
+                            args->input, args->inputSz, handshake, 1, 0, 0);
                 XFREE(args->input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 args->input = NULL; /* make sure its not double free'd on cleanup */
 

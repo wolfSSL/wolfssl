@@ -1292,6 +1292,10 @@ static int HashInputRaw(WOLFSSL* ssl, const byte* input, int sz)
 {
     int ret = BAD_FUNC_ARG;
 
+    if (ssl->hsHashes == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
 #ifndef NO_OLD_TLS
 #ifndef NO_SHA
     ret = wc_ShaUpdate(&ssl->hsHashes->hashSha, input, sz);
@@ -1590,76 +1594,139 @@ static int ChaCha20Poly1305_Encrypt(WOLFSSL* ssl, byte* output,
  *         May be the same pointer as input.
  * input   The data to encrypt.
  * sz      The number of bytes to encrypt.
+ * asyncOkay If non-zero can return WC_PENDING_E, otherwise blocks on crypto
  * returns 0 on success, otherwise failure.
  */
 static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
-                        word16 sz)
+                        word16 sz, int asyncOkay)
 {
     int    ret    = 0;
     word16 dataSz = sz - ssl->specs.aead_mac_size;
     word16 macSz  = ssl->specs.aead_mac_size;
-    byte   nonce[AEAD_NONCE_SZ];
+    word32 nonceSz = 0;
+#ifdef WOLFSSL_ASYNC_CRYPT
+    WC_ASYNC_DEV* asyncDev = NULL;
+    word32 event_flags = WC_ASYNC_FLAG_CALL_AGAIN;
+#endif
+
+    WOLFSSL_ENTER("EncryptTls13");
 
     (void)output;
     (void)input;
     (void)sz;
     (void)dataSz;
     (void)macSz;
+    (void)asyncOkay;
+    (void)nonceSz;
 
-#ifdef WOLFSSL_DEBUG_TLS
-    WOLFSSL_MSG("Data to encrypt");
-    WOLFSSL_BUFFER(input, dataSz);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (ssl->error == WC_PENDING_E) {
+        ssl->error = 0; /* clear async */
+    }
 #endif
 
-    BuildTls13Nonce(ssl, nonce, ssl->keys.aead_enc_imp_IV, CUR_ORDER);
-
-    switch (ssl->specs.bulk_cipher_algorithm) {
-        #ifdef BUILD_AESGCM
-        case wolfssl_aes_gcm:
-#ifdef WOLFSSL_DEBUG_TLS
-            WOLFSSL_MSG("Nonce");
-            WOLFSSL_BUFFER(nonce, AESGCM_NONCE_SZ);
-#endif
-            ret = wc_AesGcmEncrypt(ssl->encrypt.aes, output, input, dataSz,
-                nonce, AESGCM_NONCE_SZ, output + dataSz, macSz, NULL, 0);
-            break;
+    switch (ssl->encrypt.state) {
+        case CIPHER_STATE_BEGIN:
+        {
+        #ifdef WOLFSSL_DEBUG_TLS
+            WOLFSSL_MSG("Data to encrypt");
+            WOLFSSL_BUFFER(input, dataSz);
         #endif
 
-        #ifdef HAVE_AESCCM
-        case wolfssl_aes_ccm:
-#ifdef WOLFSSL_DEBUG_TLS
-            WOLFSSL_MSG("Nonce");
-            WOLFSSL_BUFFER(nonce, AESCCM_NONCE_SZ);
-#endif
-            ret = wc_AesCcmEncrypt(ssl->encrypt.aes, output, input, dataSz,
-                nonce, AESCCM_NONCE_SZ, output + dataSz, macSz, NULL, 0);
-            break;
-        #endif
+            if (ssl->encrypt.nonce == NULL)
+                ssl->encrypt.nonce = (byte*)XMALLOC(AEAD_NONCE_SZ,
+                                               ssl->heap, DYNAMIC_TYPE_AES);
+            if (ssl->encrypt.nonce == NULL)
+                return MEMORY_E;
 
-        #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
-        case wolfssl_chacha:
-#ifdef WOLFSSL_DEBUG_TLS
-            WOLFSSL_MSG("Nonce");
-            WOLFSSL_BUFFER(nonce, CHACHA_IV_BYTES);
-#endif
-            ret = ChaCha20Poly1305_Encrypt(ssl, output, input, dataSz, nonce,
-                output + dataSz);
-            break;
-        #endif
+            BuildTls13Nonce(ssl, ssl->encrypt.nonce, ssl->keys.aead_enc_imp_IV,
+                            CUR_ORDER);
 
-        default:
-            WOLFSSL_MSG("wolfSSL Encrypt programming error");
-            return ENCRYPT_ERROR;
+            /* Advance state and proceed */
+            ssl->encrypt.state = CIPHER_STATE_DO;
+        }
+        FALL_THROUGH;
+
+        case CIPHER_STATE_DO:
+        {
+            switch (ssl->specs.bulk_cipher_algorithm) {
+            #ifdef BUILD_AESGCM
+                case wolfssl_aes_gcm:
+                    nonceSz = AESGCM_NONCE_SZ;
+                    ret = wc_AesGcmEncrypt(ssl->encrypt.aes, output, input,
+                        dataSz, ssl->encrypt.nonce, nonceSz,
+                        output + dataSz, macSz, NULL, 0);
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    asyncDev = &ssl->encrypt.aes->asyncDev;
+                #endif
+                    break;
+            #endif
+
+            #ifdef HAVE_AESCCM
+                case wolfssl_aes_ccm:
+                    nonceSz = AESCCM_NONCE_SZ;
+                    ret = wc_AesCcmEncrypt(ssl->encrypt.aes, output, input,
+                        dataSz, ssl->encrypt.nonce, nonceSz,
+                        output + dataSz, macSz, NULL, 0);
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    asyncDev = &ssl->encrypt.aes->asyncDev;
+                #endif
+                    break;
+            #endif
+
+            #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+                case wolfssl_chacha:
+                    nonceSz = CHACHA_IV_BYTES;
+                    ret = ChaCha20Poly1305_Encrypt(ssl, output, input, dataSz,
+                        ssl->encrypt.nonce, output + dataSz);
+                    break;
+            #endif
+
+                default:
+                    WOLFSSL_MSG("wolfSSL Encrypt programming error");
+                    return ENCRYPT_ERROR;
+            }
+
+            /* Advance state */
+            ssl->encrypt.state = CIPHER_STATE_END;
+
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (ret == WC_PENDING_E) {
+                /* if async is not okay, then block */
+                if (!asyncOkay) {
+                    ret = wc_AsyncWait(ret, asyncDev, event_flags);
+                }
+                else {
+                    /* If pending, then leave and return will resume below */
+                    ret = wolfSSL_AsyncPush(ssl, asyncDev, event_flags);
+
+                    return ret;
+                }
+            }
+        #endif
+        }
+        FALL_THROUGH;
+
+        case CIPHER_STATE_END:
+        {
+            if (ssl->encrypt.nonce)
+                ForceZero(ssl->encrypt.nonce, AEAD_NONCE_SZ);
+
+            #ifdef WOLFSSL_DEBUG_TLS
+                WOLFSSL_MSG("Nonce");
+                WOLFSSL_BUFFER(ssl->encrypt.nonce, ssl->specs.iv_size);
+                WOLFSSL_MSG("Encrypted data");
+                WOLFSSL_BUFFER(output, dataSz);
+                WOLFSSL_MSG("Authentication Tag");
+                WOLFSSL_BUFFER(output + dataSz, macSz);
+            #endif
+
+    break;
+        }
     }
 
-    ForceZero(nonce, AEAD_NONCE_SZ);
-
-#ifdef WOLFSSL_DEBUG_TLS
-    WOLFSSL_MSG("Encrypted data");
-    WOLFSSL_BUFFER(output, dataSz);
-    WOLFSSL_MSG("Authentication Tag");
-    WOLFSSL_BUFFER(output + dataSz, macSz);
-#endif
+    /* Reset state */
+    ssl->encrypt.state = CIPHER_STATE_BEGIN;
 
     return ret;
 }
@@ -1732,74 +1799,158 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz)
     int    ret    = 0;
     word16 dataSz = sz - ssl->specs.aead_mac_size;
     word16 macSz  = ssl->specs.aead_mac_size;
-    byte   nonce[AEAD_NONCE_SZ];
+    word32 nonceSz = 0;
+
+    WOLFSSL_ENTER("DecryptTls13");
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ret = wolfSSL_AsyncPop(ssl, &ssl->decrypt.state);
+    if (ret != WC_NOT_PENDING_E) {
+        /* check for still pending */
+        if (ret == WC_PENDING_E)
+            return ret;
+
+        ssl->error = 0; /* clear async */
+
+        /* let failures through so CIPHER_STATE_END logic is run */
+    }
+    else
+#endif
+    {
+        /* Reset state */
+        ret = 0;
+        ssl->decrypt.state = CIPHER_STATE_BEGIN;
+    }
 
     (void)output;
     (void)input;
     (void)sz;
     (void)dataSz;
     (void)macSz;
+    (void)nonceSz;
 
-#ifdef WOLFSSL_DEBUG_TLS
-    WOLFSSL_MSG("Data to decrypt");
-    WOLFSSL_BUFFER(input, dataSz);
-    WOLFSSL_MSG("Authentication tag");
-    WOLFSSL_BUFFER(input + dataSz, macSz);
-#endif
-
-    BuildTls13Nonce(ssl, nonce, ssl->keys.aead_dec_imp_IV, PEER_ORDER);
-
-    switch (ssl->specs.bulk_cipher_algorithm) {
-        #ifdef BUILD_AESGCM
-        case wolfssl_aes_gcm:
-#ifdef WOLFSSL_DEBUG_TLS
-            WOLFSSL_MSG("Nonce");
-            WOLFSSL_BUFFER(nonce, AESGCM_NONCE_SZ);
-#endif
-            ret = wc_AesGcmDecrypt(ssl->decrypt.aes, output, input, dataSz,
-                nonce, AESGCM_NONCE_SZ, input + dataSz, macSz, NULL, 0);
-            break;
+    switch (ssl->decrypt.state) {
+        case CIPHER_STATE_BEGIN:
+        {
+        #ifdef WOLFSSL_DEBUG_TLS
+            WOLFSSL_MSG("Data to decrypt");
+            WOLFSSL_BUFFER(input, dataSz);
+            WOLFSSL_MSG("Authentication tag");
+            WOLFSSL_BUFFER(input + dataSz, macSz);
         #endif
 
-        #ifdef HAVE_AESCCM
-        case wolfssl_aes_ccm:
-#ifdef WOLFSSL_DEBUG_TLS
+            if (ssl->decrypt.nonce == NULL)
+                ssl->decrypt.nonce = (byte*)XMALLOC(AEAD_NONCE_SZ,
+                                               ssl->heap, DYNAMIC_TYPE_AES);
+            if (ssl->decrypt.nonce == NULL)
+                return MEMORY_E;
+
+            BuildTls13Nonce(ssl, ssl->decrypt.nonce, ssl->keys.aead_dec_imp_IV,
+                            PEER_ORDER);
+
+            /* Advance state and proceed */
+            ssl->decrypt.state = CIPHER_STATE_DO;
+        }
+        FALL_THROUGH;
+
+        case CIPHER_STATE_DO:
+        {
+            switch (ssl->specs.bulk_cipher_algorithm) {
+            #ifdef BUILD_AESGCM
+                case wolfssl_aes_gcm:
+                    nonceSz = AESGCM_NONCE_SZ;
+                    ret = wc_AesGcmDecrypt(ssl->decrypt.aes, output, input,
+                        dataSz, ssl->decrypt.nonce, nonceSz,
+                        input + dataSz, macSz, NULL, 0);
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    if (ret == WC_PENDING_E) {
+                        ret = wolfSSL_AsyncPush(ssl, &ssl->decrypt.aes->asyncDev,
+                                                        WC_ASYNC_FLAG_CALL_AGAIN);
+                    }
+                #endif
+                    break;
+            #endif
+
+            #ifdef HAVE_AESCCM
+                case wolfssl_aes_ccm:
+                    nonceSz = AESCCM_NONCE_SZ;
+                    ret = wc_AesCcmDecrypt(ssl->decrypt.aes, output, input,
+                        dataSz, ssl->decrypt.nonce, nonceSz,
+                        input + dataSz, macSz, NULL, 0);
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    if (ret == WC_PENDING_E) {
+                        ret = wolfSSL_AsyncPush(ssl, &ssl->decrypt.aes->asyncDev,
+                                                        WC_ASYNC_FLAG_CALL_AGAIN);
+                    }
+                #endif
+                    break;
+            #endif
+
+            #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+                case wolfssl_chacha:
+                    nonceSz = CHACHA_IV_BYTES;
+                    ret = ChaCha20Poly1305_Decrypt(ssl, output, input, dataSz,
+                        ssl->decrypt.nonce, input + dataSz);
+                    break;
+            #endif
+
+                default:
+                    WOLFSSL_MSG("wolfSSL Decrypt programming error");
+                    return DECRYPT_ERROR;
+            }
+
+            /* Advance state */
+            ssl->decrypt.state = CIPHER_STATE_END;
+
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            /* If pending, leave now */
+            if (ret == WC_PENDING_E) {
+                return ret;
+            }
+        #endif
+        }
+        FALL_THROUGH;
+
+        case CIPHER_STATE_END:
+        {
+            if (ssl->decrypt.nonce)
+                ForceZero(ssl->decrypt.nonce, AEAD_NONCE_SZ);
+
+        #ifdef WOLFSSL_DEBUG_TLS
             WOLFSSL_MSG("Nonce");
-            WOLFSSL_BUFFER(nonce, AESCCM_NONCE_SZ);
-#endif
-            ret = wc_AesCcmDecrypt(ssl->decrypt.aes, output, input, dataSz,
-                nonce, AESCCM_NONCE_SZ, input + dataSz, macSz, NULL, 0);
-            break;
+            WOLFSSL_BUFFER(ssl->decrypt.nonce, ssl->specs.iv_size);
+            WOLFSSL_MSG("Decrypted data");
+            WOLFSSL_BUFFER(output, dataSz);
         #endif
 
-        #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
-        case wolfssl_chacha:
-#ifdef WOLFSSL_DEBUG_TLS
-            WOLFSSL_MSG("Nonce");
-            WOLFSSL_BUFFER(nonce, CHACHA_IV_BYTES);
-#endif
-            ret = ChaCha20Poly1305_Decrypt(ssl, output, input, dataSz, nonce,
-                input + dataSz);
             break;
-        #endif
-
-        default:
-            WOLFSSL_MSG("wolfSSL Decrypt programming error");
-            return DECRYPT_ERROR;
+        }
     }
 
-    ForceZero(nonce, AEAD_NONCE_SZ);
     if (ret < 0 && !ssl->options.dtls) {
         SendAlert(ssl, alert_fatal, bad_record_mac);
         ret = VERIFY_MAC_ERROR;
     }
 
-#ifdef WOLFSSL_DEBUG_TLS
-    WOLFSSL_MSG("Decrypted data");
-    WOLFSSL_BUFFER(output, dataSz);
-#endif
-
     return ret;
+}
+
+/* Persistable BuildMessage arguments */
+typedef struct BuildMsg13Args {
+    word32 sz;
+    word32 idx;
+    word32 headerSz;
+    word16 size;
+} BuildMsg13Args;
+
+static void FreeBuildMsg13Args(WOLFSSL* ssl, void* pArgs)
+{
+    BuildMsg13Args* args = (BuildMsg13Args*)pArgs;
+
+    (void)ssl;
+    (void)args;
+
+    /* no allocations in BuildTls13Message */
 }
 
 /* Build SSL Message, encrypted.
@@ -1813,86 +1964,155 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz)
  * type        The recorder header content type.
  * hashOutput  Whether to hash the unencrypted record data.
  * sizeOnly    Only want the size of the record message.
+ * asyncOkay   If non-zero can return WC_PENDING_E, otherwise blocks on crypto
  * returns the size of the encrypted record message or negative value on error.
  */
 int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
-                      int inSz, int type, int hashOutput, int sizeOnly)
+                int inSz, int type, int hashOutput, int sizeOnly, int asyncOkay)
 {
-    word32 sz = RECORD_HEADER_SZ + inSz;
-    word32 idx  = RECORD_HEADER_SZ;
-    word32 headerSz = RECORD_HEADER_SZ;
-    word16 size;
-    int ret        = 0;
-    int atomicUser = 0;
-
-    if (ssl == NULL)
-        return BAD_FUNC_ARG;
-    if (!sizeOnly && (output == NULL || input == NULL))
-        return BAD_FUNC_ARG;
-    /* catch mistaken sizeOnly parameter */
-    if (sizeOnly && (output || input)) {
-        WOLFSSL_MSG("BuildMessage with sizeOnly doesn't need input or output");
-        return BAD_FUNC_ARG;
-    }
-
-    /* Record layer content type at the end of record data. */
-    sz++;
-    /* Authentication data at the end. */
-    sz += ssl->specs.aead_mac_size;
-
-    if (sizeOnly)
-        return sz;
-
-    if (sz > (word32)outSz) {
-        WOLFSSL_MSG("Oops, want to write past output buffer size");
-        return BUFFER_E;
-    }
-
-    /* Record data length. */
-    size = (word16)(sz - headerSz);
-    /* Write/update the record header with the new size.
-     * Always have the content type as application data for encrypted
-     * messages in TLS v1.3.
-     */
-    AddTls13RecordHeader(output, size, application_data, ssl);
-
-    /* TLS v1.3 can do in place encryption. */
-    if (input != output + idx)
-        XMEMCPY(output + idx, input, inSz);
-    idx += inSz;
-
-    if (hashOutput) {
-        ret = HashOutput(ssl, output, headerSz + inSz, 0);
-        if (ret != 0)
-            return ret;
-    }
-
-    /* The real record content type goes at the end of the data. */
-    output[idx++] = type;
-
-#ifdef ATOMIC_USER
-    if (ssl->ctx->MacEncryptCb)
-        atomicUser = 1;
+    int ret = 0;
+    BuildMsg13Args* args;
+    BuildMsg13Args  lcl_args;
+#ifdef WOLFSSL_ASYNC_CRYPT
+    args = (BuildMsg13Args*)ssl->async.args;
+    typedef char args_test[sizeof(ssl->async.args) >= sizeof(*args) ? 1 : -1];
+    (void)sizeof(args_test);
 #endif
 
-    if (atomicUser) {   /* User Record Layer Callback handling */
-#ifdef ATOMIC_USER
-        byte* mac = output + idx;
-        output += headerSz;
+    WOLFSSL_ENTER("BuildTls13Message");
 
-        if ((ret = ssl->ctx->MacEncryptCb(ssl, mac, output, inSz, type, 0,
-                output, output, size, ssl->MacEncryptCtx)) != 0) {
-            return ret;
+    if (ssl == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = WC_NOT_PENDING_E;
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (asyncOkay) {
+        ret = wolfSSL_AsyncPop(ssl, &ssl->options.buildMsgState);
+        if (ret != WC_NOT_PENDING_E) {
+            /* Check for error */
+            if (ret < 0)
+                goto exit_buildmsg;
         }
-#endif
     }
-    else {
-        output += headerSz;
-        if ((ret = EncryptTls13(ssl, output, output, size)) != 0)
-            return ret;
+    else
+#endif
+    {
+        args = &lcl_args;
     }
 
-    return sz;
+    /* Reset state */
+    if (ret == WC_NOT_PENDING_E) {
+        ret = 0;
+        ssl->options.buildMsgState = BUILD_MSG_BEGIN;
+        XMEMSET(args, 0, sizeof(BuildMsg13Args));
+
+        args->sz = RECORD_HEADER_SZ + inSz;
+        args->idx  = RECORD_HEADER_SZ;
+        args->headerSz = RECORD_HEADER_SZ;
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        ssl->async.freeArgs = FreeBuildMsg13Args;
+    #endif
+    }
+
+    switch (ssl->options.buildMsgState) {
+        case BUILD_MSG_BEGIN:
+        {
+            if (!sizeOnly && (output == NULL || input == NULL))
+                return BAD_FUNC_ARG;
+            /* catch mistaken sizeOnly parameter */
+            if (sizeOnly && (output || input)) {
+                WOLFSSL_MSG("BuildMessage with sizeOnly doesn't need input or output");
+                return BAD_FUNC_ARG;
+            }
+
+            /* Record layer content type at the end of record data. */
+            args->sz++;
+            /* Authentication data at the end. */
+            args->sz += ssl->specs.aead_mac_size;
+
+            if (sizeOnly)
+                return args->sz;
+
+            if (args->sz > (word32)outSz) {
+                WOLFSSL_MSG("Oops, want to write past output buffer size");
+                return BUFFER_E;
+            }
+
+            /* Record data length. */
+            args->size = (word16)(args->sz - args->headerSz);
+            /* Write/update the record header with the new size.
+             * Always have the content type as application data for encrypted
+             * messages in TLS v1.3.
+             */
+            AddTls13RecordHeader(output, args->size, application_data, ssl);
+
+            /* TLS v1.3 can do in place encryption. */
+            if (input != output + args->idx)
+                XMEMCPY(output + args->idx, input, inSz);
+            args->idx += inSz;
+
+            ssl->options.buildMsgState = BUILD_MSG_HASH;
+        }
+        FALL_THROUGH;
+
+        case BUILD_MSG_HASH:
+        {
+            if (hashOutput) {
+                ret = HashOutput(ssl, output, args->headerSz + inSz, 0);
+                if (ret != 0)
+                    goto exit_buildmsg;
+            }
+
+            ssl->options.buildMsgState = BUILD_MSG_ENCRYPT;
+        }
+        FALL_THROUGH;
+
+        case BUILD_MSG_ENCRYPT:
+        {
+            /* The real record content type goes at the end of the data. */
+            output[args->idx++] = type;
+
+        #ifdef ATOMIC_USER
+            if (ssl->ctx->MacEncryptCb) {
+                /* User Record Layer Callback handling */
+                byte* mac = output + args->idx;
+                output += args->headerSz;
+
+                ret = ssl->ctx->MacEncryptCb(ssl, mac, output, inSz, type, 0,
+                        output, output, args->size, ssl->MacEncryptCtx);
+            }
+            else
+        #endif
+            {
+                output += args->headerSz;
+                ret = EncryptTls13(ssl, output, output, args->size, asyncOkay);
+            }
+            break;
+        }
+    }
+
+exit_buildmsg:
+
+    WOLFSSL_LEAVE("BuildTls13Message", ret);
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (ret == WC_PENDING_E) {
+        return ret;
+    }
+#endif
+
+    /* make sure build message state is reset */
+    ssl->options.buildMsgState = BUILD_MSG_BEGIN;
+
+    /* return sz on success */
+    if (ret == 0)
+        ret = args->sz;
+
+    /* Final cleanup */
+    FreeBuildMsg13Args(ssl, args);
+
+    return ret;
 }
 
 #ifndef NO_WOLFSSL_CLIENT
@@ -2043,6 +2263,8 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     int    sendSz;
     int    ret;
 
+    WOLFSSL_ENTER("SendTls13ClientHello");
+
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
     if (ssl->options.resuming &&
             (ssl->session.version.major != ssl->version.major ||
@@ -2166,6 +2388,8 @@ static int DoTls13HelloRetryRequest(WOLFSSL* ssl, const byte* input,
     word16          totalExtSz;
     ProtocolVersion pv;
 
+    WOLFSSL_ENTER("DoTls13HelloRetryRequest");
+
 #ifdef WOLFSSL_CALLBACKS
     if (ssl->hsInfoOn) AddPacketName("HelloRetryRequest", &ssl->handShakeInfo);
     if (ssl->toInfoOn) AddLateName("HelloRetryRequest", &ssl->timeoutInfo);
@@ -2233,6 +2457,8 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     word32          begin = i;
     int             ret;
     word16          totalExtSz;
+
+    WOLFSSL_ENTER("DoTls13ServerHello");
 
 #ifdef WOLFSSL_CALLBACKS
     if (ssl->hsInfoOn) AddPacketName("ServerHello", &ssl->handShakeInfo);
@@ -2337,6 +2563,8 @@ static int DoTls13EncryptedExtensions(WOLFSSL* ssl, const byte* input,
     word32 i = begin;
     word16 totalExtSz;
 
+    WOLFSSL_ENTER("DoTls13EncryptedExtensions");
+
 #ifdef WOLFSSL_CALLBACKS
     if (ssl->hsInfoOn) AddPacketName("EncryptedExtensions",
                                      &ssl->handShakeInfo);
@@ -2362,7 +2590,7 @@ static int DoTls13EncryptedExtensions(WOLFSSL* ssl, const byte* input,
     /* Always encrypted. */
     *inOutIdx += ssl->keys.padSz;
 
-    return 0;
+    return ret;
 }
 
 /* Handle a TLS v1.3 CertificateRequest message.
@@ -2384,11 +2612,12 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     int    ret;
     Suites peerSuites;
 
-    #ifdef WOLFSSL_CALLBACKS
-        if (ssl->hsInfoOn) AddPacketName("CertificateRequest",
-                                         &ssl->handShakeInfo);
-        if (ssl->toInfoOn) AddLateName("CertificateRequest", &ssl->timeoutInfo);
-    #endif
+    WOLFSSL_ENTER("DoTls13CertificateRequest");
+
+#ifdef WOLFSSL_CALLBACKS
+    if (ssl->hsInfoOn) AddPacketName("CertificateRequest", &ssl->handShakeInfo);
+    if (ssl->toInfoOn) AddLateName("CertificateRequest", &ssl->timeoutInfo);
+#endif
 
     if ((*inOutIdx - begin) + OPAQUE8_LEN > size)
         return BUFFER_ERROR;
@@ -2427,7 +2656,7 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     /* This message is always encrypted so add encryption padding. */
     *inOutIdx += ssl->keys.padSz;
 
-    return 0;
+    return ret;
 }
 
 #endif /* !NO_WOLFSSL_CLIENT */
@@ -2646,6 +2875,8 @@ static int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     word16          totalExtSz;
     int             usingPSK = 0;
 
+    WOLFSSL_ENTER("DoTls13ClientHello");
+
 #ifdef WOLFSSL_CALLBACKS
     if (ssl->hsInfoOn) AddPacketName("ClientHello", &ssl->handShakeInfo);
     if (ssl->toInfoOn) AddLateName("ClientHello", &ssl->timeoutInfo);
@@ -2673,7 +2904,6 @@ static int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     WOLFSSL_MSG("client random");
     WOLFSSL_BUFFER(ssl->arrays->clientRandom, RAN_LEN);
 #endif
-
 
     /* Session id - empty in TLS v1.3 */
     b = input[i++];
@@ -2787,7 +3017,7 @@ static int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     ssl->options.clientState = CLIENT_HELLO_COMPLETE;
 
-    return 0;
+    return ret;
 }
 
 /* Send the HelloRetryRequest message to indicate the negotiated protocol
@@ -2805,6 +3035,8 @@ int SendTls13HelloRetryRequest(WOLFSSL* ssl)
     word32 len;
     word32 idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
     int    sendSz;
+
+    WOLFSSL_ENTER("SendTls13HelloRetryRequest");
 
     /* Get the length of the extensions that will be written. */
     len = TLSX_GetResponseSize(ssl, hello_retry_request);
@@ -2883,6 +3115,8 @@ int SendTls13ServerHello(WOLFSSL* ssl)
     word32 idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
     int    sendSz;
     int    ret;
+
+    WOLFSSL_ENTER("SendTls13ServerHello");
 
     /* Protocol version, server random, cipher suite and extensions. */
     length = VERSION_SZ + RAN_LEN + SUITE_LEN +
@@ -2968,6 +3202,8 @@ int SendTls13EncryptedExtensions(WOLFSSL* ssl)
     word32 idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
     int    sendSz;
 
+    WOLFSSL_ENTER("SendTls13EncryptedExtensions");
+
     ssl->keys.encryptionOn = 1;
 
     /* Derive the handshake secret now that we are at first message to be
@@ -3013,7 +3249,7 @@ int SendTls13EncryptedExtensions(WOLFSSL* ssl)
 
     /* This handshake message is always encrypted. */
     sendSz = BuildTls13Message(ssl, output, sendSz, output + RECORD_HEADER_SZ,
-                               idx - RECORD_HEADER_SZ, handshake, 1, 0);
+                               idx - RECORD_HEADER_SZ, handshake, 1, 0, 0);
     if (sendSz < 0)
         return sendSz;
 
@@ -3041,15 +3277,19 @@ int SendTls13CertificateRequest(WOLFSSL* ssl)
     int    ret;
     int    sendSz;
     int    reqCtxLen = 0;
-    word32 i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+    word32 i;
+    int    reqSz;
 
-    int  reqSz = OPAQUE8_LEN + reqCtxLen +
-                 TLSX_GetResponseSize(ssl, certificate_request);
+    WOLFSSL_ENTER("SendTls13CertificateRequest");
 
     if (ssl->options.usingPSK_cipher || ssl->options.usingAnon_cipher)
         return 0;  /* not needed */
 
-    sendSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + reqSz;
+    i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+    reqSz = OPAQUE8_LEN + reqCtxLen +
+        TLSX_GetResponseSize(ssl, certificate_request);
+
+    sendSz = i + reqSz;
     /* Always encrypted and make room for padding. */
     sendSz += MAX_MSG_EXTRA;
 
@@ -3075,7 +3315,7 @@ int SendTls13CertificateRequest(WOLFSSL* ssl)
 
     /* Always encrypted. */
     sendSz = BuildTls13Message(ssl, output, sendSz, output + RECORD_HEADER_SZ,
-                               i - RECORD_HEADER_SZ, handshake, 1, 0);
+                               i - RECORD_HEADER_SZ, handshake, 1, 0, 0);
     if (sendSz < 0)
         return sendSz;
 
@@ -3178,24 +3418,31 @@ static INLINE void DecodeSigAlg(byte* input, byte* hashAlgo, byte* hsType)
  */
 static INLINE int GetMsgHash(WOLFSSL* ssl, byte* hash)
 {
+    int ret = 0;
     switch (ssl->specs.mac_algorithm) {
     #ifndef NO_SHA256
         case sha256_mac:
-            wc_Sha256GetHash(&ssl->hsHashes->hashSha256, hash);
+            ret = wc_Sha256GetHash(&ssl->hsHashes->hashSha256, hash);
+            if (ret != 0)
+                break;
             return SHA256_DIGEST_SIZE;
     #endif /* !NO_SHA256 */
     #ifdef WOLFSSL_SHA384
         case sha384_mac:
-            wc_Sha384GetHash(&ssl->hsHashes->hashSha384, hash);
+            ret = wc_Sha384GetHash(&ssl->hsHashes->hashSha384, hash);
+            if (ret != 0)
+                break;
             return SHA384_DIGEST_SIZE;
     #endif /* WOLFSSL_SHA384 */
     #ifdef WOLFSSL_SHA512
         case sha512_mac:
-            wc_Sha512GetHash(&ssl->hsHashes->hashSha512, hash);
+            ret = wc_Sha512GetHash(&ssl->hsHashes->hashSha512, hash);
+            if (ret != 0)
+                break;
             return SHA512_DIGEST_SIZE;
     #endif /* WOLFSSL_SHA512 */
     }
-    return 0;
+    return ret;
 }
 
 /* The length of the certificate verification label - client and server. */
@@ -3223,11 +3470,12 @@ static const byte clientCertVfyLabel[CERT_VFY_LABEL_SZ] =
  * sigDataSz  The length of the signature data.
  * check      Indicates this is a check not create.
  */
-static void CreateSigData(WOLFSSL* ssl, byte* sigData, word16* sigDataSz,
+static int CreateSigData(WOLFSSL* ssl, byte* sigData, word16* sigDataSz,
                           int check)
 {
     word16 idx;
     int side = ssl->options.side;
+    int ret;
 
     /* Signature Data = Prefix | Label | Handshake Hash */
     XMEMSET(sigData, SIGNING_DATA_PREFIX_BYTE, SIGNING_DATA_PREFIX_SZ);
@@ -3247,7 +3495,14 @@ static void CreateSigData(WOLFSSL* ssl, byte* sigData, word16* sigDataSz,
     #endif
     idx += CERT_VFY_LABEL_SZ;
 
-    *sigDataSz = idx + GetMsgHash(ssl, &sigData[idx]);
+    ret = GetMsgHash(ssl, &sigData[idx]);
+    if (ret < 0)
+        return ret;
+
+    *sigDataSz = idx + ret;
+    ret = 0;
+
+    return ret;
 }
 
 #ifndef NO_RSA
@@ -3419,33 +3674,24 @@ static int CheckRSASignature(WOLFSSL* ssl, int sigAlgo, int hashAlgo,
 #endif
     word32 sigSz;
 
-    CreateSigData(ssl, sigData, &sigDataSz, 1);
+    ret = CreateSigData(ssl, sigData, &sigDataSz, 1);
+    if (ret != 0)
+        return ret;
+
 #ifdef WC_RSA_PSS
     if (sigAlgo == rsa_pss_sa_algo) {
         enum wc_HashType hashType = WC_HASH_TYPE_NONE;
 
-        switch (hashAlgo) {
-            case sha512_mac:
-            #ifdef WOLFSSL_SHA512
-                hashType = WC_HASH_TYPE_SHA512;
-            #endif
-                break;
-            case sha384_mac:
-            #ifdef WOLFSSL_SHA384
-                hashType = WC_HASH_TYPE_SHA384;
-            #endif
-                break;
-            case sha256_mac:
-            #ifndef NO_SHA256
-                hashType = WC_HASH_TYPE_SHA256;
-            #endif
-                break;
-        }
-
-        ret = sigSz = CreateRSAEncodedSig(sigData, sigData, sigDataSz,
-                                          rsa_pss_sa_algo, hashAlgo);
+        ret = ConvertHashPss(hashAlgo, &hashType, NULL);
         if (ret < 0)
             return ret;
+
+        /* PSS signature can be done in-pace */
+        ret = CreateRSAEncodedSig(sigData, sigData, sigDataSz,
+                                  sigAlgo, hashAlgo);
+        if (ret < 0)
+            return ret;
+        sigSz = ret;
 
         ret = wc_RsaPSS_CheckPadding(sigData, sigSz, decSig, decSigSz,
                                      hashType);
@@ -3453,29 +3699,28 @@ static int CheckRSASignature(WOLFSSL* ssl, int sigAlgo, int hashAlgo,
     else
 #endif
     {
-#ifdef WOLFSSL_SMALL_STACK
+    #ifdef WOLFSSL_SMALL_STACK
         encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, ssl->heap,
                                     DYNAMIC_TYPE_TMP_BUFFER);
         if (encodedSig == NULL) {
-            ret = MEMORY_E;
-            goto end;
+            return MEMORY_E;
         }
-#endif
+    #endif
 
-        sigSz = CreateRSAEncodedSig(encodedSig, sigData, sigDataSz,
-                                    DYNAMIC_TYPE_RSA, hashAlgo);
+        sigSz = CreateRSAEncodedSig(encodedSig, sigData, sigDataSz, sigAlgo,
+                                    hashAlgo);
+
         /* Check the encoded and decrypted signature data match. */
         if (decSigSz != sigSz || decSig == NULL ||
                 XMEMCMP(decSig, encodedSig, sigSz) != 0) {
             ret = VERIFY_CERT_ERROR;
         }
-    }
 
-#ifdef WOLFSSL_SMALL_STACK
-end:
-    if (encodedSig != NULL)
-        XFREE(encodedSig, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    #ifdef WOLFSSL_SMALL_STACK
+        if (encodedSig != NULL)
+            XFREE(encodedSig, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+    }
 
     return ret;
 }
@@ -3556,6 +3801,7 @@ int SendTls13Certificate(WOLFSSL* ssl)
     word32 offset = OPAQUE16_LEN;
     byte*  p = NULL;
 
+    WOLFSSL_ENTER("SendTls13Certificate");
 
     /* TODO: [TLS13] Request context for post-handshake auth.
      * Taken from request if post-handshake.
@@ -3707,7 +3953,7 @@ int SendTls13Certificate(WOLFSSL* ssl)
         /* This message is always encrypted. */
         sendSz = BuildTls13Message(ssl, output, sendSz,
                                    output + RECORD_HEADER_SZ,
-                                   i - RECORD_HEADER_SZ, handshake, 1, 0);
+                                   i - RECORD_HEADER_SZ, handshake, 1, 0, 0);
         if (sendSz < 0)
             return sendSz;
 
@@ -3873,7 +4119,9 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
                 ERROR_OUT(MEMORY_E, exit_scv);
             }
 
-            CreateSigData(ssl, args->sigData, &args->sigDataSz, 0);
+            ret = CreateSigData(ssl, args->sigData, &args->sigDataSz, 0);
+            if (ret != 0)
+                goto exit_scv;
 
         #ifndef NO_RSA
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
@@ -3954,8 +4202,6 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
         #endif
         #ifndef NO_RSA
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
-                /* restore verify pointer */
-                args->verify = &args->output[args->idx];
 
                 ret = RsaSign(ssl, sig->buffer, sig->length,
                     args->verify + HASH_SIG_SIZE + VERIFY_HEADER, &args->sigLen,
@@ -3987,9 +4233,6 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
 
         case TLS_ASYNC_VERIFY:
         {
-            /* restore verify pointer */
-            args->verify = &args->output[args->idx];
-
         #ifndef NO_RSA
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
                 if (args->verifySig == NULL) {
@@ -4029,17 +4272,6 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
             args->sendSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + args->length +
                      HASH_SIG_SIZE + VERIFY_HEADER;
 
-            /* This message is always encrypted. */
-            args->sendSz = BuildTls13Message(ssl, args->output,
-                                       MAX_CERT_VERIFY_SZ + MAX_MSG_EXTRA,
-                                       args->output + RECORD_HEADER_SZ,
-                                       args->sendSz - RECORD_HEADER_SZ, handshake,
-                                       1, 0);
-            if (args->sendSz < 0) {
-                ret = args->sendSz;
-                goto exit_scv;
-            }
-
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_END;
         } /* case TLS_ASYNC_FINALIZE */
@@ -4047,6 +4279,21 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
 
         case TLS_ASYNC_END:
         {
+            /* This message is always encrypted. */
+            ret = BuildTls13Message(ssl, args->output,
+                                    MAX_CERT_VERIFY_SZ + MAX_MSG_EXTRA,
+                                    args->output + RECORD_HEADER_SZ,
+                                    args->sendSz - RECORD_HEADER_SZ, handshake,
+                                    1, 0, 0);
+
+            if (ret < 0) {
+                goto exit_scv;
+            }
+            else {
+                args->sendSz = ret;
+                ret = 0;
+            }
+
         #ifdef WOLFSSL_CALLBACKS
             if (ssl->hsInfoOn)
                 AddPacketName("CertificateVerify", &ssl->handShakeInfo);
@@ -4248,7 +4495,9 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                     ERROR_OUT(MEMORY_E, exit_dcv);
                 }
 
-                CreateSigData(ssl, args->sigData, &args->sigDataSz, 1);
+                ret = CreateSigData(ssl, args->sigData, &args->sigDataSz, 1);
+                if (ret != 0)
+                    goto exit_dcv;
                 ret = CreateECCEncodedSig(args->sigData,
                     args->sigDataSz, args->hashAlgo);
                 if (ret < 0)
@@ -4280,7 +4529,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         case TLS_ASYNC_DO:
         {
         #ifndef NO_RSA
-            if (args->sigAlgo ==  rsa_sa_algo ||
+            if (args->sigAlgo == rsa_sa_algo ||
                                              args->sigAlgo == rsa_pss_sa_algo) {
                 WOLFSSL_MSG("Doing RSA peer cert verify");
 
@@ -4550,7 +4799,7 @@ int SendTls13Finished(WOLFSSL* ssl)
 
     /* This message is always encrypted. */
     sendSz = BuildTls13Message(ssl, output, outputSz, input,
-                               headerSz + finishedSz, handshake, 1, 0);
+                               headerSz + finishedSz, handshake, 1, 0, 0);
     if (sendSz < 0)
         return BUILD_MSG_ERROR;
 
@@ -4642,7 +4891,7 @@ static int SendTls13KeyUpdate(WOLFSSL* ssl)
 
     /* This message is always encrypted. */
     sendSz = BuildTls13Message(ssl, output, outputSz, input,
-                               headerSz + OPAQUE8_LEN, handshake, 0, 0);
+                               headerSz + OPAQUE8_LEN, handshake, 0, 0, 0);
     if (sendSz < 0)
         return BUILD_MSG_ERROR;
 
@@ -4886,7 +5135,7 @@ int SendTls13NewSessionTicket(WOLFSSL* ssl)
 
     /* This message is always encrypted. */
     sendSz = BuildTls13Message(ssl, output, sendSz, output + RECORD_HEADER_SZ,
-                               idx - RECORD_HEADER_SZ, handshake, 0, 0);
+                               idx - RECORD_HEADER_SZ, handshake, 0, 0, 0);
     if (sendSz < 0)
         return sendSz;
 
@@ -5175,6 +5424,11 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         break;
     }
 
+    /* reset error */
+    if (ret == 0 && ssl->error == WC_PENDING_E)
+        ssl->error = 0;
+
+
     if (ret == 0 && type != client_hello && type != session_ticket &&
         type != key_update && ssl->error != WC_PENDING_E) {
         ret = HashInput(ssl, input + inIdx, size);
@@ -5429,7 +5683,8 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             FALL_THROUGH;
 
         case HELLO_AGAIN_REPLY:
-            if (ssl->options.serverState == NULL_STATE) {
+            if (ssl->options.serverState == NULL_STATE ||
+                                                ssl->error == WC_PENDING_E) {
                 neededState = ssl->options.resuming ? SERVER_FINISHED_COMPLETE :
                                                       SERVER_HELLODONE_COMPLETE;
 

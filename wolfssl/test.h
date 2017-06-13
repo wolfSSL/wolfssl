@@ -1803,6 +1803,11 @@ static INLINE int myEccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
         ret = wc_InitRng(&rng);
         if (ret == 0) {
             ret = wc_ecc_make_key_ex(&rng, 0, privKey, otherKey->dp->id);
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (ret == WC_PENDING_E) {
+                ret = wc_AsyncWait(ret, &privKey->asyncDev, WC_ASYNC_FLAG_NONE);
+            }
+        #endif
             if (ret == 0)
                 ret = wc_ecc_export_x963(privKey, pubKeyDer, pubKeySz);
             wc_FreeRng(&rng);
@@ -1824,6 +1829,12 @@ static INLINE int myEccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
     /* generate shared secret and return it */
     if (ret == 0) {
         ret = wc_ecc_shared_secret(privKey, pubKey, out, outlen);
+
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        if (ret == WC_PENDING_E) {
+            ret = wc_AsyncWait(ret, &privKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        }
+    #endif
     }
 
     wc_ecc_free(&tmpKey);
