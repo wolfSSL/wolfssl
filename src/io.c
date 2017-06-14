@@ -296,7 +296,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         if (dtlsCtx->peer.sz > 0
                 && peerSz != (XSOCKLENT)dtlsCtx->peer.sz
                 && XMEMCMP(&peer, dtlsCtx->peer.sa, peerSz) != 0) {
-            WOLFSSL_MSG("\tIgnored packet from invalid peer");
+            WOLFSSL_MSG("    Ignored packet from invalid peer");
             return WOLFSSL_CBIO_ERR_WANT_READ;
         }
     }
@@ -354,6 +354,61 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 }
 
 
+#ifdef WOLFSSL_MULTICAST
+
+/* The alternate receive embedded callback for Multicast
+ *  return : nb bytes read, or error
+ */
+int EmbedReceiveFromMcast(WOLFSSL *ssl, char *buf, int sz, void *ctx)
+{
+    WOLFSSL_DTLS_CTX* dtlsCtx = (WOLFSSL_DTLS_CTX*)ctx;
+    int recvd;
+    int err;
+    int sd = dtlsCtx->rfd;
+
+    WOLFSSL_ENTER("EmbedReceiveFromMcast()");
+
+    recvd = (int)RECVFROM_FUNCTION(sd, buf, sz, ssl->rflags, NULL, NULL);
+
+    recvd = TranslateReturnCode(recvd, sd);
+
+    if (recvd < 0) {
+        err = LastError();
+        WOLFSSL_MSG("Embed Receive From error");
+
+        if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
+            if (wolfSSL_get_using_nonblock(ssl)) {
+                WOLFSSL_MSG("\tWould block");
+                return WOLFSSL_CBIO_ERR_WANT_READ;
+            }
+            else {
+                WOLFSSL_MSG("\tSocket timeout");
+                return WOLFSSL_CBIO_ERR_TIMEOUT;
+            }
+        }
+        else if (err == SOCKET_ECONNRESET) {
+            WOLFSSL_MSG("\tConnection reset");
+            return WOLFSSL_CBIO_ERR_CONN_RST;
+        }
+        else if (err == SOCKET_EINTR) {
+            WOLFSSL_MSG("\tSocket interrupted");
+            return WOLFSSL_CBIO_ERR_ISR;
+        }
+        else if (err == SOCKET_ECONNREFUSED) {
+            WOLFSSL_MSG("\tConnection refused");
+            return WOLFSSL_CBIO_ERR_WANT_READ;
+        }
+        else {
+            WOLFSSL_MSG("\tGeneral error");
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+    }
+
+    return recvd;
+}
+#endif /* WOLFSSL_MULTICAST */
+
+
 /* The DTLS Generate Cookie callback
  *  return : number of bytes copied into buf, or error
  */
@@ -362,7 +417,7 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
     int sd = ssl->wfd;
     SOCKADDR_S peer;
     XSOCKLENT peerSz = sizeof(peer);
-    byte digest[SHA_DIGEST_SIZE];
+    byte digest[SHA256_DIGEST_SIZE];
     int  ret = 0;
 
     (void)ctx;
@@ -373,12 +428,12 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
         return GEN_COOKIE_E;
     }
 
-    ret = wc_ShaHash((byte*)&peer, peerSz, digest);
+    ret = wc_Sha256Hash((byte*)&peer, peerSz, digest);
     if (ret != 0)
         return ret;
 
-    if (sz > SHA_DIGEST_SIZE)
-        sz = SHA_DIGEST_SIZE;
+    if (sz > SHA256_DIGEST_SIZE)
+        sz = SHA256_DIGEST_SIZE;
     XMEMCPY(buf, digest, sz);
 
     return sz;
@@ -1402,6 +1457,7 @@ int NetX_Receive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     ULONG copied = 0;
     UINT  status;
 
+    (void)ssl;
     if (nxCtx == NULL || nxCtx->nxSocket == NULL) {
         WOLFSSL_MSG("NetX Recv NULL parameters");
         return WOLFSSL_CBIO_ERR_GENERAL;
@@ -1455,6 +1511,7 @@ int NetX_Send(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     NX_PACKET_POOL* pool;   /* shorthand */
     UINT            status;
 
+    (void)ssl;
     if (nxCtx == NULL || nxCtx->nxSocket == NULL) {
         WOLFSSL_MSG("NetX Send NULL parameters");
         return WOLFSSL_CBIO_ERR_GENERAL;
