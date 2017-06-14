@@ -1402,6 +1402,8 @@ int NetX_Receive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     ULONG copied = 0;
     UINT  status;
 
+    (void)ssl;
+
     if (nxCtx == NULL || nxCtx->nxSocket == NULL) {
         WOLFSSL_MSG("NetX Recv NULL parameters");
         return WOLFSSL_CBIO_ERR_GENERAL;
@@ -1454,6 +1456,8 @@ int NetX_Send(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     NX_PACKET*      packet;
     NX_PACKET_POOL* pool;   /* shorthand */
     UINT            status;
+
+    (void)ssl;
 
     if (nxCtx == NULL || nxCtx->nxSocket == NULL) {
         WOLFSSL_MSG("NetX Send NULL parameters");
