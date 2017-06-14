@@ -2583,10 +2583,8 @@ static int wc_ecc_cmp_param(const char* curveParam,
         }
     }
 
-#ifndef USE_FAST_MATH
     mp_clear(&a);
     mp_clear(&b);
-#endif
 
     return err;
 }
