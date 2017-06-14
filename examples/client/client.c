@@ -197,7 +197,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
             else if (useX25519) {
                 if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519)
                         != SSL_SUCCESS) {
-                    err_sys("unable to use curve secp256r1");
+                    err_sys("unable to use curve x25519");
                 }
             }
         #endif
@@ -281,7 +281,7 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
             if (useX25519) {
                 if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519)
                         != SSL_SUCCESS) {
-                    err_sys("unable to use curve secp256r1");
+                    err_sys("unable to use curve x25519");
                 }
             }
         #endif
@@ -1551,10 +1551,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             if (useX25519) {
                 if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519)
                         != SSL_SUCCESS) {
-                    err_sys("unable to use curve secp256r1");
+                    err_sys("unable to use curve x25519");
                 }
             }
         #endif
+        #ifdef HAVE_ECC
             if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_SECP256R1)
                     != SSL_SUCCESS) {
                 err_sys("unable to use curve secp256r1");
@@ -1563,6 +1564,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     != SSL_SUCCESS) {
                 err_sys("unable to use curve secp384r1");
             }
+        #endif
         }
         if (onlyKeyShare == 0 || onlyKeyShare == 1) {
         #ifdef HAVE_FFDHE_2048
@@ -1983,10 +1985,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #ifdef HAVE_CURVE25519
         if (useX25519) {
             if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519) != SSL_SUCCESS) {
-                err_sys("unable to use curve secp256r1");
+                err_sys("unable to use curve x25519");
             }
         }
     #endif
+    #ifdef HAVE_ECC
         if (wolfSSL_UseKeyShare(sslResume,
                                 WOLFSSL_ECC_SECP256R1) != SSL_SUCCESS) {
             err_sys("unable to use curve secp256r1");
@@ -1995,6 +1998,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                                 WOLFSSL_ECC_SECP384R1) != SSL_SUCCESS) {
             err_sys("unable to use curve secp384r1");
         }
+    #endif
     #ifdef HAVE_FFDHE_2048
         if (wolfSSL_UseKeyShare(sslResume, WOLFSSL_FFDHE_2048) != SSL_SUCCESS) {
             err_sys("unable to use DH 2048-bit parameters");

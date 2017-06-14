@@ -2639,7 +2639,12 @@ then
     if test "x$ENABLED_TLSX" = "xno"
     then
         ENABLED_TLSX="yes"
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_SUPPORTED_CURVES"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC"
+
+        # Check the ECC supported curves prereq
+        AS_IF([test "x$ENABLED_ECC" = "xyes"],
+              [ENABLED_SUPPORTED_CURVES=yes
+               AM_CFLAGS="$AM_CFLAGS -DHAVE_SUPPORTED_CURVES"])
     fi
 
     # Requires ecc make sure on

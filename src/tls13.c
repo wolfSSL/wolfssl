@@ -3588,6 +3588,7 @@ static int CreateRSAEncodedSig(byte* sig, byte* sigData, int sigDataSz,
         return wc_EncodeSignature(sig, hash, hashSz, hashOid);
     }
 }
+#endif /* !NO_RSA */
 
 #ifdef HAVE_ECC
 /* Encode the ECC signature.
@@ -3648,9 +3649,9 @@ static int CreateECCEncodedSig(byte* sigData, int sigDataSz, int hashAlgo)
 
     return hashSz;
 }
-#endif
+#endif /* HAVE_ECC */
 
-
+#ifndef NO_RSA
 /* Check that the decrypted signature matches the encoded signature
  * based on the digest of the signature data.
  *
@@ -4467,15 +4468,19 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 WOLFSSL_MSG("Oops, peer sent ED25519 key but not in verify");
             }
         #endif
+        #ifdef HAVE_ECC
             if (args->sigAlgo == ecc_dsa_sa_algo &&
                                                    !ssl->peerEccDsaKeyPresent) {
                 WOLFSSL_MSG("Oops, peer sent ECC key but not in verify");
             }
+        #endif
+        #ifndef NO_RSA
             if ((args->sigAlgo == rsa_sa_algo ||
                  args->sigAlgo == rsa_pss_sa_algo) &&
                          (ssl->peerRsaKey == NULL || !ssl->peerRsaKeyPresent)) {
                 WOLFSSL_MSG("Oops, peer sent RSA key but not in verify");
             }
+        #endif
 
             sig->buffer = (byte*)XMALLOC(args->sz, ssl->heap,
                                          DYNAMIC_TYPE_TMP_BUFFER);
