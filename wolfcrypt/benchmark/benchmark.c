@@ -123,7 +123,7 @@
     #define fopen wolfSSL_fopen
 #endif
 
-#if defined(__GNUC__) && defined(__x86_64__) && !defined(NO_ASM)
+#if defined(__GNUC__) && defined(__x86_64__) && !defined(NO_ASM) && !defined(WOLFSSL_SGX)
     #define HAVE_GET_CYCLES
     static INLINE word64 get_intel_cycles(void);
     static THREAD_LS_T word64 total_cycles;
@@ -3724,6 +3724,8 @@ exit_ed_verify:
 
         return time_now;
     }
+#elif defined(WOLFSSL_SGX)
+    double current_time(int reset);
 
 #else
 

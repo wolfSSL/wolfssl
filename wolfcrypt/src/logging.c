@@ -117,6 +117,9 @@ void wolfSSL_Debugging_OFF(void)
     #else
         #include <nio.h>
     #endif
+#elif defined(WOLFSSL_SGX)
+    /* Declare sprintf for ocall */
+    int sprintf(char* buf, const char *fmt, ...);
 #else
     #include <stdio.h>   /* for default printf stuff */
 #endif

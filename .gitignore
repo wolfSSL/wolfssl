@@ -213,5 +213,8 @@ IDE/INTIME-RTOS/Debug_*
 # Hexiwear
 IDE/HEXIWEAR/wolfSSL_HW/Debug
 
+# Linux-SGX
+IDE/LINUX-SGX/*.a
+
 # Binaries
 wolfcrypt/src/port/intel/qat_test

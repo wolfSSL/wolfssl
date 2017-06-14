@@ -1252,18 +1252,27 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 #ifdef WOLFSSL_SGX
-    #define WOLFCRYPT_ONLY   /* limitation until IO resolved */
+    #ifdef _MSC_VER
+        #define WOLFCRYPT_ONLY
+        #define NO_RC4
+        #define NO_DES3
+        #define NO_SHA
+        #define NO_MD5
+    #else
+        #define HAVE_ECC
+        #define TFM_TIMING_RESISTANT
+        #define NO_FILESYSTEM
+        #define NO_WRITEV
+        #define NO_MAIN_DRIVER
+        #define USER_TICKS
+        #define WOLFSSL_LOG_PRINTF
+        #define WOLFSSL_DH_CONST
+    #endif /* _MSC_VER */
     #define SINGLE_THREADED
     #define NO_ASN_TIME /* can not use headers such as windows.h */
-
-    /* options used in created example */
     #define HAVE_AESGCM
     #define USE_CERT_BUFFERS_2048
     #define USE_FAST_MATH
-    #define NO_RC4
-    #define NO_DES3
-    #define NO_SHA
-    #define NO_MD5
 #endif /* WOLFSSL_SGX */
 
 /* FreeScale MMCAU hardware crypto has 4 byte alignment.
