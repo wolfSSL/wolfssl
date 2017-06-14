@@ -6328,6 +6328,108 @@ int TLSX_PskKeModes_Use(WOLFSSL* ssl, byte modes)
 #endif
 
 /******************************************************************************/
+/* Post-Handshake Authentication                                              */
+/******************************************************************************/
+
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+/* Get the size of the encoded Post-Hanshake Authentication extension.
+ * Only in ClientHello.
+ *
+ * msgType  The type of the message this extension is being written into.
+ * returns the number of bytes of the encoded key share extension.
+ */
+static word16 TLSX_PostHandAuth_GetSize(byte msgType)
+{
+    if (msgType == client_hello)
+        return OPAQUE8_LEN;
+
+    return SANITY_MSG_E;
+}
+
+/* Writes the Post-Handshake Authentication extension into the output buffer.
+ * Assumes that the the output buffer is big enough to hold data.
+ * Only in ClientHello.
+ *
+ * output   The buffer to write into.
+ * msgType  The type of the message this extension is being written into.
+ * returns the number of bytes written into the buffer.
+ */
+static word16 TLSX_PostHandAuth_Write(byte* output, byte msgType)
+{
+    if (msgType == client_hello) {
+        *output = 0;
+        return OPAQUE8_LEN;
+    }
+
+    return SANITY_MSG_E;
+}
+
+/* Parse the Post-Handshake Authentication extension.
+ * Only in ClientHello.
+ *
+ * ssl      The SSL/TLS object.
+ * input    The extension data.
+ * length   The length of the extension data.
+ * msgType  The type of the message this extension is being parsed from.
+ * returns 0 on success and other values indicate failure.
+ */
+static int TLSX_PostHandAuth_Parse(WOLFSSL* ssl, byte* input, word16 length,
+                                 byte msgType)
+{
+    byte len;
+
+    if (msgType == client_hello) {
+        /* Ensure length byte exists. */
+        if (length < OPAQUE8_LEN)
+            return BUFFER_E;
+
+        len = input[0];
+        if (length - OPAQUE8_LEN != len || len != 0)
+            return BUFFER_E;
+
+        ssl->options.postHandshakeAuth = 1;
+        return 0;
+    }
+
+    return SANITY_MSG_E;
+}
+
+/* Create a new Post-handshake authentication object in the extensions.
+ *
+ * ssl    The SSL/TLS object.
+ * returns 0 on success and other values indicate failure.
+ */
+static int TLSX_PostHandAuth_Use(WOLFSSL* ssl)
+{
+    int           ret = 0;
+    TLSX*         extension;
+
+    /* Find the PSK key exchange modes extension if it exists. */
+    extension = TLSX_Find(ssl->extensions, TLSX_POST_HANDSHAKE_AUTH);
+    if (extension == NULL) {
+        /* Push new Post-handshake Authentication extension. */
+        ret = TLSX_Push(&ssl->extensions, TLSX_POST_HANDSHAKE_AUTH, NULL,
+            ssl->heap);
+        if (ret != 0)
+            return ret;
+    }
+
+    return 0;
+}
+
+#define PHA_GET_SIZE  TLSX_PostHandAuth_GetSize
+#define PHA_WRITE     TLSX_PostHandAuth_Write
+#define PHA_PARSE     TLSX_PostHandAuth_Parse
+
+#else
+
+#define PHA_GET_SIZE(a)       0
+#define PHA_WRITE(a, b)       0
+#define PHA_PARSE(a, b, c, d) 0
+
+#endif
+
+/******************************************************************************/
 /* TLS Extensions Framework                                                   */
 /******************************************************************************/
 
@@ -6410,6 +6512,11 @@ void TLSX_FreeAll(TLSX* list, void* heap)
                 break;
 
             case TLSX_PSK_KEY_EXCHANGE_MODES:
+                break;
+    #endif
+
+    #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+            case TLSX_POST_HANDSHAKE_AUTH:
                 break;
     #endif
 #endif
@@ -6518,6 +6625,11 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType)
 
             case TLSX_PSK_KEY_EXCHANGE_MODES:
                 length += PKM_GET_SIZE(extension->val, msgType);
+                break;
+    #endif
+    #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+            case TLSX_POST_HANDSHAKE_AUTH:
+                length += PHA_GET_SIZE(msgType);
                 break;
     #endif
 #endif
@@ -6648,6 +6760,12 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
             case TLSX_PSK_KEY_EXCHANGE_MODES:
                 WOLFSSL_MSG("PSK Key Exchange Modes extension to write");
                 offset += PKM_WRITE(extension->val, output + offset, msgType);
+                break;
+    #endif
+    #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+            case TLSX_POST_HANDSHAKE_AUTH:
+                WOLFSSL_MSG("Post-Handshake Authentication extension to write");
+                offset += PHA_WRITE(output + offset, msgType);
                 break;
     #endif
 #endif
@@ -6949,7 +7067,8 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 #endif
 
 #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
-        if (!ssl->options.userCurves && !ssl->ctx->userCurves) {
+        if (!ssl->options.userCurves && !ssl->ctx->userCurves &&
+               TLSX_Find(ssl->ctx->extensions, TLSX_SUPPORTED_GROUPS) == NULL) {
     #ifndef HAVE_FIPS
         #if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
             #ifndef NO_ECC_SECP
@@ -7045,10 +7164,11 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 #endif /* HAVE_ECC && HAVE_SUPPORTED_CURVES */
     } /* is not server */
 
-        WOLFSSL_MSG("Adding signature algorithms extension");
-        if ((ret = TLSX_SetSignatureAlgorithms(&ssl->extensions, ssl,
-                                               ssl->heap)) != 0)
+    WOLFSSL_MSG("Adding signature algorithms extension");
+    if ((ret = TLSX_SetSignatureAlgorithms(&ssl->extensions, ssl, ssl->heap))
+                                                                         != 0) {
             return ret;
+    }
 
     #ifdef WOLFSSL_TLS13
         if (!isServer && IsAtLeastTLSv1_3(ssl->version)) {
@@ -7059,7 +7179,9 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 return ret;
 
 #ifdef HAVE_SUPPORTED_CURVES
-            if (!ssl->options.userCurves && !ssl->ctx->userCurves) {
+            if (!ssl->options.userCurves && !ssl->ctx->userCurves &&
+                TLSX_Find(ssl->ctx->extensions, TLSX_SUPPORTED_GROUPS)
+                                                                      == NULL) {
                 /* Add FFDHE supported groups. */
         #ifdef HAVE_FFDHE_2048
                 ret = TLSX_UseSupportedCurve(&ssl->extensions,
@@ -7096,33 +7218,33 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 #endif
 
             if (TLSX_Find(ssl->extensions, TLSX_KEY_SHARE) == NULL) {
-    #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && \
-        !defined(NO_ECC_SECP)
+        #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && \
+            !defined(NO_ECC_SECP)
                 ret = TLSX_KeyShare_Use(ssl, WOLFSSL_ECC_SECP256R1, 0, NULL,
                                         NULL);
-    #elif defined(HAVE_CURVE25519)
+        #elif defined(HAVE_CURVE25519)
                 ret = TLSX_KeyShare_Use(ssl, WOLFSSL_ECC_X25519, 0, NULL, NULL);
-    #elif (!defined(NO_ECC384)  || defined(HAVE_ALL_CURVES)) && \
-          !defined(NO_ECC_SECP)
+        #elif (!defined(NO_ECC384)  || defined(HAVE_ALL_CURVES)) && \
+              !defined(NO_ECC_SECP)
                 ret = TLSX_KeyShare_Use(ssl, WOLFSSL_ECC_SECP384R1, 0, NULL,
                                         NULL);
-    #elif (!defined(NO_ECC521)  || defined(HAVE_ALL_CURVES)) && \
-          !defined(NO_ECC_SECP)
+        #elif (!defined(NO_ECC521)  || defined(HAVE_ALL_CURVES)) && \
+              !defined(NO_ECC_SECP)
                 ret = TLSX_KeyShare_Use(ssl, WOLFSSL_ECC_SECP521R1, 0, NULL,
                                         NULL);
-    #elif defined(HAVE_FFDHE_2048)
+        #elif defined(HAVE_FFDHE_2048)
                 ret = TLSX_KeyShare_Use(ssl, WOLFSSL_FFDHE_2048, 0, NULL, NULL);
-    #elif defined(HAVE_FFDHE_3072)
+        #elif defined(HAVE_FFDHE_3072)
                 ret = TLSX_KeyShare_Use(ssl, WOLFSSL_FFDHE_3072, 0, NULL, NULL);
-    #elif defined(HAVE_FFDHE_4096)
+        #elif defined(HAVE_FFDHE_4096)
                 ret = TLSX_KeyShare_Use(ssl, WOLFSSL_FFDHE_4096, 0, NULL, NULL);
-    #elif defined(HAVE_FFDHE_6144)
+        #elif defined(HAVE_FFDHE_6144)
                 ret = TLSX_KeyShare_Use(ssl, WOLFSSL_FFDHE_6144, 0, NULL, NULL);
-    #elif defined(HAVE_FFDHE_8192)
+        #elif defined(HAVE_FFDHE_8192)
                 ret = TLSX_KeyShare_Use(ssl, WOLFSSL_FFDHE_8192, 0, NULL, NULL);
-    #else
+        #else
                 ret = KEY_SHARE_ERROR;
-    #endif
+        #endif
                 if (ret != 0)
                     return ret;
             }
@@ -7183,6 +7305,13 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     modes |= 1 << PSK_DHE_KE;
             #endif
                 ret = TLSX_PskKeModes_Use(ssl, modes);
+                if (ret != 0)
+                    return ret;
+            }
+        #endif
+        #if defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+            if (!isServer && ssl->options.postHandshakeAuth) {
+                ret = TLSX_PostHandAuth_Use(ssl);
                 if (ret != 0)
                     return ret;
             }
@@ -7671,6 +7800,20 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                     return EXT_NOT_ALLOWED;
                 }
                 ret = PKM_PARSE(ssl, input + offset, size, msgType);
+                break;
+    #endif
+    #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+            case TLSX_POST_HANDSHAKE_AUTH:
+                WOLFSSL_MSG("PSK Key Exchange Modes extension received");
+
+                if (!IsAtLeastTLSv1_3(ssl->version))
+                    break;
+
+                if (IsAtLeastTLSv1_3(ssl->version) &&
+                        msgType != client_hello) {
+                    return EXT_NOT_ALLOWED;
+                }
+                ret = PHA_PARSE(ssl, input + offset, size, msgType);
                 break;
     #endif
 #endif
