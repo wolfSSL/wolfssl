@@ -1193,24 +1193,24 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
         return SIDE_ERROR;
 
     if (ssl->buffers.serverDH_P.buffer && ssl->buffers.weOwnDH) {
-        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
+        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         ssl->buffers.serverDH_P.buffer = NULL;
     }
     if (ssl->buffers.serverDH_G.buffer && ssl->buffers.weOwnDH) {
-        XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
+        XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         ssl->buffers.serverDH_G.buffer = NULL;
     }
 
     ssl->buffers.weOwnDH = 1;  /* SSL owns now */
     ssl->buffers.serverDH_P.buffer = (byte*)XMALLOC(pSz, ssl->heap,
-                                                    DYNAMIC_TYPE_KEY_BUFFER);
+                                                    DYNAMIC_TYPE_PUBLIC_KEY);
     if (ssl->buffers.serverDH_P.buffer == NULL)
         return MEMORY_E;
 
     ssl->buffers.serverDH_G.buffer = (byte*)XMALLOC(gSz, ssl->heap,
-                                                    DYNAMIC_TYPE_KEY_BUFFER);
+                                                    DYNAMIC_TYPE_PUBLIC_KEY);
     if (ssl->buffers.serverDH_G.buffer == NULL) {
-        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
+        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         ssl->buffers.serverDH_P.buffer = NULL;
         return MEMORY_E;
     }
@@ -1247,16 +1247,16 @@ int wolfSSL_CTX_SetTmpDH(WOLFSSL_CTX* ctx, const unsigned char* p, int pSz,
     if (pSz < ctx->minDhKeySz)
         return DH_KEY_SIZE_E;
 
-    XFREE(ctx->serverDH_P.buffer, ctx->heap, DYNAMIC_TYPE_KEY_BUFFER);
-    XFREE(ctx->serverDH_G.buffer, ctx->heap, DYNAMIC_TYPE_KEY_BUFFER);
+    XFREE(ctx->serverDH_P.buffer, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(ctx->serverDH_G.buffer, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
 
-    ctx->serverDH_P.buffer = (byte*)XMALLOC(pSz, ctx->heap, DYNAMIC_TYPE_KEY_BUFFER);
+    ctx->serverDH_P.buffer = (byte*)XMALLOC(pSz, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     if (ctx->serverDH_P.buffer == NULL)
        return MEMORY_E;
 
-    ctx->serverDH_G.buffer = (byte*)XMALLOC(gSz, ctx->heap, DYNAMIC_TYPE_KEY_BUFFER);
+    ctx->serverDH_G.buffer = (byte*)XMALLOC(gSz, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     if (ctx->serverDH_G.buffer == NULL) {
-        XFREE(ctx->serverDH_P.buffer, ctx->heap, DYNAMIC_TYPE_KEY_BUFFER);
+        XFREE(ctx->serverDH_P.buffer, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         return MEMORY_E;
     }
 
@@ -3923,7 +3923,7 @@ static int wolfssl_decrypt_buffer_key(DerBuffer* der, byte* password,
 #ifndef NO_MD5
 
 #ifdef WOLFSSL_SMALL_STACK
-    key = (byte*)XMALLOC(AES_256_KEY_SIZE, NULL, DYNAMIC_TYPE_KEY_BUFFER);
+    key = (byte*)XMALLOC(AES_256_KEY_SIZE, NULL, DYNAMIC_TYPE_SYMETRIC_KEY);
     if (key == NULL) {
         WOLFSSL_MSG("memory failure");
         return SSL_FATAL_ERROR;
@@ -3934,7 +3934,7 @@ static int wolfssl_decrypt_buffer_key(DerBuffer* der, byte* password,
                               password, passwordSz, 1, key, NULL)) <= 0) {
         WOLFSSL_MSG("bytes to key failure");
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(key, NULL, DYNAMIC_TYPE_KEY_BUFFER);
+        XFREE(key, NULL, DYNAMIC_TYPE_SYMETRIC_KEY);
 #endif
         return SSL_FATAL_ERROR;
     }
@@ -3962,7 +3962,7 @@ static int wolfssl_decrypt_buffer_key(DerBuffer* der, byte* password,
 #endif /* !NO_AES && HAVE_AES_CBC && HAVE_AES_DECRYPT */
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(key, NULL, DYNAMIC_TYPE_KEY_BUFFER);
+    XFREE(key, NULL, DYNAMIC_TYPE_SYMETRIC_KEY);
 #endif
 
     if (ret == MP_OKAY)
@@ -4001,7 +4001,7 @@ static int wolfssl_encrypt_buffer_key(byte* der, word32 derSz, byte* password,
 #ifndef NO_MD5
 
 #ifdef WOLFSSL_SMALL_STACK
-    key = (byte*)XMALLOC(AES_256_KEY_SIZE, NULL, DYNAMIC_TYPE_KEY_BUFFER);
+    key = (byte*)XMALLOC(AES_256_KEY_SIZE, NULL, DYNAMIC_TYPE_SYMETRIC_KEY);
     if (key == NULL) {
         WOLFSSL_MSG("memory failure");
         return SSL_FATAL_ERROR;
@@ -4012,7 +4012,7 @@ static int wolfssl_encrypt_buffer_key(byte* der, word32 derSz, byte* password,
                               password, passwordSz, 1, key, NULL)) <= 0) {
         WOLFSSL_MSG("bytes to key failure");
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(key, NULL, DYNAMIC_TYPE_KEY_BUFFER);
+        XFREE(key, NULL, DYNAMIC_TYPE_SYMETRIC_KEY);
 #endif
         return SSL_FATAL_ERROR;
     }
@@ -4041,7 +4041,7 @@ static int wolfssl_encrypt_buffer_key(byte* der, word32 derSz, byte* password,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(key, NULL, DYNAMIC_TYPE_KEY_BUFFER);
+    XFREE(key, NULL, DYNAMIC_TYPE_SYMETRIC_KEY);
 #endif
 
     if (ret == MP_OKAY)
@@ -5155,7 +5155,7 @@ int wolfSSL_CertManagerEnableCRL(WOLFSSL_CERT_MANAGER* cm, int options)
     #ifdef HAVE_CRL
         if (cm->crl == NULL) {
             cm->crl = (WOLFSSL_CRL*)XMALLOC(sizeof(WOLFSSL_CRL), cm->heap,
-                                           DYNAMIC_TYPE_CRL);
+                                            DYNAMIC_TYPE_CRL);
             if (cm->crl == NULL)
                 return MEMORY_E;
 
@@ -10261,12 +10261,12 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         der->length = (word32)sz;
 
     #ifdef WOLFSSL_SMALL_STACK
-        p = (byte*)XMALLOC(pSz, NULL, DYNAMIC_TYPE_KEY_BUFFER);
-        g = (byte*)XMALLOC(gSz, NULL, DYNAMIC_TYPE_KEY_BUFFER);
+        p = (byte*)XMALLOC(pSz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        g = (byte*)XMALLOC(gSz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
 
         if (p == NULL || g == NULL) {
-            XFREE(p, NULL, DYNAMIC_TYPE_KEY_BUFFER);
-            XFREE(g, NULL, DYNAMIC_TYPE_KEY_BUFFER);
+            XFREE(p, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+            XFREE(g, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
             return MEMORY_E;
         }
     #endif
@@ -10301,8 +10301,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         FreeDer(&der);
 
     #ifdef WOLFSSL_SMALL_STACK
-        XFREE(p, NULL, DYNAMIC_TYPE_KEY_BUFFER);
-        XFREE(g, NULL, DYNAMIC_TYPE_KEY_BUFFER);
+        XFREE(p, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        XFREE(g, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     #endif
 
         return ret;
@@ -11246,7 +11246,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     #endif
 
     #ifdef WOLFSSL_SMALL_STACK
-        md5 = (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_MD5);
+        md5 = (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_HASHCTX);
         if (md5 == NULL)
             return 0;
     #endif
@@ -11257,7 +11257,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         if (wc_InitMd5(md5) != 0) {
         #ifdef WOLFSSL_SMALL_STACK
-            XFREE(md5, NULL, DYNAMIC_TYPE_MD5);
+            XFREE(md5, NULL, DYNAMIC_TYPE_HASHCTX);
         #endif
             return 0;
         }
@@ -11265,7 +11265,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         /* only support MD5 for now */
         if (XSTRNCMP(md, "MD5", 3) != 0) {
         #ifdef WOLFSSL_SMALL_STACK
-            XFREE(md5, NULL, DYNAMIC_TYPE_MD5);
+            XFREE(md5, NULL, DYNAMIC_TYPE_HASHCTX);
         #endif
             return 0;
         }
@@ -11299,7 +11299,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         #endif /* NO_AES */
         {
         #ifdef WOLFSSL_SMALL_STACK
-            XFREE(md5, NULL, DYNAMIC_TYPE_MD5);
+            XFREE(md5, NULL, DYNAMIC_TYPE_HASHCTX);
         #endif
             return 0;
         }
@@ -11344,7 +11344,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
 
     #ifdef WOLFSSL_SMALL_STACK
-        XFREE(md5, NULL, DYNAMIC_TYPE_MD5);
+        XFREE(md5, NULL, DYNAMIC_TYPE_HASHCTX);
     #endif
 
         return keyOutput == (keyLen + ivLen) ? keyOutput : 0;
@@ -15083,7 +15083,7 @@ WC_PKCS12* wolfSSL_d2i_PKCS12_bio(WOLFSSL_BIO* bio, WC_PKCS12** pkcs12)
     size = ret;
 
     ret = wc_d2i_PKCS12(mem, size, localPkcs12);
-    if (ret <= 0) {
+    if (ret < 0) {
         WOLFSSL_MSG("Failed to get PKCS12 sequence");
         wc_PKCS12_free(localPkcs12);
         if (pkcs12 != NULL) {
@@ -15943,13 +15943,13 @@ long wolfSSL_set_tmp_dh(WOLFSSL *ssl, WOLFSSL_DH *dh)
     if (pSz <= 0 || gSz <= 0)
         return SSL_FATAL_ERROR;
 
-    p = (byte*)XMALLOC(pSz, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
+    p = (byte*)XMALLOC(pSz, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     if (!p)
         return MEMORY_E;
 
-    g = (byte*)XMALLOC(gSz, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
+    g = (byte*)XMALLOC(gSz, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     if (!g) {
-        XFREE(p, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
+        XFREE(p, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         return MEMORY_E;
     }
 
@@ -15959,8 +15959,8 @@ long wolfSSL_set_tmp_dh(WOLFSSL *ssl, WOLFSSL_DH *dh)
     if (pSz >= 0 && gSz >= 0) /* Conversion successful */
         ret = wolfSSL_SetTmpDH(ssl, p, pSz, g, gSz);
 
-    XFREE(p, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
-    XFREE(g, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
+    XFREE(p, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(g, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
 
     return pSz > 0 && gSz > 0 ? ret : SSL_FATAL_ERROR;
 }
@@ -16421,7 +16421,7 @@ long wolfSSL_CTX_add_extra_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
     /* on success WOLFSSL_X509 memory is responsibility of ctx */
     wolfSSL_X509_free(x509);
     if (chain != NULL)
-        XFREE(chain, ctx->heap, CERT_TYPE);
+        XFREE(chain, ctx->heap, DYNAMIC_TYPE_DER);
 
     return SSL_SUCCESS;
 }
@@ -18134,12 +18134,12 @@ static int SetDhInternal(WOLFSSL_DH* dh)
         WOLFSSL_MSG("Bad g internal size");
     else {
     #ifdef WOLFSSL_SMALL_STACK
-        p = (unsigned char*)XMALLOC(pSz, NULL, DYNAMIC_TYPE_KEY_BUFFER);
-        g = (unsigned char*)XMALLOC(gSz, NULL, DYNAMIC_TYPE_KEY_BUFFER);
+        p = (unsigned char*)XMALLOC(pSz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        g = (unsigned char*)XMALLOC(gSz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
 
         if (p == NULL || g == NULL) {
-            XFREE(p, NULL, DYNAMIC_TYPE_KEY_BUFFER);
-            XFREE(g, NULL, DYNAMIC_TYPE_KEY_BUFFER);
+            XFREE(p, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+            XFREE(g, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
             return ret;
         }
     #endif
@@ -18157,8 +18157,8 @@ static int SetDhInternal(WOLFSSL_DH* dh)
         }
 
     #ifdef WOLFSSL_SMALL_STACK
-        XFREE(p, NULL, DYNAMIC_TYPE_KEY_BUFFER);
-        XFREE(g, NULL, DYNAMIC_TYPE_KEY_BUFFER);
+        XFREE(p, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        XFREE(g, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     #endif
     }
 
@@ -18204,13 +18204,13 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
 
 #ifdef WOLFSSL_SMALL_STACK
     tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
-    pub    = (unsigned char*)XMALLOC(pubSz,   NULL, DYNAMIC_TYPE_KEY_BUFFER);
-    priv   = (unsigned char*)XMALLOC(privSz,  NULL, DYNAMIC_TYPE_KEY_BUFFER);
+    pub    = (unsigned char*)XMALLOC(pubSz,   NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    priv   = (unsigned char*)XMALLOC(privSz,  NULL, DYNAMIC_TYPE_PRIVATE_KEY);
 
     if (tmpRNG == NULL || pub == NULL || priv == NULL) {
         XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
-        XFREE(pub,    NULL, DYNAMIC_TYPE_KEY_BUFFER);
-        XFREE(priv,   NULL, DYNAMIC_TYPE_KEY_BUFFER);
+        XFREE(pub,    NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        XFREE(priv,   NULL, DYNAMIC_TYPE_PRIVATE_KEY);
         return ret;
     }
 #endif
@@ -18268,8 +18268,8 @@ int wolfSSL_DH_generate_key(WOLFSSL_DH* dh)
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
-    XFREE(pub,    NULL, DYNAMIC_TYPE_KEY_BUFFER);
-    XFREE(priv,   NULL, DYNAMIC_TYPE_KEY_BUFFER);
+    XFREE(pub,    NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(priv,   NULL, DYNAMIC_TYPE_PRIVATE_KEY);
 #endif
 
     return ret;
@@ -18297,13 +18297,13 @@ int wolfSSL_DH_compute_key(unsigned char* key, WOLFSSL_BIGNUM* otherPub,
     WOLFSSL_MSG("wolfSSL_DH_compute_key");
 
 #ifdef WOLFSSL_SMALL_STACK
-    pub = (unsigned char*)XMALLOC(pubSz, NULL, DYNAMIC_TYPE_KEY_BUFFER);
+    pub = (unsigned char*)XMALLOC(pubSz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     if (pub == NULL)
         return ret;
 
-    priv = (unsigned char*)XMALLOC(privSz, NULL, DYNAMIC_TYPE_KEY_BUFFER);
+    priv = (unsigned char*)XMALLOC(privSz, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
     if (priv == NULL) {
-        XFREE(pub, NULL, DYNAMIC_TYPE_KEY_BUFFER);
+        XFREE(pub, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
         return ret;
     }
 #endif
@@ -18330,8 +18330,8 @@ int wolfSSL_DH_compute_key(unsigned char* key, WOLFSSL_BIGNUM* otherPub,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(pub,  NULL, DYNAMIC_TYPE_KEY_BUFFER);
-    XFREE(priv, NULL, DYNAMIC_TYPE_KEY_BUFFER);
+    XFREE(pub,  NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(priv, NULL, DYNAMIC_TYPE_PRIVATE_KEY);
 #endif
 
     return ret;
@@ -23122,8 +23122,8 @@ WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bio, WOLFSSL_DH **x,
     }
 
     /* Load data in manually */
-    p = (byte*)XMALLOC(pSz, NULL, DYNAMIC_TYPE_KEY_BUFFER);
-    g = (byte*)XMALLOC(gSz, NULL, DYNAMIC_TYPE_KEY_BUFFER);
+    p = (byte*)XMALLOC(pSz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    g = (byte*)XMALLOC(gSz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     if (p == NULL || g == NULL)
         goto end;
 
@@ -23159,8 +23159,8 @@ WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bio, WOLFSSL_DH **x,
 end:
     if (memAlloced) XFREE(mem, NULL, DYNAMIC_TYPE_PEM);
     if (der != NULL) FreeDer(&der);
-    XFREE(p, NULL, DYNAMIC_TYPE_KEY_BUFFER);
-    XFREE(g, NULL, DYNAMIC_TYPE_KEY_BUFFER);
+    XFREE(p, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(g, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     return localDh;
 #else
     (void)bio;
@@ -23239,13 +23239,13 @@ long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX* ctx, WOLFSSL_DH* dh)
     if(pSz <= 0 || gSz <= 0)
         return SSL_FATAL_ERROR;
 
-    p = (byte*)XMALLOC(pSz, ctx->heap, DYNAMIC_TYPE_KEY_BUFFER);
+    p = (byte*)XMALLOC(pSz, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     if(!p)
         return MEMORY_E;
 
-    g = (byte*)XMALLOC(gSz, ctx->heap, DYNAMIC_TYPE_KEY_BUFFER);
+    g = (byte*)XMALLOC(gSz, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     if(!g) {
-        XFREE(p, ctx->heap, DYNAMIC_TYPE_KEY_BUFFER);
+        XFREE(p, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         return MEMORY_E;
     }
 
@@ -23255,8 +23255,8 @@ long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX* ctx, WOLFSSL_DH* dh)
     if(pSz >= 0 && gSz >= 0) /* Conversion successful */
         ret = wolfSSL_CTX_SetTmpDH(ctx, p, pSz, g, gSz);
 
-    XFREE(p, ctx->heap, DYNAMIC_TYPE_KEY_BUFFER);
-    XFREE(g, ctx->heap, DYNAMIC_TYPE_KEY_BUFFER);
+    XFREE(p, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    XFREE(g, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
 
     return pSz > 0 && gSz > 0 ? ret : SSL_FATAL_ERROR;
 }

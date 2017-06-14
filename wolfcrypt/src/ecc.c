@@ -2933,7 +2933,7 @@ static int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-    buf = (byte*)XMALLOC(ECC_MAXSIZE_GEN, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    buf = (byte*)XMALLOC(ECC_MAXSIZE_GEN, NULL, DYNAMIC_TYPE_ECC_BUFFER);
     if (buf == NULL)
         return MEMORY_E;
 #endif
@@ -2964,7 +2964,7 @@ static int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
 
     ForceZero(buf, ECC_MAXSIZE);
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(buf, NULL, DYNAMIC_TYPE_ECC_BUFFER);
 #endif
 
     return err;
@@ -3655,13 +3655,13 @@ static int ecc_mul2add(ecc_point* A, mp_int* kA,
   }
 
   /* allocate memory */
-  tA = (unsigned char*)XMALLOC(ECC_BUFSIZE, heap, DYNAMIC_TYPE_TMP_BUFFER);
+  tA = (unsigned char*)XMALLOC(ECC_BUFSIZE, heap, DYNAMIC_TYPE_ECC_BUFFER);
   if (tA == NULL) {
      return GEN_MEM_ERR;
   }
-  tB = (unsigned char*)XMALLOC(ECC_BUFSIZE, heap, DYNAMIC_TYPE_TMP_BUFFER);
+  tB = (unsigned char*)XMALLOC(ECC_BUFSIZE, heap, DYNAMIC_TYPE_ECC_BUFFER);
   if (tB == NULL) {
-     XFREE(tA, heap, DYNAMIC_TYPE_TMP_BUFFER);
+     XFREE(tA, heap, DYNAMIC_TYPE_ECC_BUFFER);
      return GEN_MEM_ERR;
   }
 
@@ -3834,8 +3834,8 @@ static int ecc_mul2add(ecc_point* A, mp_int* kA,
 
   ForceZero(tA, ECC_BUFSIZE);
   ForceZero(tB, ECC_BUFSIZE);
-  XFREE(tA, heap, DYNAMIC_TYPE_TMP_BUFFER);
-  XFREE(tB, heap, DYNAMIC_TYPE_TMP_BUFFER);
+  XFREE(tA, heap, DYNAMIC_TYPE_ECC_BUFFER);
+  XFREE(tB, heap, DYNAMIC_TYPE_ECC_BUFFER);
 
   return err;
 }
@@ -4356,7 +4356,7 @@ int wc_ecc_export_point_der(const int curve_idx, ecc_point* point, byte* out,
     out[0] = 0x04;
 
 #ifdef WOLFSSL_SMALL_STACK
-    buf = (byte*)XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    buf = (byte*)XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_ECC_BUFFER);
     if (buf == NULL)
         return MEMORY_E;
 #endif
@@ -4381,7 +4381,7 @@ int wc_ecc_export_point_der(const int curve_idx, ecc_point* point, byte* out,
 
 done:
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(buf, NULL, DYNAMIC_TYPE_ECC_BUFFER);
 #endif
 #endif /* WOLFSSL_ATECC508A */
 
@@ -4442,7 +4442,7 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
    out[0] = 0x04;
 
 #ifdef WOLFSSL_SMALL_STACK
-   buf = (byte*)XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   buf = (byte*)XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_ECC_BUFFER);
    if (buf == NULL)
       return MEMORY_E;
 #endif
@@ -4465,7 +4465,7 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
 
 done:
 #ifdef WOLFSSL_SMALL_STACK
-   XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   XFREE(buf, NULL, DYNAMIC_TYPE_ECC_BUFFER);
 #endif
 #endif /* WOLFSSL_ATECC508A */
 
@@ -6242,7 +6242,7 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* a,
 
    /* store k */
 #ifdef WOLFSSL_SMALL_STACK
-   kb = (unsigned char*)XMALLOC(KB_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   kb = (unsigned char*)XMALLOC(KB_SIZE, NULL, DYNAMIC_TYPE_ECC_BUFFER);
    if (kb == NULL) {
       err = MEMORY_E; goto done;
    }
@@ -6318,7 +6318,7 @@ done:
    mp_clear(&tk);
 
 #ifdef WOLFSSL_SMALL_STACK
-   XFREE(kb, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   XFREE(kb, NULL, DYNAMIC_TYPE_ECC_BUFFER);
 #endif
 
 #undef KB_SIZE
@@ -6425,7 +6425,7 @@ static int accel_fp_mul2add(int idx1, int idx2,
 
    /* store k */
 #ifdef WOLFSSL_SMALL_STACK
-   kb[0] = (unsigned char*)XMALLOC(KB_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   kb[0] = (unsigned char*)XMALLOC(KB_SIZE, NULL, DYNAMIC_TYPE_ECC_BUFFER);
    if (kb[0] == NULL) {
       err = MEMORY_E; goto done;
    }
@@ -6450,7 +6450,7 @@ static int accel_fp_mul2add(int idx1, int idx2,
 
    /* store b */
 #ifdef WOLFSSL_SMALL_STACK
-   kb[1] = (unsigned char*)XMALLOC(KB_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   kb[1] = (unsigned char*)XMALLOC(KB_SIZE, NULL, DYNAMIC_TYPE_ECC_BUFFER);
    if (kb[1] == NULL) {
       err = MEMORY_E; goto done;
    }
@@ -6550,8 +6550,8 @@ done:
       ForceZero(kb[1], KB_SIZE);
 
 #ifdef WOLFSSL_SMALL_STACK
-   XFREE(kb[0], NULL, DYNAMIC_TYPE_TMP_BUFFER);
-   XFREE(kb[1], NULL, DYNAMIC_TYPE_TMP_BUFFER);
+   XFREE(kb[0], NULL, DYNAMIC_TYPE_ECC_BUFFER);
+   XFREE(kb[1], NULL, DYNAMIC_TYPE_ECC_BUFFER);
 #endif
 
 #undef KB_SIZE
@@ -7131,13 +7131,13 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         return BUFFER_E;
 
 #ifdef WOLFSSL_SMALL_STACK
-    sharedSecret = (byte*)XMALLOC(ECC_MAXSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    sharedSecret = (byte*)XMALLOC(ECC_MAXSIZE, NULL, DYNAMIC_TYPE_ECC_BUFFER);
     if (sharedSecret == NULL)
         return MEMORY_E;
 
-    keys = (byte*)XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    keys = (byte*)XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_ECC_BUFFER);
     if (keys == NULL) {
-        XFREE(sharedSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(sharedSecret, NULL, DYNAMIC_TYPE_ECC_BUFFER);
         return MEMORY_E;
     }
 #endif
@@ -7220,8 +7220,8 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
        *outSz = msgSz + digestSz;
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(sharedSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(keys, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(sharedSecret, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+    XFREE(keys, NULL, DYNAMIC_TYPE_ECC_BUFFER);
 #endif
 
     return ret;
@@ -7294,13 +7294,13 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
         return BUFFER_E;
 
 #ifdef WOLFSSL_SMALL_STACK
-    sharedSecret = (byte*)XMALLOC(ECC_MAXSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    sharedSecret = (byte*)XMALLOC(ECC_MAXSIZE, NULL, DYNAMIC_TYPE_ECC_BUFFER);
     if (sharedSecret == NULL)
         return MEMORY_E;
 
-    keys = (byte*)XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    keys = (byte*)XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_ECC_BUFFER);
     if (keys == NULL) {
-        XFREE(sharedSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(sharedSecret, NULL, DYNAMIC_TYPE_ECC_BUFFER);
         return MEMORY_E;
     }
 #endif
@@ -7391,8 +7391,8 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
        *outSz = msgSz - digestSz;
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(sharedSecret, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(keys, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(sharedSecret, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+    XFREE(keys, NULL, DYNAMIC_TYPE_ECC_BUFFER);
 #endif
 
     return ret;
@@ -7856,7 +7856,7 @@ int wc_X963_KDF(enum wc_HashType type, const byte* secret, word32 secretSz,
 
 #ifdef WOLFSSL_SMALL_STACK
     hash = (wc_HashAlg*)XMALLOC(sizeof(wc_HashAlg), NULL,
-                                DYNAMIC_TYPE_TMP_BUFFER);
+                                DYNAMIC_TYPE_HASHES);
     if (hash == NULL)
         return MEMORY_E;
 #endif
@@ -7864,7 +7864,7 @@ int wc_X963_KDF(enum wc_HashType type, const byte* secret, word32 secretSz,
     ret = wc_HashInit(hash, type);
     if (ret != 0) {
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(hash, NULL, DYNAMIC_TYPE_HASHES);
 #endif
         return ret;
     }
@@ -7879,7 +7879,7 @@ int wc_X963_KDF(enum wc_HashType type, const byte* secret, word32 secretSz,
         ret = wc_HashUpdate(hash, type, secret, secretSz);
         if (ret != 0) {
 #ifdef WOLFSSL_SMALL_STACK
-            XFREE(hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(hash, NULL, DYNAMIC_TYPE_HASHES);
 #endif
             return ret;
         }
@@ -7887,7 +7887,7 @@ int wc_X963_KDF(enum wc_HashType type, const byte* secret, word32 secretSz,
         ret = wc_HashUpdate(hash, type, counter, sizeof(counter));
         if (ret != 0) {
 #ifdef WOLFSSL_SMALL_STACK
-            XFREE(hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(hash, NULL, DYNAMIC_TYPE_HASHES);
 #endif
             return ret;
         }
@@ -7896,7 +7896,7 @@ int wc_X963_KDF(enum wc_HashType type, const byte* secret, word32 secretSz,
             ret = wc_HashUpdate(hash, type, sinfo, sinfoSz);
             if (ret != 0) {
 #ifdef WOLFSSL_SMALL_STACK
-                XFREE(hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(hash, NULL, DYNAMIC_TYPE_HASHES);
 #endif
                 return ret;
             }
@@ -7905,7 +7905,7 @@ int wc_X963_KDF(enum wc_HashType type, const byte* secret, word32 secretSz,
         ret = wc_HashFinal(hash, type, tmp);
         if (ret != 0) {
 #ifdef WOLFSSL_SMALL_STACK
-            XFREE(hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(hash, NULL, DYNAMIC_TYPE_HASHES);
 #endif
             return ret;
         }
@@ -7918,7 +7918,7 @@ int wc_X963_KDF(enum wc_HashType type, const byte* secret, word32 secretSz,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-     XFREE(hash, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+     XFREE(hash, NULL, DYNAMIC_TYPE_HASHES);
 #endif
 
     return 0;

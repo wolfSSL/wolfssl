@@ -128,11 +128,12 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
 static void FreeCRL_Entry(CRL_Entry* crle, void* heap)
 {
     RevokedCert* tmp = crle->certs;
+    RevokedCert* next;
 
     WOLFSSL_ENTER("FreeCRL_Entry");
 
-    while(tmp) {
-        RevokedCert* next = tmp->next;
+    while (tmp) {
+        next = tmp->next;
         XFREE(tmp, heap, DYNAMIC_TYPE_REVOKED);
         tmp = next;
     }

@@ -960,16 +960,16 @@ static int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side)
     int   ret;
     int   i = 0;
 #ifdef WOLFSSL_SMALL_STACK
-    byte* key_data;
+    byte* key_dig;
 #else
-    byte  key_data[MAX_PRF_DIG];
+    byte  key_dig[MAX_PRF_DIG];
 #endif
     int   deriveClient = 0;
     int   deriveServer = 0;
 
 #ifdef WOLFSSL_SMALL_STACK
-    key_data = (byte*)XMALLOC(MAX_PRF_DIG, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
-    if (key_data == NULL)
+    key_dig = (byte*)XMALLOC(MAX_PRF_DIG, ssl->heap, DYNAMIC_TYPE_DIGEST);
+    if (key_dig == NULL)
         return MEMORY_E;
 #endif
 
@@ -1031,7 +1031,7 @@ static int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side)
 
     /* Derive the client key.  */
     WOLFSSL_MSG("Derive Client Key");
-    ret = DeriveKey(ssl, &key_data[i], ssl->specs.key_size,
+    ret = DeriveKey(ssl, &key_dig[i], ssl->specs.key_size,
                     ssl->arrays->clientSecret, writeKeyLabel,
                     WRITE_KEY_LABEL_SZ, ssl->specs.mac_algorithm, 0);
     if (ret != 0)
@@ -1040,7 +1040,7 @@ static int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side)
 
     /* Derive the server key.  */
     WOLFSSL_MSG("Derive Server Key");
-    ret = DeriveKey(ssl, &key_data[i], ssl->specs.key_size,
+    ret = DeriveKey(ssl, &key_dig[i], ssl->specs.key_size,
                     ssl->arrays->serverSecret, writeKeyLabel,
                     WRITE_KEY_LABEL_SZ, ssl->specs.mac_algorithm, 0);
     if (ret != 0)
@@ -1049,7 +1049,7 @@ static int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side)
 
     /* Derive the client IV.  */
     WOLFSSL_MSG("Derive Client IV");
-    ret = DeriveKey(ssl, &key_data[i], ssl->specs.iv_size,
+    ret = DeriveKey(ssl, &key_dig[i], ssl->specs.iv_size,
                     ssl->arrays->clientSecret, writeIVLabel, WRITE_IV_LABEL_SZ,
                     ssl->specs.mac_algorithm, 0);
     if (ret != 0)
@@ -1058,18 +1058,18 @@ static int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side)
 
     /* Derive the server IV.  */
     WOLFSSL_MSG("Derive Server IV");
-    ret = DeriveKey(ssl, &key_data[i], ssl->specs.iv_size,
+    ret = DeriveKey(ssl, &key_dig[i], ssl->specs.iv_size,
                     ssl->arrays->serverSecret, writeIVLabel, WRITE_IV_LABEL_SZ,
                     ssl->specs.mac_algorithm, 0);
     if (ret != 0)
         goto end;
 
     /* Store keys and IVs but don't activate them. */
-    ret = StoreKeys(ssl, key_data);
+    ret = StoreKeys(ssl, key_dig);
 
 end:
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(key_data, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
+    XFREE(key_dig, ssl->heap, DYNAMIC_TYPE_DIGEST);
 #endif
 
     return ret;

@@ -11240,7 +11240,7 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
     end = *idx + len;
 
     rc = (RevokedCert*)XMALLOC(sizeof(RevokedCert), dcrl->heap,
-                                                          DYNAMIC_TYPE_CRL);
+                                                          DYNAMIC_TYPE_REVOKED);
     if (rc == NULL) {
         WOLFSSL_MSG("Alloc Revoked Cert failed");
         return MEMORY_E;
@@ -11248,7 +11248,7 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
 
     if (GetSerialNumber(buff, idx, rc->serialNumber, &rc->serialSz,
                                                                 maxIdx) < 0) {
-        XFREE(rc, dcrl->heap, DYNAMIC_TYPE_CRL);
+        XFREE(rc, dcrl->heap, DYNAMIC_TYPE_REVOKED);
         return ASN_PARSE_E;
     }
 

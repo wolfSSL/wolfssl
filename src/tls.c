@@ -482,7 +482,7 @@ static const byte ext_master_label[EXT_MASTER_LABEL_SZ + 1] =
 static const byte master_label[MASTER_LABEL_SZ + 1] = "master secret";
 static const byte key_label   [KEY_LABEL_SZ + 1]    = "key expansion";
 
-static int _DeriveTlsKeys(byte* key_data, word32 keyLen,
+static int _DeriveTlsKeys(byte* key_dig, word32 key_dig_len,
                          const byte* ms, word32 msLen,
                          const byte* sr, const byte* cr,
                          int tls1_2, int hash_type,
@@ -493,17 +493,17 @@ static int _DeriveTlsKeys(byte* key_data, word32 keyLen,
     XMEMCPY(seed,           sr, RAN_LEN);
     XMEMCPY(seed + RAN_LEN, cr, RAN_LEN);
 
-    return PRF(key_data, keyLen, ms, msLen, key_label, KEY_LABEL_SZ,
+    return PRF(key_dig, key_dig_len, ms, msLen, key_label, KEY_LABEL_SZ,
                seed, SEED_LEN, tls1_2, hash_type, heap, devId);
 }
 
 /* External facing wrapper so user can call as well, 0 on success */
-int wolfSSL_DeriveTlsKeys(byte* key_data, word32 keyLen,
+int wolfSSL_DeriveTlsKeys(byte* key_dig, word32 key_dig_len,
                          const byte* ms, word32 msLen,
                          const byte* sr, const byte* cr,
                          int tls1_2, int hash_type)
 {
-    return _DeriveTlsKeys(key_data, keyLen, ms, msLen, sr, cr, tls1_2,
+    return _DeriveTlsKeys(key_dig, key_dig_len, ms, msLen, sr, cr, tls1_2,
         hash_type, NULL, INVALID_DEVID);
 }
 
@@ -511,32 +511,32 @@ int wolfSSL_DeriveTlsKeys(byte* key_data, word32 keyLen,
 int DeriveTlsKeys(WOLFSSL* ssl)
 {
     int   ret;
-    int   length = 2 * ssl->specs.hash_size +
-                   2 * ssl->specs.key_size  +
-                   2 * ssl->specs.iv_size;
+    int   key_dig_len = 2 * ssl->specs.hash_size +
+                        2 * ssl->specs.key_size  +
+                        2 * ssl->specs.iv_size;
 #ifdef WOLFSSL_SMALL_STACK
-    byte* key_data;
+    byte* key_dig;
 #else
-    byte  key_data[MAX_PRF_DIG];
+    byte  key_dig[MAX_PRF_DIG];
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-    key_data = (byte*)XMALLOC(MAX_PRF_DIG, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
-    if (key_data == NULL) {
+    key_dig = (byte*)XMALLOC(MAX_PRF_DIG, ssl->heap, DYNAMIC_TYPE_DIGEST);
+    if (key_dig == NULL) {
         return MEMORY_E;
     }
 #endif
 
-    ret = _DeriveTlsKeys(key_data, length,
-                           ssl->arrays->masterSecret, SECRET_LEN,
-                           ssl->arrays->serverRandom, ssl->arrays->clientRandom,
-                           IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm,
-                           ssl->heap, ssl->devId);
+    ret = _DeriveTlsKeys(key_dig, key_dig_len,
+                         ssl->arrays->masterSecret, SECRET_LEN,
+                         ssl->arrays->serverRandom, ssl->arrays->clientRandom,
+                         IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm,
+                         ssl->heap, ssl->devId);
     if (ret == 0)
-        ret = StoreKeys(ssl, key_data);
+        ret = StoreKeys(ssl, key_dig);
 
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(key_data, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
+    XFREE(key_dig, ssl->heap, DYNAMIC_TYPE_DIGEST);
 #endif
 
     return ret;
@@ -4633,13 +4633,13 @@ static int TLSX_KeyShare_GenDhKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
     /* Allocate space for the public key. */
     dataSz = params->p_len;
-    keyData = (byte*)XMALLOC(dataSz, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
+    keyData = (byte*)XMALLOC(dataSz, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     if (keyData == NULL) {
         ret = MEMORY_E;
         goto end;
     }
     /* Allocate space for the private key. */
-    key = (byte*)XMALLOC(keySz, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
+    key = (byte*)XMALLOC(keySz, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
     if (key == NULL) {
         ret = MEMORY_E;
         goto end;
@@ -4687,9 +4687,9 @@ end:
     if (ret != 0) {
         /* Data owned by key share entry otherwise. */
         if (keyData != NULL)
-            XFREE(keyData, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
+            XFREE(keyData, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         if (key != NULL)
-            XFREE(key, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
+            XFREE(key, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
     }
 
     return ret;
@@ -4749,7 +4749,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
                 curve25519_key* key;
                 /* Allocate an ECC key to hold private key. */
                 key = (curve25519_key*)XMALLOC(sizeof(curve25519_key),
-                                               ssl->heap, DYNAMIC_TYPE_TLSX);
+                                           ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
                 if (key == NULL) {
                     WOLFSSL_MSG("EccTempKey Memory error");
                     return MEMORY_E;
@@ -4767,7 +4767,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
                 /* Allocate space for the public key. */
                 keyData = (byte*)XMALLOC(dataSize, ssl->heap,
-                                         DYNAMIC_TYPE_KEY_BUFFER);
+                                         DYNAMIC_TYPE_PUBLIC_KEY);
                 if (keyData == NULL) {
                     WOLFSSL_MSG("Key data Memory error");
                     ret = MEMORY_E;
@@ -4804,7 +4804,8 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
     }
 
     /* Allocate an ECC key to hold private key. */
-    eccKey = (ecc_key*)XMALLOC(sizeof(ecc_key), ssl->heap, DYNAMIC_TYPE_TLSX);
+    eccKey = (ecc_key*)XMALLOC(sizeof(ecc_key), ssl->heap,
+                               DYNAMIC_TYPE_PRIVATE_KEY);
     if (eccKey == NULL) {
         WOLFSSL_MSG("EccTempKey Memory error");
         return MEMORY_E;
@@ -4825,7 +4826,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
         goto end;
 
     /* Allocate space for the public key. */
-    keyData = (byte*)XMALLOC(dataSize, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
+    keyData = (byte*)XMALLOC(dataSize, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     if (keyData == NULL) {
         WOLFSSL_MSG("Key data Memory error");
         ret = MEMORY_E;
@@ -4889,8 +4890,8 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
 
     while ((current = list) != NULL) {
         list = current->next;
-        XFREE(current->key, heap, DYNAMIC_TYPE_KEY_BUFFER);
-        XFREE(current->ke, heap, DYNAMIC_TYPE_KEY_BUFFER);
+        XFREE(current->key, heap, DYNAMIC_TYPE_PRIVATE_KEY);
+        XFREE(current->ke, heap, DYNAMIC_TYPE_PUBLIC_KEY);
         XFREE(current, heap, DYNAMIC_TYPE_TLSX);
     }
 
@@ -5097,7 +5098,7 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         wc_ecc_free(ssl->peerEccKey);
 
     ssl->peerEccKey = (ecc_key*)XMALLOC(sizeof(ecc_key), ssl->heap,
-                                        DYNAMIC_TYPE_TLSX);
+                                        DYNAMIC_TYPE_ECC);
     if (ssl->peerEccKey == NULL) {
         WOLFSSL_MSG("PeerEccKey Memory error");
         return MEMORY_ERROR;
@@ -5283,7 +5284,7 @@ static int TLSX_KeyShareEntry_Parse(WOLFSSL* ssl, byte* input, word16 length,
         return BUFFER_ERROR;
 
     /* Store a copy in the key share object. */
-    ke = (byte*)XMALLOC(keLen, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
+    ke = (byte*)XMALLOC(keLen, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     if (ke == NULL)
         return MEMORY_E;
     XMEMCPY(ke, &input[offset], keLen);
@@ -5513,7 +5514,7 @@ int TLSX_KeyShare_Use(WOLFSSL* ssl, word16 group, word16 len, byte* data,
     if (data != NULL) {
         /* Keep the public key data and free when finished. */
         if (keyShareEntry->ke != NULL)
-            XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
+            XFREE(keyShareEntry->ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         keyShareEntry->ke = data;
         keyShareEntry->keLen = len;
     }
@@ -5719,7 +5720,7 @@ int TLSX_KeyShare_Establish(WOLFSSL *ssl)
 
     /* Move private key to client entry. */
     if (clientKSE->key != NULL)
-        XFREE(clientKSE->key, ssl->heap, DYNAMIC_TYPE_KEY_BUFFER);
+        XFREE(clientKSE->key, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
     clientKSE->key = serverKSE->key;
     serverKSE->key = NULL;
     clientKSE->keyLen = serverKSE->keyLen;
