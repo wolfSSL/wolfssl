@@ -9956,29 +9956,24 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     XMEMCPY(priv, &input[*inOutIdx], privSz);
     *inOutIdx += length;
 
-    if ((*inOutIdx + 1) > inSz) {
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(priv, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(pub, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
-        return BUFFER_E;
-    }
+    if (ret == 0 && (*inOutIdx + 1) < inSz) {
+        /* prefix 0, may have */
+        b = input[*inOutIdx];
+        if (b == ECC_PREFIX_0) {
+            *inOutIdx += 1;
 
-    /* prefix 0, may have */
-    b = input[*inOutIdx];
-    if (b == ECC_PREFIX_0) {
-        *inOutIdx += 1;
-
-        if (GetLength(input, inOutIdx, &length, inSz) <= 0)
-            ret = ASN_PARSE_E;
-        else {
-            ret = GetObjectId(input, inOutIdx, &oidSum, oidIgnoreType, inSz);
-            if (ret == 0) {
-                if ((ret = CheckCurve(oidSum)) < 0)
-                    ret = ECC_CURVE_OID_E;
-                else {
-                    curve_id = ret;
-                    ret = 0;
+            if (GetLength(input, inOutIdx, &length, inSz) <= 0)
+                ret = ASN_PARSE_E;
+            else {
+                ret = GetObjectId(input, inOutIdx, &oidSum, oidIgnoreType,
+                                  inSz);
+                if (ret == 0) {
+                    if ((ret = CheckCurve(oidSum)) < 0)
+                        ret = ECC_CURVE_OID_E;
+                    else {
+                        curve_id = ret;
+                        ret = 0;
+                    }
                 }
             }
         }
