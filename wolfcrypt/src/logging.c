@@ -121,7 +121,7 @@ void wolfSSL_Debugging_OFF(void)
     #include <stdio.h>   /* for default printf stuff */
 #endif
 
-#ifdef THREADX
+#if defined(THREADX) && !defined(THREADX_NO_DC_PRINTF)
     int dc_log_printf(char*, ...);
 #endif
 
@@ -131,7 +131,7 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
         log_function(logLevel, logMessage);
     else {
         if (loggingEnabled) {
-#ifdef THREADX
+#if defined(THREADX) && !defined(THREADX_NO_DC_PRINTF)
             dc_log_printf("%s\n", logMessage);
 #elif defined(MICRIUM)
         #if (NET_SECURE_MGR_CFG_EN == DEF_ENABLED)
