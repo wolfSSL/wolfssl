@@ -10004,6 +10004,7 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
                 if (pubSz < 2*(ECC_MAXSIZE+1)) {
                     XMEMCPY(pub, &input[*inOutIdx], pubSz);
                     *inOutIdx += length;
+                    pubData = pub;
                 }
                 else
                     ret = BUFFER_E;
