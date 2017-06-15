@@ -9998,6 +9998,7 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
                 pubSz = length;
                 if (pubSz < 2*(ECC_MAXSIZE+1)) {
                     XMEMCPY(pub, &input[*inOutIdx], pubSz);
+                    pubData = pub;
                     *inOutIdx += length;
                 }
                 else
