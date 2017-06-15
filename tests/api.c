@@ -3761,7 +3761,7 @@ static int test_wc_IdeaSetKey (void)
     }
     /* Bad args. */
     if (ret == 0) {
-    ret = wc_IdeaSetKey(NULL, key, IDEA_KEY_SIZE, NULL, IDEA_ENCRYPTION);
+        ret = wc_IdeaSetKey(NULL, key, IDEA_KEY_SIZE, NULL, IDEA_ENCRYPTION);
         if (ret != BAD_FUNC_ARG) {
             flag = 1;
         }
@@ -3807,11 +3807,11 @@ static int test_wc_IdeaSetIV (void)
     /* Test bad args. */
     if (ret == 0) {
         ret = wc_IdeaSetIV(NULL, NULL);
-    }
-    if (ret == BAD_FUNC_ARG) {
-        ret = 0;
-    } else {
-        ret = SSL_FATAL_ERROR;
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
