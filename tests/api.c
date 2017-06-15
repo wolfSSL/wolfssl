@@ -64,6 +64,9 @@
 #ifdef WOLFSSL_RIPEMD
     #include <wolfssl/wolfcrypt/ripemd.h>
 #endif
+#ifdef HAVE_IDEA
+    #include <wolfssl/wolfcrypt/idea.h>
+#endif
 #ifndef NO_DES3
     #include <wolfssl/wolfcrypt/des3.h>
     #include <wolfssl/wolfcrypt/wc_encrypt.h>
@@ -3735,6 +3738,231 @@ static int test_wc_Sha224Final (void)
     return 0;
 } /* END test_wc_Sha224Final */
 
+/*
+ * unit test for wc_IdeaSetKey()
+ */
+static int test_wc_IdeaSetKey (void)
+{
+#ifdef HAVE_IDEA
+
+    Idea        idea;
+    const byte  key[] =
+    {
+        0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37,
+        0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37
+    };
+    int         ret, flag = 0;
+
+    printf(testingFmt, "wc_IdeaSetKey()");
+    /*IV can be NULL, default value is 0*/
+    ret = wc_IdeaSetKey(&idea, key, IDEA_KEY_SIZE, NULL, IDEA_ENCRYPTION);
+    if (ret == 0) {
+        ret = wc_IdeaSetKey(&idea, key, IDEA_KEY_SIZE, NULL, IDEA_DECRYPTION);
+    }
+    /* Bad args. */
+    if (ret == 0) {
+        ret = wc_IdeaSetKey(NULL, key, IDEA_KEY_SIZE, NULL, IDEA_ENCRYPTION);
+        if (ret != BAD_FUNC_ARG) {
+            flag = 1;
+        }
+        ret = wc_IdeaSetKey(&idea, NULL, IDEA_KEY_SIZE, NULL, IDEA_ENCRYPTION);
+        if (ret != BAD_FUNC_ARG) {
+            flag = 1;
+        }
+        ret = wc_IdeaSetKey(&idea, key, IDEA_KEY_SIZE - 1,
+                                    NULL, IDEA_ENCRYPTION);
+        if (ret != BAD_FUNC_ARG) {
+            flag = 1;
+        }
+        ret = wc_IdeaSetKey(&idea, key, IDEA_KEY_SIZE, NULL, -1);
+        if (ret != BAD_FUNC_ARG) {
+            flag = 1;
+        }
+        if (flag == 1) {
+            ret = SSL_FATAL_ERROR;
+        } else {
+            ret = 0;
+        }
+    } /* END Test Bad Args. */
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_IdeaSetKey */
+
+/*
+ * Unit test for wc_IdeaSetIV()
+ */
+static int test_wc_IdeaSetIV (void)
+{
+#ifdef HAVE_IDEA
+    Idea    idea;
+    int     ret;
+
+    printf(testingFmt, "wc_IdeaSetIV()");
+
+    ret = wc_IdeaSetIV(&idea, NULL);
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_IdeaSetIV(NULL, NULL);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+#endif
+    return 0;
+
+} /* END test_wc_IdeaSetIV */
+
+/*
+ * Unit test for wc_IdeaCipher()
+ */
+static int test_wc_IdeaCipher (void)
+{
+#ifdef HAVE_IDEA
+    Idea        idea;
+    const byte  key[] =
+    {
+        0x2B, 0xD6, 0x45, 0x9F, 0x82, 0xC5, 0xB3, 0x00,
+        0x95, 0x2C, 0x49, 0x10, 0x48, 0x81, 0xFF, 0x48
+    };
+    const byte  plain[] =
+    {
+        0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37
+    };
+    byte    enc[sizeof(plain)];
+    byte    dec[sizeof(enc)];
+    int     ret;
+
+    printf(testingFmt, "wc_IdeaCipher()");
+
+    ret = wc_IdeaSetKey(&idea, key, IDEA_KEY_SIZE, NULL, IDEA_ENCRYPTION);
+    if (ret == 0) {
+        ret = wc_IdeaCipher(&idea, enc, plain);
+        if (ret != 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_IdeaSetKey(&idea, key, IDEA_KEY_SIZE, NULL, IDEA_DECRYPTION);
+        if (ret == 0) {
+            ret = wc_IdeaCipher(&idea, dec, enc);
+        }
+        if (ret == 0) {
+            ret = XMEMCMP(plain, dec, IDEA_BLOCK_SIZE);
+        }
+        if (ret != 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+    /* Pass Bad Args. */
+    if (ret == 0) {
+        ret = wc_IdeaCipher(NULL, enc, dec);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_IdeaCipher(&idea, NULL, dec);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_IdeaCipher(&idea, enc, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_IdeaCipher */
+
+/*
+ * Unit test for functions wc_IdeaCbcEncrypt and wc_IdeaCbcDecrypt
+ */
+static int test_wc_IdeaCbcEncyptDecrypt (void)
+{
+#ifdef HAVE_IDEA
+    Idea        idea;
+    const byte  key[] =
+    {
+        0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37,
+        0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37, 0x37
+    };
+    const char* message = "International Data Encryption Algorithm";
+    byte        msg_enc[40];
+    byte        msg_dec[40];
+    int         ret;
+
+    printf(testingFmt, "wc_IdeaCbcEncrypt()");
+
+    ret = wc_IdeaSetKey(&idea, key, sizeof(key), NULL, IDEA_ENCRYPTION);
+    if (ret == 0) {
+        ret = wc_IdeaCbcEncrypt(&idea, msg_enc, (byte *)message,
+                                        (word32)XSTRLEN(message) + 1);
+    }
+    if (ret == 0) {
+        ret = wc_IdeaSetKey(&idea, key, sizeof(key), NULL, IDEA_DECRYPTION);
+    }
+    if (ret == 0) {
+        ret = wc_IdeaCbcDecrypt(&idea, msg_dec, msg_enc,
+                                            (word32)XSTRLEN(message) + 1);
+        if (XMEMCMP(message, msg_dec, (word32)XSTRLEN(message))) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    /* Test bad args. Enc */
+    if (ret == 0) {
+        ret = wc_IdeaCbcEncrypt(NULL, msg_enc, (byte*)message,
+                                    (word32)XSTRLEN(message) + 1);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_IdeaCbcEncrypt(&idea, NULL, (byte*)message,
+                                    (word32)XSTRLEN(message) + 1);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_IdeaCbcEncrypt(&idea, msg_enc, NULL,
+                                    (word32)XSTRLEN(message) + 1);
+        }
+        if (ret != BAD_FUNC_ARG) {
+            ret = SSL_FATAL_ERROR;
+        } else {
+            ret = 0;
+        }
+    } /* END test bad args ENC  */
+
+    /* Test bad args DEC */
+    if (ret == 0) {
+        ret = wc_IdeaCbcDecrypt(NULL, msg_dec, msg_enc,
+                                    (word32)XSTRLEN(message) + 1);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_IdeaCbcDecrypt(&idea, NULL, msg_enc,
+                                    (word32)XSTRLEN(message) + 1);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_IdeaCbcDecrypt(&idea, msg_dec, NULL,
+                                    (word32)XSTRLEN(message) + 1);
+        }
+        if (ret != BAD_FUNC_ARG) {
+            ret = SSL_FATAL_ERROR;
+        } else {
+            ret = 0;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_IdeaCbcEncryptDecrypt */
+
 
 /*
  * Test function for wc_HmacSetKey
@@ -6346,6 +6574,10 @@ void ApiTest(void)
     AssertIntEQ(test_wc_Des3_SetKey(), 0);
     AssertIntEQ(test_wc_Des3_CbcEncryptDecrypt(), 0);
     AssertIntEQ(test_wc_Des3_CbcEncryptDecryptWithKey(), 0);
+    AssertIntEQ(test_wc_IdeaSetKey(), 0);
+    AssertIntEQ(test_wc_IdeaSetIV(), 0);
+    AssertIntEQ(test_wc_IdeaCipher(), 0);
+    AssertIntEQ(test_wc_IdeaCbcEncyptDecrypt(), 0);
     printf(" End API Tests\n");
 
 }

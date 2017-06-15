@@ -5227,8 +5227,8 @@ int idea_test(void)
         }
 
         /* Data encryption */
-        wc_IdeaCipher(&idea, data, v1_plain[i]);
-        if (XMEMCMP(&v1_cipher[i], data, IDEA_BLOCK_SIZE)) {
+        ret = wc_IdeaCipher(&idea, data, v1_plain[i]);
+        if (ret != 0 || XMEMCMP(&v1_cipher[i], data, IDEA_BLOCK_SIZE)) {
             printf("Bad encryption\n");
             return -4801;
         }
@@ -5243,8 +5243,8 @@ int idea_test(void)
         }
 
         /* Data decryption */
-        wc_IdeaCipher(&idea, data, data);
-        if (XMEMCMP(v1_plain[i], data, IDEA_BLOCK_SIZE)) {
+        ret = wc_IdeaCipher(&idea, data, data);
+        if (ret != 0 || XMEMCMP(v1_plain[i], data, IDEA_BLOCK_SIZE)) {
             printf("Bad decryption\n");
             return -4803;
         }
@@ -5302,7 +5302,10 @@ int idea_test(void)
         /* 100 times data encryption */
         XMEMCPY(data, v1_plain[i], IDEA_BLOCK_SIZE);
         for (j = 0; j < 100; j++) {
-            wc_IdeaCipher(&idea, data, data);
+            ret = wc_IdeaCipher(&idea, data, data);
+            if (ret != 0) {
+                return -4821;
+            }
         }
 
         if (XMEMCMP(v1_cipher_100[i], data, IDEA_BLOCK_SIZE)) {
@@ -5313,7 +5316,10 @@ int idea_test(void)
         /* 1000 times data encryption */
         XMEMCPY(data, v1_plain[i], IDEA_BLOCK_SIZE);
         for (j = 0; j < 1000; j++) {
-            wc_IdeaCipher(&idea, data, data);
+            ret = wc_IdeaCipher(&idea, data, data);
+            if (ret != 0) {
+                return -4822;
+            }
         }
 
         if (XMEMCMP(v1_cipher_1000[i], data, IDEA_BLOCK_SIZE)) {
