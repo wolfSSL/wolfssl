@@ -2013,7 +2013,7 @@ static INLINE int myRsaPssSign(WOLFSSL* ssl, const byte* in, word32 inSz,
         byte* out, word32* outSz, int hash, int mgf, const byte* key,
         word32 keySz, void* ctx)
 {
-    enum wc_HashType hashType;
+    enum wc_HashType hashType = WC_HASH_TYPE_NONE;
     WC_RNG           rng;
     int              ret;
     word32           idx = 0;
@@ -2066,7 +2066,7 @@ static INLINE int myRsaPssSign(WOLFSSL* ssl, const byte* in, word32 inSz,
 static INLINE int myRsaPssVerify(WOLFSSL* ssl, byte* sig, word32 sigSz,
         byte** out, int hash, int mgf, const byte* key, word32 keySz, void* ctx)
 {
-    enum wc_HashType hashType;
+    enum wc_HashType hashType = WC_HASH_TYPE_NONE;
     int              ret;
     word32           idx = 0;
     RsaKey           myKey;
