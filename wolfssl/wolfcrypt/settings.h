@@ -1574,6 +1574,12 @@ extern void uITRON4_free(void *p) ;
     #define SSL_CTRL_SET_TLSEXT_HOSTNAME
 #endif
 
+/* both CURVE and ED small math should be enabled */
+#ifdef CURVED25519_SMALL
+    #define CURVE25519_SMALL
+    #define ED25519_SMALL
+#endif
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif

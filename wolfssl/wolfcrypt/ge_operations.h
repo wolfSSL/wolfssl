@@ -29,7 +29,7 @@
 
 #ifdef HAVE_ED25519
 
-#ifndef CURVED25519_SMALL
+#ifndef ED25519_SMALL
     #include <stdint.h>
 #endif
 #include <wolfssl/wolfcrypt/fe_operations.h>
@@ -48,19 +48,27 @@ Representations:
   ge_precomp (Duif): (y+x,y-x,2dxy)
 */
 
+#ifdef ED25519_SMALL
+  typedef byte     ge[F25519_SIZE];
+#elif defined(HAVE___UINT128_T)
+  typedef int64_t  ge[5];
+#else
+  typedef int32_t  ge[10];
+#endif
 
 typedef struct {
-  fe X;
-  fe Y;
-  fe Z;
+  ge X;
+  ge Y;
+  ge Z;
 } ge_p2;
 
 typedef struct {
-  fe X;
-  fe Y;
-  fe Z;
-  fe T;
+  ge X;
+  ge Y;
+  ge Z;
+  ge T;
 } ge_p3;
+
 
 WOLFSSL_LOCAL int  ge_compress_key(byte* out, const byte* xIn, const byte* yIn,
                                                                 word32 keySz);
@@ -75,25 +83,26 @@ WOLFSSL_LOCAL void sc_muladd(byte* s, const byte* a, const byte* b,
 WOLFSSL_LOCAL void ge_tobytes(unsigned char *,const ge_p2 *);
 WOLFSSL_LOCAL void ge_p3_tobytes(unsigned char *,const ge_p3 *);
 
-#ifndef CURVED25519_SMALL
+
+#ifndef ED25519_SMALL
 typedef struct {
-  fe X;
-  fe Y;
-  fe Z;
-  fe T;
+  ge X;
+  ge Y;
+  ge Z;
+  ge T;
 } ge_p1p1;
 
 typedef struct {
-  fe yplusx;
-  fe yminusx;
-  fe xy2d;
+  ge yplusx;
+  ge yminusx;
+  ge xy2d;
 } ge_precomp;
 
 typedef struct {
-  fe YplusX;
-  fe YminusX;
-  fe Z;
-  fe T2d;
+  ge YplusX;
+  ge YminusX;
+  ge Z;
+  ge T2d;
 } ge_cached;
 
 WOLFSSL_LOCAL void ge_p2_0(ge_p2 *);
@@ -110,7 +119,9 @@ WOLFSSL_LOCAL void ge_madd(ge_p1p1 *,const ge_p3 *,const ge_precomp *);
 WOLFSSL_LOCAL void ge_msub(ge_p1p1 *,const ge_p3 *,const ge_precomp *);
 WOLFSSL_LOCAL void ge_add(ge_p1p1 *,const ge_p3 *,const ge_cached *);
 WOLFSSL_LOCAL void ge_sub(ge_p1p1 *,const ge_p3 *,const ge_cached *);
-#endif /* no CURVED25519_SMALL */
-#endif /* HAVE_ED25519 */
-#endif /* WOLF_CRYPT_GE_OPERATIONS_H */
 
+#endif /* !ED25519_SMALL */
+
+#endif /* HAVE_ED25519 */
+
+#endif /* WOLF_CRYPT_GE_OPERATIONS_H */

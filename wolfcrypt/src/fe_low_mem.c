@@ -28,8 +28,8 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(CURVED25519_SMALL) /* use slower code that takes less memory */
-#if defined(HAVE_ED25519) || defined(HAVE_CURVE25519)
+#if defined(HAVE_CURVE25519) || defined(HAVE_ED25519)
+#if defined(CURVE25519_SMALL) || defined(ED25519_SMALL) /* use slower code that takes less memory */
 
 #include <wolfssl/wolfcrypt/fe_operations.h>
 
@@ -49,7 +49,7 @@ void fprime_copy(byte *x, const byte *a)
 }
 
 
-void fe_copy(fe x, const fe a)
+void lm_copy(byte* x, const byte* a)
 {
     int i;
     for (i = 0; i < F25519_SIZE; i++)
@@ -57,6 +57,7 @@ void fe_copy(fe x, const fe a)
 }
 
 
+#ifdef CURVE25519_SMALL
 /* Double an X-coordinate */
 static void xc_double(byte *x3, byte *z3,
 		      const byte *x1, const byte *z1)
@@ -77,12 +78,12 @@ static void xc_double(byte *x3, byte *z3,
 	fe_mul__distinct(z1sq, z1, z1);
 	fe_mul__distinct(x1z1, x1, z1);
 
-	fe_sub(a, x1sq, z1sq);
+	lm_sub(a, x1sq, z1sq);
 	fe_mul__distinct(x3, a, a);
 
 	fe_mul_c(a, x1z1, 486662);
-	fe_add(a, x1sq, a);
-	fe_add(a, z1sq, a);
+	lm_add(a, x1sq, a);
+	lm_add(a, z1sq, a);
 	fe_mul__distinct(x1sq, x1z1, a);
 	fe_mul_c(z3, x1sq, 4);
 }
@@ -113,19 +114,19 @@ static void xc_diffadd(byte *x5, byte *z5,
 	byte a[F25519_SIZE];
 	byte b[F25519_SIZE];
 
-	fe_add(a, x2, z2);
-	fe_sub(b, x3, z3); /* D */
+	lm_add(a, x2, z2);
+	lm_sub(b, x3, z3); /* D */
 	fe_mul__distinct(da, a, b);
 
-	fe_sub(b, x2, z2);
-	fe_add(a, x3, z3); /* C */
+	lm_sub(b, x2, z2);
+	lm_add(a, x3, z3); /* C */
 	fe_mul__distinct(cb, a, b);
 
-	fe_add(a, da, cb);
+	lm_add(a, da, cb);
 	fe_mul__distinct(b, a, a);
 	fe_mul__distinct(x5, z1, b);
 
-	fe_sub(a, da, cb);
+	lm_sub(a, da, cb);
 	fe_mul__distinct(b, a, a);
 	fe_mul__distinct(z5, x1, b);
 }
@@ -144,7 +145,7 @@ int curve25519(byte *result, byte *e, byte *q)
 	int i;
 
 	/* Note: bit 254 is assumed to be 1 */
-	fe_copy(xm, q);
+	lm_copy(xm, q);
 
 	for (i = 253; i >= 0; i--) {
 		const int bit = (e[i >> 3] >> (i & 7)) & 1;
@@ -175,6 +176,8 @@ int curve25519(byte *result, byte *e, byte *q)
     return 0;
 }
 #endif /* !FREESCALE_LTC_ECC */
+#endif /* CURVE25519_SMALL */
+
 
 static void raw_add(byte *x, const byte *p)
 {
@@ -346,7 +349,7 @@ void fe_select(byte *dst,
 }
 
 
-void fe_add(fe r, const fe a, const fe b)
+void lm_add(byte* r, const byte* a, const byte* b)
 {
 	word16 c = 0;
 	int i;
@@ -370,7 +373,7 @@ void fe_add(fe r, const fe a, const fe b)
 }
 
 
-void fe_sub(fe r, const fe a, const fe b)
+void lm_sub(byte* r, const byte* a, const byte* b)
 {
 	word32 c = 0;
 	int i;
@@ -395,7 +398,7 @@ void fe_sub(fe r, const fe a, const fe b)
 }
 
 
-void fe_neg(fe r, const fe a)
+void lm_neg(byte* r, const byte* a)
 {
 	word32 c = 0;
 	int i;
@@ -450,12 +453,12 @@ void fe_mul__distinct(byte *r, const byte *a, const byte *b)
 }
 
 
-void fe_mul(fe r, const fe a, const fe b)
+void lm_mul(byte *r, const byte* a, const byte *b)
 {
 	byte tmp[F25519_SIZE];
 
 	fe_mul__distinct(tmp, a, b);
-	fe_copy(r, tmp);
+	lm_copy(r, tmp);
 }
 
 
@@ -533,12 +536,12 @@ void fe_inv__distinct(byte *r, const byte *x)
 }
 
 
-void fe_invert(fe r, const fe x)
+void lm_invert(byte *r, const byte *x)
 {
 	byte tmp[F25519_SIZE];
 
 	fe_inv__distinct(tmp, x);
-	fe_copy(r, tmp);
+	lm_copy(r, tmp);
 }
 
 
@@ -588,12 +591,12 @@ void fe_sqrt(byte *r, const byte *a)
 	fe_mul__distinct(y, v, v);
 	fe_mul__distinct(i, x, y);
 	fe_load(y, 1);
-	fe_sub(i, i, y);
+	lm_sub(i, i, y);
 
 	/* r = avi */
 	fe_mul__distinct(x, v, a);
 	fe_mul__distinct(r, x, i);
 }
 
-#endif /* HAVE_CURVE25519 or HAVE_ED25519 */
-#endif /* CURVED25519_SMALL */
+#endif /* CURVE25519_SMALL || ED25519_SMALL */
+#endif /* HAVE_CURVE25519 || HAVE_ED25519 */
