@@ -1729,7 +1729,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 
 #ifdef HAVE_CRL
-    if (disableCRL == 0) {
+    if (disableCRL == 0 && !useVerifyCb) {
     #ifdef HAVE_IO_TIMEOUT
         wolfIO_SetTimeout(DEFAULT_TIMEOUT_SEC);
     #endif

@@ -318,7 +318,8 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
         RevokedCert* rc = crle->certs;
 
         while (rc) {
-            if (XMEMCMP(rc->serialNumber, cert->serial, rc->serialSz) == 0) {
+            if (rc->serialSz == cert->serialSz &&
+                   XMEMCMP(rc->serialNumber, cert->serial, rc->serialSz) == 0) {
                 WOLFSSL_MSG("Cert revoked");
                 ret = CRL_CERT_REVOKED;
                 break;
