@@ -13523,7 +13523,14 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
        malloc buffer, call responsible for freeing                     */
     char* wolfSSL_X509_NAME_oneline(WOLFSSL_X509_NAME* name, char* in, int sz)
     {
-        int copySz = min(sz, name->sz);
+        int copySz;
+
+        if (name == NULL) {
+            WOLFSSL_MSG("WOLFSSL_X509_NAME pointer was NULL");
+            return NULL;
+        }
+
+        copySz = min(sz, name->sz);
 
         WOLFSSL_ENTER("wolfSSL_X509_NAME_oneline");
         if (!name->sz) return in;
@@ -13539,7 +13546,7 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
         #endif
         }
 
-        if (copySz == 0)
+        if (copySz <= 0)
             return in;
 
         XMEMCPY(in, name->name, copySz - 1);
