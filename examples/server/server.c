@@ -681,7 +681,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
     /* Can only use DTLS over UDP or SCTP, can't do both. */
     if (dtlsUDP && dtlsSCTP) {
-        err_sys_ex(runWithErrors, "Cannot use DTLS with both UDP and SCTP."); /* Kincade */
+        err_sys_ex(runWithErrors, "Cannot use DTLS with both UDP and SCTP.");
     }
 
     /* sort out DTLS versus TLS versions */
