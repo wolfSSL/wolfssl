@@ -14933,6 +14933,7 @@ static void test_wolfSSL_PEM_read_bio(void)
     int  bytes;
     X509* x509;
     BIO*  bio = NULL;
+    BUF_MEM* buf;
 
     printf(testingFmt, "wolfSSL_PEM_read_bio()");
 
@@ -14944,8 +14945,10 @@ static void test_wolfSSL_PEM_read_bio(void)
     AssertNotNull(bio = BIO_new_mem_buf((void*)buff, bytes));
     AssertNotNull(x509 = PEM_read_bio_X509_AUX(bio, NULL, NULL, NULL));
     AssertIntEQ((int)BIO_set_fd(bio, 0, BIO_NOCLOSE), 1);
+    AssertIntEQ(SSL_SUCCESS, BIO_get_mem_ptr(bio, &buf));
 
     BIO_free(bio);
+    BUF_MEM_free(buf);
     X509_free(x509);
 
     printf(resultFmt, passed);

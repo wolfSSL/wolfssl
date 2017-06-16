@@ -12198,7 +12198,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             XMEMSET(bio, 0, sizeof(WOLFSSL_BIO));
             bio->type   = method->type;
             bio->close  = BIO_CLOSE; /* default to close things */
-            if (method->type != WOLFSSL_BIO_FILE) {
+            if (method->type != WOLFSSL_BIO_FILE &&
+                    method->type != WOLFSSL_BIO_SOCKET) {
                 bio->mem_buf =(WOLFSSL_BUF_MEM*)XMALLOC(sizeof(WOLFSSL_BUF_MEM),
                                                        0, DYNAMIC_TYPE_OPENSSL);
                 if (bio->mem_buf == NULL) {
@@ -12239,7 +12240,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         bio->memLen = bio->wrSz = len;
         bio->mem    = (byte*)XMALLOC(len, 0, DYNAMIC_TYPE_OPENSSL);
         if (bio->mem == NULL) {
-            XFREE(bio, 0, DYNAMIC_TYPE_OPENSSL);
+            wolfSSL_BIO_free(bio);
             return NULL;
         }
         if (bio->mem_buf != NULL) {
@@ -21136,6 +21137,9 @@ int wolfSSL_RAND_egd(const char* nm)
 #endif
 
     if (nm == NULL) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         return SSL_FATAL_ERROR;
     }
 
