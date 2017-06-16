@@ -76,6 +76,13 @@
     #include <wolfssl/wolfcrypt/hmac.h>
 #endif
 
+#ifdef HAVE_CHACHA
+    #include <wolfssl/wolfcrypt/chacha.h>
+#endif
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
+#endif
+
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/ssl.h>
     #include <wolfssl/openssl/pkcs12.h>
@@ -5293,6 +5300,277 @@ static int test_wc_Des3_CbcEncryptDecryptWithKey (void)
 } /* END test_wc_Des3_CbcEncryptDecryptWithKey */
 
 
+/*
+ * Testing wc_Chacha_SetKey() and wc_Chacha_SetIV()
+ */
+static int test_wc_Chacha_SetKey (void)
+{
+#ifdef HAVE_CHACHA
+    ChaCha      ctx;
+    const byte  key[] =
+    {
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01
+    };
+    byte        cipher[128];
+    int         ret;
+
+    printf(testingFmt, "wc_Chacha_SetKey()");
+
+    ret = wc_Chacha_SetKey(&ctx, key, (word32)(sizeof(key)/sizeof(byte)));
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_Chacha_SetKey(NULL, key, (word32)(sizeof(key)/sizeof(byte)));
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Chacha_SetKey(&ctx, key, 18);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    printf(testingFmt, "wc_Chacha_SetIV");
+    ret = wc_Chacha_SetIV(&ctx, cipher, 0);
+    if (ret == 0) {
+    /* Test bad args. */
+        ret = wc_Chacha_SetIV(NULL, cipher, 0);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FAILURE;
+        }
+    }
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_Chacha_SetKey */
+
+/*
+ * Testing wc_Chacha_Process()
+ */
+static int test_wc_Chacha_Process (void)
+{
+#ifdef HAVE_CHACHA
+    ChaCha      enc, dec;
+    byte        cipher[128];
+    byte        plain[128];
+    int         ret;
+    const byte  key[] =
+    {
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01
+    };
+    const char* input = "Everybody gets Friday off.";
+    word32      keySz = sizeof(key)/sizeof(byte);
+    unsigned long int inlen = XSTRLEN(input);
+
+    /*Initialize stack varialbes.*/
+    XMEMSET(cipher, 0, 128);
+    XMEMSET(plain, 0, 128);
+
+    printf(testingFmt, "wc_Chacha_Process()");
+
+    ret = wc_Chacha_SetKey(&enc, key, keySz);
+    if (ret == 0) {
+        ret = wc_Chacha_SetKey(&dec, key, keySz);
+        if (ret == 0) {
+            ret = wc_Chacha_SetIV(&enc, cipher, 0);
+        }
+        if (ret == 0) {
+            ret = wc_Chacha_SetIV(&dec, cipher, 0);
+        }
+    }
+    if (ret == 0) {
+        ret = wc_Chacha_Process(&enc, cipher, (byte*)input, (word32)inlen);
+        if (ret == 0) {
+            ret = wc_Chacha_Process(&dec, plain, cipher, (word32)inlen);
+            if (ret == 0) {
+                ret = XMEMCMP(input, plain, (int)inlen);
+            }
+        }
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_Chacha_Process(NULL, cipher, (byte*)input, (word32)inlen);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_Chacha_Process */
+
+/*
+ * Testing wc_ChaCha20Poly1305_Encrypt() and wc_ChaCha20Poly1305_Decrypt()
+ */
+static int test_wc_ChaCha20Poly1305_aead (void)
+{
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    const byte  key[] = {
+        0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87,
+        0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f,
+        0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97,
+        0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e, 0x9f
+    };
+
+    const byte  plaintext[] = {
+        0x4c, 0x61, 0x64, 0x69, 0x65, 0x73, 0x20, 0x61,
+        0x6e, 0x64, 0x20, 0x47, 0x65, 0x6e, 0x74, 0x6c,
+        0x65, 0x6d, 0x65, 0x6e, 0x20, 0x6f, 0x66, 0x20,
+        0x74, 0x68, 0x65, 0x20, 0x63, 0x6c, 0x61, 0x73,
+        0x73, 0x20, 0x6f, 0x66, 0x20, 0x27, 0x39, 0x39,
+        0x3a, 0x20, 0x49, 0x66, 0x20, 0x49, 0x20, 0x63,
+        0x6f, 0x75, 0x6c, 0x64, 0x20, 0x6f, 0x66, 0x66,
+        0x65, 0x72, 0x20, 0x79, 0x6f, 0x75, 0x20, 0x6f,
+        0x6e, 0x6c, 0x79, 0x20, 0x6f, 0x6e, 0x65, 0x20,
+        0x74, 0x69, 0x70, 0x20, 0x66, 0x6f, 0x72, 0x20,
+        0x74, 0x68, 0x65, 0x20, 0x66, 0x75, 0x74, 0x75,
+        0x72, 0x65, 0x2c, 0x20, 0x73, 0x75, 0x6e, 0x73,
+        0x63, 0x72, 0x65, 0x65, 0x6e, 0x20, 0x77, 0x6f,
+        0x75, 0x6c, 0x64, 0x20, 0x62, 0x65, 0x20, 0x69,
+        0x74, 0x2e
+    };
+
+    const byte  iv[] = {
+        0x07, 0x00, 0x00, 0x00, 0x40, 0x41, 0x42, 0x43,
+        0x44, 0x45, 0x46, 0x47
+    };
+
+    const byte  aad[] = { /* additional data */
+        0x50, 0x51, 0x52, 0x53, 0xc0, 0xc1, 0xc2, 0xc3,
+        0xc4, 0xc5, 0xc6, 0xc7
+    };
+    const byte  cipher[] = { /* expected output from operation */
+        0xd3, 0x1a, 0x8d, 0x34, 0x64, 0x8e, 0x60, 0xdb,
+        0x7b, 0x86, 0xaf, 0xbc, 0x53, 0xef, 0x7e, 0xc2,
+        0xa4, 0xad, 0xed, 0x51, 0x29, 0x6e, 0x08, 0xfe,
+        0xa9, 0xe2, 0xb5, 0xa7, 0x36, 0xee, 0x62, 0xd6,
+        0x3d, 0xbe, 0xa4, 0x5e, 0x8c, 0xa9, 0x67, 0x12,
+        0x82, 0xfa, 0xfb, 0x69, 0xda, 0x92, 0x72, 0x8b,
+        0x1a, 0x71, 0xde, 0x0a, 0x9e, 0x06, 0x0b, 0x29,
+        0x05, 0xd6, 0xa5, 0xb6, 0x7e, 0xcd, 0x3b, 0x36,
+        0x92, 0xdd, 0xbd, 0x7f, 0x2d, 0x77, 0x8b, 0x8c,
+        0x98, 0x03, 0xae, 0xe3, 0x28, 0x09, 0x1b, 0x58,
+        0xfa, 0xb3, 0x24, 0xe4, 0xfa, 0xd6, 0x75, 0x94,
+        0x55, 0x85, 0x80, 0x8b, 0x48, 0x31, 0xd7, 0xbc,
+        0x3f, 0xf4, 0xde, 0xf0, 0x8e, 0x4b, 0x7a, 0x9d,
+        0xe5, 0x76, 0xd2, 0x65, 0x86, 0xce, 0xc6, 0x4b,
+        0x61, 0x16
+    };
+    const byte  authTag[] = { /* expected output from operation */
+        0x1a, 0xe1, 0x0b, 0x59, 0x4f, 0x09, 0xe2, 0x6a,
+        0x7e, 0x90, 0x2e, 0xcb, 0xd0, 0x60, 0x06, 0x91
+    };
+    byte        generatedCiphertext[272];
+    byte        generatedPlaintext[272];
+    byte        generatedAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
+    int         ret;
+
+    /* Initialize stack variables. */
+    XMEMSET(generatedCiphertext, 0, 272);
+    XMEMSET(generatedPlaintext, 0, 272);
+
+    /* Test Encrypt */
+    printf(testingFmt, "wc_ChaCha20Poly1305_Encrypt()");
+
+    ret = wc_ChaCha20Poly1305_Encrypt(key, iv, aad, sizeof(aad), plaintext,
+                sizeof(plaintext), generatedCiphertext, generatedAuthTag);
+    if (ret == 0) {
+        ret = XMEMCMP(generatedCiphertext, cipher, sizeof(cipher)/sizeof(byte));
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_ChaCha20Poly1305_Encrypt(NULL, iv, aad, sizeof(aad), plaintext,
+                    sizeof(plaintext), generatedCiphertext, generatedAuthTag);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ChaCha20Poly1305_Encrypt(key, NULL, aad, sizeof(aad),
+                                        plaintext, sizeof(plaintext),
+                                        generatedCiphertext, generatedAuthTag);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ChaCha20Poly1305_Encrypt(key, iv, aad, sizeof(aad), NULL,
+                    sizeof(plaintext), generatedCiphertext, generatedAuthTag);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ChaCha20Poly1305_Encrypt(key, iv, aad, sizeof(aad),
+                    plaintext, 0, generatedCiphertext, generatedAuthTag);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ChaCha20Poly1305_Encrypt(key, iv, aad, sizeof(aad),
+                    plaintext, sizeof(plaintext), NULL, generatedAuthTag);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ChaCha20Poly1305_Encrypt(key, iv, aad, sizeof(aad),
+                    plaintext, sizeof(plaintext), generatedCiphertext, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    printf(testingFmt, "wc_ChaCha20Poly1305_Decrypt()");
+    ret = wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad), cipher,
+                            sizeof(cipher), authTag, generatedPlaintext);
+    if (ret == 0) {
+        ret = XMEMCMP(generatedPlaintext, plaintext,
+                                        sizeof(plaintext)/sizeof(byte));
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_ChaCha20Poly1305_Decrypt(NULL, iv, aad, sizeof(aad), cipher,
+                                sizeof(cipher), authTag, generatedPlaintext);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ChaCha20Poly1305_Decrypt(key, NULL, aad, sizeof(aad),
+                        cipher, sizeof(cipher), authTag, generatedPlaintext);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad), NULL,
+                                sizeof(cipher), authTag, generatedPlaintext);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad), cipher,
+                                    sizeof(cipher), NULL, generatedPlaintext);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad), cipher,
+                                                sizeof(cipher), authTag, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad), cipher,
+                                                0, authTag, generatedPlaintext);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test-wc_ChaCha20Poly1305_EncryptDecrypt */
+
+
+
 /*----------------------------------------------------------------------------*
  | Compatibility Tests
  *----------------------------------------------------------------------------*/
@@ -6578,6 +6856,9 @@ void ApiTest(void)
     AssertIntEQ(test_wc_IdeaSetIV(), 0);
     AssertIntEQ(test_wc_IdeaCipher(), 0);
     AssertIntEQ(test_wc_IdeaCbcEncyptDecrypt(), 0);
+    AssertIntEQ(test_wc_Chacha_SetKey(), 0);
+    AssertIntEQ(test_wc_Chacha_Process(), 0);
+    AssertIntEQ(test_wc_ChaCha20Poly1305_aead(), 0);
     printf(" End API Tests\n");
 
 }
