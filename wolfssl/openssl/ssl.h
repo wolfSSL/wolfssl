@@ -434,6 +434,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 #define SSL_CTX_set_session_id_context wolfSSL_CTX_set_session_id_context
 #define SSL_get_peer_certificate wolfSSL_get_peer_certificate
+#define SSL_get_peer_cert_chain  wolfSSL_get_peer_cert_chain
 
 #define SSL_want_read wolfSSL_want_read
 #define SSL_want_write wolfSSL_want_write
@@ -656,7 +657,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define SSL_version                      wolfSSL_version
 #define SSL_get_state                    wolfSSL_get_state
 #define SSL_state_string_long            wolfSSL_state_string_long
-#define SSL_get_peer_cert_chain          wolfSSL_get_peer_cert_chain
+
 #define sk_X509_NAME_value               wolfSSL_sk_X509_NAME_value
 #define sk_X509_value                    wolfSSL_sk_X509_value
 #define SSL_SESSION_get_ex_data          wolfSSL_SESSION_get_ex_data
