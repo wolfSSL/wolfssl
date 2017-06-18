@@ -5220,8 +5220,16 @@ int wolfSSL_CertManagerEnableOCSPStapling(WOLFSSL_CERT_MANAGER* cm)
 
     return ret;
 }
-
-
+#if defined(SESSION_CERTS)
+STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_get_peer_cert_chain");
+    if ((ssl == NULL) || (ssl->session.chain.count == 0))
+        return NULL;
+    else
+        return (STACK_OF(WOLFSSL_X509)* )&ssl->session.chain;
+}
+#endif
 #ifdef HAVE_OCSP
 
 
@@ -23394,15 +23402,6 @@ int wolfSSL_version(WOLFSSL* ssl)
     return SSL_FAILURE;
 }
 
-STACK_OF(WOLFSSL_X509)* wolfSSL_get_peer_cert_chain(const WOLFSSL* ssl)
-{
-    WOLFSSL_ENTER("wolfSSL_get_peer_cert_chain");
-    if (ssl == NULL)
-        return NULL;
-    else
-        return (STACK_OF(WOLFSSL_X509)* )&ssl->session.chain;
-}
-
 WOLFSSL_CTX* wolfSSL_get_SSL_CTX(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_get_SSL_CTX");
@@ -24752,20 +24751,20 @@ int wolfSSL_set_msg_callback(WOLFSSL *ssl, SSL_Msg_Cb cb)
 }
 
 #ifndef NO_WOLFSSL_STUB
-int wolfSSL_CTX_set_msg_callback_arg(WOLFSSL_CTX *ctx, void* arg)
+void wolfSSL_CTX_set_msg_callback_arg(WOLFSSL_CTX *ctx, void* arg)
 {
     WOLFSSL_STUB("SSL_CTX_set_msg_callback_arg");
     (void)ctx;
     (void)arg;
-    return SSL_FAILURE;
+    return;
 }
 #endif
 
-int wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg)
+void wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg)
 {
     WOLFSSL_ENTER("wolfSSL_set_msg_callback_arg");
     ssl->protoMsgCtx = arg;
-    return SSL_SUCCESS;
+    return;
 }
 
 void *wolfSSL_OPENSSL_memdup(const void *data, size_t siz, const char* file, int line)

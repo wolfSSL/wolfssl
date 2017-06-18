@@ -45,6 +45,8 @@
 #include <wolfssl/ssl.h>  /* compatibility layer */
 #include <wolfssl/test.h>
 #include <tests/unit.h>
+#include "examples/server/server.h"
+     /* for testing compatibility layer callbacks */
 
 #ifndef NO_MD5
     #include <wolfssl/wolfcrypt/md5.h>
@@ -4327,9 +4329,10 @@ static void test_wolfSSL_BN(void)
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_ASN) */
 }
 
+#define TEST_ARG 0x1234
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
-#define TEST_ARG 0x1234
+
 static void msg_cb(int write_p, int version, int content_type, const void *buf, size_t len, SSL *ssl, void *arg)
 {
     (void)write_p;
@@ -4341,6 +4344,91 @@ static void msg_cb(int write_p, int version, int content_type, const void *buf, 
 		AssertTrue(arg == (void*)TEST_ARG);
 }
 #endif
+
+#if defined(OPENSSL_EXTRA)
+static int folk_testServer(THREAD_TYPE *serverThread, tcp_ready *ready)
+{
+	  static char **svr_argv ;
+#ifdef WOLFSSL_TIRTOS
+    func_args svrArgs = {0};
+    svrArgs.argc = 1;
+    svrArgs.argv = svr_argv;
+#else
+    func_args svrArgs = { 1, svr_argv, 0, NULL, NULL};
+#endif
+
+    InitTcpReady(ready);
+		/* start server */
+		svrArgs.signal = ready;
+		start_thread(server_test, &svrArgs, serverThread);
+		wait_tcp_ready(&svrArgs);
+		printf("Server folked\n");
+    return SSL_SUCCESS;
+}
+
+static int join_testServer(THREAD_TYPE *serverThread, tcp_ready *ready)
+{
+	  printf("Joining server\n");
+    join_thread(*serverThread);
+
+#ifdef WOLFSSL_TIRTOS
+    fdCloseSession(Task_self());
+#endif
+    FreeTcpReady(ready);
+
+    return SSL_SUCCESS;
+}
+#endif
+
+static void test_wolfSSL_msgCb(void){
+	  #if defined(OPENSSL_EXTRA)
+		SSL*     ssl;
+		SSL_CTX* ctx;
+    #if defined(SESSION_CERTS)
+		STACK_OF(WOLFSSL_X509)* chain;
+    #endif
+    THREAD_TYPE serverThread;
+    tcp_ready   ready;
+    SOCKET_T sockfd = WOLFSSL_SOCKET_INVALID;
+		const char testMsg[] = "Hello Server";
+		#define BUF_SIZE 100
+		char recvBuff[BUF_SIZE];
+
+		printf(testingFmt, "test_wolfSSL_Get_others()");
+
+		AssertNotNull(ctx = SSL_CTX_new(wolfTLSv1_2_client_method()));
+		AssertTrue(wolfSSL_CTX_load_verify_locations(ctx, caCertFile,0)
+		    == SSL_SUCCESS);
+		AssertTrue(wolfSSL_CTX_use_certificate_chain_file(ctx, cliCertFile)
+		    == SSL_SUCCESS);
+		AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, SSL_FILETYPE_PEM)
+		    == SSL_SUCCESS);
+
+    AssertTrue(folk_testServer(&serverThread, &ready) == SSL_SUCCESS);
+
+	  AssertNotNull(ssl = SSL_new(ctx));
+		AssertTrue(SSL_set_msg_callback(ssl, msg_cb) == SSL_SUCCESS);
+		SSL_set_msg_callback_arg(ssl, (void*)TEST_ARG);
+#if defined(SESSION_CERTS)
+		AssertNull(chain = SSL_get_peer_cert_chain(ssl));
+#endif
+		tcp_connect(&sockfd, wolfSSLIP, wolfSSLPort, 0, 0, ssl);
+		AssertTrue(wolfSSL_set_fd(ssl, sockfd) == SSL_SUCCESS);
+
+		AssertTrue(wolfSSL_connect(ssl) == SSL_SUCCESS);
+#if defined(SESSION_CERTS)
+		AssertTrue((chain = SSL_get_peer_cert_chain(ssl)) != NULL);
+#endif
+		AssertTrue(wolfSSL_write(ssl, testMsg, (int)strlen(testMsg)) ==
+                                                 (int)strlen(testMsg));
+		AssertTrue(wolfSSL_read(ssl, recvBuff, sizeof(recvBuff)) > 0);
+
+    AssertTrue(join_testServer (&serverThread, &ready) == SSL_SUCCESS);
+
+    printf(resultFmt, passed);
+
+		#endif
+}
 
 static void test_wolfSSL_set_options(void)
 {
@@ -4377,7 +4465,7 @@ static void test_wolfSSL_set_options(void)
                                SSL_OP_NO_COMPRESSION) == SSL_OP_NO_COMPRESSION);
 
 		AssertTrue(SSL_set_msg_callback(ssl, msg_cb) == SSL_SUCCESS);
-		AssertTrue(SSL_set_msg_callback_arg(ssl, arg) == SSL_SUCCESS);
+		SSL_set_msg_callback_arg(ssl, arg);
 
 		AssertTrue(SSL_CTX_set_alpn_protos(ctx, protos, len) == SSL_SUCCESS);
 
@@ -4996,6 +5084,9 @@ void ApiTest(void)
     test_wolfSSL_ctrl();
     test_wolfSSL_CTX_add_extra_chain_cert();
     test_wolfSSL_ERR_peek_last_error_line();
+    test_wolfSSL_set_options();
+    test_wolfSSL_X509_STORE_CTX();
+    test_wolfSSL_msgCb();
     test_wolfSSL_X509_STORE_set_flags();
     test_wolfSSL_X509_LOOKUP_load_file();
     test_wolfSSL_BN();
