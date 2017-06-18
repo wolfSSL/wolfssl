@@ -5272,6 +5272,11 @@ int SendBuffered(WOLFSSL* ssl)
             switch (sent) {
 
                 case WOLFSSL_CBIO_ERR_WANT_WRITE:        /* would block */
+                    ssl->buffers.outputBuffer.idx = 0;
+                    ssl->buffers.outputBuffer.length = 0;
+                    if (ssl->buffers.outputBuffer.dynamicFlag)
+                        ShrinkOutputBuffer(ssl);
+
                     return WANT_WRITE;
 
                 case WOLFSSL_CBIO_ERR_CONN_RST:          /* connection reset */
@@ -12251,10 +12256,13 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 
         if ( (ret = SendBuffered(ssl)) < 0) {
             WOLFSSL_ERROR(ret);
-            /* store for next call if WANT_WRITE or user embedSend() that
-               doesn't present like WANT_WRITE */
-            ssl->buffers.plainSz  = len;
-            ssl->buffers.prevSent = sent;
+            if (ret != WANT_WRITE) {
+                /* store for next call if WANT_WRITE or user embedSend() that
+                   doesn't present like WANT_WRITE */
+                ssl->buffers.plainSz  = len;
+                ssl->buffers.prevSent = sent;
+            }
+
             if (ret == SOCKET_ERROR_E && ssl->options.connReset)
                 return 0;  /* peer reset */
             return ssl->error = ret;
