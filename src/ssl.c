@@ -24788,7 +24788,8 @@ int wolfSSL_CTX_set_alpn_protos(WOLFSSL_CTX *ctx, const unsigned char *p,
 {
     if((void *)ctx->alpn_cli_protos != NULL)
         wolfSSL_OPENSSL_free((void *)ctx->alpn_cli_protos);
-    ctx->alpn_cli_protos = wolfSSL_OPENSSL_memdup(p, p_len, NULL, 0);
+    ctx->alpn_cli_protos =
+        (const unsigned char *)wolfSSL_OPENSSL_memdup(p, p_len, NULL, 0);
     if (ctx->alpn_cli_protos == NULL) {
         return SSL_FAILURE;
     }
