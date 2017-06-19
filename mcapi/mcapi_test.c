@@ -960,10 +960,9 @@ static int check_aesctr(void)
         printf("mcapi aes-128 ctr encrypt failed\n");
         return -1;
     }
-    wc_AesCtrEncrypt(&defAes, out2, ourData, AES_TEST_SIZE);
-
-    if (memcmp(out1, out2, AES_TEST_SIZE) != 0) {
-        printf("mcapi aes-128 ctr encrypt cmp failed\n");
+    ret = wc_AesCtrEncrypt(&defAes, out2, ourData, AES_TEST_SIZE);
+    if (memcmp(ret != 0) {
+        printf("mcapi aes-128 ctr encrypt set failed\n");
         return -1;
     }
 
@@ -1007,10 +1006,9 @@ static int check_aesctr(void)
         printf("mcapi aes-192 ctr encrypt failed\n");
         return -1;
     }
-    wc_AesCtrEncrypt(&defAes, out2, ourData, AES_TEST_SIZE);
-
-    if (memcmp(out1, out2, AES_TEST_SIZE) != 0) {
-        printf("mcapi aes-192 ctr encrypt cmp failed\n");
+    ret = wc_AesCtrEncrypt(&defAes, out2, ourData, AES_TEST_SIZE);
+    if (memcmp(ret != 0) {
+        printf("mcapi aes-192 ctr encrypt set failed\n");
         return -1;
     }
 
@@ -1054,10 +1052,9 @@ static int check_aesctr(void)
         printf("mcapi aes-256 ctr encrypt failed\n");
         return -1;
     }
-    wc_AesCtrEncrypt(&defAes, out2, ourData, AES_TEST_SIZE);
-
-    if (memcmp(out1, out2, AES_TEST_SIZE) != 0) {
-        printf("mcapi aes-256 ctr encrypt cmp failed\n");
+    ret = wc_AesCtrEncrypt(&defAes, out2, ourData, AES_TEST_SIZE);
+    if (ret != 0) {
+        printf("mcapi aes-256 ctr encrypt set failed\n");
         return -1;
     }
 

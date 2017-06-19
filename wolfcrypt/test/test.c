@@ -4138,9 +4138,14 @@ int aes_test(void)
         wc_AesSetKeyDirect(&dec, ctr128Key, sizeof(ctr128Key),
                            ctrIv, AES_ENCRYPTION);
 
-        wc_AesCtrEncrypt(&enc, cipher, ctrPlain, sizeof(ctrPlain));
-        wc_AesCtrEncrypt(&dec, plain, cipher, sizeof(ctrPlain));
-
+        ret = wc_AesCtrEncrypt(&enc, cipher, ctrPlain, sizeof(ctrPlain));
+        if (ret != 0) {
+            return -4227;
+        }
+        ret = wc_AesCtrEncrypt(&dec, plain, cipher, sizeof(ctrPlain));
+        if (ret != 0) {
+            return -4228;
+        }
         if (XMEMCMP(plain, ctrPlain, sizeof(ctrPlain)))
             return -4213;
 
@@ -4154,8 +4159,14 @@ int aes_test(void)
         wc_AesSetKeyDirect(&dec, ctr128Key, AES_BLOCK_SIZE,
                            ctrIv, AES_ENCRYPTION);
 
-        wc_AesCtrEncrypt(&enc, cipher, ctrPlain, sizeof(oddCipher));
-        wc_AesCtrEncrypt(&dec, plain, cipher, sizeof(oddCipher));
+        ret = wc_AesCtrEncrypt(&enc, cipher, ctrPlain, sizeof(oddCipher));
+        if (ret != 0) {
+            return -4229;
+        }
+        ret = wc_AesCtrEncrypt(&dec, plain, cipher, sizeof(oddCipher));
+        if (ret != 0) {
+            return -4230;
+        }
 
         if (XMEMCMP(plain, ctrPlain, sizeof(oddCipher)))
             return -4215;
@@ -4165,8 +4176,14 @@ int aes_test(void)
 
 #if !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO) /* test not supported on STM32 crypto HW */
         /* and an additional 9 bytes to reuse tmp left buffer */
-        wc_AesCtrEncrypt(&enc, cipher, ctrPlain, sizeof(oddCipher));
-        wc_AesCtrEncrypt(&dec, plain, cipher, sizeof(oddCipher));
+        ret = wc_AesCtrEncrypt(&enc, cipher, ctrPlain, sizeof(oddCipher));
+        if (ret != 0) {
+            return -4231;
+        }
+        ret = wc_AesCtrEncrypt(&dec, plain, cipher, sizeof(oddCipher));
+        if (ret != 0) {
+            return -4232;
+        }
 
         if (XMEMCMP(plain, ctrPlain, sizeof(oddCipher)))
             return -4217;
@@ -4183,12 +4200,18 @@ int aes_test(void)
                            ctrIv, AES_ENCRYPTION);
 
         XMEMSET(plain, 0, sizeof(plain));
-        wc_AesCtrEncrypt(&enc, plain, ctr192Cipher, sizeof(ctr192Cipher));
+        ret = wc_AesCtrEncrypt(&enc, plain, ctr192Cipher, sizeof(ctr192Cipher));
+        if (ret != 0) {
+            return -4233;
+        }
 
         if (XMEMCMP(plain, ctrPlain, sizeof(ctr192Cipher)))
             return -4219;
 
-        wc_AesCtrEncrypt(&dec, cipher, ctrPlain, sizeof(ctrPlain));
+        ret = wc_AesCtrEncrypt(&dec, cipher, ctrPlain, sizeof(ctrPlain));
+        if (ret != 0) {
+            return -4234;
+        }
         if (XMEMCMP(ctr192Cipher, cipher, sizeof(ctr192Cipher)))
             return -4220;
 
@@ -4200,12 +4223,18 @@ int aes_test(void)
                            ctrIv, AES_ENCRYPTION);
 
         XMEMSET(plain, 0, sizeof(plain));
-        wc_AesCtrEncrypt(&enc, plain, ctr256Cipher, sizeof(ctr256Cipher));
+        ret = wc_AesCtrEncrypt(&enc, plain, ctr256Cipher, sizeof(ctr256Cipher));
+        if (ret != 0) {
+            return -4235;
+        }
 
         if (XMEMCMP(plain, ctrPlain, sizeof(ctrPlain)))
             return -4221;
 
-        wc_AesCtrEncrypt(&dec, cipher, ctrPlain, sizeof(ctrPlain));
+        ret = wc_AesCtrEncrypt(&dec, cipher, ctrPlain, sizeof(ctrPlain));
+        if (ret != 0) {
+            return -4236;
+        }
         if (XMEMCMP(ctr256Cipher, cipher, sizeof(ctr256Cipher)))
             return -4222;
     }
