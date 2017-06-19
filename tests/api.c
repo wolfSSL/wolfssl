@@ -4379,8 +4379,6 @@ static void test_wolfSSL_msgCb(void)
     #endif
     callback_functions client_cb;
     callback_functions server_cb;
-    int         line = 0;
-    const char* file = NULL;
 
     printf(testingFmt, "test_wolfSSL_msgCb");
 
