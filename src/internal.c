@@ -10200,7 +10200,7 @@ static INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
 
     #ifdef HAVE_CAMELLIA
         case wolfssl_camellia:
-            wc_CamelliaCbcEncrypt(ssl->encrypt.cam, out, input, sz);
+            ret = wc_CamelliaCbcEncrypt(ssl->encrypt.cam, out, input, sz);
             break;
     #endif
 
@@ -10435,7 +10435,7 @@ static INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
 
     #ifdef HAVE_CAMELLIA
         case wolfssl_camellia:
-            wc_CamelliaCbcDecrypt(ssl->decrypt.cam, plain, input, sz);
+            ret = wc_CamelliaCbcDecrypt(ssl->decrypt.cam, plain, input, sz);
             break;
     #endif
 

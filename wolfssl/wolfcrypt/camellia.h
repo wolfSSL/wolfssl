@@ -78,13 +78,13 @@ typedef struct Camellia {
 WOLFSSL_API int  wc_CamelliaSetKey(Camellia* cam,
                                    const byte* key, word32 len, const byte* iv);
 WOLFSSL_API int  wc_CamelliaSetIV(Camellia* cam, const byte* iv);
-WOLFSSL_API void wc_CamelliaEncryptDirect(Camellia* cam, byte* out,
+WOLFSSL_API int  wc_CamelliaEncryptDirect(Camellia* cam, byte* out,
                                                                 const byte* in);
-WOLFSSL_API void wc_CamelliaDecryptDirect(Camellia* cam, byte* out,
+WOLFSSL_API int  wc_CamelliaDecryptDirect(Camellia* cam, byte* out,
                                                                 const byte* in);
-WOLFSSL_API void wc_CamelliaCbcEncrypt(Camellia* cam,
+WOLFSSL_API int wc_CamelliaCbcEncrypt(Camellia* cam,
                                           byte* out, const byte* in, word32 sz);
-WOLFSSL_API void wc_CamelliaCbcDecrypt(Camellia* cam,
+WOLFSSL_API int wc_CamelliaCbcDecrypt(Camellia* cam,
                                           byte* out, const byte* in, word32 sz);
 
 

@@ -5075,7 +5075,7 @@ int camellia_test(void)
 
     byte out[CAMELLIA_BLOCK_SIZE];
     Camellia cam;
-    int i, testsSz;
+    int i, testsSz, ret;
     const test_vector_t testVectors[] =
     {
         {CAM_ECB_ENC, pte, ive, c1, k1, sizeof(k1), -114},
@@ -5100,25 +5100,31 @@ int camellia_test(void)
 
         switch (testVectors[i].type) {
             case CAM_ECB_ENC:
-                wc_CamelliaEncryptDirect(&cam, out, testVectors[i].plaintext);
-                if (XMEMCMP(out, testVectors[i].ciphertext, CAMELLIA_BLOCK_SIZE))
+                ret = wc_CamelliaEncryptDirect(&cam, out,
+                                                testVectors[i].plaintext);
+                if (ret != 0 || XMEMCMP(out, testVectors[i].ciphertext,
+                                                        CAMELLIA_BLOCK_SIZE))
                     return testVectors[i].errorCode;
                 break;
             case CAM_ECB_DEC:
-                wc_CamelliaDecryptDirect(&cam, out, testVectors[i].ciphertext);
-                if (XMEMCMP(out, testVectors[i].plaintext, CAMELLIA_BLOCK_SIZE))
+                ret = wc_CamelliaDecryptDirect(&cam, out,
+                                                    testVectors[i].ciphertext);
+                if (ret != 0 || XMEMCMP(out, testVectors[i].plaintext,
+                                                        CAMELLIA_BLOCK_SIZE))
                     return testVectors[i].errorCode;
                 break;
             case CAM_CBC_ENC:
-                wc_CamelliaCbcEncrypt(&cam, out, testVectors[i].plaintext,
+                ret = wc_CamelliaCbcEncrypt(&cam, out, testVectors[i].plaintext,
                                                            CAMELLIA_BLOCK_SIZE);
-                if (XMEMCMP(out, testVectors[i].ciphertext, CAMELLIA_BLOCK_SIZE))
+                if (ret != 0 || XMEMCMP(out, testVectors[i].ciphertext,
+                                                        CAMELLIA_BLOCK_SIZE))
                     return testVectors[i].errorCode;
                 break;
             case CAM_CBC_DEC:
-                wc_CamelliaCbcDecrypt(&cam, out, testVectors[i].ciphertext,
+                ret = wc_CamelliaCbcDecrypt(&cam, out, testVectors[i].ciphertext,
                                                            CAMELLIA_BLOCK_SIZE);
-                if (XMEMCMP(out, testVectors[i].plaintext, CAMELLIA_BLOCK_SIZE))
+                if (ret != 0 || XMEMCMP(out, testVectors[i].plaintext,
+                                                            CAMELLIA_BLOCK_SIZE))
                     return testVectors[i].errorCode;
                 break;
             default:
@@ -5127,8 +5133,8 @@ int camellia_test(void)
     }
 
     /* Setting the IV and checking it was actually set. */
-    wc_CamelliaSetIV(&cam, ivc);
-    if (XMEMCMP(cam.reg, ivc, CAMELLIA_BLOCK_SIZE))
+    ret = wc_CamelliaSetIV(&cam, ivc);
+    if (ret != 0 || XMEMCMP(cam.reg, ivc, CAMELLIA_BLOCK_SIZE))
         return -4700;
 
     /* Setting the IV to NULL should be same as all zeros IV */
