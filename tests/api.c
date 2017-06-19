@@ -1058,7 +1058,9 @@ done:
 }
 #endif /* !NO_WOLFSSL_SERVER */
 
-static void test_client_nofail(void* args)
+typedef int (*cbType)(WOLFSSL_CTX *ctx, WOLFSSL *ssl);
+
+static void test_client_nofail(void* args, void *cb)
 {
     SOCKET_T sockfd = 0;
 
@@ -1139,6 +1141,8 @@ static void test_client_nofail(void* args)
         /*err_sys("SSL_connect failed");*/
         goto done2;
     }
+
+    if(cb != NULL)((cbType)cb)(ctx, ssl);
 
     if (wolfSSL_write(ssl, msg, msgSz) != msgSz)
     {
@@ -1467,7 +1471,7 @@ static void test_wolfSSL_read_write(void)
 
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
-    test_client_nofail(&client_args);
+    test_client_nofail(&client_args, NULL);
     join_thread(serverThread);
 
     AssertTrue(client_args.return_code);
@@ -9967,7 +9971,7 @@ static void test_wolfSSL_ERR_peek_last_error_line(void)
 #ifndef SINGLE_THREADED
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
-    test_client_nofail(&client_args);
+    test_client_nofail(&client_args, NULL);
     join_thread(serverThread);
 #endif
 
@@ -10347,11 +10351,11 @@ static void test_wolfSSL_BN(void)
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_ASN) */
 }
 
-#define TEST_ARG 0x1234
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
    !defined(NO_FILESYSTEM) && !defined(NO_RSA)
-
-static void msg_cb(int write_p, int version, int content_type, const void *buf, size_t len, SSL *ssl, void *arg)
+#define TEST_ARG 0x1234
+static void msg_cb(int write_p, int version, int content_type,
+                   const void *buf, size_t len, SSL *ssl, void *arg)
 {
     (void)write_p;
 		(void)version;
@@ -10363,85 +10367,75 @@ static void msg_cb(int write_p, int version, int content_type, const void *buf, 
 }
 #endif
 
-#if defined(OPENSSL_EXTRA)
-static int folk_testServer(THREAD_TYPE *serverThread, tcp_ready *ready)
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+   !defined(NO_FILESYSTEM) && defined(DEBUG_WOLFSSL) && \
+   !defined(NO_OLD_TLS) && defined(HAVE_IO_TESTS_DEPENDENCIES)
+#ifndef SINGLE_THREADED
+static int msgCb(SSL_CTX *ctx, SSL *ssl)
 {
-	  static char **svr_argv ;
-#ifdef WOLFSSL_TIRTOS
-    func_args svrArgs = {0};
-    svrArgs.argc = 1;
-    svrArgs.argv = svr_argv;
-#else
-    func_args svrArgs = { 1, svr_argv, 0, NULL, NULL};
-#endif
-
-    InitTcpReady(ready);
-		/* start server */
-		svrArgs.signal = ready;
-		start_thread(server_test, &svrArgs, serverThread);
-		wait_tcp_ready(&svrArgs);
-		printf("Server folked\n");
-    return SSL_SUCCESS;
-}
-
-static int join_testServer(THREAD_TYPE *serverThread, tcp_ready *ready)
-{
-	  printf("Joining server\n");
-    join_thread(*serverThread);
-
-#ifdef WOLFSSL_TIRTOS
-    fdCloseSession(Task_self());
-#endif
-    FreeTcpReady(ready);
-
-    return SSL_SUCCESS;
-}
-#endif
-
-static void test_wolfSSL_msgCb(void){
-	  #if defined(OPENSSL_EXTRA)
-		SSL*     ssl;
-		SSL_CTX* ctx;
+    (void) ctx;
+    (void) ssl;
+    printf("===== msgcb called ====\n");
     #if defined(SESSION_CERTS)
-		STACK_OF(WOLFSSL_X509)* chain;
+    AssertTrue(SSL_get_peer_cert_chain(ssl) != NULL);
     #endif
+    return SSL_SUCCESS;
+}
+#endif
+#endif
+
+static void test_wolfSSL_msgCb(void)
+{
+  #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+     !defined(NO_FILESYSTEM) && defined(DEBUG_WOLFSSL) && \
+     !defined(NO_OLD_TLS) && defined(HAVE_IO_TESTS_DEPENDENCIES)
+
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    #ifndef SINGLE_THREADED
     THREAD_TYPE serverThread;
-    tcp_ready   ready;
-    SOCKET_T sockfd = WOLFSSL_SOCKET_INVALID;
-		const char testMsg[] = "Hello Server";
-		#define BUF_SIZE 100
-		char recvBuff[BUF_SIZE];
+    #endif
+    callback_functions client_cb;
+    callback_functions server_cb;
+    int         line = 0;
+    const char* file = NULL;
 
-		printf(testingFmt, "test_wolfSSL_Get_others()");
+    printf(testingFmt, "test_wolfSSL_msgCb");
 
-		AssertNotNull(ctx = SSL_CTX_new(wolfTLSv1_2_client_method()));
-		AssertTrue(wolfSSL_CTX_load_verify_locations(ctx, caCertFile,0)
-		    == SSL_SUCCESS);
-		AssertTrue(wolfSSL_CTX_use_certificate_chain_file(ctx, cliCertFile)
-		    == SSL_SUCCESS);
-		AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, SSL_FILETYPE_PEM)
-		    == SSL_SUCCESS);
-
-    AssertTrue(folk_testServer(&serverThread, &ready) == SSL_SUCCESS);
-
-	  AssertNotNull(ssl = SSL_new(ctx));
-		AssertTrue(SSL_set_msg_callback(ssl, msg_cb) == SSL_SUCCESS);
-		SSL_set_msg_callback_arg(ssl, (void*)TEST_ARG);
-#if defined(SESSION_CERTS)
-		AssertNull(chain = SSL_get_peer_cert_chain(ssl));
+/* create a failed connection and inspect the error */
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
 #endif
-		tcp_connect(&sockfd, wolfSSLIP, wolfSSLPort, 0, 0, ssl);
-		AssertTrue(wolfSSL_set_fd(ssl, sockfd) == SSL_SUCCESS);
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&server_args, 0, sizeof(func_args));
 
-		AssertTrue(wolfSSL_connect(ssl) == SSL_SUCCESS);
-#if defined(SESSION_CERTS)
-		AssertTrue((chain = SSL_get_peer_cert_chain(ssl)) != NULL);
+    StartTCP();
+    InitTcpReady(&ready);
+
+    client_cb.method  = wolfTLSv1_1_client_method;
+    server_cb.method  = wolfTLSv1_2_server_method;
+
+    server_args.signal    = &ready;
+    server_args.callbacks = &server_cb;
+    client_args.signal    = &ready;
+    client_args.callbacks = &client_cb;
+    client_args.return_code = TEST_FAIL;
+
+    #ifndef SINGLE_THREADED
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    test_client_nofail(&client_args, (void *)msgCb);
+    join_thread(serverThread);
+    AssertTrue(client_args.return_code);
+    AssertTrue(server_args.return_code);
+    #endif
+
+    FreeTcpReady(&ready);
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
 #endif
-		AssertTrue(wolfSSL_write(ssl, testMsg, (int)strlen(testMsg)) ==
-                                                 (int)strlen(testMsg));
-		AssertTrue(wolfSSL_read(ssl, recvBuff, sizeof(recvBuff)) > 0);
-
-    AssertTrue(join_testServer (&serverThread, &ready) == SSL_SUCCESS);
 
     printf(resultFmt, passed);
 
@@ -10511,7 +10505,7 @@ static void test_wolfSSL_X509_STORE_CTX(void)
 
     printf(testingFmt, "test_wolfSSL_X509_STORE_CTX(()");
 		AssertNotNull(ctx = X509_STORE_CTX_new());
-		X509_STORE_CTX_set_verify_cb(ctx, verify_cb);
+		X509_STORE_CTX_set_verify_cb(ctx, (void *)verify_cb);
     printf(resultFmt, passed);
     #endif
 }
