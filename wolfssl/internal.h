@@ -1680,7 +1680,7 @@ struct WOLFSSL_CERT_MANAGER {
 #ifndef NO_RSA
     short           minRsaKeySz;         /* minimum allowed RSA key size */
 #endif
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || defined(HAVE_ED25519)
     short           minEccKeySz;         /* minimum allowed ECC key size */
 #endif
 };
@@ -2196,7 +2196,7 @@ struct WOLFSSL_CTX {
 #ifndef NO_RSA
     short       minRsaKeySz;      /* minimum RSA key size */
 #endif
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || defined(HAVE_ED25519)
     short       minEccKeySz;      /* minimum ECC key size */
 #endif
 #ifdef OPENSSL_EXTRA
@@ -2214,9 +2214,11 @@ struct WOLFSSL_CTX {
 #endif /* WOLFSSL_DTLS */
     VerifyCallback  verifyCallback;     /* cert verification callback */
     word32          timeout;            /* session timeout */
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
+    word32          ecdhCurveOID;       /* curve Ecc_Sum */
+#endif
 #ifdef HAVE_ECC
     word16          eccTempKeySz;       /* in octets 20 - 66 */
-    word32          ecdhCurveOID;       /* curve Ecc_Sum */
     word32          pkCurveOID;         /* curve Ecc_Sum */
 #endif
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
@@ -2803,7 +2805,7 @@ typedef struct Options {
 #ifndef NO_RSA
     short           minRsaKeySz;      /* minimum RSA key size */
 #endif
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || defined(HAVE_ED25519)
     short           minEccKeySz;      /* minimum ECC key size */
 #endif
 
@@ -3178,17 +3180,22 @@ struct WOLFSSL {
     byte            peerNtruKey[MAX_NTRU_PUB_KEY_SZ];
     byte            peerNtruKeyPresent;
 #endif
+#if defined(HAVE_ECC) || defined(HAVE_ED25519)
+    int             eccVerifyRes;
+#endif
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
+    word32          ecdhCurveOID;            /* curve Ecc_Sum     */
+    ecc_key*        eccTempKey;              /* private ECDHE key */
+    byte            eccTempKeyPresent;
+    byte            peerEccKeyPresent;
+#endif
 #ifdef HAVE_ECC
     ecc_key*        peerEccKey;              /* peer's  ECDHE key */
     ecc_key*        peerEccDsaKey;           /* peer's  ECDSA key */
-    ecc_key*        eccTempKey;              /* private ECDHE key */
-    int             eccVerifyRes;
     word32          pkCurveOID;              /* curve Ecc_Sum     */
-    word32          ecdhCurveOID;            /* curve Ecc_Sum     */
     word16          eccTempKeySz;            /* in octets 20 - 66 */
-    byte            peerEccKeyPresent;
     byte            peerEccDsaKeyPresent;
-    byte            eccTempKeyPresent;
+#endif
 #ifdef HAVE_ED25519
     ed25519_key*    peerEd25519Key;
     byte            peerEd25519KeyPresent;
@@ -3196,7 +3203,6 @@ struct WOLFSSL {
 #ifdef HAVE_CURVE25519
     curve25519_key* peerX25519Key;
     byte            peerX25519KeyPresent;
-#endif
 #endif
 #ifdef HAVE_LIBZ
     z_stream        c_stream;           /* compression   stream */

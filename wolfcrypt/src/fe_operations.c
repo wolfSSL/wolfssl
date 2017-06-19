@@ -44,6 +44,8 @@
 #ifdef HAVE___UINT128_T
 #include "fe_x25519_128.i"
 #else
+
+#ifdef HAVE_CURVE25519
 /*
 fe means field element.
 Here the field is \Z/(2^255-19).
@@ -71,7 +73,7 @@ uint64_t load_4(const unsigned char *in)
   result |= ((uint64_t) in[3]) << 24;
   return result;
 }
-
+#endif
 
 /*
 h = 1
@@ -570,6 +572,7 @@ void fe_sub(fe h,const fe f,const fe g)
 }
 
 
+#ifdef HAVE_CURVE25519
 /*
 Ignores top bit of h.
 */
@@ -620,6 +623,7 @@ void fe_frombytes(fe h,const unsigned char *s)
   h[8] = (int32_t)h8;
   h[9] = (int32_t)h9;
 }
+#endif
 
 
 void fe_invert(fe out,const fe z)

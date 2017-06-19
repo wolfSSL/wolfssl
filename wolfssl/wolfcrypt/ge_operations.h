@@ -29,7 +29,7 @@
 
 #ifdef HAVE_ED25519
 
-#ifndef ED25519_SMALL
+#if defined(HAVE___UINT128_T)
     #include <stdint.h>
 #endif
 #include <wolfssl/wolfcrypt/fe_operations.h>
