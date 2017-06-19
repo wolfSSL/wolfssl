@@ -1055,17 +1055,17 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
 #ifdef WOLFSSL_TIRTOS
         Task_yield();
 #endif
-        wolfSSL_shutdown(ssl);
+        ((func_args*)args)->return_code = TEST_SUCCESS;
     }
 
     if (callbacks->on_result)
         callbacks->on_result(ssl);
 
+    wolfSSL_shutdown(ssl);
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
     CloseSocket(cfd);
 
-    ((func_args*)args)->return_code = TEST_SUCCESS;
 
 #ifdef WOLFSSL_TIRTOS
     fdCloseSession(Task_self());
@@ -1158,6 +1158,7 @@ static void run_wolfssl_client(void* args)
             input[idx] = 0;
             printf("Server response: %s\n", input);
         }
+        ((func_args*)args)->return_code = TEST_SUCCESS;
     }
 
     if (callbacks->on_result)
@@ -1166,7 +1167,6 @@ static void run_wolfssl_client(void* args)
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
     CloseSocket(sfd);
-    ((func_args*)args)->return_code = TEST_SUCCESS;
 
 #ifdef WOLFSSL_TIRTOS
     fdCloseSession(Task_self());
