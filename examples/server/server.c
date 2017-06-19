@@ -1236,8 +1236,14 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         }
 
         printf("Server Random : ");
-        for (pt = rnd; pt < rnd + size; pt++) printf("%02X", *pt);
-        printf("\n");
+        pt = rnd;
+        if (pt != NULL) {
+            for (pt = rnd; pt < rnd + size; pt++) printf("%02X", *pt);
+            printf("\n");
+        } else {
+            err_sys_ex(runWithErrors, "error: attempted to dereference null "
+                                                                   "pointer");
+        }
         XFREE(rnd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 #endif
@@ -1480,3 +1486,4 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         return 0;
     }
 #endif
+
