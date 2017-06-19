@@ -22470,7 +22470,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
             XFSEEK(bp->file, i, SEEK_SET);
 
             /* check calulated length */
-            if (l - i <= 0)
+            if (l - i < 0)
                 return NULL;
 
             pem = (unsigned char*)XMALLOC(l - i, 0, DYNAMIC_TYPE_TMP_BUFFER);
