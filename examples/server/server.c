@@ -251,6 +251,63 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int throughput)
     return EXIT_SUCCESS;
 }
 
+static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
+{
+    int ret, err;
+    char buffer[CYASSL_MAX_ERROR_SZ];
+
+    /* Read data */
+    do {
+        err = 0; /* reset error */
+        ret = SSL_read(ssl, input, inputLen);
+        if (ret < 0) {
+            err = SSL_get_error(ssl, 0);
+
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (err == WC_PENDING_E) {
+                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+                if (ret < 0) break;
+            }
+            else
+        #endif
+            if (err != SSL_ERROR_WANT_READ) {
+                printf("SSL_read input error %d, %s\n", err,
+                                                 ERR_error_string(err, buffer));
+                err_sys_ex(runWithErrors, "SSL_read failed");
+            }
+        }
+    } while (err == WC_PENDING_E);
+    if (ret > 0) {
+        input[ret] = 0; /* null terminate message */
+        printf("Client message: %s\n", input);
+    }
+}
+
+static void ServerWrite(WOLFSSL* ssl, const char* output, int outputLen)
+{
+    int ret, err;
+    char buffer[CYASSL_MAX_ERROR_SZ];
+
+    do {
+        err = 0; /* reset error */
+        ret = SSL_write(ssl, output, outputLen);
+        if (ret <= 0) {
+            err = SSL_get_error(ssl, 0);
+
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (err == WC_PENDING_E) {
+                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+                if (ret < 0) break;
+            }
+        #endif
+        }
+    } while (err == WC_PENDING_E || err == SSL_ERROR_WANT_WRITE);
+    if (ret != outputLen) {
+        printf("SSL_write msg error %d, %s\n", err,
+                                                 ERR_error_string(err, buffer));
+        err_sys_ex(runWithErrors, "SSL_write failed");
+    }
+}
 
 static void Usage(void)
 {
@@ -319,6 +376,9 @@ static void Usage(void)
 #ifdef WOLFSSL_TLS13
     printf("-K          Key Exchange for PSK not using (EC)DHE\n");
     printf("-U          Update keys and IVs before sending\n");
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+    printf("-Q          Request certificate from client post-handshake\n");
+#endif
 #endif
 }
 
@@ -405,6 +465,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int noPskDheKe = 0;
 #endif
     int updateKeysIVs = 0;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+    int postHandAuth = 0;
+#endif
 
 #ifdef WOLFSSL_STATIC_MEMORY
     #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) \
@@ -449,10 +512,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_VXWORKS
     useAnyAddr = 1;
 #else
-    /* Not Used: h, m, t, y, z, F, J, M, Q, T, V, W, X, Y */
+    /* Not Used: h, m, t, y, z, F, J, M, T, V, W, X, Y */
     while ((ch = mygetopt(argc, argv, "?"
                 "abc:defgijk:l:nop:q:rsuv:wx"
-                "A:B:C:D:E:GHIKL:NO:PR:S:UYZ:")) != -1) {
+                "A:B:C:D:E:GHIKL:NO:PQR:S:UYZ:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -668,6 +731,13 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 #ifdef WOLFSSL_TLS13
                     updateKeysIVs = 1;
                 #endif
+                break;
+
+            case 'Q' :
+            #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+                postHandAuth = 1;
+                doCliCertCheck = 0;
+            #endif
                 break;
 
             default:
@@ -1196,39 +1266,42 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             free(list);
         }
 #endif
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+        if (postHandAuth) {
+            SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER |
+                                    ((usePskPlus)? SSL_VERIFY_FAIL_EXCEPT_PSK :
+                                    SSL_VERIFY_FAIL_IF_NO_PEER_CERT),0);
+            if (SSL_CTX_load_verify_locations(ctx, verifyCert, 0)
+                                                               != SSL_SUCCESS) {
+                err_sys_ex(runWithErrors, "can't load ca file, Please run from wolfSSL home dir");
+            }
+            #ifdef WOLFSSL_TRUST_PEER_CERT
+            if (trustCert) {
+                if ((ret = wolfSSL_CTX_trust_peer_cert(ctx, trustCert,
+                                            SSL_FILETYPE_PEM)) != SSL_SUCCESS) {
+                    err_sys_ex(runWithErrors, "can't load trusted peer cert file");
+                }
+            }
+            #endif /* WOLFSSL_TRUST_PEER_CERT */
+       }
+    #endif
+#endif
+
         if (echoData == 0 && throughput == 0) {
             const char* write_msg;
             int write_msg_sz;
 
-            /* Read data */
-            do {
-                err = 0; /* reset error */
-                ret = SSL_read(ssl, input, sizeof(input)-1);
-                if (ret < 0) {
-                    err = SSL_get_error(ssl, 0);
-
-                #ifdef WOLFSSL_ASYNC_CRYPT
-                    if (err == WC_PENDING_E) {
-                        ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-                        if (ret < 0) break;
-                    }
-                    else
-                #endif
-                    if (err != SSL_ERROR_WANT_READ) {
-                        printf("SSL_read input error %d, %s\n", err,
-                                                ERR_error_string(err, buffer));
-                        err_sys_ex(runWithErrors, "SSL_read failed");
-                    }
-                }
-            } while (err == WC_PENDING_E);
-            if (ret > 0) {
-                input[ret] = 0; /* null terminate message */
-                printf("Client message: %s\n", input);
-            }
+            ServerRead(ssl, input, sizeof(input)-1);
 
 #ifdef WOLFSSL_TLS13
             if (updateKeysIVs)
                 wolfSSL_update_keys(ssl);
+#endif
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+            if (postHandAuth)
+                wolfSSL_request_certificate(ssl);
 #endif
 
             /* Write data */
@@ -1240,25 +1313,14 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 write_msg = webServerMsg;
                 write_msg_sz = sizeof(webServerMsg);
             }
-            do {
-                err = 0; /* reset error */
-                ret = SSL_write(ssl, write_msg, write_msg_sz);
-                if (ret <= 0) {
-                    err = SSL_get_error(ssl, 0);
+            ServerWrite(ssl, write_msg, write_msg_sz);
 
-                #ifdef WOLFSSL_ASYNC_CRYPT
-                    if (err == WC_PENDING_E) {
-                        ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-                        if (ret < 0) break;
-                    }
-                #endif
-                }
-            } while (err == WC_PENDING_E || err == SSL_ERROR_WANT_WRITE);
-            if (ret != write_msg_sz) {
-                printf("SSL_write msg error %d, %s\n", err,
-                                                ERR_error_string(err, buffer));
-                err_sys_ex(runWithErrors, "SSL_write failed");
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+            if (postHandAuth) {
+                ServerWrite(ssl, write_msg, write_msg_sz);
+                ServerRead(ssl, input, sizeof(input)-1);
             }
+#endif
         }
         else {
             ServerEchoData(ssl, clientfd, echoData, throughput);
@@ -1377,7 +1439,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
 #ifdef HAVE_WNR
     if (wc_FreeNetRandom() < 0)
-        err_sys_er(runWithErrors, "Failed to free netRandom context");
+        err_sys_ex(runWithErrors, "Failed to free netRandom context");
 #endif /* HAVE_WNR */
 
         return args.return_code;
