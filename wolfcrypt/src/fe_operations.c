@@ -112,7 +112,8 @@ void fe_0(fe h)
   h[9] = 0;
 }
 
-#if !defined(CURVE25519_SMALL) && !defined(FREESCALE_LTC_ECC)
+#if defined(HAVE_CURVE25519) && !defined(CURVE25519_SMALL) && \
+    !defined(FREESCALE_LTC_ECC)
 int curve25519(byte* q, byte* n, byte* p)
 {
 #if 0
@@ -188,7 +189,7 @@ int curve25519(byte* q, byte* n, byte* p)
 
   return 0;
 }
-#endif /* !CURVE25519_SMALL && !FREESCALE_LTC_ECC */
+#endif /* HAVE_CURVE25519 && !CURVE25519_SMALL && !FREESCALE_LTC_ECC */
 
 
 /*
