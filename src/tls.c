@@ -533,7 +533,7 @@ int DeriveTlsKeys(WOLFSSL* ssl)
                          IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm,
                          ssl->heap, ssl->devId);
     if (ret == 0)
-        ret = StoreKeys(ssl, key_dig);
+        ret = StoreKeys(ssl, key_dig, PROVISION_CLIENT_SERVER);
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key_dig, ssl->heap, DYNAMIC_TYPE_DIGEST);
@@ -5992,7 +5992,7 @@ static int TLSX_PreSharedKey_Parse(WOLFSSL* ssl, byte* input, word16 length,
             idx += OPAQUE32_LEN;
 
             ret = TLSX_PreSharedKey_Use(ssl, identity, identityLen, age, no_mac,
-                                        1, NULL);
+                                        0, 0, 1, NULL);
             if (ret != 0)
                 return ret;
 
@@ -6145,12 +6145,15 @@ static INLINE byte GetHmacLength(int hmac)
  * len           The length of the identity data.
  * age           The age of the identity.
  * hmac          The HMAC algorithm.
+ * ciphersuite0  The first byte of the ciphersuite to use.
+ * ciphersuite   The second byte of the ciphersuite to use.
  * resumption    The PSK is for resumption of a session.
  * preSharedKey  The new pre-shared key object.
  * returns 0 on success and other values indicate failure.
  */
 int TLSX_PreSharedKey_Use(WOLFSSL* ssl, byte* identity, word16 len, word32 age,
-                          byte hmac, byte resumption,
+                          byte hmac, byte cipherSuite0,
+                          byte cipherSuite, byte resumption,
                           PreSharedKey **preSharedKey)
 {
     int           ret = 0;
@@ -6189,10 +6192,12 @@ int TLSX_PreSharedKey_Use(WOLFSSL* ssl, byte* identity, word16 len, word32 age,
     }
 
     /* Update/set age and HMAC algorithm. */
-    psk->ticketAge = age;
-    psk->hmac = hmac;
-    psk->resumption = resumption;
-    psk->binderLen = GetHmacLength(psk->hmac);
+    psk->ticketAge    = age;
+    psk->hmac         = hmac;
+    psk->cipherSuite0 = cipherSuite0;
+    psk->cipherSuite  = cipherSuite;
+    psk->resumption   = resumption;
+    psk->binderLen    = GetHmacLength(psk->hmac);
 
     if (preSharedKey != NULL)
         *preSharedKey = psk;
@@ -6224,7 +6229,7 @@ int TLSX_PreSharedKey_Use(WOLFSSL* ssl, byte* identity, word16 len, word32 age,
  *
  * modes    The PSK KE mode bit string.
  * msgType  The type of the message this extension is being written into.
- * returns the number of bytes of the encoded key share extension.
+ * returns the number of bytes of the encoded PSK KE mode extension.
  */
 static word16 TLSX_PskKeModes_GetSize(byte modes, byte msgType)
 {
@@ -6436,8 +6441,8 @@ static int TLSX_PostHandAuth_Parse(WOLFSSL* ssl, byte* input, word16 length,
  */
 static int TLSX_PostHandAuth_Use(WOLFSSL* ssl)
 {
-    int           ret = 0;
-    TLSX*         extension;
+    int   ret = 0;
+    TLSX* extension;
 
     /* Find the PSK key exchange modes extension if it exists. */
     extension = TLSX_Find(ssl->extensions, TLSX_POST_HANDSHAKE_AUTH);
@@ -6461,6 +6466,129 @@ static int TLSX_PostHandAuth_Use(WOLFSSL* ssl)
 #define PHA_GET_SIZE(a)       0
 #define PHA_WRITE(a, b)       0
 #define PHA_PARSE(a, b, c, d) 0
+
+#endif
+
+/******************************************************************************/
+/* Early Data Indication                                                      */
+/******************************************************************************/
+
+#ifdef WOLFSSL_EARLY_DATA
+/* Get the size of the encoded Early Data Indication extension.
+ * In messages: ClientHello, EncryptedExtensions and NewSessionTicket.
+ *
+ * msgType  The type of the message this extension is being written into.
+ * returns the number of bytes of the encoded key share extension.
+ */
+static word16 TLSX_EarlyData_GetSize(byte msgType)
+{
+    if (msgType == client_hello || msgType == encrypted_extensions)
+        return 0;
+    if (msgType == session_ticket)
+        return OPAQUE32_LEN;
+
+    return SANITY_MSG_E;
+}
+
+/* Writes the Early Data Indicator extension into the output buffer.
+ * Assumes that the the output buffer is big enough to hold data.
+ * In messages: ClientHello, EncryptedExtensions and NewSessionTicket.
+ *
+ * max      The maximum early data size.
+ * output   The buffer to write into.
+ * msgType  The type of the message this extension is being written into.
+ * returns the number of bytes written into the buffer.
+ */
+static word16 TLSX_EarlyData_Write(word32 max, byte* output, byte msgType)
+{
+    if (msgType == client_hello || msgType == encrypted_extensions) {
+        return 0;
+    }
+    if (msgType == session_ticket) {
+        c32toa(max, output);
+        return OPAQUE32_LEN;
+    }
+
+    return SANITY_MSG_E;
+}
+
+/* Parse the Early Data Indicator extension.
+ * In messages: ClientHello, EncryptedExtensions and NewSessionTicket.
+ *
+ * ssl      The SSL/TLS object.
+ * input    The extension data.
+ * length   The length of the extension data.
+ * msgType  The type of the message this extension is being parsed from.
+ * returns 0 on success and other values indicate failure.
+ */
+static int TLSX_EarlyData_Parse(WOLFSSL* ssl, byte* input, word16 length,
+                                 byte msgType)
+{
+    if (msgType == client_hello) {
+        if (length != 0)
+            return BUFFER_E;
+
+        return TLSX_EarlyData_Use(ssl, 0);
+    }
+    if (msgType == encrypted_extensions) {
+        if (length != 0)
+            return BUFFER_E;
+
+        return TLSX_EarlyData_Use(ssl, 1);
+    }
+    if (msgType == session_ticket) {
+        word32 max;
+
+        if (length != OPAQUE32_LEN)
+            return BUFFER_E;
+        ato32(input, &max);
+
+        ssl->session.maxEarlyDataSz = max;
+        return 0;
+    }
+
+    return SANITY_MSG_E;
+}
+
+/* Use the data to create a new Early Data object in the extensions.
+ *
+ * ssl  The SSL/TLS object.
+ * max  The maximum early data size.
+ * returns 0 on success and other values indicate failure.
+ */
+int TLSX_EarlyData_Use(WOLFSSL* ssl, word32 max)
+{
+    int   ret = 0;
+    TLSX* extension;
+
+    /* Find the early extension if it exists. */
+    extension = TLSX_Find(ssl->extensions, TLSX_EARLY_DATA);
+    if (extension == NULL) {
+        /* Push new early extension. */
+        ret = TLSX_Push(&ssl->extensions, TLSX_EARLY_DATA, NULL, ssl->heap);
+        if (ret != 0)
+            return ret;
+
+        extension = TLSX_Find(ssl->extensions, TLSX_EARLY_DATA);
+        if (extension == NULL)
+            return MEMORY_E;
+    }
+
+    extension->resp = 1;
+    extension->val  = max;
+
+    return 0;
+}
+
+#define EDI_GET_SIZE  TLSX_EarlyData_GetSize
+#define EDI_WRITE     TLSX_EarlyData_Write
+#define EDI_PARSE     TLSX_EarlyData_Parse
+
+#else
+
+#define EDI_GET_SIZE(a)       0
+#define EDI_WRITE(a, b, c)    0
+#define EDI_PARSE(a, b, c, d) 0
 
 #endif
 
@@ -6547,6 +6675,11 @@ void TLSX_FreeAll(TLSX* list, void* heap)
                 break;
 
             case TLSX_PSK_KEY_EXCHANGE_MODES:
+                break;
+    #endif
+
+    #ifdef WOLFSSL_EARLY_DATA
+            case TLSX_EARLY_DATA:
                 break;
     #endif
 
@@ -6662,6 +6795,13 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType)
                 length += PKM_GET_SIZE(extension->val, msgType);
                 break;
     #endif
+
+    #ifdef WOLFSSL_EARLY_DATA
+            case TLSX_EARLY_DATA:
+                length += EDI_GET_SIZE(msgType);
+                break;
+    #endif
+
     #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
             case TLSX_POST_HANDSHAKE_AUTH:
                 length += PHA_GET_SIZE(msgType);
@@ -6797,6 +6937,14 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
                 offset += PKM_WRITE(extension->val, output + offset, msgType);
                 break;
     #endif
+
+    #ifdef WOLFSSL_EARLY_DATA
+            case TLSX_EARLY_DATA:
+                WOLFSSL_MSG("Early Data extension to write");
+                offset += EDI_WRITE(extension->val, output + offset, msgType);
+                break;
+    #endif
+
     #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
             case TLSX_POST_HANDSHAKE_AUTH:
                 WOLFSSL_MSG("Post-Handshake Authentication extension to write");
@@ -7292,12 +7440,16 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 /* Determine the MAC algorithm for the cipher suite used. */
                 ssl->options.cipherSuite0 = sess->cipherSuite0;
                 ssl->options.cipherSuite  = sess->cipherSuite;
-                SetCipherSpecs(ssl);
+                ret = SetCipherSpecs(ssl);
+                if (ret != 0)
+                    return ret;
                 milli = TimeNowInMilliseconds() - sess->ticketSeen +
                         sess->ticketAdd;
                 /* Pre-shared key is mandatory extension for resumption. */
                 ret = TLSX_PreSharedKey_Use(ssl, sess->ticket, sess->ticketLen,
-                                            milli, ssl->specs.mac_algorithm, 1,
+                                            milli, ssl->specs.mac_algorithm,
+                                            ssl->options.cipherSuite0,
+                                            ssl->options.cipherSuite, 1,
                                             NULL);
                 if (ret != 0)
                     return ret;
@@ -7307,7 +7459,9 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
         #endif
         #ifndef NO_PSK
             if (ssl->options.client_psk_cb != NULL) {
-                byte mac = sha256_mac;
+                /* Default ciphersuite. */
+                byte cipherSuite0 = TLS13_BYTE;
+                byte cipherSuite = WOLFSSL_DEF_PSK_CIPHER;
 
                 ssl->arrays->psk_keySz = ssl->options.client_psk_cb(ssl,
                         ssl->arrays->server_hint, ssl->arrays->client_identity,
@@ -7317,12 +7471,19 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     return PSK_KEY_ERROR;
                 }
                 ssl->arrays->client_identity[MAX_PSK_ID_LEN] = '\0';
-                /* Hash algorithm defaults to SHA-256 unless cb specifies. */
+                /* TODO: Callback should be able to change ciphersuite. */
+                ssl->options.cipherSuite0 = cipherSuite0;
+                ssl->options.cipherSuite  = cipherSuite;
+                ret = SetCipherSpecs(ssl);
+                if (ret != 0)
+                    return ret;
 
                 ret = TLSX_PreSharedKey_Use(ssl,
                                           (byte*)ssl->arrays->client_identity,
                                           XSTRLEN(ssl->arrays->client_identity),
-                                          0, mac, 0, NULL);
+                                          0, ssl->specs.mac_algorithm,
+                                          cipherSuite0, cipherSuite, 0,
+                                          NULL);
                 if (ret != 0)
                     return ret;
 
@@ -7500,7 +7661,9 @@ word16 TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType)
                 TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
     #endif
             }
+#endif
             break;
+#ifdef WOLFSSL_TLS13
         case encrypted_extensions:
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SESSION_TICKET));
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
@@ -7512,9 +7675,17 @@ word16 TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType)
         case certificate_request:
             XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
             TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
+            break;
+    #endif
+    #ifdef WOLFSSL_EARLY_DATA
+            case session_ticket:
+                if (ssl->options.tls1_3) {
+                    XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
+                    TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_EARLY_DATA));
+                }
+                break;
     #endif
 #endif
-            break;
     }
 
     #ifdef HAVE_QSH
@@ -7561,7 +7732,9 @@ word16 TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType)
                     TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
     #endif
                 }
+#endif
                 break;
+#ifdef WOLFSSL_TLS13
             case encrypted_extensions:
                 TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SESSION_TICKET));
                 TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
@@ -7574,9 +7747,17 @@ word16 TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType)
                 XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
                 TURN_OFF(semaphore,
                                    TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
+                break;
+    #endif
+    #ifdef WOLFSSL_EARLY_DATA
+            case session_ticket:
+                if (ssl->options.tls1_3) {
+                    XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
+                    TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_EARLY_DATA));
+                }
+                break;
     #endif
 #endif
-                break;
         }
 
         offset += OPAQUE16_LEN; /* extensions length */
@@ -7837,6 +8018,23 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                 ret = PKM_PARSE(ssl, input + offset, size, msgType);
                 break;
     #endif
+
+    #ifdef WOLFSSL_EARLY_DATA
+            case TLSX_EARLY_DATA:
+                WOLFSSL_MSG("Early Data extension received");
+
+                if (!IsAtLeastTLSv1_3(ssl->version))
+                    break;
+
+                if (IsAtLeastTLSv1_3(ssl->version) &&
+                         msgType != client_hello && msgType != session_ticket &&
+                         msgType != encrypted_extensions) {
+                    return EXT_NOT_ALLOWED;
+                }
+                ret = EDI_PARSE(ssl, input + offset, size, msgType);
+                break;
+    #endif
+
     #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
             case TLSX_POST_HANDSHAKE_AUTH:
                 WOLFSSL_MSG("PSK Key Exchange Modes extension received");

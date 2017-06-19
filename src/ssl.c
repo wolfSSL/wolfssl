@@ -1313,6 +1313,14 @@ int wolfSSL_write(WOLFSSL* ssl, const void* data, int sz)
     if (ssl == NULL || data == NULL || sz < 0)
         return BAD_FUNC_ARG;
 
+#ifdef WOLFSSL_EARLY_DATA
+    if (ssl->earlyData && (ret = wolfSSL_negotiate(ssl)) < 0) {
+        ssl->error = ret;
+        return SSL_FATAL_ERROR;
+    }
+    ssl->earlyData = 0;
+#endif
+
 #ifdef HAVE_WRITE_DUP
     { /* local variable scope */
         int dupErr = 0;   /* local copy */
@@ -1356,7 +1364,6 @@ int wolfSSL_write(WOLFSSL* ssl, const void* data, int sz)
     else
         return ret;
 }
-
 
 static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
 {
@@ -8273,6 +8280,11 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             }
         }
 
+#ifdef WOLFSSL_TLS13
+        if (ssl->options.tls1_3)
+            return wolfSSL_connect_TLSv13(ssl);
+#endif
+
         switch (ssl->options.connectState) {
 
         case CONNECT_BEGIN :
@@ -9222,11 +9234,14 @@ static int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
         return BAD_MUTEX_E;
     }
 
-    copyInto->cipherSuite0 = copyFrom->cipherSuite0;
-    copyInto->cipherSuite = copyFrom->cipherSuite;
-    copyInto->namedGroup = copyFrom->namedGroup;
-    copyInto->ticketSeen = copyFrom->ticketSeen;
-    copyInto->ticketAdd = copyFrom->ticketAdd;
+    copyInto->cipherSuite0   = copyFrom->cipherSuite0;
+    copyInto->cipherSuite    = copyFrom->cipherSuite;
+    copyInto->namedGroup     = copyFrom->namedGroup;
+    copyInto->ticketSeen     = copyFrom->ticketSeen;
+    copyInto->ticketAdd      = copyFrom->ticketAdd;
+#ifdef WOLFSSL_EARLY_DATA
+    copyInto->maxEarlyDataSz = copyFrom->maxEarlyDataSz;
+#endif
     XMEMCPY(copyInto->masterSecret, copyFrom->masterSecret, SECRET_LEN);
 
     if (wc_UnLockMutex(&session_mutex) != 0) {
@@ -9453,9 +9468,12 @@ int AddSession(WOLFSSL* ssl)
 #endif /* SESSION_CERTS || (WOLFSSL_TLS13 & HAVE_SESSION_TICKET) */
 #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
     if (error == 0) {
-        session->namedGroup = ssl->session.namedGroup;
-        session->ticketSeen = ssl->session.ticketSeen;
-        session->ticketAdd = ssl->session.ticketAdd;
+        session->namedGroup     = ssl->session.namedGroup;
+        session->ticketSeen     = ssl->session.ticketSeen;
+        session->ticketAdd      = ssl->session.ticketAdd;
+    #ifdef WOLFSSL_EARLY_DATA
+        session->maxEarlyDataSz = ssl->session.maxEarlyDataSz;
+    #endif
     }
 #endif /* WOLFSSL_TLS13 && HAVE_SESSION_TICKET */
 #ifdef HAVE_EXT_CACHE

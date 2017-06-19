@@ -368,6 +368,9 @@ static void Usage(void)
     printf("-Q          Request certificate from client post-handshake\n");
 #endif
 #endif
+#ifdef WOLFSSL_EARLY_DATA
+    printf("-0          Early data read from client (0-RTT handshake)\n");
+#endif
 }
 
 THREAD_RETURN CYASSL_THREAD server_test(void* args)
@@ -456,6 +459,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     int postHandAuth = 0;
 #endif
+#ifdef WOLFSSL_EARLY_DATA
+    int earlyData = 0;
+#endif
 
 #ifdef WOLFSSL_STATIC_MEMORY
     #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) \
@@ -503,7 +509,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     /* Not Used: h, m, t, x, y, z, F, J, M, T, V, W, X, Y */
     while ((ch = mygetopt(argc, argv, "?"
                 "abc:defgijk:l:nop:q:rsuv:w"
-                "A:B:C:D:E:GHIKL:NO:PQR:S:UYZ:")) != -1) {
+                "A:B:C:D:E:GHIKL:NO:PQR:S:UYZ:"
+                "0")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -721,6 +728,12 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
                 postHandAuth = 1;
                 doCliCertCheck = 0;
+            #endif
+                break;
+
+            case '0' :
+            #ifdef WOLFSSL_EARLY_DATA
+                earlyData = 1;
             #endif
                 break;
 
@@ -1167,6 +1180,29 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             ret = NonBlockingSSL_Accept(ssl);
         }
         else {
+    #ifdef WOLFSSL_EARLY_DATA
+            if (earlyData) {
+                do {
+                    int len;
+                    err = 0; /* reset error */
+                    ret = wolfSSL_read_early_data(ssl, input, sizeof(input)-1,
+                                                                          &len);
+                    if (ret != SSL_SUCCESS) {
+                        err = SSL_get_error(ssl, 0);
+                    #ifdef WOLFSSL_ASYNC_CRYPT
+                        if (err == WC_PENDING_E) {
+                            ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+                            if (ret < 0) break;
+                        }
+                    #endif
+                    }
+                    if (ret > 0) {
+                        input[ret] = 0; /* null terminate message */
+                        printf("Early Data Client message: %s\n", input);
+                    }
+                } while (err == WC_PENDING_E || ret > 0);
+            }
+    #endif
             do {
                 err = 0; /* reset error */
                 ret = SSL_accept(ssl);

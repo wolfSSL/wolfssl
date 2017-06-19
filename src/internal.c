@@ -1433,6 +1433,10 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     ret = wolfEventQueue_Init(&ctx->event_queue);
 #endif /* HAVE_WOLF_EVENT */
 
+#ifdef WOLFSSL_EARLY_DATA
+    ctx->maxEarlyDataSz = MAX_EARLY_DATA_SZ;
+#endif
+
     ctx->heap = heap; /* wolfSSL_CTX_load_static_memory sets */
 
     return ret;
@@ -3782,6 +3786,10 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->options.client_psk_cb = ctx->client_psk_cb;
     ssl->options.server_psk_cb = ctx->server_psk_cb;
 #endif /* NO_PSK */
+#ifdef WOLFSSL_EARLY_DATA
+    if (ssl->options.side == WOLFSSL_SERVER_END)
+        ssl->options.maxEarlyDataSz = ctx->maxEarlyDataSz;
+#endif
 
 #ifdef HAVE_ANON
     ssl->options.haveAnon = ctx->haveAnon;
@@ -10898,6 +10906,11 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
     byte   decomp[MAX_RECORD_SIZE + MAX_COMP_EXTRA];
 #endif
 
+#ifdef WOLFSSL_EARLY_DATA
+    if (ssl->earlyData) {
+    }
+    else
+#endif
     if (ssl->options.handShakeDone == 0) {
         WOLFSSL_MSG("Received App data before a handshake completed");
         SendAlert(ssl, alert_fatal, unexpected_message);
@@ -10918,6 +10931,15 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
         WOLFSSL_MSG("App data buffer error, malicious input?");
         return BUFFER_ERROR;
     }
+#ifdef WOLFSSL_EARLY_DATA
+    if (ssl->earlyData) {
+        if (ssl->earlyDataSz + dataSz > ssl->options.maxEarlyDataSz) {
+            SendAlert(ssl, alert_fatal, unexpected_message);
+            return SSL_FATAL_ERROR;
+        }
+        ssl->earlyDataSz += dataSz;
+    }
+#endif
 
     /* read data */
     if (dataSz) {
@@ -11375,6 +11397,19 @@ int ProcessReply(WOLFSSL* ssl)
                 else {
                     WOLFSSL_MSG("Decrypt failed");
                     WOLFSSL_ERROR(ret);
+                #ifdef WOLFSSL_EARLY_DATA
+                    if (ssl->options.tls1_3) {
+                        ssl->earlyDataSz += ssl->curSize;
+                        if (ssl->earlyDataSz <= ssl->options.maxEarlyDataSz) {
+                            if (ssl->keys.peer_sequence_number_lo-- == 0)
+                                ssl->keys.peer_sequence_number_hi--;
+                            ssl->options.processReply = doProcessInit;
+                            ssl->buffers.inputBuffer.idx =
+                                            ssl->buffers.inputBuffer.length;
+                            return 0;
+                        }
+                    }
+                #endif
                 #ifdef WOLFSSL_DTLS
                     /* If in DTLS mode, if the decrypt fails for any
                      * reason, pretend the datagram never happened. */
@@ -11461,6 +11496,17 @@ int ProcessReply(WOLFSSL* ssl)
                                             ssl->buffers.inputBuffer.buffer,
                                             &ssl->buffers.inputBuffer.idx,
                                             ssl->buffers.inputBuffer.length);
+    #ifdef WOLFSSL_EARLY_DATA
+                        if (ret != 0)
+                            return ret;
+                        if (ssl->options.side == WOLFSSL_SERVER_END &&
+                                ssl->earlyData &&
+                                ssl->options.handShakeState == HANDSHAKE_DONE) {
+                            ssl->earlyData = 0;
+                            ssl->options.processReply = doProcessInit;
+                            return ZERO_RETURN;
+                        }
+    #endif
 #else
                         ret = BUFFER_ERROR;
 #endif
@@ -13153,6 +13199,15 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
     if (ssl->error == WANT_WRITE || ssl->error == WC_PENDING_E)
         ssl->error = 0;
 
+#ifdef WOLFSSL_EARLY_DATA
+    if (ssl->earlyData) {
+        if (ssl->options.handShakeState == HANDSHAKE_DONE) {
+            WOLFSSL_MSG("handshake complete, trying to send early data");
+            return BUILD_MSG_ERROR;
+        }
+    }
+    else
+#endif
     if (ssl->options.handShakeState != HANDSHAKE_DONE) {
         int err;
         WOLFSSL_MSG("handshake not complete, trying to finish");
@@ -13305,6 +13360,11 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
         return ssl->error;
     }
 
+#ifdef WOLFSSL_EARLY_DATA
+    if (ssl->earlyData) {
+    }
+    else
+#endif
     if (ssl->options.handShakeState != HANDSHAKE_DONE) {
         int err;
         WOLFSSL_MSG("Handshake not complete, trying to finish");
@@ -22472,6 +22532,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef WOLFSSL_TLS13
         word32          ageAdd;                /* Obfuscation of age */
         byte            namedGroup;            /* Named group used */
+    #ifdef WOLFSSL_EARLY_DATA
+        word32          maxEarlyDataSz;        /* Max size of early data */
+    #endif
 #endif
     } InternalTicket;
 
@@ -22502,6 +22565,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         it.suite[0] = ssl->options.cipherSuite0;
         it.suite[1] = ssl->options.cipherSuite;
+
+    #ifdef WOLFSSL_EARLY_DATA
+        it.maxEarlyDataSz = ssl->options.maxEarlyDataSz;
+    #endif
 
         if (!ssl->options.tls1_3) {
             XMEMCPY(it.msecret, ssl->arrays->masterSecret, SECRET_LEN);
@@ -22627,6 +22694,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 ssl->session.ticketAdd = it->ageAdd;
                 ssl->session.cipherSuite0 = it->suite[0];
                 ssl->session.cipherSuite = it->suite[1];
+    #ifdef WOLFSSL_EARLY_DATA
+                ssl->session.maxEarlyDataSz = it->maxEarlyDataSz;
+    #endif
                 /* Resumption master secret. */
                 XMEMCPY(ssl->session.masterSecret, it->msecret, SECRET_LEN);
                 ssl->session.namedGroup = it->namedGroup;

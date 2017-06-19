@@ -2326,6 +2326,26 @@ then
            AM_CFLAGS="$AM_CFLAGS -DHAVE_SUPPORTED_CURVES"])
 fi
 
+# Early Data handshake in TLS v1.3 and above
+AC_ARG_ENABLE([earlydata],
+    [AS_HELP_STRING([--enable-earlydata],[Enable Early Data handshake with wolfSSL TLS v1.3 (default: disabled)])],
+    [ ENABLED_EARLY_DATA=$enableval ],
+    [ ENABLED_EARLY_DATA=no ]
+    )
+if test "$ENABLED_EARLY_DATA" = "yes"
+then
+    if test "x$ENABLED_TLS13" = "xno"
+    then
+        AC_MSG_ERROR([cannot enable earlydata without enabling tls13.])
+    fi
+    if test "x$ENABLED_SESSION_TICKET" = "xno" && test "x$ENABLED_PSK" = "xno"
+    then
+        AC_MSG_ERROR([cannot enable earlydata without enabling session tickets and/or PSK.])
+    fi
+    AM_CFLAGS="-DWOLFSSL_EARLY_DATA $AM_CFLAGS"
+fi
+
+
 # PKCS7
 AC_ARG_ENABLE([pkcs7],
     [AS_HELP_STRING([--enable-pkcs7],[Enable PKCS7 (default: disabled)])],
@@ -3740,6 +3760,7 @@ echo "   * SCTP:                       $ENABLED_SCTP"
 echo "   * Old TLS Versions:           $ENABLED_OLD_TLS"
 echo "   * SSL version 3.0:            $ENABLED_SSLV3"
 echo "   * TLS v1.3:                   $ENABLED_TLS13"
+echo "   * Early Data:                 $ENABLED_EARLY_DATA"
 echo "   * OCSP:                       $ENABLED_OCSP"
 echo "   * OCSP Stapling:              $ENABLED_CERTIFICATE_STATUS_REQUEST"
 echo "   * OCSP Stapling v2:           $ENABLED_CERTIFICATE_STATUS_REQUEST_V2"
