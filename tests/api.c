@@ -10504,6 +10504,7 @@ static void test_wolfSSL_X509_STORE_CTX(void)
     printf(testingFmt, "test_wolfSSL_X509_STORE_CTX(()");
 		AssertNotNull(ctx = X509_STORE_CTX_new());
 		X509_STORE_CTX_set_verify_cb(ctx, (void *)verify_cb);
+    X509_STORE_CTX_free(ctx);
     printf(resultFmt, passed);
     #endif
 }
