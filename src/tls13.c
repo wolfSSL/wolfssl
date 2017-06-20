@@ -916,7 +916,7 @@ static int BuildTls13HandshakeHmac(WOLFSSL* ssl, byte* key, byte* hash,
         return ret;
 
     /* Calculate the verify data. */
-    ret = wc_HmacInit(&verifyHmac, ssl->heap, INVALID_DEVID);
+    ret = wc_HmacInit(&verifyHmac, ssl->heap, ssl->devId);
     if (ret == 0) {
         ret = wc_HmacSetKey(&verifyHmac, hashType, key, ssl->specs.hash_size);
         if (ret == 0)
@@ -960,16 +960,16 @@ static int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side)
     int   ret;
     int   i = 0;
 #ifdef WOLFSSL_SMALL_STACK
-    byte* key_data;
+    byte* key_dig;
 #else
-    byte  key_data[MAX_PRF_DIG];
+    byte  key_dig[MAX_PRF_DIG];
 #endif
     int   deriveClient = 0;
     int   deriveServer = 0;
 
 #ifdef WOLFSSL_SMALL_STACK
-    key_data = (byte*)XMALLOC(MAX_PRF_DIG, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-    if (key_data == NULL)
+    key_dig = (byte*)XMALLOC(MAX_PRF_DIG, ssl->heap, DYNAMIC_TYPE_DIGEST);
+    if (key_dig == NULL)
         return MEMORY_E;
 #endif
 
@@ -1031,7 +1031,7 @@ static int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side)
 
     /* Derive the client key.  */
     WOLFSSL_MSG("Derive Client Key");
-    ret = DeriveKey(ssl, &key_data[i], ssl->specs.key_size,
+    ret = DeriveKey(ssl, &key_dig[i], ssl->specs.key_size,
                     ssl->arrays->clientSecret, writeKeyLabel,
                     WRITE_KEY_LABEL_SZ, ssl->specs.mac_algorithm, 0);
     if (ret != 0)
@@ -1040,7 +1040,7 @@ static int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side)
 
     /* Derive the server key.  */
     WOLFSSL_MSG("Derive Server Key");
-    ret = DeriveKey(ssl, &key_data[i], ssl->specs.key_size,
+    ret = DeriveKey(ssl, &key_dig[i], ssl->specs.key_size,
                     ssl->arrays->serverSecret, writeKeyLabel,
                     WRITE_KEY_LABEL_SZ, ssl->specs.mac_algorithm, 0);
     if (ret != 0)
@@ -1049,7 +1049,7 @@ static int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side)
 
     /* Derive the client IV.  */
     WOLFSSL_MSG("Derive Client IV");
-    ret = DeriveKey(ssl, &key_data[i], ssl->specs.iv_size,
+    ret = DeriveKey(ssl, &key_dig[i], ssl->specs.iv_size,
                     ssl->arrays->clientSecret, writeIVLabel, WRITE_IV_LABEL_SZ,
                     ssl->specs.mac_algorithm, 0);
     if (ret != 0)
@@ -1058,18 +1058,18 @@ static int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side)
 
     /* Derive the server IV.  */
     WOLFSSL_MSG("Derive Server IV");
-    ret = DeriveKey(ssl, &key_data[i], ssl->specs.iv_size,
+    ret = DeriveKey(ssl, &key_dig[i], ssl->specs.iv_size,
                     ssl->arrays->serverSecret, writeIVLabel, WRITE_IV_LABEL_SZ,
                     ssl->specs.mac_algorithm, 0);
     if (ret != 0)
         goto end;
 
     /* Store keys and IVs but don't activate them. */
-    ret = StoreKeys(ssl, key_data);
+    ret = StoreKeys(ssl, key_dig);
 
 end:
 #ifdef WOLFSSL_SMALL_STACK
-    XFREE(key_data, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(key_dig, ssl->heap, DYNAMIC_TYPE_DIGEST);
 #endif
 
     return ret;
@@ -1635,7 +1635,7 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
 
             if (ssl->encrypt.nonce == NULL)
                 ssl->encrypt.nonce = (byte*)XMALLOC(AEAD_NONCE_SZ,
-                                               ssl->heap, DYNAMIC_TYPE_AES);
+                                               ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
             if (ssl->encrypt.nonce == NULL)
                 return MEMORY_E;
 
@@ -1841,7 +1841,7 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz)
 
             if (ssl->decrypt.nonce == NULL)
                 ssl->decrypt.nonce = (byte*)XMALLOC(AEAD_NONCE_SZ,
-                                               ssl->heap, DYNAMIC_TYPE_AES);
+                                               ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
             if (ssl->decrypt.nonce == NULL)
                 return MEMORY_E;
 
@@ -3733,7 +3733,7 @@ static int CheckRSASignature(WOLFSSL* ssl, int sigAlgo, int hashAlgo,
     {
     #ifdef WOLFSSL_SMALL_STACK
         encodedSig = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ, ssl->heap,
-                                    DYNAMIC_TYPE_TMP_BUFFER);
+                                    DYNAMIC_TYPE_SIGNATURE);
         if (encodedSig == NULL) {
             return MEMORY_E;
         }
@@ -3750,7 +3750,7 @@ static int CheckRSASignature(WOLFSSL* ssl, int sigAlgo, int hashAlgo,
 
     #ifdef WOLFSSL_SMALL_STACK
         if (encodedSig != NULL)
-            XFREE(encodedSig, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(encodedSig, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
     #endif
     }
 
@@ -4036,7 +4036,6 @@ typedef struct Scv13Args {
     byte*  verifySig;
 #endif
     byte*  verify; /* not allocated */
-    byte*  input;
     word32 idx;
     word32 sigLen;
     int    sendSz;
@@ -4055,17 +4054,13 @@ static void FreeScv13Args(WOLFSSL* ssl, void* pArgs)
 
 #ifndef NO_RSA
     if (args->verifySig) {
-        XFREE(args->verifySig, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(args->verifySig, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
         args->verifySig = NULL;
     }
 #endif
     if (args->sigData) {
-        XFREE(args->sigData, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(args->sigData, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
         args->sigData = NULL;
-    }
-    if (args->input) {
-        XFREE(args->input, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        args->input = NULL;
     }
 }
 
@@ -4164,7 +4159,7 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
 
             /* Create the data to be signed. */
             args->sigData = (byte*)XMALLOC(MAX_SIG_DATA_SZ, ssl->heap,
-                                                    DYNAMIC_TYPE_TMP_BUFFER);
+                                                    DYNAMIC_TYPE_SIGNATURE);
             if (args->sigData == NULL) {
                 ERROR_OUT(MEMORY_E, exit_scv);
             }
@@ -4178,7 +4173,7 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
                 /* build encoded signature buffer */
                 sig->length = MAX_ENCODED_SIG_SZ;
                 sig->buffer = (byte*)XMALLOC(sig->length, ssl->heap,
-                                                    DYNAMIC_TYPE_TMP_BUFFER);
+                                                    DYNAMIC_TYPE_SIGNATURE);
                 if (sig->buffer == NULL) {
                     ERROR_OUT(MEMORY_E, exit_scv);
                 }
@@ -4287,7 +4282,7 @@ int SendTls13CertificateVerify(WOLFSSL* ssl)
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
                 if (args->verifySig == NULL) {
                     args->verifySig = (byte*)XMALLOC(args->sigLen, ssl->heap,
-                                                   DYNAMIC_TYPE_TMP_BUFFER);
+                                                   DYNAMIC_TYPE_SIGNATURE);
                     if (args->verifySig == NULL) {
                         ERROR_OUT(MEMORY_E, exit_scv);
                     }
@@ -4433,7 +4428,7 @@ static void FreeDcv13Args(WOLFSSL* ssl, void* pArgs)
     Dcv13Args* args = (Dcv13Args*)pArgs;
 
     if (args->sigData) {
-        XFREE(args->sigData, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(args->sigData, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
         args->sigData = NULL;
     }
 
@@ -4548,7 +4543,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         #endif
 
             sig->buffer = (byte*)XMALLOC(args->sz, ssl->heap,
-                                         DYNAMIC_TYPE_TMP_BUFFER);
+                                         DYNAMIC_TYPE_SIGNATURE);
             if (sig->buffer == NULL) {
                 ERROR_OUT(MEMORY_E, exit_dcv);
             }
@@ -4560,7 +4555,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 WOLFSSL_MSG("Doing ECC peer cert verify");
 
                 args->sigData = (byte*)XMALLOC(MAX_SIG_DATA_SZ, ssl->heap,
-                                                    DYNAMIC_TYPE_TMP_BUFFER);
+                                                    DYNAMIC_TYPE_SIGNATURE);
                 if (args->sigData == NULL) {
                     ERROR_OUT(MEMORY_E, exit_dcv);
                 }
@@ -4581,7 +4576,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 WOLFSSL_MSG("Doing ED25519 peer cert verify");
 
                 args->sigData = (byte*)XMALLOC(MAX_SIG_DATA_SZ, ssl->heap,
-                                                    DYNAMIC_TYPE_TMP_BUFFER);
+                                                    DYNAMIC_TYPE_SIGNATURE);
                 if (args->sigData == NULL) {
                     ERROR_OUT(MEMORY_E, exit_dcv);
                 }

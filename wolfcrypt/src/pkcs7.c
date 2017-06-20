@@ -1033,7 +1033,7 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         }
 
         flatSignedAttribs = (byte*)XMALLOC(esd->signedAttribsSz, pkcs7->heap,
-                                                         DYNAMIC_TYPE_PKCS);
+                                                         DYNAMIC_TYPE_PKCS7);
         flatSignedAttribsSz = esd->signedAttribsSz;
         if (flatSignedAttribs == NULL) {
 #ifdef WOLFSSL_SMALL_STACK
@@ -1053,7 +1053,7 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
                                             flatSignedAttribsSz, esd);
     if (ret < 0) {
         if (pkcs7->signedAttribsSz != 0)
-            XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+            XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -1095,7 +1095,7 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
     if (outputSz < totalSz) {
         if (pkcs7->signedAttribsSz != 0)
-            XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+            XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -1154,7 +1154,7 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         idx += esd->signedAttribSetSz;
         XMEMCPY(output + idx, flatSignedAttribs, flatSignedAttribsSz);
         idx += flatSignedAttribsSz;
-        XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+        XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     }
 
     XMEMCPY(output + idx, esd->digEncAlgoId, esd->digEncAlgoIdSz);
@@ -4168,7 +4168,7 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
         attribs = (EncodedAttrib*)XMALLOC(
                 sizeof(EncodedAttrib) * pkcs7->unprotectedAttribsSz,
-                pkcs7->heap, DYNAMIC_TYPE_PKCS);
+                pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         if (attribs == NULL) {
             XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -4180,9 +4180,9 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
                                      pkcs7->unprotectedAttribs,
                                      pkcs7->unprotectedAttribsSz);
 
-        flatAttribs = (byte*)XMALLOC(attribsSz, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+        flatAttribs = (byte*)XMALLOC(attribsSz, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         if (flatAttribs == NULL) {
-            XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+            XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             return MEMORY_E;
@@ -4217,8 +4217,8 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     if (totalSz > (int)outputSz) {
         WOLFSSL_MSG("PKCS#7 output buffer too small");
         if (pkcs7->unprotectedAttribsSz != 0) {
-            XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS);
-            XFREE(flatAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+            XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            XFREE(flatAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         }
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -4255,8 +4255,8 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         idx += attribsSetSz;
         XMEMCPY(output + idx, flatAttribs, attribsSz);
         idx += attribsSz;
-        XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS);
-        XFREE(flatAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+        XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        XFREE(flatAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     }
 
     XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -4298,7 +4298,7 @@ static int wc_PKCS7_DecodeUnprotectedAttributes(PKCS7* pkcs7, byte* pkiMsg,
         savedIdx = idx;
 
         attrib = (PKCS7DecodedAttrib*)XMALLOC(sizeof(PKCS7DecodedAttrib),
-                                              pkcs7->heap, DYNAMIC_TYPE_PKCS);
+                                              pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         if (attrib == NULL) {
             return MEMORY_E;
         }
@@ -4306,38 +4306,38 @@ static int wc_PKCS7_DecodeUnprotectedAttributes(PKCS7* pkcs7, byte* pkiMsg,
 
         /* save attribute OID bytes and size */
         if (GetObjectId(pkiMsg, &idx, &oid, oidIgnoreType, pkiMsgSz) < 0) {
-            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             return ASN_PARSE_E;
         }
 
         attrib->oidSz = idx - savedIdx;
         attrib->oid = (byte*)XMALLOC(attrib->oidSz, pkcs7->heap,
-                                     DYNAMIC_TYPE_PKCS);
+                                     DYNAMIC_TYPE_PKCS7);
         if (attrib->oid == NULL) {
-            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             return MEMORY_E;
         }
         XMEMCPY(attrib->oid, pkiMsg + savedIdx, attrib->oidSz);
 
         /* save attribute value bytes and size */
         if (GetSet(pkiMsg, &idx, &length, pkiMsgSz) < 0) {
-            XFREE(attrib->oid, pkcs7->heap, DYNAMIC_TYPE_PKCS);
-            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+            XFREE(attrib->oid, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             return ASN_PARSE_E;
         }
 
         if ((pkiMsgSz - idx) < (word32)length) {
-            XFREE(attrib->oid, pkcs7->heap, DYNAMIC_TYPE_PKCS);
-            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+            XFREE(attrib->oid, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             return ASN_PARSE_E;
         }
 
         attrib->valueSz = (word32)length;
         attrib->value = (byte*)XMALLOC(attrib->valueSz, pkcs7->heap,
-                                       DYNAMIC_TYPE_PKCS);
+                                       DYNAMIC_TYPE_PKCS7);
         if (attrib->value == NULL) {
-            XFREE(attrib->oid, pkcs7->heap, DYNAMIC_TYPE_PKCS);
-            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+            XFREE(attrib->oid, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             return MEMORY_E;
         }
         XMEMCPY(attrib->value, pkiMsg + idx, attrib->valueSz);

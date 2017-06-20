@@ -4491,12 +4491,12 @@ void FreeSignatureCtx(SignatureCtx* sigCtx)
         return;
 
     if (sigCtx->digest) {
-        XFREE(sigCtx->digest, sigCtx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(sigCtx->digest, sigCtx->heap, DYNAMIC_TYPE_DIGEST);
         sigCtx->digest = NULL;
     }
 #ifndef NO_RSA
     if (sigCtx->plain) {
-        XFREE(sigCtx->plain, sigCtx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(sigCtx->plain, sigCtx->heap, DYNAMIC_TYPE_SIGNATURE);
         sigCtx->plain = NULL;
     }
 #endif
@@ -4641,7 +4641,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
         case SIG_STATE_BEGIN:
         {
             sigCtx->digest = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, sigCtx->heap,
-                                                    DYNAMIC_TYPE_TMP_BUFFER);
+                                                    DYNAMIC_TYPE_DIGEST);
             if (sigCtx->digest == NULL) {
                 ERROR_OUT(MEMORY_E, exit_cs);
             }
@@ -4675,7 +4675,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     sigCtx->key.rsa = (RsaKey*)XMALLOC(sizeof(RsaKey),
                                                 sigCtx->heap, DYNAMIC_TYPE_RSA);
                     sigCtx->plain = (byte*)XMALLOC(MAX_ENCODED_SIG_SZ,
-                                         sigCtx->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                                         sigCtx->heap, DYNAMIC_TYPE_SIGNATURE);
                     if (sigCtx->key.rsa == NULL || sigCtx->plain == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
@@ -11236,7 +11236,7 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
     end = *idx + len;
 
     rc = (RevokedCert*)XMALLOC(sizeof(RevokedCert), dcrl->heap,
-                                                          DYNAMIC_TYPE_CRL);
+                                                          DYNAMIC_TYPE_REVOKED);
     if (rc == NULL) {
         WOLFSSL_MSG("Alloc Revoked Cert failed");
         return MEMORY_E;
@@ -11244,7 +11244,7 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
 
     if (GetSerialNumber(buff, idx, rc->serialNumber, &rc->serialSz,
                                                                 maxIdx) < 0) {
-        XFREE(rc, dcrl->heap, DYNAMIC_TYPE_CRL);
+        XFREE(rc, dcrl->heap, DYNAMIC_TYPE_REVOKED);
         return ASN_PARSE_E;
     }
 
