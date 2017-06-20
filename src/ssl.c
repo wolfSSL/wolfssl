@@ -1024,6 +1024,35 @@ int wolfSSL_mcast_peer_add(WOLFSSL* ssl, word16 peerId, int remove)
 }
 
 
+/* If peerId is in the list of peers and its last sequence number is non-zero,
+ * return 1, otherwise return 0. */
+int wolfSSL_mcast_peer_known(WOLFSSL* ssl, unsigned short peerId)
+{
+    int known = 0;
+    int i;
+
+    WOLFSSL_ENTER("wolfSSL_mcast_peer_known()");
+
+    if (ssl == NULL || peerId > 255) {
+        return BAD_FUNC_ARG;
+    }
+
+    for (i = 0; i < WOLFSSL_DTLS_PEERSEQ_SZ; i++) {
+        if (ssl->keys.peerSeq[i].peerId == peerId) {
+            if (ssl->keys.peerSeq[i].nextSeq_hi ||
+                ssl->keys.peerSeq[i].nextSeq_lo) {
+
+                known = 1;
+            }
+            break;
+        }
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_mcast_peer_known()", known);
+    return known;
+}
+
+
 int wolfSSL_CTX_mcast_set_highwater_cb(WOLFSSL_CTX* ctx, word32 maxSeq,
                                        word32 first, word32 second,
                                        CallbackMcastHighwater cb)
