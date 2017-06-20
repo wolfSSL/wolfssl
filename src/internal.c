@@ -1528,7 +1528,10 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #endif /* !NO_WOLFSSL_SERVER */
 
 #endif /* HAVE_TLS_EXTENSIONS */
-
+#ifdef OPENSSL_EXTRA
+    if(ctx->alpn_cli_protos)
+        XFREE((void *)ctx->alpn_cli_protos, NULL, DYNAMIC_TYPE_OPENSSL);
+#endif
 #ifdef WOLFSSL_STATIC_MEMORY
     if (ctx->heap != NULL) {
 #ifdef WOLFSSL_HEAP_TEST
