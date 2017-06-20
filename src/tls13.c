@@ -298,6 +298,8 @@ static const byte tls13ProtocolLabel[TLS13_PROTOCOL_LABEL_SZ + 1] = "TLS 1.3, ";
 static const byte tls13ProtocolLabel[TLS13_PROTOCOL_LABEL_SZ + 1] = "tls13 ";
 #endif
 
+#if !defined(WOLFSSL_TLS13_DRAFT_18) || defined(HAVE_SESSION_TICKET) || \
+                                        !defined(NO_PSK)
 /* Derive a key from a message.
  *
  * ssl        The SSL/TLS object.
@@ -387,6 +389,7 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
                              protocol, protocolLen, label, labelLen,
                              hash, hashSz, digestAlg);
 }
+#endif
 
 /* Derive a key.
  *
@@ -2733,10 +2736,12 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
 {
     word16      len;
     word32      begin = *inOutIdx;
-    int         ret;
+    int         ret = 0;
+#ifndef WOLFSSL_TLS13_DRAFT_18
     Suites      peerSuites;
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
     CertReqCtx* certReqCtx;
+#endif
 #endif
 
     WOLFSSL_ENTER("DoTls13CertificateRequest");
@@ -2756,6 +2761,57 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     if (ssl->options.connectState < FINISHED_DONE && len > 0)
         return BUFFER_ERROR;
 
+#ifdef WOLFSSL_TLS13_DRAFT_18
+    *inOutIdx += len;
+
+    /* Signature and hash algorithms. */
+    if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+        return BUFFER_ERROR;
+    ato16(input + *inOutIdx, &len);
+    *inOutIdx += OPAQUE16_LEN;
+    if ((*inOutIdx - begin) + len > size)
+        return BUFFER_ERROR;
+    PickHashSigAlgo(ssl, input + *inOutIdx, len);
+    *inOutIdx += len;
+
+    /* Length of certificate authority data. */
+    if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+        return BUFFER_ERROR;
+    ato16(input + *inOutIdx, &len);
+    *inOutIdx += OPAQUE16_LEN;
+    if ((*inOutIdx - begin) + len > size)
+        return BUFFER_ERROR;
+
+    /* Certificate authorities. */
+    while (len) {
+        word16 dnSz;
+
+        if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+            return BUFFER_ERROR;
+
+        ato16(input + *inOutIdx, &dnSz);
+        *inOutIdx += OPAQUE16_LEN;
+
+        if ((*inOutIdx - begin) + dnSz > size)
+            return BUFFER_ERROR;
+
+        *inOutIdx += dnSz;
+        len -= OPAQUE16_LEN + dnSz;
+    }
+
+    /* Certificate extensions */
+    if ((*inOutIdx - begin) + OPAQUE16_LEN > size)
+        return BUFFER_ERROR;
+    ato16(input + *inOutIdx, &len);
+    *inOutIdx += OPAQUE16_LEN;
+    if ((*inOutIdx - begin) + len > size)
+        return BUFFER_ERROR;
+    *inOutIdx += len;
+    ssl->options.sendVerify = SEND_CERT;
+
+    /* This message is always encrypted so add encryption padding. */
+    *inOutIdx += ssl->keys.padSz;
+#else
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
     certReqCtx = (CertReqCtx*)XMALLOC(sizeof(CertReqCtx) + len - 1, ssl->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
@@ -2795,6 +2851,7 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
 
     /* This message is always encrypted so add encryption padding. */
     *inOutIdx += ssl->keys.padSz;
+#endif
 
 #if !defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     if (ssl->options.side == WOLFSSL_CLIENT_END &&
@@ -3489,6 +3546,46 @@ int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx, int reqCtxLen)
     if (ssl->options.usingPSK_cipher || ssl->options.usingAnon_cipher)
         return 0;  /* not needed */
 
+#ifdef WOLFSSL_TLS13_DRAFT_18
+    (void)reqCtx;
+
+    i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+    reqSz = OPAQUE8_LEN + reqCtxLen + REQ_HEADER_SZ + REQ_HEADER_SZ;
+    reqSz += LENGTH_SZ + ssl->suites->hashSigAlgoSz;
+
+    sendSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + reqSz;
+    /* Always encrypted and make room for padding. */
+    sendSz += MAX_MSG_EXTRA;
+
+    /* Check buffers are big enough and grow if needed. */
+    if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
+        return ret;
+
+    /* Get position in output buffer to write new message to. */
+    output = ssl->buffers.outputBuffer.buffer +
+             ssl->buffers.outputBuffer.length;
+
+    /* Put the record and handshake headers on. */
+    AddTls13Headers(output, reqSz, certificate_request, ssl);
+
+    /* Certificate request context. */
+    output[i++] = reqCtxLen;
+
+    /* supported hash/sig */
+    c16toa(ssl->suites->hashSigAlgoSz, &output[i]);
+    i += LENGTH_SZ;
+
+    XMEMCPY(&output[i], ssl->suites->hashSigAlgo, ssl->suites->hashSigAlgoSz);
+    i += ssl->suites->hashSigAlgoSz;
+
+    /* Certificate authorities not supported yet - empty buffer. */
+    c16toa(0, &output[i]);
+    i += REQ_HEADER_SZ;
+
+    /* Certificate extensions. */
+    c16toa(0, &output[i]);  /* auth's */
+    i += REQ_HEADER_SZ;
+#else
     i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
     reqSz = OPAQUE8_LEN + reqCtxLen +
         TLSX_GetResponseSize(ssl, certificate_request);
@@ -3517,6 +3614,7 @@ int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx, int reqCtxLen)
 
     /* Certificate extensions. */
     i += TLSX_WriteResponse(ssl, output + i, certificate_request);
+#endif
 
     /* Always encrypted. */
     sendSz = BuildTls13Message(ssl, output, sendSz, output + RECORD_HEADER_SZ,
