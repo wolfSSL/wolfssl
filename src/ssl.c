@@ -5621,6 +5621,7 @@ int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
                                      const char* path)
 {
     int ret = SSL_SUCCESS;
+    int fileRet;
 
     WOLFSSL_ENTER("wolfSSL_CTX_load_verify_locations");
 
@@ -5644,15 +5645,20 @@ int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
     #endif
 
         /* try to load each regular file in path */
-        ret = wc_ReadDirFirst(readCtx, path, &name);
-        while (ret == 0 && name) {
+        fileRet = wc_ReadDirFirst(readCtx, path, &name);
+        while (fileRet == 0 && name) {
             ret = ProcessFile(ctx, name, SSL_FILETYPE_PEM, CA_TYPE,
                                                           NULL, 0, NULL);
             if (ret != SSL_SUCCESS)
                 break;
-            ret = wc_ReadDirNext(readCtx, path, &name);
+            fileRet = wc_ReadDirNext(readCtx, path, &name);
         }
         wc_ReadDirClose(readCtx);
+
+        /* pass directory read failure to response code */
+        if (ret == SSL_SUCCESS && fileRet != -1) {
+            ret = fileRet;
+        }
 
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(readCtx, ctx->heap, DYNAMIC_TYPE_DIRCTX);
