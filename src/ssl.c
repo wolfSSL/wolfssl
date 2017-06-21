@@ -16342,14 +16342,14 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_sk_GENERAL_NAME_value(WOLFSSL_STACK* sk, int i)
  *
  * sk  stack to get the number of nodes from
  *
- * returns the number of nodes
+ * returns the number of nodes, -1 if no nodes
  */
 int wolfSSL_sk_GENERAL_NAME_num(WOLFSSL_STACK* sk)
 {
     WOLFSSL_ENTER("wolfSSL_sk_GENERAL_NAME_num");
 
     if (sk == NULL) {
-        return 0;
+        return -1;
     }
 
     return (int)sk->num;
@@ -18208,6 +18208,38 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX* ctx)
     if (ctx == NULL) {
         return NULL;
     }
+
+#ifdef SESSION_CERTS
+    /* if chain is null but sesChain is available then populate stack */
+    if (ctx->chain == NULL && ctx->sesChain != NULL) {
+        int i;
+        WOLFSSL_X509_CHAIN* c = ctx->sesChain;
+        WOLFSSL_STACK*     sk = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK),
+                                    NULL, DYNAMIC_TYPE_X509);
+
+        if (sk == NULL) {
+            return NULL;
+        }
+
+        XMEMSET(sk, 0, sizeof(WOLFSSL_STACK));
+        ctx->chain = sk;
+        for (i = 0; i < c->count && i < MAX_CHAIN_DEPTH; i++) {
+            WOLFSSL_X509* x509 = wolfSSL_get_chain_X509(c, i);
+
+            if (x509 == NULL) {
+                WOLFSSL_MSG("Unable to get x509 from chain");
+                wolfSSL_sk_X509_free(sk);
+                return NULL;
+            }
+
+            if (wolfSSL_sk_X509_push(sk, x509) != SSL_SUCCESS) {
+                WOLFSSL_MSG("Unable to load x509 into stack");
+                wolfSSL_sk_X509_free(sk);
+                return NULL;
+            }
+        }
+    }
+#endif /* SESSION_CERTS */
 
     return ctx->chain;
 }

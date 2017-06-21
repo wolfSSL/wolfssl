@@ -8374,6 +8374,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             #if defined(WOLFSSL_ALWAYS_VERIFY_CB) && defined(OPENSSL_EXTRA)
                     if (ssl->verifyCallback) {
                         int ok;
+
                     #ifdef WOLFSSL_SMALL_STACK
                         WOLFSSL_X509_STORE_CTX* store = (WOLFSSL_X509_STORE_CTX*)XMALLOC(
                                     sizeof(WOLFSSL_X509_STORE_CTX), ssl->heap,
@@ -8411,6 +8412,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             store->current_cert = x509;
                         }
                     #endif
+                    #ifdef SESSION_CERTS
+                        store->sesChain = &(ssl->session.chain);
+                    #endif
                         store->ex_data = ssl;
 
                         ok = ssl->verifyCallback(1, store);
@@ -8422,6 +8426,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         }
                     #ifndef NO_CERTS
                         FreeX509(x509);
+                    #endif
+                    #ifdef SESSION_CERTS
+                        wolfSSL_sk_X509_free(store->chain);
+                        store->chain = NULL;
                     #endif
                     #ifdef WOLFSSL_SMALL_STACK
                         XFREE(store, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -8958,6 +8966,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     #if defined(HAVE_EX_DATA) || defined(HAVE_FORTRESS)
                         store->ex_data = ssl;
                     #endif
+                    #ifdef SESSION_CERTS
+                        store->sesChain = &(ssl->session.chain);
+                    #endif
                         ok = ssl->verifyCallback(0, store);
                         if (ok) {
                             WOLFSSL_MSG("Verify callback overriding error!");
@@ -9003,6 +9014,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         store->current_cert = NULL;
                 #endif
                     store->ex_data = ssl;
+                #ifdef SESSION_CERTS
+                    store->sesChain = &(ssl->session.chain);
+                #endif
 
                     ok = ssl->verifyCallback(1, store);
                     if (!ok) {
@@ -9038,6 +9052,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 args->idx += ssl->keys.padSz;
             }
 
+        #ifdef SESSION_CERTS
+            wolfSSL_sk_X509_free(store->chain);
+            store->chain = NULL;
+        #endif
         #ifdef WOLFSSL_SMALL_STACK
             XFREE(store, ssl->heap, DYNAMIC_TYPE_X509_STORE);
         #endif

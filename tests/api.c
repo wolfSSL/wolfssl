@@ -15900,7 +15900,7 @@ static void test_wolfSSL_sk_GENERAL_NAME(void)
     /* current cert has no alt names */
     AssertNull(sk = X509_get_ext_d2i(x509, NID_subject_alt_name, NULL, NULL));
 
-    AssertIntEQ(sk_GENERAL_NAME_num(sk), 0);
+    AssertIntEQ(sk_GENERAL_NAME_num(sk), -1);
 #if 0
     for (i = 0; i < sk_GENERAL_NAME_num(sk); i++) {
         GENERAL_NAME* gn = sk_GENERAL_NAME_value(sk, i);
