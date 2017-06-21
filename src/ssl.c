@@ -4156,23 +4156,39 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         char*  line        = XSTRNSTR(headerEnd, encHeader, min(headerEndSz,
                                                                 PEM_LINE_LEN));
         if (line != NULL) {
-            char*  newline;
+            word32 lineSz;
             char*  finish;
             word32 finishSz;
+            char*  start;
             word32 startSz;
-            word32 lineSz   = (word32)(bufferEnd - line);
-            char*  start    = XSTRNSTR(line, "DES", min(lineSz, PEM_LINE_LEN));
+            char*  newline;
 
-            if (start == NULL)
+            if (line >= bufferEnd) {
+                return SSL_BAD_FILE;
+            }
+
+            lineSz = (word32)(bufferEnd - line);
+            start = XSTRNSTR(line, "DES", min(lineSz, PEM_LINE_LEN));
+
+            if (start == NULL) {
                 start = XSTRNSTR(line, "AES", min(lineSz, PEM_LINE_LEN));
+            }
 
             if (start == NULL) return SSL_BAD_FILE;
             if (info == NULL)  return SSL_BAD_FILE;
 
+            if (start >= bufferEnd) {
+                return SSL_BAD_FILE;
+            }
+
             startSz = (word32)(bufferEnd - start);
-            finish = XSTRNSTR(start, ",", min((word32)startSz, PEM_LINE_LEN));
+            finish = XSTRNSTR(start, ",", min(startSz, PEM_LINE_LEN));
 
             if ((start != NULL) && (finish != NULL) && (start < finish)) {
+                if (finish >= bufferEnd) {
+                    return SSL_BAD_FILE;
+                }
+
                 finishSz = (word32)(bufferEnd - finish);
                 newline = XSTRNSTR(finish, "\r", min(finishSz, PEM_LINE_LEN));
 
