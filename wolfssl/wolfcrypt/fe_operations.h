@@ -27,9 +27,10 @@
 
 #if defined(HAVE_CURVE25519) || defined(HAVE_ED25519)
 
-#if defined(HAVE___UINT128_T)
+#if !defined(CURVE25519_SMALL) || !defined(ED25519_SMALL)
     #include <stdint.h>
 #endif
+
 #include <wolfssl/wolfcrypt/types.h>
 
 /*
