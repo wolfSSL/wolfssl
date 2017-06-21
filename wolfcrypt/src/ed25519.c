@@ -112,7 +112,7 @@ int wc_ed25519_sign_msg(const byte* in, word32 inlen, byte* out,
 #else
     ge_p3  R;
 #endif
-    byte   nonce[SHA512_DIGEST_SIZE];    
+    byte   nonce[SHA512_DIGEST_SIZE];
     byte   hram[SHA512_DIGEST_SIZE];
     byte   az[ED25519_PRV_KEY_SIZE];
     Sha512 sha;
@@ -193,7 +193,7 @@ int wc_ed25519_sign_msg(const byte* in, word32 inlen, byte* out,
 #else
     sc_reduce(hram);
     sc_muladd(out + (ED25519_SIG_SIZE/2), hram, az, nonce);
-#endif 
+#endif
 
     return ret;
 }
@@ -234,7 +234,7 @@ int wc_ed25519_verify_msg(const byte* sig, word32 siglen, const byte* msg,
         return BAD_FUNC_ARG;
 
     /* uncompress A (public key), test if valid, and negate it */
-#ifndef FREESCALE_LTC_ECC    
+#ifndef FREESCALE_LTC_ECC
     if (ge_frombytes_negate_vartime(&A, key->p) != 0)
         return BAD_FUNC_ARG;
 #endif

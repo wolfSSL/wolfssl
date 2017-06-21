@@ -29,8 +29,8 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#ifndef CURVED25519_SMALL /* run when not defined to use small memory math */
 #ifdef HAVE_ED25519
+#ifndef ED25519_SMALL /* run when not defined to use small memory math */
 
 #include <wolfssl/wolfcrypt/ge_operations.h>
 #include <wolfssl/wolfcrypt/ed25519.h>
@@ -45,7 +45,7 @@
 /*
 ge means group element.
 
-Here the group is the set of pairs (x,y) of field elements (see fe.h)
+Here the group is the set of pairs (x,y) of field elements (see ge_operations.h)
 satisfying -x^2 + y^2 = 1 + d x^2y^2
 where d = -121665/121666.
 
@@ -691,7 +691,7 @@ void sc_muladd(byte* s, const byte* a, const byte* b, const byte* c)
 
 int ge_compress_key(byte* out, const byte* xIn, const byte* yIn, word32 keySz)
 {
-    fe     x,y,z;
+    ge     x,y,z;
     ge_p3  g;
     byte   bArray[ED25519_KEY_SIZE];
     word32 i;
@@ -721,7 +721,7 @@ r = p + q
 */
 void ge_add(ge_p1p1 *r,const ge_p3 *p,const ge_cached *q)
 {
-    fe t0;
+    ge t0;
     fe_add(r->X,p->Y,p->X);
     fe_sub(r->Y,p->Y,p->X);
     fe_mul(r->Z,r->X,q->YplusX);
@@ -3720,12 +3720,12 @@ int ge_double_scalarmult_vartime(ge_p2 *r, const unsigned char *a,
 }
 
 #ifdef HAVE___UINT128_T
-static const fe d = {
+static const ge d = {
     0x34dca135978a3, 0x1a8283b156ebd, 0x5e7a26001c029, 0x739c663a03cbb,
     0x52036cee2b6ff
 };
 #else
-static const fe d = {
+static const ge d = {
 -10913610,13857413,-15372611,6949391,114729,
 -8787816,-6275908,-3247719,-18696448,-12055116
 } ;
@@ -3733,12 +3733,12 @@ static const fe d = {
 
 
 #ifdef HAVE___UINT128_T
-static const fe sqrtm1 = {
+static const ge sqrtm1 = {
     0x61b274a0ea0b0, 0x0d5a5fc8f189d, 0x7ef5e9cbd0c60, 0x78595a6804c9e,
     0x2b8324804fc1d
 };
 #else
-static const fe sqrtm1 = {
+static const ge sqrtm1 = {
 -32595792,-7943725,9377950,3500415,12389472,
 -272473,-25146209,-2005654,326686,11406482
 } ;
@@ -3747,11 +3747,11 @@ static const fe sqrtm1 = {
 
 int ge_frombytes_negate_vartime(ge_p3 *h,const unsigned char *s)
 {
-  fe u;
-  fe v;
-  fe v3;
-  fe vxx;
-  fe check;
+  ge u;
+  ge v;
+  ge v3;
+  ge vxx;
+  ge check;
 
   fe_frombytes(h->Y,s);
   fe_1(h->Z);
@@ -3795,7 +3795,7 @@ r = p + q
 
 void ge_madd(ge_p1p1 *r,const ge_p3 *p,const ge_precomp *q)
 {
-    fe t0;
+    ge t0;
     fe_add(r->X,p->Y,p->X);
     fe_sub(r->Y,p->Y,p->X);
     fe_mul(r->Z,r->X,q->yplusx);
@@ -3817,7 +3817,7 @@ r = p - q
 
 void ge_msub(ge_p1p1 *r,const ge_p3 *p,const ge_precomp *q)
 {
-    fe t0;
+    ge t0;
     fe_add(r->X,p->Y,p->X);
     fe_sub(r->Y,p->Y,p->X);
     fe_mul(r->Z,r->X,q->yminusx);
@@ -3877,7 +3877,7 @@ r = 2 * p
 
 void ge_p2_dbl(ge_p1p1 *r,const ge_p2 *p)
 {
-    fe t0;
+    ge t0;
     fe_sq(r->X,p->X);
     fe_sq(r->Z,p->Y);
     fe_sq2(r->T,p->Z);
@@ -3922,12 +3922,12 @@ r = p
 */
 
 #ifdef HAVE___UINT128_T
-static const fe d2 = {
+static const ge d2 = {
     0x69b9426b2f159, 0x35050762add7a, 0x3cf44c0038052, 0x6738cc7407977,
     0x2406d9dc56dff
 };
 #else
-static const fe d2 = {
+static const ge d2 = {
 -21827239,-5839606,-30745221,13898782,229458,
 15978800,-12551817,-6495438,29715968,9444199
 } ;
@@ -3959,9 +3959,9 @@ extern void ge_p3_to_p2(ge_p2 *r,const ge_p3 *p)
 /* ge p3 tobytes */
 void ge_p3_tobytes(unsigned char *s,const ge_p3 *h)
 {
-  fe recip;
-  fe x;
-  fe y;
+  ge recip;
+  ge x;
+  ge y;
 
   fe_invert(recip,h->Z);
   fe_mul(x,h->X,recip);
@@ -3987,7 +3987,7 @@ r = p - q
 
 void ge_sub(ge_p1p1 *r,const ge_p3 *p,const ge_cached *q)
 {
-    fe t0;
+    ge t0;
     fe_add(r->X,p->Y,p->X);
     fe_sub(r->Y,p->Y,p->X);
     fe_mul(r->Z,r->X,q->YminusX);
@@ -4005,9 +4005,9 @@ void ge_sub(ge_p1p1 *r,const ge_p3 *p,const ge_cached *q)
 /* ge tobytes */
 void ge_tobytes(unsigned char *s,const ge_p2 *h)
 {
-  fe recip;
-  fe x;
-  fe y;
+  ge recip;
+  ge x;
+  ge y;
 
   fe_invert(recip,h->Z);
   fe_mul(x,h->X,recip);
@@ -4015,6 +4015,6 @@ void ge_tobytes(unsigned char *s,const ge_p2 *h)
   fe_tobytes(s,y);
   s[31] ^= fe_isnegative(x) << 7;
 }
-#endif /* HAVE_ED25519 */
-#endif /* not defined CURVED25519_SMALL */
 
+#endif /* !ED25519_SMALL */
+#endif /* HAVE_ED25519 */

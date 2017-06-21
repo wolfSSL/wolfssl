@@ -431,7 +431,7 @@ struct SignatureCtx {
     byte* out;
     byte* plain;
 #endif
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || defined(HAVE_ED25519)
     int verify;
 #endif
     union {
@@ -565,7 +565,7 @@ struct DecodedCert {
     byte*   extSubjKeyIdSrc;
     word32  extSubjKeyIdSz;
 #endif
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || defined(HAVE_ED25519)
     word32  pkCurveOID;           /* Public Key's curve OID */
 #endif /* HAVE_ECC */
     byte*   beforeDate;
