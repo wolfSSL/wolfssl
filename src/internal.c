@@ -7480,7 +7480,8 @@ static void FreeProcPeerCertArgs(WOLFSSL* ssl, void* pArgs)
     }
 }
 
-int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 totalSz)
+int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
+                     word32 totalSz)
 {
     int ret = 0;
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -13067,7 +13068,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
 
             #ifdef WOLFSSL_SMALL_STACK
                 cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), ssl->heap,
-                                             DYNAMIC_TYPE_TMP_DCERT);
+                                             DYNAMIC_TYPE_DCERT);
                 if (cert == NULL)
                     return MEMORY_E;
             #endif

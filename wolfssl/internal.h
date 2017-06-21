@@ -3503,26 +3503,14 @@ WOLFSSL_LOCAL int DoClientTicket(WOLFSSL*, const byte*, word32);
 WOLFSSL_LOCAL int SendData(WOLFSSL*, const void*, int);
 #ifdef WOLFSSL_TLS13
 WOLFSSL_LOCAL int SendTls13HelloRetryRequest(WOLFSSL*);
-WOLFSSL_LOCAL int SendTls13EncryptedExtensions(WOLFSSL*);
 #endif
 WOLFSSL_LOCAL int SendCertificate(WOLFSSL*);
-#ifdef WOLFSSL_TLS13
-WOLFSSL_LOCAL int SendTls13Certificate(WOLFSSL*);
-#endif
 WOLFSSL_LOCAL int SendCertificateRequest(WOLFSSL*);
-#ifdef WOLFSSL_TLS13
-WOLFSSL_LOCAL int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
-                                              int reqCtxLen);
-#endif
 WOLFSSL_LOCAL int SendCertificateStatus(WOLFSSL*);
 WOLFSSL_LOCAL int SendServerKeyExchange(WOLFSSL*);
 WOLFSSL_LOCAL int SendBuffered(WOLFSSL*);
 WOLFSSL_LOCAL int ReceiveData(WOLFSSL*, byte*, int, int);
 WOLFSSL_LOCAL int SendFinished(WOLFSSL*);
-#ifdef WOLFSSL_TLS13
-WOLFSSL_LOCAL int SendTls13Finished(WOLFSSL*);
-WOLFSSL_LOCAL int SendTls13NewSessionTicket(WOLFSSL*);
-#endif
 WOLFSSL_LOCAL int SendAlert(WOLFSSL*, int, int);
 WOLFSSL_LOCAL int ProcessReply(WOLFSSL*);
 
@@ -3628,13 +3616,8 @@ WOLFSSL_LOCAL  int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength);
     WOLFSSL_LOCAL int SendCertificateVerify(WOLFSSL*);
 #endif /* NO_WOLFSSL_CLIENT */
 
-    WOLFSSL_LOCAL int SendTls13CertificateVerify(WOLFSSL*);
-
 #ifndef NO_WOLFSSL_SERVER
     WOLFSSL_LOCAL int SendServerHello(WOLFSSL*);
-    #ifdef WOLFSSL_TLS13
-    WOLFSSL_LOCAL int SendTls13ServerHello(WOLFSSL*);
-    #endif
     WOLFSSL_LOCAL int SendServerHelloDone(WOLFSSL*);
 #endif /* NO_WOLFSSL_SERVER */
 
