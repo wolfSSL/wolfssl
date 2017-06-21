@@ -88,7 +88,7 @@ static void RABBIT_next_state(RabbitCtx* ctx)
     ctx->c[6] = U32V(ctx->c[6] + 0x4D34D34D + (ctx->c[5] < c_old[5]));
     ctx->c[7] = U32V(ctx->c[7] + 0xD34D34D3 + (ctx->c[6] < c_old[6]));
     ctx->carry = (ctx->c[7] < c_old[7]);
-   
+
     /* Calculate the g-values */
     for (i=0;i<8;i++)
         g[i] = RABBIT_g_func(U32V(ctx->x[i] + ctx->c[i]));
@@ -116,7 +116,7 @@ static void wc_RabbitSetIV(Rabbit* ctx, const byte* inIv)
         XMEMCPY(iv, inIv, sizeof(iv));
     else
         XMEMSET(iv,    0, sizeof(iv));
-      
+
     /* Generate four subvectors */
     i0 = LITTLE32(iv[0]);
     i2 = LITTLE32(iv[1]);
@@ -218,6 +218,10 @@ int wc_Rabbit_SetHeap(Rabbit* ctx, void* heap)
 /* Key setup */
 int wc_RabbitSetKey(Rabbit* ctx, const byte* key, const byte* iv)
 {
+    if (ctx == NULL || key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
 #ifdef XSTREAM_ALIGN
     /* default heap to NULL or heap test value */
     #ifdef WOLFSSL_HEAP_TEST
@@ -286,11 +290,11 @@ static INLINE int DoProcess(Rabbit* ctx, byte* output, const byte* input,
         /* Generate 16 bytes of pseudo-random data */
         tmp[0] = LITTLE32(ctx->workCtx.x[0] ^
                   (ctx->workCtx.x[5]>>16) ^ U32V(ctx->workCtx.x[3]<<16));
-        tmp[1] = LITTLE32(ctx->workCtx.x[2] ^ 
+        tmp[1] = LITTLE32(ctx->workCtx.x[2] ^
                   (ctx->workCtx.x[7]>>16) ^ U32V(ctx->workCtx.x[5]<<16));
-        tmp[2] = LITTLE32(ctx->workCtx.x[4] ^ 
+        tmp[2] = LITTLE32(ctx->workCtx.x[4] ^
                   (ctx->workCtx.x[1]>>16) ^ U32V(ctx->workCtx.x[7]<<16));
-        tmp[3] = LITTLE32(ctx->workCtx.x[6] ^ 
+        tmp[3] = LITTLE32(ctx->workCtx.x[6] ^
                   (ctx->workCtx.x[3]>>16) ^ U32V(ctx->workCtx.x[1]<<16));
 
         /* Encrypt/decrypt the data */
@@ -305,6 +309,10 @@ static INLINE int DoProcess(Rabbit* ctx, byte* output, const byte* input,
 /* Encrypt/decrypt a message of any size */
 int wc_RabbitProcess(Rabbit* ctx, byte* output, const byte* input, word32 msglen)
 {
+    if (ctx == NULL || output == NULL || input == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
 #ifdef XSTREAM_ALIGN
     if ((wolfssl_word)input % 4 || (wolfssl_word)output % 4) {
         #ifndef NO_WOLFSSL_ALLOC_ALIGN
