@@ -36,10 +36,13 @@ ASN Options:
  * WOLFSSL_CERT_GEN: Cert generation. Saves extra certificate info in GetName.
  * WOLFSSL_NO_OCSP_OPTIONAL_CERTS: Skip optional OCSP certs (responder issuer
     must still be trusted)
- * WOLFSSL_NO_TRUSTED_CERTS_VERIFY: Workaround for sitatuon where entire cert
+ * WOLFSSL_NO_TRUSTED_CERTS_VERIFY: Workaround for situation where entire cert
     chain is not loaded. This only matches on subject and public key and
     does not perform a PKI validation, so it is not a secure solution.
     Only enabled for OCSP.
+ * WOLFSSL_NO_OCSP_EXTKEYUSE_OCSP_SIGN: Can be defined for backwards
+    compatibility to disable matching of OCSP signing authority for the
+    certificate in question.
 */
 
 #ifndef NO_ASN
@@ -10767,6 +10770,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             return ret;
         }
 
+#ifndef WOLFSSL_NO_OCSP_EXTKEYUSE_OCSP_SIGN
         if ((cert.extExtKeyUsage & EXTKEYUSE_OCSP_SIGN) == 0) {
             if (XMEMCMP(cert.subjectHash,
                         resp->issuerHash, KEYID_SIZE) == 0) {
@@ -10779,6 +10783,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
                 return BAD_OCSP_RESPONDER;
             }
         }
+#endif
 
         /* ConfirmSignature is blocking here */
         ret = ConfirmSignature(&cert.sigCtx,
