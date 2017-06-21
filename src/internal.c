@@ -13021,7 +13021,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
 
             #ifdef WOLFSSL_SMALL_STACK
                 cert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), ssl->heap,
-                                             DYNAMIC_TYPE_TMP_DCERT);
+                                             DYNAMIC_TYPE_DCERT);
                 if (cert == NULL)
                     return MEMORY_E;
             #endif
