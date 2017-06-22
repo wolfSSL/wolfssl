@@ -2467,9 +2467,11 @@ static int DoTls13HelloRetryRequest(WOLFSSL* ssl, const byte* input,
     if (ret != 0)
         return ret;
 
+#ifndef WOLFSSL_TLS13_DRAFT_18
     /* Set the cipher suite from the message. */
     ssl->options.cipherSuite0 = input[i++];
     ssl->options.cipherSuite  = input[i++];
+#endif
 
     ret = SetCipherSpecs(ssl);
     if (ret != 0)
@@ -3273,9 +3275,11 @@ int SendTls13HelloRetryRequest(WOLFSSL* ssl)
     output[idx++] = TLS_DRAFT_MAJOR;
     output[idx++] = TLS_DRAFT_MINOR;
 
+#ifndef WOLFSSL_TLS13_DRAFT_18
     /* Chosen cipher suite */
     output[idx++] = ssl->options.cipherSuite0;
     output[idx++] = ssl->options.cipherSuite;
+#endif
 
     /* Add TLS extensions. */
     TLSX_WriteResponse(ssl, output + idx, hello_retry_request);
