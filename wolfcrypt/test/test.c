@@ -930,7 +930,7 @@ int error_test()
     /* Values that are not or no longer error codes. */
     int missing[] = { -122, -123, -124,       -127, -128, -129,
                       -161, -162, -163, -164, -165, -166, -167, -168, -169,
-                      -178, -179,       -233,
+                      -179,       -233,
                       0 };
 
     /* Check that all errors have a string and it's the same through the two

@@ -36,10 +36,12 @@ ASN Options:
  * WOLFSSL_CERT_GEN: Cert generation. Saves extra certificate info in GetName.
  * WOLFSSL_NO_OCSP_OPTIONAL_CERTS: Skip optional OCSP certs (responder issuer
     must still be trusted)
- * WOLFSSL_NO_TRUSTED_CERTS_VERIFY: Workaround for sitatuon where entire cert
+ * WOLFSSL_NO_TRUSTED_CERTS_VERIFY: Workaround for situation where entire cert
     chain is not loaded. This only matches on subject and public key and
     does not perform a PKI validation, so it is not a secure solution.
     Only enabled for OCSP.
+ * WOLFSSL_NO_OCSP_ISSUER_CHECK: Can be defined for backwards compatibility to
+    disable checking of OCSP subject hash with issuer hash.
 */
 
 #ifndef NO_ASN
@@ -10757,6 +10759,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             return ASN_PARSE_E;
 
         InitDecodedCert(&cert, resp->cert, resp->certSz, heap);
+
         /* Don't verify if we don't have access to Cert Manager. */
         ret = ParseCertRelative(&cert, CERT_TYPE,
                                 noVerify ? NO_VERIFY : VERIFY_OCSP, cm);
@@ -10765,6 +10768,21 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             FreeDecodedCert(&cert);
             return ret;
         }
+
+#ifndef WOLFSSL_NO_OCSP_ISSUER_CHECK
+        if ((cert.extExtKeyUsage & EXTKEYUSE_OCSP_SIGN) == 0) {
+            if (XMEMCMP(cert.subjectHash,
+                        resp->issuerHash, KEYID_SIZE) == 0) {
+                WOLFSSL_MSG("\tOCSP Response signed by issuer");
+            }
+            else {
+                WOLFSSL_MSG("\tOCSP Responder key usage check failed");
+
+                FreeDecodedCert(&cert);
+                return BAD_OCSP_RESPONDER;
+            }
+        }
+#endif
 
         /* ConfirmSignature is blocking here */
         ret = ConfirmSignature(&cert.sigCtx,
