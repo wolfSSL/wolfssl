@@ -399,9 +399,6 @@ WOLFSSL_API void wolfSSL_set_using_nonblock(WOLFSSL*, int);
 WOLFSSL_API int  wolfSSL_get_using_nonblock(WOLFSSL*);
 /* please see note at top of README if you get an error from connect */
 WOLFSSL_API int  wolfSSL_connect(WOLFSSL*);
-#ifdef WOLFSSL_TLS13
-WOLFSSL_API int  wolfSSL_connect_TLSv13(WOLFSSL*);
-#endif
 WOLFSSL_API int  wolfSSL_write(WOLFSSL*, const void*, int);
 WOLFSSL_API int  wolfSSL_read(WOLFSSL*, void*, int);
 WOLFSSL_API int  wolfSSL_peek(WOLFSSL*, void*, int);
@@ -415,7 +412,17 @@ WOLFSSL_API int  wolfSSL_update_keys(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_CTX_allow_post_handshake_auth(WOLFSSL_CTX* ctx);
 WOLFSSL_API int  wolfSSL_allow_post_handshake_auth(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_request_certificate(WOLFSSL* ssl);
+
+WOLFSSL_API int  wolfSSL_connect_TLSv13(WOLFSSL*);
 WOLFSSL_API int  wolfSSL_accept_TLSv13(WOLFSSL*);
+
+#ifdef WOLFSSL_EARLY_DATA
+WOLFSSL_API int  wolfSSL_CTX_set_max_early_data(WOLFSSL_CTX* ctx,
+                                                unsigned int sz);
+WOLFSSL_API int  wolfSSL_set_max_early_data(WOLFSSL* ssl, unsigned int sz);
+WOLFSSL_API int  wolfSSL_write_early_data(WOLFSSL*, const void*, int, int*);
+WOLFSSL_API int  wolfSSL_read_early_data(WOLFSSL*, void*, int, int*);
+#endif
 #endif
 WOLFSSL_API void wolfSSL_CTX_free(WOLFSSL_CTX*);
 WOLFSSL_API void wolfSSL_free(WOLFSSL*);

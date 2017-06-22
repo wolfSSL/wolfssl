@@ -2900,14 +2900,42 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 
     switch (side) {
         case ENCRYPT_SIDE_ONLY:
+            WOLFSSL_MSG("Provisioning ENCRYPT key");
+            if (ssl->options.side == WOLFSSL_CLIENT_END) {
+                WOLFSSL_BUFFER(ssl->keys.client_write_key, AES_256_KEY_SIZE);
+            }
+            else {
+                WOLFSSL_BUFFER(ssl->keys.server_write_key, AES_256_KEY_SIZE);
+            }
             wc_encrypt = &ssl->encrypt;
             break;
 
         case DECRYPT_SIDE_ONLY:
+            WOLFSSL_MSG("Provisioning DECRYPT key");
+            if (ssl->options.side == WOLFSSL_CLIENT_END) {
+                WOLFSSL_BUFFER(ssl->keys.server_write_key, AES_256_KEY_SIZE);
+            }
+            else {
+                WOLFSSL_BUFFER(ssl->keys.client_write_key, AES_256_KEY_SIZE);
+            }
             wc_decrypt = &ssl->decrypt;
             break;
 
         case ENCRYPT_AND_DECRYPT_SIDE:
+            WOLFSSL_MSG("Provisioning ENCRYPT key");
+            if (ssl->options.side == WOLFSSL_CLIENT_END) {
+                WOLFSSL_BUFFER(ssl->keys.client_write_key, AES_256_KEY_SIZE);
+            }
+            else {
+                WOLFSSL_BUFFER(ssl->keys.server_write_key, AES_256_KEY_SIZE);
+            }
+            WOLFSSL_MSG("Provisioning DECRYPT key");
+            if (ssl->options.side == WOLFSSL_CLIENT_END) {
+                WOLFSSL_BUFFER(ssl->keys.server_write_key, AES_256_KEY_SIZE);
+            }
+            else {
+                WOLFSSL_BUFFER(ssl->keys.client_write_key, AES_256_KEY_SIZE);
+            }
             wc_encrypt = &ssl->encrypt;
             wc_decrypt = &ssl->decrypt;
             break;
@@ -2996,7 +3024,7 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 
 
 /* TLS can call too */
-int StoreKeys(WOLFSSL* ssl, const byte* keyData)
+int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side)
 {
     int sz, i = 0;
     Keys* keys = &ssl->keys;
@@ -3011,21 +3039,32 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData)
 
     if (ssl->specs.cipher_type != aead) {
         sz = ssl->specs.hash_size;
-        XMEMCPY(keys->client_write_MAC_secret,&keyData[i], sz);
-        i += sz;
-        XMEMCPY(keys->server_write_MAC_secret,&keyData[i], sz);
-        i += sz;
+        if (side & PROVISION_CLIENT) {
+            XMEMCPY(keys->client_write_MAC_secret,&keyData[i], sz);
+            i += sz;
+        }
+        if (side & PROVISION_SERVER) {
+            XMEMCPY(keys->server_write_MAC_secret,&keyData[i], sz);
+            i += sz;
+        }
     }
     sz = ssl->specs.key_size;
-    XMEMCPY(keys->client_write_key, &keyData[i], sz);
-    i += sz;
-    XMEMCPY(keys->server_write_key, &keyData[i], sz);
-    i += sz;
+    if (side & PROVISION_CLIENT) {
+        XMEMCPY(keys->client_write_key, &keyData[i], sz);
+        i += sz;
+    }
+    if (side & PROVISION_SERVER) {
+        XMEMCPY(keys->server_write_key, &keyData[i], sz);
+        i += sz;
+    }
 
     sz = ssl->specs.iv_size;
-    XMEMCPY(keys->client_write_IV, &keyData[i], sz);
-    i += sz;
-    XMEMCPY(keys->server_write_IV, &keyData[i], sz);
+    if (side & PROVISION_CLIENT) {
+        XMEMCPY(keys->client_write_IV, &keyData[i], sz);
+        i += sz;
+    }
+    if (side & PROVISION_SERVER)
+        XMEMCPY(keys->server_write_IV, &keyData[i], sz);
 
 #ifdef HAVE_AEAD
     if (ssl->specs.cipher_type == aead) {
@@ -3126,7 +3165,7 @@ int DeriveKeys(WOLFSSL* ssl)
         }
 
         if (ret == 0)
-            ret = StoreKeys(ssl, keyData);
+            ret = StoreKeys(ssl, keyData, PROVISION_CLIENT_SERVER);
     }
 
 #ifdef WOLFSSL_SMALL_STACK
