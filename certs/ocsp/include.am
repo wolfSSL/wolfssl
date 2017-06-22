@@ -3,15 +3,11 @@
 #
 
 EXTRA_DIST += \
-        certs/ocsp/index0.txt \
-        certs/ocsp/index1.txt \
-        certs/ocsp/index2.txt \
-        certs/ocsp/index3.txt \
+        certs/ocsp/index-ca-and-intermediate-cas.txt \
+        certs/ocsp/index-intermediate1-ca-issued-certs.txt \
+        certs/ocsp/index-intermediate3-ca-issued-certs.txt \
+        certs/ocsp/index-intermediate3-ca-issued-certs.txt \
         certs/ocsp/openssl.cnf \
-        certs/ocsp/ocspd0.sh \
-        certs/ocsp/ocspd1.sh \
-        certs/ocsp/ocspd2.sh \
-        certs/ocsp/ocspd3.sh \
         certs/ocsp/intermediate1-ca-key.pem \
         certs/ocsp/intermediate1-ca-cert.pem \
         certs/ocsp/intermediate2-ca-key.pem \
