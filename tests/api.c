@@ -96,6 +96,10 @@
 #endif
 
 
+#ifndef NO_RSA
+    #include <wolfssl/wolfcrypt/rsa.h>
+#endif
+
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/ssl.h>
     #include <wolfssl/openssl/pkcs12.h>
@@ -6082,6 +6086,790 @@ static int test_wc_Arc4Process (void)
 
 }/* END test_wc_Arc4Process */
 
+
+/*
+ * Testing wc_Init RsaKey()
+ */
+static int test_wc_InitRsaKey (void)
+{
+#ifndef NO_RSA
+    RsaKey  key[1];
+    int     ret;
+
+    printf(testingFmt, "wc_InitRsaKey()");
+
+    ret = wc_InitRsaKey(key, NULL);
+
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_InitRsaKey(NULL, NULL);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    wc_FreeRsaKey(key);
+
+#endif
+    return 0;
+} /* END test_wc_InitRsaKey */
+
+
+/*
+ * Testing wc_RsaPrivateKeyDecode()
+ */
+static int test_wc_RsaPrivateKeyDecode (void)
+{
+#if !defined(NO_RSA) && (defined(USE_CERT_BUFFERS_1024)\
+        || defined(USE_CERT_BUFFERS_2048))
+    RsaKey  key;
+    word32  idx = 0;
+    byte*   tmp = NULL;
+    int     ret = 0;
+    size_t  bytes;
+
+    printf(testingFmt, "wc_RsaPrivateKeyDecode()");
+
+    tmp = (byte*)XMALLOC(4096, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp == NULL) {
+        ret = SSL_FATAL_ERROR;
+    }
+    if (ret == 0) {
+    #ifdef USE_CERT_BUFFERS_1024
+        XMEMCPY(tmp, client_key_der_1024, sizeof_client_key_der_1024);
+        bytes = sizeof_client_key_der_1024;
+    #elif defined(USE_CERT_BUFFERS_2048)
+        XMEMCPY(tmp, client_key_der_2048, sizeof_client_key_der_2048);
+        bytes = sizeof_client_key_der_2048;
+    #endif /* Use cert buffers. */
+
+        ret = wc_InitRsaKey(&key, NULL);
+        if (ret == 0) {
+            ret = wc_RsaPrivateKeyDecode(tmp, &idx, &key, (word32)bytes);
+        }
+    }
+
+    if (ret == 0) {
+        ret = wc_RsaPrivateKeyDecode(NULL, &idx, &key, (word32)bytes);
+        if (ret == ASN_PARSE_E) {
+            ret = wc_RsaPrivateKeyDecode(tmp, NULL, &key, (word32)bytes);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_RsaPrivateKeyDecode(tmp, &idx, NULL, (word32)bytes);
+        }
+        if (ret == ASN_PARSE_E) {
+            ret = wc_RsaPrivateKeyDecode(tmp, &idx, &key, (word32)NULL);
+        }
+        if (ret == ASN_PARSE_E) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    wc_FreeRsaKey(&key);
+
+#endif
+    return 0;
+
+} /* END test_wc_RsaPrivateKeyDecode */
+
+/*
+ * Testing wc_RsaPublicKeyDecode()
+ */
+static int test_wc_RsaPublicKeyDecode (void)
+{
+#if !defined(NO_RSA) && (defined(USE_CERT_BUFFERS_1024)\
+        || defined(USE_CERT_BUFFERS_2048))
+    RsaKey  keyPub;
+    byte*   tmp = NULL;
+    word32  idx = 0;
+    int     bytes;
+    int     ret = 0;
+
+   tmp = (byte*)XMALLOC(4096, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp == NULL) {
+        ret = SSL_FATAL_ERROR;
+    }
+
+    #ifdef USE_CERT_BUFFERS_1024
+        XMEMCPY(tmp, client_keypub_der_1024, sizeof_client_keypub_der_1024);
+        bytes = sizeof_client_keypub_der_1024;
+    #elif defined(USE_CERT_BUFFERS_2048)
+        XMEMCPY(tmp, client_keypub_der_2048, sizeof_client_keypub_der_2048);
+        bytes = sizeof_client_keypub_der_2048;
+    #endif
+
+    printf(testingFmt, "wc_RsaPublicKeyDecode()");
+    if (ret == 0) {
+        ret = wc_InitRsaKey(&keyPub, NULL);
+        if (ret == 0) {
+            ret = wc_RsaPublicKeyDecode(tmp, &idx, &keyPub, (word32)bytes);
+        }
+    }
+    /* Pass in bad args. */
+    if (ret == 0) {
+        ret = wc_RsaPublicKeyDecode(NULL, &idx, &keyPub, (word32)bytes);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_RsaPublicKeyDecode(tmp, NULL, &keyPub, (word32)bytes);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_RsaPublicKeyDecode(tmp, &idx, NULL, (word32)bytes);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+}  /* END test_wc_RsaPublicKeyDecode */
+
+/*
+ * Testing wc_RsaPublicKeyDecodeRaw()
+ */
+static int test_wc_RsaPublicKeyDecodeRaw (void)
+{
+#ifndef NO_RSA
+    RsaKey      key[1];
+    const byte  n = 0x23;
+    const byte  e = 0x03;
+    int         nSz = sizeof(n);
+    int         eSz = sizeof(e);
+    int         ret;
+
+    printf(testingFmt, "wc_RsaPublicKeyDecodeRaw()");
+
+    ret = wc_InitRsaKey(key, NULL);
+    if (ret == 0) {
+        ret = wc_RsaPublicKeyDecodeRaw(&n, nSz, &e, eSz, key);
+    }
+    /* Pass in bad args. */
+    if (ret == 0) {
+        ret = wc_RsaPublicKeyDecodeRaw(NULL, nSz, &e, eSz, key);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_RsaPublicKeyDecodeRaw(&n, nSz, NULL, eSz, key);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_RsaPublicKeyDecodeRaw(&n, nSz, &e, eSz, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_RsaPublicKeyDecodeRaw */
+
+/*
+ * Testing wc_MakeRsaKey()
+ */
+static int test_wc_MakeRsaKey (void)
+{
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+    RsaKey  genKey;
+    WC_RNG  rng;
+    int     ret;
+
+    printf(testingFmt, "wc_MakeRsaKey()");
+
+    ret = wc_InitRsaKey(&genKey, NULL);
+    if (ret == 0) {
+        ret = wc_InitRng(&rng);
+    }
+     if (ret == 0) {
+        ret = wc_MakeRsaKey(&genKey, 1024, 65537, &rng);
+    }
+
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_MakeRsaKey(NULL, 1024, 65537, &rng);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_MakeRsaKey(&genKey, 1024, 65537, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            /* e < 3 */
+            ret = wc_MakeRsaKey(&genKey, 1024, 2, &rng);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            /* e & 1 == 0 */
+            ret = wc_MakeRsaKey(&genKey, 1024, 6, &rng);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_MakeRsaKey */
+
+/*
+ * Testing wc_SetKeyUsage()
+ */
+static int test_wc_SetKeyUsage (void)
+{
+#if !defined(NO_RSA) && defined(WOLFSSL_CERT_EXT)
+    Cert    myCert;
+    int     ret;
+
+    ret = wc_InitCert(&myCert);
+
+    printf(testingFmt, "wc_SetKeyUsage()");
+    if (ret == 0) {
+        ret = wc_SetKeyUsage(&myCert, "keyEncipherment,keyAgreement");
+        if (ret == 0) {
+            ret = wc_SetKeyUsage(&myCert, "digitalSignature,nonRepudiation");
+        }
+        if (ret == 0) {
+            ret = wc_SetKeyUsage(&myCert, "contentCommitment,encipherOnly");
+        }
+        if (ret == 0) {
+            ret = wc_SetKeyUsage(&myCert, "decipherOnly");
+        }
+        if (ret == 0) {
+            ret = wc_SetKeyUsage(&myCert, "cRLSign,keyCertSign");
+        }
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_SetKeyUsage(NULL, "decipherOnly");
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_SetKeyUsage(&myCert, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_SetKeyUsage(&myCert, "");
+        }
+        if (ret == KEYUSAGE_E) {
+            ret = wc_SetKeyUsage(&myCert, ",");
+        }
+        if (ret == KEYUSAGE_E) {
+            ret = wc_SetKeyUsage(&myCert, "digitalSignature, cRLSign");
+        }
+        if (ret == KEYUSAGE_E) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END  test_wc_SetKeyUsage */
+
+/*
+ * Testing wc_RsaKeyToDer()
+ */
+static int test_wc_RsaKeyToDer (void)
+{
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+    RsaKey  genKey[1];
+    WC_RNG  rng;
+    byte*   der;
+    int     ret;
+
+    /* Init structures. */
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_InitRsaKey(genKey, NULL);
+    }
+    /* Allocate der space. */
+    if (ret == 0) {
+        der = (byte*)XMALLOC(4096, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (der == NULL) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+    /* Make key. */
+    if (ret == 0) {
+        ret = wc_MakeRsaKey(genKey, 1024, 65537, &rng);
+        if (ret != 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(testingFmt, "wc_RsaKeyToDer()");
+
+    if (ret == 0) {
+        ret = wc_RsaKeyToDer(genKey, der, 4096);
+    }
+    /* Pass bad args. */
+    if (ret == 0) {
+        ret = wc_RsaKeyToDer(NULL, der, 4096);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_RsaKeyToDer(genKey, NULL, 4096);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            genKey->type = 0;
+            ret = wc_RsaKeyToDer(genKey, der, 4096);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret >= 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_RsaKeyToDer */
+
+/*
+ *  Testing wc_RsaKeyToPublicDer()
+ */
+static int test_wc_RsaKeyToPublicDer (void)
+{
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+    RsaKey      key;
+    WC_RNG      rng;
+    byte*       der;
+    word32      derLen = 1024;
+    int         ret;
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_InitRsaKey(&key, NULL);
+    }
+    if (ret == 0) {
+        ret = wc_MakeRsaKey(&key, 1024, 65537, &rng);
+    }
+    if (ret == 0) {
+        der = (byte*)XMALLOC(1024, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+
+    printf(testingFmt, "wc_RsaKeyToPublicDer()");
+
+    if (ret == 0) {
+        ret = wc_RsaKeyToPublicDer(&key, der, derLen);
+        if (ret >= 0) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    /* Pass in bad args. */
+    if (ret == 0) {
+        ret = wc_RsaKeyToPublicDer(NULL, der, derLen);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_RsaKeyToPublicDer(&key, NULL, derLen);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_RsaKeyToPublicDer */
+
+/*
+ *  Testing wc_RsaPublicEncrypt() and wc_RsaPrivateDecrypt()
+ */
+static int test_wc_RsaPublicEncryptDecrypt (void)
+{
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+    RsaKey  key;
+    WC_RNG  rng;
+    const char* inStr = "Everyone gets Friday off.";
+    word32  cipherLen = 256;
+    word32  plainLen = 256;
+    word32  inLen = (word32)XSTRLEN((char*)inStr);
+    int     ret;
+
+    DECLARE_VAR_INIT(in, byte, inLen, inStr, NULL);
+    DECLARE_VAR(plain, byte, 256, NULL);
+    DECLARE_VAR(cipher, byte, 256, NULL);
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_InitRsaKey(&key, NULL);
+    }
+    if (ret == 0) {
+        ret = wc_MakeRsaKey(&key, 1024, 65537, &rng);
+    }
+    /* Encrypt. */
+    printf(testingFmt, "wc_RsaPublicEncrypt()");
+
+    if (ret == 0) {
+        ret = wc_RsaPublicEncrypt(in, inLen, cipher, cipherLen, &key, &rng);
+        if (ret >= 0) {
+            cipherLen = ret;
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    /* Pass bad args. */
+   /* Tests PsaPublicEncryptEx() which, is tested by another fn. No need dup.*/
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    /* Decrypt */
+    printf(testingFmt, "wc_RsaPrivateDecrypt()");
+    /* Bind rng */
+    if (ret == 0) {
+        ret = wc_RsaSetRNG(&key, &rng);
+    }
+    if (ret == 0) {
+        ret = wc_RsaPrivateDecrypt(cipher, cipherLen, plain, plainLen, &key);
+    }
+    if (ret >= 0) {
+        ret = XMEMCMP(plain, inStr, sizeof(inStr)/sizeof(char));
+    }
+
+    /* Pass in bad args. */
+   /* Tests RsaPrivateDecryptEx() which, is tested by another fn. No need dup.*/
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_RsaPublicEncryptDecrypt */
+
+/*
+ * Testing wc_RsaPrivateDecrypt_ex() and wc_RsaPrivateDecryptInline_ex()
+ */
+static int test_wc_RsaPublicEncryptDecrypt_ex (void)
+{
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+    RsaKey  key;
+    WC_RNG  rng;
+    const char* inStr = "Everyone gets Friday off.";
+    word32  inLen = (word32)XSTRLEN((char*)inStr);
+    const word32 cipherSz = 256;
+    const word32 plainSz = 256;
+    byte*   res = NULL;
+    int     ret;
+    int     idx = 0;
+
+    DECLARE_VAR_INIT(in, byte, inLen, inStr, NULL);
+    DECLARE_VAR(plain, byte, 256, NULL);
+    DECLARE_VAR(cipher, byte, 256, NULL);
+
+    /* Initialize stack structures. */
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+    XMEMCPY(in, inStr, sizeof(in)/sizeof(byte));
+
+    ret = wc_InitRsaKey_ex(&key, NULL, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_InitRng(&rng);
+    }
+    if (ret == 0) {
+        ret = wc_MakeRsaKey(&key, 1024, 65537, &rng);
+    }
+    /* Encrypt */
+    printf(testingFmt, "wc_RsaPublicEncrypt()");
+    if (ret == 0) {
+        ret = wc_RsaPublicEncrypt_ex(in, inLen, cipher, cipherSz, &key, &rng,
+                WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA, WC_MGF1SHA1, NULL, 0);
+        if (ret >= 0) {
+            idx = ret;
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    /*Pass bad args.*/
+   /* Tests RsaPublicEncryptEx again. No need duplicate. */
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    /* Decrypt */
+    printf(testingFmt, "wc_RsaPrivateDecrypt_ex()");
+    if (ret == 0) {
+        ret = wc_RsaSetRNG(&key, &rng);
+        if (ret == 0) {
+            ret = wc_RsaPrivateDecrypt_ex(cipher, (word32)idx,
+                    plain, plainSz, &key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA,
+                    WC_MGF1SHA1, NULL, 0);
+        }
+        if (ret >= 0) {
+            if (!XMEMCMP(plain, inStr, sizeof(inStr)/sizeof(char))) {
+                ret = 0;
+            } else {
+                ret = SSL_FATAL_ERROR;
+            }
+        }
+    }
+
+    /*Pass bad args.*/
+   /* Tests RsaPrivateDecryptEx() again. No need duplicate. */
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    printf(testingFmt, "wc_RsaPrivateDecryptInline_ex()");
+    if (ret == 0) {
+        ret = wc_RsaPrivateDecryptInline_ex(cipher, (word32)idx,
+                &res, &key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA,
+                WC_MGF1SHA1, NULL, 0);
+    }
+
+    if (ret >= 0 && !XMEMCMP(inStr, res, sizeof(inStr)/sizeof(char))) {
+        ret = 0;
+    } else {
+        ret = SSL_FATAL_ERROR;
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_RsaPublicEncryptDecrypt_ex */
+
+/*
+ * Tesing wc_RsaSSL_Sign() and wc_RsaSSL_Verify()
+ */
+static int test_wc_RsaSSL_SignVerify (void)
+{
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+    RsaKey  key;
+    WC_RNG  rng;
+    const char* inStr = "Everyone gets Friday off.";
+    const word32 outSz = 256;
+    const word32 plainSz = 256;
+    word32  inLen = (word32)XSTRLEN((char*)inStr);
+    word32  idx = 0;
+    int     ret;
+
+    DECLARE_VAR_INIT(in, byte, inLen, inStr, NULL);
+    DECLARE_VAR(out, byte, 256, NULL);
+    DECLARE_VAR(plain, byte, 256, NULL);
+
+    XMEMCPY(in, inStr, sizeof(in)/sizeof(byte));
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_InitRsaKey(&key, NULL);
+    }
+    if (ret == 0) {
+        ret = wc_MakeRsaKey(&key, 1024, 65537, &rng);
+    }
+    /* Sign. */
+    printf(testingFmt, "wc_RsaSSL_Sign()");
+
+    if (ret == 0) {
+        ret = wc_RsaSSL_Sign(in, inLen, out, outSz, &key, &rng);
+        if (ret == 128) {
+            idx = ret;
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_RsaSSL_Sign(NULL, inLen, out, outSz, &key, &rng);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_RsaSSL_Sign(in, 0, out, outSz, &key, &rng);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_RsaSSL_Sign(in, inLen, NULL, outSz, &key, &rng);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_RsaSSL_Sign(in, inLen, out, outSz, NULL, &rng);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    /* Verify. */
+    printf(testingFmt, "wc_RsaSSL_Verify()");
+
+    if (ret == 0) {
+        ret = wc_RsaSSL_Verify(out, idx, plain, plainSz, &key);
+        if (ret == (int)inLen) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    /* Pass bad args. */
+     if (ret == 0) {
+            ret = wc_RsaSSL_Verify(NULL, idx, plain, plainSz, &key);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_RsaSSL_Verify(out, 0, plain, plainSz, &key);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_RsaSSL_Verify(out, idx, NULL, plainSz, &key);
+        }
+        if (ret == BAD_FUNC_ARG) {
+           ret = wc_RsaSSL_Verify(out, idx, plain, plainSz, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_RsaSSL_SignVerify */
+
+/*
+ * Testing wc_RsaEncryptSize()
+ */
+static int test_wc_RsaEncryptSize (void)
+{
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+    RsaKey  key;
+    WC_RNG  rng;
+    int     ret;
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_InitRsaKey(&key, NULL);
+    }
+
+    printf(testingFmt, "wc_RsaEncryptSize()");
+    if (ret == 0) {
+        ret = wc_MakeRsaKey(&key, 1024, 65537, &rng);
+        if (ret == 0) {
+            ret = wc_RsaEncryptSize(&key);
+        }
+        if (ret == 128) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_MakeRsaKey(&key, 4096, 65537, &rng);
+        if (ret == 0) {
+            ret = wc_RsaEncryptSize(&key);
+        }
+        if (ret == 512) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    /* Pass in bad arg. */
+    if (ret == 0) {
+        ret = wc_RsaEncryptSize(NULL);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_RsaEncryptSize*/
+
+/*
+ * Testing wc_RsaFlattenPublicKey()
+ */
+static int test_wc_RsaFlattenPublicKey (void)
+{
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+    RsaKey  key;
+    WC_RNG  rng;
+    int     ret;
+    byte    e[256];
+    byte    n[256];
+    word32  eSz = sizeof(e);
+    word32  nSz = sizeof(n);
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_InitRsaKey(&key, NULL);
+    }
+    if (ret == 0) {
+        ret = wc_MakeRsaKey(&key, 1024, 65537, &rng);
+        if (ret >= 0) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(testingFmt, "wc_RsaFlattenPublicKey()");
+
+    if (ret == 0) {
+        ret = wc_RsaFlattenPublicKey(&key, e, &eSz, n, &nSz);
+    }
+
+    /* Pass bad args. */
+    if (ret == 0) {
+        ret = wc_RsaFlattenPublicKey(NULL, e, &eSz, n, &nSz);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_RsaFlattenPublicKey(&key, NULL, &eSz, n, &nSz);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_RsaFlattenPublicKey(&key, e, NULL, n, &nSz);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_RsaFlattenPublicKey(&key, e, &eSz, NULL, &nSz);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_RsaFlattenPublicKey(&key, e, &eSz, n, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_RsaFlattenPublicKey */
+
+
+
 /*----------------------------------------------------------------------------*
  | Compatibility Tests
  *----------------------------------------------------------------------------*/
@@ -7383,6 +8171,20 @@ void ApiTest(void)
     AssertIntEQ(test_wc_Arc4SetKey(), 0);
     AssertIntEQ(test_wc_Arc4Process(), 0);
 
+    AssertIntEQ(test_wc_InitRsaKey(), 0);
+    AssertIntEQ(test_wc_RsaPrivateKeyDecode(), 0);
+    AssertIntEQ(test_wc_RsaPublicKeyDecode(), 0);
+    AssertIntEQ(test_wc_RsaPublicKeyDecodeRaw(), 0);
+    AssertIntEQ(test_wc_MakeRsaKey(), 0);
+    AssertIntEQ(test_wc_SetKeyUsage (), 0);
+    AssertIntEQ(test_wc_RsaKeyToDer(), 0);
+    AssertIntEQ(test_wc_RsaKeyToPublicDer(), 0);
+    AssertIntEQ(test_wc_RsaPublicEncryptDecrypt(), 0);
+    AssertIntEQ(test_wc_RsaPublicEncryptDecrypt_ex(), 0);
+    AssertIntEQ(test_wc_RsaEncryptSize(), 0);
+    AssertIntEQ(test_wc_RsaSSL_SignVerify(), 0);
+    AssertIntEQ(test_wc_RsaFlattenPublicKey(), 0);
     printf(" End API Tests\n");
+
 
 }

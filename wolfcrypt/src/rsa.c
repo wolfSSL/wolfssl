@@ -1568,6 +1568,10 @@ int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 int wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
                                                                  RsaKey* key)
 {
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     WC_RNG* rng = NULL;
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
@@ -1637,6 +1641,9 @@ int wc_RsaPSS_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
 
 int wc_RsaEncryptSize(RsaKey* key)
 {
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
     return mp_unsigned_bin_size(&key->n);
 }
 
