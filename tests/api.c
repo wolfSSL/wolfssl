@@ -91,6 +91,11 @@
     #include <wolfssl/wolfcrypt/rabbit.h>
 #endif
 
+#ifndef NO_RC4
+    #include <wolfssl/wolfcrypt/arc4.h>
+#endif
+
+
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/ssl.h>
     #include <wolfssl/openssl/pkcs12.h>
@@ -5962,6 +5967,121 @@ static int test_wc_RabbitProcess (void)
 
 
 
+
+
+/*
+ * Testing wc_Arc4SetKey()
+ */
+static int test_wc_Arc4SetKey (void)
+{
+#ifndef NO_RC4
+    Arc4 arc;
+    const char* key[] =
+    {
+        "\x01\x23\x45\x67\x89\xab\xcd\xef"
+    };
+    int keyLen = 8;
+    int ret;
+
+    printf(testingFmt, "wc_Arch4SetKey()");
+
+    ret = wc_Arc4SetKey(&arc, (byte*)key, keyLen);
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_Arc4SetKey(NULL, (byte*)key, keyLen);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Arc4SetKey(&arc, NULL, keyLen);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            /* Exits normally if keyLen is incorrect. */
+            ret = wc_Arc4SetKey(&arc, (byte*)key, 0);
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    } /* END test bad args. */
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_Arc4SetKey */
+
+/*
+ * Testing wc_Arc4Process for ENC/DEC.
+ */
+static int test_wc_Arc4Process (void)
+{
+#ifndef NO_RC4
+    Arc4 enc, dec;
+    const char* key = "\x01\x23\x45\x67\x89\xab\xcd\xef";
+    const char* input = "\x01\x23\x45\x67\x89\xab\xcd\xef";
+    byte cipher[8];
+    byte plain[8];
+    int ret;
+
+    /* Init stack variables */
+    XMEMSET(cipher, 0, sizeof(cipher));
+    XMEMSET(plain, 0, sizeof(plain));
+
+    /* Use for async. */
+    ret = wc_Arc4Init(&enc, NULL, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_Arc4Init(&dec, NULL, INVALID_DEVID);
+    }
+
+    printf(testingFmt, "wc_Arc4Process()");
+
+    if (ret == 0) {
+        ret = wc_Arc4SetKey(&enc, (byte*)key, sizeof(key)/sizeof(char));
+    }
+    if (ret == 0) {
+        ret = wc_Arc4SetKey(&dec, (byte*)key, sizeof(key)/sizeof(char));
+    }
+    if (ret == 0) {
+        ret = wc_Arc4Process(&enc, cipher, (byte*)input,
+                                    (word32)(sizeof(input)/sizeof(char)));
+    }
+    if (ret == 0) {
+        ret = wc_Arc4Process(&dec, plain, cipher,
+                                    (word32)(sizeof(input)/sizeof(char)));
+        if (ret != 0 || XMEMCMP(plain, input,
+                            (unsigned int)(sizeof(input)/sizeof(char)))) {
+            ret = SSL_FATAL_ERROR;
+        } else {
+            ret = 0;
+        }
+    }
+
+    /* Bad args. */
+    if (ret == 0) {
+        ret = wc_Arc4Process(NULL, plain, cipher,
+                                (word32)(sizeof(input)/sizeof(char)));
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Arc4Process(&dec, NULL, cipher,
+                                (word32)(sizeof(input)/sizeof(char)));
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Arc4Process(&dec, plain, NULL,
+                                (word32)(sizeof(input)/sizeof(char)));
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    wc_Arc4Free(&enc);
+    wc_Arc4Free(&dec);
+
+#endif
+    return 0;
+
+}/* END test_wc_Arc4Process */
+
 /*----------------------------------------------------------------------------*
  | Compatibility Tests
  *----------------------------------------------------------------------------*/
@@ -7259,6 +7379,9 @@ void ApiTest(void)
 
     AssertIntEQ(test_wc_RabbitSetKey(), 0);
     AssertIntEQ(test_wc_RabbitProcess(), 0);
+
+    AssertIntEQ(test_wc_Arc4SetKey(), 0);
+    AssertIntEQ(test_wc_Arc4Process(), 0);
 
     printf(" End API Tests\n");
 
