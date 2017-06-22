@@ -197,9 +197,10 @@ int wolfCrypt_Cleanup(void)
 #if !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
 
 /* File Handling Helpers */
+/* returns 0 if file found, -1 if no files or negative error */
 int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
 {
-    int ret = 0;
+    int ret = -1; /* default to no files found */
 
     if (name)
         *name = NULL;
@@ -258,9 +259,10 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
     return ret;
 }
 
+/* returns 0 if file found, -1 if no more files */
 int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
 {
-    int ret = -1;
+    int ret = -1; /* default to no file found */
 
     if (name)
         *name = NULL;

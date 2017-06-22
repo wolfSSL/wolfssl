@@ -76,6 +76,26 @@
     #include <wolfssl/wolfcrypt/hmac.h>
 #endif
 
+#ifdef HAVE_CHACHA
+    #include <wolfssl/wolfcrypt/chacha.h>
+#endif
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
+#endif
+
+#ifdef HAVE_CAMELLIA
+    #include <wolfssl/wolfcrypt/camellia.h>
+#endif
+
+#ifndef NO_RABBIT
+    #include <wolfssl/wolfcrypt/rabbit.h>
+#endif
+
+#ifndef NO_RC4
+    #include <wolfssl/wolfcrypt/arc4.h>
+#endif
+
+
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/ssl.h>
     #include <wolfssl/openssl/pkcs12.h>
@@ -1055,17 +1075,17 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
 #ifdef WOLFSSL_TIRTOS
         Task_yield();
 #endif
-        wolfSSL_shutdown(ssl);
+        ((func_args*)args)->return_code = TEST_SUCCESS;
     }
 
     if (callbacks->on_result)
         callbacks->on_result(ssl);
 
+    wolfSSL_shutdown(ssl);
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
     CloseSocket(cfd);
 
-    ((func_args*)args)->return_code = TEST_SUCCESS;
 
 #ifdef WOLFSSL_TIRTOS
     fdCloseSession(Task_self());
@@ -1158,6 +1178,7 @@ static void run_wolfssl_client(void* args)
             input[idx] = 0;
             printf("Server response: %s\n", input);
         }
+        ((func_args*)args)->return_code = TEST_SUCCESS;
     }
 
     if (callbacks->on_result)
@@ -1166,7 +1187,6 @@ static void run_wolfssl_client(void* args)
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
     CloseSocket(sfd);
-    ((func_args*)args)->return_code = TEST_SUCCESS;
 
 #ifdef WOLFSSL_TIRTOS
     fdCloseSession(Task_self());
@@ -5293,6 +5313,775 @@ static int test_wc_Des3_CbcEncryptDecryptWithKey (void)
 } /* END test_wc_Des3_CbcEncryptDecryptWithKey */
 
 
+/*
+ * Testing wc_Chacha_SetKey() and wc_Chacha_SetIV()
+ */
+static int test_wc_Chacha_SetKey (void)
+{
+#ifdef HAVE_CHACHA
+    ChaCha      ctx;
+    const byte  key[] =
+    {
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01
+    };
+    byte        cipher[128];
+    int         ret;
+
+    printf(testingFmt, "wc_Chacha_SetKey()");
+
+    ret = wc_Chacha_SetKey(&ctx, key, (word32)(sizeof(key)/sizeof(byte)));
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_Chacha_SetKey(NULL, key, (word32)(sizeof(key)/sizeof(byte)));
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Chacha_SetKey(&ctx, key, 18);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    printf(testingFmt, "wc_Chacha_SetIV");
+    ret = wc_Chacha_SetIV(&ctx, cipher, 0);
+    if (ret == 0) {
+    /* Test bad args. */
+        ret = wc_Chacha_SetIV(NULL, cipher, 0);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FAILURE;
+        }
+    }
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_Chacha_SetKey */
+
+/*
+ * Testing wc_Chacha_Process()
+ */
+static int test_wc_Chacha_Process (void)
+{
+#ifdef HAVE_CHACHA
+    ChaCha      enc, dec;
+    byte        cipher[128];
+    byte        plain[128];
+    int         ret;
+    const byte  key[] =
+    {
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01
+    };
+    const char* input = "Everybody gets Friday off.";
+    word32      keySz = sizeof(key)/sizeof(byte);
+    unsigned long int inlen = XSTRLEN(input);
+
+    /*Initialize stack varialbes.*/
+    XMEMSET(cipher, 0, 128);
+    XMEMSET(plain, 0, 128);
+
+    printf(testingFmt, "wc_Chacha_Process()");
+
+    ret = wc_Chacha_SetKey(&enc, key, keySz);
+    if (ret == 0) {
+        ret = wc_Chacha_SetKey(&dec, key, keySz);
+        if (ret == 0) {
+            ret = wc_Chacha_SetIV(&enc, cipher, 0);
+        }
+        if (ret == 0) {
+            ret = wc_Chacha_SetIV(&dec, cipher, 0);
+        }
+    }
+    if (ret == 0) {
+        ret = wc_Chacha_Process(&enc, cipher, (byte*)input, (word32)inlen);
+        if (ret == 0) {
+            ret = wc_Chacha_Process(&dec, plain, cipher, (word32)inlen);
+            if (ret == 0) {
+                ret = XMEMCMP(input, plain, (int)inlen);
+            }
+        }
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_Chacha_Process(NULL, cipher, (byte*)input, (word32)inlen);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_Chacha_Process */
+
+/*
+ * Testing wc_ChaCha20Poly1305_Encrypt() and wc_ChaCha20Poly1305_Decrypt()
+ */
+static int test_wc_ChaCha20Poly1305_aead (void)
+{
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    const byte  key[] = {
+        0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87,
+        0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f,
+        0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97,
+        0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e, 0x9f
+    };
+
+    const byte  plaintext[] = {
+        0x4c, 0x61, 0x64, 0x69, 0x65, 0x73, 0x20, 0x61,
+        0x6e, 0x64, 0x20, 0x47, 0x65, 0x6e, 0x74, 0x6c,
+        0x65, 0x6d, 0x65, 0x6e, 0x20, 0x6f, 0x66, 0x20,
+        0x74, 0x68, 0x65, 0x20, 0x63, 0x6c, 0x61, 0x73,
+        0x73, 0x20, 0x6f, 0x66, 0x20, 0x27, 0x39, 0x39,
+        0x3a, 0x20, 0x49, 0x66, 0x20, 0x49, 0x20, 0x63,
+        0x6f, 0x75, 0x6c, 0x64, 0x20, 0x6f, 0x66, 0x66,
+        0x65, 0x72, 0x20, 0x79, 0x6f, 0x75, 0x20, 0x6f,
+        0x6e, 0x6c, 0x79, 0x20, 0x6f, 0x6e, 0x65, 0x20,
+        0x74, 0x69, 0x70, 0x20, 0x66, 0x6f, 0x72, 0x20,
+        0x74, 0x68, 0x65, 0x20, 0x66, 0x75, 0x74, 0x75,
+        0x72, 0x65, 0x2c, 0x20, 0x73, 0x75, 0x6e, 0x73,
+        0x63, 0x72, 0x65, 0x65, 0x6e, 0x20, 0x77, 0x6f,
+        0x75, 0x6c, 0x64, 0x20, 0x62, 0x65, 0x20, 0x69,
+        0x74, 0x2e
+    };
+
+    const byte  iv[] = {
+        0x07, 0x00, 0x00, 0x00, 0x40, 0x41, 0x42, 0x43,
+        0x44, 0x45, 0x46, 0x47
+    };
+
+    const byte  aad[] = { /* additional data */
+        0x50, 0x51, 0x52, 0x53, 0xc0, 0xc1, 0xc2, 0xc3,
+        0xc4, 0xc5, 0xc6, 0xc7
+    };
+    const byte  cipher[] = { /* expected output from operation */
+        0xd3, 0x1a, 0x8d, 0x34, 0x64, 0x8e, 0x60, 0xdb,
+        0x7b, 0x86, 0xaf, 0xbc, 0x53, 0xef, 0x7e, 0xc2,
+        0xa4, 0xad, 0xed, 0x51, 0x29, 0x6e, 0x08, 0xfe,
+        0xa9, 0xe2, 0xb5, 0xa7, 0x36, 0xee, 0x62, 0xd6,
+        0x3d, 0xbe, 0xa4, 0x5e, 0x8c, 0xa9, 0x67, 0x12,
+        0x82, 0xfa, 0xfb, 0x69, 0xda, 0x92, 0x72, 0x8b,
+        0x1a, 0x71, 0xde, 0x0a, 0x9e, 0x06, 0x0b, 0x29,
+        0x05, 0xd6, 0xa5, 0xb6, 0x7e, 0xcd, 0x3b, 0x36,
+        0x92, 0xdd, 0xbd, 0x7f, 0x2d, 0x77, 0x8b, 0x8c,
+        0x98, 0x03, 0xae, 0xe3, 0x28, 0x09, 0x1b, 0x58,
+        0xfa, 0xb3, 0x24, 0xe4, 0xfa, 0xd6, 0x75, 0x94,
+        0x55, 0x85, 0x80, 0x8b, 0x48, 0x31, 0xd7, 0xbc,
+        0x3f, 0xf4, 0xde, 0xf0, 0x8e, 0x4b, 0x7a, 0x9d,
+        0xe5, 0x76, 0xd2, 0x65, 0x86, 0xce, 0xc6, 0x4b,
+        0x61, 0x16
+    };
+    const byte  authTag[] = { /* expected output from operation */
+        0x1a, 0xe1, 0x0b, 0x59, 0x4f, 0x09, 0xe2, 0x6a,
+        0x7e, 0x90, 0x2e, 0xcb, 0xd0, 0x60, 0x06, 0x91
+    };
+    byte        generatedCiphertext[272];
+    byte        generatedPlaintext[272];
+    byte        generatedAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
+    int         ret;
+
+    /* Initialize stack variables. */
+    XMEMSET(generatedCiphertext, 0, 272);
+    XMEMSET(generatedPlaintext, 0, 272);
+
+    /* Test Encrypt */
+    printf(testingFmt, "wc_ChaCha20Poly1305_Encrypt()");
+
+    ret = wc_ChaCha20Poly1305_Encrypt(key, iv, aad, sizeof(aad), plaintext,
+                sizeof(plaintext), generatedCiphertext, generatedAuthTag);
+    if (ret == 0) {
+        ret = XMEMCMP(generatedCiphertext, cipher, sizeof(cipher)/sizeof(byte));
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_ChaCha20Poly1305_Encrypt(NULL, iv, aad, sizeof(aad), plaintext,
+                    sizeof(plaintext), generatedCiphertext, generatedAuthTag);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ChaCha20Poly1305_Encrypt(key, NULL, aad, sizeof(aad),
+                                        plaintext, sizeof(plaintext),
+                                        generatedCiphertext, generatedAuthTag);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ChaCha20Poly1305_Encrypt(key, iv, aad, sizeof(aad), NULL,
+                    sizeof(plaintext), generatedCiphertext, generatedAuthTag);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ChaCha20Poly1305_Encrypt(key, iv, aad, sizeof(aad),
+                    plaintext, 0, generatedCiphertext, generatedAuthTag);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ChaCha20Poly1305_Encrypt(key, iv, aad, sizeof(aad),
+                    plaintext, sizeof(plaintext), NULL, generatedAuthTag);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ChaCha20Poly1305_Encrypt(key, iv, aad, sizeof(aad),
+                    plaintext, sizeof(plaintext), generatedCiphertext, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    printf(testingFmt, "wc_ChaCha20Poly1305_Decrypt()");
+    ret = wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad), cipher,
+                            sizeof(cipher), authTag, generatedPlaintext);
+    if (ret == 0) {
+        ret = XMEMCMP(generatedPlaintext, plaintext,
+                                        sizeof(plaintext)/sizeof(byte));
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_ChaCha20Poly1305_Decrypt(NULL, iv, aad, sizeof(aad), cipher,
+                                sizeof(cipher), authTag, generatedPlaintext);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ChaCha20Poly1305_Decrypt(key, NULL, aad, sizeof(aad),
+                        cipher, sizeof(cipher), authTag, generatedPlaintext);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad), NULL,
+                                sizeof(cipher), authTag, generatedPlaintext);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad), cipher,
+                                    sizeof(cipher), NULL, generatedPlaintext);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad), cipher,
+                                                sizeof(cipher), authTag, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad), cipher,
+                                                0, authTag, generatedPlaintext);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test-wc_ChaCha20Poly1305_EncryptDecrypt */
+
+
+
+/*
+ * testing wc_CamelliaSetKey
+ */
+static int test_wc_CamelliaSetKey (void)
+{
+#ifdef HAVE_CAMELLIA
+    Camellia camellia;
+    /*128-bit key*/
+    static const byte key16[] =
+    {
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10
+    };
+    /* 192-bit key */
+    static const byte key24[] =
+    {
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77
+    };
+    /* 256-bit key */
+    static const byte key32[] =
+    {
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
+        0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff
+    };
+    static const byte iv[] =
+    {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F
+    };
+    int ret;
+
+    printf(testingFmt, "wc_CamelliaSetKey()");
+
+    ret = wc_CamelliaSetKey(&camellia, key16, (word32)sizeof(key16), iv);
+    if (ret == 0) {
+        ret = wc_CamelliaSetKey(&camellia, key16,
+                                        (word32)sizeof(key16), NULL);
+        if (ret == 0) {
+            ret = wc_CamelliaSetKey(&camellia, key24,
+                                        (word32)sizeof(key24), iv);
+        }
+        if (ret == 0) {
+            ret = wc_CamelliaSetKey(&camellia, key24,
+                                        (word32)sizeof(key24), NULL);
+        }
+        if (ret == 0) {
+            ret = wc_CamelliaSetKey(&camellia, key32,
+                                        (word32)sizeof(key32), iv);
+        }
+        if (ret == 0) {
+            ret = wc_CamelliaSetKey(&camellia, key32,
+                                        (word32)sizeof(key32), NULL);
+        }
+    }
+    /* Bad args. */
+    if (ret == 0) {
+        ret = wc_CamelliaSetKey(NULL, key32, (word32)sizeof(key32), iv);
+        if (ret != BAD_FUNC_ARG) {
+            ret = SSL_FATAL_ERROR;
+        } else {
+            ret = 0;
+        }
+    } /* END bad args. */
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_CammeliaSetKey */
+
+/*
+ * Testing wc_CamelliaSetIV()
+ */
+static int test_wc_CamelliaSetIV (void)
+{
+#ifdef HAVE_CAMELLIA
+    Camellia    camellia;
+    static const byte iv[] =
+    {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F
+    };
+    int ret;
+
+    printf(testingFmt, "wc_CamelliaSetIV()");
+
+    ret = wc_CamelliaSetIV(&camellia, iv);
+    if (ret == 0) {
+        ret = wc_CamelliaSetIV(&camellia, NULL);
+    }
+    /* Bad args. */
+    if (ret == 0) {
+        ret = wc_CamelliaSetIV(NULL, NULL);
+        if (ret != BAD_FUNC_ARG) {
+            ret = SSL_FATAL_ERROR;
+        } else {
+            ret = 0;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /*END test_wc_CamelliaSetIV*/
+
+/*
+ * Test wc_CamelliaEncryptDirect and wc_CamelliaDecryptDirect
+ */
+static int test_wc_CamelliaEncryptDecryptDirect (void)
+{
+#ifdef HAVE_CAMELLIA
+    Camellia camellia;
+    static const byte key24[] =
+    {
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77
+    };
+    static const byte iv[] =
+    {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F
+    };
+    static const byte plainT[] =
+    {
+        0x6B, 0xC1, 0xBE, 0xE2, 0x2E, 0x40, 0x9F, 0x96,
+        0xE9, 0x3D, 0x7E, 0x11, 0x73, 0x93, 0x17, 0x2A
+    };
+    byte    enc[sizeof(plainT)];
+    byte    dec[sizeof(enc)];
+    int     camE = SSL_FATAL_ERROR;
+    int     camD = SSL_FATAL_ERROR;
+    int     ret;
+
+    /*Init stack variables.*/
+    XMEMSET(enc, 0, 16);
+    XMEMSET(enc, 0, 16);
+
+    ret = wc_CamelliaSetKey(&camellia, key24, (word32)sizeof(key24), iv);
+    if (ret == 0) {
+        ret = wc_CamelliaEncryptDirect(&camellia, enc, plainT);
+        if (ret == 0) {
+            ret = wc_CamelliaDecryptDirect(&camellia, dec, enc);
+            if (XMEMCMP(plainT, dec, CAMELLIA_BLOCK_SIZE)) {
+                ret = SSL_FATAL_ERROR;
+            }
+        }
+    }
+    printf(testingFmt, "wc_CamelliaEncryptDirect()");
+    /* Pass bad args. */
+    if (ret == 0) {
+        camE = wc_CamelliaEncryptDirect(NULL, enc, plainT);
+        if (camE == BAD_FUNC_ARG) {
+            camE = wc_CamelliaEncryptDirect(&camellia, NULL, plainT);
+        }
+        if (camE == BAD_FUNC_ARG) {
+            camE = wc_CamelliaEncryptDirect(&camellia, enc, NULL);
+        }
+        if (camE == BAD_FUNC_ARG) {
+            camE = 0;
+        } else {
+            camE = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, camE == 0 ? passed : failed);
+    printf(testingFmt, "wc_CamelliaDecryptDirect()");
+
+    if (ret == 0) {
+        camD = wc_CamelliaDecryptDirect(NULL, dec, enc);
+        if (camD == BAD_FUNC_ARG) {
+            camD = wc_CamelliaDecryptDirect(&camellia, NULL, enc);
+        }
+        if (camD == BAD_FUNC_ARG) {
+            camD = wc_CamelliaDecryptDirect(&camellia, dec, NULL);
+        }
+        if (camD == BAD_FUNC_ARG) {
+            camD = 0;
+        } else {
+            camD = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, camD == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test-wc_CamelliaEncryptDecryptDirect */
+
+/*
+ * Testing wc_CamelliaCbcEncrypt and wc_CamelliaCbcDecrypt
+ */
+static int test_wc_CamelliaCbcEncryptDecrypt (void)
+{
+#ifdef HAVE_CAMELLIA
+    Camellia camellia;
+    static const byte key24[] =
+    {
+        0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77
+    };
+    static const byte plainT[] =
+    {
+        0x6B, 0xC1, 0xBE, 0xE2, 0x2E, 0x40, 0x9F, 0x96,
+        0xE9, 0x3D, 0x7E, 0x11, 0x73, 0x93, 0x17, 0x2A
+    };
+    byte    enc[CAMELLIA_BLOCK_SIZE];
+    byte    dec[CAMELLIA_BLOCK_SIZE];
+    int     camCbcE = SSL_FATAL_ERROR;
+    int     camCbcD = SSL_FATAL_ERROR;
+    int     ret;
+
+    /* Init stack variables. */
+    XMEMSET(enc, 0, CAMELLIA_BLOCK_SIZE);
+    XMEMSET(enc, 0, CAMELLIA_BLOCK_SIZE);
+
+    ret = wc_CamelliaSetKey(&camellia, key24, (word32)sizeof(key24), NULL);
+    if (ret == 0) {
+        ret = wc_CamelliaCbcEncrypt(&camellia, enc, plainT, CAMELLIA_BLOCK_SIZE);
+        if (ret != 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+    if (ret == 0) {
+        ret = wc_CamelliaSetKey(&camellia, key24, (word32)sizeof(key24), NULL);
+        if (ret == 0) {
+            ret = wc_CamelliaCbcDecrypt(&camellia, dec, enc, CAMELLIA_BLOCK_SIZE);
+            if (XMEMCMP(plainT, dec, CAMELLIA_BLOCK_SIZE)) {
+                ret = SSL_FATAL_ERROR;
+            }
+        }
+    }
+
+    printf(testingFmt, "wc_CamelliaCbcEncrypt");
+    /* Pass in bad args. */
+    if (ret == 0) {
+        camCbcE = wc_CamelliaCbcEncrypt(NULL, enc, plainT, CAMELLIA_BLOCK_SIZE);
+        if (camCbcE == BAD_FUNC_ARG) {
+            camCbcE = wc_CamelliaCbcEncrypt(&camellia, NULL, plainT,
+                                                    CAMELLIA_BLOCK_SIZE);
+        }
+        if (camCbcE == BAD_FUNC_ARG) {
+            camCbcE = wc_CamelliaCbcEncrypt(&camellia, enc, NULL,
+                                                    CAMELLIA_BLOCK_SIZE);
+        }
+        if (camCbcE == BAD_FUNC_ARG) {
+            camCbcE = 0;
+        } else {
+            camCbcE = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, camCbcE == 0 ? passed : failed);
+    printf(testingFmt, "wc_CamelliaCbcDecrypt()");
+
+    if (ret == 0) {
+        camCbcD = wc_CamelliaCbcDecrypt(NULL, dec, enc, CAMELLIA_BLOCK_SIZE);
+        if (camCbcD == BAD_FUNC_ARG) {
+            camCbcD = wc_CamelliaCbcDecrypt(&camellia, NULL, enc,
+                                                    CAMELLIA_BLOCK_SIZE);
+        }
+        if (camCbcD == BAD_FUNC_ARG) {
+            camCbcD = wc_CamelliaCbcDecrypt(&camellia, dec, NULL,
+                                                    CAMELLIA_BLOCK_SIZE);
+        }
+        if (camCbcD == BAD_FUNC_ARG) {
+            camCbcD = 0;
+        } else {
+            camCbcD = SSL_FATAL_ERROR;
+        }
+    } /* END bad args. */
+
+    printf(resultFmt, camCbcD == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_CamelliaCbcEncryptDecrypt */
+
+/*
+ * Testing wc_RabbitSetKey()
+ */
+static int test_wc_RabbitSetKey (void)
+{
+#ifndef NO_RABBIT
+    Rabbit  rabbit;
+    int     ret;
+    const char* key =  "\xAC\xC3\x51\xDC\xF1\x62\xFC\x3B"
+                        "\xFE\x36\x3D\x2E\x29\x13\x28\x91";
+    const char* iv =   "\x59\x7E\x26\xC1\x75\xF5\x73\xC3";
+
+    printf(testingFmt, "wc_RabbitSetKey()");
+
+    ret = wc_RabbitSetKey(&rabbit, (byte*)key, (byte*)iv);
+
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_RabbitSetKey(NULL, (byte*)key, (byte*)iv);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_RabbitSetKey(&rabbit, NULL, (byte*)iv);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_RabbitSetKey(&rabbit, (byte*)key, NULL);
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_RabbitSetKey */
+
+/*
+ * Test wc_RabbitProcess()
+ */
+static int test_wc_RabbitProcess (void)
+{
+#ifndef NO_RABBIT
+    Rabbit  enc, dec;
+    byte    cipher[25];
+    byte    plain[25];
+    int     ret;
+    const char* key     =  "\xAC\xC3\x51\xDC\xF1\x62\xFC\x3B"
+                            "\xFE\x36\x3D\x2E\x29\x13\x28\x91";
+    const char* iv      =   "\x59\x7E\x26\xC1\x75\xF5\x73\xC3";
+    const char* input   =   "Everyone gets Friday off.";
+    unsigned long int inlen = XSTRLEN(input);
+
+    /* Initialize stack variables. */
+    XMEMSET(cipher, 0, sizeof(cipher));
+    XMEMSET(plain, 0, sizeof(plain));
+
+    printf(testingFmt, "wc_RabbitProcess()");
+
+    ret = wc_RabbitSetKey(&enc, (byte*)key, (byte*)iv);
+    if (ret == 0) {
+        ret = wc_RabbitSetKey(&dec, (byte*)key, (byte*)iv);
+    }
+    if (ret == 0) {
+       ret = wc_RabbitProcess(&enc, cipher, (byte*)input, (word32)inlen);
+    }
+    if (ret == 0) {
+        ret = wc_RabbitProcess(&dec, plain, cipher, (word32)inlen);
+        if (ret != 0 || XMEMCMP(input, plain, inlen)) {
+            ret = SSL_FATAL_ERROR;
+        } else {
+            ret = 0;
+        }
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_RabbitProcess(NULL, plain, cipher, (word32)inlen);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_RabbitProcess(&dec, NULL, cipher, (word32)inlen);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_RabbitProcess(&dec, plain, NULL, (word32)inlen);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_RabbitProcess */
+
+
+
+
+
+/*
+ * Testing wc_Arc4SetKey()
+ */
+static int test_wc_Arc4SetKey (void)
+{
+#ifndef NO_RC4
+    Arc4 arc;
+    const char* key[] =
+    {
+        "\x01\x23\x45\x67\x89\xab\xcd\xef"
+    };
+    int keyLen = 8;
+    int ret;
+
+    printf(testingFmt, "wc_Arch4SetKey()");
+
+    ret = wc_Arc4SetKey(&arc, (byte*)key, keyLen);
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_Arc4SetKey(NULL, (byte*)key, keyLen);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Arc4SetKey(&arc, NULL, keyLen);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            /* Exits normally if keyLen is incorrect. */
+            ret = wc_Arc4SetKey(&arc, (byte*)key, 0);
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    } /* END test bad args. */
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_Arc4SetKey */
+
+/*
+ * Testing wc_Arc4Process for ENC/DEC.
+ */
+static int test_wc_Arc4Process (void)
+{
+#ifndef NO_RC4
+    Arc4 enc, dec;
+    const char* key = "\x01\x23\x45\x67\x89\xab\xcd\xef";
+    const char* input = "\x01\x23\x45\x67\x89\xab\xcd\xef";
+    byte cipher[8];
+    byte plain[8];
+    int ret;
+
+    /* Init stack variables */
+    XMEMSET(cipher, 0, sizeof(cipher));
+    XMEMSET(plain, 0, sizeof(plain));
+
+    /* Use for async. */
+    ret = wc_Arc4Init(&enc, NULL, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_Arc4Init(&dec, NULL, INVALID_DEVID);
+    }
+
+    printf(testingFmt, "wc_Arc4Process()");
+
+    if (ret == 0) {
+        ret = wc_Arc4SetKey(&enc, (byte*)key, sizeof(key)/sizeof(char));
+    }
+    if (ret == 0) {
+        ret = wc_Arc4SetKey(&dec, (byte*)key, sizeof(key)/sizeof(char));
+    }
+    if (ret == 0) {
+        ret = wc_Arc4Process(&enc, cipher, (byte*)input,
+                                    (word32)(sizeof(input)/sizeof(char)));
+    }
+    if (ret == 0) {
+        ret = wc_Arc4Process(&dec, plain, cipher,
+                                    (word32)(sizeof(input)/sizeof(char)));
+        if (ret != 0 || XMEMCMP(plain, input,
+                            (unsigned int)(sizeof(input)/sizeof(char)))) {
+            ret = SSL_FATAL_ERROR;
+        } else {
+            ret = 0;
+        }
+    }
+
+    /* Bad args. */
+    if (ret == 0) {
+        ret = wc_Arc4Process(NULL, plain, cipher,
+                                (word32)(sizeof(input)/sizeof(char)));
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Arc4Process(&dec, NULL, cipher,
+                                (word32)(sizeof(input)/sizeof(char)));
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Arc4Process(&dec, plain, NULL,
+                                (word32)(sizeof(input)/sizeof(char)));
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    wc_Arc4Free(&enc);
+    wc_Arc4Free(&dec);
+
+#endif
+    return 0;
+
+}/* END test_wc_Arc4Process */
+
 /*----------------------------------------------------------------------------*
  | Compatibility Tests
  *----------------------------------------------------------------------------*/
@@ -6578,6 +7367,22 @@ void ApiTest(void)
     AssertIntEQ(test_wc_IdeaSetIV(), 0);
     AssertIntEQ(test_wc_IdeaCipher(), 0);
     AssertIntEQ(test_wc_IdeaCbcEncyptDecrypt(), 0);
+    AssertIntEQ(test_wc_Chacha_SetKey(), 0);
+    AssertIntEQ(test_wc_Chacha_Process(), 0);
+    AssertIntEQ(test_wc_ChaCha20Poly1305_aead(), 0);
+
+    AssertIntEQ(test_wc_CamelliaSetKey(), 0);
+    AssertIntEQ(test_wc_CamelliaSetIV(), 0);
+    AssertIntEQ(test_wc_CamelliaEncryptDecryptDirect(), 0);
+    AssertIntEQ(test_wc_CamelliaCbcEncryptDecrypt(), 0);
+
+
+    AssertIntEQ(test_wc_RabbitSetKey(), 0);
+    AssertIntEQ(test_wc_RabbitProcess(), 0);
+
+    AssertIntEQ(test_wc_Arc4SetKey(), 0);
+    AssertIntEQ(test_wc_Arc4Process(), 0);
+
     printf(" End API Tests\n");
 
 }

@@ -530,13 +530,12 @@ int wc_InitRng_ex(WC_RNG* rng, void* heap, int devId)
 #endif
 
     /* configure async RNG source if available */
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
+#ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevCtxInit(&rng->asyncDev, WOLFSSL_ASYNC_MARKER_RNG,
                                                         rng->heap, rng->devId);
     if (ret != 0)
         return ret;
 #endif
-
 
 #ifdef HAVE_INTEL_RDRAND
     /* if CPU supports RDRAND, use it directly and by-pass DRBG init */
@@ -610,9 +609,16 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         return wc_GenerateRand_IntelRD(NULL, output, sz);
 #endif
 
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
+#if defined(WOLFSSL_ASYNC_CRYPT)
     if (rng->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RNG) {
+        /* these are blocking */
+    #ifdef HAVE_CAVIUM
         return NitroxRngGenerateBlock(rng, output, sz);
+    #elif defined(HAVE_INTEL_QA)
+        return IntelQaDrbg(&rng->asyncDev, output, sz);
+    #else
+        /* simulator not supported */
+    #endif
     }
 #endif
 
@@ -685,7 +691,7 @@ int wc_FreeRng(WC_RNG* rng)
     if (rng == NULL)
         return BAD_FUNC_ARG;
 
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM)
+#if defined(WOLFSSL_ASYNC_CRYPT)
     wolfAsync_DevCtxFree(&rng->asyncDev, WOLFSSL_ASYNC_MARKER_RNG);
 #endif
 

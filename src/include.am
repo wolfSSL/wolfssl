@@ -228,7 +228,7 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/ed25519.c
 endif
 
 if BUILD_FEMATH
-if BUILD_CURVED25519_SMALL
+if BUILD_CURVE25519_SMALL
 src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_low_mem.c
 else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_operations.c
@@ -236,10 +236,16 @@ endif
 endif
 
 if BUILD_GEMATH
-if BUILD_CURVED25519_SMALL
+if BUILD_ED25519_SMALL
 src_libwolfssl_la_SOURCES += wolfcrypt/src/ge_low_mem.c
+if !BUILD_CURVE25519_SMALL
+src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_low_mem.c
+endif
 else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/ge_operations.c
+if BUILD_CURVE25519_SMALL
+src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_operations.c
+endif
 endif
 endif
 

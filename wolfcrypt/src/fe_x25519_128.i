@@ -389,6 +389,7 @@ void fe_invert(fe r, const fe a)
     fe_sq(t1, t1); for (i = 1; i <   5; ++i) fe_sq(t1, t1); fe_mul( r, t1, t0);
 }
 
+#ifndef CURVE25519_SMALL
 /* Scalar multiply the field element a by n using Montgomery Ladder and places
  * result in r.
  *
@@ -447,6 +448,7 @@ int curve25519(byte* r, byte* n, byte* a)
 
     return 0;
 }
+#endif /* !CURVE25519_SMALL */
 
 /* The field element value 0 as an array of bytes. */
 static const unsigned char zero[32] = {0};

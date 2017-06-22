@@ -1033,7 +1033,7 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         }
 
         flatSignedAttribs = (byte*)XMALLOC(esd->signedAttribsSz, pkcs7->heap,
-                                                         DYNAMIC_TYPE_PKCS);
+                                                         DYNAMIC_TYPE_PKCS7);
         flatSignedAttribsSz = esd->signedAttribsSz;
         if (flatSignedAttribs == NULL) {
 #ifdef WOLFSSL_SMALL_STACK
@@ -1053,7 +1053,7 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
                                             flatSignedAttribsSz, esd);
     if (ret < 0) {
         if (pkcs7->signedAttribsSz != 0)
-            XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+            XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -1095,7 +1095,7 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
     if (outputSz < totalSz) {
         if (pkcs7->signedAttribsSz != 0)
-            XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+            XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -1154,7 +1154,7 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         idx += esd->signedAttribSetSz;
         XMEMCPY(output + idx, flatSignedAttribs, flatSignedAttribsSz);
         idx += flatSignedAttribsSz;
-        XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+        XFREE(flatSignedAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     }
 
     XMEMCPY(output + idx, esd->digEncAlgoId, esd->digEncAlgoIdSz);
@@ -3513,26 +3513,17 @@ static int wc_PKCS7_KariGetKeyEncryptionAlgorithmId(WC_PKCS7_KARI* kari,
 }
 
 
-/* remove ASN.1 RecipientEncryptedKeys, return 0 on success, < 0 on error */
-static int wc_PKCS7_KariGetRecipientEncryptedKeys(WC_PKCS7_KARI* kari,
+/* remove ASN.1 SubjectKeyIdentifier, return 0 on success, < 0 on error
+ * if subject key ID matches, recipFound is set to 1 */
+static int wc_PKCS7_KariGetSubjectKeyIdentifier(WC_PKCS7_KARI* kari,
                         byte* pkiMsg, word32 pkiMsgSz, word32* idx,
-                        int* recipFound, byte* encryptedKey,
-                        int* encryptedKeySz)
+                        int* recipFound)
 {
     int length;
     byte subjKeyId[KEYID_SIZE];
 
-    if (kari == NULL || pkiMsg == NULL || idx == NULL ||
-        recipFound == NULL || encryptedKey == NULL)
+    if (kari == NULL || pkiMsg == NULL || idx == NULL || recipFound == NULL)
         return BAD_FUNC_ARG;
-
-    /* remove RecipientEncryptedKeys */
-    if (GetSequence(pkiMsg, idx, &length, pkiMsgSz) < 0)
-        return ASN_PARSE_E;
-
-    /* remove RecipientEncryptedKeys */
-    if (GetSequence(pkiMsg, idx, &length, pkiMsgSz) < 0)
-        return ASN_PARSE_E;
 
     /* remove RecipientKeyIdentifier IMPLICIT [0] */
     if ( (pkiMsgSz > (*idx + 1)) &&
@@ -3563,6 +3554,137 @@ static int wc_PKCS7_KariGetRecipientEncryptedKeys(WC_PKCS7_KARI* kari,
     if (XMEMCMP(subjKeyId, kari->decoded->extSubjKeyId, KEYID_SIZE) == 0) {
         *recipFound = 1;
     }
+
+    return 0;
+}
+
+
+/* remove ASN.1 IssuerAndSerialNumber, return 0 on success, < 0 on error
+ * if issuer and serial number match, recipFound is set to 1 */
+static int wc_PKCS7_KariGetIssuerAndSerialNumber(WC_PKCS7_KARI* kari,
+                        byte* pkiMsg, word32 pkiMsgSz, word32* idx,
+                        int* recipFound)
+{
+    int length, ret;
+    byte issuerHash[KEYID_SIZE];
+#ifdef WOLFSSL_SMALL_STACK
+    mp_int* serial;
+    mp_int* recipSerial;
+#else
+    mp_int  stack_serial;
+    mp_int* serial = &stack_serial;
+
+    mp_int  stack_recipSerial;
+    mp_int* recipSerial = &stack_recipSerial;
+#endif
+
+    /* remove IssuerAndSerialNumber */
+    if (GetSequence(pkiMsg, idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    if (GetNameHash(pkiMsg, idx, issuerHash, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    /* if we found correct recipient, issuer hashes will match */
+    if (XMEMCMP(issuerHash, kari->decoded->issuerHash, KEYID_SIZE) == 0) {
+        *recipFound = 1;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    serial = (mp_int*)XMALLOC(sizeof(mp_int), NULL,
+                              DYNAMIC_TYPE_TMP_BUFFER);
+    if (serial == NULL)
+        return MEMORY_E;
+
+    recipSerial = (mp_int*)XMALLOC(sizeof(mp_int), NULL,
+                                   DYNAMIC_TYPE_TMP_BUFFER);
+    if (recipSerial == NULL) {
+        XFREE(serial, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+#endif
+
+    if (GetInt(serial, pkiMsg, idx, pkiMsgSz) < 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(recipSerial, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return ASN_PARSE_E;
+    }
+
+    ret = mp_read_unsigned_bin(recipSerial, kari->decoded->serial,
+                             kari->decoded->serialSz);
+    if (ret != MP_OKAY) {
+        mp_clear(serial);
+        WOLFSSL_MSG("Failed to parse CMS recipient serial number");
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(recipSerial, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return ret;
+    }
+
+    if (mp_cmp(recipSerial, serial) != MP_EQ) {
+        mp_clear(serial);
+        mp_clear(recipSerial);
+        WOLFSSL_MSG("CMS serial number does not match recipient");
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(recipSerial, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return PKCS7_RECIP_E;
+    }
+
+    mp_clear(serial);
+    mp_clear(recipSerial);
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(serial,      NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(recipSerial, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return 0;
+}
+
+
+/* remove ASN.1 RecipientEncryptedKeys, return 0 on success, < 0 on error */
+static int wc_PKCS7_KariGetRecipientEncryptedKeys(WC_PKCS7_KARI* kari,
+                        byte* pkiMsg, word32 pkiMsgSz, word32* idx,
+                        int* recipFound, byte* encryptedKey,
+                        int* encryptedKeySz)
+{
+    int length;
+    int ret = 0;
+
+    if (kari == NULL || pkiMsg == NULL || idx == NULL ||
+        recipFound == NULL || encryptedKey == NULL)
+        return BAD_FUNC_ARG;
+
+    /* remove RecipientEncryptedKeys */
+    if (GetSequence(pkiMsg, idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    /* remove RecipientEncryptedKeys */
+    if (GetSequence(pkiMsg, idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    /* KeyAgreeRecipientIdentifier is CHOICE of IssuerAndSerialNumber
+     * or [0] IMMPLICIT RecipientKeyIdentifier */
+    if ( (pkiMsgSz > (*idx + 1)) &&
+         (pkiMsg[*idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) ) {
+
+        /* try to get RecipientKeyIdentifier */
+        ret = wc_PKCS7_KariGetSubjectKeyIdentifier(kari, pkiMsg, pkiMsgSz,
+                                                   idx, recipFound);
+    } else {
+        /* try to get IssuerAndSerialNumber */
+        ret = wc_PKCS7_KariGetIssuerAndSerialNumber(kari, pkiMsg, pkiMsgSz,
+                                                    idx, recipFound);
+    }
+
+    /* if we don't have either option, malformed CMS */
+    if (ret != 0)
+        return ret;
 
     /* remove EncryptedKey */
     if ( (pkiMsgSz > (*idx + 1)) &&
@@ -4168,7 +4290,7 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
         attribs = (EncodedAttrib*)XMALLOC(
                 sizeof(EncodedAttrib) * pkcs7->unprotectedAttribsSz,
-                pkcs7->heap, DYNAMIC_TYPE_PKCS);
+                pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         if (attribs == NULL) {
             XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -4180,9 +4302,9 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
                                      pkcs7->unprotectedAttribs,
                                      pkcs7->unprotectedAttribsSz);
 
-        flatAttribs = (byte*)XMALLOC(attribsSz, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+        flatAttribs = (byte*)XMALLOC(attribsSz, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         if (flatAttribs == NULL) {
-            XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+            XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             return MEMORY_E;
@@ -4217,8 +4339,8 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     if (totalSz > (int)outputSz) {
         WOLFSSL_MSG("PKCS#7 output buffer too small");
         if (pkcs7->unprotectedAttribsSz != 0) {
-            XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS);
-            XFREE(flatAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+            XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            XFREE(flatAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         }
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -4255,8 +4377,8 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         idx += attribsSetSz;
         XMEMCPY(output + idx, flatAttribs, attribsSz);
         idx += attribsSz;
-        XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS);
-        XFREE(flatAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+        XFREE(attribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        XFREE(flatAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     }
 
     XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -4298,7 +4420,7 @@ static int wc_PKCS7_DecodeUnprotectedAttributes(PKCS7* pkcs7, byte* pkiMsg,
         savedIdx = idx;
 
         attrib = (PKCS7DecodedAttrib*)XMALLOC(sizeof(PKCS7DecodedAttrib),
-                                              pkcs7->heap, DYNAMIC_TYPE_PKCS);
+                                              pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         if (attrib == NULL) {
             return MEMORY_E;
         }
@@ -4306,38 +4428,38 @@ static int wc_PKCS7_DecodeUnprotectedAttributes(PKCS7* pkcs7, byte* pkiMsg,
 
         /* save attribute OID bytes and size */
         if (GetObjectId(pkiMsg, &idx, &oid, oidIgnoreType, pkiMsgSz) < 0) {
-            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             return ASN_PARSE_E;
         }
 
         attrib->oidSz = idx - savedIdx;
         attrib->oid = (byte*)XMALLOC(attrib->oidSz, pkcs7->heap,
-                                     DYNAMIC_TYPE_PKCS);
+                                     DYNAMIC_TYPE_PKCS7);
         if (attrib->oid == NULL) {
-            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             return MEMORY_E;
         }
         XMEMCPY(attrib->oid, pkiMsg + savedIdx, attrib->oidSz);
 
         /* save attribute value bytes and size */
         if (GetSet(pkiMsg, &idx, &length, pkiMsgSz) < 0) {
-            XFREE(attrib->oid, pkcs7->heap, DYNAMIC_TYPE_PKCS);
-            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+            XFREE(attrib->oid, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             return ASN_PARSE_E;
         }
 
         if ((pkiMsgSz - idx) < (word32)length) {
-            XFREE(attrib->oid, pkcs7->heap, DYNAMIC_TYPE_PKCS);
-            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+            XFREE(attrib->oid, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             return ASN_PARSE_E;
         }
 
         attrib->valueSz = (word32)length;
         attrib->value = (byte*)XMALLOC(attrib->valueSz, pkcs7->heap,
-                                       DYNAMIC_TYPE_PKCS);
+                                       DYNAMIC_TYPE_PKCS7);
         if (attrib->value == NULL) {
-            XFREE(attrib->oid, pkcs7->heap, DYNAMIC_TYPE_PKCS);
-            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS);
+            XFREE(attrib->oid, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             return MEMORY_E;
         }
         XMEMCPY(attrib->value, pkiMsg + idx, attrib->valueSz);

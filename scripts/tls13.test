@@ -95,6 +95,22 @@ if [ $RESULT -ne 0 ]; then
 fi
 echo ""
 
+# Use HelloRetryRequest with TLS v1.3 server / TLS v1.3 client - SHA384.
+echo -e "\n\nTLS v1.3 HelloRetryRequest - SHA384"
+port=0
+./examples/server/server -v 4 -l TLS13-AES256-GCM-SHA384 -R $ready_file -p $port &
+server_pid=$!
+create_port
+./examples/client/client -v 4 -J -p $port
+RESULT=$?
+remove_ready_file
+if [ $RESULT -ne 0 ]; then
+    echo -e "\n\nTLS v1.3 HelloRetryRequest with SHA384 not working"
+    do_cleanup
+    exit 1
+fi
+echo ""
+
 # Resumption TLS v1.3 server / TLS v1.3 client.
 echo -e "\n\nTLS v1.3 resumption"
 port=0
@@ -111,6 +127,22 @@ if [ $RESULT -ne 0 ]; then
 fi
 echo ""
 
+# Resumption TLS v1.3 server / TLS v1.3 client - SHA384
+echo -e "\n\nTLS v1.3 resumption - SHA384"
+port=0
+./examples/server/server -v 4 -l TLS13-AES256-GCM-SHA384 -r -R $ready_file -p $port &
+server_pid=$!
+create_port
+./examples/client/client -v 4 -l TLS13-AES256-GCM-SHA384 -r -p $port
+RESULT=$?
+remove_ready_file
+if [ $RESULT -ne 0 ]; then
+    echo -e "\n\nTLS v1.3 resumption with SHA384 not working"
+    do_cleanup
+    exit 1
+fi
+echo ""
+
 # Usual TLS v1.3 server / TLS v1.3 client and ECC certificates.
 echo -e "\n\nTLS v1.3 server with TLS v1.3 client - ECC certificates"
 port=0
@@ -122,6 +154,22 @@ RESULT=$?
 remove_ready_file
 if [ $RESULT -ne 0 ]; then
     echo -e "\n\nTLS v1.3 ECC certificates not working"
+    do_cleanup
+    exit 1
+fi
+echo ""
+
+# Usual TLS v1.3 server / TLS v1.3 client and no client certificate.
+echo -e "\n\nTLS v1.3 server with TLS v1.3 client - no client cretificate"
+port=0
+./examples/server/server -v 4 -R $ready_file -p $port &
+server_pid=$!
+create_port
+./examples/client/client -v 4 -x -p $port
+RESULT=$?
+remove_ready_file
+if [ $RESULT -ne 0 ]; then
+    echo -e "\n\nTLS v1.3 and no client certificate not working"
     do_cleanup
     exit 1
 fi
@@ -301,6 +349,38 @@ RESULT=$?
 remove_ready_file
 if [ $RESULT -ne 0 ]; then
     echo -e "\n\nIssue with TLS v1.3 KeyUpdate"
+    do_cleanup
+    exit 1
+fi
+echo ""
+
+# TLS 1.3 server / TLS 1.3 client don't use (EC)DHE with PSK.
+echo -e "\n\nTLS v1.3 KeyUpdate"
+port=0
+./examples/server/server -v 4 -r -R $ready_file -p $port &
+server_pid=$!
+create_port
+./examples/client/client -v 4 -r -K -p $port
+RESULT=$?
+remove_ready_file
+if [ $RESULT -ne 0 ]; then
+    echo -e "\n\nIssue with TLS v1.3 KeyUpdate"
+    do_cleanup
+    exit 1
+fi
+echo ""
+
+# TLS 1.3 server / TLS 1.3 client and Post-Handshake Authentication.
+echo -e "\n\nTLS v1.3 Post-Handshake Authentication"
+port=0
+./examples/server/server -v 4 -Q -R $ready_file -p $port &
+server_pid=$!
+create_port
+./examples/client/client -v 4 -Q -p $port
+RESULT=$?
+remove_ready_file
+if [ $RESULT -ne 0 ]; then
+    echo -e "\n\nIssue with TLS v1.3 Post-Handshake Auth"
     do_cleanup
     exit 1
 fi

@@ -425,6 +425,9 @@ const char* wc_GetErrorString(int error)
     case ASYNC_OP_E:
         return "Async operation error";
 
+    case BAD_OCSP_RESPONDER:
+        return "Invalid OCSP Responder, missing specific key usage extensions";
+
     default:
         return "unknown error number";
 

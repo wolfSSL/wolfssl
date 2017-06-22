@@ -930,7 +930,7 @@ int error_test()
     /* Values that are not or no longer error codes. */
     int missing[] = { -122, -123, -124,       -127, -128, -129,
                       -161, -162, -163, -164, -165, -166, -167, -168, -169,
-                      -178, -179,       -233,
+                      -179,       -233,
                       0 };
 
     /* Check that all errors have a string and it's the same through the two
@@ -5075,7 +5075,7 @@ int camellia_test(void)
 
     byte out[CAMELLIA_BLOCK_SIZE];
     Camellia cam;
-    int i, testsSz;
+    int i, testsSz, ret;
     const test_vector_t testVectors[] =
     {
         {CAM_ECB_ENC, pte, ive, c1, k1, sizeof(k1), -114},
@@ -5100,25 +5100,31 @@ int camellia_test(void)
 
         switch (testVectors[i].type) {
             case CAM_ECB_ENC:
-                wc_CamelliaEncryptDirect(&cam, out, testVectors[i].plaintext);
-                if (XMEMCMP(out, testVectors[i].ciphertext, CAMELLIA_BLOCK_SIZE))
+                ret = wc_CamelliaEncryptDirect(&cam, out,
+                                                testVectors[i].plaintext);
+                if (ret != 0 || XMEMCMP(out, testVectors[i].ciphertext,
+                                                        CAMELLIA_BLOCK_SIZE))
                     return testVectors[i].errorCode;
                 break;
             case CAM_ECB_DEC:
-                wc_CamelliaDecryptDirect(&cam, out, testVectors[i].ciphertext);
-                if (XMEMCMP(out, testVectors[i].plaintext, CAMELLIA_BLOCK_SIZE))
+                ret = wc_CamelliaDecryptDirect(&cam, out,
+                                                    testVectors[i].ciphertext);
+                if (ret != 0 || XMEMCMP(out, testVectors[i].plaintext,
+                                                        CAMELLIA_BLOCK_SIZE))
                     return testVectors[i].errorCode;
                 break;
             case CAM_CBC_ENC:
-                wc_CamelliaCbcEncrypt(&cam, out, testVectors[i].plaintext,
+                ret = wc_CamelliaCbcEncrypt(&cam, out, testVectors[i].plaintext,
                                                            CAMELLIA_BLOCK_SIZE);
-                if (XMEMCMP(out, testVectors[i].ciphertext, CAMELLIA_BLOCK_SIZE))
+                if (ret != 0 || XMEMCMP(out, testVectors[i].ciphertext,
+                                                        CAMELLIA_BLOCK_SIZE))
                     return testVectors[i].errorCode;
                 break;
             case CAM_CBC_DEC:
-                wc_CamelliaCbcDecrypt(&cam, out, testVectors[i].ciphertext,
+                ret = wc_CamelliaCbcDecrypt(&cam, out, testVectors[i].ciphertext,
                                                            CAMELLIA_BLOCK_SIZE);
-                if (XMEMCMP(out, testVectors[i].plaintext, CAMELLIA_BLOCK_SIZE))
+                if (ret != 0 || XMEMCMP(out, testVectors[i].plaintext,
+                                                            CAMELLIA_BLOCK_SIZE))
                     return testVectors[i].errorCode;
                 break;
             default:
@@ -5127,8 +5133,8 @@ int camellia_test(void)
     }
 
     /* Setting the IV and checking it was actually set. */
-    wc_CamelliaSetIV(&cam, ivc);
-    if (XMEMCMP(cam.reg, ivc, CAMELLIA_BLOCK_SIZE))
+    ret = wc_CamelliaSetIV(&cam, ivc);
+    if (ret != 0 || XMEMCMP(cam.reg, ivc, CAMELLIA_BLOCK_SIZE))
         return -4700;
 
     /* Setting the IV to NULL should be same as all zeros IV */
@@ -9180,6 +9186,7 @@ int scrypt_test(void)
         0xc7, 0x27, 0xaf, 0xb9, 0x4a, 0x83, 0xee, 0x6d,
         0x83, 0x60, 0xcb, 0xdf, 0xa2, 0xcc, 0x06, 0x40
     };
+#if !defined(BENCH_EMBEDDED) && !defined(HAVE_INTEL_QA)
     const byte verify3[] = {
         0x70, 0x23, 0xbd, 0xcb, 0x3a, 0xfd, 0x73, 0x48,
         0x46, 0x1c, 0x06, 0xcd, 0x81, 0xfd, 0x38, 0xeb,
@@ -9190,6 +9197,7 @@ int scrypt_test(void)
         0xe6, 0x1e, 0x85, 0xdc, 0x0d, 0x65, 0x1e, 0x40,
         0xdf, 0xcf, 0x01, 0x7b, 0x45, 0x57, 0x58, 0x87
     };
+#endif
 #ifdef SCRYPT_TEST_ALL
     /* Test case is very slow.
      * Use for confirmation after code change or new platform.
@@ -9220,7 +9228,7 @@ int scrypt_test(void)
         return -6003;
 
     /* Don't run these test on embedded, since they use large mallocs */
-#ifndef BENCH_EMBEDDED
+#if !defined(BENCH_EMBEDDED) && !defined(HAVE_INTEL_QA)
     ret = wc_scrypt(derived, (byte*)"pleaseletmein", 13,
                     (byte*)"SodiumChloride", 14, 14, 8, 1, sizeof(verify3));
     if (ret != 0)
@@ -9236,7 +9244,7 @@ int scrypt_test(void)
     if (XMEMCMP(derived, verify4, sizeof(verify4)) != 0)
         return -6007;
 #endif
-#endif /* !BENCH_EMBEDDED */
+#endif /* !BENCH_EMBEDDED && !HAVE_INTEL_QA */
 
     return 0;
 }

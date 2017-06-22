@@ -128,11 +128,12 @@ static int InitCRL_Entry(CRL_Entry* crle, DecodedCRL* dcrl, const byte* buff,
 static void FreeCRL_Entry(CRL_Entry* crle, void* heap)
 {
     RevokedCert* tmp = crle->certs;
+    RevokedCert* next;
 
     WOLFSSL_ENTER("FreeCRL_Entry");
 
-    while(tmp) {
-        RevokedCert* next = tmp->next;
+    while (tmp) {
+        next = tmp->next;
         XFREE(tmp, heap, DYNAMIC_TYPE_REVOKED);
         tmp = next;
     }
@@ -317,7 +318,8 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
         RevokedCert* rc = crle->certs;
 
         while (rc) {
-            if (XMEMCMP(rc->serialNumber, cert->serial, rc->serialSz) == 0) {
+            if (rc->serialSz == cert->serialSz &&
+                   XMEMCMP(rc->serialNumber, cert->serial, rc->serialSz) == 0) {
                 WOLFSSL_MSG("Cert revoked");
                 ret = CRL_CERT_REVOKED;
                 break;

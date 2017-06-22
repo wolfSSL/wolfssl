@@ -37,7 +37,11 @@
 
  /* Maximum generate block length */
 #ifndef RNG_MAX_BLOCK_LEN
-    #define RNG_MAX_BLOCK_LEN (0x10000)
+    #ifdef HAVE_INTEL_QA
+        #define RNG_MAX_BLOCK_LEN (0xFFFF)
+    #else
+        #define RNG_MAX_BLOCK_LEN (0x10000)
+    #endif
 #endif
 
 /* Size of the BRBG seed */
