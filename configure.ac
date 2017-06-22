@@ -248,19 +248,53 @@ then
 fi
 
 
+# TLS v1.3 Draft 18
+AC_ARG_ENABLE([tls13-draft18],
+    [AS_HELP_STRING([--enable-tls13-draft18],[Enable wolfSSL TLS v1.3 Draft 18 (default: disabled)])],
+    [ ENABLED_TLS13_DRAFT18=$enableval ],
+    [ ENABLED_TLS13_DRAFT18=no ]
+    )
+if test "$ENABLED_TLS13_DRAFT18" = "yes"
+then
+  AM_CFLAGS="-DWOLFSSL_TLS13_DRAFT18 $AM_CFLAGS"
+fi
+
+
 # TLS v1.3
 AC_ARG_ENABLE([tls13],
     [AS_HELP_STRING([--enable-tls13],[Enable wolfSSL TLS v1.3 (default: disabled)])],
     [ ENABLED_TLS13=$enableval ],
     [ ENABLED_TLS13=no ]
     )
+
+if test "$ENABLED_TLS13_DRAFT18" = "yes"
+then
+    ENABLED_TLS13="yes"
+fi
+
 if test "$ENABLED_TLS13" = "yes"
 then
-  AM_CFLAGS="-DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS -DHAVE_FFDHE_2048 $AM_CFLAGS"
+    AM_CFLAGS="-DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS -DHAVE_FFDHE_2048 $AM_CFLAGS"
 fi
 
 # check if TLS v1.3 was enabled for conditionally running tls13.test script
 AM_CONDITIONAL([BUILD_TLS13], [test "x$ENABLED_TLS13" = "xyes"])
+
+
+# Post-handshake Authentication
+AC_ARG_ENABLE([postauth],
+    [AS_HELP_STRING([--enable-postauth],[Enable wolfSSL Post-handshake Authentication (default: disabled)])],
+    [ ENABLED_TLS13_POST_AUTH=$enableval ],
+    [ ENABLED_TLS13_POST_AUTH=no ]
+    )
+if test "$ENABLED_TLS13_POST_AUTH" = "yes"
+then
+    if test "x$ENABLED_TLS13" = "xno"
+    then
+        AC_MSG_ERROR([cannot enable postauth without enabling tls13.])
+    fi
+  AM_CFLAGS="-DWOLFSSL_POST_HANDSHAKE_AUTH $AM_CFLAGS"
+fi
 
 
 AC_ARG_ENABLE([rng],
@@ -2329,10 +2363,10 @@ fi
 # Early Data handshake in TLS v1.3 and above
 AC_ARG_ENABLE([earlydata],
     [AS_HELP_STRING([--enable-earlydata],[Enable Early Data handshake with wolfSSL TLS v1.3 (default: disabled)])],
-    [ ENABLED_EARLY_DATA=$enableval ],
-    [ ENABLED_EARLY_DATA=no ]
+    [ ENABLED_TLS13_EARLY_DATA=$enableval ],
+    [ ENABLED_TLS13_EARLY_DATA=no ]
     )
-if test "$ENABLED_EARLY_DATA" = "yes"
+if test "$ENABLED_TLS13_EARLY_DATA" = "yes"
 then
     if test "x$ENABLED_TLS13" = "xno"
     then
@@ -3760,7 +3794,9 @@ echo "   * SCTP:                       $ENABLED_SCTP"
 echo "   * Old TLS Versions:           $ENABLED_OLD_TLS"
 echo "   * SSL version 3.0:            $ENABLED_SSLV3"
 echo "   * TLS v1.3:                   $ENABLED_TLS13"
-echo "   * Early Data:                 $ENABLED_EARLY_DATA"
+echo "   * TLS v1.3 Draft 18:          $ENABLED_TLS13_DRAFT18"
+echo "   * Post-handshake Auth:        $ENABLED_TLS13_POST_AUTH"
+echo "   * Early Data:                 $ENABLED_TLS13_EARLY_DATA"
 echo "   * OCSP:                       $ENABLED_OCSP"
 echo "   * OCSP Stapling:              $ENABLED_CERTIFICATE_STATUS_REQUEST"
 echo "   * OCSP Stapling v2:           $ENABLED_CERTIFICATE_STATUS_REQUEST_V2"

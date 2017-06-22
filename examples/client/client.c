@@ -1941,7 +1941,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     ClientRead(ssl, reply, sizeof(reply)-1, 1);
 
-#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     if (postHandAuth)
         ClientWrite(ssl, msg, msgSz);
 #endif
