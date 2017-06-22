@@ -40,9 +40,8 @@ ASN Options:
     chain is not loaded. This only matches on subject and public key and
     does not perform a PKI validation, so it is not a secure solution.
     Only enabled for OCSP.
- * WOLFSSL_NO_OCSP_EXTKEYUSE_OCSP_SIGN: Can be defined for backwards
-    compatibility to disable matching of OCSP signing authority for the
-    certificate in question.
+ * WOLFSSL_NO_OCSP_ISSUER_CHECK: Can be defined for backwards compatibility to
+    disable checking of OCSP subject hash with issuer hash.
 */
 
 #ifndef NO_ASN
@@ -10770,7 +10769,7 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             return ret;
         }
 
-#ifndef WOLFSSL_NO_OCSP_EXTKEYUSE_OCSP_SIGN
+#ifndef WOLFSSL_NO_OCSP_ISSUER_CHECK
         if ((cert.extExtKeyUsage & EXTKEYUSE_OCSP_SIGN) == 0) {
             if (XMEMCMP(cert.subjectHash,
                         resp->issuerHash, KEYID_SIZE) == 0) {
