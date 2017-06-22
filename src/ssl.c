@@ -4158,23 +4158,46 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     {
         /* remove encrypted header if there */
-        char encHeader[] = "Proc-Type";
-        char* line = XSTRNSTR(headerEnd, encHeader, PEM_LINE_LEN);
-        if (line) {
-            char* newline;
-            char* finish;
-            char* start  = XSTRNSTR(line, "DES", PEM_LINE_LEN);
+        char   encHeader[] = "Proc-Type";
+        word32 headerEndSz = (word32)(bufferEnd - headerEnd);
+        char*  line        = XSTRNSTR(headerEnd, encHeader, min(headerEndSz,
+                                                                PEM_LINE_LEN));
+        if (line != NULL) {
+            word32 lineSz;
+            char*  finish;
+            word32 finishSz;
+            char*  start;
+            word32 startSz;
+            char*  newline;
 
-            if (!start)
-                start = XSTRNSTR(line, "AES", PEM_LINE_LEN);
+            if (line >= bufferEnd) {
+                return SSL_BAD_FILE;
+            }
 
-            if (!start) return SSL_BAD_FILE;
-            if (!info)  return SSL_BAD_FILE;
+            lineSz = (word32)(bufferEnd - line);
+            start = XSTRNSTR(line, "DES", min(lineSz, PEM_LINE_LEN));
 
-            finish = XSTRNSTR(start, ",", PEM_LINE_LEN);
+            if (start == NULL) {
+                start = XSTRNSTR(line, "AES", min(lineSz, PEM_LINE_LEN));
+            }
 
-            if (start && finish && (start < finish)) {
-                newline = XSTRNSTR(finish, "\r", PEM_LINE_LEN);
+            if (start == NULL) return SSL_BAD_FILE;
+            if (info == NULL)  return SSL_BAD_FILE;
+
+            if (start >= bufferEnd) {
+                return SSL_BAD_FILE;
+            }
+
+            startSz = (word32)(bufferEnd - start);
+            finish = XSTRNSTR(start, ",", min(startSz, PEM_LINE_LEN));
+
+            if ((start != NULL) && (finish != NULL) && (start < finish)) {
+                if (finish >= bufferEnd) {
+                    return SSL_BAD_FILE;
+                }
+
+                finishSz = (word32)(bufferEnd - finish);
+                newline = XSTRNSTR(finish, "\r", min(finishSz, PEM_LINE_LEN));
 
                 if (XMEMCPY(info->name, start, finish - start) == NULL)
                     return SSL_FATAL_ERROR;
@@ -4182,8 +4205,10 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                 if (XMEMCPY(info->iv, finish + 1, sizeof(info->iv)) == NULL)
                     return SSL_FATAL_ERROR;
 
-                if (!newline) newline = XSTRNSTR(finish, "\n", PEM_LINE_LEN);
-                if (newline && (newline > finish)) {
+                if (newline == NULL)
+                    newline = XSTRNSTR(finish, "\n", min(finishSz,
+                                                         PEM_LINE_LEN));
+                if ((newline != NULL) && (newline > finish)) {
                     info->ivSz = (word32)(newline - (finish + 1));
                     info->set = 1;
                 }
