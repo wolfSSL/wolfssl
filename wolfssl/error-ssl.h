@@ -168,7 +168,8 @@ enum wolfSSL_ErrorCodes {
     MATCH_SUITE_ERROR            = -501,   /* can't match cipher suite */
     COMPRESSION_ERROR            = -502,   /* compression mismatch */
     KEY_SHARE_ERROR              = -503,   /* key share mismatch */
-    POST_HAND_AUTH_ERROR         = -504    /* client won't do post-hand auth */
+    POST_HAND_AUTH_ERROR         = -504,   /* client won't do post-hand auth */
+    HRR_COOKIE_ERROR             = -505    /* HRR msg cookie mismatch */
     /* end negotiation parameter errors only 10 for now */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 

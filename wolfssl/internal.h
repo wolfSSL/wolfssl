@@ -1789,6 +1789,7 @@ typedef enum {
     TLSX_EARLY_DATA                 = 0x002a,
     #endif
     TLSX_SUPPORTED_VERSIONS         = 0x002b,
+    TLSX_COOKIE                     = 0x002c,
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     TLSX_PSK_KEY_EXCHANGE_MODES     = 0x002d,
     #endif
@@ -1813,8 +1814,9 @@ WOLFSSL_LOCAL int    TLSX_SupportExtensions(WOLFSSL* ssl);
 WOLFSSL_LOCAL int    TLSX_PopulateExtensions(WOLFSSL* ssl, byte isRequest);
 
 #ifndef NO_WOLFSSL_CLIENT
-WOLFSSL_LOCAL word16 TLSX_GetRequestSize(WOLFSSL* ssl);
-WOLFSSL_LOCAL word16 TLSX_WriteRequest(WOLFSSL* ssl, byte* output);
+WOLFSSL_LOCAL word16 TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType);
+WOLFSSL_LOCAL word16 TLSX_WriteRequest(WOLFSSL* ssl, byte* output,
+                                       byte msgType);
 #endif
 
 #ifndef NO_WOLFSSL_SERVER
@@ -2063,6 +2065,16 @@ WOLFSSL_LOCAL int TLSX_ValidateQSHScheme(TLSX** extensions, word16 name);
 #endif /* HAVE_QSH */
 
 #ifdef WOLFSSL_TLS13
+/* Cookie extension information - cookie data. */
+typedef struct Cookie {
+    word16 len;
+    byte   data;
+} Cookie;
+
+WOLFSSL_LOCAL int TLSX_Cookie_Use(WOLFSSL* ssl, byte* data, word16 len,
+                                  byte* mac, byte macSz, int resp);
+
+
 /* Key Share - TLS v1.3 Specification */
 
 /* The KeyShare extension information - entry in a linked list. */
@@ -2079,6 +2091,7 @@ WOLFSSL_LOCAL int TLSX_KeyShare_Use(WOLFSSL* ssl, word16 group, word16 len,
                                     byte* data, KeyShareEntry **kse);
 WOLFSSL_LOCAL int TLSX_KeyShare_Empty(WOLFSSL* ssl);
 WOLFSSL_LOCAL int TLSX_KeyShare_Establish(WOLFSSL* ssl);
+
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
 /* The PreSharedKey extension information - entry in a linked list. */
@@ -2106,6 +2119,7 @@ WOLFSSL_LOCAL int TLSX_PreSharedKey_Use(WOLFSSL* ssl, byte* identity,
                                         byte resumption,
                                         PreSharedKey **preSharedKey);
 
+/* The possible Pre-Shared Key key exchange modes. */
 enum PskKeyExchangeMode {
     PSK_KE,
     PSK_DHE_KE
@@ -2122,6 +2136,7 @@ WOLFSSL_LOCAL int TLSX_PskKeModes_Use(WOLFSSL* ssl, byte modes);
 WOLFSSL_LOCAL int TLSX_EarlyData_Use(WOLFSSL* ssl, word32 max);
 #endif
 #endif /* HAVE_SESSION_TICKET || !NO_PSK */
+
 
 /* The types of keys to derive for. */
 enum DeriveKeyType {
@@ -2196,13 +2211,13 @@ struct WOLFSSL_CTX {
     byte        groupMessages;    /* group handshake messages before sending */
     byte        minDowngrade;     /* minimum downgrade version */
     byte        haveEMS;          /* have extended master secret extension */
-    byte        useClientOrder;   /* Use client's cipher preference order */
+    byte        useClientOrder:1; /* Use client's cipher preference order */
 #ifdef WOLFSSL_TLS13
-    byte        noTicketTls13;    /* Server won't create new Ticket */
-    byte        noPskDheKe;       /* Don't use (EC)DHE with PSK */
+    byte        noTicketTls13:1;  /* Server won't create new Ticket */
+    byte        noPskDheKe:1;     /* Don't use (EC)DHE with PSK */
 #endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-    byte        postHandshakeAuth;/* Post-handshake authentication supported. */
+    byte        postHandshakeAuth:1;  /* Post-handshake auth supported. */
 #endif
 #if defined(WOLFSSL_SCTP) && defined(WOLFSSL_DTLS)
     byte        dtlsSctp;         /* DTLS-over-SCTP mode */
@@ -2676,6 +2691,9 @@ typedef struct Buffers {
     int             certChainCnt;
 #endif
 #endif
+#ifdef WOLFSSL_HRR_COOKIE
+    buffer          tls13CookieSecret;      /* HRR cookie secret */
+#endif
 #ifdef WOLFSSL_DTLS
     WOLFSSL_DTLS_CTX dtlsCtx;               /* DTLS connection context */
     #ifndef NO_WOLFSSL_SERVER
@@ -2807,6 +2825,9 @@ typedef struct Options {
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     word16            postHandshakeAuth:1;/* Client send post_handshake_auth
                                            * extendion. */
+#endif
+#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER)
+    word16            sendCookie:1;       /* Server creates a Cookie in HRR */
 #endif
 
     /* need full byte values for this section */

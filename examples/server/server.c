@@ -474,6 +474,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_EARLY_DATA
     int earlyData = 0;
 #endif
+#ifdef WOLFSSL_HRR_COOKIE
+    int hrrCookie = 0;
+#endif
 
 #ifdef WOLFSSL_STATIC_MEMORY
     #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) \
@@ -518,10 +521,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_VXWORKS
     useAnyAddr = 1;
 #else
-    /* Not Used: h, m, t, y, z, F, J, M, T, V, W, X, Y */
+    /* Not Used: h, m, t, y, z, F, M, T, V, W, X, Y */
     while ((ch = mygetopt(argc, argv, "?"
                 "abc:defgijk:l:nop:q:rsuv:wx"
-                "A:B:C:D:E:GHIKL:NO:PQR:S:UYZ:""0")) != -1) {
+                "A:B:C:D:E:GHIJKL:NO:PQR:S:UYZ:"
+                "0")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -743,6 +747,12 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
                 postHandAuth = 1;
                 doCliCertCheck = 0;
+            #endif
+                break;
+
+            case 'J' :
+            #ifdef WOLFSSL_HRR_COOKIE
+                hrrCookie = 1;
             #endif
                 break;
 
@@ -1082,6 +1092,12 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         #ifdef OPENSSL_EXTRA
         wolfSSL_KeepArrays(ssl);
         #endif
+
+#ifdef WOLFSSL_HRR_COOKIE
+        if (hrrCookie && wolfSSL_send_hrr_cookie(ssl, NULL, 0) != SSL_SUCCESS) {
+            err_sys("unable to set use of cookie with HRR msg");
+        }
+#endif
 
 #if defined(WOLFSSL_STATIC_MEMORY) && defined(DEBUG_WOLFSSL)
     {
