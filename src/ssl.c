@@ -10536,7 +10536,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     {
         WOLFSSL_ENTER("SSL_CTX_clear_options");
         ctx->mask &= ~opt;
-        return opt;
+        return ctx->mask;
     }
 
     int wolfSSL_set_rfd(WOLFSSL* ssl, int rfd)
