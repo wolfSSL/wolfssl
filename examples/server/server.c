@@ -474,7 +474,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_EARLY_DATA
     int earlyData = 0;
 #endif
-#ifdef WOLFSSL_HRR_COOKIE
+#ifdef WOLFSSL_SEND_HRR_COOKIE
     int hrrCookie = 0;
 #endif
 
@@ -751,7 +751,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 break;
 
             case 'J' :
-            #ifdef WOLFSSL_HRR_COOKIE
+            #ifdef WOLFSSL_SEND_HRR_COOKIE
                 hrrCookie = 1;
             #endif
                 break;
@@ -1093,7 +1093,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         wolfSSL_KeepArrays(ssl);
         #endif
 
-#ifdef WOLFSSL_HRR_COOKIE
+#ifdef WOLFSSL_SEND_HRR_COOKIE
         if (hrrCookie && wolfSSL_send_hrr_cookie(ssl, NULL, 0) != SSL_SUCCESS) {
             err_sys("unable to set use of cookie with HRR msg");
         }

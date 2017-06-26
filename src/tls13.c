@@ -2376,7 +2376,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 }
 
 #ifndef WOLFSSL_TLS13_DRAFT_18
-#ifdef WOLFSSL_HRR_COOKIE
+#ifdef WOLFSSL_SEND_HRR_COOKIE
 /* Create Cookie extension using the hash of the first ClientHello.
  *
  * ssl     SSL/TLS object.
@@ -2455,7 +2455,7 @@ static int RestartHandshakeHash(WOLFSSL* ssl)
     WOLFSSL_MSG("Restart Hash");
     WOLFSSL_BUFFER(hash, hashSz);
 
-#ifdef WOLFSSL_HRR_COOKIE
+#ifdef WOLFSSL_SEND_HRR_COOKIE
     if (ssl->options.sendCookie) {
         byte   cookie[OPAQUE8_LEN + MAX_DIGEST_SIZE + OPAQUE16_LEN * 2];
         TLSX*  ext;
@@ -3116,7 +3116,7 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
 }
 #endif
 
-#if !defined(WOLFSSL_TLS13_DRAFT_18) && defined(WOLFSSL_HRR_COOKIE)
+#if !defined(WOLFSSL_TLS13_DRAFT_18) && defined(WOLFSSL_SEND_HRR_COOKIE)
 /* Check that the Cookie data's integrity.
  *
  * ssl       SSL/TLS object.
@@ -3387,7 +3387,7 @@ static int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     if (TLSX_Find(ssl->extensions, TLSX_SUPPORTED_VERSIONS) == NULL)
         ssl->version.minor = pv.minor;
-#ifdef WOLFSSL_HRR_COOKIE
+#ifdef WOLFSSL_SEND_HRR_COOKIE
     if (ssl->options.sendCookie &&
                        ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST) {
         TLSX* ext;
@@ -6674,7 +6674,7 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
     }
 }
 
-#if defined(WOLFSSL_HRR_COOKIE) && !defined(NO_WOLFSSL_SERVER)
+#if defined(WOLFSSL_SEND_HRR_COOKIE) && !defined(NO_WOLFSSL_SERVER)
 /* Send a cookie with the HelloRetryRequest to avoid storing state.
  *
  * ssl       SSL/TLS object.

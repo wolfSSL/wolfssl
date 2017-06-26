@@ -2691,7 +2691,7 @@ typedef struct Buffers {
     int             certChainCnt;
 #endif
 #endif
-#ifdef WOLFSSL_HRR_COOKIE
+#ifdef WOLFSSL_SEND_HRR_COOKIE
     buffer          tls13CookieSecret;      /* HRR cookie secret */
 #endif
 #ifdef WOLFSSL_DTLS
