@@ -297,6 +297,22 @@ then
 fi
 
 
+# Post-handshake Authentication
+AC_ARG_ENABLE([hrrcookie],
+    [AS_HELP_STRING([--enable-hrrcookie],[Enable the server to send Cookie Extension in HRR with state (default: disabled)])],
+    [ ENABLED_SEND_HRR_COOKIE=$enableval ],
+    [ ENABLED_SEND_HRR_COOKIE=no ]
+    )
+if test "$ENABLED_SEND_HRR_COOKIE" = "yes"
+then
+    if test "x$ENABLED_TLS13" = "xno"
+    then
+        AC_MSG_ERROR([cannot enable hrrcookie without enabling tls13.])
+    fi
+  AM_CFLAGS="-DWOLFSSL_SEND_HRR_COOKIE $AM_CFLAGS"
+fi
+
+
 AC_ARG_ENABLE([rng],
     [AS_HELP_STRING([--enable-rng],[Enable compiling and using RNG (default: enabled)])],
     [ ENABLED_RNG=$enableval ],
@@ -3798,6 +3814,7 @@ echo "   * TLS v1.3:                   $ENABLED_TLS13"
 echo "   * TLS v1.3 Draft 18:          $ENABLED_TLS13_DRAFT18"
 echo "   * Post-handshake Auth:        $ENABLED_TLS13_POST_AUTH"
 echo "   * Early Data:                 $ENABLED_TLS13_EARLY_DATA"
+echo "   * Send State in HRR Cookie:   $ENABLED_SEND_HRR_COOKIE"
 echo "   * OCSP:                       $ENABLED_OCSP"
 echo "   * OCSP Stapling:              $ENABLED_CERTIFICATE_STATUS_REQUEST"
 echo "   * OCSP Stapling v2:           $ENABLED_CERTIFICATE_STATUS_REQUEST_V2"

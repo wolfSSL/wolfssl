@@ -379,6 +379,9 @@ static void Usage(void)
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
     printf("-Q          Request certificate from client post-handshake\n");
 #endif
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    printf("-J          Server sends Cookie Extension containing state\n");
+#endif
 #endif
 #ifdef WOLFSSL_EARLY_DATA
     printf("-0          Early data read from client (0-RTT handshake)\n");

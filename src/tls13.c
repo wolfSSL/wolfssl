@@ -3155,7 +3155,7 @@ static int CheckCookie(WOLFSSL* ssl, byte* cookie, byte cookieSz)
     if ((ret = wc_HmacFinal(&cookieHmac, mac)) != 0)
         return ret;
 
-    if (XMEMCMP(cookie + cookieSz, mac, macSz) != 0)
+    if (ConstantCompare(cookie + cookieSz, mac, macSz) != 0)
         return HRR_COOKIE_ERROR;
     return cookieSz;
 }
