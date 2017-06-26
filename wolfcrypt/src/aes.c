@@ -120,7 +120,7 @@
                                       const byte* authIn, word32 authInSz)
         {
             if (aes == NULL || authTagSz > AES_BLOCK_SIZE ||
-                               authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
+                            authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ || ivSz != 16) {
                 return BAD_FUNC_ARG;
             }
 
@@ -135,8 +135,8 @@
                                           const byte* authIn, word32 authInSz)
             {
                 if (aes == NULL || out == NULL || in == NULL || sz == 0 ||
-                                          iv == NULL || authTag == NULL ||
-                                          authTagSz > AES_BLOCK_SIZE) {
+                                iv == NULL || authTag == NULL || ivSz != 16 ||
+                                                authTagSz > AES_BLOCK_SIZE) {
                     return BAD_FUNC_ARG;
                 }
 
