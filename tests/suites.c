@@ -44,7 +44,7 @@
 #include "examples/client/client.h"
 #include "examples/server/server.h"
 
-
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
 static WOLFSSL_CTX* cipherSuiteCtx = NULL;
 static char nonblockFlag[] = "-N";
 static char noVerifyFlag[] = "-d";
@@ -503,10 +503,12 @@ static void test_harness(void* vargs)
     free(script);
     args->return_code = 0;
 }
+#endif /* !NO_WOLFSSL_SERVER && !NO_WOLFSSL_CLIENT */
 
 
 int SuiteTest(void)
 {
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
     func_args args;
     char argv0[2][80];
     char* myArgv[2];
@@ -654,6 +656,7 @@ exit:
 #endif
 
     return args.return_code;
+#else
+    return NOT_COMPILED_IN;
+#endif /* !NO_WOLFSSL_SERVER && !NO_WOLFSSL_CLIENT */
 }
-
-

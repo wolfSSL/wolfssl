@@ -48,6 +48,8 @@
 
 #include "examples/client/client.h"
 
+#ifndef NO_WOLFSSL_CLIENT
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     static int devId = INVALID_DEVID;
 #endif
@@ -59,16 +61,35 @@
  * test mode and (2) the testsuite which uses this code and sets up the correct
  * port numbers when the internal thread using the server code using port 0. */
 
+
 #ifdef WOLFSSL_CALLBACKS
-    int handShakeCB(HandShakeInfo*);
-    int timeoutCB(TimeoutInfo*);
     Timeval timeout;
+    static int handShakeCB(HandShakeInfo* info)
+    {
+        (void)info;
+        return 0;
+    }
+
+    static int timeoutCB(TimeoutInfo* info)
+    {
+        (void)info;
+        return 0;
+    }
+
 #endif
 
 #ifdef HAVE_SESSION_TICKET
-    int sessionTicketCB(WOLFSSL*, const unsigned char*, int, void*);
+    static int sessionTicketCB(WOLFSSL* ssl,
+                        const unsigned char* ticket, int ticketSz,
+                        void* ctx)
+    {
+        (void)ssl;
+        (void)ticket;
+        printf("Session Ticket CB: ticketSz = %d, ctx = %s\n",
+               ticketSz, (char*)ctx);
+        return 0;
+    }
 #endif
-
 
 static int NonBlockingSSL_Connect(WOLFSSL* ssl)
 {
@@ -2292,6 +2313,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 }
 
+#endif /* !NO_WOLFSSL_CLIENT */
+
 
 /* so overall tests can pull in test function */
 #ifndef NO_MAIN_DRIVER
@@ -2312,10 +2335,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_Init();
         ChangeToWolfRoot();
 
+#ifndef NO_WOLFSSL_CLIENT
 #ifdef HAVE_STACK_SIZE
         StackSizeCheck(&args, client_test);
 #else
         client_test(&args);
+#endif
 #endif
         wolfSSL_Cleanup();
 
@@ -2331,38 +2356,3 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     char* myoptarg = NULL;
 
 #endif /* NO_MAIN_DRIVER */
-
-
-
-#ifdef WOLFSSL_CALLBACKS
-
-    int handShakeCB(HandShakeInfo* info)
-    {
-        (void)info;
-        return 0;
-    }
-
-
-    int timeoutCB(TimeoutInfo* info)
-    {
-        (void)info;
-        return 0;
-    }
-
-#endif
-
-
-#ifdef HAVE_SESSION_TICKET
-
-    int sessionTicketCB(WOLFSSL* ssl,
-                        const unsigned char* ticket, int ticketSz,
-                        void* ctx)
-    {
-        (void)ssl;
-        (void)ticket;
-        printf("Session Ticket CB: ticketSz = %d, ctx = %s\n",
-               ticketSz, (char*)ctx);
-        return 0;
-    }
-
-#endif
