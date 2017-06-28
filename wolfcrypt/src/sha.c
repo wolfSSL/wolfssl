@@ -237,7 +237,12 @@
 
 #elif defined(FREESCALE_MMCAU_SHA)
 
-    #include "fsl_mmcau.h"
+    #ifdef FREESCALE_MMCAU_CLASSIC_SHA
+        #include "cau_api.h"
+    #else
+        #include "fsl_mmcau.h"
+    #endif
+
     #define USE_SHA_SOFTWARE_IMPL /* Only for API's, actual transform is here */
     #define XSHATRANSFORM   ShaTransform
 
@@ -248,7 +253,11 @@
         if(ret != 0) {
             return ret;
         }
+    #ifdef FREESCALE_MMCAU_CLASSIC_SHA
+        cau_sha1_initialize_output(sha->digest);
+    #else
         MMCAU_SHA1_InitializeOutput((uint32_t*)sha->digest);
+    #endif
         wolfSSL_CryptHwMutexUnLock();
 
         sha->buffLen = 0;
@@ -262,7 +271,11 @@
     {
         int ret = wolfSSL_CryptHwMutexLock();
         if(ret == 0) {
+    #ifdef FREESCALE_MMCAU_CLASSIC_SHA
+            cau_sha1_hash_n(data, 1, sha->digest);
+    #else
             MMCAU_SHA1_HashN(data, 1, (uint32_t*)sha->digest);
+    #endif
             wolfSSL_CryptHwMutexUnLock();
         }
         return ret;
@@ -522,7 +535,7 @@ int wc_ShaFinal(Sha* sha, byte* hash)
     XMEMCPY(&local[SHA_PAD_SIZE], &sha->hiLen, sizeof(word32));
     XMEMCPY(&local[SHA_PAD_SIZE + sizeof(word32)], &sha->loLen, sizeof(word32));
 
-#ifdef FREESCALE_MMCAU_SHA
+#if defined(FREESCALE_MMCAU_SHA)
     /* Kinetis requires only these bytes reversed */
     ByteReverseWords(&sha->buffer[SHA_PAD_SIZE/sizeof(word32)],
                      &sha->buffer[SHA_PAD_SIZE/sizeof(word32)],
