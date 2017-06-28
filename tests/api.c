@@ -224,10 +224,13 @@ static void test_wolfSSL_Method_Allocators(void)
     TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_1_server_method);
     TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_1_client_method);
 #endif
+#ifndef NO_WOLFSSL_SERVER
     TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_2_server_method);
+#endif
+#ifndef NO_WOLFSSL_CLIENT
     TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_2_client_method);
     TEST_VALID_METHOD_ALLOCATOR(wolfSSLv23_client_method);
-
+#endif
 #ifdef WOLFSSL_DTLS
     #ifndef NO_OLD_TLS
         TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_server_method);
@@ -246,7 +249,7 @@ static void test_wolfSSL_Method_Allocators(void)
 /*----------------------------------------------------------------------------*
  | Context
  *----------------------------------------------------------------------------*/
-
+#ifndef NO_WOLFSSL_SERVER
 static void test_wolfSSL_CTX_new(WOLFSSL_METHOD *method)
 {
     WOLFSSL_CTX *ctx;
@@ -258,11 +261,12 @@ static void test_wolfSSL_CTX_new(WOLFSSL_METHOD *method)
 
     wolfSSL_CTX_free(ctx);
 }
+#endif
 
 
 static void test_wolfSSL_CTX_use_certificate_file(void)
 {
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_CTX *ctx;
 
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
@@ -295,7 +299,8 @@ static void test_wolfSSL_CTX_use_certificate_file(void)
  */
 static int test_wolfSSL_CTX_use_certificate_buffer(void)
 {
-    #if !defined(NO_CERTS) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+    #if !defined(NO_CERTS) && defined(USE_CERT_BUFFERS_2048) && \
+            !defined(NO_RSA) && !defined(NO_WOLFSSL_SERVER)
         WOLFSSL_CTX*            ctx;
         int                     ret;
 
@@ -317,7 +322,7 @@ static int test_wolfSSL_CTX_use_certificate_buffer(void)
 
 static void test_wolfSSL_CTX_use_PrivateKey_file(void)
 {
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_CTX *ctx;
 
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
@@ -348,7 +353,7 @@ static void test_wolfSSL_CTX_use_PrivateKey_file(void)
 /* test both file and buffer versions along with unloading trusted peer certs */
 static void test_wolfSSL_CTX_trust_peer_cert(void)
 {
-#if !defined(NO_CERTS) && defined(WOLFSSL_TRUST_PEER_CERT)
+#if !defined(NO_CERTS) && defined(WOLFSSL_TRUST_PEER_CERT) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX *ctx;
 
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
@@ -398,7 +403,7 @@ static void test_wolfSSL_CTX_trust_peer_cert(void)
 
 static void test_wolfSSL_CTX_load_verify_locations(void)
 {
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX *ctx;
 
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
@@ -426,7 +431,8 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
 
 static void test_wolfSSL_CTX_SetTmpDH_file(void)
 {
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_DH)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_DH) && \
+        !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX *ctx;
 
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
@@ -451,7 +457,7 @@ static void test_wolfSSL_CTX_SetTmpDH_file(void)
 
 static void test_wolfSSL_CTX_SetTmpDH_buffer(void)
 {
-#if !defined(NO_CERTS) && !defined(NO_DH)
+#if !defined(NO_CERTS) && !defined(NO_DH) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX *ctx;
 
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
@@ -480,7 +486,8 @@ static void test_wolfSSL_CTX_SetTmpDH_buffer(void)
 
 static void test_server_wolfSSL_new(void)
 {
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+        !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_CTX *ctx;
     WOLFSSL_CTX *ctx_nocert;
     WOLFSSL *ssl;
@@ -509,7 +516,8 @@ static void test_server_wolfSSL_new(void)
 
 static void test_client_wolfSSL_new(void)
 {
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA) && \
+        !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX *ctx;
     WOLFSSL_CTX *ctx_nocert;
     WOLFSSL *ssl;
@@ -537,7 +545,8 @@ static void test_client_wolfSSL_new(void)
 
 static void test_wolfSSL_SetTmpDH_file(void)
 {
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_DH)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_DH) && \
+        !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_CTX *ctx;
     WOLFSSL *ssl;
 
@@ -576,7 +585,7 @@ static void test_wolfSSL_SetTmpDH_file(void)
 
 static void test_wolfSSL_SetTmpDH_buffer(void)
 {
-#if !defined(NO_CERTS) && !defined(NO_DH)
+#if !defined(NO_CERTS) && !defined(NO_DH) && !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_CTX *ctx;
     WOLFSSL *ssl;
 
@@ -613,9 +622,11 @@ static void test_wolfSSL_SetTmpDH_buffer(void)
  */
 static int test_wolfSSL_SetMinVersion(void)
 {
+    int                 failFlag = SSL_SUCCESS;
+#ifndef NO_WOLFSSL_CLIENT
     WOLFSSL_CTX*        ctx;
     WOLFSSL*            ssl;
-    int                 failFlag, itr;
+    int                 itr;
 
     #ifndef NO_OLD_TLS
         const int versions[]  =  { WOLFSSL_TLSV1, WOLFSSL_TLSV1_1,
@@ -623,7 +634,6 @@ static int test_wolfSSL_SetMinVersion(void)
     #else
         const int versions[]  =  { WOLFSSL_TLSV1_2 };
     #endif
-    failFlag = SSL_SUCCESS;
 
     AssertTrue(wolfSSL_Init());
     ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
@@ -642,7 +652,7 @@ static int test_wolfSSL_SetMinVersion(void)
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
     AssertTrue(wolfSSL_Cleanup());
-
+#endif
     return failFlag;
 
 } /* END test_wolfSSL_SetMinVersion */
@@ -652,7 +662,8 @@ static int test_wolfSSL_SetMinVersion(void)
  | IO
  *----------------------------------------------------------------------------*/
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
-    !defined(NO_RSA)        && !defined(SINGLE_THREADED)
+    !defined(NO_RSA)        && !defined(SINGLE_THREADED) && \
+    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
 #define HAVE_IO_TESTS_DEPENDENCIES
 #endif
 
@@ -685,7 +696,7 @@ static int test_export(WOLFSSL* inSsl, byte* buf, word32 sz, void* userCtx)
 }
 #endif
 
-
+#ifndef NO_WOLFSSL_SERVER
 static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 {
     SOCKET_T sockfd = 0;
@@ -833,7 +844,7 @@ done:
     return 0;
 #endif
 }
-
+#endif /* !NO_WOLFSSL_SERVER */
 
 static void test_client_nofail(void* args)
 {
@@ -1694,7 +1705,7 @@ static void test_wolfSSL_UseSNI(void)
 
 static void test_wolfSSL_UseMaxFragment(void)
 {
-#ifdef HAVE_MAX_FRAGMENT
+#if defined(HAVE_MAX_FRAGMENT) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
     WOLFSSL     *ssl = wolfSSL_new(ctx);
 
@@ -1728,7 +1739,7 @@ static void test_wolfSSL_UseMaxFragment(void)
 
 static void test_wolfSSL_UseTruncatedHMAC(void)
 {
-#ifdef HAVE_TRUNCATED_HMAC
+#if defined(HAVE_TRUNCATED_HMAC) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
     WOLFSSL     *ssl = wolfSSL_new(ctx);
 
@@ -1750,14 +1761,13 @@ static void test_wolfSSL_UseTruncatedHMAC(void)
 
 static void test_wolfSSL_UseSupportedCurve(void)
 {
-#ifdef HAVE_SUPPORTED_CURVES
+#if defined(HAVE_SUPPORTED_CURVES) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
     WOLFSSL     *ssl = wolfSSL_new(ctx);
 
     AssertNotNull(ctx);
     AssertNotNull(ssl);
 
-#ifndef NO_WOLFSSL_CLIENT
     /* error cases */
     AssertIntNE(SSL_SUCCESS,
                       wolfSSL_CTX_UseSupportedCurve(NULL, WOLFSSL_ECC_SECP256R1));
@@ -1772,7 +1782,6 @@ static void test_wolfSSL_UseSupportedCurve(void)
                        wolfSSL_CTX_UseSupportedCurve(ctx, WOLFSSL_ECC_SECP256R1));
     AssertIntEQ(SSL_SUCCESS,
                            wolfSSL_UseSupportedCurve(ssl, WOLFSSL_ECC_SECP256R1));
-#endif
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
@@ -1958,6 +1967,7 @@ static void test_wolfSSL_UseALPN_connection(void)
 
 static void test_wolfSSL_UseALPN_params(void)
 {
+#ifndef NO_WOLFSSL_CLIENT
     /* "http/1.1" */
     char http1[] = {0x68, 0x74, 0x74, 0x70, 0x2f, 0x31, 0x2e, 0x31};
     /* "spdy/1" */
@@ -2026,6 +2036,7 @@ static void test_wolfSSL_UseALPN_params(void)
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
+#endif
 }
 #endif /* HAVE_ALPN  */
 
@@ -2039,7 +2050,7 @@ static void test_wolfSSL_UseALPN(void)
 
 static void test_wolfSSL_DisableExtendedMasterSecret(void)
 {
-#ifdef HAVE_EXTENDED_MASTER
+#if defined(HAVE_EXTENDED_MASTER) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
     WOLFSSL     *ssl = wolfSSL_new(ctx);
 
@@ -2189,8 +2200,10 @@ static void test_wolfSSL_PKCS12(void)
  */
 static int test_wolfSSL_CTX_SetMinVersion(void)
 {
+    int                     failFlag = SSL_SUCCESS;
+#ifndef NO_WOLFSSL_CLIENT
     WOLFSSL_CTX*            ctx;
-    int                     failFlag, itr;
+    int                     itr;
 
     #ifndef NO_OLD_TLS
         const int versions[]  = { WOLFSSL_TLSV1, WOLFSSL_TLSV1_1,
@@ -2216,7 +2229,7 @@ static int test_wolfSSL_CTX_SetMinVersion(void)
 
     wolfSSL_CTX_free(ctx);
     AssertTrue(wolfSSL_Cleanup());
-
+#endif
     return failFlag;
 
 } /* END test_wolfSSL_CTX_SetMinVersion */
@@ -2234,7 +2247,8 @@ static int test_wolfSSL_CTX_SetMinVersion(void)
  */
 static int test_wolfSSL_UseOCSPStapling(void)
 {
-    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && defined(HAVE_OCSP)
+    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) && defined(HAVE_OCSP) && \
+            !defined(NO_WOLFSSL_CLIENT)
         int             ret;
         WOLFSSL_CTX*    ctx;
         WOLFSSL*        ssl;
@@ -2273,7 +2287,8 @@ static int test_wolfSSL_UseOCSPStapling(void)
  */
 static int test_wolfSSL_UseOCSPStaplingV2 (void)
 {
-    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && defined(HAVE_OCSP)
+    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) && defined(HAVE_OCSP) && \
+            !defined(NO_WOLFSSL_CLIENT)
         int                 ret;
         WOLFSSL_CTX*        ctx;
         WOLFSSL*            ssl;
@@ -7252,7 +7267,9 @@ void ApiTest(void)
     AssertIntEQ(test_wolfSSL_Init(), SSL_SUCCESS);
     /* wolfcrypt initialization tests */
     test_wolfSSL_Method_Allocators();
+#ifndef NO_WOLFSSL_SERVER
     test_wolfSSL_CTX_new(wolfSSLv23_server_method());
+#endif
     test_wolfSSL_CTX_use_certificate_file();
     AssertIntEQ(test_wolfSSL_CTX_use_certificate_buffer(), SSL_SUCCESS);
     test_wolfSSL_CTX_use_PrivateKey_file();

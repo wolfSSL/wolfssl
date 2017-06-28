@@ -53,6 +53,8 @@
 
 #include "examples/echoserver/echoserver.h"
 
+#ifndef NO_WOLFSSL_SERVER
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     static int devId = INVALID_DEVID;
 #endif
@@ -481,6 +483,8 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 #endif
 }
 
+#endif /* !NO_WOLFSSL_SERVER */
+
 
 /* so overall tests can pull in test function */
 #ifndef NO_MAIN_DRIVER
@@ -504,7 +508,9 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         CyaSSL_Debugging_ON();
 #endif
         ChangeToWolfRoot();
+#ifndef NO_WOLFSSL_SERVER
         echoserver_test(&args);
+#endif
         CyaSSL_Cleanup();
 
 #ifdef HAVE_WNR
@@ -515,7 +521,4 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
         return args.return_code;
     }
 
-
 #endif /* NO_MAIN_DRIVER */
-
-

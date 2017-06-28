@@ -50,6 +50,8 @@
 
 #include "examples/server/server.h"
 
+#ifndef NO_WOLFSSL_SERVER
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     static int devId = INVALID_DEVID;
 #endif
@@ -58,16 +60,6 @@
  * number and is using the ready file for scripted testing, the code in
  * test.h will write the actual port number into the ready file for use
  * by the client. */
-
-#ifdef CYASSL_CALLBACKS
-    int srvHandShakeCB(HandShakeInfo*);
-    int srvTimeoutCB(TimeoutInfo*);
-    Timeval srvTo;
-#endif
-
-#ifndef NO_HANDSHAKE_DONE_CB
-    int myHsDoneCb(WOLFSSL* ssl, void* user_ctx);
-#endif
 
 static const char webServerMsg[] =
     "HTTP/1.1 200 OK\n"
@@ -84,6 +76,38 @@ static const char webServerMsg[] =
     "</html>\n";
 
 int runWithErrors = 0; /* Used with -x flag to run err_sys vs. print errors */
+
+
+#ifdef CYASSL_CALLBACKS
+    Timeval srvTo;
+    static int srvHandShakeCB(HandShakeInfo* info)
+    {
+        (void)info;
+        return 0;
+    }
+
+    static int srvTimeoutCB(TimeoutInfo* info)
+    {
+        (void)info;
+        return 0;
+    }
+
+#endif
+
+#ifndef NO_HANDSHAKE_DONE_CB
+    static int myHsDoneCb(WOLFSSL* ssl, void* user_ctx)
+    {
+        (void)user_ctx;
+        (void)ssl;
+
+        /* printf("Notified HandShake done\n"); */
+
+        /* return negative number to end TLS connection now */
+        return 0;
+    }
+#endif
+
+
 static void err_sys_ex(int out, const char* msg)
 {
     if (out == 1) { /* if server is running w/ -x flag, print error w/o exit */
@@ -1466,6 +1490,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
 }
 
+#endif /* !NO_WOLFSSL_SERVER */
+
 
 /* so overall tests can pull in test function */
 #ifndef NO_MAIN_DRIVER
@@ -1489,11 +1515,16 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         CyaSSL_Init();
         ChangeToWolfRoot();
 
+#ifndef NO_WOLFSSL_SERVER
 #ifdef HAVE_STACK_SIZE
         StackSizeCheck(&args, server_test);
 #else
         server_test(&args);
 #endif
+#else
+        printf("Server not compiled in!\n");
+#endif
+
         CyaSSL_Cleanup();
         FreeTcpReady(&ready);
 
@@ -1509,35 +1540,3 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     char* myoptarg = NULL;
 
 #endif /* NO_MAIN_DRIVER */
-
-
-#ifdef CYASSL_CALLBACKS
-
-    int srvHandShakeCB(HandShakeInfo* info)
-    {
-        (void)info;
-        return 0;
-    }
-
-
-    int srvTimeoutCB(TimeoutInfo* info)
-    {
-        (void)info;
-        return 0;
-    }
-
-#endif
-
-#ifndef NO_HANDSHAKE_DONE_CB
-    int myHsDoneCb(WOLFSSL* ssl, void* user_ctx)
-    {
-        (void)user_ctx;
-        (void)ssl;
-
-        /* printf("Notified HandShake done\n"); */
-
-        /* return negative number to end TLS connection now */
-        return 0;
-    }
-#endif
-
