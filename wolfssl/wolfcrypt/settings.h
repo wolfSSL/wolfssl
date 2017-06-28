@@ -686,6 +686,7 @@ extern void uITRON4_free(void *p) ;
         #include "mfs.h"
         #if MQX_USE_IO_OLD
             #include "fio.h"
+            #define NO_STDIO_FILESYSTEM
         #else
             #include "nio.h"
         #endif
@@ -694,6 +695,7 @@ extern void uITRON4_free(void *p) ;
         #include "mutex.h"
     #endif
 
+    #define XMALLOC_OVERRIDE
     #define XMALLOC(s, h, t)    (void *)_mem_alloc_system((s))
     #define XFREE(p, h, t)      {void* xp = (p); if ((xp)) _mem_free((xp));}
     /* Note: MQX has no realloc, using fastmath above */
@@ -804,7 +806,8 @@ extern void uITRON4_free(void *p) ;
 
     #ifdef FREESCALE_KSDK_1_3
         #include "fsl_device_registers.h"
-    #else
+    #elif !defined(FREESCALE_MQX)
+        /* Classic MQX does not have fsl_common.h */
         #include "fsl_common.h"
     #endif
 

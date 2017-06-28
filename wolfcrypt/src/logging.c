@@ -149,6 +149,8 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
 #elif defined(WOLFSSL_UTASKER)
             fnDebugMsg((char*)logMessage);
             fnDebugMsg("\r\n");
+#elif defined(MQX_USE_IO_OLD)
+            fprintf(_mqxio_stderr, "%s\n", logMessage);
 #else
             fprintf(stderr, "%s\n", logMessage);
 #endif
