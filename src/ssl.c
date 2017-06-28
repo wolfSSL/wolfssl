@@ -4708,12 +4708,14 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                             ret = RSA_KEY_SIZE_E;
                             WOLFSSL_MSG("Private Key size too small");
                         }
+                        ssl->buffers.keyType = rsa_sa_algo;
                     }
                     else if(ctx) {
                         if (RsaSz < ctx->minRsaKeySz) {
                             ret = RSA_KEY_SIZE_E;
                             WOLFSSL_MSG("Private Key size too small");
                         }
+                        ctx->privateKeyType = rsa_sa_algo;
                     }
                     rsaKey = 1;
                     (void)rsaKey;  /* for no ecc builds */
@@ -4764,9 +4766,11 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                     eccKey = 1;
                     if (ssl) {
                         ssl->options.haveStaticECC = 1;
+                        ssl->buffers.keyType = ecc_dsa_sa_algo;
                     }
                     else if (ctx) {
                         ctx->haveStaticECC = 1;
+                        ctx->privateKeyType = ecc_dsa_sa_algo;
                     }
 
                     if (ssl && ssl->options.side == WOLFSSL_SERVER_END) {
@@ -4804,6 +4808,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                     WOLFSSL_MSG("ED25519 private key too small");
                     return ECC_KEY_SIZE_E;
                 }
+                ssl->buffers.keyType = ed25519_sa_algo;
             }
             else if (ctx) {
                 if (ED25519_KEY_SIZE < ctx->minEccKeySz) {
@@ -4811,6 +4816,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                     WOLFSSL_MSG("ED25519 private key too small");
                     return ECC_KEY_SIZE_E;
                 }
+                ctx->privateKeyType = ed25519_sa_algo;
             }
 
             wc_ed25519_free(&key);

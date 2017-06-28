@@ -1687,8 +1687,8 @@ void InitCipherSpecs(CipherSpecs* cs)
     cs->block_size  = 0;
 }
 
-static void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
-                                  int haveRSAsig, int haveAnon, int tls1_2)
+void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, int haveRSAsig,
+                           int haveAnon, int tls1_2)
 {
     int idx = 0;
 
@@ -3833,7 +3833,8 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #ifdef WOLFSSL_TLS13
     ssl->buffers.certChainCnt = ctx->certChainCnt;
 #endif
-    ssl->buffers.key = ctx->privateKey;
+    ssl->buffers.key     = ctx->privateKey;
+    ssl->buffers.keyType = ctx->privateKeyType;
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -15488,7 +15489,13 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
     ssl->suites->sigAlgo = ssl->specs.sig_algo;
 
     /* set defaults */
-    if (IsAtLeastTLSv1_2(ssl)) {
+    if (IsAtLeastTLSv1_3(ssl->version)) {
+        ssl->suites->hashAlgo = sha256_mac;
+    #ifndef NO_CERTS
+        ssl->suites->sigAlgo = ssl->buffers.keyType;
+    #endif
+    }
+    else if (IsAtLeastTLSv1_2(ssl)) {
     #ifdef WOLFSSL_ALLOW_TLS_SHA1
         ssl->suites->hashAlgo = sha_mac;
     #else
@@ -15509,14 +15516,14 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
             continue;
 
         if (sigAlgo == ed25519_sa_algo &&
-                                       ssl->specs.sig_algo == ecc_dsa_sa_algo) {
+                                      ssl->suites->sigAlgo == ecc_dsa_sa_algo) {
             ssl->suites->sigAlgo = sigAlgo;
             ssl->suites->hashAlgo = sha512_mac;
             break;
         }
     #endif
-        if (sigAlgo == ssl->specs.sig_algo || (sigAlgo == rsa_pss_sa_algo &&
-                                          ssl->specs.sig_algo == rsa_sa_algo)) {
+        if (sigAlgo == ssl->suites->sigAlgo || (sigAlgo == rsa_pss_sa_algo &&
+                                         ssl->suites->sigAlgo == rsa_sa_algo)) {
             if (hashAlgo == sha_mac) {
                 ssl->suites->sigAlgo = sigAlgo;
                 break;
@@ -18890,7 +18897,7 @@ exit_scke:
 
 
 #ifndef NO_CERTS
-/* Decode the private key - RSA or ECC - and creates a key object.
+/* Decode the private key - RSA, ECC, or Ed25519 - and creates a key object.
  * The signature type is set as well.
  * The maximum length of a signature is returned.
  *
@@ -19474,12 +19481,49 @@ exit_scv:
 
 
 #ifdef HAVE_SESSION_TICKET
+int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
+{
+    /* Free old dynamic ticket if we already had one */
+    if (ssl->session.isDynamic) {
+        XFREE(ssl->session.ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+        ssl->session.ticket = ssl->session.staticTicket;
+        ssl->session.isDynamic = 0;
+    }
+
+    if (length > sizeof(ssl->session.staticTicket)) {
+        byte* sessionTicket =
+                   (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
+        if (sessionTicket == NULL)
+            return MEMORY_E;
+        ssl->session.ticket = sessionTicket;
+        ssl->session.isDynamic = 1;
+    }
+    ssl->session.ticketLen = length;
+
+    if (length > 0) {
+        XMEMCPY(ssl->session.ticket, ticket, length);
+        if (ssl->session_ticket_cb != NULL) {
+            ssl->session_ticket_cb(ssl,
+                                   ssl->session.ticket, ssl->session.ticketLen,
+                                   ssl->session_ticket_ctx);
+        }
+        /* Create a fake sessionID based on the ticket, this will
+         * supercede the existing session cache info. */
+        ssl->options.haveSessionId = 1;
+        XMEMCPY(ssl->arrays->sessionID,
+                                 ssl->session.ticket + length - ID_LEN, ID_LEN);
+    }
+
+    return 0;
+}
+
 static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     word32 size)
 {
     word32 begin = *inOutIdx;
     word32 lifetime;
     word16 length;
+    int    ret;
 
     if (ssl->expect_session_ticket == 0) {
         WOLFSSL_MSG("Unexpected session ticket");
@@ -19501,51 +19545,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     if ((*inOutIdx - begin) + length > size)
         return BUFFER_ERROR;
 
-    if (length > sizeof(ssl->session.staticTicket)) {
-        /* Free old dynamic ticket if we already had one */
-        if (ssl->session.isDynamic)
-            XFREE(ssl->session.ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
-        ssl->session.ticket =
-             (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
-        if (ssl->session.ticket == NULL) {
-            /* Set to static ticket to avoid null pointer error */
-            ssl->session.ticket = ssl->session.staticTicket;
-            ssl->session.isDynamic = 0;
-            return MEMORY_E;
-        }
-        ssl->session.isDynamic = 1;
-    } else {
-        if(ssl->session.isDynamic) {
-            XFREE(ssl->session.ticket, ssl->heap, DYNAMIC_TYPE_SESSION_TICK);
-        }
-        ssl->session.isDynamic = 0;
-        ssl->session.ticket = ssl->session.staticTicket;
-    }
-
-    /* If the received ticket including its length is greater than
-     * a length value, the save it. Otherwise, don't save it. */
+    if ((ret = SetTicket(ssl, input + *inOutIdx, length)) != 0)
+        return ret;
+    *inOutIdx += length;
     if (length > 0) {
-        XMEMCPY(ssl->session.ticket, input + *inOutIdx, length);
-        *inOutIdx += length;
-        ssl->session.ticketLen = length;
         ssl->timeout = lifetime;
-        if (ssl->session_ticket_cb != NULL) {
-            ssl->session_ticket_cb(ssl,
-                                   ssl->session.ticket, ssl->session.ticketLen,
-                                   ssl->session_ticket_ctx);
-        }
-        /* Create a fake sessionID based on the ticket, this will
-         * supercede the existing session cache info. */
-        ssl->options.haveSessionId = 1;
-        XMEMCPY(ssl->arrays->sessionID,
-                                 ssl->session.ticket + length - ID_LEN, ID_LEN);
 #ifndef NO_SESSION_CACHE
         AddSession(ssl);
 #endif
-
-    }
-    else {
-        ssl->session.ticketLen = 0;
     }
 
     if (IsEncryptionOn(ssl, 0)) {

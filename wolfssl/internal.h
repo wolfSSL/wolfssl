@@ -1502,6 +1502,9 @@ typedef struct Suites {
 } Suites;
 
 
+WOLFSSL_LOCAL void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
+                                         int haveRSAsig, int haveAnon,
+                                         int tls1_2);
 WOLFSSL_LOCAL void InitSuites(Suites*, ProtocolVersion, word16, word16, word16, word16,
                               word16, word16, word16, int);
 WOLFSSL_LOCAL int  MatchSuite(WOLFSSL* ssl, Suites* peerSuites);
@@ -2182,6 +2185,7 @@ struct WOLFSSL_CTX {
     int         certChainCnt;
 #endif
     DerBuffer*  privateKey;
+    byte        privateKeyType;
     WOLFSSL_CERT_MANAGER* cm;      /* our cert manager, ctx owns SSL will use */
 #endif
 #ifdef KEEP_OUR_CERT
@@ -2685,6 +2689,7 @@ typedef struct Buffers {
 #ifndef NO_CERTS
     DerBuffer*      certificate;           /* WOLFSSL_CTX owns, unless we own */
     DerBuffer*      key;                   /* WOLFSSL_CTX owns, unless we own */
+    byte            keyType;               /* Type of key: RSA, ECC, Ed25519 */
     DerBuffer*      certChain;             /* WOLFSSL_CTX owns, unless we own */
                  /* chain after self, in DER, with leading size for each cert */
 #ifdef WOLFSSL_TLS13
@@ -3557,6 +3562,9 @@ WOLFSSL_LOCAL void ShrinkInputBuffer(WOLFSSL* ssl, int forcedFree);
 WOLFSSL_LOCAL void ShrinkOutputBuffer(WOLFSSL* ssl);
 
 WOLFSSL_LOCAL int VerifyClientSuite(WOLFSSL* ssl);
+
+WOLFSSL_LOCAL int SetTicket(WOLFSSL*, const byte*, word32);
+
 #ifndef NO_CERTS
     #ifndef NO_RSA
         #ifdef WC_RSA_PSS
