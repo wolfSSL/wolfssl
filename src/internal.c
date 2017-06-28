@@ -4550,6 +4550,10 @@ void SSL_ResourceFree(WOLFSSL* ssl)
         ShrinkInputBuffer(ssl, FORCED_FREE);
     if (ssl->buffers.outputBuffer.dynamicFlag)
         ShrinkOutputBuffer(ssl);
+#if defined(WOLFSSL_SEND_HRR_COOKIE) && !defined(NO_WOLFSSL_SERVER)
+    XFREE(ssl->buffers.tls13CookieSecret.buffer, ssl->heap,
+          DYNAMIC_TYPE_COOKIE_PWD);
+#endif
 #ifdef WOLFSSL_DTLS
     DtlsMsgPoolReset(ssl);
     if (ssl->dtls_rx_msg_list != NULL) {
@@ -13934,6 +13938,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case POST_HAND_AUTH_ERROR:
         return "Client will not do post handshake authentication";
 
+    case HRR_COOKIE_ERROR:
+        return "Cookie does not match one sent in HelloRetryRequest";
+
     default :
         return "unknown error number";
     }
@@ -15742,7 +15749,7 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
         if (QSH_Init(ssl) != 0)
             return MEMORY_E;
     #endif
-        extSz = TLSX_GetRequestSize(ssl);
+        extSz = TLSX_GetRequestSize(ssl, client_hello);
         if (extSz != 0)
             length += extSz;
 #else
@@ -15835,7 +15842,7 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
             output[idx++] = NO_COMPRESSION;
 
 #ifdef HAVE_TLS_EXTENSIONS
-        idx += TLSX_WriteRequest(ssl, output + idx);
+        idx += TLSX_WriteRequest(ssl, output + idx, client_hello);
 
         (void)idx; /* suppress analyzer warning, keep idx current */
 #else

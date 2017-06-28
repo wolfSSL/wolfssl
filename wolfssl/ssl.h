@@ -404,6 +404,8 @@ WOLFSSL_API int  wolfSSL_read(WOLFSSL*, void*, int);
 WOLFSSL_API int  wolfSSL_peek(WOLFSSL*, void*, int);
 WOLFSSL_API int  wolfSSL_accept(WOLFSSL*);
 #ifdef WOLFSSL_TLS13
+WOLFSSL_API int  wolfSSL_send_hrr_cookie(WOLFSSL* ssl,
+    const unsigned char* secret, unsigned int secretSz);
 WOLFSSL_API int  wolfSSL_CTX_no_ticket_TLSv13(WOLFSSL_CTX* ctx);
 WOLFSSL_API int  wolfSSL_no_ticket_TLSv13(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_CTX_no_dhe_psk(WOLFSSL_CTX* ctx);

@@ -95,6 +95,22 @@ if [ $RESULT -ne 0 ]; then
 fi
 echo ""
 
+# Use HelloRetryRequest with TLS v1.3 server / TLS v1.3 client using cookie
+echo -e "\n\nTLS v1.3 HelloRetryRequest with cookie"
+port=0
+./examples/server/server -v 4 -J -R $ready_file -p $port &
+server_pid=$!
+create_port
+./examples/client/client -v 4 -J -p $port
+RESULT=$?
+remove_ready_file
+if [ $RESULT -ne 0 ]; then
+    echo -e "\n\nTLS v1.3 HelloRetryRequest with cookie not working"
+    do_cleanup
+    exit 1
+fi
+echo ""
+
 # Use HelloRetryRequest with TLS v1.3 server / TLS v1.3 client - SHA384.
 echo -e "\n\nTLS v1.3 HelloRetryRequest - SHA384"
 port=0

@@ -1366,60 +1366,6 @@ static int HashInputRaw(WOLFSSL* ssl, const byte* input, int sz)
 }
 #endif
 
-#ifndef WOLFSSL_TLS13_DRAFT_18
-/* The offset into MessageHash of the low byte of the length field. */
-#define MSG_HASH_LEN_OFFSET     3
-
-/* Restart the Hanshake hash with a hash of the previous messages.
- *
- * ssl The SSL/TLS object.
- * returns 0 on success, otherwise failure.
- */
-static int RestartHandshakeHash(WOLFSSL* ssl)
-{
-    int    ret;
-    Hashes hashes;
-    byte   header[] = { message_hash, 0, 0, 0 };
-    byte*  hash = NULL;
-
-    ret = BuildCertHashes(ssl, &hashes);
-    if (ret != 0)
-        return ret;
-    ret = InitHandshakeHashes(ssl);
-    if (ret != 0)
-        return ret;
-    switch (ssl->specs.mac_algorithm) {
-    #ifndef NO_SHA256
-        case sha256_mac:
-            header[MSG_HASH_LEN_OFFSET] = SHA256_DIGEST_SIZE;
-            hash = hashes.sha256;
-            break;
-    #endif
-    #ifdef WOLFSSL_SHA384
-        case sha384_mac:
-            header[MSG_HASH_LEN_OFFSET] = SHA384_DIGEST_SIZE;
-            hash = hashes.sha384;
-            break;
-    #endif
-    #ifdef WOLFSSL_SHA512
-        case sha512_mac:
-            header[MSG_HASH_LEN_OFFSET] = SHA512_DIGEST_SIZE;
-            hash = hashes.sha512;
-            break;
-    #endif
-    }
-
-    WOLFSSL_MSG("Restart Hash");
-    WOLFSSL_BUFFER(hash, header[3]);
-
-    ret = HashOutputRaw(ssl, header, sizeof(header));
-    if (ret != 0)
-        return ret;
-    return HashOutputRaw(ssl, hash, header[MSG_HASH_LEN_OFFSET]);
-}
-#endif
-
-
 /* Extract the handshake header information.
  *
  * ssl       The SSL/TLS object.
@@ -2348,7 +2294,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         return MEMORY_E;
 #endif
     /* Include length of TLS extensions. */
-    length += TLSX_GetRequestSize(ssl);
+    length += TLSX_GetRequestSize(ssl, client_hello);
 
     /* Total message size. */
     sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
@@ -2396,7 +2342,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     output[idx++] = NO_COMPRESSION;
 
     /* Write out extensions for a request. */
-    idx += TLSX_WriteRequest(ssl, output + idx);
+    idx += TLSX_WriteRequest(ssl, output + idx, client_hello);
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     /* Resumption has a specific set of extensions and binder is calculated
@@ -2428,6 +2374,117 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 
     return ret;
 }
+
+#ifndef WOLFSSL_TLS13_DRAFT_18
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+/* Create Cookie extension using the hash of the first ClientHello.
+ *
+ * ssl     SSL/TLS object.
+ * hash    The hash data.
+ * hashSz  The size of the hash data in bytes.
+ * returns 0 on success, otherwise failure.
+ */
+static int CreateCookie(WOLFSSL* ssl, byte* hash, byte hashSz)
+{
+    int  ret;
+    byte mac[MAX_DIGEST_SIZE];
+    Hmac cookieHmac;
+    byte cookieType;
+    byte macSz;
+
+#if !defined(NO_SHA) && defined(NO_SHA256)
+    cookieType = SHA;
+    macSz = SHA_DIGEST_SIZE;
+#endif /* NO_SHA */
+#ifndef NO_SHA256
+    cookieType = SHA256;
+    macSz = SHA256_DIGEST_SIZE;
+#endif /* NO_SHA256 */
+
+    ret = wc_HmacSetKey(&cookieHmac, cookieType,
+                        ssl->buffers.tls13CookieSecret.buffer,
+                        ssl->buffers.tls13CookieSecret.length);
+    if (ret != 0)
+        return ret;
+    if ((ret = wc_HmacUpdate(&cookieHmac, hash, hashSz)) != 0)
+        return ret;
+    if ((ret = wc_HmacFinal(&cookieHmac, mac)) != 0)
+        return ret;
+
+    /* The cookie data is the hash and the integrity check. */
+    return TLSX_Cookie_Use(ssl, hash, hashSz, mac, macSz, 1);
+}
+#endif
+
+/* Restart the Hanshake hash with a hash of the previous messages.
+ *
+ * ssl The SSL/TLS object.
+ * returns 0 on success, otherwise failure.
+ */
+static int RestartHandshakeHash(WOLFSSL* ssl)
+{
+    int    ret;
+    Hashes hashes;
+    byte   header[HANDSHAKE_HEADER_SZ];
+    byte*  hash = NULL;
+    byte   hashSz = 0;
+
+    ret = BuildCertHashes(ssl, &hashes);
+    if (ret != 0)
+        return ret;
+    switch (ssl->specs.mac_algorithm) {
+    #ifndef NO_SHA256
+        case sha256_mac:
+            hash = hashes.sha256;
+            break;
+    #endif
+    #ifdef WOLFSSL_SHA384
+        case sha384_mac:
+            hash = hashes.sha384;
+            break;
+    #endif
+    #ifdef WOLFSSL_SHA512
+        case sha512_mac:
+            hash = hashes.sha512;
+            break;
+    #endif
+    }
+    hashSz = ssl->specs.hash_size;
+    AddTls13HandShakeHeader(header, hashSz, 0, 0, message_hash, ssl);
+
+    WOLFSSL_MSG("Restart Hash");
+    WOLFSSL_BUFFER(hash, hashSz);
+
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    if (ssl->options.sendCookie) {
+        byte   cookie[OPAQUE8_LEN + MAX_DIGEST_SIZE + OPAQUE16_LEN * 2];
+        TLSX*  ext;
+        word32 idx = 0;
+
+        /* Cookie Data = Hash Len | Hash | CS | KeyShare Group */
+        cookie[idx++] = hashSz;
+        XMEMCPY(cookie + idx, hash, hashSz);
+        idx += hashSz;
+        cookie[idx++] = ssl->options.cipherSuite0;
+        cookie[idx++] = ssl->options.cipherSuite;
+        if ((ext = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE)) != NULL) {
+            KeyShareEntry* kse = (KeyShareEntry*)ext->data;
+            c16toa(kse->group, cookie + idx);
+            idx += OPAQUE16_LEN;
+        }
+        return CreateCookie(ssl, cookie, idx);
+    }
+#endif
+
+    ret = InitHandshakeHashes(ssl);
+    if (ret != 0)
+        return ret;
+    ret = HashOutputRaw(ssl, header, sizeof(header));
+    if (ret != 0)
+        return ret;
+    return HashOutputRaw(ssl, hash, hashSz);
+}
+#endif
 
 /* Parse and handle a HelloRetryRequest message.
  * Only a client will receive this message.
@@ -3059,6 +3116,154 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
 }
 #endif
 
+#if !defined(WOLFSSL_TLS13_DRAFT_18) && defined(WOLFSSL_SEND_HRR_COOKIE)
+/* Check that the Cookie data's integrity.
+ *
+ * ssl       SSL/TLS object.
+ * cookie    The cookie data - hash and MAC.
+ * cookieSz  The length of the cookie data in bytes.
+ * returns Length of the hash on success, otherwise failure.
+ */
+static int CheckCookie(WOLFSSL* ssl, byte* cookie, byte cookieSz)
+{
+    int  ret;
+    byte mac[MAX_DIGEST_SIZE];
+    Hmac cookieHmac;
+    byte cookieType;
+    byte macSz;
+
+#if !defined(NO_SHA) && defined(NO_SHA256)
+    cookieType = SHA;
+    macSz = SHA_DIGEST_SIZE;
+#endif /* NO_SHA */
+#ifndef NO_SHA256
+    cookieType = SHA256;
+    macSz = SHA256_DIGEST_SIZE;
+#endif /* NO_SHA256 */
+
+    if (cookieSz < ssl->specs.hash_size + macSz)
+        return HRR_COOKIE_ERROR;
+    cookieSz -= macSz;
+
+    ret = wc_HmacSetKey(&cookieHmac, cookieType,
+                        ssl->buffers.tls13CookieSecret.buffer,
+                        ssl->buffers.tls13CookieSecret.length);
+    if (ret != 0)
+        return ret;
+    if ((ret = wc_HmacUpdate(&cookieHmac, cookie, cookieSz)) != 0)
+        return ret;
+    if ((ret = wc_HmacFinal(&cookieHmac, mac)) != 0)
+        return ret;
+
+    if (ConstantCompare(cookie + cookieSz, mac, macSz) != 0)
+        return HRR_COOKIE_ERROR;
+    return cookieSz;
+}
+
+/* Length of the KeyShare Extension */
+#define HRR_KEY_SHARE_SZ   (OPAQUE16_LEN + OPAQUE16_LEN + OPAQUE16_LEN)
+/* Length of the Cookie Extension excluding cookie data */
+#define HRR_COOKIE_HDR_SZ  (OPAQUE16_LEN + OPAQUE16_LEN + OPAQUE16_LEN)
+/* PV | CipherSuite | Ext Len */
+#define HRR_BODY_SZ        (OPAQUE16_LEN + OPAQUE16_LEN + OPAQUE16_LEN)
+/* HH | PV | CipherSuite | Ext Len | Key Share | Cookie */
+#define MAX_HRR_SZ   (HANDSHAKE_HEADER_SZ + \
+                        HRR_BODY_SZ + \
+                          HRR_KEY_SHARE_SZ + \
+                          HRR_COOKIE_HDR_SZ)
+/* Restart the Hanshake hash from the cookie value.
+ *
+ * ssl     SSL/TLS object.
+ * cookie  Cookie data from client.
+ * returns 0 on success, otherwise failure.
+ */
+static int RestartHandshakeHashWithCookie(WOLFSSL* ssl, Cookie* cookie)
+{
+    byte   header[HANDSHAKE_HEADER_SZ];
+    byte   hrr[MAX_HRR_SZ];
+    int    hrrIdx;
+    word32 idx;
+    byte   hashSz;
+    byte*  cookieData;
+    byte   cookieDataSz;
+    word16 length;
+    int    keyShareExt = 0;
+    int    ret;
+
+    cookieDataSz = ret = CheckCookie(ssl, &cookie->data, cookie->len);
+    if (ret < 0)
+        return ret;
+    hashSz = cookie->data;
+    cookieData = &cookie->data;
+    idx = OPAQUE8_LEN;
+
+    /* Restart handshake hash with synthetic message hash. */
+    AddTls13HandShakeHeader(header, hashSz, 0, 0, message_hash, ssl);
+    if ((ret = InitHandshakeHashes(ssl)) != 0)
+        return ret;
+    if ((ret = HashOutputRaw(ssl, header, sizeof(header))) != 0)
+        return ret;
+    if ((ret = HashOutputRaw(ssl, cookieData + idx, hashSz)) != 0)
+        return ret;
+
+    /* Reconstruct the HelloRetryMessage for handshake hash. */
+    length = HRR_BODY_SZ + HRR_COOKIE_HDR_SZ + cookie->len;
+    if (cookieDataSz > hashSz + OPAQUE16_LEN) {
+        keyShareExt = 1;
+        length += HRR_KEY_SHARE_SZ;
+    }
+    AddTls13HandShakeHeader(hrr, length, 0, 0, hello_retry_request, ssl);
+
+    idx += hashSz;
+    hrrIdx = HANDSHAKE_HEADER_SZ;
+    /* TODO: [TLS13] Replace existing code with code in comment.
+     * Use the TLS v1.3 draft version for now.
+     *
+     * Change to:
+     * hrr[hrrIdx++] = ssl->version.major;
+     * hrr[hrrIdx++] = ssl->version.minor;
+     */
+    /* The negotiated protocol version. */
+    hrr[hrrIdx++] = TLS_DRAFT_MAJOR;
+    hrr[hrrIdx++] = TLS_DRAFT_MINOR;
+    /* Cipher Suite */
+    hrr[hrrIdx++] = cookieData[idx++];
+    hrr[hrrIdx++] = cookieData[idx++];
+
+    /* Extensions' length */
+    length -= HRR_BODY_SZ;
+    c16toa(length, hrr + hrrIdx);
+    hrrIdx += 2;
+    /* Optional KeyShare Extension */
+    if (keyShareExt) {
+        c16toa(TLSX_KEY_SHARE, hrr + hrrIdx);
+        hrrIdx += 2;
+        c16toa(OPAQUE16_LEN, hrr + hrrIdx);
+        hrrIdx += 2;
+        hrr[hrrIdx++] = cookieData[idx++];
+        hrr[hrrIdx++] = cookieData[idx++];
+    }
+    /* Mandatory Cookie Extension */
+    c16toa(TLSX_COOKIE, hrr + hrrIdx);
+    hrrIdx += 2;
+    c16toa(cookie->len + OPAQUE16_LEN, hrr + hrrIdx);
+    hrrIdx += 2;
+    c16toa(cookie->len, hrr + hrrIdx);
+    hrrIdx += 2;
+
+#ifdef WOLFSSL_DEBUG_TLS
+    WOLFSSL_MSG("Reconstucted HelloRetryRequest");
+    WOLFSSL_BUFFER(hrr, hrrIdx);
+    WOLFSSL_MSG("Cookie");
+    WOLFSSL_BUFFER(cookieData, cookie->len);
+#endif
+
+    if ((ret = HashOutputRaw(ssl, hrr, hrrIdx)) != 0)
+        return ret;
+    return HashOutputRaw(ssl, cookieData, cookie->len);
+}
+#endif
+
 /* Handle a ClientHello handshake message.
  * If the protocol version in the message is not TLS v1.3 or higher, use
  * DoClientHello()
@@ -3182,6 +3387,23 @@ static int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     if (TLSX_Find(ssl->extensions, TLSX_SUPPORTED_VERSIONS) == NULL)
         ssl->version.minor = pv.minor;
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+    if (ssl->options.sendCookie &&
+                       ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST) {
+        TLSX* ext;
+
+        if ((ext = TLSX_Find(ssl->extensions, TLSX_COOKIE)) == NULL)
+            return HRR_COOKIE_ERROR;
+        /* Ensure the cookie came from client and isn't the one in the response
+         * - HelloRetryRequest.
+         */
+        if (ext->resp == 1)
+            return HRR_COOKIE_ERROR;
+        ret = RestartHandshakeHashWithCookie(ssl, (Cookie*)ext->data);
+        if (ret != 0)
+            return ret;
+    }
+#endif
 
      ssl->options.sendVerify = SEND_CERT;
 
@@ -3244,6 +3466,11 @@ int SendTls13HelloRetryRequest(WOLFSSL* ssl)
 
     WOLFSSL_ENTER("SendTls13HelloRetryRequest");
 
+#ifndef WOLFSSL_TLS13_DRAFT_18
+    if ((ret = RestartHandshakeHash(ssl)) < 0)
+        return ret;
+#endif
+
     /* Get the length of the extensions that will be written. */
     len = TLSX_GetResponseSize(ssl, hello_retry_request);
     /* There must be extensions sent to indicate what client needs to do. */
@@ -3292,11 +3519,6 @@ int SendTls13HelloRetryRequest(WOLFSSL* ssl)
         AddPacketInfo("HelloRetryRequest", &ssl->timeoutInfo, output, sendSz,
                       ssl->heap);
     }
-#endif
-
-#ifndef WOLFSSL_TLS13_DRAFT_18
-    if ((ret = RestartHandshakeHash(ssl)) < 0)
-        return ret;
 #endif
 
     if ((ret = HashOutput(ssl, output, idx, 0)) != 0)
@@ -3504,6 +3726,9 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
     int    sendSz;
     word32 i;
     int    reqSz;
+#ifndef WOLFSSL_TLS13_DRAFT_18
+    TLSX*  ext;
+#endif
 
     WOLFSSL_ENTER("SendTls13CertificateRequest");
 
@@ -3549,9 +3774,12 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
     c16toa(0, &output[i]);  /* auth's */
     i += REQ_HEADER_SZ;
 #else
+    ext = TLSX_Find(ssl->extensions, TLSX_SIGNATURE_ALGORITHMS);
+    ext->resp = 0;
+
     i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
     reqSz = OPAQUE8_LEN + reqCtxLen +
-        TLSX_GetResponseSize(ssl, certificate_request);
+        TLSX_GetRequestSize(ssl, certificate_request);
 
     sendSz = i + reqSz;
     /* Always encrypted and make room for padding. */
@@ -3576,7 +3804,7 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
     }
 
     /* Certificate extensions. */
-    i += TLSX_WriteResponse(ssl, output + i, certificate_request);
+    i += TLSX_WriteRequest(ssl, output + i, certificate_request);
 #endif
 
     /* Always encrypted. */
@@ -6060,7 +6288,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
 
     if (ret == 0 && type != client_hello && type != session_ticket &&
-        type != key_update && ssl->error != WC_PENDING_E) {
+                             type != key_update && ssl->error != WC_PENDING_E) {
         ret = HashInput(ssl, input + inIdx, size);
     }
 
@@ -6445,6 +6673,72 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             return SSL_FATAL_ERROR; /* unknown connect state */
     }
 }
+
+#if defined(WOLFSSL_SEND_HRR_COOKIE) && !defined(NO_WOLFSSL_SERVER)
+/* Send a cookie with the HelloRetryRequest to avoid storing state.
+ *
+ * ssl       SSL/TLS object.
+ * secret    Secret to use when generating integrity check for cookie.
+ *           A value of NULL indicates to generate a new random secret.
+ * secretSz  Size of secret data in bytes.
+ *           Use a value of 0 to indicate use of default size.
+ * returns BAD_FUNC_ARG when ssl is NULL, not using TLS v1.3, or called on a
+ * client; SSL_SUCCESS on success and otherwise failure.
+ */
+int wolfSSL_send_hrr_cookie(WOLFSSL* ssl, const unsigned char* secret,
+                            unsigned int secretSz)
+{
+    int ret;
+
+    if (ssl == NULL || !IsAtLeastTLSv1_3(ssl->version) ||
+                                        ssl->options.side == WOLFSSL_CLIENT_END)
+        return BAD_FUNC_ARG;
+
+    if (secretSz == 0) {
+    #if !defined(NO_SHA) && defined(NO_SHA256)
+        secretSz = SHA_DIGEST_SIZE;
+    #endif /* NO_SHA */
+    #ifndef NO_SHA256
+        secretSz = SHA256_DIGEST_SIZE;
+    #endif /* NO_SHA256 */
+    }
+
+    if (secretSz != ssl->buffers.tls13CookieSecret.length) {
+        byte* newSecret;
+
+        if (ssl->buffers.tls13CookieSecret.buffer != NULL) {
+            ForceZero(ssl->buffers.tls13CookieSecret.buffer,
+                      ssl->buffers.tls13CookieSecret.length);
+            XFREE(ssl->buffers.tls13CookieSecret.buffer,
+                  ssl->heap, DYNAMIC_TYPE_COOKIE_PWD);
+        }
+
+        newSecret = (byte*)XMALLOC(secretSz, ssl->heap,DYNAMIC_TYPE_COOKIE_PWD);
+        if (newSecret == NULL) {
+            ssl->buffers.tls13CookieSecret.buffer = NULL;
+            ssl->buffers.tls13CookieSecret.length = 0;
+            WOLFSSL_MSG("couldn't allocate new cookie secret");
+            return MEMORY_ERROR;
+        }
+        ssl->buffers.tls13CookieSecret.buffer = newSecret;
+        ssl->buffers.tls13CookieSecret.length = secretSz;
+    }
+
+    /* If the supplied secret is NULL, randomly generate a new secret. */
+    if (secret == NULL) {
+        ret = wc_RNG_GenerateBlock(ssl->rng,
+                               ssl->buffers.tls13CookieSecret.buffer, secretSz);
+        if (ret < 0)
+            return ret;
+    }
+    else
+        XMEMCPY(ssl->buffers.tls13CookieSecret.buffer, secret, secretSz);
+
+    ssl->options.sendCookie = 1;
+
+    return SSL_SUCCESS;
+}
+#endif
 
 /* Create a key share entry from group.
  * Generates a key pair.
