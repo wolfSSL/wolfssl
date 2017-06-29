@@ -22695,7 +22695,9 @@ int wolfSSL_DH_compute_key(unsigned char* key, WOLFSSL_BIGNUM* otherPub,
     else {
         privSz = wolfSSL_BN_bn2bin(dh->priv_key, priv);
         pubSz  = wolfSSL_BN_bn2bin(otherPub, pub);
-
+        if (dh->inSet == 0 && SetDhInternal(dh) != SSL_SUCCESS)
+                WOLFSSL_MSG("Bad DH set internal");
+                
         if (privSz <= 0 || pubSz <= 0)
             WOLFSSL_MSG("Bad BN2bin set");
         else if (wc_DhAgree((DhKey*)dh->internal, key, &keySz,
