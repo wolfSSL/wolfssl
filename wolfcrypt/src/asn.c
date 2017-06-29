@@ -9449,6 +9449,7 @@ int wc_SetKeyUsage(Cert *cert, const char *value)
 
     /* parse value, and set corresponding Key Usage value */
     if ((token = XSTRTOK(str, ",", &ptr)) == NULL) {
+        XFREE(str, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return KEYUSAGE_E;
     }
     while (token != NULL)
