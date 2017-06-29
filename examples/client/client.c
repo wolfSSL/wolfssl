@@ -181,7 +181,8 @@ static void ShowVersions(void)
 /* Measures average time to create, connect and disconnect a connection (TPS).
 Benchmark = number of connections. */
 static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
-    int dtlsUDP, int dtlsSCTP, int benchmark, int resumeSession, int useX25519)
+    int dtlsUDP, int dtlsSCTP, int benchmark, int resumeSession, int useX25519,
+    int helloRetry)
 {
     /* time passed in number of connects give average */
     int times = benchmark;
@@ -192,11 +193,12 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
 #endif
 #ifdef WOLFSSL_TLS13
     byte* reply[80];
-    char msg[] = "hello wolfssl!";
+    static const char msg[] = "hello wolfssl!";
 #endif
 
     (void)resumeSession;
     (void)useX25519;
+    (void)helloRetry;
 
     while (loops--) {
     #ifndef NO_SESSION_CACHE
@@ -210,6 +212,10 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
             if (ssl == NULL)
                 err_sys("unable to get SSL object");
 
+    #ifdef WOLFSSL_TLS13
+            if (helloRetry)
+                wolfSSL_NoKeyShares(ssl);
+    #endif
 
             tcp_connect(&sockfd, host, port, dtlsUDP, dtlsSCTP, ssl);
 
@@ -832,8 +838,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef HAVE_EXTENDED_MASTER
     byte disableExtMasterSecret = 0;
 #endif
-#ifdef WOLFSSL_TLS13
     int helloRetry = 0;
+#ifdef WOLFSSL_TLS13
     int onlyKeyShare = 0;
     int noPskDheKe = 0;
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
@@ -884,6 +890,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)alpn_opt;
     (void)updateKeysIVs;
     (void)useX25519;
+    (void)helloRetry;
 
     StackTrap();
 
@@ -1609,7 +1616,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (benchmark) {
         ((func_args*)args)->return_code =
             ClientBenchmarkConnections(ctx, host, port, dtlsUDP, dtlsSCTP,
-                                       benchmark, resumeSession, useX25519);
+                                       benchmark, resumeSession, useX25519,
+                                       helloRetry);
         wolfSSL_CTX_free(ctx);
         exit(EXIT_SUCCESS);
     }
