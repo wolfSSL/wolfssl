@@ -9046,6 +9046,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
             if (ret == 0 && ssl->options.side == WOLFSSL_CLIENT_END) {
                 ssl->options.serverState = SERVER_CERT_COMPLETE;
+                ssl->options.handShakeState = SERVER_CERT_COMPLETE;
             }
 
             if (IsEncryptionOn(ssl, 0)) {
@@ -9391,6 +9392,7 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
 
     if (ssl->options.side == WOLFSSL_CLIENT_END) {
         ssl->options.serverState = SERVER_FINISHED_COMPLETE;
+        ssl->options.handShakeState = SERVER_FINISHED_COMPLETE;
         if (!ssl->options.resuming) {
         #ifdef OPENSSL_EXTRA
         if (ssl->CBIS != NULL) {
@@ -9799,6 +9801,17 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         if (ret != 0) return ret;
     }
 
+#ifdef OPENSSL_EXTRA
+    if (ssl->CBIS != NULL){
+        if (ssl->options.side == WOLFSSL_SERVER_END){
+            ssl->CBIS(ssl, SSL_CB_ACCEPT_LOOP, SSL_SUCCESS);
+        }
+        else {
+            ssl->CBIS(ssl, SSL_CB_CONNECT_LOOP, SSL_SUCCESS);
+        }
+    }
+#endif
+ 
     switch (type) {
 
     case hello_request:
@@ -9941,6 +9954,18 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
         if (GetHandShakeHeader(ssl,input,inOutIdx,&type, &size, totalSz) != 0)
             return PARSE_ERROR;
+
+#ifdef OPENSSL_EXTRA
+        if (ssl->CBIS != NULL){
+            if (ssl->options.side == WOLFSSL_SERVER_END){
+                ssl->CBIS(ssl, SSL_CB_ACCEPT_LOOP, SSL_SUCCESS);
+            }
+            else {
+                ssl->CBIS(ssl, SSL_CB_CONNECT_LOOP, SSL_SUCCESS);
+            }
+        }
+#endif
+        ssl->options.handShakeState = type;
 
         return DoHandShakeMsgType(ssl, input, inOutIdx, type, size, totalSz);
     }
@@ -13396,10 +13421,10 @@ int SendCertificate(WOLFSSL* ssl)
             if (ssl->options.dtls)
                 ssl->keys.dtls_handshake_number++;
         #endif
-        if (ssl->options.side == WOLFSSL_SERVER_END)
+        if (ssl->options.side == WOLFSSL_SERVER_END){
             ssl->options.serverState = SERVER_CERT_COMPLETE;
+        }
     }
-
     return ret;
 }
 
@@ -16787,6 +16812,7 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
         #endif
 
         ssl->options.clientState = CLIENT_HELLO_COMPLETE;
+        ssl->options.handShakeState = CLIENT_HELLO_COMPLETE;
 
 #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
         if (ssl->hsInfoOn) AddPacketName(ssl, "ClientHello");
@@ -16845,6 +16871,7 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
         }
 
         ssl->options.serverState = SERVER_HELLOVERIFYREQUEST_COMPLETE;
+        ssl->options.handShakeState = SERVER_HELLOVERIFYREQUEST_COMPLETE;
         return 0;
     }
 
@@ -17191,6 +17218,7 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
 #endif
 
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
+        ssl->options.handShakeState = SERVER_HELLO_COMPLETE;
 
         if (IsEncryptionOn(ssl, 0)) {
             *inOutIdx += ssl->keys.padSz;
@@ -18379,6 +18407,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
             *inOutIdx = args->idx;
 
             ssl->options.serverState = SERVER_KEYEXCHANGE_COMPLETE;
+            ssl->options.handShakeState = SERVER_KEYEXCHANGE_COMPLETE;
             break;
         }
         default:
@@ -23547,6 +23576,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     WRITE_PROTO, ssl->heap);
     #endif
         ssl->options.serverState = SERVER_HELLODONE_COMPLETE;
+        ssl->options.handShakeState = SERVER_HELLODONE_COMPLETE;
 
         ssl->buffers.outputBuffer.length += sendSz;
 

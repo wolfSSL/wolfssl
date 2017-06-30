@@ -19073,85 +19073,158 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_state_string_long");
 
+    char state_msg[100];
+
     if (ssl == NULL) {
         WOLFSSL_MSG("Null argument passed in");
         return NULL;
     }
 
+    /* Get SSL version */
+    XMEMSET(state_msg, 0, sizeof(state_msg));
+    switch (ssl->version.major){
+        case SSLv3_MAJOR:
+            switch (ssl->version.minor){
+            case TLSv1_MINOR:
+                XSTRNCPY(state_msg, "TLSv1", 5);
+            break;
+            case TLSv1_1_MINOR:
+                XSTRNCPY(state_msg, "TLSv1_1", 7);
+            break;
+            case TLSv1_2_MINOR:
+                XSTRNCPY(state_msg, "TLSv1_2", 7);
+            break;
+            case SSLv3_MINOR:
+                XSTRNCPY(state_msg, "SSLv3", 5);
+            break;
+            default:
+                XSTRNCPY(state_msg, "Unknown Protocol", 16);
+            }
+        break;
+        case DTLS_MAJOR:
+            switch (ssl->version.minor){
+                case DTLS_MINOR: 
+                    XSTRNCPY(state_msg, "DTLSv1", 6);
+                break;
+                case DTLSv1_2_MINOR:
+                    XSTRNCPY(state_msg, "DTLSv1_2", 8);
+                break;
+                default:
+                    XSTRNCPY(state_msg, "Unknown Protocol", 16);
+            }
+        break;
+        default:
+            XSTRNCPY(state_msg, "Unknown Protocol", 16);
+    }
+
     switch (wolfSSL_get_state(ssl)) {
         case NULL_STATE:
             {
-                static const char NL_ST[] = "Null State";
+                static char NL_ST[100];
+                const char* state = " Null State";
+
+                XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
+                XSTRNCPY(NL_ST, state_msg, sizeof(state_msg));
                 return NL_ST;
             }
 
         case SERVER_HELLOVERIFYREQUEST_COMPLETE:
             {
-                static const char SHVC_ST[] =
-                    "Server Hello Verify Request Complete";
+                static char SHVC_ST[100];
+                const char* state = " Server Hello Verify Request Complete";
+
+                XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
+                XSTRNCPY(SHVC_ST, state_msg, sizeof(state_msg));
                 return SHVC_ST;
             }
 
         case SERVER_HELLO_COMPLETE:
             {
-                static const char SHC_ST[] =
-                    "Server Hello Complete";
+                static char SHC_ST[100];
+                const char* state = " Server Hello Complete";
+
+                XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
+                XSTRNCPY(SHC_ST, state_msg, sizeof(state_msg));
                 return SHC_ST;
             }
 
         case SERVER_CERT_COMPLETE:
             {
-                static const char SCC_ST[] =
-                    "Server Certificate Complete";
+                static char SCC_ST[100];
+                const char* state = " Server Certificate Complete";
+
+                XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
+                XSTRNCPY(SCC_ST, state_msg, sizeof(state_msg));
                 return SCC_ST;
             }
 
         case SERVER_KEYEXCHANGE_COMPLETE:
             {
-                static const char SKC_ST[] =
-                    "Server Key Exchange Complete";
+                static char SKC_ST[100];
+                const char* state = " Server Key Exchange Complete";
+
+                XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
+                XSTRNCPY(SKC_ST, state_msg, sizeof(state_msg));
                 return SKC_ST;
             }
 
         case SERVER_HELLODONE_COMPLETE:
             {
-                static const char SHDC_ST[] =
-                    "Server Hello Done Complete";
+                static char SHDC_ST[100];
+                const char* state = " Server Hello Done Complete";
+
+                XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
+                XSTRNCPY(SHDC_ST, state_msg, sizeof(state_msg));
                 return SHDC_ST;
             }
 
         case SERVER_FINISHED_COMPLETE:
             {
-                static const char SFC_ST[] =
-                    "Server Finished Complete";
+                static char SFC_ST[100];
+                const char* state = " Server Finished Complete";
+
+                XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
+                XSTRNCPY(SFC_ST, state_msg, sizeof(state_msg));
                 return SFC_ST;
             }
 
         case CLIENT_HELLO_COMPLETE:
             {
-                static const char CHC_ST[] =
-                    "Client Hello Complete";
+                static char CHC_ST[100];
+                const char* state = " Client Hello Complete";
+
+                XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
+                XSTRNCPY(CHC_ST, state_msg, sizeof(state_msg));
                 return CHC_ST;
             }
 
         case CLIENT_KEYEXCHANGE_COMPLETE:
             {
-                static const char CKC_ST[] =
-                    "Client Key Exchange Complete";
+                static char CKC_ST[100];
+                const char* state = " Client Key Exchange Complete";
+
+                XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
+                XSTRNCPY(CKC_ST, state_msg, sizeof(state_msg));
                 return CKC_ST;
             }
 
         case CLIENT_FINISHED_COMPLETE:
             {
-                static const char CFC_ST[] =
-                    "Client Finished Complete";
+                static char CFC_ST[100];
+                const char* state = " Client Finished Complete";
+
+                XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
+                XSTRNCPY(CFC_ST, state_msg, sizeof(state_msg));
                 return CFC_ST;
             }
 
         case HANDSHAKE_DONE:
             {
-                static const char HD_ST[] =
-                    "Handshake Done";
+                static char HD_ST[100];
+                const char* state = " Handshake Done";
+
+                XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
+                XSTRNCPY(HD_ST, state_msg, sizeof(state_msg));
                 return HD_ST;
             }
 
@@ -19160,7 +19233,6 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
             return NULL;
     }
 }
-
 
 #ifndef NO_WOLFSSL_STUB
 int wolfSSL_PEM_def_callback(char* name, int num, int w, void* key)
