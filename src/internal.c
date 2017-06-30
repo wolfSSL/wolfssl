@@ -18191,6 +18191,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         ssl->buffers.sig.buffer, &ssl->buffers.sig.length,
                         args->encSecret, &args->encSz);
 
+                    /* set the max agree result size */
                     ssl->arrays->preMasterSz = ENCRYPT_LEN;
                     break;
                 }
@@ -23336,6 +23337,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             ssl->buffers.serverDH_P.length,
                             ssl->buffers.serverDH_G.buffer,
                             ssl->buffers.serverDH_G.length);
+
+                        /* set the max agree result size */
+                        ssl->arrays->preMasterSz = ENCRYPT_LEN;
                         break;
                     }
                 #endif /* !NO_DH */
