@@ -2673,7 +2673,7 @@ static INLINE void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsType)
 
 #if !defined(NO_DH) || defined(HAVE_ECC)
 
-static enum wc_HashType HashType(int hashAlgo)
+static enum wc_HashType HashAlgoToType(int hashAlgo)
 {
     switch (hashAlgo) {
     #ifdef WOLFSSL_SHA512
@@ -17070,7 +17070,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                         DecodeSigAlg(&input[args->idx], &args->hashAlgo,
                                      &args->sigAlgo);
                         args->idx += 2;
-                        hashType = HashType(args->hashAlgo);
+                        hashType = HashAlgoToType(args->hashAlgo);
                         if (hashType == WC_HASH_TYPE_NONE) {
                             ERROR_OUT(ALGO_ID_E, exit_dske);
                         }
@@ -17343,10 +17343,10 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     #ifdef WC_RSA_PSS
                         case rsa_pss_sa_algo:
                             ret = wc_RsaPSS_CheckPadding(
-                                                     ssl->buffers.digest.buffer,
-                                                     ssl->buffers.digest.length,
-                                                     args->output, args->sigSz,
-                                                     HashType(args->hashAlgo));
+                                             ssl->buffers.digest.buffer,
+                                             ssl->buffers.digest.length,
+                                             args->output, args->sigSz,
+                                             HashAlgoToType(args->hashAlgo));
                             if (ret != 0)
                                 return ret;
                             break;
@@ -18190,6 +18190,8 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     ret = DhGenKeyPair(ssl, ssl->buffers.serverDH_Key,
                         ssl->buffers.sig.buffer, &ssl->buffers.sig.length,
                         args->encSecret, &args->encSz);
+
+                    ssl->arrays->preMasterSz = ENCRYPT_LEN;
                     break;
                 }
             #endif /* !NO_DH */
@@ -20547,7 +20549,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                          &args->output[args->idx]);
                             args->idx += 2;
 
-                            hashType = HashType(ssl->suites->hashAlgo);
+                            hashType = HashAlgoToType(ssl->suites->hashAlgo);
                             if (hashType == WC_HASH_TYPE_NONE) {
                                 ERROR_OUT(ALGO_ID_E, exit_sske);
                             }
@@ -20790,7 +20792,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                          &args->output[args->idx]);
                             args->idx += 2;
 
-                            hashType = HashType(ssl->suites->hashAlgo);
+                            hashType = HashAlgoToType(ssl->suites->hashAlgo);
                             if (hashType == WC_HASH_TYPE_NONE) {
                                 ERROR_OUT(ALGO_ID_E, exit_sske);
                             }
@@ -22385,10 +22387,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             SetDigest(ssl, args->hashAlgo);
 
                             ret = wc_RsaPSS_CheckPadding(
-                                                     ssl->buffers.digest.buffer,
-                                                     ssl->buffers.digest.length,
-                                                     args->output, args->sigSz,
-                                                     HashType(args->hashAlgo));
+                                             ssl->buffers.digest.buffer,
+                                             ssl->buffers.digest.length,
+                                             args->output, args->sigSz,
+                                             HashAlgoToType(args->hashAlgo));
                             if (ret != 0)
                                 return ret;
                         }

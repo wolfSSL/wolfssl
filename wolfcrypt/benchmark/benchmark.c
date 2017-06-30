@@ -711,7 +711,7 @@ static void* benchmarks_do(void* args)
         int rngRet;
 
 #ifndef HAVE_FIPS
-        rngRet = wc_InitRng_ex(&rng, HEAP_HINT, INVALID_DEVID);
+        rngRet = wc_InitRng_ex(&rng, HEAP_HINT, devId);
 #else
         rngRet = wc_InitRng(&rng);
 #endif

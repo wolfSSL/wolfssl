@@ -261,18 +261,18 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
     if (hmac->asyncDev.marker == WOLFSSL_ASYNC_MARKER_HMAC) {
-    #if defined(HAVE_CAVIUM) || defined(HAVE_INTEL_QA)
+    #if defined(HAVE_CAVIUM)
         if (length > HMAC_BLOCK_SIZE) {
             return WC_KEY_SIZE_E;
         }
 
         if (key != NULL) {
-            XMEMCPY(hmac->keyRaw, key, length);
+            XMEMCPY(hmac->ipad, key, length);
         }
         hmac->keyLen = (word16)length;
 
         return 0; /* nothing to do here */
-    #endif /* HAVE_CAVIUM || HAVE_INTEL_QA */
+    #endif /* HAVE_CAVIUM */
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
@@ -440,6 +440,18 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
             return BAD_FUNC_ARG;
     }
 
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
+    if (hmac->asyncDev.marker == WOLFSSL_ASYNC_MARKER_HMAC) {
+        if (length > hmac_block_size)
+            length = hmac_block_size;
+        /* update key length */
+        hmac->keyLen = (word16)length;
+
+        return ret;
+        /* no need to pad below */
+    }
+#endif
+
     if (ret == 0) {
         if (length < hmac_block_size)
             XMEMSET(ip + length, 0, hmac_block_size - length);
@@ -532,7 +544,7 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
         return NitroxHmacUpdate(hmac, msg, length);
     #elif defined(HAVE_INTEL_QA)
         return IntelQaHmac(&hmac->asyncDev, hmac->macType,
-            hmac->keyRaw, hmac->keyLen, NULL, msg, length);
+            (byte*)hmac->ipad, hmac->keyLen, NULL, msg, length);
     #endif
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
@@ -611,7 +623,7 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
         return NitroxHmacFinal(hmac, hmac->macType, hash, hashLen);
     #elif defined(HAVE_INTEL_QA)
         return IntelQaHmac(&hmac->asyncDev, hmac->macType,
-            hmac->keyRaw, hmac->keyLen, hash, NULL, hashLen);
+            (byte*)hmac->ipad, hmac->keyLen, hash, NULL, hashLen);
     #endif
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
