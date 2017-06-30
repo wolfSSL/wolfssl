@@ -90,14 +90,21 @@ Wolfssl_C_Files :=$(WOLFSSL_ROOT)/wolfcrypt/src/aes.c\
 					$(WOLFSSL_ROOT)/src/tls.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/wc_encrypt.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/wolfevent.c\
-					$(WOLFSSL_ROOT)/wolfcrypt/test/test.c\
-					$(WOLFSSL_ROOT)/wolfcrypt/benchmark/benchmark.c
 
 Wolfssl_Include_Paths := -I$(WOLFSSL_ROOT)/ \
 						 -I$(WOLFSSL_ROOT)/wolfcrypt/ \
-						 -I$(WOLFSSL_ROOT)/wolfcrypt/test/ \
-						 -I$(WOLFSSL_ROOT)/wolfcrypt/benchmark/ \
 						 -I$(SGX_SDK)/include -I$(SGX_SDK)/include/tlibc -I$(SGX_SDK)/include/stlport
+
+ifeq ($(HAVE_WOLFSSL_TEST), 1)
+	Wolfssl_Include_Paths += -I$(WOLFSSL_ROOT)/wolfcrypt/test
+	Wolfssl_C_Files += $(WOLFSSL_ROOT)/wolfcrypt/test/test.c
+endif
+
+ifeq ($(HAVE_WOLFSSL_BENCHMARK), 1)
+	Wolfssl_C_Files += $(WOLFSSL_ROOT)/wolfcrypt/benchmark/benchmark.c
+	Wolfssl_Include_Paths += -I$(WOLFSSL_ROOT)/wolfcrypt/benchmark/
+endif
+
 
 
 Flags_Just_For_C := -Wno-implicit-function-declaration -std=c11
