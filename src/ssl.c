@@ -15150,6 +15150,9 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
                     if (pos != name->fullName.cnIdx)
                         ret = name->fullName.cnIdx;
                     break;
+                case NID_domainComponent:
+                    
+                    break;
                 default:
                     WOLFSSL_MSG("NID not yet implemented");
                     break;
@@ -19074,6 +19077,7 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
     WOLFSSL_ENTER("wolfSSL_state_string_long");
 
     char state_msg[100];
+    static char output_str[100];
 
     if (ssl == NULL) {
         WOLFSSL_MSG("Null argument passed in");
@@ -19117,115 +19121,105 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
             XSTRNCPY(state_msg, "Unknown Protocol", 16);
     }
 
+    XMEMSET(output_str, 0, sizeof(output_str));
     switch (wolfSSL_get_state(ssl)) {
         case NULL_STATE:
             {
-                static char NL_ST[100];
                 const char* state = " Null State";
 
                 XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
-                XSTRNCPY(NL_ST, state_msg, sizeof(state_msg));
-                return NL_ST;
+                XSTRNCPY(output_str, state_msg, sizeof(state_msg));
+                return output_str;
             }
 
         case SERVER_HELLOVERIFYREQUEST_COMPLETE:
             {
-                static char SHVC_ST[100];
                 const char* state = " Server Hello Verify Request Complete";
 
                 XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
-                XSTRNCPY(SHVC_ST, state_msg, sizeof(state_msg));
-                return SHVC_ST;
+                XSTRNCPY(output_str, state_msg, sizeof(state_msg));
+                return output_str;
             }
 
         case SERVER_HELLO_COMPLETE:
             {
-                static char SHC_ST[100];
                 const char* state = " Server Hello Complete";
 
                 XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
-                XSTRNCPY(SHC_ST, state_msg, sizeof(state_msg));
-                return SHC_ST;
+                XSTRNCPY(output_str, state_msg, sizeof(state_msg));
+                return output_str;
             }
 
         case SERVER_CERT_COMPLETE:
             {
-                static char SCC_ST[100];
                 const char* state = " Server Certificate Complete";
 
                 XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
-                XSTRNCPY(SCC_ST, state_msg, sizeof(state_msg));
-                return SCC_ST;
+                XSTRNCPY(output_str, state_msg, sizeof(state_msg));
+                return output_str;
             }
 
         case SERVER_KEYEXCHANGE_COMPLETE:
             {
-                static char SKC_ST[100];
                 const char* state = " Server Key Exchange Complete";
 
                 XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
-                XSTRNCPY(SKC_ST, state_msg, sizeof(state_msg));
-                return SKC_ST;
+                XSTRNCPY(output_str, state_msg, sizeof(state_msg));
+                return output_str;
             }
 
         case SERVER_HELLODONE_COMPLETE:
             {
-                static char SHDC_ST[100];
                 const char* state = " Server Hello Done Complete";
 
                 XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
-                XSTRNCPY(SHDC_ST, state_msg, sizeof(state_msg));
-                return SHDC_ST;
+                XSTRNCPY(output_str, state_msg, sizeof(state_msg));
+                return output_str;
             }
 
         case SERVER_FINISHED_COMPLETE:
             {
-                static char SFC_ST[100];
                 const char* state = " Server Finished Complete";
 
                 XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
-                XSTRNCPY(SFC_ST, state_msg, sizeof(state_msg));
-                return SFC_ST;
+                XSTRNCPY(output_str, state_msg, sizeof(state_msg));
+                return output_str;
             }
 
         case CLIENT_HELLO_COMPLETE:
             {
-                static char CHC_ST[100];
                 const char* state = " Client Hello Complete";
 
                 XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
-                XSTRNCPY(CHC_ST, state_msg, sizeof(state_msg));
-                return CHC_ST;
+                XSTRNCPY(output_str, state_msg, sizeof(state_msg));
+                return output_str;
             }
 
         case CLIENT_KEYEXCHANGE_COMPLETE:
             {
-                static char CKC_ST[100];
                 const char* state = " Client Key Exchange Complete";
 
                 XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
-                XSTRNCPY(CKC_ST, state_msg, sizeof(state_msg));
-                return CKC_ST;
+                XSTRNCPY(output_str, state_msg, sizeof(state_msg));
+                return output_str;
             }
 
         case CLIENT_FINISHED_COMPLETE:
             {
-                static char CFC_ST[100];
                 const char* state = " Client Finished Complete";
 
                 XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
-                XSTRNCPY(CFC_ST, state_msg, sizeof(state_msg));
-                return CFC_ST;
+                XSTRNCPY(output_str, state_msg, sizeof(state_msg));
+                return output_str;
             }
 
         case HANDSHAKE_DONE:
             {
-                static char HD_ST[100];
                 const char* state = " Handshake Done";
 
                 XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
-                XSTRNCPY(HD_ST, state_msg, sizeof(state_msg));
-                return HD_ST;
+                XSTRNCPY(output_str, state_msg, sizeof(state_msg));
+                return output_str;
             }
 
         default:
