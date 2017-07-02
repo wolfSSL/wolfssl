@@ -19076,8 +19076,91 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_state_string_long");
 
-    char state_msg[100];
-    static char output_str[100];
+    static const char* OUTPUT_STR[11][6] = {
+               {"SSLv3 Null State","TLSv1 Null State",
+                "TLSv1_1 Null State","TLSv1_2 Null State",
+                "DTLSv1 Null State","DTLSv1_2 Null State"},
+
+               {"SSLv3 Server Hello Verify Request Complete",
+                "TLSv1 Server Hello Verify Request Complete",
+                "TLSv1_1 Server Hello Verify Request Complete",
+                "TLSv1_2 Server Hello Verify Request Complete",
+                "DTLSv1 Server Hello Verify Request Complete",
+                "DTLSv1_2 Server Hello Verify Request Complete"},
+
+               {"SSLv3 Server Hello Complete",
+                "TLSv1 Server Hello Complete",
+                "TLSv1_1 Server Hello Complete",
+                "TLSv1_2 Server Hello Complete",
+                "DTLSv1 Server Hello Complete",
+                "DTLSv1_2 Server Hello Complete"},
+
+               {"SSLv3 Server Certificate Complete",
+                "TLSv1 Server Certificate Complete",
+                "TLSv1_1 Server Certificate Complete",
+                "TLSv1_2 Server Certificate Complete",
+                "DTLSv1 Server Certificate Complete",
+                "DTLSv1_2 Server Certificate Complete"},
+
+               {"SSLv3 Server Key Exchange Complete",
+                "TLSv1 Server Key Exchange Complete",
+                "TLSv1_1 Server Key Exchange Complete",
+                "TLSv1_2 Server Key Exchange Complete",
+                "DTLSv1 Server Key Exchange Complete",
+                "DTLSv1_2 Server Key Exchange Complete"},
+
+               {"SSLv3 Server Hello Done Complete"
+                ,"TLSv1 Server Hello Done Complete",
+                "TLSv1_1 Server Hello Done Complete"
+                ,"TLSv1_2 Server Hello Done Complete",
+                "DTLSv1 Server Hello Done Complete"
+                ,"DTLSv1_2 Server Hello Done Complete"},
+
+               {"SSLv3 Server Finished Complete",
+                "TLSv1 Server Finished Complete",
+                "TLSv1_1 Server Finished Complete",
+                "TLSv1_2 Server Finished Complete",
+                "DTLSv1 Server Finished Complete",
+                "DTLSv1_2 Server Finished Complete"},
+
+               {"SSLv3 Client Hello Complete",
+                "TLSv1 Client Hello Complete",
+                "TLSv1_1 Client Hello Complete",
+                "TLSv1_2 Client Hello Complete",
+                "DTLSv1 Client Hello Complete",
+                "DTLSv1_2 Client Hello Complete"},
+
+               {"SSLv3 Client Key Exchange Complete",
+                "TLSv1 Client Key Exchange Complete",
+                "TLSv1_1 Client Key Exchange Complete",
+                "TLSv1_2 Client Key Exchange Complete",
+                "DTLSv1 Client Key Exchange Complete",
+                "DTLSv1_2 Client Key Exchange Complete"},
+
+               {"SSLv3 Client Finished Complete",
+                "TLSv1 Client Finished Complete",
+                "TLSv1_1 Client Finished Complete",
+                "TLSv1_2 Client Finished Complete",
+                "DTLSv1 Client Finished Complete",
+                "DTLSv1_2 Client Finished Complete"},
+
+               {"SSLv3 Handshake Done",
+                "TLSv1 Handshake Done",
+                "TLSv1_1 Handshake Done",
+                "TLSv1_2 Handshake Done",
+                "DTLSv1 Handshake Done",
+                "DTLSv1_2 Handshake Done"}
+    };
+    enum ProtocolVer {
+        SSL_V3 = 0,
+        TLS_V1,
+        TLS_V1_1,
+        TLS_V1_2,
+        DTLS_V1,
+        DTLS_V1_2,
+        UNKNOWN
+    };
+    int state_type = 0;
 
     if (ssl == NULL) {
         WOLFSSL_MSG("Null argument passed in");
@@ -19085,142 +19168,75 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
     }
 
     /* Get SSL version */
-    XMEMSET(state_msg, 0, sizeof(state_msg));
     switch (ssl->version.major){
         case SSLv3_MAJOR:
             switch (ssl->version.minor){
             case TLSv1_MINOR:
-                XSTRNCPY(state_msg, "TLSv1", 5);
+                state_type = TLS_V1;
             break;
             case TLSv1_1_MINOR:
-                XSTRNCPY(state_msg, "TLSv1_1", 7);
+                state_type = TLS_V1_1;
             break;
             case TLSv1_2_MINOR:
-                XSTRNCPY(state_msg, "TLSv1_2", 7);
+                state_type = TLS_V1_2;
             break;
             case SSLv3_MINOR:
-                XSTRNCPY(state_msg, "SSLv3", 5);
+                state_type = SSL_V3;
             break;
             default:
-                XSTRNCPY(state_msg, "Unknown Protocol", 16);
+                state_type = UNKNOWN;
             }
         break;
         case DTLS_MAJOR:
             switch (ssl->version.minor){
                 case DTLS_MINOR: 
-                    XSTRNCPY(state_msg, "DTLSv1", 6);
+                    state_type = DTLS_V1;
                 break;
                 case DTLSv1_2_MINOR:
-                    XSTRNCPY(state_msg, "DTLSv1_2", 8);
+                    state_type = DTLS_V1_2;
                 break;
                 default:
-                    XSTRNCPY(state_msg, "Unknown Protocol", 16);
+                    state_type = UNKNOWN;
             }
         break;
         default:
-            XSTRNCPY(state_msg, "Unknown Protocol", 16);
+            state_type = UNKNOWN;
     }
 
-    XMEMSET(output_str, 0, sizeof(output_str));
     switch (wolfSSL_get_state(ssl)) {
         case NULL_STATE:
-            {
-                const char* state = " Null State";
-
-                XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
-                XSTRNCPY(output_str, state_msg, sizeof(state_msg));
-                return output_str;
-            }
+            return OUTPUT_STR[NULL_STATE][state_type];
 
         case SERVER_HELLOVERIFYREQUEST_COMPLETE:
-            {
-                const char* state = " Server Hello Verify Request Complete";
-
-                XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
-                XSTRNCPY(output_str, state_msg, sizeof(state_msg));
-                return output_str;
-            }
+            return
+               OUTPUT_STR[SERVER_HELLOVERIFYREQUEST_COMPLETE][state_type];
 
         case SERVER_HELLO_COMPLETE:
-            {
-                const char* state = " Server Hello Complete";
-
-                XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
-                XSTRNCPY(output_str, state_msg, sizeof(state_msg));
-                return output_str;
-            }
+            return OUTPUT_STR[SERVER_HELLO_COMPLETE][state_type];
 
         case SERVER_CERT_COMPLETE:
-            {
-                const char* state = " Server Certificate Complete";
-
-                XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
-                XSTRNCPY(output_str, state_msg, sizeof(state_msg));
-                return output_str;
-            }
+            return OUTPUT_STR[SERVER_CERT_COMPLETE][state_type];
 
         case SERVER_KEYEXCHANGE_COMPLETE:
-            {
-                const char* state = " Server Key Exchange Complete";
-
-                XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
-                XSTRNCPY(output_str, state_msg, sizeof(state_msg));
-                return output_str;
-            }
+            return OUTPUT_STR[SERVER_KEYEXCHANGE_COMPLETE][state_type];
 
         case SERVER_HELLODONE_COMPLETE:
-            {
-                const char* state = " Server Hello Done Complete";
-
-                XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
-                XSTRNCPY(output_str, state_msg, sizeof(state_msg));
-                return output_str;
-            }
+            return OUTPUT_STR[SERVER_HELLODONE_COMPLETE][state_type];
 
         case SERVER_FINISHED_COMPLETE:
-            {
-                const char* state = " Server Finished Complete";
-
-                XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
-                XSTRNCPY(output_str, state_msg, sizeof(state_msg));
-                return output_str;
-            }
+            return OUTPUT_STR[SERVER_FINISHED_COMPLETE][state_type];
 
         case CLIENT_HELLO_COMPLETE:
-            {
-                const char* state = " Client Hello Complete";
-
-                XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
-                XSTRNCPY(output_str, state_msg, sizeof(state_msg));
-                return output_str;
-            }
+            return OUTPUT_STR[CLIENT_HELLO_COMPLETE][state_type];
 
         case CLIENT_KEYEXCHANGE_COMPLETE:
-            {
-                const char* state = " Client Key Exchange Complete";
-
-                XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
-                XSTRNCPY(output_str, state_msg, sizeof(state_msg));
-                return output_str;
-            }
+            return OUTPUT_STR[CLIENT_KEYEXCHANGE_COMPLETE][state_type];
 
         case CLIENT_FINISHED_COMPLETE:
-            {
-                const char* state = " Client Finished Complete";
-
-                XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
-                XSTRNCPY(output_str, state_msg, sizeof(state_msg));
-                return output_str;
-            }
+            return OUTPUT_STR[CLIENT_FINISHED_COMPLETE][state_type];
 
         case HANDSHAKE_DONE:
-            {
-                const char* state = " Handshake Done";
-
-                XSTRNCAT(state_msg, state, XSTRLEN(state) + 1);
-                XSTRNCPY(output_str, state_msg, sizeof(state_msg));
-                return output_str;
-            }
+            return OUTPUT_STR[HANDSHAKE_DONE][state_type];
 
         default:
             WOLFSSL_MSG("Unknown State");
