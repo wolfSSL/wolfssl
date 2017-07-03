@@ -644,9 +644,15 @@ static void Usage(void)
     printf("-?          Help, print this usage\n");
     printf("-h <host>   Host to connect to, default %s\n", wolfSSLIP);
     printf("-p <num>    Port to connect on, not 0, default %d\n", wolfSSLPort);
+#ifndef WOLFSSL_TLS13
     printf("-v <num>    SSL version [0-3], SSLv3(0) - TLS1.2(3)), default %d\n",
                                  CLIENT_DEFAULT_VERSION);
     printf("-V          Prints valid ssl version numbers, SSLv3(0) - TLS1.2(3)\n");
+#else
+    printf("-v <num>    SSL version [0-4], SSLv3(0) - TLS1.3(4)), default %d\n",
+                                 CLIENT_DEFAULT_VERSION);
+    printf("-V          Prints valid ssl version numbers, SSLv3(0) - TLS1.3(4)\n");
+#endif
     printf("-l <str>    Cipher suite list (: delimited)\n");
     printf("-c <file>   Certificate file,           default %s\n", cliCertFile);
     printf("-k <file>   Key file,                   default %s\n", cliKeyFile);

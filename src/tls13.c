@@ -3252,8 +3252,8 @@ static int RestartHandshakeHashWithCookie(WOLFSSL* ssl, Cookie* cookie)
  * helloSz   The length of the current handshake message.
  * returns 0 on success and otherwise failure.
  */
-static int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
-                              word32 helloSz)
+int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
+                       word32 helloSz)
 {
     int             ret;
     byte            b;
@@ -3263,6 +3263,7 @@ static int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     word32          begin = i;
     word16          totalExtSz;
     int             usingPSK = 0;
+    byte            sessIdSz;
 
     WOLFSSL_ENTER("DoTls13ClientHello");
 
@@ -3295,10 +3296,14 @@ static int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 
     /* Session id - empty in TLS v1.3 */
-    b = input[i++];
-    if (b != 0) {
-        WOLFSSL_MSG("Client sent session id - not supported");
-        return BUFFER_ERROR;
+    sessIdSz = input[i++];
+    if (sessIdSz > 0) {
+        ssl->version.major = pv.major;
+        ssl->version.minor = pv.minor;
+        ret = DoClientHello(ssl, input, inOutIdx, helloSz);
+        if (ret != 0)
+            return ret;
+        return HashInput(ssl, input + begin,  helloSz);
     }
 
     /* Cipher suites */
@@ -3362,6 +3367,7 @@ static int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     if (TLSX_Find(ssl->extensions, TLSX_SUPPORTED_VERSIONS) == NULL)
         ssl->version.minor = pv.minor;
+
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     if (ssl->options.sendCookie &&
                        ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST) {
@@ -3380,7 +3386,7 @@ static int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 #endif
 
-     ssl->options.sendVerify = SEND_CERT;
+    ssl->options.sendVerify = SEND_CERT;
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     /* Process the Pre-Shared Key extension if present. */
@@ -3708,7 +3714,7 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
     WOLFSSL_ENTER("SendTls13CertificateRequest");
 
     if (ssl->options.side == WOLFSSL_SERVER_END)
-        InitSuitesHashSigAlgo(ssl->suites, 1, 1, 0, 1);
+        InitSuitesHashSigAlgo(ssl->suites, 1, 1, 0, 1, ssl->buffers.keySz);
 
 #ifdef WOLFSSL_TLS13_DRAFT_18
     i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;

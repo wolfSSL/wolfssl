@@ -380,6 +380,11 @@ void wolfSSL_free(WOLFSSL* ssl)
 }
 
 
+int wolfSSL_is_server(WOLFSSL* ssl)
+{
+    return ssl->options.side == WOLFSSL_SERVER_END;
+}
+
 #ifdef HAVE_WRITE_DUP
 
 /*
@@ -1182,6 +1187,7 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
 {
     word16 havePSK = 0;
     word16 haveRSA = 1;
+    int    keySz   = 0;
 
     WOLFSSL_ENTER("wolfSSL_SetTmpDH");
     if (ssl == NULL || p == NULL || g == NULL) return BAD_FUNC_ARG;
@@ -1228,10 +1234,13 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
     #ifdef NO_RSA
         haveRSA = 0;
     #endif
-    InitSuites(ssl->suites, ssl->version, haveRSA, havePSK, ssl->options.haveDH,
-               ssl->options.haveNTRU, ssl->options.haveECDSAsig,
-               ssl->options.haveECC, ssl->options.haveStaticECC,
-               ssl->options.side);
+    #ifndef NO_CERTS
+        keySz = ssl->buffers.keySz;
+    #endif
+    InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
+               ssl->options.haveDH, ssl->options.haveNTRU,
+               ssl->options.haveECDSAsig, ssl->options.haveECC,
+               ssl->options.haveStaticECC, ssl->options.side);
 
     WOLFSSL_LEAVE("wolfSSL_SetTmpDH", 0);
     return SSL_SUCCESS;
@@ -3218,6 +3227,7 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
 {
     word16 haveRSA = 1;
     word16 havePSK = 0;
+    int    keySz   = 0;
 
     WOLFSSL_ENTER("wolfSSL_SetVersion");
 
@@ -3259,11 +3269,14 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
     #ifndef NO_PSK
         havePSK = ssl->options.havePSK;
     #endif
+    #ifndef NO_CERTS
+        keySz = ssl->buffers.keySz;
+    #endif
 
-    InitSuites(ssl->suites, ssl->version, haveRSA, havePSK, ssl->options.haveDH,
-                ssl->options.haveNTRU, ssl->options.haveECDSAsig,
-                ssl->options.haveECC, ssl->options.haveStaticECC,
-                ssl->options.side);
+    InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
+               ssl->options.haveDH, ssl->options.haveNTRU,
+               ssl->options.haveECDSAsig, ssl->options.haveECC,
+               ssl->options.haveStaticECC, ssl->options.side);
 
     return SSL_SUCCESS;
 }
@@ -4701,21 +4714,27 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 #endif
                 } else {
                     /* check that the size of the RSA key is enough */
-                    int RsaSz = wc_RsaEncryptSize((RsaKey*)key);
+                    int rsaSz = wc_RsaEncryptSize((RsaKey*)key);
 
                     if (ssl) {
-                        if (RsaSz < ssl->options.minRsaKeySz) {
+                        if (rsaSz < ssl->options.minRsaKeySz) {
                             ret = RSA_KEY_SIZE_E;
                             WOLFSSL_MSG("Private Key size too small");
                         }
                         ssl->buffers.keyType = rsa_sa_algo;
+                    #ifdef WC_RSA_PSS
+                        ssl->buffers.keySz = rsaSz;
+                    #endif
                     }
                     else if(ctx) {
-                        if (RsaSz < ctx->minRsaKeySz) {
+                        if (rsaSz < ctx->minRsaKeySz) {
                             ret = RSA_KEY_SIZE_E;
                             WOLFSSL_MSG("Private Key size too small");
                         }
                         ctx->privateKeyType = rsa_sa_algo;
+                    #ifdef WC_RSA_PSS
+                        ctx->privateKeySz = rsaSz;
+                    #endif
                     }
                     rsaKey = 1;
                     (void)rsaKey;  /* for no ecc builds */
@@ -5009,8 +5028,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         #endif
 
         /* let's reset suites */
-        InitSuites(ssl->suites, ssl->version, haveRSA, havePSK,
-                   ssl->options.haveDH, ssl->options.haveNTRU,
+        InitSuites(ssl->suites, ssl->version, ssl->buffers.keySz, haveRSA,
+                   havePSK, ssl->options.haveDH, ssl->options.haveNTRU,
                    ssl->options.haveECDSAsig, ssl->options.haveECC,
                    ssl->options.haveStaticECC, ssl->options.side);
     }
@@ -6257,7 +6276,11 @@ long wolfSSL_get_verify_depth(WOLFSSL* ssl)
     if(ssl == NULL) {
         return BAD_FUNC_ARG;
     }
+#ifndef WOLFSSL_NGINX
     return MAX_CHAIN_DEPTH;
+#else
+    return ssl->options.verifyDepth;
+#endif
 }
 
 
@@ -6267,7 +6290,11 @@ long wolfSSL_CTX_get_verify_depth(WOLFSSL_CTX* ctx)
     if(ctx == NULL) {
         return BAD_FUNC_ARG;
     }
+#ifndef WOLFSSL_NGINX
     return MAX_CHAIN_DEPTH;
+#else
+    return ctx->verifyDepth;
+#endif
 }
 
 
@@ -10103,6 +10130,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     void wolfSSL_set_psk_client_callback(WOLFSSL* ssl,wc_psk_client_callback cb)
     {
         byte haveRSA = 1;
+        int  keySz   = 0;
 
         WOLFSSL_ENTER("SSL_set_psk_client_callback");
         ssl->options.havePSK = 1;
@@ -10111,7 +10139,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         #ifdef NO_RSA
             haveRSA = 0;
         #endif
-        InitSuites(ssl->suites, ssl->version, haveRSA, TRUE,
+        #ifndef NO_CERTS
+            keySz = ssl->buffers.keySz;
+        #endif
+        InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
                    ssl->options.haveDH, ssl->options.haveNTRU,
                    ssl->options.haveECDSAsig, ssl->options.haveECC,
                    ssl->options.haveStaticECC, ssl->options.side);
@@ -10130,6 +10161,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     void wolfSSL_set_psk_server_callback(WOLFSSL* ssl,wc_psk_server_callback cb)
     {
         byte haveRSA = 1;
+        int  keySz   = 0;
 
         WOLFSSL_ENTER("SSL_set_psk_server_callback");
         ssl->options.havePSK = 1;
@@ -10138,7 +10170,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         #ifdef NO_RSA
             haveRSA = 0;
         #endif
-        InitSuites(ssl->suites, ssl->version, haveRSA, TRUE,
+        #ifndef NO_CERTS
+            keySz = ssl->buffers.keySz;
+        #endif
+        InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
                    ssl->options.haveDH, ssl->options.haveNTRU,
                    ssl->options.haveECDSAsig, ssl->options.haveECC,
                    ssl->options.haveStaticECC, ssl->options.side);
@@ -10686,8 +10721,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         #ifndef NO_PSK
             havePSK = ssl->options.havePSK;
         #endif
-        InitSuites(ssl->suites, ssl->version, haveRSA, havePSK,
-                   ssl->options.haveDH, ssl->options.haveNTRU,
+        InitSuites(ssl->suites, ssl->version, ssl->buffers.keySz, haveRSA,
+                   havePSK, ssl->options.haveDH, ssl->options.haveNTRU,
                    ssl->options.haveECDSAsig, ssl->options.haveECC,
                    ssl->options.haveStaticECC, ssl->options.side);
     }
@@ -14328,8 +14363,8 @@ void wolfSSL_set_connect_state(WOLFSSL* ssl)
         #ifndef NO_PSK
             havePSK = ssl->options.havePSK;
         #endif
-        InitSuites(ssl->suites, ssl->version, haveRSA, havePSK,
-                   ssl->options.haveDH, ssl->options.haveNTRU,
+        InitSuites(ssl->suites, ssl->version, ssl->buffers.keySz, haveRSA,
+                   havePSK, ssl->options.haveDH, ssl->options.haveNTRU,
                    ssl->options.haveECDSAsig, ssl->options.haveECC,
                    ssl->options.haveStaticECC, ssl->options.side);
     }
@@ -15929,6 +15964,12 @@ unsigned long wolfSSL_set_options(WOLFSSL* ssl, unsigned long op)
         WOLFSSL_MSG("\tSSL_OP_NO_SSLv2 : wolfSSL does not support SSLv2");
     }
 
+    if ((ssl->options.mask & SSL_OP_NO_TLSv1_3) == SSL_OP_NO_TLSv1_3) {
+        WOLFSSL_MSG("\tSSL_OP_NO_TLSv1_3");
+        if (ssl->version.minor == TLSv1_3_MINOR)
+            ssl->version.minor = TLSv1_2_MINOR;
+    }
+
     if ((ssl->options.mask & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
         WOLFSSL_MSG("\tSSL_OP_NO_TLSv1_2");
         if (ssl->version.minor == TLSv1_2_MINOR)
@@ -16472,6 +16513,9 @@ long wolfSSL_CTX_add_extra_chain_cert(WOLFSSL_CTX* ctx, WOLFSSL_X509* x509)
         idx += OPAQUE24_LEN,
         XMEMCPY(chain + idx, der, derSz);
         idx += derSz;
+#ifdef WOLFSSL_TLS13
+        ctx->certChainCnt++;
+#endif
 
         FreeDer(&ctx->certChain);
         ret = AllocDer(&ctx->certChain, idx, CERT_TYPE, ctx->heap);
@@ -22724,19 +22768,25 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
 
 
     void wolfSSL_CTX_set_verify_depth(WOLFSSL_CTX *ctx, int depth) {
+        WOLFSSL_ENTER("wolfSSL_CTX_set_verify_depth");
+#ifndef WOLFSSL_NGINX
         (void)ctx;
         (void)depth;
-        WOLFSSL_ENTER("wolfSSL_CTX_set_verify_depth");
         WOLFSSL_STUB("wolfSSL_CTX_set_verify_depth");
-
+#else
+        ctx->verifyDepth = depth;
+#endif
     }
 
     void wolfSSL_set_verify_depth(WOLFSSL *ssl, int depth) {
+        WOLFSSL_ENTER("wolfSSL_set_verify_depth");
+#ifndef WOLFSSL_NGINX
         (void)ssl;
         (void)depth;
-        WOLFSSL_ENTER("wolfSSL_set_verify_depth");
         WOLFSSL_STUB("wolfSSL_set_verify_depth");
-
+#else
+        ssl->options.verifyDepth = depth;
+#endif
     }
 
     void* wolfSSL_get_app_data( const WOLFSSL *ssl) {
@@ -24957,6 +25007,32 @@ void wolfSSL_get0_next_proto_negotiated(const WOLFSSL *s, const unsigned char **
     WOLFSSL_STUB("wolfSSL_get0_next_proto_negotiated");
 }
 #endif /* HAVE_ALPN */
+
+WOLFSSL_API int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, char* names)
+{
+    int idx, start = 0;
+    int curve;
+
+    ctx->disabledCurves = (word32)-1;
+    for (idx = 1; names[idx-1] != '\0'; idx++) {
+        if (names[idx] != ':' && names[idx] != '\0')
+            continue;
+
+        if (XSTRNCMP(names, "prime256v1", idx - 1 - start) == 0)
+            curve = WOLFSSL_ECC_SECP256R1;
+        else if (XSTRNCMP(names, "secp384r1", idx - 1 - start) == 0)
+            curve = WOLFSSL_ECC_SECP384R1;
+        else if (XSTRNCMP(names, "X25519", idx - 1 - start) == 0)
+            curve = WOLFSSL_ECC_X25519;
+        else
+            return SSL_FAILURE;
+
+        ctx->disabledCurves ^= 1 << curve;
+        start = idx + 1;
+    }
+
+    return SSL_SUCCESS;
+}
 
 #endif /* WOLFSSL_NGINX  / WOLFSSL_HAPROXY */
 

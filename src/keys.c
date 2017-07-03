@@ -2900,6 +2900,7 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 
     switch (side) {
         case ENCRYPT_SIDE_ONLY:
+#ifdef WOLFSSL_DEBUG_TLS
             WOLFSSL_MSG("Provisioning ENCRYPT key");
             if (ssl->options.side == WOLFSSL_CLIENT_END) {
                 WOLFSSL_BUFFER(ssl->keys.client_write_key, AES_256_KEY_SIZE);
@@ -2907,10 +2908,12 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
             else {
                 WOLFSSL_BUFFER(ssl->keys.server_write_key, AES_256_KEY_SIZE);
             }
+#endif
             wc_encrypt = &ssl->encrypt;
             break;
 
         case DECRYPT_SIDE_ONLY:
+#ifdef WOLFSSL_DEBUG_TLS
             WOLFSSL_MSG("Provisioning DECRYPT key");
             if (ssl->options.side == WOLFSSL_CLIENT_END) {
                 WOLFSSL_BUFFER(ssl->keys.server_write_key, AES_256_KEY_SIZE);
@@ -2918,10 +2921,12 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
             else {
                 WOLFSSL_BUFFER(ssl->keys.client_write_key, AES_256_KEY_SIZE);
             }
+#endif
             wc_decrypt = &ssl->decrypt;
             break;
 
         case ENCRYPT_AND_DECRYPT_SIDE:
+#ifdef WOLFSSL_DEBUG_TLS
             WOLFSSL_MSG("Provisioning ENCRYPT key");
             if (ssl->options.side == WOLFSSL_CLIENT_END) {
                 WOLFSSL_BUFFER(ssl->keys.client_write_key, AES_256_KEY_SIZE);
@@ -2936,6 +2941,7 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
             else {
                 WOLFSSL_BUFFER(ssl->keys.client_write_key, AES_256_KEY_SIZE);
             }
+#endif
             wc_encrypt = &ssl->encrypt;
             wc_decrypt = &ssl->decrypt;
             break;

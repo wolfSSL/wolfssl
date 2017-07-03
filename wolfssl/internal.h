@@ -1103,6 +1103,9 @@ enum Misc {
     ED448_SA_MAJOR      = 8,   /* Most significant byte for ED448 */
     ED448_SA_MINOR      = 8,   /* Least significant byte for ED448 */
 
+    MIN_RSA_SHA512_PSS_BITS = 512 * 2 + 8 * 8, /* Min key size */
+    MIN_RSA_SHA384_PSS_BITS = 384 * 2 + 8 * 8, /* Min key size */
+
 #ifdef HAVE_QSH
     /* qsh handshake sends 600+ size keys over hello extensions */
     MAX_HELLO_SZ       = 2048,  /* max client or server hello */
@@ -1370,6 +1373,10 @@ WOLFSSL_LOCAL int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
 /* TLS v1.3 needs these */
 WOLFSSL_LOCAL int  DoClientHello(WOLFSSL* ssl, const byte* input, word32*,
                                  word32);
+#ifdef WOLFSSL_TLS13
+WOLFSSL_LOCAL int DoTls13ClientHello(WOLFSSL* ssl, const byte* input,
+                                     word32* inOutIdx, word32 helloSz);
+#endif
 WOLFSSL_LOCAL int  DoServerHello(WOLFSSL* ssl, const byte* input, word32*,
                                  word32);
 WOLFSSL_LOCAL int  CheckVersion(WOLFSSL *ssl, ProtocolVersion pv);
@@ -1504,9 +1511,9 @@ typedef struct Suites {
 
 WOLFSSL_LOCAL void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
                                          int haveRSAsig, int haveAnon,
-                                         int tls1_2);
-WOLFSSL_LOCAL void InitSuites(Suites*, ProtocolVersion, word16, word16, word16, word16,
-                              word16, word16, word16, int);
+                                         int tls1_2, int keySz);
+WOLFSSL_LOCAL void InitSuites(Suites*, ProtocolVersion, int, word16, word16,
+                              word16, word16, word16, word16, word16, int);
 WOLFSSL_LOCAL int  MatchSuite(WOLFSSL* ssl, Suites* peerSuites);
 WOLFSSL_LOCAL int  SetCipherList(WOLFSSL_CTX*, Suites*, const char* list);
 
@@ -2186,6 +2193,7 @@ struct WOLFSSL_CTX {
 #endif
     DerBuffer*  privateKey;
     byte        privateKeyType;
+    int         privateKeySz;
     WOLFSSL_CERT_MANAGER* cm;      /* our cert manager, ctx owns SSL will use */
 #endif
 #ifdef KEEP_OUR_CERT
@@ -2235,6 +2243,10 @@ struct WOLFSSL_CTX {
 #endif
 #if defined(HAVE_ECC) || defined(HAVE_ED25519)
     short       minEccKeySz;      /* minimum ECC key size */
+#endif
+#ifdef WOLFSSL_NGINX
+    word32      disabledCurves;   /* curves disabled by user */
+    byte        verifyDepth;      /* maximum verification depth */
 #endif
 #ifdef OPENSSL_EXTRA
     unsigned long     mask;       /* store SSL_OP_ flags */
@@ -2690,6 +2702,7 @@ typedef struct Buffers {
     DerBuffer*      certificate;           /* WOLFSSL_CTX owns, unless we own */
     DerBuffer*      key;                   /* WOLFSSL_CTX owns, unless we own */
     byte            keyType;               /* Type of key: RSA, ECC, Ed25519 */
+    int             keySz;                 /* Size of RSA key */
     DerBuffer*      certChain;             /* WOLFSSL_CTX owns, unless we own */
                  /* chain after self, in DER, with leading size for each cert */
 #ifdef WOLFSSL_TLS13
@@ -2858,6 +2871,9 @@ typedef struct Options {
 #if defined(HAVE_ECC) || defined(HAVE_ED25519)
     short           minEccKeySz;      /* minimum ECC key size */
 #endif
+#ifdef WOLFSSL_NGINX
+    byte            verifyDepth;      /* maximum verification depth */
+#endif
 #ifdef WOLFSSL_EARLY_DATA
     word32          maxEarlyDataSz;
 #endif
@@ -2925,6 +2941,10 @@ struct WOLFSSL_X509_NAME {
     WOLFSSL_X509_NAME_ENTRY cnEntry;
     WOLFSSL_X509*           x509;   /* x509 that struct belongs to */
 #endif /* OPENSSL_EXTRA */
+#ifdef WOLFSSL_NGINX
+    byte  raw[ASN_NAME_MAX];
+    int   rawLen;
+#endif
 };
 
 #ifndef EXTERNAL_SERIAL_SIZE

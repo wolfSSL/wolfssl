@@ -1359,6 +1359,9 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     ctx->minEccKeySz  = MIN_ECCKEY_SZ;
     ctx->eccTempKeySz = ECDHE_SIZE;
 #endif
+#ifdef WOLFSSL_NGINX
+    ctx->verifyDepth = MAX_CHAIN_DEPTH;
+#endif
 
 #ifndef WOLFSSL_USER_IO
     ctx->CBIORecv = EmbedReceive;
@@ -1688,11 +1691,12 @@ void InitCipherSpecs(CipherSpecs* cs)
 }
 
 void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, int haveRSAsig,
-                           int haveAnon, int tls1_2)
+                           int haveAnon, int tls1_2, int keySz)
 {
     int idx = 0;
 
     (void)tls1_2;
+    (void)keySz;
 
     if (haveECDSAsig) {
         #ifdef WOLFSSL_SHA512
@@ -1722,12 +1726,16 @@ void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, int haveRSAsig,
         #ifdef WC_RSA_PSS
             if (tls1_2) {
             #ifdef WOLFSSL_SHA512
-                suites->hashSigAlgo[idx++] = rsa_pss_sa_algo;
-                suites->hashSigAlgo[idx++] = sha512_mac;
+                if (keySz >= MIN_RSA_SHA512_PSS_BITS) {
+                    suites->hashSigAlgo[idx++] = rsa_pss_sa_algo;
+                    suites->hashSigAlgo[idx++] = sha512_mac;
+                }
             #endif
             #ifdef WOLFSSL_SHA384
-                suites->hashSigAlgo[idx++] = rsa_pss_sa_algo;
-                suites->hashSigAlgo[idx++] = sha384_mac;
+                if (keySz >= MIN_RSA_SHA384_PSS_BITS) {
+                  suites->hashSigAlgo[idx++] = rsa_pss_sa_algo;
+                  suites->hashSigAlgo[idx++] = sha384_mac;
+                }
             #endif
             #ifndef NO_SHA256
                 suites->hashSigAlgo[idx++] = rsa_pss_sa_algo;
@@ -1764,7 +1772,7 @@ void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, int haveRSAsig,
     suites->hashSigAlgoSz = (word16)idx;
 }
 
-void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
+void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
                 word16 havePSK, word16 haveDH, word16 haveNTRU,
                 word16 haveECDSAsig, word16 haveECC,
                 word16 haveStaticECC, int side)
@@ -2632,7 +2640,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, word16 haveRSA,
 
     suites->suiteSz = idx;
 
-    InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig, 0, tls1_2);
+    InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig, 0, tls1_2, keySz);
 }
 
 #if !defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS)
@@ -3804,6 +3812,9 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #ifdef HAVE_ECC
     ssl->options.minEccKeySz = ctx->minEccKeySz;
 #endif
+#ifdef WOLFSSL_NGINX
+    ssl->options.verifyDepth = ctx->verifyDepth;
+#endif
 
     ssl->options.sessionCacheOff      = ctx->sessionCacheOff;
     ssl->options.sessionCacheFlushOff = ctx->sessionCacheFlushOff;
@@ -3835,6 +3846,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
     ssl->buffers.key     = ctx->privateKey;
     ssl->buffers.keyType = ctx->privateKeyType;
+    ssl->buffers.keySz   = ctx->privateKeySz;
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -3842,6 +3854,10 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
 
     if (writeDup == 0) {
+        int keySz = 0;
+#ifndef NO_CERTS
+        keySz = ssl->buffers.keySz;
+#endif
 
 #ifndef NO_PSK
         if (ctx->server_hint[0]) {   /* set in CTX */
@@ -3858,15 +3874,15 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 
         /* make sure server has DH parms, and add PSK if there, add NTRU too */
         if (ssl->options.side == WOLFSSL_SERVER_END)
-            InitSuites(ssl->suites, ssl->version, haveRSA, havePSK,
-                   ssl->options.haveDH, ssl->options.haveNTRU,
-                   ssl->options.haveECDSAsig, ssl->options.haveECC,
-                   ssl->options.haveStaticECC, ssl->options.side);
+            InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
+                       ssl->options.haveDH, ssl->options.haveNTRU,
+                       ssl->options.haveECDSAsig, ssl->options.haveECC,
+                       ssl->options.haveStaticECC, ssl->options.side);
         else
-            InitSuites(ssl->suites, ssl->version, haveRSA, havePSK, TRUE,
-                   ssl->options.haveNTRU, ssl->options.haveECDSAsig,
-                   ssl->options.haveECC, ssl->options.haveStaticECC,
-                   ssl->options.side);
+            InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
+                       TRUE, ssl->options.haveNTRU,
+                       ssl->options.haveECDSAsig, ssl->options.haveECC,
+                       ssl->options.haveStaticECC, ssl->options.side);
 
 #if !defined(NO_CERTS) && !defined(WOLFSSL_SESSION_EXPORT)
         /* make sure server has cert and key unless using PSK or Anon
@@ -7251,6 +7267,10 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     }
     x509->subject.x509 = x509;
 #endif /* OPENSSL_EXTRA */
+#ifdef WOLFSSL_NGINX
+    XMEMCPY(x509->subject.raw, dCert->subjectRaw, dCert->subjectRawLen);
+    x509->subject.rawLen = dCert->subjectRawLen;
+#endif
 
     XMEMCPY(x509->serial, dCert->serial, EXTERNAL_SERIAL_SIZE);
     x509->serialSz = dCert->serialSz;
@@ -7453,6 +7473,9 @@ typedef struct ProcPeerCertArgs {
 #endif
 #ifdef WOLFSSL_TRUST_PEER_CERT
     byte haveTrustPeer; /* was cert verified by loaded trusted peer cert */
+#endif
+#ifdef WOLFSSL_NGINX
+    char   untrustedDepth;
 #endif
 } ProcPeerCertArgs;
 
@@ -7765,6 +7788,42 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                 }
             #endif /* WOLFSSL_TRUST_PEER_CERT */
+            #ifdef WOLFSSL_NGINX
+                if (args->certIdx == 0) {
+                    byte* subjectHash;
+
+                    if (!args->dCertInit) {
+                        InitDecodedCert(args->dCert,
+                            args->certs[args->certIdx].buffer,
+                            args->certs[args->certIdx].length, ssl->heap);
+                        args->dCert->sigCtx.devId = ssl->devId;
+                        args->dCertInit = 1;
+                    }
+
+                    ret = ParseCertRelative(args->dCert, CERT_TYPE, 0,
+                                                                ssl->ctx->cm);
+                    if (ret != 0) {
+                    #ifdef WOLFSSL_ASYNC_CRYPT
+                        if (ret == WC_PENDING_E) {
+                            ret = wolfSSL_AsyncPush(ssl,
+                                args->dCert->sigCtx.asyncDev,
+                                WC_ASYNC_FLAG_CALL_AGAIN);
+                        }
+                    #endif
+                        goto exit_ppc;
+                    }
+
+                #ifndef NO_SKID
+                    subjectHash = args->dCert->extSubjKeyId;
+                #else
+                    subjectHash = args->dCert->subjectHash;
+                #endif
+                    if (!AlreadySigner(ssl->ctx->cm, subjectHash))
+                        args->untrustedDepth = 1;
+                    FreeDecodedCert(args->dCert);
+                    args->dCertInit = 0;
+                }
+            #endif
 
                 /* verify up to peer's first */
                 /* do not verify chain if trusted peer cert found */
@@ -7864,6 +7923,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                         XMEMCPY(add->buffer, args->certs[args->certIdx].buffer,
                                              args->certs[args->certIdx].length);
+
+
+                    #ifdef WOLFSSL_NGINX
+                        if (args->certIdx > args->untrustedDepth)
+                            args->untrustedDepth = args->certIdx + 1;
+                    #endif
 
                         /* already verified above */
                         ret = AddCA(ssl->ctx->cm, &add, WOLFSSL_CHAIN_CA, 0);
@@ -8418,6 +8483,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 ret = args->lastErr;
             }
 
+        #ifdef WOLFSSL_NGINX
+            if (args->untrustedDepth > ssl->options.verifyDepth) {
+                ssl->peerVerifyRet = X509_V_ERR_CERT_CHAIN_TOO_LONG;
+                ret = MAX_CHAIN_ERROR;
+            }
+        #endif
             if (ret != 0) {
                 if (!ssl->options.verifyNone) {
                     int why = bad_certificate;
@@ -12655,12 +12726,30 @@ int SendCertificateRequest(WOLFSSL* ssl)
     int    ret;
     int    sendSz;
     word32 i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+    word32 dnLen = 0;
+#ifdef WOLFSSL_NGINX
+    STACK_OF(WOLFSSL_X509_NAME)* names;
+#endif
 
     int  typeTotal = 1;  /* only 1 for now */
     int  reqSz = ENUM_LEN + typeTotal + REQ_HEADER_SZ;  /* add auth later */
 
     if (IsAtLeastTLSv1_2(ssl))
         reqSz += LENGTH_SZ + ssl->suites->hashSigAlgoSz;
+
+#ifdef WOLFSSL_NGINX
+    /* Certificate Authorities */
+    names = ssl->ctx->ca_names;
+    while (names != NULL) {
+        byte seq[MAX_SEQ_SZ];
+
+        /* 16-bit length | SEQ | Len | DER of name */
+        dnLen += OPAQUE16_LEN + SetSequence(names->data.name->rawLen, seq) +
+                 names->data.name->rawLen;
+        names = names->next;
+    }
+    reqSz += dnLen;
+#endif
 
     if (ssl->options.usingPSK_cipher || ssl->options.usingAnon_cipher)
         return 0;  /* not needed */
@@ -12706,9 +12795,24 @@ int SendCertificateRequest(WOLFSSL* ssl)
         i += ssl->suites->hashSigAlgoSz;
     }
 
-    c16toa(0, &output[i]);  /* auth's */
-    /* if add more to output, adjust i
-    i += REQ_HEADER_SZ; */
+    /* Certificate Authorities */
+    c16toa((word16)dnLen, &output[i]);  /* auth's */
+    i += REQ_HEADER_SZ;
+#ifdef WOLFSSL_NGINX
+    names = ssl->ctx->ca_names;
+    while (names != NULL) {
+        byte seq[MAX_SEQ_SZ];
+
+        c16toa(names->data.name->rawLen +
+               SetSequence(names->data.name->rawLen, seq), &output[i]);
+        i += OPAQUE16_LEN;
+        i += SetSequence(names->data.name->rawLen, output + i);
+        XMEMCPY(output + i, names->data.name->raw, names->data.name->rawLen);
+        i += names->data.name->rawLen;
+        names = names->next;
+    }
+#endif
+    (void)i;
 
     #ifdef WOLFSSL_DTLS
         if (IsDtlsNotSctpMode(ssl)) {
@@ -15470,9 +15574,14 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
     while (next++); /* ++ needed to skip ':' */
 
     if (ret) {
+        int keySz = 0;
+    #ifndef NO_CERTS
+        keySz = ctx->privateKeySz;
+    #endif
         suites->setSuites = 1;
         suites->suiteSz   = (word16)idx;
-        InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig, haveAnon, 1);
+        InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig, haveAnon, 1,
+                              keySz);
     }
 
     (void)ctx;
@@ -21589,7 +21698,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             havePSK = ssl->options.havePSK;
 #endif
 
-            InitSuites(ssl->suites, ssl->version, haveRSA, havePSK,
+            InitSuites(ssl->suites, ssl->version, ssl->keySz, haveRSA, havePSK,
                        ssl->options.haveDH, ssl->options.haveNTRU,
                        ssl->options.haveECDSAsig, ssl->options.haveECC,
                        ssl->options.haveStaticECC, ssl->options.side);
@@ -21767,6 +21876,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
             word16 haveRSA = 0;
             word16 havePSK = 0;
+            int    keySz   = 0;
 
             if (!ssl->options.downgrade) {
                 WOLFSSL_MSG("Client trying to connect with lesser version");
@@ -21804,7 +21914,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifndef NO_PSK
             havePSK = ssl->options.havePSK;
 #endif
-            InitSuites(ssl->suites, ssl->version, haveRSA, havePSK,
+#ifndef NO_CERTS
+            keySz = ssl->buffers.keySz;
+#endif
+            InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
                        ssl->options.haveDH, ssl->options.haveNTRU,
                        ssl->options.haveECDSAsig, ssl->options.haveECC,
                        ssl->options.haveStaticECC, ssl->options.side);
@@ -22037,6 +22150,18 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 if ((ret = TLSX_Parse(ssl, (byte *) input + i, totalExtSz,
                                       client_hello, &clSuites)))
                     return ret;
+    #ifdef WOLFSSL_TLS13
+                if (TLSX_Find(ssl->extensions,
+                                             TLSX_SUPPORTED_VERSIONS) != NULL) {
+                    TLSX_FreeAll(ssl->extensions, ssl->heap);
+                    ssl->extensions = NULL;
+                    ssl->version.minor = TLSv1_3_MINOR;
+                    *inOutIdx = begin;
+                    if ((ret = InitHandshakeHashes(ssl)) != 0)
+                        return ret;
+                    return DoTls13ClientHello(ssl, input, inOutIdx, helloSz);
+                }
+    #endif
 #if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
                 if((ret=SNI_Callback(ssl)))
                     return ret;
