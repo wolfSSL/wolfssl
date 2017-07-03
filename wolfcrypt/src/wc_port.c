@@ -80,7 +80,7 @@ int wolfCrypt_Init(void)
         ret = wolfAsync_HardwareStart();
         if (ret != 0) {
             WOLFSSL_MSG("Async hardware start failed");
-            return ret;
+            /* don't return failure, allow operation to continue */
         }
     #endif
 

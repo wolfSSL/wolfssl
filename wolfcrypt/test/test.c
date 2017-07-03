@@ -4314,7 +4314,6 @@ int aes192_test(void)
         return -4231;
 #endif
 
-
     ret = wc_AesSetKey(&enc, key, (int) sizeof(key), iv, AES_ENCRYPTION);
     if (ret != 0)
         return -4232;
@@ -4344,6 +4343,12 @@ int aes192_test(void)
 
     if (XMEMCMP(cipher, verify, (int) sizeof(cipher)))
         return -4237;
+
+    wc_AesFree(&enc);
+#ifdef HAVE_AES_DECRYPT
+    wc_AesFree(&dec);
+#endif
+
 #endif /* HAVE_AES_CBC */
 
     return ret;
@@ -4394,7 +4399,6 @@ int aes256_test(void)
         return -4241;
 #endif
 
-
     ret = wc_AesSetKey(&enc, key, (int) sizeof(key), iv, AES_ENCRYPTION);
     if (ret != 0)
         return -4242;
@@ -4424,7 +4428,14 @@ int aes256_test(void)
 
     if (XMEMCMP(cipher, verify, (int) sizeof(cipher)))
         return -4247;
+
+    wc_AesFree(&enc);
+#ifdef HAVE_AES_DECRYPT
+    wc_AesFree(&dec);
+#endif
+
 #endif /* HAVE_AES_CBC */
+
     return 0;
 }
 
