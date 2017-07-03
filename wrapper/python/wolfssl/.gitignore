@@ -16,3 +16,6 @@ htmlcov/
 
 # Sphinx documentation
 docs/_build/
+
+# Certificates
+certs/

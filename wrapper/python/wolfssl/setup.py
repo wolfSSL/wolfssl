@@ -28,6 +28,7 @@
 from __future__ import absolute_import
 import os
 import sys
+import shutil
 from setuptools import setup, find_packages
 
 sys.path.insert(0, 'src')
@@ -58,6 +59,29 @@ INFO = dict(
     tests={},
 )
 
+
+def update_certs():
+    c_certs_dir = "../../../certs"
+    py_certs_dir = "certs"
+    certs = [
+        "ca-cert.pem",
+        "client-cert.pem",
+        "client-key.pem",
+        "server-cert.pem",
+        "server-key.pem",
+        "external/ca-digicert-ev.pem"
+    ]
+
+    if os.path.isdir(c_certs_dir):
+        if not os.path.isdir(py_certs_dir):
+            os.makedirs(py_certs_dir)
+
+        for cert in certs:
+            shutil.copy(os.path.join(c_certs_dir, cert), py_certs_dir)
+
+
 if __name__ == "__main__":
+    update_certs()
+
     KWARGS = {k:v for dct in INFO.values() for (k, v) in dct.items()}
     setup(**KWARGS)
