@@ -17309,12 +17309,34 @@ WOLFSSL_API int X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg, const unsig
     return WOLFSSL_FAILURE;
 }
 
-/*** TBD ***/
+/***  ***/
 WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_get_privatekey(const WOLFSSL *ssl)
 {
-    (void)ssl;
-    WOLFSSL_STUB("SSL_get_privatekey");
-    return NULL;
+  if (ssl == NULL) {
+      return NULL;
+  }
+
+  if (ssl->buffers.weOwnKey) {
+          if (ssl->buffers.key == NULL) {
+              WOLFSSL_MSG("Key buffer not set!");
+              return NULL;
+          }
+      return wolfSSL_d2i_PrivateKey(ssl->buffers.key->type,NULL,
+                                    (const unsigned char**)ssl->buffers.key->buffer,
+                                    ssl->buffers.key->length);                                    ;
+  }
+  else { /* if cert not owned get parent ctx cert or return null */
+      if (ssl->ctx) {
+          if (ssl->ctx->privateKey == NULL) {
+                  WOLFSSL_MSG("Ctx Key buffer not set!");
+                  return NULL;
+          }
+          return wolfSSL_d2i_PrivateKey(ssl->buffers.key->type,NULL,
+                                        (const unsigned char**)ssl->buffers.key->buffer,
+                                        ssl->buffers.key->length);
+      }
+  }
+  return NULL;
 }
 
 /*** TBD ***/
