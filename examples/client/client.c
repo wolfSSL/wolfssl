@@ -1616,6 +1616,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                                                                != SSL_SUCCESS) {
             err_sys("unable to support secp256r1");
         }
+        if (wolfSSL_CTX_UsePointFormat(ctx, WOLFSSL_EC_PF_UNCOMPRESSED)
+                                                               != SSL_SUCCESS) {
+            err_sys("unable to support uncompressed point format");
+        }
     }
 #endif /* HAVE_CURVE25519 && HAVE_SUPPORTED_CURVES */
 

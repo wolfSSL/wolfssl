@@ -1786,6 +1786,7 @@ typedef enum {
     TLSX_TRUNCATED_HMAC             = 0x0004,
     TLSX_STATUS_REQUEST             = 0x0005, /* a.k.a. OCSP stapling   */
     TLSX_SUPPORTED_GROUPS           = 0x000a, /* a.k.a. Supported Curves */
+    TLSX_EC_POINT_FORMATS           = 0x000b,
     TLSX_SIGNATURE_ALGORITHMS       = 0x000d,
     TLSX_APPLICATION_LAYER_PROTOCOL = 0x0010, /* a.k.a. ALPN */
     TLSX_STATUS_REQUEST_V2          = 0x0011, /* a.k.a. OCSP stapling v2 */
@@ -1971,7 +1972,15 @@ typedef struct EllipticCurve {
     struct EllipticCurve* next; /* List Behavior */
 } EllipticCurve;
 
+typedef struct PointFormat {
+    byte format;                /* PointFormat   */
+    struct PointFormat* next;   /* List Behavior */
+} PointFormat;
+
 WOLFSSL_LOCAL int TLSX_UseSupportedCurve(TLSX** extensions, word16 name,
+                                                                    void* heap);
+
+WOLFSSL_LOCAL int TLSX_UsePointFormat(TLSX** extensions, byte point,
                                                                     void* heap);
 
 #ifndef NO_WOLFSSL_SERVER

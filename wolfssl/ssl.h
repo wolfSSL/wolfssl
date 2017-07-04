@@ -1931,12 +1931,24 @@ enum {
 #endif
 };
 
+enum {
+    WOLFSSL_EC_PF_UNCOMPRESSED = 0,
+#if 0 /* Not Supported */
+    WOLFSSL_EC_PF_X962_COMP_PRIME = 1,
+    WOLFSSL_EC_PF_X962_COMP_CHAR2 = 2,
+#endif
+};
+
 #ifdef HAVE_SUPPORTED_CURVES
 #ifndef NO_WOLFSSL_CLIENT
 
 WOLFSSL_API int wolfSSL_UseSupportedCurve(WOLFSSL* ssl, unsigned short name);
 WOLFSSL_API int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx,
                                                            unsigned short name);
+
+WOLFSSL_API int wolfSSL_UsePointFormat(WOLFSSL* ssl, unsigned char format);
+WOLFSSL_API int wolfSSL_CTX_UsePointFormat(WOLFSSL_CTX* ctx,
+                                                          unsigned char format);
 
 #endif
 #endif
