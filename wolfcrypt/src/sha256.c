@@ -323,7 +323,13 @@ static int InitSha256(Sha256* sha256)
     }
 
 #elif defined(FREESCALE_MMCAU_SHA)
-    #include "fsl_mmcau.h"
+
+    #ifdef FREESCALE_MMCAU_CLASSIC_SHA
+        #include "cau_api.h"
+    #else
+        #include "fsl_mmcau.h"
+    #endif
+
     #define XTRANSFORM(sha256, B) Transform(sha256, B)
 
     int wc_InitSha256_ex(Sha256* sha256, void* heap, int devId)
@@ -337,7 +343,11 @@ static int InitSha256(Sha256* sha256)
         if (ret != 0) {
             return ret;
         }
+    #ifdef FREESCALE_MMCAU_CLASSIC_SHA
+        cau_sha256_initialize_output(sha256->digest);
+    #else
         MMCAU_SHA256_InitializeOutput((uint32_t*)sha256->digest);
+    #endif
         wolfSSL_CryptHwMutexUnLock();
 
         sha256->buffLen = 0;
@@ -351,7 +361,11 @@ static int InitSha256(Sha256* sha256)
     {
         int ret = wolfSSL_CryptHwMutexLock();
         if (ret == 0) {
+    #ifdef FREESCALE_MMCAU_CLASSIC_SHA
+            cau_sha256_hash_n(buf, 1, sha256->digest);
+    #else
             MMCAU_SHA256_HashN(buf, 1, sha256->digest);
+    #endif
             wolfSSL_CryptHwMutexUnLock();
         }
         return ret;
@@ -623,7 +637,7 @@ static int InitSha256(Sha256* sha256)
                 sizeof(word32));
 
     #if defined(FREESCALE_MMCAU_SHA) || defined(HAVE_INTEL_AVX1) || \
-            defined(HAVE_INTEL_AVX2)
+        defined(HAVE_INTEL_AVX2)
         /* Kinetis requires only these bytes reversed */
         #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
             if (IS_INTEL_AVX1 || IS_INTEL_AVX2)

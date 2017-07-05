@@ -470,13 +470,32 @@
      * through the CAU/mmCAU library. Documentation located in
      * ColdFire/ColdFire+ CAU and Kinetis mmCAU Software Library User
      * Guide (See note in README). */
-    #include "fsl_mmcau.h"
+    #ifdef FREESCALE_MMCAU_CLASSIC
+        /* MMCAU 1.4 library used with non-KSDK / classic MQX builds */
+        #include "cau_api.h"
+    #else
+        #include "fsl_mmcau.h"
+    #endif
 
     static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     {
-        int ret = wolfSSL_CryptHwMutexLock();
+        int ret;
+
+    #ifdef FREESCALE_MMCAU_CLASSIC
+        if ((wolfssl_word)outBlock % WOLFSSL_MMCAU_ALIGNMENT) {
+            WOLFSSL_MSG("Bad cau_aes_encrypt alignment");
+            return BAD_ALIGN_E;
+        }
+    #endif
+
+        ret = wolfSSL_CryptHwMutexLock();
         if(ret == 0) {
-            MMCAU_AES_EncryptEcb(inBlock, (byte*)aes->key, aes->rounds, outBlock);
+        #ifdef FREESCALE_MMCAU_CLASSIC
+            cau_aes_encrypt(inBlock, (byte*)aes->key, aes->rounds, outBlock);
+        #else
+            MMCAU_AES_EncryptEcb(inBlock, (byte*)aes->key, aes->rounds,
+                                 outBlock);
+        #endif
             wolfSSL_CryptHwMutexUnLock();
         }
         return ret;
@@ -484,9 +503,23 @@
     #ifdef HAVE_AES_DECRYPT
     static int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     {
-        int ret = wolfSSL_CryptHwMutexLock();
+        int ret;
+
+    #ifdef FREESCALE_MMCAU_CLASSIC
+        if ((wolfssl_word)outBlock % WOLFSSL_MMCAU_ALIGNMENT) {
+            WOLFSSL_MSG("Bad cau_aes_decrypt alignment");
+            return BAD_ALIGN_E;
+        }
+    #endif
+
+        ret = wolfSSL_CryptHwMutexLock();
         if(ret == 0) {
-            MMCAU_AES_DecryptEcb(inBlock, (byte*)aes->key, aes->rounds, outBlock);
+        #ifdef FREESCALE_MMCAU_CLASSIC
+            cau_aes_decrypt(inBlock, (byte*)aes->key, aes->rounds, outBlock);
+        #else
+            MMCAU_AES_DecryptEcb(inBlock, (byte*)aes->key, aes->rounds,
+                                 outBlock);
+        #endif
             wolfSSL_CryptHwMutexUnLock();
         }
         return ret;
@@ -1824,7 +1857,11 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 
         ret = wolfSSL_CryptHwMutexLock();
         if(ret == 0) {
+        #ifdef FREESCALE_MMCAU_CLASSIC
+            cau_aes_set_key(userKey, keylen*8, rk);
+        #else
             MMCAU_AES_SetKey(userKey, keylen, rk);
+        #endif
             wolfSSL_CryptHwMutexUnLock();
 
             ret = wc_AesSetIV(aes, iv);

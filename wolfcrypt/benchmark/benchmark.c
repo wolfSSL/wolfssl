@@ -32,7 +32,8 @@
 /* Macro to disable benchmark */
 #ifndef NO_CRYPT_BENCHMARK
 
-#ifdef XMALLOC_USER
+#if defined(XMALLOC_USER) || defined(FREESCALE_MQX)
+    /* MQX classic needs for EXIT_FAILURE */
     #include <stdlib.h>  /* we're using malloc / free direct here */
 #endif
 

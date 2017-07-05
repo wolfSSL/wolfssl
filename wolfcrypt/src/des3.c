@@ -750,7 +750,11 @@
      * Documentation located in ColdFire/ColdFire+ CAU and Kinetis mmCAU
      * Software Library User Guide (See note in README).
      */
-    #include "fsl_mmcau.h"
+    #ifdef FREESCALE_MMCAU_CLASSIC
+        #include "cau_api.h"
+    #else
+        #include "fsl_mmcau.h"
+    #endif
 
     const unsigned char parityLookup[128] = {
         1,0,0,1,0,1,1,0,0,1,1,0,1,0,0,1,0,1,1,0,1,0,0,1,1,0,0,1,0,1,1,0,
@@ -815,6 +819,13 @@
 
         iv = (byte*)des->reg;
 
+    #ifdef FREESCALE_MMCAU_CLASSIC
+        if ((wolfssl_word)out % WOLFSSL_MMCAU_ALIGNMENT) {
+            WOLFSSL_MSG("Bad cau_des_encrypt alignment");
+            return BAD_ALIGN_E;
+        }
+    #endif
+
         while (len > 0)
         {
             XMEMCPY(temp_block, in + offset, DES_BLOCK_SIZE);
@@ -827,7 +838,11 @@
             if(ret != 0) {
                 return ret;
             }
+        #ifdef FREESCALE_MMCAU_CLASSIC
+            cau_des_encrypt(temp_block, (byte*)des->key, out + offset);
+        #else
             MMCAU_DES_EncryptEcb(temp_block, (byte*)des->key, out + offset);
+        #endif
             wolfSSL_CryptHwMutexUnLock();
 
             len    -= DES_BLOCK_SIZE;
@@ -851,6 +866,13 @@
 
         iv = (byte*)des->reg;
 
+    #ifdef FREESCALE_MMCAU_CLASSIC
+        if ((wolfssl_word)out % WOLFSSL_MMCAU_ALIGNMENT) {
+            WOLFSSL_MSG("Bad cau_des_decrypt alignment");
+            return BAD_ALIGN_E;
+        }
+    #endif
+
         while (len > 0)
         {
             XMEMCPY(temp_block, in + offset, DES_BLOCK_SIZE);
@@ -859,7 +881,12 @@
             if(ret != 0) {
                 return ret;
             }
+
+        #ifdef FREESCALE_MMCAU_CLASSIC
+            cau_des_decrypt(in + offset, (byte*)des->key, out + offset);
+        #else
             MMCAU_DES_DecryptEcb(in + offset, (byte*)des->key, out + offset);
+        #endif
             wolfSSL_CryptHwMutexUnLock();
 
             /* XOR block with IV for CBC */
@@ -888,6 +915,13 @@
 
         iv = (byte*)des->reg;
 
+    #ifdef FREESCALE_MMCAU_CLASSIC
+        if ((wolfssl_word)out % WOLFSSL_MMCAU_ALIGNMENT) {
+            WOLFSSL_MSG("Bad 3ede cau_des_encrypt alignment");
+            return BAD_ALIGN_E;
+        }
+    #endif
+
         while (len > 0)
         {
             XMEMCPY(temp_block, in + offset, DES_BLOCK_SIZE);
@@ -900,9 +934,15 @@
             if(ret != 0) {
                 return ret;
             }
+    #ifdef FREESCALE_MMCAU_CLASSIC
+            cau_des_encrypt(temp_block,   (byte*)des->key[0], out + offset);
+            cau_des_decrypt(out + offset, (byte*)des->key[1], out + offset);
+            cau_des_encrypt(out + offset, (byte*)des->key[2], out + offset);
+    #else
             MMCAU_DES_EncryptEcb(temp_block  , (byte*)des->key[0], out + offset);
             MMCAU_DES_DecryptEcb(out + offset, (byte*)des->key[1], out + offset);
             MMCAU_DES_EncryptEcb(out + offset, (byte*)des->key[2], out + offset);
+    #endif
             wolfSSL_CryptHwMutexUnLock();
 
             len    -= DES_BLOCK_SIZE;
@@ -927,6 +967,13 @@
 
         iv = (byte*)des->reg;
 
+    #ifdef FREESCALE_MMCAU_CLASSIC
+        if ((wolfssl_word)out % WOLFSSL_MMCAU_ALIGNMENT) {
+            WOLFSSL_MSG("Bad 3ede cau_des_decrypt alignment");
+            return BAD_ALIGN_E;
+        }
+    #endif
+
         while (len > 0)
         {
             XMEMCPY(temp_block, in + offset, DES_BLOCK_SIZE);
@@ -935,9 +982,15 @@
             if(ret != 0) {
                 return ret;
             }
+        #ifdef FREESCALE_MMCAU_CLASSIC
+            cau_des_decrypt(in + offset,  (byte*)des->key[2], out + offset);
+            cau_des_encrypt(out + offset, (byte*)des->key[1], out + offset);
+            cau_des_decrypt(out + offset, (byte*)des->key[0], out + offset);
+        #else
             MMCAU_DES_DecryptEcb(in + offset , (byte*)des->key[2], out + offset);
             MMCAU_DES_EncryptEcb(out + offset, (byte*)des->key[1], out + offset);
             MMCAU_DES_DecryptEcb(out + offset, (byte*)des->key[0], out + offset);
+        #endif
             wolfSSL_CryptHwMutexUnLock();
 
             /* XOR block with IV for CBC */
