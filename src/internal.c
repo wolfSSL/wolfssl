@@ -9428,12 +9428,11 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
             return BUFFER_ERROR;
         }
-        else {
-            XMEMCPY(ssl->arrays->pendingMsg + ssl->arrays->pendingMsgOffset,
-                    input + *inOutIdx, inputLength);
-            ssl->arrays->pendingMsgOffset += inputLength;
-            *inOutIdx += inputLength;
-        }
+
+        XMEMCPY(ssl->arrays->pendingMsg + ssl->arrays->pendingMsgOffset,
+                input + *inOutIdx, inputLength);
+        ssl->arrays->pendingMsgOffset += inputLength;
+        *inOutIdx += inputLength;
 
         if (ssl->arrays->pendingMsgOffset == ssl->arrays->pendingMsgSz)
         {
@@ -9445,9 +9444,19 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                      ssl->arrays->pendingMsgSz
                                                           - HANDSHAKE_HEADER_SZ,
                                      ssl->arrays->pendingMsgSz);
-            XFREE(ssl->arrays->pendingMsg, ssl->heap, DYNAMIC_TYPE_ARRAYS);
-            ssl->arrays->pendingMsg = NULL;
-            ssl->arrays->pendingMsgSz = 0;
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (ret == WC_PENDING_E) {
+                /* setup to process fragment again */
+                ssl->arrays->pendingMsgOffset -= inputLength;
+                *inOutIdx -= inputLength;
+            }
+            else
+        #endif
+            {
+                XFREE(ssl->arrays->pendingMsg, ssl->heap, DYNAMIC_TYPE_ARRAYS);
+                ssl->arrays->pendingMsg = NULL;
+                ssl->arrays->pendingMsgSz = 0;
+            }
         }
     }
 

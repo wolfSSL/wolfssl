@@ -6237,7 +6237,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* if async, offset index so this msg will be processed again */
-    if (ret == WC_PENDING_E) {
+    if (ret == WC_PENDING_E && *inOutIdx > 0) {
         *inOutIdx -= HANDSHAKE_HEADER_SZ;
     }
 #endif
@@ -6333,9 +6333,19 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                 &idx, ssl->arrays->pendingMsgType,
                                 ssl->arrays->pendingMsgSz - HANDSHAKE_HEADER_SZ,
                                 ssl->arrays->pendingMsgSz);
-            XFREE(ssl->arrays->pendingMsg, ssl->heap, DYNAMIC_TYPE_ARRAYS);
-            ssl->arrays->pendingMsg = NULL;
-            ssl->arrays->pendingMsgSz = 0;
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (ret == WC_PENDING_E) {
+                /* setup to process fragment again */
+                ssl->arrays->pendingMsgOffset -= inputLength;
+                *inOutIdx -= inputLength + ssl->keys.padSz;
+            }
+            else
+        #endif
+            {
+                XFREE(ssl->arrays->pendingMsg, ssl->heap, DYNAMIC_TYPE_ARRAYS);
+                ssl->arrays->pendingMsg = NULL;
+                ssl->arrays->pendingMsgSz = 0;
+            }
         }
     }
 
