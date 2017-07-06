@@ -2086,8 +2086,8 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
         if (aes->asyncDev.marker == WOLFSSL_ASYNC_MARKER_AES) {
-            aes->asyncKey = userKey;
-            aes->asyncIv = iv;
+            XMEMCPY(aes->asyncKey, userKey, keylen);
+            XMEMCPY(aes->asyncIv, iv, AES_BLOCK_SIZE);
         }
     #endif /* WOLFSSL_ASYNC_CRYPT */
 
@@ -2846,7 +2846,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             return NitroxAesCbcEncrypt(aes, out, in, sz);
         #elif defined(HAVE_INTEL_QA)
             return IntelQaSymAesCbcEncrypt(&aes->asyncDev, out, in, sz,
-                aes->asyncKey, aes->keylen, aes->asyncIv, AES_BLOCK_SIZE);
+                (const byte*)aes->asyncKey, aes->keylen,
+                (const byte*)aes->asyncIv, AES_BLOCK_SIZE);
         #else /* WOLFSSL_ASYNC_CRYPT_TEST */
             WC_ASYNC_TEST* testDev = &aes->asyncDev.test;
             if (testDev->type == ASYNC_TEST_NONE) {
@@ -2931,7 +2932,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             return NitroxAesCbcDecrypt(aes, out, in, sz);
         #elif defined(HAVE_INTEL_QA)
             return IntelQaSymAesCbcDecrypt(&aes->asyncDev, out, in, sz,
-                aes->asyncKey, aes->keylen, aes->asyncIv, AES_BLOCK_SIZE);
+                (const byte*)aes->asyncKey, aes->keylen,
+                (const byte*)aes->asyncIv, AES_BLOCK_SIZE);
         #else /* WOLFSSL_ASYNC_CRYPT_TEST */
             WC_ASYNC_TEST* testDev = &aes->asyncDev.test;
             if (testDev->type == ASYNC_TEST_NONE) {
@@ -4538,7 +4540,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         /* Not yet supported, contact wolfSSL if interested in using */
     #elif defined(HAVE_INTEL_QA)
         return IntelQaSymAesGcmEncrypt(&aes->asyncDev, out, in, sz,
-            aes->asyncKey, aes->keylen, iv, ivSz,
+            (const byte*)aes->asyncKey, aes->keylen, iv, ivSz,
             authTag, authTagSz, authIn, authInSz);
     #else /* WOLFSSL_ASYNC_CRYPT_TEST */
         WC_ASYNC_TEST* testDev = &aes->asyncDev.test;
@@ -4791,7 +4793,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         /* Not yet supported, contact wolfSSL if interested in using */
     #elif defined(HAVE_INTEL_QA)
         return IntelQaSymAesGcmDecrypt(&aes->asyncDev, out, in, sz,
-            aes->asyncKey, aes->keylen, iv, ivSz,
+            (const byte*)aes->asyncKey, aes->keylen, iv, ivSz,
             authTag, authTagSz, authIn, authInSz);
     #else /* WOLFSSL_ASYNC_CRYPT_TEST */
         WC_ASYNC_TEST* testDev = &aes->asyncDev.test;
