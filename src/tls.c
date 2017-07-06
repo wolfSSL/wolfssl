@@ -3016,7 +3016,7 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
          curve && !(sig && key);
          curve = curve->next) {
 
-    #ifdef WOLFSSL_NGINX
+    #ifdef OPENSSL_EXTRA
         if (ssl->ctx->disabledCurves & (1 << curve->name))
             continue;
     #endif
@@ -5865,7 +5865,7 @@ int TLSX_KeyShare_Establish(WOLFSSL *ssl)
         if (!TLSX_SupportedGroups_Find(ssl, clientKSE->group))
             return BAD_KEY_SHARE_DATA;
 
-    #ifdef WOLFSSL_NGINX
+    #ifdef OPENSSL_EXTRA
         /* Check if server supports group. */
         if (ssl->ctx->disabledCurves & (1 << clientKSE->group))
             continue;

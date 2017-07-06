@@ -2318,6 +2318,8 @@ WOLFSSL_API int wolfSSL_CTX_AsyncPoll(WOLFSSL_CTX* ctx, WOLF_EVENT** events, int
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
 #ifdef OPENSSL_EXTRA
+WOLFSSL_API int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, char* names);
+
 typedef void (*SSL_Msg_Cb)(int write_p, int version, int content_type,
     const void *buf, size_t len, WOLFSSL *ssl, void *arg);
 
@@ -2398,7 +2400,6 @@ WOLFSSL_API char* wolfSSL_sk_WOLFSSL_STRING_value(
 WOLFSSL_API int PEM_write_bio_WOLFSSL_X509(WOLFSSL_BIO *bio,
     WOLFSSL_X509 *cert);
 
-WOLFSSL_API int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, char* names);
 #endif /* WOLFSSL_NGINX */
 
 WOLFSSL_API void wolfSSL_get0_alpn_selected(const WOLFSSL *ssl,

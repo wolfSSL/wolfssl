@@ -1359,7 +1359,7 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
     ctx->minEccKeySz  = MIN_ECCKEY_SZ;
     ctx->eccTempKeySz = ECDHE_SIZE;
 #endif
-#ifdef WOLFSSL_NGINX
+#ifdef OPENSSL_EXTRA
     ctx->verifyDepth = MAX_CHAIN_DEPTH;
 #endif
 
@@ -3812,7 +3812,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #ifdef HAVE_ECC
     ssl->options.minEccKeySz = ctx->minEccKeySz;
 #endif
-#ifdef WOLFSSL_NGINX
+#ifdef OPENSSL_EXTRA
     ssl->options.verifyDepth = ctx->verifyDepth;
 #endif
 
@@ -7474,7 +7474,7 @@ typedef struct ProcPeerCertArgs {
 #ifdef WOLFSSL_TRUST_PEER_CERT
     byte haveTrustPeer; /* was cert verified by loaded trusted peer cert */
 #endif
-#ifdef WOLFSSL_NGINX
+#ifdef OPENSSL_EXTRA
     char   untrustedDepth;
 #endif
 } ProcPeerCertArgs;
@@ -7778,6 +7778,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             "Checking CAs");
                         FreeDecodedCert(args->dCert);
                         args->dCertInit = 0;
+                    #ifdef OPENSSL_EXTRA
+                        args->untrustedDepth = 1;
+                    #endif
                     } else if (MatchTrustedPeer(tp, args->dCert)){
                         WOLFSSL_MSG("Found matching trusted peer cert");
                         haveTrustPeer = 1;
@@ -7785,10 +7788,16 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         WOLFSSL_MSG("Trusted peer cert did not match!");
                         FreeDecodedCert(args->dCert);
                         args->dCertInit = 0;
+                    #ifdef OPENSSL_EXTRA
+                        args->untrustedDepth = 1;
+                    #endif
                     }
                 }
             #endif /* WOLFSSL_TRUST_PEER_CERT */
-            #ifdef WOLFSSL_NGINX
+            #ifdef OPENSSL_EXTRA
+                #ifdef WOLFSSL_TRUST_PEER_CERT
+                else
+                #endif
                 if (args->certIdx == 0) {
                     byte* subjectHash;
 
@@ -7801,13 +7810,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
 
                     ret = ParseCertRelative(args->dCert, CERT_TYPE, 0,
-                                                                ssl->ctx->cm);
+                                                                  ssl->ctx->cm);
                     if (ret != 0) {
                     #ifdef WOLFSSL_ASYNC_CRYPT
                         if (ret == WC_PENDING_E) {
                             ret = wolfSSL_AsyncPush(ssl,
-                                args->dCert->sigCtx.asyncDev,
-                                WC_ASYNC_FLAG_CALL_AGAIN);
+                                                   args->dCert->sigCtx.asyncDev,
+                                                   WC_ASYNC_FLAG_CALL_AGAIN);
                         }
                     #endif
                         goto exit_ppc;
@@ -8483,7 +8492,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 ret = args->lastErr;
             }
 
-        #ifdef WOLFSSL_NGINX
+        #ifdef OPENSSL_EXTRA
             if (args->untrustedDepth > ssl->options.verifyDepth) {
                 ssl->peerVerifyRet = X509_V_ERR_CERT_CHAIN_TOO_LONG;
                 ret = MAX_CHAIN_ERROR;

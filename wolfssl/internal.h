@@ -1096,6 +1096,7 @@ enum Misc {
 
     ECDHE_SIZE          = 32,  /* ECHDE server size defaults to 256 bit */
     MAX_EXPORT_ECC_SZ   = 256, /* Export ANS X9.62 max future size */
+    MAX_CURVE_NAME_SZ   = 16,  /* Maximum size of curve name string */
 
     NEW_SA_MAJOR        = 8,   /* Most signicant byte used with new sig algos */
     ED25519_SA_MAJOR    = 8,   /* Most significant byte for ED25519 */
@@ -2244,12 +2245,10 @@ struct WOLFSSL_CTX {
 #if defined(HAVE_ECC) || defined(HAVE_ED25519)
     short       minEccKeySz;      /* minimum ECC key size */
 #endif
-#ifdef WOLFSSL_NGINX
-    word32      disabledCurves;   /* curves disabled by user */
-    byte        verifyDepth;      /* maximum verification depth */
-#endif
 #ifdef OPENSSL_EXTRA
-    unsigned long     mask;       /* store SSL_OP_ flags */
+    word32            disabledCurves;   /* curves disabled by user */
+    byte              verifyDepth;      /* maximum verification depth */
+    unsigned long     mask;             /* store SSL_OP_ flags */
 #endif
     CallbackIORecv CBIORecv;
     CallbackIOSend CBIOSend;
@@ -2871,7 +2870,7 @@ typedef struct Options {
 #if defined(HAVE_ECC) || defined(HAVE_ED25519)
     short           minEccKeySz;      /* minimum ECC key size */
 #endif
-#ifdef WOLFSSL_NGINX
+#ifdef OPENSSL_EXTRA
     byte            verifyDepth;      /* maximum verification depth */
 #endif
 #ifdef WOLFSSL_EARLY_DATA

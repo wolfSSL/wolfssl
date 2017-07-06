@@ -3298,12 +3298,8 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     /* Session id - empty in TLS v1.3 */
     sessIdSz = input[i++];
     if (sessIdSz > 0) {
-        ssl->version.major = pv.major;
-        ssl->version.minor = pv.minor;
-        ret = DoClientHello(ssl, input, inOutIdx, helloSz);
-        if (ret != 0)
-            return ret;
-        return HashInput(ssl, input + begin,  helloSz);
+        WOLFSSL_MSG("Client sent session id - not supported");
+        return BUFFER_ERROR;
     }
 
     /* Cipher suites */

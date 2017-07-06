@@ -382,6 +382,8 @@ void wolfSSL_free(WOLFSSL* ssl)
 
 int wolfSSL_is_server(WOLFSSL* ssl)
 {
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
     return ssl->options.side == WOLFSSL_SERVER_END;
 }
 
@@ -6276,7 +6278,7 @@ long wolfSSL_get_verify_depth(WOLFSSL* ssl)
     if(ssl == NULL) {
         return BAD_FUNC_ARG;
     }
-#ifndef WOLFSSL_NGINX
+#ifndef OPENSSL_EXTRA
     return MAX_CHAIN_DEPTH;
 #else
     return ssl->options.verifyDepth;
@@ -6290,7 +6292,7 @@ long wolfSSL_CTX_get_verify_depth(WOLFSSL_CTX* ctx)
     if(ctx == NULL) {
         return BAD_FUNC_ARG;
     }
-#ifndef WOLFSSL_NGINX
+#ifndef OPENSSL_EXTRA
     return MAX_CHAIN_DEPTH;
 #else
     return ctx->verifyDepth;
@@ -22769,7 +22771,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
 
     void wolfSSL_CTX_set_verify_depth(WOLFSSL_CTX *ctx, int depth) {
         WOLFSSL_ENTER("wolfSSL_CTX_set_verify_depth");
-#ifndef WOLFSSL_NGINX
+#ifndef OPENSSL_EXTRA
         (void)ctx;
         (void)depth;
         WOLFSSL_STUB("wolfSSL_CTX_set_verify_depth");
@@ -22780,7 +22782,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
 
     void wolfSSL_set_verify_depth(WOLFSSL *ssl, int depth) {
         WOLFSSL_ENTER("wolfSSL_set_verify_depth");
-#ifndef WOLFSSL_NGINX
+#ifndef OPENSSL_EXTRA
         (void)ssl;
         (void)depth;
         WOLFSSL_STUB("wolfSSL_set_verify_depth");
@@ -25008,33 +25010,54 @@ void wolfSSL_get0_next_proto_negotiated(const WOLFSSL *s, const unsigned char **
 }
 #endif /* HAVE_ALPN */
 
+#endif /* WOLFSSL_NGINX  / WOLFSSL_HAPROXY */
+
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
 WOLFSSL_API int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, char* names)
 {
-    int idx, start = 0;
+    int idx, start = 0, len;
     int curve;
+    char name[MAX_CURVE_NAME_SZ];
 
+    /* Disable all curves so that only the ones the user wants are enabled. */
     ctx->disabledCurves = (word32)-1;
     for (idx = 1; names[idx-1] != '\0'; idx++) {
         if (names[idx] != ':' && names[idx] != '\0')
             continue;
 
-        if (XSTRNCMP(names, "prime256v1", idx - 1 - start) == 0)
-            curve = WOLFSSL_ECC_SECP256R1;
-        else if (XSTRNCMP(names, "secp384r1", idx - 1 - start) == 0)
-            curve = WOLFSSL_ECC_SECP384R1;
-        else if (XSTRNCMP(names, "X25519", idx - 1 - start) == 0)
-            curve = WOLFSSL_ECC_X25519;
-        else
+        len = idx - 1 - start;
+        if (len > MAX_CURVE_NAME_SZ - 1)
             return SSL_FAILURE;
 
-        ctx->disabledCurves ^= 1 << curve;
+        XMEMCPY(name, names + start, len);
+        name[len] = 0;
+
+        if ((XSTRNCMP(name, "prime256v1", len) == 0) ||
+                                      (XSTRNCMP(name, "secp256r1", len) == 0) ||
+                                      (XSTRNCMP(name, "P-256", len) == 0)) {
+            curve = WOLFSSL_ECC_SECP256R1;
+        }
+        else if ((XSTRNCMP(name, "secp384r1", len) == 0) ||
+                                          (XSTRNCMP(name, "P-384", len) == 0)) {
+            curve = WOLFSSL_ECC_SECP384R1;
+        }
+        else if ((XSTRNCMP(name, "secp521r1", len) == 0) ||
+                                          (XSTRNCMP(name, "P-521", len) == 0)) {
+            curve = WOLFSSL_ECC_SECP521R1;
+        }
+        else if (XSTRNCMP(name, "X25519", len) == 0)
+            curve = WOLFSSL_ECC_X25519;
+        else if ((curve = wc_ecc_get_curve_id_from_name(name)) < 0)
+            return SSL_FAILURE;
+
+        /* Switch the bit to off and therefore is enabled. */
+        ctx->disabledCurves &= ~(1 << curve);
         start = idx + 1;
     }
 
     return SSL_SUCCESS;
 }
-
-#endif /* WOLFSSL_NGINX  / WOLFSSL_HAPROXY */
+#endif
 
 #ifdef OPENSSL_EXTRA
 int wolfSSL_CTX_set_msg_callback(WOLFSSL_CTX *ctx, SSL_Msg_Cb cb)
