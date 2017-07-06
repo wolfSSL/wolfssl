@@ -9046,7 +9046,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
             if (ret == 0 && ssl->options.side == WOLFSSL_CLIENT_END) {
                 ssl->options.serverState = SERVER_CERT_COMPLETE;
-                ssl->options.handShakeState = SERVER_CERT_COMPLETE;
             }
 
             if (IsEncryptionOn(ssl, 0)) {
@@ -9392,7 +9391,6 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
 
     if (ssl->options.side == WOLFSSL_CLIENT_END) {
         ssl->options.serverState = SERVER_FINISHED_COMPLETE;
-        ssl->options.handShakeState = SERVER_FINISHED_COMPLETE;
         if (!ssl->options.resuming) {
         #ifdef OPENSSL_EXTRA
         if (ssl->CBIS != NULL) {
@@ -16812,7 +16810,6 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
         #endif
 
         ssl->options.clientState = CLIENT_HELLO_COMPLETE;
-        ssl->options.handShakeState = CLIENT_HELLO_COMPLETE;
 
 #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
         if (ssl->hsInfoOn) AddPacketName(ssl, "ClientHello");
@@ -16871,7 +16868,6 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
         }
 
         ssl->options.serverState = SERVER_HELLOVERIFYREQUEST_COMPLETE;
-        ssl->options.handShakeState = SERVER_HELLOVERIFYREQUEST_COMPLETE;
         return 0;
     }
 
@@ -17218,7 +17214,6 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
 #endif
 
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
-        ssl->options.handShakeState = SERVER_HELLO_COMPLETE;
 
         if (IsEncryptionOn(ssl, 0)) {
             *inOutIdx += ssl->keys.padSz;
@@ -18407,7 +18402,6 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
             *inOutIdx = args->idx;
 
             ssl->options.serverState = SERVER_KEYEXCHANGE_COMPLETE;
-            ssl->options.handShakeState = SERVER_KEYEXCHANGE_COMPLETE;
             break;
         }
         default:
@@ -23576,7 +23570,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     WRITE_PROTO, ssl->heap);
     #endif
         ssl->options.serverState = SERVER_HELLODONE_COMPLETE;
-        ssl->options.handShakeState = SERVER_HELLODONE_COMPLETE;
 
         ssl->buffers.outputBuffer.length += sendSz;
 
