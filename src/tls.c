@@ -3016,6 +3016,11 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
          curve && !(sig && key);
          curve = curve->next) {
 
+    #ifdef OPENSSL_EXTRA
+        if (ssl->ctx->disabledCurves & (1 << curve->name))
+            continue;
+    #endif
+
         /* find supported curve */
         switch (curve->name) {
     #if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
@@ -5860,7 +5865,11 @@ int TLSX_KeyShare_Establish(WOLFSSL *ssl)
         if (!TLSX_SupportedGroups_Find(ssl, clientKSE->group))
             return BAD_KEY_SHARE_DATA;
 
+    #ifdef OPENSSL_EXTRA
         /* Check if server supports group. */
+        if (ssl->ctx->disabledCurves & (1 << clientKSE->group))
+            continue;
+    #endif
         if (TLSX_KeyShare_IsSupported(clientKSE->group))
             break;
     }
@@ -7761,8 +7770,10 @@ word16 TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType)
         length += TLSX_GetSize(ssl->ctx->extensions, semaphore, msgType);
 
 #ifdef HAVE_EXTENDED_MASTER
-    if (msgType == client_hello && ssl->options.haveEMS)
+    if (msgType == client_hello && ssl->options.haveEMS &&
+                                              !IsAtLeastTLSv1_3(ssl->version)) {
         length += HELLO_EXT_SZ;
+    }
 #endif
 
     if (length)
@@ -7836,7 +7847,8 @@ word16 TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType)
     }
 
 #ifdef HAVE_EXTENDED_MASTER
-    if (msgType == client_hello && ssl->options.haveEMS) {
+    if (msgType == client_hello && ssl->options.haveEMS &&
+                                              !IsAtLeastTLSv1_3(ssl->version)) {
         c16toa(HELLO_EXT_EXTMS, output + offset);
         offset += HELLO_EXT_TYPE_SZ;
         c16toa(0, output + offset);
@@ -8213,9 +8225,6 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
             case TLSX_SUPPORTED_VERSIONS:
                 WOLFSSL_MSG("Supported Versions extension received");
 
-                if (!IsAtLeastTLSv1_3(ssl->version))
-                    break;
-
                 if (IsAtLeastTLSv1_3(ssl->version) &&
                         msgType != client_hello) {
                     return EXT_NOT_ALLOWED;
@@ -8433,7 +8442,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
         (void)heap;
         if (method) {
 #if !defined(NO_SHA256) || defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
-#ifdef WOLFSSL_TLS13
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NGINX)
             InitSSL_Method(method, MakeTLSv1_3());
 #else
             InitSSL_Method(method, MakeTLSv1_2());

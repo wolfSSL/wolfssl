@@ -339,8 +339,13 @@ static void Usage(void)
            " NOTE: All files relative to wolfSSL home dir\n");
     printf("-?          Help, print this usage\n");
     printf("-p <num>    Port to listen on, not 0, default %d\n", yasslPort);
+#ifndef WOLFSSL_TLS13
     printf("-v <num>    SSL version [0-3], SSLv3(0) - TLS1.2(3)), default %d\n",
                                  SERVER_DEFAULT_VERSION);
+#else
+    printf("-v <num>    SSL version [0-4], SSLv3(0) - TLS1.3(4)), default %d\n",
+                                 SERVER_DEFAULT_VERSION);
+#endif
     printf("-l <str>    Cipher suite list (: delimited)\n");
     printf("-c <file>   Certificate file,           default %s\n", svrCertFile);
     printf("-k <file>   Key file,                   default %s\n", svrKeyFile);

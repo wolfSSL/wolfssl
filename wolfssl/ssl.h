@@ -383,6 +383,7 @@ WOLFSSL_API int wolfSSL_use_RSAPrivateKey_file(WOLFSSL*, const char*, int);
 
 WOLFSSL_API WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD*);
 WOLFSSL_API WOLFSSL* wolfSSL_new(WOLFSSL_CTX*);
+WOLFSSL_API int  wolfSSL_is_server(WOLFSSL*);
 WOLFSSL_API WOLFSSL* wolfSSL_write_dup(WOLFSSL*);
 WOLFSSL_API int  wolfSSL_set_fd (WOLFSSL*, int);
 WOLFSSL_API int  wolfSSL_set_write_fd (WOLFSSL*, int);
@@ -839,6 +840,7 @@ enum {
     SSL_OP_NO_TLSv1_1                             = 0x04000000,
     SSL_OP_NO_TLSv1_2                             = 0x08000000,
     SSL_OP_NO_COMPRESSION                         = 0x10000000,
+    SSL_OP_NO_TLSv1_3                             = 0x20000000,
 };
 
 
@@ -1921,7 +1923,6 @@ enum {
     /* Not implemented. */
     WOLFSSL_ECC_X448      = 30,
 
-    /* Not implemented. */
     WOLFSSL_FFDHE_2048    = 256,
     WOLFSSL_FFDHE_3072    = 257,
     WOLFSSL_FFDHE_4096    = 258,
@@ -2317,6 +2318,8 @@ WOLFSSL_API int wolfSSL_CTX_AsyncPoll(WOLFSSL_CTX* ctx, WOLF_EVENT** events, int
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
 #ifdef OPENSSL_EXTRA
+WOLFSSL_API int wolfSSL_CTX_set1_curves_list(WOLFSSL_CTX* ctx, char* names);
+
 typedef void (*SSL_Msg_Cb)(int write_p, int version, int content_type,
     const void *buf, size_t len, WOLFSSL *ssl, void *arg);
 
@@ -2396,6 +2399,7 @@ WOLFSSL_API char* wolfSSL_sk_WOLFSSL_STRING_value(
 
 WOLFSSL_API int PEM_write_bio_WOLFSSL_X509(WOLFSSL_BIO *bio,
     WOLFSSL_X509 *cert);
+
 #endif /* WOLFSSL_NGINX */
 
 WOLFSSL_API void wolfSSL_get0_alpn_selected(const WOLFSSL *ssl,
