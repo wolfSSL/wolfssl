@@ -62,7 +62,8 @@
         #ifdef HAVE_AES_DECRYPT
             int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             {
-                if (aes == NULL || out == NULL || in == NULL || sz % 16 != 0) {
+                if (aes == NULL || out == NULL || in == NULL
+                                            || sz % AES_BLOCK_SIZE != 0) {
                     return BAD_FUNC_ARG;
                 }
 
@@ -119,8 +120,9 @@
                                       byte* authTag, word32 authTagSz,
                                       const byte* authIn, word32 authInSz)
         {
-            if (aes == NULL || authTagSz > AES_BLOCK_SIZE || ivSz != 12 ||
-                                         authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
+            if (aes == NULL || authTagSz > AES_BLOCK_SIZE
+                                    || ivSz != WOLFSSL_MIN_AUTH_TAG_SZ
+                                    || authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
                 return BAD_FUNC_ARG;
             }
 
@@ -134,9 +136,10 @@
                                           const byte* authTag, word32 authTagSz,
                                           const byte* authIn, word32 authInSz)
             {
-                if (aes == NULL || out == NULL || in == NULL || sz == 0 ||
-                            iv == NULL || authTag == NULL || ivSz != 12 ||
-                            authTagSz > AES_BLOCK_SIZE) {
+                if (aes == NULL || out == NULL || in == NULL || sz == 0
+                                || iv == NULL || authTag == NULL
+                                || ivSz != WOLFSSL_MIN_AUTH_TAG_SZ
+                                ||authTagSz > AES_BLOCK_SIZE) {
                     return BAD_FUNC_ARG;
                 }
 
@@ -2935,7 +2938,8 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     {
         word32 blocks;
 
-        if (aes == NULL || out == NULL || in == NULL || sz % 16 != 0) {
+        if (aes == NULL || out == NULL || in == NULL
+                                       || sz % AES_BLOCK_SIZE != 0) {
             return BAD_FUNC_ARG;
         }
 

@@ -5744,6 +5744,8 @@ static int test_wc_AesCbcEncryptDecrypt (void)
     if (ret == 0) {
         ret = wc_AesCbcEncrypt(&aes, enc, vector, sizeof(vector));
         if (ret == 0) {
+            /* Re init for decrypt and set flag. */
+            cbcE = 0;
             ret = wc_AesSetKey(&aes, key32, AES_BLOCK_SIZE * 2,
                                                     iv, AES_DECRYPTION);
         }
@@ -5751,21 +5753,24 @@ static int test_wc_AesCbcEncryptDecrypt (void)
             ret = wc_AesCbcDecrypt(&aes, dec, enc, AES_BLOCK_SIZE);
             if (ret != 0 || XMEMCMP(vector, dec, AES_BLOCK_SIZE) != 0) {
                 ret = SSL_FATAL_ERROR;
+            } else {
+                /* Set flag. */
+                cbcD = 0;
             }
         }
     }
-
-    if (ret == 0) {
+    /* If encrypt succeeds but cbc decrypt fails, we can still test. */
+    if (ret == 0 || (ret != 0 && cbcE == 0)) {
         ret = wc_AesCbcDecryptWithKey(dec2, enc, AES_BLOCK_SIZE,
                                      key32, sizeof(key32)/sizeof(byte), iv);
-        if (ret != 0 || XMEMCMP(vector, dec2, AES_BLOCK_SIZE) != 0) {
-            ret = SSL_FATAL_ERROR;
+        if (ret == 0 || XMEMCMP(vector, dec2, AES_BLOCK_SIZE) == 0) {
+            cbcDWK = 0;
         }
     }
 
     printf(testingFmt, "wc_AesCbcEncrypt()");
     /* Pass in bad args */
-    if (ret == 0) {
+    if (cbcE == 0) {
         cbcE = wc_AesCbcEncrypt(NULL, enc, vector, sizeof(vector));
         if (cbcE == BAD_FUNC_ARG) {
             cbcE = wc_AesCbcEncrypt(&aes, NULL, vector, sizeof(vector));
@@ -5782,7 +5787,7 @@ static int test_wc_AesCbcEncryptDecrypt (void)
     printf(resultFmt, cbcE == 0 ? passed : failed);
 
     printf(testingFmt, "wc_AesCbcDecrypt()");
-    if (ret == 0) {
+    if (cbcD == 0) {
         cbcD = wc_AesCbcDecrypt(NULL, dec, enc, AES_BLOCK_SIZE);
         if (cbcD == BAD_FUNC_ARG) {
             cbcD = wc_AesCbcDecrypt(&aes, NULL, enc, AES_BLOCK_SIZE);
@@ -5802,7 +5807,7 @@ static int test_wc_AesCbcEncryptDecrypt (void)
     printf(resultFmt, cbcD == 0 ? passed : failed);
 
     printf(testingFmt, "wc_AesCbcDecryptWithKey()");
-    if (ret == 0) {
+    if (cbcDWK == 0) {
         cbcDWK = wc_AesCbcDecryptWithKey(NULL, enc, AES_BLOCK_SIZE,
                                      key32, sizeof(key32)/sizeof(byte), iv);
         if (cbcDWK == BAD_FUNC_ARG) {
@@ -6031,17 +6036,18 @@ static int test_wc_AesGcmEncryptDecrypt (void)
                                         iv, sizeof(iv)/sizeof(byte), resultT,
                                         sizeof(resultT), a, sizeof(a));
     }
-    if (ret == 0) {
+    if (ret == 0) { /* If encrypt fails, no decrypt. */
+        gcmE = 0;
         ret = wc_AesGcmDecrypt(&aes, dec, enc, sizeof(vector),
                                         iv, sizeof(iv)/sizeof(byte), resultT,
                                         sizeof(resultT), a, sizeof(a));
-    }
-    if(ret != 0 || (XMEMCMP(vector, dec, sizeof(vector)) !=  0)) {
-        ret = SSL_FATAL_ERROR;
+        if(ret == 0 || (XMEMCMP(vector, dec, sizeof(vector)) ==  0)) {
+            gcmD = 0;
+        }
     }
     printf(testingFmt, "wc_AesGcmEncrypt()");
     /*Test bad args for wc_AesGcmEncrypt and wc_AesGcmDecrypt */
-    if (ret == 0) {
+    if (gcmE == 0) {
         gcmE = wc_AesGcmEncrypt(NULL, enc, vector, sizeof(vector),
                         iv, sizeof(iv)/sizeof(byte), resultT, sizeof(resultT),
                         a, sizeof(a));
@@ -6072,7 +6078,7 @@ static int test_wc_AesGcmEncryptDecrypt (void)
     printf(resultFmt, gcmE == 0 ? passed : failed);
     printf(testingFmt, "wc_AesGcmDecrypt()");
 
-    if (ret == 0) {
+    if (gcmD == 0) {
         gcmD = wc_AesGcmDecrypt(NULL, dec, enc, sizeof(enc)/sizeof(byte),
                                iv, sizeof(iv)/sizeof(byte), resultT,
                                sizeof(resultT), a, sizeof(a));
