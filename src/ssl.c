@@ -6833,7 +6833,7 @@ int wolfSSL_CTX_SetTmpDH_file(WOLFSSL_CTX* ctx, const char* fname, int format)
 
 #ifdef OPENSSL_EXTRA
 /* put SSL type in extra for now, not very common */
-
+#if !defined(NO_FILESYSTEM)
 WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
         const unsigned char **in, long inSz)
 {
@@ -6868,7 +6868,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
 
     return local;
 }
-
+#endif
 
 long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt)
 {
@@ -11976,6 +11976,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         (void)bio;
         return 1;
     }
+
 
 
 #endif /* OPENSSL_EXTRA || GOAHEAD_WS */
@@ -17309,9 +17310,10 @@ WOLFSSL_API int X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg, const unsig
     return WOLFSSL_FAILURE;
 }
 
-/***  ***/
+#if defined(OPENSSL_EXTRA)
 WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_get_privatekey(const WOLFSSL *ssl)
 {
+
   if (ssl == NULL) {
       return NULL;
   }
@@ -17338,6 +17340,7 @@ WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_get_privatekey(const WOLFSSL *ssl)
   }
   return NULL;
 }
+#endif
 
 /*** TBD ***/
 WOLFSSL_API int EVP_PKEY_bits(WOLFSSL_EVP_PKEY *pkey)
