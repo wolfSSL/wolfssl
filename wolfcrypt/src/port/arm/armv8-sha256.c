@@ -26,7 +26,9 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if !defined(NO_SHA256) && defined(WOLFSSL_ARMASM)
+#ifdef WOLFSSL_ARMASM
+#if !defined(NO_SHA256) || defined(WOLFSSL_SHA224)
+
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -56,7 +58,7 @@ static const ALIGN32 word32 K[64] = {
 };
 
 
-int wc_InitSha256_ex(Sha256* sha256, void* heap, int devId)
+static int InitSha256(Sha256* sha256)
 {
     int ret = 0;
 
@@ -77,40 +79,24 @@ int wc_InitSha256_ex(Sha256* sha256, void* heap, int devId)
     sha256->loLen   = 0;
     sha256->hiLen   = 0;
 
-    (void)heap;
-    (void)devId;
-
     return ret;
-}
-
-int wc_InitSha256(Sha256* sha256)
-{
-    return wc_InitSha256_ex(sha256, NULL, INVALID_DEVID);
-}
-
-void wc_Sha256Free(Sha256* sha256)
-{
-    (void)sha256;
 }
 
 static INLINE void AddLength(Sha256* sha256, word32 len)
 {
     word32 tmp = sha256->loLen;
-    if ( (sha256->loLen += len) < tmp)
+    if ((sha256->loLen += len) < tmp)
         sha256->hiLen++;                       /* carry low to high */
 }
 
 
 #ifdef __aarch64__
+
 /* ARMv8 hardware accleration */
-int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
+static INLINE int Sha256Update(Sha256* sha256, const byte* data, word32 len)
 {
     word32 add;
     word32 numBlocks;
-
-    if (sha256 == NULL || (data == NULL && len != 0)) {
-        return BAD_FUNC_ARG;
-    }
 
     /* only perform actions if a buffer is passed in */
     if (len > 0) {
@@ -320,13 +306,9 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
 }
 
 
-int wc_Sha256Final(Sha256* sha256, byte* hash)
+static INLINE int Sha256Final(Sha256* sha256, byte* hash)
 {
     byte* local;
-
-    if (sha256 == NULL || hash == NULL) {
-        return BAD_FUNC_ARG;
-    }
 
     local = (byte*)sha256->buffer;
     AddLength(sha256, sha256->buffLen);  /* before adding pads */
@@ -667,19 +649,16 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
                               "v22", "v23", "v24", "v25"
     );
 
-    return wc_InitSha256(sha256);  /* reset state */
+    return 0;
 }
 
 #else /* not using 64 bit */
+
 /* ARMv8 hardware accleration Aarch32 */
-int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
+static INLINE int Sha256Update(Sha256* sha256, const byte* data, word32 len)
 {
     word32 add;
     word32 numBlocks;
-
-    if (sha256 == NULL || (data == NULL && len != 0)) {
-        return BAD_FUNC_ARG;
-    }
 
     /* only perform actions if a buffer is passed in */
     if (len > 0) {
@@ -903,7 +882,7 @@ int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
 }
 
 
-int wc_Sha256Final(Sha256* sha256, byte* hash)
+static INLINE int Sha256Final(Sha256* sha256, byte* hash)
 {
     byte* local;
 
@@ -1298,11 +1277,65 @@ int wc_Sha256Final(Sha256* sha256, byte* hash)
                           "q15"
     );
 
-    return wc_InitSha256(sha256);  /* reset state */
+    return 0;
 }
 
 #endif /* __aarch64__ */
 
+
+#ifndef NO_SHA256
+
+int wc_InitSha256_ex(Sha256* sha256, void* heap, int devId)
+{
+    int ret = 0;
+
+    if (sha256 == NULL)
+        return BAD_FUNC_ARG;
+
+    sha256->heap = heap;
+
+    ret = InitSha256(sha256);
+    if (ret != 0)
+        return ret;
+
+    (void)devId;
+
+    return ret;
+}
+
+int wc_InitSha256(Sha256* sha256)
+{
+    return wc_InitSha256_ex(sha256, NULL, INVALID_DEVID);
+}
+
+void wc_Sha256Free(Sha256* sha256)
+{
+    (void)sha256;
+}
+
+int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
+{
+    if (sha256 == NULL || (data == NULL && len != 0)) {
+        return BAD_FUNC_ARG;
+    }
+
+    return Sha256Update(sha256, data, len);
+}
+
+int wc_Sha256Final(Sha256* sha256, byte* hash)
+{
+    int ret;
+
+    if (sha256 == NULL || hash == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = Sha256Final(sha256, hash);
+    if (ret != 0)
+        return ret;
+
+    return InitSha256(sha256);  /* reset state */
+}
 
 int wc_Sha256GetHash(Sha256* sha256, byte* hash)
 {
@@ -1331,4 +1364,122 @@ int wc_Sha256Copy(Sha256* src, Sha256* dst)
     return ret;
 }
 
-#endif /* NO_SHA256 and WOLFSSL_ARMASM */
+#endif /* !NO_SHA256 */
+
+
+#ifdef WOLFSSL_SHA224
+    static int InitSha224(Sha224* sha224)
+    {
+
+        int ret = 0;
+
+        if (sha224 == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+        sha224->digest[0] = 0xc1059ed8;
+        sha224->digest[1] = 0x367cd507;
+        sha224->digest[2] = 0x3070dd17;
+        sha224->digest[3] = 0xf70e5939;
+        sha224->digest[4] = 0xffc00b31;
+        sha224->digest[5] = 0x68581511;
+        sha224->digest[6] = 0x64f98fa7;
+        sha224->digest[7] = 0xbefa4fa4;
+
+        sha224->buffLen = 0;
+        sha224->loLen   = 0;
+        sha224->hiLen   = 0;
+
+        return ret;
+    }
+
+    int wc_InitSha224_ex(Sha224* sha224, void* heap, int devId)
+    {
+        int ret = 0;
+
+        if (sha224 == NULL)
+            return BAD_FUNC_ARG;
+
+        sha224->heap = heap;
+
+        ret = InitSha224(sha224);
+        if (ret != 0)
+            return ret;
+
+        (void)devId;
+
+        return ret;
+    }
+
+    int wc_InitSha224(Sha224* sha224)
+    {
+        return wc_InitSha224_ex(sha224, NULL, INVALID_DEVID);
+    }
+
+    int wc_Sha224Update(Sha224* sha224, const byte* data, word32 len)
+    {
+        int ret;
+
+        if (sha224 == NULL || (data == NULL && len > 0)) {
+            return BAD_FUNC_ARG;
+        }
+
+        ret = Sha256Update((Sha256 *)sha224, data, len);
+
+        return ret;
+    }
+
+    int wc_Sha224Final(Sha224* sha224, byte* hash)
+    {
+        int ret;
+        word32 hashTmp[SHA256_DIGEST_SIZE/sizeof(word32)];
+
+        if (sha224 == NULL || hash == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+        ret = Sha256Final((Sha256*)sha224, (byte*)hashTmp);
+        if (ret != 0)
+            return ret;
+
+        XMEMCPY(hash, hashTmp, SHA224_DIGEST_SIZE);
+
+        return InitSha224(sha224);  /* reset state */
+    }
+
+    void wc_Sha224Free(Sha224* sha224)
+    {
+        if (sha224 == NULL)
+            return;
+    }
+
+    int wc_Sha224GetHash(Sha224* sha224, byte* hash)
+    {
+        int ret;
+        Sha224 tmpSha224;
+
+        if (sha224 == NULL || hash == NULL)
+            return BAD_FUNC_ARG;
+
+        ret = wc_Sha224Copy(sha224, &tmpSha224);
+        if (ret == 0) {
+            ret = wc_Sha224Final(&tmpSha224, hash);
+        }
+        return ret;
+    }
+    int wc_Sha224Copy(Sha224* src, Sha224* dst)
+    {
+        int ret = 0;
+
+        if (src == NULL || dst == NULL)
+            return BAD_FUNC_ARG;
+
+        XMEMCPY(dst, src, sizeof(Sha224));
+
+        return ret;
+    }
+
+#endif /* WOLFSSL_SHA224 */
+
+#endif /* !NO_SHA256 || WOLFSSL_SHA224 */
+#endif /* WOLFSSL_ARMASM */

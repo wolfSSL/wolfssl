@@ -11693,6 +11693,7 @@ done:
 
 int ed25519_test(void)
 {
+    int ret;
     WC_RNG rng;
 #if defined(HAVE_ED25519_SIGN) && defined(HAVE_ED25519_KEY_EXPORT) &&\
     defined(HAVE_ED25519_KEY_IMPORT)
@@ -11701,7 +11702,7 @@ int ed25519_test(void)
     byte   exportSKey[ED25519_KEY_SIZE];
     word32 exportPSz;
     word32 exportSSz;
-    int    i, ret;
+    int    i;
     word32 outlen;
 #ifdef HAVE_ED25519_VERIFY
     int    verify;
