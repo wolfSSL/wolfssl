@@ -19081,80 +19081,216 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_state_string_long");
 
-    static const char* OUTPUT_STR[11][6] = {
-               {"SSLv3 Null State","TLSv1 Null State",
-                "TLSv1_1 Null State","TLSv1_2 Null State",
-                "DTLSv1 Null State","DTLSv1_2 Null State"},
-
-               {"SSLv3 Server Hello Verify Request Complete",
-                "TLSv1 Server Hello Verify Request Complete",
-                "TLSv1_1 Server Hello Verify Request Complete",
-                "TLSv1_2 Server Hello Verify Request Complete",
-                "DTLSv1 Server Hello Verify Request Complete",
-                "DTLSv1_2 Server Hello Verify Request Complete"},
-
-               {"SSLv3 Server Hello Complete",
-                "TLSv1 Server Hello Complete",
-                "TLSv1_1 Server Hello Complete",
-                "TLSv1_2 Server Hello Complete",
-                "DTLSv1 Server Hello Complete",
-                "DTLSv1_2 Server Hello Complete"},
-
-               {"SSLv3 Server Certificate Complete",
-                "TLSv1 Server Certificate Complete",
-                "TLSv1_1 Server Certificate Complete",
-                "TLSv1_2 Server Certificate Complete",
-                "DTLSv1 Server Certificate Complete",
-                "DTLSv1_2 Server Certificate Complete"},
-
-               {"SSLv3 Server Key Exchange Complete",
-                "TLSv1 Server Key Exchange Complete",
-                "TLSv1_1 Server Key Exchange Complete",
-                "TLSv1_2 Server Key Exchange Complete",
-                "DTLSv1 Server Key Exchange Complete",
-                "DTLSv1_2 Server Key Exchange Complete"},
-
-               {"SSLv3 Server Hello Done Complete"
-                ,"TLSv1 Server Hello Done Complete",
-                "TLSv1_1 Server Hello Done Complete"
-                ,"TLSv1_2 Server Hello Done Complete",
-                "DTLSv1 Server Hello Done Complete"
-                ,"DTLSv1_2 Server Hello Done Complete"},
-
-               {"SSLv3 Server Finished Complete",
-                "TLSv1 Server Finished Complete",
-                "TLSv1_1 Server Finished Complete",
-                "TLSv1_2 Server Finished Complete",
-                "DTLSv1 Server Finished Complete",
-                "DTLSv1_2 Server Finished Complete"},
-
-               {"SSLv3 Client Hello Complete",
-                "TLSv1 Client Hello Complete",
-                "TLSv1_1 Client Hello Complete",
-                "TLSv1_2 Client Hello Complete",
-                "DTLSv1 Client Hello Complete",
-                "DTLSv1_2 Client Hello Complete"},
-
-               {"SSLv3 Client Key Exchange Complete",
-                "TLSv1 Client Key Exchange Complete",
-                "TLSv1_1 Client Key Exchange Complete",
-                "TLSv1_2 Client Key Exchange Complete",
-                "DTLSv1 Client Key Exchange Complete",
-                "DTLSv1_2 Client Key Exchange Complete"},
-
-               {"SSLv3 Client Finished Complete",
-                "TLSv1 Client Finished Complete",
-                "TLSv1_1 Client Finished Complete",
-                "TLSv1_2 Client Finished Complete",
-                "DTLSv1 Client Finished Complete",
-                "DTLSv1_2 Client Finished Complete"},
-
-               {"SSLv3 Handshake Done",
-                "TLSv1 Handshake Done",
-                "TLSv1_1 Handshake Done",
-                "TLSv1_2 Handshake Done",
-                "DTLSv1 Handshake Done",
-                "DTLSv1_2 Handshake Done"}
+    static const char* OUTPUT_STR[11][6][3] = {
+        {
+            {"SSLv3 Null State","SSLv3 Null State","SSLv3 Null State"},
+            {"TLSv1 Null State","TLSv2 Null State","TLSv2 Null State"},
+            {"TLSv1_1 Null State","TLSv1_1 Null State","TLSv1_1 Null State"},
+            {"TLSv1_2 Null State","TLSv1_2 Null State","TLSv1_2 Null State"},
+            {"DTLSv1 Null State","DTLSv1 Null State","DTLSv1 Null State"},
+            {"DTLSv1_2 Null State","DTLSv1_2 Null State","DTLSv1_2 Null State"},
+        },
+        {
+            {"SSLv3 write Server Hello Verify Request Complete",
+             "SSLv3 read Server Hello Verify Request Complete",
+             "SSLv3 Server Hello Verify Request Complete"},
+            {"TLSv1 write Server Hello Verify Request Complete",
+             "TLSv1 read Server Hello Verify Request Complete",
+             "TLSv1 Server Hello Verify Request Complete"},
+            {"TLSv1_1 write Server Hello Verify Request Complete",
+            "TLSv1_1 read Server Hello Verify Request Complete",
+             "TLSv1_1 Server Hello Verify Request Complete"},
+            {"TLSv1_2 write Server Hello Verify Request Complete",
+            "TLSv1_2 read Server Hello Verify Request Complete",
+             "TLSv1_2 Server Hello Verify Request Complete"},
+            {"DTLSv1 write Server Hello Verify Request Complete",
+             "DTLSv1 read Server Hello Verify Request Complete",
+             "DTLSv1 Server Hello Verify Request Complete"},
+            {"DTLSv1_2 write Server Hello Verify Request Complete",
+             "DTLSv1_2 read Server Hello Verify Request Complete",
+             "DTLSv1_2 Server Hello Verify Request Complete"},
+        },
+        {
+            {"SSLv3 write Server Hello Complete",
+             "SSLv3 read Server Hello Complete",
+             "SSLv3 Server Hello Complete"},
+            {"TLSv1 write Server Hello Complete",
+             "TLSv1 read Server Hello Complete",
+             "TLSv1 Server Hello Complete"},
+            {"TLSv1_1 write Server Hello Complete",
+            "TLSv1_1 read Server Hello Complete",
+             "TLSv1_1 Server Hello Complete"},
+            {"TLSv1_2 write Server Hello Complete",
+            "TLSv1_2 read Server Hello Complete",
+             "TLSv1_2 Server Hello Complete"},
+            {"DTLSv1 write Server Hello Complete",
+            "DTLSv1 read Server Hello Complete",
+             "DTLSv1 Server Hello Complete"},
+            {"DTLSv1_2 write Server Hello Complete",
+             "DTLSv1_2 read Server Hello Complete",
+             "DTLSv1_2 Server Hello Complete",
+            },
+        },
+        {
+            {"SSLv3 write Server Certificate Complete",
+             "SSLv3 read Server Certificate Complete",
+             "SSLv3 Server Certificate Complete"},
+            {"TLSv1 write Server Certificate Complete",
+             "TLSv1 read Server Certificate Complete",
+             "TLSv1 Server Certificate Complete"},
+            {"TLSv1_1 write Server Certificate Complete",
+             "TLSv1_1 read Server Certificate Complete",
+             "TLSv1_1 Server Certificate Complete"},
+            {"TLSv1_2 write Server Certificate Complete",
+             "TLSv1_2 read Server Certificate Complete",
+             "TLSv1_2 Server Certificate Complete"},
+            {"DTLSv1 write Server Certificate Complete",
+             "DTLSv1 read Server Certificate Complete",
+             "DTLSv1 Server Certificate Complete"},
+            {"DTLSv1_2 write Server Certificate Complete",
+             "DTLSv1_2 read Server Certificate Complete",
+             "DTLSv1_2 Server Certificate Complete"},
+        },
+        {
+            {"SSLv3 write Server Key Exchange Complete",
+             "SSLv3 read Server Key Exchange Complete",
+             "SSLv3 Server Key Exchange Complete"},
+            {"TLSv1 write Server Key Exchange Complete",
+             "TLSv1 read Server Key Exchange Complete",
+             "TLSv1 Server Key Exchange Complete"},
+            {"TLSv1_1 write Server Key Exchange Complete",
+             "TLSv1_1 read Server Key Exchange Complete",
+             "TLSv1_1 Server Key Exchange Complete"},
+            {"TLSv1_2 write Server Key Exchange Complete",
+             "TLSv1_2 read Server Key Exchange Complete",
+             "TLSv1_2 Server Key Exchange Complete"},
+            {"DTLSv1 write Server Key Exchange Complete",
+             "DTLSv1 read Server Key Exchange Complete",
+             "DTLSv1 Server Key Exchange Complete"},
+            {"DTLSv1_2 write Server Key Exchange Complete",
+             "DTLSv1_2 read Server Key Exchange Complete",
+             "DTLSv1_2 Server Key Exchange Complete"},
+        },
+        {
+            {"SSLv3 write Server Hello Done Complete",
+             "SSLv3 read Server Hello Done Complete",
+             "SSLv3 Server Hello Done Complete"},
+            {"TLSv1 write Server Hello Done Complete",
+             "TLSv1 read Server Hello Done Complete",
+             "TLSv1 Server Hello Done Complete"},
+            {"TLSv1_1 write Server Hello Done Complete",
+             "TLSv1_1 read Server Hello Done Complete",
+             "TLSv1_1 Server Hello Done Complete"},
+            {"TLSv1_2 write Server Hello Done Complete",
+             "TLSv1_2 read Server Hello Done Complete",
+             "TLSv1_2 Server Hello Done Complete"},
+            {"DTLSv1 write Server Hello Done Complete",
+             "DTLSv1 read Server Hello Done Complete",
+             "DTLSv1 Server Hello Done Complete"},
+            {"DTLSv1_2 write Server Hello Done Complete",
+             "DTLSv1_2 read Server Hello Done Complete",
+             "DTLSv1_2 Server Hello Done Complete"},
+        },
+        {
+            {"SSLv3 write Server Finished Complete",
+             "SSLv3 read Server Finished Complete",
+             "SSLv3 Server Finished Complete"},
+            {"TLSv1 write Server Finished Complete",
+             "TLSv1 read Server Finished Complete",
+             "TLSv1 Server Finished Complete"},
+            {"TLSv1_1 write Server Finished Complete",
+             "TLSv1_1 read Server Finished Complete",
+             "TLSv1_1 Server Finished Complete"},
+            {"TLSv1_2 write Server Finished Complete",
+             "TLSv1_2 read Server Finished Complete",
+             "TLSv1_2 Server Finished Complete"},
+            {"DTLSv1 write Server Finished Complete",
+             "DTLSv1 read Server Finished Complete",
+             "DTLSv1 Server Finished Complete"},
+            {"DTLSv1_2 write Server Finished Complete",
+             "DTLSv1_2 read Server Finished Complete",
+             "DTLSv1_2 Server Finished Complete"},
+        },
+        {
+            {"SSLv3 read Client Hello Complete",
+             "SSLv3 write Client Hello Complete",
+             "SSLv3 Client Hello Complete"},
+            {"TLSv1 read Client Hello Complete",
+             "TLSv1 write Client Hello Complete",
+             "TLSv1 Client Hello Complete"},
+            {"TLSv1_1 read Client Hello Complete",
+             "TLSv1_1 write Client Hello Complete",
+             "TLSv1_1 Client Hello Complete"},
+            {"TLSv1_2 read Client Hello Complete",
+             "TLSv1_2 write Client Hello Complete",
+             "TLSv1_2 Client Hello Complete"},
+            {"DTLSv1 read Client Hello Complete",
+             "DTLSv1 write Client Hello Complete",
+             "DTLSv1 Client Hello Complete"},
+            {"DTLSv1_2 read Client Hello Complete",
+             "DTLSv1_2 write Client Hello Complete",
+             "DTLSv1_2 Client Hello Complete"},
+        },
+        {
+            {"SSLv3 read Client Key Exchange Complete",
+             "SSLv3 write Client Key Exchange Complete",
+             "SSLv3 Client Key Exchange Complete"},
+            {"TLSv1 read Client Key Exchange Complete",
+             "TLSv1 write Client Key Exchange Complete",
+             "TLSv1 Client Key Exchange Complete"},
+            {"TLSv1_1 read Client Key Exchange Complete",
+             "TLSv1_1 write Client Key Exchange Complete",
+             "TLSv1_1 Client Key Exchange Complete"},
+            {"TLSv1_2 read Client Key Exchange Complete",
+             "TLSv1_2 write Client Key Exchange Complete",
+             "TLSv1_2 Client Key Exchange Complete"},
+            {"DTLSv1 read Client Key Exchange Complete",
+             "DTLSv1 write Client Key Exchange Complete",
+             "DTLSv1 Client Key Exchange Complete"},
+            {"DTLSv1_2 read Client Key Exchange Complete",
+             "DTLSv1_2 write Client Key Exchange Complete",
+             "DTLSv1_2 Client Key Exchange Complete"},
+        },
+        {
+            {"SSLv3 read Client Finished Complete",
+             "SSLv3 write Client Finished Complete",
+             "SSLv3 Client Finished Complete"},
+            {"TLSv1 read Client Finished Complete",
+             "TLSv1 write Client Finished Complete",
+             "TLSv1 Client Finished Complete"},
+            {"TLSv1_1 read Client Finished Complete",
+             "TLSv1_1 write Client Finished Complete",
+             "TLSv1_1 Client Finished Complete"},
+            {"TLSv1_2 read Client Finished Complete",
+             "TLSv1_2 write Client Finished Complete",
+             "TLSv1_2 Client Finished Complete"},
+            {"DTLSv1 read Client Finished Complete",
+             "DTLSv1 write Client Finished Complete",
+             "DTLSv1 Client Finished Complete"},
+            {"DTLSv1_2 read Client Finished Complete",
+             "DTLSv1_2 write Client Finished Complete",
+             "DTLSv1_2 Client Finished Complete"},
+        },
+        {
+            {"SSLv3 Handshake Done",
+             "SSLv3 Handshake Done",
+             "SSLv3 Handshake Done"},
+            {"TLSv1 Handshake Done",
+             "TLSv1 Handshake Done",
+             "TLSv1 Handshake Done"},
+            {"TLSv1_1 Handshake Done",
+             "TLSv1_1 Handshake Done",
+             "TLSv1_1 Handshake Done"},
+            {"TLSv1_2 Handshake Done",
+             "TLSv1_2 Handshake Done",
+             "TLSv1_2 Handshake Done"},
+            {"DTLSv1 Handshake Done",
+             "DTLSv1 Handshake Done",
+             "DTLSv1 Handshake Done"},
+            {"DTLSv1_2 Handshake Done"
+             "DTLSv1_2 Handshake Done"
+             "DTLSv1_2 Handshake Done"}
+        }
     };
     enum ProtocolVer {
         SSL_V3 = 0,
@@ -19166,10 +19302,19 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
         UNKNOWN
     };
     int state_type = 0;
+    int node_type = 0;
+    const int UNKNOWN_END = 2;
 
     if (ssl == NULL) {
         WOLFSSL_MSG("Null argument passed in");
         return NULL;
+    }
+
+    /* Get node type (client or server) */
+    node_type = ssl->options.side;
+    if (node_type != WOLFSSL_SERVER_END
+        && node_type != WOLFSSL_CLIENT_END) {
+        node_type = UNKNOWN_END;
     }
 
     /* Get SSL version */
@@ -19210,38 +19355,38 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
 
     switch (wolfSSL_get_state(ssl)) {
         case NULL_STATE:
-            return OUTPUT_STR[NULL_STATE][state_type];
+            return OUTPUT_STR[NULL_STATE][state_type][node_type];
 
         case SERVER_HELLOVERIFYREQUEST_COMPLETE:
             return
-               OUTPUT_STR[SERVER_HELLOVERIFYREQUEST_COMPLETE][state_type];
+               OUTPUT_STR[SERVER_HELLOVERIFYREQUEST_COMPLETE][state_type][node_type];
 
         case SERVER_HELLO_COMPLETE:
-            return OUTPUT_STR[SERVER_HELLO_COMPLETE][state_type];
+            return OUTPUT_STR[SERVER_HELLO_COMPLETE][state_type][node_type];
 
         case SERVER_CERT_COMPLETE:
-            return OUTPUT_STR[SERVER_CERT_COMPLETE][state_type];
+            return OUTPUT_STR[SERVER_CERT_COMPLETE][state_type][node_type];
 
         case SERVER_KEYEXCHANGE_COMPLETE:
-            return OUTPUT_STR[SERVER_KEYEXCHANGE_COMPLETE][state_type];
+            return OUTPUT_STR[SERVER_KEYEXCHANGE_COMPLETE][state_type][node_type];
 
         case SERVER_HELLODONE_COMPLETE:
-            return OUTPUT_STR[SERVER_HELLODONE_COMPLETE][state_type];
+            return OUTPUT_STR[SERVER_HELLODONE_COMPLETE][state_type][node_type];
 
         case SERVER_FINISHED_COMPLETE:
-            return OUTPUT_STR[SERVER_FINISHED_COMPLETE][state_type];
+            return OUTPUT_STR[SERVER_FINISHED_COMPLETE][state_type][node_type];
 
         case CLIENT_HELLO_COMPLETE:
-            return OUTPUT_STR[CLIENT_HELLO_COMPLETE][state_type];
+            return OUTPUT_STR[CLIENT_HELLO_COMPLETE][state_type][node_type];
 
         case CLIENT_KEYEXCHANGE_COMPLETE:
-            return OUTPUT_STR[CLIENT_KEYEXCHANGE_COMPLETE][state_type];
+            return OUTPUT_STR[CLIENT_KEYEXCHANGE_COMPLETE][state_type][node_type];
 
         case CLIENT_FINISHED_COMPLETE:
-            return OUTPUT_STR[CLIENT_FINISHED_COMPLETE][state_type];
+            return OUTPUT_STR[CLIENT_FINISHED_COMPLETE][state_type][node_type];
 
         case HANDSHAKE_DONE:
-            return OUTPUT_STR[HANDSHAKE_DONE][state_type];
+            return OUTPUT_STR[HANDSHAKE_DONE][state_type][node_type];
 
         default:
             WOLFSSL_MSG("Unknown State");
