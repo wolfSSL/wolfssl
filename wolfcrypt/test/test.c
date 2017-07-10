@@ -1088,6 +1088,7 @@ int asn_test()
         return -1302;
     }
     if (now == 0) {
+        printf("RTC/Time not set!\n");
         return -1303;
     }
 #endif
@@ -10664,6 +10665,7 @@ done:
 }
 #endif /* HAVE_ECC_KEY_IMPORT && HAVE_ECC_KEY_EXPORT */
 
+#ifndef WOLFSSL_ATECC508A
 #ifdef HAVE_ECC_KEY_IMPORT
 static int ecc_mulmod_test(ecc_key* key1)
 {
@@ -10705,7 +10707,6 @@ done:
 }
 #endif
 
-#ifndef WOLFSSL_ATECC508A
 static int ecc_ssh_test(ecc_key* key)
 {
     int    ret;
@@ -10757,16 +10758,16 @@ static int ecc_def_curve_test(WC_RNG *rng)
     if (ret < 0)
         goto done;
 #endif
+#ifndef WOLFSSL_ATECC508A
 #ifdef HAVE_ECC_KEY_IMPORT
     ret = ecc_mulmod_test(&key);
     if (ret < 0)
         goto done;
 #endif
-#ifndef WOLFSSL_ATECC508A
     ret = ecc_ssh_test(&key);
     if (ret < 0)
         goto done;
-#endif
+#endif /* WOLFSSL_ATECC508A */
 done:
     wc_ecc_free(&key);
     return ret;
