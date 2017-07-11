@@ -27,8 +27,9 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifndef NO_AES
-
 #include <wolfssl/wolfcrypt/aes.h>
+
+#ifndef WOLFSSL_ARMASM
 
 /* fips wrapper calls, user can call direct */
 #ifdef HAVE_FIPS
@@ -5197,6 +5198,70 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 #endif /* HAVE_AESCCM */
 
 
+/* Initialize Aes for use with async hardware */
+int wc_AesInit(Aes* aes, void* heap, int devId)
+{
+    int ret = 0;
+
+    if (aes == NULL)
+        return BAD_FUNC_ARG;
+
+    aes->heap = heap;
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
+    ret = wolfAsync_DevCtxInit(&aes->asyncDev, WOLFSSL_ASYNC_MARKER_AES,
+                                                        aes->heap, devId);
+#else
+    (void)devId;
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
+    return ret;
+}
+
+/* Free Aes from use with async hardware */
+void wc_AesFree(Aes* aes)
+{
+    if (aes == NULL)
+        return;
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
+    wolfAsync_DevCtxFree(&aes->asyncDev, WOLFSSL_ASYNC_MARKER_AES);
+#endif /* WOLFSSL_ASYNC_CRYPT */
+}
+
+
+int wc_AesGetKeySize(Aes* aes, word32* keySize)
+{
+    int ret = 0;
+
+    if (aes == NULL || keySize == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    switch (aes->rounds) {
+    case 10:
+        *keySize = 16;
+        break;
+    case 12:
+        *keySize = 24;
+        break;
+    case 14:
+        *keySize = 32;
+        break;
+    default:
+        *keySize = 0;
+        ret = BAD_FUNC_ARG;
+    }
+
+    return ret;
+}
+
+#endif /* !WOLFSSL_TI_CRYPT */
+
+#endif /* HAVE_FIPS */
+#endif /* !WOLFSSL_ARMASM */
+
+
 #ifdef HAVE_AES_KEYWRAP
 
 /* Initialize key wrap counter with value */
@@ -5368,67 +5433,4 @@ int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
 
 #endif /* HAVE_AES_KEYWRAP */
 
-
-/* Initialize Aes for use with async hardware */
-int wc_AesInit(Aes* aes, void* heap, int devId)
-{
-    int ret = 0;
-
-    if (aes == NULL)
-        return BAD_FUNC_ARG;
-
-    aes->heap = heap;
-
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
-    ret = wolfAsync_DevCtxInit(&aes->asyncDev, WOLFSSL_ASYNC_MARKER_AES,
-                                                        aes->heap, devId);
-#else
-    (void)devId;
-#endif /* WOLFSSL_ASYNC_CRYPT */
-
-    return ret;
-}
-
-/* Free Aes from use with async hardware */
-void wc_AesFree(Aes* aes)
-{
-    if (aes == NULL)
-        return;
-
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
-    wolfAsync_DevCtxFree(&aes->asyncDev, WOLFSSL_ASYNC_MARKER_AES);
-#endif /* WOLFSSL_ASYNC_CRYPT */
-}
-
-
-int wc_AesGetKeySize(Aes* aes, word32* keySize)
-{
-    int ret = 0;
-
-    if (aes == NULL || keySize == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    switch (aes->rounds) {
-    case 10:
-        *keySize = 16;
-        break;
-    case 12:
-        *keySize = 24;
-        break;
-    case 14:
-        *keySize = 32;
-        break;
-    default:
-        *keySize = 0;
-        ret = BAD_FUNC_ARG;
-    }
-
-    return ret;
-}
-
-#endif /* !WOLFSSL_TI_CRYPT */
-
-#endif /* HAVE_FIPS */
-
-#endif /* NO_AES */
+#endif /* !NO_AES */

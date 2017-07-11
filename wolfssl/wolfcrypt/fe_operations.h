@@ -90,11 +90,9 @@ WOLFSSL_LOCAL void fe_mul121666(fe,fe);
 WOLFSSL_LOCAL void fe_cmov(fe,const fe, int);
 WOLFSSL_LOCAL void fe_pow22523(fe,const fe);
 
-#if !defined(CURVE25519_SMALL) || !defined(ED25519_SMALL)
 /* 64 type needed for SHA512 */
 WOLFSSL_LOCAL uint64_t load_3(const unsigned char *in);
 WOLFSSL_LOCAL uint64_t load_4(const unsigned char *in);
-#endif
 
 #endif /* !CURVE25519_SMALL || !ED25519_SMALL */
 
