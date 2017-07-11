@@ -19298,7 +19298,6 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
     };
     int state_type = 0;
     int node_type = 0;
-    const int UNKNOWN_END = 2;
 
     WOLFSSL_ENTER("wolfSSL_state_string_long");
     if (ssl == NULL) {
@@ -19310,7 +19309,7 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
     node_type = ssl->options.side;
     if (node_type != WOLFSSL_SERVER_END
         && node_type != WOLFSSL_CLIENT_END) {
-        node_type = UNKNOWN_END;
+        node_type = WOLFSSL_NEITHER_END - 1;
     }
 
     /* Get SSL version */

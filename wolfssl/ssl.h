@@ -1756,7 +1756,7 @@ WOLFSSL_API int                  wolfSSL_SetTlsHmacInner(WOLFSSL*, unsigned char
 enum {
     WOLFSSL_SERVER_END = 0,
     WOLFSSL_CLIENT_END = 1,
-    WOLFSSL_NEITHER_END = 2,
+    WOLFSSL_NEITHER_END = 3,
     WOLFSSL_BLOCK_TYPE = 2,
     WOLFSSL_STREAM_TYPE = 3,
     WOLFSSL_AEAD_TYPE = 4,
