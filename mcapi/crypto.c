@@ -411,9 +411,7 @@ int CRYPT_AES_CTR_Encrypt(CRYPT_AES_CTX* aes, unsigned char* out,
     if (aes == NULL || out == NULL || in == NULL)
         return BAD_FUNC_ARG;
 
-    wc_AesCtrEncrypt((Aes*)aes, out, in, inSz);
-
-    return 0;
+    return wc_AesCtrEncrypt((Aes*)aes, out, in, inSz);
 }
 
 
@@ -525,7 +523,7 @@ int CRYPT_RSA_PrivateDecrypt(CRYPT_RSA_CTX* rsa, unsigned char* out,
 
 
 /* RSA Get Encrypt size helper */
-int CRYPT_RSA_EncryptSizeGet(CRYPT_RSA_CTX* rsa) 
+int CRYPT_RSA_EncryptSizeGet(CRYPT_RSA_CTX* rsa)
 {
     if (rsa == NULL)
         return BAD_FUNC_ARG;

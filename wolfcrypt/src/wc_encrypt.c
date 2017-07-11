@@ -43,6 +43,10 @@ int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
     Aes  aes[1];
 #endif
 
+    if (out == NULL || in == NULL || key == NULL || iv == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
 #ifdef WOLFSSL_SMALL_STACK
     aes = (Aes*)XMALLOC(sizeof(Aes), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (aes == NULL)

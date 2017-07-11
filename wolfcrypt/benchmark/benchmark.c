@@ -1321,14 +1321,17 @@ void bench_aesctr(void)
 {
     Aes    enc;
     double start;
-    int    i, count;
+    int    i, count, ret;
 
     wc_AesSetKeyDirect(&enc, bench_key, AES_BLOCK_SIZE, bench_iv, AES_ENCRYPTION);
 
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < numBlocks; i++) {
-            wc_AesCtrEncrypt(&enc, bench_plain, bench_cipher, BENCH_SIZE);
+            if((ret = wc_AesCtrEncrypt(&enc, bench_plain, bench_cipher, BENCH_SIZE)) != 0) {
+                printf("wc_AesCtrEncrypt failed, ret = %d\n", ret);
+                return;
+            }
         }
         count += i;
     } while (bench_stats_sym_check(start));

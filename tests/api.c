@@ -61,6 +61,12 @@
 #ifdef WOLFSSL_SHA384
     #include <wolfssl/wolfcrypt/sha512.h>
 #endif
+#ifndef NO_AES
+    #include <wolfssl/wolfcrypt/aes.h>
+    #ifdef HAVE_AES_DECRYPT
+        #include <wolfcrypt/src/wc_encrypt.c>
+    #endif
+#endif
 #ifdef WOLFSSL_RIPEMD
     #include <wolfssl/wolfcrypt/ripemd.h>
 #endif
@@ -5598,6 +5604,766 @@ static int test_wc_ChaCha20Poly1305_aead (void)
 } /* END test-wc_ChaCha20Poly1305_EncryptDecrypt */
 
 
+/*
+ * Testing function for wc_AesSetIV
+ */
+static int test_wc_AesSetIV (void)
+{
+#ifndef NO_AES
+    Aes     aes;
+    byte    key16[] =
+    {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte    iv1[]    = "1234567890abcdef";
+    byte    iv2[]    = "0987654321fedcba";
+    int     ret;
+
+    printf(testingFmt, "wc_AesSetIV()");
+
+    ret = wc_AesSetKey(&aes, key16, (word32) sizeof(key16) / sizeof(byte),
+                                                     iv1, AES_ENCRYPTION);
+    if(ret == 0) {
+        ret = wc_AesSetIV(&aes, iv2);
+    }
+    /* Test bad args. */
+    if(ret == 0) {
+        ret = wc_AesSetIV(NULL, iv1);
+        if(ret == BAD_FUNC_ARG) {
+            /* NULL iv should return 0. */
+            ret = wc_AesSetIV(&aes, NULL);
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* test_wc_AesSetIV */
+
+
+/*
+ * Testing function for wc_AesSetKey().
+ */
+static int test_wc_AesSetKey (void)
+{
+#ifndef NO_AES
+    Aes     aes;
+    byte    key16[] =
+    {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte    key24[] =
+    {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37
+    };
+    byte    key32[] =
+    {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte    badKey16[] =
+    {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65
+    };
+    byte    iv[]    = "1234567890abcdef";
+    int     ret;
+
+    printf(testingFmt, "wc_AesSetKey()");
+
+    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_AesSetKey(&aes, key16, (word32) sizeof(key16) / sizeof(byte),
+                                                        iv, AES_ENCRYPTION);
+    }
+    if (ret == 0) {
+        ret = wc_AesSetKey (&aes, key24, (word32) sizeof(key24) / sizeof(byte),
+                                                           iv, AES_ENCRYPTION);
+    }
+    if (ret == 0) {
+        ret = wc_AesSetKey (&aes, key32, (word32) sizeof(key32) / sizeof(byte),
+                                                           iv, AES_ENCRYPTION);
+    }
+    /* Pass in bad args. */
+    if (ret == 0) {
+        ret = wc_AesSetKey (NULL, key16, (word32) sizeof(key16) / sizeof(byte),
+                                                           iv, AES_ENCRYPTION);
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_AesSetKey(&aes, badKey16,
+                                    (word32) sizeof(badKey16) / sizeof(byte),
+                                                         iv, AES_ENCRYPTION);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_AesSetKey */
+
+
+
+/*
+ * test function for wc_AesCbcEncrypt(), wc_AesCbcDecrypt(),
+ * and wc_AesCbcDecryptWithKey()
+ */
+static int test_wc_AesCbcEncryptDecrypt (void)
+{
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT)
+    Aes     aes;
+    byte    key32[] =
+    {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte    vector[] = /* Now is the time for all w/o trailing 0 */
+    {
+        0x4e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
+        0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
+        0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20
+    };
+    byte    iv[]    = "1234567890abcdef";
+    byte    enc[AES_BLOCK_SIZE];
+    byte    dec[sizeof(vector)];
+    int     cbcE    =   SSL_FATAL_ERROR;
+    int     cbcD    =   SSL_FATAL_ERROR;
+    int     cbcDWK  =   SSL_FATAL_ERROR;
+    byte    dec2[sizeof(vector)];
+    int     ret;
+
+    /* Init stack variables. */
+    XMEMSET(enc, 0, AES_BLOCK_SIZE);
+    XMEMSET(dec, 0, sizeof(vector));
+    XMEMSET(dec2, 0, sizeof(vector));
+
+    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_AesSetKey(&aes, key32, AES_BLOCK_SIZE * 2, iv, AES_ENCRYPTION);
+    }
+    if (ret == 0) {
+        ret = wc_AesCbcEncrypt(&aes, enc, vector, sizeof(vector));
+        if (ret == 0) {
+            /* Re init for decrypt and set flag. */
+            cbcE = 0;
+            ret = wc_AesSetKey(&aes, key32, AES_BLOCK_SIZE * 2,
+                                                    iv, AES_DECRYPTION);
+        }
+        if (ret == 0) {
+            ret = wc_AesCbcDecrypt(&aes, dec, enc, AES_BLOCK_SIZE);
+            if (ret != 0 || XMEMCMP(vector, dec, AES_BLOCK_SIZE) != 0) {
+                ret = SSL_FATAL_ERROR;
+            } else {
+                /* Set flag. */
+                cbcD = 0;
+            }
+        }
+    }
+    /* If encrypt succeeds but cbc decrypt fails, we can still test. */
+    if (ret == 0 || (ret != 0 && cbcE == 0)) {
+        ret = wc_AesCbcDecryptWithKey(dec2, enc, AES_BLOCK_SIZE,
+                                     key32, sizeof(key32)/sizeof(byte), iv);
+        if (ret == 0 || XMEMCMP(vector, dec2, AES_BLOCK_SIZE) == 0) {
+            cbcDWK = 0;
+        }
+    }
+
+    printf(testingFmt, "wc_AesCbcEncrypt()");
+    /* Pass in bad args */
+    if (cbcE == 0) {
+        cbcE = wc_AesCbcEncrypt(NULL, enc, vector, sizeof(vector));
+        if (cbcE == BAD_FUNC_ARG) {
+            cbcE = wc_AesCbcEncrypt(&aes, NULL, vector, sizeof(vector));
+        }
+        if (cbcE == BAD_FUNC_ARG) {
+            cbcE = wc_AesCbcEncrypt(&aes, enc, NULL, sizeof(vector));
+        }
+        if (cbcE == BAD_FUNC_ARG) {
+            cbcE = 0;
+        } else {
+            cbcE = SSL_FATAL_ERROR;
+        }
+    }
+    printf(resultFmt, cbcE == 0 ? passed : failed);
+
+    printf(testingFmt, "wc_AesCbcDecrypt()");
+    if (cbcD == 0) {
+        cbcD = wc_AesCbcDecrypt(NULL, dec, enc, AES_BLOCK_SIZE);
+        if (cbcD == BAD_FUNC_ARG) {
+            cbcD = wc_AesCbcDecrypt(&aes, NULL, enc, AES_BLOCK_SIZE);
+        }
+        if (cbcD == BAD_FUNC_ARG) {
+            cbcD = wc_AesCbcDecrypt(&aes, dec, NULL, AES_BLOCK_SIZE);
+        }
+        if (cbcD == BAD_FUNC_ARG) {
+            cbcD = wc_AesCbcDecrypt(&aes, dec, enc, AES_BLOCK_SIZE * 2 - 1);
+        }
+        if (cbcD == BAD_FUNC_ARG) {
+            cbcD = 0;
+        } else {
+            cbcD = SSL_FATAL_ERROR;
+        }
+    }
+    printf(resultFmt, cbcD == 0 ? passed : failed);
+
+    printf(testingFmt, "wc_AesCbcDecryptWithKey()");
+    if (cbcDWK == 0) {
+        cbcDWK = wc_AesCbcDecryptWithKey(NULL, enc, AES_BLOCK_SIZE,
+                                     key32, sizeof(key32)/sizeof(byte), iv);
+        if (cbcDWK == BAD_FUNC_ARG) {
+            cbcDWK = wc_AesCbcDecryptWithKey(dec2, NULL, AES_BLOCK_SIZE,
+                                     key32, sizeof(key32)/sizeof(byte), iv);
+        }
+        if (cbcDWK == BAD_FUNC_ARG) {
+            cbcDWK = wc_AesCbcDecryptWithKey(dec2, enc, AES_BLOCK_SIZE,
+                                     NULL, sizeof(key32)/sizeof(byte), iv);
+        }
+        if (cbcDWK == BAD_FUNC_ARG) {
+            cbcDWK = wc_AesCbcDecryptWithKey(dec2, enc, AES_BLOCK_SIZE,
+                                     key32, sizeof(key32)/sizeof(byte), NULL);
+        }
+        if (cbcDWK == BAD_FUNC_ARG) {
+            cbcDWK = 0;
+        } else {
+            cbcDWK = SSL_FATAL_ERROR;
+        }
+    }
+        printf(resultFmt, cbcDWK == 0 ? passed : failed);
+#endif
+    return 0;
+} /* END test_wc_AesCbcEncryptDecrypt */
+
+/*
+ * Testing wc_AesCtrEncrypt and wc_AesCtrDecrypt
+ */
+static int test_wc_AesCtrEncryptDecrypt (void)
+{
+#if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER)
+    Aes     aesEnc, aesDec;
+    byte    key32[] =
+    {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte    vector[] = /* Now is the time for all w/o trailing 0 */
+    {
+        0x4e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
+        0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
+        0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20
+    };
+    byte    iv[]    = "1234567890abcdef";
+    byte    enc[AES_BLOCK_SIZE * 2];
+    byte    dec[AES_BLOCK_SIZE * 2];
+    int     ret;
+
+    /* Init stack variables. */
+    XMEMSET(enc, 0, AES_BLOCK_SIZE * 2);
+    XMEMSET(dec, 0, AES_BLOCK_SIZE * 2);
+
+    printf(testingFmt, "wc_AesCtrEncrypt()");
+
+    ret = wc_AesInit(&aesEnc, NULL, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_AesInit(&aesDec, NULL, INVALID_DEVID);
+    }
+    if (ret == 0) {
+        ret = wc_AesSetKey(&aesEnc, key32, AES_BLOCK_SIZE * 2,
+                                                    iv, AES_ENCRYPTION);
+    }
+    if (ret == 0) {
+        ret = wc_AesCtrEncrypt(&aesEnc, enc, vector,
+                                            sizeof(vector)/sizeof(byte));
+        if (ret == 0) {
+            /* Decrypt with wc_AesCtrEncrypt() */
+            ret = wc_AesSetKey(&aesDec, key32, AES_BLOCK_SIZE * 2,
+                                                    iv, AES_ENCRYPTION);
+        }
+        if (ret == 0) {
+            ret = wc_AesCtrEncrypt(&aesDec, dec, enc, sizeof(enc)/sizeof(byte));
+            if (ret != 0 || XMEMCMP(vector, dec, sizeof(vector))) {
+                ret = SSL_FATAL_ERROR;
+            }
+        }
+    }
+
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_AesCtrEncrypt(NULL, dec, enc, sizeof(enc)/sizeof(byte));
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_AesCtrEncrypt(&aesDec, NULL, enc, sizeof(enc)/sizeof(byte));
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_AesCtrEncrypt(&aesDec, dec, NULL, sizeof(enc)/sizeof(byte));
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_AesCtrEncryptDecrypt */
+
+/*
+ * test function for wc_AesGcmSetKey()
+ */
+static int test_wc_AesGcmSetKey (void)
+{
+#if  !defined(NO_AES) && defined(HAVE_AESGCM)
+
+    Aes     aes;
+    byte    key16[] =
+    {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte    key24[] =
+    {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37
+    };
+    byte    key32[] =
+    {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte    badKey16[] =
+    {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65
+    };
+    byte    badKey24[] =
+    {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36
+    };
+    byte   badKey32[] =
+    {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x37, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65
+    };
+    int     ret;
+
+    printf(testingFmt, "wc_AesGcmSetKey()");
+
+    ret = wc_AesGcmSetKey(&aes, key16, sizeof(key16)/sizeof(byte));
+    if (ret == 0) {
+        ret = wc_AesGcmSetKey(&aes, key24, sizeof(key24)/sizeof(byte));
+    }
+    if (ret == 0) {
+        ret = wc_AesGcmSetKey(&aes, key32, sizeof(key32)/sizeof(byte));
+    }
+
+    /* Pass in bad args. */
+    if (ret == 0) {
+        ret = wc_AesGcmSetKey(&aes, badKey16, sizeof(badKey16)/sizeof(byte));
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_AesGcmSetKey(&aes, badKey24, sizeof(badKey24)/sizeof(byte));
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_AesGcmSetKey(&aes, badKey32, sizeof(badKey32)/sizeof(byte));
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+} /* END test_wc_AesGcmSetKey */
+
+/*
+ * test function for wc_AesGcmEncrypt and wc_AesGcmDecrypt
+ */
+static int test_wc_AesGcmEncryptDecrypt (void)
+{
+#if !defined(NO_AES) && defined(HAVE_AESGCM)
+
+    Aes     aes;
+    byte    key32[] =
+    {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte    vector[] = /* Now is the time for all w/o trailing 0 */
+    {
+        0x4e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
+        0x68,0x65,0x20,0x74,0x69,0x6d,0x65,0x20,
+        0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20
+    };
+    const byte a[] =
+    {
+        0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
+        0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
+        0xab, 0xad, 0xda, 0xd2
+    };
+    byte    iv[]   = "1234567890a";
+    byte    badIV[]  = "1234567890abcde";
+    byte    enc[sizeof(vector)];
+    byte    resultT[AES_BLOCK_SIZE];
+    byte    dec[sizeof(vector)];
+    int     ret;
+    int     gcmD     =   SSL_FATAL_ERROR;
+    int     gcmE     =   SSL_FATAL_ERROR;
+
+    /* Init stack variables. */
+    XMEMSET(enc, 0, sizeof(vector));
+    XMEMSET(dec, 0, sizeof(vector));
+    XMEMSET(resultT, 0, AES_BLOCK_SIZE);
+
+    ret = wc_AesGcmSetKey(&aes, key32, sizeof(key32)/sizeof(byte));
+    if (ret == 0) {
+        ret = wc_AesGcmEncrypt(&aes, enc, vector, sizeof(vector),
+                                        iv, sizeof(iv)/sizeof(byte), resultT,
+                                        sizeof(resultT), a, sizeof(a));
+    }
+    if (ret == 0) { /* If encrypt fails, no decrypt. */
+        gcmE = 0;
+        ret = wc_AesGcmDecrypt(&aes, dec, enc, sizeof(vector),
+                                        iv, sizeof(iv)/sizeof(byte), resultT,
+                                        sizeof(resultT), a, sizeof(a));
+        if(ret == 0 || (XMEMCMP(vector, dec, sizeof(vector)) ==  0)) {
+            gcmD = 0;
+        }
+    }
+    printf(testingFmt, "wc_AesGcmEncrypt()");
+    /*Test bad args for wc_AesGcmEncrypt and wc_AesGcmDecrypt */
+    if (gcmE == 0) {
+        gcmE = wc_AesGcmEncrypt(NULL, enc, vector, sizeof(vector),
+                        iv, sizeof(iv)/sizeof(byte), resultT, sizeof(resultT),
+                        a, sizeof(a));
+        if (gcmE == BAD_FUNC_ARG) {
+            gcmE = wc_AesGcmEncrypt(&aes, enc, vector,
+                    sizeof(vector), iv, sizeof(iv)/sizeof(byte),
+                    resultT, sizeof(resultT) + 1, a, sizeof(a));
+        }
+        if (gcmE == BAD_FUNC_ARG) {
+            gcmE = wc_AesGcmEncrypt(&aes, enc, vector,
+                    sizeof(vector), iv, sizeof(iv)/sizeof(byte),
+                    resultT, sizeof(resultT) - 5, a, sizeof(a));
+        }
+        if (gcmE == BAD_FUNC_ARG) {
+            gcmE = wc_AesGcmEncrypt(&aes, enc, vector, sizeof(vector), badIV,
+                            sizeof(badIV)/sizeof(byte), resultT, sizeof(resultT),
+                            a, sizeof(a));
+        }
+    #ifdef HAVE_FIPS
+        if (gcmE == BAD_FUNC_ARG) {
+            gcmE = 0;
+        } else {
+            gcmE = SSL_FATAL_ERROR;
+        }
+    #endif
+    } /* END wc_AesGcmEncrypt */
+
+    printf(resultFmt, gcmE == 0 ? passed : failed);
+    printf(testingFmt, "wc_AesGcmDecrypt()");
+
+    if (gcmD == 0) {
+        gcmD = wc_AesGcmDecrypt(NULL, dec, enc, sizeof(enc)/sizeof(byte),
+                               iv, sizeof(iv)/sizeof(byte), resultT,
+                               sizeof(resultT), a, sizeof(a));
+        if (gcmD == BAD_FUNC_ARG) {
+            gcmD = wc_AesGcmDecrypt(&aes, NULL, enc, sizeof(enc)/sizeof(byte),
+                               iv, sizeof(iv)/sizeof(byte), resultT,
+                               sizeof(resultT), a, sizeof(a));
+        }
+        if (gcmD == BAD_FUNC_ARG) {
+            gcmD = wc_AesGcmDecrypt(&aes, dec, NULL, sizeof(enc)/sizeof(byte),
+                               iv, sizeof(iv)/sizeof(byte), resultT,
+                               sizeof(resultT), a, sizeof(a));
+        }
+        if (gcmD == BAD_FUNC_ARG) {
+            gcmD = wc_AesGcmDecrypt(&aes, dec, enc, sizeof(enc)/sizeof(byte),
+                               NULL, sizeof(iv)/sizeof(byte), resultT,
+                               sizeof(resultT), a, sizeof(a));
+        }
+        if (gcmD == BAD_FUNC_ARG) {
+            gcmD = wc_AesGcmDecrypt(&aes, dec, enc, sizeof(enc)/sizeof(byte),
+                               iv, sizeof(iv)/sizeof(byte), NULL,
+                               sizeof(resultT), a, sizeof(a));
+        }
+        if (gcmD == BAD_FUNC_ARG) {
+            gcmD = wc_AesGcmDecrypt(&aes, dec, enc, 0, iv,
+                                    sizeof(iv)/sizeof(byte), resultT,
+                                    sizeof(resultT), a, sizeof(a));
+        }
+        if (gcmD == BAD_FUNC_ARG) {
+            gcmD = wc_AesGcmDecrypt(&aes, dec, enc, sizeof(enc)/sizeof(byte),
+                               iv, sizeof(iv)/sizeof(byte), resultT,
+                               sizeof(resultT) + 1, a, sizeof(a));
+            if (gcmD == BAD_FUNC_ARG) {
+                gcmD = 0;
+            } else {
+                gcmD = SSL_FATAL_ERROR;
+            }
+        }
+    } /* END wc_AesGcmDecrypt */
+
+    printf(resultFmt, gcmD == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_AesGcmEncryptDecrypt */
+
+/*
+ * unit test for wc_GmacSetKey()
+ */
+static int test_wc_GmacSetKey (void)
+{
+#if !defined(NO_AES) && defined(HAVE_AESGCM)
+    Gmac    gmac;
+    byte    key16[] =
+    {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte    key24[] =
+    {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37
+    };
+    byte    key32[] =
+    {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+    byte    badKey16[] =
+    {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x66
+    };
+    byte    badKey24[] =
+    {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37
+    };
+    byte    badKey32[] =
+    {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x64, 0x65, 0x66,
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+        0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+   int      ret;
+
+    printf(testingFmt, "wc_GmacSetKey()");
+
+    ret = wc_GmacSetKey(&gmac, key16, sizeof(key16)/sizeof(byte));
+    if (ret == 0) {
+        ret = wc_GmacSetKey(&gmac, key24, sizeof(key24)/sizeof(byte));
+    }
+    if (ret == 0) {
+        ret = wc_GmacSetKey(&gmac, key32, sizeof(key32)/sizeof(byte));
+    }
+
+    /* Pass in bad args. */
+    if (ret == 0) {
+        ret = wc_GmacSetKey(NULL, key16, sizeof(key16)/sizeof(byte));
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_GmacSetKey(&gmac, NULL, sizeof(key16)/sizeof(byte));
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_GmacSetKey(&gmac, badKey16, sizeof(badKey16)/sizeof(byte));
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_GmacSetKey(&gmac, badKey24, sizeof(badKey24)/sizeof(byte));
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_GmacSetKey(&gmac, badKey32, sizeof(badKey32)/sizeof(byte));
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_GmacSetKey */
+
+/*
+ * unit test for wc_GmacUpdate
+ */
+static int test_wc_GmacUpdate (void)
+{
+#if !defined(NO_AES) && defined(HAVE_AESGCM)
+    Gmac    gmac;
+    const byte key16[] =
+    {
+        0x89, 0xc9, 0x49, 0xe9, 0xc8, 0x04, 0xaf, 0x01,
+        0x4d, 0x56, 0x04, 0xb3, 0x94, 0x59, 0xf2, 0xc8
+    };
+    byte    key24[] =
+    {
+        0x41, 0xc5, 0xda, 0x86, 0x67, 0xef, 0x72, 0x52,
+        0x20, 0xff, 0xe3, 0x9a, 0xe0, 0xac, 0x59, 0x0a,
+        0xc9, 0xfc, 0xa7, 0x29, 0xab, 0x60, 0xad, 0xa0
+    };
+   byte    key32[] =
+    {
+        0x78, 0xdc, 0x4e, 0x0a, 0xaf, 0x52, 0xd9, 0x35,
+        0xc3, 0xc0, 0x1e, 0xea, 0x57, 0x42, 0x8f, 0x00,
+        0xca, 0x1f, 0xd4, 0x75, 0xf5, 0xda, 0x86, 0xa4,
+        0x9c, 0x8d, 0xd7, 0x3d, 0x68, 0xc8, 0xe2, 0x23
+    };
+    const byte authIn[] =
+    {
+        0x82, 0xad, 0xcd, 0x63, 0x8d, 0x3f, 0xa9, 0xd9,
+        0xf3, 0xe8, 0x41, 0x00, 0xd6, 0x1e, 0x07, 0x77
+    };
+    const byte authIn2[] =
+    {
+       0x8b, 0x5c, 0x12, 0x4b, 0xef, 0x6e, 0x2f, 0x0f,
+       0xe4, 0xd8, 0xc9, 0x5c, 0xd5, 0xfa, 0x4c, 0xf1
+    };
+    const byte authIn3[] =
+    {
+        0xb9, 0x6b, 0xaa, 0x8c, 0x1c, 0x75, 0xa6, 0x71,
+        0xbf, 0xb2, 0xd0, 0x8d, 0x06, 0xbe, 0x5f, 0x36
+    };
+    const byte tag1[] = /* Known. */
+    {
+        0x88, 0xdb, 0x9d, 0x62, 0x17, 0x2e, 0xd0, 0x43,
+        0xaa, 0x10, 0xf1, 0x6d, 0x22, 0x7d, 0xc4, 0x1b
+    };
+    const byte tag2[] = /* Known */
+    {
+        0x20, 0x4b, 0xdb, 0x1b, 0xd6, 0x21, 0x54, 0xbf,
+        0x08, 0x92, 0x2a, 0xaa, 0x54, 0xee, 0xd7, 0x05
+    };
+    const byte tag3[] = /* Known */
+    {
+        0x3e, 0x5d, 0x48, 0x6a, 0xa2, 0xe3, 0x0b, 0x22,
+        0xe0, 0x40, 0xb8, 0x57, 0x23, 0xa0, 0x6e, 0x76
+    };
+    const byte iv[] =
+    {
+        0xd1, 0xb1, 0x04, 0xc8, 0x15, 0xbf, 0x1e, 0x94,
+        0xe2, 0x8c, 0x8f, 0x16
+    };
+    const byte iv2[] =
+    {
+        0x05, 0xad, 0x13, 0xa5, 0xe2, 0xc2, 0xab, 0x66,
+        0x7e, 0x1a, 0x6f, 0xbc
+    };
+    const byte iv3[] =
+    {
+        0xd7, 0x9c, 0xf2, 0x2d, 0x50, 0x4c, 0xc7, 0x93,
+        0xc3, 0xfb, 0x6c, 0x8a
+    };
+    byte    tagOut[16];
+    byte    tagOut2[24];
+    byte    tagOut3[32];
+    int     ret;
+
+    /* Init stack varaibles. */
+    XMEMSET(tagOut, 0, sizeof(tagOut));
+    XMEMSET(tagOut2, 0, sizeof(tagOut2));
+    XMEMSET(tagOut3, 0, sizeof(tagOut3));
+
+    printf(testingFmt, "wc_GmacUpdate()");
+
+    ret = wc_GmacSetKey(&gmac, key16, sizeof(key16));
+    if (ret == 0) {
+        ret = wc_GmacUpdate(&gmac, iv, sizeof(iv), authIn, sizeof(authIn),
+                                                    tagOut, sizeof(tag1));
+        if (ret == 0) {
+            ret = XMEMCMP(tag1, tagOut, sizeof(tag1));
+        }
+        if (ret == 0) {
+            XMEMSET(&gmac, 0, sizeof(Gmac));
+            ret = wc_GmacSetKey(&gmac, key24, sizeof(key24)/sizeof(byte));
+        }
+        if (ret == 0) {
+            ret = wc_GmacUpdate(&gmac, iv2, sizeof(iv2), authIn2,
+                                sizeof(authIn2), tagOut2, sizeof(tag2));
+        }
+        if (ret == 0) {
+            ret = XMEMCMP(tagOut2, tag2, sizeof(tag2));
+        }
+        if (ret == 0) {
+            XMEMSET(&gmac, 0, sizeof(Gmac));
+            ret = wc_GmacSetKey(&gmac, key32, sizeof(key32)/sizeof(byte));
+        }
+        if (ret == 0) {
+            ret = wc_GmacUpdate(&gmac, iv3, sizeof(iv3), authIn3,
+                                sizeof(authIn3), tagOut3, sizeof(tag3));
+        }
+        if (ret == 0) {
+            ret = XMEMCMP(tag3, tagOut3, sizeof(tag3));
+        }
+    }
+
+    /*Pass bad args. */
+    if (ret == 0) {
+        ret = wc_GmacUpdate(NULL, iv3, sizeof(iv3), authIn3,
+                                sizeof(authIn3), tagOut3, sizeof(tag3));
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_GmacUpdate(&gmac, iv3, sizeof(iv3), authIn3,
+                                sizeof(authIn3), tagOut3, sizeof(tag3) - 5);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_GmacUpdate(&gmac, iv3, sizeof(iv3), authIn3,
+                                sizeof(authIn3), tagOut3, sizeof(tag3) + 1);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return 0;
+
+} /* END test_wc_GmacUpdate */
+
 
 /*
  * testing wc_CamelliaSetKey
@@ -7587,6 +8353,14 @@ void ApiTest(void)
     AssertIntEQ(test_wc_Arc4SetKey(), 0);
     AssertIntEQ(test_wc_Arc4Process(), 0);
 
+    AssertIntEQ(test_wc_AesSetKey(), 0);
+    AssertIntEQ(test_wc_AesSetIV(), 0);
+    AssertIntEQ(test_wc_AesCbcEncryptDecrypt(), 0);
+    AssertIntEQ(test_wc_AesCtrEncryptDecrypt(), 0);
+    AssertIntEQ(test_wc_AesGcmSetKey(), 0);
+    AssertIntEQ(test_wc_AesGcmEncryptDecrypt(), 0);
+    AssertIntEQ(test_wc_GmacSetKey(), 0);
+    AssertIntEQ(test_wc_GmacUpdate(), 0);
     printf(" End API Tests\n");
 
 }
