@@ -18650,6 +18650,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                 case ntru_kea:
                 {
                     word32 rc;
+                    word16 tmpEncSz = (word16)args->encSz;
                     DRBG_HANDLE drbg;
 
                     rc = ntru_crypto_drbg_external_instantiate(GetEntropy, &drbg);
@@ -18660,8 +18661,9 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                                                   ssl->peerNtruKey,
                                                   ssl->arrays->preMasterSz,
                                                   ssl->arrays->preMasterSecret,
-                                                  (word16*)&args->encSz,
+                                                  &tmpEncSz,
                                                   args->encSecret);
+                    args->encSz = tmpEncSz;
                     ntru_crypto_drbg_uninstantiate(drbg);
                     if (rc != NTRU_OK) {
                         ERROR_OUT(NTRU_ENCRYPT_ERROR, exit_scke);
@@ -19064,7 +19066,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
     if (ret == 0) {
         WOLFSSL_MSG("Using RSA private key");
 
-        /* It worked so check it meeets minimum key size requirements. */
+        /* It worked so check it meets minimum key size requirements. */
         keySz = wc_RsaEncryptSize((RsaKey*)ssl->hsKey);
         if (keySz < 0) { /* check if keySz has error case */
             ERROR_OUT(keySz, exit_dpk);
@@ -19178,8 +19180,8 @@ typedef struct ScvArgs {
     word32 extraSz;
     word32 sigSz;
     int    sendSz;
-    int    length;
     int    inputSz;
+    word16 length;
     byte   sigAlgo;
 } ScvArgs;
 
@@ -19268,7 +19270,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
             }
 
             /* Decode private key. */
-            ret = DecodePrivateKey(ssl, (word16*)&args->length);
+            ret = DecodePrivateKey(ssl, &args->length);
             if (ret != 0) {
                 goto exit_scv;
             }
@@ -19347,7 +19349,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
                 }
 
                 /* prepend hdr */
-                c16toa((word16)args->length, args->verify + args->extraSz);
+                c16toa(args->length, args->verify + args->extraSz);
             }
             else if (args->sigAlgo == rsa_pss_sa_algo) {
                 XMEMCPY(ssl->buffers.sig.buffer, ssl->buffers.digest.buffer,
@@ -19356,7 +19358,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
                 args->sigSz = ENCRYPT_LEN;
 
                 /* prepend hdr */
-                c16toa((word16)args->length, args->verify + args->extraSz);
+                c16toa(args->length, args->verify + args->extraSz);
             }
         #endif /* !NO_RSA */
 
@@ -19441,20 +19443,18 @@ int SendCertificateVerify(WOLFSSL* ssl)
 
         #ifdef HAVE_ECC
             if (ssl->hsType == DYNAMIC_TYPE_ECC) {
-                args->length = ssl->buffers.sig.length;
+                args->length = (word16)ssl->buffers.sig.length;
                 /* prepend hdr */
-                c16toa((word16)ssl->buffers.sig.length, args->verify +
-                                                                args->extraSz);
+                c16toa(args->length, args->verify + args->extraSz);
                 XMEMCPY(args->verify + args->extraSz + VERIFY_HEADER,
                         ssl->buffers.sig.buffer, ssl->buffers.sig.length);
             }
         #endif /* HAVE_ECC */
         #ifdef HAVE_ECC
             if (ssl->hsType == DYNAMIC_TYPE_ED25519) {
-                args->length = ssl->buffers.sig.length;
+                args->length = (word16)ssl->buffers.sig.length;
                 /* prepend hdr */
-                c16toa((word16)ssl->buffers.sig.length, args->verify +
-                                                                args->extraSz);
+                c16toa(args->length, args->verify + args->extraSz);
                 XMEMCPY(args->verify + args->extraSz + VERIFY_HEADER,
                         ssl->buffers.sig.buffer, ssl->buffers.sig.length);
             }
@@ -19497,11 +19497,11 @@ int SendCertificateVerify(WOLFSSL* ssl)
             if (args->output == NULL) {
                 ERROR_OUT(BUFFER_ERROR, exit_scv);
             }
-            AddHeaders(args->output, args->length + args->extraSz +
+            AddHeaders(args->output, (word32)args->length + args->extraSz +
                                         VERIFY_HEADER, certificate_verify, ssl);
 
             args->sendSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ +
-                                    args->length + args->extraSz + VERIFY_HEADER;
+                           (word32)args->length + args->extraSz + VERIFY_HEADER;
 
         #ifdef WOLFSSL_DTLS
             if (ssl->options.dtls) {
