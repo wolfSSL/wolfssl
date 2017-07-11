@@ -4707,8 +4707,11 @@ int wc_ecc_check_key(ecc_key* key)
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_ATECC508A
-    /* TODO: Implement equiv call to ATECC508A */
-    err = BAD_COND_E;
+
+    if (key->slot == ATECC_INVALID_SLOT)
+        return ECC_BAD_ARG_E;
+
+    err = 0; /* consider key check success on ECC508A */
 
 #else
 
@@ -5014,13 +5017,25 @@ static int wc_ecc_export_raw(ecc_key* key, byte* qx, word32* qxLen,
         *dLen = numLen;
         XMEMSET(d, 0, *dLen);
 
+    #ifdef WOLFSSL_ATECC508A
+       /* TODO: Implement equiv call to ATECC508A */
+       return BAD_COND_E;
+
+    #else
+
         /* private key, d */
         err = mp_to_unsigned_bin(&key->k, d +
                             (numLen - mp_unsigned_bin_size(&key->k)));
         if (err != MP_OKAY)
             return err;
+    #endif /* WOLFSSL_ATECC508A */
     }
 
+#ifdef WOLFSSL_ATECC508A
+    /* TODO: Implement equiv call to ATECC508A */
+    return BAD_COND_E;
+
+#else
     /* public x component */
     err = mp_to_unsigned_bin(key->pubkey.x, qx +
                             (numLen - mp_unsigned_bin_size(key->pubkey.x)));
@@ -5034,6 +5049,7 @@ static int wc_ecc_export_raw(ecc_key* key, byte* qx, word32* qxLen,
         return err;
 
     return 0;
+#endif /* WOLFSSL_ATECC508A */
 }
 
 
