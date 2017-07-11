@@ -15145,7 +15145,6 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
         /* these index values are already stored in DecodedName
            use those when available */
         if (name->fullName.fullName && name->fullName.fullNameLen > 0) {
-            printf("NID = %x\n",nid);
             switch (nid) {
                 case ASN_COMMON_NAME:
                     if (pos != name->fullName.cnIdx)
@@ -15154,9 +15153,6 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
                 case ASN_DOMAIN_COMPONENT:
                     if (pos != name->fullName.dcIdx)
                         ret = name->fullName.dcIdx;
-                    printf("domain_component = %s\n",name->fullName.fullName + name->fullName.dcIdx);
-                    printf("domain_component Idx  = %d\n",name->fullName.dcIdx);
-                    printf("domain_component Len  = %d\n",name->fullName.dcLen);
                     break;
                 default:
                     WOLFSSL_MSG("NID not yet implemented");
@@ -19079,7 +19075,6 @@ const char* wolfSSL_alert_desc_string_long(int alertID)
  */
 const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
 {
-    WOLFSSL_ENTER("wolfSSL_state_string_long");
 
     static const char* OUTPUT_STR[11][6][3] = {
         {
@@ -19299,12 +19294,13 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
         TLS_V1_2,
         DTLS_V1,
         DTLS_V1_2,
-        UNKNOWN
+        UNKNOWN = 100
     };
     int state_type = 0;
     int node_type = 0;
     const int UNKNOWN_END = 2;
 
+    WOLFSSL_ENTER("wolfSSL_state_string_long");
     if (ssl == NULL) {
         WOLFSSL_MSG("Null argument passed in");
         return NULL;
@@ -29475,7 +29471,6 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             name->cnEntry.set  = 1;
             return &(name->cnEntry);
         } else if (loc == name->fullName.dcIdx){
-            printf("domain = %s\n",name->x509->subjectCN);
             name->cnEntry.data.data   = name->x509->subjectCN;
             name->cnEntry.data.length = name->fullName.dcLen;
             name->cnEntry.data.type   = CTC_UTF8;
