@@ -1287,20 +1287,13 @@ static INLINE int Sha256Final(Sha256* sha256, byte* hash)
 
 int wc_InitSha256_ex(Sha256* sha256, void* heap, int devId)
 {
-    int ret = 0;
-
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
 
     sha256->heap = heap;
-
-    ret = InitSha256(sha256);
-    if (ret != 0)
-        return ret;
-
     (void)devId;
 
-    return ret;
+    return InitSha256(sha256);
 }
 
 int wc_InitSha256(Sha256* sha256)
@@ -1395,20 +1388,13 @@ int wc_Sha256Copy(Sha256* src, Sha256* dst)
 
     int wc_InitSha224_ex(Sha224* sha224, void* heap, int devId)
     {
-        int ret = 0;
-
         if (sha224 == NULL)
             return BAD_FUNC_ARG;
 
         sha224->heap = heap;
-
-        ret = InitSha224(sha224);
-        if (ret != 0)
-            return ret;
-
         (void)devId;
 
-        return ret;
+        return InitSha224(sha224);
     }
 
     int wc_InitSha224(Sha224* sha224)

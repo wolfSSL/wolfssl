@@ -29,7 +29,6 @@
 #ifndef NO_AES
 #include <wolfssl/wolfcrypt/aes.h>
 
-#ifndef WOLFSSL_ARMASM
 
 /* fips wrapper calls, user can call direct */
 #ifdef HAVE_FIPS
@@ -189,6 +188,8 @@
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
+
+#ifndef WOLFSSL_ARMASM
 
 #ifdef DEBUG_AESNI
     #include <stdio.h>
@@ -5256,10 +5257,8 @@ int wc_AesGetKeySize(Aes* aes, word32* keySize)
     return ret;
 }
 
-#endif /* !WOLFSSL_TI_CRYPT */
-
-#endif /* HAVE_FIPS */
 #endif /* !WOLFSSL_ARMASM */
+#endif /* !WOLFSSL_TI_CRYPT */
 
 
 #ifdef HAVE_AES_KEYWRAP
@@ -5433,4 +5432,5 @@ int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
 
 #endif /* HAVE_AES_KEYWRAP */
 
+#endif /* HAVE_FIPS */
 #endif /* !NO_AES */
