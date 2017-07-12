@@ -3666,6 +3666,7 @@ static int GetName(DecodedCert* cert, int nameType)
     #ifdef OPENSSL_EXTRA
         DecodedName* dName =
                   (nameType == ISSUER) ? &cert->issuerName : &cert->subjectName;
+        int dcnum = 0;
     #endif /* OPENSSL_EXTRA */
 
     WOLFSSL_MSG("Getting Cert Name");
@@ -4003,8 +4004,10 @@ static int GetName(DecodedCert* cert, int nameType)
                             XMEMCPY(&full[idx], "/DC=", 4);
                             idx += 4;
                         #ifdef OPENSSL_EXTRA
-                            dName->dcIdx = cert->srcIdx;
-                            dName->dcLen = adv;
+                            dName->dcIdx[dcnum] = cert->srcIdx;
+                            dName->dcLen[dcnum] = adv;
+                            dName->dcNum = dcnum + 1;
+                            dcnum++;
                         #endif /* OPENSSL_EXTRA */
                             break;
 
@@ -4025,6 +4028,7 @@ static int GetName(DecodedCert* cert, int nameType)
     #ifdef OPENSSL_EXTRA
     {
         int totalLen = 0;
+        int i = 0;
 
         if (dName->cnLen != 0)
             totalLen += dName->cnLen + 4;
@@ -4046,8 +4050,10 @@ static int GetName(DecodedCert* cert, int nameType)
             totalLen += dName->uidLen + 5;
         if (dName->serialLen != 0)
             totalLen += dName->serialLen + 14;
-        if (dName->dcLen != 0)
-            totalLen += dName->dcLen + 4;
+        if (dName->dcNum != 0){
+            for (i = 0;i < dName->dcNum;i++)
+                totalLen += dName->dcLen[i] + 4;
+        }
 
         dName->fullName = (char*)XMALLOC(totalLen + 1, cert->heap,
                                                              DYNAMIC_TYPE_X509);
@@ -4126,14 +4132,16 @@ static int GetName(DecodedCert* cert, int nameType)
                 dName->emailIdx = idx;
                 idx += dName->emailLen;
             }
-            if (dName->dcLen != 0) {
-                dName->entryCount++;
-                XMEMCPY(&dName->fullName[idx], "/DC=", 4);
-                idx += 4;
-                XMEMCPY(&dName->fullName[idx],
-                                   &cert->source[dName->dcIdx], dName->dcLen);
-                dName->dcIdx = idx;
-                idx += dName->dcLen;
+            for (i = 0;i < dName->dcNum;i++){
+                if (dName->dcLen[i] != 0) {
+                    dName->entryCount++;
+                    XMEMCPY(&dName->fullName[idx], "/DC=", 4);
+                    idx += 4;
+                    XMEMCPY(&dName->fullName[idx],
+                                    &cert->source[dName->dcIdx[i]], dName->dcLen[i]);
+                    dName->dcIdx[i] = idx;
+                    idx += dName->dcLen[i];
+                }
             }
             if (dName->uidLen != 0) {
                 dName->entryCount++;

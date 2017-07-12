@@ -15106,8 +15106,8 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
                 textSz = name->fullName.ouLen;
                 break;
             case ASN_DOMAIN_COMPONENT:
-                text = name->fullName.fullName + name->fullName.dcIdx;
-                textSz = name->fullName.dcLen;
+                //text = name->fullName.fullName + name->fullName.dcIdx;
+                //textSz = name->fullName.dcLen;
             break;
             default:
                 WOLFSSL_MSG("Entry type not found");
@@ -15145,14 +15145,19 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
         /* these index values are already stored in DecodedName
            use those when available */
         if (name->fullName.fullName && name->fullName.fullNameLen > 0) {
+            name->fullName.dcMode = 0;
             switch (nid) {
                 case ASN_COMMON_NAME:
                     if (pos != name->fullName.cnIdx)
                         ret = name->fullName.cnIdx;
                     break;
                 case ASN_DOMAIN_COMPONENT:
-                    if (pos != name->fullName.dcIdx)
-                        ret = name->fullName.dcIdx;
+                    name->fullName.dcMode = 1;
+                    if (pos < name->fullName.dcNum - 1){
+                        ret = pos + 1;
+                    } else {
+                        ret = -1;
+                    }
                     break;
                 default:
                     WOLFSSL_MSG("NID not yet implemented");
@@ -29460,21 +29465,31 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             return NULL;
         }
 
-        /* common name index case */
-        if (loc == name->fullName.cnIdx) {
+        /* DC component */
+        if (name->fullName.dcMode){
+            if (name->fullName.fullName != NULL){
+                if (loc == name->fullName.dcNum){
+                    name->cnEntry.data.data   = &name->fullName.fullName[name->fullName.cIdx];
+                    name->cnEntry.data.length = name->fullName.cLen;
+                    name->cnEntry.nid         = ASN_COUNTRY_NAME;
+                } else {
+                    name->cnEntry.data.data   = &name->fullName.fullName[name->fullName.dcIdx[loc]];
+                    name->cnEntry.data.length = name->fullName.dcLen[loc];
+                    name->cnEntry.nid         = ASN_DOMAIN_COMPONENT;
+                }
+            }
+            name->cnEntry.data.type = CTC_UTF8;
+            name->cnEntry.set       = 1;
+            return &(name->cnEntry);
+
+         /* common name index case */
+        } else if (loc == name->fullName.cnIdx) {
             /* get CN shortcut from x509 since it has null terminator */
             name->cnEntry.data.data   = name->x509->subjectCN;
             name->cnEntry.data.length = name->fullName.cnLen;
             name->cnEntry.data.type   = CTC_UTF8;
             name->cnEntry.nid         = ASN_COMMON_NAME;
-            name->cnEntry.set  = 1;
-            return &(name->cnEntry);
-        } else if (loc == name->fullName.dcIdx){
-            name->cnEntry.data.data   = name->x509->subjectCN;
-            name->cnEntry.data.length = name->fullName.dcLen;
-            name->cnEntry.data.type   = CTC_UTF8;
-            name->cnEntry.nid         = ASN_DOMAIN_COMPONENT;
-            name->cnEntry.set  = 1;
+            name->cnEntry.set         = 1;
             return &(name->cnEntry);
         }
 
