@@ -10827,6 +10827,10 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
     if (ret == VERIFY_MAC_ERROR) {
         if (!ssl->options.dtls)
             SendAlert(ssl, alert_fatal, bad_record_mac);
+
+        #ifdef WOLFSSL_DTLS_DROP_STATS
+            ssl->macDropCount++;
+        #endif /* WOLFSSL_DTLS_DROP_STATS */
     }
 
     return ret;
@@ -11552,6 +11556,9 @@ int ProcessReply(WOLFSSL* ssl)
                 ssl->options.processReply = doProcessInit;
                 ssl->buffers.inputBuffer.length = 0;
                 ssl->buffers.inputBuffer.idx = 0;
+#ifdef WOLFSSL_DTLS_DROP_STATS
+                ssl->replayDropCount++;
+#endif /* WOLFSSL_DTLS_DROP_STATS */
 
                 if (IsDtlsNotSctpMode(ssl) && ssl->options.dtlsHsRetain) {
                     ret = DtlsMsgPoolSend(ssl, 0);
@@ -11690,6 +11697,9 @@ int ProcessReply(WOLFSSL* ssl)
                     if (ret < 0) {
                         WOLFSSL_MSG("VerifyMac failed");
                         WOLFSSL_ERROR(ret);
+                        #ifdef WOLFSSL_DTLS_DROP_STATS
+                            ssl->macDropCount++;
+                        #endif /* WOLFSSL_DTLS_DROP_STATS */
                         return DECRYPT_ERROR;
                     }
                 }

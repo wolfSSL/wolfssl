@@ -844,6 +844,32 @@ int wolfSSL_dtls_set_mtu(WOLFSSL* ssl, word16 newMtu)
 #endif /* WOLFSSL_DTLS && WOLFSSL_SCTP */
 
 
+#ifdef WOLFSSL_DTLS_DROP_STATS
+
+int wolfSSL_dtls_get_drop_stats(WOLFSSL* ssl,
+                                word32* macDropCount, word32* replayDropCount)
+{
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_dtls_get_drop_stats()");
+
+    if (ssl == NULL)
+        ret = BAD_FUNC_ARG;
+    else {
+        ret = SSL_SUCCESS;
+        if (macDropCount != NULL)
+            *macDropCount = ssl->macDropCount;
+        if (replayDropCount != NULL)
+            *replayDropCount = ssl->replayDropCount;
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_dtls_get_drop_stats()", ret);
+    return ret;
+}
+
+#endif /* WOLFSSL_DTLS_DROP_STATS */
+
+
 #if defined(WOLFSSL_MULTICAST)
 
 int wolfSSL_CTX_mcast_set_member_id(WOLFSSL_CTX* ctx, word16 id)

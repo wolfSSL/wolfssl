@@ -509,6 +509,8 @@ WOLFSSL_API int  wolfSSL_dtls_set_sctp(WOLFSSL*);
 WOLFSSL_API int  wolfSSL_CTX_dtls_set_mtu(WOLFSSL_CTX*, unsigned short);
 WOLFSSL_API int  wolfSSL_dtls_set_mtu(WOLFSSL*, unsigned short);
 
+WOLFSSL_API int  wolfSSL_dtls_get_drop_stats(WOLFSSL*,
+                                             unsigned int*, unsigned int*);
 WOLFSSL_API int  wolfSSL_CTX_mcast_set_member_id(WOLFSSL_CTX*, unsigned short);
 WOLFSSL_API int  wolfSSL_set_secret(WOLFSSL*, unsigned short,
                      const unsigned char*, unsigned int,

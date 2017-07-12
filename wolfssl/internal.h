@@ -3349,6 +3349,10 @@ struct WOLFSSL {
 #ifdef WOLFSSL_MULTICAST
     void*           mcastHwCbCtx;       /* Multicast highwater callback ctx */
 #endif /* WOLFSSL_MULTICAST */
+#ifdef WOLFSSL_DTLS_DROP_STATS
+    word32 macDropCount;
+    word32 replayDropCount;
+#endif /* WOLFSSL_DTLS_DROP_STATS */
 #endif /* WOLFSSL_DTLS */
 #ifdef WOLFSSL_CALLBACKS
     HandShakeInfo   handShakeInfo;      /* info saved during handshake */
