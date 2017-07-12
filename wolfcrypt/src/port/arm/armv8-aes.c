@@ -2531,7 +2531,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* sanity checks */
     if (aes == NULL || (iv == NULL && ivSz > 0) ||
                        (authTag == NULL) ||
-                       (authIn == NULL) ||
+                       (authIn == NULL && authInSz > 0) ||
                        (in == NULL && sz > 0) ||
                        (out == NULL && sz > 0)) {
         WOLFSSL_MSG("a NULL parameter passed in when size is larger than 0");
@@ -2596,7 +2596,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* sanity checks */
     if (aes == NULL || (iv == NULL && ivSz > 0) ||
                        (authTag == NULL) ||
-                       (authIn == NULL) ||
+                       (authIn == NULL && authInSz > 0) ||
                        (in  == NULL && sz > 0) ||
                        (out == NULL && sz > 0)) {
         WOLFSSL_MSG("a NULL parameter passed in when size is larger than 0");
