@@ -120,6 +120,11 @@ extern "C" {
     /* half as much memory but twice as slow */
     #undef  RSA_LOW_MEM
     //#define RSA_LOW_MEM
+
+    /* Enables blinding mode, to prevent timing attacks */
+    #undef  WC_RSA_BLINDING
+    #define WC_RSA_BLINDING
+
 #else
     #define NO_RSA
 #endif

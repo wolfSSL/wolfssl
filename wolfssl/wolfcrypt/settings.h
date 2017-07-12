@@ -1596,6 +1596,21 @@ extern void uITRON4_free(void *p) ;
     #define ED25519_SMALL
 #endif
 
+
+/* warning for not using harden build options (default with ./configure) */
+#ifndef WC_NO_HARDEN
+    #if (defined(USE_FAST_MATH) && !defined(TFM_TIMING_RESISTANT)) || \
+        (defined(HAVE_ECC) && !defined(ECC_TIMING_RESISTANT)) || \
+        (!defined(NO_RSA) && !defined(WC_RSA_BLINDING) && !defined(HAVE_FIPS))
+
+        #ifndef _MSC_VER
+            #warning "For timing resistance / side-channel attack prevention consider using harden options"
+        #else
+            #pragma message("Warning: For timing resistance / side-channel attack prevention consider using harden options")
+        #endif
+    #endif
+#endif
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif
