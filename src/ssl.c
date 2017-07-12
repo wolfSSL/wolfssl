@@ -9854,6 +9854,12 @@ WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
 int wolfSSL_check_domain_name(WOLFSSL* ssl, const char* dn)
 {
     WOLFSSL_ENTER("wolfSSL_check_domain_name");
+
+    if (ssl == NULL || dn == NULL) {
+        WOLFSSL_MSG("Bad function argument: NULL");
+        return SSL_FAILURE;
+    }
+
     if (ssl->buffers.domainName.buffer)
         XFREE(ssl->buffers.domainName.buffer, ssl->heap, DYNAMIC_TYPE_DOMAIN);
 
