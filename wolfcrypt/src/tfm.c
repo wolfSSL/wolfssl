@@ -1868,8 +1868,21 @@ void fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
 
 void fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c)
 {
+#if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
+  const word32 maxC = (a->size * sizeof(fp_digit));
+#else
+  const word32 maxC = (FP_SIZE * sizeof(fp_digit));
+#endif
+
   /* zero the int */
   fp_zero (a);
+
+  /* if input b excess max, then truncate */
+  if (c > 0 && (word32)c > maxC) {
+     int excess = (c - maxC);
+     c -= excess;
+     b += excess;
+  }
 
   /* If we know the endianness of this architecture, and we're using
      32-bit fp_digits, we can optimize this */
@@ -1882,11 +1895,6 @@ void fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c)
   {
      unsigned char *pd = (unsigned char *)a->dp;
 
-     if ((unsigned)c > (FP_SIZE * sizeof(fp_digit))) {
-        int excess = c - (FP_SIZE * sizeof(fp_digit));
-        c -= excess;
-        b += excess;
-     }
      a->used = (c + sizeof(fp_digit) - 1)/sizeof(fp_digit);
      /* read the bytes in */
 #ifdef BIG_ENDIAN_ORDER
@@ -1913,7 +1921,10 @@ void fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c)
   for (; c > 0; c--) {
      fp_mul_2d (a, 8, a);
      a->dp[0] |= *b++;
-     a->used += 1;
+
+     if (a->used == 0) {
+         a->used = 1;
+     }
   }
 #endif
   fp_clamp (a);
