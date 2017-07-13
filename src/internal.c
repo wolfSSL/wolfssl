@@ -8595,6 +8595,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 ret = MAX_CHAIN_ERROR;
             }
         #endif
+        #ifdef WOLFSSL_ADD_SESSION_EARLY
+            /* For compatiblity with some projects using OpenSSL--OpenSSL registers
+             * the session before the handshake is completed and it needs to be
+             * accessible during the verifyCallback using SSL_get_session(). */
+            AddSession(ssl);
+        #endif
             if (ret != 0) {
                 if (!ssl->options.verifyNone) {
                     int why = bad_certificate;
