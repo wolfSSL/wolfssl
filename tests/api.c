@@ -5739,7 +5739,7 @@ static int test_wc_AesCbcEncryptDecrypt (void)
         0x66,0x6f,0x72,0x20,0x61,0x6c,0x6c,0x20
     };
     byte    iv[]    = "1234567890abcdef";
-    byte    enc[AES_BLOCK_SIZE];
+    byte    enc[sizeof(vector)];
     byte    dec[sizeof(vector)];
     int     cbcE    =   SSL_FATAL_ERROR;
     int     cbcD    =   SSL_FATAL_ERROR;
@@ -5748,7 +5748,7 @@ static int test_wc_AesCbcEncryptDecrypt (void)
     int     ret;
 
     /* Init stack variables. */
-    XMEMSET(enc, 0, AES_BLOCK_SIZE);
+    XMEMSET(enc, 0, sizeof(enc));
     XMEMSET(dec, 0, sizeof(vector));
     XMEMSET(dec2, 0, sizeof(vector));
 
