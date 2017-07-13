@@ -219,7 +219,8 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int throughput)
                     }
                     else
                 #endif
-                    if (err != SSL_ERROR_WANT_READ) {
+                    if (err != SSL_ERROR_WANT_READ &&
+                                                 err != SSL_ERROR_ZERO_RETURN) {
                         printf("SSL_read echo error %d\n", err);
                         err_sys_ex(runWithErrors, "SSL_read failed");
                     }

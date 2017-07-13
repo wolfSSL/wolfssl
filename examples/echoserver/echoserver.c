@@ -337,7 +337,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                 }
             } while (err == WC_PENDING_E);
             if (ret <= 0) {
-                if (err != SSL_ERROR_WANT_READ) {
+                if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_ZERO_RETURN){
                     printf("SSL_read echo error %d, %s!\n", err,
                         CyaSSL_ERR_error_string(err, buffer));
                 }
