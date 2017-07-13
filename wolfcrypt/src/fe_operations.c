@@ -45,7 +45,8 @@
 #include "fe_x25519_128.i"
 #else
 
-#ifdef HAVE_CURVE25519
+#if defined(HAVE_CURVE25519) || \
+    (defined(HAVE_ED25519) && !defined(ED25519_SMALL))
 /*
 fe means field element.
 Here the field is \Z/(2^255-19).
@@ -573,7 +574,8 @@ void fe_sub(fe h,const fe f,const fe g)
 }
 
 
-#ifdef HAVE_CURVE25519
+#if defined(HAVE_CURVE25519) || \
+    (defined(HAVE_ED25519) && !defined(ED25519_SMALL))
 /*
 Ignores top bit of h.
 */
