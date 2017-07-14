@@ -153,15 +153,6 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
 #ifdef WOLFSSL_KEY_GEN
     int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     {
-        if (key == NULL || rng == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        if (size < RSA_MIN_SIZE || size > RSA_MAX_SIZE) {
-            return BAD_FUNC_ARG;
-        }
-        if (e < 3 || (e & 1) == 0) {
-            return BAD_FUNC_ARG;
-        }
         return MakeRsaKey(key, size, e, rng);
     }
 #endif

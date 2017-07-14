@@ -105,6 +105,10 @@
 #ifndef NO_RSA
     #include <wolfssl/wolfcrypt/rsa.h>
     #include <wolfssl/wolfcrypt/hash.h>
+
+    #define FOURK_BUF 4096
+    #define GEN_BUF  294
+
     #ifndef USER_CRYPTO_ERROR
         #define USER_CRYPTO_ERROR -101 /* error returned by IPP lib. */
     #endif
@@ -6878,12 +6882,12 @@ static int test_wc_Arc4Process (void)
 static int test_wc_InitRsaKey (void)
 {
 #ifndef NO_RSA
-    RsaKey  key[1];
+    RsaKey  key;
     int     ret;
 
     printf(testingFmt, "wc_InitRsaKey()");
 
-    ret = wc_InitRsaKey(key, NULL);
+    ret = wc_InitRsaKey(&key, NULL);
 
     /* Test bad args. */
     if (ret == 0) {
@@ -6893,7 +6897,7 @@ static int test_wc_InitRsaKey (void)
                 ret = 0;
             } else {
         #else
-            if (ret == -101) {
+            if (ret == USER_CRYPTO_ERROR) {
                 ret = 0;
             } else {
         #endif
@@ -6901,7 +6905,7 @@ static int test_wc_InitRsaKey (void)
         }
     } /* end if */
 
-    if (wc_FreeRsaKey(key) || ret != 0) {
+    if (wc_FreeRsaKey(&key) || ret != 0) {
         ret = SSL_FATAL_ERROR;
     }
 
@@ -6927,7 +6931,7 @@ static int test_wc_RsaPrivateKeyDecode (void)
 
     printf(testingFmt, "wc_RsaPrivateKeyDecode()");
 
-    tmp = (byte*)XMALLOC(4096, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    tmp = (byte*)XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL) {
         ret = SSL_FATAL_ERROR;
     }
@@ -6965,13 +6969,13 @@ static int test_wc_RsaPrivateKeyDecode (void)
         /* Test bad args. User RSA. */
         if (ret == 0) {
             ret = wc_RsaPrivateKeyDecode(NULL, &idx, &key, (word32)bytes);
-            if (ret == -101) {
+            if (ret == USER_CRYPTO_ERROR) {
                 ret = wc_RsaPrivateKeyDecode(tmp, NULL, &key, (word32)bytes);
             }
-            if (ret == -101) {
+            if (ret == USER_CRYPTO_ERROR) {
                 ret = wc_RsaPrivateKeyDecode(tmp, &idx, NULL, (word32)bytes);
             }
-            if (ret == -101) {
+            if (ret == USER_CRYPTO_ERROR) {
                 ret = 0;
             } else {
                 ret = SSL_FATAL_ERROR;
@@ -7005,10 +7009,8 @@ static int test_wc_RsaPublicKeyDecode (void)
     word32  idx = 0;
     int     bytes = 0;
     int     ret = 0;
-    /* Buffer size for either der size. */
-    int     genBuff = 294;
 
-    tmp = (byte*)XMALLOC(genBuff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    tmp = (byte*)XMALLOC(GEN_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL) {
         ret = SSL_FATAL_ERROR;
     }
@@ -7048,13 +7050,13 @@ static int test_wc_RsaPublicKeyDecode (void)
         /* Pass in bad args. */
         if (ret == 0) {
             ret = wc_RsaPublicKeyDecode(NULL, &idx, &keyPub, (word32)bytes);
-            if (ret == -101) {
+            if (ret == USER_CRYPTO_ERROR) {
                 ret = wc_RsaPublicKeyDecode(tmp, NULL, &keyPub, (word32)bytes);
             }
-            if (ret == -101) {
+            if (ret == USER_CRYPTO_ERROR) {
                 ret = wc_RsaPublicKeyDecode(tmp, &idx, NULL, (word32)bytes);
             }
-            if (ret == -101) {
+            if (ret == USER_CRYPTO_ERROR) {
                 ret = 0;
             } else {
                 ret = SSL_FATAL_ERROR;
@@ -7083,7 +7085,7 @@ static int test_wc_RsaPublicKeyDecode (void)
 static int test_wc_RsaPublicKeyDecodeRaw (void)
 {
 #if !defined(NO_RSA) && !defined(HAVE_FIPS)
-    RsaKey      key[1];
+    RsaKey      key;
     int         ret;
     const byte  n = 0x23;
     const byte  e = 0x03;
@@ -7092,16 +7094,16 @@ static int test_wc_RsaPublicKeyDecodeRaw (void)
 
     printf(testingFmt, "wc_RsaPublicKeyDecodeRaw()");
 
-    ret = wc_InitRsaKey(key, NULL);
+    ret = wc_InitRsaKey(&key, NULL);
     if (ret == 0) {
-        ret = wc_RsaPublicKeyDecodeRaw(&n, nSz, &e, eSz, key);
+        ret = wc_RsaPublicKeyDecodeRaw(&n, nSz, &e, eSz, &key);
     }
 #ifndef HAVE_USER_RSA
     /* Pass in bad args. */
     if (ret == 0) {
-        ret = wc_RsaPublicKeyDecodeRaw(NULL, nSz, &e, eSz, key);
+        ret = wc_RsaPublicKeyDecodeRaw(NULL, nSz, &e, eSz, &key);
         if (ret == BAD_FUNC_ARG) {
-            ret = wc_RsaPublicKeyDecodeRaw(&n, nSz, NULL, eSz, key);
+            ret = wc_RsaPublicKeyDecodeRaw(&n, nSz, NULL, eSz, &key);
         }
         if (ret == BAD_FUNC_ARG) {
             ret = wc_RsaPublicKeyDecodeRaw(&n, nSz, &e, eSz, NULL);
@@ -7115,14 +7117,14 @@ static int test_wc_RsaPublicKeyDecodeRaw (void)
 #else
     /* Pass in bad args. User RSA. */
     if (ret == 0) {
-        ret = wc_RsaPublicKeyDecodeRaw(NULL, nSz, &e, eSz, key);
-        if (ret == -101) {
-            ret = wc_RsaPublicKeyDecodeRaw(&n, nSz, NULL, eSz, key);
+        ret = wc_RsaPublicKeyDecodeRaw(NULL, nSz, &e, eSz, &key);
+        if (ret == USER_CRYPTO_ERROR) {
+            ret = wc_RsaPublicKeyDecodeRaw(&n, nSz, NULL, eSz, &key);
         }
-        if (ret == -101) {
+        if (ret == USER_CRYPTO_ERROR) {
             ret = wc_RsaPublicKeyDecodeRaw(&n, nSz, &e, eSz, NULL);
         }
-        if (ret == -101) {
+        if (ret == USER_CRYPTO_ERROR) {
             ret = 0;
         } else {
             ret = SSL_FATAL_ERROR;
@@ -7130,7 +7132,7 @@ static int test_wc_RsaPublicKeyDecodeRaw (void)
     }
 #endif
 
-    if (wc_FreeRsaKey(key) || ret != 0) {
+    if (wc_FreeRsaKey(&key) || ret != 0) {
         ret = SSL_FATAL_ERROR;
     }
 
@@ -7186,18 +7188,18 @@ static int test_wc_MakeRsaKey (void)
         /* Test bad args. */
         if (ret == 0) {
             ret = wc_MakeRsaKey(NULL, 1024, 65537, &rng);
-            if (ret == -101) {
+            if (ret == USER_CRYPTO_ERROR) {
                 ret = wc_MakeRsaKey(&genKey, 1024, 65537, NULL);
             }
-            if (ret == -101) {
+            if (ret == USER_CRYPTO_ERROR) {
                 /* e < 3 */
                 ret = wc_MakeRsaKey(&genKey, 1024, 2, &rng);
             }
-            if (ret == -101) {
+            if (ret == USER_CRYPTO_ERROR) {
                 /* e & 1 == 0 */
                 ret = wc_MakeRsaKey(&genKey, 1024, 6, &rng);
             }
-            if (ret == -101) {
+            if (ret == USER_CRYPTO_ERROR) {
                 ret = 0;
             } else {
                 ret = SSL_FATAL_ERROR;
@@ -7281,7 +7283,7 @@ static int test_wc_SetKeyUsage (void)
 static int test_wc_RsaKeyToDer (void)
 {
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(HAVE_FIPS)
-    RsaKey  genKey[1];
+    RsaKey  genKey;
     WC_RNG  rng;
     byte*   der;
     int     ret = 0;
@@ -7292,14 +7294,14 @@ static int test_wc_RsaKeyToDer (void)
     }
     /* Init structures. */
     if (ret == 0) {
-        ret = wc_InitRsaKey(genKey, NULL);
+        ret = wc_InitRsaKey(&genKey, NULL);
     }
         if (ret == 0) {
         ret = wc_InitRng(&rng);
     }
     /* Make key. */
     if (ret == 0) {
-        ret = wc_MakeRsaKey(genKey, 1024, 65537, &rng);
+        ret = wc_MakeRsaKey(&genKey, 1024, 65537, &rng);
         if (ret != 0) {
             ret = SSL_FATAL_ERROR;
         }
@@ -7308,7 +7310,7 @@ static int test_wc_RsaKeyToDer (void)
     printf(testingFmt, "wc_RsaKeyToDer()");
 
     if (ret == 0) {
-        ret = wc_RsaKeyToDer(genKey, der, 610);
+        ret = wc_RsaKeyToDer(&genKey, der, 610);
         if (ret > 0) {
             ret = 0;
         } else {
@@ -7318,14 +7320,14 @@ static int test_wc_RsaKeyToDer (void)
     #ifndef HAVE_USER_RSA
         /* Pass bad args. */
         if (ret == 0) {
-            ret = wc_RsaKeyToDer(NULL, der, 4096);
+            ret = wc_RsaKeyToDer(NULL, der, FOURK_BUF);
             if (ret == BAD_FUNC_ARG) {
-                ret = wc_RsaKeyToDer(genKey, NULL, 4096);
+                ret = wc_RsaKeyToDer(&genKey, NULL, FOURK_BUF);
             }
             if (ret == BAD_FUNC_ARG) {
                 /* Try Public Key. */
-                genKey->type = 0;
-                ret = wc_RsaKeyToDer(genKey, der, 4096);
+                genKey.type = 0;
+                ret = wc_RsaKeyToDer(&genKey, der, FOURK_BUF);
             }
             if (ret == BAD_FUNC_ARG) {
                 ret = 0;
@@ -7336,16 +7338,16 @@ static int test_wc_RsaKeyToDer (void)
     #else
         /* Pass bad args. */
         if (ret == 0) {
-            ret = wc_RsaKeyToDer(NULL, der, 4096);
-            if (ret == -101) {
-                ret = wc_RsaKeyToDer(genKey, NULL, 4096);
+            ret = wc_RsaKeyToDer(NULL, der, FOURK_BUF);
+            if (ret == USER_CRYPTO_ERROR) {
+                ret = wc_RsaKeyToDer(&genKey, NULL, FOURK_BUF);
             }
-            if (ret == -101) {
+            if (ret == USER_CRYPTO_ERROR) {
                 /* Try Public Key. */
-                genKey->type = 0;
-                ret = wc_RsaKeyToDer(genKey, der, 4096);
+                genKey.type = 0;
+                ret = wc_RsaKeyToDer(&genKey, der, FOURK_BUF);
             }
-            if (ret == -101) {
+            if (ret == USER_CRYPTO_ERROR) {
                 ret = 0;
             } else {
                 ret = SSL_FATAL_ERROR;
@@ -7356,7 +7358,7 @@ static int test_wc_RsaKeyToDer (void)
     if (der != NULL) {
         XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
-    if (wc_FreeRsaKey(genKey) || ret != 0) {
+    if (wc_FreeRsaKey(&genKey) || ret != 0) {
         ret = SSL_FATAL_ERROR;
     }
     if (wc_FreeRng(&rng) || ret != 0) {
@@ -7381,7 +7383,7 @@ static int test_wc_RsaKeyToPublicDer (void)
     word32      derLen = 162;
     int         ret = 0;
 
-    der = (byte*)XMALLOC(162, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    der = (byte*)XMALLOC(derLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
         ret = SSL_FATAL_ERROR;
     }
@@ -7426,13 +7428,13 @@ static int test_wc_RsaKeyToPublicDer (void)
         /* Pass in bad args. */
         if (ret == 0) {
             ret = wc_RsaKeyToPublicDer(NULL, der, derLen);
-            if (ret == -101) {
+            if (ret == USER_CRYPTO_ERROR) {
                 ret = wc_RsaKeyToPublicDer(&key, NULL, derLen);
             }
-            if (ret == -101) {
+            if (ret == USER_CRYPTO_ERROR) {
                 ret = wc_RsaKeyToPublicDer(&key, der, -1);
             }
-            if (ret == -101) {
+            if (ret == USER_CRYPTO_ERROR) {
                 ret = 0;
             } else {
                 ret = SSL_FATAL_ERROR;
@@ -7473,8 +7475,8 @@ static int test_wc_RsaPublicEncryptDecrypt (void)
     int     ret;
 
     DECLARE_VAR_INIT(in, byte, inLen, inStr, NULL);
-    DECLARE_VAR(plain, byte, 25, NULL);
-    DECLARE_VAR(cipher, byte, 128, NULL);
+    DECLARE_VAR(plain, byte, plainLen, NULL);
+    DECLARE_VAR(cipher, byte, cipherLen, NULL);
 
     ret = wc_InitRsaKey(&key, NULL);
     if (ret == 0) {
@@ -7504,13 +7506,13 @@ static int test_wc_RsaPublicEncryptDecrypt (void)
     printf(testingFmt, "wc_RsaPrivateDecrypt()");
     /* Bind rng */
     if (ret == 0) {
-        ret = wc_RsaSetRNG(&key, &rng);  /* JB : Fips alternative? */
+        ret = wc_RsaSetRNG(&key, &rng);
     }
     if (ret == 0) {
         ret = wc_RsaPrivateDecrypt(cipher, cipherLen, plain, plainLen, &key);
     }
     if (ret >= 0) {
-        ret = XMEMCMP(plain, inStr, 25);
+        ret = XMEMCMP(plain, inStr, plainLen);
     }
 
     /* Pass in bad args. */
@@ -7551,8 +7553,8 @@ static int test_wc_RsaPublicEncryptDecrypt_ex (void)
     int     idx = 0;
 
     DECLARE_VAR_INIT(in, byte, inLen, inStr, NULL);
-    DECLARE_VAR(plain, byte, 25, NULL);
-    DECLARE_VAR(cipher, byte, 128, NULL);
+    DECLARE_VAR(plain, byte, plainSz, NULL);
+    DECLARE_VAR(cipher, byte, cipherSz, NULL);
 
     /* Initialize stack structures. */
     XMEMSET(&rng, 0, sizeof(rng));
@@ -7592,7 +7594,7 @@ static int test_wc_RsaPublicEncryptDecrypt_ex (void)
                     WC_MGF1SHA1, NULL, 0);
         }
         if (ret >= 0) {
-            if (!XMEMCMP(plain, inStr, 25)) {
+            if (!XMEMCMP(plain, inStr, plainSz)) {
                 ret = 0;
             } else {
                 ret = SSL_FATAL_ERROR;
@@ -7611,7 +7613,7 @@ static int test_wc_RsaPublicEncryptDecrypt_ex (void)
                 WC_MGF1SHA1, NULL, 0);
 
         if (ret >= 0) {
-            if (!XMEMCMP(inStr, res, 25)) {
+            if (!XMEMCMP(inStr, res, plainSz)) {
                 ret = 0;
             } else {
                 ret = SSL_FATAL_ERROR;
@@ -7652,8 +7654,8 @@ static int test_wc_RsaSSL_SignVerify (void)
     int     ret;
 
     DECLARE_VAR_INIT(in, byte, inLen, inStr, NULL);
-    DECLARE_VAR(out, byte, 128, NULL);
-    DECLARE_VAR(plain, byte, 25, NULL);
+    DECLARE_VAR(out, byte, outSz, NULL);
+    DECLARE_VAR(plain, byte, plainSz, NULL);
 
     ret = wc_InitRsaKey(&key, NULL);
 
@@ -7669,7 +7671,7 @@ static int test_wc_RsaSSL_SignVerify (void)
 
     if (ret == 0) {
         ret = wc_RsaSSL_Sign(in, inLen, out, outSz, &key, &rng);
-        if (ret == 128) {
+        if (ret == (int)outSz) {
             idx = ret;
             ret = 0;
         } else {
@@ -7699,16 +7701,16 @@ static int test_wc_RsaSSL_SignVerify (void)
     /* Test bad args. */
     if (ret == 0) {
         ret = wc_RsaSSL_Sign(NULL, inLen, out, outSz, &key, &rng);
-        if (ret == -101) {
+        if (ret == USER_CRYPTO_ERROR) {
             ret = wc_RsaSSL_Sign(in, 0, out, outSz, &key, &rng);
         }
-        if (ret == -101) {
+        if (ret == USER_CRYPTO_ERROR) {
             ret = wc_RsaSSL_Sign(in, inLen, NULL, outSz, &key, &rng);
         }
-        if (ret == -101) {
+        if (ret == USER_CRYPTO_ERROR) {
            ret = wc_RsaSSL_Sign(in, inLen, out, outSz, NULL, &rng);
         }
-        if (ret == -101) {
+        if (ret == USER_CRYPTO_ERROR) {
             ret = 0;
         } else {
             ret = SSL_FATAL_ERROR;
@@ -7751,16 +7753,16 @@ static int test_wc_RsaSSL_SignVerify (void)
         /* Pass bad args. */
          if (ret == 0) {
                 ret = wc_RsaSSL_Verify(NULL, idx, plain, plainSz, &key);
-            if (ret == -101) {
+            if (ret == USER_CRYPTO_ERROR) {
                 ret = wc_RsaSSL_Verify(out, 0, plain, plainSz, &key);
             }
-            if (ret == -101) {
+            if (ret == USER_CRYPTO_ERROR) {
                 ret = wc_RsaSSL_Verify(out, idx, NULL, plainSz, &key);
             }
-            if (ret == -101) {
+            if (ret == USER_CRYPTO_ERROR) {
                ret = wc_RsaSSL_Verify(out, idx, plain, plainSz, NULL);
             }
-            if (ret == -101) {
+            if (ret == USER_CRYPTO_ERROR) {
                 ret = 0;
             } else {
                 ret = SSL_FATAL_ERROR;
@@ -7794,6 +7796,8 @@ static int test_wc_RsaEncryptSize (void)
     RsaKey  key;
     WC_RNG  rng;
     int     ret;
+    int     enc128 = 128;
+    int     enc512 = 512;
 
     ret = wc_InitRsaKey(&key, NULL);
 
@@ -7807,7 +7811,7 @@ static int test_wc_RsaEncryptSize (void)
         if (ret == 0) {
             ret = wc_RsaEncryptSize(&key);
         }
-        if (ret == 128) {
+        if (ret == enc128) {
             ret = 0;
         } else {
             ret = SSL_FATAL_ERROR;
@@ -7820,11 +7824,11 @@ static int test_wc_RsaEncryptSize (void)
     }
 
     if (ret == 0) {
-        ret = wc_MakeRsaKey(&key, 4096, 65537, &rng);
+        ret = wc_MakeRsaKey(&key, FOURK_BUF, 65537, &rng);
         if (ret == 0) {
             ret = wc_RsaEncryptSize(&key);
         }
-        if (ret == 512) {
+        if (ret == enc512) {
             ret = 0;
         } else {
             ret = SSL_FATAL_ERROR;
@@ -7916,19 +7920,19 @@ static int test_wc_RsaFlattenPublicKey (void)
         /* Pass bad args. */
         if (ret == 0) {
             ret = wc_RsaFlattenPublicKey(NULL, e, &eSz, n, &nSz);
-            if (ret == -101) {
+            if (ret == USER_CRYPTO_ERROR) {
                 ret = wc_RsaFlattenPublicKey(&key, NULL, &eSz, n, &nSz);
             }
-            if (ret == -101) {
+            if (ret == USER_CRYPTO_ERROR) {
                 ret = wc_RsaFlattenPublicKey(&key, e, NULL, n, &nSz);
             }
-            if (ret == -101) {
+            if (ret == USER_CRYPTO_ERROR) {
                 ret = wc_RsaFlattenPublicKey(&key, e, &eSz, NULL, &nSz);
             }
-            if (ret == -101) {
+            if (ret == USER_CRYPTO_ERROR) {
                 ret = wc_RsaFlattenPublicKey(&key, e, &eSz, n, NULL);
             }
-            if (ret == -101) {
+            if (ret == USER_CRYPTO_ERROR) {
                 ret = 0;
             } else {
                 ret = SSL_FATAL_ERROR;
