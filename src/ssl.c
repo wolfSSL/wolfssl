@@ -17309,7 +17309,7 @@ WOLFSSL_API int X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg, const unsig
 }
 
 #if defined(OPENSSL_EXTRA)
-#if !defined(NO_FILESYSTEM)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
 WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_get_privatekey(const WOLFSSL *ssl)
 {
 
@@ -17323,18 +17323,18 @@ WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_get_privatekey(const WOLFSSL *ssl)
               return NULL;
           }
       return wolfSSL_d2i_PrivateKey(ssl->buffers.key->type,NULL,
-                                    (const unsigned char**)ssl->buffers.key->buffer,
-                                    ssl->buffers.key->length);                                    ;
+                    (const unsigned char **)ssl->buffers.key->buffer,
+                    ssl->buffers.key->length);                                    ;
   }
-  else { /* if cert not owned get parent ctx cert or return null */
+  else { /* if key not owned get parent ctx cert or return null */
       if (ssl->ctx) {
           if (ssl->ctx->privateKey == NULL) {
                   WOLFSSL_MSG("Ctx Key buffer not set!");
                   return NULL;
           }
-          return wolfSSL_d2i_PrivateKey(ssl->buffers.key->type,NULL,
-                                        (const unsigned char**)ssl->buffers.key->buffer,
-                                        ssl->buffers.key->length);
+          return wolfSSL_d2i_PrivateKey(ssl->ctx->privateKey->type,NULL,
+                    (const unsigned char **)ssl->ctx-> privateKey->buffer,
+                    ssl->ctx->privateKey->length);
       }
   }
   return NULL;

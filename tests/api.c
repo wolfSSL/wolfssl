@@ -401,6 +401,29 @@ static void test_wolfSSL_CTX_use_PrivateKey_file(void)
 }
 
 
+static void test_wolfSSL_get_privateKey(void)
+{
+#if defined(OPENSSL_EXTRA)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+
+    SSL_CTX *ctx;
+    SSL *ssl;
+
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
+
+    AssertNotNull(ssl = wolfSSL_new(ctx));
+
+    assert(wolfSSL_get_privatekey(ssl) != NULL);
+
+    wolfSSL_CTX_free(ctx);
+
+#endif
+#endif
+}
+
+
 /* test both file and buffer versions along with unloading trusted peer certs */
 static void test_wolfSSL_CTX_trust_peer_cert(void)
 {
@@ -11277,6 +11300,7 @@ void ApiTest(void)
     test_wolfSSL_CTX_use_certificate_file();
     AssertIntEQ(test_wolfSSL_CTX_use_certificate_buffer(), WOLFSSL_SUCCESS);
     test_wolfSSL_CTX_use_PrivateKey_file();
+    test_wolfSSL_get_privateKey();
     test_wolfSSL_CTX_load_verify_locations();
     test_wolfSSL_CTX_trust_peer_cert();
     test_wolfSSL_CTX_SetTmpDH_file();
