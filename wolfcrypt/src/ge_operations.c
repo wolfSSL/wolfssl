@@ -765,7 +765,7 @@ static void cmov(ge_precomp *t,const ge_precomp *u,unsigned char b)
   fe_cmov(t->xy2d,u->xy2d,b);
 }
 
-#ifdef HAVE___UINT128_T
+#ifdef CURVED25519_128BIT
 static const ge_precomp base[32][8] = {
 {
     {
@@ -3569,7 +3569,7 @@ static void slide(signed char *r,const unsigned char *a)
     }
 }
 
-#ifdef HAVE___UINT128_T
+#ifdef CURVED25519_128BIT
 static const ge_precomp Bi[8] = {
     {
         { 0x493c6f58c3b85, 0x0df7181c325f7, 0x0f50b0b3e4cb7, 0x5329385a44c32, 0x07cf9d3a33d4b },
@@ -3719,7 +3719,7 @@ int ge_double_scalarmult_vartime(ge_p2 *r, const unsigned char *a,
   return 0;
 }
 
-#ifdef HAVE___UINT128_T
+#ifdef CURVED25519_128BIT
 static const ge d = {
     0x34dca135978a3, 0x1a8283b156ebd, 0x5e7a26001c029, 0x739c663a03cbb,
     0x52036cee2b6ff
@@ -3732,7 +3732,7 @@ static const ge d = {
 #endif
 
 
-#ifdef HAVE___UINT128_T
+#ifdef CURVED25519_128BIT
 static const ge sqrtm1 = {
     0x61b274a0ea0b0, 0x0d5a5fc8f189d, 0x7ef5e9cbd0c60, 0x78595a6804c9e,
     0x2b8324804fc1d
@@ -3921,7 +3921,7 @@ void ge_p3_dbl(ge_p1p1 *r,const ge_p3 *p)
 r = p
 */
 
-#ifdef HAVE___UINT128_T
+#ifdef CURVED25519_128BIT
 static const ge d2 = {
     0x69b9426b2f159, 0x35050762add7a, 0x3cf44c0038052, 0x6738cc7407977,
     0x2406d9dc56dff
