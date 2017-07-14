@@ -33,6 +33,10 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
+#if defined(HAVE___UINT128_T) && !defined(NO_CURVED25519_128BIT)
+    #define CURVED25519_128BIT
+#endif
+
 /*
 fe means field element.
 Here the field is \Z/(2^255-19).
@@ -60,7 +64,7 @@ WOLFSSL_LOCAL int  curve25519(byte * q, byte * n, byte * p);
 /* default to be faster but take more memory */
 #if !defined(CURVE25519_SMALL) || !defined(ED25519_SMALL)
 
-#if defined(HAVE___UINT128_T)
+#if defined(CURVED25519_128BIT)
     typedef int64_t  fe[5];
 #else
     typedef int32_t  fe[10];

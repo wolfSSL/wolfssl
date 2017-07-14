@@ -47,7 +47,7 @@ Representations:
 
 #ifdef ED25519_SMALL
   typedef byte     ge[F25519_SIZE];
-#elif defined(HAVE___UINT128_T)
+#elif defined(CURVED25519_128BIT)
   typedef int64_t  ge[5];
 #else
   typedef int32_t  ge[10];

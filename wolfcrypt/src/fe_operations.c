@@ -41,7 +41,7 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifdef HAVE___UINT128_T
+#ifdef CURVED25519_128BIT
 #include "fe_x25519_128.i"
 #else
 
