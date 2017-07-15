@@ -1,4 +1,4 @@
-/* fp_mont_small.i
+/* fp_x25519_128.i
  *
  * Copyright (C) 2006-2017 wolfSSL Inc.
  *
@@ -253,6 +253,7 @@ void fe_add(fe r, const fe a, const fe b)
  */
 void fe_mul(fe r, const fe a, const fe b)
 {
+    const __int128_t k19 = 19;
     __int128_t t0 = ((__int128_t)a[0]) * b[0];
     __int128_t t1 = ((__int128_t)a[0]) * b[1]
                   + ((__int128_t)a[1]) * b[0];
@@ -280,19 +281,19 @@ void fe_mul(fe r, const fe a, const fe b)
     __int128_t t8 = ((__int128_t)a[4]) * b[4];
 
     /* Modulo reduce double long word. */
-    t0 += t5 * 19;
-    t1 += t6 * 19;
-    t2 += t7 * 19;
-    t3 += t8 * 19;
+    t0 += t5 * k19;
+    t1 += t6 * k19;
+    t2 += t7 * k19;
+    t3 += t8 * k19;
 
     /* Normalize to 51-bits of data per word. */
-    t0 += (t4 >> 51) * 19; t4 &= 0x7ffffffffffff;
+    t0 += (t4 >> 51) * k19; t4 &= 0x7ffffffffffff;
 
     t1 += t0 >> 51; r[0] = t0 & 0x7ffffffffffff;
     t2 += t1 >> 51; r[1] = t1 & 0x7ffffffffffff;
     t3 += t2 >> 51; r[2] = t2 & 0x7ffffffffffff;
     t4 += t3 >> 51; r[3] = t3 & 0x7ffffffffffff;
-    r[0] += (t4 >> 51) * 19;
+    r[0] += (t4 >> 51) * k19;
     r[4] = t4 & 0x7ffffffffffff;
 }
 
@@ -304,36 +305,38 @@ void fe_mul(fe r, const fe a, const fe b)
  */
 void fe_sq(fe r, const fe a)
 {
+    const __int128_t k19 = 19;
+    const __int128_t k2 = 2;
     __int128_t t0 = ((__int128_t)a[0]) * a[0];
-    __int128_t t1 = ((__int128_t)a[0]) * a[1] * 2;
-    __int128_t t2 = ((__int128_t)a[0]) * a[2] * 2
+    __int128_t t1 = ((__int128_t)a[0]) * a[1] * k2;
+    __int128_t t2 = ((__int128_t)a[0]) * a[2] * k2
                   + ((__int128_t)a[1]) * a[1];
-    __int128_t t3 = ((__int128_t)a[0]) * a[3] * 2
-                  + ((__int128_t)a[1]) * a[2] * 2;
-    __int128_t t4 = ((__int128_t)a[0]) * a[4] * 2
-                  + ((__int128_t)a[1]) * a[3] * 2
+    __int128_t t3 = ((__int128_t)a[0]) * a[3] * k2
+                  + ((__int128_t)a[1]) * a[2] * k2;
+    __int128_t t4 = ((__int128_t)a[0]) * a[4] * k2
+                  + ((__int128_t)a[1]) * a[3] * k2
                   + ((__int128_t)a[2]) * a[2];
-    __int128_t t5 = ((__int128_t)a[1]) * a[4] * 2
-                  + ((__int128_t)a[2]) * a[3] * 2;
-    __int128_t t6 = ((__int128_t)a[2]) * a[4] * 2
+    __int128_t t5 = ((__int128_t)a[1]) * a[4] * k2
+                  + ((__int128_t)a[2]) * a[3] * k2;
+    __int128_t t6 = ((__int128_t)a[2]) * a[4] * k2
                   + ((__int128_t)a[3]) * a[3];
-    __int128_t t7 = ((__int128_t)a[3]) * a[4] * 2;
+    __int128_t t7 = ((__int128_t)a[3]) * a[4] * k2;
     __int128_t t8 = ((__int128_t)a[4]) * a[4];
 
     /* Modulo reduce double long word. */
-    t0 += t5 * 19;
-    t1 += t6 * 19;
-    t2 += t7 * 19;
-    t3 += t8 * 19;
+    t0 += t5 * k19;
+    t1 += t6 * k19;
+    t2 += t7 * k19;
+    t3 += t8 * k19;
 
     /* Normalize to 51-bits of data per word. */
-    t0 += (t4 >> 51) * 19; t4 &= 0x7ffffffffffff;
+    t0 += (t4 >> 51) * k19; t4 &= 0x7ffffffffffff;
 
     t1 += t0 >> 51; r[0] = t0 & 0x7ffffffffffff;
     t2 += t1 >> 51; r[1] = t1 & 0x7ffffffffffff;
     t3 += t2 >> 51; r[2] = t2 & 0x7ffffffffffff;
     t4 += t3 >> 51; r[3] = t3 & 0x7ffffffffffff;
-    r[0] += (t4 >> 51) * 19;
+    r[0] += (t4 >> 51) * k19;
     r[4] = t4 & 0x7ffffffffffff;
 }
 
@@ -345,20 +348,22 @@ void fe_sq(fe r, const fe a)
  */
 void fe_mul121666(fe r, fe a)
 {
-    __int128_t t0 = ((__int128_t)a[0]) * (int64_t)121666;
-    __int128_t t1 = ((__int128_t)a[1]) * (int64_t)121666;
-    __int128_t t2 = ((__int128_t)a[2]) * (int64_t)121666;
-    __int128_t t3 = ((__int128_t)a[3]) * (int64_t)121666;
-    __int128_t t4 = ((__int128_t)a[4]) * (int64_t)121666;
+    const __int128_t k19 = 19;
+    const __int128_t k121666 = 121666;
+    __int128_t t0 = ((__int128_t)a[0]) * k121666;
+    __int128_t t1 = ((__int128_t)a[1]) * k121666;
+    __int128_t t2 = ((__int128_t)a[2]) * k121666;
+    __int128_t t3 = ((__int128_t)a[3]) * k121666;
+    __int128_t t4 = ((__int128_t)a[4]) * k121666;
 
     /* Normalize to 51-bits of data per word. */
-    t0 += (t4 >> 51) * 19; t4 &= 0x7ffffffffffff;
+    t0 += (t4 >> 51) * k19; t4 &= 0x7ffffffffffff;
 
     t1 += t0 >> 51; r[0] = t0 & 0x7ffffffffffff;
     t2 += t1 >> 51; r[1] = t1 & 0x7ffffffffffff;
     t3 += t2 >> 51; r[2] = t2 & 0x7ffffffffffff;
     t4 += t3 >> 51; r[3] = t3 & 0x7ffffffffffff;
-    r[0] += (t4 >> 51) * 19;
+    r[0] += (t4 >> 51) * k19;
     r[4] = t4 & 0x7ffffffffffff;
 }
 
@@ -389,6 +394,7 @@ void fe_invert(fe r, const fe a)
     fe_sq(t1, t1); for (i = 1; i <   5; ++i) fe_sq(t1, t1); fe_mul( r, t1, t0);
 }
 
+#ifndef CURVE25519_SMALL
 /* Scalar multiply the field element a by n using Montgomery Ladder and places
  * result in r.
  *
@@ -447,6 +453,7 @@ int curve25519(byte* r, byte* n, byte* a)
 
     return 0;
 }
+#endif /* !CURVE25519_SMALL */
 
 /* The field element value 0 as an array of bytes. */
 static const unsigned char zero[32] = {0};
@@ -544,36 +551,38 @@ void fe_pow22523(fe r, const fe a)
  */
 void fe_sq2(fe r, const fe a)
 {
-    __int128_t t0 = 2 * (((__int128_t)a[0]) * a[0]);
-    __int128_t t1 = 2 * (((__int128_t)a[0]) * a[1] * 2);
-    __int128_t t2 = 2 * (((__int128_t)a[0]) * a[2] * 2
+    const __int128_t k2 = 2;
+    const __int128_t k19 = 19;
+    __int128_t t0 = k2 * (((__int128_t)a[0]) * a[0]);
+    __int128_t t1 = k2 * (((__int128_t)a[0]) * a[1] * k2);
+    __int128_t t2 = k2 * (((__int128_t)a[0]) * a[2] * k2
                   + ((__int128_t)a[1]) * a[1]);
-    __int128_t t3 = 2 * (((__int128_t)a[0]) * a[3] * 2
-                  + ((__int128_t)a[1]) * a[2] * 2);
-    __int128_t t4 = 2 * (((__int128_t)a[0]) * a[4] * 2
-                  + ((__int128_t)a[1]) * a[3] * 2
+    __int128_t t3 = k2 * (((__int128_t)a[0]) * a[3] * k2
+                  + ((__int128_t)a[1]) * a[2] * k2);
+    __int128_t t4 = k2 * (((__int128_t)a[0]) * a[4] * k2
+                  + ((__int128_t)a[1]) * a[3] * k2
                   + ((__int128_t)a[2]) * a[2]);
-    __int128_t t5 = 2 * (((__int128_t)a[1]) * a[4] * 2
-                  + ((__int128_t)a[2]) * a[3] * 2);
-    __int128_t t6 = 2 * (((__int128_t)a[2]) * a[4] * 2
+    __int128_t t5 = k2 * (((__int128_t)a[1]) * a[4] * k2
+                  + ((__int128_t)a[2]) * a[3] * k2);
+    __int128_t t6 = k2 * (((__int128_t)a[2]) * a[4] * k2
                   + ((__int128_t)a[3]) * a[3]);
-    __int128_t t7 = 2 * (((__int128_t)a[3]) * a[4] * 2);
-    __int128_t t8 = 2 * (((__int128_t)a[4]) * a[4]);
+    __int128_t t7 = k2 * (((__int128_t)a[3]) * a[4] * k2);
+    __int128_t t8 = k2 * (((__int128_t)a[4]) * a[4]);
 
     /* Modulo reduce double long word. */
-    t0 += t5 * 19;
-    t1 += t6 * 19;
-    t2 += t7 * 19;
-    t3 += t8 * 19;
+    t0 += t5 * k19;
+    t1 += t6 * k19;
+    t2 += t7 * k19;
+    t3 += t8 * k19;
 
     /* Normalize to 51-bits of data per word. */
-    t0 += (t4 >> 51) * 19; t4 &= 0x7ffffffffffff;
+    t0 += (t4 >> 51) * k19; t4 &= 0x7ffffffffffff;
 
     t1 += t0 >> 51; r[0] = t0 & 0x7ffffffffffff;
     t2 += t1 >> 51; r[1] = t1 & 0x7ffffffffffff;
     t3 += t2 >> 51; r[2] = t2 & 0x7ffffffffffff;
     t4 += t3 >> 51; r[3] = t3 & 0x7ffffffffffff;
-    r[0] += (t4 >> 51) * 19;
+    r[0] += (t4 >> 51) * k19;
     r[4] = t4 & 0x7ffffffffffff;
 }
 

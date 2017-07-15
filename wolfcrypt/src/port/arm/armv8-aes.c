@@ -887,10 +887,16 @@ void wc_AesFree(Aes* aes)
             }
         }
 
-        void wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+        int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         {
-            byte* tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
+            byte* tmp;
             word32 numBlocks;
+
+            if (aes == NULL || out == NULL || in == NULL) {
+                return BAD_FUNC_ARG;
+            }
+
+            tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
 
             /* consume any unused bytes left in aes->tmp */
             while (aes->left && sz) {
@@ -1374,7 +1380,7 @@ void wc_AesFree(Aes* aes)
 
                 default:
                     WOLFSSL_MSG("Bad AES-CTR round value");
-                    return;
+                    return BAD_FUNC_ARG;
                 }
 
                 aes->left = 0;
@@ -1393,6 +1399,7 @@ void wc_AesFree(Aes* aes)
                     aes->left--;
                 }
             }
+            return 0;
         }
 
 #endif /* WOLFSSL_AES_COUNTER */
@@ -2531,7 +2538,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* sanity checks */
     if (aes == NULL || (iv == NULL && ivSz > 0) ||
                        (authTag == NULL) ||
-                       (authIn == NULL) ||
+                       (authIn == NULL && authInSz > 0) ||
                        (in == NULL && sz > 0) ||
                        (out == NULL && sz > 0)) {
         WOLFSSL_MSG("a NULL parameter passed in when size is larger than 0");
@@ -2596,7 +2603,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* sanity checks */
     if (aes == NULL || (iv == NULL && ivSz > 0) ||
                        (authTag == NULL) ||
-                       (authIn == NULL) ||
+                       (authIn == NULL && authInSz > 0) ||
                        (in  == NULL && sz > 0) ||
                        (out == NULL && sz > 0)) {
         WOLFSSL_MSG("a NULL parameter passed in when size is larger than 0");
@@ -3503,10 +3510,16 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
             }
         }
 
-        void wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+        int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         {
-            byte* tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
+            byte* tmp;
             word32 numBlocks;
+
+            if (aes == NULL || out == NULL || in == NULL) {
+                return BAD_FUNC_ARG;
+            }
+
+            tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
 
             /* consume any unused bytes left in aes->tmp */
             while (aes->left && sz) {
@@ -3997,7 +4010,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
                 default:
                     WOLFSSL_MSG("Bad AES-CTR round qalue");
-                    return;
+                    return BAD_FUNC_ARG;
                 }
 
                 aes->left = 0;
@@ -4016,6 +4029,8 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                     aes->left--;
                 }
             }
+
+            return 0;
         }
 
 #endif /* WOLFSSL_AES_COUNTER */

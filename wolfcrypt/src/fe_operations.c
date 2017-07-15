@@ -28,8 +28,8 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#ifndef CURVED25519_SMALL /* run when not defined to use small memory math */
-#if defined(HAVE_ED25519) || defined(HAVE_CURVE25519)
+#if defined(HAVE_CURVE25519) || defined(HAVE_ED25519)
+#if !defined(CURVE25519_SMALL) || !defined(ED25519_SMALL) /* run when not defined to use small memory math */
 
 #include <wolfssl/wolfcrypt/fe_operations.h>
 #include <stdint.h>
@@ -41,9 +41,12 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifdef HAVE___UINT128_T
+#ifdef CURVED25519_128BIT
 #include "fe_x25519_128.i"
 #else
+
+#if defined(HAVE_CURVE25519) || \
+    (defined(HAVE_ED25519) && !defined(ED25519_SMALL))
 /*
 fe means field element.
 Here the field is \Z/(2^255-19).
@@ -71,7 +74,7 @@ uint64_t load_4(const unsigned char *in)
   result |= ((uint64_t) in[3]) << 24;
   return result;
 }
-
+#endif
 
 /*
 h = 1
@@ -110,7 +113,8 @@ void fe_0(fe h)
   h[9] = 0;
 }
 
-#ifndef FREESCALE_LTC_ECC
+#if defined(HAVE_CURVE25519) && !defined(CURVE25519_SMALL) && \
+    !defined(FREESCALE_LTC_ECC)
 int curve25519(byte* q, byte* n, byte* p)
 {
 #if 0
@@ -186,7 +190,8 @@ int curve25519(byte* q, byte* n, byte* p)
 
   return 0;
 }
-#endif /* !FREESCALE_LTC_ECC */
+#endif /* HAVE_CURVE25519 && !CURVE25519_SMALL && !FREESCALE_LTC_ECC */
+
 
 /*
 h = f * f
@@ -569,6 +574,8 @@ void fe_sub(fe h,const fe f,const fe g)
 }
 
 
+#if defined(HAVE_CURVE25519) || \
+    (defined(HAVE_ED25519) && !defined(ED25519_SMALL))
 /*
 Ignores top bit of h.
 */
@@ -619,6 +626,7 @@ void fe_frombytes(fe h,const unsigned char *s)
   h[8] = (int32_t)h8;
   h[9] = (int32_t)h9;
 }
+#endif
 
 
 void fe_invert(fe out,const fe z)
@@ -1411,6 +1419,6 @@ void fe_cmov(fe f, const fe g, int b)
   f[9] = f9 ^ x9;
 }
 #endif
-#endif /* HAVE ED25519 or CURVE25519 */
-#endif /* not defined CURVED25519_SMALL */
 
+#endif /* !CURVE25519_SMALL || !ED25519_SMALL */
+#endif /* HAVE_CURVE25519 || HAVE_ED25519 */

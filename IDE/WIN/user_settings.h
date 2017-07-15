@@ -22,20 +22,25 @@
     #define NO_RABBIT
     #define NO_DSA
     #define NO_MD4
-#elif defined(WOLFSSL_LIB)
-    /* The lib */
-    #define OPENSSL_EXTRA
-    #define WOLFSSL_RIPEMD
-    #define WOLFSSL_SHA512
-    #define NO_PSK
-    #define HAVE_EXTENDED_MASTER
-    #define WOLFSSL_SNIFFER
-    #define HAVE_TLS_EXTENSIONS
-    #define HAVE_SECURE_RENEGOTIATION
 #else
-    /* The servers and clients */
-    #define OPENSSL_EXTRA
-    #define NO_PSK
+    /* Enables blinding mode, to prevent timing attacks */
+    #define WC_RSA_BLINDING
+
+    #if defined(WOLFSSL_LIB)
+        /* The lib */
+        #define OPENSSL_EXTRA
+        #define WOLFSSL_RIPEMD
+        #define WOLFSSL_SHA512
+        #define NO_PSK
+        #define HAVE_EXTENDED_MASTER
+        #define WOLFSSL_SNIFFER
+        #define HAVE_TLS_EXTENSIONS
+        #define HAVE_SECURE_RENEGOTIATION
+    #else
+        /* The servers and clients */
+        #define OPENSSL_EXTRA
+        #define NO_PSK
+    #endif
 #endif /* HAVE_FIPS */
 
 #endif /* _WIN_USER_SETTINGS_H_ */

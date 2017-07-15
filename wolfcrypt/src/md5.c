@@ -174,7 +174,11 @@
     {
         int ret = wolfSSL_CryptHwMutexLock();
         if(ret == 0) {
+        #ifdef FREESCALE_MMCAU_CLASSIC_SHA
+            cau_md5_hash_n(data, 1, (unsigned char*)md5->digest);
+        #else
             MMCAU_MD5_HashN(data, 1, (uint32_t*)md5->digest);
+        #endif
             wolfSSL_CryptHwMutexUnLock();
         }
         return ret;

@@ -52,6 +52,8 @@
 
 #include "examples/echoclient/echoclient.h"
 
+#ifndef NO_WOLFSSL_CLIENT
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     static int devId = INVALID_DEVID;
 #endif
@@ -313,6 +315,7 @@ void echoclient_test(void* args)
     ((func_args*)args)->return_code = 0;
 }
 
+#endif /* !NO_WOLFSSL_CLIENT */
 
 /* so overall tests can pull in test function */
 #ifndef NO_MAIN_DRIVER
@@ -338,7 +341,9 @@ void echoclient_test(void* args)
 #ifndef CYASSL_TIRTOS
         ChangeToWolfRoot();
 #endif
+#ifndef NO_WOLFSSL_CLIENT
         echoclient_test(&args);
+#endif
 
         CyaSSL_Cleanup();
 
@@ -351,5 +356,3 @@ void echoclient_test(void* args)
     }
 
 #endif /* NO_MAIN_DRIVER */
-
-

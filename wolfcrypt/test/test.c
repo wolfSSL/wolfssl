@@ -128,7 +128,9 @@
 #endif
 
 #ifdef OPENSSL_EXTRA
+  #ifndef WOLFCRYPT_ONLY
     #include <wolfssl/openssl/evp.h>
+  #endif
     #include <wolfssl/openssl/rand.h>
     #include <wolfssl/openssl/hmac.h>
     #include <wolfssl/openssl/aes.h>
@@ -249,7 +251,9 @@ int  random_test(void);
 #endif /* WC_NO_RNG */
 int  pwdbased_test(void);
 int  ripemd_test(void);
-int  openssl_test(void);   /* test mini api */
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
+    int  openssl_test(void);   /* test mini api */
+#endif
 int pbkdf1_test(void);
 int pkcs12_test(void);
 int pbkdf2_test(void);
@@ -303,7 +307,13 @@ int memcb_test(void);
 
 #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND) && \
         !defined(OPENSSL_EXTRA) && !defined(HAVE_STACK_SIZE)
-    int  wolfSSL_Debugging_ON(void);
+#ifdef __cplusplus
+    extern "C" {
+#endif
+    WOLFSSL_API int wolfSSL_Debugging_ON();
+#ifdef __cplusplus
+    }  /* extern "C" */
+#endif
 #endif
 
 /* General big buffer size for many tests. */
@@ -751,7 +761,7 @@ int wolfcrypt_test(void* args)
         printf( "PWDBASED test passed!\n");
 #endif
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
     if ( (ret = openssl_test()) != 0)
         return err_sys("OPENSSL  test failed!\n", ret);
     else
@@ -920,7 +930,7 @@ int error_test()
     /* Values that are not or no longer error codes. */
     int missing[] = { -122, -123, -124,       -127, -128, -129,
                       -161, -162, -163, -164, -165, -166, -167, -168, -169,
-                      -178, -179,       -233,
+                      -179,       -233,
                       0 };
 
     /* Check that all errors have a string and it's the same through the two
@@ -1078,6 +1088,7 @@ int asn_test()
         return -1302;
     }
     if (now == 0) {
+        printf("RTC/Time not set!\n");
         return -1303;
     }
 #endif
@@ -4128,9 +4139,14 @@ int aes_test(void)
         wc_AesSetKeyDirect(&dec, ctr128Key, sizeof(ctr128Key),
                            ctrIv, AES_ENCRYPTION);
 
-        wc_AesCtrEncrypt(&enc, cipher, ctrPlain, sizeof(ctrPlain));
-        wc_AesCtrEncrypt(&dec, plain, cipher, sizeof(ctrPlain));
-
+        ret = wc_AesCtrEncrypt(&enc, cipher, ctrPlain, sizeof(ctrPlain));
+        if (ret != 0) {
+            return -4227;
+        }
+        ret = wc_AesCtrEncrypt(&dec, plain, cipher, sizeof(ctrPlain));
+        if (ret != 0) {
+            return -4228;
+        }
         if (XMEMCMP(plain, ctrPlain, sizeof(ctrPlain)))
             return -4213;
 
@@ -4144,8 +4160,14 @@ int aes_test(void)
         wc_AesSetKeyDirect(&dec, ctr128Key, AES_BLOCK_SIZE,
                            ctrIv, AES_ENCRYPTION);
 
-        wc_AesCtrEncrypt(&enc, cipher, ctrPlain, sizeof(oddCipher));
-        wc_AesCtrEncrypt(&dec, plain, cipher, sizeof(oddCipher));
+        ret = wc_AesCtrEncrypt(&enc, cipher, ctrPlain, sizeof(oddCipher));
+        if (ret != 0) {
+            return -4229;
+        }
+        ret = wc_AesCtrEncrypt(&dec, plain, cipher, sizeof(oddCipher));
+        if (ret != 0) {
+            return -4230;
+        }
 
         if (XMEMCMP(plain, ctrPlain, sizeof(oddCipher)))
             return -4215;
@@ -4155,8 +4177,14 @@ int aes_test(void)
 
 #if !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO) /* test not supported on STM32 crypto HW */
         /* and an additional 9 bytes to reuse tmp left buffer */
-        wc_AesCtrEncrypt(&enc, cipher, ctrPlain, sizeof(oddCipher));
-        wc_AesCtrEncrypt(&dec, plain, cipher, sizeof(oddCipher));
+        ret = wc_AesCtrEncrypt(&enc, cipher, ctrPlain, sizeof(oddCipher));
+        if (ret != 0) {
+            return -4231;
+        }
+        ret = wc_AesCtrEncrypt(&dec, plain, cipher, sizeof(oddCipher));
+        if (ret != 0) {
+            return -4232;
+        }
 
         if (XMEMCMP(plain, ctrPlain, sizeof(oddCipher)))
             return -4217;
@@ -4173,12 +4201,18 @@ int aes_test(void)
                            ctrIv, AES_ENCRYPTION);
 
         XMEMSET(plain, 0, sizeof(plain));
-        wc_AesCtrEncrypt(&enc, plain, ctr192Cipher, sizeof(ctr192Cipher));
+        ret = wc_AesCtrEncrypt(&enc, plain, ctr192Cipher, sizeof(ctr192Cipher));
+        if (ret != 0) {
+            return -4233;
+        }
 
         if (XMEMCMP(plain, ctrPlain, sizeof(ctr192Cipher)))
             return -4219;
 
-        wc_AesCtrEncrypt(&dec, cipher, ctrPlain, sizeof(ctrPlain));
+        ret = wc_AesCtrEncrypt(&dec, cipher, ctrPlain, sizeof(ctrPlain));
+        if (ret != 0) {
+            return -4234;
+        }
         if (XMEMCMP(ctr192Cipher, cipher, sizeof(ctr192Cipher)))
             return -4220;
 
@@ -4190,12 +4224,18 @@ int aes_test(void)
                            ctrIv, AES_ENCRYPTION);
 
         XMEMSET(plain, 0, sizeof(plain));
-        wc_AesCtrEncrypt(&enc, plain, ctr256Cipher, sizeof(ctr256Cipher));
+        ret = wc_AesCtrEncrypt(&enc, plain, ctr256Cipher, sizeof(ctr256Cipher));
+        if (ret != 0) {
+            return -4235;
+        }
 
         if (XMEMCMP(plain, ctrPlain, sizeof(ctrPlain)))
             return -4221;
 
-        wc_AesCtrEncrypt(&dec, cipher, ctrPlain, sizeof(ctrPlain));
+        ret = wc_AesCtrEncrypt(&dec, cipher, ctrPlain, sizeof(ctrPlain));
+        if (ret != 0) {
+            return -4236;
+        }
         if (XMEMCMP(ctr256Cipher, cipher, sizeof(ctr256Cipher)))
             return -4222;
     }
@@ -4304,7 +4344,6 @@ int aes192_test(void)
         return -4231;
 #endif
 
-
     ret = wc_AesSetKey(&enc, key, (int) sizeof(key), iv, AES_ENCRYPTION);
     if (ret != 0)
         return -4232;
@@ -4334,6 +4373,12 @@ int aes192_test(void)
 
     if (XMEMCMP(cipher, verify, (int) sizeof(cipher)))
         return -4237;
+
+    wc_AesFree(&enc);
+#ifdef HAVE_AES_DECRYPT
+    wc_AesFree(&dec);
+#endif
+
 #endif /* HAVE_AES_CBC */
 
     return ret;
@@ -4384,7 +4429,6 @@ int aes256_test(void)
         return -4241;
 #endif
 
-
     ret = wc_AesSetKey(&enc, key, (int) sizeof(key), iv, AES_ENCRYPTION);
     if (ret != 0)
         return -4242;
@@ -4414,7 +4458,14 @@ int aes256_test(void)
 
     if (XMEMCMP(cipher, verify, (int) sizeof(cipher)))
         return -4247;
+
+    wc_AesFree(&enc);
+#ifdef HAVE_AES_DECRYPT
+    wc_AesFree(&dec);
+#endif
+
 #endif /* HAVE_AES_CBC */
+
     return 0;
 }
 
@@ -5065,7 +5116,7 @@ int camellia_test(void)
 
     byte out[CAMELLIA_BLOCK_SIZE];
     Camellia cam;
-    int i, testsSz;
+    int i, testsSz, ret;
     const test_vector_t testVectors[] =
     {
         {CAM_ECB_ENC, pte, ive, c1, k1, sizeof(k1), -114},
@@ -5090,25 +5141,31 @@ int camellia_test(void)
 
         switch (testVectors[i].type) {
             case CAM_ECB_ENC:
-                wc_CamelliaEncryptDirect(&cam, out, testVectors[i].plaintext);
-                if (XMEMCMP(out, testVectors[i].ciphertext, CAMELLIA_BLOCK_SIZE))
+                ret = wc_CamelliaEncryptDirect(&cam, out,
+                                                testVectors[i].plaintext);
+                if (ret != 0 || XMEMCMP(out, testVectors[i].ciphertext,
+                                                        CAMELLIA_BLOCK_SIZE))
                     return testVectors[i].errorCode;
                 break;
             case CAM_ECB_DEC:
-                wc_CamelliaDecryptDirect(&cam, out, testVectors[i].ciphertext);
-                if (XMEMCMP(out, testVectors[i].plaintext, CAMELLIA_BLOCK_SIZE))
+                ret = wc_CamelliaDecryptDirect(&cam, out,
+                                                    testVectors[i].ciphertext);
+                if (ret != 0 || XMEMCMP(out, testVectors[i].plaintext,
+                                                        CAMELLIA_BLOCK_SIZE))
                     return testVectors[i].errorCode;
                 break;
             case CAM_CBC_ENC:
-                wc_CamelliaCbcEncrypt(&cam, out, testVectors[i].plaintext,
+                ret = wc_CamelliaCbcEncrypt(&cam, out, testVectors[i].plaintext,
                                                            CAMELLIA_BLOCK_SIZE);
-                if (XMEMCMP(out, testVectors[i].ciphertext, CAMELLIA_BLOCK_SIZE))
+                if (ret != 0 || XMEMCMP(out, testVectors[i].ciphertext,
+                                                        CAMELLIA_BLOCK_SIZE))
                     return testVectors[i].errorCode;
                 break;
             case CAM_CBC_DEC:
-                wc_CamelliaCbcDecrypt(&cam, out, testVectors[i].ciphertext,
+                ret = wc_CamelliaCbcDecrypt(&cam, out, testVectors[i].ciphertext,
                                                            CAMELLIA_BLOCK_SIZE);
-                if (XMEMCMP(out, testVectors[i].plaintext, CAMELLIA_BLOCK_SIZE))
+                if (ret != 0 || XMEMCMP(out, testVectors[i].plaintext,
+                                                            CAMELLIA_BLOCK_SIZE))
                     return testVectors[i].errorCode;
                 break;
             default:
@@ -5117,8 +5174,8 @@ int camellia_test(void)
     }
 
     /* Setting the IV and checking it was actually set. */
-    wc_CamelliaSetIV(&cam, ivc);
-    if (XMEMCMP(cam.reg, ivc, CAMELLIA_BLOCK_SIZE))
+    ret = wc_CamelliaSetIV(&cam, ivc);
+    if (ret != 0 || XMEMCMP(cam.reg, ivc, CAMELLIA_BLOCK_SIZE))
         return -4700;
 
     /* Setting the IV to NULL should be same as all zeros IV */
@@ -5217,8 +5274,8 @@ int idea_test(void)
         }
 
         /* Data encryption */
-        wc_IdeaCipher(&idea, data, v1_plain[i]);
-        if (XMEMCMP(&v1_cipher[i], data, IDEA_BLOCK_SIZE)) {
+        ret = wc_IdeaCipher(&idea, data, v1_plain[i]);
+        if (ret != 0 || XMEMCMP(&v1_cipher[i], data, IDEA_BLOCK_SIZE)) {
             printf("Bad encryption\n");
             return -4801;
         }
@@ -5233,8 +5290,8 @@ int idea_test(void)
         }
 
         /* Data decryption */
-        wc_IdeaCipher(&idea, data, data);
-        if (XMEMCMP(v1_plain[i], data, IDEA_BLOCK_SIZE)) {
+        ret = wc_IdeaCipher(&idea, data, data);
+        if (ret != 0 || XMEMCMP(v1_plain[i], data, IDEA_BLOCK_SIZE)) {
             printf("Bad decryption\n");
             return -4803;
         }
@@ -5292,7 +5349,10 @@ int idea_test(void)
         /* 100 times data encryption */
         XMEMCPY(data, v1_plain[i], IDEA_BLOCK_SIZE);
         for (j = 0; j < 100; j++) {
-            wc_IdeaCipher(&idea, data, data);
+            ret = wc_IdeaCipher(&idea, data, data);
+            if (ret != 0) {
+                return -4821;
+            }
         }
 
         if (XMEMCMP(v1_cipher_100[i], data, IDEA_BLOCK_SIZE)) {
@@ -5303,7 +5363,10 @@ int idea_test(void)
         /* 1000 times data encryption */
         XMEMCPY(data, v1_plain[i], IDEA_BLOCK_SIZE);
         for (j = 0; j < 1000; j++) {
-            wc_IdeaCipher(&idea, data, data);
+            ret = wc_IdeaCipher(&idea, data, data);
+            if (ret != 0) {
+                return -4822;
+            }
         }
 
         if (XMEMCMP(v1_cipher_1000[i], data, IDEA_BLOCK_SIZE)) {
@@ -5712,6 +5775,14 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
             static const char* eccCaKeyPubFile  = CERT_ROOT "ecc-keyPub.der";
         #endif
     #endif /* HAVE_ECC */
+    #ifdef HAVE_ED25519
+        #ifdef WOLFSSL_TEST_CERT
+            static const char* serverEd25519Cert =
+                                         CERT_ROOT "ed25519/server-ed25519.der";
+            static const char* caEd25519Cert     =
+                                             CERT_ROOT "ed25519/ca-ed25519.der";
+        #endif
+    #endif
 #endif /* !USE_CERT_BUFFER_* */
 
 #ifndef NO_WRITE_TEMP_FILES
@@ -7989,6 +8060,9 @@ static int dh_generate_test(WC_RNG *rng)
 
     /* Use API. */
     ret = wc_DhGenerateKeyPair(&smallKey, rng, priv, &privSz, pub, &pubSz);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &smallKey.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         ret = -5707;
     }
@@ -8427,7 +8501,7 @@ int srp_test(void)
 
 #endif /* WOLFCRYPT_HAVE_SRP */
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
 
 int openssl_test(void)
 {
@@ -9118,12 +9192,11 @@ int openssl_test(void)
 
     }
 #endif /* ifndef NO_AES */
-
     return 0;
 }
 
 
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA && !WOLFCRYPT_ONLY */
 
 
 #ifndef NO_PWDBASED
@@ -9154,6 +9227,7 @@ int scrypt_test(void)
         0xc7, 0x27, 0xaf, 0xb9, 0x4a, 0x83, 0xee, 0x6d,
         0x83, 0x60, 0xcb, 0xdf, 0xa2, 0xcc, 0x06, 0x40
     };
+#if !defined(BENCH_EMBEDDED) && !defined(HAVE_INTEL_QA)
     const byte verify3[] = {
         0x70, 0x23, 0xbd, 0xcb, 0x3a, 0xfd, 0x73, 0x48,
         0x46, 0x1c, 0x06, 0xcd, 0x81, 0xfd, 0x38, 0xeb,
@@ -9164,6 +9238,7 @@ int scrypt_test(void)
         0xe6, 0x1e, 0x85, 0xdc, 0x0d, 0x65, 0x1e, 0x40,
         0xdf, 0xcf, 0x01, 0x7b, 0x45, 0x57, 0x58, 0x87
     };
+#endif
 #ifdef SCRYPT_TEST_ALL
     /* Test case is very slow.
      * Use for confirmation after code change or new platform.
@@ -9193,6 +9268,8 @@ int scrypt_test(void)
     if (XMEMCMP(derived, verify2, sizeof(verify2)) != 0)
         return -6003;
 
+    /* Don't run these test on embedded, since they use large mallocs */
+#if !defined(BENCH_EMBEDDED) && !defined(HAVE_INTEL_QA)
     ret = wc_scrypt(derived, (byte*)"pleaseletmein", 13,
                     (byte*)"SodiumChloride", 14, 14, 8, 1, sizeof(verify3));
     if (ret != 0)
@@ -9208,6 +9285,7 @@ int scrypt_test(void)
     if (XMEMCMP(derived, verify4, sizeof(verify4)) != 0)
         return -6007;
 #endif
+#endif /* !BENCH_EMBEDDED && !HAVE_INTEL_QA */
 
     return 0;
 }
@@ -10616,6 +10694,7 @@ done:
 }
 #endif /* HAVE_ECC_KEY_IMPORT && HAVE_ECC_KEY_EXPORT */
 
+#ifndef WOLFSSL_ATECC508A
 #ifdef HAVE_ECC_KEY_IMPORT
 static int ecc_mulmod_test(ecc_key* key1)
 {
@@ -10657,7 +10736,6 @@ done:
 }
 #endif
 
-#ifndef WOLFSSL_ATECC508A
 static int ecc_ssh_test(ecc_key* key)
 {
     int    ret;
@@ -10709,16 +10787,16 @@ static int ecc_def_curve_test(WC_RNG *rng)
     if (ret < 0)
         goto done;
 #endif
+#ifndef WOLFSSL_ATECC508A
 #ifdef HAVE_ECC_KEY_IMPORT
     ret = ecc_mulmod_test(&key);
     if (ret < 0)
         goto done;
 #endif
-#ifndef WOLFSSL_ATECC508A
     ret = ecc_ssh_test(&key);
     if (ret < 0)
         goto done;
-#endif
+#endif /* WOLFSSL_ATECC508A */
 done:
     wc_ecc_free(&key);
     return ret;
@@ -11436,8 +11514,216 @@ int curve25519_test(void)
 
 
 #ifdef HAVE_ED25519
+#ifdef WOLFSSL_TEST_CERT
+static int ed25519_test_cert(void)
+{
+    DecodedCert  cert[2];
+    DecodedCert* serverCert = NULL;
+    DecodedCert* caCert = NULL;
+#ifdef HAVE_ED25519_VERIFY
+    ed25519_key  key;
+    ed25519_key* pubKey = NULL;
+    int          verify;
+#endif /* HAVE_ED25519_VERIFY */
+    int          ret;
+    byte*        tmp;
+    int          bytes;
+    FILE*        file;
+
+    tmp = XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp == NULL) {
+        ret = -7200;
+        goto done;
+    }
+
+#ifdef USE_CERT_BUFFERS_256
+    XMEMCPY(tmp, ca_ed25519_cert, sizeof_ca_ed25519_cert);
+    bytes = sizeof_ca_ed25519_cert;
+#elif !defined(NO_FILESYSTEM)
+    file = fopen(caEd25519Cert, "rb");
+    if (file == NULL) {
+        ret = -7201;
+        goto done;
+    }
+    bytes = fread(tmp, 1, FOURK_BUF, file);
+    fclose(file);
+#else
+    /* No certificate to use. */
+    ret = -7202;
+    goto done;
+#endif
+
+    InitDecodedCert(&cert[0], tmp, (word32)bytes, 0);
+    caCert = &cert[0];
+    ret = ParseCert(caCert, CERT_TYPE, NO_VERIFY, NULL);
+    if (ret != 0) {
+        ret = -7203;
+        goto done;
+    }
+
+#ifdef USE_CERT_BUFFERS_256
+    XMEMCPY(tmp, server_ed25519_cert, sizeof_server_ed25519_cert);
+    bytes = sizeof_server_ed25519_cert;
+#elif !defined(NO_FILESYSTEM)
+    file = fopen(serverEd25519Cert, "rb");
+    if (file == NULL) {
+        ret = -7204;
+        goto done;
+    }
+    bytes = fread(tmp, 1, FOURK_BUF, file);
+    fclose(file);
+#else
+    /* No certificate to use. */
+    ret = -7205;
+    goto done;
+#endif
+
+    InitDecodedCert(&cert[1], tmp, (word32)bytes, 0);
+    serverCert = &cert[1];
+    ret = ParseCert(serverCert, CERT_TYPE, NO_VERIFY, NULL);
+    if (ret != 0) {
+        ret = -7206;
+        goto done;
+    }
+
+#ifdef HAVE_ED25519_VERIFY
+    ret = wc_ed25519_init(&key);
+    if (ret < 0) {
+        ret = -7207;
+        goto done;
+    }
+    pubKey = &key;
+    ret = wc_ed25519_import_public(caCert->publicKey, caCert->pubKeySize,
+                                                                        pubKey);
+    if (ret < 0) {
+        ret = -7208;
+        goto done;
+    }
+
+    if (wc_ed25519_verify_msg(serverCert->signature, serverCert->sigLength,
+                              serverCert->source + serverCert->certBegin,
+                              serverCert->sigIndex - serverCert->certBegin,
+                              &verify, pubKey) < 0 || verify != 1) {
+        ret = -7209;
+        goto done;
+    }
+#endif /* HAVE_ED25519_VERIFY */
+
+done:
+    if (tmp != NULL)
+        XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef HAVE_ED25519_VERIFY
+    wc_ed25519_free(pubKey);
+#endif /* HAVE_ED25519_VERIFY */
+    if (caCert != NULL)
+        FreeDecodedCert(caCert);
+    if (serverCert != NULL)
+        FreeDecodedCert(serverCert);
+
+    return ret;
+}
+
+#ifdef WOLFSSL_CERT_GEN
+static const CertName defaultName = {
+    "US",               CTC_PRINTABLE,
+    "Montana",          CTC_UTF8,
+    "Bozeman",          CTC_UTF8,
+    "Test",             CTC_UTF8,
+    "wolfSSL",          CTC_UTF8,
+    "ED25519",          CTC_UTF8,
+    "www.wolfssl.com",  CTC_UTF8,
+    "info@wolfssl.com"
+};
+#ifdef WOLFSSL_CERT_EXT
+static const char leafKeyUsage[] = "digitalSignature,nonRepudiation";
+#endif
+
+static int ed25519_test_make_cert(void)
+{
+    WC_RNG       rng;
+    Cert         cert;
+    DecodedCert  decode;
+    ed25519_key  key;
+    ed25519_key* privKey = NULL;
+    int          ret = 0;
+    byte*        tmp = NULL;
+
+    wc_InitCert(&cert);
+
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+#else
+    ret = wc_InitRng(&rng);
+#endif
+    if (ret != 0)
+        return -7220;
+
+    wc_ed25519_init(&key);
+    privKey = &key;
+    wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, privKey);
+
+    cert.daysValid = 365 * 2;
+    cert.selfSigned = 1;
+    XMEMCPY(&cert.issuer, &defaultName, sizeof(CertName));
+    XMEMCPY(&cert.subject, &defaultName, sizeof(CertName));
+    cert.isCA = 0;
+#ifdef WOLFSSL_CERT_EXT
+    ret = wc_SetKeyUsage(&cert, leafKeyUsage);
+    if (ret < 0) {
+        ret = -7221;
+        goto done;
+    }
+    ret = wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ED25519_TYPE, privKey);
+    if (ret < 0) {
+        ret = -7222;
+        goto done;
+    }
+    ret = wc_SetAuthKeyIdFromPublicKey_ex(&cert, ED25519_TYPE, privKey);
+    if (ret < 0) {
+        ret = -7223;
+        goto done;
+    }
+#endif
+    tmp = XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp == NULL) {
+        ret = -7224;
+        goto done;
+    }
+
+    cert.sigType = CTC_ED25519;
+    ret = wc_MakeCert_ex(&cert, tmp, FOURK_BUF, ED25519_TYPE, privKey, &rng);
+    if (ret < 0) {
+        ret = -7225;
+        goto done;
+    }
+    ret = wc_SignCert_ex(cert.bodySz, cert.sigType, tmp, FOURK_BUF,
+                                                   ED25519_TYPE, privKey, &rng);
+    if (ret < 0) {
+        ret = -7226;
+        goto done;
+    }
+
+    InitDecodedCert(&decode, tmp, ret, HEAP_HINT);
+    ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
+    FreeDecodedCert(&decode);
+    if (ret != 0) {
+        ret = -7227;
+        goto done;
+    }
+
+done:
+    if (tmp != NULL)
+        XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    wc_ed25519_free(privKey);
+    wc_FreeRng(&rng);
+    return ret;
+}
+#endif /* WOLFSSL_CERT_GEN */
+#endif /* WOLFSSL_TEST_CERT */
+
 int ed25519_test(void)
 {
+    int ret;
     WC_RNG rng;
 #if defined(HAVE_ED25519_SIGN) && defined(HAVE_ED25519_KEY_EXPORT) &&\
     defined(HAVE_ED25519_KEY_IMPORT)
@@ -11446,7 +11732,7 @@ int ed25519_test(void)
     byte   exportSKey[ED25519_KEY_SIZE];
     word32 exportPSz;
     word32 exportSSz;
-    int    i, ret;
+    int    i;
     word32 outlen;
 #ifdef HAVE_ED25519_VERIFY
     int    verify;
@@ -11864,6 +12150,17 @@ int ed25519_test(void)
     /* hush warnings of unused keySz and sigSz */
     (void)keySz;
     (void)sigSz;
+
+#ifdef WOLFSSL_TEST_CERT
+    ret = ed25519_test_cert();
+    if (ret < 0)
+        return ret;
+#ifdef WOLFSSL_CERT_GEN
+    ret = ed25519_test_make_cert();
+    if (ret < 0)
+        return ret;
+#endif /* WOLFSSL_CERT_GEN */
+#endif /* WOLFSSL_TEST_CERT */
 
     return 0;
 }

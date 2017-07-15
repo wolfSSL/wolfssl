@@ -18,7 +18,7 @@ RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
 
 # setup ocsp responder
-./certs/ocsp/ocspd1.sh &
+./certs/ocsp/ocspd-intermediate1-ca-issued-certs.sh &
 sleep 1
 [ $(jobs -r | wc -l) -ne 1 ] && echo -e "\n\nSetup ocsp responder failed, skipping" && exit 0
 

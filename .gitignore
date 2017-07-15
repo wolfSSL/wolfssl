@@ -9,7 +9,8 @@ ctaocrypt/src/src/
 *.cache
 .dirstamp
 *.user
-config*
+configure
+config.*
 *Debug/
 *Release/
 *.ncb
@@ -127,6 +128,7 @@ autoscan.log
 TAGS
 .DS_Store
 support/cyassl.pc
+support/wolfssl.pc
 cyassl/ctaocrypt/stamp-h1
 swig/_cyassl.so
 swig/_wolfssl.so
@@ -212,6 +214,9 @@ IDE/INTIME-RTOS/Debug_*
 
 # Hexiwear
 IDE/HEXIWEAR/wolfSSL_HW/Debug
+
+# Linux-SGX
+IDE/LINUX-SGX/*.a
 
 # Binaries
 wolfcrypt/src/port/intel/qat_test

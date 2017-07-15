@@ -654,48 +654,54 @@ static int wc_DhGenerateKeyPair_Async(DhKey* key, WC_RNG* rng,
     int ret;
 
 #if defined(HAVE_INTEL_QA)
-    mp_int x;
+    word32 sz;
 
-    ret = mp_init(&x);
-    if (ret != MP_OKAY)
+    /* verify prime is at least 768-bits */
+    /* QAT HW must have prime at least 768-bits */
+    sz = mp_unsigned_bin_size(&key->p);
+    if (sz >= (768/8)) {
+        mp_int x;
+
+        ret = mp_init(&x);
+        if (ret != MP_OKAY)
+            return ret;
+
+        ret = GeneratePrivateDh(key, rng, priv, privSz);
+        if (ret == 0)
+            ret = mp_read_unsigned_bin(&x, priv, *privSz);
+        if (ret == MP_OKAY)
+            ret = wc_mp_to_bigint(&x, &x.raw);
+        if (ret == MP_OKAY)
+            ret = wc_mp_to_bigint(&key->p, &key->p.raw);
+        if (ret == MP_OKAY)
+            ret = wc_mp_to_bigint(&key->g, &key->g.raw);
+        if (ret == MP_OKAY)
+            ret = IntelQaDhKeyGen(&key->asyncDev, &key->p.raw, &key->g.raw,
+                &x.raw, pub, pubSz);
+        mp_clear(&x);
+
         return ret;
+    }
 
-    ret = GeneratePrivateDh(key, rng, priv, privSz);
-    if (ret == 0)
-        ret = mp_read_unsigned_bin(&x, priv, *privSz);
-    if (ret == MP_OKAY)
-        ret = wc_mp_to_bigint(&x, &x.raw);
-    if (ret == MP_OKAY)
-        ret = wc_mp_to_bigint(&key->p, &key->p.raw);
-    if (ret == MP_OKAY)
-        ret = wc_mp_to_bigint(&key->g, &key->g.raw);
-    if (ret == MP_OKAY)
-        ret = IntelQaDhKeyGen(&key->asyncDev, &key->p.raw, &key->g.raw,
-            &x.raw, pub, pubSz);
-    mp_clear(&x);
+#elif defined(HAVE_CAVIUM)
+    /* TODO: Not implemented - use software for now */
 
-#else
+#else /* WOLFSSL_ASYNC_CRYPT_TEST */
+    WC_ASYNC_TEST* testDev = &key->asyncDev.test;
+    if (testDev->type == ASYNC_TEST_NONE) {
+        testDev->type = ASYNC_TEST_DH_GEN;
+        testDev->dhGen.key = key;
+        testDev->dhGen.rng = rng;
+        testDev->dhGen.priv = priv;
+        testDev->dhGen.privSz = privSz;
+        testDev->dhGen.pub = pub;
+        testDev->dhGen.pubSz = pubSz;
+        return WC_PENDING_E;
+    }
+#endif
 
-    #if defined(HAVE_CAVIUM)
-        /* TODO: Not implemented - use software for now */
-
-    #else /* WOLFSSL_ASYNC_CRYPT_TEST */
-        WC_ASYNC_TEST* testDev = &key->asyncDev.test;
-        if (testDev->type == ASYNC_TEST_NONE) {
-            testDev->type = ASYNC_TEST_DH_GEN;
-            testDev->dhGen.key = key;
-            testDev->dhGen.rng = rng;
-            testDev->dhGen.priv = priv;
-            testDev->dhGen.privSz = privSz;
-            testDev->dhGen.pub = pub;
-            testDev->dhGen.pubSz = pubSz;
-            return WC_PENDING_E;
-        }
-    #endif
-
+    /* otherwise use software DH */
     ret = wc_DhGenerateKeyPair_Sync(key, rng, priv, privSz, pub, pubSz);
-
-#endif /* HAVE_INTEL_QA */
 
     return ret;
 }

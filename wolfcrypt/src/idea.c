@@ -194,11 +194,15 @@ int wc_IdeaSetIV(Idea *idea, const byte* iv)
 
 /* encryption/decryption for a block (64 bits)
  */
-void wc_IdeaCipher(Idea *idea, byte* out, const byte* in)
+int wc_IdeaCipher(Idea *idea, byte* out, const byte* in)
 {
     word32 t1, t2;
     word16 i, skey_idx = 0, idx = 0;
     word16 x[4];
+
+    if (idea == NULL || out == NULL || in == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
     /* put input byte block in word16 */
     for (i = 0; i < IDEA_BLOCK_SIZE/2; i++) {
@@ -241,11 +245,14 @@ void wc_IdeaCipher(Idea *idea, byte* out, const byte* in)
     x[3] = idea_mult(x[3], idea->skey[skey_idx++]);
     out[6] = (x[3] >> 8) & 0xFF;
     out[7] = x[3] & 0xFF;
+
+    return 0;
 }
 
 int wc_IdeaCbcEncrypt(Idea *idea, byte* out, const byte* in, word32 len)
 {
     int  blocks;
+    int  ret;
 
     if (idea == NULL || out == NULL || in == NULL)
         return BAD_FUNC_ARG;
@@ -253,7 +260,11 @@ int wc_IdeaCbcEncrypt(Idea *idea, byte* out, const byte* in, word32 len)
     blocks = len / IDEA_BLOCK_SIZE;
     while (blocks--) {
         xorbuf((byte*)idea->reg, in, IDEA_BLOCK_SIZE);
-        wc_IdeaCipher(idea, (byte*)idea->reg, (byte*)idea->reg);
+        ret = wc_IdeaCipher(idea, (byte*)idea->reg, (byte*)idea->reg);
+        if (ret != 0) {
+            return ret;
+        }
+
         XMEMCPY(out, idea->reg, IDEA_BLOCK_SIZE);
 
         out += IDEA_BLOCK_SIZE;
@@ -266,6 +277,7 @@ int wc_IdeaCbcEncrypt(Idea *idea, byte* out, const byte* in, word32 len)
 int wc_IdeaCbcDecrypt(Idea *idea, byte* out, const byte* in, word32 len)
 {
     int  blocks;
+    int  ret;
 
     if (idea == NULL || out == NULL || in == NULL)
         return BAD_FUNC_ARG;
@@ -273,7 +285,11 @@ int wc_IdeaCbcDecrypt(Idea *idea, byte* out, const byte* in, word32 len)
     blocks = len / IDEA_BLOCK_SIZE;
     while (blocks--) {
         XMEMCPY((byte*)idea->tmp, in, IDEA_BLOCK_SIZE);
-        wc_IdeaCipher(idea, out, (byte*)idea->tmp);
+        ret = wc_IdeaCipher(idea, out, (byte*)idea->tmp);
+        if (ret != 0) {
+            return ret;
+        }
+
         xorbuf(out, (byte*)idea->reg, IDEA_BLOCK_SIZE);
         XMEMCPY(idea->reg, idea->tmp, IDEA_BLOCK_SIZE);
 

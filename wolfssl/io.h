@@ -101,6 +101,8 @@
         #include <fcntl.h>
         #include <netdb.h>
         #include <sys/ioctl.h>
+    #elif defined(WOLFSSL_SGX)
+        #include <errno.h>
     #elif !defined(WOLFSSL_NO_SOCK)
         #include <sys/types.h>
         #include <errno.h>

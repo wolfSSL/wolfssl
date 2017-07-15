@@ -117,11 +117,14 @@ void wolfSSL_Debugging_OFF(void)
     #else
         #include <nio.h>
     #endif
+#elif defined(WOLFSSL_SGX)
+    /* Declare sprintf for ocall */
+    int sprintf(char* buf, const char *fmt, ...);
 #else
     #include <stdio.h>   /* for default printf stuff */
 #endif
 
-#ifdef THREADX
+#if defined(THREADX) && !defined(THREADX_NO_DC_PRINTF)
     int dc_log_printf(char*, ...);
 #endif
 
@@ -131,7 +134,7 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
         log_function(logLevel, logMessage);
     else {
         if (loggingEnabled) {
-#ifdef THREADX
+#if defined(THREADX) && !defined(THREADX_NO_DC_PRINTF)
             dc_log_printf("%s\n", logMessage);
 #elif defined(MICRIUM)
         #if (NET_SECURE_MGR_CFG_EN == DEF_ENABLED)
@@ -146,6 +149,8 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
 #elif defined(WOLFSSL_UTASKER)
             fnDebugMsg((char*)logMessage);
             fnDebugMsg("\r\n");
+#elif defined(MQX_USE_IO_OLD)
+            fprintf(_mqxio_stderr, "%s\n", logMessage);
 #else
             fprintf(stderr, "%s\n", logMessage);
 #endif

@@ -286,11 +286,12 @@
         #define FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP)  /* nothing to free, its stack */
     #endif
 
+    #ifndef WOLFSSL_LEANPSK
+	    char* mystrnstr(const char* s1, const char* s2, unsigned int n);
+    #endif
 
 	#ifndef STRING_USER
 	    #include <string.h>
-	    char* mystrnstr(const char* s1, const char* s2, unsigned int n);
-
 	    #define XMEMCPY(d,s,l)    memcpy((d),(s),(l))
 	    #define XMEMSET(b,c,l)    memset((b),(c),(l))
 	    #define XMEMCMP(s1,s2,n)  memcmp((s1),(s2),(n))
@@ -405,17 +406,35 @@
         DYNAMIC_TYPE_PKCS         = 56,
         DYNAMIC_TYPE_MUTEX        = 57,
         DYNAMIC_TYPE_PKCS7        = 58,
-        DYNAMIC_TYPE_AES          = 59,
+        DYNAMIC_TYPE_AES_BUFFER   = 59,
         DYNAMIC_TYPE_WOLF_BIGINT  = 60,
         DYNAMIC_TYPE_ASN1         = 61,
         DYNAMIC_TYPE_LOG          = 62,
         DYNAMIC_TYPE_WRITEDUP     = 63,
-        DYNAMIC_TYPE_DH_BUFFER    = 64,
+        DYNAMIC_TYPE_PRIVATE_KEY  = 64,
         DYNAMIC_TYPE_HMAC         = 65,
         DYNAMIC_TYPE_ASYNC        = 66,
         DYNAMIC_TYPE_ASYNC_NUMA   = 67,
         DYNAMIC_TYPE_ASYNC_NUMA64 = 68,
         DYNAMIC_TYPE_CURVE25519   = 69,
+        DYNAMIC_TYPE_ED25519      = 70,
+        DYNAMIC_TYPE_SECRET       = 71,
+        DYNAMIC_TYPE_DIGEST       = 72,
+        DYNAMIC_TYPE_RSA_BUFFER   = 73,
+        DYNAMIC_TYPE_DCERT        = 74,
+        DYNAMIC_TYPE_STRING       = 75,
+        DYNAMIC_TYPE_PEM          = 76,
+        DYNAMIC_TYPE_DER          = 77,
+        DYNAMIC_TYPE_CERT_EXT     = 78,
+        DYNAMIC_TYPE_ALPN         = 79,
+        DYNAMIC_TYPE_ENCRYPTEDINFO= 80,
+        DYNAMIC_TYPE_DIRCTX       = 81,
+        DYNAMIC_TYPE_HASHCTX      = 82,
+        DYNAMIC_TYPE_SEED         = 83,
+        DYNAMIC_TYPE_SYMETRIC_KEY = 84,
+        DYNAMIC_TYPE_ECC_BUFFER   = 85,
+        DYNAMIC_TYPE_QSH          = 86,
+        DYNAMIC_TYPE_SALT         = 87,
 	};
 
 	/* max error buffer string size */

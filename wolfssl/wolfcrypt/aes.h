@@ -89,8 +89,8 @@ typedef struct Aes {
     byte use_aesni;
 #endif /* WOLFSSL_AESNI */
 #ifdef WOLFSSL_ASYNC_CRYPT
-    const byte* asyncKey;
-    const byte* asyncIv;
+    word32 asyncKey[AES_MAX_KEY_SIZE/8/sizeof(word32)]; /* raw key */
+    word32 asyncIv[AES_BLOCK_SIZE/sizeof(word32)]; /* raw IV */
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
 #ifdef WOLFSSL_AES_COUNTER
@@ -142,7 +142,7 @@ WOLFSSL_API int wc_AesEcbDecrypt(Aes* aes, byte* out,
 
 /* AES-CTR */
 #ifdef WOLFSSL_AES_COUNTER
- WOLFSSL_API void wc_AesCtrEncrypt(Aes* aes, byte* out,
+ WOLFSSL_API int wc_AesCtrEncrypt(Aes* aes, byte* out,
                                    const byte* in, word32 sz);
 #endif
 /* AES-DIRECT */

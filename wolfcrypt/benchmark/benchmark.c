@@ -32,7 +32,8 @@
 /* Macro to disable benchmark */
 #ifndef NO_CRYPT_BENCHMARK
 
-#ifdef XMALLOC_USER
+#if defined(XMALLOC_USER) || defined(FREESCALE_MQX)
+    /* MQX classic needs for EXIT_FAILURE */
     #include <stdlib.h>  /* we're using malloc / free direct here */
 #endif
 
@@ -123,7 +124,7 @@
     #define fopen wolfSSL_fopen
 #endif
 
-#if defined(__GNUC__) && defined(__x86_64__) && !defined(NO_ASM)
+#if defined(__GNUC__) && defined(__x86_64__) && !defined(NO_ASM) && !defined(WOLFSSL_SGX)
     #define HAVE_GET_CYCLES
     static INLINE word64 get_intel_cycles(void);
     static THREAD_LS_T word64 total_cycles;
@@ -253,8 +254,14 @@ void bench_rng(void);
 
 #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND) && \
         !defined(HAVE_STACK_SIZE)
-    WOLFSSL_API int wolfSSL_Debugging_ON();
+#ifdef __cplusplus
+    extern "C" {
+#endif
+    WOLFSSL_API int wolfSSL_Debugging_ON(void);
     WOLFSSL_API void wolfSSL_Debugging_OFF(void);
+#ifdef __cplusplus
+    }  /* extern "C" */
+#endif
 #endif
 
 #if !defined(NO_RSA) || !defined(NO_DH) \
@@ -705,7 +712,7 @@ static void* benchmarks_do(void* args)
         int rngRet;
 
 #ifndef HAVE_FIPS
-        rngRet = wc_InitRng_ex(&rng, HEAP_HINT, INVALID_DEVID);
+        rngRet = wc_InitRng_ex(&rng, HEAP_HINT, devId);
 #else
         rngRet = wc_InitRng(&rng);
 #endif
@@ -1314,14 +1321,17 @@ void bench_aesctr(void)
 {
     Aes    enc;
     double start;
-    int    i, count;
+    int    i, count, ret;
 
     wc_AesSetKeyDirect(&enc, bench_key, AES_BLOCK_SIZE, bench_iv, AES_ENCRYPTION);
 
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < numBlocks; i++) {
-            wc_AesCtrEncrypt(&enc, bench_plain, bench_cipher, BENCH_SIZE);
+            if((ret = wc_AesCtrEncrypt(&enc, bench_plain, bench_cipher, BENCH_SIZE)) != 0) {
+                printf("wc_AesCtrEncrypt failed, ret = %d\n", ret);
+                return;
+            }
         }
         count += i;
     } while (bench_stats_sym_check(start));
@@ -1410,8 +1420,12 @@ void bench_camellia(void)
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < numBlocks; i++) {
-            wc_CamelliaCbcEncrypt(&cam, bench_plain, bench_cipher,
-                BENCH_SIZE);
+            ret = wc_CamelliaCbcEncrypt(&cam, bench_plain, bench_cipher,
+                                                            BENCH_SIZE);
+            if (ret <= 0) {
+                printf("CamelliaCbcEncrypt failed: %d\n", ret);
+                return;
+            }
         }
         count += i;
     } while (bench_stats_sym_check(start));
@@ -3411,9 +3425,15 @@ void bench_eccEncrypt(void)
     }
 
     ret = wc_ecc_make_key(&rng, keySize, &userA);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ret = wc_AsyncWait(ret, &userA.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0)
         goto exit;
     ret = wc_ecc_make_key(&rng, keySize, &userB);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ret = wc_AsyncWait(ret, &userB.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0)
         goto exit;
 
@@ -3718,6 +3738,8 @@ exit_ed_verify:
 
         return time_now;
     }
+#elif defined(WOLFSSL_SGX)
+    double current_time(int reset);
 
 #else
 

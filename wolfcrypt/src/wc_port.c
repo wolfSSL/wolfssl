@@ -80,7 +80,7 @@ int wolfCrypt_Init(void)
         ret = wolfAsync_HardwareStart();
         if (ret != 0) {
             WOLFSSL_MSG("Async hardware start failed");
-            return ret;
+            /* don't return failure, allow operation to continue */
         }
     #endif
 
@@ -131,7 +131,8 @@ int wolfCrypt_Init(void)
         WOLFSSL_MSG("Using ARM hardware acceleration");
     #endif
 
-    #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+    #if !defined(WOLFCRYPT_ONLY) && \
+        ( defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) )
         wolfSSL_EVP_init();
     #endif
 
@@ -196,9 +197,10 @@ int wolfCrypt_Cleanup(void)
 #if !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
 
 /* File Handling Helpers */
+/* returns 0 if file found, -1 if no files or negative error */
 int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
 {
-    int ret = 0;
+    int ret = -1; /* default to no files found */
 
     if (name)
         *name = NULL;
@@ -257,9 +259,10 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
     return ret;
 }
 
+/* returns 0 if file found, -1 if no more files */
 int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
 {
-    int ret = -1;
+    int ret = -1; /* default to no file found */
 
     if (name)
         *name = NULL;

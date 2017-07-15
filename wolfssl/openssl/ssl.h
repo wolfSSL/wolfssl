@@ -765,6 +765,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define ERR_LIB_PEM             9
 
 #ifdef HAVE_SESSION_TICKET
+#define SSL_OP_NO_TICKET                  SSL_OP_NO_TICKET
 #define SSL_CTRL_SET_TLSEXT_TICKET_KEY_CB 72
 #endif
 
@@ -803,6 +804,8 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define SSL_CTX_set_next_protos_advertised_cb wolfSSL_CTX_set_next_protos_advertised_cb
 #define SSL_CTX_set_next_proto_select_cb  wolfSSL_CTX_set_next_proto_select_cb
 #define SSL_get0_next_proto_negotiated    wolfSSL_get0_next_proto_negotiated
+#define SSL_is_server                     wolfSSL_is_server
+#define SSL_CTX_set1_curves_list          wolfSSL_CTX_set1_curves_list
 
 #endif
 

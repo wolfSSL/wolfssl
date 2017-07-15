@@ -686,6 +686,7 @@ extern void uITRON4_free(void *p) ;
         #include "mfs.h"
         #if MQX_USE_IO_OLD
             #include "fio.h"
+            #define NO_STDIO_FILESYSTEM
         #else
             #include "nio.h"
         #endif
@@ -694,6 +695,7 @@ extern void uITRON4_free(void *p) ;
         #include "mutex.h"
     #endif
 
+    #define XMALLOC_OVERRIDE
     #define XMALLOC(s, h, t)    (void *)_mem_alloc_system((s))
     #define XFREE(p, h, t)      {void* xp = (p); if ((xp)) _mem_free((xp));}
     /* Note: MQX has no realloc, using fastmath above */
@@ -804,7 +806,8 @@ extern void uITRON4_free(void *p) ;
 
     #ifdef FREESCALE_KSDK_1_3
         #include "fsl_device_registers.h"
-    #else
+    #elif !defined(FREESCALE_MQX)
+        /* Classic MQX does not have fsl_common.h */
         #include "fsl_common.h"
     #endif
 
@@ -849,6 +852,14 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif /* FREESCALE_COMMON */
 
+/* Classic pre-KSDK mmCAU library */
+#ifdef FREESCALE_USE_MMCAU_CLASSIC
+    #define FREESCALE_USE_MMCAU
+    #define FREESCALE_MMCAU_CLASSIC
+    #define FREESCALE_MMCAU_CLASSIC_SHA
+#endif
+
+/* KSDK mmCAU library */
 #ifdef FREESCALE_USE_MMCAU
     /* AES and DES */
     #define FREESCALE_MMCAU
@@ -1252,24 +1263,38 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 #ifdef WOLFSSL_SGX
-    #define WOLFCRYPT_ONLY   /* limitation until IO resolved */
+    #ifdef _MSC_VER
+        #define WOLFCRYPT_ONLY
+        #define NO_RC4
+        #define NO_DES3
+        #define NO_SHA
+        #define NO_MD5
+    #else
+        #define HAVE_ECC
+        #define TFM_TIMING_RESISTANT
+        #define NO_FILESYSTEM
+        #define NO_WRITEV
+        #define NO_MAIN_DRIVER
+        #define USER_TICKS
+        #define WOLFSSL_LOG_PRINTF
+        #define WOLFSSL_DH_CONST
+    #endif /* _MSC_VER */
     #define SINGLE_THREADED
     #define NO_ASN_TIME /* can not use headers such as windows.h */
-
-    /* options used in created example */
     #define HAVE_AESGCM
     #define USE_CERT_BUFFERS_2048
     #define USE_FAST_MATH
-    #define NO_RC4
-    #define NO_DES3
-    #define NO_SHA
-    #define NO_MD5
 #endif /* WOLFSSL_SGX */
 
 /* FreeScale MMCAU hardware crypto has 4 byte alignment.
-   However, fsl_mmcau.h gives API with no alignment requirements (4 byte alignment is managed internally by fsl_mmcau.c) */
+   However, KSDK fsl_mmcau.h gives API with no alignment
+   requirements (4 byte alignment is managed internally by fsl_mmcau.c) */
 #ifdef FREESCALE_MMCAU
-    #define WOLFSSL_MMCAU_ALIGNMENT 0
+    #ifdef FREESCALE_MMCAU_CLASSIC
+        #define WOLFSSL_MMCAU_ALIGNMENT 4
+    #else
+        #define WOLFSSL_MMCAU_ALIGNMENT 0
+    #endif
 #endif
 
 /* if using hardware crypto and have alignment requirements, specify the
@@ -1280,7 +1305,7 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_GENERAL_ALIGNMENT 16
     #elif defined(XSTREAM_ALIGN)
         #define WOLFSSL_GENERAL_ALIGNMENT  4
-    #elif defined(FREESCALE_MMCAU)
+    #elif defined(FREESCALE_MMCAU) || defined(FREESCALE_MMCAU_CLASSIC)
         #define WOLFSSL_GENERAL_ALIGNMENT  WOLFSSL_MMCAU_ALIGNMENT
     #else
         #define WOLFSSL_GENERAL_ALIGNMENT  0
@@ -1563,6 +1588,27 @@ extern void uITRON4_free(void *p) ;
 
 #if defined(WOLFSSL_NGINX)
     #define SSL_CTRL_SET_TLSEXT_HOSTNAME
+#endif
+
+/* both CURVE and ED small math should be enabled */
+#ifdef CURVED25519_SMALL
+    #define CURVE25519_SMALL
+    #define ED25519_SMALL
+#endif
+
+
+/* warning for not using harden build options (default with ./configure) */
+#ifndef WC_NO_HARDEN
+    #if (defined(USE_FAST_MATH) && !defined(TFM_TIMING_RESISTANT)) || \
+        (defined(HAVE_ECC) && !defined(ECC_TIMING_RESISTANT)) || \
+        (!defined(NO_RSA) && !defined(WC_RSA_BLINDING) && !defined(HAVE_FIPS))
+
+        #ifndef _MSC_VER
+            #warning "For timing resistance / side-channel attack prevention consider using harden options"
+        #else
+            #pragma message("Warning: For timing resistance / side-channel attack prevention consider using harden options")
+        #endif
+    #endif
 #endif
 
 #ifdef __cplusplus

@@ -5,6 +5,7 @@
 include IDE/iOS/include.am
 include IDE/WIN/include.am
 include IDE/WIN-SGX/include.am
+include IDE/LINUX-SGX/include.am
 include IDE/WORKBENCH/include.am
 include IDE/ROWLEY-CROSSWORKS-ARM/include.am
 include IDE/ARDUINO/include.am

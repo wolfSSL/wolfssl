@@ -1168,7 +1168,7 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
                                                             httpBuf, httpBufSz);
 
             ret = wolfIO_TcpConnect(&sfd, domainName, port, io_timeout_sec);
-            if ((ret != 0) || (sfd <= 0)) {
+            if ((ret != 0) || (sfd < 0)) {
                 WOLFSSL_MSG("OCSP Responder connection failed");
             }
             else if (wolfIO_Send(sfd, (char*)httpBuf, httpBufSz, 0) !=
@@ -1267,7 +1267,7 @@ int EmbedCrlLookup(WOLFSSL_CRL* crl, const char* url, int urlSz)
                 httpBuf, httpBufSz);
 
             ret = wolfIO_TcpConnect(&sfd, domainName, port, io_timeout_sec);
-            if ((ret != 0) || (sfd <= 0)) {
+            if ((ret != 0) || (sfd < 0)) {
                 WOLFSSL_MSG("CRL connection failed");
             }
             else if (wolfIO_Send(sfd, (char*)httpBuf, httpBufSz, 0)
@@ -1402,6 +1402,8 @@ int NetX_Receive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     ULONG copied = 0;
     UINT  status;
 
+    (void)ssl;
+
     if (nxCtx == NULL || nxCtx->nxSocket == NULL) {
         WOLFSSL_MSG("NetX Recv NULL parameters");
         return WOLFSSL_CBIO_ERR_GENERAL;
@@ -1454,6 +1456,8 @@ int NetX_Send(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     NX_PACKET*      packet;
     NX_PACKET_POOL* pool;   /* shorthand */
     UINT            status;
+
+    (void)ssl;
 
     if (nxCtx == NULL || nxCtx->nxSocket == NULL) {
         WOLFSSL_MSG("NetX Send NULL parameters");
