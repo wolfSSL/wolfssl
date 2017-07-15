@@ -4188,7 +4188,6 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             if (line >= bufferEnd) {
                 return SSL_BAD_FILE;
             }
-
             lineSz = (word32)(bufferEnd - line);
             start = XSTRNSTR(line, "DES", min(lineSz, PEM_LINE_LEN));
 
@@ -4210,7 +4209,6 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                 if (finish >= bufferEnd) {
                     return SSL_BAD_FILE;
                 }
-
                 finishSz = (word32)(bufferEnd - finish);
                 newline = XSTRNSTR(finish, "\r", min(finishSz, PEM_LINE_LEN));
 

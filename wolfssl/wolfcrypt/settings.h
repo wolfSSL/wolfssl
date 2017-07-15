@@ -1271,6 +1271,7 @@ extern void uITRON4_free(void *p) ;
         #define NO_MD5
     #else
         #define HAVE_ECC
+        #define ECC_TIMING_RESISTANT
         #define TFM_TIMING_RESISTANT
         #define NO_FILESYSTEM
         #define NO_WRITEV
@@ -1279,6 +1280,11 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_LOG_PRINTF
         #define WOLFSSL_DH_CONST
     #endif /* _MSC_VER */
+
+    #ifndef (NO_RSA)
+        #define WC_RSA_BLINDING
+    #endif
+
     #define SINGLE_THREADED
     #define NO_ASN_TIME /* can not use headers such as windows.h */
     #define HAVE_AESGCM

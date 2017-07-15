@@ -854,6 +854,7 @@ done:
 }
 
 typedef int (*cbType)(WOLFSSL_CTX *ctx, WOLFSSL *ssl);
+
 #endif /* !NO_WOLFSSL_SERVER */
 
 static void test_client_nofail(void* args, void *cb)

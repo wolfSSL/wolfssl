@@ -3544,7 +3544,6 @@ int Ed25519Verify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* msg,
     }
 
     WOLFSSL_LEAVE("Ed25519Verify", ret);
-
     return ret;
 }
 #endif /* HAVE_ED25519 */

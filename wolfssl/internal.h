@@ -912,7 +912,7 @@ enum Misc {
     ECC_BYTE    = 0xC0,            /* ECC first cipher suite byte */
     QSH_BYTE    = 0xD0,            /* Quantum-safe Handshake cipher suite */
     CHACHA_BYTE = 0xCC,            /* ChaCha first cipher suite */
-    TLS13_BYTE  = 0x13,            /* TLS v.13 first byte of cipher suite */
+    TLS13_BYTE  = 0x13,            /* TLS v1.3 first byte of cipher suite */
 
     SEND_CERT       = 1,
     SEND_BLANK_CERT = 2,
