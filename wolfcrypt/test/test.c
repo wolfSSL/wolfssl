@@ -1098,7 +1098,7 @@ int asn_test(void)
 #endif
 
 #ifdef WOLFSSL_MD2
-int md2_test()
+int md2_test(void)
 {
     Md2  md2;
     byte hash[MD2_DIGEST_SIZE];
@@ -13432,7 +13432,7 @@ static int randNum(mp_int* n, int len, WC_RNG* rng, void* heap)
 }
 #endif
 
-int mp_test()
+int mp_test(void)
 {
     WC_RNG rng;
     int    ret;
@@ -13577,7 +13577,7 @@ static void my_Logging_cb(const int logLevel, const char *const logMessage)
 }
 #endif
 
-int logging_test()
+int logging_test(void)
 {
 #ifdef DEBUG_WOLFSSL
     const char* msg = "Testing, testing. 1, 2, 3, 4 ...";
