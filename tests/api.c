@@ -13501,13 +13501,14 @@ static void test_wolfSSL_DES(void)
     DES_set_key(&myDes, &key);
 
     /* check, check of odd parity */
-    XMEMSET(myDes, 4, sizeof(const_DES_cblock));  myDes[0] = 3; /*set even parity*/
+    XMEMSET(myDes, 4, sizeof(const_DES_cblock));  myDes[0] = 6; /*set even parity*/
     XMEMSET(key, 5, sizeof(DES_key_schedule));
     AssertIntEQ(DES_set_key_checked(&myDes, &key), -1);
     AssertIntNE(key[0], myDes[0]); /* should not have copied over key */
 
     /* set odd parity for success case */
     DES_set_odd_parity(&myDes);
+    printf("%02x %02x %02x %02x", myDes[0], myDes[1], myDes[2], myDes[3]);
     AssertIntEQ(DES_set_key_checked(&myDes, &key), 0);
     for (i = 0; i < sizeof(DES_key_schedule); i++) {
         AssertIntEQ(key[i], myDes[i]);
