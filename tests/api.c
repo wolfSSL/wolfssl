@@ -404,7 +404,7 @@ static void test_wolfSSL_CTX_use_PrivateKey_file(void)
 static void test_wolfSSL_get_privateKey(void)
 {
 #if defined(OPENSSL_EXTRA)
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA)
 
     SSL_CTX *ctx;
     SSL *ssl;
