@@ -7199,7 +7199,9 @@ int rsa_test(void)
             ERROR_OUT(-5571, exit_rsa);
         }
 
-        wc_InitCert(&myCert);
+        if (wc_InitCert(&myCert)) {
+            ERROR_OUT(-5572, exit_rsa);
+        }
 
         strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
         strncpy(myCert.subject.state, "OR", CTC_NAME_SIZE);
@@ -7221,17 +7223,17 @@ int rsa_test(void)
 
         /* add SKID from the Public Key */
         if (wc_SetSubjectKeyIdFromPublicKey(&myCert, &keypub, NULL) != 0) {
-            ERROR_OUT(-5572, exit_rsa);
+            ERROR_OUT(-5573, exit_rsa);
         }
 
          /* add AKID from the Public Key */
          if (wc_SetAuthKeyIdFromPublicKey(&myCert, &keypub, NULL) != 0) {
-            ERROR_OUT(-5573, exit_rsa);
+            ERROR_OUT(-5574, exit_rsa);
         }
 
         /* add Key Usage */
         if (wc_SetKeyUsage(&myCert,"cRLSign,keyCertSign") != 0) {
-            ERROR_OUT(-5574, exit_rsa);
+            ERROR_OUT(-5575, exit_rsa);
         }
     #endif /* WOLFSSL_CERT_EXT */
 
@@ -7245,7 +7247,7 @@ int rsa_test(void)
             }
         } while (ret == WC_PENDING_E);
         if (ret < 0) {
-            ERROR_OUT(-5575, exit_rsa);
+            ERROR_OUT(-5576, exit_rsa);
         }
         certSz = ret;
 
@@ -7254,7 +7256,7 @@ int rsa_test(void)
         ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
         if (ret != 0) {
             FreeDecodedCert(&decode);
-            ERROR_OUT(-5576, exit_rsa);
+            ERROR_OUT(-5577, exit_rsa);
         }
         FreeDecodedCert(&decode);
     #endif
@@ -7262,29 +7264,29 @@ int rsa_test(void)
     #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         derFile = fopen(certDerFile, "wb");
         if (!derFile) {
-            ERROR_OUT(-5577, exit_rsa);
+            ERROR_OUT(-5578, exit_rsa);
         }
         ret = (int)fwrite(der, 1, certSz, derFile);
         fclose(derFile);
         if (ret != certSz) {
-            ERROR_OUT(-5578, exit_rsa);
+            ERROR_OUT(-5579, exit_rsa);
         }
     #endif
 
         pemSz = wc_DerToPem(der, certSz, pem, FOURK_BUF, CERT_TYPE);
         if (pemSz < 0) {
-            ERROR_OUT(-5579, exit_rsa);
+            ERROR_OUT(-5580, exit_rsa);
         }
 
     #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         pemFile = fopen(certPemFile, "wb");
         if (!pemFile) {
-            ERROR_OUT(-5580, exit_rsa);
+            ERROR_OUT(-5581, exit_rsa);
         }
         ret = (int)fwrite(pem, 1, pemSz, pemFile);
         fclose(pemFile);
         if (ret != pemSz) {
-            ERROR_OUT(-5581, exit_rsa);
+            ERROR_OUT(-5582, exit_rsa);
         }
     #endif
 
@@ -7345,7 +7347,9 @@ int rsa_test(void)
             ERROR_OUT(-5604, exit_rsa);
         }
 
-        wc_InitCert(&myCert);
+        if (wc_InitCert(&myCert)) {
+            ERROR_OUT(-5617, exit_rsa);
+        }
 
     #ifdef NO_SHA
         myCert.sigType = CTC_SHA256wRSA;
@@ -7519,7 +7523,9 @@ int rsa_test(void)
             ERROR_OUT(-5624, exit_rsa);
         }
 
-        wc_InitCert(&myCert);
+        if (wc_InitCert(&myCert)) {
+            ERROR_OUT(-5640, exit_rsa);
+        }
         myCert.sigType = CTC_SHA256wECDSA;
 
         strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
@@ -7739,7 +7745,9 @@ int rsa_test(void)
             ERROR_OUT(-5658, exit_rsa);
         }
 
-        wc_InitCert(&myCert);
+        if (wc_InitCert(&myCert)) {
+            ERROR_OUT(-5573, exit_rsa);
+        }
 
         strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
         strncpy(myCert.subject.state, "OR", CTC_NAME_SIZE);
@@ -7886,7 +7894,9 @@ int rsa_test(void)
             ERROR_OUT(-5681, exit_rsa);
         }
 
-        wc_InitCert(&req);
+        if (wc_InitCert(&req)) {
+            ERROR_OUT(-5691, exit_rsa);
+        }
 
         req.version = 0;
         req.isCA    = 1;

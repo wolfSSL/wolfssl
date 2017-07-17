@@ -25,6 +25,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifndef NO_RSA
 
@@ -52,12 +53,19 @@ RSA Key Size Configuration:
 #ifdef HAVE_FIPS
 int  wc_InitRsaKey(RsaKey* key, void* ptr)
 {
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     return InitRsaKey_fips(key, ptr);
 }
 
 int  wc_InitRsaKey_ex(RsaKey* key, void* ptr, int devId)
 {
     (void)devId;
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
     return InitRsaKey_fips(key, ptr);
 }
 
@@ -70,6 +78,9 @@ int  wc_FreeRsaKey(RsaKey* key)
 int  wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
                                  word32 outLen, RsaKey* key, WC_RNG* rng)
 {
+    if (in == NULL || out == NULL || key == NULL || rng == NULL) {
+        return BAD_FUNC_ARG;
+    }
     return RsaPublicEncrypt_fips(in, inLen, out, outLen, key, rng);
 }
 
@@ -77,6 +88,9 @@ int  wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
 int  wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out,
                                         RsaKey* key)
 {
+    if (in == NULL || out == NULL || key == NULL) {
+        return BAD_FUNC_ARG;
+    }
     return RsaPrivateDecryptInline_fips(in, inLen, out, key);
 }
 
@@ -84,6 +98,9 @@ int  wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out,
 int  wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
                                   word32 outLen, RsaKey* key)
 {
+    if (in == NULL || out == NULL || key == NULL) {
+        return BAD_FUNC_ARG;
+    }
     return RsaPrivateDecrypt_fips(in, inLen, out, outLen, key);
 }
 
@@ -91,12 +108,18 @@ int  wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
 int  wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
                             word32 outLen, RsaKey* key, WC_RNG* rng)
 {
+    if (in == NULL || out == NULL || key == NULL || inLen == 0) {
+        return BAD_FUNC_ARG;
+    }
     return RsaSSL_Sign_fips(in, inLen, out, outLen, key, rng);
 }
 
 
 int  wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 {
+    if (in == NULL || out == NULL || key == NULL) {
+        return BAD_FUNC_ARG;
+    }
     return RsaSSL_VerifyInline_fips(in, inLen, out, key);
 }
 
@@ -104,12 +127,18 @@ int  wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 int  wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out,
                               word32 outLen, RsaKey* key)
 {
+    if (in == NULL || out == NULL || key == NULL || inLen == 0) {
+        return BAD_FUNC_ARG;
+    }
     return RsaSSL_Verify_fips(in, inLen, out, outLen, key);
 }
 
 
 int  wc_RsaEncryptSize(RsaKey* key)
 {
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
     return RsaEncryptSize_fips(key);
 }
 
@@ -117,6 +146,7 @@ int  wc_RsaEncryptSize(RsaKey* key)
 int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
                            word32* bSz)
 {
+
     /* not specified as fips so not needing _fips */
     return RsaFlattenPublicKey(key, a, aSz, b, bSz);
 }
@@ -136,7 +166,6 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
 #else /* else build without fips */
 
 #include <wolfssl/wolfcrypt/random.h>
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -1568,7 +1597,13 @@ int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
 int wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
                                                                  RsaKey* key)
 {
-    WC_RNG* rng = NULL;
+    WC_RNG* rng;
+
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    rng = NULL;
 #ifdef WC_RSA_BLINDING
     rng = key->rng;
 #endif
@@ -1637,6 +1672,9 @@ int wc_RsaPSS_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
 
 int wc_RsaEncryptSize(RsaKey* key)
 {
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
     return mp_unsigned_bin_size(&key->n);
 }
 
