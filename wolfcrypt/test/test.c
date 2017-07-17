@@ -908,7 +908,7 @@ int wolfcrypt_test(void* args)
 #endif /* NO_MAIN_DRIVER */
 
 
-int error_test()
+int error_test(void)
 {
     const char* errStr;
     char        out[WOLFSSL_MAX_ERROR_SZ];
@@ -971,7 +971,7 @@ int error_test()
 }
 
 #if !defined(NO_CODING) && defined(WOLFSSL_BASE64_ENCODE)
-int base64_test()
+int base64_test(void)
 {
     int        ret;
     const byte good[] = "A+Gd\0\0\0";
@@ -1068,7 +1068,7 @@ int base64_test()
 #endif
 
 #ifndef NO_ASN
-int asn_test()
+int asn_test(void)
 {
 #ifndef NO_ASN_TIME
     #ifdef WORD64_AVAILABLE
@@ -1098,7 +1098,7 @@ int asn_test()
 #endif
 
 #ifdef WOLFSSL_MD2
-int md2_test()
+int md2_test(void)
 {
     Md2  md2;
     byte hash[MD2_DIGEST_SIZE];
@@ -11234,7 +11234,7 @@ done:
 #endif /* HAVE_ECC_ENCRYPT */
 
 #ifdef USE_CERT_BUFFERS_256
-int ecc_test_buffers() {
+int ecc_test_buffers(void) {
     size_t bytes;
     ecc_key cliKey;
     ecc_key servKey;
@@ -13432,7 +13432,7 @@ static int randNum(mp_int* n, int len, WC_RNG* rng, void* heap)
 }
 #endif
 
-int mp_test()
+int mp_test(void)
 {
     WC_RNG rng;
     int    ret;
@@ -13577,7 +13577,7 @@ static void my_Logging_cb(const int logLevel, const char *const logMessage)
 }
 #endif
 
-int logging_test()
+int logging_test(void)
 {
 #ifdef DEBUG_WOLFSSL
     const char* msg = "Testing, testing. 1, 2, 3, 4 ...";
@@ -13633,7 +13633,7 @@ int logging_test()
 }
 #endif
 
-int mutex_test()
+int mutex_test(void)
 {
 #ifdef WOLFSSL_PTHREADS
     wolfSSL_Mutex m;
@@ -13685,7 +13685,7 @@ static void *my_Realloc_cb(void *ptr, size_t size)
     return realloc(ptr, size);
 }
 
-int memcb_test()
+int memcb_test(void)
 {
     int ret = 0;
     byte* b = NULL;

@@ -415,9 +415,8 @@
     #define NO_WRITEV
     #define TFM_NO_ASM
     #define USE_FAST_MATH
-    #define NO_FILE_SYSTEM
+    #define NO_FILESYSTEM
     #define USE_CERT_BUFFERS_2048
-    #define HAVE_ECC
 #endif
 
 #ifdef WOLFSSL_NRF5x
