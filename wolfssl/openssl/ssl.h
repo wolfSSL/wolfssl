@@ -415,6 +415,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define RAND_bytes wolfSSL_RAND_bytes
 #define SSLv23_server_method  wolfSSLv23_server_method
 #define SSL_CTX_set_options   wolfSSL_CTX_set_options
+#define SSL_CTX_get_options   wolfSSL_CTX_get_options
 #define SSL_CTX_clear_options wolfSSL_CTX_clear_options
 
 #define SSL_CTX_check_private_key wolfSSL_CTX_check_private_key
@@ -482,7 +483,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 #if defined(HAVE_LIGHTY)  || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
     defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
-    defined(HAVE_POCO_LIB) || defined(WOLFSSL_HAPROXY) 
+    defined(HAVE_POCO_LIB) || defined(WOLFSSL_HAPROXY)
 typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #define X509_NAME_free wolfSSL_X509_NAME_free
@@ -557,6 +558,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #define SSL_set_options      wolfSSL_set_options
 #define SSL_get_options      wolfSSL_get_options
+#define SSL_clear_options    wolfSSL_clear_options
 #define SSL_set_tmp_dh       wolfSSL_set_tmp_dh
 #define SSL_clear_num_renegotiations    wolfSSL_clear_num_renegotiations
 #define SSL_total_renegotiations       wolfSSL_total_renegotiations
@@ -641,7 +643,6 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define sk_X509_num                      wolfSSL_sk_X509_num
 #define X509_NAME_print_ex               wolfSSL_X509_NAME_print_ex
 #define X509_get0_pubkey_bitstr          wolfSSL_X509_get0_pubkey_bitstr
-#define SSL_CTX_get_options              wolfSSL_CTX_get_options
 
 #define SSL_CTX_flush_sessions           wolfSSL_flush_sessions
 #define SSL_CTX_add_session              wolfSSL_CTX_add_session
