@@ -32,6 +32,7 @@
 */
 
 #include <wolfssl/wolfcrypt/random.h>
+#include <wolfssl/wolfcrypt/cpuid.h>
 
 
 #ifdef HAVE_FIPS
@@ -141,12 +142,6 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
     #ifdef HAVE_INTEL_RDRAND
     static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz);
     #endif
-    static word32 cpuid_check = 0;
-    static word32 cpuid_flags = 0;
-    #define CPUID_RDRAND 0x4
-    #define CPUID_RDSEED 0x8
-    #define IS_INTEL_RDRAND     (cpuid_flags & CPUID_RDRAND)
-    #define IS_INTEL_RDSEED     (cpuid_flags & CPUID_RDSEED)
 #endif
 
 /* Start NIST DRBG code */
@@ -540,7 +535,7 @@ int wc_InitRng_ex(WC_RNG* rng, void* heap, int devId)
 
 #ifdef HAVE_INTEL_RDRAND
     /* if CPU supports RDRAND, use it directly and by-pass DRBG init */
-    if (IS_INTEL_RDRAND)
+    if (IS_INTEL_RDRAND(cpuid_get_flags()))
         return 0;
 #endif
 
@@ -610,7 +605,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         return BAD_FUNC_ARG;
 
 #ifdef HAVE_INTEL_RDRAND
-    if (IS_INTEL_RDRAND)
+    if (IS_INTEL_RDRAND(cpuid_get_flags()))
         return wc_GenerateRand_IntelRD(NULL, output, sz);
 #endif
 
@@ -982,52 +977,8 @@ int wc_FreeNetRandom(void)
 
 #if defined(HAVE_INTEL_RDRAND) || defined(HAVE_INTEL_RDSEED)
 
-#ifndef _MSC_VER
-    #define cpuid(reg, leaf, sub)\
-            __asm__ __volatile__ ("cpuid":\
-             "=a" (reg[0]), "=b" (reg[1]), "=c" (reg[2]), "=d" (reg[3]) :\
-             "a" (leaf), "c"(sub));
-
-    #define XASM_LINK(f) asm(f)
-#else
-
-    #include <intrin.h>
-    #define cpuid(a,b) __cpuid((int*)a,b)
-
-    #define XASM_LINK(f)
-
-#endif /* _MSC_VER */
-
-#define EAX 0
-#define EBX 1
-#define ECX 2
-#define EDX 3
-
-static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit) {
-    int got_intel_cpu = 0;
-    unsigned int reg[5];
-
-    reg[4] = '\0';
-    cpuid(reg, 0, 0);
-    if (XMEMCMP((char *)&(reg[EBX]), "Genu", 4) == 0 &&
-        XMEMCMP((char *)&(reg[EDX]), "ineI", 4) == 0 &&
-        XMEMCMP((char *)&(reg[ECX]), "ntel", 4) == 0)
-    {
-        got_intel_cpu = 1;
-    }
-    if (got_intel_cpu) {
-        cpuid(reg, leaf, sub);
-        return ((reg[num] >> bit) & 0x1);
-    }
-    return 0;
-}
-
 static void wc_InitRng_IntelRD(void) {
-    if (cpuid_check==0) {
-        if (cpuid_flag(1, 0, ECX, 30)) { cpuid_flags |= CPUID_RDRAND; }
-        if (cpuid_flag(7, 0, EBX, 18)) { cpuid_flags |= CPUID_RDSEED; }
-        cpuid_check = 1;
-    }
+    cpuid_set_flags();
 }
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -1067,7 +1018,7 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
 
     (void)os;
 
-    if (!IS_INTEL_RDSEED)
+    if (!IS_INTEL_RDSEED(cpuid_get_flags()))
         return -1;
 
     for (; (sz / sizeof(word64)) > 0; sz -= sizeof(word64),
@@ -1122,7 +1073,7 @@ static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
 
     (void)os;
 
-    if (!IS_INTEL_RDRAND)
+    if (!IS_INTEL_RDRAND(cpuid_get_flags()))
         return -1;
 
     for (; (sz / sizeof(word64)) > 0; sz -= sizeof(word64),
@@ -1702,7 +1653,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         int ret = 0;
 
     #ifdef HAVE_INTEL_RDSEED
-        if (IS_INTEL_RDSEED) {
+        if (IS_INTEL_RDSEED(cpuid_get_flags())) {
              ret = wc_GenerateSeed_IntelRD(NULL, output, sz);
              if (ret == 0) {
                  /* success, we're done */

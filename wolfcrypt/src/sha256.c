@@ -32,6 +32,7 @@
 
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/cpuid.h>
 
 /* fips wrapper calls, user can call direct */
 #ifdef HAVE_FIPS
@@ -177,76 +178,13 @@ static int InitSha256(Sha256* sha256)
           More granural Stitched Message Sched/Round
       }
 
+    #endif
+
     */
 
     /* Each platform needs to query info type 1 from cpuid to see if aesni is
      * supported. Also, let's setup a macro for proper linkage w/o ABI conflicts
      */
-
-    #ifndef _MSC_VER
-        #define cpuid(reg, leaf, sub)\
-                __asm__ __volatile__ ("cpuid":\
-                 "=a" (reg[0]), "=b" (reg[1]), "=c" (reg[2]), "=d" (reg[3]) :\
-                 "a" (leaf), "c"(sub));
-
-        #define XASM_LINK(f) asm(f)
-    #else
-        #include <intrin.h>
-        #define cpuid(a,b) __cpuid((int*)a,b)
-
-        #define XASM_LINK(f)
-    #endif /* _MSC_VER */
-
-    #define EAX 0
-    #define EBX 1
-    #define ECX 2
-    #define EDX 3
-
-    #define CPUID_AVX1   0x1
-    #define CPUID_AVX2   0x2
-    #define CPUID_RDRAND 0x4
-    #define CPUID_RDSEED 0x8
-    #define CPUID_BMI2   0x10   /* MULX, RORX */
-
-    #define IS_INTEL_AVX1       (cpuid_flags & CPUID_AVX1)
-    #define IS_INTEL_AVX2       (cpuid_flags & CPUID_AVX2)
-    #define IS_INTEL_BMI2       (cpuid_flags & CPUID_BMI2)
-    #define IS_INTEL_RDRAND     (cpuid_flags & CPUID_RDRAND)
-    #define IS_INTEL_RDSEED     (cpuid_flags & CPUID_RDSEED)
-
-    static word32 cpuid_check = 0;
-    static word32 cpuid_flags = 0;
-
-    static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit) {
-        int got_intel_cpu=0;
-        unsigned int reg[5];
-
-        reg[4] = '\0';
-        cpuid(reg, 0, 0);
-        if (XMEMCMP((char *)&(reg[EBX]), "Genu", 4) == 0 &&
-            XMEMCMP((char *)&(reg[EDX]), "ineI", 4) == 0 &&
-            XMEMCMP((char *)&(reg[ECX]), "ntel", 4) == 0) {
-            got_intel_cpu = 1;
-        }
-        if (got_intel_cpu) {
-            cpuid(reg, leaf, sub);
-            return ((reg[num] >> bit) & 0x1);
-        }
-        return 0;
-    }
-
-    static int set_cpuid_flags(void) {
-        if (cpuid_check==0) {
-            if (cpuid_flag(1, 0, ECX, 28)){ cpuid_flags |= CPUID_AVX1; }
-            if (cpuid_flag(7, 0, EBX, 5)) { cpuid_flags |= CPUID_AVX2; }
-            if (cpuid_flag(7, 0, EBX, 8)) { cpuid_flags |= CPUID_BMI2; }
-            if (cpuid_flag(1, 0, ECX, 30)){ cpuid_flags |= CPUID_RDRAND; }
-            if (cpuid_flag(7, 0, EBX, 18)){ cpuid_flags |= CPUID_RDSEED; }
-            cpuid_check = 1;
-            return 0;
-        }
-        return 1;
-    }
 
     /* #if defined(HAVE_INTEL_AVX1/2) at the tail of sha256 */
     static int Transform(Sha256* sha256);
@@ -258,22 +196,31 @@ static int InitSha256(Sha256* sha256)
         static int Transform_AVX1_RORX(Sha256 *sha256);
     #endif
     static int (*Transform_p)(Sha256* sha256) /* = _Transform */;
+    static int transform_check = 0;
     #define XTRANSFORM(sha256, B)  (*Transform_p)(sha256)
 
-    static void set_Transform(void) {
-         if (set_cpuid_flags()) return;
+    static void set_Transform(void)
+    {
+        word32 intel_flags;
+
+        cpuid_set_flags();
+        if (transform_check)
+            return;
+        transform_check = 1;
+        intel_flags = cpuid_get_flags();
 
     #if defined(HAVE_INTEL_AVX2)
-         if (IS_INTEL_AVX2 && IS_INTEL_BMI2) {
-             Transform_p = Transform_AVX1_RORX; return;
-             Transform_p = Transform_AVX2;
-                      /* for avoiding warning,"not used" */
-         }
+        if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_BMI2(intel_flags)) {
+            Transform_p = Transform_AVX1_RORX; return;
+            Transform_p = Transform_AVX2;
+                     /* for avoiding warning,"not used" */
+        }
     #endif
     #if defined(HAVE_INTEL_AVX1)
-         Transform_p = ((IS_INTEL_AVX1) ? Transform_AVX1 : Transform); return;
+        Transform_p = ((IS_INTEL_AVX1(intel_flags)) ? Transform_AVX1 :
+                                                       Transform); return;
     #endif
-         Transform_p = Transform; return;
+        Transform_p = Transform; return;
     }
 
     /* Dummy for saving MM_REGs on behalf of Transform */
@@ -519,6 +466,11 @@ static int InitSha256(Sha256* sha256)
     {
         int ret = 0;
         byte* local;
+#if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
+#if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
+        word32 intel_flags = cpuid_get_flags();
+#endif
+#endif
 
         if (sha256 == NULL || (data == NULL && len > 0)) {
             return BAD_FUNC_ARG;
@@ -552,7 +504,7 @@ static int InitSha256(Sha256* sha256)
             if (sha256->buffLen == SHA256_BLOCK_SIZE) {
         #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
             #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-                if (!IS_INTEL_AVX1 && !IS_INTEL_AVX2)
+                if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
             #endif
                 {
                     ByteReverseWords(sha256->buffer, sha256->buffer,
@@ -582,6 +534,11 @@ static int InitSha256(Sha256* sha256)
 
         int ret;
         byte* local = (byte*)sha256->buffer;
+#if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
+#if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
+        word32 intel_flags = cpuid_get_flags();
+#endif
+#endif
 
         if (sha256 == NULL) {
             return BAD_FUNC_ARG;
@@ -598,15 +555,15 @@ static int InitSha256(Sha256* sha256)
                 SHA256_BLOCK_SIZE - sha256->buffLen);
             sha256->buffLen += SHA256_BLOCK_SIZE - sha256->buffLen;
 
-    #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
-        #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-            if (!IS_INTEL_AVX1 && !IS_INTEL_AVX2)
-        #endif
             {
-                ByteReverseWords(sha256->buffer, sha256->buffer,
-                    SHA256_BLOCK_SIZE);
+        #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
+            #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
+                if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
+            #endif
+                    ByteReverseWords(sha256->buffer, sha256->buffer,
+                        SHA256_BLOCK_SIZE);
+        #endif
             }
-    #endif
 
             ret = XTRANSFORM(sha256, local);
             if (ret != 0)
@@ -624,7 +581,7 @@ static int InitSha256(Sha256* sha256)
         /* store lengths */
     #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
         #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-            if (!IS_INTEL_AVX1 && !IS_INTEL_AVX2)
+            if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
         #endif
             {
                 ByteReverseWords(sha256->buffer, sha256->buffer,
@@ -640,7 +597,7 @@ static int InitSha256(Sha256* sha256)
         defined(HAVE_INTEL_AVX2)
         /* Kinetis requires only these bytes reversed */
         #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-            if (IS_INTEL_AVX1 || IS_INTEL_AVX2)
+            if (IS_INTEL_AVX1(intel_flags) || IS_INTEL_AVX2(intel_flags))
         #endif
             {
                 ByteReverseWords(
