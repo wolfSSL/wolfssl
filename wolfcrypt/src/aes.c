@@ -199,6 +199,12 @@
                 const byte* authTag, word32 authTagSz,
                 const byte* authIn, word32 authInSz)
             {
+
+                if (aes == NULL || out == NULL || in == NULL || nonce == NULL
+                    || authTag == NULL || nonceSz < 7 || nonceSz > 13) {
+                        return BAD_FUNC_ARG;
+                }
+
                 return AesCcmDecrypt(aes, out, in, inSz, nonce, nonceSz,
                     authTag, authTagSz, authIn, authInSz);
             }
