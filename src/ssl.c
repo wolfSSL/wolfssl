@@ -1673,6 +1673,7 @@ int wolfSSL_write(WOLFSSL* ssl, const void* data, int sz)
     #ifdef OPENSSL_EXTRA
     if (ssl->CBIS != NULL) {
         ssl->CBIS(ssl, SSL_CB_WRITE, SSL_SUCCESS);
+        ssl->cbmode = SSL_CB_WRITE;
     }
     #endif
     ret = SendData(ssl, data, sz);
@@ -1760,6 +1761,7 @@ int wolfSSL_read(WOLFSSL* ssl, void* data, int sz)
     #ifdef OPENSSL_EXTRA
     if (ssl->CBIS != NULL) {
         ssl->CBIS(ssl, SSL_CB_READ, SSL_SUCCESS);
+        ssl->cbmode = SSL_CB_READ;
     }
     #endif
     return wolfSSL_read_internal(ssl, data, sz, FALSE);
@@ -9150,6 +9152,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         #ifdef OPENSSL_EXTRA
             if (ssl->CBIS != NULL) {
                 ssl->CBIS(ssl, SSL_ST_CONNECT, SSL_SUCCESS);
+                ssl->cbmode = SSL_CB_WRITE;
             }
         #endif
         if (ssl->options.side != WOLFSSL_CLIENT_END) {
@@ -9498,12 +9501,6 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
         #ifdef HAVE_ERRNO_H
             errno = 0;
-        #endif
-
-        #ifdef OPENSSL_EXTRA
-            if (ssl->CBIS != NULL) {
-                ssl->CBIS(ssl, SSL_ST_ACCEPT, SSL_SUCCESS);
-            }
         #endif
 
         #ifndef NO_PSK
@@ -19081,195 +19078,255 @@ const char* wolfSSL_alert_desc_string_long(int alertID)
 const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
 {
 
-    static const char* OUTPUT_STR[11][6][3] = {
+    static const char* OUTPUT_STR[14][6][3] = {
         {
-            {"SSLv3 Null State","SSLv3 Null State","SSLv3 Null State"},
-            {"TLSv1 Null State","TLSv2 Null State","TLSv2 Null State"},
-            {"TLSv1_1 Null State","TLSv1_1 Null State","TLSv1_1 Null State"},
-            {"TLSv1_2 Null State","TLSv1_2 Null State","TLSv1_2 Null State"},
-            {"DTLSv1 Null State","DTLSv1 Null State","DTLSv1 Null State"},
-            {"DTLSv1_2 Null State","DTLSv1_2 Null State","DTLSv1_2 Null State"},
+            {"SSLv3 Initialization","SSLv3 Initialization","SSLv3 Initialization"},
+            {"TLSv1 Initialization","TLSv2 Initialization","TLSv2 Initialization"},
+            {"TLSv1_1 Initialization","TLSv1_1 Initialization","TLSv1_1 Initialization"},
+            {"TLSv1_2 Initialization","TLSv1_2 Initialization","TLSv1_2 Initialization"},
+            {"DTLSv1 Initialization","DTLSv1 Initialization","DTLSv1 Initialization"},
+            {"DTLSv1_2 Initialization","DTLSv1_2 Initialization","DTLSv1_2 Initialization"},
         },
         {
-            {"SSLv3 write Server Hello Verify Request Complete",
-             "SSLv3 read Server Hello Verify Request Complete",
-             "SSLv3 Server Hello Verify Request Complete"},
-            {"TLSv1 write Server Hello Verify Request Complete",
-             "TLSv1 read Server Hello Verify Request Complete",
-             "TLSv1 Server Hello Verify Request Complete"},
-            {"TLSv1_1 write Server Hello Verify Request Complete",
-            "TLSv1_1 read Server Hello Verify Request Complete",
-             "TLSv1_1 Server Hello Verify Request Complete"},
-            {"TLSv1_2 write Server Hello Verify Request Complete",
-            "TLSv1_2 read Server Hello Verify Request Complete",
-             "TLSv1_2 Server Hello Verify Request Complete"},
-            {"DTLSv1 write Server Hello Verify Request Complete",
-             "DTLSv1 read Server Hello Verify Request Complete",
-             "DTLSv1 Server Hello Verify Request Complete"},
-            {"DTLSv1_2 write Server Hello Verify Request Complete",
-             "DTLSv1_2 read Server Hello Verify Request Complete",
-             "DTLSv1_2 Server Hello Verify Request Complete"},
+            {"SSLv3 read Server Hello Verify Request",
+             "SSLv3 write Server Hello Verify Request",
+             "SSLv3 Server Hello Verify Request"},
+            {"TLSv1 read Server Hello Verify Request",
+             "TLSv1 write Server Hello Verify Request",
+             "TLSv1 Server Hello Verify Request"},
+            {"TLSv1_1 read Server Hello Verify Request",
+            "TLSv1_1 write Server Hello Verify Request",
+             "TLSv1_1 Server Hello Verify Request"},
+            {"TLSv1_2 read Server Hello Verify Request",
+            "TLSv1_2 write Server Hello Verify Request",
+             "TLSv1_2 Server Hello Verify Request"},
+            {"DTLSv1 read Server Hello Verify Request",
+             "DTLSv1 write Server Hello Verify Request",
+             "DTLSv1 Server Hello Verify Request"},
+            {"DTLSv1_2 read Server Hello Verify Request",
+             "DTLSv1_2 write Server Hello Verify Request",
+             "DTLSv1_2 Server Hello Verify Request"},
         },
-        {
-            {"SSLv3 write Server Hello Complete",
-             "SSLv3 read Server Hello Complete",
-             "SSLv3 Server Hello Complete"},
-            {"TLSv1 write Server Hello Complete",
-             "TLSv1 read Server Hello Complete",
-             "TLSv1 Server Hello Complete"},
-            {"TLSv1_1 write Server Hello Complete",
-            "TLSv1_1 read Server Hello Complete",
-             "TLSv1_1 Server Hello Complete"},
-            {"TLSv1_2 write Server Hello Complete",
-            "TLSv1_2 read Server Hello Complete",
-             "TLSv1_2 Server Hello Complete"},
-            {"DTLSv1 write Server Hello Complete",
-            "DTLSv1 read Server Hello Complete",
-             "DTLSv1 Server Hello Complete"},
-            {"DTLSv1_2 write Server Hello Complete",
-             "DTLSv1_2 read Server Hello Complete",
-             "DTLSv1_2 Server Hello Complete",
+		{
+            {"SSLv3 read Server Hello",
+             "SSLv3 write Server Hello",
+             "SSLv3 Server Hello"},
+            {"TLSv1 read Server Hello",
+             "TLSv1 write Server Hello",
+             "TLSv1 Server Hello"},
+            {"TLSv1_1 read Server Hello",
+            "TLSv1_1 write Server Hello",
+             "TLSv1_1 Server Hello"},
+            {"TLSv1_2 read Server Hello",
+            "TLSv1_2 write Server Hello",
+             "TLSv1_2 Server Hello"},
+            {"DTLSv1 read Server Hello",
+            "DTLSv1 write Server Hello",
+             "DTLSv1 Server Hello"},
+            {"DTLSv1_2 read Server Hello"
+             "DTLSv1_2 write Server Hello",
+             "DTLSv1_2 Server Hello",
             },
         },
         {
-            {"SSLv3 write Server Certificate Complete",
-             "SSLv3 read Server Certificate Complete",
-             "SSLv3 Server Certificate Complete"},
-            {"TLSv1 write Server Certificate Complete",
-             "TLSv1 read Server Certificate Complete",
-             "TLSv1 Server Certificate Complete"},
-            {"TLSv1_1 write Server Certificate Complete",
-             "TLSv1_1 read Server Certificate Complete",
-             "TLSv1_1 Server Certificate Complete"},
-            {"TLSv1_2 write Server Certificate Complete",
-             "TLSv1_2 read Server Certificate Complete",
-             "TLSv1_2 Server Certificate Complete"},
-            {"DTLSv1 write Server Certificate Complete",
-             "DTLSv1 read Server Certificate Complete",
-             "DTLSv1 Server Certificate Complete"},
-            {"DTLSv1_2 write Server Certificate Complete",
-             "DTLSv1_2 read Server Certificate Complete",
-             "DTLSv1_2 Server Certificate Complete"},
+            {"SSLv3 read Server Session Ticket",
+             "SSLv3 write Server Session Ticket",
+             "SSLv3 Server Session Ticket"},
+            {"TLSv1 read Server Session Ticket",
+             "TLSv1 write Server Session Ticket",
+             "TLSv1 Server Session Ticket"},
+            {"TLSv1_1 read Server Session Ticket",
+             "TLSv1_1 write Server Session Ticket",
+             "TLSv1_1 Server Session Ticket"},
+            {"TLSv1_2 read Server Session Ticket",
+             "TLSv1_2 write Server Session Ticket",
+             "TLSv1_2 Server Session Ticket"},
+            {"DTLSv1 read Server Session Ticket",
+             "DTLSv1 write Server Session Ticket",
+             "DTLSv1 Server Session Ticket"},
+            {"DTLSv1_2 read Server Session Ticket",
+             "DTLSv1_2 write Server Session Ticket",
+             "DTLSv1_2 Server Session Ticket"},
+        },
+		{
+            {"SSLv3 read Server Cert",
+             "SSLv3 write Server Cert",
+             "SSLv3 Server Cert"},
+            {"TLSv1 read Server Cert",
+             "TLSv1 write Server Cert",
+             "TLSv1 Server Cert"},
+            {"TLSv1_1 read Server Cert",
+             "TLSv1_1 write Server Cert",
+             "TLSv1_1 Server Cert"},
+            {"TLSv1_2 read Server Cert",
+             "TLSv1_2 write Server Cert",
+             "TLSv1_2 Server Cert"},
+            {"DTLSv1 read Server Cert",
+             "DTLSv1 write Server Cert",
+             "DTLSv1 Server Cert"},
+            {"DTLSv1_2 read Server Cert",
+             "DTLSv1_2 write Server Cert",
+             "DTLSv1_2 Server Cert"},
         },
         {
-            {"SSLv3 write Server Key Exchange Complete",
-             "SSLv3 read Server Key Exchange Complete",
-             "SSLv3 Server Key Exchange Complete"},
-            {"TLSv1 write Server Key Exchange Complete",
-             "TLSv1 read Server Key Exchange Complete",
-             "TLSv1 Server Key Exchange Complete"},
-            {"TLSv1_1 write Server Key Exchange Complete",
-             "TLSv1_1 read Server Key Exchange Complete",
-             "TLSv1_1 Server Key Exchange Complete"},
-            {"TLSv1_2 write Server Key Exchange Complete",
-             "TLSv1_2 read Server Key Exchange Complete",
-             "TLSv1_2 Server Key Exchange Complete"},
-            {"DTLSv1 write Server Key Exchange Complete",
-             "DTLSv1 read Server Key Exchange Complete",
-             "DTLSv1 Server Key Exchange Complete"},
-            {"DTLSv1_2 write Server Key Exchange Complete",
-             "DTLSv1_2 read Server Key Exchange Complete",
-             "DTLSv1_2 Server Key Exchange Complete"},
+            {"SSLv3 read Server Key Exchange",
+             "SSLv3 write Server Key Exchange",
+             "SSLv3 Server Key Exchange"},
+            {"TLSv1 read Server Key Exchange",
+             "TLSv1 write Server Key Exchange",
+             "TLSv1 Server Key Exchange"},
+            {"TLSv1_1 read Server Key Exchange",
+             "TLSv1_1 write Server Key Exchange",
+             "TLSv1_1 Server Key Exchange"},
+            {"TLSv1_2 read Server Key Exchange",
+             "TLSv1_2 write Server Key Exchange",
+             "TLSv1_2 Server Key Exchange"},
+            {"DTLSv1 read Server Key Exchange",
+             "DTLSv1 write Server Key Exchange",
+             "DTLSv1 Server Key Exchange"},
+            {"DTLSv1_2 read Server Key Exchange",
+             "DTLSv1_2 write Server Key Exchange",
+             "DTLSv1_2 Server Key Exchange"},
         },
         {
-            {"SSLv3 write Server Hello Done Complete",
-             "SSLv3 read Server Hello Done Complete",
-             "SSLv3 Server Hello Done Complete"},
-            {"TLSv1 write Server Hello Done Complete",
-             "TLSv1 read Server Hello Done Complete",
-             "TLSv1 Server Hello Done Complete"},
-            {"TLSv1_1 write Server Hello Done Complete",
-             "TLSv1_1 read Server Hello Done Complete",
-             "TLSv1_1 Server Hello Done Complete"},
-            {"TLSv1_2 write Server Hello Done Complete",
-             "TLSv1_2 read Server Hello Done Complete",
-             "TLSv1_2 Server Hello Done Complete"},
-            {"DTLSv1 write Server Hello Done Complete",
-             "DTLSv1 read Server Hello Done Complete",
-             "DTLSv1 Server Hello Done Complete"},
-            {"DTLSv1_2 write Server Hello Done Complete",
-             "DTLSv1_2 read Server Hello Done Complete",
-             "DTLSv1_2 Server Hello Done Complete"},
+            {"SSLv3 read Server Hello Done",
+             "SSLv3 write Server Hello Done",
+             "SSLv3 Server Hello Done"},
+            {"TLSv1 read Server Hello Done",
+             "TLSv1 write Server Hello Done",
+             "TLSv1 Server Hello Done"},
+            {"TLSv1_1 read Server Hello Done",
+             "TLSv1_1 write Server Hello Done",
+             "TLSv1_1 Server Hello Done"},
+            {"TLSv1_2 read Server Hello Done",
+             "TLSv1_2 write Server Hello Done",
+             "TLSv1_2 Server Hello Done"},
+            {"DTLSv1 read Server Hello Done",
+             "DTLSv1 write Server Hello Done",
+             "DTLSv1 Server Hello Done"},
+            {"DTLSv1_2 read Server Hello Done",
+             "DTLSv1_2 write Server Hello Done",
+             "DTLSv1_2 Server Hello Done"},
+        },
+		{
+            {"SSLv3 read Server Change CipherSpec",
+             "SSLv3 write Server Change CipherSpec",
+             "SSLv3 Server Change CipherSpec"},
+            {"TLSv1 read Server Change CipherSpec",
+             "TLSv1 write Server Change CipherSpec",
+             "TLSv1 Server Change CipherSpec"},
+            {"TLSv1_1 read Server Change CipherSpec",
+             "TLSv1_1 write Server Change CipherSpec",
+             "TLSv1_1 Server Change CipherSpec"},
+            {"TLSv1_2 read Server Change CipherSpec",
+             "TLSv1_2 write Server Change CipherSpec",
+             "TLSv1_2 Server Change CipherSpec"},
+            {"DTLSv1 read Server Change CipherSpec",
+             "DTLSv1 write Server Change CipherSpec",
+             "DTLSv1 Server Change CipherSpec"},
+            {"DTLSv1_2 read Server Change CipherSpec",
+             "DTLSv1_2 write Server Change CipherSpec",
+             "DTLSv1_2 Server Change CipherSpec"},
+        },
+		{
+            {"SSLv3 read Server Finished",
+             "SSLv3 write Server Finished",
+             "SSLv3 Server Finished"},
+            {"TLSv1 read Server Finished",
+             "TLSv1 write Server Finished",
+             "TLSv1 Server Finished"},
+            {"TLSv1_1 read Server Finished",
+             "TLSv1_1 write Server Finished",
+             "TLSv1_1 Server Finished"},
+            {"TLSv1_2 read Server Finished",
+             "TLSv1_2 write Server Finished",
+             "TLSv1_2 Server Finished"},
+            {"DTLSv1 read Server Finished",
+             "DTLSv1 write Server Finished",
+             "DTLSv1 Server Finished"},
+            {"DTLSv1_2 read Server Finished",
+             "DTLSv1_2 write Server Finished",
+             "DTLSv1_2 Server Finished"},
         },
         {
-            {"SSLv3 write Server Finished Complete",
-             "SSLv3 read Server Finished Complete",
-             "SSLv3 Server Finished Complete"},
-            {"TLSv1 write Server Finished Complete",
-             "TLSv1 read Server Finished Complete",
-             "TLSv1 Server Finished Complete"},
-            {"TLSv1_1 write Server Finished Complete",
-             "TLSv1_1 read Server Finished Complete",
-             "TLSv1_1 Server Finished Complete"},
-            {"TLSv1_2 write Server Finished Complete",
-             "TLSv1_2 read Server Finished Complete",
-             "TLSv1_2 Server Finished Complete"},
-            {"DTLSv1 write Server Finished Complete",
-             "DTLSv1 read Server Finished Complete",
-             "DTLSv1 Server Finished Complete"},
-            {"DTLSv1_2 write Server Finished Complete",
-             "DTLSv1_2 read Server Finished Complete",
-             "DTLSv1_2 Server Finished Complete"},
+            {"SSLv3 read Client Hello",
+             "SSLv3 write Client Hello",
+             "SSLv3 Client Hello"},
+            {"TLSv1 read Client Hello",
+             "TLSv1 write Client Hello",
+             "TLSv1 Client Hello"},
+            {"TLSv1_1 read Client Hello",
+             "TLSv1_1 write Client Hello",
+             "TLSv1_1 Client Hello"},
+            {"TLSv1_2 read Client Hello",
+             "TLSv1_2 write Client Hello",
+             "TLSv1_2 Client Hello"},
+            {"DTLSv1 read Client Hello",
+             "DTLSv1 write Client Hello",
+             "DTLSv1 Client Hello"},
+            {"DTLSv1_2 read Client Hello",
+             "DTLSv1_2 write Client Hello",
+             "DTLSv1_2 Client Hello"},
         },
         {
-            {"SSLv3 read Client Hello Complete",
-             "SSLv3 write Client Hello Complete",
-             "SSLv3 Client Hello Complete"},
-            {"TLSv1 read Client Hello Complete",
-             "TLSv1 write Client Hello Complete",
-             "TLSv1 Client Hello Complete"},
-            {"TLSv1_1 read Client Hello Complete",
-             "TLSv1_1 write Client Hello Complete",
-             "TLSv1_1 Client Hello Complete"},
-            {"TLSv1_2 read Client Hello Complete",
-             "TLSv1_2 write Client Hello Complete",
-             "TLSv1_2 Client Hello Complete"},
-            {"DTLSv1 read Client Hello Complete",
-             "DTLSv1 write Client Hello Complete",
-             "DTLSv1 Client Hello Complete"},
-            {"DTLSv1_2 read Client Hello Complete",
-             "DTLSv1_2 write Client Hello Complete",
-             "DTLSv1_2 Client Hello Complete"},
+            {"SSLv3 read Client Key Exchange",
+             "SSLv3 write Client Key Exchange",
+             "SSLv3 Client Key Exchange"},
+            {"TLSv1 read Client Key Exchange",
+             "TLSv1 write Client Key Exchange",
+             "TLSv1 Client Key Exchange"},
+            {"TLSv1_1 read Client Key Exchange",
+             "TLSv1_1 write Client Key Exchange",
+             "TLSv1_1 Client Key Exchange"},
+            {"TLSv1_2 read Client Key Exchange",
+             "TLSv1_2 write Client Key Exchange",
+             "TLSv1_2 Client Key Exchange"},
+            {"DTLSv1 read Client Key Exchange",
+             "DTLSv1 write Client Key Exchange",
+             "DTLSv1 Client Key Exchange"},
+            {"DTLSv1_2 read Client Key Exchange",
+             "DTLSv1_2 write Client Key Exchange",
+             "DTLSv1_2 Client Key Exchange"},
+        },
+		{
+            {"SSLv3 read Client Change CipherSpec",
+             "SSLv3 write Client Change CipherSpec",
+             "SSLv3 Client Change CipherSpec"},
+            {"TLSv1 read Client Change CipherSpec",
+             "TLSv1 write Client Change CipherSpec",
+             "TLSv1 Client Change CipherSpec"},
+            {"TLSv1_1 read Client Change CipherSpec",
+             "TLSv1_1 write Client Change CipherSpec",
+             "TLSv1_1 Client Change CipherSpec"},
+            {"TLSv1_2 read Client Change CipherSpec",
+             "TLSv1_2 write Client Change CipherSpec",
+             "TLSv1_2 Client Change CipherSpec"},
+            {"DTLSv1 read Client Change CipherSpec",
+             "DTLSv1 write Client Change CipherSpec",
+             "DTLSv1 Client Change CipherSpec"},
+            {"DTLSv1_2 read Client Change CipherSpec",
+             "DTLSv1_2 write Client Change CipherSpec",
+             "DTLSv1_2 Client Change CipherSpec"},
         },
         {
-            {"SSLv3 read Client Key Exchange Complete",
-             "SSLv3 write Client Key Exchange Complete",
-             "SSLv3 Client Key Exchange Complete"},
-            {"TLSv1 read Client Key Exchange Complete",
-             "TLSv1 write Client Key Exchange Complete",
-             "TLSv1 Client Key Exchange Complete"},
-            {"TLSv1_1 read Client Key Exchange Complete",
-             "TLSv1_1 write Client Key Exchange Complete",
-             "TLSv1_1 Client Key Exchange Complete"},
-            {"TLSv1_2 read Client Key Exchange Complete",
-             "TLSv1_2 write Client Key Exchange Complete",
-             "TLSv1_2 Client Key Exchange Complete"},
-            {"DTLSv1 read Client Key Exchange Complete",
-             "DTLSv1 write Client Key Exchange Complete",
-             "DTLSv1 Client Key Exchange Complete"},
-            {"DTLSv1_2 read Client Key Exchange Complete",
-             "DTLSv1_2 write Client Key Exchange Complete",
-             "DTLSv1_2 Client Key Exchange Complete"},
-        },
-        {
-            {"SSLv3 read Client Finished Complete",
-             "SSLv3 write Client Finished Complete",
-             "SSLv3 Client Finished Complete"},
-            {"TLSv1 read Client Finished Complete",
-             "TLSv1 write Client Finished Complete",
-             "TLSv1 Client Finished Complete"},
-            {"TLSv1_1 read Client Finished Complete",
-             "TLSv1_1 write Client Finished Complete",
-             "TLSv1_1 Client Finished Complete"},
-            {"TLSv1_2 read Client Finished Complete",
-             "TLSv1_2 write Client Finished Complete",
-             "TLSv1_2 Client Finished Complete"},
-            {"DTLSv1 read Client Finished Complete",
-             "DTLSv1 write Client Finished Complete",
-             "DTLSv1 Client Finished Complete"},
-            {"DTLSv1_2 read Client Finished Complete",
-             "DTLSv1_2 write Client Finished Complete",
-             "DTLSv1_2 Client Finished Complete"},
+            {"SSLv3 read Client Finished",
+             "SSLv3 write Client Finished",
+             "SSLv3 Client Finished"},
+            {"TLSv1 read Client Finished",
+             "TLSv1 write Client Finished",
+             "TLSv1 Client Finished"},
+            {"TLSv1_1 read Client Finished",
+             "TLSv1_1 write Client Finished",
+             "TLSv1_1 Client Finished"},
+            {"TLSv1_2 read Client Finished",
+             "TLSv1_2 write Client Finished",
+             "TLSv1_2 Client Finished"},
+            {"DTLSv1 read Client Finished",
+             "DTLSv1 write Client Finished",
+             "DTLSv1 Client Finished"},
+            {"DTLSv1_2 read Client Finished",
+             "DTLSv1_2 write Client Finished",
+             "DTLSv1_2 Client Finished"},
         },
         {
             {"SSLv3 Handshake Done",
@@ -19301,8 +19358,33 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
         DTLS_V1_2,
         UNKNOWN = 100
     };
-    int state_type = 0;
-    int node_type = 0;
+
+    enum IOMode {
+      SS_READ = 0,
+      SS_WRITE,
+      SS_NEITHER
+    };
+
+	enum SslState {
+	  ss_null_state = 0,
+	  ss_server_helloverify,
+	  ss_server_hello,
+	  ss_sessionticket,
+	  ss_server_cert,
+	  ss_server_keyexchange,
+	  ss_server_hellodone,
+	  ss_server_changecipherspec,
+	  ss_server_finished,
+	  ss_client_hello,
+	  ss_client_keyexchange,
+	  ss_client_changecipherspec,
+	  ss_client_finished,
+	  ss_handshake_done
+	};
+
+    int protocol = 0;
+    int cbmode = 0;
+	int state = 0;
 
     WOLFSSL_ENTER("wolfSSL_state_string_long");
     if (ssl == NULL) {
@@ -19310,88 +19392,140 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
         return NULL;
     }
 
-    /* Get node type (client or server) */
-    node_type = ssl->options.side;
-    if (node_type != WOLFSSL_SERVER_END
-        && node_type != WOLFSSL_CLIENT_END) {
-        node_type = WOLFSSL_NEITHER_END - 1;
+    /* Get state of callback */
+    if (ssl->cbmode == SSL_CB_MODE_WRITE){
+		cbmode =  SS_WRITE;
+    } else if (ssl->cbmode == SSL_CB_MODE_READ){
+		cbmode =  SS_READ;
+    } else {
+		cbmode =  SS_NEITHER;
     }
 
-    /* Get SSL version */
+    /* Get protocol version */
     switch (ssl->version.major){
-        case SSLv3_MAJOR:
-            switch (ssl->version.minor){
-            case TLSv1_MINOR:
-                state_type = TLS_V1;
-            break;
+	case SSLv3_MAJOR:
+		switch (ssl->version.minor){
+		    case TLSv1_MINOR:
+                protocol = TLS_V1;
+				break;
             case TLSv1_1_MINOR:
-                state_type = TLS_V1_1;
-            break;
+                protocol = TLS_V1_1;
+				break;
             case TLSv1_2_MINOR:
-                state_type = TLS_V1_2;
-            break;
+                protocol = TLS_V1_2;
+				break;
             case SSLv3_MINOR:
-                state_type = SSL_V3;
-            break;
+                protocol = SSL_V3;
+				break;
             default:
-                state_type = UNKNOWN;
+                protocol = UNKNOWN;
             }
         break;
-        case DTLS_MAJOR:
-            switch (ssl->version.minor){
-                case DTLS_MINOR: 
-                    state_type = DTLS_V1;
-                break;
-                case DTLSv1_2_MINOR:
-                    state_type = DTLS_V1_2;
-                break;
-                default:
-                    state_type = UNKNOWN;
-            }
+	case DTLS_MAJOR:
+		switch (ssl->version.minor){
+		case DTLS_MINOR: 
+			protocol = DTLS_V1;
+			break;
+		case DTLSv1_2_MINOR:
+			protocol = DTLS_V1_2;
+			break;
+		default:
+			protocol = UNKNOWN;
+		}
         break;
-        default:
-            state_type = UNKNOWN;
+	default:
+		protocol = UNKNOWN;
     }
 
-    switch (wolfSSL_get_state(ssl)) {
-        case NULL_STATE:
-            return OUTPUT_STR[NULL_STATE][state_type][node_type];
+	/* accept process */
+	if (ssl->cbmode == SSL_CB_MODE_READ){
+		state = ssl->cbtype;
+		switch (state) {
+		case hello_verify_request:
+			state = ss_server_helloverify;
+			break;
+		case session_ticket:
+			state = ss_sessionticket;
+			break;
+		case server_hello:
+			state = ss_server_hello;
+			break;
+		case server_hello_done:
+			state = ss_server_hellodone;
+			break;
+		case certificate:
+			state = ss_server_cert;
+			break;
+		case server_key_exchange:
+			state = ss_server_keyexchange;
+			break;
+		case client_hello:
+			state = ss_client_hello;
+			break;
+		case client_key_exchange:
+			state = ss_client_keyexchange;
+			break;
+		case finished:
+			if (ssl->options.side == WOLFSSL_SERVER_END)
+				state = ss_client_finished;
+			else if (ssl->options.side == WOLFSSL_CLIENT_END)
+				state = ss_server_finished;
+			break;
+		default:
+			WOLFSSL_MSG("Unknown State");
+			state = ss_null_state;
+		}
+	} else {
+		/* Send process */
+		if (ssl->options.side == WOLFSSL_SERVER_END)
+			state = ssl->options.serverState;
+		else
+			state = ssl->options.clientState;
 
-        case SERVER_HELLOVERIFYREQUEST_COMPLETE:
-            return
-               OUTPUT_STR[SERVER_HELLOVERIFYREQUEST_COMPLETE][state_type][node_type];
+		switch(state){
+		case SERVER_HELLOVERIFYREQUEST_COMPLETE:
+			state = ss_server_helloverify;
+			break;
+		case SERVER_HELLO_COMPLETE:
+			state = ss_server_hello;
+			break;
+		case SERVER_CERT_COMPLETE:
+			state = ss_server_cert;
+			break;
+		case SERVER_KEYEXCHANGE_COMPLETE:
+			state = ss_server_keyexchange;
+			break;
+		case SERVER_HELLODONE_COMPLETE:
+			state = ss_server_hellodone;
+			break;
+		case SERVER_CHANGECIPHERSPEC_COMPLETE:
+			state = ss_server_changecipherspec;
+			break;
+		case SERVER_FINISHED_COMPLETE:
+			state = ss_server_finished;
+			break;
+		case CLIENT_HELLO_COMPLETE:
+			state = ss_client_hello;
+			break;
+		case CLIENT_KEYEXCHANGE_COMPLETE:
+			state = ss_client_keyexchange;
+			break;
+		case CLIENT_CHANGECIPHERSPEC_COMPLETE:
+			state = ss_client_changecipherspec;
+			break;
+		case CLIENT_FINISHED_COMPLETE:
+			state = ss_client_finished;
+			break;
+		case HANDSHAKE_DONE:
+			state = ss_handshake_done;
+			break;
+		default:
+			WOLFSSL_MSG("Unknown State");
+			state = ss_null_state;
+		}
+	}
 
-        case SERVER_HELLO_COMPLETE:
-            return OUTPUT_STR[SERVER_HELLO_COMPLETE][state_type][node_type];
-
-        case SERVER_CERT_COMPLETE:
-            return OUTPUT_STR[SERVER_CERT_COMPLETE][state_type][node_type];
-
-        case SERVER_KEYEXCHANGE_COMPLETE:
-            return OUTPUT_STR[SERVER_KEYEXCHANGE_COMPLETE][state_type][node_type];
-
-        case SERVER_HELLODONE_COMPLETE:
-            return OUTPUT_STR[SERVER_HELLODONE_COMPLETE][state_type][node_type];
-
-        case SERVER_FINISHED_COMPLETE:
-            return OUTPUT_STR[SERVER_FINISHED_COMPLETE][state_type][node_type];
-
-        case CLIENT_HELLO_COMPLETE:
-            return OUTPUT_STR[CLIENT_HELLO_COMPLETE][state_type][node_type];
-
-        case CLIENT_KEYEXCHANGE_COMPLETE:
-            return OUTPUT_STR[CLIENT_KEYEXCHANGE_COMPLETE][state_type][node_type];
-
-        case CLIENT_FINISHED_COMPLETE:
-            return OUTPUT_STR[CLIENT_FINISHED_COMPLETE][state_type][node_type];
-
-        case HANDSHAKE_DONE:
-            return OUTPUT_STR[HANDSHAKE_DONE][state_type][node_type];
-
-        default:
-            WOLFSSL_MSG("Unknown State");
-            return NULL;
-    }
+	return OUTPUT_STR[state][protocol][cbmode];
 }
 
 #ifndef NO_WOLFSSL_STUB
@@ -30253,13 +30387,6 @@ int wolfSSL_get_state(const WOLFSSL* ssl)
     if (ssl == NULL) {
         WOLFSSL_MSG("Null argument passed in");
         return SSL_FAILURE;
-    }
-
-    if (ssl->options.handShakeState != HANDSHAKE_DONE){
-        if (ssl->options.side == WOLFSSL_SERVER_END)
-            return ssl->options.serverState;
-        else if (ssl->options.side == WOLFSSL_CLIENT_END)
-            return ssl->options.clientState;
     }
 
     return ssl->options.handShakeState;

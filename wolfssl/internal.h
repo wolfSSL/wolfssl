@@ -1306,11 +1306,13 @@ enum states {
     SERVER_CERT_COMPLETE,
     SERVER_KEYEXCHANGE_COMPLETE,
     SERVER_HELLODONE_COMPLETE,
+	SERVER_CHANGECIPHERSPEC_COMPLETE,
     SERVER_FINISHED_COMPLETE,
     SERVER_HELLO_RETRY_REQUEST,
 
     CLIENT_HELLO_COMPLETE,
     CLIENT_KEYEXCHANGE_COMPLETE,
+	CLIENT_CHANGECIPHERSPEC_COMPLETE,
     CLIENT_FINISHED_COMPLETE,
 
     HANDSHAKE_DONE
@@ -3332,6 +3334,8 @@ struct WOLFSSL {
     Options         options;
 #ifdef OPENSSL_EXTRA
     CallbackInfoState* CBIS;             /* used to get info about SSL state */
+    int              cbmode;             /* read or write on info callback */
+    int              cbtype;             /* event type in info callback */
     WOLFSSL_BIO*     biord;              /* socket bio read  to free/close */
     WOLFSSL_BIO*     biowr;              /* socket bio write to free/close */
     byte             sessionCtx[ID_LEN]; /* app session context ID */
