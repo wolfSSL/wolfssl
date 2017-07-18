@@ -908,7 +908,7 @@ int wolfcrypt_test(void* args)
 #endif /* NO_MAIN_DRIVER */
 
 
-int error_test()
+int error_test(void)
 {
     const char* errStr;
     char        out[WOLFSSL_MAX_ERROR_SZ];
@@ -971,7 +971,7 @@ int error_test()
 }
 
 #if !defined(NO_CODING) && defined(WOLFSSL_BASE64_ENCODE)
-int base64_test()
+int base64_test(void)
 {
     int        ret;
     const byte good[] = "A+Gd\0\0\0";
@@ -1068,7 +1068,7 @@ int base64_test()
 #endif
 
 #ifndef NO_ASN
-int asn_test()
+int asn_test(void)
 {
 #ifndef NO_ASN_TIME
     #ifdef WORD64_AVAILABLE
@@ -1098,7 +1098,7 @@ int asn_test()
 #endif
 
 #ifdef WOLFSSL_MD2
-int md2_test()
+int md2_test(void)
 {
     Md2  md2;
     byte hash[MD2_DIGEST_SIZE];
@@ -7199,7 +7199,9 @@ int rsa_test(void)
             ERROR_OUT(-5571, exit_rsa);
         }
 
-        wc_InitCert(&myCert);
+        if (wc_InitCert(&myCert)) {
+            ERROR_OUT(-5572, exit_rsa);
+        }
 
         strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
         strncpy(myCert.subject.state, "OR", CTC_NAME_SIZE);
@@ -7221,17 +7223,17 @@ int rsa_test(void)
 
         /* add SKID from the Public Key */
         if (wc_SetSubjectKeyIdFromPublicKey(&myCert, &keypub, NULL) != 0) {
-            ERROR_OUT(-5572, exit_rsa);
+            ERROR_OUT(-5573, exit_rsa);
         }
 
          /* add AKID from the Public Key */
          if (wc_SetAuthKeyIdFromPublicKey(&myCert, &keypub, NULL) != 0) {
-            ERROR_OUT(-5573, exit_rsa);
+            ERROR_OUT(-5574, exit_rsa);
         }
 
         /* add Key Usage */
         if (wc_SetKeyUsage(&myCert,"cRLSign,keyCertSign") != 0) {
-            ERROR_OUT(-5574, exit_rsa);
+            ERROR_OUT(-5575, exit_rsa);
         }
     #endif /* WOLFSSL_CERT_EXT */
 
@@ -7245,7 +7247,7 @@ int rsa_test(void)
             }
         } while (ret == WC_PENDING_E);
         if (ret < 0) {
-            ERROR_OUT(-5575, exit_rsa);
+            ERROR_OUT(-5576, exit_rsa);
         }
         certSz = ret;
 
@@ -7254,7 +7256,7 @@ int rsa_test(void)
         ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
         if (ret != 0) {
             FreeDecodedCert(&decode);
-            ERROR_OUT(-5576, exit_rsa);
+            ERROR_OUT(-5577, exit_rsa);
         }
         FreeDecodedCert(&decode);
     #endif
@@ -7262,29 +7264,29 @@ int rsa_test(void)
     #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         derFile = fopen(certDerFile, "wb");
         if (!derFile) {
-            ERROR_OUT(-5577, exit_rsa);
+            ERROR_OUT(-5578, exit_rsa);
         }
         ret = (int)fwrite(der, 1, certSz, derFile);
         fclose(derFile);
         if (ret != certSz) {
-            ERROR_OUT(-5578, exit_rsa);
+            ERROR_OUT(-5579, exit_rsa);
         }
     #endif
 
         pemSz = wc_DerToPem(der, certSz, pem, FOURK_BUF, CERT_TYPE);
         if (pemSz < 0) {
-            ERROR_OUT(-5579, exit_rsa);
+            ERROR_OUT(-5580, exit_rsa);
         }
 
     #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         pemFile = fopen(certPemFile, "wb");
         if (!pemFile) {
-            ERROR_OUT(-5580, exit_rsa);
+            ERROR_OUT(-5581, exit_rsa);
         }
         ret = (int)fwrite(pem, 1, pemSz, pemFile);
         fclose(pemFile);
         if (ret != pemSz) {
-            ERROR_OUT(-5581, exit_rsa);
+            ERROR_OUT(-5582, exit_rsa);
         }
     #endif
 
@@ -7345,7 +7347,9 @@ int rsa_test(void)
             ERROR_OUT(-5604, exit_rsa);
         }
 
-        wc_InitCert(&myCert);
+        if (wc_InitCert(&myCert)) {
+            ERROR_OUT(-5617, exit_rsa);
+        }
 
     #ifdef NO_SHA
         myCert.sigType = CTC_SHA256wRSA;
@@ -7519,7 +7523,9 @@ int rsa_test(void)
             ERROR_OUT(-5624, exit_rsa);
         }
 
-        wc_InitCert(&myCert);
+        if (wc_InitCert(&myCert)) {
+            ERROR_OUT(-5640, exit_rsa);
+        }
         myCert.sigType = CTC_SHA256wECDSA;
 
         strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
@@ -7739,7 +7745,9 @@ int rsa_test(void)
             ERROR_OUT(-5658, exit_rsa);
         }
 
-        wc_InitCert(&myCert);
+        if (wc_InitCert(&myCert)) {
+            ERROR_OUT(-5573, exit_rsa);
+        }
 
         strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
         strncpy(myCert.subject.state, "OR", CTC_NAME_SIZE);
@@ -7886,7 +7894,9 @@ int rsa_test(void)
             ERROR_OUT(-5681, exit_rsa);
         }
 
-        wc_InitCert(&req);
+        if (wc_InitCert(&req)) {
+            ERROR_OUT(-5691, exit_rsa);
+        }
 
         req.version = 0;
         req.isCA    = 1;
@@ -11234,7 +11244,7 @@ done:
 #endif /* HAVE_ECC_ENCRYPT */
 
 #ifdef USE_CERT_BUFFERS_256
-int ecc_test_buffers() {
+int ecc_test_buffers(void) {
     size_t bytes;
     ecc_key cliKey;
     ecc_key servKey;
@@ -13432,7 +13442,7 @@ static int randNum(mp_int* n, int len, WC_RNG* rng, void* heap)
 }
 #endif
 
-int mp_test()
+int mp_test(void)
 {
     WC_RNG rng;
     int    ret;
@@ -13577,7 +13587,7 @@ static void my_Logging_cb(const int logLevel, const char *const logMessage)
 }
 #endif
 
-int logging_test()
+int logging_test(void)
 {
 #ifdef DEBUG_WOLFSSL
     const char* msg = "Testing, testing. 1, 2, 3, 4 ...";
@@ -13633,7 +13643,7 @@ int logging_test()
 }
 #endif
 
-int mutex_test()
+int mutex_test(void)
 {
 #ifdef WOLFSSL_PTHREADS
     wolfSSL_Mutex m;
@@ -13685,7 +13695,7 @@ static void *my_Realloc_cb(void *ptr, size_t size)
     return realloc(ptr, size);
 }
 
-int memcb_test()
+int memcb_test(void)
 {
     int ret = 0;
     byte* b = NULL;

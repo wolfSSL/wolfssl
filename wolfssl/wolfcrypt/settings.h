@@ -415,9 +415,8 @@
     #define NO_WRITEV
     #define TFM_NO_ASM
     #define USE_FAST_MATH
-    #define NO_FILE_SYSTEM
+    #define NO_FILESYSTEM
     #define USE_CERT_BUFFERS_2048
-    #define HAVE_ECC
 #endif
 
 #ifdef WOLFSSL_NRF5x
@@ -1280,8 +1279,8 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_LOG_PRINTF
         #define WOLFSSL_DH_CONST
     #endif /* _MSC_VER */
-
-    #ifndef (NO_RSA)
+      
+    #ifndef NO_RSA
         #define WC_RSA_BLINDING
     #endif
 
