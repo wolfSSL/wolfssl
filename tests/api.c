@@ -64,7 +64,7 @@
 #ifndef NO_AES
     #include <wolfssl/wolfcrypt/aes.h>
     #ifdef HAVE_AES_DECRYPT
-        #include <wolfcrypt/src/wc_encrypt.c>
+        #include <wolfssl/wolfcrypt/wc_encrypt.h>
     #endif
 #endif
 #ifdef WOLFSSL_RIPEMD
