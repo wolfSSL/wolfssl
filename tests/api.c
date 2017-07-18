@@ -417,6 +417,7 @@ static void test_wolfSSL_get_privateKey(void)
 
     assert(wolfSSL_get_privatekey(ssl) != NULL);
 
+    wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 
 #endif
