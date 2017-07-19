@@ -804,7 +804,7 @@ static int SetASNInt(int len, byte firstByte, byte* output)
 }
 #endif
 
-#if !defined(NO_DSA) || defined(HAVE_ECC) || (defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && !defined(HAVE_USER_RSA))
+#if !defined(NO_DSA) || defined(HAVE_ECC) || defined(WOLFSSL_CERT_GEN) || (defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && !defined(HAVE_USER_RSA))
 /* Set the DER/BER encoding of the ASN.1 INTEGER element with an mp_int.
  * The number is assumed to be positive.
  *
