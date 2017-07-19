@@ -8212,7 +8212,7 @@ static int test_wc_Hc128_SetKey (void)
                       "\x45\xAC\x13\x7A\xE1\x48\xAF\x16";
     int ret;
 
-    printf(testingFmt, "c_Hc128_SetKey()");
+    printf(testingFmt, "wc_Hc128_SetKey()");
         ret = wc_Hc128_SetKey(&ctx, (byte*)key, (byte*)iv);
         /* Test bad args. */
         if (ret == 0) {
