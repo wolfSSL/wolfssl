@@ -1,6 +1,8 @@
-# utils.py
+# -*- coding: utf-8 -*-
 #
-# Copyright (C) 2006-2016 wolfSSL Inc.
+# conftest.py
+#
+# Copyright (C) 2006-2017 wolfSSL Inc.
 #
 # This file is part of wolfSSL. (formerly known as CyaSSL)
 #
@@ -18,19 +20,27 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
-# pylint: disable=unused-import, undefined-variable
+# pylint: disable=missing-docstring, redefined-outer-name
 
 import sys
-from binascii import hexlify as b2h, unhexlify as h2b
+import ssl
+import wolfssl
+import pytest
 
-_PY3 = sys.version_info[0] == 3
-_TEXT_TYPE = str if _PY3 else unicode
-_BINARY_TYPE = bytes if _PY3 else str
+@pytest.fixture
+def tcp_socket():
+    import socket
+    from contextlib import closing
 
-def t2b(string):
-    """
-    Converts text to bynary.
-    """
-    if isinstance(string, _BINARY_TYPE):
-        return string
-    return _TEXT_TYPE(string).encode("utf-8")
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+        yield sock
+
+@pytest.fixture(
+    params=[ssl, wolfssl]  if sys.version_info.major == 3 else [wolfssl],
+    ids=["ssl", "wolfssl"] if sys.version_info.major == 3 else ["wolfssl"])
+def ssl_provider(request):
+    return request.param
+
+@pytest.fixture
+def ssl_context(ssl_provider):
+    return ssl_provider.SSLContext(ssl_provider.PROTOCOL_SSLv23)

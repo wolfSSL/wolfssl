@@ -11,8 +11,11 @@ dist/
 
 # Unit test
 .tox/
+htmlcov/
+.coverage
+
 # Sphinx documentation
 docs/_build/
 
-# Virtual env
-.env
+# Certificates
+certs/

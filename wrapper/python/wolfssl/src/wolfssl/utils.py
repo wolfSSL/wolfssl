@@ -1,6 +1,8 @@
+# -*- coding: utf-8 -*-
+#
 # utils.py
 #
-# Copyright (C) 2006-2016 wolfSSL Inc.
+# Copyright (C) 2006-2017 wolfSSL Inc.
 #
 # This file is part of wolfSSL. (formerly known as CyaSSL)
 #
@@ -18,7 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
-# pylint: disable=unused-import, undefined-variable
+# pylint: disable=missing-docstring, unused-import, undefined-variable
 
 import sys
 from binascii import hexlify as b2h, unhexlify as h2b

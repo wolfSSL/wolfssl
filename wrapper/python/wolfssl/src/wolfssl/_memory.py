@@ -1,6 +1,8 @@
-# utils.py
+# -*- coding: utf-8 -*-
 #
-# Copyright (C) 2006-2016 wolfSSL Inc.
+# _memory.py
+#
+# Copyright (C) 2006-2017 wolfSSL Inc.
 #
 # This file is part of wolfSSL. (formerly known as CyaSSL)
 #
@@ -18,19 +20,15 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
-# pylint: disable=unused-import, undefined-variable
+# pylint: disable=missing-docstring
 
-import sys
-from binascii import hexlify as b2h, unhexlify as h2b
+try:
+    from wolfssl._ffi import ffi as _ffi
+    from wolfssl._ffi import lib as _lib
+except ImportError:
+    pass
 
-_PY3 = sys.version_info[0] == 3
-_TEXT_TYPE = str if _PY3 else unicode
-_BINARY_TYPE = bytes if _PY3 else str
+_DYNAMIC_TYPE_METHOD = 11
 
-def t2b(string):
-    """
-    Converts text to bynary.
-    """
-    if isinstance(string, _BINARY_TYPE):
-        return string
-    return _TEXT_TYPE(string).encode("utf-8")
+def _native_free(native_object, dynamic_type):
+    _lib.wolfSSL_Free(native_object, _ffi.NULL, dynamic_type)
