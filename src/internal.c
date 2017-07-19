@@ -8529,7 +8529,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         args->fatal = 1;
                     }
                 }
-
             #ifdef HAVE_SECURE_RENEGOTIATION
                 if (args->fatal == 0 && ssl->secure_renegotiation
                                && ssl->secure_renegotiation->enabled) {
