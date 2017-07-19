@@ -2376,6 +2376,8 @@ static int test_wc_InitMd5 (void)
         }
     }
 
+    wc_Md5Free(&md5);
+
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
@@ -2408,6 +2410,8 @@ static int test_wc_InitSha(void)
             flag = SSL_FATAL_ERROR;
         }
     }
+
+    wc_ShaFree(&sha);
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
@@ -2443,6 +2447,8 @@ static int test_wc_InitSha256 (void)
         }
     }
 
+    wc_Sha256Free(&sha256);
+
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
@@ -2476,6 +2482,8 @@ static int test_wc_InitSha512 (void)
             flag = SSL_FATAL_ERROR;
         }
     }
+
+    wc_Sha512Free(&sha512);
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
@@ -2511,6 +2519,7 @@ static int test_wc_InitSha384 (void)
         }
     }
 
+    wc_Sha384Free(&sha384);
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
@@ -2544,6 +2553,7 @@ static int test_wc_InitSha224 (void)
         }
     }
 
+    wc_Sha224Free(&sha224);
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
@@ -2681,6 +2691,8 @@ static int test_wc_Md5Update (void)
         }
     }
 
+    wc_Md5Free(&md5);
+
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
@@ -2783,6 +2795,7 @@ static int test_wc_ShaUpdate (void)
         }
     }
 
+    wc_ShaFree(&sha);
     /* If not returned then the unit test passed test vectors. */
     printf(resultFmt, flag == 0 ? passed : failed);
 
@@ -2888,6 +2901,7 @@ static int test_wc_Sha256Update (void)
         }
     }
 
+    wc_Sha256Free(&sha256);
     /* If not returned then the unit test passed. */
     printf(resultFmt, flag == 0 ? passed : failed);
 
@@ -2993,6 +3007,8 @@ static int test_wc_Sha384Update (void)
             flag = SSL_FATAL_ERROR;
         }
     }
+
+    wc_Sha384Free(&sha384);
 
     /* If not returned then the unit test passed test vectors. */
     printf(resultFmt, flag == 0 ? passed : failed);
@@ -3203,6 +3219,8 @@ static int test_wc_Sha512Update (void)
         }
     }
 
+    wc_Sha512Free(&sha512);
+
     /* If not returned then the unit test passed test vectors. */
     printf(resultFmt, flag == 0 ? passed : failed);
 
@@ -3306,6 +3324,8 @@ static int test_wc_Sha224Update (void)
         }
     }
 
+    wc_Sha224Free(&sha224);
+
     /* If not returned then the unit test passed test vectors. */
     printf(resultFmt, flag == 0 ? passed : failed);
 
@@ -3379,6 +3399,8 @@ static int test_wc_Md5Final (void)
         }
     }
 
+    wc_Md5Free(&md5);
+
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
@@ -3447,6 +3469,8 @@ static int test_wc_ShaFinal (void)
             flag = SSL_FATAL_ERROR;
         }
     }
+
+    wc_ShaFree(&sha);
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
@@ -3517,6 +3541,8 @@ static int test_wc_Sha256Final (void)
         }
     }
 
+    wc_Sha256Free(&sha256);
+
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
@@ -3584,6 +3610,8 @@ static int test_wc_Sha512Final (void)
             flag = SSL_FATAL_ERROR;
         }
     }
+
+    wc_Sha512Free(&sha512);
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
@@ -3653,6 +3681,8 @@ static int test_wc_Sha384Final (void)
             flag = SSL_FATAL_ERROR;
         }
     }
+
+    wc_Sha384Free(&sha384);
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
@@ -3792,6 +3822,8 @@ static int test_wc_Sha224Final (void)
             flag = SSL_FATAL_ERROR;
         }
     }
+
+    wc_Sha224Free(&sha224);
 
     printf(resultFmt, flag == 0 ? passed : failed);
 
