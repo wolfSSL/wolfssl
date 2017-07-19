@@ -118,6 +118,10 @@
     #include <wolfssl/wolfcrypt/aes.h>
 #endif
 
+#ifdef HAVE_HC128
+    #include <wolfssl/wolfcrypt/hc128.h>
+#endif
+
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/ssl.h>
     #include <wolfssl/openssl/pkcs12.h>
@@ -8195,6 +8199,95 @@ static int test_wc_AesCcmEncryptDecrypt (void)
 
 
 
+/*
+ * Test wc_Hc128_SetKey()
+ */
+static int test_wc_Hc128_SetKey (void)
+{
+#ifdef HAVE_HC128
+    HC128 ctx;
+    const char* key = "\x80\x00\x00\x00\x00\x00\x00\x00"
+                      "\x00\x00\x00\x00\x00\x00\x00\x00";
+    const char* iv =  "\x0D\x74\xDB\x42\xA9\x10\x77\xDE"
+                      "\x45\xAC\x13\x7A\xE1\x48\xAF\x16";
+    int ret;
+
+    printf(testingFmt, "wc_Hc128_SetKey()");
+        ret = wc_Hc128_SetKey(&ctx, (byte*)key, (byte*)iv);
+        /* Test bad args. */
+        if (ret == 0) {
+            ret = wc_Hc128_SetKey(NULL, (byte*)key, (byte*)iv);
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_Hc128_SetKey(&ctx, NULL, (byte*)iv);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_Hc128_SetKey(&ctx, (byte*)key, NULL);
+            }
+        }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+
+#endif
+    return 0;
+
+} /* END test_wc_Hc128_SetKey */
+
+/*
+ * Testing wc_Hc128_Process()
+ */
+static int test_wc_Hc128_Process (void)
+{
+#ifdef HAVE_HC128
+    HC128 enc;
+    HC128 dec;
+    const char* key =  "\x0F\x62\xB5\x08\x5B\xAE\x01\x54"
+                       "\xA7\xFA\x4D\xA0\xF3\x46\x99\xEC";
+    const char* input = "Encrypt Hc128, and then Decrypt.";
+    size_t inlen = XSTRLEN(input);
+    byte cipher[inlen];
+    byte plain[inlen];
+    int ret;
+
+    printf(testingFmt, "wc_Hc128_Process()");
+    ret = wc_Hc128_SetKey(&enc, (byte*)key, NULL);
+    if (ret == 0) {
+        ret = wc_Hc128_SetKey(&dec, (byte*)key, NULL);
+    }
+    if (ret == 0) {
+        ret = wc_Hc128_Process(&enc, cipher, (byte*)input, (word32)inlen);
+        if (ret == 0) {
+            ret = wc_Hc128_Process(&dec, plain, cipher, (word32)inlen);
+        }
+    }
+
+    /* Bad args. */
+    if (ret == 0) {
+        ret = wc_Hc128_Process(NULL, plain, cipher, (word32)inlen);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Hc128_Process(&dec, NULL, cipher, (word32)inlen);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Hc128_Process(&dec, plain, NULL, (word32)inlen);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+   #endif
+    return 0;
+
+} /* END test_wc_Hc128_Process */
+
+
+
+
+
 /*----------------------------------------------------------------------------*
  | Compatibility Tests
  *----------------------------------------------------------------------------*/
@@ -9708,6 +9801,8 @@ void ApiTest(void)
     AssertIntEQ(test_wc_RsaFlattenPublicKey(), 0);
     AssertIntEQ(test_wc_AesCcmSetKey(), 0);
     AssertIntEQ(test_wc_AesCcmEncryptDecrypt(), 0);
+    AssertIntEQ(test_wc_Hc128_SetKey(), 0);
+    AssertIntEQ(test_wc_Hc128_Process(), 0);
     printf(" End API Tests\n");
 
 }
