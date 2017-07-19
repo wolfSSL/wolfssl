@@ -13448,9 +13448,9 @@ int mp_test(void)
     int    ret;
 #if defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN)
     int    i, j, k;
+    mp_digit d;
 #endif
     mp_int a, b, r1, r2, p;
-    mp_digit d;
 
     ret = mp_init_multi(&a, &b, &r1, &r2, NULL, NULL);
     if (ret != 0)
