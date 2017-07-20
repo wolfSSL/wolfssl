@@ -272,6 +272,7 @@ static int InitSha512(Sha512* sha512)
     static int _Transform(Sha512 *sha512);
     static int (*Transform_p)(Sha512* sha512) = _Transform;
     static int transform_check = 0;
+    static int intel_flags;
     #define Transform(sha512) (*Transform_p)(sha512)
 
     /* Dummy for saving MM_REGs on behalf of Transform */
@@ -287,25 +288,30 @@ static int InitSha512(Sha512* sha512)
 
     static void Sha512_SetTransform()
     {
-        word32 intel_flags;
-
         if (transform_check)
             return;
-        transform_check = 1;
+
         intel_flags = cpuid_get_flags();
 
     #if defined(HAVE_INTEL_AVX2)
         if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_BMI2(intel_flags)) {
-            Transform_p = Transform_AVX1_RORX; return;
-            Transform_p = Transform_AVX2;
-                /* for avoiding warning,"not used" */
+            if (1)
+                Transform_p = Transform_AVX1_RORX;
+            else
+                Transform_p = Transform_AVX2;
         }
+        else
     #endif
     #if defined(HAVE_INTEL_AVX1)
-        Transform_p = ((IS_INTEL_AVX1(intel_flags)) ? Transform_AVX1 :
-                                                      _Transform); return;
+        if (1) {
+            Transform_p = ((IS_INTEL_AVX1(intel_flags)) ? Transform_AVX1 :
+                                                                    _Transform);
+        }
+        else
     #endif
-        Transform_p = _Transform;
+            Transform_p = _Transform;
+
+        transform_check = 1;
     }
 
     int wc_InitSha512_ex(Sha512* sha512, void* heap, int devId)
@@ -495,15 +501,6 @@ static INLINE int Sha512Update(Sha512* sha512, const byte* data, word32 len)
     int ret = 0;
     /* do block size increments */
     byte* local = (byte*)sha512->buffer;
-#if defined(LITTLE_ENDIAN_ORDER)
-#if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-    word32 intel_flags = cpuid_get_flags();
-#endif
-#endif
-
-    if (sha512 == NULL || (data == NULL && len > 0)) {
-        return BAD_FUNC_ARG;
-    }
 
     /* check that internal buffLen is valid */
     if (sha512->buffLen >= SHA512_BLOCK_SIZE)
@@ -543,7 +540,7 @@ static INLINE int Sha512Update(Sha512* sha512, const byte* data, word32 len)
 
 int wc_Sha512Update(Sha512* sha512, const byte* data, word32 len)
 {
-    if (sha512 == NULL ||(data == NULL && len > 0)) {
+    if (sha512 == NULL || (data == NULL && len > 0)) {
         return BAD_FUNC_ARG;
     }
 
@@ -563,11 +560,6 @@ static INLINE int Sha512Final(Sha512* sha512)
 {
     byte* local = (byte*)sha512->buffer;
     int ret;
-#if defined(LITTLE_ENDIAN_ORDER)
-#if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-    word32 intel_flags = cpuid_get_flags();
-#endif
-#endif
 
     if (sha512 == NULL) {
         return BAD_FUNC_ARG;
@@ -582,15 +574,15 @@ static INLINE int Sha512Final(Sha512* sha512)
     if (sha512->buffLen > SHA512_PAD_SIZE) {
         XMEMSET(&local[sha512->buffLen], 0, SHA512_BLOCK_SIZE - sha512->buffLen);
         sha512->buffLen += SHA512_BLOCK_SIZE - sha512->buffLen;
-    #if defined(LITTLE_ENDIAN_ORDER)
-        #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-            if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
-        #endif
-            {
-                ByteReverseWords64(sha512->buffer,sha512->buffer,
+#if defined(LITTLE_ENDIAN_ORDER)
+    #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
+        if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
+    #endif
+        {
+            ByteReverseWords64(sha512->buffer,sha512->buffer,
                                                              SHA512_BLOCK_SIZE);
-            }
-    #endif /* LITTLE_ENDIAN_ORDER */
+        }
+#endif /* LITTLE_ENDIAN_ORDER */
         ret = Transform(sha512);
         if (ret != 0)
             return ret;
@@ -609,9 +601,7 @@ static INLINE int Sha512Final(Sha512* sha512)
     #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
         if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
     #endif
-        {
             ByteReverseWords64(sha512->buffer, sha512->buffer, SHA512_PAD_SIZE);
-        }
 #endif
     /* ! length ordering dependent on digest endian type ! */
 
@@ -1429,7 +1419,6 @@ int wc_Sha384Final(Sha384* sha384, byte* hash)
 
 /* Hardware Acceleration */
 #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-
     int wc_InitSha384_ex(Sha384* sha384, void* heap, int devId)
     {
         int ret = InitSha384(sha384);

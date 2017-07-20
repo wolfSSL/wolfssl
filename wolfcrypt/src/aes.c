@@ -620,13 +620,16 @@
         #define XASM_LINK(f)
     #endif /* _MSC_VER */
 
-    static int Check_CPU_support_AES(void)
-    {
-        return IS_INTEL_AESNI(cpuid_get_flags()) != 0;
-    }
-
     static int checkAESNI = 0;
     static int haveAESNI  = 0;
+    static word32 intel_flags = 0;
+
+    static int Check_CPU_support_AES(void)
+    {
+        intel_flags = cpuid_get_flags();
+
+        return IS_INTEL_AESNI(intel_flags) != 0;
+    }
 
 
     /* tell C compiler these are asm functions in case any mix up of ABI underscore
@@ -7162,8 +7165,6 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #ifdef WOLFSSL_AESNI
     if (haveAESNI) {
     #ifdef HAVE_INTEL_AVX2
-        word32 intel_flags = cpuid_get_flags();
-
         if (IS_INTEL_AVX2(intel_flags)) {
             AES_GCM_encrypt_avx2(in, out, authIn, iv, authTag,
                         sz, authInSz, ivSz, (const byte*)aes->key, aes->rounds);
@@ -7425,8 +7426,6 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #ifdef WOLFSSL_AESNI
     if (haveAESNI) {
     #ifdef HAVE_INTEL_AVX2
-        word32 intel_flags = cpuid_get_flags();
-
         if (IS_INTEL_AVX2(intel_flags)) {
             if (AES_GCM_decrypt_avx2(in, out, authIn, iv, authTag, sz, authInSz,
                                        ivSz, (byte*)aes->key, aes->rounds) == 0)

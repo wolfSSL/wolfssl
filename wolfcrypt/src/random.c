@@ -135,7 +135,11 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 
 
 #if defined(HAVE_INTEL_RDRAND) || defined(HAVE_INTEL_RDSEED)
-    static void wc_InitRng_IntelRD(void);
+    static word32 intel_flags = 0;
+    static void wc_InitRng_IntelRD(void)
+    {
+        intel_flags = cpuid_get_flags();
+    }
     #ifdef HAVE_INTEL_RDSEED
     static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz);
     #endif
@@ -535,7 +539,7 @@ int wc_InitRng_ex(WC_RNG* rng, void* heap, int devId)
 
 #ifdef HAVE_INTEL_RDRAND
     /* if CPU supports RDRAND, use it directly and by-pass DRBG init */
-    if (IS_INTEL_RDRAND(cpuid_get_flags()))
+    if (IS_INTEL_RDRAND(intel_flags))
         return 0;
 #endif
 
@@ -605,7 +609,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
         return BAD_FUNC_ARG;
 
 #ifdef HAVE_INTEL_RDRAND
-    if (IS_INTEL_RDRAND(cpuid_get_flags()))
+    if (IS_INTEL_RDRAND(intel_flags))
         return wc_GenerateRand_IntelRD(NULL, output, sz);
 #endif
 
@@ -977,10 +981,6 @@ int wc_FreeNetRandom(void)
 
 #if defined(HAVE_INTEL_RDRAND) || defined(HAVE_INTEL_RDSEED)
 
-static void wc_InitRng_IntelRD(void) {
-    cpuid_set_flags();
-}
-
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* need more retries if multiple cores */
     #define INTELRD_RETRY (32 * 8)
@@ -1018,7 +1018,7 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
 
     (void)os;
 
-    if (!IS_INTEL_RDSEED(cpuid_get_flags()))
+    if (!IS_INTEL_RDSEED(intel_flags))
         return -1;
 
     for (; (sz / sizeof(word64)) > 0; sz -= sizeof(word64),
@@ -1073,7 +1073,7 @@ static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz)
 
     (void)os;
 
-    if (!IS_INTEL_RDRAND(cpuid_get_flags()))
+    if (!IS_INTEL_RDRAND(intel_flags))
         return -1;
 
     for (; (sz / sizeof(word64)) > 0; sz -= sizeof(word64),
@@ -1653,7 +1653,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         int ret = 0;
 
     #ifdef HAVE_INTEL_RDSEED
-        if (IS_INTEL_RDSEED(cpuid_get_flags())) {
+        if (IS_INTEL_RDSEED(intel_flags)) {
              ret = wc_GenerateSeed_IntelRD(NULL, output, sz);
              if (ret == 0) {
                  /* success, we're done */

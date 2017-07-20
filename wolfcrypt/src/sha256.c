@@ -197,30 +197,36 @@ static int InitSha256(Sha256* sha256)
     #endif
     static int (*Transform_p)(Sha256* sha256) /* = _Transform */;
     static int transform_check = 0;
+    static word32 intel_flags;
     #define XTRANSFORM(sha256, B)  (*Transform_p)(sha256)
 
-    static void set_Transform(void)
+    static void Sha256_SetTransform(void)
     {
-        word32 intel_flags;
 
-        cpuid_set_flags();
         if (transform_check)
             return;
-        transform_check = 1;
+
         intel_flags = cpuid_get_flags();
 
     #if defined(HAVE_INTEL_AVX2)
         if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_BMI2(intel_flags)) {
-            Transform_p = Transform_AVX1_RORX; return;
-            Transform_p = Transform_AVX2;
-                     /* for avoiding warning,"not used" */
+            if (1)
+                Transform_p = Transform_AVX1_RORX;
+            else
+                Transform_p = Transform_AVX2;
         }
+        else
     #endif
     #if defined(HAVE_INTEL_AVX1)
-        Transform_p = ((IS_INTEL_AVX1(intel_flags)) ? Transform_AVX1 :
-                                                       Transform); return;
+        if (1) {
+            Transform_p = ((IS_INTEL_AVX1(intel_flags)) ? Transform_AVX1 :
+                                                                     Transform);
+        }
+        else
     #endif
-        Transform_p = Transform; return;
+            Transform_p = Transform;
+
+        transform_check = 1;
     }
 
     /* Dummy for saving MM_REGs on behalf of Transform */
@@ -246,7 +252,7 @@ static int InitSha256(Sha256* sha256)
             return ret;
 
         /* choose best Transform function under this runtime environment */
-        set_Transform();
+        Sha256_SetTransform();
 
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA256)
         ret = wolfAsync_DevCtxInit(&sha256->asyncDev,
@@ -466,11 +472,6 @@ static int InitSha256(Sha256* sha256)
     {
         int ret = 0;
         byte* local;
-#if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
-#if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-        word32 intel_flags = cpuid_get_flags();
-#endif
-#endif
 
         if (sha256 == NULL || (data == NULL && len > 0)) {
             return BAD_FUNC_ARG;
@@ -534,11 +535,6 @@ static int InitSha256(Sha256* sha256)
 
         int ret;
         byte* local = (byte*)sha256->buffer;
-#if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
-#if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-        word32 intel_flags = cpuid_get_flags();
-#endif
-#endif
 
         if (sha256 == NULL) {
             return BAD_FUNC_ARG;
@@ -560,8 +556,10 @@ static int InitSha256(Sha256* sha256)
             #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
                 if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
             #endif
+                {
                     ByteReverseWords(sha256->buffer, sha256->buffer,
-                        SHA256_BLOCK_SIZE);
+                                                             SHA256_BLOCK_SIZE);
+                }
         #endif
             }
 
@@ -1811,7 +1809,7 @@ static int Transform_AVX2(Sha256* sha256)
 
     #if defined(HAVE_INTEL_AVX1)|| defined(HAVE_INTEL_AVX2)
         /* choose best Transform function under this runtime environment */
-        set_Transform();
+        Sha256_SetTransform();
     #endif
 
         return ret;

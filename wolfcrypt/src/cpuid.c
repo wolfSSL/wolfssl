@@ -41,8 +41,8 @@
 
         #define XASM_LINK(f) asm(f)
     #else
-
         #include <intrin.h>
+
         #define cpuid(a,b) __cpuid((int*)a,b)
 
         #define XASM_LINK(f)
@@ -58,8 +58,8 @@
 
     static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit)
     {
-        static int got_intel_cpu = 0;
-        static unsigned int reg[5];
+        int got_intel_cpu = 0;
+        unsigned int reg[5];
 
         reg[4] = '\0';
         cpuid(reg, 0, 0);
@@ -79,13 +79,13 @@
     void cpuid_set_flags(void)
     {
         if (!cpuid_check) {
-            cpuid_check = 1;
             if (cpuid_flag(1, 0, ECX, 28)) { cpuid_flags |= CPUID_AVX1  ; }
             if (cpuid_flag(7, 0, EBX,  5)) { cpuid_flags |= CPUID_AVX2  ; }
             if (cpuid_flag(7, 0, EBX,  8)) { cpuid_flags |= CPUID_BMI2  ; }
             if (cpuid_flag(1, 0, ECX, 30)) { cpuid_flags |= CPUID_RDRAND; }
             if (cpuid_flag(7, 0, EBX, 18)) { cpuid_flags |= CPUID_RDSEED; }
             if (cpuid_flag(1, 0, ECX, 26)) { cpuid_flags |= CPUID_AESNI ; }
+            cpuid_check = 1;
         }
     }
 
