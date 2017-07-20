@@ -6617,11 +6617,11 @@ int rsa_test(void)
 
 #ifdef USE_CERT_BUFFERS_1024
     bytes = sizeof_client_key_der_1024;
-	if (bytes < sizeof_client_cert_der_1024)
+	if (bytes < (size_t)sizeof_client_cert_der_1024)
 		bytes = sizeof_client_cert_der_1024;
 #elif defined(USE_CERT_BUFFERS_2048)
     bytes = sizeof_client_key_der_2048;
-	if (bytes < sizeof_client_cert_der_2048)
+	if (bytes < (size_t)sizeof_client_cert_der_2048)
 		bytes = sizeof_client_cert_der_2048;
 #else
 	bytes = FOURK_BUF;
