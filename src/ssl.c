@@ -22697,7 +22697,9 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         #endif
             case ECDSAk:
                 ctx->haveECC = 1;
+            #ifdef HAVE_ECC
                 ctx->pkCurveOID = x->pkCurveOID;
+            #endif
                 break;
         }
 
