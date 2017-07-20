@@ -412,7 +412,6 @@ static void test_wolfSSL_get_privateKey(void)
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
     AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
     AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
-
     AssertNotNull(ssl = wolfSSL_new(ctx));
 
     assert(wolfSSL_get_privatekey(ssl) != NULL);
@@ -11301,7 +11300,6 @@ void ApiTest(void)
     test_wolfSSL_CTX_use_certificate_file();
     AssertIntEQ(test_wolfSSL_CTX_use_certificate_buffer(), WOLFSSL_SUCCESS);
     test_wolfSSL_CTX_use_PrivateKey_file();
-    test_wolfSSL_get_privateKey();
     test_wolfSSL_CTX_load_verify_locations();
     test_wolfSSL_CTX_trust_peer_cert();
     test_wolfSSL_CTX_SetTmpDH_file();
@@ -11340,6 +11338,7 @@ void ApiTest(void)
     test_wolfSSL_certs();
     test_wolfSSL_ASN1_TIME_print();
     test_wolfSSL_private_keys();
+    test_wolfSSL_get_privateKey();
     test_wolfSSL_PEM_PrivateKey();
     test_wolfSSL_tmp_dh();
     test_wolfSSL_ctrl();

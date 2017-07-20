@@ -17323,7 +17323,7 @@ WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_get_privatekey(const WOLFSSL *ssl)
               return NULL;
           }
       return wolfSSL_d2i_PrivateKey(ssl->buffers.key->type,NULL,
-                    (const unsigned char **)ssl->buffers.key->buffer,
+                    (const unsigned char **)&ssl->buffers.key->buffer,
                     ssl->buffers.key->length);                                    ;
   }
   else { /* if key not owned get parent ctx cert or return null */
@@ -17333,7 +17333,7 @@ WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_get_privatekey(const WOLFSSL *ssl)
                   return NULL;
           }
           return wolfSSL_d2i_PrivateKey(ssl->ctx->privateKey->type,NULL,
-                    (const unsigned char **)ssl->ctx-> privateKey->buffer,
+                    (const unsigned char **)&ssl->ctx-> privateKey->buffer,
                     ssl->ctx->privateKey->length);
       }
   }
