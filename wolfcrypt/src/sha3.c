@@ -485,11 +485,11 @@ static int Sha3Final(Sha3* sha3, byte* hash, byte p, byte l)
     for (i = 0; i < p; i++)
         sha3->s[i] ^= Load64BitBigEndian(sha3->t + 8 * i);
     BlockSha3(sha3->s);
+#if defined(BIG_ENDIAN_ORDER)
+    ByteReverseWords64(sha3->s, sha3->s, ((l+7)/8)*8);
+#endif
     for (i = 0; i < l; i++)
         hash[i] = s8[i];
-#if defined(BIG_ENDIAN_ORDER)
-    ByteReverseWords64((word64*)hash, (word64*)hash, l);
-#endif
 
     return 0;
 }
