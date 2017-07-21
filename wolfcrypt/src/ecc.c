@@ -1245,6 +1245,10 @@ int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id)
     if (key->idx != ECC_CUSTOM_IDX) {
         int x;
 
+        /* default values */
+        key->idx = 0;
+        key->dp = NULL;
+
         /* find ecc_set based on curve_id or key size */
         for (x = 0; ecc_sets[x].size != 0; x++) {
             if (curve_id > ECC_CURVE_DEF) {
@@ -2969,6 +2973,12 @@ static int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
 }
 #endif /* !WOLFSSL_ATECC508A */
 
+static INLINE void wc_ecc_reset(ecc_key* key)
+{
+    /* make sure required key variables are reset */
+    key->state = ECC_STATE_NONE;
+}
+
 int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
 {
     int            err;
@@ -2981,10 +2991,8 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
         return BAD_FUNC_ARG;
     }
 
-    /* make sure required key variables are reset */
-    key->state = ECC_STATE_NONE;
-    key->idx = 0;
-    key->dp = NULL;
+    /* make sure required variables are reset */
+    wc_ecc_reset(key);
 
     err = wc_ecc_set_curve(key, keysize, curve_id);
     if (err != 0) {
@@ -4777,7 +4785,6 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
 #ifndef WOLFSSL_ATECC508A
     int compressed = 0;
 #endif /* !WOLFSSL_ATECC508A */
-    void* heap;
 
     if (in == NULL || key == NULL)
         return BAD_FUNC_ARG;
@@ -4787,9 +4794,8 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
         return ECC_BAD_ARG_E;
     }
 
-    heap = key->heap; /* save heap */
-    XMEMSET(key, 0, sizeof(ecc_key));
-    key->heap = heap; /* restore heap */
+    /* make sure required variables are reset */
+    wc_ecc_reset(key);
 
 #ifdef WOLFSSL_ATECC508A
     /* TODO: Implement equiv call to ATECC508A */
@@ -5086,18 +5092,14 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 
     /* public optional, NULL if only importing private */
     if (pub != NULL) {
-
         ret = wc_ecc_import_x963_ex(pub, pubSz, key, curve_id);
-
-    } else {
-
+    }
+    else {
         if (key == NULL || priv == NULL)
             return BAD_FUNC_ARG;
 
-        /* make sure required key variables are reset */
-        key->state = ECC_STATE_NONE;
-        key->idx = 0;
-        key->dp = NULL;
+        /* make sure required variables are reset */
+        wc_ecc_reset(key);
 
         /* set key size */
         ret = wc_ecc_set_curve(key, privSz, curve_id);
@@ -5236,16 +5238,14 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
           const char* qy, const char* d, int curve_id)
 {
     int err = MP_OKAY;
-    void* heap;
 
     /* if d is NULL, only import as public key using Qx,Qy */
     if (key == NULL || qx == NULL || qy == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    heap = key->heap; /* save heap */
-    XMEMSET(key, 0, sizeof(ecc_key));
-    key->heap = heap; /* restore heap */
+    /* make sure required variables are reset */
+    wc_ecc_reset(key);
 
     /* set curve type and index */
     err = wc_ecc_set_curve(key, 0, curve_id);
