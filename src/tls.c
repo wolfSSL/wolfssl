@@ -1662,7 +1662,7 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
         }
     }
 #else
-    void(input);
+    (void)input;
 #endif
 
     return 0;
