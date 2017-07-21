@@ -909,7 +909,10 @@ int benchmark_init(void)
     }
 #endif /* WOLFSSL_STATIC_MEMORY */
 
-    wolfCrypt_Init();
+    if ((ret = wolfCrypt_Init()) != 0) {
+        printf("wolfCrypt_Init failed %d\n", ret);
+        return EXIT_FAILURE;
+    }
 
     bench_stats_init();
 
@@ -936,8 +939,11 @@ int benchmark_init(void)
     bench_plain = (byte*)XMALLOC(block_size, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
     bench_cipher = (byte*)XMALLOC(block_size, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
     if (bench_plain == NULL || bench_cipher == NULL) {
+        XFREE(bench_plain, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+        XFREE(bench_cipher, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+
         printf("Benchmark block buffer alloc failed!\n");
-        ret = EXIT_FAILURE;
+        return EXIT_FAILURE;
     }
     XMEMSET(bench_plain, 0, block_size);
     XMEMSET(bench_cipher, 0, block_size);
@@ -946,8 +952,11 @@ int benchmark_init(void)
     bench_key = (byte*)XMALLOC(sizeof(bench_key_buf), HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
     bench_iv = (byte*)XMALLOC(sizeof(bench_iv_buf), HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
     if (bench_key == NULL || bench_iv == NULL) {
+        XFREE(bench_key, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+        XFREE(bench_iv, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+
         printf("Benchmark cipher buffer alloc failed!\n");
-        ret = EXIT_FAILURE;
+        return EXIT_FAILURE;
     }
     XMEMCPY(bench_key, bench_key_buf, sizeof(bench_key_buf));
     XMEMCPY(bench_iv, bench_iv_buf, sizeof(bench_iv_buf));
