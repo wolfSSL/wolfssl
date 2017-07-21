@@ -234,6 +234,9 @@
 #elif defined(FREERTOS_TCP)
     #define RECV_FUNCTION(a,b,c,d)  FreeRTOS_recv((Socket_t)(a),(void*)(b), (size_t)(c), (BaseType_t)(d))
     #define SEND_FUNCTION(a,b,c,d)  FreeRTOS_send((Socket_t)(a),(void*)(b), (size_t)(c), (BaseType_t)(d))
+#elif defined(WOLFSSL_VXWORKS)
+    #define SEND_FUNCTION send
+    #define RECV_FUNCTION recv
 #else
     #define SEND_FUNCTION send
     #define RECV_FUNCTION recv
