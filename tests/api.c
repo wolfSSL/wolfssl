@@ -7505,7 +7505,7 @@ static int test_wc_RsaKeyToPublicDer (void)
 static int test_wc_RsaPublicEncryptDecrypt (void)
 {
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)\
-        && !defined(HAVE_FIPS)
+        && defined(WC_RSA_BLINDING)
     RsaKey  key;
     WC_RNG  rng;
     const char* inStr = "Everyone gets Friday off.";
@@ -7580,7 +7580,7 @@ static int test_wc_RsaPublicEncryptDecrypt (void)
  */
 static int test_wc_RsaPublicEncryptDecrypt_ex (void)
 {
-#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(HAVE_FIPS)\
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && defined(WC_RSA_BLINDING)\
         && !defined(WC_NO_RSA_OAEP) && !defined(HAVE_USER_RSA)
     RsaKey  key;
     WC_RNG  rng;
