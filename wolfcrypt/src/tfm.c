@@ -314,7 +314,7 @@ void fp_mul(fp_int *A, fp_int *B, fp_int *C)
 
 clean:
     /* zero any excess digits on the destination that we didn't write to */
-    for (y = C->used; y < oldused; y++) {
+    for (y = C->used; y >= 0 && y < oldused; y++) {
         C->dp[y] = 0;
     }
 }
@@ -1479,7 +1479,7 @@ void fp_sqr(fp_int *A, fp_int *B)
 
 clean:
   /* zero any excess digits on the destination that we didn't write to */
-  for (y = B->used; y < oldused; y++) {
+  for (y = B->used; y >= 0 && y < oldused; y++) {
     B->dp[y] = 0;
   }
 }
@@ -2467,7 +2467,7 @@ void fp_copy(fp_int *a, fp_int *b)
             XMEMCPY(b->dp, a->dp, a->used * sizeof(fp_digit));
 
             /* zero any excess digits on the destination that we didn't write to */
-            for (x = b->used; x < oldused; x++) {
+            for (x = b->used; x >= 0 && x < oldused; x++) {
                 b->dp[x] = 0;
             }
         }
