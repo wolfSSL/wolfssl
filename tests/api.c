@@ -6084,7 +6084,9 @@ static int test_wc_AesGcmEncryptDecrypt (void)
         0xab, 0xad, 0xda, 0xd2
     };
     byte    iv[]   = "1234567890a";
-    byte    badIV[]  = "1234567890abcde";
+    #ifndef HAVE_FIPS
+        byte    badIV[]  = "1234567890abcde";
+    #endif
     byte    enc[sizeof(vector)];
     byte    resultT[AES_BLOCK_SIZE];
     byte    dec[sizeof(vector)];
@@ -6099,17 +6101,16 @@ static int test_wc_AesGcmEncryptDecrypt (void)
 
     ret = wc_AesGcmSetKey(&aes, key32, sizeof(key32)/sizeof(byte));
     if (ret == 0) {
-        ret = wc_AesGcmEncrypt(&aes, enc, vector, sizeof(vector),
+        gcmE = wc_AesGcmEncrypt(&aes, enc, vector, sizeof(vector),
                                         iv, sizeof(iv)/sizeof(byte), resultT,
                                         sizeof(resultT), a, sizeof(a));
     }
-    if (ret == 0) { /* If encrypt fails, no decrypt. */
-        gcmE = 0;
-        ret = wc_AesGcmDecrypt(&aes, dec, enc, sizeof(vector),
+    if (gcmE == 0) { /* If encrypt fails, no decrypt. */
+        gcmD = wc_AesGcmDecrypt(&aes, dec, enc, sizeof(vector),
                                         iv, sizeof(iv)/sizeof(byte), resultT,
                                         sizeof(resultT), a, sizeof(a));
-        if(ret == 0 || (XMEMCMP(vector, dec, sizeof(vector)) ==  0)) {
-            gcmD = 0;
+        if(gcmD == 0 && (XMEMCMP(vector, dec, sizeof(vector)) !=  0)) {
+            gcmD = SSL_FATAL_ERROR;
         }
     }
     printf(testingFmt, "wc_AesGcmEncrypt()");
@@ -6128,66 +6129,70 @@ static int test_wc_AesGcmEncryptDecrypt (void)
                     sizeof(vector), iv, sizeof(iv)/sizeof(byte),
                     resultT, sizeof(resultT) - 5, a, sizeof(a));
         }
-        if (gcmE == BAD_FUNC_ARG) {
-            gcmE = wc_AesGcmEncrypt(&aes, enc, vector, sizeof(vector), badIV,
-                            sizeof(badIV)/sizeof(byte), resultT, sizeof(resultT),
-                            a, sizeof(a));
-        }
-    #ifdef HAVE_FIPS
-        if (gcmE == BAD_FUNC_ARG) {
-            gcmE = 0;
-        } else {
-            gcmE = SSL_FATAL_ERROR;
-        }
-    #endif
+        #ifndef HAVE_FIPS
+            if (gcmE == BAD_FUNC_ARG) {
+                gcmE = wc_AesGcmEncrypt(&aes, enc, vector, sizeof(vector), badIV,
+                                sizeof(badIV)/sizeof(byte), resultT, sizeof(resultT),
+                                a, sizeof(a));
+            }
+        #else
+            if (gcmE == BAD_FUNC_ARG) {
+                gcmE = 0;
+            } else {
+                gcmE = SSL_FATAL_ERROR;
+            }
+        #endif
     } /* END wc_AesGcmEncrypt */
 
     printf(resultFmt, gcmE == 0 ? passed : failed);
-    printf(testingFmt, "wc_AesGcmDecrypt()");
+    #ifdef HAVE_AES_DECRYPT
+        printf(testingFmt, "wc_AesGcmDecrypt()");
 
-    if (gcmD == 0) {
-        gcmD = wc_AesGcmDecrypt(NULL, dec, enc, sizeof(enc)/sizeof(byte),
-                               iv, sizeof(iv)/sizeof(byte), resultT,
-                               sizeof(resultT), a, sizeof(a));
-        if (gcmD == BAD_FUNC_ARG) {
-            gcmD = wc_AesGcmDecrypt(&aes, NULL, enc, sizeof(enc)/sizeof(byte),
-                               iv, sizeof(iv)/sizeof(byte), resultT,
-                               sizeof(resultT), a, sizeof(a));
-        }
-        if (gcmD == BAD_FUNC_ARG) {
-            gcmD = wc_AesGcmDecrypt(&aes, dec, NULL, sizeof(enc)/sizeof(byte),
-                               iv, sizeof(iv)/sizeof(byte), resultT,
-                               sizeof(resultT), a, sizeof(a));
-        }
-        if (gcmD == BAD_FUNC_ARG) {
-            gcmD = wc_AesGcmDecrypt(&aes, dec, enc, sizeof(enc)/sizeof(byte),
-                               NULL, sizeof(iv)/sizeof(byte), resultT,
-                               sizeof(resultT), a, sizeof(a));
-        }
-        if (gcmD == BAD_FUNC_ARG) {
-            gcmD = wc_AesGcmDecrypt(&aes, dec, enc, sizeof(enc)/sizeof(byte),
-                               iv, sizeof(iv)/sizeof(byte), NULL,
-                               sizeof(resultT), a, sizeof(a));
-        }
-        if (gcmD == BAD_FUNC_ARG) {
-            gcmD = wc_AesGcmDecrypt(&aes, dec, enc, 0, iv,
-                                    sizeof(iv)/sizeof(byte), resultT,
-                                    sizeof(resultT), a, sizeof(a));
-        }
-        if (gcmD == BAD_FUNC_ARG) {
-            gcmD = wc_AesGcmDecrypt(&aes, dec, enc, sizeof(enc)/sizeof(byte),
-                               iv, sizeof(iv)/sizeof(byte), resultT,
-                               sizeof(resultT) + 1, a, sizeof(a));
+        if (gcmD == 0) {
+            gcmD = wc_AesGcmDecrypt(NULL, dec, enc, sizeof(enc)/sizeof(byte),
+                                   iv, sizeof(iv)/sizeof(byte), resultT,
+                                   sizeof(resultT), a, sizeof(a));
+            if (gcmD == BAD_FUNC_ARG) {
+                gcmD = wc_AesGcmDecrypt(&aes, NULL, enc, sizeof(enc)/sizeof(byte),
+                                   iv, sizeof(iv)/sizeof(byte), resultT,
+                                   sizeof(resultT), a, sizeof(a));
+            }
+            if (gcmD == BAD_FUNC_ARG) {
+                gcmD = wc_AesGcmDecrypt(&aes, dec, NULL, sizeof(enc)/sizeof(byte),
+                                   iv, sizeof(iv)/sizeof(byte), resultT,
+                                   sizeof(resultT), a, sizeof(a));
+            }
+            if (gcmD == BAD_FUNC_ARG) {
+                gcmD = wc_AesGcmDecrypt(&aes, dec, enc, sizeof(enc)/sizeof(byte),
+                                   NULL, sizeof(iv)/sizeof(byte), resultT,
+                                   sizeof(resultT), a, sizeof(a));
+            }
+            if (gcmD == BAD_FUNC_ARG) {
+                gcmD = wc_AesGcmDecrypt(&aes, dec, enc, sizeof(enc)/sizeof(byte),
+                                   iv, sizeof(iv)/sizeof(byte), NULL,
+                                   sizeof(resultT), a, sizeof(a));
+            }
+            if (gcmD == BAD_FUNC_ARG) {
+                gcmD = wc_AesGcmDecrypt(&aes, dec, enc, sizeof(enc)/sizeof(byte),
+                                   iv, sizeof(iv)/sizeof(byte), resultT,
+                                   sizeof(resultT) + 1, a, sizeof(a));
+            }
+            #ifndef HAVE_FIPS
+                if (gcmD == BAD_FUNC_ARG) {
+                    gcmD = wc_AesGcmDecrypt(&aes, dec, enc, 0, iv,
+                                            sizeof(iv)/sizeof(byte), resultT,
+                                            sizeof(resultT), a, sizeof(a));
+                }
+            #endif
             if (gcmD == BAD_FUNC_ARG) {
                 gcmD = 0;
             } else {
                 gcmD = SSL_FATAL_ERROR;
             }
-        }
-    } /* END wc_AesGcmDecrypt */
+        } /* END wc_AesGcmDecrypt */
 
-    printf(resultFmt, gcmD == 0 ? passed : failed);
-
+        printf(resultFmt, gcmD == 0 ? passed : failed);
+    #endif /* HAVE_AES_DECRYPT */
 #endif
     return 0;
 
