@@ -23141,7 +23141,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             else
                 *inOutIdx = begin + helloSz; /* skip extensions */
         }
-		
+
 		ssl->options.clientState   = CLIENT_HELLO_COMPLETE;
 		ssl->options.haveSessionId = 1;
 
