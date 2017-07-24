@@ -17060,6 +17060,33 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
             return DoTls13ServerHello(ssl, input, inOutIdx, helloSz);
 #endif
 
+#ifdef OPENSSL_EXTRA
+        /* check if option is set to not allow the current version
+         * set from either wolfSSL_set_options or wolfSSL_CTX_set_options */
+        if (!ssl->options.dtls && ssl->options.mask > 0) {
+            if (ssl->version.minor == TLSv1_2_MINOR &&
+             (ssl->options.mask & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
+                WOLFSSL_MSG("\tError, Option set to not allow TLSv1.2");
+                return VERSION_ERROR;
+            }
+            if (ssl->version.minor == TLSv1_1_MINOR &&
+             (ssl->options.mask & SSL_OP_NO_TLSv1_1) == SSL_OP_NO_TLSv1_1) {
+                WOLFSSL_MSG("\tError, Option set to not allow TLSv1.1");
+                return VERSION_ERROR;
+            }
+            if (ssl->version.minor == TLSv1_MINOR &&
+                (ssl->options.mask & SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1) {
+                WOLFSSL_MSG("\tError, Option set to not allow TLSv1");
+                return VERSION_ERROR;
+            }
+            if (ssl->version.minor == SSLv3_MINOR &&
+                (ssl->options.mask & SSL_OP_NO_SSLv3) == SSL_OP_NO_SSLv3) {
+                WOLFSSL_MSG("\tError, option set to not allow SSLv3");
+                return VERSION_ERROR;
+            }
+        }
+#endif
+
         /* random */
         XMEMCPY(ssl->arrays->serverRandom, input + i, RAN_LEN);
         i += RAN_LEN;
@@ -22844,6 +22871,42 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                        ssl->options.haveDH, ssl->options.haveNTRU,
                        ssl->options.haveECDSAsig, ssl->options.haveECC,
                        ssl->options.haveStaticECC, ssl->options.side);
+            }
+        }
+#endif
+
+#ifdef OPENSSL_EXTRA
+        /* check if option is set to not allow the current version
+         * set from either wolfSSL_set_options or wolfSSL_CTX_set_options */
+        if (!ssl->options.dtls && ssl->options.downgrade &&
+                ssl->options.mask > 0) {
+            if (ssl->version.minor == TLSv1_2_MINOR &&
+             (ssl->options.mask & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
+                WOLFSSL_MSG("\tOption set to not allow TLSv1.2, Downgrading");
+                ssl->version.minor = TLSv1_1_MINOR;
+            }
+            if (ssl->version.minor == TLSv1_1_MINOR &&
+             (ssl->options.mask & SSL_OP_NO_TLSv1_1) == SSL_OP_NO_TLSv1_1) {
+                WOLFSSL_MSG("\tOption set to not allow TLSv1.1, Downgrading");
+                ssl->options.tls1_1 = 0;
+                ssl->version.minor = TLSv1_MINOR;
+            }
+            if (ssl->version.minor == TLSv1_MINOR &&
+                (ssl->options.mask & SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1) {
+                WOLFSSL_MSG("\tOption set to not allow TLSv1, Downgrading");
+                ssl->options.tls    = 0;
+                ssl->options.tls1_1 = 0;
+                ssl->version.minor = SSLv3_MINOR;
+            }
+            if (ssl->version.minor == SSLv3_MINOR &&
+                (ssl->options.mask & SSL_OP_NO_SSLv3) == SSL_OP_NO_SSLv3) {
+                WOLFSSL_MSG("\tError, option set to not allow SSLv3");
+                return VERSION_ERROR;
+            }
+
+            if (ssl->version.minor < ssl->options.minDowngrade) {
+                WOLFSSL_MSG("\tversion below minimum allowed, fatal error");
+                return VERSION_ERROR;
             }
         }
 #endif
