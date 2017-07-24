@@ -14055,6 +14055,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case INVALID_PARAMETER:
         return "The security parameter is invalid";
 
+    case UNSUPPORTED_EXTENSION:
+        return "TLS Extension not requested by the client";
+
     case KEY_SHARE_ERROR:
         return "Key share extension did not contain a valid named group";
 
