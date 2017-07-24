@@ -534,14 +534,14 @@ static int ExportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     c32toa(keys->sequence_number_hi, exp + idx);      idx += OPAQUE32_LEN;
     c32toa(keys->sequence_number_lo, exp + idx);      idx += OPAQUE32_LEN;
 
-    c16toa(keys->nextEpoch, exp + idx);  idx += OPAQUE16_LEN;
-    c16toa(keys->nextSeq_hi, exp + idx); idx += OPAQUE16_LEN;
-    c32toa(keys->nextSeq_lo, exp + idx); idx += OPAQUE32_LEN;
+    c16toa(keys->peerSeq[0].nextEpoch, exp + idx);  idx += OPAQUE16_LEN;
+    c16toa(keys->peerSeq[0].nextSeq_hi, exp + idx); idx += OPAQUE16_LEN;
+    c32toa(keys->peerSeq[0].nextSeq_lo, exp + idx); idx += OPAQUE32_LEN;
     c16toa(keys->curEpoch, exp + idx);   idx += OPAQUE16_LEN;
     c16toa(keys->curSeq_hi, exp + idx);  idx += OPAQUE16_LEN;
     c32toa(keys->curSeq_lo, exp + idx);  idx += OPAQUE32_LEN;
-    c16toa(keys->prevSeq_hi, exp + idx); idx += OPAQUE16_LEN;
-    c32toa(keys->prevSeq_lo, exp + idx); idx += OPAQUE32_LEN;
+    c16toa(keys->peerSeq[0].prevSeq_hi, exp + idx); idx += OPAQUE16_LEN;
+    c32toa(keys->peerSeq[0].prevSeq_lo, exp + idx); idx += OPAQUE32_LEN;
 
     c16toa(keys->dtls_peer_handshake_number, exp + idx); idx += OPAQUE16_LEN;
     c16toa(keys->dtls_expected_peer_handshake_number, exp + idx);
@@ -563,12 +563,12 @@ static int ExportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
 
         c16toa(WOLFSSL_DTLS_WINDOW_WORDS, exp + idx); idx += OPAQUE16_LEN;
         for (i = 0; i < WOLFSSL_DTLS_WINDOW_WORDS; i++) {
-            c32toa(keys->window[i], exp + idx);
+            c32toa(keys->peerSeq[0].window[i], exp + idx);
             idx += OPAQUE32_LEN;
         }
         c16toa(WOLFSSL_DTLS_WINDOW_WORDS, exp + idx); idx += OPAQUE16_LEN;
         for (i = 0; i < WOLFSSL_DTLS_WINDOW_WORDS; i++) {
-            c32toa(keys->prevWindow[i], exp + idx);
+            c32toa(keys->peerSeq[0].prevWindow[i], exp + idx);
             idx += OPAQUE32_LEN;
         }
     }
@@ -672,14 +672,14 @@ static int ImportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     ato32(exp + idx, &keys->sequence_number_hi);      idx += OPAQUE32_LEN;
     ato32(exp + idx, &keys->sequence_number_lo);      idx += OPAQUE32_LEN;
 
-    ato16(exp + idx, &keys->nextEpoch);  idx += OPAQUE16_LEN;
-    ato16(exp + idx, &keys->nextSeq_hi); idx += OPAQUE16_LEN;
-    ato32(exp + idx, &keys->nextSeq_lo); idx += OPAQUE32_LEN;
+    ato16(exp + idx, &keys->peerSeq[0].nextEpoch);  idx += OPAQUE16_LEN;
+    ato16(exp + idx, &keys->peerSeq[0].nextSeq_hi); idx += OPAQUE16_LEN;
+    ato32(exp + idx, &keys->peerSeq[0].nextSeq_lo); idx += OPAQUE32_LEN;
     ato16(exp + idx, &keys->curEpoch);   idx += OPAQUE16_LEN;
     ato16(exp + idx, &keys->curSeq_hi);  idx += OPAQUE16_LEN;
     ato32(exp + idx, &keys->curSeq_lo);  idx += OPAQUE32_LEN;
-    ato16(exp + idx, &keys->prevSeq_hi); idx += OPAQUE16_LEN;
-    ato32(exp + idx, &keys->prevSeq_lo); idx += OPAQUE32_LEN;
+    ato16(exp + idx, &keys->peerSeq[0].prevSeq_hi); idx += OPAQUE16_LEN;
+    ato32(exp + idx, &keys->peerSeq[0].prevSeq_lo); idx += OPAQUE32_LEN;
 
     ato16(exp + idx, &keys->dtls_peer_handshake_number); idx += OPAQUE16_LEN;
     ato16(exp + idx, &keys->dtls_expected_peer_handshake_number);
@@ -708,9 +708,9 @@ static int ImportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
             wordAdj = (WOLFSSL_DTLS_WINDOW_WORDS - wordCount) * sizeof(word32);
         }
 
-        XMEMSET(keys->window, 0xFF, DTLS_SEQ_SZ);
+        XMEMSET(keys->peerSeq[0].window, 0xFF, DTLS_SEQ_SZ);
         for (i = 0; i < wordCount; i++) {
-            ato32(exp + idx, &keys->window[i]);
+            ato32(exp + idx, &keys->peerSeq[0].window[i]);
             idx += OPAQUE32_LEN;
         }
         idx += wordAdj;
@@ -724,9 +724,9 @@ static int ImportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
             wordAdj = (WOLFSSL_DTLS_WINDOW_WORDS - wordCount) * sizeof(word32);
         }
 
-        XMEMSET(keys->prevWindow, 0xFF, DTLS_SEQ_SZ);
+        XMEMSET(keys->peerSeq[0].prevWindow, 0xFF, DTLS_SEQ_SZ);
         for (i = 0; i < wordCount; i++) {
-            ato32(exp + idx, &keys->prevWindow[i]);
+            ato32(exp + idx, &keys->peerSeq[0].prevWindow[i]);
             idx += OPAQUE32_LEN;
         }
         idx += wordAdj;
@@ -3725,7 +3725,10 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     byte haveAnon = 0;
     byte newSSL;
     byte haveRSA = 0;
-    (void) haveAnon; /* Squash unused var warnings */
+    byte haveMcast = 0;
+
+    (void)haveAnon; /* Squash unused var warnings */
+    (void)haveMcast;
 
     if (!ssl || !ctx)
         return BAD_FUNC_ARG;
@@ -3751,6 +3754,9 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #ifdef HAVE_ANON
     haveAnon = ctx->haveAnon;
 #endif /* HAVE_ANON*/
+#ifdef WOLFSSL_MULTICAST
+    haveMcast = ctx->haveMcast;
+#endif /* WOLFSSL_MULTICAST */
 
     /* decrement previous CTX reference count if exists.
      * This should only happen if switching ctxs!*/
@@ -3885,11 +3891,12 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
                        ssl->options.haveStaticECC, ssl->options.side);
 
 #if !defined(NO_CERTS) && !defined(WOLFSSL_SESSION_EXPORT)
-        /* make sure server has cert and key unless using PSK or Anon
-        * This should be true even if just switching ssl ctx */
-        if (ssl->options.side == WOLFSSL_SERVER_END && !havePSK && !haveAnon)
+        /* make sure server has cert and key unless using PSK, Anon, or
+         * Multicast. This should be true even if just switching ssl ctx */
+        if (ssl->options.side == WOLFSSL_SERVER_END &&
+                !havePSK && !haveAnon && !haveMcast)
             if (!ssl->buffers.certificate || !ssl->buffers.certificate->buffer
-                     || !ssl->buffers.key || !ssl->buffers.key->buffer) {
+                || !ssl->buffers.key || !ssl->buffers.key->buffer) {
                 WOLFSSL_MSG("Server missing certificate and/or private key");
                 return NO_PRIVATE_KEY;
             }
@@ -4281,6 +4288,28 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #ifdef HAVE_SESSION_TICKET
     ssl->session.ticket = ssl->session.staticTicket;
 #endif
+
+#ifdef WOLFSSL_MULTICAST
+    if (ctx->haveMcast) {
+        int i;
+
+        ssl->options.haveMcast = 1;
+        ssl->options.mcastID = ctx->mcastID;
+
+        /* Force the state to look like handshake has completed. */
+        /* Keying material is supplied externally. */
+        ssl->options.serverState = SERVER_FINISHED_COMPLETE;
+        ssl->options.clientState = CLIENT_FINISHED_COMPLETE;
+        ssl->options.connectState = SECOND_REPLY_DONE;
+        ssl->options.acceptState = ACCEPT_THIRD_REPLY_DONE;
+        ssl->options.handShakeState = HANDSHAKE_DONE;
+        ssl->options.handShakeDone = 1;
+
+        for (i = 0; i < WOLFSSL_DTLS_PEERSEQ_SZ; i++)
+            ssl->keys.peerSeq[i].peerId = INVALID_PEER_ID;
+    }
+#endif
+
     return 0;
 }
 
@@ -4889,18 +4918,42 @@ static INLINE void DtlsGetSEQ(WOLFSSL* ssl, int order, word32 seq[2])
 {
     if (order == PREV_ORDER) {
         /* Previous epoch case */
-        seq[0] = ((ssl->keys.dtls_epoch - 1) << 16) |
-                 (ssl->keys.dtls_prev_sequence_number_hi & 0xFFFF);
+        if (ssl->options.haveMcast) {
+        #ifdef WOLFSSL_MULTICAST
+            seq[0] = ((ssl->keys.dtls_epoch - 1) << 16) |
+                     (ssl->options.mcastID << 8) |
+                     (ssl->keys.dtls_prev_sequence_number_hi & 0xFF);
+        #endif
+        }
+        else
+            seq[0] = ((ssl->keys.dtls_epoch - 1) << 16) |
+                     (ssl->keys.dtls_prev_sequence_number_hi & 0xFFFF);
         seq[1] = ssl->keys.dtls_prev_sequence_number_lo;
     }
     else if (order == PEER_ORDER) {
-        seq[0] = (ssl->keys.curEpoch << 16) |
-                 (ssl->keys.curSeq_hi & 0xFFFF);
+        if (ssl->options.haveMcast) {
+        #ifdef WOLFSSL_MULTICAST
+            seq[0] = (ssl->keys.curEpoch << 16) |
+                     (ssl->keys.curPeerId << 8) |
+                     (ssl->keys.curSeq_hi & 0xFF);
+        #endif
+        }
+        else
+            seq[0] = (ssl->keys.curEpoch << 16) |
+                     (ssl->keys.curSeq_hi & 0xFFFF);
         seq[1] = ssl->keys.curSeq_lo; /* explicit from peer */
     }
     else {
-        seq[0] = (ssl->keys.dtls_epoch << 16) |
-                 (ssl->keys.dtls_sequence_number_hi & 0xFFFF);
+        if (ssl->options.haveMcast) {
+        #ifdef WOLFSSL_MULTICAST
+            seq[0] = (ssl->keys.dtls_epoch << 16) |
+                     (ssl->options.mcastID << 8) |
+                     (ssl->keys.dtls_sequence_number_hi & 0xFF);
+        #endif
+        }
+        else
+            seq[0] = (ssl->keys.dtls_epoch << 16) |
+                     (ssl->keys.dtls_sequence_number_hi & 0xFFFF);
         seq[1] = ssl->keys.dtls_sequence_number_lo;
     }
 }
@@ -6200,7 +6253,14 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         *inOutIdx += ENUM_LEN + VERSION_SZ;
         ato16(input + *inOutIdx, &ssl->keys.curEpoch);
         *inOutIdx += OPAQUE16_LEN;
-        ato16(input + *inOutIdx, &ssl->keys.curSeq_hi);
+        if (ssl->options.haveMcast) {
+        #ifdef WOLFSSL_MULTICAST
+            ssl->keys.curPeerId = input[*inOutIdx];
+            ssl->keys.curSeq_hi = input[*inOutIdx+1];
+        #endif
+        }
+        else
+            ato16(input + *inOutIdx, &ssl->keys.curSeq_hi);
         *inOutIdx += OPAQUE16_LEN;
         ato32(input + *inOutIdx, &ssl->keys.curSeq_lo);
         *inOutIdx += OPAQUE32_LEN;  /* advance past rest of seq */
@@ -7058,6 +7118,10 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
         case TLS_DH_anon_WITH_AES_128_CBC_SHA :
             if (requirement == REQUIRES_DHE)
                 return 1;
+            break;
+#endif
+#ifdef WOLFSSL_MULTICAST
+        case WDM_WITH_NULL_SHA256 :
             break;
 #endif
 
@@ -9552,16 +9616,41 @@ static INLINE int DtlsCheckWindow(WOLFSSL* ssl)
     word16 cur_hi, next_hi;
     word32 cur_lo, next_lo, diff;
     int curLT;
+    WOLFSSL_DTLS_PEERSEQ* peerSeq = NULL;
 
-    if (ssl->keys.curEpoch == ssl->keys.nextEpoch) {
-        next_hi = ssl->keys.nextSeq_hi;
-        next_lo = ssl->keys.nextSeq_lo;
-        window = ssl->keys.window;
+    if (!ssl->options.haveMcast)
+        peerSeq = ssl->keys.peerSeq;
+    else {
+#ifdef WOLFSSL_MULTICAST
+        WOLFSSL_DTLS_PEERSEQ* p;
+        int i;
+
+        for (i = 0, p = ssl->keys.peerSeq;
+             i < WOLFSSL_DTLS_PEERSEQ_SZ;
+             i++, p++) {
+
+            if (p->peerId == ssl->keys.curPeerId) {
+                peerSeq = p;
+                break;
+            }
+        }
+
+        if (peerSeq == NULL) {
+            WOLFSSL_MSG("Couldn't find that peer ID to check window.");
+            return 0;
+        }
+#endif
     }
-    else if (ssl->keys.curEpoch == ssl->keys.nextEpoch - 1) {
-        next_hi = ssl->keys.prevSeq_hi;
-        next_lo = ssl->keys.prevSeq_lo;
-        window = ssl->keys.prevWindow;
+
+    if (ssl->keys.curEpoch == peerSeq->nextEpoch) {
+        next_hi = peerSeq->nextSeq_hi;
+        next_lo = peerSeq->nextSeq_lo;
+        window = peerSeq->window;
+    }
+    else if (ssl->keys.curEpoch == peerSeq->nextEpoch - 1) {
+        next_hi = peerSeq->prevSeq_hi;
+        next_lo = peerSeq->prevSeq_lo;
+        window = peerSeq->prevWindow;
     }
     else {
         return 0;
@@ -9595,10 +9684,12 @@ static INLINE int DtlsCheckWindow(WOLFSSL* ssl)
         WOLFSSL_MSG("Current record sequence number from the past.");
         return 0;
     }
+#ifndef WOLFSSL_DTLS_ALLOW_FUTURE
     else if (!curLT && (diff > DTLS_SEQ_BITS)) {
         WOLFSSL_MSG("Rejecting message too far into the future.");
         return 0;
     }
+#endif
     else if (curLT) {
         word32 idx = diff / DTLS_WORD_BITS;
         word32 newDiff = diff % DTLS_WORD_BITS;
@@ -9619,6 +9710,24 @@ static INLINE int DtlsCheckWindow(WOLFSSL* ssl)
 }
 
 
+#ifdef WOLFSSL_MULTICAST
+static INLINE word32 UpdateHighwaterMark(word32 cur, word32 first,
+                                         word32 second, word32 max)
+{
+    word32 newCur = 0;
+
+    if (cur < first)
+        newCur = first;
+    else if (cur < second)
+        newCur = second;
+    else if (cur < max)
+        newCur = max;
+
+    return newCur;
+}
+#endif /* WOLFSSL_MULTICAST */
+
+
 static INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
 {
     word32* window;
@@ -9627,20 +9736,62 @@ static INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
     int curLT;
     word32 cur_lo, diff;
     word16 cur_hi;
-
-    if (ssl->keys.curEpoch == ssl->keys.nextEpoch) {
-        next_hi = &ssl->keys.nextSeq_hi;
-        next_lo = &ssl->keys.nextSeq_lo;
-        window = ssl->keys.window;
-    }
-    else {
-        next_hi = &ssl->keys.prevSeq_hi;
-        next_lo = &ssl->keys.prevSeq_lo;
-        window = ssl->keys.prevWindow;
-    }
+    WOLFSSL_DTLS_PEERSEQ* peerSeq = ssl->keys.peerSeq;
 
     cur_hi = ssl->keys.curSeq_hi;
     cur_lo = ssl->keys.curSeq_lo;
+
+#ifdef WOLFSSL_MULTICAST
+    if (ssl->options.haveMcast) {
+        WOLFSSL_DTLS_PEERSEQ* p;
+        int i;
+
+        peerSeq = NULL;
+        for (i = 0, p = ssl->keys.peerSeq;
+             i < WOLFSSL_DTLS_PEERSEQ_SZ;
+             i++, p++) {
+
+            if (p->peerId == ssl->keys.curPeerId) {
+                peerSeq = p;
+                break;
+            }
+        }
+
+        if (peerSeq == NULL) {
+            WOLFSSL_MSG("Couldn't find that peer ID to update window.");
+            return 0;
+        }
+
+        if (p->highwaterMark && cur_lo >= p->highwaterMark) {
+            int cbError = 0;
+
+            if (ssl->ctx->mcastHwCb)
+                cbError = ssl->ctx->mcastHwCb(p->peerId,
+                                              ssl->ctx->mcastMaxSeq,
+                                              cur_lo, ssl->mcastHwCbCtx);
+            if (cbError) {
+                WOLFSSL_MSG("Multicast highwater callback returned an error.");
+                return MCAST_HIGHWATER_CB_E;
+            }
+
+            p->highwaterMark = UpdateHighwaterMark(cur_lo,
+                                                   ssl->ctx->mcastFirstSeq,
+                                                   ssl->ctx->mcastSecondSeq,
+                                                   ssl->ctx->mcastMaxSeq);
+        }
+    }
+#endif
+
+    if (ssl->keys.curEpoch == peerSeq->nextEpoch) {
+        next_hi = &peerSeq->nextSeq_hi;
+        next_lo = &peerSeq->nextSeq_lo;
+        window = peerSeq->window;
+    }
+    else {
+        next_hi = &peerSeq->prevSeq_hi;
+        next_lo = &peerSeq->prevSeq_lo;
+        window = peerSeq->prevWindow;
+    }
 
     if (cur_hi == *next_hi) {
         curLT = cur_lo < *next_lo;
@@ -10676,6 +10827,10 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
     if (ret == VERIFY_MAC_ERROR) {
         if (!ssl->options.dtls)
             SendAlert(ssl, alert_fatal, bad_record_mac);
+
+        #ifdef WOLFSSL_DTLS_DROP_STATS
+            ssl->macDropCount++;
+        #endif /* WOLFSSL_DTLS_DROP_STATS */
     }
 
     return ret;
@@ -11401,6 +11556,9 @@ int ProcessReply(WOLFSSL* ssl)
                 ssl->options.processReply = doProcessInit;
                 ssl->buffers.inputBuffer.length = 0;
                 ssl->buffers.inputBuffer.idx = 0;
+#ifdef WOLFSSL_DTLS_DROP_STATS
+                ssl->replayDropCount++;
+#endif /* WOLFSSL_DTLS_DROP_STATS */
 
                 if (IsDtlsNotSctpMode(ssl) && ssl->options.dtlsHsRetain) {
                     ret = DtlsMsgPoolSend(ssl, 0);
@@ -11539,6 +11697,9 @@ int ProcessReply(WOLFSSL* ssl)
                     if (ret < 0) {
                         WOLFSSL_MSG("VerifyMac failed");
                         WOLFSSL_ERROR(ret);
+                        #ifdef WOLFSSL_DTLS_DROP_STATS
+                            ssl->macDropCount++;
+                        #endif /* WOLFSSL_DTLS_DROP_STATS */
                         return DECRYPT_ERROR;
                     }
                 }
@@ -11670,20 +11831,33 @@ int ProcessReply(WOLFSSL* ssl)
                     ssl->keys.encryptionOn = 1;
 
                     /* setup decrypt keys for following messages */
+                    /* XXX This might not be what we want to do when
+                     * receiving a CCS with multicast. We update the
+                     * key when the application updates them. */
                     if ((ret = SetKeysSide(ssl, DECRYPT_SIDE_ONLY)) != 0)
                         return ret;
 
                     #ifdef WOLFSSL_DTLS
                         if (ssl->options.dtls) {
+                            WOLFSSL_DTLS_PEERSEQ* peerSeq = ssl->keys.peerSeq;
+#ifdef WOLFSSL_MULTICAST
+                            if (ssl->options.haveMcast) {
+                                peerSeq += ssl->keys.curPeerId;
+                                peerSeq->highwaterMark = UpdateHighwaterMark(0,
+                                        ssl->ctx->mcastFirstSeq,
+                                        ssl->ctx->mcastSecondSeq,
+                                        ssl->ctx->mcastMaxSeq);
+                            }
+#endif
                             DtlsMsgPoolReset(ssl);
-                            ssl->keys.prevSeq_lo = ssl->keys.nextSeq_lo;
-                            ssl->keys.prevSeq_hi = ssl->keys.nextSeq_hi;
-                            XMEMCPY(ssl->keys.prevWindow, ssl->keys.window,
+                            peerSeq->nextEpoch++;
+                            peerSeq->prevSeq_lo = peerSeq->nextSeq_lo;
+                            peerSeq->prevSeq_hi = peerSeq->nextSeq_hi;
+                            peerSeq->nextSeq_lo = 0;
+                            peerSeq->nextSeq_hi = 0;
+                            XMEMCPY(peerSeq->prevWindow, peerSeq->window,
                                     DTLS_SEQ_SZ);
-                            ssl->keys.nextEpoch++;
-                            ssl->keys.nextSeq_lo = 0;
-                            ssl->keys.nextSeq_hi = 0;
-                            XMEMSET(ssl->keys.window, 0, DTLS_SEQ_SZ);
+                            XMEMSET(peerSeq->window, 0, DTLS_SEQ_SZ);
                         }
                     #endif
 
@@ -14064,6 +14238,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case HRR_COOKIE_ERROR:
         return "Cookie does not match one sent in HelloRetryRequest";
 
+    case MCAST_HIGHWATER_CB_E:
+        return "Multicast highwater callback returned error";
+
     default :
         return "unknown error number";
     }
@@ -14540,6 +14717,9 @@ static const char* const cipher_names[] =
     "TLS13-AES128-CCM-8-SHA256",
 #endif
 
+#ifdef BUILD_WDM_WITH_NULL_SHA256
+    "WDM-NULL-SHA256",
+#endif
 };
 
 
@@ -15007,6 +15187,9 @@ static int cipher_name_idx[] =
     TLS_AES_128_CCM_8_SHA256,
 #endif
 
+#ifdef BUILD_WDM_WITH_NULL_SHA256
+    WDM_WITH_NULL_SHA256,
+#endif
 };
 
 
@@ -15495,6 +15678,10 @@ const char* wolfSSL_get_cipher_name_from_suite(const unsigned char cipherSuite,
 #ifdef BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA
             case TLS_DH_anon_WITH_AES_128_CBC_SHA :
                 return "TLS_DH_anon_WITH_AES_128_CBC_SHA";
+#endif
+#ifdef BUILD_WDM_WITH_NULL_SHA256
+            case WDM_WITH_NULL_SHA256 :
+                return "WDM_WITH_NULL_SHA256";
 #endif
             default:
                 return "NONE";

@@ -153,7 +153,7 @@
 #include <wolfssl/wolfcrypt/visibility.h>
 
 #ifdef WOLFSSL_USER_SETTINGS
-    #include <user_settings.h>
+    #include "user_settings.h"
 #endif
 
 
@@ -174,7 +174,10 @@
 #endif
 
 #ifdef HAVE_NETX
-    #include "nx_api.h"
+    #ifdef NEED_THREADX_TYPES
+        #include <types.h>
+    #endif
+    #include <nx_api.h>
 #endif
 
 #if defined(HAVE_LWIP_NATIVE) /* using LwIP native TCP socket */

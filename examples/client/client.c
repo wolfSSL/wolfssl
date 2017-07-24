@@ -752,7 +752,11 @@ static void Usage(void)
 #ifdef WOLFSSL_EARLY_DATA
     printf("-0          Early data sent to server (0-RTT handshake)\n");
 #endif
+#ifdef WOLFSSL_MULTICAST
+    printf("-3 <grpid>  Multicast, grpid < 256\n");
+#endif
 }
+
 
 THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 {
@@ -793,6 +797,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    doDTLS    = 0;
     int    dtlsUDP   = 0;
     int    dtlsSCTP  = 0;
+    int    doMcast   = 0;
     int    matchName = 0;
     int    doPeerCheck = 1;
     int    nonBlocking = 0;
@@ -856,6 +861,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef WOLFSSL_EARLY_DATA
     int earlyData = 0;
 #endif
+#ifdef WOLFSSL_MULTICAST
+    byte mcastID = 0;
+#endif
 
 #ifdef HAVE_OCSP
     int    useOcsp  = 0;
@@ -905,7 +913,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     while ((ch = mygetopt(argc, argv, "?"
             "ab:c:defgh:ijk:l:mnop:q:rstuv:wxyz"
             "A:B:CDE:F:GHIJKL:M:NO:PQRS:TUVW:XYZ:"
-            "0")) != -1) {
+            "03:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -1229,6 +1237,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             #ifdef WOLFSSL_EARLY_DATA
                 earlyData = 1;
             #endif
+                break;
+
+            case '3' :
+                #ifdef WOLFSSL_MULTICAST
+                    doMcast = 1;
+                    mcastID = (byte)(atoi(myoptarg) & 0xFF);
+                #endif
                 break;
 
             default:
@@ -1660,6 +1675,16 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_CTX_allow_post_handshake_auth(ctx);
     #endif
 
+    if (doMcast) {
+#ifdef WOLFSSL_MULTICAST
+        wolfSSL_CTX_mcast_set_member_id(ctx, mcastID);
+        if (wolfSSL_CTX_set_cipher_list(ctx, "WDM-NULL-SHA256") != SSL_SUCCESS) {
+            wolfSSL_CTX_free(ctx);
+            err_sys("Couldn't set multicast cipher list.");
+        }
+#endif
+    }
+
     ssl = wolfSSL_new(ctx);
     if (ssl == NULL) {
         wolfSSL_CTX_free(ctx);
@@ -1704,6 +1729,25 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_NoKeyShares(ssl);
     }
     #endif
+
+    if (doMcast) {
+#ifdef WOLFSSL_MULTICAST
+        byte pms[512]; /* pre master secret */
+        byte cr[32];   /* client random */
+        byte sr[32];   /* server random */
+        const byte suite[2] = {0, 0xfe};  /* WDM_WITH_NULL_SHA256 */
+
+        XMEMSET(pms, 0x23, sizeof(pms));
+        XMEMSET(cr, 0xA5, sizeof(cr));
+        XMEMSET(sr, 0x5A, sizeof(sr));
+
+        if (wolfSSL_set_secret(ssl, 1, pms, sizeof(pms), cr, sr, suite)
+                                                               != SSL_SUCCESS) {
+            wolfSSL_CTX_free(ctx);
+            err_sys("unable to set mcast secret");
+        }
+#endif
+    }
 
     #ifdef HAVE_SESSION_TICKET
     wolfSSL_set_SessionTicket_cb(ssl, sessionTicketCB, (void*)"initial session");
