@@ -7244,6 +7244,9 @@ static int test_wc_MakeRsaKey (void)
         ret = wc_InitRng(&rng);
         if (ret == 0) {
             ret = wc_MakeRsaKey(&genKey, 1024, 65537, &rng);
+            if (ret == 0 && wc_FreeRsaKey(&genKey) != 0) {
+                ret = SSL_FATAL_ERROR;
+            }
         }
     }
     #ifndef HAVE_USER_RSA
@@ -7290,9 +7293,6 @@ static int test_wc_MakeRsaKey (void)
         }
     #endif
 
-    if (wc_FreeRsaKey(&genKey) || ret != 0) {
-        ret = SSL_FATAL_ERROR;
-    }
     if (wc_FreeRng(&rng) || ret != 0) {
         ret = SSL_FATAL_ERROR;
     }
@@ -9870,6 +9870,7 @@ void ApiTest(void)
     AssertIntEQ(test_wc_RsaPublicKeyDecodeRaw(), 0);
     AssertIntEQ(test_wc_MakeRsaKey(), 0);
     AssertIntEQ(test_wc_SetKeyUsage (), 0);
+
     AssertIntEQ(test_wc_RsaKeyToDer(), 0);
     AssertIntEQ(test_wc_RsaKeyToPublicDer(), 0);
     AssertIntEQ(test_wc_RsaPublicEncryptDecrypt(), 0);
