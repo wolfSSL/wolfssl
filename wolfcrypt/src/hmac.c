@@ -442,6 +442,7 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
     if (hmac->asyncDev.marker == WOLFSSL_ASYNC_MARKER_HMAC) {
+    #if defined(HAVE_INTEL_QA)
         if (length > hmac_block_size)
             length = hmac_block_size;
         /* update key length */
@@ -449,6 +450,7 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
 
         return ret;
         /* no need to pad below */
+    #endif
     }
 #endif
 
