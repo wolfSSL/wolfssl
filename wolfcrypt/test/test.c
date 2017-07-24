@@ -32,8 +32,8 @@
 
 #ifndef NO_CRYPT_TEST
 
+#include <wolfssl/wolfcrypt/memory.h>
 #ifdef WOLFSSL_STATIC_MEMORY
-    #include <wolfssl/wolfcrypt/memory.h>
     static WOLFSSL_HEAP_HINT* HEAP_HINT;
 #else
     #define HEAP_HINT NULL
@@ -310,7 +310,7 @@ int memcb_test(void);
 #ifdef __cplusplus
     extern "C" {
 #endif
-    WOLFSSL_API int wolfSSL_Debugging_ON();
+    WOLFSSL_API int wolfSSL_Debugging_ON(void);
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif
@@ -402,7 +402,8 @@ int wolfcrypt_test(void* args)
     if (CheckCtcSettings() != 1)
         return err_sys("Build vs runtime math mismatch\n", -1000);
 
-#ifdef USE_FAST_MATH
+#if defined(USE_FAST_MATH) && \
+	(!defined(NO_RSA) || !defined(NO_DH) || defined(HAVE_ECC))
     if (CheckFastMathSettings() != 1)
         return err_sys("Build vs runtime fastmath FP_MAX_BITS mismatch\n",
                        -1001);
@@ -2029,8 +2030,8 @@ int hash_test(void)
     byte             data[] = "0123456789abcdef0123456789abcdef012345";
     byte             out[MAX_DIGEST_SIZE];
     enum wc_HashType typesGood[] = { WC_HASH_TYPE_MD5, WC_HASH_TYPE_SHA,
-                                     WC_HASH_TYPE_SHA224, WC_HASH_TYPE_SHA384,
-                                     WC_HASH_TYPE_SHA512, WC_HASH_TYPE_SHA256 };
+                                     WC_HASH_TYPE_SHA224, WC_HASH_TYPE_SHA256,
+                                     WC_HASH_TYPE_SHA384, WC_HASH_TYPE_SHA512 };
     enum wc_HashType typesNoImpl[] = {
 #ifdef NO_MD5
                                         WC_HASH_TYPE_MD5,
@@ -6160,6 +6161,7 @@ static int rsa_flatten_test(RsaKey* key)
     return 0;
 }
 
+#ifndef NO_SIG_WRAPPER
 static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
 {
     int ret;
@@ -6294,6 +6296,7 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
 
     return 0;
 }
+#endif /* !NO_SIG_WRAPPER */
 
 #ifndef HAVE_USER_RSA
 static int rsa_decode_test(void)
@@ -6349,7 +6352,7 @@ static int rsa_decode_test(void)
         goto done;
     }
     /* TODO: probably should fail when length is -1! */
-    ret = wc_RsaPublicKeyDecodeRaw(n, -1, e, sizeof(e), &keyPub);
+    ret = wc_RsaPublicKeyDecodeRaw(n, (word32)-1, e, sizeof(e), &keyPub);
     if (ret != 0) {
         ret = -5404;
         goto done;
@@ -6358,7 +6361,7 @@ static int rsa_decode_test(void)
     ret = wc_InitRsaKey(&keyPub, NULL);
     if (ret != 0)
         return -5405;
-    ret = wc_RsaPublicKeyDecodeRaw(n, sizeof(n), e, -1, &keyPub);
+    ret = wc_RsaPublicKeyDecodeRaw(n, sizeof(n), e, (word32)-1, &keyPub);
     if (ret != 0) {
         ret = -5406;
         goto done;
@@ -6612,7 +6615,19 @@ int rsa_test(void)
         return ret;
 #endif
 
-    tmp = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef USE_CERT_BUFFERS_1024
+    bytes = sizeof_client_key_der_1024;
+	if (bytes < (size_t)sizeof_client_cert_der_1024)
+		bytes = sizeof_client_cert_der_1024;
+#elif defined(USE_CERT_BUFFERS_2048)
+    bytes = sizeof_client_key_der_2048;
+	if (bytes < (size_t)sizeof_client_cert_der_2048)
+		bytes = sizeof_client_cert_der_2048;
+#else
+	bytes = FOURK_BUF;
+#endif
+
+    tmp = (byte*)XMALLOC(bytes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL
     #ifdef WOLFSSL_ASYNC_CRYPT
         || out == NULL || plain == NULL
@@ -6623,10 +6638,8 @@ int rsa_test(void)
 
 #ifdef USE_CERT_BUFFERS_1024
     XMEMCPY(tmp, client_key_der_1024, sizeof_client_key_der_1024);
-    bytes = sizeof_client_key_der_1024;
 #elif defined(USE_CERT_BUFFERS_2048)
     XMEMCPY(tmp, client_key_der_2048, sizeof_client_key_der_2048);
-    bytes = sizeof_client_key_der_2048;
 #elif !defined(NO_FILESYSTEM)
     file = fopen(clientKey, "rb");
     if (!file) {
@@ -6660,9 +6673,11 @@ int rsa_test(void)
         ERROR_OUT(-5505, exit_rsa);
     }
 
+#ifndef NO_SIG_WRAPPER
     ret = rsa_sig_test(&key, sizeof(RsaKey), wc_RsaEncryptSize(&key), &rng);
     if (ret != 0)
         goto exit_rsa;
+#endif
 
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)

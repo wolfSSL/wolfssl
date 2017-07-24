@@ -544,6 +544,9 @@ int wc_InitRng_ex(WC_RNG* rng, void* heap, int devId)
         return 0;
 #endif
 
+#ifdef CUSTOM_RAND_GENERATE_BLOCK
+	ret = 0; /* success */
+#else
 #ifdef HAVE_HASHDRBG
     if (wc_RNG_HealthTestLocal(0) == 0) {
         DECLARE_VAR(entropy, byte, ENTROPY_NONCE_SZ, rng->heap);
@@ -587,6 +590,7 @@ int wc_InitRng_ex(WC_RNG* rng, void* heap, int devId)
         rng->status = DRBG_FAILED;
     }
 #endif /* HAVE_HASHDRBG */
+#endif /* CUSTOM_RAND_GENERATE_BLOCK */
 
     return ret;
 }
@@ -625,8 +629,8 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
 
 #ifdef CUSTOM_RAND_GENERATE_BLOCK
     XMEMSET(output, 0, sz);
-    return CUSTOM_RAND_GENERATE_BLOCK(output, sz);
-#endif
+    ret = CUSTOM_RAND_GENERATE_BLOCK(output, sz);
+#else
 
 #ifdef HAVE_HASHDRBG
     if (sz > RNG_MAX_BLOCK_LEN)
@@ -674,6 +678,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     ret = RNG_FAILURE_E;
 
 #endif /* HAVE_HASHDRBG */
+#endif /* CUSTOM_RAND_GENERATE_BLOCK */
 
     return ret;
 }
