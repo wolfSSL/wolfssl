@@ -1461,7 +1461,7 @@ static void GMULT(byte* X, byte* Y)
 }
 
 
-static void GHASH(Aes* aes, const byte* a, word32 aSz,
+void GHASH(Aes* aes, const byte* a, word32 aSz,
                                 const byte* c, word32 cSz, byte* s, word32 sSz)
 {
     byte x[AES_BLOCK_SIZE];
@@ -4100,7 +4100,7 @@ static void GMULT(byte* X, byte* Y)
 }
 
 
-static void GHASH(Aes* aes, const byte* a, word32 aSz,
+void GHASH(Aes* aes, const byte* a, word32 aSz,
                                 const byte* c, word32 cSz, byte* s, word32 sSz)
 {
     byte x[AES_BLOCK_SIZE];

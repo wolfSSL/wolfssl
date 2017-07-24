@@ -83,7 +83,7 @@ typedef struct Sha256 {
 #endif /* FREESCALE_LTC_SHA */
 } Sha256;
 
-#else /* WOLFSSL_TI_HASH */
+#else
     #include "wolfssl/wolfcrypt/port/ti/ti-hash.h"
 #endif
 

@@ -251,6 +251,11 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
         return ret;
     }
 
+#ifdef WOLFSSL_XILINX_CRYPT
+    key->pubExp = 0;
+    key->mod    = NULL;
+#endif
+
     return ret;
 }
 
@@ -258,6 +263,82 @@ int wc_InitRsaKey(RsaKey* key, void* heap)
 {
     return wc_InitRsaKey_ex(key, heap, INVALID_DEVID);
 }
+
+
+#ifdef WOLFSSL_XILINX_CRYPT
+#define MAX_E_SIZE 4
+/* Used to setup hardware state
+ *
+ * key  the RSA key to setup
+ *
+ * returns 0 on success
+ */
+int wc_InitRsaHw(RsaKey* key)
+{
+    unsigned char* m; /* RSA modulous */
+    word32 e = 0;     /* RSA public exponent */
+    int mSz;
+    int eSz;
+
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    mSz = mp_unsigned_bin_size(&(key->n));
+    m = (unsigned char*)XMALLOC(mSz, key->heap, DYNAMIC_TYPE_KEY);
+    if (m == 0) {
+        return MEMORY_E;
+    }
+
+    if (mp_to_unsigned_bin(&(key->n), m) != MP_OKAY) {
+        WOLFSSL_MSG("Unable to get RSA key modulous");
+        XFREE(m, key->heap, DYNAMIC_TYPE_KEY);
+        return MP_READ_E;
+    }
+
+    eSz = mp_unsigned_bin_size(&(key->e));
+    if (eSz > MAX_E_SIZE) {
+        WOLFSSL_MSG("Expnonent of size 4 bytes expected");
+        XFREE(m, key->heap, DYNAMIC_TYPE_KEY);
+        return BAD_FUNC_ARG;
+    }
+
+    if (mp_to_unsigned_bin(&(key->e), (byte*)&e + (MAX_E_SIZE - eSz))
+                != MP_OKAY) {
+        XFREE(m, key->heap, DYNAMIC_TYPE_KEY);
+        WOLFSSL_MSG("Unable to get RSA key exponent");
+        return MP_READ_E;
+    }
+
+    /* check for existing mod buffer to avoid memory leak */
+    if (key->mod != NULL) {
+        XFREE(key->mod, key->heap, DYNAMIC_TYPE_KEY);
+    }
+
+    key->pubExp = e;
+    key->mod    = m;
+
+    if (XSecure_RsaInitialize(&(key->xRsa), key->mod, NULL,
+                (byte*)&(key->pubExp)) != XST_SUCCESS) {
+        WOLFSSL_MSG("Unable to initialize RSA on hardware");
+        XFREE(m, key->heap, DYNAMIC_TYPE_KEY);
+        return BAD_STATE_E;
+    }
+
+#ifdef WOLFSSL_XILINX_PATCH
+   /* currently a patch of xsecure_rsa.c for 2048 bit keys */
+   if (wc_RsaEncryptSize(key) == 256) {
+       if (XSecure_RsaSetSize(&(key->xRsa), 2048) != XST_SUCCESS) {
+           WOLFSSL_MSG("Unable to set RSA key size on hardware");
+           XFREE(m, key->heap, DYNAMIC_TYPE_KEY);
+           return BAD_STATE_E;
+       }
+   }
+#endif
+
+    return 0;
+}
+#endif /* WOLFSSL_XILINX_CRYPT */
 
 int wc_FreeRsaKey(RsaKey* key)
 {
@@ -292,6 +373,11 @@ int wc_FreeRsaKey(RsaKey* key)
     /* public part */
     mp_clear(&key->e);
     mp_clear(&key->n);
+
+#ifdef WOLFSSL_XILINX_CRYPT
+    XFREE(key->mod, key->heap, DYNAMIC_TYPE_KEY);
+    key->mod = NULL;
+#endif
 
     return ret;
 }
@@ -986,6 +1072,55 @@ static int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
     return ret;
 }
 
+#if defined(WOLFSSL_XILINX_CRYPT)
+/*
+ * Xilinx hardened crypto acceleration.
+ *
+ * Returns 0 on success and negative values on error.
+ */
+static int wc_RsaFunctionXil(const byte* in, word32 inLen, byte* out,
+                          word32* outLen, int type, RsaKey* key, WC_RNG* rng)
+{
+    int    ret = 0;
+    word32 keyLen, len;
+    (void)rng;
+
+    keyLen = wc_RsaEncryptSize(key);
+    if (keyLen > *outLen) {
+        WOLFSSL_MSG("Output buffer is not big enough");
+        return BAD_FUNC_ARG;
+    }
+
+    if (inLen != keyLen) {
+        WOLFSSL_MSG("Expected that inLen equals RSA key length");
+        return BAD_FUNC_ARG;
+    }
+
+    switch(type) {
+    case RSA_PRIVATE_DECRYPT:
+    case RSA_PRIVATE_ENCRYPT:
+        /* Currently public exponent is loaded by default.
+         * In SDK 2017.1 RSA exponent values are expected to be of 4 bytes
+         * leading to private key operations with Xsecure_RsaDecrypt not being
+         * supported */
+        ret = RSA_WRONG_TYPE_E;
+        break;
+    case RSA_PUBLIC_ENCRYPT:
+    case RSA_PUBLIC_DECRYPT:
+        if (XSecure_RsaDecrypt(&(key->xRsa), in, out) != XST_SUCCESS) {
+            ret = BAD_STATE_E;
+        }
+        break;
+    default:
+        ret = RSA_WRONG_TYPE_E;
+    }
+
+    *outLen = keyLen;
+
+    return ret;
+}
+#endif /* WOLFSSL_XILINX_CRYPT */
+
 static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
                           word32* outLen, int type, RsaKey* key, WC_RNG* rng)
 {
@@ -1103,9 +1238,14 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
     }
     case RSA_PUBLIC_ENCRYPT:
     case RSA_PUBLIC_DECRYPT:
+    #ifdef WOLFSSL_XILINX_CRYPT
+        ret = wc_RsaFunctionXil(in, inLen, out, outLen, type, key, rng);
+        goto done;
+    #else
         if (mp_exptmod(&tmp, &key->e, &key->n, &tmp) != MP_OKAY)
             ERROR_OUT(MP_EXPTMOD_E);
         break;
+    #endif
     default:
         ERROR_OUT(RSA_WRONG_TYPE_E);
     }
@@ -1565,7 +1705,6 @@ int wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
         WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0, rng);
 }
 
-
 #ifndef WC_NO_RSA_OAEP
 int wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen, byte* out,
                             word32 outLen, RsaKey* key, int type,
@@ -1831,6 +1970,12 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         wc_FreeRsaKey(key);
         return err;
     }
+
+#ifdef WOLFSSL_XILINX_CRYPT
+    if (wc_InitRsaHw(key) != 0) {
+        return BAD_STATE_E;
+    }
+#endif
 
     return 0;
 }

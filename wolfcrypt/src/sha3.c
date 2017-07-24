@@ -26,7 +26,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#ifdef WOLFSSL_SHA3
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_XILINX_CRYPT)
 
 #include <wolfssl/wolfcrypt/sha3.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>

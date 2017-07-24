@@ -762,6 +762,19 @@ fi
 
 AM_CONDITIONAL([BUILD_ARMASM], [test "x$ENABLED_ARMASM" = "xyes"])
 
+# Xilinx hardened crypto
+AC_ARG_ENABLE([xilinx],
+    [AS_HELP_STRING([--enable-xilinx],[Enable wolfSSL support for Xilinx hardened crypto(default: disabled)])],
+    [ ENABLED_XILINX=$enableval ],
+    [ ENABLED_XILINX=no ]
+    )
+if test "$ENABLED_XILINX" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_XILINX -DWOLFSSL_XILINX_CRYPT"
+fi
+
+AM_CONDITIONAL([BUILD_XILINX], [test "x$ENABLED_XILINX" = "xyes"])
+
 # INTEL AES-NI
 AC_ARG_ENABLE([aesni],
     [AS_HELP_STRING([--enable-aesni],[Enable wolfSSL AES-NI support (default: disabled)])],
@@ -3892,6 +3905,7 @@ echo "   * ARM ASM:                    $ENABLED_ARMASM"
 echo "   * AES Key Wrap:               $ENABLED_AESKEYWRAP"
 echo "   * Write duplicate:            $ENABLED_WRITEDUP"
 echo "   * Intel Quick Assist:         $ENABLED_INTEL_QA"
+echo "   * Xilinx Hardware Acc.:       $ENABLED_XILINX"
 echo ""
 echo "---"
 
