@@ -42,6 +42,7 @@ var wolfSSLObjList = [
     "wolfcrypt/src/tfm.c",
     "wolfcrypt/src/wc_port.c",
     "wolfcrypt/src/wolfmath.c",
+    "wolfcrypt/src/wc_encrypt.c",
 
     "src/internal.c",
     "src/io.c",
