@@ -8404,7 +8404,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         int keyRet = 0;
                         if (ssl->peerEd25519Key == NULL) {
                             /* alloc/init on demand */
-                            keyRet = AllocKey(ssl, DYNAMIC_TYPE_ECC,
+                            keyRet = AllocKey(ssl, DYNAMIC_TYPE_ED25519,
                                     (void**)&ssl->peerEd25519Key);
                         } else if (ssl->peerEd25519KeyPresent) {
                             keyRet = ReuseKey(ssl, DYNAMIC_TYPE_ECC,
