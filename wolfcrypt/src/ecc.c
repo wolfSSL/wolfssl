@@ -929,6 +929,15 @@ const ecc_set_type ecc_sets[] = {
     },
     #endif /* !NO_ECC_SECP */
 #endif /* ECC521 */
+#if defined(WOLFSSL_CUSTOM_CURVES) && defined(ECC_CACHE_CURVE)
+    /* place holder for custom curve index for cache */
+    {
+        1, /* non-zero */
+        ECC_CURVE_CUSTOM,
+        NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+        NULL, 0, 0, 0
+    },
+#endif
 {
    0, -1,
    NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -2506,7 +2515,8 @@ int wc_ecc_get_curve_idx_from_name(const char* curveName)
     len = (word32)XSTRLEN(curveName);
 
     for (curve_idx = 0; ecc_sets[curve_idx].size != 0; curve_idx++) {
-        if (XSTRNCASECMP(ecc_sets[curve_idx].name, curveName, len) == 0) {
+        if (ecc_sets[curve_idx].name &&
+                XSTRNCASECMP(ecc_sets[curve_idx].name, curveName, len) == 0) {
             break;
         }
     }
