@@ -7167,7 +7167,7 @@ static int test_wc_RsaPublicKeyDecode (void)
  */
 static int test_wc_RsaPublicKeyDecodeRaw (void)
 {
-#if !defined(NO_RSA) && !defined(HAVE_FIPS)
+#if !defined(NO_RSA)
     RsaKey      key;
     int         ret;
     const byte  n = 0x23;
@@ -7365,7 +7365,7 @@ static int test_wc_SetKeyUsage (void)
  */
 static int test_wc_RsaKeyToDer (void)
 {
-#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(HAVE_FIPS)
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     RsaKey  genKey;
     WC_RNG  rng;
     byte*   der;
@@ -7459,7 +7459,7 @@ static int test_wc_RsaKeyToDer (void)
  */
 static int test_wc_RsaKeyToPublicDer (void)
 {
-#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN) && !defined(HAVE_FIPS)
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     RsaKey      key;
     WC_RNG      rng;
     byte*       der;
@@ -7547,8 +7547,7 @@ static int test_wc_RsaKeyToPublicDer (void)
  */
 static int test_wc_RsaPublicEncryptDecrypt (void)
 {
-#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)\
-        && !defined(HAVE_FIPS)
+#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     RsaKey  key;
     WC_RNG  rng;
     const char* inStr = "Everyone gets Friday off.";
@@ -7587,10 +7586,12 @@ static int test_wc_RsaPublicEncryptDecrypt (void)
 
     /* Decrypt */
     printf(testingFmt, "wc_RsaPrivateDecrypt()");
-    /* Bind rng */
-    if (ret == 0) {
-        ret = wc_RsaSetRNG(&key, &rng);
-    }
+    #if defined(WC_RSA_BLINDING)
+        /* Bind rng */
+        if (ret == 0) {
+            ret = wc_RsaSetRNG(&key, &rng);
+        }
+    #endif
     if (ret == 0) {
         ret = wc_RsaPrivateDecrypt(cipher, cipherLen, plain, plainLen, &key);
     }
@@ -7669,19 +7670,21 @@ static int test_wc_RsaPublicEncryptDecrypt_ex (void)
 
     /* Decrypt */
     printf(testingFmt, "wc_RsaPrivateDecrypt_ex()");
-    if (ret == 0) {
-        ret = wc_RsaSetRNG(&key, &rng);
+    #if defined(WC_RSA_BLINDING)
         if (ret == 0) {
-            ret = wc_RsaPrivateDecrypt_ex(cipher, (word32)idx,
-                    plain, plainSz, &key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA,
-                    WC_MGF1SHA1, NULL, 0);
+            ret = wc_RsaSetRNG(&key, &rng);
         }
-        if (ret >= 0) {
-            if (!XMEMCMP(plain, inStr, plainSz)) {
-                ret = 0;
-            } else {
-                ret = SSL_FATAL_ERROR;
-            }
+    #endif
+    if (ret == 0) {
+        ret = wc_RsaPrivateDecrypt_ex(cipher, (word32)idx,
+                plain, plainSz, &key, WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA,
+                WC_MGF1SHA1, NULL, 0);
+    }
+   if (ret >= 0) {
+        if (!XMEMCMP(plain, inStr, plainSz)) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
         }
     }
 
