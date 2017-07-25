@@ -326,8 +326,11 @@
             /* use only Thread Safe version of strtok */
             #if !defined(USE_WINDOWS_API) && !defined(INTIME_RTOS)
                 #define XSTRTOK strtok_r
-            #elif defined(__MINGW32__) || defined(WOLFSSL_TIRTOS)
-                #define USE_WOLF_STRTOK
+            #elif defined(__MINGW32__) || defined(WOLFSSL_TIRTOS) || \
+                    defined(USE_WOLF_STRTOK)
+                #ifndef USE_WOLF_STRTOK
+                    #define USE_WOLF_STRTOK
+                #endif
                 #define XSTRTOK wc_strtok
             #else
                 #define XSTRTOK strtok_s
