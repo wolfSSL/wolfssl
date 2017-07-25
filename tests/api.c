@@ -5239,6 +5239,7 @@ static int test_wc_Des3_SetIV (void)
         }
     }
 
+#ifndef HAVE_FIPS /* no sanity checks with FIPS wrapper */
     /* Test explicitly wc_Des3_SetIV()  */
     if (ret == 0) {
         ret = wc_Des3_SetIV(NULL, iv);
@@ -5248,6 +5249,7 @@ static int test_wc_Des3_SetIV (void)
             ret = SSL_FATAL_ERROR;
         }
     }
+#endif
 
     printf(resultFmt, ret == 0 ? passed : failed);
 
