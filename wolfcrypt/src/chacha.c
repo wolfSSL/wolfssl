@@ -399,8 +399,8 @@ static INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS],
 static void chacha_encrypt_avx(ChaCha* ctx, const byte* m, byte* c,
                                word32 bytes)
 {
-    word32 X[4*CHACHA_CHUNK_WORDS]; /* used to make sure aligned */
-    word32 x[2*CHACHA_CHUNK_WORDS];
+    ALIGN128 word32 X[4*CHACHA_CHUNK_WORDS]; /* used to make sure aligned */
+    ALIGN128 word32 x[2*CHACHA_CHUNK_WORDS]; /* used to make sure aligned */
     byte*  output;
     word32 i;
     word32 cnt = 0;
@@ -664,8 +664,8 @@ static void chacha_encrypt_avx(ChaCha* ctx, const byte* m, byte* c,
 static void chacha_encrypt_avx2(ChaCha* ctx, const byte* m, byte* c,
                                  word32 bytes)
 {
-    word32 X[8*CHACHA_CHUNK_WORDS]; /* used to make sure aligned */
-    word32 x[4*CHACHA_CHUNK_WORDS];
+    ALIGN256 word32 X[8*CHACHA_CHUNK_WORDS]; /* used to make sure aligned */
+    ALIGN256 word32 x[4*CHACHA_CHUNK_WORDS]; /* used to make sure aligned */
     byte*  output;
     word32 i;
     word32 cnt = 0;

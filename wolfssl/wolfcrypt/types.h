@@ -510,7 +510,7 @@
             #endif
         #endif
 
-       #if !defined(ALIGN32)
+        #if !defined(ALIGN32)
             #if defined(__GNUC__)
                 #define ALIGN32 __attribute__ ( (aligned (32)))
             #elif defined(_MSC_VER)
@@ -521,12 +521,39 @@
                 #define ALIGN32
             #endif
         #endif /* !ALIGN32 */
+
+        #if defined(__GNUC__)
+            #define ALIGN128 __attribute__ ( (aligned (128)))
+        #elif defined(_MSC_VER)
+            /* disable align warning, we want alignment ! */
+            #pragma warning(disable: 4324)
+            #define ALIGN128 __declspec (align (128))
+        #else
+            #define ALIGN128
+        #endif
+
+        #if defined(__GNUC__)
+            #define ALIGN256 __attribute__ ( (aligned (256)))
+        #elif defined(_MSC_VER)
+            /* disable align warning, we want alignment ! */
+            #pragma warning(disable: 4324)
+            #define ALIGN256 __declspec (align (256))
+        #else
+            #define ALIGN256
+        #endif
+
     #else
         #ifndef ALIGN16
             #define ALIGN16
         #endif
         #ifndef ALIGN32
             #define ALIGN32
+        #endif
+        #ifndef ALIGN128
+            #define ALIGN128
+        #endif
+        #ifndef ALIGN256
+            #define ALIGN256
         #endif
     #endif /* WOLFSSL_AESNI || WOLFSSL_ARMASM */
 
