@@ -10375,6 +10375,28 @@ static void test_wolfSSL_BN(void)
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_ASN) */
 }
 
+static void test_wolfSSL_ASN1_INTEGER_get(void){
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
+    ASN1_INTEGER ai;
+    long a;
+
+    AssertNull(a =wolfSSL_ASN1_INTEGER_get(NULL));
+
+    ai.data[0] = 0x02;
+    ai.data[1] = 0x01;
+    ai.data[2] = 0x03;
+
+    AssertNotNull(a =wolfSSL_ASN1_INTEGER_get(&ai));
+
+    ai.data[0] = 0x02; /* tag for ASN_INTEGER */
+    ai.data[1] = 0x20; /* length of integer */
+    ai.data[2] = 0x03;
+
+    AssertIntEQ(wolfSSL_ASN1_INTEGER_get(&ai) , -1);
+
+#endif
+}
+
 
 static void test_wolfSSL_set_options(void)
 {
@@ -11366,6 +11388,7 @@ void ApiTest(void)
     test_wolfSSL_X509_NID();
     test_wolfSSL_X509_STORE_CTX_set_time();
     test_wolfSSL_BN();
+    test_wolfSSL_ASN1_INTEGER_get();
     test_wolfSSL_set_options();
     test_wolfSSL_PEM_read_bio();
     test_wolfSSL_BIO();
