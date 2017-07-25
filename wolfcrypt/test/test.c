@@ -195,6 +195,12 @@ static int devId = INVALID_DEVID;
     const char* wnrConfigFile = "wnr-example.conf";
 #endif
 
+#ifdef HAVE_AESGCM
+#define LARGE_BUFFER_SIZE       1024
+static byte large_input[LARGE_BUFFER_SIZE];
+static byte large_output[LARGE_BUFFER_SIZE];
+static byte large_outdec[LARGE_BUFFER_SIZE];
+#endif
 
 typedef struct testVector {
     const char*  input;
@@ -375,6 +381,9 @@ int wolfcrypt_test(void* args)
 #endif
 {
     int ret;
+#ifdef HAVE_AESGCM
+    int i;
+#endif
 
     ((func_args*)args)->return_code = -1; /* error state */
 
@@ -665,6 +674,8 @@ int wolfcrypt_test(void* args)
         printf( "AES256   test passed!\n");
 
 #ifdef HAVE_AESGCM
+    for (i=0; i<LARGE_BUFFER_SIZE; i++)
+        large_input[i] = i;
     if ( (ret = aesgcm_test()) != 0)
         return err_sys("AES-GCM  test failed!\n", ret);
     else
@@ -4594,6 +4605,10 @@ int aesgcm_test(void)
     byte resultP[sizeof(p)];
     byte resultC[sizeof(p)];
     int  result;
+#if !defined(HAVE_FIPS) && !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO)
+    int  ivlen;
+#endif
+    int  alen, plen;
 
     XMEMSET(resultT, 0, sizeof(resultT));
     XMEMSET(resultC, 0, sizeof(resultC));
@@ -4630,6 +4645,87 @@ int aesgcm_test(void)
     if (XMEMCMP(p, resultP, sizeof(resultP)))
         return -4306;
 
+    /* Large buffer test */
+    /* AES-GCM encrypt and decrypt both use AES encrypt internally */
+    result = wc_AesGcmEncrypt(&enc, large_output, large_input,
+                              LARGE_BUFFER_SIZE, iv1, sizeof(iv1),
+                              resultT, sizeof(resultT), a, sizeof(a));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (result != 0)
+        return -4307;
+
+    result = wc_AesGcmDecrypt(&enc, large_outdec, large_output,
+                              LARGE_BUFFER_SIZE, iv1, sizeof(iv1), resultT,
+                              sizeof(resultT), a, sizeof(a));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (result != 0)
+        return -4308;
+    if (XMEMCMP(large_input, large_outdec, LARGE_BUFFER_SIZE))
+        return -4309;
+
+#if !defined(HAVE_FIPS) && !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO)
+    /* Variable IV length test */
+    for (ivlen=0; ivlen<(int)sizeof(k1); ivlen++) {
+         /* AES-GCM encrypt and decrypt both use AES encrypt internally */
+         result = wc_AesGcmEncrypt(&enc, resultC, p, sizeof(p), k1, ivlen,
+                                        resultT, sizeof(resultT), a, sizeof(a));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+        if (result != 0)
+            return -4310;
+        result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC), k1,
+                                 ivlen, resultT, sizeof(resultT), a, sizeof(a));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+        if (result != 0)
+            return -4311;
+    }
+#endif
+
+    /* Variable authenticed data length test */
+    for (alen=0; alen<(int)sizeof(p); alen++) {
+         /* AES-GCM encrypt and decrypt both use AES encrypt internally */
+         result = wc_AesGcmEncrypt(&enc, resultC, p, sizeof(p), iv1,
+                                sizeof(iv1), resultT, sizeof(resultT), p, alen);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+        if (result != 0)
+            return -4312;
+        result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC), iv1,
+                                sizeof(iv1), resultT, sizeof(resultT), p, alen);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+        if (result != 0)
+            return -4313;
+    }
+
+    /* Variable plain text length test */
+    for (plen=1; plen<(int)sizeof(p); plen++) {
+         /* AES-GCM encrypt and decrypt both use AES encrypt internally */
+         result = wc_AesGcmEncrypt(&enc, resultC, p, plen, iv1, sizeof(iv1),
+                                        resultT, sizeof(resultT), a, sizeof(a));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+        if (result != 0)
+            return -4314;
+        result = wc_AesGcmDecrypt(&enc, resultP, resultC, plen, iv1,
+                           sizeof(iv1), resultT, sizeof(resultT), a, sizeof(a));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+        if (result != 0)
+            return -4315;
+    }
+
     /* FIPS, QAT and STM32F2/4 HW Crypto only support 12-byte IV */
 #if !defined(HAVE_FIPS) && !defined(HAVE_INTEL_QA) && \
         !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO) && \
@@ -4646,11 +4742,11 @@ int aesgcm_test(void)
     result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (result != 0)
-        return -4307;
+        return -4316;
     if (XMEMCMP(c2, resultC, sizeof(resultC)))
-        return -4308;
+        return -4317;
     if (XMEMCMP(t2, resultT, sizeof(resultT)))
-        return -4309;
+        return -4318;
 
     result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC),
                       iv2, sizeof(iv2), resultT, sizeof(resultT), a, sizeof(a));
@@ -4658,9 +4754,9 @@ int aesgcm_test(void)
     result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (result != 0)
-        return -4310;
+        return -4319;
     if (XMEMCMP(p, resultP, sizeof(resultP)))
-        return -4311;
+        return -4320;
 #endif /* !HAVE_FIPS && !HAVE_INTEL_QA && !STM32F2_CRYPTO && !STM32F4_CRYPTO */
 
     wc_AesFree(&enc);

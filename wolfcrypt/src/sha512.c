@@ -27,10 +27,9 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_SHA512
-#include <wolfssl/wolfcrypt/error-crypt.h>
-
 #include <wolfssl/wolfcrypt/sha512.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/cpuid.h>
 
 /* fips wrapper calls, user can call direct */
 #ifdef HAVE_FIPS
@@ -261,74 +260,6 @@ static int InitSha512(Sha512* sha512)
      * supported. Also, let's setup a macro for proper linkage w/o ABI conflicts
      */
 
-    #ifndef _MSC_VER
-        #define cpuid(reg, leaf, sub)\
-            __asm__ __volatile__ ("cpuid":\
-                "=a" (reg[0]), "=b" (reg[1]), "=c" (reg[2]), "=d" (reg[3]) :\
-                "a" (leaf), "c"(sub));
-
-        #define XASM_LINK(f) asm(f)
-    #else
-
-        #include <intrin.h>
-        #define cpuid(a,b) __cpuid((int*)a,b)
-
-        #define XASM_LINK(f)
-    #endif /* _MSC_VER */
-
-    #define EAX 0
-    #define EBX 1
-    #define ECX 2
-    #define EDX 3
-
-    #define CPUID_AVX1   0x1
-    #define CPUID_AVX2   0x2
-    #define CPUID_RDRAND 0x4
-    #define CPUID_RDSEED 0x8
-    #define CPUID_BMI2   0x10   /* MULX, RORX */
-
-    #define IS_INTEL_AVX1       (cpuid_flags & CPUID_AVX1)
-    #define IS_INTEL_AVX2       (cpuid_flags & CPUID_AVX2)
-    #define IS_INTEL_BMI2       (cpuid_flags & CPUID_BMI2)
-    #define IS_INTEL_RDRAND     (cpuid_flags & CPUID_RDRAND)
-    #define IS_INTEL_RDSEED     (cpuid_flags & CPUID_RDSEED)
-
-    static word32 cpuid_check = 0;
-    static word32 cpuid_flags = 0;
-
-    static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit) {
-        int got_intel_cpu = 0;
-        unsigned int reg[5];
-
-        reg[4] = '\0';
-        cpuid(reg, 0, 0);
-        if (XMEMCMP((char *)&(reg[EBX]), "Genu", 4) == 0 &&
-            XMEMCMP((char *)&(reg[EDX]), "ineI", 4) == 0 &&
-            XMEMCMP((char *)&(reg[ECX]), "ntel", 4) == 0) {
-            got_intel_cpu = 1;
-        }
-        if (got_intel_cpu) {
-            cpuid(reg, leaf, sub);
-            return ((reg[num] >> bit) & 0x1);
-        }
-        return 0;
-    }
-
-
-    static int set_cpuid_flags() {
-        if(cpuid_check ==0) {
-            if(cpuid_flag(1, 0, ECX, 28)){ cpuid_flags |= CPUID_AVX1 ;}
-            if(cpuid_flag(7, 0, EBX, 5)){  cpuid_flags |= CPUID_AVX2 ; }
-            if(cpuid_flag(7, 0, EBX, 8)) { cpuid_flags |= CPUID_BMI2 ; }
-            if(cpuid_flag(1, 0, ECX, 30)){ cpuid_flags |= CPUID_RDRAND ;  }
-            if(cpuid_flag(7, 0, EBX, 18)){ cpuid_flags |= CPUID_RDSEED ;  }
-                cpuid_check = 1 ;
-                return 0 ;
-        }
-        return 1 ;
-    }
-
-
     #if defined(HAVE_INTEL_AVX1)
         static int Transform_AVX1(Sha512 *sha512);
     #endif
@@ -340,6 +271,8 @@ static int InitSha512(Sha512* sha512)
     #endif
     static int _Transform(Sha512 *sha512);
     static int (*Transform_p)(Sha512* sha512) = _Transform;
+    static int transform_check = 0;
+    static int intel_flags;
     #define Transform(sha512) (*Transform_p)(sha512)
 
     /* Dummy for saving MM_REGs on behalf of Transform */
@@ -353,6 +286,33 @@ static int InitSha512(Sha512* sha512)
             "xmm0","xmm1","xmm2","xmm3","xmm4","xmm5","xmm6","xmm7","xmm8","xmm9","xmm10","xmm11","xmm12","xmm13","xmm14","xmm15")
     #endif
 
+    static void Sha512_SetTransform()
+    {
+        if (transform_check)
+            return;
+
+        intel_flags = cpuid_get_flags();
+
+    #if defined(HAVE_INTEL_AVX2)
+        if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_BMI2(intel_flags)) {
+            if (1)
+                Transform_p = Transform_AVX1_RORX;
+            else
+                Transform_p = Transform_AVX2;
+        }
+        else
+    #endif
+    #if defined(HAVE_INTEL_AVX1)
+        if (1) {
+            Transform_p = ((IS_INTEL_AVX1(intel_flags)) ? Transform_AVX1 :
+                                                                    _Transform);
+        }
+        else
+    #endif
+            Transform_p = _Transform;
+
+        transform_check = 1;
+    }
 
     int wc_InitSha512_ex(Sha512* sha512, void* heap, int devId)
     {
@@ -361,20 +321,7 @@ static int InitSha512(Sha512* sha512)
         (void)heap;
         (void)devId;
 
-        if (set_cpuid_flags())
-            return ret;
-
-    #if defined(HAVE_INTEL_AVX2)
-        if (IS_INTEL_AVX2 && IS_INTEL_BMI2) {
-            Transform_p = Transform_AVX1_RORX; return ret;
-            Transform_p = Transform_AVX2;
-                /* for avoiding warning,"not used" */
-        }
-    #endif
-    #if defined(HAVE_INTEL_AVX1)
-        Transform_p = ((IS_INTEL_AVX1) ? Transform_AVX1 : _Transform); return ret;
-    #endif
-        Transform_p = _Transform;
+        Sha512_SetTransform();
 
         return ret;
     }
@@ -555,10 +502,6 @@ static INLINE int Sha512Update(Sha512* sha512, const byte* data, word32 len)
     /* do block size increments */
     byte* local = (byte*)sha512->buffer;
 
-    if (sha512 == NULL || (data == NULL && len > 0)) {
-        return BAD_FUNC_ARG;
-    }
-
     /* check that internal buffLen is valid */
     if (sha512->buffLen >= SHA512_BLOCK_SIZE)
         return BUFFER_E;
@@ -570,16 +513,18 @@ static INLINE int Sha512Update(Sha512* sha512, const byte* data, word32 len)
         XMEMCPY(&local[sha512->buffLen], data, add);
 
         sha512->buffLen += add;
-        data         += add;
-        len          -= add;
+        data            += add;
+        len             -= add;
 
         if (sha512->buffLen == SHA512_BLOCK_SIZE) {
     #if defined(LITTLE_ENDIAN_ORDER)
         #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-            if(!IS_INTEL_AVX1 && !IS_INTEL_AVX2)
+            if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
         #endif
+            {
                 ByteReverseWords64(sha512->buffer, sha512->buffer,
-                               SHA512_BLOCK_SIZE);
+                                                             SHA512_BLOCK_SIZE);
+            }
     #endif
             ret = Transform(sha512);
             if (ret != 0)
@@ -595,7 +540,7 @@ static INLINE int Sha512Update(Sha512* sha512, const byte* data, word32 len)
 
 int wc_Sha512Update(Sha512* sha512, const byte* data, word32 len)
 {
-    if (sha512 == NULL ||(data == NULL && len > 0)) {
+    if (sha512 == NULL || (data == NULL && len > 0)) {
         return BAD_FUNC_ARG;
     }
 
@@ -631,10 +576,12 @@ static INLINE int Sha512Final(Sha512* sha512)
         sha512->buffLen += SHA512_BLOCK_SIZE - sha512->buffLen;
 #if defined(LITTLE_ENDIAN_ORDER)
     #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-        if (!IS_INTEL_AVX1 && !IS_INTEL_AVX2)
+        if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
     #endif
-            ByteReverseWords64(sha512->buffer,sha512->buffer,SHA512_BLOCK_SIZE);
-
+        {
+            ByteReverseWords64(sha512->buffer,sha512->buffer,
+                                                             SHA512_BLOCK_SIZE);
+        }
 #endif /* LITTLE_ENDIAN_ORDER */
         ret = Transform(sha512);
         if (ret != 0)
@@ -651,17 +598,17 @@ static INLINE int Sha512Final(Sha512* sha512)
 
     /* store lengths */
 #if defined(LITTLE_ENDIAN_ORDER)
-#if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-    if (!IS_INTEL_AVX1 && !IS_INTEL_AVX2)
-#endif
-        ByteReverseWords64(sha512->buffer, sha512->buffer, SHA512_PAD_SIZE);
+    #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
+        if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
+    #endif
+            ByteReverseWords64(sha512->buffer, sha512->buffer, SHA512_PAD_SIZE);
 #endif
     /* ! length ordering dependent on digest endian type ! */
 
     sha512->buffer[SHA512_BLOCK_SIZE / sizeof(word64) - 2] = sha512->hiLen;
     sha512->buffer[SHA512_BLOCK_SIZE / sizeof(word64) - 1] = sha512->loLen;
 #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-    if (IS_INTEL_AVX1 || IS_INTEL_AVX2)
+    if (IS_INTEL_AVX1(intel_flags) || IS_INTEL_AVX2(intel_flags))
         ByteReverseWords64(&(sha512->buffer[SHA512_BLOCK_SIZE / sizeof(word64) - 2]),
                            &(sha512->buffer[SHA512_BLOCK_SIZE / sizeof(word64) - 2]),
                            SHA512_BLOCK_SIZE - SHA512_PAD_SIZE);
@@ -1470,6 +1417,20 @@ int wc_Sha384Final(Sha384* sha384, byte* hash)
 }
 
 
+/* Hardware Acceleration */
+#if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
+    int wc_InitSha384_ex(Sha384* sha384, void* heap, int devId)
+    {
+        int ret = InitSha384(sha384);
+
+        (void)heap;
+        (void)devId;
+
+        Sha512_SetTransform();
+
+        return ret;
+    }
+#else
 int wc_InitSha384_ex(Sha384* sha384, void* heap, int devId)
 {
     int ret;
@@ -1492,6 +1453,7 @@ int wc_InitSha384_ex(Sha384* sha384, void* heap, int devId)
 
     return ret;
 }
+#endif
 
 int wc_InitSha384(Sha384* sha384)
 {

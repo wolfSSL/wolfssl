@@ -789,6 +789,11 @@ AC_ARG_ENABLE([intelasm],
     [ ENABLED_INTELASM=no ]
     )
 
+if test "$ENABLED_AESNI" = "small"
+then
+    AM_CFLAGS="$AM_CFLAGS -DAES_GCM_AESNI_NO_UNROLL"
+    ENABLED_AESNI=yes
+fi
 
 if test "$ENABLED_AESNI" = "yes" || test "$ENABLED_INTELASM" = "yes"
 then
@@ -799,7 +804,7 @@ then
         # opt levels greater than 2 may cause problems on systems w/o aesni
         if test "$CC" != "icc"
         then
-            AM_CFLAGS="$AM_CFLAGS -maes -msse4"
+            AM_CFLAGS="$AM_CFLAGS -maes -msse4 -mpclmul"
         fi
     fi
     AS_IF([test "x$ENABLED_AESGCM" != "xno"],[AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AESGCM"])

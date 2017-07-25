@@ -137,8 +137,8 @@
     #define BEGIN_INTEL_CYCLES total_cycles = get_intel_cycles();
     #define END_INTEL_CYCLES   total_cycles = get_intel_cycles() - total_cycles;
     #define SHOW_INTEL_CYCLES  printf(" Cycles per byte = %6.2f", \
-                                   count == 0 ? 0 : \
-                                   (float)total_cycles / (count*BENCH_SIZE));
+                              count == 0 ? 0 : \
+                              (float)total_cycles / ((word64)count*BENCH_SIZE));
 #elif defined(LINUX_CYCLE_COUNT)
     #include <linux/perf_event.h>
     #include <sys/syscall.h>
@@ -579,7 +579,7 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count, dou
         persec = (1 / total) * blocks;
     }
 
-    printf("%-8s%s %5.0f %s took %5.3f seconds, %8.3f %s/s",
+    printf("%-12s%s %5.0f %s took %5.3f seconds, %8.3f %s/s",
         desc, BENCH_ASYNC_GET_NAME(doAsync), blocks, blockType, total,
         persec, blockType);
     SHOW_INTEL_CYCLES
@@ -1275,7 +1275,31 @@ void bench_aesgcm(int doAsync)
         count += times;
     } while (bench_stats_sym_check(start));
 exit_aes_gcm:
-    bench_stats_sym_finish("AES-GCM", doAsync, count, start);
+    bench_stats_sym_finish("AES-GCM-Enc", doAsync, count, start);
+
+    /* GCM uses same routine in backend for both encrypt and decrypt */
+    bench_stats_start(&count, &start);
+    do {
+        for (times = 0; times < numBlocks || BENCH_ASYNC_IS_PEND(); ) {
+            bench_async_poll();
+
+            /* while free pending slots in queue, submit ops */
+            for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&enc[i]), 0, &times, numBlocks)) {
+                    ret = wc_AesGcmDecrypt(&enc[i], bench_plain,
+                        bench_cipher, BENCH_SIZE,
+                        bench_iv, 12, bench_tag, AES_AUTH_TAG_SZ,
+                        bench_additional, AES_AUTH_ADD_SZ);
+                    if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&enc[i]), 0, &times)) {
+                        goto exit_aes_gcm_dec;
+                    }
+                }
+            } /* for i */
+        } /* for times */
+        count += times;
+    } while (bench_stats_sym_check(start));
+exit_aes_gcm_dec:
+    bench_stats_sym_finish("AES-GCM-Dec", doAsync, count, start);
 
 exit:
 
