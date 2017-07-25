@@ -5524,6 +5524,9 @@ static int test_wc_Chacha_SetKey (void)
         }
     }
     printf(resultFmt, ret == 0 ? passed : failed);
+    if (ret != 0) {
+        return ret;
+    }
 
     printf(testingFmt, "wc_Chacha_SetIV");
     ret = wc_Chacha_SetIV(&ctx, cipher, 0);
@@ -5714,6 +5717,9 @@ static int test_wc_ChaCha20Poly1305_aead (void)
         }
     }
     printf(resultFmt, ret == 0 ? passed : failed);
+    if (ret != 0) {
+        return ret;
+    }
 
     printf(testingFmt, "wc_ChaCha20Poly1305_Decrypt()");
     ret = wc_ChaCha20Poly1305_Decrypt(key, iv, aad, sizeof(aad), cipher,
@@ -5957,6 +5963,9 @@ static int test_wc_AesCbcEncryptDecrypt (void)
         }
     }
     printf(resultFmt, cbcE == 0 ? passed : failed);
+    if (cbcE != 0) {
+        return cbcE;
+    }
 
     printf(testingFmt, "wc_AesCbcDecrypt()");
     if (cbcD == 0) {
@@ -5977,6 +5986,9 @@ static int test_wc_AesCbcEncryptDecrypt (void)
         }
     }
     printf(resultFmt, cbcD == 0 ? passed : failed);
+    if (cbcD != 0) {
+        return cbcD;
+    }
 
     printf(testingFmt, "wc_AesCbcDecryptWithKey()");
     if (cbcDWK == 0) {
@@ -6000,7 +6012,10 @@ static int test_wc_AesCbcEncryptDecrypt (void)
             cbcDWK = SSL_FATAL_ERROR;
         }
     }
-        printf(resultFmt, cbcDWK == 0 ? passed : failed);
+    printf(resultFmt, cbcDWK == 0 ? passed : failed);
+    if (cbcDWK != 0) {
+        return cbcDWK;
+    }
 #endif
     return ret;
 } /* END test_wc_AesCbcEncryptDecrypt */
@@ -6247,6 +6262,10 @@ static int test_wc_AesGcmEncryptDecrypt (void)
     } /* END wc_AesGcmEncrypt */
 
     printf(resultFmt, gcmE == 0 ? passed : failed);
+    if (gcmE != 0) {
+        return gcmE;
+    }
+
     #ifdef HAVE_AES_DECRYPT
         printf(testingFmt, "wc_AesGcmDecrypt()");
 
@@ -6689,6 +6708,10 @@ static int test_wc_CamelliaEncryptDecryptDirect (void)
     }
 
     printf(resultFmt, camE == 0 ? passed : failed);
+    if (camE != 0) {
+        return camE;
+    }
+
     printf(testingFmt, "wc_CamelliaDecryptDirect()");
 
     if (ret == 0) {
@@ -6707,6 +6730,9 @@ static int test_wc_CamelliaEncryptDecryptDirect (void)
     }
 
     printf(resultFmt, camD == 0 ? passed : failed);
+    if (camD != 0) {
+        return camD;
+    }
 
 #endif
     return ret;
@@ -6778,6 +6804,10 @@ static int test_wc_CamelliaCbcEncryptDecrypt (void)
     }
 
     printf(resultFmt, camCbcE == 0 ? passed : failed);
+    if (camCbcE != 0) {
+        return camCbcE;
+    }
+
     printf(testingFmt, "wc_CamelliaCbcDecrypt()");
 
     if (ret == 0) {
@@ -6798,6 +6828,9 @@ static int test_wc_CamelliaCbcEncryptDecrypt (void)
     } /* END bad args. */
 
     printf(resultFmt, camCbcD == 0 ? passed : failed);
+    if (camCbcD != 0) {
+        return camCbcD;
+    }
 
 #endif
     return ret;
@@ -7640,6 +7673,9 @@ static int test_wc_RsaPublicEncryptDecrypt (void)
     /* Pass bad args. */
    /* Tests PsaPublicEncryptEx() which, is tested by another fn. No need dup.*/
     printf(resultFmt, ret == 0 ? passed : failed);
+    if (ret != 0) {
+        return ret;
+    }
 
     /* Decrypt */
     printf(testingFmt, "wc_RsaPrivateDecrypt()");
@@ -7724,6 +7760,9 @@ static int test_wc_RsaPublicEncryptDecrypt_ex (void)
     /*Pass bad args.*/
    /* Tests RsaPublicEncryptEx again. No need duplicate. */
     printf(resultFmt, ret == 0 ? passed : failed);
+    if (ret != 0) {
+        return ret;
+    }
 
     /* Decrypt */
     printf(testingFmt, "wc_RsaPrivateDecrypt_ex()");
@@ -7748,6 +7787,9 @@ static int test_wc_RsaPublicEncryptDecrypt_ex (void)
     /*Pass bad args.*/
    /* Tests RsaPrivateDecryptEx() again. No need duplicate. */
     printf(resultFmt, ret == 0 ? passed : failed);
+    if (ret != 0) {
+        return ret;
+    }
 
     printf(testingFmt, "wc_RsaPrivateDecryptInline_ex()");
     if (ret == 0) {
@@ -7861,6 +7903,9 @@ static int test_wc_RsaSSL_SignVerify (void)
     }
 #endif
     printf(resultFmt, ret == 0 ? passed : failed);
+    if (ret != 0) {
+        return ret;
+    }
 
     /* Verify. */
     printf(testingFmt, "wc_RsaSSL_Verify()");
