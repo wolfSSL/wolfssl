@@ -10205,7 +10205,7 @@ done:
 #endif /* WOLFSSL_KEY_GEN */
 
 static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
-    int curve_id)
+    int curve_id, const ecc_set_type* dp)
 {
     DECLARE_VAR(sharedA, byte, ECC_SHARED_SIZE, HEAP_HINT);
     DECLARE_VAR(sharedB, byte, ECC_SHARED_SIZE, HEAP_HINT);
@@ -10225,6 +10225,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     ecc_key userA, userB, pubKey;
 
     (void)testVerifyCount;
+    (void)dp;
 
     XMEMSET(&userA, 0, sizeof(ecc_key));
     XMEMSET(&userB, 0, sizeof(ecc_key));
@@ -10239,6 +10240,17 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     ret = wc_ecc_init_ex(&pubKey, HEAP_HINT, devId);
     if (ret != 0)
         goto done;
+
+#ifdef WOLFSSL_CUSTOM_CURVES
+    if (dp != NULL) {
+        ret = wc_ecc_set_custom_curve(&userA, dp);
+        if (ret != 0)
+            goto done;
+        ret = wc_ecc_set_custom_curve(&userB, dp);
+        if (ret != 0)
+            goto done;
+    }
+#endif
 
     ret = wc_ecc_make_key_ex(rng, keySize, &userA, curve_id);
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -10323,6 +10335,12 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
         goto done;
 
 #ifdef HAVE_ECC_KEY_IMPORT
+    #ifdef WOLFSSL_CUSTOM_CURVES
+        if (dp != NULL) {
+            ret = wc_ecc_set_custom_curve(&pubKey, dp);
+            if (ret != 0) goto done;
+        }
+    #endif
     ret = wc_ecc_import_x963_ex(exportBuf, x, &pubKey, curve_id);
     if (ret != 0)
         goto done;
@@ -10350,10 +10368,16 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
         if (ret != 0)
             goto done;
         wc_ecc_free(&pubKey);
+
         ret = wc_ecc_init_ex(&pubKey, HEAP_HINT, devId);
         if (ret != 0)
             goto done;
-
+    #ifdef WOLFSSL_CUSTOM_CURVES
+        if (dp != NULL) {
+            ret = wc_ecc_set_custom_curve(&pubKey, dp);
+            if (ret != 0) goto done;
+        }
+    #endif
         ret = wc_ecc_import_x963_ex(exportBuf, x, &pubKey, curve_id);
         if (ret != 0)
             goto done;
@@ -10482,7 +10506,7 @@ static int ecc_test_curve(WC_RNG* rng, int keySize)
 {
     int ret;
 
-    ret = ecc_test_curve_size(rng, keySize, ECC_TEST_VERIFY_COUNT, ECC_CURVE_DEF);
+    ret = ecc_test_curve_size(rng, keySize, ECC_TEST_VERIFY_COUNT, ECC_CURVE_DEF, NULL);
     if (ret < 0) {
         if (ret == ECC_CURVE_OID_E) {
             /* ignore error for curves not found */
@@ -11079,6 +11103,60 @@ done:
 }
 #endif /* WOLFSSL_CERT_EXT */
 
+#ifdef WOLFSSL_CUSTOM_CURVES
+static int ecc_test_custom_curves(WC_RNG* rng)
+{
+    int ret;
+
+    /* test use of custom curve - using BRAINPOOLP256R1 for test */
+    const word32 ecc_oid_brainpoolp256r1_sum = 104;
+    const ecc_oid_t ecc_oid_brainpoolp256r1[] = {
+        0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x07
+    };
+    const ecc_set_type ecc_dp_brainpool256r1 = {
+        32,                                                                 /* size/bytes */
+        ECC_CURVE_CUSTOM,                                                   /* ID         */
+        "BRAINPOOLP256R1",                                                  /* curve name */
+        "A9FB57DBA1EEA9BC3E660A909D838D726E3BF623D52620282013481D1F6E5377", /* prime      */
+        "7D5A0975FC2C3057EEF67530417AFFE7FB8055C126DC5C6CE94A4B44F330B5D9", /* A          */
+        "26DC5C6CE94A4B44F330B5D9BBD77CBF958416295CF7E1CE6BCCDC18FF8C07B6", /* B          */
+        "A9FB57DBA1EEA9BC3E660A909D838D718C397AA3B561A6F7901E0E82974856A7", /* order      */
+        "8BD2AEB9CB7E57CB2C4B482FFC81B7AFB9DE27E1E3BD23C23A4453BD9ACE3262", /* Gx         */
+        "547EF835C3DAC4FD97F8461A14611DC9C27745132DED8E545C1D54C72F046997", /* Gy         */
+        ecc_oid_brainpoolp256r1,                                            /* oid/oidSz  */
+        sizeof(ecc_oid_brainpoolp256r1) / sizeof(ecc_oid_t),
+        ecc_oid_brainpoolp256r1_sum,                                        /* oid sum    */
+        1,                                                                  /* cofactor   */
+    };
+
+    ret = ecc_test_curve_size(rng, 0, ECC_TEST_VERIFY_COUNT, ECC_CURVE_DEF,
+        &ecc_dp_brainpool256r1);
+    if (ret != 0) {
+        printf("ECC test for custom curve failed! %d\n", ret);
+        return ret;
+    }
+
+    #if defined(HAVE_ECC_BRAINPOOL) || defined(HAVE_ECC_KOBLITZ)
+    {
+        int curve_id;
+        #ifdef HAVE_ECC_BRAINPOOL
+            curve_id = ECC_BRAINPOOLP256R1;
+        #else
+            curve_id = ECC_SECP256K1;
+        #endif
+        /* Test and demonstrate use of non-SECP curve */
+        ret = ecc_test_curve_size(rng, 0, ECC_TEST_VERIFY_COUNT, curve_id, NULL);
+        if (ret < 0) {
+            printf("ECC test for curve_id %d failed! %d\n", curve_id, ret);
+            return ret;
+        }
+    }
+    #endif
+
+    return ret;
+}
+#endif /* WOLFSSL_CUSTOM_CURVES */
+
 int ecc_test(void)
 {
     int ret;
@@ -11177,22 +11255,10 @@ int ecc_test(void)
 #endif /* HAVE_ECC521 */
 
 #if defined(WOLFSSL_CUSTOM_CURVES)
-    #if defined(HAVE_ECC_BRAINPOOL) || defined(HAVE_ECC_KOBLITZ)
-    {
-        int curve_id;
-        #ifdef HAVE_ECC_BRAINPOOL
-            curve_id = ECC_BRAINPOOLP256R1;
-        #else
-            curve_id = ECC_SECP256K1;
-        #endif
-        /* Test and demonstrate use of non-SECP curve */
-        ret = ecc_test_curve_size(&rng, 0, ECC_TEST_VERIFY_COUNT, curve_id);
-        if (ret < 0) {
-            printf("ecc_test_curve_size: type %d: failed!: %d\n", curve_id, ret);
-            goto done;
-        }
+    ret = ecc_test_custom_curves(&rng);
+    if (ret != 0) {
+        goto done;
     }
-    #endif
 #endif
 
 #ifdef HAVE_ECC_CDH
