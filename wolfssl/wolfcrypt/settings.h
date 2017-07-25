@@ -210,7 +210,6 @@
     #define TFM_TIMING_RESISTANT
     #define NEED_AES_TABLES
     #define WOLFSSL_HAVE_MIN
-    #define WOLFSSL_HAVE_MAX
 #endif
 
 #ifdef WOLFSSL_MICROCHIP_PIC32MZ
@@ -356,7 +355,6 @@
     #define SINGLE_THREADED
     #define NO_WOLFSSL_DIR
     #define WOLFSSL_HAVE_MIN
-    #define WOLFSSL_HAVE_MAX
     #define NO_WRITEV
 
     #define HAVE_ECC
