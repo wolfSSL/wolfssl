@@ -4093,7 +4093,9 @@ static int test_wc_Md5HmacSetKey (void)
     const char* keys[]=
     {
         "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b",
-        "Jefe",
+#ifndef HAVE_FIPS
+        "Jefe", /* smaller than minumum FIPS key size */
+#endif
         "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
     };
 
@@ -4136,9 +4138,15 @@ static int test_wc_Md5HmacSetKey (void)
 
     if (!flag) {
         ret = wc_HmacSetKey(&hmac, MD5, (byte*)keys[0], 0);
+#ifdef HAVE_FIPS
+        if (ret != HMAC_MIN_KEYLEN_E) {
+            flag = SSL_FATAL_ERROR;
+        }
+#else
         if (ret != 0) {
             flag = SSL_FATAL_ERROR;
         }
+#endif
     }
 
     printf(resultFmt, flag == 0 ? passed : failed);
@@ -4163,7 +4171,9 @@ static int test_wc_ShaHmacSetKey (void)
     {
         "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
                                                                 "\x0b\x0b\x0b",
-        "Jefe",
+#ifndef HAVE_FIPS
+        "Jefe", /* smaller than minumum FIPS key size */
+#endif
         "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
                                                                 "\xAA\xAA\xAA"
     };
@@ -4207,9 +4217,15 @@ static int test_wc_ShaHmacSetKey (void)
 
     if (!flag) {
         ret = wc_HmacSetKey(&hmac, SHA, (byte*)keys[0], 0);
+#ifdef HAVE_FIPS
+        if (ret != HMAC_MIN_KEYLEN_E) {
+            flag = SSL_FATAL_ERROR;
+        }
+#else
         if (ret != 0) {
             flag = SSL_FATAL_ERROR;
         }
+#endif
     }
 
     printf(resultFmt, flag == 0 ? passed : failed);
@@ -4233,7 +4249,9 @@ static int test_wc_Sha224HmacSetKey (void)
     {
         "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
                                                                 "\x0b\x0b\x0b",
-        "Jefe",
+#ifndef HAVE_FIPS
+        "Jefe", /* smaller than minumum FIPS key size */
+#endif
         "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
                                                                 "\xAA\xAA\xAA"
     };
@@ -4277,9 +4295,15 @@ static int test_wc_Sha224HmacSetKey (void)
 
     if (!flag) {
         ret = wc_HmacSetKey(&hmac, SHA224, (byte*)keys[0], 0);
+#ifdef HAVE_FIPS
+        if (ret != HMAC_MIN_KEYLEN_E) {
+            flag = SSL_FATAL_ERROR;
+        }
+#else
         if (ret != 0) {
             flag = SSL_FATAL_ERROR;
         }
+#endif
     }
 
     printf(resultFmt, flag == 0 ? passed : failed);
@@ -4303,7 +4327,9 @@ static int test_wc_Sha256HmacSetKey (void)
     {
         "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
                                                                 "\x0b\x0b\x0b",
-        "Jefe",
+#ifndef HAVE_FIPS
+        "Jefe", /* smaller than minumum FIPS key size */
+#endif
         "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
                                                                 "\xAA\xAA\xAA"
     };
@@ -4347,9 +4373,15 @@ static int test_wc_Sha256HmacSetKey (void)
 
     if (!flag) {
         ret = wc_HmacSetKey(&hmac, SHA256, (byte*)keys[0], 0);
+#ifdef HAVE_FIPS
+        if (ret != HMAC_MIN_KEYLEN_E) {
+            flag = SSL_FATAL_ERROR;
+        }
+#else
         if (ret != 0) {
             flag = SSL_FATAL_ERROR;
         }
+#endif
     }
 
     printf(resultFmt, flag == 0 ? passed : failed);
@@ -4373,7 +4405,9 @@ static int test_wc_Sha384HmacSetKey (void)
     {
         "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
                                                                 "\x0b\x0b\x0b",
-        "Jefe",
+#ifndef HAVE_FIPS
+        "Jefe", /* smaller than minumum FIPS key size */
+#endif
         "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
                                                                 "\xAA\xAA\xAA"
     };
@@ -4417,9 +4451,15 @@ static int test_wc_Sha384HmacSetKey (void)
 
     if (!flag) {
         ret = wc_HmacSetKey(&hmac, SHA384, (byte*)keys[0], 0);
+#ifdef HAVE_FIPS
+        if (ret != HMAC_MIN_KEYLEN_E) {
+            flag = SSL_FATAL_ERROR;
+        }
+#else
         if (ret != 0) {
             flag = SSL_FATAL_ERROR;
         }
+#endif
     }
 
     printf(resultFmt, flag == 0 ? passed : failed);
@@ -4439,7 +4479,12 @@ static int test_wc_Md5HmacUpdate (void)
     Hmac hmac;
     testVector a, b;
     int ret;
+#ifdef HAVE_FIPS
+    const char* keys =
+        "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
+#else
     const char* keys = "Jefe";
+#endif
 
     a.input = "what do ya want for nothing?";
     a.inLen  = XSTRLEN(a.input);
@@ -4508,7 +4553,12 @@ static int test_wc_ShaHmacUpdate (void)
     Hmac hmac;
     testVector a, b;
     int ret;
+#ifdef HAVE_FIPS
+    const char* keys =
+        "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
+#else
     const char* keys = "Jefe";
+#endif
 
     a.input = "what do ya want for nothing?";
     a.inLen  = XSTRLEN(a.input);
@@ -4577,7 +4627,12 @@ static int test_wc_Sha224HmacUpdate (void)
     Hmac hmac;
     testVector a, b;
     int ret;
+#ifdef HAVE_FIPS
+    const char* keys =
+        "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
+#else
     const char* keys = "Jefe";
+#endif
 
     a.input = "what do ya want for nothing?";
     a.inLen  = XSTRLEN(a.input);
@@ -4646,7 +4701,12 @@ static int test_wc_Sha256HmacUpdate (void)
     Hmac hmac;
     testVector a, b;
     int ret;
+#ifdef HAVE_FIPS
+    const char* keys =
+        "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
+#else
     const char* keys = "Jefe";
+#endif
 
     a.input = "what do ya want for nothing?";
     a.inLen  = XSTRLEN(a.input);
@@ -4715,7 +4775,12 @@ static int test_wc_Sha384HmacUpdate (void)
     Hmac hmac;
     testVector a, b;
     int ret;
+#ifdef HAVE_FIPS
+    const char* keys =
+        "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b";
+#else
     const char* keys = "Jefe";
+#endif
 
     a.input = "what do ya want for nothing?";
     a.inLen  = XSTRLEN(a.input);
