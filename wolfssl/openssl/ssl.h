@@ -296,8 +296,20 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define X509_STORE_add_cert             wolfSSL_X509_STORE_add_cert
 #define X509_STORE_set_flags            wolfSSL_X509_STORE_set_flags
 #define X509_STORE_CTX_get_chain        wolfSSL_X509_STORE_CTX_get_chain
-#define X509_STORE_CTX_get_error wolfSSL_X509_STORE_CTX_get_error
-#define X509_STORE_CTX_get_error_depth wolfSSL_X509_STORE_CTX_get_error_depth
+#define X509_STORE_CTX_get_error        wolfSSL_X509_STORE_CTX_get_error
+#define X509_STORE_CTX_get_error_depth  wolfSSL_X509_STORE_CTX_get_error_depth
+
+# define X509_V_FLAG_POLICY_CHECK                0x80
+# define X509_V_FLAG_EXPLICIT_POLICY             0x100
+# define X509_V_FLAG_INHIBIT_ANY                 0x200
+# define X509_V_FLAG_INHIBIT_MAP                 0x400
+
+# define X509_V_FLAG_POLICY_MASK (X509_V_FLAG_POLICY_CHECK \
+                                | X509_V_FLAG_EXPLICIT_POLICY \
+                                | X509_V_FLAG_INHIBIT_ANY \
+                                | X509_V_FLAG_INHIBIT_MAP)
+
+#define X509_STORE_CTX_set_flags        wolfSSL_X509_STORE_CTX_set_flags
 
 #define X509_NAME_oneline             wolfSSL_X509_NAME_oneline
 #define X509_get_issuer_name          wolfSSL_X509_get_issuer_name

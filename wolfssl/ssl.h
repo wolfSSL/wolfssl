@@ -262,9 +262,7 @@ typedef struct WOLFSSL_X509_STORE_CTX {
     WOLFSSL_X509_STORE* store;    /* Store full of a CA cert chain */
     WOLFSSL_X509* current_cert;   /* stunnel dereference */
     WOLFSSL_STACK* chain;
-#ifdef OPENSSL_EXTRA
-    WOLFSSL_X509_VERIFY_PARAM* param; /* certificate validation parameter */
-#endif
+    unsigned long flags;         /* Various verify flags */
     char* domain;                /* subject CN domain name */
     void* ex_data;               /* external data, for fortress build */
     void* userCtx;               /* user ctx */
@@ -727,6 +725,7 @@ WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_STORE_CTX_get_current_cert(
                                                         WOLFSSL_X509_STORE_CTX*);
 WOLFSSL_API int   wolfSSL_X509_STORE_CTX_get_error(WOLFSSL_X509_STORE_CTX*);
 WOLFSSL_API int   wolfSSL_X509_STORE_CTX_get_error_depth(WOLFSSL_X509_STORE_CTX*);
+WOLFSSL_API void  wolfSSL_X509_STORE_CTX_set_flags(WOLFSSL_X509_STORE_CTX*,unsigned long);
 
 WOLFSSL_API char*       wolfSSL_X509_NAME_oneline(WOLFSSL_X509_NAME*, char*, int);
 WOLFSSL_API WOLFSSL_X509_NAME*  wolfSSL_X509_get_issuer_name(WOLFSSL_X509*);

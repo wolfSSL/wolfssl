@@ -10392,7 +10392,7 @@ static void test_wolfSSL_ASN1_INTEGER_get(void){
     ai.data[1] = 0x20; /* length of integer */
     ai.data[2] = 0x03;
 
-    AssertIntEQ(wolfSSL_ASN1_INTEGER_get(&ai) , -1);
+    AssertIntEQ((int)wolfSSL_ASN1_INTEGER_get(&ai) , -1);
 
 #endif
 }

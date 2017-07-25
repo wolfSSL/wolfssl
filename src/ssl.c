@@ -11519,6 +11519,14 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return ctx->error_depth;
         return WOLFSSL_FATAL_ERROR;
     }
+
+    void wolfSSL_X509_STORE_CTX_set_flags(WOLFSSL_X509_STORE_CTX* ctx,
+                                          unsigned long flags) {
+        ctx->flags |= flags;
+        if (flags & X509_V_FLAG_POLICY_MASK)
+            ctx->flags |= X509_V_FLAG_POLICY_CHECK;
+    }
+
 #endif
 
 
