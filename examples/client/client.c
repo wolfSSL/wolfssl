@@ -225,9 +225,14 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     #endif
     #ifdef WOLFSSL_TLS13
         #ifdef HAVE_CURVE25519
-            else if (useX25519) {
+            #ifndef NO_SESSION_CACHE
+            if (benchResume) {
+            }
+            else
+            #endif
+            if (useX25519) {
                 if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519)
-                        != SSL_SUCCESS) {
+                                                               != SSL_SUCCESS) {
                     err_sys("unable to use curve x25519");
                 }
             }
@@ -1707,14 +1712,18 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             }
         #endif
         #ifdef HAVE_ECC
+            #if defined(HAVE_ECC256) || defined(HAVE_ALL_CURVES)
             if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_SECP256R1)
                     != SSL_SUCCESS) {
                 err_sys("unable to use curve secp256r1");
             }
+            #endif
+            #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
             if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_SECP384R1)
                     != SSL_SUCCESS) {
                 err_sys("unable to use curve secp384r1");
             }
+            #endif
         #endif
         }
         if (onlyKeyShare == 0 || onlyKeyShare == 1) {
