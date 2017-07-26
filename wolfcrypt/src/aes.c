@@ -3081,11 +3081,11 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     #ifdef WOLFSSL_STM32_CUBEMX
         int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         {
+            CRYP_HandleTypeDef hcryp;
+
             if (aes == NULL || out == NULL || in == NULL) {
                 return BAD_FUNC_ARG;
             }
-
-            CRYP_HandleTypeDef hcryp;
 
             XMEMSET(&hcryp, 0, sizeof(CRYP_HandleTypeDef));
             switch (aes->rounds) {
@@ -3120,11 +3120,12 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     #else
         int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         {
+            word32 *enc_key, *iv;
+            int len = (int)sz;
+
             if (aes == NULL || out == NULL || in == NULL) {
                 return BAD_FUNC_ARG;
             }
-            word32 *enc_key, *iv;
-            int len = (int)sz;
             CRYP_InitTypeDef AES_CRYP_InitStructure;
             CRYP_KeyInitTypeDef AES_CRYP_KeyInitStructure;
             CRYP_IVInitTypeDef AES_CRYP_IVInitStructure;
@@ -3227,15 +3228,15 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     #elif defined(WOLFSSL_PIC32MZ_CRYPT)
         int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         {
-            if (aes == NULL || out == NULL || in == NULL) {
-                return BAD_FUNC_ARG;
-            }
-
             int i;
             char out_block[AES_BLOCK_SIZE];
             int odd;
             int even;
             char *tmp; /* (char *)aes->tmp, for short */
+
+            if (aes == NULL || out == NULL || in == NULL) {
+                return BAD_FUNC_ARG;
+            }
 
             tmp = (char *)aes->tmp;
             if(aes->left) {
@@ -3294,13 +3295,14 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     #elif defined(FREESCALE_LTC)
         int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         {
+            uint32_t keySize;
+            byte *iv, *enc_key;
+            byte* tmp;
+
             if (aes == NULL || out == NULL || in == NULL) {
                 return BAD_FUNC_ARG;
             }
-
-            uint32_t keySize;
-            byte *iv, *enc_key;
-            byte* tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
+            tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
 
             /* consume any unused bytes left in aes->tmp */
             while (aes->left && sz) {
@@ -3338,10 +3340,12 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 
         int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         {
+            byte* tmp;
+
             if (aes == NULL || out == NULL || in == NULL) {
                 return BAD_FUNC_ARG;
             }
-            byte* tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
+            tmp = (byte*)aes->tmp + AES_BLOCK_SIZE - aes->left;
 
             /* consume any unused bytes left in aes->tmp */
             while (aes->left && sz) {
