@@ -5253,6 +5253,8 @@ static int TLSX_KeyShare_ProcessDh(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
 
     return ret;
 #else
+    (void)ssl;
+    (void)keyShareEntry;
     return PEER_KEY_ERROR;
 #endif
 }

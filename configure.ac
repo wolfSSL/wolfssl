@@ -274,7 +274,11 @@ fi
 
 if test "$ENABLED_TLS13" = "yes"
 then
-    AM_CFLAGS="-DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS -DHAVE_FFDHE_2048 $AM_CFLAGS"
+    AM_CFLAGS="-DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS $AM_CFLAGS"
+    if test "$ENABLED_DH" = "yes"
+    then
+        AM_CFLAGS="-DHAVE_FFDHE_2048 $AM_CFLAGS"
+    fi
 fi
 
 # check if TLS v1.3 was enabled for conditionally running tls13.test script
@@ -671,7 +675,8 @@ AC_ARG_ENABLE([aesgcm],
     )
 
 # leanpsk and leantls don't need gcm
-if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
+if test "$ENABLED_LEANPSK" = "yes" || ( test "$ENABLED_LEANTLS" = "yes" &&
+                                        test "$ENABLED_TLS13" = "no")
 then
     ENABLED_AESGCM=no
 fi
