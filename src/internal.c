@@ -4646,6 +4646,13 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 #ifdef HAVE_ED25519
     FreeKey(ssl, DYNAMIC_TYPE_ED25519, (void**)&ssl->peerEd25519Key);
     ssl->peerEd25519KeyPresent = 0;
+    #ifdef HAVE_PK_CALLBACKS
+        if (ssl->buffers.peerEd25519Key.buffer != NULL) {
+            XFREE(ssl->buffers.peerEd25519Key.buffer, ssl->heap,
+                                                          DYNAMIC_TYPE_ED25519);
+            ssl->buffers.peerEd25519Key.buffer = NULL;
+        }
+    #endif
 #endif
 #ifdef HAVE_PK_CALLBACKS
     #ifdef HAVE_ECC
@@ -4838,6 +4845,11 @@ void FreeHandshakeResources(WOLFSSL* ssl)
         XFREE(ssl->buffers.peerRsaKey.buffer, ssl->heap, DYNAMIC_TYPE_RSA);
         ssl->buffers.peerRsaKey.buffer = NULL;
     #endif /* NO_RSA */
+    #ifdef HAVE_ED25519
+        XFREE(ssl->buffers.peerEd25519Key.buffer, ssl->heap,
+                                                          DYNAMIC_TYPE_ED25519);
+        ssl->buffers.peerEd25519Key.buffer = NULL;
+    #endif
 #endif /* HAVE_PK_CALLBACKS */
 
 #ifdef HAVE_QSH
@@ -8489,10 +8501,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         int keyRet = 0;
                         if (ssl->peerEd25519Key == NULL) {
                             /* alloc/init on demand */
-                            keyRet = AllocKey(ssl, DYNAMIC_TYPE_ECC,
+                            keyRet = AllocKey(ssl, DYNAMIC_TYPE_ED25519,
                                     (void**)&ssl->peerEd25519Key);
                         } else if (ssl->peerEd25519KeyPresent) {
-                            keyRet = ReuseKey(ssl, DYNAMIC_TYPE_ECC,
+                            keyRet = ReuseKey(ssl, DYNAMIC_TYPE_ED25519,
                                               ssl->peerEd25519Key);
                             ssl->peerEd25519KeyPresent = 0;
                         }
@@ -8509,7 +8521,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     #ifdef HAVE_PK_CALLBACKS
                             ssl->buffers.peerEd25519Key.buffer =
                                    (byte*)XMALLOC(args->dCert->pubKeySize,
-                                           ssl->heap, DYNAMIC_TYPE_ECC);
+                                           ssl->heap, DYNAMIC_TYPE_ED25519);
                             if (ssl->buffers.peerEd25519Key.buffer == NULL) {
                                 ERROR_OUT(MEMORY_ERROR, exit_ppc);
                             }
