@@ -98,6 +98,7 @@ typedef struct Poly1305 {
 #endif
 } Poly1305;
 
+
 /* does init */
 
 WOLFSSL_API int wc_Poly1305SetKey(Poly1305* poly1305, const byte* key,

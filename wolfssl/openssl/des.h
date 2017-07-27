@@ -53,6 +53,31 @@ enum {
 };
 
 
+/*!
+    \ingroup openSSL    
+    
+    \brief This function sets the key schedule. If the macro WOLFSSL_CHECK_DESKEY is defined then acts like wolfSSL_DES_set_key_checked if not then acts like wolfSSL_DES_set_key_unchecked.
+    
+    \return -1 if WOLFSSL_CHECK_DESKEY set then -1 if parity error
+    \return -2 for weak/null key
+    \return 0 for success, if macro WOLFSSL_CHECK_DESKEY is not defined then always returns 0.
+    
+    \param myDes DES key.
+    \param key key to set from myDes.
+    
+    _Example_
+    \code
+    WOLFSSL_const_DES_cblock* myDes;
+    WOLFSSL_DES_key_schedule* key;
+    int ret;
+    // load DES key
+    ret = wolfSSL_DES_set_key(myDes, key);
+    // check ret value
+    \endcode
+    
+    \sa wolfSSL_DES_set_key_checked
+    \sa wolfSSL_DES_set_key_unchecked
+*/
 WOLFSSL_API int wolfSSL_DES_set_key(WOLFSSL_const_DES_cblock* myDes,
                                                WOLFSSL_DES_key_schedule* key);
 WOLFSSL_API int wolfSSL_DES_set_key_checked(WOLFSSL_const_DES_cblock* myDes,
