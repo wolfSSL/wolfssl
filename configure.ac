@@ -274,7 +274,11 @@ fi
 
 if test "$ENABLED_TLS13" = "yes"
 then
-    AM_CFLAGS="-DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS -DHAVE_FFDHE_2048 $AM_CFLAGS"
+    AM_CFLAGS="-DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS $AM_CFLAGS"
+    if test "$ENABLED_DH" = "yes"
+    then
+        AM_CFLAGS="-DHAVE_FFDHE_2048 $AM_CFLAGS"
+    fi
 fi
 
 # check if TLS v1.3 was enabled for conditionally running tls13.test script
@@ -347,6 +351,29 @@ AS_IF([test "x$ENABLED_SCTP" = "xyes"],
 [AC_MSG_RESULT(no)
  AC_MSG_ERROR([SCTP not available, remove enable-sctp from configure])])
 ])
+
+
+# DTLS-MULTICAST
+AC_ARG_ENABLE([mcast],
+    [AS_HELP_STRING([--enable-mcast],[Enable wolfSSL DTLS multicast support (default: disabled)])],
+    [ENABLED_MCAST=$enableval],
+    [ENABLED_MCAST=no])
+
+AM_CONDITIONAL([BUILD_MCAST], [test "x$ENABLED_MCAST" = "xyes"])
+
+
+# RNG
+AC_ARG_ENABLE([rng],
+    [AS_HELP_STRING([--enable-rng],[Enable compiling and using RNG (default: enabled)])],
+    [ ENABLED_RNG=$enableval ],
+    [ ENABLED_RNG=yes ]
+    )
+
+if test "$ENABLED_RNG" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWC_NO_RNG"
+fi
+AM_CONDITIONAL([BUILD_RNG], [test "x$ENABLED_RNG" = "xyes"])
 
 
 # OpenSSH compatibility Build
@@ -648,7 +675,8 @@ AC_ARG_ENABLE([aesgcm],
     )
 
 # leanpsk and leantls don't need gcm
-if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
+if test "$ENABLED_LEANPSK" = "yes" || ( test "$ENABLED_LEANTLS" = "yes" &&
+                                        test "$ENABLED_TLS13" = "no")
 then
     ENABLED_AESGCM=no
 fi
@@ -739,6 +767,19 @@ fi
 
 AM_CONDITIONAL([BUILD_ARMASM], [test "x$ENABLED_ARMASM" = "xyes"])
 
+# Xilinx hardened crypto
+AC_ARG_ENABLE([xilinx],
+    [AS_HELP_STRING([--enable-xilinx],[Enable wolfSSL support for Xilinx hardened crypto(default: disabled)])],
+    [ ENABLED_XILINX=$enableval ],
+    [ ENABLED_XILINX=no ]
+    )
+if test "$ENABLED_XILINX" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_XILINX -DWOLFSSL_XILINX_CRYPT"
+fi
+
+AM_CONDITIONAL([BUILD_XILINX], [test "x$ENABLED_XILINX" = "xyes"])
+
 # INTEL AES-NI
 AC_ARG_ENABLE([aesni],
     [AS_HELP_STRING([--enable-aesni],[Enable wolfSSL AES-NI support (default: disabled)])],
@@ -753,6 +794,11 @@ AC_ARG_ENABLE([intelasm],
     [ ENABLED_INTELASM=no ]
     )
 
+if test "$ENABLED_AESNI" = "small"
+then
+    AM_CFLAGS="$AM_CFLAGS -DAES_GCM_AESNI_NO_UNROLL"
+    ENABLED_AESNI=yes
+fi
 
 if test "$ENABLED_AESNI" = "yes" || test "$ENABLED_INTELASM" = "yes"
 then
@@ -763,7 +809,7 @@ then
         # opt levels greater than 2 may cause problems on systems w/o aesni
         if test "$CC" != "icc"
         then
-            AM_CFLAGS="$AM_CFLAGS -maes -msse4"
+            AM_CFLAGS="$AM_CFLAGS -maes -msse4 -mpclmul"
         fi
     fi
     AS_IF([test "x$ENABLED_AESGCM" != "xno"],[AM_CCASFLAGS="$AM_CCASFLAGS -DHAVE_AESGCM"])
@@ -3532,11 +3578,20 @@ AS_IF([test "x$ENABLED_MAXSTRENGTH" = "xyes" && \
 AS_IF([test "x$ENABLED_SCTP" = "xyes"],
       [AM_CFLAGS="-DWOLFSSL_SCTP $AM_CFLAGS"])
 
-# SCTP requires DTLS
-AS_IF([test "x$ENABLED_DTLS" = "xno" && \
-       test "x$ENABLED_SCTP" = "xyes"],
+AS_IF([test "x$ENABLED_MCAST" = "xyes"],
+      [AM_CFLAGS="-DWOLFSSL_MULTICAST $AM_CFLAGS"])
+
+# SCTP and Multicast require DTLS
+AS_IF([(test "x$ENABLED_DTLS" = "xno") && \
+        (test "x$ENABLED_SCTP" = "xyes" || test "x$ENABLED_MCAST" = "xyes")],
       [AM_CFLAGS="-DWOLFSSL_DTLS $AM_CFLAGS"
        ENABLED_DTLS=yes])
+
+# Multicast requires the null cipher
+AS_IF([test "x$ENABLED_NULL_CIPHER" = "xno" && \
+        test "x$ENABLED_MCAST" = "xyes"],
+      [AM_CFLAGS="-DHAVE_NULL_CIPHER $AM_CFLAGS"
+       ENABLED_NULL_CIPHER=yes])
 
 ################################################################################
 
@@ -3816,6 +3871,7 @@ echo "   * NGINX:                      $ENABLED_NGINX"
 echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                       $ENABLED_DTLS"
 echo "   * SCTP:                       $ENABLED_SCTP"
+echo "   * Multicast:                  $ENABLED_MCAST"
 echo "   * Old TLS Versions:           $ENABLED_OLD_TLS"
 echo "   * SSL version 3.0:            $ENABLED_SSLV3"
 echo "   * TLS v1.3:                   $ENABLED_TLS13"
@@ -3859,6 +3915,7 @@ echo "   * ARM ASM:                    $ENABLED_ARMASM"
 echo "   * AES Key Wrap:               $ENABLED_AESKEYWRAP"
 echo "   * Write duplicate:            $ENABLED_WRITEDUP"
 echo "   * Intel Quick Assist:         $ENABLED_INTEL_QA"
+echo "   * Xilinx Hardware Acc.:       $ENABLED_XILINX"
 echo ""
 echo "---"
 

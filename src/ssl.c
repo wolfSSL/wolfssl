@@ -843,6 +843,276 @@ int wolfSSL_dtls_set_mtu(WOLFSSL* ssl, word16 newMtu)
 
 #endif /* WOLFSSL_DTLS && WOLFSSL_SCTP */
 
+
+#ifdef WOLFSSL_DTLS_DROP_STATS
+
+int wolfSSL_dtls_get_drop_stats(WOLFSSL* ssl,
+                                word32* macDropCount, word32* replayDropCount)
+{
+    int ret;
+
+    WOLFSSL_ENTER("wolfSSL_dtls_get_drop_stats()");
+
+    if (ssl == NULL)
+        ret = BAD_FUNC_ARG;
+    else {
+        ret = SSL_SUCCESS;
+        if (macDropCount != NULL)
+            *macDropCount = ssl->macDropCount;
+        if (replayDropCount != NULL)
+            *replayDropCount = ssl->replayDropCount;
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_dtls_get_drop_stats()", ret);
+    return ret;
+}
+
+#endif /* WOLFSSL_DTLS_DROP_STATS */
+
+
+#if defined(WOLFSSL_MULTICAST)
+
+int wolfSSL_CTX_mcast_set_member_id(WOLFSSL_CTX* ctx, word16 id)
+{
+    int ret = 0;
+
+    WOLFSSL_ENTER("wolfSSL_CTX_mcast_set_member_id()");
+
+    if (ctx == NULL || id > 255)
+        ret = BAD_FUNC_ARG;
+
+    if (ret == 0) {
+        ctx->haveEMS = 0;
+        ctx->haveMcast = 1;
+        ctx->mcastID = id;
+#ifndef WOLFSSL_USER_IO
+        ctx->CBIORecv = EmbedReceiveFromMcast;
+#endif /* WOLFSSL_USER_IO */
+    }
+
+    if (ret == 0)
+        ret = SSL_SUCCESS;
+    WOLFSSL_LEAVE("wolfSSL_CTX_mcast_set_member_id()", ret);
+    return ret;
+}
+
+int wolfSSL_mcast_get_max_peers(void)
+{
+    return WOLFSSL_MULTICAST_PEERS;
+}
+
+#ifdef WOLFSSL_DTLS
+static INLINE word32 UpdateHighwaterMark(word32 cur, word32 first,
+                                         word32 second, word32 max)
+{
+    word32 newCur = 0;
+
+    if (cur < first)
+        newCur = first;
+    else if (cur < second)
+        newCur = second;
+    else if (cur < max)
+        newCur = max;
+
+    return newCur;
+}
+#endif /* WOLFSSL_DTLS */
+
+
+int wolfSSL_set_secret(WOLFSSL* ssl, word16 epoch,
+                       const byte* preMasterSecret, word32 preMasterSz,
+                       const byte* clientRandom, const byte* serverRandom,
+                       const byte* suite)
+{
+    int ret = 0;
+
+    WOLFSSL_ENTER("wolfSSL_set_secret()");
+
+    if (ssl == NULL || preMasterSecret == NULL ||
+        preMasterSz == 0 || preMasterSz > ENCRYPT_LEN ||
+        clientRandom == NULL || serverRandom == NULL || suite == NULL) {
+
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        XMEMCPY(ssl->arrays->preMasterSecret, preMasterSecret, preMasterSz);
+        ssl->arrays->preMasterSz = preMasterSz;
+        XMEMCPY(ssl->arrays->clientRandom, clientRandom, RAN_LEN);
+        XMEMCPY(ssl->arrays->serverRandom, serverRandom, RAN_LEN);
+        ssl->options.cipherSuite0 = suite[0];
+        ssl->options.cipherSuite = suite[1];
+
+        ret = SetCipherSpecs(ssl);
+    }
+
+    if (ret == 0)
+        ret = MakeTlsMasterSecret(ssl);
+
+    if (ret == 0) {
+        ssl->keys.encryptionOn = 1;
+        ret = SetKeysSide(ssl, ENCRYPT_AND_DECRYPT_SIDE);
+    }
+
+    if (ret == 0) {
+        if (ssl->options.dtls) {
+        #ifdef WOLFSSL_DTLS
+            WOLFSSL_DTLS_PEERSEQ* peerSeq;
+            int i;
+
+            ssl->keys.dtls_epoch = epoch;
+            for (i = 0, peerSeq = ssl->keys.peerSeq;
+                 i < WOLFSSL_DTLS_PEERSEQ_SZ;
+                 i++, peerSeq++) {
+
+                peerSeq->nextEpoch = epoch;
+                peerSeq->prevSeq_lo = peerSeq->nextSeq_lo;
+                peerSeq->prevSeq_hi = peerSeq->nextSeq_hi;
+                peerSeq->nextSeq_lo = 0;
+                peerSeq->nextSeq_hi = 0;
+                XMEMCPY(peerSeq->prevWindow, peerSeq->window, DTLS_SEQ_SZ);
+                XMEMSET(peerSeq->window, 0, DTLS_SEQ_SZ);
+                peerSeq->highwaterMark = UpdateHighwaterMark(0,
+                        ssl->ctx->mcastFirstSeq,
+                        ssl->ctx->mcastSecondSeq,
+                        ssl->ctx->mcastMaxSeq);
+            }
+        #else
+            (void)epoch;
+        #endif
+        }
+        FreeHandshakeResources(ssl);
+        ret = SSL_SUCCESS;
+    }
+    else {
+        if (ssl)
+            ssl->error = ret;
+        ret = SSL_FATAL_ERROR;
+    }
+    WOLFSSL_LEAVE("wolfSSL_set_secret()", ret);
+    return ret;
+}
+
+
+#ifdef WOLFSSL_DTLS
+
+int wolfSSL_mcast_peer_add(WOLFSSL* ssl, word16 peerId, int remove)
+{
+    WOLFSSL_DTLS_PEERSEQ* p = NULL;
+    int ret = SSL_SUCCESS;
+    int i;
+
+    WOLFSSL_ENTER("wolfSSL_mcast_peer_add()");
+    if (ssl == NULL || peerId > 255)
+        return BAD_FUNC_ARG;
+
+    if (!remove) {
+        /* Make sure it isn't already present, while keeping the first
+         * open spot. */
+        for (i = 0; i < WOLFSSL_DTLS_PEERSEQ_SZ; i++) {
+            if (ssl->keys.peerSeq[i].peerId == INVALID_PEER_ID)
+                p = &ssl->keys.peerSeq[i];
+            if (ssl->keys.peerSeq[i].peerId == peerId) {
+                WOLFSSL_MSG("Peer ID already in multicast peer list.");
+                p = NULL;
+            }
+        }
+
+        if (p != NULL) {
+            XMEMSET(p, 0, sizeof(WOLFSSL_DTLS_PEERSEQ));
+            p->peerId = peerId;
+            p->highwaterMark = UpdateHighwaterMark(0,
+                ssl->ctx->mcastFirstSeq,
+                ssl->ctx->mcastSecondSeq,
+                ssl->ctx->mcastMaxSeq);
+        }
+        else {
+            WOLFSSL_MSG("No room in peer list.");
+            ret = -1;
+        }
+    }
+    else {
+        for (i = 0; i < WOLFSSL_DTLS_PEERSEQ_SZ; i++) {
+            if (ssl->keys.peerSeq[i].peerId == peerId)
+                p = &ssl->keys.peerSeq[i];
+        }
+
+        if (p != NULL) {
+            p->peerId = INVALID_PEER_ID;
+        }
+        else {
+            WOLFSSL_MSG("Peer not found in list.");
+        }
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_mcast_peer_add()", ret);
+    return ret;
+}
+
+
+/* If peerId is in the list of peers and its last sequence number is non-zero,
+ * return 1, otherwise return 0. */
+int wolfSSL_mcast_peer_known(WOLFSSL* ssl, unsigned short peerId)
+{
+    int known = 0;
+    int i;
+
+    WOLFSSL_ENTER("wolfSSL_mcast_peer_known()");
+
+    if (ssl == NULL || peerId > 255) {
+        return BAD_FUNC_ARG;
+    }
+
+    for (i = 0; i < WOLFSSL_DTLS_PEERSEQ_SZ; i++) {
+        if (ssl->keys.peerSeq[i].peerId == peerId) {
+            if (ssl->keys.peerSeq[i].nextSeq_hi ||
+                ssl->keys.peerSeq[i].nextSeq_lo) {
+
+                known = 1;
+            }
+            break;
+        }
+    }
+
+    WOLFSSL_LEAVE("wolfSSL_mcast_peer_known()", known);
+    return known;
+}
+
+
+int wolfSSL_CTX_mcast_set_highwater_cb(WOLFSSL_CTX* ctx, word32 maxSeq,
+                                       word32 first, word32 second,
+                                       CallbackMcastHighwater cb)
+{
+    if (ctx == NULL || (second && first > second) ||
+        first > maxSeq || second > maxSeq || cb == NULL) {
+
+        return BAD_FUNC_ARG;
+    }
+
+    ctx->mcastHwCb = cb;
+    ctx->mcastFirstSeq = first;
+    ctx->mcastSecondSeq = second;
+    ctx->mcastMaxSeq = maxSeq;
+
+    return SSL_SUCCESS;
+}
+
+
+int wolfSSL_mcast_set_highwater_ctx(WOLFSSL* ssl, void* ctx)
+{
+    if (ssl == NULL || ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    ssl->mcastHwCbCtx = ctx;
+
+    return SSL_SUCCESS;
+}
+
+#endif /* WOLFSSL_DTLS */
+
+#endif /* WOLFSSL_MULTICAST */
+
+
 #endif /* WOLFSSL_LEANPSK */
 
 
@@ -1451,6 +1721,25 @@ int wolfSSL_read(WOLFSSL* ssl, void* data, int sz)
     return wolfSSL_read_internal(ssl, data, sz, FALSE);
 }
 
+
+#ifdef WOLFSSL_MULTICAST
+
+int wolfSSL_mcast_read(WOLFSSL* ssl, word16* id, void* data, int sz)
+{
+    int ret = 0;
+
+    WOLFSSL_ENTER("wolfSSL_mcast_read()");
+
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    ret = wolfSSL_read_internal(ssl, data, sz, FALSE);
+    if (ssl->options.dtls && ssl->options.haveMcast && id != NULL)
+        *id = ssl->keys.curPeerId;
+    return ret;
+}
+
+#endif /* WOLFSSL_MULTICAST */
 
 #ifdef WOLFSSL_ASYNC_CRYPT
 
@@ -8649,12 +8938,12 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
     {
         word16 havePSK = 0;
         word16 haveAnon = 0;
+        word16 haveMcast = 0;
 
 #ifdef WOLFSSL_TLS13
         if (ssl->options.tls1_3)
             return wolfSSL_accept_TLSv13(ssl);
 #endif
-
         WOLFSSL_ENTER("SSL_accept()");
 
         #ifdef HAVE_ERRNO_H
@@ -8671,6 +8960,11 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         #endif
         (void)haveAnon;
 
+        #ifdef WOLFSSL_MULTICAST
+            haveMcast = ssl->options.haveMcast;
+        #endif
+        (void)haveMcast;
+
         if (ssl->options.side != WOLFSSL_SERVER_END) {
             WOLFSSL_ERROR(ssl->error = SIDE_ERROR);
             return SSL_FATAL_ERROR;
@@ -8678,7 +8972,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
         #ifndef NO_CERTS
             /* in case used set_accept_state after init */
-            if (!havePSK && !haveAnon &&
+            if (!havePSK && !haveAnon && !haveMcast &&
                 (!ssl->buffers.certificate ||
                  !ssl->buffers.certificate->buffer ||
                  !ssl->buffers.key ||
@@ -12544,6 +12838,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return SSL_SUCCESS;  /* success */
     }
 
+#define WOLFSSL_EVP_INCLUDED
 #include "wolfcrypt/src/evp.c"
 
 
@@ -15266,7 +15561,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                                                heap, DYNAMIC_TYPE_X509);
         if (*ca == NULL) {
             if (pk != NULL) {
-                XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
+                XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
             }
             if (certData != NULL) {
                 XFREE(*cert, heap, DYNAMIC_TYPE_PKCS); *cert = NULL;
@@ -15304,7 +15599,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                     wolfSSL_X509_free(x509);
                     wolfSSL_sk_X509_free(*ca); *ca = NULL;
                     if (pk != NULL) {
-                        XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
+                        XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
                     }
                     if (certData != NULL) {
                         XFREE(certData, heap, DYNAMIC_TYPE_PKCS);
@@ -15326,7 +15621,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                     wolfSSL_X509_free(x509);
                     wolfSSL_sk_X509_free(*ca); *ca = NULL;
                     if (pk != NULL) {
-                        XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
+                        XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
                     }
                     if (certData != NULL) {
                         XFREE(certData, heap, DYNAMIC_TYPE_PKCS);
@@ -15356,7 +15651,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                                                              DYNAMIC_TYPE_X509);
         if (*cert == NULL) {
             if (pk != NULL) {
-                XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
+                XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
             }
             if (ca != NULL) {
                 wolfSSL_sk_X509_free(*ca); *ca = NULL;
@@ -15373,7 +15668,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
             WOLFSSL_MSG("Failed to copy decoded cert");
             FreeDecodedCert(&DeCert);
             if (pk != NULL) {
-                XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
+                XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
             }
             if (ca != NULL) {
                 wolfSSL_sk_X509_free(*ca); *ca = NULL;
@@ -15397,7 +15692,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
             if (ca != NULL) {
                 wolfSSL_sk_X509_free(*ca); *ca = NULL;
             }
-            XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
+            XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
             return 0;
         }
         #ifndef NO_RSA
@@ -15431,7 +15726,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                         wolfSSL_sk_X509_free(*ca); *ca = NULL;
                     }
                     XFREE(*pkey, heap, DYNAMIC_TYPE_PUBLIC_KEY); *pkey = NULL;
-                    XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
+                    XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
                     return 0;
                 }
 
@@ -15442,7 +15737,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                         wolfSSL_sk_X509_free(*ca); *ca = NULL;
                     }
                     XFREE(*pkey, heap, DYNAMIC_TYPE_PUBLIC_KEY); *pkey = NULL;
-                    XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
+                    XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
                     WOLFSSL_MSG("Bad PKCS12 key format");
                     return 0;
                 }
@@ -15459,7 +15754,7 @@ int wolfSSL_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                 wolfSSL_sk_X509_free(*ca); *ca = NULL;
             }
             XFREE(*pkey, heap, DYNAMIC_TYPE_PUBLIC_KEY); *pkey = NULL;
-            XFREE(pk, heap, DYNAMIC_TYPE_PKCS);
+            XFREE(pk, heap, DYNAMIC_TYPE_PUBLIC_KEY);
             WOLFSSL_MSG("Bad PKCS12 key format");
             return 0;
         }
@@ -22752,7 +23047,9 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         #endif
             case ECDSAk:
                 ctx->haveECC = 1;
+            #ifdef HAVE_ECC
                 ctx->pkCurveOID = x->pkCurveOID;
+            #endif
                 break;
         }
 
@@ -23167,6 +23464,7 @@ WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSAparams(WOLFSSL_BIO *bp, WOLFSSL_DSA **x,
 }
 #endif /* NO_DSA */
 
+#define WOLFSSL_BIO_INCLUDED
 #include "src/bio.c"
 
 #endif /* OPENSSL_EXTRA */

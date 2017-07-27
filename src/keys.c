@@ -2083,6 +2083,19 @@ int SetCipherSpecs(WOLFSSL* ssl)
             break;
 #endif
 
+#ifdef BUILD_WDM_WITH_NULL_SHA256
+        case WDM_WITH_NULL_SHA256 :
+            ssl->specs.bulk_cipher_algorithm = wolfssl_cipher_null;
+            ssl->specs.cipher_type           = stream;
+            ssl->specs.mac_algorithm         = sha256_mac;
+            ssl->specs.kea                   = no_kea;
+            ssl->specs.sig_algo              = anonymous_sa_algo;
+            ssl->specs.hash_size             = SHA256_DIGEST_SIZE;
+            ssl->specs.pad_size              = PAD_SHA;
+
+            break;
+#endif
+
     default:
         WOLFSSL_MSG("Unsupported cipher suite, SetCipherSpecs");
         return UNSUPPORTED_SUITE;
@@ -3042,6 +3055,35 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side)
         CacheStatusPP(ssl->secure_renegotiation);
     }
 #endif /* HAVE_SECURE_RENEGOTIATION */
+
+#ifdef WOLFSSL_MULTICAST
+    if (ssl->options.haveMcast) {
+        /* Use the same keys for encrypt and decrypt. */
+        if (ssl->specs.cipher_type != aead) {
+            sz = ssl->specs.hash_size;
+            XMEMCPY(keys->client_write_MAC_secret,&keyData[i], sz);
+            XMEMCPY(keys->server_write_MAC_secret,&keyData[i], sz);
+            i += sz;
+        }
+        sz = ssl->specs.key_size;
+        XMEMCPY(keys->client_write_key, &keyData[i], sz);
+        XMEMCPY(keys->server_write_key, &keyData[i], sz);
+        i += sz;
+
+        sz = ssl->specs.iv_size;
+        XMEMCPY(keys->client_write_IV, &keyData[i], sz);
+        XMEMCPY(keys->server_write_IV, &keyData[i], sz);
+
+#ifdef HAVE_AEAD
+        if (ssl->specs.cipher_type == aead) {
+            /* Initialize the AES-GCM/CCM explicit IV to a zero. */
+            XMEMSET(keys->aead_exp_IV, 0, AEAD_MAX_EXP_SZ);
+        }
+#endif /* HAVE_AEAD */
+
+        return 0;
+    }
+#endif /* WOLFSSL_MULTICAST */
 
     if (ssl->specs.cipher_type != aead) {
         sz = ssl->specs.hash_size;

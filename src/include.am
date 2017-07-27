@@ -61,7 +61,8 @@ endif
 
 src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/hmac.c \
-               wolfcrypt/src/hash.c
+               wolfcrypt/src/hash.c \
+               wolfcrypt/src/cpuid.c
 
 if BUILD_RNG
 src_libwolfssl_la_SOURCES += wolfcrypt/src/random.c

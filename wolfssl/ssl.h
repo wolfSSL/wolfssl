@@ -512,6 +512,27 @@ WOLFSSL_API int  wolfSSL_dtls_set_sctp(WOLFSSL*);
 WOLFSSL_API int  wolfSSL_CTX_dtls_set_mtu(WOLFSSL_CTX*, unsigned short);
 WOLFSSL_API int  wolfSSL_dtls_set_mtu(WOLFSSL*, unsigned short);
 
+WOLFSSL_API int  wolfSSL_dtls_get_drop_stats(WOLFSSL*,
+                                             unsigned int*, unsigned int*);
+WOLFSSL_API int  wolfSSL_CTX_mcast_set_member_id(WOLFSSL_CTX*, unsigned short);
+WOLFSSL_API int  wolfSSL_set_secret(WOLFSSL*, unsigned short,
+                     const unsigned char*, unsigned int,
+                     const unsigned char*, const unsigned char*,
+                     const unsigned char*);
+WOLFSSL_API int  wolfSSL_mcast_read(WOLFSSL*, unsigned short*, void*, int);
+WOLFSSL_API int  wolfSSL_mcast_peer_add(WOLFSSL*, unsigned short, int);
+WOLFSSL_API int  wolfSSL_mcast_peer_known(WOLFSSL*, unsigned short);
+WOLFSSL_API int  wolfSSL_mcast_get_max_peers(void);
+typedef int (*CallbackMcastHighwater)(unsigned short peerId,
+                                      unsigned int maxSeq,
+                                      unsigned int curSeq, void* ctx);
+WOLFSSL_API int  wolfSSL_CTX_mcast_set_highwater_cb(WOLFSSL_CTX*,
+                                                    unsigned int,
+                                                    unsigned int,
+                                                    unsigned int,
+                                                    CallbackMcastHighwater);
+WOLFSSL_API int  wolfSSL_mcast_set_highwater_ctx(WOLFSSL*, void*);
+
 WOLFSSL_API int   wolfSSL_ERR_GET_REASON(unsigned long err);
 WOLFSSL_API char* wolfSSL_ERR_error_string(unsigned long,char*);
 WOLFSSL_API void  wolfSSL_ERR_error_string_n(unsigned long e, char* buf,

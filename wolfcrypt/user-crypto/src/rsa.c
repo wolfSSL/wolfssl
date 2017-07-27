@@ -1412,7 +1412,7 @@ int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)
         return USER_CRYPTO_ERROR;
     }
 
-    if (in == NULL || out == NULL)
+    if (in == NULL || inLen == 0 || out == NULL)
         return USER_CRYPTO_ERROR;
 
     /* set up a private key state using public key values */
@@ -2026,11 +2026,11 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     int i; /* for trys on calling make key */
     int ctxSz;
 
-    IppsBigNumState* pSrcPublicExp;
-    Ipp8u* scratchBuffer;
+    IppsBigNumState* pSrcPublicExp = NULL;
+    Ipp8u* scratchBuffer = NULL;
     Ipp8u  eAry[8];
     int trys = 8; /* Miller-Rabin test parameter */
-    IppsPrimeState* pPrime;
+    IppsPrimeState* pPrime = NULL;
 
     int qBitSz; /* size of q factor */
     int bytSz; /* size of key in bytes */
@@ -2058,17 +2058,21 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     ret = ippsPrimeGetSize(size, &ctxSz); /* size in bits */
     if (ret != ippStsNoErr) {
         USER_DEBUG(("ippsPrimeGetSize error of %s\n", ippGetStatusString(ret)));
-        return USER_CRYPTO_ERROR;
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
     }
 
     pPrime = (IppsPrimeState*)XMALLOC(ctxSz, NULL, DYNAMIC_TYPE_USER_CRYPTO);
-    if (pPrime == NULL)
-        return USER_CRYPTO_ERROR;
+    if (pPrime == NULL) {
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
+    }
 
     ret = ippsPrimeInit(size, pPrime);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("ippsPrimeInit error of %s\n", ippGetStatusString(ret)));
-        return USER_CRYPTO_ERROR;
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
     }
 
     /* define RSA privete key type 2 */
@@ -2077,21 +2081,25 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if (ret != ippStsNoErr) {
         USER_DEBUG(("ippsRSA_GetSizePrivateKeyType2 error of %s\n",
                 ippGetStatusString(ret)));
-        return USER_CRYPTO_ERROR;
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
     }
 
     key->prvSz = ctxSz; /* used when freeing private key */
     key->pPrv = (IppsRSAPrivateKeyState*)XMALLOC(ctxSz, NULL,
                                                       DYNAMIC_TYPE_USER_CRYPTO);
-    if (key->pPrv == NULL)
-        return USER_CRYPTO_ERROR;
+    if (key->pPrv == NULL) {
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
+    }
 
     /* length in bits of p and q factors */
     ret = ippsRSA_InitPrivateKeyType2(qBitSz, qBitSz, key->pPrv, ctxSz);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("ippsRSA_InitPrivateKeyType2 error of %s\n",
                 ippGetStatusString(ret)));
-        return USER_CRYPTO_ERROR;
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
     }
 
     /* allocate scratch buffer */
@@ -2099,12 +2107,15 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if (ret != ippStsNoErr) {
         USER_DEBUG(("ippsRSA_GetBufferSizePrivateKey error of %s\n",
                 ippGetStatusString(ret)));
-        return USER_CRYPTO_ERROR;
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
     }
 
     scratchBuffer = (Ipp8u*)XMALLOC(scratchSz, 0, DYNAMIC_TYPE_USER_CRYPTO);
-    if (scratchBuffer == NULL)
-        return USER_CRYPTO_ERROR;
+    if (scratchBuffer == NULL) {
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
+    }
 
     /* set up initial value of pScrPublicExp */
     leng = (int)sizeof(long); /* # of Ipp32u in long */
@@ -2114,27 +2125,37 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         eAry[i] = (e >> (8 * (leng - 1 - i))) & 0XFF;
     }
     ret = init_bn(&pSrcPublicExp, leng);
-    if (ret != ippStsNoErr)
-        return USER_CRYPTO_ERROR;
+    if (ret != ippStsNoErr) {
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
+    }
 
     ret = ippsSetOctString_BN(eAry, leng, pSrcPublicExp);
-    if (ret != ippStsNoErr)
-        return USER_CRYPTO_ERROR;
+    if (ret != ippStsNoErr) {
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
+    }
 
     /* initializing key->n */
     ret = init_bn(&key->n, bytSz);
-    if (ret != ippStsNoErr)
-        return USER_CRYPTO_ERROR;
+    if (ret != ippStsNoErr) {
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
+    }
 
     /* initializing public exponent key->e */
     ret = init_bn(&key->e, leng);
-    if (ret != ippStsNoErr)
-        return USER_CRYPTO_ERROR;
+    if (ret != ippStsNoErr) {
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
+    }
 
     /* private exponent key->dipp */
     ret = init_bn(&key->dipp, bytSz);
-    if (ret != ippStsNoErr)
-        return USER_CRYPTO_ERROR;
+    if (ret != ippStsNoErr) {
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
+    }
 
     /* call IPP to generate keys, if inseficent entropy error call again
      using for loop to avoid infinte loop */
@@ -2150,27 +2171,31 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         if (ret != ippStsInsufficientEntropy) {
             USER_DEBUG(("ippsRSA_GeneratKeys error of %s\n",
                     ippGetStatusString(ret)));
-            return USER_CRYPTO_ERROR;
+            ret = USER_CRYPTO_ERROR;
+            goto makeKeyEnd;
         }
     }
     /* catch if still did not generate a good key */
     if (ret != ippStsNoErr) {
         USER_DEBUG(("ippsRSA_GeneratKeys error of %s\n",
                 ippGetStatusString(ret)));
-        return USER_CRYPTO_ERROR;
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
     }
 
     /* get bn sizes needed for private key set up */
     ret = ippsExtGet_BN(NULL, &key->eSz, NULL, key->e);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("ippsGetSize_BN error %s\n", ippGetStatusString(ret)));
-        return USER_CRYPTO_ERROR;
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
     }
 
     ret = ippsExtGet_BN(NULL, &key->nSz, NULL, key->n);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("ippsGetSize_BN error %s\n", ippGetStatusString(ret)));
-        return USER_CRYPTO_ERROR;
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
     }
 
     /* set up public key state */
@@ -2178,53 +2203,68 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if (ret != ippStsNoErr) {
         USER_DEBUG(("ippsRSA_GetSizePublicKey error %s nSz = %d eSz = %d\n",
                 ippGetStatusString(ret), key->nSz, key->eSz));
-        return USER_CRYPTO_ERROR;
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
     }
 
     key->pPub = (IppsRSAPublicKeyState*)XMALLOC(ctxSz, NULL,
                                                       DYNAMIC_TYPE_USER_CRYPTO);
-    if (key->pPub == NULL)
-        return USER_CRYPTO_ERROR;
+    if (key->pPub == NULL) {
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
+    }
 
     ret = ippsRSA_InitPublicKey(key->nSz, key->eSz, key->pPub, ctxSz);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("ippsRSA_InitPublicKey error %s\n",
                     ippGetStatusString(ret)));
-        return USER_CRYPTO_ERROR;
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
     }
 
     ret = ippsRSA_SetPublicKey(key->n, key->e, key->pPub);
     if (ret != ippStsNoErr) {
         USER_DEBUG(("ippsRSA_SetPublicKey error %s\n",
                     ippGetStatusString(ret)));
-        return USER_CRYPTO_ERROR;
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
     }
 
     /* get private key information for key struct */
     leng = size/16; /* size of q, p, u, dP, dQ */
     ret = init_bn(&key->pipp, leng);
-    if (ret != ippStsNoErr)
-        return USER_CRYPTO_ERROR;
+    if (ret != ippStsNoErr) {
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
+    }
 
     /* set up q BN for key */
     ret = init_bn(&key->qipp, leng);
-    if (ret != ippStsNoErr)
-        return USER_CRYPTO_ERROR;
+    if (ret != ippStsNoErr) {
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
+    }
 
     /* set up dP BN for key */
     ret = init_bn(&key->dPipp, leng);
-    if (ret != ippStsNoErr)
-        return USER_CRYPTO_ERROR;
+    if (ret != ippStsNoErr) {
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
+    }
 
     /* set up dQ BN for key */
     ret = init_bn(&key->dQipp, leng);
-    if (ret != ippStsNoErr)
-        return USER_CRYPTO_ERROR;
+    if (ret != ippStsNoErr) {
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
+    }
 
     /* set up u BN for key */
     ret = init_bn(&key->uipp, leng);
-    if (ret != ippStsNoErr)
-        return USER_CRYPTO_ERROR;
+    if (ret != ippStsNoErr) {
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
+    }
 
     /* get values from created key */
     ret = ippsRSA_GetPrivateKeyType2(key->pipp, key->qipp, key->dPipp,
@@ -2232,15 +2272,22 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if (ret != ippStsNoErr) {
         USER_DEBUG(("ippsRSA_GetPrivateKeyType2 error %s\n",
                 ippGetStatusString(ret)));
-        return USER_CRYPTO_ERROR;
+        ret = USER_CRYPTO_ERROR;
+        goto makeKeyEnd;
     }
+    ret = 0; /* success case */
 
+makeKeyEnd:
     /* clean up memory used */
     XFREE(pSrcPublicExp, NULL, DYNAMIC_TYPE_USER_CRYPTO);
     XFREE(scratchBuffer, NULL, DYNAMIC_TYPE_USER_CRYPTO);
     XFREE(pPrime, NULL, DYNAMIC_TYPE_USER_CRYPTO);
 
-    return 0;
+    if (ret != 0) { /* with fail case free RSA components created */
+        wc_FreeRsaKey(key);
+    }
+
+    return ret;
 }
 
 /********** duplicate code needed -- future refactor */

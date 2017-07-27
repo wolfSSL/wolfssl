@@ -188,8 +188,8 @@ ASN Options:
     #include <windows.h>
     #define XTIME(t1)       windows_time((t1))
     #define WOLFSSL_GMTIME
-
 #else
+
     /* default */
     /* uses complete <time.h> facility */
     #include <time.h>
@@ -410,6 +410,34 @@ time_t XTIME(time_t * timer)
     time_t sec = 0;
 
     sec = (time_t) Seconds_get();
+
+    if (timer != NULL)
+        *timer = sec;
+
+    return sec;
+}
+
+#endif /* WOLFSSL_TIRTOS */
+
+
+#if defined(WOLFSSL_XILINX)
+#include "xrtcpsu.h"
+
+time_t XTIME(time_t * timer)
+{
+    time_t sec = 0;
+    XRtcPsu_Config* con;
+    XRtcPsu         rtc;
+
+    con = XRtcPsu_LookupConfig(XPAR_XRTCPSU_0_DEVICE_ID);
+    if (con != NULL) {
+        if (XRtcPsu_CfgInitialize(&rtc, con, con->BaseAddr) == XST_SUCCESS) {
+            sec = (time_t)XRtcPsu_GetCurrentTime(&rtc);
+        }
+        else {
+            WOLFSSL_MSG("Unable to initialize RTC");
+        }
+    }
 
     if (timer != NULL)
         *timer = sec;
@@ -804,7 +832,7 @@ static int SetASNInt(int len, byte firstByte, byte* output)
 }
 #endif
 
-#if !defined(NO_DSA) || defined(HAVE_ECC) || (defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && !defined(HAVE_USER_RSA))
+#if !defined(NO_DSA) || defined(HAVE_ECC) || defined(WOLFSSL_CERT_GEN) || (defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && !defined(HAVE_USER_RSA))
 /* Set the DER/BER encoding of the ASN.1 INTEGER element with an mp_int.
  * The number is assumed to be positive.
  *
@@ -1806,8 +1834,6 @@ int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
     return ret;
 }
 
-
-#if defined(HAVE_ECC) || (!defined(NO_RSA) && !defined(HAVE_USER_RSA) && (defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)))
 static int SkipObjectId(const byte* input, word32* inOutIdx, word32 maxIdx)
 {
     word32 idx = *inOutIdx;
@@ -1823,7 +1849,6 @@ static int SkipObjectId(const byte* input, word32* inOutIdx, word32 maxIdx)
 
     return 0;
 }
-#endif
 
 WOLFSSL_LOCAL int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
                      word32 oidType, word32 maxIdx)
@@ -1880,6 +1905,12 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
         GetInt(&key->dP, input, inOutIdx, inSz) < 0 ||
         GetInt(&key->dQ, input, inOutIdx, inSz) < 0 ||
         GetInt(&key->u,  input, inOutIdx, inSz) < 0 )  return ASN_RSA_KEY_E;
+
+#ifdef WOLFSSL_XILINX_CRYPT
+    if (wc_InitRsaHw(key) != 0) {
+        return BAD_STATE_E;
+    }
+#endif
 
     return 0;
 }

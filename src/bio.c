@@ -19,6 +19,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#if !defined(WOLFSSL_BIO_INCLUDED)
+    #warning bio.c does not need to be compiled seperatly from ssl.c
+#else
+
 /*** TBD ***/
 WOLFSSL_API long wolfSSL_BIO_ctrl(WOLFSSL_BIO *bio, int cmd, long larg, void *parg)
 {
@@ -444,3 +448,5 @@ long wolfSSL_BIO_set_mem_eof_return(WOLFSSL_BIO *bio, int v)
 
       return 0;
 }
+#endif /* WOLFSSL_BIO_INCLUDED */
+

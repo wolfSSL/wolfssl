@@ -60,7 +60,8 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/wolfevent.h \
                          wolfssl/wolfcrypt/pkcs12.h \
                          wolfssl/wolfcrypt/wolfmath.h \
-                         wolfssl/wolfcrypt/sha3.h
+                         wolfssl/wolfcrypt/sha3.h \
+                         wolfssl/wolfcrypt/cpuid.h
 
 noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h \
@@ -68,7 +69,8 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/ti/ti-ccm.h \
                          wolfssl/wolfcrypt/port/nrf51.h \
                          wolfssl/wolfcrypt/port/nxp/ksdk_port.h \
-                         wolfssl/wolfcrypt/port/atmel/atmel.h
+                         wolfssl/wolfcrypt/port/atmel/atmel.h \
+                         wolfssl/wolfcrypt/port/xilinx/xil-sha3.h
 
 if BUILD_ASYNCCRYPT
 nobase_include_HEADERS+= wolfssl/wolfcrypt/async.h

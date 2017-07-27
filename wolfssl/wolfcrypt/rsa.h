@@ -46,6 +46,10 @@
 /* header file needed for OAEP padding */
 #include <wolfssl/wolfcrypt/hash.h>
 
+#ifdef WOLFSSL_XILINX_CRYPT
+#include "xsecure_rsa.h"
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -99,6 +103,11 @@ struct RsaKey {
         CertSignCtx certSignCtx; /* context info for cert sign (MakeSignature) */
     #endif
 #endif /* WOLFSSL_ASYNC_CRYPT */
+#ifdef WOLFSSL_XILINX_CRYPT
+    word32 pubExp; /* to keep values in scope they are here in struct */
+    byte*  mod;
+    XSecure_Rsa xRsa;
+#endif
     byte   dataIsAlloc;
 };
 
@@ -112,6 +121,9 @@ struct RsaKey {
 WOLFSSL_API int  wc_InitRsaKey(RsaKey* key, void* heap);
 WOLFSSL_API int  wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId);
 WOLFSSL_API int  wc_FreeRsaKey(RsaKey* key);
+#ifdef WOLFSSL_XILINX_CRYPT
+WOLFSSL_LOCAL int wc_InitRsaHw(RsaKey* key);
+#endif /* WOLFSSL_XILINX_CRYPT */
 
 WOLFSSL_LOCAL int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
                            word32* outLen, int type, RsaKey* key, WC_RNG* rng);
