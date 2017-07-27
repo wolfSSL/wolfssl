@@ -17417,7 +17417,7 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
         if (ssl->buffers.certificate && ssl->buffers.certificate->buffer &&
             ssl->buffers.key && ssl->buffers.key->buffer)
             ssl->options.sendVerify = SEND_CERT;
-        else if (IsTLS(ssl))
+        else
             ssl->options.sendVerify = SEND_BLANK_CERT;
 
         if (IsEncryptionOn(ssl, 0))
