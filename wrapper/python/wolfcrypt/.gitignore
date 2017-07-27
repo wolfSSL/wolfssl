@@ -13,3 +13,6 @@ dist/
 .tox/
 # Sphinx documentation
 docs/_build/
+
+# Virtual env
+.env

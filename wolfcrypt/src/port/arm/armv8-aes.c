@@ -677,7 +677,8 @@ void wc_AesFree(Aes* aes)
     {
         word32 numBlocks = sz / AES_BLOCK_SIZE;
 
-        if (aes == NULL || out == NULL || (in == NULL && sz > 0)) {
+        if (aes == NULL || out == NULL || (in == NULL && sz > 0)
+                || sz % AES_BLOCK_SIZE != 0) {
             return BAD_FUNC_ARG;
         }
 
@@ -1461,7 +1462,7 @@ static void GMULT(byte* X, byte* Y)
 }
 
 
-static void GHASH(Aes* aes, const byte* a, word32 aSz,
+void GHASH(Aes* aes, const byte* a, word32 aSz,
                                 const byte* c, word32 cSz, byte* s, word32 sSz)
 {
     byte x[AES_BLOCK_SIZE];
@@ -2545,8 +2546,8 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return BAD_FUNC_ARG;
     }
 
-    if (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ) {
-        WOLFSSL_MSG("GcmEncrypt authTagSz too small error");
+    if (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ || authTagSz > AES_BLOCK_SIZE) {
+        WOLFSSL_MSG("GcmEncrypt authTagSz error");
         return BAD_FUNC_ARG;
     }
 
@@ -3269,7 +3270,8 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     {
         word32 numBlocks = sz / AES_BLOCK_SIZE;
 
-        if (aes == NULL || out == NULL || (in == NULL && sz > 0)) {
+        if (aes == NULL || out == NULL || (in == NULL && sz > 0)
+                || sz % AES_BLOCK_SIZE != 0) {
             return BAD_FUNC_ARG;
         }
 
@@ -4100,7 +4102,7 @@ static void GMULT(byte* X, byte* Y)
 }
 
 
-static void GHASH(Aes* aes, const byte* a, word32 aSz,
+void GHASH(Aes* aes, const byte* a, word32 aSz,
                                 const byte* c, word32 cSz, byte* s, word32 sSz)
 {
     byte x[AES_BLOCK_SIZE];
@@ -4190,6 +4192,11 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                        (in == NULL && sz > 0) ||
                        (out == NULL && sz > 0)) {
         WOLFSSL_MSG("a NULL parameter passed in when size is larger than 0");
+        return BAD_FUNC_ARG;
+    }
+
+    if (authTagSz < WOLFSSL_MIN_AUTH_TAG_SZ || authTagSz > AES_BLOCK_SIZE) {
+        WOLFSSL_MSG("GcmEncrypt authTagSz error");
         return BAD_FUNC_ARG;
     }
 

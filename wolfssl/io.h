@@ -234,6 +234,9 @@
 #elif defined(FREERTOS_TCP)
     #define RECV_FUNCTION(a,b,c,d)  FreeRTOS_recv((Socket_t)(a),(void*)(b), (size_t)(c), (BaseType_t)(d))
     #define SEND_FUNCTION(a,b,c,d)  FreeRTOS_send((Socket_t)(a),(void*)(b), (size_t)(c), (BaseType_t)(d))
+#elif defined(WOLFSSL_VXWORKS)
+    #define SEND_FUNCTION send
+    #define RECV_FUNCTION recv
 #else
     #define SEND_FUNCTION send
     #define RECV_FUNCTION recv
@@ -298,6 +301,10 @@ WOLFSSL_API  int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags);
         WOLFSSL_API int EmbedSendTo(WOLFSSL* ssl, char* buf, int sz, void* ctx);
         WOLFSSL_API int EmbedGenerateCookie(WOLFSSL* ssl, unsigned char* buf,
                                            int sz, void*);
+        #ifdef WOLFSSL_MULTICAST
+            WOLFSSL_API int EmbedReceiveFromMcast(WOLFSSL* ssl,
+                                                  char* buf, int sz, void*);
+        #endif /* WOLFSSL_MULTICAST */
         #ifdef WOLFSSL_SESSION_EXPORT
             WOLFSSL_API int EmbedGetPeer(WOLFSSL* ssl, char* ip, int* ipSz,
                                                 unsigned short* port, int* fam);

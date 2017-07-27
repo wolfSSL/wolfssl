@@ -49,7 +49,10 @@
     #endif
 #elif defined(THREADX)
     #ifndef SINGLE_THREADED
-        #include "tx_api.h"
+        #ifdef NEED_THREADX_TYPES
+            #include <types.h>
+        #endif
+        #include <tx_api.h>
     #endif
 #elif defined(MICRIUM)
     /* do nothing, just don't pick Unix */

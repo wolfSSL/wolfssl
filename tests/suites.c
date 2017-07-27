@@ -182,6 +182,9 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     int         i;
     size_t      added;
     static      int tests = 1;
+#if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_TIRTOS)
+    char        portNumber[8];
+#endif
 
     /* Is Valid Cipher and Version Checks */
     /* build command list for the Is checks below */
@@ -298,7 +301,6 @@ static int execute_test_case(int svr_argc, char** svr_argv,
         if (cliArgs.argc + 2 > MAX_ARGS)
             printf("cannot add the magic port number flag to client\n");
         else {
-            char portNumber[8];
             snprintf(portNumber, sizeof(portNumber), "%d", ready.port);
             cli_argv[cliArgs.argc++] = portFlag;
             cli_argv[cliArgs.argc++] = portNumber;

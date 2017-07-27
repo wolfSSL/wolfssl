@@ -886,9 +886,7 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                 case WC_PKCS12_ShroudedKeyBag: /* 668 */
                     {
                         byte* k;
-                #ifdef FREESCALE_MQX
-                        byte* tmp;
-                #endif
+
                         WOLFSSL_MSG("PKCS12 Shrouded Key Bag found");
                         if (data[idx++] !=
                                      (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC)) {
@@ -914,9 +912,7 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
 
                         if (ret < size) {
                             /* shrink key buffer */
-                        #ifdef FREESCALE_MQX
-                            /* MQX classic has no realloc */
-                            tmp = (byte*)XMALLOC(ret, pkcs12->heap,
+                            byte* tmp = (byte*)XMALLOC(ret, pkcs12->heap,
                                                  DYNAMIC_TYPE_PUBLIC_KEY);
                             if (tmp == NULL) {
                                 XFREE(k, pkcs12->heap, DYNAMIC_TYPE_PUBLIC_KEY);
@@ -925,13 +921,6 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
                             XMEMCPY(tmp, k, ret);
                             XFREE(k, pkcs12->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                             k = tmp;
-                        #else
-                            k = (byte*)XREALLOC(k, ret, pkcs12->heap,
-                                                       DYNAMIC_TYPE_PUBLIC_KEY);
-                            if (k == NULL) {
-                                ERROR_OUT(MEMORY_E, exit_pk12par);
-                            }
-                        #endif
                         }
                         size = ret;
 

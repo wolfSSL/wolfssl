@@ -32,8 +32,8 @@
 
 #ifndef NO_CRYPT_TEST
 
+#include <wolfssl/wolfcrypt/memory.h>
 #ifdef WOLFSSL_STATIC_MEMORY
-    #include <wolfssl/wolfcrypt/memory.h>
     static WOLFSSL_HEAP_HINT* HEAP_HINT;
 #else
     #define HEAP_HINT NULL
@@ -195,6 +195,12 @@ static int devId = INVALID_DEVID;
     const char* wnrConfigFile = "wnr-example.conf";
 #endif
 
+#ifdef HAVE_AESGCM
+#define LARGE_BUFFER_SIZE       1024
+static byte large_input[LARGE_BUFFER_SIZE];
+static byte large_output[LARGE_BUFFER_SIZE];
+static byte large_outdec[LARGE_BUFFER_SIZE];
+#endif
 
 typedef struct testVector {
     const char*  input;
@@ -301,7 +307,7 @@ int mp_test(void);
 #endif
 int logging_test(void);
 int mutex_test(void);
-#ifdef USE_WOLFSSL_MEMORY
+#if defined(USE_WOLFSSL_MEMORY) && !defined(FREERTOS)
 int memcb_test(void);
 #endif
 
@@ -310,7 +316,7 @@ int memcb_test(void);
 #ifdef __cplusplus
     extern "C" {
 #endif
-    WOLFSSL_API int wolfSSL_Debugging_ON();
+    WOLFSSL_API int wolfSSL_Debugging_ON(void);
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif
@@ -375,6 +381,9 @@ int wolfcrypt_test(void* args)
 #endif
 {
     int ret;
+#ifdef HAVE_AESGCM
+    int i;
+#endif
 
     ((func_args*)args)->return_code = -1; /* error state */
 
@@ -402,7 +411,8 @@ int wolfcrypt_test(void* args)
     if (CheckCtcSettings() != 1)
         return err_sys("Build vs runtime math mismatch\n", -1000);
 
-#ifdef USE_FAST_MATH
+#if defined(USE_FAST_MATH) && \
+	(!defined(NO_RSA) || !defined(NO_DH) || defined(HAVE_ECC))
     if (CheckFastMathSettings() != 1)
         return err_sys("Build vs runtime fastmath FP_MAX_BITS mismatch\n",
                        -1001);
@@ -664,6 +674,8 @@ int wolfcrypt_test(void* args)
         printf( "AES256   test passed!\n");
 
 #ifdef HAVE_AESGCM
+    for (i=0; i<LARGE_BUFFER_SIZE; i++)
+        large_input[i] = i;
     if ( (ret = aesgcm_test()) != 0)
         return err_sys("AES-GCM  test failed!\n", ret);
     else
@@ -851,7 +863,7 @@ int wolfcrypt_test(void* args)
     else
         printf( "mutex    test passed!\n");
 
-#ifdef USE_WOLFSSL_MEMORY
+#if defined(USE_WOLFSSL_MEMORY) && !defined(FREERTOS)
     if ( (ret = memcb_test()) != 0)
         return err_sys("memcb    test failed!\n", ret);
     else
@@ -1783,6 +1795,7 @@ int sha384_test(void)
 #endif /* WOLFSSL_SHA384 */
 
 #ifdef WOLFSSL_SHA3
+#ifndef WOLFSSL_NOSHA3_224
 static int sha3_224_test(void)
 {
     Sha3  sha;
@@ -1834,7 +1847,9 @@ static int sha3_224_test(void)
 
     return 0;
 }
+#endif /* WOLFSSL_NOSHA3_224 */
 
+#ifndef WOLFSSL_NOSHA3_256
 static int sha3_256_test(void)
 {
     Sha3  sha;
@@ -1888,7 +1903,9 @@ static int sha3_256_test(void)
 
     return 0;
 }
+#endif /* WOLFSSL_NOSHA3_256 */
 
+#ifndef WOLFSSL_NOSHA3_384
 static int sha3_384_test(void)
 {
     Sha3  sha;
@@ -1944,7 +1961,9 @@ static int sha3_384_test(void)
 
     return 0;
 }
+#endif /* WOLFSSL_NOSHA3_384 */
 
+#ifndef WOLFSSL_NOSHA3_512
 static int sha3_512_test(void)
 {
     Sha3  sha;
@@ -2002,19 +2021,28 @@ static int sha3_512_test(void)
 
     return 0;
 }
+#endif /* WOLFSSL_NOSHA3_512 */
 
 int sha3_test(void)
 {
     int ret;
 
+#ifndef WOLFSSL_NOSHA3_224
     if ((ret = sha3_224_test()) != 0)
         return ret;
+#endif
+#ifndef WOLFSSL_NOSHA3_256
     if ((ret = sha3_256_test()) != 0)
         return ret;
+#endif
+#ifndef WOLFSSL_NOSHA3_384
     if ((ret = sha3_384_test()) != 0)
         return ret;
+#endif
+#ifndef WOLFSSL_NOSHA3_512
     if ((ret = sha3_512_test()) != 0)
         return ret;
+#endif
 
     return 0;
 }
@@ -2029,8 +2057,8 @@ int hash_test(void)
     byte             data[] = "0123456789abcdef0123456789abcdef012345";
     byte             out[MAX_DIGEST_SIZE];
     enum wc_HashType typesGood[] = { WC_HASH_TYPE_MD5, WC_HASH_TYPE_SHA,
-                                     WC_HASH_TYPE_SHA224, WC_HASH_TYPE_SHA384,
-                                     WC_HASH_TYPE_SHA512, WC_HASH_TYPE_SHA256 };
+                                     WC_HASH_TYPE_SHA224, WC_HASH_TYPE_SHA256,
+                                     WC_HASH_TYPE_SHA384, WC_HASH_TYPE_SHA512 };
     enum wc_HashType typesNoImpl[] = {
 #ifdef NO_MD5
                                         WC_HASH_TYPE_MD5,
@@ -4532,7 +4560,8 @@ int aesgcm_test(void)
     };
 
 #if !defined(HAVE_FIPS) && !defined(HAVE_INTEL_QA) && \
-        !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO)
+        !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO) && \
+        !defined(WOLFSSL_XILINX_CRYPT)
     /* Test Case 12, uses same plaintext and AAD data. */
     const byte k2[] =
     {
@@ -4576,6 +4605,10 @@ int aesgcm_test(void)
     byte resultP[sizeof(p)];
     byte resultC[sizeof(p)];
     int  result;
+#if !defined(HAVE_FIPS) && !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO)
+    int  ivlen;
+#endif
+    int  alen, plen;
 
     XMEMSET(resultT, 0, sizeof(resultT));
     XMEMSET(resultC, 0, sizeof(resultC));
@@ -4612,9 +4645,91 @@ int aesgcm_test(void)
     if (XMEMCMP(p, resultP, sizeof(resultP)))
         return -4306;
 
+    /* Large buffer test */
+    /* AES-GCM encrypt and decrypt both use AES encrypt internally */
+    result = wc_AesGcmEncrypt(&enc, large_output, large_input,
+                              LARGE_BUFFER_SIZE, iv1, sizeof(iv1),
+                              resultT, sizeof(resultT), a, sizeof(a));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (result != 0)
+        return -4307;
+
+    result = wc_AesGcmDecrypt(&enc, large_outdec, large_output,
+                              LARGE_BUFFER_SIZE, iv1, sizeof(iv1), resultT,
+                              sizeof(resultT), a, sizeof(a));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (result != 0)
+        return -4308;
+    if (XMEMCMP(large_input, large_outdec, LARGE_BUFFER_SIZE))
+        return -4309;
+
+#if !defined(HAVE_FIPS) && !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO)
+    /* Variable IV length test */
+    for (ivlen=0; ivlen<(int)sizeof(k1); ivlen++) {
+         /* AES-GCM encrypt and decrypt both use AES encrypt internally */
+         result = wc_AesGcmEncrypt(&enc, resultC, p, sizeof(p), k1, ivlen,
+                                        resultT, sizeof(resultT), a, sizeof(a));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+        if (result != 0)
+            return -4310;
+        result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC), k1,
+                                 ivlen, resultT, sizeof(resultT), a, sizeof(a));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+        if (result != 0)
+            return -4311;
+    }
+#endif
+
+    /* Variable authenticed data length test */
+    for (alen=0; alen<(int)sizeof(p); alen++) {
+         /* AES-GCM encrypt and decrypt both use AES encrypt internally */
+         result = wc_AesGcmEncrypt(&enc, resultC, p, sizeof(p), iv1,
+                                sizeof(iv1), resultT, sizeof(resultT), p, alen);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+        if (result != 0)
+            return -4312;
+        result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC), iv1,
+                                sizeof(iv1), resultT, sizeof(resultT), p, alen);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+        if (result != 0)
+            return -4313;
+    }
+
+    /* Variable plain text length test */
+    for (plen=1; plen<(int)sizeof(p); plen++) {
+         /* AES-GCM encrypt and decrypt both use AES encrypt internally */
+         result = wc_AesGcmEncrypt(&enc, resultC, p, plen, iv1, sizeof(iv1),
+                                        resultT, sizeof(resultT), a, sizeof(a));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+        if (result != 0)
+            return -4314;
+        result = wc_AesGcmDecrypt(&enc, resultP, resultC, plen, iv1,
+                           sizeof(iv1), resultT, sizeof(resultT), a, sizeof(a));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+        if (result != 0)
+            return -4315;
+    }
+
     /* FIPS, QAT and STM32F2/4 HW Crypto only support 12-byte IV */
 #if !defined(HAVE_FIPS) && !defined(HAVE_INTEL_QA) && \
-        !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO)
+        !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO) && \
+        !defined(WOLFSSL_XILINX_CRYPT)
     XMEMSET(resultT, 0, sizeof(resultT));
     XMEMSET(resultC, 0, sizeof(resultC));
     XMEMSET(resultP, 0, sizeof(resultP));
@@ -4627,11 +4742,11 @@ int aesgcm_test(void)
     result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (result != 0)
-        return -4307;
+        return -4316;
     if (XMEMCMP(c2, resultC, sizeof(resultC)))
-        return -4308;
+        return -4317;
     if (XMEMCMP(t2, resultT, sizeof(resultT)))
-        return -4309;
+        return -4318;
 
     result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC),
                       iv2, sizeof(iv2), resultT, sizeof(resultT), a, sizeof(a));
@@ -4639,9 +4754,9 @@ int aesgcm_test(void)
     result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (result != 0)
-        return -4310;
+        return -4319;
     if (XMEMCMP(p, resultP, sizeof(resultP)))
-        return -4311;
+        return -4320;
 #endif /* !HAVE_FIPS && !HAVE_INTEL_QA && !STM32F2_CRYPTO && !STM32F4_CRYPTO */
 
     wc_AesFree(&enc);
@@ -6160,6 +6275,7 @@ static int rsa_flatten_test(RsaKey* key)
     return 0;
 }
 
+#ifndef NO_SIG_WRAPPER
 static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
 {
     int ret;
@@ -6294,6 +6410,7 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
 
     return 0;
 }
+#endif /* !NO_SIG_WRAPPER */
 
 #ifndef HAVE_USER_RSA
 static int rsa_decode_test(void)
@@ -6349,7 +6466,7 @@ static int rsa_decode_test(void)
         goto done;
     }
     /* TODO: probably should fail when length is -1! */
-    ret = wc_RsaPublicKeyDecodeRaw(n, -1, e, sizeof(e), &keyPub);
+    ret = wc_RsaPublicKeyDecodeRaw(n, (word32)-1, e, sizeof(e), &keyPub);
     if (ret != 0) {
         ret = -5404;
         goto done;
@@ -6358,7 +6475,7 @@ static int rsa_decode_test(void)
     ret = wc_InitRsaKey(&keyPub, NULL);
     if (ret != 0)
         return -5405;
-    ret = wc_RsaPublicKeyDecodeRaw(n, sizeof(n), e, -1, &keyPub);
+    ret = wc_RsaPublicKeyDecodeRaw(n, sizeof(n), e, (word32)-1, &keyPub);
     if (ret != 0) {
         ret = -5406;
         goto done;
@@ -6612,7 +6729,19 @@ int rsa_test(void)
         return ret;
 #endif
 
-    tmp = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#ifdef USE_CERT_BUFFERS_1024
+    bytes = sizeof_client_key_der_1024;
+	if (bytes < (size_t)sizeof_client_cert_der_1024)
+		bytes = sizeof_client_cert_der_1024;
+#elif defined(USE_CERT_BUFFERS_2048)
+    bytes = sizeof_client_key_der_2048;
+	if (bytes < (size_t)sizeof_client_cert_der_2048)
+		bytes = sizeof_client_cert_der_2048;
+#else
+	bytes = FOURK_BUF;
+#endif
+
+    tmp = (byte*)XMALLOC(bytes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL
     #ifdef WOLFSSL_ASYNC_CRYPT
         || out == NULL || plain == NULL
@@ -6623,10 +6752,8 @@ int rsa_test(void)
 
 #ifdef USE_CERT_BUFFERS_1024
     XMEMCPY(tmp, client_key_der_1024, sizeof_client_key_der_1024);
-    bytes = sizeof_client_key_der_1024;
 #elif defined(USE_CERT_BUFFERS_2048)
     XMEMCPY(tmp, client_key_der_2048, sizeof_client_key_der_2048);
-    bytes = sizeof_client_key_der_2048;
 #elif !defined(NO_FILESYSTEM)
     file = fopen(clientKey, "rb");
     if (!file) {
@@ -6660,9 +6787,11 @@ int rsa_test(void)
         ERROR_OUT(-5505, exit_rsa);
     }
 
+#ifndef NO_SIG_WRAPPER
     ret = rsa_sig_test(&key, sizeof(RsaKey), wc_RsaEncryptSize(&key), &rng);
     if (ret != 0)
         goto exit_rsa;
+#endif
 
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -10076,7 +10205,7 @@ done:
 #endif /* WOLFSSL_KEY_GEN */
 
 static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
-    int curve_id)
+    int curve_id, const ecc_set_type* dp)
 {
     DECLARE_VAR(sharedA, byte, ECC_SHARED_SIZE, HEAP_HINT);
     DECLARE_VAR(sharedB, byte, ECC_SHARED_SIZE, HEAP_HINT);
@@ -10096,6 +10225,7 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     ecc_key userA, userB, pubKey;
 
     (void)testVerifyCount;
+    (void)dp;
 
     XMEMSET(&userA, 0, sizeof(ecc_key));
     XMEMSET(&userB, 0, sizeof(ecc_key));
@@ -10110,6 +10240,17 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
     ret = wc_ecc_init_ex(&pubKey, HEAP_HINT, devId);
     if (ret != 0)
         goto done;
+
+#ifdef WOLFSSL_CUSTOM_CURVES
+    if (dp != NULL) {
+        ret = wc_ecc_set_custom_curve(&userA, dp);
+        if (ret != 0)
+            goto done;
+        ret = wc_ecc_set_custom_curve(&userB, dp);
+        if (ret != 0)
+            goto done;
+    }
+#endif
 
     ret = wc_ecc_make_key_ex(rng, keySize, &userA, curve_id);
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -10194,6 +10335,12 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
         goto done;
 
 #ifdef HAVE_ECC_KEY_IMPORT
+    #ifdef WOLFSSL_CUSTOM_CURVES
+        if (dp != NULL) {
+            ret = wc_ecc_set_custom_curve(&pubKey, dp);
+            if (ret != 0) goto done;
+        }
+    #endif
     ret = wc_ecc_import_x963_ex(exportBuf, x, &pubKey, curve_id);
     if (ret != 0)
         goto done;
@@ -10221,10 +10368,16 @@ static int ecc_test_curve_size(WC_RNG* rng, int keySize, int testVerifyCount,
         if (ret != 0)
             goto done;
         wc_ecc_free(&pubKey);
+
         ret = wc_ecc_init_ex(&pubKey, HEAP_HINT, devId);
         if (ret != 0)
             goto done;
-
+    #ifdef WOLFSSL_CUSTOM_CURVES
+        if (dp != NULL) {
+            ret = wc_ecc_set_custom_curve(&pubKey, dp);
+            if (ret != 0) goto done;
+        }
+    #endif
         ret = wc_ecc_import_x963_ex(exportBuf, x, &pubKey, curve_id);
         if (ret != 0)
             goto done;
@@ -10353,7 +10506,7 @@ static int ecc_test_curve(WC_RNG* rng, int keySize)
 {
     int ret;
 
-    ret = ecc_test_curve_size(rng, keySize, ECC_TEST_VERIFY_COUNT, ECC_CURVE_DEF);
+    ret = ecc_test_curve_size(rng, keySize, ECC_TEST_VERIFY_COUNT, ECC_CURVE_DEF, NULL);
     if (ret < 0) {
         if (ret == ECC_CURVE_OID_E) {
             /* ignore error for curves not found */
@@ -10950,6 +11103,60 @@ done:
 }
 #endif /* WOLFSSL_CERT_EXT */
 
+#ifdef WOLFSSL_CUSTOM_CURVES
+static int ecc_test_custom_curves(WC_RNG* rng)
+{
+    int ret;
+
+    /* test use of custom curve - using BRAINPOOLP256R1 for test */
+    const word32 ecc_oid_brainpoolp256r1_sum = 104;
+    const ecc_oid_t ecc_oid_brainpoolp256r1[] = {
+        0x2B,0x24,0x03,0x03,0x02,0x08,0x01,0x01,0x07
+    };
+    const ecc_set_type ecc_dp_brainpool256r1 = {
+        32,                                                                 /* size/bytes */
+        ECC_CURVE_CUSTOM,                                                   /* ID         */
+        "BRAINPOOLP256R1",                                                  /* curve name */
+        "A9FB57DBA1EEA9BC3E660A909D838D726E3BF623D52620282013481D1F6E5377", /* prime      */
+        "7D5A0975FC2C3057EEF67530417AFFE7FB8055C126DC5C6CE94A4B44F330B5D9", /* A          */
+        "26DC5C6CE94A4B44F330B5D9BBD77CBF958416295CF7E1CE6BCCDC18FF8C07B6", /* B          */
+        "A9FB57DBA1EEA9BC3E660A909D838D718C397AA3B561A6F7901E0E82974856A7", /* order      */
+        "8BD2AEB9CB7E57CB2C4B482FFC81B7AFB9DE27E1E3BD23C23A4453BD9ACE3262", /* Gx         */
+        "547EF835C3DAC4FD97F8461A14611DC9C27745132DED8E545C1D54C72F046997", /* Gy         */
+        ecc_oid_brainpoolp256r1,                                            /* oid/oidSz  */
+        sizeof(ecc_oid_brainpoolp256r1) / sizeof(ecc_oid_t),
+        ecc_oid_brainpoolp256r1_sum,                                        /* oid sum    */
+        1,                                                                  /* cofactor   */
+    };
+
+    ret = ecc_test_curve_size(rng, 0, ECC_TEST_VERIFY_COUNT, ECC_CURVE_DEF,
+        &ecc_dp_brainpool256r1);
+    if (ret != 0) {
+        printf("ECC test for custom curve failed! %d\n", ret);
+        return ret;
+    }
+
+    #if defined(HAVE_ECC_BRAINPOOL) || defined(HAVE_ECC_KOBLITZ)
+    {
+        int curve_id;
+        #ifdef HAVE_ECC_BRAINPOOL
+            curve_id = ECC_BRAINPOOLP256R1;
+        #else
+            curve_id = ECC_SECP256K1;
+        #endif
+        /* Test and demonstrate use of non-SECP curve */
+        ret = ecc_test_curve_size(rng, 0, ECC_TEST_VERIFY_COUNT, curve_id, NULL);
+        if (ret < 0) {
+            printf("ECC test for curve_id %d failed! %d\n", curve_id, ret);
+            return ret;
+        }
+    }
+    #endif
+
+    return ret;
+}
+#endif /* WOLFSSL_CUSTOM_CURVES */
+
 int ecc_test(void)
 {
     int ret;
@@ -11048,22 +11255,10 @@ int ecc_test(void)
 #endif /* HAVE_ECC521 */
 
 #if defined(WOLFSSL_CUSTOM_CURVES)
-    #if defined(HAVE_ECC_BRAINPOOL) || defined(HAVE_ECC_KOBLITZ)
-    {
-        int curve_id;
-        #ifdef HAVE_ECC_BRAINPOOL
-            curve_id = ECC_BRAINPOOLP256R1;
-        #else
-            curve_id = ECC_SECP256K1;
-        #endif
-        /* Test and demonstrate use of non-SECP curve */
-        ret = ecc_test_curve_size(&rng, 0, ECC_TEST_VERIFY_COUNT, curve_id);
-        if (ret < 0) {
-            printf("ecc_test_curve_size: type %d: failed!: %d\n", curve_id, ret);
-            goto done;
-        }
+    ret = ecc_test_custom_curves(&rng);
+    if (ret != 0) {
+        goto done;
     }
-    #endif
 #endif
 
 #ifdef HAVE_ECC_CDH
@@ -13448,9 +13643,9 @@ int mp_test(void)
     int    ret;
 #if defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN)
     int    i, j, k;
+    mp_digit d;
 #endif
     mp_int a, b, r1, r2, p;
-    mp_digit d;
 
     ret = mp_init_multi(&a, &b, &r1, &r2, NULL, NULL);
     if (ret != 0)
@@ -13674,7 +13869,7 @@ int mutex_test(void)
     return 0;
 }
 
-#ifdef USE_WOLFSSL_MEMORY
+#if defined(USE_WOLFSSL_MEMORY) && !defined(FREERTOS)
 static int malloc_cnt = 0;
 static int realloc_cnt = 0;
 static int free_cnt = 0;

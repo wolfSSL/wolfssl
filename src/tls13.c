@@ -1503,6 +1503,7 @@ static INLINE void BuildTls13Nonce(WOLFSSL* ssl, byte* nonce, const byte* iv,
         nonce[i] ^= iv[i];
 }
 
+#ifdef HAVE_CHACHA
 /* Encrypt with ChaCha20 and create authenication tag with Poly1305.
  *
  * ssl     The SSL/TLS object.
@@ -1550,6 +1551,7 @@ static int ChaCha20Poly1305_Encrypt(WOLFSSL* ssl, byte* output,
 
     return ret;
 }
+#endif
 
 /* Encrypt data for TLS v1.3.
  *
@@ -1694,6 +1696,7 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
     return ret;
 }
 
+#ifdef HAVE_CHACHA
 /* Decrypt with ChaCha20 and check authenication tag with Poly1305.
  *
  * ssl     The SSL/TLS object.
@@ -1747,6 +1750,7 @@ static int ChaCha20Poly1305_Decrypt(WOLFSSL* ssl, byte* output,
 
     return ret;
 }
+#endif
 
 /* Decrypt data for TLS v1.3.
  *
@@ -3951,18 +3955,14 @@ static int CreateSigData(WOLFSSL* ssl, byte* sigData, word16* sigDataSz,
     XMEMSET(sigData, SIGNING_DATA_PREFIX_BYTE, SIGNING_DATA_PREFIX_SZ);
     idx = SIGNING_DATA_PREFIX_SZ;
 
-    #ifndef NO_WOLFSSL_SERVER
     if ((side == WOLFSSL_SERVER_END && check) ||
         (side == WOLFSSL_CLIENT_END && !check)) {
         XMEMCPY(&sigData[idx], clientCertVfyLabel, CERT_VFY_LABEL_SZ);
     }
-    #endif
-    #ifndef NO_WOLFSSL_CLIENT
     if ((side == WOLFSSL_CLIENT_END && check) ||
         (side == WOLFSSL_SERVER_END && !check)) {
         XMEMCPY(&sigData[idx], serverCertVfyLabel, CERT_VFY_LABEL_SZ);
     }
-    #endif
     idx += CERT_VFY_LABEL_SZ;
 
     ret = GetMsgHash(ssl, &sigData[idx]);
@@ -6849,6 +6849,7 @@ int wolfSSL_request_certificate(WOLFSSL* ssl)
 }
 #endif /* !NO_CERTS && WOLFSSL_POST_HANDSHAKE_AUTH */
 
+#ifndef NO_WOLFSSL_SERVER
 /* The server accepting a connection from a client.
  * The protocol version is expecting to be TLS v1.3.
  * If the client downgrades, and older versions of the protocol are compiled
@@ -7099,6 +7100,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
             return SSL_FATAL_ERROR;
     }
 }
+#endif
 
 #ifdef WOLFSSL_EARLY_DATA
 /* Sets the maximum amount of early data that can be seen by server when using

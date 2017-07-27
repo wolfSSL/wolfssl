@@ -161,6 +161,7 @@ enum wolfSSL_ErrorCodes {
     BAD_BINDER                   = -423,   /* Binder does not match */
     EXT_NOT_ALLOWED              = -424,   /* Extension not allowed in msg */
     INVALID_PARAMETER            = -425,   /* Security parameter invalid */
+    MCAST_HIGHWATER_CB_E         = -426,   /* Multicast highwater cb err */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
     /* begin negotiation parameter errors */

@@ -5249,6 +5249,14 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
 
     while ((current = list) != NULL) {
         list = current->next;
+        if ((current->group & NAMED_DH_MASK) == 0) {
+#ifdef HAVE_CURVE25519
+            if (current->group == WOLFSSL_ECC_X25519) {
+            }
+            else
+#endif
+                wc_ecc_free(current->key);
+        }
         XFREE(current->key, heap, DYNAMIC_TYPE_PRIVATE_KEY);
         XFREE(current->ke, heap, DYNAMIC_TYPE_PUBLIC_KEY);
         XFREE(current, heap, DYNAMIC_TYPE_TLSX);
@@ -5435,6 +5443,8 @@ static int TLSX_KeyShare_ProcessDh(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
 
     return ret;
 #else
+    (void)ssl;
+    (void)keyShareEntry;
     return PEER_KEY_ERROR;
 #endif
 }
