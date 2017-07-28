@@ -8939,9 +8939,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             }
         #endif
             if (ret != 0) {
+                int why = bad_certificate;
                 if (!ssl->options.verifyNone) {
-                    int why = bad_certificate;
-
                     if (ret == ASN_AFTER_DATE_E || ret == ASN_BEFORE_DATE_E) {
                         why = certificate_expired;
                     }
@@ -8984,11 +8983,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         }
                     #endif /* SESSION_CERTS */
                     }
-                    if (ret != 0) {
-                        SendAlert(ssl, alert_fatal, why);   /* try to send */
-                        ssl->options.isClosed = 1;
-                    }
                 }
+                if (ret != 0) {
+                    SendAlert(ssl, alert_fatal, why);   /* try to send */
+                    ssl->options.isClosed = 1;
+                }
+
                 ssl->error = ret;
             }
         #ifdef WOLFSSL_ALWAYS_VERIFY_CB
