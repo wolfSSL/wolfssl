@@ -2643,7 +2643,9 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig, 0, tls1_2, keySz);
 }
 
-#if !defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS)
+#if !defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS) || \
+    (!defined(NO_WOLFSSL_CLIENT) && (!defined(NO_DH) || defined(HAVE_ECC)))
+
 /* Decode the signature algorithm.
  *
  * input     The encoded signature algorithm.
