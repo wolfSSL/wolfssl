@@ -6308,6 +6308,51 @@ static int test_wc_AesGcmEncryptDecrypt (void)
             if (gcmD == BAD_FUNC_ARG) {
                 gcmD = 0;
             } else {
+                gcmE = SSL_FATAL_ERROR;
+            }
+        #endif
+    } /* END wc_AesGcmEncrypt */
+
+    printf(resultFmt, gcmE == 0 ? passed : failed);
+    if (gcmE != 0) {
+        return gcmE;
+    }
+  
+    #ifdef HAVE_AES_DECRYPT
+        printf(testingFmt, "wc_AesGcmDecrypt()");
+
+        if (gcmD == 0) {
+            gcmD = wc_AesGcmDecrypt(NULL, dec, enc, sizeof(enc)/sizeof(byte),
+                                   iv, sizeof(iv)/sizeof(byte), resultT,
+                                   sizeof(resultT), a, sizeof(a));
+            if (gcmD == BAD_FUNC_ARG) {
+                gcmD = wc_AesGcmDecrypt(&aes, NULL, enc, sizeof(enc)/sizeof(byte),
+                                   iv, sizeof(iv)/sizeof(byte), resultT,
+                                   sizeof(resultT), a, sizeof(a));
+            }
+            if (gcmD == BAD_FUNC_ARG) {
+                gcmD = wc_AesGcmDecrypt(&aes, dec, NULL, sizeof(enc)/sizeof(byte),
+                                   iv, sizeof(iv)/sizeof(byte), resultT,
+                                   sizeof(resultT), a, sizeof(a));
+            }
+            if (gcmD == BAD_FUNC_ARG) {
+                gcmD = wc_AesGcmDecrypt(&aes, dec, enc, sizeof(enc)/sizeof(byte),
+                                   NULL, sizeof(iv)/sizeof(byte), resultT,
+                                   sizeof(resultT), a, sizeof(a));
+            }
+            if (gcmD == BAD_FUNC_ARG) {
+                gcmD = wc_AesGcmDecrypt(&aes, dec, enc, sizeof(enc)/sizeof(byte),
+                                   iv, sizeof(iv)/sizeof(byte), NULL,
+                                   sizeof(resultT), a, sizeof(a));
+            }
+            if (gcmD == BAD_FUNC_ARG) {
+                gcmD = wc_AesGcmDecrypt(&aes, dec, enc, sizeof(enc)/sizeof(byte),
+                                   iv, sizeof(iv)/sizeof(byte), resultT,
+                                   sizeof(resultT) + 1, a, sizeof(a));
+            }
+            if (gcmD == BAD_FUNC_ARG) {
+                gcmD = 0;
+            } else {
                 gcmD = SSL_FATAL_ERROR;
             }
         } /* END wc_AesGcmDecrypt */

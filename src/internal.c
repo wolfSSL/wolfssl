@@ -9785,7 +9785,6 @@ static INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
         for (i = 0, p = ssl->keys.peerSeq;
              i < WOLFSSL_DTLS_PEERSEQ_SZ;
              i++, p++) {
-
             if (p->peerId == ssl->keys.curPeerId) {
                 peerSeq = p;
                 break;
