@@ -908,14 +908,30 @@ static int dtls_export_load(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     int idx = 0;
     Options* options = &ssl->options;
 
-    if (ver != DTLS_EXPORT_VERSION) {
-        WOLFSSL_MSG("Export version not supported");
+    switch (ver) {
+        case DTLS_EXPORT_VERSION:
+            if (len < DTLS_EXPORT_OPT_SZ) {
+                WOLFSSL_MSG("Sanity check on buffer size failed");
+                return BAD_FUNC_ARG;
+            }
+            break;
+
+        case DTLS_EXPORT_VERSION_3:
+            if (len < DTLS_EXPORT_OPT_SZ_3) {
+                WOLFSSL_MSG("Sanity check on buffer size failed");
+                return BAD_FUNC_ARG;
+            }
+            break;
+
+        default:
+            WOLFSSL_MSG("Export version not supported");
+            return BAD_FUNC_ARG;
+    }
+
+    if (exp == NULL || options == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    if (exp == NULL || options == NULL || len < DTLS_EXPORT_OPT_SZ) {
-        return BAD_FUNC_ARG;
-    }
 
     /* these options are kept and sent to indicate verify status and strength
      * of handshake */
@@ -988,13 +1004,17 @@ static int dtls_export_load(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     options->createTicket  = exp[idx++]; /* Server to create new Ticket */
     options->useTicket     = exp[idx++]; /* Use Ticket not session cache */
 #ifdef WOLFSSL_TLS13
-    options->noTicketTls13 = exp[idx++]; /* Server won't create new Ticket */
+    if (ver > DTLS_EXPORT_VERSION_3) {
+        options->noTicketTls13 = exp[idx++];/* Server won't create new Ticket */
+    }
 #endif
 #else
     idx++;
     idx++;
 #ifdef WOLFSSL_TLS13
-    idx++;
+    if (ver > DTLS_EXPORT_VERSION_3) {
+        idx++;
+    }
 #endif
 #endif
     options->processReply   = exp[idx++];
@@ -1067,7 +1087,7 @@ static int ImportPeerInfo(WOLFSSL* ssl, byte* buf, word32 len, byte ver)
     word16 port;
     char   ip[DTLS_EXPORT_IP];
 
-    if (ver != DTLS_EXPORT_VERSION) {
+    if (ver != DTLS_EXPORT_VERSION && ver != DTLS_EXPORT_VERSION_3) {
         WOLFSSL_MSG("Export version not supported");
         return BAD_FUNC_ARG;
     }
@@ -1200,6 +1220,7 @@ int wolfSSL_dtls_import_internal(WOLFSSL* ssl, byte* buf, word32 sz)
     word16 length = 0;
     int version;
     int ret;
+    int optSz;
 
     WOLFSSL_ENTER("wolfSSL_dtls_import_internal");
     /* check at least enough room for protocol and length */
@@ -1233,12 +1254,28 @@ int wolfSSL_dtls_import_internal(WOLFSSL* ssl, byte* buf, word32 sz)
 #endif /* WOLFSSL_SESSION_EXPORT_DEBUG */
 
     /* perform sanity checks and extract Options information used */
-    if (DTLS_EXPORT_LEN + DTLS_EXPORT_OPT_SZ + idx > sz) {
+    switch (version) {
+        case DTLS_EXPORT_VERSION:
+            optSz = DTLS_EXPORT_OPT_SZ;
+            break;
+
+        case DTLS_EXPORT_VERSION_3:
+            WOLFSSL_MSG("Importing older version 3");
+            optSz = DTLS_EXPORT_OPT_SZ_3;
+            break;
+
+        default:
+            WOLFSSL_MSG("Bad export version");
+            return BAD_FUNC_ARG;
+
+    }
+
+    if (DTLS_EXPORT_LEN + optSz + idx > sz) {
         WOLFSSL_MSG("Import Options struct error");
         return BUFFER_E;
     }
     ato16(buf + idx, &length); idx += DTLS_EXPORT_LEN;
-    if (length != DTLS_EXPORT_OPT_SZ) {
+    if (length != optSz) {
         WOLFSSL_MSG("Import Options struct error");
         return BUFFER_E;
     }
