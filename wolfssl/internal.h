@@ -1185,6 +1185,10 @@ enum Misc {
     READ_PROTO         = 0     /* reading a protocol message */
 };
 
+/* minimum Downgrade Minor version */
+#ifndef WOLFSSL_MIN_DOWNGRADE
+    #define WOLFSSL_MIN_DOWNGRADE TLSv1_MINOR
+#endif
 
 /* Set max implicit IV size for AEAD cipher suites */
 #define AEAD_MAX_IMP_SZ 12
