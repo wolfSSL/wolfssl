@@ -14345,16 +14345,33 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                                  WOLFSSL_DES_cblock* ivec, int enc)
     {
         Des myDes;
+        byte lastblock[DES_BLOCK_SIZE];
+        int  lb_sz;
+        long  blk;
 
         WOLFSSL_ENTER("DES_cbc_encrypt");
 
         /* OpenSSL compat, no ret */
         wc_Des_SetKey(&myDes, (const byte*)schedule, (const byte*)ivec, !enc);
+        lb_sz = length%DES_BLOCK_SIZE;
+        blk   = length/DES_BLOCK_SIZE;
 
-        if (enc)
-            wc_Des_CbcEncrypt(&myDes, output, input, (word32)length);
-        else
-            wc_Des_CbcDecrypt(&myDes, output, input, (word32)length);
+        if (enc){
+            wc_Des_CbcEncrypt(&myDes, output, input, (word32)blk*DES_BLOCK_SIZE);
+            if(lb_sz){
+                XMEMSET(lastblock, DES_BLOCK_SIZE, 0);
+                XMEMCPY(lastblock, input+length-lb_sz, lb_sz);
+                wc_Des_CbcEncrypt(&myDes, output+blk*DES_BLOCK_SIZE,
+                    lastblock, (word32)DES_BLOCK_SIZE);
+            }
+        }
+        else {
+            wc_Des_CbcDecrypt(&myDes, output, input, (word32)blk*DES_BLOCK_SIZE);
+            if(lb_sz){
+                wc_Des_CbcDecrypt(&myDes, lastblock, input+length-lb_sz, (word32)DES_BLOCK_SIZE);
+                XMEMCPY(output+length-lb_sz, lastblock, lb_sz);
+            }
+        }
     }
 
 
@@ -14368,6 +14385,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     {
         Des3 des;
         byte key[24];/* EDE uses 24 size key */
+        byte lastblock[DES_BLOCK_SIZE];
+        int  lb_sz;
+        long  blk;
 
         WOLFSSL_ENTER("wolfSSL_DES_ede3_cbc_encrypt");
 
@@ -14375,14 +14395,25 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         XMEMCPY(key, *ks1, DES_BLOCK_SIZE);
         XMEMCPY(&key[DES_BLOCK_SIZE], *ks2, DES_BLOCK_SIZE);
         XMEMCPY(&key[DES_BLOCK_SIZE * 2], *ks3, DES_BLOCK_SIZE);
-
+        lb_sz = sz%DES_BLOCK_SIZE;
+        blk   = sz/DES_BLOCK_SIZE;
         if (enc) {
             wc_Des3_SetKey(&des, key, (const byte*)ivec, DES_ENCRYPTION);
-            wc_Des3_CbcEncrypt(&des, output, input, (word32)sz);
+            wc_Des3_CbcEncrypt(&des, output, input, (word32)blk*DES_BLOCK_SIZE);
+            if(lb_sz){
+                XMEMSET(lastblock, DES_BLOCK_SIZE, 0);
+                XMEMCPY(lastblock, input+sz-lb_sz, lb_sz);
+                wc_Des3_CbcEncrypt(&des, output+blk*DES_BLOCK_SIZE,
+                    lastblock, (word32)DES_BLOCK_SIZE);
+            }
         }
         else {
             wc_Des3_SetKey(&des, key, (const byte*)ivec, DES_DECRYPTION);
-            wc_Des3_CbcDecrypt(&des, output, input, (word32)sz);
+            wc_Des3_CbcDecrypt(&des, output, input, (word32)blk*DES_BLOCK_SIZE);
+            if(lb_sz){
+                wc_Des3_CbcDecrypt(&des, lastblock, input+sz-lb_sz, (word32)DES_BLOCK_SIZE);
+                XMEMCPY(output+sz-lb_sz, lastblock, lb_sz);
+            }
         }
     }
 
@@ -14394,16 +14425,31 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                      int enc)
     {
         Des myDes;
+        byte lastblock[DES_BLOCK_SIZE];
+        int  lb_sz;
+        long  blk;
 
         WOLFSSL_ENTER("DES_ncbc_encrypt");
 
         /* OpenSSL compat, no ret */
         wc_Des_SetKey(&myDes, (const byte*)schedule, (const byte*)ivec, !enc);
-
-        if (enc)
-            wc_Des_CbcEncrypt(&myDes, output, input, (word32)length);
-        else
-            wc_Des_CbcDecrypt(&myDes, output, input, (word32)length);
+        lb_sz = length%DES_BLOCK_SIZE;
+        blk   = length/DES_BLOCK_SIZE;
+        if (enc){
+            wc_Des_CbcEncrypt(&myDes, output, input, (word32)blk*DES_BLOCK_SIZE);
+            if(lb_sz){
+                XMEMSET(lastblock, DES_BLOCK_SIZE, 0);
+                XMEMCPY(lastblock, input+length-lb_sz, lb_sz);
+                wc_Des_CbcEncrypt(&myDes, output+blk*DES_BLOCK_SIZE,
+                    lastblock, (word32)DES_BLOCK_SIZE);
+            }
+        } else {
+            wc_Des_CbcDecrypt(&myDes, output, input, (word32)blk*DES_BLOCK_SIZE);
+            if(lb_sz){
+                wc_Des_CbcDecrypt(&myDes, lastblock, input+length-lb_sz, (word32)DES_BLOCK_SIZE);
+                XMEMCPY(output+length-lb_sz, lastblock, lb_sz);
+            }
+        }
 
         XMEMCPY(ivec, output + length - sizeof(DES_cblock), sizeof(DES_cblock));
     }
