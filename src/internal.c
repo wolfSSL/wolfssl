@@ -8421,7 +8421,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         if (!ok) {
                             WOLFSSL_MSG("Verify callback overriding valid certificate!");
                             ret = -1;
-                            SendAlert(ssl, alert_fatal, bad_certificate);
                             ssl->options.isClosed = 1;
                         }
                     #ifndef NO_CERTS
@@ -8526,6 +8525,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                     else {
                         WOLFSSL_MSG("\tNo callback override available, fatal");
+                        SendAlert(ssl, alert_fatal, bad_certificate);
                         args->fatal = 1;
                     }
                 }
@@ -8678,6 +8678,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                 if (args->fatal) {
                     ssl->error = ret;
+                    SendAlert(ssl, alert_fatal, bad_certificate);
                 #ifdef OPENSSL_EXTRA
                     ssl->peerVerifyRet = X509_V_ERR_CERT_REJECTED;
                 #endif
@@ -23593,7 +23594,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return ret;
         }
     #endif /* WOLFSSL_ASYNC_CRYPT */
-
+        if (ret != 0){
+             SendAlert(ssl, alert_fatal, bad_certificate);
+        }
         /* Digest is not allocated, so do this to prevent free */
         ssl->buffers.digest.buffer = NULL;
         ssl->buffers.digest.length = 0;
