@@ -14518,7 +14518,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 return WOLFSSL_FAILURE;
 #endif
         }
-
+#ifdef SESSION_CERTS
+        ssl->session.chain.count = 0;
+#endif
 #ifdef KEEP_PEER_CERT
         FreeX509(&ssl->peerCert);
         InitX509(&ssl->peerCert, 0, ssl->heap);
