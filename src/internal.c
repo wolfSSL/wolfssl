@@ -13206,9 +13206,18 @@ int SendCertificate(WOLFSSL* ssl)
         return 0;  /* not needed */
 
     if (ssl->options.sendVerify == SEND_BLANK_CERT) {
-		SendAlert(ssl, alert_warning, no_certificate);
-		return 0;
-    }
+	    if (ssl->version.major == SSLv3_MAJOR
+		    && ssl->version.minor == SSLv3_MINOR){
+            SendAlert(ssl, alert_warning, no_certificate);
+		    return 0;
+		} else {
+	        certSz = 0;
+		    certChainSz = 0;
+		    headerSz = CERT_HEADER_SZ;
+		    length = CERT_HEADER_SZ;
+		    listSz = 0;
+		}
+	}
     else {
         if (!ssl->buffers.certificate) {
             WOLFSSL_MSG("Send Cert missing certificate buffer");
