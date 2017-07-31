@@ -163,6 +163,7 @@ enum wolfSSL_ErrorCodes {
     INVALID_PARAMETER            = -425,   /* Security parameter invalid */
     MCAST_HIGHWATER_CB_E         = -426,   /* Multicast highwater cb err */
     ALERT_COUNT_E                = -427,   /* Alert Count exceeded err */
+    EXT_MISSING                  = -428,   /* Required extension not found */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
     /* begin negotiation parameter errors */
