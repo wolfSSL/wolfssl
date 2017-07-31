@@ -195,13 +195,6 @@ static int devId = INVALID_DEVID;
     const char* wnrConfigFile = "wnr-example.conf";
 #endif
 
-#ifdef HAVE_AESGCM
-#define LARGE_BUFFER_SIZE       1024
-static byte large_input[LARGE_BUFFER_SIZE];
-static byte large_output[LARGE_BUFFER_SIZE];
-static byte large_outdec[LARGE_BUFFER_SIZE];
-#endif
-
 typedef struct testVector {
     const char*  input;
     const char*  output;
@@ -381,9 +374,6 @@ int wolfcrypt_test(void* args)
 #endif
 {
     int ret;
-#ifdef HAVE_AESGCM
-    int i;
-#endif
 
     ((func_args*)args)->return_code = -1; /* error state */
 
@@ -674,8 +664,6 @@ int wolfcrypt_test(void* args)
         printf( "AES256   test passed!\n");
 
 #ifdef HAVE_AESGCM
-    for (i=0; i<LARGE_BUFFER_SIZE; i++)
-        large_input[i] = i;
     if ( (ret = aesgcm_test()) != 0)
         return err_sys("AES-GCM  test failed!\n", ret);
     else
@@ -4610,6 +4598,18 @@ int aesgcm_test(void)
 #endif
     int  alen, plen;
 
+#if !defined(BENCH_EMBEDDED)
+    #define ENABLE_AESGCM_LARGE_TEST
+    #define LARGE_BUFFER_SIZE 1024
+    byte large_input[LARGE_BUFFER_SIZE];
+    byte large_output[LARGE_BUFFER_SIZE];
+    byte large_outdec[LARGE_BUFFER_SIZE];
+
+    XMEMSET(large_input, 0, sizeof(large_input));
+    XMEMSET(large_output, 0, sizeof(large_output));
+    XMEMSET(large_outdec, 0, sizeof(large_outdec));
+#endif
+
     XMEMSET(resultT, 0, sizeof(resultT));
     XMEMSET(resultC, 0, sizeof(resultC));
     XMEMSET(resultP, 0, sizeof(resultP));
@@ -4646,6 +4646,11 @@ int aesgcm_test(void)
         return -4306;
 
     /* Large buffer test */
+#ifdef ENABLE_AESGCM_LARGE_TEST
+    /* setup test buffer */
+    for (alen=0; alen<LARGE_BUFFER_SIZE; alen++)
+        large_input[alen] = alen;
+
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
     result = wc_AesGcmEncrypt(&enc, large_output, large_input,
                               LARGE_BUFFER_SIZE, iv1, sizeof(iv1),
@@ -4666,6 +4671,7 @@ int aesgcm_test(void)
         return -4308;
     if (XMEMCMP(large_input, large_outdec, LARGE_BUFFER_SIZE))
         return -4309;
+#endif /* ENABLE_AESGCM_LARGE_TEST */
 
 #if !defined(HAVE_FIPS) && !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO)
     /* Variable IV length test */
