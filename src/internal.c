@@ -7781,6 +7781,7 @@ typedef struct ProcPeerCertArgs {
     int    certIdx;
     int    fatal;
     int    lastErr;
+    int    certErr_ovrdn; /*  overriden cert error */
 #ifdef WOLFSSL_ALT_CERT_CHAINS
     int    lastCaErr;
 #endif
@@ -7871,6 +7872,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         XMEMSET(args, 0, sizeof(ProcPeerCertArgs));
         args->idx = *inOutIdx;
         args->begin = *inOutIdx;
+        args->certErr_ovrdn = 0;
     #ifdef WOLFSSL_ASYNC_CRYPT
         ssl->async.freeArgs = FreeProcPeerCertArgs;
     #elif defined(WOLFSSL_NONBLOCK_OCSP)
@@ -8994,7 +8996,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             }
         #ifdef WOLFSSL_ALWAYS_VERIFY_CB
             else {
-                if (ssl->verifyCallback) {
+                if (ssl->verifyCallback && !args->certErr_ovrdn) {
                     int ok;
 
                     store->error = ret;
@@ -9818,7 +9820,7 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 		ssl->CBIS(ssl, SSL_CB_ACCEPT_LOOP, SSL_SUCCESS);
     }
 #endif
- 
+
     switch (type) {
 
     case hello_request:
@@ -12478,7 +12480,7 @@ int SendChangeCipher(WOLFSSL* ssl)
 	}
 	else{
 		ssl->options.clientState =
-			CLIENT_CHANGECIPHERSPEC_COMPLETE; 
+			CLIENT_CHANGECIPHERSPEC_COMPLETE;
 		if (ssl->CBIS != NULL)
 			ssl->CBIS(ssl, SSL_CB_CONNECT_LOOP, SSL_SUCCESS);
 	}
@@ -13162,7 +13164,7 @@ int SendFinished(WOLFSSL* ssl)
         #ifdef OPENSSL_EXTRA
 			ssl->options.serverState = SERVER_FINISHED_COMPLETE;
 			ssl->cbmode = SSL_CB_MODE_WRITE;
-            if (ssl->CBIS != NULL) 
+            if (ssl->CBIS != NULL)
 				ssl->CBIS(ssl, SSL_CB_HANDSHAKE_DONE, SSL_SUCCESS);
         #endif
             ssl->options.handShakeState = HANDSHAKE_DONE;
@@ -13174,7 +13176,7 @@ int SendFinished(WOLFSSL* ssl)
         #ifdef OPENSSL_EXTRA
 			ssl->options.clientState = CLIENT_FINISHED_COMPLETE;
 			ssl->cbmode = SSL_CB_MODE_WRITE;
-            if (ssl->CBIS != NULL) 
+            if (ssl->CBIS != NULL)
 				ssl->CBIS(ssl, SSL_CB_HANDSHAKE_DONE, SSL_SUCCESS);
         #endif
             ssl->options.handShakeState = HANDSHAKE_DONE;
@@ -23230,7 +23232,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
                     else
                         i += extSz;
-					
+
                     totalExtSz -= OPAQUE16_LEN + OPAQUE16_LEN + extSz;
                 }
 #endif
