@@ -29,7 +29,7 @@ WOLFSSL_API int wolfSSL_ASN1_INTEGER_get_int64(signed_word64 *p, const WOLFSSL_A
 #define ASN1_INTEGER_get_int64 wolfSSL_ASN1_INTEGER_get_int64
 
 # define WOLFSSL_V_ASN1_NEG                      0x100
-# define WOLFSSL_V_ASN1_NEG_INTEGER              (2 | WOLFSSL_V_ASN1_NEG)
+# define WOLFSSL_V_ASN1_NEG_INTEGER              (2 | V_ASN1_NEG)
 # define WOLFSSL_V_ASN1_INTEGER                  2
 
 # define WOLFSSL_INT64_MAX       INT64_MAX
