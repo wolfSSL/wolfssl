@@ -1408,7 +1408,9 @@ int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX* ctx, short keySz)
     }
 
     ctx->minEccKeySz     = keySz / 8;
+#ifndef NO_CERTS
     ctx->cm->minEccKeySz = keySz / 8;
+#endif
     return SSL_SUCCESS;
 }
 
