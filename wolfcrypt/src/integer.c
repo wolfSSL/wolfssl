@@ -212,7 +212,9 @@ void mp_forcezero(mp_int * a)
     if (a->dp != NULL) {
       /* force zero the used digits */
       ForceZero(a->dp, a->used * sizeof(mp_digit));
-
+#ifdef HAVE_WOLF_BIGINT
+      wc_bigint_zero(&a->raw);
+#endif
       /* free ram */
       mp_free(a);
 
@@ -484,9 +486,6 @@ void mp_zero (mp_int * a)
 
   a->sign = MP_ZPOS;
   a->used = 0;
-#ifdef HAVE_WOLF_BIGINT
-  wc_bigint_zero(&a->raw);
-#endif
 
   tmp = a->dp;
   for (n = 0; n < a->alloc; n++) {
