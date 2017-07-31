@@ -1402,7 +1402,7 @@ static void wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         /* check alignment, decrypt doesn't need alignment */
         if ((wolfssl_word)inBlock % AESNI_ALIGN) {
         #ifndef NO_WOLFSSL_ALLOC_ALIGN
-            byte* tmp = (byte*)XMALLOC(AES_BLOCK_SIZE, aes->heap,
+            byte* tmp = (byte*)XMALLOC(AES_BLOCK_SIZE + AESNI_ALIGN, aes->heap,
                                                       DYNAMIC_TYPE_TMP_BUFFER);
             byte* tmp_align;
             if (tmp == NULL) return;
@@ -2924,15 +2924,15 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             /* check alignment, decrypt doesn't need alignment */
             if ((wolfssl_word)in % AESNI_ALIGN) {
             #ifndef NO_WOLFSSL_ALLOC_ALIGN
-                byte* tmp = (byte*)XMALLOC(sz + AESNI_ALIGN, aes->heap,
-                                                    DYNAMIC_TYPE_TMP_BUFFER);
+                byte* tmp = (byte*)XMALLOC(sz + AES_BLOCK_SIZE + AESNI_ALIGN,
+                                            aes->heap, DYNAMIC_TYPE_TMP_BUFFER);
                 byte* tmp_align;
                 if (tmp == NULL) return MEMORY_E;
 
                 tmp_align = tmp + (AESNI_ALIGN - ((size_t)tmp % AESNI_ALIGN));
                 XMEMCPY(tmp_align, in, sz);
-                AES_CBC_encrypt(tmp_align, tmp_align, (byte*)aes->reg, sz, (byte*)aes->key,
-                            aes->rounds);
+                AES_CBC_encrypt(tmp_align, tmp_align, (byte*)aes->reg, sz,
+                                                  (byte*)aes->key, aes->rounds);
                 /* store iv for next call */
                 XMEMCPY(aes->reg, tmp_align + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
 
@@ -5552,206 +5552,206 @@ static int AES_GCM_decrypt(const unsigned char *in, unsigned char *out,
         HT[5] = gfmul_shifted(HT[2], HT[2]);
         HT[6] = gfmul_shifted(HT[2], HT[3]);
         HT[7] = gfmul_shifted(HT[3], HT[3]);
-    }
 
-    for (; i < nbytes/16/8; i++) {
-            r0 = _mm_setzero_si128();
-            r1 = _mm_setzero_si128();
-
-        tmp1 = _mm_shuffle_epi8(ctr1, BSWAP_EPI64);
-        tmp2 = _mm_add_epi32(ctr1, ONE);
-        tmp2 = _mm_shuffle_epi8(tmp2, BSWAP_EPI64);
-        tmp3 = _mm_add_epi32(ctr1, TWO);
-        tmp3 = _mm_shuffle_epi8(tmp3, BSWAP_EPI64);
-        tmp4 = _mm_add_epi32(ctr1, THREE);
-        tmp4 = _mm_shuffle_epi8(tmp4, BSWAP_EPI64);
-        tmp5 = _mm_add_epi32(ctr1, FOUR);
-        tmp5 = _mm_shuffle_epi8(tmp5, BSWAP_EPI64);
-        tmp6 = _mm_add_epi32(ctr1, FIVE);
-        tmp6 = _mm_shuffle_epi8(tmp6, BSWAP_EPI64);
-        tmp7 = _mm_add_epi32(ctr1, SIX);
-        tmp7 = _mm_shuffle_epi8(tmp7, BSWAP_EPI64);
-        tmp8 = _mm_add_epi32(ctr1, SEVEN);
-        tmp8 = _mm_shuffle_epi8(tmp8, BSWAP_EPI64);
-        ctr1 = _mm_add_epi32(ctr1, EIGHT);
-        tmp1 =_mm_xor_si128(tmp1, KEY[0]);
-        tmp2 =_mm_xor_si128(tmp2, KEY[0]);
-        tmp3 =_mm_xor_si128(tmp3, KEY[0]);
-        tmp4 =_mm_xor_si128(tmp4, KEY[0]);
-        tmp5 =_mm_xor_si128(tmp5, KEY[0]);
-        tmp6 =_mm_xor_si128(tmp6, KEY[0]);
-        tmp7 =_mm_xor_si128(tmp7, KEY[0]);
-        tmp8 =_mm_xor_si128(tmp8, KEY[0]);
-            /* 128 x 128 Carryless Multiply */
-            XV = _mm_loadu_si128(&((__m128i*)in)[i*8+0]);
-            XV = _mm_shuffle_epi8(XV, BSWAP_MASK);
-            XV = _mm_xor_si128(XV, X);
-            gfmul_only(XV, HT[7], &r0, &r1);
-        tmp1 = _mm_aesenc_si128(tmp1, KEY[1]);
-        tmp2 = _mm_aesenc_si128(tmp2, KEY[1]);
-        tmp3 = _mm_aesenc_si128(tmp3, KEY[1]);
-        tmp4 = _mm_aesenc_si128(tmp4, KEY[1]);
-        tmp5 = _mm_aesenc_si128(tmp5, KEY[1]);
-        tmp6 = _mm_aesenc_si128(tmp6, KEY[1]);
-        tmp7 = _mm_aesenc_si128(tmp7, KEY[1]);
-        tmp8 = _mm_aesenc_si128(tmp8, KEY[1]);
-            /* 128 x 128 Carryless Multiply */
-            XV = _mm_loadu_si128(&((__m128i*)in)[i*8+1]);
-            XV = _mm_shuffle_epi8(XV, BSWAP_MASK);
-            gfmul_only(XV, HT[6], &r0, &r1);
-        tmp1 = _mm_aesenc_si128(tmp1, KEY[2]);
-        tmp2 = _mm_aesenc_si128(tmp2, KEY[2]);
-        tmp3 = _mm_aesenc_si128(tmp3, KEY[2]);
-        tmp4 = _mm_aesenc_si128(tmp4, KEY[2]);
-        tmp5 = _mm_aesenc_si128(tmp5, KEY[2]);
-        tmp6 = _mm_aesenc_si128(tmp6, KEY[2]);
-        tmp7 = _mm_aesenc_si128(tmp7, KEY[2]);
-        tmp8 = _mm_aesenc_si128(tmp8, KEY[2]);
-            /* 128 x 128 Carryless Multiply */
-            XV = _mm_loadu_si128(&((__m128i*)in)[i*8+2]);
-            XV = _mm_shuffle_epi8(XV, BSWAP_MASK);
-            gfmul_only(XV, HT[5], &r0, &r1);
-        tmp1 = _mm_aesenc_si128(tmp1, KEY[3]);
-        tmp2 = _mm_aesenc_si128(tmp2, KEY[3]);
-        tmp3 = _mm_aesenc_si128(tmp3, KEY[3]);
-        tmp4 = _mm_aesenc_si128(tmp4, KEY[3]);
-        tmp5 = _mm_aesenc_si128(tmp5, KEY[3]);
-        tmp6 = _mm_aesenc_si128(tmp6, KEY[3]);
-        tmp7 = _mm_aesenc_si128(tmp7, KEY[3]);
-        tmp8 = _mm_aesenc_si128(tmp8, KEY[3]);
-            /* 128 x 128 Carryless Multiply */
-            XV = _mm_loadu_si128(&((__m128i*)in)[i*8+3]);
-            XV = _mm_shuffle_epi8(XV, BSWAP_MASK);
-            gfmul_only(XV, HT[4], &r0, &r1);
-        tmp1 = _mm_aesenc_si128(tmp1, KEY[4]);
-        tmp2 = _mm_aesenc_si128(tmp2, KEY[4]);
-        tmp3 = _mm_aesenc_si128(tmp3, KEY[4]);
-        tmp4 = _mm_aesenc_si128(tmp4, KEY[4]);
-        tmp5 = _mm_aesenc_si128(tmp5, KEY[4]);
-        tmp6 = _mm_aesenc_si128(tmp6, KEY[4]);
-        tmp7 = _mm_aesenc_si128(tmp7, KEY[4]);
-        tmp8 = _mm_aesenc_si128(tmp8, KEY[4]);
-            /* 128 x 128 Carryless Multiply */
-            XV = _mm_loadu_si128(&((__m128i*)in)[i*8+4]);
-            XV = _mm_shuffle_epi8(XV, BSWAP_MASK);
-            gfmul_only(XV, HT[3], &r0, &r1);
-        tmp1 = _mm_aesenc_si128(tmp1, KEY[5]);
-        tmp2 = _mm_aesenc_si128(tmp2, KEY[5]);
-        tmp3 = _mm_aesenc_si128(tmp3, KEY[5]);
-        tmp4 = _mm_aesenc_si128(tmp4, KEY[5]);
-        tmp5 = _mm_aesenc_si128(tmp5, KEY[5]);
-        tmp6 = _mm_aesenc_si128(tmp6, KEY[5]);
-        tmp7 = _mm_aesenc_si128(tmp7, KEY[5]);
-        tmp8 = _mm_aesenc_si128(tmp8, KEY[5]);
-            /* 128 x 128 Carryless Multiply */
-            XV = _mm_loadu_si128(&((__m128i*)in)[i*8+5]);
-            XV = _mm_shuffle_epi8(XV, BSWAP_MASK);
-            gfmul_only(XV, HT[2], &r0, &r1);
-        tmp1 = _mm_aesenc_si128(tmp1, KEY[6]);
-        tmp2 = _mm_aesenc_si128(tmp2, KEY[6]);
-        tmp3 = _mm_aesenc_si128(tmp3, KEY[6]);
-        tmp4 = _mm_aesenc_si128(tmp4, KEY[6]);
-        tmp5 = _mm_aesenc_si128(tmp5, KEY[6]);
-        tmp6 = _mm_aesenc_si128(tmp6, KEY[6]);
-        tmp7 = _mm_aesenc_si128(tmp7, KEY[6]);
-        tmp8 = _mm_aesenc_si128(tmp8, KEY[6]);
-            /* 128 x 128 Carryless Multiply */
-            XV = _mm_loadu_si128(&((__m128i*)in)[i*8+6]);
-            XV = _mm_shuffle_epi8(XV, BSWAP_MASK);
-            gfmul_only(XV, HT[1], &r0, &r1);
-        tmp1 = _mm_aesenc_si128(tmp1, KEY[7]);
-        tmp2 = _mm_aesenc_si128(tmp2, KEY[7]);
-        tmp3 = _mm_aesenc_si128(tmp3, KEY[7]);
-        tmp4 = _mm_aesenc_si128(tmp4, KEY[7]);
-        tmp5 = _mm_aesenc_si128(tmp5, KEY[7]);
-        tmp6 = _mm_aesenc_si128(tmp6, KEY[7]);
-        tmp7 = _mm_aesenc_si128(tmp7, KEY[7]);
-        tmp8 = _mm_aesenc_si128(tmp8, KEY[7]);
-            /* 128 x 128 Carryless Multiply */
-            XV = _mm_loadu_si128(&((__m128i*)in)[i*8+7]);
-            XV = _mm_shuffle_epi8(XV, BSWAP_MASK);
-            gfmul_only(XV, HT[0], &r0, &r1);
-        tmp1 = _mm_aesenc_si128(tmp1, KEY[8]);
-        tmp2 = _mm_aesenc_si128(tmp2, KEY[8]);
-        tmp3 = _mm_aesenc_si128(tmp3, KEY[8]);
-        tmp4 = _mm_aesenc_si128(tmp4, KEY[8]);
-        tmp5 = _mm_aesenc_si128(tmp5, KEY[8]);
-        tmp6 = _mm_aesenc_si128(tmp6, KEY[8]);
-        tmp7 = _mm_aesenc_si128(tmp7, KEY[8]);
-        tmp8 = _mm_aesenc_si128(tmp8, KEY[8]);
-            /* Reduction */
-            X = ghash_red(r0, r1);
-        tmp1 = _mm_aesenc_si128(tmp1, KEY[9]);
-        tmp2 = _mm_aesenc_si128(tmp2, KEY[9]);
-        tmp3 = _mm_aesenc_si128(tmp3, KEY[9]);
-        tmp4 = _mm_aesenc_si128(tmp4, KEY[9]);
-        tmp5 = _mm_aesenc_si128(tmp5, KEY[9]);
-        tmp6 = _mm_aesenc_si128(tmp6, KEY[9]);
-        tmp7 = _mm_aesenc_si128(tmp7, KEY[9]);
-        tmp8 = _mm_aesenc_si128(tmp8, KEY[9]);
-        lastKey = KEY[10];
-        if (nr > 10) {
-            tmp1 = _mm_aesenc_si128(tmp1, KEY[10]);
-            tmp2 = _mm_aesenc_si128(tmp2, KEY[10]);
-            tmp3 = _mm_aesenc_si128(tmp3, KEY[10]);
-            tmp4 = _mm_aesenc_si128(tmp4, KEY[10]);
-            tmp5 = _mm_aesenc_si128(tmp5, KEY[10]);
-            tmp6 = _mm_aesenc_si128(tmp6, KEY[10]);
-            tmp7 = _mm_aesenc_si128(tmp7, KEY[10]);
-            tmp8 = _mm_aesenc_si128(tmp8, KEY[10]);
-            tmp1 = _mm_aesenc_si128(tmp1, KEY[11]);
-            tmp2 = _mm_aesenc_si128(tmp2, KEY[11]);
-            tmp3 = _mm_aesenc_si128(tmp3, KEY[11]);
-            tmp4 = _mm_aesenc_si128(tmp4, KEY[11]);
-            tmp5 = _mm_aesenc_si128(tmp5, KEY[11]);
-            tmp6 = _mm_aesenc_si128(tmp6, KEY[11]);
-            tmp7 = _mm_aesenc_si128(tmp7, KEY[11]);
-            tmp8 = _mm_aesenc_si128(tmp8, KEY[11]);
-            lastKey = KEY[12];
-            if (nr > 12) {
-                tmp1 = _mm_aesenc_si128(tmp1, KEY[12]);
-                tmp2 = _mm_aesenc_si128(tmp2, KEY[12]);
-                tmp3 = _mm_aesenc_si128(tmp3, KEY[12]);
-                tmp4 = _mm_aesenc_si128(tmp4, KEY[12]);
-                tmp5 = _mm_aesenc_si128(tmp5, KEY[12]);
-                tmp6 = _mm_aesenc_si128(tmp6, KEY[12]);
-                tmp7 = _mm_aesenc_si128(tmp7, KEY[12]);
-                tmp8 = _mm_aesenc_si128(tmp8, KEY[12]);
-                tmp1 = _mm_aesenc_si128(tmp1, KEY[13]);
-                tmp2 = _mm_aesenc_si128(tmp2, KEY[13]);
-                tmp3 = _mm_aesenc_si128(tmp3, KEY[13]);
-                tmp4 = _mm_aesenc_si128(tmp4, KEY[13]);
-                tmp5 = _mm_aesenc_si128(tmp5, KEY[13]);
-                tmp6 = _mm_aesenc_si128(tmp6, KEY[13]);
-                tmp7 = _mm_aesenc_si128(tmp7, KEY[13]);
-                tmp8 = _mm_aesenc_si128(tmp8, KEY[13]);
-                lastKey = KEY[14];
+        for (; i < nbytes/16/8; i++) {
+                r0 = _mm_setzero_si128();
+                r1 = _mm_setzero_si128();
+    
+            tmp1 = _mm_shuffle_epi8(ctr1, BSWAP_EPI64);
+            tmp2 = _mm_add_epi32(ctr1, ONE);
+            tmp2 = _mm_shuffle_epi8(tmp2, BSWAP_EPI64);
+            tmp3 = _mm_add_epi32(ctr1, TWO);
+            tmp3 = _mm_shuffle_epi8(tmp3, BSWAP_EPI64);
+            tmp4 = _mm_add_epi32(ctr1, THREE);
+            tmp4 = _mm_shuffle_epi8(tmp4, BSWAP_EPI64);
+            tmp5 = _mm_add_epi32(ctr1, FOUR);
+            tmp5 = _mm_shuffle_epi8(tmp5, BSWAP_EPI64);
+            tmp6 = _mm_add_epi32(ctr1, FIVE);
+            tmp6 = _mm_shuffle_epi8(tmp6, BSWAP_EPI64);
+            tmp7 = _mm_add_epi32(ctr1, SIX);
+            tmp7 = _mm_shuffle_epi8(tmp7, BSWAP_EPI64);
+            tmp8 = _mm_add_epi32(ctr1, SEVEN);
+            tmp8 = _mm_shuffle_epi8(tmp8, BSWAP_EPI64);
+            ctr1 = _mm_add_epi32(ctr1, EIGHT);
+            tmp1 =_mm_xor_si128(tmp1, KEY[0]);
+            tmp2 =_mm_xor_si128(tmp2, KEY[0]);
+            tmp3 =_mm_xor_si128(tmp3, KEY[0]);
+            tmp4 =_mm_xor_si128(tmp4, KEY[0]);
+            tmp5 =_mm_xor_si128(tmp5, KEY[0]);
+            tmp6 =_mm_xor_si128(tmp6, KEY[0]);
+            tmp7 =_mm_xor_si128(tmp7, KEY[0]);
+            tmp8 =_mm_xor_si128(tmp8, KEY[0]);
+                /* 128 x 128 Carryless Multiply */
+                XV = _mm_loadu_si128(&((__m128i*)in)[i*8+0]);
+                XV = _mm_shuffle_epi8(XV, BSWAP_MASK);
+                XV = _mm_xor_si128(XV, X);
+                gfmul_only(XV, HT[7], &r0, &r1);
+            tmp1 = _mm_aesenc_si128(tmp1, KEY[1]);
+            tmp2 = _mm_aesenc_si128(tmp2, KEY[1]);
+            tmp3 = _mm_aesenc_si128(tmp3, KEY[1]);
+            tmp4 = _mm_aesenc_si128(tmp4, KEY[1]);
+            tmp5 = _mm_aesenc_si128(tmp5, KEY[1]);
+            tmp6 = _mm_aesenc_si128(tmp6, KEY[1]);
+            tmp7 = _mm_aesenc_si128(tmp7, KEY[1]);
+            tmp8 = _mm_aesenc_si128(tmp8, KEY[1]);
+                /* 128 x 128 Carryless Multiply */
+                XV = _mm_loadu_si128(&((__m128i*)in)[i*8+1]);
+                XV = _mm_shuffle_epi8(XV, BSWAP_MASK);
+                gfmul_only(XV, HT[6], &r0, &r1);
+            tmp1 = _mm_aesenc_si128(tmp1, KEY[2]);
+            tmp2 = _mm_aesenc_si128(tmp2, KEY[2]);
+            tmp3 = _mm_aesenc_si128(tmp3, KEY[2]);
+            tmp4 = _mm_aesenc_si128(tmp4, KEY[2]);
+            tmp5 = _mm_aesenc_si128(tmp5, KEY[2]);
+            tmp6 = _mm_aesenc_si128(tmp6, KEY[2]);
+            tmp7 = _mm_aesenc_si128(tmp7, KEY[2]);
+            tmp8 = _mm_aesenc_si128(tmp8, KEY[2]);
+                /* 128 x 128 Carryless Multiply */
+                XV = _mm_loadu_si128(&((__m128i*)in)[i*8+2]);
+                XV = _mm_shuffle_epi8(XV, BSWAP_MASK);
+                gfmul_only(XV, HT[5], &r0, &r1);
+            tmp1 = _mm_aesenc_si128(tmp1, KEY[3]);
+            tmp2 = _mm_aesenc_si128(tmp2, KEY[3]);
+            tmp3 = _mm_aesenc_si128(tmp3, KEY[3]);
+            tmp4 = _mm_aesenc_si128(tmp4, KEY[3]);
+            tmp5 = _mm_aesenc_si128(tmp5, KEY[3]);
+            tmp6 = _mm_aesenc_si128(tmp6, KEY[3]);
+            tmp7 = _mm_aesenc_si128(tmp7, KEY[3]);
+            tmp8 = _mm_aesenc_si128(tmp8, KEY[3]);
+                /* 128 x 128 Carryless Multiply */
+                XV = _mm_loadu_si128(&((__m128i*)in)[i*8+3]);
+                XV = _mm_shuffle_epi8(XV, BSWAP_MASK);
+                gfmul_only(XV, HT[4], &r0, &r1);
+            tmp1 = _mm_aesenc_si128(tmp1, KEY[4]);
+            tmp2 = _mm_aesenc_si128(tmp2, KEY[4]);
+            tmp3 = _mm_aesenc_si128(tmp3, KEY[4]);
+            tmp4 = _mm_aesenc_si128(tmp4, KEY[4]);
+            tmp5 = _mm_aesenc_si128(tmp5, KEY[4]);
+            tmp6 = _mm_aesenc_si128(tmp6, KEY[4]);
+            tmp7 = _mm_aesenc_si128(tmp7, KEY[4]);
+            tmp8 = _mm_aesenc_si128(tmp8, KEY[4]);
+                /* 128 x 128 Carryless Multiply */
+                XV = _mm_loadu_si128(&((__m128i*)in)[i*8+4]);
+                XV = _mm_shuffle_epi8(XV, BSWAP_MASK);
+                gfmul_only(XV, HT[3], &r0, &r1);
+            tmp1 = _mm_aesenc_si128(tmp1, KEY[5]);
+            tmp2 = _mm_aesenc_si128(tmp2, KEY[5]);
+            tmp3 = _mm_aesenc_si128(tmp3, KEY[5]);
+            tmp4 = _mm_aesenc_si128(tmp4, KEY[5]);
+            tmp5 = _mm_aesenc_si128(tmp5, KEY[5]);
+            tmp6 = _mm_aesenc_si128(tmp6, KEY[5]);
+            tmp7 = _mm_aesenc_si128(tmp7, KEY[5]);
+            tmp8 = _mm_aesenc_si128(tmp8, KEY[5]);
+                /* 128 x 128 Carryless Multiply */
+                XV = _mm_loadu_si128(&((__m128i*)in)[i*8+5]);
+                XV = _mm_shuffle_epi8(XV, BSWAP_MASK);
+                gfmul_only(XV, HT[2], &r0, &r1);
+            tmp1 = _mm_aesenc_si128(tmp1, KEY[6]);
+            tmp2 = _mm_aesenc_si128(tmp2, KEY[6]);
+            tmp3 = _mm_aesenc_si128(tmp3, KEY[6]);
+            tmp4 = _mm_aesenc_si128(tmp4, KEY[6]);
+            tmp5 = _mm_aesenc_si128(tmp5, KEY[6]);
+            tmp6 = _mm_aesenc_si128(tmp6, KEY[6]);
+            tmp7 = _mm_aesenc_si128(tmp7, KEY[6]);
+            tmp8 = _mm_aesenc_si128(tmp8, KEY[6]);
+                /* 128 x 128 Carryless Multiply */
+                XV = _mm_loadu_si128(&((__m128i*)in)[i*8+6]);
+                XV = _mm_shuffle_epi8(XV, BSWAP_MASK);
+                gfmul_only(XV, HT[1], &r0, &r1);
+            tmp1 = _mm_aesenc_si128(tmp1, KEY[7]);
+            tmp2 = _mm_aesenc_si128(tmp2, KEY[7]);
+            tmp3 = _mm_aesenc_si128(tmp3, KEY[7]);
+            tmp4 = _mm_aesenc_si128(tmp4, KEY[7]);
+            tmp5 = _mm_aesenc_si128(tmp5, KEY[7]);
+            tmp6 = _mm_aesenc_si128(tmp6, KEY[7]);
+            tmp7 = _mm_aesenc_si128(tmp7, KEY[7]);
+            tmp8 = _mm_aesenc_si128(tmp8, KEY[7]);
+                /* 128 x 128 Carryless Multiply */
+                XV = _mm_loadu_si128(&((__m128i*)in)[i*8+7]);
+                XV = _mm_shuffle_epi8(XV, BSWAP_MASK);
+                gfmul_only(XV, HT[0], &r0, &r1);
+            tmp1 = _mm_aesenc_si128(tmp1, KEY[8]);
+            tmp2 = _mm_aesenc_si128(tmp2, KEY[8]);
+            tmp3 = _mm_aesenc_si128(tmp3, KEY[8]);
+            tmp4 = _mm_aesenc_si128(tmp4, KEY[8]);
+            tmp5 = _mm_aesenc_si128(tmp5, KEY[8]);
+            tmp6 = _mm_aesenc_si128(tmp6, KEY[8]);
+            tmp7 = _mm_aesenc_si128(tmp7, KEY[8]);
+            tmp8 = _mm_aesenc_si128(tmp8, KEY[8]);
+                /* Reduction */
+                X = ghash_red(r0, r1);
+            tmp1 = _mm_aesenc_si128(tmp1, KEY[9]);
+            tmp2 = _mm_aesenc_si128(tmp2, KEY[9]);
+            tmp3 = _mm_aesenc_si128(tmp3, KEY[9]);
+            tmp4 = _mm_aesenc_si128(tmp4, KEY[9]);
+            tmp5 = _mm_aesenc_si128(tmp5, KEY[9]);
+            tmp6 = _mm_aesenc_si128(tmp6, KEY[9]);
+            tmp7 = _mm_aesenc_si128(tmp7, KEY[9]);
+            tmp8 = _mm_aesenc_si128(tmp8, KEY[9]);
+            lastKey = KEY[10];
+            if (nr > 10) {
+                tmp1 = _mm_aesenc_si128(tmp1, KEY[10]);
+                tmp2 = _mm_aesenc_si128(tmp2, KEY[10]);
+                tmp3 = _mm_aesenc_si128(tmp3, KEY[10]);
+                tmp4 = _mm_aesenc_si128(tmp4, KEY[10]);
+                tmp5 = _mm_aesenc_si128(tmp5, KEY[10]);
+                tmp6 = _mm_aesenc_si128(tmp6, KEY[10]);
+                tmp7 = _mm_aesenc_si128(tmp7, KEY[10]);
+                tmp8 = _mm_aesenc_si128(tmp8, KEY[10]);
+                tmp1 = _mm_aesenc_si128(tmp1, KEY[11]);
+                tmp2 = _mm_aesenc_si128(tmp2, KEY[11]);
+                tmp3 = _mm_aesenc_si128(tmp3, KEY[11]);
+                tmp4 = _mm_aesenc_si128(tmp4, KEY[11]);
+                tmp5 = _mm_aesenc_si128(tmp5, KEY[11]);
+                tmp6 = _mm_aesenc_si128(tmp6, KEY[11]);
+                tmp7 = _mm_aesenc_si128(tmp7, KEY[11]);
+                tmp8 = _mm_aesenc_si128(tmp8, KEY[11]);
+                lastKey = KEY[12];
+                if (nr > 12) {
+                    tmp1 = _mm_aesenc_si128(tmp1, KEY[12]);
+                    tmp2 = _mm_aesenc_si128(tmp2, KEY[12]);
+                    tmp3 = _mm_aesenc_si128(tmp3, KEY[12]);
+                    tmp4 = _mm_aesenc_si128(tmp4, KEY[12]);
+                    tmp5 = _mm_aesenc_si128(tmp5, KEY[12]);
+                    tmp6 = _mm_aesenc_si128(tmp6, KEY[12]);
+                    tmp7 = _mm_aesenc_si128(tmp7, KEY[12]);
+                    tmp8 = _mm_aesenc_si128(tmp8, KEY[12]);
+                    tmp1 = _mm_aesenc_si128(tmp1, KEY[13]);
+                    tmp2 = _mm_aesenc_si128(tmp2, KEY[13]);
+                    tmp3 = _mm_aesenc_si128(tmp3, KEY[13]);
+                    tmp4 = _mm_aesenc_si128(tmp4, KEY[13]);
+                    tmp5 = _mm_aesenc_si128(tmp5, KEY[13]);
+                    tmp6 = _mm_aesenc_si128(tmp6, KEY[13]);
+                    tmp7 = _mm_aesenc_si128(tmp7, KEY[13]);
+                    tmp8 = _mm_aesenc_si128(tmp8, KEY[13]);
+                    lastKey = KEY[14];
+                }
             }
+            tmp1 =_mm_aesenclast_si128(tmp1, lastKey);
+            tmp2 =_mm_aesenclast_si128(tmp2, lastKey);
+            tmp3 =_mm_aesenclast_si128(tmp3, lastKey);
+            tmp4 =_mm_aesenclast_si128(tmp4, lastKey);
+            tmp5 =_mm_aesenclast_si128(tmp5, lastKey);
+            tmp6 =_mm_aesenclast_si128(tmp6, lastKey);
+            tmp7 =_mm_aesenclast_si128(tmp7, lastKey);
+            tmp8 =_mm_aesenclast_si128(tmp8, lastKey);
+            tmp1 = _mm_xor_si128(tmp1, _mm_loadu_si128(&((__m128i*)in)[i*8+0]));
+            tmp2 = _mm_xor_si128(tmp2, _mm_loadu_si128(&((__m128i*)in)[i*8+1]));
+            tmp3 = _mm_xor_si128(tmp3, _mm_loadu_si128(&((__m128i*)in)[i*8+2]));
+            tmp4 = _mm_xor_si128(tmp4, _mm_loadu_si128(&((__m128i*)in)[i*8+3]));
+            tmp5 = _mm_xor_si128(tmp5, _mm_loadu_si128(&((__m128i*)in)[i*8+4]));
+            tmp6 = _mm_xor_si128(tmp6, _mm_loadu_si128(&((__m128i*)in)[i*8+5]));
+            tmp7 = _mm_xor_si128(tmp7, _mm_loadu_si128(&((__m128i*)in)[i*8+6]));
+            tmp8 = _mm_xor_si128(tmp8, _mm_loadu_si128(&((__m128i*)in)[i*8+7]));
+            _mm_storeu_si128(&((__m128i*)out)[i*8+0], tmp1);
+            _mm_storeu_si128(&((__m128i*)out)[i*8+1], tmp2);
+            _mm_storeu_si128(&((__m128i*)out)[i*8+2], tmp3);
+            _mm_storeu_si128(&((__m128i*)out)[i*8+3], tmp4);
+            _mm_storeu_si128(&((__m128i*)out)[i*8+4], tmp5);
+            _mm_storeu_si128(&((__m128i*)out)[i*8+5], tmp6);
+            _mm_storeu_si128(&((__m128i*)out)[i*8+6], tmp7);
+            _mm_storeu_si128(&((__m128i*)out)[i*8+7], tmp8);
         }
-        tmp1 =_mm_aesenclast_si128(tmp1, lastKey);
-        tmp2 =_mm_aesenclast_si128(tmp2, lastKey);
-        tmp3 =_mm_aesenclast_si128(tmp3, lastKey);
-        tmp4 =_mm_aesenclast_si128(tmp4, lastKey);
-        tmp5 =_mm_aesenclast_si128(tmp5, lastKey);
-        tmp6 =_mm_aesenclast_si128(tmp6, lastKey);
-        tmp7 =_mm_aesenclast_si128(tmp7, lastKey);
-        tmp8 =_mm_aesenclast_si128(tmp8, lastKey);
-        tmp1 = _mm_xor_si128(tmp1, _mm_loadu_si128(&((__m128i*)in)[i*8+0]));
-        tmp2 = _mm_xor_si128(tmp2, _mm_loadu_si128(&((__m128i*)in)[i*8+1]));
-        tmp3 = _mm_xor_si128(tmp3, _mm_loadu_si128(&((__m128i*)in)[i*8+2]));
-        tmp4 = _mm_xor_si128(tmp4, _mm_loadu_si128(&((__m128i*)in)[i*8+3]));
-        tmp5 = _mm_xor_si128(tmp5, _mm_loadu_si128(&((__m128i*)in)[i*8+4]));
-        tmp6 = _mm_xor_si128(tmp6, _mm_loadu_si128(&((__m128i*)in)[i*8+5]));
-        tmp7 = _mm_xor_si128(tmp7, _mm_loadu_si128(&((__m128i*)in)[i*8+6]));
-        tmp8 = _mm_xor_si128(tmp8, _mm_loadu_si128(&((__m128i*)in)[i*8+7]));
-        _mm_storeu_si128(&((__m128i*)out)[i*8+0], tmp1);
-        _mm_storeu_si128(&((__m128i*)out)[i*8+1], tmp2);
-        _mm_storeu_si128(&((__m128i*)out)[i*8+2], tmp3);
-        _mm_storeu_si128(&((__m128i*)out)[i*8+3], tmp4);
-        _mm_storeu_si128(&((__m128i*)out)[i*8+4], tmp5);
-        _mm_storeu_si128(&((__m128i*)out)[i*8+5], tmp6);
-        _mm_storeu_si128(&((__m128i*)out)[i*8+6], tmp7);
-        _mm_storeu_si128(&((__m128i*)out)[i*8+7], tmp8);
     }
 #endif
     for (k = i*8; k < nbytes/16; k++) {
