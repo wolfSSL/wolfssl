@@ -15785,6 +15785,11 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
                 }
             #endif /* WOLFSSL_DTLS */
 
+                if (idx + 1 >= WOLFSSL_MAX_SUITE_SZ) {
+                    WOLFSSL_MSG("WOLFSSL_MAX_SUITE_SZ set too low");
+                    return 0; /* suites buffer not large enough, error out */
+                }
+
                 suites->suites[idx++] = (XSTRSTR(name, "TLS13"))  ? TLS13_BYTE
                                       : (XSTRSTR(name, "CHACHA")) ? CHACHA_BYTE
                                       : (XSTRSTR(name, "QSH"))    ? QSH_BYTE
