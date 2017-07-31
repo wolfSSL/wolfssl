@@ -22890,15 +22890,18 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
          * set from either wolfSSL_set_options or wolfSSL_CTX_set_options */
         if (!ssl->options.dtls && ssl->options.downgrade &&
                 ssl->options.mask > 0) {
+            byte reset = 0; /* check if suites need reset after version change*/
             if (ssl->version.minor == TLSv1_2_MINOR &&
              (ssl->options.mask & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
                 WOLFSSL_MSG("\tOption set to not allow TLSv1.2, Downgrading");
+                reset              = 1;
                 ssl->version.minor = TLSv1_1_MINOR;
             }
             if (ssl->version.minor == TLSv1_1_MINOR &&
              (ssl->options.mask & SSL_OP_NO_TLSv1_1) == SSL_OP_NO_TLSv1_1) {
                 WOLFSSL_MSG("\tOption set to not allow TLSv1.1, Downgrading");
                 ssl->options.tls1_1 = 0;
+                reset              = 1;
                 ssl->version.minor = TLSv1_MINOR;
             }
             if (ssl->version.minor == TLSv1_MINOR &&
@@ -22906,6 +22909,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 WOLFSSL_MSG("\tOption set to not allow TLSv1, Downgrading");
                 ssl->options.tls    = 0;
                 ssl->options.tls1_1 = 0;
+                reset              = 1;
                 ssl->version.minor = SSLv3_MINOR;
             }
             if (ssl->version.minor == SSLv3_MINOR &&
@@ -22917,6 +22921,27 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             if (ssl->version.minor < ssl->options.minDowngrade) {
                 WOLFSSL_MSG("\tversion below minimum allowed, fatal error");
                 return VERSION_ERROR;
+            }
+
+            if (reset == 1) {
+                word16 haveRSA = 0;
+                word16 havePSK = 0;
+                int    keySz   = 0;
+
+            #ifndef NO_RSA
+                haveRSA = 1;
+            #endif
+            #ifndef NO_PSK
+                havePSK = ssl->options.havePSK;
+            #endif
+            #ifndef NO_CERTS
+                keySz = ssl->buffers.keySz;
+            #endif
+                WOLFSSL_MSG("Reseting allowed cipher suites after downgrade");
+                InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
+                    ssl->options.haveDH, ssl->options.haveNTRU,
+                    ssl->options.haveECDSAsig, ssl->options.haveECC,
+                    ssl->options.haveStaticECC, ssl->options.side);
             }
         }
 #endif
