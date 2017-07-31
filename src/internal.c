@@ -11706,6 +11706,9 @@ int ProcessReply(WOLFSSL* ssl)
                         ssl->options.processReply = doProcessInit;
                         ssl->buffers.inputBuffer.idx =
                                         ssl->buffers.inputBuffer.length;
+                        #ifdef WOLFSSL_DTLS_DROP_STATS
+                            ssl->macDropCount++;
+                        #endif /* WOLFSSL_DTLS_DROP_STATS */
                     }
                 #endif /* WOLFSSL_DTLS */
 
@@ -11732,9 +11735,18 @@ int ProcessReply(WOLFSSL* ssl)
                     if (ret < 0) {
                         WOLFSSL_MSG("VerifyMac failed");
                         WOLFSSL_ERROR(ret);
-                        #ifdef WOLFSSL_DTLS_DROP_STATS
-                            ssl->macDropCount++;
-                        #endif /* WOLFSSL_DTLS_DROP_STATS */
+                        #ifdef WOLFSSL_DTLS
+                        /* If in DTLS mode, if the decrypt fails for any
+                         * reason, pretend the datagram never happened. */
+                        if (ssl->options.dtls) {
+                            ssl->options.processReply = doProcessInit;
+                            ssl->buffers.inputBuffer.idx =
+                                            ssl->buffers.inputBuffer.length;
+                            #ifdef WOLFSSL_DTLS_DROP_STATS
+                                ssl->macDropCount++;
+                            #endif /* WOLFSSL_DTLS_DROP_STATS */
+                        }
+                        #endif /* WOLFSSL_DTLS */
                         return DECRYPT_ERROR;
                     }
                 }
@@ -13536,6 +13548,15 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 
     if (ssl->error == WANT_WRITE || ssl->error == WC_PENDING_E)
         ssl->error = 0;
+
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.dtls) {
+        /* In DTLS mode, we forgive some errors and allow the session
+         * to continue despite them. */
+        if (ssl->error == VERIFY_MAC_ERROR || ssl->error == DECRYPT_ERROR)
+            ssl->error = 0;
+    }
+#endif /* WOLFSSL_DTLS */
 
 #ifdef WOLFSSL_EARLY_DATA
     if (ssl->earlyData) {

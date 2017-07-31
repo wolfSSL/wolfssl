@@ -47,6 +47,9 @@
 #endif
 #include <cyassl/openssl/ssl.h>
 #include <cyassl/test.h>
+#ifdef CYASSL_DTLS
+    #include <cyassl/error-ssl.h>
+#endif
 
 #include "examples/server/server.h"
 
@@ -292,6 +295,12 @@ static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
             if (err == WC_PENDING_E) {
                 ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
                 if (ret < 0) break;
+            }
+            else
+        #endif
+        #ifdef CYASSL_DTLS
+            if (wolfSSL_dtls(ssl) && err == DECRYPT_ERROR) {
+                printf("Dropped client's message due to a bad MAC\n");
             }
             else
         #endif
