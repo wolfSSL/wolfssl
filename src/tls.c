@@ -5065,7 +5065,7 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
             }
             else
 #endif
-                wc_ecc_free(current->key);
+                wc_ecc_free((ecc_key*)(current->key));
         }
         XFREE(current->key, heap, DYNAMIC_TYPE_PRIVATE_KEY);
         XFREE(current->ke, heap, DYNAMIC_TYPE_PUBLIC_KEY);
