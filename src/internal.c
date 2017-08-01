@@ -9669,12 +9669,12 @@ static INLINE int DtlsCheckWindow(WOLFSSL* ssl)
                 break;
             }
         }
-
-        if (peerSeq == NULL) {
-            WOLFSSL_MSG("Couldn't find that peer ID to check window.");
-            return 0;
-        }
 #endif
+    }
+
+    if (peerSeq == NULL) {
+        WOLFSSL_MSG("Could not find peer sequence");
+        return 0;
     }
 
     if (ssl->keys.curEpoch == peerSeq->nextEpoch) {
