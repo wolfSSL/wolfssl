@@ -3759,6 +3759,8 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
     i += REQ_HEADER_SZ;
 #else
     ext = TLSX_Find(ssl->extensions, TLSX_SIGNATURE_ALGORITHMS);
+    if (ext == NULL)
+        return EXT_MISSING;
     ext->resp = 0;
 
     i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;

@@ -14284,6 +14284,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case ALERT_COUNT_E:
         return "Alert Count exceeded error";
 
+    case EXT_MISSING:
+        return "Required TLS extension missing";
+
     default :
         return "unknown error number";
     }
