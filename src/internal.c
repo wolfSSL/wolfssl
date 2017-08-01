@@ -861,14 +861,20 @@ static int dtls_export_new(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     exp[idx++] = options->createTicket;
     exp[idx++] = options->useTicket;
 #ifdef WOLFSSL_TLS13
-    exp[idx++] = options->noTicketTls13;
+    if (ver > DTLS_EXPORT_VERSION_3) {
+        exp[idx++] = options->noTicketTls13;
+    }
+#else
+    if (ver > DTLS_EXPORT_VERSION_3) {
+        exp[idx++] = 0;
+    }
 #endif
 #else
     exp[idx++] = 0;
     exp[idx++] = 0;
-#ifdef WOLFSSL_TLS13
-    exp[idx++] = 0;
-#endif
+    if (ver > DTLS_EXPORT_VERSION_3) {
+        exp[idx++] = 0;
+    }
 #endif
     exp[idx++] = options->processReply;
     exp[idx++] = options->cipherSuite0;
@@ -887,12 +893,26 @@ static int dtls_export_new(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     exp[idx++] = ssl->version.minor;
 
     (void)zero;
-    (void)ver;
 
     /* check if changes were made and notify of need to update export version */
-    if (idx != DTLS_EXPORT_OPT_SZ) {
-        WOLFSSL_MSG("Update DTLS_EXPORT_OPT_SZ and version of wolfSSL export");
-        return DTLS_EXPORT_VER_E;
+    switch (ver) {
+        case DTLS_EXPORT_VERSION_3:
+            if (idx != DTLS_EXPORT_OPT_SZ_3) {
+                WOLFSSL_MSG("Update DTLS_EXPORT_OPT_SZ and version of export");
+                return DTLS_EXPORT_VER_E;
+            }
+            break;
+
+        case DTLS_EXPORT_VERSION:
+            if (idx != DTLS_EXPORT_OPT_SZ) {
+                WOLFSSL_MSG("Update DTLS_EXPORT_OPT_SZ and version of export");
+                return DTLS_EXPORT_VER_E;
+            }
+            break;
+
+       default:
+            WOLFSSL_MSG("New version case needs added to wolfSSL export");
+            return DTLS_EXPORT_VER_E;
     }
 
     WOLFSSL_LEAVE("dtls_export_new", idx);
@@ -1007,15 +1027,17 @@ static int dtls_export_load(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     if (ver > DTLS_EXPORT_VERSION_3) {
         options->noTicketTls13 = exp[idx++];/* Server won't create new Ticket */
     }
+#else
+    if (ver > DTLS_EXPORT_VERSION_3) {
+        exp[idx++] = 0;
+    }
 #endif
 #else
     idx++;
     idx++;
-#ifdef WOLFSSL_TLS13
     if (ver > DTLS_EXPORT_VERSION_3) {
         idx++;
     }
-#endif
 #endif
     options->processReply   = exp[idx++];
     options->cipherSuite0   = exp[idx++];
