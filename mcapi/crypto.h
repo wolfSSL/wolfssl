@@ -164,7 +164,7 @@ enum {
 
 /* AES */
 typedef struct CRYPT_AES_CTX {
-    int holder[78];   /* big enough to hold internal, but check on init */
+    int holder[90];   /* big enough to hold internal, but check on init */
 } CRYPT_AES_CTX;
 
 /* key */

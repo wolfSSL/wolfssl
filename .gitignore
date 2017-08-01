@@ -169,6 +169,12 @@ mplabx/wolfcrypt_test.X/nbproject/Makefile-*
 mplabx/wolfcrypt_test.X/nbproject/Package-default.bash
 mplabx/wolfssl.X/nbproject/Makefile-*
 mplabx/wolfssl.X/nbproject/Package-default.bash
+mplabx/wolfssl.X/nbproject/private
+mplabx/wolfcrypt_test.X/nbproject/private
+mplabx/wolfcrypt_benchmark.X/nbproject/private
+mplabx/wolfssl.X/dist/default/
+mplabx/wolfcrypt_test.X/dist/default/
+mplabx/wolfcrypt_benchmark.X/dist/default/
 *.dSYM
 
 # Vagrant folder
@@ -220,3 +226,5 @@ IDE/LINUX-SGX/*.a
 
 # Binaries
 wolfcrypt/src/port/intel/qat_test
+/mplabx/wolfssl.X/dist/default/
+/mplabx/wolfcrypt_test.X/dist/default/

@@ -24,114 +24,55 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfcrypt/benchmark/benchmark.h>
 
 #if defined(WOLFSSL_MICROCHIP_PIC32MZ)
     #define MICROCHIP_PIC32
-    #include <xc.h>
-    #pragma config ICESEL = ICS_PGx2
-            /* ICE/ICD Comm Channel Select (Communicate on PGEC2/PGED2) */
     #include <stdio.h>
     #include <stdlib.h>
     #include "PIC32MZ-serial.h"
-    #define  SYSTEMConfigPerformance /* void out SYSTEMConfigPerformance(); */
+    #include <xc.h>
+    #define SYSTEMConfigPerformance(a) /* void out SYSTEMConfigPerformance(); */
+    #define SYS_CLK 200000000
 #else
     #define PIC32_STARTER_KIT
-    #include <p32xxxx.h>
+    #define _SUPPRESS_PLIB_WARNING
+    #define _DISABLE_OPENADC10_CONFIGPORT_WARNING
     #include <plib.h>
     #include <sys/appio.h>
     #define init_serial() /* void out init_serial() ; */
+    #define SYS_CLK 80000000
 #endif
 
-void bench_des(void);
-void bench_arc4(void);
-void bench_hc128(void);
-void bench_rabbit(void);
-void bench_aes(int);
-void bench_aesgcm(void);
-
-void bench_md5(void);
-void bench_sha(void);
-void bench_sha256(void);
-void bench_sha512(void);
-int  bench_ripemd(void);
-
-void bench_rsa(void);
-void bench_rsaKeyGen(void);
-void bench_dh(void);
-#ifdef HAVE_ECC
-void bench_eccKeyGen(void);
-void bench_eccKeyAgree(void);
+#if 1
+/* enable this if ReadCoreTimer and WriteCoreTimer are missing */
+unsigned int ReadCoreTimer(void)
+{
+    unsigned int timer;
+    timer = __builtin_mfc0(9, 0);
+    return timer;
+}
+void WriteCoreTimer(unsigned int t)
+{
+    /* do nothing here */
+    (void)t;
+}
 #endif
 
 /*
  * Main driver for wolfCrypt benchmarks.
  */
-int main(int argc, char** argv) {
-    volatile int i ;
-    int j ;
-
-    PRECONbits.PFMWS = 2;
-    PRECONbits.PREFEN = 0b11;
-
-    init_serial() ;  /* initialize PIC32MZ serial I/O */
-    SYSTEMConfigPerformance(80000000);
+int main(int argc, char** argv)
+{
+    SYSTEMConfigPerformance(SYS_CLK);
     DBINIT();
+    
+    init_serial(SYS_CLK) ;  /* initialize PIC32MZ serial I/O */
+    
     printf("wolfCrypt Benchmark:\n");
 
-#ifndef NO_AES
-    bench_aes(0);
-    bench_aes(1);
-#endif
-#ifdef HAVE_AESGCM
-    bench_aesgcm();
-#endif
-#ifndef NO_RC4
-    bench_arc4();
-#endif
-#ifdef HAVE_HC128
-    bench_hc128();
-#endif
-#ifndef NO_RABBIT
-    bench_rabbit();
-#endif
-#ifndef NO_DES3
-    bench_des();
-#endif
+    benchmark_test(NULL);
 
-    printf("\n");
-
-#ifndef NO_MD5
-    bench_md5();
-#endif
-    bench_sha();
-#ifndef NO_SHA256
-    bench_sha256();
-#endif
-#ifdef WOLFSSL_SHA512
-    bench_sha512();
-#endif
-#ifdef CYASSL_RIPEMD
-    bench_ripemd();
-#endif
-
-    printf("\n");
-
-#ifndef NO_RSA
-    bench_rsa();
-#endif
-
-#ifndef NO_DH
-    bench_dh();
-#endif
-
-#if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA)
-    bench_rsaKeyGen();
-#endif
-
-#ifdef HAVE_ECC
-    bench_eccKeyGen();
-    bench_eccKeyAgree();
-#endif
     printf("End of wolfCrypt Benchmark:\n");
     return 0;
 }

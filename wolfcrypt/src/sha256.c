@@ -100,6 +100,7 @@
 #endif
 
 
+#ifndef WOLFSSL_PIC32MZ_HASH
 static int InitSha256(Sha256* sha256)
 {
     int ret = 0;
@@ -107,6 +108,7 @@ static int InitSha256(Sha256* sha256)
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
 
+    XMEMSET(sha256->digest, 0, sizeof(sha256->digest));
     sha256->digest[0] = 0x6A09E667L;
     sha256->digest[1] = 0xBB67AE85L;
     sha256->digest[2] = 0x3C6EF372L;
@@ -122,6 +124,7 @@ static int InitSha256(Sha256* sha256)
 
     return ret;
 }
+#endif
 
 
 /* Hardware Acceleration */
@@ -198,7 +201,7 @@ static int InitSha256(Sha256* sha256)
     static int (*Transform_p)(Sha256* sha256) /* = _Transform */;
     static int transform_check = 0;
     static word32 intel_flags;
-    #define XTRANSFORM(sha256, B)  (*Transform_p)(sha256)
+    #define XTRANSFORM(S, B)  (*Transform_p)((S))
 
     static void Sha256_SetTransform(void)
     {
@@ -283,7 +286,7 @@ static int InitSha256(Sha256* sha256)
         #include "fsl_mmcau.h"
     #endif
 
-    #define XTRANSFORM(sha256, B) Transform(sha256, B)
+    #define XTRANSFORM(S, B)  Transform((S), (B))
 
     int wc_InitSha256_ex(Sha256* sha256, void* heap, int devId)
     {
@@ -325,26 +328,10 @@ static int InitSha256(Sha256* sha256)
     }
 
 #elif defined(WOLFSSL_PIC32MZ_HASH)
-    #define NEED_SOFT_SHA256
-
-    #define wc_InitSha256   wc_InitSha256_sw
-    #define wc_Sha256Update wc_Sha256Update_sw
-    #define wc_Sha256Final  wc_Sha256Final_sw
-
-    int wc_InitSha256_ex(Sha256* sha256, void* heap, int devId)
-    {
-        if (sha256 == NULL)
-            return BAD_FUNC_ARG;
-
-        sha256->heap = heap;
-
-        return InitSha256(sha256);
-    }
+    #include <wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h>
 
 #else
     #define NEED_SOFT_SHA256
-
-    #define XTRANSFORM(sha256, B) Transform(sha256)
 
     int wc_InitSha256_ex(Sha256* sha256, void* heap, int devId)
     {
@@ -406,6 +393,10 @@ static int InitSha256(Sha256* sha256)
          t1 = Sigma0((a)) + Maj((a), (b), (c)); \
          (d) += t0; \
          (h)  = t0 + t1;
+
+    #ifndef XTRANSFORM
+         #define XTRANSFORM(S, B) Transform((S))
+     #endif
 
     static int Transform(Sha256* sha256)
     {
