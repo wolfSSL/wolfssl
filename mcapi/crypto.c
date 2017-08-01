@@ -26,9 +26,10 @@
 #endif
 #ifdef MICROCHIP_MPLAB_HARMONY
     #include "system_config.h"
+    #include "crypto/crypto.h"
+#else
+    #include "crypto.h"
 #endif
-
-#include "crypto.h"
 
 #include <wolfssl/wolfcrypt/settings.h>
 
