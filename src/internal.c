@@ -11273,6 +11273,11 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type,
                           ssl->heap);
     #endif
 
+    if (++ssl->options.alertCount >= WOLFSSL_ALERT_COUNT_MAX) {
+        WOLFSSL_MSG("Alert count exceeded");
+        return ALERT_COUNT_E;
+    }
+
     /* make sure can read the message */
     if (*inOutIdx + ALERT_SIZE > totalSz)
         return BUFFER_E;
@@ -14275,6 +14280,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case MCAST_HIGHWATER_CB_E:
         return "Multicast highwater callback returned error";
+
+    case ALERT_COUNT_E:
+        return "Alert Count exceeded error";
 
     default :
         return "unknown error number";
