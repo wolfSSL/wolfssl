@@ -3176,7 +3176,7 @@ int fast_s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
   {
     mp_digit *tmpc;
     tmpc = c->dp;
-    for (ix = 0; ix < pa+1; ix++) {
+    for (ix = 0; ix < pa; ix++) { /* JRB, +1 could read uninitialized data */
       /* now extract the previous digit [below the carry] */
       *tmpc++ = W[ix];
     }
@@ -3846,6 +3846,10 @@ int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 #endif
   mp_word  _W;
 
+  if (a->dp == NULL) { /* JRB, avoid reading uninitialized values */
+      return MP_VAL;
+  }
+
   /* grow the destination as required */
   pa = a->used + b->used;
   if (c->alloc < pa) {
@@ -3866,7 +3870,7 @@ int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
   /* number of output digits to produce */
   pa = a->used + b->used;
   _W = 0;
-  for (ix = digs; ix < pa && a->dp; ix++) {
+  for (ix = digs; ix < pa; ix++) { /* JRB, have a->dp check at top of function*/
       int      tx, ty, iy;
       mp_digit *tmpx, *tmpy;
 
