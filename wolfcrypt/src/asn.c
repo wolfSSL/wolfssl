@@ -3089,9 +3089,6 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
         cert->source          = source;  /* don't own */
         cert->maxIdx          = inSz;    /* can't go over this index */
         cert->heap            = heap;
-        XMEMSET(cert->serial, 0, EXTERNAL_SERIAL_SIZE);
-        XMEMSET(cert->extSubjKeyId, 0, KEYID_SIZE);
-        XMEMSET(cert->extAuthKeyId, 0, KEYID_SIZE);
     #ifdef WOLFSSL_CERT_GEN
         cert->subjectSNEnc    = CTC_UTF8;
         cert->subjectCEnc     = CTC_PRINTABLE;
@@ -3100,13 +3097,6 @@ void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
         cert->subjectOEnc     = CTC_UTF8;
         cert->subjectOUEnc    = CTC_UTF8;
     #endif /* WOLFSSL_CERT_GEN */
-    #ifdef OPENSSL_EXTRA
-        XMEMSET(&cert->issuerName, 0, sizeof(DecodedName));
-        XMEMSET(&cert->subjectName, 0, sizeof(DecodedName));
-    #endif /* OPENSSL_EXTRA */
-    #ifdef WOLFSSL_CERT_EXT
-        XMEMSET(cert->extCertPolicies, 0, MAX_CERTPOL_NB*MAX_CERTPOL_SZ);
-    #endif
 
         InitSignatureCtx(&cert->sigCtx, heap, INVALID_DEVID);
     }
