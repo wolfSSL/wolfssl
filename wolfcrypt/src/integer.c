@@ -3847,6 +3847,10 @@ int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 #endif
   mp_word  _W;
 
+  if (a->dp == NULL) { /* JRB, avoid reading uninitialized values */
+      return MP_VAL;
+  }
+
   /* grow the destination as required */
   pa = a->used + b->used;
   if (c->alloc < pa) {
@@ -3867,7 +3871,7 @@ int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
   /* number of output digits to produce */
   pa = a->used + b->used;
   _W = 0;
-  for (ix = digs; ix < pa && a->dp; ix++) {
+  for (ix = digs; ix < pa; ix++) { /* JRB, have a->dp check at top of function*/
       int      tx, ty, iy;
       mp_digit *tmpx, *tmpy;
 
