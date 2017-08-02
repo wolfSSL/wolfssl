@@ -3080,127 +3080,36 @@ int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen)
 
 void InitDecodedCert(DecodedCert* cert, byte* source, word32 inSz, void* heap)
 {
-    cert->publicKey       = 0;
-    cert->pubKeySize      = 0;
-    cert->pubKeyStored    = 0;
-    cert->keyOID          = 0;
-    cert->version         = 0;
-    cert->signature       = 0;
-    cert->subjectCN       = 0;
-    cert->subjectCNLen    = 0;
-    cert->subjectCNEnc    = CTC_UTF8;
-    cert->subjectCNStored = 0;
-    cert->weOwnAltNames   = 0;
-    cert->altNames        = NULL;
-#ifndef IGNORE_NAME_CONSTRAINTS
-    cert->altEmailNames   = NULL;
-    cert->permittedNames  = NULL;
-    cert->excludedNames   = NULL;
-#endif /* IGNORE_NAME_CONSTRAINTS */
-    cert->issuer[0]       = '\0';
-    cert->subject[0]      = '\0';
-    cert->source          = source;  /* don't own */
-    cert->srcIdx          = 0;
-    cert->maxIdx          = inSz;    /* can't go over this index */
-    cert->heap            = heap;
-    XMEMSET(cert->serial, 0, EXTERNAL_SERIAL_SIZE);
-    cert->serialSz        = 0;
-    cert->extensions      = 0;
-    cert->extensionsSz    = 0;
-    cert->extensionsIdx   = 0;
-    cert->extAuthInfo     = NULL;
-    cert->extAuthInfoSz   = 0;
-    cert->extCrlInfo      = NULL;
-    cert->extCrlInfoSz    = 0;
-    XMEMSET(cert->extSubjKeyId, 0, KEYID_SIZE);
-    cert->extSubjKeyIdSet = 0;
-    XMEMSET(cert->extAuthKeyId, 0, KEYID_SIZE);
-    cert->extAuthKeyIdSet = 0;
-    cert->extKeyUsageSet  = 0;
-    cert->extKeyUsage     = 0;
-    cert->extExtKeyUsageSet = 0;
-    cert->extExtKeyUsage    = 0;
-    cert->isCA            = 0;
-    cert->pathLengthSet   = 0;
-    cert->pathLength      = 0;
-#ifdef HAVE_PKCS7
-    cert->issuerRaw       = NULL;
-    cert->issuerRawLen    = 0;
-#endif
-#ifdef WOLFSSL_CERT_GEN
-    cert->subjectSN       = 0;
-    cert->subjectSNLen    = 0;
-    cert->subjectSNEnc    = CTC_UTF8;
-    cert->subjectC        = 0;
-    cert->subjectCLen     = 0;
-    cert->subjectCEnc     = CTC_PRINTABLE;
-    cert->subjectL        = 0;
-    cert->subjectLLen     = 0;
-    cert->subjectLEnc     = CTC_UTF8;
-    cert->subjectST       = 0;
-    cert->subjectSTLen    = 0;
-    cert->subjectSTEnc    = CTC_UTF8;
-    cert->subjectO        = 0;
-    cert->subjectOLen     = 0;
-    cert->subjectOEnc     = CTC_UTF8;
-    cert->subjectOU       = 0;
-    cert->subjectOULen    = 0;
-    cert->subjectOUEnc    = CTC_UTF8;
-    cert->subjectEmail    = 0;
-    cert->subjectEmailLen = 0;
-#endif /* WOLFSSL_CERT_GEN */
-    cert->beforeDate      = NULL;
-    cert->beforeDateLen   = 0;
-    cert->afterDate       = NULL;
-    cert->afterDateLen    = 0;
-#ifdef OPENSSL_EXTRA
-    XMEMSET(&cert->issuerName, 0, sizeof(DecodedName));
-    XMEMSET(&cert->subjectName, 0, sizeof(DecodedName));
-    cert->extCRLdistSet = 0;
-    cert->extCRLdistCrit = 0;
-    cert->extAuthInfoSet = 0;
-    cert->extAuthInfoCrit = 0;
-    cert->extBasicConstSet = 0;
-    cert->extBasicConstCrit = 0;
-    cert->extSubjAltNameSet = 0;
-    cert->extSubjAltNameCrit = 0;
-    cert->extAuthKeyIdCrit = 0;
-    cert->extSubjKeyIdCrit = 0;
-    cert->extKeyUsageCrit = 0;
-    cert->extExtKeyUsageCrit = 0;
-    cert->extExtKeyUsageSrc = NULL;
-    cert->extExtKeyUsageSz = 0;
-    cert->extExtKeyUsageCount = 0;
-    cert->extAuthKeyIdSrc = NULL;
-    cert->extAuthKeyIdSz = 0;
-    cert->extSubjKeyIdSrc = NULL;
-    cert->extSubjKeyIdSz = 0;
-#endif /* OPENSSL_EXTRA */
-#if defined(OPENSSL_EXTRA) || !defined(IGNORE_NAME_CONSTRAINTS)
-    cert->extNameConstraintSet = 0;
-#endif /* OPENSSL_EXTRA || !IGNORE_NAME_CONSTRAINTS */
-#ifdef HAVE_ECC
-    cert->pkCurveOID = 0;
-#endif /* HAVE_ECC */
-#ifdef WOLFSSL_SEP
-    cert->deviceTypeSz = 0;
-    cert->deviceType = NULL;
-    cert->hwTypeSz = 0;
-    cert->hwType = NULL;
-    cert->hwSerialNumSz = 0;
-    cert->hwSerialNum = NULL;
-    #ifdef OPENSSL_EXTRA
-        cert->extCertPolicySet = 0;
-        cert->extCertPolicyCrit = 0;
-    #endif /* OPENSSL_EXTRA */
-#endif /* WOLFSSL_SEP */
-#ifdef WOLFSSL_CERT_EXT
-    XMEMSET(cert->extCertPolicies, 0, MAX_CERTPOL_NB*MAX_CERTPOL_SZ);
-    cert->extCertPoliciesNb = 0;
-#endif
+    if (cert != NULL) {
+        XMEMSET(cert, 0, sizeof(DecodedCert));
 
-    cert->ca = NULL;
-    InitSignatureCtx(&cert->sigCtx, heap, INVALID_DEVID);
+        cert->subjectCNEnc    = CTC_UTF8;
+        cert->issuer[0]       = '\0';
+        cert->subject[0]      = '\0';
+        cert->source          = source;  /* don't own */
+        cert->maxIdx          = inSz;    /* can't go over this index */
+        cert->heap            = heap;
+        XMEMSET(cert->serial, 0, EXTERNAL_SERIAL_SIZE);
+        XMEMSET(cert->extSubjKeyId, 0, KEYID_SIZE);
+        XMEMSET(cert->extAuthKeyId, 0, KEYID_SIZE);
+    #ifdef WOLFSSL_CERT_GEN
+        cert->subjectSNEnc    = CTC_UTF8;
+        cert->subjectCEnc     = CTC_PRINTABLE;
+        cert->subjectLEnc     = CTC_UTF8;
+        cert->subjectSTEnc    = CTC_UTF8;
+        cert->subjectOEnc     = CTC_UTF8;
+        cert->subjectOUEnc    = CTC_UTF8;
+    #endif /* WOLFSSL_CERT_GEN */
+    #ifdef OPENSSL_EXTRA
+        XMEMSET(&cert->issuerName, 0, sizeof(DecodedName));
+        XMEMSET(&cert->subjectName, 0, sizeof(DecodedName));
+    #endif /* OPENSSL_EXTRA */
+    #ifdef WOLFSSL_CERT_EXT
+        XMEMSET(cert->extCertPolicies, 0, MAX_CERTPOL_NB*MAX_CERTPOL_SZ);
+    #endif
+
+        InitSignatureCtx(&cert->sigCtx, heap, INVALID_DEVID);
+    }
 }
 
 
