@@ -1975,6 +1975,9 @@ int wc_Sha256Copy(Sha256* src, Sha256* dst)
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
 #endif
+#ifdef WOLFSSL_PIC32MZ_HASH
+    ret = wc_Pic32HashCopy(&src->cache, &dst->cache);
+#endif
 
     return ret;
 }
