@@ -36,6 +36,7 @@
 
 #include <wolfssl/wolfcrypt/md5.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -185,11 +186,8 @@
     }
 
 #elif defined(WOLFSSL_PIC32MZ_HASH)
-    #define wc_InitMd5   wc_InitMd5_sw
-    #define wc_Md5Update wc_Md5Update_sw
-    #define wc_Md5Final  wc_Md5Final_sw
-
-    #define NEED_SOFT_MD5
+    #include <wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h>
+    #define HAVE_MD5_CUST_API
 
 #else
     #define NEED_SOFT_MD5
@@ -421,19 +419,21 @@ int wc_Md5Final(Md5* md5, byte* hash)
     }
     XMEMSET(&local[md5->buffLen], 0, MD5_PAD_SIZE - md5->buffLen);
 
+#if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
+    ByteReverseWords(md5->buffer, md5->buffer, MD5_BLOCK_SIZE);
+#endif
+
     /* put lengths in bits */
     md5->hiLen = (md5->loLen >> (8*sizeof(md5->loLen) - 3)) +
                  (md5->hiLen << 3);
     md5->loLen = md5->loLen << 3;
 
     /* store lengths */
-#if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
-    ByteReverseWords(md5->buffer, md5->buffer, MD5_BLOCK_SIZE);
-#endif
     /* ! length ordering dependent on digest endian type ! */
     XMEMCPY(&local[MD5_PAD_SIZE], &md5->loLen, sizeof(word32));
     XMEMCPY(&local[MD5_PAD_SIZE + sizeof(word32)], &md5->hiLen, sizeof(word32));
 
+    /* final transform and result to hash */
     XTRANSFORM(md5, local);
 #ifdef BIG_ENDIAN_ORDER
     ByteReverseWords(md5->digest, md5->digest, MD5_DIGEST_SIZE);
@@ -489,6 +489,9 @@ int wc_Md5Copy(Md5* src, Md5* dst)
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
+#endif
+#ifdef WOLFSSL_PIC32MZ_HASH
+    ret = wc_Pic32HashCopy(&src->cache, &dst->cache);
 #endif
 
     return ret;

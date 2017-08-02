@@ -97,6 +97,7 @@ ECC Curve Sizes:
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 #ifdef HAVE_ECC_ENCRYPT
     #include <wolfssl/wolfcrypt/hmac.h>

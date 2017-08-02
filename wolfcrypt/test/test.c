@@ -3907,7 +3907,7 @@ int aes_test(void)
 #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER)
     Aes enc;
     byte cipher[AES_BLOCK_SIZE * 4];
-#ifdef HAVE_AES_DECRYPT
+#if defined(HAVE_AES_DECRYPT) || defined(WOLFSSL_AES_COUNTER)
     Aes dec;
     byte plain [AES_BLOCK_SIZE * 4];
 #endif
@@ -4191,7 +4191,9 @@ int aes_test(void)
         if (XMEMCMP(cipher, ctr128Cipher, sizeof(oddCipher)))
             return -4216;
 
-#if !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO) /* test not supported on STM32 crypto HW */
+    /* test not supported on STM32 crypto HW or PIC32MZ HW */
+#if !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO) && \
+    !defined(WOLFSSL_PIC32MZ_CRYPT)
         /* and an additional 9 bytes to reuse tmp left buffer */
         ret = wc_AesCtrEncrypt(&enc, cipher, ctrPlain, sizeof(oddCipher));
         if (ret != 0) {
@@ -4547,9 +4549,14 @@ int aesgcm_test(void)
         0xcd, 0xdf, 0x88, 0x53, 0xbb, 0x2d, 0x55, 0x1b
     };
 
+    /* FIPS, QAT and STM32F2/4 HW Crypto only support 12-byte IV */
 #if !defined(HAVE_FIPS) && !defined(HAVE_INTEL_QA) && \
         !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO) && \
+        !defined(WOLFSSL_PIC32MZ_CRYPT) && \
         !defined(WOLFSSL_XILINX_CRYPT)
+
+    #define ENABLE_NON_12BYTE_IV_TEST
+
     /* Test Case 12, uses same plaintext and AAD data. */
     const byte k2[] =
     {
@@ -4587,7 +4594,7 @@ int aesgcm_test(void)
         0xdc, 0xf5, 0x66, 0xff, 0x29, 0x1c, 0x25, 0xbb,
         0xb8, 0x56, 0x8f, 0xc3, 0xd3, 0x76, 0xa6, 0xd9
     };
-#endif /* !HAVE_FIPS && !HAVE_INTEL_QA && !STM32F2_CRYPTO && !STM32F4_CRYPTO */
+#endif
 
     byte resultT[sizeof(t1)];
     byte resultP[sizeof(p)];
@@ -4732,10 +4739,8 @@ int aesgcm_test(void)
             return -4315;
     }
 
-    /* FIPS, QAT and STM32F2/4 HW Crypto only support 12-byte IV */
-#if !defined(HAVE_FIPS) && !defined(HAVE_INTEL_QA) && \
-        !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO) && \
-        !defined(WOLFSSL_XILINX_CRYPT)
+    /* test with IV != 12 bytes */
+#ifdef ENABLE_NON_12BYTE_IV_TEST
     XMEMSET(resultT, 0, sizeof(resultT));
     XMEMSET(resultC, 0, sizeof(resultC));
     XMEMSET(resultP, 0, sizeof(resultP));
@@ -4763,7 +4768,7 @@ int aesgcm_test(void)
         return -4319;
     if (XMEMCMP(p, resultP, sizeof(resultP)))
         return -4320;
-#endif /* !HAVE_FIPS && !HAVE_INTEL_QA && !STM32F2_CRYPTO && !STM32F4_CRYPTO */
+#endif /* ENABLE_NON_12BYTE_IV_TEST */
 
     wc_AesFree(&enc);
 

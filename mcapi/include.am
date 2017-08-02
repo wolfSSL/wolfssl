@@ -15,5 +15,5 @@ noinst_HEADERS += mcapi/crypto.h
 
 EXTRA_DIST += \
          mcapi/README \
-		 mcapi/PIC32MZ-serial.h
-
+         mcapi/PIC32MZ-serial.h \
+         mcapi/user_settings.h

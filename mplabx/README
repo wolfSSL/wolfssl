@@ -14,8 +14,8 @@ Included Project Files
 
 1. wolfSSL library (wolfssl.X)
 
-    This project builds a static wolfSSL library. Prior to building this
-    project, uncomment the MICROCHIP_PIC32 define located in:
+    This project builds a static wolfSSL library. The settings for this project
+    are in `user_settings.h`:
 
     <wolfssl_root>/wolfssl/wolfcrypt/settings.h
 
@@ -39,9 +39,10 @@ Included Project Files
 PIC32MX/PIC32MZ
 ---------------
 
-The projects are set for PIC32MX by default. For PIC32MZ, change project
-properties->Devices and add "WOLFSSL_MICROCHIP_PIC32MZ" to
-XC32-gcc->Preprocessing and messages-> Preprocessor macros.
+The projects are set for PIC32MZ by default. For PIC32MX, comment out the
+`WOLFSSL_MICROCHIP_PIC32MZ` line in `user_settings.h`.
+
+You also need to adjust the microcontroller device in the project properties.
 
 
 MIPS16 and MIPS32 Support
@@ -50,6 +51,14 @@ MIPS16 and MIPS32 Support
 These projects support both MIPS16 and MIPS32 instruction sets. Switching
 between these two instruction sets can be done in each project's properties
 settings by checking the "Generate 16-bit code" checkbox.
+
+
+Legacy Peripheral Libraries
+___________________________
+
+If you get a linker error locating `ReadCoreTimer` and `WriteCoreTimer` you
+can enable wrappers in benchmark_main.c and test_main.c.
+
 
 Support
 -------

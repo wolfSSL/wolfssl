@@ -103,20 +103,7 @@
 #else /* else build without fips */
 
 
-#ifdef WOLFSSL_PIC32MZ_HASH
-    #define wc_InitMd5   wc_InitMd5_sw
-    #define wc_Md5Update wc_Md5Update_sw
-    #define wc_Md5Final  wc_Md5Final_sw
-
-    #define wc_InitSha   wc_InitSha_sw
-    #define wc_ShaUpdate wc_ShaUpdate_sw
-    #define wc_ShaFinal  wc_ShaFinal_sw
-
-    #define wc_InitSha256   wc_InitSha256_sw
-    #define wc_Sha256Update wc_Sha256Update_sw
-    #define wc_Sha256Final  wc_Sha256Final_sw
-#endif /* WOLFSSL_PIC32MZ_HASH */
-
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 
 int wc_HmacSizeByType(int type)
