@@ -828,8 +828,8 @@ POLY1305_NOINLINE static void poly1305_blocks_avx2(Poly1305* ctx,
         "\n"
     "L_end:\n\t"
         : [m] "+r" (m), [bytes] "+r" (bytes),
-          [t0] "=r" (t0), [t1] "=r" (t1), [t2] "=r" (t2),
-          [t3] "=r" (t3), [t4] "=r" (t4)
+          [t0] "+r" (t0), [t1] "+r" (t1), [t2] "+r" (t2),
+          [t3] "+r" (t3), [t4] "+r" (t4)
         : [ctx] "r" (ctx), [h] "r" (ctx->hh),
           [r4] "r" (r4), [s] "r" (s),
           [fin] "m" (ctx->finished), [started] "m" (ctx->started),
