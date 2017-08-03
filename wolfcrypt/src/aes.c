@@ -3466,6 +3466,12 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 #if defined(USE_INTEL_SPEEDUP)
     #define HAVE_INTEL_AVX1
     #define HAVE_INTEL_AVX2
+
+    /* CLANG has AES GCM failure with AVX2 speedups */
+    #ifdef __clang__
+        #undef  AES_GCM_AVX2_NO_UNROLL
+        #define AES_GCM_AVX2_NO_UNROLL
+    #endif
 #endif /* USE_INTEL_SPEEDUP */
 
 static const __m128i MOD2_128 = { 0x1, 0xc200000000000000UL };
@@ -4382,7 +4388,7 @@ static void AES_GCM_encrypt_avx2(const unsigned char *in, unsigned char *out,
     __m128i X = _mm_setzero_si128();
     __m128i *KEY = (__m128i*)key, lastKey;
     __m128i last_block = _mm_setzero_si128();
-#ifndef AES_GCM_AESNI_NO_UNROLL
+#if !defined(AES_GCM_AESNI_NO_UNROLL) && !defined(AES_GCM_AVX2_NO_UNROLL)
     __m128i HT[8];
     register __m128i tmp1 asm("xmm4");
     register __m128i tmp2 asm("xmm5");
@@ -4534,7 +4540,7 @@ static void AES_GCM_encrypt_avx2(const unsigned char *in, unsigned char *out,
     ctr1 = _mm_add_epi32(tmp1, ONE);
     H = gfmul_shl1(H);
 
-#ifndef AES_GCM_AESNI_NO_UNROLL
+#if !defined(AES_GCM_AESNI_NO_UNROLL) && !defined(AES_GCM_AVX2_NO_UNROLL)
     i = 0;
     if (nbytes >= 16*8) {
         HT[0] = H;
@@ -5201,7 +5207,7 @@ static void AES_GCM_encrypt_avx2(const unsigned char *in, unsigned char *out,
           [BSWAP_EPI64] "xrm" (BSWAP_EPI64),
           [ONE] "xrm" (ONE),
           [MOD2_128] "xrm" (MOD2_128)
-        : "xmm4", "xxm5", "memory"
+        : "xmm4", "xmm5", "memory"
         );
     }
     for (; k < (int)(nbytes/16); k++) {
@@ -5793,7 +5799,7 @@ static int AES_GCM_decrypt_avx2(const unsigned char *in, unsigned char *out,
     __m128i last_block = _mm_setzero_si128();
     __m128i X = _mm_setzero_si128();
     __m128i tmp1, tmp2;
-#ifndef AES_GCM_AESNI_NO_UNROLL
+#if !defined(AES_GCM_AESNI_NO_UNROLL) && !defined(AES_GCM_AVX2_NO_UNROLL)
     __m128i HT[8];
     __m128i pctr1[1];
     register __m128i XV asm("xmm2");
@@ -5939,7 +5945,7 @@ static int AES_GCM_decrypt_avx2(const unsigned char *in, unsigned char *out,
     H = gfmul_shl1(H);
     i = 0;
 
-#ifndef AES_GCM_AESNI_NO_UNROLL
+#if !defined(AES_GCM_AESNI_NO_UNROLL) && !defined(AES_GCM_AVX2_NO_UNROLL)
 
     if (0 < nbytes/16/8) {
         HT[0] = H;
