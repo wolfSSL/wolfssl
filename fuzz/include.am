@@ -1,0 +1,23 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+fuzz_targets=
+include fuzz/pem_cert/include.am
+
+include_HEADERS += fuzz/fuzzer.h
+
+if BUILD_TESTS
+if !REMOTE_FUZZER_LIB
+noinst_LTLIBRARIES+= fuzz/libstandalone.la
+fuzz_libstandalone_la_SOURCES = \
+    fuzz/target_main.c
+fuzz_libstandalone_la_CFLAGS = -DNO_MAIN_DRIVER $(AM_CFLAGS)
+
+dist_noinst_SCRIPTS += fuzz/all_targets.test
+else
+# Dummy C++ program to guarantee $(CXXLINK) is defined
+EXTRA_PROGRAMS = dummy
+nodist_dummy_SOURCES = dummy.cc
+endif
+endif

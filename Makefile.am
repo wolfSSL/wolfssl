@@ -112,6 +112,8 @@ include tests/include.am
 include sslSniffer/sslSnifferTest/include.am
 include rpm/include.am
 
+include fuzz/include.am
+
 # Exclude references to non-DFSG sources from build files
 if !BUILD_DISTRO
 include mqx/util_lib/Sources/include.am

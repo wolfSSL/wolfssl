@@ -1,0 +1,23 @@
+#!/bin/sh
+
+#all_targets.test
+
+dir=/.${PWD%/}
+home=$(cd "$(dirname "$0")" && echo "/.${PWD%/}/")
+home=./${home#$dir/}
+#home=${home#/.}
+home=${home%/}
+
+for target in "${home%/}"/*/target
+do
+    [ -f "$target" ] || continue
+
+    target_dir=${target%/target}
+    find "$target_dir" -mindepth 2 -type f -not -path '*/.*' -print0 \
+        | xargs -0 "$target"
+    target_ret=$?
+
+    [ "$target_ret" -ne 0 ] && exit 1
+done
+
+exit 0
