@@ -404,10 +404,12 @@ static void chacha_encrypt_avx(ChaCha* ctx, const byte* m, byte* c,
     byte*  output;
     word32 i;
     word32 cnt = 0;
-    static const __m128i add    = { 0x0000000100000000UL,0x0000000300000002UL };
-    static const __m128i four   = { 0x0000000400000004UL,0x0000000400000004UL };
-    static const __m128i rotl8  = { 0x0605040702010003UL,0x0e0d0c0f0a09080bUL };
-    static const __m128i rotl16 = { 0x0504070601000302UL,0x0d0c0f0e09080b0aUL };
+    static const word64 add[2] =  { 0x0000000100000000UL,0x0000000300000002UL };
+    static const word64 four[2] = { 0x0000000400000004UL,0x0000000400000004UL };
+    static const word64 rotl8[2] =
+                                  { 0x0605040702010003UL,0x0e0d0c0f0a09080bUL };
+    static const word64 rotl16[2] =
+                                  { 0x0504070601000302UL,0x0d0c0f0e09080b0aUL };
 
     if (bytes == 0)
         return;
@@ -632,8 +634,8 @@ static void chacha_encrypt_avx(ChaCha* ctx, const byte* m, byte* c,
        : [bytes] "+r" (bytes), [cnt] "+r" (cnt),
          [in] "+r" (m), [out] "+r" (c)
        : [X] "r" (X), [x] "r" (x), [key] "r" (ctx->X),
-         [add] "xrm" (add), [four] "xrm" (four),
-         [rotl8] "xrm" (rotl8), [rotl16] "xrm" (rotl16)
+         [add] "m" (add), [four] "m" (four),
+         [rotl8] "m" (rotl8), [rotl16] "m" (rotl16)
        : "xmm0", "xmm1", "xmm2", "xmm3",
          "xmm4", "xmm5", "xmm6", "xmm7",
          "xmm8", "xmm9", "xmm10", "xmm11",
@@ -669,14 +671,17 @@ static void chacha_encrypt_avx2(ChaCha* ctx, const byte* m, byte* c,
     byte*  output;
     word32 i;
     word32 cnt = 0;
-    static const __m256i add    = { 0x0000000100000000UL,0x0000000300000002UL,
-                                    0x0000000500000004UL,0x0000000700000006UL };
-    static const __m256i eight  = { 0x0000000800000008UL,0x0000000800000008UL,
-                                    0x0000000800000008UL,0x0000000800000008UL };
-    static const __m256i rotl8  = { 0x0605040702010003UL,0x0e0d0c0f0a09080bUL,
-                                    0x0605040702010003UL,0x0e0d0c0f0a09080bUL };
-    static const __m256i rotl16 = { 0x0504070601000302UL,0x0d0c0f0e09080b0aUL,
-                                    0x0504070601000302UL,0x0d0c0f0e09080b0aUL };
+    static const word64 add[4] = { 0x0000000100000000UL, 0x0000000300000002UL,
+                                   0x0000000500000004UL, 0x0000000700000006UL };
+    static const word64 eight[4] =
+                                 { 0x0000000800000008UL, 0x0000000800000008UL,
+                                   0x0000000800000008UL, 0x0000000800000008UL };
+    static const word64 rotl8[4] =
+                                 { 0x0605040702010003UL, 0x0e0d0c0f0a09080bUL,
+                                   0x0605040702010003UL, 0x0e0d0c0f0a09080bUL };
+    static const word64 rotl16[4] =
+                                 { 0x0504070601000302UL, 0x0d0c0f0e09080b0aUL,
+                                   0x0504070601000302UL, 0x0d0c0f0e09080b0aUL };
 
     if (bytes == 0)
         return;
@@ -917,8 +922,8 @@ static void chacha_encrypt_avx2(ChaCha* ctx, const byte* m, byte* c,
        : [bytes] "+r" (bytes), [cnt] "+r" (cnt),
          [in] "+r" (m), [out] "+r" (c)
        : [X] "r" (X), [x] "r" (x), [key] "r" (ctx->X),
-         [add] "rm" (add), [eight] "rm" (eight),
-         [rotl8] "rm" (rotl8), [rotl16] "rm" (rotl16)
+         [add] "m" (add), [eight] "m" (eight),
+         [rotl8] "m" (rotl8), [rotl16] "m" (rotl16)
        : "ymm0", "ymm1", "ymm2", "ymm3",
          "ymm4", "ymm5", "ymm6", "ymm7",
          "ymm8", "ymm9", "ymm10", "ymm11",
