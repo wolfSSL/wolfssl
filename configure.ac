@@ -1934,10 +1934,17 @@ fi
 
 # CHACHA
 AC_ARG_ENABLE([chacha],
-    [AS_HELP_STRING([--enable-chacha],[Enable CHACHA (default: enabled)])],
+    [AS_HELP_STRING([--enable-chacha],[Enable CHACHA (default: enabled). Use `=noasm` to disable Intel AVX/AVX2 speedups])],
     [ ENABLED_CHACHA=$enableval ],
     [ ENABLED_CHACHA=$CHACHA_DEFAULT]
     )
+
+if test "$ENABLED_AESNI" = "noasm"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_CHACHA_ASM"
+    ENABLED_AESNI=yes
+fi
+
 
 # leanpsk and leantls don't need chacha
 if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"

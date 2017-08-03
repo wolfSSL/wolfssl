@@ -49,9 +49,17 @@
     #include <stdio.h>
 #endif
 
-#ifdef USE_INTEL_SPEEDUP
-#include <emmintrin.h>
-#include <immintrin.h>
+#ifdef WOLFSSL_X86_64_BUILD
+#if defined(USE_INTEL_SPEEDUP) && !defined(NO_CHACHA_ASM)
+    #define USE_INTEL_CHACHA_SPEEDUP
+#endif
+#endif
+
+#ifdef USE_INTEL_CHACHA_SPEEDUP
+    #include <emmintrin.h>
+    #include <immintrin.h>
+    #define HAVE_INTEL_AVX1
+    #define HAVE_INTEL_AVX2
 #endif
 
 #ifdef BIG_ENDIAN_ORDER
@@ -389,11 +397,7 @@ static INLINE void wc_Chacha_wordtobyte(word32 output[CHACHA_CHUNK_WORDS],
 }
 
 
-#ifdef WOLFSSL_X86_64_BUILD
-#ifdef USE_INTEL_SPEEDUP
-    #define HAVE_INTEL_AVX1
-    #define HAVE_INTEL_AVX2
-#endif
+#ifdef USE_INTEL_CHACHA_SPEEDUP
 
 #ifdef HAVE_INTEL_AVX1
 static void chacha_encrypt_avx(ChaCha* ctx, const byte* m, byte* c,
@@ -949,7 +953,7 @@ static void chacha_encrypt_avx2(ChaCha* ctx, const byte* m, byte* c,
     }
 }
 #endif /* HAVE_INTEL_AVX2 */
-#endif /* WOLFSSL_X86_64_BUILD */
+#endif /* USE_INTEL_CHACHA_SPEEDUP */
 
 /**
   * Encrypt a stream of bytes
@@ -990,8 +994,7 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
     if (ctx == NULL)
         return BAD_FUNC_ARG;
 
-#ifdef WOLFSSL_X86_64_BUILD
-#ifdef USE_INTEL_SPEEDUP
+#ifdef USE_INTEL_CHACHA_SPEEDUP
     #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_AVX2(cpuid_get_flags()))
         chacha_encrypt_avx2(ctx, input, output, msglen);
@@ -999,7 +1002,6 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
     #endif
         chacha_encrypt_avx(ctx, input, output, msglen);
     return 0;
-#endif
 #endif
     wc_Chacha_encrypt_bytes(ctx, input, output, msglen);
 
