@@ -18791,6 +18791,7 @@ WOLFSSL_DSA* wolfSSL_DSA_new(void)
     if (wc_InitDsaKey(key) != 0) {
         WOLFSSL_MSG("wolfSSL_DSA_new InitDsaKey failure");
         XFREE(key, NULL, DYNAMIC_TYPE_DSA);
+        wolfSSL_DSA_free(external);
         return NULL;
     }
     external->internal = key;

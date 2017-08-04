@@ -5470,8 +5470,10 @@ static int TLSX_KeyShareEntry_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
     /* Populate a key share object in the extension. */
     ret = TLSX_KeyShare_Use(ssl, group, keLen, ke, kse);
-    if (ret != 0)
+    if (ret != 0) {
+        XFREE(ke, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         return ret;
+    }
 
     /* Total length of the parsed data. */
     return offset + keLen;
