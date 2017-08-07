@@ -228,6 +228,10 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 #elif defined(FREERTOS_TCP)
 	#ifndef NO_FILESYSTEM
 		/* Using the FreeRTOS+FAT driver. */
+		/* Avoid that time.h gets included. */
+		//#define _TIME_H_
+		/* Include types.h to get the typedef of 'time_t'. */
+		#include <sys/types.h>
 		#include "ff_headers.h"
 		#include "ff_stdio.h"
 		/*

@@ -178,19 +178,21 @@ ASN Options:
 
 #elif defined(FREERTOS_TCP) && !defined(NO_FILESYSTEM)
 	/* Using the FreeRTOS+FAT driver. */
+	/* Avoid that time.h gets included. */
+	//#define _TIME_H_
+	/* Include types.h to get the typedef of 'time_t'. */
+	#undef _TIME_H_
+	#include <time.h>
+	//#include <sys/types.h>
    	#include "ff_headers.h"
 	/*
 		time_t FreeRTOS_time( time_t *pxTime );
 		FF_TimeStruct_t *FreeRTOS_gmtime_r( const time_t *pxTime, FF_TimeStruct_t *pxTimeBuf );
 	*/
-	#define	tm                          xTIME_STRUCT
+//	#define	tm                          xTIME_STRUCT
 	#define XTIME( tl )                 FreeRTOS_time((tl))
-	#define XGMTIME( c, t )             FreeRTOS_gmtime_r((c), (t))
-	#define XVALIDATE_DATE(d, f, t)     ValidateDate((d), (f), (t))
-	int ValidateDate(const byte* date, byte format, int dateType)
-	{
-		return 1;
-	}
+//	#define XGMTIME( c, t )             FreeRTOS_gmtime_r((c), (t))
+    #define XGMTIME(c, t)               gmtime((c))
 
 #else
     /* default */

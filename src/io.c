@@ -65,10 +65,6 @@ Possible IO enable options:
  * send() and recv() if need be.
  */
 
-#if defined(FREERTOS_TCP)
-	int freertos_errno;
-#endif
-
 static INLINE int TranslateReturnCode(int old, int sd)
 {
     (void)sd;
@@ -88,14 +84,27 @@ static INLINE int TranslateReturnCode(int old, int sd)
         if (errno == RTCSERR_TCP_TIMED_OUT)
             errno = SOCKET_EAGAIN;
     }
-#elif defined( FREERTOS_TCP )
-	/* When using 'ipconfigSUPPORT_SIGNALS', the TCP API's can get interrupted
-	by calling 'FreeRTOS_SignalSocket()' or 'FreeRTOS_SignalSocketFromISR()'.
-	The interrupted API call will return '-pdFREERTOS_ERRNO_EINTR'. */
-	if( old == -pdFREERTOS_ERRNO_EINTR ) {
-		freertos_errno = SOCKET_EINTR;
-		return -1;
-	}
+#elif defined(FREERTOS_TCP)
+    if (old < 0) {
+        /* When a FreeRTOS+TCP API call failed, it will return a negative value "-errno". */
+        if (old == -pdFREERTOS_ERRNO_EINTR) {
+            /* When using 'ipconfigSUPPORT_SIGNALS', the TCP API's can get interrupted
+            by calling 'FreeRTOS_SignalSocket()' or 'FreeRTOS_SignalSocketFromISR()'.
+            The interrupted API call will return '-pdFREERTOS_ERRNO_EINTR'. */
+            errno = SOCKET_EINTR;
+            /* Return WOLFSSL_CBIO_ERR_WANT_READ/WRITE here */
+            old = WOLFSSL_CBIO_ERR_WANT_READ;
+        } else if (old == -pdFREERTOS_ERRNO_ENOTCONN) {
+            /* connection closed or epipe. */
+            old = WOLFSSL_CBIO_ERR_CONN_CLOSE;
+        } else {
+            errno = -old;
+            old = -1;
+        }
+    } else {
+        /* A zero or positive value will be returned: number of bytes transferred. */
+        errno = 0;
+    }
 #endif
 
     return old;
@@ -107,8 +116,6 @@ static INLINE int LastError(void)
     return WSAGetLastError();
 #elif defined(EBSNET)
     return xn_getlasterror();
-#elif defined(FREERTOS_TCP)
-    return freertos_errno;
 #else
     return errno;
 #endif

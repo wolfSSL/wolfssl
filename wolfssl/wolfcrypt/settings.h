@@ -59,14 +59,7 @@
 /* #define FREERTOS */
 
 /* Uncomment next line if using FreeRTOS+TCP */
-/* #define FREERTOS_TCP */
-
-	#ifndef min
-	    static __inline unsigned long min(unsigned long a, unsigned long b)
-	    {
-        	return a <= b ? a : b;
-    	}
-	#endif
+#define FREERTOS_TCP
 
 /* Uncomment next line if using FreeRTOS Windows Simulator */
 /* #define FREERTOS_WINSIM */
@@ -564,10 +557,11 @@ extern void uITRON4_free(void *p) ;
 
 #define NO_WOLFSSL_DIR
 #define NO_WRITEV
-#define WOLFSSL_HAVE_MIN
 #define USE_FAST_MATH
 #define TFM_TIMING_RESISTANT
 #define NO_MAIN_DRIVER
+#define USE_WOLF_TM
+#define _TIME_H_
 
 #endif
 
