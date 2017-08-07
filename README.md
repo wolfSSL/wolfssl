@@ -84,7 +84,7 @@ before calling wolfSSL_new();  Though it's not recommended.
 
 Note:
 There is a known issue with using ChaCha20 AVX assembly on versions of GCC earlier than 5.2. This is encountered with using the wolfSSL enable options --enable-intelasm and --enable-chacha. To avoid this issue ChaCha20 can be enabled with --enable-chacha=noasm.
-
+If using --enable-intelasm and also using --enable-sha224 or --enable-sha256 there is a known issue with trying to use -fsanitize=address.
 
 This release of wolfSSL fixes 1 low level security vulnerability.
 
