@@ -411,25 +411,39 @@ static void test_wolfSSL_get_privateKey(void)
 
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
 
+    /* test for if not key owned */
+    AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
+    AssertNotNull(ssl = wolfSSL_new(ctx));
+
+    printf("XMEMCMP:%d\n",XMEMCMP(wolfSSL_get_privatekey(ssl)->pkey.ptr,
+            server_key_der_2048,sizeof_server_key_der_2048));
+
+    AssertIntEQ(
+        XMEMCMP(wolfSSL_get_privatekey(ssl)->pkey.ptr,
+                server_key_der_2048,sizeof_server_key_der_2048),
+                0);
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+
     /* test for if key owned */
     AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
     AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
     AssertNotNull(ssl = wolfSSL_new(ctx));
 
-    assert(wolfSSL_get_privatekey(ssl) != NULL);
+    AssertTrue(wolfSSL_use_certificate_file(ssl, svrCertFile, SSL_FILETYPE_PEM));
+    AssertTrue(wolfSSL_use_PrivateKey_file(ssl, svrKeyFile, SSL_FILETYPE_PEM));
 
-    wolfSSL_free(ssl);
-    wolfSSL_CTX_free(ctx);
+    printf("XMEMCMP:%d\n",XMEMCMP(wolfSSL_get_privatekey(ssl)->pkey.ptr,
+            server_key_der_2048,sizeof_server_key_der_2048));
 
-      /* test for if not key owned */
-    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
-    AssertTrue(wolfSSL_CTX_use_certificate_buffer(ctx, server_cert_der_2048,
-                sizeof_server_cert_der_2048, SSL_FILETYPE_ASN1));
-    AssertTrue(wolfSSL_CTX_use_PrivateKey_buffer(ctx, server_key_der_2048,
-                sizeof_server_key_der_2048, SSL_FILETYPE_ASN1));
-    AssertNotNull(ssl = wolfSSL_new(ctx));
-
-    assert(wolfSSL_get_privatekey(ssl) != NULL);
+    AssertIntEQ(
+        XMEMCMP(wolfSSL_get_privatekey(ssl)->pkey.ptr,
+                server_key_der_2048,sizeof_server_key_der_2048),
+                0);
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
@@ -10058,6 +10072,39 @@ static void test_wolfSSL_X509_STORE_set_flags(void)
              !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
 }
 
+static void test_wolfSSL_X509_STORE_CTX_set_flags(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+       !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+
+    X509_STORE* store;
+    X509_STORE_CTX* store_ctx;
+    X509* x509;
+    unsigned long flags = 100;
+
+    AssertNotNull((store = wolfSSL_X509_STORE_new()));
+    AssertNotNull((x509 =
+                wolfSSL_X509_load_certificate_file(svrCertFile, SSL_FILETYPE_PEM)));
+    AssertIntEQ(X509_STORE_add_cert(store, x509), SSL_SUCCESS);
+
+    #ifdef HAVE_CRL
+    AssertIntEQ(X509_STORE_set_flags(store, WOLFSSL_CRL_CHECKALL), SSL_SUCCESS);
+#else
+    AssertIntEQ(X509_STORE_set_flags(store, WOLFSSL_CRL_CHECKALL),
+        NOT_COMPILED_IN);
+#endif
+
+  AssertNotNull(store_ctx = wolfSSL_X509_STORE_CTX_new());
+
+  wolfSSL_X509_STORE_CTX_init(store_ctx, store, x509, NULL);
+
+  wolfSSL_X509_STORE_CTX_set_flags(store_ctx, flags);
+
+  AssertIntEQ(store_ctx->flags, flags);
+
+#endif
+}
+
 static void test_wolfSSL_X509_LOOKUP_load_file(void)
 {
     #if defined(OPENSSL_EXTRA) && defined(HAVE_CRL) && \
@@ -11384,6 +11431,7 @@ void ApiTest(void)
     test_wolfSSL_CTX_add_extra_chain_cert();
     test_wolfSSL_ERR_peek_last_error_line();
     test_wolfSSL_X509_STORE_set_flags();
+    test_wolfSSL_X509_STORE_CTX_set_flags();
     test_wolfSSL_X509_LOOKUP_load_file();
     test_wolfSSL_X509_NID();
     test_wolfSSL_X509_STORE_CTX_set_time();

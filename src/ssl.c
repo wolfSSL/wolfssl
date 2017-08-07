@@ -16837,6 +16837,7 @@ int wolfSSL_ASN1_INTEGER_cmp(const WOLFSSL_ASN1_INTEGER* a,
     return 0;
 }
 
+#ifndef NO_STDINT
 long wolfSSL_ASN1_INTEGER_get(const WOLFSSL_ASN1_INTEGER* i)
 {
   int e;
@@ -16860,6 +16861,7 @@ long wolfSSL_ASN1_INTEGER_get(const WOLFSSL_ASN1_INTEGER* i)
 
   return (long)r;
 }
+#endif
 
 int wolfSSL_ASN1_INTEGER_get_int64(signed_word64 *p, const WOLFSSL_ASN1_INTEGER *i)
 {
@@ -17325,19 +17327,19 @@ WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_get_privatekey(const WOLFSSL *ssl)
   }
 
   if (ssl->buffers.weOwnKey) {
-          if (ssl->buffers.key == NULL) {
-              WOLFSSL_MSG("Key buffer not set!");
-              return NULL;
-          }
+      if (ssl->buffers.key == NULL) {
+          WOLFSSL_MSG("Key buffer not set!");
+          return NULL;
+      }
       return wolfSSL_d2i_PrivateKey(ssl->buffers.key->type,NULL,
                     (const unsigned char **)&ssl->buffers.key->buffer,
                     ssl->buffers.key->length);                                    ;
   }
-  else { /* if key not owned get parent ctx cert or return null */
+  else { /* if key not owned get parent ctx privateKey or return null */
       if (ssl->ctx) {
           if (ssl->ctx->privateKey == NULL) {
-                  WOLFSSL_MSG("Ctx Key buffer not set!");
-                  return NULL;
+              WOLFSSL_MSG("Ctx Key buffer not set!");
+              return NULL;
           }
           return wolfSSL_d2i_PrivateKey(ssl->ctx->privateKey->type,NULL,
                     (const unsigned char **)&ssl->ctx-> privateKey->buffer,
