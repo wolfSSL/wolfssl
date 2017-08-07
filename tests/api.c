@@ -10077,9 +10077,9 @@ static void test_wolfSSL_X509_STORE_CTX_set_flags(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
        !defined(NO_FILESYSTEM) && !defined(NO_RSA)
 
-    X509_STORE* store;
-    X509_STORE_CTX* store_ctx;
-    X509* x509;
+    WOLFSSL_X509_STORE* store;
+    WOLFSSL_X509_STORE_CTX* store_ctx;
+    WOLFSSL_X509* x509;
     unsigned long flags = 100;
 
     AssertNotNull((store = wolfSSL_X509_STORE_new()));
