@@ -10091,7 +10091,6 @@ static void test_wolfSSL_X509_STORE_CTX_set_flags(void)
   AssertNotNull(store_ctx = wolfSSL_X509_STORE_CTX_new());
 
   wolfSSL_X509_STORE_CTX_init(store_ctx, store, x509, NULL);
-
   wolfSSL_X509_STORE_CTX_set_flags(store_ctx, flags);
 
   AssertTrue(store_ctx->flags == flags);
