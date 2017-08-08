@@ -2144,7 +2144,8 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
         if (aes->asyncDev.marker == WOLFSSL_ASYNC_MARKER_AES) {
             XMEMCPY(aes->asyncKey, userKey, keylen);
-            XMEMCPY(aes->asyncIv, iv, AES_BLOCK_SIZE);
+            if (iv)
+                XMEMCPY(aes->asyncIv, iv, AES_BLOCK_SIZE);
         }
     #endif /* WOLFSSL_ASYNC_CRYPT */
 
