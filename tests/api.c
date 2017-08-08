@@ -416,9 +416,6 @@ static void test_wolfSSL_get_privateKey(void)
     AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
     AssertNotNull(ssl = wolfSSL_new(ctx));
 
-    printf("XMEMCMP:%d\n",XMEMCMP(wolfSSL_get_privatekey(ssl)->pkey.ptr,
-            server_key_der_2048,sizeof_server_key_der_2048));
-
     AssertIntEQ(
         XMEMCMP(wolfSSL_get_privatekey(ssl)->pkey.ptr,
                 server_key_der_2048,sizeof_server_key_der_2048),
@@ -436,9 +433,6 @@ static void test_wolfSSL_get_privateKey(void)
 
     AssertTrue(wolfSSL_use_certificate_file(ssl, svrCertFile, SSL_FILETYPE_PEM));
     AssertTrue(wolfSSL_use_PrivateKey_file(ssl, svrKeyFile, SSL_FILETYPE_PEM));
-
-    printf("XMEMCMP:%d\n",XMEMCMP(wolfSSL_get_privatekey(ssl)->pkey.ptr,
-            server_key_der_2048,sizeof_server_key_der_2048));
 
     AssertIntEQ(
         XMEMCMP(wolfSSL_get_privatekey(ssl)->pkey.ptr,
