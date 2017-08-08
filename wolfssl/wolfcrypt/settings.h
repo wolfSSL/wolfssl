@@ -560,7 +560,6 @@ extern void uITRON4_free(void *p) ;
 #define USE_FAST_MATH
 #define TFM_TIMING_RESISTANT
 #define NO_MAIN_DRIVER
-#define USE_WOLF_TM
 #define _TIME_H_
 
 #endif
