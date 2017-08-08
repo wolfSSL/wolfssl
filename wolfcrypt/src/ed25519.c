@@ -112,7 +112,7 @@ int wc_ed25519_sign_msg(const byte* in, word32 inlen, byte* out,
 #else
     ge_p3  R;
 #endif
-    byte   nonce[SHA512_DIGEST_SIZE];    
+    byte   nonce[SHA512_DIGEST_SIZE];
     byte   hram[SHA512_DIGEST_SIZE];
     byte   az[ED25519_PRV_KEY_SIZE];
     Sha512 sha;
@@ -193,7 +193,7 @@ int wc_ed25519_sign_msg(const byte* in, word32 inlen, byte* out,
 #else
     sc_reduce(hram);
     sc_muladd(out + (ED25519_SIG_SIZE/2), hram, az, nonce);
-#endif 
+#endif
 
     return ret;
 }
@@ -207,11 +207,11 @@ int wc_ed25519_sign_msg(const byte* in, word32 inlen, byte* out,
    siglen  is the length of sig byte array
    msg     the array of bytes containing the message
    msglen  length of msg array
-   stat    will be 1 on successful verify and 0 on unsuccessful
-   return  0 and stat of 1 on success
+   res     will be 1 on successful verify and 0 on unsuccessful
+   return  0 and res of 1 on success
 */
-int wc_ed25519_verify_msg(byte* sig, word32 siglen, const byte* msg,
-                          word32 msglen, int* stat, ed25519_key* key)
+int wc_ed25519_verify_msg(const byte* sig, word32 siglen, const byte* msg,
+                          word32 msglen, int* res, ed25519_key* key)
 {
     byte   rcheck[ED25519_KEY_SIZE];
     byte   h[SHA512_DIGEST_SIZE];
@@ -223,18 +223,18 @@ int wc_ed25519_verify_msg(byte* sig, word32 siglen, const byte* msg,
     Sha512 sha;
 
     /* sanity check on arguments */
-    if (sig == NULL || msg == NULL || stat == NULL || key == NULL)
+    if (sig == NULL || msg == NULL || res == NULL || key == NULL)
         return BAD_FUNC_ARG;
 
     /* set verification failed by default */
-    *stat = 0;
+    *res = 0;
 
     /* check on basics needed to verify signature */
     if (siglen < ED25519_SIG_SIZE || (sig[ED25519_SIG_SIZE-1] & 224))
         return BAD_FUNC_ARG;
 
     /* uncompress A (public key), test if valid, and negate it */
-#ifndef FREESCALE_LTC_ECC    
+#ifndef FREESCALE_LTC_ECC
     if (ge_frombytes_negate_vartime(&A, key->p) != 0)
         return BAD_FUNC_ARG;
 #endif
@@ -279,7 +279,7 @@ int wc_ed25519_verify_msg(byte* sig, word32 siglen, const byte* msg,
         return SIG_VERIFY_E;
 
     /* set the verification status */
-    *stat = 1;
+    *res = 1;
 
     return ret;
 }
@@ -408,6 +408,25 @@ int wc_ed25519_import_public(const byte* in, word32 inLen, ed25519_key* key)
 
 
 /*
+    For importing a private key.
+ */
+int wc_ed25519_import_private_only(const byte* priv, word32 privSz,
+                                                               ed25519_key* key)
+{
+    /* sanity check on arguments */
+    if (priv == NULL || key == NULL)
+        return BAD_FUNC_ARG;
+
+    /* key size check */
+    if (privSz < ED25519_KEY_SIZE)
+        return BAD_FUNC_ARG;
+
+    XMEMCPY(key->k, priv, ED25519_KEY_SIZE);
+
+    return 0;
+}
+
+/*
     For importing a private key and its associated public key.
  */
 int wc_ed25519_import_private_key(const byte* priv, word32 privSz,
@@ -508,6 +527,14 @@ int wc_ed25519_export_key(ed25519_key* key,
 
 #endif /* HAVE_ED25519_KEY_EXPORT */
 
+/* check the private and public keys match */
+int wc_ed25519_check_key(ed25519_key* key)
+{
+    /* TODO: Perform check of private and public key */
+    (void)key;
+
+    return 0;
+}
 
 /* returns the private key size (secret only) in bytes */
 int wc_ed25519_size(ed25519_key* key)

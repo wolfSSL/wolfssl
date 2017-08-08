@@ -305,6 +305,10 @@ int wc_Hc128_SetHeap(HC128* ctx, void* heap)
 /* Key setup */
 int wc_Hc128_SetKey(HC128* ctx, const byte* key, const byte* iv)
 {
+    if (ctx == NULL || key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
 #ifdef XSTREAM_ALIGN
     /* default heap to NULL or heap test value */
     #ifdef WOLFSSL_HEAP_TEST
@@ -384,6 +388,10 @@ static INLINE int DoProcess(HC128* ctx, byte* output, const byte* input,
 /* Encrypt/decrypt a message of any size */
 int wc_Hc128_Process(HC128* ctx, byte* output, const byte* input, word32 msglen)
 {
+    if (ctx == NULL || output == NULL || input == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
 #ifdef XSTREAM_ALIGN
     if ((wolfssl_word)input % 4 || (wolfssl_word)output % 4) {
         #ifndef NO_WOLFSSL_ALLOC_ALIGN

@@ -40,19 +40,22 @@ EXTRA_DIST += \
               wolfcrypt/src/fp_sqr_comba_8.i \
               wolfcrypt/src/fp_sqr_comba_9.i \
               wolfcrypt/src/fp_sqr_comba_small_set.i \
-              wolfcrypt/src/fe_x25519_128.i
+              wolfcrypt/src/fe_x25519_128.i \
+              wolfcrypt/src/sha3_long.i
 
 EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/ti/ti-des3.c \
               wolfcrypt/src/port/ti/ti-hash.c \
               wolfcrypt/src/port/ti/ti-ccm.c \
-              wolfcrypt/src/port/pic32/pic32mz-hash.c \
+              wolfcrypt/src/port/pic32/pic32mz-crypt.c \
               wolfcrypt/src/port/nrf51.c \
               wolfcrypt/src/port/arm/armv8-aes.c \
               wolfcrypt/src/port/arm/armv8-sha256.c \
               wolfcrypt/src/port/nxp/ksdk_port.c \
               wolfcrypt/src/port/atmel/atmel.c \
-              wolfcrypt/src/port/atmel/README.md
+              wolfcrypt/src/port/atmel/README.md \
+              wolfcrypt/src/port/xilinx/xil-sha3.c \
+              wolfcrypt/src/port/xilinx/xil-aesgcm.c
 
 if BUILD_CAVIUM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/cavium/cavium_nitrox.c

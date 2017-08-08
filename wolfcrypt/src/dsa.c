@@ -90,13 +90,11 @@ void wc_FreeDsaKey(DsaKey* key)
     if (key->type == DSA_PRIVATE)
         mp_forcezero(&key->x);
 
-#ifndef USE_FAST_MATH
     mp_clear(&key->x);
     mp_clear(&key->y);
     mp_clear(&key->g);
     mp_clear(&key->q);
     mp_clear(&key->p);
-#endif
 }
 
 #ifdef WOLFSSL_KEY_GEN

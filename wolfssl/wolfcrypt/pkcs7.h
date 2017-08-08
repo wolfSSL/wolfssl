@@ -130,6 +130,7 @@ typedef struct PKCS7 {
 } PKCS7;
 
 
+WOLFSSL_API int  wc_PKCS7_Init(PKCS7* pkcs7, void* heap, int devId);
 WOLFSSL_API int  wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz);
 WOLFSSL_API void wc_PKCS7_Free(PKCS7* pkcs7);
 WOLFSSL_API int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,

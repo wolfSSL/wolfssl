@@ -216,7 +216,7 @@ do
         fi
 
         # check for psk suite and turn on client psk if so
-        psk = ""
+        psk=""
         case $wolfSuite in
         *PSK*)
             psk="-s " ;;

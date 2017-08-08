@@ -157,8 +157,7 @@ typedef struct Hmac {
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
-    byte         keyRaw[HMAC_BLOCK_SIZE];
-    word16       keyLen;          /* hmac key length */
+    word16       keyLen;          /* hmac key length (key in ipad) */
     #ifdef HAVE_CAVIUM
         byte*    data;            /* buffered input data for one call */
         word16   dataLen;
@@ -180,10 +179,18 @@ WOLFSSL_API void wc_HmacFree(Hmac*);
 WOLFSSL_API int wolfSSL_GetHmacMaxSize(void);
 
 #ifdef HAVE_HKDF
-    WOLFSSL_API int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
-                        const byte* salt, word32 saltSz,
-                        const byte* info, word32 infoSz,
-                        byte* out, word32 outSz);
+
+WOLFSSL_API int wc_HKDF_Extract(int type, const byte* salt, word32 saltSz,
+                                const byte* inKey, word32 inKeySz, byte* out);
+WOLFSSL_API int wc_HKDF_Expand(int type, const byte* inKey, word32 inKeySz,
+                               const byte* info, word32 infoSz,
+                               byte* out,        word32 outSz);
+
+WOLFSSL_API int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
+                    const byte* salt, word32 saltSz,
+                    const byte* info, word32 infoSz,
+                    byte* out, word32 outSz);
+
 #endif /* HAVE_HKDF */
 
 #ifdef __cplusplus

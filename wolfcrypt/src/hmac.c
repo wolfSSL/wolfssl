@@ -25,6 +25,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifndef NO_HMAC
 
@@ -43,14 +44,28 @@
     /* does init */
     int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 keySz)
     {
+        if (hmac == NULL || (key == NULL && keySz != 0) ||
+           !(type == MD5 || type == SHA    || type == SHA256 || type == SHA384
+                         || type == SHA512 || type == BLAKE2B_ID)) {
+            return BAD_FUNC_ARG;
+        }
+
         return HmacSetKey_fips(hmac, type, key, keySz);
     }
     int wc_HmacUpdate(Hmac* hmac, const byte* in, word32 sz)
     {
+        if (hmac == NULL || in == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
         return HmacUpdate_fips(hmac, in, sz);
     }
     int wc_HmacFinal(Hmac* hmac, byte* out)
     {
+        if (hmac == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
         return HmacFinal_fips(hmac, out);
     }
     int wolfSSL_GetHmacMaxSize(void)
@@ -89,22 +104,6 @@
 
 
 #include <wolfssl/wolfcrypt/error-crypt.h>
-
-
-#ifdef WOLFSSL_PIC32MZ_HASH
-    #define wc_InitMd5   wc_InitMd5_sw
-    #define wc_Md5Update wc_Md5Update_sw
-    #define wc_Md5Final  wc_Md5Final_sw
-
-    #define wc_InitSha   wc_InitSha_sw
-    #define wc_ShaUpdate wc_ShaUpdate_sw
-    #define wc_ShaFinal  wc_ShaFinal_sw
-
-    #define wc_InitSha256   wc_InitSha256_sw
-    #define wc_Sha256Update wc_Sha256Update_sw
-    #define wc_Sha256Final  wc_Sha256Final_sw
-#endif /* WOLFSSL_PIC32MZ_HASH */
-
 
 
 int wc_HmacSizeByType(int type)
@@ -249,18 +248,18 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
     if (hmac->asyncDev.marker == WOLFSSL_ASYNC_MARKER_HMAC) {
-    #if defined(HAVE_CAVIUM) || defined(HAVE_INTEL_QA)
+    #if defined(HAVE_CAVIUM)
         if (length > HMAC_BLOCK_SIZE) {
             return WC_KEY_SIZE_E;
         }
 
         if (key != NULL) {
-            XMEMCPY(hmac->keyRaw, key, length);
+            XMEMCPY(hmac->ipad, key, length);
         }
         hmac->keyLen = (word16)length;
 
         return 0; /* nothing to do here */
-    #endif /* HAVE_CAVIUM || HAVE_INTEL_QA */
+    #endif /* HAVE_CAVIUM */
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
@@ -428,6 +427,20 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
             return BAD_FUNC_ARG;
     }
 
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
+    if (hmac->asyncDev.marker == WOLFSSL_ASYNC_MARKER_HMAC) {
+    #if defined(HAVE_INTEL_QA)
+        if (length > hmac_block_size)
+            length = hmac_block_size;
+        /* update key length */
+        hmac->keyLen = (word16)length;
+
+        return ret;
+        /* no need to pad below */
+    #endif
+    }
+#endif
+
     if (ret == 0) {
         if (length < hmac_block_size)
             XMEMSET(ip + length, 0, hmac_block_size - length);
@@ -510,13 +523,17 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
 {
     int ret = 0;
 
+    if (hmac == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
     if (hmac->asyncDev.marker == WOLFSSL_ASYNC_MARKER_HMAC) {
     #if defined(HAVE_CAVIUM)
         return NitroxHmacUpdate(hmac, msg, length);
     #elif defined(HAVE_INTEL_QA)
         return IntelQaHmac(&hmac->asyncDev, hmac->macType,
-            hmac->keyRaw, hmac->keyLen, NULL, msg, length);
+            (byte*)hmac->ipad, hmac->keyLen, NULL, msg, length);
     #endif
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
@@ -581,6 +598,10 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
 {
     int ret;
 
+    if (hmac == NULL || hash == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
     if (hmac->asyncDev.marker == WOLFSSL_ASYNC_MARKER_HMAC) {
         int hashLen = wc_HmacSizeByType(hmac->macType);
@@ -591,7 +612,7 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
         return NitroxHmacFinal(hmac, hmac->macType, hash, hashLen);
     #elif defined(HAVE_INTEL_QA)
         return IntelQaHmac(&hmac->asyncDev, hmac->macType,
-            hmac->keyRaw, hmac->keyLen, hash, NULL, hashLen);
+            (byte*)hmac->ipad, hmac->keyLen, hash, NULL, hashLen);
     #endif
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
@@ -788,41 +809,31 @@ int wolfSSL_GetHmacMaxSize(void)
 }
 
 #ifdef HAVE_HKDF
-    /* HMAC-KDF with hash type, optional salt and info, return 0 on success */
-    int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
-                       const byte* salt,  word32 saltSz,
-                       const byte* info,  word32 infoSz,
-                       byte* out,         word32 outSz)
+    /* HMAC-KDF-Extract.
+     * RFC 5869 - HMAC-based Extract-and-Expand Key Derivation Function (HKDF).
+     *
+     * type     The hash algorithm type.
+     * salt     The optional salt value.
+     * saltSz   The size of the salt.
+     * inKey    The input keying material.
+     * inKeySz  The size of the input keying material.
+     * out      The pseudorandom key with the length that of the hash.
+     * returns 0 on success, otherwise failure.
+     */
+    int wc_HKDF_Extract(int type, const byte* salt, word32 saltSz,
+                        const byte* inKey, word32 inKeySz, byte* out)
     {
+        byte   tmp[MAX_DIGEST_SIZE]; /* localSalt helper */
         Hmac   myHmac;
-    #ifdef WOLFSSL_SMALL_STACK
-        byte* tmp;
-        byte* prk;
-    #else
-        byte   tmp[MAX_DIGEST_SIZE]; /* localSalt helper and T */
-        byte   prk[MAX_DIGEST_SIZE];
-    #endif
-        const  byte* localSalt;  /* either points to user input or tmp */
-        int    hashSz = wc_HmacSizeByType(type);
-        word32 outIdx = 0;
-        byte   n = 0x1;
         int    ret;
+        const  byte* localSalt;  /* either points to user input or tmp */
+        int    hashSz;
 
-        if (hashSz < 0)
-            return BAD_FUNC_ARG;
+        ret = wc_HmacSizeByType(type);
+        if (ret < 0)
+            return ret;
 
-    #ifdef WOLFSSL_SMALL_STACK
-        tmp = (byte*)XMALLOC(MAX_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (tmp == NULL)
-            return MEMORY_E;
-
-        prk = (byte*)XMALLOC(MAX_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (prk == NULL) {
-            XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            return MEMORY_E;
-        }
-    #endif
-
+        hashSz = ret;
         localSalt = salt;
         if (localSalt == NULL) {
             XMEMSET(tmp, 0, hashSz);
@@ -834,43 +845,92 @@ int wolfSSL_GetHmacMaxSize(void)
         if (ret == 0)
             ret = wc_HmacUpdate(&myHmac, inKey, inKeySz);
         if (ret == 0)
-            ret = wc_HmacFinal(&myHmac,  prk);
-
-        if (ret == 0) {
-            while (outIdx < outSz) {
-                int    tmpSz = (n == 1) ? 0 : hashSz;
-                word32 left = outSz - outIdx;
-
-                ret = wc_HmacSetKey(&myHmac, type, prk, hashSz);
-                if (ret != 0)
-                    break;
-                ret = wc_HmacUpdate(&myHmac, tmp, tmpSz);
-                if (ret != 0)
-                    break;
-                ret = wc_HmacUpdate(&myHmac, info, infoSz);
-                if (ret != 0)
-                    break;
-                ret = wc_HmacUpdate(&myHmac, &n, 1);
-                if (ret != 0)
-                    break;
-                ret = wc_HmacFinal(&myHmac, tmp);
-                if (ret != 0)
-                    break;
-
-                left = min(left, (word32)hashSz);
-                XMEMCPY(out+outIdx, tmp, left);
-
-                outIdx += hashSz;
-                n++;
-            }
-        }
-
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(prk, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif
+            ret = wc_HmacFinal(&myHmac,  out);
 
         return ret;
+    }
+
+    /* HMAC-KDF-Expand.
+     * RFC 5869 - HMAC-based Extract-and-Expand Key Derivation Function (HKDF).
+     *
+     * type     The hash algorithm type.
+     * inKey    The input key.
+     * inKeySz  The size of the input key.
+     * info     The application specific information.
+     * infoSz   The size of the application specific information.
+     * out      The output keying material.
+     * returns 0 on success, otherwise failure.
+     */
+    int wc_HKDF_Expand(int type, const byte* inKey, word32 inKeySz,
+                       const byte* info, word32 infoSz, byte* out, word32 outSz)
+    {
+        byte   tmp[MAX_DIGEST_SIZE];
+        Hmac   myHmac;
+        int    ret = 0;
+        word32 outIdx = 0;
+        word32 hashSz = wc_HmacSizeByType(type);
+        byte   n = 0x1;
+
+        while (outIdx < outSz) {
+            int    tmpSz = (n == 1) ? 0 : hashSz;
+            word32 left = outSz - outIdx;
+
+            ret = wc_HmacSetKey(&myHmac, type, inKey, inKeySz);
+            if (ret != 0)
+                break;
+            ret = wc_HmacUpdate(&myHmac, tmp, tmpSz);
+            if (ret != 0)
+                break;
+            ret = wc_HmacUpdate(&myHmac, info, infoSz);
+            if (ret != 0)
+                break;
+            ret = wc_HmacUpdate(&myHmac, &n, 1);
+            if (ret != 0)
+                break;
+            ret = wc_HmacFinal(&myHmac, tmp);
+            if (ret != 0)
+                break;
+
+            left = min(left, hashSz);
+            XMEMCPY(out+outIdx, tmp, left);
+
+            outIdx += hashSz;
+            n++;
+        }
+
+        return ret;
+    }
+
+    /* HMAC-KDF.
+     * RFC 5869 - HMAC-based Extract-and-Expand Key Derivation Function (HKDF).
+     *
+     * type     The hash algorithm type.
+     * inKey    The input keying material.
+     * inKeySz  The size of the input keying material.
+     * salt     The optional salt value.
+     * saltSz   The size of the salt.
+     * info     The application specific information.
+     * infoSz   The size of the application specific information.
+     * out      The output keying material.
+     * returns 0 on success, otherwise failure.
+     */
+    int wc_HKDF(int type, const byte* inKey, word32 inKeySz,
+                       const byte* salt,  word32 saltSz,
+                       const byte* info,  word32 infoSz,
+                       byte* out,         word32 outSz)
+    {
+        byte   prk[MAX_DIGEST_SIZE];
+        int    hashSz = wc_HmacSizeByType(type);
+        int    ret;
+
+        if (hashSz < 0)
+            return BAD_FUNC_ARG;
+
+        ret = wc_HKDF_Extract(type, salt, saltSz, inKey, inKeySz, prk);
+        if (ret != 0)
+            return ret;
+
+        return wc_HKDF_Expand(type, prk, hashSz, info, infoSz, out, outSz);
     }
 
 #endif /* HAVE_HKDF */

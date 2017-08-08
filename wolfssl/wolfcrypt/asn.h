@@ -87,7 +87,7 @@ enum ASN_Tags {
     ASN_LONG_LENGTH       = 0x80
 };
 
-enum  ASN_Flags{
+enum ASN_Flags {
     ASN_CONSTRUCTED       = 0x20,
     ASN_CONTEXT_SPECIFIC  = 0x80
 };
@@ -130,7 +130,7 @@ enum Misc_ASN {
     PKCS5               =   5,     /* PKCS oid tag */
     PKCS5v2             =   6,     /* PKCS #5 v2.0 */
     PKCS8v0             =   0,     /* default PKCS#8 version */
-    PKCS12              =  12,     /* PKCS #12 */
+    PKCS12v1            =  12,     /* PKCS #12 */
     MAX_UNICODE_SZ      = 256,
     ASN_BOOL_SIZE       =   2,     /* including type */
     ASN_ECC_HEADER_SZ   =   2,     /* String type + 1 byte len */
@@ -193,7 +193,7 @@ enum Misc_ASN {
     HEADER_ENCRYPTED_KEY_SIZE = 88,/* Extra header size for encrypted key */
     TRAILING_ZERO       = 1,       /* Used for size of zero pad */
     MIN_VERSION_SZ      = 3,       /* Min bytes needed for GetMyVersion */
-#if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX)
+#if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     MAX_TIME_STRING_SZ  = 21,      /* Max length of formatted time string */
 #endif
 };
@@ -239,10 +239,11 @@ enum Block_Sum {
 
 
 enum Key_Sum {
-    DSAk   = 515,
-    RSAk   = 645,
-    NTRUk  = 274,
-    ECDSAk = 518
+    DSAk     = 515,
+    RSAk     = 645,
+    NTRUk    = 274,
+    ECDSAk   = 518,
+    ED25519k = 256
 };
 
 
@@ -285,6 +286,8 @@ enum Ecc_Sum {
     ECC_SECP256R1_OID = 526,
     ECC_SECP256K1_OID = 186,
     ECC_BRAINPOOLP256R1_OID = 104,
+    ECC_X25519_OID = 365,
+    ECC_ED25519_OID = 256,
     ECC_BRAINPOOLP320R1_OID = 106,
     ECC_SECP384R1_OID = 210,
     ECC_BRAINPOOLP384R1_OID = 108,
@@ -428,15 +431,18 @@ struct SignatureCtx {
     byte* out;
     byte* plain;
 #endif
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || defined(HAVE_ED25519)
     int verify;
 #endif
     union {
     #ifndef NO_RSA
-        struct RsaKey* rsa;
+        struct RsaKey*      rsa;
     #endif
     #ifdef HAVE_ECC
-        struct ecc_key* ecc;
+        struct ecc_key*     ecc;
+    #endif
+    #ifdef HAVE_ED25519
+        struct ed25519_key* ed25519;
     #endif
         void* ptr;
     } key;
@@ -559,7 +565,7 @@ struct DecodedCert {
     byte*   extSubjKeyIdSrc;
     word32  extSubjKeyIdSz;
 #endif
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || defined(HAVE_ED25519)
     word32  pkCurveOID;           /* Public Key's curve OID */
 #endif /* HAVE_ECC */
     byte*   beforeDate;
@@ -654,6 +660,8 @@ extern const char* BEGIN_DSA_PRIV;
 extern const char* END_DSA_PRIV;
 extern const char* BEGIN_PUB_KEY;
 extern const char* END_PUB_KEY;
+extern const char* BEGIN_EDDSA_PRIV;
+extern const char* END_EDDSA_PRIV;
 
 #ifdef NO_SHA
     #define SIGNER_DIGEST_SIZE SHA256_DIGEST_SIZE
@@ -743,7 +751,7 @@ WOLFSSL_LOCAL int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID,
         word32* oidSz, int* algoID, void* heap);
 
 typedef struct tm wolfssl_tm;
-#if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX)
+#if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 WOLFSSL_LOCAL int GetTimeString(byte* date, int format, char* buf, int len);
 #endif
 WOLFSSL_LOCAL int ExtractDate(const unsigned char* date, unsigned char format,
@@ -813,7 +821,8 @@ enum cert_enums {
     EMAIL_JOINT_LEN =  9,
     RSA_KEY         = 10,
     NTRU_KEY        = 11,
-    ECC_KEY         = 12
+    ECC_KEY         = 12,
+    ED25519_KEY     = 13
 };
 
 #ifndef WOLFSSL_PEMCERT_TODER_DEFINED
@@ -873,7 +882,7 @@ struct CertStatus {
     byte nextDate[MAX_DATE_SIZE];
     byte thisDateFormat;
     byte nextDateFormat;
-#ifdef WOLFSSL_NGINX
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     byte* thisDateAsn;
     byte* nextDateAsn;
 #endif
@@ -924,7 +933,7 @@ struct OcspRequest {
     int    nonceSz;
     void*  heap;
 
-#ifdef WOLFSSL_NGINX
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     void*  ssl;
 #endif
 };
@@ -976,6 +985,11 @@ struct DecodedCRL {
 };
 
 WOLFSSL_LOCAL void InitDecodedCRL(DecodedCRL*, void* heap);
+WOLFSSL_LOCAL int VerifyCRL_Signature(SignatureCtx* sigCtx,
+                                      const byte* toBeSigned, word32 tbsSz,
+                                      const byte* signature, word32 sigSz,
+                                      word32 signatureOID, Signer *ca,
+                                      void* heap);
 WOLFSSL_LOCAL int  ParseCRL(DecodedCRL*, const byte* buff, word32 sz, void* cm);
 WOLFSSL_LOCAL void FreeDecodedCRL(DecodedCRL*);
 

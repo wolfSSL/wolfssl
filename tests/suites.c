@@ -44,7 +44,7 @@
 #include "examples/client/client.h"
 #include "examples/server/server.h"
 
-
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
 static WOLFSSL_CTX* cipherSuiteCtx = NULL;
 static char nonblockFlag[] = "-N";
 static char noVerifyFlag[] = "-d";
@@ -182,6 +182,9 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     int         i;
     size_t      added;
     static      int tests = 1;
+#if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_TIRTOS)
+    char        portNumber[8];
+#endif
 
     /* Is Valid Cipher and Version Checks */
     /* build command list for the Is checks below */
@@ -298,7 +301,6 @@ static int execute_test_case(int svr_argc, char** svr_argv,
         if (cliArgs.argc + 2 > MAX_ARGS)
             printf("cannot add the magic port number flag to client\n");
         else {
-            char portNumber[8];
             snprintf(portNumber, sizeof(portNumber), "%d", ready.port);
             cli_argv[cliArgs.argc++] = portFlag;
             cli_argv[cliArgs.argc++] = portNumber;
@@ -503,10 +505,12 @@ static void test_harness(void* vargs)
     free(script);
     args->return_code = 0;
 }
+#endif /* !NO_WOLFSSL_SERVER && !NO_WOLFSSL_CLIENT */
 
 
 int SuiteTest(void)
 {
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
     func_args args;
     char argv0[2][80];
     char* myArgv[2];
@@ -564,6 +568,26 @@ int SuiteTest(void)
     /* any extra cases will need another argument */
     args.argc = 2;
 
+#ifdef WOLFSSL_TLS13
+    /* add TLSv13 extra suites */
+    strcpy(argv0[1], "tests/test-tls13.conf");
+    printf("starting TLSv13 extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);
+    }
+#endif
+#if defined(HAVE_CURVE25519) && defined(HAVE_ED25519)
+    /* add ED25519 certificate cipher suite tests */
+    strcpy(argv0[1], "tests/test-ed25519.conf");
+    printf("starting ED25519 extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);
+    }
+#endif
 #ifdef WOLFSSL_DTLS
     /* add dtls extra suites */
     strcpy(argv0[1], "tests/test-dtls.conf");
@@ -634,6 +658,7 @@ exit:
 #endif
 
     return args.return_code;
+#else
+    return NOT_COMPILED_IN;
+#endif /* !NO_WOLFSSL_SERVER && !NO_WOLFSSL_CLIENT */
 }
-
-

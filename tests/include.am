@@ -20,9 +20,11 @@ tests_unit_test_DEPENDENCIES = src/libwolfssl.la
 endif
 EXTRA_DIST += tests/unit.h
 EXTRA_DIST += tests/test.conf \
+              tests/test-tls13.conf \
               tests/test-qsh.conf \
               tests/test-psk-no-id.conf \
               tests/test-dtls.conf \
               tests/test-sctp.conf \
-              tests/test-sig.conf
+              tests/test-sig.conf \
+              tests/test-ed25519.conf
 DISTCLEANFILES+= tests/.libs/unit.test

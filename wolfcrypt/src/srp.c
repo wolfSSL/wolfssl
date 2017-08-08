@@ -349,8 +349,9 @@ int wc_SrpSetParams(Srp* srp, const byte* N,    word32 nSz,
     /* Set k = H(N, g) */
             r = SrpHashInit(&hash, srp->type);
     if (!r) r = SrpHashUpdate(&hash, (byte*) N, nSz);
-    for (i = 0; (word32)i < nSz - gSz; i++)
-        SrpHashUpdate(&hash, &pad, 1);
+    for (i = 0; (word32)i < nSz - gSz; i++) {
+        if (!r) r = SrpHashUpdate(&hash, &pad, 1);
+    }
     if (!r) r = SrpHashUpdate(&hash, (byte*) g, gSz);
     if (!r) r = SrpHashFinal(&hash, srp->k);
 
@@ -552,6 +553,8 @@ static int wc_SrpSetKey(Srp* srp, byte* secret, word32 size)
     byte counter[4];
     int r = BAD_FUNC_ARG;
 
+    XMEMSET(digest, 0, SRP_MAX_DIGEST_SIZE);
+
     srp->key = (byte*)XMALLOC(2 * digestSz, srp->heap, DYNAMIC_TYPE_SRP);
     if (srp->key == NULL)
         return MEMORY_E;
@@ -568,7 +571,7 @@ static int wc_SrpSetKey(Srp* srp, byte* secret, word32 size)
         if (!r) r = SrpHashUpdate(&hash, secret, size);
         if (!r) r = SrpHashUpdate(&hash, counter, 4);
 
-        if(j + digestSz > srp->keySz) {
+        if (j + digestSz > srp->keySz) {
             if (!r) r = SrpHashFinal(&hash, digest);
             XMEMCPY(srp->key + j, digest, srp->keySz - j);
             j = srp->keySz;

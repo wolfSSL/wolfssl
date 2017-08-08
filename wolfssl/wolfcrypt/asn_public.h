@@ -30,10 +30,23 @@
     extern "C" {
 #endif
 
-/* Opaque keys. Only key pointers are used for arguments */
-typedef struct ecc_key ecc_key;
-typedef struct RsaKey RsaKey;
-typedef struct WC_RNG WC_RNG;
+/* guard on redeclaration */
+#ifndef WC_ECCKEY_TYPE_DEFINED
+    typedef struct ecc_key ecc_key;
+    #define WC_ECCKEY_TYPE_DEFINED
+#endif
+#ifndef WC_ED25519KEY_TYPE_DEFINED
+    typedef struct ed25519_key ed25519_key;
+    #define WC_ED25519KEY_TYPE_DEFINED
+#endif
+#ifndef WC_RSAKEY_TYPE_DEFINED
+    typedef struct RsaKey RsaKey;
+    #define WC_RSAKEY_TYPE_DEFINED
+#endif
+#ifndef WC_RNG_TYPE_DEFINED
+    typedef struct WC_RNG WC_RNG;
+    #define WC_RNG_TYPE_DEFINED
+#endif
 
 /* Certificate file Type */
 enum CertType {
@@ -52,7 +65,9 @@ enum CertType {
     PUBLICKEY_TYPE,
     RSA_PUBLICKEY_TYPE,
     ECC_PUBLICKEY_TYPE,
-    TRUSTED_PEER_TYPE
+    TRUSTED_PEER_TYPE,
+    EDDSA_PRIVATEKEY_TYPE,
+    ED25519_TYPE
 };
 
 
@@ -70,7 +85,8 @@ enum Ctc_SigType {
     CTC_SHA384wRSA   = 656,
     CTC_SHA384wECDSA = 525,
     CTC_SHA512wRSA   = 657,
-    CTC_SHA512wECDSA = 526
+    CTC_SHA512wECDSA = 526,
+    CTC_ED25519      = 256
 };
 
 enum Ctc_Encoding {
@@ -164,15 +180,22 @@ typedef struct Cert {
    isCA       = 0 (false)
    keyType    = RSA_KEY (default)
 */
-WOLFSSL_API void wc_InitCert(Cert*);
+WOLFSSL_API int wc_InitCert(Cert*);
+WOLFSSL_API int  wc_MakeCert_ex(Cert* cert, byte* derBuffer, word32 derSz,
+                                int keyType, void* key, WC_RNG* rng);
 WOLFSSL_API int  wc_MakeCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
-                         ecc_key*, WC_RNG*);
+                             ecc_key*, WC_RNG*);
 #ifdef WOLFSSL_CERT_REQ
+    WOLFSSL_API int  wc_MakeCertReq_ex(Cert*, byte* derBuffer, word32 derSz,
+                                       int, void*);
     WOLFSSL_API int  wc_MakeCertReq(Cert*, byte* derBuffer, word32 derSz,
                                     RsaKey*, ecc_key*);
 #endif
+WOLFSSL_API int  wc_SignCert_ex(int requestSz, int sType, byte* buffer,
+                                word32 buffSz, int keyType, void* key,
+                                WC_RNG* rng);
 WOLFSSL_API int  wc_SignCert(int requestSz, int sigType, byte* derBuffer,
-                         word32 derSz, RsaKey*, ecc_key*, WC_RNG*);
+                             word32 derSz, RsaKey*, ecc_key*, WC_RNG*);
 WOLFSSL_API int  wc_MakeSelfCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
                              WC_RNG*);
 WOLFSSL_API int  wc_SetIssuer(Cert*, const char*);
@@ -186,10 +209,14 @@ WOLFSSL_API int  wc_SetAltNamesBuffer(Cert*, const byte*, int);
 WOLFSSL_API int  wc_SetDatesBuffer(Cert*, const byte*, int);
 
 #ifdef WOLFSSL_CERT_EXT
+WOLFSSL_API int wc_SetAuthKeyIdFromPublicKey_ex(Cert *cert, int keyType,
+                                                void* key);
 WOLFSSL_API int wc_SetAuthKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey,
                                              ecc_key *eckey);
 WOLFSSL_API int wc_SetAuthKeyIdFromCert(Cert *cert, const byte *der, int derSz);
 WOLFSSL_API int wc_SetAuthKeyId(Cert *cert, const char* file);
+WOLFSSL_API int wc_SetSubjectKeyIdFromPublicKey_ex(Cert *cert, int keyType,
+                                                   void* key);
 WOLFSSL_API int wc_SetSubjectKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey,
                                                 ecc_key *eckey);
 WOLFSSL_API int wc_SetSubjectKeyId(Cert *cert, const char* file);
@@ -254,6 +281,24 @@ WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
                                               ecc_key*, word32);
     #if (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
         WOLFSSL_API int wc_EccPublicKeyToDer(ecc_key*, byte* output,
+                                               word32 inLen, int with_AlgCurve);
+    #endif
+#endif
+
+#ifdef HAVE_ED25519
+    /* private key helpers */
+    WOLFSSL_API int wc_Ed25519PrivateKeyDecode(const byte*, word32*,
+                                               ed25519_key*, word32);
+    WOLFSSL_API int wc_Ed25519KeyToDer(ed25519_key* key, byte* output,
+                                       word32 inLen);
+    WOLFSSL_API int wc_Ed25519PrivateKeyToDer(ed25519_key* key, byte* output,
+                                              word32 inLen);
+
+    /* public key helper */
+    WOLFSSL_API int wc_Ed25519PublicKeyDecode(const byte*, word32*,
+                                              ed25519_key*, word32);
+    #if (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
+        WOLFSSL_API int wc_Ed25519PublicKeyToDer(ed25519_key*, byte* output,
                                                word32 inLen, int with_AlgCurve);
     #endif
 #endif

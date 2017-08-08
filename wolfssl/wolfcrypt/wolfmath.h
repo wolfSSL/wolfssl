@@ -37,6 +37,14 @@
 #ifndef __WOLFMATH_H__
 #define __WOLFMATH_H__
 
+    /* timing resistance array */
+    #if !defined(WC_NO_CACHE_RESISTANT) && \
+        ((defined(HAVE_ECC) && defined(ECC_TIMING_RESISTANT)) || \
+         (defined(USE_FAST_MATH) && defined(TFM_TIMING_RESISTANT)))
+
+        extern const wolfssl_word wc_off_on_addr[2];
+    #endif
+
     /* common math functions */
     int get_digit_count(mp_int* a);
     mp_digit get_digit(mp_int* a, int n);

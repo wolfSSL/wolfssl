@@ -2,7 +2,7 @@
 
 ## Overview
 
-This port is for the tenAsys INtime RTOS available [here](http://www.tenasys.com/tenasys-products/intime-rtos-family/overview-rtos).
+This port is for the tenAsys INtime RTOS available [here](http://www.tenasys.com/intime).
 
 To enable use the define `INTIME_RTOS`.
 
@@ -148,7 +148,7 @@ Client connected successfully
 Using Non-Blocking I/O: 0
 Message for server:     Client:
 
-Recieved:       I hear ya fa shizzle!
+Received:       I hear ya fa shizzle!
 
 The client has closed the connection.
 ```

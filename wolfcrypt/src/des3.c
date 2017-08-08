@@ -25,6 +25,8 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
 
 #ifndef NO_DES3
@@ -39,6 +41,10 @@
     }
     int wc_Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
     {
+        if (des == NULL || key == NULL || dir < 0) {
+            return BAD_FUNC_ARG;
+        }
+
         return Des3_SetKey_fips(des, key, iv, dir);
     }
     int wc_Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
@@ -51,10 +57,16 @@
     }
     int wc_Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
     {
+        if (des == NULL || out == NULL || in == NULL) {
+            return BAD_FUNC_ARG;
+        }
         return Des3_CbcEncrypt_fips(des, out, in, sz);
     }
     int wc_Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
     {
+        if (des == NULL || out == NULL || in == NULL) {
+            return BAD_FUNC_ARG;
+        }
         return Des3_CbcDecrypt_fips(des, out, in, sz);
     }
 
@@ -102,8 +114,6 @@
     #include <wolfcrypt/src/port/ti/ti-des3.c>
 #else
 
-#include <wolfssl/wolfcrypt/error-crypt.h>
-#include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
@@ -648,7 +658,7 @@
         return 0;
 
     }
-#elif (defined FREESCALE_LTC_DES)
+#elif defined(FREESCALE_LTC_DES)
 
     #include "fsl_ltc.h"
     int wc_Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
@@ -734,13 +744,18 @@
             return -1;
 
     }
+
 #elif defined(FREESCALE_MMCAU)
     /*
      * Freescale mmCAU hardware DES/3DES support through the CAU/mmCAU library.
      * Documentation located in ColdFire/ColdFire+ CAU and Kinetis mmCAU
      * Software Library User Guide (See note in README).
      */
-    #include "fsl_mmcau.h"
+    #ifdef FREESCALE_MMCAU_CLASSIC
+        #include "cau_api.h"
+    #else
+        #include "fsl_mmcau.h"
+    #endif
 
     const unsigned char parityLookup[128] = {
         1,0,0,1,0,1,1,0,0,1,1,0,1,0,0,1,0,1,1,0,1,0,0,1,1,0,0,1,0,1,1,0,
@@ -805,6 +820,13 @@
 
         iv = (byte*)des->reg;
 
+    #ifdef FREESCALE_MMCAU_CLASSIC
+        if ((wolfssl_word)out % WOLFSSL_MMCAU_ALIGNMENT) {
+            WOLFSSL_MSG("Bad cau_des_encrypt alignment");
+            return BAD_ALIGN_E;
+        }
+    #endif
+
         while (len > 0)
         {
             XMEMCPY(temp_block, in + offset, DES_BLOCK_SIZE);
@@ -817,7 +839,11 @@
             if(ret != 0) {
                 return ret;
             }
+        #ifdef FREESCALE_MMCAU_CLASSIC
+            cau_des_encrypt(temp_block, (byte*)des->key, out + offset);
+        #else
             MMCAU_DES_EncryptEcb(temp_block, (byte*)des->key, out + offset);
+        #endif
             wolfSSL_CryptHwMutexUnLock();
 
             len    -= DES_BLOCK_SIZE;
@@ -841,6 +867,13 @@
 
         iv = (byte*)des->reg;
 
+    #ifdef FREESCALE_MMCAU_CLASSIC
+        if ((wolfssl_word)out % WOLFSSL_MMCAU_ALIGNMENT) {
+            WOLFSSL_MSG("Bad cau_des_decrypt alignment");
+            return BAD_ALIGN_E;
+        }
+    #endif
+
         while (len > 0)
         {
             XMEMCPY(temp_block, in + offset, DES_BLOCK_SIZE);
@@ -849,7 +882,12 @@
             if(ret != 0) {
                 return ret;
             }
+
+        #ifdef FREESCALE_MMCAU_CLASSIC
+            cau_des_decrypt(in + offset, (byte*)des->key, out + offset);
+        #else
             MMCAU_DES_DecryptEcb(in + offset, (byte*)des->key, out + offset);
+        #endif
             wolfSSL_CryptHwMutexUnLock();
 
             /* XOR block with IV for CBC */
@@ -878,6 +916,13 @@
 
         iv = (byte*)des->reg;
 
+    #ifdef FREESCALE_MMCAU_CLASSIC
+        if ((wolfssl_word)out % WOLFSSL_MMCAU_ALIGNMENT) {
+            WOLFSSL_MSG("Bad 3ede cau_des_encrypt alignment");
+            return BAD_ALIGN_E;
+        }
+    #endif
+
         while (len > 0)
         {
             XMEMCPY(temp_block, in + offset, DES_BLOCK_SIZE);
@@ -890,9 +935,15 @@
             if(ret != 0) {
                 return ret;
             }
+    #ifdef FREESCALE_MMCAU_CLASSIC
+            cau_des_encrypt(temp_block,   (byte*)des->key[0], out + offset);
+            cau_des_decrypt(out + offset, (byte*)des->key[1], out + offset);
+            cau_des_encrypt(out + offset, (byte*)des->key[2], out + offset);
+    #else
             MMCAU_DES_EncryptEcb(temp_block  , (byte*)des->key[0], out + offset);
             MMCAU_DES_DecryptEcb(out + offset, (byte*)des->key[1], out + offset);
             MMCAU_DES_EncryptEcb(out + offset, (byte*)des->key[2], out + offset);
+    #endif
             wolfSSL_CryptHwMutexUnLock();
 
             len    -= DES_BLOCK_SIZE;
@@ -917,6 +968,13 @@
 
         iv = (byte*)des->reg;
 
+    #ifdef FREESCALE_MMCAU_CLASSIC
+        if ((wolfssl_word)out % WOLFSSL_MMCAU_ALIGNMENT) {
+            WOLFSSL_MSG("Bad 3ede cau_des_decrypt alignment");
+            return BAD_ALIGN_E;
+        }
+    #endif
+
         while (len > 0)
         {
             XMEMCPY(temp_block, in + offset, DES_BLOCK_SIZE);
@@ -925,9 +983,15 @@
             if(ret != 0) {
                 return ret;
             }
+        #ifdef FREESCALE_MMCAU_CLASSIC
+            cau_des_decrypt(in + offset,  (byte*)des->key[2], out + offset);
+            cau_des_encrypt(out + offset, (byte*)des->key[1], out + offset);
+            cau_des_decrypt(out + offset, (byte*)des->key[0], out + offset);
+        #else
             MMCAU_DES_DecryptEcb(in + offset , (byte*)des->key[2], out + offset);
             MMCAU_DES_EncryptEcb(out + offset, (byte*)des->key[1], out + offset);
             MMCAU_DES_DecryptEcb(out + offset, (byte*)des->key[0], out + offset);
+        #endif
             wolfSSL_CryptHwMutexUnLock();
 
             /* XOR block with IV for CBC */
@@ -947,138 +1011,104 @@
 
 #elif defined(WOLFSSL_PIC32MZ_CRYPT)
 
-    #include "wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h"
+    /* PIC32MZ DES hardware requires size multiple of block size */
+    #include <wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h>
 
     int wc_Des_SetKey(Des* des, const byte* key, const byte* iv, int dir)
     {
-        word32 *dkey = des->key;
-        word32 *dreg = des->reg;
+        if (des == NULL || key == NULL || iv == NULL)
+            return BAD_FUNC_ARG;
 
-        XMEMCPY((byte *)dkey, (byte *)key, 8);
-        ByteReverseWords(dkey, dkey, 8);
-        XMEMCPY((byte *)dreg, (byte *)iv, 8);
-        ByteReverseWords(dreg, dreg, 8);
+        XMEMCPY(des->key, key, DES_KEYLEN);
+        XMEMCPY(des->reg, iv, DES_IVLEN);
 
         return 0;
     }
 
     int wc_Des3_SetKey(Des3* des, const byte* key, const byte* iv, int dir)
     {
-        word32 *dkey1 = des->key[0];
-        word32 *dreg = des->reg;
+        if (des == NULL || key == NULL || iv == NULL)
+            return BAD_FUNC_ARG;
 
-        XMEMCPY(dkey1, key, 24);
-        ByteReverseWords(dkey1, dkey1, 24);
-        XMEMCPY(dreg, iv, 8);
-        ByteReverseWords(dreg, dreg, 8);
+        XMEMCPY(des->key[0], key, DES3_KEYLEN);
+        XMEMCPY(des->reg, iv, DES3_IVLEN);
 
         return 0;
-    }
-
-    void DesCrypt(word32 *key, word32 *iv, byte* out, const byte* in, word32 sz,
-                  int dir, int algo, int cryptoalgo)
-    {
-        securityAssociation *sa_p;
-        bufferDescriptor *bd_p;
-        const byte *in_p, *in_l;
-        byte *out_p, *out_l;
-        volatile securityAssociation sa __attribute__((aligned (8)));
-        volatile bufferDescriptor bd __attribute__((aligned (8)));
-        volatile int k;
-
-        /* get uncached address */
-
-        in_l = in;
-        out_l = out;
-        sa_p = KVA0_TO_KVA1(&sa);
-        bd_p = KVA0_TO_KVA1(&bd);
-        in_p = KVA0_TO_KVA1(in_l);
-        out_p= KVA0_TO_KVA1(out_l);
-
-        if(PIC32MZ_IF_RAM(in_p))
-            XMEMCPY((void *)in_p, (void *)in, sz);
-        XMEMSET((void *)out_p, 0, sz);
-
-        /* Set up the Security Association */
-        XMEMSET((byte *)KVA0_TO_KVA1(&sa), 0, sizeof(sa));
-        sa_p->SA_CTRL.ALGO = algo;
-        sa_p->SA_CTRL.LNC = 1;
-        sa_p->SA_CTRL.LOADIV = 1;
-        sa_p->SA_CTRL.FB = 1;
-        sa_p->SA_CTRL.ENCTYPE = dir; /* Encryption/Decryption */
-        sa_p->SA_CTRL.CRYPTOALGO = cryptoalgo;
-        sa_p->SA_CTRL.KEYSIZE = 1; /* KEY is 192 bits */
-        XMEMCPY((byte *)KVA0_TO_KVA1(&sa.SA_ENCKEY[algo==PIC32_ALGO_TDES ? 2 : 6]),
-                (byte *)key, algo==PIC32_ALGO_TDES ? 24 : 8);
-        XMEMCPY((byte *)KVA0_TO_KVA1(&sa.SA_ENCIV[2]), (byte *)iv, 8);
-
-        XMEMSET((byte *)KVA0_TO_KVA1(&bd), 0, sizeof(bd));
-        /* Set up the Buffer Descriptor */
-        bd_p->BD_CTRL.BUFLEN = sz;
-        bd_p->BD_CTRL.LIFM = 1;
-        bd_p->BD_CTRL.SA_FETCH_EN = 1;
-        bd_p->BD_CTRL.LAST_BD = 1;
-        bd_p->BD_CTRL.DESC_EN = 1;
-
-        bd_p->SA_ADDR = (unsigned int)KVA_TO_PA(&sa); /* (unsigned int)sa_p; */
-        bd_p->SRCADDR = (unsigned int)KVA_TO_PA(in); /* (unsigned int)in_p; */
-        bd_p->DSTADDR = (unsigned int)KVA_TO_PA(out); /* (unsigned int)out_p; */
-        bd_p->NXTPTR = (unsigned int)KVA_TO_PA(&bd);
-        bd_p->MSGLEN = sz;
-
-        /* Fire in the hole! */
-        CECON = 1 << 6;
-        while (CECON);
-
-        /* Run the engine */
-        CEBDPADDR = (unsigned int)KVA_TO_PA(&bd); /* (unsigned int)bd_p; */
-        CEINTEN = 0x07;
-        CECON = 0x27;
-
-        WAIT_ENGINE;
-
-        if((cryptoalgo == PIC32_CRYPTOALGO_CBC) ||
-           (cryptoalgo == PIC32_CRYPTOALGO_TCBC)||
-           (cryptoalgo == PIC32_CRYPTOALGO_RCBC)) {
-            /* set iv for the next call */
-            if(dir == PIC32_ENCRYPTION) {
-	            XMEMCPY((void *)iv, (void*)&(out_p[sz-DES_IVLEN]), DES_IVLEN);
-	        } else {
-                ByteReverseWords((word32*)iv, (word32 *)&(in_p[sz-DES_IVLEN]),
-                                 DES_IVLEN);
-            }
-        }
-
-        ByteReverseWords((word32*)out, (word32 *)KVA0_TO_KVA1(out), sz);
     }
 
     int wc_Des_CbcEncrypt(Des* des, byte* out, const byte* in, word32 sz)
     {
-        DesCrypt(des->key, des->reg, out, in, sz,
-                PIC32_ENCRYPTION, PIC32_ALGO_DES, PIC32_CRYPTOALGO_CBC );
-        return 0;
+        word32 blocks = sz / DES_BLOCK_SIZE;
+
+        if (des == NULL || out == NULL || in == NULL)
+            return BAD_FUNC_ARG;
+
+        return wc_Pic32DesCrypt(des->key, DES_KEYLEN, des->reg, DES_IVLEN,
+            out, in, (blocks * DES_BLOCK_SIZE),
+            PIC32_ENCRYPTION, PIC32_ALGO_DES, PIC32_CRYPTOALGO_CBC);
     }
 
     int wc_Des_CbcDecrypt(Des* des, byte* out, const byte* in, word32 sz)
     {
-        DesCrypt(des->key, des->reg, out, in, sz,
-                PIC32_DECRYPTION, PIC32_ALGO_DES, PIC32_CRYPTOALGO_CBC);
-        return 0;
+        word32 blocks = sz / DES_BLOCK_SIZE;
+
+        if (des == NULL || out == NULL || in == NULL)
+            return BAD_FUNC_ARG;
+
+        return wc_Pic32DesCrypt(des->key, DES_KEYLEN, des->reg, DES_IVLEN,
+            out, in, (blocks * DES_BLOCK_SIZE),
+            PIC32_DECRYPTION, PIC32_ALGO_DES, PIC32_CRYPTOALGO_CBC);
     }
 
     int wc_Des3_CbcEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
     {
-        DesCrypt(des->key[0], des->reg, out, in, sz,
-                PIC32_ENCRYPTION, PIC32_ALGO_TDES, PIC32_CRYPTOALGO_TCBC);
-        return 0;
+        word32 blocks = sz / DES_BLOCK_SIZE;
+
+        if (des == NULL || out == NULL || in == NULL)
+            return BAD_FUNC_ARG;
+
+        return wc_Pic32DesCrypt(des->key[0], DES3_KEYLEN, des->reg, DES3_IVLEN,
+            out, in, (blocks * DES_BLOCK_SIZE),
+            PIC32_ENCRYPTION, PIC32_ALGO_TDES, PIC32_CRYPTOALGO_TCBC);
     }
 
     int wc_Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
     {
-        DesCrypt(des->key[0], des->reg, out, in, sz,
-                PIC32_DECRYPTION, PIC32_ALGO_TDES, PIC32_CRYPTOALGO_TCBC);
-        return 0;
+        word32 blocks = sz / DES_BLOCK_SIZE;
+
+        if (des == NULL || out == NULL || in == NULL)
+            return BAD_FUNC_ARG;
+
+        return wc_Pic32DesCrypt(des->key[0], DES3_KEYLEN, des->reg, DES3_IVLEN,
+            out, in, (blocks * DES_BLOCK_SIZE),
+            PIC32_DECRYPTION, PIC32_ALGO_TDES, PIC32_CRYPTOALGO_TCBC);
     }
+
+    #ifdef WOLFSSL_DES_ECB
+        int wc_Des_EcbEncrypt(Des* des, byte* out, const byte* in, word32 sz)
+        {
+            word32 blocks = sz / DES_BLOCK_SIZE;
+
+            if (des == NULL || out == NULL || in == NULL)
+                return BAD_FUNC_ARG;
+
+            return wc_Pic32DesCrypt(des->key, DES_KEYLEN, des->reg, DES_IVLEN,
+                out, in, (blocks * DES_BLOCK_SIZE),
+                    PIC32_ENCRYPTION, PIC32_ALGO_DES, PIC32_CRYPTOALGO_ECB);
+        }
+
+        int wc_Des3_EcbEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
+        {
+            word32 blocks = sz / DES_BLOCK_SIZE;
+
+            if (des == NULL || out == NULL || in == NULL)
+                return BAD_FUNC_ARG;
+
+            return wc_Pic32DesCrypt(des->key[0], DES3_KEYLEN, des->reg, DES3_IVLEN,
+                out, in, (blocks * DES_BLOCK_SIZE),
+                PIC32_ENCRYPTION, PIC32_ALGO_TDES, PIC32_CRYPTOALGO_TECB);
+        }
+    #endif /* WOLFSSL_DES_ECB */
 
 #else
     #define NEED_SOFT_DES
@@ -1395,6 +1425,10 @@
     {
         int ret;
 
+        if (des == NULL || key == NULL || dir < 0) {
+            return BAD_FUNC_ARG;
+        }
+
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES)
         if (des->asyncDev.marker == WOLFSSL_ASYNC_MARKER_3DES) {
             /* key_raw holds orignal key copy */
@@ -1535,6 +1569,10 @@
     {
         word32 blocks;
 
+        if (des == NULL || out == NULL || in == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES)
         if (des->asyncDev.marker == WOLFSSL_ASYNC_MARKER_3DES &&
                                             sz >= WC_ASYNC_THRESH_DES3_CBC) {
@@ -1573,6 +1611,10 @@
     int wc_Des3_CbcDecrypt(Des3* des, byte* out, const byte* in, word32 sz)
     {
         word32 blocks;
+
+        if (des == NULL || out == NULL || in == NULL) {
+            return BAD_FUNC_ARG;
+        }
 
     #if defined(WOLFSSL_ASYNC_CRYPT)
         if (des->asyncDev.marker == WOLFSSL_ASYNC_MARKER_3DES &&
@@ -1631,8 +1673,6 @@
         int wc_Des3_EcbEncrypt(Des3* des, byte* out, const byte* in, word32 sz)
         {
             word32 blocks = sz / DES_BLOCK_SIZE;
-            /* printf("wc_Des3_EcbEncrypt(%016x, %016x, %d)\n",
-                *(unsigned long *)in, *(unsigned long *)out, sz) ; */
 
             if (des == NULL || out == NULL || in == NULL) {
                 return BAD_FUNC_ARG;
@@ -1661,6 +1701,9 @@ void wc_Des_SetIV(Des* des, const byte* iv)
 
 int wc_Des3_SetIV(Des3* des, const byte* iv)
 {
+    if (des == NULL) {
+        return BAD_FUNC_ARG;
+    }
     if (des && iv)
         XMEMCPY(des->reg, iv, DES_BLOCK_SIZE);
     else if (des)

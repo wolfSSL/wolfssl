@@ -61,7 +61,8 @@ endif
 
 src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/hmac.c \
-               wolfcrypt/src/hash.c
+               wolfcrypt/src/hash.c \
+               wolfcrypt/src/cpuid.c
 
 if BUILD_RNG
 src_libwolfssl_la_SOURCES += wolfcrypt/src/random.c
@@ -92,10 +93,9 @@ endif
 endif
 
 if BUILD_AES
+src_libwolfssl_la_SOURCES += wolfcrypt/src/aes.c
 if BUILD_ARMASM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-aes.c
-else
-src_libwolfssl_la_SOURCES += wolfcrypt/src/aes.c
 endif
 endif
 
@@ -113,6 +113,10 @@ endif
 
 if BUILD_SHA512
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sha512.c
+endif
+
+if BUILD_SHA3
+src_libwolfssl_la_SOURCES += wolfcrypt/src/sha3.c
 endif
 
 src_libwolfssl_la_SOURCES += \
@@ -224,7 +228,7 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/ed25519.c
 endif
 
 if BUILD_FEMATH
-if BUILD_CURVED25519_SMALL
+if BUILD_CURVE25519_SMALL
 src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_low_mem.c
 else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_operations.c
@@ -232,10 +236,19 @@ endif
 endif
 
 if BUILD_GEMATH
-if BUILD_CURVED25519_SMALL
+if BUILD_ED25519_SMALL
 src_libwolfssl_la_SOURCES += wolfcrypt/src/ge_low_mem.c
+if !BUILD_CURVE25519_SMALL
+src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_low_mem.c
+endif
 else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/ge_operations.c
+if !BUILD_FEMATH
+src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_operations.c
+endif
+if BUILD_CURVE25519_SMALL
+src_libwolfssl_la_SOURCES += wolfcrypt/src/fe_operations.c
+endif
 endif
 endif
 
@@ -263,6 +276,10 @@ src_libwolfssl_la_SOURCES += \
                src/keys.c \
                src/ssl.c \
                src/tls.c
+
+if BUILD_TLS13
+src_libwolfssl_la_SOURCES += src/tls13.c
+endif
 
 if BUILD_OCSP
 src_libwolfssl_la_SOURCES += src/ocsp.c

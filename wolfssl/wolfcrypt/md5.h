@@ -49,8 +49,8 @@ enum {
     MD5_PAD_SIZE    = 56
 };
 
-#if defined(WOLFSSL_PIC32MZ_HASH)
-    #include "port/pic32/pic32mz-crypt.h"
+#ifdef WOLFSSL_MICROCHIP_PIC32MZ
+    #include <wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h>
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
@@ -66,13 +66,11 @@ typedef struct Md5 {
     word32  loLen;     /* length in bytes   */
     word32  hiLen;     /* length in bytes   */
     word32  buffer[MD5_BLOCK_SIZE  / sizeof(word32)];
-#if !defined(WOLFSSL_PIC32MZ_HASH)
     word32  digest[MD5_DIGEST_SIZE / sizeof(word32)];
-#else
-    word32  digest[PIC32_HASH_SIZE / sizeof(word32)];
-    pic32mz_desc desc; /* Crypt Engine descriptor */
-#endif
     void*   heap;
+#ifdef WOLFSSL_PIC32MZ_HASH
+    hashUpdCache cache; /* cache for updates */
+#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
@@ -89,6 +87,9 @@ WOLFSSL_API void wc_Md5Free(Md5*);
 WOLFSSL_API int  wc_Md5GetHash(Md5*, byte*);
 WOLFSSL_API int  wc_Md5Copy(Md5*, Md5*);
 
+#ifdef WOLFSSL_PIC32MZ_HASH
+WOLFSSL_API void wc_Md5SizeSet(Md5* md5, word32 len);
+#endif
 
 #ifdef __cplusplus
     } /* extern "C" */

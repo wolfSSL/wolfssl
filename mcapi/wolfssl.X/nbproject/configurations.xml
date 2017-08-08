@@ -4,6 +4,7 @@
     <logicalFolder name="HeaderFiles"
                    displayName="Header Files"
                    projectFiles="true">
+      <itemPath>../user_settings.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -37,10 +38,8 @@
         <itemPath>../../wolfcrypt/src/md5.c</itemPath>
         <itemPath>../../wolfcrypt/src/memory.c</itemPath>
         <itemPath>../../wolfcrypt/src/misc.c</itemPath>
-        <itemPath>../../wolfcrypt/src/pic32mz-hash.c</itemPath>
         <itemPath>../../wolfcrypt/src/pkcs7.c</itemPath>
         <itemPath>../../wolfcrypt/src/poly1305.c</itemPath>
-        <itemPath>../../wolfcrypt/src/pw.c</itemPath>
         <itemPath>../../wolfcrypt/src/pwdbased.c</itemPath>
         <itemPath>../../wolfcrypt/src/rabbit.c</itemPath>
         <itemPath>../../wolfcrypt/src/random.c</itemPath>
@@ -51,6 +50,21 @@
         <itemPath>../../wolfcrypt/src/sha512.c</itemPath>
         <itemPath>../../wolfcrypt/src/tfm.c</itemPath>
         <itemPath>../../wolfcrypt/src/wc_port.c</itemPath>
+        <itemPath>../../wolfcrypt/src/port/pic32/pic32mz-hash.c</itemPath>
+        <itemPath>../../wolfcrypt/src/port/pic32/pic32mz-crypt.c</itemPath>
+        <itemPath>../../wolfcrypt/src/hash.c</itemPath>
+        <itemPath>../../wolfcrypt/src/chacha20_poly1305.c</itemPath>
+        <itemPath>../../wolfcrypt/src/curve25519.c</itemPath>
+        <itemPath>../../wolfcrypt/src/ed25519.c</itemPath>
+        <itemPath>../../wolfcrypt/src/fe_low_mem.c</itemPath>
+        <itemPath>../../wolfcrypt/src/fe_operations.c</itemPath>
+        <itemPath>../../wolfcrypt/src/ge_low_mem.c</itemPath>
+        <itemPath>../../wolfcrypt/src/ge_operations.c</itemPath>
+        <itemPath>../../wolfcrypt/src/wc_encrypt.c</itemPath>
+        <itemPath>../../wolfcrypt/src/pkcs12.c</itemPath>
+        <itemPath>../../wolfcrypt/src/signature.c</itemPath>
+        <itemPath>../../wolfcrypt/src/wolfevent.c</itemPath>
+        <itemPath>../../wolfcrypt/src/wolfmath.c</itemPath>
       </logicalFolder>
       <logicalFolder name="src" displayName="wolfssl" projectFiles="true">
         <itemPath>../../src/crl.c</itemPath>
@@ -61,6 +75,7 @@
         <itemPath>../../src/sniffer.c</itemPath>
         <itemPath>../../src/ssl.c</itemPath>
         <itemPath>../../src/tls.c</itemPath>
+        <itemPath>../../src/tls13.c</itemPath>
       </logicalFolder>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
@@ -118,7 +133,7 @@
         <property key="enable-unroll-loops" value="false"/>
         <property key="exclude-floating-point" value="false"/>
         <property key="extra-include-directories"
-                  value="../../;../../mcapi;../../zlib-1.2.8;/Users/chrisc/yaSSL/products/cyassl/git/cyassl57/zlib-1.2.7"/>
+                  value="../../;../../mcapi;../../mplabx;../../zlib-1.2.8"/>
         <property key="generate-16-bit-code" value="false"/>
         <property key="generate-micro-compressed-code" value="false"/>
         <property key="isolate-each-function" value="false"/>
@@ -127,8 +142,7 @@
         <property key="place-data-into-section" value="false"/>
         <property key="post-instruction-scheduling" value="default"/>
         <property key="pre-instruction-scheduling" value="default"/>
-        <property key="preprocessor-macros"
-                  value="WOLFSSL_SHA512;WOLFSSL_SHA384;WOLFSSL_AES_COUNTER;WOLFSSL_AES_DIRECT;HAVE_ECC;HAVE_LIBZ;HAVE_MCAPI"/>
+        <property key="preprocessor-macros" value="WOLFSSL_USER_SETTINGS;HAVE_LIBZ;HAVE_MCAPI"/>
         <property key="strict-ansi" value="false"/>
         <property key="support-ansi" value="false"/>
         <property key="use-cci" value="false"/>

@@ -25,10 +25,12 @@
 #endif
 
 #include <cyassl/ctaocrypt/settings.h>
-
 /* let's use cyassl layer AND cyassl openssl layer */
 #include <cyassl/ssl.h>
 #include <cyassl/openssl/ssl.h>
+#ifdef CYASSL_DTLS
+    #include <cyassl/error-ssl.h>
+#endif
 
 #if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
         #include <stdio.h>
@@ -51,6 +53,8 @@
 #include <cyassl/test.h>
 
 #include "examples/echoclient/echoclient.h"
+
+#ifndef NO_WOLFSSL_CLIENT
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     static int devId = INVALID_DEVID;
@@ -264,6 +268,14 @@ void echoclient_test(void* args)
                 fflush(fout) ;
                 sendSz -= ret;
             }
+#ifdef CYASSL_DTLS
+            else if (wolfSSL_dtls(ssl) && err == DECRYPT_ERROR) {
+                /* This condition is OK. The packet should be dropped
+                 * silently when there is a decrypt or MAC error on
+                 * a DTLS record. */
+                sendSz = 0;
+            }
+#endif
             else {
                 printf("SSL_read msg error %d, %s\n", err,
                     ERR_error_string(err, buffer));
@@ -313,6 +325,7 @@ void echoclient_test(void* args)
     ((func_args*)args)->return_code = 0;
 }
 
+#endif /* !NO_WOLFSSL_CLIENT */
 
 /* so overall tests can pull in test function */
 #ifndef NO_MAIN_DRIVER
@@ -338,7 +351,9 @@ void echoclient_test(void* args)
 #ifndef CYASSL_TIRTOS
         ChangeToWolfRoot();
 #endif
+#ifndef NO_WOLFSSL_CLIENT
         echoclient_test(&args);
+#endif
 
         CyaSSL_Cleanup();
 
@@ -351,5 +366,3 @@ void echoclient_test(void* args)
     }
 
 #endif /* NO_MAIN_DRIVER */
-
-

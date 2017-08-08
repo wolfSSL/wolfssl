@@ -212,7 +212,9 @@ void mp_forcezero(mp_int * a)
     if (a->dp != NULL) {
       /* force zero the used digits */
       ForceZero(a->dp, a->used * sizeof(mp_digit));
-
+#ifdef HAVE_WOLF_BIGINT
+      wc_bigint_zero(&a->raw);
+#endif
       /* free ram */
       mp_free(a);
 
@@ -484,9 +486,6 @@ void mp_zero (mp_int * a)
 
   a->sign = MP_ZPOS;
   a->used = 0;
-#ifdef HAVE_WOLF_BIGINT
-  wc_bigint_zero(&a->raw);
-#endif
 
   tmp = a->dp;
   for (n = 0; n < a->alloc; n++) {
@@ -3177,7 +3176,7 @@ int fast_s_mp_mul_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
   {
     mp_digit *tmpc;
     tmpc = c->dp;
-    for (ix = 0; ix < pa+1; ix++) {
+    for (ix = 0; ix < pa; ix++) { /* JRB, +1 could read uninitialized data */
       /* now extract the previous digit [below the carry] */
       *tmpc++ = W[ix];
     }
@@ -3847,6 +3846,10 @@ int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
 #endif
   mp_word  _W;
 
+  if (a->dp == NULL) { /* JRB, avoid reading uninitialized values */
+      return MP_VAL;
+  }
+
   /* grow the destination as required */
   pa = a->used + b->used;
   if (c->alloc < pa) {
@@ -3867,7 +3870,7 @@ int fast_s_mp_mul_high_digs (mp_int * a, mp_int * b, mp_int * c, int digs)
   /* number of output digits to produce */
   pa = a->used + b->used;
   _W = 0;
-  for (ix = digs; ix < pa && a->dp; ix++) {
+  for (ix = digs; ix < pa; ix++) { /* JRB, have a->dp check at top of function*/
       int      tx, ty, iy;
       mp_digit *tmpx, *tmpy;
 
@@ -4253,14 +4256,16 @@ static int mp_div_d (mp_int * a, mp_digit b, mp_int * c, mp_digit * d)
   /* no easy answer [c'est la vie].  Just division */
   if (c != NULL) {
       if ((res = mp_init_size(&q, a->used)) != MP_OKAY) {
-        return res;
+         return res;
       }
 
       q.used = a->used;
       q.sign = a->sign;
   }
   else {
-      mp_init(&q); /* initialize to help static analysis */
+      if ((res = mp_init(&q)) != MP_OKAY) {
+         return res;
+      }
   }
 
 

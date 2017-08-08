@@ -64,7 +64,6 @@ Possible IO enable options:
 /* Translates return codes returned from
  * send() and recv() if need be.
  */
-
 static INLINE int TranslateReturnCode(int old, int sd)
 {
     (void)sd;
@@ -318,7 +317,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         if (dtlsCtx->peer.sz > 0
                 && peerSz != (XSOCKLENT)dtlsCtx->peer.sz
                 && XMEMCMP(&peer, dtlsCtx->peer.sa, peerSz) != 0) {
-            WOLFSSL_MSG("\tIgnored packet from invalid peer");
+            WOLFSSL_MSG("    Ignored packet from invalid peer");
             return WOLFSSL_CBIO_ERR_WANT_READ;
         }
     }
@@ -376,6 +375,61 @@ int EmbedSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 }
 
 
+#ifdef WOLFSSL_MULTICAST
+
+/* The alternate receive embedded callback for Multicast
+ *  return : nb bytes read, or error
+ */
+int EmbedReceiveFromMcast(WOLFSSL *ssl, char *buf, int sz, void *ctx)
+{
+    WOLFSSL_DTLS_CTX* dtlsCtx = (WOLFSSL_DTLS_CTX*)ctx;
+    int recvd;
+    int err;
+    int sd = dtlsCtx->rfd;
+
+    WOLFSSL_ENTER("EmbedReceiveFromMcast()");
+
+    recvd = (int)RECVFROM_FUNCTION(sd, buf, sz, ssl->rflags, NULL, NULL);
+
+    recvd = TranslateReturnCode(recvd, sd);
+
+    if (recvd < 0) {
+        err = LastError();
+        WOLFSSL_MSG("Embed Receive From error");
+
+        if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
+            if (wolfSSL_get_using_nonblock(ssl)) {
+                WOLFSSL_MSG("\tWould block");
+                return WOLFSSL_CBIO_ERR_WANT_READ;
+            }
+            else {
+                WOLFSSL_MSG("\tSocket timeout");
+                return WOLFSSL_CBIO_ERR_TIMEOUT;
+            }
+        }
+        else if (err == SOCKET_ECONNRESET) {
+            WOLFSSL_MSG("\tConnection reset");
+            return WOLFSSL_CBIO_ERR_CONN_RST;
+        }
+        else if (err == SOCKET_EINTR) {
+            WOLFSSL_MSG("\tSocket interrupted");
+            return WOLFSSL_CBIO_ERR_ISR;
+        }
+        else if (err == SOCKET_ECONNREFUSED) {
+            WOLFSSL_MSG("\tConnection refused");
+            return WOLFSSL_CBIO_ERR_WANT_READ;
+        }
+        else {
+            WOLFSSL_MSG("\tGeneral error");
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+    }
+
+    return recvd;
+}
+#endif /* WOLFSSL_MULTICAST */
+
+
 /* The DTLS Generate Cookie callback
  *  return : number of bytes copied into buf, or error
  */
@@ -384,7 +438,7 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
     int sd = ssl->wfd;
     SOCKADDR_S peer;
     XSOCKLENT peerSz = sizeof(peer);
-    byte digest[SHA_DIGEST_SIZE];
+    byte digest[SHA256_DIGEST_SIZE];
     int  ret = 0;
 
     (void)ctx;
@@ -395,12 +449,12 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
         return GEN_COOKIE_E;
     }
 
-    ret = wc_ShaHash((byte*)&peer, peerSz, digest);
+    ret = wc_Sha256Hash((byte*)&peer, peerSz, digest);
     if (ret != 0)
         return ret;
 
-    if (sz > SHA_DIGEST_SIZE)
-        sz = SHA_DIGEST_SIZE;
+    if (sz > SHA256_DIGEST_SIZE)
+        sz = SHA256_DIGEST_SIZE;
     XMEMCPY(buf, digest, sz);
 
     return sz;
@@ -1046,45 +1100,72 @@ int wolfIO_HttpBuildRequest(const char* reqType, const char* domainName,
     word32 reqTypeLen, domainNameLen, reqSzStrLen, contentTypeLen, maxLen;
     char reqSzStr[6];
     char* req = (char*)buf;
+    const char* blankStr = " ";
+    const char* http11Str = " HTTP/1.1";
+    const char* hostStr = "\r\nHost: ";
+    const char* contentLenStr = "\r\nContent-Length: ";
+    const char* contentTypeStr = "\r\nContent-Type: ";
+    const char* doubleCrLfStr = "\r\n\r\n";
+    word32 blankStrLen, http11StrLen, hostStrLen, contentLenStrLen,
+        contentTypeStrLen, doubleCrLfStrLen;
 
     reqTypeLen = (word32)XSTRLEN(reqType);
     domainNameLen = (word32)XSTRLEN(domainName);
     reqSzStrLen = wolfIO_Word16ToString(reqSzStr, (word16)reqSz);
     contentTypeLen = (word32)XSTRLEN(contentType);
 
-    /* determine max length */
-    maxLen = reqTypeLen + domainNameLen + pathLen + reqSzStrLen + contentTypeLen + 56;
+    blankStrLen = (word32)XSTRLEN(blankStr);
+    http11StrLen = (word32)XSTRLEN(http11Str);
+    hostStrLen = (word32)XSTRLEN(hostStr);
+    contentLenStrLen = (word32)XSTRLEN(contentLenStr);
+    contentTypeStrLen = (word32)XSTRLEN(contentTypeStr);
+    doubleCrLfStrLen = (word32)XSTRLEN(doubleCrLfStr);
+
+    /* determine max length and check it */
+    maxLen =
+        reqTypeLen +
+        blankStrLen +
+        pathLen +
+        http11StrLen +
+        hostStrLen +
+        domainNameLen +
+        contentLenStrLen +
+        reqSzStrLen +
+        contentTypeStrLen +
+        contentTypeLen +
+        doubleCrLfStrLen +
+        1 /* null term */;
     if (maxLen > (word32)bufSize)
         return 0;
 
     XSTRNCPY((char*)buf, reqType, reqTypeLen);
     buf += reqTypeLen;
-    XSTRNCPY((char*)buf, " ", 1);
-    buf += 1;
+    XSTRNCPY((char*)buf, blankStr, blankStrLen+1);
+    buf += blankStrLen;
     XSTRNCPY((char*)buf, path, pathLen);
     buf += pathLen;
-    XSTRNCPY((char*)buf, " HTTP/1.1", 9);
-    buf += 9;
+    XSTRNCPY((char*)buf, http11Str, http11StrLen+1);
+    buf += http11StrLen;
     if (domainNameLen > 0) {
-        XSTRNCPY((char*)buf, "\r\nHost: ", 8);
-        buf += 8;
+        XSTRNCPY((char*)buf, hostStr, hostStrLen+1);
+        buf += hostStrLen;
         XSTRNCPY((char*)buf, domainName, domainNameLen);
         buf += domainNameLen;
     }
     if (reqSz > 0 && reqSzStrLen > 0) {
-        XSTRNCPY((char*)buf, "\r\nContent-Length: ", 18);
-        buf += 18;
+        XSTRNCPY((char*)buf, contentLenStr, contentLenStrLen+1);
+        buf += contentLenStrLen;
         XSTRNCPY((char*)buf, reqSzStr, reqSzStrLen);
         buf += reqSzStrLen;
     }
     if (contentTypeLen > 0) {
-        XSTRNCPY((char*)buf, "\r\nContent-Type: ", 16);
-        buf += 16;
+        XSTRNCPY((char*)buf, contentTypeStr, contentTypeStrLen+1);
+        buf += contentTypeStrLen;
         XSTRNCPY((char*)buf, contentType, contentTypeLen);
         buf += contentTypeLen;
     }
-    XSTRNCPY((char*)buf, "\r\n\r\n", 4);
-    buf += 4;
+    XSTRNCPY((char*)buf, doubleCrLfStr, doubleCrLfStrLen+1);
+    buf += doubleCrLfStrLen;
 
 #ifdef WOLFIO_DEBUG
     printf("HTTP %s: %s", reqType, req);
@@ -1163,7 +1244,7 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
                                                             httpBuf, httpBufSz);
 
             ret = wolfIO_TcpConnect(&sfd, domainName, port, io_timeout_sec);
-            if ((ret != 0) || (sfd <= 0)) {
+            if ((ret != 0) || (sfd < 0)) {
                 WOLFSSL_MSG("OCSP Responder connection failed");
             }
             else if (wolfIO_Send(sfd, (char*)httpBuf, httpBufSz, 0) !=
@@ -1221,7 +1302,7 @@ int wolfIO_HttpProcessResponseCrl(WOLFSSL_CRL* crl, int sfd, byte* httpBuf,
     result = wolfIO_HttpProcessResponse(sfd, "application/pkix-crl",
         &respBuf, httpBuf, httpBufSz, DYNAMIC_TYPE_CRL, crl->heap);
     if (result >= 0) {
-        result = BufferLoadCRL(crl, respBuf, result, SSL_FILETYPE_ASN1);
+        result = BufferLoadCRL(crl, respBuf, result, SSL_FILETYPE_ASN1, 0);
     }
     XFREE(respBuf, crl->heap, DYNAMIC_TYPE_CRL);
 
@@ -1243,7 +1324,6 @@ int EmbedCrlLookup(WOLFSSL_CRL* crl, const char* url, int urlSz)
     domainName = (char*)XMALLOC(MAX_URL_ITEM_SIZE, crl->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
     if (domainName == NULL) {
-        XFREE(path, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
     }
 #endif
@@ -1263,7 +1343,7 @@ int EmbedCrlLookup(WOLFSSL_CRL* crl, const char* url, int urlSz)
                 httpBuf, httpBufSz);
 
             ret = wolfIO_TcpConnect(&sfd, domainName, port, io_timeout_sec);
-            if ((ret != 0) || (sfd <= 0)) {
+            if ((ret != 0) || (sfd < 0)) {
                 WOLFSSL_MSG("CRL connection failed");
             }
             else if (wolfIO_Send(sfd, (char*)httpBuf, httpBufSz, 0)
@@ -1398,6 +1478,8 @@ int NetX_Receive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     ULONG copied = 0;
     UINT  status;
 
+    (void)ssl;
+
     if (nxCtx == NULL || nxCtx->nxSocket == NULL) {
         WOLFSSL_MSG("NetX Recv NULL parameters");
         return WOLFSSL_CBIO_ERR_GENERAL;
@@ -1450,6 +1532,8 @@ int NetX_Send(WOLFSSL* ssl, char *buf, int sz, void *ctx)
     NX_PACKET*      packet;
     NX_PACKET_POOL* pool;   /* shorthand */
     UINT            status;
+
+    (void)ssl;
 
     if (nxCtx == NULL || nxCtx->nxSocket == NULL) {
         WOLFSSL_MSG("NetX Send NULL parameters");

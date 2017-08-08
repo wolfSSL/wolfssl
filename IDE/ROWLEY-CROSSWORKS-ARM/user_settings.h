@@ -7,6 +7,8 @@
 extern "C" {
 #endif
 
+#include <stddef.h> /* for size_t */
+
 /* ------------------------------------------------------------------------- */
 /* Platform */
 /* ------------------------------------------------------------------------- */
@@ -118,6 +120,11 @@ extern "C" {
     /* half as much memory but twice as slow */
     #undef  RSA_LOW_MEM
     //#define RSA_LOW_MEM
+
+    /* Enables blinding mode, to prevent timing attacks */
+    #undef  WC_RSA_BLINDING
+    #define WC_RSA_BLINDING
+
 #else
     #define NO_RSA
 #endif
@@ -270,6 +277,8 @@ extern "C" {
 /* Allows custom "custom_time()" function to be used for benchmark */
 #define WOLFSSL_USER_CURRTIME
 #define USER_TICKS
+extern unsigned long ksdk_time(unsigned long* timer);
+#define XTIME ksdk_time
 
 
 /* ------------------------------------------------------------------------- */

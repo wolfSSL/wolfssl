@@ -7,9 +7,9 @@ trap 'for i in `jobs -p`; do pkill -TERM -P $i; kill $i; done' EXIT
 [ ! -x ./examples/client/client ] && echo -e "\n\nClient doesn't exist" && exit 1
 
 # setup ocsp responders
-./certs/ocsp/ocspd0.sh &
-./certs/ocsp/ocspd2.sh &
-./certs/ocsp/ocspd3.sh &
+./certs/ocsp/ocspd-root-ca-and-intermediate-cas.sh &
+./certs/ocsp/ocspd-intermediate2-ca-issued-certs.sh &
+./certs/ocsp/ocspd-intermediate3-ca-issued-certs.sh &
 sleep 1
 [ $(jobs -r | wc -l) -ne 3 ] && echo -e "\n\nSetup ocsp responder failed, skipping" && exit 0
 

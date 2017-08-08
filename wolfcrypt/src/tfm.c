@@ -314,7 +314,7 @@ void fp_mul(fp_int *A, fp_int *B, fp_int *C)
 
 clean:
     /* zero any excess digits on the destination that we didn't write to */
-    for (y = C->used; y < oldused; y++) {
+    for (y = C->used; y >= 0 && y < oldused; y++) {
         C->dp[y] = 0;
     }
 }
@@ -1045,26 +1045,6 @@ int fp_addmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d)
 
 #ifdef TFM_TIMING_RESISTANT
 
-#ifndef WC_NO_CACHE_RESISTANT
-/* all off / all on pointer addresses for constant calculations */
-/* ecc.c uses same table */
-const wolfssl_word wc_off_on_addr[2] =
-{
-#if defined(WC_64BIT_CPU)
-    W64LIT(0x0000000000000000),
-    W64LIT(0xffffffffffffffff)
-#elif defined(WC_16BIT_CPU)
-    0x0000U,
-    0xffffU
-#else
-    /* 32 bit */
-    0x00000000U,
-    0xffffffffU
-#endif
-};
-
-#endif /* WC_NO_CACHE_RESISTANT */
-
 /* timing resistant montgomery ladder based exptmod
    Based on work by Marc Joye, Sung-Ming Yen, "The Montgomery Powering Ladder",
    Cryptographic Hardware and Embedded Systems, CHES 2002
@@ -1499,7 +1479,7 @@ void fp_sqr(fp_int *A, fp_int *B)
 
 clean:
   /* zero any excess digits on the destination that we didn't write to */
-  for (y = B->used; y < oldused; y++) {
+  for (y = B->used; y >= 0 && y < oldused; y++) {
     B->dp[y] = 0;
   }
 }
@@ -1888,8 +1868,21 @@ void fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp)
 
 void fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c)
 {
+#if defined(ALT_ECC_SIZE) || defined(HAVE_WOLF_BIGINT)
+  const word32 maxC = (a->size * sizeof(fp_digit));
+#else
+  const word32 maxC = (FP_SIZE * sizeof(fp_digit));
+#endif
+
   /* zero the int */
   fp_zero (a);
+
+  /* if input b excess max, then truncate */
+  if (c > 0 && (word32)c > maxC) {
+     int excess = (c - maxC);
+     c -= excess;
+     b += excess;
+  }
 
   /* If we know the endianness of this architecture, and we're using
      32-bit fp_digits, we can optimize this */
@@ -1902,11 +1895,6 @@ void fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c)
   {
      unsigned char *pd = (unsigned char *)a->dp;
 
-     if ((unsigned)c > (FP_SIZE * sizeof(fp_digit))) {
-        int excess = c - (FP_SIZE * sizeof(fp_digit));
-        c -= excess;
-        b += excess;
-     }
      a->used = (c + sizeof(fp_digit) - 1)/sizeof(fp_digit);
      /* read the bytes in */
 #ifdef BIG_ENDIAN_ORDER
@@ -1933,7 +1921,10 @@ void fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c)
   for (; c > 0; c--) {
      fp_mul_2d (a, 8, a);
      a->dp[0] |= *b++;
-     a->used += 1;
+
+     if (a->used == 0) {
+         a->used = 1;
+     }
   }
 #endif
   fp_clamp (a);
@@ -2283,6 +2274,8 @@ void fp_free(fp_int* a)
 /* clear one (frees)  */
 void mp_clear (mp_int * a)
 {
+    if (a == NULL)
+        return;
     fp_clear(a);
 }
 
@@ -2474,7 +2467,7 @@ void fp_copy(fp_int *a, fp_int *b)
             XMEMCPY(b->dp, a->dp, a->used * sizeof(fp_digit));
 
             /* zero any excess digits on the destination that we didn't write to */
-            for (x = b->used; x < oldused; x++) {
+            for (x = b->used; x >= 0 && x < oldused; x++) {
                 b->dp[x] = 0;
             }
         }

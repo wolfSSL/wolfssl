@@ -9,6 +9,7 @@ EXTRA_DIST += \
 	     certs/client-keyEnc.pem \
 	     certs/client-key.pem \
 	     certs/ecc-key.pem \
+	     certs/ecc-privkey.pem \
 	     certs/ecc-keyPkcs8Enc.pem \
 	     certs/ecc-key-comp.pem \
 	     certs/ecc-keyPkcs8.pem \
@@ -33,7 +34,9 @@ EXTRA_DIST += \
 	     certs/server-revoked-key.pem \
 	     certs/wolfssl-website-ca.pem \
 	     certs/test-servercert.p12 \
-	     certs/dsaparams.pem
+	     certs/dsaparams.pem \
+             certs/ecc-privOnlyKey.pem \
+             certs/ecc-privOnlyCert.pem
 EXTRA_DIST += \
 	     certs/ca-key.der \
 	     certs/ca-cert.der \
@@ -53,7 +56,24 @@ EXTRA_DIST += \
 	     certs/server-ecc-comp.der \
 	     certs/server-ecc.der \
 	     certs/server-ecc-rsa.der \
-         certs/server-cert-chain.der
+	     certs/server-cert-chain.der
+EXTRA_DIST += \
+             certs/ed25519/ca-ed25519.der \
+             certs/ed25519/ca-ed25519-key.der \
+             certs/ed25519/ca-ed25519-key.pem \
+             certs/ed25519/ca-ed25519.pem \
+             certs/ed25519/client-ed25519.der \
+             certs/ed25519/client-ed25519-key.der \
+             certs/ed25519/client-ed25519-key.pem \
+             certs/ed25519/client-ed25519.pem \
+             certs/ed25519/root-ed25519.der \
+             certs/ed25519/root-ed25519-key.der \
+             certs/ed25519/root-ed25519-key.pem \
+             certs/ed25519/root-ed25519.pem \
+             certs/ed25519/server-ed25519.der \
+             certs/ed25519/server-ed25519-key.der \
+             certs/ed25519/server-ed25519-key.pem \
+             certs/ed25519/server-ed25519.pem
 
 dist_doc_DATA+= certs/taoCert.txt
 

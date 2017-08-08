@@ -24,6 +24,7 @@
 #ifndef WOLF_CRYPT_PORT_H
 #define WOLF_CRYPT_PORT_H
 
+#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/visibility.h>
 
 #ifdef __cplusplus
@@ -48,7 +49,10 @@
     #endif
 #elif defined(THREADX)
     #ifndef SINGLE_THREADED
-        #include "tx_api.h"
+        #ifdef NEED_THREADX_TYPES
+            #include <types.h>
+        #endif
+        #include <tx_api.h>
     #endif
 #elif defined(MICRIUM)
     /* do nothing, just don't pick Unix */
@@ -156,9 +160,9 @@
         #error Need a mutex type in multithreaded mode
     #endif /* USE_WINDOWS_API */
 #endif /* SINGLE_THREADED */
-        
-/* Enable crypt HW mutex for Freescale MMCAU */
-#if defined(FREESCALE_MMCAU)
+
+/* Enable crypt HW mutex for Freescale MMCAU or PIC32MZ */
+#if defined(FREESCALE_MMCAU) || defined(WOLFSSL_MICROCHIP_PIC32MZ)
     #ifndef WOLFSSL_CRYPT_HW_MUTEX
         #define WOLFSSL_CRYPT_HW_MUTEX  1
     #endif
@@ -169,9 +173,9 @@
 #endif
 
 #if WOLFSSL_CRYPT_HW_MUTEX
-    /* wolfSSL_CryptHwMutexInit is called on first wolfSSL_CryptHwMutexLock, 
-       however it's recommended to call this directly on Hw init to avoid possible 
-       race condition where two calls to wolfSSL_CryptHwMutexLock are made at 
+    /* wolfSSL_CryptHwMutexInit is called on first wolfSSL_CryptHwMutexLock,
+       however it's recommended to call this directly on Hw init to avoid possible
+       race condition where two calls to wolfSSL_CryptHwMutexLock are made at
        the same time. */
     int wolfSSL_CryptHwMutexInit(void);
     int wolfSSL_CryptHwMutexLock(void);

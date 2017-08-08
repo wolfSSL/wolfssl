@@ -46,6 +46,7 @@
 void file_test(const char* file, byte* hash);
 #endif
 
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
 void simple_test(func_args*);
 
 enum {
@@ -53,6 +54,7 @@ enum {
 };
 
 static const char *outputName;
+#endif
 
 int myoptind = 0;
 char* myoptarg = NULL;
@@ -71,6 +73,7 @@ char* myoptarg = NULL;
 
 int testsuite_test(int argc, char** argv)
 {
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
     func_args server_args;
 
     tcp_ready ready;
@@ -87,10 +90,10 @@ int testsuite_test(int argc, char** argv)
 #endif
 
 #ifdef HAVE_WNR
-        if (wc_InitNetRandom(wnrConfig, NULL, 5000) != 0) {
-            err_sys("Whitewood netRandom global config failed");
-            return -1237;
-        }
+    if (wc_InitNetRandom(wnrConfig, NULL, 5000) != 0) {
+        err_sys("Whitewood netRandom global config failed");
+        return -1237;
+    }
 #endif /* HAVE_WNR */
 
     StartTCP();
@@ -210,9 +213,16 @@ int testsuite_test(int argc, char** argv)
 #endif /* HAVE_WNR */
 
     printf("\nAll tests passed!\n");
+
+#else
+    (void)argc;
+    (void)argv;
+#endif /* !NO_WOLFSSL_SERVER && !NO_WOLFSSL_CLIENT */
+
     return EXIT_SUCCESS;
 }
 
+#if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
 void simple_test(func_args* args)
 {
     THREAD_TYPE serverThread;
@@ -284,6 +294,7 @@ void simple_test(func_args* args)
     join_thread(serverThread);
     if (svrArgs.return_code != 0) args->return_code = svrArgs.return_code;
 }
+#endif /* !NO_WOLFSSL_SERVER && !NO_WOLFSSL_CLIENT */
 
 
 void wait_tcp_ready(func_args* args)

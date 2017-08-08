@@ -3,6 +3,7 @@
 # All paths should be given relative to the root
 
 include wrapper/python/wolfcrypt/include.am
+include wrapper/python/wolfssl/include.am
 
 # wolfSSL CSharp wrapper files
 EXTRA_DIST+= wrapper/CSharp/wolfSSL-DTLS-PSK-Server/App.config

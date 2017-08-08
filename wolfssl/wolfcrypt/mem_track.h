@@ -90,9 +90,15 @@
     /* if defined to not using inline then declare function prototypes */
     #ifdef NO_INLINE
         #define STATIC
-        WOLFSSL_LOCAL void* TrackMalloc(size_t sz);
-        WOLFSSL_LOCAL void TrackFree(void* ptr);
-        WOLFSSL_LOCAL void* TrackRealloc(void* ptr, size_t sz);
+		#ifdef WOLFSSL_DEBUG_MEMORY
+			WOLFSSL_LOCAL void* TrackMalloc(size_t sz, const char* func, unsigned int line);
+			WOLFSSL_LOCAL void TrackFree(void* ptr, const char* func, unsigned int line);
+			WOLFSSL_LOCAL void* TrackRealloc(void* ptr, size_t sz, const char* func, unsigned int line);
+		#else
+			WOLFSSL_LOCAL void* TrackMalloc(size_t sz);
+			WOLFSSL_LOCAL void TrackFree(void* ptr);
+			WOLFSSL_LOCAL void* TrackRealloc(void* ptr, size_t sz);
+		#endif
         WOLFSSL_LOCAL int InitMemoryTracker(void);
         WOLFSSL_LOCAL void ShowMemoryTracker(void);
     #else
@@ -219,15 +225,15 @@
     STATIC INLINE void ShowMemoryTracker(void)
     {
     #ifdef DO_MEM_STATS
-        printf("total   Allocs = %9lu\n",
+        printf("total   Allocs   = %9lu\n",
                                        (unsigned long)ourMemStats.totalAllocs);
         printf("total   Deallocs = %9lu\n",
                                        (unsigned long)ourMemStats.totalDeallocs);
-        printf("total   Bytes  = %9lu\n",
+        printf("total   Bytes    = %9lu\n",
                                        (unsigned long)ourMemStats.totalBytes);
-        printf("peak    Bytes  = %9lu\n",
+        printf("peak    Bytes    = %9lu\n",
                                        (unsigned long)ourMemStats.peakBytes);
-        printf("current Bytes  = %9lu\n",
+        printf("current Bytes    = %9lu\n",
                                        (unsigned long)ourMemStats.currentBytes);
     #endif
     }

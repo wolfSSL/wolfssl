@@ -32,26 +32,39 @@
 
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
+#include <wolfssl/wolfcrypt/cpuid.h>
 
 /* fips wrapper calls, user can call direct */
 #ifdef HAVE_FIPS
 
     int wc_InitSha256(Sha256* sha)
     {
+        if (sha == NULL) {
+            return BAD_FUNC_ARG;
+        }
         return InitSha256_fips(sha);
     }
     int wc_InitSha256_ex(Sha256* sha, void* heap, int devId)
     {
         (void)heap;
         (void)devId;
+        if (sha == NULL) {
+            return BAD_FUNC_ARG;
+        }
         return InitSha256_fips(sha);
     }
     int wc_Sha256Update(Sha256* sha, const byte* data, word32 len)
     {
+        if (sha == NULL ||  (data == NULL && len > 0)) {
+            return BAD_FUNC_ARG;
+        }
         return Sha256Update_fips(sha, data, len);
     }
     int wc_Sha256Final(Sha256* sha, byte* out)
     {
+        if (sha == NULL || out == NULL) {
+            return BAD_FUNC_ARG;
+        }
         return Sha256Final_fips(sha, out);
     }
     void wc_Sha256Free(Sha256* sha)
@@ -87,6 +100,7 @@
 #endif
 
 
+#ifndef WOLFSSL_PIC32MZ_HASH
 static int InitSha256(Sha256* sha256)
 {
     int ret = 0;
@@ -94,6 +108,7 @@ static int InitSha256(Sha256* sha256)
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
 
+    XMEMSET(sha256->digest, 0, sizeof(sha256->digest));
     sha256->digest[0] = 0x6A09E667L;
     sha256->digest[1] = 0xBB67AE85L;
     sha256->digest[2] = 0x3C6EF372L;
@@ -109,6 +124,7 @@ static int InitSha256(Sha256* sha256)
 
     return ret;
 }
+#endif
 
 
 /* Hardware Acceleration */
@@ -165,76 +181,13 @@ static int InitSha256(Sha256* sha256)
           More granural Stitched Message Sched/Round
       }
 
+    #endif
+
     */
 
     /* Each platform needs to query info type 1 from cpuid to see if aesni is
      * supported. Also, let's setup a macro for proper linkage w/o ABI conflicts
      */
-
-    #ifndef _MSC_VER
-        #define cpuid(reg, leaf, sub)\
-                __asm__ __volatile__ ("cpuid":\
-                 "=a" (reg[0]), "=b" (reg[1]), "=c" (reg[2]), "=d" (reg[3]) :\
-                 "a" (leaf), "c"(sub));
-
-        #define XASM_LINK(f) asm(f)
-    #else
-        #include <intrin.h>
-        #define cpuid(a,b) __cpuid((int*)a,b)
-
-        #define XASM_LINK(f)
-    #endif /* _MSC_VER */
-
-    #define EAX 0
-    #define EBX 1
-    #define ECX 2
-    #define EDX 3
-
-    #define CPUID_AVX1   0x1
-    #define CPUID_AVX2   0x2
-    #define CPUID_RDRAND 0x4
-    #define CPUID_RDSEED 0x8
-    #define CPUID_BMI2   0x10   /* MULX, RORX */
-
-    #define IS_INTEL_AVX1       (cpuid_flags & CPUID_AVX1)
-    #define IS_INTEL_AVX2       (cpuid_flags & CPUID_AVX2)
-    #define IS_INTEL_BMI2       (cpuid_flags & CPUID_BMI2)
-    #define IS_INTEL_RDRAND     (cpuid_flags & CPUID_RDRAND)
-    #define IS_INTEL_RDSEED     (cpuid_flags & CPUID_RDSEED)
-
-    static word32 cpuid_check = 0;
-    static word32 cpuid_flags = 0;
-
-    static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit) {
-        int got_intel_cpu=0;
-        unsigned int reg[5];
-
-        reg[4] = '\0';
-        cpuid(reg, 0, 0);
-        if (XMEMCMP((char *)&(reg[EBX]), "Genu", 4) == 0 &&
-            XMEMCMP((char *)&(reg[EDX]), "ineI", 4) == 0 &&
-            XMEMCMP((char *)&(reg[ECX]), "ntel", 4) == 0) {
-            got_intel_cpu = 1;
-        }
-        if (got_intel_cpu) {
-            cpuid(reg, leaf, sub);
-            return ((reg[num] >> bit) & 0x1);
-        }
-        return 0;
-    }
-
-    static int set_cpuid_flags(void) {
-        if (cpuid_check==0) {
-            if (cpuid_flag(1, 0, ECX, 28)){ cpuid_flags |= CPUID_AVX1; }
-            if (cpuid_flag(7, 0, EBX, 5)) { cpuid_flags |= CPUID_AVX2; }
-            if (cpuid_flag(7, 0, EBX, 8)) { cpuid_flags |= CPUID_BMI2; }
-            if (cpuid_flag(1, 0, ECX, 30)){ cpuid_flags |= CPUID_RDRAND; }
-            if (cpuid_flag(7, 0, EBX, 18)){ cpuid_flags |= CPUID_RDSEED; }
-            cpuid_check = 1;
-            return 0;
-        }
-        return 1;
-    }
 
     /* #if defined(HAVE_INTEL_AVX1/2) at the tail of sha256 */
     static int Transform(Sha256* sha256);
@@ -246,22 +199,37 @@ static int InitSha256(Sha256* sha256)
         static int Transform_AVX1_RORX(Sha256 *sha256);
     #endif
     static int (*Transform_p)(Sha256* sha256) /* = _Transform */;
-    #define XTRANSFORM(sha256, B)  (*Transform_p)(sha256)
+    static int transform_check = 0;
+    static word32 intel_flags;
+    #define XTRANSFORM(S, B)  (*Transform_p)((S))
 
-    static void set_Transform(void) {
-         if (set_cpuid_flags()) return;
+    static void Sha256_SetTransform(void)
+    {
+
+        if (transform_check)
+            return;
+
+        intel_flags = cpuid_get_flags();
 
     #if defined(HAVE_INTEL_AVX2)
-         if (IS_INTEL_AVX2 && IS_INTEL_BMI2) {
-             Transform_p = Transform_AVX1_RORX; return;
-             Transform_p = Transform_AVX2;
-                      /* for avoiding warning,"not used" */
-         }
+        if (IS_INTEL_AVX2(intel_flags) && IS_INTEL_BMI2(intel_flags)) {
+            if (1)
+                Transform_p = Transform_AVX1_RORX;
+            else
+                Transform_p = Transform_AVX2;
+        }
+        else
     #endif
     #if defined(HAVE_INTEL_AVX1)
-         Transform_p = ((IS_INTEL_AVX1) ? Transform_AVX1 : Transform); return;
+        if (1) {
+            Transform_p = ((IS_INTEL_AVX1(intel_flags)) ? Transform_AVX1 :
+                                                                     Transform);
+        }
+        else
     #endif
-         Transform_p = Transform; return;
+            Transform_p = Transform;
+
+        transform_check = 1;
     }
 
     /* Dummy for saving MM_REGs on behalf of Transform */
@@ -287,7 +255,7 @@ static int InitSha256(Sha256* sha256)
             return ret;
 
         /* choose best Transform function under this runtime environment */
-        set_Transform();
+        Sha256_SetTransform();
 
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA256)
         ret = wolfAsync_DevCtxInit(&sha256->asyncDev,
@@ -311,8 +279,14 @@ static int InitSha256(Sha256* sha256)
     }
 
 #elif defined(FREESCALE_MMCAU_SHA)
-    #include "fsl_mmcau.h"
-    #define XTRANSFORM(sha256, B) Transform(sha256, B)
+
+    #ifdef FREESCALE_MMCAU_CLASSIC_SHA
+        #include "cau_api.h"
+    #else
+        #include "fsl_mmcau.h"
+    #endif
+
+    #define XTRANSFORM(S, B)  Transform((S), (B))
 
     int wc_InitSha256_ex(Sha256* sha256, void* heap, int devId)
     {
@@ -325,7 +299,11 @@ static int InitSha256(Sha256* sha256)
         if (ret != 0) {
             return ret;
         }
+    #ifdef FREESCALE_MMCAU_CLASSIC_SHA
+        cau_sha256_initialize_output(sha256->digest);
+    #else
         MMCAU_SHA256_InitializeOutput((uint32_t*)sha256->digest);
+    #endif
         wolfSSL_CryptHwMutexUnLock();
 
         sha256->buffLen = 0;
@@ -339,33 +317,21 @@ static int InitSha256(Sha256* sha256)
     {
         int ret = wolfSSL_CryptHwMutexLock();
         if (ret == 0) {
+    #ifdef FREESCALE_MMCAU_CLASSIC_SHA
+            cau_sha256_hash_n(buf, 1, sha256->digest);
+    #else
             MMCAU_SHA256_HashN(buf, 1, sha256->digest);
+    #endif
             wolfSSL_CryptHwMutexUnLock();
         }
         return ret;
     }
 
 #elif defined(WOLFSSL_PIC32MZ_HASH)
-    #define NEED_SOFT_SHA256
-
-    #define wc_InitSha256   wc_InitSha256_sw
-    #define wc_Sha256Update wc_Sha256Update_sw
-    #define wc_Sha256Final  wc_Sha256Final_sw
-
-    int wc_InitSha256_ex(Sha256* sha256, void* heap, int devId)
-    {
-        if (sha256 == NULL)
-            return BAD_FUNC_ARG;
-
-        sha256->heap = heap;
-
-        return InitSha256(sha256);
-    }
+    #include <wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h>
 
 #else
     #define NEED_SOFT_SHA256
-
-    #define XTRANSFORM(sha256, B) Transform(sha256)
 
     int wc_InitSha256_ex(Sha256* sha256, void* heap, int devId)
     {
@@ -427,6 +393,10 @@ static int InitSha256(Sha256* sha256)
          t1 = Sigma0((a)) + Maj((a), (b), (c)); \
          (d) += t0; \
          (h)  = t0 + t1;
+
+    #ifndef XTRANSFORM
+         #define XTRANSFORM(S, B) Transform((S))
+     #endif
 
     static int Transform(Sha256* sha256)
     {
@@ -510,7 +480,7 @@ static int InitSha256(Sha256* sha256)
         local = (byte*)sha256->buffer;
 
         /* check that internal buffLen is valid */
-        if (sha256->buffLen > SHA256_BLOCK_SIZE)
+        if (sha256->buffLen >= SHA256_BLOCK_SIZE)
             return BUFFER_E;
 
         SAVE_XMM_YMM; /* for Intel AVX */
@@ -526,7 +496,7 @@ static int InitSha256(Sha256* sha256)
             if (sha256->buffLen == SHA256_BLOCK_SIZE) {
         #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
             #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-                if (!IS_INTEL_AVX1 && !IS_INTEL_AVX2)
+                if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
             #endif
                 {
                     ByteReverseWords(sha256->buffer, sha256->buffer,
@@ -553,8 +523,13 @@ static int InitSha256(Sha256* sha256)
 
     static INLINE int Sha256Final(Sha256* sha256)
     {
+
         int ret;
         byte* local = (byte*)sha256->buffer;
+
+        if (sha256 == NULL) {
+            return BAD_FUNC_ARG;
+        }
 
         SAVE_XMM_YMM; /* for Intel AVX */
 
@@ -567,15 +542,17 @@ static int InitSha256(Sha256* sha256)
                 SHA256_BLOCK_SIZE - sha256->buffLen);
             sha256->buffLen += SHA256_BLOCK_SIZE - sha256->buffLen;
 
-    #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
-        #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-            if (!IS_INTEL_AVX1 && !IS_INTEL_AVX2)
-        #endif
             {
-                ByteReverseWords(sha256->buffer, sha256->buffer,
-                    SHA256_BLOCK_SIZE);
+        #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
+            #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
+                if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
+            #endif
+                {
+                    ByteReverseWords(sha256->buffer, sha256->buffer,
+                                                             SHA256_BLOCK_SIZE);
+                }
+        #endif
             }
-    #endif
 
             ret = XTRANSFORM(sha256, local);
             if (ret != 0)
@@ -593,7 +570,7 @@ static int InitSha256(Sha256* sha256)
         /* store lengths */
     #if defined(LITTLE_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
         #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-            if (!IS_INTEL_AVX1 && !IS_INTEL_AVX2)
+            if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
         #endif
             {
                 ByteReverseWords(sha256->buffer, sha256->buffer,
@@ -606,10 +583,10 @@ static int InitSha256(Sha256* sha256)
                 sizeof(word32));
 
     #if defined(FREESCALE_MMCAU_SHA) || defined(HAVE_INTEL_AVX1) || \
-            defined(HAVE_INTEL_AVX2)
+        defined(HAVE_INTEL_AVX2)
         /* Kinetis requires only these bytes reversed */
         #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-            if (IS_INTEL_AVX1 || IS_INTEL_AVX2)
+            if (IS_INTEL_AVX1(intel_flags) || IS_INTEL_AVX2(intel_flags))
         #endif
             {
                 ByteReverseWords(
@@ -1801,7 +1778,12 @@ static int Transform_AVX2(Sha256* sha256)
 #ifdef WOLFSSL_SHA224
     static int InitSha224(Sha224* sha224)
     {
+
         int ret = 0;
+
+        if (sha224 == NULL) {
+            return BAD_FUNC_ARG;
+        }
 
         sha224->digest[0] = 0xc1059ed8;
         sha224->digest[1] = 0x367cd507;
@@ -1818,7 +1800,7 @@ static int Transform_AVX2(Sha256* sha256)
 
     #if defined(HAVE_INTEL_AVX1)|| defined(HAVE_INTEL_AVX2)
         /* choose best Transform function under this runtime environment */
-        set_Transform();
+        Sha256_SetTransform();
     #endif
 
         return ret;
@@ -1856,6 +1838,10 @@ static int Transform_AVX2(Sha256* sha256)
     {
         int ret;
 
+        if (sha224 == NULL || (data == NULL && len > 0)) {
+            return BAD_FUNC_ARG;
+        }
+
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA224)
         if (sha224->asyncDev.marker == WOLFSSL_ASYNC_MARKER_SHA224) {
         #if defined(HAVE_INTEL_QA)
@@ -1872,6 +1858,10 @@ static int Transform_AVX2(Sha256* sha256)
     int wc_Sha224Final(Sha224* sha224, byte* hash)
     {
         int ret;
+
+        if (sha224 == NULL || hash == NULL) {
+            return BAD_FUNC_ARG;
+        }
 
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA224)
         if (sha224->asyncDev.marker == WOLFSSL_ASYNC_MARKER_SHA224) {
@@ -1984,6 +1974,9 @@ int wc_Sha256Copy(Sha256* src, Sha256* dst)
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
+#endif
+#ifdef WOLFSSL_PIC32MZ_HASH
+    ret = wc_Pic32HashCopy(&src->cache, &dst->cache);
 #endif
 
     return ret;

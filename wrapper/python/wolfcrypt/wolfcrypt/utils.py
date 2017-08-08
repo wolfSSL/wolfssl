@@ -17,22 +17,20 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+
+# pylint: disable=unused-import, undefined-variable
+
 import sys
 from binascii import hexlify as b2h, unhexlify as h2b
 
+_PY3 = sys.version_info[0] == 3
+_TEXT_TYPE = str if _PY3 else unicode
+_BINARY_TYPE = bytes if _PY3 else str
 
-if sys.version_info[0] == 3:
-    _text_type = str
-    _binary_type = bytes
-else:
-    _text_type = unicode
-    _binary_type = str
-
-
-def t2b(s):
+def t2b(string):
     """
     Converts text to bynary.
     """
-    if isinstance(s, _binary_type):
-        return s
-    return _text_type(s).encode("utf-8")
+    if isinstance(string, _BINARY_TYPE):
+        return string
+    return _TEXT_TYPE(string).encode("utf-8")

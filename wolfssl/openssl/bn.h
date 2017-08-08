@@ -78,7 +78,7 @@ WOLFSSL_API int wolfSSL_BN_is_prime_ex(const WOLFSSL_BIGNUM*, int,
                                        WOLFSSL_BN_CTX*, WOLFSSL_BN_GENCB*);
 WOLFSSL_API WOLFSSL_BN_ULONG wolfSSL_BN_mod_word(const WOLFSSL_BIGNUM*,
                                                  WOLFSSL_BN_ULONG);
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
     WOLFSSL_API int wolfSSL_BN_print_fp(FILE*, const WOLFSSL_BIGNUM*);
 #endif
 WOLFSSL_API int wolfSSL_BN_rshift(WOLFSSL_BIGNUM*, const WOLFSSL_BIGNUM*, int);

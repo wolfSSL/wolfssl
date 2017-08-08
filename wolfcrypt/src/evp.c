@@ -19,6 +19,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#if !defined(WOLFSSL_EVP_INCLUDED)
+    #warning evp.c does not need to be compiled seperatly from ssl.c
+#else
+
 static unsigned int cipherType(const WOLFSSL_EVP_CIPHER *cipher);
 
 WOLFSSL_API int  wolfSSL_EVP_EncryptInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
@@ -60,7 +64,7 @@ WOLFSSL_API WOLFSSL_EVP_CIPHER_CTX *wolfSSL_EVP_CIPHER_CTX_new(void)
 	WOLFSSL_EVP_CIPHER_CTX *ctx = (WOLFSSL_EVP_CIPHER_CTX*)XMALLOC(sizeof *ctx,
                                                  NULL, DYNAMIC_TYPE_TMP_BUFFER);
 	if (ctx){
-      WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_new");  
+      WOLFSSL_ENTER("wolfSSL_EVP_CIPHER_CTX_new");
 		  wolfSSL_EVP_CIPHER_CTX_init(ctx);
   }
 	return ctx;
@@ -172,15 +176,17 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out,
                                    const unsigned char *in, int inl)
 {
+    int ret = 0;
+
     switch (ctx->cipherType) {
     #if !defined(NO_AES) && defined(HAVE_AES_CBC)
         case AES_128_CBC_TYPE:
         case AES_192_CBC_TYPE:
         case AES_256_CBC_TYPE:
             if (ctx->enc)
-                wc_AesCbcEncrypt(&ctx->cipher.aes, out, in, inl);
+                ret = wc_AesCbcEncrypt(&ctx->cipher.aes, out, in, inl);
             else
-                wc_AesCbcDecrypt(&ctx->cipher.aes, out, in, inl);
+                ret = wc_AesCbcDecrypt(&ctx->cipher.aes, out, in, inl);
             break;
     #endif
     #if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER)
@@ -188,9 +194,9 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
         case AES_192_CTR_TYPE:
         case AES_256_CTR_TYPE:
             if (ctx->enc)
-                wc_AesCtrEncrypt(&ctx->cipher.aes, out, in, inl);
+                ret = wc_AesCtrEncrypt(&ctx->cipher.aes, out, in, inl);
             else
-                wc_AesCtrEncrypt(&ctx->cipher.aes, out, in, inl);
+                ret = wc_AesCtrEncrypt(&ctx->cipher.aes, out, in, inl);
             break;
     #endif
     #if !defined(NO_AES) && defined(HAVE_AES_ECB)
@@ -198,43 +204,45 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
         case AES_192_ECB_TYPE:
         case AES_256_ECB_TYPE:
             if (ctx->enc)
-                wc_AesEcbEncrypt(&ctx->cipher.aes, out, in, inl);
+                ret = wc_AesEcbEncrypt(&ctx->cipher.aes, out, in, inl);
             else
-                wc_AesEcbDecrypt(&ctx->cipher.aes, out, in, inl);
+                ret = wc_AesEcbDecrypt(&ctx->cipher.aes, out, in, inl);
             break;
     #endif
     #ifndef NO_DES3
         case DES_CBC_TYPE:
             if (ctx->enc)
-                wc_Des_CbcEncrypt(&ctx->cipher.des, out, in, inl);
+                ret = wc_Des_CbcEncrypt(&ctx->cipher.des, out, in, inl);
             else
-                wc_Des_CbcDecrypt(&ctx->cipher.des, out, in, inl);
+                ret = wc_Des_CbcDecrypt(&ctx->cipher.des, out, in, inl);
             break;
         case DES_EDE3_CBC_TYPE:
             if (ctx->enc)
-                wc_Des3_CbcEncrypt(&ctx->cipher.des3, out, in, inl);
+                ret = wc_Des3_CbcEncrypt(&ctx->cipher.des3, out, in, inl);
             else
-                wc_Des3_CbcDecrypt(&ctx->cipher.des3, out, in, inl);
+                ret = wc_Des3_CbcDecrypt(&ctx->cipher.des3, out, in, inl);
             break;
         #if defined(WOLFSSL_DES_ECB)
         case DES_ECB_TYPE:
-            wc_Des_EcbEncrypt(&ctx->cipher.des, out, in, inl);
+            ret = wc_Des_EcbEncrypt(&ctx->cipher.des, out, in, inl);
             break;
         case DES_EDE3_ECB_TYPE:
-            if (ctx->enc)
-                wc_Des3_EcbEncrypt(&ctx->cipher.des3, out, in, inl);
-            else
-                wc_Des3_EcbEncrypt(&ctx->cipher.des3, out, in, inl);
+            ret = wc_Des3_EcbEncrypt(&ctx->cipher.des3, out, in, inl);
             break;
-        #endif
-    #endif
+        #endif /* WOLFSSL_DES_ECB */
+    #endif /* !NO_DES3 */
         default:
             return 0;
-        }
-        (void)in;
-        (void)inl;
-        (void)out;
-        return 1;
+    }
+
+    if (ret != 0)
+        return 0; /* failure */
+
+    (void)in;
+    (void)inl;
+    (void)out;
+
+    return 1; /* success */
 }
 
 WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
@@ -327,7 +335,7 @@ WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl)
 {
     int fl ;
-    if (ctx == NULL) return BAD_FUNC_ARG;
+    if (ctx == NULL || out == NULL) return BAD_FUNC_ARG;
     WOLFSSL_ENTER("wolfSSL_EVP_CipherFinal");
     if (ctx->flags & WOLFSSL_EVP_CIPH_NO_PADDING) {
         *outl = 0;
@@ -533,3 +541,5 @@ WOLFSSL_API int wolfSSL_EVP_add_digest(const WOLFSSL_EVP_MD *digest)
     /* nothing to do */
     return 0;
 }
+#endif /* WOLFSSL_EVP_INCLUDED */
+

@@ -20,29 +20,33 @@
  */
 
 
-
 /* Implements Microchip CRYPTO API layer */
+#ifdef HAVE_CONFIG_H
+    #include "config.h"
+#endif
+#ifdef MICROCHIP_MPLAB_HARMONY
+    #include "system_config.h"
+    #include "crypto/crypto.h"
+#else
+    #include "crypto.h"
+#endif
 
+#include <wolfssl/wolfcrypt/settings.h>
 
+#include <wolfssl/wolfcrypt/md5.h>
+#include <wolfssl/wolfcrypt/sha.h>
+#include <wolfssl/wolfcrypt/sha256.h>
+#include <wolfssl/wolfcrypt/sha512.h>
+#include <wolfssl/wolfcrypt/hmac.h>
+#include <wolfssl/wolfcrypt/compress.h>
+#include <wolfssl/wolfcrypt/random.h>
+#include <wolfssl/wolfcrypt/des3.h>
+#include <wolfssl/wolfcrypt/aes.h>
+#include <wolfssl/wolfcrypt/rsa.h>
+#include <wolfssl/wolfcrypt/ecc.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
-#include "crypto.h"
-
-#include <cyassl/ctaocrypt/settings.h>
-
-#include <cyassl/ctaocrypt/md5.h>
-#include <cyassl/ctaocrypt/sha.h>
-#include <cyassl/ctaocrypt/sha256.h>
-#include <cyassl/ctaocrypt/sha512.h>
-#include <cyassl/ctaocrypt/hmac.h>
-#include <cyassl/ctaocrypt/compress.h>
-#include <cyassl/ctaocrypt/random.h>
-#include <cyassl/ctaocrypt/des3.h>
-#include <cyassl/ctaocrypt/aes.h>
-#include <cyassl/ctaocrypt/rsa.h>
-#include <cyassl/ctaocrypt/ecc.h>
-#include <cyassl/ctaocrypt/error-crypt.h>
-
-
+#ifndef NO_MD5
 /* Initialize MD5 */
 int CRYPT_MD5_Initialize(CRYPT_MD5_CTX* md5)
 {
@@ -52,9 +56,7 @@ int CRYPT_MD5_Initialize(CRYPT_MD5_CTX* md5)
     if (md5 == NULL)
         return BAD_FUNC_ARG;
 
-    wc_InitMd5((Md5*)md5);
-
-    return 0;
+    return wc_InitMd5((Md5*)md5);
 }
 
 
@@ -65,9 +67,7 @@ int CRYPT_MD5_DataAdd(CRYPT_MD5_CTX* md5, const unsigned char* input,
     if (md5 == NULL || input == NULL)
         return BAD_FUNC_ARG;
 
-    wc_Md5Update((Md5*)md5, input, sz);
-
-    return 0;
+    return wc_Md5Update((Md5*)md5, input, sz);
 }
 
 
@@ -77,11 +77,11 @@ int CRYPT_MD5_Finalize(CRYPT_MD5_CTX* md5, unsigned char* digest)
     if (md5 == NULL || digest == NULL)
         return BAD_FUNC_ARG;
 
-    wc_Md5Final((Md5*)md5, digest);
-
-    return 0;
+    return wc_Md5Final((Md5*)md5, digest);
 }
+#endif
 
+#ifndef NO_SHA
 
 /* Initialize SHA */
 int CRYPT_SHA_Initialize(CRYPT_SHA_CTX* sha)
@@ -115,7 +115,9 @@ int CRYPT_SHA_Finalize(CRYPT_SHA_CTX* sha, unsigned char* digest)
 
     return wc_ShaFinal((Sha*)sha, digest);
 }
+#endif
 
+#ifndef NO_SHA256
 
 /* Initialize SHA-256 */
 int CRYPT_SHA256_Initialize(CRYPT_SHA256_CTX* sha256)
@@ -149,8 +151,10 @@ int CRYPT_SHA256_Finalize(CRYPT_SHA256_CTX* sha256, unsigned char* digest)
 
     return wc_Sha256Final((Sha256*)sha256, digest);
 }
+#endif
 
-
+#ifdef WOLFSSL_SHA512
+#ifdef WOLFSSL_SHA384
 /* Initialize SHA-384 */
 int CRYPT_SHA384_Initialize(CRYPT_SHA384_CTX* sha384)
 {
@@ -183,6 +187,7 @@ int CRYPT_SHA384_Finalize(CRYPT_SHA384_CTX* sha384, unsigned char* digest)
 
     return wc_Sha384Final((Sha384*)sha384, digest);
 }
+#endif
 
 
 /* Initialize SHA-512 */
@@ -217,8 +222,9 @@ int CRYPT_SHA512_Finalize(CRYPT_SHA512_CTX* sha512, unsigned char* digest)
 
     return wc_Sha512Final((Sha512*)sha512, digest);
 }
+#endif
 
-
+#ifndef NO_HMAC
 /* Set HMAC key with type */
 int CRYPT_HMAC_SetKey(CRYPT_HMAC_CTX* hmac, int type, const unsigned char* key,
                       unsigned int sz)
@@ -258,6 +264,9 @@ int CRYPT_HMAC_Finalize(CRYPT_HMAC_CTX* hmac, unsigned char* digest)
     return wc_HmacFinal((Hmac*)hmac, digest);
 }
 
+#endif
+
+#ifdef HAVE_LIBZ
 
 /* Huffman Compression, set flag to do static, otherwise dynamic */
 /* return compressed size, otherwise < 0 for error */
@@ -268,7 +277,7 @@ int CRYPT_HUFFMAN_Compress(unsigned char* out, unsigned int outSz,
     if (out == NULL || in == NULL)
         return BAD_FUNC_ARG;
 
-    return Compress(out, outSz, in, inSz, flags);
+    return wc_Compress(out, outSz, in, inSz, flags);
 }
 
 
@@ -280,9 +289,12 @@ int CRYPT_HUFFMAN_DeCompress(unsigned char* out, unsigned int outSz,
     if (out == NULL || in == NULL)
         return BAD_FUNC_ARG;
 
-    return DeCompress(out, outSz, in, inSz);
+    return wc_DeCompress(out, outSz, in, inSz);
 }
 
+#endif
+
+#ifndef NO_RNG
 
 /* RNG Initialize, < 0 on error */
 int CRYPT_RNG_Initialize(CRYPT_RNG_CTX* rng)
@@ -293,7 +305,7 @@ int CRYPT_RNG_Initialize(CRYPT_RNG_CTX* rng)
     if (rng == NULL)
         return BAD_FUNC_ARG;
 
-    return InitRng((WC_RNG*)rng);
+    return wc_InitRng((WC_RNG*)rng);
 }
 
 
@@ -303,7 +315,7 @@ int CRYPT_RNG_Get(CRYPT_RNG_CTX* rng, unsigned char* b)
     if (rng == NULL || b == NULL)
         return BAD_FUNC_ARG;
 
-    return RNG_GenerateByte((WC_RNG*)rng, (byte*)b);
+    return wc_RNG_GenerateByte((WC_RNG*)rng, (byte*)b);
 }
 
 
@@ -314,10 +326,12 @@ int CRYPT_RNG_BlockGenerate(CRYPT_RNG_CTX* rng, unsigned char* b,
     if (rng == NULL || b == NULL)
         return BAD_FUNC_ARG;
 
-    return RNG_GenerateBlock((WC_RNG*)rng, b, sz);
+    return wc_RNG_GenerateBlock((WC_RNG*)rng, b, sz);
 }
 
+#endif
 
+#ifndef NO_DES3
 /* Triple DES Key Set, may have iv, will have direction */
 int CRYPT_TDES_KeySet(CRYPT_TDES_CTX* tdes, const unsigned char* key,
                       const unsigned char* iv, int dir)
@@ -328,7 +342,7 @@ int CRYPT_TDES_KeySet(CRYPT_TDES_CTX* tdes, const unsigned char* key,
     if (tdes == NULL || key == NULL)
         return BAD_FUNC_ARG;
 
-    return Des3_SetKey((Des3*)tdes, key, iv, dir);
+    return wc_Des3_SetKey((Des3*)tdes, key, iv, dir);
 }
 
 
@@ -360,9 +374,12 @@ int CRYPT_TDES_CBC_Decrypt(CRYPT_TDES_CTX* tdes, unsigned char* out,
     if (tdes == NULL || out == NULL || in == NULL)
         return BAD_FUNC_ARG;
 
-    return Des3_CbcDecrypt((Des3*)tdes, out, in, inSz);
+    return wc_Des3_CbcDecrypt((Des3*)tdes, out, in, inSz);
 }
 
+#endif
+
+#ifndef NO_AES
 
 /* AES Key Set, may have iv, will have direction */
 int CRYPT_AES_KeySet(CRYPT_AES_CTX* aes, const unsigned char* key,
@@ -406,10 +423,11 @@ int CRYPT_AES_CBC_Decrypt(CRYPT_AES_CTX* aes, unsigned char* out,
     if (aes == NULL || out == NULL || in == NULL)
         return BAD_FUNC_ARG;
 
-    return AesCbcDecrypt((Aes*)aes, out, in, inSz);
+    return wc_AesCbcDecrypt((Aes*)aes, out, in, inSz);
 }
+#endif
 
-
+#ifdef WOLFSSL_AES_COUNTER
 /* AES CTR Encrypt (used for decrypt too, with ENCRYPT key setup) */
 int CRYPT_AES_CTR_Encrypt(CRYPT_AES_CTX* aes, unsigned char* out,
                           const unsigned char* in, unsigned int inSz)
@@ -417,11 +435,11 @@ int CRYPT_AES_CTR_Encrypt(CRYPT_AES_CTX* aes, unsigned char* out,
     if (aes == NULL || out == NULL || in == NULL)
         return BAD_FUNC_ARG;
 
-    wc_AesCtrEncrypt((Aes*)aes, out, in, inSz);
-
-    return 0;
+    return wc_AesCtrEncrypt((Aes*)aes, out, in, inSz);
 }
+#endif
 
+#ifdef WOLFSSL_AES_DIRECT
 
 /* AES Direct mode encrypt, one block at a time */
 int CRYPT_AES_DIRECT_Encrypt(CRYPT_AES_CTX* aes, unsigned char* out,
@@ -447,7 +465,9 @@ int CRYPT_AES_DIRECT_Decrypt(CRYPT_AES_CTX* aes, unsigned char* out,
 
     return 0;
 }
+#endif
 
+#ifndef NO_RSA
 
 /* RSA Initialize */
 int CRYPT_RSA_Initialize(CRYPT_RSA_CTX* rsa)
@@ -459,7 +479,7 @@ int CRYPT_RSA_Initialize(CRYPT_RSA_CTX* rsa)
     if (rsa->holder == NULL)
         return -1;
 
-    return InitRsaKey((RsaKey*)rsa->holder, NULL);
+    return wc_InitRsaKey((RsaKey*)rsa->holder, NULL);
 }
 
 
@@ -469,7 +489,7 @@ int CRYPT_RSA_Free(CRYPT_RSA_CTX* rsa)
     if (rsa == NULL)
         return BAD_FUNC_ARG;
 
-    FreeRsaKey((RsaKey*)rsa->holder);
+    wc_FreeRsaKey((RsaKey*)rsa->holder);
     XFREE(rsa->holder, NULL, DYNAMIC_TYPE_RSA);
     rsa->holder = NULL;
 
@@ -487,7 +507,7 @@ int CRYPT_RSA_PublicKeyDecode(CRYPT_RSA_CTX* rsa, const unsigned char* in,
     if (rsa == NULL || in == NULL)
         return BAD_FUNC_ARG;
 
-    return RsaPublicKeyDecode(in, &idx, (RsaKey*)rsa->holder, inSz);
+    return wc_RsaPublicKeyDecode(in, &idx, (RsaKey*)rsa->holder, inSz);
 }
 
 
@@ -501,7 +521,7 @@ int CRYPT_RSA_PrivateKeyDecode(CRYPT_RSA_CTX* rsa, const unsigned char* in,
     if (rsa == NULL || in == NULL)
         return BAD_FUNC_ARG;
 
-    return RsaPrivateKeyDecode(in, &idx, (RsaKey*)rsa->holder, inSz);
+    return wc_RsaPrivateKeyDecode(in, &idx, (RsaKey*)rsa->holder, inSz);
 }
 
 
@@ -513,7 +533,7 @@ int CRYPT_RSA_PublicEncrypt(CRYPT_RSA_CTX* rsa, unsigned char* out,
     if (rsa == NULL || in == NULL || out == NULL || rng == NULL)
         return BAD_FUNC_ARG;
 
-    return RsaPublicEncrypt(in, inSz, out, outSz, (RsaKey*)rsa->holder,
+    return wc_RsaPublicEncrypt(in, inSz, out, outSz, (RsaKey*)rsa->holder,
                             (WC_RNG*)rng);
 }
 
@@ -526,17 +546,17 @@ int CRYPT_RSA_PrivateDecrypt(CRYPT_RSA_CTX* rsa, unsigned char* out,
     if (rsa == NULL || in == NULL || out == NULL)
         return BAD_FUNC_ARG;
 
-    return RsaPrivateDecrypt(in, inSz, out, outSz, (RsaKey*)rsa->holder);
+    return wc_RsaPrivateDecrypt(in, inSz, out, outSz, (RsaKey*)rsa->holder);
 }
 
 
 /* RSA Get Encrypt size helper */
-int CRYPT_RSA_EncryptSizeGet(CRYPT_RSA_CTX* rsa) 
+int CRYPT_RSA_EncryptSizeGet(CRYPT_RSA_CTX* rsa)
 {
     if (rsa == NULL)
         return BAD_FUNC_ARG;
 
-    return RsaEncryptSize((RsaKey*)rsa->holder);
+    return wc_RsaEncryptSize((RsaKey*)rsa->holder);
 }
 
 
@@ -553,7 +573,9 @@ int CRYPT_RSA_SetRng(CRYPT_RSA_CTX* rsa, CRYPT_RNG_CTX* rng)
     return 0;
 #endif
 }
+#endif
 
+#ifdef HAVE_ECC
 
 /* ECC init */
 int CRYPT_ECC_Initialize(CRYPT_ECC_CTX* ecc)
@@ -706,6 +728,7 @@ int CRYPT_ECC_SignatureSizeGet(CRYPT_ECC_CTX* ecc)
     return wc_ecc_sig_size((ecc_key*)ecc->holder);
 }
 
+#endif
 
 /* Save error string from err to str which needs to be >= 80 chars */
 int CRYPT_ERROR_StringGet(int err, char* str)
@@ -713,7 +736,7 @@ int CRYPT_ERROR_StringGet(int err, char* str)
     if (str == NULL)
         return BAD_FUNC_ARG;
 
-    CTaoCryptErrorString(err, str);
+    wc_ErrorString(err, str);
 
     return 0;
 }

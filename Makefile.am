@@ -54,7 +54,18 @@ CLEANFILES+= cert.der \
              pkcs7envelopedDataAES128CBC.der \
              pkcs7envelopedDataAES192CBC.der \
              pkcs7envelopedDataAES256CBC.der \
-             pkcs7signedData.der
+             pkcs7signedData_RSA_SHA.der \
+             pkcs7signedData_RSA_SHA_noattr.der \
+             pkcs7signedData_RSA_SHA224.der \
+             pkcs7signedData_RSA_SHA256.der \
+             pkcs7signedData_RSA_SHA384.der \
+             pkcs7signedData_RSA_SHA512.der \
+             pkcs7signedData_ECDSA_SHA.der \
+             pkcs7signedData_ECDSA_SHA_noattr.der \
+             pkcs7signedData_ECDSA_SHA224.der \
+             pkcs7signedData_ECDSA_SHA256.der \
+             pkcs7signedData_ECDSA_SHA384.der \
+             pkcs7signedData_ECDSA_SHA512.der
 
 exampledir = $(docdir)/example
 dist_example_DATA=

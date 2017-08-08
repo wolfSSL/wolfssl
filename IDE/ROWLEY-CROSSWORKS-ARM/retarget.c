@@ -29,6 +29,12 @@ void __assert(const char *__expression, const char *__filename, int __line)
     printf("Assert: %s, File %s (%d)\n", __expression, __filename, __line);
 }
 
+unsigned long ksdk_time(unsigned long* timer)
+{
+    (void)timer;
+    return hw_get_time_sec();
+}
+
 unsigned int LowResTimer(void)
 {
     return hw_get_time_sec();

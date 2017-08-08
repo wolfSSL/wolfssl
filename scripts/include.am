@@ -26,13 +26,15 @@ endif
 if BUILD_OCSP_STAPLING
 dist_noinst_SCRIPTS+= scripts/ocsp-stapling.test
 scripts/ocsp-stapling.log: scripts/ocsp.log
+dist_noinst_SCRIPTS+= scripts/ocsp-stapling-with-ca-as-responder.test
+scripts/ocsp-stapling-with-ca-as-responder.log: scripts/ocsp-stapling.log
 endif
 
 if BUILD_OCSP_STAPLING_V2
 dist_noinst_SCRIPTS+= scripts/ocsp-stapling2.test
 
 if BUILD_OCSP_STAPLING
-scripts/ocsp-stapling2.log: scripts/ocsp-stapling.log
+scripts/ocsp-stapling2.log: scripts/ocsp-stapling-with-ca-as-responder.log
 else
 scripts/ocsp-stapling2.log: scripts/ocsp.log
 endif
@@ -50,6 +52,10 @@ endif
 if BUILD_PKCALLBACKS
 dist_noinst_SCRIPTS+= scripts/pkcallbacks.test
 scripts/pkcallbacks.log: scripts/resume.log
+endif
+
+if BUILD_TLS13
+dist_noinst_SCRIPTS+= scripts/tls13.test
 endif
 
 endif # end of BUILD_EXAMPLE_SERVERS
