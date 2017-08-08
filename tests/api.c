@@ -10100,7 +10100,7 @@ static void test_wolfSSL_X509_STORE_CTX_set_flags(void)
 
   wolfSSL_X509_STORE_CTX_set_flags(store_ctx, flags);
 
-  AssertIntEQ(store_ctx->flags, flags);
+  AssertTrue(store_ctx->flags == flags);
 
 #endif
 }
