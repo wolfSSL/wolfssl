@@ -2618,7 +2618,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #ifdef HAVE_SECRET_CALLBACK
     if (ssl->sessionSecretCb != NULL) {
-        int secretSz = SECRET_LEN, ret;
+        int secretSz = SECRET_LEN;
         ret = ssl->sessionSecretCb(ssl, ssl->session.masterSecret,
                                    &secretSz, ssl->sessionSecretCtx);
         if (ret != 0 || secretSz != SECRET_LEN)
