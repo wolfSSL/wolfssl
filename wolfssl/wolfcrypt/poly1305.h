@@ -45,8 +45,9 @@
 #define WC_HAS_GCC_4_4_64BIT
 #endif
 
-#if (defined(WC_HAS_SIZEOF_INT128_64BIT) || defined(WC_HAS_MSVC_64BIT) ||  \
-     defined(WC_HAS_GCC_4_4_64BIT))
+#ifdef USE_INTEL_SPEEDUP
+#elif (defined(WC_HAS_SIZEOF_INT128_64BIT) || defined(WC_HAS_MSVC_64BIT) ||  \
+       defined(WC_HAS_GCC_4_4_64BIT))
 #define POLY130564
 #else
 #define POLY130532
@@ -63,24 +64,44 @@ enum {
 
 /* Poly1305 state */
 typedef struct Poly1305 {
-#if defined(POLY130564)
-	word64 r[3];
-	word64 h[3];
-	word64 pad[2];
+#ifdef USE_INTEL_SPEEDUP
+    word64 r[3];
+    word64 h[3];
+    word64 pad[2];
+    word64 t0[6];
+    word64 t1[6];
+    word64 hh[12];
+    word32 r0[8];
+    word32 r1[8];
+    word32 r2[8];
+    word32 r3[8];
+    word32 r4[8];
+    word32* rp[4];
+    word64 hibit[4];
+    size_t leftover;
+    unsigned char buffer[4*POLY1305_BLOCK_SIZE];
+    unsigned char finished;
+    unsigned char started;
 #else
-	word32 r[5];
-	word32 h[5];
-	word32 pad[4];
+#if defined(POLY130564)
+    word64 r[3];
+    word64 h[3];
+    word64 pad[2];
+#else
+    word32 r[5];
+    word32 h[5];
+    word32 pad[4];
 #endif
-	size_t leftover;
-	unsigned char buffer[POLY1305_BLOCK_SIZE];
-	unsigned char final;
+    size_t leftover;
+    unsigned char buffer[POLY1305_BLOCK_SIZE];
+    unsigned char finished;
+#endif
 } Poly1305;
-
 
 /* does init */
 
-WOLFSSL_API int wc_Poly1305SetKey(Poly1305* poly1305, const byte* key, word32 kySz);
+WOLFSSL_API int wc_Poly1305SetKey(Poly1305* poly1305, const byte* key,
+                                  word32 kySz);
 WOLFSSL_API int wc_Poly1305Update(Poly1305* poly1305, const byte*, word32);
 WOLFSSL_API int wc_Poly1305Final(Poly1305* poly1305, byte* tag);
 WOLFSSL_API int wc_Poly1305_MAC(Poly1305* ctx, byte* additional, word32 addSz,
