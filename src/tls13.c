@@ -1642,7 +1642,6 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
 
             #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
                 case wolfssl_chacha:
-                    nonceSz = CHACHA_IV_BYTES;
                     ret = ChaCha20Poly1305_Encrypt(ssl, output, input, dataSz,
                         ssl->encrypt.nonce, output + dataSz);
                     break;
@@ -1855,7 +1854,6 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz)
 
             #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
                 case wolfssl_chacha:
-                    nonceSz = CHACHA_IV_BYTES;
                     ret = ChaCha20Poly1305_Decrypt(ssl, output, input, dataSz,
                         ssl->decrypt.nonce, input + dataSz);
                     break;
