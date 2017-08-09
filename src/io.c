@@ -174,6 +174,9 @@ int EmbedReceive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
             return WOLFSSL_CBIO_ERR_CONN_RST;
         }
         else if (err == SOCKET_EINTR) {
+#if defined(FREERTOS_TCP)
+            return WOLFSSL_CBIO_ERR_WANT_READ;
+#endif
             WOLFSSL_MSG("\tSocket interrupted");
             return WOLFSSL_CBIO_ERR_ISR;
         }
