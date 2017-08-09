@@ -2160,43 +2160,6 @@ AC_ARG_WITH([fuzzer-lib],
         if test "x$withval" != "xno" ; then
             FUZZER_LIB=$withval
         fi
-        #CPPFLAGS="$CPPFLAGS -DHAVE_USER_CRYPTO"
-        #LIBS="$LIBS -lusercrypto"
-
-        #if test "x$withval" != "xno" ; then
-        #    trycryptodir=$withval
-        #fi
-        #if test "x$withval" == "xyes" ; then
-        #    trycryptodir="/usr/local"
-        #fi
-
-        #LDFLAGS="$LDFLAGS -L$trycryptodir/lib"
-        #CPPFLAGS="$CPPFLAGS -I$trycryptodir/include"
-
-        ##Look for RSA Init function in usercrypto lib
-        #AC_CHECK_LIB([usercrypto], [wc_InitRsaKey], [user_rsa_linked=yes], [user_rsa_linked=no])
-
-        #if test "x$user_rsa_linked" == "xyes" ; then
-        #    AC_MSG_NOTICE([User user_rsa.h being used])
-        #    AM_CFLAGS="$AM_CFLAGS -DHAVE_USER_RSA"
-        #    ENABLED_USER_RSA=yes
-        #    ENABLED_USER_CRYPTO=yes
-        #fi
-
-
-        ##Display check and find result of link attempts
-        #AC_MSG_CHECKING([for USER_CRYPTO])
-        #if test "x$ENABLED_USER_CRYPTO" == "xno" ; then
-        #    AC_MSG_RESULT([no])
-        #    AC_MSG_ERROR([USER_CRYPTO not found. Either move to /usr/include and /usr/lib or
-        #            Specify its path using --with-user-crypto=/dir/])
-        #else
-        #    AC_MSG_RESULT([yes])
-        #    # Check if .la is available if not then rely on exported path
-        #    AC_CHECK_FILE($trycryptodir/lib/libusercrypto.la, [LIB_ADD="$trycryptodir/lib/libusercrypto.la $LIB_ADD"], [LIB_ADD="-lusercrypto $LIB_ADD"])
-        #    AM_LDFLAGS="$AM_LDFLAGS -L$trycryptodir/lib"
-        #    AM_CFLAGS="$AM_CFLAGS -DHAVE_USER_CRYPTO"
-        #fi
     ]
 )
 AC_SUBST([FUZZER_LIB])
