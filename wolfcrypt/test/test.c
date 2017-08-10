@@ -3188,7 +3188,9 @@ int poly1305_test(void)
     byte     tag[16];
     Poly1305 enc;
 
-    static const byte msg[] =
+    static const byte empty[] = { };
+
+    static const byte msg1[] =
     {
         0x43,0x72,0x79,0x70,0x74,0x6f,0x67,0x72,
         0x61,0x70,0x68,0x69,0x63,0x20,0x46,0x6f,
@@ -3230,17 +3232,28 @@ int poly1305_test(void)
         0x61,0x16
     };
 
+    static const byte msg5[] =
+    {
+        0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+        0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+    };
+
     byte additional[] =
     {
         0x50,0x51,0x52,0x53,0xc0,0xc1,0xc2,0xc3,
         0xc4,0xc5,0xc6,0xc7
     };
 
-    static const byte correct[] =
+    static const byte correct0[] =
+    {
+        0x01,0x03,0x80,0x8a,0xfb,0x0d,0xb2,0xfd,
+        0x4a,0xbf,0xf6,0xaf,0x41,0x49,0xf5,0x1b
+    };
+
+    static const byte correct1[] =
     {
         0xa8,0x06,0x1d,0xc1,0x30,0x51,0x36,0xc6,
         0xc2,0x2b,0x8b,0xaf,0x0c,0x01,0x27,0xa9
-
     };
 
     static const byte correct2[] =
@@ -3259,6 +3272,12 @@ int poly1305_test(void)
     {
         0x1a,0xe1,0x0b,0x59,0x4f,0x09,0xe2,0x6a,
         0x7e,0x90,0x2e,0xcb,0xd0,0x60,0x06,0x91
+    };
+
+    static const byte correct5[] =
+    {
+        0x03,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
     };
 
     static const byte key[] = {
@@ -3282,41 +3301,49 @@ int poly1305_test(void)
         0x2a,0x93,0x75,0x78,0x3e,0xd5,0x53,0xff
     };
 
-    const byte* msgs[]  = {msg, msg2, msg3};
-    word32      szm[]   = {sizeof(msg),sizeof(msg2),sizeof(msg3)};
-    const byte* keys[]  = {key, key2, key2};
-    const byte* tests[] = {correct, correct2, correct3};
+    static const byte key5[] = {
+        0x02,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+    };
 
-    for (i = 0; i < 3; i++) {
+    const byte* msgs[]  = {empty, msg1, msg2, msg3, msg5};
+    word32      szm[]   = {sizeof(empty), sizeof(msg1), sizeof(msg2),
+                           sizeof(msg3), sizeof(msg5)};
+    const byte* keys[]  = {key, key, key2, key2, key5};
+    const byte* tests[] = {correct0, correct1, correct2, correct3, correct5};
+
+    for (i = 0; i < 5; i++) {
         ret = wc_Poly1305SetKey(&enc, keys[i], 32);
         if (ret != 0)
-            return -3600;
+            return -3600 + i;
 
         ret = wc_Poly1305Update(&enc, msgs[i], szm[i]);
         if (ret != 0)
-            return -3601;
+            return -3605 + i;
 
         ret = wc_Poly1305Final(&enc, tag);
         if (ret != 0)
-            return -3602;
+            return -36108 + i;
 
         if (XMEMCMP(tag, tests[i], sizeof(tag)))
-            return -3603;
+            return -3615 + i;
     }
 
     /* Check TLS MAC function from 2.8.2 https://tools.ietf.org/html/rfc7539 */
     XMEMSET(tag, 0, sizeof(tag));
     ret = wc_Poly1305SetKey(&enc, key4, sizeof(key4));
     if (ret != 0)
-        return -3604;
+        return -3614;
 
     ret = wc_Poly1305_MAC(&enc, additional, sizeof(additional),
                                    (byte*)msg4, sizeof(msg4), tag, sizeof(tag));
     if (ret != 0)
-        return -3605;
+        return -3615;
 
     if (XMEMCMP(tag, correct4, sizeof(tag)))
-        return -3606;
+        return -3616;
 
     /* Check fail of TLS MAC function if altering additional data */
     XMEMSET(tag, 0, sizeof(tag));
@@ -3324,10 +3351,10 @@ int poly1305_test(void)
     ret = wc_Poly1305_MAC(&enc, additional, sizeof(additional),
                                    (byte*)msg4, sizeof(msg4), tag, sizeof(tag));
     if (ret != 0)
-        return -3607;
+        return -3617;
 
     if (XMEMCMP(tag, correct4, sizeof(tag)) == 0)
-        return -3608;
+        return -3618;
 
 
     return 0;
@@ -13968,3 +13995,4 @@ exit_memcb:
         int main() { return 0; }
     #endif
 #endif /* NO_CRYPT_TEST */
+

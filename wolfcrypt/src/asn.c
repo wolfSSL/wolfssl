@@ -190,13 +190,13 @@ ASN Options:
     #define WOLFSSL_GMTIME
 
 #elif defined(FREERTOS_TCP) && !defined(NO_FILESYSTEM)
-	/* Using the FreeRTOS+FAT driver. */
-	#undef _TIME_H_
-	#include <time.h>
+    /* Using the FreeRTOS+FAT driver. */
+    #undef _TIME_H_
+    #include <time.h>
    	#include "ff_headers.h"
 
-	#define XTIME( tl )                 FreeRTOS_time((tl))
-    #define XGMTIME(c, t)               gmtime((c))
+    #define XTIME(tl)       FreeRTOS_time((tl))
+    #define XGMTIME(c, t)   gmtime((c))
 
 #else
 
@@ -7580,7 +7580,6 @@ static byte GetNameId(int idx)
 
 /*
  Extensions ::= SEQUENCE OF Extension
-
  Extension ::= SEQUENCE {
  extnId     OBJECT IDENTIFIER,
  critical   BOOLEAN DEFAULT FALSE,
