@@ -5139,7 +5139,8 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 #endif /* WOLFSSL_ATECC508A */
 
 #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
-    if (ret == MP_OKAY)
+    if ((pub != NULL) && (ret == MP_OKAY))
+        /* public key needed to perform key validation */
         ret = ecc_check_privkey_gen_helper(key);
 #endif
 
