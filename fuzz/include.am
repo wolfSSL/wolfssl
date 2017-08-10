@@ -2,10 +2,16 @@
 # included from Top Level Makefile.am
 # All paths should be given relative to the root
 
+noinst_HEADERS += fuzz/fuzzer.h
 fuzz_targets=
-include fuzz/pem_cert/include.am
 
-include_HEADERS += fuzz/fuzzer.h
+if !ENABLED_CRYPTONLY
+if !ENABLED_LEANPSK
+if ENABLED_ASN
+include fuzz/pem_cert/include.am
+endif
+endif
+endif
 
 if BUILD_TESTS
 if !REMOTE_FUZZER_LIB
