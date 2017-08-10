@@ -10840,11 +10840,12 @@ static int ecc_exp_imp_test(ecc_key* key)
     word32     privLen;
     byte       pub[65];
     word32     pubLen;
-    const char qx[] = "01020304050607080102030405060708"
-                      "01020304050607080102030405060708";
-    const char qy[] = "01020304050607080102030405060708"
-                      "01020304050607080102030405060708";
-    const char d[]  = "01020304050607080102030405060708";
+    const char qx[] = "7a4e287890a1a47ad3457e52f2f76a83"
+                      "ce46cbc947616d0cbaa82323818a793d";
+    const char qy[] = "eec4084f5b29ebf29c44cce3b3059610"
+                      "922f8b30ea6e8811742ac7238fe87308";
+    const char d[]  = "8c14b793cb19137e323a6d2e2a870bca"
+                      "2e7a493ec1153b3a95feb8a4873f8d08";
 
     wc_ecc_init(&keyImp);
 
@@ -10896,7 +10897,7 @@ done:
 #endif /* HAVE_ECC_KEY_IMPORT && HAVE_ECC_KEY_EXPORT */
 
 #ifndef WOLFSSL_ATECC508A
-#ifdef HAVE_ECC_KEY_IMPORT
+#if defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT)
 static int ecc_mulmod_test(ecc_key* key1)
 {
     int ret;
@@ -10906,7 +10907,7 @@ static int ecc_mulmod_test(ecc_key* key1)
     wc_ecc_init(&key2);
     wc_ecc_init(&key3);
 
-    /* TODO: Use test data. */
+    /* TODO: Use test data, test with WOLFSSL_VALIDATE_ECC_IMPORT. */
     /* Need base point (Gx,Gy) and parameter A - load them as the public and
      * private key in key2.
      */
@@ -10989,7 +10990,7 @@ static int ecc_def_curve_test(WC_RNG *rng)
         goto done;
 #endif
 #ifndef WOLFSSL_ATECC508A
-#ifdef HAVE_ECC_KEY_IMPORT
+#if defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT)
     ret = ecc_mulmod_test(&key);
     if (ret < 0)
         goto done;
