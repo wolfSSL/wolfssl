@@ -5,9 +5,9 @@
 noinst_HEADERS += fuzz/fuzzer.h
 fuzz_targets=
 
-if !ENABLED_CRYPTONLY
-if !ENABLED_LEANPSK
-if ENABLED_ASN
+if !BUILD_CRYPTONLY
+if !BUILD_LEANPSK
+if BUILD_ASN
 include fuzz/pem_cert/include.am
 endif
 endif
