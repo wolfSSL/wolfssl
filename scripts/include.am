@@ -68,7 +68,9 @@ dist_noinst_SCRIPTS+= scripts/openssl.test
 endif
 endif
 
+if !REMOTE_FUZZER_LIB
 dist_noinst_SCRIPTS += scripts/fuzz_targets.test
+endif
 
 EXTRA_DIST +=  scripts/testsuite.pcap \
                scripts/ping.test

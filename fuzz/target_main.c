@@ -12,7 +12,7 @@ int main(int argc, char **argv)
     size_t   n_read;
     size_t   sz;
     XFILE    file;
-    uint8_t *data = NULL;
+    uint8_t *data;
 
     /* identify yourself */
     /* @Aesthetic: long name. Get a shorter one. */
@@ -20,6 +20,9 @@ int main(int argc, char **argv)
 
     /* loop over the remaining argument vector */
     for (i = 1; i < argc; ++i) {
+        data = NULL;
+        file = XBADFILE;
+
         /* identify your input */
         printf("\t%s\n", argv[i]);
 
@@ -36,7 +39,7 @@ int main(int argc, char **argv)
         XREWIND(file);
 
         /* allocate a buffer to hold the file */
-        if ((data = (uint8_t*)XMALLOC(sz, NULL, NULL)) == NULL) {
+        if ((data = (uint8_t*)XMALLOC(sz, NULL, DYNAMIC_TYPE_CERT)) == NULL) {
             fprintf(stderr, "ERROR: out of memmory.\n");
             goto error;
         }
@@ -47,17 +50,19 @@ int main(int argc, char **argv)
             goto error;
         }
 
-        /* pass it on (the fuzz target will have to catch this) */
+        XFCLOSE(file);
+
+        /* pass it on. If there's a problem, this won't return */
         LLVMFuzzerTestOneInput(data, sz);
 
-        /* clean up */
-        XFCLOSE(file); file = NULL;
-        XFREE(data, NULL, NULL); data = NULL;
+        XFREE(data, NULL, DYNAMIC_TYPE_CERT);
     }
 
+    /* If we made it this far, then nothing failed on us. */
     return 0;
 error:
-    XFREE(data, NULL, NULL);
-    XFCLOSE(file);
+    if (data != NULL)     XFREE(data, NULL, DYNAMIC_TYPE_CERT);
+    if (file != XBADFILE) XFCLOSE(file);
+
     return -1;
 }
