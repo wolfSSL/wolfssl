@@ -689,7 +689,7 @@ int wc_d2i_PKCS12(const byte* der, word32 derSz, WC_PKCS12* pkcs12)
 
 
 /* helper function to free WC_DerCertList */
-static void freeCertList(WC_DerCertList* list, void* heap)
+void wc_FreeCertList(WC_DerCertList* list, void* heap)
 {
     WC_DerCertList* current = list;
     WC_DerCertList* next;
@@ -1137,7 +1137,7 @@ exit_pk12par:
             buf = NULL;
         }
 
-        freeCertList(certList, pkcs12->heap);
+        wc_FreeCertList(certList, pkcs12->heap);
     }
 
     return ret;

@@ -20408,17 +20408,6 @@ static void InitwolfSSL_Rsa(WOLFSSL_RSA* rsa)
 {
     if (rsa) {
         XMEMSET(rsa, 0, sizeof(WOLFSSL_RSA));
-        rsa->n        = NULL;
-        rsa->e        = NULL;
-        rsa->d        = NULL;
-        rsa->p        = NULL;
-        rsa->q        = NULL;
-        rsa->dmp1     = NULL;
-        rsa->dmq1     = NULL;
-        rsa->iqmp     = NULL;
-        rsa->internal = NULL;
-        rsa->inSet    = 0;
-        rsa->exSet    = 0;
     }
 }
 
@@ -20789,36 +20778,37 @@ static int SetRsaExternal(WOLFSSL_RSA* rsa)
         return WOLFSSL_FATAL_ERROR;
     }
 
-    if (SetIndividualExternal(&rsa->d, &key->d) != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("rsa d key error");
-        return WOLFSSL_FATAL_ERROR;
-    }
+    if (key->type == RSA_PRIVATE) {
+        if (SetIndividualExternal(&rsa->d, &key->d) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("rsa d key error");
+            return WOLFSSL_FATAL_ERROR;
+        }
 
-    if (SetIndividualExternal(&rsa->p, &key->p) != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("rsa p key error");
-        return WOLFSSL_FATAL_ERROR;
-    }
+        if (SetIndividualExternal(&rsa->p, &key->p) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("rsa p key error");
+            return WOLFSSL_FATAL_ERROR;
+        }
 
-    if (SetIndividualExternal(&rsa->q, &key->q) != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("rsa q key error");
-        return WOLFSSL_FATAL_ERROR;
-    }
+        if (SetIndividualExternal(&rsa->q, &key->q) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("rsa q key error");
+            return WOLFSSL_FATAL_ERROR;
+        }
 
-    if (SetIndividualExternal(&rsa->dmp1, &key->dP) != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("rsa dP key error");
-        return WOLFSSL_FATAL_ERROR;
-    }
+        if (SetIndividualExternal(&rsa->dmp1, &key->dP) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("rsa dP key error");
+            return WOLFSSL_FATAL_ERROR;
+        }
 
-    if (SetIndividualExternal(&rsa->dmq1, &key->dQ) != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("rsa dQ key error");
-        return WOLFSSL_FATAL_ERROR;
-    }
+        if (SetIndividualExternal(&rsa->dmq1, &key->dQ) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("rsa dQ key error");
+            return WOLFSSL_FATAL_ERROR;
+        }
 
-    if (SetIndividualExternal(&rsa->iqmp, &key->u) != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("rsa u key error");
-        return WOLFSSL_FATAL_ERROR;
+        if (SetIndividualExternal(&rsa->iqmp, &key->u) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("rsa u key error");
+            return WOLFSSL_FATAL_ERROR;
+        }
     }
-
     rsa->exSet = 1;
 
     return WOLFSSL_SUCCESS;
@@ -24348,13 +24338,15 @@ int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
         return WOLFSSL_FATAL_ERROR;
     }
 
-    if(opt == WOLFSSL_RSA_LOAD_PRIVATE)
+    if (opt == WOLFSSL_RSA_LOAD_PRIVATE) {
         ret = wc_RsaPrivateKeyDecode(derBuf, &idx, (RsaKey*)rsa->internal, derSz);
-    else
+    }
+    else {
         ret = wc_RsaPublicKeyDecode(derBuf, &idx, (RsaKey*)rsa->internal, derSz);
+    }
 
     if (ret < 0) {
-        if(opt == WOLFSSL_RSA_LOAD_PRIVATE) {
+        if (opt == WOLFSSL_RSA_LOAD_PRIVATE) {
              WOLFSSL_MSG("RsaPrivateKeyDecode failed");
         }
         else {
