@@ -85,3 +85,7 @@ nobase_include_HEADERS+= wolfssl/wolfcrypt/port/intel/quickassist.h
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/intel/quickassist_mem.h
 endif
 
+if BUILD_SP
+nobase_include_HEADERS+= wolfssl/wolfcrypt/sp.h
+endif
+
