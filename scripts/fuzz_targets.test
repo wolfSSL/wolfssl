@@ -1,14 +1,13 @@
 #!/bin/sh
 
-#all_targets.test
+#fuzz_targets.test
 
-dir=/.${PWD%/}
-home=$(cd "$(dirname "$0")" && echo "/.${PWD%/}/")
-home=./${home#$dir/}
-#home=${home#/.}
+# I know that I'm in the scripts directory, thus "home" is one directory up
+home=$(cd "$(dirname "$0")" && cd .. && echo "/.${PWD%/}/")
+home=${home#/.}
 home=${home%/}
 
-for target in "${home%/}"/*/target
+for target in "${home%/}"/fuzz/*/target
 do
     [ -f "$target" ] || continue
 
