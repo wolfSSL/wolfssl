@@ -140,7 +140,7 @@
 #if defined(HAVE_INTEL_RORX)
     #define ROTR(func, bits, x) \
     word64 func(word64 x) {  word64 ret ;\
-        __asm__ ("rorx $"#bits", %1, %0\n\t":"=r"(ret):"r"(x):) ;\
+        __asm__ ("rorx $"#bits", %1, %0\n\t":"=r"(ret):"r"(x)) ;\
         return ret ;\
     }
 
@@ -691,15 +691,15 @@ void wc_Sha512Free(Sha512* sha512)
 /* INLINE Assember for Intel AVX1 instructions */
 #if defined(HAVE_INTEL_AVX1)
 #if defined(DEBUG_XMM)
-    #define SAVE_REG(i)     __asm__ volatile("vmovdqu %%xmm"#i", %0 \n\t":"=m"(reg[i][0])::XMM_REGs);
-    #define RECV_REG(i)     __asm__ volatile("vmovdqu %0, %%xmm"#i" \n\t"::"m"(reg[i][0]):XMM_REGs);
+    #define SAVE_REG(i)     __asm__ volatile("vmovdqu %%xmm"#i", %0 \n\t":"=m"(reg[i][0]):);
+    #define RECV_REG(i)     __asm__ volatile("vmovdqu %0, %%xmm"#i" \n\t"::"m"(reg[i][0]));
 
     #define _DUMP_REG(REG, name)\
         { word64 buf[16];word64 reg[16][2];int k;\
           SAVE_REG(0); SAVE_REG(1); SAVE_REG(2);  SAVE_REG(3);  SAVE_REG(4);  \
           SAVE_REG(5);   SAVE_REG(6); SAVE_REG(7);SAVE_REG(8); SAVE_REG(9); SAVE_REG(10);\
            SAVE_REG(11); SAVE_REG(12); SAVE_REG(13); SAVE_REG(14); SAVE_REG(15); \
-          __asm__ volatile("vmovdqu %%"#REG", %0 \n\t":"=m"(buf[0])::XMM_REGs);\
+          __asm__ volatile("vmovdqu %%"#REG", %0 \n\t":"=m"(buf[0]):);\
           printf(" "#name":\t"); for(k=0; k<2; k++) printf("%016lx.", (word64)(buf[k])); printf("\n"); \
           RECV_REG(0); RECV_REG(1); RECV_REG(2);  RECV_REG(3);  RECV_REG(4);\
           RECV_REG(5);   RECV_REG(6); RECV_REG(7); RECV_REG(8); RECV_REG(9);\
@@ -714,25 +714,25 @@ void wc_Sha512Free(Sha512* sha512)
 #endif /* DEBUG_XMM */
 
 #define _MOVE_to_REG(xymm, mem)       __asm__ volatile("vmovdqu %0, %%"#xymm" "\
-        :: "m"(mem):XMM_REGs);
+        :: "m"(mem));
 #define _MOVE_to_MEM(mem,i, xymm)     __asm__ volatile("vmovdqu %%"#xymm", %0" :\
-         "=m"(mem[i]),"=m"(mem[i+1]),"=m"(mem[i+2]),"=m"(mem[i+3])::XMM_REGs);
+         "=m"(mem[i]),"=m"(mem[i+1]),"=m"(mem[i+2]),"=m"(mem[i+3]):);
 #define _MOVE(dest, src)              __asm__ volatile("vmovdqu %%"#src",  %%"\
-        #dest" ":::XMM_REGs);
+        #dest" "::);
 
 #define _S_TEMP(dest, src, bits, temp)  __asm__ volatile("vpsrlq  $"#bits", %%"\
         #src", %%"#dest"\n\tvpsllq  $64-"#bits", %%"#src", %%"#temp"\n\tvpor %%"\
-        #temp",%%"#dest", %%"#dest" ":::XMM_REGs);
+        #temp",%%"#dest", %%"#dest" "::);
 #define _AVX1_R(dest, src, bits)      __asm__ volatile("vpsrlq  $"#bits", %%"\
-        #src", %%"#dest" ":::XMM_REGs);
+        #src", %%"#dest" "::);
 #define _XOR(dest, src1, src2)        __asm__ volatile("vpxor   %%"#src1", %%"\
-        #src2", %%"#dest" ":::XMM_REGs);
+        #src2", %%"#dest" "::);
 #define _OR(dest, src1, src2)         __asm__ volatile("vpor    %%"#src1", %%"\
-        #src2", %%"#dest" ":::XMM_REGs);
+        #src2", %%"#dest" "::);
 #define _ADD(dest, src1, src2)        __asm__ volatile("vpaddq   %%"#src1", %%"\
-        #src2", %%"#dest" ":::XMM_REGs);
+        #src2", %%"#dest" "::);
 #define _ADD_MEM(dest, src1, mem)     __asm__ volatile("vpaddq   %0, %%"#src1", %%"\
-        #dest" "::"m"(mem):XMM_REGs);
+        #dest" "::"m"(mem));
 
 #define MOVE_to_REG(xymm, mem)      _MOVE_to_REG(xymm, mem)
 #define MOVE_to_MEM(mem, i, xymm)   _MOVE_to_MEM(mem, i, xymm)
@@ -787,8 +787,6 @@ static word64 mBYTE_FLIP_MASK[] =  { 0x0001020304050607, 0x08090a0b0c0d0e0f };
 #define W_10    xmm7
 #define W_12    xmm8
 #define W_14    xmm9
-
-#define XMM_REGs
 
 #define s0_1(dest, src)      AVX1_S(dest, src, 1);
 #define s0_2(dest, src)      AVX1_S(G_TEMP, src, 8); XOR(dest, G_TEMP, dest);
@@ -909,29 +907,29 @@ static const unsigned long mBYTE_FLIP_MASK_Y[] =
 
 #define W_from_buff_Y(buff)\
     { /* X0..3(ymm9..12), W_X[0..15] = sha512->buffer[0.15];  */\
-     __asm__ volatile("vmovdqu %0, %%ymm8\n\t"::"m"(mBYTE_FLIP_MASK_Y[0]):YMM_REGs);\
+     __asm__ volatile("vmovdqu %0, %%ymm8\n\t"::"m"(mBYTE_FLIP_MASK_Y[0]));\
      __asm__ volatile("vmovdqu %0, %%ymm12\n\t"\
                       "vmovdqu %1, %%ymm4\n\t"\
                       "vpshufb %%ymm8, %%ymm12, %%ymm12\n\t"\
                       "vpshufb %%ymm8, %%ymm4, %%ymm4\n\t"\
-                      :: "m"(buff[0]),  "m"(buff[4]):YMM_REGs);\
+                      :: "m"(buff[0]),  "m"(buff[4]));\
      __asm__ volatile("vmovdqu %0, %%ymm5\n\t"\
                       "vmovdqu %1, %%ymm6\n\t"\
                       "vpshufb %%ymm8, %%ymm5, %%ymm5\n\t"\
                       "vpshufb %%ymm8, %%ymm6, %%ymm6\n\t"\
-                      :: "m"(buff[8]),  "m"(buff[12]):YMM_REGs);\
+                      :: "m"(buff[8]),  "m"(buff[12]));\
     }
 
 #if defined(DEBUG_YMM)
-    #define SAVE_REG_Y(i) __asm__ volatile("vmovdqu %%ymm"#i", %0 \n\t":"=m"(reg[i-4][0])::YMM_REGs);
-    #define RECV_REG_Y(i) __asm__ volatile("vmovdqu %0, %%ymm"#i" \n\t"::"m"(reg[i-4][0]):YMM_REGs);
+    #define SAVE_REG_Y(i) __asm__ volatile("vmovdqu %%ymm"#i", %0 \n\t":"=m"(reg[i-4][0]):);
+    #define RECV_REG_Y(i) __asm__ volatile("vmovdqu %0, %%ymm"#i" \n\t"::"m"(reg[i-4][0]));
 
     #define _DUMP_REG_Y(REG, name)\
         { word64 buf[16];word64 reg[16][2];int k;\
           SAVE_REG_Y(4);  SAVE_REG_Y(5);   SAVE_REG_Y(6); SAVE_REG_Y(7); \
           SAVE_REG_Y(8); SAVE_REG_Y(9); SAVE_REG_Y(10); SAVE_REG_Y(11); SAVE_REG_Y(12);\
           SAVE_REG_Y(13); SAVE_REG_Y(14); SAVE_REG_Y(15); \
-          __asm__ volatile("vmovdqu %%"#REG", %0 \n\t":"=m"(buf[0])::YMM_REGs);\
+          __asm__ volatile("vmovdqu %%"#REG", %0 \n\t":"=m"(buf[0]):);\
           printf(" "#name":\t"); for(k=0; k<4; k++) printf("%016lx.", (word64)buf[k]); printf("\n"); \
           RECV_REG_Y(4);  RECV_REG_Y(5);   RECV_REG_Y(6); RECV_REG_Y(7); \
           RECV_REG_Y(8); RECV_REG_Y(9); RECV_REG_Y(10); RECV_REG_Y(11); RECV_REG_Y(12); \
@@ -948,26 +946,26 @@ static const unsigned long mBYTE_FLIP_MASK_Y[] =
 #endif /* DEBUG_YMM */
 
 #define _MOVE_to_REGy(ymm, mem)         __asm__ volatile("vmovdqu %0, %%"#ymm" "\
-                                        :: "m"(mem):YMM_REGs);
+                                        :: "m"(mem));
 #define _MOVE_to_MEMy(mem,i, ymm)       __asm__ volatile("vmovdqu %%"#ymm", %0" \
-        : "=m"(mem[i]),"=m"(mem[i+1]),"=m"(mem[i+2]),"=m"(mem[i+3])::YMM_REGs);
+        : "=m"(mem[i]),"=m"(mem[i+1]),"=m"(mem[i+2]),"=m"(mem[i+3]):);
 #define _MOVE_128y(ymm0, ymm1, ymm2, map)  __asm__ volatile("vperm2i128  $"\
-        #map", %%"#ymm2", %%"#ymm1", %%"#ymm0" ":::YMM_REGs);
+        #map", %%"#ymm2", %%"#ymm1", %%"#ymm0" "::);
 #define _S_TEMPy(dest, src, bits, temp) \
          __asm__ volatile("vpsrlq  $"#bits", %%"#src", %%"#dest"\n\tvpsllq  $64-"#bits\
-        ", %%"#src", %%"#temp"\n\tvpor %%"#temp",%%"#dest", %%"#dest" ":::YMM_REGs);
+        ", %%"#src", %%"#temp"\n\tvpor %%"#temp",%%"#dest", %%"#dest" "::);
 #define _AVX2_R(dest, src, bits)        __asm__ volatile("vpsrlq  $"#bits", %%"\
-         #src", %%"#dest" ":::YMM_REGs);
+         #src", %%"#dest" "::);
 #define _XORy(dest, src1, src2)         __asm__ volatile("vpxor   %%"#src1", %%"\
-         #src2", %%"#dest" ":::YMM_REGs);
+         #src2", %%"#dest" "::);
 #define _ADDy(dest, src1, src2)         __asm__ volatile("vpaddq   %%"#src1", %%"\
-         #src2", %%"#dest" ":::YMM_REGs);
+         #src2", %%"#dest" "::);
 #define _BLENDy(map, dest, src1, src2)  __asm__ volatile("vpblendd    $"#map", %%"\
-         #src1",   %%"#src2", %%"#dest" ":::YMM_REGs);
+         #src1",   %%"#src2", %%"#dest" "::);
 #define _BLENDQy(map, dest, src1, src2) __asm__ volatile("vblendpd   $"#map", %%"\
-         #src1",   %%"#src2", %%"#dest" ":::YMM_REGs);
+         #src1",   %%"#src2", %%"#dest" "::);
 #define _PERMQy(map, dest, src)         __asm__ volatile("vpermq  $"#map", %%"\
-         #src", %%"#dest" ":::YMM_REGs);
+         #src", %%"#dest" "::);
 
 #define MOVE_to_REGy(ymm, mem)      _MOVE_to_REGy(ymm, mem)
 #define MOVE_to_MEMy(mem, i, ymm)   _MOVE_to_MEMy(mem, i, ymm)
@@ -1013,28 +1011,25 @@ static const unsigned long mBYTE_FLIP_MASK_Y[] =
 #define W_8y     ymm5
 #define W_12y    ymm6
 
-#define YMM_REGs
-/* Registers are saved in Sha512Update/Final */
-                 /* "%ymm7","%ymm8","%ymm9","%ymm10","%ymm11","%ymm12","%ymm13","%ymm14","%ymm15"*/
 
 #define MOVE_15_to_16(w_i_16, w_i_15, w_i_7)\
-    __asm__ volatile("vperm2i128  $0x01, %%"#w_i_15", %%"#w_i_15", %%"#w_i_15" ":::YMM_REGs);\
-    __asm__ volatile("vpblendd    $0x08, %%"#w_i_15", %%"#w_i_7", %%"#w_i_16" ":::YMM_REGs);\
-    __asm__ volatile("vperm2i128 $0x01,  %%"#w_i_7",  %%"#w_i_7", %%"#w_i_15" ":::YMM_REGs);\
-    __asm__ volatile("vpblendd    $0x80, %%"#w_i_15", %%"#w_i_16", %%"#w_i_16" ":::YMM_REGs);\
-    __asm__ volatile("vpshufd    $0x93,  %%"#w_i_16", %%"#w_i_16" ":::YMM_REGs);\
+    __asm__ volatile("vperm2i128  $0x01, %%"#w_i_15", %%"#w_i_15", %%"#w_i_15" "::);\
+    __asm__ volatile("vpblendd    $0x08, %%"#w_i_15", %%"#w_i_7", %%"#w_i_16" "::);\
+    __asm__ volatile("vperm2i128 $0x01,  %%"#w_i_7",  %%"#w_i_7", %%"#w_i_15" "::);\
+    __asm__ volatile("vpblendd    $0x80, %%"#w_i_15", %%"#w_i_16", %%"#w_i_16" "::);\
+    __asm__ volatile("vpshufd    $0x93,  %%"#w_i_16", %%"#w_i_16" "::);\
 
 #define MOVE_7_to_15(w_i_15, w_i_7)\
-    __asm__ volatile("vmovdqu                 %%"#w_i_7",  %%"#w_i_15" ":::YMM_REGs);\
+    __asm__ volatile("vmovdqu                 %%"#w_i_7",  %%"#w_i_15" "::);\
 
 #define MOVE_I_to_7(w_i_7, w_i)\
-    __asm__ volatile("vperm2i128 $0x01,       %%"#w_i",   %%"#w_i",   %%"#w_i_7" ":::YMM_REGs);\
-    __asm__ volatile("vpblendd    $0x01,       %%"#w_i_7",   %%"#w_i", %%"#w_i_7" ":::YMM_REGs);\
-    __asm__ volatile("vpshufd    $0x39, %%"#w_i_7", %%"#w_i_7" ":::YMM_REGs);\
+    __asm__ volatile("vperm2i128 $0x01,       %%"#w_i",   %%"#w_i",   %%"#w_i_7" "::);\
+    __asm__ volatile("vpblendd    $0x01,       %%"#w_i_7",   %%"#w_i", %%"#w_i_7" "::);\
+    __asm__ volatile("vpshufd    $0x39, %%"#w_i_7", %%"#w_i_7" "::);\
 
 #define MOVE_I_to_2(w_i_2, w_i)\
-    __asm__ volatile("vperm2i128 $0x01,       %%"#w_i", %%"#w_i", %%"#w_i_2" ":::YMM_REGs);\
-    __asm__ volatile("vpshufd    $0x0e, %%"#w_i_2", %%"#w_i_2" ":::YMM_REGs);\
+    __asm__ volatile("vperm2i128 $0x01,       %%"#w_i", %%"#w_i", %%"#w_i_2" "::);\
+    __asm__ volatile("vpshufd    $0x0e, %%"#w_i_2", %%"#w_i_2" "::);\
 
 #endif /* HAVE_INTEL_AVX2 */
 

@@ -35,7 +35,6 @@ SET(WOLFSSL_SOURCES  src/crl.c src/internal.c src/keys.c src/sniffer.c
                                 ../../client/get_password.c )
 
 ADD_CONVENIENCE_LIBRARY(wolfssl ${WOLFSSL_SOURCES})
-RESTRICT_SYMBOL_EXPORTS(wolfssl)
 
 IF(MSVC)
    INSTALL_DEBUG_TARGET(wolfssl DESTINATION ${INSTALL_LIBDIR}/debug)

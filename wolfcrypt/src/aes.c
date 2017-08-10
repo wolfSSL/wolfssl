@@ -3665,13 +3665,89 @@ static __m128i gfmul8(__m128i a1, __m128i a2, __m128i a3, __m128i a4,
 }
 #endif
 
-/* See Intel® Carry-Less Multiplication Instruction
+static __m128i gfmul_shl1(__m128i a)
+{
+    __m128i t1 = a, t2;
+    t2 = _mm_srli_epi64(t1, 63);
+    t1 = _mm_slli_epi64(t1, 1);
+    t2 = _mm_slli_si128(t2, 8);
+    t1 = _mm_or_si128(t1, t2);
+    /* if (a[1] >> 63) t1 = _mm_xor_si128(t1, MOD2_128); */
+    a = _mm_shuffle_epi32(a, 0xff);
+    a = _mm_srai_epi32(a, 31);
+    a = _mm_and_si128(a, MOD2_128);
+    t1 = _mm_xor_si128(t1, a);
+    return t1;
+}
+
+static __m128i ghash_red(__m128i r0, __m128i r1)
+{
+    __m128i t2, t3;
+#ifndef WOLFSSL_AES_GCM_SLOW_CLMUL
+    t2 = _mm_clmulepi64_si128(r0, MOD2_128, 0x10);
+    t3 = _mm_shuffle_epi32(r0, 78);
+    t3 = _mm_xor_si128(t3, t2);
+    t2 = _mm_clmulepi64_si128(t3, MOD2_128, 0x10);
+    t3 = _mm_shuffle_epi32(t3, 78);
+    t3 = _mm_xor_si128(t3, t2);
+    return _mm_xor_si128(r1, t3);
+#else
+    __m128i t5, t6, t7;
+
+    t5 = _mm_slli_epi32(r0, 31);
+    t6 = _mm_slli_epi32(r0, 30);
+    t7 = _mm_slli_epi32(r0, 25);
+    t5 = _mm_xor_si128(t5, t6);
+    t5 = _mm_xor_si128(t5, t7);
+
+    t6 = _mm_srli_si128(t5, 4);
+    t5 = _mm_slli_si128(t5, 12);
+    r0 = _mm_xor_si128(r0, t5);
+    t7 = _mm_srli_epi32(r0, 1);
+    t3 = _mm_srli_epi32(r0, 2);
+    t2 = _mm_srli_epi32(r0, 7);
+
+    t7 = _mm_xor_si128(t7, t3);
+    t7 = _mm_xor_si128(t7, t2);
+    t7 = _mm_xor_si128(t7, t6);
+    t7 = _mm_xor_si128(t7, r0);
+    return _mm_xor_si128(r1, t7);
+#endif
+}
+
+static __m128i gfmul_shifted(__m128i a, __m128i b)
+{
+    __m128i t0 = _mm_setzero_si128(), t1 = _mm_setzero_si128();
+    gfmul_only(a, b, &t0, &t1);
+    return ghash_red(t0, t1);
+}
+
+#ifndef AES_GCM_AESNI_NO_UNROLL
+static __m128i gfmul8(__m128i a1, __m128i a2, __m128i a3, __m128i a4,
+                      __m128i a5, __m128i a6, __m128i a7, __m128i a8,
+                      __m128i b1, __m128i b2, __m128i b3, __m128i b4,
+                      __m128i b5, __m128i b6, __m128i b7, __m128i b8)
+{
+    __m128i t0 = _mm_setzero_si128(), t1 = _mm_setzero_si128();
+    gfmul_only(a1, b8, &t0, &t1);
+    gfmul_only(a2, b7, &t0, &t1);
+    gfmul_only(a3, b6, &t0, &t1);
+    gfmul_only(a4, b5, &t0, &t1);
+    gfmul_only(a5, b4, &t0, &t1);
+    gfmul_only(a6, b3, &t0, &t1);
+    gfmul_only(a7, b2, &t0, &t1);
+    gfmul_only(a8, b1, &t0, &t1);
+    return ghash_red(t0, t1);
+}
+#endif
+
+/* See Intelï¿½ Carry-Less Multiplication Instruction
  * and its Usage for Computing the GCM Mode White Paper
  * by Shay Gueron, Intel Mobility Group, Israel Development Center;
  * and Michael E. Kounavis, Intel Labs, Circuits and Systems Research */
 
 
-/* Figure 9. AES-GCM – Encrypt With Single Block Ghash at a Time */
+/* Figure 9. AES-GCM ï¿½ Encrypt With Single Block Ghash at a Time */
 
 static const __m128i ONE   = { 0x0, 0x1 };
 #ifndef AES_GCM_AESNI_NO_UNROLL
@@ -5321,7 +5397,7 @@ static void AES_GCM_encrypt_avx2(const unsigned char *in, unsigned char *out,
 
 
 #ifdef HAVE_AES_DECRYPT
-/* Figure 10. AES-GCM – Decrypt With Single Block Ghash at a Time */
+/* Figure 10. AES-GCM ï¿½ Decrypt With Single Block Ghash at a Time */
 
 static int AES_GCM_decrypt(const unsigned char *in, unsigned char *out,
                            const unsigned char* addt, const unsigned char* ivec,
