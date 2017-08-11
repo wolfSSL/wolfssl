@@ -146,13 +146,10 @@ ASN Options:
     #define XGMTIME(c, t)   rtpsys_gmtime((c))
 
 #elif defined(MICRIUM)
-    #if (NET_SECURE_MGR_CFG_EN == DEF_ENABLED)
-        #define XVALIDATE_DATE(d, f, t) NetSecure_ValidateDateHandler((d), (f), (t))
-    #else
-        #define XVALIDATE_DATE(d, f, t) (0)
-    #endif
-    #define NO_TIME_H
-    /* since Micrium not defining XTIME or XGMTIME, CERT_GEN not available */
+    #include <clk.h>
+    #include <time.h>
+    #define XTIME(t1)       micrium_time((t1))
+    #define WOLFSSL_GMTIME
 
 #elif defined(MICROCHIP_TCPIP_V5) || defined(MICROCHIP_TCPIP)
     #include <time.h>
@@ -384,6 +381,20 @@ time_t pic32_time(time_t* timer)
 #endif /* MICROCHIP_TCPIP || MICROCHIP_TCPIP_V5 */
 
 
+#if defined(MICRIUM)
+
+time_t micrium_time(time_t* timer)
+{
+    CLK_TS_SEC sec;
+
+    Clk_GetTS_Unix(&sec);
+
+    return (time_t) sec;
+}
+
+#endif /* MICRIUM */
+
+
 #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
 
 time_t mqx_time(time_t* timer)
@@ -464,65 +475,6 @@ static INLINE void GetTime(int* value, const byte* date, int* idx)
 
     *idx = i;
 }
-
-
-#if defined(MICRIUM)
-
-CPU_INT32S NetSecure_ValidateDateHandler(CPU_INT08U *date, CPU_INT08U format,
-                                         CPU_INT08U dateType)
-{
-    CPU_BOOLEAN  rtn_code;
-    CPU_INT32S   i;
-    CPU_INT32S   val;
-    CPU_INT16U   year;
-    CPU_INT08U   month;
-    CPU_INT16U   day;
-    CPU_INT08U   hour;
-    CPU_INT08U   min;
-    CPU_INT08U   sec;
-
-    i    = 0;
-    year = 0u;
-
-    if (format == ASN_UTC_TIME) {
-        if (btoi(date[0]) >= 5)
-            year = 1900;
-        else
-            year = 2000;
-    }
-    else  { /* format == GENERALIZED_TIME */
-        year += btoi(date[i++]) * 1000;
-        year += btoi(date[i++]) * 100;
-    }
-
-    val = year;
-    GetTime(&val, date, &i);
-    year = (CPU_INT16U)val;
-
-    val = 0;
-    GetTime(&val, date, &i);
-    month = (CPU_INT08U)val;
-
-    val = 0;
-    GetTime(&val, date, &i);
-    day = (CPU_INT16U)val;
-
-    val = 0;
-    GetTime(&val, date, &i);
-    hour = (CPU_INT08U)val;
-
-    val = 0;
-    GetTime(&val, date, &i);
-    min = (CPU_INT08U)val;
-
-    val = 0;
-    GetTime(&val, date, &i);
-    sec = (CPU_INT08U)val;
-
-    return NetSecure_ValidateDate(year, month, day, hour, min, sec, dateType);
-}
-
-#endif /* MICRIUM */
 
 
 #if defined(IDIRECT_DEV_TIME)
@@ -9612,56 +9564,56 @@ static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
         if (decoded->subjectCN) {
             sz = (decoded->subjectCNLen < CTC_NAME_SIZE) ? decoded->subjectCNLen
                                                          : CTC_NAME_SIZE - 1;
-            strncpy(cn->commonName, decoded->subjectCN, CTC_NAME_SIZE);
+            XSTRNCPY(cn->commonName, decoded->subjectCN, CTC_NAME_SIZE);
             cn->commonName[sz] = 0;
             cn->commonNameEnc = decoded->subjectCNEnc;
         }
         if (decoded->subjectC) {
             sz = (decoded->subjectCLen < CTC_NAME_SIZE) ? decoded->subjectCLen
                                                         : CTC_NAME_SIZE - 1;
-            strncpy(cn->country, decoded->subjectC, CTC_NAME_SIZE);
+            XSTRNCPY(cn->country, decoded->subjectC, CTC_NAME_SIZE);
             cn->country[sz] = 0;
             cn->countryEnc = decoded->subjectCEnc;
         }
         if (decoded->subjectST) {
             sz = (decoded->subjectSTLen < CTC_NAME_SIZE) ? decoded->subjectSTLen
                                                          : CTC_NAME_SIZE - 1;
-            strncpy(cn->state, decoded->subjectST, CTC_NAME_SIZE);
+            XSTRNCPY(cn->state, decoded->subjectST, CTC_NAME_SIZE);
             cn->state[sz] = 0;
             cn->stateEnc = decoded->subjectSTEnc;
         }
         if (decoded->subjectL) {
             sz = (decoded->subjectLLen < CTC_NAME_SIZE) ? decoded->subjectLLen
                                                         : CTC_NAME_SIZE - 1;
-            strncpy(cn->locality, decoded->subjectL, CTC_NAME_SIZE);
+            XSTRNCPY(cn->locality, decoded->subjectL, CTC_NAME_SIZE);
             cn->locality[sz] = 0;
             cn->localityEnc = decoded->subjectLEnc;
         }
         if (decoded->subjectO) {
             sz = (decoded->subjectOLen < CTC_NAME_SIZE) ? decoded->subjectOLen
                                                         : CTC_NAME_SIZE - 1;
-            strncpy(cn->org, decoded->subjectO, CTC_NAME_SIZE);
+            XSTRNCPY(cn->org, decoded->subjectO, CTC_NAME_SIZE);
             cn->org[sz] = 0;
             cn->orgEnc = decoded->subjectOEnc;
         }
         if (decoded->subjectOU) {
             sz = (decoded->subjectOULen < CTC_NAME_SIZE) ? decoded->subjectOULen
                                                          : CTC_NAME_SIZE - 1;
-            strncpy(cn->unit, decoded->subjectOU, CTC_NAME_SIZE);
+            XSTRNCPY(cn->unit, decoded->subjectOU, CTC_NAME_SIZE);
             cn->unit[sz] = 0;
             cn->unitEnc = decoded->subjectOUEnc;
         }
         if (decoded->subjectSN) {
             sz = (decoded->subjectSNLen < CTC_NAME_SIZE) ? decoded->subjectSNLen
                                                          : CTC_NAME_SIZE - 1;
-            strncpy(cn->sur, decoded->subjectSN, CTC_NAME_SIZE);
+            XSTRNCPY(cn->sur, decoded->subjectSN, CTC_NAME_SIZE);
             cn->sur[sz] = 0;
             cn->surEnc = decoded->subjectSNEnc;
         }
         if (decoded->subjectEmail) {
             sz = (decoded->subjectEmailLen < CTC_NAME_SIZE)
                ?  decoded->subjectEmailLen : CTC_NAME_SIZE - 1;
-            strncpy(cn->email, decoded->subjectEmail, CTC_NAME_SIZE);
+            XSTRNCPY(cn->email, decoded->subjectEmail, CTC_NAME_SIZE);
             cn->email[sz] = 0;
         }
     }

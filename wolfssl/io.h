@@ -35,7 +35,8 @@
 #endif
 
 #if !defined(WOLFSSL_USER_IO)
-    #ifndef USE_WOLFSSL_IO
+    /* Micrium uses NetSock I/O callbacks in io.c */
+    #if !defined(USE_WOLFSSL_IO) && !defined(MICRIUM)
         #define USE_WOLFSSL_IO
     #endif
 #endif
@@ -373,6 +374,15 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
     WOLFSSL_API void wolfSSL_SetIO_NetX(WOLFSSL* ssl, NX_TCP_SOCKET* nxsocket,
                                       ULONG waitoption);
 #endif /* HAVE_NETX */
+
+#ifdef MICRIUM
+    WOLFSSL_LOCAL int MicriumSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+    WOLFSSL_LOCAL int MicriumReceive(WOLFSSL* ssl, char* buf, int sz,
+                                     void* ctx);
+    WOLFSSL_LOCAL int MicriumReceiveFrom(WOLFSSL* ssl, char* buf, int sz,
+                                         void* ctx);
+    WOLFSSL_LOCAL int MicriumSendTo(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+#endif /* MICRIUM */
 
 #ifdef WOLFSSL_DTLS
     typedef int (*CallbackGenCookie)(WOLFSSL* ssl, unsigned char* buf, int sz,

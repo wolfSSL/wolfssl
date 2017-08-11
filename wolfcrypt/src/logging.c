@@ -120,6 +120,8 @@ void wolfSSL_Debugging_OFF(void)
 #elif defined(WOLFSSL_SGX)
     /* Declare sprintf for ocall */
     int sprintf(char* buf, const char *fmt, ...);
+#elif defined(MICRIUM)
+    #include <bsp_ser.h>
 #else
     #include <stdio.h>   /* for default printf stuff */
 #endif
@@ -137,9 +139,7 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
 #if defined(THREADX) && !defined(THREADX_NO_DC_PRINTF)
             dc_log_printf("%s\n", logMessage);
 #elif defined(MICRIUM)
-        #if (NET_SECURE_MGR_CFG_EN == DEF_ENABLED)
-            NetSecure_TraceOut((CPU_CHAR *)logMessage);
-        #endif
+            BSP_Ser_Printf("%s\r\n", logMessage);
 #elif defined(WOLFSSL_MDK_ARM)
             fflush(stdout) ;
             printf("%s\n", logMessage);

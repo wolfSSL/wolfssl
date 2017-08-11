@@ -1423,18 +1423,32 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 #endif
 
 #ifndef WOLFSSL_USER_IO
-    ctx->CBIORecv = EmbedReceive;
-    ctx->CBIOSend = EmbedSend;
-    #ifdef WOLFSSL_DTLS
-        if (method->version.major == DTLS_MAJOR) {
-            ctx->CBIORecv   = EmbedReceiveFrom;
-            ctx->CBIOSend   = EmbedSendTo;
-        }
-        #ifdef WOLFSSL_SESSION_EXPORT
-        ctx->CBGetPeer = EmbedGetPeer;
-        ctx->CBSetPeer = EmbedSetPeer;
+    #ifdef MICRIUM
+        ctx->CBIORecv = MicriumReceive;
+        ctx->CBIOSend = MicriumSend;
+        #ifdef WOLFSSL_DTLS
+            if (method->version.major == DTLS_MAJOR) {
+                ctx->CBIORecv   = MicriumReceiveFrom;
+                ctx->CBIOSend   = MicriumSendTo;
+            }
+            #ifdef WOLFSSL_SESSION_EXPORT
+                #error Micrium port does not support DTLS session export yet
+            #endif
         #endif
-    #endif
+    #else
+        ctx->CBIORecv = EmbedReceive;
+        ctx->CBIOSend = EmbedSend;
+        #ifdef WOLFSSL_DTLS
+            if (method->version.major == DTLS_MAJOR) {
+                ctx->CBIORecv   = EmbedReceiveFrom;
+                ctx->CBIOSend   = EmbedSendTo;
+            }
+            #ifdef WOLFSSL_SESSION_EXPORT
+            ctx->CBGetPeer = EmbedGetPeer;
+            ctx->CBSetPeer = EmbedSetPeer;
+            #endif
+        #endif
+    #endif /* MICRIUM */
 #endif /* WOLFSSL_USER_IO */
 
 #ifdef HAVE_NETX
@@ -5619,12 +5633,12 @@ ProtocolVersion MakeDTLSv1_2(void)
 
     word32 LowResTimer(void)
     {
-        NET_SECURE_OS_TICK  clk = 0;
+        OS_TICK ticks = 0;
+        OS_ERR  err;
 
-        #if (NET_SECURE_MGR_CFG_EN == DEF_ENABLED)
-            clk = NetSecure_OS_TimeGet();
-        #endif
-        return (word32)clk;
+        ticks = OSTimeGet(&err);
+
+        return (word32) (ticks / OSCfg_TickRate_Hz);
     }
 
 
