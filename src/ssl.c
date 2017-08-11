@@ -5971,7 +5971,9 @@ int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
                                      const char* path)
 {
     int ret = SSL_SUCCESS;
+#ifndef NO_WOLFSSL_DIR
     int fileRet;
+#endif
 
     WOLFSSL_ENTER("wolfSSL_CTX_load_verify_locations");
 
