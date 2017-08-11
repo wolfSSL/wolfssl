@@ -185,6 +185,14 @@
         #define printf dc_log_printf
 #endif
 
+
+#ifdef MICRIUM
+    #include <bsp_ser.h>
+    void BSP_Ser_Printf (CPU_CHAR* format, ...);
+    #undef printf
+    #define printf BSP_Ser_Printf
+#endif
+
 #include "wolfcrypt/test/test.h"
 
 
@@ -7370,21 +7378,21 @@ int rsa_test(void)
             ERROR_OUT(-5572, exit_rsa);
         }
 
-        strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
-        strncpy(myCert.subject.state, "OR", CTC_NAME_SIZE);
-        strncpy(myCert.subject.locality, "Portland", CTC_NAME_SIZE);
-        strncpy(myCert.subject.org, "yaSSL", CTC_NAME_SIZE);
-        strncpy(myCert.subject.unit, "Development", CTC_NAME_SIZE);
-        strncpy(myCert.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
-        strncpy(myCert.subject.email, "info@yassl.com", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.country, "US", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.state, "OR", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.locality, "Portland", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.org, "yaSSL", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.unit, "Development", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.email, "info@yassl.com", CTC_NAME_SIZE);
         myCert.isCA    = 1;
         myCert.sigType = CTC_SHA256wRSA;
 
     #ifdef WOLFSSL_CERT_EXT
         /* add Policies */
-        strncpy(myCert.certPolicies[0], "2.16.840.1.101.3.4.1.42",
+        XSTRNCPY(myCert.certPolicies[0], "2.16.840.1.101.3.4.1.42",
                 CTC_MAX_CERTPOL_SZ);
-        strncpy(myCert.certPolicies[1], "1.2.840.113549.1.9.16.6.5",
+        XSTRNCPY(myCert.certPolicies[1], "1.2.840.113549.1.9.16.6.5",
                 CTC_MAX_CERTPOL_SZ);
         myCert.certPoliciesNb = 2;
 
@@ -7522,17 +7530,17 @@ int rsa_test(void)
         myCert.sigType = CTC_SHA256wRSA;
     #endif
 
-        strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
-        strncpy(myCert.subject.state, "OR", CTC_NAME_SIZE);
-        strncpy(myCert.subject.locality, "Portland", CTC_NAME_SIZE);
-        strncpy(myCert.subject.org, "yaSSL", CTC_NAME_SIZE);
-        strncpy(myCert.subject.unit, "Development", CTC_NAME_SIZE);
-        strncpy(myCert.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
-        strncpy(myCert.subject.email, "info@yassl.com", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.country, "US", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.state, "OR", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.locality, "Portland", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.org, "yaSSL", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.unit, "Development", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.email, "info@yassl.com", CTC_NAME_SIZE);
 
     #ifdef WOLFSSL_CERT_EXT
         /* add Policies */
-        strncpy(myCert.certPolicies[0], "2.16.840.1.101.3.4.1.42",
+        XSTRNCPY(myCert.certPolicies[0], "2.16.840.1.101.3.4.1.42",
                 CTC_MAX_CERTPOL_SZ);
         myCert.certPoliciesNb =1;
 
@@ -7695,19 +7703,19 @@ int rsa_test(void)
         }
         myCert.sigType = CTC_SHA256wECDSA;
 
-        strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
-        strncpy(myCert.subject.state, "OR", CTC_NAME_SIZE);
-        strncpy(myCert.subject.locality, "Portland", CTC_NAME_SIZE);
-        strncpy(myCert.subject.org, "wolfSSL", CTC_NAME_SIZE);
-        strncpy(myCert.subject.unit, "Development", CTC_NAME_SIZE);
-        strncpy(myCert.subject.commonName, "www.wolfssl.com", CTC_NAME_SIZE);
-        strncpy(myCert.subject.email, "info@wolfssl.com", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.country, "US", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.state, "OR", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.locality, "Portland", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.org, "wolfSSL", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.unit, "Development", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.commonName, "www.wolfssl.com", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.email, "info@wolfssl.com", CTC_NAME_SIZE);
 
 #ifdef WOLFSSL_CERT_EXT
         /* add Policies */
-        strncpy(myCert.certPolicies[0], "2.4.589440.587.101.2.1.9632587.1",
+        XSTRNCPY(myCert.certPolicies[0], "2.4.589440.587.101.2.1.9632587.1",
                 CTC_MAX_CERTPOL_SZ);
-        strncpy(myCert.certPolicies[1], "1.2.13025.489.1.113549",
+        XSTRNCPY(myCert.certPolicies[1], "1.2.13025.489.1.113549",
                 CTC_MAX_CERTPOL_SZ);
         myCert.certPoliciesNb = 2;
 
@@ -7916,13 +7924,13 @@ int rsa_test(void)
             ERROR_OUT(-5573, exit_rsa);
         }
 
-        strncpy(myCert.subject.country, "US", CTC_NAME_SIZE);
-        strncpy(myCert.subject.state, "OR", CTC_NAME_SIZE);
-        strncpy(myCert.subject.locality, "Portland", CTC_NAME_SIZE);
-        strncpy(myCert.subject.org, "yaSSL", CTC_NAME_SIZE);
-        strncpy(myCert.subject.unit, "Development", CTC_NAME_SIZE);
-        strncpy(myCert.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
-        strncpy(myCert.subject.email, "info@yassl.com", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.country, "US", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.state, "OR", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.locality, "Portland", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.org, "yaSSL", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.unit, "Development", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
+        XSTRNCPY(myCert.subject.email, "info@yassl.com", CTC_NAME_SIZE);
         myCert.daysValid = 1000;
 
     #ifdef WOLFSSL_CERT_EXT
@@ -8067,14 +8075,14 @@ int rsa_test(void)
 
         req.version = 0;
         req.isCA    = 1;
-        strncpy(req.challengePw, "yassl123", CTC_NAME_SIZE);
-        strncpy(req.subject.country, "US", CTC_NAME_SIZE);
-        strncpy(req.subject.state, "OR", CTC_NAME_SIZE);
-        strncpy(req.subject.locality, "Portland", CTC_NAME_SIZE);
-        strncpy(req.subject.org, "yaSSL", CTC_NAME_SIZE);
-        strncpy(req.subject.unit, "Development", CTC_NAME_SIZE);
-        strncpy(req.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
-        strncpy(req.subject.email, "info@yassl.com", CTC_NAME_SIZE);
+        XSTRNCPY(req.challengePw, "yassl123", CTC_NAME_SIZE);
+        XSTRNCPY(req.subject.country, "US", CTC_NAME_SIZE);
+        XSTRNCPY(req.subject.state, "OR", CTC_NAME_SIZE);
+        XSTRNCPY(req.subject.locality, "Portland", CTC_NAME_SIZE);
+        XSTRNCPY(req.subject.org, "yaSSL", CTC_NAME_SIZE);
+        XSTRNCPY(req.subject.unit, "Development", CTC_NAME_SIZE);
+        XSTRNCPY(req.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
+        XSTRNCPY(req.subject.email, "info@yassl.com", CTC_NAME_SIZE);
         req.sigType = CTC_SHA256wRSA;
 
     #ifdef WOLFSSL_CERT_EXT
