@@ -2803,9 +2803,8 @@ static int wc_ecc_shared_secret_gen_async(ecc_key* private_key,
             &curve->Af->raw, &curve->Bf->raw, &curve->prime->raw,
             private_key->dp->cofactor);
 #else /* WOLFSSL_ASYNC_CRYPT_TEST */
-    WC_ASYNC_TEST* testDev = &private_key->asyncDev.test;
-    if (testDev->type == ASYNC_TEST_NONE) {
-        testDev->type = ASYNC_TEST_ECC_SHARED_SEC;
+    if (wc_AsyncTestInit(&private_key->asyncDev, ASYNC_TEST_ECC_SHARED_SEC)) {
+        WC_ASYNC_TEST* testDev = &private_key->asyncDev.test;
         testDev->eccSharedSec.private_key = private_key;
         testDev->eccSharedSec.public_point = point;
         testDev->eccSharedSec.out = out;
@@ -3017,9 +3016,8 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
     #elif defined(HAVE_INTEL_QA)
         /* TODO: Not implemented */
     #else
-        WC_ASYNC_TEST* testDev = &key->asyncDev.test;
-        if (testDev->type == ASYNC_TEST_NONE) {
-            testDev->type = ASYNC_TEST_ECC_MAKE;
+        if (wc_AsyncTestInit(&key->asyncDev, ASYNC_TEST_ECC_MAKE)) {
+            WC_ASYNC_TEST* testDev = &key->asyncDev.test;
             testDev->eccMake.rng = rng;
             testDev->eccMake.key = key;
             testDev->eccMake.size = keysize;
@@ -3465,9 +3463,8 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
        defined(WOLFSSL_ASYNC_CRYPT_TEST)
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
-        WC_ASYNC_TEST* testDev = &key->asyncDev.test;
-        if (testDev->type == ASYNC_TEST_NONE) {
-            testDev->type = ASYNC_TEST_ECC_SIGN;
+        if (wc_AsyncTestInit(&key->asyncDev, ASYNC_TEST_ECC_SIGN)) {
+            WC_ASYNC_TEST* testDev = &key->asyncDev.test;
             testDev->eccSign.in = in;
             testDev->eccSign.inSz = inlen;
             testDev->eccSign.rng = rng;
@@ -4011,9 +4008,8 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
        defined(WOLFSSL_ASYNC_CRYPT_TEST)
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
-        WC_ASYNC_TEST* testDev = &key->asyncDev.test;
-        if (testDev->type == ASYNC_TEST_NONE) {
-            testDev->type = ASYNC_TEST_ECC_VERIFY;
+        if (wc_AsyncTestInit(&key->asyncDev, ASYNC_TEST_ECC_VERIFY)) {
+            WC_ASYNC_TEST* testDev = &key->asyncDev.test;
             testDev->eccVerify.r = r;
             testDev->eccVerify.s = s;
             testDev->eccVerify.hash = hash;

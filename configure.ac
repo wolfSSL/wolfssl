@@ -213,6 +213,8 @@ then
     enable_aeskeywrap=yes
     enable_x963kdf=yes
     enable_scrypt=yes
+
+    AM_CFLAGS="-DHAVE_AES_DECRYPT $AM_CFLAGS"
 fi
 AM_CONDITIONAL([BUILD_ALL], [test "x$ENABLED_ALL" = "xyes"])
 
