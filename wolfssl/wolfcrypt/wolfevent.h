@@ -76,10 +76,10 @@ struct WOLF_EVENT {
 #ifdef HAVE_CAVIUM
     CavReqId            reqId;
 #endif
-    int                 ret;    /* Async return code */
+    volatile int        ret;    /* Async return code */
     unsigned int        flags;
     WOLF_EVENT_TYPE     type;
-    WOLF_EVENT_STATE    state;
+    volatile WOLF_EVENT_STATE state;
 };
 
 enum WOLF_POLL_FLAGS {

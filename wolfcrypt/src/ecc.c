@@ -1117,12 +1117,23 @@ static int wc_ecc_curve_load(const ecc_set_type* dp, ecc_curve_spec** pCurve,
     if (x == ECC_CURVE_INVALID)
         return ECC_BAD_ARG_E;
 
+#if !defined(SINGLE_THREADED)
+    ret = wc_LockMutex(&ecc_curve_cache_mutex);
+    if (ret != 0) {
+        return ret;
+    }
+#endif
+
     /* make sure cache has been allocated */
     if (ecc_curve_spec_cache[x] == NULL) {
         ecc_curve_spec_cache[x] = (ecc_curve_spec*)XMALLOC(
             sizeof(ecc_curve_spec), NULL, DYNAMIC_TYPE_ECC);
-        if (ecc_curve_spec_cache[x] == NULL)
+        if (ecc_curve_spec_cache[x] == NULL) {
+        #if defined(ECC_CACHE_CURVE) && !defined(SINGLE_THREADED)
+            wc_UnLockMutex(&ecc_curve_cache_mutex);
+        #endif
             return MEMORY_E;
+        }
         XMEMSET(ecc_curve_spec_cache[x], 0, sizeof(ecc_curve_spec));
     }
 
@@ -1148,13 +1159,6 @@ static int wc_ecc_curve_load(const ecc_set_type* dp, ecc_curve_spec** pCurve,
     #endif
     }
     curve->dp = dp; /* set dp info */
-
-#if defined(ECC_CACHE_CURVE) && !defined(SINGLE_THREADED)
-    ret = wc_LockMutex(&ecc_curve_cache_mutex);
-    if (ret != 0) {
-        return MEMORY_E;
-    }
-#endif
 
     /* determine items to load */
     load_items = (~curve->load_mask & load_mask);
