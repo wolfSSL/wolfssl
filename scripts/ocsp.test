@@ -3,7 +3,7 @@
 # ocsp-stapling.test
 
 server=www.globalsign.com
-ca=certs/external/ca-globalsign-root-r2.pem
+ca=certs/external/ca-globalsign-root-r3.pem
 
 [ ! -x ./examples/client/client ] && echo -e "\n\nClient doesn't exist" && exit 1
 
