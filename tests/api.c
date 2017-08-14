@@ -122,6 +122,10 @@
     #include <wolfssl/wolfcrypt/hc128.h>
 #endif
 
+#ifdef WOLFSSL_CMAC
+    #include <wolfssl/wolfcrypt/cmac.h>
+#endif
+
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/ssl.h>
     #include <wolfssl/openssl/pkcs12.h>
@@ -5311,6 +5315,301 @@ static int test_wc_Sha384HmacFinal (void)
 
 
 
+
+/*
+ * Testing wc_InitCmac()
+ */
+static int test_wc_InitCmac (void)
+{
+    int         ret = 0;
+
+#if defined(WOLFSSL_CMAC) && !defined(NO_AES)
+    Cmac        cmac1, cmac2, cmac3;
+    /* AES 128 key. */
+    byte        key1[] = "\x01\x02\x03\x04\x05\x06\x07\x08"
+                         "\x09\x10\x11\x12\x13\x14\x15\x16";
+    /* AES 192 key. */
+    byte        key2[] = "\x01\x02\x03\x04\x05\x06\x07\x08"
+                         "\x09\x01\x11\x12\x13\x14\x15\x16"
+                         "\x01\x02\x03\x04\x05\x06\x07\x08";
+
+    /* AES 256 key. */
+    byte        key3[] = "\x01\x02\x03\x04\x05\x06\x07\x08"
+                         "\x09\x01\x11\x12\x13\x14\x15\x16"
+                         "\x01\x02\x03\x04\x05\x06\x07\x08"
+                         "\x09\x01\x11\x12\x13\x14\x15\x16";
+
+    word32      key1Sz = (word32)sizeof(key1) - 1;
+    word32      key2Sz = (word32)sizeof(key2) - 1;
+    word32      key3Sz = (word32)sizeof(key3) - 1;
+    int         type   = WC_CMAC_AES;
+
+    printf(testingFmt, "wc_InitCmac()");
+
+    ret = wc_InitCmac(&cmac1, key1, key1Sz, type, NULL);
+    if (ret == 0) {
+        ret = wc_InitCmac(&cmac2, key2, key2Sz, type, NULL);
+    }
+    if (ret == 0) {
+        ret = wc_InitCmac(&cmac3, key3, key3Sz, type, NULL);
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_InitCmac(NULL, key3, key3Sz, type, NULL);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_InitCmac(&cmac3, NULL, key3Sz, type, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_InitCmac(&cmac3, key3, 0, type, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_InitCmac(&cmac3, key3, key3Sz, 0, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+
+} /* END test_wc_InitCmac */
+
+
+/*
+ * Testing wc_CmacUpdate()
+ */
+static int test_wc_CmacUpdate (void)
+{
+    int         ret = 0;
+
+#if defined(WOLFSSL_CMAC) && !defined(NO_AES)
+    Cmac        cmac;
+    byte        key[] =
+    {
+        0x64, 0x4c, 0xbf, 0x12, 0x85, 0x9d, 0xf0, 0x55,
+        0x7e, 0xa9, 0x1f, 0x08, 0xe0, 0x51, 0xff, 0x27
+    };
+    byte        in[] = "\xe2\xb4\xb6\xf9\x48\x44\x02\x64"
+                       "\x5c\x47\x80\x9e\xd5\xa8\x3a\x17"
+                       "\xb3\x78\xcf\x85\x22\x41\x74\xd9"
+                       "\xa0\x97\x39\x71\x62\xf1\x8e\x8f"
+                       "\xf4";
+
+    word32      inSz  = (word32)sizeof(in) - 1;
+    word32      keySz = (word32)sizeof(key);
+    int         type  = WC_CMAC_AES;
+
+    ret = wc_InitCmac(&cmac, key, keySz, type, NULL);
+    if (ret != 0) {
+        return ret;
+    }
+
+    printf(testingFmt, "wc_CmacUpdate()");
+
+    ret = wc_CmacUpdate(&cmac, in, inSz);
+
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_CmacUpdate(NULL, in, inSz);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_CmacUpdate(&cmac, NULL, 30);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+
+} /* END test_wc_CmacUpdate */
+
+
+/*
+ * Testing wc_CmacFinal()
+ */
+static int test_wc_CmacFinal (void)
+{
+    int         ret = 0;
+
+#if defined(WOLFSSL_CMAC) && !defined(NO_AES)
+    Cmac        cmac;
+    byte        key[] =
+    {
+        0x64, 0x4c, 0xbf, 0x12, 0x85, 0x9d, 0xf0, 0x55,
+        0x7e, 0xa9, 0x1f, 0x08, 0xe0, 0x51, 0xff, 0x27
+    };
+    byte        msg[] =
+    {
+        0xe2, 0xb4, 0xb6, 0xf9, 0x48, 0x44, 0x02, 0x64,
+        0x5c, 0x47, 0x80, 0x9e, 0xd5, 0xa8, 0x3a, 0x17,
+        0xb3, 0x78, 0xcf, 0x85, 0x22, 0x41, 0x74, 0xd9,
+        0xa0, 0x97, 0x39, 0x71, 0x62, 0xf1, 0x8e, 0x8f,
+        0xf4
+    };
+    /* Test vectors from CMACGenAES128.rsp from
+     * http://csrc.nist.gov/groups/STM/cavp/block-cipher-modes.html#cmac
+     * Per RFC4493 truncation of lsb is possible.
+     */
+    byte        expMac[] =
+    {
+        0x4e, 0x6e, 0xc5, 0x6f, 0xf9, 0x5d, 0x0e, 0xae,
+        0x1c, 0xf8, 0x3e, 0xfc, 0xf4, 0x4b, 0xeb
+    };
+    byte        mac[AES_BLOCK_SIZE];
+    word32      msgSz    = (word32)sizeof(msg);
+    word32      keySz    = (word32)sizeof(key);
+    word32      macSz    = sizeof(mac);
+    word32      badMacSz = 17;
+    int         expMacSz = sizeof(expMac);
+    int         type     = WC_CMAC_AES;
+
+    XMEMSET(mac, 0, macSz);
+
+    ret = wc_InitCmac(&cmac, key, keySz, type, NULL);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = wc_CmacUpdate(&cmac, msg, msgSz);
+
+    printf(testingFmt, "wc_CmacFinal()");
+    if (ret == 0) {
+        ret = wc_CmacFinal(&cmac, mac, &macSz);
+        if (ret == 0 && XMEMCMP(mac, expMac, expMacSz) != 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+        /* Pass in bad args. */
+        if (ret == 0) {
+            ret = wc_CmacFinal(NULL, mac, &macSz);
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_CmacFinal(&cmac, NULL, &macSz);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_CmacFinal(&cmac, mac, &badMacSz);
+                if (ret == BUFFER_E) {
+                    ret = 0;
+                }
+            } else if (ret == 0) {
+                ret = SSL_FATAL_ERROR;
+            }
+        }
+    }
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+
+} /* END test_wc_CmacFinal */
+
+
+/*
+ * Testing wc_AesCmacGenerate() && wc_AesCmacVerify()
+ */
+static int test_wc_AesCmacGenerate (void)
+{
+    int         ret = 0;
+#if defined(WOLFSSL_CMAC) && !defined(NO_AES)
+    Cmac        cmac;
+    byte        key[] =
+    {
+        0x26, 0xef, 0x8b, 0x40, 0x34, 0x11, 0x7d, 0x9e,
+        0xbe, 0xc0, 0xc7, 0xfc, 0x31, 0x08, 0x54, 0x69
+    };
+    byte        msg[]    = "\x18\x90\x49\xef\xfd\x7c\xf9\xc8"
+                           "\xf3\x59\x65\xbc\xb0\x97\x8f\xd4";
+    byte        expMac[] = "\x29\x5f\x2f\x71\xfc\x58\xe6\xf6"
+                           "\x3d\x32\x65\x4c\x66\x23\xc5";
+    byte        mac[AES_BLOCK_SIZE];
+    word32      keySz    = sizeof(key);
+    word32      macSz    = sizeof(mac);
+    word32      msgSz    = sizeof(msg) - 1;
+    word32      expMacSz = sizeof(expMac) - 1;
+    int         type     = WC_CMAC_AES;
+
+    XMEMSET(mac, 0, macSz);
+
+    ret = wc_InitCmac(&cmac, key, keySz, type, NULL);
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret = wc_CmacUpdate(&cmac, msg, msgSz);
+    if (ret != 0) {
+        return ret;
+    }
+
+    printf(testingFmt, "wc_AesCmacGenerate()");
+
+    ret = wc_AesCmacGenerate(mac, &macSz, msg, msgSz, key, keySz);
+    if (ret == 0 && XMEMCMP(mac, expMac, expMacSz) != 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+    /* Pass in bad args. */
+    if (ret == 0) {
+        ret = wc_AesCmacGenerate(NULL, &macSz, msg, msgSz, key, keySz);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_AesCmacGenerate(mac, &macSz, msg, msgSz, NULL, keySz);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_AesCmacGenerate(mac, &macSz, msg, msgSz, key, 0);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_AesCmacGenerate(mac, &macSz, NULL, msgSz, key, keySz);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (ret == 0) {
+        printf(testingFmt, "wc_AesCmacVerify()");
+
+        ret = wc_AesCmacVerify(mac, macSz, msg, msgSz, key, keySz);
+        /* Test bad args. */
+        if (ret == 0) {
+            ret = wc_AesCmacVerify(NULL, macSz, msg, msgSz, key, keySz);
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_AesCmacVerify(mac, 0, msg, msgSz, key, keySz);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_AesCmacVerify(mac, macSz, msg, msgSz, NULL, keySz);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_AesCmacVerify(mac, macSz, msg, msgSz, key, 0);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_AesCmacVerify(mac, macSz, NULL, msgSz, key, keySz);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            } else if (ret == 0) {
+                ret = SSL_FATAL_ERROR;
+            }
+        }
+
+        printf(resultFmt, ret == 0 ? passed : failed);
+    }
+
+#endif
+    return ret;
+
+} /* END test_wc_AesCmacGenerate */
+
+
+
+
 /*
  * unit test for wc_Des3_SetIV()
  */
@@ -10048,6 +10347,10 @@ void ApiTest(void)
     AssertFalse(test_wc_Sha384HmacUpdate());
     AssertFalse(test_wc_Sha384HmacFinal());
 
+    AssertIntEQ(test_wc_InitCmac(), 0);
+    AssertIntEQ(test_wc_CmacUpdate(), 0);
+    AssertIntEQ(test_wc_CmacFinal(), 0);
+    AssertIntEQ(test_wc_AesCmacGenerate(), 0);
 
     AssertIntEQ(test_wc_Des3_SetIV(), 0);
     AssertIntEQ(test_wc_Des3_SetKey(), 0);
