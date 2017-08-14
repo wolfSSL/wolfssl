@@ -124,11 +124,11 @@
 
 #ifndef NO_DSA
     #include <wolfssl/wolfcrypt/dsa.h>
-    #ifndef BYTE1024
-        #define BYTE1024 1024
+    #ifndef ONEK_BUF
+        #define ONEK_BUF 1024
     #endif
-    #ifndef BYTE2048
-        #define BYTE2048 2048
+    #ifndef TWOK_BUF
+        #define TWOK_BUF 2048
     #endif
     #ifndef FOURK_BUF
         #define FOURK_BUF 4096
@@ -8539,11 +8539,11 @@ static int test_wc_DsaSignVerify (void)
     int      answer;
 
 #ifdef USE_CERT_BUFFERS_1024
-    byte    tmp[BYTE1024];
+    byte    tmp[ONEK_BUF];
     XMEMCPY(tmp, dsa_key_der_1024, sizeof_dsa_key_der_1024);
     bytes = sizeof_dsa_key_der_1024;
 #else
-    byte    tmp[BYTE2048];
+    byte    tmp[TWOK_BUF];
     XMEMCPY(tmp, dsa_key_der_2048, sizeof_dsa_key_der_2048);
     bytes = sizeof_dsa_key_der_2048;
 #endif
@@ -8655,11 +8655,11 @@ static int test_wc_DsaPublicPrivateKeyDecode (void)
     int     pub  = SSL_FATAL_ERROR;
 
 #ifdef USE_CERT_BUFFERS_1024
-    byte    tmp[BYTE1024];
+    byte    tmp[ONEK_BUF];
     XMEMCPY(tmp, dsa_key_der_1024, sizeof_dsa_key_der_1024);
     bytes = sizeof_dsa_key_der_1024;
 #else
-    byte    tmp[BYTE2048];
+    byte    tmp[TWOK_BUF];
     XMEMCPY(tmp, dsa_key_der_2048, sizeof_dsa_key_der_2048);
     bytes = sizeof_dsa_key_der_2048;
 #endif
@@ -8696,7 +8696,7 @@ static int test_wc_DsaPublicPrivateKeyDecode (void)
     if (ret == 0) {
         idx = 0; /* Reset */
         pub = wc_DsaPublicKeyDecode(tmp, &idx, &key, bytes);
-    /* Test bad args. */
+        /* Test bad args. */
         if (pub == 0) {
             pub = wc_DsaPublicKeyDecode(NULL, &idx, &key, bytes);
             if (pub == BAD_FUNC_ARG) {
@@ -8745,16 +8745,16 @@ static int test_wc_MakeDsaKey (void)
 
     printf(testingFmt, "wc_MakeDsaParameters()");
     if (ret == 0) {
-        ret = wc_MakeDsaParameters(&rng, BYTE1024, &genKey);
+        ret = wc_MakeDsaParameters(&rng, ONEK_BUF, &genKey);
     }
     /* Test bad args. */
     if (ret == 0) {
-        ret = wc_MakeDsaParameters(NULL, BYTE1024, &genKey);
+        ret = wc_MakeDsaParameters(NULL, ONEK_BUF, &genKey);
         if (ret == BAD_FUNC_ARG) {
-            ret = wc_MakeDsaParameters(&rng, BYTE1024, NULL);
+            ret = wc_MakeDsaParameters(&rng, ONEK_BUF, NULL);
         }
         if (ret == BAD_FUNC_ARG) {
-            ret = wc_MakeDsaParameters(&rng, BYTE1024 + 1, &genKey);
+            ret = wc_MakeDsaParameters(&rng, ONEK_BUF + 1, &genKey);
         }
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
@@ -8802,35 +8802,46 @@ static int test_wc_DsaKeyToDer (void)
 {
     int     ret = 0;
 
-#if !defined(NO_DSA) && defined(WOLFSSL_KEY_GEN)
+#if !defined(NO_DSA) && defined(WOLFSSL_KEY_GEN)\
+        && ( defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048) )
     DsaKey  genKey;
     WC_RNG  rng;
-    byte*   der = NULL;
+    word32  bytes;
+    word32  idx = 0;
+
+#ifdef USE_CERT_BUFFERS_1024
+    byte    tmp[ONEK_BUF];
+    byte    der[ONEK_BUF];
+    XMEMSET(tmp, 0, sizeof(tmp));
+    XMEMSET(der, 0, sizeof(der));
+    XMEMCPY(tmp, dsa_key_der_1024, sizeof_dsa_key_der_1024);
+    bytes = sizeof_dsa_key_der_1024;
+#else
+    byte    tmp[TWOK_BUF];
+    byte    der[TWOK_BUF];
+    XMEMSET(tmp, 0, sizeof(tmp));
+    XMEMSET(der, 0, sizeof(der));
+    XMEMCPY(tmp, dsa_key_der_2048, sizeof_dsa_key_der_2048);
+    bytes = sizeof_dsa_key_der_2048;
+#endif
 
     ret = wc_InitRng(&rng);
     if (ret == 0) {
         ret = wc_InitDsaKey(&genKey);
     }
     if (ret == 0) {
-        ret = wc_MakeDsaParameters(&rng, BYTE1024, &genKey);
+        ret = wc_MakeDsaParameters(&rng, sizeof(tmp), &genKey);
     }
     if (ret == 0) {
-        ret = wc_MakeDsaKey(&rng, &genKey);
+        ret = wc_DsaPrivateKeyDecode(tmp, &idx, &genKey, bytes);
     }
-    if (ret == 0) {
-        der = (byte*)XMALLOC(FOURK_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (der == NULL) {
-            ret = SSL_FATAL_ERROR;
-        }
-    }
+
     printf(testingFmt, "wc_DsaKeyToDer()");
 
     if (ret == 0) {
-        ret = wc_DsaKeyToDer(&genKey, der, FOURK_BUF);
-        if (ret >= 0) {
+        ret = wc_DsaKeyToDer(&genKey, der, bytes);
+        if ( ret >= 0 && ( ret = XMEMCMP(der, tmp, bytes) ) == 0 ) {
             ret = 0;
-        } else {
-            ret = SSL_FATAL_ERROR;
         }
     }
 
