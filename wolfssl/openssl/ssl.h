@@ -72,7 +72,10 @@ typedef WOLFSSL_X509_LOOKUP_METHOD     X509_LOOKUP_METHOD;
 typedef WOLFSSL_X509_CRL               X509_CRL;
 typedef WOLFSSL_X509_EXTENSION         X509_EXTENSION;
 typedef WOLFSSL_ASN1_TIME              ASN1_TIME;
-typedef WOLFSSL_ASN1_INTEGER           ASN1_INTEGER;
+#ifndef WOLFSSL_ASN1_INTEGER_TYPE_DEFINED
+    typedef WOLFSSL_ASN1_INTEGER           ASN1_INTEGER;
+    #define WOLFSSL_ASN1_INTEGER_TYPE_DEFINED
+#endif
 typedef WOLFSSL_ASN1_OBJECT            ASN1_OBJECT;
 typedef WOLFSSL_ASN1_STRING            ASN1_STRING;
 typedef WOLFSSL_dynlock_value          CRYPTO_dynlock_value;
