@@ -2898,13 +2898,6 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
         case ECC_STATE_SHARED_SEC_RES:
             private_key->state = ECC_STATE_SHARED_SEC_RES;
             err = 0;
-        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
-            if (private_key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
-            #if defined(HAVE_CAVIUM) || defined(HAVE_INTEL_QA)
-                err = private_key->asyncDev.event.ret;
-            #endif
-            }
-        #endif
             break;
 
         default:
@@ -7175,15 +7168,10 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     }
 #endif
 
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = 0;
-    #endif
-    do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &privKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-        ret = wc_ecc_shared_secret(privKey, pubKey, sharedSecret, &sharedSz);
-    } while (ret == WC_PENDING_E);
+    ret = wc_ecc_shared_secret(privKey, pubKey, sharedSecret, &sharedSz);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &privKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+#endif
     if (ret == 0) {
        switch (ctx->kdfAlgo) {
            case ecHKDF_SHA256 :
@@ -7338,15 +7326,10 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     }
 #endif
 
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = 0;
-    #endif
-    do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &privKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-        ret = wc_ecc_shared_secret(privKey, pubKey, sharedSecret, &sharedSz);
-    } while (ret == WC_PENDING_E);
+    ret = wc_ecc_shared_secret(privKey, pubKey, sharedSecret, &sharedSz);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &privKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+#endif
     if (ret == 0) {
        switch (ctx->kdfAlgo) {
            case ecHKDF_SHA256 :

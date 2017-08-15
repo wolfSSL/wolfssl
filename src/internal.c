@@ -7780,6 +7780,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 {
     int ret = 0;
 #ifdef WOLFSSL_ASYNC_CRYPT
+    WC_ASYNC_DEV* asyncDev;
     ProcPeerCertArgs* args = (ProcPeerCertArgs*)ssl->async.args;
     typedef char args_test[sizeof(ssl->async.args) >= sizeof(*args) ? 1 : -1];
     (void)sizeof(args_test);
@@ -8011,27 +8012,28 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
 
                 #ifdef WOLFSSL_ASYNC_CRYPT
-                    /* intialize event */
-                    if (args->dCert->sigCtx.asyncDev) {
-                        ret = wolfSSL_AsyncInit(ssl,
-                            args->dCert->sigCtx.asyncDev,
-                            WC_ASYNC_FLAG_CALL_AGAIN);
-                        if (ret != 0)
-                            break;
-                    }
-                #endif
-
-                    ret = ParseCertRelative(args->dCert, CERT_TYPE, 0,
-                                                                ssl->ctx->cm);
-                    if (ret != 0) {
-                    #ifdef WOLFSSL_ASYNC_CRYPT
-                        if (ret == WC_PENDING_E) {
-                            ret = wolfSSL_AsyncPush(ssl,
-                                args->dCert->sigCtx.asyncDev);
+                    do {
+                        /* intialize event */
+                        asyncDev = args->dCert->sigCtx.asyncDev;
+                        if (asyncDev) {
+                            ret = wolfSSL_AsyncInit(ssl, asyncDev,
+                                WC_ASYNC_FLAG_CALL_AGAIN);
+                            if (ret != 0)
+                                break;
                         }
-                    #endif
-                        goto exit_ppc;
-                    }
+                #endif
+                        ret = ParseCertRelative(args->dCert, CERT_TYPE, 0,
+                                                                ssl->ctx->cm);
+                        if (ret != 0 && ret != WC_PENDING_E)
+                            goto exit_ppc;
+
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                        if (asyncDev && ret == WC_PENDING_E) {
+                            ret = wolfSSL_AsyncPush(ssl, asyncDev);
+                            goto exit_ppc;
+                        }
+                    } while (ret == WC_PENDING_E && asyncDev == NULL)
+                #endif
 
                 #ifndef NO_SKID
                     if (args->dCert->extAuthKeyIdSet) {
@@ -8086,27 +8088,28 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
 
                 #ifdef WOLFSSL_ASYNC_CRYPT
-                    /* intialize event */
-                    if (args->dCert->sigCtx.asyncDev) {
-                        ret = wolfSSL_AsyncInit(ssl,
-                            args->dCert->sigCtx.asyncDev,
-                            WC_ASYNC_FLAG_CALL_AGAIN);
-                        if (ret != 0)
-                            break;
-                    }
-                #endif
-
-                    ret = ParseCertRelative(args->dCert, CERT_TYPE, 0,
-                                                                  ssl->ctx->cm);
-                    if (ret != 0) {
-                    #ifdef WOLFSSL_ASYNC_CRYPT
-                        if (ret == WC_PENDING_E) {
-                            ret = wolfSSL_AsyncPush(ssl,
-                                args->dCert->sigCtx.asyncDev);
+                    do {
+                        /* intialize event */
+                        asyncDev = args->dCert->sigCtx.asyncDev;
+                        if (asyncDev) {
+                            ret = wolfSSL_AsyncInit(ssl, asyncDev,
+                                WC_ASYNC_FLAG_CALL_AGAIN);
+                            if (ret != 0)
+                                goto exit_ppc;
                         }
-                    #endif
-                        goto exit_ppc;
-                    }
+                #endif
+                        ret = ParseCertRelative(args->dCert, CERT_TYPE, 0,
+                                                                  ssl->ctx->cm);
+                        if (ret != 0 && ret != WC_PENDING_E) {
+                            goto exit_ppc;
+                        }
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                        if (asyncDev && ret == WC_PENDING_E) {
+                            ret = wolfSSL_AsyncPush(ssl, asyncDev);
+                            goto exit_ppc;
+                        }
+                    } while (ret == WC_PENDING_E && asyncDev == NULL);
+                #endif
 
                 #ifndef NO_SKID
                     subjectHash = args->dCert->extSubjKeyId;
@@ -8140,24 +8143,24 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
 
                 #ifdef WOLFSSL_ASYNC_CRYPT
-                    /* intialize event */
-                    if (args->dCert->sigCtx.asyncDev) {
-                        ret = wolfSSL_AsyncInit(ssl,
-                            args->dCert->sigCtx.asyncDev,
-                            WC_ASYNC_FLAG_CALL_AGAIN);
-                        if (ret != 0)
-                            goto exit_ppc;
-                    }
+                    do {
+                        /* intialize event */
+                        asyncDev = args->dCert->sigCtx.asyncDev;
+                        if (asyncDev) {
+                            ret = wolfSSL_AsyncInit(ssl, asyncDev,
+                                WC_ASYNC_FLAG_CALL_AGAIN);
+                            if (ret != 0)
+                                goto exit_ppc;
+                        }
                 #endif
-
-                    ret = ParseCertRelative(args->dCert, CERT_TYPE,
+                        ret = ParseCertRelative(args->dCert, CERT_TYPE,
                                     !ssl->options.verifyNone, ssl->ctx->cm);
                 #ifdef WOLFSSL_ASYNC_CRYPT
-                    if (ret == WC_PENDING_E) {
-                        ret = wolfSSL_AsyncPush(ssl,
-                            args->dCert->sigCtx.asyncDev);
-                        goto exit_ppc;
-                    }
+                        if (asyncDev && ret == WC_PENDING_E) {
+                            ret = wolfSSL_AsyncPush(ssl, asyncDev);
+                            goto exit_ppc;
+                        }
+                    } while (ret == WC_PENDING_E && asyncDev == NULL);
                 #endif
 
                 #ifndef NO_SKID
@@ -8343,25 +8346,25 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             #endif
                 {
                 #ifdef WOLFSSL_ASYNC_CRYPT
-                    /* intialize event */
-                    if (args->dCert->sigCtx.asyncDev) {
-                        ret = wolfSSL_AsyncInit(ssl,
-                            args->dCert->sigCtx.asyncDev,
-                            WC_ASYNC_FLAG_CALL_AGAIN);
-                        if (ret != 0)
-                            goto exit_ppc;
-                    }
+                    do {
+                        /* intialize event */
+                        asyncDev = args->dCert->sigCtx.asyncDev;
+                        if (asyncDev) {
+                            ret = wolfSSL_AsyncInit(ssl, asyncDev,
+                                WC_ASYNC_FLAG_CALL_AGAIN);
+                            if (ret != 0)
+                                goto exit_ppc;
+                        }
                 #endif
-
-                    /* only parse if not already present in dCert from above */
-                    ret = ParseCertRelative(args->dCert, CERT_TYPE,
+                        /* only parse if not already present in dCert from above */
+                        ret = ParseCertRelative(args->dCert, CERT_TYPE,
                                     !ssl->options.verifyNone, ssl->ctx->cm);
                 #ifdef WOLFSSL_ASYNC_CRYPT
-                    if (ret == WC_PENDING_E) {
-                        ret = wolfSSL_AsyncPush(ssl,
-                            args->dCert->sigCtx.asyncDev);
-                        goto exit_ppc;
-                    }
+                        if (asyncDev && ret == WC_PENDING_E) {
+                            ret = wolfSSL_AsyncPush(ssl, asyncDev);
+                            goto exit_ppc;
+                        }
+                    } while (ret == WC_PENDING_E && asyncDev == NULL);
                 #endif
                 }
 

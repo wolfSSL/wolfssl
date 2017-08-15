@@ -6740,6 +6740,11 @@ int rsa_test(void)
     DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
     DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (in == NULL)
+        return MEMORY_E;
+#endif
+
     /* initialize stack structures */
     XMEMSET(&rng, 0, sizeof(rng));
     XMEMSET(&key, 0, sizeof(key));

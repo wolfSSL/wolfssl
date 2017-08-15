@@ -4697,10 +4697,12 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
             sigCtx->state = SIG_STATE_DO;
 
         #ifdef WOLFSSL_ASYNC_CRYPT
-            /* always return here, so we can properly init the async
-               context back in SSL world */
-            ret = WC_PENDING_E;
-            goto exit_cs;
+            if (sigCtx->devId != INVALID_DEVID) {
+                /* always return here, so we can properly init the async
+                   context back in SSL world */
+                ret = WC_PENDING_E;
+                goto exit_cs;
+            }
         #endif
         } /* SIG_STATE_KEY */
         FALL_THROUGH;

@@ -7897,6 +7897,10 @@ int wc_AesKeyWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
     XMEMCPY(r, in, inSz);
     XMEMSET(t, 0, sizeof(t));
 
+    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
+
     ret = wc_AesSetKey(&aes, key, keySz, NULL, AES_ENCRYPTION);
     if (ret != 0)
         return ret;
@@ -7922,6 +7926,8 @@ int wc_AesKeyWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
 
     /* C[0] = A */
     XMEMCPY(out, tmp, KEYWRAP_BLOCK_SIZE);
+
+    wc_AesFree(&aes);
 
     return inSz + KEYWRAP_BLOCK_SIZE;
 }
@@ -7964,6 +7970,10 @@ int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
     XMEMCPY(out, in + KEYWRAP_BLOCK_SIZE, inSz - KEYWRAP_BLOCK_SIZE);
     XMEMSET(t, 0, sizeof(t));
 
+    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
+
     ret = wc_AesSetKey(&aes, key, keySz, NULL, AES_DECRYPTION);
     if (ret != 0)
         return ret;
@@ -7988,6 +7998,8 @@ int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
             XMEMCPY(r, tmp + KEYWRAP_BLOCK_SIZE, KEYWRAP_BLOCK_SIZE);
         }
     }
+
+    wc_AesFree(&aes);
 
     /* verify IV */
     if (XMEMCMP(tmp, expIv, KEYWRAP_BLOCK_SIZE) != 0)
