@@ -1228,10 +1228,11 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         #if !defined(WOLFSSL_MICROCHIP_PIC32MZ)
             #include <peripheral/timer.h>
         #endif
+        extern word32 ReadCoreTimer(void);
         #define PIC32_SEED_COUNT ReadCoreTimer
     #endif
 
-    #ifdef WOLFSSL_MIC32MZ_RNG
+    #ifdef WOLFSSL_PIC32MZ_RNG
         #include "xc.h"
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         {
@@ -1240,21 +1241,31 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             word32 *rnd32 = (word32 *)rnd;
             word32 size = sz;
             byte* op = output;
+            
+#if ((__PIC32_FEATURE_SET0 == 'E') && (__PIC32_FEATURE_SET1 == 'C'))
+            RNGNUMGEN1 = _CP0_GET_COUNT();
+            RNGPOLY1 = _CP0_GET_COUNT();
+            RNGPOLY2 = _CP0_GET_COUNT();
+            RNGNUMGEN2 = _CP0_GET_COUNT();
+#else
+            // All others can be seeded from the TRNG
+            RNGCONbits.TRNGMODE = 1;
+            RNGCONbits.TRNGEN = 1;
+            while (RNGCNT < 64);
+            RNGCONbits.LOAD = 1;
+            while (RNGCONbits.LOAD == 1);
+            while (RNGCNT < 64);
+            RNGPOLY2 = RNGSEED2;
+            RNGPOLY1 = RNGSEED1;
+#endif
 
-            /* This part has to be replaced with better random seed */
-            RNGNUMGEN1 = ReadCoreTimer();
-            RNGPOLY1 = ReadCoreTimer();
-            RNGPOLY2 = ReadCoreTimer();
-            RNGNUMGEN2 = ReadCoreTimer();
-        #ifdef DEBUG_WOLFSSL
-            printf("GenerateSeed::Seed=%08x, %08x\n", RNGNUMGEN1, RNGNUMGEN2);
-        #endif
             RNGCONbits.PLEN = 0x40;
             RNGCONbits.PRNGEN = 1;
-            for(i=0; i<5; i++) { /* wait for RNGNUMGEN ready */
+            for (i=0; i<5; i++) { /* wait for RNGNUMGEN ready */
                 volatile int x;
                 x = RNGNUMGEN1;
                 x = RNGNUMGEN2;
+                (void)x;
             }
             do {
                 rnd32[0] = RNGNUMGEN1;
@@ -1268,7 +1279,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             } while(size);
             return 0;
         }
-    #else  /* WOLFSSL_MIC32MZ_RNG */
+    #else  /* WOLFSSL_PIC32MZ_RNG */
         /* uses the core timer, in nanoseconds to seed srand */
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         {
@@ -1282,7 +1293,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             }
             return 0;
         }
-    #endif /* WOLFSSL_MIC32MZ_RNG */
+    #endif /* WOLFSSL_PIC32MZ_RNG */
 
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX) || \
       defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS)

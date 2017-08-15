@@ -195,13 +195,6 @@ static int devId = INVALID_DEVID;
     const char* wnrConfigFile = "wnr-example.conf";
 #endif
 
-#ifdef HAVE_AESGCM
-#define LARGE_BUFFER_SIZE       1024
-static byte large_input[LARGE_BUFFER_SIZE];
-static byte large_output[LARGE_BUFFER_SIZE];
-static byte large_outdec[LARGE_BUFFER_SIZE];
-#endif
-
 typedef struct testVector {
     const char*  input;
     const char*  output;
@@ -381,9 +374,6 @@ int wolfcrypt_test(void* args)
 #endif
 {
     int ret;
-#ifdef HAVE_AESGCM
-    int i;
-#endif
 
     ((func_args*)args)->return_code = -1; /* error state */
 
@@ -674,8 +664,6 @@ int wolfcrypt_test(void* args)
         printf( "AES256   test passed!\n");
 
 #ifdef HAVE_AESGCM
-    for (i=0; i<LARGE_BUFFER_SIZE; i++)
-        large_input[i] = i;
     if ( (ret = aesgcm_test()) != 0)
         return err_sys("AES-GCM  test failed!\n", ret);
     else
@@ -3200,7 +3188,9 @@ int poly1305_test(void)
     byte     tag[16];
     Poly1305 enc;
 
-    static const byte msg[] =
+    static const byte empty[] = { };
+
+    static const byte msg1[] =
     {
         0x43,0x72,0x79,0x70,0x74,0x6f,0x67,0x72,
         0x61,0x70,0x68,0x69,0x63,0x20,0x46,0x6f,
@@ -3242,17 +3232,28 @@ int poly1305_test(void)
         0x61,0x16
     };
 
+    static const byte msg5[] =
+    {
+        0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+        0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+    };
+
     byte additional[] =
     {
         0x50,0x51,0x52,0x53,0xc0,0xc1,0xc2,0xc3,
         0xc4,0xc5,0xc6,0xc7
     };
 
-    static const byte correct[] =
+    static const byte correct0[] =
+    {
+        0x01,0x03,0x80,0x8a,0xfb,0x0d,0xb2,0xfd,
+        0x4a,0xbf,0xf6,0xaf,0x41,0x49,0xf5,0x1b
+    };
+
+    static const byte correct1[] =
     {
         0xa8,0x06,0x1d,0xc1,0x30,0x51,0x36,0xc6,
         0xc2,0x2b,0x8b,0xaf,0x0c,0x01,0x27,0xa9
-
     };
 
     static const byte correct2[] =
@@ -3271,6 +3272,12 @@ int poly1305_test(void)
     {
         0x1a,0xe1,0x0b,0x59,0x4f,0x09,0xe2,0x6a,
         0x7e,0x90,0x2e,0xcb,0xd0,0x60,0x06,0x91
+    };
+
+    static const byte correct5[] =
+    {
+        0x03,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
     };
 
     static const byte key[] = {
@@ -3294,41 +3301,49 @@ int poly1305_test(void)
         0x2a,0x93,0x75,0x78,0x3e,0xd5,0x53,0xff
     };
 
-    const byte* msgs[]  = {msg, msg2, msg3};
-    word32      szm[]   = {sizeof(msg),sizeof(msg2),sizeof(msg3)};
-    const byte* keys[]  = {key, key2, key2};
-    const byte* tests[] = {correct, correct2, correct3};
+    static const byte key5[] = {
+        0x02,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+        0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+    };
 
-    for (i = 0; i < 3; i++) {
+    const byte* msgs[]  = {empty, msg1, msg2, msg3, msg5};
+    word32      szm[]   = {sizeof(empty), sizeof(msg1), sizeof(msg2),
+                           sizeof(msg3), sizeof(msg5)};
+    const byte* keys[]  = {key, key, key2, key2, key5};
+    const byte* tests[] = {correct0, correct1, correct2, correct3, correct5};
+
+    for (i = 0; i < 5; i++) {
         ret = wc_Poly1305SetKey(&enc, keys[i], 32);
         if (ret != 0)
-            return -3600;
+            return -3600 + i;
 
         ret = wc_Poly1305Update(&enc, msgs[i], szm[i]);
         if (ret != 0)
-            return -3601;
+            return -3605 + i;
 
         ret = wc_Poly1305Final(&enc, tag);
         if (ret != 0)
-            return -3602;
+            return -36108 + i;
 
         if (XMEMCMP(tag, tests[i], sizeof(tag)))
-            return -3603;
+            return -3615 + i;
     }
 
     /* Check TLS MAC function from 2.8.2 https://tools.ietf.org/html/rfc7539 */
     XMEMSET(tag, 0, sizeof(tag));
     ret = wc_Poly1305SetKey(&enc, key4, sizeof(key4));
     if (ret != 0)
-        return -3604;
+        return -3614;
 
     ret = wc_Poly1305_MAC(&enc, additional, sizeof(additional),
                                    (byte*)msg4, sizeof(msg4), tag, sizeof(tag));
     if (ret != 0)
-        return -3605;
+        return -3615;
 
     if (XMEMCMP(tag, correct4, sizeof(tag)))
-        return -3606;
+        return -3616;
 
     /* Check fail of TLS MAC function if altering additional data */
     XMEMSET(tag, 0, sizeof(tag));
@@ -3336,10 +3351,10 @@ int poly1305_test(void)
     ret = wc_Poly1305_MAC(&enc, additional, sizeof(additional),
                                    (byte*)msg4, sizeof(msg4), tag, sizeof(tag));
     if (ret != 0)
-        return -3607;
+        return -3617;
 
     if (XMEMCMP(tag, correct4, sizeof(tag)) == 0)
-        return -3608;
+        return -3618;
 
 
     return 0;
@@ -3919,7 +3934,7 @@ int aes_test(void)
 #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER)
     Aes enc;
     byte cipher[AES_BLOCK_SIZE * 4];
-#ifdef HAVE_AES_DECRYPT
+#if defined(HAVE_AES_DECRYPT) || defined(WOLFSSL_AES_COUNTER)
     Aes dec;
     byte plain [AES_BLOCK_SIZE * 4];
 #endif
@@ -4203,7 +4218,9 @@ int aes_test(void)
         if (XMEMCMP(cipher, ctr128Cipher, sizeof(oddCipher)))
             return -4216;
 
-#if !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO) /* test not supported on STM32 crypto HW */
+    /* test not supported on STM32 crypto HW or PIC32MZ HW */
+#if !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO) && \
+    !defined(WOLFSSL_PIC32MZ_CRYPT)
         /* and an additional 9 bytes to reuse tmp left buffer */
         ret = wc_AesCtrEncrypt(&enc, cipher, ctrPlain, sizeof(oddCipher));
         if (ret != 0) {
@@ -4559,9 +4576,14 @@ int aesgcm_test(void)
         0xcd, 0xdf, 0x88, 0x53, 0xbb, 0x2d, 0x55, 0x1b
     };
 
+    /* FIPS, QAT and STM32F2/4 HW Crypto only support 12-byte IV */
 #if !defined(HAVE_FIPS) && !defined(HAVE_INTEL_QA) && \
         !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO) && \
+        !defined(WOLFSSL_PIC32MZ_CRYPT) && \
         !defined(WOLFSSL_XILINX_CRYPT)
+
+    #define ENABLE_NON_12BYTE_IV_TEST
+
     /* Test Case 12, uses same plaintext and AAD data. */
     const byte k2[] =
     {
@@ -4599,7 +4621,7 @@ int aesgcm_test(void)
         0xdc, 0xf5, 0x66, 0xff, 0x29, 0x1c, 0x25, 0xbb,
         0xb8, 0x56, 0x8f, 0xc3, 0xd3, 0x76, 0xa6, 0xd9
     };
-#endif /* !HAVE_FIPS && !HAVE_INTEL_QA && !STM32F2_CRYPTO && !STM32F4_CRYPTO */
+#endif
 
     byte resultT[sizeof(t1)];
     byte resultP[sizeof(p)];
@@ -4609,6 +4631,18 @@ int aesgcm_test(void)
     int  ivlen;
 #endif
     int  alen, plen;
+
+#if !defined(BENCH_EMBEDDED)
+    #define ENABLE_AESGCM_LARGE_TEST
+    #define LARGE_BUFFER_SIZE 1024
+    byte large_input[LARGE_BUFFER_SIZE];
+    byte large_output[LARGE_BUFFER_SIZE];
+    byte large_outdec[LARGE_BUFFER_SIZE];
+
+    XMEMSET(large_input, 0, sizeof(large_input));
+    XMEMSET(large_output, 0, sizeof(large_output));
+    XMEMSET(large_outdec, 0, sizeof(large_outdec));
+#endif
 
     XMEMSET(resultT, 0, sizeof(resultT));
     XMEMSET(resultC, 0, sizeof(resultC));
@@ -4646,6 +4680,11 @@ int aesgcm_test(void)
         return -4306;
 
     /* Large buffer test */
+#ifdef ENABLE_AESGCM_LARGE_TEST
+    /* setup test buffer */
+    for (alen=0; alen<LARGE_BUFFER_SIZE; alen++)
+        large_input[alen] = alen;
+
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
     result = wc_AesGcmEncrypt(&enc, large_output, large_input,
                               LARGE_BUFFER_SIZE, iv1, sizeof(iv1),
@@ -4666,6 +4705,7 @@ int aesgcm_test(void)
         return -4308;
     if (XMEMCMP(large_input, large_outdec, LARGE_BUFFER_SIZE))
         return -4309;
+#endif /* ENABLE_AESGCM_LARGE_TEST */
 
 #if !defined(HAVE_FIPS) && !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO)
     /* Variable IV length test */
@@ -4726,10 +4766,8 @@ int aesgcm_test(void)
             return -4315;
     }
 
-    /* FIPS, QAT and STM32F2/4 HW Crypto only support 12-byte IV */
-#if !defined(HAVE_FIPS) && !defined(HAVE_INTEL_QA) && \
-        !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO) && \
-        !defined(WOLFSSL_XILINX_CRYPT)
+    /* test with IV != 12 bytes */
+#ifdef ENABLE_NON_12BYTE_IV_TEST
     XMEMSET(resultT, 0, sizeof(resultT));
     XMEMSET(resultC, 0, sizeof(resultC));
     XMEMSET(resultP, 0, sizeof(resultP));
@@ -4757,7 +4795,7 @@ int aesgcm_test(void)
         return -4319;
     if (XMEMCMP(p, resultP, sizeof(resultP)))
         return -4320;
-#endif /* !HAVE_FIPS && !HAVE_INTEL_QA && !STM32F2_CRYPTO && !STM32F4_CRYPTO */
+#endif /* ENABLE_NON_12BYTE_IV_TEST */
 
     wc_AesFree(&enc);
 
@@ -10802,11 +10840,12 @@ static int ecc_exp_imp_test(ecc_key* key)
     word32     privLen;
     byte       pub[65];
     word32     pubLen;
-    const char qx[] = "01020304050607080102030405060708"
-                      "01020304050607080102030405060708";
-    const char qy[] = "01020304050607080102030405060708"
-                      "01020304050607080102030405060708";
-    const char d[]  = "01020304050607080102030405060708";
+    const char qx[] = "7a4e287890a1a47ad3457e52f2f76a83"
+                      "ce46cbc947616d0cbaa82323818a793d";
+    const char qy[] = "eec4084f5b29ebf29c44cce3b3059610"
+                      "922f8b30ea6e8811742ac7238fe87308";
+    const char d[]  = "8c14b793cb19137e323a6d2e2a870bca"
+                      "2e7a493ec1153b3a95feb8a4873f8d08";
 
     wc_ecc_init(&keyImp);
 
@@ -10858,7 +10897,7 @@ done:
 #endif /* HAVE_ECC_KEY_IMPORT && HAVE_ECC_KEY_EXPORT */
 
 #ifndef WOLFSSL_ATECC508A
-#ifdef HAVE_ECC_KEY_IMPORT
+#if defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT)
 static int ecc_mulmod_test(ecc_key* key1)
 {
     int ret;
@@ -10868,7 +10907,7 @@ static int ecc_mulmod_test(ecc_key* key1)
     wc_ecc_init(&key2);
     wc_ecc_init(&key3);
 
-    /* TODO: Use test data. */
+    /* TODO: Use test data, test with WOLFSSL_VALIDATE_ECC_IMPORT. */
     /* Need base point (Gx,Gy) and parameter A - load them as the public and
      * private key in key2.
      */
@@ -10951,7 +10990,7 @@ static int ecc_def_curve_test(WC_RNG *rng)
         goto done;
 #endif
 #ifndef WOLFSSL_ATECC508A
-#ifdef HAVE_ECC_KEY_IMPORT
+#if defined(HAVE_ECC_KEY_IMPORT) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT)
     ret = ecc_mulmod_test(&key);
     if (ret < 0)
         goto done;

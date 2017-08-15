@@ -1,4 +1,4 @@
-/* test.c
+/* mcapi_test.c
  *
  * Copyright (C) 2006-2016 wolfSSL Inc.
  *
@@ -59,6 +59,8 @@
     #include <stdio.h>
     #include <stdlib.h>
     #include <p32xxxx.h>
+    #define _SUPPRESS_PLIB_WARNING
+    #define _DISABLE_OPENADC10_CONFIGPORT_WARNING
     #include <plib.h>
     #include <sys/appio.h>
     #define init_serial()  /* void out init_serial() */

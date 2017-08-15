@@ -861,14 +861,20 @@ static int dtls_export_new(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     exp[idx++] = options->createTicket;
     exp[idx++] = options->useTicket;
 #ifdef WOLFSSL_TLS13
-    exp[idx++] = options->noTicketTls13;
+    if (ver > DTLS_EXPORT_VERSION_3) {
+        exp[idx++] = options->noTicketTls13;
+    }
+#else
+    if (ver > DTLS_EXPORT_VERSION_3) {
+        exp[idx++] = 0;
+    }
 #endif
 #else
     exp[idx++] = 0;
     exp[idx++] = 0;
-#ifdef WOLFSSL_TLS13
-    exp[idx++] = 0;
-#endif
+    if (ver > DTLS_EXPORT_VERSION_3) {
+        exp[idx++] = 0;
+    }
 #endif
     exp[idx++] = options->processReply;
     exp[idx++] = options->cipherSuite0;
@@ -887,12 +893,26 @@ static int dtls_export_new(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     exp[idx++] = ssl->version.minor;
 
     (void)zero;
-    (void)ver;
 
     /* check if changes were made and notify of need to update export version */
-    if (idx != DTLS_EXPORT_OPT_SZ) {
-        WOLFSSL_MSG("Update DTLS_EXPORT_OPT_SZ and version of wolfSSL export");
-        return DTLS_EXPORT_VER_E;
+    switch (ver) {
+        case DTLS_EXPORT_VERSION_3:
+            if (idx != DTLS_EXPORT_OPT_SZ_3) {
+                WOLFSSL_MSG("Update DTLS_EXPORT_OPT_SZ and version of export");
+                return DTLS_EXPORT_VER_E;
+            }
+            break;
+
+        case DTLS_EXPORT_VERSION:
+            if (idx != DTLS_EXPORT_OPT_SZ) {
+                WOLFSSL_MSG("Update DTLS_EXPORT_OPT_SZ and version of export");
+                return DTLS_EXPORT_VER_E;
+            }
+            break;
+
+       default:
+            WOLFSSL_MSG("New version case needs added to wolfSSL export");
+            return DTLS_EXPORT_VER_E;
     }
 
     WOLFSSL_LEAVE("dtls_export_new", idx);
@@ -908,14 +928,30 @@ static int dtls_export_load(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     int idx = 0;
     Options* options = &ssl->options;
 
-    if (ver != DTLS_EXPORT_VERSION) {
-        WOLFSSL_MSG("Export version not supported");
+    switch (ver) {
+        case DTLS_EXPORT_VERSION:
+            if (len < DTLS_EXPORT_OPT_SZ) {
+                WOLFSSL_MSG("Sanity check on buffer size failed");
+                return BAD_FUNC_ARG;
+            }
+            break;
+
+        case DTLS_EXPORT_VERSION_3:
+            if (len < DTLS_EXPORT_OPT_SZ_3) {
+                WOLFSSL_MSG("Sanity check on buffer size failed");
+                return BAD_FUNC_ARG;
+            }
+            break;
+
+        default:
+            WOLFSSL_MSG("Export version not supported");
+            return BAD_FUNC_ARG;
+    }
+
+    if (exp == NULL || options == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    if (exp == NULL || options == NULL || len < DTLS_EXPORT_OPT_SZ) {
-        return BAD_FUNC_ARG;
-    }
 
     /* these options are kept and sent to indicate verify status and strength
      * of handshake */
@@ -988,14 +1024,20 @@ static int dtls_export_load(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     options->createTicket  = exp[idx++]; /* Server to create new Ticket */
     options->useTicket     = exp[idx++]; /* Use Ticket not session cache */
 #ifdef WOLFSSL_TLS13
-    options->noTicketTls13 = exp[idx++]; /* Server won't create new Ticket */
+    if (ver > DTLS_EXPORT_VERSION_3) {
+        options->noTicketTls13 = exp[idx++];/* Server won't create new Ticket */
+    }
+#else
+    if (ver > DTLS_EXPORT_VERSION_3) {
+        exp[idx++] = 0;
+    }
 #endif
 #else
     idx++;
     idx++;
-#ifdef WOLFSSL_TLS13
-    idx++;
-#endif
+    if (ver > DTLS_EXPORT_VERSION_3) {
+        idx++;
+    }
 #endif
     options->processReply   = exp[idx++];
     options->cipherSuite0   = exp[idx++];
@@ -1067,7 +1109,7 @@ static int ImportPeerInfo(WOLFSSL* ssl, byte* buf, word32 len, byte ver)
     word16 port;
     char   ip[DTLS_EXPORT_IP];
 
-    if (ver != DTLS_EXPORT_VERSION) {
+    if (ver != DTLS_EXPORT_VERSION && ver != DTLS_EXPORT_VERSION_3) {
         WOLFSSL_MSG("Export version not supported");
         return BAD_FUNC_ARG;
     }
@@ -1200,6 +1242,7 @@ int wolfSSL_dtls_import_internal(WOLFSSL* ssl, byte* buf, word32 sz)
     word16 length = 0;
     int version;
     int ret;
+    int optSz;
 
     WOLFSSL_ENTER("wolfSSL_dtls_import_internal");
     /* check at least enough room for protocol and length */
@@ -1233,12 +1276,28 @@ int wolfSSL_dtls_import_internal(WOLFSSL* ssl, byte* buf, word32 sz)
 #endif /* WOLFSSL_SESSION_EXPORT_DEBUG */
 
     /* perform sanity checks and extract Options information used */
-    if (DTLS_EXPORT_LEN + DTLS_EXPORT_OPT_SZ + idx > sz) {
+    switch (version) {
+        case DTLS_EXPORT_VERSION:
+            optSz = DTLS_EXPORT_OPT_SZ;
+            break;
+
+        case DTLS_EXPORT_VERSION_3:
+            WOLFSSL_MSG("Importing older version 3");
+            optSz = DTLS_EXPORT_OPT_SZ_3;
+            break;
+
+        default:
+            WOLFSSL_MSG("Bad export version");
+            return BAD_FUNC_ARG;
+
+    }
+
+    if (DTLS_EXPORT_LEN + optSz + idx > sz) {
         WOLFSSL_MSG("Import Options struct error");
         return BUFFER_E;
     }
     ato16(buf + idx, &length); idx += DTLS_EXPORT_LEN;
-    if (length != DTLS_EXPORT_OPT_SZ) {
+    if (length != optSz) {
         WOLFSSL_MSG("Import Options struct error");
         return BUFFER_E;
     }
@@ -2643,7 +2702,9 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     InitSuitesHashSigAlgo(suites, haveECDSAsig, haveRSAsig, 0, tls1_2, keySz);
 }
 
-#if !defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS)
+#if !defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS) || \
+    (!defined(NO_WOLFSSL_CLIENT) && (!defined(NO_DH) || defined(HAVE_ECC)))
+
 /* Decode the signature algorithm.
  *
  * input     The encoded signature algorithm.
@@ -9667,12 +9728,12 @@ static INLINE int DtlsCheckWindow(WOLFSSL* ssl)
                 break;
             }
         }
-
-        if (peerSeq == NULL) {
-            WOLFSSL_MSG("Couldn't find that peer ID to check window.");
-            return 0;
-        }
 #endif
+    }
+
+    if (peerSeq == NULL) {
+        WOLFSSL_MSG("Could not find peer sequence");
+        return 0;
     }
 
     if (ssl->keys.curEpoch == peerSeq->nextEpoch) {
@@ -11271,6 +11332,11 @@ static int DoAlert(WOLFSSL* ssl, byte* input, word32* inOutIdx, int* type,
                           ssl->heap);
     #endif
 
+    if (++ssl->options.alertCount >= WOLFSSL_ALERT_COUNT_MAX) {
+        WOLFSSL_MSG("Alert count exceeded");
+        return ALERT_COUNT_E;
+    }
+
     /* make sure can read the message */
     if (*inOutIdx + ALERT_SIZE > totalSz)
         return BUFFER_E;
@@ -11704,6 +11770,9 @@ int ProcessReply(WOLFSSL* ssl)
                         ssl->options.processReply = doProcessInit;
                         ssl->buffers.inputBuffer.idx =
                                         ssl->buffers.inputBuffer.length;
+                        #ifdef WOLFSSL_DTLS_DROP_STATS
+                            ssl->macDropCount++;
+                        #endif /* WOLFSSL_DTLS_DROP_STATS */
                     }
                 #endif /* WOLFSSL_DTLS */
 
@@ -11730,9 +11799,18 @@ int ProcessReply(WOLFSSL* ssl)
                     if (ret < 0) {
                         WOLFSSL_MSG("VerifyMac failed");
                         WOLFSSL_ERROR(ret);
-                        #ifdef WOLFSSL_DTLS_DROP_STATS
-                            ssl->macDropCount++;
-                        #endif /* WOLFSSL_DTLS_DROP_STATS */
+                        #ifdef WOLFSSL_DTLS
+                        /* If in DTLS mode, if the decrypt fails for any
+                         * reason, pretend the datagram never happened. */
+                        if (ssl->options.dtls) {
+                            ssl->options.processReply = doProcessInit;
+                            ssl->buffers.inputBuffer.idx =
+                                            ssl->buffers.inputBuffer.length;
+                            #ifdef WOLFSSL_DTLS_DROP_STATS
+                                ssl->macDropCount++;
+                            #endif /* WOLFSSL_DTLS_DROP_STATS */
+                        }
+                        #endif /* WOLFSSL_DTLS */
                         return DECRYPT_ERROR;
                     }
                 }
@@ -13535,6 +13613,15 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
     if (ssl->error == WANT_WRITE || ssl->error == WC_PENDING_E)
         ssl->error = 0;
 
+#ifdef WOLFSSL_DTLS
+    if (ssl->options.dtls) {
+        /* In DTLS mode, we forgive some errors and allow the session
+         * to continue despite them. */
+        if (ssl->error == VERIFY_MAC_ERROR || ssl->error == DECRYPT_ERROR)
+            ssl->error = 0;
+    }
+#endif /* WOLFSSL_DTLS */
+
 #ifdef WOLFSSL_EARLY_DATA
     if (ssl->earlyData) {
         if (ssl->options.handShakeState == HANDSHAKE_DONE) {
@@ -14273,6 +14360,12 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case MCAST_HIGHWATER_CB_E:
         return "Multicast highwater callback returned error";
+
+    case ALERT_COUNT_E:
+        return "Alert Count exceeded error";
+
+    case EXT_MISSING:
+        return "Required TLS extension missing";
 
     default :
         return "unknown error number";
@@ -15782,6 +15875,11 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
 
                 }
             #endif /* WOLFSSL_DTLS */
+
+                if (idx + 1 >= WOLFSSL_MAX_SUITE_SZ) {
+                    WOLFSSL_MSG("WOLFSSL_MAX_SUITE_SZ set too low");
+                    return 0; /* suites buffer not large enough, error out */
+                }
 
                 suites->suites[idx++] = (XSTRSTR(name, "TLS13"))  ? TLS13_BYTE
                                       : (XSTRSTR(name, "CHACHA")) ? CHACHA_BYTE

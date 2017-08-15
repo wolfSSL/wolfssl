@@ -1642,7 +1642,6 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
 
             #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
                 case wolfssl_chacha:
-                    nonceSz = CHACHA_IV_BYTES;
                     ret = ChaCha20Poly1305_Encrypt(ssl, output, input, dataSz,
                         ssl->encrypt.nonce, output + dataSz);
                     break;
@@ -1855,7 +1854,6 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz)
 
             #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
                 case wolfssl_chacha:
-                    nonceSz = CHACHA_IV_BYTES;
                     ret = ChaCha20Poly1305_Decrypt(ssl, output, input, dataSz,
                         ssl->decrypt.nonce, input + dataSz);
                     break;
@@ -2618,7 +2616,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #ifdef HAVE_SECRET_CALLBACK
     if (ssl->sessionSecretCb != NULL) {
-        int secretSz = SECRET_LEN, ret;
+        int secretSz = SECRET_LEN;
         ret = ssl->sessionSecretCb(ssl, ssl->session.masterSecret,
                                    &secretSz, ssl->sessionSecretCtx);
         if (ret != 0 || secretSz != SECRET_LEN)
@@ -3759,6 +3757,8 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
     i += REQ_HEADER_SZ;
 #else
     ext = TLSX_Find(ssl->extensions, TLSX_SIGNATURE_ALGORITHMS);
+    if (ext == NULL)
+        return EXT_MISSING;
     ext->resp = 0;
 
     i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;

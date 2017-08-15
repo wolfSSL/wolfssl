@@ -1408,7 +1408,9 @@ int wolfSSL_CTX_SetMinEccKey_Sz(WOLFSSL_CTX* ctx, short keySz)
     }
 
     ctx->minEccKeySz     = keySz / 8;
+#ifndef NO_CERTS
     ctx->cm->minEccKeySz = keySz / 8;
+#endif
     return SSL_SUCCESS;
 }
 
@@ -18822,6 +18824,7 @@ WOLFSSL_DSA* wolfSSL_DSA_new(void)
     if (wc_InitDsaKey(key) != 0) {
         WOLFSSL_MSG("wolfSSL_DSA_new InitDsaKey failure");
         XFREE(key, NULL, DYNAMIC_TYPE_DSA);
+        wolfSSL_DSA_free(external);
         return NULL;
     }
     external->internal = key;

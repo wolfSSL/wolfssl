@@ -217,19 +217,15 @@
     #define NO_FILESYSTEM
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
-    #define NEED_AES_TABLES
     #define WOLFSSL_HAVE_MIN
+    #define WOLFSSL_HAVE_MAX
+    #define NO_BIG_INT
 #endif
 
 #ifdef WOLFSSL_MICROCHIP_PIC32MZ
-    #define WOLFSSL_PIC32MZ_CE
     #define WOLFSSL_PIC32MZ_CRYPT
-    #define HAVE_AES_ENGINE
     #define WOLFSSL_PIC32MZ_RNG
-    /* #define WOLFSSL_PIC32MZ_HASH */
-    #define WOLFSSL_AES_COUNTER
-    #define HAVE_AESGCM
-    #define NO_BIG_INT
+    #define WOLFSSL_PIC32MZ_HASH
 #endif
 
 #ifdef MICROCHIP_TCPIP_V5
@@ -1629,6 +1625,11 @@ extern void uITRON4_free(void *p) ;
 #ifdef CURVED25519_SMALL
         #define CURVE25519_SMALL
         #define ED25519_SMALL
+#endif
+
+
+#ifndef WOLFSSL_ALERT_COUNT_MAX
+    #define WOLFSSL_ALERT_COUNT_MAX 5
 #endif
 
 /* warning for not using harden build options (default with ./configure) */

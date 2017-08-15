@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([wolfssl],[3.11.1],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
+AC_INIT([wolfssl],[3.12.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -35,7 +35,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h:config.in])dnl Keep filename to 8.3 for MS-DOS.
 
 #shared library versioning
-WOLFSSL_LIBRARY_VERSION=12:0:0
+WOLFSSL_LIBRARY_VERSION=13:0:1
 #                       | | |
 #                +------+ | +---+
 #                |        |     |
@@ -1934,10 +1934,17 @@ fi
 
 # CHACHA
 AC_ARG_ENABLE([chacha],
-    [AS_HELP_STRING([--enable-chacha],[Enable CHACHA (default: enabled)])],
+    [AS_HELP_STRING([--enable-chacha],[Enable CHACHA (default: enabled). Use `=noasm` to disable Intel AVX/AVX2 speedups])],
     [ ENABLED_CHACHA=$enableval ],
     [ ENABLED_CHACHA=$CHACHA_DEFAULT]
     )
+
+if test "$ENABLED_AESNI" = "noasm"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_CHACHA_ASM"
+    ENABLED_AESNI=yes
+fi
+
 
 # leanpsk and leantls don't need chacha
 if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"

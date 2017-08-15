@@ -305,10 +305,14 @@
 	    #define XSTRNSTR(s1,s2,n) mystrnstr((s1),(s2),(n))
 	    #define XSTRNCMP(s1,s2,n) strncmp((s1),(s2),(n))
 	    #define XSTRNCAT(s1,s2,n) strncat((s1),(s2),(n))
-	    #ifndef USE_WINDOWS_API
-	        #define XSTRNCASECMP(s1,s2,n) strncasecmp((s1),(s2),(n))
-	    #else
+
+        #ifdef MICROCHIP_PIC32
+            /* XC32 does not support strncasecmp, so use case sensitive one */
+            #define XSTRNCASECMP(s1,s2,n) strncmp((s1),(s2),(n))
+        #elif defined(USE_WINDOWS_API)
 	        #define XSTRNCASECMP(s1,s2,n) _strnicmp((s1),(s2),(n))
+        #else
+	        #define XSTRNCASECMP(s1,s2,n) strncasecmp((s1),(s2),(n))
 	    #endif
 
         /* snprintf is used in asn.c for GetTimeString and PKCS7 test */
@@ -435,6 +439,7 @@
         DYNAMIC_TYPE_ECC_BUFFER   = 85,
         DYNAMIC_TYPE_QSH          = 86,
         DYNAMIC_TYPE_SALT         = 87,
+        DYNAMIC_TYPE_HASH_TMP     = 88,
 	};
 
 	/* max error buffer string size */
@@ -510,7 +515,7 @@
             #endif
         #endif
 
-       #if !defined(ALIGN32)
+        #if !defined(ALIGN32)
             #if defined(__GNUC__)
                 #define ALIGN32 __attribute__ ( (aligned (32)))
             #elif defined(_MSC_VER)
@@ -521,12 +526,39 @@
                 #define ALIGN32
             #endif
         #endif /* !ALIGN32 */
+
+        #if defined(__GNUC__)
+            #define ALIGN128 __attribute__ ( (aligned (128)))
+        #elif defined(_MSC_VER)
+            /* disable align warning, we want alignment ! */
+            #pragma warning(disable: 4324)
+            #define ALIGN128 __declspec (align (128))
+        #else
+            #define ALIGN128
+        #endif
+
+        #if defined(__GNUC__)
+            #define ALIGN256 __attribute__ ( (aligned (256)))
+        #elif defined(_MSC_VER)
+            /* disable align warning, we want alignment ! */
+            #pragma warning(disable: 4324)
+            #define ALIGN256 __declspec (align (256))
+        #else
+            #define ALIGN256
+        #endif
+
     #else
         #ifndef ALIGN16
             #define ALIGN16
         #endif
         #ifndef ALIGN32
             #define ALIGN32
+        #endif
+        #ifndef ALIGN128
+            #define ALIGN128
+        #endif
+        #ifndef ALIGN256
+            #define ALIGN256
         #endif
     #endif /* WOLFSSL_AESNI || WOLFSSL_ARMASM */
 

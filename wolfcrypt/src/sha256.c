@@ -100,6 +100,7 @@
 #endif
 
 
+#ifndef WOLFSSL_PIC32MZ_HASH
 static int InitSha256(Sha256* sha256)
 {
     int ret = 0;
@@ -107,6 +108,7 @@ static int InitSha256(Sha256* sha256)
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
 
+    XMEMSET(sha256->digest, 0, sizeof(sha256->digest));
     sha256->digest[0] = 0x6A09E667L;
     sha256->digest[1] = 0xBB67AE85L;
     sha256->digest[2] = 0x3C6EF372L;
@@ -122,6 +124,7 @@ static int InitSha256(Sha256* sha256)
 
     return ret;
 }
+#endif
 
 
 /* Hardware Acceleration */
@@ -198,7 +201,7 @@ static int InitSha256(Sha256* sha256)
     static int (*Transform_p)(Sha256* sha256) /* = _Transform */;
     static int transform_check = 0;
     static word32 intel_flags;
-    #define XTRANSFORM(sha256, B)  (*Transform_p)(sha256)
+    #define XTRANSFORM(S, B)  (*Transform_p)((S))
 
     static void Sha256_SetTransform(void)
     {
@@ -283,7 +286,7 @@ static int InitSha256(Sha256* sha256)
         #include "fsl_mmcau.h"
     #endif
 
-    #define XTRANSFORM(sha256, B) Transform(sha256, B)
+    #define XTRANSFORM(S, B)  Transform((S), (B))
 
     int wc_InitSha256_ex(Sha256* sha256, void* heap, int devId)
     {
@@ -325,26 +328,10 @@ static int InitSha256(Sha256* sha256)
     }
 
 #elif defined(WOLFSSL_PIC32MZ_HASH)
-    #define NEED_SOFT_SHA256
-
-    #define wc_InitSha256   wc_InitSha256_sw
-    #define wc_Sha256Update wc_Sha256Update_sw
-    #define wc_Sha256Final  wc_Sha256Final_sw
-
-    int wc_InitSha256_ex(Sha256* sha256, void* heap, int devId)
-    {
-        if (sha256 == NULL)
-            return BAD_FUNC_ARG;
-
-        sha256->heap = heap;
-
-        return InitSha256(sha256);
-    }
+    #include <wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h>
 
 #else
     #define NEED_SOFT_SHA256
-
-    #define XTRANSFORM(sha256, B) Transform(sha256)
 
     int wc_InitSha256_ex(Sha256* sha256, void* heap, int devId)
     {
@@ -406,6 +393,10 @@ static int InitSha256(Sha256* sha256)
          t1 = Sigma0((a)) + Maj((a), (b), (c)); \
          (d) += t0; \
          (h)  = t0 + t1;
+
+    #ifndef XTRANSFORM
+         #define XTRANSFORM(S, B) Transform((S))
+     #endif
 
     static int Transform(Sha256* sha256)
     {
@@ -866,15 +857,15 @@ __asm__ volatile("movl  %%r8d, %"#h"\n\t":::"%r8", SSE_REGs); \
 
 #if defined(HAVE_INTEL_AVX1) /* inline Assember for Intel AVX1 instructions */
 
-#define VPALIGNR(op1,op2,op3,op4) __asm__ volatile("vpalignr $"#op4", %"#op3", %"#op2", %"#op1:::XMM_REGs)
-#define VPADDD(op1,op2,op3)       __asm__ volatile("vpaddd %"#op3", %"#op2", %"#op1:::XMM_REGs)
-#define VPSRLD(op1,op2,op3)       __asm__ volatile("vpsrld $"#op3", %"#op2", %"#op1:::XMM_REGs)
-#define VPSRLQ(op1,op2,op3)       __asm__ volatile("vpsrlq $"#op3", %"#op2", %"#op1:::XMM_REGs)
-#define VPSLLD(op1,op2,op3)       __asm__ volatile("vpslld $"#op3", %"#op2", %"#op1:::XMM_REGs)
-#define VPOR(op1,op2,op3)         __asm__ volatile("vpor   %"#op3", %"#op2", %"#op1:::XMM_REGs)
-#define VPXOR(op1,op2,op3)        __asm__ volatile("vpxor  %"#op3", %"#op2", %"#op1:::XMM_REGs)
-#define VPSHUFD(op1,op2,op3)      __asm__ volatile("vpshufd $"#op3", %"#op2", %"#op1:::XMM_REGs)
-#define VPSHUFB(op1,op2,op3)      __asm__ volatile("vpshufb %"#op3", %"#op2", %"#op1:::XMM_REGs)
+#define VPALIGNR(op1,op2,op3,op4) __asm__ volatile("vpalignr $"#op4", %"#op3", %"#op2", %"#op1::)
+#define VPADDD(op1,op2,op3)       __asm__ volatile("vpaddd %"#op3", %"#op2", %"#op1::)
+#define VPSRLD(op1,op2,op3)       __asm__ volatile("vpsrld $"#op3", %"#op2", %"#op1::)
+#define VPSRLQ(op1,op2,op3)       __asm__ volatile("vpsrlq $"#op3", %"#op2", %"#op1::)
+#define VPSLLD(op1,op2,op3)       __asm__ volatile("vpslld $"#op3", %"#op2", %"#op1::)
+#define VPOR(op1,op2,op3)         __asm__ volatile("vpor   %"#op3", %"#op2", %"#op1::)
+#define VPXOR(op1,op2,op3)        __asm__ volatile("vpxor  %"#op3", %"#op2", %"#op1::)
+#define VPSHUFD(op1,op2,op3)      __asm__ volatile("vpshufd $"#op3", %"#op2", %"#op1::)
+#define VPSHUFB(op1,op2,op3)      __asm__ volatile("vpshufb %"#op3", %"#op2", %"#op1::)
 
 #define MessageSched(X0, X1, X2, X3, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER, SHUF_00BA, SHUF_DC00,\
      a,b,c,d,e,f,g,h,_i)\
@@ -1030,8 +1021,8 @@ __asm__ volatile("movl  %%r8d, %"#h"\n\t":::"%r8", SSE_REGs); \
                           ::"m"(sha256->buffer[12]):"%xmm7");\
 
 #define _SET_W_K_XFER(reg, i)\
-    __asm__ volatile("vpaddd %0, %"#reg", %%xmm9"::"m"(K[i]):XMM_REGs);\
-    __asm__ volatile("vmovdqa %%xmm9, %0":"=m"(W_K[i])::XMM_REGs);
+    __asm__ volatile("vpaddd %0, %"#reg", %%xmm9"::"m"(K[i]));\
+    __asm__ volatile("vmovdqa %%xmm9, %0":"=m"(W_K[i]):);
 
 #define SET_W_K_XFER(reg, i) _SET_W_K_XFER(reg, i)
 
@@ -1066,8 +1057,6 @@ __asm__ volatile("vmovdqu %0, %"#mask3 ::"m"(mSHUF_DC00[0]));
 #define SHUF_DC00   %xmm12 /* shuffle xDxC -> DC00 */
 #define BYTE_FLIP_MASK  %xmm13
 
-#define XMM_REGs   /* Registers are saved in Sha256Update/Finel */
-                   /*"xmm4","xmm5","xmm6","xmm7","xmm8","xmm9","xmm10","xmm11","xmm12","xmm13" */
 
 static int Transform_AVX1(Sha256* sha256)
 {
@@ -1227,42 +1216,42 @@ static int Transform_AVX1_RORX(Sha256* sha256)
 
 #if defined(HAVE_INTEL_AVX2)
 
-#define _MOVE_to_REG(ymm, mem)       __asm__ volatile("vmovdqu %0, %%"#ymm" ":: "m"(mem):YMM_REGs);
-#define _MOVE_to_MEM(mem, ymm)       __asm__ volatile("vmovdqu %%"#ymm", %0" : "=m"(mem)::YMM_REGs);
+#define _MOVE_to_REG(ymm, mem)       __asm__ volatile("vmovdqu %0, %%"#ymm" ":: "m"(mem));
+#define _MOVE_to_MEM(mem, ymm)       __asm__ volatile("vmovdqu %%"#ymm", %0" : "=m"(mem):);
 #define _BYTE_SWAP(ymm, map)              __asm__ volatile("vpshufb %0, %%"#ymm", %%"#ymm"\n\t"\
-                                                       :: "m"(map):YMM_REGs);
+                                                       :: "m"(map));
 #define _MOVE_128(ymm0, ymm1, ymm2, map)   __asm__ volatile("vperm2i128  $"#map", %%"\
-                                  #ymm2", %%"#ymm1", %%"#ymm0" ":::YMM_REGs);
+                                  #ymm2", %%"#ymm1", %%"#ymm0" "::);
 #define _MOVE_BYTE(ymm0, ymm1, map)  __asm__ volatile("vpshufb %0, %%"#ymm1", %%"\
-                                  #ymm0"\n\t":: "m"(map):YMM_REGs);
+                                  #ymm0"\n\t":: "m"(map));
 #define _S_TEMP(dest, src, bits, temp)    __asm__ volatile("vpsrld  $"#bits", %%"\
          #src", %%"#dest"\n\tvpslld  $32-"#bits", %%"#src", %%"#temp"\n\tvpor %%"\
-         #temp",%%"#dest", %%"#dest" ":::YMM_REGs);
+         #temp",%%"#dest", %%"#dest" "::);
 #define _AVX2_R(dest, src, bits)          __asm__ volatile("vpsrld  $"#bits", %%"\
-                                  #src", %%"#dest" ":::YMM_REGs);
+                                  #src", %%"#dest" "::);
 #define _XOR(dest, src1, src2)       __asm__ volatile("vpxor   %%"#src1", %%"\
-         #src2", %%"#dest" ":::YMM_REGs);
+         #src2", %%"#dest" "::);
 #define _OR(dest, src1, src2)       __asm__ volatile("vpor    %%"#src1", %%"\
-         #src2", %%"#dest" ":::YMM_REGs);
+         #src2", %%"#dest" "::);
 #define _ADD(dest, src1, src2)       __asm__ volatile("vpaddd   %%"#src1", %%"\
-         #src2", %%"#dest" ":::YMM_REGs);
+         #src2", %%"#dest" "::);
 #define _ADD_MEM(dest, src1, mem)    __asm__ volatile("vpaddd   %0, %%"#src1", %%"\
-         #dest" "::"m"(mem):YMM_REGs);
+         #dest" "::"m"(mem));
 #define _BLEND(map, dest, src1, src2)    __asm__ volatile("vpblendd    $"#map", %%"\
-         #src1",   %%"#src2", %%"#dest" ":::YMM_REGs);
+         #src1",   %%"#src2", %%"#dest" "::);
 
-#define    _EXTRACT_XMM_0(xmm, mem)  __asm__ volatile("vpextrd $0, %%"#xmm", %0 ":"=r"(mem)::YMM_REGs);
-#define    _EXTRACT_XMM_1(xmm, mem)  __asm__ volatile("vpextrd $1, %%"#xmm", %0 ":"=r"(mem)::YMM_REGs);
-#define    _EXTRACT_XMM_2(xmm, mem)  __asm__ volatile("vpextrd $2, %%"#xmm", %0 ":"=r"(mem)::YMM_REGs);
-#define    _EXTRACT_XMM_3(xmm, mem)  __asm__ volatile("vpextrd $3, %%"#xmm", %0 ":"=r"(mem)::YMM_REGs);
+#define    _EXTRACT_XMM_0(xmm, mem)  __asm__ volatile("vpextrd $0, %%"#xmm", %0 ":"=r"(mem):);
+#define    _EXTRACT_XMM_1(xmm, mem)  __asm__ volatile("vpextrd $1, %%"#xmm", %0 ":"=r"(mem):);
+#define    _EXTRACT_XMM_2(xmm, mem)  __asm__ volatile("vpextrd $2, %%"#xmm", %0 ":"=r"(mem):);
+#define    _EXTRACT_XMM_3(xmm, mem)  __asm__ volatile("vpextrd $3, %%"#xmm", %0 ":"=r"(mem):);
 #define    _EXTRACT_XMM_4(ymm, xmm, mem)\
-      __asm__ volatile("vperm2i128 $0x1, %%"#ymm", %%"#ymm", %%"#ymm" ":::YMM_REGs);\
-      __asm__ volatile("vpextrd $0, %%"#xmm", %0 ":"=r"(mem)::YMM_REGs);
-#define    _EXTRACT_XMM_5(xmm, mem)  __asm__ volatile("vpextrd $1, %%"#xmm", %0 ":"=r"(mem)::YMM_REGs);
-#define    _EXTRACT_XMM_6(xmm, mem)  __asm__ volatile("vpextrd $2, %%"#xmm", %0 ":"=r"(mem)::YMM_REGs);
-#define    _EXTRACT_XMM_7(xmm, mem)  __asm__ volatile("vpextrd $3, %%"#xmm", %0 ":"=r"(mem)::YMM_REGs);
+      __asm__ volatile("vperm2i128 $0x1, %%"#ymm", %%"#ymm", %%"#ymm" "::);\
+      __asm__ volatile("vpextrd $0, %%"#xmm", %0 ":"=r"(mem):);
+#define    _EXTRACT_XMM_5(xmm, mem)  __asm__ volatile("vpextrd $1, %%"#xmm", %0 ":"=r"(mem):);
+#define    _EXTRACT_XMM_6(xmm, mem)  __asm__ volatile("vpextrd $2, %%"#xmm", %0 ":"=r"(mem):);
+#define    _EXTRACT_XMM_7(xmm, mem)  __asm__ volatile("vpextrd $3, %%"#xmm", %0 ":"=r"(mem):);
 
-#define    _SWAP_YMM_HL(ymm)   __asm__ volatile("vperm2i128 $0x1, %%"#ymm", %%"#ymm", %%"#ymm" ":::YMM_REGs);
+#define    _SWAP_YMM_HL(ymm)   __asm__ volatile("vperm2i128 $0x1, %%"#ymm", %%"#ymm", %%"#ymm" "::);
 #define     SWAP_YMM_HL(ymm)   _SWAP_YMM_HL(ymm)
 
 #define MOVE_to_REG(ymm, mem)      _MOVE_to_REG(ymm, mem)
@@ -1317,28 +1306,25 @@ static int Transform_AVX1_RORX(Sha256* sha256)
 #define W_K_TEMP   ymm15
 #define W_K_TEMPx  xmm15
 
-#define YMM_REGs /* Registers are saved in Sha256Update/Finel */
- /* "%ymm7","%ymm8","%ymm9","%ymm10","%ymm11","%ymm12","%ymm13","%ymm14","%ymm15"*/
-
 
 #define MOVE_15_to_16(w_i_16, w_i_15, w_i_7)\
-    __asm__ volatile("vperm2i128  $0x01, %%"#w_i_15", %%"#w_i_15", %%"#w_i_15" ":::YMM_REGs);\
-    __asm__ volatile("vpblendd    $0x08, %%"#w_i_15", %%"#w_i_7", %%"#w_i_16" ":::YMM_REGs);\
-    __asm__ volatile("vperm2i128 $0x01,  %%"#w_i_7",  %%"#w_i_7", %%"#w_i_15" ":::YMM_REGs);\
-    __asm__ volatile("vpblendd    $0x80, %%"#w_i_15", %%"#w_i_16", %%"#w_i_16" ":::YMM_REGs);\
-    __asm__ volatile("vpshufd    $0x93,  %%"#w_i_16", %%"#w_i_16" ":::YMM_REGs);\
+    __asm__ volatile("vperm2i128  $0x01, %%"#w_i_15", %%"#w_i_15", %%"#w_i_15" "::);\
+    __asm__ volatile("vpblendd    $0x08, %%"#w_i_15", %%"#w_i_7", %%"#w_i_16" "::);\
+    __asm__ volatile("vperm2i128 $0x01,  %%"#w_i_7",  %%"#w_i_7", %%"#w_i_15" "::);\
+    __asm__ volatile("vpblendd    $0x80, %%"#w_i_15", %%"#w_i_16", %%"#w_i_16" "::);\
+    __asm__ volatile("vpshufd    $0x93,  %%"#w_i_16", %%"#w_i_16" "::);\
 
 #define MOVE_7_to_15(w_i_15, w_i_7)\
-    __asm__ volatile("vmovdqu                 %%"#w_i_7",  %%"#w_i_15" ":::YMM_REGs);\
+    __asm__ volatile("vmovdqu                 %%"#w_i_7",  %%"#w_i_15" "::);\
 
 #define MOVE_I_to_7(w_i_7, w_i)\
-    __asm__ volatile("vperm2i128 $0x01,       %%"#w_i",   %%"#w_i",   %%"#w_i_7" ":::YMM_REGs);\
-    __asm__ volatile("vpblendd    $0x01,       %%"#w_i_7",   %%"#w_i", %%"#w_i_7" ":::YMM_REGs);\
-    __asm__ volatile("vpshufd    $0x39, %%"#w_i_7", %%"#w_i_7" ":::YMM_REGs);\
+    __asm__ volatile("vperm2i128 $0x01,       %%"#w_i",   %%"#w_i",   %%"#w_i_7" "::);\
+    __asm__ volatile("vpblendd    $0x01,       %%"#w_i_7",   %%"#w_i", %%"#w_i_7" "::);\
+    __asm__ volatile("vpshufd    $0x39, %%"#w_i_7", %%"#w_i_7" "::);\
 
 #define MOVE_I_to_2(w_i_2, w_i)\
-    __asm__ volatile("vperm2i128 $0x01,       %%"#w_i", %%"#w_i", %%"#w_i_2" ":::YMM_REGs);\
-    __asm__ volatile("vpshufd    $0x0e, %%"#w_i_2", %%"#w_i_2" ":::YMM_REGs);\
+    __asm__ volatile("vperm2i128 $0x01,       %%"#w_i", %%"#w_i", %%"#w_i_2" "::);\
+    __asm__ volatile("vpshufd    $0x0e, %%"#w_i_2", %%"#w_i_2" "::);\
 
 #define ROTATE_W(w_i_16, w_i_15, w_i_7, w_i_2, w_i)\
     MOVE_15_to_16(w_i_16, w_i_15, w_i_7); \
@@ -1983,6 +1969,9 @@ int wc_Sha256Copy(Sha256* src, Sha256* dst)
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
+#endif
+#ifdef WOLFSSL_PIC32MZ_HASH
+    ret = wc_Pic32HashCopy(&src->cache, &dst->cache);
 #endif
 
     return ret;

@@ -97,6 +97,7 @@ ECC Curve Sizes:
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/types.h>
 
 #ifdef HAVE_ECC_ENCRYPT
     #include <wolfssl/wolfcrypt/hmac.h>
@@ -5138,7 +5139,8 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 #endif /* WOLFSSL_ATECC508A */
 
 #ifdef WOLFSSL_VALIDATE_ECC_IMPORT
-    if (ret == MP_OKAY)
+    if ((pub != NULL) && (ret == MP_OKAY))
+        /* public key needed to perform key validation */
         ret = ecc_check_privkey_gen_helper(key);
 #endif
 

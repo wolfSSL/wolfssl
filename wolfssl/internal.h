@@ -1040,8 +1040,10 @@ enum Misc {
     DTLS_HANDSHAKE_FRAG_SZ   = 3,  /* fragment offset and length are 24 bit */
     DTLS_POOL_SZ             = 255,/* allowed number of list items in TX pool */
     DTLS_EXPORT_PRO          = 165,/* wolfSSL protocol for serialized session */
-    DTLS_EXPORT_VERSION      = 3,  /* wolfSSL version for serialized session */
-    DTLS_EXPORT_OPT_SZ       = 57, /* amount of bytes used from Options */
+    DTLS_EXPORT_VERSION      = 4,  /* wolfSSL version for serialized session */
+    DTLS_EXPORT_OPT_SZ       = 58, /* amount of bytes used from Options */
+    DTLS_EXPORT_VERSION_3    = 3,  /* wolfSSL version before TLS 1.3 addition */
+    DTLS_EXPORT_OPT_SZ_3     = 57, /* amount of bytes used from Options */
     DTLS_EXPORT_KEY_SZ       = 325 + (DTLS_SEQ_SZ * 2),
                                    /* max amount of bytes used from Keys */
     DTLS_EXPORT_MIN_KEY_SZ   = 78 + (DTLS_SEQ_SZ * 2),
@@ -2916,6 +2918,7 @@ typedef struct Options {
     byte            acceptState;        /* nonblocking resume */
     byte            asyncState;         /* sub-state for enum asyncState */
     byte            buildMsgState;      /* sub-state for enum buildMsgState */
+    byte            alertCount;         /* detect warning dos attempt */
 #ifdef WOLFSSL_MULTICAST
     word16          mcastID;            /* Multicast group ID */
 #endif

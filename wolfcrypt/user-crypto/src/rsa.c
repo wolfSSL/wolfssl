@@ -2008,7 +2008,7 @@ IppStatus wolfSSL_rng(Ipp32u* pData, int nBits, void* pEbsParams)
     }
 
     nBytes = (nBits/8) + ((nBits % 8)? 1: 0);
-    if (wc_RNG_GenerateBlock(pEbsParams, (byte*)pData, nBytes) != 0) {
+    if (wc_RNG_GenerateBlock((WC_RNG*)pEbsParams, (byte*)pData, nBytes) != 0) {
         USER_DEBUG(("error in generating random wolfSSL block\n"));
         return ippStsErr;
     }
@@ -2042,8 +2042,10 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     qBitSz = (size / 2) + ((size % 2)? 1: 0);
     bytSz  = (size / 8) + ((size % 8)? 1: 0);
 
-    if (key == NULL)
+    if (key == NULL || rng == NULL) {
+        USER_DEBUG(("Error, NULL argument passed in\n"));
         return USER_CRYPTO_ERROR;
+    }
 
     if (e < 3 || (e&1) == 0)
         return USER_CRYPTO_ERROR;
@@ -2157,9 +2159,9 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         goto makeKeyEnd;
     }
 
-    /* call IPP to generate keys, if inseficent entropy error call again
-     using for loop to avoid infinte loop */
-    for (i = 0; i < 5; i++) {
+    /* call IPP to generate keys, if inseficent entropy error call again */
+    ret = ippStsInsufficientEntropy;
+    while (ret == ippStsInsufficientEntropy) {
         ret = ippsRSA_GenerateKeys(pSrcPublicExp, key->n, key->e,
                 key->dipp, key->pPrv, scratchBuffer, trys, pPrime,
                 wolfSSL_rng, rng);
@@ -2174,13 +2176,6 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
             ret = USER_CRYPTO_ERROR;
             goto makeKeyEnd;
         }
-    }
-    /* catch if still did not generate a good key */
-    if (ret != ippStsNoErr) {
-        USER_DEBUG(("ippsRSA_GeneratKeys error of %s\n",
-                ippGetStatusString(ret)));
-        ret = USER_CRYPTO_ERROR;
-        goto makeKeyEnd;
     }
 
     /* get bn sizes needed for private key set up */

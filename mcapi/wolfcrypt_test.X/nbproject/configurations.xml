@@ -4,6 +4,7 @@
     <logicalFolder name="HeaderFiles"
                    displayName="Header Files"
                    projectFiles="true">
+      <itemPath>../user_settings.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -110,8 +111,7 @@
         <property key="place-data-into-section" value="false"/>
         <property key="post-instruction-scheduling" value="default"/>
         <property key="pre-instruction-scheduling" value="default"/>
-        <property key="preprocessor-macros"
-                  value="NO_MAIN_DRIVER;USE_CERT_BUFFERS_1024;WOLFSSL_SHA384;WOLFSSL_SHA512;HAVE_ECC;HAVE_LIBZ;HAVE_MCAPI"/>
+        <property key="preprocessor-macros" value="WOLFSSL_USER_SETTINGS;HAVE_LIBZ;HAVE_MCAPI"/>
         <property key="strict-ansi" value="false"/>
         <property key="support-ansi" value="false"/>
         <property key="use-cci" value="false"/>

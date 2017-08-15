@@ -73,7 +73,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/libwolfssl.la
 %{_libdir}/libwolfssl.so
 %{_libdir}/libwolfssl.so.12
-%{_libdir}/libwolfssl.so.12.0.0
+%{_libdir}/libwolfssl.so.12.1.0
 
 %files devel
 %defattr(-,root,root,-)
@@ -187,6 +187,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/chacha20_poly1305.h
 %{_includedir}/wolfssl/wolfcrypt/coding.h
 %{_includedir}/wolfssl/wolfcrypt/compress.h
+%{_includedir}/wolfssl/wolfcrypt/cpuid.h
 %{_includedir}/wolfssl/wolfcrypt/curve25519.h
 %{_includedir}/wolfssl/wolfcrypt/des3.h
 %{_includedir}/wolfssl/wolfcrypt/dh.h
@@ -223,6 +224,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/settings.h
 %{_includedir}/wolfssl/wolfcrypt/signature.h
 %{_includedir}/wolfssl/wolfcrypt/sha.h
+%{_includedir}/wolfssl/wolfcrypt/sha3.h
 %{_includedir}/wolfssl/wolfcrypt/sha256.h
 %{_includedir}/wolfssl/wolfcrypt/sha512.h
 %{_includedir}/wolfssl/wolfcrypt/srp.h
@@ -280,6 +282,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Fri Aug 04 2017 Jacob Barthelmeh <jacob@wolfssl.com>
+- Added header for wolfssl/wolfcrypt/cpuid.h, wolfssl/wolfcrypt/sha3.h
 * Thu May 04 2017 Jacob Barthelmeh <jacob@wolfssl.com>
 - Added header for wolfssl/io.h, wolfssl/openssl/ssl23.h, cyassl/openssl/ssl23.h
 * Thu Feb 09 2017 Jacob Barthelmeh <jacob@wolfssl.com>
