@@ -5906,10 +5906,6 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
     #ifndef NO_RSA
         static const char* clientKey  = CERT_ROOT "client-key.der";
         static const char* clientCert = CERT_ROOT "client-cert.der";
-        #if defined(HAVE_PKCS7) && defined(HAVE_ECC)
-            static const char* eccClientKey  = CERT_ROOT "ecc-client-key.der";
-            static const char* eccClientCert = CERT_ROOT "client-ecc-cert.der";
-        #endif
         #ifdef WOLFSSL_CERT_EXT
             static const char* clientKeyPub  = CERT_ROOT "client-keyPub.der";
         #endif
@@ -5931,6 +5927,10 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         #if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
             static const char* eccCaCertFile = CERT_ROOT "server-ecc.pem";
             static const char* eccCaKeyFile  = CERT_ROOT   "ecc-key.der";
+        #endif
+        #if defined(HAVE_PKCS7) && defined(HAVE_ECC)
+            static const char* eccClientKey  = CERT_ROOT "ecc-client-key.der";
+            static const char* eccClientCert = CERT_ROOT "client-ecc-cert.der";
         #endif
         #ifdef WOLFSSL_CERT_EXT
             static const char* eccCaKeyPubFile  = CERT_ROOT "ecc-keyPub.der";
@@ -12762,7 +12762,7 @@ static int pkcs7_load_certs_keys(byte* rsaCert, word32* rsaCertSz,
                                  byte* eccCert, word32* eccCertSz,
                                  byte* eccPrivKey,  word32* eccPrivKeySz)
 {
-#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
+#ifndef NO_FILESYSTEM
     FILE*  certFile;
     FILE*  keyFile;
 #endif
@@ -12864,6 +12864,10 @@ static int pkcs7_load_certs_keys(byte* rsaCert, word32* rsaCertSz,
     (void)eccCertSz;
     (void)eccPrivKey;
     (void)eccPrivKeySz;
+#ifndef NO_FILESYSTEM
+    (void)certFile;
+    (void)keyFile;
+#endif
     return 0;
 }
 
