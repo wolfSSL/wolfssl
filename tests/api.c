@@ -10071,9 +10071,9 @@ static void test_wolfSSL_X509_STORE_CTX_set_flags(void)
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
        !defined(NO_FILESYSTEM) && !defined(NO_RSA)
 
-    WOLFSSL_X509_STORE* store;
-    WOLFSSL_X509_STORE_CTX* store_ctx;
-    WOLFSSL_X509* x509;
+    X509_STORE* store;
+    X509_STORE_CTX* store_ctx;
+    X509* x509;
     unsigned long flags = 100;
 
     AssertNotNull((store = wolfSSL_X509_STORE_new()));
@@ -10081,19 +10081,15 @@ static void test_wolfSSL_X509_STORE_CTX_set_flags(void)
                 wolfSSL_X509_load_certificate_file(svrCertFile, SSL_FILETYPE_PEM)));
     AssertIntEQ(X509_STORE_add_cert(store, x509), SSL_SUCCESS);
 
-    #ifdef HAVE_CRL
-    AssertIntEQ(X509_STORE_set_flags(store, WOLFSSL_CRL_CHECKALL), SSL_SUCCESS);
-#else
-    AssertIntEQ(X509_STORE_set_flags(store, WOLFSSL_CRL_CHECKALL),
-        NOT_COMPILED_IN);
-#endif
+    AssertNotNull(store_ctx = wolfSSL_X509_STORE_CTX_new());
 
-  AssertNotNull(store_ctx = wolfSSL_X509_STORE_CTX_new());
+    wolfSSL_X509_STORE_CTX_set_flags(store_ctx, flags);
 
-  wolfSSL_X509_STORE_CTX_init(store_ctx, store, x509, NULL);
-  wolfSSL_X509_STORE_CTX_set_flags(store_ctx, flags);
+    AssertTrue(store_ctx->flags == flags);
 
-  AssertTrue(store_ctx->flags == flags);
+    wolfSSL_X509_STORE_CTX_free(store_ctx);
+    wolfSSL_X509_free(x509);
+    wolfSSL_X509_STORE_free(store);
 
 #endif
 }

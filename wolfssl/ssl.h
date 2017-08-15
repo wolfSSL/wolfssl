@@ -262,7 +262,9 @@ typedef struct WOLFSSL_X509_STORE_CTX {
     WOLFSSL_X509_STORE* store;    /* Store full of a CA cert chain */
     WOLFSSL_X509* current_cert;   /* stunnel dereference */
     WOLFSSL_STACK* chain;
+#ifdef OPENSSL_EXTRA
     unsigned long flags;         /* Various verify flags */
+#endif
     char* domain;                /* subject CN domain name */
     void* ex_data;               /* external data, for fortress build */
     void* userCtx;               /* user ctx */
