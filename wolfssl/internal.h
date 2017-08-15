@@ -3820,9 +3820,9 @@ WOLFSSL_LOCAL int AllocKey(WOLFSSL* ssl, int type, void** pKey);
 WOLFSSL_LOCAL void FreeKey(WOLFSSL* ssl, int type, void** pKey);
 
 #ifdef WOLFSSL_ASYNC_CRYPT
+    WOLFSSL_LOCAL int wolfSSL_AsyncInit(WOLFSSL* ssl, WC_ASYNC_DEV* asyncDev, word32 flags);
     WOLFSSL_LOCAL int wolfSSL_AsyncPop(WOLFSSL* ssl, byte* state);
-    WOLFSSL_LOCAL int wolfSSL_AsyncPush(WOLFSSL* ssl, WC_ASYNC_DEV* asyncDev,
-                                        word32 flags);
+    WOLFSSL_LOCAL int wolfSSL_AsyncPush(WOLFSSL* ssl, WC_ASYNC_DEV* asyncDev);
 #endif
 
 

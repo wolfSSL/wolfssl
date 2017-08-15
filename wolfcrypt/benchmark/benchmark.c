@@ -3329,7 +3329,7 @@ void bench_curve25519KeyGen(void)
 {
     curve25519_key genKey;
     double start;
-    int    ret, i, count;
+    int    ret = 0, i, count;
 
     /* Key Gen */
     bench_stats_start(&count, &start);
