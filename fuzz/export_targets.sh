@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # enforce calling convention
-if [ ! -d "$1" ] || [ $# -eq 0 ]
+if [ $# -eq 0 ] || [ ! -d "$1" ]
 then
     echo "Error: please supply a directory." >&2
     exit 1

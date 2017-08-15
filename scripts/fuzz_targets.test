@@ -3,17 +3,22 @@
 #fuzz_targets.test
 
 # I know that I'm in the scripts directory, thus "home" is one directory up
-home=$(cd "$(dirname "$0")" && cd .. && echo "/.${PWD%/}/")
-home=${home#/.}
+home=$(cd "$(dirname "$0")" && cd .. && echo "${PWD%/}/")
+[ -z "$home" ] && exit 255
 home=${home%/}
 
-for target in "${home%/}"/fuzz/*/target
+for target in "$home"/fuzz/*/target
 do
     [ -f "$target" ] || continue
 
     target_dir=${target%/target}
-    find "$target_dir" -mindepth 2 -type f -not -path '*/.*' -print0 \
-        | xargs -0 "$target"
+
+    # The below reads something like this:
+    # "find from the target directory files at least two levels below me that
+    # are not in a path matching the shell pattern '*/.*', then execute the
+    # target with all of those files as aguments."
+    find "$target_dir" -type f -mindepth 2 -not -path '*/.*' \
+        -exec "$target" {} +
     target_ret=$?
 
     [ "$target_ret" -ne 0 ] && exit 1

@@ -208,13 +208,3 @@ merge-clean:
 	@find ./ | $(GREP) \.OTHER | xargs rm -f
 	@find ./ | $(GREP) \.BASE | xargs rm -f
 	@find ./ | $(GREP) \~$$ | xargs rm -f
-#	@find ./ -name '*.gcda' -exec rm -f \;
-#	@find ./ -name '*.gcno' -exec rm -f \;
-#	@find ./ -name '*.gz' -exec rm -f \;
-#	@find ./ -name '*.orig' -exec rm -f \;
-#	@find ./ -name '*.rej' -exec rm -f \;
-#	@find ./ -name '*.rpm' -exec rm -f \;
-#	@find ./ -name '*.THIS' -exec rm -f \;
-#	@find ./ -name '*.OTHER' -exec rm -f \;
-#	@find ./ -name '*.BASE' -exec rm -f \;
-#	@find ./ -name '*~$$' -exec rm -f \;
