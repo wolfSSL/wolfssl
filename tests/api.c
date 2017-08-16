@@ -4969,9 +4969,15 @@ static int test_wc_Md5HmacFinal (void)
 
     printf(testingFmt, "wc_HmacFinal() with MD5");
 
-    ret = wc_HmacSetKey(&hmac, MD5, (byte*)key, (word32)XSTRLEN(key));
-    if (ret != 0) {
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    if (ret != 0)
         flag = ret;
+
+    if (!flag) {
+        ret = wc_HmacSetKey(&hmac, MD5, (byte*)key, (word32)XSTRLEN(key));
+        if (ret != 0) {
+            flag = ret;
+        }
     }
 
     if (!flag) {
@@ -5010,6 +5016,9 @@ static int test_wc_Md5HmacFinal (void)
         }
     }
 #endif
+
+    wc_HmacFree(&hmac);
+
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
@@ -5042,9 +5051,15 @@ static int test_wc_ShaHmacFinal (void)
 
     printf(testingFmt, "wc_HmacFinal() with SHA");
 
-    ret = wc_HmacSetKey(&hmac, SHA, (byte*)key, (word32)XSTRLEN(key));
-    if (ret != 0) {
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    if (ret != 0)
         flag = ret;
+
+    if (!flag) {
+        ret = wc_HmacSetKey(&hmac, SHA, (byte*)key, (word32)XSTRLEN(key));
+        if (ret != 0) {
+            flag = ret;
+        }
     }
 
     if (!flag) {
@@ -5083,6 +5098,9 @@ static int test_wc_ShaHmacFinal (void)
         }
     }
 #endif
+
+    wc_HmacFree(&hmac);
+
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
@@ -5116,9 +5134,15 @@ static int test_wc_Sha224HmacFinal (void)
 
     printf(testingFmt, "wc_HmacFinal() with SHA224");
 
-    ret = wc_HmacSetKey(&hmac, SHA224, (byte*)key, (word32)XSTRLEN(key));
-    if (ret != 0) {
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    if (ret != 0)
         flag = ret;
+
+    if (!flag) {
+        ret = wc_HmacSetKey(&hmac, SHA224, (byte*)key, (word32)XSTRLEN(key));
+        if (ret != 0) {
+            flag = ret;
+        }
     }
 
     if (!flag) {
@@ -5157,6 +5181,9 @@ static int test_wc_Sha224HmacFinal (void)
         }
     }
 #endif
+
+    wc_HmacFree(&hmac);
+
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
@@ -5189,9 +5216,15 @@ static int test_wc_Sha256HmacFinal (void)
 
     printf(testingFmt, "wc_HmacFinal() with SHA256");
 
-    ret = wc_HmacSetKey(&hmac, SHA256, (byte*)key, (word32)XSTRLEN(key));
-    if (ret != 0) {
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    if (ret != 0)
         flag = ret;
+
+    if (!flag) {
+        ret = wc_HmacSetKey(&hmac, SHA256, (byte*)key, (word32)XSTRLEN(key));
+        if (ret != 0) {
+            flag = ret;
+        }
     }
 
     if (!flag) {
@@ -5230,6 +5263,9 @@ static int test_wc_Sha256HmacFinal (void)
         }
     }
 #endif
+
+    wc_HmacFree(&hmac);
+
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
@@ -5263,9 +5299,15 @@ static int test_wc_Sha384HmacFinal (void)
 
     printf(testingFmt, "wc_HmacFinal() with SHA384");
 
-    ret = wc_HmacSetKey(&hmac, SHA384, (byte*)key, (word32)XSTRLEN(key));
-    if (ret != 0) {
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    if (ret != 0)
         flag = ret;
+
+    if (!flag) {
+        ret = wc_HmacSetKey(&hmac, SHA384, (byte*)key, (word32)XSTRLEN(key));
+        if (ret != 0) {
+            flag = ret;
+        }
     }
 
     if (!flag) {
@@ -5303,6 +5345,9 @@ static int test_wc_Sha384HmacFinal (void)
         }
     }
 #endif
+
+    wc_HmacFree(&hmac);
+
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif

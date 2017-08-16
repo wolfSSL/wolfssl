@@ -4679,7 +4679,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                         goto exit_cs;
                     }
                 #ifdef WOLFSSL_ASYNC_CRYPT
-                    sigCtx->asyncDev = &sigCtx->key.ecc->asyncDev;
+                    sigCtx->asyncDev = &sigCtx->key.ed25519->asyncDev;
                 #endif
                     break;
                 }
