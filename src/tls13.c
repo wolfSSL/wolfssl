@@ -1178,12 +1178,12 @@ end:
      */
     word32 TimeNowInMilliseconds(void)
     {
-        NET_SECURE_OS_TICK  clk = 0;
+        OS_TICK ticks = 0;
+        OS_ERR  err;
 
-        #if (NET_SECURE_MGR_CFG_EN == DEF_ENABLED)
-            clk = NetSecure_OS_TimeGet();
-        #endif
-        return (word32)clk * 1000;
+        ticks = OSTimeGet(&err);
+
+        return (word32) (ticks / OSCfg_TickRate_Hz) * 1000;
     }
 #elif defined(MICROCHIP_TCPIP_V5)
     /* The time in milliseconds.

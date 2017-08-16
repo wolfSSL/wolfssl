@@ -242,7 +242,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XBADFILE                NULL
     #define XFGETS                  fgets
 #elif defined(MICRIUM)
-    #include <fs.h>
+    #include <fs_api.h>
     #define XFILE      FS_FILE*
     #define XFOPEN     fs_fopen
     #define XFSEEK     fs_fseek

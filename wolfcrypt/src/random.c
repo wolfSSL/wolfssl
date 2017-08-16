@@ -125,6 +125,7 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #elif defined(WOLFSSL_IAR_ARM)
 #elif defined(WOLFSSL_ROWLEY_ARM)
 #elif defined(WOLFSSL_EMBOS)
+#elif defined(MICRIUM)
 #else
     /* include headers that may be needed to get good seed */
     #include <fcntl.h>
@@ -1209,16 +1210,6 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     return 0;
 }
 
-
-#elif defined(MICRIUM)
-
-int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
-{
-    #if (NET_SECURE_MGR_CFG_EN == DEF_ENABLED)
-        NetSecure_InitSeed(output, sz);
-    #endif
-    return 0;
-}
 
 #elif defined(MICROCHIP_PIC32)
 
