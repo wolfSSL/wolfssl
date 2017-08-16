@@ -2217,7 +2217,7 @@ AC_ARG_WITH([ntru],
     [AS_HELP_STRING([--with-ntru=PATH],[Path to NTRU install (default /usr/)])],
     [
         AC_MSG_CHECKING([for NTRU])
-        CPPFLAGS="$CPPFLAGS -DHAVE_NTRU -DHAVE_QSH -DHAVE_TLS_EXTENSIONS"
+        CPPFLAGS="$CPPFLAGS -DHAVE_NTRU -DHAVE_TLS_EXTENSIONS"
         LIBS="$LIBS -lntruencrypt"
 
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <libntruencrypt/ntru_crypto_drbg.h>]], [[ ntru_crypto_drbg_instantiate(0, 0, 0, 0, 0); ]])], [ ntru_linked=yes ],[ ntru_linked=no ])
@@ -2245,12 +2245,30 @@ AC_ARG_WITH([ntru],
             AC_MSG_RESULT([yes])
         fi
 
-        AM_CFLAGS="$AM_CFLAGS -DHAVE_NTRU -DHAVE_QSH -DHAVE_TLS_EXTENSIONS"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_NTRU -DHAVE_TLS_EXTENSIONS"
         ENABLED_NTRU="yes"
     ]
 )
 
 AM_CONDITIONAL([BUILD_NTRU], [test "x$ENABLED_NTRU" = "xyes"])
+
+
+# QSH
+AC_ARG_ENABLE([qsh],
+    [AS_HELP_STRING([--enable-qsh],[Enable QSH (default: disabled)])],
+    [ ENABLED_QSH=$enableval ],
+    [ ENABLED_QSH=no ]
+    )
+
+if test "x$ENABLED_QSH" = "xyes"
+then
+    if test "x$ENABLED_NTRU" = "xno"
+    then
+        AC_MSG_ERROR([cannot enable qsh without NTRU])
+    fi
+
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_QSH"
+fi
 
 
 # Whitewood netRandom client library
@@ -3898,6 +3916,7 @@ echo "   * Persistent cert    cache:   $ENABLED_SAVECERT"
 echo "   * Atomic User Record Layer:   $ENABLED_ATOMICUSER"
 echo "   * Public Key Callbacks:       $ENABLED_PKCALLBACKS"
 echo "   * NTRU:                       $ENABLED_NTRU"
+echo "   * QSH:                        $ENABLED_QSH"
 echo "   * Whitewood netRandom:        $ENABLED_WNR"
 echo "   * Server Name Indication:     $ENABLED_SNI"
 echo "   * ALPN:                       $ENABLED_ALPN"
