@@ -7097,7 +7097,7 @@ static int ecc_get_key_sizes(ecEncCtx* ctx, int* encKeySz, int* ivSz,
 int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx)
 {
-    int          ret;
+    int          ret = 0;
     word32       blockSz;
     word32       digestSz;
     ecEncCtx     localCtx;
@@ -7168,10 +7168,14 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     }
 #endif
 
-    ret = wc_ecc_shared_secret(privKey, pubKey, sharedSecret, &sharedSz);
-#if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &privKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-#endif
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &privKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        if (ret != 0)
+            break;
+    #endif
+        ret = wc_ecc_shared_secret(privKey, pubKey, sharedSecret, &sharedSz);
+    } while (ret == WC_PENDING_E);
     if (ret == 0) {
        switch (ctx->kdfAlgo) {
            case ecHKDF_SHA256 :
@@ -7255,7 +7259,7 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
 int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx)
 {
-    int          ret;
+    int          ret = 0;
     word32       blockSz;
     word32       digestSz;
     ecEncCtx     localCtx;
@@ -7326,10 +7330,14 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     }
 #endif
 
-    ret = wc_ecc_shared_secret(privKey, pubKey, sharedSecret, &sharedSz);
-#if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &privKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-#endif
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &privKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        if (ret != 0)
+            break;
+    #endif
+        ret = wc_ecc_shared_secret(privKey, pubKey, sharedSecret, &sharedSz);
+    } while (ret == WC_PENDING_E);
     if (ret == 0) {
        switch (ctx->kdfAlgo) {
            case ecHKDF_SHA256 :
