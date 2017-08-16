@@ -8526,9 +8526,7 @@ static int test_wc_InitDsaKey (void)
 static int test_wc_DsaSignVerify (void)
 {
     int     ret = 0;
-
-#if !defined(NO_DSA) && (defined(USE_CERT_BUFFERS_1024)\
-        || defined(USE_CERT_BUFFERS_2048))
+#if !defined(NO_DSA)
     DsaKey  key;
     WC_RNG  rng;
     Sha     sha;
@@ -8537,16 +8535,26 @@ static int test_wc_DsaSignVerify (void)
     word32  idx = 0;
     word32  bytes;
     int      answer;
-
 #ifdef USE_CERT_BUFFERS_1024
     byte    tmp[ONEK_BUF];
+    XMEMSET(tmp, 0, sizeof(tmp));
     XMEMCPY(tmp, dsa_key_der_1024, sizeof_dsa_key_der_1024);
     bytes = sizeof_dsa_key_der_1024;
-#else
+#elif defined(USE_CERT_BUFFERS_2048)
     byte    tmp[TWOK_BUF];
+    XMEMSET(tmp, 0, sizeof(tmp));
     XMEMCPY(tmp, dsa_key_der_2048, sizeof_dsa_key_der_2048);
     bytes = sizeof_dsa_key_der_2048;
-#endif
+#else
+    byte    tmp[TWOK_BUF];
+    XMEMSET(tmp, 0, sizeof(tmp));
+    FILE* fp = fopen("./certs/dsa2048.der", "rb");
+    if (!fp) {
+        return SSL_BAD_FILE;
+    }
+    bytes = (word32) fread(tmp, 1, sizeof(tmp), fp);
+    fclose(fp);
+#endif /* END USE_CERT_BUFFERS_1024 */
 
     ret = wc_InitSha(&sha);
     if (ret == 0) {
@@ -8646,8 +8654,7 @@ static int test_wc_DsaPublicPrivateKeyDecode (void)
 {
     int     ret = 0;
 
-#if !defined(NO_DSA) && (defined(USE_CERT_BUFFERS_1024)\
-        || defined(USE_CERT_BUFFERS_2048))
+#if !defined(NO_DSA)
     DsaKey  key;
     word32  bytes;
     word32  idx  = 0;
@@ -8658,11 +8665,20 @@ static int test_wc_DsaPublicPrivateKeyDecode (void)
     byte    tmp[ONEK_BUF];
     XMEMCPY(tmp, dsa_key_der_1024, sizeof_dsa_key_der_1024);
     bytes = sizeof_dsa_key_der_1024;
-#else
+#elif defined(USE_CERT_BUFFERS_2048)
     byte    tmp[TWOK_BUF];
     XMEMCPY(tmp, dsa_key_der_2048, sizeof_dsa_key_der_2048);
     bytes = sizeof_dsa_key_der_2048;
-#endif
+#else
+    byte    tmp[TWOK_BUF];
+    XMEMSET(tmp, 0, sizeof(tmp));
+    FILE* fp = fopen("./certs/dsa2048.der", "rb");
+    if (!fp) {
+        return SSL_BAD_FILE;
+    }
+    bytes = (word32) fread(tmp, 1, sizeof(tmp), fp);
+    fclose(fp);
+#endif /* END USE_CERT_BUFFERS_1024 */
 
     ret = wc_InitDsaKey(&key);
 
@@ -8802,8 +8818,7 @@ static int test_wc_DsaKeyToDer (void)
 {
     int     ret = 0;
 
-#if !defined(NO_DSA) && defined(WOLFSSL_KEY_GEN)\
-        && ( defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048) )
+#if !defined(NO_DSA) && defined(WOLFSSL_KEY_GEN)
     DsaKey  genKey;
     WC_RNG  rng;
     word32  bytes;
@@ -8816,14 +8831,25 @@ static int test_wc_DsaKeyToDer (void)
     XMEMSET(der, 0, sizeof(der));
     XMEMCPY(tmp, dsa_key_der_1024, sizeof_dsa_key_der_1024);
     bytes = sizeof_dsa_key_der_1024;
-#else
+#elif defined(USE_CERT_BUFFERS_2048)
     byte    tmp[TWOK_BUF];
     byte    der[TWOK_BUF];
     XMEMSET(tmp, 0, sizeof(tmp));
     XMEMSET(der, 0, sizeof(der));
     XMEMCPY(tmp, dsa_key_der_2048, sizeof_dsa_key_der_2048);
     bytes = sizeof_dsa_key_der_2048;
-#endif
+#else
+    byte    tmp[TWOK_BUF];
+    byte    der[TWOK_BUF];
+    XMEMSET(tmp, 0, sizeof(tmp));
+    XMEMSET(der, 0, sizeof(der));
+    FILE* fp = fopen("./certs/dsa2048.der", "rb");
+    if (!fp) {
+        return SSL_BAD_FILE;
+    }
+    bytes = (word32) fread(tmp, 1, sizeof(tmp), fp);
+    fclose(fp);
+#endif /* END USE_CERT_BUFFERS_1024 */
 
     ret = wc_InitRng(&rng);
     if (ret == 0) {
