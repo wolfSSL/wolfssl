@@ -4566,25 +4566,25 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     if (sigCtx->key.rsa == NULL || sigCtx->plain == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
-
                     if ((ret = wc_InitRsaKey_ex(sigCtx->key.rsa, sigCtx->heap,
                                                         sigCtx->devId)) != 0) {
                         goto exit_cs;
                     }
-
                     if (sigSz > MAX_ENCODED_SIG_SZ) {
                         WOLFSSL_MSG("Verify Signature is too big");
                         ERROR_OUT(BUFFER_E, exit_cs);
                     }
-
                     if ((ret = wc_RsaPublicKeyDecode(key, &idx, sigCtx->key.rsa,
                                                                  keySz)) != 0) {
                         WOLFSSL_MSG("ASN Key decode error RSA");
                         goto exit_cs;
                     }
-
                     XMEMCPY(sigCtx->plain, sig, sigSz);
                     sigCtx->out = NULL;
+
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    sigCtx->asyncDev = &sigCtx->key.rsa->asyncDev;
+                #endif
                     break;
                 }
             #endif /* !NO_RSA */
@@ -4597,7 +4597,6 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     if (sigCtx->key.ecc == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
-
                     if ((ret = wc_ecc_init_ex(sigCtx->key.ecc, sigCtx->heap,
                                                           sigCtx->devId)) < 0) {
                         goto exit_cs;
@@ -4607,6 +4606,9 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                         WOLFSSL_MSG("ASN Key import error ECC");
                         goto exit_cs;
                     }
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    sigCtx->asyncDev = &sigCtx->key.ecc->asyncDev;
+                #endif
                     break;
                 }
             #endif /* HAVE_ECC */
@@ -4620,7 +4622,6 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     if (sigCtx->key.ed25519 == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
-
                     if ((ret = wc_ed25519_init(sigCtx->key.ed25519)) < 0) {
                         goto exit_cs;
                     }
@@ -4629,6 +4630,9 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                         WOLFSSL_MSG("ASN Key import error ED25519");
                         goto exit_cs;
                     }
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    sigCtx->asyncDev = &sigCtx->key.ed25519->asyncDev;
+                #endif
                     break;
                 }
             #endif
@@ -4643,6 +4647,15 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
             }
 
             sigCtx->state = SIG_STATE_DO;
+
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (sigCtx->devId != INVALID_DEVID) {
+                /* always return here, so we can properly init the async
+                   context back in SSL world */
+                ret = WC_PENDING_E;
+                goto exit_cs;
+            }
+        #endif
         } /* SIG_STATE_KEY */
         FALL_THROUGH;
 
@@ -4654,10 +4667,6 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 {
                     ret = wc_RsaSSL_VerifyInline(sigCtx->plain, sigSz,
                                                 &sigCtx->out, sigCtx->key.rsa);
-                #ifdef WOLFSSL_ASYNC_CRYPT
-                    if (ret == WC_PENDING_E)
-                        sigCtx->asyncDev = &sigCtx->key.rsa->asyncDev;
-                #endif
                     break;
                 }
             #endif /* !NO_RSA */
@@ -4666,10 +4675,6 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 {
                     ret = wc_ecc_verify_hash(sig, sigSz, sigCtx->digest,
                         sigCtx->digestSz, &sigCtx->verify, sigCtx->key.ecc);
-                #ifdef WOLFSSL_ASYNC_CRYPT
-                    if (ret == WC_PENDING_E)
-                        sigCtx->asyncDev = &sigCtx->key.ecc->asyncDev;
-                #endif
                     break;
                 }
             #endif /* HAVE_ECC */
@@ -4678,10 +4683,6 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 {
                     ret = wc_ed25519_verify_msg(sig, sigSz, buf, bufSz,
                                           &sigCtx->verify, sigCtx->key.ed25519);
-                #ifdef WOLFSSL_ASYNC_CRYPT
-                    if (ret == WC_PENDING_E)
-                        sigCtx->asyncDev = &sigCtx->key.ecc->asyncDev;
-                #endif
                     break;
                 }
             #endif

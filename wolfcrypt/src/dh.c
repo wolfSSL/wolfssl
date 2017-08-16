@@ -687,9 +687,8 @@ static int wc_DhGenerateKeyPair_Async(DhKey* key, WC_RNG* rng,
     /* TODO: Not implemented - use software for now */
 
 #else /* WOLFSSL_ASYNC_CRYPT_TEST */
-    WC_ASYNC_TEST* testDev = &key->asyncDev.test;
-    if (testDev->type == ASYNC_TEST_NONE) {
-        testDev->type = ASYNC_TEST_DH_GEN;
+    if (wc_AsyncTestInit(&key->asyncDev, ASYNC_TEST_DH_GEN)) {
+        WC_ASYNC_TEST* testDev = &key->asyncDev.test;
         testDev->dhGen.key = key;
         testDev->dhGen.rng = rng;
         testDev->dhGen.priv = priv;
@@ -836,9 +835,8 @@ static int wc_DhAgree_Async(DhKey* key, byte* agree, word32* agreeSz,
         ret = IntelQaDhAgree(&key->asyncDev, &key->p.raw,
             agree, agreeSz, priv, privSz, otherPub, pubSz);
 #else /* WOLFSSL_ASYNC_CRYPT_TEST */
-    WC_ASYNC_TEST* testDev = &key->asyncDev.test;
-    if (testDev->type == ASYNC_TEST_NONE) {
-        testDev->type = ASYNC_TEST_DH_AGREE;
+    if (wc_AsyncTestInit(&key->asyncDev, ASYNC_TEST_DH_AGREE)) {
+        WC_ASYNC_TEST* testDev = &key->asyncDev.test;
         testDev->dhAgree.key = key;
         testDev->dhAgree.agree = agree;
         testDev->dhAgree.agreeSz = agreeSz;

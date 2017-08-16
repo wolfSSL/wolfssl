@@ -1289,9 +1289,8 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
     (void)rng;
 
 #ifdef WOLFSSL_ASYNC_CRYPT_TEST
-    WC_ASYNC_TEST* testDev = &key->asyncDev.test;
-    if (testDev->type == ASYNC_TEST_NONE) {
-        testDev->type = ASYNC_TEST_RSA_FUNC;
+    if (wc_AsyncTestInit(&key->asyncDev, ASYNC_TEST_RSA_FUNC)) {
+        WC_ASYNC_TEST* testDev = &key->asyncDev.test;
         testDev->rsaFunc.in = in;
         testDev->rsaFunc.inSz = inLen;
         testDev->rsaFunc.out = out;
@@ -1870,9 +1869,8 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     #elif defined(HAVE_INTEL_QA)
         /* TODO: Not implemented */
     #else
-        WC_ASYNC_TEST* testDev = &key->asyncDev.test;
-        if (testDev->type == ASYNC_TEST_NONE) {
-            testDev->type = ASYNC_TEST_RSA_MAKE;
+        if (wc_AsyncTestInit(&key->asyncDev, ASYNC_TEST_RSA_MAKE)) {
+            WC_ASYNC_TEST* testDev = &key->asyncDev.test;
             testDev->rsaMake.rng = rng;
             testDev->rsaMake.key = key;
             testDev->rsaMake.size = size;

@@ -1117,12 +1117,23 @@ static int wc_ecc_curve_load(const ecc_set_type* dp, ecc_curve_spec** pCurve,
     if (x == ECC_CURVE_INVALID)
         return ECC_BAD_ARG_E;
 
+#if !defined(SINGLE_THREADED)
+    ret = wc_LockMutex(&ecc_curve_cache_mutex);
+    if (ret != 0) {
+        return ret;
+    }
+#endif
+
     /* make sure cache has been allocated */
     if (ecc_curve_spec_cache[x] == NULL) {
         ecc_curve_spec_cache[x] = (ecc_curve_spec*)XMALLOC(
             sizeof(ecc_curve_spec), NULL, DYNAMIC_TYPE_ECC);
-        if (ecc_curve_spec_cache[x] == NULL)
+        if (ecc_curve_spec_cache[x] == NULL) {
+        #if defined(ECC_CACHE_CURVE) && !defined(SINGLE_THREADED)
+            wc_UnLockMutex(&ecc_curve_cache_mutex);
+        #endif
             return MEMORY_E;
+        }
         XMEMSET(ecc_curve_spec_cache[x], 0, sizeof(ecc_curve_spec));
     }
 
@@ -1148,13 +1159,6 @@ static int wc_ecc_curve_load(const ecc_set_type* dp, ecc_curve_spec** pCurve,
     #endif
     }
     curve->dp = dp; /* set dp info */
-
-#if defined(ECC_CACHE_CURVE) && !defined(SINGLE_THREADED)
-    ret = wc_LockMutex(&ecc_curve_cache_mutex);
-    if (ret != 0) {
-        return MEMORY_E;
-    }
-#endif
 
     /* determine items to load */
     load_items = (~curve->load_mask & load_mask);
@@ -2803,9 +2807,8 @@ static int wc_ecc_shared_secret_gen_async(ecc_key* private_key,
             &curve->Af->raw, &curve->Bf->raw, &curve->prime->raw,
             private_key->dp->cofactor);
 #else /* WOLFSSL_ASYNC_CRYPT_TEST */
-    WC_ASYNC_TEST* testDev = &private_key->asyncDev.test;
-    if (testDev->type == ASYNC_TEST_NONE) {
-        testDev->type = ASYNC_TEST_ECC_SHARED_SEC;
+    if (wc_AsyncTestInit(&private_key->asyncDev, ASYNC_TEST_ECC_SHARED_SEC)) {
+        WC_ASYNC_TEST* testDev = &private_key->asyncDev.test;
         testDev->eccSharedSec.private_key = private_key;
         testDev->eccSharedSec.public_point = point;
         testDev->eccSharedSec.out = out;
@@ -2895,13 +2898,6 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
         case ECC_STATE_SHARED_SEC_RES:
             private_key->state = ECC_STATE_SHARED_SEC_RES;
             err = 0;
-        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
-            if (private_key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
-            #if defined(HAVE_CAVIUM) || defined(HAVE_INTEL_QA)
-                err = private_key->asyncDev.event.ret;
-            #endif
-            }
-        #endif
             break;
 
         default:
@@ -3017,9 +3013,8 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
     #elif defined(HAVE_INTEL_QA)
         /* TODO: Not implemented */
     #else
-        WC_ASYNC_TEST* testDev = &key->asyncDev.test;
-        if (testDev->type == ASYNC_TEST_NONE) {
-            testDev->type = ASYNC_TEST_ECC_MAKE;
+        if (wc_AsyncTestInit(&key->asyncDev, ASYNC_TEST_ECC_MAKE)) {
+            WC_ASYNC_TEST* testDev = &key->asyncDev.test;
             testDev->eccMake.rng = rng;
             testDev->eccMake.key = key;
             testDev->eccMake.size = keysize;
@@ -3465,9 +3460,8 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
        defined(WOLFSSL_ASYNC_CRYPT_TEST)
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
-        WC_ASYNC_TEST* testDev = &key->asyncDev.test;
-        if (testDev->type == ASYNC_TEST_NONE) {
-            testDev->type = ASYNC_TEST_ECC_SIGN;
+        if (wc_AsyncTestInit(&key->asyncDev, ASYNC_TEST_ECC_SIGN)) {
+            WC_ASYNC_TEST* testDev = &key->asyncDev.test;
             testDev->eccSign.in = in;
             testDev->eccSign.inSz = inlen;
             testDev->eccSign.rng = rng;
@@ -4011,9 +4005,8 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
        defined(WOLFSSL_ASYNC_CRYPT_TEST)
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
-        WC_ASYNC_TEST* testDev = &key->asyncDev.test;
-        if (testDev->type == ASYNC_TEST_NONE) {
-            testDev->type = ASYNC_TEST_ECC_VERIFY;
+        if (wc_AsyncTestInit(&key->asyncDev, ASYNC_TEST_ECC_VERIFY)) {
+            WC_ASYNC_TEST* testDev = &key->asyncDev.test;
             testDev->eccVerify.r = r;
             testDev->eccVerify.s = s;
             testDev->eccVerify.hash = hash;
@@ -7175,15 +7168,10 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     }
 #endif
 
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = 0;
-    #endif
-    do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &privKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-        ret = wc_ecc_shared_secret(privKey, pubKey, sharedSecret, &sharedSz);
-    } while (ret == WC_PENDING_E);
+    ret = wc_ecc_shared_secret(privKey, pubKey, sharedSecret, &sharedSz);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &privKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+#endif
     if (ret == 0) {
        switch (ctx->kdfAlgo) {
            case ecHKDF_SHA256 :
@@ -7338,15 +7326,10 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     }
 #endif
 
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = 0;
-    #endif
-    do {
-    #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &privKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-    #endif
-        ret = wc_ecc_shared_secret(privKey, pubKey, sharedSecret, &sharedSz);
-    } while (ret == WC_PENDING_E);
+    ret = wc_ecc_shared_secret(privKey, pubKey, sharedSecret, &sharedSz);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &privKey->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+#endif
     if (ret == 0) {
        switch (ctx->kdfAlgo) {
            case ecHKDF_SHA256 :
