@@ -2,6 +2,7 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/ssl.h>
 
+#include <stdint.h>
 #include <stdio.h>
 
 #include <fuzz/fuzzer.h>
