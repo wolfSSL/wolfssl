@@ -348,6 +348,59 @@ wolfSSL_Mutex* wc_InitAndAllocMutex(void)
     return m;
 }
 
+#ifdef USE_WOLF_STRTOK
+/* String token (delim) search. If str is null use nextp. */
+char* wc_strtok(char *str, const char *delim, char **nextp)
+{
+    char* ret;
+    int i, j;
+
+    /* Use next if str is NULL */
+    if (str == NULL && nextp)
+        str = *nextp;
+
+    /* verify str input */
+    if (str == NULL || *str == '\0')
+        return NULL;
+
+    /* match on entire delim */
+    for (i = 0; str[i]; i++) {
+        for (j = 0; delim[j]; j++) {
+            if (delim[j] == str[i])
+                break;
+        }
+        if (!delim[j])
+            break;
+    }
+    str += i;
+    /* if end of string, not found so return NULL */
+    if (*str == '\0')
+        return NULL;
+
+    ret = str;
+
+    /* match on first delim */
+    for (i = 0; str[i]; i++) {
+        for (j = 0; delim[j]; j++) {
+            if (delim[j] == str[i])
+                break;
+        }
+        if (delim[j] == str[i])
+            break;
+    }
+    str += i;
+
+    /* null terminate found string */
+    if (*str)
+        *str++ = '\0';
+
+    /* return pointer to next */
+    if (nextp)
+        *nextp = str;
+
+    return ret;
+}
+#endif /* USE_WOLF_STRTOK */
 
 #if WOLFSSL_CRYPT_HW_MUTEX
 /* Mutex for protection of cryptography hardware */

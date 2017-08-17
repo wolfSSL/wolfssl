@@ -326,15 +326,14 @@
             /* use only Thread Safe version of strtok */
             #if !defined(USE_WINDOWS_API) && !defined(INTIME_RTOS)
                 #define XSTRTOK strtok_r
+            #elif defined(__MINGW32__) || defined(WOLFSSL_TIRTOS) || \
+                    defined(USE_WOLF_STRTOK)
+                #ifndef USE_WOLF_STRTOK
+                    #define USE_WOLF_STRTOK
+                #endif
+                #define XSTRTOK wc_strtok
             #else
                 #define XSTRTOK strtok_s
-
-                #ifdef __MINGW32__
-                    #pragma GCC diagnostic push
-                    #pragma GCC diagnostic warning "-Wcpp"
-                    #warning "MinGW may be missing strtok_s. You can find a public domain implementation here: https://github.com/fletcher/MultiMarkdown-4/blob/master/strtok.c"
-                    #pragma GCC diagnostic pop
-                #endif
             #endif
         #endif
 	#endif
