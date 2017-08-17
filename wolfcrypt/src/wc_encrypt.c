@@ -176,9 +176,13 @@ int wc_Des3_CbcEncryptWithKey(byte* out, const byte* in, word32 sz,
         return MEMORY_E;
 #endif
 
-    ret = wc_Des3_SetKey(des3, key, iv, DES_ENCRYPTION);
-    if (ret == 0)
-        ret = wc_Des3_CbcEncrypt(des3, out, in, sz);
+    ret = wc_Des3Init(des3, NULL, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_Des3_SetKey(des3, key, iv, DES_ENCRYPTION);
+        if (ret == 0)
+            ret = wc_Des3_CbcEncrypt(des3, out, in, sz);
+        wc_Des3Free(des3);
+    }
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(des3, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -204,9 +208,13 @@ int wc_Des3_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
         return MEMORY_E;
 #endif
 
-    ret = wc_Des3_SetKey(des3, key, iv, DES_DECRYPTION);
-    if (ret == 0)
-        ret = wc_Des3_CbcDecrypt(des3, out, in, sz);
+    ret = wc_Des3Init(des3, NULL, INVALID_DEVID);
+    if (ret == 0) {
+        ret = wc_Des3_SetKey(des3, key, iv, DES_DECRYPTION);
+        if (ret == 0)
+            ret = wc_Des3_CbcDecrypt(des3, out, in, sz);
+        wc_Des3Free(des3);
+    }
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(des3, NULL, DYNAMIC_TYPE_TMP_BUFFER);

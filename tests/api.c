@@ -6558,9 +6558,9 @@ static int test_wc_AesGcmEncryptDecrypt (void)
 
         printf(resultFmt, gcmD == 0 ? passed : failed);
     #endif /* HAVE_AES_DECRYPT */
-#endif
 
     wc_AesFree(&aes);
+#endif
 
     return ret;
 
@@ -6613,6 +6613,10 @@ static int test_wc_GmacSetKey (void)
 
     printf(testingFmt, "wc_GmacSetKey()");
 
+    ret = wc_AesInit(&gmac.aes, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
+
     ret = wc_GmacSetKey(&gmac, key16, sizeof(key16)/sizeof(byte));
     if (ret == 0) {
         ret = wc_GmacSetKey(&gmac, key24, sizeof(key24)/sizeof(byte));
@@ -6642,6 +6646,8 @@ static int test_wc_GmacSetKey (void)
             ret = SSL_FATAL_ERROR;
         }
     }
+
+    wc_AesFree(&gmac.aes);
 
     printf(resultFmt, ret == 0 ? passed : failed);
 
@@ -6732,6 +6738,10 @@ static int test_wc_GmacUpdate (void)
 
     printf(testingFmt, "wc_GmacUpdate()");
 
+    ret = wc_AesInit(&gmac.aes, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
+
     ret = wc_GmacSetKey(&gmac, key16, sizeof(key16));
     if (ret == 0) {
         ret = wc_GmacUpdate(&gmac, iv, sizeof(iv), authIn, sizeof(authIn),
@@ -6781,6 +6791,8 @@ static int test_wc_GmacUpdate (void)
             ret = SSL_FATAL_ERROR;
         }
     }
+
+    wc_AesFree(&gmac.aes);
 
     printf(resultFmt, ret == 0 ? passed : failed);
 
@@ -8427,6 +8439,10 @@ static int test_wc_AesCcmSetKey (void)
 
     printf(testingFmt, "wc_AesCcmSetKey()");
 
+    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
+
     ret = wc_AesCcmSetKey(&aes, key16, sizeof(key16));
     if (ret == 0) {
         ret = wc_AesCcmSetKey(&aes, key24, sizeof(key24));
@@ -8450,6 +8466,8 @@ static int test_wc_AesCcmSetKey (void)
             ret = 0;
         }
     }
+
+    wc_AesFree(&aes);
 
     printf(resultFmt, ret == 0 ? passed : failed);
 
@@ -8505,6 +8523,10 @@ static int test_wc_AesCcmEncryptDecrypt (void)
         int ccmD = SSL_FATAL_ERROR;
         byte plainOut[sizeof(cipherOut)];
     #endif
+
+    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
 
     ret = wc_AesCcmSetKey(&aes, key16, sizeof(key16));
     if (ret == 0) {
@@ -8576,6 +8598,7 @@ static int test_wc_AesCcmEncryptDecrypt (void)
 
     printf(resultFmt, ccmE == 0 ? passed : failed);
     if (ccmE != 0) {
+        wc_AesFree(&aes);
         return ccmE;
     }
     #ifdef HAVE_AES_DECRYPT
@@ -8631,6 +8654,8 @@ static int test_wc_AesCcmEncryptDecrypt (void)
             return ccmD;
         }
     #endif
+
+    wc_AesFree(&aes);
 
 #endif  /* HAVE_AESCCM */
 
