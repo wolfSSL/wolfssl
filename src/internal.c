@@ -20597,7 +20597,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             case TLS_ASYNC_BEGIN:
             {
             #ifdef HAVE_QSH
-                if (ssl->peerQSHKeyPresent) {
+                if (ssl->peerQSHKeyPresent && ssl->options.haveQSH) {
                     args->qshSz = QSH_KeyGetSize(ssl);
                 }
             #endif
