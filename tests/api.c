@@ -408,6 +408,7 @@ static void test_wolfSSL_get_privateKey(void)
 
     WOLFSSL_CTX *ctx;
     WOLFSSL *ssl;
+    WOLFSSL_EVP_PKEY* evp_key;
 
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
 
@@ -416,11 +417,12 @@ static void test_wolfSSL_get_privateKey(void)
     AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
     AssertNotNull(ssl = wolfSSL_new(ctx));
 
-    AssertIntEQ(
-        XMEMCMP(wolfSSL_get_privatekey(ssl)->pkey.ptr,
-                server_key_der_2048,sizeof_server_key_der_2048),
-                0);
+    evp_key = wolfSSL_get_privatekey(ssl);
 
+    AssertIntEQ(XMEMCMP(evp_key->pkey.ptr, server_key_der_2048,
+                sizeof_server_key_der_2048),0);
+
+    wolfSSL_EVP_PKEY_free(evp_key);
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 
@@ -434,11 +436,12 @@ static void test_wolfSSL_get_privateKey(void)
     AssertTrue(wolfSSL_use_certificate_file(ssl, svrCertFile, SSL_FILETYPE_PEM));
     AssertTrue(wolfSSL_use_PrivateKey_file(ssl, svrKeyFile, SSL_FILETYPE_PEM));
 
-    AssertIntEQ(
-        XMEMCMP(wolfSSL_get_privatekey(ssl)->pkey.ptr,
-                server_key_der_2048,sizeof_server_key_der_2048),
-                0);
+    evp_key = wolfSSL_get_privatekey(ssl);
 
+    AssertIntEQ(XMEMCMP(evp_key->pkey.ptr, server_key_der_2048,
+                sizeof_server_key_der_2048), 0);
+
+    wolfSSL_EVP_PKEY_free(evp_key);
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
 
