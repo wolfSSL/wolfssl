@@ -4209,6 +4209,10 @@ static int test_wc_Md5HmacSetKey (void)
 
     printf(testingFmt, "wc_HmacSetKey() with MD5");
 
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
+
     for (itr = 0; itr < times; itr++) {
         ret = wc_HmacSetKey(&hmac, MD5, (byte*)keys[itr],
                             (word32)XSTRLEN(keys[itr]));
@@ -4254,6 +4258,8 @@ static int test_wc_Md5HmacSetKey (void)
 #endif
     }
 
+    wc_HmacFree(&hmac);
+
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
@@ -4287,6 +4293,10 @@ static int test_wc_ShaHmacSetKey (void)
     flag = 0;
 
     printf(testingFmt, "wc_HmacSetKey() with SHA");
+
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
 
     for (itr = 0; itr < times; itr++) {
         ret = wc_HmacSetKey(&hmac, SHA, (byte*)keys[itr],
@@ -4333,6 +4343,8 @@ static int test_wc_ShaHmacSetKey (void)
 #endif
     }
 
+    wc_HmacFree(&hmac);
+
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
@@ -4365,6 +4377,10 @@ static int test_wc_Sha224HmacSetKey (void)
     flag = 0;
 
     printf(testingFmt, "wc_HmacSetKey() with SHA 224");
+
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
 
     for (itr = 0; itr < times; itr++) {
         ret = wc_HmacSetKey(&hmac, SHA224, (byte*)keys[itr],
@@ -4411,6 +4427,8 @@ static int test_wc_Sha224HmacSetKey (void)
 #endif
     }
 
+    wc_HmacFree(&hmac);
+
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
@@ -4443,6 +4461,10 @@ static int test_wc_Sha256HmacSetKey (void)
     flag = 0;
 
     printf(testingFmt, "wc_HmacSetKey() with SHA256");
+
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
 
     for (itr = 0; itr < times; itr++) {
         ret = wc_HmacSetKey(&hmac, SHA256, (byte*)keys[itr],
@@ -4489,6 +4511,8 @@ static int test_wc_Sha256HmacSetKey (void)
 #endif
     }
 
+    wc_HmacFree(&hmac);
+
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
@@ -4521,6 +4545,10 @@ static int test_wc_Sha384HmacSetKey (void)
     flag = 0;
 
     printf(testingFmt, "wc_HmacSetKey() with SHA384");
+
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
 
     for (itr = 0; itr < times; itr++) {
         ret = wc_HmacSetKey(&hmac, SHA384, (byte*)keys[itr],
@@ -4567,6 +4595,8 @@ static int test_wc_Sha384HmacSetKey (void)
 #endif
     }
 
+    wc_HmacFree(&hmac);
+
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
@@ -4600,6 +4630,10 @@ static int test_wc_Md5HmacUpdate (void)
     flag = 0;
 
     printf(testingFmt, "wc_HmacUpdate() with MD5");
+
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
 
     ret = wc_HmacSetKey(&hmac, MD5, (byte*)keys, (word32)XSTRLEN(keys));
     if (ret != 0) {
@@ -4642,6 +4676,8 @@ static int test_wc_Md5HmacUpdate (void)
         }
     }
 
+    wc_HmacFree(&hmac);
+
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
@@ -4674,6 +4710,10 @@ static int test_wc_ShaHmacUpdate (void)
     flag = 0;
 
     printf(testingFmt, "wc_HmacUpdate() with SHA");
+
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
 
     ret = wc_HmacSetKey(&hmac, SHA, (byte*)keys, (word32)XSTRLEN(keys));
     if (ret != 0) {
@@ -4716,6 +4756,8 @@ static int test_wc_ShaHmacUpdate (void)
         }
     }
 
+    wc_HmacFree(&hmac);
+
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
@@ -4748,6 +4790,10 @@ static int test_wc_Sha224HmacUpdate (void)
     flag = 0;
 
     printf(testingFmt, "wc_HmacUpdate() with SHA224");
+
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
 
     ret = wc_HmacSetKey(&hmac, SHA224, (byte*)keys, (word32)XSTRLEN(keys));
     if (ret != 0) {
@@ -4790,6 +4836,8 @@ static int test_wc_Sha224HmacUpdate (void)
         }
     }
 
+    wc_HmacFree(&hmac);
+
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
@@ -4822,6 +4870,10 @@ static int test_wc_Sha256HmacUpdate (void)
     flag = 0;
 
     printf(testingFmt, "wc_HmacUpdate() with SHA256");
+
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
 
     ret = wc_HmacSetKey(&hmac, SHA256, (byte*)keys, (word32)XSTRLEN(keys));
     if (ret != 0) {
@@ -4864,6 +4916,8 @@ static int test_wc_Sha256HmacUpdate (void)
         }
     }
 
+    wc_HmacFree(&hmac);
+
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
@@ -4896,6 +4950,10 @@ static int test_wc_Sha384HmacUpdate (void)
     flag = 0;
 
     printf(testingFmt, "wc_HmacUpdate() with SHA384");
+
+    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
 
     ret = wc_HmacSetKey(&hmac, SHA384, (byte*)keys, (word32)XSTRLEN(keys));
     if (ret != 0) {
@@ -4938,6 +4996,8 @@ static int test_wc_Sha384HmacUpdate (void)
         }
     }
 
+    wc_HmacFree(&hmac);
+
     printf(resultFmt, flag == 0 ? passed : failed);
 
 #endif
@@ -4971,13 +5031,11 @@ static int test_wc_Md5HmacFinal (void)
 
     ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
     if (ret != 0)
-        flag = ret;
+        return ret;
 
-    if (!flag) {
-        ret = wc_HmacSetKey(&hmac, MD5, (byte*)key, (word32)XSTRLEN(key));
-        if (ret != 0) {
-            flag = ret;
-        }
+    ret = wc_HmacSetKey(&hmac, MD5, (byte*)key, (word32)XSTRLEN(key));
+    if (ret != 0) {
+        flag = ret;
     }
 
     if (!flag) {
@@ -5053,13 +5111,11 @@ static int test_wc_ShaHmacFinal (void)
 
     ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
     if (ret != 0)
-        flag = ret;
+        return ret;
 
-    if (!flag) {
-        ret = wc_HmacSetKey(&hmac, SHA, (byte*)key, (word32)XSTRLEN(key));
-        if (ret != 0) {
-            flag = ret;
-        }
+    ret = wc_HmacSetKey(&hmac, SHA, (byte*)key, (word32)XSTRLEN(key));
+    if (ret != 0) {
+        flag = ret;
     }
 
     if (!flag) {
@@ -5136,13 +5192,11 @@ static int test_wc_Sha224HmacFinal (void)
 
     ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
     if (ret != 0)
-        flag = ret;
+        return ret;
 
-    if (!flag) {
-        ret = wc_HmacSetKey(&hmac, SHA224, (byte*)key, (word32)XSTRLEN(key));
-        if (ret != 0) {
-            flag = ret;
-        }
+    ret = wc_HmacSetKey(&hmac, SHA224, (byte*)key, (word32)XSTRLEN(key));
+    if (ret != 0) {
+        flag = ret;
     }
 
     if (!flag) {
@@ -5218,13 +5272,11 @@ static int test_wc_Sha256HmacFinal (void)
 
     ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
     if (ret != 0)
-        flag = ret;
+        return ret;
 
-    if (!flag) {
-        ret = wc_HmacSetKey(&hmac, SHA256, (byte*)key, (word32)XSTRLEN(key));
-        if (ret != 0) {
-            flag = ret;
-        }
+    ret = wc_HmacSetKey(&hmac, SHA256, (byte*)key, (word32)XSTRLEN(key));
+    if (ret != 0) {
+        flag = ret;
     }
 
     if (!flag) {
@@ -5301,13 +5353,11 @@ static int test_wc_Sha384HmacFinal (void)
 
     ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
     if (ret != 0)
-        flag = ret;
+        return ret;
 
-    if (!flag) {
-        ret = wc_HmacSetKey(&hmac, SHA384, (byte*)key, (word32)XSTRLEN(key));
-        if (ret != 0) {
-            flag = ret;
-        }
+    ret = wc_HmacSetKey(&hmac, SHA384, (byte*)key, (word32)XSTRLEN(key));
+    if (ret != 0) {
+        flag = ret;
     }
 
     if (!flag) {
@@ -5380,6 +5430,10 @@ static int test_wc_Des3_SetIV (void)
 
     printf(testingFmt, "wc_Des3_SetIV()");
 
+    ret = wc_Des3Init(&des, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
+
     /* DES_ENCRYPTION or DES_DECRYPTION */
     ret = wc_Des3_SetKey(&des, key, iv, DES_ENCRYPTION);
 
@@ -5400,6 +5454,8 @@ static int test_wc_Des3_SetIV (void)
         }
     }
 #endif
+
+    wc_Des3Free(&des);
 
     printf(resultFmt, ret == 0 ? passed : failed);
 
@@ -5432,6 +5488,10 @@ static int test_wc_Des3_SetKey (void)
 
     printf(testingFmt, "wc_Des3_SetKey()");
 
+    ret = wc_Des3Init(&des, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
+
     /* DES_ENCRYPTION or DES_DECRYPTION */
     ret = wc_Des3_SetKey(&des, key, iv, DES_ENCRYPTION);
     if (ret == 0) {
@@ -5454,6 +5514,8 @@ static int test_wc_Des3_SetKey (void)
             ret = wc_Des3_SetKey(&des, key, NULL, DES_ENCRYPTION);
         }
     } /* END if ret != 0 */
+
+    wc_Des3Free(&des);
 
     printf(resultFmt, ret == 0 ? passed : failed);
 
@@ -5494,6 +5556,10 @@ static int test_wc_Des3_CbcEncryptDecrypt (void)
     };
 
     printf(testingFmt, "wc_Des3_CbcEncrypt()");
+
+    ret = wc_Des3Init(&des, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
 
     ret = wc_Des3_SetKey(&des, key, iv, DES_ENCRYPTION);
 
@@ -5544,6 +5610,8 @@ static int test_wc_Des3_CbcEncryptDecrypt (void)
             ret = 0;
         }
     }
+
+    wc_Des3Free(&des);
 
     printf(resultFmt, ret == 0 ? passed : failed);
 
@@ -5935,6 +6003,10 @@ static int test_wc_AesSetIV (void)
 
     printf(testingFmt, "wc_AesSetIV()");
 
+    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
+
     ret = wc_AesSetKey(&aes, key16, (word32) sizeof(key16) / sizeof(byte),
                                                      iv1, AES_ENCRYPTION);
     if(ret == 0) {
@@ -5950,6 +6022,8 @@ static int test_wc_AesSetIV (void)
             ret = SSL_FATAL_ERROR;
         }
     }
+
+    wc_AesFree(&aes);
 
     printf(resultFmt, ret == 0 ? passed : failed);
 
@@ -5994,10 +6068,11 @@ static int test_wc_AesSetKey (void)
     printf(testingFmt, "wc_AesSetKey()");
 
     ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
-    if (ret == 0) {
-        ret = wc_AesSetKey(&aes, key16, (word32) sizeof(key16) / sizeof(byte),
+    if (ret != 0)
+        return ret;
+
+    ret = wc_AesSetKey(&aes, key16, (word32) sizeof(key16) / sizeof(byte),
                                                         iv, AES_ENCRYPTION);
-    }
     if (ret == 0) {
         ret = wc_AesSetKey (&aes, key24, (word32) sizeof(key24) / sizeof(byte),
                                                            iv, AES_ENCRYPTION);
@@ -6021,6 +6096,8 @@ static int test_wc_AesSetKey (void)
             ret = SSL_FATAL_ERROR;
         }
     }
+
+    wc_AesFree(&aes);
 
     printf(resultFmt, ret == 0 ? passed : failed);
 
@@ -6066,9 +6143,10 @@ static int test_wc_AesCbcEncryptDecrypt (void)
     XMEMSET(dec2, 0, sizeof(vector));
 
     ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
-    if (ret == 0) {
-        ret = wc_AesSetKey(&aes, key32, AES_BLOCK_SIZE * 2, iv, AES_ENCRYPTION);
-    }
+    if (ret != 0)
+        return ret;
+
+    ret = wc_AesSetKey(&aes, key32, AES_BLOCK_SIZE * 2, iv, AES_ENCRYPTION);
     if (ret == 0) {
         ret = wc_AesCbcEncrypt(&aes, enc, vector, sizeof(vector));
         if (ret == 0) {
@@ -6114,6 +6192,7 @@ static int test_wc_AesCbcEncryptDecrypt (void)
     }
     printf(resultFmt, cbcE == 0 ? passed : failed);
     if (cbcE != 0) {
+        wc_AesFree(&aes);
         return cbcE;
     }
 
@@ -6137,6 +6216,7 @@ static int test_wc_AesCbcEncryptDecrypt (void)
     }
     printf(resultFmt, cbcD == 0 ? passed : failed);
     if (cbcD != 0) {
+        wc_AesFree(&aes);
         return cbcD;
     }
 
@@ -6162,7 +6242,11 @@ static int test_wc_AesCbcEncryptDecrypt (void)
             cbcDWK = SSL_FATAL_ERROR;
         }
     }
+
+    wc_AesFree(&aes);
+
     printf(resultFmt, cbcDWK == 0 ? passed : failed);
+
     if (cbcDWK != 0) {
         return cbcDWK;
     }
@@ -6202,13 +6286,16 @@ static int test_wc_AesCtrEncryptDecrypt (void)
     printf(testingFmt, "wc_AesCtrEncrypt()");
 
     ret = wc_AesInit(&aesEnc, NULL, INVALID_DEVID);
-    if (ret == 0) {
-        ret = wc_AesInit(&aesDec, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
+    ret = wc_AesInit(&aesDec, NULL, INVALID_DEVID);
+    if (ret != 0) {
+        wc_AesFree(&aesEnc);
+        return ret;
     }
-    if (ret == 0) {
-        ret = wc_AesSetKey(&aesEnc, key32, AES_BLOCK_SIZE * 2,
+
+    ret = wc_AesSetKey(&aesEnc, key32, AES_BLOCK_SIZE * 2,
                                                     iv, AES_ENCRYPTION);
-    }
     if (ret == 0) {
         ret = wc_AesCtrEncrypt(&aesEnc, enc, vector,
                                             sizeof(vector)/sizeof(byte));
@@ -6240,6 +6327,9 @@ static int test_wc_AesCtrEncryptDecrypt (void)
             ret = SSL_FATAL_ERROR;
         }
     }
+
+    wc_AesFree(&aesEnc);
+    wc_AesFree(&aesDec);
 
     printf(resultFmt, ret == 0 ? passed : failed);
 
@@ -6296,6 +6386,10 @@ static int test_wc_AesGcmSetKey (void)
 
     printf(testingFmt, "wc_AesGcmSetKey()");
 
+    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
+
     ret = wc_AesGcmSetKey(&aes, key16, sizeof(key16)/sizeof(byte));
     if (ret == 0) {
         ret = wc_AesGcmSetKey(&aes, key24, sizeof(key24)/sizeof(byte));
@@ -6319,6 +6413,8 @@ static int test_wc_AesGcmSetKey (void)
             ret = SSL_FATAL_ERROR;
         }
     }
+
+    wc_AesFree(&aes);
 
     printf(resultFmt, ret == 0 ? passed : failed);
 
@@ -6367,6 +6463,10 @@ static int test_wc_AesGcmEncryptDecrypt (void)
     XMEMSET(dec, 0, sizeof(vector));
     XMEMSET(resultT, 0, AES_BLOCK_SIZE);
 
+    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
+
     ret = wc_AesGcmSetKey(&aes, key32, sizeof(key32)/sizeof(byte));
     if (ret == 0) {
         gcmE = wc_AesGcmEncrypt(&aes, enc, vector, sizeof(vector),
@@ -6413,6 +6513,7 @@ static int test_wc_AesGcmEncryptDecrypt (void)
 
     printf(resultFmt, gcmE == 0 ? passed : failed);
     if (gcmE != 0) {
+        wc_AesFree(&aes);
         return gcmE;
     }
 
@@ -6457,7 +6558,10 @@ static int test_wc_AesGcmEncryptDecrypt (void)
 
         printf(resultFmt, gcmD == 0 ? passed : failed);
     #endif /* HAVE_AES_DECRYPT */
+
+    wc_AesFree(&aes);
 #endif
+
     return ret;
 
 } /* END test_wc_AesGcmEncryptDecrypt */
@@ -6509,6 +6613,10 @@ static int test_wc_GmacSetKey (void)
 
     printf(testingFmt, "wc_GmacSetKey()");
 
+    ret = wc_AesInit(&gmac.aes, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
+
     ret = wc_GmacSetKey(&gmac, key16, sizeof(key16)/sizeof(byte));
     if (ret == 0) {
         ret = wc_GmacSetKey(&gmac, key24, sizeof(key24)/sizeof(byte));
@@ -6538,6 +6646,8 @@ static int test_wc_GmacSetKey (void)
             ret = SSL_FATAL_ERROR;
         }
     }
+
+    wc_AesFree(&gmac.aes);
 
     printf(resultFmt, ret == 0 ? passed : failed);
 
@@ -6628,6 +6738,10 @@ static int test_wc_GmacUpdate (void)
 
     printf(testingFmt, "wc_GmacUpdate()");
 
+    ret = wc_AesInit(&gmac.aes, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
+
     ret = wc_GmacSetKey(&gmac, key16, sizeof(key16));
     if (ret == 0) {
         ret = wc_GmacUpdate(&gmac, iv, sizeof(iv), authIn, sizeof(authIn),
@@ -6677,6 +6791,8 @@ static int test_wc_GmacUpdate (void)
             ret = SSL_FATAL_ERROR;
         }
     }
+
+    wc_AesFree(&gmac.aes);
 
     printf(resultFmt, ret == 0 ? passed : failed);
 
@@ -8323,6 +8439,10 @@ static int test_wc_AesCcmSetKey (void)
 
     printf(testingFmt, "wc_AesCcmSetKey()");
 
+    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
+
     ret = wc_AesCcmSetKey(&aes, key16, sizeof(key16));
     if (ret == 0) {
         ret = wc_AesCcmSetKey(&aes, key24, sizeof(key24));
@@ -8346,6 +8466,8 @@ static int test_wc_AesCcmSetKey (void)
             ret = 0;
         }
     }
+
+    wc_AesFree(&aes);
 
     printf(resultFmt, ret == 0 ? passed : failed);
 
@@ -8401,6 +8523,10 @@ static int test_wc_AesCcmEncryptDecrypt (void)
         int ccmD = SSL_FATAL_ERROR;
         byte plainOut[sizeof(cipherOut)];
     #endif
+
+    ret = wc_AesInit(&aes, NULL, INVALID_DEVID);
+    if (ret != 0)
+        return ret;
 
     ret = wc_AesCcmSetKey(&aes, key16, sizeof(key16));
     if (ret == 0) {
@@ -8472,6 +8598,7 @@ static int test_wc_AesCcmEncryptDecrypt (void)
 
     printf(resultFmt, ccmE == 0 ? passed : failed);
     if (ccmE != 0) {
+        wc_AesFree(&aes);
         return ccmE;
     }
     #ifdef HAVE_AES_DECRYPT
@@ -8527,6 +8654,8 @@ static int test_wc_AesCcmEncryptDecrypt (void)
             return ccmD;
         }
     #endif
+
+    wc_AesFree(&aes);
 
 #endif  /* HAVE_AESCCM */
 

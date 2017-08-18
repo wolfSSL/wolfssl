@@ -453,6 +453,7 @@ struct SignatureCtx {
     word32 keyOID;
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV* asyncDev;
+    void* asyncCtx;
 #endif
 };
 
