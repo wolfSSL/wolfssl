@@ -3,6 +3,7 @@
 # All paths should be given relative to the root
 
 if BUILD_TESTS
+if BUILD_FUZZ_TARGETS
 
 if !BUILD_CRYPTONLY
 if !BUILD_LEANPSK
@@ -15,7 +16,7 @@ fuzz_pem_cert_target_CFLAGS       = $(AM_CFLAGS)
 fuzz_pem_cert_target_LDADD        = src/libwolfssl.la $(FUZZER_LIB) $(LIB_STATIC_ADD)
 fuzz_pem_cert_target_DEPENDENCIES = src/libwolfssl.la $(FUZZER_LIB)
 
-if !REMOTE_FUZZER_LIB
+if !USE_FOREIGN_FUZZER_LIB
 fuzz_pem_cert_target_LINK = $(LINK)
 else
 fuzz_pem_cert_target_LINK = $(CXXLINK)
@@ -25,6 +26,7 @@ endif
 endif
 endif
 
+endif
 endif
 
 EXTRA_DIST += fuzz/pem_cert/corpus/

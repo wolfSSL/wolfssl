@@ -2152,18 +2152,15 @@ AM_CONDITIONAL([BUILD_CRL_MONITOR], [test "x$ENABLED_CRL_MONITOR" = "xyes"])
 
 
 # FUZZER LIB
-DEFAULT_FUZZER_LIB='fuzz/libstandalone.la'
-FUZZER_LIB="$DEFAULT_FUZZER_LIB"
+DEFAULT_FUZZER_LIB='fuzz/libstandalone.la' # compiled from fuzz/target_main.c
 AC_ARG_WITH([fuzzer-lib],
-    [AS_HELP_STRING([--with-fuzzer-lib=PATH],[Path to fuzzer library (default fuzz/libstandalone.la)])],
-    [
-        if test "x$withval" != "xno" ; then
-            FUZZER_LIB=$withval
-        fi
-    ]
+    [AS_HELP_STRING([--with-fuzzer-lib=LIBRARY],[Path to fuzzer library including library name.])],
+    [ FUZZER_LIB=$withval ], # $withval = "no" is valid
+    [ FUZZER_LIB=$DEFAULT_FUZZER_LIB ]
 )
 AC_SUBST([FUZZER_LIB])
-AM_CONDITIONAL([REMOTE_FUZZER_LIB], [test "x$FUZZER_LIB" != "x$DEFAULT_FUZZER_LIB"])
+AM_CONDITIONAL([USE_FOREIGN_FUZZER_LIB], [test "x$FUZZER_LIB" != "x$DEFAULT_FUZZER_LIB"])
+AM_CONDITIONAL([BUILD_FUZZ_TARGETS], [test "x$FUZZER_LIB" != "xno"])
 
 
 # USER CRYPTO

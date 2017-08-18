@@ -8,8 +8,9 @@ fuzz_targets=
 include fuzz/pem_cert/include.am
 
 if BUILD_TESTS
+if BUILD_FUZZ_TARGETS
 
-if !REMOTE_FUZZER_LIB
+if !USE_FOREIGN_FUZZER_LIB
 noinst_LTLIBRARIES+= fuzz/libstandalone.la
 fuzz_libstandalone_la_SOURCES = \
     fuzz/target_main.c
@@ -18,5 +19,6 @@ else
 # Dummy C++ program to guarantee $(CXXLINK) is defined
 EXTRA_PROGRAMS = dummy
 nodist_dummy_SOURCES = dummy.cc
+endif
 endif
 endif

@@ -68,8 +68,10 @@ dist_noinst_SCRIPTS+= scripts/openssl.test
 endif
 endif
 
-if !REMOTE_FUZZER_LIB
+if BUILD_FUZZ_TARGETS
+if !USE_FOREIGN_FUZZER_LIB
 dist_noinst_SCRIPTS += scripts/fuzz_targets.test
+endif
 endif
 
 EXTRA_DIST +=  scripts/testsuite.pcap \

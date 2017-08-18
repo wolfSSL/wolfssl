@@ -33,9 +33,20 @@ end compiled from `fuzz/target_main.c` that serves to simply connect
 
 The targets are implemented in this way so that the front end, such as
 libFuzzer, can be swapped in at compile time. This is accomplished by using the
-`./configure` flag `--with-fuzzer-lib=PATH`, where `PATH` represents the path
-to the fuzzer library. This library will need to implement `main()` and call
-`LLVMFuzzerTestOneInput()`, as libFuzzer does.
+`./configure` flag `--with-fuzzer-lib=LIBRARY`, where `LIBRARY` represents
+the path to the fuzzer library. This library will need to implement `main()`
+and call `LLVMFuzzerTestOneInput()`, as libFuzzer does.
+
+For example, say that the libFuzzer library `libFuzzer.a` is in the directory
+above the wolfSSL root directory. To link the fuzz targets against that
+library, configure wolfSSL like this:
+
+```
+$ ./configure -with-fuzzer-lib=../libFuzzer.a CC=clang CXX=clang++
+```
+
+Note that libFuzzer specifically requires clang++ to link properly, and it may
+not be necessary to specify clang for all fuzzers.
 
 <a name="run_target">Running Targets</a>
 ----------------------------------------
