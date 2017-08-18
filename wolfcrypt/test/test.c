@@ -1184,11 +1184,10 @@ int md2_test(void)
 #ifndef NO_MD5
 int md5_test(void)
 {
-    int ret;
+    int ret = 0;
     Md5  md5;
     byte hash[MD5_DIGEST_SIZE];
     byte hashcopy[MD5_DIGEST_SIZE];
-
     testVector a, b, c, d, e;
     testVector test_md5[5];
     int times = sizeof(test_md5) / sizeof(testVector), i;
@@ -1238,26 +1237,52 @@ int md5_test(void)
     for (i = 0; i < times; ++i) {
         ret = wc_Md5Update(&md5, (byte*)test_md5[i].input, (word32)test_md5[i].inLen);
         if (ret != 0)
-            return -1510 - i;
+            ERROR_OUT(-1510 - i, exit);
 
         ret = wc_Md5GetHash(&md5, hashcopy);
         if (ret != 0)
-            return -1520 - i;
+            ERROR_OUT(-1520 - i, exit);
 
         ret = wc_Md5Final(&md5, hash);
         if (ret != 0)
-            return -1530 - i;
+            ERROR_OUT(-1530 - i, exit);
 
         if (XMEMCMP(hash, test_md5[i].output, MD5_DIGEST_SIZE) != 0)
-            return -1540 - i;
+            ERROR_OUT(-1540 - i, exit);
 
         if (XMEMCMP(hash, hashcopy, MD5_DIGEST_SIZE) != 0)
-            return -1550 - i;
+            ERROR_OUT(-1550 - i, exit);
     }
+
+    /* BEGIN LARGE HASH TEST */ {
+    byte large_input[1024];
+    const char* large_digest = 
+        "\x44\xd0\x88\xce\xf1\x36\xd1\x78\xe9\xc8\xba\x84\xc3\xfd\xf6\xca";
+
+    for (i = 0; i < (int)sizeof(large_input); i++) {
+        large_input[i] = (byte)(i & 0xFF);
+    }
+    times = 100;
+#ifdef WOLFSSL_PIC32MZ_HASH
+    wc_Md5SizeSet(&md5, times * sizeof(large_input));
+#endif
+    for (i = 0; i < times; ++i) {
+        ret = wc_Md5Update(&md5, (byte*)large_input, (word32)sizeof(large_input));
+        if (ret != 0)
+            ERROR_OUT(-1560, exit);
+    }
+    ret = wc_Md5Final(&md5, hash);
+    if (ret != 0)
+        ERROR_OUT(-1561, exit);
+    if (XMEMCMP(hash, large_digest, MD5_DIGEST_SIZE) != 0)
+        ERROR_OUT(-1562, exit);
+    } /* END LARGE HASH TEST */
+
+exit:
 
     wc_Md5Free(&md5);
 
-    return 0;
+    return ret;
 }
 #endif /* NO_MD5 */
 
@@ -1344,13 +1369,12 @@ int md4_test(void)
 
 int sha_test(void)
 {
+    int ret = 0;
     Sha  sha;
     byte hash[SHA_DIGEST_SIZE];
     byte hashcopy[SHA_DIGEST_SIZE];
-
     testVector a, b, c, d;
     testVector test_sha[4];
-    int ret;
     int times = sizeof(test_sha) / sizeof(struct testVector), i;
 
     a.input  = "abc";
@@ -1392,26 +1416,53 @@ int sha_test(void)
     for (i = 0; i < times; ++i) {
         ret = wc_ShaUpdate(&sha, (byte*)test_sha[i].input, (word32)test_sha[i].inLen);
         if (ret != 0)
-            return -1710 - i;
+            ERROR_OUT(-1710 - i, exit);
 
         ret = wc_ShaGetHash(&sha, hashcopy);
         if (ret != 0)
-            return -1720 - i;
+            ERROR_OUT(-1720 - i, exit);
 
         ret = wc_ShaFinal(&sha, hash);
         if (ret != 0)
-            return -1730 - i;
+            ERROR_OUT(-1730 - i, exit);
 
         if (XMEMCMP(hash, test_sha[i].output, SHA_DIGEST_SIZE) != 0)
-            return -1740 - i;
+            ERROR_OUT(-1740 - i, exit);
 
         if (XMEMCMP(hash, hashcopy, SHA_DIGEST_SIZE) != 0)
-            return -1750 - i;
+            ERROR_OUT(-1750 - i, exit);
     }
+
+    /* BEGIN LARGE HASH TEST */ {
+    byte large_input[1024];
+    const char* large_digest = 
+        "\x8b\x77\x02\x48\x39\xe8\xdb\xd3\x9a\xf4\x05\x24\x66\x12\x2d\x9e"
+        "\xc5\xd9\x0a\xac";
+
+    for (i = 0; i < (int)sizeof(large_input); i++) {
+        large_input[i] = (byte)(i & 0xFF);
+    }
+    times = 100;
+#ifdef WOLFSSL_PIC32MZ_HASH
+    wc_ShaSizeSet(&sha, times * sizeof(large_input));
+#endif
+    for (i = 0; i < times; ++i) {
+        ret = wc_ShaUpdate(&sha, (byte*)large_input, (word32)sizeof(large_input));
+        if (ret != 0)
+            ERROR_OUT(-1760, exit);
+    }
+    ret = wc_ShaFinal(&sha, hash);
+    if (ret != 0)
+        ERROR_OUT(-1761, exit);
+    if (XMEMCMP(hash, large_digest, SHA_DIGEST_SIZE) != 0)
+        ERROR_OUT(-1762, exit);
+    } /* END LARGE HASH TEST */
+
+exit:
 
     wc_ShaFree(&sha);
 
-    return 0;
+    return ret;
 }
 
 #endif /* NO_SHA */
@@ -1615,13 +1666,12 @@ int sha224_test(void)
 #ifndef NO_SHA256
 int sha256_test(void)
 {
+    int ret = 0;
     Sha256 sha;
     byte   hash[SHA256_DIGEST_SIZE];
     byte   hashcopy[SHA256_DIGEST_SIZE];
-
     testVector a, b;
     testVector test_sha[2];
-    int ret;
     int times = sizeof(test_sha) / sizeof(struct testVector), i;
 
     a.input  = "abc";
@@ -1648,23 +1698,50 @@ int sha256_test(void)
     for (i = 0; i < times; ++i) {
         ret = wc_Sha256Update(&sha, (byte*)test_sha[i].input,(word32)test_sha[i].inLen);
         if (ret != 0)
-            return -2110 - i;
+            ERROR_OUT(-2110 - i, exit);
         ret = wc_Sha256GetHash(&sha, hashcopy);
         if (ret != 0)
-            return -2120 - i;
+            ERROR_OUT(-2120 - i, exit);
         ret = wc_Sha256Final(&sha, hash);
         if (ret != 0)
-            return -2130 - i;
+            ERROR_OUT(-2130 - i, exit);
 
         if (XMEMCMP(hash, test_sha[i].output, SHA256_DIGEST_SIZE) != 0)
-            return -2140 - i;
+            ERROR_OUT(-2140 - i, exit);
         if (XMEMCMP(hash, hashcopy, SHA256_DIGEST_SIZE) != 0)
-            return -2150 - i;
+            ERROR_OUT(-2150 - i, exit);
     }
+
+    /* BEGIN LARGE HASH TEST */ {
+    byte large_input[1024];
+    const char* large_digest = 
+        "\x27\x78\x3e\x87\x96\x3a\x4e\xfb\x68\x29\xb5\x31\xc9\xba\x57\xb4"
+        "\x4f\x45\x79\x7f\x67\x70\xbd\x63\x7f\xbf\x0d\x80\x7c\xbd\xba\xe0";
+
+    for (i = 0; i < (int)sizeof(large_input); i++) {
+        large_input[i] = (byte)(i & 0xFF);
+    }
+    times = 100;
+#ifdef WOLFSSL_PIC32MZ_HASH
+    wc_Sha256SizeSet(&sha, times * sizeof(large_input));
+#endif
+    for (i = 0; i < times; ++i) {
+        ret = wc_Sha256Update(&sha, (byte*)large_input, (word32)sizeof(large_input));
+        if (ret != 0)
+            ERROR_OUT(-2160, exit);
+    }
+    ret = wc_Sha256Final(&sha, hash);
+    if (ret != 0)
+        ERROR_OUT(-2161, exit);
+    if (XMEMCMP(hash, large_digest, SHA256_DIGEST_SIZE) != 0)
+        ERROR_OUT(-2162, exit);
+    } /* END LARGE HASH TEST */
+
+exit:
 
     wc_Sha256Free(&sha);
 
-    return 0;
+    return ret;
 }
 #endif
 
@@ -4641,11 +4718,12 @@ int aesgcm_test(void)
     int  alen, plen;
 
 #if !defined(BENCH_EMBEDDED)
-    #define ENABLE_AESGCM_LARGE_TEST
-    #define LARGE_BUFFER_SIZE 1024
-    byte large_input[LARGE_BUFFER_SIZE];
-    byte large_output[LARGE_BUFFER_SIZE];
-    byte large_outdec[LARGE_BUFFER_SIZE];
+    #ifndef BENCH_AESGCM_LARGE
+        #define BENCH_AESGCM_LARGE 1024
+    #endif
+    byte large_input[BENCH_AESGCM_LARGE];
+    byte large_output[BENCH_AESGCM_LARGE];
+    byte large_outdec[BENCH_AESGCM_LARGE];
 
     XMEMSET(large_input, 0, sizeof(large_input));
     XMEMSET(large_output, 0, sizeof(large_output));
@@ -4688,14 +4766,14 @@ int aesgcm_test(void)
         return -4306;
 
     /* Large buffer test */
-#ifdef ENABLE_AESGCM_LARGE_TEST
+#ifdef BENCH_AESGCM_LARGE
     /* setup test buffer */
-    for (alen=0; alen<LARGE_BUFFER_SIZE; alen++)
+    for (alen=0; alen<BENCH_AESGCM_LARGE; alen++)
         large_input[alen] = alen;
 
     /* AES-GCM encrypt and decrypt both use AES encrypt internally */
     result = wc_AesGcmEncrypt(&enc, large_output, large_input,
-                              LARGE_BUFFER_SIZE, iv1, sizeof(iv1),
+                              BENCH_AESGCM_LARGE, iv1, sizeof(iv1),
                               resultT, sizeof(resultT), a, sizeof(a));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
@@ -4704,16 +4782,16 @@ int aesgcm_test(void)
         return -4307;
 
     result = wc_AesGcmDecrypt(&enc, large_outdec, large_output,
-                              LARGE_BUFFER_SIZE, iv1, sizeof(iv1), resultT,
+                              BENCH_AESGCM_LARGE, iv1, sizeof(iv1), resultT,
                               sizeof(resultT), a, sizeof(a));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (result != 0)
         return -4308;
-    if (XMEMCMP(large_input, large_outdec, LARGE_BUFFER_SIZE))
+    if (XMEMCMP(large_input, large_outdec, BENCH_AESGCM_LARGE))
         return -4309;
-#endif /* ENABLE_AESGCM_LARGE_TEST */
+#endif /* BENCH_AESGCM_LARGE */
 
 #if !defined(HAVE_FIPS) && !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO)
     /* Variable IV length test */
