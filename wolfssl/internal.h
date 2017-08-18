@@ -3312,7 +3312,7 @@ struct WOLFSSL {
 #if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
     word32          ecdhCurveOID;            /* curve Ecc_Sum     */
     ecc_key*        eccTempKey;              /* private ECDHE key */
-    byte            eccTempKeyPresent;
+    byte            eccTempKeyPresent;       /* also holds type */
     byte            peerEccKeyPresent;
 #endif
 #ifdef HAVE_ECC

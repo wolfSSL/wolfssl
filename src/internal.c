@@ -4811,7 +4811,8 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->peerEccDsaKey);
     ssl->peerEccDsaKeyPresent = 0;
 #ifdef HAVE_CURVE25519
-    if (!ssl->peerX25519KeyPresent)
+    if (!ssl->peerX25519KeyPresent &&
+            ssl->eccTempKeyPresent != DYNAMIC_TYPE_CURVE25519)
 #endif /* HAVE_CURVE25519 */
     {
         FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->eccTempKey);
@@ -20725,7 +20726,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 ret = X25519MakeKey(ssl,
                                         (curve25519_key*)ssl->eccTempKey, NULL);
                                 if (ret == 0 || ret == WC_PENDING_E) {
-                                    ssl->eccTempKeyPresent = 1;
+                                    ssl->eccTempKeyPresent =
+                                        DYNAMIC_TYPE_CURVE25519;
                                 }
                             }
                             break;
@@ -20747,7 +20749,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 then we know curve dp */
                             ret = EccMakeKey(ssl, ssl->eccTempKey, NULL);
                             if (ret == 0 || ret == WC_PENDING_E) {
-                                ssl->eccTempKeyPresent = 1;
+                                ssl->eccTempKeyPresent = DYNAMIC_TYPE_ECC;
                             }
                         }
                     #endif
