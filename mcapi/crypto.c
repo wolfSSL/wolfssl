@@ -66,6 +66,8 @@ int CRYPT_MD5_DataSizeSet(CRYPT_MD5_CTX* md5, unsigned int sz)
 
 #ifdef WOLFSSL_PIC32MZ_HASH
     wc_Md5SizeSet((Md5*)md5, sz);
+#else
+    (void)sz;
 #endif
 
     return 0;
@@ -113,6 +115,8 @@ int CRYPT_SHA_DataSizeSet(CRYPT_SHA_CTX* sha, unsigned int sz)
 
 #ifdef WOLFSSL_PIC32MZ_HASH
     wc_ShaSizeSet((Sha*)sha, sz);
+#else
+    (void)sz;
 #endif
 
     return 0;
@@ -160,6 +164,8 @@ int CRYPT_SHA256_DataSizeSet(CRYPT_SHA256_CTX* sha256, unsigned int sz)
 
 #ifdef WOLFSSL_PIC32MZ_HASH
     wc_Sha256SizeSet((Sha256*)sha256, sz);
+#else
+    (void)sz;
 #endif
 
     return 0;
