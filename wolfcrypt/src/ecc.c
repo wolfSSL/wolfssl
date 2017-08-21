@@ -963,7 +963,8 @@ static int wc_ecc_export_x963_compressed(ecc_key*, byte* out, word32* outLen);
 
 #ifndef WOLFSSL_ATECC508A
 
-static int ecc_check_pubkey_order(ecc_key* key, mp_int* a, mp_int* prime, mp_int* order);
+static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
+        mp_int* prime, mp_int* order);
 #ifdef ECC_SHAMIR
 static int ecc_mul2add(ecc_point* A, mp_int* kA, ecc_point* B, mp_int* kB,
                        ecc_point* C, mp_int* a, mp_int* modulus, void* heap);
@@ -2986,11 +2987,139 @@ static INLINE void wc_ecc_reset(ecc_key* key)
     key->state = ECC_STATE_NONE;
 }
 
+
+/* create the public ECC key from a private key
+ *
+ * key     an initialized private key to generate public part from
+ * curveIn [in]curve for key, can be NULL
+ * pubOut  [out]ecc_point holding the public key, if NULL then public key part
+ *         is cached in key instead.
+ *
+ * Note this function is local to the file because of the argument type
+ *      ecc_curve_spec. Having this argument allows for not having to load the
+ *      curve type multiple times when generating a key with wc_ecc_make_key().
+ *
+ * returns MP_OKAY on success
+ */
+static int wc_ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
+        ecc_point* pubOut)
+{
+    int err = MP_OKAY;
+#ifndef WOLFSSL_ATECC508A
+    ecc_point*     base = NULL;
+    DECLARE_CURVE_SPECS(ECC_CURVE_FIELD_COUNT)
+#endif
+    ecc_point* pub;
+
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* if ecc_point passed in then use it as output for public key point */
+    if (pubOut != NULL) {
+        pub = pubOut;
+    }
+    else {
+        /* caching public key making it a ECC_PRIVATEKEY instead of
+           ECC_PRIVATEKEY_ONLY */
+        pub = &key->pubkey;
+        key->type = ECC_PRIVATEKEY_ONLY;
+    }
+
+    /* avoid loading the curve unless it is not passed in */
+    if (curveIn != NULL) {
+        curve = curveIn;
+    }
+    else {
+        /* load curve info */
+        if (err == MP_OKAY)
+            err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ALL);
+    }
+
+    if (err == MP_OKAY) {
+    #ifndef ALT_ECC_SIZE
+        err = mp_init_multi(pub->x, pub->y, pub->z, NULL, NULL, NULL);
+    #else
+        pub->x = (mp_int*)&pub->xyz[0];
+        pub->y = (mp_int*)&pub->xyz[1];
+        pub->z = (mp_int*)&pub->xyz[2];
+        alt_fp_init(pub->x);
+        alt_fp_init(pub->y);
+        alt_fp_init(pub->z);
+    #endif
+    }
+
+    if (err == MP_OKAY) {
+        base = wc_ecc_new_point_h(key->heap);
+        if (base == NULL)
+            err = MEMORY_E;
+    }
+
+    /* read in the x/y for this key */
+    if (err == MP_OKAY)
+        err = mp_copy(curve->Gx, base->x);
+    if (err == MP_OKAY)
+        err = mp_copy(curve->Gy, base->y);
+    if (err == MP_OKAY)
+        err = mp_set(base->z, 1);
+
+    /* make the public key */
+    if (err == MP_OKAY)
+        err = wc_ecc_mulmod_ex(&key->k, base, pub,
+            curve->Af, curve->prime, 1, key->heap);
+
+    wc_ecc_del_point_h(base, key->heap);
+#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
+    /* validate the public key, order * pubkey = point at infinity */
+    if (err == MP_OKAY)
+        err = ecc_check_pubkey_order(key, pub, curve->Af, curve->prime,
+                curve->order);
+#endif /* WOLFSSL_VALIDATE_KEYGEN */
+
+    if (err != MP_OKAY) {
+        /* clean up if failed */
+    #ifndef ALT_ECC_SIZE
+        mp_clear(pub->x);
+        mp_clear(pub->y);
+        mp_clear(pub->z);
+    #endif
+    }
+
+    /* free up local curve */
+    if (curveIn == NULL) {
+        wc_ecc_curve_free(curve);
+    }
+
+    /* change key state if public part is cached */
+    if (key->type == ECC_PRIVATEKEY_ONLY && pubOut == NULL) {
+        key->type = ECC_PRIVATEKEY;
+    }
+
+    return err;
+}
+
+
+/* create the public ECC key from a private key
+ *
+ * key     an initialized private key to generate public part from
+ * pubOut  [out]ecc_point holding the public key, if NULL then public key part
+ *         is cached in key instead.
+ *
+ *
+ * returns MP_OKAY on success
+ */
+int wc_ecc_make_pub(ecc_key* key, ecc_point* pubOut)
+{
+    WOLFSSL_ENTER("wc_ecc_make_pub");
+
+    return wc_ecc_make_pub_ex(key, NULL, pubOut);
+}
+
+
 int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
 {
     int            err;
 #ifndef WOLFSSL_ATECC508A
-    ecc_point*     base = NULL;
     DECLARE_CURVE_SPECS(ECC_CURVE_FIELD_COUNT)
 #endif
 
@@ -3036,52 +3165,18 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
 
     /* setup the key variables */
     err = mp_init(&key->k);
-    if (err == MP_OKAY) {
-    #ifndef ALT_ECC_SIZE
-        err = mp_init_multi(key->pubkey.x, key->pubkey.y, key->pubkey.z,
-                                                        NULL, NULL, NULL);
-    #else
-        key->pubkey.x = (mp_int*)&key->pubkey.xyz[0];
-        key->pubkey.y = (mp_int*)&key->pubkey.xyz[1];
-        key->pubkey.z = (mp_int*)&key->pubkey.xyz[2];
-        alt_fp_init(key->pubkey.x);
-        alt_fp_init(key->pubkey.y);
-        alt_fp_init(key->pubkey.z);
-    #endif
-    }
-
-    if (err == MP_OKAY) {
-        base = wc_ecc_new_point_h(key->heap);
-        if (base == NULL)
-            err = MEMORY_E;
-    }
 
     /* load curve info */
     if (err == MP_OKAY)
         err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ALL);
 
-    /* read in the x/y for this key */
-    if (err == MP_OKAY)
-        err = mp_copy(curve->Gx, base->x);
-    if (err == MP_OKAY)
-        err = mp_copy(curve->Gy, base->y);
-    if (err == MP_OKAY)
-        err = mp_set(base->z, 1);
-
     /* generate k */
     if (err == MP_OKAY)
         err = wc_ecc_gen_k(rng, key->dp->size, &key->k, curve->order);
 
-    /* make the public key */
+    /* generate public key from k */
     if (err == MP_OKAY)
-        err = wc_ecc_mulmod_ex(&key->k, base, &key->pubkey,
-            curve->Af, curve->prime, 1, key->heap);
-
-#ifdef WOLFSSL_VALIDATE_ECC_KEYGEN
-    /* validate the public key, order * pubkey = point at infinity */
-    if (err == MP_OKAY)
-        err = ecc_check_pubkey_order(key, curve->Af, curve->prime, curve->order);
-#endif /* WOLFSSL_VALIDATE_KEYGEN */
+        err = wc_ecc_make_pub_ex(key, curve, NULL);
 
     if (err == MP_OKAY)
         key->type = ECC_PRIVATEKEY;
@@ -3089,16 +3184,10 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
     /* cleanup these on failure case only */
     if (err != MP_OKAY) {
         /* clean up */
-    #ifndef ALT_ECC_SIZE
-        mp_clear(key->pubkey.x);
-        mp_clear(key->pubkey.y);
-        mp_clear(key->pubkey.z);
-    #endif
         mp_forcezero(&key->k);
     }
 
     /* cleanup allocations */
-    wc_ecc_del_point_h(base, key->heap);
     wc_ecc_curve_free(curve);
 
 #endif /* WOLFSSL_ATECC508A */
@@ -3448,7 +3537,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
        return ECC_BAD_ARG_E;
 
    /* is this a private key? */
-   if (key->type != ECC_PRIVATEKEY) {
+   if (key->type != ECC_PRIVATEKEY && key->type != ECC_PRIVATEKEY_ONLY) {
       return ECC_BAD_ARG_E;
    }
 
@@ -4036,6 +4125,16 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
 #else
 
+  /* checking if private key with no public part */
+  if (key->type == ECC_PRIVATEKEY_ONLY) {
+      WOLFSSL_MSG("Verify called with private key, generating public part");
+      err = wc_ecc_make_pub_ex(key, NULL, NULL);
+      if (err != MP_OKAY) {
+           WOLFSSL_MSG("Unable to extract public key");
+           return BAD_FUNC_ARG;
+      }
+  }
+
    err = mp_init(&e);
    if (err != MP_OKAY)
       return MEMORY_E;
@@ -4430,6 +4529,9 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
    if (key == NULL || out == NULL || outLen == NULL)
       return ECC_BAD_ARG_E;
 
+   if (key->type == ECC_PRIVATEKEY_ONLY)
+       return ECC_PRIVATEONLY_E;
+
    if (wc_ecc_is_valid_idx(key->idx) == 0) {
       return ECC_BAD_ARG_E;
    }
@@ -4680,8 +4782,8 @@ static int ecc_check_privkey_gen_helper(ecc_key* key)
 
 
 /* validate order * pubkey = point at infinity, 0 on success */
-static int ecc_check_pubkey_order(ecc_key* key, mp_int* a, mp_int* prime,
-    mp_int* order)
+static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
+        mp_int* prime, mp_int* order)
 {
     ecc_point* inf = NULL;
     int        err;
@@ -4693,7 +4795,7 @@ static int ecc_check_pubkey_order(ecc_key* key, mp_int* a, mp_int* prime,
     if (inf == NULL)
         err = MEMORY_E;
     else {
-    	err = wc_ecc_mulmod_ex(order, &key->pubkey, inf, a, prime, 1, key->heap);
+        err = wc_ecc_mulmod_ex(order, pubkey, inf, a, prime, 1, key->heap);
         if (err == MP_OKAY && !wc_ecc_point_is_at_infinity(inf))
             err = ECC_INF_E;
     }
@@ -4770,7 +4872,8 @@ int wc_ecc_check_key(ecc_key* key)
 
     /* pubkey * order must be at infinity */
     if (err == MP_OKAY)
-        err = ecc_check_pubkey_order(key, curve->Af, curve->prime, curve->order);
+        err = ecc_check_pubkey_order(key, &key->pubkey, curve->Af, curve->prime,
+                curve->order);
 
     /* private * base generator must equal pubkey */
     if (err == MP_OKAY && key->type == ECC_PRIVATEKEY)
@@ -4998,6 +5101,10 @@ static int wc_ecc_export_raw(ecc_key* key, byte* qx, word32* qxLen,
         return BAD_FUNC_ARG;
     }
 
+    if (key->type == ECC_PRIVATEKEY_ONLY) {
+        return ECC_PRIVATEONLY_E;
+    }
+
     if (wc_ecc_is_valid_idx(key->idx) == 0) {
         return ECC_BAD_ARG_E;
     }
@@ -5053,6 +5160,7 @@ static int wc_ecc_export_raw(ecc_key* key, byte* qx, word32* qxLen,
     return BAD_COND_E;
 
 #else
+
     /* public x component */
     err = mp_to_unsigned_bin(key->pubkey.x, qx +
                             (numLen - mp_unsigned_bin_size(key->pubkey.x)));
@@ -5104,6 +5212,7 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
     /* public optional, NULL if only importing private */
     if (pub != NULL) {
         ret = wc_ecc_import_x963_ex(pub, pubSz, key, curve_id);
+        key->type = ECC_PRIVATEKEY;
     }
     else {
         if (key == NULL || priv == NULL)
@@ -5114,12 +5223,12 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 
         /* set key size */
         ret = wc_ecc_set_curve(key, privSz, curve_id);
+        key->type = ECC_PRIVATEKEY_ONLY;
     }
 
     if (ret != 0)
         return ret;
 
-    key->type = ECC_PRIVATEKEY;
 
 #ifdef WOLFSSL_ATECC508A
     /* TODO: Implement equiv call to ATECC508A */
