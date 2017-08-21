@@ -192,6 +192,9 @@ static int Pic32Crypto(const byte* in, int inLen, word32* out, int outLen,
         /* Software Reset the Crypto Engine */
         CECON = 1 << 6;
         while (CECON);
+        
+        /* Clear the interrupt flags */
+        CEINTSRC = 0xF;
 
         /* Run the engine */
         CEBDPADDR = (unsigned int)KVA_TO_PA(&bd);
@@ -256,8 +259,9 @@ static int Pic32Crypto(const byte* in, int inLen, word32* out, int outLen,
 
 #ifdef WOLFSSL_PIC32MZ_LARGE_HASH
 
+/* tunable large hash block size */
 #ifndef PIC32_BLOCK_SIZE
-    #define PIC32_BLOCK_SIZE 2048
+    #define PIC32_BLOCK_SIZE 256
 #endif
 
 #define PIC32MZ_MIN_BLOCK    64
@@ -290,6 +294,8 @@ static void reset_engine(pic32mz_desc *desc, int algo)
 {
     int i;
     pic32mz_desc* uc_desc = KVA0_TO_KVA1(desc);
+
+    wolfSSL_CryptHwMutexLock();
 
     /* Software reset */
     CECON = 1 << 6;
@@ -434,6 +440,8 @@ void wait_engine(pic32mz_desc *desc, char *hash, int hash_sz)
     /* copy output - hardware already swapped */
     XMEMCPY(hash, KVA0_TO_KVA1(hash), hash_sz);
 #endif
+
+    wolfSSL_CryptHwMutexUnLock();
 }
 
 #endif /* WOLFSSL_PIC32MZ_LARGE_HASH */
