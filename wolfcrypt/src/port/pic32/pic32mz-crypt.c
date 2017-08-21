@@ -192,7 +192,7 @@ static int Pic32Crypto(const byte* in, int inLen, word32* out, int outLen,
         /* Software Reset the Crypto Engine */
         CECON = 1 << 6;
         while (CECON);
-        
+
         /* Clear the interrupt flags */
         CEINTSRC = 0xF;
 
@@ -551,10 +551,40 @@ static int wc_Pic32HashFinal(hashUpdCache* cache, byte* stdBuf,
     else
 #endif
     {
-        ret = wc_Pic32Hash(cache->buf, cache->updLen, digest, digestSz, algo);
-        if (ret == 0) {
-            XMEMCPY(hash, digest, digestSz);
+        if (cache->updLen == 0) {
+            /* handle empty input */
+            switch (algo) {
+                case PIC32_ALGO_SHA256: {
+                    const char* sha256EmptyHash =
+                        "\xe3\xb0\xc4\x42\x98\xfc\x1c\x14\x9a\xfb\xf4\xc8\x99\x6f\xb9"
+                        "\x24\x27\xae\x41\xe4\x64\x9b\x93\x4c\xa4\x95\x99\x1b\x78\x52"
+                        "\xb8\x55";
+                    XMEMCPY(hash, sha256EmptyHash, digestSz);
+                    break;
+                }
+                case PIC32_ALGO_SHA1: {
+                    const char* shaEmptyHash =
+                        "\xda\x39\xa3\xee\x5e\x6b\x4b\x0d\x32\x55\xbf\xef\x95\x60\x18"
+                        "\x90\xaf\xd8\x07\x09";
+                    XMEMCPY(hash, shaEmptyHash, digestSz);
+                    break;
+                }
+                case PIC32_ALGO_MD5: {
+                    const char* md5EmptyHash =
+                        "\xd4\x1d\x8c\xd9\x8f\x00\xb2\x04\xe9\x80\x09\x98\xec\xf8\x42"
+                        "\x7e";
+                    XMEMCPY(hash, md5EmptyHash, digestSz);
+                    break;
+                }
+            } /* switch */
         }
+        else {
+            ret = wc_Pic32Hash(cache->buf, cache->updLen, digest, digestSz, algo);
+            if (ret == 0) {
+                XMEMCPY(hash, digest, digestSz);
+            }
+        }
+
         if (cache->buf && cache->buf != stdBuf && !cache->isCopy) {
             XFREE(cache->buf, heap, DYNAMIC_TYPE_HASH_TMP);
         }
