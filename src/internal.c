@@ -12933,7 +12933,10 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                 }
                 args->sz += 1;       /* pad byte */
                 args->pad = (args->sz - args->headerSz) % blockSz;
-                args->pad = blockSz - args->pad;
+                #ifdef OPENSSL_EXTRA
+                if(args->pad != 0)
+                #endif
+                    args->pad = blockSz - args->pad;
                 args->sz += args->pad;
             }
 
