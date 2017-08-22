@@ -122,6 +122,22 @@
     #include <wolfssl/wolfcrypt/hc128.h>
 #endif
 
+#ifndef NO_DSA
+    #include <wolfssl/wolfcrypt/dsa.h>
+    #ifndef ONEK_BUF
+        #define ONEK_BUF 1024
+    #endif
+    #ifndef TWOK_BUF
+        #define TWOK_BUF 2048
+    #endif
+    #ifndef FOURK_BUF
+        #define FOURK_BUF 4096
+    #endif
+    #ifndef DSA_SIG_SIZE
+        #define DSA_SIG_SIZE 40
+    #endif
+#endif
+
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/ssl.h>
     #include <wolfssl/openssl/pkcs12.h>
@@ -8751,6 +8767,416 @@ static int test_wc_Hc128_Process (void)
 } /* END test_wc_Hc128_Process */
 
 
+/*
+ * Testing wc_InitDsaKey()
+ */
+static int test_wc_InitDsaKey (void)
+{
+    int     ret = 0;
+
+#ifndef NO_DSA
+    DsaKey  key;
+
+    printf(testingFmt, "wc_InitDsaKey()");
+
+    ret = wc_InitDsaKey(&key);
+
+    /* Pass in bad args. */
+    if (ret == 0) {
+        ret = wc_InitDsaKey(NULL);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    wc_FreeDsaKey(&key);
+
+#endif
+    return ret;
+
+} /* END test_wc_InitDsaKey */
+
+/*
+ * Testing wc_DsaSign() and wc_DsaVerify()
+ */
+static int test_wc_DsaSignVerify (void)
+{
+    int     ret = 0;
+#if !defined(NO_DSA)
+    DsaKey  key;
+    WC_RNG  rng;
+    Sha     sha;
+    byte    signature[DSA_SIG_SIZE];
+    byte    hash[SHA_DIGEST_SIZE];
+    word32  idx = 0;
+    word32  bytes;
+    int      answer;
+#ifdef USE_CERT_BUFFERS_1024
+    byte    tmp[ONEK_BUF];
+    XMEMSET(tmp, 0, sizeof(tmp));
+    XMEMCPY(tmp, dsa_key_der_1024, sizeof_dsa_key_der_1024);
+    bytes = sizeof_dsa_key_der_1024;
+#elif defined(USE_CERT_BUFFERS_2048)
+    byte    tmp[TWOK_BUF];
+    XMEMSET(tmp, 0, sizeof(tmp));
+    XMEMCPY(tmp, dsa_key_der_2048, sizeof_dsa_key_der_2048);
+    bytes = sizeof_dsa_key_der_2048;
+#else
+    byte    tmp[TWOK_BUF];
+    XMEMSET(tmp, 0, sizeof(tmp));
+    FILE* fp = fopen("./certs/dsa2048.der", "rb");
+    if (!fp) {
+        return SSL_BAD_FILE;
+    }
+    bytes = (word32) fread(tmp, 1, sizeof(tmp), fp);
+    fclose(fp);
+#endif /* END USE_CERT_BUFFERS_1024 */
+
+    ret = wc_InitSha(&sha);
+    if (ret == 0) {
+        ret = wc_ShaUpdate(&sha, tmp, bytes);
+        if (ret == 0) {
+            ret = wc_ShaFinal(&sha, hash);
+        }
+        if (ret == 0) {
+            ret = wc_InitDsaKey(&key);
+        }
+        if (ret == 0) {
+            ret = wc_DsaPrivateKeyDecode(tmp, &idx, &key, bytes);
+        }
+        if (ret == 0) {
+            ret = wc_InitRng(&rng);
+        }
+    }
+
+    printf(testingFmt, "wc_DsaSign()");
+    /* Sign. */
+    if (ret == 0) {
+        ret = wc_DsaSign(hash, signature, &key, &rng);
+    }
+
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_DsaSign(NULL, signature, &key, &rng);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_DsaSign(hash, NULL, &key, &rng);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_DsaSign(hash, signature, NULL, &rng);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_DsaSign(hash, signature, &key, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (ret != 0) {
+        return ret;
+    }
+
+    /* Verify. */
+    printf(testingFmt, "wc_DsaVerify()");
+
+    ret = wc_DsaVerify(hash, signature, &key, &answer);
+    if (ret != 0 || answer != 1) {
+        ret = SSL_FATAL_ERROR;
+    } else {
+        ret = 0;
+    }
+
+    /* Pass in bad args. */
+    if (ret == 0) {
+        ret = wc_DsaVerify(NULL, signature, &key, &answer);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_DsaVerify(hash, NULL, &key, &answer);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_DsaVerify(hash, signature, NULL, &answer);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_DsaVerify(hash, signature, &key, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    wc_FreeDsaKey(&key);
+    wc_ShaFree(&sha);
+
+#endif
+    return ret;
+
+} /* END test_wc_DsaSign */
+
+/*
+ * Testing wc_DsaPrivateKeyDecode() and wc_DsaPublicKeyDecode()
+ */
+static int test_wc_DsaPublicPrivateKeyDecode (void)
+{
+    int     ret = 0;
+
+#if !defined(NO_DSA)
+    DsaKey  key;
+    word32  bytes;
+    word32  idx  = 0;
+    int     priv = SSL_FATAL_ERROR;
+    int     pub  = SSL_FATAL_ERROR;
+
+#ifdef USE_CERT_BUFFERS_1024
+    byte    tmp[ONEK_BUF];
+    XMEMCPY(tmp, dsa_key_der_1024, sizeof_dsa_key_der_1024);
+    bytes = sizeof_dsa_key_der_1024;
+#elif defined(USE_CERT_BUFFERS_2048)
+    byte    tmp[TWOK_BUF];
+    XMEMCPY(tmp, dsa_key_der_2048, sizeof_dsa_key_der_2048);
+    bytes = sizeof_dsa_key_der_2048;
+#else
+    byte    tmp[TWOK_BUF];
+    XMEMSET(tmp, 0, sizeof(tmp));
+    FILE* fp = fopen("./certs/dsa2048.der", "rb");
+    if (!fp) {
+        return SSL_BAD_FILE;
+    }
+    bytes = (word32) fread(tmp, 1, sizeof(tmp), fp);
+    fclose(fp);
+#endif /* END USE_CERT_BUFFERS_1024 */
+
+    ret = wc_InitDsaKey(&key);
+
+    printf(testingFmt, "wc_DsaPrivateKeyDecode()");
+    if (ret == 0) {
+        priv = wc_DsaPrivateKeyDecode(tmp, &idx, &key, bytes);
+
+        /* Test bad args. */
+        if (priv == 0) {
+            priv = wc_DsaPrivateKeyDecode(NULL, &idx, &key, bytes);
+            if (priv == BAD_FUNC_ARG) {
+                priv = wc_DsaPrivateKeyDecode(tmp, NULL, &key, bytes);
+            }
+            if (priv == BAD_FUNC_ARG) {
+                priv = wc_DsaPrivateKeyDecode(tmp, &idx, NULL, bytes);
+            }
+            if (priv == BAD_FUNC_ARG) {
+                priv = wc_DsaPrivateKeyDecode(tmp, &idx, &key, bytes);
+            }
+            if (priv == ASN_PARSE_E) {
+                priv = 0;
+            } else {
+                priv = SSL_FATAL_ERROR;
+            }
+        }
+    } /* END Private Key  */
+
+    printf(resultFmt, priv == 0 ? passed : failed);
+
+    printf(testingFmt, "wc_DsaPublicKeyDecode()");
+    if (ret == 0) {
+        idx = 0; /* Reset */
+        pub = wc_DsaPublicKeyDecode(tmp, &idx, &key, bytes);
+        /* Test bad args. */
+        if (pub == 0) {
+            pub = wc_DsaPublicKeyDecode(NULL, &idx, &key, bytes);
+            if (pub == BAD_FUNC_ARG) {
+                pub = wc_DsaPublicKeyDecode(tmp, NULL, &key, bytes);
+            }
+            if (pub == BAD_FUNC_ARG) {
+                pub = wc_DsaPublicKeyDecode(tmp, &idx, NULL, bytes);
+            }
+            if (pub == BAD_FUNC_ARG) {
+                pub = wc_DsaPublicKeyDecode(tmp, &idx, &key, bytes);
+            }
+            if (pub == ASN_PARSE_E) {
+                pub = 0;
+            } else {
+                pub = SSL_FATAL_ERROR;
+            }
+        }
+
+    } /* END Public Key */
+
+    printf(resultFmt, pub == 0 ? passed : failed);
+
+    wc_FreeDsaKey(&key);
+
+#endif
+    return ret;
+
+} /* END test_wc_DsaPublicPrivateKeyDecode */
+
+
+/*
+ * Testing wc_MakeDsaKey() and wc_MakeDsaParameters()
+ */
+static int test_wc_MakeDsaKey (void)
+{
+    int     ret = 0;
+
+#if !defined(NO_DSA) && defined(WOLFSSL_KEY_GEN)
+    DsaKey  genKey;
+    WC_RNG  rng;
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_InitDsaKey(&genKey);
+    }
+
+    printf(testingFmt, "wc_MakeDsaParameters()");
+    if (ret == 0) {
+        ret = wc_MakeDsaParameters(&rng, ONEK_BUF, &genKey);
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_MakeDsaParameters(NULL, ONEK_BUF, &genKey);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_MakeDsaParameters(&rng, ONEK_BUF, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_MakeDsaParameters(&rng, ONEK_BUF + 1, &genKey);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    printf(testingFmt, "wc_MakeDsaKey()");
+
+    if (ret == 0) {
+        ret = wc_MakeDsaKey(&rng, &genKey);
+    }
+
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_MakeDsaKey(NULL, &genKey);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_MakeDsaKey(&rng, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FAILURE;
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    wc_FreeDsaKey(&genKey);
+#endif
+    return ret;
+} /* END test_wc_MakeDsaKey */
+
+/*
+ * Testing wc_DsaKeyToDer()
+ */
+static int test_wc_DsaKeyToDer (void)
+{
+    int     ret = 0;
+
+#if !defined(NO_DSA) && defined(WOLFSSL_KEY_GEN)
+    DsaKey  genKey;
+    WC_RNG  rng;
+    word32  bytes;
+    word32  idx = 0;
+
+#ifdef USE_CERT_BUFFERS_1024
+    byte    tmp[ONEK_BUF];
+    byte    der[ONEK_BUF];
+    XMEMSET(tmp, 0, sizeof(tmp));
+    XMEMSET(der, 0, sizeof(der));
+    XMEMCPY(tmp, dsa_key_der_1024, sizeof_dsa_key_der_1024);
+    bytes = sizeof_dsa_key_der_1024;
+#elif defined(USE_CERT_BUFFERS_2048)
+    byte    tmp[TWOK_BUF];
+    byte    der[TWOK_BUF];
+    XMEMSET(tmp, 0, sizeof(tmp));
+    XMEMSET(der, 0, sizeof(der));
+    XMEMCPY(tmp, dsa_key_der_2048, sizeof_dsa_key_der_2048);
+    bytes = sizeof_dsa_key_der_2048;
+#else
+    byte    tmp[TWOK_BUF];
+    byte    der[TWOK_BUF];
+    XMEMSET(tmp, 0, sizeof(tmp));
+    XMEMSET(der, 0, sizeof(der));
+    FILE* fp = fopen("./certs/dsa2048.der", "rb");
+    if (!fp) {
+        return SSL_BAD_FILE;
+    }
+    bytes = (word32) fread(tmp, 1, sizeof(tmp), fp);
+    fclose(fp);
+#endif /* END USE_CERT_BUFFERS_1024 */
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_InitDsaKey(&genKey);
+    }
+    if (ret == 0) {
+        ret = wc_MakeDsaParameters(&rng, sizeof(tmp), &genKey);
+    }
+    if (ret == 0) {
+        ret = wc_DsaPrivateKeyDecode(tmp, &idx, &genKey, bytes);
+    }
+
+    printf(testingFmt, "wc_DsaKeyToDer()");
+
+    if (ret == 0) {
+        ret = wc_DsaKeyToDer(&genKey, der, bytes);
+        if ( ret >= 0 && ( ret = XMEMCMP(der, tmp, bytes) ) == 0 ) {
+            ret = 0;
+        }
+    }
+
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_DsaKeyToDer(NULL, der, FOURK_BUF);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_DsaKeyToDer(&genKey, NULL, FOURK_BUF);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    wc_FreeDsaKey(&genKey);
+
+#endif
+
+    return ret;
+
+} /* END test_wc_DsaKeyToDer */
 
 
 
@@ -10273,6 +10699,11 @@ void ApiTest(void)
     AssertIntEQ(test_wc_AesCcmEncryptDecrypt(), 0);
     AssertIntEQ(test_wc_Hc128_SetKey(), 0);
     AssertIntEQ(test_wc_Hc128_Process(), 0);
+    AssertIntEQ(test_wc_InitDsaKey(), 0);
+    AssertIntEQ(test_wc_DsaSignVerify(), 0);
+    AssertIntEQ(test_wc_DsaPublicPrivateKeyDecode(), 0);
+    AssertIntEQ(test_wc_MakeDsaKey(), 0);
+    AssertIntEQ(test_wc_DsaKeyToDer(), 0);
     printf(" End API Tests\n");
 
 }
