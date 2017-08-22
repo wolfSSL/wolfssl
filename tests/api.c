@@ -10361,10 +10361,6 @@ static void test_wolfSSL_BN(void)
     value[0] = 0x05;
     AssertNotNull(BN_bin2bn(value, sizeof(value), c));
 
-    /* BN_div a/b */
-    AssertIntEQ(BN_div(d, a, b, NULL, NULL), SSL_FAILURE);
-    AssertIntEQ(BN_div(d, a, b, c, NULL), SSL_SUCCESS);
-
     /* a^b mod c = */
     AssertIntEQ(BN_mod_exp(d, NULL, b, c, NULL), WOLFSSL_FAILURE);
     AssertIntEQ(BN_mod_exp(d, a, b, c, NULL), WOLFSSL_SUCCESS);
@@ -10381,6 +10377,33 @@ static void test_wolfSSL_BN(void)
     AssertIntEQ(BN_bn2bin(r, value), 1);
     AssertIntEQ((int)(value[0] & 0x03), 3);
     BN_free(val);
+
+    /* BN_div a/b check result 5/2 */
+
+    value[0] = 0x05;
+    AssertNotNull(BN_bin2bn(value, sizeof(value), b));
+
+    value[0] = 0x02;
+    AssertNotNull(BN_bin2bn(value, sizeof(value), c));
+
+    AssertIntEQ(BN_div(d, a, b, NULL, NULL), SSL_FAILURE);
+    AssertIntEQ(BN_div(d, a, b, c, NULL), SSL_SUCCESS);
+
+    AssertIntEQ(BN_bn2bin(d, value), SSL_SUCCESS);
+    AssertIntEQ((int)value[0], 2);
+
+    AssertIntEQ(BN_bn2bin(a, value), SSL_SUCCESS);
+    AssertIntEQ((int)value[0], 1);
+
+    /* BN_div a/b check result devided by 0 */
+
+    value[0] = 0x05;
+    AssertNotNull(BN_bin2bn(value, sizeof(value), b));
+
+    value[0] = 0x00;
+    AssertNotNull(BN_bin2bn(value, sizeof(value), c));
+
+    AssertIntEQ(BN_div(d, a, b, c, NULL), SSL_FAILURE);
 
     BN_free(a);
     BN_free(b);
