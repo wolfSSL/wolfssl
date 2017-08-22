@@ -112,13 +112,13 @@ extern "C" {
     #ifdef USE_FAST_MATH
         /* Maximum math bits (Max RSA key bits * 2) */
         #undef  FP_MAX_BITS
-        #define FP_MAX_BITS     2048
+        #define FP_MAX_BITS     4096
     #endif
 
     /* half as much memory but twice as slow */
     #undef  RSA_LOW_MEM
     //#define RSA_LOW_MEM
-    
+
     /* timing resistance */
     #undef  WC_RSA_BLINDING
     #define WC_RSA_BLINDING
@@ -237,10 +237,10 @@ extern "C" {
 #define BENCH_EMBEDDED
 
 #undef  USE_CERT_BUFFERS_2048
-//#define USE_CERT_BUFFERS_2048
+#define USE_CERT_BUFFERS_2048
 
 #undef  USE_CERT_BUFFERS_1024
-#define USE_CERT_BUFFERS_1024
+//#define USE_CERT_BUFFERS_1024
 
 #undef  USE_CERT_BUFFERS_256
 #define USE_CERT_BUFFERS_256

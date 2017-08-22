@@ -71,7 +71,11 @@ typedef struct Sha {
         word32  loLen;     /* length in bytes   */
         word32  hiLen;     /* length in bytes   */
         word32  buffer[SHA_BLOCK_SIZE  / sizeof(word32)];
+    #ifdef WOLFSSL_PIC32MZ_HASH
+        word32  digest[PIC32_DIGEST_SIZE / sizeof(word32)];
+    #else
         word32  digest[SHA_DIGEST_SIZE / sizeof(word32)];
+    #endif
         void*   heap;
     #ifdef WOLFSSL_PIC32MZ_HASH
         hashUpdCache cache; /* cache for updates */
