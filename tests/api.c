@@ -122,6 +122,10 @@
     #include <wolfssl/wolfcrypt/hc128.h>
 #endif
 
+#ifdef HAVE_ED25519
+    #include <wolfssl/wolfcrypt/ed25519.h>
+#endif
+
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/ssl.h>
     #include <wolfssl/openssl/pkcs12.h>
@@ -8751,7 +8755,621 @@ static int test_wc_Hc128_Process (void)
 } /* END test_wc_Hc128_Process */
 
 
+/*
+ * Testing wc_ed25519_make_key().
+ */
+static int test_wc_ed25519_make_key (void)
+{
+    int ret = 0;
 
+#if defined(HAVE_ED25519)
+    ed25519_key     key;
+    WC_RNG          rng;
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_ed25519_init(&key);
+    }
+    printf(testingFmt, "wc_ed25519_make_key()");
+    if (ret == 0) {
+        ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key);
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_ed25519_make_key(NULL, ED25519_KEY_SIZE, &key);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE - 1, &key);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE + 1, &key);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+    wc_ed25519_free(&key);
+
+#endif
+    return ret;
+
+} /* END test_wc_ed25519_make_key */
+
+
+/*
+ * Testing wc_ed25519_init()
+ */
+static int test_wc_ed25519_init (void)
+{
+    int             ret = 0;
+
+#if defined(HAVE_ED25519)
+
+    ed25519_key    key;
+
+    printf(testingFmt, "wc_ed25519_init()");
+
+    ret = wc_ed25519_init(&key);
+
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_ed25519_init(NULL);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    wc_ed25519_free(&key);
+
+#endif
+    return ret;
+
+} /* END test_wc_ed25519_init */
+
+/*
+ * Test wc_ed25519_sign_msg() and wc_ed25519_verify_msg()
+ */
+static int test_wc_ed25519_sign_msg (void)
+{
+    int             ret = 0;
+
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_SIGN)
+    WC_RNG          rng;
+    ed25519_key     key;
+    byte            msg[] = "Everybody gets Friday off.\n";
+    byte            sig[ED25519_SIG_SIZE];
+    word32          msglen = sizeof(msg);
+    word32          siglen = sizeof(sig);
+    word32          badSigLen = sizeof(sig) - 1;
+    int             stat = 0; /*1 = Verify success.*/
+
+    /* Initialize stack variables. */
+    XMEMSET(sig, 0, siglen);
+
+    /* Initialize key. */
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_ed25519_init(&key);
+        if (ret == 0) {
+            ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key);
+        }
+    }
+
+    printf(testingFmt, "wc_ed25519_sign_msg()");
+
+    if (ret == 0) {
+        ret = wc_ed25519_sign_msg(msg, msglen, sig, &siglen, &key);
+    }
+    /* Test bad args. */
+    if (ret == 0 && siglen == ED25519_SIG_SIZE) {
+        ret = wc_ed25519_sign_msg(NULL, msglen, sig, &siglen, &key);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ed25519_sign_msg(msg, msglen, NULL, &siglen, &key);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ed25519_sign_msg(msg, msglen, sig, NULL, &key);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ed25519_sign_msg(msg, msglen, sig, &siglen, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ed25519_sign_msg(msg, msglen, sig, &badSigLen, &key);
+        }
+        if (ret == BUFFER_E && badSigLen == ED25519_SIG_SIZE) {
+            badSigLen -= 1;
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    } /* END sign */
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+    #ifdef HAVE_ED25519_VERIFY
+        printf(testingFmt, "wc_ed25519_verify_msg()");
+
+        if (ret == 0) {
+
+            ret = wc_ed25519_verify_msg(sig, siglen, msg, msglen, &stat, &key);
+            if (ret == 0  && stat == 1) {
+                ret = 0;
+            } else if (ret == 0) {
+                ret = SSL_FATAL_ERROR;
+            }
+
+            /* Test bad args. */
+            if (ret == 0) {
+                ret = wc_ed25519_verify_msg(NULL, siglen, msg, msglen, &stat,
+                                                                        &key);
+                if (ret == BAD_FUNC_ARG) {
+                    ret = wc_ed25519_verify_msg(sig, siglen, NULL, msglen,
+                                                                &stat, &key);
+                }
+                if (ret == BAD_FUNC_ARG) {
+                    ret = wc_ed25519_verify_msg(sig, siglen, msg, msglen,
+                                                                  NULL, &key);
+                }
+                if (ret == BAD_FUNC_ARG) {
+                    ret = wc_ed25519_verify_msg(sig, siglen, msg, msglen,
+                                                                &stat, NULL);
+                }
+                if (ret == BAD_FUNC_ARG) {
+                    ret = wc_ed25519_verify_msg(sig, badSigLen, msg, msglen,
+                                                                &stat, &key);
+                }
+                if (ret == BAD_FUNC_ARG) {
+                    ret = 0;
+                } else if (ret == 0) {
+                    ret = SSL_FATAL_ERROR;
+                }
+            }
+
+        } /* END verify. */
+
+        printf(resultFmt, ret == 0 ? passed : failed);
+    #endif /* Verify. */
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+    wc_ed25519_free(&key);
+
+#endif
+    return ret;
+
+} /* END test_wc_ed25519_sign_msg */
+
+/*
+ * Testing wc_ed25519_import_public()
+ */
+static int test_wc_ed25519_import_public (void)
+{
+    int             ret = 0;
+
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
+    WC_RNG          rng;
+    ed25519_key     pubKey;
+    const byte      in[] = "Ed25519PublicKeyUnitTest......\n";
+    word32          inlen = sizeof(in);
+
+
+    ret = wc_InitRng(&rng);
+        if (ret == 0) {
+            ret = wc_ed25519_init(&pubKey);
+        if (ret == 0) {
+            ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &pubKey);
+        }
+    }
+    printf(testingFmt, "wc_ed25519_import_public()");
+
+    if (ret == 0) {
+        ret = wc_ed25519_import_public(in, inlen, &pubKey);
+
+        if (ret == 0 && XMEMCMP(in, pubKey.p, inlen) == 0) {
+            ret = 0;
+        } else {
+            ret = SSL_FATAL_ERROR;
+        }
+
+        /* Test bad args. */
+        if (ret == 0) {
+            ret = wc_ed25519_import_public(NULL, inlen, &pubKey);
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_ed25519_import_public(in, inlen, NULL);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_ed25519_import_public(in, inlen - 1, &pubKey);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            } else if (ret == 0) {
+                ret = SSL_FATAL_ERROR;
+            }
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+    wc_ed25519_free(&pubKey);
+
+#endif
+    return ret;
+
+} /* END wc_ed25519_import_public */
+
+/*
+ * Testing wc_ed25519_import_private_key()
+ */
+static int test_wc_ed25519_import_private_key (void)
+{
+    int         ret = 0;
+
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_IMPORT)
+    WC_RNG      rng;
+    ed25519_key key;
+    const byte  privKey[] = "Ed25519PrivateKeyUnitTest.....\n";
+    const byte  pubKey[] = "Ed25519PublicKeyUnitTest......\n";
+    word32      privKeySz = sizeof(privKey);
+    word32      pubKeySz = sizeof(pubKey);
+
+    ret = wc_InitRng(&rng);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = wc_ed25519_init(&key);
+    if (ret != 0) {
+        wc_FreeRng(&rng);
+        return ret;
+    }
+    ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key);
+
+    printf(testingFmt, "wc_ed25519_import_private_key()");
+
+    if (ret == 0) {
+        ret = wc_ed25519_import_private_key(privKey, privKeySz, pubKey,
+                                                            pubKeySz, &key);
+        if (ret == 0 && (XMEMCMP(pubKey, key.p, privKeySz) != 0
+                                || XMEMCMP(privKey, key.k, pubKeySz) != 0)) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_ed25519_import_private_key(NULL, privKeySz, pubKey, pubKeySz,
+                                                                        &key);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ed25519_import_private_key(privKey, privKeySz, NULL,
+                                                                pubKeySz, &key);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ed25519_import_private_key(privKey, privKeySz, pubKey,
+                                                                pubKeySz, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ed25519_import_private_key(privKey, privKeySz - 1, pubKey,
+                                                                pubKeySz, &key);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ed25519_import_private_key(privKey, privKeySz, pubKey,
+                                                            pubKeySz - 1, &key);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+    wc_ed25519_free(&key);
+
+#endif
+    return ret;
+
+} /* END test_wc_ed25519_import_private_key */
+
+/*
+ * Testing wc_ed25519_export_public() and wc_ed25519_export_private_only()
+ */
+static int test_wc_ed25519_export (void)
+{
+    int             ret = 0;
+
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
+    WC_RNG          rng;
+    ed25519_key     key;
+    byte            priv[ED25519_PRV_KEY_SIZE];
+    byte            pub[ED25519_PUB_KEY_SIZE];
+    word32          privSz = sizeof(priv);
+    word32          pubSz = sizeof(pub);
+
+    ret = wc_InitRng(&rng);
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret = wc_ed25519_init(&key);
+    if (ret != 0) {
+        wc_FreeRng(&rng);
+        return ret;
+    }
+
+    if (ret == 0) {
+        ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key);
+    }
+
+    printf(testingFmt, "wc_ed25519_export_public()");
+
+    if (ret == 0) {
+        ret = wc_ed25519_export_public(&key, pub, &pubSz);
+        if (ret == 0 && (pubSz != ED25519_KEY_SIZE
+                                        || XMEMCMP(key.p, pub, pubSz) != 0)) {
+            ret = SSL_FATAL_ERROR;
+        }
+        if (ret == 0) {
+            ret = wc_ed25519_export_public(NULL, pub, &pubSz);
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_ed25519_export_public(&key, NULL, &pubSz);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_ed25519_export_public(&key, pub, NULL);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            } else if (ret == 0) {
+                ret = SSL_FATAL_ERROR;
+            }
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+    printf(testingFmt, "wc_ed25519_export_private_only()");
+
+    if (ret == 0) {
+        ret = wc_ed25519_export_private_only(&key, priv, &privSz);
+        if (ret == 0 && (privSz != ED25519_KEY_SIZE
+                                        || XMEMCMP(key.k, priv, pubSz) != 0)) {
+            ret = SSL_FATAL_ERROR;
+        }
+        if (ret == 0) {
+            ret = wc_ed25519_export_private_only(NULL, priv, &privSz);
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_ed25519_export_private_only(&key, NULL, &privSz);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_ed25519_export_private_only(&key, priv, NULL);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            } else if (ret == 0) {
+                ret = SSL_FATAL_ERROR;
+            }
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+    wc_ed25519_free(&key);
+
+#endif
+    return ret;
+
+} /* END test_wc_ed25519_export */
+
+/*
+ *  Testing wc_ed25519_size()
+ */
+static int test_wc_ed25519_size (void)
+{
+    int             ret = 0;
+#if defined(HAVE_ED25519)
+    WC_RNG          rng;
+    ed25519_key     key;
+
+    ret = wc_InitRng(&rng);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = wc_ed25519_init(&key);
+    if (ret != 0) {
+        wc_FreeRng(&rng);
+        return ret;
+    }
+
+    ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key);
+    if (ret != 0) {
+        wc_FreeRng(&rng);
+        wc_ed25519_free(&key);
+        return ret;
+    }
+
+    printf(testingFmt, "wc_ed25519_size()");
+    ret = wc_ed25519_size(&key);
+    /* Test bad args. */
+    if (ret == ED25519_KEY_SIZE) {
+        ret = wc_ed25519_size(NULL);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        }
+    }
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (ret == 0) {
+        printf(testingFmt, "wc_ed25519_sig_size()");
+
+        ret = wc_ed25519_sig_size(&key);
+        if (ret == ED25519_SIG_SIZE) {
+            ret = 0;
+        }
+        /* Test bad args. */
+        if (ret == 0) {
+            ret = wc_ed25519_sig_size(NULL);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+
+        printf(resultFmt, ret == 0 ? passed : failed);
+    } /* END wc_ed25519_sig_size() */
+
+    if (ret == 0) {
+        printf(testingFmt, "wc_ed25519_pub_size");
+        ret = wc_ed25519_pub_size(&key);
+        if (ret == ED25519_PUB_KEY_SIZE) {
+            ret = 0;
+        }
+        if (ret == 0) {
+            ret = wc_ed25519_pub_size(NULL);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+        printf(resultFmt, ret == 0 ? passed : failed);
+    } /* END wc_ed25519_pub_size */
+
+    if (ret == 0) {
+        printf(testingFmt, "wc_ed25519_priv_size");
+        ret = wc_ed25519_priv_size(&key);
+        if (ret == ED25519_PRV_KEY_SIZE) {
+            ret = 0;
+        }
+        if (ret == 0) {
+            ret = wc_ed25519_priv_size(NULL);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            }
+        }
+        printf(resultFmt, ret == 0 ? passed : failed);
+    } /* END wc_ed25519_pub_size */
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+    wc_ed25519_free(&key);
+
+#endif
+    return ret;
+
+} /* END test_wc_ed25519_size */
+
+/*
+ * Testing wc_ed25519_export_private() and wc_ed25519_export_key()
+ */
+static int test_wc_ed25519_exportKey (void)
+{
+    int             ret = 0;
+#if defined(HAVE_ED25519) && defined(HAVE_ED25519_KEY_EXPORT)
+    WC_RNG          rng;
+    ed25519_key     key;
+    byte            priv[ED25519_PRV_KEY_SIZE];
+    byte            pub[ED25519_PUB_KEY_SIZE];
+    byte            privOnly[ED25519_PRV_KEY_SIZE];
+    word32          privSz      = sizeof(priv);
+    word32          pubSz       = sizeof(pub);
+    word32          privOnlySz  = sizeof(privOnly);
+
+    ret = wc_InitRng(&rng);
+    if (ret != 0) {
+        return ret;
+    }
+    ret = wc_ed25519_init(&key);
+    if (ret != 0) {
+        wc_FreeRng(&rng);
+        return ret;
+    }
+
+    ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key);
+    if (ret != 0) {
+        wc_FreeRng(&rng);
+        wc_ed25519_free(&key);
+        return ret;
+    }
+
+    printf(testingFmt, "wc_ed25519_export_private()");
+
+    ret = wc_ed25519_export_private(&key, privOnly, &privOnlySz);
+    if (ret == 0) {
+        ret = wc_ed25519_export_private(NULL, privOnly, &privOnlySz);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ed25519_export_private(&key, NULL, &privOnlySz);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_ed25519_export_private(&key, privOnly, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (ret == 0) {
+        printf(testingFmt, "wc_ed25519_export_key()");
+
+        ret = wc_ed25519_export_key(&key, priv, &privSz, pub, &pubSz);
+        if (ret == 0) {
+            ret = wc_ed25519_export_key(NULL, priv, &privSz, pub, &pubSz);
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_ed25519_export_key(&key, NULL, &privSz, pub, &pubSz);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_ed25519_export_key(&key, priv, NULL, pub, &pubSz);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_ed25519_export_key(&key, priv, &privSz, NULL, &pubSz);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_ed25519_export_key(&key, priv, &privSz, pub, NULL);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            } else if (ret == 0) {
+                ret = SSL_FATAL_ERROR;
+            }
+        }
+        printf(resultFmt, ret == 0 ? passed : failed);
+    } /* END wc_ed25519_export_key() */
+
+    /* Cross check output. */
+    if (ret == 0 && XMEMCMP(priv, privOnly, privSz) != 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+
+    if (wc_FreeRng(&rng) && ret == 0) {
+        ret = SSL_FATAL_ERROR;
+    }
+    wc_ed25519_free(&key);
+
+#endif
+    return ret;
+
+} /* END test_wc_ed25519_exportKey */
 
 
 /*----------------------------------------------------------------------------*
@@ -10273,6 +10891,14 @@ void ApiTest(void)
     AssertIntEQ(test_wc_AesCcmEncryptDecrypt(), 0);
     AssertIntEQ(test_wc_Hc128_SetKey(), 0);
     AssertIntEQ(test_wc_Hc128_Process(), 0);
+    AssertIntEQ(test_wc_ed25519_make_key(), 0);
+    AssertIntEQ(test_wc_ed25519_init(), 0);
+    AssertIntEQ(test_wc_ed25519_sign_msg(), 0);
+    AssertIntEQ(test_wc_ed25519_import_public(), 0);
+    AssertIntEQ(test_wc_ed25519_import_private_key(), 0);
+    AssertIntEQ(test_wc_ed25519_export(), 0);
+    AssertIntEQ(test_wc_ed25519_size(), 0);
+    AssertIntEQ(test_wc_ed25519_exportKey(), 0);
     printf(" End API Tests\n");
 
 }
