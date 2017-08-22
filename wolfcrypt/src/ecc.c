@@ -5101,6 +5101,10 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 {
     int ret;
 
+    if (priv == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
     /* public optional, NULL if only importing private */
     if (pub != NULL) {
         ret = wc_ecc_import_x963_ex(pub, pubSz, key, curve_id);
@@ -6730,6 +6734,10 @@ int wc_ecc_mulmod_ex(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
    mp_digit mp;
    mp_int   mu;
    int      mpSetup = 0;
+
+   if (k == NULL || G == NULL || R == NULL || a == NULL || modulus == NULL) {
+        return ECC_BAD_ARG_E;
+   }
 
    if (mp_init(&mu) != MP_OKAY)
        return MP_INIT_E;
