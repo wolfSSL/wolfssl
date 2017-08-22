@@ -10489,7 +10489,7 @@ static int ecc_test_make_pub(WC_RNG* rng)
         goto exit_ecc_make_pub;
     }
 
-    tmpSz = fread(tmp, 1, FOURK_BUF, file);
+    tmpSz = (word32)fread(tmp, 1, FOURK_BUF, file);
     fclose(file);
 #endif /* USE_CERT_BUFFERS_256 */
 
