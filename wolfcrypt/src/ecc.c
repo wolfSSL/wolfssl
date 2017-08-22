@@ -961,7 +961,9 @@ const ecc_set_type ecc_sets[] = {
 static int wc_ecc_export_x963_compressed(ecc_key*, byte* out, word32* outLen);
 #endif
 
-#ifndef WOLFSSL_ATECC508A
+#ifdef WOLFSSL_ATECC508A
+    typedef void* ecc_curve_spec;
+#else
 
 static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
         mp_int* prime, mp_int* order);
@@ -3008,13 +3010,14 @@ static int wc_ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
 #ifndef WOLFSSL_ATECC508A
     ecc_point*     base = NULL;
     DECLARE_CURVE_SPECS(ECC_CURVE_FIELD_COUNT)
-#endif
     ecc_point* pub;
+#endif
 
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
 
+#ifndef WOLFSSL_ATECC508A
     /* if ecc_point passed in then use it as output for public key point */
     if (pubOut != NULL) {
         pub = pubOut;
@@ -3089,6 +3092,8 @@ static int wc_ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
     if (curveIn == NULL) {
         wc_ecc_curve_free(curve);
     }
+
+#endif /* WOLFSSL_ATECC508A */
 
     /* change key state if public part is cached */
     if (key->type == ECC_PRIVATEKEY_ONLY && pubOut == NULL) {
