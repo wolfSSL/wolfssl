@@ -1493,9 +1493,16 @@ static int ProcessClientKeyExchange(const byte* input, int* sslBytes,
                 return -1;
             }
         #endif
-        ret = wc_RsaPrivateDecrypt(input, length,
-                  session->sslServer->arrays->preMasterSecret,SECRET_LEN, &key);
-
+        do {
+        #ifdef WOLFSSL_ASYNC_CRYPT
+                ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        #endif
+            if (ret >= 0) {
+                ret = wc_RsaPrivateDecrypt(input, length,
+                      session->sslServer->arrays->preMasterSecret, SECRET_LEN,
+                      &key);
+            }
+        } while (ret == WC_PENDING_E);
         if (ret != SECRET_LEN) {
             SetError(RSA_DECRYPT_STR, error, session, FATAL_ERROR_STATE);
             wc_FreeRsaKey(&key);
