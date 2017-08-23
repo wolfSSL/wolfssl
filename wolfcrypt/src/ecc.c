@@ -4136,7 +4136,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
       err = wc_ecc_make_pub_ex(key, NULL, NULL);
       if (err != MP_OKAY) {
            WOLFSSL_MSG("Unable to extract public key");
-           return BAD_FUNC_ARG;
+           return err;
       }
   }
 
