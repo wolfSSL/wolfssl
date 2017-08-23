@@ -11418,6 +11418,60 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return sz;
     }
 
+    /* Handles reading from a memory type BIO and advancing the state.
+     *
+     * bio  WOLFSSL_BIO to read from
+     * buf  buffer to put data from bio in
+     * len  amount of data to be read
+     *
+     * returns size read on success
+     */
+    static int wolfSSL_BIO_MEMORY_read(WOLFSSL_BIO* bio, void* buf, int len)
+    {
+        int   sz;
+
+        sz = (int)wolfSSL_BIO_ctrl_pending(bio);
+        if (sz > 0) {
+            byte* pt = NULL;
+            int memSz;
+
+            if (sz > len) {
+                sz = len;
+            }
+            memSz = wolfSSL_BIO_get_mem_data(bio, (void*)&pt);
+            if (memSz >= sz && pt != NULL) {
+                byte* tmp;
+
+                XMEMCPY(buf, pt, sz);
+                if (memSz - sz > 0) {
+                    tmp = (byte*)XMALLOC(memSz-sz, bio->heap,
+                            DYNAMIC_TYPE_OPENSSL);
+                    if (tmp == NULL) {
+                        WOLFSSL_MSG("Memory error");
+                        return WOLFSSL_BIO_ERROR;
+                    }
+                    XMEMCPY(tmp, pt + sz, memSz - sz);
+
+                    /* reset internal bio->mem, tmp gets free'd with
+                     * wolfSSL_BIO_free */
+                    XFREE(bio->mem, bio->heap, DYNAMIC_TYPE_OPENSSL);
+                    bio->mem = tmp;
+                }
+                bio->wrSz  -= sz;
+                bio->memLen = memSz - sz;
+            }
+            else {
+                WOLFSSL_MSG("Issue with getting bio mem pointer");
+                return 0;
+            }
+        }
+        else {
+            return WOLFSSL_BIO_ERROR;
+        }
+
+        return sz;
+    }
+
 
     int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
     {
@@ -11437,9 +11491,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
     #endif
         if (bio && bio->type == BIO_MEMORY) {
-            len = min(len, bio->memLen);
-            XMEMCPY(buf, bio->mem, len);
-            return len;
+            return wolfSSL_BIO_MEMORY_read(bio, buf, len);
         }
 
         /* already got eof, again is error */
@@ -22842,7 +22894,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         WOLFSSL_X509* x509 = NULL;
         unsigned char* pem = NULL;
         int pemSz;
-        int pemAlloced = 0;
+        long  i = 0, l;
 
         WOLFSSL_ENTER("wolfSSL_PEM_read_bio_X509");
 
@@ -22852,17 +22904,13 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         }
 
         if (bp->type == BIO_MEMORY) {
-            pemSz = wolfSSL_BIO_get_mem_data(bp, &pem);
-            if (pemSz <= 0 || pem == NULL) {
-                WOLFSSL_MSG("Issue getting WOLFSSL_BIO mem");
-                WOLFSSL_LEAVE("wolfSSL_PEM_read_bio_X509", pemSz);
+            l = wolfSSL_BIO_ctrl_pending(bp);
+            if (l <= 0) {
+                WOLFSSL_MSG("No pending data in WOLFSSL_BIO");
                 return NULL;
             }
         }
         else if (bp->type == BIO_FILE) {
-            long i;
-            long l;
-
             /* Read in next certificate from file but no more. */
             i = XFTELL(bp->file);
             if (i < 0)
@@ -22872,34 +22920,31 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
             if (l < 0)
                 return NULL;
             XFSEEK(bp->file, i, SEEK_SET);
-
-            /* check calulated length */
-            if (l - i < 0)
-                return NULL;
-
-            pem = (unsigned char*)XMALLOC(l - i, 0, DYNAMIC_TYPE_PEM);
-            if (pem == NULL)
-                return NULL;
-            pemAlloced = 1;
-
-            i = 0;
-            /* TODO: Inefficient
-             * reading in one byte at a time until see END_CERT
-             */
-            while ((l = wolfSSL_BIO_read(bp, (char *)&pem[i], 1)) == 1) {
-                i++;
-                if (i > 26 && XMEMCMP((char *)&pem[i-26], END_CERT, 25) == 0)
-                    break;
-            }
-        #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
-            if (l == 0)
-                WOLFSSL_ERROR(SSL_NO_PEM_HEADER);
-        #endif
-            pemSz = (int)i;
         }
         else
             return NULL;
 
+        /* check calulated length */
+        if (l - i < 0)
+            return NULL;
+        pem = (unsigned char*)XMALLOC(l - i, 0, DYNAMIC_TYPE_PEM);
+        if (pem == NULL)
+            return NULL;
+
+        i = 0;
+        /* TODO: Inefficient
+         * reading in one byte at a time until see END_CERT
+         */
+        while ((l = wolfSSL_BIO_read(bp, (char *)&pem[i], 1)) == 1) {
+            i++;
+            if (i > 26 && XMEMCMP((char *)&pem[i-26], END_CERT, 25) == 0)
+                break;
+        }
+    #ifdef WOLFSSL_NGINX
+        if (l == 0)
+            WOLFSSL_ERROR(SSL_NO_PEM_HEADER);
+    #endif
+        pemSz = (int)i;
         x509 = wolfSSL_X509_load_certificate_buffer(pem, pemSz,
                                                               SSL_FILETYPE_PEM);
 
@@ -22907,8 +22952,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
             *x = x509;
         }
 
-        if (pemAlloced)
-            XFREE(pem, NULL, DYNAMIC_TYPE_PEM);
+        XFREE(pem, NULL, DYNAMIC_TYPE_PEM);
 
         (void)cb;
         (void)u;
