@@ -10591,6 +10591,47 @@ static int ecc_test_make_pub(WC_RNG* rng)
 
 #endif /* HAVE_ECC_SIGN */
 
+#if defined(HAVE_ECC_DHE) && defined(HAVE_ECC_KEY_EXPORT)
+    /* now test private only key with creating a shared secret */
+    {
+        ecc_key pub;
+
+        x = sizeof(exportBuf);
+        ret = wc_ecc_export_private_only(&key, exportBuf, &x);
+        if (ret != 0)
+            goto exit_ecc_make_pub;
+
+        /* make private only key */
+        wc_ecc_free(&key);
+        wc_ecc_init(&key);
+        ret = wc_ecc_import_private_key(exportBuf, x, NULL, 0, &key);
+        if (ret != 0)
+            goto exit_ecc_make_pub;
+
+        /* check that public export fails with private only key */
+        x = sizeof(exportBuf);
+        ret = wc_ecc_export_x963_ex(&key, exportBuf, &x, 0);
+        if (ret == 0) {
+            ret = -6008;
+            goto exit_ecc_make_pub;
+        }
+
+        /* make public key for shared secret */
+        wc_ecc_init(&pub);
+        ret = wc_ecc_make_key(rng, 32, &pub);
+        if (ret != 0)
+            goto exit_ecc_make_pub;
+
+        x = sizeof(exportBuf);
+        ret = wc_ecc_shared_secret(&key, &pub, exportBuf, &x);
+        if (ret != 0) {
+            wc_ecc_free(&pub);
+            goto exit_ecc_make_pub;
+        }
+
+        wc_ecc_free(&pub);
+    }
+#endif /* defined(HAVE_ECC_DHE) && defined(HAVE_ECC_KEY_EXPORT) */
 exit_ecc_make_pub:
 
     wc_ecc_del_point_h(pubPoint, HEAP_HINT);
