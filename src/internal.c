@@ -6494,32 +6494,6 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 #endif
 
-#ifdef OPENSSL_EXTRA
-    /* case where specific protocols are turned off */
-    if (!ssl->options.dtls && ssl->options.mask > 0) {
-        if (rh->pvMinor == SSLv3_MINOR &&
-            (ssl->options.mask & SSL_OP_NO_SSLv3) == SSL_OP_NO_SSLv3) {
-            WOLFSSL_MSG("Option set to not allow SSLv3");
-            return VERSION_ERROR;
-        }
-        if (rh->pvMinor == TLSv1_MINOR &&
-            (ssl->options.mask & SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1) {
-            WOLFSSL_MSG("Option set to not allow TLSv1");
-            return VERSION_ERROR;
-        }
-        if (rh->pvMinor == TLSv1_1_MINOR &&
-            (ssl->options.mask & SSL_OP_NO_TLSv1_1) == SSL_OP_NO_TLSv1_1) {
-            WOLFSSL_MSG("Option set to not allow TLSv1.1");
-            return VERSION_ERROR;
-        }
-        if (rh->pvMinor == TLSv1_2_MINOR &&
-            (ssl->options.mask & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
-            WOLFSSL_MSG("Option set to not allow TLSv1.2");
-            return VERSION_ERROR;
-        }
-    }
-#endif /* OPENSSL_EXTRA */
-
     /* catch version mismatch */
 #ifndef WOLFSSL_TLS13
     if (rh->pvMajor != ssl->version.major || rh->pvMinor != ssl->version.minor)
@@ -16694,6 +16668,42 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
             }
         }
 
+#ifdef OPENSSL_EXTRA
+        /* check if option is set to not allow the current version
+         * set from either wolfSSL_set_options or wolfSSL_CTX_set_options */
+        if (!ssl->options.dtls && ssl->options.downgrade &&
+                ssl->options.mask > 0) {
+            if (ssl->version.minor == TLSv1_2_MINOR &&
+             (ssl->options.mask & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
+                WOLFSSL_MSG("\tOption set to not allow TLSv1.2, Downgrading");
+                ssl->version.minor = TLSv1_1_MINOR;
+            }
+            if (ssl->version.minor == TLSv1_1_MINOR &&
+             (ssl->options.mask & SSL_OP_NO_TLSv1_1) == SSL_OP_NO_TLSv1_1) {
+                WOLFSSL_MSG("\tOption set to not allow TLSv1.1, Downgrading");
+                ssl->options.tls1_1 = 0;
+                ssl->version.minor = TLSv1_MINOR;
+            }
+            if (ssl->version.minor == TLSv1_MINOR &&
+                (ssl->options.mask & SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1) {
+                WOLFSSL_MSG("\tOption set to not allow TLSv1, Downgrading");
+                ssl->options.tls    = 0;
+                ssl->options.tls1_1 = 0;
+                ssl->version.minor = SSLv3_MINOR;
+            }
+            if (ssl->version.minor == SSLv3_MINOR &&
+                (ssl->options.mask & SSL_OP_NO_SSLv3) == SSL_OP_NO_SSLv3) {
+                WOLFSSL_MSG("\tError, option set to not allow SSLv3");
+                return VERSION_ERROR;
+            }
+
+            if (ssl->version.minor < ssl->options.minDowngrade) {
+                WOLFSSL_MSG("\tversion below minimum allowed, fatal error");
+                return VERSION_ERROR;
+            }
+        }
+#endif
+
         return 0;
     }
 
@@ -22436,6 +22446,68 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                        ssl->options.haveECDSAsig, ssl->options.haveECC,
                        ssl->options.haveStaticECC, ssl->options.side);
         }
+
+#ifdef OPENSSL_EXTRA
+        /* check if option is set to not allow the current version
+         * set from either wolfSSL_set_options or wolfSSL_CTX_set_options */
+        if (!ssl->options.dtls && ssl->options.downgrade &&
+                ssl->options.mask > 0) {
+            int reset = 0;
+            if (ssl->version.minor == TLSv1_2_MINOR &&
+             (ssl->options.mask & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
+                WOLFSSL_MSG("\tOption set to not allow TLSv1.2, Downgrading");
+                ssl->version.minor = TLSv1_1_MINOR;
+                reset = 1;
+            }
+            if (ssl->version.minor == TLSv1_1_MINOR &&
+             (ssl->options.mask & SSL_OP_NO_TLSv1_1) == SSL_OP_NO_TLSv1_1) {
+                WOLFSSL_MSG("\tOption set to not allow TLSv1.1, Downgrading");
+                ssl->options.tls1_1 = 0;
+                ssl->version.minor = TLSv1_MINOR;
+                reset = 1;
+            }
+            if (ssl->version.minor == TLSv1_MINOR &&
+                (ssl->options.mask & SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1) {
+                WOLFSSL_MSG("\tOption set to not allow TLSv1, Downgrading");
+                ssl->options.tls    = 0;
+                ssl->options.tls1_1 = 0;
+                ssl->version.minor = SSLv3_MINOR;
+                reset = 1;
+            }
+            if (ssl->version.minor == SSLv3_MINOR &&
+                (ssl->options.mask & SSL_OP_NO_SSLv3) == SSL_OP_NO_SSLv3) {
+                WOLFSSL_MSG("\tError, option set to not allow SSLv3");
+                return VERSION_ERROR;
+            }
+
+            if (ssl->version.minor < ssl->options.minDowngrade) {
+                WOLFSSL_MSG("\tversion below minimum allowed, fatal error");
+                return VERSION_ERROR;
+            }
+
+            if (reset) {
+                word16 haveRSA = 0;
+                word16 havePSK = 0;
+                int    keySz   = 0;
+
+            #ifndef NO_RSA
+                haveRSA = 1;
+            #endif
+            #ifndef NO_PSK
+                havePSK = ssl->options.havePSK;
+            #endif
+            #ifndef NO_CERTS
+                keySz = ssl->buffers.keySz;
+            #endif
+
+                /* reset cipher suites to account for TLS version change */
+                InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
+                       ssl->options.haveDH, ssl->options.haveNTRU,
+                       ssl->options.haveECDSAsig, ssl->options.haveECC,
+                       ssl->options.haveStaticECC, ssl->options.side);
+            }
+        }
+#endif
 
         /* random */
         XMEMCPY(ssl->arrays->clientRandom, input + i, RAN_LEN);
