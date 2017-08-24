@@ -256,7 +256,7 @@
 
 
 /* Define AES implementation includes and functions */
-#if defined(STM32F2_CRYPTO) || defined(STM32F4_CRYPTO)
+#if defined(STM32_CRYPTO)
      /* STM32F2/F4 hardware AES support for CBC, CTR modes */
 
     /* CRYPT_AES_GCM starts the IV with 2 */
@@ -1782,7 +1782,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 
 
 /* wc_AesSetKey */
-#if defined(STM32F2_CRYPTO) || defined(STM32F4_CRYPTO)
+#if defined(STM32_CRYPTO)
 
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
             const byte* iv, int dir)
@@ -2253,7 +2253,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
 /* AES-CBC */
 #ifdef HAVE_AES_CBC
-#if defined(STM32F2_CRYPTO) || defined(STM32F4_CRYPTO)
+#if defined(STM32_CRYPTO)
 
 #ifdef WOLFSSL_STM32_CUBEMX
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
@@ -3000,8 +3000,8 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #endif
 
 /* AES-CTR */
-#if defined(WOLFSSL_AES_COUNTER) || (defined(HAVE_AESGCM_DECRYPT) && defined(STM32F4_CRYPTO))
-    #if defined(STM32F2_CRYPTO) || defined(STM32F4_CRYPTO)
+#if defined(WOLFSSL_AES_COUNTER) || (defined(HAVE_AESGCM_DECRYPT) && defined(STM32_CRYPTO))
+    #ifdef STM32_CRYPTO
     #ifdef WOLFSSL_STM32_CUBEMX
         int wc_AesCtrEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
         {
@@ -6933,7 +6933,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte initialCounter[AES_BLOCK_SIZE];
     byte *ctr;
     byte scratch[AES_BLOCK_SIZE];
-#if defined(STM32F2_CRYPTO) || defined(STM32F4_CRYPTO)
+#if defined(STM32_CRYPTO) && (defined(WOLFSSL_STM32F4) || defined(WOLFSSL_STM32F7))
     #ifdef WOLFSSL_STM32_CUBEMX
         CRYP_HandleTypeDef hcryp;
     #else
@@ -6943,7 +6943,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte* authInPadded = NULL;
     byte tag[AES_BLOCK_SIZE];
     int authPadSz;
-#endif /* STM32F2_CRYPTO || STM32F4_CRYPTO */
+#endif /* STM32_CRYPTO */
 #endif /* FREESCALE_LTC_AES_GCM */
 
     /* argument checks */
@@ -6969,7 +6969,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #else
 
-#if defined(STM32F2_CRYPTO) || defined(STM32F4_CRYPTO)
+#if defined(WOLFSSL_STM32F4) || defined(WOLFSSL_STM32F7)
 
     /* additional argument checks - STM32 HW only supports 12 byte IV */
     if (ivSz != NONCE_SZ) {
@@ -7173,7 +7173,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     word32 keySize;
 #ifdef FREESCALE_LTC_AES_GCM
     status_t status;
-#elif defined(STM32F2_CRYPTO) || defined(STM32F4_CRYPTO)
+#elif defined(STM32_CRYPTO) && (defined(WOLFSSL_STM32F4) || defined(WOLFSSL_STM32F7))
     #ifdef WOLFSSL_STM32_CUBEMX
         CRYP_HandleTypeDef hcryp;
     #else
@@ -7216,7 +7216,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     ret = (status == kStatus_Success) ? 0 : AES_GCM_AUTH_E;
 
-#elif defined(STM32F2_CRYPTO) || defined(STM32F4_CRYPTO)
+#elif defined(STM32_CRYPTO) && (defined(WOLFSSL_STM32F4) || defined(WOLFSSL_STM32F7))
 
     /* additional argument checks - STM32 HW only supports 12 byte IV */
     if (ivSz != NONCE_SZ) {

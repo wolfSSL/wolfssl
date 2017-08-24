@@ -51,9 +51,6 @@
 
 /* in bytes */
 enum {
-#if defined(STM32F2_HASH) || defined(STM32F4_HASH)
-    SHA_REG_SIZE     =  4,    /* STM32 register size, bytes */
-#endif
     SHA              =  1,    /* hash type unique */
     SHA_BLOCK_SIZE   = 64,
     SHA_DIGEST_SIZE  = 20,
@@ -64,25 +61,28 @@ enum {
 #ifndef WOLFSSL_TI_HASH
 /* Sha digest */
 typedef struct Sha {
-    #ifdef FREESCALE_LTC_SHA
-        ltc_hash_ctx_t ctx;
-    #else
-        word32  buffLen;   /* in bytes          */
-        word32  loLen;     /* length in bytes   */
-        word32  hiLen;     /* length in bytes   */
-        word32  buffer[SHA_BLOCK_SIZE  / sizeof(word32)];
-    #ifdef WOLFSSL_PIC32MZ_HASH
-        word32  digest[PIC32_DIGEST_SIZE / sizeof(word32)];
-    #else
-        word32  digest[SHA_DIGEST_SIZE / sizeof(word32)];
-    #endif
-        void*   heap;
-    #ifdef WOLFSSL_PIC32MZ_HASH
-        hashUpdCache cache; /* cache for updates */
-    #endif
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        WC_ASYNC_DEV asyncDev;
-    #endif /* WOLFSSL_ASYNC_CRYPT */
+#ifdef FREESCALE_LTC_SHA
+    ltc_hash_ctx_t ctx;
+#else
+    word32  buffLen;   /* in bytes          */
+    word32  loLen;     /* length in bytes   */
+    word32  hiLen;     /* length in bytes   */
+    word32  buffer[SHA_BLOCK_SIZE  / sizeof(word32)];
+#ifdef WOLFSSL_PIC32MZ_HASH
+    word32  digest[PIC32_DIGEST_SIZE / sizeof(word32)];
+#else
+    word32  digest[SHA_DIGEST_SIZE / sizeof(word32)];
+#endif
+    void*   heap;
+#ifdef WOLFSSL_PIC32MZ_HASH
+    hashUpdCache cache; /* cache for updates */
+#endif
+#if defined(STM32_HASH) && defined(WOLFSSL_STM32_CUBEMX)
+    HASH_HandleTypeDef hashHandle;
+#endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    WC_ASYNC_DEV asyncDev;
+#endif /* WOLFSSL_ASYNC_CRYPT */
 #endif /* FREESCALE_LTC_SHA */
 } Sha;
 

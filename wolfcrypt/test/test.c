@@ -5031,8 +5031,7 @@ int aes_test(void)
             return -4216;
 
     /* test not supported on STM32 crypto HW or PIC32MZ HW */
-#if !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO) && \
-    !defined(WOLFSSL_PIC32MZ_CRYPT)
+#if !defined(STM32_CRYPTO) && !defined(WOLFSSL_PIC32MZ_CRYPT)
         /* and an additional 9 bytes to reuse tmp left buffer */
         ret = wc_AesCtrEncrypt(&enc, cipher, ctrPlain, sizeof(oddCipher));
         if (ret != 0) {
@@ -5405,8 +5404,7 @@ int aesgcm_test(void)
 
     /* FIPS, QAT and STM32F2/4 HW Crypto only support 12-byte IV */
 #if !defined(HAVE_FIPS) && !defined(HAVE_INTEL_QA) && \
-        !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO) && \
-        !defined(WOLFSSL_PIC32MZ_CRYPT) && \
+        !defined(STM32_CRYPTO) && !defined(WOLFSSL_PIC32MZ_CRYPT) && \
         !defined(WOLFSSL_XILINX_CRYPT)
 
     #define ENABLE_NON_12BYTE_IV_TEST
@@ -5454,7 +5452,7 @@ int aesgcm_test(void)
     byte resultP[sizeof(p)];
     byte resultC[sizeof(p)];
     int  result;
-#if !defined(HAVE_FIPS) && !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO)
+#if !defined(HAVE_FIPS) && !defined(STM32_CRYPTO)
     int  ivlen;
 #endif
     int  alen, plen;
@@ -5535,7 +5533,7 @@ int aesgcm_test(void)
         return -4309;
 #endif /* BENCH_AESGCM_LARGE */
 
-#if !defined(HAVE_FIPS) && !defined(STM32F2_CRYPTO) && !defined(STM32F4_CRYPTO)
+#if !defined(HAVE_FIPS) && !defined(STM32_CRYPTO)
     /* Variable IV length test */
     for (ivlen=0; ivlen<(int)sizeof(k1); ivlen++) {
          /* AES-GCM encrypt and decrypt both use AES encrypt internally */

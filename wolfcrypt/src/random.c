@@ -1232,7 +1232,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             word32 *rnd32 = (word32 *)rnd;
             word32 size = sz;
             byte* op = output;
-            
+
 #if ((__PIC32_FEATURE_SET0 == 'E') && (__PIC32_FEATURE_SET1 == 'C'))
             RNGNUMGEN1 = _CP0_GET_COUNT();
             RNGPOLY1 = _CP0_GET_COUNT();
@@ -1412,10 +1412,10 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         #define USE_TEST_GENSEED
     #endif /* FREESCALE_K70_RNGA */
 
-#elif defined(STM32F2_RNG) || defined(STM32F4_RNG)
+#elif defined(STM32_RNG)
     /*
      * wc_Generate a RNG seed using the hardware random number generator
-     * on the STM32F2/F4. */
+     * on the STM32F2/F4/F7. */
 
     #ifdef WOLFSSL_STM32_CUBEMX
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
