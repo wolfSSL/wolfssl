@@ -428,6 +428,9 @@ const char* wc_GetErrorString(int error)
     case BAD_OCSP_RESPONDER:
         return "Invalid OCSP Responder, missing specific key usage extensions";
 
+    case ECC_PRIVATEONLY_E:
+        return "Invalid use of private only ECC key";
+
     default:
         return "unknown error number";
 

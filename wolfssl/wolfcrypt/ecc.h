@@ -98,8 +98,9 @@
 
 
 enum {
-    ECC_PUBLICKEY   = 1,
-    ECC_PRIVATEKEY  = 2,
+    ECC_PUBLICKEY       = 1,
+    ECC_PRIVATEKEY      = 2,
+    ECC_PRIVATEKEY_ONLY = 3,
     ECC_MAXNAME     = 16,   /* MAX CURVE NAME LENGTH */
     SIG_HEADER_SZ   =  6,   /* ECC signature header size */
     ECC_BUFSIZE     = 256,  /* for exported keys temp buffer */
@@ -334,6 +335,8 @@ int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key);
 WOLFSSL_API
 int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key,
     int curve_id);
+WOLFSSL_API
+int wc_ecc_make_pub(ecc_key* key, ecc_point* pubOut);
 WOLFSSL_API
 int wc_ecc_check_key(ecc_key* key);
 WOLFSSL_API

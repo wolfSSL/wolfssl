@@ -6230,8 +6230,8 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         /* cert files to be used in rsa cert gen test, check if RSA enabled */
         #if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
             static const char* eccCaCertFile = CERT_ROOT "server-ecc.pem";
-            static const char* eccCaKeyFile  = CERT_ROOT   "ecc-key.der";
         #endif
+            static const char* eccCaKeyFile  = CERT_ROOT   "ecc-key.der";
         #if defined(HAVE_PKCS7) && defined(HAVE_ECC)
             static const char* eccClientKey  = CERT_ROOT "ecc-client-key.der";
             static const char* eccClientCert = CERT_ROOT "client-ecc-cert.der";
@@ -10466,6 +10466,141 @@ done:
 #endif /* HAVE_ECC_CDH */
 #endif /* HAVE_ECC_VECTOR_TEST */
 
+#ifdef HAVE_ECC_KEY_IMPORT
+/* returns 0 on success */
+static int ecc_test_make_pub(WC_RNG* rng)
+{
+    ecc_key key;
+    unsigned char exportBuf[FOURK_BUF];
+    unsigned char tmp[FOURK_BUF];
+    unsigned char msg[] = "test wolfSSL ECC public gen";
+    word32 x, tmpSz;
+    int ret = 0;
+    ecc_point* pubPoint = NULL;
+
+#ifdef USE_CERT_BUFFERS_256
+    XMEMCPY(tmp, ecc_key_der_256, sizeof_ecc_key_der_256);
+    tmpSz = sizeof_ecc_key_der_256;
+#else
+    FILE* file;
+    file = fopen(eccCaKeyFile, "rb");
+    if (!file) {
+        ret = -6000;
+        goto exit_ecc_make_pub;
+    }
+
+    tmpSz = (word32)fread(tmp, 1, FOURK_BUF, file);
+    fclose(file);
+#endif /* USE_CERT_BUFFERS_256 */
+
+    wc_ecc_init(&key);
+
+    /* import private only then test with */
+    ret = wc_ecc_import_private_key(tmp, tmpSz, NULL, 0, NULL);
+    if (ret == 0) {
+        ret = -6001;
+        goto exit_ecc_make_pub;
+    }
+
+    ret = wc_ecc_import_private_key(NULL, tmpSz, NULL, 0, &key);
+    if (ret == 0) {
+        ret = -6002;
+        goto exit_ecc_make_pub;
+    }
+
+    x = 0;
+    ret = wc_EccPrivateKeyDecode(tmp, &x, &key, tmpSz);
+    if (ret != 0)
+        goto exit_ecc_make_pub;
+
+#ifdef HAVE_ECC_KEY_EXPORT
+    x = sizeof(exportBuf);
+    ret = wc_ecc_export_private_only(&key, exportBuf, &x);
+    if (ret != 0)
+        goto exit_ecc_make_pub;
+
+    /* make private only key */
+    wc_ecc_free(&key);
+    wc_ecc_init(&key);
+    ret = wc_ecc_import_private_key(exportBuf, x, NULL, 0, &key);
+    if (ret != 0)
+        goto exit_ecc_make_pub;
+
+    x = sizeof(exportBuf);
+    ret = wc_ecc_export_x963_ex(&key, exportBuf, &x, 0);
+    if (ret == 0) {
+        ret = -6003;
+        goto exit_ecc_make_pub;
+    }
+
+#endif /* HAVE_ECC_KEY_EXPORT */
+
+    ret = wc_ecc_make_pub(NULL, NULL);
+    if (ret == 0) {
+        ret = -6004;
+        goto exit_ecc_make_pub;
+    }
+
+    pubPoint = wc_ecc_new_point_h(HEAP_HINT);
+    if (pubPoint == NULL) {
+        ret = -6005;
+        goto exit_ecc_make_pub;
+    }
+
+    ret = wc_ecc_make_pub(&key, pubPoint);
+    if (ret != 0)
+        goto exit_ecc_make_pub;
+
+#ifdef HAVE_ECC_KEY_EXPORT
+    /* export should still fail, is private only key */
+    x = sizeof(exportBuf);
+    ret = wc_ecc_export_x963_ex(&key, exportBuf, &x, 0);
+    if (ret == 0) {
+        ret = -6006;
+        goto exit_ecc_make_pub;
+    }
+#endif /* HAVE_ECC_KEY_EXPORT */
+
+#ifdef HAVE_ECC_SIGN
+    tmpSz = sizeof(tmp);
+    ret = wc_ecc_sign_hash(msg, sizeof(msg), tmp, &tmpSz, rng, &key);
+    if (ret != 0)
+        goto exit_ecc_make_pub;
+
+#ifdef HAVE_ECC_VERIFY
+    {
+        int res = 0;
+        /* try verify with private only key */
+        ret = wc_ecc_verify_hash(tmp, tmpSz, msg, sizeof(msg), &res, &key);
+        if (ret != 0)
+            goto exit_ecc_make_pub;
+
+        if (res != 1) {
+            ret = -6007;
+            goto exit_ecc_make_pub;
+        }
+    #ifdef HAVE_ECC_KEY_EXPORT
+        /* exporting the public part should now work */
+        x = sizeof(exportBuf);
+        ret = wc_ecc_export_x963_ex(&key, exportBuf, &x, 0);
+        if (ret != 0)
+            goto exit_ecc_make_pub;
+    #endif /* HAVE_ECC_KEY_EXPORT */
+    }
+#endif /* HAVE_ECC_VERIFY */
+
+#endif /* HAVE_ECC_SIGN */
+
+exit_ecc_make_pub:
+
+    wc_ecc_del_point_h(pubPoint, HEAP_HINT);
+    wc_ecc_free(&key);
+
+    return ret;
+}
+#endif /* HAVE_ECC_KEY_IMPORT */
+
+
 #ifdef WOLFSSL_KEY_GEN
 static int ecc_test_key_gen(WC_RNG* rng, int keySize)
 {
@@ -11623,6 +11758,12 @@ int ecc_test(void)
         printf("ecc_test_cdh_vectors failed! %d\n", ret);
     }
 #endif
+
+    ret = ecc_test_make_pub(&rng);
+    if (ret < 0) {
+        printf("ecc_test_make_pub failed!: %d\n", ret);
+        return ret;
+    }
 
 done:
     wc_FreeRng(&rng);
