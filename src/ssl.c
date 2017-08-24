@@ -22904,7 +22904,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         }
 
         if (bp->type == BIO_MEMORY) {
-            l = wolfSSL_BIO_ctrl_pending(bp);
+            l = (long)wolfSSL_BIO_ctrl_pending(bp);
             if (l <= 0) {
                 WOLFSSL_MSG("No pending data in WOLFSSL_BIO");
                 return NULL;
