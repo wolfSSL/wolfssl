@@ -1,0 +1,5 @@
+# Project name
+BIN = WolfCryptTest
+SRC_C = ./Source/test_main.c
+
+include Makefile.common

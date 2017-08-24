@@ -1,0 +1,5 @@
+# Project name
+BIN = WolfCryptBench
+SRC_C = ./Source/benchmark_main.c
+
+include Makefile.common

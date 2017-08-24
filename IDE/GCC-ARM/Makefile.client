@@ -1,0 +1,5 @@
+# Project name
+BIN = WolfSSLClient
+SRC_C = ./Source/tls_client.c
+
+include Makefile.common
