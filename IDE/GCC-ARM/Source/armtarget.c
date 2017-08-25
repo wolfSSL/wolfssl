@@ -20,6 +20,8 @@
  */
 
 #include "user_settings.h"
+#include <wolfssl/ssl.h>
+#include <wolfssl/wolfcrypt/random.h> /* for CUSTOM_RAND_TYPE */
 
 #include <stdint.h>
 #include <stdio.h>

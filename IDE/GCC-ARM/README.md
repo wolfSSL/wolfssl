@@ -4,8 +4,8 @@
 
 * All library options are defined in `Header/user_settings.h`.
 * The memory map is located in the linker file in `linker.ld`.
-* Entry point function is `reset_handler` in `retarget.c`.
-* The RTC and RNG hardware interface needs implemented for real production applications in `retarget.c`
+* Entry point function is `reset_handler` in `armtarget.c`.
+* The RTC and RNG hardware interface needs implemented for real production applications in `armtarget.c`
 
 ## Building
 
@@ -21,19 +21,26 @@ Example:
 
    text	   data	    bss	    dec	    hex   filename
   39155	   2508	     60	  41723	   a2fb   ./Build/WolfCryptBench.elf
+
+   text	   data	    bss	    dec	    hex	filename
+  70368	    464	     36	  70868	  114d4	./Build/WolfSSLClient.elf
 ```
 
 ## Performace Tuning Options
 
 * `DEBUG_WOLFSSL`: Undefine this to disable debug logging.
+* `NO_ERROR_STRINGS`: Disables error strings to save code space.
 * `NO_INLINE`: Disabling inline function saves about 1KB, but is slower.
 * `WOLFSSL_SMALL_STACK`: Enables stack reduction techniques to allocate stack sections over 100 bytes from heap.
 * `USE_FAST_MATH`: Uses stack based math, which is faster than the heap based math.
+* `ALT_ECC_SIZE`: If using fast math and RSA/DH you can define this to reduce your ECC memory consumption.
+* `FP_MAX_BITS`: Is the maximum math size (key size * 2). Used only with `USE_FAST_MATH`.
+* `ECC_TIMING_RESISTANT`: Enables timing resistance for ECC and uses slightly less memory.
 * `ECC_SHAMIR`: Doubles heap usage, but slightly faster
 * `RSA_LOW_MEM`: Half as much memory but twice as slow. Uses Non-CRT method for private key.
 AES GCM: `GCM_SMALL`, `GCM_WORD32` or `GCM_TABLE`: Tunes performance and flash/memory usage.
 * `CURVED25519_SMALL`: Enables small versions of Ed/Curve (FE/GE math).
 * `USE_SLOW_SHA`: Enables smaller/slower version of SHA.
 * `USE_SLOW_SHA2`: Over twice as small, but 50% slower
-* `FP_MAX_BITS`: Is the maximum math size (key size * 2). Used only with `USE_FAST_MATH`.
 * `USE_CERT_BUFFERS_1024` or `USE_CERT_BUFFERS_2048`: Size of RSA certs / keys to test with. 
+* `BENCH_EMBEDDED`: Define this if using the wolfCrypt test/benchmark and using a low memory target.

@@ -31,6 +31,9 @@ LDFLAGS = $(ARCHFLAGS) -Wl,--gc-sections --specs=nano.specs --specs=nosys.specs
 LDFLAGS += -Wl,-Map=$(BUILD_DIR)/$(BIN).map $(DBGFLAGS)
 LDFLAGS += -Wl,-ereset_handler
 
+# Math lib for DH
+LIBS = -lm
+
 SRC_C += ./Source/armtarget.c
 SRC_C += $(wildcard ../../src/*.c ../../wolfcrypt/src/*.c ../../wolfcrypt/benchmark/*.c ../../wolfcrypt/test/*.c)
 FILENAMES_C = $(notdir $(SRC_C))
@@ -69,7 +72,7 @@ $(BUILD_DIR)/%.o: %.c
 
 $(BUILD_DIR)/$(BIN).elf: $(OBJS_ASM) $(OBJS_C)
 	@echo "Linking ELF binary: $(notdir $@)"
-	$(CMD_ECHO) $(LD) $(LDFLAGS) -T$(SRC_LD) -o $@ $^
+	$(CMD_ECHO) $(LD) $(LDFLAGS) -T$(SRC_LD) -o $@ $^ $(LIBS)
 
 	@echo "Generating name list: $(BIN).sym"
 	$(CMD_ECHO) $(NM) -n $@ > $(BUILD_DIR)/$(BIN).sym

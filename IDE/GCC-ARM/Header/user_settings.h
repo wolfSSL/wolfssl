@@ -326,6 +326,11 @@ extern unsigned int custom_rand_generate(void);
 /* ------------------------------------------------------------------------- */
 /* Enable Features */
 /* ------------------------------------------------------------------------- */
+#if 0
+    #undef WOLFSSL_TLS13
+    #define WOLFSSL_TLS13
+#endif
+
 #undef  KEEP_PEER_CERT
 //#define KEEP_PEER_CERT
 
