@@ -22890,7 +22890,6 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
     WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 **x,
                                                  pem_password_cb *cb, void *u)
     {
-#ifndef NO_FILESYSTEM
         WOLFSSL_X509* x509 = NULL;
         unsigned char* pem = NULL;
         int pemSz;
@@ -22911,6 +22910,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
             }
         }
         else if (bp->type == BIO_FILE) {
+#ifndef NO_FILESYSTEM
             /* Read in next certificate from file but no more. */
             i = XFTELL(bp->file);
             if (i < 0)
@@ -22920,6 +22920,10 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
             if (l < 0)
                 return NULL;
             XFSEEK(bp->file, i, SEEK_SET);
+#else
+            WOLFSSL_MSG("Unable to read file with NO_FILESYSTEM defined");
+            return NULL;
+#endif
         }
         else
             return NULL;
@@ -22937,8 +22941,14 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
          */
         while ((l = wolfSSL_BIO_read(bp, (char *)&pem[i], 1)) == 1) {
             i++;
-            if (i > 26 && XMEMCMP((char *)&pem[i-26], END_CERT, 25) == 0)
+            if (i > 26 && XMEMCMP((char *)&pem[i-26], END_CERT, 25) == 0) {
+                if (pem[i-1] == '\r') {
+                    /* found \r , Windows line ending is \r\n so try to read one
+                     * more byte for \n */
+                    wolfSSL_BIO_read(bp, (char *)&pem[i++], 1);
+                }
                 break;
+            }
         }
     #ifdef WOLFSSL_NGINX
         if (l == 0)
@@ -22958,13 +22968,6 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         (void)u;
 
         return x509;
-#else
-        (void)bp;
-        (void)x;
-        (void)cb;
-        (void)u;
-        return NULL;
-#endif
     }
 
 
