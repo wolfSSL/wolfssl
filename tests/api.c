@@ -10736,6 +10736,9 @@ static void test_wolfSSL_BIO_puts(void)
     buffer[0]='a';buffer[1]='b';buffer[2]='c';buffer[3]='\0';
     AssertIntEQ(BIO_puts(bio1, buffer), 3);
 
+    AssertNotNull(BIO_read(bio1, buffer, 3));
+    AssertTrue(buffer[0] == 'a' && buffer[1] == 'b' && buffer[2] == 'c');
+
     buffer[0]='\0';
     AssertIntEQ(BIO_puts(bio1, buffer), SSL_FAILURE);
 
