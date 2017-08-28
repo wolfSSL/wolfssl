@@ -3,6 +3,8 @@
 #ifndef WOLFSSL_ASN1_H_
 #define WOLFSSL_ASN1_H_
 
+# include <limits.h>
+
 struct WOLFSSL_ASN1_BIT_STRING {
     int length;
     int type;
@@ -31,6 +33,16 @@ WOLFSSL_API int wolfSSL_ASN1_INTEGER_get_int64(signed_word64 *p, const WOLFSSL_A
 # define WOLFSSL_V_ASN1_NEG                      0x100
 # define WOLFSSL_V_ASN1_NEG_INTEGER              (2 | WOLFSSL_V_ASN1_NEG)
 # define WOLFSSL_V_ASN1_INTEGER                  2
+
+#  define __MAXUINT__(T) ((T) -1)
+#  define __MAXINT__(T) ((T) ((((T) 1) << ((sizeof(T) * CHAR_BIT) - 1)) ^ __MAXUINT__(T)))
+#  define __MININT__(T) (-__MAXINT__(T) - 1)
+
+# ifndef INT64_MAX
+#  define INT64_MIN __MININT__(int64_t)
+#  define INT64_MAX __MAXINT__(int64_t)
+#  define UINT64_MAX __MAXUINT__(uint64_t)
+# endif
 
 # define WOLFSSL_INT64_MAX       INT64_MAX
 # define WOLFSSL_ABS_INT64_MIN ((uint64_t)INT64_MAX + (uint64_t)(-(INT64_MIN + INT64_MAX)))
