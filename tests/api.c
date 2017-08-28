@@ -8985,6 +8985,10 @@ static int test_wc_DsaPublicPrivateKeyDecode (void)
             }
         }
     } /* END Private Key  */
+    if (ret == 0) {
+        wc_FreeDsaKey(&key);
+        ret = wc_InitDsaKey(&key);
+    }
 
     printf(resultFmt, priv == 0 ? passed : failed);
 
@@ -9137,6 +9141,10 @@ static int test_wc_DsaKeyToDer (void)
     }
     if (ret == 0) {
         ret = wc_MakeDsaParameters(&rng, sizeof(tmp), &genKey);
+        if (ret == 0) {
+            wc_FreeDsaKey(&genKey);
+            ret = wc_InitDsaKey(&genKey);
+        }
     }
     if (ret == 0) {
         ret = wc_DsaPrivateKeyDecode(tmp, &idx, &genKey, bytes);
