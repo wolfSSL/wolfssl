@@ -155,7 +155,7 @@ static void poly1305_block_avx(Poly1305* ctx, const unsigned char *m)
             "addq	%%r8, %%r12\n\t"
             "adcq	%%rax, %%r13\n\t"
             "#   r[1] * h[2] +> t3\n\t"
-            "adcq	112(%[ctx],%%r10,8), %%r14\n\t"
+            "adcq	120(%[ctx],%%r10,8), %%r14\n\t"
             "# r * h in r14, r13, r12, r11 \n\t"
             "# h = (r * h) mod 2^130 - 5\n\t"
             "movq	%%r13, %%r10\n\t"
@@ -222,7 +222,7 @@ static void poly1305_blocks_avx(Poly1305* ctx, const unsigned char *m,
             "addq	%%r8, %%r12\n\t"
             "adcq	%%rax, %%r13\n\t"
             "#   r[1] * h[2] +> t3\n\t"
-            "adcq	120(%[ctx],%%r10,8), %%r14\n\t"
+            "adcq	128(%[ctx],%%r10,8), %%r14\n\t"
             "# r * h in r14, r13, r12, r11 \n\t"
             "# h = (r * h) mod 2^130 - 5\n\t"
             "movq	%%r13, %%r10\n\t"
@@ -262,9 +262,9 @@ static void poly1305_setkey_avx(Poly1305* ctx, const byte* key)
     ctx->r[0] = *(word64*)(key + 0) & 0x0ffffffc0fffffffL;
     ctx->r[1] = *(word64*)(key + 8) & 0x0ffffffc0ffffffcL;
 
-    for (i=0; i<6; i++) {
-        ctx->t0[i] = ctx->r[0] * i;
-        ctx->t1[i] = ctx->r[1] * i;
+    for (i=0; i<7; i++) {
+        ctx->hh[i + 0] = ctx->r[0] * i;
+        ctx->hh[i + 7] = ctx->r[1] * i;
     }
 
     /* h (accumulator) = 0 */
@@ -766,14 +766,14 @@ POLY1305_NOINLINE static void poly1305_blocks_avx2(Poly1305* ctx,
     "L_begin:\n\t"
         "# Load the H values.\n\t"
         LOAD_H(%[h], %%ymm0, %%ymm1, %%ymm2, %%ymm3, %%ymm4, %%ymm15)
-        "movq		416(%[ctx]), %%r8\n\t"
+        "movq		336(%[ctx]), %%r8\n\t"
         "# Check if there is a power of r to load - otherwise use r^4.\n\t"
         "cmpq		$0x0, %%r8\n\t"
         "je		L_load_r4\n\t"
         "\n\t"
-        "movq		424(%[ctx]), %%r9\n\t"
-        "movq		432(%[ctx]), %%r10\n\t"
-        "movq		440(%[ctx]), %%r11\n\t"
+        "movq		344(%[ctx]), %%r9\n\t"
+        "movq		352(%[ctx]), %%r10\n\t"
+        "movq		360(%[ctx]), %%r11\n\t"
         "# Load the 4 powers of r.\n\t"
         LOAD_Rx4(%%r8, %%r9, %%r10, %%r11, \
                  %%ymm5, %%ymm6, %%ymm7, %%ymm8, %%ymm9,
@@ -782,7 +782,7 @@ POLY1305_NOINLINE static void poly1305_blocks_avx2(Poly1305* ctx,
         "\n"
      "L_load_r4:\n\t"
         "# Load r^4 into all four positions.\n\t"
-        LOAD_R4(384(%[ctx]), %%ymm5, %%ymm6, %%ymm7, %%ymm8, %%ymm9,
+        LOAD_R4(304(%[ctx]), %%ymm5, %%ymm6, %%ymm7, %%ymm8, %%ymm9,
                 %%ymm13, %%ymm14)
         "\n"
     "L_mul_5:\n\t"
