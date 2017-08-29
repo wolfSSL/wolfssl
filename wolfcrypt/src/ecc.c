@@ -3010,9 +3010,9 @@ static int wc_ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
 {
     int err = MP_OKAY;
 #ifndef WOLFSSL_ATECC508A
-    ecc_point*     base = NULL;
-    DECLARE_CURVE_SPECS(ECC_CURVE_FIELD_COUNT)
+    ecc_point* base = NULL;
     ecc_point* pub;
+    DECLARE_CURVE_SPECS(ECC_CURVE_FIELD_COUNT)
 #endif
 
     if (key == NULL) {
