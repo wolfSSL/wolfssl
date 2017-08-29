@@ -3499,8 +3499,6 @@ int poly1305_test(void)
     byte     tag[16];
     Poly1305 enc;
 
-    static const byte empty[] = { };
-
     static const byte msg1[] =
     {
         0x43,0x72,0x79,0x70,0x74,0x6f,0x67,0x72,
@@ -3619,8 +3617,8 @@ int poly1305_test(void)
         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
     };
 
-    const byte* msgs[]  = {empty, msg1, msg2, msg3, msg5};
-    word32      szm[]   = {sizeof(empty), sizeof(msg1), sizeof(msg2),
+    const byte* msgs[]  = {NULL, msg1, msg2, msg3, msg5};
+    word32      szm[]   = {0, sizeof(msg1), sizeof(msg2),
                            sizeof(msg3), sizeof(msg5)};
     const byte* keys[]  = {key, key, key2, key2, key5};
     const byte* tests[] = {correct0, correct1, correct2, correct3, correct5};
