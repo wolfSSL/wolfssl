@@ -110,6 +110,10 @@ typedef struct Aes {
     word32      key_init[8];
     word32      kup;
 #endif
+#ifdef WOLFSSL_AES_XTS
+    byte type; /* adds the ability to do a sanity check on key for
+                * encrypt/decrypt */
+#endif
     void*  heap; /* memory hint to use */
 } Aes;
 
@@ -209,6 +213,19 @@ WOLFSSL_API int wc_AesEcbDecrypt(Aes* aes, byte* out,
                                 byte* out, word32 outSz,
                                 const byte* iv);
 #endif /* HAVE_AES_KEYWRAP */
+
+#ifdef WOLFSSL_AES_XTS
+WOLFSSL_API int wc_AesXtsSetKey(Aes* tweak, Aes* aes, const byte* key,
+        word32 len, int dir, void* heap, int devId);
+WOLFSSL_API int wc_AesXtsEncryptSector(Aes* tweak, Aes* aes, byte* out,
+        const byte* in, word32 sz, word64 sector);
+WOLFSSL_API int wc_AesXtsDecryptSector(Aes* tweak, Aes* aes, byte* out,
+        const byte* in, word32 sz, word64 sector);
+WOLFSSL_API int wc_AesXtsEncrypt(Aes* tweak, Aes* aes, byte* out,
+        const byte* in, word32 sz, const byte* i, word32 iSz);
+WOLFSSL_API int wc_AesXtsDecrypt(Aes* tweak, Aes* aes, byte* out,
+        const byte* in, word32 sz, const byte* i, word32 iSz);
+#endif
 
 WOLFSSL_API int wc_AesGetKeySize(Aes* aes, word32* keySize);
 

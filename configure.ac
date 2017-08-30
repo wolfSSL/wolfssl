@@ -185,6 +185,7 @@ then
     enable_psk=yes
     enable_idea=yes
     enable_cmac=yes
+    enable_xts=yes
     enable_webserver=yes
     enable_hc128=yes
     enable_rabbit=yes
@@ -1747,6 +1748,17 @@ AS_IF([test "x$ENABLED_CMAC" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CMAC -DWOLFSSL_AES_DIRECT"])
 
 AM_CONDITIONAL([BUILD_CMAC], [test "x$ENABLED_CMAC" = "xyes"])
+
+
+# AES-XTS
+AC_ARG_ENABLE([xts],
+    [AS_HELP_STRING([--enable-xts],[Enable XTS (default: disabled)])],
+    [ ENABLED_XTS=$enableval ],
+    [ ENABLED_XTS=no ]
+    )
+
+AS_IF([test "x$ENABLED_XTS" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_XTS -DWOLFSSL_AES_DIRECT"])
 
 
 # Web Server Build

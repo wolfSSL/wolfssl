@@ -50,6 +50,7 @@ void bench_chacha20_poly1305_aead(void);
 void bench_aescbc(int);
 void bench_aesgcm(int);
 void bench_aesccm(void);
+void bench_aesxts(void);
 void bench_aesctr(void);
 void bench_poly1305(void);
 void bench_camellia(void);

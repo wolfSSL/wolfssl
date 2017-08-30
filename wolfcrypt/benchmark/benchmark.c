@@ -718,6 +718,9 @@ static void* benchmarks_do(void* args)
         bench_aesgcm(1);
     #endif
 #endif
+#ifdef WOLFSSL_AES_XTS
+    bench_aesxts();
+#endif
 #ifdef WOLFSSL_AES_COUNTER
     bench_aesctr();
 #endif
@@ -1335,6 +1338,73 @@ exit:
     FREE_VAR(bench_tag, HEAP_HINT);
 }
 #endif /* HAVE_AESGCM */
+
+
+#ifdef WOLFSSL_AES_XTS
+void bench_aesxts(void)
+{
+    Aes    aes, tweak;
+    double start;
+    int    i, count, ret;
+
+    static unsigned char k1[] = {
+        0xa1, 0xb9, 0x0c, 0xba, 0x3f, 0x06, 0xac, 0x35,
+        0x3b, 0x2c, 0x34, 0x38, 0x76, 0x08, 0x17, 0x62,
+        0x09, 0x09, 0x23, 0x02, 0x6e, 0x91, 0x77, 0x18,
+        0x15, 0xf2, 0x9d, 0xab, 0x01, 0x93, 0x2f, 0x2f
+    };
+
+    static unsigned char i1[] = {
+        0x4f, 0xae, 0xf7, 0x11, 0x7c, 0xda, 0x59, 0xc6,
+        0x6e, 0x4b, 0x92, 0x01, 0x3e, 0x76, 0x8a, 0xd5
+    };
+
+    ret = wc_AesXtsSetKey(&tweak, &aes, k1, sizeof(k1), AES_ENCRYPTION,
+            HEAP_HINT, devId);
+    if (ret != 0) {
+        printf("wc_AesXtsSetKey failed, ret = %d\n", ret);
+        return;
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < numBlocks; i++) {
+            if ((ret = wc_AesXtsEncrypt(&tweak, &aes, bench_plain, bench_cipher,
+                            BENCH_SIZE, i1, sizeof(i1))) != 0) {
+                printf("wc_AesXtsEncrypt failed, ret = %d\n", ret);
+                return;
+            }
+        }
+        count += i;
+    } while (bench_stats_sym_check(start));
+    bench_stats_sym_finish("AES-XTS-enc", 0, count, start, ret);
+    wc_AesFree(&aes);
+    wc_AesFree(&tweak);
+
+    /* decryption benchmark */
+    ret = wc_AesXtsSetKey(&tweak, &aes, k1, sizeof(k1), AES_DECRYPTION,
+            HEAP_HINT, devId);
+    if (ret != 0) {
+        printf("wc_AesXtsSetKey failed, ret = %d\n", ret);
+        return;
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+        for (i = 0; i < numBlocks; i++) {
+            if ((ret = wc_AesXtsDecrypt(&tweak, &aes, bench_plain, bench_cipher,
+                            BENCH_SIZE, i1, sizeof(i1))) != 0) {
+                printf("wc_AesXtsDecrypt failed, ret = %d\n", ret);
+                return;
+            }
+        }
+        count += i;
+    } while (bench_stats_sym_check(start));
+    bench_stats_sym_finish("AES-XTS-dec", 0, count, start, ret);
+    wc_AesFree(&aes);
+    wc_AesFree(&tweak);
+}
+#endif /* WOLFSSL_AES_XTS */
 
 
 #ifdef WOLFSSL_AES_COUNTER
