@@ -19610,7 +19610,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         }
 
         /* Return the maximum signature length. */
-        *length = wc_ecc_sig_size((ecc_key*)ssl->hsKey);
+        *length = (word16)wc_ecc_sig_size((ecc_key*)ssl->hsKey);
 
         goto exit_dpk;
     }

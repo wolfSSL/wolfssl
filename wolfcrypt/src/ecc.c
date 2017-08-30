@@ -2689,7 +2689,8 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
    }
 
    /* type valid? */
-   if (private_key->type != ECC_PRIVATEKEY) {
+   if (private_key->type != ECC_PRIVATEKEY &&
+           private_key->type != ECC_PRIVATEKEY_ONLY) {
       return ECC_BAD_ARG_E;
    }
 
@@ -2879,7 +2880,8 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
     }
 
     /* type valid? */
-    if (private_key->type != ECC_PRIVATEKEY) {
+    if (private_key->type != ECC_PRIVATEKEY &&
+            private_key->type != ECC_PRIVATEKEY_ONLY) {
         return ECC_BAD_ARG_E;
     }
 
@@ -3008,9 +3010,9 @@ static int wc_ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
 {
     int err = MP_OKAY;
 #ifndef WOLFSSL_ATECC508A
-    ecc_point*     base = NULL;
-    DECLARE_CURVE_SPECS(ECC_CURVE_FIELD_COUNT)
+    ecc_point* base = NULL;
     ecc_point* pub;
+    DECLARE_CURVE_SPECS(ECC_CURVE_FIELD_COUNT)
 #endif
 
     if (key == NULL) {
