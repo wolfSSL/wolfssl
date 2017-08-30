@@ -183,14 +183,14 @@ static void poly1305_block_avx(Poly1305* ctx, const unsigned char *m)
         );
 }
 
-static void poly1305_blocks_avx(Poly1305* ctx, const unsigned char *m,
-                                size_t bytes)
+POLY1305_NOINLINE static void poly1305_blocks_avx(Poly1305* ctx,
+                                           const unsigned char* m, size_t bytes)
 {
         __asm__ __volatile__ (
             "movq	(%[ctx]), %%r15\n\t"
             "movq	24(%[ctx]), %%r8\n\t"
             "movq	32(%[ctx]), %%r9\n\t"
-            "movq	40(%[ctx]), %%r10\n\t"
+            "movq	40(%[ctx]), %%r10\n"
         "L_avx_start:\n\t"
             "# h += m\n\t"
             "movq	 (%[m]), %%r11\n\t"
