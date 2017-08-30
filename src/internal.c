@@ -8645,6 +8645,16 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             #endif /* KEEP_PEER_CERT */
 
             #ifndef IGNORE_KEY_EXTENSIONS
+                #if defined(OPENSSL_EXTRA)
+                  /* when compatibility layer is turned on and no verify is
+                   * set then ignore the certificate key extension */
+                    if (args->dCert->extKeyUsageSet &&
+                          args->dCert->extKeyUsageCrit == 0 &&
+                          ssl->options.verifyNone) {
+                        WOLFSSL_MSG("Not verifying certificate key usage");
+                    }
+                    else
+                #endif
                 if (args->dCert->extKeyUsageSet) {
                     if ((ssl->specs.kea == rsa_kea) &&
                         (ssl->options.side == WOLFSSL_CLIENT_END) &&
@@ -8660,6 +8670,16 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                 }
 
+                #if defined(OPENSSL_EXTRA)
+                    /* when compatibility layer is turned on and no verify is
+                     * set then ignore the certificate key extension */
+                    if (args->dCert->extExtKeyUsageSet &&
+                            args->dCert->extExtKeyUsageCrit == 0 &&
+                          ssl->options.verifyNone) {
+                                WOLFSSL_MSG("Not verifying certificate ext key usage");
+                    }
+                    else
+                #endif
                 if (args->dCert->extExtKeyUsageSet) {
                     if (ssl->options.side == WOLFSSL_CLIENT_END) {
                         if ((args->dCert->extExtKeyUsage &
