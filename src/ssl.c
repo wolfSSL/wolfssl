@@ -4505,9 +4505,13 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                 finishSz = (word32)(bufferEnd - finish);
                 newline = XSTRNSTR(finish, "\r", min(finishSz, PEM_LINE_LEN));
 
+                if (NAME_SZ < (finish - start)) /* buffer size of info->name*/
+                    return BUFFER_E;
                 if (XMEMCPY(info->name, start, finish - start) == NULL)
                     return SSL_FATAL_ERROR;
                 info->name[finish - start] = 0;
+                if (finishSz < sizeof(info->iv) + 1)
+                    return BUFFER_E;
                 if (XMEMCPY(info->iv, finish + 1, sizeof(info->iv)) == NULL)
                     return SSL_FATAL_ERROR;
 
