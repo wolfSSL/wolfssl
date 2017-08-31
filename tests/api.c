@@ -10444,15 +10444,27 @@ static void test_wolfSSL_ASN1_INTEGER_get(void){
 
     AssertNull(a =wolfSSL_ASN1_INTEGER_get(NULL));
 
-    ai.data[0] = 0x02;
-    ai.data[1] = 0x01;
+    ai.data[0] = 0x02; /* tag for ASN_INTEGER */
+    ai.data[1] = 0x01; /* length of integer */
     ai.data[2] = 0x03;
 
-    AssertNotNull(a =wolfSSL_ASN1_INTEGER_get(&ai));
+    ai.data[3] = 0x00;ai.data[4] = 0x00;ai.data[5] = 0x00;ai.data[6] = 0x00;
+    ai.data[7] = 0x00;ai.data[8] = 0x00;ai.data[9] = 0x00;ai.data[10] = 0x00;
+    ai.data[11] = 0x00;ai.data[12] = 0x00;ai.data[13] = 0x00;ai.data[14] = 0x00;
+    ai.data[15] = 0x00;ai.data[16] = 0x00;ai.data[17] = 0x00;ai.data[18] = 0x00;
+    ai.data[19] = 0x00;
+
+    AssertNotNull(a = wolfSSL_ASN1_INTEGER_get(&ai));
 
     ai.data[0] = 0x02; /* tag for ASN_INTEGER */
-    ai.data[1] = 0x20; /* length of integer */
+    ai.data[1] = 0x02; /* length of integer */
     ai.data[2] = 0x03;
+    ai.data[3] = 0x04;
+
+    ai.data[4] = 0x00;ai.data[5] = 0x00;ai.data[6] = 0x00;ai.data[7] = 0x00;
+    ai.data[8] = 0x00;ai.data[9] = 0x00;ai.data[10] = 0x00;ai.data[11] = 0x00;
+    ai.data[12] = 0x00;ai.data[13] = 0x00;ai.data[14] = 0x00;ai.data[15] = 0x00;
+    ai.data[16] = 0x00;ai.data[17] = 0x00;ai.data[18] = 0x00;ai.data[19] = 0x00;
 
     AssertIntEQ((int)wolfSSL_ASN1_INTEGER_get(&ai) , -1);
 
