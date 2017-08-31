@@ -38,7 +38,7 @@ WOLFSSL_API int wolfSSL_ASN1_INTEGER_get_int64(signed_word64 *p, const WOLFSSL_A
 
 #  define __WOLFSSL_MAXUINT__(T) ((T) -1)
 #  define __WOLFSSL_MAXINT__(T) ((T) ((((T) 1) << ((sizeof(T) * CHAR_BIT) - 1)) ^ __WOLFSSL_MAXUINT__(T)))
-#  define __WOLFSSL_MININT__(T) (-__WOLFSS_MAXINT__(T) - 1)
+#  define __WOLFSSL_MININT__(T) (-__WOLFSSL_MAXINT__(T) - 1)
 
 #  define INT64_MIN __WOLFSSL_MININT__(int64_t)
 #  define INT64_MAX __WOLFSSL_MAXINT__(int64_t)
