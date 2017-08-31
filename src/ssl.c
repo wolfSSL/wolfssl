@@ -16870,9 +16870,9 @@ int wolfSSL_ASN1_INTEGER_get_int64(signed_word64 *p, const WOLFSSL_ASN1_INTEGER 
   int data_length;
   int negative;
   word64 *r;
-  int itr = 0;
+  int itr;
 
-  s = (WOLFSSL_ASN1_STRING *)i;
+  s = (WOLFSSL_ASN1_STRING *)(WOLFSSL_ASN1_INTEGER *)i;
   data_length = (*s).length;
   negative = (*s).type & WOLFSSL_V_ASN1_NEG;
 
