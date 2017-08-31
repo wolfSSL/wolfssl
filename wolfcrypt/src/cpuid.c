@@ -44,7 +44,7 @@
     #else
         #include <intrin.h>
 
-        #define cpuid(a,b) __cpuid((int*)a,b)
+        #define cpuid(a,b,c) __cpuidex((int*)a,b,c)
 
         #define XASM_LINK(f)
     #endif /* _MSC_VER */
