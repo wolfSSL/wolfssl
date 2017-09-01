@@ -110,11 +110,11 @@ typedef struct Aes {
     word32      key_init[8];
     word32      kup;
 #endif
+    void*  heap; /* memory hint to use */
 #ifdef WOLFSSL_AES_XTS
     byte type; /* adds the ability to do a sanity check on key for
                 * encrypt/decrypt */
 #endif
-    void*  heap; /* memory hint to use */
 } Aes;
 
 

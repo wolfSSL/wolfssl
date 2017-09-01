@@ -8100,6 +8100,9 @@ int wc_AesXtsEncryptSector(Aes* tweak, Aes* aes, byte* out, const byte* in,
     byte  i[AES_BLOCK_SIZE];
 
     XMEMSET(i, 0, AES_BLOCK_SIZE);
+#ifdef BIG_ENDIAN_ORDER
+    sector = ByteReverseWord64(sector);
+#endif
     pt = (byte*)&sector;
     XMEMCPY(i, pt, sizeof(word64));
 
@@ -8127,6 +8130,9 @@ int wc_AesXtsDecryptSector(Aes* tweak, Aes* aes, byte* out, const byte* in, word
     byte  i[AES_BLOCK_SIZE];
 
     XMEMSET(i, 0, AES_BLOCK_SIZE);
+#ifdef BIG_ENDIAN_ORDER
+    sector = ByteReverseWord64(sector);
+#endif
     pt = (byte*)&sector;
     XMEMCPY(i, pt, sizeof(word64));
 
