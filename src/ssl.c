@@ -12147,7 +12147,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         /* check if will fit in current buffer size */
         if ((ret = wolfSSL_BIO_get_mem_data(bio, (void*)&buf)) < sz + len) {
-            if (ret <= 0) {
+            if (ret < 0) {
                 return WOLFSSL_BIO_ERROR;
             }
             else {
