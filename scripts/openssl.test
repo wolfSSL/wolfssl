@@ -262,20 +262,23 @@ do
 
         # check for psk suite and turn on client psk if so
         psk=""
+        adh=""
         port=$openssl_port
         case $wolfSuite in
         *ECDH-RSA*)
             port=$ecdh_port ;;
         *PSK*)
             psk="-s " ;;
+        *ADH*)
+            adh="-a " ;;
         esac
 
         if [ $version -lt 4 ]
         then
-            ./examples/client/client -p $port -g -r -l $wolfSuite -v $version $psk
+            ./examples/client/client -p $port -g -r -l $wolfSuite -v $version $psk $adh
         else
             # do all versions
-            ./examples/client/client -p $port -g -r -l $wolfSuite $psk
+            ./examples/client/client -p $port -g -r -l $wolfSuite $psk $adh
         fi
 
         client_result=$?
