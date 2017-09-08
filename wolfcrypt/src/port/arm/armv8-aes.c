@@ -172,9 +172,6 @@ int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
     }
 #endif
 
-    #ifdef WOLFSSL_AES_XTS
-        aes->type = dir;
-    #endif
     #ifdef WOLFSSL_AES_COUNTER
         aes->left = 0;
     #endif /* WOLFSSL_AES_COUNTER */

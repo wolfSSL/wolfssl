@@ -1343,7 +1343,7 @@ exit:
 #ifdef WOLFSSL_AES_XTS
 void bench_aesxts(void)
 {
-    Aes    aes, tweak;
+    XtsAes aes;
     double start;
     int    i, count, ret;
 
@@ -1359,7 +1359,7 @@ void bench_aesxts(void)
         0x6e, 0x4b, 0x92, 0x01, 0x3e, 0x76, 0x8a, 0xd5
     };
 
-    ret = wc_AesXtsSetKey(&tweak, &aes, k1, sizeof(k1), AES_ENCRYPTION,
+    ret = wc_AesXtsSetKey(&aes, k1, sizeof(k1), AES_ENCRYPTION,
             HEAP_HINT, devId);
     if (ret != 0) {
         printf("wc_AesXtsSetKey failed, ret = %d\n", ret);
@@ -1369,7 +1369,7 @@ void bench_aesxts(void)
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < numBlocks; i++) {
-            if ((ret = wc_AesXtsEncrypt(&tweak, &aes, bench_plain, bench_cipher,
+            if ((ret = wc_AesXtsEncrypt(&aes, bench_plain, bench_cipher,
                             BENCH_SIZE, i1, sizeof(i1))) != 0) {
                 printf("wc_AesXtsEncrypt failed, ret = %d\n", ret);
                 return;
@@ -1378,11 +1378,10 @@ void bench_aesxts(void)
         count += i;
     } while (bench_stats_sym_check(start));
     bench_stats_sym_finish("AES-XTS-enc", 0, count, start, ret);
-    wc_AesFree(&aes);
-    wc_AesFree(&tweak);
+    wc_AesXtsFree(&aes);
 
     /* decryption benchmark */
-    ret = wc_AesXtsSetKey(&tweak, &aes, k1, sizeof(k1), AES_DECRYPTION,
+    ret = wc_AesXtsSetKey(&aes, k1, sizeof(k1), AES_DECRYPTION,
             HEAP_HINT, devId);
     if (ret != 0) {
         printf("wc_AesXtsSetKey failed, ret = %d\n", ret);
@@ -1392,7 +1391,7 @@ void bench_aesxts(void)
     bench_stats_start(&count, &start);
     do {
         for (i = 0; i < numBlocks; i++) {
-            if ((ret = wc_AesXtsDecrypt(&tweak, &aes, bench_plain, bench_cipher,
+            if ((ret = wc_AesXtsDecrypt(&aes, bench_plain, bench_cipher,
                             BENCH_SIZE, i1, sizeof(i1))) != 0) {
                 printf("wc_AesXtsDecrypt failed, ret = %d\n", ret);
                 return;
@@ -1401,8 +1400,7 @@ void bench_aesxts(void)
         count += i;
     } while (bench_stats_sym_check(start));
     bench_stats_sym_finish("AES-XTS-dec", 0, count, start, ret);
-    wc_AesFree(&aes);
-    wc_AesFree(&tweak);
+    wc_AesXtsFree(&aes);
 }
 #endif /* WOLFSSL_AES_XTS */
 

@@ -4206,8 +4206,7 @@ static int aes_key_size_test(void)
 /* test vectors from http://csrc.nist.gov/groups/STM/cavp/block-cipher-modes.html */
 static int aes_xts_128_test(void)
 {
-    Aes aes;
-    Aes tweak;
+    XtsAes aes;
     int ret = 0;
     unsigned char buf[AES_BLOCK_SIZE * 2];
     unsigned char cipher[AES_BLOCK_SIZE * 2];
@@ -4269,10 +4268,10 @@ static int aes_xts_128_test(void)
     };
 
     XMEMSET(buf, 0, sizeof(buf));
-    if (wc_AesXtsSetKey(&tweak, &aes, k2, sizeof(k2), AES_ENCRYPTION,
+    if (wc_AesXtsSetKey(&aes, k2, sizeof(k2), AES_ENCRYPTION,
             HEAP_HINT, devId) != 0)
         return -4000;
-    ret = wc_AesXtsEncrypt(&tweak, &aes, buf, p2, sizeof(p2), i2, sizeof(i2));
+    ret = wc_AesXtsEncrypt(&aes, buf, p2, sizeof(p2), i2, sizeof(i2));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -4282,10 +4281,10 @@ static int aes_xts_128_test(void)
         return -4002;
 
     XMEMSET(buf, 0, sizeof(buf));
-    if (wc_AesXtsSetKey(&tweak, &aes, k1, sizeof(k1), AES_ENCRYPTION,
+    if (wc_AesXtsSetKey(&aes, k1, sizeof(k1), AES_ENCRYPTION,
             HEAP_HINT, devId) != 0)
         return -4003;
-    ret = wc_AesXtsEncrypt(&tweak, &aes, buf, p1, sizeof(p1), i1, sizeof(i1));
+    ret = wc_AesXtsEncrypt(&aes, buf, p1, sizeof(p1), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -4296,21 +4295,20 @@ static int aes_xts_128_test(void)
 
     /* partial block encryption test */
     XMEMSET(cipher, 0, sizeof(cipher));
-    ret = wc_AesXtsEncrypt(&tweak, &aes, cipher, pp, sizeof(pp), i1, sizeof(i1));
+    ret = wc_AesXtsEncrypt(&aes, cipher, pp, sizeof(pp), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         return -4006;
-    wc_AesFree(&aes);
-    wc_AesFree(&tweak);
+    wc_AesXtsFree(&aes);
 
     /* partial block decrypt test */
     XMEMSET(buf, 0, sizeof(buf));
-    if (wc_AesXtsSetKey(&tweak, &aes, k1, sizeof(k1), AES_DECRYPTION,
+    if (wc_AesXtsSetKey(&aes, k1, sizeof(k1), AES_DECRYPTION,
             HEAP_HINT, devId) != 0)
         return -4007;
-    ret = wc_AesXtsDecrypt(&tweak, &aes, buf, cipher, sizeof(pp), i1, sizeof(i1));
+    ret = wc_AesXtsDecrypt(&aes, buf, cipher, sizeof(pp), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -4321,7 +4319,7 @@ static int aes_xts_128_test(void)
 
     /* NIST decrypt test vector */
     XMEMSET(buf, 0, sizeof(buf));
-    ret = wc_AesXtsDecrypt(&tweak, &aes, buf, c1, sizeof(c1), i1, sizeof(i1));
+    ret = wc_AesXtsDecrypt(&aes, buf, c1, sizeof(c1), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -4332,7 +4330,7 @@ static int aes_xts_128_test(void)
 
     /* fail case with decrypting using wrong key */
     XMEMSET(buf, 0, sizeof(buf));
-    ret = wc_AesXtsDecrypt(&tweak, &aes, buf, c2, sizeof(c2), i2, sizeof(i2));
+    ret = wc_AesXtsDecrypt(&aes, buf, c2, sizeof(c2), i2, sizeof(i2));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -4343,10 +4341,10 @@ static int aes_xts_128_test(void)
 
     /* set correct key and retest */
     XMEMSET(buf, 0, sizeof(buf));
-    if (wc_AesXtsSetKey(&tweak, &aes, k2, sizeof(k2), AES_DECRYPTION,
+    if (wc_AesXtsSetKey(&aes, k2, sizeof(k2), AES_DECRYPTION,
             HEAP_HINT, devId) != 0)
         return -4014;
-    ret = wc_AesXtsDecrypt(&tweak, &aes, buf, c2, sizeof(c2), i2, sizeof(i2));
+    ret = wc_AesXtsDecrypt(&aes, buf, c2, sizeof(c2), i2, sizeof(i2));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -4354,8 +4352,7 @@ static int aes_xts_128_test(void)
         return -4015;
     if (XMEMCMP(p2, buf, sizeof(p2)))
         return -4016;
-    wc_AesFree(&aes);
-    wc_AesFree(&tweak);
+    wc_AesXtsFree(&aes);
 
     return ret;
 }
@@ -4363,8 +4360,7 @@ static int aes_xts_128_test(void)
 
 static int aes_xts_256_test(void)
 {
-    Aes aes;
-    Aes tweak;
+    XtsAes aes;
     int ret = 0;
     unsigned char buf[AES_BLOCK_SIZE * 3];
     unsigned char cipher[AES_BLOCK_SIZE * 3];
@@ -4442,10 +4438,10 @@ static int aes_xts_256_test(void)
     };
 
     XMEMSET(buf, 0, sizeof(buf));
-    if (wc_AesXtsSetKey(&tweak, &aes, k2, sizeof(k2), AES_ENCRYPTION,
+    if (wc_AesXtsSetKey(&aes, k2, sizeof(k2), AES_ENCRYPTION,
             HEAP_HINT, devId) != 0)
         return -4017;
-    ret = wc_AesXtsEncrypt(&tweak, &aes, buf, p2, sizeof(p2), i2, sizeof(i2));
+    ret = wc_AesXtsEncrypt(&aes, buf, p2, sizeof(p2), i2, sizeof(i2));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -4455,10 +4451,10 @@ static int aes_xts_256_test(void)
         return -4019;
 
     XMEMSET(buf, 0, sizeof(buf));
-    if (wc_AesXtsSetKey(&tweak, &aes, k1, sizeof(k1), AES_ENCRYPTION,
+    if (wc_AesXtsSetKey(&aes, k1, sizeof(k1), AES_ENCRYPTION,
             HEAP_HINT, devId) != 0)
         return -4020;
-    ret = wc_AesXtsEncrypt(&tweak, &aes, buf, p1, sizeof(p1), i1, sizeof(i1));
+    ret = wc_AesXtsEncrypt(&aes, buf, p1, sizeof(p1), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -4469,21 +4465,20 @@ static int aes_xts_256_test(void)
 
     /* partial block encryption test */
     XMEMSET(cipher, 0, sizeof(cipher));
-    ret = wc_AesXtsEncrypt(&tweak, &aes, cipher, pp, sizeof(pp), i1, sizeof(i1));
+    ret = wc_AesXtsEncrypt(&aes, cipher, pp, sizeof(pp), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         return -4023;
-    wc_AesFree(&aes);
-    wc_AesFree(&tweak);
+    wc_AesXtsFree(&aes);
 
     /* partial block decrypt test */
     XMEMSET(buf, 0, sizeof(buf));
-    if (wc_AesXtsSetKey(&tweak, &aes, k1, sizeof(k1), AES_DECRYPTION,
+    if (wc_AesXtsSetKey(&aes, k1, sizeof(k1), AES_DECRYPTION,
             HEAP_HINT, devId) != 0)
         return -4024;
-    ret = wc_AesXtsDecrypt(&tweak, &aes, buf, cipher, sizeof(pp), i1, sizeof(i1));
+    ret = wc_AesXtsDecrypt(&aes, buf, cipher, sizeof(pp), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -4494,7 +4489,7 @@ static int aes_xts_256_test(void)
 
     /* NIST decrypt test vector */
     XMEMSET(buf, 0, sizeof(buf));
-    ret = wc_AesXtsDecrypt(&tweak, &aes, buf, c1, sizeof(c1), i1, sizeof(i1));
+    ret = wc_AesXtsDecrypt(&aes, buf, c1, sizeof(c1), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -4504,10 +4499,10 @@ static int aes_xts_256_test(void)
         return -4028;
 
     XMEMSET(buf, 0, sizeof(buf));
-    if (wc_AesXtsSetKey(&tweak, &aes, k2, sizeof(k2), AES_DECRYPTION,
+    if (wc_AesXtsSetKey(&aes, k2, sizeof(k2), AES_DECRYPTION,
             HEAP_HINT, devId) != 0)
         return -4029;
-    ret = wc_AesXtsDecrypt(&tweak, &aes, buf, c2, sizeof(c2), i2, sizeof(i2));
+    ret = wc_AesXtsDecrypt(&aes, buf, c2, sizeof(c2), i2, sizeof(i2));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -4515,8 +4510,7 @@ static int aes_xts_256_test(void)
         return -4030;
     if (XMEMCMP(p2, buf, sizeof(p2)))
         return -4031;
-    wc_AesFree(&aes);
-    wc_AesFree(&tweak);
+    wc_AesXtsFree(&aes);
 
     return ret;
 }
@@ -4525,8 +4519,7 @@ static int aes_xts_256_test(void)
 /* both 128 and 256 bit key test */
 static int aes_xts_sector_test(void)
 {
-    Aes aes;
-    Aes tweak;
+    XtsAes aes;
     int ret = 0;
     unsigned char buf[AES_BLOCK_SIZE * 2];
 
@@ -4577,10 +4570,10 @@ static int aes_xts_sector_test(void)
     word64 s2 = 187;
 
     XMEMSET(buf, 0, sizeof(buf));
-    if (wc_AesXtsSetKey(&tweak, &aes, k1, sizeof(k1), AES_ENCRYPTION,
+    if (wc_AesXtsSetKey(&aes, k1, sizeof(k1), AES_ENCRYPTION,
             HEAP_HINT, devId) != 0)
         return -4032;
-    ret = wc_AesXtsEncryptSector(&tweak, &aes, buf, p1, sizeof(p1), s1);
+    ret = wc_AesXtsEncryptSector(&aes, buf, p1, sizeof(p1), s1);
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -4591,10 +4584,10 @@ static int aes_xts_sector_test(void)
 
     /* decrypt test */
     XMEMSET(buf, 0, sizeof(buf));
-    if (wc_AesXtsSetKey(&tweak, &aes, k1, sizeof(k1), AES_DECRYPTION,
+    if (wc_AesXtsSetKey(&aes, k1, sizeof(k1), AES_DECRYPTION,
             HEAP_HINT, devId) != 0)
         return -4035;
-    ret = wc_AesXtsDecryptSector(&tweak, &aes, buf, c1, sizeof(c1), s1);
+    ret = wc_AesXtsDecryptSector(&aes, buf, c1, sizeof(c1), s1);
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -4602,15 +4595,14 @@ static int aes_xts_sector_test(void)
         return -4036;
     if (XMEMCMP(p1, buf, AES_BLOCK_SIZE))
         return -4037;
-    wc_AesFree(&aes);
-    wc_AesFree(&tweak);
+    wc_AesXtsFree(&aes);
 
     /* 256 bit key tests */
     XMEMSET(buf, 0, sizeof(buf));
-    if (wc_AesXtsSetKey(&tweak, &aes, k2, sizeof(k2), AES_ENCRYPTION,
+    if (wc_AesXtsSetKey(&aes, k2, sizeof(k2), AES_ENCRYPTION,
             HEAP_HINT, devId) != 0)
         return -4038;
-    ret = wc_AesXtsEncryptSector(&tweak, &aes, buf, p2, sizeof(p2), s2);
+    ret = wc_AesXtsEncryptSector(&aes, buf, p2, sizeof(p2), s2);
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -4621,10 +4613,10 @@ static int aes_xts_sector_test(void)
 
     /* decrypt test */
     XMEMSET(buf, 0, sizeof(buf));
-    if (wc_AesXtsSetKey(&tweak, &aes, k2, sizeof(k2), AES_DECRYPTION,
+    if (wc_AesXtsSetKey(&aes, k2, sizeof(k2), AES_DECRYPTION,
             HEAP_HINT, devId) != 0)
         return -4041;
-    ret = wc_AesXtsDecryptSector(&tweak, &aes, buf, c2, sizeof(c2), s2);
+    ret = wc_AesXtsDecryptSector(&aes, buf, c2, sizeof(c2), s2);
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -4632,8 +4624,7 @@ static int aes_xts_sector_test(void)
         return -4042;
     if (XMEMCMP(p2, buf, sizeof(p2)))
         return -4043;
-    wc_AesFree(&aes);
-    wc_AesFree(&tweak);
+    wc_AesXtsFree(&aes);
 
     return ret;
 }
@@ -4642,8 +4633,7 @@ static int aes_xts_sector_test(void)
 /* testing of bad arguments */
 static int aes_xts_args_test(void)
 {
-    Aes aes;
-    Aes tweak;
+    XtsAes aes;
     int ret = 0;
     unsigned char buf[AES_BLOCK_SIZE * 2];
 
@@ -4666,52 +4656,50 @@ static int aes_xts_args_test(void)
     };
     word64 s1 = 141;
 
-    if (wc_AesXtsSetKey(NULL, &aes, k1, sizeof(k1), AES_ENCRYPTION,
+    if (wc_AesXtsSetKey(NULL, k1, sizeof(k1), AES_ENCRYPTION,
             HEAP_HINT, devId) == 0)
         return -4044;
-    if (wc_AesXtsSetKey(&tweak, NULL, k1, sizeof(k1), AES_ENCRYPTION,
+    if (wc_AesXtsSetKey(&aes, NULL, sizeof(k1), AES_ENCRYPTION,
             HEAP_HINT, devId) == 0)
         return -4045;
-    if (wc_AesXtsSetKey(&tweak, &aes, NULL, sizeof(k1), AES_ENCRYPTION,
-            HEAP_HINT, devId) == 0)
-        return -4046;
 
-    /* set up wrong encrypt / decrypt types for key */
-    wc_AesSetKey(&aes, k1, sizeof(k1)/2, NULL, AES_DECRYPTION);
-    wc_AesSetKey(&tweak, k1 + sizeof(k1)/2, sizeof(k1)/2, NULL, AES_ENCRYPTION);
-    ret = wc_AesXtsEncryptSector(&tweak, &aes, buf, p1, sizeof(p1), s1);
+    /* encryption operations */
+    if (wc_AesXtsSetKey(&aes, k1, sizeof(k1), AES_ENCRYPTION,
+            HEAP_HINT, devId) != 0)
+        return -4046;
+    ret = wc_AesXtsEncryptSector(NULL, buf, p1, sizeof(p1), s1);
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret == 0)
         return -4047;
-    wc_AesFree(&aes);
-    wc_AesFree(&tweak);
 
-    /* tweak must be encryption type. Test with wrong decryption type used */
-    wc_AesSetKey(&aes, k1, sizeof(k1)/2, NULL, AES_ENCRYPTION);
-    wc_AesSetKey(&tweak, k1 + sizeof(k1)/2, sizeof(k1)/2, NULL, AES_DECRYPTION);
-    ret = wc_AesXtsEncryptSector(&tweak, &aes, buf, p1, sizeof(p1), s1);
+    ret = wc_AesXtsEncryptSector(&aes, NULL, p1, sizeof(p1), s1);
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret == 0)
         return -4048;
-    wc_AesFree(&aes);
-    wc_AesFree(&tweak);
+    wc_AesXtsFree(&aes);
 
-    /* Test for fail with encryption key used for decryption */
-    if (wc_AesXtsSetKey(&tweak, &aes, k1, sizeof(k1), AES_ENCRYPTION,
+    /* decryption operations */
+    if (wc_AesXtsSetKey(&aes, k1, sizeof(k1), AES_DECRYPTION,
             HEAP_HINT, devId) != 0)
+        return -4046;
+    ret = wc_AesXtsDecryptSector(NULL, buf, c1, sizeof(c1), s1);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret == 0)
         return -4049;
-    ret = wc_AesXtsDecryptSector(&tweak, &aes, buf, c1, sizeof(c1), s1);
+
+    ret = wc_AesXtsDecryptSector(&aes, NULL, c1, sizeof(c1), s1);
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret == 0)
         return -4050;
-    wc_AesFree(&aes);
-    wc_AesFree(&tweak);
+    wc_AesXtsFree(&aes);
 
     return 0;
 }
