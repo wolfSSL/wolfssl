@@ -2056,7 +2056,7 @@
       <name>$PROJ_DIR$\..\..\..\..\src\internal.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\..\..\src\io.c</name>
+      <name>$PROJ_DIR$\..\..\..\..\src\wolfio.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\..\..\..\src\keys.c</name>

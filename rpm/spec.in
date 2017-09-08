@@ -173,7 +173,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/callbacks.h
 %{_includedir}/wolfssl/certs_test.h
 %{_includedir}/wolfssl/crl.h
-%{_includedir}/wolfssl/io.h
+%{_includedir}/wolfssl/wolfio.h
 %{_includedir}/wolfssl/wolfcrypt/aes.h
 %{_includedir}/wolfssl/wolfcrypt/cmac.h
 %{_includedir}/wolfssl/wolfcrypt/arc4.h
@@ -282,6 +282,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Fri Sep 08 2017 Jacob Barthelmeh <jacob@wolfssl.com>
+- Change name for header wolfssl/io.h to wolfssl/wolfio.h
 * Fri Aug 04 2017 Jacob Barthelmeh <jacob@wolfssl.com>
 - Added header for wolfssl/wolfcrypt/cpuid.h, wolfssl/wolfcrypt/sha3.h
 * Thu May 04 2017 Jacob Barthelmeh <jacob@wolfssl.com>

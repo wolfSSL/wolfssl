@@ -35,7 +35,7 @@
 #endif
 
 #if !defined(WOLFSSL_USER_IO)
-    /* Micrium uses NetSock I/O callbacks in io.c */
+    /* Micrium uses NetSock I/O callbacks in wolfio.c */
     #if !defined(USE_WOLFSSL_IO) && !defined(MICRIUM)
         #define USE_WOLFSSL_IO
     #endif

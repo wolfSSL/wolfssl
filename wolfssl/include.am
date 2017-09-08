@@ -18,7 +18,7 @@ nobase_include_HEADERS+= \
                          wolfssl/version.h \
                          wolfssl/ocsp.h \
                          wolfssl/crl.h \
-                         wolfssl/io.h
+                         wolfssl/wolfio.h
 
 noinst_HEADERS+= \
                          wolfssl/internal.h

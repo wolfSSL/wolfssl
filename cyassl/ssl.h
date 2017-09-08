@@ -226,7 +226,7 @@
 #define CyaSSL_CTX_get_ex_new_index wolfSSL_CTX_get_ex_new_index
 
 
-/* io.c */
+/* wolfio.c */
 #define CYASSL_CBIO_ERR_ISR        WOLFSSL_CBIO_ERR_ISR
 #define CYASSL_CBIO_ERR_TIMEOUT    WOLFSSL_CBIO_ERR_TIMEOUT
 #define CYASSL_CBIO_ERR_GENERAL    WOLFSSL_CBIO_ERR_GENERAL

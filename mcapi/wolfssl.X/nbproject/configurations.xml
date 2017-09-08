@@ -69,7 +69,7 @@
       <logicalFolder name="src" displayName="wolfssl" projectFiles="true">
         <itemPath>../../src/crl.c</itemPath>
         <itemPath>../../src/internal.c</itemPath>
-        <itemPath>../../src/io.c</itemPath>
+        <itemPath>../../src/wolfio.c</itemPath>
         <itemPath>../../src/keys.c</itemPath>
         <itemPath>../../src/ocsp.c</itemPath>
         <itemPath>../../src/sniffer.c</itemPath>

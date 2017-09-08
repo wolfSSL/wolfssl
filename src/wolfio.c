@@ -1,4 +1,4 @@
-/* io.c
+/* wolfio.c
  *
  * Copyright (C) 2006-2016 wolfSSL Inc.
  *
@@ -36,7 +36,7 @@
 
 #include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
-#include <wolfssl/io.h>
+#include <wolfssl/wolfio.h>
 
 #if defined(HAVE_HTTP_CLIENT)
     #include <stdlib.h>   /* atoi(), strtol() */
