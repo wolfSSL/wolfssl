@@ -149,6 +149,9 @@ extern "C" {
 	#undef  HAVE_AESGCM
     #define HAVE_AESGCM
 
+    #undef  HAVE_AESCCM
+    #define HAVE_AESCCM
+
     /* GCM Method: GCM_SMALL, GCM_WORD32 or GCM_TABLE */
     #undef  GCM_SMALL
     #define GCM_SMALL
@@ -260,7 +263,7 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 
 #undef  DEBUG_WOLFSSL
-#define DEBUG_WOLFSSL
+//#define DEBUG_WOLFSSL
 
 /* Use this to measure / print heap usage */
 #if 0
@@ -307,7 +310,7 @@ extern unsigned int custom_rand_generate(void);
 #define CUSTOM_RAND_GENERATE  custom_rand_generate
 
 /* Choose RNG method */
-#if 1
+#if 0
     /* Use built-in P-RNG (SHA256 based) with HW RNG */
     /* P-RNG + HW RNG (P-RNG is ~8K) */
     #undef  HAVE_HASHDRBG

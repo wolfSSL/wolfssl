@@ -2,4 +2,6 @@
 BIN = WolfSSLClient
 SRC_C = ./Source/tls_client.c
 
+all: build_hex
+
 include Makefile.common

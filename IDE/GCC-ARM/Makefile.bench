@@ -2,4 +2,6 @@
 BIN = WolfCryptBench
 SRC_C = ./Source/benchmark_main.c
 
+all: build_hex
+
 include Makefile.common

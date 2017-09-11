@@ -1,15 +1,15 @@
-BUILD_DIR = ./Build
-
 # Set to @ if you want to suppress command echo
-CMD_ECHO = @
+CMD_ECHO = 
 
 # Important directories
+BUILD_DIR = ./Build
 TOOLCHAIN_DIR = /opt/gcc-arm-none-eabi/bin
 
 INC = -I./Header \
 	  -I./Source \
 	  -I../..
 
+# Memory Map
 SRC_LD = ./linker.ld
 
 # Defines
@@ -31,7 +31,7 @@ LDFLAGS = $(ARCHFLAGS) -Wl,--gc-sections --specs=nano.specs --specs=nosys.specs
 LDFLAGS += -Wl,-Map=$(BUILD_DIR)/$(BIN).map $(DBGFLAGS)
 LDFLAGS += -Wl,-ereset_handler
 
-# Math lib for DH
+# Math lib (for DH)
 LIBS = -lm
 
 SRC_C += ./Source/armtarget.c
@@ -45,15 +45,19 @@ vpath %.c $(dir $(SRC_C))
 CC = $(TOOLCHAIN_DIR)/arm-none-eabi-gcc
 AS = $(TOOLCHAIN_DIR)/arm-none-eabi-gcc
 LD = $(TOOLCHAIN_DIR)/arm-none-eabi-gcc
+AR = $(TOOLCHAIN_DIR)/arm-none-eabi-ar
 NM = $(TOOLCHAIN_DIR)/arm-none-eabi-nm
 OBJCOPY = $(TOOLCHAIN_DIR)/arm-none-eabi-objcopy
 OBJDUMP = $(TOOLCHAIN_DIR)/arm-none-eabi-objdump
 SIZE = $(TOOLCHAIN_DIR)/arm-none-eabi-size
 
-
-all: $(BUILD_DIR) $(BUILD_DIR)/$(BIN).hex
+build_hex: $(BUILD_DIR) $(BUILD_DIR)/$(BIN).hex
 	@echo ""
 	$(CMD_ECHO) @$(SIZE) $(BUILD_DIR)/$(BIN).elf
+
+build_static: $(BUILD_DIR) $(BUILD_DIR)/$(BIN).a
+	@echo ""
+	$(CMD_ECHO) @$(SIZE) $(BUILD_DIR)/$(BIN).a
 
 $(BUILD_DIR):
 	$(CMD_ECHO) mkdir -p $(BUILD_DIR)
@@ -73,6 +77,16 @@ $(BUILD_DIR)/%.o: %.c
 $(BUILD_DIR)/$(BIN).elf: $(OBJS_ASM) $(OBJS_C)
 	@echo "Linking ELF binary: $(notdir $@)"
 	$(CMD_ECHO) $(LD) $(LDFLAGS) -T$(SRC_LD) -o $@ $^ $(LIBS)
+
+	@echo "Generating name list: $(BIN).sym"
+	$(CMD_ECHO) $(NM) -n $@ > $(BUILD_DIR)/$(BIN).sym
+
+	@echo "Generating disassembly: $(BIN).disasm"
+	$(CMD_ECHO) $(OBJDUMP) -S $@ > $(BUILD_DIR)/$(BIN).disasm
+
+$(BUILD_DIR)/$(BIN).a: $(OBJS_ASM) $(OBJS_C)
+	@echo "Building static library: $(notdir $@)"
+	$(CMD_ECHO) $(AR) -r $@ $^
 
 	@echo "Generating name list: $(BIN).sym"
 	$(CMD_ECHO) $(NM) -n $@ > $(BUILD_DIR)/$(BIN).sym

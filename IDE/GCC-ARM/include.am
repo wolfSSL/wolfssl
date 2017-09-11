@@ -13,4 +13,5 @@ EXTRA_DIST+= IDE/GCC-ARM/Makefile.bench
 EXTRA_DIST+= IDE/GCC-ARM/Makefile.client
 EXTRA_DIST+= IDE/GCC-ARM/Makefile.common
 EXTRA_DIST+= IDE/GCC-ARM/Makefile.test
+EXTRA_DIST+= IDE/GCC-ARM/Makefile.static
 EXTRA_DIST+= IDE/GCC-ARM/README.md
