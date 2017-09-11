@@ -10279,12 +10279,16 @@ static void test_wc_ecc_get_curve_id_from_params(void)
             return -1;
         }
 
+    #ifndef NO_FILESYSTEM
         ret = wolfSSL_CertManagerLoadCA(cm, ca, 0);
         if (ret != SSL_SUCCESS) {
             printf("wolfSSL_CertManagerLoadCA failed\n");
             wolfSSL_CertManagerFree(cm);
             return ret;
         }
+    #else
+        (void)ca;
+    #endif
 
         ret = wolfSSL_CertManagerVerifyBuffer(cm, cert_buf, cert_sz, SSL_FILETYPE_ASN1);
         /* Let AssertIntEQ handle return code */
