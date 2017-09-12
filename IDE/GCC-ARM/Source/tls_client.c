@@ -32,12 +32,13 @@
 /*------------------------------------------------------------------------*/
 static int CbIORecv(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 {
-    int ret = sz;
+    int ret = WOLFSSL_CBIO_ERR_GENERAL;
 
     (void)ssl;
     (void)ctx;
 
     /* TODO: Exchange data over your own transport */
+    #warning TODO: Implement your own recv data transport
 #if 0
     ret = usart_read_buffer_wait(&cdc_uart_module, buf, sz);
     if (ret == STATUS_ERR_TIMEOUT)
@@ -51,12 +52,13 @@ static int CbIORecv(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
 static int CbIOSend(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 {
-    int ret = sz;
+    int ret = WOLFSSL_CBIO_ERR_GENERAL;
 
     (void)ssl;
     (void)ctx;
 
     /* TODO: Exchange data over your own transport */
+    #warning TODO: Implement your own send data transport
 #if 0
     ret = usart_write_buffer_wait(&cdc_uart_module, buf, sz);
     if (ret == STATUS_ERR_TIMEOUT)
