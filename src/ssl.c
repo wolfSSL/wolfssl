@@ -16293,6 +16293,10 @@ int wolfSSL_PEM_def_callback(char* name, int num, int w, void* key)
 
 unsigned long wolfSSL_set_options(WOLFSSL* ssl, unsigned long op)
 {
+    word16 haveRSA = 1;
+    word16 havePSK = 0;
+    int    keySz   = 0;
+
     WOLFSSL_ENTER("wolfSSL_set_options");
 
     if (ssl == NULL) {
@@ -16363,6 +16367,21 @@ unsigned long wolfSSL_set_options(WOLFSSL* ssl, unsigned long op)
         WOLFSSL_MSG("SSL_OP_NO_COMPRESSION: compression not compiled in");
     #endif
     }
+
+    /* in the case of a version change the cipher suites should be reset */
+    #ifndef NO_PSK
+        havePSK = ssl->options.havePSK;
+    #endif
+    #ifdef NO_RSA
+        haveRSA = 0;
+    #endif
+    #ifndef NO_CERTS
+        keySz = ssl->buffers.keySz;
+    #endif
+    InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
+                       ssl->options.haveDH, ssl->options.haveNTRU,
+                       ssl->options.haveECDSAsig, ssl->options.haveECC,
+                       ssl->options.haveStaticECC, ssl->options.side);
 
     return ssl->options.mask;
 }
