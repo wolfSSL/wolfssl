@@ -8010,5 +8010,354 @@ int wc_AesKeyUnWrap(const byte* key, word32 keySz, const byte* in, word32 inSz,
 
 #endif /* HAVE_AES_KEYWRAP */
 
+#ifdef WOLFSSL_AES_XTS
+
+/* Galios Field to use */
+#define GF_XTS 0x87
+
+/* This is to help with setting keys to correct encrypt or decrypt type.
+ *
+ * tweak AES key for tweak in XTS
+ * aes   AES key for encrypt/decrypt process
+ * key   buffer holding aes key | tweak key
+ * len   length of key buffer in bytes. Should be twice that of key size. i.e.
+ *       32 for a 16 byte key.
+ * dir   direction, either AES_ENCRYPTION or AES_DECRYPTION
+ * heap  heap hint to use for memory. Can be NULL
+ * devId id to use with async crypto. Can be 0
+ *
+ * Note: is up to user to call wc_AesFree on tweak and aes key when done.
+ *
+ * return 0 on success
+ */
+int wc_AesXtsSetKey(XtsAes* aes, const byte* key, word32 len, int dir,
+        void* heap, int devId)
+{
+    word32 keySz;
+    int    ret = 0;
+
+    if (aes == NULL || key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if ((ret = wc_AesInit(&aes->tweak, heap, devId)) != 0) {
+        return ret;
+    }
+    if ((ret = wc_AesInit(&aes->aes, heap, devId)) != 0) {
+        return ret;
+    }
+
+    keySz = len/2;
+    if (keySz != 16 && keySz != 32) {
+        WOLFSSL_MSG("Unsupported key size");
+        return WC_KEY_SIZE_E;
+    }
+
+    if ((ret = wc_AesSetKey(&aes->aes, key, keySz, NULL, dir)) == 0) {
+        ret = wc_AesSetKey(&aes->tweak, key + keySz, keySz, NULL,
+                AES_ENCRYPTION);
+        if (ret != 0) {
+            wc_AesFree(&aes->aes);
+        }
+    }
+
+    return ret;
+}
+
+
+/* This is used to free up resources used by Aes structs
+ *
+ * aes AES keys to free
+ *
+ * return 0 on success
+ */
+int wc_AesXtsFree(XtsAes* aes)
+{
+    if (aes != NULL) {
+        wc_AesFree(&aes->aes);
+        wc_AesFree(&aes->tweak);
+    }
+
+    return 0;
+}
+
+
+/* Same process as wc_AesXtsEncrypt but uses a word64 type as the tweak value
+ * instead of a byte array. This just converts the word64 to a byte array and
+ * calls wc_AesXtsEncrypt.
+ *
+ * aes    AES keys to use for block encrypt/decrypt
+ * out    output buffer to hold cipher text
+ * in     input plain text buffer to encrypt
+ * sz     size of both out and in buffers
+ * sector value to use for tweak
+ *
+ * returns 0 on success
+ */
+int wc_AesXtsEncryptSector(XtsAes* aes, byte* out, const byte* in,
+        word32 sz, word64 sector)
+{
+    byte* pt;
+    byte  i[AES_BLOCK_SIZE];
+
+    XMEMSET(i, 0, AES_BLOCK_SIZE);
+#ifdef BIG_ENDIAN_ORDER
+    sector = ByteReverseWord64(sector);
+#endif
+    pt = (byte*)&sector;
+    XMEMCPY(i, pt, sizeof(word64));
+
+    return wc_AesXtsEncrypt(aes, out, in, sz, (const byte*)i, AES_BLOCK_SIZE);
+}
+
+
+/* Same process as wc_AesXtsDecrypt but uses a word64 type as the tweak value
+ * instead of a byte array. This just converts the word64 to a byte array.
+ *
+ * aes    AES keys to use for block encrypt/decrypt
+ * out    output buffer to hold plain text
+ * in     input cipher text buffer to encrypt
+ * sz     size of both out and in buffers
+ * sector value to use for tweak
+ *
+ * returns 0 on success
+ */
+int wc_AesXtsDecryptSector(XtsAes* aes, byte* out, const byte* in, word32 sz,
+        word64 sector)
+{
+    byte* pt;
+    byte  i[AES_BLOCK_SIZE];
+
+    XMEMSET(i, 0, AES_BLOCK_SIZE);
+#ifdef BIG_ENDIAN_ORDER
+    sector = ByteReverseWord64(sector);
+#endif
+    pt = (byte*)&sector;
+    XMEMCPY(i, pt, sizeof(word64));
+
+    return wc_AesXtsDecrypt(aes, out, in, sz, (const byte*)i, AES_BLOCK_SIZE);
+}
+
+
+/* AES with XTS mode. (XTS) XEX encryption with Tweak and cipher text Stealing.
+ *
+ * xaes  AES keys to use for block encrypt/decrypt
+ * out   output buffer to hold cipher text
+ * in    input plain text buffer to encrypt
+ * sz    size of both out and in buffers
+ * i     value to use for tweak
+ * iSz   size of i buffer, should always be AES_BLOCK_SIZE but having this input
+ *       adds a sanity check on how the user calls the function.
+ *
+ * returns 0 on success
+ */
+int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
+        const byte* i, word32 iSz)
+{
+    int ret = 0;
+    word32 blocks = (sz / AES_BLOCK_SIZE);
+    Aes *aes, *tweak;
+
+    if (xaes == NULL || out == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    aes   = &xaes->aes;
+    tweak = &xaes->tweak;
+
+    if (iSz < AES_BLOCK_SIZE) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (in == NULL && sz > 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (blocks > 0) {
+        byte tmp[AES_BLOCK_SIZE];
+
+        wc_AesEncryptDirect(tweak, tmp, i);
+
+        while (blocks > 0) {
+            word32 j;
+            byte carry = 0;
+            byte buf[AES_BLOCK_SIZE];
+
+            XMEMCPY(buf, in, AES_BLOCK_SIZE);
+            xorbuf(buf, tmp, AES_BLOCK_SIZE);
+            wc_AesEncryptDirect(aes, out, buf);
+            xorbuf(out, tmp, AES_BLOCK_SIZE);
+
+            /* multiply by shift left and propogate carry */
+            for (j = 0; j < AES_BLOCK_SIZE; j++) {
+                byte tmpC;
+
+                tmpC   = (tmp[j] >> 7) & 0x01;
+                tmp[j] = ((tmp[j] << 1) + carry) & 0xFF;
+                carry  = tmpC;
+            }
+            if (carry) {
+                tmp[0] ^= GF_XTS;
+            }
+            carry = 0;
+
+            in  += AES_BLOCK_SIZE;
+            out += AES_BLOCK_SIZE;
+            sz  -= AES_BLOCK_SIZE;
+            blocks--;
+        }
+
+        /* stealing operation of XTS to handle left overs */
+        if (sz > 0) {
+            byte buf[AES_BLOCK_SIZE];
+
+            XMEMCPY(buf, out - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+            if (sz >= AES_BLOCK_SIZE) { /* extra sanity check before copy */
+                return BUFFER_E;
+            }
+            XMEMCPY(out, buf, sz);
+            XMEMCPY(buf, in, sz);
+
+            xorbuf(buf, tmp, AES_BLOCK_SIZE);
+            wc_AesEncryptDirect(aes, out - AES_BLOCK_SIZE, buf);
+            xorbuf(out - AES_BLOCK_SIZE, tmp, AES_BLOCK_SIZE);
+        }
+    }
+    else {
+        WOLFSSL_MSG("Plain text input too small for encryption");
+        return BAD_FUNC_ARG;
+    }
+
+    return ret;
+}
+
+
+/* Same process as encryption but Aes key is AES_DECRYPTION type.
+ *
+ * xaes  AES keys to use for block encrypt/decrypt
+ * out   output buffer to hold plain text
+ * in    input cipher text buffer to decrypt
+ * sz    size of both out and in buffers
+ * i     value to use for tweak
+ * iSz   size of i buffer, should always be AES_BLOCK_SIZE but having this input
+ *       adds a sanity check on how the user calls the function.
+ *
+ * returns 0 on success
+ */
+int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
+        const byte* i, word32 iSz)
+{
+    int ret = 0;
+    word32 blocks = (sz / AES_BLOCK_SIZE);
+    Aes *aes, *tweak;
+
+    if (xaes == NULL || out == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    aes   = &xaes->aes;
+    tweak = &xaes->tweak;
+
+    if (iSz < AES_BLOCK_SIZE) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (in == NULL && sz > 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (blocks > 0) {
+        word32 j;
+        byte carry = 0;
+        byte tmp[AES_BLOCK_SIZE];
+        byte stl = (sz % AES_BLOCK_SIZE);
+
+        wc_AesEncryptDirect(tweak, tmp, i);
+
+        /* if Stealing then break out of loop one block early to handle special
+         * case */
+        if (stl > 0) {
+            blocks--;
+        }
+
+        while (blocks > 0) {
+            byte buf[AES_BLOCK_SIZE];
+
+            XMEMCPY(buf, in, AES_BLOCK_SIZE);
+            xorbuf(buf, tmp, AES_BLOCK_SIZE);
+            wc_AesDecryptDirect(aes, out, buf);
+            xorbuf(out, tmp, AES_BLOCK_SIZE);
+
+            /* multiply by shift left and propogate carry */
+            for (j = 0; j < AES_BLOCK_SIZE; j++) {
+                byte tmpC;
+
+                tmpC   = (tmp[j] >> 7) & 0x01;
+                tmp[j] = ((tmp[j] << 1) + carry) & 0xFF;
+                carry  = tmpC;
+            }
+            if (carry) {
+                tmp[0] ^= GF_XTS;
+            }
+            carry = 0;
+
+            in  += AES_BLOCK_SIZE;
+            out += AES_BLOCK_SIZE;
+            sz  -= AES_BLOCK_SIZE;
+            blocks--;
+        }
+
+        /* stealing operation of XTS to handle left overs */
+        if (sz > 0) {
+            byte buf[AES_BLOCK_SIZE];
+            byte tmp2[AES_BLOCK_SIZE];
+
+            /* multiply by shift left and propogate carry */
+            for (j = 0; j < AES_BLOCK_SIZE; j++) {
+                byte tmpC;
+
+                tmpC   = (tmp[j] >> 7) & 0x01;
+                tmp2[j] = ((tmp[j] << 1) + carry) & 0xFF;
+                carry  = tmpC;
+            }
+            if (carry) {
+                tmp2[0] ^= GF_XTS;
+            }
+
+            XMEMCPY(buf, in, AES_BLOCK_SIZE);
+            xorbuf(buf, tmp2, AES_BLOCK_SIZE);
+            wc_AesDecryptDirect(aes, out, buf);
+            xorbuf(out, tmp2, AES_BLOCK_SIZE);
+
+            /* tmp2 holds partial | last */
+            XMEMCPY(tmp2, out, AES_BLOCK_SIZE);
+            in  += AES_BLOCK_SIZE;
+            out += AES_BLOCK_SIZE;
+            sz  -= AES_BLOCK_SIZE;
+
+            /* Make buffer with end of cipher text | last */
+            XMEMCPY(buf, tmp2, AES_BLOCK_SIZE);
+            if (sz >= AES_BLOCK_SIZE) { /* extra sanity check before copy */
+                return BUFFER_E;
+            }
+            XMEMCPY(buf, in,   sz);
+            XMEMCPY(out, tmp2, sz);
+
+            xorbuf(buf, tmp, AES_BLOCK_SIZE);
+            wc_AesDecryptDirect(aes, tmp2, buf);
+            xorbuf(tmp2, tmp, AES_BLOCK_SIZE);
+            XMEMCPY(out - AES_BLOCK_SIZE, tmp2, AES_BLOCK_SIZE);
+        }
+    }
+    else {
+        WOLFSSL_MSG("Plain text input too small for encryption");
+        return BAD_FUNC_ARG;
+    }
+
+    return ret;
+}
+
+#endif /* WOLFSSL_AES_XTS */
+
 #endif /* HAVE_FIPS */
 #endif /* !NO_AES */
