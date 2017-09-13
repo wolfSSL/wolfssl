@@ -194,7 +194,12 @@ do
     # get openssl ciphers depending on version
     case $version in "0")
         openssl_ciphers=`openssl ciphers "SSLv3"`
+
+        # double check that can actually do a sslv3 connection using
+        # client-cert.pem to send but any file with EOF works
+        openssl s_client -ssl3 -no_ign_eof -host localhost -port $openssl_port < ./certs/client-cert.pem
         sslv3_sup=$?
+
         if [ $sslv3_sup != 0 ]
         then
             echo -e "Not testing SSLv3. No OpenSSL support for 'SSLv3' modifier"
@@ -262,20 +267,23 @@ do
 
         # check for psk suite and turn on client psk if so
         psk=""
+        adh=""
         port=$openssl_port
         case $wolfSuite in
         *ECDH-RSA*)
             port=$ecdh_port ;;
         *PSK*)
             psk="-s " ;;
+        *ADH*)
+            adh="-a " ;;
         esac
 
         if [ $version -lt 4 ]
         then
-            ./examples/client/client -p $port -g -r -l $wolfSuite -v $version $psk
+            ./examples/client/client -p $port -g -r -l $wolfSuite -v $version $psk $adh
         else
             # do all versions
-            ./examples/client/client -p $port -g -r -l $wolfSuite $psk
+            ./examples/client/client -p $port -g -r -l $wolfSuite $psk $adh
         fi
 
         client_result=$?
