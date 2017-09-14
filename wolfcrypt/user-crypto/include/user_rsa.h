@@ -57,7 +57,7 @@ enum {
 
 
 /* RSA */
-typedef struct RsaKey {
+struct RsaKey {
     IppsBigNumState* n;
     IppsBigNumState* e;
     IppsBigNumState* dipp;
@@ -73,7 +73,12 @@ typedef struct RsaKey {
     word32 sz;    /* size of signature */
     int   type;                               /* public or private */
     void* heap;                               /* for user memory overrides */
-} RsaKey;
+};
+
+#ifndef WC_RSAKEY_TYPE_DEFINED
+    typedef struct RsaKey RsaKey;
+    #define WC_RSAKEY_TYPE_DEFINED
+#endif
 
 WOLFSSL_API int  wc_InitRsaKey(RsaKey* key, void*);
 WOLFSSL_API int  wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId);
