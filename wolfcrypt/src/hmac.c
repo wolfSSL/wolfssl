@@ -54,7 +54,7 @@
     }
     int wc_HmacUpdate(Hmac* hmac, const byte* in, word32 sz)
     {
-        if (hmac == NULL) {
+        if (hmac == NULL || (in == NULL && sz > 0)) {
             return BAD_FUNC_ARG;
         }
 
@@ -523,7 +523,7 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
 {
     int ret = 0;
 
-    if (hmac == NULL) {
+    if (hmac == NULL || (msg == NULL && length > 0)) {
         return BAD_FUNC_ARG;
     }
 
