@@ -1292,6 +1292,16 @@ int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id)
     return 0;
 }
 
+
+#ifdef ALT_ECC_SIZE
+static void alt_fp_init(fp_int* a)
+{
+    a->size = FP_SIZE_ECC;
+    fp_zero(a);
+}
+#endif /* ALT_ECC_SIZE */
+
+
 #ifndef WOLFSSL_ATECC508A
 
 /**
@@ -2326,17 +2336,7 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R, mp_int* a,
     return wc_ecc_mulmod_ex(k, G, R, a, modulus, map, NULL);
 }
 
-
-#ifdef ALT_ECC_SIZE
-
-static void alt_fp_init(fp_int* a)
-{
-    a->size = FP_SIZE_ECC;
-    fp_zero(a);
-}
-
-#endif /* ALT_ECC_SIZE */
-
+#endif /* !WOLFSSL_ATECC508A */
 
 /**
  * use a heap hint when creating new ecc_point
@@ -2453,8 +2453,6 @@ int wc_ecc_cmp_point(ecc_point* a, ecc_point *b)
 
     return MP_EQ;
 }
-
-#endif /* !WOLFSSL_ATECC508A */
 
 
 /** Returns whether an ECC idx is valid or not
@@ -2710,7 +2708,7 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
    }
 
 #ifdef WOLFSSL_ATECC508A
-   err = atcatls_ecdh(private_key->slot, public_key->pubkey, out);
+   err = atcatls_ecdh(private_key->slot, public_key->pubkey_raw, out);
    if (err != ATCA_SUCCESS) {
       err = BAD_COND_E;
    }
@@ -3190,10 +3188,16 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
 #ifdef WOLFSSL_ATECC508A
-    key->type = ECC_PRIVATEKEY;
-    err = atcatls_create_key(key->slot, key->pubkey);
-    if (err != ATCA_SUCCESS)
-        err = BAD_COND_E;
+   key->type = ECC_PRIVATEKEY;
+   err = atcatls_create_key(key->slot, key->pubkey_raw);
+   if (err != ATCA_SUCCESS) {
+      err = BAD_COND_E;
+   }
+
+   /* populate key->pubkey */
+   err = mp_read_unsigned_bin(key->pubkey.x, key->pubkey_raw, 32);
+   if (err = MP_OKAY)
+       err = mp_read_unsigned_bin(key->pubkey.y, key->pubkey_raw + 32, 32);
 #else
 
 #ifdef WOLFSSL_HAVE_SP_ECC
@@ -4176,7 +4180,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
         return err;
     }
 
-    err = atcatls_verify(hash, sigRS, key->pubkey, (bool*)res);
+    err = atcatls_verify(hash, sigRS, key->pubkey_raw, (bool*)res);
     if (err != ATCA_SUCCESS) {
        return BAD_COND_E;
    }
@@ -4426,6 +4430,11 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
 #endif
     }
 
+#ifdef WOLFSSL_ATECC508A
+    /* populate key->pubkey_raw */
+    XMEMCPY(key->pubkey_raw, (byte*)in+1, PUB_KEY_SIZE);
+#endif
+
     /* read data */
     if (err == MP_OKAY)
         err = mp_read_unsigned_bin(point->x, (byte*)in+1, (inLen-1)>>1);
@@ -4587,14 +4596,12 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
 {
    int    ret = MP_OKAY;
    word32 numlen;
-#ifndef WOLFSSL_ATECC508A
 #ifdef WOLFSSL_SMALL_STACK
    byte*  buf;
 #else
    byte   buf[ECC_BUFSIZE];
 #endif
    word32 pubxlen, pubylen;
-#endif /* WOLFSSL_ATECC508A */
 
    /* return length needed only */
    if (key != NULL && out == NULL && outLen != NULL) {
@@ -4619,12 +4626,6 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
       *outLen = 1 + 2*numlen;
       return BUFFER_E;
    }
-
-#ifdef WOLFSSL_ATECC508A
-   /* TODO: Implement equiv call to ATECC508A */
-   ret = BAD_COND_E;
-
-#else
 
    /* verify public key length is less than key size */
    pubxlen = mp_unsigned_bin_size(key->pubkey.x);
@@ -4663,7 +4664,6 @@ done:
 #ifdef WOLFSSL_SMALL_STACK
    XFREE(buf, NULL, DYNAMIC_TYPE_ECC_BUFFER);
 #endif
-#endif /* WOLFSSL_ATECC508A */
 
    return ret;
 }
@@ -4994,9 +4994,7 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
                           int curve_id)
 {
     int err = MP_OKAY;
-#ifndef WOLFSSL_ATECC508A
     int compressed = 0;
-#endif /* !WOLFSSL_ATECC508A */
 
     if (in == NULL || key == NULL)
         return BAD_FUNC_ARG;
@@ -5008,12 +5006,6 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
 
     /* make sure required variables are reset */
     wc_ecc_reset(key);
-
-#ifdef WOLFSSL_ATECC508A
-    /* TODO: Implement equiv call to ATECC508A */
-    err = BAD_COND_E;
-
-#else
 
     /* init key */
     #ifdef ALT_ECC_SIZE
@@ -5139,7 +5131,6 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
         mp_clear(key->pubkey.z);
         mp_clear(&key->k);
     }
-#endif /* WOLFSSL_ATECC508A */
 
     return err;
 }
@@ -5253,12 +5244,6 @@ static int wc_ecc_export_raw(ecc_key* key, byte* qx, word32* qxLen,
     #endif /* WOLFSSL_ATECC508A */
     }
 
-#ifdef WOLFSSL_ATECC508A
-    /* TODO: Implement equiv call to ATECC508A */
-    return BAD_COND_E;
-
-#else
-
     /* public x component */
     err = mp_to_unsigned_bin(key->pubkey.x, qx +
                             (numLen - mp_unsigned_bin_size(key->pubkey.x)));
@@ -5272,7 +5257,6 @@ static int wc_ecc_export_raw(ecc_key* key, byte* qx, word32* qxLen,
         return err;
 
     return 0;
-#endif /* WOLFSSL_ATECC508A */
 }
 
 
