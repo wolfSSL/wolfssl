@@ -2549,7 +2549,7 @@ void bench_rsaKeyGen(int doAsync)
 {
     RsaKey genKey[BENCH_MAX_PENDING];
     double start;
-    int    ret, i, count = 0, times, pending = 0;
+    int    ret = 0, i, count = 0, times, pending = 0;
     int    k, keySz;
     const int  keySizes[2] = {1024, 2048};
     const long rsa_e_val = 65537;
