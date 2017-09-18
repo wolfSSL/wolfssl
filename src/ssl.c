@@ -12129,7 +12129,8 @@ const WOLFSSL_EVP_MD *wolfSSL_EVP_get_digestbyname(const char *name)
     } alias_tbl[] =
     {
         {"MD5", "ssl3-md5"},
-        {"SHA1", "ssl3-sha1"},
+        {"SHA", "ssl3-sha1"},
+        {"SHA", "SHA1"},
         { NULL, NULL}
     };
 
@@ -12382,8 +12383,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     int wolfSSL_EVP_MD_CTX_cleanup(WOLFSSL_EVP_MD_CTX* ctx)
     {
         WOLFSSL_ENTER("EVP_MD_CTX_cleanup");
-        (void)ctx;
-        return 0;
+        ForceZero(ctx, sizeof(*ctx));
+        ctx->macType = 0xFF;
+        return 1;
     }
 
 
@@ -13036,37 +13038,37 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
         if (XSTRNCMP(type, "SHA256", 6) == 0) {
              ctx->macType = SHA256;
-             wolfSSL_SHA256_Init(&(ctx->hash.sha256));
+             wolfSSL_SHA256_Init(&(ctx->hash.digest.sha256));
         }
     #ifdef WOLFSSL_SHA224
         else if (XSTRNCMP(type, "SHA224", 6) == 0) {
              ctx->macType = SHA224;
-             wolfSSL_SHA224_Init(&(ctx->hash.sha224));
+             wolfSSL_SHA224_Init(&(ctx->hash.digest.sha224));
         }
     #endif
     #ifdef WOLFSSL_SHA384
         else if (XSTRNCMP(type, "SHA384", 6) == 0) {
              ctx->macType = SHA384;
-             wolfSSL_SHA384_Init(&(ctx->hash.sha384));
+             wolfSSL_SHA384_Init(&(ctx->hash.digest.sha384));
         }
     #endif
     #ifdef WOLFSSL_SHA512
         else if (XSTRNCMP(type, "SHA512", 6) == 0) {
              ctx->macType = SHA512;
-             wolfSSL_SHA512_Init(&(ctx->hash.sha512));
+             wolfSSL_SHA512_Init(&(ctx->hash.digest.sha512));
         }
     #endif
     #ifndef NO_MD5
         else if (XSTRNCMP(type, "MD5", 3) == 0) {
             ctx->macType = MD5;
-            wolfSSL_MD5_Init(&(ctx->hash.md5));
+            wolfSSL_MD5_Init(&(ctx->hash.digest.md5));
         }
     #endif
     #ifndef NO_SHA
         /* has to be last since would pick or 224, 256, 384, or 512 too */
         else if (XSTRNCMP(type, "SHA", 3) == 0) {
              ctx->macType = SHA;
-             wolfSSL_SHA_Init(&(ctx->hash.sha));
+             wolfSSL_SHA_Init(&(ctx->hash.digest.sha));
         }
     #endif /* NO_SHA */
         else
@@ -18122,6 +18124,12 @@ int wolfSSL_BN_set_bit(WOLFSSL_BIGNUM* bn, int n)
 
 
 /* SSL_SUCCESS on ok */
+/* Note on use: this function expects str to be an even length. It is
+ * converting pairs of bytes into 8-bit values. As an example, the RSA
+ * public exponent is commonly 0x010001. To get it to convert, you need
+ * to pass in the string "010001", it will fail if you use "10001". This
+ * is an affect of how Base16_Decode() works.
+ */
 int wolfSSL_BN_hex2bn(WOLFSSL_BIGNUM** bn, const char* str)
 {
     int     ret     = 0;
@@ -18140,7 +18148,7 @@ int wolfSSL_BN_hex2bn(WOLFSSL_BIGNUM** bn, const char* str)
         return ret;
 #endif
 
-    if (str == NULL)
+    if (str == NULL || str[0] == '\0')
         WOLFSSL_MSG("Bad function argument");
     else if (Base16_Decode((byte*)str, (int)XSTRLEN(str), decoded, &decSz) < 0)
         WOLFSSL_MSG("Bad Base16_Decode error");
@@ -18948,6 +18956,33 @@ WOLFSSL_RSA* wolfSSL_RSA_new(void)
         XFREE(key, NULL, DYNAMIC_TYPE_RSA);
         return NULL;
     }
+
+#if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && \
+    !defined(HAVE_FAST_RSA) && defined(WC_RSA_BLINDING)
+    {
+        WC_RNG* rng = NULL;
+
+        rng = (WC_RNG*) XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
+        if (rng != NULL && wc_InitRng(rng) != 0) {
+            WOLFSSL_MSG("InitRng failure, attempting to use global RNG");
+            XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
+            rng = NULL;
+        }
+
+        if (initGlobalRNG)
+            rng = &globalRNG;
+
+        if (rng == NULL) {
+            WOLFSSL_MSG("wolfSSL_RSA_new no WC_RNG for blinding");
+            XFREE(external, NULL, DYNAMIC_TYPE_RSA);
+            XFREE(key, NULL, DYNAMIC_TYPE_RSA);
+            return NULL;
+        }
+
+        wc_RsaSetRNG(key, rng);
+    }
+#endif /* WC_RSA_BLINDING */
+
     external->internal = key;
 
     return external;
@@ -18960,6 +18995,14 @@ void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
 
     if (rsa) {
         if (rsa->internal) {
+#if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && \
+    !defined(HAVE_FAST_RSA) && defined(WC_RSA_BLINDING)
+            WC_RNG* rng = ((RsaKey*)rsa->internal)->rng;
+            if (rng != NULL && rng != &globalRNG) {
+                wc_FreeRng(rng);
+                XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
+            }
+#endif /* WC_RSA_BLINDING */
             wc_FreeRsaKey((RsaKey*)rsa->internal);
             XFREE(rsa->internal, NULL, DYNAMIC_TYPE_RSA);
             rsa->internal = NULL;
@@ -19430,35 +19473,170 @@ int wolfSSL_RSA_blinding_on(WOLFSSL_RSA* rsa, WOLFSSL_BN_CTX* bn)
 /* return compliant with OpenSSL
  *   size of encrypted data if success , -1 if error
  */
-int wolfSSL_RSA_public_encrypt(int len, unsigned char* fr,
+int wolfSSL_RSA_public_encrypt(int len, const unsigned char* fr,
                             unsigned char* to, WOLFSSL_RSA* rsa, int padding)
 {
-    (void)len;
-    (void)fr;
-    (void)to;
-    (void)rsa;
-    (void)padding;
+    int tlen = 0;
+    int     initTmpRng = 0;
+    WC_RNG* rng = NULL;
+#ifdef WOLFSSL_SMALL_STACK
+    WC_RNG* tmpRNG = NULL;
+#else
+    WC_RNG  tmpRNG[1];
+#endif
+#if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)
+    int mgf = WC_MGF1NONE;
+    enum wc_HashType hash = WC_HASH_TYPE_NONE;
+#endif
 
     WOLFSSL_MSG("wolfSSL_RSA_public_encrypt");
 
-    return SSL_FATAL_ERROR;
+    if (rsa == NULL || rsa->internal == NULL || fr == NULL) {
+        WOLFSSL_MSG("Bad function arguments");
+        return 0;
+    }
+
+    /* Check and remap the padding to internal values, if needed. */
+#if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)
+    if (padding == RSA_PKCS1_PADDING)
+        padding = WC_RSA_PKCSV15_PAD;
+    else if (padding == RSA_PKCS1_OAEP_PADDING) {
+        padding = WC_RSA_OAEP_PAD;
+        hash = WC_HASH_TYPE_SHA;
+        mgf = WC_MGF1SHA1;
+    }
+#else
+    if (padding == RSA_PKCS1_PADDING)
+        ;
+#endif
+    else {
+        WOLFSSL_MSG("wolfSSL_RSA_public_encrypt unsupported padding");
+        return 0;
+    }
+
+    if (rsa->inSet == 0)
+    {
+        WOLFSSL_MSG("No RSA internal set, do it");
+
+        if (SetRsaInternal(rsa) != SSL_SUCCESS) {
+            WOLFSSL_MSG("SetRsaInternal failed");
+            return 0;
+        }
+    }
+
+#if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && \
+    !defined(HAVE_FAST_RSA) && defined(WC_RSA_BLINDING)
+    rng = ((RsaKey*)rsa->internal)->rng;
+#endif
+    if (rng == NULL) {
+#ifdef WOLFSSL_SMALL_STACK
+        tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
+        if (tmpRNG == NULL)
+            return SSL_FATAL_ERROR;
+#endif
+
+        if (wc_InitRng(tmpRNG) == 0) {
+            rng = tmpRNG;
+            initTmpRng = 1;
+        }
+        else {
+            WOLFSSL_MSG("Bad RNG Init, trying global");
+            if (initGlobalRNG == 0)
+                WOLFSSL_MSG("Global RNG no Init");
+            else
+                rng = &globalRNG;
+        }
+    }
+
+    /* size of 'to' buffer must be size of RSA key */
+    if (rng) {
+#if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)
+        tlen = wc_RsaPublicEncrypt_ex(fr, len, to, wolfSSL_RSA_size(rsa),
+                             (RsaKey*)rsa->internal, rng, padding,
+                             hash, mgf, NULL, 0);
+#else
+        tlen = wc_RsaPublicEncrypt(fr, len, to, wolfSSL_RSA_size(rsa),
+                             (RsaKey*)rsa->internal, rng);
+#endif
+        if (tlen <= 0) {
+            WOLFSSL_MSG("wolfSSL_RSA_public_encrypt failed");
+        }
+        else {
+            WOLFSSL_MSG("wolfSSL_RSA_public_encrypt success");
+        }
+    }
+    if (initTmpRng)
+        wc_FreeRng(tmpRNG);
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
+#endif
+    return tlen;
 }
 
 /* return compliant with OpenSSL
  *   size of plain recovered data if success , -1 if error
  */
-int wolfSSL_RSA_private_decrypt(int len, unsigned char* fr,
+int wolfSSL_RSA_private_decrypt(int len, const unsigned char* fr,
                             unsigned char* to, WOLFSSL_RSA* rsa, int padding)
 {
-    (void)len;
-    (void)fr;
-    (void)to;
-    (void)rsa;
-    (void)padding;
+    int tlen = 0;
+#if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)
+    int mgf = WC_MGF1NONE;
+    enum wc_HashType hash = WC_HASH_TYPE_NONE;
+#endif
 
     WOLFSSL_MSG("wolfSSL_RSA_private_decrypt");
 
-    return SSL_FATAL_ERROR;
+    if (rsa == NULL || rsa->internal == NULL || fr == NULL) {
+        WOLFSSL_MSG("Bad function arguments");
+        return 0;
+    }
+
+    /* Check and remap the padding to internal values, if needed. */
+#if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)
+    if (padding == RSA_PKCS1_PADDING)
+        padding = WC_RSA_PKCSV15_PAD;
+    else if (padding == RSA_PKCS1_OAEP_PADDING) {
+        padding = WC_RSA_OAEP_PAD;
+        hash = WC_HASH_TYPE_SHA;
+        mgf = WC_MGF1SHA1;
+    }
+#else
+    if (padding == RSA_PKCS1_PADDING)
+        ;
+#endif
+    else {
+        WOLFSSL_MSG("wolfSSL_RSA_private_decrypt unsupported padding");
+        return 0;
+    }
+
+    if (rsa->inSet == 0)
+    {
+        WOLFSSL_MSG("No RSA internal set, do it");
+
+        if (SetRsaInternal(rsa) != SSL_SUCCESS) {
+            WOLFSSL_MSG("SetRsaInternal failed");
+            return 0;
+        }
+    }
+
+    /* size of 'to' buffer must be size of RSA key */
+#if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)
+    tlen = wc_RsaPrivateDecrypt_ex(fr, len, to, wolfSSL_RSA_size(rsa),
+                            (RsaKey*)rsa->internal, padding,
+                            hash, mgf, NULL, 0);
+#else
+    tlen = wc_RsaPrivateDecrypt(fr, len, to, wolfSSL_RSA_size(rsa),
+                            (RsaKey*)rsa->internal);
+#endif
+    if (tlen <= 0) {
+        WOLFSSL_MSG("wolfSSL_RSA_private_decrypt failed");
+    }
+    else {
+        WOLFSSL_MSG("wolfSSL_RSA_private_decrypt success");
+    }
+    return tlen;
 }
 
 /* return compliant with OpenSSL
@@ -19848,7 +20026,7 @@ int wolfSSL_RSA_sign(int type, const unsigned char* m,
 }
 
 
-int wolfSSL_RSA_public_decrypt(int flen, unsigned char* from,
+int wolfSSL_RSA_public_decrypt(int flen, const unsigned char* from,
                           unsigned char* to, WOLFSSL_RSA* rsa, int padding)
 {
     int tlen = 0;

@@ -9570,6 +9570,107 @@ static void test_wolfSSL_ctrl(void)
 }
 
 
+static void test_wolfSSL_EVP_PKEY_new_mac_key(void)
+{
+#ifdef OPENSSL_EXTRA
+    static const unsigned char pw[] = "password";
+    static const int pwSz = sizeof(pw) - 1;
+    size_t checkPwSz;
+    const unsigned char* checkPw;
+    WOLFSSL_EVP_PKEY* key;
+
+    printf(testingFmt, "wolfSSL_EVP_PKEY_new_mac_key()");
+
+    AssertNull(key = wolfSSL_EVP_PKEY_new_mac_key(0, NULL, pw, pwSz));
+    AssertNull(key = wolfSSL_EVP_PKEY_new_mac_key(0, NULL, NULL, pwSz));
+
+    AssertNotNull(key = wolfSSL_EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, NULL, pw, pwSz));
+    AssertIntEQ(key->type, EVP_PKEY_HMAC);
+    AssertIntEQ(key->save_type, EVP_PKEY_HMAC);
+    AssertIntEQ(key->pkey_sz, pwSz);
+    AssertIntEQ(XMEMCMP(key->pkey.ptr, pw, pwSz), 0);
+    AssertNotNull(checkPw = wolfSSL_EVP_PKEY_get0_hmac(key, &checkPwSz));
+    AssertIntEQ((int)checkPwSz, pwSz);
+    AssertIntEQ(XMEMCMP(checkPw, pw, pwSz), 0);
+    wolfSSL_EVP_PKEY_free(key);
+
+    AssertNotNull(key = wolfSSL_EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, NULL, pw, 0));
+    AssertIntEQ(key->pkey_sz, 0);
+    AssertNotNull(key->pkey.ptr);
+    AssertNotNull(checkPw = wolfSSL_EVP_PKEY_get0_hmac(key, &checkPwSz));
+    AssertIntEQ((int)checkPwSz, 0);
+    wolfSSL_EVP_PKEY_free(key);
+
+    AssertNotNull(key = wolfSSL_EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, NULL, NULL, 0));
+    AssertIntEQ(key->pkey_sz, 0);
+    AssertNotNull(key->pkey.ptr);
+    AssertNotNull(checkPw = wolfSSL_EVP_PKEY_get0_hmac(key, &checkPwSz));
+    AssertIntEQ((int)checkPwSz, 0);
+    wolfSSL_EVP_PKEY_free(key);
+
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA */
+}
+
+
+static void test_wolfSSL_EVP_MD_hmac_signing(void)
+{
+#ifdef OPENSSL_EXTRA
+    const unsigned char testKey[] =
+    {
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+        0x0b, 0x0b, 0x0b, 0x0b
+    };
+    const char testData[] = "Hi There";
+    const unsigned char testResult[] =
+    {
+        0xb0, 0x34, 0x4c, 0x61, 0xd8, 0xdb, 0x38, 0x53,
+        0x5c, 0xa8, 0xaf, 0xce, 0xaf, 0x0b, 0xf1, 0x2b,
+        0x88, 0x1d, 0xc2, 0x00, 0xc9, 0x83, 0x3d, 0xa7,
+        0x26, 0xe9, 0x37, 0x6c, 0x2e, 0x32, 0xcf, 0xf7
+    };
+    unsigned char check[sizeof(testResult)];
+    size_t checkSz = -1;
+    WOLFSSL_EVP_PKEY* key;
+    WOLFSSL_EVP_MD_CTX mdCtx;
+
+    printf(testingFmt, "wolfSSL_EVP_MD_hmac_signing()");
+    AssertNotNull(key = wolfSSL_EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, NULL,
+                                               testKey, (int)sizeof(testKey)));
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    AssertIntEQ(wolfSSL_EVP_DigestSignInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
+                                                                NULL, key), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestSignUpdate(&mdCtx, testData,
+                                          (unsigned int)XSTRLEN(testData)), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, NULL, &checkSz), 1);
+    AssertIntEQ((int)checkSz, sizeof(testResult));
+    AssertIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, check, &checkSz), 1);
+    AssertIntEQ((int)checkSz,(int)sizeof(testResult));
+    AssertIntEQ(XMEMCMP(testResult, check, sizeof(testResult)), 0);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    AssertIntEQ(wolfSSL_EVP_DigestSignInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
+                                                                NULL, key), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestSignUpdate(&mdCtx, testData, 4), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, NULL, &checkSz), 1);
+    AssertIntEQ((int)checkSz, sizeof(testResult));
+    AssertIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, check, &checkSz), 1);
+    AssertIntEQ((int)checkSz,(int)sizeof(testResult));
+    AssertIntEQ(wolfSSL_EVP_DigestSignUpdate(&mdCtx, testData + 4,
+                                      (unsigned int)XSTRLEN(testData) - 4), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, check, &checkSz), 1);
+    AssertIntEQ((int)checkSz,(int)sizeof(testResult));
+    AssertIntEQ(XMEMCMP(testResult, check, sizeof(testResult)), 0);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+    wolfSSL_EVP_PKEY_free(key);
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA */
+}
+
+
 static void test_wolfSSL_CTX_add_extra_chain_cert(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
@@ -9774,6 +9875,29 @@ static void test_wolfSSL_BN(void)
     BN_free(b);
     BN_free(c);
     BN_clear_free(d);
+
+    /* check that converting NULL and the null string returns an error */
+    a = NULL;
+    AssertIntLE(BN_hex2bn(&a, NULL), 0);
+    AssertIntLE(BN_hex2bn(&a, ""), 0);
+    AssertNull(a);
+
+    /* check that getting a string and a bin of the same number are equal,
+     * and that the comparison works EQ, LT and GT */
+    AssertIntGT(BN_hex2bn(&a, "03"), 0);
+    value[0] = 0x03;
+    AssertNotNull(b = BN_new());
+    AssertNotNull(BN_bin2bn(value, sizeof(value), b));
+    value[0] = 0x04;
+    AssertNotNull(c = BN_new());
+    AssertNotNull(BN_bin2bn(value, sizeof(value), c));
+    AssertIntEQ(BN_cmp(a, b), 0);
+    AssertIntLT(BN_cmp(a, c), 0);
+    AssertIntGT(BN_cmp(c, b), 0);
+
+    BN_free(a);
+    BN_free(b);
+    BN_free(c);
 
     printf(resultFmt, passed);
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_ASN) */
@@ -10589,6 +10713,8 @@ void ApiTest(void)
     test_wolfSSL_PEM_PrivateKey();
     test_wolfSSL_tmp_dh();
     test_wolfSSL_ctrl();
+    test_wolfSSL_EVP_PKEY_new_mac_key();
+    test_wolfSSL_EVP_MD_hmac_signing();
     test_wolfSSL_CTX_add_extra_chain_cert();
     test_wolfSSL_ERR_peek_last_error_line();
     test_wolfSSL_X509_STORE_set_flags();

@@ -541,5 +541,220 @@ WOLFSSL_API int wolfSSL_EVP_add_digest(const WOLFSSL_EVP_MD *digest)
     /* nothing to do */
     return 0;
 }
+
+WOLFSSL_API int wolfSSL_EVP_add_cipher(const WOLFSSL_EVP_CIPHER *cipher)
+{
+    (void)cipher;
+    /* nothing to do */
+    return 0;
+}
+
+
+WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_mac_key(int type, ENGINE* e,
+                                          const unsigned char* key, int keylen)
+{
+    WOLFSSL_EVP_PKEY* pkey;
+
+    (void)e;
+
+    if (type != EVP_PKEY_HMAC || (key == NULL && keylen != 0))
+        return NULL;
+
+    pkey = wolfSSL_PKEY_new();
+    if (pkey != NULL) {
+        pkey->pkey.ptr = (char*)XMALLOC(keylen, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
+        if (pkey->pkey.ptr == NULL) {
+            wolfSSL_EVP_PKEY_free(pkey);
+            pkey = NULL;
+        }
+        else {
+            XMEMCPY(pkey->pkey.ptr, key, keylen);
+            pkey->pkey_sz = keylen;
+            pkey->type = pkey->save_type = type;
+        }
+    }
+
+    return pkey;
+}
+
+
+const unsigned char* wolfSSL_EVP_PKEY_get0_hmac(const WOLFSSL_EVP_PKEY* pkey,
+                                                size_t* len)
+{
+    if (pkey == NULL || len == NULL)
+        return NULL;
+
+    *len = (size_t)pkey->pkey_sz;
+
+    return (const unsigned char*)pkey->pkey.ptr;
+}
+
+
+int wolfSSL_EVP_DigestSignInit(WOLFSSL_EVP_MD_CTX *ctx,
+                               WOLFSSL_EVP_PKEY_CTX **pctx,
+                               const WOLFSSL_EVP_MD *type,
+                               WOLFSSL_ENGINE *e,
+                               WOLFSSL_EVP_PKEY *pkey)
+{
+    int hashType;
+    const unsigned char* key;
+    size_t keySz;
+
+    /* Unused parameters */
+    (void)pctx;
+    (void)e;
+
+    WOLFSSL_ENTER("EVP_DigestSignInit");
+
+    if (ctx == NULL || type == NULL || pkey == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* compile-time validation of ASYNC_CTX_SIZE */
+    typedef char async_test[WC_ASYNC_DEV_SIZE >= sizeof(WC_ASYNC_DEV) ?
+                                                                    1 : -1];
+    (void)sizeof(async_test);
+#endif
+
+    if (XSTRNCMP(type, "SHA256", 6) == 0) {
+         hashType = SHA256;
+    }
+#ifdef WOLFSSL_SHA224
+    else if (XSTRNCMP(type, "SHA224", 6) == 0) {
+         hashType = SHA224;
+    }
+#endif
+#ifdef WOLFSSL_SHA384
+    else if (XSTRNCMP(type, "SHA384", 6) == 0) {
+         hashType = SHA384;
+    }
+#endif
+#ifdef WOLFSSL_SHA512
+    else if (XSTRNCMP(type, "SHA512", 6) == 0) {
+         hashType = SHA512;
+    }
+#endif
+#ifndef NO_MD5
+    else if (XSTRNCMP(type, "MD5", 3) == 0) {
+        hashType = MD5;
+    }
+#endif
+#ifndef NO_SHA
+    /* has to be last since would pick or 224, 256, 384, or 512 too */
+    else if (XSTRNCMP(type, "SHA", 3) == 0) {
+         hashType = SHA;
+    }
+#endif /* NO_SHA */
+    else
+         return BAD_FUNC_ARG;
+
+    key = wolfSSL_EVP_PKEY_get0_hmac(pkey, &keySz);
+
+    if (wc_HmacInit(&ctx->hash.hmac, NULL, INVALID_DEVID) != 0)
+        return 0;
+
+    if (wc_HmacSetKey(&ctx->hash.hmac, hashType, key, (word32)keySz) != 0)
+        return 0;
+
+    ctx->macType = NID_hmac & 0xFF;
+
+    return 1;
+}
+
+
+int wolfSSL_EVP_DigestSignUpdate(WOLFSSL_EVP_MD_CTX *ctx,
+                                 const void *d, unsigned int cnt)
+{
+    WOLFSSL_ENTER("EVP_DigestSignFinal");
+
+    if (ctx->macType != (NID_hmac & 0xFF))
+        return 0;
+
+    if (wc_HmacUpdate(&ctx->hash.hmac, (const byte *)d, cnt) != 0)
+        return 0;
+
+    return 1;
+}
+
+
+int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx,
+                                unsigned char *sig, size_t *siglen)
+{
+    unsigned char digest[MAX_DIGEST_SIZE];
+    Hmac hmacCopy;
+    int hashLen, ret;
+
+    WOLFSSL_ENTER("EVP_DigestSignFinal");
+
+    if (ctx == NULL || siglen == NULL)
+        return 0;
+
+    if (ctx->macType != (NID_hmac & 0xFF))
+        return 0;
+
+    switch (ctx->hash.hmac.macType) {
+    #ifndef NO_MD5
+        case MD5:
+            hashLen = MD5_DIGEST_SIZE;
+            break;
+    #endif /* !NO_MD5 */
+
+    #ifndef NO_SHA
+        case SHA:
+            hashLen = SHA_DIGEST_SIZE;
+            break;
+    #endif /* !NO_SHA */
+
+    #ifdef WOLFSSL_SHA224
+        case SHA224:
+            hashLen = SHA224_DIGEST_SIZE;
+            break;
+    #endif /* WOLFSSL_SHA224 */
+
+    #ifndef NO_SHA256
+        case SHA256:
+            hashLen = SHA256_DIGEST_SIZE;
+            break;
+    #endif /* !NO_SHA256 */
+
+    #ifdef WOLFSSL_SHA512
+    #ifdef WOLFSSL_SHA384
+        case SHA384:
+            hashLen = SHA384_DIGEST_SIZE;
+            break;
+    #endif /* WOLFSSL_SHA384 */
+        case SHA512:
+            hashLen = SHA512_DIGEST_SIZE;
+            break;
+    #endif /* WOLFSSL_SHA512 */
+
+    #ifdef HAVE_BLAKE2
+        case BLAKE2B_ID:
+            hashLen = BLAKE2B_OUTBYTES;
+            break;
+    #endif /* HAVE_BLAKE2 */
+
+        default:
+            return 0;
+    }
+
+    if (sig == NULL) {
+        *siglen = hashLen;
+        return 1;
+    }
+
+    if ((int)(*siglen) > hashLen)
+        *siglen = hashLen;
+
+    XMEMCPY(&hmacCopy, &ctx->hash.hmac, sizeof(hmacCopy));
+    ret = wc_HmacFinal(&hmacCopy, digest) == 0;
+    if (ret == 1)
+        XMEMCPY(sig, digest, *siglen);
+
+    ForceZero(&hmacCopy, sizeof(hmacCopy));
+    ForceZero(digest, sizeof(digest));
+    return ret;
+}
+
 #endif /* WOLFSSL_EVP_INCLUDED */
 
