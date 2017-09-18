@@ -5030,8 +5030,6 @@ int aes_test(void)
         if (XMEMCMP(cipher, ctr128Cipher, sizeof(oddCipher)))
             return -4216;
 
-    /* test not supported on STM32 crypto HW or PIC32MZ HW */
-#if !defined(STM32_CRYPTO) && !defined(WOLFSSL_PIC32MZ_CRYPT)
         /* and an additional 9 bytes to reuse tmp left buffer */
         ret = wc_AesCtrEncrypt(&enc, cipher, ctrPlain, sizeof(oddCipher));
         if (ret != 0) {
@@ -5047,7 +5045,6 @@ int aes_test(void)
 
         if (XMEMCMP(cipher, oddCipher, sizeof(oddCipher)))
             return -4218;
-#endif
 
         /* 192 bit key */
         wc_AesSetKeyDirect(&enc, ctr192Key, sizeof(ctr192Key),

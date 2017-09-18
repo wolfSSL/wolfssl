@@ -1447,12 +1447,19 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         /* enable RNG clock source */
         RCC_AHB2PeriphClockCmd(RCC_AHB2Periph_RNG, ENABLE);
 
+        /* reset RNG */
+        RNG_DeInit();
+
         /* enable RNG peripheral */
         RNG_Cmd(ENABLE);
 
+        /* verify no errors with RNG_CLK or Seed */
+        if (RNG_GetFlagStatus(RNG_FLAG_SECS | RNG_FLAG_CECS) != RESET)
+        	return RNG_FAILURE_E;
+
         for (i = 0; i < (int)sz; i++) {
             /* wait until RNG number is ready */
-            while(RNG_GetFlagStatus(RNG_FLAG_DRDY)== RESET) { }
+            while (RNG_GetFlagStatus(RNG_FLAG_DRDY) == RESET) { }
 
             /* get value */
             output[i] = RNG_GetRandomNumber();
