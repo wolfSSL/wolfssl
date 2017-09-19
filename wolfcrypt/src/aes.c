@@ -3467,7 +3467,17 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     #define HAVE_INTEL_AVX2
 #endif /* USE_INTEL_SPEEDUP */
 
-static const __m128i MOD2_128 = { 0x1, 0xc200000000000000UL };
+#ifdef _MSC_VER
+    #define S(w,z) ((char)((unsigned long long)(w) >> (8*(7-(z))) & 0xFF))
+    #define M128_INIT(x,y) { S((x),7), S((x),6), S((x),5), S((x),4), \
+                             S((x),3), S((x),2), S((x),1), S((x),0), \
+                             S((y),7), S((y),6), S((y),5), S((y),4), \
+                             S((y),3), S((y),2), S((y),1), S((y),0) }
+#else
+    #define M128_INIT(x,y) { (x), (y) }
+#endif
+
+static const __m128i MOD2_128 = M128_INIT(0x1, 0xc200000000000000UL);
 
 static __m128i gfmul_sw(__m128i a, __m128i b)
 {
@@ -3671,18 +3681,18 @@ static __m128i gfmul8(__m128i a1, __m128i a2, __m128i a3, __m128i a4,
 
 /* Figure 9. AES-GCM – Encrypt With Single Block Ghash at a Time */
 
-static const __m128i ONE   = { 0x0, 0x1 };
+static const __m128i ONE   = M128_INIT(0x0, 0x1);
 #ifndef AES_GCM_AESNI_NO_UNROLL
-static const __m128i TWO   = { 0x0, 0x2 };
-static const __m128i THREE = { 0x0, 0x3 };
-static const __m128i FOUR  = { 0x0, 0x4 };
-static const __m128i FIVE  = { 0x0, 0x5 };
-static const __m128i SIX   = { 0x0, 0x6 };
-static const __m128i SEVEN = { 0x0, 0x7 };
-static const __m128i EIGHT = { 0x0, 0x8 };
+static const __m128i TWO   = M128_INIT(0x0, 0x2);
+static const __m128i THREE = M128_INIT(0x0, 0x3);
+static const __m128i FOUR  = M128_INIT(0x0, 0x4);
+static const __m128i FIVE  = M128_INIT(0x0, 0x5);
+static const __m128i SIX   = M128_INIT(0x0, 0x6);
+static const __m128i SEVEN = M128_INIT(0x0, 0x7);
+static const __m128i EIGHT = M128_INIT(0x0, 0x8);
 #endif
-static const __m128i BSWAP_EPI64 = { 0x0001020304050607, 0x08090a0b0c0d0e0f };
-static const __m128i BSWAP_MASK  = { 0x08090a0b0c0d0e0f, 0x0001020304050607 };
+static const __m128i BSWAP_EPI64 = M128_INIT(0x0001020304050607, 0x08090a0b0c0d0e0f);
+static const __m128i BSWAP_MASK  = M128_INIT(0x08090a0b0c0d0e0f, 0x0001020304050607);
 
 static void AES_GCM_encrypt(const unsigned char *in, unsigned char *out,
                             const unsigned char* addt,

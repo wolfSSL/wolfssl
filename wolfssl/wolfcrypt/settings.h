@@ -171,6 +171,17 @@
 #endif
 
 
+#if defined(_WIN32) && !defined(_M_X64) && \
+    defined(HAVE_AESGCM) && defined(WOLFSSL_AESNI)
+
+/* The _M_X64 macro is what's used in the headers for MSC to tell if it
+ * has the 64-bit versions of the 128-bit integers available. If one is
+ * building on 32-bit Windows with AES-NI, turn off the AES-GCMloop
+ * unrolling. */
+
+    #define AES_GCM_AESNI_NO_UNROLL
+#endif
+
 #ifdef IPHONE
     #define SIZEOF_LONG_LONG 8
 #endif
