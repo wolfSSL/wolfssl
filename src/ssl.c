@@ -3220,6 +3220,68 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name)
     return NULL;
 }
 
+/*
+ * return an EVP_CIPHER structure when cipher NID is passed.
+ *
+ * id  cipher NID
+ *
+ * retrun WOLFSSL_EVP_CIPHER
+*/
+const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
+{
+    WOLFSSL_ENTER("EVP_get_cipherbynid");
+
+    switch(id) {
+
+#if defined(OPENSSL_EXTRA)
+#ifndef NO_AES
+        case NID_aes_128_cbc:
+            return wolfSSL_EVP_aes_128_cbc();
+        case NID_aes_192_cbc:
+            return wolfSSL_EVP_aes_192_cbc();
+        case NID_aes_256_cbc:
+            return wolfSSL_EVP_aes_256_cbc();
+        case NID_aes_128_ctr:
+            return wolfSSL_EVP_aes_128_ctr();
+        case NID_aes_192_ctr:
+            return wolfSSL_EVP_aes_192_ctr();
+        case NID_aes_256_ctr:
+            return wolfSSL_EVP_aes_256_ctr();
+        case NID_aes_128_ecb:
+            return wolfSSL_EVP_aes_128_ecb();
+        case NID_aes_192_ecb:
+            return wolfSSL_EVP_aes_192_ecb();
+        case NID_aes_256_ecb:
+            return wolfSSL_EVP_aes_256_ecb();
+#endif
+
+#ifndef NO_DES3
+        case NID_des_cbc:
+            return wolfSSL_EVP_des_cbc();
+#ifdef WOLFSSL_DES_ECB
+        case NID_des_ecb:
+            return wolfSSL_EVP_des_ecb();
+#endif
+        case NID_des_ede3_cbc:
+            return wolfSSL_EVP_des_ede3_cbc();
+#ifdef WOLFSSL_DES_ECB
+        case NID_des_ede3_ecb:
+            return wolfSSL_EVP_des_ede3_ecb();
+#endif
+#endif /*NO_DES3*/
+
+#ifdef HAVE_IDEA
+        case NID_idea_cbc:
+            return wolfSSL_EVP_idea_cbc();
+#endif
+#endif /*OPENSSL_EXTRA*/
+
+        default:
+            WOLFSSL_MSG("Bad cipher id value");
+    }
+
+    return NULL;
+}
 
 #ifndef NO_AES
 static char *EVP_AES_128_CBC;
@@ -17825,7 +17887,6 @@ int wolfSSL_BN_sub(WOLFSSL_BIGNUM* r, const WOLFSSL_BIGNUM* a,
     WOLFSSL_MSG("wolfSSL_BN_sub mp_sub failed");
     return 0;
 }
-
 
 /* SSL_SUCCESS on ok */
 int wolfSSL_BN_mod(WOLFSSL_BIGNUM* r, const WOLFSSL_BIGNUM* a,

@@ -159,6 +159,23 @@ enum {
     EVP_PKEY_HMAC     = NID_hmac
 };
 
+enum {
+    NID_aes_128_cbc = 419,
+    NID_aes_192_cbc = 423,
+    NID_aes_256_cbc = 427,
+    NID_aes_128_ctr = 904,
+    NID_aes_192_ctr = 905,
+    NID_aes_256_ctr = 906,
+    NID_aes_128_ecb = 418,
+    NID_aes_192_ecb = 422,
+    NID_aes_256_ecb = 426,
+    NID_des_cbc     =  31,
+    NID_des_ecb     =  29,
+    NID_des_ede3_cbc=  44,
+    NID_des_ede3_ecb=  33,
+    NID_idea_cbc    =  34,
+};
+
 #define WOLFSSL_EVP_BUF_SIZE 16
 typedef struct WOLFSSL_EVP_CIPHER_CTX {
     int            keyLen;         /* user may set for variable */
@@ -299,6 +316,7 @@ WOLFSSL_API int  wolfSSL_EVP_Cipher(WOLFSSL_EVP_CIPHER_CTX* ctx,
                           unsigned char* dst, unsigned char* src,
                           unsigned int len);
 
+WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_get_cipherbynid(int);
 WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_get_digestbynid(int);
 
 WOLFSSL_API WOLFSSL_RSA* wolfSSL_EVP_PKEY_get1_RSA(WOLFSSL_EVP_PKEY*);
@@ -441,6 +459,7 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_CIPHER_CTX_free           wolfSSL_EVP_CIPHER_CTX_free
 #define EVP_CIPHER_CTX_new            wolfSSL_EVP_CIPHER_CTX_new
 
+#define EVP_get_cipherbynid           wolfSSL_EVP_get_cipherbynid
 #define EVP_get_digestbynid           wolfSSL_EVP_get_digestbynid
 #define EVP_get_cipherbyname          wolfSSL_EVP_get_cipherbyname
 #define EVP_get_digestbyname          wolfSSL_EVP_get_digestbyname
