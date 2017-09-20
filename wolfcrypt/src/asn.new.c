@@ -146,10 +146,13 @@ ASN Options:
     #define XGMTIME(c, t)   rtpsys_gmtime((c))
 
 #elif defined(MICRIUM)
-    #include <clk.h>
-    #include <time.h>
-    #define XTIME(t1)       micrium_time((t1))
-    #define WOLFSSL_GMTIME
+    #if (NET_SECURE_MGR_CFG_EN == DEF_ENABLED)
+        #define XVALIDATE_DATE(d, f, t) NetSecure_ValidateDateHandler((d), (f), (t))
+    #else
+        #define XVALIDATE_DATE(d, f, t) (0)
+    #endif
+    #define NO_TIME_H
+    /* since Micrium not defining XTIME or XGMTIME, CERT_GEN not available */
 
 #elif defined(MICROCHIP_TCPIP_V5) || defined(MICROCHIP_TCPIP)
     #include <time.h>
@@ -185,16 +188,6 @@ ASN Options:
     #include <windows.h>
     #define XTIME(t1)       windows_time((t1))
     #define WOLFSSL_GMTIME
-
-#elif defined(FREERTOS_TCP) && !defined(NO_FILESYSTEM)
-    /* Using the FreeRTOS+FAT driver. */
-    #undef _TIME_H_
-    #include <time.h>
-   	#include "ff_headers.h"
-
-    #define XTIME(tl)       FreeRTOS_time((tl))
-    #define XGMTIME(c, t)   gmtime((c))
-
 #else
 
     /* default */
@@ -391,20 +384,6 @@ time_t pic32_time(time_t* timer)
 #endif /* MICROCHIP_TCPIP || MICROCHIP_TCPIP_V5 */
 
 
-#if defined(MICRIUM)
-
-time_t micrium_time(time_t* timer)
-{
-    CLK_TS_SEC sec;
-
-    Clk_GetTS_Unix(&sec);
-
-    return (time_t) sec;
-}
-
-#endif /* MICRIUM */
-
-
 #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
 
 time_t mqx_time(time_t* timer)
@@ -485,6 +464,65 @@ static INLINE void GetTime(int* value, const byte* date, int* idx)
 
     *idx = i;
 }
+
+
+#if defined(MICRIUM)
+
+CPU_INT32S NetSecure_ValidateDateHandler(CPU_INT08U *date, CPU_INT08U format,
+                                         CPU_INT08U dateType)
+{
+    CPU_BOOLEAN  rtn_code;
+    CPU_INT32S   i;
+    CPU_INT32S   val;
+    CPU_INT16U   year;
+    CPU_INT08U   month;
+    CPU_INT16U   day;
+    CPU_INT08U   hour;
+    CPU_INT08U   min;
+    CPU_INT08U   sec;
+
+    i    = 0;
+    year = 0u;
+
+    if (format == ASN_UTC_TIME) {
+        if (btoi(date[0]) >= 5)
+            year = 1900;
+        else
+            year = 2000;
+    }
+    else  { /* format == GENERALIZED_TIME */
+        year += btoi(date[i++]) * 1000;
+        year += btoi(date[i++]) * 100;
+    }
+
+    val = year;
+    GetTime(&val, date, &i);
+    year = (CPU_INT16U)val;
+
+    val = 0;
+    GetTime(&val, date, &i);
+    month = (CPU_INT08U)val;
+
+    val = 0;
+    GetTime(&val, date, &i);
+    day = (CPU_INT16U)val;
+
+    val = 0;
+    GetTime(&val, date, &i);
+    hour = (CPU_INT08U)val;
+
+    val = 0;
+    GetTime(&val, date, &i);
+    min = (CPU_INT08U)val;
+
+    val = 0;
+    GetTime(&val, date, &i);
+    sec = (CPU_INT08U)val;
+
+    return NetSecure_ValidateDate(year, month, day, hour, min, sec, dateType);
+}
+
+#endif /* MICRIUM */
 
 
 #if defined(IDIRECT_DEV_TIME)
@@ -2367,14 +2405,6 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
 
             if (version == PKCS5v2 || version == PKCS12v1)
                 desIv = cbcIv;
-
-            ret = wc_Des3Init(&dec, NULL, INVALID_DEVID);
-            if (ret != 0) {
-#ifdef WOLFSSL_SMALL_STACK
-                XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-                return ret;
-            }
             ret = wc_Des3_SetKey(&dec, key, desIv, DES_DECRYPTION);
             if (ret != 0) {
 #ifdef WOLFSSL_SMALL_STACK
@@ -2913,10 +2943,6 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
 {
     int    length;
 
-    if (input == NULL || inOutIdx == NULL || key == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
@@ -2935,11 +2961,6 @@ int DsaPrivateKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
                         word32 inSz)
 {
     int    length, version;
-
-    /* Sanity checks on input */
-    if (input == NULL || inOutIdx == NULL || key == NULL) {
-        return BAD_FUNC_ARG;
-    }
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
@@ -4593,25 +4614,25 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     if (sigCtx->key.rsa == NULL || sigCtx->plain == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
+
                     if ((ret = wc_InitRsaKey_ex(sigCtx->key.rsa, sigCtx->heap,
                                                         sigCtx->devId)) != 0) {
                         goto exit_cs;
                     }
+
                     if (sigSz > MAX_ENCODED_SIG_SZ) {
                         WOLFSSL_MSG("Verify Signature is too big");
                         ERROR_OUT(BUFFER_E, exit_cs);
                     }
+
                     if ((ret = wc_RsaPublicKeyDecode(key, &idx, sigCtx->key.rsa,
                                                                  keySz)) != 0) {
                         WOLFSSL_MSG("ASN Key decode error RSA");
                         goto exit_cs;
                     }
+
                     XMEMCPY(sigCtx->plain, sig, sigSz);
                     sigCtx->out = NULL;
-
-                #ifdef WOLFSSL_ASYNC_CRYPT
-                    sigCtx->asyncDev = &sigCtx->key.rsa->asyncDev;
-                #endif
                     break;
                 }
             #endif /* !NO_RSA */
@@ -4624,6 +4645,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     if (sigCtx->key.ecc == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
+
                     if ((ret = wc_ecc_init_ex(sigCtx->key.ecc, sigCtx->heap,
                                                           sigCtx->devId)) < 0) {
                         goto exit_cs;
@@ -4633,9 +4655,6 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                         WOLFSSL_MSG("ASN Key import error ECC");
                         goto exit_cs;
                     }
-                #ifdef WOLFSSL_ASYNC_CRYPT
-                    sigCtx->asyncDev = &sigCtx->key.ecc->asyncDev;
-                #endif
                     break;
                 }
             #endif /* HAVE_ECC */
@@ -4649,6 +4668,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                     if (sigCtx->key.ed25519 == NULL) {
                         ERROR_OUT(MEMORY_E, exit_cs);
                     }
+
                     if ((ret = wc_ed25519_init(sigCtx->key.ed25519)) < 0) {
                         goto exit_cs;
                     }
@@ -4657,9 +4677,6 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                         WOLFSSL_MSG("ASN Key import error ED25519");
                         goto exit_cs;
                     }
-                #ifdef WOLFSSL_ASYNC_CRYPT
-                    sigCtx->asyncDev = &sigCtx->key.ed25519->asyncDev;
-                #endif
                     break;
                 }
             #endif
@@ -4674,15 +4691,6 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
             }
 
             sigCtx->state = SIG_STATE_DO;
-
-        #ifdef WOLFSSL_ASYNC_CRYPT
-            if (sigCtx->devId != INVALID_DEVID && sigCtx->asyncDev && sigCtx->asyncCtx) {
-                /* make sure event is intialized */
-                WOLF_EVENT* event = &sigCtx->asyncDev->event;
-                ret = wolfAsync_EventInit(event, WOLF_EVENT_TYPE_ASYNC_WOLFSSL,
-                    sigCtx->asyncCtx, WC_ASYNC_FLAG_CALL_AGAIN);
-            }
-        #endif
         } /* SIG_STATE_KEY */
         FALL_THROUGH;
 
@@ -4694,6 +4702,10 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 {
                     ret = wc_RsaSSL_VerifyInline(sigCtx->plain, sigSz,
                                                 &sigCtx->out, sigCtx->key.rsa);
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    if (ret == WC_PENDING_E)
+                        sigCtx->asyncDev = &sigCtx->key.rsa->asyncDev;
+                #endif
                     break;
                 }
             #endif /* !NO_RSA */
@@ -4702,6 +4714,10 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 {
                     ret = wc_ecc_verify_hash(sig, sigSz, sigCtx->digest,
                         sigCtx->digestSz, &sigCtx->verify, sigCtx->key.ecc);
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    if (ret == WC_PENDING_E)
+                        sigCtx->asyncDev = &sigCtx->key.ecc->asyncDev;
+                #endif
                     break;
                 }
             #endif /* HAVE_ECC */
@@ -4710,6 +4726,10 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                 {
                     ret = wc_ed25519_verify_msg(sig, sigSz, buf, bufSz,
                                           &sigCtx->verify, sigCtx->key.ed25519);
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    if (ret == WC_PENDING_E)
+                        sigCtx->asyncDev = &sigCtx->key.ecc->asyncDev;
+                #endif
                     break;
                 }
             #endif
@@ -7550,6 +7570,7 @@ static byte GetNameId(int idx)
 
 /*
  Extensions ::= SEQUENCE OF Extension
+
  Extension ::= SEQUENCE {
  extnId     OBJECT IDENTIFIER,
  critical   BOOLEAN DEFAULT FALSE,
@@ -9591,56 +9612,56 @@ static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
         if (decoded->subjectCN) {
             sz = (decoded->subjectCNLen < CTC_NAME_SIZE) ? decoded->subjectCNLen
                                                          : CTC_NAME_SIZE - 1;
-            XSTRNCPY(cn->commonName, decoded->subjectCN, CTC_NAME_SIZE);
+            strncpy(cn->commonName, decoded->subjectCN, CTC_NAME_SIZE);
             cn->commonName[sz] = 0;
             cn->commonNameEnc = decoded->subjectCNEnc;
         }
         if (decoded->subjectC) {
             sz = (decoded->subjectCLen < CTC_NAME_SIZE) ? decoded->subjectCLen
                                                         : CTC_NAME_SIZE - 1;
-            XSTRNCPY(cn->country, decoded->subjectC, CTC_NAME_SIZE);
+            strncpy(cn->country, decoded->subjectC, CTC_NAME_SIZE);
             cn->country[sz] = 0;
             cn->countryEnc = decoded->subjectCEnc;
         }
         if (decoded->subjectST) {
             sz = (decoded->subjectSTLen < CTC_NAME_SIZE) ? decoded->subjectSTLen
                                                          : CTC_NAME_SIZE - 1;
-            XSTRNCPY(cn->state, decoded->subjectST, CTC_NAME_SIZE);
+            strncpy(cn->state, decoded->subjectST, CTC_NAME_SIZE);
             cn->state[sz] = 0;
             cn->stateEnc = decoded->subjectSTEnc;
         }
         if (decoded->subjectL) {
             sz = (decoded->subjectLLen < CTC_NAME_SIZE) ? decoded->subjectLLen
                                                         : CTC_NAME_SIZE - 1;
-            XSTRNCPY(cn->locality, decoded->subjectL, CTC_NAME_SIZE);
+            strncpy(cn->locality, decoded->subjectL, CTC_NAME_SIZE);
             cn->locality[sz] = 0;
             cn->localityEnc = decoded->subjectLEnc;
         }
         if (decoded->subjectO) {
             sz = (decoded->subjectOLen < CTC_NAME_SIZE) ? decoded->subjectOLen
                                                         : CTC_NAME_SIZE - 1;
-            XSTRNCPY(cn->org, decoded->subjectO, CTC_NAME_SIZE);
+            strncpy(cn->org, decoded->subjectO, CTC_NAME_SIZE);
             cn->org[sz] = 0;
             cn->orgEnc = decoded->subjectOEnc;
         }
         if (decoded->subjectOU) {
             sz = (decoded->subjectOULen < CTC_NAME_SIZE) ? decoded->subjectOULen
                                                          : CTC_NAME_SIZE - 1;
-            XSTRNCPY(cn->unit, decoded->subjectOU, CTC_NAME_SIZE);
+            strncpy(cn->unit, decoded->subjectOU, CTC_NAME_SIZE);
             cn->unit[sz] = 0;
             cn->unitEnc = decoded->subjectOUEnc;
         }
         if (decoded->subjectSN) {
             sz = (decoded->subjectSNLen < CTC_NAME_SIZE) ? decoded->subjectSNLen
                                                          : CTC_NAME_SIZE - 1;
-            XSTRNCPY(cn->sur, decoded->subjectSN, CTC_NAME_SIZE);
+            strncpy(cn->sur, decoded->subjectSN, CTC_NAME_SIZE);
             cn->sur[sz] = 0;
             cn->surEnc = decoded->subjectSNEnc;
         }
         if (decoded->subjectEmail) {
             sz = (decoded->subjectEmailLen < CTC_NAME_SIZE)
                ?  decoded->subjectEmailLen : CTC_NAME_SIZE - 1;
-            XSTRNCPY(cn->email, decoded->subjectEmail, CTC_NAME_SIZE);
+            strncpy(cn->email, decoded->subjectEmail, CTC_NAME_SIZE);
             cn->email[sz] = 0;
         }
     }

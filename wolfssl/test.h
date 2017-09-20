@@ -77,6 +77,9 @@
         char **h_addr_list; /* list of addresses from name server */
     };
     #define SOCKET_T int
+#elif defined(FREERTOS_TCP)
+	#include "FreeRTOS.h"
+	#include "FreeRTOS_Sockets.h"
 #elif defined(WOLFSSL_VXWORKS)
     #include <hostLib.h>
     #include <sockLib.h>

@@ -58,8 +58,8 @@
 /* Uncomment next line if using FreeRTOS */
 /* #define FREERTOS */
 
-/* Uncomment next line if using FreeRTOS+ TCP */
-/* #define FREERTOS_TCP */
+/* Uncomment next line if using FreeRTOS+TCP */
+#define FREERTOS_TCP
 
 /* Uncomment next line if using FreeRTOS Windows Simulator */
 /* #define FREERTOS_WINSIM */
@@ -565,6 +565,7 @@ extern void uITRON4_free(void *p) ;
 #define USE_FAST_MATH
 #define TFM_TIMING_RESISTANT
 #define NO_MAIN_DRIVER
+#define _TIME_H_
 
 #endif
 

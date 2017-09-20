@@ -74,7 +74,9 @@
     #elif defined(WOLFSSL_TIRTOS)
         #include <sys/socket.h>
     #elif defined(FREERTOS_TCP)
+        #include "FreeRTOS.h"
         #include "FreeRTOS_Sockets.h"
+        #include <errno.h>
     #elif defined(WOLFSSL_IAR_ARM)
         /* nothing */
     #elif defined(WOLFSSL_VXWORKS)
@@ -202,10 +204,10 @@
     #define SOCKET_ECONNREFUSED PICO_ERR_ECONNREFUSED
     #define SOCKET_ECONNABORTED PICO_ERR_ESHUTDOWN
 #elif defined(FREERTOS_TCP)
-    #define SOCKET_EWOULDBLOCK FREERTOS_EWOULDBLOCK
-    #define SOCKET_EAGAIN       FREERTOS_EWOULDBLOCK
-    #define SOCKET_ECONNRESET   FREERTOS_SOCKET_ERROR
-    #define SOCKET_EINTR        FREERTOS_SOCKET_ERROR
+    #define SOCKET_EWOULDBLOCK  pdFREERTOS_ERRNO_EWOULDBLOCK
+    #define SOCKET_EAGAIN       pdFREERTOS_ERRNO_EWOULDBLOCK
+    #define SOCKET_ECONNRESET   pdFREERTOS_ERRNO_ENOTCONN
+    #define SOCKET_EINTR        pdFREERTOS_ERRNO_EINTR
     #define SOCKET_EPIPE        FREERTOS_SOCKET_ERROR
     #define SOCKET_ECONNREFUSED FREERTOS_SOCKET_ERROR
     #define SOCKET_ECONNABORTED FREERTOS_SOCKET_ERROR

@@ -83,6 +83,27 @@ static INLINE int TranslateReturnCode(int old, int sd)
         if (errno == RTCSERR_TCP_TIMED_OUT)
             errno = SOCKET_EAGAIN;
     }
+#elif defined(FREERTOS_TCP)
+    if (old < 0) {
+        /* When a FreeRTOS+TCP API call failed, it will return a negative value "-errno". */
+        if (old == -pdFREERTOS_ERRNO_EINTR) {
+            /* When using 'ipconfigSUPPORT_SIGNALS', the TCP API's can get interrupted
+            by calling 'FreeRTOS_SignalSocket()' or 'FreeRTOS_SignalSocketFromISR()'.
+            The interrupted API call will return '-pdFREERTOS_ERRNO_EINTR'. */
+            errno = SOCKET_EINTR;
+            /* Return WOLFSSL_CBIO_ERR_WANT_READ/WRITE here */
+            old = WOLFSSL_CBIO_ERR_WANT_READ;
+        } else if (old == -pdFREERTOS_ERRNO_ENOTCONN) {
+            /* connection closed or epipe. */
+            old = WOLFSSL_CBIO_ERR_CONN_CLOSE;
+        } else {
+            errno = -old;
+            old = -1;
+        }
+    } else {
+        /* A zero or positive value will be returned: number of bytes transferred. */
+        errno = 0;
+    }
 #endif
 
     return old;
@@ -153,6 +174,9 @@ int EmbedReceive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
             return WOLFSSL_CBIO_ERR_CONN_RST;
         }
         else if (err == SOCKET_EINTR) {
+#if defined(FREERTOS_TCP)
+            return WOLFSSL_CBIO_ERR_WANT_READ;
+#endif
             WOLFSSL_MSG("\tSocket interrupted");
             return WOLFSSL_CBIO_ERR_ISR;
         }
