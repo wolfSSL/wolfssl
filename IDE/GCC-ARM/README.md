@@ -10,8 +10,8 @@
 ## Building
 
 1. Make sure you have `gcc-arm-none-eabi` installed.
-2. Modify the `Makefile` to point to correct `TOOLCHAIN_DIR`.
-3. Use `make` and it will build both targets as `.elf` and `.hex` in `/Build`.
+2. Modify the `Makefile.common` to use correct toolchain directory `TOOLCHAIN_DIR` and architecture 'ARCHFLAGS' (default is cortex-m0 / thumb). See [GCC ARM Options](https://gcc.gnu.org/onlinedocs/gcc-4.7.3/gcc/ARM-Options.html) `-mcpu=name`.
+3. Use `make` and it will build the static library and wolfCrypt test/benchmark and wolfSSL TLS client targets as `.elf` and `.hex` in `/Build`.
 
 Example:
 
