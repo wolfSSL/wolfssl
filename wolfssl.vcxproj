@@ -278,7 +278,7 @@
   <ItemGroup>
     <ClCompile Include="src\crl.c" />
     <ClCompile Include="src\internal.c" />
-    <ClCompile Include="src\io.c" />
+    <ClCompile Include="src\wolfio.c" />
     <ClCompile Include="src\keys.c" />
     <ClCompile Include="src\ocsp.c" />
     <ClCompile Include="src\ssl.c" />

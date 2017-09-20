@@ -81,9 +81,9 @@
 			<locationURI>PARENT-2-PROJECT_LOC/src/internal.c</locationURI>
 		</link>
 		<link>
-			<name>Middlewares/Third_Party/wolfSSL/src/io.c</name>
+			<name>Middlewares/Third_Party/wolfSSL/src/wolfio.c</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/src/io.c</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/src/wolfio.c</locationURI>
 		</link>
 		<link>
 			<name>Middlewares/Third_Party/wolfSSL/src/keys.c</name>
@@ -211,9 +211,9 @@
 			<locationURI>PARENT-2-PROJECT_LOC/wolfssl/internal.h</locationURI>
 		</link>
 		<link>
-			<name>Middlewares/Third_Party/wolfSSL/wolfssl/io.h</name>
+			<name>Middlewares/Third_Party/wolfSSL/wolfssl/wolfio.h</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/wolfssl/io.h</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/wolfssl/wolfio.h</locationURI>
 		</link>
 		<link>
 			<name>Middlewares/Third_Party/wolfSSL/wolfssl/ocsp.h</name>

@@ -64,7 +64,7 @@ Wolfssl_C_Files :=$(WOLFSSL_ROOT)/wolfcrypt/src/aes.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/hmac.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/integer.c\
 					$(WOLFSSL_ROOT)/src/internal.c\
-					$(WOLFSSL_ROOT)/src/io.c\
+					$(WOLFSSL_ROOT)/src/wolfio.c\
 					$(WOLFSSL_ROOT)/src/keys.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/logging.c\
 					$(WOLFSSL_ROOT)/wolfcrypt/src/md4.c\

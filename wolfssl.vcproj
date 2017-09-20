@@ -228,7 +228,7 @@
 				>
 			</File>
 			<File
-				RelativePath=".\src\io.c"
+				RelativePath=".\src\wolfio.c"
 				>
 			</File>
 			<File
