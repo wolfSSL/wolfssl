@@ -10533,6 +10533,30 @@ static int test_tls13_apis(void)
 
 #endif
 
+#ifdef HAVE_HASHDRBG
+
+static int test_wc_RNG_GenerateBlock()
+{
+    int i, ret;
+    WC_RNG rng;
+    byte key[32];
+
+    ret = wc_InitRng(&rng);
+
+    if (ret == 0) {
+        for(i = 0; i < WC_RESEED_INTERVAL + 10; i++) {
+            ret = wc_RNG_GenerateBlock(&rng, key, sizeof(key));
+            if (ret != 0) {
+                break;
+            }
+        }
+    }
+
+    wc_FreeRng(&rng);
+
+    return ret;
+}
+#endif
 
 /*----------------------------------------------------------------------------*
  | Main
@@ -10716,6 +10740,11 @@ void ApiTest(void)
     AssertIntEQ(test_wc_DsaPublicPrivateKeyDecode(), 0);
     AssertIntEQ(test_wc_MakeDsaKey(), 0);
     AssertIntEQ(test_wc_DsaKeyToDer(), 0);
+
+#ifdef HAVE_HASHDRBG
+    AssertIntEQ(WC_RESEED_INTERVAL, 1000000);
+    AssertIntEQ(test_wc_RNG_GenerateBlock(), 0);
+#endif
     printf(" End API Tests\n");
 
 }

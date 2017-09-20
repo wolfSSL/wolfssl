@@ -154,7 +154,7 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 
 #define OUTPUT_BLOCK_LEN  (SHA256_DIGEST_SIZE)
 #define MAX_REQUEST_LEN   (0x10000)
-#define RESEED_INTERVAL   (1000000)
+#define RESEED_INTERVAL   WC_RESEED_INTERVAL
 #define SECURITY_STRENGTH (256)
 #define ENTROPY_SZ        (SECURITY_STRENGTH/8)
 #define NONCE_SZ          (ENTROPY_SZ/2)
@@ -448,6 +448,9 @@ static int Hash_DRBG_Generate(DRBG* drbg, byte* out, word32 outSz)
     ForceZero(digest, SHA256_DIGEST_SIZE);
 
     FREE_VAR(digest, drbg->heap);
+
+    if (ret == DRBG_NEED_RESEED)
+        return ret;
 
     return (ret == 0) ? DRBG_SUCCESS : DRBG_FAILURE;
 }
