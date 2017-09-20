@@ -10742,7 +10742,6 @@ void ApiTest(void)
     AssertIntEQ(test_wc_DsaKeyToDer(), 0);
 
 #ifdef HAVE_HASHDRBG
-    AssertIntEQ(WC_RESEED_INTERVAL, 1000000);
     AssertIntEQ(test_wc_RNG_GenerateBlock(), 0);
 #endif
     printf(" End API Tests\n");
