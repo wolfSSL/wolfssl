@@ -70,9 +70,93 @@ typedef struct Sha512 {
 
 #endif /* HAVE_FIPS */
 
+/*!
+    \ingroup SHA
+    
+    \brief This function initializes SHA512. This is automatically called by wc_Sha512Hash.
+    
+    \return 0 Returned upon successfully initializing
+    
+    \param sha512 pointer to the sha512 structure to use for encryption
+    
+    _Example_
+    \code
+    Sha512 sha512[1];
+    if ((ret = wc_InitSha512(sha512)) != 0) {
+       WOLFSSL_MSG("wc_InitSha512 failed");
+    }
+    else {
+       wc_Sha512Update(sha512, data, len);
+       wc_Sha512Final(sha512, hash);
+    }
+    \endcode
+    
+    \sa wc_Sha512Hash
+    \sa wc_Sha512Update
+    \sa wc_Sha512Final
+*/
 WOLFSSL_API int wc_InitSha512(Sha512*);
 WOLFSSL_API int wc_InitSha512_ex(Sha512*, void*, int);
+/*!
+    \ingroup SHA
+    
+    \brief Can be called to continually hash the provided byte array of length len.
+    
+    \return 0 Returned upon successfully adding the data to the digest.
+    
+    \param sha512 pointer to the sha512 structure to use for encryption
+    \param data the data to be hashed
+    \param len length of data to be hashed
+    
+    _Example_
+    \code
+    Sha512 sha512[1];
+    byte data[] = { /* Data to be hashed };
+    word32 len = sizeof(data);
+
+    if ((ret = wc_InitSha512(sha512)) != 0) {
+       WOLFSSL_MSG("wc_InitSha512 failed");
+    }
+    else {
+       wc_Sha512Update(sha512, data, len);
+       wc_Sha512Final(sha512, hash);
+    }
+    \endcode 
+    
+    \sa wc_Sha512Hash
+    \sa wc_Sha512Final
+    \sa wc_InitSha512
+*/
 WOLFSSL_API int wc_Sha512Update(Sha512*, const byte*, word32);
+/*!
+    \ingroup SHA
+    
+    \brief Finalizes hashing of data. Result is placed into hash.
+    
+    \return 0 Returned upon successfully finalizing the hash.
+    
+    \param sha512 pointer to the sha512 structure to use for encryption
+    \param hash Byte array to hold hash value.
+    
+    _Example_
+    \code
+    Sha512 sha512[1];
+    byte data[] = { /* Data to be hashed };
+    word32 len = sizeof(data);
+
+    if ((ret = wc_InitSha512(sha512)) != 0) {
+        WOLFSSL_MSG("wc_InitSha512 failed");
+    }
+    else {
+       wc_Sha512Update(sha512, data, len);
+       wc_Sha512Final(sha512, hash);
+    }
+    \endcode
+    
+    \sa wc_Sha512Hash
+    \sa wc_Sha512Final
+    \sa wc_InitSha512
+*/
 WOLFSSL_API int wc_Sha512Final(Sha512*, byte*);
 WOLFSSL_API void wc_Sha512Free(Sha512*);
 
@@ -93,9 +177,93 @@ enum {
 typedef Sha512 Sha384;
 #endif /* HAVE_FIPS */
 
+/*!
+    \ingroup SHA
+    
+    \brief This function initializes SHA384. This is automatically called by wc_Sha384Hash.
+    
+    \return 0 Returned upon successfully initializing
+    
+    \param sha384 pointer to the sha384 structure to use for encryption
+    
+    _Example_
+    \code
+    Sha384 sha384[1];
+    if ((ret = wc_InitSha384(sha384)) != 0) {
+       WOLFSSL_MSG("wc_InitSha384 failed");
+    }
+    else {
+       wc_Sha384Update(sha384, data, len);
+       wc_Sha384Final(sha384, hash);
+    }
+    \endcode
+    
+    \sa wc_Sha384Hash
+    \sa wc_Sha384Update
+    \sa wc_Sha384Final
+*/
 WOLFSSL_API int wc_InitSha384(Sha384*);
 WOLFSSL_API int wc_InitSha384_ex(Sha384*, void*, int);
+/*!
+    \ingroup SHA
+    
+    \brief Can be called to continually hash the provided byte array of length len.
+    
+    \return 0 Returned upon successfully adding the data to the digest.
+    
+    \param sha384 pointer to the sha384 structure to use for encryption
+    \param data the data to be hashed
+    \param len length of data to be hashed
+
+    _Example_
+    \code
+    Sha384 sha384[1];
+    byte data[] = { /* Data to be hashed };
+    word32 len = sizeof(data);
+
+    if ((ret = wc_InitSha384(sha384)) != 0) {
+       WOLFSSL_MSG("wc_InitSha384 failed");
+    }
+    else {
+       wc_Sha384Update(sha384, data, len);
+       wc_Sha384Final(sha384, hash);
+    }
+    \endcode
+    
+    \sa wc_Sha384Hash
+    \sa wc_Sha384Final
+    \sa wc_InitSha384
+*/
 WOLFSSL_API int wc_Sha384Update(Sha384*, const byte*, word32);
+/*!
+    \ingroup SHA
+    
+    \brief Finalizes hashing of data. Result is placed into hash.
+    
+    \return 0 Returned upon successfully finalizing.
+    
+    \param sha384 pointer to the sha384 structure to use for encryption
+    \param hash Byte array to hold hash value.
+    
+    _Example_
+    \code
+    Sha384 sha384[1];
+    byte data[] = { /* Data to be hashed };
+    word32 len = sizeof(data);
+
+    if ((ret = wc_InitSha384(sha384)) != 0) {
+       WOLFSSL_MSG("wc_InitSha384 failed");
+    }
+    else {
+       wc_Sha384Update(sha384, data, len);
+       wc_Sha384Final(sha384, hash);
+    }
+    \endcode
+    
+    \sa wc_Sha384Hash
+    \sa wc_Sha384Final
+    \sa wc_InitSha384
+*/
 WOLFSSL_API int wc_Sha384Final(Sha384*, byte*);
 WOLFSSL_API void wc_Sha384Free(Sha384*);
 

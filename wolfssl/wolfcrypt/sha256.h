@@ -83,18 +83,157 @@ typedef struct Sha256 {
 #endif /* FREESCALE_LTC_SHA */
 } Sha256;
 
-#else
+#else /* WOLFSSL_TI_HASH */
     #include "wolfssl/wolfcrypt/port/ti/ti-hash.h"
 #endif
 
 #endif /* HAVE_FIPS */
 
+/*!
+    \ingroup SHA
+    
+    \brief This function initializes SHA256. This is automatically called by wc_Sha256Hash.
+    
+    \return 0 Returned upon successfully initializing
+    
+    \param sha256 pointer to the sha256 structure to use for encryption
+    
+    _Example_
+    \code
+    Sha256 sha256[1];
+    if ((ret = wc_InitSha356(sha256)) != 0) {
+        WOLFSSL_MSG("wc_InitSha256 failed");
+    }
+    else {
+        wc_Sha256Update(sha256, data, len);
+        wc_Sha256Final(sha256, hash);
+    }
+    \endcode
+    
+    \sa wc_Sha256Hash
+    \sa wc_Sha256Update
+    \sa wc_Sha256Final
+*/
 WOLFSSL_API int wc_InitSha256(Sha256*);
 WOLFSSL_API int wc_InitSha256_ex(Sha256*, void*, int);
+/*!
+    \ingroup SHA
+    
+    \brief Can be called to continually hash the provided byte array of length len.
+    
+    \return 0 Returned upon successfully adding the data to the digest.
+    
+    \param sha256 pointer to the sha256 structure to use for encryption
+    \param data the data to be hashed
+    \param len length of data to be hashed
+    
+    _Example_
+    \code
+    Sha256 sha256[1];
+    byte data[] = { /* Data to be hashed };
+    word32 len = sizeof(data);
+
+    if ((ret = wc_InitSha256(sha256)) != 0) {
+       WOLFSSL_MSG("wc_InitSha256 failed");
+    }
+    else {
+        wc_Sha256Update(sha256, data, len);
+        wc_Sha256Final(sha256, hash);
+    }
+    \endcode
+    
+    \sa wc_Sha256Hash
+    \sa wc_Sha256Final
+    \sa wc_InitSha256
+*/
 WOLFSSL_API int wc_Sha256Update(Sha256*, const byte*, word32);
+/*!
+    \ingroup SHA
+    
+    \brief Finalizes hashing of data. Result is placed into hash. Resets state of sha256 struct.
+    
+    \return 0 Returned upon successfully finalizing.
+    
+    \param sha256 pointer to the sha256 structure to use for encryption
+    \param hash Byte array to hold hash value.
+    
+    _Example_
+    \code
+    Sha256 sha256[1];
+    byte data[] = { /* Data to be hashed };
+    word32 len = sizeof(data);
+
+    if ((ret = wc_InitSha356(sha256)) != 0) {
+       WOLFSSL_MSG("wc_InitSha256 failed");
+    }
+    else {
+       wc_Sha256Update(sha256, data, len);
+       wc_Sha256Final(sha256, hash);
+    }
+    \endcode
+    
+    \sa wc_Sha256Hash
+    \sa wc_Sha256GetHash
+    \sa wc_InitSha256
+*/
 WOLFSSL_API int wc_Sha256Final(Sha256*, byte*);
+/*!
+    \ingroup SHA
+    
+    \brief Resets the Sha256 structure.  Note: this is only supported if you have WOLFSSL_TI_HASH defined.
+    
+    \return none No returns.
+    
+    \param sha256 Pointer to the sha256 structure to be freed.
+
+    _Example_
+    \code
+    Sha256 sha256;
+    byte data[] = { /* Data to be hashed };
+    word32 len = sizeof(data);
+
+    if ((ret = wc_InitSha256(&sha256)) != 0) {
+        WOLFSSL_MSG("wc_InitSha256 failed");
+    }
+    else {
+        wc_Sha256Update(&sha256, data, len);
+        wc_Sha256Final(&sha256, hash);
+        wc_Sha256Free(&sha256);
+    }
+    \endcode
+    
+    \sa wc_InitSha256
+    \sa wc_Sha256Update
+    \sa wc_Sha256Final
+*/
 WOLFSSL_API void wc_Sha256Free(Sha256*);
 
+/*!
+    \ingroup SHA
+    
+    \brief Gets hash data. Result is placed into hash.  Does not reset state of sha256 struct.
+    
+    \return 0 Returned upon successfully finalizing.
+    
+    \param sha256 pointer to the sha256 structure to use for encryption
+    \param hash Byte array to hold hash value.
+    
+    _Example_
+    \code
+    Sha256 sha256[1];
+    if ((ret = wc_InitSha356(sha256)) != 0) {
+       WOLFSSL_MSG("wc_InitSha256 failed");
+    }
+    else {
+       wc_Sha256Update(sha256, data, len);
+       wc_Sha256GetHash(sha256, hash);
+    }
+    \endcode
+    
+    \sa wc_Sha256Hash
+    \sa wc_Sha256Final
+    \sa wc_InitSha256
+*/
 WOLFSSL_API int wc_Sha256GetHash(Sha256*, byte*);
 WOLFSSL_API int wc_Sha256Copy(Sha256* src, Sha256* dst);
 

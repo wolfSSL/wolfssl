@@ -32,7 +32,6 @@
  *  to fit CyaSSL's needs.
  */
 
-
 #ifndef WOLF_CRYPT_TFM_H
 #define WOLF_CRYPT_TFM_H
 
@@ -718,6 +717,28 @@ MP_API int  mp_div_2d(fp_int *a, int b, fp_int *c, fp_int *d);
 MP_API int  mp_mod_d(fp_int* a, fp_digit b, fp_digit* c);
 MP_API int  mp_lshd (mp_int * a, int b);
 
+/*!
+    \ingroup Math
+    
+    \brief This function checks the runtime fastmath settings for the maximum size of an integer. It is important when a user is using a wolfCrypt library independently, as the FP_SIZE must match for each library in order for math to work correctly. This check is defined as CheckFastMathSettings(), which simply compares CheckRunTimeFastMath and FP_SIZE, returning 0 if there is a mismatch, or 1 if they match.
+    
+    \return FP_SIZE Returns FP_SIZE, corresponding to the max size available for the math library.
+    
+    \param none No parameters.
+    
+    _Example_
+    \code
+    if (CheckFastMathSettings() != 1) {
+	return err_sys("Build vs. runtime fastmath FP_MAX_BITS mismatch\n");
+    } 
+    // This is converted by the preprocessor to:
+    // if ( (CheckRunTimeFastMath() == FP_SIZE) != 1) {
+    // and confirms that the fast math settings match
+    // the compile time settings
+    \endcode
+    
+    \sa CheckRunTimeSettings
+*/
 WOLFSSL_API word32 CheckRunTimeFastMath(void);
 
 /* If user uses RSA, DH, DSA, or ECC math lib directly then fast math FP_SIZE

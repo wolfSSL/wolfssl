@@ -19,8 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-
 #ifndef WOLF_CRYPT_PORT_H
 #define WOLF_CRYPT_PORT_H
 
@@ -49,10 +47,7 @@
     #endif
 #elif defined(THREADX)
     #ifndef SINGLE_THREADED
-        #ifdef NEED_THREADX_TYPES
-            #include <types.h>
-        #endif
-        #include <tx_api.h>
+        #include "tx_api.h"
     #endif
 #elif defined(MICRIUM)
     /* do nothing, just don't pick Unix */
@@ -195,7 +190,43 @@ WOLFSSL_API int wc_LockMutex(wolfSSL_Mutex*);
 WOLFSSL_API int wc_UnLockMutex(wolfSSL_Mutex*);
 
 /* main crypto initialization function */
+/*!
+    \ingroup wolfCrypt
+    \brief Used to initialize state for wolfcrypt.
+    
+    \return 0 wolfCrypt successfully initialized.
+    
+    \param none No parameters.
+    
+    _Example_
+    \code
+    if (wolfCrypt_Init() != 0)
+    {
+    // wolfCrypt Initialization Error
+    }
+    \endcode
+*/
 WOLFSSL_API int wolfCrypt_Init(void);
+/*!
+    \ingroup wolfCrypt
+    
+    \brief Used to clean up resources used by wolfCrypt.
+    
+    \return 0 upon success.
+    \return <0 upon failure of cleaning up resources.
+    
+    \param none No parameters.
+    
+    _Example_
+    \code
+    ...
+    if (wolfCrypt_Cleanup() != 0) {
+        WOLFSSL_MSG("Error with wolfCrypt_Cleanup call");
+    }
+    \endcode
+    
+    \sa wolfCrypt_Init
+*/
 WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 /* filesystem abstraction layer, used by ssl.c */
