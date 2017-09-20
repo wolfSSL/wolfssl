@@ -148,6 +148,10 @@
 #ifndef NO_DES3
     #include <wolfssl/openssl/des.h>
 #endif
+#ifndef NO_ASN
+    /* for ASN_COMMON_NAME DN_tags enum */
+    #include <wolfssl/wolfcrypt/asn.h>
+#endif
 #endif /* OPENSSL_EXTRA */
 
 /* enable testing buffer load functions */
@@ -9730,6 +9734,82 @@ static void test_wolfSSL_X509_LOOKUP_load_file(void)
 }
 
 
+static void test_wolfSSL_X509_NID(void)
+{
+    #if defined(OPENSSL_EXTRA) && !defined(NO_RSA)\
+    && defined(USE_CERT_BUFFERS_2048) && !defined(NO_ASN)
+    int   sigType;
+    int   nameSz;
+
+    X509*  cert;
+    EVP_PKEY*  pubKeyTmp;
+    X509_NAME* name;
+
+    char commonName[80];
+    char countryName[80];
+    char localityName[80];
+    char stateName[80];
+    char orgName[80];
+    char orgUnit[80];
+
+    printf(testingFmt, "wolfSSL_X509_NID()");
+    /* ------ PARSE ORIGINAL SELF-SIGNED CERTIFICATE ------ */
+
+    /* convert cert from DER to internal WOLFSSL_X509 struct */
+    AssertNotNull(cert = wolfSSL_X509_d2i(&cert, client_cert_der_2048,
+            sizeof_client_cert_der_2048));
+
+    /* ------ EXTRACT CERTIFICATE ELEMENTS ------ */
+
+    /* extract PUBLIC KEY from cert */
+    AssertNotNull(pubKeyTmp = X509_get_pubkey(cert));
+
+    /* extract signatureType */
+    AssertIntNE((sigType = wolfSSL_X509_get_signature_type(cert)), 0);
+
+    /* extract subjectName info */
+    AssertNotNull(name = X509_get_subject_name(cert));
+    AssertIntEQ(X509_NAME_get_text_by_NID(name, -1, NULL, 0), -1);
+    AssertIntGT((nameSz = X509_NAME_get_text_by_NID(name, ASN_COMMON_NAME,
+                                           NULL, 0)), 0);
+    AssertIntEQ(nameSz, 15);
+    AssertIntGT((nameSz = X509_NAME_get_text_by_NID(name, ASN_COMMON_NAME,
+                                           commonName, sizeof(commonName))), 0);
+    AssertIntEQ(nameSz, 15);
+    AssertIntEQ(XMEMCMP(commonName, "www.wolfssl.com", nameSz), 0);
+    AssertIntGT((nameSz = X509_NAME_get_text_by_NID(name, ASN_COMMON_NAME,
+                                            commonName, 9)), 0);
+    AssertIntEQ(nameSz, 8);
+    AssertIntEQ(XMEMCMP(commonName, "www.wolf", nameSz), 0);
+
+    AssertIntGT((nameSz = X509_NAME_get_text_by_NID(name, ASN_COUNTRY_NAME,
+                                         countryName, sizeof(countryName))), 0);
+    AssertIntEQ(XMEMCMP(countryName, "US", nameSz), 0);
+
+    AssertIntGT((nameSz = X509_NAME_get_text_by_NID(name, ASN_LOCALITY_NAME,
+                                       localityName, sizeof(localityName))), 0);
+    AssertIntEQ(XMEMCMP(localityName, "Bozeman", nameSz), 0);
+
+    AssertIntGT((nameSz = X509_NAME_get_text_by_NID(name, ASN_STATE_NAME,
+                                            stateName, sizeof(stateName))), 0);
+    AssertIntEQ(XMEMCMP(stateName, "Montana", nameSz), 0);
+
+    AssertIntGT((nameSz = X509_NAME_get_text_by_NID(name, ASN_ORG_NAME,
+                                            orgName, sizeof(orgName))), 0);
+    AssertIntEQ(XMEMCMP(orgName, "wolfSSL_2048", nameSz), 0);
+
+    AssertIntGT((nameSz = X509_NAME_get_text_by_NID(name, ASN_ORGUNIT_NAME,
+                                            orgUnit, sizeof(orgUnit))), 0);
+    AssertIntEQ(XMEMCMP(orgUnit, "Programming-2048", nameSz), 0);
+
+    EVP_PKEY_free(pubKeyTmp);
+    X509_free(cert);
+
+    printf(resultFmt, passed);
+    #endif
+}
+
+
 static void test_wolfSSL_BN(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
@@ -10617,6 +10697,7 @@ void ApiTest(void)
     test_wolfSSL_ERR_peek_last_error_line();
     test_wolfSSL_X509_STORE_set_flags();
     test_wolfSSL_X509_LOOKUP_load_file();
+    test_wolfSSL_X509_NID();
     test_wolfSSL_BN();
     test_wolfSSL_set_options();
     test_wolfSSL_PEM_read_bio();
