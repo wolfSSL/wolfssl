@@ -1003,12 +1003,15 @@ int wc_Chacha_Process(ChaCha* ctx, byte* output, const byte* input,
 
 #ifdef USE_INTEL_CHACHA_SPEEDUP
     #ifdef HAVE_INTEL_AVX2
-    if (IS_INTEL_AVX2(cpuid_get_flags()))
+    if (IS_INTEL_AVX2(cpuid_get_flags())) {
         chacha_encrypt_avx2(ctx, input, output, msglen);
-    else
+        return 0;
+    }
     #endif
+    if (IS_INTEL_AVX1(cpuid_get_flags())) {
         chacha_encrypt_avx(ctx, input, output, msglen);
-    return 0;
+        return 0;
+    }
 #endif
     wc_Chacha_encrypt_bytes(ctx, input, output, msglen);
 
