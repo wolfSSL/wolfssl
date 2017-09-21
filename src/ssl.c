@@ -13843,6 +13843,20 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
     }
 
 
+    /* Used to get a string from the WOLFSSL_X509_NAME structure that
+     * corresponds with the NID value passed in.
+     *
+     * name structure to get string from
+     * nid  NID value to search for
+     * buf  [out] buffer to hold results. If NULL then the buffer size minus the
+     *      null char is returned.
+     * len  size of "buf" passed in
+     *
+     * returns the length of string found, not including the NULL terminator.
+     *         It's possible the function could return a negative value in the
+     *         case that len is less than or equal to 0. A negative value is
+     *         considered an error case.
+     */
     int wolfSSL_X509_NAME_get_text_by_NID(WOLFSSL_X509_NAME* name,
                                           int nid, char* buf, int len)
     {
@@ -13885,11 +13899,17 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
                 textSz = name->fullName.ouLen;
                 break;
             default:
-                break;
+                WOLFSSL_MSG("Unknown NID value");
+                return -1;
+        }
+
+        /* if buf is NULL return size of buffer needed (minus null char) */
+        if (buf == NULL) {
+            return textSz;
         }
 
         if (buf != NULL && text != NULL) {
-            textSz = min(textSz, len);
+            textSz = min(textSz + 1, len); /* + 1 to account for null char */
             if (textSz > 0) {
                 XMEMCPY(buf, text, textSz - 1);
                 buf[textSz - 1] = '\0';
@@ -13897,7 +13917,7 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
         }
 
         WOLFSSL_LEAVE("wolfSSL_X509_NAME_get_text_by_NID", textSz);
-        return textSz;
+        return (textSz - 1); /* do not include null character in size */
     }
 
     int wolfSSL_X509_NAME_get_index_by_NID(WOLFSSL_X509_NAME* name,
