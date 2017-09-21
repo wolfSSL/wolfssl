@@ -124,7 +124,7 @@ extern "C" {
 
     /* Use alternate ECC size for ECC math */
     #ifdef USE_FAST_MATH
-        #ifndef NO_RSA
+        #ifdef NO_RSA
             /* if not using RSA set FP_MAX_BITS to 256*2 */
             #undef  FP_MAX_BITS
             #define FP_MAX_BITS     512
