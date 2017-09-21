@@ -1060,7 +1060,8 @@ static word32 SetBitString16Bit(word16 val, byte* output)
 
     idx = SetBitString(len, unusedBits, output);
     output[idx++] = (byte)val;
-    output[idx++] = (byte)(val >> 8);
+    if (len > 1)
+        output[idx++] = (byte)(val >> 8);
 
     return idx;
 }
