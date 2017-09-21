@@ -28,6 +28,13 @@
 #include <stdarg.h>
 #include <string.h>
 
+/* Test to determine if ARM Cortex M */
+#if defined(__arm__) && defined(__ARM_ARCH) && (__ARM_ARCH == 6 || __ARM_ARCH == 7)
+    #define CORTEX_M_SERIES
+#endif
+
+
+#ifdef CORTEX_M_SERIES
 /* Memory initialization */
 extern uint32_t __data_load_start__[];
 extern uint32_t __data_start__[];
@@ -55,10 +62,12 @@ void meminit32(uint32_t* start, uint32_t* end)
         *start++ = 0;
     }
 }
+#endif /* CORTEX_M_SERIES */
 
 /* Entry Point */
 void reset_handler(void)
 {
+#ifdef CORTEX_M_SERIES
     /* Init sections */
     memcpy32(__data_load_start__, __data_start__, __data_end__);
     meminit32(__bss_start__, __bss_end__);
@@ -66,6 +75,7 @@ void reset_handler(void)
     /* Init heap */
     __heap_start__[0] = 0;
     __heap_start__[1] = ((uint32_t)__heap_end__ - (uint32_t)__heap_start__);
+#endif /* CORTEX_M_SERIES */
 
     /* Start main */
     extern int main(void);
@@ -75,6 +85,7 @@ void reset_handler(void)
     while(1);
 }
 
+#ifdef CORTEX_M_SERIES
 // Vector Exception/Interrupt Handlers
 static void Default_Handler(void)
 {
@@ -199,6 +210,7 @@ const vector_entry vectors[] __attribute__ ((section(".vectors"),used)) =
 
     /* remainder go below */
 };
+#endif /* CORTEX_M_SERIES */
 
 
 /* TIME CODE */

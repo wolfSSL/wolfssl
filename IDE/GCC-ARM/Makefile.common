@@ -3,7 +3,9 @@ CMD_ECHO =
 
 # Important directories
 BUILD_DIR = ./Build
-TOOLCHAIN_DIR = /opt/gcc-arm-none-eabi/bin
+
+# Toolchain location and prefix
+TOOLCHAIN = /opt/gcc-arm-none-eabi/bin/arm-none-eabi-
 
 INC = -I./Header \
 	  -I./Source \
@@ -26,9 +28,16 @@ CFLAGS = $(ARCHFLAGS) -std=gnu99 -Wall -Wno-cpp \
 		 -ffunction-sections -fdata-sections \
 		 -Os -flto $(DBGFLAGS)
 
-# LD: Remove unused sections, link with newlib-nano implementation, generate map
-LDFLAGS = $(ARCHFLAGS) -Wl,--gc-sections --specs=nano.specs --specs=nosys.specs
+# LD: Remove unused sections
+LDFLAGS = $(ARCHFLAGS) -Wl,--gc-sections
+
+# LD: Link with newlib-nano implementation
+LDFLAGS += --specs=nano.specs --specs=nosys.specs
+
+# LD: generate map
 LDFLAGS += -Wl,-Map=$(BUILD_DIR)/$(BIN).map $(DBGFLAGS)
+
+# LD: Entry point
 LDFLAGS += -Wl,-ereset_handler
 
 # Math lib (for DH)
@@ -42,14 +51,14 @@ OBJS_C = $(addprefix $(BUILD_DIR)/, $(FILENAMES_C:.c=.o))
 vpath %.c $(dir $(SRC_C))
 
 # Tools selection
-CC = $(TOOLCHAIN_DIR)/arm-none-eabi-gcc
-AS = $(TOOLCHAIN_DIR)/arm-none-eabi-gcc
-LD = $(TOOLCHAIN_DIR)/arm-none-eabi-gcc
-AR = $(TOOLCHAIN_DIR)/arm-none-eabi-ar
-NM = $(TOOLCHAIN_DIR)/arm-none-eabi-nm
-OBJCOPY = $(TOOLCHAIN_DIR)/arm-none-eabi-objcopy
-OBJDUMP = $(TOOLCHAIN_DIR)/arm-none-eabi-objdump
-SIZE = $(TOOLCHAIN_DIR)/arm-none-eabi-size
+CC = $(TOOLCHAIN)gcc
+AS = $(TOOLCHAIN)gcc
+LD = $(TOOLCHAIN)gcc
+AR = $(TOOLCHAIN)ar
+NM = $(TOOLCHAIN)nm
+OBJCOPY = $(TOOLCHAIN)objcopy
+OBJDUMP = $(TOOLCHAIN)objdump
+SIZE = $(TOOLCHAIN)size
 
 build_hex: $(BUILD_DIR) $(BUILD_DIR)/$(BIN).hex
 	@echo ""

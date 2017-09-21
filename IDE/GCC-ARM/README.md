@@ -1,5 +1,7 @@
 # Example Project for GCC ARM
 
+This example is for Cortex M series, but can be adopted for other architectures.
+
 ## Design
 
 * All library options are defined in `Header/user_settings.h`.
@@ -10,7 +12,9 @@
 ## Building
 
 1. Make sure you have `gcc-arm-none-eabi` installed.
-2. Modify the `Makefile.common` to use correct toolchain directory `TOOLCHAIN_DIR` and architecture 'ARCHFLAGS' (default is cortex-m0 / thumb). See [GCC ARM Options](https://gcc.gnu.org/onlinedocs/gcc-4.7.3/gcc/ARM-Options.html) `-mcpu=name`.
+2. Modify the `Makefile.common`:
+  * Use correct toolchain path `TOOLCHAIN`.
+  * Use correct architecture 'ARCHFLAGS' (default is cortex-m0 / thumb). See [GCC ARM Options](https://gcc.gnu.org/onlinedocs/gcc-4.7.3/gcc/ARM-Options.html) `-mcpu=name`.
 3. Use `make` and it will build the static library and wolfCrypt test/benchmark and wolfSSL TLS client targets as `.elf` and `.hex` in `/Build`.
 
 Example:
