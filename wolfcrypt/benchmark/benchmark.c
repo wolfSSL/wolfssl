@@ -703,12 +703,12 @@ static void* benchmarks_do(void* args)
 
     /* setup bench plain, cipher, key and iv globals */
     /* make sure bench buffer is multiple of 16 (AES block size) */
-    bench_buf_size = bench_size + BENCH_CIPHER_ADD;
+    bench_buf_size = (int)bench_size + BENCH_CIPHER_ADD;
     if (bench_buf_size % 16)
         bench_buf_size += 16 - (bench_buf_size % 16);
 
-    bench_plain = (byte*)XMALLOC(bench_buf_size, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
-    bench_cipher = (byte*)XMALLOC(bench_buf_size, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+    bench_plain = (byte*)XMALLOC((size_t)bench_buf_size, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+    bench_cipher = (byte*)XMALLOC((size_t)bench_buf_size, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
     if (bench_plain == NULL || bench_cipher == NULL) {
         XFREE(bench_plain, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
         XFREE(bench_cipher, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
@@ -717,8 +717,8 @@ static void* benchmarks_do(void* args)
         printf("Benchmark block buffer alloc failed!\n");
         goto exit;
     }
-    XMEMSET(bench_plain, 0, bench_buf_size);
-    XMEMSET(bench_cipher, 0, bench_buf_size);
+    XMEMSET(bench_plain, 0, (size_t)bench_buf_size);
+    XMEMSET(bench_cipher, 0, (size_t)bench_buf_size);
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     bench_key = (byte*)XMALLOC(sizeof(bench_key_buf), HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
@@ -1136,7 +1136,7 @@ void bench_rng(void)
                 len = remain;
                 if (len > RNG_MAX_BLOCK_LEN)
                     len = RNG_MAX_BLOCK_LEN;
-                ret = wc_RNG_GenerateBlock(&myrng, &bench_plain[pos], len);
+                ret = wc_RNG_GenerateBlock(&myrng, &bench_plain[pos], (word32)len);
                 if (ret < 0)
                     goto exit_rng;
 
@@ -2639,11 +2639,11 @@ void bench_rsa(int doAsync)
 
 #ifdef USE_CERT_BUFFERS_1024
     tmp = rsa_key_der_1024;
-    bytes = sizeof_rsa_key_der_1024;
+    bytes = (size_t)sizeof_rsa_key_der_1024;
     rsaKeySz = 1024;
 #elif defined(USE_CERT_BUFFERS_2048)
     tmp = rsa_key_der_2048;
-    bytes = sizeof_rsa_key_der_2048;
+    bytes = (size_t)sizeof_rsa_key_der_2048;
 #else
     #error "need a cert buffer size"
 #endif /* USE_CERT_BUFFERS */
@@ -2683,7 +2683,7 @@ void bench_rsa(int doAsync)
             /* while free pending slots in queue, submit ops */
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&rsaKey[i]), 1, &times, ntimes, &pending)) {
-                    ret = wc_RsaPublicEncrypt(message, len, enc[i],
+                    ret = wc_RsaPublicEncrypt(message, (word32)len, enc[i],
                                             RSA_BUF_SIZE, &rsaKey[i], &rng);
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&rsaKey[i]), 1, &times, &pending)) {
                         goto exit_rsa_pub;
@@ -2701,7 +2701,7 @@ exit_rsa_pub:
     }
 
     /* capture resulting encrypt length */
-    idx = rsaKeySz/8;
+    idx = (word32)(rsaKeySz/8);
 
     /* begin private async RSA */
     bench_stats_start(&count, &start);
@@ -2788,11 +2788,11 @@ void bench_dh(int doAsync)
     /* do nothing, but don't use default FILE */
 #elif defined(USE_CERT_BUFFERS_1024)
     tmp = dh_key_der_1024;
-    bytes = sizeof_dh_key_der_1024;
+    bytes = (size_t)sizeof_dh_key_der_1024;
     dhKeySz = 1024;
 #elif defined(USE_CERT_BUFFERS_2048)
     tmp = dh_key_der_2048;
-    bytes = sizeof_dh_key_der_2048;
+    bytes = (size_t)sizeof_dh_key_der_2048;
 #else
     #error "need to define a cert buffer size"
 #endif /* USE_CERT_BUFFERS */
@@ -3217,7 +3217,7 @@ void bench_ecc(int doAsync)
             /* while free pending slots in queue, submit ops */
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 1, &times, agreeTimes, &pending)) {
-                    x[i] = keySize;
+                    x[i] = (word32)keySize;
                     ret = wc_ecc_shared_secret(&genKey[i], &genKey2[i], shared[i], &x[i]);
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 1, &times, &pending)) {
                         goto exit_ecdhe;
@@ -3255,7 +3255,7 @@ exit_ecdhe:
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 1, &times, agreeTimes, &pending)) {
                     if (genKey[i].state == 0)
                         x[i] = ECC_MAX_SIG_SIZE;
-                    ret = wc_ecc_sign_hash(digest[i], keySize, sig[i], &x[i],
+                    ret = wc_ecc_sign_hash(digest[i], (word32)keySize, sig[i], &x[i],
                                                             &rng, &genKey[i]);
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 1, &times, &pending)) {
                         goto exit_ecdsa_sign;
@@ -3286,7 +3286,7 @@ exit_ecdsa_sign:
                     if (genKey[i].state == 0)
                         verify[i] = 0;
                     ret = wc_ecc_verify_hash(sig[i], x[i], digest[i],
-                                        keySize, &verify[i], &genKey[i]);
+                                        (word32)keySize, &verify[i], &genKey[i]);
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 1, &times, &pending)) {
                         goto exit_ecdsa_verify;
                     }
@@ -3695,7 +3695,7 @@ void benchmark_configure(int block_size)
 {
     /* must be greater than 0 */
     if (block_size > 0) {
-        bench_size = block_size;
+        bench_size = (word32)block_size;
     }
 }
 
