@@ -407,8 +407,8 @@ static THREAD_LS_T int devId = INVALID_DEVID;
 #define BENCH_SIZE bench_size
 
 /* globals for cipher tests */
-static byte* bench_plain = NULL;
-static byte* bench_cipher = NULL;
+static THREAD_LS_T byte* bench_plain = NULL;
+static THREAD_LS_T byte* bench_cipher = NULL;
 
 static const XGEN_ALIGN byte bench_key_buf[] =
 {
@@ -424,8 +424,8 @@ static const XGEN_ALIGN byte bench_iv_buf[] =
     0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
     0x11,0x21,0x31,0x41,0x51,0x61,0x71,0x81
 };
-static byte* bench_key = (byte*)bench_key_buf;
-static byte* bench_iv = (byte*)bench_iv_buf;
+static THREAD_LS_T byte* bench_key = NULL;
+static THREAD_LS_T byte* bench_iv = NULL;
 
 #ifdef WOLFSSL_STATIC_MEMORY
     #ifdef BENCH_EMBEDDED
@@ -662,6 +662,8 @@ static INLINE void bench_stats_free(void)
 
 static void* benchmarks_do(void* args)
 {
+    int bench_buf_size;
+
 #ifdef WOLFSSL_ASYNC_CRYPT
 #ifndef WC_NO_ASYNC_THREADING
     ThreadData* threadData = (ThreadData*)args;
@@ -694,8 +696,46 @@ static void* benchmarks_do(void* args)
 #endif
         if (rngRet < 0) {
             printf("InitRNG failed\n");
+            return NULL;
         }
     }
+#endif
+
+    /* setup bench plain, cipher, key and iv globals */
+    /* make sure bench buffer is multiple of 16 (AES block size) */
+    bench_buf_size = bench_size + BENCH_CIPHER_ADD;
+    if (bench_buf_size % 16)
+        bench_buf_size += 16 - (bench_buf_size % 16);
+
+    bench_plain = (byte*)XMALLOC(bench_buf_size, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+    bench_cipher = (byte*)XMALLOC(bench_buf_size, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+    if (bench_plain == NULL || bench_cipher == NULL) {
+        XFREE(bench_plain, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+        XFREE(bench_cipher, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+        bench_plain = bench_cipher = NULL;
+
+        printf("Benchmark block buffer alloc failed!\n");
+        goto exit;
+    }
+    XMEMSET(bench_plain, 0, bench_buf_size);
+    XMEMSET(bench_cipher, 0, bench_buf_size);
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    bench_key = (byte*)XMALLOC(sizeof(bench_key_buf), HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+    bench_iv = (byte*)XMALLOC(sizeof(bench_iv_buf), HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+    if (bench_key == NULL || bench_iv == NULL) {
+        XFREE(bench_key, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+        XFREE(bench_iv, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+        bench_key = bench_iv = NULL;
+
+        printf("Benchmark cipher buffer alloc failed!\n");
+        goto exit;
+    }
+    XMEMCPY(bench_key, bench_key_buf, sizeof(bench_key_buf));
+    XMEMCPY(bench_iv, bench_iv_buf, sizeof(bench_iv_buf));
+#else
+    bench_key = (byte*)bench_key_buf;
+    bench_iv = (byte*)bench_iv_buf;
 #endif
 
 #ifndef WC_NO_RNG
@@ -930,6 +970,15 @@ static void* benchmarks_do(void* args)
     bench_ed25519KeySign();
 #endif
 
+exit:
+    /* free benchmark buffers */
+    XFREE(bench_plain, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+    XFREE(bench_cipher, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    XFREE(bench_key, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+    XFREE(bench_iv, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+#endif
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* free event queue */
     wolfEventQueue_Free(&eventQueue);
@@ -949,7 +998,6 @@ static void* benchmarks_do(void* args)
 int benchmark_init(void)
 {
     int ret = 0;
-    int block_size;
 
 #ifdef WOLFSSL_STATIC_MEMORY
     ret = wc_LoadStaticMemory(&HEAP_HINT, gBenchMemory, sizeof(gBenchMemory),
@@ -980,53 +1028,12 @@ int benchmark_init(void)
     }
 #endif /* HAVE_WNR */
 
-    /* make sure bench buffer is multiple of 16 (AES block size) */
-    block_size = bench_size + BENCH_CIPHER_ADD;
-    if (block_size % 16)
-        block_size += 16 - (block_size % 16);
-
-    /* setup bench plain, cipher, key and iv globals */
-    bench_plain = (byte*)XMALLOC(block_size, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
-    bench_cipher = (byte*)XMALLOC(block_size, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
-    if (bench_plain == NULL || bench_cipher == NULL) {
-        XFREE(bench_plain, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
-        XFREE(bench_cipher, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
-
-        printf("Benchmark block buffer alloc failed!\n");
-        return EXIT_FAILURE;
-    }
-    XMEMSET(bench_plain, 0, block_size);
-    XMEMSET(bench_cipher, 0, block_size);
-
-#ifdef WOLFSSL_ASYNC_CRYPT
-    bench_key = (byte*)XMALLOC(sizeof(bench_key_buf), HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
-    bench_iv = (byte*)XMALLOC(sizeof(bench_iv_buf), HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
-    if (bench_key == NULL || bench_iv == NULL) {
-        XFREE(bench_key, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
-        XFREE(bench_iv, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
-
-        printf("Benchmark cipher buffer alloc failed!\n");
-        return EXIT_FAILURE;
-    }
-    XMEMCPY(bench_key, bench_key_buf, sizeof(bench_key_buf));
-    XMEMCPY(bench_iv, bench_iv_buf, sizeof(bench_iv_buf));
-#endif
-    (void)bench_key;
-    (void)bench_iv;
-
     return ret;
 }
 
 int benchmark_free(void)
 {
     int ret;
-
-    XFREE(bench_plain, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
-    XFREE(bench_cipher, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
-#ifdef WOLFSSL_ASYNC_CRYPT
-    XFREE(bench_key, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
-    XFREE(bench_iv, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
-#endif
 
 #ifdef HAVE_WNR
     ret = wc_FreeNetRandom();
@@ -2549,7 +2556,7 @@ void bench_rsaKeyGen(int doAsync)
 {
     RsaKey genKey[BENCH_MAX_PENDING];
     double start;
-    int    ret, i, count = 0, times, pending = 0;
+    int    ret = 0, i, count = 0, times, pending = 0;
     int    k, keySz;
     const int  keySizes[2] = {1024, 2048};
     const long rsa_e_val = 65537;
