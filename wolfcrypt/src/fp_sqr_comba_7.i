@@ -24,7 +24,7 @@
 #ifdef TFM_SQR7
 void fp_sqr_comba7(fp_int *A, fp_int *B)
 {
-   fp_digit *a, b[14], c0, c1, c2, sc0, sc1, sc2;
+   fp_digit *a, b[14], c0, c1, c2, sc0 = 0, sc1 = 0, sc2 = 0;
 #ifdef TFM_ISO
    fp_word tt;
 #endif
