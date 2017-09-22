@@ -12,7 +12,7 @@ INC = -I./Header \
 	  -I../..
 
 # Memory Map
-SRC_LD = ./linker.ld
+SRC_LD = -T./linker.ld
 
 # Defines
 DEF = -DWOLFSSL_USER_SETTINGS
@@ -85,7 +85,7 @@ $(BUILD_DIR)/%.o: %.c
 
 $(BUILD_DIR)/$(BIN).elf: $(OBJS_ASM) $(OBJS_C)
 	@echo "Linking ELF binary: $(notdir $@)"
-	$(CMD_ECHO) $(LD) $(LDFLAGS) -T$(SRC_LD) -o $@ $^ $(LIBS)
+	$(CMD_ECHO) $(LD) $(LDFLAGS) $(SRC_LD) -o $@ $^ $(LIBS)
 
 	@echo "Generating name list: $(BIN).sym"
 	$(CMD_ECHO) $(NM) -n $@ > $(BUILD_DIR)/$(BIN).sym

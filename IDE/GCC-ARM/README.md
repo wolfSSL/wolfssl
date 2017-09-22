@@ -17,9 +17,22 @@ This example is for Cortex M series, but can be adopted for other architectures.
   * Use correct architecture 'ARCHFLAGS' (default is cortex-m0 / thumb). See [GCC ARM Options](https://gcc.gnu.org/onlinedocs/gcc-4.7.3/gcc/ARM-Options.html) `-mcpu=name`.
 3. Use `make` and it will build the static library and wolfCrypt test/benchmark and wolfSSL TLS client targets as `.elf` and `.hex` in `/Build`.
 
-Example:
+### Building for Raspberry Pi
+
+Example `Makefile.common` changes for Rasperry Pi with Cortex-A53:
+
+1. Change ARCHFLAGS to `ARCHFLAGS = -mcpu=cortex-a53 -mthumb -mabi=aapcs` to specify Cortex-A53.
+2. Comment out `SRC_LD`, since custom memory map is not applicable.
+3. Clear `TOOLCHAIN`, so it will use default `gcc`. Set `TOOLCHAIN = `
+4. Comment out `LDFLAGS += --specs=nano.specs --specs=nosys.specs` to disable newlib-nano.
+
+Note: To comment out a line in a Makefile use place `#` in front of line.
+
+### Example Build
 
 ```
+make clean && make
+
    text	   data	    bss	    dec	    hex   filename
   50076	   2508	     44	  52628	   cd94   ./Build/WolfCryptTest.elf
 
@@ -31,6 +44,8 @@ Example:
 ```
 
 ## Performace Tuning Options
+
+These settings are located in `Header/user_settings.h`.
 
 * `DEBUG_WOLFSSL`: Undefine this to disable debug logging.
 * `NO_ERROR_STRINGS`: Disables error strings to save code space.
