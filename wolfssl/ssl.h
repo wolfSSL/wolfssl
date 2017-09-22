@@ -92,7 +92,7 @@ typedef struct WOLFSSL_CRL          WOLFSSL_CRL;
 /* redeclare guard */
 #define WOLFSSL_TYPES_DEFINED
 
-#include <wolfssl/io.h>
+#include <wolfssl/wolfio.h>
 
 
 #ifndef WOLFSSL_RSA_TYPE_DEFINED /* guard on redeclaration */

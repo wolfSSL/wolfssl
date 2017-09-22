@@ -1043,7 +1043,7 @@ top:
 
   /* if not zero goto step 4 */
   if (mp_iszero (&u) == MP_NO) {
-    if (++loop_check > 4096) {
+    if (++loop_check > MAX_INVMOD_SZ) {
         res = MP_VAL;
         goto LBL_ERR;
     }

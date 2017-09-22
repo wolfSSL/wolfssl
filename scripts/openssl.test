@@ -4,16 +4,18 @@
 
 # need a unique port since may run the same time as testsuite
 generate_port() {
-    openssl_port=`LC_CTYPE=C tr -cd 0-9 </dev/urandom | head -c 7`
-    openssl_port=$((`LC_CTYPE=C tr -cd 1-9 </dev/urandom | head -c 1`$openssl_port))
-    openssl_port=$(($openssl_port % (65535-49512)))
-    openssl_port=$(($openssl_port + 49512))
+    port=`LC_CTYPE=C tr -cd 0-9 </dev/urandom | head -c 7`
+    port=$((`LC_CTYPE=C tr -cd 1-9 </dev/urandom | head -c 1`$port))
+    port=$(($port % (65535-49512)))
+    port=$(($port + 49512))
 }
 
 
 generate_port
+openssl_port=$port
 no_pid=-1
 server_pid=$no_pid
+ecdh_server_pid=$no_pid
 wolf_suites_tested=0
 wolf_suites_total=0
 counter=0
@@ -47,6 +49,12 @@ do_cleanup() {
         echo "killing server"
         kill -9 $server_pid
     fi
+
+    if  [ $ecdh_server_pid != $no_pid ]
+    then
+        echo "killing ECDH-RSA server"
+        kill -9 $ecdh_server_pid
+    fi
 }
 
 do_trap() {
@@ -77,6 +85,8 @@ then
 fi
 
 
+# get wolfssl ciphers
+wolf_ciphers=`./examples/client/client -e`
 
 found_free_port=0
 while [ "$counter" -lt 20 ]; do
@@ -96,6 +106,7 @@ while [ "$counter" -lt 20 ]; do
         #port already started, try a different port
         counter=$((counter+ 1))
         generate_port
+        openssl_port=$port
     fi
 done
 
@@ -106,8 +117,42 @@ then
     exit 1
 fi
 
-# get wolfssl ciphers
-wolf_ciphers=`./examples/client/client -e`
+# if ECDH-RSA is enabled then start up server for ECDH-RSA suites
+case $wolf_ciphers in
+*ECDH-RSA*)
+    generate_port
+    ecdh_port=$port
+    found_free_port=0
+    counter=0
+    while [ "$counter" -lt 20 ]; do
+        echo -e "\nTrying to start ECDH-RSA openssl server on port $ecdh_port...\n"
+
+        openssl s_server -accept $ecdh_port -cert ./certs/server-ecc-rsa.pem -key ./certs/ecc-key.pem  -quiet -CAfile ./certs/client-ca.pem -www -dhparam ./certs/dh2048.pem -verify 10 -verify_return_error -cipher "ALL:eNULL" &
+        ecdh_server_pid=$!
+        # wait to see if s_server successfully starts before continuing
+        sleep 0.1
+
+        if ps -p $ecdh_server_pid > /dev/null
+        then
+            echo "s_server started successfully on port $ecdh_port"
+            found_free_port=1
+            break
+        else
+            #port already started, try a different port
+            counter=$((counter+ 1))
+            generate_port
+            ecdh_port=$port
+        fi
+    done
+
+    if [ $found_free_port = 0 ]
+    then
+        echo -e "Couldn't find free port for server"
+        do_cleanup
+        exit 1
+    fi
+    ;;
+esac
 
 # server should be ready, let's make sure
 server_ready=0
@@ -149,7 +194,12 @@ do
     # get openssl ciphers depending on version
     case $version in "0")
         openssl_ciphers=`openssl ciphers "SSLv3"`
+
+        # double check that can actually do a sslv3 connection using
+        # client-cert.pem to send but any file with EOF works
+        openssl s_client -ssl3 -no_ign_eof -host localhost -port $openssl_port < ./certs/client-cert.pem
         sslv3_sup=$?
+
         if [ $sslv3_sup != 0 ]
         then
             echo -e "Not testing SSLv3. No OpenSSL support for 'SSLv3' modifier"
@@ -217,17 +267,23 @@ do
 
         # check for psk suite and turn on client psk if so
         psk=""
+        adh=""
+        port=$openssl_port
         case $wolfSuite in
+        *ECDH-RSA*)
+            port=$ecdh_port ;;
         *PSK*)
             psk="-s " ;;
+        *ADH*)
+            adh="-a " ;;
         esac
 
         if [ $version -lt 4 ]
         then
-            ./examples/client/client -p $openssl_port -g -r -l $wolfSuite -v $version $psk
+            ./examples/client/client -p $port -g -r -l $wolfSuite -v $version $psk $adh
         else
             # do all versions
-            ./examples/client/client -p $openssl_port -g -r -l $wolfSuite $psk
+            ./examples/client/client -p $port -g -r -l $wolfSuite $psk $adh
         fi
 
         client_result=$?
@@ -252,6 +308,10 @@ done
 IFS=$OIFS #restore separator
 
 kill -9 $server_pid
+if  [ $ecdh_server_pid != $no_pid ]
+then
+    kill -9 $ecdh_server_pid
+fi
 
 echo -e "wolfSSL total suites   $wolf_suites_total"
 echo -e "wolfSSL suites tested  $wolf_suites_tested"

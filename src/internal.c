@@ -1423,18 +1423,32 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 #endif
 
 #ifndef WOLFSSL_USER_IO
-    ctx->CBIORecv = EmbedReceive;
-    ctx->CBIOSend = EmbedSend;
-    #ifdef WOLFSSL_DTLS
-        if (method->version.major == DTLS_MAJOR) {
-            ctx->CBIORecv   = EmbedReceiveFrom;
-            ctx->CBIOSend   = EmbedSendTo;
-        }
-        #ifdef WOLFSSL_SESSION_EXPORT
-        ctx->CBGetPeer = EmbedGetPeer;
-        ctx->CBSetPeer = EmbedSetPeer;
+    #ifdef MICRIUM
+        ctx->CBIORecv = MicriumReceive;
+        ctx->CBIOSend = MicriumSend;
+        #ifdef WOLFSSL_DTLS
+            if (method->version.major == DTLS_MAJOR) {
+                ctx->CBIORecv   = MicriumReceiveFrom;
+                ctx->CBIOSend   = MicriumSendTo;
+            }
+            #ifdef WOLFSSL_SESSION_EXPORT
+                #error Micrium port does not support DTLS session export yet
+            #endif
         #endif
-    #endif
+    #else
+        ctx->CBIORecv = EmbedReceive;
+        ctx->CBIOSend = EmbedSend;
+        #ifdef WOLFSSL_DTLS
+            if (method->version.major == DTLS_MAJOR) {
+                ctx->CBIORecv   = EmbedReceiveFrom;
+                ctx->CBIOSend   = EmbedSendTo;
+            }
+            #ifdef WOLFSSL_SESSION_EXPORT
+            ctx->CBGetPeer = EmbedGetPeer;
+            ctx->CBSetPeer = EmbedSetPeer;
+            #endif
+        #endif
+    #endif /* MICRIUM */
 #endif /* WOLFSSL_USER_IO */
 
 #ifdef HAVE_NETX
@@ -3024,6 +3038,13 @@ int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
 
     WOLFSSL_ENTER("RsaSign");
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* intialize event */
+    ret = wolfSSL_AsyncInit(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    if (ret != 0)
+        return ret;
+#endif
+
 #if defined(WC_RSA_PSS)
     if (sigAlgo == rsa_pss_sa_algo) {
         enum wc_HashType hashType = WC_HASH_TYPE_NONE;
@@ -3058,9 +3079,9 @@ int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
         ret = wc_RsaSSL_Sign(in, inSz, out, *outSz, key, ssl->rng);
 
     /* Handle async pending response */
-#if defined(WOLFSSL_ASYNC_CRYPT)
+#ifdef WOLFSSL_ASYNC_CRYPT
     if (ret == WC_PENDING_E) {
-        ret = wolfSSL_AsyncPush(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wolfSSL_AsyncPush(ssl, &key->asyncDev);
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
@@ -3089,6 +3110,13 @@ int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, int sigAlgo,
     (void)hashAlgo;
 
     WOLFSSL_ENTER("RsaVerify");
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* intialize event */
+    ret = wolfSSL_AsyncInit(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    if (ret != 0)
+        return ret;
+#endif
 
 #if defined(WC_RSA_PSS)
     if (sigAlgo == rsa_pss_sa_algo) {
@@ -3121,9 +3149,9 @@ int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, int sigAlgo,
     }
 
     /* Handle async pending response */
-#if defined(WOLFSSL_ASYNC_CRYPT)
+#ifdef WOLFSSL_ASYNC_CRYPT
     if (ret == WC_PENDING_E) {
-        ret = wolfSSL_AsyncPush(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wolfSSL_AsyncPush(ssl, &key->asyncDev);
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
@@ -3153,6 +3181,13 @@ int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
         WOLFSSL_MSG("Signature buffer too big");
         return BUFFER_E;
     }
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* intialize event */
+    ret = wolfSSL_AsyncInit(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    if (ret != 0)
+        return ret;
+#endif
 
 #if defined(WC_RSA_PSS)
     if (sigAlgo == rsa_pss_sa_algo) {
@@ -3186,9 +3221,9 @@ int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
     }
 
     /* Handle async pending response */
-#if defined(WOLFSSL_ASYNC_CRYPT)
+#ifdef WOLFSSL_ASYNC_CRYPT
     if (ret == WC_PENDING_E) {
-        ret = wolfSSL_AsyncPush(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wolfSSL_AsyncPush(ssl, &key->asyncDev);
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
@@ -3209,6 +3244,13 @@ int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
 
     WOLFSSL_ENTER("RsaDec");
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* intialize event */
+    ret = wolfSSL_AsyncInit(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    if (ret != 0)
+        return ret;
+#endif
+
 #ifdef HAVE_PK_CALLBACKS
     if (ssl->ctx->RsaDecCb) {
             ret = ssl->ctx->RsaDecCb(ssl, in, inSz, out, keyBuf, keySz,
@@ -3226,9 +3268,9 @@ int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
     }
 
     /* Handle async pending response */
-#if defined(WOLFSSL_ASYNC_CRYPT)
+#ifdef WOLFSSL_ASYNC_CRYPT
     if (ret == WC_PENDING_E) {
-        ret = wolfSSL_AsyncPush(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wolfSSL_AsyncPush(ssl, &key->asyncDev);
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
@@ -3255,6 +3297,13 @@ int RsaEnc(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out, word32* outSz,
 
     WOLFSSL_ENTER("RsaEnc");
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* intialize event */
+    ret = wolfSSL_AsyncInit(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    if (ret != 0)
+        return ret;
+#endif
+
 #ifdef HAVE_PK_CALLBACKS
     if (ssl->ctx->RsaEncCb) {
             ret = ssl->ctx->RsaEncCb(ssl, in, inSz, out, outSz, keyBuf, keySz,
@@ -3267,9 +3316,9 @@ int RsaEnc(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out, word32* outSz,
     }
 
     /* Handle async pending response */
-#if defined(WOLFSSL_ASYNC_CRYPT)
+#ifdef WOLFSSL_ASYNC_CRYPT
     if (ret == WC_PENDING_E) {
-        ret = wolfSSL_AsyncPush(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wolfSSL_AsyncPush(ssl, &key->asyncDev);
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
@@ -3300,6 +3349,13 @@ int EccSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
 
     WOLFSSL_ENTER("EccSign");
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* intialize event */
+    ret = wolfSSL_AsyncInit(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    if (ret != 0)
+        return ret;
+#endif
+
 #if defined(HAVE_PK_CALLBACKS)
     if (ssl->ctx->EccSignCb) {
         ret = ssl->ctx->EccSignCb(ssl, in, inSz, out, outSz, keyBuf,
@@ -3312,9 +3368,9 @@ int EccSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
     }
 
     /* Handle async pending response */
-#if defined(WOLFSSL_ASYNC_CRYPT)
+#ifdef WOLFSSL_ASYNC_CRYPT
     if (ret == WC_PENDING_E) {
-        ret = wolfSSL_AsyncPush(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wolfSSL_AsyncPush(ssl, &key->asyncDev);
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
@@ -3336,6 +3392,13 @@ int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* out,
 
     WOLFSSL_ENTER("EccVerify");
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* intialize event */
+    ret = wolfSSL_AsyncInit(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    if (ret != 0)
+        return ret;
+#endif
+
 #ifdef HAVE_PK_CALLBACKS
     if (ssl->ctx->EccVerifyCb) {
         ret = ssl->ctx->EccVerifyCb(ssl, in, inSz, out, outSz, keyBuf, keySz,
@@ -3348,9 +3411,9 @@ int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* out,
     }
 
     /* Handle async pending response */
-#if defined(WOLFSSL_ASYNC_CRYPT)
+#ifdef WOLFSSL_ASYNC_CRYPT
     if (ret == WC_PENDING_E) {
-        ret = wolfSSL_AsyncPush(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wolfSSL_AsyncPush(ssl, &key->asyncDev);
     }
     else
 #endif /* WOLFSSL_ASYNC_CRYPT */
@@ -3422,9 +3485,13 @@ int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key, ecc_key* pub_key,
         int side, void* ctx)
 {
     int ret;
-#ifdef WOLFSSL_ASYNC_CRYPT
-    WC_ASYNC_DEV* asyncDev;
+#ifdef HAVE_PK_CALLBACKS
+    ecc_key* otherKey = NULL;
 #endif
+#ifdef WOLFSSL_ASYNC_CRYPT
+    WC_ASYNC_DEV* asyncDev = &priv_key->asyncDev;
+#endif
+
     (void)ssl;
     (void)pubKeyDer;
     (void)pubKeySz;
@@ -3435,30 +3502,37 @@ int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key, ecc_key* pub_key,
 
 #ifdef HAVE_PK_CALLBACKS
     if (ssl->ctx->EccSharedSecretCb) {
-        ecc_key* otherKey = NULL;
-
         ret = EccGetKey(ssl, &otherKey);
-        if (ret == 0) {
-            ret = ssl->ctx->EccSharedSecretCb(ssl, otherKey, pubKeyDer,
-                pubKeySz, out, outlen, side, ctx);
-        }
+        if (ret != 0)
+            return ret;
     #ifdef WOLFSSL_ASYNC_CRYPT
         asyncDev = &otherKey->asyncDev;
     #endif
+    }
+#endif
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* intialize event */
+    ret = wolfSSL_AsyncInit(ssl, asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    if (ret != 0)
+        return ret;
+#endif
+
+#ifdef HAVE_PK_CALLBACKS
+    if (ssl->ctx->EccSharedSecretCb) {
+        ret = ssl->ctx->EccSharedSecretCb(ssl, otherKey, pubKeyDer,
+            pubKeySz, out, outlen, side, ctx);
     }
     else
 #endif
     {
         ret = wc_ecc_shared_secret(priv_key, pub_key, out, outlen);
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        asyncDev = &priv_key->asyncDev;
-    #endif
     }
 
     /* Handle async pending response */
-#if defined(WOLFSSL_ASYNC_CRYPT)
+#ifdef WOLFSSL_ASYNC_CRYPT
     if (ret == WC_PENDING_E) {
-        ret = wolfSSL_AsyncPush(ssl, asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wolfSSL_AsyncPush(ssl, asyncDev);
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
@@ -3473,6 +3547,13 @@ int EccMakeKey(WOLFSSL* ssl, ecc_key* key, ecc_key* peer)
     int keySz = 0;
 
     WOLFSSL_ENTER("EccMakeKey");
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* intialize event */
+    ret = wolfSSL_AsyncInit(ssl, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+    if (ret != 0)
+        return ret;
+#endif
 
     if (peer == NULL) {
         keySz = ssl->eccTempKeySz;
@@ -3492,9 +3573,9 @@ int EccMakeKey(WOLFSSL* ssl, ecc_key* key, ecc_key* peer)
     }
 
     /* Handle async pending response */
-#if defined(WOLFSSL_ASYNC_CRYPT)
+#ifdef WOLFSSL_ASYNC_CRYPT
     if (ret == WC_PENDING_E) {
-        ret = wolfSSL_AsyncPush(ssl, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+        ret = wolfSSL_AsyncPush(ssl, &key->asyncDev);
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
@@ -3530,6 +3611,13 @@ int Ed25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
 
     WOLFSSL_ENTER("Ed25519Sign");
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* intialize event */
+    ret = wolfSSL_AsyncInit(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    if (ret != 0)
+        return ret;
+#endif
+
 #if defined(HAVE_PK_CALLBACKS)
     if (ssl->ctx->Ed25519SignCb) {
         ret = ssl->ctx->Ed25519SignCb(ssl, in, inSz, out, outSz, keyBuf,
@@ -3542,9 +3630,9 @@ int Ed25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
     }
 
     /* Handle async pending response */
-#if defined(WOLFSSL_ASYNC_CRYPT)
+#ifdef WOLFSSL_ASYNC_CRYPT
     if (ret == WC_PENDING_E) {
-        ret = wolfSSL_AsyncPush(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wolfSSL_AsyncPush(ssl, &key->asyncDev);
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
@@ -3578,6 +3666,13 @@ int Ed25519Verify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* msg,
 
     WOLFSSL_ENTER("Ed25519Verify");
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* intialize event */
+    ret = wolfSSL_AsyncInit(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    if (ret != 0)
+        return ret;
+#endif
+
 #ifdef HAVE_PK_CALLBACKS
     if (ssl->ctx->Ed25519VerifyCb) {
         ret = ssl->ctx->Ed25519VerifyCb(ssl, in, inSz, msg, msgSz, keyBuf,
@@ -3591,9 +3686,9 @@ int Ed25519Verify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* msg,
     }
 
     /* Handle async pending response */
-#if defined(WOLFSSL_ASYNC_CRYPT)
+#ifdef WOLFSSL_ASYNC_CRYPT
     if (ret == WC_PENDING_E) {
-        ret = wolfSSL_AsyncPush(ssl, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wolfSSL_AsyncPush(ssl, &key->asyncDev);
     }
     else
 #endif /* WOLFSSL_ASYNC_CRYPT */
@@ -3659,6 +3754,13 @@ static int X25519SharedSecret(WOLFSSL* ssl, curve25519_key* priv_key,
 
     WOLFSSL_ENTER("X25519SharedSecret");
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* intialize event */
+    ret = wolfSSL_AsyncInit(ssl, &priv_key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    if (ret != 0)
+        return ret;
+#endif
+
 #ifdef HAVE_PK_CALLBACKS
     if (ssl->ctx->X25519SharedSecretCb) {
         curve25519_key* otherKey = NULL;
@@ -3677,10 +3779,9 @@ static int X25519SharedSecret(WOLFSSL* ssl, curve25519_key* priv_key,
     }
 
     /* Handle async pending response */
-#if defined(WOLFSSL_ASYNC_CRYPT)
+#ifdef WOLFSSL_ASYNC_CRYPT
     if (ret == WC_PENDING_E) {
-        ret = wolfSSL_AsyncPush(ssl, &priv_key->asyncDev,
-                                                    WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wolfSSL_AsyncPush(ssl, &priv_key->asyncDev);
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
@@ -3698,14 +3799,21 @@ static int X25519MakeKey(WOLFSSL* ssl, curve25519_key* key,
 
     WOLFSSL_ENTER("X25519MakeKey");
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* intialize event */
+    ret = wolfSSL_AsyncInit(ssl, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+    if (ret != 0)
+        return ret;
+#endif
+
     ret = wc_curve25519_make_key(ssl->rng, CURVE25519_KEYSIZE, key);
     if (ret == 0)
         ssl->ecdhCurveOID = ECC_X25519_OID;
 
     /* Handle async pending response */
-#if defined(WOLFSSL_ASYNC_CRYPT)
+#ifdef WOLFSSL_ASYNC_CRYPT
     if (ret == WC_PENDING_E) {
-        ret = wolfSSL_AsyncPush(ssl, &key->asyncDev, WC_ASYNC_FLAG_NONE);
+        ret = wolfSSL_AsyncPush(ssl, &key->asyncDev);
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
@@ -3728,12 +3836,19 @@ int DhGenKeyPair(WOLFSSL* ssl, DhKey* dhKey,
 
     WOLFSSL_ENTER("DhGenKeyPair");
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* intialize event */
+    ret = wolfSSL_AsyncInit(ssl, &dhKey->asyncDev, WC_ASYNC_FLAG_NONE);
+    if (ret != 0)
+        return ret;
+#endif
+
     ret = wc_DhGenerateKeyPair(dhKey, ssl->rng, priv, privSz, pub, pubSz);
 
     /* Handle async pending response */
-#if defined(WOLFSSL_ASYNC_CRYPT)
+#ifdef WOLFSSL_ASYNC_CRYPT
     if (ret == WC_PENDING_E) {
-        ret = wolfSSL_AsyncPush(ssl, &dhKey->asyncDev, WC_ASYNC_FLAG_NONE);
+        ret = wolfSSL_AsyncPush(ssl, &dhKey->asyncDev);
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
@@ -3753,12 +3868,19 @@ int DhAgree(WOLFSSL* ssl, DhKey* dhKey,
 
     WOLFSSL_ENTER("DhAgree");
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    /* intialize event */
+    ret = wolfSSL_AsyncInit(ssl, &dhKey->asyncDev, WC_ASYNC_FLAG_NONE);
+    if (ret != 0)
+        return ret;
+#endif
+
     ret = wc_DhAgree(dhKey, agree, agreeSz, priv, privSz, otherPub, otherPubSz);
 
     /* Handle async pending response */
-#if defined(WOLFSSL_ASYNC_CRYPT)
+#ifdef WOLFSSL_ASYNC_CRYPT
     if (ret == WC_PENDING_E) {
-        ret = wolfSSL_AsyncPush(ssl, &dhKey->asyncDev, WC_ASYNC_FLAG_NONE);
+        ret = wolfSSL_AsyncPush(ssl, &dhKey->asyncDev);
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
@@ -4689,7 +4811,8 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->peerEccDsaKey);
     ssl->peerEccDsaKeyPresent = 0;
 #ifdef HAVE_CURVE25519
-    if (!ssl->peerX25519KeyPresent)
+    if (!ssl->peerX25519KeyPresent &&
+            ssl->eccTempKeyPresent != DYNAMIC_TYPE_CURVE25519)
 #endif /* HAVE_CURVE25519 */
     {
         FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->eccTempKey);
@@ -5619,12 +5742,12 @@ ProtocolVersion MakeDTLSv1_2(void)
 
     word32 LowResTimer(void)
     {
-        NET_SECURE_OS_TICK  clk = 0;
+        OS_TICK ticks = 0;
+        OS_ERR  err;
 
-        #if (NET_SECURE_MGR_CFG_EN == DEF_ENABLED)
-            clk = NetSecure_OS_TimeGet();
-        #endif
-        return (word32)clk;
+        ticks = OSTimeGet(&err);
+
+        return (word32) (ticks / OSCfg_TickRate_Hz);
     }
 
 
@@ -6370,32 +6493,6 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return SEQUENCE_ERROR;
     }
 #endif
-
-#ifdef OPENSSL_EXTRA
-    /* case where specific protocols are turned off */
-    if (!ssl->options.dtls && ssl->options.mask > 0) {
-        if (rh->pvMinor == SSLv3_MINOR &&
-            (ssl->options.mask & SSL_OP_NO_SSLv3) == SSL_OP_NO_SSLv3) {
-            WOLFSSL_MSG("Option set to not allow SSLv3");
-            return VERSION_ERROR;
-        }
-        if (rh->pvMinor == TLSv1_MINOR &&
-            (ssl->options.mask & SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1) {
-            WOLFSSL_MSG("Option set to not allow TLSv1");
-            return VERSION_ERROR;
-        }
-        if (rh->pvMinor == TLSv1_1_MINOR &&
-            (ssl->options.mask & SSL_OP_NO_TLSv1_1) == SSL_OP_NO_TLSv1_1) {
-            WOLFSSL_MSG("Option set to not allow TLSv1.1");
-            return VERSION_ERROR;
-        }
-        if (rh->pvMinor == TLSv1_2_MINOR &&
-            (ssl->options.mask & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
-            WOLFSSL_MSG("Option set to not allow TLSv1.2");
-            return VERSION_ERROR;
-        }
-    }
-#endif /* OPENSSL_EXTRA */
 
     /* catch version mismatch */
 #ifndef WOLFSSL_TLS13
@@ -7899,21 +7996,24 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             args->certs[args->certIdx].buffer,
                             args->certs[args->certIdx].length, ssl->heap);
                         args->dCert->sigCtx.devId = ssl->devId; /* setup async dev */
+                    #ifdef WOLFSSL_ASYNC_CRYPT
+                        args->dCert->sigCtx.asyncCtx = ssl;
+                    #endif
                         args->dCertInit = 1;
                     }
 
                     ret = ParseCertRelative(args->dCert, CERT_TYPE, 0,
-                                                                ssl->ctx->cm);
-                    if (ret != 0) {
-                    #ifdef WOLFSSL_ASYNC_CRYPT
-                        if (ret == WC_PENDING_E) {
-                            ret = wolfSSL_AsyncPush(ssl,
-                                args->dCert->sigCtx.asyncDev,
-                                WC_ASYNC_FLAG_CALL_AGAIN);
-                        }
-                    #endif
+                                                            ssl->ctx->cm);
+                    if (ret != 0 && ret != WC_PENDING_E)
+                        goto exit_ppc;
+
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    if (ret == WC_PENDING_E) {
+                        ret = wolfSSL_AsyncPush(ssl,
+                            args->dCert->sigCtx.asyncDev);
                         goto exit_ppc;
                     }
+                #endif
 
                 #ifndef NO_SKID
                     if (args->dCert->extAuthKeyIdSet) {
@@ -7964,21 +8064,24 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             args->certs[args->certIdx].buffer,
                             args->certs[args->certIdx].length, ssl->heap);
                         args->dCert->sigCtx.devId = ssl->devId;
+                    #ifdef WOLFSSL_ASYNC_CRYPT
+                        args->dCert->sigCtx.asyncCtx = ssl;
+                    #endif
                         args->dCertInit = 1;
                     }
 
                     ret = ParseCertRelative(args->dCert, CERT_TYPE, 0,
                                                                   ssl->ctx->cm);
-                    if (ret != 0) {
-                    #ifdef WOLFSSL_ASYNC_CRYPT
-                        if (ret == WC_PENDING_E) {
-                            ret = wolfSSL_AsyncPush(ssl,
-                                                   args->dCert->sigCtx.asyncDev,
-                                                   WC_ASYNC_FLAG_CALL_AGAIN);
-                        }
-                    #endif
+                    if (ret != 0 && ret != WC_PENDING_E) {
                         goto exit_ppc;
                     }
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    if (ret == WC_PENDING_E) {
+                        ret = wolfSSL_AsyncPush(ssl,
+                            args->dCert->sigCtx.asyncDev);
+                        goto exit_ppc;
+                    }
+                #endif
 
                 #ifndef NO_SKID
                     subjectHash = args->dCert->extSubjKeyId;
@@ -8008,6 +8111,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             args->certs[args->certIdx].buffer,
                             args->certs[args->certIdx].length, ssl->heap);
                         args->dCert->sigCtx.devId = ssl->devId; /* setup async dev */
+                    #ifdef WOLFSSL_ASYNC_CRYPT
+                        args->dCert->sigCtx.asyncCtx = ssl;
+                    #endif
                         args->dCertInit = 1;
                     }
 
@@ -8016,8 +8122,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #ifdef WOLFSSL_ASYNC_CRYPT
                     if (ret == WC_PENDING_E) {
                         ret = wolfSSL_AsyncPush(ssl,
-                            args->dCert->sigCtx.asyncDev,
-                            WC_ASYNC_FLAG_CALL_AGAIN);
+                            args->dCert->sigCtx.asyncDev);
                         goto exit_ppc;
                     }
                 #endif
@@ -8197,20 +8302,24 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     InitDecodedCert(args->dCert,
                         args->certs[args->certIdx].buffer,
                         args->certs[args->certIdx].length, ssl->heap);
+                    args->dCert->sigCtx.devId = ssl->devId; /* setup async dev */
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    args->dCert->sigCtx.asyncCtx = ssl;
+                #endif
                     args->dCertInit = 1;
                 }
 
             #ifdef WOLFSSL_TRUST_PEER_CERT
                 if (!haveTrustPeer)
             #endif
-                { /* only parse if not already present in dCert from above */
+                {
+                    /* only parse if not already present in dCert from above */
                     ret = ParseCertRelative(args->dCert, CERT_TYPE,
                                     !ssl->options.verifyNone, ssl->ctx->cm);
                 #ifdef WOLFSSL_ASYNC_CRYPT
                     if (ret == WC_PENDING_E) {
                         ret = wolfSSL_AsyncPush(ssl,
-                            args->dCert->sigCtx.asyncDev,
-                            WC_ASYNC_FLAG_CALL_AGAIN);
+                            args->dCert->sigCtx.asyncDev);
                         goto exit_ppc;
                     }
                 #endif
@@ -10464,12 +10573,18 @@ static INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
 
     #ifdef BUILD_DES3
         case wolfssl_triple_des:
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            /* intialize event */
+            asyncDev = &ssl->encrypt.des3->asyncDev;
+            ret = wolfSSL_AsyncInit(ssl, asyncDev, event_flags);
+            if (ret != 0)
+                break;
+        #endif
+
             ret = wc_Des3_CbcEncrypt(ssl->encrypt.des3, out, input, sz);
         #ifdef WOLFSSL_ASYNC_CRYPT
-            if (ret == WC_PENDING_E) {
-                asyncDev = &ssl->encrypt.des3->asyncDev;
-                if (asyncOkay)
-                    ret = wolfSSL_AsyncPush(ssl, asyncDev, event_flags);
+            if (ret == WC_PENDING_E && asyncOkay) {
+                ret = wolfSSL_AsyncPush(ssl, asyncDev);
             }
         #endif
             break;
@@ -10477,13 +10592,18 @@ static INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
 
     #ifdef BUILD_AES
         case wolfssl_aes:
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            /* intialize event */
+            asyncDev = &ssl->encrypt.aes->asyncDev;
+            ret = wolfSSL_AsyncInit(ssl, asyncDev, event_flags);
+            if (ret != 0)
+                break;
+        #endif
+
             ret = wc_AesCbcEncrypt(ssl->encrypt.aes, out, input, sz);
         #ifdef WOLFSSL_ASYNC_CRYPT
-            if (ret == WC_PENDING_E) {
-                asyncDev = &ssl->encrypt.aes->asyncDev;
-                if (asyncOkay)
-                    ret = wolfSSL_AsyncPush(ssl, asyncDev, event_flags);
-                break;
+            if (ret == WC_PENDING_E && asyncOkay) {
+                ret = wolfSSL_AsyncPush(ssl, asyncDev);
             }
         #endif
             break;
@@ -10495,6 +10615,15 @@ static INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
         {
             wc_AesAuthEncryptFunc aes_auth_fn;
             const byte* additionalSrc;
+
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            /* intialize event */
+            asyncDev = &ssl->encrypt.aes->asyncDev;
+            ret = wolfSSL_AsyncInit(ssl, asyncDev, event_flags);
+            if (ret != 0)
+                break;
+        #endif
+
         #if defined(BUILD_AESGCM) && defined(HAVE_AESCCM)
             aes_auth_fn = (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm)
                             ? wc_AesGcmEncrypt : wc_AesCcmEncrypt;
@@ -10536,10 +10665,8 @@ static INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
                     ssl->specs.aead_mac_size,
                     ssl->encrypt.additional, AEAD_AUTH_DATA_SZ);
         #ifdef WOLFSSL_ASYNC_CRYPT
-            if (ret == WC_PENDING_E) {
-                asyncDev = &ssl->encrypt.aes->asyncDev;
-                if (asyncOkay)
-                    ret = wolfSSL_AsyncPush(ssl, asyncDev, event_flags);
+            if (ret == WC_PENDING_E && asyncOkay) {
+                ret = wolfSSL_AsyncPush(ssl, asyncDev);
             }
         #endif
         }
@@ -10710,11 +10837,18 @@ static INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
 
     #ifdef BUILD_DES3
         case wolfssl_triple_des:
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            /* intialize event */
+            ret = wolfSSL_AsyncInit(ssl, &ssl->decrypt.des3->asyncDev,
+                WC_ASYNC_FLAG_CALL_AGAIN);
+            if (ret != 0)
+                break;
+        #endif
+
             ret = wc_Des3_CbcDecrypt(ssl->decrypt.des3, plain, input, sz);
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (ret == WC_PENDING_E) {
-                ret = wolfSSL_AsyncPush(ssl, &ssl->decrypt.des3->asyncDev,
-                                                    WC_ASYNC_FLAG_CALL_AGAIN);
+                ret = wolfSSL_AsyncPush(ssl, &ssl->decrypt.des3->asyncDev);
             }
         #endif
             break;
@@ -10722,11 +10856,18 @@ static INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
 
     #ifdef BUILD_AES
         case wolfssl_aes:
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            /* intialize event */
+            ret = wolfSSL_AsyncInit(ssl, &ssl->decrypt.aes->asyncDev,
+                WC_ASYNC_FLAG_CALL_AGAIN);
+            if (ret != 0)
+                break;
+        #endif
+
             ret = wc_AesCbcDecrypt(ssl->decrypt.aes, plain, input, sz);
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (ret == WC_PENDING_E) {
-                ret = wolfSSL_AsyncPush(ssl, &ssl->decrypt.aes->asyncDev,
-                                                    WC_ASYNC_FLAG_CALL_AGAIN);
+                ret = wolfSSL_AsyncPush(ssl, &ssl->decrypt.aes->asyncDev);
             }
         #endif
             break;
@@ -10737,6 +10878,15 @@ static INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
         case wolfssl_aes_ccm: /* GCM AEAD macros use same size as CCM */
         {
             wc_AesAuthDecryptFunc aes_auth_fn;
+
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            /* intialize event */
+            ret = wolfSSL_AsyncInit(ssl, &ssl->decrypt.aes->asyncDev,
+                WC_ASYNC_FLAG_CALL_AGAIN);
+            if (ret != 0)
+                break;
+        #endif
+
         #if defined(BUILD_AESGCM) && defined(HAVE_AESCCM)
             aes_auth_fn = (ssl->specs.bulk_cipher_algorithm == wolfssl_aes_gcm)
                             ? wc_AesGcmDecrypt : wc_AesCcmDecrypt;
@@ -10771,9 +10921,7 @@ static INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
                         ssl->decrypt.additional, AEAD_AUTH_DATA_SZ)) < 0) {
             #ifdef WOLFSSL_ASYNC_CRYPT
                 if (ret == WC_PENDING_E) {
-                    ret = wolfSSL_AsyncPush(ssl,
-                        &ssl->decrypt.aes->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-                    break;
+                    ret = wolfSSL_AsyncPush(ssl, &ssl->decrypt.aes->asyncDev);
                 }
             #endif
             }
@@ -16520,6 +16668,42 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
             }
         }
 
+#ifdef OPENSSL_EXTRA
+        /* check if option is set to not allow the current version
+         * set from either wolfSSL_set_options or wolfSSL_CTX_set_options */
+        if (!ssl->options.dtls && ssl->options.downgrade &&
+                ssl->options.mask > 0) {
+            if (ssl->version.minor == TLSv1_2_MINOR &&
+             (ssl->options.mask & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
+                WOLFSSL_MSG("\tOption set to not allow TLSv1.2, Downgrading");
+                ssl->version.minor = TLSv1_1_MINOR;
+            }
+            if (ssl->version.minor == TLSv1_1_MINOR &&
+             (ssl->options.mask & SSL_OP_NO_TLSv1_1) == SSL_OP_NO_TLSv1_1) {
+                WOLFSSL_MSG("\tOption set to not allow TLSv1.1, Downgrading");
+                ssl->options.tls1_1 = 0;
+                ssl->version.minor = TLSv1_MINOR;
+            }
+            if (ssl->version.minor == TLSv1_MINOR &&
+                (ssl->options.mask & SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1) {
+                WOLFSSL_MSG("\tOption set to not allow TLSv1, Downgrading");
+                ssl->options.tls    = 0;
+                ssl->options.tls1_1 = 0;
+                ssl->version.minor = SSLv3_MINOR;
+            }
+            if (ssl->version.minor == SSLv3_MINOR &&
+                (ssl->options.mask & SSL_OP_NO_SSLv3) == SSL_OP_NO_SSLv3) {
+                WOLFSSL_MSG("\tError, option set to not allow SSLv3");
+                return VERSION_ERROR;
+            }
+
+            if (ssl->version.minor < ssl->options.minDowngrade) {
+                WOLFSSL_MSG("\tversion below minimum allowed, fatal error");
+                return VERSION_ERROR;
+            }
+        }
+#endif
+
         return 0;
     }
 
@@ -19436,7 +19620,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         }
 
         /* Return the maximum signature length. */
-        *length = wc_ecc_sig_size((ecc_key*)ssl->hsKey);
+        *length = (word16)wc_ecc_sig_size((ecc_key*)ssl->hsKey);
 
         goto exit_dpk;
     }
@@ -20392,7 +20576,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             case TLS_ASYNC_BEGIN:
             {
             #ifdef HAVE_QSH
-                if (ssl->peerQSHKeyPresent) {
+                if (ssl->peerQSHKeyPresent && ssl->options.haveQSH) {
                     args->qshSz = QSH_KeyGetSize(ssl);
                 }
             #endif
@@ -20520,7 +20704,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 ret = X25519MakeKey(ssl,
                                         (curve25519_key*)ssl->eccTempKey, NULL);
                                 if (ret == 0 || ret == WC_PENDING_E) {
-                                    ssl->eccTempKeyPresent = 1;
+                                    ssl->eccTempKeyPresent =
+                                        DYNAMIC_TYPE_CURVE25519;
                                 }
                             }
                             break;
@@ -20542,7 +20727,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 then we know curve dp */
                             ret = EccMakeKey(ssl, ssl->eccTempKey, NULL);
                             if (ret == 0 || ret == WC_PENDING_E) {
-                                ssl->eccTempKeyPresent = 1;
+                                ssl->eccTempKeyPresent = DYNAMIC_TYPE_ECC;
                             }
                         }
                     #endif
@@ -22261,6 +22446,68 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                        ssl->options.haveECDSAsig, ssl->options.haveECC,
                        ssl->options.haveStaticECC, ssl->options.side);
         }
+
+#ifdef OPENSSL_EXTRA
+        /* check if option is set to not allow the current version
+         * set from either wolfSSL_set_options or wolfSSL_CTX_set_options */
+        if (!ssl->options.dtls && ssl->options.downgrade &&
+                ssl->options.mask > 0) {
+            int reset = 0;
+            if (ssl->version.minor == TLSv1_2_MINOR &&
+             (ssl->options.mask & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
+                WOLFSSL_MSG("\tOption set to not allow TLSv1.2, Downgrading");
+                ssl->version.minor = TLSv1_1_MINOR;
+                reset = 1;
+            }
+            if (ssl->version.minor == TLSv1_1_MINOR &&
+             (ssl->options.mask & SSL_OP_NO_TLSv1_1) == SSL_OP_NO_TLSv1_1) {
+                WOLFSSL_MSG("\tOption set to not allow TLSv1.1, Downgrading");
+                ssl->options.tls1_1 = 0;
+                ssl->version.minor = TLSv1_MINOR;
+                reset = 1;
+            }
+            if (ssl->version.minor == TLSv1_MINOR &&
+                (ssl->options.mask & SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1) {
+                WOLFSSL_MSG("\tOption set to not allow TLSv1, Downgrading");
+                ssl->options.tls    = 0;
+                ssl->options.tls1_1 = 0;
+                ssl->version.minor = SSLv3_MINOR;
+                reset = 1;
+            }
+            if (ssl->version.minor == SSLv3_MINOR &&
+                (ssl->options.mask & SSL_OP_NO_SSLv3) == SSL_OP_NO_SSLv3) {
+                WOLFSSL_MSG("\tError, option set to not allow SSLv3");
+                return VERSION_ERROR;
+            }
+
+            if (ssl->version.minor < ssl->options.minDowngrade) {
+                WOLFSSL_MSG("\tversion below minimum allowed, fatal error");
+                return VERSION_ERROR;
+            }
+
+            if (reset) {
+                word16 haveRSA = 0;
+                word16 havePSK = 0;
+                int    keySz   = 0;
+
+            #ifndef NO_RSA
+                haveRSA = 1;
+            #endif
+            #ifndef NO_PSK
+                havePSK = ssl->options.havePSK;
+            #endif
+            #ifndef NO_CERTS
+                keySz = ssl->buffers.keySz;
+            #endif
+
+                /* reset cipher suites to account for TLS version change */
+                InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
+                       ssl->options.haveDH, ssl->options.haveNTRU,
+                       ssl->options.haveECDSAsig, ssl->options.haveECC,
+                       ssl->options.haveStaticECC, ssl->options.side);
+            }
+        }
+#endif
 
         /* random */
         XMEMCPY(ssl->arrays->clientRandom, input + i, RAN_LEN);
@@ -24419,7 +24666,7 @@ int wolfSSL_AsyncPop(WOLFSSL* ssl, byte* state)
     return ret;
 }
 
-int wolfSSL_AsyncPush(WOLFSSL* ssl, WC_ASYNC_DEV* asyncDev, word32 flags)
+int wolfSSL_AsyncInit(WOLFSSL* ssl, WC_ASYNC_DEV* asyncDev, word32 flags)
 {
     int ret;
     WOLF_EVENT* event;
@@ -24433,12 +24680,29 @@ int wolfSSL_AsyncPush(WOLFSSL* ssl, WC_ASYNC_DEV* asyncDev, word32 flags)
 
     /* init event */
     ret = wolfAsync_EventInit(event, WOLF_EVENT_TYPE_ASYNC_WOLFSSL, ssl, flags);
-    if (ret == 0) {
-        ssl->async.dev = asyncDev;
 
-        /* place event into queue */
-        ret = wolfAsync_EventQueuePush(&ssl->ctx->event_queue, event);
+    WOLFSSL_LEAVE("wolfSSL_AsyncInit", ret);
+
+    return ret;
+}
+
+int wolfSSL_AsyncPush(WOLFSSL* ssl, WC_ASYNC_DEV* asyncDev)
+{
+    int ret;
+    WOLF_EVENT* event;
+
+    if (ssl == NULL || asyncDev == NULL) {
+        return BAD_FUNC_ARG;
     }
+
+    /* grab event pointer */
+    event = &asyncDev->event;
+
+    /* store reference to active async operation */
+    ssl->async.dev = asyncDev;
+
+    /* place event into queue */
+    ret = wolfAsync_EventQueuePush(&ssl->ctx->event_queue, event);
 
     /* success means return WC_PENDING_E */
     if (ret == 0) {

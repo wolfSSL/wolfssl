@@ -272,7 +272,7 @@ if !BUILD_CRYPTONLY
 # ssl files
 src_libwolfssl_la_SOURCES += \
                src/internal.c \
-               src/io.c \
+               src/wolfio.c \
                src/keys.c \
                src/ssl.c \
                src/tls.c

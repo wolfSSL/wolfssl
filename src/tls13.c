@@ -41,12 +41,12 @@
     #include <config.h>
 #endif
 
+#include <wolfssl/wolfcrypt/settings.h>
+
 #ifdef WOLFSSL_TLS13
 #ifdef HAVE_SESSION_TICKET
     #include <sys/time.h>
 #endif
-
-#include <wolfssl/wolfcrypt/settings.h>
 
 #ifndef WOLFCRYPT_ONLY
 
@@ -1178,12 +1178,12 @@ end:
      */
     word32 TimeNowInMilliseconds(void)
     {
-        NET_SECURE_OS_TICK  clk = 0;
+        OS_TICK ticks = 0;
+        OS_ERR  err;
 
-        #if (NET_SECURE_MGR_CFG_EN == DEF_ENABLED)
-            clk = NetSecure_OS_TimeGet();
-        #endif
-        return (word32)clk * 1000;
+        ticks = OSTimeGet(&err);
+
+        return (word32) (ticks / OSCfg_TickRate_Hz) * 1000;
     }
 #elif defined(MICROCHIP_TCPIP_V5)
     /* The time in milliseconds.
@@ -1618,25 +1618,35 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
             switch (ssl->specs.bulk_cipher_algorithm) {
             #ifdef BUILD_AESGCM
                 case wolfssl_aes_gcm:
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    /* intialize event */
+                    asyncDev = &ssl->encrypt.aes->asyncDev;
+                    ret = wolfSSL_AsyncInit(ssl, asyncDev, event_flags);
+                    if (ret != 0)
+                        break;
+                #endif
+
                     nonceSz = AESGCM_NONCE_SZ;
                     ret = wc_AesGcmEncrypt(ssl->encrypt.aes, output, input,
                         dataSz, ssl->encrypt.nonce, nonceSz,
                         output + dataSz, macSz, NULL, 0);
-                #ifdef WOLFSSL_ASYNC_CRYPT
-                    asyncDev = &ssl->encrypt.aes->asyncDev;
-                #endif
                     break;
             #endif
 
             #ifdef HAVE_AESCCM
                 case wolfssl_aes_ccm:
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    /* intialize event */
+                    asyncDev = &ssl->encrypt.aes->asyncDev;
+                    ret = wolfSSL_AsyncInit(ssl, asyncDev, event_flags);
+                    if (ret != 0)
+                        break;
+                #endif
+
                     nonceSz = AESCCM_NONCE_SZ;
                     ret = wc_AesCcmEncrypt(ssl->encrypt.aes, output, input,
                         dataSz, ssl->encrypt.nonce, nonceSz,
                         output + dataSz, macSz, NULL, 0);
-                #ifdef WOLFSSL_ASYNC_CRYPT
-                    asyncDev = &ssl->encrypt.aes->asyncDev;
-                #endif
                     break;
             #endif
 
@@ -1663,9 +1673,7 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
                 }
                 else {
                     /* If pending, then leave and return will resume below */
-                    ret = wolfSSL_AsyncPush(ssl, asyncDev, event_flags);
-
-                    return ret;
+                    return wolfSSL_AsyncPush(ssl, asyncDev);
                 }
             }
         #endif
@@ -1824,14 +1832,21 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz)
             switch (ssl->specs.bulk_cipher_algorithm) {
             #ifdef BUILD_AESGCM
                 case wolfssl_aes_gcm:
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    /* intialize event */
+                    ret = wolfSSL_AsyncInit(ssl, &ssl->decrypt.aes->asyncDev,
+                        WC_ASYNC_FLAG_CALL_AGAIN);
+                    if (ret != 0)
+                        break;
+                #endif
+
                     nonceSz = AESGCM_NONCE_SZ;
                     ret = wc_AesGcmDecrypt(ssl->decrypt.aes, output, input,
                         dataSz, ssl->decrypt.nonce, nonceSz,
                         input + dataSz, macSz, NULL, 0);
                 #ifdef WOLFSSL_ASYNC_CRYPT
                     if (ret == WC_PENDING_E) {
-                        ret = wolfSSL_AsyncPush(ssl, &ssl->decrypt.aes->asyncDev,
-                                                        WC_ASYNC_FLAG_CALL_AGAIN);
+                        ret = wolfSSL_AsyncPush(ssl, &ssl->decrypt.aes->asyncDev);
                     }
                 #endif
                     break;
@@ -1839,14 +1854,21 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz)
 
             #ifdef HAVE_AESCCM
                 case wolfssl_aes_ccm:
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    /* intialize event */
+                    ret = wolfSSL_AsyncInit(ssl, &ssl->decrypt.aes->asyncDev,
+                        WC_ASYNC_FLAG_CALL_AGAIN);
+                    if (ret != 0)
+                        break;
+                #endif
+
                     nonceSz = AESCCM_NONCE_SZ;
                     ret = wc_AesCcmDecrypt(ssl->decrypt.aes, output, input,
                         dataSz, ssl->decrypt.nonce, nonceSz,
                         input + dataSz, macSz, NULL, 0);
                 #ifdef WOLFSSL_ASYNC_CRYPT
                     if (ret == WC_PENDING_E) {
-                        ret = wolfSSL_AsyncPush(ssl, &ssl->decrypt.aes->asyncDev,
-                                                        WC_ASYNC_FLAG_CALL_AGAIN);
+                        ret = wolfSSL_AsyncPush(ssl, &ssl->decrypt.aes->asyncDev);
                     }
                 #endif
                     break;

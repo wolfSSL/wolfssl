@@ -291,14 +291,14 @@ int wc_InitRsaHw(RsaKey* key)
     }
 
     if (mp_to_unsigned_bin(&(key->n), m) != MP_OKAY) {
-        WOLFSSL_MSG("Unable to get RSA key modulous");
+        WOLFSSL_MSG("Unable to get RSA key modulus");
         XFREE(m, key->heap, DYNAMIC_TYPE_KEY);
         return MP_READ_E;
     }
 
     eSz = mp_unsigned_bin_size(&(key->e));
     if (eSz > MAX_E_SIZE) {
-        WOLFSSL_MSG("Expnonent of size 4 bytes expected");
+        WOLFSSL_MSG("Exponent of size 4 bytes expected");
         XFREE(m, key->heap, DYNAMIC_TYPE_KEY);
         return BAD_FUNC_ARG;
     }
@@ -582,7 +582,7 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
     /* handles check of location for idx as well as psLen, cast to int to check
        for pkcsBlockLen(k) - 2 * hLen - 2 being negative
        This check is similar to decryption where k > 2 * hLen + 2 as msg
-       size aproaches 0. In decryption if k is less than or equal -- then there
+       size approaches 0. In decryption if k is less than or equal -- then there
        is no possible room for msg.
        k = RSA key size
        hLen = hash digest size -- will always be >= 0 at this point
@@ -902,7 +902,7 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     idx = hLen + 1 + hLen;
     while (idx < pkcsBlockLen && pkcsBlock[idx] == 0) {idx++;}
 
-    /* create hash of label for comparision with hash sent */
+    /* create hash of label for comparison with hash sent */
     if ((ret = wc_Hash(hType, optLabel, labelLen, h, hLen)) != 0) {
         return ret;
     }
@@ -919,6 +919,7 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     ret += pkcsBlock[0]     ^ 0x00; /* Y, the first value, should be 0 */
 
     if (ret != 0) {
+        WOLFSSL_MSG("RsaUnPad_OAEP: Padding Error");
         return BAD_PADDING_E;
     }
 
@@ -941,8 +942,10 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
     if (hLen < 0)
         return hLen;
 
-    if (pkcsBlock[pkcsBlockLen - 1] != 0xbc)
+    if (pkcsBlock[pkcsBlockLen - 1] != 0xbc) {
+        WOLFSSL_MSG("RsaUnPad_PSS: Padding Error 0xBC");
         return BAD_PADDING_E;
+    }
 
     tmp = (byte*)XMALLOC(pkcsBlockLen, heap, DYNAMIC_TYPE_RSA_BUFFER);
     if (tmp == NULL) {
@@ -959,11 +962,13 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
     for (i = 0; i < (int)(pkcsBlockLen - 1 - hLen - hLen - 1); i++) {
         if (tmp[i] != pkcsBlock[i]) {
             XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
+            WOLFSSL_MSG("RsaUnPad_PSS: Padding Error Match");
             return BAD_PADDING_E;
         }
     }
     if (tmp[i] != (pkcsBlock[i] ^ 0x01)) {
         XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
+        WOLFSSL_MSG("RsaUnPad_PSS: Padding Error End");
         return BAD_PADDING_E;
     }
     for (i++; i < (int)(pkcsBlockLen - 1 - hLen); i++)
@@ -1289,9 +1294,8 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
     (void)rng;
 
 #ifdef WOLFSSL_ASYNC_CRYPT_TEST
-    WC_ASYNC_TEST* testDev = &key->asyncDev.test;
-    if (testDev->type == ASYNC_TEST_NONE) {
-        testDev->type = ASYNC_TEST_RSA_FUNC;
+    if (wc_AsyncTestInit(&key->asyncDev, ASYNC_TEST_RSA_FUNC)) {
+        WC_ASYNC_TEST* testDev = &key->asyncDev.test;
         testDev->rsaFunc.in = in;
         testDev->rsaFunc.inSz = inLen;
         testDev->rsaFunc.out = out;
@@ -1781,8 +1785,10 @@ int wc_RsaPSS_CheckPadding(const byte* in, word32 inSz, byte* sig,
         ret = wc_Hash(hashType, sig, RSA_PSS_PAD_SZ + inSz * 2, sig, inSz);
         if (ret != 0)
             return ret;
-        if (XMEMCMP(sig, sig + RSA_PSS_PAD_SZ + inSz * 2, inSz) != 0)
+        if (XMEMCMP(sig, sig + RSA_PSS_PAD_SZ + inSz * 2, inSz) != 0) {
+            WOLFSSL_MSG("RsaPSS_CheckPadding: Padding Error");
             ret = BAD_PADDING_E;
+        }
         else
             ret = 0;
     }
@@ -1870,9 +1876,8 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     #elif defined(HAVE_INTEL_QA)
         /* TODO: Not implemented */
     #else
-        WC_ASYNC_TEST* testDev = &key->asyncDev.test;
-        if (testDev->type == ASYNC_TEST_NONE) {
-            testDev->type = ASYNC_TEST_RSA_MAKE;
+        if (wc_AsyncTestInit(&key->asyncDev, ASYNC_TEST_RSA_MAKE)) {
+            WC_ASYNC_TEST* testDev = &key->asyncDev.test;
             testDev->rsaMake.rng = rng;
             testDev->rsaMake.key = key;
             testDev->rsaMake.size = size;

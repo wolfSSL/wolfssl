@@ -242,7 +242,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XBADFILE                NULL
     #define XFGETS                  fgets
 #elif defined(MICRIUM)
-    #include <fs.h>
+    #include <fs_api.h>
     #define XFILE      FS_FILE*
     #define XFOPEN     fs_fopen
     #define XFSEEK     fs_fseek
@@ -308,6 +308,9 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 #endif /* !NO_FILESYSTEM */
 
+#ifdef USE_WOLF_STRTOK
+    WOLFSSL_LOCAL char* wc_strtok(char *str, const char *delim, char **nextp);
+#endif
 
 /* Windows API defines its own min() macro. */
 #if defined(USE_WINDOWS_API)

@@ -348,6 +348,59 @@ wolfSSL_Mutex* wc_InitAndAllocMutex(void)
     return m;
 }
 
+#ifdef USE_WOLF_STRTOK
+/* String token (delim) search. If str is null use nextp. */
+char* wc_strtok(char *str, const char *delim, char **nextp)
+{
+    char* ret;
+    int i, j;
+
+    /* Use next if str is NULL */
+    if (str == NULL && nextp)
+        str = *nextp;
+
+    /* verify str input */
+    if (str == NULL || *str == '\0')
+        return NULL;
+
+    /* match on entire delim */
+    for (i = 0; str[i]; i++) {
+        for (j = 0; delim[j]; j++) {
+            if (delim[j] == str[i])
+                break;
+        }
+        if (!delim[j])
+            break;
+    }
+    str += i;
+    /* if end of string, not found so return NULL */
+    if (*str == '\0')
+        return NULL;
+
+    ret = str;
+
+    /* match on first delim */
+    for (i = 0; str[i]; i++) {
+        for (j = 0; delim[j]; j++) {
+            if (delim[j] == str[i])
+                break;
+        }
+        if (delim[j] == str[i])
+            break;
+    }
+    str += i;
+
+    /* null terminate found string */
+    if (*str)
+        *str++ = '\0';
+
+    /* return pointer to next */
+    if (nextp)
+        *nextp = str;
+
+    return ret;
+}
+#endif /* USE_WOLF_STRTOK */
 
 #if WOLFSSL_CRYPT_HW_MUTEX
 /* Mutex for protection of cryptography hardware */
@@ -590,20 +643,24 @@ int wolfSSL_CryptHwMutexUnLock(void) {
 
     int wc_InitMutex(wolfSSL_Mutex* m)
     {
-        #if (NET_SECURE_MGR_CFG_EN == DEF_ENABLED)
-            if (NetSecure_OS_MutexCreate(m) == 0)
-                return 0;
-            else
-                return BAD_MUTEX_E;
-        #else
+        OS_ERR err;
+
+        OSMutexCreate(m, "wolfSSL Mutex", &err);
+
+        if (err == OS_ERR_NONE)
             return 0;
-        #endif
+        else
+            return BAD_MUTEX_E;
     }
 
     int wc_FreeMutex(wolfSSL_Mutex* m)
     {
-        #if (NET_SECURE_MGR_CFG_EN == DEF_ENABLED)
-            if (NetSecure_OS_wc_FreeMutex(m) == 0)
+        #if (OS_CFG_MUTEX_DEL_EN == DEF_ENABLED)
+            OS_ERR err;
+
+            OSMutexDel(m, OS_OPT_DEL_ALWAYS, &err);
+
+            if (err == OS_ERR_NONE)
                 return 0;
             else
                 return BAD_MUTEX_E;
@@ -614,27 +671,26 @@ int wolfSSL_CryptHwMutexUnLock(void) {
 
     int wc_LockMutex(wolfSSL_Mutex* m)
     {
-        #if (NET_SECURE_MGR_CFG_EN == DEF_ENABLED)
-            if (NetSecure_OS_wc_LockMutex(m) == 0)
-                return 0;
-            else
-                return BAD_MUTEX_E;
-        #else
+        OS_ERR err;
+
+        OSMutexPend(m, 0, OS_OPT_PEND_BLOCKING, NULL, &err);
+
+        if (err == OS_ERR_NONE)
             return 0;
-        #endif
+        else
+            return BAD_MUTEX_E;
     }
 
     int wc_UnLockMutex(wolfSSL_Mutex* m)
     {
-        #if (NET_SECURE_MGR_CFG_EN == DEF_ENABLED)
-            if (NetSecure_OS_wc_UnLockMutex(m) == 0)
-                return 0;
-            else
-                return BAD_MUTEX_E;
-        #else
-            return 0;
-        #endif
+        OS_ERR err;
 
+        OSMutexPost(m, OS_OPT_POST_NONE, &err);
+
+        if (err == OS_ERR_NONE)
+            return 0;
+        else
+            return BAD_MUTEX_E;
     }
 
 #elif defined(EBSNET)

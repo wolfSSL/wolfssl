@@ -4538,9 +4538,13 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                 finishSz = (word32)(bufferEnd - finish);
                 newline = XSTRNSTR(finish, "\r", min(finishSz, PEM_LINE_LEN));
 
+                if (NAME_SZ < (finish - start)) /* buffer size of info->name*/
+                    return BUFFER_E;
                 if (XMEMCPY(info->name, start, finish - start) == NULL)
                     return SSL_FATAL_ERROR;
                 info->name[finish - start] = 0;
+                if (finishSz < sizeof(info->iv) + 1)
+                    return BUFFER_E;
                 if (XMEMCPY(info->iv, finish + 1, sizeof(info->iv)) == NULL)
                     return SSL_FATAL_ERROR;
 
@@ -6004,7 +6008,9 @@ int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
                                      const char* path)
 {
     int ret = SSL_SUCCESS;
+#ifndef NO_WOLFSSL_DIR
     int fileRet;
+#endif
 
     WOLFSSL_ENTER("wolfSSL_CTX_load_verify_locations");
 
@@ -11449,6 +11455,60 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return sz;
     }
 
+    /* Handles reading from a memory type BIO and advancing the state.
+     *
+     * bio  WOLFSSL_BIO to read from
+     * buf  buffer to put data from bio in
+     * len  amount of data to be read
+     *
+     * returns size read on success
+     */
+    static int wolfSSL_BIO_MEMORY_read(WOLFSSL_BIO* bio, void* buf, int len)
+    {
+        int   sz;
+
+        sz = (int)wolfSSL_BIO_ctrl_pending(bio);
+        if (sz > 0) {
+            byte* pt = NULL;
+            int memSz;
+
+            if (sz > len) {
+                sz = len;
+            }
+            memSz = wolfSSL_BIO_get_mem_data(bio, (void*)&pt);
+            if (memSz >= sz && pt != NULL) {
+                byte* tmp;
+
+                XMEMCPY(buf, pt, sz);
+                if (memSz - sz > 0) {
+                    tmp = (byte*)XMALLOC(memSz-sz, bio->heap,
+                            DYNAMIC_TYPE_OPENSSL);
+                    if (tmp == NULL) {
+                        WOLFSSL_MSG("Memory error");
+                        return WOLFSSL_BIO_ERROR;
+                    }
+                    XMEMCPY(tmp, pt + sz, memSz - sz);
+
+                    /* reset internal bio->mem, tmp gets free'd with
+                     * wolfSSL_BIO_free */
+                    XFREE(bio->mem, bio->heap, DYNAMIC_TYPE_OPENSSL);
+                    bio->mem = tmp;
+                }
+                bio->wrSz  -= sz;
+                bio->memLen = memSz - sz;
+            }
+            else {
+                WOLFSSL_MSG("Issue with getting bio mem pointer");
+                return 0;
+            }
+        }
+        else {
+            return WOLFSSL_BIO_ERROR;
+        }
+
+        return sz;
+    }
+
 
     int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
     {
@@ -11468,9 +11528,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         }
     #endif
         if (bio && bio->type == BIO_MEMORY) {
-            len = min(len, bio->memLen);
-            XMEMCPY(buf, bio->mem, len);
-            return len;
+            return wolfSSL_BIO_MEMORY_read(bio, buf, len);
         }
 
         /* already got eof, again is error */
@@ -13818,6 +13876,20 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
     }
 
 
+    /* Used to get a string from the WOLFSSL_X509_NAME structure that
+     * corresponds with the NID value passed in.
+     *
+     * name structure to get string from
+     * nid  NID value to search for
+     * buf  [out] buffer to hold results. If NULL then the buffer size minus the
+     *      null char is returned.
+     * len  size of "buf" passed in
+     *
+     * returns the length of string found, not including the NULL terminator.
+     *         It's possible the function could return a negative value in the
+     *         case that len is less than or equal to 0. A negative value is
+     *         considered an error case.
+     */
     int wolfSSL_X509_NAME_get_text_by_NID(WOLFSSL_X509_NAME* name,
                                           int nid, char* buf, int len)
     {
@@ -13860,11 +13932,17 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
                 textSz = name->fullName.ouLen;
                 break;
             default:
-                break;
+                WOLFSSL_MSG("Unknown NID value");
+                return -1;
+        }
+
+        /* if buf is NULL return size of buffer needed (minus null char) */
+        if (buf == NULL) {
+            return textSz;
         }
 
         if (buf != NULL && text != NULL) {
-            textSz = min(textSz, len);
+            textSz = min(textSz + 1, len); /* + 1 to account for null char */
             if (textSz > 0) {
                 XMEMCPY(buf, text, textSz - 1);
                 buf[textSz - 1] = '\0';
@@ -13872,7 +13950,7 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
         }
 
         WOLFSSL_LEAVE("wolfSSL_X509_NAME_get_text_by_NID", textSz);
-        return textSz;
+        return (textSz - 1); /* do not include null character in size */
     }
 
     int wolfSSL_X509_NAME_get_index_by_NID(WOLFSSL_X509_NAME* name,
@@ -16268,6 +16346,10 @@ int wolfSSL_PEM_def_callback(char* name, int num, int w, void* key)
 
 unsigned long wolfSSL_set_options(WOLFSSL* ssl, unsigned long op)
 {
+    word16 haveRSA = 1;
+    word16 havePSK = 0;
+    int    keySz   = 0;
+
     WOLFSSL_ENTER("wolfSSL_set_options");
 
     if (ssl == NULL) {
@@ -16338,6 +16420,21 @@ unsigned long wolfSSL_set_options(WOLFSSL* ssl, unsigned long op)
         WOLFSSL_MSG("SSL_OP_NO_COMPRESSION: compression not compiled in");
     #endif
     }
+
+    /* in the case of a version change the cipher suites should be reset */
+    #ifndef NO_PSK
+        havePSK = ssl->options.havePSK;
+    #endif
+    #ifdef NO_RSA
+        haveRSA = 0;
+    #endif
+    #ifndef NO_CERTS
+        keySz = ssl->buffers.keySz;
+    #endif
+    InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
+                       ssl->options.haveDH, ssl->options.haveNTRU,
+                       ssl->options.haveECDSAsig, ssl->options.haveECC,
+                       ssl->options.haveStaticECC, ssl->options.side);
 
     return ssl->options.mask;
 }
@@ -22869,11 +22966,10 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
     WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 **x,
                                                  pem_password_cb *cb, void *u)
     {
-#ifndef NO_FILESYSTEM
         WOLFSSL_X509* x509 = NULL;
         unsigned char* pem = NULL;
         int pemSz;
-        int pemAlloced = 0;
+        long  i = 0, l;
 
         WOLFSSL_ENTER("wolfSSL_PEM_read_bio_X509");
 
@@ -22883,17 +22979,14 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         }
 
         if (bp->type == BIO_MEMORY) {
-            pemSz = wolfSSL_BIO_get_mem_data(bp, &pem);
-            if (pemSz <= 0 || pem == NULL) {
-                WOLFSSL_MSG("Issue getting WOLFSSL_BIO mem");
-                WOLFSSL_LEAVE("wolfSSL_PEM_read_bio_X509", pemSz);
+            l = (long)wolfSSL_BIO_ctrl_pending(bp);
+            if (l <= 0) {
+                WOLFSSL_MSG("No pending data in WOLFSSL_BIO");
                 return NULL;
             }
         }
         else if (bp->type == BIO_FILE) {
-            long i;
-            long l;
-
+#ifndef NO_FILESYSTEM
             /* Read in next certificate from file but no more. */
             i = XFTELL(bp->file);
             if (i < 0)
@@ -22903,34 +22996,41 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
             if (l < 0)
                 return NULL;
             XFSEEK(bp->file, i, SEEK_SET);
-
-            /* check calulated length */
-            if (l - i < 0)
-                return NULL;
-
-            pem = (unsigned char*)XMALLOC(l - i, 0, DYNAMIC_TYPE_PEM);
-            if (pem == NULL)
-                return NULL;
-            pemAlloced = 1;
-
-            i = 0;
-            /* TODO: Inefficient
-             * reading in one byte at a time until see END_CERT
-             */
-            while ((l = wolfSSL_BIO_read(bp, (char *)&pem[i], 1)) == 1) {
-                i++;
-                if (i > 26 && XMEMCMP((char *)&pem[i-26], END_CERT, 25) == 0)
-                    break;
-            }
-        #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
-            if (l == 0)
-                WOLFSSL_ERROR(SSL_NO_PEM_HEADER);
-        #endif
-            pemSz = (int)i;
+#else
+            WOLFSSL_MSG("Unable to read file with NO_FILESYSTEM defined");
+            return NULL;
+#endif
         }
         else
             return NULL;
 
+        /* check calulated length */
+        if (l - i < 0)
+            return NULL;
+        pem = (unsigned char*)XMALLOC(l - i, 0, DYNAMIC_TYPE_PEM);
+        if (pem == NULL)
+            return NULL;
+
+        i = 0;
+        /* TODO: Inefficient
+         * reading in one byte at a time until see END_CERT
+         */
+        while ((l = wolfSSL_BIO_read(bp, (char *)&pem[i], 1)) == 1) {
+            i++;
+            if (i > 26 && XMEMCMP((char *)&pem[i-26], END_CERT, 25) == 0) {
+                if (pem[i-1] == '\r') {
+                    /* found \r , Windows line ending is \r\n so try to read one
+                     * more byte for \n */
+                    wolfSSL_BIO_read(bp, (char *)&pem[i++], 1);
+                }
+                break;
+            }
+        }
+    #ifdef WOLFSSL_NGINX
+        if (l == 0)
+            WOLFSSL_ERROR(SSL_NO_PEM_HEADER);
+    #endif
+        pemSz = (int)i;
         x509 = wolfSSL_X509_load_certificate_buffer(pem, pemSz,
                                                               SSL_FILETYPE_PEM);
 
@@ -22938,20 +23038,12 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
             *x = x509;
         }
 
-        if (pemAlloced)
-            XFREE(pem, NULL, DYNAMIC_TYPE_PEM);
+        XFREE(pem, NULL, DYNAMIC_TYPE_PEM);
 
         (void)cb;
         (void)u;
 
         return x509;
-#else
-        (void)bp;
-        (void)x;
-        (void)cb;
-        (void)u;
-        return NULL;
-#endif
     }
 
 

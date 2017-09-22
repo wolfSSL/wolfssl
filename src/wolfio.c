@@ -1,4 +1,4 @@
-/* io.c
+/* wolfio.c
  *
  * Copyright (C) 2006-2016 wolfSSL Inc.
  *
@@ -36,7 +36,7 @@
 
 #include <wolfssl/internal.h>
 #include <wolfssl/error-ssl.h>
-#include <wolfssl/io.h>
+#include <wolfssl/wolfio.h>
 
 #if defined(HAVE_HTTP_CLIENT)
     #include <stdlib.h>   /* atoi(), strtol() */
@@ -572,9 +572,8 @@ int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags)
 int wolfIO_Send(SOCKET_T sd, char *buf, int sz, int wrFlags)
 {
     int sent;
-    int len = sz;
 
-    sent = (int)SEND_FUNCTION(sd, &buf[sz - len], len, wrFlags);
+    sent = (int)SEND_FUNCTION(sd, buf, sz, wrFlags);
     sent = TranslateReturnCode(sent, sd);
 
     return sent;
@@ -1555,5 +1554,222 @@ void wolfSSL_SetIO_NetX(WOLFSSL* ssl, NX_TCP_SOCKET* nxSocket, ULONG waitOption)
 }
 
 #endif /* HAVE_NETX */
+
+
+#ifdef MICRIUM
+
+/* Micrium uTCP/IP port, using the NetSock API
+ * TCP and UDP are currently supported with the callbacks below.
+ *
+ * WOLFSSL_SESSION_EXPORT is not yet supported, would need EmbedGetPeer()
+ * and EmbedSetPeer() callbacks implemented.
+ *
+ * HAVE_CRL is not yet supported, would need an EmbedCrlLookup()
+ * callback implemented.
+ *
+ * HAVE_OCSP is not yet supported, would need an EmbedOCSPLookup()
+ * callback implemented.
+ */
+
+/* The Micrium uTCP/IP send callback
+ * return : bytes sent, or error
+ */
+int MicriumSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
+{
+    NET_SOCK_ID sd = *(int*)ctx;
+    NET_SOCK_RTN_CODE ret;
+    NET_ERR err;
+
+    ret = NetSock_TxData(sd, buf, sz, ssl->wflags, &err);
+    if (ret < 0) {
+        WOLFSSL_MSG("Embed Send error");
+
+        if (err == NET_ERR_TX) {
+            WOLFSSL_MSG("\tWould block");
+            return WOLFSSL_CBIO_ERR_WANT_WRITE;
+
+        } else {
+            WOLFSSL_MSG("\tGeneral error");
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+    }
+
+    return ret;
+}
+
+/* The Micrium uTCP/IP receive callback
+ *  return : nb bytes read, or error
+ */
+int MicriumReceive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
+{
+    NET_SOCK_ID sd = *(int*)ctx;
+    NET_SOCK_RTN_CODE ret;
+    NET_ERR err;
+
+#ifdef WOLFSSL_DTLS
+    {
+        int dtls_timeout = wolfSSL_dtls_get_current_timeout(ssl);
+        if (wolfSSL_dtls(ssl)
+                     && !wolfSSL_get_using_nonblock(ssl)
+                     && dtls_timeout != 0) {
+            /* needs timeout in milliseconds */
+            NetSock_CfgTimeoutRxQ_Set(sd, dtls_timeout * 1000, &err);
+            if (err != NET_SOCK_ERR_NONE) {
+                WOLFSSL_MSG("NetSock_CfgTimeoutRxQ_Set failed");
+            }
+        }
+    }
+#endif
+
+    ret = NetSock_RxData(sd, buf, sz, ssl->rflags, &err);
+    if (ret < 0) {
+        WOLFSSL_MSG("Embed Receive error");
+
+        if (err == NET_ERR_RX || err == NET_SOCK_ERR_RX_Q_EMPTY ||
+            err == NET_ERR_FAULT_LOCK_ACQUIRE) {
+            if (!wolfSSL_dtls(ssl) || wolfSSL_get_using_nonblock(ssl)) {
+                WOLFSSL_MSG("\tWould block");
+                return WOLFSSL_CBIO_ERR_WANT_READ;
+            }
+            else {
+                WOLFSSL_MSG("\tSocket timeout");
+                return WOLFSSL_CBIO_ERR_TIMEOUT;
+            }
+
+        } else if (err == NET_SOCK_ERR_CLOSED) {
+            WOLFSSL_MSG("Embed receive connection closed");
+            return WOLFSSL_CBIO_ERR_CONN_CLOSE;
+
+        } else {
+            WOLFSSL_MSG("\tGeneral error");
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+    }
+
+    return ret;
+}
+
+/* The Micrium uTCP/IP receivefrom callback
+ *  return : nb bytes read, or error
+ */
+int MicriumReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
+{
+    WOLFSSL_DTLS_CTX* dtlsCtx = (WOLFSSL_DTLS_CTX*)ctx;
+    NET_SOCK_ID       sd = dtlsCtx->rfd;
+    NET_SOCK_ADDR     peer;
+    NET_SOCK_ADDR_LEN peerSz = sizeof(peer);
+    NET_SOCK_RTN_CODE ret;
+    NET_ERR err;
+    int dtls_timeout = wolfSSL_dtls_get_current_timeout(ssl);
+
+    WOLFSSL_ENTER("MicriumReceiveFrom()");
+
+    if (ssl->options.handShakeDone)
+        dtls_timeout = 0;
+
+    if (!wolfSSL_get_using_nonblock(ssl)) {
+        /* needs timeout in milliseconds */
+        NetSock_CfgTimeoutRxQ_Set(sd, dtls_timeout * 1000, &err);
+        if (err != NET_SOCK_ERR_NONE) {
+            WOLFSSL_MSG("NetSock_CfgTimeoutRxQ_Set failed");
+        }
+    }
+
+    ret = NetSock_RxDataFrom(sd, buf, sz, ssl->rflags, &peer, &peerSz,
+                             0, 0, 0, &err);
+    if (ret < 0) {
+        WOLFSSL_MSG("Embed Receive From error");
+
+        if (err == NET_ERR_RX || err == NET_SOCK_ERR_RX_Q_EMPTY ||
+            err == NET_ERR_FAULT_LOCK_ACQUIRE) {
+            if (wolfSSL_get_using_nonblock(ssl)) {
+                WOLFSSL_MSG("\tWould block");
+                return WOLFSSL_CBIO_ERR_WANT_READ;
+            }
+            else {
+                WOLFSSL_MSG("\tSocket timeout");
+                return WOLFSSL_CBIO_ERR_TIMEOUT;
+            }
+        } else {
+            WOLFSSL_MSG("\tGeneral error");
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+    }
+    else {
+        if (dtlsCtx->peer.sz > 0
+                && peerSz != (NET_SOCK_ADDR_LEN)dtlsCtx->peer.sz
+                && XMEMCMP(&peer, dtlsCtx->peer.sa, peerSz) != 0) {
+            WOLFSSL_MSG("\tIgnored packet from invalid peer");
+            return WOLFSSL_CBIO_ERR_WANT_READ;
+        }
+    }
+
+    return ret;
+}
+
+/* The Micrium uTCP/IP sendto callback
+ *  return : nb bytes sent, or error
+ */
+int MicriumSendTo(WOLFSSL* ssl, char *buf, int sz, void *ctx)
+{
+    WOLFSSL_DTLS_CTX* dtlsCtx = (WOLFSSL_DTLS_CTX*)ctx;
+    NET_SOCK_ID sd = dtlsCtx->wfd;
+    NET_SOCK_RTN_CODE ret;
+    int len = sz;
+    NET_ERR err;
+
+    WOLFSSL_ENTER("MicriumSendTo()");
+
+    ret = NetSock_TxDataTo(sd, &buf[sz - len], len, ssl->wflags,
+                           (NET_SOCK_ADDR*)dtlsCtx->peer.sa,
+                           (NET_SOCK_ADDR_LEN)dtlsCtx->peer.sz,
+                           &err);
+    if (err < 0) {
+        WOLFSSL_MSG("Embed Send To error");
+
+        if (err == NET_ERR_TX) {
+            WOLFSSL_MSG("\tWould block");
+            return WOLFSSL_CBIO_ERR_WANT_WRITE;
+
+        } else {
+            WOLFSSL_MSG("\tGeneral error");
+            return WOLFSSL_CBIO_ERR_GENERAL;
+        }
+    }
+
+    return ret;
+}
+
+/* Micrium DTLS Generate Cookie callback
+ *  return : number of bytes copied into buf, or error
+ */
+int MicriumGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
+{
+    NET_SOCK_ADDR peer;
+    NET_SOCK_ADDR_LEN peerSz = sizeof(peer);
+    byte digest[SHA_DIGEST_SIZE];
+    int  ret = 0;
+
+    (void)ctx;
+
+    XMEMSET(&peer, 0, sizeof(peer));
+    if (wolfSSL_dtls_get_peer(ssl, (void*)&peer,
+                              (unsigned int*)&peerSz) != SSL_SUCCESS) {
+        WOLFSSL_MSG("getpeername failed in MicriumGenerateCookie");
+        return GEN_COOKIE_E;
+    }
+
+    ret = wc_ShaHash((byte*)&peer, peerSz, digest);
+    if (ret != 0)
+        return ret;
+
+    if (sz > SHA_DIGEST_SIZE)
+        sz = SHA_DIGEST_SIZE;
+    XMEMCPY(buf, digest, sz);
+
+    return sz;
+}
+
+#endif /* MICRIUM */
 
 #endif /* WOLFCRYPT_ONLY */

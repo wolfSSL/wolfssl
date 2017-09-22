@@ -307,7 +307,7 @@
         <file file_name="../../src/crl.c" />
         <file file_name="../../src/include.am" />
         <file file_name="../../src/internal.c" />
-        <file file_name="../../src/io.c" />
+        <file file_name="../../src/wolfio.c" />
         <file file_name="../../src/keys.c" />
         <file file_name="../../src/libwolfssl.la" />
         <file file_name="../../src/ocsp.c" />

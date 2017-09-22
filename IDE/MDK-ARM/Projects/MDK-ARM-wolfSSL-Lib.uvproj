@@ -657,9 +657,9 @@
               <FilePath>..\..\..\src\internal.c</FilePath>
             </File>
             <File>
-              <FileName>io.c</FileName>
+              <FileName>wolfio.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\src\io.c</FilePath>
+              <FilePath>..\..\..\src\wolfio.c</FilePath>
             </File>
             <File>
               <FileName>keys.c</FileName>
@@ -1366,9 +1366,9 @@
               <FilePath>..\..\..\src\internal.c</FilePath>
             </File>
             <File>
-              <FileName>io.c</FileName>
+              <FileName>wolfio.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\src\io.c</FilePath>
+              <FilePath>..\..\..\src\wolfio.c</FilePath>
             </File>
             <File>
               <FileName>keys.c</FileName>
@@ -2075,9 +2075,9 @@
               <FilePath>..\..\..\src\internal.c</FilePath>
             </File>
             <File>
-              <FileName>io.c</FileName>
+              <FileName>wolfio.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\..\src\io.c</FilePath>
+              <FilePath>..\..\..\src\wolfio.c</FilePath>
             </File>
             <File>
               <FileName>keys.c</FileName>

@@ -55,6 +55,12 @@ typedef enum WOLF_EVENT_TYPE {
 #endif /* WOLFSSL_ASYNC_CRYPT */
 } WOLF_EVENT_TYPE;
 
+typedef enum WOLF_EVENT_STATE {
+    WOLF_EVENT_STATE_READY,
+    WOLF_EVENT_STATE_PENDING,
+    WOLF_EVENT_STATE_DONE,
+} WOLF_EVENT_STATE;
+
 struct WOLF_EVENT {
     /* double linked list */
     WOLF_EVENT*         next;
@@ -70,14 +76,13 @@ struct WOLF_EVENT {
 #ifdef HAVE_CAVIUM
     CavReqId            reqId;
 #endif
+#ifndef WC_NO_ASYNC_THREADING
+    pthread_t           threadId;
+#endif
     int                 ret;    /* Async return code */
     unsigned int        flags;
     WOLF_EVENT_TYPE     type;
-
-    /* event flags */
-    WOLF_EVENT_FLAG     pending:1;
-    WOLF_EVENT_FLAG     done:1;
-    /* Future event flags can go here */
+    WOLF_EVENT_STATE    state;
 };
 
 enum WOLF_POLL_FLAGS {

@@ -3,5 +3,5 @@
 #
 
 EXTRA_DIST += \
-	     certs/external/ca-globalsign-root-r2.pem \
-	     certs/external/ca-verisign-g5.pem
+	     certs/external/ca-globalsign-root-r3.pem \
+	     certs/external/baltimore-cybertrust-root.pem

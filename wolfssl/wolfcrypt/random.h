@@ -60,6 +60,9 @@
 #if !defined(WC_NO_HASHDRBG) || !defined(CUSTOM_RAND_GENERATE_BLOCK)
     #undef  HAVE_HASHDRBG
     #define HAVE_HASHDRBG
+    #ifndef WC_RESEED_INTERVAL
+        #define WC_RESEED_INTERVAL (1000000)
+    #endif
 #endif
 
 

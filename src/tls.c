@@ -51,10 +51,10 @@
 #ifdef HAVE_QSH
     static int TLSX_AddQSHKey(QSHKey** list, QSHKey* key);
     static byte* TLSX_QSHKeyFind_Pub(QSHKey* qsh, word16* pubLen, word16 name);
-#endif
-#if defined(HAVE_NTRU) || defined(HAVE_QSH)
+#if defined(HAVE_NTRU)
     static int TLSX_CreateNtruKey(WOLFSSL* ssl, int type);
 #endif
+#endif /* HAVE_QSH */
 
 
 #ifndef NO_TLS
@@ -3898,12 +3898,12 @@ int TLSX_UseSessionTicket(TLSX** extensions, SessionTicket* ticket, void* heap)
 /* Quantum-Safe-Hybrid                                                        */
 /******************************************************************************/
 
+#ifdef HAVE_QSH
 #if defined(HAVE_NTRU)
 static WC_RNG* gRng;
 static wolfSSL_Mutex* gRngMutex;
 #endif
 
-#ifdef HAVE_QSH
 static void TLSX_QSH_FreeAll(QSHScheme* list, void* heap)
 {
     QSHScheme* current;
@@ -7370,7 +7370,7 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 }
 
 
-#ifdef HAVE_NTRU
+#if defined(HAVE_NTRU) && defined(HAVE_QSH)
 
 static word32 GetEntropy(unsigned char* out, word32 num_bytes)
 {
@@ -7457,11 +7457,10 @@ static int TLSX_AddQSHKey(QSHKey** list, QSHKey* key)
 }
 
 
-#if defined(HAVE_NTRU) || defined(HAVE_QSH)
+#if defined(HAVE_NTRU)
 int TLSX_CreateNtruKey(WOLFSSL* ssl, int type)
 {
     int ret = -1;
-#ifdef HAVE_NTRU
     int ntruType;
 
     /* variable declarations for NTRU*/
@@ -7524,7 +7523,6 @@ int TLSX_CreateNtruKey(WOLFSSL* ssl, int type)
     temp->next = NULL;
 
     TLSX_AddQSHKey(&ssl->QSH_Key, temp);
-#endif
 
     (void)ssl;
     (void)type;

@@ -68,9 +68,7 @@ typedef struct Poly1305 {
     word64 r[3];
     word64 h[3];
     word64 pad[2];
-    word64 t0[6];
-    word64 t1[6];
-    word64 hh[12];
+    word64 hh[14];
     word32 r0[8];
     word32 r1[8];
     word32 r2[8];

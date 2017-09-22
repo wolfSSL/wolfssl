@@ -257,7 +257,7 @@
             VAR_TYPE* VAR_NAME = (VAR_TYPE*)XMALLOC(sizeof(VAR_TYPE) * VAR_SIZE, HEAP, DYNAMIC_TYPE_WOLF_BIGINT);
         #define DECLARE_VAR_INIT(VAR_NAME, VAR_TYPE, VAR_SIZE, INIT_VALUE, HEAP) \
             VAR_TYPE* VAR_NAME = ({ \
-                VAR_TYPE* ptr = XMALLOC(sizeof(VAR_TYPE) * VAR_SIZE, HEAP, DYNAMIC_TYPE_WOLF_BIGINT); \
+                VAR_TYPE* ptr = (VAR_TYPE*)XMALLOC(sizeof(VAR_TYPE) * VAR_SIZE, HEAP, DYNAMIC_TYPE_WOLF_BIGINT); \
                 if (ptr && INIT_VALUE) { \
                     XMEMCPY(ptr, INIT_VALUE, sizeof(VAR_TYPE) * VAR_SIZE); \
                 } \
@@ -326,15 +326,14 @@
             /* use only Thread Safe version of strtok */
             #if !defined(USE_WINDOWS_API) && !defined(INTIME_RTOS)
                 #define XSTRTOK strtok_r
+            #elif defined(__MINGW32__) || defined(WOLFSSL_TIRTOS) || \
+                    defined(USE_WOLF_STRTOK)
+                #ifndef USE_WOLF_STRTOK
+                    #define USE_WOLF_STRTOK
+                #endif
+                #define XSTRTOK wc_strtok
             #else
                 #define XSTRTOK strtok_s
-
-                #ifdef __MINGW32__
-                    #pragma GCC diagnostic push
-                    #pragma GCC diagnostic warning "-Wcpp"
-                    #warning "MinGW may be missing strtok_s. You can find a public domain implementation here: https://github.com/fletcher/MultiMarkdown-4/blob/master/strtok.c"
-                    #pragma GCC diagnostic pop
-                #endif
             #endif
         #endif
 	#endif

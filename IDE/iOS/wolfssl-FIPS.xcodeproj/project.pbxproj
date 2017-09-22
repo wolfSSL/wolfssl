@@ -9,7 +9,7 @@
 /* Begin PBXBuildFile section */
 		521646091A89928E0062516A /* crl.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646011A89928E0062516A /* crl.c */; };
 		5216460A1A89928E0062516A /* internal.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646021A89928E0062516A /* internal.c */; };
-		5216460B1A89928E0062516A /* io.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646031A89928E0062516A /* io.c */; };
+		5216460B1A89928E0062516A /* wolfio.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646031A89928E0062516A /* wolfio.c */; };
 		5216460C1A89928E0062516A /* keys.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646041A89928E0062516A /* keys.c */; };
 		5216460D1A89928E0062516A /* ocsp.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646051A89928E0062516A /* ocsp.c */; };
 		5216460E1A89928E0062516A /* sniffer.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646061A89928E0062516A /* sniffer.c */; };
@@ -220,7 +220,7 @@
 		A4A54E271BC5C3E0002866CD /* arc4.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646121A8992CC0062516A /* arc4.c */; };
 		A4A54E281BC5C3E0002866CD /* integer.c in Sources */ = {isa = PBXBuildFile; fileRef = 5216461F1A8992CC0062516A /* integer.c */; };
 		A4A54E291BC5C3E0002866CD /* internal.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646021A89928E0062516A /* internal.c */; };
-		A4A54E2A1BC5C3E0002866CD /* io.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646031A89928E0062516A /* io.c */; };
+		A4A54E2A1BC5C3E0002866CD /* wolfio.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646031A89928E0062516A /* wolfio.c */; };
 		A4A54E2B1BC5C3E0002866CD /* tfm.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646301A8992CC0062516A /* tfm.c */; };
 		A4A54E2C1BC5C3E0002866CD /* crl.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646011A89928E0062516A /* crl.c */; };
 		A4A54E2D1BC5C3E0002866CD /* keys.c in Sources */ = {isa = PBXBuildFile; fileRef = 521646041A89928E0062516A /* keys.c */; };
@@ -625,7 +625,7 @@
 /* Begin PBXFileReference section */
 		521646011A89928E0062516A /* crl.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = crl.c; path = ../../src/crl.c; sourceTree = "<group>"; };
 		521646021A89928E0062516A /* internal.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = internal.c; path = ../../src/internal.c; sourceTree = "<group>"; };
-		521646031A89928E0062516A /* io.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = io.c; path = ../../src/io.c; sourceTree = "<group>"; };
+		521646031A89928E0062516A /* wolfio.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = wolfio.c; path = ../../src/wolfio.c; sourceTree = "<group>"; };
 		521646041A89928E0062516A /* keys.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = keys.c; path = ../../src/keys.c; sourceTree = "<group>"; };
 		521646051A89928E0062516A /* ocsp.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = ocsp.c; path = ../../src/ocsp.c; sourceTree = "<group>"; };
 		521646061A89928E0062516A /* sniffer.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = sniffer.c; path = ../../src/sniffer.c; sourceTree = "<group>"; };
@@ -1012,7 +1012,7 @@
 			children = (
 				521646011A89928E0062516A /* crl.c */,
 				521646021A89928E0062516A /* internal.c */,
-				521646031A89928E0062516A /* io.c */,
+				521646031A89928E0062516A /* wolfio.c */,
 				521646041A89928E0062516A /* keys.c */,
 				521646051A89928E0062516A /* ocsp.c */,
 				521646061A89928E0062516A /* sniffer.c */,
@@ -1185,7 +1185,7 @@
 				521646331A8992CC0062516A /* arc4.c in Sources */,
 				521646401A8992CC0062516A /* integer.c in Sources */,
 				5216460A1A89928E0062516A /* internal.c in Sources */,
-				5216460B1A89928E0062516A /* io.c in Sources */,
+				5216460B1A89928E0062516A /* wolfio.c in Sources */,
 				521646511A8992CC0062516A /* tfm.c in Sources */,
 				521646091A89928E0062516A /* crl.c in Sources */,
 				5216460C1A89928E0062516A /* keys.c in Sources */,
@@ -1247,7 +1247,7 @@
 				A4A54E271BC5C3E0002866CD /* arc4.c in Sources */,
 				A4A54E281BC5C3E0002866CD /* integer.c in Sources */,
 				A4A54E291BC5C3E0002866CD /* internal.c in Sources */,
-				A4A54E2A1BC5C3E0002866CD /* io.c in Sources */,
+				A4A54E2A1BC5C3E0002866CD /* wolfio.c in Sources */,
 				A4A54E2B1BC5C3E0002866CD /* tfm.c in Sources */,
 				A4A54E2C1BC5C3E0002866CD /* crl.c in Sources */,
 				A4A54E2D1BC5C3E0002866CD /* keys.c in Sources */,

@@ -1223,8 +1223,8 @@
       <Focus>0</Focus>
       <tvExpOptDlg>0</tvExpOptDlg>
       <bDave2>0</bDave2>
-      <PathWithFileName>..\..\..\src\io.c</PathWithFileName>
-      <FilenameWithoutPath>io.c</FilenameWithoutPath>
+      <PathWithFileName>..\..\..\src\wolfio.c</PathWithFileName>
+      <FilenameWithoutPath>wolfio.c</FilenameWithoutPath>
       <RteFlg>0</RteFlg>
       <bShared>0</bShared>
     </File>

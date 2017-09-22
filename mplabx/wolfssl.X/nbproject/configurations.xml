@@ -68,7 +68,7 @@
       <logicalFolder name="f1" displayName="wolfssl" projectFiles="true">
         <itemPath>../../src/crl.c</itemPath>
         <itemPath>../../src/internal.c</itemPath>
-        <itemPath>../../src/io.c</itemPath>
+        <itemPath>../../src/wolfio.c</itemPath>
         <itemPath>../../src/keys.c</itemPath>
         <itemPath>../../src/ocsp.c</itemPath>
         <itemPath>../../src/sniffer.c</itemPath>
@@ -95,7 +95,7 @@
     <conf name="default" type="3">
       <toolsSet>
         <developmentServer>localhost</developmentServer>
-        <targetDevice>PIC32MX795F512L</targetDevice>
+        <targetDevice>PIC32MZ2048EFM144</targetDevice>
         <targetHeader></targetHeader>
         <targetPluginBoard></targetPluginBoard>
         <platformTool>PKOBSKDEPlatformTool</platformTool>

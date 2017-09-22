@@ -59,6 +59,19 @@ int CRYPT_MD5_Initialize(CRYPT_MD5_CTX* md5)
     return wc_InitMd5((Md5*)md5);
 }
 
+int CRYPT_MD5_DataSizeSet(CRYPT_MD5_CTX* md5, unsigned int sz)
+{
+    if (md5 == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_PIC32MZ_HASH
+    wc_Md5SizeSet((Md5*)md5, sz);
+#else
+    (void)sz;
+#endif
+
+    return 0;
+}
 
 /* Add data to MD5 */
 int CRYPT_MD5_DataAdd(CRYPT_MD5_CTX* md5, const unsigned char* input,
@@ -95,6 +108,19 @@ int CRYPT_SHA_Initialize(CRYPT_SHA_CTX* sha)
     return wc_InitSha((Sha*)sha);
 }
 
+int CRYPT_SHA_DataSizeSet(CRYPT_SHA_CTX* sha, unsigned int sz)
+{
+    if (sha == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_PIC32MZ_HASH
+    wc_ShaSizeSet((Sha*)sha, sz);
+#else
+    (void)sz;
+#endif
+
+    return 0;
+}
 
 /* Add data to SHA */
 int CRYPT_SHA_DataAdd(CRYPT_SHA_CTX* sha, const unsigned char* input,
@@ -131,6 +157,19 @@ int CRYPT_SHA256_Initialize(CRYPT_SHA256_CTX* sha256)
     return wc_InitSha256((Sha256*)sha256);
 }
 
+int CRYPT_SHA256_DataSizeSet(CRYPT_SHA256_CTX* sha256, unsigned int sz)
+{
+    if (sha256 == NULL)
+        return BAD_FUNC_ARG;
+
+#ifdef WOLFSSL_PIC32MZ_HASH
+    wc_Sha256SizeSet((Sha256*)sha256, sz);
+#else
+    (void)sz;
+#endif
+
+    return 0;
+}
 
 /* Add data to SHA-256 */
 int CRYPT_SHA256_DataAdd(CRYPT_SHA256_CTX* sha256, const unsigned char* input,

@@ -230,6 +230,14 @@ typedef int ltm_prime_callback(unsigned char *dst, int len, void *dat);
    #define PRIME_SIZE      256
 #endif
 
+#ifndef MAX_INVMOD_SZ
+    #if defined(WOLFSSL_MYSQL_COMPATIBLE)
+        #define MAX_INVMOD_SZ 8192
+    #else
+        #define MAX_INVMOD_SZ 4096
+    #endif
+#endif
+
 #define mp_prime_random(a, t, size, bbs, cb, dat) \
    mp_prime_random_ex(a, t, ((size) * 8) + 1, (bbs==1)?LTM_PRIME_BBS:0, cb, dat)
 

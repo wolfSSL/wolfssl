@@ -5,7 +5,7 @@
 trap 'for i in `jobs -p`; do pkill -TERM -P $i; kill $i; done' EXIT
 
 server=login.live.com
-ca=certs/external/ca-verisign-g5.pem
+ca=certs/external/baltimore-cybertrust-root.pem
 
 [ ! -x ./examples/client/client ] && echo -e "\n\nClient doesn't exist" && exit 1
 

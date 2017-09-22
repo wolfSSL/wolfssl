@@ -54,7 +54,7 @@
     }
     int wc_HmacUpdate(Hmac* hmac, const byte* in, word32 sz)
     {
-        if (hmac == NULL || in == NULL) {
+        if (hmac == NULL || (in == NULL && sz > 0)) {
             return BAD_FUNC_ARG;
         }
 
@@ -523,7 +523,7 @@ int wc_HmacUpdate(Hmac* hmac, const byte* msg, word32 length)
 {
     int ret = 0;
 
-    if (hmac == NULL) {
+    if (hmac == NULL || (msg == NULL && length > 0)) {
         return BAD_FUNC_ARG;
     }
 
@@ -841,11 +841,15 @@ int wolfSSL_GetHmacMaxSize(void)
             saltSz    = hashSz;
         }
 
-        ret = wc_HmacSetKey(&myHmac, type, localSalt, saltSz);
-        if (ret == 0)
-            ret = wc_HmacUpdate(&myHmac, inKey, inKeySz);
-        if (ret == 0)
-            ret = wc_HmacFinal(&myHmac,  out);
+        ret = wc_HmacInit(&myHmac, NULL, INVALID_DEVID);
+        if (ret == 0) {
+            ret = wc_HmacSetKey(&myHmac, type, localSalt, saltSz);
+            if (ret == 0)
+                ret = wc_HmacUpdate(&myHmac, inKey, inKeySz);
+            if (ret == 0)
+                ret = wc_HmacFinal(&myHmac,  out);
+            wc_HmacFree(&myHmac);
+        }
 
         return ret;
     }
@@ -870,6 +874,10 @@ int wolfSSL_GetHmacMaxSize(void)
         word32 outIdx = 0;
         word32 hashSz = wc_HmacSizeByType(type);
         byte   n = 0x1;
+
+        ret = wc_HmacInit(&myHmac, NULL, INVALID_DEVID);
+        if (ret != 0)
+            return ret;
 
         while (outIdx < outSz) {
             int    tmpSz = (n == 1) ? 0 : hashSz;
@@ -897,6 +905,8 @@ int wolfSSL_GetHmacMaxSize(void)
             outIdx += hashSz;
             n++;
         }
+
+        wc_HmacFree(&myHmac);
 
         return ret;
     }

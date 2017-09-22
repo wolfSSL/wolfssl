@@ -1321,6 +1321,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             done += 1;
         #endif
 
+        #if defined(HAVE_QSH)
+            /*currently google server rejects client hello with QSH extension.*/
+            done += 1;
+        #endif
+
         if (done) {
             printf("external test can't be run in this mode");
 

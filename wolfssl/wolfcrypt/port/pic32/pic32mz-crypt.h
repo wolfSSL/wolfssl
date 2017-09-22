@@ -46,6 +46,10 @@
     #endif
 #endif
 
+/* Enables support for large hashing */
+/* requires exclusive access to crypto hardware done at application layer */
+#define WOLFSSL_PIC32MZ_LARGE_HASH
+
 
 #include <xc.h>
 #include <sys/endian.h>
@@ -112,6 +116,9 @@ typedef struct hashUpdCache {
     unsigned int    bufLen;
     unsigned int    updLen;
     int             isCopy;
+#ifdef WOLFSSL_PIC32MZ_LARGE_HASH
+    unsigned int    finalLen;
+#endif
 } hashUpdCache;
 
 
