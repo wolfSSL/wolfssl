@@ -407,8 +407,8 @@ static THREAD_LS_T int devId = INVALID_DEVID;
 #define BENCH_SIZE bench_size
 
 /* globals for cipher tests */
-static byte* bench_plain = NULL;
-static byte* bench_cipher = NULL;
+static THREAD_LS_T byte* bench_plain = NULL;
+static THREAD_LS_T byte* bench_cipher = NULL;
 
 static const XGEN_ALIGN byte bench_key_buf[] =
 {
@@ -424,8 +424,8 @@ static const XGEN_ALIGN byte bench_iv_buf[] =
     0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,
     0x11,0x21,0x31,0x41,0x51,0x61,0x71,0x81
 };
-static byte* bench_key = (byte*)bench_key_buf;
-static byte* bench_iv = (byte*)bench_iv_buf;
+static THREAD_LS_T byte* bench_key = NULL;
+static THREAD_LS_T byte* bench_iv = NULL;
 
 #ifdef WOLFSSL_STATIC_MEMORY
     #ifdef BENCH_EMBEDDED
@@ -712,9 +712,10 @@ static void* benchmarks_do(void* args)
     if (bench_plain == NULL || bench_cipher == NULL) {
         XFREE(bench_plain, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
         XFREE(bench_cipher, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+        bench_plain = bench_cipher = NULL;
 
         printf("Benchmark block buffer alloc failed!\n");
-        return NULL;
+        goto exit;
     }
     XMEMSET(bench_plain, 0, bench_buf_size);
     XMEMSET(bench_cipher, 0, bench_buf_size);
@@ -725,16 +726,17 @@ static void* benchmarks_do(void* args)
     if (bench_key == NULL || bench_iv == NULL) {
         XFREE(bench_key, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
         XFREE(bench_iv, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+        bench_key = bench_iv = NULL;
 
         printf("Benchmark cipher buffer alloc failed!\n");
-        return NULL;
+        goto exit;
     }
     XMEMCPY(bench_key, bench_key_buf, sizeof(bench_key_buf));
     XMEMCPY(bench_iv, bench_iv_buf, sizeof(bench_iv_buf));
+#else
+    bench_key = (byte*)bench_key_buf;
+    bench_iv = (byte*)bench_iv_buf;
 #endif
-    (void)bench_key;
-    (void)bench_iv;
-
 
 #ifndef WC_NO_RNG
     bench_rng();
@@ -968,6 +970,7 @@ static void* benchmarks_do(void* args)
     bench_ed25519KeySign();
 #endif
 
+exit:
     /* free benchmark buffers */
     XFREE(bench_plain, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
     XFREE(bench_cipher, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
