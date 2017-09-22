@@ -325,10 +325,15 @@ int mp_init_copy (mp_int * a, mp_int * b)
 {
   int     res;
 
-  if ((res = mp_init (a)) != MP_OKAY) {
+  if ((res = mp_init_size (a, b->used)) != MP_OKAY) {
     return res;
   }
-  return mp_copy (b, a);
+
+  if((res = mp_copy (b, a)) != MP_OKAY) {
+    mp_clear(a);
+  }
+
+  return res;
 }
 
 
@@ -929,13 +934,15 @@ int mp_invmod (mp_int * a, mp_int * b, mp_int * c)
 
 #ifdef BN_FAST_MP_INVMOD_C
   /* if the modulus is odd we can use a faster routine instead */
-  if (mp_isodd (b) == MP_YES) {
+  if ((mp_isodd(b) == MP_YES) && (mp_cmp_d(b, 1) != MP_EQ)) {
     return fast_mp_invmod (a, b, c);
   }
 #endif
 
 #ifdef BN_MP_INVMOD_SLOW_C
   return mp_invmod_slow(a, b, c);
+#else
+  return MP_VAL;
 #endif
 }
 
@@ -1379,7 +1386,7 @@ int mp_mod (mp_int * a, mp_int * b, mp_int * c)
   mp_int  t;
   int     res;
 
-  if ((res = mp_init (&t)) != MP_OKAY) {
+  if ((res = mp_init_size (&t, b->used)) != MP_OKAY) {
     return res;
   }
 
@@ -1388,11 +1395,11 @@ int mp_mod (mp_int * a, mp_int * b, mp_int * c)
     return res;
   }
 
-  if (t.sign != b->sign) {
-    res = mp_add (b, &t, c);
-  } else {
+  if ((mp_iszero(&t) != MP_NO) || (t.sign == b->sign)) {
     res = MP_OKAY;
     mp_exch (&t, c);
+  } else {
+    res = mp_add (b, &t, c);
   }
 
   mp_clear (&t);
@@ -1891,7 +1898,7 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
 
   /* init M array */
   /* init first cell */
-  if ((err = mp_init(&M[1])) != MP_OKAY) {
+  if ((err = mp_init_size(&M[1], P->alloc)) != MP_OKAY) {
 #ifdef WOLFSSL_SMALL_STACK
      XFREE(M, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
@@ -1901,7 +1908,7 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
 
   /* now init the second half of the array */
   for (x = 1<<(winsize-1); x < (1 << winsize); x++) {
-    if ((err = mp_init(&M[x])) != MP_OKAY) {
+    if ((err = mp_init_size(&M[x], P->alloc)) != MP_OKAY) {
       for (y = 1<<(winsize-1); y < x; y++) {
         mp_clear (&M[y]);
       }
@@ -1967,7 +1974,7 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
   }
 
   /* setup result */
-  if ((err = mp_init (&res)) != MP_OKAY) {
+  if ((err = mp_init_size (&res, P->alloc)) != MP_OKAY) {
     goto LBL_M;
   }
 
@@ -1984,15 +1991,15 @@ int mp_exptmod_fast (mp_int * G, mp_int * X, mp_int * P, mp_int * Y,
      if ((err = mp_montgomery_calc_normalization (&res, P)) != MP_OKAY) {
        goto LBL_RES;
      }
-#else
-     err = MP_VAL;
-     goto LBL_RES;
-#endif
 
      /* now set M[1] to G * R mod m */
      if ((err = mp_mulmod (G, &res, P, &M[1])) != MP_OKAY) {
        goto LBL_RES;
      }
+#else
+     err = MP_VAL;
+     goto LBL_RES;
+#endif
   } else {
      if ((err = mp_set(&res, 1)) != MP_OKAY) {
         goto LBL_RES;
@@ -2536,7 +2543,9 @@ top:
    * Each successive "recursion" makes the input smaller and smaller.
    */
   if (mp_cmp_mag (x, n) != MP_LT) {
-    s_mp_sub(x, n, x);
+    if ((err = s_mp_sub(x, n, x)) != MP_OKAY) {
+        return err;
+    }
     goto top;
   }
   return MP_OKAY;
@@ -2573,7 +2582,9 @@ top:
    }
 
    if (mp_cmp_mag(a, n) != MP_LT) {
-      s_mp_sub(a, n, a);
+      if ((res = s_mp_sub(a, n, a)) != MP_OKAY) {
+         goto ERR;
+      }
       goto top;
    }
 
@@ -2711,7 +2722,7 @@ int mp_mulmod (mp_int * a, mp_int * b, mp_int * c, mp_int * d)
   int     res;
   mp_int  t;
 
-  if ((res = mp_init (&t)) != MP_OKAY) {
+  if ((res = mp_init_size (&t, c->used)) != MP_OKAY) {
     return res;
   }
 
@@ -3732,7 +3743,9 @@ top:
    }
 
    if (mp_cmp_mag(a, n) != MP_LT) {
-      s_mp_sub(a, n, a);
+      if ((res = s_mp_sub(a, n, a)) != MP_OKAY) {
+         goto ERR;
+      }
       goto top;
    }
 
@@ -4751,7 +4764,7 @@ int mp_read_radix (mp_int * a, const char *str, int radix)
   mp_zero (a);
 
   /* process each digit of the string */
-  while (*str) {
+  while (*str != '\0') {
     /* if the radix <= 36 the conversion is case insensitive
      * this allows numbers like 1AB and 1ab to represent the same  value
      * [e.g. in hex]
@@ -4778,6 +4791,12 @@ int mp_read_radix (mp_int * a, const char *str, int radix)
       break;
     }
     ++str;
+  }
+
+  /* if digit in isn't null term, then invalid character was found */
+  if (*str != '\0') {
+     mp_zero (a);
+     return MP_VAL;
   }
 
   /* set the sign only if a != 0 */
