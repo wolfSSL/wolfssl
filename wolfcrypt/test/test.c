@@ -4271,7 +4271,7 @@ static int aes_xts_128_test(void)
         return -4000;
     ret = wc_AesXtsEncrypt(&aes, buf, p2, sizeof(p2), i2, sizeof(i2));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes.aes.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         return -4001;
@@ -4284,7 +4284,7 @@ static int aes_xts_128_test(void)
         return -4003;
     ret = wc_AesXtsEncrypt(&aes, buf, p1, sizeof(p1), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes.aes.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         return -4004;
@@ -4295,7 +4295,7 @@ static int aes_xts_128_test(void)
     XMEMSET(cipher, 0, sizeof(cipher));
     ret = wc_AesXtsEncrypt(&aes, cipher, pp, sizeof(pp), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes.aes.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         return -4006;
@@ -4308,7 +4308,7 @@ static int aes_xts_128_test(void)
         return -4007;
     ret = wc_AesXtsDecrypt(&aes, buf, cipher, sizeof(pp), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes.aes.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         return -4008;
@@ -4319,7 +4319,7 @@ static int aes_xts_128_test(void)
     XMEMSET(buf, 0, sizeof(buf));
     ret = wc_AesXtsDecrypt(&aes, buf, c1, sizeof(c1), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes.aes.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         return -4010;
@@ -4330,7 +4330,7 @@ static int aes_xts_128_test(void)
     XMEMSET(buf, 0, sizeof(buf));
     ret = wc_AesXtsDecrypt(&aes, buf, c2, sizeof(c2), i2, sizeof(i2));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes.aes.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         return -4012;
@@ -4344,7 +4344,7 @@ static int aes_xts_128_test(void)
         return -4014;
     ret = wc_AesXtsDecrypt(&aes, buf, c2, sizeof(c2), i2, sizeof(i2));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes.aes.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         return -4015;
@@ -4441,7 +4441,7 @@ static int aes_xts_256_test(void)
         return -4017;
     ret = wc_AesXtsEncrypt(&aes, buf, p2, sizeof(p2), i2, sizeof(i2));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes.aes.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         return -4018;
@@ -4454,7 +4454,7 @@ static int aes_xts_256_test(void)
         return -4020;
     ret = wc_AesXtsEncrypt(&aes, buf, p1, sizeof(p1), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes.aes.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         return -4021;
@@ -4465,7 +4465,7 @@ static int aes_xts_256_test(void)
     XMEMSET(cipher, 0, sizeof(cipher));
     ret = wc_AesXtsEncrypt(&aes, cipher, pp, sizeof(pp), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes.aes.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         return -4023;
@@ -4478,7 +4478,7 @@ static int aes_xts_256_test(void)
         return -4024;
     ret = wc_AesXtsDecrypt(&aes, buf, cipher, sizeof(pp), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes.aes.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         return -4025;
@@ -4489,7 +4489,7 @@ static int aes_xts_256_test(void)
     XMEMSET(buf, 0, sizeof(buf));
     ret = wc_AesXtsDecrypt(&aes, buf, c1, sizeof(c1), i1, sizeof(i1));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes.aes.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         return -4027;
@@ -4502,7 +4502,7 @@ static int aes_xts_256_test(void)
         return -4029;
     ret = wc_AesXtsDecrypt(&aes, buf, c2, sizeof(c2), i2, sizeof(i2));
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes.aes.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         return -4030;
@@ -4573,7 +4573,7 @@ static int aes_xts_sector_test(void)
         return -4032;
     ret = wc_AesXtsEncryptSector(&aes, buf, p1, sizeof(p1), s1);
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes.aes.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         return -4033;
@@ -4587,7 +4587,7 @@ static int aes_xts_sector_test(void)
         return -4035;
     ret = wc_AesXtsDecryptSector(&aes, buf, c1, sizeof(c1), s1);
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes.aes.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         return -4036;
@@ -4602,7 +4602,7 @@ static int aes_xts_sector_test(void)
         return -4038;
     ret = wc_AesXtsEncryptSector(&aes, buf, p2, sizeof(p2), s2);
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes.aes.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         return -4039;
@@ -4616,7 +4616,7 @@ static int aes_xts_sector_test(void)
         return -4041;
     ret = wc_AesXtsDecryptSector(&aes, buf, c2, sizeof(c2), s2);
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes.aes.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0)
         return -4042;
@@ -4667,14 +4667,14 @@ static int aes_xts_args_test(void)
         return -4046;
     ret = wc_AesXtsEncryptSector(NULL, buf, p1, sizeof(p1), s1);
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes.aes.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret == 0)
         return -4047;
 
     ret = wc_AesXtsEncryptSector(&aes, NULL, p1, sizeof(p1), s1);
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes.aes.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret == 0)
         return -4048;
@@ -4686,14 +4686,14 @@ static int aes_xts_args_test(void)
         return -4046;
     ret = wc_AesXtsDecryptSector(NULL, buf, c1, sizeof(c1), s1);
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes.aes.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret == 0)
         return -4049;
 
     ret = wc_AesXtsDecryptSector(&aes, NULL, c1, sizeof(c1), s1);
 #if defined(WOLFSSL_ASYNC_CRYPT)
-    ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+    ret = wc_AsyncWait(ret, &aes.aes.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret == 0)
         return -4050;
