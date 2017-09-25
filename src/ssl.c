@@ -25030,6 +25030,8 @@ int wolfSSL_SSL_in_init(WOLFSSL *s)
     return s->options.acceptState < ACCEPT_THIRD_REPLY_DONE;
 }
 
+#ifndef NO_SESSION_CACHE
+
 WOLFSSL_SESSION *wolfSSL_SSL_get0_session(const WOLFSSL *ssl)
 {
     WOLFSSL_SESSION *session;
@@ -25048,6 +25050,8 @@ WOLFSSL_SESSION *wolfSSL_SSL_get0_session(const WOLFSSL *ssl)
 
     return session;
 }
+
+#endif /* NO_SESSION_CACHE */
 
 int wolfSSL_X509_check_host(X509 *x, const char *chk, size_t chklen,
                     unsigned int flags, char **peername)
