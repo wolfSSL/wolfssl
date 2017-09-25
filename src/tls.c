@@ -7662,19 +7662,19 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 ret = TLSX_UseSupportedCurve(&ssl->extensions,
                                               WOLFSSL_ECC_SECP160R1, ssl->heap);
                 if (ret != SSL_SUCCESS) return ret;
-                enablePointFormat++;
+                enablePointFormat |= 1;
             #endif
             #ifdef HAVE_ECC_SECPR2
                 ret = TLSX_UseSupportedCurve(&ssl->extensions,
                                               WOLFSSL_ECC_SECP160R2, ssl->heap);
                 if (ret != SSL_SUCCESS) return ret;
-                enablePointFormat++;
+                enablePointFormat |= 1;
             #endif
             #ifdef HAVE_ECC_KOBLITZ
                 ret = TLSX_UseSupportedCurve(&ssl->extensions,
                                               WOLFSSL_ECC_SECP160K1, ssl->heap);
                 if (ret != SSL_SUCCESS) return ret;
-                enablePointFormat++;
+                enablePointFormat |= 1;
             #endif
         #endif
         #if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
@@ -7682,13 +7682,13 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 ret = TLSX_UseSupportedCurve(&ssl->extensions,
                                               WOLFSSL_ECC_SECP192R1, ssl->heap);
                 if (ret != SSL_SUCCESS) return ret;
-                enablePointFormat++;
+                enablePointFormat |= 1;
             #endif
             #ifdef HAVE_ECC_KOBLITZ
                 ret = TLSX_UseSupportedCurve(&ssl->extensions,
                                               WOLFSSL_ECC_SECP192K1, ssl->heap);
                 if (ret != SSL_SUCCESS) return ret;
-                enablePointFormat++;
+                enablePointFormat |= 1;
             #endif
         #endif
     #endif
@@ -7697,13 +7697,13 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 ret = TLSX_UseSupportedCurve(&ssl->extensions,
                                               WOLFSSL_ECC_SECP224R1, ssl->heap);
                 if (ret != SSL_SUCCESS) return ret;
-                enablePointFormat++;
+                enablePointFormat |= 1;
             #endif
             #ifdef HAVE_ECC_KOBLITZ
                 ret = TLSX_UseSupportedCurve(&ssl->extensions,
                                               WOLFSSL_ECC_SECP224K1, ssl->heap);
                 if (ret != SSL_SUCCESS) return ret;
-                enablePointFormat++;
+                enablePointFormat |= 1;
             #endif
         #endif
         #if !defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)
@@ -7711,25 +7711,25 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 ret = TLSX_UseSupportedCurve(&ssl->extensions,
                                               WOLFSSL_ECC_SECP256R1, ssl->heap);
                 if (ret != SSL_SUCCESS) return ret;
-                enablePointFormat++;
+                enablePointFormat |= 1;
             #endif
             #if defined(HAVE_CURVE25519)
                 ret = TLSX_UseSupportedCurve(&ssl->extensions,
                                                  WOLFSSL_ECC_X25519, ssl->heap);
                 if (ret != SSL_SUCCESS) return ret;
-                enablePointFormat++;
+                enablePointFormat |= 1;
             #endif
             #ifdef HAVE_ECC_KOBLITZ
                 ret = TLSX_UseSupportedCurve(&ssl->extensions,
                                               WOLFSSL_ECC_SECP256K1, ssl->heap);
                 if (ret != SSL_SUCCESS) return ret;
-                enablePointFormat++;
+                enablePointFormat |= 1;
             #endif
             #ifdef HAVE_ECC_BRAINPOOL
                 ret = TLSX_UseSupportedCurve(&ssl->extensions,
                                         WOLFSSL_ECC_BRAINPOOLP256R1, ssl->heap);
                 if (ret != SSL_SUCCESS) return ret;
-                enablePointFormat++;
+                enablePointFormat |= 1;
             #endif
         #endif
         #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
@@ -7737,13 +7737,13 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 ret = TLSX_UseSupportedCurve(&ssl->extensions,
                                               WOLFSSL_ECC_SECP384R1, ssl->heap);
                 if (ret != SSL_SUCCESS) return ret;
-                enablePointFormat++;
+                enablePointFormat |= 1;
             #endif
             #ifdef HAVE_ECC_BRAINPOOL
                 ret = TLSX_UseSupportedCurve(&ssl->extensions,
                                         WOLFSSL_ECC_BRAINPOOLP384R1, ssl->heap);
                 if (ret != SSL_SUCCESS) return ret;
-                enablePointFormat++;
+                enablePointFormat |= 1;
             #endif
         #endif
         #if defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)
@@ -7751,7 +7751,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 ret = TLSX_UseSupportedCurve(&ssl->extensions,
                                         WOLFSSL_ECC_BRAINPOOLP512R1, ssl->heap);
                 if (ret != SSL_SUCCESS) return ret;
-                enablePointFormat++;
+                enablePointFormat |= 1;
             #endif
         #endif
         #if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
@@ -7759,7 +7759,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 ret = TLSX_UseSupportedCurve(&ssl->extensions,
                                               WOLFSSL_ECC_SECP521R1, ssl->heap);
                 if (ret != SSL_SUCCESS) return ret;
-                enablePointFormat++;
+                enablePointFormat |= 1;
             #endif
         #endif
 
