@@ -13,7 +13,8 @@
 
 
 enum  { 
-	RSA_PKCS1_PADDING = 1
+    RSA_PKCS1_PADDING = 1,
+    RSA_PKCS1_OAEP_PADDING = 4
  };
 
 /* rsaTypes */
@@ -52,16 +53,16 @@ WOLFSSL_API int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA*, int bits, WOLFSSL_BIGN
                                           void* cb);
 
 WOLFSSL_API int wolfSSL_RSA_blinding_on(WOLFSSL_RSA*, WOLFSSL_BN_CTX*);
-WOLFSSL_API int wolfSSL_RSA_public_encrypt(int len, unsigned char* fr,
-	                               unsigned char* to, WOLFSSL_RSA*, int padding);
-WOLFSSL_API int wolfSSL_RSA_private_decrypt(int len, unsigned char* fr,
-	                               unsigned char* to, WOLFSSL_RSA*, int padding);
+WOLFSSL_API int wolfSSL_RSA_public_encrypt(int len, const unsigned char* fr,
+                                 unsigned char* to, WOLFSSL_RSA*, int padding);
+WOLFSSL_API int wolfSSL_RSA_private_decrypt(int len, const unsigned char* fr,
+                                 unsigned char* to, WOLFSSL_RSA*, int padding);
 
 WOLFSSL_API int wolfSSL_RSA_size(const WOLFSSL_RSA*);
 WOLFSSL_API int wolfSSL_RSA_sign(int type, const unsigned char* m,
                                unsigned int mLen, unsigned char* sigRet,
                                unsigned int* sigLen, WOLFSSL_RSA*);
-WOLFSSL_API int wolfSSL_RSA_public_decrypt(int flen, unsigned char* from,
+WOLFSSL_API int wolfSSL_RSA_public_decrypt(int flen, const unsigned char* from,
                                   unsigned char* to, WOLFSSL_RSA*, int padding);
 WOLFSSL_API int wolfSSL_RSA_GenAdd(WOLFSSL_RSA*);
 WOLFSSL_API int wolfSSL_RSA_LoadDer(WOLFSSL_RSA*, const unsigned char*, int sz);
