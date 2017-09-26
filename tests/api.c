@@ -10995,7 +10995,6 @@ void ApiTest(void)
 #ifdef OPENSSL_EXTRA
     /*wolfSSS_EVP_get_cipherbynid test*/
     test_wolfSSL_EVP_get_cipherbynid();
-
 #endif
 
 #ifdef HAVE_HASHDRBG
