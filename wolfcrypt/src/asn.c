@@ -2264,25 +2264,25 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
 
     switch (id) {
         case PBE_MD5_DES:
-            typeH = MD5;
+            typeH = WC_MD5;
             derivedLen = 16;           /* may need iv for v1.5 */
             decryptionType = DES_TYPE;
             break;
 
         case PBE_SHA1_DES:
-            typeH = SHA;
+            typeH = WC_SHA;
             derivedLen = 16;           /* may need iv for v1.5 */
             decryptionType = DES_TYPE;
             break;
 
         case PBE_SHA1_DES3:
-            typeH = SHA;
+            typeH = WC_SHA;
             derivedLen = 32;           /* may need iv for v1.5 */
             decryptionType = DES3_TYPE;
             break;
 
         case PBE_SHA1_RC4_128:
-            typeH = SHA;
+            typeH = WC_SHA;
             derivedLen = 16;
             decryptionType = RC4_TYPE;
             break;
@@ -4368,27 +4368,27 @@ int wc_GetCTC_HashOID(int type)
             return MD2h;
 #endif
 #ifndef NO_MD5
-        case MD5:
+        case WC_MD5:
             return MD5h;
 #endif
 #ifndef NO_SHA
-        case SHA:
+        case WC_SHA:
             return SHAh;
 #endif
 #ifdef WOLFSSL_SHA224
-        case SHA224:
+        case WC_SHA224:
             return SHA224h;
 #endif
 #ifndef NO_SHA256
-        case SHA256:
+        case WC_SHA256:
             return SHA256h;
 #endif
 #ifdef WOLFSSL_SHA384
-        case SHA384:
+        case WC_SHA384:
             return SHA384h;
 #endif
 #ifdef WOLFSSL_SHA512
-        case SHA512:
+        case WC_SHA512:
             return SHA512h;
 #endif
         default:
@@ -4474,7 +4474,7 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
         case CTC_MD5wRSA:
             if ((ret = wc_Md5Hash(buf, bufSz, digest)) == 0) {
                 *typeH    = MD5h;
-                *digestSz = MD5_DIGEST_SIZE;
+                *digestSz = WC_MD5_DIGEST_SIZE;
             }
             break;
     #endif
@@ -4484,7 +4484,7 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
         case CTC_SHAwECDSA:
             if ((ret = wc_ShaHash(buf, bufSz, digest)) == 0) {
                 *typeH    = SHAh;
-                *digestSz = SHA_DIGEST_SIZE;
+                *digestSz = WC_SHA_DIGEST_SIZE;
             }
             break;
     #endif
@@ -4493,7 +4493,7 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
         case CTC_SHA224wECDSA:
             if ((ret = wc_Sha224Hash(buf, bufSz, digest)) == 0) {
                 *typeH    = SHA224h;
-                *digestSz = SHA224_DIGEST_SIZE;
+                *digestSz = WC_SHA224_DIGEST_SIZE;
             }
             break;
     #endif
@@ -4502,7 +4502,7 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
         case CTC_SHA256wECDSA:
             if ((ret = wc_Sha256Hash(buf, bufSz, digest)) == 0) {
                 *typeH    = SHA256h;
-                *digestSz = SHA256_DIGEST_SIZE;
+                *digestSz = WC_SHA256_DIGEST_SIZE;
             }
             break;
     #endif
@@ -4511,7 +4511,7 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
         case CTC_SHA384wECDSA:
             if ((ret = wc_Sha384Hash(buf, bufSz, digest)) == 0) {
                 *typeH    = SHA384h;
-                *digestSz = SHA384_DIGEST_SIZE;
+                *digestSz = WC_SHA384_DIGEST_SIZE;
             }
             break;
     #endif
@@ -4520,7 +4520,7 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
         case CTC_SHA512wECDSA:
             if ((ret = wc_Sha512Hash(buf, bufSz, digest)) == 0) {
                 *typeH    = SHA512h;
-                *digestSz = SHA512_DIGEST_SIZE;
+                *digestSz = WC_SHA512_DIGEST_SIZE;
             }
             break;
     #endif
@@ -9213,22 +9213,22 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
 #ifdef NO_SHA
     if (kid_type == SKID_TYPE) {
         ret = wc_Sha256Hash(buffer, bufferSz, cert->skid);
-        cert->skidSz = SHA256_DIGEST_SIZE;
+        cert->skidSz = WC_SHA256_DIGEST_SIZE;
     }
     else if (kid_type == AKID_TYPE) {
         ret = wc_Sha256Hash(buffer, bufferSz, cert->akid);
-        cert->akidSz = SHA256_DIGEST_SIZE;
+        cert->akidSz = WC_SHA256_DIGEST_SIZE;
     }
     else
         ret = BAD_FUNC_ARG;
 #else /* NO_SHA */
     if (kid_type == SKID_TYPE) {
         ret = wc_ShaHash(buffer, bufferSz, cert->skid);
-        cert->skidSz = SHA_DIGEST_SIZE;
+        cert->skidSz = WC_SHA_DIGEST_SIZE;
     }
     else if (kid_type == AKID_TYPE) {
         ret = wc_ShaHash(buffer, bufferSz, cert->akid);
-        cert->akidSz = SHA_DIGEST_SIZE;
+        cert->akidSz = WC_SHA_DIGEST_SIZE;
     }
     else
         ret = BAD_FUNC_ARG;
@@ -11276,7 +11276,7 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
 #endif
 
 
-/* store SHA hash of NAME */
+/* store WC_SHA hash of NAME */
 WOLFSSL_LOCAL int GetNameHash(const byte* source, word32* idx, byte* hash,
                              int maxIdx)
 {
@@ -11462,7 +11462,7 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
 
     /* raw crl hash */
     /* hash here if needed for optimized comparisons
-     * Sha     sha;
+     * wc_Sha sha;
      * wc_InitSha(&sha);
      * wc_ShaUpdate(&sha, buff, sz);
      * wc_ShaFinal(&sha, dcrl->crlHash); */

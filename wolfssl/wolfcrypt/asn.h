@@ -136,9 +136,9 @@ enum Misc_ASN {
     ASN_ECC_HEADER_SZ   =   2,     /* String type + 1 byte len */
     ASN_ECC_CONTEXT_SZ  =   2,     /* Content specific type + 1 byte len */
 #ifdef NO_SHA
-    KEYID_SIZE          = SHA256_DIGEST_SIZE,
+    KEYID_SIZE          = WC_SHA256_DIGEST_SIZE,
 #else
-    KEYID_SIZE          = SHA_DIGEST_SIZE,
+    KEYID_SIZE          = WC_SHA_DIGEST_SIZE,
 #endif
     RSA_INTS            =   8,     /* RSA ints in private key */
     DSA_INTS            =   5,     /* DSA ints in private key */
@@ -674,9 +674,9 @@ extern const char* BEGIN_EDDSA_PRIV;
 extern const char* END_EDDSA_PRIV;
 
 #ifdef NO_SHA
-    #define SIGNER_DIGEST_SIZE SHA256_DIGEST_SIZE
+    #define SIGNER_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
 #else
-    #define SIGNER_DIGEST_SIZE SHA_DIGEST_SIZE
+    #define SIGNER_DIGEST_SIZE WC_SHA_DIGEST_SIZE
 #endif
 
 /* CA Signers */

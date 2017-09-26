@@ -401,6 +401,21 @@ AC_ARG_ENABLE([haproxy],
     )
 
 
+# OpenSSL Coexist 
+AC_ARG_ENABLE([opensslcoexist],
+    [AS_HELP_STRING([--enable-opensslcoexist],[Enable coexistence of wolfssl/openssl (default: disabled)])],
+    [ ENABLED_OPENSSLCOEXIST=$enableval ],
+    [ ENABLED_OPENSSLCOEXIST=no ]
+    )
+if test "x$ENABLED_OPENSSLCOEXIST" = "xyes"
+then
+    # make sure old names are disabled
+    enable_oldnames=no
+
+    AM_CFLAGS="$AM_CFLAGS -DOPENSSL_COEXIST"
+fi
+
+
 # OPENSSL Extra Compatibility
 AC_ARG_ENABLE([opensslextra],
     [AS_HELP_STRING([--enable-opensslextra],[Enable extra OpenSSL API, size+ (default: disabled)])],
@@ -412,7 +427,7 @@ then
     ENABLED_OPENSSLEXTRA="yes"
 fi
 
-if test "$ENABLED_OPENSSLEXTRA" = "yes"
+if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
 then
   AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
 fi
@@ -2625,7 +2640,7 @@ then
             AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"
         fi
     fi
-    if test "x$ENABLED_OPENSSLEXTRA" = "xno"
+    if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
     then
         ENABLED_OPENSSLEXTRA="yes"
         AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
@@ -2723,7 +2738,7 @@ AC_ARG_ENABLE([lighty],
 if test "$ENABLED_LIGHTY" = "yes"
 then
     # Requires opensslextra make sure on
-    if test "x$ENABLED_OPENSSLEXTRA" = "xno"
+    if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
     then
         ENABLED_OPENSSLEXTRA="yes"
         AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
@@ -2740,7 +2755,7 @@ if test "$ENABLED_HAPROXY" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAPROXY"
     # Requires opensslextra make sure on
-    if test "x$ENABLED_OPENSSLEXTRA" = "xno"
+    if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
     then
         ENABLED_OPENSSLEXTRA="yes"
         AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
@@ -2769,7 +2784,7 @@ fi
 if test "$ENABLED_STUNNEL" = "yes"
 then
     # Requires opensslextra make sure on
-    if test "x$ENABLED_OPENSSLEXTRA" = "xno"
+    if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
     then
         ENABLED_OPENSSLEXTRA="yes"
         AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
@@ -3474,6 +3489,20 @@ then
 fi
 
 
+# Old name support for backwards compatibility
+AC_ARG_ENABLE([oldnames],
+    [AS_HELP_STRING([--enable-oldnames],[Keep backwards compat with old names (default: enabled)])],
+    [ ENABLED_OLDNAMES=$enableval ],
+    [ ENABLED_OLDNAMES=yes ]
+    )
+
+if test "x$ENABLED_OLDNAMES" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_OLD_RNGNAME -DNO_OLD_WC_NAMES -DNO_OLD_SSL_NAMES"
+fi
+
+
+
 # check if PSK was enabled for conditionally running psk.test script
 AM_CONDITIONAL([BUILD_PSK], [test "x$ENABLED_PSK" = "xyes"])
 
@@ -3871,6 +3900,8 @@ echo "   * Single threaded:            $ENABLED_SINGLETHREADED"
 echo "   * Filesystem:                 $ENABLED_FILESYSTEM"
 echo "   * OpenSSH Build:              $ENABLED_OPENSSH"
 echo "   * OpenSSL Extra API:          $ENABLED_OPENSSLEXTRA"
+echo "   * OpenSSL Coexist:            $ENABLED_OPENSSLCOEXIST"
+echo "   * Old Names:                  $ENABLED_OLDNAMES"
 echo "   * Max Strength Build:         $ENABLED_MAXSTRENGTH"
 echo "   * Distro Build:               $ENABLED_DISTRO"
 echo "   * fastmath:                   $ENABLED_FASTMATH"

@@ -1758,10 +1758,10 @@ void bench_chacha20_poly1305_aead(void)
 #ifndef NO_MD5
 void bench_md5(int doAsync)
 {
-    Md5    hash[BENCH_MAX_PENDING];
+    wc_Md5 hash[BENCH_MAX_PENDING];
     double start;
     int    ret, i, count = 0, times, pending = 0;
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, MD5_DIGEST_SIZE, HEAP_HINT);
+    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_MD5_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
@@ -1827,10 +1827,10 @@ exit:
 #ifndef NO_SHA
 void bench_sha(int doAsync)
 {
-    Sha    hash[BENCH_MAX_PENDING];
+    wc_Sha hash[BENCH_MAX_PENDING];
     double start;
     int    ret, i, count = 0, times, pending = 0;
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, SHA_DIGEST_SIZE, HEAP_HINT);
+    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
@@ -1878,7 +1878,7 @@ void bench_sha(int doAsync)
         } while (pending > 0);
     } while (bench_stats_sym_check(start));
 exit_sha:
-    bench_stats_sym_finish("SHA", doAsync, count, start, ret);
+    bench_stats_sym_finish("WC_SHA", doAsync, count, start, ret);
 
 exit:
 
@@ -1894,10 +1894,10 @@ exit:
 #ifdef WOLFSSL_SHA224
 void bench_sha224(int doAsync)
 {
-    Sha224 hash[BENCH_MAX_PENDING];
+    wc_Sha224 hash[BENCH_MAX_PENDING];
     double start;
     int    ret, i, count = 0, times, pending = 0;
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, SHA224_DIGEST_SIZE, HEAP_HINT);
+    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA224_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
@@ -1944,7 +1944,7 @@ void bench_sha224(int doAsync)
         } while (pending > 0);
     } while (bench_stats_sym_check(start));
 exit_sha224:
-    bench_stats_sym_finish("SHA-224", doAsync, count, start, ret);
+    bench_stats_sym_finish("WC_SHA-224", doAsync, count, start, ret);
 
 exit:
 
@@ -1959,10 +1959,10 @@ exit:
 #ifndef NO_SHA256
 void bench_sha256(int doAsync)
 {
-    Sha256 hash[BENCH_MAX_PENDING];
+    wc_Sha256 hash[BENCH_MAX_PENDING];
     double start;
     int    ret, i, count = 0, times, pending = 0;
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, SHA256_DIGEST_SIZE, HEAP_HINT);
+    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA256_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
@@ -2009,7 +2009,7 @@ void bench_sha256(int doAsync)
         } while (pending > 0);
     } while (bench_stats_sym_check(start));
 exit_sha256:
-    bench_stats_sym_finish("SHA-256", doAsync, count, start, ret);
+    bench_stats_sym_finish("WC_SHA-256", doAsync, count, start, ret);
 
 exit:
 
@@ -2024,10 +2024,10 @@ exit:
 #ifdef WOLFSSL_SHA384
 void bench_sha384(int doAsync)
 {
-    Sha384 hash[BENCH_MAX_PENDING];
+    wc_Sha384 hash[BENCH_MAX_PENDING];
     double start;
     int    ret, i, count = 0, times, pending = 0;
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, SHA384_DIGEST_SIZE, HEAP_HINT);
+    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA384_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
@@ -2074,7 +2074,7 @@ void bench_sha384(int doAsync)
         } while (pending > 0);
     } while (bench_stats_sym_check(start));
 exit_sha384:
-    bench_stats_sym_finish("SHA-384", doAsync, count, start, ret);
+    bench_stats_sym_finish("WC_SHA-384", doAsync, count, start, ret);
 
 exit:
 
@@ -2089,10 +2089,10 @@ exit:
 #ifdef WOLFSSL_SHA512
 void bench_sha512(int doAsync)
 {
-    Sha512 hash[BENCH_MAX_PENDING];
+    wc_Sha512 hash[BENCH_MAX_PENDING];
     double start;
     int    ret, i, count = 0, times, pending = 0;
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, SHA512_DIGEST_SIZE, HEAP_HINT);
+    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA512_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
@@ -2139,7 +2139,7 @@ void bench_sha512(int doAsync)
         } while (pending > 0);
     } while (bench_stats_sym_check(start));
 exit_sha512:
-    bench_stats_sym_finish("SHA-512", doAsync, count, start, ret);
+    bench_stats_sym_finish("WC_SHA-512", doAsync, count, start, ret);
 
 exit:
 

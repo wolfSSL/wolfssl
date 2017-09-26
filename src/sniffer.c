@@ -339,17 +339,17 @@ typedef struct FinCaputre {
 typedef struct HsHashes {
 #ifndef NO_OLD_TLS
 #ifndef NO_SHA
-    Sha hashSha;
+    wc_Sha hashSha;
 #endif
 #ifndef NO_MD5
-    Md5 hashMd5;
+    wc_Md5 hashMd5;
 #endif
 #endif
 #ifndef NO_SHA256
-    Sha256 hashSha256;
+    wc_Sha256 hashSha256;
 #endif
 #ifdef WOLFSSL_SHA384
-    Sha384 hashSha384;
+    wc_Sha384 hashSha384;
 #endif
 } HsHashes;
 
@@ -619,18 +619,18 @@ static int HashCopy(HS_Hashes* d, HsHashes* s)
 {
 #ifndef NO_OLD_TLS
 #ifndef NO_SHA
-        XMEMCPY(&d->hashSha, &s->hashSha, sizeof(Sha));
+        XMEMCPY(&d->hashSha, &s->hashSha, sizeof(wc_Sha));
 #endif
 #ifndef NO_MD5
-        XMEMCPY(&d->hashMd5, &s->hashMd5, sizeof(Md5));
+        XMEMCPY(&d->hashMd5, &s->hashMd5, sizeof(wc_Md5));
 #endif
 #endif
 
 #ifndef NO_SHA256
-        XMEMCPY(&d->hashSha256, &s->hashSha256, sizeof(Sha256));
+        XMEMCPY(&d->hashSha256, &s->hashSha256, sizeof(wc_Sha256));
 #endif
 #ifdef WOLFSSL_SHA384
-        XMEMCPY(&d->hashSha384, &s->hashSha384, sizeof(Sha384));
+        XMEMCPY(&d->hashSha384, &s->hashSha384, sizeof(wc_Sha384));
 #endif
 
     return 0;
@@ -1183,7 +1183,7 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
         return -1;
     }
 
-    if (typeKey == SSL_FILETYPE_PEM) {
+    if (typeKey == WOLF_SSL_FILETYPE_PEM) {
         byte* saveBuf   = (byte*)malloc(fileSz);
         int   saveBufSz = 0;
 
@@ -1228,8 +1228,8 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
 {
     SnifferServer* sniffer;
     int            ret;
-    int            type = (typeKey == FILETYPE_PEM) ? SSL_FILETYPE_PEM :
-                                                      SSL_FILETYPE_ASN1;
+    int            type = (typeKey == FILETYPE_PEM) ? WOLF_SSL_FILETYPE_PEM :
+                                                      WOLF_SSL_FILETYPE_ASN1;
     int            isNew = 0;
     word32         serverIp;
 
@@ -1306,7 +1306,7 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
                                                  sniffer->ctx, (void*)password);
         }
         ret = SSL_CTX_use_PrivateKey_file(sniffer->ctx, keyFile, type);
-        if (ret != SSL_SUCCESS) {
+        if (ret != WOLF_SSL_SUCCESS) {
             SetError(KEY_FILE_STR, error, NULL, 0);
             if (isNew)
                 FreeSnifferServer(sniffer);
@@ -1825,7 +1825,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
                              *sslBytes + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ,
                              WOLFSSL_SNI_HOST_NAME, name, &nameSz);
 
-        if (ret == SSL_SUCCESS) {
+        if (ret == WOLF_SSL_SUCCESS) {
             NamedKey* namedKey;
 
             if (nameSz >= sizeof(name))
@@ -1838,7 +1838,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
                            XSTRNCMP((char*)name, namedKey->name, nameSz) == 0) {
                     if (wolfSSL_use_PrivateKey_buffer(session->sslServer,
                                             namedKey->key, namedKey->keySz,
-                                            SSL_FILETYPE_ASN1) != SSL_SUCCESS) {
+                                            WOLF_SSL_FILETYPE_ASN1) != WOLF_SSL_SUCCESS) {
                         wc_UnLockMutex(&session->context->namedKeysMutex);
                         SetError(CLIENT_HELLO_LATE_KEY_STR, error, session,
                                                              FATAL_ERROR_STATE);
@@ -3596,7 +3596,7 @@ int ssl_GetSessionStats(unsigned int* active,     unsigned int* total,
 
     ret = wolfSSL_get_session_stats(active, total, peak, maxSessions);
 
-    if (ret == SSL_SUCCESS)
+    if (ret == WOLF_SSL_SUCCESS)
         return 0;
     else {
         SetError(BAD_SESSION_STATS, error, NULL, 0);

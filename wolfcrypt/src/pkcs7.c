@@ -3217,7 +3217,7 @@ static int wc_PKCS7_DecodeKtri(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
     int keySz;
     word32 encOID;
     word32 keyIdx;
-    byte   issuerHash[SHA_DIGEST_SIZE];
+    byte   issuerHash[WC_SHA_DIGEST_SIZE];
     byte*  outKey = NULL;
 
 #ifdef WC_RSA_BLINDING
@@ -3245,7 +3245,7 @@ static int wc_PKCS7_DecodeKtri(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
         return ASN_PARSE_E;
 
     /* if we found correct recipient, issuer hashes will match */
-    if (XMEMCMP(issuerHash, pkcs7->issuerHash, SHA_DIGEST_SIZE) == 0) {
+    if (XMEMCMP(issuerHash, pkcs7->issuerHash, WC_SHA_DIGEST_SIZE) == 0) {
         *recipFound = 1;
     }
 

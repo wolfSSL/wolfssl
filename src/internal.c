@@ -1081,7 +1081,7 @@ static int ExportPeerInfo(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
         WOLFSSL_MSG("No get peer call back set");
         return BAD_FUNC_ARG;
     }
-    if (ssl->ctx->CBGetPeer(ssl, ip, &ipSz, &port, &fam) != SSL_SUCCESS) {
+    if (ssl->ctx->CBGetPeer(ssl, ip, &ipSz, &port, &fam) != WOLF_SSL_SUCCESS) {
         WOLFSSL_MSG("Get peer callback error");
         return SOCKET_ERROR_E;
     }
@@ -1136,7 +1136,7 @@ static int ImportPeerInfo(WOLFSSL* ssl, byte* buf, word32 len, byte ver)
         WOLFSSL_MSG("No set peer function");
         return BAD_FUNC_ARG;
     }
-    if (ssl->ctx->CBSetPeer(ssl, ip, ipSz, port, fam) != SSL_SUCCESS) {
+    if (ssl->ctx->CBSetPeer(ssl, ip, ipSz, port, fam) != WOLF_SSL_SUCCESS) {
         WOLFSSL_MSG("Error setting peer info");
         return SOCKET_ERROR_E;
     }
@@ -2940,25 +2940,25 @@ static void SetDigest(WOLFSSL* ssl, int hashAlgo)
         #ifndef NO_SHA
         case sha_mac:
             ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha;
-            ssl->buffers.digest.length = SHA_DIGEST_SIZE;
+            ssl->buffers.digest.length = WC_SHA_DIGEST_SIZE;
             break;
         #endif /* !NO_SHA */
         #ifndef NO_SHA256
         case sha256_mac:
             ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha256;
-            ssl->buffers.digest.length = SHA256_DIGEST_SIZE;
+            ssl->buffers.digest.length = WC_SHA256_DIGEST_SIZE;
             break;
         #endif /* !NO_SHA256 */
         #ifdef WOLFSSL_SHA384
         case sha384_mac:
             ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha384;
-            ssl->buffers.digest.length = SHA384_DIGEST_SIZE;
+            ssl->buffers.digest.length = WC_SHA384_DIGEST_SIZE;
             break;
         #endif /* WOLFSSL_SHA384 */
         #ifdef WOLFSSL_SHA512
         case sha512_mac:
             ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha512;
-            ssl->buffers.digest.length = SHA512_DIGEST_SIZE;
+            ssl->buffers.digest.length = WC_SHA512_DIGEST_SIZE;
             break;
         #endif /* WOLFSSL_SHA512 */
     } /* switch */
@@ -3901,7 +3901,7 @@ int DhAgree(WOLFSSL* ssl, DhKey* dhKey,
    ctx      parent factory
    writeDup flag indicating this is a write dup only
 
-   SSL_SUCCESS return value on success */
+   WOLF_SSL_SUCCESS return value on success */
 int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 {
     byte havePSK = 0;
@@ -4097,7 +4097,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->readAhead = ctx->readAhead;
 #endif
 
-    return SSL_SUCCESS;
+    return WOLF_SSL_SUCCESS;
 }
 
 int InitHandshakeHashes(WOLFSSL* ssl)
@@ -4410,7 +4410,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 
     /* Initialize SSL with the appropriate fields from it's ctx */
     /* requires valid arrays and suites unless writeDup ing */
-    if ((ret =  SetSSL_CTX(ssl, ctx, writeDup)) != SSL_SUCCESS)
+    if ((ret =  SetSSL_CTX(ssl, ctx, writeDup)) != WOLF_SSL_SUCCESS)
         return ret;
 
     ssl->options.dtls = ssl->version.major == DTLS_MAJOR;
@@ -6636,13 +6636,13 @@ static const byte PAD2[PAD_MD5] =
 static int BuildMD5(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 {
     int ret;
-    byte md5_result[MD5_DIGEST_SIZE];
+    byte md5_result[WC_MD5_DIGEST_SIZE];
 #ifdef WOLFSSL_SMALL_STACK
-    Md5* md5 = (Md5*)XMALLOC(sizeof(Md5), ssl->heap, DYNAMIC_TYPE_HASHCTX);
+    wc_Md5* md5 = (wc_Md5*)XMALLOC(sizeof(wc_Md5), ssl->heap, DYNAMIC_TYPE_HASHCTX);
     if (md5 == NULL)
         return MEMORY_E;
 #else
-    Md5  md5[1];
+    wc_Md5  md5[1];
 #endif
 
     /* make md5 inner */
@@ -6664,7 +6664,7 @@ static int BuildMD5(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (ret == 0)
                 ret = wc_Md5Update(md5, PAD2, PAD_MD5);
             if (ret == 0)
-                ret = wc_Md5Update(md5, md5_result, MD5_DIGEST_SIZE);
+                ret = wc_Md5Update(md5, md5_result, WC_MD5_DIGEST_SIZE);
             if (ret == 0)
                 ret = wc_Md5Final(md5, hashes->md5);
             wc_Md5Free(md5);
@@ -6683,13 +6683,13 @@ static int BuildMD5(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 static int BuildSHA(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 {
     int ret;
-    byte sha_result[SHA_DIGEST_SIZE];
+    byte sha_result[WC_SHA_DIGEST_SIZE];
 #ifdef WOLFSSL_SMALL_STACK
-    Sha* sha = (Sha*)XMALLOC(sizeof(Sha), ssl->heap, DYNAMIC_TYPE_HASHCTX);
+    wc_Sha* sha = (wc_Sha*)XMALLOC(sizeof(wc_Sha), ssl->heap, DYNAMIC_TYPE_HASHCTX);
     if (sha == NULL)
         return MEMORY_E;
 #else
-    Sha  sha[1];
+    wc_Sha  sha[1];
 #endif
     /* make sha inner */
     ret = wc_ShaCopy(&ssl->hsHashes->hashSha, sha); /* Save current position */
@@ -6710,7 +6710,7 @@ static int BuildSHA(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (ret == 0)
                 ret = wc_ShaUpdate(sha, PAD2, PAD_SHA);
             if (ret == 0)
-                ret = wc_ShaUpdate(sha, sha_result, SHA_DIGEST_SIZE);
+                ret = wc_ShaUpdate(sha, sha_result, WC_SHA_DIGEST_SIZE);
             if (ret == 0)
                 ret = wc_ShaFinal(sha, hashes->sha);
             wc_ShaFree(sha);
@@ -6731,9 +6731,9 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     int ret = 0;
 #ifdef WOLFSSL_SHA384
 #ifdef WOLFSSL_SMALL_STACK
-    Sha384* sha384;
+    wc_Sha384* sha384;
 #else
-    Sha384 sha384[1];
+    wc_Sha384 sha384[1];
 #endif /* WOLFSSL_SMALL_STACK */
 #endif /* WOLFSSL_SHA384 */
 
@@ -6742,7 +6742,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 
 #ifdef WOLFSSL_SHA384
 #ifdef WOLFSSL_SMALL_STACK
-    sha384 = (Sha384*)XMALLOC(sizeof(Sha384), ssl->heap, DYNAMIC_TYPE_HASHCTX);
+    sha384 = (wc_Sha384*)XMALLOC(sizeof(wc_Sha384), ssl->heap, DYNAMIC_TYPE_HASHCTX);
     if (sha384 == NULL)
         return MEMORY_E;
 #endif /* WOLFSSL_SMALL_STACK */
@@ -8205,7 +8205,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         /* already verified above */
                         ret = AddCA(ssl->ctx->cm, &add, WOLFSSL_CHAIN_CA, 0);
                         if (ret == 1) {
-                            ret = 0;   /* SSL_SUCCESS for external */
+                            ret = 0;   /* WOLF_SSL_SUCCESS for external */
                         }
                     }
                     else if (ret != 0) {
@@ -8363,7 +8363,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         /* compare against previous time */
                         if (XMEMCMP(args->dCert->subjectHash,
                                     ssl->secure_renegotiation->subject_hash,
-                                    SHA_DIGEST_SIZE) != 0) {
+                                    WC_SHA_DIGEST_SIZE) != 0) {
                             WOLFSSL_MSG(
                                 "Peer sent different cert during scr, fatal");
                             args->fatal = 1;
@@ -8374,7 +8374,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     /* cache peer's hash */
                     if (args->fatal == 0) {
                         XMEMCPY(ssl->secure_renegotiation->subject_hash,
-                                args->dCert->subjectHash, SHA_DIGEST_SIZE);
+                                args->dCert->subjectHash, WC_SHA_DIGEST_SIZE);
                     }
                 }
             #endif /* HAVE_SECURE_RENEGOTIATION */
@@ -11136,7 +11136,7 @@ static int SanityCheckCipherText(WOLFSSL* ssl, word32 encryptSz)
 
 static INLINE void Md5Rounds(int rounds, const byte* data, int sz)
 {
-    Md5 md5;
+    wc_Md5 md5;
     int i;
 
     wc_InitMd5(&md5);   /* no error check on purpose, dummy round */
@@ -11151,7 +11151,7 @@ static INLINE void Md5Rounds(int rounds, const byte* data, int sz)
 /* do a dummy sha round */
 static INLINE void ShaRounds(int rounds, const byte* data, int sz)
 {
-    Sha sha;
+    wc_Sha sha;
     int i;
 
     wc_InitSha(&sha);  /* no error check on purpose, dummy round */
@@ -11167,7 +11167,7 @@ static INLINE void ShaRounds(int rounds, const byte* data, int sz)
 
 static INLINE void Sha256Rounds(int rounds, const byte* data, int sz)
 {
-    Sha256 sha256;
+    wc_Sha256 sha256;
     int i;
 
     wc_InitSha256(&sha256);  /* no error check on purpose, dummy round */
@@ -11186,7 +11186,7 @@ static INLINE void Sha256Rounds(int rounds, const byte* data, int sz)
 
 static INLINE void Sha384Rounds(int rounds, const byte* data, int sz)
 {
-    Sha384 sha384;
+    wc_Sha384 sha384;
     int i;
 
     wc_InitSha384(&sha384);  /* no error check on purpose, dummy round */
@@ -11205,7 +11205,7 @@ static INLINE void Sha384Rounds(int rounds, const byte* data, int sz)
 
 static INLINE void Sha512Rounds(int rounds, const byte* data, int sz)
 {
-    Sha512 sha512;
+    wc_Sha512 sha512;
     int i;
 
     wc_InitSha512(&sha512);  /* no error check on purpose, dummy round */
@@ -11428,7 +11428,7 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
     if (ssl->earlyData) {
         if (ssl->earlyDataSz + dataSz > ssl->options.maxEarlyDataSz) {
             SendAlert(ssl, alert_fatal, unexpected_message);
-            return SSL_FATAL_ERROR;
+            return WOLF_SSL_FATAL_ERROR;
         }
         ssl->earlyDataSz += dataSz;
     }
@@ -12298,8 +12298,8 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
     word32 padSz    = ssl->specs.pad_size;
     int    ret      = 0;
 
-    Md5 md5;
-    Sha sha;
+    wc_Md5 md5;
+    wc_Sha sha;
 
     /* data */
     byte seq[SEQ_SZ];
@@ -12411,11 +12411,11 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 static int BuildMD5_CertVerify(WOLFSSL* ssl, byte* digest)
 {
     int ret;
-    byte md5_result[MD5_DIGEST_SIZE];
+    byte md5_result[WC_MD5_DIGEST_SIZE];
 #ifdef WOLFSSL_SMALL_STACK
-    Md5* md5 = (Md5*)XMALLOC(sizeof(Md5), ssl->heap, DYNAMIC_TYPE_HASHCTX);
+    wc_Md5* md5 = (wc_Md5*)XMALLOC(sizeof(wc_Md5), ssl->heap, DYNAMIC_TYPE_HASHCTX);
 #else
-    Md5  md5[1];
+    wc_Md5  md5[1];
 #endif
 
     /* make md5 inner */
@@ -12435,7 +12435,7 @@ static int BuildMD5_CertVerify(WOLFSSL* ssl, byte* digest)
             if (ret == 0)
                 ret = wc_Md5Update(md5, PAD2, PAD_MD5);
             if (ret == 0)
-                ret = wc_Md5Update(md5, md5_result, MD5_DIGEST_SIZE);
+                ret = wc_Md5Update(md5, md5_result, WC_MD5_DIGEST_SIZE);
             if (ret == 0)
                 ret = wc_Md5Final(md5, digest);
             wc_Md5Free(md5);
@@ -12455,11 +12455,11 @@ static int BuildMD5_CertVerify(WOLFSSL* ssl, byte* digest)
 static int BuildSHA_CertVerify(WOLFSSL* ssl, byte* digest)
 {
     int ret;
-    byte sha_result[SHA_DIGEST_SIZE];
+    byte sha_result[WC_SHA_DIGEST_SIZE];
 #ifdef WOLFSSL_SMALL_STACK
-    Sha* sha = (Sha*)XMALLOC(sizeof(Sha), ssl->heap, DYNAMIC_TYPE_HASHCTX);
+    wc_Sha* sha = (wc_Sha*)XMALLOC(sizeof(wc_Sha), ssl->heap, DYNAMIC_TYPE_HASHCTX);
 #else
-    Sha  sha[1];
+    wc_Sha  sha[1];
 #endif
 
     /* make sha inner */
@@ -12479,7 +12479,7 @@ static int BuildSHA_CertVerify(WOLFSSL* ssl, byte* digest)
             if (ret == 0)
                 ret = wc_ShaUpdate(sha, PAD2, PAD_SHA);
             if (ret == 0)
-                ret = wc_ShaUpdate(sha, sha_result, SHA_DIGEST_SIZE);
+                ret = wc_ShaUpdate(sha, sha_result, WC_SHA_DIGEST_SIZE);
             if (ret == 0)
                 ret = wc_ShaFinal(sha, digest);
             wc_ShaFree(sha);
@@ -13179,7 +13179,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     word32 i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
     word32 dnLen = 0;
 #ifdef WOLFSSL_NGINX
-    STACK_OF(WOLFSSL_X509_NAME)* names;
+    WOLF_STACK_OF(WOLFSSL_X509_NAME)* names;
 #endif
 
     int  typeTotal = 1;  /* only 1 for now */
@@ -13782,7 +13782,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
     if (ssl->options.handShakeState != HANDSHAKE_DONE) {
         int err;
         WOLFSSL_MSG("handshake not complete, trying to finish");
-        if ( (err = wolfSSL_negotiate(ssl)) != SSL_SUCCESS) {
+        if ( (err = wolfSSL_negotiate(ssl)) != WOLF_SSL_SUCCESS) {
             /* if async would block return WANT_WRITE */
             if (ssl->error == WC_PENDING_E) {
                 return WOLFSSL_CBIO_ERR_WANT_WRITE;
@@ -13939,7 +13939,7 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
     if (ssl->options.handShakeState != HANDSHAKE_DONE) {
         int err;
         WOLFSSL_MSG("Handshake not complete, trying to finish");
-        if ( (err = wolfSSL_negotiate(ssl)) != SSL_SUCCESS) {
+        if ( (err = wolfSSL_negotiate(ssl)) != WOLF_SSL_SUCCESS) {
         #ifdef WOLFSSL_ASYNC_CRYPT
             /* if async would block return WANT_WRITE */
             if (ssl->error == WC_PENDING_E) {
@@ -13956,7 +13956,7 @@ startScr:
         int err;
         ssl->secure_renegotiation->startScr = 0;  /* only start once */
         WOLFSSL_MSG("Need to start scr, server requested");
-        if ( (err = wolfSSL_Rehandshake(ssl)) != SSL_SUCCESS)
+        if ( (err = wolfSSL_Rehandshake(ssl)) != WOLF_SSL_SUCCESS)
             return  err;
     }
 #endif
@@ -14204,7 +14204,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return "peer subject name mismatch";
 
     case WANT_READ :
-    case SSL_ERROR_WANT_READ :
+    case WOLF_SSL_ERROR_WANT_READ :
         return "non-blocking socket wants data to be read";
 
     case NOT_READY_ERROR :
@@ -14217,7 +14217,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return "record layer version error";
 
     case WANT_WRITE :
-    case SSL_ERROR_WANT_WRITE :
+    case WOLF_SSL_ERROR_WANT_WRITE :
         return "non-blocking socket write buffer full";
 
     case BUFFER_ERROR :
@@ -14278,7 +14278,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return "cant decode peer key";
 
     case ZERO_RETURN:
-    case SSL_ERROR_ZERO_RETURN:
+    case WOLF_SSL_ERROR_ZERO_RETURN:
         return "peer sent close notify alert";
 
     case ECC_CURVETYPE_ERROR:
@@ -16331,7 +16331,7 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
             if (ticket == NULL) return MEMORY_E;
 
             ret = TLSX_UseSessionTicket(&ssl->extensions, ticket, ssl->heap);
-            if (ret != SSL_SUCCESS) return ret;
+            if (ret != WOLF_SSL_SUCCESS) return ret;
 
             idSz = 0;
         }
@@ -22372,12 +22372,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             #endif /* NO_SHA && NO_SHA256 */
 
             #if !defined(NO_SHA) && defined(NO_SHA256)
-                cookieType = SHA;
-                cookieSz = SHA_DIGEST_SIZE;
+                cookieType = WC_SHA;
+                cookieSz = WC_SHA_DIGEST_SIZE;
             #endif /* NO_SHA */
             #ifndef NO_SHA256
-                cookieType = SHA256;
-                cookieSz = SHA256_DIGEST_SIZE;
+                cookieType = WC_SHA256;
+                cookieSz = WC_SHA256_DIGEST_SIZE;
             #endif /* NO_SHA256 */
             ret = wc_HmacSetKey(&cookieHmac, cookieType,
                                 ssl->buffers.dtlsCookieSecret.buffer,
@@ -22605,7 +22605,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             int ret = 0;
 
             ret = TLSX_AddEmptyRenegotiationInfo(&ssl->extensions, ssl->heap);
-            if (ret != SSL_SUCCESS)
+            if (ret != WOLF_SSL_SUCCESS)
                 return ret;
         }
 #endif /* HAVE_SERVER_RENEGOTIATION_INFO */
@@ -23622,7 +23622,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 if (ssl->options.side != WOLFSSL_SERVER_END) {
                     WOLFSSL_MSG("Client received client keyexchange, attack?");
                     WOLFSSL_ERROR(ssl->error = SIDE_ERROR);
-                    ERROR_OUT(SSL_FATAL_ERROR, exit_dcke);
+                    ERROR_OUT(WOLF_SSL_FATAL_ERROR, exit_dcke);
                 }
 
                 if (ssl->options.clientState < CLIENT_HELLO_COMPLETE) {

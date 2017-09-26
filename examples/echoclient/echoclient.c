@@ -52,7 +52,7 @@
 
 #include <cyassl/test.h>
 
-#include "examples/echoclient/echoclient.h"
+#include <examples/echoclient/echoclient.h>
 
 #ifndef NO_WOLFSSL_CLIENT
 
@@ -135,11 +135,11 @@ void echoclient_test(void* args)
 
 #ifndef NO_FILESYSTEM
     #ifndef NO_RSA
-    if (SSL_CTX_load_verify_locations(ctx, caCertFile, 0) != SSL_SUCCESS)
+    if (SSL_CTX_load_verify_locations(ctx, caCertFile, 0) != WOLF_SSL_SUCCESS)
         err_sys("can't load ca file, Please run from wolfSSL home dir");
     #endif
     #ifdef HAVE_ECC
-        if (SSL_CTX_load_verify_locations(ctx, eccCertFile, 0) != SSL_SUCCESS)
+        if (SSL_CTX_load_verify_locations(ctx, eccCertFile, 0) != WOLF_SSL_SUCCESS)
             err_sys("can't load ca file, Please run from wolfSSL home dir");
     #endif
 #elif !defined(NO_CERTS)
@@ -163,7 +163,7 @@ void echoclient_test(void* args)
         #else
             defaultCipherList = "PSK-AES128-CBC-SHA256";
         #endif
-        if (CyaSSL_CTX_set_cipher_list(ctx,defaultCipherList) !=SSL_SUCCESS)
+        if (CyaSSL_CTX_set_cipher_list(ctx,defaultCipherList) !=WOLF_SSL_SUCCESS)
             err_sys("client can't set cipher list 2");
 #endif
     }
@@ -173,7 +173,7 @@ void echoclient_test(void* args)
 #endif
 
 #if defined(WOLFSSL_MDK_ARM)
-    CyaSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
+    CyaSSL_CTX_set_verify(ctx, WOLF_SSL_VERIFY_NONE, 0);
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -196,7 +196,7 @@ void echoclient_test(void* args)
     do {
         err = 0; /* Reset error */
         ret = SSL_connect(ssl);
-        if (ret != SSL_SUCCESS) {
+        if (ret != WOLF_SSL_SUCCESS) {
             err = SSL_get_error(ssl, 0);
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (err == WC_PENDING_E) {
@@ -206,7 +206,7 @@ void echoclient_test(void* args)
         #endif
         }
     } while (err == WC_PENDING_E);
-    if (ret != SSL_SUCCESS) {
+    if (ret != WOLF_SSL_SUCCESS) {
         printf("SSL_connect error %d, %s\n", err,
             ERR_error_string(err, buffer));
         err_sys("SSL_connect failed");

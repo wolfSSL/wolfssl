@@ -498,7 +498,7 @@ static INLINE void ShowX509(WOLFSSL_X509* x509, const char* hdr)
         printf(" altname = %s\n", altName);
 
     ret = wolfSSL_X509_get_serial_number(x509, serial, &sz);
-    if (ret == SSL_SUCCESS) {
+    if (ret == WOLF_SSL_SUCCESS) {
         int  i;
         int  strLen;
         char serialMsg[80];
@@ -1168,7 +1168,7 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
 
     static INLINE void load_buffer(WOLFSSL_CTX* ctx, const char* fname, int type)
     {
-        int format = SSL_FILETYPE_PEM;
+        int format = WOLF_SSL_FILETYPE_PEM;
         byte* buff = NULL;
         size_t sz = 0;
 
@@ -1179,26 +1179,26 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
 
         /* determine format */
         if (strstr(fname, ".der"))
-            format = SSL_FILETYPE_ASN1;
+            format = WOLF_SSL_FILETYPE_ASN1;
 
         if (type == WOLFSSL_CA) {
             if (wolfSSL_CTX_load_verify_buffer(ctx, buff, (long)sz, format)
-                                              != SSL_SUCCESS)
+                                              != WOLF_SSL_SUCCESS)
                 err_sys("can't load buffer ca file");
         }
         else if (type == WOLFSSL_CERT) {
             if (wolfSSL_CTX_use_certificate_buffer(ctx, buff, (long)sz,
-                        format) != SSL_SUCCESS)
+                        format) != WOLF_SSL_SUCCESS)
                 err_sys("can't load buffer cert file");
         }
         else if (type == WOLFSSL_KEY) {
             if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, (long)sz,
-                        format) != SSL_SUCCESS)
+                        format) != WOLF_SSL_SUCCESS)
                 err_sys("can't load buffer key file");
         }
         else if (type == WOLFSSL_CERT_CHAIN) {
             if (wolfSSL_CTX_use_certificate_chain_buffer_format(ctx, buff,
-                    (long)sz, format) != SSL_SUCCESS)
+                    (long)sz, format) != WOLF_SSL_SUCCESS)
                 err_sys("can't load cert chain buffer");
         }
 
