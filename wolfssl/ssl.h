@@ -1967,10 +1967,6 @@ WOLFSSL_API int wolfSSL_UseSupportedCurve(WOLFSSL* ssl, unsigned short name);
 WOLFSSL_API int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx,
                                                            unsigned short name);
 
-WOLFSSL_API int wolfSSL_UsePointFormat(WOLFSSL* ssl, unsigned char format);
-WOLFSSL_API int wolfSSL_CTX_UsePointFormat(WOLFSSL_CTX* ctx,
-                                                          unsigned char format);
-
 #endif
 #endif
 
