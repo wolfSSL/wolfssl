@@ -8921,12 +8921,29 @@ int rsa_test(void)
                                 "keyEncipherment,keyAgreement") != 0) {
             ERROR_OUT(-5683, exit_rsa);
         }
+
+        /* add Extended Key Usage */
+        if (wc_SetExtKeyUsage(&req, "serverAuth,clientAuth,codeSigning,"
+                            "emailProtection,timeStamping,OCSPSigning") != 0) {
+            ERROR_OUT(-5684, exit_rsa);
+        }
     #endif /* WOLFSSL_CERT_EXT */
 
         derSz = wc_MakeCertReq(&req, der, FOURK_BUF, &key, NULL);
         if (derSz < 0) {
-            ERROR_OUT(-5684, exit_rsa);
+            ERROR_OUT(-5685, exit_rsa);
         }
+
+    #ifdef WOLFSSL_CERT_EXT
+        /* Try again with "any" flag set, will override all others */
+        if (wc_SetExtKeyUsage(&req, "any") != 0) {
+            ERROR_OUT(-5686, exit_rsa);
+        }
+        derSz = wc_MakeCertReq(&req, der, FOURK_BUF, &key, NULL);
+        if (derSz < 0) {
+            ERROR_OUT(-5687, exit_rsa);
+        }
+    #endif /* WOLFSSL_CERT_EXT */
 
         ret = 0;
         do {
@@ -8939,35 +8956,35 @@ int rsa_test(void)
             }
         } while (ret == WC_PENDING_E);
         if (ret < 0) {
-            ERROR_OUT(-5685, exit_rsa);
+            ERROR_OUT(-5688, exit_rsa);
         }
         derSz = ret;
 
         pemSz = wc_DerToPem(der, derSz, pem, FOURK_BUF, CERTREQ_TYPE);
         if (pemSz < 0) {
-            ERROR_OUT(-5686, exit_rsa);
+            ERROR_OUT(-5689, exit_rsa);
         }
 
     #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         reqFile = fopen(certReqDerFile, "wb");
         if (!reqFile) {
-            ERROR_OUT(-5687, exit_rsa);
+            ERROR_OUT(-5690, exit_rsa);
         }
 
         ret = (int)fwrite(der, 1, derSz, reqFile);
         fclose(reqFile);
         if (ret != derSz) {
-            ERROR_OUT(-5688, exit_rsa);
+            ERROR_OUT(-5691, exit_rsa);
         }
 
         reqFile = fopen(certReqPemFile, "wb");
         if (!reqFile) {
-            ERROR_OUT(-5689, exit_rsa);
+            ERROR_OUT(-5692, exit_rsa);
         }
         ret = (int)fwrite(pem, 1, pemSz, reqFile);
         fclose(reqFile);
         if (ret != pemSz) {
-            ERROR_OUT(-5690, exit_rsa);
+            ERROR_OUT(-5693, exit_rsa);
         }
     #endif
 

@@ -1177,9 +1177,12 @@ static const byte extAltNamesHwNameOid[] = {43, 6, 1, 5, 5, 7, 8, 4};
 
 /* certKeyUseType */
 static const byte extExtKeyUsageAnyOid[] = {85, 29, 37, 0};
-static const byte extExtKeyUsageServerAuthOid[] = {43, 6, 1, 5, 5, 7, 3, 1};
-static const byte extExtKeyUsageClientAuthOid[] = {43, 6, 1, 5, 5, 7, 3, 2};
-static const byte extExtKeyUsageOcspSignOid[] = {43, 6, 1, 5, 5, 7, 3, 9};
+static const byte extExtKeyUsageServerAuthOid[]   = {43, 6, 1, 5, 5, 7, 3, 1};
+static const byte extExtKeyUsageClientAuthOid[]   = {43, 6, 1, 5, 5, 7, 3, 2};
+static const byte extExtKeyUsageCodeSigningOid[]  = {43, 6, 1, 5, 5, 7, 3, 3};
+static const byte extExtKeyUsageEmailProtectOid[] = {43, 6, 1, 5, 5, 7, 3, 4};
+static const byte extExtKeyUsageTimestampOid[]    = {43, 6, 1, 5, 5, 7, 3, 8};
+static const byte extExtKeyUsageOcspSignOid[]     = {43, 6, 1, 5, 5, 7, 3, 9};
 
 /* kdfType */
 static const byte pbkdf2Oid[] = {42, 134, 72, 134, 247, 13, 1, 5, 12};
@@ -1474,6 +1477,18 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                 case EKU_CLIENT_AUTH_OID:
                     oid = extExtKeyUsageClientAuthOid;
                     *oidSz = sizeof(extExtKeyUsageClientAuthOid);
+                    break;
+                case EKU_CODESIGNING_OID:
+                    oid = extExtKeyUsageCodeSigningOid;
+                    *oidSz = sizeof(extExtKeyUsageCodeSigningOid);
+                    break;
+                case EKU_EMAILPROTECT_OID:
+                    oid = extExtKeyUsageEmailProtectOid;
+                    *oidSz = sizeof(extExtKeyUsageEmailProtectOid);
+                    break;
+                case EKU_TIMESTAMP_OID:
+                    oid = extExtKeyUsageTimestampOid;
+                    *oidSz = sizeof(extExtKeyUsageTimestampOid);
                     break;
                 case EKU_OCSP_SIGN_OID:
                     oid = extExtKeyUsageOcspSignOid;
@@ -5473,6 +5488,15 @@ static int DecodeExtKeyUsage(byte* input, int sz, DecodedCert* cert)
             case EKU_CLIENT_AUTH_OID:
                 cert->extExtKeyUsage |= EXTKEYUSE_CLIENT_AUTH;
                 break;
+            case EKU_CODESIGNING_OID:
+                cert->extExtKeyUsage |= EXTKEYUSE_CODESIGN;
+                break;
+            case EKU_EMAILPROTECT_OID:
+                cert->extExtKeyUsage |= EXTKEYUSE_EMAILPROT;
+                break;
+            case EKU_TIMESTAMP_OID:
+                cert->extExtKeyUsage |= EXTKEYUSE_TIMESTAMP;
+                break;
             case EKU_OCSP_SIGN_OID:
                 cert->extExtKeyUsage |= EXTKEYUSE_OCSP_SIGN;
                 break;
@@ -6921,6 +6945,7 @@ int wc_InitCert(Cert* cert)
     cert->skidSz = 0;
     cert->akidSz = 0;
     cert->keyUsage = 0;
+    cert->extKeyUsage = 0;
     cert->certPoliciesNb = 0;
     XMEMSET(cert->akid, 0, CTC_MAX_AKID_SIZE);
     XMEMSET(cert->skid, 0, CTC_MAX_SKID_SIZE);
@@ -6990,6 +7015,7 @@ typedef struct DerCert {
     byte skid[MAX_KID_SZ];             /* Subject Key Identifier extension */
     byte akid[MAX_KID_SZ];             /* Authority Key Identifier extension */
     byte keyUsage[MAX_KEYUSAGE_SZ];    /* Key Usage extension */
+    byte extKeyUsage[MAX_EXTKEYUSAGE_SZ]; /* Extended Key Usage extension */
     byte certPolicies[MAX_CERTPOL_NB*MAX_CERTPOL_SZ]; /* Certificate Policies */
 #endif
 #ifdef WOLFSSL_CERT_REQ
@@ -7011,6 +7037,7 @@ typedef struct DerCert {
     int  skidSz;                       /* encoded SKID extension length */
     int  akidSz;                       /* encoded SKID extension length */
     int  keyUsageSz;                   /* encoded KeyUsage extension length */
+    int  extKeyUsageSz;                /* encoded ExtendedKeyUsage extension length */
     int  certPoliciesSz;               /* encoded CertPolicies extension length*/
 #endif
 #ifdef WOLFSSL_ALT_NAMES
@@ -7727,13 +7754,91 @@ static int SetKeyUsage(byte* output, word32 outSz, word16 input)
     int  idx;
     static const byte keyusage_oid[] = { 0x06, 0x03, 0x55, 0x1d, 0x0f,
                                          0x01, 0x01, 0xff, 0x04};
-
     if (output == NULL)
         return BAD_FUNC_ARG;
 
     idx = SetBitString16Bit(input, ku);
     return SetOidValue(output, outSz, keyusage_oid, sizeof(keyusage_oid),
                        ku, idx);
+}
+
+static int SetOjectIdValue(byte* output, word32 outSz, int* idx,
+    const byte* oid, word32 oidSz)
+{
+    /* verify room */
+    if (*idx + 2 + oidSz >= outSz)
+        return ASN_PARSE_E;
+
+    *idx += SetObjectId(oidSz, &output[*idx]);
+    XMEMCPY(&output[*idx], oid, oidSz);
+    *idx += oidSz;
+
+    return 0;
+}
+
+/* encode Extended Key Usage (RFC 5280 4.2.1.12), return total bytes written */
+static int SetExtKeyUsage(byte* output, word32 outSz, byte input)
+{
+    int idx = 0, oidListSz = 0, totalSz, ret = 0;
+    static const byte extkeyusage_oid[] = { 0x06, 0x03, 0x55, 0x1d, 0x25 };
+
+    if (output == NULL)
+        return BAD_FUNC_ARG;
+
+    /* Skip to OID List */
+    totalSz = 2 + sizeof(extkeyusage_oid) + 4;
+    idx = totalSz;
+
+    /* Build OID List */
+    /* If any set, then just use it */
+    if (input & EXTKEYUSE_ANY) {
+        ret |= SetOjectIdValue(output, outSz, &idx,
+            extExtKeyUsageAnyOid, sizeof(extExtKeyUsageAnyOid));
+    }
+    else {
+        if (input & EXTKEYUSE_SERVER_AUTH)
+            ret |= SetOjectIdValue(output, outSz, &idx,
+                extExtKeyUsageServerAuthOid, sizeof(extExtKeyUsageServerAuthOid));
+        if (input & EXTKEYUSE_CLIENT_AUTH)
+            ret |= SetOjectIdValue(output, outSz, &idx,
+                extExtKeyUsageClientAuthOid, sizeof(extExtKeyUsageClientAuthOid));
+        if (input & EXTKEYUSE_CODESIGN)
+            ret |= SetOjectIdValue(output, outSz, &idx,
+                extExtKeyUsageCodeSigningOid, sizeof(extExtKeyUsageCodeSigningOid));
+        if (input & EXTKEYUSE_EMAILPROT)
+            ret |= SetOjectIdValue(output, outSz, &idx,
+                extExtKeyUsageEmailProtectOid, sizeof(extExtKeyUsageEmailProtectOid));
+        if (input & EXTKEYUSE_TIMESTAMP)
+            ret |= SetOjectIdValue(output, outSz, &idx,
+                extExtKeyUsageTimestampOid, sizeof(extExtKeyUsageTimestampOid));
+        if (input & EXTKEYUSE_OCSP_SIGN)
+            ret |= SetOjectIdValue(output, outSz, &idx,
+                extExtKeyUsageOcspSignOid, sizeof(extExtKeyUsageOcspSignOid));
+    }
+    if (ret != 0)
+        return ASN_PARSE_E;
+
+    /* Calculate Sizes */
+    oidListSz = idx - totalSz;
+    totalSz = idx - 2; /* exclude first seq/len (2) */
+
+    /* 1. Seq + Total Len (2) */
+    idx = SetSequence(totalSz, output);
+
+    /* 2. Object ID (2) */
+    XMEMCPY(&output[idx], extkeyusage_oid, sizeof(extkeyusage_oid));
+    idx += sizeof(extkeyusage_oid);
+
+    /* 3. Octect String (2) */
+    idx += SetOctetString(totalSz - idx, &output[idx]);
+
+    /* 4. Seq + OidListLen (2) */
+    idx += SetSequence(oidListSz, &output[idx]);
+
+    /* 5. Oid List (already set in-place above) */
+    idx += oidListSz;
+
+    return idx;
 }
 
 /* Encode OID string representation to ITU-T X.690 format */
@@ -8231,6 +8336,18 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     else
         der->keyUsageSz = 0;
 
+    /* Extended Key Usage */
+    if (cert->extKeyUsage != 0){
+        der->extKeyUsageSz = SetExtKeyUsage(der->extKeyUsage,
+                                sizeof(der->extKeyUsage), cert->extKeyUsage);
+        if (der->extKeyUsageSz <= 0)
+            return EXTKEYUSAGE_E;
+
+        der->extensionsSz += der->extKeyUsageSz;
+    }
+    else
+        der->extKeyUsageSz = 0;
+
     /* Certificate Policies */
     if (cert->certPoliciesNb != 0) {
         der->certPoliciesSz = SetCertificatePolicies(der->certPolicies,
@@ -8301,6 +8418,15 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
             ret = SetExtensions(der->extensions, sizeof(der->extensions),
                                 &der->extensionsSz,
                                 der->keyUsage, der->keyUsageSz);
+            if (ret <= 0)
+                return EXTENSIONS_E;
+        }
+
+        /* put ExtendedKeyUsage */
+        if (der->extKeyUsageSz) {
+            ret = SetExtensions(der->extensions, sizeof(der->extensions),
+                                &der->extensionsSz,
+                                der->extKeyUsage, der->extKeyUsageSz);
             if (ret <= 0)
                 return EXTENSIONS_E;
         }
@@ -8742,6 +8868,19 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
     }
     else
         der->keyUsageSz = 0;
+
+    /* Extended Key Usage */
+    if (cert->extKeyUsage != 0){
+        der->extKeyUsageSz = SetExtKeyUsage(der->extKeyUsage,
+                                sizeof(der->extKeyUsage), cert->extKeyUsage);
+        if (der->extKeyUsageSz <= 0)
+            return EXTKEYUSAGE_E;
+
+        der->extensionsSz += der->extKeyUsageSz;
+    }
+    else
+        der->extKeyUsageSz = 0;
+
 #endif /* WOLFSSL_CERT_EXT */
 
     /* put extensions */
@@ -8786,6 +8925,15 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
             ret = SetExtensions(der->extensions, sizeof(der->extensions),
                                 &der->extensionsSz,
                                 der->keyUsage, der->keyUsageSz);
+            if (ret <= 0)
+                return EXTENSIONS_E;
+        }
+
+        /* put ExtendedKeyUsage */
+        if (der->extKeyUsageSz) {
+            ret = SetExtensions(der->extensions, sizeof(der->extensions),
+                                &der->extensionsSz,
+                                der->extKeyUsage, der->extKeyUsageSz);
             if (ret <= 0)
                 return EXTENSIONS_E;
         }
@@ -9349,8 +9497,7 @@ int wc_SetKeyUsage(Cert *cert, const char *value)
 
     cert->keyUsage = 0;
 
-    str = (char *)XMALLOC(XSTRLEN(value)+1, cert->heap,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    str = (char*)XMALLOC(XSTRLEN(value)+1, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (str == NULL)
         return MEMORY_E;
 
@@ -9387,6 +9534,61 @@ int wc_SetKeyUsage(Cert *cert, const char *value)
             cert->keyUsage |= KEYUSE_DECIPHER_ONLY;
         else {
             ret = KEYUSAGE_E;
+            break;
+        }
+
+        token = XSTRTOK(NULL, ",", &ptr);
+    }
+
+    XFREE(str, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+
+/* Set ExtendedKeyUsage from human readable string */
+int wc_SetExtKeyUsage(Cert *cert, const char *value)
+{
+    int ret = 0;
+    char *token, *str, *ptr;
+    word32 len;
+
+    if (cert == NULL || value == NULL)
+        return BAD_FUNC_ARG;
+
+    cert->extKeyUsage = 0;
+
+    str = (char*)XMALLOC(XSTRLEN(value)+1, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (str == NULL)
+        return MEMORY_E;
+
+    XMEMSET(str, 0, XSTRLEN(value)+1);
+    XSTRNCPY(str, value, XSTRLEN(value));
+
+    /* parse value, and set corresponding Key Usage value */
+    if ((token = XSTRTOK(str, ",", &ptr)) == NULL) {
+        XFREE(str, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return EXTKEYUSAGE_E;
+    }
+
+    while (token != NULL)
+    {
+        len = (word32)XSTRLEN(token);
+
+        if (!XSTRNCASECMP(token, "any", len))
+            cert->extKeyUsage |= EXTKEYUSE_ANY;
+        else if (!XSTRNCASECMP(token, "serverAuth", len))
+            cert->extKeyUsage |= EXTKEYUSE_SERVER_AUTH;
+        else if (!XSTRNCASECMP(token, "clientAuth", len))
+            cert->extKeyUsage |= EXTKEYUSE_CLIENT_AUTH;
+        else if (!XSTRNCASECMP(token, "codeSigning", len))
+            cert->extKeyUsage |= EXTKEYUSE_CODESIGN;
+        else if (!XSTRNCASECMP(token, "emailProtection", len))
+            cert->extKeyUsage |= EXTKEYUSE_EMAILPROT;
+        else if (!XSTRNCASECMP(token, "timeStamping", len))
+            cert->extKeyUsage |= EXTKEYUSE_TIMESTAMP;
+        else if (!XSTRNCASECMP(token, "OCSPSigning", len))
+            cert->extKeyUsage |= EXTKEYUSE_OCSP_SIGN;
+        else {
+            ret = EXTKEYUSAGE_E;
             break;
         }
 
