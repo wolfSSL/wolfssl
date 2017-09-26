@@ -703,6 +703,50 @@ static int test_wolfSSL_SetMinVersion(void)
 
 } /* END test_wolfSSL_SetMinVersion */
 
+/*----------------------------------------------------------------------------*
+ | EVP
+ *----------------------------------------------------------------------------*/
+
+/* Test function for wolfSSL_EVP_get_cipherbynid.
+ *
+ * POST: return 1 on success.
+ */
+
+# if defined(OPENSSL_EXTRA)
+static void test_wolfSSL_EVP_get_cipherbynid(void)
+{
+#ifndef NO_AES
+      AssertNotNull(strcmp("EVP_AES_128_CBC", wolfSSL_EVP_get_cipherbynid(419)));
+      AssertNotNull(strcmp("EVP_AES_192_CBC", wolfSSL_EVP_get_cipherbynid(423)));
+      AssertNotNull(strcmp("EVP_AES_256_CBC", wolfSSL_EVP_get_cipherbynid(427)));
+      AssertNotNull(strcmp("EVP_AES_128_CTR", wolfSSL_EVP_get_cipherbynid(904)));
+      AssertNotNull(strcmp("EVP_AES_192_CTR", wolfSSL_EVP_get_cipherbynid(905)));
+      AssertNotNull(strcmp("EVP_AES_256_CTR", wolfSSL_EVP_get_cipherbynid(906)));
+      AssertNotNull(strcmp("EVP_AES_128_ECB", wolfSSL_EVP_get_cipherbynid(418)));
+      AssertNotNull(strcmp("EVP_AES_192_ECB", wolfSSL_EVP_get_cipherbynid(422)));
+      AssertNotNull(strcmp("EVP_AES_256_ECB", wolfSSL_EVP_get_cipherbynid(426)));
+#endif
+
+#ifndef NO_DES3
+    AssertNotNull(strcmp("EVP_DES_CBC", wolfSSL_EVP_get_cipherbynid(31)));
+#ifdef WOLFSSL_DES_ECB
+    AssertNotNull(strcmp("EVP_DES_ECB", wolfSSL_EVP_get_cipherbynid(29)));
+#endif
+    AssertNotNull(strcmp("EVP_DES_EDE3_CBC", wolfSSL_EVP_get_cipherbynid(44)));
+#ifdef WOLFSSL_DES_ECB
+    AssertNotNull(strcmp("EVP_DES_EDE3_ECB", wolfSSL_EVP_get_cipherbynid(33)));
+#endif
+#endif /*NO_DES3*/
+
+#ifdef HAVE_IDEA
+    AssertNotNull(strcmp("EVP_IDEA_CBC", wolfSSL_EVP_get_cipherbynid(34)));
+#endif
+
+  /* test for nid is out of range */
+  AssertNull(wolfSSL_EVP_get_cipherbynid(1));
+
+}
+#endif
 
 /*----------------------------------------------------------------------------*
  | IO
@@ -10948,9 +10992,15 @@ void ApiTest(void)
     AssertIntEQ(test_wc_MakeDsaKey(), 0);
     AssertIntEQ(test_wc_DsaKeyToDer(), 0);
 
+#ifdef OPENSSL_EXTRA
+    /*wolfSSS_EVP_get_cipherbynid test*/
+    test_wolfSSL_EVP_get_cipherbynid();
+#endif
+
 #ifdef HAVE_HASHDRBG
     AssertIntEQ(test_wc_RNG_GenerateBlock(), 0);
 #endif
+
     printf(" End API Tests\n");
 
 }
