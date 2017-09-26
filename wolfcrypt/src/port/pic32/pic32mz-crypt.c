@@ -216,8 +216,8 @@ static int Pic32Crypto(const byte* in, int inLen, word32* out, int outLen,
         /* check for errors */
         if (CESTATbits.ERROP || timeout <= 0) {
         #if 0
-            printf("PIC32 Crypto: ERROP %x, ERRPHASE %x, TIMEOUT %d\n",
-                CESTATbits.ERROP, CESTATbits.ERRPHASE, timeout);
+            printf("PIC32 Crypto: ERROP %x, ERRPHASE %x, TIMEOUT %s\n",
+                CESTATbits.ERROP, CESTATbits.ERRPHASE, timeout <= 0 ? "yes" : "no");
         #endif
             ret = ASYNC_OP_E;
         }
@@ -407,7 +407,6 @@ static void update_engine(pic32mz_desc *desc, const byte *input, word32 len,
 static void start_engine(pic32mz_desc *desc)
 {
     /* Wrap up the last buffer descriptor and enable it */
-    int i;
     int bufferLen;
     pic32mz_desc *uc_desc = KVA0_TO_KVA1(desc);
 

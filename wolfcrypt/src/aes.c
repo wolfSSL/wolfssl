@@ -587,22 +587,21 @@
     #include <wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h>
 
     #if defined(HAVE_AESGCM) || defined(WOLFSSL_AES_DIRECT)
-
     static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     {
         return wc_Pic32AesCrypt(aes->key_ce, aes->keylen, NULL, 0,
             outBlock, inBlock, AES_BLOCK_SIZE,
             PIC32_ENCRYPTION, PIC32_ALGO_AES, PIC32_CRYPTOALGO_RECB);
     }
-
-    #ifdef HAVE_AES_DECRYPT
+    #endif
+    
+    #if defined(HAVE_AES_DECRYPT) && defined(WOLFSSL_AES_DIRECT)
     static int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     {
         return wc_Pic32AesCrypt(aes->key_ce, aes->keylen, NULL, 0,
             outBlock, inBlock, AES_BLOCK_SIZE,
             PIC32_DECRYPTION, PIC32_ALGO_AES, PIC32_CRYPTOALGO_RECB);
     }
-    #endif /* HAVE_AES_DECRYPT */
     #endif
 
 #elif defined(WOLFSSL_NRF51_AES)
