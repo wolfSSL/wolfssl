@@ -2916,8 +2916,7 @@ static int TLSX_EllipticCurve_Append(EllipticCurve** list, word16 name,
     return 0;
 }
 
-static int TLSX_PointFormat_Append(PointFormat** list, word16 format,
-                                                                     void* heap)
+static int TLSX_PointFormat_Append(PointFormat** list, byte format, void* heap)
 {
     PointFormat* point = NULL;
 
@@ -3058,7 +3057,7 @@ static word16 TLSX_EllipticCurve_Write(EllipticCurve* list, byte* output)
 
 static word16 TLSX_PointFormat_Write(PointFormat* list, byte* output)
 {
-    word16 length = TLSX_PointFormat_WriteR(list, output + OPAQUE16_LEN);
+    word16 length = TLSX_PointFormat_WriteR(list, output + ENUM_LEN);
 
     output[0] = length; /* writing list length */
 
@@ -3072,7 +3071,7 @@ static int TLSX_EllipticCurve_Parse(WOLFSSL* ssl, byte* input, word16 length,
 {
     word16 offset;
     word16 name;
-    int r;
+    int ret;
 
     (void) isRequest; /* shut up compiler! */
 
@@ -3089,9 +3088,10 @@ static int TLSX_EllipticCurve_Parse(WOLFSSL* ssl, byte* input, word16 length,
         ato16(input + offset, &name);
         offset -= OPAQUE16_LEN;
 
-        r = TLSX_UseSupportedCurve(&ssl->extensions, name, ssl->heap);
+        ret = TLSX_UseSupportedCurve(&ssl->extensions, name, ssl->heap);
 
-        if (r != SSL_SUCCESS) return r; /* throw error */
+        if (ret != SSL_SUCCESS)
+            return ret; /* throw error */
     }
 
     return 0;
@@ -3454,7 +3454,7 @@ int TLSX_UseSupportedCurve(TLSX** extensions, word16 name, void* heap)
 
 int TLSX_UsePointFormat(TLSX** extensions, byte format, void* heap)
 {
-    TLSX* extension;
+    TLSX* extension = NULL;
     PointFormat* point = NULL;
     int ret = 0;
 
