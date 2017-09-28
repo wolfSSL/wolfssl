@@ -40,9 +40,6 @@
 
 /* in bytes */
 enum {
-#if defined(STM32F2_HASH) || defined(STM32F4_HASH)
-    MD5_REG_SIZE    =  4,      /* STM32 register size, bytes */
-#endif
     MD5             =  0,      /* hash type unique */
     MD5_BLOCK_SIZE  = 64,
     MD5_DIGEST_SIZE = 16,
@@ -74,6 +71,9 @@ typedef struct Md5 {
     void*   heap;
 #ifdef WOLFSSL_PIC32MZ_HASH
     hashUpdCache cache; /* cache for updates */
+#endif
+#if defined(STM32_HASH) && defined(WOLFSSL_STM32_CUBEMX)
+    HASH_HandleTypeDef hashHandle;
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;

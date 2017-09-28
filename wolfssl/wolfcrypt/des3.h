@@ -58,7 +58,7 @@ enum {
 #define DES3_KEYLEN 24
 
 
-#if defined(STM32F2_CRYPTO) || defined(STM32F4_CRYPTO)
+#if defined(STM32_CRYPTO)
 enum {
     DES_CBC = 0,
     DES_ECB = 1
