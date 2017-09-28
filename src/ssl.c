@@ -11959,7 +11959,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
 
 #ifndef NO_MD5
-    void wolfSSL_MD5_Init(WOLFSSL_MD5_CTX* md5)
+    int wolfSSL_MD5_Init(WOLFSSL_MD5_CTX* md5)
     {
         int ret;
         typedef char md5_test[sizeof(MD5_CTX) >= sizeof(Md5) ? 1 : -1];
@@ -11967,22 +11967,43 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         WOLFSSL_ENTER("MD5_Init");
         ret = wc_InitMd5((Md5*)md5);
-        (void)ret;
+
+        /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return 1;
+
+        return 0;
     }
 
 
-    void wolfSSL_MD5_Update(WOLFSSL_MD5_CTX* md5, const void* input,
+    int wolfSSL_MD5_Update(WOLFSSL_MD5_CTX* md5, const void* input,
                            unsigned long sz)
     {
+        int ret;
+
         WOLFSSL_ENTER("wolfSSL_MD5_Update");
-        wc_Md5Update((Md5*)md5, (const byte*)input, (word32)sz);
+        ret = wc_Md5Update((Md5*)md5, (const byte*)input, (word32)sz);
+
+        /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return 1;
+
+        return 0;
     }
 
 
-    void wolfSSL_MD5_Final(byte* input, WOLFSSL_MD5_CTX* md5)
+    int wolfSSL_MD5_Final(byte* input, WOLFSSL_MD5_CTX* md5)
     {
+        int ret;
+
         WOLFSSL_ENTER("MD5_Final");
-        wc_Md5Final((Md5*)md5, input);
+        ret = wc_Md5Final((Md5*)md5, input);
+
+        /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return 1;
+
+        return 0;
     }
 #endif /* NO_MD5 */
 
@@ -11991,6 +12012,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     int wolfSSL_SHA_Init(WOLFSSL_SHA_CTX* sha)
     {
         int ret;
+
         typedef char sha_test[sizeof(SHA_CTX) >= sizeof(Sha) ? 1 : -1];
         (void)sizeof(sha_test);
 

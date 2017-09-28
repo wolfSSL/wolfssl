@@ -21,9 +21,9 @@ typedef struct WOLFSSL_MD5_CTX {
     int holder[28 + (WC_ASYNC_DEV_SIZE / sizeof(int))];   /* big enough to hold wolfcrypt md5, but check on init */
 } WOLFSSL_MD5_CTX;
 
-WOLFSSL_API void wolfSSL_MD5_Init(WOLFSSL_MD5_CTX*);
-WOLFSSL_API void wolfSSL_MD5_Update(WOLFSSL_MD5_CTX*, const void*, unsigned long);
-WOLFSSL_API void wolfSSL_MD5_Final(unsigned char*, WOLFSSL_MD5_CTX*);
+WOLFSSL_API int wolfSSL_MD5_Init(WOLFSSL_MD5_CTX*);
+WOLFSSL_API int wolfSSL_MD5_Update(WOLFSSL_MD5_CTX*, const void*, unsigned long);
+WOLFSSL_API int wolfSSL_MD5_Final(unsigned char*, WOLFSSL_MD5_CTX*);
 
 
 typedef WOLFSSL_MD5_CTX MD5_CTX;
