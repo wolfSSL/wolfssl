@@ -16367,16 +16367,26 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
 int wolfSSL_ASN1_TIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_TIME* asnTime)
 {
     char buf[MAX_TIME_STRING_SZ];
+    int  ret = SSL_SUCCESS;
 
     WOLFSSL_ENTER("wolfSSL_ASN1_TIME_print");
 
     if (bio == NULL || asnTime == NULL)
         return BAD_FUNC_ARG;
 
-    wolfSSL_ASN1_TIME_to_string((WOLFSSL_ASN1_TIME*)asnTime, buf, sizeof(buf));
-    wolfSSL_BIO_write(bio, buf, (int)XSTRLEN(buf));
+    if (wolfSSL_ASN1_TIME_to_string((WOLFSSL_ASN1_TIME*)asnTime, buf,
+                sizeof(buf)) == NULL) {
+        XMEMSET(buf, 0, MAX_TIME_STRING_SZ);
+        XMEMCPY(buf, "Bad time value", 14);
+        ret = SSL_FAILURE;
+    }
 
-    return 0;
+    if (wolfSSL_BIO_write(bio, buf, (int)XSTRLEN(buf)) <= 0) {
+        WOLFSSL_MSG("Unable to write to bio");
+        return SSL_FAILURE;
+    }
+
+    return ret;
 }
 
 

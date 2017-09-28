@@ -9450,6 +9450,42 @@ static void test_wolfSSL_certs(void)
 }
 
 
+static void test_wolfSSL_ASN1_TIME_print()
+{
+    #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_RSA) \
+        && (defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || \
+            defined(WOLFSSL_HAPROXY)) && defined(USE_CERT_BUFFERS_2048)
+    BIO*  bio;
+    X509*  x509;
+    const unsigned char* der = client_cert_der_2048;
+    ASN1_TIME* t;
+    unsigned char buf[25];
+
+    printf(testingFmt, "wolfSSL_ASN1_TIME_print()");
+
+    AssertNotNull(bio = BIO_new(BIO_s_mem()));
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_buffer(der,
+                sizeof_client_cert_der_2048, SSL_FILETYPE_ASN1));
+    AssertIntEQ(ASN1_TIME_print(bio, X509_get_notBefore(x509)), 1);
+    AssertIntEQ(BIO_read(bio, buf, sizeof(buf)), 24);
+    AssertIntEQ(XMEMCMP(buf, "Aug 11 20:07:37 2016 GMT", sizeof(buf) - 1), 0);
+
+    /* create a bad time and test results */
+    AssertNotNull(t = X509_get_notAfter(x509));
+    t->data[10] = 0;
+    t->data[5]  = 0;
+    AssertIntNE(ASN1_TIME_print(bio, t), 1);
+    AssertIntEQ(BIO_read(bio, buf, sizeof(buf)), 14);
+    AssertIntEQ(XMEMCMP(buf, "Bad time value", 14), 0);
+
+    BIO_free(bio);
+    X509_free(x509);
+
+    printf(resultFmt, passed);
+    #endif
+}
+
+
 static void test_wolfSSL_private_keys(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
@@ -10857,6 +10893,7 @@ void ApiTest(void)
     /* compatibility tests */
     test_wolfSSL_DES();
     test_wolfSSL_certs();
+    test_wolfSSL_ASN1_TIME_print();
     test_wolfSSL_private_keys();
     test_wolfSSL_PEM_PrivateKey();
     test_wolfSSL_tmp_dh();
