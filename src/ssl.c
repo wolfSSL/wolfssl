@@ -11728,7 +11728,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     {
         WOLFSSL_ENTER("wolfSSL_ERR_get_error");
 
-#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(HAVE_STUNNEL)
         {
             unsigned long ret = wolfSSL_ERR_peek_error_line_data(NULL, NULL,
                                                                  NULL, NULL);
@@ -23514,7 +23514,7 @@ unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line)
 
     (void)line;
     (void)file;
-#if defined(WOLFSSL_NGINX) || defined(DEBUG_WOLFSSL) || defined(WOLFSSL_HAPROXY)
+#if defined(WOLFSSL_NGINX) || defined(DEBUG_WOLFSSL) || defined(WOLFSSL_HAPROXY) || defined(HAVE_STUNNEL)
     {
         int ret;
 
@@ -24056,6 +24056,13 @@ int wolfSSL_SESSION_get_ex_new_index(long idx, void* data, void* cb1,
     else if(XSTRNCMP((const char*)data, "addr index", 10) == 0) {
         return 1;
     }
+    else if(XSTRNCMP((const char*)data, "session authenticated", 21) == 0) {
+        return 2;
+    }
+    else if(XSTRNCMP((const char*)data, "session connect address", 23) ==0) {
+        return 3;
+    }
+
     return SSL_FAILURE;
 }
 
@@ -24453,6 +24460,28 @@ void wolfSSL_sk_X509_pop_free(STACK_OF(WOLFSSL_X509)* sk, void f (WOLFSSL_X509*)
 #endif /* OPENSSL_EXTRA and HAVE_STUNNEL */
 #if defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX))\
     || defined(WOLFSSL_HAPROXY)
+STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
+{
+    (void)ssl;
+    WOLFSSL_STUB("wolfSSL_get_ciphers_compat");
+    return NULL;
+}
+
+
+STACK_OF(WOLFSSL_CIPHER) *wolfSSL_CTX_get_ciphers_compat(const WOLFSSL_CTX *ctx)
+{
+    (void)ctx;
+    WOLFSSL_STUB("wolfSSL_get_ciphers_compat");
+    return NULL;
+}
+
+
+void wolfssl_EVP_set_pw_prompt(const char* prompt)
+{
+    (void)prompt;
+    WOLFSSL_STUB("wolfssl_EVP_set_pw_prompt");
+    return;
+}
 
 
 const byte* wolfSSL_SESSION_get_id(WOLFSSL_SESSION* sess, unsigned int* idLen)
@@ -24900,7 +24929,7 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
         *flags = 0;
     }
 
-#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(HAVE_STUNNEL)
     {
         int ret = 0;
 
@@ -24911,8 +24940,10 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
             }
             ret = -ret;
 
+#ifndef HAVE_STUNNEL
             if (ret == SSL_NO_PEM_HEADER)
                 return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
+#endif /* HAVE_STUNNEL */
             if (ret != WANT_READ && ret != WANT_WRITE &&
                     ret != ZERO_RETURN && ret != SSL_ERROR_ZERO_RETURN &&
                     ret != SOCKET_PEER_CLOSED_E && ret != SOCKET_ERROR_E)
@@ -24930,13 +24961,6 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
 #endif
 
 #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
-
-STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
-{
-    (void)ssl;
-    WOLFSSL_STUB("wolfSSL_get_ciphers_compat");
-    return NULL;
-}
 
 void wolfSSL_OPENSSL_config(char *config_name)
 {

@@ -513,11 +513,13 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define PEM_write_bio_X509 wolfSSL_PEM_write_bio_X509
 
 
-#ifdef WOLFSSL_HAPROXY
+#if defined(WOLFSSL_HAPROXY) || defined(HAVE_STUNNEL)
 #define SSL_get_rbio                      wolfSSL_SSL_get_rbio
 #define SSL_get_wbio                      wolfSSL_SSL_get_wbio
 #define SSL_do_handshake                  wolfSSL_SSL_do_handshake
 #define SSL_get_ciphers(x)                wolfSSL_get_ciphers_compat(x)
+#define SSL_CTX_get_ciphers(x)            wolfSSL_CTX_get_ciphers_compat(x)
+#define EVP_set_pw_prompt(x)              wolfssl_EVP_set_pw_prompt(x);
 #define SSL_SESSION_get_id                wolfSSL_SESSION_get_id
 #define ASN1_STRING_get0_data             wolfSSL_ASN1_STRING_data
 #define SSL_get_cipher_bits(s,np)         wolfSSL_CIPHER_get_bits(SSL_get_current_cipher(s),np)
