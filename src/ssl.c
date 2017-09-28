@@ -11959,7 +11959,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
 
 #ifndef NO_MD5
-    void wolfSSL_MD5_Init(WOLFSSL_MD5_CTX* md5)
+    int wolfSSL_MD5_Init(WOLFSSL_MD5_CTX* md5)
     {
         int ret;
         typedef char md5_test[sizeof(MD5_CTX) >= sizeof(Md5) ? 1 : -1];
@@ -11967,158 +11967,269 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         WOLFSSL_ENTER("MD5_Init");
         ret = wc_InitMd5((Md5*)md5);
-        (void)ret;
+
+        /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return 1;
+
+        return 0;
     }
 
 
-    void wolfSSL_MD5_Update(WOLFSSL_MD5_CTX* md5, const void* input,
+    int wolfSSL_MD5_Update(WOLFSSL_MD5_CTX* md5, const void* input,
                            unsigned long sz)
     {
+        int ret;
+
         WOLFSSL_ENTER("wolfSSL_MD5_Update");
-        wc_Md5Update((Md5*)md5, (const byte*)input, (word32)sz);
+        ret = wc_Md5Update((Md5*)md5, (const byte*)input, (word32)sz);
+
+        /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return 1;
+
+        return 0;
     }
 
 
-    void wolfSSL_MD5_Final(byte* input, WOLFSSL_MD5_CTX* md5)
+    int wolfSSL_MD5_Final(byte* input, WOLFSSL_MD5_CTX* md5)
     {
+        int ret;
+
         WOLFSSL_ENTER("MD5_Final");
-        wc_Md5Final((Md5*)md5, input);
+        ret = wc_Md5Final((Md5*)md5, input);
+
+        /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return 1;
+
+        return 0;
     }
 #endif /* NO_MD5 */
 
 
 #ifndef NO_SHA
-    void wolfSSL_SHA_Init(WOLFSSL_SHA_CTX* sha)
+    int wolfSSL_SHA_Init(WOLFSSL_SHA_CTX* sha)
     {
+        int ret;
+
         typedef char sha_test[sizeof(SHA_CTX) >= sizeof(Sha) ? 1 : -1];
         (void)sizeof(sha_test);
 
         WOLFSSL_ENTER("SHA_Init");
-        wc_InitSha((Sha*)sha);  /* OpenSSL compat, no ret */
+        ret = wc_InitSha((Sha*)sha);
+
+        /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return 1;
+
+        return 0;
     }
 
 
-    void wolfSSL_SHA_Update(WOLFSSL_SHA_CTX* sha, const void* input,
+    int wolfSSL_SHA_Update(WOLFSSL_SHA_CTX* sha, const void* input,
                            unsigned long sz)
     {
+        int ret;
+
         WOLFSSL_ENTER("SHA_Update");
-        wc_ShaUpdate((Sha*)sha, (const byte*)input, (word32)sz);
+        ret = wc_ShaUpdate((Sha*)sha, (const byte*)input, (word32)sz);
+
+        /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return 1;
+
+        return 0;
     }
 
 
-    void wolfSSL_SHA_Final(byte* input, WOLFSSL_SHA_CTX* sha)
+    int wolfSSL_SHA_Final(byte* input, WOLFSSL_SHA_CTX* sha)
     {
+        int ret;
+
         WOLFSSL_ENTER("SHA_Final");
-        wc_ShaFinal((Sha*)sha, input);
+        ret = wc_ShaFinal((Sha*)sha, input);
+
+        /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return 1;
+
+        return 0;
     }
 
 
-    void wolfSSL_SHA1_Init(WOLFSSL_SHA_CTX* sha)
+    int wolfSSL_SHA1_Init(WOLFSSL_SHA_CTX* sha)
     {
         WOLFSSL_ENTER("SHA1_Init");
-        SHA_Init(sha);
+        return SHA_Init(sha);
     }
 
 
-    void wolfSSL_SHA1_Update(WOLFSSL_SHA_CTX* sha, const void* input,
+    int wolfSSL_SHA1_Update(WOLFSSL_SHA_CTX* sha, const void* input,
                             unsigned long sz)
     {
         WOLFSSL_ENTER("SHA1_Update");
-        SHA_Update(sha, input, sz);
+        return SHA_Update(sha, input, sz);
     }
 
 
-    void wolfSSL_SHA1_Final(byte* input, WOLFSSL_SHA_CTX* sha)
+    int wolfSSL_SHA1_Final(byte* input, WOLFSSL_SHA_CTX* sha)
     {
         WOLFSSL_ENTER("SHA1_Final");
-        SHA_Final(input, sha);
+        return SHA_Final(input, sha);
     }
 #endif /* NO_SHA */
 
     #ifdef WOLFSSL_SHA224
 
-    void wolfSSL_SHA224_Init(WOLFSSL_SHA224_CTX* sha)
+    int wolfSSL_SHA224_Init(WOLFSSL_SHA224_CTX* sha)
     {
+        int ret;
+
         typedef char sha_test[sizeof(SHA224_CTX) >= sizeof(Sha224) ? 1 : -1];
         (void)sizeof(sha_test);
 
         WOLFSSL_ENTER("SHA224_Init");
-        wc_InitSha224((Sha224*)sha);   /* OpenSSL compat, no error */
+        ret = wc_InitSha224((Sha224*)sha);
+
+        /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return 1;
+
+        return 0;
     }
 
 
-    void wolfSSL_SHA224_Update(WOLFSSL_SHA224_CTX* sha, const void* input,
+    int wolfSSL_SHA224_Update(WOLFSSL_SHA224_CTX* sha, const void* input,
                            unsigned long sz)
     {
+        int ret;
+
         WOLFSSL_ENTER("SHA224_Update");
-        wc_Sha224Update((Sha224*)sha, (const byte*)input, (word32)sz);
-        /* OpenSSL compat, no error */
+        ret = wc_Sha224Update((Sha224*)sha, (const byte*)input, (word32)sz);
+
+        /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return 1;
+
+        return 0;
     }
 
 
-    void wolfSSL_SHA224_Final(byte* input, WOLFSSL_SHA224_CTX* sha)
+    int wolfSSL_SHA224_Final(byte* input, WOLFSSL_SHA224_CTX* sha)
     {
+        int ret;
+
         WOLFSSL_ENTER("SHA224_Final");
-        wc_Sha224Final((Sha224*)sha, input);
-        /* OpenSSL compat, no error */
+        ret = wc_Sha224Final((Sha224*)sha, input);
+
+        /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return 1;
+
+        return 0;
     }
 
     #endif /* WOLFSSL_SHA224 */
 
 
-    void wolfSSL_SHA256_Init(WOLFSSL_SHA256_CTX* sha256)
+    int wolfSSL_SHA256_Init(WOLFSSL_SHA256_CTX* sha256)
     {
+        int ret;
+
         typedef char sha_test[sizeof(SHA256_CTX) >= sizeof(Sha256) ? 1 : -1];
         (void)sizeof(sha_test);
 
         WOLFSSL_ENTER("SHA256_Init");
-        wc_InitSha256((Sha256*)sha256);  /* OpenSSL compat, no error */
+        ret = wc_InitSha256((Sha256*)sha256);
+
+        /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return 1;
+
+        return 0;
     }
 
 
-    void wolfSSL_SHA256_Update(WOLFSSL_SHA256_CTX* sha, const void* input,
+    int wolfSSL_SHA256_Update(WOLFSSL_SHA256_CTX* sha, const void* input,
                               unsigned long sz)
     {
+        int ret;
+
         WOLFSSL_ENTER("SHA256_Update");
-        wc_Sha256Update((Sha256*)sha, (const byte*)input, (word32)sz);
-        /* OpenSSL compat, no error */
+        ret = wc_Sha256Update((Sha256*)sha, (const byte*)input, (word32)sz);
+
+        /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return 1;
+
+        return 0;
     }
 
 
-    void wolfSSL_SHA256_Final(byte* input, WOLFSSL_SHA256_CTX* sha)
+    int wolfSSL_SHA256_Final(byte* input, WOLFSSL_SHA256_CTX* sha)
     {
+        int ret;
+
         WOLFSSL_ENTER("SHA256_Final");
-        wc_Sha256Final((Sha256*)sha, input);
-        /* OpenSSL compat, no error */
+        ret = wc_Sha256Final((Sha256*)sha, input);
+
+        /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return 1;
+
+        return 0;
     }
 
 
     #ifdef WOLFSSL_SHA384
 
-    void wolfSSL_SHA384_Init(WOLFSSL_SHA384_CTX* sha)
+    int wolfSSL_SHA384_Init(WOLFSSL_SHA384_CTX* sha)
     {
+        int ret;
+
         typedef char sha_test[sizeof(SHA384_CTX) >= sizeof(Sha384) ? 1 : -1];
         (void)sizeof(sha_test);
 
         WOLFSSL_ENTER("SHA384_Init");
-        wc_InitSha384((Sha384*)sha);   /* OpenSSL compat, no error */
+        ret = wc_InitSha384((Sha384*)sha);
+
+        /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return 1;
+
+        return 0;
     }
 
 
-    void wolfSSL_SHA384_Update(WOLFSSL_SHA384_CTX* sha, const void* input,
+    int wolfSSL_SHA384_Update(WOLFSSL_SHA384_CTX* sha, const void* input,
                            unsigned long sz)
     {
+        int ret;
+
         WOLFSSL_ENTER("SHA384_Update");
-        wc_Sha384Update((Sha384*)sha, (const byte*)input, (word32)sz);
-        /* OpenSSL compat, no error */
+        ret = wc_Sha384Update((Sha384*)sha, (const byte*)input, (word32)sz);
+
+        /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return 1;
+
+        return 0;
     }
 
 
-    void wolfSSL_SHA384_Final(byte* input, WOLFSSL_SHA384_CTX* sha)
+    int wolfSSL_SHA384_Final(byte* input, WOLFSSL_SHA384_CTX* sha)
     {
+        int ret;
+
         WOLFSSL_ENTER("SHA384_Final");
-        wc_Sha384Final((Sha384*)sha, input);
-        /* OpenSSL compat, no error */
+        ret = wc_Sha384Final((Sha384*)sha, input);
+
+        /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return 1;
+
+        return 0;
     }
 
     #endif /* WOLFSSL_SHA384 */
@@ -12126,30 +12237,52 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
    #ifdef WOLFSSL_SHA512
 
-    void wolfSSL_SHA512_Init(WOLFSSL_SHA512_CTX* sha)
+    int wolfSSL_SHA512_Init(WOLFSSL_SHA512_CTX* sha)
     {
+        int ret;
+
         typedef char sha_test[sizeof(SHA512_CTX) >= sizeof(Sha512) ? 1 : -1];
         (void)sizeof(sha_test);
 
         WOLFSSL_ENTER("SHA512_Init");
-        wc_InitSha512((Sha512*)sha);  /* OpenSSL compat, no error */
+        ret = wc_InitSha512((Sha512*)sha);
+
+        /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return 1;
+
+        return 0;
     }
 
 
-    void wolfSSL_SHA512_Update(WOLFSSL_SHA512_CTX* sha, const void* input,
+    int wolfSSL_SHA512_Update(WOLFSSL_SHA512_CTX* sha, const void* input,
                            unsigned long sz)
     {
+        int ret;
+
         WOLFSSL_ENTER("SHA512_Update");
-        wc_Sha512Update((Sha512*)sha, (const byte*)input, (word32)sz);
-        /* OpenSSL compat, no error */
+        ret = wc_Sha512Update((Sha512*)sha, (const byte*)input, (word32)sz);
+
+        /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return 1;
+
+        return 0;
     }
 
 
-    void wolfSSL_SHA512_Final(byte* input, WOLFSSL_SHA512_CTX* sha)
+    int wolfSSL_SHA512_Final(byte* input, WOLFSSL_SHA512_CTX* sha)
     {
+        int ret;
+
         WOLFSSL_ENTER("SHA512_Final");
-        wc_Sha512Final((Sha512*)sha, input);
-        /* OpenSSL compat, no error */
+        ret = wc_Sha512Final((Sha512*)sha, input);
+
+        /* return 1 on success, 0 otherwise */
+        if (ret == 0)
+            return 1;
+
+        return 0;
     }
 
     #endif /* WOLFSSL_SHA512 */
@@ -13084,6 +13217,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     int wolfSSL_EVP_DigestInit(WOLFSSL_EVP_MD_CTX* ctx,
                                const WOLFSSL_EVP_MD* type)
     {
+        int ret = SSL_SUCCESS;
+
         WOLFSSL_ENTER("EVP_DigestInit");
 
         if (ctx == NULL || type == NULL) {
@@ -13100,43 +13235,43 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
         if (XSTRNCMP(type, "SHA256", 6) == 0) {
              ctx->macType = SHA256;
-             wolfSSL_SHA256_Init(&(ctx->hash.digest.sha256));
+             ret = wolfSSL_SHA256_Init(&(ctx->hash.digest.sha256));
         }
     #ifdef WOLFSSL_SHA224
         else if (XSTRNCMP(type, "SHA224", 6) == 0) {
              ctx->macType = SHA224;
-             wolfSSL_SHA224_Init(&(ctx->hash.digest.sha224));
+             ret = wolfSSL_SHA224_Init(&(ctx->hash.digest.sha224));
         }
     #endif
     #ifdef WOLFSSL_SHA384
         else if (XSTRNCMP(type, "SHA384", 6) == 0) {
              ctx->macType = SHA384;
-             wolfSSL_SHA384_Init(&(ctx->hash.digest.sha384));
+             ret = wolfSSL_SHA384_Init(&(ctx->hash.digest.sha384));
         }
     #endif
     #ifdef WOLFSSL_SHA512
         else if (XSTRNCMP(type, "SHA512", 6) == 0) {
              ctx->macType = SHA512;
-             wolfSSL_SHA512_Init(&(ctx->hash.digest.sha512));
+             ret = wolfSSL_SHA512_Init(&(ctx->hash.digest.sha512));
         }
     #endif
     #ifndef NO_MD5
         else if (XSTRNCMP(type, "MD5", 3) == 0) {
             ctx->macType = MD5;
-            wolfSSL_MD5_Init(&(ctx->hash.digest.md5));
+            ret = wolfSSL_MD5_Init(&(ctx->hash.digest.md5));
         }
     #endif
     #ifndef NO_SHA
         /* has to be last since would pick or 224, 256, 384, or 512 too */
         else if (XSTRNCMP(type, "SHA", 3) == 0) {
              ctx->macType = SHA;
-             wolfSSL_SHA_Init(&(ctx->hash.digest.sha));
+             ret = wolfSSL_SHA_Init(&(ctx->hash.digest.sha));
         }
     #endif /* NO_SHA */
         else
              return BAD_FUNC_ARG;
 
-        return SSL_SUCCESS;
+        return ret;
     }
 
 
