@@ -1599,7 +1599,10 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #endif /* !NO_WOLFSSL_SERVER */
 
 #endif /* HAVE_TLS_EXTENSIONS */
-
+#ifdef OPENSSL_EXTRA
+    if(ctx->alpn_cli_protos)
+        XFREE((void *)ctx->alpn_cli_protos, NULL, DYNAMIC_TYPE_OPENSSL);
+#endif
 #ifdef WOLFSSL_STATIC_MEMORY
     if (ctx->heap != NULL) {
 #ifdef WOLFSSL_HEAP_TEST
@@ -3697,7 +3700,6 @@ int Ed25519Verify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* msg,
     }
 
     WOLFSSL_LEAVE("Ed25519Verify", ret);
-
     return ret;
 }
 #endif /* HAVE_ED25519 */
@@ -9953,7 +9955,6 @@ static INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
         for (i = 0, p = ssl->keys.peerSeq;
              i < WOLFSSL_DTLS_PEERSEQ_SZ;
              i++, p++) {
-
             if (p->peerId == ssl->keys.curPeerId) {
                 peerSeq = p;
                 break;
@@ -16264,6 +16265,21 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
                                                              currTime.tv_usec;
             info->numberPackets++;
         }
+    #ifdef OPENSSL_EXTRA
+        if (ssl->protoMsgCb != NULL && sz > RECORD_HEADER_SZ) {
+            /* version from hex to dec  16 is 16^1, 256 from 16^2 and
+               4096 from 16^3 */
+            int version = (ssl->version.minor & 0X0F) +
+                          (ssl->version.minor & 0xF0) * 16  +
+                          (ssl->version.major & 0X0F) * 256 +
+                          (ssl->version.major & 0xF0) * 4096;
+
+            ssl->protoMsgCb(written, version, type,
+                         (const void *)(data + RECORD_HEADER_SZ),
+                         (size_t)(sz - RECORD_HEADER_SZ),
+                         ssl, ssl->protoMsgCtx);
+        }
+    #endif /* OPENSSL_EXTRA */
     }
 
 

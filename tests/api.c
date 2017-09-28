@@ -45,6 +45,8 @@
 #include <wolfssl/ssl.h>  /* compatibility layer */
 #include <wolfssl/test.h>
 #include <tests/unit.h>
+#include "examples/server/server.h"
+     /* for testing compatibility layer callbacks */
 
 #ifndef NO_MD5
     #include <wolfssl/wolfcrypt/md5.h>
@@ -934,9 +936,12 @@ done:
     return 0;
 #endif
 }
+
+typedef int (*cbType)(WOLFSSL_CTX *ctx, WOLFSSL *ssl);
+
 #endif /* !NO_WOLFSSL_SERVER */
 
-static void test_client_nofail(void* args)
+static void test_client_nofail(void* args, void *cb)
 {
     SOCKET_T sockfd = 0;
 
@@ -1017,6 +1022,8 @@ static void test_client_nofail(void* args)
         /*err_sys("SSL_connect failed");*/
         goto done2;
     }
+
+    if(cb != NULL)((cbType)cb)(ctx, ssl);
 
     if (wolfSSL_write(ssl, msg, msgSz) != msgSz)
     {
@@ -1345,7 +1352,7 @@ static void test_wolfSSL_read_write(void)
 
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
-    test_client_nofail(&client_args);
+    test_client_nofail(&client_args, NULL);
     join_thread(serverThread);
 
     AssertTrue(client_args.return_code);
@@ -6616,6 +6623,51 @@ static int test_wc_AesGcmEncryptDecrypt (void)
             if (gcmD == BAD_FUNC_ARG) {
                 gcmD = 0;
             } else {
+                gcmE = SSL_FATAL_ERROR;
+            }
+        #endif
+    } /* END wc_AesGcmEncrypt */
+
+    printf(resultFmt, gcmE == 0 ? passed : failed);
+    if (gcmE != 0) {
+        return gcmE;
+    }
+  
+    #ifdef HAVE_AES_DECRYPT
+        printf(testingFmt, "wc_AesGcmDecrypt()");
+
+        if (gcmD == 0) {
+            gcmD = wc_AesGcmDecrypt(NULL, dec, enc, sizeof(enc)/sizeof(byte),
+                                   iv, sizeof(iv)/sizeof(byte), resultT,
+                                   sizeof(resultT), a, sizeof(a));
+            if (gcmD == BAD_FUNC_ARG) {
+                gcmD = wc_AesGcmDecrypt(&aes, NULL, enc, sizeof(enc)/sizeof(byte),
+                                   iv, sizeof(iv)/sizeof(byte), resultT,
+                                   sizeof(resultT), a, sizeof(a));
+            }
+            if (gcmD == BAD_FUNC_ARG) {
+                gcmD = wc_AesGcmDecrypt(&aes, dec, NULL, sizeof(enc)/sizeof(byte),
+                                   iv, sizeof(iv)/sizeof(byte), resultT,
+                                   sizeof(resultT), a, sizeof(a));
+            }
+            if (gcmD == BAD_FUNC_ARG) {
+                gcmD = wc_AesGcmDecrypt(&aes, dec, enc, sizeof(enc)/sizeof(byte),
+                                   NULL, sizeof(iv)/sizeof(byte), resultT,
+                                   sizeof(resultT), a, sizeof(a));
+            }
+            if (gcmD == BAD_FUNC_ARG) {
+                gcmD = wc_AesGcmDecrypt(&aes, dec, enc, sizeof(enc)/sizeof(byte),
+                                   iv, sizeof(iv)/sizeof(byte), NULL,
+                                   sizeof(resultT), a, sizeof(a));
+            }
+            if (gcmD == BAD_FUNC_ARG) {
+                gcmD = wc_AesGcmDecrypt(&aes, dec, enc, sizeof(enc)/sizeof(byte),
+                                   iv, sizeof(iv)/sizeof(byte), resultT,
+                                   sizeof(resultT) + 1, a, sizeof(a));
+            }
+            if (gcmD == BAD_FUNC_ARG) {
+                gcmD = 0;
+            } else {
                 gcmD = SSL_FATAL_ERROR;
             }
         } /* END wc_AesGcmDecrypt */
@@ -9789,7 +9841,7 @@ static void test_wolfSSL_ERR_peek_last_error_line(void)
 #ifndef SINGLE_THREADED
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
-    test_client_nofail(&client_args);
+    test_client_nofail(&client_args, NULL);
     join_thread(serverThread);
 #endif
 
@@ -9993,7 +10045,16 @@ static void test_wolfSSL_BN(void)
     /* check result  3^2 mod 5 */
     value[0] = 0;
     AssertIntEQ(BN_bn2bin(d, value), SSL_SUCCESS);
-    AssertIntEQ((int)(value[0] & 0x04), 4);
+    AssertIntEQ((int)(value[0]), 4);
+
+    /* a*b mod c = */
+    AssertIntEQ(BN_mod_mul(d, NULL, b, c, NULL), SSL_FAILURE);
+    AssertIntEQ(BN_mod_mul(d, a, b, c, NULL), SSL_SUCCESS);
+
+    /* check result  3*2 mod 5 */
+    value[0] = 0;
+    AssertIntEQ(BN_bn2bin(d, value), SSL_SUCCESS);
+    AssertIntEQ((int)(value[0]), 1);
 
     BN_free(a);
     BN_free(b);
@@ -10027,6 +10088,94 @@ static void test_wolfSSL_BN(void)
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_ASN) */
 }
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+   !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+#define TEST_ARG 0x1234
+static void msg_cb(int write_p, int version, int content_type,
+                   const void *buf, size_t len, SSL *ssl, void *arg)
+{
+    (void)write_p;
+		(void)version;
+		(void)content_type;
+		(void)buf;
+		(void)len;
+		(void)ssl;
+		AssertTrue(arg == (void*)TEST_ARG);
+}
+#endif
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+   !defined(NO_FILESYSTEM) && defined(DEBUG_WOLFSSL) && \
+   !defined(NO_OLD_TLS) && defined(HAVE_IO_TESTS_DEPENDENCIES)
+#ifndef SINGLE_THREADED
+static int msgCb(SSL_CTX *ctx, SSL *ssl)
+{
+    (void) ctx;
+    (void) ssl;
+    printf("===== msgcb called ====\n");
+    #if defined(SESSION_CERTS)
+    AssertTrue(SSL_get_peer_cert_chain(ssl) != NULL);
+    #endif
+    return SSL_SUCCESS;
+}
+#endif
+#endif
+
+static void test_wolfSSL_msgCb(void)
+{
+  #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+     !defined(NO_FILESYSTEM) && defined(DEBUG_WOLFSSL) && \
+     !defined(NO_OLD_TLS) && defined(HAVE_IO_TESTS_DEPENDENCIES)
+
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    #ifndef SINGLE_THREADED
+    THREAD_TYPE serverThread;
+    #endif
+    callback_functions client_cb;
+    callback_functions server_cb;
+
+    printf(testingFmt, "test_wolfSSL_msgCb");
+
+/* create a failed connection and inspect the error */
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&server_args, 0, sizeof(func_args));
+
+    StartTCP();
+    InitTcpReady(&ready);
+
+    client_cb.method  = wolfTLSv1_1_client_method;
+    server_cb.method  = wolfTLSv1_2_server_method;
+
+    server_args.signal    = &ready;
+    server_args.callbacks = &server_cb;
+    client_args.signal    = &ready;
+    client_args.callbacks = &client_cb;
+    client_args.return_code = TEST_FAIL;
+
+    #ifndef SINGLE_THREADED
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    test_client_nofail(&client_args, (void *)msgCb);
+    join_thread(serverThread);
+    AssertTrue(client_args.return_code);
+    AssertTrue(server_args.return_code);
+    #endif
+
+    FreeTcpReady(&ready);
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    printf(resultFmt, passed);
+
+		#endif
+}
 
 static void test_wolfSSL_set_options(void)
 {
@@ -10035,7 +10184,35 @@ static void test_wolfSSL_set_options(void)
     SSL*     ssl;
     SSL_CTX* ctx;
 
+		unsigned char protos[] = {
+				7, 't', 'l', 's', '/', '1', '.', '2',
+				8, 'h', 't', 't', 'p', '/', '1', '.', '1'
+		};
+		unsigned int len = sizeof(protos);
+
+    void *arg = (void *)TEST_ARG;
+
     printf(testingFmt, "wolfSSL_set_options()");
+
+    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
+    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
+
+    AssertTrue(SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1);
+    AssertTrue(SSL_CTX_get_options(ctx) == SSL_OP_NO_TLSv1);
+
+    AssertIntGT((int)SSL_CTX_set_options(ctx, (SSL_OP_COOKIE_EXCHANGE |
+                                                          SSL_OP_NO_SSLv2)), 0);
+    AssertTrue((SSL_CTX_set_options(ctx, SSL_OP_COOKIE_EXCHANGE) &
+                             SSL_OP_COOKIE_EXCHANGE) == SSL_OP_COOKIE_EXCHANGE);
+    AssertTrue((SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1_2) &
+                                       SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2);
+    AssertTrue((SSL_CTX_set_options(ctx, SSL_OP_NO_COMPRESSION) &
+                               SSL_OP_NO_COMPRESSION) == SSL_OP_NO_COMPRESSION);
+    AssertNull((SSL_CTX_clear_options(ctx, SSL_OP_NO_COMPRESSION) &
+                                           SSL_OP_NO_COMPRESSION));
+
+    SSL_CTX_free(ctx);
 
     AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
     AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
@@ -10053,6 +10230,14 @@ static void test_wolfSSL_set_options(void)
                                        SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2);
     AssertTrue((SSL_set_options(ssl, SSL_OP_NO_COMPRESSION) &
                                SSL_OP_NO_COMPRESSION) == SSL_OP_NO_COMPRESSION);
+    AssertNull((SSL_clear_options(ssl, SSL_OP_NO_COMPRESSION) &
+                                       SSL_OP_NO_COMPRESSION));
+
+
+		AssertTrue(SSL_set_msg_callback(ssl, msg_cb) == SSL_SUCCESS);
+		SSL_set_msg_callback_arg(ssl, arg);
+
+		AssertTrue(SSL_CTX_set_alpn_protos(ctx, protos, len) == SSL_SUCCESS);
 
     SSL_free(ssl);
     SSL_CTX_free(ctx);
@@ -10060,6 +10245,28 @@ static void test_wolfSSL_set_options(void)
     printf(resultFmt, passed);
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
              !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
+}
+	  #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+static int verify_cb(int ok, X509_STORE_CTX *ctx)
+{
+	  (void) ok;
+		(void) ctx;
+		printf("ENTER verify_cb\n");
+		return SSL_SUCCESS;
+}
+#endif
+
+static void test_wolfSSL_X509_STORE_CTX(void)
+{
+	  #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+	  X509_STORE_CTX *ctx   = NULL ;
+
+    printf(testingFmt, "test_wolfSSL_X509_STORE_CTX(()");
+		AssertNotNull(ctx = X509_STORE_CTX_new());
+		X509_STORE_CTX_set_verify_cb(ctx, (void *)verify_cb);
+    X509_STORE_CTX_free(ctx);
+    printf(resultFmt, passed);
+    #endif
 }
 
 static void test_wolfSSL_PEM_read_bio(void)
@@ -10865,11 +11072,15 @@ void ApiTest(void)
     test_wolfSSL_EVP_MD_hmac_signing();
     test_wolfSSL_CTX_add_extra_chain_cert();
     test_wolfSSL_ERR_peek_last_error_line();
+    test_wolfSSL_set_options();
+    test_wolfSSL_X509_STORE_CTX();
+    test_wolfSSL_msgCb();
     test_wolfSSL_X509_STORE_set_flags();
     test_wolfSSL_X509_LOOKUP_load_file();
     test_wolfSSL_X509_NID();
     test_wolfSSL_BN();
     test_wolfSSL_set_options();
+    test_wolfSSL_X509_STORE_CTX();
     test_wolfSSL_PEM_read_bio();
     test_wolfSSL_BIO();
     test_wolfSSL_DES_ecb_encrypt();
