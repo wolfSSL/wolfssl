@@ -13217,6 +13217,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     int wolfSSL_EVP_DigestInit(WOLFSSL_EVP_MD_CTX* ctx,
                                const WOLFSSL_EVP_MD* type)
     {
+        int ret = SSL_SUCCESS;
+
         WOLFSSL_ENTER("EVP_DigestInit");
 
         if (ctx == NULL || type == NULL) {
@@ -13233,43 +13235,43 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
         if (XSTRNCMP(type, "SHA256", 6) == 0) {
              ctx->macType = SHA256;
-             wolfSSL_SHA256_Init(&(ctx->hash.digest.sha256));
+             ret = wolfSSL_SHA256_Init(&(ctx->hash.digest.sha256));
         }
     #ifdef WOLFSSL_SHA224
         else if (XSTRNCMP(type, "SHA224", 6) == 0) {
              ctx->macType = SHA224;
-             wolfSSL_SHA224_Init(&(ctx->hash.digest.sha224));
+             ret = wolfSSL_SHA224_Init(&(ctx->hash.digest.sha224));
         }
     #endif
     #ifdef WOLFSSL_SHA384
         else if (XSTRNCMP(type, "SHA384", 6) == 0) {
              ctx->macType = SHA384;
-             wolfSSL_SHA384_Init(&(ctx->hash.digest.sha384));
+             ret = wolfSSL_SHA384_Init(&(ctx->hash.digest.sha384));
         }
     #endif
     #ifdef WOLFSSL_SHA512
         else if (XSTRNCMP(type, "SHA512", 6) == 0) {
              ctx->macType = SHA512;
-             wolfSSL_SHA512_Init(&(ctx->hash.digest.sha512));
+             ret = wolfSSL_SHA512_Init(&(ctx->hash.digest.sha512));
         }
     #endif
     #ifndef NO_MD5
         else if (XSTRNCMP(type, "MD5", 3) == 0) {
             ctx->macType = MD5;
-            wolfSSL_MD5_Init(&(ctx->hash.digest.md5));
+            ret = wolfSSL_MD5_Init(&(ctx->hash.digest.md5));
         }
     #endif
     #ifndef NO_SHA
         /* has to be last since would pick or 224, 256, 384, or 512 too */
         else if (XSTRNCMP(type, "SHA", 3) == 0) {
              ctx->macType = SHA;
-             wolfSSL_SHA_Init(&(ctx->hash.digest.sha));
+             ret = wolfSSL_SHA_Init(&(ctx->hash.digest.sha));
         }
     #endif /* NO_SHA */
         else
              return BAD_FUNC_ARG;
 
-        return SSL_SUCCESS;
+        return ret;
     }
 
 
