@@ -721,7 +721,8 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define NID_tlsfeature                92  /* id-pe 24 */
 
 
-#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
+    defined(WOLFSSL_MYSQL_COMPATIBLE)
 
 #include <wolfssl/error-ssl.h>
 
