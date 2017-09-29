@@ -16371,8 +16371,10 @@ int wolfSSL_ASN1_TIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_TIME* asnTime)
 
     WOLFSSL_ENTER("wolfSSL_ASN1_TIME_print");
 
-    if (bio == NULL || asnTime == NULL)
-        return BAD_FUNC_ARG;
+    if (bio == NULL || asnTime == NULL) {
+        WOLFSSL_MSG("NULL function argument");
+        return SSL_FAILURE;
+    }
 
     if (wolfSSL_ASN1_TIME_to_string((WOLFSSL_ASN1_TIME*)asnTime, buf,
                 sizeof(buf)) == NULL) {
