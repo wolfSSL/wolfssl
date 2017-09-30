@@ -1698,12 +1698,8 @@ void fp_montgomery_calc_normalization(fp_int *a, fp_int *b)
 #ifdef HAVE_INTEL_MULX
 static INLINE void innermul8_mulx(fp_digit *c_mulx, fp_digit *cy_mulx, fp_digit *tmpm, fp_digit mu)
 {
-    fp_digit _c0, _c1, _c2, _c3, _c4, _c5, _c6, _c7, cy ;
-
-    cy = *cy_mulx ;
-    _c0=c_mulx[0]; _c1=c_mulx[1]; _c2=c_mulx[2]; _c3=c_mulx[3]; _c4=c_mulx[4]; _c5=c_mulx[5]; _c6=c_mulx[6]; _c7=c_mulx[7];
+    fp_digit cy = *cy_mulx ;
     INNERMUL8_MULX ;
-    c_mulx[0]=_c0; c_mulx[1]=_c1; c_mulx[2]=_c2; c_mulx[3]=_c3; c_mulx[4]=_c4; c_mulx[5]=_c5; c_mulx[6]=_c6; c_mulx[7]=_c7;
     *cy_mulx = cy ;
 }
 
