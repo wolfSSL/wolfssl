@@ -322,6 +322,140 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #endif /* max */
 #endif /* USE_WINDOWS_API */
 
+/* Time functions */
+#ifndef NO_ASN_TIME
+#if defined(USER_TIME)
+    /* Use our gmtime and time_t/struct tm types.
+       Only needs seconds since EPOCH using XTIME function.
+       time_t XTIME(time_t * timer) {}
+    */
+    #define WOLFSSL_GMTIME
+    #define USE_WOLF_TM
+    #define USE_WOLF_TIME_T
+
+#elif defined(TIME_OVERRIDES)
+    /* Override XTIME() and XGMTIME() functionality.
+       Requires user to provide these functions:
+        time_t XTIME(time_t * timer) {}
+        struct tm* XGMTIME(const time_t* timer, struct tm* tmp) {}
+    */
+    #ifndef HAVE_TIME_T_TYPE
+        #define USE_WOLF_TIME_T
+    #endif
+    #ifndef HAVE_TM_TYPE
+        #define USE_WOLF_TM
+    #endif
+    #define NEED_TMP_TIME
+
+#elif defined(HAVE_RTP_SYS)
+    /* uses parital <time.h> structures */
+    #define XTIME(tl)       (0)
+    #define XGMTIME(c, t)   rtpsys_gmtime((c))
+
+#elif defined(MICRIUM)
+    #include <clk.h>
+    #include <time.h>
+    #define XTIME(t1)       micrium_time((t1))
+    #define WOLFSSL_GMTIME
+
+#elif defined(MICROCHIP_TCPIP_V5) || defined(MICROCHIP_TCPIP)
+    #include <time.h>
+    #define XTIME(t1)       pic32_time((t1))
+    #define XGMTIME(c, t)   gmtime((c))
+
+#elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
+    #define XTIME(t1)       mqx_time((t1))
+    #define HAVE_GMTIME_R
+
+#elif defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS) || defined(FREESCALE_KSDK_FREERTOS)
+    #include <time.h>
+    #ifndef XTIME
+        /*extern time_t ksdk_time(time_t* timer);*/
+        #define XTIME(t1)   ksdk_time((t1))
+    #endif
+    #define XGMTIME(c, t)   gmtime((c))
+
+#elif defined(WOLFSSL_ATMEL)
+    #define XTIME(t1)       atmel_get_curr_time_and_date((t1))
+    #define WOLFSSL_GMTIME
+    #define USE_WOLF_TM
+    #define USE_WOLF_TIME_T
+
+#elif defined(IDIRECT_DEV_TIME)
+    /*Gets the timestamp from cloak software owned by VT iDirect
+    in place of time() from <time.h> */
+    #include <time.h>
+    #define XTIME(t1)       idirect_time((t1))
+    #define XGMTIME(c, t)   gmtime((c))
+
+#elif defined(_WIN32_WCE)
+    #include <windows.h>
+    #define XTIME(t1)       windows_time((t1))
+    #define WOLFSSL_GMTIME
+
+#else
+    /* default */
+    /* uses complete <time.h> facility */
+    #include <time.h>
+#endif
+
+
+/* Map default time functions */
+#if !defined(XTIME) && !defined(TIME_OVERRIDES) && !defined(USER_TIME)
+    #define XTIME(tl)       time((tl))
+#endif
+#if !defined(XGMTIME) && !defined(TIME_OVERRIDES)
+    #if defined(WOLFSSL_GMTIME) || !defined(HAVE_GMTIME_R)
+        #define XGMTIME(c, t)   gmtime((c))
+    #else
+        #define XGMTIME(c, t)   gmtime_r((c), (t))
+        #define NEED_TMP_TIME
+    #endif
+#endif
+#if !defined(XVALIDATE_DATE) && !defined(HAVE_VALIDATE_DATE)
+    #define USE_WOLF_VALIDDATE
+    #define XVALIDATE_DATE(d, f, t) ValidateDate((d), (f), (t))
+#endif
+
+/* wolf struct tm and time_t */
+#if defined(USE_WOLF_TM)
+    struct tm {
+        int  tm_sec;     /* seconds after the minute [0-60] */
+        int  tm_min;     /* minutes after the hour [0-59] */
+        int  tm_hour;    /* hours since midnight [0-23] */
+        int  tm_mday;    /* day of the month [1-31] */
+        int  tm_mon;     /* months since January [0-11] */
+        int  tm_year;    /* years since 1900 */
+        int  tm_wday;    /* days since Sunday [0-6] */
+        int  tm_yday;    /* days since January 1 [0-365] */
+        int  tm_isdst;   /* Daylight Savings Time flag */
+        long tm_gmtoff;  /* offset from CUT in seconds */
+        char *tm_zone;   /* timezone abbreviation */
+    };
+#endif /* USE_WOLF_TM */
+#if defined(USE_WOLF_TIME_T)
+    typedef long time_t;
+#endif
+
+/* forward declarations */
+#if defined(USER_TIME)
+    struct tm* gmtime(const time_t* timer);
+    extern time_t XTIME(time_t * timer);
+
+    #ifdef STACK_TRAP
+        /* for stack trap tracking, don't call os gmtime on OS X/linux,
+           uses a lot of stack spce */
+        extern time_t time(time_t * timer);
+        #define XTIME(tl)  time((tl))
+    #endif /* STACK_TRAP */
+
+#elif defined(TIME_OVERRIDES)
+    extern time_t XTIME(time_t * timer);
+    extern struct tm* XGMTIME(const time_t* timer, struct tm* tmp);
+#elif defined(WOLFSSL_GMTIME)
+    struct tm* gmtime(const time_t* timer);
+#endif
+#endif /* NO_ASN_TIME */
 
 #ifdef __cplusplus
     }  /* extern "C" */

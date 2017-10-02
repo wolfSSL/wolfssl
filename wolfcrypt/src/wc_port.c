@@ -1174,6 +1174,212 @@ int wolfSSL_CryptHwMutexUnLock(void) {
 
 #endif
 
+#ifndef NO_ASN_TIME
+#if defined(_WIN32_WCE)
+time_t windows_time(time_t* timer)
+{
+    SYSTEMTIME     sysTime;
+    FILETIME       fTime;
+    ULARGE_INTEGER intTime;
+    time_t         localTime;
+
+    if (timer == NULL)
+        timer = &localTime;
+
+    GetSystemTime(&sysTime);
+    SystemTimeToFileTime(&sysTime, &fTime);
+
+    XMEMCPY(&intTime, &fTime, sizeof(FILETIME));
+    /* subtract EPOCH */
+    intTime.QuadPart -= 0x19db1ded53e8000;
+    /* to secs */
+    intTime.QuadPart /= 10000000;
+    *timer = (time_t)intTime.QuadPart;
+
+    return *timer;
+}
+#endif /*  _WIN32_WCE */
+
+#if defined(WOLFSSL_GMTIME)
+struct tm* gmtime(const time_t* timer)
+{
+    #define YEAR0          1900
+    #define EPOCH_YEAR     1970
+    #define SECS_DAY       (24L * 60L * 60L)
+    #define LEAPYEAR(year) (!((year) % 4) && (((year) % 100) || !((year) %400)))
+    #define YEARSIZE(year) (LEAPYEAR(year) ? 366 : 365)
+
+    static const int _ytab[2][12] =
+    {
+        {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31},
+        {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+    };
+
+    static struct tm st_time;
+    struct tm* ret = &st_time;
+    time_t secs = *timer;
+    unsigned long dayclock, dayno;
+    int year = EPOCH_YEAR;
+
+    dayclock = (unsigned long)secs % SECS_DAY;
+    dayno    = (unsigned long)secs / SECS_DAY;
+
+    ret->tm_sec  = (int) dayclock % 60;
+    ret->tm_min  = (int)(dayclock % 3600) / 60;
+    ret->tm_hour = (int) dayclock / 3600;
+    ret->tm_wday = (int) (dayno + 4) % 7;        /* day 0 a Thursday */
+
+    while(dayno >= (unsigned long)YEARSIZE(year)) {
+        dayno -= YEARSIZE(year);
+        year++;
+    }
+
+    ret->tm_year = year - YEAR0;
+    ret->tm_yday = (int)dayno;
+    ret->tm_mon  = 0;
+
+    while(dayno >= (unsigned long)_ytab[LEAPYEAR(year)][ret->tm_mon]) {
+        dayno -= _ytab[LEAPYEAR(year)][ret->tm_mon];
+        ret->tm_mon++;
+    }
+
+    ret->tm_mday  = (int)++dayno;
+    ret->tm_isdst = 0;
+
+    return ret;
+}
+#endif /* WOLFSSL_GMTIME */
+
+
+#if defined(HAVE_RTP_SYS)
+#define YEAR0          1900
+
+struct tm* rtpsys_gmtime(const time_t* timer)       /* has a gmtime() but hangs */
+{
+    static struct tm st_time;
+    struct tm* ret = &st_time;
+
+    DC_RTC_CALENDAR cal;
+    dc_rtc_time_get(&cal, TRUE);
+
+    ret->tm_year  = cal.year - YEAR0;       /* gm starts at 1900 */
+    ret->tm_mon   = cal.month - 1;          /* gm starts at 0 */
+    ret->tm_mday  = cal.day;
+    ret->tm_hour  = cal.hour;
+    ret->tm_min   = cal.minute;
+    ret->tm_sec   = cal.second;
+
+    return ret;
+}
+
+#endif /* HAVE_RTP_SYS */
+
+
+#if defined(MICROCHIP_TCPIP_V5) || defined(MICROCHIP_TCPIP)
+
+/*
+ * time() is just a stub in Microchip libraries. We need our own
+ * implementation. Use SNTP client to get seconds since epoch.
+ */
+time_t pic32_time(time_t* timer)
+{
+#ifdef MICROCHIP_TCPIP_V5
+    DWORD sec = 0;
+#else
+    uint32_t sec = 0;
+#endif
+    time_t localTime;
+
+    if (timer == NULL)
+        timer = &localTime;
+
+#ifdef MICROCHIP_MPLAB_HARMONY
+    sec = TCPIP_SNTP_UTCSecondsGet();
+#else
+    sec = SNTPGetUTCSeconds();
+#endif
+    *timer = (time_t) sec;
+
+    return *timer;
+}
+
+#endif /* MICROCHIP_TCPIP || MICROCHIP_TCPIP_V5 */
+
+#if defined(MICRIUM)
+
+time_t micrium_time(time_t* timer)
+{
+    CLK_TS_SEC sec;
+
+    Clk_GetTS_Unix(&sec);
+
+    return (time_t) sec;
+}
+
+#endif /* MICRIUM */
+
+#if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
+
+time_t mqx_time(time_t* timer)
+{
+    time_t localTime;
+    TIME_STRUCT time_s;
+
+    if (timer == NULL)
+        timer = &localTime;
+
+    _time_get(&time_s);
+    *timer = (time_t) time_s.SECONDS;
+
+    return *timer;
+}
+
+#endif /* FREESCALE_MQX || FREESCALE_KSDK_MQX */
+
+
+#if defined(WOLFSSL_TIRTOS)
+
+time_t XTIME(time_t * timer)
+{
+    time_t sec = 0;
+
+    sec = (time_t) Seconds_get();
+
+    if (timer != NULL)
+        *timer = sec;
+
+    return sec;
+}
+
+#endif /* WOLFSSL_TIRTOS */
+
+#if defined(WOLFSSL_XILINX)
+#include "xrtcpsu.h"
+
+time_t XTIME(time_t * timer)
+{
+    time_t sec = 0;
+    XRtcPsu_Config* con;
+    XRtcPsu         rtc;
+
+    con = XRtcPsu_LookupConfig(XPAR_XRTCPSU_0_DEVICE_ID);
+    if (con != NULL) {
+        if (XRtcPsu_CfgInitialize(&rtc, con, con->BaseAddr) == XST_SUCCESS) {
+            sec = (time_t)XRtcPsu_GetCurrentTime(&rtc);
+        }
+        else {
+            WOLFSSL_MSG("Unable to initialize RTC");
+        }
+    }
+
+    if (timer != NULL)
+        *timer = sec;
+
+    return sec;
+}
+
+#endif /* WOLFSSL_XILINX */
+#endif /* !NO_ASN_TIME */
 
 #if defined(WOLFSSL_TI_CRYPT) || defined(WOLFSSL_TI_HASH)
     #include <wolfcrypt/src/port/ti/ti-ccm.c>  /* initialize and Mutex for TI Crypt Engine */

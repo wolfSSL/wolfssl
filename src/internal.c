@@ -39,6 +39,9 @@
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
+#if defined(OPENSSL_EXTRA) && defined(WOLFCRYPT_HAVE_SRP) && !defined(NO_SHA)
+    #include <wolfssl/wolfcrypt/srp.h>
+#endif
 
 #ifdef HAVE_LIBZ
     #include "zlib.h"
@@ -2752,8 +2755,10 @@ void FreeX509Name(WOLFSSL_X509_NAME* name, void* heap)
         if (name->dynamicName)
             XFREE(name->name, heap, DYNAMIC_TYPE_SUBJECT_CN);
 #ifdef OPENSSL_EXTRA
-        if (name->fullName.fullName != NULL)
+        if (name->fullName.fullName != NULL){
             XFREE(name->fullName.fullName, heap, DYNAMIC_TYPE_X509);
+            name->fullName.fullName = NULL;
+        }
 #endif /* OPENSSL_EXTRA */
     }
     (void)heap;

@@ -87,6 +87,9 @@ enum ASN_Tags {
     ASN_LONG_LENGTH       = 0x80
 };
 
+#define ASN_UTC_TIME_SIZE 14
+#define ASN_GENERALIZED_TIME_SIZE 16
+
 enum ASN_Flags {
     ASN_CONSTRUCTED       = 0x20,
     ASN_CONTEXT_SPECIFIC  = 0x80
