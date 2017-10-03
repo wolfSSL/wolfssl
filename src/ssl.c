@@ -7557,7 +7557,7 @@ int wolfSSL_CTX_get_cert_cache_memsize(WOLFSSL_CTX* ctx)
     return CM_GetCertCacheMemSize(ctx->cm);
 }
 
-#endif /* PERSISTE_CERT_CACHE */
+#endif /* PERSIST_CERT_CACHE */
 #endif /* !NO_CERTS */
 
 
