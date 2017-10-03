@@ -1410,7 +1410,7 @@ WOLFSSL_API WC_RNG* wolfSSL_GetRNG(WOLFSSL*);
 WOLFSSL_API int wolfSSL_CTX_SetMinVersion(WOLFSSL_CTX* ctx, int version);
 WOLFSSL_API int wolfSSL_SetMinVersion(WOLFSSL* ssl, int version);
 WOLFSSL_API int wolfSSL_GetObjectSize(void);  /* object size based on build */
-WOLFSSL_API int wolfSSL_CTX_GetObjectSize(void); 
+WOLFSSL_API int wolfSSL_CTX_GetObjectSize(void);
 WOLFSSL_API int wolfSSL_METHOD_GetObjectSize(void);
 WOLFSSL_API int wolfSSL_GetOutputSize(WOLFSSL*, int);
 WOLFSSL_API int wolfSSL_GetMaxOutputSize(WOLFSSL*);
@@ -1640,6 +1640,8 @@ WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
 
 #ifndef NO_CERTS
     WOLFSSL_API void wolfSSL_CTX_SetCACb(WOLFSSL_CTX*, CallbackCACache);
+
+    WOLFSSL_API WOLFSSL_CERT_MANAGER* wolfSSL_CTX_GetCertManager(WOLFSSL_CTX*);
 
     WOLFSSL_API WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew_ex(void* heap);
     WOLFSSL_API WOLFSSL_CERT_MANAGER* wolfSSL_CertManagerNew(void);
