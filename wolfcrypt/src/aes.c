@@ -606,7 +606,7 @@
             PIC32_ENCRYPTION, PIC32_ALGO_AES, PIC32_CRYPTOALGO_RECB);
     }
     #endif
-    
+
     #if defined(HAVE_AES_DECRYPT) && defined(WOLFSSL_AES_DIRECT)
     static int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     {
@@ -4316,6 +4316,44 @@ static void AES_GCM_encrypt(const unsigned char *in, unsigned char *out,
 }
 
 #ifdef HAVE_INTEL_AVX2
+/* Encrypt with key in xmm12. */
+#define VAESENC()                                       \
+            "vaesenc	%%xmm12, %[tmp1], %[tmp1]\n\t"  \
+            "vaesenc	%%xmm12, %[tmp2], %[tmp2]\n\t"  \
+            "vaesenc	%%xmm12, %[tmp3], %[tmp3]\n\t"  \
+            "vaesenc	%%xmm12, %[tmp4], %[tmp4]\n\t"  \
+            "vaesenc	%%xmm12, %[tmp5], %[tmp5]\n\t"  \
+            "vaesenc	%%xmm12, %[tmp6], %[tmp6]\n\t"  \
+            "vaesenc	%%xmm12, %[tmp7], %[tmp7]\n\t"  \
+            "vaesenc	%%xmm12, %[tmp8], %[tmp8]\n\t"
+
+
+/* Encrypt and GCM mul with the nth round key. */
+#define VAESENC_PCLMUL_N(o1, o2, o3)                                \
+                "vmovaps	"#o1"(%[KEY]), %%xmm12\n\t"         \
+                "vmovdqu	"#o2"(%[out]), %%xmm1\n\t"          \
+                "vaesenc	%%xmm12, %[tmp1], %[tmp1]\n\t"      \
+                "vmovaps	"#o3"(%[HT]), %%xmm0\n\t"           \
+                "vpshufb	%[BSWAP_MASK], %%xmm1, %%xmm1\n\t"  \
+                "vaesenc	%%xmm12, %[tmp2], %[tmp2]\n\t"      \
+                "vpclmulqdq	$16, %%xmm1, %%xmm0, %%xmm13\n\t"   \
+                "vaesenc	%%xmm12, %[tmp3], %[tmp3]\n\t"      \
+                "vpclmulqdq	$1, %%xmm1, %%xmm0, %%xmm14\n\t"    \
+                "vaesenc	%%xmm12, %[tmp4], %[tmp4]\n\t"      \
+                "vpclmulqdq	$0, %%xmm1, %%xmm0, %%xmm15\n\t"    \
+                "vaesenc	%%xmm12, %[tmp5], %[tmp5]\n\t"      \
+                "vpclmulqdq	$17, %%xmm1, %%xmm0, %%xmm1\n\t"    \
+                "vaesenc	%%xmm12, %[tmp6], %[tmp6]\n\t"      \
+                "vpxor		%%xmm14, %%xmm13, %%xmm13\n\t"      \
+                "vpslldq	$8, %%xmm13, %%xmm14\n\t"           \
+                "vpsrldq	$8, %%xmm13, %%xmm13\n\t"           \
+                "vaesenc	%%xmm12, %[tmp7], %[tmp7]\n\t"      \
+                "vpxor		%%xmm15, %%xmm2, %%xmm2\n\t"        \
+                "vpxor		%%xmm1, %%xmm3, %%xmm3\n\t"         \
+                "vpxor		%%xmm14, %%xmm2, %%xmm2\n\t"        \
+                "vpxor		%%xmm13, %%xmm3, %%xmm3\n\t"        \
+                "vaesenc	%%xmm12, %[tmp8], %[tmp8]\n\t"
+
 static void AES_GCM_encrypt_avx2(const unsigned char *in, unsigned char *out,
                                  const unsigned char* addt,
                                  const unsigned char* ivec,
@@ -4497,194 +4535,97 @@ static void AES_GCM_encrypt_avx2(const unsigned char *in, unsigned char *out,
         __asm__ __volatile__ (
             "vmovaps	(%[pctr1]), %%xmm0\n\t"
             "vmovaps	%[BSWAP_EPI64], %%xmm1\n\t"
-            "vpshufb	%%xmm1, %%xmm0, %%xmm4\n\t"
-            "vpaddd	%[ONE], %%xmm0, %%xmm5\n\t"
-            "vpshufb	%%xmm1, %%xmm5, %%xmm5\n\t"
-            "vpaddd	%[TWO], %%xmm0, %%xmm6\n\t"
-            "vpshufb	%%xmm1, %%xmm6, %%xmm6\n\t"
-            "vpaddd	%[THREE], %%xmm0, %%xmm7\n\t"
-            "vpshufb	%%xmm1, %%xmm7, %%xmm7\n\t"
-            "vpaddd	%[FOUR], %%xmm0, %%xmm8\n\t"
-            "vpshufb	%%xmm1, %%xmm8, %%xmm8\n\t"
-            "vpaddd	%[FIVE], %%xmm0, %%xmm9\n\t"
-            "vpshufb	%%xmm1, %%xmm9, %%xmm9\n\t"
-            "vpaddd	%[SIX], %%xmm0, %%xmm10\n\t"
-            "vpshufb	%%xmm1, %%xmm10, %%xmm10\n\t"
-            "vpaddd	%[SEVEN], %%xmm0, %%xmm11\n\t"
-            "vpshufb	%%xmm1, %%xmm11, %%xmm11\n\t"
+            "vpshufb	%%xmm1, %%xmm0, %[tmp1]\n\t"
+            "vpaddd	%[ONE], %%xmm0, %[tmp2]\n\t"
+            "vpshufb	%%xmm1, %[tmp2], %[tmp2]\n\t"
+            "vpaddd	%[TWO], %%xmm0, %[tmp3]\n\t"
+            "vpshufb	%%xmm1, %[tmp3], %[tmp3]\n\t"
+            "vpaddd	%[THREE], %%xmm0, %[tmp4]\n\t"
+            "vpshufb	%%xmm1, %[tmp4], %[tmp4]\n\t"
+            "vpaddd	%[FOUR], %%xmm0, %[tmp5]\n\t"
+            "vpshufb	%%xmm1, %[tmp5], %[tmp5]\n\t"
+            "vpaddd	%[FIVE], %%xmm0, %[tmp6]\n\t"
+            "vpshufb	%%xmm1, %[tmp6], %[tmp6]\n\t"
+            "vpaddd	%[SIX], %%xmm0, %[tmp7]\n\t"
+            "vpshufb	%%xmm1, %[tmp7], %[tmp7]\n\t"
+            "vpaddd	%[SEVEN], %%xmm0, %[tmp8]\n\t"
+            "vpshufb	%%xmm1, %[tmp8], %[tmp8]\n\t"
             "vpaddd	%[EIGHT], %%xmm0, %%xmm0\n\t"
 
             "vmovaps	(%[KEY]), %%xmm1\n\t"
             "vmovaps	%%xmm0, (%[pctr1])\n\t"
-            "vpxor	%%xmm1, %%xmm4, %%xmm4\n\t"
-            "vpxor	%%xmm1, %%xmm5, %%xmm5\n\t"
-            "vpxor	%%xmm1, %%xmm6, %%xmm6\n\t"
-            "vpxor	%%xmm1, %%xmm7, %%xmm7\n\t"
-            "vpxor	%%xmm1, %%xmm8, %%xmm8\n\t"
-            "vpxor	%%xmm1, %%xmm9, %%xmm9\n\t"
-            "vpxor	%%xmm1, %%xmm10, %%xmm10\n\t"
-            "vpxor	%%xmm1, %%xmm11, %%xmm11\n\t"
+            "vpxor	%%xmm1, %[tmp1], %[tmp1]\n\t"
+            "vpxor	%%xmm1, %[tmp2], %[tmp2]\n\t"
+            "vpxor	%%xmm1, %[tmp3], %[tmp3]\n\t"
+            "vpxor	%%xmm1, %[tmp4], %[tmp4]\n\t"
+            "vpxor	%%xmm1, %[tmp5], %[tmp5]\n\t"
+            "vpxor	%%xmm1, %[tmp6], %[tmp6]\n\t"
+            "vpxor	%%xmm1, %[tmp7], %[tmp7]\n\t"
+            "vpxor	%%xmm1, %[tmp8], %[tmp8]\n\t"
 
             "vmovaps	16(%[KEY]), %%xmm12\n\t"
-            "vaesenc	%%xmm12, %%xmm4, %%xmm4\n\t"
-            "vaesenc	%%xmm12, %%xmm5, %%xmm5\n\t"
-            "vaesenc	%%xmm12, %%xmm6, %%xmm6\n\t"
-            "vaesenc	%%xmm12, %%xmm7, %%xmm7\n\t"
-            "vaesenc	%%xmm12, %%xmm8, %%xmm8\n\t"
-            "vaesenc	%%xmm12, %%xmm9, %%xmm9\n\t"
-            "vaesenc	%%xmm12, %%xmm10, %%xmm10\n\t"
-            "vaesenc	%%xmm12, %%xmm11, %%xmm11\n\t"
-
+            VAESENC()
             "vmovaps	32(%[KEY]), %%xmm12\n\t"
-            "vaesenc	%%xmm12, %%xmm4, %%xmm4\n\t"
-            "vaesenc	%%xmm12, %%xmm5, %%xmm5\n\t"
-            "vaesenc	%%xmm12, %%xmm6, %%xmm6\n\t"
-            "vaesenc	%%xmm12, %%xmm7, %%xmm7\n\t"
-            "vaesenc	%%xmm12, %%xmm8, %%xmm8\n\t"
-            "vaesenc	%%xmm12, %%xmm9, %%xmm9\n\t"
-            "vaesenc	%%xmm12, %%xmm10, %%xmm10\n\t"
-            "vaesenc	%%xmm12, %%xmm11, %%xmm11\n\t"
-
+            VAESENC()
             "vmovaps	48(%[KEY]), %%xmm12\n\t"
-            "vaesenc	%%xmm12, %%xmm4, %%xmm4\n\t"
-            "vaesenc	%%xmm12, %%xmm5, %%xmm5\n\t"
-            "vaesenc	%%xmm12, %%xmm6, %%xmm6\n\t"
-            "vaesenc	%%xmm12, %%xmm7, %%xmm7\n\t"
-            "vaesenc	%%xmm12, %%xmm8, %%xmm8\n\t"
-            "vaesenc	%%xmm12, %%xmm9, %%xmm9\n\t"
-            "vaesenc	%%xmm12, %%xmm10, %%xmm10\n\t"
-            "vaesenc	%%xmm12, %%xmm11, %%xmm11\n\t"
-
+            VAESENC()
             "vmovaps	64(%[KEY]), %%xmm12\n\t"
-            "vaesenc	%%xmm12, %%xmm4, %%xmm4\n\t"
-            "vaesenc	%%xmm12, %%xmm5, %%xmm5\n\t"
-            "vaesenc	%%xmm12, %%xmm6, %%xmm6\n\t"
-            "vaesenc	%%xmm12, %%xmm7, %%xmm7\n\t"
-            "vaesenc	%%xmm12, %%xmm8, %%xmm8\n\t"
-            "vaesenc	%%xmm12, %%xmm9, %%xmm9\n\t"
-            "vaesenc	%%xmm12, %%xmm10, %%xmm10\n\t"
-            "vaesenc	%%xmm12, %%xmm11, %%xmm11\n\t"
-
+            VAESENC()
             "vmovaps	80(%[KEY]), %%xmm12\n\t"
-            "vaesenc	%%xmm12, %%xmm4, %%xmm4\n\t"
-            "vaesenc	%%xmm12, %%xmm5, %%xmm5\n\t"
-            "vaesenc	%%xmm12, %%xmm6, %%xmm6\n\t"
-            "vaesenc	%%xmm12, %%xmm7, %%xmm7\n\t"
-            "vaesenc	%%xmm12, %%xmm8, %%xmm8\n\t"
-            "vaesenc	%%xmm12, %%xmm9, %%xmm9\n\t"
-            "vaesenc	%%xmm12, %%xmm10, %%xmm10\n\t"
-            "vaesenc	%%xmm12, %%xmm11, %%xmm11\n\t"
-
+            VAESENC()
             "vmovaps	96(%[KEY]), %%xmm12\n\t"
-            "vaesenc	%%xmm12, %%xmm4, %%xmm4\n\t"
-            "vaesenc	%%xmm12, %%xmm5, %%xmm5\n\t"
-            "vaesenc	%%xmm12, %%xmm6, %%xmm6\n\t"
-            "vaesenc	%%xmm12, %%xmm7, %%xmm7\n\t"
-            "vaesenc	%%xmm12, %%xmm8, %%xmm8\n\t"
-            "vaesenc	%%xmm12, %%xmm9, %%xmm9\n\t"
-            "vaesenc	%%xmm12, %%xmm10, %%xmm10\n\t"
-            "vaesenc	%%xmm12, %%xmm11, %%xmm11\n\t"
-
+            VAESENC()
             "vmovaps	112(%[KEY]), %%xmm12\n\t"
-            "vaesenc	%%xmm12, %%xmm4, %%xmm4\n\t"
-            "vaesenc	%%xmm12, %%xmm5, %%xmm5\n\t"
-            "vaesenc	%%xmm12, %%xmm6, %%xmm6\n\t"
-            "vaesenc	%%xmm12, %%xmm7, %%xmm7\n\t"
-            "vaesenc	%%xmm12, %%xmm8, %%xmm8\n\t"
-            "vaesenc	%%xmm12, %%xmm9, %%xmm9\n\t"
-            "vaesenc	%%xmm12, %%xmm10, %%xmm10\n\t"
-            "vaesenc	%%xmm12, %%xmm11, %%xmm11\n\t"
-
+            VAESENC()
             "vmovaps	128(%[KEY]), %%xmm12\n\t"
-            "vaesenc	%%xmm12, %%xmm4, %%xmm4\n\t"
-            "vaesenc	%%xmm12, %%xmm5, %%xmm5\n\t"
-            "vaesenc	%%xmm12, %%xmm6, %%xmm6\n\t"
-            "vaesenc	%%xmm12, %%xmm7, %%xmm7\n\t"
-            "vaesenc	%%xmm12, %%xmm8, %%xmm8\n\t"
-            "vaesenc	%%xmm12, %%xmm9, %%xmm9\n\t"
-            "vaesenc	%%xmm12, %%xmm10, %%xmm10\n\t"
-            "vaesenc	%%xmm12, %%xmm11, %%xmm11\n\t"
-
+            VAESENC()
             "vmovaps	144(%[KEY]), %%xmm12\n\t"
-            "vaesenc	%%xmm12, %%xmm4, %%xmm4\n\t"
-            "vaesenc	%%xmm12, %%xmm5, %%xmm5\n\t"
-            "vaesenc	%%xmm12, %%xmm6, %%xmm6\n\t"
-            "vaesenc	%%xmm12, %%xmm7, %%xmm7\n\t"
-            "vaesenc	%%xmm12, %%xmm8, %%xmm8\n\t"
-            "vaesenc	%%xmm12, %%xmm9, %%xmm9\n\t"
-            "vaesenc	%%xmm12, %%xmm10, %%xmm10\n\t"
-            "vaesenc	%%xmm12, %%xmm11, %%xmm11\n\t"
+            VAESENC()
             "cmpl	$11, %[nr]\n\t"
             "vmovaps	160(%[KEY]), %%xmm12\n\t"
             "jl         L_enc128_enclast\n\t"
 
-            "vaesenc	%%xmm12, %%xmm4, %%xmm4\n\t"
-            "vaesenc	%%xmm12, %%xmm5, %%xmm5\n\t"
-            "vaesenc	%%xmm12, %%xmm6, %%xmm6\n\t"
-            "vaesenc	%%xmm12, %%xmm7, %%xmm7\n\t"
-            "vaesenc	%%xmm12, %%xmm8, %%xmm8\n\t"
-            "vaesenc	%%xmm12, %%xmm9, %%xmm9\n\t"
-            "vaesenc	%%xmm12, %%xmm10, %%xmm10\n\t"
-            "vaesenc	%%xmm12, %%xmm11, %%xmm11\n\t"
+            VAESENC()
             "vmovaps	176(%[KEY]), %%xmm12\n\t"
-            "vaesenc	%%xmm12, %%xmm4, %%xmm4\n\t"
-            "vaesenc	%%xmm12, %%xmm5, %%xmm5\n\t"
-            "vaesenc	%%xmm12, %%xmm6, %%xmm6\n\t"
-            "vaesenc	%%xmm12, %%xmm7, %%xmm7\n\t"
-            "vaesenc	%%xmm12, %%xmm8, %%xmm8\n\t"
-            "vaesenc	%%xmm12, %%xmm9, %%xmm9\n\t"
-            "vaesenc	%%xmm12, %%xmm10, %%xmm10\n\t"
-            "vaesenc	%%xmm12, %%xmm11, %%xmm11\n\t"
+            VAESENC()
             "cmpl	$13, %[nr]\n\t"
             "vmovaps	192(%[KEY]), %%xmm12\n\t"
             "jl         L_enc128_enclast\n\t"
 
-            "vaesenc	%%xmm12, %%xmm4, %%xmm4\n\t"
-            "vaesenc	%%xmm12, %%xmm5, %%xmm5\n\t"
-            "vaesenc	%%xmm12, %%xmm6, %%xmm6\n\t"
-            "vaesenc	%%xmm12, %%xmm7, %%xmm7\n\t"
-            "vaesenc	%%xmm12, %%xmm8, %%xmm8\n\t"
-            "vaesenc	%%xmm12, %%xmm9, %%xmm9\n\t"
-            "vaesenc	%%xmm12, %%xmm10, %%xmm10\n\t"
-            "vaesenc	%%xmm12, %%xmm11, %%xmm11\n\t"
+            VAESENC()
             "vmovaps	208(%[KEY]), %%xmm12\n\t"
-            "vaesenc	%%xmm12, %%xmm4, %%xmm4\n\t"
-            "vaesenc	%%xmm12, %%xmm5, %%xmm5\n\t"
-            "vaesenc	%%xmm12, %%xmm6, %%xmm6\n\t"
-            "vaesenc	%%xmm12, %%xmm7, %%xmm7\n\t"
-            "vaesenc	%%xmm12, %%xmm8, %%xmm8\n\t"
-            "vaesenc	%%xmm12, %%xmm9, %%xmm9\n\t"
-            "vaesenc	%%xmm12, %%xmm10, %%xmm10\n\t"
-            "vaesenc	%%xmm12, %%xmm11, %%xmm11\n\t"
+            VAESENC()
             "vmovaps	224(%[KEY]), %%xmm12\n\t"
             "\n"
         "L_enc128_enclast:\n\t"
-            "vaesenclast	%%xmm12, %%xmm4, %%xmm4\n\t"
-            "vaesenclast	%%xmm12, %%xmm5, %%xmm5\n\t"
-            "vpxor		(%[in]), %%xmm4, %%xmm4\n\t"
-            "vpxor		16(%[in]), %%xmm5, %%xmm5\n\t"
-            "vmovdqu	%%xmm4, (%[out])\n\t"
-            "vmovdqu	%%xmm5, 16(%[out])\n\t"
-            "vaesenclast	%%xmm12, %%xmm6, %%xmm6\n\t"
-            "vaesenclast	%%xmm12, %%xmm7, %%xmm7\n\t"
-            "vpxor		32(%[in]), %%xmm6, %%xmm6\n\t"
-            "vpxor		48(%[in]), %%xmm7, %%xmm7\n\t"
-            "vmovdqu	%%xmm6, 32(%[out])\n\t"
-            "vmovdqu	%%xmm7, 48(%[out])\n\t"
-            "vaesenclast	%%xmm12, %%xmm8, %%xmm8\n\t"
-            "vaesenclast	%%xmm12, %%xmm9, %%xmm9\n\t"
-            "vpxor		64(%[in]), %%xmm8, %%xmm8\n\t"
-            "vpxor		80(%[in]), %%xmm9, %%xmm9\n\t"
-            "vmovdqu	%%xmm8, 64(%[out])\n\t"
-            "vmovdqu	%%xmm9, 80(%[out])\n\t"
-            "vaesenclast	%%xmm12, %%xmm10, %%xmm10\n\t"
-            "vaesenclast	%%xmm12, %%xmm11, %%xmm11\n\t"
-            "vpxor		96(%[in]), %%xmm10, %%xmm10\n\t"
-            "vpxor		112(%[in]), %%xmm11, %%xmm11\n\t"
-            "vmovdqu	%%xmm10, 96(%[out])\n\t"
-            "vmovdqu	%%xmm11, 112(%[out])\n\t"
+            "vaesenclast	%%xmm12, %[tmp1], %[tmp1]\n\t"
+            "vaesenclast	%%xmm12, %[tmp2], %[tmp2]\n\t"
+            "vpxor		(%[in]), %[tmp1], %[tmp1]\n\t"
+            "vpxor		16(%[in]), %[tmp2], %[tmp2]\n\t"
+            "vmovdqu	%[tmp1], (%[out])\n\t"
+            "vmovdqu	%[tmp2], 16(%[out])\n\t"
+            "vaesenclast	%%xmm12, %[tmp3], %[tmp3]\n\t"
+            "vaesenclast	%%xmm12, %[tmp4], %[tmp4]\n\t"
+            "vpxor		32(%[in]), %[tmp3], %[tmp3]\n\t"
+            "vpxor		48(%[in]), %[tmp4], %[tmp4]\n\t"
+            "vmovdqu	%[tmp3], 32(%[out])\n\t"
+            "vmovdqu	%[tmp4], 48(%[out])\n\t"
+            "vaesenclast	%%xmm12, %[tmp5], %[tmp5]\n\t"
+            "vaesenclast	%%xmm12, %[tmp6], %[tmp6]\n\t"
+            "vpxor		64(%[in]), %[tmp5], %[tmp5]\n\t"
+            "vpxor		80(%[in]), %[tmp6], %[tmp6]\n\t"
+            "vmovdqu	%[tmp5], 64(%[out])\n\t"
+            "vmovdqu	%[tmp6], 80(%[out])\n\t"
+            "vaesenclast	%%xmm12, %[tmp7], %[tmp7]\n\t"
+            "vaesenclast	%%xmm12, %[tmp8], %[tmp8]\n\t"
+            "vpxor		96(%[in]), %[tmp7], %[tmp7]\n\t"
+            "vpxor		112(%[in]), %[tmp8], %[tmp8]\n\t"
+            "vmovdqu	%[tmp7], 96(%[out])\n\t"
+            "vmovdqu	%[tmp8], 112(%[out])\n\t"
 
-        :
+        : [tmp1] "=xr" (tmp1), [tmp2] "=xr" (tmp2), [tmp3] "=xr" (tmp3),
+          [tmp4] "=xr" (tmp4), [tmp5] "=xr" (tmp5), [tmp6] "=xr" (tmp6),
+          [tmp7] "=xr" (tmp7), [tmp8] "=xr" (tmp8)
         : [KEY] "r" (KEY), [pctr1] "r" (pctr1),
           [in] "r" (&in[i*16*8]), [out] "r" (&out[i*16*8]), [nr] "r" (nr),
           [BSWAP_EPI64] "m" (BSWAP_EPI64),
@@ -4693,8 +4634,6 @@ static void AES_GCM_encrypt_avx2(const unsigned char *in, unsigned char *out,
           [FIVE] "m" (FIVE), [SIX] "m" (SIX),
           [SEVEN] "m" (SEVEN), [EIGHT] "m" (EIGHT)
         : "xmm15", "xmm14", "xmm13", "xmm12",
-          "xmm11", "xmm10", "xmm9", "xmm8",
-          "xmm7", "xmm6", "xmm5", "xmm4",
           "xmm0", "xmm1", "xmm3", "memory"
         );
 
@@ -4754,173 +4693,13 @@ static void AES_GCM_encrypt_avx2(const unsigned char *in, unsigned char *out,
                 "vpxor		%%xmm13, %%xmm1, %%xmm3\n\t"
                 "vaesenc	%%xmm12, %[tmp8], %[tmp8]\n\t"
 
-                "vmovaps	32(%[KEY]), %%xmm12\n\t"
-                "vmovdqu	-112(%[out]), %%xmm1\n\t"
-                "vaesenc	%%xmm12, %[tmp1], %[tmp1]\n\t"
-                "vmovaps	96(%[HT]), %%xmm0\n\t"
-                "vpshufb	%[BSWAP_MASK], %%xmm1, %%xmm1\n\t"
-                "vaesenc	%%xmm12, %[tmp2], %[tmp2]\n\t"
-                "vpclmulqdq	$16, %%xmm1, %%xmm0, %%xmm13\n\t"
-                "vaesenc	%%xmm12, %[tmp3], %[tmp3]\n\t"
-                "vpclmulqdq	$1, %%xmm1, %%xmm0, %%xmm14\n\t"
-                "vaesenc	%%xmm12, %[tmp4], %[tmp4]\n\t"
-                "vpclmulqdq	$0, %%xmm1, %%xmm0, %%xmm15\n\t"
-                "vaesenc	%%xmm12, %[tmp5], %[tmp5]\n\t"
-                "vpclmulqdq	$17, %%xmm1, %%xmm0, %%xmm1\n\t"
-                "vaesenc	%%xmm12, %[tmp6], %[tmp6]\n\t"
-                "vpxor		%%xmm14, %%xmm13, %%xmm13\n\t"
-                "vpslldq	$8, %%xmm13, %%xmm14\n\t"
-                "vpsrldq	$8, %%xmm13, %%xmm13\n\t"
-                "vaesenc	%%xmm12, %[tmp7], %[tmp7]\n\t"
-                "vpxor		%%xmm15, %%xmm2, %%xmm2\n\t"
-                "vpxor		%%xmm1, %%xmm3, %%xmm3\n\t"
-                "vpxor		%%xmm14, %%xmm2, %%xmm2\n\t"
-                "vpxor		%%xmm13, %%xmm3, %%xmm3\n\t"
-                "vaesenc	%%xmm12, %[tmp8], %[tmp8]\n\t"
-
-                "vmovaps	48(%[KEY]), %%xmm12\n\t"
-                "vmovdqu	-96(%[out]), %%xmm1\n\t"
-                "vaesenc	%%xmm12, %[tmp1], %[tmp1]\n\t"
-                "vmovaps	80(%[HT]), %%xmm0\n\t"
-                "vpshufb	%[BSWAP_MASK], %%xmm1, %%xmm1\n\t"
-                "vaesenc	%%xmm12, %[tmp2], %[tmp2]\n\t"
-                "vpclmulqdq	$16, %%xmm1, %%xmm0, %%xmm13\n\t"
-                "vaesenc	%%xmm12, %[tmp3], %[tmp3]\n\t"
-                "vpclmulqdq	$1, %%xmm1, %%xmm0, %%xmm14\n\t"
-                "vaesenc	%%xmm12, %[tmp4], %[tmp4]\n\t"
-                "vpclmulqdq	$0, %%xmm1, %%xmm0, %%xmm15\n\t"
-                "vaesenc	%%xmm12, %[tmp5], %[tmp5]\n\t"
-                "vpclmulqdq	$17, %%xmm1, %%xmm0, %%xmm1\n\t"
-                "vaesenc	%%xmm12, %[tmp6], %[tmp6]\n\t"
-                "vpxor		%%xmm14, %%xmm13, %%xmm13\n\t"
-                "vpslldq	$8, %%xmm13, %%xmm14\n\t"
-                "vpsrldq	$8, %%xmm13, %%xmm13\n\t"
-                "vaesenc	%%xmm12, %[tmp7], %[tmp7]\n\t"
-                "vpxor		%%xmm15, %%xmm2, %%xmm2\n\t"
-                "vpxor		%%xmm1, %%xmm3, %%xmm3\n\t"
-                "vpxor		%%xmm14, %%xmm2, %%xmm2\n\t"
-                "vpxor		%%xmm13, %%xmm3, %%xmm3\n\t"
-                "vaesenc	%%xmm12, %[tmp8], %[tmp8]\n\t"
-
-                "vmovaps	64(%[KEY]), %%xmm12\n\t"
-                "vmovdqu	-80(%[out]), %%xmm1\n\t"
-                "vaesenc	%%xmm12, %[tmp1], %[tmp1]\n\t"
-                "vmovaps	64(%[HT]), %%xmm0\n\t"
-                "vpshufb	%[BSWAP_MASK], %%xmm1, %%xmm1\n\t"
-                "vaesenc	%%xmm12, %[tmp2], %[tmp2]\n\t"
-                "vpclmulqdq	$16, %%xmm1, %%xmm0, %%xmm13\n\t"
-                "vaesenc	%%xmm12, %[tmp3], %[tmp3]\n\t"
-                "vpclmulqdq	$1, %%xmm1, %%xmm0, %%xmm14\n\t"
-                "vaesenc	%%xmm12, %[tmp4], %[tmp4]\n\t"
-                "vpclmulqdq	$0, %%xmm1, %%xmm0, %%xmm15\n\t"
-                "vaesenc	%%xmm12, %[tmp5], %[tmp5]\n\t"
-                "vpclmulqdq	$17, %%xmm1, %%xmm0, %%xmm1\n\t"
-                "vaesenc	%%xmm12, %[tmp6], %[tmp6]\n\t"
-                "vpxor		%%xmm14, %%xmm13, %%xmm13\n\t"
-                "vpslldq	$8, %%xmm13, %%xmm14\n\t"
-                "vpsrldq	$8, %%xmm13, %%xmm13\n\t"
-                "vaesenc	%%xmm12, %[tmp7], %[tmp7]\n\t"
-                "vpxor		%%xmm15, %%xmm2, %%xmm2\n\t"
-                "vpxor		%%xmm1, %%xmm3, %%xmm3\n\t"
-                "vpxor		%%xmm14, %%xmm2, %%xmm2\n\t"
-                "vpxor		%%xmm13, %%xmm3, %%xmm3\n\t"
-                "vaesenc	%%xmm12, %[tmp8], %[tmp8]\n\t"
-
-                "vmovaps	80(%[KEY]), %%xmm12\n\t"
-                "vmovdqu	-64(%[out]), %%xmm1\n\t"
-                "vaesenc	%%xmm12, %[tmp1], %[tmp1]\n\t"
-                "vmovaps	48(%[HT]), %%xmm0\n\t"
-                "vpshufb	%[BSWAP_MASK], %%xmm1, %%xmm1\n\t"
-                "vaesenc	%%xmm12, %[tmp2], %[tmp2]\n\t"
-                "vpclmulqdq	$16, %%xmm1, %%xmm0, %%xmm13\n\t"
-                "vaesenc	%%xmm12, %[tmp3], %[tmp3]\n\t"
-                "vpclmulqdq	$1, %%xmm1, %%xmm0, %%xmm14\n\t"
-                "vaesenc	%%xmm12, %[tmp4], %[tmp4]\n\t"
-                "vpclmulqdq	$0, %%xmm1, %%xmm0, %%xmm15\n\t"
-                "vaesenc	%%xmm12, %[tmp5], %[tmp5]\n\t"
-                "vpclmulqdq	$17, %%xmm1, %%xmm0, %%xmm1\n\t"
-                "vaesenc	%%xmm12, %[tmp6], %[tmp6]\n\t"
-                "vpxor		%%xmm14, %%xmm13, %%xmm13\n\t"
-                "vpslldq	$8, %%xmm13, %%xmm14\n\t"
-                "vpsrldq	$8, %%xmm13, %%xmm13\n\t"
-                "vaesenc	%%xmm12, %[tmp7], %[tmp7]\n\t"
-                "vpxor		%%xmm15, %%xmm2, %%xmm2\n\t"
-                "vpxor		%%xmm1, %%xmm3, %%xmm3\n\t"
-                "vpxor		%%xmm14, %%xmm2, %%xmm2\n\t"
-                "vpxor		%%xmm13, %%xmm3, %%xmm3\n\t"
-                "vaesenc	%%xmm12, %[tmp8], %[tmp8]\n\t"
-
-                "vmovaps	96(%[KEY]), %%xmm12\n\t"
-                "vmovdqu	-48(%[out]), %%xmm1\n\t"
-                "vaesenc	%%xmm12, %[tmp1], %[tmp1]\n\t"
-                "vmovaps	32(%[HT]), %%xmm0\n\t"
-                "vpshufb	%[BSWAP_MASK], %%xmm1, %%xmm1\n\t"
-                "vaesenc	%%xmm12, %[tmp2], %[tmp2]\n\t"
-                "vpclmulqdq	$16, %%xmm1, %%xmm0, %%xmm13\n\t"
-                "vaesenc	%%xmm12, %[tmp3], %[tmp3]\n\t"
-                "vpclmulqdq	$1, %%xmm1, %%xmm0, %%xmm14\n\t"
-                "vaesenc	%%xmm12, %[tmp4], %[tmp4]\n\t"
-                "vpclmulqdq	$0, %%xmm1, %%xmm0, %%xmm15\n\t"
-                "vaesenc	%%xmm12, %[tmp5], %[tmp5]\n\t"
-                "vpclmulqdq	$17, %%xmm1, %%xmm0, %%xmm1\n\t"
-                "vaesenc	%%xmm12, %[tmp6], %[tmp6]\n\t"
-                "vpxor		%%xmm14, %%xmm13, %%xmm13\n\t"
-                "vpslldq	$8, %%xmm13, %%xmm14\n\t"
-                "vpsrldq	$8, %%xmm13, %%xmm13\n\t"
-                "vaesenc	%%xmm12, %[tmp7], %[tmp7]\n\t"
-                "vpxor		%%xmm15, %%xmm2, %%xmm2\n\t"
-                "vpxor		%%xmm1, %%xmm3, %%xmm3\n\t"
-                "vpxor		%%xmm14, %%xmm2, %%xmm2\n\t"
-                "vpxor		%%xmm13, %%xmm3, %%xmm3\n\t"
-                "vaesenc	%%xmm12, %[tmp8], %[tmp8]\n\t"
-
-                "vmovaps	112(%[KEY]), %%xmm12\n\t"
-                "vmovdqu	-32(%[out]), %%xmm1\n\t"
-                "vaesenc	%%xmm12, %[tmp1], %[tmp1]\n\t"
-                "vmovaps	16(%[HT]), %%xmm0\n\t"
-                "vpshufb	%[BSWAP_MASK], %%xmm1, %%xmm1\n\t"
-                "vaesenc	%%xmm12, %[tmp2], %[tmp2]\n\t"
-                "vpclmulqdq	$16, %%xmm1, %%xmm0, %%xmm13\n\t"
-                "vaesenc	%%xmm12, %[tmp3], %[tmp3]\n\t"
-                "vpclmulqdq	$1, %%xmm1, %%xmm0, %%xmm14\n\t"
-                "vaesenc	%%xmm12, %[tmp4], %[tmp4]\n\t"
-                "vpclmulqdq	$0, %%xmm1, %%xmm0, %%xmm15\n\t"
-                "vaesenc	%%xmm12, %[tmp5], %[tmp5]\n\t"
-                "vpclmulqdq	$17, %%xmm1, %%xmm0, %%xmm1\n\t"
-                "vaesenc	%%xmm12, %[tmp6], %[tmp6]\n\t"
-                "vpxor		%%xmm14, %%xmm13, %%xmm13\n\t"
-                "vpslldq	$8, %%xmm13, %%xmm14\n\t"
-                "vpsrldq	$8, %%xmm13, %%xmm13\n\t"
-                "vaesenc	%%xmm12, %[tmp7], %[tmp7]\n\t"
-                "vpxor		%%xmm15, %%xmm2, %%xmm2\n\t"
-                "vpxor		%%xmm1, %%xmm3, %%xmm3\n\t"
-                "vpxor		%%xmm14, %%xmm2, %%xmm2\n\t"
-                "vpxor		%%xmm13, %%xmm3, %%xmm3\n\t"
-                "vaesenc	%%xmm12, %[tmp8], %[tmp8]\n\t"
-
-                "vmovaps	128(%[KEY]), %%xmm12\n\t"
-                "vmovdqu	-16(%[out]), %%xmm1\n\t"
-                "vaesenc	%%xmm12, %[tmp1], %[tmp1]\n\t"
-                "vmovaps	(%[HT]), %%xmm0\n\t"
-                "vpshufb	%[BSWAP_MASK], %%xmm1, %%xmm1\n\t"
-                "vaesenc	%%xmm12, %[tmp2], %[tmp2]\n\t"
-                "vpclmulqdq	$16, %%xmm1, %%xmm0, %%xmm13\n\t"
-                "vaesenc	%%xmm12, %[tmp3], %[tmp3]\n\t"
-                "vpclmulqdq	$1, %%xmm1, %%xmm0, %%xmm14\n\t"
-                "vaesenc	%%xmm12, %[tmp4], %[tmp4]\n\t"
-                "vpclmulqdq	$0, %%xmm1, %%xmm0, %%xmm15\n\t"
-                "vaesenc	%%xmm12, %[tmp5], %[tmp5]\n\t"
-                "vpclmulqdq	$17, %%xmm1, %%xmm0, %%xmm1\n\t"
-                "vaesenc	%%xmm12, %[tmp6], %[tmp6]\n\t"
-                "vpxor		%%xmm14, %%xmm13, %%xmm13\n\t"
-                "vpslldq	$8, %%xmm13, %%xmm14\n\t"
-                "vpsrldq	$8, %%xmm13, %%xmm13\n\t"
-                "vaesenc	%%xmm12, %[tmp7], %[tmp7]\n\t"
-                "vpxor		%%xmm15, %%xmm2, %%xmm2\n\t"
-                "vpxor		%%xmm1, %%xmm3, %%xmm3\n\t"
-                "vpxor		%%xmm14, %%xmm2, %%xmm2\n\t"
-                "vpxor		%%xmm13, %%xmm3, %%xmm3\n\t"
-                "vaesenc	%%xmm12, %[tmp8], %[tmp8]\n\t"
+                VAESENC_PCLMUL_N( 32, -112, 96)
+                VAESENC_PCLMUL_N( 48,  -96, 80)
+                VAESENC_PCLMUL_N( 64,  -80, 64)
+                VAESENC_PCLMUL_N( 80,  -64, 48)
+                VAESENC_PCLMUL_N( 96,  -48, 32)
+                VAESENC_PCLMUL_N(112,  -32, 16)
+                VAESENC_PCLMUL_N(128,  -16,  0)
 
                 "vmovaps	144(%[KEY]), %%xmm12\n\t"
                 "vaesenc	%%xmm12, %[tmp1], %[tmp1]\n\t"
@@ -4944,44 +4723,16 @@ static void AES_GCM_encrypt_avx2(const unsigned char *in, unsigned char *out,
                 "vmovaps	160(%[KEY]), %%xmm12\n\t"
                 "jl             %=f\n\t"
 
-                "vaesenc	%%xmm12, %[tmp1], %[tmp1]\n\t"
-                "vaesenc	%%xmm12, %[tmp2], %[tmp2]\n\t"
-                "vaesenc	%%xmm12, %[tmp3], %[tmp3]\n\t"
-                "vaesenc	%%xmm12, %[tmp4], %[tmp4]\n\t"
-                "vaesenc	%%xmm12, %[tmp5], %[tmp5]\n\t"
-                "vaesenc	%%xmm12, %[tmp6], %[tmp6]\n\t"
-                "vaesenc	%%xmm12, %[tmp7], %[tmp7]\n\t"
-                "vaesenc	%%xmm12, %[tmp8], %[tmp8]\n\t"
+                VAESENC()
                 "vmovaps	176(%[KEY]), %%xmm12\n\t"
-                "vaesenc	%%xmm12, %[tmp1], %[tmp1]\n\t"
-                "vaesenc	%%xmm12, %[tmp2], %[tmp2]\n\t"
-                "vaesenc	%%xmm12, %[tmp3], %[tmp3]\n\t"
-                "vaesenc	%%xmm12, %[tmp4], %[tmp4]\n\t"
-                "vaesenc	%%xmm12, %[tmp5], %[tmp5]\n\t"
-                "vaesenc	%%xmm12, %[tmp6], %[tmp6]\n\t"
-                "vaesenc	%%xmm12, %[tmp7], %[tmp7]\n\t"
-                "vaesenc	%%xmm12, %[tmp8], %[tmp8]\n\t"
+                VAESENC()
                 "cmpl		$13, %[nr]\n\t"
                 "vmovaps	192(%[KEY]), %%xmm12\n\t"
                 "jl             %=f\n\t"
 
-                "vaesenc	%%xmm12, %[tmp1], %[tmp1]\n\t"
-                "vaesenc	%%xmm12, %[tmp2], %[tmp2]\n\t"
-                "vaesenc	%%xmm12, %[tmp3], %[tmp3]\n\t"
-                "vaesenc	%%xmm12, %[tmp4], %[tmp4]\n\t"
-                "vaesenc	%%xmm12, %[tmp5], %[tmp5]\n\t"
-                "vaesenc	%%xmm12, %[tmp6], %[tmp6]\n\t"
-                "vaesenc	%%xmm12, %[tmp7], %[tmp7]\n\t"
-                "vaesenc	%%xmm12, %[tmp8], %[tmp8]\n\t"
+                VAESENC()
                 "vmovaps	208(%[KEY]), %%xmm12\n\t"
-                "vaesenc	%%xmm12, %[tmp1], %[tmp1]\n\t"
-                "vaesenc	%%xmm12, %[tmp2], %[tmp2]\n\t"
-                "vaesenc	%%xmm12, %[tmp3], %[tmp3]\n\t"
-                "vaesenc	%%xmm12, %[tmp4], %[tmp4]\n\t"
-                "vaesenc	%%xmm12, %[tmp5], %[tmp5]\n\t"
-                "vaesenc	%%xmm12, %[tmp6], %[tmp6]\n\t"
-                "vaesenc	%%xmm12, %[tmp7], %[tmp7]\n\t"
-                "vaesenc	%%xmm12, %[tmp8], %[tmp8]\n\t"
+                VAESENC()
                 "vmovaps	224(%[KEY]), %%xmm12\n\t"
 
                 "%=:\n\t"
@@ -5043,36 +4794,36 @@ static void AES_GCM_encrypt_avx2(const unsigned char *in, unsigned char *out,
     }
     for (k = i*8; k < (int)(nbytes/16); k++) {
         __asm__ __volatile__ (
-            "vpshufb		%[BSWAP_EPI64], %[ctr1], %%xmm4\n\t"
+            "vpshufb		%[BSWAP_EPI64], %[ctr1], %[tmp1]\n\t"
             "vpaddd		%[ONE], %[ctr1], %[ctr1]\n\t"
-            "vpxor		(%[KEY]), %%xmm4, %%xmm4\n\t"
-            "vaesenc		16(%[KEY]), %%xmm4, %%xmm4\n\t"
-            "vaesenc		32(%[KEY]), %%xmm4, %%xmm4\n\t"
-            "vaesenc		48(%[KEY]), %%xmm4, %%xmm4\n\t"
-            "vaesenc		64(%[KEY]), %%xmm4, %%xmm4\n\t"
-            "vaesenc		80(%[KEY]), %%xmm4, %%xmm4\n\t"
-            "vaesenc		96(%[KEY]), %%xmm4, %%xmm4\n\t"
-            "vaesenc		112(%[KEY]), %%xmm4, %%xmm4\n\t"
-            "vaesenc		128(%[KEY]), %%xmm4, %%xmm4\n\t"
-            "vaesenc		144(%[KEY]), %%xmm4, %%xmm4\n\t"
+            "vpxor		(%[KEY]), %[tmp1], %[tmp1]\n\t"
+            "vaesenc		16(%[KEY]), %[tmp1], %[tmp1]\n\t"
+            "vaesenc		32(%[KEY]), %[tmp1], %[tmp1]\n\t"
+            "vaesenc		48(%[KEY]), %[tmp1], %[tmp1]\n\t"
+            "vaesenc		64(%[KEY]), %[tmp1], %[tmp1]\n\t"
+            "vaesenc		80(%[KEY]), %[tmp1], %[tmp1]\n\t"
+            "vaesenc		96(%[KEY]), %[tmp1], %[tmp1]\n\t"
+            "vaesenc		112(%[KEY]), %[tmp1], %[tmp1]\n\t"
+            "vaesenc		128(%[KEY]), %[tmp1], %[tmp1]\n\t"
+            "vaesenc		144(%[KEY]), %[tmp1], %[tmp1]\n\t"
             "cmpl		$11, %[nr]\n\t"
-            "vmovaps		160(%[KEY]), %%xmm5\n\t"
+            "vmovaps		160(%[KEY]), %[tmp2]\n\t"
             "jl			%=f\n\t"
-            "vaesenc		%%xmm5, %%xmm4, %%xmm4\n\t"
-            "vaesenc		176(%[KEY]), %%xmm4, %%xmm4\n\t"
+            "vaesenc		%[tmp2], %[tmp1], %[tmp1]\n\t"
+            "vaesenc		176(%[KEY]), %[tmp1], %[tmp1]\n\t"
             "cmpl		$13, %[nr]\n\t"
-            "vmovaps		192(%[KEY]), %%xmm5\n\t"
+            "vmovaps		192(%[KEY]), %[tmp2]\n\t"
             "jl			%=f\n\t"
-            "vaesenc		%%xmm5, %%xmm4, %%xmm4\n\t"
-            "vaesenc		208(%[KEY]), %%xmm4, %%xmm4\n\t"
-            "vmovaps		224(%[KEY]), %%xmm5\n\t"
+            "vaesenc		%[tmp2], %[tmp1], %[tmp1]\n\t"
+            "vaesenc		208(%[KEY]), %[tmp1], %[tmp1]\n\t"
+            "vmovaps		224(%[KEY]), %[tmp2]\n\t"
             "%=:\n\t"
-            "vaesenclast	%%xmm5, %%xmm4, %%xmm4\n\t"
-            "vpxor		(%[in]), %%xmm4, %%xmm4\n\t"
-            "vmovdqu		%%xmm4, (%[out])\n\t"
-            "vpshufb		%[BSWAP_MASK], %%xmm4, %%xmm4\n\t"
+            "vaesenclast	%[tmp2], %[tmp1], %[tmp1]\n\t"
+            "vpxor		(%[in]), %[tmp1], %[tmp1]\n\t"
+            "vmovdqu		%[tmp1], (%[out])\n\t"
+            "vpshufb		%[BSWAP_MASK], %[tmp1], %[tmp1]\n\t"
 
-            "vpxor		%%xmm4, %[X], %[X]\n\t"
+            "vpxor		%[tmp1], %[X], %[X]\n\t"
             "# Carryless Multiply X by H (128 x 128)\n\t"
             "vpclmulqdq		$16, %[H], %[X], %%xmm13\n\t"
             "vpclmulqdq		$1, %[H], %[X], %%xmm14\n\t"
@@ -5095,8 +4846,8 @@ static void AES_GCM_encrypt_avx2(const unsigned char *in, unsigned char *out,
             "vmovdqa		%%xmm13, %[X]\n\t"
             "# End Reduce\n\t"
 
-        : [H] "+xr" (H), [X] "+xr" (X),
-          [ctr1] "+xr" (ctr1)
+        : [tmp1] "+xr" (tmp1), [tmp2] "=xr" (tmp2),
+          [H] "+xr" (H), [X] "+xr" (X), [ctr1] "+xr" (ctr1)
         : [KEY] "r" (KEY),
           [in] "r" (&in[k*16]), [out] "r" (&out[k*16]), [nr] "r" (nr),
           [BSWAP_MASK] "m" (BSWAP_MASK),
@@ -5104,113 +4855,112 @@ static void AES_GCM_encrypt_avx2(const unsigned char *in, unsigned char *out,
           [ONE] "m" (ONE),
           [MOD2_128] "m" (MOD2_128)
         : "xmm15", "xmm14", "xmm13",
-          "xmm5", "xmm4",
           "xmm0", "xmm1", "xmm2", "xmm3", "memory"
         );
     }
 #else
     for (k = 0; k < (int)(nbytes/16) && k < 1; k++) {
         __asm__ __volatile__ (
-            "vpshufb		%[BSWAP_EPI64], %[ctr1], %%xmm4\n\t"
+            "vpshufb		%[BSWAP_EPI64], %[ctr1], %[tmp1]\n\t"
             "vpaddd		%[ONE], %[ctr1], %[ctr1]\n\t"
-            "vpxor		(%[KEY]), %%xmm4, %%xmm4\n\t"
-            "vaesenc		16(%[KEY]), %%xmm4, %%xmm4\n\t"
-            "vaesenc		32(%[KEY]), %%xmm4, %%xmm4\n\t"
-            "vaesenc		48(%[KEY]), %%xmm4, %%xmm4\n\t"
-            "vaesenc		64(%[KEY]), %%xmm4, %%xmm4\n\t"
-            "vaesenc		80(%[KEY]), %%xmm4, %%xmm4\n\t"
-            "vaesenc		96(%[KEY]), %%xmm4, %%xmm4\n\t"
-            "vaesenc		112(%[KEY]), %%xmm4, %%xmm4\n\t"
-            "vaesenc		128(%[KEY]), %%xmm4, %%xmm4\n\t"
-            "vaesenc		144(%[KEY]), %%xmm4, %%xmm4\n\t"
+            "vpxor		(%[KEY]), %[tmp1], %[tmp1]\n\t"
+            "vaesenc		16(%[KEY]), %[tmp1], %[tmp1]\n\t"
+            "vaesenc		32(%[KEY]), %[tmp1], %[tmp1]\n\t"
+            "vaesenc		48(%[KEY]), %[tmp1], %[tmp1]\n\t"
+            "vaesenc		64(%[KEY]), %[tmp1], %[tmp1]\n\t"
+            "vaesenc		80(%[KEY]), %[tmp1], %[tmp1]\n\t"
+            "vaesenc		96(%[KEY]), %[tmp1], %[tmp1]\n\t"
+            "vaesenc		112(%[KEY]), %[tmp1], %[tmp1]\n\t"
+            "vaesenc		128(%[KEY]), %[tmp1], %[tmp1]\n\t"
+            "vaesenc		144(%[KEY]), %[tmp1], %[tmp1]\n\t"
             "cmpl		$11, %[nr]\n\t"
-            "vmovaps		160(%[KEY]), %%xmm5\n\t"
+            "vmovaps		160(%[KEY]), %[tmp2]\n\t"
             "jl			%=f\n\t"
-            "vaesenc		%%xmm5, %%xmm4, %%xmm4\n\t"
-            "vaesenc		176(%[KEY]), %%xmm4, %%xmm4\n\t"
+            "vaesenc		%[tmp2], %[tmp1], %[tmp1]\n\t"
+            "vaesenc		176(%[KEY]), %[tmp1], %[tmp1]\n\t"
             "cmpl		$13, %[nr]\n\t"
-            "vmovaps		192(%[KEY]), %%xmm5\n\t"
+            "vmovaps		192(%[KEY]), %[tmp2]\n\t"
             "jl			%=f\n\t"
-            "vaesenc		%%xmm5, %%xmm4, %%xmm4\n\t"
-            "vaesenc		208(%[KEY]), %%xmm4, %%xmm4\n\t"
-            "vmovaps		224(%[KEY]), %%xmm5\n\t"
+            "vaesenc		%[tmp2], %[tmp1], %[tmp1]\n\t"
+            "vaesenc		208(%[KEY]), %[tmp1], %[tmp1]\n\t"
+            "vmovaps		224(%[KEY]), %[tmp2]\n\t"
             "%=:\n\t"
-            "vaesenclast	%%xmm5, %%xmm4, %%xmm4\n\t"
-            "vpxor		(%[in]), %%xmm4, %%xmm4\n\t"
-            "vmovdqu		%%xmm4, (%[out])\n\t"
-            "vpshufb		%[BSWAP_MASK], %%xmm4, %%xmm4\n\t"
-            "vpxor		%%xmm4, %[X], %[X]\n\t"
+            "vaesenclast	%[tmp2], %[tmp1], %[tmp1]\n\t"
+            "vpxor		(%[in]), %[tmp1], %[tmp1]\n\t"
+            "vmovdqu		%[tmp1], (%[out])\n\t"
+            "vpshufb		%[BSWAP_MASK], %[tmp1], %[tmp1]\n\t"
+            "vpxor		%[tmp1], %[X], %[X]\n\t"
 
-        : [H] "+xr" (H), [X] "+xr" (X),
-          [ctr1] "+xr" (ctr1)
+        : [tmp1] "+xr" (tmp1), [tmp2] "=xr" (tmp2),
+          [H] "+xr" (H), [X] "+xr" (X), [ctr1] "+xr" (ctr1)
         : [KEY] "r" (KEY),
           [in] "r" (&in[k*16]), [out] "r" (&out[k*16]), [nr] "r" (nr),
           [BSWAP_MASK] "m" (BSWAP_MASK),
           [BSWAP_EPI64] "m" (BSWAP_EPI64),
           [ONE] "m" (ONE),
           [MOD2_128] "m" (MOD2_128)
-        : "xmm4", "xmm5", "memory"
+        : "memory"
         );
     }
     for (; k < (int)(nbytes/16); k++) {
         __asm__ __volatile__ (
-            "vpshufb		%[BSWAP_EPI64], %[ctr1], %%xmm4\n\t"
+            "vpshufb		%[BSWAP_EPI64], %[ctr1], %[tmp1]\n\t"
             "vpaddd		%[ONE], %[ctr1], %[ctr1]\n\t"
-            "vpxor		(%[KEY]), %%xmm4, %%xmm4\n\t"
-            "vaesenc		16(%[KEY]), %%xmm4, %%xmm4\n\t"
+            "vpxor		(%[KEY]), %[tmp1], %[tmp1]\n\t"
+            "vaesenc		16(%[KEY]), %[tmp1], %[tmp1]\n\t"
             "vpclmulqdq		$16, %[H], %[X], %%xmm13\n\t"
-            "vaesenc		32(%[KEY]), %%xmm4, %%xmm4\n\t"
+            "vaesenc		32(%[KEY]), %[tmp1], %[tmp1]\n\t"
             "vpclmulqdq		$1, %[H], %[X], %%xmm14\n\t"
-            "vaesenc		48(%[KEY]), %%xmm4, %%xmm4\n\t"
+            "vaesenc		48(%[KEY]), %[tmp1], %[tmp1]\n\t"
             "vpclmulqdq		$0, %[H], %[X], %%xmm15\n\t"
-            "vaesenc		64(%[KEY]), %%xmm4, %%xmm4\n\t"
+            "vaesenc		64(%[KEY]), %[tmp1], %[tmp1]\n\t"
             "vpclmulqdq		$17, %[H], %[X], %%xmm1\n\t"
-            "vaesenc		80(%[KEY]), %%xmm4, %%xmm4\n\t"
+            "vaesenc		80(%[KEY]), %[tmp1], %[tmp1]\n\t"
             "vpxor		%%xmm14, %%xmm13, %%xmm13\n\t"
             "vpslldq		$8, %%xmm13, %%xmm2\n\t"
             "vpsrldq		$8, %%xmm13, %%xmm13\n\t"
-            "vaesenc		96(%[KEY]), %%xmm4, %%xmm4\n\t"
+            "vaesenc		96(%[KEY]), %[tmp1], %[tmp1]\n\t"
             "vpxor		%%xmm15, %%xmm2, %%xmm2\n\t"
             "vpxor		%%xmm13, %%xmm1, %%xmm3\n\t"
             "vmovdqa		%[MOD2_128], %%xmm0\n\t"
             "vpclmulqdq		$16, %%xmm0, %%xmm2, %%xmm14\n\t"
-            "vaesenc		112(%[KEY]), %%xmm4, %%xmm4\n\t"
+            "vaesenc		112(%[KEY]), %[tmp1], %[tmp1]\n\t"
             "vpshufd		$78, %%xmm2, %%xmm13\n\t"
             "vpxor		%%xmm14, %%xmm13, %%xmm13\n\t"
             "vpclmulqdq		$16, %%xmm0, %%xmm13, %%xmm14\n\t"
-            "vaesenc		128(%[KEY]), %%xmm4, %%xmm4\n\t"
+            "vaesenc		128(%[KEY]), %[tmp1], %[tmp1]\n\t"
             "vpshufd		$78, %%xmm13, %%xmm13\n\t"
             "vpxor		%%xmm14, %%xmm13, %%xmm13\n\t"
             "vpxor		%%xmm3, %%xmm13, %%xmm13\n\t"
-            "vaesenc		144(%[KEY]), %%xmm4, %%xmm4\n\t"
+            "vaesenc		144(%[KEY]), %[tmp1], %[tmp1]\n\t"
             "vmovdqa		%%xmm13, %[X]\n\t"
             "cmpl		$11, %[nr]\n\t"
-            "vmovaps		160(%[KEY]), %%xmm5\n\t"
+            "vmovaps		160(%[KEY]), %[tmp2]\n\t"
             "jl			%=f\n\t"
-            "vaesenc		%%xmm5, %%xmm4, %%xmm4\n\t"
-            "vaesenc		176(%[KEY]), %%xmm4, %%xmm4\n\t"
+            "vaesenc		%[tmp2], %[tmp1], %[tmp1]\n\t"
+            "vaesenc		176(%[KEY]), %[tmp1], %[tmp1]\n\t"
             "cmpl		$13, %[nr]\n\t"
-            "vmovaps		192(%[KEY]), %%xmm5\n\t"
+            "vmovaps		192(%[KEY]), %[tmp2]\n\t"
             "jl			%=f\n\t"
-            "vaesenc		%%xmm5, %%xmm4, %%xmm4\n\t"
-            "vaesenc		208(%[KEY]), %%xmm4, %%xmm4\n\t"
-            "vmovaps		224(%[KEY]), %%xmm5\n\t"
+            "vaesenc		%[tmp2], %[tmp1], %[tmp1]\n\t"
+            "vaesenc		208(%[KEY]), %[tmp1], %[tmp1]\n\t"
+            "vmovaps		224(%[KEY]), %[tmp2]\n\t"
             "%=:\n\t"
-            "vaesenclast	%%xmm5, %%xmm4, %%xmm4\n\t"
-            "vpxor		(%[in]), %%xmm4, %%xmm4\n\t"
-            "vmovdqu		%%xmm4, (%[out])\n\t"
-            "vpshufb		%[BSWAP_MASK], %%xmm4, %%xmm4\n\t"
-            "vpxor		%%xmm4, %[X], %[X]\n\t"
+            "vaesenclast	%[tmp2], %[tmp1], %[tmp1]\n\t"
+            "vpxor		(%[in]), %[tmp1], %[tmp1]\n\t"
+            "vmovdqu		%[tmp1], (%[out])\n\t"
+            "vpshufb		%[BSWAP_MASK], %[tmp1], %[tmp1]\n\t"
+            "vpxor		%[tmp1], %[X], %[X]\n\t"
 
-        : [H] "+xr" (H), [X] "+xr" (X),
-          [ctr1] "+xr" (ctr1)
+        : [tmp1] "+xr" (tmp1), [tmp2] "=xr" (tmp2),
+          [H] "+xr" (H), [X] "+xr" (X), [ctr1] "+xr" (ctr1)
         : [KEY] "r" (KEY),
           [in] "r" (&in[k*16]), [out] "r" (&out[k*16]), [nr] "r" (nr),
           [BSWAP_MASK] "m" (BSWAP_MASK),
           [BSWAP_EPI64] "m" (BSWAP_EPI64),
           [ONE] "m" (ONE),
           [MOD2_128] "m" (MOD2_128)
-        : "xmm15", "xmm14", "xmm13", "xmm4", "xmm5",
+        : "xmm15", "xmm14", "xmm13",
           "xmm0", "xmm1", "xmm2", "xmm3", "memory"
         );
     }
@@ -5264,7 +5014,6 @@ static void AES_GCM_encrypt_avx2(const unsigned char *in, unsigned char *out,
     _mm_storeu_si128((__m128i*)tag, T);
 }
 #endif /* HAVE_INTEL_AVX2 */
-
 
 #ifdef HAVE_AES_DECRYPT
 /* Figure 10. AES-GCM – Decrypt With Single Block Ghash at a Time */
