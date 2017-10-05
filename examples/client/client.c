@@ -1631,6 +1631,18 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             err_sys("DisableExtendedMasterSecret failed");
         }
 #endif
+#if defined(HAVE_CURVE25519) && defined(HAVE_SUPPORTED_CURVES)
+    if (useX25519) {
+        if (wolfSSL_CTX_UseSupportedCurve(ctx, WOLFSSL_ECC_X25519)
+                                                               != SSL_SUCCESS) {
+            err_sys("unable to support X25519");
+        }
+        if (wolfSSL_CTX_UseSupportedCurve(ctx, WOLFSSL_ECC_SECP256R1)
+                                                               != SSL_SUCCESS) {
+            err_sys("unable to support secp256r1");
+        }
+    }
+#endif /* HAVE_CURVE25519 && HAVE_SUPPORTED_CURVES */
 
     if (benchmark) {
         ((func_args*)args)->return_code =
