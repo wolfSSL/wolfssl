@@ -21,8 +21,8 @@
 INCLUDE_DIRECTORIES(
  ${CMAKE_SOURCE_DIR}/include
  ${CMAKE_SOURCE_DIR}/extra/wolfssl
- ${CMAKE_SOURCE_DIR}/extra/wolfssl/wolfssl
- ${CMAKE_SOURCE_DIR}/extra/wolfssl/wolfssl/wolfcrypt)
+ ${CMAKE_SOURCE_DIR}/extra/wolfssl/wolfssl)
+
 
 ADD_DEFINITIONS(${SSL_DEFINES})
 
