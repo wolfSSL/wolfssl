@@ -2355,9 +2355,7 @@ int TLSX_CSR_ForceRequest(WOLFSSL* ssl)
         switch (csr->status_type) {
             case WOLFSSL_CSR_OCSP:
                 if (ssl->ctx->cm->ocspEnabled) {
-                #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
                     csr->request.ocsp.ssl = ssl;
-                #endif
                     return CheckOcspRequest(ssl->ctx->cm->ocsp,
                                                       &csr->request.ocsp, NULL);
                 }
@@ -2769,9 +2767,7 @@ int TLSX_CSR2_ForceRequest(WOLFSSL* ssl)
 
             case WOLFSSL_CSR2_OCSP_MULTI:
                 if (ssl->ctx->cm->ocspEnabled) {
-                #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
                     csr2->request.ocsp[0].ssl = ssl;
-                #endif
                     return CheckOcspRequest(ssl->ctx->cm->ocsp,
                                                   &csr2->request.ocsp[0], NULL);
                 }

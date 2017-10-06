@@ -942,10 +942,7 @@ struct OcspRequest {
     byte   nonce[MAX_OCSP_NONCE_SZ];
     int    nonceSz;
     void*  heap;
-
-#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     void*  ssl;
-#endif
 };
 
 

@@ -3417,12 +3417,15 @@ struct WOLFSSL {
         byte                  expect_session_ticket;
     #endif
 #endif /* HAVE_TLS_EXTENSIONS */
-#ifdef OPENSSL_EXTRA
-    byte*           ocspResp;
-    int             ocspRespSz;
-#if defined(WOLFSSL_NGINX)  || defined(WOLFSSL_HAPROXY)
-    char*           url;
-#endif
+#ifdef HAVE_OCSP
+        void*       ocspIOCtx;
+    #ifdef OPENSSL_EXTRA
+        byte*       ocspResp;
+        int         ocspRespSz;
+        #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+            char*   url;
+        #endif
+    #endif
 #endif
 #ifdef HAVE_NETX
     NetX_Ctx        nxCtx;             /* NetX IO Context */
