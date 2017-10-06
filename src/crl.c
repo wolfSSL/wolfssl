@@ -338,8 +338,8 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
 /* Is the cert ok with CRL, return 0 on success */
 int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
 {
-    int        foundEntry = 0;
-    int        ret = 0;
+    int foundEntry = 0;
+    int ret = 0;
 
     WOLFSSL_ENTER("CheckCertCRL");
 
@@ -379,7 +379,10 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
                 WOLFSSL_MSG("CRL url too long");
             }
 
-            crl->cm->cbMissingCRL(url);
+            /* if non-zero return code then clear CRL_MISSING error */
+            if (crl->cm->cbMissingCRL(url)) {
+                ret = 0;
+            }
         }
     }
 
