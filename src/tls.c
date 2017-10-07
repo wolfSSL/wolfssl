@@ -2873,13 +2873,13 @@ int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
        Use --enable-ecc in the configure script or define HAVE_ECC.
 #endif
 
-static int TLSX_SupportedCurve_New(EllipticCurve** curve, word16 name,
+static int TLSX_SupportedCurve_New(SupportedCurve** curve, word16 name,
                                                                      void* heap)
 {
     if (curve == NULL)
         return BAD_FUNC_ARG;
 
-    *curve = (EllipticCurve*)XMALLOC(sizeof(EllipticCurve), heap,
+    *curve = (SupportedCurve*)XMALLOC(sizeof(SupportedCurve), heap,
                                                              DYNAMIC_TYPE_TLSX);
     if (*curve == NULL)
         return MEMORY_E;
@@ -2906,9 +2906,9 @@ static int TLSX_PointFormat_New(PointFormat** point, byte format, void* heap)
     return 0;
 }
 
-static void TLSX_EllipticCurve_FreeAll(EllipticCurve* list, void* heap)
+static void TLSX_SupportedCurve_FreeAll(SupportedCurve* list, void* heap)
 {
-    EllipticCurve* curve;
+    SupportedCurve* curve;
 
     while ((curve = list)) {
         list = curve->next;
@@ -2928,7 +2928,7 @@ static void TLSX_PointFormat_FreeAll(PointFormat* list, void* heap)
     (void)heap;
 }
 
-static int TLSX_SupportedCurve_Append(EllipticCurve* list, word16 name,
+static int TLSX_SupportedCurve_Append(SupportedCurve* list, word16 name,
                                                                      void* heap)
 {
     if (list == NULL)
@@ -2967,7 +2967,7 @@ static int TLSX_PointFormat_Append(PointFormat* list, byte format, void* heap)
 
 #ifndef NO_WOLFSSL_CLIENT
 
-static void TLSX_EllipticCurve_ValidateRequest(WOLFSSL* ssl, byte* semaphore)
+static void TLSX_SupportedCurve_ValidateRequest(WOLFSSL* ssl, byte* semaphore)
 {
     int i;
 
@@ -3012,9 +3012,9 @@ static void TLSX_PointFormat_ValidateResponse(WOLFSSL* ssl, byte* semaphore)
 #endif
 #ifndef NO_WOLFSSL_CLIENT
 
-static word16 TLSX_EllipticCurve_GetSize(EllipticCurve* list)
+static word16 TLSX_SupportedCurve_GetSize(SupportedCurve* list)
 {
-    EllipticCurve* curve;
+    SupportedCurve* curve;
     word16 length = OPAQUE16_LEN; /* list length */
 
     while ((curve = list)) {
@@ -3042,7 +3042,7 @@ static word16 TLSX_PointFormat_GetSize(PointFormat* list)
 
 #ifndef NO_WOLFSSL_CLIENT
 
-static word16 TLSX_EllipticCurve_Write(EllipticCurve* list, byte* output)
+static word16 TLSX_SupportedCurve_Write(SupportedCurve* list, byte* output)
 {
     word16 offset = OPAQUE16_LEN;
 
@@ -3075,7 +3075,7 @@ static word16 TLSX_PointFormat_Write(PointFormat* list, byte* output)
 
 #ifndef NO_WOLFSSL_SERVER
 
-static int TLSX_EllipticCurve_Parse(WOLFSSL* ssl, byte* input, word16 length,
+static int TLSX_SupportedCurve_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
 {
     word16 offset;
@@ -3128,11 +3128,11 @@ static int TLSX_PointFormat_Parse(WOLFSSL* ssl, byte* input, word16 length,
     return 0;
 }
 
-int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
+int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
     TLSX*          extension = (first == ECC_BYTE || first == CHACHA_BYTE)
                              ? TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS)
                              : NULL;
-    EllipticCurve* curve     = NULL;
+    SupportedCurve* curve     = NULL;
     word32         oid       = 0;
     word32         pkOid     = 0;
     word32         defOid    = 0;
@@ -3150,7 +3150,7 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
     if (!extension)
         return 1; /* no suite restriction */
 
-    for (curve = (EllipticCurve*)extension->data;
+    for (curve = (SupportedCurve*)extension->data;
          curve && !(sig && key);
          curve = curve->next) {
 
@@ -3423,7 +3423,7 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
 int TLSX_UseSupportedCurve(TLSX** extensions, word16 name, void* heap)
 {
     TLSX* extension = NULL;
-    EllipticCurve* curve = NULL;
+    SupportedCurve* curve = NULL;
     int ret = 0;
 
     if (extensions == NULL)
@@ -3443,7 +3443,7 @@ int TLSX_UseSupportedCurve(TLSX** extensions, word16 name, void* heap)
         }
     }
     else {
-        ret = TLSX_SupportedCurve_Append((EllipticCurve*)extension->data, name,
+        ret = TLSX_SupportedCurve_Append((SupportedCurve*)extension->data, name,
                                                                           heap);
         if (ret != 0)
             return ret;
@@ -3486,19 +3486,19 @@ int TLSX_UsePointFormat(TLSX** extensions, byte format, void* heap)
     return SSL_SUCCESS;
 }
 
-#define EC_FREE_ALL         TLSX_EllipticCurve_FreeAll
-#define EC_VALIDATE_REQUEST TLSX_EllipticCurve_ValidateRequest
+#define EC_FREE_ALL         TLSX_SupportedCurve_FreeAll
+#define EC_VALIDATE_REQUEST TLSX_SupportedCurve_ValidateRequest
 
 #ifndef NO_WOLFSSL_CLIENT
-#define EC_GET_SIZE TLSX_EllipticCurve_GetSize
-#define EC_WRITE    TLSX_EllipticCurve_Write
+#define EC_GET_SIZE TLSX_SupportedCurve_GetSize
+#define EC_WRITE    TLSX_SupportedCurve_Write
 #else
 #define EC_GET_SIZE(list)         0
 #define EC_WRITE(a, b)            0
 #endif
 
 #ifndef NO_WOLFSSL_SERVER
-#define EC_PARSE TLSX_EllipticCurve_Parse
+#define EC_PARSE TLSX_SupportedCurve_Parse
 #else
 #define EC_PARSE(a, b, c, d)      0
 #endif
@@ -5699,12 +5699,12 @@ static int TLSX_SupportedGroups_Find(WOLFSSL* ssl, word16 name)
 {
 #ifdef HAVE_SUPPORTED_CURVES
     TLSX*          extension;
-    EllipticCurve* curve = NULL;
+    SupportedCurve* curve = NULL;
 
     if ((extension = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS)) == NULL)
         return 0;
 
-    for (curve = (EllipticCurve*)extension->data; curve; curve = curve->next) {
+    for (curve = (SupportedCurve*)extension->data; curve; curve = curve->next) {
         if (curve->name == name)
             return 1;
     }
@@ -5991,12 +5991,12 @@ static int TLSX_KeyShare_SetSupported(WOLFSSL* ssl)
     int            ret;
 #ifdef HAVE_SUPPORTED_CURVES
     TLSX*          extension;
-    EllipticCurve* curve = NULL;
+    SupportedCurve* curve = NULL;
 
     /* Use SupportedGroup's order. */
     extension = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS);
     if (extension != NULL)
-        curve = (EllipticCurve*)extension->data;
+        curve = (SupportedCurve*)extension->data;
     for (; curve != NULL; curve = curve->next) {
         if (TLSX_KeyShare_IsSupported(curve->name) &&
                 !TLSX_KeyShare_Find(ssl, curve->name)) {
@@ -6999,7 +6999,7 @@ void TLSX_FreeAll(TLSX* list, void* heap)
                 break;
 
             case TLSX_SUPPORTED_GROUPS:
-                EC_FREE_ALL((EllipticCurve*)extension->data, heap);
+                EC_FREE_ALL((SupportedCurve*)extension->data, heap);
                 break;
 
             case TLSX_EC_POINT_FORMATS:
@@ -7118,7 +7118,7 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType)
                 break;
 
             case TLSX_SUPPORTED_GROUPS:
-                length += EC_GET_SIZE((EllipticCurve*)extension->data);
+                length += EC_GET_SIZE((SupportedCurve*)extension->data);
                 break;
 
             case TLSX_EC_POINT_FORMATS:
@@ -7250,7 +7250,7 @@ static word16 TLSX_Write(TLSX* list, byte* output, byte* semaphore,
 
             case TLSX_SUPPORTED_GROUPS:
                 WOLFSSL_MSG("Elliptic Curves extension to write");
-                offset += EC_WRITE((EllipticCurve*)extension->data,
+                offset += EC_WRITE((SupportedCurve*)extension->data,
                                     output + offset);
                 break;
 

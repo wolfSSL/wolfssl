@@ -2005,13 +2005,13 @@ WOLFSSL_LOCAL int   TLSX_CSR2_ForceRequest(WOLFSSL* ssl);
 /** Supported Elliptic Curves - RFC 4492 (session 4) */
 #ifdef HAVE_SUPPORTED_CURVES
 
-typedef struct EllipticCurve {
-    word16                name; /* CurveNames    */
-    struct EllipticCurve* next; /* List Behavior */
-} EllipticCurve;
+typedef struct SupportedCurve {
+    word16 name;                 /* Curve Names */
+    struct SupportedCurve* next; /* List Behavior */
+} SupportedCurve;
 
 typedef struct PointFormat {
-    byte format;                /* PointFormat   */
+    byte format;                /* PointFormat */
     struct PointFormat* next;   /* List Behavior */
 } PointFormat;
 
@@ -2022,7 +2022,7 @@ WOLFSSL_LOCAL int TLSX_UsePointFormat(TLSX** extensions, byte point,
                                                                     void* heap);
 
 #ifndef NO_WOLFSSL_SERVER
-WOLFSSL_LOCAL int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first,
+WOLFSSL_LOCAL int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first,
                                                                    byte second);
 #endif
 
