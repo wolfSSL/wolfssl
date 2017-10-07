@@ -2873,6 +2873,39 @@ int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
        Use --enable-ecc in the configure script or define HAVE_ECC.
 #endif
 
+static int TLSX_SupportedCurve_New(EllipticCurve** curve, word16 name,
+                                                                     void* heap)
+{
+    if (curve == NULL)
+        return BAD_FUNC_ARG;
+
+    *curve = (EllipticCurve*)XMALLOC(sizeof(EllipticCurve), heap,
+                                                             DYNAMIC_TYPE_TLSX);
+    if (*curve == NULL)
+        return MEMORY_E;
+
+    (*curve)->name = name;
+    (*curve)->next = NULL;
+
+    return 0;
+}
+
+static int TLSX_PointFormat_New(PointFormat** point, byte format, void* heap)
+{
+    if (point == NULL)
+        return BAD_FUNC_ARG;
+
+    *point = (PointFormat*)XMALLOC(sizeof(PointFormat), heap,
+                                                             DYNAMIC_TYPE_TLSX);
+    if (*point == NULL)
+        return MEMORY_E;
+
+    (*point)->format = format;
+    (*point)->next = NULL;
+
+    return 0;
+}
+
 static void TLSX_EllipticCurve_FreeAll(EllipticCurve* list, void* heap)
 {
     EllipticCurve* curve;
@@ -2895,42 +2928,39 @@ static void TLSX_PointFormat_FreeAll(PointFormat* list, void* heap)
     (void)heap;
 }
 
-static int TLSX_EllipticCurve_Append(EllipticCurve** list, word16 name,
+static int TLSX_SupportedCurve_Append(EllipticCurve* list, word16 name,
                                                                      void* heap)
 {
-    EllipticCurve* curve = NULL;
-
     if (list == NULL)
         return BAD_FUNC_ARG;
 
-    curve = (EllipticCurve*)XMALLOC(sizeof(EllipticCurve), heap,
-                                                             DYNAMIC_TYPE_TLSX);
-    if (curve == NULL)
-        return MEMORY_E;
+    while (1) {
+        if (list->name == name)
+            return 0; /* curve alreay in use */
 
-    curve->name = name;
-    curve->next = *list;
+        if (list->next == NULL)
+            return TLSX_SupportedCurve_New(&list->next, name, heap);
 
-    *list = curve;
+        list = list->next;
+    }
 
     return 0;
 }
 
-static int TLSX_PointFormat_Append(PointFormat** list, byte format, void* heap)
+static int TLSX_PointFormat_Append(PointFormat* list, byte format, void* heap)
 {
-    PointFormat* point = NULL;
-
     if (list == NULL)
         return BAD_FUNC_ARG;
 
-    point = (PointFormat*)XMALLOC(sizeof(PointFormat), heap, DYNAMIC_TYPE_TLSX);
-    if (point == NULL)
-        return MEMORY_E;
+    while (1) {
+        if (list->format == format)
+            return 0; /* format already in use */
 
-    point->format = format;
-    point->next = *list;
+        if (list->next == NULL)
+            return TLSX_PointFormat_New(&list->next, format, heap);
 
-    *list = point;
+        list = list->next;
+    }
 
     return 0;
 }
@@ -3012,56 +3042,35 @@ static word16 TLSX_PointFormat_GetSize(PointFormat* list)
 
 #ifndef NO_WOLFSSL_CLIENT
 
-static word16 TLSX_EllipticCurve_WriteR(EllipticCurve* curve, byte* output);
-static word16 TLSX_EllipticCurve_WriteR(EllipticCurve* curve, byte* output)
-{
-    word16 offset = 0;
-
-    if (!curve)
-        return offset;
-
-    offset = TLSX_EllipticCurve_WriteR(curve->next, output);
-    c16toa(curve->name, output + offset);
-
-    return OPAQUE16_LEN + offset;
-}
-
-#endif
-
-static word16 TLSX_PointFormat_WriteR(PointFormat* point, byte* output);
-static word16 TLSX_PointFormat_WriteR(PointFormat* point, byte* output)
-{
-    word16 offset = 0;
-
-    if (!point)
-        return offset;
-
-    offset = TLSX_PointFormat_WriteR(point->next, output);
-    output[offset] = point->format;
-
-    return ENUM_LEN + offset;
-}
-
-#ifndef NO_WOLFSSL_CLIENT
-
 static word16 TLSX_EllipticCurve_Write(EllipticCurve* list, byte* output)
 {
-    word16 length = TLSX_EllipticCurve_WriteR(list, output + OPAQUE16_LEN);
+    word16 offset = OPAQUE16_LEN;
 
-    c16toa(length, output); /* writing list length */
+    while (list) {
+        c16toa(list->name, output + offset);
+        offset += OPAQUE16_LEN;
+        list = list->next;
+    }
 
-    return OPAQUE16_LEN + length;
+    c16toa(offset - OPAQUE16_LEN, output); /* writing list length */
+
+    return offset;
 }
 
 #endif
 
 static word16 TLSX_PointFormat_Write(PointFormat* list, byte* output)
 {
-    word16 length = TLSX_PointFormat_WriteR(list, output + ENUM_LEN);
+    word16 offset = ENUM_LEN;
 
-    output[0] = length; /* writing list length */
-
-    return ENUM_LEN + length;
+    while (list) {
+        output[offset++] = list->format;
+        list = list->next;
+    }
+    
+    output[0] = offset - ENUM_LEN;
+    
+    return offset;
 }
 
 #ifndef NO_WOLFSSL_SERVER
@@ -3413,40 +3422,31 @@ int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first, byte second) {
 
 int TLSX_UseSupportedCurve(TLSX** extensions, word16 name, void* heap)
 {
-    TLSX*          extension;
-    EllipticCurve* curve     = NULL;
-    int            ret       = 0;
+    TLSX* extension = NULL;
+    EllipticCurve* curve = NULL;
+    int ret = 0;
 
     if (extensions == NULL)
         return BAD_FUNC_ARG;
 
-    if ((ret = TLSX_EllipticCurve_Append(&curve, name, heap)) != 0)
-        return ret;
-
     extension = TLSX_Find(*extensions, TLSX_SUPPORTED_GROUPS);
+
     if (!extension) {
-        if ((ret = TLSX_Push(extensions, TLSX_SUPPORTED_GROUPS, curve, heap))
-                                                                         != 0) {
+        ret = TLSX_SupportedCurve_New(&curve, name, heap);
+        if (ret != 0)
+            return ret;
+
+        ret = TLSX_Push(extensions, TLSX_SUPPORTED_GROUPS, curve, heap);
+        if (ret != 0) {
             XFREE(curve, heap, DYNAMIC_TYPE_TLSX);
             return ret;
         }
     }
     else {
-        /* push new EllipticCurve object to extension data. */
-        curve->next = (EllipticCurve*)extension->data;
-        extension->data = (void*)curve;
-
-        /* look for another curve of the same name to remove (replacement) */
-        do {
-            if (curve->next && curve->next->name == name) {
-                EllipticCurve *next = curve->next;
-
-                curve->next = next->next;
-                XFREE(next, heap, DYNAMIC_TYPE_TLSX);
-
-                break;
-            }
-        } while ((curve = curve->next));
+        ret = TLSX_SupportedCurve_Append((EllipticCurve*)extension->data, name,
+                                                                          heap);
+        if (ret != 0)
+            return ret;
     }
 
     return (TLSX_Find(*extensions, TLSX_EC_POINT_FORMATS) == NULL)
@@ -3463,33 +3463,24 @@ int TLSX_UsePointFormat(TLSX** extensions, byte format, void* heap)
     if (extensions == NULL)
         return BAD_FUNC_ARG;
 
-    if ((ret = TLSX_PointFormat_Append(&point, format, heap)) != 0)
-        return ret;
-
     extension = TLSX_Find(*extensions, TLSX_EC_POINT_FORMATS);
+
     if (!extension) {
-        if ((ret = TLSX_Push(extensions, TLSX_EC_POINT_FORMATS, point, heap))
-                                                                         != 0) {
+        ret = TLSX_PointFormat_New(&point, format, heap);
+        if (ret != 0)
+            return ret;
+
+        ret = TLSX_Push(extensions, TLSX_EC_POINT_FORMATS, point, heap);
+        if (ret != 0) {
             XFREE(point, heap, DYNAMIC_TYPE_TLSX);
             return ret;
         }
     }
     else {
-        /* push new PointFormat object to extension data. */
-        point->next = (PointFormat*)extension->data;
-        extension->data = (void*)point;
-
-        /* look for another point of the same format to remove (replacement) */
-        do {
-            if (point->next && point->next->format == format) {
-                PointFormat *next = point->next;
-
-                point->next = next->next;
-                XFREE(next, heap, DYNAMIC_TYPE_TLSX);
-
-                break;
-            }
-        } while ((point = point->next));
+        ret = TLSX_PointFormat_Append((PointFormat*)extension->data, format,
+                                                                          heap);
+        if (ret != 0)
+            return ret;
     }
 
     return SSL_SUCCESS;
