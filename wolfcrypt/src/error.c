@@ -369,7 +369,10 @@ const char* wc_GetErrorString(int error)
         return "Setting Authority Key Identifier error";
 
     case KEYUSAGE_E:
-        return "Bad Key Usage value error";
+        return "Key Usage value error";
+
+    case EXTKEYUSAGE_E:
+        return "Extended Key Usage value error";
 
     case CERTPOLICIES_E:
         return "Setting Certificate Policies error";

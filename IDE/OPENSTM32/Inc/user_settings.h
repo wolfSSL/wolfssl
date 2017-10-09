@@ -25,6 +25,11 @@ extern "C" {
 #undef  WOLFSSL_STM32_CUBEMX
 #define WOLFSSL_STM32_CUBEMX
 
+/* Optionally Disable Hardware Hashing Support */
+//#define NO_STM32_HASH
+//#define NO_STM32_RNG
+//#define NO_STM32_CRYPTO
+
 #undef  FREERTOS
 //#define FREERTOS
 
@@ -121,9 +126,9 @@ extern "C" {
     #undef  RSA_LOW_MEM
     //#define RSA_LOW_MEM
 
-	/* Enables blinding mode, to prevent timing attacks */
-	#undef  WC_RSA_BLINDING
-	#define WC_RSA_BLINDING
+    /* Enables blinding mode, to prevent timing attacks */
+    #undef  WC_RSA_BLINDING
+    #define WC_RSA_BLINDING
 
 #else
     #define NO_RSA
@@ -192,6 +197,9 @@ extern "C" {
 /* Sha256 */
 #undef NO_SHA256
 #if 1
+    #if 1
+        #define WOLFSSL_SHA224
+    #endif
 #else
     #define NO_SHA256
 #endif
@@ -214,7 +222,7 @@ extern "C" {
 /* MD5 */
 #undef  NO_MD5
 #if 1
-	/* enabled */
+    /* enabled */
 #else
     #define NO_MD5
 #endif
@@ -282,22 +290,22 @@ extern "C" {
 #define NO_OLD_RNGNAME
 
 /* Choose RNG method */
-#if 0
 #if 1
     /* Use built-in P-RNG (SHA256 based) with HW RNG */
     /* P-RNG + HW RNG (P-RNG is ~8K) */
     #undef  HAVE_HASHDRBG
     #define HAVE_HASHDRBG
 
-    extern unsigned int custom_rand_generate(void);
-    #undef  CUSTOM_RAND_GENERATE
-    #define CUSTOM_RAND_GENERATE  custom_rand_generate
+    #if 0
+        extern unsigned int custom_rand_generate(void);
+        #undef  CUSTOM_RAND_GENERATE
+        #define CUSTOM_RAND_GENERATE  custom_rand_generate
+    #endif
 #else
     /* Bypass P-RNG and use only HW RNG */
     extern int custom_rand_generate_block(unsigned char* output, unsigned int sz);
     #undef  CUSTOM_RAND_GENERATE_BLOCK
     #define CUSTOM_RAND_GENERATE_BLOCK  custom_rand_generate_block
-#endif
 #endif
 
 

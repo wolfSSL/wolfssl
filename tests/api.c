@@ -703,6 +703,50 @@ static int test_wolfSSL_SetMinVersion(void)
 
 } /* END test_wolfSSL_SetMinVersion */
 
+/*----------------------------------------------------------------------------*
+ | EVP
+ *----------------------------------------------------------------------------*/
+
+/* Test function for wolfSSL_EVP_get_cipherbynid.
+ *
+ * POST: return 1 on success.
+ */
+
+# if defined(OPENSSL_EXTRA)
+static void test_wolfSSL_EVP_get_cipherbynid(void)
+{
+#ifndef NO_AES
+      AssertNotNull(strcmp("EVP_AES_128_CBC", wolfSSL_EVP_get_cipherbynid(419)));
+      AssertNotNull(strcmp("EVP_AES_192_CBC", wolfSSL_EVP_get_cipherbynid(423)));
+      AssertNotNull(strcmp("EVP_AES_256_CBC", wolfSSL_EVP_get_cipherbynid(427)));
+      AssertNotNull(strcmp("EVP_AES_128_CTR", wolfSSL_EVP_get_cipherbynid(904)));
+      AssertNotNull(strcmp("EVP_AES_192_CTR", wolfSSL_EVP_get_cipherbynid(905)));
+      AssertNotNull(strcmp("EVP_AES_256_CTR", wolfSSL_EVP_get_cipherbynid(906)));
+      AssertNotNull(strcmp("EVP_AES_128_ECB", wolfSSL_EVP_get_cipherbynid(418)));
+      AssertNotNull(strcmp("EVP_AES_192_ECB", wolfSSL_EVP_get_cipherbynid(422)));
+      AssertNotNull(strcmp("EVP_AES_256_ECB", wolfSSL_EVP_get_cipherbynid(426)));
+#endif
+
+#ifndef NO_DES3
+    AssertNotNull(strcmp("EVP_DES_CBC", wolfSSL_EVP_get_cipherbynid(31)));
+#ifdef WOLFSSL_DES_ECB
+    AssertNotNull(strcmp("EVP_DES_ECB", wolfSSL_EVP_get_cipherbynid(29)));
+#endif
+    AssertNotNull(strcmp("EVP_DES_EDE3_CBC", wolfSSL_EVP_get_cipherbynid(44)));
+#ifdef WOLFSSL_DES_ECB
+    AssertNotNull(strcmp("EVP_DES_EDE3_ECB", wolfSSL_EVP_get_cipherbynid(33)));
+#endif
+#endif /*NO_DES3*/
+
+#ifdef HAVE_IDEA
+    AssertNotNull(strcmp("EVP_IDEA_CBC", wolfSSL_EVP_get_cipherbynid(34)));
+#endif
+
+  /* test for nid is out of range */
+  AssertNull(wolfSSL_EVP_get_cipherbynid(1));
+
+}
+#endif
 
 /*----------------------------------------------------------------------------*
  | IO
@@ -9406,6 +9450,42 @@ static void test_wolfSSL_certs(void)
 }
 
 
+static void test_wolfSSL_ASN1_TIME_print()
+{
+    #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_RSA) \
+        && (defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || \
+            defined(WOLFSSL_HAPROXY)) && defined(USE_CERT_BUFFERS_2048)
+    BIO*  bio;
+    X509*  x509;
+    const unsigned char* der = client_cert_der_2048;
+    ASN1_TIME* t;
+    unsigned char buf[25];
+
+    printf(testingFmt, "wolfSSL_ASN1_TIME_print()");
+
+    AssertNotNull(bio = BIO_new(BIO_s_mem()));
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_buffer(der,
+                sizeof_client_cert_der_2048, SSL_FILETYPE_ASN1));
+    AssertIntEQ(ASN1_TIME_print(bio, X509_get_notBefore(x509)), 1);
+    AssertIntEQ(BIO_read(bio, buf, sizeof(buf)), 24);
+    AssertIntEQ(XMEMCMP(buf, "Aug 11 20:07:37 2016 GMT", sizeof(buf) - 1), 0);
+
+    /* create a bad time and test results */
+    AssertNotNull(t = X509_get_notAfter(x509));
+    t->data[10] = 0;
+    t->data[5]  = 0;
+    AssertIntNE(ASN1_TIME_print(bio, t), 1);
+    AssertIntEQ(BIO_read(bio, buf, sizeof(buf)), 14);
+    AssertIntEQ(XMEMCMP(buf, "Bad time value", 14), 0);
+
+    BIO_free(bio);
+    X509_free(x509);
+
+    printf(resultFmt, passed);
+    #endif
+}
+
+
 static void test_wolfSSL_private_keys(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
@@ -10813,6 +10893,7 @@ void ApiTest(void)
     /* compatibility tests */
     test_wolfSSL_DES();
     test_wolfSSL_certs();
+    test_wolfSSL_ASN1_TIME_print();
     test_wolfSSL_private_keys();
     test_wolfSSL_PEM_PrivateKey();
     test_wolfSSL_tmp_dh();
@@ -10948,9 +11029,15 @@ void ApiTest(void)
     AssertIntEQ(test_wc_MakeDsaKey(), 0);
     AssertIntEQ(test_wc_DsaKeyToDer(), 0);
 
+#ifdef OPENSSL_EXTRA
+    /*wolfSSS_EVP_get_cipherbynid test*/
+    test_wolfSSL_EVP_get_cipherbynid();
+#endif
+
 #ifdef HAVE_HASHDRBG
     AssertIntEQ(test_wc_RNG_GenerateBlock(), 0);
 #endif
+
     printf(" End API Tests\n");
 
 }

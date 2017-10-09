@@ -159,6 +159,7 @@ typedef struct Cert {
     byte    akid[CTC_MAX_AKID_SIZE];     /* Authority Key Identifier */
     int     akidSz;                      /* AKID size in bytes */
     word16  keyUsage;                    /* Key Usage */
+    byte    extKeyUsage;                 /* Extended Key Usage */
     char    certPolicies[CTC_MAX_CERTPOL_NB][CTC_MAX_CERTPOL_SZ];
     word16  certPoliciesNb;              /* Number of Cert Policy */
 #endif
@@ -234,6 +235,12 @@ WOLFSSL_API int wc_SetSubjectKeyIdFromNtruPublicKey(Cert *cert, byte *ntruKey,
  * nonRepudiation and contentCommitment are for the same usage.
  */
 WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
+
+/* Set ExtendedKeyUsage
+ * Value is a string separated tokens with ','. Accepted tokens are :
+ * any,serverAuth,clientAuth,codeSigning,emailProtection,timeStamping,OCSPSigning
+ */
+WOLFSSL_API int wc_SetExtKeyUsage(Cert *cert, const char *value);
 
 #endif /* WOLFSSL_CERT_EXT */
 

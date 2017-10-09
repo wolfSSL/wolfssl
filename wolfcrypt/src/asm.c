@@ -172,70 +172,62 @@ __asm__(                                                  \
 : "%rax", "%rdx", "cc")
 
 #if defined(HAVE_INTEL_MULX)
-#define MULX_INIT(a0, c0, cy)\
-    __asm__ volatile(                                     \
-             "xorq  %%r10, %%r10\n\t"                     \
-             "movq  %1,%%rdx\n\t"                         \
-             "addq  %2, %0\n\t"       /* c0+=cy; Set CF, OF */ \
-             "adoxq %%r10, %%r10\n\t" /* Reset   OF */    \
-             :"+m"(c0):"r"(a0),"r"(cy):"%r8","%r9", "%r10","%r11","%r12","%rdx") ; \
+#define MULX_INNERMUL8(x,y,z,cy)                                       \
+    __asm__  volatile (                                                \
+        "movq	%[yn], %%rdx\n\t"                                      \
+        "xorq	%%rcx, %%rcx\n\t"                                      \
+        "movq   0(%[c]), %%r8\n\t"                                     \
+        "movq   8(%[c]), %%r9\n\t"                                     \
+        "movq   16(%[c]), %%r10\n\t"                                   \
+        "movq   24(%[c]), %%r11\n\t"                                   \
+        "movq   32(%[c]), %%r12\n\t"                                   \
+        "movq   40(%[c]), %%r13\n\t"                                   \
+        "movq   48(%[c]), %%r14\n\t"                                   \
+        "movq   56(%[c]), %%r15\n\t"                                   \
+                                                                       \
+        "mulx	0(%[xp]), %%rax, %%rcx\n\t"                            \
+        "adcxq	%[cy], %%r8\n\t"                                       \
+        "adoxq	%%rax, %%r8\n\t"                                       \
+        "mulx	8(%[xp]), %%rax, %[cy]\n\t"                            \
+        "adcxq	%%rcx, %%r9\n\t"                                       \
+        "adoxq	%%rax, %%r9\n\t"                                       \
+        "mulx	16(%[xp]), %%rax, %%rcx\n\t"                           \
+        "adcxq	%[cy], %%r10\n\t"                                      \
+        "adoxq	%%rax, %%r10\n\t"                                      \
+        "mulx	24(%[xp]), %%rax, %[cy]\n\t"                           \
+        "adcxq	%%rcx, %%r11\n\t"                                      \
+        "adoxq	%%rax, %%r11\n\t"                                      \
+        "mulx	32(%[xp]), %%rax, %%rcx\n\t"                           \
+        "adcxq	%[cy], %%r12\n\t"                                      \
+        "adoxq	%%rax, %%r12\n\t"                                      \
+        "mulx	40(%[xp]), %%rax, %[cy]\n\t"                           \
+        "adcxq	%%rcx, %%r13\n\t"                                      \
+        "adoxq	%%rax, %%r13\n\t"                                      \
+        "mulx	48(%[xp]), %%rax, %%rcx\n\t"                           \
+        "adcxq	%[cy], %%r14\n\t"                                      \
+        "adoxq	%%rax, %%r14\n\t"                                      \
+        "adcxq	%%rcx, %%r15\n\t"                                      \
+        "mulx	56(%[xp]), %%rax, %[cy]\n\t"                           \
+        "movq	$0, %%rdx\n\t"                                         \
+        "adoxq	%%rdx, %%rax\n\t"                                      \
+        "adcxq	%%rdx, %[cy]\n\t"                                      \
+        "addq   %%rax, %%r15\n\t"                                      \
+        "adcq   $0, %[cy]\n\t"                                         \
+                                                                       \
+        "movq   %%r8,   0(%[c])\n\t"                                   \
+        "movq   %%r9,   8(%[c])\n\t"                                   \
+        "movq   %%r10, 16(%[c])\n\t"                                   \
+        "movq   %%r11, 24(%[c])\n\t"                                   \
+        "movq   %%r12, 32(%[c])\n\t"                                   \
+        "movq   %%r13, 40(%[c])\n\t"                                   \
+        "movq   %%r14, 48(%[c])\n\t"                                   \
+        "movq   %%r15, 56(%[c])\n\t"                                   \
+        : [cy] "+r" (cy)                                               \
+        : [xp] "r" (x), [c] "r" (c_mulx), [yn] "rm" (y)                \
+        :"%r8", "%r9", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15", \
+         "%rdx", "%rax", "%rcx" \
+    )
 
-#define MULX_INNERMUL_R1(c0, c1, pre, rdx)\
-   {                                                      \
-    __asm__  volatile (                                   \
-         "movq  %3, %%rdx\n\t"                            \
-         "mulx  %%r11,%%r9, %%r8 \n\t"                    \
-         "movq  %2, %%r12\n\t"                            \
-         "adoxq  %%r9,%0     \n\t"                        \
-         "adcxq  %%r8,%1     \n\t"                        \
-         :"+r"(c0),"+r"(c1):"m"(pre),"r"(rdx):"%r8","%r9", "%r10", "%r11","%r12","%rdx"    \
-    ); }
-
-
-#define MULX_INNERMUL_R2(c0, c1, pre, rdx)\
-   {                                                      \
-    __asm__  volatile (                                   \
-         "movq  %3, %%rdx\n\t"                            \
-         "mulx  %%r12,%%r9, %%r8 \n\t"                    \
-         "movq  %2, %%r11\n\t"                            \
-         "adoxq  %%r9,%0     \n\t"                        \
-         "adcxq  %%r8,%1     \n\t"                        \
-         :"+r"(c0),"+r"(c1):"m"(pre),"r"(rdx):"%r8","%r9", "%r10", "%r11","%r12","%rdx"    \
-    ); }
-
-#define MULX_LOAD_R1(val)\
-    __asm__  volatile (                                   \
-        "movq %0, %%r11\n\t"\
-        ::"m"(val):"%r8","%r9", "%r10", "%r11","%r12","%rdx"\
-) ;
-
-#define MULX_INNERMUL_LAST(c0, c1, rdx)\
-   {                                                      \
-    __asm__  volatile (                                   \
-         "movq   %2, %%rdx\n\t"                           \
-         "mulx   %%r12,%%r9, %%r8 \n\t"                   \
-         "movq   $0, %%r10      \n\t"                     \
-         "adoxq  %%r10, %%r9   \n\t"                      \
-         "adcq   $0,%%r8       \n\t"                      \
-         "addq   %%r9,%0       \n\t"                      \
-         "adcq   $0,%%r8       \n\t"                      \
-         "movq   %%r8,%1       \n\t"                      \
-         :"+m"(c0),"=m"(c1):"r"(rdx):"%r8","%r9","%r10", "%r11", "%r12","%rdx"\
-    ); }
-
-#define MULX_INNERMUL8(x,y,z,cy)\
-{       word64 rdx = y ;\
-        MULX_LOAD_R1(x[0]) ;\
-        MULX_INIT(y, _c0, cy) ; /* rdx=y; z0+=cy; */ \
-        MULX_INNERMUL_R1(_c0, _c1, x[1], rdx) ;\
-        MULX_INNERMUL_R2(_c1, _c2, x[2], rdx) ;\
-        MULX_INNERMUL_R1(_c2, _c3, x[3], rdx) ;\
-        MULX_INNERMUL_R2(_c3, _c4, x[4], rdx) ;\
-        MULX_INNERMUL_R1(_c4, _c5, x[5], rdx) ;\
-        MULX_INNERMUL_R2(_c5, _c6, x[6], rdx) ;\
-        MULX_INNERMUL_R1(_c6, _c7, x[7], rdx) ;\
-        MULX_INNERMUL_LAST(_c7, cy, rdx) ;\
-}
 #define INNERMUL8_MULX \
 {\
     MULX_INNERMUL8(tmpm, mu, _c, cy);\
@@ -1461,61 +1453,54 @@ __asm__  (                                                \
 
 
 #if defined(HAVE_INTEL_MULX)
-#define MULADD_MULX(b0, c0, c1, rdx)\
-    __asm__  volatile (                                   \
-         "movq   %3, %%rdx\n\t"                           \
-         "mulx  %2,%%r9, %%r8 \n\t"                       \
-         "adoxq  %%r9,%0     \n\t"                        \
-         "adcxq  %%r8,%1     \n\t"                        \
-         :"+r"(c0),"+r"(c1):"r"(b0), "r"(rdx):"%r8","%r9","%r10","%rdx"\
+#define MULADD_BODY(a,b,c)                              \
+    __asm__ volatile(                                   \
+         "movq  %[a0],%%rdx\n\t"                        \
+         "xorq  %%rcx, %%rcx\n\t"                       \
+         "movq  0(%[cp]),%%r8\n\t"                      \
+         "movq  8(%[cp]),%%r9\n\t"                      \
+         "movq  16(%[cp]),%%r10\n\t"                    \
+         "movq  24(%[cp]),%%r11\n\t"                    \
+         "movq  32(%[cp]),%%r12\n\t"                    \
+         "movq  40(%[cp]),%%r13\n\t"                    \
+                                                        \
+         "mulx  (%[bp]),%%rax, %%rbx\n\t"               \
+         "adoxq  %%rax, %%r8\n\t"                       \
+         "mulx  8(%[bp]),%%rax, %%rcx\n\t"              \
+         "adcxq  %%rbx, %%r9\n\t"                       \
+         "adoxq  %%rax, %%r9\n\t"                       \
+         "mulx  16(%[bp]),%%rax, %%rbx\n\t"             \
+         "adcxq  %%rcx, %%r10\n\t"                      \
+         "adoxq  %%rax, %%r10\n\t"                      \
+         "mulx  24(%[bp]),%%rax, %%rcx\n\t"             \
+         "adcxq  %%rbx, %%r11\n\t"                      \
+         "adoxq  %%rax, %%r11\n\t"                      \
+         "adcxq  %%rcx, %%r12\n\t"                      \
+         "mov $0, %%rdx\n\t"                            \
+         "adox %%rdx, %%r12\n\t"                        \
+         "adcx %%rdx, %%r13\n\t"                        \
+                                                        \
+         "movq  %%r8, 0(%[cp])\n\t"                     \
+         "movq  %%r9, 8(%[cp])\n\t"                     \
+         "movq  %%r10, 16(%[cp])\n\t"                   \
+         "movq  %%r11, 24(%[cp])\n\t"                   \
+         "movq  %%r12, 32(%[cp])\n\t"                   \
+         "movq  %%r13, 40(%[cp])\n\t"                   \
+      :                                                 \
+      : [a0] "r" (a->dp[ix]), [bp] "r" (&(b->dp[iy])),  \
+        [cp] "r" (&(c->dp[iz]))                         \
+      : "%r8", "%r9", "%r10", "%r11", "%r12", "%r13",   \
+        "%rdx", "%rax", "%rcx", "%rbx"                  \
     )
 
-
-#define MULADD_MULX_ADD_CARRY(c0, c1)\
-    __asm__ volatile(\
-    "mov $0, %%r10\n\t"\
-    "movq %1, %%r8\n\t"\
-    "adox %%r10, %0\n\t"\
-    "adcx %%r10, %1\n\t"\
-    :"+r"(c0),"+r"(c1)::"%r8","%r9","%r10","%rdx") ;
-
-#define MULADD_SET_A(a0)\
-    __asm__ volatile("add $0, %%r8\n\t"                   \
-             "movq  %0,%%rdx\n\t"                         \
-             ::"r"(a0):"%r8","%r9","%r10","%rdx") ;
-
-#define MULADD_BODY(a,b,c)\
-    {   word64 rdx = a->dp[ix] ;      \
-        cp = &(c->dp[iz]) ;           \
-        c0 = cp[0] ; c1 = cp[1];      \
-        MULADD_SET_A(rdx) ;           \
-        MULADD_MULX(b0, c0, c1, rdx) ;\
-        cp[0]=c0; c0=cp[2];           \
-        MULADD_MULX(b1, c1, c0, rdx) ;\
-        cp[1]=c1; c1=cp[3];           \
-        MULADD_MULX(b2, c0, c1, rdx) ;\
-        cp[2]=c0; c0=cp[4];           \
-        MULADD_MULX(b3, c1, c0, rdx) ;\
-        cp[3]=c1; c1=cp[5];           \
-        MULADD_MULX_ADD_CARRY(c0, c1);\
-        cp[4]=c0; cp[5]=c1;           \
+#define TFM_INTEL_MUL_COMBA(a, b, c)       \
+    for (iz=0; iz<pa; iz++) c->dp[iz] = 0; \
+    for (ix=0; ix<a->used; ix++) {         \
+        for (iy=0; iy<b->used; iy+=4) {    \
+            iz = ix + iy;                  \
+            MULADD_BODY(a, b, c);          \
+        }                                  \
     }
-
-#define TFM_INTEL_MUL_COMBA(a, b, c)\
-  for(ix=0; ix<pa; ix++)c->dp[ix]=0 ; \
-  for(iy=0; (iy<b->used); iy+=4) {    \
-    fp_digit *bp ;                    \
-    bp = &(b->dp[iy+0]) ;             \
-    fp_digit b0 = bp[0] , b1= bp[1],  \
-             b2= bp[2], b3= bp[3];    \
-    ix=0, iz=iy;                      \
-    while(ix<a->used) {               \
-        fp_digit c0, c1;              \
-        fp_digit *cp ;                \
-        MULADD_BODY(a,b,c);           \
-        ix++ ; iz++ ;                 \
-    }                                 \
-};
 #endif
 
 #elif defined(TFM_SSE2)

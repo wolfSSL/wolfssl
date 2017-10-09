@@ -303,7 +303,8 @@ int wc_LoggingCleanup(void)
 }
 
 
-#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_MYSQL_COMPATIBLE)
 /* peek at an error node
  *
  * idx : if -1 then the most recent node is looked at, otherwise search

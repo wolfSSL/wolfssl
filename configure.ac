@@ -202,6 +202,7 @@ then
     enable_session_ticket=yes
     enable_tlsx=yes
     enable_pkcs7=yes
+    enable_ssh=yes
     enable_scep=yes
     enable_srp=yes
     enable_certservice=yes
@@ -2501,6 +2502,13 @@ AC_ARG_ENABLE([pkcs7],
     )
 
 
+# wolfSSH Options
+AC_ARG_ENABLE([ssh],
+    [AS_HELP_STRING([--enable-ssh],[Enable wolfSSH options (default: disabled)])],
+    [ ENABLED_WOLFSSH=$enableval ],
+    [ ENABLED_WOLFSSH=no ]
+    )
+
 # Simple Certificate Enrollment Protocol (SCEP)
 AC_ARG_ENABLE([scep],
     [AS_HELP_STRING([--enable-scep],[Enable wolfSCEP (default: disabled)])],
@@ -3635,6 +3643,18 @@ AS_IF([test "x$ENABLED_NULL_CIPHER" = "xno" && \
       [AM_CFLAGS="-DHAVE_NULL_CIPHER $AM_CFLAGS"
        ENABLED_NULL_CIPHER=yes])
 
+# wolfSSH and WPA Supplicant both need Public MP, only enable once.
+# This will let you know if you enabled wolfSSH but have any of the prereqs
+# disabled. Some of these options, disabling them adds things to the FLAGS and
+# you need to check and add items in two places depending on the option.
+AS_IF([test "x$ENABLED_WOLFSSH" = "xyes"],
+      [AS_IF([test "x$ENABLED_WPAS" = "xno"],[AM_CFLAGS="-DWOLFSSL_PUBLIC_MP $AM_CFLAGS"])
+       AS_IF([test "x$ENABLED_AESGCM" = "xno"],[AC_MSG_ERROR([cannot enable wolfSSH with AES-GCM disabled])])
+       AS_IF([test "x$ENABLED_ECC" = "xno"],[AC_MSG_ERROR([cannot enable wolfSSH with ECC disabled])])
+       AS_IF([test "x$ENABLED_SHA" = "xno"],[AC_MSG_ERROR([cannot enable wolfSSH with SHA-1 disabled])])
+       AS_IF([test "x$ENABLED_SHA512" = "xno"],[AC_MSG_ERROR([cannot enable wolfSSH with SHA-512/384 disabled])])
+      ])
+
 ################################################################################
 
 # OPTIMIZE FLAGS
@@ -3944,6 +3964,7 @@ echo "   * Renegotiation Indication:   $ENABLED_RENEGOTIATION_INDICATION"
 echo "   * Secure Renegotiation:       $ENABLED_SECURE_RENEGOTIATION"
 echo "   * All TLS Extensions:         $ENABLED_TLSX"
 echo "   * PKCS#7                      $ENABLED_PKCS7"
+echo "   * wolfSSH                     $ENABLED_WOLFSSH"
 echo "   * wolfSCEP                    $ENABLED_WOLFSCEP"
 echo "   * Secure Remote Password      $ENABLED_SRP"
 echo "   * Small Stack:                $ENABLED_SMALL_STACK"

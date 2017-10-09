@@ -100,7 +100,9 @@
 #endif
 
 
-#ifndef WOLFSSL_PIC32MZ_HASH
+static INLINE void AddLength(Sha256* sha256, word32 len);
+
+#if !defined(WOLFSSL_PIC32MZ_HASH) && !defined(STM32_HASH)
 static int InitSha256(Sha256* sha256)
 {
     int ret = 0;
@@ -330,6 +332,159 @@ static int InitSha256(Sha256* sha256)
 #elif defined(WOLFSSL_PIC32MZ_HASH)
     #include <wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h>
 
+#elif defined(STM32_HASH)
+
+    /*
+     * STM32F2/F4/F7 hardware SHA256 support through the HASH_* API's from the
+     * Standard Peripheral Library or CubeMX (See note in README).
+     */
+
+    /* STM32 register size, bytes */
+    #ifdef WOLFSSL_STM32_CUBEMX
+        #define SHA256_REG_SIZE  SHA256_BLOCK_SIZE
+    #else
+        #define SHA256_REG_SIZE  4
+        /* STM32 struct notes:
+         * sha256->buffer  = first 4 bytes used to hold partial block if needed
+         * sha256->buffLen = num bytes currently stored in sha256->buffer
+         * sha256->loLen   = num bytes that have been written to STM32 FIFO
+         */
+    #endif
+    #define SHA256_HW_TIMEOUT 0xFF
+
+    int wc_InitSha256_ex(Sha256* sha256, void* heap, int devId)
+    {
+        if (sha256 == NULL)
+            return BAD_FUNC_ARG;
+
+        sha256->heap = heap;
+        XMEMSET(sha256->buffer, 0, sizeof(sha256->buffer));
+        sha256->buffLen = 0;
+        sha256->loLen = 0;
+        sha256->hiLen = 0;
+
+        /* initialize HASH peripheral */
+    #ifdef WOLFSSL_STM32_CUBEMX
+        HAL_HASH_DeInit(&sha256->hashHandle);
+        sha256->hashHandle.Init.DataType = HASH_DATATYPE_8B;
+        if (HAL_HASH_Init(&sha256->hashHandle) != HAL_OK) {
+            return ASYNC_INIT_E;
+        }
+        /* reset the hash control register */
+        /* required because Cube MX is not clearing algo bits */
+        HASH->CR &= ~HASH_CR_ALGO;
+    #else
+        HASH_DeInit();
+
+        /* reset the hash control register */
+        HASH->CR &= ~ (HASH_CR_ALGO | HASH_CR_DATATYPE | HASH_CR_MODE);
+
+        /* configure algo used, algo mode, datatype */
+        HASH->CR |= (HASH_AlgoSelection_SHA256 | HASH_AlgoMode_HASH
+                   | HASH_DataType_8b);
+
+        /* reset HASH processor */
+        HASH->CR |= HASH_CR_INIT;
+    #endif
+
+        return 0;
+    }
+
+    int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
+    {
+        int ret = 0;
+        byte* local;
+
+        if (sha256 == NULL || (data == NULL && len > 0)) {
+            return BAD_FUNC_ARG;
+        }
+
+        /* do block size increments */
+        local = (byte*)sha256->buffer;
+
+        /* check that internal buffLen is valid */
+        if (sha256->buffLen >= SHA256_REG_SIZE)
+            return BUFFER_E;
+
+        while (len) {
+            word32 add = min(len, SHA256_REG_SIZE - sha256->buffLen);
+            XMEMCPY(&local[sha256->buffLen], data, add);
+
+            sha256->buffLen += add;
+            data            += add;
+            len             -= add;
+
+            if (sha256->buffLen == SHA256_REG_SIZE) {
+            #ifdef WOLFSSL_STM32_CUBEMX
+                if (HAL_HASHEx_SHA256_Accumulate(
+                        &sha256->hashHandle, local, SHA256_REG_SIZE) != HAL_OK) {
+                    ret = ASYNC_OP_E;
+                }
+            #else
+                HASH_DataIn(*(uint32_t*)local);
+            #endif
+
+                AddLength(sha256, SHA256_REG_SIZE);
+                sha256->buffLen = 0;
+            }
+        }
+        return ret;
+    }
+
+    int wc_Sha256Final(Sha256* sha256, byte* hash)
+    {
+        int ret = 0;
+
+        if (sha256 == NULL || hash == NULL)
+            return BAD_FUNC_ARG;
+
+    #ifdef WOLFSSL_STM32_CUBEMX
+        if (HAL_HASHEx_SHA256_Start(&sha256->hashHandle,
+                (byte*)sha256->buffer, sha256->buffLen,
+                (byte*)sha256->digest, SHA256_HW_TIMEOUT) != HAL_OK) {
+            ret = ASYNC_OP_E;
+        }
+    #else
+        __IO uint16_t nbvalidbitsdata = 0;
+
+        /* finish reading any trailing bytes into FIFO */
+        if (sha256->buffLen > 0) {
+            HASH_DataIn(*(uint32_t*)sha256->buffer);
+            AddLength(sha256, sha256->buffLen);
+        }
+
+        /* calculate number of valid bits in last word of input data */
+        nbvalidbitsdata = 8 * (sha256->loLen % SHA256_REG_SIZE);
+
+        /* configure number of valid bits in last word of the data */
+        HASH_SetLastWordValidBitsNbr(nbvalidbitsdata);
+
+        /* start HASH processor */
+        HASH_StartDigest();
+
+        /* wait until Busy flag == RESET */
+        while (HASH_GetFlagStatus(HASH_FLAG_BUSY) != RESET) {}
+
+        /* read message digest */
+        sha256->digest[0] = HASH->HR[0];
+        sha256->digest[1] = HASH->HR[1];
+        sha256->digest[2] = HASH->HR[2];
+        sha256->digest[3] = HASH->HR[3];
+        sha256->digest[4] = HASH->HR[4];
+        sha256->digest[5] = HASH_DIGEST->HR[5];
+        sha256->digest[6] = HASH_DIGEST->HR[6];
+        sha256->digest[7] = HASH_DIGEST->HR[7];
+
+        ByteReverseWords(sha256->digest, sha256->digest, SHA256_DIGEST_SIZE);
+    #endif /* WOLFSSL_STM32_CUBEMX */
+
+        XMEMCPY(hash, sha256->digest, SHA256_DIGEST_SIZE);
+
+        (void)wc_InitSha256_ex(sha256, sha256->heap, INVALID_DEVID);
+
+        return ret;
+    }
+
 #else
     #define NEED_SOFT_SHA256
 
@@ -450,14 +605,17 @@ static int InitSha256(Sha256* sha256)
 /* End wc_ software implementation */
 
 
-#ifdef XTRANSFORM
+#if defined(XTRANSFORM) || defined(STM32_HASH)
+static INLINE void AddLength(Sha256* sha256, word32 len)
+{
+    word32 tmp = sha256->loLen;
+    if ( (sha256->loLen += len) < tmp)
+        sha256->hiLen++;                       /* carry low to high */
+}
+#endif
 
-    static INLINE void AddLength(Sha256* sha256, word32 len)
-    {
-        word32 tmp = sha256->loLen;
-        if ( (sha256->loLen += len) < tmp)
-            sha256->hiLen++;                       /* carry low to high */
-    }
+
+#ifdef XTRANSFORM
 
     static INLINE int Sha256Update(Sha256* sha256, const byte* data, word32 len)
     {
@@ -1771,6 +1929,152 @@ static int Transform_AVX2(Sha256* sha256)
 
 
 #ifdef WOLFSSL_SHA224
+
+#ifdef STM32_HASH
+
+    #define Sha256Update Sha224Update
+    #define Sha256Final  Sha224Final
+
+    /*
+     * STM32F2/F4/F7 hardware SHA224 support through the HASH_* API's from the
+     * Standard Peripheral Library or CubeMX (See note in README).
+     */
+
+    /* STM32 register size, bytes */
+    #ifdef WOLFSSL_STM32_CUBEMX
+        #define SHA224_REG_SIZE  SHA224_BLOCK_SIZE
+    #else
+        #define SHA224_REG_SIZE  4
+        /* STM32 struct notes:
+         * sha224->buffer  = first 4 bytes used to hold partial block if needed
+         * sha224->buffLen = num bytes currently stored in sha256->buffer
+         * sha224->loLen   = num bytes that have been written to STM32 FIFO
+         */
+    #endif
+    #define SHA224_HW_TIMEOUT 0xFF
+
+    static int InitSha224(Sha224* sha224)
+    {
+        if (sha224 == NULL)
+            return BAD_FUNC_ARG;
+
+        XMEMSET(sha224->buffer, 0, sizeof(sha224->buffer));
+        sha224->buffLen = 0;
+        sha224->loLen = 0;
+        sha224->hiLen = 0;
+
+        /* initialize HASH peripheral */
+    #ifdef WOLFSSL_STM32_CUBEMX
+        HAL_HASH_DeInit(&sha224->hashHandle);
+        sha224->hashHandle.Init.DataType = HASH_DATATYPE_8B;
+        if (HAL_HASH_Init(&sha224->hashHandle) != HAL_OK) {
+            return ASYNC_INIT_E;
+        }
+        /* required because Cube MX is not clearing algo bits */
+        HASH->CR &= ~HASH_CR_ALGO;
+    #else
+        HASH_DeInit();
+
+        /* reset the hash control register */
+        /* required because Cube MX is not clearing algo bits */
+        HASH->CR &= ~ (HASH_CR_ALGO | HASH_CR_DATATYPE | HASH_CR_MODE);
+
+        /* configure algo used, algo mode, datatype */
+        HASH->CR |= (HASH_AlgoSelection_SHA224 | HASH_AlgoMode_HASH
+                   | HASH_DataType_8b);
+
+        /* reset HASH processor */
+        HASH->CR |= HASH_CR_INIT;
+    #endif
+
+        return 0;
+    }
+
+    static int Sha224Update(Sha256* sha224, const byte* data, word32 len)
+    {
+        int ret = 0;
+        byte* local;
+
+        /* do block size increments */
+        local = (byte*)sha224->buffer;
+
+        /* check that internal buffLen is valid */
+        if (sha224->buffLen >= SHA224_REG_SIZE)
+            return BUFFER_E;
+
+        while (len) {
+            word32 add = min(len, SHA224_REG_SIZE - sha224->buffLen);
+            XMEMCPY(&local[sha224->buffLen], data, add);
+
+            sha224->buffLen += add;
+            data         += add;
+            len          -= add;
+
+            if (sha224->buffLen == SHA224_REG_SIZE) {
+            #ifdef WOLFSSL_STM32_CUBEMX
+                if (HAL_HASHEx_SHA224_Accumulate(
+                        &sha224->hashHandle, local, SHA224_REG_SIZE) != HAL_OK) {
+                    ret = ASYNC_OP_E;
+                }
+            #else
+                HASH_DataIn(*(uint32_t*)local);
+            #endif
+
+                AddLength(sha224, SHA224_REG_SIZE);
+                sha224->buffLen = 0;
+            }
+        }
+        return ret;
+    }
+
+    static int Sha224Final(Sha256* sha224)
+    {
+        int ret = 0;
+
+    #ifdef WOLFSSL_STM32_CUBEMX
+        if (HAL_HASHEx_SHA224_Start(&sha224->hashHandle,
+                (byte*)sha224->buffer, sha224->buffLen,
+                (byte*)sha224->digest, SHA224_HW_TIMEOUT) != HAL_OK) {
+            ret = ASYNC_OP_E;
+        }
+    #else
+        __IO uint16_t nbvalidbitsdata = 0;
+
+        /* finish reading any trailing bytes into FIFO */
+        if (sha224->buffLen > 0) {
+            HASH_DataIn(*(uint32_t*)sha224->buffer);
+            AddLength(sha224, sha224->buffLen);
+        }
+
+        /* calculate number of valid bits in last word of input data */
+        nbvalidbitsdata = 8 * (sha224->loLen % SHA224_REG_SIZE);
+
+        /* configure number of valid bits in last word of the data */
+        HASH_SetLastWordValidBitsNbr(nbvalidbitsdata);
+
+        /* start HASH processor */
+        HASH_StartDigest();
+
+        /* wait until Busy flag == RESET */
+        while (HASH_GetFlagStatus(HASH_FLAG_BUSY) != RESET) {}
+
+        /* read message digest */
+        sha224->digest[0] = HASH->HR[0];
+        sha224->digest[1] = HASH->HR[1];
+        sha224->digest[2] = HASH->HR[2];
+        sha224->digest[3] = HASH->HR[3];
+        sha224->digest[4] = HASH->HR[4];
+        sha224->digest[5] = HASH_DIGEST->HR[5];
+        sha224->digest[6] = HASH_DIGEST->HR[6];
+
+        ByteReverseWords(sha224->digest, sha224->digest, SHA224_DIGEST_SIZE);
+    #endif /* WOLFSSL_STM32_CUBEMX */
+
+        return ret;
+    }
+
+#else
+
     static int InitSha224(Sha224* sha224)
     {
 
@@ -1800,6 +2104,8 @@ static int Transform_AVX2(Sha256* sha256)
 
         return ret;
     }
+
+#endif /* STM32_HASH */
 
     int wc_InitSha224_ex(Sha224* sha224, void* heap, int devId)
     {
@@ -1845,7 +2151,7 @@ static int Transform_AVX2(Sha256* sha256)
         }
     #endif /* WOLFSSL_ASYNC_CRYPT */
 
-        ret = Sha256Update((Sha256 *)sha224, data, len);
+        ret = Sha256Update((Sha256*)sha224, data, len);
 
         return ret;
     }
@@ -1871,7 +2177,7 @@ static int Transform_AVX2(Sha256* sha256)
         if (ret != 0)
             return ret;
 
-    #if defined(LITTLE_ENDIAN_ORDER)
+    #if defined(LITTLE_ENDIAN_ORDER) && !defined(STM32_HASH)
         ByteReverseWords(sha224->digest, sha224->digest, SHA224_DIGEST_SIZE);
     #endif
         XMEMCPY(hash, sha224->digest, SHA224_DIGEST_SIZE);

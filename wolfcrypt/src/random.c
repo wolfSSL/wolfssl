@@ -1235,7 +1235,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             word32 *rnd32 = (word32 *)rnd;
             word32 size = sz;
             byte* op = output;
-            
+
 #if ((__PIC32_FEATURE_SET0 == 'E') && (__PIC32_FEATURE_SET1 == 'C'))
             RNGNUMGEN1 = _CP0_GET_COUNT();
             RNGPOLY1 = _CP0_GET_COUNT();
@@ -1415,10 +1415,10 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         #define USE_TEST_GENSEED
     #endif /* FREESCALE_K70_RNGA */
 
-#elif defined(STM32F2_RNG) || defined(STM32F4_RNG)
+#elif defined(STM32_RNG)
     /*
      * wc_Generate a RNG seed using the hardware random number generator
-     * on the STM32F2/F4. */
+     * on the STM32F2/F4/F7. */
 
     #ifdef WOLFSSL_STM32_CUBEMX
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
@@ -1450,12 +1450,19 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         /* enable RNG clock source */
         RCC_AHB2PeriphClockCmd(RCC_AHB2Periph_RNG, ENABLE);
 
+        /* reset RNG */
+        RNG_DeInit();
+
         /* enable RNG peripheral */
         RNG_Cmd(ENABLE);
 
+        /* verify no errors with RNG_CLK or Seed */
+        if (RNG_GetFlagStatus(RNG_FLAG_SECS | RNG_FLAG_CECS) != RESET)
+        	return RNG_FAILURE_E;
+
         for (i = 0; i < (int)sz; i++) {
             /* wait until RNG number is ready */
-            while(RNG_GetFlagStatus(RNG_FLAG_DRDY)== RESET) { }
+            while (RNG_GetFlagStatus(RNG_FLAG_DRDY) == RESET) { }
 
             /* get value */
             output[i] = RNG_GetRandomNumber();
