@@ -42,6 +42,8 @@ ASN Options:
     Only enabled for OCSP.
  * WOLFSSL_NO_OCSP_ISSUER_CHECK: Can be defined for backwards compatibility to
     disable checking of OCSP subject hash with issuer hash.
+ * WOLFSSL_ALT_CERT_CHAINS: Allows matching multiple CA's to validate
+    chain based on issuer and public key (includes signature confirmation)
 */
 
 #ifndef NO_ASN
@@ -6069,6 +6071,25 @@ Signer* GetCAByName(void* signers, byte* hash)
 
 #endif /* WOLFCRYPT_ONLY || NO_CERTS */
 
+#if (defined(WOLFSSL_ALT_CERT_CHAINS) || \
+    defined(WOLFSSL_NO_TRUSTED_CERTS_VERIFY)) && !defined(NO_SKID)
+static Signer* GetCABySubjectAndPubKey(DecodedCert* cert, void* cm)
+{
+    Signer* ca = NULL;
+    if (cert->extSubjKeyIdSet)
+        ca = GetCA(cm, cert->extSubjKeyId);
+    if (ca == NULL)
+        ca = GetCAByName(cm, cert->subjectHash);
+    if (ca) {
+        if ((ca->pubKeySize == cert->pubKeySize) &&
+               (XMEMCMP(ca->publicKey, cert->publicKey, ca->pubKeySize) == 0)) {
+            return ca;
+        }
+    }
+    return NULL;
+}
+#endif
+
 int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 {
     int    ret = 0;
@@ -6147,25 +6168,22 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
             if (cert->ca == NULL)
                 cert->ca = GetCAByName(cm, cert->issuerHash);
 
-            /* alternate lookup method using subject and match on public key */
+            /* OCSP Only: alt lookup using subject and pub key w/o sig check */
         #ifdef WOLFSSL_NO_TRUSTED_CERTS_VERIFY
             if (cert->ca == NULL && verify == VERIFY_OCSP) {
-                if (cert->extSubjKeyIdSet) {
-                    cert->ca = GetCA(cm, cert->extSubjKeyId);
-                }
-                if (cert->ca == NULL) {
-                    cert->ca = GetCAByName(cm, cert->subjectHash);
-                }
+                cert->ca = GetCABySubjectAndPubKey(cert, cm);
                 if (cert->ca) {
-                    if ((cert->ca->pubKeySize == cert->pubKeySize) &&
-                        (XMEMCMP(cert->ca->publicKey, cert->publicKey,
-                                                cert->ca->pubKeySize) == 0)) {
-                        ret = 0; /* success */
-                        goto exit_pcr;
-                    }
+                    ret = 0; /* success */
+                    goto exit_pcr;
                 }
             }
         #endif /* WOLFSSL_NO_TRUSTED_CERTS_VERIFY */
+
+            /* alt lookup using subject and public key */
+        #ifdef WOLFSSL_ALT_CERT_CHAINS
+            if (cert->ca == NULL)
+                cert->ca = GetCABySubjectAndPubKey(cert, cm);
+        #endif
     #else
             cert->ca = GetCA(cm, cert->issuerHash);
     #endif /* !NO_SKID */
@@ -6191,10 +6209,10 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                 /* Need the CA's public key hash for OCSP */
             #ifdef NO_SHA
                 ret = wc_Sha256Hash(cert->ca->publicKey, cert->ca->pubKeySize,
-                                                            cert->issuerKeyHash);
+                                                           cert->issuerKeyHash);
             #else
                 ret = wc_ShaHash(cert->ca->publicKey, cert->ca->pubKeySize,
-                                                            cert->issuerKeyHash);
+                                                           cert->issuerKeyHash);
             #endif /* NO_SHA */
                 if (ret != 0)
                     return ret;
@@ -6235,7 +6253,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         }
     }
 
-#ifdef WOLFSSL_NO_TRUSTED_CERTS_VERIFY
+#if defined(WOLFSSL_NO_TRUSTED_CERTS_VERIFY) && !defined(NO_SKID)
 exit_pcr:
 #endif
 

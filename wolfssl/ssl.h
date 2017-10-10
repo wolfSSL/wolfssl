@@ -1193,6 +1193,11 @@ WOLFSSL_API int wolfSSL_CTX_set_timeout(WOLFSSL_CTX*, unsigned int);
 
 /* get wolfSSL peer X509_CHAIN */
 WOLFSSL_API WOLFSSL_X509_CHAIN* wolfSSL_get_peer_chain(WOLFSSL* ssl);
+#ifdef WOLFSSL_ALT_CERT_CHAINS
+WOLFSSL_API int wolfSSL_is_peer_alt_cert_chain(const WOLFSSL* ssl);
+/* get wolfSSL alternate peer X509_CHAIN */
+WOLFSSL_API WOLFSSL_X509_CHAIN* wolfSSL_get_peer_alt_chain(WOLFSSL* ssl);
+#endif
 /* peer chain count */
 WOLFSSL_API int  wolfSSL_get_chain_count(WOLFSSL_X509_CHAIN* chain);
 /* index cert length */
@@ -1410,7 +1415,7 @@ WOLFSSL_API WC_RNG* wolfSSL_GetRNG(WOLFSSL*);
 WOLFSSL_API int wolfSSL_CTX_SetMinVersion(WOLFSSL_CTX* ctx, int version);
 WOLFSSL_API int wolfSSL_SetMinVersion(WOLFSSL* ssl, int version);
 WOLFSSL_API int wolfSSL_GetObjectSize(void);  /* object size based on build */
-WOLFSSL_API int wolfSSL_CTX_GetObjectSize(void); 
+WOLFSSL_API int wolfSSL_CTX_GetObjectSize(void);
 WOLFSSL_API int wolfSSL_METHOD_GetObjectSize(void);
 WOLFSSL_API int wolfSSL_GetOutputSize(WOLFSSL*, int);
 WOLFSSL_API int wolfSSL_GetMaxOutputSize(WOLFSSL*);
