@@ -3067,9 +3067,9 @@ static word16 TLSX_PointFormat_Write(PointFormat* list, byte* output)
         output[offset++] = list->format;
         list = list->next;
     }
-    
+
     output[0] = offset - ENUM_LEN;
-    
+
     return offset;
 }
 
@@ -3093,9 +3093,8 @@ static int TLSX_SupportedCurve_Parse(WOLFSSL* ssl, byte* input, word16 length,
     if (length != OPAQUE16_LEN + offset)
         return BUFFER_ERROR;
 
-    while (offset) {
+    for (offset = OPAQUE16_LEN; offset < length; offset += OPAQUE16_LEN) {
         ato16(input + offset, &name);
-        offset -= OPAQUE16_LEN;
 
         ret = TLSX_UseSupportedCurve(&ssl->extensions, name, ssl->heap);
 
@@ -3503,8 +3502,8 @@ int TLSX_UsePointFormat(TLSX** extensions, byte format, void* heap)
 #define EC_PARSE(a, b, c, d)      0
 #endif
 
-#define PF_FREE_ALL         TLSX_PointFormat_FreeAll
-#define PF_VALIDATE_REQUEST TLSX_PointFormat_ValidateRequest
+#define PF_FREE_ALL          TLSX_PointFormat_FreeAll
+#define PF_VALIDATE_REQUEST  TLSX_PointFormat_ValidateRequest
 #define PF_VALIDATE_RESPONSE TLSX_PointFormat_ValidateResponse
 
 #define PF_GET_SIZE TLSX_PointFormat_GetSize

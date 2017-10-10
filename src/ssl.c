@@ -2042,7 +2042,6 @@ int wolfSSL_CTX_UseSupportedCurve(WOLFSSL_CTX* ctx, word16 name)
     return TLSX_UseSupportedCurve(&ctx->extensions, name, ctx->heap);
 }
 
-
 #endif /* NO_WOLFSSL_CLIENT */
 #endif /* HAVE_SUPPORTED_CURVES */
 
