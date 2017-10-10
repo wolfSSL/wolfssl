@@ -4367,6 +4367,9 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         ssl->alpnSelectArg = ctx->alpnSelectArg;
     #endif
 #endif
+#ifdef HAVE_SUPPORTED_CURVES
+    ssl->options.userCurves = ctx->userCurves;
+#endif
 #endif /* HAVE_TLS_EXTENSIONS */
 
     /* default alert state (none) */

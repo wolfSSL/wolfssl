@@ -2376,6 +2376,9 @@ struct WOLFSSL_CTX {
         void*              ticketEncCtx;  /* session encrypt context */
         int                ticketHint;    /* ticket hint in seconds */
     #endif
+    #ifdef HAVE_SUPPORTED_CURVES
+        byte userCurves;                  /* indicates user called wolfSSL_CTX_UseSupportedCurve */
+    #endif
 #endif
 #ifdef ATOMIC_USER
     CallbackMacEncrypt    MacEncryptCb;    /* Atomic User Mac/Encrypt Cb */
@@ -2888,6 +2891,9 @@ typedef struct Options {
 #ifdef WOLFSSL_SCTP
     word16            dtlsSctp:1;         /* DTLS-over-SCTP mode */
 #endif
+#endif
+#if defined(HAVE_TLS_EXTENSIONS) && defined(HAVE_SUPPORTED_CURVES)
+    word16            userCurves:1;       /* indicates user called wolfSSL_UseSupportedCurve */
 #endif
     word16            keepResources:1;    /* Keep resources after handshake */
     word16            useClientOrder:1;   /* Use client's cipher order */

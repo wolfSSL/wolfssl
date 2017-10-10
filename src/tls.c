@@ -7645,8 +7645,8 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 #endif
 
 #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
-        if (TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS) == NULL &&
-            TLSX_Find(ssl->ctx->extensions, TLSX_SUPPORTED_GROUPS) == NULL) {
+        if (!ssl->options.userCurves && !ssl->ctx->userCurves &&
+               TLSX_Find(ssl->ctx->extensions, TLSX_SUPPORTED_GROUPS) == NULL) {
 
     #ifndef HAVE_FIPS
         #if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
@@ -7758,8 +7758,9 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 return ret;
 
 #ifdef HAVE_SUPPORTED_CURVES
-            if (TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS) == NULL &&
-                TLSX_Find(ssl->ctx->extensions, TLSX_SUPPORTED_GROUPS) == NULL){
+            if (!ssl->options.userCurves && !ssl->ctx->userCurves &&
+                TLSX_Find(ssl->ctx->extensions, TLSX_SUPPORTED_GROUPS)
+                                                                      == NULL) {
                 /* Add FFDHE supported groups. */
         #ifdef HAVE_FFDHE_2048
                 ret = TLSX_UseSupportedCurve(&ssl->extensions,
