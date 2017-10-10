@@ -9773,7 +9773,7 @@ int openssl_test(void)
 
     {  /* evp_cipher test: EVP_aes_128_cbc */
         EVP_CIPHER_CTX ctx;
-
+        int idx, cipherSz, plainSz;
 
         const byte msg[] = { /* "Now is the time for all " w/o trailing 0 */
             0x6e,0x6f,0x77,0x20,0x69,0x73,0x20,0x74,
@@ -9784,7 +9784,17 @@ int openssl_test(void)
         const byte verify[] =
         {
             0x95,0x94,0x92,0x57,0x5f,0x42,0x81,0x53,
-            0x2c,0xcc,0x9d,0x46,0x77,0xa2,0x33,0xcb
+            0x2c,0xcc,0x9d,0x46,0x77,0xa2,0x33,0xcb,
+            0x3b,0x5d,0x41,0x97,0x94,0x25,0xa4,0xb4,
+            0xae,0x7b,0x34,0xd0,0x3f,0x0c,0xbc,0x06
+        };
+
+        const byte verify2[] =
+        {
+            0x95,0x94,0x92,0x57,0x5f,0x42,0x81,0x53,
+            0x2c,0xcc,0x9d,0x46,0x77,0xa2,0x33,0xcb,
+            0x7d,0x37,0x7b,0x0b,0x44,0xaa,0xb5,0xf0,
+            0x5f,0x34,0xb4,0xde,0xb5,0xbd,0x2a,0xbb
         };
 
         byte key[] = "0123456789abcdef   ";  /* align */
@@ -9797,22 +9807,48 @@ int openssl_test(void)
         if (EVP_CipherInit(&ctx, EVP_aes_128_cbc(), key, iv, 1) == 0)
             return -5912;
 
-        if (EVP_Cipher(&ctx, cipher, (byte*)msg, 16) == 0)
+        if (EVP_CipherUpdate(&ctx, cipher, &idx, (byte*)msg, sizeof(msg)) == 0)
             return -5913;
 
-        if (XMEMCMP(cipher, verify, AES_BLOCK_SIZE))
+        cipherSz = idx;
+        if (EVP_CipherFinal(&ctx, cipher + cipherSz, &idx) == 0)
+            return -8107;
+        cipherSz += idx;
+
+        if ((cipherSz != (int)sizeof(verify)) &&
+                                             XMEMCMP(cipher, verify, cipherSz))
             return -5914;
 
         EVP_CIPHER_CTX_init(&ctx);
         if (EVP_CipherInit(&ctx, EVP_aes_128_cbc(), key, iv, 0) == 0)
             return -5915;
 
-        if (EVP_Cipher(&ctx, plain, cipher, 16) == 0)
+        if (EVP_CipherUpdate(&ctx, plain, &idx, cipher, cipherSz) == 0)
             return -5916;
 
-        if (XMEMCMP(plain, msg, AES_BLOCK_SIZE))
+        plainSz = idx;
+        if (EVP_CipherFinal(&ctx, plain + plainSz, &idx) == 0)
+            return -8108;
+        plainSz += idx;
+
+        if ((plainSz != sizeof(msg)) || XMEMCMP(plain, msg, sizeof(msg)))
             return -5917;
 
+        EVP_CIPHER_CTX_init(&ctx);
+        if (EVP_CipherInit(&ctx, EVP_aes_128_cbc(), key, iv, 1) == 0)
+            return -8109;
+
+        if (EVP_CipherUpdate(&ctx, cipher, &idx, msg, AES_BLOCK_SIZE) == 0)
+            return -8110;
+
+        cipherSz = idx;
+        if (EVP_CipherFinal(&ctx, cipher + cipherSz, &idx) == 0)
+            return -8111;
+        cipherSz += idx;
+
+        if ((cipherSz != (int)sizeof(verify2)) ||
+                                            XMEMCMP(cipher, verify2, cipherSz))
+            return -8112;
 
     }  /* end evp_cipher test: EVP_aes_128_cbc*/
 
