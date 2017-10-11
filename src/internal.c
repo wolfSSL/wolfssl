@@ -1081,7 +1081,7 @@ static int ExportPeerInfo(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
         WOLFSSL_MSG("No get peer call back set");
         return BAD_FUNC_ARG;
     }
-    if (ssl->ctx->CBGetPeer(ssl, ip, &ipSz, &port, &fam) != WOLF_SSL_SUCCESS) {
+    if (ssl->ctx->CBGetPeer(ssl, ip, &ipSz, &port, &fam) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("Get peer callback error");
         return SOCKET_ERROR_E;
     }
@@ -1136,7 +1136,7 @@ static int ImportPeerInfo(WOLFSSL* ssl, byte* buf, word32 len, byte ver)
         WOLFSSL_MSG("No set peer function");
         return BAD_FUNC_ARG;
     }
-    if (ssl->ctx->CBSetPeer(ssl, ip, ipSz, port, fam) != WOLF_SSL_SUCCESS) {
+    if (ssl->ctx->CBSetPeer(ssl, ip, ipSz, port, fam) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("Error setting peer info");
         return SOCKET_ERROR_E;
     }
@@ -3901,7 +3901,7 @@ int DhAgree(WOLFSSL* ssl, DhKey* dhKey,
    ctx      parent factory
    writeDup flag indicating this is a write dup only
 
-   WOLF_SSL_SUCCESS return value on success */
+   WOLFSSL_SUCCESS return value on success */
 int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 {
     byte havePSK = 0;
@@ -4097,7 +4097,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->readAhead = ctx->readAhead;
 #endif
 
-    return WOLF_SSL_SUCCESS;
+    return WOLFSSL_SUCCESS;
 }
 
 int InitHandshakeHashes(WOLFSSL* ssl)
@@ -4410,7 +4410,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 
     /* Initialize SSL with the appropriate fields from it's ctx */
     /* requires valid arrays and suites unless writeDup ing */
-    if ((ret =  SetSSL_CTX(ssl, ctx, writeDup)) != WOLF_SSL_SUCCESS)
+    if ((ret =  SetSSL_CTX(ssl, ctx, writeDup)) != WOLFSSL_SUCCESS)
         return ret;
 
     ssl->options.dtls = ssl->version.major == DTLS_MAJOR;
@@ -8205,7 +8205,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         /* already verified above */
                         ret = AddCA(ssl->ctx->cm, &add, WOLFSSL_CHAIN_CA, 0);
                         if (ret == 1) {
-                            ret = 0;   /* WOLF_SSL_SUCCESS for external */
+                            ret = 0;   /* WOLFSSL_SUCCESS for external */
                         }
                     }
                     else if (ret != 0) {
@@ -11428,7 +11428,7 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
     if (ssl->earlyData) {
         if (ssl->earlyDataSz + dataSz > ssl->options.maxEarlyDataSz) {
             SendAlert(ssl, alert_fatal, unexpected_message);
-            return WOLF_SSL_FATAL_ERROR;
+            return WOLFSSL_FATAL_ERROR;
         }
         ssl->earlyDataSz += dataSz;
     }
@@ -13782,7 +13782,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
     if (ssl->options.handShakeState != HANDSHAKE_DONE) {
         int err;
         WOLFSSL_MSG("handshake not complete, trying to finish");
-        if ( (err = wolfSSL_negotiate(ssl)) != WOLF_SSL_SUCCESS) {
+        if ( (err = wolfSSL_negotiate(ssl)) != WOLFSSL_SUCCESS) {
             /* if async would block return WANT_WRITE */
             if (ssl->error == WC_PENDING_E) {
                 return WOLFSSL_CBIO_ERR_WANT_WRITE;
@@ -13939,7 +13939,7 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
     if (ssl->options.handShakeState != HANDSHAKE_DONE) {
         int err;
         WOLFSSL_MSG("Handshake not complete, trying to finish");
-        if ( (err = wolfSSL_negotiate(ssl)) != WOLF_SSL_SUCCESS) {
+        if ( (err = wolfSSL_negotiate(ssl)) != WOLFSSL_SUCCESS) {
         #ifdef WOLFSSL_ASYNC_CRYPT
             /* if async would block return WANT_WRITE */
             if (ssl->error == WC_PENDING_E) {
@@ -13956,7 +13956,7 @@ startScr:
         int err;
         ssl->secure_renegotiation->startScr = 0;  /* only start once */
         WOLFSSL_MSG("Need to start scr, server requested");
-        if ( (err = wolfSSL_Rehandshake(ssl)) != WOLF_SSL_SUCCESS)
+        if ( (err = wolfSSL_Rehandshake(ssl)) != WOLFSSL_SUCCESS)
             return  err;
     }
 #endif
@@ -14204,7 +14204,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return "peer subject name mismatch";
 
     case WANT_READ :
-    case WOLF_SSL_ERROR_WANT_READ :
+    case WOLFSSL_ERROR_WANT_READ :
         return "non-blocking socket wants data to be read";
 
     case NOT_READY_ERROR :
@@ -14217,7 +14217,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return "record layer version error";
 
     case WANT_WRITE :
-    case WOLF_SSL_ERROR_WANT_WRITE :
+    case WOLFSSL_ERROR_WANT_WRITE :
         return "non-blocking socket write buffer full";
 
     case BUFFER_ERROR :
@@ -14278,7 +14278,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return "cant decode peer key";
 
     case ZERO_RETURN:
-    case WOLF_SSL_ERROR_ZERO_RETURN:
+    case WOLFSSL_ERROR_ZERO_RETURN:
         return "peer sent close notify alert";
 
     case ECC_CURVETYPE_ERROR:
@@ -16331,7 +16331,7 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
             if (ticket == NULL) return MEMORY_E;
 
             ret = TLSX_UseSessionTicket(&ssl->extensions, ticket, ssl->heap);
-            if (ret != WOLF_SSL_SUCCESS) return ret;
+            if (ret != WOLFSSL_SUCCESS) return ret;
 
             idSz = 0;
         }
@@ -22605,7 +22605,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             int ret = 0;
 
             ret = TLSX_AddEmptyRenegotiationInfo(&ssl->extensions, ssl->heap);
-            if (ret != WOLF_SSL_SUCCESS)
+            if (ret != WOLFSSL_SUCCESS)
                 return ret;
         }
 #endif /* HAVE_SERVER_RENEGOTIATION_INFO */
@@ -23622,7 +23622,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 if (ssl->options.side != WOLFSSL_SERVER_END) {
                     WOLFSSL_MSG("Client received client keyexchange, attack?");
                     WOLFSSL_ERROR(ssl->error = SIDE_ERROR);
-                    ERROR_OUT(WOLF_SSL_FATAL_ERROR, exit_dcke);
+                    ERROR_OUT(WOLFSSL_FATAL_ERROR, exit_dcke);
                 }
 
                 if (ssl->options.clientState < CLIENT_HELLO_COMPLETE) {

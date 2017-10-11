@@ -1183,7 +1183,7 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
         return -1;
     }
 
-    if (typeKey == WOLF_SSL_FILETYPE_PEM) {
+    if (typeKey == WOLFSSL_FILETYPE_PEM) {
         byte* saveBuf   = (byte*)malloc(fileSz);
         int   saveBufSz = 0;
 
@@ -1228,8 +1228,8 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
 {
     SnifferServer* sniffer;
     int            ret;
-    int            type = (typeKey == FILETYPE_PEM) ? WOLF_SSL_FILETYPE_PEM :
-                                                      WOLF_SSL_FILETYPE_ASN1;
+    int            type = (typeKey == FILETYPE_PEM) ? WOLFSSL_FILETYPE_PEM :
+                                                      WOLFSSL_FILETYPE_ASN1;
     int            isNew = 0;
     word32         serverIp;
 
@@ -1306,7 +1306,7 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
                                                  sniffer->ctx, (void*)password);
         }
         ret = SSL_CTX_use_PrivateKey_file(sniffer->ctx, keyFile, type);
-        if (ret != WOLF_SSL_SUCCESS) {
+        if (ret != WOLFSSL_SUCCESS) {
             SetError(KEY_FILE_STR, error, NULL, 0);
             if (isNew)
                 FreeSnifferServer(sniffer);
@@ -1825,7 +1825,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
                              *sslBytes + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ,
                              WOLFSSL_SNI_HOST_NAME, name, &nameSz);
 
-        if (ret == WOLF_SSL_SUCCESS) {
+        if (ret == WOLFSSL_SUCCESS) {
             NamedKey* namedKey;
 
             if (nameSz >= sizeof(name))
@@ -1838,7 +1838,7 @@ static int ProcessClientHello(const byte* input, int* sslBytes,
                            XSTRNCMP((char*)name, namedKey->name, nameSz) == 0) {
                     if (wolfSSL_use_PrivateKey_buffer(session->sslServer,
                                             namedKey->key, namedKey->keySz,
-                                            WOLF_SSL_FILETYPE_ASN1) != WOLF_SSL_SUCCESS) {
+                                            WOLFSSL_FILETYPE_ASN1) != WOLFSSL_SUCCESS) {
                         wc_UnLockMutex(&session->context->namedKeysMutex);
                         SetError(CLIENT_HELLO_LATE_KEY_STR, error, session,
                                                              FATAL_ERROR_STATE);
@@ -3596,7 +3596,7 @@ int ssl_GetSessionStats(unsigned int* active,     unsigned int* total,
 
     ret = wolfSSL_get_session_stats(active, total, peak, maxSessions);
 
-    if (ret == WOLF_SSL_SUCCESS)
+    if (ret == WOLFSSL_SUCCESS)
         return 0;
     else {
         SetError(BAD_SESSION_STATS, error, NULL, 0);
