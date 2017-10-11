@@ -8429,10 +8429,8 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                                  XMALLOC(sizeof(WOLFSSL_METHOD), heap,
                                          DYNAMIC_TYPE_METHOD);
         (void)heap;
-        if (method) {
+        if (method)
             InitSSL_Method(method, MakeTLSv1_3());
-            method->downgrade = 1;
-        }
         return method;
     }
 #endif /* WOLFSSL_TLS13 */

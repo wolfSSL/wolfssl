@@ -1208,8 +1208,8 @@ end:
      */
     word32 TimeNowInMilliseconds(void)
     {
-        return (word32) (SYS_TMR_TickCountGet() /
-                         (SYS_TMR_TickCounterFrequencyGet() / 1000));
+        return (word32)(SYS_TMR_TickCountGet() /
+                        (SYS_TMR_TickCounterFrequencyGet() / 1000));
     }
     #else
     /* The time in milliseconds.
@@ -1220,7 +1220,7 @@ end:
      */
     word32 TimeNowInMilliseconds(void)
     {
-        return (word32) (SYS_TICK_Get() / (SYS_TICK_TicksPerSecondGet() / 1000));
+        return (word32)(SYS_TICK_Get() / (SYS_TICK_TicksPerSecondGet() / 1000));
     }
 
     #endif
@@ -1420,7 +1420,8 @@ static void AddTls13HandShakeHeader(byte* output, word32 length,
  * type        The type of record layer message.
  * ssl         The SSL/TLS object. (DTLS)
  */
-static void AddTls13Headers(byte* output, word32 length, byte type, WOLFSSL* ssl)
+static void AddTls13Headers(byte* output, word32 length, byte type,
+                            WOLFSSL* ssl)
 {
     word32 lengthAdj = HANDSHAKE_HEADER_SZ;
     word32 outputAdj = RECORD_HEADER_SZ;
@@ -1601,7 +1602,7 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
 
             if (ssl->encrypt.nonce == NULL)
                 ssl->encrypt.nonce = (byte*)XMALLOC(AEAD_NONCE_SZ,
-                                               ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
+                                            ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
             if (ssl->encrypt.nonce == NULL)
                 return MEMORY_E;
 
@@ -1815,7 +1816,7 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz)
 
             if (ssl->decrypt.nonce == NULL)
                 ssl->decrypt.nonce = (byte*)XMALLOC(AEAD_NONCE_SZ,
-                                               ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
+                                            ssl->heap, DYNAMIC_TYPE_AES_BUFFER);
             if (ssl->decrypt.nonce == NULL)
                 return MEMORY_E;
 
@@ -1846,7 +1847,8 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz)
                         input + dataSz, macSz, NULL, 0);
                 #ifdef WOLFSSL_ASYNC_CRYPT
                     if (ret == WC_PENDING_E) {
-                        ret = wolfSSL_AsyncPush(ssl, &ssl->decrypt.aes->asyncDev);
+                        ret = wolfSSL_AsyncPush(ssl,
+                                                   &ssl->decrypt.aes->asyncDev);
                     }
                 #endif
                     break;
@@ -1868,7 +1870,8 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz)
                         input + dataSz, macSz, NULL, 0);
                 #ifdef WOLFSSL_ASYNC_CRYPT
                     if (ret == WC_PENDING_E) {
-                        ret = wolfSSL_AsyncPush(ssl, &ssl->decrypt.aes->asyncDev);
+                        ret = wolfSSL_AsyncPush(ssl,
+                                                   &ssl->decrypt.aes->asyncDev);
                     }
                 #endif
                     break;
@@ -2526,11 +2529,11 @@ static int DoTls13HelloRetryRequest(WOLFSSL* ssl, const byte* input,
     /* Set the cipher suite from the message. */
     ssl->options.cipherSuite0 = input[i++];
     ssl->options.cipherSuite  = input[i++];
-#endif
 
     ret = SetCipherSpecs(ssl);
     if (ret != 0)
         return ret;
+#endif
 
     /* Length of extension data. */
     ato16(&input[i], &totalExtSz);
@@ -2604,8 +2607,13 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     if (ret != 0)
         return ret;
     if (!IsAtLeastTLSv1_3(pv) && pv.major != TLS_DRAFT_MAJOR) {
-        ssl->version = pv;
-        return DoServerHello(ssl, input, inOutIdx, helloSz);
+        if (ssl->options.downgrade) {
+            ssl->version = pv;
+            return DoServerHello(ssl, input, inOutIdx, helloSz);
+        }
+
+        WOLFSSL_MSG("CLient using higher version, fatal error");
+        return VERSION_ERROR;
     }
 
     /* Random, cipher suite and extensions length check. */
@@ -3305,10 +3313,8 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     ssl->chVersion = pv;   /* store */
     i += OPAQUE16_LEN;
 
-    if (ssl->version.major == SSLv3_MAJOR &&
-                                           ssl->version.minor < TLSv1_3_MINOR) {
+    if (ssl->version.major == SSLv3_MAJOR && ssl->version.minor < TLSv1_3_MINOR)
         return DoClientHello(ssl, input, inOutIdx, helloSz);
-    }
 
     /* Client random */
     XMEMCPY(ssl->arrays->clientRandom, input + i, RAN_LEN);
@@ -3385,8 +3391,13 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return ret;
 #endif /*HAVE_STUNNEL*/
 
-    if (TLSX_Find(ssl->extensions, TLSX_SUPPORTED_VERSIONS) == NULL)
+    if (TLSX_Find(ssl->extensions, TLSX_SUPPORTED_VERSIONS) == NULL) {
+        if (!ssl->options.downgrade) {
+            WOLFSSL_MSG("Client trying to connect with lesser version");
+            return VERSION_ERROR;
+        }
         ssl->version.minor = pv.minor;
+    }
 
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     if (ssl->options.sendCookie &&
@@ -3478,8 +3489,13 @@ int SendTls13HelloRetryRequest(WOLFSSL* ssl)
     if (len == 0)
         return MISSING_HANDSHAKE_DATA;
 
+#ifndef WOLFSSL_TLS13_DRAFT_18
     /* Protocol version + CipherSuite + Extensions */
     length = OPAQUE16_LEN + OPAQUE16_LEN + len;
+#else
+    /* Protocol version + Extensions */
+    length = OPAQUE16_LEN + len;
+#endif
     sendSz = idx + length;
 
     /* Check buffers are big enough and grow if needed. */
@@ -4551,7 +4567,8 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
         {
             /* idx is used to track verify pointer offset to output */
             args->idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
-            args->verify = &args->output[RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ];
+            args->verify =
+                          &args->output[RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ];
 
             ret = DecodePrivateKey(ssl, &args->length);
             if (ret != 0)
@@ -4722,11 +4739,11 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
         case TLS_ASYNC_FINALIZE:
         {
             /* Put the record and handshake headers on. */
-            AddTls13Headers(args->output, args->length + HASH_SIG_SIZE + VERIFY_HEADER,
-                            certificate_verify, ssl);
+            AddTls13Headers(args->output, args->length + HASH_SIG_SIZE +
+                            VERIFY_HEADER, certificate_verify, ssl);
 
-            args->sendSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + args->length +
-                     HASH_SIG_SIZE + VERIFY_HEADER;
+            args->sendSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ +
+                                   args->length + HASH_SIG_SIZE + VERIFY_HEADER;
 
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_END;
@@ -6468,8 +6485,13 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             if (ssl->options.certOnly)
                 return SSL_SUCCESS;
 
-            if (!ssl->options.tls1_3)
-                return wolfSSL_connect(ssl);
+            if (!ssl->options.tls1_3) {
+                if (ssl->options.downgrade)
+                    return wolfSSL_connect(ssl);
+
+                WOLFSSL_MSG("Client using higher version, fatal error");
+                return VERSION_ERROR;
+            }
 
             if (ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST) {
                 ssl->options.serverState = NULL_STATE;
