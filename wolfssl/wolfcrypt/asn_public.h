@@ -99,7 +99,7 @@ enum Ctc_Misc {
     CTC_NAME_SIZE     =    64,
     CTC_DATE_SIZE     =    32,
     CTC_MAX_ALT_SIZE  = 16384,   /* may be huge */
-    CTC_SERIAL_SIZE   =    20,
+    CTC_SERIAL_SIZE   =    16,
 #ifdef WOLFSSL_CERT_EXT
     /* AKID could contains: hash + (Option) AuthCertIssuer,AuthCertSerialNum
      * We support only hash */

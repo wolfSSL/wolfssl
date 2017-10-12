@@ -8201,6 +8201,7 @@ int rsa_test(void)
     /* self signed */
     {
         Cert        myCert;
+        const byte  mySerial[8] = {1,2,3,4,5,6,7,8};
     #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         FILE*       derFile;
         FILE*       pemFile;
@@ -8231,6 +8232,8 @@ int rsa_test(void)
         XSTRNCPY(myCert.subject.unit, "Development", CTC_NAME_SIZE);
         XSTRNCPY(myCert.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
         XSTRNCPY(myCert.subject.email, "info@yassl.com", CTC_NAME_SIZE);
+        XMEMCPY(myCert.serial, mySerial, sizeof(mySerial));
+        myCert.serialSz = (int)sizeof(mySerial);
         myCert.isCA    = 1;
         myCert.sigType = CTC_SHA256wRSA;
 
