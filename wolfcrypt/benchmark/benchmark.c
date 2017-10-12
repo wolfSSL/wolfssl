@@ -139,9 +139,10 @@
     #define INIT_CYCLE_COUNTER
     #define BEGIN_INTEL_CYCLES total_cycles = get_intel_cycles();
     #define END_INTEL_CYCLES   total_cycles = get_intel_cycles() - total_cycles;
-    #define SHOW_INTEL_CYCLES(b, n) \
+    /* s == size in bytes that 1 count represents, normally BENCH_SIZE */
+    #define SHOW_INTEL_CYCLES(b, n, s) \
         XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), " Cycles per byte = %6.2f\n", \
-            count == 0 ? 0 : (float)total_cycles / ((word64)count*BENCH_SIZE))
+            count == 0 ? 0 : (float)total_cycles / ((word64)count*s))
 #elif defined(LINUX_CYCLE_COUNT)
     #include <linux/perf_event.h>
     #include <sys/syscall.h>
@@ -164,15 +165,16 @@
         total_cycles = total_cycles - begin_cycles; \
     } while (0);
 
+    /* s == size in bytes that 1 count represents, normally BENCH_SIZE */
     #define SHOW_INTEL_CYCLES(b, n) \
         XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), " Cycles per byte = %6.2f\n", \
-            (float)total_cycles / (count*BENCH_SIZE))
+            (float)total_cycles / (count*s))
 
 #else
     #define INIT_CYCLE_COUNTER
     #define BEGIN_INTEL_CYCLES
     #define END_INTEL_CYCLES
-    #define SHOW_INTEL_CYCLES(b, n)     b[XSTRLEN(b)] = '\n'
+    #define SHOW_INTEL_CYCLES(b, n, s)     b[XSTRLEN(b)] = '\n'
 #endif
 
 /* let's use buffers, we have them */
@@ -564,7 +566,10 @@ static INLINE int bench_stats_sym_check(double start)
     return ((current_time(0) - start) < BENCH_MIN_RUNTIME_SEC);
 }
 
-static void bench_stats_sym_finish(const char* desc, int doAsync, int count, double start, int ret)
+/* countSz is number of bytes that 1 count represents. Normally bench_size,
+ * except for AES direct that operates on AES_BLOCK_SIZE blocks */
+static void bench_stats_sym_finish(const char* desc, int doAsync, int count,
+                                   int countSz, double start, int ret)
 {
     double total, persec = 0, blocks = count;
     const char* blockType;
@@ -574,7 +579,7 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count, dou
     total = current_time(0) - start;
 
     /* calculate actual bytes */
-    blocks *= bench_size;
+    blocks *= countSz;
 
     /* determine if we should show as KB or MB */
     if (blocks > (1024 * 1024)) {
@@ -597,7 +602,7 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count, dou
     XSNPRINTF(msg, sizeof(msg), "%-16s%s %5.0f %s took %5.3f seconds, %8.3f %s/s",
         desc, BENCH_ASYNC_GET_NAME(doAsync), blocks, blockType, total,
         persec, blockType);
-    SHOW_INTEL_CYCLES(msg, sizeof(msg));
+    SHOW_INTEL_CYCLES(msg, sizeof(msg), countSz);
     printf("%s", msg);
 
     /* show errors */
@@ -759,6 +764,14 @@ static void* benchmarks_do(void* args)
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
         bench_aesgcm(1);
+    #endif
+#endif
+#ifdef WOLFSSL_AES_DIRECT
+    #ifndef NO_SW_BENCH
+        bench_aesecb(0);
+    #endif
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
+        bench_aesecb(1);
     #endif
 #endif
 #ifdef WOLFSSL_AES_XTS
@@ -1201,7 +1214,7 @@ void bench_rng(void)
         count += i;
     } while (bench_stats_sym_check(start));
 exit_rng:
-    bench_stats_sym_finish("RNG", 0, count, start, ret);
+    bench_stats_sym_finish("RNG", 0, count, bench_size, start, ret);
 
     wc_FreeRng(&myrng);
 }
@@ -1256,7 +1269,7 @@ static void bench_aescbc_internal(int doAsync, const byte* key, word32 keySz,
         count += times;
     } while (bench_stats_sym_check(start));
 exit_aes_enc:
-    bench_stats_sym_finish(encLabel, doAsync, count, start, ret);
+    bench_stats_sym_finish(encLabel, doAsync, count, bench_size, start, ret);
 
     if (ret < 0) {
         goto exit;
@@ -1291,7 +1304,7 @@ exit_aes_enc:
         count += times;
     } while (bench_stats_sym_check(start));
 exit_aes_dec:
-    bench_stats_sym_finish(decLabel, doAsync, count, start, ret);
+    bench_stats_sym_finish(decLabel, doAsync, count, bench_size, start, ret);
 
 #endif /* HAVE_AES_DECRYPT */
 
@@ -1374,7 +1387,7 @@ static void bench_aesgcm_internal(int doAsync, const byte* key, word32 keySz,
         count += times;
     } while (bench_stats_sym_check(start));
 exit_aes_gcm:
-    bench_stats_sym_finish(encLabel, doAsync, count, start, ret);
+    bench_stats_sym_finish(encLabel, doAsync, count, bench_size, start, ret);
 
     /* GCM uses same routine in backend for both encrypt and decrypt */
     bench_stats_start(&count, &start);
@@ -1398,7 +1411,7 @@ exit_aes_gcm:
         count += times;
     } while (bench_stats_sym_check(start));
 exit_aes_gcm_dec:
-    bench_stats_sym_finish(decLabel, doAsync, count, start, ret);
+    bench_stats_sym_finish(decLabel, doAsync, count, bench_size, start, ret);
 
 exit:
 
@@ -1424,6 +1437,109 @@ void bench_aesgcm(int doAsync)
                           "AES-256-GCM-ENC", "AES-256-GCM-DEC");
 }
 #endif /* HAVE_AESGCM */
+
+
+#ifdef WOLFSSL_AES_DIRECT
+static void bench_aesecb_internal(int doAsync, const byte* key, word32 keySz,
+                                  const char* encLabel, const char* decLabel)
+{
+    int    ret, i, count = 0, times, pending = 0;
+    Aes    enc[BENCH_MAX_PENDING];
+    double start;
+
+    /* clear for done cleanup */
+    XMEMSET(enc, 0, sizeof(enc));
+
+    /* init keys */
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        if ((ret = wc_AesInit(&enc[i], HEAP_HINT,
+                                doAsync ? devId : INVALID_DEVID)) != 0) {
+            printf("AesInit failed, ret = %d\n", ret);
+            goto exit;
+        }
+
+        ret = wc_AesSetKey(&enc[i], key, keySz, bench_iv, AES_ENCRYPTION);
+        if (ret != 0) {
+            printf("AesSetKey failed, ret = %d\n", ret);
+            goto exit;
+        }
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+        for (times = 0; times < numBlocks || pending > 0; ) {
+            bench_async_poll(&pending);
+
+            /* while free pending slots in queue, submit ops */
+            for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&enc[i]), 0, &times, numBlocks, &pending)) {
+                    wc_AesEncryptDirect(&enc[i], bench_cipher, bench_plain);
+                    ret = 0;
+                    if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&enc[i]), 0, &times, &pending)) {
+                        goto exit_aes_enc;
+                    }
+                }
+            } /* for i */
+        } /* for times */
+        count += times;
+    } while (bench_stats_sym_check(start));
+exit_aes_enc:
+    bench_stats_sym_finish(encLabel, doAsync, count, AES_BLOCK_SIZE,
+                           start, ret);
+
+#ifdef HAVE_AES_DECRYPT
+    /* init keys */
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        ret = wc_AesSetKey(&enc[i], key, keySz, bench_iv, AES_DECRYPTION);
+        if (ret != 0) {
+            printf("AesSetKey failed, ret = %d\n", ret);
+            goto exit;
+        }
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+        for (times = 0; times < numBlocks || pending > 0; ) {
+            bench_async_poll(&pending);
+
+            /* while free pending slots in queue, submit ops */
+            for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&enc[i]), 0, &times, numBlocks, &pending)) {
+                    wc_AesDecryptDirect(&enc[i], bench_plain,
+                                              bench_cipher);
+                    ret = 0;
+                    if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&enc[i]), 0, &times, &pending)) {
+                        goto exit_aes_dec;
+                    }
+                }
+            } /* for i */
+        } /* for times */
+        count += times;
+    } while (bench_stats_sym_check(start));
+exit_aes_dec:
+    bench_stats_sym_finish(decLabel, doAsync, count, AES_BLOCK_SIZE,
+                           start, ret);
+
+#endif /* HAVE_AES_DECRYPT */
+
+exit:
+
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        wc_AesFree(&enc[i]);
+    }
+}
+
+void bench_aesecb(int doAsync)
+{
+    bench_aesecb_internal(doAsync, bench_key, 16,
+                 "AES-128-ECB-ENC", "AES-128-ECB-DEC");
+    bench_aesecb_internal(doAsync, bench_key, 24,
+                 "AES-192-ECB-ENC", "AES-192-ECB-DEC");
+    bench_aesecb_internal(doAsync, bench_key, 32,
+                 "AES-256-ECB-ENC", "AES-256-ECB-DEC");
+}
+
+#endif /* WOLFSSL_AES_DIRECT */
 
 
 #ifdef WOLFSSL_AES_XTS
@@ -1463,7 +1579,7 @@ void bench_aesxts(void)
         }
         count += i;
     } while (bench_stats_sym_check(start));
-    bench_stats_sym_finish("AES-XTS-enc", 0, count, start, ret);
+    bench_stats_sym_finish("AES-XTS-enc", 0, count, bench_size, start, ret);
     wc_AesXtsFree(&aes);
 
     /* decryption benchmark */
@@ -1485,7 +1601,7 @@ void bench_aesxts(void)
         }
         count += i;
     } while (bench_stats_sym_check(start));
-    bench_stats_sym_finish("AES-XTS-dec", 0, count, start, ret);
+    bench_stats_sym_finish("AES-XTS-dec", 0, count, bench_size, start, ret);
     wc_AesXtsFree(&aes);
 }
 #endif /* WOLFSSL_AES_XTS */
@@ -1511,7 +1627,7 @@ static void bench_aesctr_internal(const byte* key, word32 keySz, const byte* iv,
         }
         count += i;
     } while (bench_stats_sym_check(start));
-    bench_stats_sym_finish(label, 0, count, start, ret);
+    bench_stats_sym_finish(label, 0, count, bench_size, start, ret);
 }
 
 void bench_aesctr(void)
@@ -1547,7 +1663,7 @@ void bench_aesccm(void)
         }
         count += i;
     } while (bench_stats_sym_check(start));
-    bench_stats_sym_finish("AES-CCM", 0, count, start, ret);
+    bench_stats_sym_finish("AES-CCM", 0, count, bench_size, start, ret);
 
     FREE_VAR(bench_additional, HEAP_HINT);
     FREE_VAR(bench_tag, HEAP_HINT);
@@ -1582,7 +1698,7 @@ void bench_poly1305()
         wc_Poly1305Final(&enc, mac);
         count += i;
     } while (bench_stats_sym_check(start));
-    bench_stats_sym_finish("POLY1305", 0, count, start, ret);
+    bench_stats_sym_finish("POLY1305", 0, count, bench_size, start, ret);
 }
 #endif /* HAVE_POLY1305 */
 
@@ -1612,7 +1728,7 @@ void bench_camellia(void)
         }
         count += i;
     } while (bench_stats_sym_check(start));
-    bench_stats_sym_finish("Camellia", 0, count, start, ret);
+    bench_stats_sym_finish("Camellia", 0, count, bench_size, start, ret);
 }
 #endif
 
@@ -1661,7 +1777,7 @@ void bench_des(int doAsync)
         count += times;
     } while (bench_stats_sym_check(start));
 exit_3des:
-    bench_stats_sym_finish("3DES", doAsync, count, start, ret);
+    bench_stats_sym_finish("3DES", doAsync, count, bench_size, start, ret);
 
 exit:
 
@@ -1693,7 +1809,7 @@ void bench_idea(void)
         }
         count += i;
     } while (bench_stats_sym_check(start));
-    bench_stats_sym_finish("IDEA", 0, count, start, ret);
+    bench_stats_sym_finish("IDEA", 0, count, bench_size, start, ret);
 }
 #endif /* HAVE_IDEA */
 
@@ -1742,7 +1858,7 @@ void bench_arc4(int doAsync)
         count += times;
     } while (bench_stats_sym_check(start));
 exit_arc4:
-    bench_stats_sym_finish("ARC4", doAsync, count, start, ret);
+    bench_stats_sym_finish("ARC4", doAsync, count, bench_size, start, ret);
 
 exit:
 
@@ -1769,7 +1885,7 @@ void bench_hc128(void)
         }
         count += i;
     } while (bench_stats_sym_check(start));
-    bench_stats_sym_finish("HC128", 0, count, start, 0);
+    bench_stats_sym_finish("HC128", 0, count, bench_size, start, 0);
 }
 #endif /* HAVE_HC128 */
 
@@ -1790,7 +1906,7 @@ void bench_rabbit(void)
         }
         count += i;
     } while (bench_stats_sym_check(start));
-    bench_stats_sym_finish("RABBIT", 0, count, start, 0);
+    bench_stats_sym_finish("RABBIT", 0, count, bench_size, start, 0);
 }
 #endif /* NO_RABBIT */
 
@@ -1812,7 +1928,7 @@ void bench_chacha(void)
         }
         count += i;
     } while (bench_stats_sym_check(start));
-    bench_stats_sym_finish("CHACHA", 0, count, start, 0);
+    bench_stats_sym_finish("CHACHA", 0, count, bench_size, start, 0);
 }
 #endif /* HAVE_CHACHA*/
 
@@ -1837,7 +1953,7 @@ void bench_chacha20_poly1305_aead(void)
         }
         count += i;
     } while (bench_stats_sym_check(start));
-    bench_stats_sym_finish("CHA-POLY", 0, count, start, ret);
+    bench_stats_sym_finish("CHA-POLY", 0, count, bench_size, start, ret);
 }
 #endif /* HAVE_CHACHA && HAVE_POLY1305 */
 
@@ -1896,7 +2012,7 @@ void bench_md5(int doAsync)
         } while (pending > 0);
     } while (bench_stats_sym_check(start));
 exit_md5:
-    bench_stats_sym_finish("MD5", doAsync, count, start, ret);
+    bench_stats_sym_finish("MD5", doAsync, count, bench_size, start, ret);
 
 exit:
 
@@ -1965,7 +2081,7 @@ void bench_sha(int doAsync)
         } while (pending > 0);
     } while (bench_stats_sym_check(start));
 exit_sha:
-    bench_stats_sym_finish("WC_SHA", doAsync, count, start, ret);
+    bench_stats_sym_finish("SHA", doAsync, count, bench_size, start, ret);
 
 exit:
 
@@ -2031,7 +2147,7 @@ void bench_sha224(int doAsync)
         } while (pending > 0);
     } while (bench_stats_sym_check(start));
 exit_sha224:
-    bench_stats_sym_finish("WC_SHA-224", doAsync, count, start, ret);
+    bench_stats_sym_finish("SHA-224", doAsync, count, bench_size, start, ret);
 
 exit:
 
@@ -2096,7 +2212,7 @@ void bench_sha256(int doAsync)
         } while (pending > 0);
     } while (bench_stats_sym_check(start));
 exit_sha256:
-    bench_stats_sym_finish("WC_SHA-256", doAsync, count, start, ret);
+    bench_stats_sym_finish("SHA-256", doAsync, count, bench_size, start, ret);
 
 exit:
 
@@ -2161,7 +2277,7 @@ void bench_sha384(int doAsync)
         } while (pending > 0);
     } while (bench_stats_sym_check(start));
 exit_sha384:
-    bench_stats_sym_finish("WC_SHA-384", doAsync, count, start, ret);
+    bench_stats_sym_finish("SHA-384", doAsync, count, bench_size, start, ret);
 
 exit:
 
@@ -2226,7 +2342,7 @@ void bench_sha512(int doAsync)
         } while (pending > 0);
     } while (bench_stats_sym_check(start));
 exit_sha512:
-    bench_stats_sym_finish("WC_SHA-512", doAsync, count, start, ret);
+    bench_stats_sym_finish("SHA-512", doAsync, count, bench_size, start, ret);
 
 exit:
 
@@ -2293,7 +2409,7 @@ void bench_sha3_224(int doAsync)
         } while (pending > 0);
     } while (bench_stats_sym_check(start));
 exit_sha3_224:
-    bench_stats_sym_finish("SHA3-224", doAsync, count, start, ret);
+    bench_stats_sym_finish("SHA3-224", doAsync, count, bench_size, start, ret);
 
 exit:
 
@@ -2358,7 +2474,7 @@ void bench_sha3_256(int doAsync)
         } while (pending > 0);
     } while (bench_stats_sym_check(start));
 exit_sha3_256:
-    bench_stats_sym_finish("SHA3-256", doAsync, count, start, ret);
+    bench_stats_sym_finish("SHA3-256", doAsync, count, bench_size, start, ret);
 
 exit:
 
@@ -2423,7 +2539,7 @@ void bench_sha3_384(int doAsync)
         } while (pending > 0);
     } while (bench_stats_sym_check(start));
 exit_sha3_384:
-    bench_stats_sym_finish("SHA3-384", doAsync, count, start, ret);
+    bench_stats_sym_finish("SHA3-384", doAsync, count, bench_size, start, ret);
 
 exit:
 
@@ -2488,7 +2604,7 @@ void bench_sha3_512(int doAsync)
         } while (pending > 0);
     } while (bench_stats_sym_check(start));
 exit_sha3_512:
-    bench_stats_sym_finish("SHA3-512", doAsync, count, start, ret);
+    bench_stats_sym_finish("SHA3-512", doAsync, count, bench_size, start, ret);
 
 exit:
 
@@ -2530,7 +2646,7 @@ int bench_ripemd(void)
 
         count += i;
     } while (bench_stats_sym_check(start));
-    bench_stats_sym_finish("RIPEMD", 0, count, start, ret);
+    bench_stats_sym_finish("RIPEMD", 0, count, bench_size, start, ret);
 
     return 0;
 }
@@ -2567,7 +2683,7 @@ void bench_blake2(void)
         }
         count += i;
     } while (bench_stats_sym_check(start));
-    bench_stats_sym_finish("BLAKE2b", 0, count, start, ret);
+    bench_stats_sym_finish("BLAKE2b", 0, count, bench_size, start, ret);
 }
 #endif
 
@@ -2605,7 +2721,7 @@ void bench_cmac(void)
         }
         count += i;
     } while (bench_stats_sym_check(start));
-    bench_stats_sym_finish("AES-CMAC", 0, count, start, ret);
+    bench_stats_sym_finish("AES-CMAC", 0, count, bench_size, start, ret);
 }
 
 #endif /* WOLFSSL_CMAC */
@@ -2701,7 +2817,7 @@ static void bench_hmac(int doAsync, int type, int digestSz,
         } while (pending > 0);
     } while (bench_stats_sym_check(start));
 exit_hmac:
-    bench_stats_sym_finish(label, doAsync, count, start, ret);
+    bench_stats_sym_finish(label, doAsync, count, bench_size, start, ret);
 
 exit:
 
