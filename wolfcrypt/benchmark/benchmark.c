@@ -1480,13 +1480,14 @@ void bench_aesxts(void)
 
 
 #ifdef WOLFSSL_AES_COUNTER
-void bench_aesctr(void)
+static void bench_aesctr_internal(const byte* key, word32 keySz, const byte* iv,
+                                  const char* label)
 {
     Aes    enc;
     double start;
     int    i, count, ret;
 
-    wc_AesSetKeyDirect(&enc, bench_key, AES_BLOCK_SIZE, bench_iv, AES_ENCRYPTION);
+    wc_AesSetKeyDirect(&enc, key, keySz, iv, AES_ENCRYPTION);
 
     bench_stats_start(&count, &start);
     do {
@@ -1498,7 +1499,14 @@ void bench_aesctr(void)
         }
         count += i;
     } while (bench_stats_sym_check(start));
-    bench_stats_sym_finish("AES-CTR", 0, count, start, ret);
+    bench_stats_sym_finish(label, 0, count, start, ret);
+}
+
+void bench_aesctr(void)
+{
+    bench_aesctr_internal(bench_key, 16, bench_iv, "AES-128-CTR");
+    bench_aesctr_internal(bench_key, 24, bench_iv, "AES-192-CTR");
+    bench_aesctr_internal(bench_key, 32, bench_iv, "AES-256-CTR");
 }
 #endif /* WOLFSSL_AES_COUNTER */
 
