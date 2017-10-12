@@ -1315,7 +1315,9 @@ void bench_aescbc(int doAsync)
 #endif /* HAVE_AES_CBC */
 
 #ifdef HAVE_AESGCM
-void bench_aesgcm(int doAsync)
+static void bench_aesgcm_internal(int doAsync, const byte* key, word32 keySz,
+                                  const byte* iv, word32 ivSz,
+                                  const char* encLabel, const char* decLabel)
 {
     int    ret, i, count = 0, times, pending = 0;
     Aes    enc[BENCH_MAX_PENDING];
@@ -1343,7 +1345,7 @@ void bench_aesgcm(int doAsync)
             goto exit;
         }
 
-        ret = wc_AesGcmSetKey(&enc[i], bench_key, 16);
+        ret = wc_AesGcmSetKey(&enc[i], key, keySz);
         if (ret != 0) {
             printf("AesGcmSetKey failed, ret = %d\n", ret);
             goto exit;
@@ -1361,7 +1363,7 @@ void bench_aesgcm(int doAsync)
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&enc[i]), 0, &times, numBlocks, &pending)) {
                     ret = wc_AesGcmEncrypt(&enc[i], bench_cipher,
                         bench_plain, BENCH_SIZE,
-                        bench_iv, 12, bench_tag, AES_AUTH_TAG_SZ,
+                        iv, ivSz, bench_tag, AES_AUTH_TAG_SZ,
                         bench_additional, AES_AUTH_ADD_SZ);
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&enc[i]), 0, &times, &pending)) {
                         goto exit_aes_gcm;
@@ -1372,7 +1374,7 @@ void bench_aesgcm(int doAsync)
         count += times;
     } while (bench_stats_sym_check(start));
 exit_aes_gcm:
-    bench_stats_sym_finish("AES-GCM-Enc", doAsync, count, start, ret);
+    bench_stats_sym_finish(encLabel, doAsync, count, start, ret);
 
     /* GCM uses same routine in backend for both encrypt and decrypt */
     bench_stats_start(&count, &start);
@@ -1385,7 +1387,7 @@ exit_aes_gcm:
                 if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&enc[i]), 0, &times, numBlocks, &pending)) {
                     ret = wc_AesGcmDecrypt(&enc[i], bench_plain,
                         bench_cipher, BENCH_SIZE,
-                        bench_iv, 12, bench_tag, AES_AUTH_TAG_SZ,
+                        iv, ivSz, bench_tag, AES_AUTH_TAG_SZ,
                         bench_additional, AES_AUTH_ADD_SZ);
                     if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&enc[i]), 0, &times, &pending)) {
                         goto exit_aes_gcm_dec;
@@ -1396,7 +1398,7 @@ exit_aes_gcm:
         count += times;
     } while (bench_stats_sym_check(start));
 exit_aes_gcm_dec:
-    bench_stats_sym_finish("AES-GCM-Dec", doAsync, count, start, ret);
+    bench_stats_sym_finish(decLabel, doAsync, count, start, ret);
 
 exit:
 
@@ -1410,6 +1412,16 @@ exit:
 
     FREE_VAR(bench_additional, HEAP_HINT);
     FREE_VAR(bench_tag, HEAP_HINT);
+}
+
+void bench_aesgcm(int doAsync)
+{
+    bench_aesgcm_internal(doAsync, bench_key, 16, bench_iv, 12,
+                          "AES-128-GCM-ENC", "AES-128-GCM-DEC");
+    bench_aesgcm_internal(doAsync, bench_key, 24, bench_iv, 12,
+                          "AES-192-GCM-ENC", "AES-192-GCM-DEC");
+    bench_aesgcm_internal(doAsync, bench_key, 32, bench_iv, 12,
+                          "AES-256-GCM-ENC", "AES-256-GCM-DEC");
 }
 #endif /* HAVE_AESGCM */
 
