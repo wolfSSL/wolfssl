@@ -594,7 +594,7 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count, dou
         persec = (1 / total) * blocks;
     }
 
-    XSNPRINTF(msg, sizeof(msg), "%-12s%s %5.0f %s took %5.3f seconds, %8.3f %s/s",
+    XSNPRINTF(msg, sizeof(msg), "%-16s%s %5.0f %s took %5.3f seconds, %8.3f %s/s",
         desc, BENCH_ASYNC_GET_NAME(doAsync), blocks, blockType, total,
         persec, blockType);
     SHOW_INTEL_CYCLES(msg, sizeof(msg));
@@ -1211,7 +1211,9 @@ exit_rng:
 #ifndef NO_AES
 
 #ifdef HAVE_AES_CBC
-void bench_aescbc(int doAsync)
+static void bench_aescbc_internal(int doAsync, const byte* key, word32 keySz,
+                                  const byte* iv, const char* encLabel,
+                                  const char* decLabel)
 {
     int    ret, i, count = 0, times, pending = 0;
     Aes    enc[BENCH_MAX_PENDING];
@@ -1228,7 +1230,7 @@ void bench_aescbc(int doAsync)
             goto exit;
         }
 
-        ret = wc_AesSetKey(&enc[i], bench_key, 16, bench_iv, AES_ENCRYPTION);
+        ret = wc_AesSetKey(&enc[i], key, keySz, iv, AES_ENCRYPTION);
         if (ret != 0) {
             printf("AesSetKey failed, ret = %d\n", ret);
             goto exit;
@@ -1254,7 +1256,7 @@ void bench_aescbc(int doAsync)
         count += times;
     } while (bench_stats_sym_check(start));
 exit_aes_enc:
-    bench_stats_sym_finish("AES-Enc", doAsync, count, start, ret);
+    bench_stats_sym_finish(encLabel, doAsync, count, start, ret);
 
     if (ret < 0) {
         goto exit;
@@ -1263,7 +1265,7 @@ exit_aes_enc:
 #ifdef HAVE_AES_DECRYPT
     /* init keys */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
-        ret = wc_AesSetKey(&enc[i], bench_key, 16, bench_iv, AES_DECRYPTION);
+        ret = wc_AesSetKey(&enc[i], key, keySz, iv, AES_DECRYPTION);
         if (ret != 0) {
             printf("AesSetKey failed, ret = %d\n", ret);
             goto exit;
@@ -1289,7 +1291,7 @@ exit_aes_enc:
         count += times;
     } while (bench_stats_sym_check(start));
 exit_aes_dec:
-    bench_stats_sym_finish("AES-Dec", doAsync, count, start, ret);
+    bench_stats_sym_finish(decLabel, doAsync, count, start, ret);
 
 #endif /* HAVE_AES_DECRYPT */
 
@@ -1299,6 +1301,17 @@ exit:
         wc_AesFree(&enc[i]);
     }
 }
+
+void bench_aescbc(int doAsync)
+{
+    bench_aescbc_internal(doAsync, bench_key, 16, bench_iv,
+                 "AES-128-CBC-ENC", "AES-128-CBC-DEC");
+    bench_aescbc_internal(doAsync, bench_key, 24, bench_iv,
+                 "AES-192-CBC-ENC", "AES-192-CBC-DEC");
+    bench_aescbc_internal(doAsync, bench_key, 32, bench_iv,
+                 "AES-256-CBC-ENC", "AES-256-CBC-DEC");
+}
+
 #endif /* HAVE_AES_CBC */
 
 #ifdef HAVE_AESGCM
