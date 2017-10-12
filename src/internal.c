@@ -8265,8 +8265,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         if (ssl->ctx->cm->ocspEnabled &&
                                             ssl->ctx->cm->ocspCheckAll) {
                             WOLFSSL_MSG("Doing Non Leaf OCSP check");
-                            ret = CheckCertOCSP(ssl->ctx->cm->ocsp, args->dCert,
-                                                                          NULL);
+                            ret = CheckCertOCSP_ex(ssl->ctx->cm->ocsp,
+                                                    args->dCert, NULL, ssl);
                         #ifdef WOLFSSL_ASYNC_CRYPT
                             /* non-blocking socket re-entry requires async */
                             if (ret == WANT_READ) {
@@ -8442,8 +8442,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #ifdef HAVE_OCSP
                     if (doLookup && ssl->ctx->cm->ocspEnabled) {
                         WOLFSSL_MSG("Doing Leaf OCSP check");
-                        ret = CheckCertOCSP(ssl->ctx->cm->ocsp, args->dCert,
-                                                                          NULL);
+                        ret = CheckCertOCSP_ex(ssl->ctx->cm->ocsp,
+                                                    args->dCert, NULL, ssl);
                     #ifdef WOLFSSL_ASYNC_CRYPT
                         /* non-blocking socket re-entry requires async */
                         if (ret == WANT_READ) {
@@ -13537,9 +13537,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
             }
 
             if (ret == 0) {
-            #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
                 request->ssl = ssl;
-            #endif
                 ret = CheckOcspRequest(ssl->ctx->cm->ocsp_stapling, request,
                                                                      &response);
 
@@ -13643,9 +13641,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
             }
 
             if (ret == 0) {
-            #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
                 request->ssl = ssl;
-            #endif
                 ret = CheckOcspRequest(ssl->ctx->cm->ocsp_stapling, request,
                                                                  &responses[0]);
 
@@ -13726,9 +13722,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
                             break;
                         }
 
-                    #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
                         request->ssl = ssl;
-                    #endif
                         ret = CheckOcspRequest(ssl->ctx->cm->ocsp_stapling,
                                                     request, &responses[i + 1]);
 
@@ -13755,9 +13749,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
             else {
                 while (ret == 0 &&
                             NULL != (request = ssl->ctx->chainOcspRequest[i])) {
-                #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
                     request->ssl = ssl;
-                #endif
                     ret = CheckOcspRequest(ssl->ctx->cm->ocsp_stapling,
                                                 request, &responses[++i]);
 

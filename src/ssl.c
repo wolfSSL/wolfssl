@@ -5901,9 +5901,11 @@ int wolfSSL_SetOCSP_Cb(WOLFSSL* ssl,
                         CbOCSPIO ioCb, CbOCSPRespFree respFreeCb, void* ioCbCtx)
 {
     WOLFSSL_ENTER("wolfSSL_SetOCSP_Cb");
-    if (ssl)
+    if (ssl) {
+        ssl->ocspIOCtx = ioCbCtx; /* use SSL specific ioCbCtx */
         return wolfSSL_CertManagerSetOCSP_Cb(ssl->ctx->cm,
-                                             ioCb, respFreeCb, ioCbCtx);
+                                             ioCb, respFreeCb, NULL);
+    }
     else
         return BAD_FUNC_ARG;
 }
@@ -16943,6 +16945,7 @@ WOLFSSL_API void ERR_load_SSL_strings(void)
 
 }
 
+#ifdef HAVE_OCSP
 WOLFSSL_API long wolfSSL_get_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char **resp)
 {
     if (s == NULL || resp == NULL)
@@ -16963,7 +16966,7 @@ WOLFSSL_API long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *s,
 
     return SSL_SUCCESS;
 }
-
+#endif
 
 long wolfSSL_get_verify_result(const WOLFSSL *ssl)
 {
