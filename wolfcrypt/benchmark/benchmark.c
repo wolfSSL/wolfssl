@@ -82,6 +82,9 @@
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/ripemd.h>
 #include <wolfssl/wolfcrypt/cmac.h>
+#ifndef NO_HMAC
+    #include <wolfssl/wolfcrypt/hmac.h>
+#endif
 #ifndef NO_PWDBASED
     #include <wolfssl/wolfcrypt/pwdbased.h>
 #endif
@@ -902,6 +905,57 @@ static void* benchmarks_do(void* args)
 #ifdef HAVE_SCRYPT
     bench_scrypt();
 #endif
+
+#ifndef NO_HMAC
+    #ifndef NO_MD5
+        #ifndef NO_SW_BENCH
+            bench_hmac_md5(0);
+        #endif
+        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
+            bench_hmac_md5(1);
+        #endif
+    #endif
+    #ifndef NO_SHA
+        #ifndef NO_SW_BENCH
+            bench_hmac_sha(0);
+        #endif
+        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA)
+            bench_hmac_sha(1);
+        #endif
+    #endif
+    #ifdef WOLFSSL_SHA224
+        #ifndef NO_SW_BENCH
+            bench_hmac_sha224(0);
+        #endif
+        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA224)
+            bench_hmac_sha224(1);
+        #endif
+    #endif
+    #ifndef NO_SHA256
+        #ifndef NO_SW_BENCH
+            bench_hmac_sha256(0);
+        #endif
+        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA256)
+            bench_hmac_sha256(1);
+        #endif
+    #endif
+    #ifdef WOLFSSL_SHA384
+        #ifndef NO_SW_BENCH
+            bench_hmac_sha384(0);
+        #endif
+        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA384)
+            bench_hmac_sha384(1);
+        #endif
+    #endif
+    #ifdef WOLFSSL_SHA512
+        #ifndef NO_SW_BENCH
+            bench_hmac_sha512(0);
+        #endif
+        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
+            bench_hmac_sha512(1);
+        #endif
+    #endif
+#endif /* NO_HMAC */
 
 #ifndef NO_RSA
     #ifdef WOLFSSL_KEY_GEN
@@ -2548,6 +2602,179 @@ exit:
 }
 
 #endif /* HAVE_SCRYPT */
+
+#ifndef NO_HMAC
+
+static void bench_hmac(int doAsync, int type, int digestSz,
+                       byte* key, word32 keySz, const char* label)
+{
+    Hmac   hmac[BENCH_MAX_PENDING];
+    double start;
+    int    ret, i, count = 0, times, pending = 0;
+    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, digestSz, HEAP_HINT);
+
+    /* clear for done cleanup */
+    XMEMSET(hmac, 0, sizeof(hmac));
+
+    /* init keys */
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        ret = wc_HmacInit(&hmac[i], HEAP_HINT,
+                doAsync ? devId : INVALID_DEVID);
+        if (ret != 0) {
+            printf("wc_HmacInit failed for %s, ret = %d\n", label, ret);
+            goto exit;
+        }
+
+        ret = wc_HmacSetKey(&hmac[i], type, key, keySz);
+        if (ret != 0) {
+            printf("wc_HmacSetKey failed for %s, ret = %d\n", label, ret);
+            goto exit;
+        }
+    }
+
+    bench_stats_start(&count, &start);
+    do {
+        for (times = 0; times < numBlocks || pending > 0; ) {
+            bench_async_poll(&pending);
+
+            /* while free pending slots in queue, submit ops */
+            for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&hmac[i]), 0,
+                                      &times, numBlocks, &pending)) {
+                    ret = wc_HmacUpdate(&hmac[i], bench_plain, BENCH_SIZE);
+                    if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&hmac[i]),
+                                            0, &times, &pending)) {
+                        goto exit_hmac;
+                    }
+                }
+            } /* for i */
+        } /* for times */
+        count += times;
+
+        times = 0;
+        do {
+            bench_async_poll(&pending);
+
+            for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&hmac[i]), 0,
+                                      &times, numBlocks, &pending)) {
+                    ret = wc_HmacFinal(&hmac[i], digest[i]);
+                    if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&hmac[i]),
+                                            0, &times, &pending)) {
+                        goto exit_hmac;
+                    }
+                }
+            } /* for i */
+        } while (pending > 0);
+    } while (bench_stats_sym_check(start));
+exit_hmac:
+    bench_stats_sym_finish(label, doAsync, count, start, ret);
+
+exit:
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        wc_HmacFree(&hmac[i]);
+    }
+#endif
+
+    FREE_ARRAY(digest, BENCH_MAX_PENDING, HEAP_HINT);
+}
+
+#ifndef NO_MD5
+
+void bench_hmac_md5(int doAsync)
+{
+    byte key[] = { 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b };
+
+    bench_hmac(doAsync, MD5, MD5_DIGEST_SIZE, key, sizeof(key),
+               "HMAC-MD5");
+}
+
+#endif /* NO_MD5 */
+
+#ifndef NO_SHA
+
+void bench_hmac_sha(int doAsync)
+{
+    byte key[] = { 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b };
+
+    bench_hmac(doAsync, SHA, SHA_DIGEST_SIZE, key, sizeof(key),
+               "HMAC-SHA");
+}
+
+#endif /* NO_SHA */
+
+#ifdef WOLFSSL_SHA224
+
+void bench_hmac_sha224(int doAsync)
+{
+    byte key[] = { 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b };
+
+    bench_hmac(doAsync, SHA224, SHA224_DIGEST_SIZE, key, sizeof(key),
+               "HMAC-SHA224");
+}
+
+#endif /* WOLFSSL_SHA224 */
+
+#ifndef NO_SHA256
+
+void bench_hmac_sha256(int doAsync)
+{
+    byte key[] = { 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b };
+
+    bench_hmac(doAsync, SHA256, SHA256_DIGEST_SIZE, key, sizeof(key),
+               "HMAC-SHA256");
+}
+
+#endif /* NO_SHA256 */
+
+#ifdef WOLFSSL_SHA384
+
+void bench_hmac_sha384(int doAsync)
+{
+    byte key[] = { 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b };
+
+    bench_hmac(doAsync, SHA384, SHA384_DIGEST_SIZE, key, sizeof(key),
+               "HMAC-SHA384");
+}
+
+#endif /* WOLFSSL_SHA384 */
+
+#ifdef WOLFSSL_SHA512
+
+void bench_hmac_sha512(int doAsync)
+{
+    byte key[] = { 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+                   0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b };
+
+    bench_hmac(doAsync, SHA512, SHA512_DIGEST_SIZE, key, sizeof(key),
+               "HMAC-SHA512");
+}
+
+#endif /* WOLFSSL_SHA512 */
+
+#endif /* NO_HMAC */
 
 #ifndef NO_RSA
 
