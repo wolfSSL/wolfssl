@@ -22832,7 +22832,30 @@ int wolfSSL_EC_KEY_LoadDer(WOLFSSL_EC_KEY* key,
 #endif /* OPENSSL_EXTRA */
 
 
+#ifdef WOLFSSL_ALT_CERT_CHAINS
+int wolfSSL_is_peer_alt_cert_chain(const WOLFSSL* ssl)
+{
+    int isUsing = 0;
+    if (ssl)
+        isUsing = ssl->options.usingAltCertChain;
+    return isUsing;
+}
+#endif /* WOLFSSL_ALT_CERT_CHAINS */
+
+
 #ifdef SESSION_CERTS
+
+#ifdef WOLFSSL_ALT_CERT_CHAINS
+/* Get peer's alternate certificate chain */
+WOLFSSL_X509_CHAIN* wolfSSL_get_peer_alt_chain(WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_get_peer_alt_chain");
+    if (ssl)
+        return &ssl->session.altChain;
+
+    return 0;
+}
+#endif /* WOLFSSL_ALT_CERT_CHAINS */
 
 
 /* Get peer's certificate chain */

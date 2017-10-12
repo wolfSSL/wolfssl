@@ -517,10 +517,32 @@ static INLINE void ShowX509(WOLFSSL_X509* x509, const char* hdr)
 
 #endif /* KEEP_PEER_CERT || SESSION_CERTS */
 
+#if defined(SESSION_CERTS) && defined(SHOW_CERTS)
+static INLINE void ShowX509Chain(WOLFSSL_X509_CHAIN* chain, int count,
+    const char* hdr)
+{
+    int i;
+    int length;
+    unsigned char buffer[3072];
+    WOLFSSL_X509* chainX509;
+
+    for (i = 0; i < count; i++) {
+        wolfSSL_get_chain_cert_pem(chain, i, buffer, sizeof(buffer), &length);
+        buffer[length] = 0;
+        printf("\n%s: %d has length %d data = \n%s\n", hdr, i, length, buffer);
+
+        chainX509 = wolfSSL_get_chain_X509(chain, i);
+        if (chainX509)
+            ShowX509(chainX509, hdr);
+        else
+            printf("get_chain_X509 failed\n");
+        wolfSSL_FreeX509(chainX509);
+    }
+}
+#endif
 
 static INLINE void showPeer(WOLFSSL* ssl)
 {
-
     WOLFSSL_CIPHER* cipher;
 #ifdef HAVE_ECC
     const char *name;
@@ -559,31 +581,26 @@ static INLINE void showPeer(WOLFSSL* ssl)
 #endif
     if (wolfSSL_session_reused(ssl))
         printf("SSL reused session\n");
+#ifdef WOLFSSL_ALT_CERT_CHAINS
+    if (wolfSSL_is_peer_alt_cert_chain(ssl))
+        printf("Alternate cert chain used\n");
+#endif
 
 #if defined(SESSION_CERTS) && defined(SHOW_CERTS)
     {
-        WOLFSSL_X509_CHAIN* chain = wolfSSL_get_peer_chain(ssl);
-        int                count = wolfSSL_get_chain_count(chain);
-        int i;
+        WOLFSSL_X509_CHAIN* chain;
 
-        for (i = 0; i < count; i++) {
-            int length;
-            unsigned char buffer[3072];
-            WOLFSSL_X509* chainX509;
+        chain = wolfSSL_get_peer_chain(ssl);
+        ShowX509Chain(chain, wolfSSL_get_chain_count(chain), "session cert");
 
-            wolfSSL_get_chain_cert_pem(chain,i,buffer, sizeof(buffer), &length);
-            buffer[length] = 0;
-            printf("cert %d has length %d data = \n%s\n", i, length, buffer);
-
-            chainX509 = wolfSSL_get_chain_X509(chain, i);
-            if (chainX509)
-                ShowX509(chainX509, "session cert info:");
-            else
-                printf("get_chain_X509 failed\n");
-            wolfSSL_FreeX509(chainX509);
+    #ifdef WOLFSSL_ALT_CERT_CHAINS
+        if (wolfSSL_is_peer_alt_cert_chain(ssl)) {
+            chain = wolfSSL_get_peer_alt_chain(ssl);
+            ShowX509Chain(chain, wolfSSL_get_chain_count(chain), "alt cert");
         }
+    #endif
     }
-#endif
+#endif /* SESSION_CERTS && SHOW_CERTS */
   (void)ssl;
 }
 
@@ -1234,7 +1251,7 @@ static INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
         printf("\tPeer has no cert!\n");
 #else
     printf("\tPeer certs: %d\n", store->totalCerts);
-    #ifdef VERIFY_CALLBACK_SHOW_PEER_CERTS
+    #ifdef SHOW_CERTS
     {   int i;
         for (i=0; i<store->totalCerts; i++) {
             WOLFSSL_BUFFER_INFO* cert = &store->certs[i];

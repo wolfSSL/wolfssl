@@ -2640,6 +2640,9 @@ struct WOLFSSL_SESSION {
     word16             haveEMS;                   /* ext master secret flag   */
 #ifdef SESSION_CERTS
     WOLFSSL_X509_CHAIN chain;                     /* peer cert chain, static  */
+    #ifdef WOLFSSL_ALT_CERT_CHAINS
+    WOLFSSL_X509_CHAIN altChain;                  /* peer alt cert chain, static */
+    #endif
 #endif
 #if defined(SESSION_CERTS) || (defined(WOLFSSL_TLS13) && \
                                defined(HAVE_SESSION_TICKET))
@@ -2809,14 +2812,14 @@ typedef struct Options {
     wc_psk_client_callback client_psk_cb;
     wc_psk_server_callback server_psk_cb;
 #endif /* NO_PSK */
-#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-    word16            havePSK:1;            /* psk key set by user */
-#endif /* HAVE_SESSION_TICKET || !NO_PSK */
 #ifdef OPENSSL_EXTRA
     unsigned long     mask; /* store SSL_OP_ flags */
 #endif
 
     /* on/off or small bit flags, optimize layout */
+#if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+    word16            havePSK:1;            /* psk key set by user */
+#endif /* HAVE_SESSION_TICKET || !NO_PSK */
     word16            sendVerify:2;     /* false = 0, true = 1, sendBlank = 2 */
     word16            sessionCacheOff:1;
     word16            sessionCacheFlushOff:1;
@@ -2894,6 +2897,9 @@ typedef struct Options {
 #endif
 #if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER)
     word16            sendCookie:1;       /* Server creates a Cookie in HRR */
+#endif
+#ifdef WOLFSSL_ALT_CERT_CHAINS
+    word16            usingAltCertChain:1;/* Alternate cert chain was used */
 #endif
 
     /* need full byte values for this section */

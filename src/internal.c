@@ -7477,8 +7477,23 @@ int CheckHostName(DecodedCert* dCert, char *domainName, size_t domainNameLen)
 }
 #endif
 
-#if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
+#ifdef SESSION_CERTS
+static void AddSessionCertToChain(WOLFSSL_X509_CHAIN* chain,
+    byte* certBuf, word32 certSz)
+{
+   if (chain->count < MAX_CHAIN_DEPTH &&
+                               certSz < MAX_X509_SIZE) {
+        chain->certs[chain->count].length = certSz;
+        XMEMCPY(chain->certs[chain->count].buffer, certBuf, certSz);
+        chain->count++;
+    }
+    else {
+        WOLFSSL_MSG("Couldn't store chain cert for session");
+    }
+}
+#endif
 
+#if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
 /* Copy parts X509 needs from Decoded cert, 0 on success */
 int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 {
@@ -7723,6 +7738,9 @@ typedef struct ProcPeerCertArgs {
     int    certIdx;
     int    fatal;
     int    lastErr;
+#ifdef WOLFSSL_ALT_CERT_CHAINS
+    int    lastCaErr;
+#endif
 #ifdef WOLFSSL_TLS13
     byte   ctxSz;
 #endif
@@ -7776,6 +7794,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     ProcPeerCertArgs  args[1];
 #endif
 
+    buffer* cert;
 #ifdef WOLFSSL_TRUST_PEER_CERT
     byte haveTrustPeer = 0; /* was cert verified by loaded trusted peer cert */
 #endif
@@ -7927,18 +7946,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 args->certs[args->totalCerts].buffer = input + args->idx;
 
             #ifdef SESSION_CERTS
-                if (ssl->session.chain.count < MAX_CHAIN_DEPTH &&
-                                               certSz < MAX_X509_SIZE) {
-                    ssl->session.chain.certs[
-                        ssl->session.chain.count].length = certSz;
-                    XMEMCPY(ssl->session.chain.certs[
-                        ssl->session.chain.count].buffer,
-                            input + args->idx, certSz);
-                    ssl->session.chain.count++;
-                }
-                else {
-                    WOLFSSL_MSG("Couldn't store chain cert for session");
-                }
+                AddSessionCertToChain(&ssl->session.chain,
+                    input + args->idx, certSz);
             #endif /* SESSION_CERTS */
 
                 args->idx += certSz;
@@ -7991,10 +8000,11 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                        and CA test */
                     TrustedPeerCert* tp;
 
+                    cert = &args->certs[args->certIdx];
+
                     if (!args->dCertInit) {
                         InitDecodedCert(args->dCert,
-                            args->certs[args->certIdx].buffer,
-                            args->certs[args->certIdx].length, ssl->heap);
+                            cert->buffer, cert->length, ssl->heap);
                         args->dCert->sigCtx.devId = ssl->devId; /* setup async dev */
                     #ifdef WOLFSSL_ASYNC_CRYPT
                         args->dCert->sigCtx.asyncCtx = ssl;
@@ -8058,11 +8068,11 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif
                 if (args->certIdx == 0) {
                     byte* subjectHash;
+                    cert = &args->certs[args->certIdx];
 
                     if (!args->dCertInit) {
                         InitDecodedCert(args->dCert,
-                            args->certs[args->certIdx].buffer,
-                            args->certs[args->certIdx].length, ssl->heap);
+                            cert->buffer, cert->length, ssl->heap);
                         args->dCert->sigCtx.devId = ssl->devId;
                     #ifdef WOLFSSL_ASYNC_CRYPT
                         args->dCert->sigCtx.asyncCtx = ssl;
@@ -8102,14 +8112,14 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     && !haveTrustPeer
                 #endif /* WOLFSSL_TRUST_PEER_CERT */
                 ) {
-                    byte* subjectHash;
+                    byte *subjectHash;
 
                     args->certIdx = args->count - 1;
+                    cert = &args->certs[args->certIdx];
 
                     if (!args->dCertInit) {
                         InitDecodedCert(args->dCert,
-                            args->certs[args->certIdx].buffer,
-                            args->certs[args->certIdx].length, ssl->heap);
+                            cert->buffer, cert->length, ssl->heap);
                         args->dCert->sigCtx.devId = ssl->devId; /* setup async dev */
                     #ifdef WOLFSSL_ASYNC_CRYPT
                         args->dCert->sigCtx.asyncCtx = ssl;
@@ -8186,16 +8196,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                     else if (ret == 0 && !AlreadySigner(ssl->ctx->cm, subjectHash)) {
                         DerBuffer* add = NULL;
-                        ret = AllocDer(&add, args->certs[args->certIdx].length,
-                                                            CA_TYPE, ssl->heap);
+                        ret = AllocDer(&add, cert->length, CA_TYPE, ssl->heap);
                         if (ret < 0)
                             goto exit_ppc;
 
                         WOLFSSL_MSG("Adding CA from chain");
 
-                        XMEMCPY(add->buffer, args->certs[args->certIdx].buffer,
-                                             args->certs[args->certIdx].length);
-
+                        XMEMCPY(add->buffer, cert->buffer, cert->length);
 
                     #ifdef WOLFSSL_NGINX
                         if (args->certIdx > args->untrustedDepth)
@@ -8207,9 +8214,35 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         if (ret == 1) {
                             ret = 0;   /* SSL_SUCCESS for external */
                         }
+
+                    #ifdef WOLFSSL_ALT_CERT_CHAINS
+                        /* if the previous CA cert failed, clear last error */
+                        if (args->lastCaErr != 0) {
+                            WOLFSSL_MSG("Using alternate cert chain");
+                            ssl->options.usingAltCertChain = 1;
+
+                            /* clear last CA fail since CA cert was validated */
+                            args->lastCaErr = 0;
+
+                        #ifdef SESSION_CERTS
+                            AddSessionCertToChain(&ssl->session.altChain,
+                                cert->buffer, cert->length);
+                        #endif /* SESSION_CERTS */
+                        }
+                    #endif
                     }
                     else if (ret != 0) {
                         WOLFSSL_MSG("Failed to verify CA from chain");
+                    #ifdef WOLFSSL_ALT_CERT_CHAINS
+                        if (args->lastCaErr == 0) {
+                            /* store CA error and proceed to next cert */
+                            args->lastCaErr = ret;
+                            ret = 0;
+                        }
+                        else {
+                            args->lastErr = args->lastCaErr;
+                        }
+                    #endif
                     #ifdef OPENSSL_EXTRA
                         ssl->peerVerifyRet = X509_V_ERR_INVALID_CA;
                     #endif
@@ -8297,11 +8330,11 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 WOLFSSL_MSG("Verifying Peer's cert");
 
                 args->certIdx = 0;
+                cert = &args->certs[args->certIdx];
 
                 if (!args->dCertInit) {
                     InitDecodedCert(args->dCert,
-                        args->certs[args->certIdx].buffer,
-                        args->certs[args->certIdx].length, ssl->heap);
+                        cert->buffer, cert->length, ssl->heap);
                     args->dCert->sigCtx.devId = ssl->devId; /* setup async dev */
                 #ifdef WOLFSSL_ASYNC_CRYPT
                     args->dCert->sigCtx.asyncCtx = ssl;
@@ -8330,6 +8363,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #ifdef OPENSSL_EXTRA
                     ssl->peerVerifyRet = X509_V_OK;
                 #endif
+                #if defined(SESSION_CERTS) && defined(WOLFSSL_ALT_CERT_CHAINS)
+                    if (ssl->options.usingAltCertChain) {
+                        AddSessionCertToChain(&ssl->session.altChain,
+                            cert->buffer, cert->length);
+                    }
+                #endif /* SESSION_CERTS && WOLFSSL_ALT_CERT_CHAINS */
                     args->fatal = 0;
                 }
                 else if (ret == ASN_PARSE_E || ret == BUFFER_E) {
@@ -8802,6 +8841,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         if (store->discardSessionCerts) {
                             WOLFSSL_MSG("Verify callback requested discard sess certs");
                             ssl->session.chain.count = 0;
+                        #ifdef WOLFSSL_ALT_CERT_CHAINS
+                            ssl->session.altChain.count = 0;
+                        #endif
                         }
                     #endif /* SESSION_CERTS */
                     }
@@ -8847,6 +8889,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     if (store->discardSessionCerts) {
                         WOLFSSL_MSG("Verify callback requested discard sess certs");
                         ssl->session.chain.count = 0;
+                    #ifdef WOLFSSL_ALT_CERT_CHAINS
+                        ssl->session.altChain.count = 0;
+                    #endif
                     }
                 #endif /* SESSION_CERTS */
                 }
