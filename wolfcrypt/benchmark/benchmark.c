@@ -915,10 +915,6 @@ static void* benchmarks_do(void* args)
     bench_cmac();
 #endif
 
-#ifdef HAVE_SCRYPT
-    bench_scrypt();
-#endif
-
 #ifndef NO_HMAC
     #ifndef NO_MD5
         #ifndef NO_SW_BENCH
@@ -969,6 +965,10 @@ static void* benchmarks_do(void* args)
         #endif
     #endif
 #endif /* NO_HMAC */
+
+#ifdef HAVE_SCRYPT
+    bench_scrypt();
+#endif
 
 #ifndef NO_RSA
     #ifdef WOLFSSL_KEY_GEN
@@ -1318,11 +1318,11 @@ exit:
 void bench_aescbc(int doAsync)
 {
     bench_aescbc_internal(doAsync, bench_key, 16, bench_iv,
-                 "AES-128-CBC-ENC", "AES-128-CBC-DEC");
+                 "AES-128-CBC-enc", "AES-128-CBC-dec");
     bench_aescbc_internal(doAsync, bench_key, 24, bench_iv,
-                 "AES-192-CBC-ENC", "AES-192-CBC-DEC");
+                 "AES-192-CBC-enc", "AES-192-CBC-dec");
     bench_aescbc_internal(doAsync, bench_key, 32, bench_iv,
-                 "AES-256-CBC-ENC", "AES-256-CBC-DEC");
+                 "AES-256-CBC-enc", "AES-256-CBC-dec");
 }
 
 #endif /* HAVE_AES_CBC */
@@ -1430,11 +1430,11 @@ exit:
 void bench_aesgcm(int doAsync)
 {
     bench_aesgcm_internal(doAsync, bench_key, 16, bench_iv, 12,
-                          "AES-128-GCM-ENC", "AES-128-GCM-DEC");
+                          "AES-128-GCM-enc", "AES-128-GCM-dec");
     bench_aesgcm_internal(doAsync, bench_key, 24, bench_iv, 12,
-                          "AES-192-GCM-ENC", "AES-192-GCM-DEC");
+                          "AES-192-GCM-enc", "AES-192-GCM-dec");
     bench_aesgcm_internal(doAsync, bench_key, 32, bench_iv, 12,
-                          "AES-256-GCM-ENC", "AES-256-GCM-DEC");
+                          "AES-256-GCM-enc", "AES-256-GCM-dec");
 }
 #endif /* HAVE_AESGCM */
 
@@ -1532,11 +1532,11 @@ exit:
 void bench_aesecb(int doAsync)
 {
     bench_aesecb_internal(doAsync, bench_key, 16,
-                 "AES-128-ECB-ENC", "AES-128-ECB-DEC");
+                 "AES-128-ECB-enc", "AES-128-ECB-dec");
     bench_aesecb_internal(doAsync, bench_key, 24,
-                 "AES-192-ECB-ENC", "AES-192-ECB-DEC");
+                 "AES-192-ECB-enc", "AES-192-ECB-dec");
     bench_aesecb_internal(doAsync, bench_key, 32,
-                 "AES-256-ECB-ENC", "AES-256-ECB-DEC");
+                 "AES-256-ECB-enc", "AES-256-ECB-dec");
 }
 
 #endif /* WOLFSSL_AES_DIRECT */
