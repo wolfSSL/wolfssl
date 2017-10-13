@@ -82,6 +82,14 @@ void   ByteReverseWords64(word64*, const word64*, word32);
 #endif /* WOLFSSL_HAVE_MAX */
 
 
+void c32to24(word32 in, word24 out);
+void c16toa(word16 u16, byte* c);
+void c32toa(word32 u32, byte* c);
+void c24to32(const word24 u24, word32* u32);
+void ato16(const byte* c, word16* u16);
+void ato32(const byte* c, word32* u32);
+word32 btoi(byte b);
+
 #endif /* NO_INLINE */
 
 

@@ -46,6 +46,7 @@
 	    #endif
 	    typedef unsigned short word16;
 	    typedef unsigned int   word32;
+	    typedef unsigned char  word24[3];
 	#endif
 
 

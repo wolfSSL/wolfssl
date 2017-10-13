@@ -239,6 +239,62 @@ STATIC INLINE int ConstantCompare(const byte* a, const byte* b, int length)
     }
 #endif /* !WOLFSSL_HAVE_MAX */
 
+/* converts a 32 bit integer to 24 bit */
+static INLINE void c32to24(word32 in, word24 out)
+{
+    out[0] = (in >> 16) & 0xff;
+    out[1] = (in >>  8) & 0xff;
+    out[2] =  in & 0xff;
+}
+
+/* convert 16 bit integer to opaque */
+static INLINE void c16toa(word16 u16, byte* c)
+{
+    c[0] = (u16 >> 8) & 0xff;
+    c[1] =  u16 & 0xff;
+}
+
+/* convert 32 bit integer to opaque */
+static INLINE void c32toa(word32 u32, byte* c)
+{
+    c[0] = (u32 >> 24) & 0xff;
+    c[1] = (u32 >> 16) & 0xff;
+    c[2] = (u32 >>  8) & 0xff;
+    c[3] =  u32 & 0xff;
+}
+
+/* convert a 24 bit integer into a 32 bit one */
+static INLINE void c24to32(const word24 u24, word32* u32)
+{
+    *u32 = (u24[0] << 16) | (u24[1] << 8) | u24[2];
+}
+
+
+/* convert opaque to 24 bit integer */
+static INLINE void ato24(const byte* c, word32* u24)
+{
+    *u24 = (c[0] << 16) | (c[1] << 8) | c[2];
+}
+
+/* convert opaque to 16 bit integer */
+static INLINE void ato16(const byte* c, word16* u16)
+{
+    *u16 = (word16) ((c[0] << 8) | (c[1]));
+}
+
+/* convert opaque to 32 bit integer */
+static INLINE void ato32(const byte* c, word32* u32)
+{
+    *u32 = (c[0] << 24) | (c[1] << 16) | (c[2] << 8) | c[3];
+}
+
+
+static INLINE word32 btoi(byte b)
+{
+    return (word32)(b - 0x30);
+}
+
+
 
 #undef STATIC
 

@@ -17545,23 +17545,6 @@ void wolfSSL_CTX_sess_set_remove_cb(WOLFSSL_CTX* ctx, void (*f)(WOLFSSL_CTX*,
 #endif
 }
 
-#ifdef HAVE_EXT_CACHE
-/* convert 32 bit integer to opaque */
-static INLINE void c32toa(word32 u32, byte* c)
-{
-    c[0] = (u32 >> 24) & 0xff;
-    c[1] = (u32 >> 16) & 0xff;
-    c[2] = (u32 >>  8) & 0xff;
-    c[3] =  u32 & 0xff;
-}
-
-static INLINE void c16toa(word16 u16, byte* c)
-{
-    c[0] = (u16 >> 8) & 0xff;
-    c[1] =  u16 & 0xff;
-}
-#endif
-
 int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 {
     int size = 0;
@@ -17641,20 +17624,6 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
 
     return size;
 }
-
-#ifdef HAVE_EXT_CACHE
-/* convert opaque to 16 bit integer */
-static INLINE void ato16(const byte* c, word16* u16)
-{
-    *u16 = (word16) ((c[0] << 8) | (c[1]));
-}
-
-/* convert opaque to 32 bit integer */
-static INLINE void ato32(const byte* c, word32* u32)
-{
-    *u32 = (c[0] << 24) | (c[1] << 16) | (c[2] << 8) | c[3];
-}
-#endif
 
 /* TODO: no function to free new session. */
 WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
@@ -25562,11 +25531,6 @@ int wolfSSL_set_ocsp_url(WOLFSSL* ssl, char* url)
 
     ssl->url = url;
     return WOLFSSL_SUCCESS;
-}
-
-static INLINE void ato24(const byte* c, word32* u24)
-{
-    *u24 = (c[0] << 16) | (c[1] << 8) | c[2];
 }
 
 int wolfSSL_CTX_get_extra_chain_certs(WOLFSSL_CTX* ctx, WOLF_STACK_OF(X509)** chain)
