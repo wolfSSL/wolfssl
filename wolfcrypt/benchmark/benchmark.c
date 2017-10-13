@@ -1977,6 +1977,9 @@ void bench_md5(int doAsync)
             printf("InitMd5_ex failed, ret = %d\n", ret);
             goto exit;
         }
+    #ifdef WOLFSSL_PIC32MZ_HASH
+        wc_Md5SizeSet(&hash[i], numBlocks * BENCH_SIZE);
+    #endif
     }
 
     bench_stats_start(&count, &start);
@@ -2046,6 +2049,9 @@ void bench_sha(int doAsync)
             printf("InitSha failed, ret = %d\n", ret);
             goto exit;
         }
+    #ifdef WOLFSSL_PIC32MZ_HASH
+        wc_ShaSizeSet(&hash[i], numBlocks * BENCH_SIZE);
+    #endif
     }
 
     bench_stats_start(&count, &start);
@@ -2178,6 +2184,9 @@ void bench_sha256(int doAsync)
             printf("InitSha256_ex failed, ret = %d\n", ret);
             goto exit;
         }
+    #ifdef WOLFSSL_PIC32MZ_HASH
+        wc_Sha256SizeSet(&hash[i], numBlocks * BENCH_SIZE);
+    #endif
     }
 
     bench_stats_start(&count, &start);
