@@ -1185,9 +1185,9 @@ int md2_test(void)
 int md5_test(void)
 {
     int ret = 0;
-    Md5  md5;
-    byte hash[MD5_DIGEST_SIZE];
-    byte hashcopy[MD5_DIGEST_SIZE];
+    wc_Md5 md5;
+    byte hash[WC_MD5_DIGEST_SIZE];
+    byte hashcopy[WC_MD5_DIGEST_SIZE];
     testVector a, b, c, d, e, f;
     testVector test_md5[6];
     int times = sizeof(test_md5) / sizeof(testVector), i;
@@ -1196,39 +1196,39 @@ int md5_test(void)
     a.output = "\xd4\x1d\x8c\xd9\x8f\x00\xb2\x04\xe9\x80\x09\x98\xec\xf8\x42"
                "\x7e";
     a.inLen  = XSTRLEN(a.input);
-    a.outLen = MD5_DIGEST_SIZE;
+    a.outLen = WC_MD5_DIGEST_SIZE;
 
     b.input  = "abc";
     b.output = "\x90\x01\x50\x98\x3c\xd2\x4f\xb0\xd6\x96\x3f\x7d\x28\xe1\x7f"
                "\x72";
     b.inLen  = XSTRLEN(b.input);
-    b.outLen = MD5_DIGEST_SIZE;
+    b.outLen = WC_MD5_DIGEST_SIZE;
 
     c.input  = "message digest";
     c.output = "\xf9\x6b\x69\x7d\x7c\xb7\x93\x8d\x52\x5a\x2f\x31\xaa\xf1\x61"
                "\xd0";
     c.inLen  = XSTRLEN(c.input);
-    c.outLen = MD5_DIGEST_SIZE;
+    c.outLen = WC_MD5_DIGEST_SIZE;
 
     d.input  = "abcdefghijklmnopqrstuvwxyz";
     d.output = "\xc3\xfc\xd3\xd7\x61\x92\xe4\x00\x7d\xfb\x49\x6c\xca\x67\xe1"
                "\x3b";
     d.inLen  = XSTRLEN(d.input);
-    d.outLen = MD5_DIGEST_SIZE;
+    d.outLen = WC_MD5_DIGEST_SIZE;
 
     e.input  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345"
                "6789";
     e.output = "\xd1\x74\xab\x98\xd2\x77\xd9\xf5\xa5\x61\x1c\x2c\x9f\x41\x9d"
                "\x9f";
     e.inLen  = XSTRLEN(e.input);
-    e.outLen = MD5_DIGEST_SIZE;
+    e.outLen = WC_MD5_DIGEST_SIZE;
 
     f.input  = "1234567890123456789012345678901234567890123456789012345678"
                "9012345678901234567890";
     f.output = "\x57\xed\xf4\xa2\x2b\xe3\xc9\x55\xac\x49\xda\x2e\x21\x07\xb6"
                "\x7a";
     f.inLen  = XSTRLEN(f.input);
-    f.outLen = MD5_DIGEST_SIZE;
+    f.outLen = WC_MD5_DIGEST_SIZE;
 
     test_md5[0] = a;
     test_md5[1] = b;
@@ -1255,10 +1255,10 @@ int md5_test(void)
         if (ret != 0)
             ERROR_OUT(-1530 - i, exit);
 
-        if (XMEMCMP(hash, test_md5[i].output, MD5_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_md5[i].output, WC_MD5_DIGEST_SIZE) != 0)
             ERROR_OUT(-1540 - i, exit);
 
-        if (XMEMCMP(hash, hashcopy, MD5_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, hashcopy, WC_MD5_DIGEST_SIZE) != 0)
             ERROR_OUT(-1550 - i, exit);
     }
 
@@ -1283,7 +1283,7 @@ int md5_test(void)
     ret = wc_Md5Final(&md5, hash);
     if (ret != 0)
         ERROR_OUT(-1561, exit);
-    if (XMEMCMP(hash, large_digest, MD5_DIGEST_SIZE) != 0)
+    if (XMEMCMP(hash, large_digest, WC_MD5_DIGEST_SIZE) != 0)
         ERROR_OUT(-1562, exit);
     } /* END LARGE HASH TEST */
 
@@ -1379,9 +1379,9 @@ int md4_test(void)
 int sha_test(void)
 {
     int ret = 0;
-    Sha  sha;
-    byte hash[SHA_DIGEST_SIZE];
-    byte hashcopy[SHA_DIGEST_SIZE];
+    wc_Sha sha;
+    byte hash[WC_SHA_DIGEST_SIZE];
+    byte hashcopy[WC_SHA_DIGEST_SIZE];
     testVector a, b, c, d, e;
     testVector test_sha[5];
     int times = sizeof(test_sha) / sizeof(struct testVector), i;
@@ -1390,26 +1390,26 @@ int sha_test(void)
     a.output = "\xda\x39\xa3\xee\x5e\x6b\x4b\x0d\x32\x55\xbf\xef\x95\x60\x18"
                "\x90\xaf\xd8\x07\x09";
     a.inLen  = XSTRLEN(a.input);
-    a.outLen = SHA_DIGEST_SIZE;
+    a.outLen = WC_SHA_DIGEST_SIZE;
 
     b.input  = "abc";
     b.output = "\xA9\x99\x3E\x36\x47\x06\x81\x6A\xBA\x3E\x25\x71\x78\x50\xC2"
                "\x6C\x9C\xD0\xD8\x9D";
     b.inLen  = XSTRLEN(b.input);
-    b.outLen = SHA_DIGEST_SIZE;
+    b.outLen = WC_SHA_DIGEST_SIZE;
 
     c.input  = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
     c.output = "\x84\x98\x3E\x44\x1C\x3B\xD2\x6E\xBA\xAE\x4A\xA1\xF9\x51\x29"
                "\xE5\xE5\x46\x70\xF1";
     c.inLen  = XSTRLEN(c.input);
-    c.outLen = SHA_DIGEST_SIZE;
+    c.outLen = WC_SHA_DIGEST_SIZE;
 
     d.input  = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
                "aaaaaa";
     d.output = "\x00\x98\xBA\x82\x4B\x5C\x16\x42\x7B\xD7\xA1\x12\x2A\x5A\x44"
                "\x2A\x25\xEC\x64\x4D";
     d.inLen  = XSTRLEN(d.input);
-    d.outLen = SHA_DIGEST_SIZE;
+    d.outLen = WC_SHA_DIGEST_SIZE;
 
     e.input  = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -1417,7 +1417,7 @@ int sha_test(void)
     e.output = "\xAD\x5B\x3F\xDB\xCB\x52\x67\x78\xC2\x83\x9D\x2F\x15\x1E\xA7"
                "\x53\x99\x5E\x26\xA0";
     e.inLen  = XSTRLEN(e.input);
-    e.outLen = SHA_DIGEST_SIZE;
+    e.outLen = WC_SHA_DIGEST_SIZE;
 
     test_sha[0] = a;
     test_sha[1] = b;
@@ -1441,9 +1441,9 @@ int sha_test(void)
         if (ret != 0)
             ERROR_OUT(-1730 - i, exit);
 
-        if (XMEMCMP(hash, test_sha[i].output, SHA_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_sha[i].output, WC_SHA_DIGEST_SIZE) != 0)
             ERROR_OUT(-1740 - i, exit);
-        if (XMEMCMP(hash, hashcopy, SHA_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, hashcopy, WC_SHA_DIGEST_SIZE) != 0)
             ERROR_OUT(-1750 - i, exit);
     }
 
@@ -1469,7 +1469,7 @@ int sha_test(void)
     ret = wc_ShaFinal(&sha, hash);
     if (ret != 0)
         ERROR_OUT(-1761, exit);
-    if (XMEMCMP(hash, large_digest, SHA_DIGEST_SIZE) != 0)
+    if (XMEMCMP(hash, large_digest, WC_SHA_DIGEST_SIZE) != 0)
         ERROR_OUT(-1762, exit);
     } /* END LARGE HASH TEST */
 
@@ -1626,32 +1626,32 @@ int blake2b_test(void)
 #ifdef WOLFSSL_SHA224
 int sha224_test(void)
 {
-    Sha224 sha;
-    byte   hash[SHA224_DIGEST_SIZE];
-    byte   hashcopy[SHA224_DIGEST_SIZE];
+    wc_Sha224 sha;
+    byte      hash[WC_SHA224_DIGEST_SIZE];
+    byte      hashcopy[WC_SHA224_DIGEST_SIZE];
+    int       ret = 0;
 
     testVector a, b, c;
     testVector test_sha[3];
-    int ret = 0;
     int times = sizeof(test_sha) / sizeof(struct testVector), i;
 
     a.input  = "";
     a.output = "\xd1\x4a\x02\x8c\x2a\x3a\x2b\xc9\x47\x61\x02\xbb\x28\x82\x34"
                "\xc4\x15\xa2\xb0\x1f\x82\x8e\xa6\x2a\xc5\xb3\xe4\x2f";
     a.inLen  = XSTRLEN(a.input);
-    a.outLen = SHA224_DIGEST_SIZE;
+    a.outLen = WC_SHA224_DIGEST_SIZE;
 
     b.input  = "abc";
     b.output = "\x23\x09\x7d\x22\x34\x05\xd8\x22\x86\x42\xa4\x77\xbd\xa2\x55"
                "\xb3\x2a\xad\xbc\xe4\xbd\xa0\xb3\xf7\xe3\x6c\x9d\xa7";
     b.inLen  = XSTRLEN(b.input);
-    b.outLen = SHA224_DIGEST_SIZE;
+    b.outLen = WC_SHA224_DIGEST_SIZE;
 
     c.input  = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
     c.output = "\x75\x38\x8b\x16\x51\x27\x76\xcc\x5d\xba\x5d\xa1\xfd\x89\x01"
                "\x50\xb0\xc6\x45\x5c\xb4\xf5\x8b\x19\x52\x52\x25\x25";
     c.inLen  = XSTRLEN(c.input);
-    c.outLen = SHA224_DIGEST_SIZE;
+    c.outLen = WC_SHA224_DIGEST_SIZE;
 
     test_sha[0] = a;
     test_sha[1] = b;
@@ -1673,9 +1673,9 @@ int sha224_test(void)
         if (ret != 0)
             ERROR_OUT(-2030 - i, exit);
 
-        if (XMEMCMP(hash, test_sha[i].output, SHA224_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_sha[i].output, WC_SHA224_DIGEST_SIZE) != 0)
             ERROR_OUT(-2040 - i, exit);
-        if (XMEMCMP(hash, hashcopy, SHA224_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, hashcopy, WC_SHA224_DIGEST_SIZE) != 0)
             ERROR_OUT(-2050 - i, exit);
     }
 
@@ -1690,10 +1690,11 @@ exit:
 #ifndef NO_SHA256
 int sha256_test(void)
 {
-    int ret = 0;
-    Sha256 sha;
-    byte   hash[SHA256_DIGEST_SIZE];
-    byte   hashcopy[SHA256_DIGEST_SIZE];
+    wc_Sha256 sha;
+    byte      hash[WC_SHA256_DIGEST_SIZE];
+    byte      hashcopy[WC_SHA256_DIGEST_SIZE];
+    int       ret = 0;
+
     testVector a, b, c;
     testVector test_sha[3];
     int times = sizeof(test_sha) / sizeof(struct testVector), i;
@@ -1703,21 +1704,21 @@ int sha256_test(void)
                "\x24\x27\xae\x41\xe4\x64\x9b\x93\x4c\xa4\x95\x99\x1b\x78\x52"
                "\xb8\x55";
     a.inLen  = XSTRLEN(a.input);
-    a.outLen = SHA256_DIGEST_SIZE;
+    a.outLen = WC_SHA256_DIGEST_SIZE;
 
     b.input  = "abc";
     b.output = "\xBA\x78\x16\xBF\x8F\x01\xCF\xEA\x41\x41\x40\xDE\x5D\xAE\x22"
                "\x23\xB0\x03\x61\xA3\x96\x17\x7A\x9C\xB4\x10\xFF\x61\xF2\x00"
                "\x15\xAD";
     b.inLen  = XSTRLEN(b.input);
-    b.outLen = SHA256_DIGEST_SIZE;
+    b.outLen = WC_SHA256_DIGEST_SIZE;
 
     c.input  = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
     c.output = "\x24\x8D\x6A\x61\xD2\x06\x38\xB8\xE5\xC0\x26\x93\x0C\x3E\x60"
                "\x39\xA3\x3C\xE4\x59\x64\xFF\x21\x67\xF6\xEC\xED\xD4\x19\xDB"
                "\x06\xC1";
     c.inLen  = XSTRLEN(c.input);
-    c.outLen = SHA256_DIGEST_SIZE;
+    c.outLen = WC_SHA256_DIGEST_SIZE;
 
     test_sha[0] = a;
     test_sha[1] = b;
@@ -1739,9 +1740,9 @@ int sha256_test(void)
         if (ret != 0)
             ERROR_OUT(-2130 - i, exit);
 
-        if (XMEMCMP(hash, test_sha[i].output, SHA256_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_sha[i].output, WC_SHA256_DIGEST_SIZE) != 0)
             ERROR_OUT(-2140 - i, exit);
-        if (XMEMCMP(hash, hashcopy, SHA256_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, hashcopy, WC_SHA256_DIGEST_SIZE) != 0)
             ERROR_OUT(-2150 - i, exit);
     }
 
@@ -1767,7 +1768,7 @@ int sha256_test(void)
     ret = wc_Sha256Final(&sha, hash);
     if (ret != 0)
         ERROR_OUT(-2161, exit);
-    if (XMEMCMP(hash, large_digest, SHA256_DIGEST_SIZE) != 0)
+    if (XMEMCMP(hash, large_digest, WC_SHA256_DIGEST_SIZE) != 0)
         ERROR_OUT(-2162, exit);
     } /* END LARGE HASH TEST */
 
@@ -1783,10 +1784,10 @@ exit:
 #ifdef WOLFSSL_SHA512
 int sha512_test(void)
 {
-    Sha512 sha;
-    byte   hash[SHA512_DIGEST_SIZE];
-    byte   hashcopy[SHA512_DIGEST_SIZE];
-    int    ret = 0;
+    wc_Sha512 sha;
+    byte      hash[WC_SHA512_DIGEST_SIZE];
+    byte      hashcopy[WC_SHA512_DIGEST_SIZE];
+    int       ret = 0;
 
     testVector a, b, c;
     testVector test_sha[3];
@@ -1799,7 +1800,7 @@ int sha512_test(void)
                "\x7e\xec\x2f\x63\xb9\x31\xbd\x47\x41\x7a\x81\xa5\x38\x32\x7a"
                "\xf9\x27\xda\x3e";
     a.inLen  = XSTRLEN(a.input);
-    a.outLen = SHA512_DIGEST_SIZE;
+    a.outLen = WC_SHA512_DIGEST_SIZE;
 
     b.input  = "abc";
     b.output = "\xdd\xaf\x35\xa1\x93\x61\x7a\xba\xcc\x41\x73\x49\xae\x20\x41"
@@ -1808,7 +1809,7 @@ int sha512_test(void)
                "\xfe\xeb\xbd\x45\x4d\x44\x23\x64\x3c\xe8\x0e\x2a\x9a\xc9\x4f"
                "\xa5\x4c\xa4\x9f";
     b.inLen  = XSTRLEN(b.input);
-    b.outLen = SHA512_DIGEST_SIZE;
+    b.outLen = WC_SHA512_DIGEST_SIZE;
 
     c.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
                "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
@@ -1818,7 +1819,7 @@ int sha512_test(void)
                "\xb5\x43\x3a\xc7\xd3\x29\xee\xb6\xdd\x26\x54\x5e\x96\xe5\x5b"
                "\x87\x4b\xe9\x09";
     c.inLen  = XSTRLEN(c.input);
-    c.outLen = SHA512_DIGEST_SIZE;
+    c.outLen = WC_SHA512_DIGEST_SIZE;
 
     test_sha[0] = a;
     test_sha[1] = b;
@@ -1840,9 +1841,9 @@ int sha512_test(void)
         if (ret != 0)
             ERROR_OUT(-2230 - i, exit);
 
-        if (XMEMCMP(hash, test_sha[i].output, SHA512_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_sha[i].output, WC_SHA512_DIGEST_SIZE) != 0)
             ERROR_OUT(-2240 - i, exit);
-        if (XMEMCMP(hash, hashcopy, SHA512_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, hashcopy, WC_SHA512_DIGEST_SIZE) != 0)
             ERROR_OUT(-2250 - i, exit);
     }
 
@@ -1867,7 +1868,7 @@ int sha512_test(void)
     ret = wc_Sha512Final(&sha, hash);
     if (ret != 0)
         ERROR_OUT(-2261, exit);
-    if (XMEMCMP(hash, large_digest, SHA512_DIGEST_SIZE) != 0)
+    if (XMEMCMP(hash, large_digest, WC_SHA512_DIGEST_SIZE) != 0)
         ERROR_OUT(-2262, exit);
     } /* END LARGE HASH TEST */
 
@@ -1882,10 +1883,10 @@ exit:
 #ifdef WOLFSSL_SHA384
 int sha384_test(void)
 {
-    Sha384 sha;
-    byte   hash[SHA384_DIGEST_SIZE];
-    byte   hashcopy[SHA384_DIGEST_SIZE];
-    int    ret = 0;
+    wc_Sha384 sha;
+    byte      hash[WC_SHA384_DIGEST_SIZE];
+    byte      hashcopy[WC_SHA384_DIGEST_SIZE];
+    int       ret = 0;
 
     testVector a, b, c;
     testVector test_sha[3];
@@ -1898,7 +1899,7 @@ int sha384_test(void)
                "\xe1\xda\x27\x4e\xde\xbf\xe7\x6f\x65\xfb\xd5\x1a\xd2\xf1\x48"
                "\x98\xb9\x5b";
     a.inLen  = XSTRLEN(a.input);
-    a.outLen = SHA384_DIGEST_SIZE;
+    a.outLen = WC_SHA384_DIGEST_SIZE;
 
     b.input  = "abc";
     b.output = "\xcb\x00\x75\x3f\x45\xa3\x5e\x8b\xb5\xa0\x3d\x69\x9a\xc6\x50"
@@ -1906,7 +1907,7 @@ int sha384_test(void)
                "\x5b\xed\x80\x86\x07\x2b\xa1\xe7\xcc\x23\x58\xba\xec\xa1\x34"
                "\xc8\x25\xa7";
     b.inLen  = XSTRLEN(b.input);
-    b.outLen = SHA384_DIGEST_SIZE;
+    b.outLen = WC_SHA384_DIGEST_SIZE;
 
     c.input  = "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhi"
                "jklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu";
@@ -1915,7 +1916,7 @@ int sha384_test(void)
                "\xf7\x12\xfc\xc7\xc7\x1a\x55\x7e\x2d\xb9\x66\xc3\xe9\xfa\x91"
                "\x74\x60\x39";
     c.inLen  = XSTRLEN(c.input);
-    c.outLen = SHA384_DIGEST_SIZE;
+    c.outLen = WC_SHA384_DIGEST_SIZE;
 
     test_sha[0] = a;
     test_sha[1] = b;
@@ -1937,9 +1938,9 @@ int sha384_test(void)
         if (ret != 0)
             ERROR_OUT(-2330 - i, exit);
 
-        if (XMEMCMP(hash, test_sha[i].output, SHA384_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_sha[i].output, WC_SHA384_DIGEST_SIZE) != 0)
             ERROR_OUT(-2340 - i, exit);
-        if (XMEMCMP(hash, hashcopy, SHA384_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, hashcopy, WC_SHA384_DIGEST_SIZE) != 0)
             ERROR_OUT(-2350 - i, exit);
     }
 
@@ -1963,7 +1964,7 @@ int sha384_test(void)
     ret = wc_Sha384Final(&sha, hash);
     if (ret != 0)
         ERROR_OUT(-2361, exit);
-    if (XMEMCMP(hash, large_digest, SHA384_DIGEST_SIZE) != 0)
+    if (XMEMCMP(hash, large_digest, WC_SHA384_DIGEST_SIZE) != 0)
         ERROR_OUT(-2362, exit);
     } /* END LARGE HASH TEST */
 
@@ -2496,32 +2497,32 @@ int hash_test(void)
         return -2483;
 #endif
 #ifndef NO_MD5
-    ret = wc_GetCTC_HashOID(MD5);
+    ret = wc_GetCTC_HashOID(WC_MD5);
     if (ret == 0)
         return -2484;
 #endif
 #ifndef NO_SHA
-    ret = wc_GetCTC_HashOID(SHA);
+    ret = wc_GetCTC_HashOID(WC_SHA);
     if (ret == 0)
         return -2485;
 #endif
 #ifdef WOLFSSL_SHA224
-    ret = wc_GetCTC_HashOID(SHA224);
+    ret = wc_GetCTC_HashOID(WC_SHA224);
     if (ret == 0)
         return -2486;
 #endif
 #ifndef NO_SHA256
-    ret = wc_GetCTC_HashOID(SHA256);
+    ret = wc_GetCTC_HashOID(WC_SHA256);
     if (ret == 0)
         return -2487;
 #endif
 #ifdef WOLFSSL_SHA384
-    ret = wc_GetCTC_HashOID(SHA384);
+    ret = wc_GetCTC_HashOID(WC_SHA384);
     if (ret == 0)
         return -2488;
 #endif
 #ifdef WOLFSSL_SHA512
-    ret = wc_GetCTC_HashOID(SHA512);
+    ret = wc_GetCTC_HashOID(WC_SHA512);
     if (ret == 0)
         return -2489;
 #endif
@@ -2537,7 +2538,7 @@ int hash_test(void)
 int hmac_md5_test(void)
 {
     Hmac hmac;
-    byte hash[MD5_DIGEST_SIZE];
+    byte hash[WC_MD5_DIGEST_SIZE];
 
     const char* keys[]=
     {
@@ -2556,13 +2557,13 @@ int hmac_md5_test(void)
     a.output = "\x92\x94\x72\x7a\x36\x38\xbb\x1c\x13\xf4\x8e\xf8\x15\x8b\xfc"
                "\x9d";
     a.inLen  = XSTRLEN(a.input);
-    a.outLen = MD5_DIGEST_SIZE;
+    a.outLen = WC_MD5_DIGEST_SIZE;
 
     b.input  = "what do ya want for nothing?";
     b.output = "\x75\x0c\x78\x3e\x6a\xb0\xb5\x03\xea\xa8\x6e\x31\x0a\x5d\xb7"
                "\x38";
     b.inLen  = XSTRLEN(b.input);
-    b.outLen = MD5_DIGEST_SIZE;
+    b.outLen = WC_MD5_DIGEST_SIZE;
 
     c.input  = "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
                "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
@@ -2571,7 +2572,7 @@ int hmac_md5_test(void)
     c.output = "\x56\xbe\x34\x52\x1d\x14\x4c\x88\xdb\xb8\xc7\x33\xf0\xe8\xb3"
                "\xf6";
     c.inLen  = XSTRLEN(c.input);
-    c.outLen = MD5_DIGEST_SIZE;
+    c.outLen = WC_MD5_DIGEST_SIZE;
 
     test_hmac[0] = a;
     test_hmac[1] = b;
@@ -2588,7 +2589,7 @@ int hmac_md5_test(void)
             return -2500;
         }
 
-        ret = wc_HmacSetKey(&hmac, MD5, (byte*)keys[i],
+        ret = wc_HmacSetKey(&hmac, WC_MD5, (byte*)keys[i],
             (word32)XSTRLEN(keys[i]));
         if (ret != 0)
             return -2501;
@@ -2600,14 +2601,14 @@ int hmac_md5_test(void)
         if (ret != 0)
             return -2503;
 
-        if (XMEMCMP(hash, test_hmac[i].output, MD5_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_hmac[i].output, WC_MD5_DIGEST_SIZE) != 0)
             return -2504 - i;
 
         wc_HmacFree(&hmac);
     }
 
 #ifndef HAVE_FIPS
-    if (wc_HmacSizeByType(MD5) != MD5_DIGEST_SIZE)
+    if (wc_HmacSizeByType(WC_MD5) != WC_MD5_DIGEST_SIZE)
         return -2514;
 #endif
 
@@ -2619,7 +2620,7 @@ int hmac_md5_test(void)
 int hmac_sha_test(void)
 {
     Hmac hmac;
-    byte hash[SHA_DIGEST_SIZE];
+    byte hash[WC_SHA_DIGEST_SIZE];
 
     const char* keys[]=
     {
@@ -2640,13 +2641,13 @@ int hmac_sha_test(void)
     a.output = "\xb6\x17\x31\x86\x55\x05\x72\x64\xe2\x8b\xc0\xb6\xfb\x37\x8c"
                "\x8e\xf1\x46\xbe\x00";
     a.inLen  = XSTRLEN(a.input);
-    a.outLen = SHA_DIGEST_SIZE;
+    a.outLen = WC_SHA_DIGEST_SIZE;
 
     b.input  = "what do ya want for nothing?";
     b.output = "\xef\xfc\xdf\x6a\xe5\xeb\x2f\xa2\xd2\x74\x16\xd5\xf1\x84\xdf"
                "\x9c\x25\x9a\x7c\x79";
     b.inLen  = XSTRLEN(b.input);
-    b.outLen = SHA_DIGEST_SIZE;
+    b.outLen = WC_SHA_DIGEST_SIZE;
 
     c.input  = "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
                "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
@@ -2655,7 +2656,7 @@ int hmac_sha_test(void)
     c.output = "\x12\x5d\x73\x42\xb9\xac\x11\xcd\x91\xa3\x9a\xf4\x8a\xa1\x7b"
                "\x4f\x63\xf1\x75\xd3";
     c.inLen  = XSTRLEN(c.input);
-    c.outLen = SHA_DIGEST_SIZE;
+    c.outLen = WC_SHA_DIGEST_SIZE;
 
     test_hmac[0] = a;
     test_hmac[1] = b;
@@ -2670,7 +2671,7 @@ int hmac_sha_test(void)
         if (wc_HmacInit(&hmac, HEAP_HINT, devId) != 0)
             return -20010;
 
-        ret = wc_HmacSetKey(&hmac, SHA, (byte*)keys[i],
+        ret = wc_HmacSetKey(&hmac, WC_SHA, (byte*)keys[i],
             (word32)XSTRLEN(keys[i]));
         if (ret != 0)
             return -2601;
@@ -2682,14 +2683,14 @@ int hmac_sha_test(void)
         if (ret != 0)
             return -2603;
 
-        if (XMEMCMP(hash, test_hmac[i].output, SHA_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_hmac[i].output, WC_SHA_DIGEST_SIZE) != 0)
             return -2604 - i;
 
         wc_HmacFree(&hmac);
     }
 
 #ifndef HAVE_FIPS
-    if (wc_HmacSizeByType(SHA) != SHA_DIGEST_SIZE)
+    if (wc_HmacSizeByType(WC_SHA) != WC_SHA_DIGEST_SIZE)
         return -2614;
 #endif
 
@@ -2702,7 +2703,7 @@ int hmac_sha_test(void)
 int hmac_sha224_test(void)
 {
     Hmac hmac;
-    byte hash[SHA224_DIGEST_SIZE];
+    byte hash[WC_SHA224_DIGEST_SIZE];
 
     const char* keys[]=
     {
@@ -2723,13 +2724,13 @@ int hmac_sha224_test(void)
     a.output = "\x89\x6f\xb1\x12\x8a\xbb\xdf\x19\x68\x32\x10\x7c\xd4\x9d\xf3"
                "\x3f\x47\xb4\xb1\x16\x99\x12\xba\x4f\x53\x68\x4b\x22";
     a.inLen  = XSTRLEN(a.input);
-    a.outLen = SHA224_DIGEST_SIZE;
+    a.outLen = WC_SHA224_DIGEST_SIZE;
 
     b.input  = "what do ya want for nothing?";
     b.output = "\xa3\x0e\x01\x09\x8b\xc6\xdb\xbf\x45\x69\x0f\x3a\x7e\x9e\x6d"
                "\x0f\x8b\xbe\xa2\xa3\x9e\x61\x48\x00\x8f\xd0\x5e\x44";
     b.inLen  = XSTRLEN(b.input);
-    b.outLen = SHA224_DIGEST_SIZE;
+    b.outLen = WC_SHA224_DIGEST_SIZE;
 
     c.input  = "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
                "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
@@ -2738,7 +2739,7 @@ int hmac_sha224_test(void)
     c.output = "\x7f\xb3\xcb\x35\x88\xc6\xc1\xf6\xff\xa9\x69\x4d\x7d\x6a\xd2"
                "\x64\x93\x65\xb0\xc1\xf6\x5d\x69\xd1\xec\x83\x33\xea";
     c.inLen  = XSTRLEN(c.input);
-    c.outLen = SHA224_DIGEST_SIZE;
+    c.outLen = WC_SHA224_DIGEST_SIZE;
 
     test_hmac[0] = a;
     test_hmac[1] = b;
@@ -2753,7 +2754,7 @@ int hmac_sha224_test(void)
         if (wc_HmacInit(&hmac, HEAP_HINT, devId) != 0)
             return -2700;
 
-        ret = wc_HmacSetKey(&hmac, SHA224, (byte*)keys[i],
+        ret = wc_HmacSetKey(&hmac, WC_SHA224, (byte*)keys[i],
             (word32)XSTRLEN(keys[i]));
         if (ret != 0)
             return -2701;
@@ -2765,14 +2766,14 @@ int hmac_sha224_test(void)
         if (ret != 0)
             return -2703;
 
-        if (XMEMCMP(hash, test_hmac[i].output, SHA224_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_hmac[i].output, WC_SHA224_DIGEST_SIZE) != 0)
             return -2704 - i;
 
         wc_HmacFree(&hmac);
     }
 
 #ifndef HAVE_FIPS
-    if (wc_HmacSizeByType(SHA224) != SHA224_DIGEST_SIZE)
+    if (wc_HmacSizeByType(WC_SHA224) != WC_SHA224_DIGEST_SIZE)
         return -2714;
 #endif
 
@@ -2785,7 +2786,7 @@ int hmac_sha224_test(void)
 int hmac_sha256_test(void)
 {
     Hmac hmac;
-    byte hash[SHA256_DIGEST_SIZE];
+    byte hash[WC_SHA256_DIGEST_SIZE];
 
     const char* keys[]=
     {
@@ -2807,14 +2808,14 @@ int hmac_sha256_test(void)
                "\x2b\x88\x1d\xc2\x00\xc9\x83\x3d\xa7\x26\xe9\x37\x6c\x2e\x32"
                "\xcf\xf7";
     a.inLen  = XSTRLEN(a.input);
-    a.outLen = SHA256_DIGEST_SIZE;
+    a.outLen = WC_SHA256_DIGEST_SIZE;
 
     b.input  = "what do ya want for nothing?";
     b.output = "\x5b\xdc\xc1\x46\xbf\x60\x75\x4e\x6a\x04\x24\x26\x08\x95\x75"
                "\xc7\x5a\x00\x3f\x08\x9d\x27\x39\x83\x9d\xec\x58\xb9\x64\xec"
                "\x38\x43";
     b.inLen  = XSTRLEN(b.input);
-    b.outLen = SHA256_DIGEST_SIZE;
+    b.outLen = WC_SHA256_DIGEST_SIZE;
 
     c.input  = "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
                "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
@@ -2824,7 +2825,7 @@ int hmac_sha256_test(void)
                "\xa7\x29\x59\x09\x8b\x3e\xf8\xc1\x22\xd9\x63\x55\x14\xce\xd5"
                "\x65\xfe";
     c.inLen  = XSTRLEN(c.input);
-    c.outLen = SHA256_DIGEST_SIZE;
+    c.outLen = WC_SHA256_DIGEST_SIZE;
 
     test_hmac[0] = a;
     test_hmac[1] = b;
@@ -2839,7 +2840,7 @@ int hmac_sha256_test(void)
         if (wc_HmacInit(&hmac, HEAP_HINT, devId) != 0)
             return -2800;
 
-        ret = wc_HmacSetKey(&hmac, SHA256, (byte*)keys[i],
+        ret = wc_HmacSetKey(&hmac, WC_SHA256, (byte*)keys[i],
             (word32)XSTRLEN(keys[i]));
         if (ret != 0)
             return -2801;
@@ -2851,14 +2852,14 @@ int hmac_sha256_test(void)
         if (ret != 0)
             return -2803;
 
-        if (XMEMCMP(hash, test_hmac[i].output, SHA256_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_hmac[i].output, WC_SHA256_DIGEST_SIZE) != 0)
             return -2804 - i;
 
         wc_HmacFree(&hmac);
     }
 
 #ifndef HAVE_FIPS
-    if (wc_HmacSizeByType(SHA256) != SHA256_DIGEST_SIZE)
+    if (wc_HmacSizeByType(WC_SHA256) != WC_SHA256_DIGEST_SIZE)
         return -2814;
     if (wc_HmacSizeByType(20) != BAD_FUNC_ARG)
         return -2815;
@@ -2964,7 +2965,7 @@ int hmac_blake2b_test(void)
 int hmac_sha384_test(void)
 {
     Hmac hmac;
-    byte hash[SHA384_DIGEST_SIZE];
+    byte hash[WC_SHA384_DIGEST_SIZE];
 
     const char* keys[]=
     {
@@ -2987,7 +2988,7 @@ int hmac_sha384_test(void)
                "\xc5\x9c\xfa\xea\x9e\xa9\x07\x6e\xde\x7f\x4a\xf1\x52\xe8\xb2"
                "\xfa\x9c\xb6";
     a.inLen  = XSTRLEN(a.input);
-    a.outLen = SHA384_DIGEST_SIZE;
+    a.outLen = WC_SHA384_DIGEST_SIZE;
 
     b.input  = "what do ya want for nothing?";
     b.output = "\xaf\x45\xd2\xe3\x76\x48\x40\x31\x61\x7f\x78\xd2\xb5\x8a\x6b"
@@ -2995,7 +2996,7 @@ int hmac_sha384_test(void)
                "\x44\x5e\x8e\x22\x40\xca\x5e\x69\xe2\xc7\x8b\x32\x39\xec\xfa"
                "\xb2\x16\x49";
     b.inLen  = XSTRLEN(b.input);
-    b.outLen = SHA384_DIGEST_SIZE;
+    b.outLen = WC_SHA384_DIGEST_SIZE;
 
     c.input  = "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
                "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
@@ -3006,7 +3007,7 @@ int hmac_sha384_test(void)
                "\x14\x4b\x2a\x5a\xb3\x9d\xc1\x38\x14\xb9\x4e\x3a\xb6\xe1\x01"
                "\xa3\x4f\x27";
     c.inLen  = XSTRLEN(c.input);
-    c.outLen = SHA384_DIGEST_SIZE;
+    c.outLen = WC_SHA384_DIGEST_SIZE;
 
     test_hmac[0] = a;
     test_hmac[1] = b;
@@ -3021,7 +3022,7 @@ int hmac_sha384_test(void)
         if (wc_HmacInit(&hmac, HEAP_HINT, devId) != 0)
             return -3000;
 
-        ret = wc_HmacSetKey(&hmac, SHA384, (byte*)keys[i],
+        ret = wc_HmacSetKey(&hmac, WC_SHA384, (byte*)keys[i],
             (word32)XSTRLEN(keys[i]));
         if (ret != 0)
             return -3001;
@@ -3033,14 +3034,14 @@ int hmac_sha384_test(void)
         if (ret != 0)
             return -3003;
 
-        if (XMEMCMP(hash, test_hmac[i].output, SHA384_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_hmac[i].output, WC_SHA384_DIGEST_SIZE) != 0)
             return -3004 - i;
 
         wc_HmacFree(&hmac);
     }
 
 #ifndef HAVE_FIPS
-    if (wc_HmacSizeByType(SHA384) != SHA384_DIGEST_SIZE)
+    if (wc_HmacSizeByType(WC_SHA384) != WC_SHA384_DIGEST_SIZE)
         return -3013;
 #endif
 
@@ -3053,7 +3054,7 @@ int hmac_sha384_test(void)
 int hmac_sha512_test(void)
 {
     Hmac hmac;
-    byte hash[SHA512_DIGEST_SIZE];
+    byte hash[WC_SHA512_DIGEST_SIZE];
 
     const char* keys[]=
     {
@@ -3077,7 +3078,7 @@ int hmac_sha512_test(void)
                "\xa3\xf4\xe4\xbe\x9d\x91\x4e\xeb\x61\xf1\x70\x2e\x69\x6c\x20"
                "\x3a\x12\x68\x54";
     a.inLen  = XSTRLEN(a.input);
-    a.outLen = SHA512_DIGEST_SIZE;
+    a.outLen = WC_SHA512_DIGEST_SIZE;
 
     b.input  = "what do ya want for nothing?";
     b.output = "\x16\x4b\x7a\x7b\xfc\xf8\x19\xe2\xe3\x95\xfb\xe7\x3b\x56\xe0"
@@ -3086,7 +3087,7 @@ int hmac_sha512_test(void)
                "\xf0\xe6\xfd\xca\xea\xb1\xa3\x4d\x4a\x6b\x4b\x63\x6e\x07\x0a"
                "\x38\xbc\xe7\x37";
     b.inLen  = XSTRLEN(b.input);
-    b.outLen = SHA512_DIGEST_SIZE;
+    b.outLen = WC_SHA512_DIGEST_SIZE;
 
     c.input  = "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
                "\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD\xDD"
@@ -3098,7 +3099,7 @@ int hmac_sha512_test(void)
                "\x67\xc8\x07\xb9\x46\xa3\x37\xbe\xe8\x94\x26\x74\x27\x88\x59"
                "\xe1\x32\x92\xfb";
     c.inLen  = XSTRLEN(c.input);
-    c.outLen = SHA512_DIGEST_SIZE;
+    c.outLen = WC_SHA512_DIGEST_SIZE;
 
     test_hmac[0] = a;
     test_hmac[1] = b;
@@ -3113,7 +3114,7 @@ int hmac_sha512_test(void)
         if (wc_HmacInit(&hmac, HEAP_HINT, devId) != 0)
             return -3100;
 
-        ret = wc_HmacSetKey(&hmac, SHA512, (byte*)keys[i],
+        ret = wc_HmacSetKey(&hmac, WC_SHA512, (byte*)keys[i],
             (word32)XSTRLEN(keys[i]));
         if (ret != 0)
             return -3101;
@@ -3125,14 +3126,14 @@ int hmac_sha512_test(void)
         if (ret != 0)
             return -3103;
 
-        if (XMEMCMP(hash, test_hmac[i].output, SHA512_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_hmac[i].output, WC_SHA512_DIGEST_SIZE) != 0)
             return -3104 - i;
 
         wc_HmacFree(&hmac);
     }
 
 #ifndef HAVE_FIPS
-    if (wc_HmacSizeByType(SHA512) != SHA512_DIGEST_SIZE)
+    if (wc_HmacSizeByType(WC_SHA512) != WC_SHA512_DIGEST_SIZE)
         return -3113;
 #endif
 
@@ -6555,7 +6556,7 @@ int random_test(void)
         0xa1, 0x80, 0x18, 0x3a, 0x07, 0xdf, 0xae, 0x17
     };
 
-    byte output[SHA256_DIGEST_SIZE * 4];
+    byte output[WC_SHA256_DIGEST_SIZE * 4];
     int ret;
 
     ret = wc_RNG_HealthTest(0, test1Entropy, sizeof(test1Entropy), NULL, 0,
@@ -7970,7 +7971,7 @@ int rsa_test(void)
        If key size is less than (hash length * 2) + 2 then is invalid use
        and test, since OAEP padding requires this.
        BAD_FUNC_ARG is returned when this case is not met */
-    if (wc_RsaEncryptSize(&key) > ((int)SHA512_DIGEST_SIZE * 2) + 2) {
+    if (wc_RsaEncryptSize(&key) > ((int)WC_SHA512_DIGEST_SIZE * 2) + 2) {
         XMEMSET(plain, 0, plainSz);
         do {
     #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -9262,8 +9263,8 @@ int dsa_test(void)
     byte   tmp[1024];
     DsaKey key;
     WC_RNG rng;
-    Sha    sha;
-    byte   hash[SHA_DIGEST_SIZE];
+    wc_Sha sha;
+    byte   hash[WC_SHA_DIGEST_SIZE];
     byte   signature[40];
 
 #ifdef USE_CERT_BUFFERS_1024
@@ -9555,7 +9556,7 @@ int openssl_test(void)
 {
     EVP_MD_CTX md_ctx;
     testVector a, b, c, d, e, f;
-    byte       hash[SHA256_DIGEST_SIZE*2];  /* max size */
+    byte       hash[WC_SHA256_DIGEST_SIZE*2];  /* max size */
 
     (void)a;
     (void)b;
@@ -9581,7 +9582,7 @@ int openssl_test(void)
     a.output = "\x57\xed\xf4\xa2\x2b\xe3\xc9\x55\xac\x49\xda\x2e\x21\x07\xb6"
                "\x7a";
     a.inLen  = XSTRLEN(a.input);
-    a.outLen = MD5_DIGEST_SIZE;
+    a.outLen = WC_MD5_DIGEST_SIZE;
 
     EVP_MD_CTX_init(&md_ctx);
     EVP_DigestInit(&md_ctx, EVP_md5());
@@ -9589,7 +9590,7 @@ int openssl_test(void)
     EVP_DigestUpdate(&md_ctx, a.input, (unsigned long)a.inLen);
     EVP_DigestFinal(&md_ctx, hash, 0);
 
-    if (XMEMCMP(hash, a.output, MD5_DIGEST_SIZE) != 0)
+    if (XMEMCMP(hash, a.output, WC_MD5_DIGEST_SIZE) != 0)
         return -5901;
 
 #endif /* NO_MD5 */
@@ -9602,7 +9603,7 @@ int openssl_test(void)
     b.output = "\xAD\x5B\x3F\xDB\xCB\x52\x67\x78\xC2\x83\x9D\x2F\x15\x1E\xA7"
                "\x53\x99\x5E\x26\xA0";
     b.inLen  = XSTRLEN(b.input);
-    b.outLen = SHA_DIGEST_SIZE;
+    b.outLen = WC_SHA_DIGEST_SIZE;
 
     EVP_MD_CTX_init(&md_ctx);
     EVP_DigestInit(&md_ctx, EVP_sha1());
@@ -9610,7 +9611,7 @@ int openssl_test(void)
     EVP_DigestUpdate(&md_ctx, b.input, (unsigned long)b.inLen);
     EVP_DigestFinal(&md_ctx, hash, 0);
 
-    if (XMEMCMP(hash, b.output, SHA_DIGEST_SIZE) != 0)
+    if (XMEMCMP(hash, b.output, WC_SHA_DIGEST_SIZE) != 0)
         return -5902;
 
 #endif /* NO_SHA */
@@ -9622,7 +9623,7 @@ int openssl_test(void)
     e.output = "\xc9\x7c\xa9\xa5\x59\x85\x0c\xe9\x7a\x04\xa9\x6d\xef\x6d\x99"
                "\xa9\xe0\xe0\xe2\xab\x14\xe6\xb8\xdf\x26\x5f\xc0\xb3";
     e.inLen  = XSTRLEN(e.input);
-    e.outLen = SHA224_DIGEST_SIZE;
+    e.outLen = WC_SHA224_DIGEST_SIZE;
 
     EVP_MD_CTX_init(&md_ctx);
     EVP_DigestInit(&md_ctx, EVP_sha224());
@@ -9630,7 +9631,7 @@ int openssl_test(void)
     EVP_DigestUpdate(&md_ctx, e.input, (unsigned long)e.inLen);
     EVP_DigestFinal(&md_ctx, hash, 0);
 
-    if (XMEMCMP(hash, e.output, SHA224_DIGEST_SIZE) != 0)
+    if (XMEMCMP(hash, e.output, WC_SHA224_DIGEST_SIZE) != 0)
         return -5903;
 
 #endif /* WOLFSSL_SHA224 */
@@ -9641,7 +9642,7 @@ int openssl_test(void)
                "\x39\xA3\x3C\xE4\x59\x64\xFF\x21\x67\xF6\xEC\xED\xD4\x19\xDB"
                "\x06\xC1";
     d.inLen  = XSTRLEN(d.input);
-    d.outLen = SHA256_DIGEST_SIZE;
+    d.outLen = WC_SHA256_DIGEST_SIZE;
 
     EVP_MD_CTX_init(&md_ctx);
     EVP_DigestInit(&md_ctx, EVP_sha256());
@@ -9649,7 +9650,7 @@ int openssl_test(void)
     EVP_DigestUpdate(&md_ctx, d.input, (unsigned long)d.inLen);
     EVP_DigestFinal(&md_ctx, hash, 0);
 
-    if (XMEMCMP(hash, d.output, SHA256_DIGEST_SIZE) != 0)
+    if (XMEMCMP(hash, d.output, WC_SHA256_DIGEST_SIZE) != 0)
         return -5904;
 
 #ifdef WOLFSSL_SHA384
@@ -9661,7 +9662,7 @@ int openssl_test(void)
                "\xf7\x12\xfc\xc7\xc7\x1a\x55\x7e\x2d\xb9\x66\xc3\xe9\xfa\x91"
                "\x74\x60\x39";
     e.inLen  = XSTRLEN(e.input);
-    e.outLen = SHA384_DIGEST_SIZE;
+    e.outLen = WC_SHA384_DIGEST_SIZE;
 
     EVP_MD_CTX_init(&md_ctx);
     EVP_DigestInit(&md_ctx, EVP_sha384());
@@ -9669,7 +9670,7 @@ int openssl_test(void)
     EVP_DigestUpdate(&md_ctx, e.input, (unsigned long)e.inLen);
     EVP_DigestFinal(&md_ctx, hash, 0);
 
-    if (XMEMCMP(hash, e.output, SHA384_DIGEST_SIZE) != 0)
+    if (XMEMCMP(hash, e.output, WC_SHA384_DIGEST_SIZE) != 0)
         return -5905;
 
 #endif /* WOLFSSL_SHA384 */
@@ -9685,7 +9686,7 @@ int openssl_test(void)
                "\xb5\x43\x3a\xc7\xd3\x29\xee\xb6\xdd\x26\x54\x5e\x96\xe5\x5b"
                "\x87\x4b\xe9\x09";
     f.inLen  = XSTRLEN(f.input);
-    f.outLen = SHA512_DIGEST_SIZE;
+    f.outLen = WC_SHA512_DIGEST_SIZE;
 
     EVP_MD_CTX_init(&md_ctx);
     EVP_DigestInit(&md_ctx, EVP_sha512());
@@ -9693,7 +9694,7 @@ int openssl_test(void)
     EVP_DigestUpdate(&md_ctx, f.input, (unsigned long)f.inLen);
     EVP_DigestFinal(&md_ctx, hash, 0);
 
-    if (XMEMCMP(hash, f.output, SHA512_DIGEST_SIZE) != 0)
+    if (XMEMCMP(hash, f.output, WC_SHA512_DIGEST_SIZE) != 0)
         return -5906;
 
 #endif /* WOLFSSL_SHA512 */
@@ -9707,12 +9708,12 @@ int openssl_test(void)
     c.output = "\x55\x78\xe8\x48\x4b\xcc\x93\x80\x93\xec\x53\xaf\x22\xd6\x14"
                "\x76";
     c.inLen  = XSTRLEN(c.input);
-    c.outLen = MD5_DIGEST_SIZE;
+    c.outLen = WC_MD5_DIGEST_SIZE;
 
     HMAC(EVP_md5(),
                  "JefeJefeJefeJefe", 16, (byte*)c.input, (int)c.inLen, hash, 0);
 
-    if (XMEMCMP(hash, c.output, MD5_DIGEST_SIZE) != 0)
+    if (XMEMCMP(hash, c.output, WC_MD5_DIGEST_SIZE) != 0)
         return -5908;
 
 #endif /* NO_MD5 */
@@ -10380,7 +10381,7 @@ int pkcs12_test(void)
     int kLen       = 24;
     int iterations =  1;
     int ret = wc_PKCS12_PBKDF(derived, passwd, sizeof(passwd), salt, 8,
-                                                  iterations, kLen, SHA256, id);
+                                                  iterations, kLen, WC_SHA256, id);
 
     if (ret < 0)
         return -6100;
@@ -10390,12 +10391,12 @@ int pkcs12_test(void)
 
     iterations = 1000;
     ret = wc_PKCS12_PBKDF(derived, passwd2, sizeof(passwd2), salt2, 8,
-                                                  iterations, kLen, SHA256, id);
+                                                  iterations, kLen, WC_SHA256, id);
     if (ret < 0)
         return -6102;
 
     ret = wc_PKCS12_PBKDF_ex(derived, passwd2, sizeof(passwd2), salt2, 8,
-                                       iterations, kLen, SHA256, id, HEAP_HINT);
+                                       iterations, kLen, WC_SHA256, id, HEAP_HINT);
     if (ret < 0)
         return -6103;
 
@@ -10420,7 +10421,7 @@ int pbkdf2_test(void)
     };
 
     int ret = wc_PBKDF2(derived, (byte*)passwd, (int)XSTRLEN(passwd), salt, 8,
-                                                      iterations, kLen, SHA256);
+                                                      iterations, kLen, WC_SHA256);
     if (ret != 0)
         return ret;
 
@@ -10447,7 +10448,7 @@ int pbkdf1_test(void)
     };
 
     wc_PBKDF1(derived, (byte*)passwd, (int)XSTRLEN(passwd), salt, 8, iterations,
-           kLen, SHA);
+           kLen, WC_SHA);
 
     if (XMEMCMP(derived, verify, sizeof(verify)) != 0)
         return -6300;
@@ -10521,7 +10522,7 @@ int hkdf_test(void)
     (void)info1;
 
 #ifndef NO_SHA
-    ret = wc_HKDF(SHA, ikm1, 22, NULL, 0, NULL, 0, okm1, L);
+    ret = wc_HKDF(WC_SHA, ikm1, 22, NULL, 0, NULL, 0, okm1, L);
     if (ret != 0)
         return -6400;
 
@@ -10530,7 +10531,7 @@ int hkdf_test(void)
 
 #ifndef HAVE_FIPS
     /* fips can't have key size under 14 bytes, salt is key too */
-    ret = wc_HKDF(SHA, ikm1, 11, salt1, 13, info1, 10, okm1, L);
+    ret = wc_HKDF(WC_SHA, ikm1, 11, salt1, 13, info1, 10, okm1, L);
     if (ret != 0)
         return -6402;
 
@@ -10540,7 +10541,7 @@ int hkdf_test(void)
 #endif /* NO_SHA */
 
 #ifndef NO_SHA256
-    ret = wc_HKDF(SHA256, ikm1, 22, NULL, 0, NULL, 0, okm1, L);
+    ret = wc_HKDF(WC_SHA256, ikm1, 22, NULL, 0, NULL, 0, okm1, L);
     if (ret != 0)
         return -6404;
 
@@ -10549,7 +10550,7 @@ int hkdf_test(void)
 
 #ifndef HAVE_FIPS
     /* fips can't have key size under 14 bytes, salt is key too */
-    ret = wc_HKDF(SHA256, ikm1, 22, salt1, 13, info1, 10, okm1, L);
+    ret = wc_HKDF(WC_SHA256, ikm1, 22, salt1, 13, info1, 10, okm1, L);
     if (ret != 0)
         return -6406;
 
@@ -14416,7 +14417,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
     static byte senderNonceOid[] =
                { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
                  0x09, 0x05 };
-    static byte transId[(SHA_DIGEST_SIZE + 1) * 2 + 1];
+    static byte transId[(WC_SHA_DIGEST_SIZE + 1) * 2 + 1];
     static byte messageType[] = { 0x13, 2, '1', '9' };
     static byte senderNonce[PKCS7_NONCE_SZ + 2];
 
@@ -14560,12 +14561,12 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
 
         /* generate trans ID */
         {
-            Sha sha;
-            byte digest[SHA_DIGEST_SIZE];
+            wc_Sha sha;
+            byte digest[WC_SHA_DIGEST_SIZE];
             int j,k;
 
             transId[0] = 0x13;
-            transId[1] = SHA_DIGEST_SIZE * 2;
+            transId[1] = WC_SHA_DIGEST_SIZE * 2;
 
             ret = wc_InitSha_ex(&sha, HEAP_HINT, devId);
             if (ret != 0) {
@@ -14577,7 +14578,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
             wc_ShaFinal(&sha, digest);
             wc_ShaFree(&sha);
 
-            for (j = 0, k = 2; j < SHA_DIGEST_SIZE; j++, k += 2) {
+            for (j = 0, k = 2; j < WC_SHA_DIGEST_SIZE; j++, k += 2) {
                 XSNPRINTF((char*)&transId[k], 3, "%02x", digest[j]);
             }
         }

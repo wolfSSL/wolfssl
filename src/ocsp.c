@@ -484,11 +484,11 @@ int wolfSSL_OCSP_resp_find_status(WOLFSSL_OCSP_BASICRESP *bs,
     WOLFSSL_ASN1_TIME** nextupd)
 {
     if (bs == NULL || id == NULL)
-        return SSL_FAILURE;
+        return WOLFSSL_FAILURE;
 
     /* Only supporting one certificate status in asn.c. */
     if (CompareOcspReqResp(id, bs) != 0)
-        return SSL_FAILURE;
+        return WOLFSSL_FAILURE;
 
     if (status != NULL)
         *status = bs->status->status;
@@ -503,7 +503,7 @@ int wolfSSL_OCSP_resp_find_status(WOLFSSL_OCSP_BASICRESP *bs,
     if (revtime != NULL)
         *revtime = NULL;
 
-    return SSL_SUCCESS;
+    return WOLFSSL_SUCCESS;
 }
 
 const char *wolfSSL_OCSP_cert_status_str(long s)
@@ -528,7 +528,7 @@ int wolfSSL_OCSP_check_validity(WOLFSSL_ASN1_TIME* thisupd,
     (void)sec;
     (void)maxsec;
     /* Dates validated in DecodeSingleResponse. */
-    return SSL_SUCCESS;
+    return WOLFSSL_SUCCESS;
 }
 
 void wolfSSL_OCSP_CERTID_free(WOLFSSL_OCSP_CERTID* certId)
@@ -594,19 +594,19 @@ void wolfSSL_OCSP_BASICRESP_free(WOLFSSL_OCSP_BASICRESP* basicResponse)
 /* Signature verified in DecodeBasicOcspResponse.
  * But no store available to verify certificate. */
 int wolfSSL_OCSP_basic_verify(WOLFSSL_OCSP_BASICRESP *bs,
-    STACK_OF(WOLFSSL_X509) *certs, WOLFSSL_X509_STORE *st, unsigned long flags)
+    WOLF_STACK_OF(WOLFSSL_X509) *certs, WOLFSSL_X509_STORE *st, unsigned long flags)
 {
     DecodedCert cert;
-    int         ret = SSL_SUCCESS;
+    int         ret = WOLFSSL_SUCCESS;
 
     (void)certs;
 
     if (flags & OCSP_NOVERIFY)
-        return SSL_SUCCESS;
+        return WOLFSSL_SUCCESS;
 
     InitDecodedCert(&cert, bs->cert, bs->certSz, NULL);
     if (ParseCertRelative(&cert, CERT_TYPE, VERIFY, st->cm) < 0)
-        ret = SSL_FAILURE;
+        ret = WOLFSSL_FAILURE;
     FreeDecodedCert(&cert);
 
     return ret;

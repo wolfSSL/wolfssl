@@ -499,26 +499,26 @@ static int wc_PKCS12_verify(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
     switch (mac->oid) {
     #ifndef NO_SHA
         case SHAh: /* 88 */
-            typeH = SHA;
-            kLen  = SHA_DIGEST_SIZE;
+            typeH = WC_SHA;
+            kLen  = WC_SHA_DIGEST_SIZE;
             break;
     #endif
     #ifndef NO_SHA256
         case SHA256h: /* 414 */
-            typeH = SHA256;
-            kLen  = SHA256_DIGEST_SIZE;
+            typeH = WC_SHA256;
+            kLen  = WC_SHA256_DIGEST_SIZE;
             break;
     #endif
     #ifdef WOLFSSL_SHA384
         case SHA384h:  /* 415 */
-            typeH = SHA384;
-            kLen  = SHA384_DIGEST_SIZE;
+            typeH = WC_SHA384;
+            kLen  = WC_SHA384_DIGEST_SIZE;
             break;
     #endif
     #ifdef WOLFSSL_SHA512
         case SHA512h: /* 416 */
-            typeH = SHA512;
-            kLen  = SHA512_DIGEST_SIZE;
+            typeH = WC_SHA512;
+            kLen  = WC_SHA512_DIGEST_SIZE;
             break;
     #endif
         default: /* May be SHA224 or was just not built in */
