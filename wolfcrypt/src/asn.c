@@ -6388,31 +6388,30 @@ WOLFSSL_LOCAL int SetMyVersion(word32 version, byte* output, int header)
 
 WOLFSSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output)
 {
-    int result = 0;
-
-    WOLFSSL_ENTER("SetSerialNumber");
+    int i = 0;
+    int snSzInt = (int)snSz;
 
     if (sn == NULL || output == NULL)
         return BAD_FUNC_ARG;
 
-    if (snSz <= EXTERNAL_SERIAL_SIZE) {
-        output[0] = ASN_INTEGER;
-        /* The serial number is always positive. When encoding the
-         * INTEGER, if the MSB is 1, add a padding zero to keep the
-         * number positive. */
-        if (sn[0] & 0x80) {
-            output[1] = (byte)snSz + 1;
-            output[2] = 0;
-            XMEMCPY(&output[3], sn, snSz);
-            result = snSz + 3;
-        }
-        else {
-            output[1] = (byte)snSz;
-            XMEMCPY(&output[2], sn, snSz);
-            result = snSz + 2;
-        }
+    /* remove leading zeros */
+    while (snSzInt > 0 && sn[0] == 0) {
+        snSzInt--;
+        sn++;
     }
-    return result;
+
+    /* encode ASN Integer, with length and value */
+    output[i++] = ASN_INTEGER;
+    i += SetLength(snSzInt, &output[i]);
+    XMEMCPY(&output[i], sn, snSzInt);
+
+    /* ensure positive (MSB not set) */
+    output[i] &= ~0x80;
+
+    /* compute final length */
+    i += snSzInt;
+
+    return i;
 }
 
 WOLFSSL_LOCAL int GetSerialNumber(const byte* input, word32* inOutIdx,
@@ -6971,6 +6970,7 @@ int wc_InitCert(Cert* cert)
 #endif
     cert->keyType    = RSA_KEY;
     XMEMSET(cert->serial, 0, CTC_SERIAL_SIZE);
+    cert->serialSz = 0;
 
     cert->issuer.country[0] = '\0';
     cert->issuer.countryEnc = CTC_PRINTABLE;
@@ -7080,18 +7080,6 @@ static word32 SetUTF8String(word32 len, byte* output)
 
 #endif /* WOLFSSL_CERT_REQ */
 
-
-/* Write a serial number to output */
-static int SetSerial(const byte* serial, byte* output)
-{
-    int length = 0;
-
-    output[length++] = ASN_INTEGER;
-    length += SetLength(CTC_SERIAL_SIZE, &output[length]);
-    XMEMCPY(&output[length], serial, CTC_SERIAL_SIZE);
-
-    return length + CTC_SERIAL_SIZE;
-}
 
 #endif /* defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA) */
 #if defined(HAVE_ECC) && (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
@@ -8187,13 +8175,20 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     /* version */
     der->versionSz = SetMyVersion(cert->version, der->version, TRUE);
 
-    /* serial number */
-    ret = wc_RNG_GenerateBlock(rng, cert->serial, CTC_SERIAL_SIZE);
-    if (ret != 0)
-        return ret;
-
-    cert->serial[0] = 0x01;   /* ensure positive */
-    der->serialSz  = SetSerial(cert->serial, der->serial);
+    /* serial number (must be positive) */
+    if (cert->serialSz == 0) {
+        /* generate random serial */
+        cert->serialSz = CTC_SERIAL_SIZE;
+        ret = wc_RNG_GenerateBlock(rng, cert->serial, cert->serialSz);
+        if (ret != 0)
+            return ret;
+    }
+    else if (cert->serialSz > CTC_SERIAL_SIZE) {
+        cert->serialSz = CTC_SERIAL_SIZE;
+    }
+    der->serialSz = SetSerialNumber(cert->serial, cert->serialSz, der->serial);
+    if (der->serialSz < 0)
+        return der->serialSz;
 
     /* signature algo */
     der->sigAlgoSz = SetAlgoID(cert->sigType, der->sigAlgo, oidSigType, 0);
@@ -11085,8 +11080,8 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
     byte issuerKeyArray[MAX_ENCODED_DIG_SZ];
     byte snArray[MAX_SN_SZ];
     byte extArray[MAX_OCSP_EXT_SZ];
-    word32 seqSz[5], algoSz, issuerSz, issuerKeySz, snSz, extSz, totalSz;
-    int i;
+    word32 seqSz[5], algoSz, issuerSz, issuerKeySz, extSz, totalSz;
+    int i, snSz;
 
     WOLFSSL_ENTER("EncodeOcspRequest");
 
@@ -11096,10 +11091,16 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
     algoSz = SetAlgoID(SHAh, algoArray, oidHashType, 0);
 #endif
 
+    if (req->serialSz > EXTERNAL_SERIAL_SIZE)
+        req->serialSz = EXTERNAL_SERIAL_SIZE;
+
     issuerSz    = SetDigest(req->issuerHash,    KEYID_SIZE,    issuerArray);
     issuerKeySz = SetDigest(req->issuerKeyHash, KEYID_SIZE,    issuerKeyArray);
     snSz        = SetSerialNumber(req->serial,  req->serialSz, snArray);
     extSz       = 0;
+
+    if (snSz < 0)
+        return snSz;
 
     if (req->nonceSz) {
         /* TLS Extensions use this function too - put extensions after
