@@ -451,6 +451,10 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
 {
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT)
     WOLFSSL_CTX *ctx;
+    WOLFSSL_CERT_MANAGER* cm;
+#ifdef PERSIST_CERT_CACHE
+    int cacheSz;
+#endif
 
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
 
@@ -468,8 +472,34 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
     /* AssertFalse(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, bogusFile)); */
 #endif
 
-    /* success */
+    /* load ca cert */
     AssertTrue(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0));
+
+#ifdef PERSIST_CERT_CACHE
+    /* Get cert cache size */
+    cacheSz = wolfSSL_CTX_get_cert_cache_memsize(ctx);
+#endif
+    /* Test unloading CA's */
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_CTX_UnloadCAs(ctx));
+
+#ifdef PERSIST_CERT_CACHE
+    /* Verify no certs (result is less than cacheSz) */
+    AssertIntGT(cacheSz, wolfSSL_CTX_get_cert_cache_memsize(ctx));
+#endif
+
+    /* load ca cert again */
+    AssertTrue(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0));
+
+    /* Test getting CERT_MANAGER */
+    AssertNotNull(cm = wolfSSL_CTX_GetCertManager(ctx));
+
+    /* Test unloading CA's using CM */
+    AssertIntEQ(SSL_SUCCESS, wolfSSL_CertManagerUnloadCAs(cm));
+
+#ifdef PERSIST_CERT_CACHE
+    /* Verify no certs (result is less than cacheSz) */
+    AssertIntGT(cacheSz, wolfSSL_CTX_get_cert_cache_memsize(ctx));
+#endif
 
     wolfSSL_CTX_free(ctx);
 #endif
