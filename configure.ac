@@ -3208,7 +3208,7 @@ AM_CONDITIONAL([BUILD_INTEL_QA], [test "x$ENABLED_INTEL_QA" = "xyes"])
 AC_ARG_ENABLE([sp],
     [AS_HELP_STRING([--enable-sp],[Enable Single Precision maths implementation (default: disabled)])],
     [ ENABLED_SP=$enableval ],
-    [ ENABLED_SP=yes ],
+    [ ENABLED_SP=no ],
     )
 
 for v in `echo $ENABLED_SP | tr "," " "`
