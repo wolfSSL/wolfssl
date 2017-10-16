@@ -30,6 +30,20 @@
 #ifndef NO_SHA256
 
 #ifdef HAVE_FIPS
+    #define wc_Sha256             Sha256
+    #define WC_SHA256             SHA256
+    #define WC_SHA256_BLOCK_SIZE  SHA256_BLOCK_SIZE
+    #define WC_SHA256_DIGEST_SIZE SHA256_DIGEST_SIZE
+    #define WC_SHA256_PAD_SIZE    SHA256_PAD_SIZE
+
+    #ifdef WOLFSSL_SHA224
+        #define wc_Sha224             Sha224
+        #define WC_SHA224             SHA224
+        #define WC_SHA224_BLOCK_SIZE  SHA224_BLOCK_SIZE
+        #define WC_SHA224_DIGEST_SIZE SHA224_DIGEST_SIZE
+        #define WC_SHA224_PAD_SIZE    SHA224_PAD_SIZE
+    #endif
+
     /* for fips @wc_fips */
     #include <cyassl/ctaocrypt/sha256.h>
 #endif
@@ -114,6 +128,7 @@ WOLFSSL_API void wc_Sha256SizeSet(wc_Sha256*, word32);
 #endif
 
 #ifdef WOLFSSL_SHA224
+#ifndef HAVE_FIPS /* avoid redefinition of structs */
 
 #ifndef NO_OLD_WC_NAMES
     #define Sha224             wc_Sha224
@@ -123,7 +138,6 @@ WOLFSSL_API void wc_Sha256SizeSet(wc_Sha256*, word32);
     #define SHA224_PAD_SIZE    WC_SHA224_PAD_SIZE
 #endif
 
-#ifndef HAVE_FIPS /* avoid redefinition of structs */
 /* in bytes */
 enum {
     WC_SHA224              =   8,   /* hash type unique */

@@ -28,6 +28,12 @@
 #ifndef NO_SHA
 
 #ifdef HAVE_FIPS
+#define wc_Sha             Sha
+#define WC_SHA             SHA
+#define WC_SHA_BLOCK_SIZE  SHA_BLOCK_SIZE
+#define WC_SHA_DIGEST_SIZE SHA_DIGEST_SIZE
+#define WC_SHA_PAD_SIZE    SHA_PAD_SIZE
+
 /* for fips @wc_fips */
 #include <cyassl/ctaocrypt/sha.h>
 #endif

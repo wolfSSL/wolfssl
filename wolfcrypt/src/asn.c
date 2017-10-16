@@ -6391,7 +6391,7 @@ WOLFSSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output)
     int i = 0;
     int snSzInt = (int)snSz;
 
-    if (sn == NULL || output == NULL)
+    if (sn == NULL || output == NULL || snSzInt < 0)
         return BAD_FUNC_ARG;
 
     /* remove leading zeros */
@@ -6405,8 +6405,10 @@ WOLFSSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output)
     i += SetLength(snSzInt, &output[i]);
     XMEMCPY(&output[i], sn, snSzInt);
 
-    /* ensure positive (MSB not set) */
-    output[i] &= ~0x80;
+    if (snSzInt > 0) {
+        /* ensure positive (MSB not set) */
+        output[i] &= ~0x80;
+    }
 
     /* compute final length */
     i += snSzInt;
