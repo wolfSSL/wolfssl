@@ -1325,7 +1325,12 @@ static int sp_2048_mod_exp_49(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
         c = bits % 21;
         if (c == 0)
             c = 21;
-        n = e[i--] << (32 - c);
+        if (i < 49)
+            n = e[i--] << (32 - c);
+        else {
+            n = 0;
+            i--;
+        }
         if (c < 5) {
             n |= e[i--] << (11 - c);
             c += 21;
@@ -2104,7 +2109,12 @@ static int sp_2048_mod_exp_98(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
         c = bits % 21;
         if (c == 0)
             c = 21;
-        n = e[i--] << (32 - c);
+        if (i < 98)
+            n = e[i--] << (32 - c);
+        else {
+            n = 0;
+            i--;
+        }
         if (c < 5) {
             n |= e[i--] << (11 - c);
             c += 21;
@@ -2366,7 +2376,6 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     }
 
     if (err == MP_OKAY) {
-        sp_2048_from_mp(m, 98, mm);
         sp_2048_to_bin(r, out);
         *outLen = 256;
     }
@@ -4089,7 +4098,12 @@ static int sp_3072_mod_exp_70(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
         c = bits % 22;
         if (c == 0)
             c = 22;
-        n = e[i--] << (32 - c);
+        if (i < 70)
+            n = e[i--] << (32 - c);
+        else {
+            n = 0;
+            i--;
+        }
         if (c < 5) {
             n |= e[i--] << (10 - c);
             c += 22;
@@ -4895,7 +4909,12 @@ static int sp_3072_mod_exp_140(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
         c = bits % 22;
         if (c == 0)
             c = 22;
-        n = e[i--] << (32 - c);
+        if (i < 140)
+            n = e[i--] << (32 - c);
+        else {
+            n = 0;
+            i--;
+        }
         if (c < 5) {
             n |= e[i--] << (10 - c);
             c += 22;
@@ -5162,7 +5181,6 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     }
 
     if (err == MP_OKAY) {
-        sp_3072_from_mp(m, 140, mm);
         sp_3072_to_bin(r, out);
         *outLen = 384;
     }
@@ -7024,7 +7042,12 @@ static int sp_2048_mod_exp_18(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
         c = bits % 57;
         if (c == 0)
             c = 57;
-        n = e[i--] << (64 - c);
+        if (i < 18)
+            n = e[i--] << (64 - c);
+        else {
+            n = 0;
+            i--;
+        }
         if (c < 5) {
             n |= e[i--] << (7 - c);
             c += 57;
@@ -7830,7 +7853,12 @@ static int sp_2048_mod_exp_36(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
         c = bits % 57;
         if (c == 0)
             c = 57;
-        n = e[i--] << (64 - c);
+        if (i < 36)
+            n = e[i--] << (64 - c);
+        else {
+            n = 0;
+            i--;
+        }
         if (c < 5) {
             n |= e[i--] << (7 - c);
             c += 57;
@@ -8093,7 +8121,6 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     }
 
     if (err == MP_OKAY) {
-        sp_2048_from_mp(m, 36, mm);
         sp_2048_to_bin(r, out);
         *outLen = 256;
     }
@@ -10197,7 +10224,12 @@ static int sp_3072_mod_exp_27(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
         c = bits % 57;
         if (c == 0)
             c = 57;
-        n = e[i--] << (64 - c);
+        if (i < 27)
+            n = e[i--] << (64 - c);
+        else {
+            n = 0;
+            i--;
+        }
         if (c < 5) {
             n |= e[i--] << (7 - c);
             c += 57;
@@ -11016,7 +11048,12 @@ static int sp_3072_mod_exp_54(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
         c = bits % 57;
         if (c == 0)
             c = 57;
-        n = e[i--] << (64 - c);
+        if (i < 54)
+            n = e[i--] << (64 - c);
+        else {
+            n = 0;
+            i--;
+        }
         if (c < 5) {
             n |= e[i--] << (7 - c);
             c += 57;
@@ -11280,7 +11317,6 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     }
 
     if (err == MP_OKAY) {
-        sp_3072_from_mp(m, 54, mm);
         sp_3072_to_bin(r, out);
         *outLen = 384;
     }
