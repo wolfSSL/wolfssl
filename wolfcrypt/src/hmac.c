@@ -45,9 +45,8 @@
     int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 keySz)
     {
         if (hmac == NULL || (key == NULL && keySz != 0) ||
-           !(type == WC_MD5 || type == WC_SHA || type == WC_SHA224 ||
-                type == WC_SHA256 || type == WC_SHA384 || type == WC_SHA512 ||
-                type == BLAKE2B_ID)) {
+           !(type == WC_MD5 || type == WC_SHA || type == WC_SHA256 ||
+                type == WC_SHA384 || type == WC_SHA512 || type == BLAKE2B_ID)) {
             return BAD_FUNC_ARG;
         }
 

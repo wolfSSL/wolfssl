@@ -29,6 +29,19 @@
 
 /* for fips @wc_fips */
 #ifdef HAVE_FIPS
+    #define wc_Sha512             Sha512
+    #define WC_SHA512             SHA512
+    #define WC_SHA512_BLOCK_SIZE  SHA512_BLOCK_SIZE
+    #define WC_SHA512_DIGEST_SIZE SHA512_DIGEST_SIZE
+    #define WC_SHA512_PAD_SIZE    SHA512_PAD_SIZE
+    #ifdef WOLFSSL_SHA384
+        #define wc_Sha384             Sha384
+        #define WC_SHA384             SHA384
+        #define WC_SHA384_BLOCK_SIZE  SHA384_BLOCK_SIZE
+        #define WC_SHA384_DIGEST_SIZE SHA384_DIGEST_SIZE
+        #define WC_SHA384_PAD_SIZE    SHA384_PAD_SIZE
+    #endif /* WOLFSSL_SHA384 */
+
     #define CYASSL_SHA512
     #if defined(WOLFSSL_SHA384)
         #define CYASSL_SHA384
