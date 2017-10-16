@@ -379,7 +379,7 @@ create_port
 ./examples/client/client -v 4 -p $port
 RESULT=$?
 remove_ready_file
-if [ $RESULT -ne 0 ]; then
+if [ $RESULT -eq 0 ]; then
     echo -e "\n\nIssue with TLS v1.3 client upgrading server to TLS v1.3"
     do_cleanup
     exit 1

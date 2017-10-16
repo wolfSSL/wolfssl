@@ -4308,7 +4308,7 @@ int TLSX_UseQSHScheme(TLSX** extensions, word16 name, byte* pKey, word16 pkeySz,
  */
 static word16 TLSX_SupportedVersions_GetSize(void* data)
 {
-    (void)data;
+    WOLFSSL* ssl = (WOLFSSL*)data;
 
     /* TLS v1.2 and TLS v1.3  */
     int cnt = 2;
@@ -4317,6 +4317,9 @@ static word16 TLSX_SupportedVersions_GetSize(void* data)
     /* TLS v1 and TLS v1.1  */
     cnt += 2;
 #endif
+
+   if (!ssl->options.downgrade)
+       cnt = 1;
 
     return OPAQUE8_LEN + cnt * OPAQUE16_LEN;
 }
@@ -4339,6 +4342,9 @@ static word16 TLSX_SupportedVersions_Write(void* data, byte* output)
     /* TLS v1 and TLS v1.1  */
     cnt += 2;
 #endif
+
+   if (!ssl->options.downgrade)
+       cnt = 1;
 
     *(output++) = cnt * OPAQUE16_LEN;
     for (i = 0; i < cnt; i++) {
@@ -4370,8 +4376,9 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL *ssl, byte* input,
 {
     ProtocolVersion pv = ssl->ctx->method->version;
     int i;
-    int ret = 0;
+    int ret = VERSION_ERROR;
     int len;
+    byte major, minor;
 
     /* Must contain a length and at least one version. */
     if (length < OPAQUE8_LEN + OPAQUE16_LEN || (length & 1) != 1)
@@ -4387,39 +4394,41 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL *ssl, byte* input,
 
     /* Find first match. */
     for (i = 0; i < len; i += OPAQUE16_LEN) {
+        major = input[i];
+        minor = input[i + OPAQUE8_LEN];
+
         /* TODO: [TLS13] Remove code when TLS v1.3 becomes an RFC. */
-        if (input[i] == TLS_DRAFT_MAJOR &&
-                                    input[i + OPAQUE8_LEN] == TLS_DRAFT_MINOR) {
-            ssl->version.minor = TLSv1_3_MINOR;
-            ssl->options.tls1_3 = 1;
-            TLSX_Push(&ssl->extensions, TLSX_SUPPORTED_VERSIONS, input,
-                      ssl->heap);
-            break;
+        if (major == TLS_DRAFT_MAJOR && minor == TLS_DRAFT_MINOR) {
+            major = SSLv3_MAJOR;
+            minor = TLSv1_3_MINOR;
         }
 
-        if (input[i] != pv.major)
+        if (major != pv.major)
             continue;
 
-#ifndef NO_OLD_TLS
-        if (input[i + OPAQUE8_LEN] == TLSv1_MINOR ||
-            input[i + OPAQUE8_LEN] == TLSv1_1_MINOR) {
-            ssl->version.minor = input[i + OPAQUE8_LEN];
-            break;
-        }
+        /* No upgrade allowed. */
+        if (ssl->version.minor > minor)
+                continue;
+        /* Check downgrade. */
+        if (ssl->version.minor < minor) {
+            if (!ssl->options.downgrade)
+                continue;
+
+#ifdef NO_OLD_TLS
+            if (minor < TLSv1_2_MINOR)
+                continue;
 #endif
-        if (input[i + OPAQUE8_LEN] == TLSv1_2_MINOR) {
-            ssl->version.minor = input[i + OPAQUE8_LEN];
-            TLSX_Push(&ssl->extensions, TLSX_SUPPORTED_VERSIONS, input,
-                      ssl->heap);
-            break;
+            /* Downgrade the version. */
+            ssl->version.minor = minor;
         }
-        if (input[i + OPAQUE8_LEN] == TLSv1_3_MINOR) {
-            ssl->version.minor = input[i + OPAQUE8_LEN];
+
+        if (minor >= TLSv1_3_MINOR) {
             ssl->options.tls1_3 = 1;
             TLSX_Push(&ssl->extensions, TLSX_SUPPORTED_VERSIONS, input,
                       ssl->heap);
-            break;
         }
+        ret = 0;
+        break;
     }
 
     return ret;

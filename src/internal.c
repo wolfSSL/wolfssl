@@ -22776,13 +22776,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #ifdef WOLFSSL_TLS13
                 if (TLSX_Find(ssl->extensions,
                                              TLSX_SUPPORTED_VERSIONS) != NULL) {
-                    TLSX_FreeAll(ssl->extensions, ssl->heap);
-                    ssl->extensions = NULL;
-                    ssl->version.minor = TLSv1_3_MINOR;
-                    *inOutIdx = begin;
-                    if ((ret = InitHandshakeHashes(ssl)) != 0)
-                        return ret;
-                    return DoTls13ClientHello(ssl, input, inOutIdx, helloSz);
+                    WOLFSSL_MSG(
+                            "Client attempting to connect with higher version");
+                    return VERSION_ERROR;
                 }
     #endif
 #if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
