@@ -166,7 +166,7 @@
     } while (0);
 
     /* s == size in bytes that 1 count represents, normally BENCH_SIZE */
-    #define SHOW_INTEL_CYCLES(b, n) \
+    #define SHOW_INTEL_CYCLES(b, n, s) \
         XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), " Cycles per byte = %6.2f\n", \
             (float)total_cycles / (count*s))
 
