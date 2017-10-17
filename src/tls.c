@@ -5056,12 +5056,16 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
     while ((current = list) != NULL) {
         list = current->next;
         if ((current->group & NAMED_DH_MASK) == 0) {
-#ifdef HAVE_CURVE25519
             if (current->group == WOLFSSL_ECC_X25519) {
-            }
-            else
+#ifdef HAVE_CURVE25519
+
 #endif
+            }
+            else {
+#ifdef HAVE_ECC
                 wc_ecc_free((ecc_key*)(current->key));
+#endif
+            }
         }
         XFREE(current->key, heap, DYNAMIC_TYPE_PRIVATE_KEY);
         XFREE(current->ke, heap, DYNAMIC_TYPE_PUBLIC_KEY);

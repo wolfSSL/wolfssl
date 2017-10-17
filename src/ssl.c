@@ -5219,6 +5219,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             return WOLFSSL_BAD_FILE;
 
         (void)ed25519Key;
+        (void)devId;
     }
     else if (type == CERT_TYPE) {
     #ifdef WOLFSSL_SMALL_STACK
