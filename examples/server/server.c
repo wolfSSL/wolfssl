@@ -1504,6 +1504,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         }
     } /* while(1) */
 
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+ || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    wolfSSL_CTX_DisableOCSPStapling(ctx);
+#endif
 
     CloseSocket(sockfd);
     SSL_CTX_free(ctx);
