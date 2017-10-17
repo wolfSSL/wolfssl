@@ -5759,35 +5759,54 @@ int wolfSSL_CertManagerEnableOCSPStapling(WOLFSSL_CERT_MANAGER* cm)
     int ret = WOLFSSL_SUCCESS;
 
     WOLFSSL_ENTER("wolfSSL_CertManagerEnableOCSPStapling");
+
     if (cm == NULL)
         return BAD_FUNC_ARG;
 
-    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
-     || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
-        if (cm->ocsp_stapling == NULL) {
-            cm->ocsp_stapling = (WOLFSSL_OCSP*)XMALLOC(sizeof(WOLFSSL_OCSP),
-                                                   cm->heap, DYNAMIC_TYPE_OCSP);
-            if (cm->ocsp_stapling == NULL)
-                return MEMORY_E;
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+ || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    if (cm->ocsp_stapling == NULL) {
+        cm->ocsp_stapling = (WOLFSSL_OCSP*)XMALLOC(sizeof(WOLFSSL_OCSP),
+                                               cm->heap, DYNAMIC_TYPE_OCSP);
+        if (cm->ocsp_stapling == NULL)
+            return MEMORY_E;
 
-            if (InitOCSP(cm->ocsp_stapling, cm) != 0) {
-                WOLFSSL_MSG("Init OCSP failed");
-                FreeOCSP(cm->ocsp_stapling, 1);
-                cm->ocsp_stapling = NULL;
-                return WOLFSSL_FAILURE;
-            }
+        if (InitOCSP(cm->ocsp_stapling, cm) != 0) {
+            WOLFSSL_MSG("Init OCSP failed");
+            FreeOCSP(cm->ocsp_stapling, 1);
+            cm->ocsp_stapling = NULL;
+            return WOLFSSL_FAILURE;
         }
-        cm->ocspStaplingEnabled = 1;
+    }
+    cm->ocspStaplingEnabled = 1;
 
-        #ifndef WOLFSSL_USER_IO
-            cm->ocspIOCb = EmbedOcspLookup;
-            cm->ocspRespFreeCb = EmbedOcspRespFree;
-            cm->ocspIOCtx = cm->heap;
-        #endif /* WOLFSSL_USER_IO */
-    #else
-        ret = NOT_COMPILED_IN;
-    #endif
+    #ifndef WOLFSSL_USER_IO
+        cm->ocspIOCb = EmbedOcspLookup;
+        cm->ocspRespFreeCb = EmbedOcspRespFree;
+        cm->ocspIOCtx = cm->heap;
+    #endif /* WOLFSSL_USER_IO */
+#else
+    ret = NOT_COMPILED_IN;
+#endif
 
+    return ret;
+}
+
+int wolfSSL_CertManagerDisableOCSPStapling(WOLFSSL_CERT_MANAGER* cm)
+{
+    int ret = WOLFSSL_SUCCESS;
+
+    WOLFSSL_ENTER("wolfSSL_CertManagerDisableOCSPStapling");
+
+    if (cm == NULL)
+        return BAD_FUNC_ARG;
+
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+ || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    cm->ocspStaplingEnabled = 0;
+#else
+    ret = NOT_COMPILED_IN;
+#endif
     return ret;
 }
 
@@ -5885,7 +5904,6 @@ int wolfSSL_EnableOCSP(WOLFSSL* ssl, int options)
         return BAD_FUNC_ARG;
 }
 
-
 int wolfSSL_DisableOCSP(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_DisableOCSP");
@@ -5895,6 +5913,24 @@ int wolfSSL_DisableOCSP(WOLFSSL* ssl)
         return BAD_FUNC_ARG;
 }
 
+
+int wolfSSL_EnableOCSPStapling(WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_EnableOCSPStapling");
+    if (ssl)
+        return wolfSSL_CertManagerEnableOCSPStapling(ssl->ctx->cm);
+    else
+        return BAD_FUNC_ARG;
+}
+
+int wolfSSL_DisableOCSPStapling(WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_DisableOCSPStapling");
+    if (ssl)
+        return wolfSSL_CertManagerDisableOCSPStapling(ssl->ctx->cm);
+    else
+        return BAD_FUNC_ARG;
+}
 
 int wolfSSL_SetOCSP_OverrideURL(WOLFSSL* ssl, const char* url)
 {
@@ -5971,7 +6007,16 @@ int wolfSSL_CTX_EnableOCSPStapling(WOLFSSL_CTX* ctx)
     else
         return BAD_FUNC_ARG;
 }
-#endif
+
+int wolfSSL_CTX_DisableOCSPStapling(WOLFSSL_CTX* ctx)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_DisableOCSPStapling");
+    if (ctx)
+        return wolfSSL_CertManagerDisableOCSPStapling(ctx->cm);
+    else
+        return BAD_FUNC_ARG;
+}
+#endif /* HAVE_CERTIFICATE_STATUS_REQUEST || HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
 
 #endif /* HAVE_OCSP */
 

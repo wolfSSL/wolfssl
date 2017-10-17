@@ -1789,6 +1789,8 @@ WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
 
     WOLFSSL_API int wolfSSL_CertManagerEnableOCSPStapling(
                                                       WOLFSSL_CERT_MANAGER* cm);
+    WOLFSSL_API int wolfSSL_CertManagerDisableOCSPStapling(
+                                                      WOLFSSL_CERT_MANAGER* cm);
 
     WOLFSSL_API int wolfSSL_EnableCRL(WOLFSSL* ssl, int options);
     WOLFSSL_API int wolfSSL_DisableCRL(WOLFSSL* ssl);
@@ -1803,6 +1805,8 @@ WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
     WOLFSSL_API int wolfSSL_DisableOCSP(WOLFSSL*);
     WOLFSSL_API int wolfSSL_SetOCSP_OverrideURL(WOLFSSL*, const char*);
     WOLFSSL_API int wolfSSL_SetOCSP_Cb(WOLFSSL*, CbOCSPIO, CbOCSPRespFree, void*);
+    WOLFSSL_API int wolfSSL_EnableOCSPStapling(WOLFSSL*);
+    WOLFSSL_API int wolfSSL_DisableOCSPStapling(WOLFSSL*);
 
     WOLFSSL_API int wolfSSL_CTX_EnableCRL(WOLFSSL_CTX* ctx, int options);
     WOLFSSL_API int wolfSSL_CTX_DisableCRL(WOLFSSL_CTX* ctx);
@@ -1813,13 +1817,14 @@ WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
 #ifdef HAVE_CRL_IO
     WOLFSSL_API int wolfSSL_CTX_SetCRL_IOCb(WOLFSSL_CTX*, CbCrlIO);
 #endif
+
     WOLFSSL_API int wolfSSL_CTX_EnableOCSP(WOLFSSL_CTX*, int options);
     WOLFSSL_API int wolfSSL_CTX_DisableOCSP(WOLFSSL_CTX*);
     WOLFSSL_API int wolfSSL_CTX_SetOCSP_OverrideURL(WOLFSSL_CTX*, const char*);
     WOLFSSL_API int wolfSSL_CTX_SetOCSP_Cb(WOLFSSL_CTX*,
                                                CbOCSPIO, CbOCSPRespFree, void*);
-
     WOLFSSL_API int wolfSSL_CTX_EnableOCSPStapling(WOLFSSL_CTX*);
+    WOLFSSL_API int wolfSSL_CTX_DisableOCSPStapling(WOLFSSL_CTX*);
 #endif /* !NO_CERTS */
 
 
