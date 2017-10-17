@@ -629,7 +629,7 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define ASN1_STRFLGS_ESC_MSB             4
 #define X509_V_ERR_CERT_REJECTED         28
 
-#define SSL_MAX_MASTER_KEY_LENGTH        48 /* SECRET_LEN from internal.h */
+#define SSL_MAX_MASTER_KEY_LENGTH        WOLFSSL_MAX_MASTER_KEY_LENGTH
 
 #define SSL_alert_desc_string_long       wolfSSL_alert_desc_string_long
 #define SSL_alert_type_string_long       wolfSSL_alert_type_string_long

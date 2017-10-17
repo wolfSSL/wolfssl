@@ -299,6 +299,8 @@ enum AlertLevel {
     alert_fatal   = 2
 };
 
+/* Maximum master key length (SECRET_LEN) */
+#define WOLFSSL_MAX_MASTER_KEY_LENGTH 48
 
 typedef WOLFSSL_METHOD* (*wolfSSL_method_func)(void* heap);
 WOLFSSL_API WOLFSSL_METHOD *wolfSSLv3_server_method_ex(void* heap);
