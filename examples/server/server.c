@@ -1388,7 +1388,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             if (err == WOLFSSL_SUCCESS)
                 printf("Sent ALPN protocol : %s (%d)\n",
                        protocol_name, protocol_nameSz);
-            else if (err == SSL_ALPN_NOT_FOUND)
+            else if (err == WOLFSSL_ALPN_NOT_FOUND)
                 printf("No ALPN response sent (no match)\n");
             else
                 printf("Getting ALPN protocol name failed\n");
