@@ -1293,8 +1293,13 @@ static INLINE int CRL_CallBack(const char* url)
 {
     printf("CRL callback url = %s\n", url);
 
-    /* return 0; to continue with CRL_MISSING failure up stack */
-    return 1; /* return non-zero to ignore the CRL missing */
+#if 0
+    if (ignoreCrlMissing) {
+        return 1; /* return non-zero to ignore the CRL missing */
+    }
+#endif
+
+    return 0; /* return zero to continue with CRL_MISSING failure up stack */
 }
 
 #endif
