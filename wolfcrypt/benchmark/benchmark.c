@@ -2846,7 +2846,7 @@ void bench_hmac_md5(int doAsync)
     byte key[] = { 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
                    0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b };
 
-    bench_hmac(doAsync, MD5, MD5_DIGEST_SIZE, key, sizeof(key),
+    bench_hmac(doAsync, WC_MD5, WC_MD5_DIGEST_SIZE, key, sizeof(key),
                "HMAC-MD5");
 }
 
@@ -2860,7 +2860,7 @@ void bench_hmac_sha(int doAsync)
                    0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
                    0x0b, 0x0b, 0x0b, 0x0b };
 
-    bench_hmac(doAsync, SHA, SHA_DIGEST_SIZE, key, sizeof(key),
+    bench_hmac(doAsync, WC_SHA, WC_SHA_DIGEST_SIZE, key, sizeof(key),
                "HMAC-SHA");
 }
 
@@ -2875,7 +2875,7 @@ void bench_hmac_sha224(int doAsync)
                    0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
                    0x0b, 0x0b, 0x0b, 0x0b };
 
-    bench_hmac(doAsync, SHA224, SHA224_DIGEST_SIZE, key, sizeof(key),
+    bench_hmac(doAsync, WC_SHA224, WC_SHA224_DIGEST_SIZE, key, sizeof(key),
                "HMAC-SHA224");
 }
 
@@ -2890,7 +2890,7 @@ void bench_hmac_sha256(int doAsync)
                    0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
                    0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b };
 
-    bench_hmac(doAsync, SHA256, SHA256_DIGEST_SIZE, key, sizeof(key),
+    bench_hmac(doAsync, WC_SHA256, WC_SHA256_DIGEST_SIZE, key, sizeof(key),
                "HMAC-SHA256");
 }
 
@@ -2907,7 +2907,7 @@ void bench_hmac_sha384(int doAsync)
                    0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
                    0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b };
 
-    bench_hmac(doAsync, SHA384, SHA384_DIGEST_SIZE, key, sizeof(key),
+    bench_hmac(doAsync, WC_SHA384, WC_SHA384_DIGEST_SIZE, key, sizeof(key),
                "HMAC-SHA384");
 }
 
@@ -2926,7 +2926,7 @@ void bench_hmac_sha512(int doAsync)
                    0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
                    0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b };
 
-    bench_hmac(doAsync, SHA512, SHA512_DIGEST_SIZE, key, sizeof(key),
+    bench_hmac(doAsync, WC_SHA512, WC_SHA512_DIGEST_SIZE, key, sizeof(key),
                "HMAC-SHA512");
 }
 
