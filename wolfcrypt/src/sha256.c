@@ -791,30 +791,27 @@ static INLINE void AddLength(wc_Sha256* sha256, word32 len)
 
 #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
 
-#define _DigestToReg(S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7 )\
-{ word32 d;\
-    d = sha256->digest[0]; __asm__ volatile("movl %0, %"#S_0::"r"(d):SSE_REGs);\
-    d = sha256->digest[1]; __asm__ volatile("movl %0, %"#S_1::"r"(d):SSE_REGs);\
-    d = sha256->digest[2]; __asm__ volatile("movl %0, %"#S_2::"r"(d):SSE_REGs);\
-    d = sha256->digest[3]; __asm__ volatile("movl %0, %"#S_3::"r"(d):SSE_REGs);\
-    d = sha256->digest[4]; __asm__ volatile("movl %0, %"#S_4::"r"(d):SSE_REGs);\
-    d = sha256->digest[5]; __asm__ volatile("movl %0, %"#S_5::"r"(d):SSE_REGs);\
-    d = sha256->digest[6]; __asm__ volatile("movl %0, %"#S_6::"r"(d):SSE_REGs);\
-    d = sha256->digest[7]; __asm__ volatile("movl %0, %"#S_7::"r"(d):SSE_REGs);\
-}
+#define _DigestToReg(S0, S1, S2, S3, S4, S5, S6, S7) \
+    "leaq	%[digest], %%r8\n\t"                 \
+    "movl	  (%%r8), %"#S0"\n\t"                \
+    "movl	 4(%%r8), %"#S1"\n\t"                \
+    "movl	 8(%%r8), %"#S2"\n\t"                \
+    "movl	12(%%r8), %"#S3"\n\t"                \
+    "movl	16(%%r8), %"#S4"\n\t"                \
+    "movl	20(%%r8), %"#S5"\n\t"                \
+    "movl	24(%%r8), %"#S6"\n\t"                \
+    "movl	28(%%r8), %"#S7"\n\t"
 
-#define _RegToDigest(S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7 )\
-{ word32 d; \
-    __asm__ volatile("movl %"#S_0", %0":"=r"(d)::SSE_REGs); sha256->digest[0] += d;\
-    __asm__ volatile("movl %"#S_1", %0":"=r"(d)::SSE_REGs); sha256->digest[1] += d;\
-    __asm__ volatile("movl %"#S_2", %0":"=r"(d)::SSE_REGs); sha256->digest[2] += d;\
-    __asm__ volatile("movl %"#S_3", %0":"=r"(d)::SSE_REGs); sha256->digest[3] += d;\
-    __asm__ volatile("movl %"#S_4", %0":"=r"(d)::SSE_REGs); sha256->digest[4] += d;\
-    __asm__ volatile("movl %"#S_5", %0":"=r"(d)::SSE_REGs); sha256->digest[5] += d;\
-    __asm__ volatile("movl %"#S_6", %0":"=r"(d)::SSE_REGs); sha256->digest[6] += d;\
-    __asm__ volatile("movl %"#S_7", %0":"=r"(d)::SSE_REGs); sha256->digest[7] += d;\
-}
-
+#define _RegToDigest(S0, S1, S2, S3, S4, S5, S6, S7) \
+    "leaq	%[digest], %%r8\n\t"                 \
+    "addl %"#S0",   (%%r8)\n\t"                      \
+    "addl %"#S1",  4(%%r8)\n\t"                      \
+    "addl %"#S2",  8(%%r8)\n\t"                      \
+    "addl %"#S3", 12(%%r8)\n\t"                      \
+    "addl %"#S4", 16(%%r8)\n\t"                      \
+    "addl %"#S5", 20(%%r8)\n\t"                      \
+    "addl %"#S6", 24(%%r8)\n\t"                      \
+    "addl %"#S7", 28(%%r8)\n\t"
 
 #define DigestToReg(S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7 )\
     _DigestToReg(S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7 )
@@ -832,179 +829,229 @@ static INLINE void AddLength(wc_Sha256* sha256, word32 len)
 #define S_6 %ebx
 #define S_7 %r9d
 
-#define SSE_REGs "%edi", "%ecx", "%esi", "%edx", "%ebx","%r8","%r9","%r10","%r11","%r12","%r13","%r14","%r15"
+#define SSE_REGs "%edi", "%esi", "%edx", "%ebx","%r8","%r9","%r10","%r11","%r12","%r13","%r14","%r15"
 
 #if defined(HAVE_INTEL_RORX)
-#define RND_STEP_RORX_1(a,b,c,d,e,f,g,h,i)\
-__asm__ volatile("rorx  $6, %"#e", %%edx\n\t":::"%edx",SSE_REGs);  /* edx = e>>6 */\
+#define RND_STEP_RORX_1(a,b,c,d,e,f,g,h,i) \
+    "# edx = e>>>6\n\t"                    \
+    "rorx	$6, %"#e", %%edx\n\t"
 
-#define RND_STEP_RORX_2(a,b,c,d,e,f,g,h,i)\
-__asm__ volatile("rorx  $11, %"#e",%%edi\n\t":::"%edi",SSE_REGs); /* edi = e>>11  */\
-__asm__ volatile("xorl  %%edx, %%edi\n\t":::"%edx","%edi",SSE_REGs); /* edi = (e>>11) ^ (e>>6)  */\
-__asm__ volatile("rorx  $25, %"#e", %%edx\n\t":::"%edx",SSE_REGs);   /* edx = e>>25             */\
+#define RND_STEP_RORX_2(a,b,c,d,e,f,g,h,i) \
+    "# edi = e>>>11\n\t"                   \
+    "rorx	$11, %"#e",%%edi\n\t"      \
+    "# edi = (e>>11) ^ (e>>6)\n\t"         \
+    "xorl	%%edx, %%edi\n\t"          \
+    "# edx = e>>>25\n\t"                   \
+    "rorx	$25, %"#e", %%edx\n\t"
 
-#define RND_STEP_RORX_3(a,b,c,d,e,f,g,h,i)\
-__asm__ volatile("movl  %"#f", %%esi\n\t":::"%esi",SSE_REGs);  /* esi = f   */\
-__asm__ volatile("xorl  %"#g", %%esi\n\t":::"%esi",SSE_REGs);  /* esi = f ^ g  */\
-__asm__ volatile("xorl  %%edi, %%edx\n\t":::"%edi","%edx",SSE_REGs);  /* edx = Sigma1(e)  */\
-__asm__ volatile("andl  %"#e", %%esi\n\t":::"%esi",SSE_REGs);  /* esi = (f ^ g) & e       */\
-__asm__ volatile("xorl  %"#g", %%esi\n\t":::"%esi",SSE_REGs);  /* esi = Ch(e,f,g)         */\
+#define RND_STEP_RORX_3(a,b,c,d,e,f,g,h,i) \
+    "# esi = f\n\t"                        \
+    "movl	%"#f", %%esi\n\t"          \
+    "# esi = f ^ g\n\t"                    \
+    "xorl	%"#g", %%esi\n\t"          \
+    "# edx = Sigma1(e)\n\t"                \
+    "xorl	%%edi, %%edx\n\t"          \
+    "# esi = (f ^ g) & e\n\t"              \
+    "andl	%"#e", %%esi\n\t"          \
+    "# esi = Ch(e,f,g)\n\t"                \
+    "xorl	%"#g", %%esi\n\t"
 
-#define RND_STEP_RORX_4(a,b,c,d,e,f,g,h,i)\
-/*__asm__ volatile("movl    %0, %%edx\n\t"::"m"(w_k):"%edx");*/\
-__asm__ volatile("addl  %0, %"#h"\n\t"::"r"(W_K[i]):SSE_REGs);    /* h += w_k  */\
-__asm__ volatile("addl  %%edx, %"#h"\n\t":::"%edx",SSE_REGs);     /* h = h + w_k + Sigma1(e) */\
-__asm__ volatile("rorx  $2, %"#a", %%r8d\n\t":::"%r8",SSE_REGs);  /* r8d = a>>2   */\
-__asm__ volatile("rorx  $13, %"#a", %%edi\n\t":::"%edi",SSE_REGs);/* edi = a>>13  */\
+#define RND_STEP_RORX_4(a,b,c,d,e,f,g,h,i) \
+    "# h += w_k\n\t"                       \
+    "leaq	%[W_K], %%r8\n\t"          \
+    "addl	("#i")*4(%%r8), %"#h"\n\t" \
+    "# h = h + w_k + Sigma1(e)\n\t"        \
+    "addl	%%edx, %"#h"\n\t"          \
+    "# r8d = a>>>2\n\t"                    \
+    "rorx	$2, %"#a", %%r8d\n\t"      \
+    "# edi = a>>>13\n\t"                   \
+    "rorx	$13, %"#a", %%edi\n\t"
 
-#define RND_STEP_RORX_5(a,b,c,d,e,f,g,h,i)\
-__asm__ volatile("rorx  $22, %"#a", %%edx\n\t":::"%edx",SSE_REGs); /* edx = a>>22 */\
-__asm__ volatile("xorl  %%r8d, %%edi\n\t":::"%edi","%r8",SSE_REGs);/* edi = (a>>2) ^ (a>>13)  */\
-__asm__ volatile("xorl  %%edi, %%edx\n\t":::"%edi","%edx",SSE_REGs);  /* edx = Sigma0(a)      */\
+#define RND_STEP_RORX_5(a,b,c,d,e,f,g,h,i) \
+    "# edx = a>>22\n\t"                    \
+    "rorx	$22, %"#a", %%edx\n\t"     \
+    "# edi = (a>>>2) ^ (a>>>13)\n\t"       \
+    "xorl	%%r8d, %%edi\n\t"          \
+    "# edx = Sigma0(a)\n\t"                \
+    "xorl	%%edi, %%edx\n\t"
 
-#define RND_STEP_RORX_6(a,b,c,d,e,f,g,h,i)\
-__asm__ volatile("movl  %"#b", %%edi\n\t":::"%edi",SSE_REGs);  /* edi = b          */\
-__asm__ volatile("orl   %"#a", %%edi\n\t":::"%edi",SSE_REGs);  /* edi = a | b      */\
-__asm__ volatile("andl  %"#c", %%edi\n\t":::"%edi",SSE_REGs);  /* edi = (a | b) & c*/\
-__asm__ volatile("movl  %"#b", %%r8d\n\t":::"%r8",SSE_REGs);  /* r8d = b           */\
+#define RND_STEP_RORX_6(a,b,c,d,e,f,g,h,i) \
+    "# edi = b\n\t"                        \
+    "movl	%"#b", %%edi\n\t"          \
+    "# edi = a | b\n\t"                    \
+    "orl	%"#a", %%edi\n\t"          \
+    "# edi = (a | b) & c\n\t"              \
+    "andl	%"#c", %%edi\n\t"          \
+    "# r8d = b\n\t"                        \
+    "movl	%"#b", %%r8d\n\t"
 
-#define RND_STEP_RORX_7(a,b,c,d,e,f,g,h,i)\
-__asm__ volatile("addl  %%esi, %"#h"\n\t":::"%esi",SSE_REGs);  /* h += Ch(e,f,g)   */\
-__asm__ volatile("andl  %"#a", %%r8d\n\t":::"%r8",SSE_REGs);  /* r8d = b & a       */\
-__asm__ volatile("orl   %%edi, %%r8d\n\t":::"%edi","%r8",SSE_REGs); /* r8d = Maj(a,b,c) */\
+#define RND_STEP_RORX_7(a,b,c,d,e,f,g,h,i) \
+    "# h += Ch(e,f,g)\n\t"                 \
+    "addl	%%esi, %"#h"\n\t"          \
+    "# r8d = b & a\n\t"                    \
+    "andl	%"#a", %%r8d\n\t"          \
+    "# r8d = Maj(a,b,c)\n\t"               \
+    "orl	%%edi, %%r8d\n\t"
 
-#define RND_STEP_RORX_8(a,b,c,d,e,f,g,h,i)\
-__asm__ volatile("addl  "#h", "#d"\n\t");  /* d += h + w_k + Sigma1(e) + Ch(e,f,g) */\
-__asm__ volatile("addl  %"#h", %%r8d\n\t":::"%r8",SSE_REGs); \
-__asm__ volatile("addl  %%edx, %%r8d\n\t":::"%edx","%r8",SSE_REGs); \
-__asm__ volatile("movl  %r8d, "#h"\n\t");
+#define RND_STEP_RORX_8(a,b,c,d,e,f,g,h,i)       \
+    "# d += h + w_k + Sigma1(e) + Ch(e,f,g)\n\t" \
+    "addl	%"#h", %"#d"\n\t"                \
+    "addl	%"#h", %%r8d\n\t"                \
+    "addl	%%edx, %%r8d\n\t"                \
+    "movl	%%r8d, %"#h"\n\t"
 #endif /* HAVE_INTEL_RORX */
 
-#define RND_STEP_1(a,b,c,d,e,f,g,h,i)\
-__asm__ volatile("movl  %"#e", %%edx\n\t":::"%edx",SSE_REGs);\
-__asm__ volatile("roll  $26, %%edx\n\t":::"%edx",SSE_REGs);  /* edx = e>>6     */\
-__asm__ volatile("movl  %"#e", %%edi\n\t":::"%edi",SSE_REGs);\
+#define RND_STEP_1(a,b,c,d,e,f,g,h,i) \
+    "movl	%"#e", %%edx\n\t"     \
+    "# edx = e>>>6\n\t"               \
+    "roll	$26, %%edx\n\t"       \
+    "movl	%"#e", %%edi\n\t"
 
-#define RND_STEP_2(a,b,c,d,e,f,g,h,i)\
-__asm__ volatile("roll  $21, %%edi\n\t":::"%edi",SSE_REGs);         /* edi = e>>11 */\
-__asm__ volatile("xorl  %%edx, %%edi\n\t":::"%edx","%edi",SSE_REGs); /* edi = (e>>11) ^ (e>>6)  */\
-__asm__ volatile("movl  %"#e", %%edx\n\t":::"%edx",SSE_REGs);   /* edx = e      */\
-__asm__ volatile("roll  $7, %%edx\n\t":::"%edx",SSE_REGs);      /* edx = e>>25  */\
+#define RND_STEP_2(a,b,c,d,e,f,g,h,i) \
+    "# edi = e>>>11\n\t"              \
+    "roll	$21, %%edi\n\t"       \
+    "# edi = (e>>11) ^ (e>>6)\n\t"    \
+    "xorl	%%edx, %%edi\n\t"     \
+    "# edx = e\n\t"                   \
+    "movl	%"#e", %%edx\n\t"     \
+    "# edx = e>>>25\n\t"              \
+    "roll	$7, %%edx\n\t"
 
-#define RND_STEP_3(a,b,c,d,e,f,g,h,i)\
-__asm__ volatile("movl  %"#f", %%esi\n\t":::"%esi",SSE_REGs);  /* esi = f       */\
-__asm__ volatile("xorl  %"#g", %%esi\n\t":::"%esi",SSE_REGs);  /* esi = f ^ g   */\
-__asm__ volatile("xorl  %%edi, %%edx\n\t":::"%edi","%edx",SSE_REGs); /* edx = Sigma1(e) */\
-__asm__ volatile("andl  %"#e", %%esi\n\t":::"%esi",SSE_REGs);  /* esi = (f ^ g) & e  */\
-__asm__ volatile("xorl  %"#g", %%esi\n\t":::"%esi",SSE_REGs);  /* esi = Ch(e,f,g)    */\
+#define RND_STEP_3(a,b,c,d,e,f,g,h,i) \
+    "# esi = f\n\t"                   \
+    "movl	%"#f", %%esi\n\t"     \
+    "# esi = f ^ g\n\t"               \
+    "xorl	%"#g", %%esi\n\t"     \
+    "# edx = Sigma1(e)\n\t"           \
+    "xorl	%%edi, %%edx\n\t"     \
+    "# esi = (f ^ g) & e\n\t"         \
+    "andl	%"#e", %%esi\n\t"     \
+    "# esi = Ch(e,f,g)\n\t"           \
+    "xorl	%"#g", %%esi\n\t"
 
-#define RND_STEP_4(a,b,c,d,e,f,g,h,i)\
-__asm__ volatile("addl  %0, %"#h"\n\t"::"r"(W_K[i]):SSE_REGs); /* h += w_k  */\
-__asm__ volatile("addl  %%edx, %"#h"\n\t":::"%edx",SSE_REGs); /* h = h + w_k + Sigma1(e) */\
-__asm__ volatile("movl  %"#a", %%r8d\n\t":::"%r8",SSE_REGs);  /* r8d = a    */\
-__asm__ volatile("roll  $30, %%r8d\n\t":::"%r8",SSE_REGs);    /* r8d = a>>2 */\
-__asm__ volatile("movl  %"#a", %%edi\n\t":::"%edi",SSE_REGs);  /* edi = a   */\
-__asm__ volatile("roll  $19, %%edi\n\t":::"%edi",SSE_REGs);    /* edi = a>>13 */\
-__asm__ volatile("movl  %"#a", %%edx\n\t":::"%edx",SSE_REGs);  /* edx = a     */\
+#define RND_STEP_4(a,b,c,d,e,f,g,h,i)      \
+    "# h += w_k\n\t"                       \
+    "leaq	%[W_K], %%r8\n\t"          \
+    "addl	("#i")*4(%%r8), %"#h"\n\t" \
+    "# h = h + w_k + Sigma1(e)\n\t"        \
+    "addl	%%edx, %"#h"\n\t"          \
+    "# r8d = a\n\t"                        \
+    "movl	%"#a", %%r8d\n\t"          \
+    "# r8d = a>>>2\n\t"                    \
+    "roll	$30, %%r8d\n\t"            \
+    "# edi = a\n\t"                        \
+    "movl	%"#a", %%edi\n\t"          \
+    "# edi = a>>>13\n\t"                   \
+    "roll	$19, %%edi\n\t"            \
+    "# edx = a\n\t"                        \
+    "movl	%"#a", %%edx\n\t"
 
-#define RND_STEP_5(a,b,c,d,e,f,g,h,i)\
-__asm__ volatile("roll  $10, %%edx\n\t":::"%edx",SSE_REGs);    /* edx = a>>22 */\
-__asm__ volatile("xorl  %%r8d, %%edi\n\t":::"%edi","%r8",SSE_REGs); /* edi = (a>>2) ^ (a>>13)  */\
-__asm__ volatile("xorl  %%edi, %%edx\n\t":::"%edi","%edx",SSE_REGs);/* edx = Sigma0(a)         */\
+#define RND_STEP_5(a,b,c,d,e,f,g,h,i) \
+    "# edx = a>>>22\n\t"              \
+    "roll	$10, %%edx\n\t"       \
+    "# edi = (a>>>2) ^ (a>>>13)\n\t"  \
+    "xorl	%%r8d, %%edi\n\t"     \
+    "# edx = Sigma0(a)\n\t"           \
+    "xorl	%%edi, %%edx\n\t"
 
-#define RND_STEP_6(a,b,c,d,e,f,g,h,i)\
-__asm__ volatile("movl  %"#b", %%edi\n\t":::"%edi",SSE_REGs);  /* edi = b      */\
-__asm__ volatile("orl   %"#a", %%edi\n\t":::"%edi",SSE_REGs);  /* edi = a | b  */\
-__asm__ volatile("andl  %"#c", %%edi\n\t":::"%edi",SSE_REGs);  /* edi = (a | b) & c */\
-__asm__ volatile("movl  %"#b", %%r8d\n\t":::"%r8",SSE_REGs);  /* r8d = b       */\
+#define RND_STEP_6(a,b,c,d,e,f,g,h,i) \
+    "# edi = b\n\t"                   \
+    "movl	%"#b", %%edi\n\t"     \
+    "# edi = a | b\n\t"               \
+    "orl	%"#a", %%edi\n\t"     \
+    "# edi = (a | b) & c\n\t"         \
+    "andl	%"#c", %%edi\n\t"     \
+    "# r8d = b\n\t"                   \
+    "movl	%"#b", %%r8d\n\t"
 
-#define RND_STEP_7(a,b,c,d,e,f,g,h,i)\
-__asm__ volatile("addl  %%esi, %"#h"\n\t":::"%esi",SSE_REGs);  /* h += Ch(e,f,g)        */\
-__asm__ volatile("andl  %"#a", %%r8d\n\t":::"%r8",SSE_REGs);  /* r8d = b & a            */\
-__asm__ volatile("orl   %%edi, %%r8d\n\t":::"%edi","%r8",SSE_REGs); /* r8d = Maj(a,b,c) */\
+#define RND_STEP_7(a,b,c,d,e,f,g,h,i) \
+    "# h += Ch(e,f,g)\n\t"            \
+    "addl	%%esi, %"#h"\n\t"     \
+    "#r8d = b & a\n\t"                \
+    "andl	%"#a", %%r8d\n\t"     \
+    "# r8d = Maj(a,b,c)\n\t"          \
+    "orl	%%edi, %%r8d\n\t"
 
-#define RND_STEP_8(a,b,c,d,e,f,g,h,i)\
-__asm__ volatile("addl  "#h", "#d"\n\t");  /* d += h + w_k + Sigma1(e) + Ch(e,f,g) */\
-__asm__ volatile("addl  %"#h", %%r8d\n\t":::"%r8",SSE_REGs); \
-                 /* r8b = h + w_k + Sigma1(e) + Ch(e,f,g) + Maj(a,b,c) */\
-__asm__ volatile("addl  %%edx, %%r8d\n\t":::"%edx","%r8",SSE_REGs);\
-                 /* r8b = h + w_k + Sigma1(e) Sigma0(a) + Ch(e,f,g) + Maj(a,b,c)     */\
-__asm__ volatile("movl  %%r8d, %"#h"\n\t":::"%r8", SSE_REGs); \
-                 /* h = h + w_k + Sigma1(e) + Sigma0(a) + Ch(e,f,g) + Maj(a,b,c) */ \
+#define RND_STEP_8(a,b,c,d,e,f,g,h,i)                                    \
+    "# d += h + w_k + Sigma1(e) + Ch(e,f,g)\n\t"                         \
+    "addl	%"#h", %"#d"\n\t"                                        \
+    "# r8b = h + w_k + Sigma1(e) + Ch(e,f,g) + Maj(a,b,c)\n\t"           \
+    "addl	%"#h", %%r8d\n\t"                                        \
+    "# r8b = h + w_k + Sigma1(e) Sigma0(a) + Ch(e,f,g) + Maj(a,b,c)\n\t" \
+    "addl	%%edx, %%r8d\n\t"                                        \
+    "# h = h + w_k + Sigma1(e) + Sigma0(a) + Ch(e,f,g) + Maj(a,b,c)\n\t" \
+    "movl	%%r8d, %"#h"\n\t"
 
 #define RND_X(a,b,c,d,e,f,g,h,i) \
-       RND_STEP_1(a,b,c,d,e,f,g,h,i); \
-       RND_STEP_2(a,b,c,d,e,f,g,h,i); \
-       RND_STEP_3(a,b,c,d,e,f,g,h,i); \
-       RND_STEP_4(a,b,c,d,e,f,g,h,i); \
-       RND_STEP_5(a,b,c,d,e,f,g,h,i); \
-       RND_STEP_6(a,b,c,d,e,f,g,h,i); \
-       RND_STEP_7(a,b,c,d,e,f,g,h,i); \
-       RND_STEP_8(a,b,c,d,e,f,g,h,i);
+       RND_STEP_1(a,b,c,d,e,f,g,h,i) \
+       RND_STEP_2(a,b,c,d,e,f,g,h,i) \
+       RND_STEP_3(a,b,c,d,e,f,g,h,i) \
+       RND_STEP_4(a,b,c,d,e,f,g,h,i) \
+       RND_STEP_5(a,b,c,d,e,f,g,h,i) \
+       RND_STEP_6(a,b,c,d,e,f,g,h,i) \
+       RND_STEP_7(a,b,c,d,e,f,g,h,i) \
+       RND_STEP_8(a,b,c,d,e,f,g,h,i)
 
-#define RND_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i);
-#define RND_7(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_7,S_0,S_1,S_2,S_3,S_4,S_5,S_6,_i);
-#define RND_6(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_6,S_7,S_0,S_1,S_2,S_3,S_4,S_5,_i);
-#define RND_5(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_5,S_6,S_7,S_0,S_1,S_2,S_3,S_4,_i);
-#define RND_4(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,_i);
-#define RND_3(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_3,S_4,S_5,S_6,S_7,S_0,S_1,S_2,_i);
-#define RND_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_2,S_3,S_4,S_5,S_6,S_7,S_0,S_1,_i);
-#define RND_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_1,S_2,S_3,S_4,S_5,S_6,S_7,S_0,_i);
-
-
-#define RND_1_3(a,b,c,d,e,f,g,h,i) {\
-       RND_STEP_1(a,b,c,d,e,f,g,h,i); \
-       RND_STEP_2(a,b,c,d,e,f,g,h,i); \
-       RND_STEP_3(a,b,c,d,e,f,g,h,i); \
-}
-
-#define RND_4_6(a,b,c,d,e,f,g,h,i) {\
-       RND_STEP_4(a,b,c,d,e,f,g,h,i); \
-       RND_STEP_5(a,b,c,d,e,f,g,h,i); \
-       RND_STEP_6(a,b,c,d,e,f,g,h,i); \
-}
-
-#define RND_7_8(a,b,c,d,e,f,g,h,i) {\
-       RND_STEP_7(a,b,c,d,e,f,g,h,i); \
-       RND_STEP_8(a,b,c,d,e,f,g,h,i); \
-}
-
-#define RND_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i);
-#define RND_7(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_7,S_0,S_1,S_2,S_3,S_4,S_5,S_6,_i);
-#define RND_6(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_6,S_7,S_0,S_1,S_2,S_3,S_4,S_5,_i);
-#define RND_5(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_5,S_6,S_7,S_0,S_1,S_2,S_3,S_4,_i);
-#define RND_4(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,_i);
-#define RND_3(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_3,S_4,S_5,S_6,S_7,S_0,S_1,S_2,_i);
-#define RND_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_2,S_3,S_4,S_5,S_6,S_7,S_0,S_1,_i);
-#define RND_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_1,S_2,S_3,S_4,S_5,S_6,S_7,S_0,_i);
+#define RND_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i)
+#define RND_7(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_7,S_0,S_1,S_2,S_3,S_4,S_5,S_6,_i)
+#define RND_6(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_6,S_7,S_0,S_1,S_2,S_3,S_4,S_5,_i)
+#define RND_5(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_5,S_6,S_7,S_0,S_1,S_2,S_3,S_4,_i)
+#define RND_4(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,_i)
+#define RND_3(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_3,S_4,S_5,S_6,S_7,S_0,S_1,S_2,_i)
+#define RND_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_2,S_3,S_4,S_5,S_6,S_7,S_0,S_1,_i)
+#define RND_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_1,S_2,S_3,S_4,S_5,S_6,S_7,S_0,_i)
 
 
-#define RND_0_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_1_3(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i);
-#define RND_7_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_1_3(S_7,S_0,S_1,S_2,S_3,S_4,S_5,S_6,_i);
-#define RND_6_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_1_3(S_6,S_7,S_0,S_1,S_2,S_3,S_4,S_5,_i);
-#define RND_5_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_1_3(S_5,S_6,S_7,S_0,S_1,S_2,S_3,S_4,_i);
-#define RND_4_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_1_3(S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,_i);
-#define RND_3_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_1_3(S_3,S_4,S_5,S_6,S_7,S_0,S_1,S_2,_i);
-#define RND_2_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_1_3(S_2,S_3,S_4,S_5,S_6,S_7,S_0,S_1,_i);
-#define RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_1_3(S_1,S_2,S_3,S_4,S_5,S_6,S_7,S_0,_i);
+#define RND_1_3(a,b,c,d,e,f,g,h,i) \
+       RND_STEP_1(a,b,c,d,e,f,g,h,i) \
+       RND_STEP_2(a,b,c,d,e,f,g,h,i) \
+       RND_STEP_3(a,b,c,d,e,f,g,h,i)
 
-#define RND_0_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_4_6(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i);
-#define RND_7_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_4_6(S_7,S_0,S_1,S_2,S_3,S_4,S_5,S_6,_i);
-#define RND_6_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_4_6(S_6,S_7,S_0,S_1,S_2,S_3,S_4,S_5,_i);
-#define RND_5_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_4_6(S_5,S_6,S_7,S_0,S_1,S_2,S_3,S_4,_i);
-#define RND_4_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_4_6(S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,_i);
-#define RND_3_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_4_6(S_3,S_4,S_5,S_6,S_7,S_0,S_1,S_2,_i);
-#define RND_2_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_4_6(S_2,S_3,S_4,S_5,S_6,S_7,S_0,S_1,_i);
-#define RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_4_6(S_1,S_2,S_3,S_4,S_5,S_6,S_7,S_0,_i);
+#define RND_4_6(a,b,c,d,e,f,g,h,i) \
+       RND_STEP_4(a,b,c,d,e,f,g,h,i) \
+       RND_STEP_5(a,b,c,d,e,f,g,h,i) \
+       RND_STEP_6(a,b,c,d,e,f,g,h,i)
 
-#define RND_0_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_7_8(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i);
-#define RND_7_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_7_8(S_7,S_0,S_1,S_2,S_3,S_4,S_5,S_6,_i);
-#define RND_6_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_7_8(S_6,S_7,S_0,S_1,S_2,S_3,S_4,S_5,_i);
-#define RND_5_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_7_8(S_5,S_6,S_7,S_0,S_1,S_2,S_3,S_4,_i);
-#define RND_4_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_7_8(S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,_i);
-#define RND_3_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_7_8(S_3,S_4,S_5,S_6,S_7,S_0,S_1,S_2,_i);
-#define RND_2_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_7_8(S_2,S_3,S_4,S_5,S_6,S_7,S_0,S_1,_i);
-#define RND_1_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_7_8(S_1,S_2,S_3,S_4,S_5,S_6,S_7,S_0,_i);
+#define RND_7_8(a,b,c,d,e,f,g,h,i) \
+       RND_STEP_7(a,b,c,d,e,f,g,h,i) \
+       RND_STEP_8(a,b,c,d,e,f,g,h,i)
+
+#define RND_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i)
+#define RND_7(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_7,S_0,S_1,S_2,S_3,S_4,S_5,S_6,_i)
+#define RND_6(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_6,S_7,S_0,S_1,S_2,S_3,S_4,S_5,_i)
+#define RND_5(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_5,S_6,S_7,S_0,S_1,S_2,S_3,S_4,_i)
+#define RND_4(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,_i)
+#define RND_3(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_3,S_4,S_5,S_6,S_7,S_0,S_1,S_2,_i)
+#define RND_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_2,S_3,S_4,S_5,S_6,S_7,S_0,S_1,_i)
+#define RND_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_X(S_1,S_2,S_3,S_4,S_5,S_6,S_7,S_0,_i)
+
+
+#define RND_0_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_1_3(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i)
+#define RND_7_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_1_3(S_7,S_0,S_1,S_2,S_3,S_4,S_5,S_6,_i)
+#define RND_6_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_1_3(S_6,S_7,S_0,S_1,S_2,S_3,S_4,S_5,_i)
+#define RND_5_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_1_3(S_5,S_6,S_7,S_0,S_1,S_2,S_3,S_4,_i)
+#define RND_4_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_1_3(S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,_i)
+#define RND_3_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_1_3(S_3,S_4,S_5,S_6,S_7,S_0,S_1,S_2,_i)
+#define RND_2_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_1_3(S_2,S_3,S_4,S_5,S_6,S_7,S_0,S_1,_i)
+#define RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_1_3(S_1,S_2,S_3,S_4,S_5,S_6,S_7,S_0,_i)
+
+#define RND_0_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_4_6(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i)
+#define RND_7_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_4_6(S_7,S_0,S_1,S_2,S_3,S_4,S_5,S_6,_i)
+#define RND_6_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_4_6(S_6,S_7,S_0,S_1,S_2,S_3,S_4,S_5,_i)
+#define RND_5_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_4_6(S_5,S_6,S_7,S_0,S_1,S_2,S_3,S_4,_i)
+#define RND_4_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_4_6(S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,_i)
+#define RND_3_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_4_6(S_3,S_4,S_5,S_6,S_7,S_0,S_1,S_2,_i)
+#define RND_2_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_4_6(S_2,S_3,S_4,S_5,S_6,S_7,S_0,S_1,_i)
+#define RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_4_6(S_1,S_2,S_3,S_4,S_5,S_6,S_7,S_0,_i)
+
+#define RND_0_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_7_8(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i)
+#define RND_7_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_7_8(S_7,S_0,S_1,S_2,S_3,S_4,S_5,S_6,_i)
+#define RND_6_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_7_8(S_6,S_7,S_0,S_1,S_2,S_3,S_4,S_5,_i)
+#define RND_5_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_7_8(S_5,S_6,S_7,S_0,S_1,S_2,S_3,S_4,_i)
+#define RND_4_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_7_8(S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,_i)
+#define RND_3_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_7_8(S_3,S_4,S_5,S_6,S_7,S_0,S_1,S_2,_i)
+#define RND_2_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_7_8(S_2,S_3,S_4,S_5,S_6,S_7,S_0,S_1,_i)
+#define RND_1_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,_i) RND_7_8(S_1,S_2,S_3,S_4,S_5,S_6,S_7,S_0,_i)
 
 #define FOR(cnt, init, max, inc, loop)  \
     __asm__ volatile("movl $"#init", %0\n\t"#loop":"::"m"(cnt):)
@@ -1015,172 +1062,180 @@ __asm__ volatile("movl  %%r8d, %"#h"\n\t":::"%r8", SSE_REGs); \
 
 #if defined(HAVE_INTEL_AVX1) /* inline Assember for Intel AVX1 instructions */
 
-#define VPALIGNR(op1,op2,op3,op4) __asm__ volatile("vpalignr $"#op4", %"#op3", %"#op2", %"#op1::)
-#define VPADDD(op1,op2,op3)       __asm__ volatile("vpaddd %"#op3", %"#op2", %"#op1::)
-#define VPSRLD(op1,op2,op3)       __asm__ volatile("vpsrld $"#op3", %"#op2", %"#op1::)
-#define VPSRLQ(op1,op2,op3)       __asm__ volatile("vpsrlq $"#op3", %"#op2", %"#op1::)
-#define VPSLLD(op1,op2,op3)       __asm__ volatile("vpslld $"#op3", %"#op2", %"#op1::)
-#define VPOR(op1,op2,op3)         __asm__ volatile("vpor   %"#op3", %"#op2", %"#op1::)
-#define VPXOR(op1,op2,op3)        __asm__ volatile("vpxor  %"#op3", %"#op2", %"#op1::)
-#define VPSHUFD(op1,op2,op3)      __asm__ volatile("vpshufd $"#op3", %"#op2", %"#op1::)
-#define VPSHUFB(op1,op2,op3)      __asm__ volatile("vpshufb %"#op3", %"#op2", %"#op1::)
+#define VPALIGNR(op1,op2,op3,op4) \
+    "vpalignr	$"#op4", %"#op3", %"#op2", %"#op1"\n\t"
+#define VPADDD(op1,op2,op3)       \
+    "vpaddd	%"#op3", %"#op2", %"#op1"\n\t"
+#define VPSRLD(op1,op2,op3)       \
+    "vpsrld	$"#op3", %"#op2", %"#op1"\n\t"
+#define VPSRLQ(op1,op2,op3)       \
+    "vpsrlq	$"#op3", %"#op2", %"#op1"\n\t"
+#define VPSLLD(op1,op2,op3)       \
+    "vpslld	$"#op3", %"#op2", %"#op1"\n\t"
+#define VPOR(op1,op2,op3)         \
+    "vpor	%"#op3", %"#op2", %"#op1"\n\t"
+#define VPXOR(op1,op2,op3)        \
+    "vpxor	%"#op3", %"#op2", %"#op1"\n\t"
+#define VPSHUFD(op1,op2,op3)      \
+    "vpshufd	$"#op3", %"#op2", %"#op1"\n\t"
+#define VPSHUFB(op1,op2,op3)      \
+    "vpshufb	%"#op3", %"#op2", %"#op1"\n\t"
 
 #define MessageSched(X0, X1, X2, X3, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER, SHUF_00BA, SHUF_DC00,\
      a,b,c,d,e,f,g,h,_i)\
-            RND_STEP_1(a,b,c,d,e,f,g,h,_i);\
-    VPALIGNR (XTMP0, X3, X2, 4);\
-            RND_STEP_2(a,b,c,d,e,f,g,h,_i);\
-    VPADDD   (XTMP0, XTMP0, X0);\
-            RND_STEP_3(a,b,c,d,e,f,g,h,_i);\
-    VPALIGNR (XTMP1, X1, X0, 4);   /* XTMP1 = W[-15] */\
-            RND_STEP_4(a,b,c,d,e,f,g,h,_i);\
-    VPSRLD   (XTMP2, XTMP1, 7);\
-            RND_STEP_5(a,b,c,d,e,f,g,h,_i);\
-    VPSLLD   (XTMP3, XTMP1, 25); /* VPSLLD   (XTMP3, XTMP1, (32-7)) */\
-            RND_STEP_6(a,b,c,d,e,f,g,h,_i);\
-    VPOR     (XTMP3, XTMP3, XTMP2);  /* XTMP1 = W[-15] MY_ROR 7 */\
-            RND_STEP_7(a,b,c,d,e,f,g,h,_i);\
-    VPSRLD   (XTMP2, XTMP1,18);\
-            RND_STEP_8(a,b,c,d,e,f,g,h,_i);\
+            RND_STEP_1(a,b,c,d,e,f,g,h,_i)\
+    VPALIGNR (XTMP0, X3, X2, 4)\
+            RND_STEP_2(a,b,c,d,e,f,g,h,_i)\
+    VPADDD   (XTMP0, XTMP0, X0)\
+            RND_STEP_3(a,b,c,d,e,f,g,h,_i)\
+    VPALIGNR (XTMP1, X1, X0, 4)   /* XTMP1 = W[-15] */\
+            RND_STEP_4(a,b,c,d,e,f,g,h,_i)\
+    VPSRLD   (XTMP2, XTMP1, 7)\
+            RND_STEP_5(a,b,c,d,e,f,g,h,_i)\
+    VPSLLD   (XTMP3, XTMP1, 25) /* VPSLLD   (XTMP3, XTMP1, (32-7)) */\
+            RND_STEP_6(a,b,c,d,e,f,g,h,_i)\
+    VPOR     (XTMP3, XTMP3, XTMP2)  /* XTMP1 = W[-15] MY_ROR 7 */\
+            RND_STEP_7(a,b,c,d,e,f,g,h,_i)\
+    VPSRLD   (XTMP2, XTMP1,18)\
+            RND_STEP_8(a,b,c,d,e,f,g,h,_i)\
 \
-            RND_STEP_1(h,a,b,c,d,e,f,g,_i+1);\
-    VPSRLD   (XTMP4, XTMP1, 3);  /* XTMP4 = W[-15] >> 3 */\
-            RND_STEP_2(h,a,b,c,d,e,f,g,_i+1);\
-    VPSLLD   (XTMP1, XTMP1, 14); /* VPSLLD   (XTMP1, XTMP1, (32-18)) */\
-            RND_STEP_3(h,a,b,c,d,e,f,g,_i+1);\
-    VPXOR    (XTMP3, XTMP3, XTMP1);\
-            RND_STEP_4(h,a,b,c,d,e,f,g,_i+1);\
-    VPXOR    (XTMP3, XTMP3, XTMP2);  /* XTMP1 = W[-15] MY_ROR 7 ^ W[-15] MY_ROR 18 */\
-            RND_STEP_5(h,a,b,c,d,e,f,g,_i+1);\
-    VPXOR    (XTMP1, XTMP3, XTMP4);  /* XTMP1 = s0 */\
-            RND_STEP_6(h,a,b,c,d,e,f,g,_i+1);\
-    VPSHUFD(XTMP2, X3, 0b11111010);  /* XTMP2 = W[-2] {BBAA}*/\
-            RND_STEP_7(h,a,b,c,d,e,f,g,_i+1);\
-    VPADDD   (XTMP0, XTMP0, XTMP1);  /* XTMP0 = W[-16] + W[-7] + s0 */\
-            RND_STEP_8(h,a,b,c,d,e,f,g,_i+1);\
+            RND_STEP_1(h,a,b,c,d,e,f,g,_i+1)\
+    VPSRLD   (XTMP4, XTMP1, 3)  /* XTMP4 = W[-15] >> 3 */\
+            RND_STEP_2(h,a,b,c,d,e,f,g,_i+1)\
+    VPSLLD   (XTMP1, XTMP1, 14) /* VPSLLD   (XTMP1, XTMP1, (32-18)) */\
+            RND_STEP_3(h,a,b,c,d,e,f,g,_i+1)\
+    VPXOR    (XTMP3, XTMP3, XTMP1)\
+            RND_STEP_4(h,a,b,c,d,e,f,g,_i+1)\
+    VPXOR    (XTMP3, XTMP3, XTMP2)  /* XTMP1 = W[-15] MY_ROR 7 ^ W[-15] MY_ROR 18 */\
+            RND_STEP_5(h,a,b,c,d,e,f,g,_i+1)\
+    VPXOR    (XTMP1, XTMP3, XTMP4)  /* XTMP1 = s0 */\
+            RND_STEP_6(h,a,b,c,d,e,f,g,_i+1)\
+    VPSHUFD(XTMP2, X3, 0b11111010)  /* XTMP2 = W[-2] {BBAA}*/\
+            RND_STEP_7(h,a,b,c,d,e,f,g,_i+1)\
+    VPADDD   (XTMP0, XTMP0, XTMP1)  /* XTMP0 = W[-16] + W[-7] + s0 */\
+            RND_STEP_8(h,a,b,c,d,e,f,g,_i+1)\
 \
-            RND_STEP_1(g,h,a,b,c,d,e,f,_i+2);\
-    VPSRLD   (XTMP4, XTMP2, 10);      /* XTMP4 = W[-2] >> 10 {BBAA} */\
-            RND_STEP_2(g,h,a,b,c,d,e,f,_i+2);\
-    VPSRLQ   (XTMP3, XTMP2, 19);      /* XTMP3 = W[-2] MY_ROR 19 {xBxA} */\
-            RND_STEP_3(g,h,a,b,c,d,e,f,_i+2);\
-    VPSRLQ   (XTMP2, XTMP2, 17);      /* XTMP2 = W[-2] MY_ROR 17 {xBxA} */\
-            RND_STEP_4(g,h,a,b,c,d,e,f,_i+2);\
-    VPXOR    (XTMP2, XTMP2, XTMP3);\
-            RND_STEP_5(g,h,a,b,c,d,e,f,_i+2);\
-    VPXOR    (XTMP4, XTMP4, XTMP2);   /* XTMP4 = s1 {xBxA} */\
-            RND_STEP_6(g,h,a,b,c,d,e,f,_i+2);\
-    VPSHUFB  (XTMP4, XTMP4, SHUF_00BA);  /* XTMP4 = s1 {00BA} */\
-            RND_STEP_7(g,h,a,b,c,d,e,f,_i+2);\
-    VPADDD   (XTMP0, XTMP0, XTMP4);  /* XTMP0 = {..., ..., W[1], W[0]} */\
-            RND_STEP_8(g,h,a,b,c,d,e,f,_i+2);\
+            RND_STEP_1(g,h,a,b,c,d,e,f,_i+2)\
+    VPSRLD   (XTMP4, XTMP2, 10)      /* XTMP4 = W[-2] >> 10 {BBAA} */\
+            RND_STEP_2(g,h,a,b,c,d,e,f,_i+2)\
+    VPSRLQ   (XTMP3, XTMP2, 19)      /* XTMP3 = W[-2] MY_ROR 19 {xBxA} */\
+            RND_STEP_3(g,h,a,b,c,d,e,f,_i+2)\
+    VPSRLQ   (XTMP2, XTMP2, 17)      /* XTMP2 = W[-2] MY_ROR 17 {xBxA} */\
+            RND_STEP_4(g,h,a,b,c,d,e,f,_i+2)\
+    VPXOR    (XTMP2, XTMP2, XTMP3)\
+            RND_STEP_5(g,h,a,b,c,d,e,f,_i+2)\
+    VPXOR    (XTMP4, XTMP4, XTMP2)   /* XTMP4 = s1 {xBxA} */\
+            RND_STEP_6(g,h,a,b,c,d,e,f,_i+2)\
+    VPSHUFB  (XTMP4, XTMP4, SHUF_00BA)  /* XTMP4 = s1 {00BA} */\
+            RND_STEP_7(g,h,a,b,c,d,e,f,_i+2)\
+    VPADDD   (XTMP0, XTMP0, XTMP4)  /* XTMP0 = {..., ..., W[1], W[0]} */\
+            RND_STEP_8(g,h,a,b,c,d,e,f,_i+2)\
 \
-            RND_STEP_1(f,g,h,a,b,c,d,e,_i+3);\
-    VPSHUFD  (XTMP2, XTMP0, 0b01010000); /* XTMP2 = W[-2] {DDCC} */\
-            RND_STEP_2(f,g,h,a,b,c,d,e,_i+3);\
-    VPSRLD   (XTMP5, XTMP2, 10);       /* XTMP5 = W[-2] >> 10 {DDCC} */\
-            RND_STEP_3(f,g,h,a,b,c,d,e,_i+3);\
-    VPSRLQ   (XTMP3, XTMP2, 19);       /* XTMP3 = W[-2] MY_ROR 19 {xDxC} */\
-            RND_STEP_4(f,g,h,a,b,c,d,e,_i+3);\
-    VPSRLQ   (XTMP2, XTMP2, 17);      /* XTMP2 = W[-2] MY_ROR 17 {xDxC} */\
-            RND_STEP_5(f,g,h,a,b,c,d,e,_i+3);\
-    VPXOR    (XTMP2, XTMP2, XTMP3);\
-            RND_STEP_6(f,g,h,a,b,c,d,e,_i+3);\
-    VPXOR    (XTMP5, XTMP5, XTMP2);   /* XTMP5 = s1 {xDxC} */\
-            RND_STEP_7(f,g,h,a,b,c,d,e,_i+3);\
-    VPSHUFB  (XTMP5, XTMP5, SHUF_DC00); /* XTMP5 = s1 {DC00} */\
-            RND_STEP_8(f,g,h,a,b,c,d,e,_i+3);\
-    VPADDD   (X0, XTMP5, XTMP0);      /* X0 = {W[3], W[2], W[1], W[0]} */\
+            RND_STEP_1(f,g,h,a,b,c,d,e,_i+3)\
+    VPSHUFD  (XTMP2, XTMP0, 0b01010000) /* XTMP2 = W[-2] {DDCC} */\
+            RND_STEP_2(f,g,h,a,b,c,d,e,_i+3)\
+    VPSRLD   (XTMP5, XTMP2, 10)       /* XTMP5 = W[-2] >> 10 {DDCC} */\
+            RND_STEP_3(f,g,h,a,b,c,d,e,_i+3)\
+    VPSRLQ   (XTMP3, XTMP2, 19)       /* XTMP3 = W[-2] MY_ROR 19 {xDxC} */\
+            RND_STEP_4(f,g,h,a,b,c,d,e,_i+3)\
+    VPSRLQ   (XTMP2, XTMP2, 17)      /* XTMP2 = W[-2] MY_ROR 17 {xDxC} */\
+            RND_STEP_5(f,g,h,a,b,c,d,e,_i+3)\
+    VPXOR    (XTMP2, XTMP2, XTMP3)\
+            RND_STEP_6(f,g,h,a,b,c,d,e,_i+3)\
+    VPXOR    (XTMP5, XTMP5, XTMP2)   /* XTMP5 = s1 {xDxC} */\
+            RND_STEP_7(f,g,h,a,b,c,d,e,_i+3)\
+    VPSHUFB  (XTMP5, XTMP5, SHUF_DC00) /* XTMP5 = s1 {DC00} */\
+            RND_STEP_8(f,g,h,a,b,c,d,e,_i+3)\
+    VPADDD   (X0, XTMP5, XTMP0)      /* X0 = {W[3], W[2], W[1], W[0]} */\
 
 #if defined(HAVE_INTEL_RORX)
 
 #define MessageSched_RORX(X0, X1, X2, X3, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, \
                           XFER, SHUF_00BA, SHUF_DC00,a,b,c,d,e,f,g,h,_i)\
-            RND_STEP_RORX_1(a,b,c,d,e,f,g,h,_i);\
-    VPALIGNR (XTMP0, X3, X2, 4);\
-            RND_STEP_RORX_2(a,b,c,d,e,f,g,h,_i);\
-    VPADDD   (XTMP0, XTMP0, X0);\
-            RND_STEP_RORX_3(a,b,c,d,e,f,g,h,_i);\
-    VPALIGNR (XTMP1, X1, X0, 4);   /* XTMP1 = W[-15] */\
-            RND_STEP_RORX_4(a,b,c,d,e,f,g,h,_i);\
-    VPSRLD   (XTMP2, XTMP1, 7);\
-            RND_STEP_RORX_5(a,b,c,d,e,f,g,h,_i);\
-    VPSLLD   (XTMP3, XTMP1, 25); /* VPSLLD   (XTMP3, XTMP1, (32-7)) */\
-            RND_STEP_RORX_6(a,b,c,d,e,f,g,h,_i);\
-    VPOR     (XTMP3, XTMP3, XTMP2);  /* XTMP1 = W[-15] MY_ROR 7 */\
-            RND_STEP_RORX_7(a,b,c,d,e,f,g,h,_i);\
-    VPSRLD   (XTMP2, XTMP1,18);\
-            RND_STEP_RORX_8(a,b,c,d,e,f,g,h,_i);\
+            RND_STEP_RORX_1(a,b,c,d,e,f,g,h,_i)\
+    VPALIGNR (XTMP0, X3, X2, 4)\
+            RND_STEP_RORX_2(a,b,c,d,e,f,g,h,_i)\
+    VPADDD   (XTMP0, XTMP0, X0)\
+            RND_STEP_RORX_3(a,b,c,d,e,f,g,h,_i)\
+    VPALIGNR (XTMP1, X1, X0, 4)   /* XTMP1 = W[-15] */\
+            RND_STEP_RORX_4(a,b,c,d,e,f,g,h,_i)\
+    VPSRLD   (XTMP2, XTMP1, 7)\
+            RND_STEP_RORX_5(a,b,c,d,e,f,g,h,_i)\
+    VPSLLD   (XTMP3, XTMP1, 25) /* VPSLLD   (XTMP3, XTMP1, (32-7)) */\
+            RND_STEP_RORX_6(a,b,c,d,e,f,g,h,_i)\
+    VPOR     (XTMP3, XTMP3, XTMP2)  /* XTMP1 = W[-15] MY_ROR 7 */\
+            RND_STEP_RORX_7(a,b,c,d,e,f,g,h,_i)\
+    VPSRLD   (XTMP2, XTMP1,18)\
+            RND_STEP_RORX_8(a,b,c,d,e,f,g,h,_i)\
 \
-            RND_STEP_RORX_1(h,a,b,c,d,e,f,g,_i+1);\
-    VPSRLD   (XTMP4, XTMP1, 3);  /* XTMP4 = W[-15] >> 3 */\
-            RND_STEP_RORX_2(h,a,b,c,d,e,f,g,_i+1);\
-    VPSLLD   (XTMP1, XTMP1, 14); /* VPSLLD   (XTMP1, XTMP1, (32-18)) */\
-            RND_STEP_RORX_3(h,a,b,c,d,e,f,g,_i+1);\
-    VPXOR    (XTMP3, XTMP3, XTMP1);\
-            RND_STEP_RORX_4(h,a,b,c,d,e,f,g,_i+1);\
-    VPXOR    (XTMP3, XTMP3, XTMP2);  /* XTMP1 = W[-15] MY_ROR 7 ^ W[-15] MY_ROR 18 */\
-            RND_STEP_RORX_5(h,a,b,c,d,e,f,g,_i+1);\
-    VPXOR    (XTMP1, XTMP3, XTMP4);  /* XTMP1 = s0 */\
-            RND_STEP_RORX_6(h,a,b,c,d,e,f,g,_i+1);\
-    VPSHUFD(XTMP2, X3, 0b11111010);  /* XTMP2 = W[-2] {BBAA}*/\
-            RND_STEP_RORX_7(h,a,b,c,d,e,f,g,_i+1);\
-    VPADDD   (XTMP0, XTMP0, XTMP1);  /* XTMP0 = W[-16] + W[-7] + s0 */\
-            RND_STEP_RORX_8(h,a,b,c,d,e,f,g,_i+1);\
+            RND_STEP_RORX_1(h,a,b,c,d,e,f,g,_i+1)\
+    VPSRLD   (XTMP4, XTMP1, 3)  /* XTMP4 = W[-15] >> 3 */\
+            RND_STEP_RORX_2(h,a,b,c,d,e,f,g,_i+1)\
+    VPSLLD   (XTMP1, XTMP1, 14) /* VPSLLD   (XTMP1, XTMP1, (32-18)) */\
+            RND_STEP_RORX_3(h,a,b,c,d,e,f,g,_i+1)\
+    VPXOR    (XTMP3, XTMP3, XTMP1)\
+            RND_STEP_RORX_4(h,a,b,c,d,e,f,g,_i+1)\
+    VPXOR    (XTMP3, XTMP3, XTMP2)  /* XTMP1 = W[-15] MY_ROR 7 ^ W[-15] MY_ROR 18 */\
+            RND_STEP_RORX_5(h,a,b,c,d,e,f,g,_i+1)\
+    VPXOR    (XTMP1, XTMP3, XTMP4)  /* XTMP1 = s0 */\
+            RND_STEP_RORX_6(h,a,b,c,d,e,f,g,_i+1)\
+    VPSHUFD(XTMP2, X3, 0b11111010)  /* XTMP2 = W[-2] {BBAA}*/\
+            RND_STEP_RORX_7(h,a,b,c,d,e,f,g,_i+1)\
+    VPADDD   (XTMP0, XTMP0, XTMP1)  /* XTMP0 = W[-16] + W[-7] + s0 */\
+            RND_STEP_RORX_8(h,a,b,c,d,e,f,g,_i+1)\
 \
-            RND_STEP_RORX_1(g,h,a,b,c,d,e,f,_i+2);\
-    VPSRLD   (XTMP4, XTMP2, 10);      /* XTMP4 = W[-2] >> 10 {BBAA} */\
-            RND_STEP_RORX_2(g,h,a,b,c,d,e,f,_i+2);\
-    VPSRLQ   (XTMP3, XTMP2, 19);      /* XTMP3 = W[-2] MY_ROR 19 {xBxA} */\
-            RND_STEP_RORX_3(g,h,a,b,c,d,e,f,_i+2);\
-    VPSRLQ   (XTMP2, XTMP2, 17);      /* XTMP2 = W[-2] MY_ROR 17 {xBxA} */\
-            RND_STEP_RORX_4(g,h,a,b,c,d,e,f,_i+2);\
-    VPXOR    (XTMP2, XTMP2, XTMP3);\
-            RND_STEP_RORX_5(g,h,a,b,c,d,e,f,_i+2);\
-    VPXOR    (XTMP4, XTMP4, XTMP2);   /* XTMP4 = s1 {xBxA} */\
-            RND_STEP_RORX_6(g,h,a,b,c,d,e,f,_i+2);\
-    VPSHUFB  (XTMP4, XTMP4, SHUF_00BA);  /* XTMP4 = s1 {00BA} */\
-            RND_STEP_RORX_7(g,h,a,b,c,d,e,f,_i+2);\
-    VPADDD   (XTMP0, XTMP0, XTMP4);  /* XTMP0 = {..., ..., W[1], W[0]} */\
-            RND_STEP_RORX_8(g,h,a,b,c,d,e,f,_i+2);\
+            RND_STEP_RORX_1(g,h,a,b,c,d,e,f,_i+2)\
+    VPSRLD   (XTMP4, XTMP2, 10)      /* XTMP4 = W[-2] >> 10 {BBAA} */\
+            RND_STEP_RORX_2(g,h,a,b,c,d,e,f,_i+2)\
+    VPSRLQ   (XTMP3, XTMP2, 19)      /* XTMP3 = W[-2] MY_ROR 19 {xBxA} */\
+            RND_STEP_RORX_3(g,h,a,b,c,d,e,f,_i+2)\
+    VPSRLQ   (XTMP2, XTMP2, 17)      /* XTMP2 = W[-2] MY_ROR 17 {xBxA} */\
+            RND_STEP_RORX_4(g,h,a,b,c,d,e,f,_i+2)\
+    VPXOR    (XTMP2, XTMP2, XTMP3)\
+            RND_STEP_RORX_5(g,h,a,b,c,d,e,f,_i+2)\
+    VPXOR    (XTMP4, XTMP4, XTMP2)   /* XTMP4 = s1 {xBxA} */\
+            RND_STEP_RORX_6(g,h,a,b,c,d,e,f,_i+2)\
+    VPSHUFB  (XTMP4, XTMP4, SHUF_00BA)  /* XTMP4 = s1 {00BA} */\
+            RND_STEP_RORX_7(g,h,a,b,c,d,e,f,_i+2)\
+    VPADDD   (XTMP0, XTMP0, XTMP4)  /* XTMP0 = {..., ..., W[1], W[0]} */\
+            RND_STEP_RORX_8(g,h,a,b,c,d,e,f,_i+2)\
 \
-            RND_STEP_RORX_1(f,g,h,a,b,c,d,e,_i+3);\
-    VPSHUFD  (XTMP2, XTMP0, 0b01010000); /* XTMP2 = W[-2] {DDCC} */\
-            RND_STEP_RORX_2(f,g,h,a,b,c,d,e,_i+3);\
-    VPSRLD   (XTMP5, XTMP2, 10);       /* XTMP5 = W[-2] >> 10 {DDCC} */\
-            RND_STEP_RORX_3(f,g,h,a,b,c,d,e,_i+3);\
-    VPSRLQ   (XTMP3, XTMP2, 19);       /* XTMP3 = W[-2] MY_ROR 19 {xDxC} */\
-            RND_STEP_RORX_4(f,g,h,a,b,c,d,e,_i+3);\
-    VPSRLQ   (XTMP2, XTMP2, 17);      /* XTMP2 = W[-2] MY_ROR 17 {xDxC} */\
-            RND_STEP_RORX_5(f,g,h,a,b,c,d,e,_i+3);\
-    VPXOR    (XTMP2, XTMP2, XTMP3);\
-            RND_STEP_RORX_6(f,g,h,a,b,c,d,e,_i+3);\
-    VPXOR    (XTMP5, XTMP5, XTMP2);   /* XTMP5 = s1 {xDxC} */\
-            RND_STEP_RORX_7(f,g,h,a,b,c,d,e,_i+3);\
-    VPSHUFB  (XTMP5, XTMP5, SHUF_DC00); /* XTMP5 = s1 {DC00} */\
-            RND_STEP_RORX_8(f,g,h,a,b,c,d,e,_i+3);\
-    VPADDD   (X0, XTMP5, XTMP0);      /* X0 = {W[3], W[2], W[1], W[0]} */\
+            RND_STEP_RORX_1(f,g,h,a,b,c,d,e,_i+3)\
+    VPSHUFD  (XTMP2, XTMP0, 0b01010000) /* XTMP2 = W[-2] {DDCC} */\
+            RND_STEP_RORX_2(f,g,h,a,b,c,d,e,_i+3)\
+    VPSRLD   (XTMP5, XTMP2, 10)       /* XTMP5 = W[-2] >> 10 {DDCC} */\
+            RND_STEP_RORX_3(f,g,h,a,b,c,d,e,_i+3)\
+    VPSRLQ   (XTMP3, XTMP2, 19)       /* XTMP3 = W[-2] MY_ROR 19 {xDxC} */\
+            RND_STEP_RORX_4(f,g,h,a,b,c,d,e,_i+3)\
+    VPSRLQ   (XTMP2, XTMP2, 17)      /* XTMP2 = W[-2] MY_ROR 17 {xDxC} */\
+            RND_STEP_RORX_5(f,g,h,a,b,c,d,e,_i+3)\
+    VPXOR    (XTMP2, XTMP2, XTMP3)\
+            RND_STEP_RORX_6(f,g,h,a,b,c,d,e,_i+3)\
+    VPXOR    (XTMP5, XTMP5, XTMP2)   /* XTMP5 = s1 {xDxC} */\
+            RND_STEP_RORX_7(f,g,h,a,b,c,d,e,_i+3)\
+    VPSHUFB  (XTMP5, XTMP5, SHUF_DC00) /* XTMP5 = s1 {DC00} */\
+            RND_STEP_RORX_8(f,g,h,a,b,c,d,e,_i+3)\
+    VPADDD   (X0, XTMP5, XTMP0)      /* X0 = {W[3], W[2], W[1], W[0]} */\
 
 #endif /* HAVE_INTEL_RORX */
 
 
-#define W_K_from_buff\
-         __asm__ volatile("vmovdqu %0, %%xmm4\n\t"\
-                          "vpshufb %%xmm13, %%xmm4, %%xmm4\n\t"\
-                          :: "m"(sha256->buffer[0]):"%xmm4");\
-         __asm__ volatile("vmovdqu %0, %%xmm5\n\t"\
-                          "vpshufb %%xmm13, %%xmm5, %%xmm5\n\t"\
-                          ::"m"(sha256->buffer[4]):"%xmm5");\
-         __asm__ volatile("vmovdqu %0, %%xmm6\n\t"\
-                          "vpshufb %%xmm13, %%xmm6, %%xmm6\n\t"\
-                          ::"m"(sha256->buffer[8]):"%xmm6");\
-         __asm__ volatile("vmovdqu %0, %%xmm7\n\t"\
-                          "vpshufb %%xmm13, %%xmm7, %%xmm7\n\t"\
-                          ::"m"(sha256->buffer[12]):"%xmm7");\
+#define W_K_from_buff()                      \
+    "leaq	%[buf], %%r8\n\t"            \
+    "vmovdqu	  (%%r8), %%xmm4\n\t"        \
+    "vpshufb	%%xmm13, %%xmm4, %%xmm4\n\t" \
+    "vmovdqu	16(%%r8), %%xmm5\n\t"        \
+    "vpshufb	%%xmm13, %%xmm5, %%xmm5\n\t" \
+    "vmovdqu	32(%%r8), %%xmm6\n\t"        \
+    "vpshufb	%%xmm13, %%xmm6, %%xmm6\n\t" \
+    "vmovdqu	48(%%r8), %%xmm7\n\t"        \
+    "vpshufb	%%xmm13, %%xmm7, %%xmm7\n\t"
 
-#define _SET_W_K_XFER(reg, i)\
-    __asm__ volatile("vpaddd %0, %"#reg", %%xmm9"::"m"(K[i]));\
-    __asm__ volatile("vmovdqa %%xmm9, %0":"=m"(W_K[i]):);
+#define _SET_W_K_XFER(reg, i)                        \
+    "leaq	%[K], %%r8\n\t"                      \
+    "vpaddd	("#i")*4(%%r8), %"#reg", %%xmm9\n\t" \
+    "leaq	%[W_K], %%r8\n\t"                    \
+    "vmovdqa	%%xmm9, ("#i")*4(%%r8)\n\t"
 
 #define SET_W_K_XFER(reg, i) _SET_W_K_XFER(reg, i)
 
@@ -1189,10 +1244,10 @@ static const ALIGN32 word64 mSHUF_DC00[] = { 0xFFFFFFFFFFFFFFFF, 0x0b0a090803020
 static const ALIGN32 word64 mBYTE_FLIP_MASK[] =  { 0x0405060700010203, 0x0c0d0e0f08090a0b };
 
 
-#define _Init_Masks(mask1, mask2, mask3)\
-__asm__ volatile("vmovdqu %0, %"#mask1 ::"m"(mBYTE_FLIP_MASK[0]));\
-__asm__ volatile("vmovdqu %0, %"#mask2 ::"m"(mSHUF_00BA[0]));\
-__asm__ volatile("vmovdqu %0, %"#mask3 ::"m"(mSHUF_DC00[0]));
+#define _Init_Masks(mask1, mask2, mask3)     \
+    "vmovdqu	%[FLIP], %"#mask1"\n\t"      \
+    "vmovdqu	%[SHUF00BA], %"#mask2"\n\t"  \
+    "vmovdqu	%[SHUFDC00], %"#mask3"\n\t"
 
 #define Init_Masks(BYTE_FLIP_MASK, SHUF_00BA, SHUF_DC00)\
     _Init_Masks(BYTE_FLIP_MASK, SHUF_00BA, SHUF_DC00)
@@ -1220,75 +1275,88 @@ static int Transform_AVX1(wc_Sha256* sha256)
 {
     ALIGN32 word32 W_K[64];  /* temp for W+K */
 
-    Init_Masks(BYTE_FLIP_MASK, SHUF_00BA, SHUF_DC00);
-    W_K_from_buff; /* X0, X1, X2, X3 = W[0..15]; */
+    __asm__ __volatile__ (
 
-    DigestToReg(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7);
+    Init_Masks(BYTE_FLIP_MASK, SHUF_00BA, SHUF_DC00)
+    "# X0, X1, X2, X3 = W[0..15]; \n\t"
+    W_K_from_buff()
 
-    SET_W_K_XFER(X0, 0);
+    DigestToReg(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7)
 
+    SET_W_K_XFER(X0, 0)
     MessageSched(X0, X1, X2, X3, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER,
-            SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,0);
-    SET_W_K_XFER(X1, 4);
+            SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,0)
+    SET_W_K_XFER(X1, 4)
     MessageSched(X1, X2, X3, X0, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER,
-            SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,4);
-    SET_W_K_XFER(X2, 8);
+            SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,4)
+    SET_W_K_XFER(X2, 8)
     MessageSched(X2, X3, X0, X1, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER,
-            SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,8);
-    SET_W_K_XFER(X3, 12);
+            SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,8)
+    SET_W_K_XFER(X3, 12)
     MessageSched(X3, X0, X1, X2, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER,
-            SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,12);
-    SET_W_K_XFER(X0, 16);
+            SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,12)
+    SET_W_K_XFER(X0, 16)
     MessageSched(X0, X1, X2, X3, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER,
-            SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,16);
-    SET_W_K_XFER(X1, 20);
+            SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,16)
+    SET_W_K_XFER(X1, 20)
     MessageSched(X1, X2, X3, X0, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER,
-            SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,20);
-    SET_W_K_XFER(X2, 24);
+            SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,20)
+    SET_W_K_XFER(X2, 24)
     MessageSched(X2, X3, X0, X1, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER,
-            SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,24);
-    SET_W_K_XFER(X3, 28);
+            SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,24)
+    SET_W_K_XFER(X3, 28)
     MessageSched(X3, X0, X1, X2, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER,
-            SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,28);
-    SET_W_K_XFER(X0, 32);
+            SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,28)
+    SET_W_K_XFER(X0, 32)
     MessageSched(X0, X1, X2, X3, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER,
-            SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,32);
-    SET_W_K_XFER(X1, 36);
+            SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,32)
+    SET_W_K_XFER(X1, 36)
     MessageSched(X1, X2, X3, X0, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER,
-            SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,36);
-    SET_W_K_XFER(X2, 40);
+            SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,36)
+    SET_W_K_XFER(X2, 40)
     MessageSched(X2, X3, X0, X1, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER,
-            SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,40);
-    SET_W_K_XFER(X3, 44);
+            SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,40)
+    SET_W_K_XFER(X3, 44)
     MessageSched(X3, X0, X1, X2, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER,
-            SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,44);
+            SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,44)
 
-    SET_W_K_XFER(X0, 48);
-    SET_W_K_XFER(X1, 52);
-    SET_W_K_XFER(X2, 56);
-    SET_W_K_XFER(X3, 60);
+    SET_W_K_XFER(X0, 48)
+    SET_W_K_XFER(X1, 52)
+    SET_W_K_XFER(X2, 56)
+    SET_W_K_XFER(X3, 60)
 
-    RND_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,48);
-    RND_7(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,49);
-    RND_6(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,50);
-    RND_5(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,51);
+    RND_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,48)
+    RND_7(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,49)
+    RND_6(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,50)
+    RND_5(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,51)
 
-    RND_4(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,52);
-    RND_3(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,53);
-    RND_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,54);
-    RND_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,55);
+    RND_4(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,52)
+    RND_3(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,53)
+    RND_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,54)
+    RND_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,55)
 
-    RND_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,56);
-    RND_7(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,57);
-    RND_6(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,58);
-    RND_5(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,59);
+    RND_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,56)
+    RND_7(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,57)
+    RND_6(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,58)
+    RND_5(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,59)
 
-    RND_4(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,60);
-    RND_3(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,61);
-    RND_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,62);
-    RND_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,63);
+    RND_4(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,60)
+    RND_3(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,61)
+    RND_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,62)
+    RND_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,63)
 
-    RegToDigest(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7);
+    RegToDigest(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7)
+
+        :
+        : [FLIP]     "m" (mBYTE_FLIP_MASK[0]),
+          [SHUF00BA] "m" (mSHUF_00BA[0]),
+          [SHUFDC00] "m" (mSHUF_DC00[0]),
+          [digest]   "m" (sha256->digest),
+          [buf]      "m" (sha256->buffer),
+          [K]        "m" (K),
+          [W_K]      "m" (W_K)
+        : SSE_REGs, "memory"
+    );
 
     return 0;
 }
@@ -1298,73 +1366,88 @@ static int Transform_AVX1_RORX(wc_Sha256* sha256)
 {
     ALIGN32 word32 W_K[64];  /* temp for W+K */
 
-    Init_Masks(BYTE_FLIP_MASK, SHUF_00BA, SHUF_DC00);
-    W_K_from_buff; /* X0, X1, X2, X3 = W[0..15]; */
+    __asm__ __volatile__ (
 
-    DigestToReg(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7);
-    SET_W_K_XFER(X0, 0);
-    MessageSched_RORX(X0, X1, X2, X3, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5,
-            XFER, SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,0);
-    SET_W_K_XFER(X1, 4);
+    Init_Masks(BYTE_FLIP_MASK, SHUF_00BA, SHUF_DC00)
+    "# X0, X1, X2, X3 = W[0..15]; \n\t"
+    W_K_from_buff()
+
+    DigestToReg(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7)
+
+    SET_W_K_XFER(X0, 0)
+    MessageSched(X0, X1, X2, X3, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5, XFER,
+            SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,0)
+    SET_W_K_XFER(X1, 4)
     MessageSched_RORX(X1, X2, X3, X0, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5,
-            XFER, SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,4);
-    SET_W_K_XFER(X2, 8);
+            XFER, SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,4)
+    SET_W_K_XFER(X2, 8)
     MessageSched_RORX(X2, X3, X0, X1, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5,
-            XFER, SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,8);
-    SET_W_K_XFER(X3, 12);
+            XFER, SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,8)
+    SET_W_K_XFER(X3, 12)
     MessageSched_RORX(X3, X0, X1, X2, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5,
-            XFER, SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,12);
-    SET_W_K_XFER(X0, 16);
+            XFER, SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,12)
+    SET_W_K_XFER(X0, 16)
     MessageSched_RORX(X0, X1, X2, X3, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5,
-            XFER, SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,16);
-    SET_W_K_XFER(X1, 20);
+            XFER, SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,16)
+    SET_W_K_XFER(X1, 20)
     MessageSched_RORX(X1, X2, X3, X0, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5,
-            XFER, SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,20);
-    SET_W_K_XFER(X2, 24);
+            XFER, SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,20)
+    SET_W_K_XFER(X2, 24)
     MessageSched_RORX(X2, X3, X0, X1, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5,
-            XFER, SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,24);
-    SET_W_K_XFER(X3, 28);
+            XFER, SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,24)
+    SET_W_K_XFER(X3, 28)
     MessageSched_RORX(X3, X0, X1, X2, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5,
-            XFER, SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,28);
-    SET_W_K_XFER(X0, 32);
+            XFER, SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,28)
+    SET_W_K_XFER(X0, 32)
     MessageSched_RORX(X0, X1, X2, X3, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5,
-            XFER, SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,32);
-    SET_W_K_XFER(X1, 36);
+            XFER, SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,32)
+    SET_W_K_XFER(X1, 36)
     MessageSched_RORX(X1, X2, X3, X0, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5,
-            XFER, SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,36);
-    SET_W_K_XFER(X2, 40);
+            XFER, SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,36)
+    SET_W_K_XFER(X2, 40)
     MessageSched_RORX(X2, X3, X0, X1, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5,
-            XFER, SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,40);
-    SET_W_K_XFER(X3, 44);
+            XFER, SHUF_00BA, SHUF_DC00, S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,40)
+    SET_W_K_XFER(X3, 44)
     MessageSched_RORX(X3, X0, X1, X2, XTMP0, XTMP1, XTMP2, XTMP3, XTMP4, XTMP5,
-            XFER, SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,44);
+            XFER, SHUF_00BA, SHUF_DC00, S_4,S_5,S_6,S_7,S_0,S_1,S_2,S_3,44)
 
-    SET_W_K_XFER(X0, 48);
-    SET_W_K_XFER(X1, 52);
-    SET_W_K_XFER(X2, 56);
-    SET_W_K_XFER(X3, 60);
+    SET_W_K_XFER(X0, 48)
+    SET_W_K_XFER(X1, 52)
+    SET_W_K_XFER(X2, 56)
+    SET_W_K_XFER(X3, 60)
 
-    RND_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,48);
-    RND_7(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,49);
-    RND_6(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,50);
-    RND_5(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,51);
+    RND_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,48)
+    RND_7(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,49)
+    RND_6(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,50)
+    RND_5(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,51)
 
-    RND_4(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,52);
-    RND_3(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,53);
-    RND_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,54);
-    RND_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,55);
+    RND_4(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,52)
+    RND_3(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,53)
+    RND_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,54)
+    RND_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,55)
 
-    RND_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,56);
-    RND_7(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,57);
-    RND_6(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,58);
-    RND_5(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,59);
+    RND_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,56)
+    RND_7(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,57)
+    RND_6(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,58)
+    RND_5(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,59)
 
-    RND_4(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,60);
-    RND_3(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,61);
-    RND_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,62);
-    RND_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,63);
+    RND_4(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,60)
+    RND_3(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,61)
+    RND_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,62)
+    RND_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,63)
 
-    RegToDigest(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7);
+    RegToDigest(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7)
+
+        :
+        : [FLIP]     "m" (mBYTE_FLIP_MASK[0]),
+          [SHUF00BA] "m" (mSHUF_00BA[0]),
+          [SHUFDC00] "m" (mSHUF_DC00[0]),
+          [digest]   "m" (sha256->digest),
+          [buf]      "m" (sha256->buffer),
+          [K]        "m" (K),
+          [W_K]      "m" (W_K)
+        : SSE_REGs, "memory"
+    );
 
     return 0;
 }
@@ -1374,80 +1457,94 @@ static int Transform_AVX1_RORX(wc_Sha256* sha256)
 
 #if defined(HAVE_INTEL_AVX2)
 
-#define _MOVE_to_REG(ymm, mem)       __asm__ volatile("vmovdqu %0, %%"#ymm" ":: "m"(mem));
-#define _MOVE_to_MEM(mem, ymm)       __asm__ volatile("vmovdqu %%"#ymm", %0" : "=m"(mem):);
-#define _BYTE_SWAP(ymm, map)              __asm__ volatile("vpshufb %0, %%"#ymm", %%"#ymm"\n\t"\
-                                                       :: "m"(map));
-#define _MOVE_128(ymm0, ymm1, ymm2, map)   __asm__ volatile("vperm2i128  $"#map", %%"\
-                                  #ymm2", %%"#ymm1", %%"#ymm0" "::);
-#define _MOVE_BYTE(ymm0, ymm1, map)  __asm__ volatile("vpshufb %0, %%"#ymm1", %%"\
-                                  #ymm0"\n\t":: "m"(map));
-#define _S_TEMP(dest, src, bits, temp)    __asm__ volatile("vpsrld  $"#bits", %%"\
-         #src", %%"#dest"\n\tvpslld  $32-"#bits", %%"#src", %%"#temp"\n\tvpor %%"\
-         #temp",%%"#dest", %%"#dest" "::);
-#define _AVX2_R(dest, src, bits)          __asm__ volatile("vpsrld  $"#bits", %%"\
-                                  #src", %%"#dest" "::);
-#define _XOR(dest, src1, src2)       __asm__ volatile("vpxor   %%"#src1", %%"\
-         #src2", %%"#dest" "::);
-#define _OR(dest, src1, src2)       __asm__ volatile("vpor    %%"#src1", %%"\
-         #src2", %%"#dest" "::);
-#define _ADD(dest, src1, src2)       __asm__ volatile("vpaddd   %%"#src1", %%"\
-         #src2", %%"#dest" "::);
-#define _ADD_MEM(dest, src1, mem)    __asm__ volatile("vpaddd   %0, %%"#src1", %%"\
-         #dest" "::"m"(mem));
-#define _BLEND(map, dest, src1, src2)    __asm__ volatile("vpblendd    $"#map", %%"\
-         #src1",   %%"#src2", %%"#dest" "::);
+#define _MOVE_to_REG(ymm, mem, i) \
+    "leaq	%["#mem"], %%r8\n\t" \
+    "vmovdqu ("#i")*4(%%r8), %%"#ymm"\n\t"
+#define _MOVE_to_MEM(mem, i, ymm) \
+    "leaq	%["#mem"], %%r8\n\t" \
+    "vmovdqu %%"#ymm",  "#i"*4(%%r8)\n\t"
+#define _BYTE_SWAP(ymm, map)   \
+    "vpshufb %["#map"], %%"#ymm", %%"#ymm"\n\t"
+#define _MOVE_128(ymm0, ymm1, ymm2, map) \
+    "vperm2i128  $"#map", %%"#ymm2", %%"#ymm1", %%"#ymm0"\n\t"
+#define _MOVE_BYTE(ymm0, ymm1, map) \
+    "vpshufb %["#map"], %%"#ymm1", %%"#ymm0"\n\t"
+#define _S_TEMP(dest, src, bits, temp) \
+    "vpsrld  $"#bits", %%"#src", %%"#dest"\n\t" \
+    "vpslld  $32-"#bits", %%"#src", %%"#temp"\n\t" \
+    "vpor %%"#temp",%%"#dest", %%"#dest"\n\t"
+#define _AVX2_R(dest, src, bits) \
+    "vpsrld  $"#bits", %%"#src", %%"#dest"\n\t"
+#define _XOR(dest, src1, src2) \
+    "vpxor   %%"#src1", %%"#src2", %%"#dest"\n\t"
+#define _OR(dest, src1, src2) \
+    "vpor    %%"#src1", %%"#src2", %%"#dest"\n\t"
+#define _ADD(dest, src1, src2) \
+    "vpaddd   %%"#src1", %%"#src2", %%"#dest"\n\t"
+#define _ADD_MEM(dest, src1, mem, i) \
+    "leaq	%["#mem"], %%r8\n\t" \
+    "vpaddd   "#i"*4(%%r8), %%"#src1", %%"#dest"\n\t"
+#define _BLEND(map, dest, src1, src2) \
+    "vpblendd    $"#map", %%"#src1",   %%"#src2", %%"#dest"\n\t"
 
-#define    _EXTRACT_XMM_0(xmm, mem)  __asm__ volatile("vpextrd $0, %%"#xmm", %0 ":"=r"(mem):);
-#define    _EXTRACT_XMM_1(xmm, mem)  __asm__ volatile("vpextrd $1, %%"#xmm", %0 ":"=r"(mem):);
-#define    _EXTRACT_XMM_2(xmm, mem)  __asm__ volatile("vpextrd $2, %%"#xmm", %0 ":"=r"(mem):);
-#define    _EXTRACT_XMM_3(xmm, mem)  __asm__ volatile("vpextrd $3, %%"#xmm", %0 ":"=r"(mem):);
-#define    _EXTRACT_XMM_4(ymm, xmm, mem)\
-      __asm__ volatile("vperm2i128 $0x1, %%"#ymm", %%"#ymm", %%"#ymm" "::);\
-      __asm__ volatile("vpextrd $0, %%"#xmm", %0 ":"=r"(mem):);
-#define    _EXTRACT_XMM_5(xmm, mem)  __asm__ volatile("vpextrd $1, %%"#xmm", %0 ":"=r"(mem):);
-#define    _EXTRACT_XMM_6(xmm, mem)  __asm__ volatile("vpextrd $2, %%"#xmm", %0 ":"=r"(mem):);
-#define    _EXTRACT_XMM_7(xmm, mem)  __asm__ volatile("vpextrd $3, %%"#xmm", %0 ":"=r"(mem):);
+#define    _EXTRACT_XMM_0(xmm, mem) \
+    "vpextrd $0, %%"#xmm", %["#mem"]\n\t"
+#define    _EXTRACT_XMM_1(xmm, mem) \
+    "vpextrd $1, %%"#xmm", %["#mem"]\n\t"
+#define    _EXTRACT_XMM_2(xmm, mem) \
+    "vpextrd $2, %%"#xmm", %["#mem"]\n\t"
+#define    _EXTRACT_XMM_3(xmm, mem) \
+    "vpextrd $3, %%"#xmm", %["#mem"]\n\t"
+#define    _EXTRACT_XMM_4(ymm, xmm, mem) \
+    "vperm2i128 $0x1, %%"#ymm", %%"#ymm", %%"#ymm"\n\t" \
+    "vpextrd $0, %%"#xmm", %["#mem"]\n\t"
+#define    _EXTRACT_XMM_5(xmm, mem) \
+    "vpextrd $1, %%"#xmm", %["#mem"]\n\t"
+#define    _EXTRACT_XMM_6(xmm, mem) \
+    "vpextrd $2, %%"#xmm", %["#mem"]\n\t"
+#define    _EXTRACT_XMM_7(xmm, mem) \
+    "vpextrd $3, %%"#xmm", %["#mem"]\n\t"
 
-#define    _SWAP_YMM_HL(ymm)   __asm__ volatile("vperm2i128 $0x1, %%"#ymm", %%"#ymm", %%"#ymm" "::);
+#define    _SWAP_YMM_HL(ymm)  \
+    "vperm2i128 $0x1, %%"#ymm", %%"#ymm", %%"#ymm"\n\t"
 #define     SWAP_YMM_HL(ymm)   _SWAP_YMM_HL(ymm)
 
-#define MOVE_to_REG(ymm, mem)      _MOVE_to_REG(ymm, mem)
-#define MOVE_to_MEM(mem, ymm)      _MOVE_to_MEM(mem, ymm)
+#define MOVE_to_REG(ymm, mem, i)   _MOVE_to_REG(ymm, mem, i)
+#define MOVE_to_MEM(mem, i, ymm)   _MOVE_to_MEM(mem, i, ymm)
 #define BYTE_SWAP(ymm, map)        _BYTE_SWAP(ymm, map)
 #define MOVE_128(ymm0, ymm1, ymm2, map) _MOVE_128(ymm0, ymm1, ymm2, map)
 #define MOVE_BYTE(ymm0, ymm1, map) _MOVE_BYTE(ymm0, ymm1, map)
 #define XOR(dest, src1, src2)      _XOR(dest, src1, src2)
 #define OR(dest, src1, src2)       _OR(dest, src1, src2)
 #define ADD(dest, src1, src2)      _ADD(dest, src1, src2)
-#define ADD_MEM(dest, src1, mem)  _ADD_MEM(dest, src1, mem)
+#define ADD_MEM(dest, src1, mem, i)  _ADD_MEM(dest, src1, mem, i)
 #define BLEND(map, dest, src1, src2) _BLEND(map, dest, src1, src2)
 
-#define S_TMP(dest, src, bits, temp) _S_TEMP(dest, src, bits, temp);
+#define S_TMP(dest, src, bits, temp) _S_TEMP(dest, src, bits, temp)
 #define AVX2_S(dest, src, bits)      S_TMP(dest, src, bits, S_TEMP)
 #define AVX2_R(dest, src, bits)      _AVX2_R(dest, src, bits)
 
-#define GAMMA0(dest, src)      AVX2_S(dest, src, 7);  AVX2_S(G_TEMP, src, 18); \
-    XOR(dest, G_TEMP, dest); AVX2_R(G_TEMP, src, 3);  XOR(dest, G_TEMP, dest);
-#define GAMMA0_1(dest, src)    AVX2_S(dest, src, 7);  AVX2_S(G_TEMP, src, 18);
-#define GAMMA0_2(dest, src)    XOR(dest, G_TEMP, dest); AVX2_R(G_TEMP, src, 3);  \
-    XOR(dest, G_TEMP, dest);
+#define GAMMA0(dest, src)      AVX2_S(dest, src, 7)  AVX2_S(G_TEMP, src, 18) \
+    XOR(dest, G_TEMP, dest) AVX2_R(G_TEMP, src, 3)  XOR(dest, G_TEMP, dest)
+#define GAMMA0_1(dest, src)    AVX2_S(dest, src, 7)  AVX2_S(G_TEMP, src, 18)
+#define GAMMA0_2(dest, src)    XOR(dest, G_TEMP, dest) AVX2_R(G_TEMP, src, 3)  \
+    XOR(dest, G_TEMP, dest)
 
-#define GAMMA1(dest, src)      AVX2_S(dest, src, 17); AVX2_S(G_TEMP, src, 19); \
-    XOR(dest, G_TEMP, dest); AVX2_R(G_TEMP, src, 10); XOR(dest, G_TEMP, dest);
-#define GAMMA1_1(dest, src)    AVX2_S(dest, src, 17); AVX2_S(G_TEMP, src, 19);
-#define GAMMA1_2(dest, src)    XOR(dest, G_TEMP, dest); AVX2_R(G_TEMP, src, 10); \
-    XOR(dest, G_TEMP, dest);
+#define GAMMA1(dest, src)      AVX2_S(dest, src, 17) AVX2_S(G_TEMP, src, 19) \
+    XOR(dest, G_TEMP, dest) AVX2_R(G_TEMP, src, 10) XOR(dest, G_TEMP, dest)
+#define GAMMA1_1(dest, src)    AVX2_S(dest, src, 17) AVX2_S(G_TEMP, src, 19)
+#define GAMMA1_2(dest, src)    XOR(dest, G_TEMP, dest) AVX2_R(G_TEMP, src, 10) \
+    XOR(dest, G_TEMP, dest)
 
-#define    FEEDBACK1_to_W_I_2    MOVE_BYTE(YMM_TEMP0, W_I, mMAP1toW_I_2[0]); \
-    BLEND(0x0c, W_I_2, YMM_TEMP0, W_I_2);
-#define    FEEDBACK2_to_W_I_2    MOVE_128(YMM_TEMP0, W_I, W_I, 0x08);  \
-    MOVE_BYTE(YMM_TEMP0, YMM_TEMP0, mMAP2toW_I_2[0]); BLEND(0x30, W_I_2, YMM_TEMP0, W_I_2);
-#define    FEEDBACK3_to_W_I_2    MOVE_BYTE(YMM_TEMP0, W_I, mMAP3toW_I_2[0]); \
-    BLEND(0xc0, W_I_2, YMM_TEMP0, W_I_2);
+#define    FEEDBACK1_to_W_I_2    MOVE_BYTE(YMM_TEMP0, W_I, MAP1W_2) \
+    BLEND(0x0c, W_I_2, YMM_TEMP0, W_I_2)
+#define    FEEDBACK2_to_W_I_2    MOVE_128(YMM_TEMP0, W_I, W_I, 0x08)  \
+    MOVE_BYTE(YMM_TEMP0, YMM_TEMP0, MAP2W_2) BLEND(0x30, W_I_2, YMM_TEMP0, W_I_2)
+#define    FEEDBACK3_to_W_I_2    MOVE_BYTE(YMM_TEMP0, W_I, MAP3W_2) \
+    BLEND(0xc0, W_I_2, YMM_TEMP0, W_I_2)
 
-#define    FEEDBACK_to_W_I_7     MOVE_128(YMM_TEMP0, W_I, W_I, 0x08);\
-    MOVE_BYTE(YMM_TEMP0, YMM_TEMP0, mMAPtoW_I_7[0]); BLEND(0x80, W_I_7, YMM_TEMP0, W_I_7);
+#define    FEEDBACK_to_W_I_7     MOVE_128(YMM_TEMP0, W_I, W_I, 0x08)\
+    MOVE_BYTE(YMM_TEMP0, YMM_TEMP0, MAPW_7) BLEND(0x80, W_I_7, YMM_TEMP0, W_I_7)
 
 #undef voitle
 
@@ -1464,51 +1561,30 @@ static int Transform_AVX1_RORX(wc_Sha256* sha256)
 #define W_K_TEMP   ymm15
 #define W_K_TEMPx  xmm15
 
-
 #define MOVE_15_to_16(w_i_16, w_i_15, w_i_7)\
-    __asm__ volatile("vperm2i128  $0x01, %%"#w_i_15", %%"#w_i_15", %%"#w_i_15" "::);\
-    __asm__ volatile("vpblendd    $0x08, %%"#w_i_15", %%"#w_i_7", %%"#w_i_16" "::);\
-    __asm__ volatile("vperm2i128 $0x01,  %%"#w_i_7",  %%"#w_i_7", %%"#w_i_15" "::);\
-    __asm__ volatile("vpblendd    $0x80, %%"#w_i_15", %%"#w_i_16", %%"#w_i_16" "::);\
-    __asm__ volatile("vpshufd    $0x93,  %%"#w_i_16", %%"#w_i_16" "::);\
+    "vperm2i128	$0x01, %%"#w_i_15", %%"#w_i_15", %%"#w_i_15"\n\t" \
+    "vpblendd	$0x08, %%"#w_i_15", %%"#w_i_7",  %%"#w_i_16"\n\t" \
+    "vperm2i128	$0x01, %%"#w_i_7",  %%"#w_i_7",  %%"#w_i_15"\n\t" \
+    "vpblendd	$0x80, %%"#w_i_15", %%"#w_i_16", %%"#w_i_16"\n\t" \
+    "vpshufd	$0x93, %%"#w_i_16", %%"#w_i_16"\n\t"
 
 #define MOVE_7_to_15(w_i_15, w_i_7)\
-    __asm__ volatile("vmovdqu                 %%"#w_i_7",  %%"#w_i_15" "::);\
+    "vmovdqu	%%"#w_i_7",  %%"#w_i_15"\n\t"
 
 #define MOVE_I_to_7(w_i_7, w_i)\
-    __asm__ volatile("vperm2i128 $0x01,       %%"#w_i",   %%"#w_i",   %%"#w_i_7" "::);\
-    __asm__ volatile("vpblendd    $0x01,       %%"#w_i_7",   %%"#w_i", %%"#w_i_7" "::);\
-    __asm__ volatile("vpshufd    $0x39, %%"#w_i_7", %%"#w_i_7" "::);\
+    "vperm2i128	$0x01, %%"#w_i",   %%"#w_i", %%"#w_i_7"\n\t" \
+    "vpblendd	$0x01, %%"#w_i_7", %%"#w_i", %%"#w_i_7"\n\t" \
+    "vpshufd	$0x39, %%"#w_i_7", %%"#w_i_7"\n\t"
 
 #define MOVE_I_to_2(w_i_2, w_i)\
-    __asm__ volatile("vperm2i128 $0x01,       %%"#w_i", %%"#w_i", %%"#w_i_2" "::);\
-    __asm__ volatile("vpshufd    $0x0e, %%"#w_i_2", %%"#w_i_2" "::);\
+    "vperm2i128	$0x01, %%"#w_i", %%"#w_i", %%"#w_i_2"\n\t" \
+    "vpshufd	$0x0e, %%"#w_i_2", %%"#w_i_2"\n\t"
 
 #define ROTATE_W(w_i_16, w_i_15, w_i_7, w_i_2, w_i)\
-    MOVE_15_to_16(w_i_16, w_i_15, w_i_7); \
-    MOVE_7_to_15(w_i_15, w_i_7); \
-    MOVE_I_to_7(w_i_7, w_i); \
-    MOVE_I_to_2(w_i_2, w_i);\
-
-#define _RegToDigest(S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7 )\
-    { word32 d;\
-    __asm__ volatile("movl %"#S_0", %0":"=r"(d)::SSE_REGs);\
-    sha256->digest[0] += d;\
-    __asm__ volatile("movl %"#S_1", %0":"=r"(d)::SSE_REGs);\
-    sha256->digest[1] += d;\
-    __asm__ volatile("movl %"#S_2", %0":"=r"(d)::SSE_REGs);\
-    sha256->digest[2] += d;\
-    __asm__ volatile("movl %"#S_3", %0":"=r"(d)::SSE_REGs);\
-    sha256->digest[3] += d;\
-    __asm__ volatile("movl %"#S_4", %0":"=r"(d)::SSE_REGs);\
-    sha256->digest[4] += d;\
-    __asm__ volatile("movl %"#S_5", %0":"=r"(d)::SSE_REGs);\
-    sha256->digest[5] += d;\
-    __asm__ volatile("movl %"#S_6", %0":"=r"(d)::SSE_REGs);\
-    sha256->digest[6] += d;\
-    __asm__ volatile("movl %"#S_7", %0":"=r"(d)::SSE_REGs);\
-    sha256->digest[7] += d;\
-}
+    MOVE_15_to_16(w_i_16, w_i_15, w_i_7) \
+    MOVE_7_to_15(w_i_15, w_i_7) \
+    MOVE_I_to_7(w_i_7, w_i) \
+    MOVE_I_to_2(w_i_2, w_i)
 
 #define _DumpS(S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7 )\
   { word32 d[8];\
@@ -1572,351 +1648,369 @@ static int Transform_AVX2(wc_Sha256* sha256)
     word32 W_K[64];
 #endif
 
-    MOVE_to_REG(W_I_16, sha256->buffer[0]);     BYTE_SWAP(W_I_16, mBYTE_FLIP_MASK_16[0]);
-    MOVE_to_REG(W_I_15, sha256->buffer[1]);     BYTE_SWAP(W_I_15, mBYTE_FLIP_MASK_15[0]);
-    MOVE_to_REG(W_I,    sha256->buffer[8]);    BYTE_SWAP(W_I,    mBYTE_FLIP_MASK_16[0]);
-    MOVE_to_REG(W_I_7,  sha256->buffer[16-7]); BYTE_SWAP(W_I_7,  mBYTE_FLIP_MASK_7[0]);
-    MOVE_to_REG(W_I_2,  sha256->buffer[16-2]); BYTE_SWAP(W_I_2,  mBYTE_FLIP_MASK_2[0]);
+    __asm__ __volatile__ (
 
-    DigestToReg(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7);
+    MOVE_to_REG(W_I_16, buf, 0)     BYTE_SWAP(W_I_16, FLIP_16)
+    MOVE_to_REG(W_I_15, buf, 1)     BYTE_SWAP(W_I_15, FLIP_15)
+    MOVE_to_REG(W_I,    buf, 8)     BYTE_SWAP(W_I,    FLIP_16)
+    MOVE_to_REG(W_I_7,  buf, 16-7)  BYTE_SWAP(W_I_7,  FLIP_7)
+    MOVE_to_REG(W_I_2,  buf, 16-2)  BYTE_SWAP(W_I_2,  FLIP_2)
 
-    ADD_MEM(W_K_TEMP, W_I_16, K[0]);
-    MOVE_to_MEM(W_K[0], W_K_TEMP);
+    DigestToReg(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7)
 
-    RND_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,0);
-    RND_7(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,1);
-    RND_6(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,2);
-    RND_5(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,3);
-    RND_4(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,4);
-    RND_3(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,5);
-    RND_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,6);
-    RND_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,7);
+    ADD_MEM(W_K_TEMP, W_I_16, K, 0)
+    MOVE_to_MEM(W_K, 0, W_K_TEMP)
 
-    ADD_MEM(YMM_TEMP0, W_I, K[8]);
-    MOVE_to_MEM(W_K[8], YMM_TEMP0);
+    RND_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,0)
+    RND_7(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,1)
+    RND_6(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,2)
+    RND_5(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,3)
+    RND_4(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,4)
+    RND_3(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,5)
+    RND_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,6)
+    RND_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,7)
 
-    /* W[i] = Gamma1(W[i-2]) + W[i-7] + Gamma0(W[i-15] + W[i-16]) */
-            RND_0_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,8);
-    GAMMA0_1(W_I_TEMP, W_I_15);
-            RND_0_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,8);
-    GAMMA0_2(W_I_TEMP, W_I_15);
-            RND_0_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,8);
-    ADD(W_I_TEMP, W_I_16, W_I_TEMP);/* for saving W_I before adding incomplete W_I_7 */
-            RND_7_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,9);
-    ADD(W_I, W_I_7, W_I_TEMP);
-            RND_7_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,9);
-    GAMMA1_1(YMM_TEMP0, W_I_2);
-            RND_7_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,9);
-    GAMMA1_2(YMM_TEMP0, W_I_2);
-            RND_6_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,10);
-    ADD(W_I, W_I, YMM_TEMP0);/* now W[16..17] are completed */
-            RND_6_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,10);
-    FEEDBACK1_to_W_I_2;
-            RND_6_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,10);
-    FEEDBACK_to_W_I_7;
-            RND_5_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,11);
-    ADD(W_I_TEMP, W_I_7, W_I_TEMP);
-            RND_5_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,11);
-    GAMMA1_1(YMM_TEMP0, W_I_2);
-            RND_5_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,11);
-    GAMMA1_2(YMM_TEMP0, W_I_2);
-            RND_4_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,12);
-    ADD(W_I, W_I_TEMP, YMM_TEMP0);/* now W[16..19] are completed */
-            RND_4_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,12);
-    FEEDBACK2_to_W_I_2;
-            RND_4_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,12);
-    GAMMA1_1(YMM_TEMP0, W_I_2);
-            RND_3_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,13);
-    GAMMA1_2(YMM_TEMP0, W_I_2);
-            RND_3_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,13);
-    ADD(W_I, W_I_TEMP, YMM_TEMP0); /* now W[16..21] are completed */
-            RND_3_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,13);
-    FEEDBACK3_to_W_I_2;
-            RND_2_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,14);
-    GAMMA1(YMM_TEMP0, W_I_2);
-            RND_2_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,14);
-            RND_2_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,14);
-    ADD(W_I, W_I_TEMP, YMM_TEMP0); /* now W[16..23] are completed */
-            RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,15);
-
-    MOVE_to_REG(YMM_TEMP0, K[16]);
-            RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,15);
-    ROTATE_W(W_I_16, W_I_15, W_I_7, W_I_2, W_I);
-            RND_1_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,15);
-    ADD(YMM_TEMP0, YMM_TEMP0, W_I);
-    MOVE_to_MEM(W_K[16], YMM_TEMP0);
+    ADD_MEM(YMM_TEMP0, W_I, K, 8)
+    MOVE_to_MEM(W_K, 8, YMM_TEMP0)
 
     /* W[i] = Gamma1(W[i-2]) + W[i-7] + Gamma0(W[i-15] + W[i-16]) */
-            RND_0_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,16);
-    GAMMA0_1(W_I_TEMP, W_I_15);
-            RND_0_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,16);
-    GAMMA0_2(W_I_TEMP, W_I_15);
-            RND_0_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,16);
-    ADD(W_I_TEMP, W_I_16, W_I_TEMP);/* for saving W_I before adding incomplete W_I_7 */
-            RND_7_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,17);
-    ADD(W_I, W_I_7, W_I_TEMP);
-            RND_7_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,17);
-    GAMMA1_1(YMM_TEMP0, W_I_2);
-            RND_7_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,17);
-    GAMMA1_2(YMM_TEMP0, W_I_2);
-            RND_6_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,18);
-    ADD(W_I, W_I, YMM_TEMP0);/* now W[16..17] are completed */
-            RND_6_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,18);
-    FEEDBACK1_to_W_I_2;
-            RND_6_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,18);
-    FEEDBACK_to_W_I_7;
-            RND_5_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,19);
-    ADD(W_I_TEMP, W_I_7, W_I_TEMP);
-            RND_5_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,19);
-    GAMMA1(YMM_TEMP0, W_I_2);
-            RND_5_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,19);
-    GAMMA1_2(YMM_TEMP0, W_I_2);
-            RND_4_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,20);
-    ADD(W_I, W_I_TEMP, YMM_TEMP0);/* now W[16..19] are completed */
-            RND_4_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,20);
-    FEEDBACK2_to_W_I_2;
-            RND_4_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,20);
-    GAMMA1_1(YMM_TEMP0, W_I_2);
-            RND_3_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,21);
-    GAMMA1_2(YMM_TEMP0, W_I_2);
-            RND_3_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,21);
-    ADD(W_I, W_I_TEMP, YMM_TEMP0); /* now W[16..21] are completed */
-            RND_3_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,21);
-    FEEDBACK3_to_W_I_2;
-            RND_2_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,22);
-    GAMMA1_1(YMM_TEMP0, W_I_2);
-            RND_2_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,22);
-    GAMMA1_2(YMM_TEMP0, W_I_2);
-            RND_2_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,22);
-    ADD(W_I, W_I_TEMP, YMM_TEMP0); /* now W[16..23] are completed */
-            RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,23);
+            RND_0_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,8)
+    GAMMA0_1(W_I_TEMP, W_I_15)
+            RND_0_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,8)
+    GAMMA0_2(W_I_TEMP, W_I_15)
+            RND_0_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,8)
+    ADD(W_I_TEMP, W_I_16, W_I_TEMP)/* for saving W_I before adding incomplete W_I_7 */
+            RND_7_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,9)
+    ADD(W_I, W_I_7, W_I_TEMP)
+            RND_7_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,9)
+    GAMMA1_1(YMM_TEMP0, W_I_2)
+            RND_7_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,9)
+    GAMMA1_2(YMM_TEMP0, W_I_2)
+            RND_6_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,10)
+    ADD(W_I, W_I, YMM_TEMP0)/* now W[16..17] are completed */
+            RND_6_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,10)
+    FEEDBACK1_to_W_I_2
+            RND_6_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,10)
+    FEEDBACK_to_W_I_7
+            RND_5_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,11)
+    ADD(W_I_TEMP, W_I_7, W_I_TEMP)
+            RND_5_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,11)
+    GAMMA1_1(YMM_TEMP0, W_I_2)
+            RND_5_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,11)
+    GAMMA1_2(YMM_TEMP0, W_I_2)
+            RND_4_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,12)
+    ADD(W_I, W_I_TEMP, YMM_TEMP0)/* now W[16..19] are completed */
+            RND_4_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,12)
+    FEEDBACK2_to_W_I_2
+            RND_4_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,12)
+    GAMMA1_1(YMM_TEMP0, W_I_2)
+            RND_3_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,13)
+    GAMMA1_2(YMM_TEMP0, W_I_2)
+            RND_3_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,13)
+    ADD(W_I, W_I_TEMP, YMM_TEMP0) /* now W[16..21] are completed */
+            RND_3_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,13)
+    FEEDBACK3_to_W_I_2
+            RND_2_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,14)
+    GAMMA1(YMM_TEMP0, W_I_2)
+            RND_2_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,14)
+            RND_2_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,14)
+    ADD(W_I, W_I_TEMP, YMM_TEMP0) /* now W[16..23] are completed */
+            RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,15)
 
-    MOVE_to_REG(YMM_TEMP0, K[24]);
-            RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,23);
-    ROTATE_W(W_I_16, W_I_15, W_I_7, W_I_2, W_I);
-            RND_1_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,23);
-    ADD(YMM_TEMP0, YMM_TEMP0, W_I);
-    MOVE_to_MEM(W_K[24], YMM_TEMP0);
+    MOVE_to_REG(YMM_TEMP0, K, 16)
+            RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,15)
+    ROTATE_W(W_I_16, W_I_15, W_I_7, W_I_2, W_I)
+            RND_1_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,15)
+    ADD(YMM_TEMP0, YMM_TEMP0, W_I)
+    MOVE_to_MEM(W_K, 16, YMM_TEMP0)
 
-            /* W[i] = Gamma1(W[i-2]) + W[i-7] + Gamma0(W[i-15] + W[i-16]) */
-            RND_0_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,24);
-    GAMMA0_1(W_I_TEMP, W_I_15);
-            RND_0_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,24);
-    GAMMA0_2(W_I_TEMP, W_I_15);
-            RND_0_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,24);
-    ADD(W_I_TEMP, W_I_16, W_I_TEMP);/* for saving W_I before adding incomplete W_I_7 */
-            RND_7_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,25);
-    ADD(W_I, W_I_7, W_I_TEMP);
-            RND_7_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,25);
-    GAMMA1_1(YMM_TEMP0, W_I_2);
-            RND_7_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,25);
-    GAMMA1_2(YMM_TEMP0, W_I_2);
-            RND_6_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,26);
-    ADD(W_I, W_I, YMM_TEMP0);/* now W[16..17] are completed */
-            RND_6_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,26);
-    FEEDBACK1_to_W_I_2;
-            RND_6_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,26);
-    FEEDBACK_to_W_I_7;
-            RND_5_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,27);
-    ADD(W_I_TEMP, W_I_7, W_I_TEMP);
-            RND_5_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,27);
-    GAMMA1_1(YMM_TEMP0, W_I_2);
-            RND_5_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,27);
-    GAMMA1_2(YMM_TEMP0, W_I_2);
-            RND_4_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,28);
-    ADD(W_I, W_I_TEMP, YMM_TEMP0);/* now W[16..19] are completed */
-            RND_4_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,28);
-    FEEDBACK2_to_W_I_2;
-            RND_4_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,28);
-    GAMMA1_1(YMM_TEMP0, W_I_2);
-            RND_3_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,29);
-    GAMMA1_2(YMM_TEMP0, W_I_2);
-            RND_3_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,29);
-    ADD(W_I, W_I_TEMP, YMM_TEMP0); /* now W[16..21] are completed */
-            RND_3_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,29);
-    FEEDBACK3_to_W_I_2;
-            RND_2_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,30);
-    GAMMA1(YMM_TEMP0, W_I_2);
-            RND_2_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,30);
-            RND_2_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,30);
-    ADD(W_I, W_I_TEMP, YMM_TEMP0); /* now W[16..23] are completed */
-            RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,31);
+    /* W[i] = Gamma1(W[i-2]) + W[i-7] + Gamma0(W[i-15] + W[i-16]) */
+            RND_0_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,16)
+    GAMMA0_1(W_I_TEMP, W_I_15)
+            RND_0_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,16)
+    GAMMA0_2(W_I_TEMP, W_I_15)
+            RND_0_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,16)
+    ADD(W_I_TEMP, W_I_16, W_I_TEMP)/* for saving W_I before adding incomplete W_I_7 */
+            RND_7_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,17)
+    ADD(W_I, W_I_7, W_I_TEMP)
+            RND_7_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,17)
+    GAMMA1_1(YMM_TEMP0, W_I_2)
+            RND_7_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,17)
+    GAMMA1_2(YMM_TEMP0, W_I_2)
+            RND_6_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,18)
+    ADD(W_I, W_I, YMM_TEMP0)/* now W[16..17] are completed */
+            RND_6_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,18)
+    FEEDBACK1_to_W_I_2
+            RND_6_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,18)
+    FEEDBACK_to_W_I_7
+            RND_5_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,19)
+    ADD(W_I_TEMP, W_I_7, W_I_TEMP)
+            RND_5_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,19)
+    GAMMA1(YMM_TEMP0, W_I_2)
+            RND_5_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,19)
+    GAMMA1_2(YMM_TEMP0, W_I_2)
+            RND_4_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,20)
+    ADD(W_I, W_I_TEMP, YMM_TEMP0)/* now W[16..19] are completed */
+            RND_4_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,20)
+    FEEDBACK2_to_W_I_2
+            RND_4_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,20)
+    GAMMA1_1(YMM_TEMP0, W_I_2)
+            RND_3_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,21)
+    GAMMA1_2(YMM_TEMP0, W_I_2)
+            RND_3_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,21)
+    ADD(W_I, W_I_TEMP, YMM_TEMP0) /* now W[16..21] are completed */
+            RND_3_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,21)
+    FEEDBACK3_to_W_I_2
+            RND_2_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,22)
+    GAMMA1_1(YMM_TEMP0, W_I_2)
+            RND_2_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,22)
+    GAMMA1_2(YMM_TEMP0, W_I_2)
+            RND_2_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,22)
+    ADD(W_I, W_I_TEMP, YMM_TEMP0) /* now W[16..23] are completed */
+            RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,23)
 
-    MOVE_to_REG(YMM_TEMP0, K[32]);
-            RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,31);
-    ROTATE_W(W_I_16, W_I_15, W_I_7, W_I_2, W_I);
-            RND_1_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,31);
-    ADD(YMM_TEMP0, YMM_TEMP0, W_I);
-    MOVE_to_MEM(W_K[32], YMM_TEMP0);
-
-
-            /* W[i] = Gamma1(W[i-2]) + W[i-7] + Gamma0(W[i-15] + W[i-16]) */
-            RND_0_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,32);
-    GAMMA0_1(W_I_TEMP, W_I_15);
-            RND_0_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,32);
-    GAMMA0_2(W_I_TEMP, W_I_15);
-            RND_0_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,32);
-    ADD(W_I_TEMP, W_I_16, W_I_TEMP);/* for saving W_I before adding incomplete W_I_7 */
-            RND_7_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,33);
-    ADD(W_I, W_I_7, W_I_TEMP);
-            RND_7_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,33);
-    GAMMA1_1(YMM_TEMP0, W_I_2);
-            RND_7_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,33);
-    GAMMA1_2(YMM_TEMP0, W_I_2);
-            RND_6_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,34);
-    ADD(W_I, W_I, YMM_TEMP0);/* now W[16..17] are completed */
-            RND_6_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,34);
-    FEEDBACK1_to_W_I_2;
-            RND_6_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,34);
-    FEEDBACK_to_W_I_7;
-            RND_5_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,35);
-    ADD(W_I_TEMP, W_I_7, W_I_TEMP);
-            RND_5_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,35);
-    GAMMA1_1(YMM_TEMP0, W_I_2);
-            RND_5_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,35);
-    GAMMA1_2(YMM_TEMP0, W_I_2);
-            RND_4_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,36);
-    ADD(W_I, W_I_TEMP, YMM_TEMP0);/* now W[16..19] are completed */
-            RND_4_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,36);
-    FEEDBACK2_to_W_I_2;
-            RND_4_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,36);
-    GAMMA1_1(YMM_TEMP0, W_I_2);
-            RND_3_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,37);
-    GAMMA1_2(YMM_TEMP0, W_I_2);
-            RND_3_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,37);
-    ADD(W_I, W_I_TEMP, YMM_TEMP0); /* now W[16..21] are completed */
-            RND_3_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,37);
-    FEEDBACK3_to_W_I_2;
-            RND_2_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,38);
-    GAMMA1_1(YMM_TEMP0, W_I_2);
-            RND_2_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,38);
-    GAMMA1_2(YMM_TEMP0, W_I_2);
-            RND_2_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,38);
-    ADD(W_I, W_I_TEMP, YMM_TEMP0); /* now W[16..23] are completed */
-            RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,39);
-
-    MOVE_to_REG(YMM_TEMP0, K[40]);
-            RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,39);
-    ROTATE_W(W_I_16, W_I_15, W_I_7, W_I_2, W_I);
-            RND_1_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,39);
-    ADD(YMM_TEMP0, YMM_TEMP0, W_I);
-    MOVE_to_MEM(W_K[40], YMM_TEMP0);
+    MOVE_to_REG(YMM_TEMP0, K, 24)
+            RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,23)
+    ROTATE_W(W_I_16, W_I_15, W_I_7, W_I_2, W_I)
+            RND_1_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,23)
+    ADD(YMM_TEMP0, YMM_TEMP0, W_I)
+    MOVE_to_MEM(W_K, 24, YMM_TEMP0)
 
             /* W[i] = Gamma1(W[i-2]) + W[i-7] + Gamma0(W[i-15] + W[i-16]) */
-            RND_0_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,40);
-    GAMMA0_1(W_I_TEMP, W_I_15);
-            RND_0_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,40);
-    GAMMA0_2(W_I_TEMP, W_I_15);
-            RND_0_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,40);
-    ADD(W_I_TEMP, W_I_16, W_I_TEMP);/* for saving W_I before adding incomplete W_I_7 */
-            RND_7_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,41);
-    ADD(W_I, W_I_7, W_I_TEMP);
-            RND_7_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,41);
-    GAMMA1_1(YMM_TEMP0, W_I_2);
-            RND_7_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,41);
-    GAMMA1_2(YMM_TEMP0, W_I_2);
-            RND_6_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,42);
-    ADD(W_I, W_I, YMM_TEMP0);/* now W[16..17] are completed */
-            RND_6_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,42);
-    FEEDBACK1_to_W_I_2;
-            RND_6_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,42);
-    FEEDBACK_to_W_I_7;
-            RND_5_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,43);
-    ADD(W_I_TEMP, W_I_7, W_I_TEMP);
-            RND_5_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,43);
-    GAMMA1_1(YMM_TEMP0, W_I_2);
-            RND_5_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,43);
-    GAMMA1_2(YMM_TEMP0, W_I_2);
-            RND_4_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,44);
-    ADD(W_I, W_I_TEMP, YMM_TEMP0);/* now W[16..19] are completed */
-            RND_4_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,44);
-    FEEDBACK2_to_W_I_2;
-            RND_4_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,44);
-    GAMMA1_1(YMM_TEMP0, W_I_2);
-            RND_3_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,45);
-    GAMMA1_2(YMM_TEMP0, W_I_2);
-            RND_3_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,45);
-    ADD(W_I, W_I_TEMP, YMM_TEMP0); /* now W[16..21] are completed */
-            RND_3_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,45);
-    FEEDBACK3_to_W_I_2;
-            RND_2_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,46);
-    GAMMA1_1(YMM_TEMP0, W_I_2);
-            RND_2_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,46);
-    GAMMA1_2(YMM_TEMP0, W_I_2);
-            RND_2_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,46);
-    ADD(W_I, W_I_TEMP, YMM_TEMP0); /* now W[16..23] are completed */
-            RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,47);
+            RND_0_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,24)
+    GAMMA0_1(W_I_TEMP, W_I_15)
+            RND_0_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,24)
+    GAMMA0_2(W_I_TEMP, W_I_15)
+            RND_0_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,24)
+    ADD(W_I_TEMP, W_I_16, W_I_TEMP)/* for saving W_I before adding incomplete W_I_7 */
+            RND_7_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,25)
+    ADD(W_I, W_I_7, W_I_TEMP)
+            RND_7_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,25)
+    GAMMA1_1(YMM_TEMP0, W_I_2)
+            RND_7_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,25)
+    GAMMA1_2(YMM_TEMP0, W_I_2)
+            RND_6_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,26)
+    ADD(W_I, W_I, YMM_TEMP0)/* now W[16..17] are completed */
+            RND_6_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,26)
+    FEEDBACK1_to_W_I_2
+            RND_6_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,26)
+    FEEDBACK_to_W_I_7
+            RND_5_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,27)
+    ADD(W_I_TEMP, W_I_7, W_I_TEMP)
+            RND_5_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,27)
+    GAMMA1_1(YMM_TEMP0, W_I_2)
+            RND_5_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,27)
+    GAMMA1_2(YMM_TEMP0, W_I_2)
+            RND_4_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,28)
+    ADD(W_I, W_I_TEMP, YMM_TEMP0)/* now W[16..19] are completed */
+            RND_4_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,28)
+    FEEDBACK2_to_W_I_2
+            RND_4_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,28)
+    GAMMA1_1(YMM_TEMP0, W_I_2)
+            RND_3_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,29)
+    GAMMA1_2(YMM_TEMP0, W_I_2)
+            RND_3_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,29)
+    ADD(W_I, W_I_TEMP, YMM_TEMP0) /* now W[16..21] are completed */
+            RND_3_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,29)
+    FEEDBACK3_to_W_I_2
+            RND_2_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,30)
+    GAMMA1(YMM_TEMP0, W_I_2)
+            RND_2_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,30)
+            RND_2_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,30)
+    ADD(W_I, W_I_TEMP, YMM_TEMP0) /* now W[16..23] are completed */
+            RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,31)
 
-    MOVE_to_REG(YMM_TEMP0, K[48]);
-            RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,47);
-    ROTATE_W(W_I_16, W_I_15, W_I_7, W_I_2, W_I);
-            RND_1_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,47);
-    ADD(YMM_TEMP0, YMM_TEMP0, W_I);
-    MOVE_to_MEM(W_K[48], YMM_TEMP0);
+    MOVE_to_REG(YMM_TEMP0, K, 32)
+            RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,31)
+    ROTATE_W(W_I_16, W_I_15, W_I_7, W_I_2, W_I)
+            RND_1_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,31)
+    ADD(YMM_TEMP0, YMM_TEMP0, W_I)
+    MOVE_to_MEM(W_K, 32, YMM_TEMP0)
+
 
             /* W[i] = Gamma1(W[i-2]) + W[i-7] + Gamma0(W[i-15] + W[i-16]) */
-            RND_0_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,48);
-    GAMMA0_1(W_I_TEMP, W_I_15);
-            RND_0_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,48);
-    GAMMA0_2(W_I_TEMP, W_I_15);
-            RND_0_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,48);
-    ADD(W_I_TEMP, W_I_16, W_I_TEMP);/* for saving W_I before adding incomplete W_I_7 */
-            RND_7_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,49);
-    ADD(W_I, W_I_7, W_I_TEMP);
-            RND_7_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,49);
-    GAMMA1_1(YMM_TEMP0, W_I_2);
-            RND_7_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,49);
-    GAMMA1_2(YMM_TEMP0, W_I_2);
-            RND_6_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,50);
-    ADD(W_I, W_I, YMM_TEMP0);/* now W[16..17] are completed */
-            RND_6_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,50);
-    FEEDBACK1_to_W_I_2;
-            RND_6_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,50);
-    FEEDBACK_to_W_I_7;
-            RND_5_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,51);
-    ADD(W_I_TEMP, W_I_7, W_I_TEMP);
-            RND_5_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,51);
-    GAMMA1_1(YMM_TEMP0, W_I_2);
-            RND_5_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,51);
-    GAMMA1_2(YMM_TEMP0, W_I_2);
-            RND_4_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,52);
-    ADD(W_I, W_I_TEMP, YMM_TEMP0);/* now W[16..19] are completed */
-            RND_4_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,52);
-    FEEDBACK2_to_W_I_2;
-            RND_4_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,52);
-    GAMMA1_1(YMM_TEMP0, W_I_2);
-            RND_3_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,53);
-    GAMMA1_2(YMM_TEMP0, W_I_2);
-            RND_3_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,53);
-    ADD(W_I, W_I_TEMP, YMM_TEMP0); /* now W[16..21] are completed */
-            RND_3_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,53);
-    FEEDBACK3_to_W_I_2;
-            RND_2_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,54);
-    GAMMA1_1(YMM_TEMP0, W_I_2);
-            RND_2_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,54);
-    GAMMA1_2(YMM_TEMP0, W_I_2);
-            RND_2_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,54);
-    ADD(W_I, W_I_TEMP, YMM_TEMP0); /* now W[16..23] are completed */
-            RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,55);
+            RND_0_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,32)
+    GAMMA0_1(W_I_TEMP, W_I_15)
+            RND_0_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,32)
+    GAMMA0_2(W_I_TEMP, W_I_15)
+            RND_0_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,32)
+    ADD(W_I_TEMP, W_I_16, W_I_TEMP)/* for saving W_I before adding incomplete W_I_7 */
+            RND_7_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,33)
+    ADD(W_I, W_I_7, W_I_TEMP)
+            RND_7_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,33)
+    GAMMA1_1(YMM_TEMP0, W_I_2)
+            RND_7_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,33)
+    GAMMA1_2(YMM_TEMP0, W_I_2)
+            RND_6_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,34)
+    ADD(W_I, W_I, YMM_TEMP0)/* now W[16..17] are completed */
+            RND_6_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,34)
+    FEEDBACK1_to_W_I_2
+            RND_6_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,34)
+    FEEDBACK_to_W_I_7
+            RND_5_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,35)
+    ADD(W_I_TEMP, W_I_7, W_I_TEMP)
+            RND_5_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,35)
+    GAMMA1_1(YMM_TEMP0, W_I_2)
+            RND_5_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,35)
+    GAMMA1_2(YMM_TEMP0, W_I_2)
+            RND_4_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,36)
+    ADD(W_I, W_I_TEMP, YMM_TEMP0)/* now W[16..19] are completed */
+            RND_4_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,36)
+    FEEDBACK2_to_W_I_2
+            RND_4_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,36)
+    GAMMA1_1(YMM_TEMP0, W_I_2)
+            RND_3_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,37)
+    GAMMA1_2(YMM_TEMP0, W_I_2)
+            RND_3_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,37)
+    ADD(W_I, W_I_TEMP, YMM_TEMP0) /* now W[16..21] are completed */
+            RND_3_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,37)
+    FEEDBACK3_to_W_I_2
+            RND_2_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,38)
+    GAMMA1_1(YMM_TEMP0, W_I_2)
+            RND_2_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,38)
+    GAMMA1_2(YMM_TEMP0, W_I_2)
+            RND_2_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,38)
+    ADD(W_I, W_I_TEMP, YMM_TEMP0) /* now W[16..23] are completed */
+            RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,39)
 
-    MOVE_to_REG(YMM_TEMP0, K[56]);
-            RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,55);
-    ROTATE_W(W_I_16, W_I_15, W_I_7, W_I_2, W_I);
-            RND_1_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,55);
-    ADD(YMM_TEMP0, YMM_TEMP0, W_I);
-    MOVE_to_MEM(W_K[56], YMM_TEMP0);
+    MOVE_to_REG(YMM_TEMP0, K, 40)
+            RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,39)
+    ROTATE_W(W_I_16, W_I_15, W_I_7, W_I_2, W_I)
+            RND_1_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,39)
+    ADD(YMM_TEMP0, YMM_TEMP0, W_I)
+    MOVE_to_MEM(W_K, 40, YMM_TEMP0)
 
-    RND_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,56);
-    RND_7(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,57);
-    RND_6(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,58);
-    RND_5(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,59);
+            /* W[i] = Gamma1(W[i-2]) + W[i-7] + Gamma0(W[i-15] + W[i-16]) */
+            RND_0_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,40)
+    GAMMA0_1(W_I_TEMP, W_I_15)
+            RND_0_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,40)
+    GAMMA0_2(W_I_TEMP, W_I_15)
+            RND_0_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,40)
+    ADD(W_I_TEMP, W_I_16, W_I_TEMP)/* for saving W_I before adding incomplete W_I_7 */
+            RND_7_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,41)
+    ADD(W_I, W_I_7, W_I_TEMP)
+            RND_7_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,41)
+    GAMMA1_1(YMM_TEMP0, W_I_2)
+            RND_7_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,41)
+    GAMMA1_2(YMM_TEMP0, W_I_2)
+            RND_6_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,42)
+    ADD(W_I, W_I, YMM_TEMP0)/* now W[16..17] are completed */
+            RND_6_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,42)
+    FEEDBACK1_to_W_I_2
+            RND_6_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,42)
+    FEEDBACK_to_W_I_7
+            RND_5_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,43)
+    ADD(W_I_TEMP, W_I_7, W_I_TEMP)
+            RND_5_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,43)
+    GAMMA1_1(YMM_TEMP0, W_I_2)
+            RND_5_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,43)
+    GAMMA1_2(YMM_TEMP0, W_I_2)
+            RND_4_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,44)
+    ADD(W_I, W_I_TEMP, YMM_TEMP0)/* now W[16..19] are completed */
+            RND_4_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,44)
+    FEEDBACK2_to_W_I_2
+            RND_4_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,44)
+    GAMMA1_1(YMM_TEMP0, W_I_2)
+            RND_3_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,45)
+    GAMMA1_2(YMM_TEMP0, W_I_2)
+            RND_3_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,45)
+    ADD(W_I, W_I_TEMP, YMM_TEMP0) /* now W[16..21] are completed */
+            RND_3_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,45)
+    FEEDBACK3_to_W_I_2
+            RND_2_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,46)
+    GAMMA1_1(YMM_TEMP0, W_I_2)
+            RND_2_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,46)
+    GAMMA1_2(YMM_TEMP0, W_I_2)
+            RND_2_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,46)
+    ADD(W_I, W_I_TEMP, YMM_TEMP0) /* now W[16..23] are completed */
+            RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,47)
 
-    RND_4(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,60);
-    RND_3(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,61);
-    RND_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,62);
-    RND_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,63);
+    MOVE_to_REG(YMM_TEMP0, K, 48)
+            RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,47)
+    ROTATE_W(W_I_16, W_I_15, W_I_7, W_I_2, W_I)
+            RND_1_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,47)
+    ADD(YMM_TEMP0, YMM_TEMP0, W_I)
+    MOVE_to_MEM(W_K, 48, YMM_TEMP0)
 
-    RegToDigest(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7);
+            /* W[i] = Gamma1(W[i-2]) + W[i-7] + Gamma0(W[i-15] + W[i-16]) */
+            RND_0_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,48)
+    GAMMA0_1(W_I_TEMP, W_I_15)
+            RND_0_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,48)
+    GAMMA0_2(W_I_TEMP, W_I_15)
+            RND_0_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,48)
+    ADD(W_I_TEMP, W_I_16, W_I_TEMP)/* for saving W_I before adding incomplete W_I_7 */
+            RND_7_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,49)
+    ADD(W_I, W_I_7, W_I_TEMP)
+            RND_7_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,49)
+    GAMMA1_1(YMM_TEMP0, W_I_2)
+            RND_7_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,49)
+    GAMMA1_2(YMM_TEMP0, W_I_2)
+            RND_6_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,50)
+    ADD(W_I, W_I, YMM_TEMP0)/* now W[16..17] are completed */
+            RND_6_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,50)
+    FEEDBACK1_to_W_I_2
+            RND_6_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,50)
+    FEEDBACK_to_W_I_7
+            RND_5_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,51)
+    ADD(W_I_TEMP, W_I_7, W_I_TEMP)
+            RND_5_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,51)
+    GAMMA1_1(YMM_TEMP0, W_I_2)
+            RND_5_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,51)
+    GAMMA1_2(YMM_TEMP0, W_I_2)
+            RND_4_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,52)
+    ADD(W_I, W_I_TEMP, YMM_TEMP0)/* now W[16..19] are completed */
+            RND_4_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,52)
+    FEEDBACK2_to_W_I_2
+            RND_4_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,52)
+    GAMMA1_1(YMM_TEMP0, W_I_2)
+            RND_3_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,53)
+    GAMMA1_2(YMM_TEMP0, W_I_2)
+            RND_3_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,53)
+    ADD(W_I, W_I_TEMP, YMM_TEMP0) /* now W[16..21] are completed */
+            RND_3_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,53)
+    FEEDBACK3_to_W_I_2
+            RND_2_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,54)
+    GAMMA1_1(YMM_TEMP0, W_I_2)
+            RND_2_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,54)
+    GAMMA1_2(YMM_TEMP0, W_I_2)
+            RND_2_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,54)
+    ADD(W_I, W_I_TEMP, YMM_TEMP0) /* now W[16..23] are completed */
+            RND_1_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,55)
+
+    MOVE_to_REG(YMM_TEMP0, K, 56)
+            RND_1_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,55)
+    ROTATE_W(W_I_16, W_I_15, W_I_7, W_I_2, W_I)
+            RND_1_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,55)
+    ADD(YMM_TEMP0, YMM_TEMP0, W_I)
+    MOVE_to_MEM(W_K, 56, YMM_TEMP0)
+
+    RND_0(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,56)
+    RND_7(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,57)
+    RND_6(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,58)
+    RND_5(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,59)
+
+    RND_4(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,60)
+    RND_3(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,61)
+    RND_2(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,62)
+    RND_1(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7,63)
+
+    RegToDigest(S_0,S_1,S_2,S_3,S_4,S_5,S_6,S_7)
+
+        :
+        : [FLIP_16] "m" (mBYTE_FLIP_MASK_16[0]),
+          [FLIP_15] "m" (mBYTE_FLIP_MASK_15[0]),
+          [FLIP_7]  "m" (mBYTE_FLIP_MASK_7[0]),
+          [FLIP_2]  "m" (mBYTE_FLIP_MASK_2),
+          [MAPW_7]  "m" (mMAPtoW_I_7[0]),
+          [MAP1W_2] "m" (mMAP1toW_I_2[0]),
+          [MAP2W_2] "m" (mMAP2toW_I_2[0]),
+          [MAP3W_2] "m" (mMAP3toW_I_2[0]),
+          [digest]  "m" (sha256->digest),
+          [buf]     "m" (sha256->buffer),
+          [K]       "m" (K),
+          [W_K]     "m" (W_K)
+        : SSE_REGs, "memory"
+    );
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(W_K, NULL, DYNAMIC_TYPE_TMP_BUFFER);
