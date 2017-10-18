@@ -299,6 +299,8 @@ enum AlertLevel {
     alert_fatal   = 2
 };
 
+/* Maximum master key length (SECRET_LEN) */
+#define WOLFSSL_MAX_MASTER_KEY_LENGTH 48
 
 typedef WOLFSSL_METHOD* (*wolfSSL_method_func)(void* heap);
 WOLFSSL_API WOLFSSL_METHOD *wolfSSLv3_server_method_ex(void* heap);
@@ -570,7 +572,14 @@ WOLFSSL_API void  wolfSSL_ERR_error_string_n(unsigned long e, char* buf,
 WOLFSSL_API const char* wolfSSL_ERR_reason_error_string(unsigned long);
 
 /* extras */
-#define WOLF_STACK_OF(x) WOLFSSL_STACK
+
+#ifndef WOLF_STACK_OF
+    #define WOLF_STACK_OF(x) WOLFSSL_STACK
+#endif
+#ifndef DECLARE_STACK_OF
+    #define DECLARE_STACK_OF(x) WOLF_STACK_OF(x);
+#endif
+
 WOLFSSL_API int wolfSSL_sk_X509_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk,
                                                             WOLFSSL_X509* x509);
 WOLFSSL_API WOLFSSL_X509* wolfSSL_sk_X509_pop(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk);
