@@ -87,6 +87,7 @@ void c16toa(word16 u16, byte* c);
 void c32toa(word32 u32, byte* c);
 void c24to32(const word24 u24, word32* u32);
 void ato16(const byte* c, word16* u16);
+void ato24(const byte* c, word32* u24);
 void ato32(const byte* c, word32* u32);
 word32 btoi(byte b);
 
