@@ -2896,7 +2896,7 @@ void FreeX509(WOLFSSL_X509* x509)
 
 #endif /* !NO_DH || HAVE_ECC */
 
-#if !defined(NO_RSA) || defined(HAVE_ECC)
+#if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519)
 /* Encode the signature algorithm into buffer.
  *
  * hashalgo  The hash algorithm.
@@ -2911,12 +2911,13 @@ static INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
             output[0] = hashAlgo;
             output[1] = ecc_dsa_sa_algo;
             break;
-    #ifdef HAVE_ED25519
+#endif
+#ifdef HAVE_ED25519
         case ed25519_sa_algo:
             output[0] = ED25519_SA_MAJOR;
             output[1] = ED25519_SA_MINOR;
+            (void)hashAlgo;
             break;
-    #endif
 #endif
 #ifndef NO_RSA
         case rsa_sa_algo:
@@ -4654,7 +4655,7 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
     return ret;
 }
 
-#if !defined(NO_RSA) || defined(HAVE_ECC)
+#if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_CURVE25519)
 static int ReuseKey(WOLFSSL* ssl, int type, void* pKey)
 {
     int ret = 0;
@@ -4675,13 +4676,13 @@ static int ReuseKey(WOLFSSL* ssl, int type, void* pKey)
     #ifdef HAVE_ED25519
         case DYNAMIC_TYPE_ED25519:
             wc_ed25519_free((ed25519_key*)pKey);
-            wc_ed25519_init((ed25519_key*)pKey);
+            ret = wc_ed25519_init((ed25519_key*)pKey);
             break;
     #endif /* HAVE_CURVE25519 */
     #ifdef HAVE_CURVE25519
         case DYNAMIC_TYPE_CURVE25519:
             wc_curve25519_free((curve25519_key*)pKey);
-            wc_curve25519_init((curve25519_key*)pKey);
+            ret = wc_curve25519_init((curve25519_key*)pKey);
             break;
     #endif /* HAVE_CURVE25519 */
     #ifndef NO_DH
@@ -19691,6 +19692,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         WOLFSSL_MSG("Using ED25519 private key");
 
         /* Check it meets the minimum ECC key size requirements. */
+        (void)keySz;
         if (ED25519_KEY_SIZE < ssl->options.minEccKeySz) {
             WOLFSSL_MSG("ED25519 key size too small");
             ERROR_OUT(ECC_KEY_SIZE_E, exit_dpk);
