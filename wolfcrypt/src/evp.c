@@ -342,7 +342,10 @@ WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
         return 1;
     }
     if (ctx->enc) {
-        if (ctx->bufUsed > 0) {
+        if (ctx->block_size == 1){
+            *outl = 0; return 1;
+        }
+        if ((ctx->bufUsed >= 0) && (ctx->block_size != 1)) {
             padBlock(ctx);
             PRINT_BUF(ctx->buf, ctx->block_size);
             if (evpCipherBlock(ctx, out, ctx->buf, ctx->block_size) == 0)
@@ -351,6 +354,9 @@ WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
             *outl = ctx->block_size;
         }
     } else {
+        if (ctx->block_size == 1){
+            *outl = 0; return 1;
+        }
         if (ctx->lastUsed){
             PRINT_BUF(ctx->lastBlock, ctx->block_size);
             if ((fl = checkPad(ctx, ctx->lastBlock)) >= 0) {
