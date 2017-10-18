@@ -1352,7 +1352,7 @@ int TLSX_ALPN_GetRequest(TLSX* extensions, void** data, word16 *dataSz)
     extension = TLSX_Find(extensions, TLSX_APPLICATION_LAYER_PROTOCOL);
     if (extension == NULL) {
         WOLFSSL_MSG("TLS extension not found");
-        return SSL_ALPN_NOT_FOUND;
+        return WOLFSSL_ALPN_NOT_FOUND;
     }
 
     alpn = (ALPN *)extension->data;
@@ -1373,7 +1373,7 @@ int TLSX_ALPN_GetRequest(TLSX* extensions, void** data, word16 *dataSz)
 
         /* continue without negotiated protocol */
         WOLFSSL_MSG("No protocol match with peer -> Continue");
-        return SSL_ALPN_NOT_FOUND;
+        return WOLFSSL_ALPN_NOT_FOUND;
     }
 
     if (alpn->next != NULL) {

@@ -13272,7 +13272,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     int wolfSSL_EVP_DigestInit(WOLFSSL_EVP_MD_CTX* ctx,
                                const WOLFSSL_EVP_MD* type)
     {
-        int ret = SSL_SUCCESS;
+        int ret = WOLFSSL_SUCCESS;
 
         WOLFSSL_ENTER("EVP_DigestInit");
 
@@ -16422,25 +16422,25 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
 int wolfSSL_ASN1_TIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_TIME* asnTime)
 {
     char buf[MAX_TIME_STRING_SZ];
-    int  ret = SSL_SUCCESS;
+    int  ret = WOLFSSL_SUCCESS;
 
     WOLFSSL_ENTER("wolfSSL_ASN1_TIME_print");
 
     if (bio == NULL || asnTime == NULL) {
         WOLFSSL_MSG("NULL function argument");
-        return SSL_FAILURE;
+        return WOLFSSL_FAILURE;
     }
 
     if (wolfSSL_ASN1_TIME_to_string((WOLFSSL_ASN1_TIME*)asnTime, buf,
                 sizeof(buf)) == NULL) {
         XMEMSET(buf, 0, MAX_TIME_STRING_SZ);
         XMEMCPY(buf, "Bad time value", 14);
-        ret = SSL_FAILURE;
+        ret = WOLFSSL_FAILURE;
     }
 
     if (wolfSSL_BIO_write(bio, buf, (int)XSTRLEN(buf)) <= 0) {
         WOLFSSL_MSG("Unable to write to bio");
-        return SSL_FAILURE;
+        return WOLFSSL_FAILURE;
     }
 
     return ret;
@@ -18090,7 +18090,7 @@ int wolfSSL_BN_sub(WOLFSSL_BIGNUM* r, const WOLFSSL_BIGNUM* a,
     return 0;
 }
 
-/* SSL_SUCCESS on ok */
+/* WOLFSSL_SUCCESS on ok */
 int wolfSSL_BN_mod(WOLFSSL_BIGNUM* r, const WOLFSSL_BIGNUM* a,
                   const WOLFSSL_BIGNUM* b, const WOLFSSL_BN_CTX* c)
 {
@@ -18406,7 +18406,7 @@ int wolfSSL_BN_set_bit(WOLFSSL_BIGNUM* bn, int n)
 }
 
 
-/* SSL_SUCCESS on ok */
+/* WOLFSSL_SUCCESS on ok */
 /* Note on use: this function expects str to be an even length. It is
  * converting pairs of bytes into 8-bit values. As an example, the RSA
  * public exponent is commonly 0x010001. To get it to convert, you need
@@ -19801,7 +19801,7 @@ int wolfSSL_RSA_public_encrypt(int len, const unsigned char* fr,
     {
         WOLFSSL_MSG("No RSA internal set, do it");
 
-        if (SetRsaInternal(rsa) != SSL_SUCCESS) {
+        if (SetRsaInternal(rsa) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("SetRsaInternal failed");
             return 0;
         }
@@ -19898,7 +19898,7 @@ int wolfSSL_RSA_private_decrypt(int len, const unsigned char* fr,
     {
         WOLFSSL_MSG("No RSA internal set, do it");
 
-        if (SetRsaInternal(rsa) != SSL_SUCCESS) {
+        if (SetRsaInternal(rsa) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("SetRsaInternal failed");
             return 0;
         }

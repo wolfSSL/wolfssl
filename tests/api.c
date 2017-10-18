@@ -480,7 +480,7 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
     cacheSz = wolfSSL_CTX_get_cert_cache_memsize(ctx);
 #endif
     /* Test unloading CA's */
-    AssertIntEQ(SSL_SUCCESS, wolfSSL_CTX_UnloadCAs(ctx));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_UnloadCAs(ctx));
 
 #ifdef PERSIST_CERT_CACHE
     /* Verify no certs (result is less than cacheSz) */
@@ -494,7 +494,7 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
     AssertNotNull(cm = wolfSSL_CTX_GetCertManager(ctx));
 
     /* Test unloading CA's using CM */
-    AssertIntEQ(SSL_SUCCESS, wolfSSL_CertManagerUnloadCAs(cm));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CertManagerUnloadCAs(cm));
 
 #ifdef PERSIST_CERT_CACHE
     /* Verify no certs (result is less than cacheSz) */
@@ -2063,7 +2063,7 @@ static void verify_ALPN_not_matching_continue(WOLFSSL* ssl)
     char *proto = NULL;
     word16 protoSz = 0;
 
-    AssertIntEQ(SSL_ALPN_NOT_FOUND,
+    AssertIntEQ(WOLFSSL_ALPN_NOT_FOUND,
                 wolfSSL_ALPN_GetProtocol(ssl, &proto, &protoSz));
 
     /* check value */
@@ -9495,7 +9495,7 @@ static void test_wolfSSL_ASN1_TIME_print()
 
     AssertNotNull(bio = BIO_new(BIO_s_mem()));
     AssertNotNull(x509 = wolfSSL_X509_load_certificate_buffer(der,
-                sizeof_client_cert_der_2048, SSL_FILETYPE_ASN1));
+                sizeof_client_cert_der_2048, WOLFSSL_FILETYPE_ASN1));
     AssertIntEQ(ASN1_TIME_print(bio, X509_get_notBefore(x509)), 1);
     AssertIntEQ(BIO_read(bio, buf, sizeof(buf)), 24);
     AssertIntEQ(XMEMCMP(buf, "Aug 11 20:07:37 2016 GMT", sizeof(buf) - 1), 0);
