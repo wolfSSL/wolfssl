@@ -157,28 +157,28 @@ static word32 SrpHashSize(SrpType type)
     switch (type) {
         case SRP_TYPE_SHA:
             #ifndef NO_SHA
-                return SHA_DIGEST_SIZE;
+                return WC_SHA_DIGEST_SIZE;
             #else
                 return 0;
             #endif
 
         case SRP_TYPE_SHA256:
             #ifndef NO_SHA256
-                return SHA256_DIGEST_SIZE;
+                return WC_SHA256_DIGEST_SIZE;
             #else
                 return 0;
             #endif
 
         case SRP_TYPE_SHA384:
             #ifdef WOLFSSL_SHA384
-                return SHA384_DIGEST_SIZE;
+                return WC_SHA384_DIGEST_SIZE;
             #else
                 return 0;
             #endif
 
         case SRP_TYPE_SHA512:
             #ifdef WOLFSSL_SHA512
-                return SHA512_DIGEST_SIZE;
+                return WC_SHA512_DIGEST_SIZE;
             #else
                 return 0;
             #endif

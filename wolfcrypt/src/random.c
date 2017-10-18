@@ -152,7 +152,7 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 /* Start NIST DRBG code */
 #ifdef HAVE_HASHDRBG
 
-#define OUTPUT_BLOCK_LEN  (SHA256_DIGEST_SIZE)
+#define OUTPUT_BLOCK_LEN  (WC_SHA256_DIGEST_SIZE)
 #define MAX_REQUEST_LEN   (0x10000)
 #define RESEED_INTERVAL   WC_RESEED_INTERVAL
 #define SECURITY_STRENGTH (256)
@@ -173,7 +173,7 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #define DRBG_FAILED       2
 #define DRBG_CONT_FAILED  3
 
-#define RNG_HEALTH_TEST_CHECK_SIZE (SHA256_DIGEST_SIZE * 4)
+#define RNG_HEALTH_TEST_CHECK_SIZE (WC_SHA256_DIGEST_SIZE * 4)
 
 /* Verify max gen block len */
 #if RNG_MAX_BLOCK_LEN > MAX_REQUEST_LEN
@@ -215,8 +215,8 @@ static int Hash_df(DRBG* drbg, byte* out, word32 outSz, byte type,
     int i;
     int len;
     word32 bits = (outSz * 8); /* reverse byte order */
-    Sha256 sha;
-    DECLARE_VAR(digest, byte, SHA256_DIGEST_SIZE, drbg->heap);
+    wc_Sha256 sha;
+    DECLARE_VAR(digest, byte, WC_SHA256_DIGEST_SIZE, drbg->heap);
 
     (void)drbg;
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -271,7 +271,7 @@ static int Hash_df(DRBG* drbg, byte* out, word32 outSz, byte type,
         }
     }
 
-    ForceZero(digest, SHA256_DIGEST_SIZE);
+    ForceZero(digest, WC_SHA256_DIGEST_SIZE);
 
     FREE_VAR(digest, drbg->heap);
 
@@ -321,8 +321,8 @@ static int Hash_gen(DRBG* drbg, byte* out, word32 outSz, const byte* V)
     int i;
     int len;
     word32 checkBlock;
-    Sha256 sha;
-    DECLARE_VAR(digest, byte, SHA256_DIGEST_SIZE, drbg->heap);
+    wc_Sha256 sha;
+    DECLARE_VAR(digest, byte, WC_SHA256_DIGEST_SIZE, drbg->heap);
 
     /* Special case: outSz is 0 and out is NULL. wc_Generate a block to save for
      * the continuous test. */
@@ -409,14 +409,14 @@ static INLINE void array_add(byte* d, word32 dLen, const byte* s, word32 sLen)
 static int Hash_DRBG_Generate(DRBG* drbg, byte* out, word32 outSz)
 {
     int ret;
-    Sha256 sha;
+    wc_Sha256 sha;
     byte type;
     word32 reseedCtr;
 
     if (drbg->reseedCtr == RESEED_INTERVAL) {
         return DRBG_NEED_RESEED;
     } else {
-        DECLARE_VAR(digest, byte, SHA256_DIGEST_SIZE, drbg->heap);
+        DECLARE_VAR(digest, byte, WC_SHA256_DIGEST_SIZE, drbg->heap);
         type = drbgGenerateH;
         reseedCtr = drbg->reseedCtr;
 
@@ -437,7 +437,7 @@ static int Hash_DRBG_Generate(DRBG* drbg, byte* out, word32 outSz)
             wc_Sha256Free(&sha);
 
             if (ret == 0) {
-                array_add(drbg->V, sizeof(drbg->V), digest, SHA256_DIGEST_SIZE);
+                array_add(drbg->V, sizeof(drbg->V), digest, WC_SHA256_DIGEST_SIZE);
                 array_add(drbg->V, sizeof(drbg->V), drbg->C, sizeof(drbg->C));
             #ifdef LITTLE_ENDIAN_ORDER
                 reseedCtr = ByteReverseWord32(reseedCtr);
@@ -448,7 +448,7 @@ static int Hash_DRBG_Generate(DRBG* drbg, byte* out, word32 outSz)
             }
             drbg->reseedCtr++;
         }
-        ForceZero(digest, SHA256_DIGEST_SIZE);
+        ForceZero(digest, WC_SHA256_DIGEST_SIZE);
         FREE_VAR(digest, drbg->heap);
     }
 

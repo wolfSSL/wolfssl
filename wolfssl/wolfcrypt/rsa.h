@@ -84,8 +84,10 @@ enum {
 
     RSA_PSS_PAD_SZ = 8,
 
+#ifdef OPENSSL_EXTRA
     RSA_PKCS1_PADDING_SIZE = 11,
     RSA_PKCS1_OAEP_PADDING_SIZE = 42 /* (2 * hashlen(SHA-1)) + 2 */
+  #endif
 };
 
 
