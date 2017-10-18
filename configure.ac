@@ -111,6 +111,7 @@ OPTIMIZE_CFLAGS="-Os -fomit-frame-pointer"
 OPTIMIZE_FAST_CFLAGS="-O2 -fomit-frame-pointer"
 OPTIMIZE_HUGE_CFLAGS="-funroll-loops -DTFM_SMALL_SET -DTFM_HUGE_SET"
 DEBUG_CFLAGS="-g -DDEBUG -DDEBUG_WOLFSSL"
+COVERAGE_CFLAGS="--coverage"
 LIB_ADD=
 LIB_STATIC_ADD=
 
@@ -127,6 +128,12 @@ AX_DEBUG
 AS_IF([test "$ax_enable_debug" = "yes"],
       [AM_CFLAGS="$DEBUG_CFLAGS $AM_CFLAGS"],
       [AM_CFLAGS="$AM_CFLAGS -DNDEBUG"])
+
+
+# COVERAGE
+AX_COVERAGE
+AS_IF([test "$ax_enable_coverage" = "yes"],
+      [AM_CFLAGS="$COVERAGE_CFLAGS $AM_CFLAGS"])
 
 
 # Distro build feature subset (Debian, Ubuntu, etc.)
@@ -3197,6 +3204,102 @@ AC_ARG_WITH([intelqa],
 
 AM_CONDITIONAL([BUILD_INTEL_QA], [test "x$ENABLED_INTEL_QA" = "xyes"])
 
+# Single Precision maths implementation
+AC_ARG_ENABLE([sp],
+    [AS_HELP_STRING([--enable-sp],[Enable Single Precision maths implementation (default: disabled)])],
+    [ ENABLED_SP=$enableval ],
+    [ ENABLED_SP=no ],
+    )
+
+for v in `echo $ENABLED_SP | tr "," " "`
+do
+  case $v in
+  small)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
+    ENABLED_SP_RSA=yes
+    ENABLED_SP_DH=yes
+    ENABLED_SP_ECC=yes
+    ;;
+  yes)
+    ENABLED_SP_RSA=yes
+    ENABLED_SP_DH=yes
+    ENABLED_SP_ECC=yes
+    ;;
+  no)
+    ;;
+
+  smallec256 | smallp256 | small256)
+    ENABLED_SP_ECC=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
+    ;;
+  ec256 | p256 | 256)
+    ENABLED_SP_ECC=yes
+    ;;
+
+  small2048)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
+    ENABLED_SP_RSA=yes
+    ENABLED_SP_DH=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_3072"
+    ;;
+  2048)
+    ENABLED_SP_RSA=yes
+    ENABLED_SP_DH=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_3072"
+    ;;
+
+  smallrsa2048)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
+    ENABLED_SP_RSA=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_3072"
+    ;;
+  rsa2048)
+    ENABLED_SP_RSA=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_3072"
+    ;;
+
+  small3072)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
+    ENABLED_SP_RSA=yes
+    ENABLED_SP_DH=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_2048"
+    ;;
+  3072)
+    ENABLED_SP_RSA=yes
+    ENABLED_SP_DH=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_2048"
+    ;;
+
+  smallrsa3072)
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
+    ENABLED_SP_RSA=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_2048"
+    ;;
+  rsa3072)
+    ENABLED_SP_RSA=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_2048"
+    ;;
+
+  *)
+    AC_MSG_ERROR([Invalid choice of Single Precision length in bits [256, 2048, 3072]: $ENABLED_SP.])
+    break;;
+  esac
+done
+  
+ENABLED_SP=no
+if test "$ENABLED_RSA" = "yes" && test "$ENABLED_SP_RSA" = "yes"; then
+    ENABLED_SP=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_SP_RSA"
+fi
+if test "$ENABLED_DH" = "yes" && test "$ENABLED_SP_DH" = "yes"; then
+    ENABLED_SP=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_SP_DH"
+fi
+if test "$ENABLED_ECC" = "yes" && test "$ENABLED_SP_ECC" = "yes"; then
+    ENABLED_SP=yes
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_SP_ECC"
+fi
+AM_CONDITIONAL([BUILD_SP], [test "x$ENABLED_SP" = "xyes"])
 
 # Fast RSA using Intel IPP
 ippdir="${srcdir}/IPP"
@@ -3891,6 +3994,7 @@ echo "   * CPP Flags:                  $CPPFLAGS"
 echo "   * CCAS Flags:                 $CCASFLAGS"
 echo "   * LIB Flags:                  $LIB"
 echo "   * Debug enabled:              $ax_enable_debug"
+echo "   * Coverage enabled:           $ax_enable_coverage"
 echo "   * Warnings as failure:        $ac_cv_warnings_as_errors"
 echo "   * make -j:                    $enable_jobserver"
 echo "   * VCS checkout:               $ac_cv_vcs_checkout"
@@ -4004,6 +4108,7 @@ echo "   * LIBZ:                       $ENABLED_LIBZ"
 echo "   * Examples:                   $ENABLED_EXAMPLES"
 echo "   * User Crypto:                $ENABLED_USER_CRYPTO"
 echo "   * Fast RSA:                   $ENABLED_FAST_RSA"
+echo "   * Single Precision:           $ENABLED_SP"
 echo "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
 echo "   * Cavium:                     $ENABLED_CAVIUM"
 echo "   * ARM ASM:                    $ENABLED_ARMASM"
