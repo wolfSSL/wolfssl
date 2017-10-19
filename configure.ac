@@ -111,7 +111,6 @@ OPTIMIZE_CFLAGS="-Os -fomit-frame-pointer"
 OPTIMIZE_FAST_CFLAGS="-O2 -fomit-frame-pointer"
 OPTIMIZE_HUGE_CFLAGS="-funroll-loops -DTFM_SMALL_SET -DTFM_HUGE_SET"
 DEBUG_CFLAGS="-g -DDEBUG -DDEBUG_WOLFSSL"
-COVERAGE_CFLAGS="--coverage"
 LIB_ADD=
 LIB_STATIC_ADD=
 
@@ -128,12 +127,6 @@ AX_DEBUG
 AS_IF([test "$ax_enable_debug" = "yes"],
       [AM_CFLAGS="$DEBUG_CFLAGS $AM_CFLAGS"],
       [AM_CFLAGS="$AM_CFLAGS -DNDEBUG"])
-
-
-# COVERAGE
-AX_COVERAGE
-AS_IF([test "$ax_enable_coverage" = "yes"],
-      [AM_CFLAGS="$COVERAGE_CFLAGS $AM_CFLAGS"])
 
 
 # Distro build feature subset (Debian, Ubuntu, etc.)
@@ -267,7 +260,7 @@ AC_ARG_ENABLE([tls13-draft18],
     )
 if test "$ENABLED_TLS13_DRAFT18" = "yes"
 then
-  AM_CFLAGS="-DWOLFSSL_TLS13_DRAFT_18 $AM_CFLAGS"
+  AM_CFLAGS="-DWOLFSSL_TLS13_DRAFT18 $AM_CFLAGS"
 fi
 
 
@@ -408,21 +401,6 @@ AC_ARG_ENABLE([haproxy],
     )
 
 
-# OpenSSL Coexist 
-AC_ARG_ENABLE([opensslcoexist],
-    [AS_HELP_STRING([--enable-opensslcoexist],[Enable coexistence of wolfssl/openssl (default: disabled)])],
-    [ ENABLED_OPENSSLCOEXIST=$enableval ],
-    [ ENABLED_OPENSSLCOEXIST=no ]
-    )
-if test "x$ENABLED_OPENSSLCOEXIST" = "xyes"
-then
-    # make sure old names are disabled
-    enable_oldnames=no
-
-    AM_CFLAGS="$AM_CFLAGS -DOPENSSL_COEXIST"
-fi
-
-
 # OPENSSL Extra Compatibility
 AC_ARG_ENABLE([opensslextra],
     [AS_HELP_STRING([--enable-opensslextra],[Enable extra OpenSSL API, size+ (default: disabled)])],
@@ -434,7 +412,7 @@ then
     ENABLED_OPENSSLEXTRA="yes"
 fi
 
-if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
+if test "$ENABLED_OPENSSLEXTRA" = "yes"
 then
   AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
 fi
@@ -2647,7 +2625,7 @@ then
             AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"
         fi
     fi
-    if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
+    if test "x$ENABLED_OPENSSLEXTRA" = "xno"
     then
         ENABLED_OPENSSLEXTRA="yes"
         AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
@@ -2745,7 +2723,7 @@ AC_ARG_ENABLE([lighty],
 if test "$ENABLED_LIGHTY" = "yes"
 then
     # Requires opensslextra make sure on
-    if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
+    if test "x$ENABLED_OPENSSLEXTRA" = "xno"
     then
         ENABLED_OPENSSLEXTRA="yes"
         AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
@@ -2762,7 +2740,7 @@ if test "$ENABLED_HAPROXY" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAPROXY"
     # Requires opensslextra make sure on
-    if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
+    if test "x$ENABLED_OPENSSLEXTRA" = "xno"
     then
         ENABLED_OPENSSLEXTRA="yes"
         AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
@@ -2791,7 +2769,7 @@ fi
 if test "$ENABLED_STUNNEL" = "yes"
 then
     # Requires opensslextra make sure on
-    if test "x$ENABLED_OPENSSLEXTRA" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
+    if test "x$ENABLED_OPENSSLEXTRA" = "xno"
     then
         ENABLED_OPENSSLEXTRA="yes"
         AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
@@ -3204,102 +3182,6 @@ AC_ARG_WITH([intelqa],
 
 AM_CONDITIONAL([BUILD_INTEL_QA], [test "x$ENABLED_INTEL_QA" = "xyes"])
 
-# Single Precision maths implementation
-AC_ARG_ENABLE([sp],
-    [AS_HELP_STRING([--enable-sp],[Enable Single Precision maths implementation (default: disabled)])],
-    [ ENABLED_SP=$enableval ],
-    [ ENABLED_SP=no ],
-    )
-
-for v in `echo $ENABLED_SP | tr "," " "`
-do
-  case $v in
-  small)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
-    ENABLED_SP_RSA=yes
-    ENABLED_SP_DH=yes
-    ENABLED_SP_ECC=yes
-    ;;
-  yes)
-    ENABLED_SP_RSA=yes
-    ENABLED_SP_DH=yes
-    ENABLED_SP_ECC=yes
-    ;;
-  no)
-    ;;
-
-  smallec256 | smallp256 | small256)
-    ENABLED_SP_ECC=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
-    ;;
-  ec256 | p256 | 256)
-    ENABLED_SP_ECC=yes
-    ;;
-
-  small2048)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
-    ENABLED_SP_RSA=yes
-    ENABLED_SP_DH=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_3072"
-    ;;
-  2048)
-    ENABLED_SP_RSA=yes
-    ENABLED_SP_DH=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_3072"
-    ;;
-
-  smallrsa2048)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
-    ENABLED_SP_RSA=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_3072"
-    ;;
-  rsa2048)
-    ENABLED_SP_RSA=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_3072"
-    ;;
-
-  small3072)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
-    ENABLED_SP_RSA=yes
-    ENABLED_SP_DH=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_2048"
-    ;;
-  3072)
-    ENABLED_SP_RSA=yes
-    ENABLED_SP_DH=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_2048"
-    ;;
-
-  smallrsa3072)
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_SMALL"
-    ENABLED_SP_RSA=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_2048"
-    ;;
-  rsa3072)
-    ENABLED_SP_RSA=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_NO_2048"
-    ;;
-
-  *)
-    AC_MSG_ERROR([Invalid choice of Single Precision length in bits [256, 2048, 3072]: $ENABLED_SP.])
-    break;;
-  esac
-done
-  
-ENABLED_SP=no
-if test "$ENABLED_RSA" = "yes" && test "$ENABLED_SP_RSA" = "yes"; then
-    ENABLED_SP=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_SP_RSA"
-fi
-if test "$ENABLED_DH" = "yes" && test "$ENABLED_SP_DH" = "yes"; then
-    ENABLED_SP=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_SP_DH"
-fi
-if test "$ENABLED_ECC" = "yes" && test "$ENABLED_SP_ECC" = "yes"; then
-    ENABLED_SP=yes
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_SP_ECC"
-fi
-AM_CONDITIONAL([BUILD_SP], [test "x$ENABLED_SP" = "xyes"])
 
 # Fast RSA using Intel IPP
 ippdir="${srcdir}/IPP"
@@ -3590,20 +3472,6 @@ if test "$ENABLED_AESKEYWRAP" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_KEYWRAP -DWOLFSSL_AES_DIRECT"
 fi
-
-
-# Old name support for backwards compatibility
-AC_ARG_ENABLE([oldnames],
-    [AS_HELP_STRING([--enable-oldnames],[Keep backwards compat with old names (default: enabled)])],
-    [ ENABLED_OLDNAMES=$enableval ],
-    [ ENABLED_OLDNAMES=yes ]
-    )
-
-if test "x$ENABLED_OLDNAMES" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
-then
-    AM_CFLAGS="$AM_CFLAGS -DNO_OLD_RNGNAME -DNO_OLD_WC_NAMES -DNO_OLD_SSL_NAMES"
-fi
-
 
 
 # check if PSK was enabled for conditionally running psk.test script
@@ -3994,7 +3862,6 @@ echo "   * CPP Flags:                  $CPPFLAGS"
 echo "   * CCAS Flags:                 $CCASFLAGS"
 echo "   * LIB Flags:                  $LIB"
 echo "   * Debug enabled:              $ax_enable_debug"
-echo "   * Coverage enabled:           $ax_enable_coverage"
 echo "   * Warnings as failure:        $ac_cv_warnings_as_errors"
 echo "   * make -j:                    $enable_jobserver"
 echo "   * VCS checkout:               $ac_cv_vcs_checkout"
@@ -4004,8 +3871,6 @@ echo "   * Single threaded:            $ENABLED_SINGLETHREADED"
 echo "   * Filesystem:                 $ENABLED_FILESYSTEM"
 echo "   * OpenSSH Build:              $ENABLED_OPENSSH"
 echo "   * OpenSSL Extra API:          $ENABLED_OPENSSLEXTRA"
-echo "   * OpenSSL Coexist:            $ENABLED_OPENSSLCOEXIST"
-echo "   * Old Names:                  $ENABLED_OLDNAMES"
 echo "   * Max Strength Build:         $ENABLED_MAXSTRENGTH"
 echo "   * Distro Build:               $ENABLED_DISTRO"
 echo "   * fastmath:                   $ENABLED_FASTMATH"
@@ -4108,7 +3973,6 @@ echo "   * LIBZ:                       $ENABLED_LIBZ"
 echo "   * Examples:                   $ENABLED_EXAMPLES"
 echo "   * User Crypto:                $ENABLED_USER_CRYPTO"
 echo "   * Fast RSA:                   $ENABLED_FAST_RSA"
-echo "   * Single Precision:           $ENABLED_SP"
 echo "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
 echo "   * Cavium:                     $ENABLED_CAVIUM"
 echo "   * ARM ASM:                    $ENABLED_ARMASM"

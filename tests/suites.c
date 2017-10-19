@@ -143,13 +143,13 @@ static int IsValidCipherSuite(const char* line, char* suite)
     #ifdef HAVE_QSH
         if (XSTRNCMP(suite, "QSH", 3) == 0) {
             if (wolfSSL_CTX_set_cipher_list(cipherSuiteCtx, suite + 4)
-                                                                 != WOLFSSL_SUCCESS)
+                                                                 != SSL_SUCCESS)
             return 0;
         }
     #endif
 
     if (found) {
-        if (wolfSSL_CTX_set_cipher_list(cipherSuiteCtx, suite) == WOLFSSL_SUCCESS)
+        if (wolfSSL_CTX_set_cipher_list(cipherSuiteCtx, suite) == SSL_SUCCESS)
             valid = 1;
     }
 
@@ -539,7 +539,7 @@ int SuiteTest(void)
 #ifdef WOLFSSL_STATIC_MEMORY
     if (wolfSSL_CTX_load_static_memory(&cipherSuiteCtx, NULL,
                                                    memory, sizeof(memory), 0, 1)
-            != WOLFSSL_SUCCESS) {
+            != SSL_SUCCESS) {
         printf("unable to load static memory and create ctx");
         args.return_code = EXIT_FAILURE;
         goto exit;

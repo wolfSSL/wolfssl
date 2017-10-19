@@ -58,7 +58,7 @@ static const ALIGN32 word32 K[64] = {
 };
 
 
-static int InitSha256(wc_Sha256* sha256)
+static int InitSha256(Sha256* sha256)
 {
     int ret = 0;
 
@@ -82,7 +82,7 @@ static int InitSha256(wc_Sha256* sha256)
     return ret;
 }
 
-static INLINE void AddLength(wc_Sha256* sha256, word32 len)
+static INLINE void AddLength(Sha256* sha256, word32 len)
 {
     word32 tmp = sha256->loLen;
     if ((sha256->loLen += len) < tmp)
@@ -93,7 +93,7 @@ static INLINE void AddLength(wc_Sha256* sha256, word32 len)
 #ifdef __aarch64__
 
 /* ARMv8 hardware accleration */
-static INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
+static INLINE int Sha256Update(Sha256* sha256, const byte* data, word32 len)
 {
     word32 add;
     word32 numBlocks;
@@ -101,20 +101,20 @@ static INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
     /* only perform actions if a buffer is passed in */
     if (len > 0) {
         /* fill leftover buffer with data */
-        add = min(len, WC_SHA256_BLOCK_SIZE - sha256->buffLen);
+        add = min(len, SHA256_BLOCK_SIZE - sha256->buffLen);
         XMEMCPY((byte*)(sha256->buffer) + sha256->buffLen, data, add);
         sha256->buffLen += add;
         data            += add;
         len             -= add;
 
         /* number of blocks in a row to complete */
-        numBlocks = (len + sha256->buffLen)/WC_SHA256_BLOCK_SIZE;
+        numBlocks = (len + sha256->buffLen)/SHA256_BLOCK_SIZE;
 
         if (numBlocks > 0) {
             word32* k = (word32*)K;
 
             /* get leftover amount after blocks */
-            add = (len + sha256->buffLen) - numBlocks * WC_SHA256_BLOCK_SIZE;
+            add = (len + sha256->buffLen) - numBlocks * SHA256_BLOCK_SIZE;
             __asm__ volatile (
             "#load leftover data\n"
             "LD1 {v0.2d-v3.2d}, %[buffer]   \n"
@@ -290,7 +290,7 @@ static INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
                               "v29", "v30", "v31", "w8"
             );
 
-            AddLength(sha256, WC_SHA256_BLOCK_SIZE * numBlocks);
+            AddLength(sha256, SHA256_BLOCK_SIZE * numBlocks);
 
             /* copy over any remaining data leftover */
             XMEMCPY(sha256->buffer, data, add);
@@ -306,7 +306,7 @@ static INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
 }
 
 
-static INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
+static INLINE int Sha256Final(Sha256* sha256, byte* hash)
 {
     byte* local;
 
@@ -316,10 +316,10 @@ static INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
     local[sha256->buffLen++] = 0x80;     /* add 1 */
 
     /* pad with zeros */
-    if (sha256->buffLen > WC_SHA256_PAD_SIZE) {
+    if (sha256->buffLen > SHA256_PAD_SIZE) {
 
-        XMEMSET(&local[sha256->buffLen], 0, WC_SHA256_BLOCK_SIZE - sha256->buffLen);
-        sha256->buffLen += WC_SHA256_BLOCK_SIZE - sha256->buffLen;
+        XMEMSET(&local[sha256->buffLen], 0, SHA256_BLOCK_SIZE - sha256->buffLen);
+        sha256->buffLen += SHA256_BLOCK_SIZE - sha256->buffLen;
         __asm__ volatile (
             "LD1 {v4.2d-v7.2d}, %[buffer]          \n"
             "MOV v0.16b, v4.16b                    \n"
@@ -471,7 +471,7 @@ static INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
 
         sha256->buffLen = 0;
     }
-    XMEMSET(&local[sha256->buffLen], 0, WC_SHA256_PAD_SIZE - sha256->buffLen);
+    XMEMSET(&local[sha256->buffLen], 0, SHA256_PAD_SIZE - sha256->buffLen);
 
     /* put lengths in bits */
     sha256->hiLen = (sha256->loLen >> (8*sizeof(sha256->loLen) - 3)) +
@@ -493,8 +493,8 @@ static INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
         );
     #endif
     /* ! length ordering dependent on digest endian type ! */
-    XMEMCPY(&local[WC_SHA256_PAD_SIZE], &sha256->hiLen, sizeof(word32));
-    XMEMCPY(&local[WC_SHA256_PAD_SIZE + sizeof(word32)], &sha256->loLen,
+    XMEMCPY(&local[SHA256_PAD_SIZE], &sha256->hiLen, sizeof(word32));
+    XMEMCPY(&local[SHA256_PAD_SIZE + sizeof(word32)], &sha256->loLen,
             sizeof(word32));
 
     __asm__ volatile (
@@ -655,7 +655,7 @@ static INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
 #else /* not using 64 bit */
 
 /* ARMv8 hardware accleration Aarch32 */
-static INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
+static INLINE int Sha256Update(Sha256* sha256, const byte* data, word32 len)
 {
     word32 add;
     word32 numBlocks;
@@ -663,20 +663,20 @@ static INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
     /* only perform actions if a buffer is passed in */
     if (len > 0) {
         /* fill leftover buffer with data */
-        add = min(len, WC_SHA256_BLOCK_SIZE - sha256->buffLen);
+        add = min(len, SHA256_BLOCK_SIZE - sha256->buffLen);
         XMEMCPY((byte*)(sha256->buffer) + sha256->buffLen, data, add);
         sha256->buffLen += add;
         data            += add;
         len             -= add;
 
         /* number of blocks in a row to complete */
-        numBlocks = (len + sha256->buffLen)/WC_SHA256_BLOCK_SIZE;
+        numBlocks = (len + sha256->buffLen)/SHA256_BLOCK_SIZE;
 
         if (numBlocks > 0) {
             word32* bufPt = sha256->buffer;
             word32* digPt = sha256->digest;
             /* get leftover amount after blocks */
-            add = (len + sha256->buffLen) - numBlocks * WC_SHA256_BLOCK_SIZE;
+            add = (len + sha256->buffLen) - numBlocks * SHA256_BLOCK_SIZE;
             __asm__ volatile (
             "#load leftover data\n"
             "VLDM %[buffer]!, {q0-q3} \n"
@@ -866,7 +866,7 @@ static INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
                               "q15", "r8"
             );
 
-            AddLength(sha256, WC_SHA256_BLOCK_SIZE * numBlocks);
+            AddLength(sha256, SHA256_BLOCK_SIZE * numBlocks);
 
             /* copy over any remaining data leftover */
             XMEMCPY(sha256->buffer, data, add);
@@ -882,7 +882,7 @@ static INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
 }
 
 
-static INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
+static INLINE int Sha256Final(Sha256* sha256, byte* hash)
 {
     byte* local;
 
@@ -896,11 +896,11 @@ static INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
     local[sha256->buffLen++] = 0x80;     /* add 1 */
 
     /* pad with zeros */
-    if (sha256->buffLen > WC_SHA256_PAD_SIZE) {
+    if (sha256->buffLen > SHA256_PAD_SIZE) {
         word32* bufPt = sha256->buffer;
         word32* digPt = sha256->digest;
-        XMEMSET(&local[sha256->buffLen], 0, WC_SHA256_BLOCK_SIZE - sha256->buffLen);
-        sha256->buffLen += WC_SHA256_BLOCK_SIZE - sha256->buffLen;
+        XMEMSET(&local[sha256->buffLen], 0, SHA256_BLOCK_SIZE - sha256->buffLen);
+        sha256->buffLen += SHA256_BLOCK_SIZE - sha256->buffLen;
         __asm__ volatile (
         "#load leftover data\n"
         "VLDM %[buffer]!, {q0-q3} \n"
@@ -1071,7 +1071,7 @@ static INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
 
         sha256->buffLen = 0;
     }
-    XMEMSET(&local[sha256->buffLen], 0, WC_SHA256_PAD_SIZE - sha256->buffLen);
+    XMEMSET(&local[sha256->buffLen], 0, SHA256_PAD_SIZE - sha256->buffLen);
 
     /* put lengths in bits */
     sha256->hiLen = (sha256->loLen >> (8*sizeof(sha256->loLen) - 3)) +
@@ -1100,8 +1100,8 @@ static INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
         );
     #endif
     /* ! length ordering dependent on digest endian type ! */
-    XMEMCPY(&local[WC_SHA256_PAD_SIZE], &sha256->hiLen, sizeof(word32));
-    XMEMCPY(&local[WC_SHA256_PAD_SIZE + sizeof(word32)], &sha256->loLen,
+    XMEMCPY(&local[SHA256_PAD_SIZE], &sha256->hiLen, sizeof(word32));
+    XMEMCPY(&local[SHA256_PAD_SIZE + sizeof(word32)], &sha256->loLen,
             sizeof(word32));
 
     bufPt = sha256->buffer;
@@ -1285,7 +1285,7 @@ static INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
 
 #ifndef NO_SHA256
 
-int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
+int wc_InitSha256_ex(Sha256* sha256, void* heap, int devId)
 {
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
@@ -1296,17 +1296,17 @@ int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     return InitSha256(sha256);
 }
 
-int wc_InitSha256(wc_Sha256* sha256)
+int wc_InitSha256(Sha256* sha256)
 {
     return wc_InitSha256_ex(sha256, NULL, INVALID_DEVID);
 }
 
-void wc_Sha256Free(wc_Sha256* sha256)
+void wc_Sha256Free(Sha256* sha256)
 {
     (void)sha256;
 }
 
-int wc_Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
+int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
 {
     if (sha256 == NULL || (data == NULL && len != 0)) {
         return BAD_FUNC_ARG;
@@ -1315,7 +1315,7 @@ int wc_Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
     return Sha256Update(sha256, data, len);
 }
 
-int wc_Sha256Final(wc_Sha256* sha256, byte* hash)
+int wc_Sha256Final(Sha256* sha256, byte* hash)
 {
     int ret;
 
@@ -1330,10 +1330,10 @@ int wc_Sha256Final(wc_Sha256* sha256, byte* hash)
     return InitSha256(sha256);  /* reset state */
 }
 
-int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)
+int wc_Sha256GetHash(Sha256* sha256, byte* hash)
 {
     int ret;
-    wc_Sha256 tmpSha256;
+    Sha256 tmpSha256;
 
     if (sha256 == NULL || hash == NULL)
         return BAD_FUNC_ARG;
@@ -1345,14 +1345,14 @@ int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)
     return ret;
 }
 
-int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
+int wc_Sha256Copy(Sha256* src, Sha256* dst)
 {
     int ret = 0;
 
     if (src == NULL || dst == NULL)
         return BAD_FUNC_ARG;
 
-    XMEMCPY(dst, src, sizeof(wc_Sha256));
+    XMEMCPY(dst, src, sizeof(Sha256));
 
     return ret;
 }
@@ -1361,7 +1361,7 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
 
 
 #ifdef WOLFSSL_SHA224
-    static int InitSha224(wc_Sha224* sha224)
+    static int InitSha224(Sha224* sha224)
     {
 
         int ret = 0;
@@ -1386,7 +1386,7 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
         return ret;
     }
 
-    int wc_InitSha224_ex(wc_Sha224* sha224, void* heap, int devId)
+    int wc_InitSha224_ex(Sha224* sha224, void* heap, int devId)
     {
         if (sha224 == NULL)
             return BAD_FUNC_ARG;
@@ -1397,12 +1397,12 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
         return InitSha224(sha224);
     }
 
-    int wc_InitSha224(wc_Sha224* sha224)
+    int wc_InitSha224(Sha224* sha224)
     {
         return wc_InitSha224_ex(sha224, NULL, INVALID_DEVID);
     }
 
-    int wc_Sha224Update(wc_Sha224* sha224, const byte* data, word32 len)
+    int wc_Sha224Update(Sha224* sha224, const byte* data, word32 len)
     {
         int ret;
 
@@ -1410,39 +1410,39 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
             return BAD_FUNC_ARG;
         }
 
-        ret = Sha256Update((wc_Sha256 *)sha224, data, len);
+        ret = Sha256Update((Sha256 *)sha224, data, len);
 
         return ret;
     }
 
-    int wc_Sha224Final(wc_Sha224* sha224, byte* hash)
+    int wc_Sha224Final(Sha224* sha224, byte* hash)
     {
         int ret;
-        word32 hashTmp[WC_SHA256_DIGEST_SIZE/sizeof(word32)];
+        word32 hashTmp[SHA256_DIGEST_SIZE/sizeof(word32)];
 
         if (sha224 == NULL || hash == NULL) {
             return BAD_FUNC_ARG;
         }
 
-        ret = Sha256Final((wc_Sha256*)sha224, (byte*)hashTmp);
+        ret = Sha256Final((Sha256*)sha224, (byte*)hashTmp);
         if (ret != 0)
             return ret;
 
-        XMEMCPY(hash, hashTmp, WC_SHA224_DIGEST_SIZE);
+        XMEMCPY(hash, hashTmp, SHA224_DIGEST_SIZE);
 
         return InitSha224(sha224);  /* reset state */
     }
 
-    void wc_Sha224Free(wc_Sha224* sha224)
+    void wc_Sha224Free(Sha224* sha224)
     {
         if (sha224 == NULL)
             return;
     }
 
-    int wc_Sha224GetHash(wc_Sha224* sha224, byte* hash)
+    int wc_Sha224GetHash(Sha224* sha224, byte* hash)
     {
         int ret;
-        wc_Sha224 tmpSha224;
+        Sha224 tmpSha224;
 
         if (sha224 == NULL || hash == NULL)
             return BAD_FUNC_ARG;
@@ -1453,14 +1453,14 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
         }
         return ret;
     }
-    int wc_Sha224Copy(wc_Sha224* src, wc_Sha224* dst)
+    int wc_Sha224Copy(Sha224* src, Sha224* dst)
     {
         int ret = 0;
 
         if (src == NULL || dst == NULL)
             return BAD_FUNC_ARG;
 
-        XMEMCPY(dst, src, sizeof(wc_Sha224));
+        XMEMCPY(dst, src, sizeof(Sha224));
 
         return ret;
     }

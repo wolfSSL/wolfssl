@@ -58,39 +58,39 @@ enum wc_HashType {
 
 typedef union {
     #ifndef NO_MD5
-        wc_Md5 md5;
+        Md5 md5;
     #endif
     #ifndef NO_SHA
-        wc_Sha sha;
+        Sha sha;
     #endif
     #ifdef WOLFSSL_SHA224
-        wc_Sha224 sha224;
+        Sha224 sha224;
     #endif
     #ifndef NO_SHA256
-        wc_Sha256 sha256;
+        Sha256 sha256;
     #endif
     #ifdef WOLFSSL_SHA384
-        wc_Sha384 sha384;
+        Sha384 sha384;
     #endif
     #ifdef WOLFSSL_SHA512
-        wc_Sha512 sha512;
+        Sha512 sha512;
     #endif
 } wc_HashAlg;
 
 /* Find largest possible digest size
    Note if this gets up to the size of 80 or over check smallstack build */
 #if defined(WOLFSSL_SHA512)
-    #define WC_MAX_DIGEST_SIZE WC_SHA512_DIGEST_SIZE
+    #define WC_MAX_DIGEST_SIZE SHA512_DIGEST_SIZE
 #elif defined(WOLFSSL_SHA384)
-    #define WC_MAX_DIGEST_SIZE WC_SHA384_DIGEST_SIZE
+    #define WC_MAX_DIGEST_SIZE SHA384_DIGEST_SIZE
 #elif !defined(NO_SHA256)
-    #define WC_MAX_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
+    #define WC_MAX_DIGEST_SIZE SHA256_DIGEST_SIZE
 #elif defined(WOLFSSL_SHA224)
-    #define WC_MAX_DIGEST_SIZE WC_SHA224_DIGEST_SIZE
+    #define WC_MAX_DIGEST_SIZE SHA224_DIGEST_SIZE
 #elif !defined(NO_SHA)
-    #define WC_MAX_DIGEST_SIZE WC_SHA_DIGEST_SIZE
+    #define WC_MAX_DIGEST_SIZE SHA_DIGEST_SIZE
 #elif !defined(NO_MD5)
-    #define WC_MAX_DIGEST_SIZE WC_MD5_DIGEST_SIZE
+    #define WC_MAX_DIGEST_SIZE MD5_DIGEST_SIZE
 #else
     #define WC_MAX_DIGEST_SIZE 64 /* default to max size of 64 */
 #endif

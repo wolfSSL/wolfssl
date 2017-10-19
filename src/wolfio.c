@@ -417,7 +417,7 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
     int sd = ssl->wfd;
     SOCKADDR_S peer;
     XSOCKLENT peerSz = sizeof(peer);
-    byte digest[WC_SHA256_DIGEST_SIZE];
+    byte digest[SHA256_DIGEST_SIZE];
     int  ret = 0;
 
     (void)ctx;
@@ -432,8 +432,8 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
     if (ret != 0)
         return ret;
 
-    if (sz > WC_SHA256_DIGEST_SIZE)
-        sz = WC_SHA256_DIGEST_SIZE;
+    if (sz > SHA256_DIGEST_SIZE)
+        sz = SHA256_DIGEST_SIZE;
     XMEMCPY(buf, digest, sz);
 
     return sz;
@@ -460,7 +460,7 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
         /* get peer information stored in ssl struct */
         peerSz = sizeof(SOCKADDR_S);
         if ((ret = wolfSSL_dtls_get_peer(ssl, (void*)&peer, &peerSz))
-                                                               != WOLFSSL_SUCCESS) {
+                                                               != SSL_SUCCESS) {
             return ret;
         }
 
@@ -494,7 +494,7 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
         ip[*ipSz - 1] = '\0'; /* make sure has terminator */
         *ipSz = (word16)XSTRLEN(ip);
 
-        return WOLFSSL_SUCCESS;
+        return SSL_SUCCESS;
     }
 
     /* set the peer information in human readable form (ip, port, family)
@@ -524,7 +524,7 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 
                 /* peer sa is free'd in SSL_ResourceFree */
                 if ((ret = wolfSSL_dtls_set_peer(ssl, (SOCKADDR_IN*)&addr,
-                                          sizeof(SOCKADDR_IN)))!= WOLFSSL_SUCCESS) {
+                                          sizeof(SOCKADDR_IN)))!= SSL_SUCCESS) {
                     WOLFSSL_MSG("Import DTLS peer info error");
                     return ret;
                 }
@@ -541,7 +541,7 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 
                 /* peer sa is free'd in SSL_ResourceFree */
                 if ((ret = wolfSSL_dtls_set_peer(ssl, (SOCKADDR_IN6*)&addr,
-                                         sizeof(SOCKADDR_IN6)))!= WOLFSSL_SUCCESS) {
+                                         sizeof(SOCKADDR_IN6)))!= SSL_SUCCESS) {
                     WOLFSSL_MSG("Import DTLS peer info error");
                     return ret;
                 }
@@ -553,7 +553,7 @@ int EmbedGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
                 return BUFFER_E;
         }
 
-        return WOLFSSL_SUCCESS;
+        return SSL_SUCCESS;
     }
 #endif /* WOLFSSL_SESSION_EXPORT */
 #endif /* WOLFSSL_DTLS */
@@ -1280,7 +1280,7 @@ int wolfIO_HttpProcessResponseCrl(WOLFSSL_CRL* crl, int sfd, byte* httpBuf,
     result = wolfIO_HttpProcessResponse(sfd, "application/pkix-crl",
         &respBuf, httpBuf, httpBufSz, DYNAMIC_TYPE_CRL, crl->heap);
     if (result >= 0) {
-        result = BufferLoadCRL(crl, respBuf, result, WOLFSSL_FILETYPE_ASN1, 0);
+        result = BufferLoadCRL(crl, respBuf, result, SSL_FILETYPE_ASN1, 0);
     }
     XFREE(respBuf, crl->heap, DYNAMIC_TYPE_CRL);
 
@@ -1747,14 +1747,14 @@ int MicriumGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 {
     NET_SOCK_ADDR peer;
     NET_SOCK_ADDR_LEN peerSz = sizeof(peer);
-    byte digest[WC_SHA_DIGEST_SIZE];
+    byte digest[SHA_DIGEST_SIZE];
     int  ret = 0;
 
     (void)ctx;
 
     XMEMSET(&peer, 0, sizeof(peer));
     if (wolfSSL_dtls_get_peer(ssl, (void*)&peer,
-                              (unsigned int*)&peerSz) != WOLFSSL_SUCCESS) {
+                              (unsigned int*)&peerSz) != SSL_SUCCESS) {
         WOLFSSL_MSG("getpeername failed in MicriumGenerateCookie");
         return GEN_COOKIE_E;
     }
@@ -1763,8 +1763,8 @@ int MicriumGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
     if (ret != 0)
         return ret;
 
-    if (sz > WC_SHA_DIGEST_SIZE)
-        sz = WC_SHA_DIGEST_SIZE;
+    if (sz > SHA_DIGEST_SIZE)
+        sz = SHA_DIGEST_SIZE;
     XMEMCPY(buf, digest, sz);
 
     return sz;

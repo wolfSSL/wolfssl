@@ -33,7 +33,7 @@
 
 /* fips wrapper calls, user can call direct */
 #ifdef HAVE_FIPS
-    int wc_InitSha512(wc_Sha512* sha)
+    int wc_InitSha512(Sha512* sha)
     {
         if (sha == NULL) {
             return BAD_FUNC_ARG;
@@ -41,7 +41,7 @@
 
         return InitSha512_fips(sha);
     }
-    int wc_InitSha512_ex(wc_Sha512* sha, void* heap, int devId)
+    int wc_InitSha512_ex(Sha512* sha, void* heap, int devId)
     {
         (void)heap;
         (void)devId;
@@ -50,7 +50,7 @@
         }
         return InitSha512_fips(sha);
     }
-    int wc_Sha512Update(wc_Sha512* sha, const byte* data, word32 len)
+    int wc_Sha512Update(Sha512* sha, const byte* data, word32 len)
     {
         if (sha == NULL || (data == NULL && len > 0)) {
             return BAD_FUNC_ARG;
@@ -58,7 +58,7 @@
 
         return Sha512Update_fips(sha, data, len);
     }
-    int wc_Sha512Final(wc_Sha512* sha, byte* out)
+    int wc_Sha512Final(Sha512* sha, byte* out)
     {
         if (sha == NULL || out == NULL) {
             return BAD_FUNC_ARG;
@@ -66,21 +66,21 @@
 
         return Sha512Final_fips(sha, out);
     }
-    void wc_Sha512Free(wc_Sha512* sha)
+    void wc_Sha512Free(Sha512* sha)
     {
         (void)sha;
         /* Not supported in FIPS */
     }
 
     #if defined(WOLFSSL_SHA384) || defined(HAVE_AESGCM)
-        int wc_InitSha384(wc_Sha384* sha)
+        int wc_InitSha384(Sha384* sha)
         {
             if (sha == NULL) {
                 return BAD_FUNC_ARG;
             }
             return InitSha384_fips(sha);
         }
-        int wc_InitSha384_ex(wc_Sha384* sha, void* heap, int devId)
+        int wc_InitSha384_ex(Sha384* sha, void* heap, int devId)
         {
             (void)heap;
             (void)devId;
@@ -89,21 +89,21 @@
             }
             return InitSha384_fips(sha);
         }
-        int wc_Sha384Update(wc_Sha384* sha, const byte* data, word32 len)
+        int wc_Sha384Update(Sha384* sha, const byte* data, word32 len)
         {
             if (sha == NULL || (data == NULL && len > 0)) {
                 return BAD_FUNC_ARG;
             }
             return Sha384Update_fips(sha, data, len);
         }
-        int wc_Sha384Final(wc_Sha384* sha, byte* out)
+        int wc_Sha384Final(Sha384* sha, byte* out)
         {
             if (sha == NULL || out == NULL) {
                 return BAD_FUNC_ARG;
             }
             return Sha384Final_fips(sha, out);
         }
-        void wc_Sha384Free(wc_Sha384* sha)
+        void wc_Sha384Free(Sha384* sha)
         {
             (void)sha;
             /* Not supported in FIPS */
@@ -166,7 +166,7 @@
         }
 #endif
 
-static int InitSha512(wc_Sha512* sha512)
+static int InitSha512(Sha512* sha512)
 {
     if (sha512 == NULL)
         return BAD_FUNC_ARG;
@@ -199,7 +199,7 @@ static int InitSha512(wc_Sha512* sha512)
         #define HAVE_INTEL_AVX2
     #endif
 
-    int InitSha512(wc_Sha512* sha512) {
+    int InitSha512(Sha512* sha512) {
          Save/Recover XMM, YMM
          ...
 
@@ -261,16 +261,16 @@ static int InitSha512(wc_Sha512* sha512)
      */
 
     #if defined(HAVE_INTEL_AVX1)
-        static int Transform_AVX1(wc_Sha512 *sha512);
+        static int Transform_AVX1(Sha512 *sha512);
     #endif
     #if defined(HAVE_INTEL_AVX2)
-        static int Transform_AVX2(wc_Sha512 *sha512);
+        static int Transform_AVX2(Sha512 *sha512);
         #if defined(HAVE_INTEL_AVX1) && defined(HAVE_INTEL_AVX2) && defined(HAVE_INTEL_RORX)
-            static int Transform_AVX1_RORX(wc_Sha512 *sha512);
+            static int Transform_AVX1_RORX(Sha512 *sha512);
         #endif
     #endif
-    static int _Transform(wc_Sha512 *sha512);
-    static int (*Transform_p)(wc_Sha512* sha512) = _Transform;
+    static int _Transform(Sha512 *sha512);
+    static int (*Transform_p)(Sha512* sha512) = _Transform;
     static int transform_check = 0;
     static int intel_flags;
     #define Transform(sha512) (*Transform_p)(sha512)
@@ -314,7 +314,7 @@ static int InitSha512(wc_Sha512* sha512)
         transform_check = 1;
     }
 
-    int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
+    int wc_InitSha512_ex(Sha512* sha512, void* heap, int devId)
     {
         int ret = InitSha512(sha512);
 
@@ -329,7 +329,7 @@ static int InitSha512(wc_Sha512* sha512)
 #else
     #define Transform(sha512) _Transform(sha512)
 
-    int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
+    int wc_InitSha512_ex(Sha512* sha512, void* heap, int devId)
     {
         int ret = 0;
 
@@ -427,7 +427,7 @@ static const word64 K512[80] = {
 #define R(i) h(i)+=S1(e(i))+Ch(e(i),f(i),g(i))+K[i+j]+(j?blk2(i):blk0(i));\
     d(i)+=h(i);h(i)+=S0(a(i))+Maj(a(i),b(i),c(i))
 
-static int _Transform(wc_Sha512* sha512)
+static int _Transform(Sha512* sha512)
 {
     const word64* K = K512;
 
@@ -489,48 +489,48 @@ static int _Transform(wc_Sha512* sha512)
 }
 
 
-static INLINE void AddLength(wc_Sha512* sha512, word32 len)
+static INLINE void AddLength(Sha512* sha512, word32 len)
 {
     word64 tmp = sha512->loLen;
     if ( (sha512->loLen += len) < tmp)
         sha512->hiLen++;                       /* carry low to high */
 }
 
-static INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
+static INLINE int Sha512Update(Sha512* sha512, const byte* data, word32 len)
 {
     int ret = 0;
     /* do block size increments */
     byte* local = (byte*)sha512->buffer;
 
     /* check that internal buffLen is valid */
-    if (sha512->buffLen >= WC_SHA512_BLOCK_SIZE)
+    if (sha512->buffLen >= SHA512_BLOCK_SIZE)
         return BUFFER_E;
 
     SAVE_XMM_YMM; /* for Intel AVX */
 
     while (len) {
-        word32 add = min(len, WC_SHA512_BLOCK_SIZE - sha512->buffLen);
+        word32 add = min(len, SHA512_BLOCK_SIZE - sha512->buffLen);
         XMEMCPY(&local[sha512->buffLen], data, add);
 
         sha512->buffLen += add;
         data            += add;
         len             -= add;
 
-        if (sha512->buffLen == WC_SHA512_BLOCK_SIZE) {
+        if (sha512->buffLen == SHA512_BLOCK_SIZE) {
     #if defined(LITTLE_ENDIAN_ORDER)
         #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
             if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
         #endif
             {
                 ByteReverseWords64(sha512->buffer, sha512->buffer,
-                                                             WC_SHA512_BLOCK_SIZE);
+                                                             SHA512_BLOCK_SIZE);
             }
     #endif
             ret = Transform(sha512);
             if (ret != 0)
                 break;
 
-            AddLength(sha512, WC_SHA512_BLOCK_SIZE);
+            AddLength(sha512, SHA512_BLOCK_SIZE);
             sha512->buffLen = 0;
         }
     }
@@ -538,7 +538,7 @@ static INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
     return ret;
 }
 
-int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
+int wc_Sha512Update(Sha512* sha512, const byte* data, word32 len)
 {
     if (sha512 == NULL || (data == NULL && len > 0)) {
         return BAD_FUNC_ARG;
@@ -556,7 +556,7 @@ int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
 }
 
 
-static INLINE int Sha512Final(wc_Sha512* sha512)
+static INLINE int Sha512Final(Sha512* sha512)
 {
     byte* local = (byte*)sha512->buffer;
     int ret;
@@ -571,16 +571,16 @@ static INLINE int Sha512Final(wc_Sha512* sha512)
     local[sha512->buffLen++] = 0x80;  /* add 1 */
 
     /* pad with zeros */
-    if (sha512->buffLen > WC_SHA512_PAD_SIZE) {
-        XMEMSET(&local[sha512->buffLen], 0, WC_SHA512_BLOCK_SIZE - sha512->buffLen);
-        sha512->buffLen += WC_SHA512_BLOCK_SIZE - sha512->buffLen;
+    if (sha512->buffLen > SHA512_PAD_SIZE) {
+        XMEMSET(&local[sha512->buffLen], 0, SHA512_BLOCK_SIZE - sha512->buffLen);
+        sha512->buffLen += SHA512_BLOCK_SIZE - sha512->buffLen;
 #if defined(LITTLE_ENDIAN_ORDER)
     #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
         if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
     #endif
         {
             ByteReverseWords64(sha512->buffer,sha512->buffer,
-                                                             WC_SHA512_BLOCK_SIZE);
+                                                             SHA512_BLOCK_SIZE);
         }
 #endif /* LITTLE_ENDIAN_ORDER */
         ret = Transform(sha512);
@@ -589,7 +589,7 @@ static INLINE int Sha512Final(wc_Sha512* sha512)
 
         sha512->buffLen = 0;
     }
-    XMEMSET(&local[sha512->buffLen], 0, WC_SHA512_PAD_SIZE - sha512->buffLen);
+    XMEMSET(&local[sha512->buffLen], 0, SHA512_PAD_SIZE - sha512->buffLen);
 
     /* put lengths in bits */
     sha512->hiLen = (sha512->loLen >> (8 * sizeof(sha512->loLen) - 3)) +
@@ -601,30 +601,30 @@ static INLINE int Sha512Final(wc_Sha512* sha512)
     #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
         if (!IS_INTEL_AVX1(intel_flags) && !IS_INTEL_AVX2(intel_flags))
     #endif
-            ByteReverseWords64(sha512->buffer, sha512->buffer, WC_SHA512_PAD_SIZE);
+            ByteReverseWords64(sha512->buffer, sha512->buffer, SHA512_PAD_SIZE);
 #endif
     /* ! length ordering dependent on digest endian type ! */
 
-    sha512->buffer[WC_SHA512_BLOCK_SIZE / sizeof(word64) - 2] = sha512->hiLen;
-    sha512->buffer[WC_SHA512_BLOCK_SIZE / sizeof(word64) - 1] = sha512->loLen;
+    sha512->buffer[SHA512_BLOCK_SIZE / sizeof(word64) - 2] = sha512->hiLen;
+    sha512->buffer[SHA512_BLOCK_SIZE / sizeof(word64) - 1] = sha512->loLen;
 #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
     if (IS_INTEL_AVX1(intel_flags) || IS_INTEL_AVX2(intel_flags))
-        ByteReverseWords64(&(sha512->buffer[WC_SHA512_BLOCK_SIZE / sizeof(word64) - 2]),
-                           &(sha512->buffer[WC_SHA512_BLOCK_SIZE / sizeof(word64) - 2]),
-                           WC_SHA512_BLOCK_SIZE - WC_SHA512_PAD_SIZE);
+        ByteReverseWords64(&(sha512->buffer[SHA512_BLOCK_SIZE / sizeof(word64) - 2]),
+                           &(sha512->buffer[SHA512_BLOCK_SIZE / sizeof(word64) - 2]),
+                           SHA512_BLOCK_SIZE - SHA512_PAD_SIZE);
 #endif
     ret = Transform(sha512);
     if (ret != 0)
         return ret;
 
     #ifdef LITTLE_ENDIAN_ORDER
-        ByteReverseWords64(sha512->digest, sha512->digest, WC_SHA512_DIGEST_SIZE);
+        ByteReverseWords64(sha512->digest, sha512->digest, SHA512_DIGEST_SIZE);
     #endif
 
     return 0;
 }
 
-int wc_Sha512Final(wc_Sha512* sha512, byte* hash)
+int wc_Sha512Final(Sha512* sha512, byte* hash)
 {
     int ret;
 
@@ -636,7 +636,7 @@ int wc_Sha512Final(wc_Sha512* sha512, byte* hash)
     if (sha512->asyncDev.marker == WOLFSSL_ASYNC_MARKER_SHA512) {
     #if defined(HAVE_INTEL_QA)
         return IntelQaSymSha512(&sha512->asyncDev, hash, NULL,
-                                            WC_SHA512_DIGEST_SIZE);
+                                            SHA512_DIGEST_SIZE);
     #endif
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
@@ -645,18 +645,18 @@ int wc_Sha512Final(wc_Sha512* sha512, byte* hash)
     if (ret != 0)
         return ret;
 
-    XMEMCPY(hash, sha512->digest, WC_SHA512_DIGEST_SIZE);
+    XMEMCPY(hash, sha512->digest, SHA512_DIGEST_SIZE);
 
     return InitSha512(sha512);  /* reset state */
 }
 
 
-int wc_InitSha512(wc_Sha512* sha512)
+int wc_InitSha512(Sha512* sha512)
 {
     return wc_InitSha512_ex(sha512, NULL, INVALID_DEVID);
 }
 
-void wc_Sha512Free(wc_Sha512* sha512)
+void wc_Sha512Free(Sha512* sha512)
 {
     if (sha512 == NULL)
         return;
@@ -1036,7 +1036,7 @@ static const unsigned long mBYTE_FLIP_MASK_Y[] =
 
 /***  Transform Body ***/
 #if defined(HAVE_INTEL_AVX1)
-static int Transform_AVX1(wc_Sha512* sha512)
+static int Transform_AVX1(Sha512* sha512)
 {
     const word64* K = K512;
     word64 W_X[16+4] = {0};
@@ -1090,7 +1090,7 @@ static int Transform_AVX1(wc_Sha512* sha512)
 #endif /* HAVE_INTEL_AVX1 */
 
 #if defined(HAVE_INTEL_AVX2) && defined(HAVE_INTEL_AVX1) && defined(HAVE_INTEL_RORX)
-static int Transform_AVX1_RORX(wc_Sha512* sha512)
+static int Transform_AVX1_RORX(Sha512* sha512)
 {
     const word64* K = K512;
     word64 W_X[16+4] = {0};
@@ -1269,7 +1269,7 @@ static INLINE void Block_Y_12_11(void) { Block_Y_xx_11(12, W_12y, W_0y, W_4y, W_
 static INLINE void Block_Y_12_12(word64 *w) { Block_Y_xx_12(12, W_12y, W_0y, W_4y, W_8y); }
 
 
-static int Transform_AVX2(wc_Sha512* sha512)
+static int Transform_AVX2(Sha512* sha512)
 {
     const word64* K = K512;
     word64 w[4];
@@ -1345,7 +1345,7 @@ static int Transform_AVX2(wc_Sha512* sha512)
 /* SHA384 */
 /* -------------------------------------------------------------------------- */
 #ifdef WOLFSSL_SHA384
-static int InitSha384(wc_Sha384* sha384)
+static int InitSha384(Sha384* sha384)
 {
     if (sha384 == NULL) {
         return BAD_FUNC_ARG;
@@ -1367,7 +1367,7 @@ static int InitSha384(wc_Sha384* sha384)
     return 0;
 }
 
-int wc_Sha384Update(wc_Sha384* sha384, const byte* data, word32 len)
+int wc_Sha384Update(Sha384* sha384, const byte* data, word32 len)
 {
     if (sha384 == NULL || (data == NULL && len > 0)) {
         return BAD_FUNC_ARG;
@@ -1381,11 +1381,11 @@ int wc_Sha384Update(wc_Sha384* sha384, const byte* data, word32 len)
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
-    return Sha512Update((wc_Sha512*)sha384, data, len);
+    return Sha512Update((Sha512*)sha384, data, len);
 }
 
 
-int wc_Sha384Final(wc_Sha384* sha384, byte* hash)
+int wc_Sha384Final(Sha384* sha384, byte* hash)
 {
     int ret;
 
@@ -1397,16 +1397,16 @@ int wc_Sha384Final(wc_Sha384* sha384, byte* hash)
     if (sha384->asyncDev.marker == WOLFSSL_ASYNC_MARKER_SHA384) {
     #if defined(HAVE_INTEL_QA)
         return IntelQaSymSha384(&sha384->asyncDev, hash, NULL,
-                                            WC_SHA384_DIGEST_SIZE);
+                                            SHA384_DIGEST_SIZE);
     #endif
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
-    ret = Sha512Final((wc_Sha512*)sha384);
+    ret = Sha512Final((Sha512*)sha384);
     if (ret != 0)
         return ret;
 
-    XMEMCPY(hash, sha384->digest, WC_SHA384_DIGEST_SIZE);
+    XMEMCPY(hash, sha384->digest, SHA384_DIGEST_SIZE);
 
     return InitSha384(sha384);  /* reset state */
 }
@@ -1414,7 +1414,7 @@ int wc_Sha384Final(wc_Sha384* sha384, byte* hash)
 
 /* Hardware Acceleration */
 #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
-    int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
+    int wc_InitSha384_ex(Sha384* sha384, void* heap, int devId)
     {
         int ret = InitSha384(sha384);
 
@@ -1426,7 +1426,7 @@ int wc_Sha384Final(wc_Sha384* sha384, byte* hash)
         return ret;
     }
 #else
-int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
+int wc_InitSha384_ex(Sha384* sha384, void* heap, int devId)
 {
     int ret;
 
@@ -1450,12 +1450,12 @@ int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
 }
 #endif
 
-int wc_InitSha384(wc_Sha384* sha384)
+int wc_InitSha384(Sha384* sha384)
 {
     return wc_InitSha384_ex(sha384, NULL, INVALID_DEVID);
 }
 
-void wc_Sha384Free(wc_Sha384* sha384)
+void wc_Sha384Free(Sha384* sha384)
 {
     if (sha384 == NULL)
         return;
@@ -1470,10 +1470,10 @@ void wc_Sha384Free(wc_Sha384* sha384)
 #endif /* HAVE_FIPS */
 
 
-int wc_Sha512GetHash(wc_Sha512* sha512, byte* hash)
+int wc_Sha512GetHash(Sha512* sha512, byte* hash)
 {
     int ret;
-    wc_Sha512 tmpSha512;
+    Sha512 tmpSha512;
 
     if (sha512 == NULL || hash == NULL)
         return BAD_FUNC_ARG;
@@ -1485,14 +1485,14 @@ int wc_Sha512GetHash(wc_Sha512* sha512, byte* hash)
     return ret;
 }
 
-int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
+int wc_Sha512Copy(Sha512* src, Sha512* dst)
 {
     int ret = 0;
 
     if (src == NULL || dst == NULL)
         return BAD_FUNC_ARG;
 
-    XMEMCPY(dst, src, sizeof(wc_Sha512));
+    XMEMCPY(dst, src, sizeof(Sha512));
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
@@ -1502,10 +1502,10 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
 }
 
 #ifdef WOLFSSL_SHA384
-int wc_Sha384GetHash(wc_Sha384* sha384, byte* hash)
+int wc_Sha384GetHash(Sha384* sha384, byte* hash)
 {
     int ret;
-    wc_Sha384 tmpSha384;
+    Sha384 tmpSha384;
 
     if (sha384 == NULL || hash == NULL)
         return BAD_FUNC_ARG;
@@ -1516,14 +1516,14 @@ int wc_Sha384GetHash(wc_Sha384* sha384, byte* hash)
     }
     return ret;
 }
-int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
+int wc_Sha384Copy(Sha384* src, Sha384* dst)
 {
     int ret = 0;
 
     if (src == NULL || dst == NULL)
         return BAD_FUNC_ARG;
 
-    XMEMCPY(dst, src, sizeof(wc_Sha384));
+    XMEMCPY(dst, src, sizeof(Sha384));
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);

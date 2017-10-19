@@ -46,7 +46,7 @@
 #endif
 
 
-static INLINE void AddLength(wc_Md5* md5, word32 len);
+static INLINE void AddLength(Md5* md5, word32 len);
 
 /* Hardware Acceleration */
 #if defined(STM32_HASH)
@@ -60,7 +60,7 @@ static INLINE void AddLength(wc_Md5* md5, word32 len);
 
     /* STM32 register size, bytes */
     #ifdef WOLFSSL_STM32_CUBEMX
-        #define MD5_REG_SIZE  WC_MD5_BLOCK_SIZE
+        #define MD5_REG_SIZE  MD5_BLOCK_SIZE
     #else
         #define MD5_REG_SIZE  4
         /* STM32 struct notes:
@@ -71,7 +71,7 @@ static INLINE void AddLength(wc_Md5* md5, word32 len);
     #endif
     #define MD5_HW_TIMEOUT 0xFF
 
-    int wc_InitMd5_ex(wc_Md5* md5, void* heap, int devId)
+    int wc_InitMd5_ex(Md5* md5, void* heap, int devId)
     {
         if (md5 == NULL)
             return BAD_FUNC_ARG;
@@ -112,7 +112,7 @@ static INLINE void AddLength(wc_Md5* md5, word32 len);
         return 0;
     }
 
-    int wc_Md5Update(wc_Md5* md5, const byte* data, word32 len)
+    int wc_Md5Update(Md5* md5, const byte* data, word32 len)
     {
         int ret = 0;
         byte* local;
@@ -153,7 +153,7 @@ static INLINE void AddLength(wc_Md5* md5, word32 len);
         return ret;
     }
 
-    int wc_Md5Final(wc_Md5* md5, byte* hash)
+    int wc_Md5Final(Md5* md5, byte* hash)
     {
         int ret = 0;
 
@@ -193,10 +193,10 @@ static INLINE void AddLength(wc_Md5* md5, word32 len);
         md5->digest[2] = HASH->HR[2];
         md5->digest[3] = HASH->HR[3];
 
-        ByteReverseWords(md5->digest, md5->digest, WC_MD5_DIGEST_SIZE);
+        ByteReverseWords(md5->digest, md5->digest, MD5_DIGEST_SIZE);
     #endif /* WOLFSSL_STM32_CUBEMX */
 
-        XMEMCPY(hash, md5->digest, WC_MD5_DIGEST_SIZE);
+        XMEMCPY(hash, md5->digest, MD5_DIGEST_SIZE);
 
         (void)wc_InitMd5(md5);  /* reset state */
 
@@ -207,7 +207,7 @@ static INLINE void AddLength(wc_Md5* md5, word32 len);
     #include "cau_api.h"
     #define XTRANSFORM(S,B)  Transform((S), (B))
 
-    static int Transform(wc_Md5* md5, byte* data)
+    static int Transform(Md5* md5, byte* data)
     {
         int ret = wolfSSL_CryptHwMutexLock();
         if(ret == 0) {
@@ -243,7 +243,7 @@ static INLINE void AddLength(wc_Md5* md5, word32 len);
     #define MD5STEP(f, w, x, y, z, data, s) \
         w = rotlFixed(w + f(x, y, z) + data, s) + x
 
-    static int Transform(wc_Md5* md5)
+    static int Transform(Md5* md5)
     {
         /* Copy context->state[] to working vars  */
         word32 a = md5->digest[0];
@@ -330,7 +330,7 @@ static INLINE void AddLength(wc_Md5* md5, word32 len);
 #endif /* NEED_SOFT_MD5 */
 
 #if !defined(HAVE_MD5_CUST_API) || defined(STM32_HASH)
-static INLINE void AddLength(wc_Md5* md5, word32 len)
+static INLINE void AddLength(Md5* md5, word32 len)
 {
     word32 tmp = md5->loLen;
     if ((md5->loLen += len) < tmp) {
@@ -340,7 +340,7 @@ static INLINE void AddLength(wc_Md5* md5, word32 len)
 #endif
 
 #ifndef HAVE_MD5_CUST_API
-static int _InitMd5(wc_Md5* md5)
+static int _InitMd5(Md5* md5)
 {
     int ret = 0;
 
@@ -356,7 +356,7 @@ static int _InitMd5(wc_Md5* md5)
     return ret;
 }
 
-int wc_InitMd5_ex(wc_Md5* md5, void* heap, int devId)
+int wc_InitMd5_ex(Md5* md5, void* heap, int devId)
 {
     int ret = 0;
 
@@ -378,7 +378,7 @@ int wc_InitMd5_ex(wc_Md5* md5, void* heap, int devId)
     return ret;
 }
 
-int wc_Md5Update(wc_Md5* md5, const byte* data, word32 len)
+int wc_Md5Update(Md5* md5, const byte* data, word32 len)
 {
     int ret = 0;
     byte* local;
@@ -399,30 +399,30 @@ int wc_Md5Update(wc_Md5* md5, const byte* data, word32 len)
     local = (byte*)md5->buffer;
 
     /* check that internal buffLen is valid */
-    if (md5->buffLen >= WC_MD5_BLOCK_SIZE)
+    if (md5->buffLen >= MD5_BLOCK_SIZE)
         return BUFFER_E;
 
     while (len) {
-        word32 add = min(len, WC_MD5_BLOCK_SIZE - md5->buffLen);
+        word32 add = min(len, MD5_BLOCK_SIZE - md5->buffLen);
         XMEMCPY(&local[md5->buffLen], data, add);
 
         md5->buffLen += add;
         data         += add;
         len          -= add;
 
-        if (md5->buffLen == WC_MD5_BLOCK_SIZE) {
+        if (md5->buffLen == MD5_BLOCK_SIZE) {
         #if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
-            ByteReverseWords(md5->buffer, md5->buffer, WC_MD5_BLOCK_SIZE);
+            ByteReverseWords(md5->buffer, md5->buffer, MD5_BLOCK_SIZE);
         #endif
             XTRANSFORM(md5, local);
-            AddLength(md5, WC_MD5_BLOCK_SIZE);
+            AddLength(md5, MD5_BLOCK_SIZE);
             md5->buffLen = 0;
         }
     }
     return ret;
 }
 
-int wc_Md5Final(wc_Md5* md5, byte* hash)
+int wc_Md5Final(Md5* md5, byte* hash)
 {
     byte* local;
 
@@ -433,7 +433,7 @@ int wc_Md5Final(wc_Md5* md5, byte* hash)
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_MD5)
     if (md5->asyncDev.marker == WOLFSSL_ASYNC_MARKER_MD5) {
     #if defined(HAVE_INTEL_QA)
-        return IntelQaSymMd5(&md5->asyncDev, hash, NULL, WC_MD5_DIGEST_SIZE);
+        return IntelQaSymMd5(&md5->asyncDev, hash, NULL, MD5_DIGEST_SIZE);
     #endif
     }
 #endif /* WOLFSSL_ASYNC_CRYPT */
@@ -444,20 +444,20 @@ int wc_Md5Final(wc_Md5* md5, byte* hash)
     local[md5->buffLen++] = 0x80;  /* add 1 */
 
     /* pad with zeros */
-    if (md5->buffLen > WC_MD5_PAD_SIZE) {
-        XMEMSET(&local[md5->buffLen], 0, WC_MD5_BLOCK_SIZE - md5->buffLen);
-        md5->buffLen += WC_MD5_BLOCK_SIZE - md5->buffLen;
+    if (md5->buffLen > MD5_PAD_SIZE) {
+        XMEMSET(&local[md5->buffLen], 0, MD5_BLOCK_SIZE - md5->buffLen);
+        md5->buffLen += MD5_BLOCK_SIZE - md5->buffLen;
 
     #if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
-        ByteReverseWords(md5->buffer, md5->buffer, WC_MD5_BLOCK_SIZE);
+        ByteReverseWords(md5->buffer, md5->buffer, MD5_BLOCK_SIZE);
     #endif
         XTRANSFORM(md5, local);
         md5->buffLen = 0;
     }
-    XMEMSET(&local[md5->buffLen], 0, WC_MD5_PAD_SIZE - md5->buffLen);
+    XMEMSET(&local[md5->buffLen], 0, MD5_PAD_SIZE - md5->buffLen);
 
 #if defined(BIG_ENDIAN_ORDER) && !defined(FREESCALE_MMCAU_SHA)
-    ByteReverseWords(md5->buffer, md5->buffer, WC_MD5_BLOCK_SIZE);
+    ByteReverseWords(md5->buffer, md5->buffer, MD5_BLOCK_SIZE);
 #endif
 
     /* put lengths in bits */
@@ -467,22 +467,22 @@ int wc_Md5Final(wc_Md5* md5, byte* hash)
 
     /* store lengths */
     /* ! length ordering dependent on digest endian type ! */
-    XMEMCPY(&local[WC_MD5_PAD_SIZE], &md5->loLen, sizeof(word32));
-    XMEMCPY(&local[WC_MD5_PAD_SIZE + sizeof(word32)], &md5->hiLen, sizeof(word32));
+    XMEMCPY(&local[MD5_PAD_SIZE], &md5->loLen, sizeof(word32));
+    XMEMCPY(&local[MD5_PAD_SIZE + sizeof(word32)], &md5->hiLen, sizeof(word32));
 
     /* final transform and result to hash */
     XTRANSFORM(md5, local);
 #ifdef BIG_ENDIAN_ORDER
-    ByteReverseWords(md5->digest, md5->digest, WC_MD5_DIGEST_SIZE);
+    ByteReverseWords(md5->digest, md5->digest, MD5_DIGEST_SIZE);
 #endif
-    XMEMCPY(hash, md5->digest, WC_MD5_DIGEST_SIZE);
+    XMEMCPY(hash, md5->digest, MD5_DIGEST_SIZE);
 
     return _InitMd5(md5); /* reset state */
 }
 #endif /* !HAVE_MD5_CUST_API */
 
 
-int wc_InitMd5(wc_Md5* md5)
+int wc_InitMd5(Md5* md5)
 {
     if (md5 == NULL) {
         return BAD_FUNC_ARG;
@@ -490,7 +490,7 @@ int wc_InitMd5(wc_Md5* md5)
     return wc_InitMd5_ex(md5, NULL, INVALID_DEVID);
 }
 
-void wc_Md5Free(wc_Md5* md5)
+void wc_Md5Free(Md5* md5)
 {
     if (md5 == NULL)
         return;
@@ -499,10 +499,10 @@ void wc_Md5Free(wc_Md5* md5)
 #endif /* WOLFSSL_ASYNC_CRYPT */
 }
 
-int wc_Md5GetHash(wc_Md5* md5, byte* hash)
+int wc_Md5GetHash(Md5* md5, byte* hash)
 {
     int ret;
-    wc_Md5 tmpMd5;
+    Md5 tmpMd5;
 
     if (md5 == NULL || hash == NULL)
         return BAD_FUNC_ARG;
@@ -515,14 +515,14 @@ int wc_Md5GetHash(wc_Md5* md5, byte* hash)
     return ret;
 }
 
-int wc_Md5Copy(wc_Md5* src, wc_Md5* dst)
+int wc_Md5Copy(Md5* src, Md5* dst)
 {
     int ret = 0;
 
     if (src == NULL || dst == NULL)
         return BAD_FUNC_ARG;
 
-    XMEMCPY(dst, src, sizeof(wc_Md5));
+    XMEMCPY(dst, src, sizeof(Md5));
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);

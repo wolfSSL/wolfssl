@@ -91,9 +91,6 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/rsa.c
 endif
 endif
 endif
-if BUILD_SP
-src_libwolfssl_la_SOURCES += wolfcrypt/src/sp.c
-endif
 
 if BUILD_AES
 src_libwolfssl_la_SOURCES += wolfcrypt/src/aes.c

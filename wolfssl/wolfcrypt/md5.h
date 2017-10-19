@@ -38,20 +38,12 @@
     extern "C" {
 #endif
 
-#ifndef NO_OLD_WC_NAMES
-    #define Md5             wc_Md5
-    #define MD5             WC_MD5
-    #define MD5_BLOCK_SIZE  WC_MD5_BLOCK_SIZE
-    #define MD5_DIGEST_SIZE WC_MD5_DIGEST_SIZE
-    #define WC_MD5_PAD_SIZE WC_MD5_PAD_SIZE
-#endif
-
 /* in bytes */
 enum {
-    WC_MD5             =  0,      /* hash type unique */
-    WC_MD5_BLOCK_SIZE  = 64,
-    WC_MD5_DIGEST_SIZE = 16,
-    WC_MD5_PAD_SIZE    = 56
+    MD5             =  0,      /* hash type unique */
+    MD5_BLOCK_SIZE  = 64,
+    MD5_DIGEST_SIZE = 16,
+    MD5_PAD_SIZE    = 56
 };
 
 #ifdef WOLFSSL_MICROCHIP_PIC32MZ
@@ -66,15 +58,15 @@ enum {
 #else
 
 /* MD5 digest */
-typedef struct wc_Md5 {
+typedef struct Md5 {
     word32  buffLen;   /* in bytes          */
     word32  loLen;     /* length in bytes   */
     word32  hiLen;     /* length in bytes   */
-    word32  buffer[WC_MD5_BLOCK_SIZE  / sizeof(word32)];
+    word32  buffer[MD5_BLOCK_SIZE  / sizeof(word32)];
 #ifdef WOLFSSL_PIC32MZ_HASH
     word32  digest[PIC32_DIGEST_SIZE / sizeof(word32)];
 #else
-    word32  digest[WC_MD5_DIGEST_SIZE / sizeof(word32)];
+    word32  digest[MD5_DIGEST_SIZE / sizeof(word32)];
 #endif
     void*   heap;
 #ifdef WOLFSSL_PIC32MZ_HASH
@@ -86,21 +78,21 @@ typedef struct wc_Md5 {
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
-} wc_Md5;
+} Md5;
 
 #endif /* WOLFSSL_TI_HASH */
 
-WOLFSSL_API int wc_InitMd5(wc_Md5*);
-WOLFSSL_API int wc_InitMd5_ex(wc_Md5*, void*, int);
-WOLFSSL_API int wc_Md5Update(wc_Md5*, const byte*, word32);
-WOLFSSL_API int wc_Md5Final(wc_Md5*, byte*);
-WOLFSSL_API void wc_Md5Free(wc_Md5*);
+WOLFSSL_API int wc_InitMd5(Md5*);
+WOLFSSL_API int wc_InitMd5_ex(Md5*, void*, int);
+WOLFSSL_API int wc_Md5Update(Md5*, const byte*, word32);
+WOLFSSL_API int wc_Md5Final(Md5*, byte*);
+WOLFSSL_API void wc_Md5Free(Md5*);
 
-WOLFSSL_API int  wc_Md5GetHash(wc_Md5*, byte*);
-WOLFSSL_API int  wc_Md5Copy(wc_Md5*, wc_Md5*);
+WOLFSSL_API int  wc_Md5GetHash(Md5*, byte*);
+WOLFSSL_API int  wc_Md5Copy(Md5*, Md5*);
 
 #ifdef WOLFSSL_PIC32MZ_HASH
-WOLFSSL_API void wc_Md5SizeSet(wc_Md5* md5, word32 len);
+WOLFSSL_API void wc_Md5SizeSet(Md5* md5, word32 len);
 #endif
 
 #ifdef __cplusplus

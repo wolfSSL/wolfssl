@@ -36,10 +36,7 @@ EXTRA_DIST += \
 	     certs/test-servercert.p12 \
 	     certs/dsaparams.pem \
              certs/ecc-privOnlyKey.pem \
-             certs/ecc-privOnlyCert.pem \
-	     certs/dh3072.pem \
-	     certs/client-cert-3072.pem \
-	     certs/client-key-3072.pem
+             certs/ecc-privOnlyCert.pem
 EXTRA_DIST += \
 	     certs/ca-key.der \
 	     certs/ca-cert.der \

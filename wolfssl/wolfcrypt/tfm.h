@@ -414,8 +414,6 @@ void fp_init_copy(fp_int *a, fp_int *b);
 
 /* clamp digits */
 #define fp_clamp(a)   { while ((a)->used && (a)->dp[(a)->used-1] == 0) --((a)->used); (a)->sign = (a)->used ? (a)->sign : FP_ZPOS; }
-#define mp_clamp(a)   fp_clamp(a)
-#define mp_grow(a,s)  MP_OKAY
 
 /* negate and absolute */
 #define fp_neg(a, b)  { fp_copy(a, b); (b)->sign ^= 1; fp_clamp(b); }
