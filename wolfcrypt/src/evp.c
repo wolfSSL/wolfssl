@@ -342,7 +342,10 @@ WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
         return 1;
     }
     if (ctx->enc) {
-        if (ctx->bufUsed > 0) {
+        if (ctx->block_size == 1){
+            *outl = 0; return 1;
+        }
+        if ((ctx->bufUsed >= 0) && (ctx->block_size != 1)) {
             padBlock(ctx);
             PRINT_BUF(ctx->buf, ctx->block_size);
             if (evpCipherBlock(ctx, out, ctx->buf, ctx->block_size) == 0)
@@ -351,6 +354,9 @@ WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
             *outl = ctx->block_size;
         }
     } else {
+        if (ctx->block_size == 1){
+            *outl = 0; return 1;
+        }
         if (ctx->lastUsed){
             PRINT_BUF(ctx->lastBlock, ctx->block_size);
             if ((fl = checkPad(ctx, ctx->lastBlock)) >= 0) {
@@ -617,32 +623,32 @@ int wolfSSL_EVP_DigestSignInit(WOLFSSL_EVP_MD_CTX *ctx,
 #endif
 
     if (XSTRNCMP(type, "SHA256", 6) == 0) {
-         hashType = SHA256;
+         hashType = WC_SHA256;
     }
 #ifdef WOLFSSL_SHA224
     else if (XSTRNCMP(type, "SHA224", 6) == 0) {
-         hashType = SHA224;
+         hashType = WC_SHA224;
     }
 #endif
 #ifdef WOLFSSL_SHA384
     else if (XSTRNCMP(type, "SHA384", 6) == 0) {
-         hashType = SHA384;
+         hashType = WC_SHA384;
     }
 #endif
 #ifdef WOLFSSL_SHA512
     else if (XSTRNCMP(type, "SHA512", 6) == 0) {
-         hashType = SHA512;
+         hashType = WC_SHA512;
     }
 #endif
 #ifndef NO_MD5
     else if (XSTRNCMP(type, "MD5", 3) == 0) {
-        hashType = MD5;
+        hashType = WC_MD5;
     }
 #endif
 #ifndef NO_SHA
     /* has to be last since would pick or 224, 256, 384, or 512 too */
     else if (XSTRNCMP(type, "SHA", 3) == 0) {
-         hashType = SHA;
+         hashType = WC_SHA;
     }
 #endif /* NO_SHA */
     else
@@ -694,37 +700,37 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx,
 
     switch (ctx->hash.hmac.macType) {
     #ifndef NO_MD5
-        case MD5:
-            hashLen = MD5_DIGEST_SIZE;
+        case WC_MD5:
+            hashLen = WC_MD5_DIGEST_SIZE;
             break;
     #endif /* !NO_MD5 */
 
     #ifndef NO_SHA
-        case SHA:
-            hashLen = SHA_DIGEST_SIZE;
+        case WC_SHA:
+            hashLen = WC_SHA_DIGEST_SIZE;
             break;
     #endif /* !NO_SHA */
 
     #ifdef WOLFSSL_SHA224
-        case SHA224:
-            hashLen = SHA224_DIGEST_SIZE;
+        case WC_SHA224:
+            hashLen = WC_SHA224_DIGEST_SIZE;
             break;
     #endif /* WOLFSSL_SHA224 */
 
     #ifndef NO_SHA256
-        case SHA256:
-            hashLen = SHA256_DIGEST_SIZE;
+        case WC_SHA256:
+            hashLen = WC_SHA256_DIGEST_SIZE;
             break;
     #endif /* !NO_SHA256 */
 
     #ifdef WOLFSSL_SHA512
     #ifdef WOLFSSL_SHA384
-        case SHA384:
-            hashLen = SHA384_DIGEST_SIZE;
+        case WC_SHA384:
+            hashLen = WC_SHA384_DIGEST_SIZE;
             break;
     #endif /* WOLFSSL_SHA384 */
-        case SHA512:
-            hashLen = SHA512_DIGEST_SIZE;
+        case WC_SHA512:
+            hashLen = WC_SHA512_DIGEST_SIZE;
             break;
     #endif /* WOLFSSL_SHA512 */
 

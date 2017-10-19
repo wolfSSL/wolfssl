@@ -109,37 +109,37 @@ int wc_HashGetDigestSize(enum wc_HashType hash_type)
     {
         case WC_HASH_TYPE_MD5:
 #ifndef NO_MD5
-            dig_size = MD5_DIGEST_SIZE;
+            dig_size = WC_MD5_DIGEST_SIZE;
 #endif
             break;
         case WC_HASH_TYPE_SHA:
 #ifndef NO_SHA
-            dig_size = SHA_DIGEST_SIZE;
+            dig_size = WC_SHA_DIGEST_SIZE;
 #endif
             break;
         case WC_HASH_TYPE_SHA224:
 #ifdef WOLFSSL_SHA224
-            dig_size = SHA224_DIGEST_SIZE;
+            dig_size = WC_SHA224_DIGEST_SIZE;
 #endif
             break;
         case WC_HASH_TYPE_SHA256:
 #ifndef NO_SHA256
-            dig_size = SHA256_DIGEST_SIZE;
+            dig_size = WC_SHA256_DIGEST_SIZE;
 #endif
             break;
         case WC_HASH_TYPE_SHA384:
 #if defined(WOLFSSL_SHA512) && defined(WOLFSSL_SHA384)
-            dig_size = SHA384_DIGEST_SIZE;
+            dig_size = WC_SHA384_DIGEST_SIZE;
 #endif
             break;
         case WC_HASH_TYPE_SHA512:
 #ifdef WOLFSSL_SHA512
-            dig_size = SHA512_DIGEST_SIZE;
+            dig_size = WC_SHA512_DIGEST_SIZE;
 #endif
             break;
         case WC_HASH_TYPE_MD5_SHA:
 #if !defined(NO_MD5) && !defined(NO_SHA)
-            dig_size = MD5_DIGEST_SIZE + SHA_DIGEST_SIZE;
+            dig_size = WC_MD5_DIGEST_SIZE + WC_SHA_DIGEST_SIZE;
 #endif
             break;
 
@@ -209,7 +209,7 @@ int wc_Hash(enum wc_HashType hash_type, const byte* data,
 #if !defined(NO_MD5) && !defined(NO_SHA)
             ret = wc_Md5Hash(data, data_len, hash);
             if (ret == 0) {
-                ret = wc_ShaHash(data, data_len, &hash[MD5_DIGEST_SIZE]);
+                ret = wc_ShaHash(data, data_len, &hash[WC_MD5_DIGEST_SIZE]);
             }
 #endif
             break;
@@ -392,13 +392,13 @@ int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type, byte* out)
     {
         int ret;
     #ifdef WOLFSSL_SMALL_STACK
-        Md5* md5;
+        wc_Md5* md5;
     #else
-        Md5  md5[1];
+        wc_Md5  md5[1];
     #endif
 
     #ifdef WOLFSSL_SMALL_STACK
-        md5 = (Md5*)XMALLOC(sizeof(Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        md5 = (wc_Md5*)XMALLOC(sizeof(wc_Md5), NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (md5 == NULL)
             return MEMORY_E;
     #endif
@@ -424,13 +424,13 @@ int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type, byte* out)
     {
         int ret = 0;
     #ifdef WOLFSSL_SMALL_STACK
-        Sha* sha;
+        wc_Sha* sha;
     #else
-        Sha sha[1];
+        wc_Sha sha[1];
     #endif
 
     #ifdef WOLFSSL_SMALL_STACK
-        sha = (Sha*)XMALLOC(sizeof(Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        sha = (wc_Sha*)XMALLOC(sizeof(wc_Sha), NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (sha == NULL)
             return MEMORY_E;
     #endif
@@ -456,13 +456,14 @@ int wc_Sha224Hash(const byte* data, word32 len, byte* hash)
 {
     int ret = 0;
 #ifdef WOLFSSL_SMALL_STACK
-    Sha224* sha224;
+    wc_Sha224* sha224;
 #else
-    Sha224 sha224[1];
+    wc_Sha224 sha224[1];
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-    sha224 = (Sha224*)XMALLOC(sizeof(Sha224), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    sha224 = (wc_Sha224*)XMALLOC(sizeof(wc_Sha224), NULL,
+        DYNAMIC_TYPE_TMP_BUFFER);
     if (sha224 == NULL)
         return MEMORY_E;
 #endif
@@ -490,13 +491,14 @@ int wc_Sha224Hash(const byte* data, word32 len, byte* hash)
     {
         int ret = 0;
     #ifdef WOLFSSL_SMALL_STACK
-        Sha256* sha256;
+        wc_Sha256* sha256;
     #else
-        Sha256 sha256[1];
+        wc_Sha256 sha256[1];
     #endif
 
     #ifdef WOLFSSL_SMALL_STACK
-        sha256 = (Sha256*)XMALLOC(sizeof(Sha256), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        sha256 = (wc_Sha256*)XMALLOC(sizeof(wc_Sha256), NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
         if (sha256 == NULL)
             return MEMORY_E;
     #endif
@@ -527,13 +529,14 @@ int wc_Sha224Hash(const byte* data, word32 len, byte* hash)
     {
         int ret = 0;
     #ifdef WOLFSSL_SMALL_STACK
-        Sha512* sha512;
+        wc_Sha512* sha512;
     #else
-        Sha512 sha512[1];
+        wc_Sha512 sha512[1];
     #endif
 
     #ifdef WOLFSSL_SMALL_STACK
-        sha512 = (Sha512*)XMALLOC(sizeof(Sha512), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        sha512 = (wc_Sha512*)XMALLOC(sizeof(wc_Sha512), NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
         if (sha512 == NULL)
             return MEMORY_E;
     #endif
@@ -560,13 +563,14 @@ int wc_Sha224Hash(const byte* data, word32 len, byte* hash)
         {
             int ret = 0;
         #ifdef WOLFSSL_SMALL_STACK
-            Sha384* sha384;
+            wc_Sha384* sha384;
         #else
-            Sha384 sha384[1];
+            wc_Sha384 sha384[1];
         #endif
 
         #ifdef WOLFSSL_SMALL_STACK
-            sha384 = (Sha384*)XMALLOC(sizeof(Sha384), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            sha384 = (wc_Sha384*)XMALLOC(sizeof(wc_Sha384), NULL,
+                DYNAMIC_TYPE_TMP_BUFFER);
             if (sha384 == NULL)
                 return MEMORY_E;
         #endif

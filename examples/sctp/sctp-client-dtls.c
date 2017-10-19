@@ -71,11 +71,11 @@ int main()
         err_sys("ctx new dtls client failed");
 
     ret = wolfSSL_CTX_dtls_set_sctp(ctx);
-    if (ret != SSL_SUCCESS)
+    if (ret != WOLFSSL_SUCCESS)
         err_sys("set sctp mode failed");
 
     ret = wolfSSL_CTX_load_verify_locations(ctx, cacert, NULL);
-    if (ret != SSL_SUCCESS)
+    if (ret != WOLFSSL_SUCCESS)
         err_sys("ca cert error");
 
     WOLFSSL* ssl = wolfSSL_new(ctx);
@@ -85,12 +85,12 @@ int main()
     wolfSSL_set_fd(ssl, sd);
 
     ret = wolfSSL_connect(ssl);
-    if (ret != SSL_SUCCESS)
+    if (ret != WOLFSSL_SUCCESS)
         err_sys("ssl connect failed");
 
     printf("TLS version is %s\n", wolfSSL_get_version(ssl));
     printf("Cipher Suite is %s\n",
-           wolfSSL_CIPHER_get_name(wolfSSL_get_current_cipher(ssl))); 
+           wolfSSL_CIPHER_get_name(wolfSSL_get_current_cipher(ssl)));
 
     wolfSSL_write(ssl, response, (int)strlen(response));
     int got = wolfSSL_read(ssl, buffer, sizeof(buffer));

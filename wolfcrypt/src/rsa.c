@@ -31,6 +31,10 @@
 
 #include <wolfssl/wolfcrypt/rsa.h>
 
+#ifdef WOLFSSL_HAVE_SP_RSA
+#include <wolfssl/wolfcrypt/sp.h>
+#endif
+
 /*
 Possible RSA enable options:
  * NO_RSA:              Overall control of RSA                      default: on (not defined)
@@ -1135,6 +1139,45 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 #endif
     int    ret = 0;
     word32 keyLen, len;
+
+#ifdef WOLFSSL_HAVE_SP_RSA
+#ifndef WOLFSSL_SP_NO_2048
+    if (mp_count_bits(&key->n) == 2048) {
+        switch(type) {
+        case RSA_PRIVATE_DECRYPT:
+        case RSA_PRIVATE_ENCRYPT:
+    #ifdef WC_RSA_BLINDING
+            if (rng == NULL)
+                return MISSING_RNG_E;
+    #endif
+            return sp_RsaPrivate_2048(in, inLen, &key->d, &key->p, &key->q,
+                                      &key->dP, &key->dQ, &key->u, &key->n,
+                                      out, outLen);
+        case RSA_PUBLIC_ENCRYPT:
+        case RSA_PUBLIC_DECRYPT:
+            return sp_RsaPublic_2048(in, inLen, &key->e, &key->n, out, outLen);
+        }
+    }
+#endif
+#ifndef WOLFSSL_SP_NO_3072
+    if (mp_count_bits(&key->n) == 3072) {
+        switch(type) {
+        case RSA_PRIVATE_DECRYPT:
+        case RSA_PRIVATE_ENCRYPT:
+    #ifdef WC_RSA_BLINDING
+            if (rng == NULL)
+                return MISSING_RNG_E;
+    #endif
+            return sp_RsaPrivate_3072(in, inLen, &key->d, &key->p, &key->q,
+                                      &key->dP, &key->dQ, &key->u, &key->n,
+                                      out, outLen);
+        case RSA_PUBLIC_ENCRYPT:
+        case RSA_PUBLIC_DECRYPT:
+            return sp_RsaPublic_3072(in, inLen, &key->e, &key->n, out, outLen);
+        }
+    }
+#endif
+#endif /* WOLFSSL_HAVE_SP_RSA */
 
     (void)rng;
 

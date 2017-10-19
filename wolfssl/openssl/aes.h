@@ -34,6 +34,8 @@
 #ifndef NO_AES
 #ifdef WOLFSSL_AES_DIRECT
 
+#include <wolfssl/wolfcrypt/aes.h>
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -62,6 +64,13 @@ WOLFSSL_API void wolfSSL_AES_decrypt
 
 #define wolfSSL_AES_encrypt(in, out, aes) wc_AesEncryptDirect(aes, out, in)
 #define wolfSSL_AES_decrypt(in, out, aes) wc_AesDecryptDirect(aes, out, in)
+
+#ifndef AES_ENCRYPT
+#define AES_ENCRYPT AES_ENCRYPTION
+#endif
+#ifdef AES_DECRYPT
+#define AES_DECRYPT AES_DECRYPTION
+#endif
 
 #ifdef __cplusplus
     } /* extern "C" */
