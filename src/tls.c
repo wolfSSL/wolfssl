@@ -3446,7 +3446,7 @@ int TLSX_UseSupportedCurve(TLSX** extensions, word16 name, void* heap)
 
     return (TLSX_Find(*extensions, TLSX_EC_POINT_FORMATS) == NULL)
         ? TLSX_UsePointFormat(extensions, WOLFSSL_EC_PF_UNCOMPRESSED, heap)
-        : SSL_SUCCESS;
+        : WOLFSSL_SUCCESS;
 }
 
 int TLSX_UsePointFormat(TLSX** extensions, byte format, void* heap)
