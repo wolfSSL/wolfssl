@@ -54,6 +54,24 @@ function run_renewcerts(){
 
     openssl x509 -in client-cert.pem -text > tmp.pem
     mv tmp.pem client-cert.pem
+
+
+    ############################################################
+    #### update the self-signed (3072-bit) client-cert.pem #####
+    ############################################################
+    echo "Updating 3072-bit client-cert.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\nMontana\nBozeman\nwolfSSL_3072\nProgramming-3072\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -newkey rsa:3072 -keyout client-key-3072.pem -nodes -out client-cert-3072.csr
+
+
+    openssl x509 -req -in client-cert-3072.csr -days 1000 -extfile wolfssl.cnf -extensions wolfssl_opts -signkey client-key-3072.pem -out client-cert-3072.pem
+    rm client-cert-3072.csr
+
+    openssl x509 -in client-cert-3072.pem -text > tmp.pem
+    mv tmp.pem client-cert-3072.pem
+
+
     ############################################################
     #### update the self-signed (1024-bit) client-cert.pem #####
     ############################################################

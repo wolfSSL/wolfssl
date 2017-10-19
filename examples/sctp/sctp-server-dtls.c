@@ -77,15 +77,15 @@ int main()
         err_sys("ctx new dtls server failed");
 
     ret = wolfSSL_CTX_dtls_set_sctp(ctx);
-    if (ret != SSL_SUCCESS)
+    if (ret != WOLFSSL_SUCCESS)
         err_sys("set sctp mode failed");
 
-    ret = wolfSSL_CTX_use_PrivateKey_file(ctx, key, SSL_FILETYPE_PEM);
-    if (ret != SSL_SUCCESS)
+    ret = wolfSSL_CTX_use_PrivateKey_file(ctx, key, WOLFSSL_FILETYPE_PEM);
+    if (ret != WOLFSSL_SUCCESS)
         err_sys("use private key error");
 
-    ret = wolfSSL_CTX_use_certificate_file(ctx, cert, SSL_FILETYPE_PEM);
-    if (ret != SSL_SUCCESS)
+    ret = wolfSSL_CTX_use_certificate_file(ctx, cert, WOLFSSL_FILETYPE_PEM);
+    if (ret != WOLFSSL_SUCCESS)
         err_sys("use cert error");
 
     WOLFSSL* ssl = wolfSSL_new(ctx);
@@ -95,12 +95,12 @@ int main()
     wolfSSL_set_fd(ssl, client_sd);
 
     ret = wolfSSL_accept(ssl);
-    if (ret != SSL_SUCCESS)
+    if (ret != WOLFSSL_SUCCESS)
         err_sys("ssl accept failed");
 
     printf("TLS version is %s\n", wolfSSL_get_version(ssl));
     printf("Cipher Suite is %s\n",
-           wolfSSL_CIPHER_get_name(wolfSSL_get_current_cipher(ssl))); 
+           wolfSSL_CIPHER_get_name(wolfSSL_get_current_cipher(ssl)));
 
     int got = wolfSSL_read(ssl, buffer, sizeof(buffer));
     if (got > 0) {
