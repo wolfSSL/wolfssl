@@ -99,7 +99,7 @@ enum Ctc_Misc {
     CTC_NAME_SIZE     =    64,
     CTC_DATE_SIZE     =    32,
     CTC_MAX_ALT_SIZE  = 16384,   /* may be huge */
-    CTC_SERIAL_SIZE   =    16,
+    CTC_SERIAL_SIZE   =     8,
 #ifdef WOLFSSL_CERT_EXT
     /* AKID could contains: hash + (Option) AuthCertIssuer,AuthCertSerialNum
      * We support only hash */
@@ -136,7 +136,6 @@ typedef struct CertName {
 typedef struct Cert {
     int      version;                   /* x509 version  */
     byte     serial[CTC_SERIAL_SIZE];   /* serial number */
-    int      serialSz;                  /* serial size */
     int      sigType;                   /* signature algo type */
     CertName issuer;                    /* issuer info */
     int      daysValid;                 /* validity days */

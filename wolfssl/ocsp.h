@@ -49,11 +49,9 @@ WOLFSSL_LOCAL int  InitOCSP(WOLFSSL_OCSP*, WOLFSSL_CERT_MANAGER*);
 WOLFSSL_LOCAL void FreeOCSP(WOLFSSL_OCSP*, int dynamic);
 
 WOLFSSL_LOCAL int  CheckCertOCSP(WOLFSSL_OCSP*, DecodedCert*,
-                                           WOLFSSL_BUFFER_INFO* responseBuffer);
-WOLFSSL_LOCAL int  CheckCertOCSP_ex(WOLFSSL_OCSP*, DecodedCert*,
-                             WOLFSSL_BUFFER_INFO* responseBuffer, WOLFSSL* ssl);
+                                            WOLFSSL_BUFFER_INFO* responseBuffer);
 WOLFSSL_LOCAL int  CheckOcspRequest(WOLFSSL_OCSP* ocsp,
-                 OcspRequest* ocspRequest, WOLFSSL_BUFFER_INFO* responseBuffer);
+                   OcspRequest* ocspRequest, WOLFSSL_BUFFER_INFO* responseBuffer);
 
 
 #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
@@ -73,7 +71,7 @@ WOLFSSL_API WOLFSSL_OCSP_CERTID* wolfSSL_OCSP_cert_to_id(
 
 WOLFSSL_API void wolfSSL_OCSP_BASICRESP_free(WOLFSSL_OCSP_BASICRESP* basicResponse);
 WOLFSSL_API int wolfSSL_OCSP_basic_verify(WOLFSSL_OCSP_BASICRESP *bs,
-    WOLF_STACK_OF(WOLFSSL_X509) *certs, WOLFSSL_X509_STORE *st, unsigned long flags);
+    STACK_OF(WOLFSSL_X509) *certs, WOLFSSL_X509_STORE *st, unsigned long flags);
 
 WOLFSSL_API void wolfSSL_OCSP_RESPONSE_free(OcspResponse* response);
 WOLFSSL_API OcspResponse* wolfSSL_d2i_OCSP_RESPONSE_bio(WOLFSSL_BIO* bio,

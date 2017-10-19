@@ -498,7 +498,7 @@ static INLINE void ShowX509(WOLFSSL_X509* x509, const char* hdr)
         printf(" altname = %s\n", altName);
 
     ret = wolfSSL_X509_get_serial_number(x509, serial, &sz);
-    if (ret == WOLFSSL_SUCCESS) {
+    if (ret == SSL_SUCCESS) {
         int  i;
         int  strLen;
         char serialMsg[80];
@@ -517,32 +517,10 @@ static INLINE void ShowX509(WOLFSSL_X509* x509, const char* hdr)
 
 #endif /* KEEP_PEER_CERT || SESSION_CERTS */
 
-#if defined(SESSION_CERTS) && defined(SHOW_CERTS)
-static INLINE void ShowX509Chain(WOLFSSL_X509_CHAIN* chain, int count,
-    const char* hdr)
-{
-    int i;
-    int length;
-    unsigned char buffer[3072];
-    WOLFSSL_X509* chainX509;
-
-    for (i = 0; i < count; i++) {
-        wolfSSL_get_chain_cert_pem(chain, i, buffer, sizeof(buffer), &length);
-        buffer[length] = 0;
-        printf("\n%s: %d has length %d data = \n%s\n", hdr, i, length, buffer);
-
-        chainX509 = wolfSSL_get_chain_X509(chain, i);
-        if (chainX509)
-            ShowX509(chainX509, hdr);
-        else
-            printf("get_chain_X509 failed\n");
-        wolfSSL_FreeX509(chainX509);
-    }
-}
-#endif
 
 static INLINE void showPeer(WOLFSSL* ssl)
 {
+
     WOLFSSL_CIPHER* cipher;
 #ifdef HAVE_ECC
     const char *name;
@@ -581,26 +559,31 @@ static INLINE void showPeer(WOLFSSL* ssl)
 #endif
     if (wolfSSL_session_reused(ssl))
         printf("SSL reused session\n");
-#ifdef WOLFSSL_ALT_CERT_CHAINS
-    if (wolfSSL_is_peer_alt_cert_chain(ssl))
-        printf("Alternate cert chain used\n");
-#endif
 
 #if defined(SESSION_CERTS) && defined(SHOW_CERTS)
     {
-        WOLFSSL_X509_CHAIN* chain;
+        WOLFSSL_X509_CHAIN* chain = wolfSSL_get_peer_chain(ssl);
+        int                count = wolfSSL_get_chain_count(chain);
+        int i;
 
-        chain = wolfSSL_get_peer_chain(ssl);
-        ShowX509Chain(chain, wolfSSL_get_chain_count(chain), "session cert");
+        for (i = 0; i < count; i++) {
+            int length;
+            unsigned char buffer[3072];
+            WOLFSSL_X509* chainX509;
 
-    #ifdef WOLFSSL_ALT_CERT_CHAINS
-        if (wolfSSL_is_peer_alt_cert_chain(ssl)) {
-            chain = wolfSSL_get_peer_alt_chain(ssl);
-            ShowX509Chain(chain, wolfSSL_get_chain_count(chain), "alt cert");
+            wolfSSL_get_chain_cert_pem(chain,i,buffer, sizeof(buffer), &length);
+            buffer[length] = 0;
+            printf("cert %d has length %d data = \n%s\n", i, length, buffer);
+
+            chainX509 = wolfSSL_get_chain_X509(chain, i);
+            if (chainX509)
+                ShowX509(chainX509, "session cert info:");
+            else
+                printf("get_chain_X509 failed\n");
+            wolfSSL_FreeX509(chainX509);
         }
-    #endif
     }
-#endif /* SESSION_CERTS && SHOW_CERTS */
+#endif
   (void)ssl;
 }
 
@@ -1185,7 +1168,7 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
 
     static INLINE void load_buffer(WOLFSSL_CTX* ctx, const char* fname, int type)
     {
-        int format = WOLFSSL_FILETYPE_PEM;
+        int format = SSL_FILETYPE_PEM;
         byte* buff = NULL;
         size_t sz = 0;
 
@@ -1196,26 +1179,26 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
 
         /* determine format */
         if (strstr(fname, ".der"))
-            format = WOLFSSL_FILETYPE_ASN1;
+            format = SSL_FILETYPE_ASN1;
 
         if (type == WOLFSSL_CA) {
             if (wolfSSL_CTX_load_verify_buffer(ctx, buff, (long)sz, format)
-                                              != WOLFSSL_SUCCESS)
+                                              != SSL_SUCCESS)
                 err_sys("can't load buffer ca file");
         }
         else if (type == WOLFSSL_CERT) {
             if (wolfSSL_CTX_use_certificate_buffer(ctx, buff, (long)sz,
-                        format) != WOLFSSL_SUCCESS)
+                        format) != SSL_SUCCESS)
                 err_sys("can't load buffer cert file");
         }
         else if (type == WOLFSSL_KEY) {
             if (wolfSSL_CTX_use_PrivateKey_buffer(ctx, buff, (long)sz,
-                        format) != WOLFSSL_SUCCESS)
+                        format) != SSL_SUCCESS)
                 err_sys("can't load buffer key file");
         }
         else if (type == WOLFSSL_CERT_CHAIN) {
             if (wolfSSL_CTX_use_certificate_chain_buffer_format(ctx, buff,
-                    (long)sz, format) != WOLFSSL_SUCCESS)
+                    (long)sz, format) != SSL_SUCCESS)
                 err_sys("can't load cert chain buffer");
         }
 
@@ -1251,7 +1234,7 @@ static INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
         printf("\tPeer has no cert!\n");
 #else
     printf("\tPeer certs: %d\n", store->totalCerts);
-    #ifdef SHOW_CERTS
+    #ifdef VERIFY_CALLBACK_SHOW_PEER_CERTS
     {   int i;
         for (i=0; i<store->totalCerts; i++) {
             WOLFSSL_BUFFER_INFO* cert = &store->certs[i];

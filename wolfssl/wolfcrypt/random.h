@@ -50,7 +50,7 @@
 #endif
 
 
-#if !defined(CUSTOM_RAND_TYPE)
+#if defined(CUSTOM_RAND_GENERATE) && !defined(CUSTOM_RAND_TYPE)
     /* To maintain compatibility the default is byte */
     #define CUSTOM_RAND_TYPE    byte
 #endif

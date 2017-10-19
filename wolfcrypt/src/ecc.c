@@ -7192,7 +7192,7 @@ static int ecc_get_key_sizes(ecEncCtx* ctx, int* encKeySz, int* ivSz,
 
         switch (ctx->macAlgo) {
             case ecHMAC_SHA256:
-                *digestSz = WC_SHA256_DIGEST_SIZE;
+                *digestSz = SHA256_DIGEST_SIZE;
                 break;
             default:
                 return BAD_FUNC_ARG;
@@ -7295,7 +7295,7 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     if (ret == 0) {
        switch (ctx->kdfAlgo) {
            case ecHKDF_SHA256 :
-               ret = wc_HKDF(WC_SHA256, sharedSecret, sharedSz, ctx->kdfSalt,
+               ret = wc_HKDF(SHA256, sharedSecret, sharedSz, ctx->kdfSalt,
                           ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
                           keys, keysLen);
                break;
@@ -7339,7 +7339,7 @@ int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                    Hmac hmac;
                    ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
                    if (ret == 0) {
-                       ret = wc_HmacSetKey(&hmac, WC_SHA256, macKey, WC_SHA256_DIGEST_SIZE);
+                       ret = wc_HmacSetKey(&hmac, SHA256, macKey, SHA256_DIGEST_SIZE);
                        if (ret == 0)
                            ret = wc_HmacUpdate(&hmac, out, msgSz);
                        if (ret == 0)
@@ -7457,7 +7457,7 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
     if (ret == 0) {
        switch (ctx->kdfAlgo) {
            case ecHKDF_SHA256 :
-               ret = wc_HKDF(WC_SHA256, sharedSecret, sharedSz, ctx->kdfSalt,
+               ret = wc_HKDF(SHA256, sharedSecret, sharedSz, ctx->kdfSalt,
                           ctx->kdfSaltSz, ctx->kdfInfo, ctx->kdfInfoSz,
                           keys, keysLen);
                break;
@@ -7476,12 +7476,12 @@ int wc_ecc_decrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
        switch (ctx->macAlgo) {
            case ecHMAC_SHA256:
            {
-               byte verify[WC_SHA256_DIGEST_SIZE];
+               byte verify[SHA256_DIGEST_SIZE];
                Hmac hmac;
 
                ret = wc_HmacInit(&hmac, NULL, INVALID_DEVID);
                if (ret == 0) {
-                   ret = wc_HmacSetKey(&hmac, WC_SHA256, macKey, WC_SHA256_DIGEST_SIZE);
+                   ret = wc_HmacSetKey(&hmac, SHA256, macKey, SHA256_DIGEST_SIZE);
                    if (ret == 0)
                        ret = wc_HmacUpdate(&hmac, msg, msgSz-digestSz);
                    if (ret == 0)

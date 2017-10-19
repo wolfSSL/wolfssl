@@ -12,6 +12,5 @@ include IDE/ARDUINO/include.am
 include IDE/INTIME-RTOS/include.am
 include IDE/OPENSTM32/include.am
 include IDE/VS-ARM/include.am
-include IDE/GCC-ARM/include.am
 
 EXTRA_DIST+= IDE/IAR-EWARM IDE/MDK-ARM IDE/MDK5-ARM IDE/MYSQL IDE/LPCXPRESSO IDE/HEXIWEAR

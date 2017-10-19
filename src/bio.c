@@ -75,11 +75,11 @@ long wolfSSL_BIO_get_mem_ptr(WOLFSSL_BIO *bio, WOLFSSL_BUF_MEM **ptr)
     WOLFSSL_ENTER("BIO_get_mem_ptr");
 
     if (bio == NULL || ptr == NULL) {
-        return WOLFSSL_FAILURE;
+        return SSL_FAILURE;
     }
 
     *ptr = (WOLFSSL_BUF_MEM*)(bio->mem);
-    return WOLFSSL_SUCCESS;
+    return SSL_SUCCESS;
 }
 
 /*** TBD ***/
@@ -99,19 +99,19 @@ int wolfSSL_BIO_set_write_buf_size(WOLFSSL_BIO *bio, long size)
     WOLFSSL_ENTER("wolfSSL_BIO_set_write_buf_size");
 
     if (bio == NULL || bio->type != BIO_BIO || size < 0) {
-        return WOLFSSL_FAILURE;
+        return SSL_FAILURE;
     }
 
     /* if already in pair then do not change size */
     if (bio->pair != NULL) {
         WOLFSSL_MSG("WOLFSSL_BIO is paired, free from pair before changing");
-        return WOLFSSL_FAILURE;
+        return SSL_FAILURE;
     }
 
     bio->wrSz  = (int)size;
     if (bio->wrSz < 0) {
         WOLFSSL_MSG("Unexpected negative size value");
-        return WOLFSSL_FAILURE;
+        return SSL_FAILURE;
     }
 
     if (bio->mem != NULL) {
@@ -121,12 +121,12 @@ int wolfSSL_BIO_set_write_buf_size(WOLFSSL_BIO *bio, long size)
     bio->mem = (byte*)XMALLOC(bio->wrSz, bio->heap, DYNAMIC_TYPE_OPENSSL);
     if (bio->mem == NULL) {
         WOLFSSL_MSG("Memory allocation error");
-        return WOLFSSL_FAILURE;
+        return SSL_FAILURE;
     }
     bio->wrIdx = 0;
     bio->rdIdx = 0;
 
-    return WOLFSSL_SUCCESS;
+    return SSL_SUCCESS;
 }
 
 
@@ -140,31 +140,31 @@ int wolfSSL_BIO_make_bio_pair(WOLFSSL_BIO *b1, WOLFSSL_BIO *b2)
 
     if (b1 == NULL || b2 == NULL) {
         WOLFSSL_LEAVE("wolfSSL_BIO_make_bio_pair", BAD_FUNC_ARG);
-        return WOLFSSL_FAILURE;
+        return SSL_FAILURE;
     }
 
     /* both are expected to be of type BIO and not already paired */
     if (b1->type != BIO_BIO || b2->type != BIO_BIO ||
         b1->pair != NULL || b2->pair != NULL) {
         WOLFSSL_MSG("Expected type BIO and not already paired");
-        return WOLFSSL_FAILURE;
+        return SSL_FAILURE;
     }
 
     /* set default write size if not already set */
     if (b1->mem == NULL && wolfSSL_BIO_set_write_buf_size(b1,
-                            WOLFSSL_BIO_SIZE) != WOLFSSL_SUCCESS) {
-        return WOLFSSL_FAILURE;
+                            WOLFSSL_BIO_SIZE) != SSL_SUCCESS) {
+        return SSL_FAILURE;
     }
 
     if (b2->mem == NULL && wolfSSL_BIO_set_write_buf_size(b2,
-                            WOLFSSL_BIO_SIZE) != WOLFSSL_SUCCESS) {
-        return WOLFSSL_FAILURE;
+                            WOLFSSL_BIO_SIZE) != SSL_SUCCESS) {
+        return SSL_FAILURE;
     }
 
     b1->pair = b2;
     b2->pair = b1;
 
-    return WOLFSSL_SUCCESS;
+    return SSL_SUCCESS;
 }
 
 
@@ -173,12 +173,12 @@ int wolfSSL_BIO_ctrl_reset_read_request(WOLFSSL_BIO *b)
     WOLFSSL_ENTER("wolfSSL_BIO_ctrl_reset_read_request");
 
     if (b == NULL) {
-        return WOLFSSL_FAILURE;
+        return SSL_FAILURE;
     }
 
     b->readRq = 0;
 
-    return WOLFSSL_SUCCESS;
+    return SSL_SUCCESS;
 }
 
 
@@ -219,7 +219,7 @@ int wolfSSL_BIO_nread(WOLFSSL_BIO *bio, char **buf, int num)
 
     if (bio == NULL || buf == NULL) {
         WOLFSSL_MSG("NULL argument passed in");
-        return WOLFSSL_FAILURE;
+        return SSL_FAILURE;
     }
 
     if (bio->pair != NULL) {
@@ -362,17 +362,17 @@ long wolfSSL_BIO_set_fp(WOLFSSL_BIO *bio, XFILE fp, int c)
 
     if (bio == NULL || fp == NULL) {
         WOLFSSL_LEAVE("wolfSSL_BIO_set_fp", BAD_FUNC_ARG);
-        return WOLFSSL_FAILURE;
+        return SSL_FAILURE;
     }
 
     if (bio->type != BIO_FILE) {
-        return WOLFSSL_FAILURE;
+        return SSL_FAILURE;
     }
 
     bio->close = (byte)c;
     bio->file  = fp;
 
-    return WOLFSSL_SUCCESS;
+    return SSL_SUCCESS;
 }
 
 
@@ -381,16 +381,16 @@ long wolfSSL_BIO_get_fp(WOLFSSL_BIO *bio, XFILE* fp)
     WOLFSSL_ENTER("wolfSSL_BIO_get_fp");
 
     if (bio == NULL || fp == NULL) {
-        return WOLFSSL_FAILURE;
+        return SSL_FAILURE;
     }
 
     if (bio->type != BIO_FILE) {
-        return WOLFSSL_FAILURE;
+        return SSL_FAILURE;
     }
 
     *fp = bio->file;
 
-    return WOLFSSL_SUCCESS;
+    return SSL_SUCCESS;
 }
 
 /* overwrites file */
@@ -399,7 +399,7 @@ int wolfSSL_BIO_write_filename(WOLFSSL_BIO *bio, char *name)
     WOLFSSL_ENTER("wolfSSL_BIO_write_filename");
 
     if (bio == NULL || name == NULL) {
-        return WOLFSSL_FAILURE;
+        return SSL_FAILURE;
     }
 
     if (bio->type == BIO_FILE) {
@@ -409,14 +409,14 @@ int wolfSSL_BIO_write_filename(WOLFSSL_BIO *bio, char *name)
 
         bio->file = XFOPEN(name, "w");
         if (bio->file == NULL) {
-            return WOLFSSL_FAILURE;
+            return SSL_FAILURE;
         }
         bio->close = BIO_CLOSE;
 
-        return WOLFSSL_SUCCESS;
+        return SSL_SUCCESS;
     }
 
-    return WOLFSSL_FAILURE;
+    return SSL_FAILURE;
 }
 
 

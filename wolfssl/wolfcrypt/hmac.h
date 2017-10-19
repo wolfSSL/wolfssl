@@ -71,50 +71,49 @@ enum {
 
 /* If any hash is not enabled, add the ID here. */
 #ifdef NO_MD5
-    WC_MD5     = 0,
+    MD5     = 0,
 #endif
 #ifdef NO_SHA
-    WC_SHA     = 1,
+    SHA     = 1,
 #endif
 #ifdef NO_SHA256
-    WC_SHA256  = 2,
+    SHA256  = 2,
 #endif
 #ifndef WOLFSSL_SHA512
-    WC_SHA512  = 4,
+    SHA512  = 4,
 #endif
 #ifndef WOLFSSL_SHA384
-    WC_SHA384  = 5,
+    SHA384  = 5,
 #endif
 #ifndef HAVE_BLAKE2
     BLAKE2B_ID = 7,
 #endif
 #ifndef WOLFSSL_SHA224
-    WC_SHA224  = 8,
+    SHA224  = 8,
 #endif
-
 
 /* Select the largest available hash for the buffer size. */
 #if defined(WOLFSSL_SHA512)
-    MAX_DIGEST_SIZE = WC_SHA512_DIGEST_SIZE,
-    HMAC_BLOCK_SIZE = WC_SHA512_BLOCK_SIZE,
+    MAX_DIGEST_SIZE = SHA512_DIGEST_SIZE,
+    HMAC_BLOCK_SIZE = SHA512_BLOCK_SIZE,
 #elif defined(HAVE_BLAKE2)
     MAX_DIGEST_SIZE = BLAKE2B_OUTBYTES,
     HMAC_BLOCK_SIZE = BLAKE2B_BLOCKBYTES,
 #elif defined(WOLFSSL_SHA384)
-    MAX_DIGEST_SIZE = WC_SHA384_DIGEST_SIZE,
-    HMAC_BLOCK_SIZE = WC_SHA384_BLOCK_SIZE
+    MAX_DIGEST_SIZE = SHA384_DIGEST_SIZE,
+    HMAC_BLOCK_SIZE = SHA384_BLOCK_SIZE
 #elif !defined(NO_SHA256)
-    MAX_DIGEST_SIZE = WC_SHA256_DIGEST_SIZE,
-    HMAC_BLOCK_SIZE = WC_SHA256_BLOCK_SIZE
+    MAX_DIGEST_SIZE = SHA256_DIGEST_SIZE,
+    HMAC_BLOCK_SIZE = SHA256_BLOCK_SIZE
 #elif defined(WOLFSSL_SHA224)
-    MAX_DIGEST_SIZE = WC_SHA224_DIGEST_SIZE,
-    HMAC_BLOCK_SIZE = WC_SHA224_BLOCK_SIZE
+    MAX_DIGEST_SIZE = SHA224_DIGEST_SIZE,
+    HMAC_BLOCK_SIZE = SHA224_BLOCK_SIZE
 #elif !defined(NO_SHA)
-    MAX_DIGEST_SIZE = WC_SHA_DIGEST_SIZE,
-    HMAC_BLOCK_SIZE = WC_SHA_BLOCK_SIZE,
+    MAX_DIGEST_SIZE = SHA_DIGEST_SIZE,
+    HMAC_BLOCK_SIZE = SHA_BLOCK_SIZE,
 #elif !defined(NO_MD5)
-    MAX_DIGEST_SIZE = WC_MD5_DIGEST_SIZE,
-    HMAC_BLOCK_SIZE = WC_MD5_BLOCK_SIZE,
+    MAX_DIGEST_SIZE = MD5_DIGEST_SIZE,
+    HMAC_BLOCK_SIZE = MD5_BLOCK_SIZE,
 #else
     #error "You have to have some kind of hash if you want to use HMAC."
 #endif
@@ -124,22 +123,22 @@ enum {
 /* hash union */
 typedef union {
 #ifndef NO_MD5
-    wc_Md5 md5;
+    Md5 md5;
 #endif
 #ifndef NO_SHA
-    wc_Sha sha;
+    Sha sha;
 #endif
 #ifdef WOLFSSL_SHA224
-    wc_Sha224 sha224;
+    Sha224 sha224;
 #endif
 #ifndef NO_SHA256
-    wc_Sha256 sha256;
+    Sha256 sha256;
 #endif
 #ifdef WOLFSSL_SHA512
 #ifdef WOLFSSL_SHA384
-    wc_Sha384 sha384;
+    Sha384 sha384;
 #endif
-    wc_Sha512 sha512;
+    Sha512 sha512;
 #endif
 #ifdef HAVE_BLAKE2
     Blake2b blake2b;

@@ -112,10 +112,10 @@ int wc_ed25519_sign_msg(const byte* in, word32 inlen, byte* out,
 #else
     ge_p3  R;
 #endif
-    byte   nonce[WC_SHA512_DIGEST_SIZE];
-    byte   hram[WC_SHA512_DIGEST_SIZE];
+    byte   nonce[SHA512_DIGEST_SIZE];
+    byte   hram[SHA512_DIGEST_SIZE];
     byte   az[ED25519_PRV_KEY_SIZE];
-    wc_Sha512 sha;
+    Sha512 sha;
     int    ret;
 
     /* sanity check on arguments */
@@ -214,13 +214,13 @@ int wc_ed25519_verify_msg(const byte* sig, word32 siglen, const byte* msg,
                           word32 msglen, int* res, ed25519_key* key)
 {
     byte   rcheck[ED25519_KEY_SIZE];
-    byte   h[WC_SHA512_DIGEST_SIZE];
+    byte   h[SHA512_DIGEST_SIZE];
 #ifndef FREESCALE_LTC_ECC
     ge_p3  A;
     ge_p2  R;
 #endif
     int    ret;
-    wc_Sha512 sha;
+    Sha512 sha;
 
     /* sanity check on arguments */
     if (sig == NULL || msg == NULL || res == NULL || key == NULL)
