@@ -951,6 +951,7 @@ static INLINE word16 TLSX_ToSemaphore(word16 type)
     (!(((semaphore)[(light) / 8] &  (byte) (0x01 << ((light) % 8)))))
 
 /** Turn on a specific light (tls extension) in the semaphore. */
+/* the semaphore marks the extensions already written to the message */
 #define TURN_ON(semaphore, light) \
     ((semaphore)[(light) / 8] |= (byte) (0x01 << ((light) % 8)))
 
@@ -7769,6 +7770,14 @@ word16 TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType)
     #endif
         }
 #endif
+    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+     || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+        if (!ssl->ctx->cm->ocspStaplingEnabled) {
+            /* mark already sent, so it won't send it */
+            TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
+            TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST_V2));
+        }
+    #endif
     }
 #ifdef WOLFSSL_TLS13
     #ifndef NO_CERTS
@@ -7842,6 +7851,14 @@ word16 TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType)
         TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
     #endif
 #endif
+    #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+     || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+         /* mark already sent, so it won't send it */
+        if (!ssl->ctx->cm->ocspStaplingEnabled) {
+            TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
+            TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST_V2));
+        }
+    #endif
     }
 #ifdef WOLFSSL_TLS13
     #ifndef NO_CERT
