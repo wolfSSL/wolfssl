@@ -411,7 +411,7 @@ static void Usage(void)
 #endif
     printf("-g          Return basic HTML web page\n");
     printf("-C <num>    The number of connections to accept, default: 1\n");
-    printf("-H          Force use of the default cipher suite list\n");
+    printf("-H <arg>    Internal tests [defCipherList, badCert]\n");
 #ifdef WOLFSSL_TLS13
     printf("-K          Key Exchange for PSK not using (EC)DHE\n");
     printf("-U          Update keys and IVs before sending\n");
@@ -481,6 +481,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     unsigned char alpn_opt = 0;
     char*  cipherList = NULL;
     int    useDefCipherList = 0;
+    int    useBadCert = 0;
     const char* verifyCert = cliCertFile;
     const char* ourCert    = svrCertFile;
     const char* ourKey     = svrKeyFile;
@@ -561,6 +562,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     (void)readySignal;
     (void)updateKeysIVs;
     (void)mcastID;
+    (void)useBadCert;
 
 #ifdef CYASSL_TIRTOS
     fdOpenSession(Task_self());
@@ -572,7 +574,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     /* Not Used: h, m, t, y, z, F, M, T, V, W, X, Y */
     while ((ch = mygetopt(argc, argv, "?"
                 "abc:defgijk:l:nop:q:rsuv:wx"
-                "A:B:C:D:E:GHIJKL:NO:PQR:S:UYZ:"
+                "A:B:C:D:E:GH:IJKL:NO:PQR:S:UYZ:"
                 "03:")) != -1) {
         switch (ch) {
             case '?' :
@@ -656,7 +658,18 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 break;
 
             case 'H' :
-                useDefCipherList = 1;
+                if (XSTRNCMP(myoptarg, "defCipherList", 13) == 0) {
+                    printf("Using default cipher list for testing\n");
+                    useDefCipherList = 1;
+                }
+                else if (XSTRNCMP(myoptarg, "badCert", 7) == 0) {
+                    printf("Using bad certificate for testing\n");
+                    useBadCert = 1;
+                }
+                else {
+                    Usage();
+                    exit(MY_EX_USAGE);
+                }
                 break;
 
             case 'A' :
@@ -969,6 +982,15 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
 
 #if !defined(NO_CERTS)
+    /* for testing only - use bad cert as server cert for sig confirm err */
+    if (useBadCert) {
+    #if !defined(NO_RSA)
+        ourCert = "./certs/test/server-cert-rsa-badsig.pem";
+    #elif defined(HAVE_ECC)
+        ourCert = "./certs/test/server-cert-ecc-badsig.pem";
+    #endif
+    }
+
     if ((!usePsk || usePskPlus) && !useAnon) {
     #if !defined(NO_FILESYSTEM)
         if (SSL_CTX_use_certificate_chain_file(ctx, ourCert)
@@ -1063,8 +1085,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
        if using PSK Plus then verify peer certs except PSK suites */
     if (doCliCertCheck && (usePsk == 0 || usePskPlus) && useAnon == 0) {
         SSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER |
-                                ((usePskPlus)? WOLFSSL_VERIFY_FAIL_EXCEPT_PSK :
-                                WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT),0);
+                            (usePskPlus ? WOLFSSL_VERIFY_FAIL_EXCEPT_PSK :
+                                WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT), 0);
         if (SSL_CTX_load_verify_locations(ctx, verifyCert, 0) != WOLFSSL_SUCCESS)
             err_sys_ex(runWithErrors, "can't load ca file, Please run from wolfSSL home dir");
         #ifdef WOLFSSL_TRUST_PEER_CERT

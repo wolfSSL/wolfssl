@@ -3631,6 +3631,18 @@ fi
 AM_CONDITIONAL([BUILD_TRUST_PEER_CERT], [test "x$have_tp" = "xyes"])
 
 
+# dertermine if we have key validation mechanism
+if test "x$ENABLED_ECC" = "xyes" || test "x$ENABLED_RSA" = "xyes"
+then
+    if test "x$ENABLED_ASN" = "xyes"
+    then
+        ENABLED_PKI="yes"
+    fi
+fi
+AM_CONDITIONAL([BUILD_PKI], [test "x$ENABLED_PKI" = "xyes"])
+
+
+
 ################################################################################
 # Check for build-type conflicts                                               #
 ################################################################################

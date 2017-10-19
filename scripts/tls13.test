@@ -181,7 +181,7 @@ port=0
 ./examples/server/server -v 4 -A certs/client-ecc-cert.pem -c certs/server-ecc.pem -k certs/ecc-key.pem -R $ready_file -p $port &
 server_pid=$!
 create_port
-./examples/client/client -v 4 -A certs/server-ecc.pem -c certs/client-ecc-cert.pem -k certs/ecc-client-key.pem -p $port
+./examples/client/client -v 4 -A certs/ca-ecc-cert.pem -c certs/client-ecc-cert.pem -k certs/ecc-client-key.pem -p $port
 RESULT=$?
 remove_ready_file
 if [ $RESULT -ne 0 ]; then

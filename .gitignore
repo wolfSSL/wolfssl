@@ -81,6 +81,8 @@ certecc.der
 certecc.pem
 othercert.der
 othercert.pem
+certeccrsa.der
+certeccrsa.pem
 ntru-cert.der
 ntru-cert.pem
 ntru-key.raw

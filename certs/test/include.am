@@ -11,3 +11,9 @@ EXTRA_DIST += \
 	     certs/test/gen-ext-certs.sh \
          certs/test/server-duplicate-policy.pem
 
+# The certs/server-cert with the last byte (signature byte) changed
+EXTRA_DIST += \
+         certs/test/server-cert-rsa-badsig.der \
+         certs/test/server-cert-rsa-badsig.pem \
+		 certs/test/server-cert-ecc-badsig.der \
+         certs/test/server-cert-ecc-badsig.pem

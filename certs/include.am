@@ -21,6 +21,7 @@ EXTRA_DIST += \
 	     certs/dh2048.pem \
 	     certs/server-cert.pem \
 	     certs/server-ecc.pem \
+	     certs/server-ecc-self.pem \
 	     certs/server-ecc-comp.pem \
 	     certs/server-ecc-rsa.pem \
 	     certs/server-keyEnc.pem \
@@ -35,8 +36,8 @@ EXTRA_DIST += \
 	     certs/wolfssl-website-ca.pem \
 	     certs/test-servercert.p12 \
 	     certs/dsaparams.pem \
-             certs/ecc-privOnlyKey.pem \
-             certs/ecc-privOnlyCert.pem \
+	     certs/ecc-privOnlyKey.pem \
+	     certs/ecc-privOnlyCert.pem \
 	     certs/dh3072.pem \
 	     certs/client-cert-3072.pem \
 	     certs/client-key-3072.pem
@@ -58,25 +59,40 @@ EXTRA_DIST += \
 	     certs/server-cert.der \
 	     certs/server-ecc-comp.der \
 	     certs/server-ecc.der \
+	     certs/server-ecc-self.der \
 	     certs/server-ecc-rsa.der \
 	     certs/server-cert-chain.der
 EXTRA_DIST += \
-             certs/ed25519/ca-ed25519.der \
-             certs/ed25519/ca-ed25519-key.der \
-             certs/ed25519/ca-ed25519-key.pem \
-             certs/ed25519/ca-ed25519.pem \
-             certs/ed25519/client-ed25519.der \
-             certs/ed25519/client-ed25519-key.der \
-             certs/ed25519/client-ed25519-key.pem \
-             certs/ed25519/client-ed25519.pem \
-             certs/ed25519/root-ed25519.der \
-             certs/ed25519/root-ed25519-key.der \
-             certs/ed25519/root-ed25519-key.pem \
-             certs/ed25519/root-ed25519.pem \
-             certs/ed25519/server-ed25519.der \
-             certs/ed25519/server-ed25519-key.der \
-             certs/ed25519/server-ed25519-key.pem \
-             certs/ed25519/server-ed25519.pem
+         certs/ed25519/ca-ed25519.der \
+         certs/ed25519/ca-ed25519-key.der \
+         certs/ed25519/ca-ed25519-key.pem \
+         certs/ed25519/ca-ed25519.pem \
+         certs/ed25519/client-ed25519.der \
+         certs/ed25519/client-ed25519-key.der \
+         certs/ed25519/client-ed25519-key.pem \
+         certs/ed25519/client-ed25519.pem \
+         certs/ed25519/root-ed25519.der \
+         certs/ed25519/root-ed25519-key.der \
+         certs/ed25519/root-ed25519-key.pem \
+         certs/ed25519/root-ed25519.pem \
+         certs/ed25519/server-ed25519.der \
+         certs/ed25519/server-ed25519-key.der \
+         certs/ed25519/server-ed25519-key.pem \
+         certs/ed25519/server-ed25519.pem
+
+# ECC CA prime256v1
+EXTRA_DIST += \
+		 certs/ca-ecc-cert.der \
+		 certs/ca-ecc-cert.pem \
+		 certs/ca-ecc-key.der \
+		 certs/ca-ecc-key.pem
+
+# ECC CA SECP384R1
+EXTRA_DIST += \
+		 certs/ca-ecc384-cert.der \
+		 certs/ca-ecc384-cert.pem \
+		 certs/ca-ecc384-key.der \
+		 certs/ca-ecc384-key.pem
 
 dist_doc_DATA+= certs/taoCert.txt
 
@@ -85,3 +101,4 @@ EXTRA_DIST+= certs/ntru-key.raw
 include certs/test/include.am
 include certs/test-pathlen/include.am
 include certs/test/include.am
+include certs/ecc/include.am

@@ -139,7 +139,7 @@ void echoclient_test(void* args)
         err_sys("can't load ca file, Please run from wolfSSL home dir");
     #endif
     #ifdef HAVE_ECC
-        if (SSL_CTX_load_verify_locations(ctx, eccCertFile, 0) != WOLFSSL_SUCCESS)
+        if (SSL_CTX_load_verify_locations(ctx, caEccCertFile, 0) != WOLFSSL_SUCCESS)
             err_sys("can't load ca file, Please run from wolfSSL home dir");
     #endif
 #elif !defined(NO_CERTS)

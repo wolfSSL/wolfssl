@@ -736,7 +736,7 @@ static void Usage(void)
 #ifdef HAVE_WNR
     printf("-q <file>   Whitewood config file,      default %s\n", wnrConfig);
 #endif
-    printf("-H          Force use of the default cipher suite list\n");
+    printf("-H <arg>    Internal tests [defCipherList, badCert]\n");
 #ifdef WOLFSSL_TLS13
     printf("-J          Use HelloRetryRequest to choose group for KE\n");
     printf("-K          Key Exchange for PSK not using (EC)DHE\n");
@@ -826,6 +826,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     unsigned char alpn_opt = 0;
     char*  cipherList = NULL;
     int    useDefCipherList = 0;
+    int    useBadCert = 0;
     const char* verifyCert = caCertFile;
     const char* ourCert    = cliCertFile;
     const char* ourKey     = cliKeyFile;
@@ -887,7 +888,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     ((func_args*)args)->return_code = -1; /* error state */
 
 #ifdef NO_RSA
-    verifyCert = (char*)eccCertFile;
+    verifyCert = (char*)caEccCertFile;
     ourCert    = (char*)cliEccCertFile;
     ourKey     = (char*)cliEccKeyFile;
 #endif
@@ -910,6 +911,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)updateKeysIVs;
     (void)useX25519;
     (void)helloRetry;
+    (void)useBadCert;
 
     StackTrap();
 
@@ -917,7 +919,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     /* Not used: All used */
     while ((ch = mygetopt(argc, argv, "?"
             "ab:c:defgh:ijk:l:mnop:q:rstuv:wxyz"
-            "A:B:CDE:F:GHIJKL:M:NO:PQRS:TUVW:XYZ:"
+            "A:B:CDE:F:GH:IJKL:M:NO:PQRS:TUVW:XYZ:"
             "03:")) != -1) {
         switch (ch) {
             case '?' :
@@ -1026,7 +1028,18 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 break;
 
             case 'H' :
-                useDefCipherList = 1;
+                if (XSTRNCMP(myoptarg, "defCipherList", 13) == 0) {
+                    printf("Using default cipher list for testing\n");
+                    useDefCipherList = 1;
+                }
+                else if (XSTRNCMP(myoptarg, "badCert", 7) == 0) {
+                    printf("Using bad certificate for testing\n");
+                    useBadCert = 1;
+                }
+                else {
+                    Usage();
+                    exit(MY_EX_USAGE);
+                }
                 break;
 
             case 'A' :
@@ -1461,7 +1474,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 defaultCipherList = "PSK-AES128-CBC-SHA256";
         #endif
             if (wolfSSL_CTX_set_cipher_list(ctx,defaultCipherList)
-                                                                !=WOLFSSL_SUCCESS) {
+                                                            !=WOLFSSL_SUCCESS) {
                 wolfSSL_CTX_free(ctx);
                 err_sys("client can't set cipher list 2");
             }
@@ -1477,7 +1490,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         if (cipherList == NULL || (cipherList && useDefCipherList)) {
             wolfSSL_CTX_allow_anon_cipher(ctx);
             if (wolfSSL_CTX_set_cipher_list(ctx,"ADH-AES128-SHA")
-                                                               != WOLFSSL_SUCCESS) {
+                                                           != WOLFSSL_SUCCESS) {
                 wolfSSL_CTX_free(ctx);
                 err_sys("client can't set cipher list 4");
             }
@@ -1531,7 +1544,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (useClientCert){
 #if !defined(NO_FILESYSTEM)
         if (wolfSSL_CTX_use_certificate_chain_file(ctx, ourCert)
-                                                               != WOLFSSL_SUCCESS) {
+                                                           != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx);
             err_sys("can't load client cert file, check file and run from"
                     " wolfSSL home dir");
@@ -1549,10 +1562,19 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif  /* !defined(NO_FILESYSTEM) */
     }
 
+    /* for testing only - use client cert as CA to force no signer error */
+    if (useBadCert) {
+    #if !defined(NO_RSA)
+        verifyCert = "./certs/client-cert.pem";
+    #elif defined(HAVE_ECC)
+        verifyCert = "./certs/client-ecc-cert.pem";
+    #endif
+    }
+
     if (!usePsk && !useAnon && !useVerifyCb) {
 #if !defined(NO_FILESYSTEM)
         if (wolfSSL_CTX_load_verify_locations(ctx, verifyCert,0)
-                                                               != WOLFSSL_SUCCESS) {
+                                                           != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx);
             err_sys("can't load ca file, Please run from wolfSSL home dir");
         }
@@ -1562,7 +1584,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef HAVE_ECC
         /* load ecc verify too, echoserver uses it by default w/ ecc */
 #if !defined(NO_FILESYSTEM)
-        if (wolfSSL_CTX_load_verify_locations(ctx, eccCertFile, 0) != WOLFSSL_SUCCESS) {
+        if (wolfSSL_CTX_load_verify_locations(ctx, eccCertFile, 0)
+                                                           != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx);
             err_sys("can't load ecc ca file, Please run from wolfSSL home dir");
         }
@@ -1573,7 +1596,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #if defined(WOLFSSL_TRUST_PEER_CERT) && !defined(NO_FILESYSTEM)
         if (trustCert) {
             if ((ret = wolfSSL_CTX_trust_peer_cert(ctx, trustCert,
-                                            WOLFSSL_FILETYPE_PEM)) != WOLFSSL_SUCCESS) {
+                                    WOLFSSL_FILETYPE_PEM)) != WOLFSSL_SUCCESS) {
                 wolfSSL_CTX_free(ctx);
                 err_sys("can't load trusted peer cert file");
             }
@@ -1599,7 +1622,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #ifdef HAVE_SNI
     if (sniHostName)
         if (wolfSSL_CTX_UseSNI(ctx, 0, sniHostName, XSTRLEN(sniHostName))
-                                                               != WOLFSSL_SUCCESS) {
+                                                           != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx);
             err_sys("UseSNI failed");
     }
@@ -1634,11 +1657,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #if defined(HAVE_CURVE25519) && defined(HAVE_SUPPORTED_CURVES)
     if (useX25519) {
         if (wolfSSL_CTX_UseSupportedCurve(ctx, WOLFSSL_ECC_X25519)
-                                                               != WOLFSSL_SUCCESS) {
+                                                           != WOLFSSL_SUCCESS) {
             err_sys("unable to support X25519");
         }
         if (wolfSSL_CTX_UseSupportedCurve(ctx, WOLFSSL_ECC_SECP256R1)
-                                                               != WOLFSSL_SUCCESS) {
+                                                           != WOLFSSL_SUCCESS) {
             err_sys("unable to support secp256r1");
         }
     }
@@ -1688,7 +1711,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (doMcast) {
 #ifdef WOLFSSL_MULTICAST
         wolfSSL_CTX_mcast_set_member_id(ctx, mcastID);
-        if (wolfSSL_CTX_set_cipher_list(ctx, "WDM-NULL-SHA256") != WOLFSSL_SUCCESS) {
+        if (wolfSSL_CTX_set_cipher_list(ctx, "WDM-NULL-SHA256")
+                                                           != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx);
             err_sys("Couldn't set multicast cipher list.");
         }
@@ -1733,7 +1757,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
         if (onlyKeyShare == 0 || onlyKeyShare == 1) {
         #ifdef HAVE_FFDHE_2048
-            if (wolfSSL_UseKeyShare(ssl, WOLFSSL_FFDHE_2048) != WOLFSSL_SUCCESS) {
+            if (wolfSSL_UseKeyShare(ssl, WOLFSSL_FFDHE_2048)
+                                                           != WOLFSSL_SUCCESS) {
                 err_sys("unable to use DH 2048-bit parameters");
             }
         #endif
@@ -1756,7 +1781,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         XMEMSET(sr, 0x5A, sizeof(sr));
 
         if (wolfSSL_set_secret(ssl, 1, pms, sizeof(pms), cr, sr, suite)
-                                                               != WOLFSSL_SUCCESS) {
+                                                           != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx);
             err_sys("unable to set mcast secret");
         }
@@ -1778,7 +1803,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         switch (statusRequest) {
             case WOLFSSL_CSR_OCSP:
                 if (wolfSSL_UseOCSPStapling(ssl, WOLFSSL_CSR_OCSP,
-                                   WOLFSSL_CSR_OCSP_USE_NONCE) != WOLFSSL_SUCCESS) {
+                               WOLFSSL_CSR_OCSP_USE_NONCE) != WOLFSSL_SUCCESS) {
                     wolfSSL_free(ssl);
                     wolfSSL_CTX_free(ctx);
                     err_sys("UseCertificateStatusRequest failed");
@@ -1796,7 +1821,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             case WOLFSSL_CSR2_OCSP:
                 if (wolfSSL_UseOCSPStaplingV2(ssl,
                     WOLFSSL_CSR2_OCSP, WOLFSSL_CSR2_OCSP_USE_NONCE)
-                                                               != WOLFSSL_SUCCESS) {
+                                                           != WOLFSSL_SUCCESS) {
                     wolfSSL_free(ssl);
                     wolfSSL_CTX_free(ctx);
                     err_sys("UseCertificateStatusRequest failed");
@@ -1805,7 +1830,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             case WOLFSSL_CSR2_OCSP_MULTI:
                 if (wolfSSL_UseOCSPStaplingV2(ssl,
                     WOLFSSL_CSR2_OCSP_MULTI, 0)
-                                                               != WOLFSSL_SUCCESS) {
+                                                           != WOLFSSL_SUCCESS) {
                     wolfSSL_free(ssl);
                     wolfSSL_CTX_free(ctx);
                     err_sys("UseCertificateStatusRequest failed");
@@ -1846,7 +1871,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             err_sys("can't enable crl check");
         }
         if (wolfSSL_LoadCRL(ssl, crlPemDir, WOLFSSL_FILETYPE_PEM, 0)
-                                                               != WOLFSSL_SUCCESS) {
+                                                           != WOLFSSL_SUCCESS) {
             wolfSSL_free(ssl);
             wolfSSL_CTX_free(ctx);
             err_sys("can't load crl, check crlfile and date validity");
