@@ -7003,12 +7003,12 @@ int certext_test(void)
    /* created from ecc_test_cert_gen : certecc.der */
 #ifdef ENABLE_ECC384_CERT_GEN_TEST
     /* Authority key id from ./certs/ca-ecc384-cert.pem */
-    byte akid_ecc[] = "\x97\xFD\xB4\x6D\xCE\x08\xB3\x02\x57\xAB"
-                      "\xF3\x40\xD6\x1D\xAC\x75\x32\x35\xAA\xF2";
+    byte akid_ecc[] = "\xAB\xE0\xC3\x26\x4C\x18\xD4\x72\xBB\xD2"
+                      "\x84\x8C\x9C\x0A\x05\x92\x80\x12\x53\x52";
 #else
     /* Authority key id from ./certs/ca-ecc-cert.pem */
-    byte akid_ecc[] = "\xFD\x9D\x85\xD5\xC1\x6F\x47\xEA\xC6\x75"
-                      "\x96\x59\x25\x37\x46\x8C\x61\xDB\xE1\xC3";
+    byte akid_ecc[] = "\x56\x8E\x9A\xC3\xF0\x42\xDE\x18\xB9\x45"
+                      "\x55\x6E\xF9\x93\xCF\xEA\xC3\xF3\xA5\x21";
 #endif
 #endif /* HAVE_ECC */
 
