@@ -53,7 +53,9 @@
 	#if !defined(_MSC_VER) && !defined(__BCPLUSPLUS__)
 	    #if !defined(SIZEOF_LONG_LONG) && !defined(SIZEOF_LONG)
 	        #if (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) \
-	                || defined(__mips64)  || defined(__x86_64__))
+	                || defined(__mips64)  || defined(__x86_64__) || \
+                    ((defined(sun) || defined(__sun)) && \
+                     (defined(LP64) || defined(_LP64))))
 	            /* long should be 64bit */
 	            #define SIZEOF_LONG 8
 	        #elif defined(__i386__) || defined(__CORTEX_M3__)
