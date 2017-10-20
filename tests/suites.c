@@ -577,6 +577,16 @@ int SuiteTest(void)
         printf("error from script %d\n", args.return_code);
         exit(EXIT_FAILURE);
     }
+    #ifdef HAVE_ECC
+    /* add TLSv13 ECC extra suites */
+    strcpy(argv0[1], "tests/test-tls13-ecc.conf");
+    printf("starting TLSv13 ECC extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);
+    }
+    #endif
 #endif
 #if defined(HAVE_CURVE25519) && defined(HAVE_ED25519)
     /* add ED25519 certificate cipher suite tests */

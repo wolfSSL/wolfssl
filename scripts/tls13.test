@@ -175,21 +175,24 @@ if [ $RESULT -ne 0 ]; then
 fi
 echo ""
 
-# Usual TLS v1.3 server / TLS v1.3 client and ECC certificates.
-echo -e "\n\nTLS v1.3 server with TLS v1.3 client - ECC certificates"
-port=0
-./examples/server/server -v 4 -A certs/client-ecc-cert.pem -c certs/server-ecc.pem -k certs/ecc-key.pem -R $ready_file -p $port &
-server_pid=$!
-create_port
-./examples/client/client -v 4 -A certs/ca-ecc-cert.pem -c certs/client-ecc-cert.pem -k certs/ecc-client-key.pem -p $port
-RESULT=$?
-remove_ready_file
-if [ $RESULT -ne 0 ]; then
-    echo -e "\n\nTLS v1.3 ECC certificates not working"
-    do_cleanup
-    exit 1
+./examples/client/client -v 4 -e 2>&1 | grep -- '-ECC'
+if [ $? -eq 0 ]; then
+    # Usual TLS v1.3 server / TLS v1.3 client and ECC certificates.
+    echo -e "\n\nTLS v1.3 server with TLS v1.3 client - ECC certificates"
+    port=0
+    ./examples/server/server -v 4 -A certs/client-ecc-cert.pem -c certs/server-ecc.pem -k certs/ecc-key.pem -R $ready_file -p $port &
+    server_pid=$!
+    create_port
+    ./examples/client/client -v 4 -A certs/ca-ecc-cert.pem -c certs/client-ecc-cert.pem -k certs/ecc-client-key.pem -p $port
+    RESULT=$?
+    remove_ready_file
+    if [ $RESULT -ne 0 ]; then
+        echo -e "\n\nTLS v1.3 ECC certificates not working"
+        do_cleanup
+        exit 1
+    fi
+    echo ""
 fi
-echo ""
 
 # Usual TLS v1.3 server / TLS v1.3 client and no client certificate.
 echo -e "\n\nTLS v1.3 server with TLS v1.3 client - no client cretificate"

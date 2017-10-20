@@ -3325,7 +3325,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ssl->version.minor = pv.minor;
     }
 
-#ifdef WOLFSSL_SEND_HRR_COOKIE
+#if !defined(WOLFSSL_TLS13_DRAFT_18) && defined(WOLFSSL_SEND_HRR_COOKIE)
     if (ssl->options.sendCookie &&
                        ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST) {
         TLSX* ext;

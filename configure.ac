@@ -285,11 +285,7 @@ fi
 
 if test "$ENABLED_TLS13" = "yes"
 then
-    AM_CFLAGS="-DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS $AM_CFLAGS"
-    if test "$ENABLED_DH" = "yes"
-    then
-        AM_CFLAGS="-DHAVE_FFDHE_2048 $AM_CFLAGS"
-    fi
+    AM_CFLAGS="-DWOLFSSL_TLS13 -DHAVE_TLS_EXTENSIONS -DHAVE_SUPPORTED_CURVES $AM_CFLAGS"
 fi
 
 # check if TLS v1.3 was enabled for conditionally running tls13.test script
@@ -1510,6 +1506,11 @@ else
         AM_CFLAGS="$AM_CFLAGS -DNO_DH"
         ENABLED_DH=no
     fi
+fi
+
+if test "$ENABLED_TLS13" = "yes" && test "$ENABLED_DH" = "yes"
+then
+    AM_CFLAGS="-DHAVE_FFDHE_2048 $AM_CFLAGS"
 fi
 
 AM_CONDITIONAL([BUILD_DH], [test "x$ENABLED_DH" = "xyes"])
