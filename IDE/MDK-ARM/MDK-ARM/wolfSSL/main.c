@@ -1,6 +1,6 @@
 /* main.c
  *
- * Copyright (C) 2006-2016 wolfSSL Inc.
+ * Copyright (C) 2006-2017 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,7 +19,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
- 
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -35,7 +35,7 @@
  *        Initialize a Flash Memory Card
  *----------------------------------------------------------------------------*/
 #if !defined(NO_FILESYSTEM)
-static void init_card (void) 
+static void init_card (void)
 {
     U32 retv;
 
@@ -55,14 +55,14 @@ static void init_card (void)
  *        TCP/IP tasks
  *----------------------------------------------------------------------------*/
 #ifdef WOLFSSL_KEIL_TCP_NET
-__task void tcp_tick (void) 
+__task void tcp_tick (void)
 {
-    
+
     WOLFSSL_MSG("Time tick started.") ;
     #if defined (HAVE_KEIL_RTX)
     os_itv_set (10);
     #endif
-  
+
     while (1) {
         #if defined (HAVE_KEIL_RTX)
         os_itv_wait ();
@@ -99,11 +99,11 @@ extern void benchmark_test(void) ;
 extern void SER_Init(void) ;
 
 /*-----------------------------------------------------------------------------
- *       mian entry 
+ *       mian entry
  *----------------------------------------------------------------------------*/
 
 /*** This is the parent task entry ***/
-void main_task (void) 
+void main_task (void)
 {
     #ifdef WOLFSSL_KEIL_TCP_NET
     init_TcpNet ();
@@ -111,8 +111,8 @@ void main_task (void)
     os_tsk_create (tcp_tick, 2);
     os_tsk_create (tcp_poll, 1);
     #endif
-    
-    #ifdef WOLFSSL_MDK_SHELL 
+
+    #ifdef WOLFSSL_MDK_SHELL
         #ifdef  HAVE_KEIL_RTX
            os_tsk_create_user(shell_main, 1, Shell_stack, SHELL_STACKSIZE) ;
        #else
@@ -124,8 +124,8 @@ void main_task (void)
     /*** USER APPLICATION HERE        ***/
     /************************************/
     printf("USER LOGIC STARTED\n") ;
-	
-    #endif 
+
+    #endif
 
     #ifdef   HAVE_KEIL_RTX
     WOLFSSL_MSG("Terminating tcp_main\n") ;
@@ -148,7 +148,7 @@ extern void 	SystemInit(void);
 
 int main() {
 
-    SystemInit();  
+    SystemInit();
     #if !defined(NO_FILESYSTEM)
     init_card () ;     /* initializing SD card */
     #endif
@@ -157,7 +157,7 @@ int main() {
          printf("Turning ON Debug message\n") ;
          wolfSSL_Debugging_ON() ;
     #endif
-    
+
     #ifdef   HAVE_KEIL_RTX
         os_sys_init (main_task) ;
     #else

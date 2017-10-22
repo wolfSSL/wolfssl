@@ -1,6 +1,6 @@
 /* arm_startup.c
  *
- * Copyright (C) 2006-2016 wolfSSL Inc.
+ * Copyright (C) 2006-2017 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -65,7 +65,7 @@ void reset_handler(void)
     memcpy32(__data_load_start__, __data_start__, __data_end__);
     meminit32(__bss_start__, __bss_end__);
     memcpy32(__fast_load_start__, __fast_start__, __fast_end__);
-    
+
     // Init heap
     __heap_start__[0] = 0;
     __heap_start__[1] = ((uint32_t)__heap_end__ - (uint32_t)__heap_start__);
@@ -120,8 +120,8 @@ void HardFault_HandlerC( uint32_t *hardfault_args )
 
     // Configurable Fault Status Register
     // Consists of MMSR, BFSR and UFSR
-    _CFSR = (*((volatile uint32_t *)(0xE000ED28)));	
-                             
+    _CFSR = (*((volatile uint32_t *)(0xE000ED28)));
+
     // Hard Fault Status Register
     _HFSR = (*((volatile uint32_t *)(0xE000ED2C)));
 
@@ -158,7 +158,7 @@ void HardFault_HandlerC( uint32_t *hardfault_args )
 	__asm("BKPT #0\n");
 }
 
-__attribute__( ( naked ) ) 
+__attribute__( ( naked ) )
 void HardFault_Handler(void)
 {
     __asm volatile

@@ -1,6 +1,6 @@
 /* poly1305.c
  *
- * Copyright (C) 2006-2016 wolfSSL Inc.
+ * Copyright (C) 2006-2017 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -922,7 +922,7 @@ POLY1305_NOINLINE static void poly1305_blocks_avx2(Poly1305* ctx,
     r[2] = (word32)( r1 >> 8               ) & 0x3ffffff; \
     r[3] = (word32)((r1 >> 34) | (r2 << 10)) & 0x3ffffff; \
     r[4] = (word32)( r2 >> 16              )
-  
+
 
 static void poly1305_setkey_avx2(Poly1305* ctx, const byte* key)
 {

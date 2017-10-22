@@ -1,6 +1,6 @@
 /* snifftest.c
  *
- * Copyright (C) 2006-2016 wolfSSL Inc.
+ * Copyright (C) 2006-2017 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -87,7 +87,7 @@ static void FreeAll(void)
 #endif
 }
 
-static void sig_handler(const int sig) 
+static void sig_handler(const int sig)
 {
     printf("SIGINT handled = %d.\n", sig);
     FreeAll();
@@ -130,7 +130,7 @@ int main(int argc, char** argv)
 	int		     port;
     int          saveFile = 0;
 	int		     i = 0;
-    int          frame = ETHER_IF_FRAME_LEN; 
+    int          frame = ETHER_IF_FRAME_LEN;
     char         err[PCAP_ERRBUF_SIZE];
 	char         filter[32];
 	const char  *server = NULL;
@@ -185,7 +185,7 @@ int main(int argc, char** argv)
 		    switch(a->addr->sa_family)
 		    {
 			    case AF_INET:
-				    server = 
+				    server =
                         iptos(((struct sockaddr_in *)a->addr)->sin_addr.s_addr);
 				    printf("server = %s\n", server);
 				    break;
@@ -200,14 +200,14 @@ int main(int argc, char** argv)
         ret = pcap_set_snaplen(pcap, 65536);
         if (ret != 0) printf("pcap_set_snaplen failed %s\n", pcap_geterr(pcap));
 
-        ret = pcap_set_timeout(pcap, 1000); 
+        ret = pcap_set_timeout(pcap, 1000);
         if (ret != 0) printf("pcap_set_timeout failed %s\n", pcap_geterr(pcap));
 
-        ret = pcap_set_buffer_size(pcap, 1000000); 
+        ret = pcap_set_buffer_size(pcap, 1000000);
         if (ret != 0)
 		    printf("pcap_set_buffer_size failed %s\n", pcap_geterr(pcap));
 
-        ret = pcap_set_promisc(pcap, 1); 
+        ret = pcap_set_promisc(pcap, 1);
         if (ret != 0) printf("pcap_set_promisc failed %s\n", pcap_geterr(pcap));
 
 
@@ -288,7 +288,7 @@ int main(int argc, char** argv)
     if (ret != 0)
         err_sys(err);
 
-    if (pcap_datalink(pcap) == DLT_NULL) 
+    if (pcap_datalink(pcap) == DLT_NULL)
         frame = NULL_IF_FRAME_LEN;
 
     while (1) {
@@ -302,7 +302,7 @@ int main(int argc, char** argv)
 
             if (header.caplen > 40)  { /* min ip(20) + min tcp(20) */
 				packet        += frame;
-				header.caplen -= frame;					
+				header.caplen -= frame;
             }
             else
                 continue;

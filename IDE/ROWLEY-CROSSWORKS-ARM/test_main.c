@@ -1,6 +1,6 @@
 /* test_main.c
  *
- * Copyright (C) 2006-2016 wolfSSL Inc.
+ * Copyright (C) 2006-2017 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -38,7 +38,7 @@ typedef struct func_args {
 static func_args args = { 0 } ;
 
 
-void main(void) 
+void main(void)
 {
     int test_num = 0;
 
@@ -47,13 +47,13 @@ void main(void)
         printf("\nCrypt Test %d:\n", test_num);
         wolfcrypt_test(&args);
         printf("Crypt Test %d: Return code %d\n", test_num, args.return_code);
-        
+
         test_num++;
     } while(args.return_code == 0);
 }
 
 
-/* SAMPLE OUTPUT: 
+/* SAMPLE OUTPUT:
 Crypt Test 0:
 SHA      test passed!
 SHA-256  test passed!

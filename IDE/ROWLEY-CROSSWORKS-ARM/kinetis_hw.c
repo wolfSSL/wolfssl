@@ -1,6 +1,6 @@
 /* kinetis_hw.c
  *
- * Copyright (C) 2006-2016 wolfSSL Inc.
+ * Copyright (C) 2006-2017 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -100,9 +100,9 @@ static void hw_mcg_init(void)
     BOARD_BootClockHSRUN();
 #else
     /* Adjust clock dividers (core/system=div/1, bus=div/2, flex bus=div/2, flash=div/4) */
-    SIM->CLKDIV1 = SIM_CLKDIV1_OUTDIV1(SYS_CLK_DIV-1) | SIM_CLKDIV1_OUTDIV2(BUS_CLK_DIV-1) | 
+    SIM->CLKDIV1 = SIM_CLKDIV1_OUTDIV1(SYS_CLK_DIV-1) | SIM_CLKDIV1_OUTDIV2(BUS_CLK_DIV-1) |
         SIM_CLKDIV1_OUTDIV3(BUS_CLK_DIV-1) | SIM_CLKDIV1_OUTDIV4(FLASH_CLK_DIV-1);
-   
+
     /* Configure FEI internal clock speed */
     MCG->C4 = (SYS_CLK_DMX | SYS_CLK_DRS);
     while((MCG->C4 & (MCG_C4_DRST_DRS_MASK | MCG_C4_DMX32_MASK)) != (SYS_CLK_DMX | SYS_CLK_DRS));
@@ -146,7 +146,7 @@ static void hw_uart_init(void)
     /* Enable UART core clock */
     /* Note: Remember to update me if UART_PORT changes */
     SIM->SCGC1 |= SIM_SCGC1_UART4_MASK;
-    
+
     /* Configure UART TX pin */
     UART_TX_PORT->PCR[UART_TX_PIN] = PORT_PCR_MUX(UART_TX_MUX);
 
@@ -155,17 +155,17 @@ static void hw_uart_init(void)
 
     /* Configure the UART for 8-bit mode, no parity */
     UART_PORT->C1 = 0;
-    
+
     /* Calculate baud settings */
     sbr = (uint16_t)((BUS_CLK_KHZ * 1000)/(UART_BAUD * 16));
     temp = UART_PORT->BDH & ~(UART_BDH_SBR(0x1F));
     UART_PORT->BDH = temp | UART_BDH_SBR(((sbr & 0x1F00) >> 8));
     UART_PORT->BDL = (uint8_t)(sbr & UART_BDL_SBR_MASK);
-    
+
     /* Determine if a fractional divider is needed to get closer to the baud rate */
     brfa = (((BUS_CLK_KHZ * 32000)/(UART_BAUD * 16)) - (sbr * 32));
     temp = UART_PORT->C4 & ~(UART_C4_BRFA(0x1F));
-    UART_PORT->C4 = temp | UART_C4_BRFA(brfa);    
+    UART_PORT->C4 = temp | UART_C4_BRFA(brfa);
 
     /* Enable receiver and transmitter */
 	UART_PORT->C2 |= (UART_C2_TE_MASK | UART_C2_RE_MASK);
@@ -314,7 +314,7 @@ const struct flash_conf flash_conf __attribute__ ((section (".flashconf"),used))
 {
    .backdoor_key = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF },
    .fprot = { 0xFF, 0xFF, 0xFF, 0xFF },
-   .fsec = NV_FSEC_SEC(FSEC_UNSECURE) | NV_FSEC_FSLACC(FSEC_FSLACC_GRANTED) | 
+   .fsec = NV_FSEC_SEC(FSEC_UNSECURE) | NV_FSEC_FSLACC(FSEC_FSLACC_GRANTED) |
            NV_FSEC_MEEN(FSEC_MASS_ERASE_ENABLE) | NV_FSEC_KEYEN(FSEC_KEY_DISABLED),
    .fopt = 0xFF,
    .feprot = 0xFF,

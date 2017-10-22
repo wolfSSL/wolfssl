@@ -1,12 +1,12 @@
 # configure.ac
 #
-# Copyright (C) 2006-2016 wolfSSL Inc.
+# Copyright (C) 2006-2017 wolfSSL Inc.
 #
 # This file is part of wolfSSL. (formerly known as CyaSSL)
 #
 #
 
-AC_INIT([wolfssl],[3.12.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
+AC_INIT([wolfssl],[3.12.2],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -35,7 +35,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h:config.in])dnl Keep filename to 8.3 for MS-DOS.
 
 #shared library versioning
-WOLFSSL_LIBRARY_VERSION=13:0:1
+WOLFSSL_LIBRARY_VERSION=14:0:0
 #                       | | |
 #                +------+ | +---+
 #                |        |     |

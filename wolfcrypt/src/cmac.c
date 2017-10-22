@@ -1,6 +1,6 @@
 /* cmac.c
  *
- * Copyright (C) 2006-2016 wolfSSL Inc.
+ * Copyright (C) 2006-2017 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -145,7 +145,7 @@ int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz)
         *outSz = AES_BLOCK_SIZE;
     ForceZero(cmac, sizeof(Cmac));
 
-    return 0; 
+    return 0;
 }
 
 

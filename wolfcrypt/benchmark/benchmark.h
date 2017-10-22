@@ -1,6 +1,6 @@
 /* wolfcrypt/benchmark/benchmark.h
  *
- * Copyright (C) 2006-2016 wolfSSL Inc.
+ * Copyright (C) 2006-2017 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -89,7 +89,7 @@ void bench_ntruKeyGen(void);
 void bench_rng(void);
 void bench_blake2(void);
 
-		
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif
