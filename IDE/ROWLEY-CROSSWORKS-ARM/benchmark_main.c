@@ -1,6 +1,6 @@
 /* benchmark_main.c
  *
- * Copyright (C) 2006-2016 wolfSSL Inc.
+ * Copyright (C) 2006-2017 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -38,7 +38,7 @@ static func_args args = { 0 } ;
 
 extern double current_time(int reset);
 
-void main(void) 
+void main(void)
 {
     int test_num = 0;
 
@@ -47,12 +47,12 @@ void main(void)
         printf("\nBenchmark Test %d:\n", test_num);
         benchmark_test(&args);
         printf("Benchmark Test %d: Return code %d\n", test_num, args.return_code);
-        
+
         test_num++;
     } while(args.return_code == 0);
 }
 
-/* 
+/*
 SAMPLE OUTPUT: Freescale K64 running at 96MHz with no MMCAU:
 Benchmark Test 0:
 AES      25 kB took 0.073 seconds,    0.334 MB/s

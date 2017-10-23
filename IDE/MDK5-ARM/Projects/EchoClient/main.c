@@ -1,6 +1,6 @@
 /* main.c
  *
- * Copyright (C) 2006-2016 wolfSSL Inc.
+ * Copyright (C) 2006-2017 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -18,7 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
- 
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -28,7 +28,7 @@
 
 #include "stm32f2xx_hal.h"
 #include "cmsis_os.h"
-#include "rl_net.h" 
+#include "rl_net.h"
 #include <stdio.h>
 
 #include <wolfssl/ssl.h>
@@ -72,13 +72,13 @@ typedef struct func_args {
 extern void echoclient_test(func_args * args) ;
 
 /*-----------------------------------------------------------------------------
- *       mian entry 
+ *       mian entry
  *----------------------------------------------------------------------------*/
 int myoptind = 0;
 char* myoptarg = NULL;
 
-int main() 
-{ 
+int main()
+{
     func_args args ;
 		args.argc = 1 ;
 
@@ -87,7 +87,7 @@ int main()
     init_filesystem ();
     #endif
     netInitialize() ;
-    osDelay(300) ;  
+    osDelay(300) ;
     #if defined(DEBUG_WOLFSSL)
          printf("Turning ON Debug message\n") ;
          wolfSSL_Debugging_ON() ;

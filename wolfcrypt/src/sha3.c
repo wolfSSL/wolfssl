@@ -1,6 +1,6 @@
 /* sha3.c
  *
- * Copyright (C) 2006-2016 wolfSSL Inc.
+ * Copyright (C) 2006-2017 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -438,11 +438,11 @@ static int Sha3Update(Sha3* sha3, const byte* data, word32 len, byte p)
         for (i = 0; i < l; i++)
             t[i] = data[i];
         data += i;
-        len -= i; 
+        len -= i;
         sha3->i += i;
 
         if (sha3->i == p * 8)
-        {   
+        {
             for (i = 0; i < p; i++)
                 sha3->s[i] ^= Load64BitBigEndian(sha3->t + 8 * i);
             BlockSha3(sha3->s);

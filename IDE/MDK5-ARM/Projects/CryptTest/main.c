@@ -1,6 +1,6 @@
 /* main.c
  *
- * Copyright (C) 2006-2016 wolfSSL Inc.
+ * Copyright (C) 2006-2017 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -18,7 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
- 
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -63,10 +63,10 @@ static void init_filesystem (void) {
 #endif
 
 /*-----------------------------------------------------------------------------
- *       mian entry 
+ *       mian entry
  *----------------------------------------------------------------------------*/
 
-int main() 
+int main()
 {
     void * arg = NULL ;
 
@@ -76,10 +76,10 @@ int main()
 	#if !defined(NO_FILESYSTEM)
     init_filesystem ();
 	#endif
-  osDelay(1000) ;  
+  osDelay(1000) ;
 
     printf("=== Start: Crypt test ===\n") ;
         wolfcrypt_test(arg) ;
-    printf("=== End: Crypt test  ===\n") ;    
-    
+    printf("=== End: Crypt test  ===\n") ;
+
 }

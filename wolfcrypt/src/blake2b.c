@@ -12,7 +12,7 @@
 */
 /* blake2b.c
  *
- * Copyright (C) 2006-2016 wolfSSL Inc.
+ * Copyright (C) 2006-2017 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -110,7 +110,7 @@ int blake2b_init_param( blake2b_state *S, const blake2b_param *P )
   byte *p ;
   blake2b_init0( S );
   p =  ( byte * )( P );
-  
+
   /* IV XOR ParamBlock */
   for( i = 0; i < 8; ++i )
     S->h[i] ^= load64( p + sizeof( S->h[i] ) * i );

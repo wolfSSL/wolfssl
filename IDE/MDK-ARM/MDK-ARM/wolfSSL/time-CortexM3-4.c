@@ -1,6 +1,6 @@
 /* time-STM32F2.c
  *
- * Copyright (C) 2006-2016 wolfSSL Inc.
+ * Copyright (C) 2006-2017 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,14 +19,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
- 
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
 
 
-#include <stdint.h>       
-#define DWT                 ((DWT_Type       *)     (0xE0001000UL)     ) 
+#include <stdint.h>
+#define DWT                 ((DWT_Type       *)     (0xE0001000UL)     )
 typedef struct
 {
   uint32_t CTRL;                    /*!< Offset: 0x000 (R/W)  Control Register                          */
@@ -35,7 +35,7 @@ typedef struct
 
 extern uint32_t SystemCoreClock ;
 
-double current_time(int reset) 
+double current_time(int reset)
 {
       if(reset) DWT->CYCCNT = 0 ;
       return ((double)DWT->CYCCNT/SystemCoreClock) ;

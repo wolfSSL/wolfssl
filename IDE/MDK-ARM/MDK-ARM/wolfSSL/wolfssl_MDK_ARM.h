@@ -1,6 +1,6 @@
 /* wolfssl_KEIL_RL.h
  *
- * Copyright (C) 2006-2016 wolfSSL Inc.
+ * Copyright (C) 2006-2017 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -31,7 +31,7 @@
 #include <stdio.h>
 
 /* Go to STDIN */
-#define fgets(buff, sz, fd)   wolfssl_fgets(buff, sz, fd) 
+#define fgets(buff, sz, fd)   wolfssl_fgets(buff, sz, fd)
 extern char * wolfssl_fgets ( char * str, int num, FILE * f ) ;
 
 #define SOCKET_T int
@@ -53,19 +53,19 @@ struct timeval {
    long tv_usec;    /* microseconds */
 };
 
-#if defined(WOLFSSL_KEIL_TCP_NET) 
+#if defined(WOLFSSL_KEIL_TCP_NET)
 
 #if defined(WOLFSSL_MDK5)
 #define SCK_EWOULDBLOCK     BSD_ERROR_WOULDBLOCK
 #define SCK_ETIMEOUT        BSD_ERROR_TIMEOUT
-#include "rl_net.h" 
+#include "rl_net.h"
 #endif
- 
+
 typedef int socklen_t ;
 
 /* for avoiding conflict with KEIL-TCPnet BSD socket */
 /* Bodies are in wolfssl_KEIL_RL.c                    */
-#define connect(a,b,c)             wolfssl_connect(a,  (struct sockaddr* )(b), c) 
+#define connect(a,b,c)             wolfssl_connect(a,  (struct sockaddr* )(b), c)
 #define accept              wolfssl_accept
 #define recv                wolfssl_recv
 #define send                wolfssl_send
@@ -73,7 +73,7 @@ typedef int socklen_t ;
 
 /* for avoiding conflicting with KEIL-TCPnet TCP socket */
 /* Bodies are in test.h */
-#define tcp_connect wolfssl_tcp_connect    
+#define tcp_connect wolfssl_tcp_connect
 #define tcp_socket    wolfssl_tcp_soket
 #define tcp_listen      wolfssl_tcp_listen
 #define tcp_select     wolfssl_tcp_select
@@ -89,7 +89,7 @@ extern int wolfssl_tcp_select(int sd, int timeout) ;
 /* TCPnet BSD socket does not have following functions. */
 extern char *inet_ntoa(struct in_addr in);
 extern unsigned long inet_addr(const char *cp);
-extern int setsockopt(int sockfd, int level, int optname, 
+extern int setsockopt(int sockfd, int level, int optname,
                                       const void *optval, socklen_t optlen);
 extern int select(int nfds, fd_set *readfds, fd_set *writefds,
                           fd_set *exceptfds, const struct timeval *timeout);

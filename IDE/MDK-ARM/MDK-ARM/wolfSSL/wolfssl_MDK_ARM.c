@@ -1,6 +1,6 @@
 /* wolfssl_KEIL_RL.c
  *
- * Copyright (C) 2006-2016 wolfSSL Inc.
+ * Copyright (C) 2006-2017 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -35,8 +35,8 @@
 
         #if defined(WOLFSSL_MDK5)
             #include "cmsis_os.h"
-            #include "rl_fs.h" 
-            #include "rl_net.h" 
+            #include "rl_fs.h"
+            #include "rl_net.h"
         #else
             #include "rtl.h"
         #endif
@@ -58,7 +58,7 @@
 /** TCPnet BSD socket does not have following functions. **/
 
 #if defined(WOLFSSL_KEIL_TCP_NET)
-char *inet_ntoa(struct in_addr in) 
+char *inet_ntoa(struct in_addr in)
 {
     #define NAMESIZE 16
     static char name[NAMESIZE] ;
@@ -76,11 +76,11 @@ unsigned long inet_addr(const char *cp)
 
 
 /*** tcp_connect is actually associated with following syassl_tcp_connect. ***/
-int wolfssl_connect(int sd, const  struct sockaddr* sa, int sz) 
+int wolfssl_connect(int sd, const  struct sockaddr* sa, int sz)
 {
     int ret = 0 ;
-    #if defined(WOLFSSL_KEIL_TCP_NET)  
-    
+    #if defined(WOLFSSL_KEIL_TCP_NET)
+
     SOCKADDR_IN addr ;
 
     addr = *(SOCKADDR_IN *)sa ;
@@ -91,19 +91,19 @@ int wolfssl_connect(int sd, const  struct sockaddr* sa, int sz)
         os_dly_wait(50);
     } while(ret == SCK_EWOULDBLOCK) ;
     #ifdef DEBUG_WOLFSSL
-    { 
+    {
         char msg[50] ;
         sprintf(msg, "BSD Connect return code: %d\n", ret) ;
         WOLFSSL_MSG(msg) ;
     }
     #endif
-    
+
     #endif /* WOLFSSL_KEIL_TCP_NET */
     return(ret ) ;
 }
 
 
-int wolfssl_accept(int sd, struct sockaddr *addr, int *addrlen) 
+int wolfssl_accept(int sd, struct sockaddr *addr, int *addrlen)
 {
     int ret = 0 ;
 
@@ -113,24 +113,24 @@ int wolfssl_accept(int sd, struct sockaddr *addr, int *addrlen)
         ret = accept(sd, addr,  addrlen) ;
         if(ret != SCK_EWOULDBLOCK) break ;
         os_dly_wait(1);
-    } 
+    }
     #ifdef DEBUG_WOLFSSL
     {
         char msg[50] ;
         sprintf(msg, "BSD Accept return code: %d\n", ret) ;
-        WOLFSSL_MSG(msg) ;   
+        WOLFSSL_MSG(msg) ;
     }
     #endif
-    
+
     #endif /* WOLFSSL_KEIL_TCP_NET */
     return(ret ) ;
 
 }
-    
-int wolfssl_recv(int sd, void *buf, size_t len, int flags) 
+
+int wolfssl_recv(int sd, void *buf, size_t len, int flags)
 {
     int ret  = 0;
-    #if defined(WOLFSSL_KEIL_TCP_NET)  
+    #if defined(WOLFSSL_KEIL_TCP_NET)
     while(1) {
         #undef recv  /* Go to KEIL TCPnet recv */
         ret = recv(sd, buf, len,  flags) ;
@@ -138,10 +138,10 @@ int wolfssl_recv(int sd, void *buf, size_t len, int flags)
         os_dly_wait(1);
     }
     #ifdef DEBUG_WOLFSSL
-    {       
+    {
         char msg[50] ;
         sprintf(msg, "BSD Recv return code: %d\n", ret) ;
-        WOLFSSL_MSG(msg) ;   
+        WOLFSSL_MSG(msg) ;
     }
     #endif
 
@@ -149,22 +149,22 @@ int wolfssl_recv(int sd, void *buf, size_t len, int flags)
     return(ret ) ;
 }
 
-int wolfssl_send(int sd, const void *buf, size_t len, int flags) 
+int wolfssl_send(int sd, const void *buf, size_t len, int flags)
 {
     int  ret = 0 ;
 
-    #if defined(WOLFSSL_KEIL_TCP_NET)  
+    #if defined(WOLFSSL_KEIL_TCP_NET)
     while(1) {
     #undef send  /* Go to KEIL TCPnet send */
         ret = send(sd, buf, len,  flags) ;
         if(ret != SCK_EWOULDBLOCK) break ;
         os_dly_wait(1);
-    } 
+    }
     #ifdef DEBUG_WOLFSSL
     {
         char msg[50] ;
         sprintf(msg, "BSD Send return code: %d\n", ret) ;
-        WOLFSSL_MSG(msg) ;   
+        WOLFSSL_MSG(msg) ;
     }
     #endif
 
@@ -175,49 +175,49 @@ int wolfssl_send(int sd, const void *buf, size_t len, int flags)
 
 #endif /* WOLFSSL_KEIL_TCP_NET */
 
-#if defined(WOLFSSL_KEIL_TCP_NET)  
-void wolfssl_sleep(int t) 
+#if defined(WOLFSSL_KEIL_TCP_NET)
+void wolfssl_sleep(int t)
 {
     #if defined(HAVE_KEIL_RTX)
     os_dly_wait(t/1000+1) ;
     #endif
 }
 
-int wolfssl_tcp_select(int sd, int timeout) 
+int wolfssl_tcp_select(int sd, int timeout)
 {
-    
+
     return 0 ;
-    
+
 }
 #endif
 
-FILE * wolfSSL_fopen(const char *name, const char *openmode) 
+FILE * wolfSSL_fopen(const char *name, const char *openmode)
 {
     int i ;  FILE * ret ;
     #define PATHSIZE 100
     char path[PATHSIZE] ; char *p ;
-    
+
     if(strlen(name) > PATHSIZE)return(NULL) ;
-    
+
     for(i = 0; i<= strlen(name); i++) {
         if(name[i] == '/')path[i] = '\\' ;
         else              path[i] = name[i] ;
-    }       
+    }
     if(path[0] == '.' && path[1] == '\\') p = path + 2 ;
     else                                  p = path ;
 
     ret = fopen (p, openmode) ;
-    
+
     return(ret) ;
 }
 
 #define getkey getchar
 #define sendchar putchar
 
-char * wolfssl_fgets ( char * str, int num, FILE * f ) 
+char * wolfssl_fgets ( char * str, int num, FILE * f )
 {
     int i ;
-    
+
     for(i = 0 ; i< num ; i++) {
             while((str[i] = getkey()) == 0) {
             #if defined (HAVE_KEIL_RTX) && !defined(WOLFSSL_CMSIS_RTOS)
@@ -228,15 +228,15 @@ char * wolfssl_fgets ( char * str, int num, FILE * f )
         }
         if(str[i] == '\n' || str[i] == '\012' || str[i] == '\015')  {
             sendchar('\n') ;
-            str[i++] = '\n' ; 
-            str[i] = '\0' ; 
+            str[i++] = '\n' ;
+            str[i] = '\0' ;
             break ;
         } else if(str[i] == '\010') { /* BS */
             if(i) { /* erace one char */
-                sendchar('\010') ; sendchar(' ') ; sendchar('\010') ; 
+                sendchar('\010') ; sendchar(' ') ; sendchar('\010') ;
                 i = (i>0 ? (i-2) : -1 ) ;
                 continue ;
-            } 
+            }
         } else if(str[i] == '\033'  || str[i] == '\004' ) {  /* ESC or ^D */
             str[i] = '\0' ;
             return(0) ;

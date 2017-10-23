@@ -1,6 +1,6 @@
 /* main.c
  *
- * Copyright (C) 2006-2016 wolfSSL Inc.
+ * Copyright (C) 2006-2017 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -77,12 +77,12 @@ void WriteCoreTimer(unsigned int t)
 int main(int argc, char** argv)
 {
     func_args args;
-    
+
     SYSTEMConfigPerformance(SYS_CLK);
     DBINIT();
-    
+
     init_serial(SYS_CLK) ;  /* initialize PIC32MZ serial I/O */
-    
+
     printf("WolfCrypt Test:\n");
 
     args.argc = argc;

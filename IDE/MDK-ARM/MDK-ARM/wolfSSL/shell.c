@@ -1,6 +1,6 @@
 /*shell.c
  *
- * Copyright (C) 2006-2016 wolfSSL Inc.
+ * Copyright (C) 2006-2017 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,9 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
- 
+
  /*** tiny Shell for wolfSSL apps ***/
- 
+
  #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -185,7 +185,7 @@ extern void dh_test(void *arg) ;
 #ifndef NO_DSA
 extern void dsa_test(void *arg) ;
 #endif
-    
+
 #ifndef NO_PWDBASED
 extern void pwdbased_test(void *arg) ;
 #endif
@@ -276,8 +276,8 @@ static struct {
 #ifndef NO_DES3
   "des",  des_test,
   "des3",  des3_test,
-#endif  
-#ifndef NO_AES  
+#endif
+#ifndef NO_AES
   "aes",  aes_test,
     #ifdef HAVE_AESGCM
   "aesgcm",  aesgcm_test,
@@ -299,10 +299,10 @@ static struct {
 #endif
 #ifndef NO_DSA
     "dsa",  dsa_test,
-#endif 
+#endif
 #ifndef NO_PWDBASED
   "pwdbased",  pwdbased_test,
-#endif  
+#endif
 #ifdef OPENSSL_EXTRA
   "openssl",  openssl_test,
 #endif
@@ -320,22 +320,22 @@ enum jobtype { FORGROUND, BACKGROUND }  ;
 #define IF_DELIMITER(ch) ((ch) == ' ' || (ch) == '\n')
 
 /*******  Get Command Line *****************************/
-static int getline(char * line, int sz, func_args *args, int*bf_flg) 
+static int getline(char * line, int sz, func_args *args, int*bf_flg)
 {
     char * ret ;
     int i ;
-    
+
     #define MAXARGS 10
     #define MAXARGLEN 30
     static char *argv[MAXARGS] ;
     args->argv = argv ;
-    
+
     putchar('>') ;
     fflush(stdout) ;
     ret = fgets(line, sz, stdin) ;
     #define SHELL_ERROR_FGETS -102
     if(ret != line) return(SHELL_ERROR_FGETS) ;
-    
+
     if(line[strlen(line)-2] == '&') {
         (*bf_flg) = BACKGROUND ;
         line[strlen(line)-2] = '\n' ;
@@ -363,22 +363,22 @@ static int BackGround = 0 ; /* 1: background job is running */
 #define IP_SIZE 16
 
 #ifdef WOLFSSL_KEIL_NET
-static void ipaddr_comm(void *args) 
+static void ipaddr_comm(void *args)
 {
     if(((func_args *)args)->argc == 1) {
             printf("IP addr: %s, port %d\n", wolfSSLIP, wolfSSLPort) ;
     } else {
         if(BackGround != 0) {
         printf("Cannot change IP addr while background server is running\n") ;
-        } else if(((func_args *)args)->argc == 3 && 
-                  ((func_args *)args)->argv[1][0] == '-'&& 
+        } else if(((func_args *)args)->argc == 3 &&
+                  ((func_args *)args)->argv[1][0] == '-'&&
                   ((func_args *)args)->argv[1][1] == 'a' ) {
 /*          strcpy(wolfSSLIP, ((func_args *)args)->argv[2]) ; */
-        } else if(((func_args *)args)->argc == 3 && 
-                  ((func_args *)args)->argv[1][0] == '-' && 
+        } else if(((func_args *)args)->argc == 3 &&
+                  ((func_args *)args)->argv[1][0] == '-' &&
                   ((func_args *)args)->argv[1][1] == 'p' ) {
 /*          yasslPort = atoi(((func_args *)args)->argv[2]) ; */
-        } else printf("Invalid argument\n") ; 
+        } else printf("Invalid argument\n") ;
     }
 }
 
@@ -389,7 +389,7 @@ static void ipaddr_comm(void *args)
 #if defined(HAVE_KEIL_RTX)
 static int stack_ck = 0 ;
 
-static void stack_comm(void *args) 
+static void stack_comm(void *args)
 {
     if(stack_ck) {
         printf("Stack Check: Off\n") ;
@@ -399,7 +399,7 @@ static void stack_comm(void *args)
         stack_ck = 1 ;
     }
 }
-    
+
 #define FILL_PATTERN 0xa596695a
 void stack_fill(char * stack, int size)
 {
@@ -410,13 +410,13 @@ void stack_fill(char * stack, int size)
         ((int *)stack)[i] = FILL_PATTERN ;
 }
 
-void stack_check(char * stack, int size) 
+void stack_check(char * stack, int size)
 {
     int i ;
-    
+
     if(stack_ck == 0)return ;
     if(stack_ck == 1) {
-        stack_ck ++ ; return ; 
+        stack_ck ++ ; return ;
     }
     for(i=1; i<size/4 ; i++) {
         if(((int *)stack)[i] != FILL_PATTERN) break ;
@@ -432,7 +432,7 @@ void stack_check(char * stack, int size)
 
 static int for_iteration = 1 ;
 
-static void for_command(void *args) 
+static void for_command(void *args)
 {
     if( args == NULL || ((func_args *)args)->argc == 1) {
         printf("For %d times\n", for_iteration) ;
@@ -446,7 +446,7 @@ static void for_command(void *args)
 
 static int wolfsslDebug = 1 ;
 
-static void dbg_comm(void *args) 
+static void dbg_comm(void *args)
 {
     if(wolfsslDebug == 1) {
         wolfsslDebug = 0 ;
@@ -460,9 +460,9 @@ static void dbg_comm(void *args)
 }
 #endif
 
-static void help_comm(void *args) 
+static void help_comm(void *args)
 {
-    
+
 }
 
 
@@ -484,12 +484,12 @@ static   wolfSSL_Mutex command_mutex ;
 #endif
 
 /***********    Invoke Forground Command  *********************/
-static void command_invoke(void *args) 
+static void command_invoke(void *args)
 {
     void (*func)(void * ) ;
     int i,iteration ;
 
-    func = (void(*)(void *))((func_args *)args)->argv[0] ; 
+    func = (void(*)(void *))((func_args *)args)->argv[0] ;
     #ifdef  HAVE_KEIL_RTX
     wc_LockMutex((wolfSSL_Mutex *)&command_mutex) ;
     #endif
@@ -499,14 +499,14 @@ static void command_invoke(void *args)
         #if defined(HAVE_KEIL_RTX)
         stack_fill(command_stack, COMMAND_STACK_SIZE) ;
         #endif
-                
+
         func(args) ;        /* invoke command */
-                
+
         #if defined(HAVE_KEIL_RTX)
         stack_check(command_stack, COMMAND_STACK_SIZE) ;
         #endif
     }
-    if(iteration > 1) 
+    if(iteration > 1)
         for_iteration = 1 ;
     #ifdef HAVE_KEIL_RTX
     wc_UnLockMutex((wolfSSL_Mutex *)&command_mutex) ;
@@ -517,12 +517,12 @@ static void command_invoke(void *args)
 #if (!defined(NO_SIMPLE_SERVER) && !defined(NO_ECHOSERVER)) && \
                                                       defined(HAVE_KEIL_RTX)
 /*******  Invoke Background Job   *******************************/
-static void bg_job_invoke(void *args) 
+static void bg_job_invoke(void *args)
 {
     void (*func)(void * ) ;
-    BackGround = 1 ; 
+    BackGround = 1 ;
     stack_fill(bg_job_stack, BG_JOB_STACK_SIZE) ;
-    func = (void(*)(void *))((func_args *)args)->argv[0] ; 
+    func = (void(*)(void *))((func_args *)args)->argv[0] ;
     func(args) ;        /* invoke command */
     stack_check(bg_job_stack, BG_JOB_STACK_SIZE) ;
     #ifdef WOLFSSL_KEIL_NET
@@ -539,14 +539,14 @@ static char line[LINESIZE] ;
 
 /********* SHEULL MAIN LOOP ***********************************/
 void shell_main(void) {
-    int i ; 
+    int i ;
     func_args args ;
     int bf_flg ;
-   
-    i = BackGround ; 
+
+    i = BackGround ;
         /* Dummy for avoiding warning: BackGround is defined but not used. */
-    
-    
+
+
  #if defined(HAVE_KEIL_RTX)
     wc_InitMutex(&command_mutex) ;
 #endif
@@ -574,9 +574,9 @@ void shell_main(void) {
                     if(BackGround != 0) {
                         printf("Multiple background servers not supported.\n") ;
                     } else {
-                        printf("\"%s\" is running with the background mode.\n", 
+                        printf("\"%s\" is running with the background mode.\n",
                                                      commandTable[i].command) ;
-                        os_tsk_create_user_ex( (void(*)(void *))&bg_job_invoke, 
+                        os_tsk_create_user_ex( (void(*)(void *))&bg_job_invoke,
                                    6, bg_job_stack, BG_JOB_STACK_SIZE, &args) ;
                     }
                     #else

@@ -1,6 +1,6 @@
 /* config-FS.h
  *
- * Copyright (C) 2006-2016 wolfSSL Inc.
+ * Copyright (C) 2006-2017 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -70,7 +70,7 @@
 //      <e>Crypt/Cipher Benchmark
 #define MDK_CONF_CTaoCryptBenchmark 1
 #if MDK_CONF_CTaoCryptBenchmark == 0
-#define NO_CRYPT_BENCHMARK 
+#define NO_CRYPT_BENCHMARK
 #endif
 //  </e>
 //   </h>
@@ -97,7 +97,7 @@
 //     <h>SSL (Included by default)
 //     </h>
 
-//      <e>TLS 
+//      <e>TLS
 #define MDK_CONF_TLS 1
 #if MDK_CONF_TLS == 0
 #define NO_TLS
@@ -157,10 +157,10 @@
 #define WOLFSSL_SHA384
 #endif
 //  </e>
-//      <e>SHA-512          
+//      <e>SHA-512
 #define MDK_CONF_SHA512     0
 #if MDK_CONF_SHA512     == 1
-#define WOLFSSL_SHA512   
+#define WOLFSSL_SHA512
 #endif
 //  </e>
 //      <e>RIPEMD
@@ -188,7 +188,7 @@
 #endif
 //  </e>
 
-//      <e>AEAD     
+//      <e>AEAD
 #define MDK_CONF_AEAD 0
 #if MDK_CONF_AEAD == 1
 #define HAVE_AEAD
@@ -215,7 +215,7 @@
 #endif
 //  </e>
 //      <e>DSA
-#define MDK_CONF_DSA 1 
+#define MDK_CONF_DSA 1
 #if MDK_CONF_DSA == 0
 #define NO_DSA
 #endif

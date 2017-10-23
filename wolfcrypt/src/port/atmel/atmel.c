@@ -1,6 +1,6 @@
 ﻿/* atmel.c
  *
- * Copyright (C) 2006-2016 wolfSSL Inc.
+ * Copyright (C) 2006-2017 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -112,7 +112,7 @@ long atmel_get_curr_time_and_date(long* tm)
 	//rtc_calendar_get_time(_rtc_instance[0], &rtcTime);
 
     /* Convert rtc_calendar_time to seconds since UTC */
-    
+
     return 0;
 }
 
@@ -219,7 +219,7 @@ void atmel_init(void)
         atcatls_init(&cfg_ateccx08a_i2c_default);
 
         /* Init the I2C pipe encryption key. */
-        /* Value is generated/stored during pair for the ATECC508A and stored 
+        /* Value is generated/stored during pair for the ATECC508A and stored
             on micro flash */
         /* For this example its a fixed value */
 		if (atmel_init_enc_key() != ATCA_SUCCESS) {

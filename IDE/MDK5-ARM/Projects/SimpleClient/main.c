@@ -1,6 +1,6 @@
 /* main.c
  *
- * Copyright (C) 2006-2016 wolfSSL Inc.
+ * Copyright (C) 2006-2017 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -18,7 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
- 
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -28,7 +28,7 @@
 
 #include "stm32f2xx_hal.h"
 #include "cmsis_os.h"
-#include "rl_net.h" 
+#include "rl_net.h"
 #include <stdio.h>
 
 #include <wolfssl/ssl.h>
@@ -75,31 +75,31 @@ extern void client_test(func_args * args) ;
 int myoptind = 0;
 char* myoptarg = NULL;
 
-int main() 
+int main()
 {
-    static char *argv[] = 
-          {   "client",   "-h", WOLFSSL_CALLEE_IP, "-p", WOLFSSL_CALLEE_PORT, 
+    static char *argv[] =
+          {   "client",   "-h", WOLFSSL_CALLEE_IP, "-p", WOLFSSL_CALLEE_PORT,
                                    "-v",  WOLFSSL_SSL_VER,  WOLFSSL_HTTP_GET } ;
-    static   func_args args  = 
-          {  7 + WOLFSSL_HTTP_GET_COUNT, argv } ; 
-					
+    static   func_args args  =
+          {  7 + WOLFSSL_HTTP_GET_COUNT, argv } ;
+
     SystemClock_Config ();
     #if !defined(NO_FILESYSTEM)
     init_filesystem ();
     #endif
     netInitialize() ;
-    osDelay(300) ;  
+    osDelay(300) ;
     #if defined(DEBUG_WOLFSSL)
          printf("Turning ON Debug message\n") ;
          wolfSSL_Debugging_ON() ;
     #endif
-        
+
     if(args.argc == 7)
         printf("Simple SSL/TLS, ") ;
     else
         printf("HTTP GET, ") ;
 
-    printf("Callee IP: %s, Port: %s, Version:%s\n", argv[2], argv[4], argv[6]) ; 
+    printf("Callee IP: %s, Port: %s, Version:%s\n", argv[2], argv[4], argv[6]) ;
 
     while(1) {
           client_test(&args) ;

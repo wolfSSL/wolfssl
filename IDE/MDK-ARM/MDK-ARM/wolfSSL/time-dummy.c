@@ -1,6 +1,6 @@
 /* time-dummy.c.c
  *
- * Copyright (C) 2006-2016 wolfSSL Inc.
+ * Copyright (C) 2006-2017 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,16 +19,16 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
- 
+
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
 
 #include "time.h"
 
-struct tm *wolfssl_MDK_gmtime(const time_t *c) 
-{ 
-    static struct tm date ; 
+struct tm *wolfssl_MDK_gmtime(const time_t *c)
+{
+    static struct tm date ;
     return(&date) ;
 }
 
