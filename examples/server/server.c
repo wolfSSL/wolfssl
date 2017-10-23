@@ -534,8 +534,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     #else
         byte memory[80000];
     #endif
-    byte memoryIO[34500]; /* max of 17k for IO buffer (TLS packet can be 16k) */
+    byte memoryIO[34500]; /* max for IO buffer (TLS packet can be 16k) */
     WOLFSSL_MEM_CONN_STATS ssl_stats;
+    #ifdef DEBUG_WOLFSSL
+        WOLFSSL_MEM_STATS mem_stats;
+    #endif
 #endif
 
     ((func_args*)args)->return_code = -1; /* error state */
@@ -1153,14 +1156,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             }
         }
 #if defined(WOLFSSL_STATIC_MEMORY) && defined(DEBUG_WOLFSSL)
-    {
-        WOLFSSL_MEM_STATS mem_stats;
         fprintf(stderr, "Before creating SSL\n");
         if (wolfSSL_CTX_is_static_memory(ctx, &mem_stats) != 1)
             err_sys_ex(runWithErrors, "ctx not using static memory");
         if (wolfSSL_PrintStats(&mem_stats) != 1) /* function in test.h */
             err_sys_ex(runWithErrors, "error printing out memory stats");
-    }
 #endif
 
     if (doMcast) {
@@ -1185,14 +1185,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
 
 #if defined(WOLFSSL_STATIC_MEMORY) && defined(DEBUG_WOLFSSL)
-    {
-        WOLFSSL_MEM_STATS mem_stats;
         fprintf(stderr, "After creating SSL\n");
         if (wolfSSL_CTX_is_static_memory(ctx, &mem_stats) != 1)
             err_sys_ex(runWithErrors, "ctx not using static memory");
         if (wolfSSL_PrintStats(&mem_stats) != 1) /* function in test.h */
             err_sys_ex(runWithErrors, "error printing out memory stats");
-    }
 #endif
 
     if (doMcast) {

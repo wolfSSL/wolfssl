@@ -71,7 +71,7 @@ do_test() {
 
     if [ $client_result != 0 ]
     then
-        echo -e "client failed!"
+        echo -e "client failed!\ncapture_out=$capture_out\nclient_result=$client_result"
         do_cleanup
         exit 1
     fi
