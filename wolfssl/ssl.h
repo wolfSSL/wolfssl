@@ -2071,6 +2071,14 @@ enum {
 #endif
 };
 
+enum {
+    WOLFSSL_EC_PF_UNCOMPRESSED = 0,
+#if 0 /* Not Supported */
+    WOLFSSL_EC_PF_X962_COMP_PRIME = 1,
+    WOLFSSL_EC_PF_X962_COMP_CHAR2 = 2,
+#endif
+};
+
 #ifdef HAVE_SUPPORTED_CURVES
 #ifndef NO_WOLFSSL_CLIENT
 

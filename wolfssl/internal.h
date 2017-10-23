@@ -1825,6 +1825,7 @@ typedef enum {
     TLSX_TRUNCATED_HMAC             = 0x0004,
     TLSX_STATUS_REQUEST             = 0x0005, /* a.k.a. OCSP stapling   */
     TLSX_SUPPORTED_GROUPS           = 0x000a, /* a.k.a. Supported Curves */
+    TLSX_EC_POINT_FORMATS           = 0x000b,
     TLSX_SIGNATURE_ALGORITHMS       = 0x000d,
     TLSX_APPLICATION_LAYER_PROTOCOL = 0x0010, /* a.k.a. ALPN */
     TLSX_STATUS_REQUEST_V2          = 0x0011, /* a.k.a. OCSP stapling v2 */
@@ -2005,16 +2006,24 @@ WOLFSSL_LOCAL int   TLSX_CSR2_ForceRequest(WOLFSSL* ssl);
 /** Supported Elliptic Curves - RFC 4492 (session 4) */
 #ifdef HAVE_SUPPORTED_CURVES
 
-typedef struct EllipticCurve {
-    word16                name; /* CurveNames    */
-    struct EllipticCurve* next; /* List Behavior */
-} EllipticCurve;
+typedef struct SupportedCurve {
+    word16 name;                 /* Curve Names */
+    struct SupportedCurve* next; /* List Behavior */
+} SupportedCurve;
+
+typedef struct PointFormat {
+    byte format;                /* PointFormat */
+    struct PointFormat* next;   /* List Behavior */
+} PointFormat;
 
 WOLFSSL_LOCAL int TLSX_UseSupportedCurve(TLSX** extensions, word16 name,
                                                                     void* heap);
 
+WOLFSSL_LOCAL int TLSX_UsePointFormat(TLSX** extensions, byte point,
+                                                                    void* heap);
+
 #ifndef NO_WOLFSSL_SERVER
-WOLFSSL_LOCAL int TLSX_ValidateEllipticCurves(WOLFSSL* ssl, byte first,
+WOLFSSL_LOCAL int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first,
                                                                    byte second);
 #endif
 
