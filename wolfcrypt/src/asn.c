@@ -6417,9 +6417,13 @@ WOLFSSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output)
     i += SetLength(snSzInt, &output[i]);
     XMEMCPY(&output[i], sn, snSzInt);
 
+    /* make sure number is positive */
     if (snSzInt > 0) {
-        /* ensure positive (MSB not set) */
+        /* clear MSB bit */
         output[i] &= ~0x80;
+        /* handle zero case... make 1 */
+        if (output[i] == 0)
+            output[i] = 0x01;
     }
 
     /* compute final length */

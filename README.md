@@ -38,12 +38,13 @@ wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 before calling wolfSSL_new();  Though it's not recommended.
 ```
 
-# wolfSSL (Formerly CyaSSL) Release 3.12.2 (10/20/2017)
+# wolfSSL (Formerly CyaSSL) Release 3.12.2 (10/23/2017)
 
 ## Release 3.12.2 of wolfSSL has bug fixes and new features including:
 
 This release includes many performance improvements with Intel ASM (AVX/AVX2) and AES-NI. New single precision math option to speedup RSA, DH and ECC. Embedded hardware support has been expanded for STM32, PIC32MZ and ATECC508A. AES now supports XTS mode for disk encryption. Certificate improvements for setting serial number, key usage and extended key usage. Refactor of SSL_ and hash types to allow openssl coexistence. Improvements for TLS 1.3. Fixes for OCSP stapling to allow disable and WOLFSSL specific user context for callbacks. Fixes for openssl and MySQL compatibility. Updated Micrium port. Fixes for asynchronous modes.
 
+* Added TLS extension for Supported Point Formats (ec_point_formats)
 * Fix to not send OCSP stapling extensions in client_hello when not enabled
 * Added new API's for disabling OCSP stapling
 * Add check for SIZEOF_LONG with sun and LP64
