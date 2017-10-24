@@ -226,6 +226,10 @@ WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
 #ifdef WOLFSSL_KEY_GEN
     WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey*, byte* output, word32 inLen);
     WOLFSSL_API int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng);
+    WOLFSSL_API int wc_CheckProbablePrime(const byte* p, word32 pSz,
+                                          const byte* q, word32 qSz,
+                                          const byte* e, word32 eSz,
+                                          int nlen, int* isPrime);
 #endif
 
 #endif /* HAVE_USER_RSA */
