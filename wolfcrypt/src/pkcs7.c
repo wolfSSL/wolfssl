@@ -993,7 +993,7 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
                                     esd->contentInfoSeq);
 
     esd->issuerSnSz = SetSerialNumber(pkcs7->issuerSn, pkcs7->issuerSnSz,
-                                     esd->issuerSn);
+                                     esd->issuerSn, MAX_SN_SZ);
     signerInfoSz += esd->issuerSnSz;
     esd->issuerNameSz = SetSequence(pkcs7->issuerSz, esd->issuerName);
     signerInfoSz += esd->issuerNameSz + pkcs7->issuerSz;
@@ -2576,7 +2576,7 @@ static int wc_CreateRecipientInfo(const byte* cert, word32 certSz,
 #endif
         return -1;
     }
-    snSz = SetSerialNumber(decoded->serial, decoded->serialSz, serial);
+    snSz = SetSerialNumber(decoded->serial, decoded->serialSz, serial, MAX_SN_SZ);
 
     issuerSerialSeqSz = SetSequence(issuerSeqSz + issuerSz + snSz,
                                     issuerSerialSeq);
