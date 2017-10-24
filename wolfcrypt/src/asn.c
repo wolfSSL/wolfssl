@@ -461,12 +461,6 @@ time_t XTIME(time_t * timer)
 #endif /* WOLFSSL_TIRTOS */
 
 
-static INLINE word32 btoi(byte b)
-{
-    return (word32)(b - 0x30);
-}
-
-
 /* two byte date/time, add to value */
 static INLINE void GetTime(int* value, const byte* date, int* idx)
 {

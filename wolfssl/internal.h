@@ -200,9 +200,6 @@
     extern "C" {
 #endif
 
-
-typedef byte word24[3];
-
 /* Define or comment out the cipher suites you'd like to be compiled in
    make sure to use at least one BUILD_SSL_xxx or BUILD_TLS_xxx is defined
 
@@ -3789,9 +3786,6 @@ WOLFSSL_LOCAL word32  LowResTimer(void);
     WOLFSSL_LOCAL void FreeX509(WOLFSSL_X509*);
     WOLFSSL_LOCAL int  CopyDecodedToX509(WOLFSSL_X509*, DecodedCert*);
 #endif
-
-/* used by ssl.c and internal.c */
-WOLFSSL_LOCAL void c32to24(word32 in, word24 out);
 
 WOLFSSL_LOCAL const char* const* GetCipherNames(void);
 WOLFSSL_LOCAL int GetCipherNamesSize(void);
