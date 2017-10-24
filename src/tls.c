@@ -952,8 +952,9 @@ static int TLSX_Push(TLSX** list, TLSX_Type type, void* data, void* heap)
 
             TLSX_FreeAll(next, heap);
 
-            /* there is no way to occur more than */
-            /* two extensions of the same type.   */
+            /* there is no way to occur more than
+             * two extensions of the same type.
+             */
             break;
         }
     } while ((extension = extension->next));
@@ -968,10 +969,10 @@ void TLSX_SetResponse(WOLFSSL* ssl, TLSX_Type type);
 
 void TLSX_SetResponse(WOLFSSL* ssl, TLSX_Type type)
 {
-    TLSX *ext = TLSX_Find(ssl->extensions, type);
+    TLSX *extension = TLSX_Find(ssl->extensions, type);
 
-    if (ext)
-        ext->resp = 1;
+    if (extension)
+        extension->resp = 1;
 }
 
 #endif
@@ -1480,7 +1481,7 @@ static word16 TLSX_SNI_Write(SNI* list, byte* output)
 /** Finds a SNI object in the provided list. */
 static SNI* TLSX_SNI_Find(SNI *list, byte type)
 {
-    SNI *sni = list;
+    SNI* sni = list;
 
     while (sni && sni->type != type)
         sni = sni->next;
@@ -1532,16 +1533,30 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
     (void)input;
 
     if (!extension || !extension->data) {
+        /* server_side */
+        if (isRequest) {
 #if defined(WOLFSSL_ALWAYS_KEEP_SNI) && !defined(NO_WOLFSSL_SERVER)
-        /* This will keep SNI even though TLSX_UseSNI has not been called.
-         * Enable it so that the received sni is available to functions
-         * that use a custom callback when SNI is received */
-        cacheOnly = 1;
-        WOLFSSL_MSG("Forcing SSL object to store SNI parameter");
+            /* This will keep SNI even though TLSX_UseSNI has not been called.
+            * Enable it so that the received sni is available to functions
+            * that use a custom callback when SNI is received.
+            */
+
+            cacheOnly = 1;
+            WOLFSSL_MSG("Forcing SSL object to store SNI parameter");
 #else
-        return isRequest ? 0             /* not using SNI.           */
-                         : BUFFER_ERROR; /* unexpected SNI response. */
+            /* Skipping, SNI not enabled at server side. */
+            return 0;
 #endif
+        }
+        /* client_side */
+        else {
+#ifdef WOLFSSL_SKIP_UNEXPECTED_TLSX
+            return 0;
+#else
+            SendAlert(ssl, alert_fatal, unsupported_extension);
+            return UNSUPPORTED_EXTENSION;
+#endif
+        }
     }
 
     if (!isRequest)
@@ -1587,9 +1602,9 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
                     break;
 #endif
                 byte matched = cacheOnly ||
-                            ((XSTRLEN(sni->data.host_name) == size)
-                            && (XSTRNCMP(sni->data.host_name,
-                                       (const char*)input + offset, size) == 0));
+                    ((XSTRLEN(sni->data.host_name) == size) &&
+                    (XSTRNCMP(sni->data.host_name,
+                                      (const char*)input + offset, size) == 0));
 
                 if (matched || sni->options & WOLFSSL_SNI_ANSWER_ON_MISMATCH) {
                     int r = TLSX_UseSNI(&ssl->extensions,
@@ -1678,7 +1693,7 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size,
                                                                      void* heap)
 {
     TLSX* extension;
-    SNI*  sni       = NULL;
+    SNI* sni = NULL;
 
     if (extensions == NULL || data == NULL)
         return BAD_FUNC_ARG;
@@ -1689,6 +1704,7 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size,
     extension = TLSX_Find(*extensions, TLSX_SERVER_NAME);
     if (!extension) {
         int ret = TLSX_Push(extensions, TLSX_SERVER_NAME, (void*)sni, heap);
+
         if (ret != 0) {
             TLSX_SNI_Free(sni, heap);
             return ret;
@@ -1702,13 +1718,14 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size,
         /* remove duplicate SNI, there should be only one of each type. */
         do {
             if (sni->next && sni->next->type == type) {
-                SNI *next = sni->next;
+                SNI* next = sni->next;
 
                 sni->next = next->next;
                 TLSX_SNI_Free(next, heap);
 
-                /* there is no way to occur more than */
-                /* two SNIs of the same type.         */
+                /* there is no way to occur more than
+                 * two SNIs of the same type.
+                 */
                 break;
             }
         } while ((sni = sni->next));
@@ -1753,8 +1770,8 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
                            byte type, byte* sni, word32* inOutSz)
 {
     word32 offset = 0;
-    word32 len32  = 0;
-    word16 len16  = 0;
+    word32 len32 = 0;
+    word16 len16 = 0;
 
     if (helloSz < RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + CLIENT_HELLO_FIRST)
         return INCOMPLETE_DATA;
