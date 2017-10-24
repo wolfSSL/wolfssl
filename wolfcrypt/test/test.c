@@ -12966,7 +12966,7 @@ static int ed25519_test_cert(void)
 #endif /* HAVE_ED25519_VERIFY */
     int          ret;
     byte*        tmp;
-    int          bytes;
+    size_t       bytes;
     FILE*        file;
 
     tmp = XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);

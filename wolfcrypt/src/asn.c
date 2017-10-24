@@ -6396,7 +6396,8 @@ WOLFSSL_LOCAL int SetMyVersion(word32 version, byte* output, int header)
 }
 
 
-WOLFSSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output)
+WOLFSSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output,
+    int maxSnSz)
 {
     int i = 0;
     int snSzInt = (int)snSz;
@@ -6410,14 +6411,27 @@ WOLFSSL_LOCAL int SetSerialNumber(const byte* sn, word32 snSz, byte* output)
         sn++;
     }
 
+    /* truncate if input is too long */
+    if (snSzInt > maxSnSz)
+        snSzInt = maxSnSz;
+
     /* encode ASN Integer, with length and value */
     output[i++] = ASN_INTEGER;
-    i += SetLength(snSzInt, &output[i]);
-    XMEMCPY(&output[i], sn, snSzInt);
 
-    if (snSzInt > 0) {
-        /* ensure positive (MSB not set) */
-        output[i] &= ~0x80;
+    /* handle MSB, to make sure value is positive */
+    if (sn[0] & 0x80) {
+        /* make room for zero pad */
+        if (snSzInt > maxSnSz-1)
+            snSzInt = maxSnSz-1;
+
+        /* add zero pad */
+        i += SetLength(snSzInt+1, &output[i]);
+        output[i++] = 0x00;
+        XMEMCPY(&output[i], sn, snSzInt);
+    }
+    else {
+        i += SetLength(snSzInt, &output[i]);
+        XMEMCPY(&output[i], sn, snSzInt);
     }
 
     /* compute final length */
@@ -8198,10 +8212,8 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
         if (ret != 0)
             return ret;
     }
-    else if (cert->serialSz > CTC_SERIAL_SIZE) {
-        cert->serialSz = CTC_SERIAL_SIZE;
-    }
-    der->serialSz = SetSerialNumber(cert->serial, cert->serialSz, der->serial);
+    der->serialSz = SetSerialNumber(cert->serial, cert->serialSz, der->serial,
+        CTC_SERIAL_SIZE);
     if (der->serialSz < 0)
         return der->serialSz;
 
@@ -11112,12 +11124,9 @@ int EncodeOcspRequest(OcspRequest* req, byte* output, word32 size)
     algoSz = SetAlgoID(SHAh, algoArray, oidHashType, 0);
 #endif
 
-    if (req->serialSz > EXTERNAL_SERIAL_SIZE)
-        req->serialSz = EXTERNAL_SERIAL_SIZE;
-
     issuerSz    = SetDigest(req->issuerHash,    KEYID_SIZE,    issuerArray);
     issuerKeySz = SetDigest(req->issuerKeyHash, KEYID_SIZE,    issuerKeyArray);
-    snSz        = SetSerialNumber(req->serial,  req->serialSz, snArray);
+    snSz        = SetSerialNumber(req->serial,  req->serialSz, snArray, MAX_SN_SZ);
     extSz       = 0;
 
     if (snSz < 0)
