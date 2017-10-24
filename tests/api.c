@@ -10641,7 +10641,7 @@ static void test_wc_ecc_get_curve_id_from_params(void)
     {
         int ret = 0;
         /* self-signed ECC cert, so use server cert as CA */
-        const char* ca_cert = "./certs/server-ecc.pem";
+        const char* ca_cert = "./certs/ca-ecc-cert.pem";
         const char* server_cert = "./certs/server-ecc.der";
         byte* cert_buf = NULL;
         size_t cert_sz = 0;

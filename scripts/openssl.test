@@ -269,9 +269,12 @@ do
         psk=""
         adh=""
         port=$openssl_port
+        caCert=""
         case $wolfSuite in
         *ECDH-RSA*)
             port=$ecdh_port ;;
+        *ECDHE-ECDSA*|*ECDH-ECDSA*)
+            caCert="-A./certs/ca-ecc-cert.pem" ;;
         *PSK*)
             psk="-s " ;;
         *ADH*)
@@ -280,10 +283,10 @@ do
 
         if [ $version -lt 4 ]
         then
-            ./examples/client/client -p $port -g -r -l $wolfSuite -v $version $psk $adh
+            ./examples/client/client -p $port -g -r -l $wolfSuite -v $version $psk $adh $caCert
         else
             # do all versions
-            ./examples/client/client -p $port -g -r -l $wolfSuite $psk $adh
+            ./examples/client/client -p $port -g -r -l $wolfSuite $psk $adh $caCert
         fi
 
         client_result=$?

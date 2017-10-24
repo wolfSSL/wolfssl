@@ -265,6 +265,7 @@
 #define dhParamFile    "certs/dh2048.pem"
 #define cliEccKeyFile  "certs/ecc-client-key.pem"
 #define cliEccCertFile "certs/client-ecc-cert.pem"
+#define caEccCertFile  "certs/ca-ecc-cert/pem"
 #define crlPemDir      "certs/crl"
 #ifdef HAVE_WNR
     /* Whitewood netRandom default config file */
@@ -283,6 +284,7 @@
 #define dhParamFile    "./certs/dh2048.pem"
 #define cliEccKeyFile  "./certs/ecc-client-key.pem"
 #define cliEccCertFile "./certs/client-ecc-cert.pem"
+#define caEccCertFile  "./certs/ca-ecc-cert.pem"
 #define crlPemDir      "./certs/crl"
 #ifdef HAVE_WNR
     /* Whitewood netRandom default config file */

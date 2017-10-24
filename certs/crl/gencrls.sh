@@ -55,6 +55,28 @@ mv tmp crl.revoked
 # remove revoked so next time through the normal CA won't have server revoked
 cp blank.index.txt demoCA/index.txt
 
+# caEccCrl
+openssl ca -config ../renewcerts/wolfssl.cnf -revoke ../server-revoked-cert.pem -keyfile ../ca-ecc-key.pem -cert ../ca-ecc-cert.pem
+
+openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out caEccCrl.pem -keyfile ../ca-ecc-key.pem -cert ../ca-ecc-cert.pem
+
+# metadata
+openssl crl -in caEccCrl.pem -text > tmp
+mv tmp caEccCrl.pem
+# install (only needed if working outside wolfssl)
+#cp caEccCrl.pem ~/wolfssl/certs/crl/caEccCrl.pem
+
+# caEcc384Crl
+openssl ca -config ../renewcerts/wolfssl.cnf -revoke ../server-revoked-cert.pem -keyfile ../ca-ecc384-key.pem -cert ../ca-ecc384-cert.pem
+
+openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out caEcc384Crl.pem -keyfile ../ca-ecc384-key.pem -cert ../ca-ecc384-cert.pem
+
+# metadata
+openssl crl -in caEcc384Crl.pem -text > tmp
+mv tmp caEcc384Crl.pem
+# install (only needed if working outside wolfssl)
+#cp caEcc384Crl.pem ~/wolfssl/certs/crl/caEcc384Crl.pem
+
 # cliCrl
 openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out cliCrl.pem -keyfile ../client-key.pem -cert ../client-cert.pem
 

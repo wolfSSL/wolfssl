@@ -11,6 +11,12 @@ endif
 if BUILD_EXAMPLE_SERVERS
 
 dist_noinst_SCRIPTS+= scripts/resume.test
+
+# only run this test if we have the ability to support cert validation
+if BUILD_PKI
+dist_noinst_SCRIPTS+= scripts/tls-cert-fail.test
+endif
+
 EXTRA_DIST+= scripts/benchmark.test
 
 if BUILD_CRL

@@ -177,6 +177,10 @@
     #include <stdio.h>
 #endif
 
+#if defined(WOLFSSL_CERT_GEN) && (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES))
+    #define ENABLE_ECC384_CERT_GEN_TEST
+#endif
+
 
 #ifdef THREADX
     /* since just testing, use THREADX log printf instead */
@@ -727,20 +731,6 @@ int wolfcrypt_test(void* args)
         printf( "RSA      test passed!\n");
 #endif
 
-#if !defined(NO_ASN_TIME) && !defined(NO_RSA) && defined(WOLFSSL_TEST_CERT)
-    if ( (ret = cert_test()) != 0)
-        return err_sys("CERT     test failed!\n", ret);
-    else
-        printf( "CERT     test passed!\n");
-#endif
-
-#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT)
-    if ( (ret = certext_test()) != 0)
-        return err_sys("CERT EXT test failed!\n", ret);
-    else
-        printf( "CERT EXT test passed!\n");
-#endif
-
 #ifndef NO_DH
     if ( (ret = dh_test()) != 0)
         return err_sys("DH       test failed!\n", ret);
@@ -793,6 +783,20 @@ int wolfcrypt_test(void* args)
         else
             printf( "ECC buffer test passed!\n");
     #endif
+#endif
+
+#if !defined(NO_ASN_TIME) && !defined(NO_RSA) && defined(WOLFSSL_TEST_CERT)
+    if ( (ret = cert_test()) != 0)
+        return err_sys("CERT     test failed!\n", ret);
+    else
+        printf( "CERT     test passed!\n");
+#endif
+
+#if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT)
+    if ( (ret = certext_test()) != 0)
+        return err_sys("CERT EXT test failed!\n", ret);
+    else
+        printf( "CERT EXT test passed!\n");
 #endif
 
 #ifdef HAVE_CURVE25519
@@ -915,6 +919,64 @@ int wolfcrypt_test(void* args)
 
 #endif /* NO_MAIN_DRIVER */
 
+/* helper to save DER, convert to PEM and save PEM */
+#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
+#define SaveDerAndPem(d, dSz, p, pSz, fD, fP, pT, eB) _SaveDerAndPem(d, dSz, p, pSz, fD, fP, pT, eB)
+#else
+#define SaveDerAndPem(d, dSz, p, pSz, fD, fP, pT, eB) _SaveDerAndPem(d, dSz, p, pSz, NULL, NULL, pT, eB)
+#endif
+
+static int _SaveDerAndPem(const byte* der, int derSz,
+    byte* pem, int pemSz, const char* fileDer,
+    const char* filePem, int pemType, int errBase)
+{
+    int ret;
+#if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
+    FILE* derFile;
+
+    derFile = fopen(fileDer, "wb");
+    if (!derFile) {
+        return errBase + 0;
+    }
+    ret = (int)fwrite(der, 1, derSz, derFile);
+    fclose(derFile);
+    if (ret != derSz) {
+        return errBase + 1;
+    }
+#endif
+
+    if (pem && filePem) {
+    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
+        FILE* pemFile;
+    #endif
+
+        pemSz = wc_DerToPem(der, derSz, pem, pemSz, pemType);
+        if (pemSz < 0) {
+            return errBase + 2;
+        }
+
+    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
+        pemFile = fopen(filePem, "wb");
+        if (!pemFile) {
+            return errBase + 3;
+        }
+        ret = (int)fwrite(pem, 1, pemSz, pemFile);
+        fclose(pemFile);
+        if (ret != pemSz) {
+            return errBase + 4;
+        }
+    #endif
+    }
+
+    /* suppress unused variable warnings */
+    (void)filePem;
+    (void)fileDer;
+
+    return 0;
+}
+#endif /* WOLFSSL_KEY_GEN || WOLFSSL_CERT_GEN */
 
 int error_test(void)
 {
@@ -6765,16 +6827,23 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 #if !defined(USE_CERT_BUFFERS_256) && !defined(NO_ASN)
     #ifdef HAVE_ECC
         /* cert files to be used in rsa cert gen test, check if RSA enabled */
-        #if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
-            static const char* eccCaCertFile = CERT_ROOT "server-ecc.pem";
+        #ifdef HAVE_ECC_KEY_IMPORT
+            static const char* eccKeyDerFile = CERT_ROOT "ecc-key.der";
         #endif
-            static const char* eccCaKeyFile  = CERT_ROOT   "ecc-key.der";
+        #ifdef WOLFSSL_CERT_GEN
+            static const char* eccKeyPubFile = CERT_ROOT "ecc-keyPub.der";
+            static const char* eccCaKeyFile  = CERT_ROOT "ca-ecc-key.der";
+            static const char* eccCaCertFile = CERT_ROOT "ca-ecc-cert.pem";
+            #ifdef ENABLE_ECC384_CERT_GEN_TEST
+                static const char* eccCaKey384File =
+                                               CERT_ROOT "ca-ecc384-key.der";
+                static const char* eccCaCert384File =
+                                               CERT_ROOT "ca-ecc384-cert.pem";
+            #endif
+        #endif
         #if defined(HAVE_PKCS7) && defined(HAVE_ECC)
             static const char* eccClientKey  = CERT_ROOT "ecc-client-key.der";
             static const char* eccClientCert = CERT_ROOT "client-ecc-cert.der";
-        #endif
-        #ifdef WOLFSSL_CERT_EXT
-            static const char* eccCaKeyPubFile  = CERT_ROOT "ecc-keyPub.der";
         #endif
     #endif /* HAVE_ECC */
     #ifdef HAVE_ED25519
@@ -6789,20 +6858,21 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 
 #ifndef NO_WRITE_TEMP_FILES
 #ifdef HAVE_ECC
-    /* Temporary Cert Files to be used in rsa cert gen test, is RSA enabled */
+    #ifdef WOLFSSL_CERT_GEN
+         static const char* certEccPemFile =   CERT_PREFIX "certecc.pem";
+    #endif
     #if defined(WOLFSSL_CERT_GEN) && !defined(NO_RSA)
-        static const char* certEccPemFile = CERT_PREFIX "certecc.pem";
+        static const char* certEccRsaPemFile = CERT_PREFIX "certeccrsa.pem";
+        static const char* certEccRsaDerFile = CERT_PREFIX "certeccrsa.der";
     #endif
     #ifdef WOLFSSL_KEY_GEN
         static const char* eccCaKeyPemFile  = CERT_PREFIX "ecc-key.pem";
         static const char* eccPubKeyDerFile = CERT_PREFIX "ecc-public-key.der";
         static const char* eccCaKeyTempFile = CERT_PREFIX "ecc-key.der";
     #endif
-    #ifndef NO_RSA
-      #if defined(WOLFSSL_CERT_GEN) || \
+    #if defined(WOLFSSL_CERT_GEN) || \
             (defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT))
         static const char* certEccDerFile = CERT_PREFIX "certecc.der";
-      #endif
     #endif
 #endif /* HAVE_ECC */
 
@@ -6815,17 +6885,44 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         static const char* otherCertPemFile = CERT_PREFIX "othercert.pem";
         static const char* certPemFile = CERT_PREFIX "cert.pem";
     #endif
-    #ifdef WOLFSSL_KEY_GEN
-        static const char* keyDerFile = CERT_PREFIX "key.der";
-        static const char* keyPemFile = CERT_PREFIX "key.pem";
-    #endif
     #ifdef WOLFSSL_CERT_REQ
         static const char* certReqDerFile = CERT_PREFIX "certreq.der";
         static const char* certReqPemFile = CERT_PREFIX "certreq.pem";
     #endif
 #endif /* !NO_RSA */
+
+#if !defined(NO_RSA) || !defined(NO_DSA)
+    #ifdef WOLFSSL_KEY_GEN
+        static const char* keyDerFile = CERT_PREFIX "key.der";
+        static const char* keyPemFile = CERT_PREFIX "key.pem";
+    #endif
+#endif
+
 #endif /* !NO_WRITE_TEMP_FILES */
 #endif /* !NO_FILESYSTEM */
+
+
+#ifdef WOLFSSL_CERT_GEN
+static const CertName certDefaultName = {
+    "US",               CTC_PRINTABLE,  /* country */
+    "Orgeon",           CTC_UTF8,       /* state */
+    "Portland",         CTC_UTF8,       /* locality */
+    "Test",             CTC_UTF8,       /* sur */
+    "wolfSSL",          CTC_UTF8,       /* org */
+    "Development",      CTC_UTF8,       /* unit */
+    "www.wolfssl.com",  CTC_UTF8,       /* commonName */
+    "info@wolfssl.com"                  /* email */
+};
+
+#ifdef WOLFSSL_CERT_EXT
+    static const char certKeyUsage[] =
+        "digitalSignature,nonRepudiation";
+    #if defined(WOLFSSL_CERT_REQ) || defined(HAVE_NTRU)
+        static const char certKeyUsage2[] =
+        "digitalSignature,nonRepudiation,keyEncipherment,keyAgreement";
+    #endif
+#endif /* WOLFSSL_CERT_EXT */
+#endif /* WOLFSSL_CERT_GEN */
 
 #ifndef NO_RSA
 
@@ -6849,16 +6946,14 @@ int cert_test(void)
     file = fopen("./certs/test/cert-ext-nc.der", "rb");
 #endif
     if (!file) {
-        ret = -5201;
-        goto done;
+        ERROR_OUT(-5201, done);
     }
     bytes = fread(tmp, 1, FOURK_BUF, file);
     fclose(file);
     InitDecodedCert(&cert, tmp, (word32)bytes, 0);
     ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
     if (ret != 0) {
-        ret = -5202;
-        goto done;
+        ERROR_OUT(-5202, done);
     }
     FreeDecodedCert(&cert);
 
@@ -6869,16 +6964,14 @@ int cert_test(void)
     file = fopen("./certs/test/cert-ext-ia.der", "rb");
 #endif
     if (!file) {
-        ret = -5203;
-        goto done;
+        ERROR_OUT(-5203, done);
     }
     bytes = fread(tmp, 1, FOURK_BUF, file);
     fclose(file);
     InitDecodedCert(&cert, tmp, (word32)bytes, 0);
     ret = ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
     if (ret != 0) {
-        ret = -5204;
-        goto done;
+        ERROR_OUT(-5204, done);
     }
 
 done:
@@ -6907,10 +7000,17 @@ int certext_test(void)
                       "\x33\x63\xB3\xA4\xD8\x1D\x30\xE5\xE8\xD5";
 
 #ifdef HAVE_ECC
-    /* created from rsa_test : certecc.der */
-    byte akid_ecc[] = "\x5D\x5D\x26\xEF\xAC\x7E\x36\xF9\x9B\x76"
-                      "\x15\x2B\x4A\x25\x02\x23\xEF\xB2\x89\x30";
+   /* created from ecc_test_cert_gen : certecc.der */
+#ifdef ENABLE_ECC384_CERT_GEN_TEST
+    /* Authority key id from ./certs/ca-ecc384-cert.pem */
+    byte akid_ecc[] = "\xAB\xE0\xC3\x26\x4C\x18\xD4\x72\xBB\xD2"
+                      "\x84\x8C\x9C\x0A\x05\x92\x80\x12\x53\x52";
+#else
+    /* Authority key id from ./certs/ca-ecc-cert.pem */
+    byte akid_ecc[] = "\x56\x8E\x9A\xC3\xF0\x42\xDE\x18\xB9\x45"
+                      "\x55\x6E\xF9\x93\xCF\xEA\xC3\xF3\xA5\x21";
 #endif
+#endif /* HAVE_ECC */
 
     /* created from rsa_test : cert.der */
     byte kid_ca[] = "\x33\xD8\x45\x66\xD7\x68\x87\x18\x7E\x54"
@@ -6967,7 +7067,7 @@ int certext_test(void)
     FreeDecodedCert(&cert);
 
 #ifdef HAVE_ECC
-    /* load certecc.der (Cert signed by an authority) */
+    /* load certecc.der (Cert signed by our ECC CA test in ecc_test_cert_gen) */
     file = fopen(certEccDerFile, "rb");
     if (!file) {
         XFREE(tmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
@@ -6983,9 +7083,7 @@ int certext_test(void)
     if (ret != 0)
         return -5311;
 
-    /* check the SKID from a ECC certificate */
-    if (XMEMCMP(skid_rsa, cert.extSubjKeyId, sizeof(cert.extSubjKeyId)))
-        return -5312;
+    /* check the SKID from a ECC certificate - generated dynamically */
 
     /* check the AKID from an ECC certificate */
     if (XMEMCMP(akid_ecc, cert.extAuthKeyId, sizeof(cert.extAuthKeyId)))
@@ -7566,9 +7664,7 @@ int rsa_test(void)
 #ifdef HAVE_ECC
     #ifdef WOLFSSL_CERT_GEN
         ecc_key caEccKey;
-        #ifdef WOLFSSL_CERT_EXT
-            ecc_key caEccKeyPub;
-        #endif
+        ecc_key caEccKeyPub;
     #endif
 #endif /* HAVE_ECC */
     word32 idx = 0;
@@ -7609,9 +7705,7 @@ int rsa_test(void)
 #ifdef HAVE_ECC
     #ifdef WOLFSSL_CERT_GEN
         XMEMSET(&caEccKey, 0, sizeof(caEccKey));
-        #ifdef WOLFSSL_CERT_EXT
-            XMEMSET(&caEccKeyPub, 0, sizeof(caEccKeyPub));
-        #endif
+        XMEMSET(&caEccKeyPub, 0, sizeof(caEccKeyPub));
     #endif
 #endif /* HAVE_ECC */
 
@@ -8121,12 +8215,6 @@ int rsa_test(void)
 #ifdef WOLFSSL_KEY_GEN
     {
         int    derSz = 0;
-        int    pemSz = 0;
-    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-        FILE*  keyFile;
-        FILE*  pemFile;
-    #endif
-
         ret = wc_InitRsaKey(&genKey, HEAP_HINT);
         if (ret != 0) {
             ERROR_OUT(-5550, exit_rsa);
@@ -8150,34 +8238,11 @@ int rsa_test(void)
             ERROR_OUT(-5554, exit_rsa);
         }
 
-    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-        keyFile = fopen(keyDerFile, "wb");
-        if (!keyFile) {
-            ERROR_OUT(-5555, exit_rsa);
+        ret = SaveDerAndPem(der, derSz, pem, FOURK_BUF, keyDerFile, keyPemFile,
+            PRIVATEKEY_TYPE, -5555);
+        if (ret != 0) {
+            goto exit_rsa;
         }
-        ret = (int)fwrite(der, 1, derSz, keyFile);
-        fclose(keyFile);
-        if (ret != derSz) {
-            ERROR_OUT(-5556, exit_rsa);
-        }
-    #endif
-
-        pemSz = wc_DerToPem(der, derSz, pem, FOURK_BUF, PRIVATEKEY_TYPE);
-        if (pemSz < 0) {
-            ERROR_OUT(-5557, exit_rsa);
-        }
-
-    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-        pemFile = fopen(keyPemFile, "wb");
-        if (!pemFile) {
-            ERROR_OUT(-5558, exit_rsa);
-        }
-        ret = (int)fwrite(pem, 1, pemSz, pemFile);
-        fclose(pemFile);
-        if (ret != pemSz) {
-            ERROR_OUT(-5559, exit_rsa);
-        }
-    #endif
 
         wc_FreeRsaKey(&genKey);
         ret = wc_InitRsaKey(&genKey, HEAP_HINT);
@@ -8203,12 +8268,7 @@ int rsa_test(void)
     {
         Cert        myCert;
         const byte  mySerial[8] = {1,2,3,4,5,6,7,8};
-    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-        FILE*       derFile;
-        FILE*       pemFile;
-    #endif
         int         certSz;
-        int         pemSz;
     #ifdef WOLFSSL_TEST_CERT
         DecodedCert decode;
     #endif
@@ -8226,17 +8286,16 @@ int rsa_test(void)
             ERROR_OUT(-5572, exit_rsa);
         }
 
-        XSTRNCPY(myCert.subject.country, "US", CTC_NAME_SIZE);
-        XSTRNCPY(myCert.subject.state, "OR", CTC_NAME_SIZE);
-        XSTRNCPY(myCert.subject.locality, "Portland", CTC_NAME_SIZE);
-        XSTRNCPY(myCert.subject.org, "yaSSL", CTC_NAME_SIZE);
-        XSTRNCPY(myCert.subject.unit, "Development", CTC_NAME_SIZE);
-        XSTRNCPY(myCert.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
-        XSTRNCPY(myCert.subject.email, "info@yassl.com", CTC_NAME_SIZE);
+        XMEMCPY(&myCert.subject, &certDefaultName, sizeof(CertName));
         XMEMCPY(myCert.serial, mySerial, sizeof(mySerial));
         myCert.serialSz = (int)sizeof(mySerial);
         myCert.isCA    = 1;
+    #ifndef NO_SHA256
         myCert.sigType = CTC_SHA256wRSA;
+    #else
+        myCert.sigType = CTC_SHAwRSA;
+    #endif
+
 
     #ifdef WOLFSSL_CERT_EXT
         /* add Policies */
@@ -8286,49 +8345,170 @@ int rsa_test(void)
         FreeDecodedCert(&decode);
     #endif
 
-    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-        derFile = fopen(certDerFile, "wb");
-        if (!derFile) {
-            ERROR_OUT(-5578, exit_rsa);
+        ret = SaveDerAndPem(der, certSz, pem, FOURK_BUF, certDerFile,
+            certPemFile, CERT_TYPE, -5578);
+        if (ret != 0) {
+            goto exit_rsa;
         }
-        ret = (int)fwrite(der, 1, certSz, derFile);
-        fclose(derFile);
-        if (ret != certSz) {
-            ERROR_OUT(-5579, exit_rsa);
-        }
-    #endif
-
-        pemSz = wc_DerToPem(der, certSz, pem, FOURK_BUF, CERT_TYPE);
-        if (pemSz < 0) {
-            ERROR_OUT(-5580, exit_rsa);
-        }
-
-    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-        pemFile = fopen(certPemFile, "wb");
-        if (!pemFile) {
-            ERROR_OUT(-5581, exit_rsa);
-        }
-        ret = (int)fwrite(pem, 1, pemSz, pemFile);
-        fclose(pemFile);
-        if (ret != pemSz) {
-            ERROR_OUT(-5582, exit_rsa);
-        }
-    #endif
 
         XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         pem = NULL;
         XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         der = NULL;
     }
-    /* CA style */
+    /* Make Cert / Sign example for RSA cert and RSA CA */
     {
         Cert        myCert;
-    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-        FILE*       derFile;
-        FILE*       pemFile;
-    #endif
         int         certSz;
-        int         pemSz;
+        size_t      bytes3;
+        word32      idx3 = 0;
+    #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
+        FILE*       file3;
+    #endif
+    #ifdef WOLFSSL_TEST_CERT
+        DecodedCert decode;
+    #endif
+
+        der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        if (der == NULL) {
+            ERROR_OUT(-5580, exit_rsa);
+        }
+        pem = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,DYNAMIC_TYPE_TMP_BUFFER);
+        if (pem == NULL) {
+            ERROR_OUT(-5581, exit_rsa);
+        }
+
+        /* Get CA Key */
+    #ifdef USE_CERT_BUFFERS_1024
+        XMEMCPY(tmp, ca_key_der_1024, sizeof_ca_key_der_1024);
+        bytes3 = sizeof_ca_key_der_1024;
+    #elif defined(USE_CERT_BUFFERS_2048)
+        XMEMCPY(tmp, ca_key_der_2048, sizeof_ca_key_der_2048);
+        bytes3 = sizeof_ca_key_der_2048;
+    #else
+        file3 = fopen(rsaCaKeyFile, "rb");
+        if (!file3) {
+            ERROR_OUT(-5582, exit_rsa);
+        }
+
+        bytes3 = fread(tmp, 1, FOURK_BUF, file3);
+        fclose(file3);
+    #endif /* USE_CERT_BUFFERS */
+
+        ret = wc_InitRsaKey(&caKey, HEAP_HINT);
+        if (ret != 0) {
+            ERROR_OUT(-5583, exit_rsa);
+        }
+        ret = wc_RsaPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes3);
+        if (ret != 0) {
+            ERROR_OUT(-5584, exit_rsa);
+        }
+
+        /* Setup Certificate */
+        if (wc_InitCert(&myCert)) {
+            ERROR_OUT(-5585, exit_rsa);
+        }
+
+    #ifndef NO_SHA256
+        myCert.sigType = CTC_SHA256wRSA;
+    #else
+        myCert.sigType = CTC_SHAwRSA;
+    #endif
+
+        XMEMCPY(&myCert.subject, &certDefaultName, sizeof(CertName));
+
+    #ifdef WOLFSSL_CERT_EXT
+        /* add Policies */
+        XSTRNCPY(myCert.certPolicies[0], "2.16.840.1.101.3.4.1.42",
+                CTC_MAX_CERTPOL_SZ);
+        myCert.certPoliciesNb =1;
+
+        /* add SKID from the Public Key */
+        if (wc_SetSubjectKeyIdFromPublicKey(&myCert, &key, NULL) != 0) {
+            ERROR_OUT(-5586, exit_rsa);
+        }
+
+        /* add AKID from the CA certificate */
+    #if defined(USE_CERT_BUFFERS_2048)
+        ret = wc_SetAuthKeyIdFromCert(&myCert, ca_cert_der_2048,
+                                            sizeof_ca_cert_der_2048);
+    #elif defined(USE_CERT_BUFFERS_1024)
+        ret = wc_SetAuthKeyIdFromCert(&myCert, ca_cert_der_1024,
+                                            sizeof_ca_cert_der_1024);
+    #else
+        ret = wc_SetAuthKeyId(&myCert, rsaCaCertFile);
+    #endif
+        if (ret != 0) {
+            ERROR_OUT(-5587, exit_rsa);
+        }
+
+        /* add Key Usage */
+        if (wc_SetKeyUsage(&myCert,"keyEncipherment,keyAgreement") != 0) {
+            ERROR_OUT(-5588, exit_rsa);
+        }
+    #endif /* WOLFSSL_CERT_EXT */
+
+    #if defined(USE_CERT_BUFFERS_2048)
+        ret = wc_SetIssuerBuffer(&myCert, ca_cert_der_2048,
+                                          sizeof_ca_cert_der_2048);
+    #elif defined(USE_CERT_BUFFERS_1024)
+        ret = wc_SetIssuerBuffer(&myCert, ca_cert_der_1024,
+                                          sizeof_ca_cert_der_1024);
+    #else
+        ret = wc_SetIssuer(&myCert, rsaCaCertFile);
+    #endif
+        if (ret < 0) {
+            ERROR_OUT(-5589, exit_rsa);
+        }
+
+        certSz = wc_MakeCert(&myCert, der, FOURK_BUF, &key, NULL, &rng);
+        if (certSz < 0) {
+            ERROR_OUT(-5590, exit_rsa);
+        }
+
+        ret = 0;
+        do {
+        #if defined(WOLFSSL_ASYNC_CRYPT)
+            ret = wc_AsyncWait(ret, &caKey.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        #endif
+            if (ret >= 0) {
+                ret = wc_SignCert(myCert.bodySz, myCert.sigType, der, FOURK_BUF,
+                          &caKey, NULL, &rng);
+            }
+        } while (ret == WC_PENDING_E);
+        if (ret < 0) {
+            ERROR_OUT(-5591, exit_rsa);
+        }
+        certSz = ret;
+
+    #ifdef WOLFSSL_TEST_CERT
+        InitDecodedCert(&decode, der, certSz, HEAP_HINT);
+        ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
+        if (ret != 0) {
+            FreeDecodedCert(&decode);
+            ERROR_OUT(-5592, exit_rsa);
+        }
+        FreeDecodedCert(&decode);
+    #endif
+
+        ret = SaveDerAndPem(der, certSz, pem, FOURK_BUF, otherCertDerFile,
+            otherCertPemFile, CERT_TYPE, -5593);
+        if (ret != 0) {
+            goto exit_rsa;
+        }
+
+        wc_FreeRsaKey(&caKey);
+
+        XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        pem = NULL;
+        XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        der = NULL;
+    }
+#if !defined(NO_RSA) && defined(HAVE_ECC)
+    /* Make Cert / Sign example for ECC cert and RSA CA */
+    {
+        Cert        myCert;
+        int         certSz;
         size_t      bytes3;
         word32      idx3 = 0;
     #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
@@ -8347,6 +8527,7 @@ int rsa_test(void)
             ERROR_OUT(-5601, exit_rsa);
         }
 
+        /* Get CA Key */
     #ifdef USE_CERT_BUFFERS_1024
         XMEMCPY(tmp, ca_key_der_1024, sizeof_ca_key_der_1024);
         bytes3 = sizeof_ca_key_der_1024;
@@ -8372,194 +8553,43 @@ int rsa_test(void)
             ERROR_OUT(-5604, exit_rsa);
         }
 
-        if (wc_InitCert(&myCert)) {
-            ERROR_OUT(-5617, exit_rsa);
-        }
-
-    #ifdef NO_SHA
-        myCert.sigType = CTC_SHA256wRSA;
-    #endif
-
-        XSTRNCPY(myCert.subject.country, "US", CTC_NAME_SIZE);
-        XSTRNCPY(myCert.subject.state, "OR", CTC_NAME_SIZE);
-        XSTRNCPY(myCert.subject.locality, "Portland", CTC_NAME_SIZE);
-        XSTRNCPY(myCert.subject.org, "yaSSL", CTC_NAME_SIZE);
-        XSTRNCPY(myCert.subject.unit, "Development", CTC_NAME_SIZE);
-        XSTRNCPY(myCert.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
-        XSTRNCPY(myCert.subject.email, "info@yassl.com", CTC_NAME_SIZE);
-
-    #ifdef WOLFSSL_CERT_EXT
-        /* add Policies */
-        XSTRNCPY(myCert.certPolicies[0], "2.16.840.1.101.3.4.1.42",
-                CTC_MAX_CERTPOL_SZ);
-        myCert.certPoliciesNb =1;
-
-        /* add SKID from the Public Key */
-        if (wc_SetSubjectKeyIdFromPublicKey(&myCert, &key, NULL) != 0) {
-            ERROR_OUT(-5605, exit_rsa);
-        }
-
-        /* add AKID from the CA certificate */
-    #if defined(USE_CERT_BUFFERS_2048)
-        ret = wc_SetAuthKeyIdFromCert(&myCert, ca_cert_der_2048,
-                                            sizeof_ca_cert_der_2048);
-    #elif defined(USE_CERT_BUFFERS_1024)
-        ret = wc_SetAuthKeyIdFromCert(&myCert, ca_cert_der_1024,
-                                            sizeof_ca_cert_der_1024);
-    #else
-        ret = wc_SetAuthKeyId(&myCert, rsaCaCertFile);
-    #endif
-        if (ret != 0) {
-            ERROR_OUT(-5606, exit_rsa);
-        }
-
-        /* add Key Usage */
-        if (wc_SetKeyUsage(&myCert,"keyEncipherment,keyAgreement") != 0) {
-            ERROR_OUT(-5607, exit_rsa);
-        }
-    #endif /* WOLFSSL_CERT_EXT */
-
-    #if defined(USE_CERT_BUFFERS_2048)
-        ret = wc_SetIssuerBuffer(&myCert, ca_cert_der_2048,
-                                            sizeof_ca_cert_der_2048);
-    #elif defined(USE_CERT_BUFFERS_1024)
-        ret = wc_SetIssuerBuffer(&myCert, ca_cert_der_1024,
-                                            sizeof_ca_cert_der_1024);
-    #else
-        ret = wc_SetIssuer(&myCert, rsaCaCertFile);
-    #endif
-        if (ret < 0) {
-            ERROR_OUT(-5608, exit_rsa);
-        }
-
-        certSz = wc_MakeCert(&myCert, der, FOURK_BUF, &key, NULL, &rng);
-        if (certSz < 0) {
-            ERROR_OUT(-5609, exit_rsa);
-        }
-
-        ret = 0;
-        do {
-        #if defined(WOLFSSL_ASYNC_CRYPT)
-            ret = wc_AsyncWait(ret, &caKey.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
-        #endif
-            if (ret >= 0) {
-                ret = wc_SignCert(myCert.bodySz, myCert.sigType, der, FOURK_BUF,
-                          &caKey, NULL, &rng);
-            }
-        } while (ret == WC_PENDING_E);
-        if (ret < 0) {
-            ERROR_OUT(-5610, exit_rsa);
-        }
-        certSz = ret;
-
-    #ifdef WOLFSSL_TEST_CERT
-        InitDecodedCert(&decode, der, certSz, HEAP_HINT);
-        ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
-        if (ret != 0) {
-            FreeDecodedCert(&decode);
-            ERROR_OUT(-5611, exit_rsa);
-        }
-        FreeDecodedCert(&decode);
-    #endif
-
-    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-        derFile = fopen(otherCertDerFile, "wb");
-        if (!derFile) {
-            ERROR_OUT(-5612, exit_rsa);
-        }
-        ret = (int)fwrite(der, 1, certSz, derFile);
-        fclose(derFile);
-        if (ret != certSz) {
-            ERROR_OUT(-5613, exit_rsa);
-        }
-    #endif
-
-        pemSz = wc_DerToPem(der, certSz, pem, FOURK_BUF, CERT_TYPE);
-        if (pemSz < 0) {
-            ERROR_OUT(-5614, exit_rsa);
-        }
-
-    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-        pemFile = fopen(otherCertPemFile, "wb");
-        if (!pemFile) {
-            ERROR_OUT(-5615, exit_rsa);
-        }
-        ret = (int)fwrite(pem, 1, pemSz, pemFile);
-        if (ret != pemSz) {
-            fclose(pemFile);
-            ERROR_OUT(-5616, exit_rsa);
-        }
-        fclose(pemFile);
-    #endif
-
-        wc_FreeRsaKey(&caKey);
-        XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        pem = NULL;
-        XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        der = NULL;
-    }
-#ifdef HAVE_ECC
-    /* ECC CA style */
-    {
-        Cert        myCert;
-    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-        FILE*       derFile;
-        FILE*       pemFile;
-    #endif
-        int         certSz;
-        int         pemSz;
-        size_t      bytes3;
-        word32      idx3 = 0;
-    #ifndef USE_CERT_BUFFERS_256
-        FILE*       file3;
-    #endif
-    #ifdef WOLFSSL_TEST_CERT
-        DecodedCert decode;
-    #endif
-
-        der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        if (der == NULL) {
-            ERROR_OUT(-5620, exit_rsa);
-        }
-        pem = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,DYNAMIC_TYPE_TMP_BUFFER);
-        if (pem == NULL) {
-            ERROR_OUT(-5621, exit_rsa);
-        }
-
+        /* Get Cert Key */
     #ifdef USE_CERT_BUFFERS_256
-        XMEMCPY(tmp, ecc_key_der_256, sizeof_ecc_key_der_256);
-        bytes3 = sizeof_ecc_key_der_256;
+        XMEMCPY(tmp, ecc_key_pub_der_256, sizeof_ecc_key_pub_der_256);
+        bytes3 = sizeof_ecc_key_pub_der_256;
     #else
-        file3 = fopen(eccCaKeyFile, "rb");
+        file3 = fopen(eccKeyPubFile, "rb");
         if (!file3) {
-            ERROR_OUT(-5622, exit_rsa);
+            ERROR_OUT(-5605, exit_rsa);
         }
 
         bytes3 = fread(tmp, 1, FOURK_BUF, file3);
         fclose(file3);
-    #endif /* USE_CERT_BUFFERS_256 */
+    #endif
 
-        ret = wc_ecc_init_ex(&caEccKey, HEAP_HINT, devId);
+        ret = wc_ecc_init_ex(&caEccKeyPub, HEAP_HINT, devId);
         if (ret != 0) {
-            ERROR_OUT(-5623, exit_rsa);
-        }
-        ret = wc_EccPrivateKeyDecode(tmp, &idx3, &caEccKey, (word32)bytes3);
-        if (ret != 0) {
-            ERROR_OUT(-5624, exit_rsa);
+            ERROR_OUT(-5606, exit_rsa);
         }
 
+        idx3 = 0;
+        ret = wc_EccPublicKeyDecode(tmp, &idx3, &caEccKeyPub, (word32)bytes3);
+        if (ret != 0) {
+            ERROR_OUT(-5607, exit_rsa);
+        }
+
+        /* Setup Certificate */
         if (wc_InitCert(&myCert)) {
-            ERROR_OUT(-5640, exit_rsa);
+            ERROR_OUT(-5608, exit_rsa);
         }
-        myCert.sigType = CTC_SHA256wECDSA;
 
-        XSTRNCPY(myCert.subject.country, "US", CTC_NAME_SIZE);
-        XSTRNCPY(myCert.subject.state, "OR", CTC_NAME_SIZE);
-        XSTRNCPY(myCert.subject.locality, "Portland", CTC_NAME_SIZE);
-        XSTRNCPY(myCert.subject.org, "wolfSSL", CTC_NAME_SIZE);
-        XSTRNCPY(myCert.subject.unit, "Development", CTC_NAME_SIZE);
-        XSTRNCPY(myCert.subject.commonName, "www.wolfssl.com", CTC_NAME_SIZE);
-        XSTRNCPY(myCert.subject.email, "info@wolfssl.com", CTC_NAME_SIZE);
+    #ifndef NO_SHA256
+        myCert.sigType = CTC_SHA256wRSA;
+    #else
+        myCert.sigType = CTC_SHAwRSA;
+    #endif
+
+        XMEMCPY(&myCert.subject, &certDefaultName, sizeof(CertName));
 
 #ifdef WOLFSSL_CERT_EXT
         /* add Policies */
@@ -8569,60 +8599,47 @@ int rsa_test(void)
                 CTC_MAX_CERTPOL_SZ);
         myCert.certPoliciesNb = 2;
 
-    #ifdef USE_CERT_BUFFERS_256
-        XMEMCPY(tmp, ecc_key_pub_der_256, sizeof_ecc_key_pub_der_256);
-        bytes3 = sizeof_ecc_key_pub_der_256;
-    #else
-        file3 = fopen(eccCaKeyPubFile, "rb");
-        if (!file3) {
-            ERROR_OUT(-5625, exit_rsa);
-        }
-
-        bytes3 = fread(tmp, 1, FOURK_BUF, file3);
-        fclose(file3);
-    #endif
-
-        ret = wc_ecc_init_ex(&caEccKeyPub, HEAP_HINT, devId);
-        if (ret != 0) {
-            ERROR_OUT(-5626, exit_rsa);
-        }
-
-        idx3 = 0;
-        ret = wc_EccPublicKeyDecode(tmp, &idx3, &caEccKeyPub, (word32)bytes3);
-        if (ret != 0) {
-            ERROR_OUT(-5627, exit_rsa);
-        }
-
         /* add SKID from the Public Key */
-        if (wc_SetSubjectKeyIdFromPublicKey(&myCert, &key, NULL) != 0) {
-            ERROR_OUT(-5628, exit_rsa);
+        if (wc_SetSubjectKeyIdFromPublicKey(&myCert, NULL, &caEccKeyPub) != 0) {
+            ERROR_OUT(-5609, exit_rsa);
         }
 
-        /* add AKID from the Public Key */
-        if (wc_SetAuthKeyIdFromPublicKey(&myCert, NULL, &caEccKeyPub) != 0) {
-            ERROR_OUT(-5629, exit_rsa);
+        /* add AKID from the CA certificate */
+    #if defined(USE_CERT_BUFFERS_2048)
+        ret = wc_SetAuthKeyIdFromCert(&myCert, ca_cert_der_2048,
+                                               sizeof_ca_cert_der_2048);
+    #elif defined(USE_CERT_BUFFERS_1024)
+        ret = wc_SetAuthKeyIdFromCert(&myCert, ca_cert_der_1024,
+                                               sizeof_ca_cert_der_1024);
+    #else
+        ret = wc_SetAuthKeyId(&myCert, rsaCaCertFile);
+    #endif
+        if (ret != 0) {
+            ERROR_OUT(-5610, exit_rsa);
         }
-        wc_ecc_free(&caEccKeyPub);
 
         /* add Key Usage */
-        if (wc_SetKeyUsage(&myCert,"digitalSignature,nonRepudiation") != 0) {
-            ERROR_OUT(-5630, exit_rsa);
+        if (wc_SetKeyUsage(&myCert, certKeyUsage) != 0) {
+            ERROR_OUT(-5611, exit_rsa);
         }
 #endif /* WOLFSSL_CERT_EXT */
 
-    #if defined(USE_CERT_BUFFERS_256)
-        ret = wc_SetIssuerBuffer(&myCert, serv_ecc_der_256,
-                                     sizeof_serv_ecc_der_256);
+    #if defined(USE_CERT_BUFFERS_2048)
+        ret = wc_SetIssuerBuffer(&myCert, ca_cert_der_2048,
+                                          sizeof_ca_cert_der_2048);
+    #elif defined(USE_CERT_BUFFERS_1024)
+        ret = wc_SetIssuerBuffer(&myCert, ca_cert_der_1024,
+                                          sizeof_ca_cert_der_1024);
     #else
-        ret = wc_SetIssuer(&myCert, eccCaCertFile);
+        ret = wc_SetIssuer(&myCert, rsaCaCertFile);
     #endif
         if (ret < 0) {
-            ERROR_OUT(-5631, exit_rsa);
+            ERROR_OUT(-5612, exit_rsa);
         }
 
-        certSz = wc_MakeCert(&myCert, der, FOURK_BUF, &key, NULL, &rng);
+        certSz = wc_MakeCert(&myCert, der, FOURK_BUF, NULL, &caEccKeyPub, &rng);
         if (certSz < 0) {
-            ERROR_OUT(-5632, exit_rsa);
+            ERROR_OUT(-5613, exit_rsa);
         }
 
         ret = 0;
@@ -8632,11 +8649,11 @@ int rsa_test(void)
         #endif
             if (ret >= 0) {
                 ret = wc_SignCert(myCert.bodySz, myCert.sigType, der,
-                                  FOURK_BUF, NULL, &caEccKey, &rng);
+                                  FOURK_BUF, &caKey, NULL, &rng);
             }
         } while (ret == WC_PENDING_E);
         if (ret < 0) {
-            ERROR_OUT(-5633, exit_rsa);
+            ERROR_OUT(-5614, exit_rsa);
         }
         certSz = ret;
 
@@ -8645,73 +8662,39 @@ int rsa_test(void)
         ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
         if (ret != 0) {
             FreeDecodedCert(&decode);
-            ERROR_OUT(-5634, exit_rsa);
+            ERROR_OUT(-5615, exit_rsa);
 
         }
         FreeDecodedCert(&decode);
     #endif
 
-    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-        derFile = fopen(certEccDerFile, "wb");
-        if (!derFile) {
-            ERROR_OUT(-5635, exit_rsa);
-        }
-        ret = (int)fwrite(der, 1, certSz, derFile);
-        fclose(derFile);
-        if (ret != certSz) {
-            ERROR_OUT(-5636, exit_rsa);
-        }
-    #endif
-
-        pemSz = wc_DerToPem(der, certSz, pem, FOURK_BUF, CERT_TYPE);
-        if (pemSz < 0) {
-            ERROR_OUT(-5637, exit_rsa);
+        ret = SaveDerAndPem(der, certSz, pem, FOURK_BUF, certEccRsaDerFile,
+            certEccRsaPemFile, CERT_TYPE, -5616);
+        if (ret != 0) {
+            goto exit_rsa;
         }
 
-    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-        pemFile = fopen(certEccPemFile, "wb");
-        if (!pemFile) {
-            ERROR_OUT(-5638, exit_rsa);
-        }
-        ret = (int)fwrite(pem, 1, pemSz, pemFile);
-        if (ret != pemSz) {
-            fclose(pemFile);
-            ERROR_OUT(-5639, exit_rsa);
-        }
-        fclose(pemFile);
-    #endif
+        wc_ecc_free(&caEccKeyPub);
+        wc_FreeRsaKey(&caKey);
 
-        wc_ecc_free(&caEccKey);
         XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         pem = NULL;
         XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         der = NULL;
     }
-#endif /* HAVE_ECC */
+#endif /* !NO_RSA && HAVE_ECC */
 #ifdef HAVE_NTRU
     {
         Cert        myCert;
-        FILE*       derFile;
-        FILE*       pemFile;
     #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
         FILE*       caFile;
     #endif
         FILE*       ntruPrivFile;
         int         certSz;
-        int         pemSz;
         word32      idx3 = 0;
     #ifdef WOLFSSL_TEST_CERT
         DecodedCert decode;
     #endif
-        der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        if (der == NULL) {
-            ERROR_OUT(-5650, exit_rsa);
-        }
-        pem = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,DYNAMIC_TYPE_TMP_BUFFER);
-        if (pem == NULL) {
-            ERROR_OUT(-5651, exit_rsa);
-        }
-
         byte   public_key[557];          /* sized for EES401EP2 */
         word16 public_key_len;           /* no. of octets in public key */
         byte   private_key[607];         /* sized for EES401EP2 */
@@ -8723,26 +8706,26 @@ int rsa_test(void)
         word32 rc = ntru_crypto_drbg_instantiate(112, pers_str,
                           sizeof(pers_str), GetEntropy, &drbg);
         if (rc != DRBG_OK) {
-            ERROR_OUT(-5652, exit_rsa);
+            ERROR_OUT(-5620, exit_rsa);
         }
 
         rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2,
                                              &public_key_len, NULL,
                                              &private_key_len, NULL);
         if (rc != NTRU_OK) {
-            ERROR_OUT(-5653, exit_rsa);
+            ERROR_OUT(-5621, exit_rsa);
         }
 
         rc = ntru_crypto_ntru_encrypt_keygen(drbg, NTRU_EES401EP2,
                                              &public_key_len, public_key,
                                              &private_key_len, private_key);
         if (rc != NTRU_OK) {
-            ERROR_OUT(-5654, exit_rsa);
+            ERROR_OUT(-5622, exit_rsa);
         }
 
         rc = ntru_crypto_drbg_uninstantiate(drbg);
         if (rc != NTRU_OK) {
-            ERROR_OUT(-5655, exit_rsa);
+            ERROR_OUT(-5623, exit_rsa);
         }
 
     #ifdef USE_CERT_BUFFERS_1024
@@ -8754,7 +8737,7 @@ int rsa_test(void)
     #else
         caFile = fopen(rsaCaKeyFile, "rb");
         if (!caFile) {
-            ERROR_OUT(-5656, exit_rsa);
+            ERROR_OUT(-5624, exit_rsa);
         }
 
         bytes = fread(tmp, 1, FOURK_BUF, caFile);
@@ -8763,31 +8746,25 @@ int rsa_test(void)
 
         ret = wc_InitRsaKey(&caKey, HEAP_HINT);
         if (ret != 0) {
-            ERROR_OUT(-5657, exit_rsa);
+            ERROR_OUT(-5625, exit_rsa);
         }
         ret = wc_RsaPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes);
         if (ret != 0) {
-            ERROR_OUT(-5658, exit_rsa);
+            ERROR_OUT(-5626, exit_rsa);
         }
 
         if (wc_InitCert(&myCert)) {
-            ERROR_OUT(-5573, exit_rsa);
+            ERROR_OUT(-5627, exit_rsa);
         }
 
-        XSTRNCPY(myCert.subject.country, "US", CTC_NAME_SIZE);
-        XSTRNCPY(myCert.subject.state, "OR", CTC_NAME_SIZE);
-        XSTRNCPY(myCert.subject.locality, "Portland", CTC_NAME_SIZE);
-        XSTRNCPY(myCert.subject.org, "yaSSL", CTC_NAME_SIZE);
-        XSTRNCPY(myCert.subject.unit, "Development", CTC_NAME_SIZE);
-        XSTRNCPY(myCert.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
-        XSTRNCPY(myCert.subject.email, "info@yassl.com", CTC_NAME_SIZE);
+        XMEMCPY(&myCert.subject, &certDefaultName, sizeof(CertName));
         myCert.daysValid = 1000;
 
     #ifdef WOLFSSL_CERT_EXT
         /* add SKID from the Public Key */
         if (wc_SetSubjectKeyIdFromNtruPublicKey(&myCert, public_key,
                                                 public_key_len) != 0) {
-            ERROR_OUT(-5659, exit_rsa);
+            ERROR_OUT(-5628, exit_rsa);
         }
 
         /* add AKID from the CA certificate */
@@ -8801,33 +8778,41 @@ int rsa_test(void)
         ret = wc_SetAuthKeyId(&myCert, rsaCaCertFile);
     #endif
         if (ret != 0) {
-            ERROR_OUT(-5660, exit_rsa);
+            ERROR_OUT(-5629, exit_rsa);
         }
 
         /* add Key Usage */
-        if (wc_SetKeyUsage(&myCert,"digitalSignature,nonRepudiation,"
-                                   "keyEncipherment,keyAgreement") != 0) {
-            ERROR_OUT(-5661, exit_rsa);
+        if (wc_SetKeyUsage(&myCert, certKeyUsage2) != 0) {
+            ERROR_OUT(-5630, exit_rsa);
         }
     #endif /* WOLFSSL_CERT_EXT */
 
     #if defined(USE_CERT_BUFFERS_2048)
         ret = wc_SetIssuerBuffer(&myCert, ca_cert_der_2048,
-                                            sizeof_ca_cert_der_2048);
+                                          sizeof_ca_cert_der_2048);
     #elif defined(USE_CERT_BUFFERS_1024)
         ret = wc_SetIssuerBuffer(&myCert, ca_cert_der_1024,
-                                            sizeof_ca_cert_der_1024);
+                                          sizeof_ca_cert_der_1024);
     #else
         ret = wc_SetIssuer(&myCert, rsaCaCertFile);
     #endif
         if (ret < 0) {
-            ERROR_OUT(-5662, exit_rsa);
+            ERROR_OUT(-5631, exit_rsa);
+        }
+
+        der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        if (der == NULL) {
+            ERROR_OUT(-5632, exit_rsa);
+        }
+        pem = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,DYNAMIC_TYPE_TMP_BUFFER);
+        if (pem == NULL) {
+            ERROR_OUT(-5633, exit_rsa);
         }
 
         certSz = wc_MakeNtruCert(&myCert, der, FOURK_BUF, public_key,
                               public_key_len, &rng);
         if (certSz < 0) {
-            ERROR_OUT(-5663, exit_rsa);
+            ERROR_OUT(-5634, exit_rsa);
         }
 
         ret = 0;
@@ -8842,7 +8827,7 @@ int rsa_test(void)
         } while (ret == WC_PENDING_E);
         wc_FreeRsaKey(&caKey);
         if (ret < 0) {
-            ERROR_OUT(-5664, exit_rsa);
+            ERROR_OUT(-5635, exit_rsa);
         }
         certSz = ret;
 
@@ -8851,47 +8836,26 @@ int rsa_test(void)
         ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
         if (ret != 0) {
             FreeDecodedCert(&decode);
-            ERROR_OUT(-5665, exit_rsa);
+            ERROR_OUT(-5636, exit_rsa);
         }
         FreeDecodedCert(&decode);
     #endif
 
-    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-        derFile = fopen("./ntru-cert.der", "wb");
-        if (!derFile) {
-            ERROR_OUT(-5666, exit_rsa);
-        }
-        ret = (int)fwrite(der, 1, certSz, derFile);
-        fclose(derFile);
-        if (ret != certSz) {
-            ERROR_OUT(-5667, exit_rsa);
-        }
-    #endif
-
-        pemSz = wc_DerToPem(der, certSz, pem, FOURK_BUF, CERT_TYPE);
-        if (pemSz < 0) {
-            ERROR_OUT(-5668, exit_rsa);
+        ret = SaveDerAndPem(der, certSz, pem, FOURK_BUF, "./ntru-cert.der",
+            "./ntru-cert.pem", CERT_TYPE, -5637);
+        if (ret != 0) {
+            goto exit_rsa;
         }
 
     #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-        pemFile = fopen("./ntru-cert.pem", "wb");
-        if (!pemFile) {
-            ERROR_OUT(-5669, exit_rsa);
-        }
-        ret = (int)fwrite(pem, 1, pemSz, pemFile);
-        fclose(pemFile);
-        if (ret != pemSz) {
-            ERROR_OUT(-5670, exit_rsa);
-        }
-
         ntruPrivFile = fopen("./ntru-key.raw", "wb");
         if (!ntruPrivFile) {
-            ERROR_OUT(-5671, exit_rsa);
+            ERROR_OUT(-5638, exit_rsa);
         }
         ret = (int)fwrite(private_key, 1, private_key_len, ntruPrivFile);
         fclose(ntruPrivFile);
         if (ret != private_key_len) {
-            ERROR_OUT(-5672, exit_rsa);
+            ERROR_OUT(-5639, exit_rsa);
         }
     #endif
 
@@ -8905,68 +8869,62 @@ int rsa_test(void)
     {
         Cert        req;
         int         derSz;
-        int         pemSz;
-    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-        FILE*       reqFile;
-    #endif
 
         der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,DYNAMIC_TYPE_TMP_BUFFER);
         if (der == NULL) {
-            ERROR_OUT(-5680, exit_rsa);
+            ERROR_OUT(-5640, exit_rsa);
         }
         pem = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,DYNAMIC_TYPE_TMP_BUFFER);
         if (pem == NULL) {
-            ERROR_OUT(-5681, exit_rsa);
+            ERROR_OUT(-5641, exit_rsa);
         }
 
         if (wc_InitCert(&req)) {
-            ERROR_OUT(-5691, exit_rsa);
+            ERROR_OUT(-5642, exit_rsa);
         }
 
         req.version = 0;
         req.isCA    = 1;
-        XSTRNCPY(req.challengePw, "yassl123", CTC_NAME_SIZE);
-        XSTRNCPY(req.subject.country, "US", CTC_NAME_SIZE);
-        XSTRNCPY(req.subject.state, "OR", CTC_NAME_SIZE);
-        XSTRNCPY(req.subject.locality, "Portland", CTC_NAME_SIZE);
-        XSTRNCPY(req.subject.org, "yaSSL", CTC_NAME_SIZE);
-        XSTRNCPY(req.subject.unit, "Development", CTC_NAME_SIZE);
-        XSTRNCPY(req.subject.commonName, "www.yassl.com", CTC_NAME_SIZE);
-        XSTRNCPY(req.subject.email, "info@yassl.com", CTC_NAME_SIZE);
+        XSTRNCPY(req.challengePw, "wolf123", CTC_NAME_SIZE);
+        XMEMCPY(&req.subject, &certDefaultName, sizeof(CertName));
+
+    #ifndef NO_SHA256
         req.sigType = CTC_SHA256wRSA;
+    #else
+        req.sigType = CTC_SHAwRSA;
+    #endif
 
     #ifdef WOLFSSL_CERT_EXT
         /* add SKID from the Public Key */
         if (wc_SetSubjectKeyIdFromPublicKey(&req, &keypub, NULL) != 0) {
-            ERROR_OUT(-5682, exit_rsa);
+            ERROR_OUT(-5643, exit_rsa);
         }
 
         /* add Key Usage */
-        if (wc_SetKeyUsage(&req,"digitalSignature,nonRepudiation,"
-                                "keyEncipherment,keyAgreement") != 0) {
-            ERROR_OUT(-5683, exit_rsa);
+        if (wc_SetKeyUsage(&req, certKeyUsage2) != 0) {
+            ERROR_OUT(-5644, exit_rsa);
         }
 
         /* add Extended Key Usage */
         if (wc_SetExtKeyUsage(&req, "serverAuth,clientAuth,codeSigning,"
                             "emailProtection,timeStamping,OCSPSigning") != 0) {
-            ERROR_OUT(-5684, exit_rsa);
+            ERROR_OUT(-5645, exit_rsa);
         }
     #endif /* WOLFSSL_CERT_EXT */
 
         derSz = wc_MakeCertReq(&req, der, FOURK_BUF, &key, NULL);
         if (derSz < 0) {
-            ERROR_OUT(-5685, exit_rsa);
+            ERROR_OUT(-5646, exit_rsa);
         }
 
     #ifdef WOLFSSL_CERT_EXT
         /* Try again with "any" flag set, will override all others */
         if (wc_SetExtKeyUsage(&req, "any") != 0) {
-            ERROR_OUT(-5686, exit_rsa);
+            ERROR_OUT(-5647, exit_rsa);
         }
         derSz = wc_MakeCertReq(&req, der, FOURK_BUF, &key, NULL);
         if (derSz < 0) {
-            ERROR_OUT(-5687, exit_rsa);
+            ERROR_OUT(-5648, exit_rsa);
         }
     #endif /* WOLFSSL_CERT_EXT */
 
@@ -8981,37 +8939,15 @@ int rsa_test(void)
             }
         } while (ret == WC_PENDING_E);
         if (ret < 0) {
-            ERROR_OUT(-5688, exit_rsa);
+            ERROR_OUT(-5649, exit_rsa);
         }
         derSz = ret;
 
-        pemSz = wc_DerToPem(der, derSz, pem, FOURK_BUF, CERTREQ_TYPE);
-        if (pemSz < 0) {
-            ERROR_OUT(-5689, exit_rsa);
+        ret = SaveDerAndPem(der, derSz, pem, FOURK_BUF, certReqDerFile,
+            certReqPemFile, CERTREQ_TYPE, -5650);
+        if (ret != 0) {
+            goto exit_rsa;
         }
-
-    #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-        reqFile = fopen(certReqDerFile, "wb");
-        if (!reqFile) {
-            ERROR_OUT(-5690, exit_rsa);
-        }
-
-        ret = (int)fwrite(der, 1, derSz, reqFile);
-        fclose(reqFile);
-        if (ret != derSz) {
-            ERROR_OUT(-5691, exit_rsa);
-        }
-
-        reqFile = fopen(certReqPemFile, "wb");
-        if (!reqFile) {
-            ERROR_OUT(-5692, exit_rsa);
-        }
-        ret = (int)fwrite(pem, 1, pemSz, reqFile);
-        fclose(reqFile);
-        if (ret != pemSz) {
-            ERROR_OUT(-5693, exit_rsa);
-        }
-    #endif
 
         XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         pem = NULL;
@@ -9319,13 +9255,8 @@ int dsa_test(void)
     byte*  der;
     byte*  pem;
     int    derSz = 0;
-    int    pemSz = 0;
     DsaKey derIn;
     DsaKey genKey;
-#if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-    FILE*  keyFile;
-    FILE*  pemFile;
-#endif
 
     ret = wc_InitDsaKey(&genKey);
     if (ret != 0) return -5808;
@@ -9361,49 +9292,14 @@ int dsa_test(void)
         return -5813;
     }
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-    keyFile = fopen(keyDerFile, "wb");
-    if (!keyFile) {
+    ret = SaveDerAndPem(der, derSz, pem, FOURK_BUF, keyDerFile,
+            keyPemFile, DSA_PRIVATEKEY_TYPE, -5814);
+    if (ret != 0) {
         XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         wc_FreeDsaKey(&genKey);
-        return -5814;
+        return ret;
     }
-    ret = (int)fwrite(der, 1, derSz, keyFile);
-    fclose(keyFile);
-    if (ret != derSz) {
-        XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        wc_FreeDsaKey(&genKey);
-        return -5815;
-    }
-#endif
-
-    pemSz = wc_DerToPem(der, derSz, pem, FOURK_BUF, DSA_PRIVATEKEY_TYPE);
-    if (pemSz < 0) {
-        XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        wc_FreeDsaKey(&genKey);
-        return -5816;
-    }
-
-#if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-    pemFile = fopen(keyPemFile, "wb");
-    if (!pemFile) {
-        XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        wc_FreeDsaKey(&genKey);
-        return -5817;
-    }
-    ret = (int)fwrite(pem, 1, pemSz, pemFile);
-    fclose(pemFile);
-    if (ret != pemSz) {
-        XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        wc_FreeDsaKey(&genKey);
-        return -5818;
-    }
-#endif
 
     ret = wc_InitDsaKey(&derIn);
     if (ret != 0) {
@@ -11079,22 +10975,37 @@ done:
 static int ecc_test_make_pub(WC_RNG* rng)
 {
     ecc_key key;
-    unsigned char exportBuf[FOURK_BUF];
-    unsigned char tmp[FOURK_BUF];
+    unsigned char* exportBuf;
+    unsigned char* tmp;
     unsigned char msg[] = "test wolfSSL ECC public gen";
     word32 x, tmpSz;
     int ret = 0;
     ecc_point* pubPoint = NULL;
+#if defined(HAVE_ECC_DHE) && defined(HAVE_ECC_KEY_EXPORT)
+    ecc_key pub;
+#endif
+#ifdef HAVE_ECC_VERIFY
+    int verify = 0;
+#endif
+
+    tmp = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp == NULL) {
+        return -6810;
+    }
+    exportBuf = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (exportBuf == NULL) {
+        XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return -6811;
+    }
 
 #ifdef USE_CERT_BUFFERS_256
     XMEMCPY(tmp, ecc_key_der_256, (size_t)sizeof_ecc_key_der_256);
     tmpSz = (size_t)sizeof_ecc_key_der_256;
 #else
     FILE* file;
-    file = fopen(eccCaKeyFile, "rb");
+    file = fopen(eccKeyDerFile, "rb");
     if (!file) {
-        ret = -6000;
-        goto exit_ecc_make_pub;
+        ERROR_OUT(-6812, done);
     }
 
     tmpSz = (word32)fread(tmp, 1, FOURK_BUF, file);
@@ -11106,141 +11017,140 @@ static int ecc_test_make_pub(WC_RNG* rng)
     /* import private only then test with */
     ret = wc_ecc_import_private_key(tmp, tmpSz, NULL, 0, NULL);
     if (ret == 0) {
-        ret = -6001;
-        goto exit_ecc_make_pub;
+        ERROR_OUT(-6813, done);
     }
 
     ret = wc_ecc_import_private_key(NULL, tmpSz, NULL, 0, &key);
     if (ret == 0) {
-        ret = -6002;
-        goto exit_ecc_make_pub;
+        ERROR_OUT(-6814, done);
     }
 
     x = 0;
     ret = wc_EccPrivateKeyDecode(tmp, &x, &key, tmpSz);
-    if (ret != 0)
-        goto exit_ecc_make_pub;
+    if (ret != 0) {
+        ERROR_OUT(-6815, done);
+    }
 
 #ifdef HAVE_ECC_KEY_EXPORT
-    x = sizeof(exportBuf);
+    x = FOURK_BUF;
     ret = wc_ecc_export_private_only(&key, exportBuf, &x);
-    if (ret != 0)
-        goto exit_ecc_make_pub;
+    if (ret != 0) {
+        ERROR_OUT(-6816, done);
+    }
 
     /* make private only key */
     wc_ecc_free(&key);
     wc_ecc_init(&key);
     ret = wc_ecc_import_private_key(exportBuf, x, NULL, 0, &key);
-    if (ret != 0)
-        goto exit_ecc_make_pub;
+    if (ret != 0) {
+        ERROR_OUT(-6817, done);
+    }
 
-    x = sizeof(exportBuf);
+    x = FOURK_BUF;
     ret = wc_ecc_export_x963_ex(&key, exportBuf, &x, 0);
     if (ret == 0) {
-        ret = -6003;
-        goto exit_ecc_make_pub;
+        ERROR_OUT(-6818, done);
     }
 
 #endif /* HAVE_ECC_KEY_EXPORT */
 
     ret = wc_ecc_make_pub(NULL, NULL);
     if (ret == 0) {
-        ret = -6004;
-        goto exit_ecc_make_pub;
+        ERROR_OUT(-6819, done);
     }
 
     pubPoint = wc_ecc_new_point_h(HEAP_HINT);
     if (pubPoint == NULL) {
-        ret = -6005;
-        goto exit_ecc_make_pub;
+        ERROR_OUT(-6820, done);
     }
 
     ret = wc_ecc_make_pub(&key, pubPoint);
-    if (ret != 0)
-        goto exit_ecc_make_pub;
+    if (ret != 0) {
+        ERROR_OUT(-6821, done);
+    }
 
 #ifdef HAVE_ECC_KEY_EXPORT
     /* export should still fail, is private only key */
-    x = sizeof(exportBuf);
+    x = FOURK_BUF;
     ret = wc_ecc_export_x963_ex(&key, exportBuf, &x, 0);
     if (ret == 0) {
-        ret = -6006;
-        goto exit_ecc_make_pub;
+        ERROR_OUT(-6822, done);
     }
 #endif /* HAVE_ECC_KEY_EXPORT */
 
 #ifdef HAVE_ECC_SIGN
-    tmpSz = sizeof(tmp);
+    tmpSz = FOURK_BUF;
     ret = wc_ecc_sign_hash(msg, sizeof(msg), tmp, &tmpSz, rng, &key);
-    if (ret != 0)
-        goto exit_ecc_make_pub;
+    if (ret != 0) {
+        ERROR_OUT(-6823, done);
+    }
 
 #ifdef HAVE_ECC_VERIFY
-    {
-        int res = 0;
-        /* try verify with private only key */
-        ret = wc_ecc_verify_hash(tmp, tmpSz, msg, sizeof(msg), &res, &key);
-        if (ret != 0)
-            goto exit_ecc_make_pub;
-
-        if (res != 1) {
-            ret = -6007;
-            goto exit_ecc_make_pub;
-        }
-    #ifdef HAVE_ECC_KEY_EXPORT
-        /* exporting the public part should now work */
-        x = sizeof(exportBuf);
-        ret = wc_ecc_export_x963_ex(&key, exportBuf, &x, 0);
-        if (ret != 0)
-            goto exit_ecc_make_pub;
-    #endif /* HAVE_ECC_KEY_EXPORT */
+    /* try verify with private only key */
+    ret = wc_ecc_verify_hash(tmp, tmpSz, msg, sizeof(msg), &verify, &key);
+    if (ret != 0) {
+        ERROR_OUT(-6824, done);
     }
+
+    if (verify != 1) {
+        ERROR_OUT(-6825, done);
+    }
+#ifdef HAVE_ECC_KEY_EXPORT
+    /* exporting the public part should now work */
+    x = FOURK_BUF;
+    ret = wc_ecc_export_x963_ex(&key, exportBuf, &x, 0);
+    if (ret != 0) {
+        ERROR_OUT(-6826, done);
+    }
+#endif /* HAVE_ECC_KEY_EXPORT */
 #endif /* HAVE_ECC_VERIFY */
 
 #endif /* HAVE_ECC_SIGN */
 
 #if defined(HAVE_ECC_DHE) && defined(HAVE_ECC_KEY_EXPORT)
     /* now test private only key with creating a shared secret */
-    {
-        ecc_key pub;
-
-        x = sizeof(exportBuf);
-        ret = wc_ecc_export_private_only(&key, exportBuf, &x);
-        if (ret != 0)
-            goto exit_ecc_make_pub;
-
-        /* make private only key */
-        wc_ecc_free(&key);
-        wc_ecc_init(&key);
-        ret = wc_ecc_import_private_key(exportBuf, x, NULL, 0, &key);
-        if (ret != 0)
-            goto exit_ecc_make_pub;
-
-        /* check that public export fails with private only key */
-        x = sizeof(exportBuf);
-        ret = wc_ecc_export_x963_ex(&key, exportBuf, &x, 0);
-        if (ret == 0) {
-            ret = -6008;
-            goto exit_ecc_make_pub;
-        }
-
-        /* make public key for shared secret */
-        wc_ecc_init(&pub);
-        ret = wc_ecc_make_key(rng, 32, &pub);
-        if (ret != 0)
-            goto exit_ecc_make_pub;
-
-        x = sizeof(exportBuf);
-        ret = wc_ecc_shared_secret(&key, &pub, exportBuf, &x);
-        if (ret != 0) {
-            wc_ecc_free(&pub);
-            goto exit_ecc_make_pub;
-        }
-
-        wc_ecc_free(&pub);
+    x = FOURK_BUF;
+    ret = wc_ecc_export_private_only(&key, exportBuf, &x);
+    if (ret != 0) {
+        ERROR_OUT(-6827, done);
     }
-#endif /* defined(HAVE_ECC_DHE) && defined(HAVE_ECC_KEY_EXPORT) */
-exit_ecc_make_pub:
+
+    /* make private only key */
+    wc_ecc_free(&key);
+    wc_ecc_init(&key);
+    ret = wc_ecc_import_private_key(exportBuf, x, NULL, 0, &key);
+    if (ret != 0) {
+        ERROR_OUT(-6828, done);
+    }
+
+    /* check that public export fails with private only key */
+    x = FOURK_BUF;
+    ret = wc_ecc_export_x963_ex(&key, exportBuf, &x, 0);
+    if (ret == 0) {
+        ERROR_OUT(-6829, done);
+    }
+
+    /* make public key for shared secret */
+    wc_ecc_init(&pub);
+    ret = wc_ecc_make_key(rng, 32, &pub);
+    if (ret != 0) {
+        ERROR_OUT(-6830, done);
+    }
+
+    x = FOURK_BUF;
+    ret = wc_ecc_shared_secret(&key, &pub, exportBuf, &x);
+    wc_ecc_free(&pub);
+    if (ret != 0) {
+        ERROR_OUT(-6831, done);
+    }
+#endif /* HAVE_ECC_DHE && HAVE_ECC_KEY_EXPORT */
+
+    ret = 0;
+
+done:
+
+    XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(exportBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
     wc_ecc_del_point_h(pubPoint, HEAP_HINT);
     wc_ecc_free(&key);
@@ -11254,15 +11164,20 @@ exit_ecc_make_pub:
 static int ecc_test_key_gen(WC_RNG* rng, int keySize)
 {
     int   ret = 0;
-    int   derSz, pemSz;
-    byte  der[FOURK_BUF];
-    byte  pem[FOURK_BUF];
-#if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-    FILE* keyFile;
-    FILE* pemFile;
-#endif
-
+    int   derSz;
+    byte* der;
+    byte* pem;
     ecc_key userA;
+
+    der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL) {
+        return -6840;
+    }
+    pem = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pem == NULL) {
+        XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return -6840;
+    }
 
     ret = wc_ecc_init_ex(&userA, HEAP_HINT, devId);
     if (ret != 0)
@@ -11284,34 +11199,11 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
         ERROR_OUT(derSz, done);
     }
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-    keyFile = fopen(eccCaKeyTempFile, "wb");
-    if (!keyFile) {
-        ERROR_OUT(-6510, done);
+    ret = SaveDerAndPem(der, derSz, pem, FOURK_BUF, eccCaKeyTempFile,
+            eccCaKeyPemFile, ECC_PRIVATEKEY_TYPE, -6510);
+    if (ret != 0) {
+        goto done;
     }
-    ret = (int)fwrite(der, 1, derSz, keyFile);
-    fclose(keyFile);
-    if (ret != derSz) {
-        ERROR_OUT(-6511, done);
-    }
-#endif
-
-    pemSz = wc_DerToPem(der, derSz, pem, FOURK_BUF, ECC_PRIVATEKEY_TYPE);
-    if (pemSz < 0) {
-        ERROR_OUT(pemSz, done);
-    }
-
-#if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-    pemFile = fopen(eccCaKeyPemFile, "wb");
-    if (!pemFile) {
-        ERROR_OUT(-6512, done);
-    }
-    ret = (int)fwrite(pem, 1, pemSz, pemFile);
-    fclose(pemFile);
-    if (ret != pemSz) {
-        ERROR_OUT(-6513, done);
-    }
-#endif
 
     /* test export of public key */
     derSz = wc_EccPublicKeyToDer(&userA, der, FOURK_BUF, 1);
@@ -11322,21 +11214,16 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
         ERROR_OUT(-6514, done);
     }
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
-    keyFile = fopen(eccPubKeyDerFile, "wb");
-    if (!keyFile) {
-        ERROR_OUT(-6515, done);
+    ret = SaveDerAndPem(der, derSz, NULL, 0, eccPubKeyDerFile,
+        NULL, 0, -6515);
+    if (ret != 0) {
+        goto done;
     }
-    ret = (int)fwrite(der, 1, derSz, keyFile);
-    fclose(keyFile);
-    if (ret != derSz) {
-        ERROR_OUT(-6516, done);
-    }
-#endif
-
-    ret = 0;
 
 done:
+
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     wc_ecc_free(&userA);
 
     return ret;
@@ -12299,6 +12186,196 @@ static int ecc_test_custom_curves(WC_RNG* rng)
 }
 #endif /* WOLFSSL_CUSTOM_CURVES */
 
+#ifdef WOLFSSL_CERT_GEN
+
+/* Make Cert / Sign example for ECC cert and ECC CA */
+static int ecc_test_cert_gen(WC_RNG* rng)
+{
+    int ret;
+    Cert        myCert;
+    int         certSz;
+    size_t      bytes;
+    word32      idx = 0;
+#ifndef USE_CERT_BUFFERS_256
+    FILE*       file;
+#endif
+#ifdef WOLFSSL_TEST_CERT
+    DecodedCert decode;
+#endif
+    byte*  der = NULL;
+    byte*  pem = NULL;
+    ecc_key caEccKey;
+    ecc_key certPubKey;
+
+    XMEMSET(&caEccKey, 0, sizeof(caEccKey));
+    XMEMSET(&certPubKey, 0, sizeof(certPubKey));
+
+    der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL) {
+        ERROR_OUT(-6720, exit);
+    }
+    pem = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pem == NULL) {
+        ERROR_OUT(-6721, exit);
+    }
+
+    /* Get cert private key */
+#ifdef ENABLE_ECC384_CERT_GEN_TEST
+    /* Get Cert Key 384 */
+#ifdef USE_CERT_BUFFERS_256
+    XMEMCPY(der, ca_ecc_key_der_384, sizeof_ca_ecc_key_der_384);
+    bytes = sizeof_ca_ecc_key_der_384;
+#else
+    file = fopen(eccCaKey384File, "rb");
+    if (!file) {
+        ERROR_OUT(-6722, exit);
+    }
+
+    bytes = fread(der, 1, FOURK_BUF, file);
+    fclose(file);
+    (void)eccCaKeyFile;
+#endif /* USE_CERT_BUFFERS_256 */
+#else
+#ifdef USE_CERT_BUFFERS_256
+    XMEMCPY(der, ca_ecc_key_der_256, sizeof_ca_ecc_key_der_256);
+    bytes = sizeof_ca_ecc_key_der_256;
+#else
+    file = fopen(eccCaKeyFile, "rb");
+    if (!file) {
+        ERROR_OUT(-6722, exit);
+    }
+    bytes = fread(der, 1, FOURK_BUF, file);
+    fclose(file);
+    (void)eccCaKey384File;
+#endif /* USE_CERT_BUFFERS_256 */
+#endif /* ENABLE_ECC384_CERT_GEN_TEST */
+
+    /* Get CA Key */
+    ret = wc_ecc_init_ex(&caEccKey, HEAP_HINT, devId);
+    if (ret != 0) {
+        ERROR_OUT(-6723, exit);
+    }
+    ret = wc_EccPrivateKeyDecode(der, &idx, &caEccKey, (word32)bytes);
+    if (ret != 0) {
+        ERROR_OUT(-6724, exit);
+    }
+
+    /* Make a public key */
+    ret = wc_ecc_init_ex(&certPubKey, HEAP_HINT, devId);
+    if (ret != 0) {
+        ERROR_OUT(-6725, exit);
+    }
+
+    ret = wc_ecc_make_key(rng, 32, &certPubKey);
+    if (ret != 0) {
+        ERROR_OUT(-6726, exit);
+    }
+
+    /* Setup Certificate */
+    if (wc_InitCert(&myCert)) {
+        ERROR_OUT(-6727, exit);
+    }
+
+#ifndef NO_SHA256
+    myCert.sigType = CTC_SHA256wECDSA;
+#else
+    myCert.sigType = CTC_SHAwECDSA;
+#endif
+    XMEMCPY(&myCert.subject, &certDefaultName, sizeof(CertName));
+
+#ifdef WOLFSSL_CERT_EXT
+    /* add Policies */
+    XSTRNCPY(myCert.certPolicies[0], "2.4.589440.587.101.2.1.9632587.1",
+            CTC_MAX_CERTPOL_SZ);
+    XSTRNCPY(myCert.certPolicies[1], "1.2.13025.489.1.113549",
+            CTC_MAX_CERTPOL_SZ);
+    myCert.certPoliciesNb = 2;
+
+    /* add SKID from the Public Key */
+    if (wc_SetSubjectKeyIdFromPublicKey(&myCert, NULL, &certPubKey) != 0) {
+        ERROR_OUT(-6728, exit);
+    }
+
+    /* add AKID from the Public Key */
+    if (wc_SetAuthKeyIdFromPublicKey(&myCert, NULL, &caEccKey) != 0) {
+        ERROR_OUT(-6729, exit);
+    }
+
+    /* add Key Usage */
+    if (wc_SetKeyUsage(&myCert, certKeyUsage) != 0) {
+        ERROR_OUT(-6730, exit);
+    }
+#endif /* WOLFSSL_CERT_EXT */
+
+#ifdef ENABLE_ECC384_CERT_GEN_TEST
+    #if defined(USE_CERT_BUFFERS_256)
+    ret = wc_SetIssuerBuffer(&myCert, ca_ecc_cert_der_384,
+                                      sizeof_ca_ecc_cert_der_384);
+#else
+    ret = wc_SetIssuer(&myCert, eccCaCert384File);
+    (void)eccCaCertFile;
+#endif
+#else
+#if defined(USE_CERT_BUFFERS_256)
+    ret = wc_SetIssuerBuffer(&myCert, ca_ecc_cert_der_256,
+                                      sizeof_ca_ecc_cert_der_256);
+#else
+    ret = wc_SetIssuer(&myCert, eccCaCertFile);
+    (void)eccCaCert384File;
+#endif
+#endif /* ENABLE_ECC384_CERT_GEN_TEST */
+    if (ret < 0) {
+        ERROR_OUT(-6731, exit);
+    }
+
+    certSz = wc_MakeCert(&myCert, der, FOURK_BUF, NULL, &certPubKey, rng);
+    if (certSz < 0) {
+        ERROR_OUT(-6732, exit);
+    }
+
+    ret = 0;
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &caEccKey.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret >= 0) {
+            ret = wc_SignCert(myCert.bodySz, myCert.sigType, der,
+                              FOURK_BUF, NULL, &caEccKey, rng);
+        }
+    } while (ret == WC_PENDING_E);
+    if (ret < 0) {
+        ERROR_OUT(-6733, exit);
+    }
+    certSz = ret;
+
+#ifdef WOLFSSL_TEST_CERT
+    InitDecodedCert(&decode, der, certSz, 0);
+    ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
+    if (ret != 0) {
+        FreeDecodedCert(&decode);
+        ERROR_OUT(-6734, exit);
+
+    }
+    FreeDecodedCert(&decode);
+#endif
+
+    ret = SaveDerAndPem(der, certSz, pem, FOURK_BUF, certEccDerFile,
+        certEccPemFile, CERT_TYPE, -6735);
+    if (ret != 0) {
+        goto exit;
+    }
+
+exit:
+    wc_ecc_free(&certPubKey);
+    wc_ecc_free(&caEccKey);
+
+    XFREE(pem, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(der, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+    return ret;
+}
+#endif /* WOLFSSL_CERT_GEN */
+
 int ecc_test(void)
 {
     int ret;
@@ -12407,14 +12484,23 @@ int ecc_test(void)
     ret = ecc_test_cdh_vectors();
     if (ret != 0) {
         printf("ecc_test_cdh_vectors failed! %d\n", ret);
+        goto done;
     }
 #endif
 
     ret = ecc_test_make_pub(&rng);
-    if (ret < 0) {
+    if (ret != 0) {
         printf("ecc_test_make_pub failed!: %d\n", ret);
-        return ret;
+        goto done;
     }
+
+#ifdef WOLFSSL_CERT_GEN
+    ret = ecc_test_cert_gen(&rng);
+    if (ret != 0) {
+        printf("ecc_test_cert_gen failed!: %d\n", ret);
+        goto done;
+    }
+#endif
 
 done:
     wc_FreeRng(&rng);
@@ -12885,8 +12971,7 @@ static int ed25519_test_cert(void)
 
     tmp = XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL) {
-        ret = -7200;
-        goto done;
+        ERROR_OUT(-7200, done);
     }
 
 #ifdef USE_CERT_BUFFERS_256
@@ -12895,23 +12980,20 @@ static int ed25519_test_cert(void)
 #elif !defined(NO_FILESYSTEM)
     file = fopen(caEd25519Cert, "rb");
     if (file == NULL) {
-        ret = -7201;
-        goto done;
+        ERROR_OUT(-7201, done);
     }
     bytes = fread(tmp, 1, FOURK_BUF, file);
     fclose(file);
 #else
     /* No certificate to use. */
-    ret = -7202;
-    goto done;
+    ERROR_OUT(-7202, done);
 #endif
 
     InitDecodedCert(&cert[0], tmp, (word32)bytes, 0);
     caCert = &cert[0];
     ret = ParseCert(caCert, CERT_TYPE, NO_VERIFY, NULL);
     if (ret != 0) {
-        ret = -7203;
-        goto done;
+        ERROR_OUT(-7203, done);
     }
 
 #ifdef USE_CERT_BUFFERS_256
@@ -12920,45 +13002,39 @@ static int ed25519_test_cert(void)
 #elif !defined(NO_FILESYSTEM)
     file = fopen(serverEd25519Cert, "rb");
     if (file == NULL) {
-        ret = -7204;
-        goto done;
+        ERROR_OUT(-7204, done);
     }
     bytes = fread(tmp, 1, FOURK_BUF, file);
     fclose(file);
 #else
     /* No certificate to use. */
-    ret = -7205;
-    goto done;
+    ERROR_OUT(-7205, done);
 #endif
 
     InitDecodedCert(&cert[1], tmp, (word32)bytes, 0);
     serverCert = &cert[1];
     ret = ParseCert(serverCert, CERT_TYPE, NO_VERIFY, NULL);
     if (ret != 0) {
-        ret = -7206;
-        goto done;
+        ERROR_OUT(-7206, done);
     }
 
 #ifdef HAVE_ED25519_VERIFY
     ret = wc_ed25519_init(&key);
     if (ret < 0) {
-        ret = -7207;
-        goto done;
+        ERROR_OUT(-7207, done);
     }
     pubKey = &key;
     ret = wc_ed25519_import_public(caCert->publicKey, caCert->pubKeySize,
                                                                         pubKey);
     if (ret < 0) {
-        ret = -7208;
-        goto done;
+        ERROR_OUT(-7208, done);
     }
 
     if (wc_ed25519_verify_msg(serverCert->signature, serverCert->sigLength,
                               serverCert->source + serverCert->certBegin,
                               serverCert->sigIndex - serverCert->certBegin,
                               &verify, pubKey) < 0 || verify != 1) {
-        ret = -7209;
-        goto done;
+        ERROR_OUT(-7209, done);
     }
 #endif /* HAVE_ED25519_VERIFY */
 
@@ -12975,21 +13051,6 @@ done:
 
     return ret;
 }
-
-#ifdef WOLFSSL_CERT_GEN
-static const CertName defaultName = {
-    "US",               CTC_PRINTABLE,
-    "Montana",          CTC_UTF8,
-    "Bozeman",          CTC_UTF8,
-    "Test",             CTC_UTF8,
-    "wolfSSL",          CTC_UTF8,
-    "ED25519",          CTC_UTF8,
-    "www.wolfssl.com",  CTC_UTF8,
-    "info@wolfssl.com"
-};
-#ifdef WOLFSSL_CERT_EXT
-static const char leafKeyUsage[] = "digitalSignature,nonRepudiation";
-#endif
 
 static int ed25519_test_make_cert(void)
 {
@@ -13017,51 +13078,44 @@ static int ed25519_test_make_cert(void)
 
     cert.daysValid = 365 * 2;
     cert.selfSigned = 1;
-    XMEMCPY(&cert.issuer, &defaultName, sizeof(CertName));
-    XMEMCPY(&cert.subject, &defaultName, sizeof(CertName));
+    XMEMCPY(&cert.issuer, &certDefaultName, sizeof(CertName));
+    XMEMCPY(&cert.subject, &certDefaultName, sizeof(CertName));
     cert.isCA = 0;
 #ifdef WOLFSSL_CERT_EXT
-    ret = wc_SetKeyUsage(&cert, leafKeyUsage);
+    ret = wc_SetKeyUsage(&cert, certKeyUsage);
     if (ret < 0) {
-        ret = -7221;
-        goto done;
+        ERROR_OUT(-7221, done);
     }
     ret = wc_SetSubjectKeyIdFromPublicKey_ex(&cert, ED25519_TYPE, privKey);
     if (ret < 0) {
-        ret = -7222;
-        goto done;
+        ERROR_OUT(-7222, done);
     }
     ret = wc_SetAuthKeyIdFromPublicKey_ex(&cert, ED25519_TYPE, privKey);
     if (ret < 0) {
-        ret = -7223;
-        goto done;
+        ERROR_OUT(-7223, done);
     }
 #endif
     tmp = XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL) {
-        ret = -7224;
-        goto done;
+        ERROR_OUT(-7224, done);
     }
 
     cert.sigType = CTC_ED25519;
     ret = wc_MakeCert_ex(&cert, tmp, FOURK_BUF, ED25519_TYPE, privKey, &rng);
     if (ret < 0) {
-        ret = -7225;
-        goto done;
+        ERROR_OUT(-7225, done);
     }
     ret = wc_SignCert_ex(cert.bodySz, cert.sigType, tmp, FOURK_BUF,
                                                    ED25519_TYPE, privKey, &rng);
     if (ret < 0) {
-        ret = -7226;
-        goto done;
+        ERROR_OUT(-7226, done);
     }
 
     InitDecodedCert(&decode, tmp, ret, HEAP_HINT);
     ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
     FreeDecodedCert(&decode);
     if (ret != 0) {
-        ret = -7227;
-        goto done;
+        ERROR_OUT(-7227, done);
     }
 
 done:
@@ -13071,7 +13125,6 @@ done:
     wc_FreeRng(&rng);
     return ret;
 }
-#endif /* WOLFSSL_CERT_GEN */
 #endif /* WOLFSSL_TEST_CERT */
 
 int ed25519_test(void)
@@ -13802,28 +13855,29 @@ int compress_test(void)
 
     c = XMALLOC(cSz * sizeof(byte), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     d = XMALLOC(dSz * sizeof(byte), HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (c == NULL || d == NULL) {
+        ERROR_OUT(-7400, exit);
+    }
 
     /* follow calloc and initialize to 0 */
     XMEMSET(c, 0, cSz);
     XMEMSET(d, 0, dSz);
 
-    if (c == NULL || d == NULL)
-        ret = -7400;
+    if ((ret = wc_Compress(c, cSz, sample_text, dSz, 0)) < 0) {
+        ERROR_OUT(-7401, exit);
+    }
+    cSz = (word32)ret;
 
-    if (ret == 0 && (ret = wc_Compress(c, cSz, sample_text, dSz, 0)) < 0)
-        ret = -7401;
-
-    if (ret > 0) {
-        cSz = (word32)ret;
-        ret = 0;
+    if ((ret = wc_DeCompress(d, dSz, c, cSz)) != (int)dSz) {
+        ERROR_OUT(-7402, exit);
     }
 
-    if (ret == 0 && wc_DeCompress(d, dSz, c, cSz) != (int)dSz)
-        ret = -7402;
+    if (XMEMCMP(d, sample_text, dSz)) {
+        ERROR_OUT(-7403, exit);
+    }
+    ret = 0;
 
-    if (ret == 0 && XMEMCMP(d, sample_text, dSz))
-        ret = -7403;
-
+exit:
     if (c) XFREE(c, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (d) XFREE(d, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
@@ -13961,10 +14015,18 @@ static int pkcs7_load_certs_keys(byte* rsaCert, word32* rsaCertSz,
 #endif /* USE_CERT_BUFFERS_256 */
 #endif /* HAVE_ECC */
 
+#ifdef NO_RSA
+    (void)rsaCert;
+    (void)rsaCertSz;
+    (void)rsaPrivKey;
+    (void)rsaPrivKeySz;
+#endif
+#ifndef HAVE_ECC
     (void)eccCert;
     (void)eccCertSz;
     (void)eccPrivKey;
     (void)eccPrivKeySz;
+#endif
 #ifndef NO_FILESYSTEM
     (void)certFile;
     (void)keyFile;
@@ -14126,10 +14188,19 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         wc_PKCS7_Free(&pkcs7);
     }
 
+#ifndef HAVE_ECC
     (void)eccCert;
     (void)eccCertSz;
     (void)eccPrivKey;
     (void)eccPrivKeySz;
+#endif
+#ifdef NO_RSA
+    (void)rsaCert;
+    (void)rsaCertSz;
+    (void)rsaPrivKey;
+    (void)rsaPrivKeySz;
+#endif
+
     return 0;
 }
 
@@ -14139,13 +14210,13 @@ int pkcs7enveloped_test(void)
     int ret = 0;
 
     byte* rsaCert    = NULL;
-    byte* eccCert    = NULL;
     byte* rsaPrivKey = NULL;
-    byte* eccPrivKey = NULL;
-
     word32 rsaCertSz    = 0;
-    word32 eccCertSz    = 0;
     word32 rsaPrivKeySz = 0;
+
+    byte* eccCert    = NULL;
+    byte* eccPrivKey = NULL;
+    word32 eccCertSz    = 0;
     word32 eccPrivKeySz = 0;
 
 #ifndef NO_RSA
@@ -14168,15 +14239,19 @@ int pkcs7enveloped_test(void)
     /* read client ECC cert and key in DER format */
     eccCert = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (eccCert == NULL) {
+    #ifndef NO_RSA
         XFREE(rsaCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(rsaPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         return -7504;
     }
 
     eccPrivKey =(byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (eccPrivKey == NULL) {
+    #ifndef NO_RSA
         XFREE(rsaCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(rsaPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         XFREE(eccCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -7505;
     }
@@ -14189,10 +14264,14 @@ int pkcs7enveloped_test(void)
                                 &rsaPrivKeySz, eccCert, &eccCertSz,
                                 eccPrivKey, &eccPrivKeySz);
     if (ret < 0) {
+    #ifndef NO_RSA
         XFREE(rsaCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(rsaPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+    #ifdef HAVE_ECC
         XFREE(eccCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(eccPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
         return ret;
     }
 
@@ -14201,10 +14280,14 @@ int pkcs7enveloped_test(void)
                                      eccCert, (word32)eccCertSz,
                                      eccPrivKey, (word32)eccPrivKeySz);
 
+#ifndef NO_RSA
     XFREE(rsaCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(rsaPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+#ifdef HAVE_ECC
     XFREE(eccCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(eccPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
 
     return ret;
 }
@@ -14572,8 +14655,10 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
         ret = wc_PKCS7_InitWithCert(&pkcs7, testVectors[i].cert,
                                     (word32)testVectors[i].certSz);
 
-        if (ret != 0)
+        if (ret != 0) {
+            XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             return -7702;
+        }
 
         pkcs7.rng             = &rng;
         pkcs7.content         = (byte*)testVectors[i].content;
@@ -14682,10 +14767,19 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
     if (ret > 0)
         return 0;
 
+#ifndef HAVE_ECC
     (void)eccCert;
     (void)eccCertSz;
     (void)eccPrivKey;
     (void)eccPrivKeySz;
+#endif
+#ifdef NO_RSA
+    (void)rsaCert;
+    (void)rsaCertSz;
+    (void)rsaPrivKey;
+    (void)rsaPrivKeySz;
+#endif
+
     return ret;
 }
 

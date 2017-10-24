@@ -26,7 +26,19 @@ my @fileList_ecc = (
         [ "./certs/ecc-keyPub.der",        "ecc_key_pub_der_256" ],
         [ "./certs/server-ecc-comp.der",   "serv_ecc_comp_der_256" ],
         [ "./certs/server-ecc-rsa.der",    "serv_ecc_rsa_der_256" ],
-        [ "./certs/server-ecc.der",        "serv_ecc_der_256" ]
+        [ "./certs/server-ecc.der",        "serv_ecc_der_256" ],
+        [ "./certs/ca-ecc-key.der",        "ca_ecc_key_der_256" ],
+        [ "./certs/ca-ecc-cert.der",       "ca_ecc_cert_der_256" ],
+        [ "./certs/ca-ecc384-key.der",     "ca_ecc_key_der_384" ],
+        [ "./certs/ca-ecc384-cert.der",    "ca_ecc_cert_der_384" ]
+        );
+
+
+# ed25519 keys and certs
+# Used with HAVE_ED25519 define.
+my @fileList_ed = (
+        [ "./certs/ed25519/server-ed25519.der",    "server_ed25519_cert" ],
+        [ "./certs/ed25519/ca-ed25519.der",        "ca_ed25519_cert" ]
         );
 
 # 1024-bit certs/keys to be converted
@@ -64,6 +76,7 @@ my @fileList_2048 = (
 # ----------------------------------------------------------------------------
 
 my $num_ecc = @fileList_ecc;
+my $num_ed = @fileList_ed;
 my $num_1024 = @fileList_1024;
 my $num_2048 = @fileList_2048;
 
@@ -109,7 +122,7 @@ for (my $i = 0; $i < $num_2048; $i++) {
 
 print OUT_FILE "#endif /* USE_CERT_BUFFERS_2048 */\n\n";
 
-# convert and print 256-bit cert/keys
+# convert and print ECC cert/keys
 print OUT_FILE "#if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)\n\n";
 for (my $i = 0; $i < $num_ecc; $i++) {
 
@@ -147,6 +160,23 @@ static const unsigned char dh_g[] =
 {
   0x02,
 };\n\n";
+
+# convert and print ed25519 cert/keys
+print OUT_FILE "#if defined(HAVE_ED25519)\n\n";
+for (my $i = 0; $i < $num_ed; $i++) {
+
+    my $fname = $fileList_ed[$i][0];
+    my $sname = $fileList_ed[$i][1];
+
+    print OUT_FILE "/* $fname, ED25519 */\n";
+    print OUT_FILE "static const unsigned char $sname\[] =\n";
+    print OUT_FILE "{\n";
+    file_to_hex($fname);
+    print OUT_FILE "};\n";
+    print OUT_FILE "static const int sizeof_$sname = sizeof($sname);\n\n";
+}
+print OUT_FILE "#endif /* HAVE_ED25519 */\n\n";
+
 print OUT_FILE "#endif /* WOLFSSL_CERTS_TEST_H */\n\n";
 
 # close certs_test.h file

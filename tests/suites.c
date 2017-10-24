@@ -54,7 +54,7 @@ static char flagSep[] = " ";
     static char portFlag[] = "-p";
     static char svrPort[] = "0";
 #endif
-static char forceDefCipherListFlag[] = "-H";
+static char forceDefCipherListFlag[] = "-HdefCipherList";
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     static int devId = INVALID_DEVID;
