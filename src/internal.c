@@ -14978,9 +14978,8 @@ static const char* const cipher_names[] =
 
 
 /* cipher suite number that matches above name table */
-static int cipher_name_idx[] =
+static const int cipher_name_idx[] =
 {
-
 #ifdef BUILD_SSL_RSA_WITH_RC4_128_SHA
     SSL_RSA_WITH_RC4_128_SHA,
 #endif
