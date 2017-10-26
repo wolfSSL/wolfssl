@@ -88,7 +88,9 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb*,
         #define WOLFMEM_MAX_BUCKETS  9
     #endif
     #define WOLFMEM_DEF_BUCKETS  9     /* number of default memory blocks */
-    #define WOLFMEM_IO_SZ        16992 /* 16 byte aligned */
+    #ifndef WOLFMEM_IO_SZ
+        #define WOLFMEM_IO_SZ        16992 /* 16 byte aligned */
+    #endif
     #ifndef WOLFMEM_BUCKETS
         /* default size of chunks of memory to seperate into
          * having session certs enabled makes a 21k SSL struct */
