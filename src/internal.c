@@ -2833,7 +2833,7 @@ void FreeX509(WOLFSSL_X509* x509)
         }
     #endif /* OPENSSL_EXTRA */
     if (x509->altNames)
-        FreeAltNames(x509->altNames, NULL);
+        FreeAltNames(x509->altNames, x509->heap);
 }
 
 #endif /* !NO_DH || HAVE_ECC */
