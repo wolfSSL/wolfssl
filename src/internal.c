@@ -2838,7 +2838,7 @@ void FreeX509(WOLFSSL_X509* x509)
 
 #endif /* !NO_DH || HAVE_ECC */
 
-#if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519)
+#ifndef NO_CERTS
 /* Encode the signature algorithm into buffer.
  *
  * hashalgo  The hash algorithm.
@@ -2876,7 +2876,10 @@ static INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
 #endif
         /* ED448: 0x0808 */
     }
+    (void)hashAlgo;
+    (void)output;
 }
+
 static void SetDigest(WOLFSSL* ssl, int hashAlgo)
 {
     switch (hashAlgo) {
@@ -2906,7 +2909,7 @@ static void SetDigest(WOLFSSL* ssl, int hashAlgo)
         #endif /* WOLFSSL_SHA512 */
     } /* switch */
 }
-#endif
+#endif /* !NO_CERTS */
 
 #ifndef NO_RSA
 static int TypeHash(int hashAlgo)
@@ -4597,7 +4600,8 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
     return ret;
 }
 
-#if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_CURVE25519)
+#if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519) || \
+    defined(HAVE_CURVE25519)
 static int ReuseKey(WOLFSSL* ssl, int type, void* pKey)
 {
     int ret = 0;
@@ -19521,9 +19525,13 @@ exit_scke:
  */
 int DecodePrivateKey(WOLFSSL *ssl, word16* length)
 {
-    int      ret;
+    int      ret = BAD_FUNC_ARG;
+#if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519)
     int      keySz;
     word32   idx;
+#else
+    (void)length;
+#endif
 
     /* make sure private key exists */
     if (ssl->buffers.key == NULL || ssl->buffers.key->buffer == NULL) {
