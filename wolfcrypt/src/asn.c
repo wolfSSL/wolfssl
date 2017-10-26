@@ -1007,11 +1007,10 @@ static int CheckBitString(const byte* input, word32* inOutIdx, int* len,
     return 0;
 }
 
-#if (!defined(NO_RSA) && (defined(WOLFSSL_CERT_GEN) || \
-                          (defined(WOLFSSL_KEY_GEN) && \
-                           !defined(HAVE_USER_RSA)))) || \
-    (defined(HAVE_ECC) && (defined(WOLFSSL_CERT_GEN) || \
-                           defined(WOLFSSL_KEY_GEN)))
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN)
+
+#if (!defined(NO_RSA) && !defined(HAVE_USER_RSA)) || \
+    defined(HAVE_ECC) || defined(HAVE_ED25519)
 /* Set the DER/BER encoding of the ASN.1 BIT_STRING header.
  *
  * len         Length of data to encode.
@@ -1066,8 +1065,8 @@ static word32 SetBitString16Bit(word16 val, byte* output)
     return idx;
 }
 #endif /* WOLFSSL_CERT_EXT */
-#endif /* !NO_RSA && (WOLFSSL_CERT_GEN || (WOLFSSL_KEY_GEN &&
-                                           !HAVE_USER_RSA)) */
+#endif /* !NO_RSA || HAVE_ECC || HAVE_ED25519 */
+#endif /* WOLFSSL_CERT_GEN || WOLFSSL_KEY_GEN */
 
 
 
@@ -2176,6 +2175,8 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
     {
         ret = 0;
     }
+
+    (void)keySz;
 
     return ret;
 }

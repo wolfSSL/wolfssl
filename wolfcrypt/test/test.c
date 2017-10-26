@@ -920,7 +920,8 @@ int wolfcrypt_test(void* args)
 #endif /* NO_MAIN_DRIVER */
 
 /* helper to save DER, convert to PEM and save PEM */
-#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)
+#if !defined(NO_ASN) && (!defined(NO_RSA) || defined(HAVE_ECC)) && \
+    (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN))
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
 #define SaveDerAndPem(d, dSz, p, pSz, fD, fP, pT, eB) _SaveDerAndPem(d, dSz, p, pSz, fD, fP, pT, eB)
