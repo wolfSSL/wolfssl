@@ -10721,6 +10721,7 @@ static int test_tls13_apis(void)
                 WOLFSSL_SUCCESS);
 #endif
 
+#ifdef HAVE_ECC
     AssertIntEQ(wolfSSL_UseKeyShare(NULL, WOLFSSL_ECC_SECP256R1), BAD_FUNC_ARG);
     AssertIntEQ(wolfSSL_UseKeyShare(serverSsl, WOLFSSL_ECC_SECP256R1),
                 SIDE_ERROR);
@@ -10728,6 +10729,15 @@ static int test_tls13_apis(void)
                 WOLFSSL_SUCCESS);
     AssertIntEQ(wolfSSL_UseKeyShare(clientSsl, WOLFSSL_ECC_SECP256R1),
                 WOLFSSL_SUCCESS);
+#else
+    AssertIntEQ(wolfSSL_UseKeyShare(NULL, WOLFSSL_ECC_SECP256R1), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_UseKeyShare(serverSsl, WOLFSSL_ECC_SECP256R1),
+                SIDE_ERROR);
+    AssertIntEQ(wolfSSL_UseKeyShare(clientTls12Ssl, WOLFSSL_ECC_SECP256R1),
+                NOT_COMPILED_IN);
+    AssertIntEQ(wolfSSL_UseKeyShare(clientSsl, WOLFSSL_ECC_SECP256R1),
+                NOT_COMPILED_IN);
+#endif
 
     AssertIntEQ(wolfSSL_NoKeyShares(NULL), BAD_FUNC_ARG);
     AssertIntEQ(wolfSSL_NoKeyShares(serverSsl), SIDE_ERROR);

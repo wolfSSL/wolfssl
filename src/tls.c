@@ -2818,7 +2818,7 @@ int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
 
 #ifdef HAVE_SUPPORTED_CURVES
 
-#ifndef HAVE_ECC
+#if !defined(HAVE_ECC) && !defined(WOLFSSL_TLS13)
 #error Elliptic Curves Extension requires Elliptic Curve Cryptography. \
        Use --enable-ecc in the configure script or define HAVE_ECC.
 #endif
@@ -3077,6 +3077,7 @@ static int TLSX_PointFormat_Parse(WOLFSSL* ssl, byte* input, word16 length,
     return 0;
 }
 
+#ifdef HAVE_ECC
 int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
     TLSX*          extension = (first == ECC_BYTE || first == CHACHA_BYTE)
                              ? TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS)
@@ -3366,6 +3367,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
 
     return sig && key;
 }
+#endif
 
 #endif /* NO_WOLFSSL_SERVER */
 
@@ -5200,6 +5202,7 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
 
     while ((current = list) != NULL) {
         list = current->next;
+#ifdef HAVE_ECC
         if ((current->group & NAMED_DH_MASK) == 0) {
             if (current->group == WOLFSSL_ECC_X25519) {
 #ifdef HAVE_CURVE25519
@@ -5212,6 +5215,7 @@ static void TLSX_KeyShare_FreeAll(KeyShareEntry* list, void* heap)
 #endif
             }
         }
+#endif
         XFREE(current->key, heap, DYNAMIC_TYPE_PRIVATE_KEY);
         XFREE(current->ke, heap, DYNAMIC_TYPE_PUBLIC_KEY);
         XFREE(current, heap, DYNAMIC_TYPE_TLSX);
@@ -7759,18 +7763,18 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 #endif
 
             if (TLSX_Find(ssl->extensions, TLSX_KEY_SHARE) == NULL) {
-        #if (!defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)) && \
-            !defined(NO_ECC_SECP)
+        #if defined(HAVE_ECC) && (!defined(NO_ECC256) || \
+                              defined(HAVE_ALL_CURVES)) && !defined(NO_ECC_SECP)
                 ret = TLSX_KeyShare_Use(ssl, WOLFSSL_ECC_SECP256R1, 0, NULL,
                                         NULL);
-        #elif defined(HAVE_CURVE25519)
+        #elif defined(HAVE_ECC) && defined(HAVE_CURVE25519)
                 ret = TLSX_KeyShare_Use(ssl, WOLFSSL_ECC_X25519, 0, NULL, NULL);
-        #elif (!defined(NO_ECC384)  || defined(HAVE_ALL_CURVES)) && \
-              !defined(NO_ECC_SECP)
+        #elif defined(HAVE_ECC) && (!defined(NO_ECC384) || \
+                              defined(HAVE_ALL_CURVES)) && !defined(NO_ECC_SECP)
                 ret = TLSX_KeyShare_Use(ssl, WOLFSSL_ECC_SECP384R1, 0, NULL,
                                         NULL);
-        #elif (!defined(NO_ECC521)  || defined(HAVE_ALL_CURVES)) && \
-              !defined(NO_ECC_SECP)
+        #elif defined(HAVE_ECC) && (!defined(NO_ECC521) || \
+                              defined(HAVE_ALL_CURVES)) && !defined(NO_ECC_SECP)
                 ret = TLSX_KeyShare_Use(ssl, WOLFSSL_ECC_SECP521R1, 0, NULL,
                                         NULL);
         #elif defined(HAVE_FFDHE_2048)

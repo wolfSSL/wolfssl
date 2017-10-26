@@ -21,6 +21,7 @@ endif
 EXTRA_DIST += tests/unit.h
 EXTRA_DIST += tests/test.conf \
               tests/test-tls13.conf \
+              tests/test-tls13-ecc.conf \
               tests/test-qsh.conf \
               tests/test-psk-no-id.conf \
               tests/test-dtls.conf \
