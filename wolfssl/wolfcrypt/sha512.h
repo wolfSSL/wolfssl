@@ -59,6 +59,14 @@
     #include <wolfssl/wolfcrypt/async.h>
 #endif
 
+#if defined(_MSC_VER)
+    #define SHA512_NOINLINE __declspec(noinline)
+#elif defined(__GNUC__)
+    #define SHA512_NOINLINE __attribute__((noinline))
+#else
+    #define SHA512_NOINLINE
+#endif
+
 #ifndef NO_OLD_WC_NAMES
     #define Sha512             wc_Sha512
     #define SHA512             WC_SHA512
@@ -78,12 +86,13 @@ enum {
 
 /* wc_Sha512 digest */
 typedef struct wc_Sha512 {
+    word64  digest[WC_SHA512_DIGEST_SIZE / sizeof(word64)];
+    word64  buffer[WC_SHA512_BLOCK_SIZE  / sizeof(word64)];
     word32  buffLen;   /* in bytes          */
     word64  loLen;     /* length in bytes   */
     word64  hiLen;     /* length in bytes   */
-    word64  digest[WC_SHA512_DIGEST_SIZE / sizeof(word64)];
-    word64  buffer[WC_SHA512_BLOCK_SIZE  / sizeof(word64)];
     void*   heap;
+    const byte* data;
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
