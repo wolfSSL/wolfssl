@@ -6864,6 +6864,7 @@ long wolfSSL_CTX_ctrl(WOLFSSL_CTX* ctx, int cmd, long opt, void* pt)
 }
 
 #ifndef NO_CERTS
+
 int wolfSSL_check_private_key(const WOLFSSL* ssl)
 {
     DecodedCert der;
@@ -17803,7 +17804,7 @@ char*  wolfSSL_X509_get_subjectCN(WOLFSSL_X509* x509)
 
 #ifdef OPENSSL_EXTRA
 
-#ifdef FORTRESS
+#if defined(FORTRESS) && !defined(NO_FILESYSTEM)
 int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
 {
     int ret = WOLFSSL_FATAL_ERROR;
@@ -24218,11 +24219,13 @@ void WOLFSSL_ERR_remove_thread_state(void* pid)
     return;
 }
 
+#ifndef NO_FILESYSTEM
 /***TBD ***/
 void wolfSSL_print_all_errors_fp(XFILE *fp)
 {
     (void)fp;
 }
+#endif
 
 int wolfSSL_SESSION_set_ex_data(WOLFSSL_SESSION* session, int idx, void* data)
 {
@@ -25191,8 +25194,14 @@ int wolfSSL_X509_NAME_digest(const WOLFSSL_X509_NAME *name,
     if (name == NULL || type == NULL)
         return WOLFSSL_FAILURE;
 
+#ifndef NO_FILESYSTEM
     return wolfSSL_EVP_Digest((unsigned char*)name->fullName.fullName,
                               name->fullName.fullNameLen, md, len, type, NULL);
+#else
+    (void)md;
+    (void)len;
+    return NOT_COMPILED_IN;
+#endif
 }
 
 long wolfSSL_SSL_CTX_get_timeout(const WOLFSSL_CTX *ctx)
