@@ -4791,7 +4791,7 @@ static word16 TLSX_SignatureAlgorithms_GetSize(void* data)
  * returns 0 on success, BUFFER_ERROR when the length is not even.
  */
 static int TLSX_SignatureAlgorithms_MapPss(WOLFSSL *ssl, byte* input,
-                                           word16 length)
+                                                                  word16 length)
 {
     word16 i;
 
@@ -4835,11 +4835,12 @@ static word16 TLSX_SignatureAlgorithms_Write(void* data, byte* output)
  * returns 0 on success, otherwise failure.
  */
 static int TLSX_SignatureAlgorithms_Parse(WOLFSSL *ssl, byte* input,
-                                          word16 length, Suites* suites)
+                                  word16 length, byte isRequest, Suites* suites)
 {
     word16 len;
 
-    (void)ssl;
+    if (!isRequest)
+        return BUFFER_ERROR;
 
     /* Must contain a length and at least algorithm. */
     if (length < OPAQUE16_LEN + OPAQUE16_LEN || (length & 1) != 0)
@@ -8243,6 +8244,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
     word16 offset = 0;
     byte isRequest = (msgType == client_hello ||
                       msgType == certificate_request);
+
 #ifdef HAVE_EXTENDED_MASTER
     byte pendingEMS = 0;
 #endif
@@ -8420,12 +8422,14 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                 if (!IsAtLeastTLSv1_2(ssl))
                     break;
 
+#ifdef WOLFSSL_TLS13
                 if (IsAtLeastTLSv1_3(ssl->version) &&
                         msgType != client_hello &&
                         msgType != certificate_request) {
                     return EXT_NOT_ALLOWED;
                 }
-                ret = SA_PARSE(ssl, input + offset, size, suites);
+#endif
+                ret = SA_PARSE(ssl, input + offset, size, isRequest, suites);
                 break;
 
 #ifdef WOLFSSL_TLS13
