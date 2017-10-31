@@ -4,10 +4,12 @@
 /* Enables blinding mode, to prevent timing attacks */
 #define WC_RSA_BLINDING
 
+#define WOLFSSL_SHA384
 #define WOLFSSL_SHA512
 #define NO_PSK
 #define HAVE_EXTENDED_MASTER
 #define HAVE_TLS_EXTENSIONS
+#define HAVE_SUPPORTED_CURVES
 #define HAVE_AESGCM
 #define USE_FAST_MATH
 #define TFM_TIMING_RESISTANT
