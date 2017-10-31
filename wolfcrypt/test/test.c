@@ -8394,11 +8394,17 @@ int rsa_test(void)
 #ifdef WOLFSSL_KEY_GEN
     {
         int    derSz = 0;
+		int    keySz = 1024;
+
+		#ifdef HAVE_FIPS
+			keySz = 2048;
+		#endif /* HAVE_FIPS */
+
         ret = wc_InitRsaKey(&genKey, HEAP_HINT);
         if (ret != 0) {
             ERROR_OUT(-5550, exit_rsa);
         }
-        ret = wc_MakeRsaKey(&genKey, 1024, WC_RSA_EXPONENT, &rng);
+        ret = wc_MakeRsaKey(&genKey, keySz, WC_RSA_EXPONENT, &rng);
         if (ret != 0) {
             ERROR_OUT(-5551, exit_rsa);
         }

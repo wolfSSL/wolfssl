@@ -45,6 +45,7 @@
 #ifdef WOLFSSL_KEY_GEN
     #define MakeRsaKey  wc_MakeRsaKey
     #define RsaKeyToDer wc_RsaKeyToDer
+    #define CheckProbablePrime wc_CheckProbablePrime
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
