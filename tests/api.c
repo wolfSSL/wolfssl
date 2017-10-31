@@ -7790,8 +7790,13 @@ static int test_wc_MakeRsaKey (void)
     int     ret = 0;
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
 
+	int     keyLen = 1024;
     RsaKey  genKey;
     WC_RNG  rng;
+
+	#ifdef HAVE_FIPS
+		keyLen = 2048;
+	#endif /* HAVE_FIPS */
 
     printf(testingFmt, "wc_MakeRsaKey()");
 
@@ -7799,7 +7804,7 @@ static int test_wc_MakeRsaKey (void)
     if (ret == 0) {
         ret = wc_InitRng(&rng);
         if (ret == 0) {
-            ret = wc_MakeRsaKey(&genKey, 1024, WC_RSA_EXPONENT, &rng);
+            ret = wc_MakeRsaKey(&genKey, keyLen, WC_RSA_EXPONENT, &rng);
             if (ret == 0 && wc_FreeRsaKey(&genKey) != 0) {
                 ret = WOLFSSL_FATAL_ERROR;
             }
@@ -7808,17 +7813,17 @@ static int test_wc_MakeRsaKey (void)
     #ifndef HAVE_USER_RSA
         /* Test bad args. */
         if (ret == 0) {
-            ret = wc_MakeRsaKey(NULL, 1024, WC_RSA_EXPONENT, &rng);
+            ret = wc_MakeRsaKey(NULL, keyLen, WC_RSA_EXPONENT, &rng);
             if (ret == BAD_FUNC_ARG) {
-                ret = wc_MakeRsaKey(&genKey, 1024, WC_RSA_EXPONENT, NULL);
+                ret = wc_MakeRsaKey(&genKey, keyLen, WC_RSA_EXPONENT, NULL);
             }
             if (ret == BAD_FUNC_ARG) {
                 /* e < 3 */
-                ret = wc_MakeRsaKey(&genKey, 1024, 2, &rng);
+                ret = wc_MakeRsaKey(&genKey, keyLen, 2, &rng);
             }
             if (ret == BAD_FUNC_ARG) {
                 /* e & 1 == 0 */
-                ret = wc_MakeRsaKey(&genKey, 1024, 6, &rng);
+                ret = wc_MakeRsaKey(&genKey, keyLen, 6, &rng);
             }
             if (ret == BAD_FUNC_ARG) {
                 ret = 0;
@@ -7829,17 +7834,17 @@ static int test_wc_MakeRsaKey (void)
     #else
         /* Test bad args. */
         if (ret == 0) {
-            ret = wc_MakeRsaKey(NULL, 1024, WC_RSA_EXPONENT, &rng);
+            ret = wc_MakeRsaKey(NULL, keyLen, WC_RSA_EXPONENT, &rng);
             if (ret == USER_CRYPTO_ERROR) {
-                ret = wc_MakeRsaKey(&genKey, 1024, WC_RSA_EXPONENT, NULL);
+                ret = wc_MakeRsaKey(&genKey, keyLen, WC_RSA_EXPONENT, NULL);
             }
             if (ret == USER_CRYPTO_ERROR) {
                 /* e < 3 */
-                ret = wc_MakeRsaKey(&genKey, 1024, 2, &rng);
+                ret = wc_MakeRsaKey(&genKey, keyLen, 2, &rng);
             }
             if (ret == USER_CRYPTO_ERROR) {
                 /* e & 1 == 0 */
-                ret = wc_MakeRsaKey(&genKey, 1024, 6, &rng);
+                ret = wc_MakeRsaKey(&genKey, keyLen, 6, &rng);
             }
             if (ret == USER_CRYPTO_ERROR) {
                 ret = 0;
@@ -7924,12 +7929,19 @@ static int test_wc_RsaKeyToDer (void)
     int     ret = 0;
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     RsaKey  genKey;
+	int     keyLen = 1024;
     WC_RNG  rng;
     byte*   der;
-
+	int     derLen = 611;
     /* (2 x 128) + 2 (possible leading 00) + (5 x 64) + 5 (possible leading 00)
        + 3 (e) + 8 (ASN tag) + 10 (ASN length) + 4 seqSz + 3 version */
-    der = (byte*)XMALLOC(611, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+	#ifdef HAVE_FIPS
+		keyLen = 2048;
+		derLen = 1222;
+	#endif /* HAVE_FIPS */
+
+    der = (byte*)XMALLOC(derLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
         ret = WOLFSSL_FATAL_ERROR;
     }
@@ -7942,7 +7954,7 @@ static int test_wc_RsaKeyToDer (void)
     }
     /* Make key. */
     if (ret == 0) {
-        ret = wc_MakeRsaKey(&genKey, 1024, WC_RSA_EXPONENT, &rng);
+        ret = wc_MakeRsaKey(&genKey, keyLen, WC_RSA_EXPONENT, &rng);
         if (ret != 0) {
             ret = WOLFSSL_FATAL_ERROR;
         }
@@ -7951,10 +7963,11 @@ static int test_wc_RsaKeyToDer (void)
     printf(testingFmt, "wc_RsaKeyToDer()");
 
     if (ret == 0) {
-        ret = wc_RsaKeyToDer(&genKey, der, 610);
+        ret = wc_RsaKeyToDer(&genKey, der, derLen);
         if (ret > 0) {
             ret = 0;
         } else {
+			printf("1\n");
             ret = WOLFSSL_FATAL_ERROR;
         }
     }
@@ -8020,9 +8033,15 @@ static int test_wc_RsaKeyToPublicDer (void)
     int         ret = 0;
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     RsaKey      key;
+	int         keyLen = 1024;
     WC_RNG      rng;
     byte*       der;
     word32      derLen = 162;
+
+#ifdef HAVE_FIPS
+	keyLen = 2048;
+	derLen = 324;
+#endif /* HAVE_FIPS */
 
     der = (byte*)XMALLOC(derLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
@@ -8035,7 +8054,7 @@ static int test_wc_RsaKeyToPublicDer (void)
         ret = wc_InitRng(&rng);
     }
     if (ret == 0) {
-        ret = wc_MakeRsaKey(&key, 1024, WC_RSA_EXPONENT, &rng);
+        ret = wc_MakeRsaKey(&key, keyLen, WC_RSA_EXPONENT, &rng);
     }
 
     printf(testingFmt, "wc_RsaKeyToPublicDer()");
@@ -8108,11 +8127,17 @@ static int test_wc_RsaPublicEncryptDecrypt (void)
     int     ret = 0;
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     RsaKey  key;
+	int keyLen = 1024;
     WC_RNG  rng;
     const char* inStr = "Everyone gets Friday off.";
     word32  cipherLen = 128;
     word32  plainLen = 25;
     word32  inLen = (word32)XSTRLEN(inStr);
+
+	#ifdef HAVE_FIPS
+		keyLen = 2048;
+		cipherLen = 256;
+	#endif /* HAVE_FIPS */
 
     DECLARE_VAR_INIT(in, byte, inLen, inStr, NULL);
     DECLARE_VAR(plain, byte, plainLen, NULL);
@@ -8123,7 +8148,7 @@ static int test_wc_RsaPublicEncryptDecrypt (void)
         ret = wc_InitRng(&rng);
     }
     if (ret == 0) {
-        ret = wc_MakeRsaKey(&key, 1024, WC_RSA_EXPONENT, &rng);
+        ret = wc_MakeRsaKey(&key, keyLen, WC_RSA_EXPONENT, &rng);
     }
     /* Encrypt. */
     printf(testingFmt, "wc_RsaPublicEncrypt()");
@@ -8190,13 +8215,19 @@ static int test_wc_RsaPublicEncryptDecrypt_ex (void)
         && !defined(WC_NO_RSA_OAEP) && !defined(HAVE_USER_RSA)\
         && !defined(NO_SHA)
     RsaKey  key;
+	int keyLen = 1024;
     WC_RNG  rng;
     const char* inStr = "Everyone gets Friday off.";
     word32  inLen = (word32)XSTRLEN(inStr);
-    const word32 cipherSz = 128;
+    word32 cipherSz = 128;
     const word32 plainSz = 25;
     byte*   res = NULL;
     int     idx = 0;
+
+	#ifdef HAVE_FIPS
+		keyLen = 2048;
+		cipherSz = 256;
+	#endif /* HAVE_FIPS */
 
     DECLARE_VAR_INIT(in, byte, inLen, inStr, NULL);
     DECLARE_VAR(plain, byte, plainSz, NULL);
@@ -8211,7 +8242,7 @@ static int test_wc_RsaPublicEncryptDecrypt_ex (void)
         ret = wc_InitRng(&rng);
     }
     if (ret == 0) {
-        ret = wc_MakeRsaKey(&key, 1024, WC_RSA_EXPONENT, &rng);
+        ret = wc_MakeRsaKey(&key, keyLen, WC_RSA_EXPONENT, &rng);
     }
     /* Encrypt */
     printf(testingFmt, "wc_RsaPublicEncrypt_ex()");
@@ -8300,9 +8331,14 @@ static int test_wc_RsaSSL_SignVerify (void)
     int     ret = 0;
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     RsaKey  key;
+	int     keyLen = 1024;
     WC_RNG  rng;
     const char* inStr = "Everyone gets Friday off.";
-    const word32 outSz = 128;
+	#ifndef HAVE_FIPS
+        const word32 outSz = 128;
+	#else
+        const word32 outSz = 256;
+	#endif /* HAVE_FIPS */
     const word32 plainSz = 25;
     word32  inLen = (word32)XSTRLEN(inStr);
     word32  idx = 0;
@@ -8311,6 +8347,10 @@ static int test_wc_RsaSSL_SignVerify (void)
     DECLARE_VAR(out, byte, outSz, NULL);
     DECLARE_VAR(plain, byte, plainSz, NULL);
 
+	#ifdef HAVE_FIPS
+		keyLen = 2048;
+	#endif /* HAVE_FIPS */
+
     ret = wc_InitRsaKey(&key, NULL);
 
     if (ret == 0) {
@@ -8318,7 +8358,7 @@ static int test_wc_RsaSSL_SignVerify (void)
     }
 
     if (ret == 0) {
-        ret = wc_MakeRsaKey(&key, 1024, WC_RSA_EXPONENT, &rng);
+        ret = wc_MakeRsaKey(&key, keyLen, WC_RSA_EXPONENT, &rng);
     }
     /* Sign. */
     printf(testingFmt, "wc_RsaSSL_Sign()");
@@ -8452,9 +8492,14 @@ static int test_wc_RsaEncryptSize (void)
     int     ret = 0;
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     RsaKey  key;
+	int     keyLen = 1024;
     WC_RNG  rng;
-    int     enc128 = 128;
-    int     enc512 = 512;
+    int     encLen = 128;
+
+	#ifdef HAVE_FIPS
+		keyLen = 2048;
+		encLen = 256;
+	#endif /* HAVE_FIPS */
 
     ret = wc_InitRsaKey(&key, NULL);
 
@@ -8464,11 +8509,11 @@ static int test_wc_RsaEncryptSize (void)
 
     printf(testingFmt, "wc_RsaEncryptSize()");
     if (ret == 0) {
-        ret = wc_MakeRsaKey(&key, 1024, WC_RSA_EXPONENT, &rng);
+        ret = wc_MakeRsaKey(&key, keyLen, WC_RSA_EXPONENT, &rng);
         if (ret == 0) {
             ret = wc_RsaEncryptSize(&key);
         }
-        if (ret == enc128) {
+        if (ret == encLen) {
             ret = 0;
         } else {
             ret = WOLFSSL_FATAL_ERROR;
@@ -8481,11 +8526,12 @@ static int test_wc_RsaEncryptSize (void)
     }
 
     if (ret == 0) {
+		encLen = 512;
         ret = wc_MakeRsaKey(&key, FOURK_BUF, WC_RSA_EXPONENT, &rng);
         if (ret == 0) {
             ret = wc_RsaEncryptSize(&key);
         }
-        if (ret == enc512) {
+        if (ret == encLen) {
             ret = 0;
         } else {
             ret = WOLFSSL_FATAL_ERROR;
@@ -8526,11 +8572,16 @@ static int test_wc_RsaFlattenPublicKey (void)
     int     ret = 0;
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     RsaKey  key;
+	int     keyLen = 1024;
     WC_RNG  rng;
     byte    e[256];
     byte    n[256];
     word32  eSz = sizeof(e);
     word32  nSz = sizeof(n);
+
+	#ifdef HAVE_FIPS
+		keyLen = 2048;
+	#endif /* HAVE_FIPS */
 
     ret = wc_InitRsaKey(&key, NULL);
     if (ret == 0) {
@@ -8538,7 +8589,7 @@ static int test_wc_RsaFlattenPublicKey (void)
     }
 
     if (ret == 0) {
-        ret = wc_MakeRsaKey(&key, 1024, WC_RSA_EXPONENT, &rng);
+        ret = wc_MakeRsaKey(&key, keyLen, WC_RSA_EXPONENT, &rng);
         if (ret >= 0) {
             ret = 0;
         } else {

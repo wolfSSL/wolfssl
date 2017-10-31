@@ -147,17 +147,47 @@ int  wc_RsaEncryptSize(RsaKey* key)
 }
 
 
-int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
-                           word32* bSz)
-{
+#ifndef WOLFSSL_KEY_GEN
+    int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
+                               word32* bSz)
+    {
 
-    /* not specified as fips so not needing _fips */
-    return RsaFlattenPublicKey(key, a, aSz, b, bSz);
-}
-#ifdef WOLFSSL_KEY_GEN
+        /* not specified as fips so not needing _fips */
+        return RsaFlattenPublicKey(key, a, aSz, b, bSz);
+    }
+#else
+    int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
+                               word32* bSz)
+    {
+
+        /* not specified as fips so not needing _fips */
+        return RsaFlattenPublicKey_fips(key, a, aSz, b, bSz);
+    }
+
+    int wc_RsaExportKey(RsaKey* key,
+                        byte* e, word32* eSz, byte* n, word32* nSz,
+                        byte* d, word32* dSz, byte* p, word32* pSz,
+                        byte* q, word32* qSz)
+    {
+
+        /* not specified as fips so not needing _fips */
+        return RsaExportKey_fips(key, e, eSz, n, nSz, d, dSz, p, pSz, q, qSz);
+    }
+
+    int wc_CheckProbablePrime(const byte* pRaw, word32 pRawSz,
+                              const byte* qRaw, word32 qRawSz,
+                              const byte* eRaw, word32 eRawSz,
+                              int nlen, int* isPrime)
+    {
+        return CheckProbablePrime_fips(pRaw, pRawSz,
+                                       qRaw, qRawSz,
+                                       eRaw, eRawSz,
+                                       nlen, isPrime);
+    }
+
     int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     {
-        return MakeRsaKey(key, size, e, rng);
+        return MakeRsaKey_fips(key, size, e, rng);
     }
 #endif
 
@@ -1895,6 +1925,51 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* e, word32* eSz, byte* n,
 
     return 0;
 }
+
+
+static int RsaGetValue(mp_int* in, byte* out, word32* outSz)
+{
+    word32 sz;
+    int ret = 0;
+
+    sz = (word32)mp_unsigned_bin_size(in);
+    if (sz > *outSz)
+        ret = RSA_BUFFER_E;
+
+    if (ret == 0)
+        ret = mp_to_unsigned_bin(in, out);
+
+    if (ret == MP_OKAY)
+        *outSz = sz;
+
+    return ret;
+}
+
+
+int wc_RsaExportKey(RsaKey* key,
+                    byte* e, word32* eSz, byte* n, word32* nSz,
+                    byte* d, word32* dSz, byte* p, word32* pSz,
+                    byte* q, word32* qSz)
+{
+    int ret = BAD_FUNC_ARG;
+
+    if (key && e && eSz && n && nSz && d && dSz && p && pSz && q && qSz)
+        ret = 0;
+
+    if (ret == 0)
+        ret = RsaGetValue(&key->e, e, eSz);
+    if (ret == 0)
+        ret = RsaGetValue(&key->n, n, nSz);
+    if (ret == 0)
+        ret = RsaGetValue(&key->d, d, dSz);
+    if (ret == 0)
+        ret = RsaGetValue(&key->p, p, pSz);
+    if (ret == 0)
+        ret = RsaGetValue(&key->q, q, qSz);
+
+    return ret;
+}
+
 
 #ifdef WOLFSSL_KEY_GEN
 
