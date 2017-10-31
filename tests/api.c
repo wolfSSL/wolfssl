@@ -145,6 +145,7 @@
     #include <wolfssl/openssl/dh.h>
     #include <wolfssl/openssl/bn.h>
     #include <wolfssl/openssl/pem.h>
+    #include <wolfssl/openssl/ec.h>
 #ifndef NO_DES3
     #include <wolfssl/openssl/des.h>
 #endif
@@ -733,13 +734,80 @@ static int test_wolfSSL_SetMinVersion(void)
 
 } /* END test_wolfSSL_SetMinVersion */
 
+
+/*----------------------------------------------------------------------------*
+ | EC
+ *----------------------------------------------------------------------------*/
+
+/* Test function for EC_POINT_new, EC_POINT_mul, EC_POINT_free,
+    EC_GROUP_new_by_curve_name
+ */
+
+# if defined(OPENSSL_EXTRA)
+static void test_wolfSSL_EC(void)
+{
+#ifdef HAVE_ECC
+    BN_CTX *ctx;
+    EC_GROUP *group;
+    EC_POINT *Gxy, *new_point;
+    BIGNUM *k = NULL, *Gx = NULL, *Gy = NULL, *Gz = NULL;
+    BIGNUM *X, *Y;
+
+    const char* kTest = "F4F8338AFCC562C5C3F3E1E46A7EFECD17AF381913FF7A96314EA47055EA0FD0";
+    /* NISTP256R1 Gx/Gy */
+    const char* kGx   = "6B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296";
+    const char* kGy   = "4FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5";
+
+    AssertNotNull(ctx = BN_CTX_new());
+    AssertNotNull(group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1));
+    AssertNotNull(Gxy = EC_POINT_new(group));
+    AssertNotNull(new_point = EC_POINT_new(group));
+    AssertNotNull(X = BN_new());
+    AssertNotNull(Y = BN_new());
+
+    /* load test values */
+    AssertIntEQ(BN_hex2bn(&k,  kTest), WOLFSSL_SUCCESS);
+    AssertIntEQ(BN_hex2bn(&Gx, kGx),   WOLFSSL_SUCCESS);
+    AssertIntEQ(BN_hex2bn(&Gy, kGy),   WOLFSSL_SUCCESS);
+    AssertIntEQ(BN_hex2bn(&Gz, "1"),   WOLFSSL_SUCCESS);
+
+    /* populate coordinates for input point */
+    Gxy->X = Gx;
+    Gxy->Y = Gy;
+    Gxy->Z = Gz;
+    Gxy->inSet = 0;
+
+    /* perform point multiplication */
+    AssertIntEQ(EC_POINT_mul(group, new_point, NULL, Gxy, k, ctx), WOLFSSL_SUCCESS);
+
+    /* check if point X coordinate is zero */
+    AssertIntEQ(BN_is_zero(new_point->X), WOLFSSL_FAILURE);
+
+    /* extract the coordinates from point */
+    AssertIntEQ(EC_POINT_get_affine_coordinates_GFp(group, new_point, X, Y, ctx), WOLFSSL_SUCCESS);
+
+    /* check if point X coordinate is zero */
+    AssertIntEQ(BN_is_zero(X), WOLFSSL_FAILURE);
+
+    /* cleanup */
+    BN_free(X);
+    BN_free(Y);
+    BN_free(k);
+    EC_POINT_free(new_point);
+    EC_POINT_free(Gxy);
+    EC_GROUP_free(group);
+    BN_CTX_free(ctx);
+#endif /* HAVE_ECC */
+}
+#endif
+
+
+#include <wolfssl/openssl/pem.h>
 /*----------------------------------------------------------------------------*
  | EVP
  *----------------------------------------------------------------------------*/
 
 /* Test function for wolfSSL_EVP_get_cipherbynid.
- *
- * POST: return 1 on success.
  */
 
 # if defined(OPENSSL_EXTRA)
@@ -11074,6 +11142,7 @@ void ApiTest(void)
 #ifdef OPENSSL_EXTRA
     /*wolfSSS_EVP_get_cipherbynid test*/
     test_wolfSSL_EVP_get_cipherbynid();
+    test_wolfSSL_EC();
 #endif
 
 #ifdef HAVE_HASHDRBG

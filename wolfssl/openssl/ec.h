@@ -130,10 +130,6 @@ int wolfSSL_EC_GROUP_get_order(const WOLFSSL_EC_GROUP *group,
                                WOLFSSL_BIGNUM *order, WOLFSSL_BN_CTX *ctx);
 WOLFSSL_API
 void wolfSSL_EC_GROUP_free(WOLFSSL_EC_GROUP *group);
-#if defined(DEBUG_WOLFSSL) && !defined(NO_FILESYSTEM)
-WOLFSSL_API
-void wolfssl_EC_POINT_dump(const char *msg, const WOLFSSL_EC_POINT *p);
-#endif
 WOLFSSL_API
 WOLFSSL_EC_POINT *wolfSSL_EC_POINT_new(const WOLFSSL_EC_GROUP *group);
 WOLFSSL_API
@@ -187,6 +183,8 @@ int wolfSSL_EC_POINT_is_at_infinity(const WOLFSSL_EC_GROUP *group,
 #define EC_POINT_cmp wolfSSL_EC_POINT_cmp
 #define EC_POINT_free wolfSSL_EC_POINT_free
 #define EC_POINT_is_at_infinity wolfSSL_EC_POINT_is_at_infinity
+
+#define EC_POINT_dump wolfSSL_EC_POINT_dump
 
 #ifdef __cplusplus
 }  /* extern "C" */
