@@ -1129,12 +1129,6 @@ enum Misc {
     MIN_RSA_SHA512_PSS_BITS = 512 * 2 + 8 * 8, /* Min key size */
     MIN_RSA_SHA384_PSS_BITS = 384 * 2 + 8 * 8, /* Min key size */
 
-#ifdef HAVE_QSH
-    /* qsh handshake sends 600+ size keys over hello extensions */
-    MAX_HELLO_SZ       = 2048,  /* max client or server hello */
-#else
-    MAX_HELLO_SZ       = 128,  /* max client or server hello */
-#endif
     MAX_CERT_VERIFY_SZ = 1024, /* max   */
     CLIENT_HELLO_FIRST =  35,  /* Protocol + RAN_LEN + sizeof(id_len) */
     MAX_SUITE_NAME     =  48,  /* maximum length of cipher suite string */

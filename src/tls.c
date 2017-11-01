@@ -5250,7 +5250,7 @@ static word16 TLSX_KeyShare_GetSize(KeyShareEntry* list, byte msgType)
         if (!isRequest && current->key == NULL)
             continue;
 
-        len += OPAQUE16_LEN + OPAQUE16_LEN + current->keLen;
+        len += KE_GROUP_LEN + OPAQUE16_LEN + current->keLen;
     }
 
     return len;
@@ -8087,6 +8087,12 @@ word16 TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType)
                     TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
     #endif
                 }
+                else {
+                    TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
+    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+                    TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
+    #endif
+                }
 #endif
             break;
 #ifdef WOLFSSL_TLS13
@@ -8166,6 +8172,12 @@ word16 TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType)
                     TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
                     TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
+    #endif
+                }
+                else {
+                    TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
+    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+                    TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
     #endif
                 }
 #endif

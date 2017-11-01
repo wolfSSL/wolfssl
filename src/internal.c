@@ -20241,14 +20241,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             sessIdSz = 0;
         }
 
-        /* check for avalaible size */
-        if ((ret = CheckAvailableSize(ssl, MAX_HELLO_SZ)) != 0)
-            return ret;
-
-        /* get output buffer */
-        output = ssl->buffers.outputBuffer.buffer +
-                 ssl->buffers.outputBuffer.length;
-
         sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
         #ifdef WOLFSSL_DTLS
         if (ssl->options.dtls) {
@@ -20260,6 +20252,15 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
         }
         #endif /* WOLFSSL_DTLS */
+
+        /* check for avalaible size */
+        if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
+            return ret;
+
+        /* get output buffer */
+        output = ssl->buffers.outputBuffer.buffer +
+                 ssl->buffers.outputBuffer.length;
+
         AddHeaders(output, length, server_hello, ssl);
 
         /* now write to output */
