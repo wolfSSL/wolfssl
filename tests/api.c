@@ -775,7 +775,6 @@ static void test_wolfSSL_EC(void)
     Gxy->X = Gx;
     Gxy->Y = Gy;
     Gxy->Z = Gz;
-    Gxy->inSet = 0;
 
     /* perform point multiplication */
     AssertIntEQ(EC_POINT_mul(group, new_point, NULL, Gxy, k, ctx), WOLFSSL_SUCCESS);
@@ -9759,9 +9758,9 @@ static void test_wolfSSL_EVP_PKEY_new_mac_key(void)
 #ifdef OPENSSL_EXTRA
     static const unsigned char pw[] = "password";
     static const int pwSz = sizeof(pw) - 1;
-    size_t checkPwSz;
-    const unsigned char* checkPw;
-    WOLFSSL_EVP_PKEY* key;
+    size_t checkPwSz = 0;
+    const unsigned char* checkPw = NULL;
+    WOLFSSL_EVP_PKEY* key = NULL;
 
     printf(testingFmt, "wolfSSL_EVP_PKEY_new_mac_key()");
 
@@ -9780,15 +9779,15 @@ static void test_wolfSSL_EVP_PKEY_new_mac_key(void)
 
     AssertNotNull(key = wolfSSL_EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, NULL, pw, 0));
     AssertIntEQ(key->pkey_sz, 0);
-    AssertNotNull(key->pkey.ptr);
-    AssertNotNull(checkPw = wolfSSL_EVP_PKEY_get0_hmac(key, &checkPwSz));
+    checkPw = wolfSSL_EVP_PKEY_get0_hmac(key, &checkPwSz);
+    (void)checkPw;
     AssertIntEQ((int)checkPwSz, 0);
     wolfSSL_EVP_PKEY_free(key);
 
     AssertNotNull(key = wolfSSL_EVP_PKEY_new_mac_key(EVP_PKEY_HMAC, NULL, NULL, 0));
     AssertIntEQ(key->pkey_sz, 0);
-    AssertNotNull(key->pkey.ptr);
-    AssertNotNull(checkPw = wolfSSL_EVP_PKEY_get0_hmac(key, &checkPwSz));
+    checkPw = wolfSSL_EVP_PKEY_get0_hmac(key, &checkPwSz);
+    (void)checkPw;
     AssertIntEQ((int)checkPwSz, 0);
     wolfSSL_EVP_PKEY_free(key);
 

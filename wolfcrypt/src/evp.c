@@ -569,7 +569,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_EVP_PKEY_new_mac_key(int type, ENGINE* e,
     pkey = wolfSSL_PKEY_new();
     if (pkey != NULL) {
         pkey->pkey.ptr = (char*)XMALLOC(keylen, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
-        if (pkey->pkey.ptr == NULL) {
+        if (pkey->pkey.ptr == NULL && keylen > 0) {
             wolfSSL_EVP_PKEY_free(pkey);
             pkey = NULL;
         }

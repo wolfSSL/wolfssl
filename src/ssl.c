@@ -22040,9 +22040,8 @@ void wolfSSL_EC_POINT_free(WOLFSSL_EC_POINT *p)
     WOLFSSL_ENTER("wolfSSL_EC_POINT_free");
 
     if (p != NULL) {
-        if (p->internal == NULL) {
+        if (p->internal != NULL) {
             wc_ecc_del_point((ecc_point*)p->internal);
-            XFREE(p->internal, NULL, DYNAMIC_TYPE_ECC);
             p->internal = NULL;
         }
 
