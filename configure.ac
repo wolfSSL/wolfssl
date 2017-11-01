@@ -111,7 +111,6 @@ OPTIMIZE_CFLAGS="-Os -fomit-frame-pointer"
 OPTIMIZE_FAST_CFLAGS="-O2 -fomit-frame-pointer"
 OPTIMIZE_HUGE_CFLAGS="-funroll-loops -DTFM_SMALL_SET -DTFM_HUGE_SET"
 DEBUG_CFLAGS="-g -DDEBUG -DDEBUG_WOLFSSL"
-COVERAGE_CFLAGS="--coverage"
 LIB_ADD=
 LIB_STATIC_ADD=
 
@@ -129,11 +128,6 @@ AS_IF([test "$ax_enable_debug" = "yes"],
       [AM_CFLAGS="$DEBUG_CFLAGS $AM_CFLAGS"],
       [AM_CFLAGS="$AM_CFLAGS -DNDEBUG"])
 
-
-# COVERAGE
-AX_COVERAGE
-AS_IF([test "$ax_enable_coverage" = "yes"],
-      [AM_CFLAGS="$COVERAGE_CFLAGS $AM_CFLAGS"])
 
 
 # Distro build feature subset (Debian, Ubuntu, etc.)
