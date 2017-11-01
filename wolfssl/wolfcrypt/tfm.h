@@ -606,8 +606,6 @@ void fp_sqr_comba32(fp_int *a, fp_int *b);
 void fp_sqr_comba48(fp_int *a, fp_int *b);
 void fp_sqr_comba64(fp_int *a, fp_int *b);
 
-/*extern const char *fp_s_rmap;*/
-
 
 /**
  * Used by wolfSSL
