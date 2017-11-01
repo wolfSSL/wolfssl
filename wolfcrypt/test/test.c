@@ -933,8 +933,8 @@ static int _SaveDerAndPem(const byte* der, int derSz,
     byte* pem, int pemSz, const char* fileDer,
     const char* filePem, int pemType, int errBase)
 {
-    int ret;
 #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
+    int ret;
     FILE* derFile;
 
     derFile = fopen(fileDer, "wb");

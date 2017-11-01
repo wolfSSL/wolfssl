@@ -639,6 +639,7 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE_bio(WOLFSSL_BIO* bio,
             return NULL;
         }
     }
+#ifndef NO_FILESYSTEM
     else if (bio->type == BIO_FILE) {
         long i;
         long l;
@@ -663,6 +664,7 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE_bio(WOLFSSL_BIO* bio,
 
         len = wolfSSL_BIO_read(bio, (char *)data, (int)l);
     }
+#endif
     else
         return NULL;
 
