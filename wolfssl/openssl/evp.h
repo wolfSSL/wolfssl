@@ -51,6 +51,7 @@
 #ifdef HAVE_IDEA
     #include <wolfssl/wolfcrypt/idea.h>
 #endif
+#include <wolfssl/wolfcrypt/pwdbased.h>
 
 #ifdef __cplusplus
     extern "C" {
@@ -351,6 +352,12 @@ WOLFSSL_API int  wolfSSL_EVP_CIPHER_CTX_set_padding(WOLFSSL_EVP_CIPHER_CTX *c, i
 WOLFSSL_API int  wolfSSL_EVP_add_digest(const WOLFSSL_EVP_MD *digest);
 WOLFSSL_API int  wolfSSL_EVP_add_cipher(const WOLFSSL_EVP_CIPHER *cipher);
 
+
+WOLFSSL_API int wolfSSL_PKCS5_PBKDF2_HMAC_SHA1(const char * pass, int passlen,
+                                               const unsigned char * salt,
+                                               int saltlen, int iter,
+                                               int keylen, unsigned char *out);
+
 #define EVP_CIPH_STREAM_CIPHER WOLFSSL_EVP_CIPH_STREAM_CIPHER
 #define EVP_CIPH_ECB_MODE WOLFSSL_EVP_CIPH_ECB_MODE
 #define EVP_CIPH_CBC_MODE WOLFSSL_EVP_CIPH_CBC_MODE
@@ -478,6 +485,8 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_CIPHER_CTX_flags       wolfSSL_EVP_CIPHER_CTX_flags
 #define EVP_add_digest             wolfSSL_EVP_add_digest
 #define EVP_add_cipher             wolfSSL_EVP_add_cipher
+
+#define PKCS5_PBKDF2_HMAC_SHA1     wolfSSL_PKCS5_PBKDF2_HMAC_SHA1
 
 #ifndef EVP_MAX_MD_SIZE
     #define EVP_MAX_MD_SIZE   64     /* sha512 */

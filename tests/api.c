@@ -155,6 +155,11 @@
 #endif
 #endif /* OPENSSL_EXTRA */
 
+#if defined(OPENSSL_EXTRA) && defined(WOLFCRYPT_HAVE_SRP) \
+    && !defined(NO_SHA256) && !defined(RC_NO_RNG)
+        #include <wolfssl/wolfcrypt/srp.h>
+#endif
+
 /* enable testing buffer load functions */
 #ifndef USE_CERT_BUFFERS_2048
     #define USE_CERT_BUFFERS_2048
@@ -305,7 +310,6 @@ static void test_wolfSSL_CTX_new(WOLFSSL_METHOD *method)
 
     AssertNotNull(method);
     AssertNotNull(ctx = wolfSSL_CTX_new(method));
-
     wolfSSL_CTX_free(ctx);
 }
 #endif
@@ -2459,6 +2463,24 @@ static void test_wolfSSL_PKCS12(void)
 #endif /* OPENSSL_EXTRA */
 }
 
+/* Testing functions dealing with PKCS5 */
+static void test_wolfSSL_PKCS5(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA) && !defined(NO_PWDBASED)
+    const char *passwd = "pass1234";
+    const unsigned char *salt = (unsigned char *)"salt1234";
+    unsigned char *out = (unsigned char *)XMALLOC(WC_SHA_DIGEST_SIZE, NULL,
+                                                  DYNAMIC_TYPE_TMP_BUFFER);
+    int ret = 0;
+
+    AssertNotNull(out);
+    ret = PKCS5_PBKDF2_HMAC_SHA1(passwd,(int)XSTRLEN(passwd), salt,
+                                 (int)XSTRLEN((const char *) salt), 10,
+                                 WC_SHA_DIGEST_SIZE,out);
+    AssertIntEQ(ret, SSL_SUCCESS);
+    XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* defined(OPENSSL_EXTRA) && !defined(NO_SHA) */
+}
 
 /* Testing function  wolfSSL_CTX_SetMinVersion; sets the minimum downgrade
  * version allowed.
@@ -10013,6 +10035,72 @@ static void test_wolfSSL_X509_LOOKUP_load_file(void)
              !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
 }
 
+static void test_wolfSSL_X509_STORE_CTX_set_time(void)
+{
+    #if defined(OPENSSL_EXTRA)
+    WOLFSSL_X509_STORE_CTX*  ctx;
+    time_t ctime;
+
+    printf(testingFmt, "wolfSSL_X509_set_time()");
+    AssertNotNull(ctx = wolfSSL_X509_STORE_CTX_new());
+    ctime = 365*24*60*60;
+    wolfSSL_X509_STORE_CTX_set_time(ctx, 0, ctime);
+    AssertTrue(
+      (ctx->param->flags & WOLFSSL_USE_CHECK_TIME) == WOLFSSL_USE_CHECK_TIME);
+    AssertTrue(ctx->param->check_time == ctime);
+    wolfSSL_X509_STORE_CTX_free(ctx);
+
+    printf(resultFmt, passed);
+    #endif /* OPENSSL_EXTRA */
+}
+
+static void test_wolfSSL_CTX_set_client_CA_list(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_CERTS)
+    WOLFSSL_CTX* ctx;
+    WOLF_STACK_OF(WOLFSSL_X509_NAME)* names = NULL;
+    WOLF_STACK_OF(WOLFSSL_X509_NAME)* ca_list = NULL;
+
+    printf(testingFmt, "wolfSSL_CTX_set_client_CA_list()");
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    names = wolfSSL_load_client_CA_file(cliCertFile);
+    AssertNotNull(names);
+    wolfSSL_CTX_set_client_CA_list(ctx,names);
+    AssertNotNull(ca_list = wolfSSL_SSL_CTX_get_client_CA_list(ctx));
+    wolfSSL_CTX_free(ctx);
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA  && !NO_RSA && !NO_CERTS */
+}
+
+static void test_wolfSSL_CTX_add_client_CA(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_CERTS)
+    WOLFSSL_CTX* ctx;
+    WOLFSSL_X509* x509;
+    WOLFSSL_X509* x509_a;
+    WOLF_STACK_OF(WOLFSSLX509_NAME)* ca_list;
+    int ret = 0;
+
+    printf(testingFmt, "wolfSSL_CTX_add_client_CA()");
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    /* Add client cert */
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(cliCertFile,
+                                                      SSL_FILETYPE_PEM));
+    ret = wolfSSL_CTX_add_client_CA(ctx, x509);
+    AssertIntEQ(ret ,SSL_SUCCESS);
+    AssertNotNull(ca_list = wolfSSL_SSL_CTX_get_client_CA_list(ctx));
+    /* Add another client cert */
+    AssertNotNull(x509_a = wolfSSL_X509_load_certificate_file(cliCertFile,
+                                                        SSL_FILETYPE_PEM));
+    AssertIntEQ(wolfSSL_CTX_add_client_CA(ctx, x509_a),SSL_SUCCESS);
+
+    wolfSSL_X509_free(x509);
+    wolfSSL_X509_free(x509_a);
+    wolfSSL_CTX_free(ctx);
+
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA  && !NO_RSA && !NO_CERTS */
+}
 
 static void test_wolfSSL_X509_NID(void)
 {
@@ -10089,6 +10177,64 @@ static void test_wolfSSL_X509_NID(void)
     #endif
 }
 
+static void test_wolfSSL_CTX_set_srp_username(void)
+{
+#if defined(OPENSSL_EXTRA) && defined(WOLFCRYPT_HAVE_SRP) \
+    && !defined(NO_SHA256) && !defined(WC_NO_RNG)
+    WOLFSSL_CTX* ctx;
+    const char *username = "TESTUSER";
+    const char *password = "TESTPASSWORD";
+    int r;
+
+    printf(testingFmt, "wolfSSL_CTX_set_srp_username()");
+
+    ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    AssertNotNull(ctx);
+    r = wolfSSL_CTX_set_srp_username(ctx, (char *)username);
+    AssertIntEQ(r,SSL_SUCCESS);
+    wolfSSL_CTX_free(ctx);
+
+    ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    AssertNotNull(ctx);
+    r = wolfSSL_CTX_set_srp_password(ctx, (char *)password);
+    AssertIntEQ(r,SSL_SUCCESS);
+    r = wolfSSL_CTX_set_srp_username(ctx, (char *)username);
+    AssertIntEQ(r,SSL_SUCCESS);
+    wolfSSL_CTX_free(ctx);
+
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA && WOLFCRYPT_HAVE_SRP */
+       /* && !NO_SHA256 && !WC_NO_RNG */
+}
+
+static void test_wolfSSL_CTX_set_srp_password(void)
+{
+#if defined(OPENSSL_EXTRA) && defined(WOLFCRYPT_HAVE_SRP) \
+    && !defined(NO_SHA256) && !defined(WC_NO_RNG)
+    WOLFSSL_CTX* ctx;
+    const char *username = "TESTUSER";
+    const char *password = "TESTPASSWORD";
+    int r;
+
+    printf(testingFmt, "wolfSSL_CTX_set_srp_password()");
+    ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    AssertNotNull(ctx);
+    r = wolfSSL_CTX_set_srp_password(ctx, (char *)password);
+    AssertIntEQ(r,SSL_SUCCESS);
+    wolfSSL_CTX_free(ctx);
+
+    ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+    AssertNotNull(ctx);
+    r = wolfSSL_CTX_set_srp_username(ctx, (char *)username);
+    AssertIntEQ(r,SSL_SUCCESS);
+    r = wolfSSL_CTX_set_srp_password(ctx, (char *)password);
+    AssertIntEQ(r,SSL_SUCCESS);
+    wolfSSL_CTX_free(ctx);
+
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA && WOLFCRYPT_HAVE_SRP */
+       /* && !NO_SHA256 && !WC_NO_RNG */
+}
 
 static void test_wolfSSL_BN(void)
 {
@@ -10129,6 +10275,14 @@ static void test_wolfSSL_BN(void)
     value[0] = 0;
     AssertIntEQ(BN_bn2bin(d, value), WOLFSSL_SUCCESS);
     AssertIntEQ((int)(value[0] & 0x04), 4);
+
+    /* BN_mod_inverse test */
+    value[0] = 0;
+    BIGNUM *r = BN_new();
+    BIGNUM *val = BN_mod_inverse(r,b,c,NULL);
+    AssertIntEQ(BN_bn2bin(r, value), 1);
+    AssertIntEQ((int)(value[0] & 0x03), 3);
+    BN_free(val);
 
     BN_free(a);
     BN_free(b);
@@ -10195,6 +10349,27 @@ static void test_wolfSSL_set_options(void)
     printf(resultFmt, passed);
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
              !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
+}
+
+/* Testing  wolfSSL_set_tlsext_status_type funciton.
+ * PRE: OPENSSL and HAVE_CERTIFICATE_STATUS_REQUEST defined.
+ */
+static void test_wolfSSL_set_tlsext_status_type(void){
+    #if defined(OPENSSL_EXTRA) && defined(HAVE_CERTIFICATE_STATUS_REQUEST)
+    SSL*     ssl;
+    SSL_CTX* ctx;
+
+    printf(testingFmt, "wolfSSL_set_tlsext_status_type()");
+
+    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
+    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
+    AssertNotNull(ssl = SSL_new(ctx));
+    AssertTrue(SSL_set_tlsext_status_type(ssl,TLSEXT_STATUSTYPE_ocsp)
+               == SSL_SUCCESS);
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+    #endif  /* OPENSSL_EXTRA && HAVE_CERTIFICATE_STATUS_REQUEST */
 }
 
 static void test_wolfSSL_PEM_read_bio(void)
@@ -10422,15 +10597,94 @@ static void test_wolfSSL_DES_ecb_encrypt(void)
     int ret1 = 0;
     int ret2 = 0;
     wolfSSL_DES_ecb_encrypt(&output1,&back1,&key,DES_DECRYPT);
-    ret1 = memcmp((unsigned char *) back1,(unsigned char *) input1,sizeof(WOLFSSL_DES_cblock));
+    ret1 = XMEMCMP((unsigned char *) back1,(unsigned char *) input1,sizeof(WOLFSSL_DES_cblock));
     AssertIntEQ(ret1,0);
     wolfSSL_DES_ecb_encrypt(&output2,&back2,&key,DES_DECRYPT);
-    ret2 = memcmp((unsigned char *) back2,(unsigned char *) input2,sizeof(WOLFSSL_DES_cblock));
+    ret2 = XMEMCMP((unsigned char *) back2,(unsigned char *) input2,sizeof(WOLFSSL_DES_cblock));
     AssertIntEQ(ret2,0);
 
     printf(resultFmt, passed);
     #endif
 }
+
+static void test_wolfSSL_ASN1_TIME_adj(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN1_TIME) \
+&& !defined(USER_TIME) && !defined(TIME_OVERRIDES)
+
+    const int year = 365*24*60*60;
+    const int day = 24*60*60;
+    const int hour = 60*60;
+    const int min = 60;
+    const byte asn_utc_time = 0x17;
+    const byte asn_gen_time = 0x18;
+    WOLFSSL_ASN1_TIME *asn_time, *s;
+    int offset_day;
+    long offset_sec;
+    char date_str[20];
+
+    printf(testingFmt, "wolfSSL_ASN1_TIME_adj()");
+
+    s = (WOLFSSL_ASN1_TIME*)XMALLOC(sizeof(WOLFSSL_ASN1_TIME), NULL,
+                                    DYNAMIC_TYPE_OPENSSL);
+    /* UTC notation test */
+    /* 2000/2/15 20:30:00 */
+    time_t t = (time_t)30 * year + 45 * day + 20 * hour + 30 * min + 7 * day;
+    offset_day = 7;
+    offset_sec = 45 * min;
+    /* offset_sec = -45 * min;*/
+    asn_time = wolfSSL_ASN1_TIME_adj(s, t, offset_day, offset_sec);
+    AssertTrue(asn_time->data[0] == asn_utc_time);
+    XSTRNCPY(date_str,(const char*) &asn_time->data+2,13);
+    AssertIntEQ(0, XMEMCMP(date_str, "000222211500Z", 13));
+
+    /* negative offset */
+    offset_sec = -45 * min;
+    asn_time = wolfSSL_ASN1_TIME_adj(s, t, offset_day, offset_sec);
+    AssertTrue(asn_time->data[0] == asn_utc_time);
+    XSTRNCPY(date_str,(const char*) &asn_time->data+2,13);
+    AssertIntEQ(0, XMEMCMP(date_str, "000222194500Z", 13));
+
+    XFREE(s,NULL,DYNAMIC_TYPE_OPENSSL);
+    XMEMSET(date_str, 0, sizeof(date_str));
+
+    s = (WOLFSSL_ASN1_TIME*)XMALLOC(sizeof(WOLFSSL_ASN1_TIME), NULL,
+                                    DYNAMIC_TYPE_OPENSSL);
+    /* GeneralizedTime notation test */
+    /* 2055/03/01 09:00:00 */ 
+    t = (time_t)85 * year + 59 * day + 9 * hour + 21 * day;
+    offset_day = 12;
+    offset_sec = 10 * min;
+    asn_time = wolfSSL_ASN1_TIME_adj(s, t, offset_day, offset_sec);
+    AssertTrue(asn_time->data[0] == asn_gen_time);
+    XSTRNCPY(date_str,(const char*) &asn_time->data+2, 15);
+    AssertIntEQ(0, XMEMCMP(date_str, "20550313091000Z", 15));
+
+    XFREE(s,NULL,DYNAMIC_TYPE_OPENSSL);
+    XMEMSET(date_str, 0, sizeof(date_str));
+
+    /* if WOLFSSL_ASN1_TIME struct is not allocated */
+    s = NULL;
+
+    t = (time_t)30 * year + 45 * day + 20 * hour + 30 * min + 15 + 7 * day;
+    offset_day = 7;
+    offset_sec = 45 * min;
+    asn_time = wolfSSL_ASN1_TIME_adj(s, t, offset_day, offset_sec);
+    AssertTrue(asn_time->data[0] == asn_utc_time);
+    XSTRNCPY(date_str,(const char*) &asn_time->data+2,13);
+    AssertIntEQ(0, XMEMCMP(date_str, "000222211515Z", 13));
+    XFREE(asn_time,NULL,DYNAMIC_TYPE_OPENSSL);
+
+    asn_time = wolfSSL_ASN1_TIME_adj(NULL, t, offset_day, offset_sec);
+    AssertTrue(asn_time->data[0] == asn_utc_time);
+    XSTRNCPY(date_str,(const char*) &asn_time->data+2,13);
+    AssertIntEQ(0, XMEMCMP(date_str, "000222211515Z", 13));
+    XFREE(asn_time,NULL,DYNAMIC_TYPE_OPENSSL);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 /*----------------------------------------------------------------------------*
  | wolfCrypt ASN
  *----------------------------------------------------------------------------*/
@@ -10991,6 +11245,7 @@ void ApiTest(void)
     /* X509 tests */
     test_wolfSSL_X509_NAME_get_entry();
     test_wolfSSL_PKCS12();
+    test_wolfSSL_PKCS5();
 
     /*OCSP Stapling. */
     AssertIntEQ(test_wolfSSL_UseOCSPStapling(), WOLFSSL_SUCCESS);
@@ -11014,11 +11269,18 @@ void ApiTest(void)
     test_wolfSSL_X509_STORE_set_flags();
     test_wolfSSL_X509_LOOKUP_load_file();
     test_wolfSSL_X509_NID();
+    test_wolfSSL_X509_STORE_CTX_set_time();
     test_wolfSSL_BN();
     test_wolfSSL_set_options();
     test_wolfSSL_PEM_read_bio();
     test_wolfSSL_BIO();
     test_wolfSSL_DES_ecb_encrypt();
+    test_wolfSSL_set_tlsext_status_type();
+    test_wolfSSL_ASN1_TIME_adj();
+    test_wolfSSL_CTX_set_client_CA_list();
+    test_wolfSSL_CTX_add_client_CA();
+    test_wolfSSL_CTX_set_srp_username();
+    test_wolfSSL_CTX_set_srp_password();
     AssertIntEQ(test_wolfSSL_Cleanup(), WOLFSSL_SUCCESS);
 
     /* wolfCrypt ASN tests */

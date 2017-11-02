@@ -337,6 +337,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 #define ASN1_TIME_print              wolfSSL_ASN1_TIME_print
 #define ASN1_GENERALIZEDTIME_print   wolfSSL_ASN1_GENERALIZEDTIME_print
+#define ASN1_TIME_adj                wolfSSL_ASN1_TIME_adj
 
 #define ASN1_INTEGER_cmp wolfSSL_ASN1_INTEGER_cmp
 #define ASN1_INTEGER_get wolfSSL_ASN1_INTEGER_get
@@ -550,6 +551,8 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 #define BIO_write_filename  wolfSSL_BIO_write_filename
 #define BIO_set_mem_eof_return wolfSSL_BIO_set_mem_eof_return
 
+#define TLSEXT_STATUSTYPE_ocsp  1
+
 #define SSL_set_options      wolfSSL_set_options
 #define SSL_get_options      wolfSSL_get_options
 #define SSL_set_tmp_dh       wolfSSL_set_tmp_dh
@@ -616,6 +619,9 @@ typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #define X509_V_FLAG_CRL_CHECK     WOLFSSL_CRL_CHECK
 #define X509_V_FLAG_CRL_CHECK_ALL WOLFSSL_CRL_CHECKALL
+
+#define X509_V_FLAG_USE_CHECK_TIME WOLFSSL_USE_CHECK_TIME
+#define X509_V_FLAG_NO_CHECK_TIME  WOLFSSL_NO_CHECK_TIME
 
 #if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX)
 #include <wolfssl/openssl/asn1.h>
@@ -804,6 +810,11 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define SSL_CTX_set1_curves_list          wolfSSL_CTX_set1_curves_list
 
 #endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY */
+
+#define X509_STORE_CTX_set_time           wolfSSL_X509_STORE_CTX_set_time
+#define SSL_CTX_add_client_CA             wolfSSL_CTX_add_client_CA
+#define SSL_CTX_set_srp_password          wolfSSL_CTX_set_srp_password
+#define SSL_CTX_set_srp_username          wolfSSL_CTX_set_srp_username
 
 #ifdef __cplusplus
     } /* extern "C" */

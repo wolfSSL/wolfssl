@@ -26,6 +26,5 @@
 
 void echoclient_test(void* args);
 
-
 #endif /* WOLFSSL_ECHOCLIENT_H */
 

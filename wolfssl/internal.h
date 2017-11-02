@@ -178,6 +178,12 @@
     #include <wolfssl/wolfcrypt/async.h>
 #endif
 
+#ifdef OPENSSL_EXTRA
+    #ifdef WOLFCRYPT_HAVE_SRP
+        #include <wolfssl/wolfcrypt/srp.h>
+    #endif
+#endif
+
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
     #pragma warning(disable: 4996)
@@ -2410,6 +2416,10 @@ struct WOLFSSL_CTX {
         WOLFSSL_SESSION*(*get_sess_cb)(WOLFSSL*, unsigned char*, int, int*);
         int (*new_sess_cb)(WOLFSSL*, WOLFSSL_SESSION*);
         void (*rem_sess_cb)(WOLFSSL_CTX*, WOLFSSL_SESSION*);
+#endif
+#if defined(OPENSSL_EXTRA) && defined(WOLFCRYPT_HAVE_SRP) && !defined(NO_SHA256)
+        Srp*  srp;  /* TLS Secure Remote Password Protocol*/
+        byte* srp_password;
 #endif
 };
 

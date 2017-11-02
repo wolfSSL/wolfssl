@@ -54,6 +54,9 @@
 /* Set the minimum number of bits acceptable for private keys (RFC 5054) */
 #define SRP_PRIVATE_KEY_MIN_BITS 256
 
+/* salt size for SRP password */
+#define SRP_SALT_SIZE  16
+
 /**
  * SRP side, client or server.
  */
@@ -71,6 +74,7 @@ typedef enum {
         SRP_TYPE_SHA384 = 3,
         SRP_TYPE_SHA512 = 4,
 } SrpType;
+
 
 /**
  * SRP hash struct.

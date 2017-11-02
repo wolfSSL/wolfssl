@@ -764,3 +764,27 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx,
 
 #endif /* WOLFSSL_EVP_INCLUDED */
 
+#if defined(OPENSSL_EXTRA) && !defined(NO_PWDBASED) && !defined(NO_SHA)
+WOLFSSL_API int wolfSSL_PKCS5_PBKDF2_HMAC_SHA1(const char *pass, int passlen,
+                                               const unsigned char *salt,
+                                               int saltlen, int iter,
+                                               int keylen, unsigned char *out)
+{
+    const char *nostring = "";
+    int ret = 0;
+
+    if (pass == NULL){
+        passlen = 0;
+        pass = nostring;
+    } else if (passlen == -1){
+        passlen = (int)XSTRLEN(pass);
+    }
+
+    ret = wc_PBKDF2((byte*)out, (byte*)pass, passlen, (byte*)salt, saltlen,
+                    iter, keylen, WC_SHA);
+    if (ret == 0)
+        return SSL_SUCCESS;
+    else
+        return SSL_FAILURE;
+}
+#endif /* OPENSSL_EXTRA && !NO_PWDBASED !NO_SHA*/
