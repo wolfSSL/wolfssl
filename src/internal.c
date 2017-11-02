@@ -2838,7 +2838,7 @@ void FreeX509(WOLFSSL_X509* x509)
         }
     #endif /* OPENSSL_EXTRA */
     if (x509->altNames)
-        FreeAltNames(x509->altNames, NULL);
+        FreeAltNames(x509->altNames, x509->heap);
 }
 
 #endif /* !NO_DH || HAVE_ECC */
@@ -4850,6 +4850,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     #endif
         WOLFSSL_HEAP_HINT* ssl_hint = (WOLFSSL_HEAP_HINT*)ssl->heap;
         WOLFSSL_HEAP*      ctx_heap;
+        void* heap = ssl->ctx ? ssl->ctx->heap : ssl->heap;
 
         ctx_heap = ssl_hint->memory;
         if (wc_LockMutex(&(ctx_heap->memory_mutex)) != 0) {
@@ -4869,9 +4870,9 @@ void SSL_ResourceFree(WOLFSSL* ssl)
 
         /* check if tracking stats */
         if (ctx_heap->flag & WOLFMEM_TRACK_STATS) {
-            XFREE(ssl_hint->stats, ssl->ctx->heap, DYNAMIC_TYPE_SSL);
+            XFREE(ssl_hint->stats, heap, DYNAMIC_TYPE_SSL);
         }
-        XFREE(ssl->heap, ssl->ctx->heap, DYNAMIC_TYPE_SSL);
+        XFREE(ssl->heap, heap, DYNAMIC_TYPE_SSL);
     #ifdef WOLFSSL_HEAP_TEST
     }
     #endif
