@@ -18460,6 +18460,11 @@ WOLFSSL_BIGNUM* wolfSSL_BN_copy(WOLFSSL_BIGNUM* r, const WOLFSSL_BIGNUM* bn)
 {
     WOLFSSL_MSG("wolfSSL_BN_copy");
 
+    if (r == NULL || bn == NULL) {
+        WOLFSSL_MSG("r or bn NULL error");
+        return NULL;
+    }
+
     if (mp_copy((mp_int*)bn->internal, (mp_int*)r->internal) != MP_OKAY) {
         WOLFSSL_MSG("mp_copy error");
         return NULL;
@@ -18476,6 +18481,11 @@ WOLFSSL_BIGNUM* wolfSSL_BN_copy(WOLFSSL_BIGNUM* r, const WOLFSSL_BIGNUM* bn)
 int wolfSSL_BN_set_word(WOLFSSL_BIGNUM* bn, WOLFSSL_BN_ULONG w)
 {
     WOLFSSL_MSG("wolfSSL_BN_set_word");
+
+    if (bn == NULL) {
+        WOLFSSL_MSG("bn NULL error");
+        return WOLFSSL_FAILURE;
+    }
 
     if (mp_set_int((mp_int*)bn->internal, w) != MP_OKAY) {
         WOLFSSL_MSG("mp_init_set_int error");
@@ -21591,35 +21601,40 @@ int wolfSSL_EC_KEY_set_public_key(WOLFSSL_EC_KEY *key,
         return WOLFSSL_FAILURE;
     }
 
-#if defined(DEBUG_WOLFSSL) && !defined(NO_FILESYSTEM)
-    wolfssl_EC_POINT_dump("pub", pub);
-    wolfssl_EC_POINT_dump("key->pub_key", key->pub_key);
-#endif
+    wolfSSL_EC_POINT_dump("pub", pub);
+    wolfSSL_EC_POINT_dump("key->pub_key", key->pub_key);
+
     return WOLFSSL_SUCCESS;
 }
 /* End EC_KEY */
 
-#if defined(DEBUG_WOLFSSL) && !defined(NO_FILESYSTEM)
-void wolfssl_EC_POINT_dump(const char *msg, const WOLFSSL_EC_POINT *p)
+void wolfSSL_EC_POINT_dump(const char *msg, const WOLFSSL_EC_POINT *p)
 {
+#if defined(DEBUG_WOLFSSL)
     char *num;
 
-    WOLFSSL_ENTER("wolfssl_EC_POINT_dump");
+    WOLFSSL_ENTER("wolfSSL_EC_POINT_dump");
 
     if (p == NULL) {
-        fprintf(stderr, "%s = NULL", msg);
+        printf("%s = NULL", msg);
         return;
     }
 
-    fprintf(stderr, "%s:\n\tinSet=%d, exSet=%d\n", msg, p->inSet, p->exSet);
+    printf("%s:\n\tinSet=%d, exSet=%d\n", msg, p->inSet, p->exSet);
     num = wolfSSL_BN_bn2hex(p->X);
-    fprintf(stderr, "\tX = %s\n", num);
+    printf("\tX = %s\n", num);
     XFREE(num, NULL, DYNAMIC_TYPE_ECC);
     num = wolfSSL_BN_bn2hex(p->Y);
-    fprintf(stderr, "\tY = %s\n", num);
+    printf("\tY = %s\n", num);
     XFREE(num, NULL, DYNAMIC_TYPE_ECC);
-}
+    num = wolfSSL_BN_bn2hex(p->Z);
+    printf("\tZ = %s\n", num);
+    XFREE(num, NULL, DYNAMIC_TYPE_ECC);
+#else
+    (void)msg;
+    (void)p;
 #endif
+}
 
 /* Start EC_GROUP */
 
@@ -21813,11 +21828,10 @@ int wolfSSL_ECPoint_i2d(const WOLFSSL_EC_GROUP *group,
         }
     }
 
-#if defined(DEBUG_WOLFSSL) && !defined(NO_FILESYSTEM)
     if (out != NULL) {
-        wolfssl_EC_POINT_dump("i2d p", p);
+        wolfSSL_EC_POINT_dump("i2d p", p);
     }
-#endif
+
     err = wc_ecc_export_point_der(group->curve_idx, (ecc_point*)p->internal,
                                   out, len);
     if (err != MP_OKAY && !(out == NULL && err == LENGTH_ONLY_E)) {
@@ -21856,9 +21870,8 @@ int wolfSSL_ECPoint_d2i(unsigned char *in, unsigned int len,
         }
     }
 
-#if defined(DEBUG_WOLFSSL) && !defined(NO_FILESYSTEM)
-    wolfssl_EC_POINT_dump("d2i p", p);
-#endif
+    wolfSSL_EC_POINT_dump("d2i p", p);
+
     return WOLFSSL_SUCCESS;
 }
 
@@ -21961,20 +21974,22 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
     }
 
     ret = mp_read_radix(&prime, ecc_sets[group->curve_idx].prime, 16);
-    if (ret == MP_OKAY)
+    if (ret == MP_OKAY) {
         ret = mp_read_radix(&a, ecc_sets[group->curve_idx].Af, 16);
+    }
 
     /* r = q * m % prime */
-    if (ret == MP_OKAY)
+    if (ret == MP_OKAY) {
         ret = wc_ecc_mulmod((mp_int*)m->internal, (ecc_point*)q->internal,
                       (ecc_point*)r->internal, &a, &prime, 1);
+    }
 
     mp_clear(&a);
     mp_clear(&prime);
 
     if (ret == MP_OKAY) {
         /* set the external value for the computed point */
-        ret = SetECPointInternal(r);
+        ret = SetECPointExternal(r);
         if (ret != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("SetECPointInternal r failed");
         }
@@ -22026,9 +22041,8 @@ void wolfSSL_EC_POINT_free(WOLFSSL_EC_POINT *p)
     WOLFSSL_ENTER("wolfSSL_EC_POINT_free");
 
     if (p != NULL) {
-        if (p->internal == NULL) {
+        if (p->internal != NULL) {
             wc_ecc_del_point((ecc_point*)p->internal);
-            XFREE(p->internal, NULL, DYNAMIC_TYPE_ECC);
             p->internal = NULL;
         }
 
