@@ -147,20 +147,12 @@ int  wc_RsaEncryptSize(RsaKey* key)
 }
 
 
-#ifndef WOLFSSL_KEY_GEN
+/* New FIPS functions. */
+#if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+
     int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
                                word32* bSz)
     {
-
-        /* not specified as fips so not needing _fips */
-        return RsaFlattenPublicKey(key, a, aSz, b, bSz);
-    }
-#else
-    int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
-                               word32* bSz)
-    {
-
-        /* not specified as fips so not needing _fips */
         return RsaFlattenPublicKey_fips(key, a, aSz, b, bSz);
     }
 
@@ -169,8 +161,6 @@ int  wc_RsaEncryptSize(RsaKey* key)
                         byte* d, word32* dSz, byte* p, word32* pSz,
                         byte* q, word32* qSz)
     {
-
-        /* not specified as fips so not needing _fips */
         return RsaExportKey_fips(key, e, eSz, n, nSz, d, dSz, p, pSz, q, qSz);
     }
 
@@ -189,6 +179,24 @@ int  wc_RsaEncryptSize(RsaKey* key)
     {
         return MakeRsaKey_fips(key, size, e, rng);
     }
+
+#else /* Use old version of FIPS functions. */
+
+    int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
+                               word32* bSz)
+    {
+
+        /* not specified as fips so not needing _fips */
+        return RsaFlattenPublicKey(key, a, aSz, b, bSz);
+    }
+
+    #ifdef WOLFSSL_KEY_GEN
+        int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
+        {
+            return MakeRsaKey(key, size, e, rng);
+        }
+    #endif
+
 #endif
 
 
@@ -2057,9 +2065,7 @@ static const byte lower_bound[] = {
 static INLINE int RsaSizeCheck(int size)
 {
     switch (size) {
-#ifndef HAVE_FIPS
         case 1024:
-#endif
         case 2048:
         case 3072:
         case 4096:

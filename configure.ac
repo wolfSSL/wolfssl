@@ -1862,8 +1862,10 @@ AC_ARG_ENABLE([fips],
     [ ENABLED_FIPS=no ]
     )
 
-if test "x$ENABLED_FIPS" = "xyes"
+if test "x$ENABLED_FIPS" != "xno"
 then
+    FIPS_VERSION=$ENABLED_FIPS
+    ENABLED_FIPS=yes
     # requires thread local storage
     if test "$thread_ls_on" = "no"
     then
@@ -1889,6 +1891,9 @@ then
         ENABLED_DES3="yes"
     fi
     AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS"
+    # Add the FIPS flag.
+    AS_IF([test "x$FIPS_VERSION" = "xv2"],
+          [AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS_VERSION=2"])
 else
     if test "x$ENABLED_FORTRESS" = "xyes"
     then
