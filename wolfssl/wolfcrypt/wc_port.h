@@ -397,6 +397,11 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     /* default */
     /* uses complete <time.h> facility */
     #include <time.h>
+
+    /* PowerPC time_t is int */
+    #ifdef __PPC__
+        #define TIME_T_NOT_LONG
+    #endif
 #endif
 
 

@@ -10613,15 +10613,18 @@ static void test_wolfSSL_ASN1_TIME_adj(void)
 && !defined(USER_TIME) && !defined(TIME_OVERRIDES)
 
     const int year = 365*24*60*60;
-    const int day = 24*60*60;
+    const int day  = 24*60*60;
     const int hour = 60*60;
-    const int min = 60;
-    const byte asn_utc_time = 0x17;
-    const byte asn_gen_time = 0x18;
+    const int min  = 60;
+    const byte asn_utc_time = ASN_UTC_TIME;
+#ifndef TIME_T_NOT_LONG
+    const byte asn_gen_time = ASN_GENERALIZED_TIME;
+#endif
     WOLFSSL_ASN1_TIME *asn_time, *s;
     int offset_day;
     long offset_sec;
     char date_str[20];
+    time_t t;
 
     printf(testingFmt, "wolfSSL_ASN1_TIME_adj()");
 
@@ -10629,7 +10632,7 @@ static void test_wolfSSL_ASN1_TIME_adj(void)
                                     DYNAMIC_TYPE_OPENSSL);
     /* UTC notation test */
     /* 2000/2/15 20:30:00 */
-    time_t t = (time_t)30 * year + 45 * day + 20 * hour + 30 * min + 7 * day;
+    t = (time_t)30 * year + 45 * day + 20 * hour + 30 * min + 7 * day;
     offset_day = 7;
     offset_sec = 45 * min;
     /* offset_sec = -45 * min;*/
@@ -10648,10 +10651,12 @@ static void test_wolfSSL_ASN1_TIME_adj(void)
     XFREE(s,NULL,DYNAMIC_TYPE_OPENSSL);
     XMEMSET(date_str, 0, sizeof(date_str));
 
+    /* Generalized time will overflow time_t if not long */
+#ifndef TIME_T_NOT_LONG
     s = (WOLFSSL_ASN1_TIME*)XMALLOC(sizeof(WOLFSSL_ASN1_TIME), NULL,
                                     DYNAMIC_TYPE_OPENSSL);
     /* GeneralizedTime notation test */
-    /* 2055/03/01 09:00:00 */ 
+    /* 2055/03/01 09:00:00 */
     t = (time_t)85 * year + 59 * day + 9 * hour + 21 * day;
     offset_day = 12;
     offset_sec = 10 * min;
@@ -10662,6 +10667,7 @@ static void test_wolfSSL_ASN1_TIME_adj(void)
 
     XFREE(s,NULL,DYNAMIC_TYPE_OPENSSL);
     XMEMSET(date_str, 0, sizeof(date_str));
+#endif
 
     /* if WOLFSSL_ASN1_TIME struct is not allocated */
     s = NULL;

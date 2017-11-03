@@ -14189,7 +14189,7 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         wc_PKCS7_Free(&pkcs7);
     }
 
-#ifndef HAVE_ECC
+#if !defined(HAVE_ECC) || defined(NO_AES)
     (void)eccCert;
     (void)eccCertSz;
     (void)eccPrivKey;
