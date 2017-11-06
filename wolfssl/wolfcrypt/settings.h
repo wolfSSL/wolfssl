@@ -442,6 +442,11 @@
     #define USE_CERT_BUFFERS_2048
 #endif
 
+#ifdef WOLFSSL_CHIBIOS
+    /* ChibiOS definitions. This file is distributed with chibiOS. */
+    #include "wolfssl_chibios.h"
+#endif
+
 #ifdef WOLFSSL_NRF5x
         #define SIZEOF_LONG 4
         #define SIZEOF_LONG_LONG 8
