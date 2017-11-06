@@ -309,7 +309,7 @@
 	    #define XSTRNCMP(s1,s2,n) strncmp((s1),(s2),(n))
 	    #define XSTRNCAT(s1,s2,n) strncat((s1),(s2),(n))
 
-        #ifdef MICROCHIP_PIC32
+        #if defined(MICROCHIP_PIC32) || defined(WOLFSSL_TIRTOS)
             /* XC32 does not support strncasecmp, so use case sensitive one */
             #define XSTRNCASECMP(s1,s2,n) strncmp((s1),(s2),(n))
         #elif defined(USE_WINDOWS_API)
@@ -327,16 +327,16 @@
 
         #if defined(WOLFSSL_CERT_EXT) || defined(HAVE_ALPN)
             /* use only Thread Safe version of strtok */
-            #if !defined(USE_WINDOWS_API) && !defined(INTIME_RTOS)
-                #define XSTRTOK strtok_r
-            #elif defined(__MINGW32__) || defined(WOLFSSL_TIRTOS) || \
+            #if defined(__MINGW32__) || defined(WOLFSSL_TIRTOS) || \
                     defined(USE_WOLF_STRTOK)
                 #ifndef USE_WOLF_STRTOK
                     #define USE_WOLF_STRTOK
                 #endif
                 #define XSTRTOK wc_strtok
-            #else
+            #elif defined(USE_WINDOWS_API) || defined(INTIME_RTOS)
                 #define XSTRTOK strtok_s
+            #else
+                #define XSTRTOK strtok_r
             #endif
         #endif
 	#endif
