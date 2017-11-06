@@ -591,6 +591,8 @@ extern void uITRON4_free(void *p) ;
     #define NO_WOLFSSL_DIR
     #define USE_FAST_MATH
     #define TFM_TIMING_RESISTANT
+    #define ECC_TIMING_RESISTANT
+    #define WC_RSA_BLINDING
     #define NO_DEV_RANDOM
     #define NO_FILESYSTEM
     #define USE_CERT_BUFFERS_2048
@@ -598,6 +600,7 @@ extern void uITRON4_free(void *p) ;
     #define USER_TIME
     #define HAVE_ECC
     #define HAVE_ALPN
+    #define USE_WOLF_STRTOK /* use with HAVE_ALPN */
     #define HAVE_TLS_EXTENSIONS
     #define HAVE_AESGCM
     #define HAVE_SUPPORTED_CURVES
