@@ -64,6 +64,10 @@
    #define MAX(x,y) ((x)>(y)?(x):(y))
 #endif
 
+#ifdef WOLFSSL_NO_ASM
+   #undef  TFM_NO_ASM
+   #define TFM_NO_ASM
+#endif
 
 #ifndef NO_64BIT
 /* autodetect x86-64 and make sure we are using 64-bit digits with x86-64 asm */

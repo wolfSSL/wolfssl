@@ -6461,11 +6461,11 @@ static INLINE byte GetHmacLength(int hmac)
         case sha256_mac:
             return WC_SHA256_DIGEST_SIZE;
     #endif
-    #ifndef NO_SHA384
+    #ifdef WOLFSSL_SHA384
         case sha384_mac:
             return WC_SHA384_DIGEST_SIZE;
     #endif
-    #ifndef NO_SHA512
+    #ifdef WOLFSSL_SHA512
         case sha512_mac:
             return WC_SHA512_DIGEST_SIZE;
     #endif

@@ -140,8 +140,8 @@ STATIC INLINE word64 rotrFixed64(word64 x, word64 y)
 STATIC INLINE word64 ByteReverseWord64(word64 value)
 {
 #if defined(WOLFCRYPT_SLOW_WORD64)
-	return (word64)(ByteReverseWord32((word32)value)) << 32 |
-                    ByteReverseWord32((word32)(value>>32));
+	return (word64)((word64)ByteReverseWord32((word32) value)) << 32 |
+                    (word64)ByteReverseWord32((word32)(value   >> 32));
 #else
 	value = ((value & W64LIT(0xFF00FF00FF00FF00)) >> 8) |
             ((value & W64LIT(0x00FF00FF00FF00FF)) << 8);
@@ -192,7 +192,7 @@ STATIC INLINE void xorbuf(void* buf, const void* mask, word32 count)
 STATIC INLINE void ForceZero(const void* mem, word32 len)
 {
     volatile byte* z = (volatile byte*)mem;
-#ifdef WOLFSSL_X86_64_BUILD
+#if defined(WOLFSSL_X86_64_BUILD) && defined(WORD64_AVAILABLE)
     volatile word64* w;
 
     for (w = (volatile word64*)z; len >= sizeof(*w); len -= sizeof(*w))

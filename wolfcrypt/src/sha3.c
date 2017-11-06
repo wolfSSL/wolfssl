@@ -327,7 +327,7 @@ do                                                                      \
     }                                                                   \
 }                                                                       \
 while (0)
-#endif
+#endif /* SHA3_BY_SPEC */
 
 /* The block operation performed on the state.
  *
@@ -376,7 +376,7 @@ static void BlockSha3(word64 *s)
 }
 #else
 #include "sha3_long.i"
-#endif
+#endif /* WOLFSSL_SHA3_SMALL */
 
 /* Convert the array of bytes, in little-endian order, to a 64-bit integer.
  *

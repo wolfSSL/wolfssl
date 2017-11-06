@@ -646,7 +646,7 @@
         #endif
     #endif
 
-    #ifdef HAVE_CHACHA
+    #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
         #ifndef NO_SHA256
             #define BUILD_TLS_CHACHA20_POLY1305_SHA256
         #endif

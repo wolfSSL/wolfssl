@@ -51,26 +51,30 @@
 
 
 	/* try to set SIZEOF_LONG or LONG_LONG if user didn't */
-	#if !defined(_MSC_VER) && !defined(__BCPLUSPLUS__)
+	#if !defined(_MSC_VER) && !defined(__BCPLUSPLUS__) && !defined(__EMSCRIPTEN__)
 	    #if !defined(SIZEOF_LONG_LONG) && !defined(SIZEOF_LONG)
-	        #if (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) \
-	                || defined(__mips64)  || defined(__x86_64__) || \
-                    ((defined(sun) || defined(__sun)) && \
+	        #if (defined(__alpha__) || defined(__ia64__) || \
+                   defined(_ARCH_PPC64) || defined(__mips64) || \
+                   defined(__x86_64__) || \
+                   ((defined(sun) || defined(__sun)) && \
                      (defined(LP64) || defined(_LP64))))
 	            /* long should be 64bit */
 	            #define SIZEOF_LONG 8
-	        #elif defined(__i386__) || defined(__CORTEX_M3__)
-	            /* long long should be 64bit */
-	            #define SIZEOF_LONG_LONG 8
+            #elif (defined(__i386__) || defined(__CORTEX_M3__)
+                /* long long should be 64bit */
+                #define SIZEOF_LONG_LONG 8
 	        #endif
 	    #endif
 	#endif
-
 
 	#if defined(_MSC_VER) || defined(__BCPLUSPLUS__)
 	    #define WORD64_AVAILABLE
 	    #define W64LIT(x) x##ui64
 	    typedef unsigned __int64 word64;
+    #elif defined(__EMSCRIPTEN__)
+        #define WORD64_AVAILABLE
+        #define W64LIT(x) x##ull
+        typedef unsigned long long word64;
 	#elif defined(SIZEOF_LONG) && SIZEOF_LONG == 8
 	    #define WORD64_AVAILABLE
 	    #define W64LIT(x) x##LL
@@ -83,12 +87,9 @@
 	    #define WORD64_AVAILABLE
 	    #define W64LIT(x) x##LL
 	    typedef unsigned long long word64;
-	#else
-	    #define MP_16BIT  /* for mp_int, mp_word needs to be twice as big as
-	                         mp_digit, no 64 bit type so make mp_digit 16 bit */
 	#endif
 
-
+#if !defined(NO_64BIT) && defined(WORD64_AVAILABLE)
 	/* These platforms have 64-bit CPU registers.  */
 	#if (defined(__alpha__) || defined(__ia64__) || defined(_ARCH_PPC64) || \
 	     defined(__mips64)  || defined(__x86_64__) || defined(_M_X64)) || \
@@ -109,7 +110,12 @@
 	        #define WOLFCRYPT_SLOW_WORD64
 	    #endif
 	#endif
-
+#else
+        #undef WORD64_AVAILABLE
+        typedef word32 wolfssl_word;
+        #define MP_16BIT  /* for mp_int, mp_word needs to be twice as big as
+                             mp_digit, no 64 bit type so make mp_digit 16 bit */
+#endif
 
 	enum {
 	    WOLFSSL_WORD_SIZE  = sizeof(wolfssl_word),
