@@ -50,11 +50,11 @@
     #define WOLFSSL_RSA_TYPE_DEFINED
 #endif
 
+
 enum {
     RSA_PUBLIC   = 0,
     RSA_PRIVATE  = 1,
 };
-
 
 /* RSA */
 struct RsaKey {

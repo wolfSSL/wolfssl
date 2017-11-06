@@ -20078,7 +20078,7 @@ int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA* rsa, int bits, WOLFSSL_BIGNUM* bn,
         if (wc_InitRng(rng) < 0)
             WOLFSSL_MSG("RNG init failed");
         else if (wc_MakeRsaKey((RsaKey*)rsa->internal,
-                               bits, 65537, rng) != MP_OKAY)
+                               bits, WC_RSA_EXPONENT, rng) != MP_OKAY)
             WOLFSSL_MSG("wc_MakeRsaKey failed");
         else if (SetRsaExternal(rsa) != WOLFSSL_SUCCESS)
             WOLFSSL_MSG("SetRsaExternal failed");
