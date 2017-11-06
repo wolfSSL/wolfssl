@@ -1099,7 +1099,7 @@ static int wc_ecc_curve_load_item(const char* src, mp_int** dst,
     if (err == MP_OKAY) {
         curve->load_mask |= mask;
 
-        err = mp_read_radix(*dst, src, 16);
+        err = mp_read_radix(*dst, src, MP_RADIX_HEX);
 
     #ifdef HAVE_WOLF_BIGINT
         if (err == MP_OKAY)
@@ -2599,7 +2599,7 @@ static int wc_ecc_cmp_param(const char* curveParam,
         err = mp_read_unsigned_bin(&a, param, paramSz);
 
     if (err == MP_OKAY)
-        err = mp_read_radix(&b, curveParam, 16);
+        err = mp_read_radix(&b, curveParam, MP_RADIX_HEX);
 
     if (err == MP_OKAY) {
         if (mp_cmp(&a, &b) != MP_EQ) {
@@ -4951,7 +4951,7 @@ int wc_ecc_check_key(ecc_key* key)
     if (err == MP_OKAY)
         err = mp_init(b);
     if (err == MP_OKAY)
-        err = mp_read_radix(b, key->dp->Bf, 16);
+        err = mp_read_radix(b, key->dp->Bf, MP_RADIX_HEX);
 #else
     b = curve->Bf;
 #endif
@@ -5378,9 +5378,9 @@ int wc_ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen)
     if (err != MP_OKAY)
         return err;
 
-    err = mp_read_radix(&rtmp, r, 16);
+    err = mp_read_radix(&rtmp, r, MP_RADIX_HEX);
     if (err == MP_OKAY)
-        err = mp_read_radix(&stmp, s, 16);
+        err = mp_read_radix(&stmp, s, MP_RADIX_HEX);
 
     /* convert mp_ints to ECDSA sig, initializes rtmp and stmp internally */
     if (err == MP_OKAY)
@@ -5496,11 +5496,11 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
 
     /* read Qx */
     if (err == MP_OKAY)
-        err = mp_read_radix(key->pubkey.x, qx, 16);
+        err = mp_read_radix(key->pubkey.x, qx, MP_RADIX_HEX);
 
     /* read Qy */
     if (err == MP_OKAY)
-        err = mp_read_radix(key->pubkey.y, qy, 16);
+        err = mp_read_radix(key->pubkey.y, qy, MP_RADIX_HEX);
 
     if (err == MP_OKAY)
         err = mp_set(key->pubkey.z, 1);
@@ -5509,7 +5509,7 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
     if (err == MP_OKAY) {
         if (d != NULL) {
             key->type = ECC_PRIVATEKEY;
-            err = mp_read_radix(&key->k, d, 16);
+            err = mp_read_radix(&key->k, d, MP_RADIX_HEX);
         } else {
             key->type = ECC_PUBLICKEY;
         }
@@ -6440,7 +6440,8 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* a,
       /* back off if we are on the 521 bit curve */
       if (y == 66) --x;
 
-      if ((err = mp_read_radix(&order, ecc_sets[x].order, 16)) != MP_OKAY) {
+      if ((err = mp_read_radix(&order, ecc_sets[x].order,
+                                                MP_RADIX_HEX)) != MP_OKAY) {
          goto done;
       }
 
@@ -6591,7 +6592,8 @@ static int accel_fp_mul2add(int idx1, int idx2,
       /* back off if we are on the 521 bit curve */
       if (y == 66) --x;
 
-      if ((err = mp_read_radix(&order, ecc_sets[x].order, 16)) != MP_OKAY) {
+      if ((err = mp_read_radix(&order, ecc_sets[x].order,
+                                                MP_RADIX_HEX)) != MP_OKAY) {
          goto done;
       }
 
@@ -6622,7 +6624,8 @@ static int accel_fp_mul2add(int idx1, int idx2,
       /* back off if we are on the 521 bit curve */
       if (y == 66) --x;
 
-      if ((err = mp_read_radix(&order, ecc_sets[x].order, 16)) != MP_OKAY) {
+      if ((err = mp_read_radix(&order, ecc_sets[x].order,
+                                                MP_RADIX_HEX)) != MP_OKAY) {
          goto done;
       }
 

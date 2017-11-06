@@ -16574,7 +16574,7 @@ void wolfSSL_X509_STORE_CTX_set_time(WOLFSSL_X509_STORE_CTX* ctx,
 {
     (void)flags;
 
-    ctx->param->check_time = t; 
+    ctx->param->check_time = t;
     ctx->param->flags |= WOLFSSL_USE_CHECK_TIME;
 }
 #endif
@@ -18331,7 +18331,6 @@ void wolfSSL_BN_CTX_free(WOLFSSL_BN_CTX* ctx)
 
 static void InitwolfSSL_BigNum(WOLFSSL_BIGNUM* bn)
 {
-    WOLFSSL_MSG("InitwolfSSL_BigNum");
     if (bn) {
         bn->neg      = 0;
         bn->internal = NULL;
@@ -18873,18 +18872,18 @@ char *wolfSSL_BN_bn2dec(const WOLFSSL_BIGNUM *bn)
         return NULL;
     }
 
-    if (mp_radix_size((mp_int*)bn->internal, 10, &len) != MP_OKAY) {
+    if (mp_radix_size((mp_int*)bn->internal, MP_RADIX_DEC, &len) != MP_OKAY) {
         WOLFSSL_MSG("mp_radix_size failure");
         return NULL;
     }
 
     buf = (char*) XMALLOC(len, NULL, DYNAMIC_TYPE_ECC);
     if (buf == NULL) {
-        WOLFSSL_MSG("wolfSSL_BN_bn2hex malloc buffer failure");
+        WOLFSSL_MSG("BN_bn2dec malloc buffer failure");
         return NULL;
     }
 
-    if (mp_toradix((mp_int*)bn->internal, buf, 10) != MP_OKAY) {
+    if (mp_todecimal((mp_int*)bn->internal, buf) != MP_OKAY) {
         XFREE(buf, NULL, DYNAMIC_TYPE_ECC);
         return NULL;
     }
@@ -19042,36 +19041,41 @@ WOLFSSL_BN_ULONG wolfSSL_BN_mod_word(const WOLFSSL_BIGNUM *bn,
 }
 #endif /* #ifdef WOLFSSL_KEY_GEN */
 
-#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY)
 char *wolfSSL_BN_bn2hex(const WOLFSSL_BIGNUM *bn)
 {
+#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(DEBUG_WOLFSSL)
     int len = 0;
     char *buf;
 
-    WOLFSSL_MSG("wolfSSL_BN_bn2hex");
+    WOLFSSL_ENTER("wolfSSL_BN_bn2hex");
 
     if (bn == NULL || bn->internal == NULL) {
         WOLFSSL_MSG("bn NULL error");
         return NULL;
     }
 
-    if (mp_radix_size((mp_int*)bn->internal, 16, &len) != MP_OKAY) {
+    if (mp_radix_size((mp_int*)bn->internal, MP_RADIX_HEX, &len) != MP_OKAY) {
         WOLFSSL_MSG("mp_radix_size failure");
         return NULL;
     }
 
     buf = (char*) XMALLOC(len, NULL, DYNAMIC_TYPE_ECC);
     if (buf == NULL) {
-        WOLFSSL_MSG("wolfSSL_BN_bn2hex malloc buffer failure");
+        WOLFSSL_MSG("BN_bn2hex malloc buffer failure");
         return NULL;
     }
 
-    if (mp_toradix((mp_int*)bn->internal, buf, 16) != MP_OKAY) {
+    if (mp_tohex((mp_int*)bn->internal, buf) != MP_OKAY) {
         XFREE(buf, NULL, DYNAMIC_TYPE_ECC);
         return NULL;
     }
 
     return buf;
+#else
+    (void)bn;
+    WOLFSSL_MSG("wolfSSL_BN_bn2hex not compiled in");
+    return (char*)"";
+#endif
 }
 
 #ifndef NO_FILESYSTEM
@@ -19080,9 +19084,10 @@ char *wolfSSL_BN_bn2hex(const WOLFSSL_BIGNUM *bn)
  */
 int wolfSSL_BN_print_fp(FILE *fp, const WOLFSSL_BIGNUM *bn)
 {
+#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(DEBUG_WOLFSSL)
     char *buf;
 
-    WOLFSSL_MSG("wolfSSL_BN_print_fp");
+    WOLFSSL_ENTER("wolfSSL_BN_print_fp");
 
     if (fp == NULL || bn == NULL || bn->internal == NULL) {
         WOLFSSL_MSG("bn NULL error");
@@ -19099,36 +19104,17 @@ int wolfSSL_BN_print_fp(FILE *fp, const WOLFSSL_BIGNUM *bn)
     XFREE(buf, NULL, DYNAMIC_TYPE_ECC);
 
     return WOLFSSL_SUCCESS;
-}
-#endif /* !defined(NO_FILESYSTEM) */
-
-#else /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) */
-
-char *wolfSSL_BN_bn2hex(const WOLFSSL_BIGNUM *bn)
-{
-    (void)bn;
-
-    WOLFSSL_MSG("wolfSSL_BN_bn2hex need WOLFSSL_KEY_GEN or HAVE_COMP_KEY");
-
-    return (char*)"";
-}
-
-#ifndef NO_FILESYSTEM
-/* return code compliant with OpenSSL :
- *   1 if success, 0 if error
- */
-int wolfSSL_BN_print_fp(FILE *fp, const WOLFSSL_BIGNUM *bn)
-{
+#else
     (void)fp;
     (void)bn;
 
-    WOLFSSL_MSG("wolfSSL_BN_print_fp not implemented");
+    WOLFSSL_MSG("wolfSSL_BN_print_fp not compiled in");
 
     return WOLFSSL_SUCCESS;
+#endif
 }
-#endif /* !defined(NO_FILESYSTEM) */
+#endif /* !NO_FILESYSTEM */
 
-#endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) */
 
 WOLFSSL_BIGNUM *wolfSSL_BN_CTX_get(WOLFSSL_BN_CTX *ctx)
 {
@@ -22182,7 +22168,7 @@ int wolfSSL_EC_GROUP_get_order(const WOLFSSL_EC_GROUP *group,
     }
 
     if (mp_read_radix((mp_int*)order->internal,
-                      ecc_sets[group->curve_idx].order, 16) != MP_OKAY) {
+                  ecc_sets[group->curve_idx].order, MP_RADIX_HEX) != MP_OKAY) {
         WOLFSSL_MSG("wolfSSL_EC_GROUP_get_order mp_read order failure");
         mp_clear((mp_int*)order->internal);
         return WOLFSSL_FAILURE;
@@ -22364,9 +22350,9 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
         return WOLFSSL_FAILURE;
     }
 
-    ret = mp_read_radix(&prime, ecc_sets[group->curve_idx].prime, 16);
+    ret = mp_read_radix(&prime, ecc_sets[group->curve_idx].prime, MP_RADIX_HEX);
     if (ret == MP_OKAY) {
-        ret = mp_read_radix(&a, ecc_sets[group->curve_idx].Af, 16);
+        ret = mp_read_radix(&a, ecc_sets[group->curve_idx].Af, MP_RADIX_HEX);
     }
 
     /* r = q * m % prime */

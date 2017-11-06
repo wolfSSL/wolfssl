@@ -756,7 +756,9 @@ static void test_wolfSSL_EC(void)
     EC_POINT *Gxy, *new_point;
     BIGNUM *k = NULL, *Gx = NULL, *Gy = NULL, *Gz = NULL;
     BIGNUM *X, *Y;
-
+#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(DEBUG_WOLFSSL)
+    char* hexStr;
+#endif
     const char* kTest = "F4F8338AFCC562C5C3F3E1E46A7EFECD17AF381913FF7A96314EA47055EA0FD0";
     /* NISTP256R1 Gx/Gy */
     const char* kGx   = "6B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296";
@@ -791,6 +793,21 @@ static void test_wolfSSL_EC(void)
 
     /* check if point X coordinate is zero */
     AssertIntEQ(BN_is_zero(X), WOLFSSL_FAILURE);
+
+    /* check bx2hex */
+#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(DEBUG_WOLFSSL)
+    hexStr = BN_bn2hex(k);
+    AssertStrEQ(hexStr, kTest);
+    XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
+
+    hexStr = BN_bn2hex(Gx);
+    AssertStrEQ(hexStr, kGx);
+    XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
+
+    hexStr = BN_bn2hex(Gy);
+    AssertStrEQ(hexStr, kGy);
+    XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
+#endif
 
     /* cleanup */
     BN_free(X);
