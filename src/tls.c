@@ -8100,8 +8100,8 @@ word16 TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType)
             XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
             TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
             TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_COOKIE));
-#endif
             break;
+#endif
 #ifdef WOLFSSL_TLS13
         case encrypted_extensions:
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SESSION_TICKET));
@@ -8186,8 +8186,8 @@ word16 TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType)
             case hello_retry_request:
                 XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
                 TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
-#endif
                 break;
+#endif
 #ifdef WOLFSSL_TLS13
             case encrypted_extensions:
                 TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SESSION_TICKET));
