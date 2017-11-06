@@ -11520,10 +11520,13 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 
     void wolfSSL_X509_STORE_CTX_set_flags(WOLFSSL_X509_STORE_CTX* ctx,
-                                          unsigned long flags) {
-        ctx->flags |= flags;
-        if (flags & X509_V_FLAG_POLICY_MASK)
-            ctx->flags |= X509_V_FLAG_POLICY_CHECK;
+                                          unsigned long flags)
+    {
+        WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_set_flags");
+
+        if (ctx != NULL){
+            ctx->flags |= flags;
+            }
     }
 
 #endif
@@ -16863,7 +16866,8 @@ long wolfSSL_ASN1_INTEGER_get(const WOLFSSL_ASN1_INTEGER* i)
 }
 #endif
 
-int wolfSSL_ASN1_INTEGER_get_int64(signed_word64 *p, const WOLFSSL_ASN1_INTEGER *i)
+int wolfSSL_ASN1_INTEGER_get_int64(signed_word64 *p,
+                                   const WOLFSSL_ASN1_INTEGER *i)
 {
 
   WOLFSSL_ASN1_STRING *s;
@@ -18531,13 +18535,14 @@ int wolfSSL_BN_sub(WOLFSSL_BIGNUM* r, const WOLFSSL_BIGNUM* a,
     return 0;
 }
 
-int wolfSSL_BN_div(WOLFSSL_BIGNUM* r, WOLFSSL_BIGNUM* m, const WOLFSSL_BIGNUM* a,
-  const WOLFSSL_BIGNUM* b, const WOLFSSL_BN_CTX* c)
-  {
+int wolfSSL_BN_div(WOLFSSL_BIGNUM* r, WOLFSSL_BIGNUM* m,
+                   const WOLFSSL_BIGNUM* a, const WOLFSSL_BIGNUM* b,
+                   const WOLFSSL_BN_CTX* c)
+{
     (void)c;
     WOLFSSL_MSG("wolfSSL_BN_div");
 
-    if (r == NULL || a == NULL || b == NULL)
+    if (r == NULL || m == NULL || a == NULL || b == NULL)
         return SSL_FAILURE;
 
     if (mp_div((mp_int*)a->internal,(mp_int*)b->internal,
