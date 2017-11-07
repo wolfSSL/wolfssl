@@ -2600,7 +2600,7 @@ int mp_montgomery_calc_normalization(mp_int *a, mp_int *b)
 
 
 #if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
-    defined(WOLFSSL_DEBUG_MATH)
+    defined(WOLFSSL_DEBUG_MATH) || defined(DEBUG_WOLFSSL)
 
 #ifdef WOLFSSL_KEY_GEN
 /* swap the elements of two integers, for cases where you can't simply swap the
@@ -3252,7 +3252,7 @@ int mp_set(fp_int *a, fp_digit b)
 #endif
 
 #if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
-    defined(WOLFSSL_DEBUG_MATH)
+    defined(WOLFSSL_DEBUG_MATH) || defined(DEBUG_WOLFSSL)
 
 /* returns size of ASCII representation */
 int mp_radix_size (mp_int *a, int radix, int *size)
@@ -3373,7 +3373,7 @@ void mp_dump(const char* desc, mp_int* a, byte verbose)
   printf("%s: ptr=%p, used=%d, sign=%d, size=%d, fpd=%d\n",
     desc, a, a->used, a->sign, size, (int)sizeof(fp_digit));
 
-  mp_toradix(a, buffer, 16);
+  mp_tohex(a, buffer);
   printf("  %s\n  ", buffer);
 
   if (verbose) {

@@ -8220,7 +8220,7 @@ int rsa_test(void)
         if (ret != 0) {
             ERROR_OUT(-5550, exit_rsa);
         }
-        ret = wc_MakeRsaKey(&genKey, 1024, 65537, &rng);
+        ret = wc_MakeRsaKey(&genKey, 1024, WC_RSA_EXPONENT, &rng);
         if (ret != 0) {
             ERROR_OUT(-5551, exit_rsa);
         }
