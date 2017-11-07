@@ -91,6 +91,9 @@ typedef struct wc_Sha {
     #ifdef WOLFSSL_PIC32MZ_HASH
         hashUpdCache cache; /* cache for updates */
     #endif
+    #if defined(STM32_HASH) && defined(WOLFSSL_STM32_CUBEMX)
+        HASH_HandleTypeDef hashHandle;
+    #endif
     #ifdef WOLFSSL_ASYNC_CRYPT
         WC_ASYNC_DEV asyncDev;
     #endif /* WOLFSSL_ASYNC_CRYPT */
