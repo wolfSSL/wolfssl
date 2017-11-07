@@ -2881,38 +2881,44 @@ static void TLSX_PointFormat_FreeAll(PointFormat* list, void* heap)
 static int TLSX_SupportedCurve_Append(SupportedCurve* list, word16 name,
                                                                      void* heap)
 {
-    if (list == NULL)
-        return BAD_FUNC_ARG;
+    int ret = BAD_FUNC_ARG;
 
-    while (1) {
-        if (list->name == name)
-            return 0; /* curve alreay in use */
+    while (list) {
+        if (list->name == name) {
+            ret = 0; /* curve alreay in use */
+            break;
+        }
 
-        if (list->next == NULL)
-            return TLSX_SupportedCurve_New(&list->next, name, heap);
+        if (list->next == NULL) {
+            ret = TLSX_SupportedCurve_New(&list->next, name, heap);
+            break;
+        }
 
         list = list->next;
     }
 
-    return 0;
+    return ret;
 }
 
 static int TLSX_PointFormat_Append(PointFormat* list, byte format, void* heap)
 {
-    if (list == NULL)
-        return BAD_FUNC_ARG;
+    int ret = BAD_FUNC_ARG;
 
     while (1) {
-        if (list->format == format)
-            return 0; /* format already in use */
+        if (list->format == format) {
+            ret = 0; /* format already in use */
+            break;
+        }
 
-        if (list->next == NULL)
-            return TLSX_PointFormat_New(&list->next, format, heap);
+        if (list->next == NULL) {
+            ret = TLSX_PointFormat_New(&list->next, format, heap);
+            break;
+        }
 
         list = list->next;
     }
 
-    return 0;
+    return ret;
 }
 
 #ifndef NO_WOLFSSL_CLIENT
