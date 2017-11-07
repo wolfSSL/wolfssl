@@ -11525,7 +11525,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_set_flags");
 
         if (ctx != NULL){
-            ctx->flags |= flags;
+            ctx->flags = flags;
             }
     }
 

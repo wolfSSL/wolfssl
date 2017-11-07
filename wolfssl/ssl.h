@@ -267,6 +267,7 @@ typedef struct WOLFSSL_X509_STORE_CTX {
     WOLFSSL_STACK* chain;
 #ifdef OPENSSL_EXTRA
     unsigned long flags;         /* Various verify flags */
+    WOLFSSL_X509_VERIFY_PARAM* param; /* certificate validation parameter */
 #endif
     char* domain;                /* subject CN domain name */
     void* ex_data;               /* external data, for fortress build */

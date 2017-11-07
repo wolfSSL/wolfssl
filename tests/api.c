@@ -10405,6 +10405,20 @@ static void test_wolfSSL_BN(void)
 
     AssertIntEQ(BN_div(d, a, b, c, NULL), SSL_FAILURE);
 
+    /* BN_mod_inverse test */
+    value[0] = 0x02;
+    AssertNotNull(BN_bin2bn(value, sizeof(value), b));
+
+    value[0] = 0x05;
+    AssertNotNull(BN_bin2bn(value, sizeof(value), c));
+    
+    value[0] = 0;
+    BIGNUM *r = BN_new();
+    BIGNUM *val = BN_mod_inverse(r,b,c,NULL);
+    AssertIntEQ(BN_bn2bin(r, value), 1);
+    AssertIntEQ((int)(value[0] & 0x03), 3);
+    BN_free(val);
+
     BN_free(a);
     BN_free(b);
     BN_free(c);
