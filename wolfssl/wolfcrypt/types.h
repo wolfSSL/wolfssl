@@ -54,27 +54,27 @@
 	#if !defined(_MSC_VER) && !defined(__BCPLUSPLUS__) && !defined(__EMSCRIPTEN__)
 	    #if !defined(SIZEOF_LONG_LONG) && !defined(SIZEOF_LONG)
 	        #if (defined(__alpha__) || defined(__ia64__) || \
-                   defined(_ARCH_PPC64) || defined(__mips64) || \
-                   defined(__x86_64__) || \
-                   ((defined(sun) || defined(__sun)) && \
-                     (defined(LP64) || defined(_LP64))))
+	            defined(_ARCH_PPC64) || defined(__mips64) || \
+	            defined(__x86_64__) || \
+	            ((defined(sun) || defined(__sun)) && \
+	             (defined(LP64) || defined(_LP64))))
 	            /* long should be 64bit */
 	            #define SIZEOF_LONG 8
-            #elif (defined(__i386__) || defined(__CORTEX_M3__)
-                /* long long should be 64bit */
-                #define SIZEOF_LONG_LONG 8
+	        #elif defined(__i386__) || defined(__CORTEX_M3__)
+	            /* long long should be 64bit */
+	            #define SIZEOF_LONG_LONG 8
 	        #endif
-	    #endif
+ 	    #endif
 	#endif
 
 	#if defined(_MSC_VER) || defined(__BCPLUSPLUS__)
 	    #define WORD64_AVAILABLE
 	    #define W64LIT(x) x##ui64
 	    typedef unsigned __int64 word64;
-    #elif defined(__EMSCRIPTEN__)
-        #define WORD64_AVAILABLE
-        #define W64LIT(x) x##ull
-        typedef unsigned long long word64;
+	#elif defined(__EMSCRIPTEN__)
+	    #define WORD64_AVAILABLE
+	    #define W64LIT(x) x##ull
+	    typedef unsigned long long word64;
 	#elif defined(SIZEOF_LONG) && SIZEOF_LONG == 8
 	    #define WORD64_AVAILABLE
 	    #define W64LIT(x) x##LL
