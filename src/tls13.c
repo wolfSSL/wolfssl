@@ -1430,7 +1430,7 @@ static INLINE void BuildTls13Nonce(WOLFSSL* ssl, byte* nonce, const byte* iv,
         nonce[i] ^= iv[i];
 }
 
-#ifdef HAVE_CHACHA
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
 /* Encrypt with ChaCha20 and create authenication tag with Poly1305.
  *
  * ssl     The SSL/TLS object.
@@ -1630,7 +1630,7 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
     return ret;
 }
 
-#ifdef HAVE_CHACHA
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
 /* Decrypt with ChaCha20 and check authenication tag with Poly1305.
  *
  * ssl     The SSL/TLS object.

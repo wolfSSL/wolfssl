@@ -14073,7 +14073,7 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         0x72,0x6c,0x64
     };
 
-#if !defined(NO_AES) && defined(HAVE_ECC)
+#if !defined(NO_AES) && defined(HAVE_ECC) && defined(WOLFSSL_SHA512)
     byte optionalUkm[] = {
         0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07
     };
