@@ -2904,7 +2904,7 @@ static int TLSX_PointFormat_Append(PointFormat* list, byte format, void* heap)
 {
     int ret = BAD_FUNC_ARG;
 
-    while (1) {
+    while (list) {
         if (list->format == format) {
             ret = 0; /* format already in use */
             break;
