@@ -7855,7 +7855,7 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     word32 blocks = (sz / AES_BLOCK_SIZE);
     Aes *aes, *tweak;
 
-    if (xaes == NULL || out == NULL) {
+    if (xaes == NULL || out == NULL || in == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -7863,10 +7863,6 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     tweak = &xaes->tweak;
 
     if (iSz < AES_BLOCK_SIZE) {
-        return BAD_FUNC_ARG;
-    }
-
-    if (in == NULL && sz > 0) {
         return BAD_FUNC_ARG;
     }
 
@@ -7896,7 +7892,6 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
             if (carry) {
                 tmp[0] ^= GF_XTS;
             }
-            carry = 0;
 
             in  += AES_BLOCK_SIZE;
             out += AES_BLOCK_SIZE;
@@ -7948,7 +7943,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     word32 blocks = (sz / AES_BLOCK_SIZE);
     Aes *aes, *tweak;
 
-    if (xaes == NULL || out == NULL) {
+    if (xaes == NULL || out == NULL || in == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -7956,10 +7951,6 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     tweak = &xaes->tweak;
 
     if (iSz < AES_BLOCK_SIZE) {
-        return BAD_FUNC_ARG;
-    }
-
-    if (in == NULL && sz > 0) {
         return BAD_FUNC_ARG;
     }
 
