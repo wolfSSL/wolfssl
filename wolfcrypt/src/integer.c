@@ -4169,7 +4169,8 @@ int mp_sub_d (mp_int * a, mp_digit b, mp_int * c)
 #endif /* defined(HAVE_ECC) || !defined(NO_PWDBASED) */
 
 
-#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(HAVE_ECC)
+#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(HAVE_ECC) || \
+    defined(DEBUG_WOLFSSL)
 
 static const int lnz[16] = {
    4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0
@@ -4315,7 +4316,7 @@ int mp_mod_d (mp_int * a, mp_digit b, mp_digit * c)
   return mp_div_d(a, b, NULL, c);
 }
 
-#endif /* defined(WOLFSSL_KEY_GEN)||defined(HAVE_COMP_KEY)||defined(HAVE_ECC) */
+#endif /* WOLFSSL_KEY_GEN || HAVE_COMP_KEY || HAVE_ECC || DEBUG_WOLFSSL */
 
 #ifdef WOLFSSL_KEY_GEN
 
