@@ -7869,6 +7869,9 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     if (blocks > 0) {
         byte tmp[AES_BLOCK_SIZE];
 
+        XMEMSET(tmp, 0, AES_BLOCK_SIZE); /* set to 0's in case of improper AES
+                                          * key setup passed to encrypt direct*/
+
         wc_AesEncryptDirect(tweak, tmp, i);
 
         while (blocks > 0) {
@@ -7959,6 +7962,9 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
         byte carry = 0;
         byte tmp[AES_BLOCK_SIZE];
         byte stl = (sz % AES_BLOCK_SIZE);
+
+        XMEMSET(tmp, 0, AES_BLOCK_SIZE); /* set to 0's in case of improper AES
+                                          * key setup passed to decrypt direct*/
 
         wc_AesEncryptDirect(tweak, tmp, i);
 
