@@ -288,16 +288,17 @@ WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap)
             wolfSSL_CTX_free(ctx);
             ctx = NULL;
         }
-
 #if defined(OPENSSL_EXTRA) && defined(WOLFCRYPT_HAVE_SRP) \
-        && !defined(NO_SHA256) && !defined(WC_NO_RNG)
-        ctx->srp = (Srp*) XMALLOC(sizeof(Srp), heap, DYNAMIC_TYPE_SRP);
-        if (ctx->srp == NULL){
-            WOLFSSL_MSG("Init CTX failed");
-            wolfSSL_CTX_free(ctx);
-            return NULL;
+                           && !defined(NO_SHA256) && !defined(WC_NO_RNG)
+        else {
+            ctx->srp = (Srp*) XMALLOC(sizeof(Srp), heap, DYNAMIC_TYPE_SRP);
+            if (ctx->srp == NULL){
+                WOLFSSL_MSG("Init CTX failed");
+                wolfSSL_CTX_free(ctx);
+                return NULL;
+            }
+            XMEMSET(ctx->srp, 0, sizeof(Srp));
         }
-        XMEMSET(ctx->srp, 0, sizeof(Srp));
 #endif
     }
     else {
@@ -11177,7 +11178,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     int wolfSSL_CTX_set_srp_username(WOLFSSL_CTX* ctx, char* username)
     {
         int r = 0;
-        int srp_side = 0;
+        SrpSide srp_side = SRP_CLIENT_SIDE;
         WC_RNG rng;
         byte salt[SRP_SALT_SIZE];
 
@@ -11290,9 +11291,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             if (ctx->srp_password != NULL)
                 XFREE(ctx->srp_password,ctx->heap, DYNAMIC_TYPE_SRP);
 
-            ctx->srp_password = XMALLOC(XSTRLEN(password) + 1,
-                                        ctx->heap,
-                                        DYNAMIC_TYPE_SRP);
+            ctx->srp_password = (byte*)XMALLOC(XSTRLEN(password) + 1, ctx->heap,
+                                               DYNAMIC_TYPE_SRP);
             if (ctx->srp_password == NULL){
                 WOLFSSL_MSG("memory allocation error");
                 return SSL_FAILURE;
