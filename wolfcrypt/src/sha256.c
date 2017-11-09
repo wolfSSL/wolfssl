@@ -538,16 +538,25 @@ static int InitSha256(wc_Sha256* sha256)
     #define R(x, n)         (((x) & 0xFFFFFFFFU) >> (n))
 
     #define S(x, n)         rotrFixed(x, n)
-    #define Sigma0(x)       (S(x, 2) ^ S(x, 13) ^ S(x, 22))
-    #define Sigma1(x)       (S(x, 6) ^ S(x, 11) ^ S(x, 25))
-    #define Gamma0(x)       (S(x, 7) ^ S(x, 18) ^ R(x, 3))
+    #define Sigma0(x)       (S(x, 2)  ^ S(x, 13) ^ S(x, 22))
+    #define Sigma1(x)       (S(x, 6)  ^ S(x, 11) ^ S(x, 25))
+    #define Gamma0(x)       (S(x, 7)  ^ S(x, 18) ^ R(x, 3))
     #define Gamma1(x)       (S(x, 17) ^ S(x, 19) ^ R(x, 10))
 
-    #define RND(a,b,c,d,e,f,g,h,i) \
-         t0 = (h) + Sigma1((e)) + Ch((e), (f), (g)) + K[(i)] + W[(i)]; \
-         t1 = Sigma0((a)) + Maj((a), (b), (c)); \
-         (d) += t0; \
-         (h)  = t0 + t1;
+    #define a(i) S[(0-i) & 7]
+    #define b(i) S[(1-i) & 7]
+    #define c(i) S[(2-i) & 7]
+    #define d(i) S[(3-i) & 7]
+    #define e(i) S[(4-i) & 7]
+    #define f(i) S[(5-i) & 7]
+    #define g(i) S[(6-i) & 7]
+    #define h(i) S[(7-i) & 7]
+
+    #define RND(j) \
+         t0 = h(j) + Sigma1(e(j)) + Ch(e(j), f(j), g(j)) + K[i+j] + W[i+j]; \
+         t1 = Sigma0(a(j)) + Maj(a(j), b(j), c(j)); \
+         d(j) += t0; \
+         h(j)  = t0 + t1
 
     #ifndef XTRANSFORM
          #define XTRANSFORM(S, B) Transform((S))
@@ -579,16 +588,21 @@ static int InitSha256(wc_Sha256* sha256)
         for (i = 16; i < WC_SHA256_BLOCK_SIZE; i++)
             W[i] = Gamma1(W[i-2]) + W[i-7] + Gamma0(W[i-15]) + W[i-16];
 
+    #ifdef USE_SLOW_SHA256
+        /* not unrolled - ~2k smaller and ~25% slower */
         for (i = 0; i < WC_SHA256_BLOCK_SIZE; i += 8) {
-            RND(S[0],S[1],S[2],S[3],S[4],S[5],S[6],S[7],i+0);
-            RND(S[7],S[0],S[1],S[2],S[3],S[4],S[5],S[6],i+1);
-            RND(S[6],S[7],S[0],S[1],S[2],S[3],S[4],S[5],i+2);
-            RND(S[5],S[6],S[7],S[0],S[1],S[2],S[3],S[4],i+3);
-            RND(S[4],S[5],S[6],S[7],S[0],S[1],S[2],S[3],i+4);
-            RND(S[3],S[4],S[5],S[6],S[7],S[0],S[1],S[2],i+5);
-            RND(S[2],S[3],S[4],S[5],S[6],S[7],S[0],S[1],i+6);
-            RND(S[1],S[2],S[3],S[4],S[5],S[6],S[7],S[0],i+7);
+            int j;
+            for (j = 0; j < 8; j++) { /* braces needed here for macros {} */
+                RND(j);
+            }
         }
+    #else
+        /* partially loop unrolled */
+        for (i = 0; i < WC_SHA256_BLOCK_SIZE; i += 8) {
+            RND(0); RND(1); RND(2); RND(3);
+            RND(4); RND(5); RND(6); RND(7);
+        }
+    #endif /* USE_SLOW_SHA256 */
 
         /* Add the working vars back into digest state[] */
         for (i = 0; i < 8; i++) {

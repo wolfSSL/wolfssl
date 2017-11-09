@@ -418,7 +418,7 @@ static INLINE void AddLength(wc_Sha* sha, word32 len)
             t = e; e = d; d = c; c = b; b = a; a = t;
         }
     #else
-        /* nearly 1 K bigger in code size but 25% faster  */
+        /* nearly 1 K bigger in code size but 25% faster */
         /* 4 rounds of 20 operations each. Loop unrolled. */
         R0(a,b,c,d,e, 0); R0(e,a,b,c,d, 1); R0(d,e,a,b,c, 2); R0(c,d,e,a,b, 3);
         R0(b,c,d,e,a, 4); R0(a,b,c,d,e, 5); R0(e,a,b,c,d, 6); R0(d,e,a,b,c, 7);

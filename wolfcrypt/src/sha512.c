@@ -31,6 +31,11 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
 
+/* deprecated USE_SLOW_SHA2 (replaced with USE_SLOW_SHA512) */
+#if defined(USE_SLOW_SHA2) && !defined(USE_SLOW_SHA512)
+    #define USE_SLOW_SHA512
+#endif
+
 /* fips wrapper calls, user can call direct */
 #ifdef HAVE_FIPS
     int wc_InitSha512(wc_Sha512* sha)
@@ -401,39 +406,42 @@ static const word64 K512[80] = {
     W64LIT(0x5fcb6fab3ad6faec), W64LIT(0x6c44198c4a475817)
 };
 
-
-
 #define blk0(i) (W[i] = sha512->buffer[i])
 
-#define blk2(i) (W[i&15]+=s1(W[(i-2)&15])+W[(i-7)&15]+s0(W[(i-15)&15]))
+#define blk2(i) (\
+               W[ i     & 15] += \
+            s1(W[(i-2)  & 15])+ \
+               W[(i-7)  & 15] + \
+            s0(W[(i-15) & 15])  \
+        )
 
-#define Ch(x,y,z) (z^(x&(y^z)))
-#define Maj(x,y,z) ((x&y)|(z&(x|y)))
+#define Ch(x,y,z)  (z ^ (x & (y ^ z)))
+#define Maj(x,y,z) ((x & y) | (z & (x | y)))
 
-#define a(i) T[(0-i)&7]
-#define b(i) T[(1-i)&7]
-#define c(i) T[(2-i)&7]
-#define d(i) T[(3-i)&7]
-#define e(i) T[(4-i)&7]
-#define f(i) T[(5-i)&7]
-#define g(i) T[(6-i)&7]
-#define h(i) T[(7-i)&7]
+#define a(i) T[(0-i) & 7]
+#define b(i) T[(1-i) & 7]
+#define c(i) T[(2-i) & 7]
+#define d(i) T[(3-i) & 7]
+#define e(i) T[(4-i) & 7]
+#define f(i) T[(5-i) & 7]
+#define g(i) T[(6-i) & 7]
+#define h(i) T[(7-i) & 7]
 
-#define S0(x) (rotrFixed64(x,28)^rotrFixed64(x,34)^rotrFixed64(x,39))
-#define S1(x) (rotrFixed64(x,14)^rotrFixed64(x,18)^rotrFixed64(x,41))
-#define s0(x) (rotrFixed64(x,1)^rotrFixed64(x,8)^(x>>7))
-#define s1(x) (rotrFixed64(x,19)^rotrFixed64(x,61)^(x>>6))
+#define S0(x) (rotrFixed64(x,28) ^ rotrFixed64(x,34) ^ rotrFixed64(x,39))
+#define S1(x) (rotrFixed64(x,14) ^ rotrFixed64(x,18) ^ rotrFixed64(x,41))
+#define s0(x) (rotrFixed64(x,1)  ^ rotrFixed64(x,8)  ^ (x>>7))
+#define s1(x) (rotrFixed64(x,19) ^ rotrFixed64(x,61) ^ (x>>6))
 
-#define R(i) h(i)+=S1(e(i))+Ch(e(i),f(i),g(i))+K[i+j]+(j?blk2(i):blk0(i));\
-    d(i)+=h(i);h(i)+=S0(a(i))+Maj(a(i),b(i),c(i))
+#define R(i) \
+    h(i) += S1(e(i)) + Ch(e(i),f(i),g(i)) + K[i+j] + (j ? blk2(i) : blk0(i)); \
+    d(i) += h(i); \
+    h(i) += S0(a(i)) + Maj(a(i),b(i),c(i))
 
 static int _Transform(wc_Sha512* sha512)
 {
     const word64* K = K512;
-
     word32 j;
     word64 T[8];
-
 
 #ifdef WOLFSSL_SMALL_STACK
     word64* W;
@@ -447,7 +455,7 @@ static int _Transform(wc_Sha512* sha512)
     /* Copy digest to working vars */
     XMEMCPY(T, sha512->digest, sizeof(T));
 
-#ifdef USE_SLOW_SHA2
+#ifdef USE_SLOW_SHA512
     /* over twice as small, but 50% slower */
     /* 80 operations, not unrolled */
     for (j = 0; j < 80; j += 16) {
@@ -464,10 +472,9 @@ static int _Transform(wc_Sha512* sha512)
         R( 8); R( 9); R(10); R(11);
         R(12); R(13); R(14); R(15);
     }
-#endif /* USE_SLOW_SHA2 */
+#endif /* USE_SLOW_SHA512 */
 
     /* Add the working vars back into digest */
-
     sha512->digest[0] += a(0);
     sha512->digest[1] += b(0);
     sha512->digest[2] += c(0);

@@ -558,9 +558,10 @@ AC_ARG_ENABLE([leanpsk],
 
 if test "$ENABLED_LEANPSK" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANPSK -DWOLFSSL_STATIC_PSK -DHAVE_NULL_CIPHER -DSINGLE_THREADED -DNO_AES -DNO_FILESYSTEM -DNO_RABBIT -DNO_RSA -DNO_DSA -DNO_DH -DNO_CERTS -DNO_PWDBASED -DNO_MD4 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_WRITEV -DNO_SESSION_CACHE -DNO_DEV_RANDOM -DWOLFSSL_USER_IO -DNO_SHA -DUSE_SLOW_SHA"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANPSK -DWOLFSSL_STATIC_PSK -DHAVE_NULL_CIPHER -DSINGLE_THREADED -DNO_AES -DNO_FILESYSTEM -DNO_RABBIT -DNO_RSA -DNO_DSA -DNO_DH -DNO_CERTS -DNO_PWDBASED -DNO_MD4 -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_WRITEV -DNO_DEV_RANDOM -DWOLFSSL_USER_IO -DNO_SHA"
     ENABLED_SLOWMATH="no"
     ENABLED_SINGLETHREADED="yes"
+    enable_lowresource=yes
 fi
 
 AM_CONDITIONAL([BUILD_LEANPSK], [test "x$ENABLED_LEANPSK" = "xyes"])
@@ -575,10 +576,30 @@ AC_ARG_ENABLE([leantls],
 
 if test "$ENABLED_LEANTLS" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANTLS -DNO_WRITEV -DHAVE_ECC -DTFM_ECC256 -DECC_USER_CURVES -DNO_WOLFSSL_SERVER -DNO_RABBIT -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_SESSION_CACHE -DNO_SHA -DUSE_SLOW_SHA -DUSE_SLOW_SHA2 -DNO_PSK -DNO_WOLFSSL_MEMORY"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_LEANTLS -DNO_WRITEV -DHAVE_ECC -DTFM_ECC256 -DECC_USER_CURVES -DNO_WOLFSSL_SERVER -DNO_RABBIT -DNO_RSA -DNO_DSA -DNO_DH -DNO_PWDBASED -DNO_MD5 -DNO_ERROR_STRINGS -DNO_OLD_TLS -DNO_RC4 -DNO_SHA -DNO_PSK -DNO_WOLFSSL_MEMORY"
+    enable_lowresource=yes
 fi
 
 AM_CONDITIONAL([BUILD_LEANTLS], [test "x$ENABLED_LEANTLS" = "xyes"])
+
+
+# low resource options to reduce flash and memory use
+AC_ARG_ENABLE([lowresource],
+    [AS_HELP_STRING([--enable-lowresource],[Enable low resource options for memory/flash (default: disabled)])],
+    [ ENABLED_LOWRESOURCE=$enableval ],
+    [ ENABLED_LOWRESOURCE=no ]
+    )
+
+if test "$ENABLED_LOWRESOURCE" = "yes"
+then
+    # low memory / flash flags
+    AM_CFLAGS="$AM_CFLAGS -DNO_SESSION_CACHE -DRSA_LOW_MEM -DGCM_SMALL -DCURVE25519_SMALL -DED25519_SMALL"
+
+    # low flash flags
+    AM_CFLAGS="$AM_CFLAGS -DUSE_SLOW_SHA -DUSE_SLOW_SHA256 -DUSE_SLOW_SHA512"
+fi
+
+AM_CONDITIONAL([BUILD_LOWMEM], [test "x$ENABLED_LOWRESOURCE" = "xyes"])
 
 
 # big cache
@@ -713,6 +734,7 @@ AS_IF([ test "x$ENABLED_SNIFFER" = "xyes" ],
 AM_CONDITIONAL([BUILD_SNIFFER],   [ test "x$ENABLED_SNIFFER"   = "xyes" ])
 AM_CONDITIONAL([BUILD_SNIFFTEST], [ test "x$ENABLED_SNIFFTEST" = "xyes" ])
 
+
 # AES-GCM
 AC_ARG_ENABLE([aesgcm],
     [AS_HELP_STRING([--enable-aesgcm],[Enable wolfSSL AES-GCM support (default: enabled)])],
@@ -727,26 +749,26 @@ then
     ENABLED_AESGCM=no
 fi
 
-if test "$ENABLED_AESGCM" = "word32"
+if test "$ENABLED_AESGCM" != "no"
 then
-    AM_CFLAGS="$AM_CFLAGS -DGCM_WORD32"
-    ENABLED_AESGCM=yes
-fi
+    if test "$ENABLED_AESGCM" = "word32"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DGCM_WORD32"
+        ENABLED_AESGCM=yes
+    fi
 
-if test "$ENABLED_AESGCM" = "small"
-then
-    AM_CFLAGS="$AM_CFLAGS -DGCM_SMALL"
-    ENABLED_AESGCM=yes
-fi
+    if test "$ENABLED_AESGCM" = "small" || test "$ENABLED_LOWRESOURCE" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DGCM_SMALL"
+        ENABLED_AESGCM=yes
+    fi
 
-if test "$ENABLED_AESGCM" = "table"
-then
-    AM_CFLAGS="$AM_CFLAGS -DGCM_TABLE"
-    ENABLED_AESGCM=yes
-fi
+    if test "$ENABLED_AESGCM" = "table"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DGCM_TABLE"
+        ENABLED_AESGCM=yes
+    fi
 
-if test "$ENABLED_AESGCM" = "yes"
-then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_AESGCM"
 fi
 
@@ -1246,21 +1268,21 @@ then
     ENABLED_CURVE25519="yes"
 fi
 
-if test "$ENABLED_CURVE25519" = "small"
+if test "$ENABLED_CURVE25519" != "no"
 then
-    AM_CFLAGS="$AM_CFLAGS -DCURVE25519_SMALL"
-    ENABLED_CURVE25519_SMALL=yes
-    ENABLED_CURVE25519=yes
-fi
+    if test "$ENABLED_CURVE25519" = "small" || test "$ENABLED_LOWRESOURCE" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DCURVE25519_SMALL"
+        ENABLED_CURVE25519_SMALL=yes
+        ENABLED_CURVE25519=yes
+    fi
 
-if test "$ENABLED_CURVE25519" = "no128bit"
-then
-    AM_CFLAGS="$AM_CFLAGS -DNO_CURVED25519_128BIT"
-    ENABLED_CURVE25519=yes
-fi
+    if test "$ENABLED_CURVE25519" = "no128bit"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DNO_CURVED25519_128BIT"
+        ENABLED_CURVE25519=yes
+    fi
 
-if test "$ENABLED_CURVE25519" = "yes"
-then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_CURVE25519"
     ENABLED_FEMATH=yes
 fi
@@ -1282,15 +1304,15 @@ then
     ENABLED_ED25519="yes"
 fi
 
-if test "$ENABLED_ED25519" = "small"
+if test "$ENABLED_ED25519" != "no" && test "$ENABLED_32BIT" = "no"
 then
-    AM_CFLAGS="$AM_CFLAGS -DED25519_SMALL"
-    ENABLED_ED25519_SMALL=yes
-    ENABLED_ED25519=yes
-fi
+    if test "$ENABLED_ED25519" = "small" || test "$ENABLED_LOWRESOURCE" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DED25519_SMALL"
+        ENABLED_ED25519_SMALL=yes
+        ENABLED_ED25519=yes
+    fi
 
-if test "$ENABLED_ED25519" = "yes" && test "$ENABLED_32BIT" = "no"
-then
     if test "$ENABLED_SHA512" = "no"
     then
         AC_MSG_ERROR([cannot enable ed25519 without enabling sha512.])
