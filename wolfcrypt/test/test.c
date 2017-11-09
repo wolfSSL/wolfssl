@@ -6916,8 +6916,11 @@ static const CertName certDefaultName = {
 };
 
 #ifdef WOLFSSL_CERT_EXT
+    #if (defined(HAVE_ED25519) && defined(WOLFSSL_TEST_CERT)) || \
+        defined(HAVE_ECC)
     static const char certKeyUsage[] =
         "digitalSignature,nonRepudiation";
+    #endif
     #if defined(WOLFSSL_CERT_REQ) || defined(HAVE_NTRU)
         static const char certKeyUsage2[] =
         "digitalSignature,nonRepudiation,keyEncipherment,keyAgreement";
