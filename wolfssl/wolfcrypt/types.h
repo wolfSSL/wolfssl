@@ -324,7 +324,8 @@
 	        #define XSTRNCASECMP(s1,s2,n) strncasecmp((s1),(s2),(n))
 	    #endif
 
-        /* snprintf is used in asn.c for GetTimeString and PKCS7 test */
+        /* snprintf is used in asn.c for GetTimeString, PKCS7 test, and when
+           debugging is turned on */
         #ifndef USE_WINDOWS_API
             #define XSNPRINTF snprintf
         #else

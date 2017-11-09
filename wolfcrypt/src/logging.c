@@ -208,7 +208,7 @@ void WOLFSSL_ENTER(const char* msg)
 {
     if (loggingEnabled) {
         char buffer[80];
-        sprintf(buffer, "wolfSSL Entering %s", msg);
+        XSNPRINTF(buffer, sizeof(buffer), "wolfSSL Entering %s", msg);
         wolfssl_log(ENTER_LOG , buffer);
     }
 }
@@ -218,7 +218,8 @@ void WOLFSSL_LEAVE(const char* msg, int ret)
 {
     if (loggingEnabled) {
         char buffer[80];
-        sprintf(buffer, "wolfSSL Leaving %s, return %d", msg, ret);
+        XSNPRINTF(buffer, sizeof(buffer), "wolfSSL Leaving %s, return %d",
+                msg, ret);
         wolfssl_log(LEAVE_LOG , buffer);
     }
 }
@@ -248,11 +249,13 @@ void WOLFSSL_ERROR(int error)
 
             if (wc_LockMutex(&debug_mutex) != 0) {
                 WOLFSSL_MSG("Lock debug mutex failed");
-                sprintf(buffer, "wolfSSL error occurred, error = %d", error);
+                XSNPRINTF(buffer, sizeof(buffer),
+                        "wolfSSL error occurred, error = %d", error);
             }
             else {
                 if (error < 0) error = error - (2*error); /*get absolute value*/
-                sprintf(buffer, "wolfSSL error occurred, error = %d line:%d file:%s",
+                XSNPRINTF(buffer, sizeof(buffer),
+                        "wolfSSL error occurred, error = %d line:%d file:%s",
                     error, line, file);
                 if (wc_AddErrorNode(error, line, buffer, (char*)file) != 0) {
                     WOLFSSL_MSG("Error creating logging node");
@@ -263,7 +266,8 @@ void WOLFSSL_ERROR(int error)
                 wc_UnLockMutex(&debug_mutex);
             }
         #else
-            sprintf(buffer, "wolfSSL error occurred, error = %d", error);
+            XSNPRINTF(buffer, sizeof(buffer),
+                    "wolfSSL error occurred, error = %d", error);
         #endif
         #ifdef DEBUG_WOLFSSL
         wolfssl_log(ERROR_LOG , buffer);
