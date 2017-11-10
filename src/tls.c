@@ -952,14 +952,44 @@ static int TLSX_Push(TLSX** list, TLSX_Type type, void* data, void* heap)
 
             TLSX_FreeAll(next, heap);
 
-            /* there is no way to occur more than */
-            /* two extensions of the same type.   */
+            /* there is no way to occur more than
+             * two extensions of the same type.
+             */
             break;
         }
     } while ((extension = extension->next));
 
     return 0;
 }
+
+#ifndef NO_WOLFSSL_CLIENT
+
+int TLSX_CheckUnsupportedExtension(WOLFSSL* ssl, TLSX_Type type);
+
+int TLSX_CheckUnsupportedExtension(WOLFSSL* ssl, TLSX_Type type)
+{
+    TLSX *extension = TLSX_Find(ssl->extensions, type);
+
+    if (!extension)
+        extension = TLSX_Find(ssl->ctx->extensions, type);
+
+    return extension == NULL;
+}
+
+int TLSX_HandleUnsupportedExtension(WOLFSSL* ssl);
+
+int TLSX_HandleUnsupportedExtension(WOLFSSL* ssl)
+{
+    SendAlert(ssl, alert_fatal, unsupported_extension);
+    return UNSUPPORTED_EXTENSION;
+}
+
+#else
+
+#define TLSX_CheckUnsupportedExtension(ssl, type) 0
+#define TLSX_HandleUnsupportedExtension(ssl) 0
+
+#endif
 
 #ifndef NO_WOLFSSL_SERVER
 
@@ -968,10 +998,10 @@ void TLSX_SetResponse(WOLFSSL* ssl, TLSX_Type type);
 
 void TLSX_SetResponse(WOLFSSL* ssl, TLSX_Type type)
 {
-    TLSX *ext = TLSX_Find(ssl->extensions, type);
+    TLSX *extension = TLSX_Find(ssl->extensions, type);
 
-    if (ext)
-        ext->resp = 1;
+    if (extension)
+        extension->resp = 1;
 }
 
 #endif
@@ -1161,7 +1191,7 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, byte *input, word16 length,
                             ssl->alpnSelectArg) == 0) {
             WOLFSSL_MSG("ALPN protocol match");
             if (TLSX_UseALPN(&ssl->extensions, (char*)out, outLen, 0, ssl->heap)
-                                                               == WOLFSSL_SUCCESS) {
+                                                           == WOLFSSL_SUCCESS) {
                 if (extension == NULL) {
                     extension = TLSX_Find(ssl->extensions,
                                           TLSX_APPLICATION_LAYER_PROTOCOL);
@@ -1172,9 +1202,8 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, byte *input, word16 length,
 #endif
 
     if (extension == NULL || extension->data == NULL) {
-        WOLFSSL_MSG("No ALPN extensions not used or bad");
-        return isRequest ? 0             /* not using ALPN */
-                         : BUFFER_ERROR; /* unexpected ALPN response */
+        return isRequest ? 0
+                         : TLSX_HandleUnsupportedExtension(ssl);
     }
 
     /* validating alpn list length */
@@ -1480,7 +1509,7 @@ static word16 TLSX_SNI_Write(SNI* list, byte* output)
 /** Finds a SNI object in the provided list. */
 static SNI* TLSX_SNI_Find(SNI *list, byte type)
 {
-    SNI *sni = list;
+    SNI* sni = list;
 
     while (sni && sni->type != type)
         sni = sni->next;
@@ -1528,27 +1557,31 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
     if (!extension)
         extension = TLSX_Find(ssl->ctx->extensions, TLSX_SERVER_NAME);
 
-    (void)isRequest;
-    (void)input;
+    if (!isRequest) {
+        #ifndef NO_WOLFSSL_CLIENT
+            if (!extension || !extension->data)
+                return TLSX_HandleUnsupportedExtension(ssl);
 
-    if (!extension || !extension->data) {
-#if defined(WOLFSSL_ALWAYS_KEEP_SNI) && !defined(NO_WOLFSSL_SERVER)
-        /* This will keep SNI even though TLSX_UseSNI has not been called.
-         * Enable it so that the received sni is available to functions
-         * that use a custom callback when SNI is received */
-        cacheOnly = 1;
-        WOLFSSL_MSG("Forcing SSL object to store SNI parameter");
-#else
-        return isRequest ? 0             /* not using SNI.           */
-                         : BUFFER_ERROR; /* unexpected SNI response. */
-#endif
+            return length ? BUFFER_ERROR /* SNI response MUST be empty. */
+                          : 0;           /* nothing else to do.         */
+        #endif
     }
 
-    if (!isRequest)
-        return length ? BUFFER_ERROR /* SNI response MUST be empty. */
-                      : 0;           /* nothing else to do.         */
-
 #ifndef NO_WOLFSSL_SERVER
+    if (!extension || !extension->data) {
+        #if defined(WOLFSSL_ALWAYS_KEEP_SNI) && !defined(NO_WOLFSSL_SERVER)
+            /* This will keep SNI even though TLSX_UseSNI has not been called.
+            * Enable it so that the received sni is available to functions
+            * that use a custom callback when SNI is received.
+            */
+
+            cacheOnly = 1;
+            WOLFSSL_MSG("Forcing SSL object to store SNI parameter");
+        #else
+            /* Skipping, SNI not enabled at server side. */
+            return 0;
+        #endif
+    }
 
     if (OPAQUE16_LEN > length)
         return BUFFER_ERROR;
@@ -1587,9 +1620,9 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
                     break;
 #endif
                 byte matched = cacheOnly ||
-                            ((XSTRLEN(sni->data.host_name) == size)
-                            && (XSTRNCMP(sni->data.host_name,
-                                       (const char*)input + offset, size) == 0));
+                    ((XSTRLEN(sni->data.host_name) == size) &&
+                    (XSTRNCMP(sni->data.host_name,
+                                      (const char*)input + offset, size) == 0));
 
                 if (matched || sni->options & WOLFSSL_SNI_ANSWER_ON_MISMATCH) {
                     int r = TLSX_UseSNI(&ssl->extensions,
@@ -1623,7 +1656,8 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
             }
         }
     }
-
+#else
+    (void)input;
 #endif
 
     return 0;
@@ -1678,7 +1712,7 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size,
                                                                      void* heap)
 {
     TLSX* extension;
-    SNI*  sni       = NULL;
+    SNI* sni = NULL;
 
     if (extensions == NULL || data == NULL)
         return BAD_FUNC_ARG;
@@ -1689,6 +1723,7 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size,
     extension = TLSX_Find(*extensions, TLSX_SERVER_NAME);
     if (!extension) {
         int ret = TLSX_Push(extensions, TLSX_SERVER_NAME, (void*)sni, heap);
+
         if (ret != 0) {
             TLSX_SNI_Free(sni, heap);
             return ret;
@@ -1702,13 +1737,14 @@ int TLSX_UseSNI(TLSX** extensions, byte type, const void* data, word16 size,
         /* remove duplicate SNI, there should be only one of each type. */
         do {
             if (sni->next && sni->next->type == type) {
-                SNI *next = sni->next;
+                SNI* next = sni->next;
 
                 sni->next = next->next;
                 TLSX_SNI_Free(next, heap);
 
-                /* there is no way to occur more than */
-                /* two SNIs of the same type.         */
+                /* there is no way to occur more than
+                 * two SNIs of the same type.
+                 */
                 break;
             }
         } while ((sni = sni->next));
@@ -1753,8 +1789,8 @@ int TLSX_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
                            byte type, byte* sni, word32* inOutSz)
 {
     word32 offset = 0;
-    word32 len32  = 0;
-    word16 len16  = 0;
+    word32 len32 = 0;
+    word16 len16 = 0;
 
     if (helloSz < RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + CLIENT_HELLO_FIRST)
         return INCOMPLETE_DATA;
@@ -1933,10 +1969,16 @@ static word16 TLSX_MFL_Write(byte* data, byte* output)
 static int TLSX_MFL_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
 {
-    (void)isRequest;
-
     if (length != ENUM_LEN)
         return BUFFER_ERROR;
+
+#ifdef WOLFSSL_OLD_UNSUPPORTED_EXTENSION
+    (void) isRequest;
+#else
+    if (!isRequest)
+        if (TLSX_CheckUnsupportedExtension(ssl, TLSX_MAX_FRAGMENT_LENGTH))
+            return TLSX_HandleUnsupportedExtension(ssl);
+#endif
 
     switch (*input) {
         case WOLFSSL_MFL_2_9 : ssl->max_fragment =  512; break;
@@ -1953,9 +1995,10 @@ static int TLSX_MFL_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
 #ifndef NO_WOLFSSL_SERVER
     if (isRequest) {
-        int r = TLSX_UseMaxFragment(&ssl->extensions, *input, ssl->heap);
+        int ret = TLSX_UseMaxFragment(&ssl->extensions, *input, ssl->heap);
 
-        if (r != WOLFSSL_SUCCESS) return r; /* throw error */
+        if (ret != WOLFSSL_SUCCESS)
+            return ret; /* throw error */
 
         TLSX_SetResponse(ssl, TLSX_MAX_FRAGMENT_LENGTH);
     }
@@ -1967,22 +2010,19 @@ static int TLSX_MFL_Parse(WOLFSSL* ssl, byte* input, word16 length,
 int TLSX_UseMaxFragment(TLSX** extensions, byte mfl, void* heap)
 {
     byte* data = NULL;
-    int   ret  = 0;
+    int ret = 0;
 
-    if (extensions == NULL)
+    if (extensions == NULL || mfl < WOLFSSL_MFL_2_9 || WOLFSSL_MFL_2_13 < mfl)
         return BAD_FUNC_ARG;
 
-    if (mfl < WOLFSSL_MFL_2_9 || WOLFSSL_MFL_2_13 < mfl)
-        return BAD_FUNC_ARG;
-
-    if ((data = (byte*)XMALLOC(ENUM_LEN, heap, DYNAMIC_TYPE_TLSX)) == NULL)
+    data = (byte*)XMALLOC(ENUM_LEN, heap, DYNAMIC_TYPE_TLSX);
+    if (data == NULL)
         return MEMORY_E;
 
     data[0] = mfl;
 
-    /* push new MFL extension. */
-    if ((ret = TLSX_Push(extensions, TLSX_MAX_FRAGMENT_LENGTH, data, heap))
-                                                                         != 0) {
+    ret = TLSX_Push(extensions, TLSX_MAX_FRAGMENT_LENGTH, data, heap);
+    if (ret != 0) {
         XFREE(data, heap, DYNAMIC_TYPE_TLSX);
         return ret;
     }
@@ -2014,21 +2054,25 @@ int TLSX_UseMaxFragment(TLSX** extensions, byte mfl, void* heap)
 static int TLSX_THM_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
 {
-    (void)isRequest;
-
     if (length != 0 || input == NULL)
         return BUFFER_ERROR;
 
-#ifndef NO_WOLFSSL_SERVER
-    if (isRequest) {
-        int r = TLSX_UseTruncatedHMAC(&ssl->extensions, ssl->heap);
-
-        if (r != WOLFSSL_SUCCESS)
-            return r; /* throw error */
-
-        TLSX_SetResponse(ssl, TLSX_TRUNCATED_HMAC);
+    if (!isRequest) {
+    #ifndef WOLFSSL_OLD_UNSUPPORTED_EXTENSION
+        if (TLSX_CheckUnsupportedExtension(ssl, TLSX_TRUNCATED_HMAC))
+            return TLSX_HandleUnsupportedExtension(ssl);
+    #endif
     }
-#endif
+    else {
+        #ifndef NO_WOLFSSL_SERVER
+            int ret = TLSX_UseTruncatedHMAC(&ssl->extensions, ssl->heap);
+
+            if (ret != WOLFSSL_SUCCESS)
+                return ret; /* throw error */
+
+            TLSX_SetResponse(ssl, TLSX_TRUNCATED_HMAC);
+        #endif
+    }
 
     ssl->truncated_hmac = 1;
 
@@ -2042,7 +2086,8 @@ int TLSX_UseTruncatedHMAC(TLSX** extensions, void* heap)
     if (extensions == NULL)
         return BAD_FUNC_ARG;
 
-    if ((ret = TLSX_Push(extensions, TLSX_TRUNCATED_HMAC, NULL, heap)) != 0)
+    ret = TLSX_Push(extensions, TLSX_TRUNCATED_HMAC, NULL, heap);
+    if (ret != 0)
         return ret;
 
     return WOLFSSL_SUCCESS;
@@ -2156,8 +2201,8 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
             extension = TLSX_Find(ssl->ctx->extensions, TLSX_STATUS_REQUEST);
             csr = extension ? (CertificateStatusRequest*)extension->data : NULL;
 
-            if (!csr)
-                return BUFFER_ERROR; /* unexpected extension */
+            if (!csr) /* unexpected extension */
+                return TLSX_HandleUnsupportedExtension(ssl);
 
             /* enable extension at ssl level */
             ret = TLSX_UseCertificateStatusRequest(&ssl->extensions,
@@ -2518,8 +2563,8 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, byte* input, word16 length,
             csr2 = extension ?
                         (CertificateStatusRequestItemV2*)extension->data : NULL;
 
-            if (!csr2)
-                return BUFFER_ERROR; /* unexpected extension */
+            if (!csr2) /* unexpected extension */
+                return TLSX_HandleUnsupportedExtension(ssl);
 
             /* enable extension at ssl level */
             for (; csr2; csr2 = csr2->next) {
@@ -3038,7 +3083,8 @@ static int TLSX_SupportedCurve_Parse(WOLFSSL* ssl, byte* input, word16 length,
     word16 name;
     int ret;
 
-    (void) isRequest; /* shut up compiler! */
+    if(!isRequest)
+        return BUFFER_ERROR; /* servers doesn't send this extension. */
 
     if (OPAQUE16_LEN > length || length % OPAQUE16_LEN)
         return BUFFER_ERROR;
@@ -3053,7 +3099,6 @@ static int TLSX_SupportedCurve_Parse(WOLFSSL* ssl, byte* input, word16 length,
         ato16(input + offset, &name);
 
         ret = TLSX_UseSupportedCurve(&ssl->extensions, name, ssl->heap);
-
         if (ret != WOLFSSL_SUCCESS)
             return ret; /* throw error */
     }
@@ -3724,7 +3769,9 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, byte* input, word16 length,
     (void) input; /* avoid unused parameter if NO_WOLFSSL_SERVER defined */
 
     if (!isRequest) {
-        /* client side */
+        if (TLSX_CheckUnsupportedExtension(ssl, TLSX_SESSION_TICKET))
+            return TLSX_HandleUnsupportedExtension(ssl);
+        
         if (length != 0)
             return BUFFER_ERROR;
 

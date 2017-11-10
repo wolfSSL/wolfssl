@@ -164,6 +164,7 @@ enum wolfSSL_ErrorCodes {
     MCAST_HIGHWATER_CB_E         = -426,   /* Multicast highwater cb err */
     ALERT_COUNT_E                = -427,   /* Alert Count exceeded err */
     EXT_MISSING                  = -428,   /* Required extension not found */
+    UNSUPPORTED_EXTENSION        = -429,   /* TLSX not requested by client */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
     /* begin negotiation parameter errors */
