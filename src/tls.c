@@ -980,13 +980,8 @@ int TLSX_HandleUnsupportedExtension(WOLFSSL* ssl);
 
 int TLSX_HandleUnsupportedExtension(WOLFSSL* ssl)
 {
-    #ifdef WOLFSSL_SKIP_UNSUPPORTED_EXTENSION
-        (void)ssl;
-        return 0;
-    #else
-        SendAlert(ssl, alert_fatal, unsupported_extension);
-        return UNSUPPORTED_EXTENSION;
-    #endif
+    SendAlert(ssl, alert_fatal, unsupported_extension);
+    return UNSUPPORTED_EXTENSION;
 }
 
 #else
@@ -1196,7 +1191,7 @@ static int TLSX_ALPN_ParseAndSet(WOLFSSL *ssl, byte *input, word16 length,
                             ssl->alpnSelectArg) == 0) {
             WOLFSSL_MSG("ALPN protocol match");
             if (TLSX_UseALPN(&ssl->extensions, (char*)out, outLen, 0, ssl->heap)
-                                                               == WOLFSSL_SUCCESS) {
+                                                           == WOLFSSL_SUCCESS) {
                 if (extension == NULL) {
                     extension = TLSX_Find(ssl->extensions,
                                           TLSX_APPLICATION_LAYER_PROTOCOL);
@@ -1977,9 +1972,13 @@ static int TLSX_MFL_Parse(WOLFSSL* ssl, byte* input, word16 length,
     if (length != ENUM_LEN)
         return BUFFER_ERROR;
 
+#ifdef WOLFSSL_OLD_UNSUPPORTED_EXTENSION
+    (void) isRequest;
+#else
     if (!isRequest)
         if (TLSX_CheckUnsupportedExtension(ssl, TLSX_MAX_FRAGMENT_LENGTH))
             return TLSX_HandleUnsupportedExtension(ssl);
+#endif
 
     switch (*input) {
         case WOLFSSL_MFL_2_9 : ssl->max_fragment =  512; break;
@@ -2059,8 +2058,10 @@ static int TLSX_THM_Parse(WOLFSSL* ssl, byte* input, word16 length,
         return BUFFER_ERROR;
 
     if (!isRequest) {
+    #ifndef WOLFSSL_OLD_UNSUPPORTED_EXTENSION
         if (TLSX_CheckUnsupportedExtension(ssl, TLSX_TRUNCATED_HMAC))
             return TLSX_HandleUnsupportedExtension(ssl);
+    #endif
     }
     else {
         #ifndef NO_WOLFSSL_SERVER
