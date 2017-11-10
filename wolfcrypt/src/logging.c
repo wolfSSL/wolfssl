@@ -207,7 +207,7 @@ void WOLFSSL_BUFFER(const byte* buffer, word32 length)
 void WOLFSSL_ENTER(const char* msg)
 {
     if (loggingEnabled) {
-        char buffer[80];
+        char buffer[WOLFSSL_MAX_ERROR_SZ];
         XSNPRINTF(buffer, sizeof(buffer), "wolfSSL Entering %s", msg);
         wolfssl_log(ENTER_LOG , buffer);
     }
@@ -217,7 +217,7 @@ void WOLFSSL_ENTER(const char* msg)
 void WOLFSSL_LEAVE(const char* msg, int ret)
 {
     if (loggingEnabled) {
-        char buffer[80];
+        char buffer[WOLFSSL_MAX_ERROR_SZ];
         XSNPRINTF(buffer, sizeof(buffer), "wolfSSL Leaving %s, return %d",
                 msg, ret);
         wolfssl_log(LEAVE_LOG , buffer);
@@ -242,7 +242,7 @@ void WOLFSSL_ERROR(int error)
     if (loggingEnabled && error != WC_PENDING_E)
     #endif
     {
-        char buffer[80];
+        char buffer[WOLFSSL_MAX_ERROR_SZ];
         #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
             (void)usrCtx; /* a user ctx for future flexibility */
             (void)func;

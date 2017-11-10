@@ -452,9 +452,11 @@
 	};
 
 	/* max error buffer string size */
+    #ifndef WOLFSSL_MAX_ERROR_SZ
 	enum {
 	    WOLFSSL_MAX_ERROR_SZ = 80
 	};
+    #endif
 
 	/* stack protection */
 	enum {
