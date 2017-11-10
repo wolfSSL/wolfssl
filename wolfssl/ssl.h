@@ -1535,6 +1535,7 @@ enum {
     WOLFSSL_TLSV1    = 1,
     WOLFSSL_TLSV1_1  = 2,
     WOLFSSL_TLSV1_2  = 3,
+    WOLFSSL_TLSV1_3  = 4,
     WOLFSSL_USER_CA  = 1,          /* user added as trusted */
     WOLFSSL_CHAIN_CA = 2           /* added to cache from trusted chain */
 };
@@ -1548,6 +1549,7 @@ WOLFSSL_API int wolfSSL_CTX_GetObjectSize(void);
 WOLFSSL_API int wolfSSL_METHOD_GetObjectSize(void);
 WOLFSSL_API int wolfSSL_GetOutputSize(WOLFSSL*, int);
 WOLFSSL_API int wolfSSL_GetMaxOutputSize(WOLFSSL*);
+WOLFSSL_API int wolfSSL_GetVersion(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_SetVersion(WOLFSSL* ssl, int version);
 WOLFSSL_API int wolfSSL_KeyPemToDer(const unsigned char*, int,
                                     unsigned char*, int, const char*);
