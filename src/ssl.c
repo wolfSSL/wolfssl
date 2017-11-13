@@ -12789,6 +12789,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_cbc(void)
     {
         WOLFSSL_ENTER("wolfSSL_EVP_aes_128_cbc");
+        if (EVP_AES_128_CBC == NULL)
+            wolfSSL_EVP_init();
         return EVP_AES_128_CBC;
     }
 
@@ -12796,6 +12798,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_cbc(void)
     {
         WOLFSSL_ENTER("wolfSSL_EVP_aes_192_cbc");
+        if (EVP_AES_192_CBC == NULL)
+            wolfSSL_EVP_init();
         return EVP_AES_192_CBC;
     }
 
@@ -12803,6 +12807,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_cbc(void)
     {
         WOLFSSL_ENTER("wolfSSL_EVP_aes_256_cbc");
+        if (EVP_AES_256_CBC == NULL)
+            wolfSSL_EVP_init();
         return EVP_AES_256_CBC;
     }
 
@@ -12810,6 +12816,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_ctr(void)
     {
         WOLFSSL_ENTER("wolfSSL_EVP_aes_128_ctr");
+        if (EVP_AES_128_CTR == NULL)
+            wolfSSL_EVP_init();
         return EVP_AES_128_CTR;
     }
 
@@ -12817,6 +12825,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_ctr(void)
     {
         WOLFSSL_ENTER("wolfSSL_EVP_aes_192_ctr");
+        if (EVP_AES_192_CTR == NULL)
+            wolfSSL_EVP_init();
         return EVP_AES_192_CTR;
     }
 
@@ -12824,12 +12834,16 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_ctr(void)
     {
         WOLFSSL_ENTER("wolfSSL_EVP_aes_256_ctr");
+        if (EVP_AES_256_CTR == NULL)
+            wolfSSL_EVP_init();
         return EVP_AES_256_CTR;
     }
 
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_128_ecb(void)
     {
         WOLFSSL_ENTER("wolfSSL_EVP_aes_128_ecb");
+        if (EVP_AES_128_ECB == NULL)
+            wolfSSL_EVP_init();
         return EVP_AES_128_ECB;
     }
 
@@ -12837,6 +12851,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_192_ecb(void)
     {
         WOLFSSL_ENTER("wolfSSL_EVP_aes_192_ecb");
+        if (EVP_AES_192_ECB == NULL)
+            wolfSSL_EVP_init();
         return EVP_AES_192_ECB;
     }
 
@@ -12844,6 +12860,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_aes_256_ecb(void)
     {
         WOLFSSL_ENTER("wolfSSL_EVP_aes_256_ecb");
+        if (EVP_AES_256_ECB == NULL)
+            wolfSSL_EVP_init();
         return EVP_AES_256_ECB;
     }
     #endif /* NO_AES */
@@ -12852,24 +12870,32 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_cbc(void)
     {
         WOLFSSL_ENTER("wolfSSL_EVP_des_cbc");
+        if (EVP_DES_CBC == NULL)
+            wolfSSL_EVP_init();
         return EVP_DES_CBC;
     }
 #ifdef WOLFSSL_DES_ECB
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_ecb(void)
     {
         WOLFSSL_ENTER("wolfSSL_EVP_des_ecb");
+        if (EVP_DES_ECB == NULL)
+            wolfSSL_EVP_init();
         return EVP_DES_ECB;
     }
 #endif
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_ede3_cbc(void)
     {
         WOLFSSL_ENTER("wolfSSL_EVP_des_ede3_cbc");
+        if (EVP_DES_EDE3_CBC == NULL)
+            wolfSSL_EVP_init();
         return EVP_DES_EDE3_CBC;
     }
 #ifdef WOLFSSL_DES_ECB
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_ede3_ecb(void)
     {
         WOLFSSL_ENTER("wolfSSL_EVP_des_ede3_ecb");
+        if (EVP_DES_EDE3_ECB == NULL)
+            wolfSSL_EVP_init();
         return EVP_DES_EDE3_ECB;
     }
 #endif
@@ -12886,6 +12912,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_idea_cbc(void)
     {
         WOLFSSL_ENTER("wolfSSL_EVP_idea_cbc");
+        if (EVP_IDEA_CBC == NULL)
+            wolfSSL_EVP_init();
         return EVP_IDEA_CBC;
     }
 #endif
@@ -12957,7 +12985,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         ctx->flags   = 0;
 
 #ifndef NO_AES
-        /* printf("cipherType=%d\n", ctx->cipherType); */
         if (ctx->cipherType == AES_128_CBC_TYPE ||
             (type && XSTRNCMP(type, EVP_AES_128_CBC, EVP_AES_SIZE) == 0)) {
             WOLFSSL_MSG("EVP_AES_128_CBC");
@@ -13012,14 +13039,19 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             if (key) {
                 ret = wc_AesSetKey(&ctx->cipher.aes, key, ctx->keyLen, iv,
                                 ctx->enc ? AES_ENCRYPTION : AES_DECRYPTION);
-                if (ret != 0)
+                if (ret != 0){
+                    WOLFSSL_MSG("wc_AesSetKey() failed");
                     return ret;
+                }
             }
             if (iv && key == NULL) {
                 ret = wc_AesSetIV(&ctx->cipher.aes, iv);
-                if (ret != 0)
+                if (ret != 0){
+                    WOLFSSL_MSG("wc_AesSetIV() failed");
                     return ret;
+                }
             }
+            WOLFSSL_MSG("wolfSSL_EVP_CipherInit() done");
         }
 #ifdef WOLFSSL_AES_COUNTER
         else if (ctx->cipherType == AES_128_CTR_TYPE ||
@@ -20796,6 +20828,162 @@ int wolfSSL_RSA_GenAdd(WOLFSSL_RSA* rsa)
 }
 #endif /* NO_RSA */
 
+#ifdef WOLFSSL_SIGNAL
+int wolfSSL_HMAC_CTX_init(HMAC_CTX* ctx)
+{
+    WOLFSSL_MSG("wolfSSL_HMAC_CTX_init");
+    (void) ctx;
+
+    return SSL_SUCCESS;
+}
+
+
+int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
+                  const EVP_MD* type)
+{
+    int hmac_error = 0;
+
+    WOLFSSL_MSG("wolfSSL_HMAC_Init");
+
+    if (ctx == NULL) {
+        WOLFSSL_MSG("no ctx on init");
+        return SSL_FAILURE;
+    }
+
+    if (type) {
+        WOLFSSL_MSG("init has type");
+
+        if (XSTRNCMP(type, "MD5", 3) == 0) {
+            WOLFSSL_MSG("md5 hmac");
+            ctx->type = MD5;
+        }
+        else if (XSTRNCMP(type, "SHA256", 6) == 0) {
+            WOLFSSL_MSG("sha256 hmac");
+            ctx->type = SHA256;
+        }
+
+        /* has to be last since would pick or 256, 384, or 512 too */
+        else if (XSTRNCMP(type, "SHA", 3) == 0) {
+            WOLFSSL_MSG("sha hmac");
+            ctx->type = SHA;
+        }
+        else {
+            WOLFSSL_MSG("bad init type");
+            return SSL_FAILURE;
+        }
+    }
+
+    if (key && keylen) {
+        WOLFSSL_MSG("keying hmac");
+
+        if (wc_HmacInit(&ctx->hmac, NULL, INVALID_DEVID) == 0) {
+            hmac_error = wc_HmacSetKey(&ctx->hmac, ctx->type, (const byte*)key,
+                                       (word32)keylen);
+            if (hmac_error < 0){
+                wc_HmacFree(&ctx->hmac);
+                return SSL_FAILURE;
+            }
+        }
+    } else {
+        WOLFSSL_MSG("no key or keylen");
+        return SSL_FAILURE;
+    }
+
+    return SSL_SUCCESS;
+}
+
+
+int wolfSSL_HMAC_Init_ex(WOLFSSL_HMAC_CTX* ctx, const void* key, int len,
+                         const EVP_MD* md, void* impl)
+{
+    (void)impl;
+    return wolfSSL_HMAC_Init(ctx, key, len, md);
+}
+
+
+int wolfSSL_HMAC_Update(WOLFSSL_HMAC_CTX* ctx, const unsigned char* data,
+                    int len)
+{
+    int hmac_error = 0;
+
+    WOLFSSL_MSG("wolfSSL_HMAC_Update");
+
+    if (ctx == NULL || data == NULL) {
+        WOLFSSL_MSG("no ctx or data");
+        return SSL_FAILURE;
+    }
+    WOLFSSL_MSG("updating hmac");
+    hmac_error = wc_HmacUpdate(&ctx->hmac, data, (word32)len);
+    if (hmac_error < 0){
+        WOLFSSL_MSG("hmac update error");
+        return SSL_FAILURE;
+    }
+
+    return SSL_SUCCESS;
+}
+
+
+int wolfSSL_HMAC_Final(WOLFSSL_HMAC_CTX* ctx, unsigned char* hash,
+                   unsigned int* len)
+{
+    int hmac_error;
+
+    WOLFSSL_MSG("wolfSSL_HMAC_Final");
+
+    if (ctx == NULL || hash == NULL || len == NULL) {
+        WOLFSSL_MSG("invalid parameter");
+        return SSL_FAILURE;
+    }
+
+    WOLFSSL_MSG("final hmac");
+    hmac_error = wc_HmacFinal(&ctx->hmac, hash);
+    if (hmac_error < 0){
+        WOLFSSL_MSG("final hmac error");
+        return SSL_FAILURE;
+    }
+
+    if (len) {
+        WOLFSSL_MSG("setting output len");
+        switch (ctx->type) {
+        case MD5:
+            *len = MD5_DIGEST_SIZE;
+            break;
+
+        case SHA:
+            *len = SHA_DIGEST_SIZE;
+            break;
+
+        case SHA256:
+            *len = SHA256_DIGEST_SIZE;
+            break;
+
+        default:
+            WOLFSSL_MSG("bad hmac type");
+            return SSL_FAILURE;
+        }
+    }
+    return SSL_SUCCESS;
+}
+
+
+int wolfSSL_HMAC_cleanup(WOLFSSL_HMAC_CTX* ctx)
+{
+    WOLFSSL_MSG("wolfSSL_HMAC_cleanup");
+
+    if (ctx)
+        wc_HmacFree(&ctx->hmac);
+
+    return SSL_SUCCESS;
+}
+
+#else /* WOLFSSL_SIGNAL */
+
+void wolfSSL_HMAC_CTX_init(HMAC_CTX* ctx)
+{
+    WOLFSSL_MSG("wolfSSL_HMAC_CTX_init");
+    (void) ctx;
+}
+
 
 void wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
                   const EVP_MD* type)
@@ -20840,12 +21028,12 @@ void wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
     }
 }
 
-int wolfSSL_HMAC_Init_ex(WOLFSSL_HMAC_CTX* ctx, const void* key, int len,
+
+void wolfSSL_HMAC_Init_ex(WOLFSSL_HMAC_CTX* ctx, const void* key, int len,
                          const EVP_MD* md, void* impl)
 {
     (void)impl;
     wolfSSL_HMAC_Init(ctx, key, len, md);
-    return 1;
 }
 
 
@@ -20903,6 +21091,7 @@ void wolfSSL_HMAC_cleanup(WOLFSSL_HMAC_CTX* ctx)
         wc_HmacFree(&ctx->hmac);
 }
 
+#endif /* WOLFSSL_SIGNAL */
 
 const WOLFSSL_EVP_MD* wolfSSL_EVP_get_digestbynid(int id)
 {

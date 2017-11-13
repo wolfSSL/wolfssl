@@ -25,6 +25,47 @@
 
 static unsigned int cipherType(const WOLFSSL_EVP_CIPHER *cipher);
 
+#ifdef WOLFSSL_SIGNAL
+WOLFSSL_API int  wolfSSL_EVP_EncryptInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
+                                        const WOLFSSL_EVP_CIPHER* type,
+                                        const unsigned char* key,
+                                        const unsigned char* iv)
+{
+    return wolfSSL_EVP_CipherInit(ctx, type, (byte*)key, (byte*)iv, 1);
+}
+
+WOLFSSL_API int  wolfSSL_EVP_EncryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
+                                        const WOLFSSL_EVP_CIPHER* type,
+                                        WOLFSSL_ENGINE *impl,
+                                        const unsigned char* key,
+                                        const unsigned char* iv)
+{
+    (void) impl;
+    return wolfSSL_EVP_CipherInit(ctx, type, (byte*)key, (byte*)iv, 1);
+}
+
+WOLFSSL_API int  wolfSSL_EVP_DecryptInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
+                                        const WOLFSSL_EVP_CIPHER* type,
+                                        const unsigned char* key,
+                                        const unsigned char* iv)
+{
+    WOLFSSL_ENTER("wolfSSL_EVP_CipherInit");
+    return wolfSSL_EVP_CipherInit(ctx, type, (byte*)key, (byte*)iv, 0);
+}
+
+WOLFSSL_API int  wolfSSL_EVP_DecryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
+                                        const WOLFSSL_EVP_CIPHER* type,
+                                        WOLFSSL_ENGINE *impl,
+                                        const unsigned char* key,
+                                        const unsigned char* iv)
+{
+    (void) impl;
+    WOLFSSL_ENTER("wolfSSL_EVP_DecryptInit");
+    return wolfSSL_EVP_CipherInit(ctx, type, (byte*)key, (byte*)iv, 0);
+}
+
+#else /* WOLFSSL_SIGNAL */
+
 WOLFSSL_API int  wolfSSL_EVP_EncryptInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                         const WOLFSSL_EVP_CIPHER* type,
                                         unsigned char* key, unsigned char* iv)
@@ -58,6 +99,8 @@ WOLFSSL_API int  wolfSSL_EVP_DecryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
     WOLFSSL_ENTER("wolfSSL_EVP_DecryptInit");
     return wolfSSL_EVP_CipherInit(ctx, type, key, iv, 0);
 }
+
+#endif /* WOLFSSL_SIGNAL */
 
 WOLFSSL_API WOLFSSL_EVP_CIPHER_CTX *wolfSSL_EVP_CIPHER_CTX_new(void)
 {
@@ -338,6 +381,7 @@ WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
     if (ctx == NULL || out == NULL) return BAD_FUNC_ARG;
     WOLFSSL_ENTER("wolfSSL_EVP_CipherFinal");
     if (ctx->flags & WOLFSSL_EVP_CIPH_NO_PADDING) {
+        if (ctx->bufUsed != 0) return 0;
         *outl = 0;
         return 1;
     }
@@ -350,6 +394,7 @@ WOLFSSL_API int  wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx,
             PRINT_BUF(ctx->buf, ctx->block_size);
             if (evpCipherBlock(ctx, out, ctx->buf, ctx->block_size) == 0)
                 return 0;
+
             PRINT_BUF(out, ctx->block_size);
             *outl = ctx->block_size;
         }

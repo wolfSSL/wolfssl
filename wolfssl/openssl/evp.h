@@ -278,20 +278,41 @@ WOLFSSL_API int  wolfSSL_EVP_CipherInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                     WOLFSSL_ENGINE *impl,
                                     unsigned char* key, unsigned char* iv,
                                     int enc);
+#ifdef WOLFSSL_SIGNAL
 WOLFSSL_API int  wolfSSL_EVP_EncryptInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                     const WOLFSSL_EVP_CIPHER* type,
-                                    unsigned char* key, unsigned char* iv);
+                                    const unsigned char* key,
+                                    const unsigned char* iv);
 WOLFSSL_API int  wolfSSL_EVP_EncryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                     const WOLFSSL_EVP_CIPHER* type,
                                     WOLFSSL_ENGINE *impl,
-                                    unsigned char* key, unsigned char* iv);
+                                    const unsigned char* key,
+                                    const unsigned char* iv);
 WOLFSSL_API int  wolfSSL_EVP_DecryptInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                     const WOLFSSL_EVP_CIPHER* type,
-                                    unsigned char* key, unsigned char* iv);
+                                    const unsigned char* key,
+                                    const unsigned char* iv);
 WOLFSSL_API int  wolfSSL_EVP_DecryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
                                     const WOLFSSL_EVP_CIPHER* type,
                                     WOLFSSL_ENGINE *impl,
-                                    unsigned char* key, unsigned char* iv);
+                                    const unsigned char* key,
+                                    const unsigned char* iv);
+#else
+WOLFSSL_API int  wolfSSL_EVP_EncryptInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
+                                         const WOLFSSL_EVP_CIPHER* type,
+                                         unsigned char* key, unsigned char* iv);
+WOLFSSL_API int  wolfSSL_EVP_EncryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
+                                            const WOLFSSL_EVP_CIPHER* type,
+                                            WOLFSSL_ENGINE *impl,
+                                            unsigned char* key, unsigned char* iv);
+WOLFSSL_API int  wolfSSL_EVP_DecryptInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
+                                            const WOLFSSL_EVP_CIPHER* type,
+                                            unsigned char* key, unsigned char* iv);
+WOLFSSL_API int  wolfSSL_EVP_DecryptInit_ex(WOLFSSL_EVP_CIPHER_CTX* ctx,
+                                            const WOLFSSL_EVP_CIPHER* type,
+                                            WOLFSSL_ENGINE *impl,
+                                            unsigned char* key, unsigned char* iv);
+#endif  /* WOLFSSL_SIGNAL */
 WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
                                    unsigned char *out, int *outl,
                                    const unsigned char *in, int inl);
