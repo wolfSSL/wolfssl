@@ -1562,8 +1562,21 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
             if (!extension || !extension->data)
                 return TLSX_HandleUnsupportedExtension(ssl);
 
-            return length ? BUFFER_ERROR /* SNI response MUST be empty. */
-                          : 0;           /* nothing else to do.         */
+            if (length > 0)
+                return BUFFER_ERROR; /* SNI response MUST be empty. */
+
+            /* This call enables wolfSSL_SNI_GetRequest() to be called in the
+             * client side to fetch the used SNI. It will only work if the SNI
+             * was set at the SSL object level. Right now we only support one
+             * name type, WOLFSSL_SNI_HOST_NAME, but in the future, the
+             * inclusion of other name types will turn this method inacurate, as
+             * the extension response doesn't contains information of wich name
+             * was accepted.
+             */
+            TLSX_SNI_SetStatus(ssl->extensions, WOLFSSL_SNI_HOST_NAME,
+                                                        WOLFSSL_SNI_REAL_MATCH);
+
+            return 0;
         #endif
     }
 
