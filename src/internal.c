@@ -22772,11 +22772,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             return BUFFER_ERROR;
 
                         XMEMCPY(clSuites.hashSigAlgo, &input[i],
-                            min(clSuites.hashSigAlgoSz, HELLO_EXT_SIGALGO_MAX));
+                            min(clSuites.hashSigAlgoSz, WOLFSSL_MAX_SIGALGO));
                         i += clSuites.hashSigAlgoSz;
 
-                        if (clSuites.hashSigAlgoSz > HELLO_EXT_SIGALGO_MAX)
-                            clSuites.hashSigAlgoSz = HELLO_EXT_SIGALGO_MAX;
+                        if (clSuites.hashSigAlgoSz > WOLFSSL_MAX_SIGALGO)
+                            clSuites.hashSigAlgoSz = WOLFSSL_MAX_SIGALGO;
                     }
 #ifdef HAVE_EXTENDED_MASTER
                     else if (extId == HELLO_EXT_EXTMS)
