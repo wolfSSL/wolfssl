@@ -10991,6 +10991,9 @@ static int ecc_test_make_pub(WC_RNG* rng)
 #ifdef HAVE_ECC_VERIFY
     int verify = 0;
 #endif
+#ifndef USE_CERT_BUFFERS_256
+    FILE* file;
+#endif
 
     tmp = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL) {
@@ -11006,7 +11009,6 @@ static int ecc_test_make_pub(WC_RNG* rng)
     XMEMCPY(tmp, ecc_key_der_256, (size_t)sizeof_ecc_key_der_256);
     tmpSz = (size_t)sizeof_ecc_key_der_256;
 #else
-    FILE* file;
     file = fopen(eccKeyDerFile, "rb");
     if (!file) {
         ERROR_OUT(-6812, done);
