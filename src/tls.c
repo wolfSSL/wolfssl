@@ -4906,8 +4906,11 @@ static int TLSX_SignatureAlgorithms_Parse(WOLFSSL *ssl, byte* input,
     if (length != OPAQUE16_LEN + len)
         return BUFFER_ERROR;
 
-    XMEMCPY(suites->hashSigAlgo, input, len);
+    /* truncate hashSigAlgo list if too long */
     suites->hashSigAlgoSz = len;
+    if (suites->hashSigAlgoSz > WOLFSSL_MAX_SIGALGO)
+        suites->hashSigAlgoSz = WOLFSSL_MAX_SIGALGO;
+    XMEMCPY(suites->hashSigAlgo, input, suites->hashSigAlgoSz);
 
     return TLSX_SignatureAlgorithms_MapPss(ssl, input, len);
 }
