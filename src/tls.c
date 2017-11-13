@@ -1504,8 +1504,6 @@ static word16 TLSX_SNI_Write(SNI* list, byte* output)
     return offset;
 }
 
-#ifndef NO_WOLFSSL_SERVER
-
 /** Finds a SNI object in the provided list. */
 static SNI* TLSX_SNI_Find(SNI *list, byte type)
 {
@@ -1516,7 +1514,6 @@ static SNI* TLSX_SNI_Find(SNI *list, byte type)
 
     return sni;
 }
-
 
 /** Sets the status of a SNI object. */
 static void TLSX_SNI_SetStatus(TLSX* extensions, byte type, byte status)
@@ -1539,8 +1536,6 @@ byte TLSX_SNI_Status(TLSX* extensions, byte type)
 
     return 0;
 }
-
-#endif /* NO_WOLFSSL_SERVER */
 
 /** Parses a buffer of SNI extensions. */
 static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,

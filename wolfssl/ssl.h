@@ -1918,6 +1918,11 @@ WOLFSSL_API void wolfSSL_SNI_SetOptions(WOLFSSL* ssl, unsigned char type,
                                                          unsigned char options);
 WOLFSSL_API void wolfSSL_CTX_SNI_SetOptions(WOLFSSL_CTX* ctx,
                                      unsigned char type, unsigned char options);
+WOLFSSL_API int wolfSSL_SNI_GetFromBuffer(
+                 const unsigned char* clientHello, unsigned int helloSz,
+                 unsigned char type, unsigned char* sni, unsigned int* inOutSz);
+
+#endif /* NO_WOLFSSL_SERVER */
 
 /* SNI status */
 enum {
@@ -1931,12 +1936,8 @@ WOLFSSL_API unsigned char wolfSSL_SNI_Status(WOLFSSL* ssl, unsigned char type);
 
 WOLFSSL_API unsigned short wolfSSL_SNI_GetRequest(WOLFSSL *ssl,
                                                unsigned char type, void** data);
-WOLFSSL_API int wolfSSL_SNI_GetFromBuffer(
-                 const unsigned char* clientHello, unsigned int helloSz,
-                 unsigned char type, unsigned char* sni, unsigned int* inOutSz);
 
-#endif
-#endif
+#endif /* HAVE_SNI */
 
 /* Application-Layer Protocol Negotiation */
 #ifdef HAVE_ALPN
