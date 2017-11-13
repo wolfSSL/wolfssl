@@ -13237,7 +13237,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     /* supported hash/sig */
     if (IsAtLeastTLSv1_2(ssl)) {
         c16toa(ssl->suites->hashSigAlgoSz, &output[i]);
-        i += LENGTH_SZ;
+        i += OPAQUE16_LEN;
 
         XMEMCPY(&output[i],
                          ssl->suites->hashSigAlgo, ssl->suites->hashSigAlgoSz);
@@ -22765,18 +22765,22 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         return BUFFER_ERROR;
 
                     if (extId == HELLO_EXT_SIG_ALGO) {
-                        ato16(&input[i], &clSuites.hashSigAlgoSz);
+                        word16 hashSigAlgoSz;
+
+                        ato16(&input[i], &hashSigAlgoSz);
                         i += OPAQUE16_LEN;
 
-                        if (OPAQUE16_LEN + clSuites.hashSigAlgoSz > extSz)
+                        if (OPAQUE16_LEN + hashSigAlgoSz > extSz)
                             return BUFFER_ERROR;
 
-                        XMEMCPY(clSuites.hashSigAlgo, &input[i],
-                            min(clSuites.hashSigAlgoSz, WOLFSSL_MAX_SIGALGO));
-                        i += clSuites.hashSigAlgoSz;
-
+                        clSuites.hashSigAlgoSz = hashSigAlgoSz;
                         if (clSuites.hashSigAlgoSz > WOLFSSL_MAX_SIGALGO)
                             clSuites.hashSigAlgoSz = WOLFSSL_MAX_SIGALGO;
+
+                        XMEMCPY(clSuites.hashSigAlgo, &input[i],
+                                                      clSuites.hashSigAlgoSz);
+
+                        i += hashSigAlgoSz;
                     }
 #ifdef HAVE_EXTENDED_MASTER
                     else if (extId == HELLO_EXT_EXTMS)
