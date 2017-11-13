@@ -1899,8 +1899,8 @@ typedef struct SNI {
     byte                       type;    /* SNI Type          */
     union { char* host_name; } data;    /* SNI Data          */
     struct SNI*                next;    /* List Behavior     */
-#ifndef NO_WOLFSSL_SERVER
     byte                       options; /* Behavior options */
+#ifndef NO_WOLFSSL_SERVER
     byte                       status;  /* Matching result   */
 #endif
 } SNI;
