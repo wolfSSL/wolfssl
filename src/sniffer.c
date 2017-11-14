@@ -1288,7 +1288,7 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
         sniffer->server = serverIp;
         sniffer->port = port;
 
-        sniffer->ctx = SSL_CTX_new(TLSv1_client_method());
+        sniffer->ctx = SSL_CTX_new(TLSv1_2_client_method());
         if (!sniffer->ctx) {
             SetError(MEMORY_STR, error, NULL, 0);
 #ifdef HAVE_SNI
