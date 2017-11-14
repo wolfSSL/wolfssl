@@ -1504,8 +1504,6 @@ static word16 TLSX_SNI_Write(SNI* list, byte* output)
     return offset;
 }
 
-#ifndef NO_WOLFSSL_SERVER
-
 /** Finds a SNI object in the provided list. */
 static SNI* TLSX_SNI_Find(SNI *list, byte type)
 {
@@ -1516,7 +1514,6 @@ static SNI* TLSX_SNI_Find(SNI *list, byte type)
 
     return sni;
 }
-
 
 /** Sets the status of a SNI object. */
 static void TLSX_SNI_SetStatus(TLSX* extensions, byte type, byte status)
@@ -1540,8 +1537,6 @@ byte TLSX_SNI_Status(TLSX* extensions, byte type)
     return 0;
 }
 
-#endif /* NO_WOLFSSL_SERVER */
-
 /** Parses a buffer of SNI extensions. */
 static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                                                  byte isRequest)
@@ -1562,8 +1557,21 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
             if (!extension || !extension->data)
                 return TLSX_HandleUnsupportedExtension(ssl);
 
-            return length ? BUFFER_ERROR /* SNI response MUST be empty. */
-                          : 0;           /* nothing else to do.         */
+            if (length > 0)
+                return BUFFER_ERROR; /* SNI response MUST be empty. */
+
+            /* This call enables wolfSSL_SNI_GetRequest() to be called in the
+             * client side to fetch the used SNI. It will only work if the SNI
+             * was set at the SSL object level. Right now we only support one
+             * name type, WOLFSSL_SNI_HOST_NAME, but in the future, the
+             * inclusion of other name types will turn this method inaccurate,
+             * as the extension response doesn't contains information of which
+             * name was accepted.
+             */
+            TLSX_SNI_SetStatus(ssl->extensions, WOLFSSL_SNI_HOST_NAME,
+                                                        WOLFSSL_SNI_REAL_MATCH);
+
+            return 0;
         #endif
     }
 

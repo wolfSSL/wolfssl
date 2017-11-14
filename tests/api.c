@@ -1806,7 +1806,7 @@ static void test_wolfSSL_UseSNI_connection(void)
         {0, use_SNI_at_ctx, 0, verify_SNI_real_matching},
 
         /* success case at ssl */
-        {0, 0, use_SNI_at_ssl, 0},
+        {0, 0, use_SNI_at_ssl, verify_SNI_real_matching},
         {0, 0, use_SNI_at_ssl, verify_SNI_real_matching},
 
         /* default missmatch behavior */
