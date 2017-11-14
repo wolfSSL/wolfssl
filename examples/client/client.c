@@ -684,7 +684,9 @@ static void Usage(void)
 #endif
     printf("-m          Match domain name in cert\n");
     printf("-N          Use Non-blocking sockets\n");
+#ifndef NO_SESSION_CACHE
     printf("-r          Resume session\n");
+#endif
     printf("-w          Wait for bidirectional shutdown\n");
     printf("-M <prot>   Use STARTTLS, using <prot> protocol (smtp)\n");
 #ifdef HAVE_SECURE_RENEGOTIATION

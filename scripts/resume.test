@@ -1,10 +1,11 @@
 #!/bin/sh
 
-#reusme.test
+#resume.test
 
 # need a unique resume port since may run the same time as testsuite
 # use server port zero hack to get one
 resume_string="reused"
+resume_sup_string="Resume session"
 ems_string="Extended\ Master\ Secret"
 resume_port=0
 no_pid=-1
@@ -44,6 +45,18 @@ do_trap() {
 
 do_test() {
     echo -e "\nStarting example server for resume test...\n"
+
+    #make sure we support session resumption (!NO_SESSION_CACHE)
+    # Check the client for the extended master secret disable option. If
+    # present we need to run the test twice.
+    options_check=`./examples/client/client -?`
+    case "$options_check" in
+    *$resume_sup_string*)
+        echo -e "\nResume test supported";;
+    *)
+        echo -e "\nResume test not supported with build"
+        return;;
+    esac
 
     remove_ready_file
     ./examples/server/server -r -R $ready_file -p $resume_port &

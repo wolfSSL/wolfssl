@@ -60,6 +60,7 @@ These settings are located in `Header/user_settings.h`.
 AES GCM: `GCM_SMALL`, `GCM_WORD32` or `GCM_TABLE`: Tunes performance and flash/memory usage.
 * `CURVED25519_SMALL`: Enables small versions of Ed/Curve (FE/GE math).
 * `USE_SLOW_SHA`: Enables smaller/slower version of SHA.
-* `USE_SLOW_SHA2`: Over twice as small, but 50% slower
+* `USE_SLOW_SHA256`: About 2k smaller and about 25% slower
+* `USE_SLOW_SHA512`: Over twice as small, but 50% slower
 * `USE_CERT_BUFFERS_1024` or `USE_CERT_BUFFERS_2048`: Size of RSA certs / keys to test with. 
 * `BENCH_EMBEDDED`: Define this if using the wolfCrypt test/benchmark and using a low memory target.
