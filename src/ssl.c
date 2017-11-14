@@ -3615,6 +3615,32 @@ int wolfSSL_SetMinVersion(WOLFSSL* ssl, int version)
 }
 
 
+/* Function to get version as WOLFSSL_ enum value for wolfSSL_SetVersion */
+int wolfSSL_GetVersion(WOLFSSL* ssl)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    if (ssl->version.major == SSLv3_MAJOR) {
+        switch (ssl->version.minor) {
+            case SSLv3_MINOR :
+                return WOLFSSL_SSLV3;
+            case TLSv1_MINOR :
+                return WOLFSSL_TLSV1;
+            case TLSv1_1_MINOR :
+                return WOLFSSL_TLSV1_1;
+            case TLSv1_2_MINOR :
+                return WOLFSSL_TLSV1_2;
+            case TLSv1_3_MINOR :
+                return WOLFSSL_TLSV1_3;
+            default:
+                break;
+        }
+    }
+
+    return VERSION_ERROR;
+}
+
 int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
 {
     word16 haveRSA = 1;
@@ -3648,6 +3674,12 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
         case WOLFSSL_TLSV1_2:
             ssl->version = MakeTLSv1_2();
             break;
+#endif
+#ifdef WOLFSSL_TLS13
+        case WOLFSSL_TLSV1_3:
+            ssl->version = MakeTLSv1_3();
+            break;
+
 #endif
 
         default:
