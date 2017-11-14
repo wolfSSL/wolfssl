@@ -22774,8 +22774,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             return BUFFER_ERROR;
 
                         clSuites.hashSigAlgoSz = hashSigAlgoSz;
-                        if (clSuites.hashSigAlgoSz > WOLFSSL_MAX_SIGALGO)
+                        if (clSuites.hashSigAlgoSz > WOLFSSL_MAX_SIGALGO) {
+                            WOLFSSL_MSG("ClientHello SigAlgo list exceeds max, "
+                                                                  "truncating");
                             clSuites.hashSigAlgoSz = WOLFSSL_MAX_SIGALGO;
+                        }
 
                         XMEMCPY(clSuites.hashSigAlgo, &input[i],
                                                       clSuites.hashSigAlgoSz);
