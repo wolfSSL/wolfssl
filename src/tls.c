@@ -3779,7 +3779,7 @@ static int TLSX_SessionTicket_Parse(WOLFSSL* ssl, byte* input, word16 length,
     if (!isRequest) {
         if (TLSX_CheckUnsupportedExtension(ssl, TLSX_SESSION_TICKET))
             return TLSX_HandleUnsupportedExtension(ssl);
-        
+
         if (length != 0)
             return BUFFER_ERROR;
 
@@ -4914,8 +4914,13 @@ static int TLSX_SignatureAlgorithms_Parse(WOLFSSL *ssl, byte* input,
     if (length != OPAQUE16_LEN + len)
         return BUFFER_ERROR;
 
-    XMEMCPY(suites->hashSigAlgo, input, len);
+    /* truncate hashSigAlgo list if too long */
     suites->hashSigAlgoSz = len;
+    if (suites->hashSigAlgoSz > WOLFSSL_MAX_SIGALGO) {
+        WOLFSSL_MSG("TLSX SigAlgo list exceeds max, truncating");
+        suites->hashSigAlgoSz = WOLFSSL_MAX_SIGALGO;
+    }
+    XMEMCPY(suites->hashSigAlgo, input, suites->hashSigAlgoSz);
 
     return TLSX_SignatureAlgorithms_MapPss(ssl, input, len);
 }

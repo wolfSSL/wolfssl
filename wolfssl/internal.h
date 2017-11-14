@@ -1034,7 +1034,6 @@ enum Misc {
     HELLO_EXT_TYPE_SZ     = 2,  /* length of a hello extension type */
     HELLO_EXT_SZ_SZ       = 2,  /* length of a hello extension size */
     HELLO_EXT_SIGALGO_SZ  = 2,  /* length of number of items in sigalgo list */
-    HELLO_EXT_SIGALGO_MAX = 32, /* number of items in the signature algo list */
 
     DTLS_HANDSHAKE_HEADER_SZ = 12, /* normal + seq(2) + offset(3) + length(3) */
     DTLS_RECORD_HEADER_SZ    = 13, /* normal + epoch(2) + seq_num(6) */
@@ -1191,6 +1190,12 @@ enum Misc {
     #define WOLFSSL_MAX_SUITE_SZ 300
     /* 150 suites for now! */
 #endif
+
+/* number of items in the signature algo list */
+#ifndef WOLFSSL_MAX_SIGALGO
+    #define WOLFSSL_MAX_SIGALGO 32
+#endif
+
 
 /* set minimum ECC key size allowed */
 #ifndef WOLFSSL_MIN_ECC_BITS
@@ -1527,7 +1532,7 @@ typedef struct Suites {
     word16 suiteSz;                 /* suite length in bytes        */
     word16 hashSigAlgoSz;           /* SigAlgo extension length in bytes */
     byte   suites[WOLFSSL_MAX_SUITE_SZ];
-    byte   hashSigAlgo[HELLO_EXT_SIGALGO_MAX]; /* sig/algo to offer */
+    byte   hashSigAlgo[WOLFSSL_MAX_SIGALGO]; /* sig/algo to offer */
     byte   setSuites;               /* user set suites from default */
     byte   hashAlgo;                /* selected hash algorithm */
     byte   sigAlgo;                 /* selected sig algorithm */
