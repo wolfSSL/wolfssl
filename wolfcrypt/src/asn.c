@@ -1715,6 +1715,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
 int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
 {
     int ret;
+    (void)keySz;
 
     if (key == NULL || der == NULL) {
         return BAD_FUNC_ARG;
@@ -3543,7 +3544,7 @@ int GetTimeString(byte* date, int format, char* buf, int len)
     struct tm t;
     int idx = 0;
 
-    if (!ExtractDate(date, format, &t, &idx)) {
+    if (!ExtractDate(date, (unsigned char)format, &t, &idx)) {
         return 0;
     }
 

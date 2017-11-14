@@ -1642,7 +1642,7 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
                         matchStat = WOLFSSL_SNI_FAKE_MATCH;
                     }
 
-                    TLSX_SNI_SetStatus(ssl->extensions, type, matchStat);
+                    TLSX_SNI_SetStatus(ssl->extensions, type, (byte)matchStat);
 
                     if(!cacheOnly)
                         TLSX_SetResponse(ssl, TLSX_SERVER_NAME);
@@ -4512,7 +4512,7 @@ static word16 TLSX_SupportedVersions_GetSize(void* data)
    if (!ssl->options.downgrade)
        cnt = 1;
 
-    return OPAQUE8_LEN + cnt * OPAQUE16_LEN;
+    return (word16)(OPAQUE8_LEN + cnt * OPAQUE16_LEN);
 }
 
 /* Writes the SupportedVersions extension into the buffer.
@@ -4537,7 +4537,7 @@ static word16 TLSX_SupportedVersions_Write(void* data, byte* output)
    if (!ssl->options.downgrade)
        cnt = 1;
 
-    *(output++) = cnt * OPAQUE16_LEN;
+    *(output++) = (byte)(cnt * OPAQUE16_LEN);
     for (i = 0; i < cnt; i++) {
         /* TODO: [TLS13] Remove code when TLS v1.3 becomes an RFC. */
         if (pv.minor - i == TLSv1_3_MINOR) {
@@ -4549,10 +4549,10 @@ static word16 TLSX_SupportedVersions_Write(void* data, byte* output)
         }
 
         *(output++) = pv.major;
-        *(output++) = pv.minor - i;
+        *(output++) = (byte)(pv.minor - i);
     }
 
-    return OPAQUE8_LEN + cnt * OPAQUE16_LEN;
+    return (word16)(OPAQUE8_LEN + cnt * OPAQUE16_LEN);
 }
 
 /* Parse the SupportedVersions extension.
@@ -4705,7 +4705,7 @@ static word16 TLSX_Cookie_Write(Cookie* cookie, byte* output, byte msgType)
         return OPAQUE16_LEN + cookie->len;
     }
 
-    return SANITY_MSG_E;
+    return SANITY_MSG_E; /* ! */
 }
 
 /* Parse the Cookie extension.
@@ -4798,7 +4798,7 @@ int TLSX_Cookie_Use(WOLFSSL* ssl, byte* data, word16 len, byte* mac,
         XMEMCPY(&cookie->data + len, mac, macSz);
 
     extension->data = (void*)cookie;
-    extension->resp = resp;
+    extension->resp = (byte)resp;
 
     return 0;
 }
@@ -5303,10 +5303,10 @@ static word16 TLSX_KeyShare_GetSize(KeyShareEntry* list, byte msgType)
         if (!isRequest && current->key == NULL)
             continue;
 
-        len += KE_GROUP_LEN + OPAQUE16_LEN + current->keLen;
+        len += (int)(KE_GROUP_LEN + OPAQUE16_LEN + current->keLen);
     }
 
-    return len;
+    return (word16)len;
 }
 
 /* Writes the key share extension into the output buffer.
@@ -5620,7 +5620,7 @@ static int TLSX_KeyShare_Process(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     int ret;
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-    ssl->session.namedGroup = keyShareEntry->group;
+    ssl->session.namedGroup = (byte)keyShareEntry->group;
 #endif
     /* Use Key Share Data from server. */
     if (keyShareEntry->group & NAMED_DH_MASK)
@@ -7895,11 +7895,11 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     return ret;
 
                 ret = TLSX_PreSharedKey_Use(ssl,
-                                          (byte*)ssl->arrays->client_identity,
-                                          XSTRLEN(ssl->arrays->client_identity),
-                                          0, ssl->specs.mac_algorithm,
-                                          cipherSuite0, cipherSuite, 0,
-                                          NULL);
+                                  (byte*)ssl->arrays->client_identity,
+                                  (word16)XSTRLEN(ssl->arrays->client_identity),
+                                  0, ssl->specs.mac_algorithm,
+                                  cipherSuite0, cipherSuite, 0,
+                                  NULL);
                 if (ret != 0)
                     return ret;
 

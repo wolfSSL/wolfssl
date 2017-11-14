@@ -4926,6 +4926,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 #endif
 
     (void)rsaKey;
+    (void)devId;
 
     if (used)
         *used = sz;     /* used bytes default to sz, PEM chain may shorten*/
@@ -9986,7 +9987,7 @@ int AddSession(WOLFSSL* ssl)
     }
 
     if (error == 0) {
-        session->ticketLen = ticLen;
+        session->ticketLen = (word16)ticLen;
         XMEMCPY(session->ticket, ssl->session.ticket, ticLen);
     } else { /* cleanup, reset state */
         session->ticket    = session->staticTicket;
@@ -17972,11 +17973,11 @@ int wolfSSL_i2d_SSL_SESSION(WOLFSSL_SESSION* sess, unsigned char** p)
         XMEMCPY(data + idx, sess->sessionID, sess->sessionIDSz);
         idx += sess->sessionIDSz;
         XMEMCPY(data + idx, sess->masterSecret, SECRET_LEN); idx += SECRET_LEN;
-        data[idx++] = sess->haveEMS;
+        data[idx++] = (byte)sess->haveEMS;
 #ifdef SESSION_CERTS
-        data[idx++] = sess->chain.count;
+        data[idx++] = (byte)sess->chain.count;
         for (i = 0; i < sess->chain.count; i++) {
-            c16toa(sess->chain.certs[i].length, data + idx);
+            c16toa((word16)sess->chain.certs[i].length, data + idx);
             idx += OPAQUE16_LEN;
             XMEMCPY(data + idx, sess->chain.certs[i].buffer,
                     sess->chain.certs[i].length);
@@ -18240,7 +18241,7 @@ int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
             if ((myBuffer != NULL) &&
                 (sz > 0) &&
                 (XFREAD(myBuffer, 1, sz, file) == sz) &&
-                (PemToDer(myBuffer, sz, CERT_TYPE,
+                (PemToDer(myBuffer, (long)sz, CERT_TYPE,
                           &fileDer, ctx->heap, info, &eccKey) == 0) &&
                 (fileDer->length != 0) &&
                 (fileDer->length == peer_cert->derCert->length) &&
@@ -24031,7 +24032,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         (void)depth;
         WOLFSSL_STUB("wolfSSL_CTX_set_verify_depth");
 #else
-        ctx->verifyDepth = depth;
+        ctx->verifyDepth = (byte)depth;
 #endif
     }
 
@@ -24966,7 +24967,7 @@ int wolfSSL_set_tlsext_host_name(WOLFSSL* ssl, const char* host_name)
     int ret;
     WOLFSSL_ENTER("wolfSSL_set_tlsext_host_name");
     ret = wolfSSL_UseSNI(ssl, WOLFSSL_SNI_HOST_NAME,
-            host_name, XSTRLEN(host_name));
+            host_name, (word16)XSTRLEN(host_name));
     WOLFSSL_LEAVE("wolfSSL_set_tlsext_host_name", ret);
     return ret;
 }

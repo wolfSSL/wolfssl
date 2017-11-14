@@ -745,7 +745,7 @@ static unsigned char equal(signed char b,signed char c)
   uint32_t y = x; /* 0: yes; 1..255: no */
   y -= 1; /* 4294967295: yes; 0..254: no */
   y >>= 31; /* 1: yes; 0: no */
-  return y;
+  return (unsigned char) y;
 }
 
 
