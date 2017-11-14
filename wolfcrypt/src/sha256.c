@@ -92,7 +92,20 @@
 
 #if defined(USE_INTEL_SPEEDUP)
     #define HAVE_INTEL_AVX1
-    #define HAVE_INTEL_AVX2
+
+    #if defined(__GNUC__) && ((__GNUC__ < 4) || \
+                              (__GNUC__ == 4 && __GNUC_MINOR__ <= 8))
+        #define NO_AVX2_SUPPORT
+    #endif
+    #if defined(__clang__) && ((__clang_major__ < 3) || \
+                               (__clang_major__ == 3 && __clang_minor__ <= 5))
+        #define NO_AVX2_SUPPORT
+    #endif
+
+    #define HAVE_INTEL_AVX1
+    #ifndef NO_AVX2_SUPPORT
+        #define HAVE_INTEL_AVX2
+    #endif
 #endif /* USE_INTEL_SPEEDUP */
 
 #if defined(HAVE_INTEL_AVX2)
