@@ -1413,6 +1413,19 @@ else
 fi
 
 
+# TLSv1.0
+AC_ARG_ENABLE([tlsv10],
+    [AS_HELP_STRING([--enable-tlsv10],[Enable old TLS versions 1.0 (default: disabled)])],
+    [ ENABLED_TLSV10=$enableval ],
+    [ ENABLED_TLSV10=no ]
+    )
+
+if test "$ENABLED_TLSV10" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_TLSV10"
+fi
+
+
 # SSLv3
 AC_ARG_ENABLE([sslv3],
     [AS_HELP_STRING([--enable-sslv3],[Enable SSL version 3.0 (default: disabled)])],
@@ -4123,6 +4136,7 @@ echo "   * SCTP:                       $ENABLED_SCTP"
 echo "   * Multicast:                  $ENABLED_MCAST"
 echo "   * Old TLS Versions:           $ENABLED_OLD_TLS"
 echo "   * SSL version 3.0:            $ENABLED_SSLV3"
+echo "   * TLS v1.0:                   $ENABLED_TLSV10"
 echo "   * TLS v1.3:                   $ENABLED_TLS13"
 echo "   * TLS v1.3 Draft 18:          $ENABLED_TLS13_DRAFT18"
 echo "   * Post-handshake Auth:        $ENABLED_TLS13_POST_AUTH"
