@@ -3674,152 +3674,129 @@ static const __m128i EIGHT = M128_INIT(0x0, 0x8);
 static const __m128i BSWAP_EPI64 = M128_INIT(0x0001020304050607, 0x08090a0b0c0d0e0f);
 static const __m128i BSWAP_MASK  = M128_INIT(0x08090a0b0c0d0e0f, 0x0001020304050607);
 
-static INLINE void aes_gcm_calc_iv_12(__m128i* KEY, const unsigned char* ivec,
-                                      int nr, __m128i* hp, __m128i* yp,
-                                      __m128i* tp, __m128i* xp)
-{
-    __m128i H, Y, T;
-    __m128i X = _mm_setzero_si128();
-    __m128i lastKey;
-    __m128i tmp1, tmp2;
-    int j;
+#define aes_gcm_calc_iv_12(KEY, ivec, nr, H, Y, T, X)      \
+do                                                         \
+{                                                          \
+    Y = _mm_setzero_si128();                               \
+    for (j=0; j < 12; j++)                                 \
+        ((unsigned char*)&Y)[j] = ivec[j];                 \
+    Y = _mm_insert_epi32(Y, 0x1000000, 3);                 \
+                                                           \
+    /* (Compute E[ZERO, KS] and E[Y0, KS] together */      \
+    tmp1 = _mm_xor_si128(X, KEY[0]);                       \
+    tmp2 = _mm_xor_si128(Y, KEY[0]);                       \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[1]);                 \
+    tmp2 = _mm_aesenc_si128(tmp2, KEY[1]);                 \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[2]);                 \
+    tmp2 = _mm_aesenc_si128(tmp2, KEY[2]);                 \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[3]);                 \
+    tmp2 = _mm_aesenc_si128(tmp2, KEY[3]);                 \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[4]);                 \
+    tmp2 = _mm_aesenc_si128(tmp2, KEY[4]);                 \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[5]);                 \
+    tmp2 = _mm_aesenc_si128(tmp2, KEY[5]);                 \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[6]);                 \
+    tmp2 = _mm_aesenc_si128(tmp2, KEY[6]);                 \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[7]);                 \
+    tmp2 = _mm_aesenc_si128(tmp2, KEY[7]);                 \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[8]);                 \
+    tmp2 = _mm_aesenc_si128(tmp2, KEY[8]);                 \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[9]);                 \
+    tmp2 = _mm_aesenc_si128(tmp2, KEY[9]);                 \
+    lastKey = KEY[10];                                     \
+    if (nr > 10) {                                         \
+        tmp1 = _mm_aesenc_si128(tmp1, lastKey);            \
+        tmp2 = _mm_aesenc_si128(tmp2, lastKey);            \
+        tmp1 = _mm_aesenc_si128(tmp1, KEY[11]);            \
+        tmp2 = _mm_aesenc_si128(tmp2, KEY[11]);            \
+        lastKey = KEY[12];                                 \
+        if (nr > 12) {                                     \
+            tmp1 = _mm_aesenc_si128(tmp1, lastKey);        \
+            tmp2 = _mm_aesenc_si128(tmp2, lastKey);        \
+            tmp1 = _mm_aesenc_si128(tmp1, KEY[13]);        \
+            tmp2 = _mm_aesenc_si128(tmp2, KEY[13]);        \
+            lastKey = KEY[14];                             \
+        }                                                  \
+    }                                                      \
+    H = _mm_aesenclast_si128(tmp1, lastKey);               \
+    T = _mm_aesenclast_si128(tmp2, lastKey);               \
+    H = _mm_shuffle_epi8(H, BSWAP_MASK);                   \
+}                                                          \
+while (0)
 
-    Y = _mm_setzero_si128();
-    for (j=0; j < 12; j++)
-        ((unsigned char*)&Y)[j] = ivec[j];
-    Y = _mm_insert_epi32(Y, 0x1000000, 3);
-
-    /* (Compute E[ZERO, KS] and E[Y0, KS] together */
-    tmp1 = _mm_xor_si128(X, KEY[0]);
-    tmp2 = _mm_xor_si128(Y, KEY[0]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[1]);
-    tmp2 = _mm_aesenc_si128(tmp2, KEY[1]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[2]);
-    tmp2 = _mm_aesenc_si128(tmp2, KEY[2]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[3]);
-    tmp2 = _mm_aesenc_si128(tmp2, KEY[3]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[4]);
-    tmp2 = _mm_aesenc_si128(tmp2, KEY[4]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[5]);
-    tmp2 = _mm_aesenc_si128(tmp2, KEY[5]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[6]);
-    tmp2 = _mm_aesenc_si128(tmp2, KEY[6]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[7]);
-    tmp2 = _mm_aesenc_si128(tmp2, KEY[7]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[8]);
-    tmp2 = _mm_aesenc_si128(tmp2, KEY[8]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[9]);
-    tmp2 = _mm_aesenc_si128(tmp2, KEY[9]);
-    lastKey = KEY[10];
-    if (nr > 10) {
-        tmp1 = _mm_aesenc_si128(tmp1, lastKey);
-        tmp2 = _mm_aesenc_si128(tmp2, lastKey);
-        tmp1 = _mm_aesenc_si128(tmp1, KEY[11]);
-        tmp2 = _mm_aesenc_si128(tmp2, KEY[11]);
-        lastKey = KEY[12];
-        if (nr > 12) {
-            tmp1 = _mm_aesenc_si128(tmp1, lastKey);
-            tmp2 = _mm_aesenc_si128(tmp2, lastKey);
-            tmp1 = _mm_aesenc_si128(tmp1, KEY[13]);
-            tmp2 = _mm_aesenc_si128(tmp2, KEY[13]);
-            lastKey = KEY[14];
-        }
-    }
-    H = _mm_aesenclast_si128(tmp1, lastKey);
-    T = _mm_aesenclast_si128(tmp2, lastKey);
-    H = _mm_shuffle_epi8(H, BSWAP_MASK);
-
-    *hp = H;
-    *yp = Y;
-    *tp = T;
-    *xp = X;
-}
-
-static INLINE void aes_gcm_calc_iv(__m128i* KEY, const unsigned char* ivec,
-                                   unsigned int ibytes, int nr, __m128i* hp,
-                                   __m128i* yp, __m128i* tp, __m128i* xp)
-{
-    __m128i H, Y, T;
-    __m128i X = _mm_setzero_si128();
-    __m128i lastKey;
-    __m128i last_block = _mm_setzero_si128();
-    __m128i tmp1;
-    int i, j;
-
-    if (ibytes % 16) {
-        i = ibytes / 16;
-        for (j=0; j < (int)(ibytes%16); j++)
-            ((unsigned char*)&last_block)[j] = ivec[i*16+j];
-    }
-    tmp1 = _mm_xor_si128(X, KEY[0]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[1]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[2]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[3]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[4]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[5]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[6]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[7]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[8]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[9]);
-    lastKey = KEY[10];
-    if (nr > 10) {
-        tmp1 = _mm_aesenc_si128(tmp1, lastKey);
-        tmp1 = _mm_aesenc_si128(tmp1, KEY[11]);
-        lastKey = KEY[12];
-        if (nr > 12) {
-            tmp1 = _mm_aesenc_si128(tmp1, lastKey);
-            tmp1 = _mm_aesenc_si128(tmp1, KEY[13]);
-            lastKey = KEY[14];
-        }
-    }
-    H = _mm_aesenclast_si128(tmp1, lastKey);
-    H = _mm_shuffle_epi8(H, BSWAP_MASK);
-    Y = _mm_setzero_si128();
-    for (i=0; i < (int)(ibytes/16); i++) {
-        tmp1 = _mm_loadu_si128(&((__m128i*)ivec)[i]);
-        tmp1 = _mm_shuffle_epi8(tmp1, BSWAP_MASK);
-        Y = _mm_xor_si128(Y, tmp1);
-        Y = gfmul_sw(Y, H);
-    }
-    if (ibytes % 16) {
-        tmp1 = last_block;
-        tmp1 = _mm_shuffle_epi8(tmp1, BSWAP_MASK);
-        Y = _mm_xor_si128(Y, tmp1);
-        Y = gfmul_sw(Y, H);
-    }
-    tmp1 = _mm_insert_epi64(tmp1, ibytes*8, 0);
-    tmp1 = _mm_insert_epi64(tmp1, 0, 1);
-    Y = _mm_xor_si128(Y, tmp1);
-    Y = gfmul_sw(Y, H);
-    Y = _mm_shuffle_epi8(Y, BSWAP_MASK); /* Compute E(K, Y0) */
-    tmp1 = _mm_xor_si128(Y, KEY[0]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[1]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[2]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[3]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[4]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[5]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[6]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[7]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[8]);
-    tmp1 = _mm_aesenc_si128(tmp1, KEY[9]);
-    lastKey = KEY[10];
-    if (nr > 10) {
-        tmp1 = _mm_aesenc_si128(tmp1, lastKey);
-        tmp1 = _mm_aesenc_si128(tmp1, KEY[11]);
-        lastKey = KEY[12];
-        if (nr > 12) {
-            tmp1 = _mm_aesenc_si128(tmp1, lastKey);
-            tmp1 = _mm_aesenc_si128(tmp1, KEY[13]);
-            lastKey = KEY[14];
-        }
-    }
-    T = _mm_aesenclast_si128(tmp1, lastKey);
-
-    *hp = H;
-    *yp = Y;
-    *tp = T;
-    *xp = X;
-}
+#define aes_gcm_calc_iv(KEY, ivec, ibytes, nr, H, Y, T, X)      \
+do                                                              \
+{                                                               \
+    if (ibytes % 16) {                                          \
+        i = ibytes / 16;                                        \
+        for (j=0; j < (int)(ibytes%16); j++)                    \
+            ((unsigned char*)&last_block)[j] = ivec[i*16+j];    \
+    }                                                           \
+    tmp1 = _mm_xor_si128(X, KEY[0]);                            \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[1]);                      \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[2]);                      \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[3]);                      \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[4]);                      \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[5]);                      \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[6]);                      \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[7]);                      \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[8]);                      \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[9]);                      \
+    lastKey = KEY[10];                                          \
+    if (nr > 10) {                                              \
+        tmp1 = _mm_aesenc_si128(tmp1, lastKey);                 \
+        tmp1 = _mm_aesenc_si128(tmp1, KEY[11]);                 \
+        lastKey = KEY[12];                                      \
+        if (nr > 12) {                                          \
+            tmp1 = _mm_aesenc_si128(tmp1, lastKey);             \
+            tmp1 = _mm_aesenc_si128(tmp1, KEY[13]);             \
+            lastKey = KEY[14];                                  \
+        }                                                       \
+    }                                                           \
+    H = _mm_aesenclast_si128(tmp1, lastKey);                    \
+    H = _mm_shuffle_epi8(H, BSWAP_MASK);                        \
+    Y = _mm_setzero_si128();                                    \
+    for (i=0; i < (int)(ibytes/16); i++) {                      \
+        tmp1 = _mm_loadu_si128(&((__m128i*)ivec)[i]);           \
+        tmp1 = _mm_shuffle_epi8(tmp1, BSWAP_MASK);              \
+        Y = _mm_xor_si128(Y, tmp1);                             \
+        Y = gfmul_sw(Y, H);                                     \
+    }                                                           \
+    if (ibytes % 16) {                                          \
+        tmp1 = last_block;                                      \
+        tmp1 = _mm_shuffle_epi8(tmp1, BSWAP_MASK);              \
+        Y = _mm_xor_si128(Y, tmp1);                             \
+        Y = gfmul_sw(Y, H);                                     \
+    }                                                           \
+    tmp1 = _mm_insert_epi64(tmp1, ibytes*8, 0);                 \
+    tmp1 = _mm_insert_epi64(tmp1, 0, 1);                        \
+    Y = _mm_xor_si128(Y, tmp1);                                 \
+    Y = gfmul_sw(Y, H);                                         \
+    Y = _mm_shuffle_epi8(Y, BSWAP_MASK); /* Compute E(K, Y0) */ \
+    tmp1 = _mm_xor_si128(Y, KEY[0]);                            \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[1]);                      \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[2]);                      \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[3]);                      \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[4]);                      \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[5]);                      \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[6]);                      \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[7]);                      \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[8]);                      \
+    tmp1 = _mm_aesenc_si128(tmp1, KEY[9]);                      \
+    lastKey = KEY[10];                                          \
+    if (nr > 10) {                                              \
+        tmp1 = _mm_aesenc_si128(tmp1, lastKey);                 \
+        tmp1 = _mm_aesenc_si128(tmp1, KEY[11]);                 \
+        lastKey = KEY[12];                                      \
+        if (nr > 12) {                                          \
+            tmp1 = _mm_aesenc_si128(tmp1, lastKey);             \
+            tmp1 = _mm_aesenc_si128(tmp1, KEY[13]);             \
+            lastKey = KEY[14];                                  \
+        }                                                       \
+    }                                                           \
+    T = _mm_aesenclast_si128(tmp1, lastKey);                    \
+}                                                               \
+while (0)
 
 #define AES_ENC_8(j)                       \
     tmp1 = _mm_aesenc_si128(tmp1, KEY[j]); \
@@ -3885,9 +3862,9 @@ void AES_GCM_encrypt(const unsigned char *in, unsigned char *out,
 #endif
 
     if (ibytes == 12)
-        aes_gcm_calc_iv_12(KEY, ivec, nr, &H, &Y, &T, &X);
+        aes_gcm_calc_iv_12(KEY, ivec, nr, H, Y, T, X);
     else
-        aes_gcm_calc_iv(KEY, ivec, ibytes, nr, &H, &Y, &T, &X);
+        aes_gcm_calc_iv(KEY, ivec, ibytes, nr, H, Y, T, X);
 
     for (i=0; i < (int)(abytes/16); i++) {
         tmp1 = _mm_loadu_si128(&((__m128i*)addt)[i]);
@@ -4572,85 +4549,74 @@ void AES_GCM_encrypt(const unsigned char *in, unsigned char *out,
     "vpshufb		%[BSWAP_MASK], %[tmp1], %[tmp1]\n\t"  \
     "vpxor		%[tmp1], %[X], %[X]\n\t"
 
-static INLINE void aes_gcm_avx1_calc_iv_12(__m128i* KEY,
-                                           const unsigned char* ivec, int nr,
-                                           __m128i* hp, __m128i* yp,
-                                           __m128i* tp, __m128i* xp)
-{
-    register __m128i H;
-    register __m128i T;
-    register __m128i X = _mm_setzero_si128();
-    __m128i Y = _mm_setzero_si128();
-    int j;
-
-    for (j=0; j < 12; j++)
-        ((unsigned char*)&Y)[j] = ivec[j];
-    Y = _mm_insert_epi32(Y, 0x1000000, 3);
-
-    __asm__ __volatile__ (
-    	"vmovaps	  0(%[KEY]), %%xmm5\n\t"
-    	"vmovaps	 16(%[KEY]), %%xmm6\n\t"
-        "vpxor		%%xmm5, %[X], %[H]\n\t"
-        "vpxor		%%xmm5, %[Y], %[T]\n\t"
-        "vaesenc	%%xmm6, %[H], %[H]\n\t"
-        "vaesenc	%%xmm6, %[T], %[T]\n\t"
-    	"vmovaps	 32(%[KEY]), %%xmm5\n\t"
-    	"vmovaps	 48(%[KEY]), %%xmm6\n\t"
-        "vaesenc	%%xmm5, %[H], %[H]\n\t"
-        "vaesenc	%%xmm5, %[T], %[T]\n\t"
-        "vaesenc	%%xmm6, %[H], %[H]\n\t"
-        "vaesenc	%%xmm6, %[T], %[T]\n\t"
-    	"vmovaps	 64(%[KEY]), %%xmm5\n\t"
-    	"vmovaps	 80(%[KEY]), %%xmm6\n\t"
-        "vaesenc	%%xmm5, %[H], %[H]\n\t"
-        "vaesenc	%%xmm5, %[T], %[T]\n\t"
-        "vaesenc	%%xmm6, %[H], %[H]\n\t"
-        "vaesenc	%%xmm6, %[T], %[T]\n\t"
-    	"vmovaps	 96(%[KEY]), %%xmm5\n\t"
-    	"vmovaps	112(%[KEY]), %%xmm6\n\t"
-        "vaesenc	%%xmm5, %[H], %[H]\n\t"
-        "vaesenc	%%xmm5, %[T], %[T]\n\t"
-        "vaesenc	%%xmm6, %[H], %[H]\n\t"
-        "vaesenc	%%xmm6, %[T], %[T]\n\t"
-    	"vmovaps	128(%[KEY]), %%xmm5\n\t"
-    	"vmovaps	144(%[KEY]), %%xmm6\n\t"
-        "vaesenc	%%xmm5, %[H], %[H]\n\t"
-        "vaesenc	%%xmm5, %[T], %[T]\n\t"
-        "vaesenc	%%xmm6, %[H], %[H]\n\t"
-        "vaesenc	%%xmm6, %[T], %[T]\n\t"
-        "cmpl		$11, %[nr]\n\t"
-    	"vmovaps	160(%[KEY]), %%xmm5\n\t"
-        "jl             %=f\n\t"
-        "vaesenc	%%xmm5, %[H], %[H]\n\t"
-        "vaesenc	%%xmm5, %[T], %[T]\n\t"
-    	"vmovaps	176(%[KEY]), %%xmm6\n\t"
-    	"vmovaps	192(%[KEY]), %%xmm5\n\t"
-        "vaesenc	%%xmm6, %[H], %[H]\n\t"
-        "vaesenc	%%xmm6, %[T], %[T]\n\t"
-        "cmpl		$13, %[nr]\n\t"
-        "jl             %=f\n\t"
-        "vaesenc	%%xmm5, %[H], %[H]\n\t"
-        "vaesenc	%%xmm5, %[T], %[T]\n\t"
-    	"vmovaps	208(%[KEY]), %%xmm6\n\t"
-    	"vmovaps	224(%[KEY]), %%xmm5\n\t"
-        "vaesenc	%%xmm6, %[H], %[H]\n\t"
-        "vaesenc	%%xmm6, %[T], %[T]\n\t"
-        "%=:\n\t"
-        "vaesenclast	%%xmm5, %[H], %[H]\n\t"
-        "vaesenclast	%%xmm5, %[T], %[T]\n\t"
-        "vpshufb	%[BSWAP_MASK], %[H], %[H]\n\t"
-
-        : [H] "=xr" (H), [Y] "+xr" (Y), [T] "=xr" (T), [X] "+xr" (X)
-        : [KEY] "r" (KEY), [nr] "r" (nr),
-          [BSWAP_MASK] "m" (BSWAP_MASK)
-        : "memory", "xmm5", "xmm6"
-    );
-
-    *hp = H;
-    *yp = Y;
-    *tp = T;
-    *xp = X;
-}
+#define aes_gcm_avx1_calc_iv_12(kKEY, ivec, nr, H, Y, T, X) \
+do                                                          \
+{                                                           \
+    for (j=0; j < 12; j++)                                  \
+        ((unsigned char*)&Y)[j] = ivec[j];                  \
+    Y = _mm_insert_epi32(Y, 0x1000000, 3);                  \
+                                                            \
+    __asm__ __volatile__ (                                  \
+        "vmovaps	  0(%[KEY]), %%xmm5\n\t"            \
+        "vmovaps	 16(%[KEY]), %%xmm6\n\t"            \
+        "vpxor		%%xmm5, %[X], %[H]\n\t"             \
+        "vpxor		%%xmm5, %[Y], %[T]\n\t"             \
+        "vaesenc	%%xmm6, %[H], %[H]\n\t"             \
+        "vaesenc	%%xmm6, %[T], %[T]\n\t"             \
+        "vmovaps	 32(%[KEY]), %%xmm5\n\t"            \
+        "vmovaps	 48(%[KEY]), %%xmm6\n\t"            \
+        "vaesenc	%%xmm5, %[H], %[H]\n\t"             \
+        "vaesenc	%%xmm5, %[T], %[T]\n\t"             \
+        "vaesenc	%%xmm6, %[H], %[H]\n\t"             \
+        "vaesenc	%%xmm6, %[T], %[T]\n\t"             \
+        "vmovaps	 64(%[KEY]), %%xmm5\n\t"            \
+        "vmovaps	 80(%[KEY]), %%xmm6\n\t"            \
+        "vaesenc	%%xmm5, %[H], %[H]\n\t"             \
+        "vaesenc	%%xmm5, %[T], %[T]\n\t"             \
+        "vaesenc	%%xmm6, %[H], %[H]\n\t"             \
+        "vaesenc	%%xmm6, %[T], %[T]\n\t"             \
+        "vmovaps	 96(%[KEY]), %%xmm5\n\t"            \
+        "vmovaps	112(%[KEY]), %%xmm6\n\t"            \
+        "vaesenc	%%xmm5, %[H], %[H]\n\t"             \
+        "vaesenc	%%xmm5, %[T], %[T]\n\t"             \
+        "vaesenc	%%xmm6, %[H], %[H]\n\t"             \
+        "vaesenc	%%xmm6, %[T], %[T]\n\t"             \
+        "vmovaps	128(%[KEY]), %%xmm5\n\t"            \
+        "vmovaps	144(%[KEY]), %%xmm6\n\t"            \
+        "vaesenc	%%xmm5, %[H], %[H]\n\t"             \
+        "vaesenc	%%xmm5, %[T], %[T]\n\t"             \
+        "vaesenc	%%xmm6, %[H], %[H]\n\t"             \
+        "vaesenc	%%xmm6, %[T], %[T]\n\t"             \
+        "cmpl		$11, %[nr]\n\t"                     \
+        "vmovaps	160(%[KEY]), %%xmm5\n\t"            \
+        "jl             %=f\n\t"                            \
+        "vaesenc	%%xmm5, %[H], %[H]\n\t"             \
+        "vaesenc	%%xmm5, %[T], %[T]\n\t"             \
+        "vmovaps	176(%[KEY]), %%xmm6\n\t"            \
+        "vmovaps	192(%[KEY]), %%xmm5\n\t"            \
+        "vaesenc	%%xmm6, %[H], %[H]\n\t"             \
+        "vaesenc	%%xmm6, %[T], %[T]\n\t"             \
+        "cmpl		$13, %[nr]\n\t"                     \
+        "jl             %=f\n\t"                            \
+        "vaesenc	%%xmm5, %[H], %[H]\n\t"             \
+        "vaesenc	%%xmm5, %[T], %[T]\n\t"             \
+        "vmovaps	208(%[KEY]), %%xmm6\n\t"            \
+        "vmovaps	224(%[KEY]), %%xmm5\n\t"            \
+        "vaesenc	%%xmm6, %[H], %[H]\n\t"             \
+        "vaesenc	%%xmm6, %[T], %[T]\n\t"             \
+        "%=:\n\t"                                           \
+        "vaesenclast	%%xmm5, %[H], %[H]\n\t"             \
+        "vaesenclast	%%xmm5, %[T], %[T]\n\t"             \
+        "vpshufb	%[BSWAP_MASK], %[H], %[H]\n\t"      \
+                                                            \
+        : [H] "=xr" (H), [Y] "+xr" (Y), [T] "=xr" (T),      \
+          [X] "+xr" (X)                                     \
+        : [KEY] "r" (KEY), [nr] "r" (nr),                   \
+          [BSWAP_MASK] "m" (BSWAP_MASK)                     \
+        : "memory", "xmm5", "xmm6"                          \
+    );                                                      \
+}                                                           \
+while (0)
 
 void AES_GCM_encrypt_avx1(const unsigned char *in, unsigned char *out,
                                  const unsigned char* addt,
@@ -4667,8 +4633,9 @@ void AES_GCM_encrypt_avx1(const unsigned char *in, unsigned char *out,
 {
     int i, j ,k;
     __m128i ctr1;
-    __m128i H, Y, T;
+    __m128i H, T;
     __m128i X = _mm_setzero_si128();
+    __m128i Y = _mm_setzero_si128();
     __m128i *KEY = (__m128i*)key, lastKey;
     __m128i last_block = _mm_setzero_si128();
 #if !defined(AES_GCM_AESNI_NO_UNROLL) && !defined(AES_GCM_AVX1_NO_UNROLL)
@@ -4688,9 +4655,9 @@ void AES_GCM_encrypt_avx1(const unsigned char *in, unsigned char *out,
 #endif
 
     if (ibytes == 12)
-        aes_gcm_avx1_calc_iv_12(KEY, ivec, nr, &H, &Y, &T, &X);
+        aes_gcm_avx1_calc_iv_12(KEY, ivec, nr, H, Y, T, X);
     else
-        aes_gcm_calc_iv(KEY, ivec, ibytes, nr, &H, &Y, &T, &X);
+        aes_gcm_calc_iv(KEY, ivec, ibytes, nr, H, Y, T, X);
 
     for (i=0; i < (int)(abytes/16); i++) {
         tmp1 = _mm_loadu_si128(&((__m128i*)addt)[i]);
@@ -5028,9 +4995,9 @@ static void AES_GCM_encrypt_avx2(const unsigned char *in, unsigned char *out,
 #endif
 
     if (ibytes == 12)
-        aes_gcm_avx1_calc_iv_12(KEY, ivec, nr, &H, &Y, &T, &X);
+        aes_gcm_avx1_calc_iv_12(KEY, ivec, nr, H, Y, T, X);
     else
-        aes_gcm_calc_iv(KEY, ivec, ibytes, nr, &H, &Y, &T, &X);
+        aes_gcm_calc_iv(KEY, ivec, ibytes, nr, H, Y, T, X);
 
     for (i=0; i < (int)(abytes/16); i++) {
         tmp1 = _mm_loadu_si128(&((__m128i*)addt)[i]);
@@ -5361,9 +5328,9 @@ static int AES_GCM_decrypt(const unsigned char *in, unsigned char *out,
 #endif
 
     if (ibytes == 12)
-        aes_gcm_calc_iv_12(KEY, ivec, nr, &H, &Y, &T, &X);
+        aes_gcm_calc_iv_12(KEY, ivec, nr, H, Y, T, X);
     else
-        aes_gcm_calc_iv(KEY, ivec, ibytes, nr, &H, &Y, &T, &X);
+        aes_gcm_calc_iv(KEY, ivec, ibytes, nr, H, Y, T, X);
 
     for (i=0; i<abytes/16; i++) {
         tmp1 = _mm_loadu_si128(&((__m128i*)addt)[i]);
@@ -5696,9 +5663,9 @@ static int AES_GCM_decrypt_avx1(const unsigned char *in, unsigned char *out,
 #endif
 
     if (ibytes == 12)
-        aes_gcm_calc_iv_12(KEY, ivec, nr, &H, &Y, &T, &X);
+        aes_gcm_calc_iv_12(KEY, ivec, nr, H, Y, T, X);
     else
-        aes_gcm_calc_iv(KEY, ivec, ibytes, nr, &H, &Y, &T, &X);
+        aes_gcm_calc_iv(KEY, ivec, ibytes, nr, H, Y, T, X);
 
     for (i=0; i<abytes/16; i++) {
         tmp1 = _mm_loadu_si128(&((__m128i*)addt)[i]);
@@ -5938,9 +5905,9 @@ static int AES_GCM_decrypt_avx2(const unsigned char *in, unsigned char *out,
 #endif
 
     if (ibytes == 12)
-        aes_gcm_calc_iv_12(KEY, ivec, nr, &H, &Y, &T, &X);
+        aes_gcm_calc_iv_12(KEY, ivec, nr, H, Y, T, X);
     else
-        aes_gcm_calc_iv(KEY, ivec, ibytes, nr, &H, &Y, &T, &X);
+        aes_gcm_calc_iv(KEY, ivec, ibytes, nr, H, Y, T, X);
 
     for (i=0; i<abytes/16; i++) {
         tmp1 = _mm_loadu_si128(&((__m128i*)addt)[i]);
