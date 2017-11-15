@@ -92,7 +92,9 @@ typedef struct wc_Sha512 {
     word64  loLen;     /* length in bytes   */
     word64  hiLen;     /* length in bytes   */
     void*   heap;
+#ifdef USE_INTEL_SPEEDUP
     const byte* data;
+#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */

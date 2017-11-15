@@ -409,7 +409,7 @@ static const word64 K512[80] = {
     W64LIT(0x5fcb6fab3ad6faec), W64LIT(0x6c44198c4a475817)
 };
 
-#define blk0(i) (W[i] = ((word64*)sha512->data)[i])
+#define blk0(i) (W[i] = sha512->buffer[i])
 
 #define blk2(i) (\
                W[ i     & 15] += \
@@ -534,7 +534,6 @@ static INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
                                                           WC_SHA512_BLOCK_SIZE);
             }
     #endif
-            sha512->data = local;
             ret = Transform_Sha512(sha512);
             if (ret == 0) {
                 AddLength(sha512, WC_SHA512_BLOCK_SIZE);
@@ -566,15 +565,16 @@ static INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
         word32 blocksLen = len & ~(WC_SHA512_BLOCK_SIZE-1);
 
         AddLength(sha512, blocksLen);
-        sha512->data = data;
         while (len >= WC_SHA512_BLOCK_SIZE) {
+            XMEMCPY(local, data, WC_SHA512_BLOCK_SIZE);
+
+            data += WC_SHA512_BLOCK_SIZE;
+            len  -= WC_SHA512_BLOCK_SIZE;
+
             /* Byte reversal performed in function if required. */
             ret = Transform_Sha512(sha512);
             if (ret != 0)
                 break;
-
-            sha512->data = (data += WC_SHA512_BLOCK_SIZE);
-            len  -= WC_SHA512_BLOCK_SIZE;
         }
     }
 #else
@@ -582,7 +582,6 @@ static INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
         word32 blocksLen = len & ~(WC_SHA512_BLOCK_SIZE-1);
 
         AddLength(sha512, blocksLen);
-        sha512->data = local;
         while (len >= WC_SHA512_BLOCK_SIZE) {
             XMEMCPY(local, data, WC_SHA512_BLOCK_SIZE);
 
@@ -636,7 +635,6 @@ static INLINE int Sha512Final(wc_Sha512* sha512)
     AddLength(sha512, sha512->buffLen);               /* before adding pads */
 
     local[sha512->buffLen++] = 0x80;  /* add 1 */
-    sha512->data = local;
 
     /* pad with zeros */
     if (sha512->buffLen > WC_SHA512_PAD_SIZE) {
@@ -1344,7 +1342,7 @@ static int Transform_Sha512_AVX1(wc_Sha512* sha512)
 
         /* 16 Ws plus loop counter. */
         "subq	$136, %%rsp\n\t"
-        "movq	224(%[sha512]), %%rax\n\t"
+        "leaq	64(%[sha512]), %%rax\n\t"
 
     INIT_MASK(MASK)
     LOAD_DIGEST()
@@ -1496,7 +1494,7 @@ static int Transform_Sha512_AVX1_RORX(wc_Sha512* sha512)
 
         /* 16 Ws plus loop counter and K512. */
         "subq	$144, %%rsp\n\t"
-        "movq	224(%[sha512]), %%rax\n\t"
+        "leaq	64(%[sha512]), %%rax\n\t"
 
     INIT_MASK(MASK)
     LOAD_DIGEST()
@@ -2192,7 +2190,7 @@ static int Transform_Sha512_AVX2(wc_Sha512* sha512)
 
         /* 16 Ws plus loop counter and K512. */
         "subq	$136, %%rsp\n\t"
-        "movq	224(%[sha512]), %%rax\n\t"
+        "leaq	64(%[sha512]), %%rax\n\t"
 
     INIT_MASK(MASK_Y)
     LOAD_DIGEST()
@@ -2366,7 +2364,7 @@ static int Transform_Sha512_AVX2_RORX(wc_Sha512* sha512)
 
         /* 16 Ws plus loop counter. */
         "subq	$136, %%rsp\n\t"
-        "movq	224(%[sha512]), "L2"\n\t"
+        "leaq	64(%[sha512]), "L2"\n\t"
 
     INIT_MASK(MASK_Y)
     LOAD_DIGEST()

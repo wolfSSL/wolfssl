@@ -612,7 +612,7 @@ static int InitSha256(wc_Sha256* sha256)
             S[i] = sha256->digest[i];
 
         for (i = 0; i < 16; i++)
-            W[i] = ((word32*)sha256->data)[i];
+            W[i] = sha256->buffer[i];
 
         for (i = 16; i < WC_SHA256_BLOCK_SIZE; i++)
             W[i] = Gamma1(W[i-2]) + W[i-7] + Gamma0(W[i-15]) + W[i-16];
@@ -702,7 +702,6 @@ static INLINE void AddLength(wc_Sha256* sha256, word32 len)
                                                           WC_SHA256_BLOCK_SIZE);
                 }
         #endif
-                sha256->data = local;
                 ret = XTRANSFORM(sha256);
                 if (ret == 0) {
                     AddLength(sha256, WC_SHA256_BLOCK_SIZE);
@@ -734,15 +733,16 @@ static INLINE void AddLength(wc_Sha256* sha256, word32 len)
             word32 blocksLen = len & ~(WC_SHA256_BLOCK_SIZE-1);
 
             AddLength(sha256, blocksLen);
-            sha256->data = data;
             while (len >= WC_SHA256_BLOCK_SIZE) {
+                XMEMCPY(local, data, WC_SHA256_BLOCK_SIZE);
+
+                data += WC_SHA256_BLOCK_SIZE;
+                len  -= WC_SHA256_BLOCK_SIZE;
+
                 /* Byte reversal performed in function if required. */
                 ret = XTRANSFORM(sha256);
                 if (ret != 0)
                     break;
-
-                sha256->data = (data += WC_SHA256_BLOCK_SIZE);
-                len  -= WC_SHA256_BLOCK_SIZE;
             }
         }
     #else
@@ -750,7 +750,6 @@ static INLINE void AddLength(wc_Sha256* sha256, word32 len)
             word32 blocksLen = len & ~(WC_SHA256_BLOCK_SIZE-1);
 
             AddLength(sha256, blocksLen);
-            sha256->data = local;
             while (len >= WC_SHA256_BLOCK_SIZE) {
                 XMEMCPY(local, data, WC_SHA256_BLOCK_SIZE);
 
@@ -789,7 +788,6 @@ static INLINE void AddLength(wc_Sha256* sha256, word32 len)
             return BAD_FUNC_ARG;
         }
 
-        sha256->data = local;
         AddLength(sha256, sha256->buffLen);  /* before adding pads */
         local[sha256->buffLen++] = 0x80;     /* add 1 */
 
@@ -1711,7 +1709,7 @@ SHA256_NOINLINE static int Transform_Sha256_AVX1(wc_Sha256* sha256)
 
         "subq	$64, %%rsp\n\t"
 
-        "movq	120(%[sha256]), %%rax\n\t"
+        "leaq	32(%[sha256]), %%rax\n\t"
     Init_Masks(BYTE_FLIP_MASK, SHUF_00BA, SHUF_DC00)
     LOAD_DIGEST()
 
@@ -1840,7 +1838,7 @@ SHA256_NOINLINE static int Transform_Sha256_AVX1_RORX(wc_Sha256* sha256)
         "subq	$64, %%rsp\n\t"
 
     Init_Masks(BYTE_FLIP_MASK, SHUF_00BA, SHUF_DC00)
-        "movq	120(%[sha256]), %%rax\n\t"
+        "leaq	32(%[sha256]), %%rax\n\t"
     W_K_from_buff(X0, X1, X2, X3, BYTE_FLIP_MASK)
 
     LOAD_DIGEST()
@@ -2233,7 +2231,7 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2(wc_Sha256* sha256)
     __asm__ __volatile__ (
 
         "subq	$512, %%rsp\n\t"
-        "movq	120(%[sha256]), %%rax\n\t"
+        "leaq	32(%[sha256]), %%rax\n\t"
 
     INIT_MASKS_Y(BYTE_FLIP_MASK, SHUF_Y_00BA, SHUF_Y_DC00)
     LOAD_DIGEST()
@@ -2392,7 +2390,7 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2_RORX(wc_Sha256* sha256)
     __asm__ __volatile__ (
 
         "subq	$512, %%rsp\n\t"
-        "movq	120(%[sha256]), %%rax\n\t"
+        "leaq	32(%[sha256]), %%rax\n\t"
 
     INIT_MASKS_Y(BYTE_FLIP_MASK, SHUF_Y_00BA, SHUF_Y_DC00)
     LOAD_W_K_LOW(BYTE_FLIP_MASK, rax)
