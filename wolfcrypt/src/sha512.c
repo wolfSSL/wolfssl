@@ -130,7 +130,6 @@
 #if defined(USE_INTEL_SPEEDUP)
     #define HAVE_INTEL_AVX1
 
-
     #if defined(__GNUC__) && ((__GNUC__ < 4) || \
                               (__GNUC__ == 4 && __GNUC_MINOR__ <= 8))
         #define NO_AVX2_SUPPORT
@@ -268,7 +267,7 @@ static int InitSha512(wc_Sha512* sha512)
     #if defined(HAVE_INTEL_AVX2)
         static int Transform_Sha512_AVX2(wc_Sha512 *sha512);
         static int Transform_Sha512_AVX2_Len(wc_Sha512 *sha512, word32 len);
-        #if defined(HAVE_INTEL_AVX1) && defined(HAVE_INTEL_AVX2) && defined(HAVE_INTEL_RORX)
+        #if defined(HAVE_INTEL_RORX)
             static int Transform_Sha512_AVX1_RORX(wc_Sha512 *sha512);
             static int Transform_Sha512_AVX1_RORX_Len(wc_Sha512 *sha512,
                                                       word32 len);
@@ -295,27 +294,30 @@ static int InitSha512(wc_Sha512* sha512)
 
     #if defined(HAVE_INTEL_AVX2)
         if (IS_INTEL_AVX2(intel_flags)) {
+        #ifdef HAVE_INTEL_RORX
             if (IS_INTEL_BMI2(intel_flags)) {
                 Transform_Sha512_p = Transform_Sha512_AVX2_RORX;
                 Transform_Sha512_Len_p = Transform_Sha512_AVX2_RORX_Len;
             }
-            else {
+            else
+        #endif
+            if (1) {
                 Transform_Sha512_p = Transform_Sha512_AVX2;
                 Transform_Sha512_Len_p = Transform_Sha512_AVX2_Len;
             }
+        #ifdef HAVE_INTEL_RORX
+            else {
+                Transform_Sha512_p = Transform_Sha512_AVX1_RORX;
+                Transform_Sha512_Len_p = Transform_Sha512_AVX1_RORX_Len;
+            }
+        #endif
         }
         else
     #endif
     #if defined(HAVE_INTEL_AVX1)
         if (IS_INTEL_AVX1(intel_flags)) {
-            if (!IS_INTEL_BMI2(intel_flags)) {
-                Transform_Sha512_p = Transform_Sha512_AVX1;
-                Transform_Sha512_Len_p = Transform_Sha512_AVX1_Len;
-            }
-            else {
-                Transform_Sha512_p = Transform_Sha512_AVX1_RORX;
-                Transform_Sha512_Len_p = Transform_Sha512_AVX1_RORX_Len;
-            }
+            Transform_Sha512_p = Transform_Sha512_AVX1;
+            Transform_Sha512_Len_p = Transform_Sha512_AVX1_Len;
         }
         else
     #endif
@@ -1487,8 +1489,7 @@ static int Transform_Sha512_AVX1_Len(wc_Sha512* sha512, word32 len)
 }
 #endif /* HAVE_INTEL_AVX1 */
 
-#if defined(HAVE_INTEL_AVX2) && defined(HAVE_INTEL_AVX1) && \
-                                                        defined(HAVE_INTEL_RORX)
+#if defined(HAVE_INTEL_AVX2) && defined(HAVE_INTEL_RORX)
 static int Transform_Sha512_AVX1_RORX(wc_Sha512* sha512)
 {
     __asm__ __volatile__ (
@@ -1645,7 +1646,7 @@ static int Transform_Sha512_AVX1_RORX_Len(wc_Sha512* sha512, word32 len)
 
     return 0;
 }
-#endif /* HAVE_INTEL_AVX2 && HAVE_INTEL_AVX1 && HAVE_INTEL_RORX */
+#endif /* HAVE_INTEL_AVX2 && HAVE_INTEL_RORX */
 
 #if defined(HAVE_INTEL_AVX2)
 static const unsigned long mBYTE_FLIP_MASK_Y[] =
@@ -2528,7 +2529,7 @@ static int Transform_Sha512_AVX2_RORX_Len(wc_Sha512* sha512, word32 len)
 
     return 0;
 }
-#endif
+#endif /* HAVE_INTEL_RORX */
 #endif /* HAVE_INTEL_AVX2 */
 
 

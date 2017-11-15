@@ -213,10 +213,12 @@ static int InitSha256(wc_Sha256* sha256)
     #if defined(HAVE_INTEL_AVX2)
         static int Transform_Sha256_AVX2(wc_Sha256 *sha256);
         static int Transform_Sha256_AVX2_Len(wc_Sha256* sha256, word32 len);
+        #ifdef HAVE_INTEL_RORX
         static int Transform_Sha256_AVX1_RORX(wc_Sha256 *sha256);
         static int Transform_Sha256_AVX1_RORX_Len(wc_Sha256* sha256, word32 len);
         static int Transform_Sha256_AVX2_RORX(wc_Sha256 *sha256);
         static int Transform_Sha256_AVX2_RORX_Len(wc_Sha256* sha256, word32 len);
+        #endif
     #endif
     static int (*Transform_Sha256_p)(wc_Sha256* sha256);
                                                        /* = _Transform_Sha256 */
@@ -235,7 +237,7 @@ static int InitSha256(wc_Sha256* sha256)
 
         intel_flags = cpuid_get_flags();
 
-    #if defined(HAVE_INTEL_AVX2)
+    #ifdef HAVE_INTEL_AVX2
         if (IS_INTEL_AVX2(intel_flags)) {
         #ifdef HAVE_INTEL_RORX
             if (IS_INTEL_BMI2(intel_flags)) {
@@ -244,26 +246,24 @@ static int InitSha256(wc_Sha256* sha256)
             }
             else
         #endif
+            if (1)
             {
                 Transform_Sha256_p = Transform_Sha256_AVX2;
                 Transform_Sha256_Len_p = Transform_Sha256_AVX2_Len;
             }
-        }
-        else
-    #endif
-    #if defined(HAVE_INTEL_AVX1)
-        if (IS_INTEL_AVX1(intel_flags)) {
         #ifdef HAVE_INTEL_RORX
-            if (IS_INTEL_BMI2(intel_flags)) {
+            else {
                 Transform_Sha256_p = Transform_Sha256_AVX1_RORX;
                 Transform_Sha256_Len_p = Transform_Sha256_AVX1_RORX_Len;
             }
-            else
         #endif
-            {
-                Transform_Sha256_p = Transform_Sha256_AVX1;
-                Transform_Sha256_Len_p = Transform_Sha256_AVX1_Len;
-            }
+        }
+        else
+    #endif
+    #ifdef HAVE_INTEL_AVX1
+        if (IS_INTEL_AVX1(intel_flags)) {
+            Transform_Sha256_p = Transform_Sha256_AVX1;
+            Transform_Sha256_Len_p = Transform_Sha256_AVX1_Len;
         }
         else
     #endif
@@ -1830,8 +1830,9 @@ SHA256_NOINLINE static int Transform_Sha256_AVX1_Len(wc_Sha256* sha256,
 
     return 0;
 }
+#endif  /* HAVE_INTEL_AVX1 */
 
-#if defined(HAVE_INTEL_RORX)
+#if defined(HAVE_INTEL_AVX2) && defined(HAVE_INTEL_RORX)
 SHA256_NOINLINE static int Transform_Sha256_AVX1_RORX(wc_Sha256* sha256)
 {
     __asm__ __volatile__ (
@@ -1962,8 +1963,7 @@ SHA256_NOINLINE static int Transform_Sha256_AVX1_RORX_Len(wc_Sha256* sha256,
 
     return 0;
 }
-#endif  /* HAVE_INTEL_RORX */
-#endif  /* HAVE_INTEL_AVX1 */
+#endif /* HAVE_INTEL_AVX2 && HAVE_INTEL_RORX */
 
 
 #if defined(HAVE_INTEL_AVX2)
@@ -2555,9 +2555,8 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2_RORX_Len(wc_Sha256* sha256,
 
     return 0;
 }
-
 #endif  /* HAVE_INTEL_RORX */
-#endif   /* HAVE_INTEL_AVX2 */
+#endif  /* HAVE_INTEL_AVX2 */
 
 
 #ifdef WOLFSSL_SHA224
