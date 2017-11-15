@@ -3083,7 +3083,7 @@ static int TLSX_SupportedCurve_Parse(WOLFSSL* ssl, byte* input, word16 length,
     word16 name;
     int ret;
 
-    if(!isRequest)
+    if(!isRequest && !IsAtLeastTLSv1_3(ssl->version))
         return BUFFER_ERROR; /* servers doesn't send this extension. */
 
     if (OPAQUE16_LEN > length || length % OPAQUE16_LEN)
@@ -8157,6 +8157,7 @@ word16 TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType)
 #endif
 #ifdef WOLFSSL_TLS13
         case encrypted_extensions:
+            TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_EC_POINT_FORMATS));
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SESSION_TICKET));
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
@@ -8243,6 +8244,7 @@ word16 TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType)
 #endif
 #ifdef WOLFSSL_TLS13
             case encrypted_extensions:
+                TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_EC_POINT_FORMATS));
                 TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SESSION_TICKET));
                 TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)

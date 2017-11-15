@@ -9787,6 +9787,10 @@ static int GetDeepCopySession(WOLFSSL* ssl, WOLFSSL_SESSION* copyFrom)
     copyInto->namedGroup     = copyFrom->namedGroup;
     copyInto->ticketSeen     = copyFrom->ticketSeen;
     copyInto->ticketAdd      = copyFrom->ticketAdd;
+#ifndef WOLFSSL_TLS13_DRAFT_18
+    XMEMCPY(&copyInto->ticketNonce, &copyFrom->ticketNonce,
+                                                           sizeof(TicketNonce));
+#endif
 #ifdef WOLFSSL_EARLY_DATA
     copyInto->maxEarlyDataSz = copyFrom->maxEarlyDataSz;
 #endif
@@ -10019,6 +10023,10 @@ int AddSession(WOLFSSL* ssl)
         session->namedGroup     = ssl->session.namedGroup;
         session->ticketSeen     = ssl->session.ticketSeen;
         session->ticketAdd      = ssl->session.ticketAdd;
+#ifndef WOLFSSL_TLS13_DRAFT_18
+        XMEMCPY(&session->ticketNonce, &ssl->session.ticketNonce,
+                                                           sizeof(TicketNonce));
+#endif
     #ifdef WOLFSSL_EARLY_DATA
         session->maxEarlyDataSz = ssl->session.maxEarlyDataSz;
     #endif
