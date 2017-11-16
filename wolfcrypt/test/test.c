@@ -293,7 +293,9 @@ int scrypt_test(void);
 #ifdef HAVE_PKCS7
     int pkcs7enveloped_test(void);
     int pkcs7signed_test(void);
-    int pkcs7encrypted_test(void);
+    #ifndef NO_PKCS7_ENCRYPTED_DATA
+        int pkcs7encrypted_test(void);
+    #endif
 #endif
 #if !defined(NO_ASN_TIME) && !defined(NO_RSA) && defined(WOLFSSL_TEST_CERT)
 int cert_test(void);
@@ -838,10 +840,12 @@ int wolfcrypt_test(void* args)
     else
         printf( "PKCS7signed    test passed!\n");
 
-    if ( (ret = pkcs7encrypted_test()) != 0)
-        return err_sys("PKCS7encrypted test failed!\n", ret);
-    else
-        printf( "PKCS7encrypted test passed!\n");
+    #ifndef NO_PKCS7_ENCRYPTED_DATA
+        if ( (ret = pkcs7encrypted_test()) != 0)
+            return err_sys("PKCS7encrypted test failed!\n", ret);
+        else
+            printf( "PKCS7encrypted test passed!\n");
+    #endif
 #endif
 
 #ifdef HAVE_VALGRIND
@@ -14299,6 +14303,8 @@ int pkcs7enveloped_test(void)
 }
 
 
+#ifndef NO_PKCS7_ENCRYPTED_DATA
+
 typedef struct {
     const byte*  content;
     word32       contentSz;
@@ -14499,6 +14505,8 @@ int pkcs7encrypted_test(void)
 
     return ret;
 }
+
+#endif /* NO_PKCS7_ENCRYPTED_DATA */
 
 
 typedef struct {
