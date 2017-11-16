@@ -19540,11 +19540,11 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
 #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519)
     int      keySz;
     word32   idx;
+    (void)idx;
+    (void)keySz;
 #else
     (void)length;
 #endif
-    (void)idx;
-    (void)keySz;
 
     /* make sure private key exists */
     if (ssl->buffers.key == NULL || ssl->buffers.key->buffer == NULL) {
