@@ -14088,8 +14088,10 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
     {
         /* key transport key encryption technique */
 #ifndef NO_RSA
+    #ifndef NO_DES3
         {data, (word32)sizeof(data), DATA, DES3b, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, "pkcs7envelopedDataDES3.der"},
+    #endif
 
     #ifndef NO_AES
         {data, (word32)sizeof(data), DATA, AES128CBCb, 0, 0, rsaCert, rsaCertSz,
@@ -14545,7 +14547,11 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
     static byte senderNonceOid[] =
                { 0x06, 0x0a, 0x60, 0x86, 0x48, 0x01, 0x86, 0xF8, 0x45, 0x01,
                  0x09, 0x05 };
+#ifndef NO_SHA
     static byte transId[(WC_SHA_DIGEST_SIZE + 1) * 2 + 1];
+#else
+    static byte transId[(WC_SHA256_DIGEST_SIZE + 1) * 2 + 1];
+#endif
     static byte messageType[] = { 0x13, 2, '1', '9' };
     static byte senderNonce[PKCS7_NONCE_SZ + 2];
 
@@ -14689,15 +14695,21 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
             }
         }
 
-        /* generate trans ID */
+        /* generate transactionID (used with SCEP) */
         {
+        #ifndef NO_SHA
             wc_Sha sha;
             byte digest[WC_SHA_DIGEST_SIZE];
+        #else
+            wc_Sha256 sha;
+            byte digest[WC_SHA256_DIGEST_SIZE];
+        #endif
             int j,k;
 
             transId[0] = 0x13;
-            transId[1] = WC_SHA_DIGEST_SIZE * 2;
+            transId[1] = sizeof(digest) * 2;
 
+        #ifndef NO_SHA
             ret = wc_InitSha_ex(&sha, HEAP_HINT, devId);
             if (ret != 0) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -14707,8 +14719,19 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
             wc_ShaUpdate(&sha, pkcs7.publicKey, pkcs7.publicKeySz);
             wc_ShaFinal(&sha, digest);
             wc_ShaFree(&sha);
+        #else
+            ret = wc_InitSha256_ex(&sha, HEAP_HINT, devId);
+            if (ret != 0) {
+                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                wc_PKCS7_Free(&pkcs7);
+                return -7704;
+            }
+            wc_Sha256Update(&sha, pkcs7.publicKey, pkcs7.publicKeySz);
+            wc_Sha256Final(&sha, digest);
+            wc_Sha256Free(&sha);
+        #endif
 
-            for (j = 0, k = 2; j < WC_SHA_DIGEST_SIZE; j++, k += 2) {
+            for (j = 0, k = 2; j < (int)sizeof(digest); j++, k += 2) {
                 XSNPRINTF((char*)&transId[k], 3, "%02x", digest[j]);
             }
         }

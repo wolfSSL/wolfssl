@@ -3777,8 +3777,6 @@ then
         ENABLED_X963KDF="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_X963_KDF"
     fi
-    AS_IF([test "x$ENABLED_DES3" = "xno"],
-          [ENABLED_DES3=yes])
 fi
 
 if test "x$ENABLED_DES3" = "xno"
