@@ -66,6 +66,14 @@
     #include <wolfssl/wolfcrypt/async.h>
 #endif
 
+#if defined(_MSC_VER)
+    #define SHA256_NOINLINE __declspec(noinline)
+#elif defined(__GNUC__)
+    #define SHA256_NOINLINE __attribute__((noinline))
+#else
+    #define SHA256_NOINLINE
+#endif
+
 #ifndef NO_OLD_WC_NAMES
     #define Sha256             wc_Sha256
     #define SHA256             WC_SHA256
@@ -96,6 +104,9 @@ typedef struct wc_Sha256 {
     word32  loLen;     /* length in bytes   */
     word32  hiLen;     /* length in bytes   */
     void*   heap;
+#ifdef USE_INTEL_SPEEDUP
+    const byte* data;
+#endif
 #ifdef WOLFSSL_PIC32MZ_HASH
     hashUpdCache cache; /* cache for updates */
 #endif
