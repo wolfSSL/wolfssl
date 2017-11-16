@@ -428,6 +428,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 
 #ifndef NO_OLD_TLS
 
+#ifdef WOLFSSL_ALLOW_TLSV10
 ProtocolVersion MakeTLSv1(void)
 {
     ProtocolVersion pv;
@@ -436,6 +437,7 @@ ProtocolVersion MakeTLSv1(void)
 
     return pv;
 }
+#endif /* WOLFSSL_ALLOW_TLSV10 */
 
 
 ProtocolVersion MakeTLSv1_1(void)
@@ -447,7 +449,7 @@ ProtocolVersion MakeTLSv1_1(void)
     return pv;
 }
 
-#endif
+#endif /* !NO_OLD_TLS */
 
 
 ProtocolVersion MakeTLSv1_2(void)
@@ -8635,16 +8637,10 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 #ifndef NO_WOLFSSL_CLIENT
 
 #ifndef NO_OLD_TLS
-
+    #ifdef WOLFSSL_ALLOW_TLSV10
     WOLFSSL_METHOD* wolfTLSv1_client_method(void)
     {
         return wolfTLSv1_client_method_ex(NULL);
-    }
-
-
-    WOLFSSL_METHOD* wolfTLSv1_1_client_method(void)
-    {
-        return wolfTLSv1_1_client_method_ex(NULL);
     }
 
     WOLFSSL_METHOD* wolfTLSv1_client_method_ex(void* heap)
@@ -8656,7 +8652,12 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
             InitSSL_Method(method, MakeTLSv1());
         return method;
     }
+    #endif /* WOLFSSL_ALLOW_TLSV10 */
 
+    WOLFSSL_METHOD* wolfTLSv1_1_client_method(void)
+    {
+        return wolfTLSv1_1_client_method_ex(NULL);
+    }
 
     WOLFSSL_METHOD* wolfTLSv1_1_client_method_ex(void* heap)
     {
@@ -8753,16 +8754,10 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 #ifndef NO_WOLFSSL_SERVER
 
 #ifndef NO_OLD_TLS
-
+    #ifdef WOLFSSL_ALLOW_TLSV10
     WOLFSSL_METHOD* wolfTLSv1_server_method(void)
     {
         return wolfTLSv1_server_method_ex(NULL);
-    }
-
-
-    WOLFSSL_METHOD* wolfTLSv1_1_server_method(void)
-    {
-        return wolfTLSv1_1_server_method_ex(NULL);
     }
 
     WOLFSSL_METHOD* wolfTLSv1_server_method_ex(void* heap)
@@ -8776,7 +8771,12 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
         }
         return method;
     }
+    #endif /* WOLFSSL_ALLOW_TLSV10 */
 
+    WOLFSSL_METHOD* wolfTLSv1_1_server_method(void)
+    {
+        return wolfTLSv1_1_server_method_ex(NULL);
+    }
 
     WOLFSSL_METHOD* wolfTLSv1_1_server_method_ex(void* heap)
     {

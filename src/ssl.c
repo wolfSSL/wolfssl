@@ -3663,9 +3663,11 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
 
 #ifndef NO_TLS
     #ifndef NO_OLD_TLS
+        #ifdef WOLFSSL_ALLOW_TLSV10
         case WOLFSSL_TLSV1:
             ssl->version = MakeTLSv1();
             break;
+        #endif
 
         case WOLFSSL_TLSV1_1:
             ssl->version = MakeTLSv1_1();

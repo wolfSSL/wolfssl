@@ -124,7 +124,7 @@ void echoclient_test(void* args)
 
 #if defined(CYASSL_DTLS)
     method  = DTLSv1_2_client_method();
-#elif  !defined(NO_TLS)
+#elif !defined(NO_TLS)
     method = CyaSSLv23_client_method();
 #elif defined(WOLFSSL_ALLOW_SSLV3)
     method = SSLv3_client_method();
