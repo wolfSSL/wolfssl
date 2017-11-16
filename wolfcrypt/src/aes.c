@@ -2979,25 +2979,33 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #ifdef HAVE_AES_ECB
 int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
+    word32 blocks = sz / AES_BLOCK_SIZE;
+
     if ((in == NULL) || (out == NULL) || (aes == NULL))
       return BAD_FUNC_ARG;
-    while (sz>0) {
+    while (blocks>0) {
       wc_AesEncryptDirect(aes, out, in);
       out += AES_BLOCK_SIZE;
       in  += AES_BLOCK_SIZE;
       sz  -= AES_BLOCK_SIZE;
+      blocks--;
     }
     return 0;
 }
+
+
 int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
+    word32 blocks = sz / AES_BLOCK_SIZE;
+
     if ((in == NULL) || (out == NULL) || (aes == NULL))
       return BAD_FUNC_ARG;
-    while (sz>0) {
+    while (blocks>0) {
       wc_AesDecryptDirect(aes, out, in);
       out += AES_BLOCK_SIZE;
       in  += AES_BLOCK_SIZE;
       sz  -= AES_BLOCK_SIZE;
+      blocks--;
     }
     return 0;
 }
