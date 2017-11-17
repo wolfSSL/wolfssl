@@ -955,7 +955,7 @@ enum Misc {
 #ifdef WOLFSSL_TLS13_DRAFT_18
     TLS_DRAFT_MINOR = 0x12,     /* Minor version number of TLS draft */
 #else
-    TLS_DRAFT_MINOR = 0x14,     /* Minor version number of TLS draft */
+    TLS_DRAFT_MINOR = 0x15,     /* Minor version number of TLS draft */
 #endif
     OLD_HELLO_ID    = 0x01,     /* SSLv2 Client Hello Indicator */
     INVALID_BYTE    = 0xff,     /* Used to initialize cipher specs values */
@@ -1003,6 +1003,9 @@ enum Misc {
     NAMED_DH_MASK  = 0x100,    /* Named group mask for DH parameters  */
     SESSION_HINT_SZ = 4,       /* session timeout hint */
     SESSION_ADD_SZ = 4,        /* session age add */
+    TICKET_NONCE_LEN_SZ = 1,   /* Ticket nonce length size */
+    DEF_TICKET_NONCE_SZ = 1,   /* Default ticket nonce size */
+    MAX_TICKET_NONCE_SZ = 4,   /* maximum ticket nonce size */
     MAX_LIFETIME   = 604800,   /* maximum ticket lifetime */
     MAX_EARLY_DATA_SZ = 4096,  /* maximum early data size */
 
@@ -2155,6 +2158,16 @@ WOLFSSL_LOCAL int TLSX_KeyShare_Establish(WOLFSSL* ssl);
 
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+#ifndef WOLFSSL_TLS13_DRAFT_18
+/* Ticket nonce - for deriving PSK.
+ * Length allowed to be: 1..255. Only support 4 bytes.
+ */
+typedef struct TicketNonce {
+    byte len;
+    byte data[MAX_TICKET_NONCE_SZ];
+} TicketNonce;
+#endif
+
 /* The PreSharedKey extension information - entry in a linked list. */
 typedef struct PreSharedKey {
     word16               identityLen;             /* Length of identity */
@@ -2675,6 +2688,9 @@ struct WOLFSSL_SESSION {
     byte               namedGroup;
     word32             ticketSeen;                /* Time ticket seen (ms) */
     word32             ticketAdd;                 /* Added by client */
+        #ifndef WOLFSSL_TLS13_DRAFT_18
+    TicketNonce        ticketNonce;               /* Nonce used to derive PSK */
+        #endif
     #endif
     #ifdef WOLFSSL_EARLY_DATA
     word32             maxEarlyDataSz;

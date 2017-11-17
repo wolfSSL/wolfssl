@@ -23270,6 +23270,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef WOLFSSL_TLS13
         word32          ageAdd;                /* Obfuscation of age */
         byte            namedGroup;            /* Named group used */
+    #ifndef WOLFSSL_TLS13_DRAFT_18
+        TicketNonce     ticketNonce;           /* Ticket nonce */
+    #endif
     #ifdef WOLFSSL_EARLY_DATA
         word32          maxEarlyDataSz;        /* Max size of early data */
     #endif
@@ -23325,6 +23328,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             it.timestamp = TimeNowInMilliseconds();
             /* Resumption master secret. */
             XMEMCPY(it.msecret, ssl->session.masterSecret, SECRET_LEN);
+    #ifndef WOLFSSL_TLS13_DRAFT_18
+            XMEMCPY(&it.ticketNonce, &ssl->session.ticketNonce,
+                                                           sizeof(TicketNonce));
+    #endif
 #endif
         }
 
@@ -23437,6 +23444,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #endif
                 /* Resumption master secret. */
                 XMEMCPY(ssl->session.masterSecret, it->msecret, SECRET_LEN);
+    #ifndef WOLFSSL_TLS13_DRAFT_18
+                XMEMCPY(&ssl->session.ticketNonce, &it->ticketNonce,
+                                                           sizeof(TicketNonce));
+    #endif
                 ssl->session.namedGroup = it->namedGroup;
 #endif
             }

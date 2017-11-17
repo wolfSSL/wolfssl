@@ -169,6 +169,7 @@ static int Tls13_HKDF_Extract(byte* prk, const byte* salt, int saltLen,
  * TLS v1.3 defines this function.
  *
  * okm          The generated pseudorandom key - output key material.
+ * okmLen       The length of generated pseudorandom key - output key material.
  * prk          The salt - pseudo-random key.
  * prkLen       The length of the salt - pseudo-random key.
  * protocol     The TLS protocol label.
@@ -807,6 +808,62 @@ static int DeriveMasterSecret(WOLFSSL* ssl)
             ssl->arrays->masterSecret, 0, ssl->specs.mac_algorithm);
 #endif
 }
+
+#ifndef WOLFSSL_TLS13_DRAFT_18
+#if defined(HAVE_SESSION_TICKET)
+/* Length of the resumption label. */
+#define RESUMPTION_LABEL_SZ         10
+/* Resumption label for generating PSK assocated with the ticket. */
+static const byte resumptionLabel[RESUMPTION_LABEL_SZ+1] = "resumption";
+/* Derive the PSK assocated with the ticket.
+ *
+ * ssl       The SSL/TLS object.
+ * nonce     The nonce to derive with.
+ * nonceLen  The length of the nonce to derive with.
+ * secret    The derived secret.
+ * returns 0 on success, otherwise failure.
+ */
+static int DeriveResumptionPSK(WOLFSSL* ssl, byte* nonce, byte nonceLen,
+                               byte* secret)
+{
+    int         digestAlg;
+    /* Only one protocol version defined at this time. */
+    const byte* protocol    = tls13ProtocolLabel;
+    word32      protocolLen = TLS13_PROTOCOL_LABEL_SZ;
+
+    WOLFSSL_MSG("Derive Resumption PSK");
+
+    switch (ssl->specs.mac_algorithm) {
+        #ifndef NO_SHA256
+        case sha256_mac:
+            digestAlg = WC_SHA256;
+            break;
+        #endif
+
+        #ifdef WOLFSSL_SHA384
+        case sha384_mac:
+            digestAlg = WC_SHA256;
+            break;
+        #endif
+
+        #ifdef WOLFSSL_TLS13_TLS13_SHA512
+        case sha512_mac:
+            digestAlg = WC_SHA256;
+            break;
+        #endif
+
+        default:
+            return BAD_FUNC_ARG;
+    }
+
+    return HKDF_Expand_Label(secret, ssl->specs.hash_size,
+                             ssl->session.masterSecret, ssl->specs.hash_size,
+                             protocol, protocolLen, resumptionLabel,
+                             RESUMPTION_LABEL_SZ, nonce, nonceLen, digestAlg);
+}
+#endif /* HAVE_SESSION_TICKET */
+#endif /* WOLFSSL_TLS13_DRAFT_18 */
+
 
 /* Calculate the HMAC of message data to this point.
  *
@@ -2055,8 +2112,15 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk)
     #endif
         /* Resumption PSK is master secret. */
         ssl->arrays->psk_keySz = ssl->specs.hash_size;
+#ifdef WOLFSSL_TLS13_DRAFT_18
         XMEMCPY(ssl->arrays->psk_key, ssl->session.masterSecret,
                 ssl->arrays->psk_keySz);
+#else
+        if ((ret = DeriveResumptionPSK(ssl, ssl->session.ticketNonce.data,
+                    ssl->session.ticketNonce.len, ssl->arrays->psk_key)) != 0) {
+            return ret;
+        }
+#endif
     }
 #endif
 #ifndef NO_PSK
@@ -2916,8 +2980,15 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
 
             /* Resumption PSK is resumption master secret. */
             ssl->arrays->psk_keySz = ssl->specs.hash_size;
+#ifdef WOLFSSL_TLS13_DRAFT_18
             XMEMCPY(ssl->arrays->psk_key, ssl->session.masterSecret,
-                    ssl->specs.hash_size);
+                    ssl->arrays->psk_keySz);
+#else
+            if ((ret = DeriveResumptionPSK(ssl, ssl->session.ticketNonce.data,
+                    ssl->session.ticketNonce.len, ssl->arrays->psk_key)) != 0) {
+                return ret;
+            }
+#endif
 
             /* Derive the early secret using the PSK. */
             ret = DeriveEarlySecret(ssl);
@@ -5550,6 +5621,10 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
     word32 ageAdd;
     word16 length;
     word32 now;
+#ifndef WOLFSSL_TLS13_DRAFT_18
+    const byte*  nonce;
+    byte         nonceLength;
+#endif
 
     WOLFSSL_ENTER("DoTls13NewSessionTicket");
 
@@ -5566,6 +5641,24 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
         return BUFFER_ERROR;
     ato32(input + *inOutIdx, &ageAdd);
     *inOutIdx += SESSION_ADD_SZ;
+
+#ifndef WOLFSSL_TLS13_DRAFT_18
+    /* Ticket nonce. */
+    if ((*inOutIdx - begin) + 1 > size)
+        return BUFFER_ERROR;
+    nonceLength = input[*inOutIdx];
+    if (nonceLength == 0)
+        return INVALID_PARAMETER;
+    if (nonceLength > MAX_TICKET_NONCE_SZ) {
+        WOLFSSL_MSG("Nonce length not supported");
+        return INVALID_PARAMETER;
+    }
+    *inOutIdx += 1;
+    if ((*inOutIdx - begin) + nonceLength > size)
+        return BUFFER_ERROR;
+    nonce = input + *inOutIdx;
+    *inOutIdx += 1;
+#endif
 
     /* Ticket length. */
     if ((*inOutIdx - begin) + LENGTH_SZ > size)
@@ -5592,6 +5685,10 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
     #ifdef WOLFSSL_EARLY_DATA
     ssl->session.maxEarlyDataSz = ssl->options.maxEarlyDataSz;
     #endif
+#ifndef WOLFSSL_TLS13_DRAFT_18
+    ssl->session.ticketNonce.len = nonceLength;
+    XMEMCPY(&ssl->session.ticketNonce.data, nonce, nonceLength);
+#endif
 
     if ((*inOutIdx - begin) + EXTS_SZ > size)
         return BUFFER_ERROR;
@@ -5751,6 +5848,16 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
     }
 #endif
 
+#ifndef WOLFSSL_TLS13_DRAFT_18
+    /* Start ticket nonce at 0 and go up to 255. */
+    if (ssl->session.ticketNonce.len == 0) {
+        ssl->session.ticketNonce.len = DEF_TICKET_NONCE_SZ;
+        ssl->session.ticketNonce.data[0] = 0;
+    }
+    else
+        ssl->session.ticketNonce.data[0]++;
+#endif
+
     if (!ssl->options.noTicketTls13) {
         if ((ret = CreateTicket(ssl)) != 0)
             return ret;
@@ -5768,6 +5875,10 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
     /* Lifetime | Age Add | Ticket | Extensions */
     length = SESSION_HINT_SZ + SESSION_ADD_SZ + LENGTH_SZ +
              ssl->session.ticketLen + extSz;
+#ifndef WOLFSSL_TLS13_DRAFT_18
+    /* Nonce */
+    length += TICKET_NONCE_LEN_SZ + DEF_TICKET_NONCE_SZ;
+#endif
     sendSz = idx + length + MAX_MSG_EXTRA;
 
     /* Check buffers are big enough and grow if needed. */
@@ -5787,6 +5898,11 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
     /* Age add - obfuscator */
     c32toa(ssl->session.ticketAdd, output + idx);
     idx += SESSION_ADD_SZ;
+
+#ifndef WOLFSSL_TLS13_DRAFT_18
+    output[idx++] = ssl->session.ticketNonce.len;
+    output[idx++] = ssl->session.ticketNonce.data[0];
+#endif
 
     /* length */
     c16toa(ssl->session.ticketLen, output + idx);
