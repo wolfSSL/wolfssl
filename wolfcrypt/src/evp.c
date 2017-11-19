@@ -203,7 +203,7 @@ WOLFSSL_API int wolfSSL_EVP_DigestInit_ex(WOLFSSL_EVP_MD_CTX* ctx,
 }
 
 #ifdef DEBUG_WOLFSSL_EVP
-#define PRINT_BUF(b, sz) { int i; for(i=0; i<(sz); i++){printf("%02x(%c),", (b)[i], (b)[i]); if((i+1)%8==0)printf("\n");}}
+#define PRINT_BUF(b, sz) { int _i; for(_i=0; _i<(sz); _i++){printf("%02x(%c),", (b)[_i], (b)[_i]); if((_i+1)%8==0)printf("\n");}}
 #else
 #define PRINT_BUF(b, sz)
 #endif
@@ -392,11 +392,10 @@ static int checkPad(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *buff)
     int i;
     int n;
     n = buff[ctx->block_size-1];
-
-    if (n > ctx->block_size) return FALSE;
+    if (n > ctx->block_size) return -1;
     for (i = 0; i < n; i++){
         if (buff[ctx->block_size-i-1] != n)
-            return FALSE;
+            return -1;
     }
     return ctx->block_size - n;
 }
