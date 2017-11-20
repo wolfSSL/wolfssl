@@ -1493,6 +1493,9 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 #ifdef HAVE_PKCS7
+    #if defined(NO_AES) && defined(NO_DES3)
+        #error PKCS7 needs either AES or 3DES enabled, please enable one
+    #endif
     #ifndef HAVE_AES_KEYWRAP
         #error PKCS7 requires AES key wrap please define HAVE_AES_KEYWRAP
     #endif
