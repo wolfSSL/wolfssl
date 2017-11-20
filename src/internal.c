@@ -11965,10 +11965,16 @@ int ProcessReply(WOLFSSL* ssl)
                 ssl->keys.decryptedCur = 1;
 #ifdef WOLFSSL_TLS13
                 if (ssl->options.tls1_3) {
+                    word16 i = ssl->buffers.inputBuffer.length -
+                               ssl->keys.padSz;
+                    /* Remove padding from end of plain text. */
+                    for (--i; i > ssl->buffers.inputBuffer.idx; i--) {
+                        if (ssl->buffers.inputBuffer.buffer[i] != 0)
+                            break;
+                    }
                     /* Get the real content type from the end of the data. */
-                    ssl->keys.padSz++;
-                    ssl->curRL.type = ssl->buffers.inputBuffer.buffer[
-                        ssl->buffers.inputBuffer.length - ssl->keys.padSz];
+                    ssl->curRL.type = ssl->buffers.inputBuffer.buffer[i];
+                    ssl->keys.padSz = ssl->buffers.inputBuffer.length - i;
                 }
 #endif
             }
