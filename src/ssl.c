@@ -9213,22 +9213,8 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             FALL_THROUGH;
 
         case ACCEPT_CLIENT_HELLO_DONE :
-            if (ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST) {
-                if ((ssl->error = SendTls13HelloRetryRequest(ssl)) != 0) {
-                    WOLFSSL_ERROR(ssl->error);
-                    return WOLFSSL_FATAL_ERROR;
-                }
-            }
-            ssl->options.acceptState = ACCEPT_HELLO_RETRY_REQUEST_DONE;
-            WOLFSSL_MSG("accept state ACCEPT_HELLO_RETRY_REQUEST_DONE");
-            FALL_THROUGH;
-
-        case ACCEPT_HELLO_RETRY_REQUEST_DONE :
-            if (ssl->options.serverState == SERVER_HELLO_RETRY_REQUEST) {
-                if ( (ssl->error = ProcessReply(ssl)) < 0) {
-                    WOLFSSL_ERROR(ssl->error);
-                    return WOLFSSL_FATAL_ERROR;
-                }
+            if (ssl->options.tls1_3) {
+                return wolfSSL_accept_TLSv13(ssl);
             }
 #endif
             ssl->options.acceptState = ACCEPT_FIRST_REPLY_DONE;
@@ -9236,11 +9222,6 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             FALL_THROUGH;
 
         case ACCEPT_FIRST_REPLY_DONE :
-        #ifdef WOLFSSL_TLS13
-            if (ssl->options.tls1_3) {
-                return wolfSSL_accept_TLSv13(ssl);
-            }
-        #endif
             if ( (ssl->error = SendServerHello(ssl)) != 0) {
                 WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
