@@ -3721,6 +3721,16 @@ AS_IF([test "x$ENABLED_PKCS7" = "xyes" && \
        test "x$ENABLED_SHA" = "xno"],
       [AC_MSG_ERROR([please enable sha if enabling pkcs7.])])
 
+AS_IF([test "x$ENABLED_PKCS7" = "xyes" && \
+       test "x$ENABLED_AES" = "xno" && \
+       test "x$ENABLED_DES3" = "xno"],
+      [AC_MSG_ERROR([please enable either AES or 3DES if enabling pkcs7.])])
+
+AS_IF([test "x$ENABLED_WOLFSCEP" = "xyes" && \
+       test "x$ENABLED_AES" = "xno" && \
+       test "x$ENABLED_DES3" = "xno"],
+      [AC_MSG_ERROR([please enable either AES or 3DES if enabling scep.])])
+
 AS_IF([test "x$ENABLED_LEANTLS" = "xyes" && \
        test "x$ENABLED_ECC" = "xno"],
       [AC_MSG_ERROR([please enable ecc if enabling leantls.])])
