@@ -50,7 +50,7 @@ static void ShiftAndXorRb(byte* out, byte* in)
 
     for (i = 1, j = AES_BLOCK_SIZE - 1; i <= AES_BLOCK_SIZE; i++, j--) {
         last = (in[j] & 0x80) ? 1 : 0;
-        out[j] = (in[j] << 1) | mask;
+        out[j] = (byte)((in[j] << 1) | mask);
         mask = last;
         if (xorRb) {
             out[j] ^= Rb;

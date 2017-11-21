@@ -2674,6 +2674,8 @@ static int fp_div_d(fp_int *a, fp_digit b, fp_int *c, fp_digit *d)
   fp_digit t;
   int      ix;
 
+  fp_init(&q);
+
   /* cannot divide by zero */
   if (b == 0) {
      return FP_VAL;
@@ -2702,9 +2704,6 @@ static int fp_div_d(fp_int *a, fp_digit b, fp_int *c, fp_digit *d)
   }
 
   if (c != NULL) {
-    /* no easy answer [c'est la vie].  Just division */
-    fp_init(&q);
-
     q.used = a->used;
     q.sign = a->sign;
   }

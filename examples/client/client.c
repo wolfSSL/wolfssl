@@ -1672,8 +1672,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifdef HAVE_SNI
     if (sniHostName)
-        if (wolfSSL_CTX_UseSNI(ctx, 0, sniHostName, XSTRLEN(sniHostName))
-                                                           != WOLFSSL_SUCCESS) {
+        if (wolfSSL_CTX_UseSNI(ctx, 0, sniHostName,
+                    (word16) XSTRLEN(sniHostName)) != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx);
             err_sys("UseSNI failed");
     }

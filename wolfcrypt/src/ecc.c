@@ -6492,7 +6492,7 @@ static int accel_fp_mul(int idx, mp_int* k, ecc_point *R, mp_int* a,
       }
 
       while ((unsigned)x < y) {
-         z = kb[x]; kb[x] = kb[y]; kb[y] = z;
+         z = kb[x]; kb[x] = kb[y]; kb[y] = (byte)z;
          ++x; --y;
       }
 
@@ -6680,7 +6680,7 @@ static int accel_fp_mul2add(int idx1, int idx2,
    }
    mp_clear(&tka);
    while ((unsigned)x < y) {
-      z = kb[0][x]; kb[0][x] = kb[0][y]; kb[0][y] = z;
+      z = kb[0][x]; kb[0][x] = kb[0][y]; kb[0][y] = (byte)z;
       ++x; --y;
    }
 
@@ -6701,7 +6701,7 @@ static int accel_fp_mul2add(int idx1, int idx2,
       }
 
       while ((unsigned)x < y) {
-         z = kb[1][x]; kb[1][x] = kb[1][y]; kb[1][y] = z;
+         z = kb[1][x]; kb[1][x] = kb[1][y]; kb[1][y] = (byte)z;
          ++x; --y;
       }
 
