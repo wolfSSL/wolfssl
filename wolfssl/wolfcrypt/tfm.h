@@ -64,6 +64,10 @@
    #define MAX(x,y) ((x)>(y)?(x):(y))
 #endif
 
+#ifdef WOLFSSL_NO_ASM
+   #undef  TFM_NO_ASM
+   #define TFM_NO_ASM
+#endif
 
 #ifndef NO_64BIT
 /* autodetect x86-64 and make sure we are using 64-bit digits with x86-64 asm */
@@ -632,10 +636,22 @@ typedef fp_int mp_int;
 #define MP_MASK FP_MASK
 
 /* Prototypes */
-#define mp_zero(a)  fp_zero(a)
+#define mp_zero(a)   fp_zero(a)
 #define mp_isone(a)  fp_isone(a)
-#define mp_iseven(a)  fp_iseven(a)
-#define mp_isneg(a)   fp_isneg(a)
+#define mp_iseven(a) fp_iseven(a)
+#define mp_isneg(a)  fp_isneg(a)
+
+#define MP_RADIX_BIN  2
+#define MP_RADIX_OCT  8
+#define MP_RADIX_DEC  10
+#define MP_RADIX_HEX  16
+#define MP_RADIX_MAX  64
+
+#define mp_tobinary(M, S)  mp_toradix((M), (S), MP_RADIX_BIN)
+#define mp_tooctal(M, S)   mp_toradix((M), (S), MP_RADIX_OCT)
+#define mp_todecimal(M, S) mp_toradix((M), (S), MP_RADIX_DEC)
+#define mp_tohex(M, S)     mp_toradix((M), (S), MP_RADIX_HEX)
+
 MP_API int  mp_init (mp_int * a);
 MP_API void mp_clear (mp_int * a);
 MP_API void mp_free (mp_int * a);

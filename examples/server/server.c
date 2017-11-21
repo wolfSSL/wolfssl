@@ -877,29 +877,29 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     #endif
 
     #ifndef NO_TLS
+        #ifdef WOLFSSL_ALLOW_TLSV10
         case 1:
             method = wolfTLSv1_server_method_ex;
             break;
-
+        #endif
 
         case 2:
             method = wolfTLSv1_1_server_method_ex;
             break;
-
-        #endif
-#endif
+    #endif /* !NO_TLS */
+#endif /* !NO_OLD_TLS */
 
 #ifndef NO_TLS
         case 3:
             method = wolfTLSv1_2_server_method_ex;
             break;
-#endif
 
-#ifdef WOLFSSL_TLS13
+    #ifdef WOLFSSL_TLS13
         case 4:
             method = wolfTLSv1_3_server_method_ex;
             break;
-#endif
+    #endif
+#endif /* NO_TLS */
 
 #ifdef CYASSL_DTLS
     #ifndef NO_OLD_TLS

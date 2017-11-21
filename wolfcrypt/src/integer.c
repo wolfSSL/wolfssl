@@ -4169,7 +4169,8 @@ int mp_sub_d (mp_int * a, mp_digit b, mp_int * c)
 #endif /* defined(HAVE_ECC) || !defined(NO_PWDBASED) */
 
 
-#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(HAVE_ECC)
+#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(HAVE_ECC) || \
+    defined(DEBUG_WOLFSSL)
 
 static const int lnz[16] = {
    4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0
@@ -4315,7 +4316,7 @@ int mp_mod_d (mp_int * a, mp_digit b, mp_digit * c)
   return mp_div_d(a, b, NULL, c);
 }
 
-#endif /* defined(WOLFSSL_KEY_GEN)||defined(HAVE_COMP_KEY)||defined(HAVE_ECC) */
+#endif /* WOLFSSL_KEY_GEN || HAVE_COMP_KEY || HAVE_ECC || DEBUG_WOLFSSL */
 
 #ifdef WOLFSSL_KEY_GEN
 
@@ -4746,7 +4747,7 @@ int mp_read_radix (mp_int * a, const char *str, int radix)
   mp_zero(a);
 
   /* make sure the radix is ok */
-  if (radix < 2 || radix > 64) {
+  if (radix < MP_RADIX_BIN || radix > MP_RADIX_MAX) {
     return MP_VAL;
   }
 
@@ -4808,7 +4809,7 @@ int mp_read_radix (mp_int * a, const char *str, int radix)
 #endif /* HAVE_ECC */
 
 #if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
-    defined(WOLFSSL_DEBUG_MATH)
+    defined(WOLFSSL_DEBUG_MATH) || defined(DEBUG_WOLFSSL)
 
 /* returns size of ASCII representation */
 int mp_radix_size (mp_int *a, int radix, int *size)
@@ -4820,13 +4821,13 @@ int mp_radix_size (mp_int *a, int radix, int *size)
     *size = 0;
 
     /* special case for binary */
-    if (radix == 2) {
+    if (radix == MP_RADIX_BIN) {
         *size = mp_count_bits (a) + (a->sign == MP_NEG ? 1 : 0) + 1;
         return MP_OKAY;
     }
 
     /* make sure the radix is in range */
-    if (radix < 2 || radix > 64) {
+    if (radix < MP_RADIX_BIN || radix > MP_RADIX_MAX) {
         return MP_VAL;
     }
 
@@ -4875,7 +4876,7 @@ int mp_toradix (mp_int *a, char *str, int radix)
     char   *_s = str;
 
     /* check range of the radix */
-    if (radix < 2 || radix > 64) {
+    if (radix < MP_RADIX_BIN || radix > MP_RADIX_MAX) {
         return MP_VAL;
     }
 
@@ -4933,7 +4934,7 @@ void mp_dump(const char* desc, mp_int* a, byte verbose)
   printf("%s: ptr=%p, used=%d, sign=%d, size=%d, mpd=%d\n",
     desc, a, a->used, a->sign, size, (int)sizeof(mp_digit));
 
-  mp_toradix(a, buffer, 16);
+  mp_tohex(a, buffer);
   printf("  %s\n  ", buffer);
 
   if (verbose) {

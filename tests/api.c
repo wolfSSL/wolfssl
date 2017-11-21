@@ -271,8 +271,10 @@ static void test_wolfSSL_Method_Allocators(void)
         TEST_VALID_METHOD_ALLOCATOR(wolfSSLv3_server_method);
         TEST_VALID_METHOD_ALLOCATOR(wolfSSLv3_client_method);
     #endif
-    TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_server_method);
-    TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_client_method);
+    #ifdef WOLFSL_ALLOW_TLSV10
+        TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_server_method);
+        TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_client_method);
+    #endif
     TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_1_server_method);
     TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_1_client_method);
 #endif
@@ -756,7 +758,9 @@ static void test_wolfSSL_EC(void)
     EC_POINT *Gxy, *new_point;
     BIGNUM *k = NULL, *Gx = NULL, *Gy = NULL, *Gz = NULL;
     BIGNUM *X, *Y;
-
+#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(DEBUG_WOLFSSL)
+    char* hexStr;
+#endif
     const char* kTest = "F4F8338AFCC562C5C3F3E1E46A7EFECD17AF381913FF7A96314EA47055EA0FD0";
     /* NISTP256R1 Gx/Gy */
     const char* kGx   = "6B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296";
@@ -791,6 +795,21 @@ static void test_wolfSSL_EC(void)
 
     /* check if point X coordinate is zero */
     AssertIntEQ(BN_is_zero(X), WOLFSSL_FAILURE);
+
+    /* check bx2hex */
+#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(DEBUG_WOLFSSL)
+    hexStr = BN_bn2hex(k);
+    AssertStrEQ(hexStr, kTest);
+    XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
+
+    hexStr = BN_bn2hex(Gx);
+    AssertStrEQ(hexStr, kGx);
+    XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
+
+    hexStr = BN_bn2hex(Gy);
+    AssertStrEQ(hexStr, kGy);
+    XFREE(hexStr, NULL, DYNAMIC_TYPE_ECC);
+#endif
 
     /* cleanup */
     BN_free(X);
@@ -1789,7 +1808,7 @@ static void test_wolfSSL_UseSNI_connection(void)
         {0, use_SNI_at_ctx, 0, verify_SNI_real_matching},
 
         /* success case at ssl */
-        {0, 0, use_SNI_at_ssl, 0},
+        {0, 0, use_SNI_at_ssl, verify_SNI_real_matching},
         {0, 0, use_SNI_at_ssl, verify_SNI_real_matching},
 
         /* default missmatch behavior */
@@ -7782,7 +7801,7 @@ static int test_wc_MakeRsaKey (void)
     if (ret == 0) {
         ret = wc_InitRng(&rng);
         if (ret == 0) {
-            ret = wc_MakeRsaKey(&genKey, 1024, 65537, &rng);
+            ret = wc_MakeRsaKey(&genKey, 1024, WC_RSA_EXPONENT, &rng);
             if (ret == 0 && wc_FreeRsaKey(&genKey) != 0) {
                 ret = WOLFSSL_FATAL_ERROR;
             }
@@ -7791,9 +7810,9 @@ static int test_wc_MakeRsaKey (void)
     #ifndef HAVE_USER_RSA
         /* Test bad args. */
         if (ret == 0) {
-            ret = wc_MakeRsaKey(NULL, 1024, 65537, &rng);
+            ret = wc_MakeRsaKey(NULL, 1024, WC_RSA_EXPONENT, &rng);
             if (ret == BAD_FUNC_ARG) {
-                ret = wc_MakeRsaKey(&genKey, 1024, 65537, NULL);
+                ret = wc_MakeRsaKey(&genKey, 1024, WC_RSA_EXPONENT, NULL);
             }
             if (ret == BAD_FUNC_ARG) {
                 /* e < 3 */
@@ -7812,9 +7831,9 @@ static int test_wc_MakeRsaKey (void)
     #else
         /* Test bad args. */
         if (ret == 0) {
-            ret = wc_MakeRsaKey(NULL, 1024, 65537, &rng);
+            ret = wc_MakeRsaKey(NULL, 1024, WC_RSA_EXPONENT, &rng);
             if (ret == USER_CRYPTO_ERROR) {
-                ret = wc_MakeRsaKey(&genKey, 1024, 65537, NULL);
+                ret = wc_MakeRsaKey(&genKey, 1024, WC_RSA_EXPONENT, NULL);
             }
             if (ret == USER_CRYPTO_ERROR) {
                 /* e < 3 */
@@ -7925,7 +7944,7 @@ static int test_wc_RsaKeyToDer (void)
     }
     /* Make key. */
     if (ret == 0) {
-        ret = wc_MakeRsaKey(&genKey, 1024, 65537, &rng);
+        ret = wc_MakeRsaKey(&genKey, 1024, WC_RSA_EXPONENT, &rng);
         if (ret != 0) {
             ret = WOLFSSL_FATAL_ERROR;
         }
@@ -8018,7 +8037,7 @@ static int test_wc_RsaKeyToPublicDer (void)
         ret = wc_InitRng(&rng);
     }
     if (ret == 0) {
-        ret = wc_MakeRsaKey(&key, 1024, 65537, &rng);
+        ret = wc_MakeRsaKey(&key, 1024, WC_RSA_EXPONENT, &rng);
     }
 
     printf(testingFmt, "wc_RsaKeyToPublicDer()");
@@ -8106,7 +8125,7 @@ static int test_wc_RsaPublicEncryptDecrypt (void)
         ret = wc_InitRng(&rng);
     }
     if (ret == 0) {
-        ret = wc_MakeRsaKey(&key, 1024, 65537, &rng);
+        ret = wc_MakeRsaKey(&key, 1024, WC_RSA_EXPONENT, &rng);
     }
     /* Encrypt. */
     printf(testingFmt, "wc_RsaPublicEncrypt()");
@@ -8194,7 +8213,7 @@ static int test_wc_RsaPublicEncryptDecrypt_ex (void)
         ret = wc_InitRng(&rng);
     }
     if (ret == 0) {
-        ret = wc_MakeRsaKey(&key, 1024, 65537, &rng);
+        ret = wc_MakeRsaKey(&key, 1024, WC_RSA_EXPONENT, &rng);
     }
     /* Encrypt */
     printf(testingFmt, "wc_RsaPublicEncrypt_ex()");
@@ -8301,7 +8320,7 @@ static int test_wc_RsaSSL_SignVerify (void)
     }
 
     if (ret == 0) {
-        ret = wc_MakeRsaKey(&key, 1024, 65537, &rng);
+        ret = wc_MakeRsaKey(&key, 1024, WC_RSA_EXPONENT, &rng);
     }
     /* Sign. */
     printf(testingFmt, "wc_RsaSSL_Sign()");
@@ -8447,7 +8466,7 @@ static int test_wc_RsaEncryptSize (void)
 
     printf(testingFmt, "wc_RsaEncryptSize()");
     if (ret == 0) {
-        ret = wc_MakeRsaKey(&key, 1024, 65537, &rng);
+        ret = wc_MakeRsaKey(&key, 1024, WC_RSA_EXPONENT, &rng);
         if (ret == 0) {
             ret = wc_RsaEncryptSize(&key);
         }
@@ -8464,7 +8483,7 @@ static int test_wc_RsaEncryptSize (void)
     }
 
     if (ret == 0) {
-        ret = wc_MakeRsaKey(&key, FOURK_BUF, 65537, &rng);
+        ret = wc_MakeRsaKey(&key, FOURK_BUF, WC_RSA_EXPONENT, &rng);
         if (ret == 0) {
             ret = wc_RsaEncryptSize(&key);
         }
@@ -8521,7 +8540,7 @@ static int test_wc_RsaFlattenPublicKey (void)
     }
 
     if (ret == 0) {
-        ret = wc_MakeRsaKey(&key, 1024, 65537, &rng);
+        ret = wc_MakeRsaKey(&key, 1024, WC_RSA_EXPONENT, &rng);
         if (ret >= 0) {
             ret = 0;
         } else {

@@ -37,7 +37,8 @@
 #define MAX_COMMAND_SZ 240
 #define MAX_SUITE_SZ 80
 #define NOT_BUILT_IN -123
-#if defined(NO_OLD_TLS) || !defined(WOLFSSL_ALLOW_SSLV3)
+#if defined(NO_OLD_TLS) || !defined(WOLFSSL_ALLOW_SSLV3) || \
+    !defined(WOLFSSL_ALLOW_TLSV10)
     #define VERSION_TOO_OLD -124
 #endif
 
@@ -61,49 +62,48 @@ static char forceDefCipherListFlag[] = "-HdefCipherList";
 #endif
 
 
-#ifndef WOLFSSL_ALLOW_SSLV3
-/* if the protocol version is sslv3 return 1, else 0 */
-static int IsSslVersion(const char* line)
+#ifdef VERSION_TOO_OLD
+static int GetTlsVersion(const char* line)
 {
+    int version = -1;
     const char* find = "-v ";
     const char* begin = strstr(line, find);
 
     if (begin) {
-        int version = -1;
-
         begin += 3;
 
         version = atoi(begin);
-
-        if (version == 0)
-            return 1;
     }
+    return version;
+}
 
-    return 0;
+#ifndef WOLFSSL_ALLOW_SSLV3
+/* if the protocol version is sslv3 return 1, else 0 */
+static int IsSslVersion(const char* line)
+{
+    int version = GetTlsVersion(line);
+    return (version == 0) ? 1 : 0;
 }
 #endif /* !WOLFSSL_ALLOW_SSLV3 */
+
+#ifndef WOLFSSL_ALLOW_TLSV10
+/* if the protocol version is TLSv1.0 return 1, else 0 */
+static int IsTls10Version(const char* line)
+{
+    int version = GetTlsVersion(line);
+    return (version == 1) ? 1 : 0;
+}
+#endif /* !WOLFSSL_ALLOW_TLSV10 */
 
 #ifdef NO_OLD_TLS
 /* if the protocol version is less than tls 1.2 return 1, else 0 */
 static int IsOldTlsVersion(const char* line)
 {
-    const char* find = "-v ";
-    const char* begin = strstr(line, find);
-
-    if (begin) {
-        int version = -1;
-
-        begin += 3;
-
-        version = atoi(begin);
-
-        if (version < 3)
-            return 1;
-    }
-
-    return 0;
+    int version = GetTlsVersion(line);
+    return (version < 3) ? 1 : 0;
 }
 #endif /* NO_OLD_TLS */
+#endif /* VERSION_TOO_OLD */
 
 
 /* if the cipher suite on line is valid store in suite and return 1, else 0 */
@@ -208,6 +208,14 @@ static int execute_test_case(int svr_argc, char** svr_argv,
 
 #ifndef WOLFSSL_ALLOW_SSLV3
     if (IsSslVersion(commandLine) == 1) {
+        #ifdef DEBUG_SUITE_TESTS
+            printf("protocol version on line %s is too old\n", commandLine);
+        #endif
+        return VERSION_TOO_OLD;
+    }
+#endif
+#ifndef WOLFSSL_ALLOW_TLSV10
+    if (IsTls10Version(commandLine) == 1) {
         #ifdef DEBUG_SUITE_TESTS
             printf("protocol version on line %s is too old\n", commandLine);
         #endif

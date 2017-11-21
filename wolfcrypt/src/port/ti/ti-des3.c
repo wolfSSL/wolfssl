@@ -182,6 +182,22 @@ WOLFSSL_API int  wc_Des3_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
      return -1 ;
  }
 
+WOLFSSL_API int wc_Des3Init(Des3* des, void* heap, int devId)
+{
+    if (des == NULL)
+        return BAD_FUNC_ARG;
+
+    des->heap = heap;
+    (void)devId;
+
+    return 0;
+}
+
+WOLFSSL_API void wc_Des3Free(Des3* des)
+{
+    (void)des;
+}
+
 
 #endif /* WOLFSSL_TI_CRYPT */
 

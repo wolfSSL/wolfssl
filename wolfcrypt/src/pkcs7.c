@@ -73,8 +73,11 @@ static int wc_SetContentType(int pkcs7TypeOID, byte* output)
                                                0x0D, 0x01, 0x07, 0x04 };
     const byte digestedData[]       = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
                                                0x0D, 0x01, 0x07, 0x05 };
+
+#ifndef NO_PKCS7_ENCRYPTED_DATA
     const byte encryptedData[]      = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
                                                0x0D, 0x01, 0x07, 0x06 };
+#endif
 
     int idSz;
     int typeSz = 0, idx = 0;
@@ -112,10 +115,12 @@ static int wc_SetContentType(int pkcs7TypeOID, byte* output)
             typeName = digestedData;
             break;
 
+#ifndef NO_PKCS7_ENCRYPTED_DATA
         case ENCRYPTED_DATA:
             typeSz = sizeof(encryptedData);
             typeName = encryptedData;
             break;
+#endif
 
         default:
             WOLFSSL_MSG("Unknown PKCS#7 Type");
@@ -382,7 +387,7 @@ typedef struct ESD {
     enum wc_HashType hashType;
     byte contentDigest[WC_MAX_DIGEST_SIZE + 2]; /* content only + ASN.1 heading */
     byte contentAttribsDigest[WC_MAX_DIGEST_SIZE];
-    byte encContentDigest[512];
+    byte encContentDigest[MAX_ENCRYPTED_KEY_SZ];
 
     byte outerSeq[MAX_SEQ_SZ];
         byte outerContent[MAX_EXP_SZ];
@@ -3217,7 +3222,7 @@ static int wc_PKCS7_DecodeKtri(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
     int keySz;
     word32 encOID;
     word32 keyIdx;
-    byte   issuerHash[WC_SHA_DIGEST_SIZE];
+    byte   issuerHash[KEYID_SIZE];
     byte*  outKey = NULL;
 
 #ifdef WC_RSA_BLINDING
@@ -3245,7 +3250,7 @@ static int wc_PKCS7_DecodeKtri(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
         return ASN_PARSE_E;
 
     /* if we found correct recipient, issuer hashes will match */
-    if (XMEMCMP(issuerHash, pkcs7->issuerHash, WC_SHA_DIGEST_SIZE) == 0) {
+    if (XMEMCMP(issuerHash, pkcs7->issuerHash, KEYID_SIZE) == 0) {
         *recipFound = 1;
     }
 
@@ -4153,6 +4158,8 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
 }
 
 
+#ifndef NO_PKCS7_ENCRYPTED_DATA
+
 /* build PKCS#7 encryptedData content type, return encrypted size */
 int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 {
@@ -4616,6 +4623,8 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
 
     return encryptedContentSz - padLen;
 }
+
+#endif /* NO_PKCS7_ENCRYPTED_DATA */
 
 #else  /* HAVE_PKCS7 */
 

@@ -301,6 +301,7 @@ enum AlertDescription {
     protocol_version                =  70,
     #endif
     no_renegotiation                = 100,
+    unsupported_extension           = 110, /**< RFC 5246, section 7.2.2 */
     unrecognized_name               = 112, /**< RFC 6066, section 3 */
     bad_certificate_status_response = 113, /**< RFC 6066, section 8 */
     no_application_protocol         = 120
@@ -1536,6 +1537,7 @@ enum {
     WOLFSSL_TLSV1    = 1,
     WOLFSSL_TLSV1_1  = 2,
     WOLFSSL_TLSV1_2  = 3,
+    WOLFSSL_TLSV1_3  = 4,
     WOLFSSL_USER_CA  = 1,          /* user added as trusted */
     WOLFSSL_CHAIN_CA = 2           /* added to cache from trusted chain */
 };
@@ -1549,6 +1551,7 @@ WOLFSSL_API int wolfSSL_CTX_GetObjectSize(void);
 WOLFSSL_API int wolfSSL_METHOD_GetObjectSize(void);
 WOLFSSL_API int wolfSSL_GetOutputSize(WOLFSSL*, int);
 WOLFSSL_API int wolfSSL_GetMaxOutputSize(WOLFSSL*);
+WOLFSSL_API int wolfSSL_GetVersion(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_SetVersion(WOLFSSL* ssl, int version);
 WOLFSSL_API int wolfSSL_KeyPemToDer(const unsigned char*, int,
                                     unsigned char*, int, const char*);
@@ -1918,6 +1921,11 @@ WOLFSSL_API void wolfSSL_SNI_SetOptions(WOLFSSL* ssl, unsigned char type,
                                                          unsigned char options);
 WOLFSSL_API void wolfSSL_CTX_SNI_SetOptions(WOLFSSL_CTX* ctx,
                                      unsigned char type, unsigned char options);
+WOLFSSL_API int wolfSSL_SNI_GetFromBuffer(
+                 const unsigned char* clientHello, unsigned int helloSz,
+                 unsigned char type, unsigned char* sni, unsigned int* inOutSz);
+
+#endif /* NO_WOLFSSL_SERVER */
 
 /* SNI status */
 enum {
@@ -1931,12 +1939,8 @@ WOLFSSL_API unsigned char wolfSSL_SNI_Status(WOLFSSL* ssl, unsigned char type);
 
 WOLFSSL_API unsigned short wolfSSL_SNI_GetRequest(WOLFSSL *ssl,
                                                unsigned char type, void** data);
-WOLFSSL_API int wolfSSL_SNI_GetFromBuffer(
-                 const unsigned char* clientHello, unsigned int helloSz,
-                 unsigned char type, unsigned char* sni, unsigned int* inOutSz);
 
-#endif
-#endif
+#endif /* HAVE_SNI */
 
 /* Application-Layer Protocol Negotiation */
 #ifdef HAVE_ALPN

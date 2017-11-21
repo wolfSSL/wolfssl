@@ -6196,6 +6196,13 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
         XSTRNCPY(footer, END_RSA_PRIV, footerLen);
         XSTRNCAT(footer, "\n", 1);
     }
+    else if (type == PUBLICKEY_TYPE) {
+        XSTRNCPY(header, BEGIN_PUB_KEY, headerLen);
+        XSTRNCAT(header, "\n", 1);
+
+        XSTRNCPY(footer, END_PUB_KEY, footerLen);
+        XSTRNCAT(footer, "\n", 1);
+    }
 #ifndef NO_DSA
     else if (type == DSA_PRIVATEKEY_TYPE) {
         XSTRNCPY(header, BEGIN_DSA_PRIV, headerLen);

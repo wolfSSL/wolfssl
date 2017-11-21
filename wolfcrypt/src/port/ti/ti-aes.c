@@ -545,6 +545,22 @@ WOLFSSL_API int wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inS
 }
 #endif /* HAVE_AESCCM */
 
+WOLFSSL_API int wc_AesInit(Aes* aes, void* heap, int devId)
+{
+    if (aes == NULL)
+        return BAD_FUNC_ARG;
+
+    aes->heap = heap;
+    (void)devId;
+
+    return 0;
+}
+
+WOLFSSL_API void wc_AesFree(Aes* aes)
+{
+    (void)aes;
+}
+
 #endif /* WOLFSSL_TI_CRYPT */
 
 #endif /* NO_AES */

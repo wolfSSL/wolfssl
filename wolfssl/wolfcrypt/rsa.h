@@ -27,6 +27,13 @@
 
 #ifndef NO_RSA
 
+
+/* RSA default exponent */
+#ifndef WC_RSA_EXPONENT
+    #define WC_RSA_EXPONENT 65537L
+#endif
+
+
 /* allow for user to plug in own crypto */
 #if !defined(HAVE_FIPS) && (defined(HAVE_USER_RSA) || defined(HAVE_FAST_RSA))
     #include "user_rsa.h"
@@ -89,7 +96,6 @@ enum {
     RSA_PKCS1_OAEP_PADDING_SIZE = 42 /* (2 * hashlen(SHA-1)) + 2 */
   #endif
 };
-
 
 /* RSA */
 struct RsaKey {

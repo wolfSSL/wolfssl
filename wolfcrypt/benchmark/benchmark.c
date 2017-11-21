@@ -2944,7 +2944,7 @@ void bench_rsaKeyGen(int doAsync)
     int    ret = 0, i, count = 0, times, pending = 0;
     int    k, keySz;
     const int  keySizes[2] = {1024, 2048};
-    const long rsa_e_val = 65537;
+    const long rsa_e_val = WC_RSA_EXPONENT;
 
     /* clear for done cleanup */
     XMEMSET(genKey, 0, sizeof(genKey));

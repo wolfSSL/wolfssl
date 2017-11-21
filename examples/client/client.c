@@ -170,12 +170,19 @@ static void ShowCiphers(void)
 static void ShowVersions(void)
 {
 #ifndef NO_OLD_TLS
-#ifdef WOLFSSL_ALLOW_SSLV3
-    printf("0:");
-#endif /* WOLFSSL_ALLOW_SSLV3 */
-    printf("1:2:");
+    #ifdef WOLFSSL_ALLOW_SSLV3
+        printf("0:");
+    #endif
+    #ifdef WOLFSSL_ALLOW_TLSV10
+        printf("1:");
+    #endif
+    printf("2:");
 #endif /* NO_OLD_TLS */
-    printf("3\n");
+    printf("3:");
+#ifdef WOLFSSL_TLS13
+    printf("4:");
+#endif
+    printf("\n");
 }
 
 /* Measures average time to create, connect and disconnect a connection (TPS).
@@ -684,7 +691,9 @@ static void Usage(void)
 #endif
     printf("-m          Match domain name in cert\n");
     printf("-N          Use Non-blocking sockets\n");
+#ifndef NO_SESSION_CACHE
     printf("-r          Resume session\n");
+#endif
     printf("-w          Wait for bidirectional shutdown\n");
     printf("-M <prot>   Use STARTTLS, using <prot> protocol (smtp)\n");
 #ifdef HAVE_SECURE_RENEGOTIATION
@@ -1392,27 +1401,29 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #endif
 
     #ifndef NO_TLS
+        #ifdef WOLFSSL_ALLOW_TLSV10
         case 1:
             method = wolfTLSv1_client_method_ex;
             break;
+        #endif
 
         case 2:
             method = wolfTLSv1_1_client_method_ex;
             break;
-    #endif /* NO_TLS */
-
-#endif  /* NO_OLD_TLS */
+    #endif /* !NO_TLS */
+#endif /* !NO_OLD_TLS */
 
 #ifndef NO_TLS
         case 3:
             method = wolfTLSv1_2_client_method_ex;
             break;
+
     #ifdef WOLFSSL_TLS13
         case 4:
             method = wolfTLSv1_3_client_method_ex;
             break;
     #endif
-#endif
+#endif /* NO_TLS */
 
 #ifdef WOLFSSL_DTLS
         #ifndef NO_OLD_TLS
