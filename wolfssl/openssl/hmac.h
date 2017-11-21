@@ -53,6 +53,8 @@ WOLFSSL_API unsigned char* wolfSSL_HMAC(const WOLFSSL_EVP_MD* evp_md,
 typedef struct WOLFSSL_HMAC_CTX {
     Hmac hmac;
     int  type;
+    byte save_key[HMAC_BLOCK_SIZE]; /* save initial hmac after wc_HmacSetKey */
+    word32 save_len;
 } WOLFSSL_HMAC_CTX;
 
 

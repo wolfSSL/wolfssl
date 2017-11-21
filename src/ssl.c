@@ -24645,7 +24645,7 @@ int wolfSSL_HMAC_CTX_Init(WOLFSSL_HMAC_CTX* ctx)
 int wolfSSL_HMAC_Init_ex(WOLFSSL_HMAC_CTX* ctx, const void* key,
                              int keylen, const EVP_MD* type, WOLFSSL_ENGINE* e)
 {
-    WOLFSSL_ENTER("wolfSSL_HMAC_Init_ex()");
+    WOLFSSL_ENTER("wolfSSL_HMAC_Init_ex");
 
     /* WOLFSSL_ENGINE not used, call wolfSSL_HMAC_Init */
     (void)e;
@@ -24805,10 +24805,16 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
                 wc_HmacFree(&ctx->hmac);
                 return WOLFSSL_FAILURE;
             }
+            XMEMCPY((byte *)&ctx->save_key, (const byte*)key, (word32)keylen);
+            ctx->save_len = keylen;
         }
-    } else {
-        WOLFSSL_MSG("no key or keylen");
-        return WOLFSSL_FAILURE;
+        /* OpenSSL compat, no error */
+    } else if(ctx->type) {
+        WOLFSSL_MSG("recover hmac");
+        if (wc_HmacInit(&ctx->hmac, NULL, INVALID_DEVID) == 0) {
+            wc_HmacSetKey(&ctx->hmac, ctx->type, (byte *)&ctx->save_key,
+                                                        (word32)ctx->save_len);
+        }
     }
 
     return WOLFSSL_SUCCESS;
