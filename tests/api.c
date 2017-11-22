@@ -9146,13 +9146,17 @@ static void msg_cb(int write_p, int version, int content_type,
    !defined(NO_FILESYSTEM) && defined(DEBUG_WOLFSSL) && \
    !defined(NO_OLD_TLS) && defined(HAVE_IO_TESTS_DEPENDENCIES)
 #ifndef SINGLE_THREADED
+#if defined(SESSION_CERTS)
+#include "wolfssl/internal.h" /* for testing SSL_get_peer_cert_chain */
+#endif
 static int msgCb(SSL_CTX *ctx, SSL *ssl)
 {
     (void) ctx;
     (void) ssl;
-    printf("===== msgcb called ====\n");
+    printf("\n===== msgcb called ====\n");
     #if defined(SESSION_CERTS)
     AssertTrue(SSL_get_peer_cert_chain(ssl) != NULL);
+    AssertIntEQ(((WOLFSSL_X509_CHAIN *)SSL_get_peer_cert_chain(ssl))->count, 1);
     #endif
     return SSL_SUCCESS;
 }
@@ -9186,7 +9190,7 @@ static void test_wolfSSL_msgCb(void)
     StartTCP();
     InitTcpReady(&ready);
 
-    client_cb.method  = wolfTLSv1_1_client_method;
+    client_cb.method  = wolfTLSv1_2_client_method;
     server_cb.method  = wolfTLSv1_2_server_method;
 
     server_args.signal    = &ready;
