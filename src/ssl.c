@@ -24812,7 +24812,7 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
             ctx->save_len = keylen;
         }
         /* OpenSSL compat, no error */
-    } else if(ctx->type) {
+    } else if(ctx->type >= 0) { /* MD5 == 0 */
         WOLFSSL_MSG("recover hmac");
         if (wc_HmacInit(&ctx->hmac, NULL, INVALID_DEVID) == 0) {
             wc_HmacSetKey(&ctx->hmac, ctx->type, (byte *)&ctx->save_key,
