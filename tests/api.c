@@ -160,6 +160,7 @@
 #if defined(OPENSSL_EXTRA) && defined(WOLFCRYPT_HAVE_SRP) \
     && !defined(NO_SHA256) && !defined(RC_NO_RNG)
         #include <wolfssl/wolfcrypt/srp.h>
+#endif
 
 #if defined(SESSION_CERTS)
 #include "wolfssl/internal.h" /* for testing SSL_get_peer_cert_chain */
