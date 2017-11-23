@@ -26427,9 +26427,9 @@ void wolfSSL_set_msg_callback_arg(WOLFSSL *ssl, void* arg)
 
 void *wolfSSL_OPENSSL_memdup(const void *data, size_t siz, const char* file, int line)
 {
+    void *ret;
     (void)file;
     (void)line;
-    void *ret;
 
     if (data == NULL || siz >= INT_MAX)
         return NULL;
