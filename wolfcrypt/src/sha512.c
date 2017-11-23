@@ -137,6 +137,8 @@
     #if defined(__clang__) && ((__clang_major__ < 3) || \
                                (__clang_major__ == 3 && __clang_minor__ <= 5))
         #define NO_AVX2_SUPPORT
+    #elif defined(__clang__) && defined(NO_AVX2_SUPPORT)
+        #undef NO_AVX2_SUPPORT
     #endif
 
     #define HAVE_INTEL_AVX1
@@ -2250,6 +2252,7 @@ static int Transform_Sha512_AVX2(wc_Sha512* sha512)
 static int Transform_Sha512_AVX2_Len(wc_Sha512* sha512, word32 len)
 {
     if ((len & WC_SHA512_BLOCK_SIZE) != 0) {
+        XMEMCPY(sha512->buffer, sha512->data, WC_SHA512_BLOCK_SIZE);
         Transform_Sha512_AVX2(sha512);
         sha512->data += WC_SHA512_BLOCK_SIZE;
         len -= WC_SHA512_BLOCK_SIZE;
@@ -2418,6 +2421,7 @@ static int Transform_Sha512_AVX2_RORX(wc_Sha512* sha512)
 static int Transform_Sha512_AVX2_RORX_Len(wc_Sha512* sha512, word32 len)
 {
     if ((len & WC_SHA512_BLOCK_SIZE) != 0) {
+        XMEMCPY(sha512->buffer, sha512->data, WC_SHA512_BLOCK_SIZE);
         Transform_Sha512_AVX2_RORX(sha512);
         sha512->data += WC_SHA512_BLOCK_SIZE;
         len -= WC_SHA512_BLOCK_SIZE;
