@@ -160,6 +160,9 @@
 #if defined(OPENSSL_EXTRA) && defined(WOLFCRYPT_HAVE_SRP) \
     && !defined(NO_SHA256) && !defined(RC_NO_RNG)
         #include <wolfssl/wolfcrypt/srp.h>
+
+#if defined(SESSION_CERTS)
+#include "wolfssl/internal.h" /* for testing SSL_get_peer_cert_chain */
 #endif
 
 /* enable testing buffer load functions */
@@ -10375,9 +10378,10 @@ static int msgCb(SSL_CTX *ctx, SSL *ssl)
 {
     (void) ctx;
     (void) ssl;
-    printf("===== msgcb called ====\n");
+    printf("\n===== msgcb called ====\n");
     #if defined(SESSION_CERTS)
     AssertTrue(SSL_get_peer_cert_chain(ssl) != NULL);
+    AssertIntEQ(((WOLFSSL_X509_CHAIN *)SSL_get_peer_cert_chain(ssl))->count, 1);
     #endif
     return SSL_SUCCESS;
 }
@@ -10411,7 +10415,7 @@ static void test_wolfSSL_msgCb(void)
     StartTCP();
     InitTcpReady(&ready);
 
-    client_cb.method  = wolfTLSv1_1_client_method;
+    client_cb.method  = wolfTLSv1_2_client_method;
     server_cb.method  = wolfTLSv1_2_server_method;
 
     server_args.signal    = &ready;
