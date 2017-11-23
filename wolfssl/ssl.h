@@ -879,8 +879,9 @@ WOLFSSL_API int  wolfSSL_CTX_add_client_CA(WOLFSSL_CTX*, WOLFSSL_X509*);
 WOLFSSL_API int  wolfSSL_CTX_set_srp_password(WOLFSSL_CTX*, char*);
 WOLFSSL_API int  wolfSSL_CTX_set_srp_username(WOLFSSL_CTX*, char*);
 
-WOLFSSL_API unsigned long wolfSSL_set_options(WOLFSSL *s, unsigned long op);
-WOLFSSL_API unsigned long wolfSSL_get_options(const WOLFSSL *s);
+WOLFSSL_API long wolfSSL_set_options(WOLFSSL *s, long op);
+WOLFSSL_API long wolfSSL_get_options(const WOLFSSL *s);
+WOLFSSL_API long wolfSSL_clear_options(WOLFSSL *s,  long op);
 WOLFSSL_API long wolfSSL_clear_num_renegotiations(WOLFSSL *s);
 WOLFSSL_API long wolfSSL_total_renegotiations(WOLFSSL *s);
 WOLFSSL_API long wolfSSL_set_tmp_dh(WOLFSSL *s, WOLFSSL_DH *dh);
@@ -1243,7 +1244,9 @@ WOLFSSL_API int  wolfSSL_RAND_status(void);
 WOLFSSL_API int  wolfSSL_RAND_bytes(unsigned char* buf, int num);
 WOLFSSL_API WOLFSSL_METHOD *wolfSSLv23_server_method(void);
 WOLFSSL_API long wolfSSL_CTX_set_options(WOLFSSL_CTX*, long);
+WOLFSSL_API long wolfSSL_CTX_get_options(WOLFSSL_CTX* ctx);
 WOLFSSL_API long wolfSSL_CTX_clear_options(WOLFSSL_CTX*, long);
+
 #ifndef NO_CERTS
   WOLFSSL_API int  wolfSSL_CTX_check_private_key(WOLFSSL_CTX*);
 #endif /* !NO_CERTS */

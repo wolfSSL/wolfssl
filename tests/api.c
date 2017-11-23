@@ -10458,8 +10458,29 @@ static void test_wolfSSL_set_options(void)
     printf(testingFmt, "wolfSSL_set_options()");
 
     AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
-    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, WOLFSSL_FILETYPE_PEM));
-    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, WOLFSSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
+
+    AssertTrue(SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1);
+    AssertTrue(SSL_CTX_get_options(ctx) == SSL_OP_NO_TLSv1);
+
+    AssertIntGT((int)SSL_CTX_set_options(ctx, (SSL_OP_COOKIE_EXCHANGE |
+                                                              SSL_OP_NO_SSLv2)), 0);
+    AssertTrue((SSL_CTX_set_options(ctx, SSL_OP_COOKIE_EXCHANGE) &
+                                 SSL_OP_COOKIE_EXCHANGE) == SSL_OP_COOKIE_EXCHANGE);
+    AssertTrue((SSL_CTX_set_options(ctx, SSL_OP_NO_TLSv1_2) &
+                                           SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2);
+    AssertTrue((SSL_CTX_set_options(ctx, SSL_OP_NO_COMPRESSION) &
+                                   SSL_OP_NO_COMPRESSION) == SSL_OP_NO_COMPRESSION);
+    AssertNull((SSL_CTX_clear_options(ctx, SSL_OP_NO_COMPRESSION) &
+                                               SSL_OP_NO_COMPRESSION));
+
+    SSL_CTX_free(ctx);
+
+    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
+    AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, SSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, SSL_FILETYPE_PEM));
+
     AssertNotNull(ssl = SSL_new(ctx));
 
     AssertTrue(SSL_set_options(ssl, SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1);
@@ -10473,6 +10494,8 @@ static void test_wolfSSL_set_options(void)
                                        SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2);
     AssertTrue((SSL_set_options(ssl, SSL_OP_NO_COMPRESSION) &
                                SSL_OP_NO_COMPRESSION) == SSL_OP_NO_COMPRESSION);
+    AssertNull((SSL_clear_options(ssl, SSL_OP_NO_COMPRESSION) &
+                                       SSL_OP_NO_COMPRESSION));
 
 		AssertTrue(SSL_set_msg_callback(ssl, msg_cb) == SSL_SUCCESS);
 		SSL_set_msg_callback_arg(ssl, arg);

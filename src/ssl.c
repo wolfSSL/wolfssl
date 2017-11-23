@@ -11469,19 +11469,20 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     long wolfSSL_CTX_get_options(WOLFSSL_CTX* ctx)
     {
-        (void)ctx;
         WOLFSSL_ENTER("wolfSSL_CTX_get_options");
         WOLFSSL_MSG("wolfSSL options are set through API calls and macros");
-
-        return 0;
+        return ctx->mask;
     }
 
 
     long wolfSSL_CTX_set_options(WOLFSSL_CTX* ctx, long opt)
     {
+        WOLFSSL *ssl = wolfSSL_new(ctx);
         WOLFSSL_ENTER("SSL_CTX_set_options");
-        ctx->mask |= opt;
-        return opt;
+        if(ssl == NULL)return SSL_FAILURE;
+        ctx->mask = wolfSSL_set_options(ssl, opt);
+        wolfSSL_free(ssl);
+        return ctx->mask;
     }
 
     long wolfSSL_CTX_clear_options(WOLFSSL_CTX* ctx, long opt)
@@ -16976,8 +16977,7 @@ int wolfSSL_PEM_def_callback(char* name, int num, int w, void* key)
     return 0;
 }
 
-
-unsigned long wolfSSL_set_options(WOLFSSL* ssl, unsigned long op)
+long wolfSSL_set_options(WOLFSSL* ssl, long op)
 {
     word16 haveRSA = 1;
     word16 havePSK = 0;
@@ -17073,10 +17073,17 @@ unsigned long wolfSSL_set_options(WOLFSSL* ssl, unsigned long op)
 }
 
 
-unsigned long wolfSSL_get_options(const WOLFSSL* ssl)
+long wolfSSL_get_options(const WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_get_options");
 
+    return ssl->options.mask;
+}
+
+long wolfSSL_clear_options(WOLFSSL* ssl, long opt)
+{
+    WOLFSSL_ENTER("SSL_clear_options");
+    ssl->options.mask &= ~opt;
     return ssl->options.mask;
 }
 
