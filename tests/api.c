@@ -162,7 +162,7 @@
         #include <wolfssl/wolfcrypt/srp.h>
 #endif
 
-#if defined(SESSION_CERTS)
+#if defined(SESSION_CERTS) && defined(TEST_PEER_CERT_CHAIN)
 #include "wolfssl/internal.h" /* for testing SSL_get_peer_cert_chain */
 #endif
 
@@ -10380,7 +10380,7 @@ static int msgCb(SSL_CTX *ctx, SSL *ssl)
     (void) ctx;
     (void) ssl;
     printf("\n===== msgcb called ====\n");
-    #if defined(SESSION_CERTS)
+    #if defined(SESSION_CERTS) && defined(TEST_PEER_CERT_CHAIN)
     AssertTrue(SSL_get_peer_cert_chain(ssl) != NULL);
     AssertIntEQ(((WOLFSSL_X509_CHAIN *)SSL_get_peer_cert_chain(ssl))->count, 1);
     #endif
