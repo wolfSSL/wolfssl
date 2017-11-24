@@ -2377,9 +2377,6 @@ WOLFSSL_API WOLFSSL_DH *wolfSSL_PEM_read_bio_DHparams(WOLFSSL_BIO *bp,
 WOLFSSL_API WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSAparams(WOLFSSL_BIO *bp,
     WOLFSSL_DSA **x, pem_password_cb *cb, void *u);
 WOLFSSL_API int wolfSSL_PEM_write_bio_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 *x);
-WOLFSSL_API long wolfSSL_CTX_get_options(WOLFSSL_CTX* ctx);
-
-
 
 #endif /* HAVE_STUNNEL || HAVE_LIGHTY */
 
