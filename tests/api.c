@@ -1013,8 +1013,8 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     } while (ret != WOLFSSL_SUCCESS && err == WC_PENDING_E);
 
     if (ret != WOLFSSL_SUCCESS) {
-        char buffer[WOLFSSL_MAX_ERROR_SZ];
-        printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buffer));
+        char buff[WOLFSSL_MAX_ERROR_SZ];
+        printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buff));
         /*err_sys("SSL_accept failed");*/
         goto done;
     }
@@ -1140,8 +1140,8 @@ static void test_client_nofail(void* args, void *cb)
     } while (ret != WOLFSSL_SUCCESS && err == WC_PENDING_E);
 
     if (ret != WOLFSSL_SUCCESS) {
-        char buffer[WOLFSSL_MAX_ERROR_SZ];
-        printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buffer));
+        char buff[WOLFSSL_MAX_ERROR_SZ];
+        printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buff));
         /*err_sys("SSL_connect failed");*/
         goto done2;
     }
@@ -1278,8 +1278,8 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
     } while (ret != WOLFSSL_SUCCESS && err == WC_PENDING_E);
 
     if (ret != WOLFSSL_SUCCESS) {
-        char buffer[WOLFSSL_MAX_ERROR_SZ];
-        printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buffer));
+        char buff[WOLFSSL_MAX_ERROR_SZ];
+        printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buff));
         /*err_sys("SSL_accept failed");*/
     }
     else {
@@ -1398,8 +1398,8 @@ static void run_wolfssl_client(void* args)
     } while (ret != WOLFSSL_SUCCESS && err == WC_PENDING_E);
 
     if (ret != WOLFSSL_SUCCESS) {
-        char buffer[WOLFSSL_MAX_ERROR_SZ];
-        printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buffer));
+        char buff[WOLFSSL_MAX_ERROR_SZ];
+        printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buff));
         /*err_sys("SSL_connect failed");*/
     }
     else {
