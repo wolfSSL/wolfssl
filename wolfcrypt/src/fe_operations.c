@@ -41,7 +41,9 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifdef CURVED25519_128BIT
+#ifdef CURVED25519_X64
+#include "fe_x25519_x64.i"
+#elif defined(CURVED25519_128BIT)
 #include "fe_x25519_128.i"
 #else
 
@@ -115,6 +117,10 @@ void fe_0(fe h)
 
 #if defined(HAVE_CURVE25519) && !defined(CURVE25519_SMALL) && \
     !defined(FREESCALE_LTC_ECC)
+void fe_init()
+{
+}
+
 int curve25519(byte* q, byte* n, byte* p)
 {
 #if 0

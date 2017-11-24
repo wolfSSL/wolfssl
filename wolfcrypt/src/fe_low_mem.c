@@ -40,7 +40,6 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-
 void fprime_copy(byte *x, const byte *a)
 {
     int i;
@@ -58,6 +57,10 @@ void lm_copy(byte* x, const byte* a)
 
 
 #ifdef CURVE25519_SMALL
+void fe_init()
+{
+}
+
 /* Double an X-coordinate */
 static void xc_double(byte *x3, byte *z3,
 		      const byte *x1, const byte *z1)
