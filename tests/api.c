@@ -16058,6 +16058,48 @@ static int test_HMAC_CTX_helper(const EVP_MD* type, unsigned char* digest)
     AssertIntEQ(digestSz, digestSz2);
     AssertIntEQ(XMEMCMP(digest, digest2, digestSz), 0);
 
+    /* test HMAC_Init with NULL key */
+    printf("test HMAC_Init with NULL key (1)\n");
+    HMAC_CTX_init(&ctx1);
+    AssertIntEQ(HMAC_Init(&ctx1, (const void*)key, keySz, type), SSL_SUCCESS);
+    AssertIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
+    AssertIntEQ(HMAC_CTX_copy(&ctx2, &ctx1), SSL_SUCCESS);
+
+    AssertIntEQ(HMAC_Init(&ctx1, NULL, 0, NULL), SSL_SUCCESS);
+
+    AssertIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
+    AssertIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
+    AssertIntEQ(HMAC_Final(&ctx1, digest, &digestSz), SSL_SUCCESS);
+
+    AssertIntEQ(HMAC_Init(&ctx2, NULL, 0, NULL), SSL_SUCCESS);
+
+    AssertIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
+    AssertIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
+    AssertIntEQ(HMAC_Final(&ctx2, digest, &digestSz), SSL_SUCCESS);
+
+    HMAC_CTX_cleanup(&ctx2);
+    AssertIntEQ(digestSz, digestSz2);
+    AssertIntEQ(XMEMCMP(digest, digest2, digestSz), 0);
+
+    printf("test HMAC_Init with NULL key (2)\n");
+    HMAC_CTX_init(&ctx1);
+    AssertIntEQ(HMAC_Init(&ctx1, (const void*)key, keySz, type), SSL_SUCCESS);
+    AssertIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
+    AssertIntEQ(HMAC_Init(&ctx1, NULL, 0, NULL), SSL_SUCCESS);
+    AssertIntEQ(HMAC_CTX_copy(&ctx2, &ctx1), SSL_SUCCESS);
+
+    AssertIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
+    AssertIntEQ(HMAC_Update(&ctx1, msg, msgSz), SSL_SUCCESS);
+    AssertIntEQ(HMAC_Final(&ctx1, digest, &digestSz), SSL_SUCCESS);
+
+    AssertIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
+    AssertIntEQ(HMAC_Update(&ctx2, msg, msgSz), SSL_SUCCESS);
+    AssertIntEQ(HMAC_Final(&ctx2, digest, &digestSz), SSL_SUCCESS);
+
+    HMAC_CTX_cleanup(&ctx2);
+    AssertIntEQ(digestSz, digestSz2);
+    AssertIntEQ(XMEMCMP(digest, digest2, digestSz), 0);
+
     return digestSz;
 }
 #endif /* defined(OPENSSL_EXTRA) && !defined(NO_HMAC) */

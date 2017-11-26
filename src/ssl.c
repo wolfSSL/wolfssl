@@ -24729,6 +24729,8 @@ int wolfSSL_HMAC_CTX_copy(WOLFSSL_HMAC_CTX* des, WOLFSSL_HMAC_CTX* src)
     des->hmac.heap    = src->hmac.heap;
     des->hmac.macType = src->hmac.macType;
     des->hmac.innerHashKeyed = src->hmac.innerHashKeyed;
+    des->save_len     = src->save_len;
+    XMEMCPY(des->save_key, src->save_key, src->save_len);
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     XMEMCPY(des->hmac.asyncDev, src->hmac.asyncDev, sizeof(WC_ASYNC_DEV));
