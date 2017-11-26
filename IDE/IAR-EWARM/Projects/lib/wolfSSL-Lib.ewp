@@ -939,7 +939,7 @@
         </option>
         <option>
           <name>IarchiveOutput</name>
-          <state>C:\ROOT\CyaSSL-Support\TI\Staging-20150522\wolfssl\IDE\IAR-EWARM\Projects\lib\ewarm\Exe\wolfSSL-Lib.a</state>
+          <state>C:\wolfSSL\Support\EWARM\wolfssl\IDE\IAR-EWARM\Projects\lib\ewarm\Exe\wolfSSL-Lib.a</state>
         </option>
       </data>
     </settings>
@@ -1927,10 +1927,16 @@
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\chacha20_poly1305.c</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\cmac.c</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\coding.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\compress.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\cpuid.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\curve25519.c</name>
@@ -1957,6 +1963,9 @@
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\error.c</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\evp.c</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\fe_low_mem.c</name>
     </file>
     <file>
@@ -1978,6 +1987,9 @@
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\hmac.c</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\idea.c</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\integer.c</name>
     </file>
     <file>
@@ -1996,7 +2008,7 @@
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\memory.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\misc.c</name>
+      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\pkcs12.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\pkcs7.c</name>
@@ -2026,7 +2038,16 @@
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\sha256.c</name>
     </file>
     <file>
+      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\sha3.c</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\sha512.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\signature.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\sp.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\srp.c</name>
@@ -2041,22 +2062,22 @@
       <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\wc_port.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\wolfmath.c</name>
+      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\wolfevent.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\wolfevent.c</name>
+      <name>$PROJ_DIR$\..\..\..\..\wolfcrypt\src\wolfmath.c</name>
     </file>
   </group>
   <group>
     <name>wolfSSL</name>
     <file>
+      <name>$PROJ_DIR$\..\..\..\..\src\bio.c</name>
+    </file>
+    <file>
       <name>$PROJ_DIR$\..\..\..\..\src\crl.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\..\..\..\src\internal.c</name>
-    </file>
-    <file>
-      <name>$PROJ_DIR$\..\..\..\..\src\wolfio.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\..\..\..\src\keys.c</name>
@@ -2072,6 +2093,12 @@
     </file>
     <file>
       <name>$PROJ_DIR$\..\..\..\..\src\tls.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\src\tls13.c</name>
+    </file>
+    <file>
+      <name>$PROJ_DIR$\..\..\..\..\src\wolfio.c</name>
     </file>
   </group>
 </project>
