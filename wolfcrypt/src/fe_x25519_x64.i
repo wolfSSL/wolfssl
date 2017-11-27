@@ -283,7 +283,6 @@ void fe_sub(fe r, const fe a, const fe b)
 {
     __asm__ __volatile__ (
         "movq	$0x7fffffffffffffff, %%rcx\n\t"
-        "xorq	%%r10, %%r10\n\t"
         "movq	$-19, %%r11\n\t"
         "movq	0(%[a]), %%rax\n\t"
         "movq	8(%[a]), %%rdx\n\t"
@@ -292,6 +291,7 @@ void fe_sub(fe r, const fe a, const fe b)
         "sbbq	8(%[b]), %%rdx\n\t"
         "movq	24(%[a]), %%r9\n\t"
         "sbbq	16(%[b]), %%r8\n\t"
+        "movq	$0, %%r10\n\t"
         "sbbq	24(%[b]), %%r9\n\t"
         "sbbq	$0, %%r10\n\t"
         "# Mask the modulus\n\t"
