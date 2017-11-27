@@ -2769,8 +2769,12 @@ static void bench_hmac(int doAsync, int type, int digestSz,
     Hmac   hmac[BENCH_MAX_PENDING];
     double start;
     int    ret, i, count = 0, times, pending = 0;
+#if defined(BENCH_EMBEDDED)
+    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, MAX_DIGEST_SIZE, HEAP_HINT);
+#else
     DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, digestSz, HEAP_HINT);
-
+#endif
+    
     /* clear for done cleanup */
     XMEMSET(hmac, 0, sizeof(hmac));
 

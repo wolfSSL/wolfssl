@@ -62,6 +62,12 @@ double current_time(int reset)
 
 #else
 
-double current_time(int reset) { return 0.0 ; }
+/* dummy */
+double current_time(int reset) {
+    static double t; 
+    t += 1.0; /* for avoid infinit loop of waiting time */
+    if(reset)t = 0.0;
+    return t ; 
+} 
 
 #endif
