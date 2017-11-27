@@ -170,8 +170,6 @@
           <name>CCDefines</name>
           <state>WOLFSSL_USER_SETTINGS</state>
           <state>ewarm</state>
-          <state>PART_TM4C129XNCZAD</state>
-          <state>TARGET_IS_SNOWFLAKE_RA0</state>
         </option>
         <option>
           <name>CCPreprocFile</name>
