@@ -11471,7 +11471,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     {
         WOLFSSL_ENTER("wolfSSL_CTX_get_options");
         WOLFSSL_MSG("wolfSSL options are set through API calls and macros");
-        if(ctx == NULL)return SSL_FAILURE;
+        if(ctx == NULL)
+            return SSL_FAILURE;
         return ctx->mask;
     }
 
@@ -11480,9 +11481,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     {
         WOLFSSL *ssl;
         WOLFSSL_ENTER("SSL_CTX_set_options");
-        if(ctx == NULL)return SSL_FAILURE;
+        if(ctx == NULL)
+            return SSL_FAILURE;
         ssl = wolfSSL_new(ctx);
-        if(ssl == NULL)return SSL_FAILURE;
+        if(ssl == NULL)
+            return SSL_FAILURE;
         ctx->mask = wolfSSL_set_options(ssl, opt);
         wolfSSL_free(ssl);
         return ctx->mask;

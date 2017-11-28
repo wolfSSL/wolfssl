@@ -10362,7 +10362,7 @@ static void msg_cb(int write_p, int version, int content_type,
                    const void *buf, size_t len, SSL *ssl, void *arg)
 {
     (void)write_p;
-		(void)version;
+    (void)version;
 		(void)content_type;
 		(void)buf;
 		(void)len;
@@ -10452,9 +10452,9 @@ static void test_wolfSSL_set_options(void)
     SSL*     ssl;
     SSL_CTX* ctx;
 
-		unsigned char protos[] = {
-				7, 't', 'l', 's', '/', '1', '.', '2',
-				8, 'h', 't', 't', 'p', '/', '1', '.', '1'
+    unsigned char protos[] = {
+        7, 't', 'l', 's', '/', '1', '.', '2',
+        8, 'h', 't', 't', 'p', '/', '1', '.', '1'
 		};
 		unsigned int len = sizeof(protos);
 
@@ -10502,10 +10502,10 @@ static void test_wolfSSL_set_options(void)
     AssertNull((SSL_clear_options(ssl, SSL_OP_NO_COMPRESSION) &
                                        SSL_OP_NO_COMPRESSION));
 
-		AssertTrue(SSL_set_msg_callback(ssl, msg_cb) == SSL_SUCCESS);
-		SSL_set_msg_callback_arg(ssl, arg);
+    AssertTrue(SSL_set_msg_callback(ssl, msg_cb) == SSL_SUCCESS);
+    SSL_set_msg_callback_arg(ssl, arg);
 
-		AssertTrue(SSL_CTX_set_alpn_protos(ctx, protos, len) == SSL_SUCCESS);
+    AssertTrue(SSL_CTX_set_alpn_protos(ctx, protos, len) == SSL_SUCCESS);
 
     SSL_free(ssl);
     SSL_CTX_free(ctx);
