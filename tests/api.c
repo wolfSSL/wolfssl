@@ -10517,10 +10517,10 @@ static void test_wolfSSL_set_options(void)
 	  #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
 static int verify_cb(int ok, X509_STORE_CTX *ctx)
 {
-	  (void) ok;
-		(void) ctx;
-		printf("ENTER verify_cb\n");
-		return SSL_SUCCESS;
+    (void) ok;
+    (void) ctx;
+    printf("ENTER verify_cb\n");
+    return SSL_SUCCESS;
 }
 #endif
 
@@ -10530,8 +10530,8 @@ static void test_wolfSSL_X509_STORE_CTX(void)
 	  X509_STORE_CTX *ctx   = NULL ;
 
     printf(testingFmt, "test_wolfSSL_X509_STORE_CTX(()");
-		AssertNotNull(ctx = X509_STORE_CTX_new());
-		X509_STORE_CTX_set_verify_cb(ctx, (void *)verify_cb);
+    AssertNotNull(ctx = X509_STORE_CTX_new());
+    X509_STORE_CTX_set_verify_cb(ctx, (void *)verify_cb);
     X509_STORE_CTX_free(ctx);
     printf(resultFmt, passed);
     #endif

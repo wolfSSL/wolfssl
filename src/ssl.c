@@ -11471,14 +11471,17 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     {
         WOLFSSL_ENTER("wolfSSL_CTX_get_options");
         WOLFSSL_MSG("wolfSSL options are set through API calls and macros");
+        if(ctx == NULL)return SSL_FAILURE;
         return ctx->mask;
     }
 
 
     long wolfSSL_CTX_set_options(WOLFSSL_CTX* ctx, long opt)
     {
-        WOLFSSL *ssl = wolfSSL_new(ctx);
+        WOLFSSL *ssl;
         WOLFSSL_ENTER("SSL_CTX_set_options");
+        if(ctx == NULL)return SSL_FAILURE;
+        ssl = wolfSSL_new(ctx);
         if(ssl == NULL)return SSL_FAILURE;
         ctx->mask = wolfSSL_set_options(ssl, opt);
         wolfSSL_free(ssl);
@@ -11583,6 +11586,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     void wolfSSL_X509_STORE_CTX_set_verify_cb(WOLFSSL_X509_STORE_CTX *ctx,
                                   WOLFSSL_X509_STORE_CTX_verify_cb verify_cb)
     {
+        WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_set_verify_cb");
+        if(ctx == NULL)return;
         ctx->verify_cb = verify_cb;
     }
 #endif
@@ -17076,7 +17081,7 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
 long wolfSSL_get_options(const WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_get_options");
-
+    if(ssl == NULL)return WOLFSSL_FAILURE;
     return ssl->options.mask;
 }
 
@@ -26444,6 +26449,8 @@ void *wolfSSL_OPENSSL_memdup(const void *data, size_t siz, const char* file, int
 int wolfSSL_CTX_set_alpn_protos(WOLFSSL_CTX *ctx, const unsigned char *p,
                             unsigned int p_len)
 {
+    WOLFSSL_ENTER("wolfSSL_CTX_set_alpn_protos");
+    if(ctx == NULL)return WOLFSSL_FAILURE;
     if((void *)ctx->alpn_cli_protos != NULL)
         wolfSSL_OPENSSL_free((void *)ctx->alpn_cli_protos);
     ctx->alpn_cli_protos =
