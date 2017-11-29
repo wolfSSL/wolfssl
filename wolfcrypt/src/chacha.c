@@ -66,6 +66,8 @@
     #if defined(__clang__) && ((__clang_major__ < 3) || \
                                (__clang_major__ == 3 && __clang_minor__ <= 5))
         #define NO_AVX2_SUPPORT
+    #elif defined(__clang__) && defined(NO_AVX2_SUPPORT)
+        #undef NO_AVX2_SUPPORT
     #endif
 
     #define HAVE_INTEL_AVX1
@@ -933,8 +935,8 @@ static void chacha_encrypt_avx2(ChaCha* ctx, const byte* m, byte* c,
        : [bytes] "+r" (bytes), [cnt] "+r" (cnt),
          [in] "+r" (m), [out] "+r" (c)
        : [X] "r" (X), [x] "r" (x), [key] "r" (ctx->X),
-         [add] "xrm" (add), [eight] "xrm" (eight),
-         [rotl8] "xrm" (rotl8), [rotl16] "xrm" (rotl16)
+         [add] "m" (add), [eight] "m" (eight),
+         [rotl8] "m" (rotl8), [rotl16] "m" (rotl16)
        : "ymm0", "ymm1", "ymm2", "ymm3",
          "ymm4", "ymm5", "ymm6", "ymm7",
          "ymm8", "ymm9", "ymm10", "ymm11",

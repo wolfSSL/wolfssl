@@ -100,6 +100,8 @@
     #if defined(__clang__) && ((__clang_major__ < 3) || \
                                (__clang_major__ == 3 && __clang_minor__ <= 5))
         #define NO_AVX2_SUPPORT
+    #elif defined(__clang__) && defined(NO_AVX2_SUPPORT)
+        #undef NO_AVX2_SUPPORT
     #endif
 
     #define HAVE_INTEL_AVX1
@@ -2286,6 +2288,7 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2_Len(wc_Sha256* sha256,
                                                      word32 len)
 {
     if ((len & WC_SHA256_BLOCK_SIZE) != 0) {
+        XMEMCPY(sha256->buffer, sha256->data, WC_SHA256_BLOCK_SIZE);
         Transform_Sha256_AVX2(sha256);
         sha256->data += WC_SHA256_BLOCK_SIZE;
         len -= WC_SHA256_BLOCK_SIZE;
@@ -2449,6 +2452,7 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2_RORX_Len(wc_Sha256* sha256,
                                                           word32 len)
 {
     if ((len & WC_SHA256_BLOCK_SIZE) != 0) {
+        XMEMCPY(sha256->buffer, sha256->data, WC_SHA256_BLOCK_SIZE);
         Transform_Sha256_AVX2_RORX(sha256);
         sha256->data += WC_SHA256_BLOCK_SIZE;
         len -= WC_SHA256_BLOCK_SIZE;
