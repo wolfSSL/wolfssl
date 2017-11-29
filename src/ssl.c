@@ -22408,6 +22408,8 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
     mp_clear(&prime);
 
     if (ret == MP_OKAY) {
+        r->inSet = 1; /* mark internal set */
+
         /* set the external value for the computed point */
         ret = SetECPointExternal(r);
         if (ret != WOLFSSL_SUCCESS) {
