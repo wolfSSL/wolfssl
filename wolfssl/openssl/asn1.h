@@ -20,10 +20,11 @@ struct WOLFSSL_ASN1_STRING {
 };
 
 WOLFSSL_API long wolfSSL_ASN1_INTEGER_get(const WOLFSSL_ASN1_INTEGER* i);
-WOLFSSL_API int wolfSSL_ASN1_INTEGER_get_int64(signed_word64 *p, const WOLFSSL_ASN1_INTEGER *i);
+WOLFSSL_API int wolfSSL_ASN1_INTEGER_get_int64(signed_word64 *p,
+                                          const WOLFSSL_ASN1_INTEGER *i);
 
 #define ASN1_INTEGER WOLFSSL_ASN1_INTEGER
-/* #define int64_t signed_word64 */
+#define int64_t signed_word64
 #define uint64_t word64
 
 #define ASN1_INTEGER_get wolfSSL_ASN1_INTEGER_get
@@ -35,9 +36,9 @@ WOLFSSL_API int wolfSSL_ASN1_INTEGER_get_int64(signed_word64 *p, const WOLFSSL_A
 
 # ifndef INT64_MAX
 
-#  define INT64_MIN -9223372036854775808
-#  define INT64_MAX 9223372036854775807
-#  define UINT64_MAX 18446744073709551615
+#  define INT64_MIN -9223372036854775808LL
+#  define INT64_MAX 9223372036854775807LL
+#  define UINT64_MAX 18446744073709551615ULL
 
 # endif
 

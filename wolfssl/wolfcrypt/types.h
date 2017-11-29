@@ -70,7 +70,8 @@
 	#if defined(_MSC_VER) || defined(__BCPLUSPLUS__)
 	    #define WORD64_AVAILABLE
 	    #define W64LIT(x) x##ui64
-	    typedef unsigned __int64 word64;
+        typedef unsigned __int64 word64;
+        typedef __int64 signed_word64;
 	#elif defined(__EMSCRIPTEN__)
 	    #define WORD64_AVAILABLE
 	    #define W64LIT(x) x##ull
