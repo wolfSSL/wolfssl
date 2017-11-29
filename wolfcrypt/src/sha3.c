@@ -375,7 +375,275 @@ static void BlockSha3(word64 *s)
     }
 }
 #else
-#include "sha3_long.i"
+/* Rotate a 64-bit value left.
+ *
+ * a  Number to rotate left.
+ * r  Number od bits to rotate left.
+ * returns the rotated number.
+ */
+#define ROTL64(a, n)    (((a)<<(n))|((a)>>(64-(n))))
+
+/* An array of values to XOR for block operation. */
+static const word64 hash_keccak_r[24] =
+{
+    0x0000000000000001UL, 0x0000000000008082UL,
+    0x800000000000808aUL, 0x8000000080008000UL,
+    0x000000000000808bUL, 0x0000000080000001UL,
+    0x8000000080008081UL, 0x8000000000008009UL,
+    0x000000000000008aUL, 0x0000000000000088UL,
+    0x0000000080008009UL, 0x000000008000000aUL,
+    0x000000008000808bUL, 0x800000000000008bUL,
+    0x8000000000008089UL, 0x8000000000008003UL,
+    0x8000000000008002UL, 0x8000000000000080UL,
+    0x000000000000800aUL, 0x800000008000000aUL,
+    0x8000000080008081UL, 0x8000000000008080UL,
+    0x0000000080000001UL, 0x8000000080008008UL
+};
+
+/* Indeces used in swap and rotate operation. */
+#define KI_0     6
+#define KI_1    12
+#define KI_2    18
+#define KI_3    24
+#define KI_4     3
+#define KI_5     9
+#define KI_6    10
+#define KI_7    16
+#define KI_8    22
+#define KI_9     1
+#define KI_10    7
+#define KI_11   13
+#define KI_12   19
+#define KI_13   20
+#define KI_14    4
+#define KI_15    5
+#define KI_16   11
+#define KI_17   17
+#define KI_18   23
+#define KI_19    2
+#define KI_20    8
+#define KI_21   14
+#define KI_22   15
+#define KI_23   21
+
+/* Number of bits to rotate in swap and rotate operation. */
+#define KR_0    44
+#define KR_1    43
+#define KR_2    21
+#define KR_3    14
+#define KR_4    28
+#define KR_5    20
+#define KR_6     3
+#define KR_7    45
+#define KR_8    61
+#define KR_9     1
+#define KR_10    6
+#define KR_11   25
+#define KR_12    8
+#define KR_13   18
+#define KR_14   27
+#define KR_15   36
+#define KR_16   10
+#define KR_17   15
+#define KR_18   56
+#define KR_19   62
+#define KR_20   55
+#define KR_21   39
+#define KR_22   41
+#define KR_23    2
+
+/* Mix the XOR of the column's values into each number by column.
+ *
+ * s  The state.
+ * b  Temporary array of XORed column values.
+ * x  The index of the column.
+ * t  Temporary variable.
+ */
+#define COL_MIX(s, b, x, t)                                     \
+do                                                              \
+{                                                               \
+    b[0] = s[0] ^ s[5] ^ s[10] ^ s[15] ^ s[20];                 \
+    b[1] = s[1] ^ s[6] ^ s[11] ^ s[16] ^ s[21];                 \
+    b[2] = s[2] ^ s[7] ^ s[12] ^ s[17] ^ s[22];                 \
+    b[3] = s[3] ^ s[8] ^ s[13] ^ s[18] ^ s[23];                 \
+    b[4] = s[4] ^ s[9] ^ s[14] ^ s[19] ^ s[24];                 \
+    t = b[(0 + 4) % 5] ^ ROTL64(b[(0 + 1) % 5], 1);             \
+    s[ 0] ^= t; s[ 5] ^= t; s[10] ^= t; s[15] ^= t; s[20] ^= t; \
+    t = b[(1 + 4) % 5] ^ ROTL64(b[(1 + 1) % 5], 1);             \
+    s[ 1] ^= t; s[ 6] ^= t; s[11] ^= t; s[16] ^= t; s[21] ^= t; \
+    t = b[(2 + 4) % 5] ^ ROTL64(b[(2 + 1) % 5], 1);             \
+    s[ 2] ^= t; s[ 7] ^= t; s[12] ^= t; s[17] ^= t; s[22] ^= t; \
+    t = b[(3 + 4) % 5] ^ ROTL64(b[(3 + 1) % 5], 1);             \
+    s[ 3] ^= t; s[ 8] ^= t; s[13] ^= t; s[18] ^= t; s[23] ^= t; \
+    t = b[(4 + 4) % 5] ^ ROTL64(b[(4 + 1) % 5], 1);             \
+    s[ 4] ^= t; s[ 9] ^= t; s[14] ^= t; s[19] ^= t; s[24] ^= t; \
+}                                                               \
+while (0)
+
+#define S(s1, i) ROTL64(s1[KI_##i], KR_##i)
+
+#ifdef SHA3_BY_SPEC
+/* Mix the row values.
+ * BMI1 has ANDN instruction ((~a) & b) - Haswell and above.
+ *
+ * s2  The new state.
+ * s1  The current state.
+ * b   Temporary array of XORed row values.
+ * t0  Temporary variable. (Unused)
+ * t1  Temporary variable. (Unused)
+ */
+#define ROW_MIX(s2, s1, b, t0, t1)            \
+do                                            \
+{                                             \
+    b[0] = s1[0];                             \
+    b[1] = S(s1, 0);                          \
+    b[2] = S(s1, 1);                          \
+    b[3] = S(s1, 2);                          \
+    b[4] = S(s1, 3);                          \
+    s2[0] = b[0] ^ (~b[1] & b[2]);            \
+    s2[1] = b[1] ^ (~b[2] & b[3]);            \
+    s2[2] = b[2] ^ (~b[3] & b[4]);            \
+    s2[3] = b[3] ^ (~b[4] & b[0]);            \
+    s2[4] = b[4] ^ (~b[0] & b[1]);            \
+    b[0] = S(s1, 4);                          \
+    b[1] = S(s1, 5);                          \
+    b[2] = S(s1, 6);                          \
+    b[3] = S(s1, 7);                          \
+    b[4] = S(s1, 8);                          \
+    s2[5] = b[0] ^ (~b[1] & b[2]);            \
+    s2[6] = b[1] ^ (~b[2] & b[3]);            \
+    s2[7] = b[2] ^ (~b[3] & b[4]);            \
+    s2[8] = b[3] ^ (~b[4] & b[0]);            \
+    s2[9] = b[4] ^ (~b[0] & b[1]);            \
+    b[0] = S(s1, 9);                          \
+    b[1] = S(s1, 10);                         \
+    b[2] = S(s1, 11);                         \
+    b[3] = S(s1, 12);                         \
+    b[4] = S(s1, 13);                         \
+    s2[10] = b[0] ^ (~b[1] & b[2]);           \
+    s2[11] = b[1] ^ (~b[2] & b[3]);           \
+    s2[12] = b[2] ^ (~b[3] & b[4]);           \
+    s2[13] = b[3] ^ (~b[4] & b[0]);           \
+    s2[14] = b[4] ^ (~b[0] & b[1]);           \
+    b[0] = S(s1, 14);                         \
+    b[1] = S(s1, 15);                         \
+    b[2] = S(s1, 16);                         \
+    b[3] = S(s1, 17);                         \
+    b[4] = S(s1, 18);                         \
+    s2[15] = b[0] ^ (~b[1] & b[2]);           \
+    s2[16] = b[1] ^ (~b[2] & b[3]);           \
+    s2[17] = b[2] ^ (~b[3] & b[4]);           \
+    s2[18] = b[3] ^ (~b[4] & b[0]);           \
+    s2[19] = b[4] ^ (~b[0] & b[1]);           \
+    b[0] = S(s1, 19);                         \
+    b[1] = S(s1, 20);                         \
+    b[2] = S(s1, 21);                         \
+    b[3] = S(s1, 22);                         \
+    b[4] = S(s1, 23);                         \
+    s2[20] = b[0] ^ (~b[1] & b[2]);           \
+    s2[21] = b[1] ^ (~b[2] & b[3]);           \
+    s2[22] = b[2] ^ (~b[3] & b[4]);           \
+    s2[23] = b[3] ^ (~b[4] & b[0]);           \
+    s2[24] = b[4] ^ (~b[0] & b[1]);           \
+}                                             \
+while (0)
+#else
+/* Mix the row values.
+ * a ^ (~b & c) == a ^ (c & (b ^ c)) == (a ^ b) ^ (b | c)
+ *
+ * s2  The new state.
+ * s1  The current state.
+ * b   Temporary array of XORed row values.
+ * t12 Temporary variable.
+ * t34 Temporary variable.
+ */
+#define ROW_MIX(s2, s1, b, t12, t34)          \
+do                                            \
+{                                             \
+    b[0] = s1[0];                             \
+    b[1] = S(s1, 0);                          \
+    b[2] = S(s1, 1);                          \
+    b[3] = S(s1, 2);                          \
+    b[4] = S(s1, 3);                          \
+    t12 = (b[1] ^ b[2]); t34 = (b[3] ^ b[4]); \
+    s2[0] = b[0] ^ (b[2] &  t12);             \
+    s2[1] =  t12 ^ (b[2] | b[3]);             \
+    s2[2] = b[2] ^ (b[4] &  t34);             \
+    s2[3] =  t34 ^ (b[4] | b[0]);             \
+    s2[4] = b[4] ^ (b[1] & (b[0] ^ b[1]));    \
+    b[0] = S(s1, 4);                          \
+    b[1] = S(s1, 5);                          \
+    b[2] = S(s1, 6);                          \
+    b[3] = S(s1, 7);                          \
+    b[4] = S(s1, 8);                          \
+    t12 = (b[1] ^ b[2]); t34 = (b[3] ^ b[4]); \
+    s2[5] = b[0] ^ (b[2] &  t12);             \
+    s2[6] =  t12 ^ (b[2] | b[3]);             \
+    s2[7] = b[2] ^ (b[4] &  t34);             \
+    s2[8] =  t34 ^ (b[4] | b[0]);             \
+    s2[9] = b[4] ^ (b[1] & (b[0] ^ b[1]));    \
+    b[0] = S(s1, 9);                          \
+    b[1] = S(s1, 10);                         \
+    b[2] = S(s1, 11);                         \
+    b[3] = S(s1, 12);                         \
+    b[4] = S(s1, 13);                         \
+    t12 = (b[1] ^ b[2]); t34 = (b[3] ^ b[4]); \
+    s2[10] = b[0] ^ (b[2] &  t12);            \
+    s2[11] =  t12 ^ (b[2] | b[3]);            \
+    s2[12] = b[2] ^ (b[4] &  t34);            \
+    s2[13] =  t34 ^ (b[4] | b[0]);            \
+    s2[14] = b[4] ^ (b[1] & (b[0] ^ b[1]));   \
+    b[0] = S(s1, 14);                         \
+    b[1] = S(s1, 15);                         \
+    b[2] = S(s1, 16);                         \
+    b[3] = S(s1, 17);                         \
+    b[4] = S(s1, 18);                         \
+    t12 = (b[1] ^ b[2]); t34 = (b[3] ^ b[4]); \
+    s2[15] = b[0] ^ (b[2] &  t12);            \
+    s2[16] =  t12 ^ (b[2] | b[3]);            \
+    s2[17] = b[2] ^ (b[4] &  t34);            \
+    s2[18] =  t34 ^ (b[4] | b[0]);            \
+    s2[19] = b[4] ^ (b[1] & (b[0] ^ b[1]));   \
+    b[0] = S(s1, 19);                         \
+    b[1] = S(s1, 20);                         \
+    b[2] = S(s1, 21);                         \
+    b[3] = S(s1, 22);                         \
+    b[4] = S(s1, 23);                         \
+    t12 = (b[1] ^ b[2]); t34 = (b[3] ^ b[4]); \
+    s2[20] = b[0] ^ (b[2] &  t12);            \
+    s2[21] =  t12 ^ (b[2] | b[3]);            \
+    s2[22] = b[2] ^ (b[4] &  t34);            \
+    s2[23] =  t34 ^ (b[4] | b[0]);            \
+    s2[24] = b[4] ^ (b[1] & (b[0] ^ b[1]));   \
+}                                             \
+while (0)
+#endif /* SHA3_BY_SPEC */
+
+/* The block operation performed on the state.
+ *
+ * s  The state.
+ */
+static void BlockSha3(word64 *s)
+{
+    word64 n[25];
+    word64 b[5];
+    word64 t0;
+#ifndef SHA3_BY_SPEC
+    word64 t1;
+#endif
+    byte i;
+
+    for (i = 0; i < 24; i += 2)
+    {
+        COL_MIX(s, b, x, t0);
+        ROW_MIX(n, s, b, t0, t1);
+        n[0] ^= hash_keccak_r[i];
+
+        COL_MIX(n, b, x, t0);
+        ROW_MIX(s, n, b, t0, t1);
+        s[0] ^= hash_keccak_r[i+1];
+    }
+}
 #endif /* WOLFSSL_SHA3_SMALL */
 
 /* Convert the array of bytes, in little-endian order, to a 64-bit integer.
