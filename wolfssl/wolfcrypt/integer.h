@@ -261,7 +261,10 @@ typedef int ltm_prime_callback(unsigned char *dst, int len, void *dat);
 
 #define s_mp_mul(a, b, c) s_mp_mul_digs(a, b, c, (a)->used + (b)->used + 1)
 
+#if defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
+    defined(WOLFSSL_DEBUG_MATH) || defined(DEBUG_WOLFSSL)
 extern const char *mp_s_rmap;
+#endif
 
 /* 6 functions needed by Rsa */
 MP_API int  mp_init (mp_int * a);
