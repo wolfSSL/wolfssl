@@ -69,7 +69,7 @@ void fe_init()
     intelFlags = cpuid_get_flags();
     cpuFlagsSet = 1;
 
-    if (IS_INTEL_AVX2(intelFlags) && IS_INTEL_BMI2(intelFlags)) {
+    if (IS_INTEL_BMI2(intelFlags) && IS_INTEL_ADX(intelFlags)) {
         fe_mul_p = fe_mul_avx2;
         fe_sq_p = fe_sq_avx2;
         fe_sq2_p = fe_sq2_avx2;
