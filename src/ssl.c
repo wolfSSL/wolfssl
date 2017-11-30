@@ -12785,7 +12785,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         WOLFSSL_ENTER("EVP_MD_CTX_new");
         ctx = (WOLFSSL_EVP_MD_CTX*)XMALLOC(sizeof *ctx, NULL,
                                                        DYNAMIC_TYPE_OPENSSL);
-      	if (ctx){
+        if (ctx){
             wolfSSL_EVP_MD_CTX_init(ctx);
         }
         return ctx;
@@ -12795,9 +12795,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     {
         if (ctx) {
             WOLFSSL_ENTER("EVP_MD_CTX_free");
-    		    wolfSSL_EVP_MD_CTX_cleanup(ctx);
-    		    XFREE(ctx, NULL, DYNAMIC_TYPE_OPENSSL);
-    		}
+                wolfSSL_EVP_MD_CTX_cleanup(ctx);
+                XFREE(ctx, NULL, DYNAMIC_TYPE_OPENSSL);
+            }
     }
 
     void wolfSSL_EVP_MD_CTX_init(WOLFSSL_EVP_MD_CTX* ctx)
@@ -14845,7 +14845,7 @@ void wolfSSL_sk_X509_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk) {
 
     /* free head of stack */
     if (sk->num == 1) {
-	wolfSSL_X509_free(sk->data.x509);
+    wolfSSL_X509_free(sk->data.x509);
     }
     XFREE(sk, NULL, DYNAMIC_TYPE_X509);
 }
@@ -15252,7 +15252,7 @@ void wolfSSL_sk_ASN1_OBJECT_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)
 
     /* free head of stack */
     if (sk->num == 1) {
-	    wolfSSL_ASN1_OBJECT_free(sk->data.obj);
+        wolfSSL_ASN1_OBJECT_free(sk->data.obj);
     }
     XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
 }
@@ -22501,7 +22501,7 @@ int wolfSSL_EC_POINT_cmp(const WOLFSSL_EC_GROUP *group,
 {
     int ret;
 
-	(void)ctx;
+    (void)ctx;
 
     WOLFSSL_ENTER("wolfSSL_EC_POINT_cmp");
 
@@ -22765,7 +22765,7 @@ int wolfSSL_ECDH_compute_key(void *out, size_t outlen,
 
     (void)KDF;
 
-	WOLFSSL_ENTER("wolfSSL_ECDH_compute_key");
+    WOLFSSL_ENTER("wolfSSL_ECDH_compute_key");
 
     if (out == NULL || pub_key == NULL || pub_key->internal == NULL ||
         ecdh == NULL || ecdh->internal == NULL) {

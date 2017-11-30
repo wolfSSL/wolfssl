@@ -10363,11 +10363,12 @@ static void msg_cb(int write_p, int version, int content_type,
 {
     (void)write_p;
     (void)version;
-		(void)content_type;
-		(void)buf;
-		(void)len;
-		(void)ssl;
-		AssertTrue(arg == (void*)TEST_ARG);
+    (void)content_type;
+    (void)buf;
+    (void)len;
+    (void)ssl;
+
+    AssertTrue(arg == (void*)TEST_ARG);
 }
 #endif
 
@@ -10442,7 +10443,7 @@ static void test_wolfSSL_msgCb(void)
 
     printf(resultFmt, passed);
 
-		#endif
+#endif
 }
 
 static void test_wolfSSL_set_options(void)
@@ -10455,8 +10456,8 @@ static void test_wolfSSL_set_options(void)
     unsigned char protos[] = {
         7, 't', 'l', 's', '/', '1', '.', '2',
         8, 'h', 't', 't', 'p', '/', '1', '.', '1'
-		};
-		unsigned int len = sizeof(protos);
+    };
+    unsigned int len = sizeof(protos);
 
     void *arg = (void *)TEST_ARG;
 
@@ -10514,7 +10515,8 @@ static void test_wolfSSL_set_options(void)
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
              !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
 }
-	  #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
 static int verify_cb(int ok, X509_STORE_CTX *ctx)
 {
     (void) ok;
@@ -10526,8 +10528,8 @@ static int verify_cb(int ok, X509_STORE_CTX *ctx)
 
 static void test_wolfSSL_X509_STORE_CTX(void)
 {
-	  #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
-	  X509_STORE_CTX *ctx   = NULL ;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS)
+    X509_STORE_CTX *ctx   = NULL ;
 
     printf(testingFmt, "test_wolfSSL_X509_STORE_CTX(()");
     AssertNotNull(ctx = X509_STORE_CTX_new());
