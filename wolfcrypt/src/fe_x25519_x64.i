@@ -1055,7 +1055,7 @@ int curve25519(byte* r, byte* n, byte* a)
     fe_copy(x3, x1);
     fe_1(z3);
 
-    if (IS_INTEL_AVX2(intelFlags) && IS_INTEL_BMI2(intelFlags)) {
+    if (IS_INTEL_BMI2(intelFlags) && IS_INTEL_ADX(intelFlags)) {
         j = 6;
         for (i = 31; i >= 0; i--) {
             while (j >= 0) {
@@ -1536,7 +1536,7 @@ uint64_t load_4(const unsigned char *in)
 void fe_ge_to_p2(fe rx, fe ry, fe rz, const fe px, const fe py, const fe pz,
                  const fe pt)
 {
-    if (IS_INTEL_AVX2(intelFlags) && IS_INTEL_BMI2(intelFlags)) {
+    if (IS_INTEL_BMI2(intelFlags) && IS_INTEL_ADX(intelFlags)) {
         fe_mul_avx2(rx, px, pt);
         fe_mul_avx2(ry, py, pz);
         fe_mul_avx2(rz, pz, pt);
@@ -1551,7 +1551,7 @@ void fe_ge_to_p2(fe rx, fe ry, fe rz, const fe px, const fe py, const fe pz,
 void fe_ge_to_p3(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py,
                const fe pz, const fe pt)
 {
-    if (IS_INTEL_AVX2(intelFlags) && IS_INTEL_BMI2(intelFlags)) {
+    if (IS_INTEL_BMI2(intelFlags) && IS_INTEL_ADX(intelFlags)) {
         fe_mul_avx2(rx, px, pt);
         fe_mul_avx2(ry, py, pz);
         fe_mul_avx2(rz, pz, pt);
@@ -1569,7 +1569,7 @@ void fe_ge_dbl(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py,
                const fe pz)
 {
     fe t0;
-    if (IS_INTEL_AVX2(intelFlags) && IS_INTEL_BMI2(intelFlags)) {
+    if (IS_INTEL_BMI2(intelFlags) && IS_INTEL_ADX(intelFlags)) {
         fe_sq_avx2(rx,px);
         fe_sq_avx2(rz,py);
         fe_sq2_avx2(rt,pz);
@@ -1598,7 +1598,7 @@ void fe_ge_madd(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py,
                 const fe qyminusx)
 {
     fe t0;
-    if (IS_INTEL_AVX2(intelFlags) && IS_INTEL_BMI2(intelFlags)) {
+    if (IS_INTEL_BMI2(intelFlags) && IS_INTEL_ADX(intelFlags)) {
         fe_add_int(rx,py,px);
         fe_sub_int(ry,py,px);
         fe_mul_avx2(rz,rx,qyplusx);
@@ -1629,7 +1629,7 @@ void fe_ge_msub(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py,
                 const fe qyminusx)
 {
     fe t0;
-    if (IS_INTEL_AVX2(intelFlags) && IS_INTEL_BMI2(intelFlags)) {
+    if (IS_INTEL_BMI2(intelFlags) && IS_INTEL_ADX(intelFlags)) {
         fe_add_int(rx,py,px);
         fe_sub_int(ry,py,px);
         fe_mul_avx2(rz,rx,qyminusx);
@@ -1660,7 +1660,7 @@ void fe_ge_add(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py,
                const fe qyplusx, const fe qyminusx)
 {
     fe t0;
-    if (IS_INTEL_AVX2(intelFlags) && IS_INTEL_BMI2(intelFlags)) {
+    if (IS_INTEL_BMI2(intelFlags) && IS_INTEL_ADX(intelFlags)) {
         fe_add_int(rx,py,px);
         fe_sub_int(ry,py,px);
         fe_mul_avx2(rz,rx,qyplusx);
@@ -1693,7 +1693,7 @@ void fe_ge_sub(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py,
                const fe qyplusx, const fe qyminusx)
 {
     fe t0;
-    if (IS_INTEL_AVX2(intelFlags) && IS_INTEL_BMI2(intelFlags)) {
+    if (IS_INTEL_BMI2(intelFlags) && IS_INTEL_ADX(intelFlags)) {
         fe_add_int(rx,py,px);
         fe_sub_int(ry,py,px);
         fe_mul_avx2(rz,rx,qyminusx);
