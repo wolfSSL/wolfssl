@@ -41,13 +41,13 @@
 #endif
 
 #ifdef HAVE_INTEL_AVX2
-void fe_mul_avx2(fe r, const fe a, const fe b);
-void fe_sq_avx2(fe r, const fe a);
-void fe_sq2_avx2(fe r, const fe a);
+static void fe_mul_avx2(fe r, const fe a, const fe b);
+static void fe_sq_avx2(fe r, const fe a);
+static void fe_sq2_avx2(fe r, const fe a);
 #endif
-void fe_mul_x64(fe r, const fe a, const fe b);
-void fe_sq_x64(fe r, const fe a);
-void fe_sq2_x64(fe r, const fe a);
+static void fe_mul_x64(fe r, const fe a, const fe b);
+static void fe_sq_x64(fe r, const fe a);
+static void fe_sq2_x64(fe r, const fe a);
 
 static void (*fe_mul_p)(fe r, const fe a, const fe b) = fe_mul_x64;
 static void (*fe_sq_p)(fe r, const fe a) = fe_sq_x64;
@@ -136,10 +136,10 @@ void fe_tobytes(unsigned char *out, const fe n)
         "movq	$0x7fffffffffffffff, %%r10\n\t"
         "movq	0(%[n]), %%rax\n\t"
         "movq	8(%[n]), %%rcx\n\t"
-        "movq	16(%[n]), %%rdx\n\t"
-        "movq	24(%[n]), %%r8\n\t"
         "addq	$19, %%rax\n\t"
+        "movq	16(%[n]), %%rdx\n\t"
         "adcq	$0, %%rcx\n\t"
+        "movq	24(%[n]), %%r8\n\t"
         "adcq	$0, %%rdx\n\t"
         "adcq	$0, %%r8\n\t"
         "shrq	$63, %%r8\n\t"
@@ -242,7 +242,7 @@ void fe_copy(fe r, const fe a)
  * b  A field element.
  * c  If 1 then swap and if 0 then don't swap.
  */
-void fe_cswap(fe a, fe b, int c)
+static INLINE void fe_cswap_int(fe a, fe b, int c)
 {
     __asm__ __volatile__ (
         "movslq	%[c], %%rax\n\t"
@@ -273,13 +273,18 @@ void fe_cswap(fe a, fe b, int c)
     );
 }
 
+void fe_cswap(fe a, fe b, int c)
+{
+    fe_cswap_int(a, b, c);
+}
+
 /* Subtract b from a into r. (r = a - b)
  *
  * r  A field element.
  * a  A field element.
  * b  A field element.
  */
-void fe_sub(fe r, const fe a, const fe b)
+static INLINE void fe_sub_int(fe r, const fe a, const fe b)
 {
     __asm__ __volatile__ (
         "movq	$0x7fffffffffffffff, %%rcx\n\t"
@@ -312,16 +317,20 @@ void fe_sub(fe r, const fe a, const fe b)
     );
 }
 
+void fe_sub(fe r, const fe a, const fe b)
+{
+    fe_sub_int(r, a, b);
+}
+
 /* Add b to a into r. (r = a + b)
  *
  * r  A field element.
  * a  A field element.
  * b  A field element.
  */
-void fe_add(fe r, const fe a, const fe b)
+static INLINE void fe_add_int(fe r, const fe a, const fe b)
 {
     __asm__ __volatile__ (
-        "movq	$0x7fffffffffffffff, %%rcx\n\t"
         "movq	0(%[a]), %%rax\n\t"
         "movq	8(%[a]), %%rdx\n\t"
         "addq	0(%[b]), %%rax\n\t"
@@ -329,8 +338,9 @@ void fe_add(fe r, const fe a, const fe b)
         "adcq	8(%[b]), %%rdx\n\t"
         "movq	24(%[a]), %%r10\n\t"
         "adcq	16(%[b]), %%r8\n\t"
-        "movq	$-19, %%r11\n\t"
+        "movq	$0x7fffffffffffffff, %%rcx\n\t"
         "adcq	24(%[b]), %%r10\n\t"
+        "movq	$-19, %%r11\n\t"
         "movq	%%r10, %%r9\n\t"
         "sarq	$63, %%r10\n\t"
         "# Mask the modulus\n\t"
@@ -351,6 +361,11 @@ void fe_add(fe r, const fe a, const fe b)
     );
 }
 
+void fe_add(fe r, const fe a, const fe b)
+{
+    fe_add_int(r, a, b);
+}
+
 /* Multiply a and b into r. (r = a * b)
  *
  * r  A field element.
@@ -363,7 +378,7 @@ void fe_mul(fe r, const fe a, const fe b)
 }
 
 #ifdef HAVE_INTEL_AVX2
-void fe_mul_avx2(fe r, const fe a, const fe b)
+static INLINE void fe_mul_avx2(fe r, const fe a, const fe b)
 {
     __asm__ __volatile__ (
         "#  A[0] * B[0]\n\t"
@@ -491,114 +506,107 @@ void fe_mul_avx2(fe r, const fe a, const fe b)
 }
 #endif /* HAVE_INTEL_AVX2 */
 
-void fe_mul_x64(fe r, const fe a, const fe b)
+static INLINE void fe_mul_x64(fe r, const fe a, const fe b)
 {
     __asm__ __volatile__ (
         "#  A[0] * B[0]\n\t"
-        "movq	0(%[b]), %%rax\n\t"
-        "mulq	0(%[a])\n\t"
-        "xorq	%%r12, %%r12\n\t"
-        "movq	%%rax, %%rcx\n\t"
-        "movq	%%rdx, %%r14\n\t"
+        "movq   0(%[b]), %%rax\n\t"
+        "mulq   0(%[a])\n\t"
+        "movq   %%rax, %%rcx\n\t"
+        "movq   %%rdx, %%r8\n\t"
         "#  A[0] * B[1]\n\t"
-        "movq	8(%[b]), %%rax\n\t"
-        "mulq	0(%[a])\n\t"
-        "xorq	%%r13, %%r13\n\t"
-        "addq	%%rax, %%r14\n\t"
-        "adcq	%%rdx, %%r12\n\t"
-        "adcq	$0, %%r13\n\t"
+        "movq   8(%[b]), %%rax\n\t"
+        "mulq   0(%[a])\n\t"
+        "xorq   %%r9, %%r9\n\t"
+        "addq   %%rax, %%r8\n\t"
+        "adcq   %%rdx, %%r9\n\t"
         "#  A[1] * B[0]\n\t"
-        "movq	0(%[b]), %%rax\n\t"
-        "mulq	8(%[a])\n\t"
-        "addq	%%rax, %%r14\n\t"
-        "adcq	%%rdx, %%r12\n\t"
-        "adcq	$0, %%r13\n\t"
-        "movq	%%r14, %%r8\n\t"
+        "movq   0(%[b]), %%rax\n\t"
+        "mulq   8(%[a])\n\t"
+        "xorq   %%r10, %%r10\n\t"
+        "addq   %%rax, %%r8\n\t"
+        "adcq   %%rdx, %%r9\n\t"
+        "adcq   $0, %%r10\n\t"
         "#  A[0] * B[2]\n\t"
-        "movq	16(%[b]), %%rax\n\t"
-        "mulq	0(%[a])\n\t"
-        "xorq	%%r14, %%r14\n\t"
-        "addq	%%rax, %%r12\n\t"
-        "adcq	%%rdx, %%r13\n\t"
-        "adcq	$0, %%r14\n\t"
+        "movq   16(%[b]), %%rax\n\t"
+        "mulq   0(%[a])\n\t"
+        "addq   %%rax, %%r9\n\t"
+        "adcq   %%rdx, %%r10\n\t"
         "#  A[1] * B[1]\n\t"
-        "movq	8(%[b]), %%rax\n\t"
-        "mulq	8(%[a])\n\t"
-        "addq	%%rax, %%r12\n\t"
-        "adcq	%%rdx, %%r13\n\t"
-        "adcq	$0, %%r14\n\t"
+        "movq   8(%[b]), %%rax\n\t"
+        "mulq   8(%[a])\n\t"
+        "xorq   %%r11, %%r11\n\t"
+        "addq   %%rax, %%r9\n\t"
+        "adcq   %%rdx, %%r10\n\t"
+        "adcq   $0, %%r11\n\t"
         "#  A[2] * B[0]\n\t"
-        "movq	0(%[b]), %%rax\n\t"
-        "mulq	16(%[a])\n\t"
-        "addq	%%rax, %%r12\n\t"
-        "adcq	%%rdx, %%r13\n\t"
-        "adcq	$0, %%r14\n\t"
-        "movq	%%r12, %%r9\n\t"
+        "movq   0(%[b]), %%rax\n\t"
+        "mulq   16(%[a])\n\t"
+        "addq   %%rax, %%r9\n\t"
+        "adcq   %%rdx, %%r10\n\t"
+        "adcq   $0, %%r11\n\t"
         "#  A[0] * B[3]\n\t"
-        "movq	24(%[b]), %%rax\n\t"
-        "mulq	0(%[a])\n\t"
-        "xorq	%%r12, %%r12\n\t"
-        "addq	%%rax, %%r13\n\t"
-        "adcq	%%rdx, %%r14\n\t"
-        "adcq	$0, %%r12\n\t"
+        "movq   24(%[b]), %%rax\n\t"
+        "mulq   0(%[a])\n\t"
+        "xorq   %%r12, %%r12\n\t"
+        "addq   %%rax, %%r10\n\t"
+        "adcq   %%rdx, %%r11\n\t"
+        "adcq   $0, %%r12\n\t"
         "#  A[1] * B[2]\n\t"
-        "movq	16(%[b]), %%rax\n\t"
-        "mulq	8(%[a])\n\t"
-        "addq	%%rax, %%r13\n\t"
-        "adcq	%%rdx, %%r14\n\t"
-        "adcq	$0, %%r12\n\t"
+        "movq   16(%[b]), %%rax\n\t"
+        "mulq   8(%[a])\n\t"
+        "addq   %%rax, %%r10\n\t"
+        "adcq   %%rdx, %%r11\n\t"
+        "adcq   $0, %%r12\n\t"
         "#  A[2] * B[1]\n\t"
-        "movq	8(%[b]), %%rax\n\t"
-        "mulq	16(%[a])\n\t"
-        "addq	%%rax, %%r13\n\t"
-        "adcq	%%rdx, %%r14\n\t"
-        "adcq	$0, %%r12\n\t"
+        "movq   8(%[b]), %%rax\n\t"
+        "mulq   16(%[a])\n\t"
+        "addq   %%rax, %%r10\n\t"
+        "adcq   %%rdx, %%r11\n\t"
+        "adcq   $0, %%r12\n\t"
         "#  A[3] * B[0]\n\t"
-        "movq	0(%[b]), %%rax\n\t"
-        "mulq	24(%[a])\n\t"
-        "addq	%%rax, %%r13\n\t"
-        "adcq	%%rdx, %%r14\n\t"
-        "adcq	$0, %%r12\n\t"
-        "movq	%%r13, %%r10\n\t"
+        "movq   0(%[b]), %%rax\n\t"
+        "mulq   24(%[a])\n\t"
+        "addq   %%rax, %%r10\n\t"
+        "adcq   %%rdx, %%r11\n\t"
+        "adcq   $0, %%r12\n\t"
         "#  A[1] * B[3]\n\t"
-        "movq	24(%[b]), %%rax\n\t"
-        "mulq	8(%[a])\n\t"
-        "xorq	%%r13, %%r13\n\t"
-        "addq	%%rax, %%r14\n\t"
-        "adcq	%%rdx, %%r12\n\t"
-        "adcq	$0, %%r13\n\t"
+        "movq   24(%[b]), %%rax\n\t"
+        "mulq   8(%[a])\n\t"
+        "xorq   %%r13, %%r13\n\t"
+        "addq   %%rax, %%r11\n\t"
+        "adcq   %%rdx, %%r12\n\t"
+        "adcq   $0, %%r13\n\t"
         "#  A[2] * B[2]\n\t"
-        "movq	16(%[b]), %%rax\n\t"
-        "mulq	16(%[a])\n\t"
-        "addq	%%rax, %%r14\n\t"
-        "adcq	%%rdx, %%r12\n\t"
-        "adcq	$0, %%r13\n\t"
+        "movq   16(%[b]), %%rax\n\t"
+        "mulq   16(%[a])\n\t"
+        "addq   %%rax, %%r11\n\t"
+        "adcq   %%rdx, %%r12\n\t"
+        "adcq   $0, %%r13\n\t"
         "#  A[3] * B[1]\n\t"
-        "movq	8(%[b]), %%rax\n\t"
-        "mulq	24(%[a])\n\t"
-        "addq	%%rax, %%r14\n\t"
-        "adcq	%%rdx, %%r12\n\t"
-        "adcq	$0, %%r13\n\t"
-        "movq	%%r14, %%r11\n\t"
+        "movq   8(%[b]), %%rax\n\t"
+        "mulq   24(%[a])\n\t"
+        "addq   %%rax, %%r11\n\t"
+        "adcq   %%rdx, %%r12\n\t"
+        "adcq   $0, %%r13\n\t"
         "#  A[2] * B[3]\n\t"
-        "movq	24(%[b]), %%rax\n\t"
-        "mulq	16(%[a])\n\t"
-        "xorq	%%r14, %%r14\n\t"
-        "addq	%%rax, %%r12\n\t"
-        "adcq	%%rdx, %%r13\n\t"
-        "adcq	$0, %%r14\n\t"
+        "movq   24(%[b]), %%rax\n\t"
+        "mulq   16(%[a])\n\t"
+        "xorq   %%r14, %%r14\n\t"
+        "addq   %%rax, %%r12\n\t"
+        "adcq   %%rdx, %%r13\n\t"
+        "adcq   $0, %%r14\n\t"
         "#  A[3] * B[2]\n\t"
-        "movq	16(%[b]), %%rax\n\t"
-        "mulq	24(%[a])\n\t"
-        "addq	%%rax, %%r12\n\t"
-        "adcq	%%rdx, %%r13\n\t"
-        "adcq	$0, %%r14\n\t"
-        "movq	%%r12, %%r12\n\t"
+        "movq   16(%[b]), %%rax\n\t"
+        "mulq   24(%[a])\n\t"
+        "addq   %%rax, %%r12\n\t"
+        "adcq   %%rdx, %%r13\n\t"
+        "adcq   $0, %%r14\n\t"
         "#  A[3] * B[3]\n\t"
-        "movq	24(%[b]), %%rax\n\t"
-        "mulq	24(%[a])\n\t"
-        "addq	%%rax, %%r13\n\t"
-        "adcq	%%rdx, %%r14\n\t"
+        "movq   24(%[b]), %%rax\n\t"
+        "mulq   24(%[a])\n\t"
+        "addq   %%rax, %%r13\n\t"
+        "adcq   %%rdx, %%r14\n\t"
         "# Reduce\n\t"
         "movq	$0x7fffffffffffffff, %%rbx\n\t"
         "#  Move top half into t4-t7 and remove top bit from t3\n\t"
@@ -662,7 +670,7 @@ void fe_sq(fe r, const fe a)
 }
 
 #ifdef HAVE_INTEL_AVX2
-void fe_sq_avx2(fe r, const fe a)
+static INLINE void fe_sq_avx2(fe r, const fe a)
 {
     __asm__ __volatile__ (
         "# A[0] * A[1]\n\t"
@@ -766,96 +774,80 @@ void fe_sq_avx2(fe r, const fe a)
 }
 #endif /* HAVE_INTEL_AVX2 */
 
-void fe_sq_x64(fe r, const fe a)
+static INLINE void fe_sq_x64(fe r, const fe a)
 {
     __asm__ __volatile__ (
-        "#  A[0] * A[0]\n\t"
-        "movq	0(%[a]), %%rax\n\t"
-        "mulq	%%rax\n\t"
-        "xorq	%%r12, %%r12\n\t"
-        "movq	%%rax, %%rcx\n\t"
-        "movq	%%rdx, %%r14\n\t"
         "#  A[0] * A[1]\n\t"
-        "movq	8(%[a]), %%rax\n\t"
-        "mulq	0(%[a])\n\t"
-        "xorq	%%r13, %%r13\n\t"
-        "addq	%%rax, %%r14\n\t"
-        "adcq	%%rdx, %%r12\n\t"
-        "adcq	$0, %%r13\n\t"
-        "addq	%%rax, %%r14\n\t"
-        "adcq	%%rdx, %%r12\n\t"
-        "adcq	$0, %%r13\n\t"
-        "movq	%%r14, %%r8\n\t"
+        "movq   0(%[a]), %%rax\n\t"
+        "mulq   8(%[a])\n\t"
+        "movq   %%rax, %%r8\n\t"
+        "movq   %%rdx, %%r9\n\t"
         "#  A[0] * A[2]\n\t"
-        "movq	16(%[a]), %%rax\n\t"
-        "mulq	0(%[a])\n\t"
-        "xorq	%%r14, %%r14\n\t"
-        "addq	%%rax, %%r12\n\t"
-        "adcq	%%rdx, %%r13\n\t"
-        "adcq	$0, %%r14\n\t"
-        "addq	%%rax, %%r12\n\t"
-        "adcq	%%rdx, %%r13\n\t"
-        "adcq	$0, %%r14\n\t"
-        "#  A[1] * A[1]\n\t"
-        "movq	8(%[a]), %%rax\n\t"
-        "mulq	%%rax\n\t"
-        "addq	%%rax, %%r12\n\t"
-        "adcq	%%rdx, %%r13\n\t"
-        "adcq	$0, %%r14\n\t"
-        "movq	%%r12, %%r9\n\t"
+        "movq   0(%[a]), %%rax\n\t"
+        "mulq   16(%[a])\n\t"
+        "xorq   %%r10, %%r10\n\t"
+        "addq   %%rax, %%r9\n\t"
+        "adcq   %%rdx, %%r10\n\t"
         "#  A[0] * A[3]\n\t"
-        "movq	24(%[a]), %%rax\n\t"
-        "mulq	0(%[a])\n\t"
-        "xorq	%%r12, %%r12\n\t"
-        "addq	%%rax, %%r13\n\t"
-        "adcq	%%rdx, %%r14\n\t"
-        "adcq	$0, %%r12\n\t"
-        "addq	%%rax, %%r13\n\t"
-        "adcq	%%rdx, %%r14\n\t"
-        "adcq	$0, %%r12\n\t"
+        "movq   0(%[a]), %%rax\n\t"
+        "mulq   24(%[a])\n\t"
+        "xorq   %%r11, %%r11\n\t"
+        "addq   %%rax, %%r10\n\t"
+        "adcq   %%rdx, %%r11\n\t"
         "#  A[1] * A[2]\n\t"
-        "movq	16(%[a]), %%rax\n\t"
-        "mulq	8(%[a])\n\t"
-        "addq	%%rax, %%r13\n\t"
-        "adcq	%%rdx, %%r14\n\t"
-        "adcq	$0, %%r12\n\t"
-        "addq	%%rax, %%r13\n\t"
-        "adcq	%%rdx, %%r14\n\t"
-        "adcq	$0, %%r12\n\t"
-        "movq	%%r13, %%r10\n\t"
+        "movq   8(%[a]), %%rax\n\t"
+        "mulq   16(%[a])\n\t"
+        "xorq   %%r12, %%r12\n\t"
+        "addq   %%rax, %%r10\n\t"
+        "adcq   %%rdx, %%r11\n\t"
+        "adcq   $0, %%r12\n\t"
         "#  A[1] * A[3]\n\t"
-        "movq	24(%[a]), %%rax\n\t"
-        "mulq	8(%[a])\n\t"
-        "xorq	%%r13, %%r13\n\t"
-        "addq	%%rax, %%r14\n\t"
-        "adcq	%%rdx, %%r12\n\t"
-        "adcq	$0, %%r13\n\t"
-        "addq	%%rax, %%r14\n\t"
-        "adcq	%%rdx, %%r12\n\t"
-        "adcq	$0, %%r13\n\t"
-        "#  A[2] * A[2]\n\t"
-        "movq	16(%[a]), %%rax\n\t"
-        "mulq	%%rax\n\t"
-        "addq	%%rax, %%r14\n\t"
-        "adcq	%%rdx, %%r12\n\t"
-        "adcq	$0, %%r13\n\t"
-        "movq	%%r14, %%r11\n\t"
+        "movq   8(%[a]), %%rax\n\t"
+        "mulq   24(%[a])\n\t"
+        "addq   %%rax, %%r11\n\t"
+        "adcq   %%rdx, %%r12\n\t"
         "#  A[2] * A[3]\n\t"
-        "movq	24(%[a]), %%rax\n\t"
-        "mulq	16(%[a])\n\t"
-        "xorq	%%r14, %%r14\n\t"
-        "addq	%%rax, %%r12\n\t"
-        "adcq	%%rdx, %%r13\n\t"
-        "adcq	$0, %%r14\n\t"
-        "addq	%%rax, %%r12\n\t"
-        "adcq	%%rdx, %%r13\n\t"
-        "adcq	$0, %%r14\n\t"
-        "movq	%%r12, %%r12\n\t"
+        "movq   16(%[a]), %%rax\n\t"
+        "mulq   24(%[a])\n\t"
+        "xorq   %%r13, %%r13\n\t"
+        "addq   %%rax, %%r12\n\t"
+        "adcq   %%rdx, %%r13\n\t"
+        "# Double\n\t"
+        "xorq   %%r14, %%r14\n\t"
+        "addq   %%r8, %%r8\n\t"
+        "adcq   %%r9, %%r9\n\t"
+        "adcq   %%r10, %%r10\n\t"
+        "adcq   %%r11, %%r11\n\t"
+        "adcq   %%r12, %%r12\n\t"
+        "adcq   %%r13, %%r13\n\t"
+        "adcq   $0, %%r14\n\t"
+        "#  A[0] * A[0]\n\t"
+        "movq   0(%[a]), %%rax\n\t"
+        "mulq   %%rax\n\t"
+        "movq   %%rax, %%rcx\n\t"
+        "movq   %%rdx, %%r15\n\t"
+        "#  A[1] * A[1]\n\t"
+        "movq   8(%[a]), %%rax\n\t"
+        "mulq   %%rax\n\t"
+        "addq   %%r15, %%r8\n\t"
+        "adcq   %%rax, %%r9\n\t"
+        "adcq   $0, %%rdx\n\t"
+        "movq   %%rdx, %%r15\n\t"
+        "#  A[2] * A[2]\n\t"
+        "movq   16(%[a]), %%rax\n\t"
+        "mulq   %%rax\n\t"
+        "addq   %%r15, %%r10\n\t"
+        "adcq   %%rax, %%r11\n\t"
+        "adcq   $0, %%rdx\n\t"
+        "movq   %%rdx, %%r15\n\t"
         "#  A[3] * A[3]\n\t"
-        "movq	24(%[a]), %%rax\n\t"
-        "mulq	%%rax\n\t"
-        "addq	%%rax, %%r13\n\t"
-        "adcq	%%rdx, %%r14\n\t"
+        "movq   24(%[a]), %%rax\n\t"
+        "mulq   %%rax\n\t"
+        "addq   %%rax, %%r13\n\t"
+        "adcq   %%rdx, %%r14\n\t"
+        "addq   %%r15, %%r12\n\t"
+        "adcq   $0, %%r13\n\t"
+        "adcq   $0, %%r14\n\t"
         "# Reduce\n\t"
         "movq	$0x7fffffffffffffff, %%rbx\n\t"
         "#  Move top half into t4-t7 and remove top bit from t3\n\t"
@@ -903,7 +895,7 @@ void fe_sq_x64(fe r, const fe a)
         :
         : [r] "r" (r), [a] "r" (a)
         : "memory", "rax", "rbx", "rdx", "rcx", "r8", "r9", "r10", "r11", "r12",
-          "r13", "r14"
+          "r13", "r14", "r15"
     );
 }
 
@@ -913,7 +905,7 @@ void fe_sq_x64(fe r, const fe a)
  * a  A field element.
  * b  A field element.
  */
-void fe_mul121666(fe r, fe a)
+static INLINE void fe_mul121666_int(fe r, fe a)
 {
     __asm__ __volatile__ (
         "movq	$0x7fffffffffffffff, %%rcx\n\t"
@@ -941,7 +933,7 @@ void fe_mul121666(fe r, fe a)
         "movq	$19, %%rax\n\t"
         "mulq	%%r12\n\t"
         "addq	%%rax, %%r8\n\t"
-        "adcq	%%rdx, %%r9\n\t"
+        "adcq	$0, %%r9\n\t"
         "adcq	$0, %%r10\n\t"
         "adcq	$0, %%r11\n\t"
         "movq	%%r8, 0(%[r])\n\t"
@@ -952,6 +944,11 @@ void fe_mul121666(fe r, fe a)
         : [r] "r" (r), [a] "r" (a)
         : "memory", "rax", "rcx", "rdx", "r8", "r9", "r10", "r11", "r12"
     );
+}
+
+void fe_mul121666(fe r, fe a)
+{
+    fe_mul121666_int(r, a);
 }
 
 /* Find the inverse of a modulo 2^255 - 1 and put result in r.
@@ -981,6 +978,62 @@ void fe_invert(fe r, const fe a)
     fe_sq(t1, t1); for (i = 1; i <   5; ++i) fe_sq(t1, t1); fe_mul( r, t1, t0);
 }
 
+#ifdef HAVE_INTEL_AVX2
+/* Find the inverse of a modulo 2^255 - 1 and put result in r.
+ * (r * a) mod (2^255 - 1) = 1
+ * Implementation is constant time.
+ *
+ * r  A field element.
+ * a  A field element.
+ */
+static void fe_invert_avx2(fe r, const fe a)
+{
+    fe  t0, t1, t2, t3;
+    int i;
+
+    /* a ^ (2^255 - 21) */
+    fe_sq_avx2(t0,  a); for (i = 1; i <   1; ++i) fe_sq_avx2(t0, t0);
+    fe_sq_avx2(t1, t0); for (i = 1; i <   2; ++i) fe_sq_avx2(t1, t1); fe_mul_avx2(t1,  a, t1);
+    fe_mul_avx2(t0, t0, t1);
+    fe_sq_avx2(t2, t0); for (i = 1; i <   1; ++i) fe_sq_avx2(t2, t2); fe_mul_avx2(t1, t1, t2);
+    fe_sq_avx2(t2, t1); for (i = 1; i <   5; ++i) fe_sq_avx2(t2, t2); fe_mul_avx2(t1, t2, t1);
+    fe_sq_avx2(t2, t1); for (i = 1; i <  10; ++i) fe_sq_avx2(t2, t2); fe_mul_avx2(t2, t2, t1);
+    fe_sq_avx2(t3, t2); for (i = 1; i <  20; ++i) fe_sq_avx2(t3, t3); fe_mul_avx2(t2, t3, t2);
+    fe_sq_avx2(t2, t2); for (i = 1; i <  10; ++i) fe_sq_avx2(t2, t2); fe_mul_avx2(t1, t2, t1);
+    fe_sq_avx2(t2, t1); for (i = 1; i <  50; ++i) fe_sq_avx2(t2, t2); fe_mul_avx2(t2, t2, t1);
+    fe_sq_avx2(t3, t2); for (i = 1; i < 100; ++i) fe_sq_avx2(t3, t3); fe_mul_avx2(t2, t3, t2);
+    fe_sq_avx2(t2, t2); for (i = 1; i <  50; ++i) fe_sq_avx2(t2, t2); fe_mul_avx2(t1, t2, t1);
+    fe_sq_avx2(t1, t1); for (i = 1; i <   5; ++i) fe_sq_avx2(t1, t1); fe_mul_avx2( r, t1, t0);
+}
+#endif
+
+/* Find the inverse of a modulo 2^255 - 1 and put result in r.
+ * (r * a) mod (2^255 - 1) = 1
+ * Implementation is constant time.
+ *
+ * r  A field element.
+ * a  A field element.
+ */
+static void fe_invert_x64(fe r, const fe a)
+{
+    fe  t0, t1, t2, t3;
+    int i;
+
+    /* a ^ (2^255 - 21) */
+    fe_sq_x64(t0,  a); for (i = 1; i <   1; ++i) fe_sq_x64(t0, t0);
+    fe_sq_x64(t1, t0); for (i = 1; i <   2; ++i) fe_sq_x64(t1, t1); fe_mul_x64(t1,  a, t1);
+    fe_mul_x64(t0, t0, t1);
+    fe_sq_x64(t2, t0); for (i = 1; i <   1; ++i) fe_sq_x64(t2, t2); fe_mul_x64(t1, t1, t2);
+    fe_sq_x64(t2, t1); for (i = 1; i <   5; ++i) fe_sq_x64(t2, t2); fe_mul_x64(t1, t2, t1);
+    fe_sq_x64(t2, t1); for (i = 1; i <  10; ++i) fe_sq_x64(t2, t2); fe_mul_x64(t2, t2, t1);
+    fe_sq_x64(t3, t2); for (i = 1; i <  20; ++i) fe_sq_x64(t3, t3); fe_mul_x64(t2, t3, t2);
+    fe_sq_x64(t2, t2); for (i = 1; i <  10; ++i) fe_sq_x64(t2, t2); fe_mul_x64(t1, t2, t1);
+    fe_sq_x64(t2, t1); for (i = 1; i <  50; ++i) fe_sq_x64(t2, t2); fe_mul_x64(t2, t2, t1);
+    fe_sq_x64(t3, t2); for (i = 1; i < 100; ++i) fe_sq_x64(t3, t3); fe_mul_x64(t2, t3, t2);
+    fe_sq_x64(t2, t2); for (i = 1; i <  50; ++i) fe_sq_x64(t2, t2); fe_mul_x64(t1, t2, t1);
+    fe_sq_x64(t1, t1); for (i = 1; i <   5; ++i) fe_sq_x64(t1, t1); fe_mul_x64( r, t1, t0);
+}
+
 /* Scalar multiply the field element a by n using Montgomery Ladder and places
  * result in r.
  *
@@ -992,9 +1045,9 @@ int curve25519(byte* r, byte* n, byte* a)
 {
     fe           x1, x2, z2, x3, z3;
     fe           t0, t1;
-    int          pos;
-    unsigned int swap;
-    unsigned int b;
+    int          i, j;
+    unsigned int swap = 0;
+    unsigned int b, prev_b = 0;
 
     fe_frombytes(x1, a);
     fe_1(x2);
@@ -1002,40 +1055,82 @@ int curve25519(byte* r, byte* n, byte* a)
     fe_copy(x3, x1);
     fe_1(z3);
 
-    swap = 0;
-    for (pos = 254;pos >= 0;--pos) {
-        b = n[pos / 8] >> (pos & 7);
-        b &= 1;
-        swap ^= b;
-        fe_cswap(x2, x3, swap);
-        fe_cswap(z2, z3, swap);
-        swap = b;
+    if (IS_INTEL_AVX2(intelFlags) && IS_INTEL_BMI2(intelFlags)) {
+        j = 6;
+        for (i = 31; i >= 0; i--) {
+            while (j >= 0) {
+                b = n[i] >> j;
+                b &= 1;
+                swap = b ^ prev_b;
+                prev_b = b;
+                fe_cswap_int(x2, x3, swap);
+                fe_cswap_int(z2, z3, swap);
 
-        fe_sub(t0, x3, z3);
-        fe_sub(t1, x2, z2);
-        fe_add(x2, x2, z2);
-        fe_add(z2, x3, z3);
-        fe_mul(z3, t0, x2);
-        fe_mul(z2, z2, t1);
-        fe_sq(t0, t1);
-        fe_sq(t1, x2);
-        fe_add(x3, z3, z2);
-        fe_sub(z2, z3, z2);
-        fe_mul(x2, t1, t0);
-        fe_sub(t1, t1, t0);
-        fe_sq(z2, z2);
-        fe_mul121666(z3, t1);
-        fe_sq(x3, x3);
-        fe_add(t0, t0, z3);
-        fe_mul(z3, x1, z2);
-        fe_mul(z2, t1, t0);
+                fe_sub_int(t0, x3, z3);
+                fe_sub_int(t1, x2, z2);
+                fe_add_int(x2, x2, z2);
+                fe_add_int(z2, x3, z3);
+                fe_mul_avx2(z3, t0, x2);
+                fe_mul_avx2(z2, z2, t1);
+                fe_sq_avx2(t0, t1);
+                fe_sq_avx2(t1, x2);
+                fe_add_int(x3, z3, z2);
+                fe_sub_int(z2, z3, z2);
+                fe_mul_avx2(x2, t1, t0);
+                fe_sub_int(t1, t1, t0);
+                fe_sq_avx2(z2, z2);
+                fe_mul121666_int(z3, t1);
+                fe_sq_avx2(x3, x3);
+                fe_add_int(t0, t0, z3);
+                fe_mul_avx2(z3, x1, z2);
+                fe_mul_avx2(z2, t1, t0);
+                j--;
+            }
+            j = 7;
+        }
+
+        fe_invert_avx2(z2, z2);
+        fe_mul_avx2(x2, x2, z2);
+        fe_tobytes(r, x2);
     }
-    fe_cswap(x2, x3, swap);
-    fe_cswap(z2, z3, swap);
+    else {
+        j = 6;
+        for (i = 31; i >= 0; i--) {
+            while (j >= 0) {
+                b = n[i] >> j;
+                b &= 1;
+                swap = b ^ prev_b;
+                prev_b = b;
+                fe_cswap_int(x2, x3, swap);
+                fe_cswap_int(z2, z3, swap);
 
-    fe_invert(z2, z2);
-    fe_mul(x2, x2, z2);
-    fe_tobytes(r, x2);
+                fe_sub_int(t0, x3, z3);
+                fe_sub_int(t1, x2, z2);
+                fe_add_int(x2, x2, z2);
+                fe_add_int(z2, x3, z3);
+                fe_mul_x64(z3, t0, x2);
+                fe_mul_x64(z2, z2, t1);
+                fe_sq_x64(t0, t1);
+                fe_sq_x64(t1, x2);
+                fe_add_int(x3, z3, z2);
+                fe_sub_int(z2, z3, z2);
+                fe_mul_x64(x2, t1, t0);
+                fe_sub_int(t1, t1, t0);
+                fe_sq_x64(z2, z2);
+                fe_mul121666_int(z3, t1);
+                fe_sq_x64(x3, x3);
+                fe_add_int(t0, t0, z3);
+                fe_mul_x64(z3, x1, z2);
+                fe_mul_x64(z2, t1, t0);
+                j--;
+            }
+            j = 7;
+        }
+
+        fe_invert_x64(z2, z2);
+        fe_mul_x64(x2, x2, z2);
+        fe_tobytes(r, x2);
+    }
 
     return 0;
 }
@@ -1101,24 +1196,19 @@ void fe_neg(fe r, const fe a)
 void fe_cmov(fe a, const fe b, int c)
 {
     __asm__ __volatile__ (
-        "movslq	%[c], %%rax\n\t"
-        "negq	%%rax\n\t"
+        "cmpl   $1, %[c]\n\t"
         "movq	 0(%[a]), %%rcx\n\t"
         "movq	 8(%[a]), %%rdx\n\t"
         "movq	16(%[a]), %%r8\n\t"
         "movq	24(%[a]), %%r9\n\t"
-        "xorq	 0(%[b]), %%rcx\n\t"
-        "xorq	 8(%[b]), %%rdx\n\t"
-        "xorq	16(%[b]), %%r8\n\t"
-        "xorq	24(%[b]), %%r9\n\t"
-        "andq	%%rax, %%rcx\n\t"
-        "andq	%%rax, %%rdx\n\t"
-        "andq	%%rax, %%r8\n\t"
-        "andq	%%rax, %%r9\n\t"
-        "xorq	%%rcx,  0(%[a])\n\t"
-        "xorq	%%rdx,  8(%[a])\n\t"
-        "xorq	%%r8, 16(%[a])\n\t"
-        "xorq	%%r9, 24(%[a])\n\t"
+        "cmoveq	 0(%[b]), %%rcx\n\t"
+        "cmoveq	 8(%[b]), %%rdx\n\t"
+        "cmoveq	16(%[b]), %%r8\n\t"
+        "cmoveq	24(%[b]), %%r9\n\t"
+        "movq	%%rcx,  0(%[a])\n\t"
+        "movq	%%rdx,  8(%[a])\n\t"
+        "movq	%%r8, 16(%[a])\n\t"
+        "movq	%%r9, 24(%[a])\n\t"
         :
         : [a] "r" (a), [b] "r" (b), [c] "r" (c)
         : "memory", "rax", "rcx", "rdx", "r8", "r9"
@@ -1159,7 +1249,7 @@ void fe_sq2(fe r, const fe a)
 }
 
 #ifdef HAVE_INTEL_AVX2
-void fe_sq2_avx2(fe r, const fe a)
+static INLINE void fe_sq2_avx2(fe r, const fe a)
 {
     __asm__ __volatile__ (
         "# A[0] * A[1]\n\t"
@@ -1274,96 +1364,80 @@ void fe_sq2_avx2(fe r, const fe a)
 }
 #endif /* HAVE_INTEL_AVX2 */
 
-void fe_sq2_x64(fe r, const fe a)
+static INLINE void fe_sq2_x64(fe r, const fe a)
 {
     __asm__ __volatile__ (
-        "#  A[0] * A[0]\n\t"
-        "movq	0(%[a]), %%rax\n\t"
-        "mulq	%%rax\n\t"
-        "xorq	%%r12, %%r12\n\t"
-        "movq	%%rax, %%rcx\n\t"
-        "movq	%%rdx, %%r14\n\t"
         "#  A[0] * A[1]\n\t"
-        "movq	8(%[a]), %%rax\n\t"
-        "mulq	0(%[a])\n\t"
-        "xorq	%%r13, %%r13\n\t"
-        "addq	%%rax, %%r14\n\t"
-        "adcq	%%rdx, %%r12\n\t"
-        "adcq	$0, %%r13\n\t"
-        "addq	%%rax, %%r14\n\t"
-        "adcq	%%rdx, %%r12\n\t"
-        "adcq	$0, %%r13\n\t"
-        "movq	%%r14, %%r8\n\t"
+        "movq   0(%[a]), %%rax\n\t"
+        "mulq   8(%[a])\n\t"
+        "movq   %%rax, %%r8\n\t"
+        "movq   %%rdx, %%r9\n\t"
         "#  A[0] * A[2]\n\t"
-        "movq	16(%[a]), %%rax\n\t"
-        "mulq	0(%[a])\n\t"
-        "xorq	%%r14, %%r14\n\t"
-        "addq	%%rax, %%r12\n\t"
-        "adcq	%%rdx, %%r13\n\t"
-        "adcq	$0, %%r14\n\t"
-        "addq	%%rax, %%r12\n\t"
-        "adcq	%%rdx, %%r13\n\t"
-        "adcq	$0, %%r14\n\t"
-        "#  A[1] * A[1]\n\t"
-        "movq	8(%[a]), %%rax\n\t"
-        "mulq	%%rax\n\t"
-        "addq	%%rax, %%r12\n\t"
-        "adcq	%%rdx, %%r13\n\t"
-        "adcq	$0, %%r14\n\t"
-        "movq	%%r12, %%r9\n\t"
+        "movq   0(%[a]), %%rax\n\t"
+        "mulq   16(%[a])\n\t"
+        "xorq   %%r10, %%r10\n\t"
+        "addq   %%rax, %%r9\n\t"
+        "adcq   %%rdx, %%r10\n\t"
         "#  A[0] * A[3]\n\t"
-        "movq	24(%[a]), %%rax\n\t"
-        "mulq	0(%[a])\n\t"
-        "xorq	%%r12, %%r12\n\t"
-        "addq	%%rax, %%r13\n\t"
-        "adcq	%%rdx, %%r14\n\t"
-        "adcq	$0, %%r12\n\t"
-        "addq	%%rax, %%r13\n\t"
-        "adcq	%%rdx, %%r14\n\t"
-        "adcq	$0, %%r12\n\t"
+        "movq   0(%[a]), %%rax\n\t"
+        "mulq   24(%[a])\n\t"
+        "xorq   %%r11, %%r11\n\t"
+        "addq   %%rax, %%r10\n\t"
+        "adcq   %%rdx, %%r11\n\t"
         "#  A[1] * A[2]\n\t"
-        "movq	16(%[a]), %%rax\n\t"
-        "mulq	8(%[a])\n\t"
-        "addq	%%rax, %%r13\n\t"
-        "adcq	%%rdx, %%r14\n\t"
-        "adcq	$0, %%r12\n\t"
-        "addq	%%rax, %%r13\n\t"
-        "adcq	%%rdx, %%r14\n\t"
-        "adcq	$0, %%r12\n\t"
-        "movq	%%r13, %%r10\n\t"
+        "movq   8(%[a]), %%rax\n\t"
+        "mulq   16(%[a])\n\t"
+        "xorq   %%r12, %%r12\n\t"
+        "addq   %%rax, %%r10\n\t"
+        "adcq   %%rdx, %%r11\n\t"
+        "adcq   $0, %%r12\n\t"
         "#  A[1] * A[3]\n\t"
-        "movq	24(%[a]), %%rax\n\t"
-        "mulq	8(%[a])\n\t"
-        "xorq	%%r13, %%r13\n\t"
-        "addq	%%rax, %%r14\n\t"
-        "adcq	%%rdx, %%r12\n\t"
-        "adcq	$0, %%r13\n\t"
-        "addq	%%rax, %%r14\n\t"
-        "adcq	%%rdx, %%r12\n\t"
-        "adcq	$0, %%r13\n\t"
-        "#  A[2] * A[2]\n\t"
-        "movq	16(%[a]), %%rax\n\t"
-        "mulq	%%rax\n\t"
-        "addq	%%rax, %%r14\n\t"
-        "adcq	%%rdx, %%r12\n\t"
-        "adcq	$0, %%r13\n\t"
-        "movq	%%r14, %%r11\n\t"
+        "movq   8(%[a]), %%rax\n\t"
+        "mulq   24(%[a])\n\t"
+        "addq   %%rax, %%r11\n\t"
+        "adcq   %%rdx, %%r12\n\t"
         "#  A[2] * A[3]\n\t"
-        "movq	24(%[a]), %%rax\n\t"
-        "mulq	16(%[a])\n\t"
-        "xorq	%%r14, %%r14\n\t"
-        "addq	%%rax, %%r12\n\t"
-        "adcq	%%rdx, %%r13\n\t"
-        "adcq	$0, %%r14\n\t"
-        "addq	%%rax, %%r12\n\t"
-        "adcq	%%rdx, %%r13\n\t"
-        "adcq	$0, %%r14\n\t"
-        "movq	%%r12, %%r12\n\t"
+        "movq   16(%[a]), %%rax\n\t"
+        "mulq   24(%[a])\n\t"
+        "xorq   %%r13, %%r13\n\t"
+        "addq   %%rax, %%r12\n\t"
+        "adcq   %%rdx, %%r13\n\t"
+        "# Double\n\t"
+        "xorq   %%r14, %%r14\n\t"
+        "addq   %%r8, %%r8\n\t"
+        "adcq   %%r9, %%r9\n\t"
+        "adcq   %%r10, %%r10\n\t"
+        "adcq   %%r11, %%r11\n\t"
+        "adcq   %%r12, %%r12\n\t"
+        "adcq   %%r13, %%r13\n\t"
+        "adcq   $0, %%r14\n\t"
+        "#  A[0] * A[0]\n\t"
+        "movq   0(%[a]), %%rax\n\t"
+        "mulq   %%rax\n\t"
+        "movq   %%rax, %%rcx\n\t"
+        "movq   %%rdx, %%r15\n\t"
+        "#  A[1] * A[1]\n\t"
+        "movq   8(%[a]), %%rax\n\t"
+        "mulq   %%rax\n\t"
+        "addq   %%r15, %%r8\n\t"
+        "adcq   %%rax, %%r9\n\t"
+        "adcq   $0, %%rdx\n\t"
+        "movq   %%rdx, %%r15\n\t"
+        "#  A[2] * A[2]\n\t"
+        "movq   16(%[a]), %%rax\n\t"
+        "mulq   %%rax\n\t"
+        "addq   %%r15, %%r10\n\t"
+        "adcq   %%rax, %%r11\n\t"
+        "adcq   $0, %%rdx\n\t"
+        "movq   %%rdx, %%r15\n\t"
         "#  A[3] * A[3]\n\t"
-        "movq	24(%[a]), %%rax\n\t"
-        "mulq	%%rax\n\t"
-        "addq	%%rax, %%r13\n\t"
-        "adcq	%%rdx, %%r14\n\t"
+        "movq   24(%[a]), %%rax\n\t"
+        "mulq   %%rax\n\t"
+        "addq   %%rax, %%r13\n\t"
+        "adcq   %%rdx, %%r14\n\t"
+        "addq   %%r15, %%r12\n\t"
+        "adcq   $0, %%r13\n\t"
+        "adcq   $0, %%r14\n\t"
         "# Reduce\n\t"
         "movq	$0x7fffffffffffffff, %%rbx\n\t"
         "xorq	%%rax, %%rax\n\t"
@@ -1457,5 +1531,474 @@ uint64_t load_4(const unsigned char *in)
               (((uint64_t)in[3]) << 24));
 
     return result;
+}
+
+void fe_ge_to_p2(fe rx, fe ry, fe rz, const fe px, const fe py, const fe pz,
+                 const fe pt)
+{
+    if (IS_INTEL_AVX2(intelFlags) && IS_INTEL_BMI2(intelFlags)) {
+        fe_mul_avx2(rx, px, pt);
+        fe_mul_avx2(ry, py, pz);
+        fe_mul_avx2(rz, pz, pt);
+    }
+    else {
+        fe_mul_x64(rx, px, pt);
+        fe_mul_x64(ry, py, pz);
+        fe_mul_x64(rz, pz, pt);
+    }
+}
+
+void fe_ge_to_p3(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py,
+               const fe pz, const fe pt)
+{
+    if (IS_INTEL_AVX2(intelFlags) && IS_INTEL_BMI2(intelFlags)) {
+        fe_mul_avx2(rx, px, pt);
+        fe_mul_avx2(ry, py, pz);
+        fe_mul_avx2(rz, pz, pt);
+        fe_mul_avx2(rt, px, py);
+    }
+    else {
+        fe_mul_x64(rx, px, pt);
+        fe_mul_x64(ry, py, pz);
+        fe_mul_x64(rz, pz, pt);
+        fe_mul_x64(rt, px, py);
+    }
+}
+
+void fe_ge_dbl(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py,
+               const fe pz)
+{
+    fe t0;
+    if (IS_INTEL_AVX2(intelFlags) && IS_INTEL_BMI2(intelFlags)) {
+        fe_sq_avx2(rx,px);
+        fe_sq_avx2(rz,py);
+        fe_sq2_avx2(rt,pz);
+        fe_add_int(ry,px,py);
+        fe_sq_avx2(t0,ry);
+        fe_add_int(ry,rz,rx);
+        fe_sub_int(rz,rz,rx);
+        fe_sub_int(rx,t0,ry);
+        fe_sub_int(rt,rt,rz);
+    }
+    else {
+        fe_sq_x64(rx,px);
+        fe_sq_x64(rz,py);
+        fe_sq2_x64(rt,pz);
+        fe_add_int(ry,px,py);
+        fe_sq_x64(t0,ry);
+        fe_add_int(ry,rz,rx);
+        fe_sub_int(rz,rz,rx);
+        fe_sub_int(rx,t0,ry);
+        fe_sub_int(rt,rt,rz);
+    }
+}
+
+void fe_ge_madd(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py,
+                const fe pz, const fe pt, const fe qxy2d, const fe qyplusx,
+                const fe qyminusx)
+{
+    fe t0;
+    if (IS_INTEL_AVX2(intelFlags) && IS_INTEL_BMI2(intelFlags)) {
+        fe_add_int(rx,py,px);
+        fe_sub_int(ry,py,px);
+        fe_mul_avx2(rz,rx,qyplusx);
+        fe_mul_avx2(ry,ry,qyminusx);
+        fe_mul_avx2(rt,qxy2d,pt);
+        fe_add_int(t0,pz,pz);
+        fe_sub_int(rx,rz,ry);
+        fe_add_int(ry,rz,ry);
+        fe_add_int(rz,t0,rt);
+        fe_sub_int(rt,t0,rt);
+    }
+    else {
+        fe_add_int(rx,py,px);
+        fe_sub_int(ry,py,px);
+        fe_mul_x64(rz,rx,qyplusx);
+        fe_mul_x64(ry,ry,qyminusx);
+        fe_mul_x64(rt,qxy2d,pt);
+        fe_add_int(t0,pz,pz);
+        fe_sub_int(rx,rz,ry);
+        fe_add_int(ry,rz,ry);
+        fe_add_int(rz,t0,rt);
+        fe_sub_int(rt,t0,rt);
+    }
+}
+
+void fe_ge_msub(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py,
+                const fe pz, const fe pt, const fe qxy2d, const fe qyplusx,
+                const fe qyminusx)
+{
+    fe t0;
+    if (IS_INTEL_AVX2(intelFlags) && IS_INTEL_BMI2(intelFlags)) {
+        fe_add_int(rx,py,px);
+        fe_sub_int(ry,py,px);
+        fe_mul_avx2(rz,rx,qyminusx);
+        fe_mul_avx2(ry,ry,qyplusx);
+        fe_mul_avx2(rt,qxy2d,pt);
+        fe_add_int(t0,pz,pz);
+        fe_sub_int(rx,rz,ry);
+        fe_add_int(ry,rz,ry);
+        fe_sub_int(rz,t0,rt);
+        fe_add_int(rt,t0,rt);
+    }
+    else {
+        fe_add_int(rx,py,px);
+        fe_sub_int(ry,py,px);
+        fe_mul_x64(rz,rx,qyminusx);
+        fe_mul_x64(ry,ry,qyplusx);
+        fe_mul_x64(rt,qxy2d,pt);
+        fe_add_int(t0,pz,pz);
+        fe_sub_int(rx,rz,ry);
+        fe_add_int(ry,rz,ry);
+        fe_sub_int(rz,t0,rt);
+        fe_add_int(rt,t0,rt);
+    }
+}
+
+void fe_ge_add(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py,
+               const fe pz, const fe pt, const fe qz, const fe qt2d,
+               const fe qyplusx, const fe qyminusx)
+{
+    fe t0;
+    if (IS_INTEL_AVX2(intelFlags) && IS_INTEL_BMI2(intelFlags)) {
+        fe_add_int(rx,py,px);
+        fe_sub_int(ry,py,px);
+        fe_mul_avx2(rz,rx,qyplusx);
+        fe_mul_avx2(ry,ry,qyminusx);
+        fe_mul_avx2(rt,qt2d,pt);
+        fe_mul_avx2(rx,pz,qz);
+        fe_add_int(t0,rx,rx);
+        fe_sub_int(rx,rz,ry);
+        fe_add_int(ry,rz,ry);
+        fe_add_int(rz,t0,rt);
+        fe_sub_int(rt,t0,rt);
+    }
+    else {
+        fe_add_int(rx,py,px);
+        fe_sub_int(ry,py,px);
+        fe_mul_x64(rz,rx,qyplusx);
+        fe_mul_x64(ry,ry,qyminusx);
+        fe_mul_x64(rt,qt2d,pt);
+        fe_mul_x64(rx,pz,qz);
+        fe_add_int(t0,rx,rx);
+        fe_sub_int(rx,rz,ry);
+        fe_add_int(ry,rz,ry);
+        fe_add_int(rz,t0,rt);
+        fe_sub_int(rt,t0,rt);
+    }
+}
+
+void fe_ge_sub(fe rx, fe ry, fe rz, fe rt, const fe px, const fe py,
+               const fe pz, const fe pt, const fe qz, const fe qt2d,
+               const fe qyplusx, const fe qyminusx)
+{
+    fe t0;
+    if (IS_INTEL_AVX2(intelFlags) && IS_INTEL_BMI2(intelFlags)) {
+        fe_add_int(rx,py,px);
+        fe_sub_int(ry,py,px);
+        fe_mul_avx2(rz,rx,qyminusx);
+        fe_mul_avx2(ry,ry,qyplusx);
+        fe_mul_avx2(rt,qt2d,pt);
+        fe_mul_avx2(rx,pz,qz);
+        fe_add_int(t0,rx,rx);
+        fe_sub_int(rx,rz,ry);
+        fe_add_int(ry,rz,ry);
+        fe_sub_int(rz,t0,rt);
+        fe_add_int(rt,t0,rt);
+    }
+    else {
+        fe_add_int(rx,py,px);
+        fe_sub_int(ry,py,px);
+        fe_mul_x64(rz,rx,qyminusx);
+        fe_mul_x64(ry,ry,qyplusx);
+        fe_mul_x64(rt,qt2d,pt);
+        fe_mul_x64(rx,pz,qz);
+        fe_add_int(t0,rx,rx);
+        fe_sub_int(rx,rz,ry);
+        fe_add_int(ry,rz,ry);
+        fe_sub_int(rz,t0,rt);
+        fe_add_int(rt,t0,rt);
+    }
+}
+
+void fe_cmov_table(fe* r, fe* base, signed char b)
+{
+    __asm__ __volatile__ (
+        "movsbq %[b], %%rax\n\t"
+        "cdq\n\t"
+        "xorb   %%dl, %%al\n\t"
+        "subb   %%dl, %%al\n\t"
+        "movb   %%al, %%r13b\n\t"
+
+        "movq	 $1, %%rax\n\t"
+        "xorq	 %%rbx, %%rbx\n\t"
+        "xorq	 %%rcx, %%rcx\n\t"
+        "xorq	 %%rdx, %%rdx\n\t"
+        "movq	 $1, %%r8\n\t"
+        "xorq	 %%r9 , %%r9\n\t"
+        "xorq	 %%r10, %%r10\n\t"
+        "xorq	 %%r11, %%r11\n\t"
+
+        "cmpb   $1, %%r13b\n\t"
+        "movq   (0*96)+0(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rax\n\t"
+        "movq   (0*96)+8(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rbx\n\t"
+        "movq   (0*96)+16(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rcx\n\t"
+        "movq   (0*96)+24(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rdx\n\t"
+        "movq   (0*96)+32(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r8\n\t"
+        "movq   (0*96)+40(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r9\n\t"
+        "movq   (0*96)+48(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r10\n\t"
+        "movq   (0*96)+56(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r11\n\t"
+        "cmpb   $2, %%r13b\n\t"
+        "movq   (1*96)+0(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rax\n\t"
+        "movq   (1*96)+8(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rbx\n\t"
+        "movq   (1*96)+16(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rcx\n\t"
+        "movq   (1*96)+24(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rdx\n\t"
+        "movq   (1*96)+32(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r8\n\t"
+        "movq   (1*96)+40(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r9\n\t"
+        "movq   (1*96)+48(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r10\n\t"
+        "movq   (1*96)+56(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r11\n\t"
+        "cmpb   $3, %%r13b\n\t"
+        "movq   (2*96)+0(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rax\n\t"
+        "movq   (2*96)+8(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rbx\n\t"
+        "movq   (2*96)+16(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rcx\n\t"
+        "movq   (2*96)+24(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rdx\n\t"
+        "movq   (2*96)+32(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r8\n\t"
+        "movq   (2*96)+40(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r9\n\t"
+        "movq   (2*96)+48(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r10\n\t"
+        "movq   (2*96)+56(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r11\n\t"
+        "cmpb   $4, %%r13b\n\t"
+        "movq   (3*96)+0(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rax\n\t"
+        "movq   (3*96)+8(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rbx\n\t"
+        "movq   (3*96)+16(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rcx\n\t"
+        "movq   (3*96)+24(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rdx\n\t"
+        "movq   (3*96)+32(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r8\n\t"
+        "movq   (3*96)+40(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r9\n\t"
+        "movq   (3*96)+48(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r10\n\t"
+        "movq   (3*96)+56(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r11\n\t"
+        "cmpb   $5, %%r13b\n\t"
+        "movq   (4*96)+0(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rax\n\t"
+        "movq   (4*96)+8(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rbx\n\t"
+        "movq   (4*96)+16(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rcx\n\t"
+        "movq   (4*96)+24(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rdx\n\t"
+        "movq   (4*96)+32(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r8\n\t"
+        "movq   (4*96)+40(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r9\n\t"
+        "movq   (4*96)+48(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r10\n\t"
+        "movq   (4*96)+56(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r11\n\t"
+        "cmpb   $6, %%r13b\n\t"
+        "movq   (5*96)+0(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rax\n\t"
+        "movq   (5*96)+8(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rbx\n\t"
+        "movq   (5*96)+16(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rcx\n\t"
+        "movq   (5*96)+24(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rdx\n\t"
+        "movq   (5*96)+32(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r8\n\t"
+        "movq   (5*96)+40(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r9\n\t"
+        "movq   (5*96)+48(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r10\n\t"
+        "movq   (5*96)+56(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r11\n\t"
+        "cmpb   $7, %%r13b\n\t"
+        "movq   (6*96)+0(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rax\n\t"
+        "movq   (6*96)+8(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rbx\n\t"
+        "movq   (6*96)+16(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rcx\n\t"
+        "movq   (6*96)+24(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rdx\n\t"
+        "movq   (6*96)+32(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r8\n\t"
+        "movq   (6*96)+40(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r9\n\t"
+        "movq   (6*96)+48(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r10\n\t"
+        "movq   (6*96)+56(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r11\n\t"
+        "cmpb   $8, %%r13b\n\t"
+        "movq   (7*96)+0(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rax\n\t"
+        "movq   (7*96)+8(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rbx\n\t"
+        "movq   (7*96)+16(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rcx\n\t"
+        "movq   (7*96)+24(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rdx\n\t"
+        "movq   (7*96)+32(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r8\n\t"
+        "movq   (7*96)+40(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r9\n\t"
+        "movq   (7*96)+48(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r10\n\t"
+        "movq   (7*96)+56(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%r11\n\t"
+
+        "cmpb   $0, %[b]\n\t"
+        "movq   %%rax, %%r12\n\t"
+        "cmovlq %%r8, %%rax\n\t"
+        "cmovlq %%r12, %%r8\n\t"
+        "movq   %%rbx, %%r12\n\t"
+        "cmovlq %%r9, %%rbx\n\t"
+        "cmovlq %%r12, %%r9\n\t"
+        "movq   %%rcx, %%r12\n\t"
+        "cmovlq %%r10, %%rcx\n\t"
+        "cmovlq %%r12, %%r10\n\t"
+        "movq   %%rdx, %%r12\n\t"
+        "cmovlq %%r11, %%rdx\n\t"
+        "cmovlq %%r12, %%r11\n\t"
+
+        "movq   %%rax,  0(%[r])\n\t"
+        "movq   %%rbx,  8(%[r])\n\t"
+        "movq   %%rcx, 16(%[r])\n\t"
+        "movq   %%rdx, 24(%[r])\n\t"
+        "movq   %%r8 , 32(%[r])\n\t"
+        "movq   %%r9 , 40(%[r])\n\t"
+        "movq   %%r10, 48(%[r])\n\t"
+        "movq   %%r11, 56(%[r])\n\t"
+
+        "xorq	 %%rax, %%rax\n\t"
+        "xorq	 %%rbx, %%rbx\n\t"
+        "xorq	 %%rcx, %%rcx\n\t"
+        "xorq	 %%rdx, %%rdx\n\t"
+
+        "cmpb   $1, %%r13b\n\t"
+        "movq   (0*96)+64(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rax\n\t"
+        "movq   (0*96)+72(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rbx\n\t"
+        "movq   (0*96)+80(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rcx\n\t"
+        "movq   (0*96)+88(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rdx\n\t"
+        "cmpb   $2, %%r13b\n\t"
+        "movq   (1*96)+64(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rax\n\t"
+        "movq   (1*96)+72(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rbx\n\t"
+        "movq   (1*96)+80(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rcx\n\t"
+        "movq   (1*96)+88(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rdx\n\t"
+        "cmpb   $3, %%r13b\n\t"
+        "movq   (2*96)+64(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rax\n\t"
+        "movq   (2*96)+72(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rbx\n\t"
+        "movq   (2*96)+80(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rcx\n\t"
+        "movq   (2*96)+88(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rdx\n\t"
+        "cmpb   $4, %%r13b\n\t"
+        "movq   (3*96)+64(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rax\n\t"
+        "movq   (3*96)+72(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rbx\n\t"
+        "movq   (3*96)+80(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rcx\n\t"
+        "movq   (3*96)+88(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rdx\n\t"
+        "cmpb   $5, %%r13b\n\t"
+        "movq   (4*96)+64(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rax\n\t"
+        "movq   (4*96)+72(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rbx\n\t"
+        "movq   (4*96)+80(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rcx\n\t"
+        "movq   (4*96)+88(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rdx\n\t"
+        "cmpb   $6, %%r13b\n\t"
+        "movq   (5*96)+64(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rax\n\t"
+        "movq   (5*96)+72(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rbx\n\t"
+        "movq   (5*96)+80(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rcx\n\t"
+        "movq   (5*96)+88(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rdx\n\t"
+        "cmpb   $7, %%r13b\n\t"
+        "movq   (6*96)+64(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rax\n\t"
+        "movq   (6*96)+72(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rbx\n\t"
+        "movq   (6*96)+80(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rcx\n\t"
+        "movq   (6*96)+88(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rdx\n\t"
+        "cmpb   $8, %%r13b\n\t"
+        "movq   (7*96)+64(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rax\n\t"
+        "movq   (7*96)+72(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rbx\n\t"
+        "movq   (7*96)+80(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rcx\n\t"
+        "movq   (7*96)+88(%[base]), %%r12\n\t"
+        "cmoveq %%r12, %%rdx\n\t"
+
+        "movq	$-19, %%r8\n\t"
+        "movq	$-1, %%r9\n\t"
+        "movq	$-1, %%r10\n\t"
+        "movq	$0x7fffffffffffffff, %%r11\n\t"
+        "subq	%%rax, %%r8\n\t"
+        "sbbq	%%rbx, %%r9\n\t"
+        "sbbq	%%rcx, %%r10\n\t"
+        "sbbq	%%rdx, %%r11\n\t"
+        "cmpb   $0, %[b]\n\t"
+        "cmovlq %%r8, %%rax\n\t"
+        "cmovlq %%r9, %%rbx\n\t"
+        "cmovlq %%r10, %%rcx\n\t"
+        "cmovlq %%r11, %%rdx\n\t"
+
+        "movq   %%rax, 64(%[r])\n\t"
+        "movq   %%rbx, 72(%[r])\n\t"
+        "movq   %%rcx, 80(%[r])\n\t"
+        "movq   %%rdx, 88(%[r])\n\t"
+        :
+        : [r] "r" (r), [base] "r" (base), [b] "r" (b)
+        : "rax", "rbx", "rcx", "rdx", "r8", "r9", "r10", "r11", "r12", "memory",
+          "r13"
+    );
 }
 
