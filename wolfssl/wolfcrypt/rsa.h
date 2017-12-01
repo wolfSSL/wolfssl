@@ -205,10 +205,20 @@ WOLFSSL_API int  wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen,
 #endif /* HAVE_FIPS*/
 WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
                                                                        word32*);
+WOLFSSL_API int wc_RsaExportKey(RsaKey* key,
+                                byte* e, word32* eSz,
+                                byte* n, word32* nSz,
+                                byte* d, word32* dSz,
+                                byte* p, word32* pSz,
+                                byte* q, word32* qSz);
 
 #ifdef WOLFSSL_KEY_GEN
     WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey*, byte* output, word32 inLen);
     WOLFSSL_API int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng);
+    WOLFSSL_API int wc_CheckProbablePrime(const byte* p, word32 pSz,
+                                          const byte* q, word32 qSz,
+                                          const byte* e, word32 eSz,
+                                          int nlen, int* isPrime);
 #endif
 
 #endif /* HAVE_USER_RSA */

@@ -191,8 +191,9 @@ enum {
 
     ECC_PRIVATEONLY_E   = -246,  /* Invalid use of private only ECC key*/
     EXTKEYUSAGE_E       = -247,  /* Bad Extended Key Usage value */
+    PRIME_GEN_E         = -248,  /* Failure finding a prime. */
 
-    WC_LAST_E           = -247,  /* Update this to indicate last error */
+    WC_LAST_E           = -248,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes

@@ -2455,6 +2455,12 @@ int mp_mul_2d(fp_int *a, int b, fp_int *c)
 	return MP_OKAY;
 }
 
+int mp_2expt(fp_int* a, int b)
+{
+    fp_2expt(a, b);
+    return MP_OKAY;
+}
+
 int mp_div(fp_int * a, fp_int * b, fp_int * c, fp_int * d)
 {
     return fp_div(a, b, c, d);
@@ -3387,6 +3393,13 @@ void mp_dump(const char* desc, mp_int* a, byte verbose)
 #endif /* WOLFSSL_DEBUG_MATH */
 
 #endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(WOLFSSL_DEBUG_MATH) */
+
+
+int mp_abs(mp_int* a, mp_int* b)
+{
+    fp_abs(a, b);
+    return FP_OKAY;
+}
 
 
 int mp_lshd (mp_int * a, int b)

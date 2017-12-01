@@ -434,6 +434,9 @@ const char* wc_GetErrorString(int error)
     case ECC_PRIVATEONLY_E:
         return "Invalid use of private only ECC key";
 
+    case PRIME_GEN_E:
+        return "Unable to find a prime for RSA key";
+
     default:
         return "unknown error number";
 
