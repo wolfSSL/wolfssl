@@ -166,12 +166,6 @@ int wc_HmacSizeByType(int type)
     return ret;
 }
 
-#ifdef OPENSSL_EXTRA
-    WOLFSSL_LOCAL
-#else
-    static
-#endif
-
 int _InitHmac(Hmac* hmac, int type, void* heap)
 {
     int ret = 0;
