@@ -1934,7 +1934,8 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS"
     # Add the FIPS flag.
     AS_IF([test "x$FIPS_VERSION" = "xv2"],
-          [AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS_VERSION=2"])
+          [AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS_VERSION=2 -DWOLFSSL_KEY_GEN"
+           ENABLED_KEYGEN="yes"])
 else
     if test "x$ENABLED_FORTRESS" = "xyes"
     then

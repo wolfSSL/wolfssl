@@ -20,6 +20,7 @@ nobase_include_HEADERS+= \
                          wolfssl/wolfcrypt/fe_operations.h \
                          wolfssl/wolfcrypt/ge_operations.h \
                          wolfssl/wolfcrypt/error-crypt.h \
+                         wolfssl/wolfcrypt/fips.h \
                          wolfssl/wolfcrypt/fips_test.h \
                          wolfssl/wolfcrypt/hash.h \
                          wolfssl/wolfcrypt/hc128.h \

@@ -27,6 +27,10 @@
 
 #ifdef HAVE_ECC
 
+#if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+    #include <wolfssl/wolfcrypt/fips.h>
+#endif /* HAVE_FIPS_VERSION >= 2 */
+
 #include <wolfssl/wolfcrypt/integer.h>
 #include <wolfssl/wolfcrypt/random.h>
 
@@ -172,6 +176,8 @@ typedef enum ecc_curve_id {
 #endif
 } ecc_curve_id;
 
+#if !defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2)
+
 #ifdef HAVE_OID_ENCODING
 typedef word16 ecc_oid_t;
 #else
@@ -198,6 +204,7 @@ typedef struct ecc_set_type {
     int         cofactor;
 } ecc_set_type;
 
+#endif
 
 #ifdef ALT_ECC_SIZE
 
@@ -258,6 +265,7 @@ typedef struct alt_fp_int {
 #endif /* ALT_ECC_SIZE */
 
 
+#if !defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2)
 /* A point on an ECC curve, stored in Jacbobian format such that (x,y,z) =>
    (x/z^2, y/z^3, 1) when interpreted as affine */
 typedef struct {
@@ -314,6 +322,7 @@ struct ecc_key {
 #ifndef WC_ECCKEY_TYPE_DEFINED
     typedef struct ecc_key ecc_key;
     #define WC_ECCKEY_TYPE_DEFINED
+#endif
 #endif
 
 
@@ -387,7 +396,7 @@ int wc_ecc_init(ecc_key* key);
 WOLFSSL_API
 int wc_ecc_init_ex(ecc_key* key, void* heap, int devId);
 WOLFSSL_API
-void wc_ecc_free(ecc_key* key);
+int wc_ecc_free(ecc_key* key);
 WOLFSSL_API
 int wc_ecc_set_flags(ecc_key* key, word32 flags);
 WOLFSSL_API

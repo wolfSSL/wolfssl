@@ -93,6 +93,16 @@ ECC Curve Sizes:
 #endif
 
 
+#if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+
+	#ifdef USE_WINDOWS_API
+		#pragma code_seg(".fipsA$e2")
+		#pragma const_seg(".fipsB$e2")
+	#endif
+#endif
+
 #include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -3786,10 +3796,10 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
   Free an ECC key from memory
   key   The key you wish to free
 */
-void wc_ecc_free(ecc_key* key)
+int wc_ecc_free(ecc_key* key)
 {
     if (key == NULL) {
-        return;
+        return 0;
     }
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
@@ -3808,6 +3818,7 @@ void wc_ecc_free(ecc_key* key)
 
     mp_forcezero(&key->k);
 #endif /* WOLFSSL_ATECC508A */
+	return 0;
 }
 
 #ifdef ECC_SHAMIR
