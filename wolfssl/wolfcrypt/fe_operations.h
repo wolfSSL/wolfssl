@@ -33,7 +33,9 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
-#if defined(HAVE___UINT128_T) && !defined(NO_CURVED25519_128BIT)
+#if defined(USE_INTEL_SPEEDUP) && !defined(NO_CURVED25519_X64)
+    #define CURVED25519_X64
+#elif defined(HAVE___UINT128_T) && !defined(NO_CURVED25519_128BIT)
     #define CURVED25519_128BIT
 #endif
 
@@ -58,13 +60,17 @@ Bounds on each t[i] vary depending on context.
 
 
 #if !defined(FREESCALE_LTC_ECC)
+WOLFSSL_LOCAL void fe_init(void);
+
 WOLFSSL_LOCAL int  curve25519(byte * q, byte * n, byte * p);
 #endif
 
 /* default to be faster but take more memory */
 #if !defined(CURVE25519_SMALL) || !defined(ED25519_SMALL)
 
-#if defined(CURVED25519_128BIT)
+#ifdef CURVED25519_X64
+    typedef int64_t  fe[4];
+#elif defined(CURVED25519_128BIT)
     typedef int64_t  fe[5];
 #else
     typedef int32_t  fe[10];

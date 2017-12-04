@@ -295,6 +295,8 @@ int wc_ed25519_init(ed25519_key* key)
 
     XMEMSET(key, 0, sizeof(ed25519_key));
 
+    fe_init();
+
     return 0;
 }
 
