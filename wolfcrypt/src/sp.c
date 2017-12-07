@@ -127,7 +127,10 @@ static void sp_2048_from_mp(sp_digit* r, int max, mp_int* a)
             r[j] &= 0x1fffff;
             if (j + 1 >= max)
                 break;
-            r[++j] = a->dp[i] >> s;
+            if (s < DIGIT_BIT)
+                r[++j] = a->dp[i] >> s;
+            else
+                r[++j] = 0;
         }
         s = DIGIT_BIT - s;
     }
@@ -2821,7 +2824,10 @@ static void sp_3072_from_mp(sp_digit* r, int max, mp_int* a)
             r[j] &= 0x3fffff;
             if (j + 1 >= max)
                 break;
-            r[++j] = a->dp[i] >> s;
+            if (s < DIGIT_BIT)
+                r[++j] = a->dp[i] >> s;
+            else
+                r[++j] = 0;
         }
         s = DIGIT_BIT - s;
     }
@@ -5626,7 +5632,10 @@ static void sp_2048_from_mp(sp_digit* r, int max, mp_int* a)
             r[j] &= 0x1ffffffffffffffl;
             if (j + 1 >= max)
                 break;
-            r[++j] = a->dp[i] >> s;
+            if (s < DIGIT_BIT)
+                r[++j] = a->dp[i] >> s;
+            else
+                r[++j] = 0;
         }
         s = DIGIT_BIT - s;
     }
@@ -8566,7 +8575,10 @@ static void sp_3072_from_mp(sp_digit* r, int max, mp_int* a)
             r[j] &= 0x1ffffffffffffffl;
             if (j + 1 >= max)
                 break;
-            r[++j] = a->dp[i] >> s;
+            if (s < DIGIT_BIT)
+                r[++j] = a->dp[i] >> s;
+            else
+                r[++j] = 0;
         }
         s = DIGIT_BIT - s;
     }
@@ -11762,7 +11774,10 @@ static void sp_2048_from_mp(sp_digit* r, int max, mp_int* a)
             r[j] &= 0xffffffffffffffffl;
             if (j + 1 >= max)
                 break;
-            r[++j] = a->dp[i] >> s;
+            if (s < DIGIT_BIT)
+                r[++j] = a->dp[i] >> s;
+            else
+                r[++j] = 0;
         }
         s = DIGIT_BIT - s;
     }
@@ -21607,7 +21622,10 @@ static void sp_3072_from_mp(sp_digit* r, int max, mp_int* a)
             r[j] &= 0xffffffffffffffffl;
             if (j + 1 >= max)
                 break;
-            r[++j] = a->dp[i] >> s;
+            if (s < DIGIT_BIT)
+                r[++j] = a->dp[i] >> s;
+            else
+                r[++j] = 0;
         }
         s = DIGIT_BIT - s;
     }
@@ -38999,7 +39017,10 @@ static void sp_256_from_mp(sp_digit* r, int max, mp_int* a)
             r[j] &= 0x3ffffff;
             if (j + 1 >= max)
                 break;
-            r[++j] = a->dp[i] >> s;
+            if (s < DIGIT_BIT)
+                r[++j] = a->dp[i] >> s;
+            else
+                r[++j] = 0;
         }
         s = DIGIT_BIT - s;
     }
@@ -43994,7 +44015,10 @@ static void sp_256_from_mp(sp_digit* r, int max, mp_int* a)
             r[j] &= 0xfffffffffffffl;
             if (j + 1 >= max)
                 break;
-            r[++j] = a->dp[i] >> s;
+            if (s < DIGIT_BIT)
+                r[++j] = a->dp[i] >> s;
+            else
+                r[++j] = 0;
         }
         s = DIGIT_BIT - s;
     }
@@ -48710,7 +48734,10 @@ static void sp_256_from_mp(sp_digit* r, int max, mp_int* a)
             r[j] &= 0xffffffffffffffffl;
             if (j + 1 >= max)
                 break;
-            r[++j] = a->dp[i] >> s;
+            if (s < DIGIT_BIT)
+                r[++j] = a->dp[i] >> s;
+            else
+                r[++j] = 0;
         }
         s = DIGIT_BIT - s;
     }
