@@ -8,6 +8,9 @@
       location = "group:wolfssl_testsuite.xcodeproj">
    </FileRef>
    <FileRef
+      location = "group:/Users/davidgarske/GitHub/wolfssl/IDE/XCODE/wolfcrypt_testbench.xcodeproj">
+   </FileRef>
+   <FileRef
       location = "group:wolfssl.xcodeproj">
    </FileRef>
 </Workspace>

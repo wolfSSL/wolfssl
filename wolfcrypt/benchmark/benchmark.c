@@ -1228,7 +1228,7 @@ static void bench_aescbc_internal(int doAsync, const byte* key, word32 keySz,
                                   const byte* iv, const char* encLabel,
                                   const char* decLabel)
 {
-    int    ret, i, count = 0, times, pending = 0;
+    int    ret = 0, i, count = 0, times, pending = 0;
     Aes    enc[BENCH_MAX_PENDING];
     double start;
 
@@ -1332,7 +1332,7 @@ static void bench_aesgcm_internal(int doAsync, const byte* key, word32 keySz,
                                   const byte* iv, word32 ivSz,
                                   const char* encLabel, const char* decLabel)
 {
-    int    ret, i, count = 0, times, pending = 0;
+    int    ret = 0, i, count = 0, times, pending = 0;
     Aes    enc[BENCH_MAX_PENDING];
     double start;
 
@@ -1736,7 +1736,7 @@ void bench_camellia(void)
 #ifndef NO_DES3
 void bench_des(int doAsync)
 {
-    int    ret, i, count = 0, times, pending = 0;
+    int    ret = 0, i, count = 0, times, pending = 0;
     Des3   enc[BENCH_MAX_PENDING];
     double start;
 
@@ -1793,7 +1793,7 @@ void bench_idea(void)
 {
     Idea   enc;
     double start;
-    int    ret, i, count;
+    int    ret = 0, i, count;
 
     ret = wc_IdeaSetKey(&enc, bench_key, IDEA_KEY_SIZE, bench_iv,
         IDEA_ENCRYPTION);
@@ -1817,7 +1817,7 @@ void bench_idea(void)
 #ifndef NO_RC4
 void bench_arc4(int doAsync)
 {
-    int    ret, i, count = 0, times, pending = 0;
+    int    ret = 0, i, count = 0, times, pending = 0;
     Arc4   enc[BENCH_MAX_PENDING];
     double start;
 
@@ -1963,7 +1963,7 @@ void bench_md5(int doAsync)
 {
     wc_Md5 hash[BENCH_MAX_PENDING];
     double start;
-    int    ret, i, count = 0, times, pending = 0;
+    int    ret = 0, i, count = 0, times, pending = 0;
     DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_MD5_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
@@ -2035,7 +2035,7 @@ void bench_sha(int doAsync)
 {
     wc_Sha hash[BENCH_MAX_PENDING];
     double start;
-    int    ret, i, count = 0, times, pending = 0;
+    int    ret = 0, i, count = 0, times, pending = 0;
     DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
@@ -2170,7 +2170,7 @@ void bench_sha256(int doAsync)
 {
     wc_Sha256 hash[BENCH_MAX_PENDING];
     double start;
-    int    ret, i, count = 0, times, pending = 0;
+    int    ret = 0, i, count = 0, times, pending = 0;
     DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA256_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
@@ -2238,7 +2238,7 @@ void bench_sha384(int doAsync)
 {
     wc_Sha384 hash[BENCH_MAX_PENDING];
     double start;
-    int    ret, i, count = 0, times, pending = 0;
+    int    ret = 0, i, count = 0, times, pending = 0;
     DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA384_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
@@ -2303,7 +2303,7 @@ void bench_sha512(int doAsync)
 {
     wc_Sha512 hash[BENCH_MAX_PENDING];
     double start;
-    int    ret, i, count = 0, times, pending = 0;
+    int    ret = 0, i, count = 0, times, pending = 0;
     DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA512_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
@@ -2370,7 +2370,7 @@ void bench_sha3_224(int doAsync)
 {
     Sha3   hash[BENCH_MAX_PENDING];
     double start;
-    int    ret, i, count = 0, times, pending = 0;
+    int    ret = 0, i, count = 0, times, pending = 0;
     DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, SHA3_224_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
@@ -2435,7 +2435,7 @@ void bench_sha3_256(int doAsync)
 {
     Sha3   hash[BENCH_MAX_PENDING];
     double start;
-    int    ret, i, count = 0, times, pending = 0;
+    int    ret = 0, i, count = 0, times, pending = 0;
     DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, SHA3_256_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
@@ -2500,7 +2500,7 @@ void bench_sha3_384(int doAsync)
 {
     Sha3   hash[BENCH_MAX_PENDING];
     double start;
-    int    ret, i, count = 0, times, pending = 0;
+    int    ret = 0, i, count = 0, times, pending = 0;
     DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, SHA3_384_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
@@ -2565,7 +2565,7 @@ void bench_sha3_512(int doAsync)
 {
     Sha3   hash[BENCH_MAX_PENDING];
     double start;
-    int    ret, i, count = 0, times, pending = 0;
+    int    ret = 0, i, count = 0, times, pending = 0;
     DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, SHA3_512_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
@@ -2768,7 +2768,7 @@ static void bench_hmac(int doAsync, int type, int digestSz,
 {
     Hmac   hmac[BENCH_MAX_PENDING];
     double start;
-    int    ret, i, count = 0, times, pending = 0;
+    int    ret = 0, i, count = 0, times, pending = 0;
 #if defined(BENCH_EMBEDDED)
     DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, MAX_DIGEST_SIZE, HEAP_HINT);
 #else
@@ -3012,7 +3012,7 @@ void bench_rsaKeyGen(int doAsync)
 
 void bench_rsa(int doAsync)
 {
-    int         ret, i, times, count = 0, pending = 0;
+    int         ret = 0, i, times, count = 0, pending = 0;
     size_t      bytes;
     word32      idx = 0;
     const byte* tmp;
@@ -3201,7 +3201,7 @@ exit:
 
 void bench_dh(int doAsync)
 {
-    int    ret, i;
+    int    ret = 0, i;
     int    count = 0, times, pending = 0;
     const byte* tmp = NULL;
     double start = 0.0f;
@@ -3595,7 +3595,7 @@ exit:
 
 void bench_ecc(int doAsync)
 {
-    int ret, i, times, count, pending = 0;
+    int ret = 0, i, times, count, pending = 0;
     const int keySize = BENCH_ECC_SIZE;
     ecc_key genKey[BENCH_MAX_PENDING];
 #ifdef HAVE_ECC_DHE
