@@ -33,7 +33,11 @@ src_libwolfssl_la_SOURCES += \
                ctaocrypt/src/sha256.c
 
 if BUILD_RSA
+if BUILD_FIPS_V2
+src_libwolfssl_la_SOURCES += wolfcrypt/src/rsa.c
+else
 src_libwolfssl_la_SOURCES += ctaocrypt/src/rsa.c
+endif
 endif
 
 if BUILD_ECC
@@ -92,7 +96,9 @@ if BUILD_RSA
 if BUILD_FAST_RSA
 src_libwolfssl_la_SOURCES += wolfcrypt/user-crypto/src/rsa.c
 else
+if !BUILD_FIPS_V2
 src_libwolfssl_la_SOURCES += wolfcrypt/src/rsa.c
+endif
 endif
 endif
 endif

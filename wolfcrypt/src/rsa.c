@@ -29,6 +29,18 @@
 
 #ifndef NO_RSA
 
+#if defined(HAVE_FIPS) && \
+	defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+
+       #ifdef USE_WINDOWS_API
+               #pragma code_seg(".fipsA$e")
+               #pragma const_seg(".fipsB$e")
+       #endif
+#endif
+
 #include <wolfssl/wolfcrypt/rsa.h>
 
 #ifdef WOLFSSL_HAVE_SP_RSA
@@ -54,7 +66,10 @@ RSA Key Size Configuration:
 */
 
 
-#ifdef HAVE_FIPS
+/* If building for old FIPS. */
+#if defined(HAVE_FIPS) && \
+	(!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
+
 int  wc_InitRsaKey(RsaKey* key, void* ptr)
 {
     if (key == NULL) {
@@ -64,6 +79,7 @@ int  wc_InitRsaKey(RsaKey* key, void* ptr)
     return InitRsaKey_fips(key, ptr);
 }
 
+
 int  wc_InitRsaKey_ex(RsaKey* key, void* ptr, int devId)
 {
     (void)devId;
@@ -72,6 +88,7 @@ int  wc_InitRsaKey_ex(RsaKey* key, void* ptr, int devId)
     }
     return InitRsaKey_fips(key, ptr);
 }
+
 
 int  wc_FreeRsaKey(RsaKey* key)
 {
@@ -102,7 +119,7 @@ int  wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out,
 int  wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
                                   word32 outLen, RsaKey* key)
 {
-    if (in == NULL || out == NULL || key == NULL) {
+	if (in == NULL || out == NULL || key == NULL) {
         return BAD_FUNC_ARG;
     }
     return RsaPrivateDecrypt_fips(in, inLen, out, outLen, key);
@@ -147,56 +164,20 @@ int  wc_RsaEncryptSize(RsaKey* key)
 }
 
 
-/* New FIPS functions. */
-#if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
+						   word32* bSz)
+{
 
-    int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
-                               word32* bSz)
-    {
-        return RsaFlattenPublicKey_fips(key, a, aSz, b, bSz);
-    }
+	/* not specified as fips so not needing _fips */
+	return RsaFlattenPublicKey(key, a, aSz, b, bSz);
+}
 
-    int wc_RsaExportKey(RsaKey* key,
-                        byte* e, word32* eSz, byte* n, word32* nSz,
-                        byte* d, word32* dSz, byte* p, word32* pSz,
-                        byte* q, word32* qSz)
-    {
-        return RsaExportKey_fips(key, e, eSz, n, nSz, d, dSz, p, pSz, q, qSz);
-    }
 
-    int wc_CheckProbablePrime(const byte* pRaw, word32 pRawSz,
-                              const byte* qRaw, word32 qRawSz,
-                              const byte* eRaw, word32 eRawSz,
-                              int nlen, int* isPrime)
-    {
-        return CheckProbablePrime_fips(pRaw, pRawSz,
-                                       qRaw, qRawSz,
-                                       eRaw, eRawSz,
-                                       nlen, isPrime);
-    }
-
-    int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
-    {
-        return MakeRsaKey_fips(key, size, e, rng);
-    }
-
-#else /* Use old version of FIPS functions. */
-
-    int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
-                               word32* bSz)
-    {
-
-        /* not specified as fips so not needing _fips */
-        return RsaFlattenPublicKey(key, a, aSz, b, bSz);
-    }
-
-    #ifdef WOLFSSL_KEY_GEN
-        int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
-        {
-            return MakeRsaKey(key, size, e, rng);
-        }
-    #endif
-
+#ifdef WOLFSSL_KEY_GEN
+	int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
+	{
+		return MakeRsaKey(key, size, e, rng);
+	}
 #endif
 
 
