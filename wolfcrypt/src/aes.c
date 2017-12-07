@@ -27,7 +27,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
-#ifndef NO_AES
+#if !defined(NO_AES) && !defined(WOLFSSL_ARMASM)
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
 

@@ -10687,7 +10687,7 @@ typedef struct eccVector {
 
 static int ecc_test_vector_item(const eccVector* vector)
 {
-    int ret = 0, verify;
+    int ret = 0, verify = 0;
     word32  x;
     ecc_key userA;
     DECLARE_VAR(sig, byte, ECC_SIG_SIZE, HEAP_HINT);

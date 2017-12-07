@@ -28,7 +28,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if !defined(NO_SHA256)
+#if !defined(NO_SHA256) && !defined(WOLFSSL_ARMASM)
 
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>

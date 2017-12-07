@@ -27,8 +27,8 @@
  */
 
 /**
- *  Edited by Moises Guimaraes (moisesguimaraesm@gmail.com)
- *  to fit CyaSSL's needs.
+ *  Edited by Moises Guimaraes (moises@wolfssl.com)
+ *  to fit wolfSSL's needs.
  */
 
 #ifdef HAVE_CONFIG_H
@@ -1987,7 +1987,7 @@ void fp_set_int(fp_int *a, unsigned long b)
 
   /* use direct fp_set if b is less than fp_digit max */
   if (b < FP_DIGIT_MAX) {
-    fp_set (a, b);
+    fp_set (a, (fp_digit)b);
     return;
   }
 

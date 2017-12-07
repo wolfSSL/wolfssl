@@ -3811,7 +3811,7 @@ static int ecc_mul2add(ecc_point* A, mp_int* kA,
   unsigned char* tA;
   unsigned char* tB;
   int            err = MP_OKAY, first, x, y;
-  mp_digit mp;
+  mp_digit mp = 0;
 
   /* argchks */
   if (A == NULL || kA == NULL || B == NULL || kB == NULL || C == NULL ||
@@ -4318,7 +4318,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 #else /* FREESCALE_LTC_ECC */
 #ifndef ECC_SHAMIR
     {
-        mp_digit      mp;
+        mp_digit      mp = 0;
 
         /* compute u1*mG + u2*mQ = mG */
         if (err == MP_OKAY) {
