@@ -159,7 +159,7 @@
         #define WOLFSSL_PTHREADS
         #include <pthread.h>
     #endif
-    #if defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)
+    #ifdef OPENSSL_EXTRA
         #include <unistd.h>      /* for close of BIO */
     #endif
 #endif
@@ -2356,7 +2356,7 @@ struct WOLFSSL_CTX {
     WOLFSSL_X509_STORE x509_store; /* points to ctx->cm */
     byte            readAhead;
     void*           userPRFArg; /* passed to prf callback */
-#endif /* OPENSSL_EXTRA */
+#endif
 #ifdef HAVE_EX_DATA
     void*           ex_data[MAX_EX_DATA];
 #endif
@@ -3322,7 +3322,7 @@ struct WOLFSSL {
 #ifdef HAVE_PK_CALLBACKS
     void*            loggingCtx;         /* logging callback argument */
 #endif
-#endif
+#endif /* OPENSSL_EXTRA */
 #ifndef NO_RSA
     RsaKey*         peerRsaKey;
     byte            peerRsaKeyPresent;
