@@ -2840,7 +2840,7 @@ void FreeX509(WOLFSSL_X509* x509)
     if (x509->altNames)
         FreeAltNames(x509->altNames, x509->heap);
 }
-
+#endif /* !NO_CERTS */
 #endif /* !NO_DH || HAVE_ECC */
 
 #ifndef NO_CERTS
@@ -3773,8 +3773,6 @@ static int X25519MakeKey(WOLFSSL* ssl, curve25519_key* key,
     return ret;
 }
 #endif /* HAVE_CURVE25519 */
-
-#endif /* !NO_CERTS */
 
 #if !defined(NO_CERTS) || !defined(NO_PSK)
 #if !defined(NO_DH)
