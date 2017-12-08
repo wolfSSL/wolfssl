@@ -142,7 +142,7 @@ enum wolfSSL_ErrorCodes {
     UNKNOWN_ALPN_PROTOCOL_NAME_E = -405,   /* Unrecognized protocol name Error*/
     BAD_CERTIFICATE_STATUS_ERROR = -406,   /* Bad certificate status message */
     OCSP_INVALID_STATUS          = -407,   /* Invalid OCSP Status */
-
+    OCSP_WANT_READ               = -408,   /* OCSP callback response WOLFSSL_CBIO_ERR_WANT_READ */
     RSA_KEY_SIZE_E               = -409,   /* RSA key too small */
     ECC_KEY_SIZE_E               = -410,   /* ECC key too small */
 
