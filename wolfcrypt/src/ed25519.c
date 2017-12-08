@@ -295,7 +295,9 @@ int wc_ed25519_init(ed25519_key* key)
 
     XMEMSET(key, 0, sizeof(ed25519_key));
 
+#ifndef FREESCALE_LTC_ECC
     fe_init();
+#endif
 
     return 0;
 }
