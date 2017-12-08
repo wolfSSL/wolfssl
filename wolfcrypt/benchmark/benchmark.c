@@ -123,6 +123,177 @@
     #include <wolfssl/wolfcrypt/async.h>
 #endif
 
+
+/* Bit values for each algorithm that is able to be benchmarked.
+ * Common grouping of algorithms also.
+ * Each algorithm has a unique value for its type e.g. cipher.
+ */
+/* Cipher algorithms. */
+#define BENCH_AES_CBC            0x00000001
+#define BENCH_AES_GCM            0x00000002
+#define BENCH_AES_ECB            0x00000004
+#define BENCH_AES_XTS            0x00000008
+#define BENCH_AES_CTR            0x00000010
+#define BENCH_AES_CCM            0x00000020
+#define BENCH_CAMELLIA           0x00000100
+#define BENCH_ARC4               0x00000200
+#define BENCH_HC128              0x00000400
+#define BENCH_RABBIT             0x00000800
+#define BENCH_CHACHA20           0x00001000
+#define BENCH_CHACHA20_POLY1305  0x00002000
+#define BENCH_DES                0x00004000
+#define BENCH_IDEA               0x00008000
+/* Digest algorithms. */
+#define BENCH_MD5                0x00000001
+#define BENCH_POLY1305           0x00000002
+#define BENCH_SHA                0x00000004
+#define BENCH_SHA224             0x00000010
+#define BENCH_SHA256             0x00000020
+#define BENCH_SHA384             0x00000040
+#define BENCH_SHA512             0x00000080
+#define BENCH_SHA2               (BENCH_SHA224 | BENCH_SHA256 | \
+                                  BENCH_SHA384 | BENCH_SHA512)
+#define BENCH_SHA3_224           0x00000100
+#define BENCH_SHA3_256           0x00000200
+#define BENCH_SHA3_384           0x00000400
+#define BENCH_SHA3_512           0x00000800
+#define BENCH_SHA3               (BENCH_SHA3_224 | BENCH_SHA3_256 | \
+                                  BENCH_SHA3_384 | BENCH_SHA3_512)
+#define BENCH_RIPEMD             0x00001000
+#define BENCH_BLAKE2             0x00002000
+/* MAC algorithms. */
+#define BENCH_CMAC               0x00000001
+#define BENCH_HMAC_MD5           0x00000002
+#define BENCH_HMAC_SHA           0x00000004
+#define BENCH_HMAC_SHA224        0x00000010
+#define BENCH_HMAC_SHA256        0x00000020
+#define BENCH_HMAC_SHA384        0x00000040
+#define BENCH_HMAC_SHA512        0x00000080
+/* Asymmetric algorithms. */
+#define BENCH_RSA_KEYGEN         0x00000001
+#define BENCH_RSA                0x00000002
+#define BENCH_DH                 0x00000010
+#define BENCH_NTRU               0x00000100
+#define BENCH_NTRU_KEYGEN        0x00000200
+#define BENCH_ECC_MAKEKEY        0x00001000
+#define BENCH_ECC                0x00002000
+#define BENCH_ECC_ENCRYPT        0x00004000
+#define BENCH_CURVE25519_KEYGEN  0x00010000
+#define BENCH_CURVE25519_KA      0x00020000
+#define BENCH_ED25519_KEYGEN     0x00040000
+#define BENCH_ED25519_SIGN       0x00080000
+/* Other */
+#define BENCH_RNG                0x00000001
+#define BENCH_SCRYPT             0x00000002
+
+
+/* Benchmark all compiled in algorithms.
+ * When 1, ignore other benchmark algorithm values.
+ *      0, only benchmark algorithm values set.
+ */
+static int bench_all = 1;
+/* Cipher algorithms to benchmark. */
+static int bench_cipher_algs = 0;
+/* Digest algorithms to benchmark. */
+static int bench_digest_algs = 0;
+/* MAC algorithms to benchmark. */
+static int bench_mac_algs = 0;
+/* Asymmetric algorithms to benchmark. */
+static int bench_asym_algs = 0;
+/* Other cryptographic algorithms to benchmark. */
+static int bench_other_algs = 0;
+
+#ifndef WOLFSSL_BENCHMARK_ALL
+/* The mapping of command line option to bit values. */
+typedef struct bench_alg {
+    /* Command line option string. */
+    const char* str;
+    /* Bit values to set. */
+    int val;
+} bench_alg;
+
+/* All recoginized cipher algorithm choosing command line options. */
+static bench_alg bench_cipher_opt[] = {
+    { "-aes_cbc",            BENCH_AES_CBC           },
+    { "-aes_gcm",            BENCH_AES_GCM           },
+    { "-aes_ecb",            BENCH_AES_ECB           },
+    { "-aes_xts",            BENCH_AES_XTS           },
+    { "-aes_ctr",            BENCH_AES_CTR           },
+    { "-aes_ccm",            BENCH_AES_CCM           },
+    { "-camellia",           BENCH_CAMELLIA          },
+    { "-arc4",               BENCH_ARC4              },
+    { "-hc128",              BENCH_HC128             },
+    { "-rabbit",             BENCH_RABBIT            },
+    { "-chacha20",           BENCH_CHACHA20          },
+    { "-chacha20_poly1305",  BENCH_CHACHA20_POLY1305 },
+    { "-des",                BENCH_DES               },
+    { "-idea",               BENCH_IDEA              },
+    { "-cipher",             -1                      },
+    { NULL, 0}
+};
+
+/* All recoginized digest algorithm choosing command line options. */
+static bench_alg bench_digest_opt[] = {
+    { "-md5",                BENCH_MD5               },
+    { "-poly1305",           BENCH_POLY1305          },
+    { "-sha",                BENCH_SHA               },
+    { "-sha224",             BENCH_SHA224            },
+    { "-sha256",             BENCH_SHA256            },
+    { "-sha384",             BENCH_SHA384            },
+    { "-sha512",             BENCH_SHA512            },
+    { "-sha2",               BENCH_SHA2              },
+    { "-sha3_224",           BENCH_SHA3_224          },
+    { "-sha3_256",           BENCH_SHA3_256          },
+    { "-sha3_384",           BENCH_SHA3_384          },
+    { "-sha3_512",           BENCH_SHA3_512          },
+    { "-sha3",               BENCH_SHA3              },
+    { "-ripemd",             BENCH_RIPEMD            },
+    { "-blake2",             BENCH_BLAKE2            },
+    { "-digest",             -1                      },
+    { NULL, 0}
+};
+
+/* All recoginized MAC algorithm choosing command line options. */
+static bench_alg bench_mac_opt[] = {
+    { "-cmac",               BENCH_CMAC              },
+    { "-hmac_md5",           BENCH_HMAC_MD5          },
+    { "-hmac_sha",           BENCH_HMAC_SHA          },
+    { "-hmac_sha224",        BENCH_HMAC_SHA224       },
+    { "-hmac_sha256",        BENCH_HMAC_SHA256       },
+    { "-hmac_sha384",        BENCH_HMAC_SHA384       },
+    { "-hmac_sha512",        BENCH_HMAC_SHA512       },
+    { "-mac",                -1                      },
+    { NULL, 0}
+};
+
+/* All recoginized asymmetric algorithm choosing command line options. */
+static bench_alg bench_asym_opt[] = {
+    { "-rsa_kg",             BENCH_RSA_KEYGEN        },
+    { "-rsa",                BENCH_RSA               },
+    { "-dh",                 BENCH_DH                },
+    { "-ntru",               BENCH_NTRU              },
+    { "-ntru_kg",            BENCH_NTRU_KEYGEN       },
+    { "-ecc_kg",             BENCH_ECC_MAKEKEY       },
+    { "-ecc",                BENCH_ECC               },
+    { "-ecc_enc",            BENCH_ECC_ENCRYPT       },
+    { "-curve25519_kg",      BENCH_CURVE25519_KEYGEN },
+    { "-x25519",             BENCH_CURVE25519_KA     },
+    { "-ed25519_kg",         BENCH_ED25519_KEYGEN    },
+    { "-ed25519",            BENCH_ED25519_SIGN      },
+    { "-asym",               -1                      },
+    { NULL, 0}
+};
+
+/* All recoginized other cryptographic algorithm choosing command line options.
+ */
+static bench_alg bench_other_opt[] = {
+    { "-rng",                BENCH_RNG               },
+    { "-scrypt",             BENCH_SCRYPT            },
+    { "-other",              -1                      },
+    { NULL, 0}
+};
+#endif
+
 #ifdef HAVE_WNR
     const char* wnrConfigFile = "wnr-example.conf";
 #endif
@@ -407,6 +578,7 @@ static THREAD_LS_T int devId = INVALID_DEVID;
     };
     static word32 bench_size = (1024*1024ul);
 #endif
+static int base2 = 1;
 
 /* for compatibility */
 #define BENCH_SIZE bench_size
@@ -581,17 +753,33 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count,
     /* calculate actual bytes */
     blocks *= countSz;
 
-    /* determine if we should show as KB or MB */
-    if (blocks > (1024 * 1024)) {
-        blocks /= (1024 * 1024);
-        blockType = "MB";
-    }
-    else if (blocks > 1024) {
-        blocks /= 1024; /* make KB */
-        blockType = "KB";
+    if (base2) {
+        /* determine if we should show as KB or MB */
+        if (blocks > (1024 * 1024)) {
+            blocks /= (1024 * 1024);
+            blockType = "MB";
+        }
+        else if (blocks > 1024) {
+            blocks /= 1024; /* make KB */
+            blockType = "KB";
+        }
+        else {
+            blockType = "bytes";
+        }
     }
     else {
-        blockType = "bytes";
+        /* determine if we should show as kB or mB */
+        if (blocks > (1000 * 1000)) {
+            blocks /= (1000 * 1000);
+            blockType = "mB";
+        }
+        else if (blocks > 1000) {
+            blocks /= 1000; /* make kB */
+            blockType = "kB";
+        }
+        else {
+            blockType = "bytes";
+        }
     }
 
     /* caclulcate blocks per second */
@@ -631,7 +819,7 @@ static void bench_stats_asym_finish(const char* algo, int strength,
     opsSec = count / total;    /* ops second */
     milliEach = each * 1000;   /* milliseconds */
 
-    printf("%-5s %4d %-9s %s %6d ops took %5.3f sec, avg %5.3f ms,"
+    printf("%-6s %5d %-9s %s %6d ops took %5.3f sec, avg %5.3f ms,"
         " %.3f ops/sec\n", algo, strength, desc, BENCH_ASYNC_GET_NAME(doAsync),
         count, total, milliEach, opsSec);
 
@@ -747,231 +935,289 @@ static void* benchmarks_do(void* args)
 #endif
 
 #ifndef WC_NO_RNG
-    bench_rng();
+    if (bench_all || (bench_other_algs & BENCH_RNG))
+        bench_rng();
 #endif /* WC_NO_RNG */
 #ifndef NO_AES
 #ifdef HAVE_AES_CBC
+    if (bench_all || (bench_cipher_algs & BENCH_AES_CBC)) {
     #ifndef NO_SW_BENCH
         bench_aescbc(0);
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
         bench_aescbc(1);
     #endif
+    }
 #endif
 #ifdef HAVE_AESGCM
+    if (bench_all || (bench_cipher_algs & BENCH_AES_GCM)) {
     #ifndef NO_SW_BENCH
         bench_aesgcm(0);
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
         bench_aesgcm(1);
     #endif
+    }
 #endif
 #ifdef WOLFSSL_AES_DIRECT
+    if (bench_all || (bench_cipher_algs & BENCH_AES_ECB)) {
     #ifndef NO_SW_BENCH
         bench_aesecb(0);
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
         bench_aesecb(1);
     #endif
+    }
 #endif
 #ifdef WOLFSSL_AES_XTS
-    bench_aesxts();
+    if (bench_all || (bench_cipher_algs & BENCH_AES_XTS))
+        bench_aesxts();
 #endif
 #ifdef WOLFSSL_AES_COUNTER
-    bench_aesctr();
+    if (bench_all || (bench_cipher_algs & BENCH_AES_CTR))
+        bench_aesctr();
 #endif
 #ifdef HAVE_AESCCM
-    bench_aesccm();
+    if (bench_all || (bench_cipher_algs & BENCH_AES_CCM))
+        bench_aesccm();
 #endif
 #endif /* !NO_AES */
 
 #ifdef HAVE_CAMELLIA
-    bench_camellia();
+    if (bench_all || (bench_cipher_algs & BENCH_CAMELLIA))
+        bench_camellia();
 #endif
 #ifndef NO_RC4
+    if (bench_all || (bench_cipher_algs & BENCH_ARC4)) {
     #ifndef NO_SW_BENCH
         bench_arc4(0);
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ARC4)
         bench_arc4(1);
     #endif
+    }
 #endif
 #ifdef HAVE_HC128
-    bench_hc128();
+    if (bench_all || (bench_cipher_algs & BENCH_HC128))
+        bench_hc128();
 #endif
 #ifndef NO_RABBIT
-    bench_rabbit();
+    if (bench_all || (bench_cipher_algs & BENCH_RABBIT))
+        bench_rabbit();
 #endif
 #ifdef HAVE_CHACHA
-    bench_chacha();
+    if (bench_all || (bench_cipher_algs & BENCH_CHACHA20))
+        bench_chacha();
 #endif
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
-    bench_chacha20_poly1305_aead();
+    if (bench_all || (bench_cipher_algs & BENCH_CHACHA20_POLY1305))
+        bench_chacha20_poly1305_aead();
 #endif
 #ifndef NO_DES3
+    if (bench_all || (bench_cipher_algs & BENCH_DES)) {
     #ifndef NO_SW_BENCH
         bench_des(0);
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES)
         bench_des(1);
     #endif
+    }
 #endif
 #ifdef HAVE_IDEA
-    bench_idea();
+    if (bench_all || (bench_cipher_algs & BENCH_IDEA))
+        bench_idea();
 #endif
 
 #ifndef NO_MD5
+    if (bench_all || (bench_digest_algs & BENCH_MD5)) {
     #ifndef NO_SW_BENCH
         bench_md5(0);
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_MD5)
         bench_md5(1);
     #endif
+    }
 #endif
 #ifdef HAVE_POLY1305
-    bench_poly1305();
+    if (bench_all || (bench_digest_algs & BENCH_POLY1305))
+        bench_poly1305();
 #endif
 #ifndef NO_SHA
+    if (bench_all || (bench_digest_algs & BENCH_SHA)) {
     #ifndef NO_SW_BENCH
         bench_sha(0);
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA)
         bench_sha(1);
     #endif
+    }
 #endif
 #ifdef WOLFSSL_SHA224
+    if (bench_all || (bench_digest_algs & BENCH_SHA224)) {
     #ifndef NO_SW_BENCH
         bench_sha224(0);
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA224)
         bench_sha224(1);
     #endif
+    }
 #endif
 #ifndef NO_SHA256
+    if (bench_all || (bench_digest_algs & BENCH_SHA256)) {
     #ifndef NO_SW_BENCH
         bench_sha256(0);
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA256)
         bench_sha256(1);
     #endif
+    }
 #endif
 #ifdef WOLFSSL_SHA384
+    if (bench_all || (bench_digest_algs & BENCH_SHA384)) {
     #ifndef NO_SW_BENCH
         bench_sha384(0);
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA384)
         bench_sha384(1);
     #endif
+    }
 #endif
 #ifdef WOLFSSL_SHA512
+    if (bench_all || (bench_digest_algs & BENCH_SHA512)) {
     #ifndef NO_SW_BENCH
         bench_sha512(0);
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
         bench_sha512(1);
     #endif
+    }
 #endif
 #ifdef WOLFSSL_SHA3
     #ifndef WOLFSSL_NOSHA3_224
+    if (bench_all || (bench_digest_algs & BENCH_SHA3_224)) {
     #ifndef NO_SW_BENCH
         bench_sha3_224(0);
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
         bench_sha3_224(1);
     #endif
+    }
     #endif /* WOLFSSL_NOSHA3_224 */
     #ifndef WOLFSSL_NOSHA3_256
+    if (bench_all || (bench_digest_algs & BENCH_SHA3_256)) {
     #ifndef NO_SW_BENCH
         bench_sha3_256(0);
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
         bench_sha3_256(1);
     #endif
+    }
     #endif /* WOLFSSL_NOSHA3_256 */
     #ifndef WOLFSSL_NOSHA3_384
+    if (bench_all || (bench_digest_algs & BENCH_SHA3_384)) {
     #ifndef NO_SW_BENCH
         bench_sha3_384(0);
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA3)
         bench_sha3_384(1);
     #endif
+    }
     #endif /* WOLFSSL_NOSHA3_384 */
     #ifndef WOLFSSL_NOSHA3_512
+    if (bench_all || (bench_digest_algs & BENCH_SHA3_512)) {
     #ifndef NO_SW_BENCH
         bench_sha3_512(0);
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
         bench_sha3_512(1);
     #endif
+    }
     #endif /* WOLFSSL_NOSHA3_512 */
 #endif
 #ifdef WOLFSSL_RIPEMD
-    bench_ripemd();
+    if (bench_all || (bench_digest_algs & BENCH_RIPEMD))
+        bench_ripemd();
 #endif
 #ifdef HAVE_BLAKE2
-    bench_blake2();
+    if (bench_all || (bench_digest_algs & BENCH_BLAKE2))
+        bench_blake2();
 #endif
 #ifdef WOLFSSL_CMAC
-    bench_cmac();
+    if (bench_all || (bench_mac_algs & BENCH_CMAC))
+        bench_cmac();
 #endif
 
 #ifndef NO_HMAC
     #ifndef NO_MD5
+        if (bench_all || (bench_mac_algs & BENCH_HMAC_MD5)) {
         #ifndef NO_SW_BENCH
             bench_hmac_md5(0);
         #endif
         #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
             bench_hmac_md5(1);
         #endif
+        }
     #endif
     #ifndef NO_SHA
+        if (bench_all || (bench_mac_algs & BENCH_HMAC_SHA)) {
         #ifndef NO_SW_BENCH
             bench_hmac_sha(0);
         #endif
         #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA)
             bench_hmac_sha(1);
         #endif
+        }
     #endif
     #ifdef WOLFSSL_SHA224
+        if (bench_all || (bench_mac_algs & BENCH_HMAC_SHA224)) {
         #ifndef NO_SW_BENCH
             bench_hmac_sha224(0);
         #endif
         #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA224)
             bench_hmac_sha224(1);
         #endif
+        }
     #endif
     #ifndef NO_SHA256
+        if (bench_all || (bench_mac_algs & BENCH_HMAC_SHA256)) {
         #ifndef NO_SW_BENCH
             bench_hmac_sha256(0);
         #endif
         #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA256)
             bench_hmac_sha256(1);
         #endif
+        }
     #endif
     #ifdef WOLFSSL_SHA384
+        if (bench_all || (bench_mac_algs & BENCH_HMAC_SHA384)) {
         #ifndef NO_SW_BENCH
             bench_hmac_sha384(0);
         #endif
         #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA384)
             bench_hmac_sha384(1);
         #endif
+        }
     #endif
     #ifdef WOLFSSL_SHA512
+        if (bench_all || (bench_mac_algs & BENCH_HMAC_SHA512)) {
         #ifndef NO_SW_BENCH
             bench_hmac_sha512(0);
         #endif
         #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
             bench_hmac_sha512(1);
         #endif
+        }
     #endif
 #endif /* NO_HMAC */
 
 #ifdef HAVE_SCRYPT
-    bench_scrypt();
+    if (bench_all || (bench_other_algs & BENCH_SCRYPT))
+        bench_scrypt();
 #endif
 
 #ifndef NO_RSA
     #ifdef WOLFSSL_KEY_GEN
+        if (bench_all || (bench_asym_algs & BENCH_RSA_KEYGEN)) {
         #ifndef NO_SW_BENCH
             bench_rsaKeyGen(0);
         #endif
@@ -981,30 +1227,38 @@ static void* benchmarks_do(void* args)
                 bench_rsaKeyGen(1);
             #endif
         #endif
+        }
     #endif
+    if (bench_all || (bench_asym_algs & BENCH_RSA)) {
     #ifndef NO_SW_BENCH
         bench_rsa(0);
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
         bench_rsa(1);
     #endif
+    }
 #endif
 
 #ifndef NO_DH
+    if (bench_all || (bench_asym_algs & BENCH_DH)) {
     #ifndef NO_SW_BENCH
         bench_dh(0);
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_DH)
         bench_dh(1);
     #endif
+    }
 #endif
 
 #ifdef HAVE_NTRU
-    bench_ntru();
-    bench_ntruKeyGen();
+    if (bench_all || (bench_asym_algs & BENCH_NTRU))
+        bench_ntru();
+    if (bench_all || (bench_asym_algs & BENCH_NTRU_KEYGEN))
+        bench_ntruKeyGen();
 #endif
 
 #ifdef HAVE_ECC
+    if (bench_all || (bench_asym_algs & BENCH_ECC_MAKEKEY)) {
     #ifndef NO_SW_BENCH
         bench_eccMakeKey(0);
     #endif
@@ -1014,27 +1268,35 @@ static void* benchmarks_do(void* args)
             bench_eccMakeKey(1);
         #endif
     #endif
+    }
+    if (bench_all || (bench_asym_algs & BENCH_ECC)) {
     #ifndef NO_SW_BENCH
         bench_ecc(0);
     #endif
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
         bench_ecc(1);
     #endif
+    }
     #ifdef HAVE_ECC_ENCRYPT
+    if (bench_all || (bench_asym_algs & BENCH_ECC_ENCRYPT))
         bench_eccEncrypt();
     #endif
 #endif
 
 #ifdef HAVE_CURVE25519
-    bench_curve25519KeyGen();
+    if (bench_all || (bench_asym_algs & BENCH_CURVE25519_KEYGEN))
+        bench_curve25519KeyGen();
     #ifdef HAVE_CURVE25519_SHARED_SECRET
+    if (bench_all || (bench_asym_algs & BENCH_CURVE25519_KA))
         bench_curve25519KeyAgree();
     #endif
 #endif
 
 #ifdef HAVE_ED25519
-    bench_ed25519KeyGen();
-    bench_ed25519KeySign();
+    if (bench_all || (bench_asym_algs & BENCH_ED25519_KEYGEN))
+        bench_ed25519KeyGen();
+    if (bench_all || (bench_asym_algs & BENCH_ED25519_SIGN))
+        bench_ed25519KeySign();
 #endif
 
 exit:
@@ -2756,7 +3018,7 @@ void bench_scrypt(void)
         count += i;
     } while (bench_stats_sym_check(start));
 exit:
-    bench_stats_asym_finish("scrypt", 0, "", 0, count, start, ret);
+    bench_stats_asym_finish("scrypt", 17, "", 0, count, start, ret);
 }
 
 #endif /* HAVE_SCRYPT */
@@ -4146,10 +4408,70 @@ void benchmark_configure(int block_size)
 int main(int argc, char** argv)
 {
     int ret = 0;
+    int optMatched;
+#ifndef WOLFSSL_BENCHMARK_ALL
+    int i;
+#endif
 
-    if (argc > 1) {
-        /* parse for block size */
-        benchmark_configure(atoi(argv[1]));
+    while (argc > 1) {
+        if (strcmp(argv[1], "-base10") == 0)
+            base2 = 0;
+        else if (argv[1][0] == '-') {
+            optMatched = 0;
+#ifndef WOLFSSL_BENCHMARK_ALL
+            /* Check known algorithm choosing command line options. */
+            /* Known cipher algorithms */
+            for (i=0; !optMatched && bench_cipher_opt[i].str != NULL; i++) {
+                if (strcmp(argv[1], bench_cipher_opt[i].str) == 0) {
+                    bench_cipher_algs |= bench_cipher_opt[i].val;
+                    bench_all = 0;
+                    optMatched = 1;
+                }
+            }
+            /* Known digest algorithms */
+            for (i=0; !optMatched && bench_digest_opt[i].str != NULL; i++) {
+                if (strcmp(argv[1], bench_digest_opt[i].str) == 0) {
+                    bench_digest_algs |= bench_digest_opt[i].val;
+                    bench_all = 0;
+                    optMatched = 1;
+                }
+            }
+            /* Known MAC algorithms */
+            for (i=0; !optMatched && bench_mac_opt[i].str != NULL; i++) {
+                if (strcmp(argv[1], bench_mac_opt[i].str) == 0) {
+                    bench_mac_algs |= bench_mac_opt[i].val;
+                    bench_all = 0;
+                    optMatched = 1;
+                }
+            }
+            /* Known asymmetric algorithms */
+            for (i=0; !optMatched && bench_asym_opt[i].str != NULL; i++) {
+                if (strcmp(argv[1], bench_asym_opt[i].str) == 0) {
+                    bench_asym_algs |= bench_asym_opt[i].val;
+                    bench_all = 0;
+                    optMatched = 1;
+                }
+            }
+            /* Other known cryptographic algorithms */
+            for (i=0; !optMatched && bench_other_opt[i].str != NULL; i++) {
+                if (strcmp(argv[1], bench_other_opt[i].str) == 0) {
+                    bench_other_algs |= bench_other_opt[i].val;
+                    bench_all = 0;
+                    optMatched = 1;
+                }
+            }
+#endif
+            if (!optMatched) {
+                printf("Option not recognized: %s\n", argv[1]);
+                return 1;
+            }
+        }
+        else {
+            /* parse for block size */
+            benchmark_configure(atoi(argv[1]));
+        }
+        argc--;
+        argv++;
     }
 
 #ifdef HAVE_STACK_SIZE
