@@ -1091,7 +1091,7 @@ static int sp_2048_mod_exp_49(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
     sp_digit* td;
     sp_digit* t[3];
     sp_digit* norm;
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     int i;
     int c, y;
@@ -1168,7 +1168,7 @@ static int sp_2048_mod_exp_49(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
     sp_digit* t[3];
 #endif
     sp_digit* norm;
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     int i;
     int c, y;
@@ -1253,7 +1253,7 @@ static int sp_2048_mod_exp_49(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
 #endif
     sp_digit* norm;
     sp_digit rt[98];
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     int i;
     int c, y;
@@ -1875,7 +1875,7 @@ static int sp_2048_mod_exp_98(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
     sp_digit* td;
     sp_digit* t[3];
     sp_digit* norm;
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     int i;
     int c, y;
@@ -1952,7 +1952,7 @@ static int sp_2048_mod_exp_98(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
     sp_digit* t[3];
 #endif
     sp_digit* norm;
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     int i;
     int c, y;
@@ -2037,7 +2037,7 @@ static int sp_2048_mod_exp_98(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
 #endif
     sp_digit* norm;
     sp_digit rt[196];
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     int i;
     int c, y;
@@ -3867,7 +3867,7 @@ static int sp_3072_mod_exp_70(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
     sp_digit* td;
     sp_digit* t[3];
     sp_digit* norm;
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     int i;
     int c, y;
@@ -3944,7 +3944,7 @@ static int sp_3072_mod_exp_70(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
     sp_digit* t[3];
 #endif
     sp_digit* norm;
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     int i;
     int c, y;
@@ -4029,7 +4029,7 @@ static int sp_3072_mod_exp_70(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
 #endif
     sp_digit* norm;
     sp_digit rt[140];
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     int i;
     int c, y;
@@ -4678,7 +4678,7 @@ static int sp_3072_mod_exp_140(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
     sp_digit* td;
     sp_digit* t[3];
     sp_digit* norm;
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     int i;
     int c, y;
@@ -4755,7 +4755,7 @@ static int sp_3072_mod_exp_140(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
     sp_digit* t[3];
 #endif
     sp_digit* norm;
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     int i;
     int c, y;
@@ -4840,7 +4840,7 @@ static int sp_3072_mod_exp_140(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
 #endif
     sp_digit* norm;
     sp_digit rt[280];
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     int i;
     int c, y;
@@ -6814,7 +6814,7 @@ static int sp_2048_mod_exp_18(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
     sp_digit* td;
     sp_digit* t[3];
     sp_digit* norm;
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     int i;
     int c, y;
@@ -6891,7 +6891,7 @@ static int sp_2048_mod_exp_18(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
     sp_digit* t[3];
 #endif
     sp_digit* norm;
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     int i;
     int c, y;
@@ -6976,7 +6976,7 @@ static int sp_2048_mod_exp_18(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
 #endif
     sp_digit* norm;
     sp_digit rt[36];
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     int i;
     int c, y;
@@ -7625,7 +7625,7 @@ static int sp_2048_mod_exp_36(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
     sp_digit* td;
     sp_digit* t[3];
     sp_digit* norm;
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     int i;
     int c, y;
@@ -7702,7 +7702,7 @@ static int sp_2048_mod_exp_36(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
     sp_digit* t[3];
 #endif
     sp_digit* norm;
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     int i;
     int c, y;
@@ -7787,7 +7787,7 @@ static int sp_2048_mod_exp_36(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
 #endif
     sp_digit* norm;
     sp_digit rt[72];
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     int i;
     int c, y;
@@ -9999,7 +9999,7 @@ static int sp_3072_mod_exp_27(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
     sp_digit* td;
     sp_digit* t[3];
     sp_digit* norm;
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     int i;
     int c, y;
@@ -10076,7 +10076,7 @@ static int sp_3072_mod_exp_27(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
     sp_digit* t[3];
 #endif
     sp_digit* norm;
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     int i;
     int c, y;
@@ -10161,7 +10161,7 @@ static int sp_3072_mod_exp_27(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
 #endif
     sp_digit* norm;
     sp_digit rt[54];
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     int i;
     int c, y;
@@ -10823,7 +10823,7 @@ static int sp_3072_mod_exp_54(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
     sp_digit* td;
     sp_digit* t[3];
     sp_digit* norm;
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     int i;
     int c, y;
@@ -10900,7 +10900,7 @@ static int sp_3072_mod_exp_54(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
     sp_digit* t[3];
 #endif
     sp_digit* norm;
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     int i;
     int c, y;
@@ -10985,7 +10985,7 @@ static int sp_3072_mod_exp_54(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
 #endif
     sp_digit* norm;
     sp_digit rt[108];
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     int i;
     int c, y;
@@ -18625,7 +18625,7 @@ static int sp_2048_mod_exp_16(sp_digit* r, sp_digit* a, sp_digit* e,
     sp_digit* td;
 #endif
     sp_digit* norm;
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     sp_digit mask;
     int i;
@@ -18935,7 +18935,7 @@ static int sp_2048_mod_exp_avx2_16(sp_digit* r, sp_digit* a, sp_digit* e,
     sp_digit* td;
 #endif
     sp_digit* norm;
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     sp_digit mask;
     int i;
@@ -20657,7 +20657,7 @@ static int sp_2048_mod_exp_32(sp_digit* r, sp_digit* a, sp_digit* e,
     sp_digit* td;
 #endif
     sp_digit* norm;
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     sp_digit mask;
     int i;
@@ -21064,7 +21064,7 @@ static int sp_2048_mod_exp_avx2_32(sp_digit* r, sp_digit* a, sp_digit* e,
     sp_digit* td;
 #endif
     sp_digit* norm;
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     sp_digit mask;
     int i;
@@ -35055,7 +35055,7 @@ static int sp_3072_mod_exp_24(sp_digit* r, sp_digit* a, sp_digit* e,
     sp_digit* td;
 #endif
     sp_digit* norm;
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     sp_digit mask;
     int i;
@@ -35410,7 +35410,7 @@ static int sp_3072_mod_exp_avx2_24(sp_digit* r, sp_digit* a, sp_digit* e,
     sp_digit* td;
 #endif
     sp_digit* norm;
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     sp_digit mask;
     int i;
@@ -37753,7 +37753,7 @@ static int sp_3072_mod_exp_48(sp_digit* r, sp_digit* a, sp_digit* e,
     sp_digit* td;
 #endif
     sp_digit* norm;
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     sp_digit mask;
     int i;
@@ -38255,7 +38255,7 @@ static int sp_3072_mod_exp_avx2_48(sp_digit* r, sp_digit* a, sp_digit* e,
     sp_digit* td;
 #endif
     sp_digit* norm;
-    sp_digit mp;
+    sp_digit mp = 1;
     sp_digit n;
     sp_digit mask;
     int i;
