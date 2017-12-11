@@ -169,6 +169,9 @@
 #define BENCH_HMAC_SHA256        0x00000020
 #define BENCH_HMAC_SHA384        0x00000040
 #define BENCH_HMAC_SHA512        0x00000080
+#define BENCH_HMAC               (BENCH_HMAC_MD5    | BENCH_HMAC_SHA    | \
+                                  BENCH_HMAC_SHA224 | BENCH_HMAC_SHA256 | \
+                                  BENCH_HMAC_SHA384 | BENCH_HMAC_SHA512)
 /* Asymmetric algorithms. */
 #define BENCH_RSA_KEYGEN         0x00000001
 #define BENCH_RSA                0x00000002
@@ -214,82 +217,180 @@ typedef struct bench_alg {
 
 /* All recoginized cipher algorithm choosing command line options. */
 static bench_alg bench_cipher_opt[] = {
-    { "-aes_cbc",            BENCH_AES_CBC           },
-    { "-aes_gcm",            BENCH_AES_GCM           },
-    { "-aes_ecb",            BENCH_AES_ECB           },
-    { "-aes_xts",            BENCH_AES_XTS           },
-    { "-aes_ctr",            BENCH_AES_CTR           },
-    { "-aes_ccm",            BENCH_AES_CCM           },
-    { "-camellia",           BENCH_CAMELLIA          },
-    { "-arc4",               BENCH_ARC4              },
-    { "-hc128",              BENCH_HC128             },
-    { "-rabbit",             BENCH_RABBIT            },
-    { "-chacha20",           BENCH_CHACHA20          },
-    { "-chacha20_poly1305",  BENCH_CHACHA20_POLY1305 },
-    { "-des",                BENCH_DES               },
-    { "-idea",               BENCH_IDEA              },
     { "-cipher",             -1                      },
+#ifdef HAVE_AES_CBC
+    { "-aes_cbc",            BENCH_AES_CBC           },
+#endif
+#ifdef HAVE_AESGCM
+    { "-aes_gcm",            BENCH_AES_GCM           },
+#endif
+#ifdef WOLFSSL_AES_DIRECT
+    { "-aes_ecb",            BENCH_AES_ECB           },
+#endif
+#ifdef WOLFSSL_AES_XTS
+    { "-aes_xts",            BENCH_AES_XTS           },
+#endif
+#ifdef WOLFSSL_AES_COUNTER
+    { "-aes_ctr",            BENCH_AES_CTR           },
+#endif
+#ifdef HAVE_AESCCM
+    { "-aes_ccm",            BENCH_AES_CCM           },
+#endif
+#ifdef HAVE_CAMELLIA
+    { "-camellia",           BENCH_CAMELLIA          },
+#endif
+#ifndef NO_RC4
+    { "-arc4",               BENCH_ARC4              },
+#endif
+#ifdef HAVE_HC128
+    { "-hc128",              BENCH_HC128             },
+#endif
+#ifndef NO_RABBIT
+    { "-rabbit",             BENCH_RABBIT            },
+#endif
+#ifdef HAVE_CHACHA
+    { "-chacha20",           BENCH_CHACHA20          },
+#endif
+#if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
+    { "-chacha20_poly1305",  BENCH_CHACHA20_POLY1305 },
+#endif
+#ifndef NO_DES3
+    { "-des",                BENCH_DES               },
+#endif
+#ifdef HAVE_IDEA
+    { "-idea",               BENCH_IDEA              },
+#endif
     { NULL, 0}
 };
 
 /* All recoginized digest algorithm choosing command line options. */
 static bench_alg bench_digest_opt[] = {
-    { "-md5",                BENCH_MD5               },
-    { "-poly1305",           BENCH_POLY1305          },
-    { "-sha",                BENCH_SHA               },
-    { "-sha224",             BENCH_SHA224            },
-    { "-sha256",             BENCH_SHA256            },
-    { "-sha384",             BENCH_SHA384            },
-    { "-sha512",             BENCH_SHA512            },
-    { "-sha2",               BENCH_SHA2              },
-    { "-sha3_224",           BENCH_SHA3_224          },
-    { "-sha3_256",           BENCH_SHA3_256          },
-    { "-sha3_384",           BENCH_SHA3_384          },
-    { "-sha3_512",           BENCH_SHA3_512          },
-    { "-sha3",               BENCH_SHA3              },
-    { "-ripemd",             BENCH_RIPEMD            },
-    { "-blake2",             BENCH_BLAKE2            },
     { "-digest",             -1                      },
+#ifndef NO_MD5
+    { "-md5",                BENCH_MD5               },
+#endif
+#ifdef HAVE_POLY1305
+    { "-poly1305",           BENCH_POLY1305          },
+#endif
+#ifndef NO_SHA
+    { "-sha",                BENCH_SHA               },
+#endif
+#if defined(WOLFSSL_SHA224) || !defined(NO_SHA256) || defined(WOLFSSL_SHA384) \
+                                                   || defined(WOLFSSL_SHA512)
+    { "-sha2",               BENCH_SHA2              },
+#endif
+#ifdef WOLFSSL_SHA224
+    { "-sha224",             BENCH_SHA224            },
+#endif
+#ifndef NO_SHA256
+    { "-sha256",             BENCH_SHA256            },
+#endif
+#ifdef WOLFSSL_SHA384
+    { "-sha384",             BENCH_SHA384            },
+#endif
+#ifdef WOLFSSL_SHA512
+    { "-sha512",             BENCH_SHA512            },
+#endif
+#ifdef WOLFSSL_SHA3
+    { "-sha3",               BENCH_SHA3              },
+    #ifndef WOLFSSL_NOSHA3_224
+    { "-sha3_224",           BENCH_SHA3_224          },
+    #endif
+    #ifndef WOLFSSL_NOSHA3_256
+    { "-sha3_256",           BENCH_SHA3_256          },
+    #endif
+    #ifndef WOLFSSL_NOSHA3_384
+    { "-sha3_384",           BENCH_SHA3_384          },
+    #endif
+    #ifndef WOLFSSL_NOSHA3_512
+    { "-sha3_512",           BENCH_SHA3_512          },
+    #endif
+#endif
+#ifdef WOLFSSL_RIPEMD
+    { "-ripemd",             BENCH_RIPEMD            },
+#endif
+#ifdef HAVE_BLAKE2
+    { "-blake2",             BENCH_BLAKE2            },
+#endif
     { NULL, 0}
 };
 
 /* All recoginized MAC algorithm choosing command line options. */
 static bench_alg bench_mac_opt[] = {
-    { "-cmac",               BENCH_CMAC              },
-    { "-hmac_md5",           BENCH_HMAC_MD5          },
-    { "-hmac_sha",           BENCH_HMAC_SHA          },
-    { "-hmac_sha224",        BENCH_HMAC_SHA224       },
-    { "-hmac_sha256",        BENCH_HMAC_SHA256       },
-    { "-hmac_sha384",        BENCH_HMAC_SHA384       },
-    { "-hmac_sha512",        BENCH_HMAC_SHA512       },
     { "-mac",                -1                      },
+#ifdef WOLFSSL_CMAC
+    { "-cmac",               BENCH_CMAC              },
+#endif
+#ifndef NO_HMAC
+    { "-hmac",               BENCH_HMAC              },
+    #ifndef NO_MD5
+    { "-hmac_md5",           BENCH_HMAC_MD5          },
+    #endif
+    #ifndef NO_SHA
+    { "-hmac_sha",           BENCH_HMAC_SHA          },
+    #endif
+    #ifdef WOLFSSL_SHA224
+    { "-hmac_sha224",        BENCH_HMAC_SHA224       },
+    #endif
+    #ifndef NO_SHA256
+    { "-hmac_sha256",        BENCH_HMAC_SHA256       },
+    #endif
+    #ifdef WOLFSSL_SHA384
+    { "-hmac_sha384",        BENCH_HMAC_SHA384       },
+    #endif
+    #ifdef WOLFSSL_SHA512
+    { "-hmac_sha512",        BENCH_HMAC_SHA512       },
+    #endif
+#endif
     { NULL, 0}
 };
 
 /* All recoginized asymmetric algorithm choosing command line options. */
 static bench_alg bench_asym_opt[] = {
+    { "-asym",               -1                      },
+#ifndef NO_RSA
+    #ifdef WOLFSSL_KEY_GEN
     { "-rsa_kg",             BENCH_RSA_KEYGEN        },
+    #endif
     { "-rsa",                BENCH_RSA               },
+#endif
+#ifndef NO_DH
     { "-dh",                 BENCH_DH                },
+#endif
+#ifdef HAVE_NTRU
     { "-ntru",               BENCH_NTRU              },
     { "-ntru_kg",            BENCH_NTRU_KEYGEN       },
+#endif
+#ifdef HAVE_ECC
     { "-ecc_kg",             BENCH_ECC_MAKEKEY       },
     { "-ecc",                BENCH_ECC               },
+    #ifdef HAVE_ECC_ENCRYPT
     { "-ecc_enc",            BENCH_ECC_ENCRYPT       },
+    #endif
+#endif
+#ifdef HAVE_CURVE25519
     { "-curve25519_kg",      BENCH_CURVE25519_KEYGEN },
+    #ifdef HAVE_CURVE25519_SHARED_SECRET
     { "-x25519",             BENCH_CURVE25519_KA     },
+    #endif
+#endif
+#ifdef HAVE_ED25519
     { "-ed25519_kg",         BENCH_ED25519_KEYGEN    },
     { "-ed25519",            BENCH_ED25519_SIGN      },
-    { "-asym",               -1                      },
+#endif
     { NULL, 0}
 };
 
 /* All recoginized other cryptographic algorithm choosing command line options.
  */
 static bench_alg bench_other_opt[] = {
-    { "-rng",                BENCH_RNG               },
-    { "-scrypt",             BENCH_SCRYPT            },
     { "-other",              -1                      },
+#ifndef WC_NO_RNG
+    { "-rng",                BENCH_RNG               },
+#endif
+#ifdef HAVE_SCRYPT
+    { "-scrypt",             BENCH_SCRYPT            },
+#endif
     { NULL, 0}
 };
 #endif
@@ -4405,6 +4506,77 @@ void benchmark_configure(int block_size)
 
 #ifndef NO_MAIN_DRIVER
 
+#ifndef WOLFSSL_BENCHMARK_ALL
+/* Display the algorithm string and keep to 80 characters per line.
+ *
+ * str   Algorithm string to print.
+ * line  Length of line used so far.
+ */
+static void print_alg(const char* str, int* line)
+{
+    int optLen;
+
+    optLen = (int)XSTRLEN(str) + 1;
+    if (optLen + *line > 80) {
+        printf("\n             ");
+        *line = 13;
+    }
+    *line += optLen;
+    printf(" %s", str);
+}
+#endif
+
+/* Display the usage options of the benchmark program. */
+static void Usage(void)
+{
+#ifndef WOLFSSL_BENCHMARK_ALL
+    int i;
+    int line;
+#endif
+
+    printf("benchmark\n");
+    printf("-?          Help, print this usage\n");
+    printf("-base10     Display bytes as power of 10 (eg 1 kB = 1000 Bytes)\n");
+#ifndef WOLFSSL_BENCHMARK_ALL
+    printf("-<alg>      Algorithm to benchmark. Available algorithms "
+                        "include:\n");
+    printf("             ");
+    line = 13;
+    for (i=0; bench_cipher_opt[i].str != NULL; i++)
+        print_alg(bench_cipher_opt[i].str + 1, &line);
+    printf("\n             ");
+    line = 13;
+    for (i=0; bench_digest_opt[i].str != NULL; i++)
+        print_alg(bench_digest_opt[i].str + 1, &line);
+    printf("\n             ");
+    line = 13;
+    for (i=0; bench_mac_opt[i].str != NULL; i++)
+        print_alg(bench_mac_opt[i].str + 1, &line);
+    printf("\n             ");
+    line = 13;
+    for (i=0; bench_asym_opt[i].str != NULL; i++)
+        print_alg(bench_asym_opt[i].str + 1, &line);
+    printf("\n             ");
+    line = 13;
+    for (i=0; bench_other_opt[i].str != NULL; i++)
+        print_alg(bench_other_opt[i].str + 1, &line);
+    printf("\n");
+#endif
+    printf("<num>       Size of block in bytes\n");
+}
+
+/* Match the command line argument with the string.
+ *
+ * arg  Command line argument.
+ * str  String to check for.
+ * return 1 if the command line argument matches the string, 0 otherwise.
+ */
+static int string_matches(const char* arg, const char* str)
+{
+    int len = (int)XSTRLEN(str) + 1;
+    return XSTRNCMP(arg, str, len) == 0;
+}
+
 int main(int argc, char** argv)
 {
     int ret = 0;
@@ -4414,7 +4586,11 @@ int main(int argc, char** argv)
 #endif
 
     while (argc > 1) {
-        if (strcmp(argv[1], "-base10") == 0)
+        if (string_matches(argv[1], "-?")) {
+            Usage();
+            return 0;
+        }
+        else if (string_matches(argv[1], "-base10"))
             base2 = 0;
         else if (argv[1][0] == '-') {
             optMatched = 0;
@@ -4422,7 +4598,7 @@ int main(int argc, char** argv)
             /* Check known algorithm choosing command line options. */
             /* Known cipher algorithms */
             for (i=0; !optMatched && bench_cipher_opt[i].str != NULL; i++) {
-                if (strcmp(argv[1], bench_cipher_opt[i].str) == 0) {
+                if (string_matches(argv[1], bench_cipher_opt[i].str)) {
                     bench_cipher_algs |= bench_cipher_opt[i].val;
                     bench_all = 0;
                     optMatched = 1;
@@ -4430,7 +4606,7 @@ int main(int argc, char** argv)
             }
             /* Known digest algorithms */
             for (i=0; !optMatched && bench_digest_opt[i].str != NULL; i++) {
-                if (strcmp(argv[1], bench_digest_opt[i].str) == 0) {
+                if (string_matches(argv[1], bench_digest_opt[i].str)) {
                     bench_digest_algs |= bench_digest_opt[i].val;
                     bench_all = 0;
                     optMatched = 1;
@@ -4438,7 +4614,7 @@ int main(int argc, char** argv)
             }
             /* Known MAC algorithms */
             for (i=0; !optMatched && bench_mac_opt[i].str != NULL; i++) {
-                if (strcmp(argv[1], bench_mac_opt[i].str) == 0) {
+                if (string_matches(argv[1], bench_mac_opt[i].str)) {
                     bench_mac_algs |= bench_mac_opt[i].val;
                     bench_all = 0;
                     optMatched = 1;
@@ -4446,7 +4622,7 @@ int main(int argc, char** argv)
             }
             /* Known asymmetric algorithms */
             for (i=0; !optMatched && bench_asym_opt[i].str != NULL; i++) {
-                if (strcmp(argv[1], bench_asym_opt[i].str) == 0) {
+                if (string_matches(argv[1], bench_asym_opt[i].str)) {
                     bench_asym_algs |= bench_asym_opt[i].val;
                     bench_all = 0;
                     optMatched = 1;
@@ -4454,7 +4630,7 @@ int main(int argc, char** argv)
             }
             /* Other known cryptographic algorithms */
             for (i=0; !optMatched && bench_other_opt[i].str != NULL; i++) {
-                if (strcmp(argv[1], bench_other_opt[i].str) == 0) {
+                if (string_matches(argv[1], bench_other_opt[i].str)) {
                     bench_other_algs |= bench_other_opt[i].val;
                     bench_all = 0;
                     optMatched = 1;
@@ -4463,6 +4639,7 @@ int main(int argc, char** argv)
 #endif
             if (!optMatched) {
                 printf("Option not recognized: %s\n", argv[1]);
+                Usage();
                 return 1;
             }
         }
