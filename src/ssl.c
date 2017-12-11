@@ -11045,6 +11045,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         #endif
     }
 
+#endif
+
 #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
     void wolfSSL_CTX_set_quiet_shutdown(WOLFSSL_CTX* ctx, int mode)
     {
@@ -11062,7 +11064,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 #endif
 
-
+#ifdef OPENSSL_EXTRA
     void wolfSSL_set_bio(WOLFSSL* ssl, WOLFSSL_BIO* rd, WOLFSSL_BIO* wr)
     {
         WOLFSSL_ENTER("SSL_set_bio");
@@ -11072,7 +11074,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         ssl->biord = rd;
         ssl->biowr = wr;
     }
+#endif
 
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EXTRA)
     void wolfSSL_CTX_set_client_CA_list(WOLFSSL_CTX* ctx,
                                        WOLF_STACK_OF(WOLFSSL_X509_NAME)* names)
     {
@@ -11092,7 +11096,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         return s->ca_names;
     }
+#endif
 
+#ifdef OPENSSL_EXTRA
     #if !defined(NO_RSA) && !defined(NO_CERTS)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* wolfSSL_load_client_CA_file(const char* fname)
     {
