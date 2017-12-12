@@ -10012,6 +10012,75 @@ int wc_EccPrivateKeyToDer(ecc_key* key, byte* output, word32 inLen)
     return wc_BuildEccKeyDer(key, output, inLen, 0);
 }
 
+/* Write only private ecc key to unencrypted PKCS#8 format.
+ *
+ * If output is NULL, places required PKCS#8 buffer size in outLen and
+ * returns LENGTH_ONLY_E.
+ *
+ * return length on success else < 0 */
+int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output, word32* outLen)
+{
+    int ret, tmpDerSz;
+    int algoID = 0;
+    word32 oidSz = 0;
+    word32 pkcs8Sz = 0;
+    const byte* curveOID = NULL;
+    byte* tmpDer = NULL;
+
+    if (key == NULL || outLen == NULL)
+        return BAD_FUNC_ARG;
+
+    /* set algoID, get curve OID */
+    algoID = ECDSAk;
+    ret = wc_ecc_get_oid(key->dp->oidSum, &curveOID, &oidSz);
+    if (ret < 0)
+        return ret;
+
+    /* temp buffer for plain DER key */
+    tmpDer = (byte*)XMALLOC(ECC_BUFSIZE, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmpDer == NULL)
+        return MEMORY_E;
+
+    XMEMSET(tmpDer, 0, ECC_BUFSIZE);
+
+    tmpDerSz = wc_BuildEccKeyDer(key, tmpDer, ECC_BUFSIZE, 0);
+    if (tmpDerSz < 0) {
+        XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return tmpDerSz;
+    }
+
+    /* get pkcs8 expected output size */
+    ret = wc_CreatePKCS8Key(NULL, &pkcs8Sz, tmpDer, tmpDerSz, algoID,
+                            curveOID, oidSz);
+    if (ret != LENGTH_ONLY_E) {
+        XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+
+    if (output == NULL) {
+        XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        *outLen = pkcs8Sz;
+        return LENGTH_ONLY_E;
+
+    } else if (*outLen < pkcs8Sz) {
+        XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WOLFSSL_MSG("Input buffer too small for ECC PKCS#8 key");
+        return BUFFER_E;
+    }
+
+    ret = wc_CreatePKCS8Key(output, &pkcs8Sz, tmpDer, tmpDerSz,
+                            algoID, curveOID, oidSz);
+    if (ret < 0) {
+        XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+
+    XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    *outLen = ret;
+    return ret;
+}
+
 #endif /* WOLFSSL_KEY_GEN */
 
 #endif  /* HAVE_ECC */
