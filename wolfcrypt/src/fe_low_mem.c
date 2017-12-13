@@ -57,9 +57,11 @@ void lm_copy(byte* x, const byte* a)
 
 
 #ifdef CURVE25519_SMALL
+#ifndef FREESCALE_LTC_ECC
 void fe_init()
 {
 }
+#endif
 
 /* Double an X-coordinate */
 static void xc_double(byte *x3, byte *z3,

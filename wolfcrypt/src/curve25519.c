@@ -67,7 +67,9 @@ int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key)
     if (keysize != CURVE25519_KEYSIZE)
         return ECC_BAD_ARG_E;
 
+#ifndef FREESCALE_LTC_ECC
     fe_init();
+#endif
 
     /* random number for private key */
     ret = wc_RNG_GenerateBlock(rng, key->k.point, keysize);
@@ -430,9 +432,9 @@ int wc_curve25519_init(curve25519_key* key)
     #ifdef FREESCALE_LTC_ECC
         XMEMSET(key->k.pointY, 0, key->dp->size);
         XMEMSET(key->p.pointY, 0, key->dp->size);
+    #else
+        fe_init();
     #endif
-
-    fe_init();
 
     return 0;
 }
