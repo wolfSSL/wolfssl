@@ -134,7 +134,8 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
     #include "fsl_trng.h"
 #elif defined(FREESCALE_KSDK_2_0_RNGA)
     #include "fsl_rnga.h"
-
+#elif defined(WOLFSSL_WICED)
+    #include "wiced_crypto.h"
 #elif defined(NO_DEV_RANDOM)
 #elif defined(CUSTOM_RAND_GENERATE)
 #elif defined(CUSTOM_RAND_GENERATE_BLOCK)
@@ -2046,6 +2047,21 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         arc4random_buf(output, sz);
 
         return ret;
+    }
+
+#elif defined(WOLFSSL_WICED)
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+
+        (void)os;
+        if (output == NULL || UINT16_MAX < sz) {
+            return BUFFER_E;
+        }
+
+        wiced_crypto_get_random((void*) output, sz);
+
+        return 0;
     }
 
 #elif defined(IDIRECT_DEV_RANDOM)
