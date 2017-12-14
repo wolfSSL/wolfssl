@@ -169,6 +169,19 @@
 /* Uncomment next line if building for using XILINX */
 /* #define WOLFSSL_XILINX */
 
+/* Uncomment next four lines for using WICED Studio. */
+#if !defined(WOLFSSL_WICED)
+    #define WOLFSSL_WICED
+#endif
+
+#if defined(WOLFSSL_WICED)
+    #undef WOLFSSL_USER_SETTINGS
+    #define WOLFSSL_USER_SETTINGS
+    #include "../user_settings_folder/user_settings.h"
+    #include "wolfssl/certs_test.h"
+#endif
+
+#include "wolfssl/wolfcrypt/visibility.h"
 /* Uncomment next line if building for Nucleus 1.2 */
 /* #define WOLFSSL_NUCLEUS_1_2 */
 
@@ -178,7 +191,7 @@
 #include <wolfssl/wolfcrypt/visibility.h>
 
 #ifdef WOLFSSL_USER_SETTINGS
-    #include "user_settings.h"
+    #include "../user_settings_folder/user_settings.h"
 #endif
 
 
