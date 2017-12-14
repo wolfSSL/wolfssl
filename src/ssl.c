@@ -17085,13 +17085,16 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
 long wolfSSL_get_options(const WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_get_options");
-    if(ssl == NULL)return WOLFSSL_FAILURE;
+    if(ssl == NULL)
+        return WOLFSSL_FAILURE;
     return ssl->options.mask;
 }
 
 long wolfSSL_clear_options(WOLFSSL* ssl, long opt)
 {
     WOLFSSL_ENTER("SSL_clear_options");
+    if(ssl == NULL)
+        return WOLFSSL_FAILURE;
     ssl->options.mask &= ~opt;
     return ssl->options.mask;
 }
