@@ -90,8 +90,11 @@ enum {
     WC_SHA256_PAD_SIZE     = 56
 };
 
-#ifndef WOLFSSL_TI_HASH
-
+#ifdef WOLFSSL_TI_HASH
+    #include "wolfssl/wolfcrypt/port/ti/ti-hash.h"
+#elif defined(WOLFSSL_IMX6_CAAM)
+    #include "wolfssl/wolfcrypt/port/caam/wolfcaam_sha.h"
+#else
 /* wc_Sha256 digest */
 typedef struct wc_Sha256 {
 #ifdef FREESCALE_LTC_SHA
@@ -119,8 +122,6 @@ typedef struct wc_Sha256 {
 #endif /* FREESCALE_LTC_SHA */
 } wc_Sha256;
 
-#else
-    #include "wolfssl/wolfcrypt/port/ti/ti-hash.h"
 #endif
 
 #endif /* HAVE_FIPS */

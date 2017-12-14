@@ -243,7 +243,11 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifndef WOLFSSL_ARMASM
+#if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_IMX6_CAAM)
+
+#ifdef WOLFSSL_IMX6_CAAM_BLOB
+    #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
+#endif
 
 #ifdef DEBUG_AESNI
     #include <stdio.h>
@@ -2131,10 +2135,27 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
         const byte* iv, int dir)
     {
+        int ret;
     #if defined(AES_MAX_KEY_SIZE)
         const word32 max_key_len = (AES_MAX_KEY_SIZE / 8);
     #endif
 
+    #ifdef WOLFSSL_IMX6_CAAM_BLOB
+        byte   local[32];
+        word32 localSz = 32;
+
+        if (keylen == (16 + WC_CAAM_BLOB_SZ) ||
+         keylen == (24 + WC_CAAM_BLOB_SZ) ||
+         keylen == (32 + WC_CAAM_BLOB_SZ)) {
+            if (wc_caamOpenBlob((byte*)userKey, keylen, local, &localSz) != 0) {
+                return BAD_FUNC_ARG;
+            }
+
+            /* set local values */
+            userKey = local;
+            keylen = localSz;
+        }
+    #endif
         if (aes == NULL ||
                 !((keylen == 16) || (keylen == 24) || (keylen == 32))) {
             return BAD_FUNC_ARG;
@@ -2178,7 +2199,12 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         }
     #endif /* WOLFSSL_AESNI */
 
-        return wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir);
+        ret = wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir);
+
+    #ifdef WOLFSSL_IMX6_CAAM_BLOB
+	ForceZero(local, sizeof(local));
+    #endif
+	return ret;
     }
 
     #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
@@ -2186,7 +2212,32 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
                             const byte* iv, int dir)
         {
-            return wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir);
+            int ret;
+
+        #ifdef WOLFSSL_IMX6_CAAM_BLOB
+            byte   local[32];
+            word32 localSz = 32;
+
+            if (keylen == (16 + WC_CAAM_BLOB_SZ) ||
+             keylen == (24 + WC_CAAM_BLOB_SZ) ||
+             keylen == (32 + WC_CAAM_BLOB_SZ)) {
+                if (wc_caamOpenBlob((byte*)userKey, keylen, local, &localSz)
+                        != 0) {
+                    return BAD_FUNC_ARG;
+                }
+
+                /* set local values */
+                userKey = local;
+                keylen = localSz;
+            }
+        #endif
+            ret = wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir);
+
+        #ifdef WOLFSSL_IMX6_CAAM_BLOB
+	        ForceZero(local, sizeof(local));
+        #endif
+
+            return ret;
         }
     #endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #endif /* wc_AesSetKey block */
@@ -3377,6 +3428,23 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     int  ret;
     byte iv[AES_BLOCK_SIZE];
 
+    #ifdef WOLFSSL_IMX6_CAAM_BLOB
+        byte   local[32];
+        word32 localSz = 32;
+
+        if (keylen == (16 + WC_CAAM_BLOB_SZ) ||
+          keylen == (24 + WC_CAAM_BLOB_SZ) ||
+          keylen == (32 + WC_CAAM_BLOB_SZ)) {
+            if (wc_caamOpenBlob((byte*)userKey, keylen, local, &localSz) != 0) {
+                 return BAD_FUNC_ARG;
+            }
+
+            /* set local values */
+            key = local;
+            len = localSz;
+        }
+    #endif
+
     if (!((len == 16) || (len == 24) || (len == 32)))
         return BAD_FUNC_ARG;
 
@@ -3400,6 +3468,10 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 
 #if defined(WOLFSSL_XILINX_CRYPT)
     wc_AesGcmSetKey_ex(aes, key, len, XSECURE_CSU_AES_KEY_SRC_KUP);
+#endif
+
+#ifdef WOLFSSL_IMX6_CAAM_BLOB
+    ForceZero(local, sizeof(local));
 #endif
 
     return ret;
@@ -7191,6 +7263,9 @@ int wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz)
 
 #if defined(HAVE_COLDFIRE_SEC)
     #error "Coldfire SEC doesn't currently support AES-CCM mode"
+
+#elif defined(WOLFSSL_IMX6_CAAM)
+    /* implemented in wolfcrypt/src/port/caam_aes.c */
 
 #elif defined(FREESCALE_LTC)
 

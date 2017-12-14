@@ -1183,6 +1183,12 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif /*(WOLFSSL_XILINX_CRYPT)*/
 
+#ifdef WOLFSSL_IMX6
+    #ifndef SIZEOF_LONG_LONG
+        #define SIZEOF_LONG_LONG 8
+    #endif
+#endif
+
 #if !defined(XMALLOC_USER) && !defined(MICRIUM_MALLOC) && \
     !defined(WOLFSSL_LEANPSK) && !defined(NO_WOLFSSL_MEMORY) && \
     !defined(XMALLOC_OVERRIDE)

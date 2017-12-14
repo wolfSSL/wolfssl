@@ -434,6 +434,9 @@ const char* wc_GetErrorString(int error)
     case ECC_PRIVATEONLY_E:
         return "Invalid use of private only ECC key";
 
+    case WC_CAAM_E:
+        return "Error with CAAM use";
+
     default:
         return "unknown error number";
 

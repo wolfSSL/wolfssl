@@ -1628,6 +1628,49 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return 0;
     }
 
+#elif (defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG))
+
+    #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
+    #include <wolfssl/wolfcrypt/port/caam/caam_driver.h>
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        Buffer buf[1];
+        int ret  = 0;
+        int times = 10, i;
+
+        (void)os;
+
+        if (output == NULL) {
+            return BUFFER_E;
+        }
+
+        buf[0].BufferType = DataBuffer | LastBuffer;
+        buf[0].TheAddress = (Address)output;
+        buf[0].Length     = sz;
+
+        /* Check Waiting to make sure entropy is ready */
+        for (i = 0; i < times; i++) {
+            ret = wc_caamAddAndWait(buf, NULL, CAAM_ENTROPY);
+            if (ret == Success) {
+                break;
+            }
+            if (ret != Waiting) {
+                return ret;
+            }
+            sleep(1);
+        }
+
+        if (i == times && ret != Success) {
+             return RNG_FAILURE_E;
+        }
+        else { /* Success case */
+            ret = 0;
+        }
+
+        return ret;
+    }
+
 #elif defined(CUSTOM_RAND_GENERATE_BLOCK)
     /* #define CUSTOM_RAND_GENERATE_BLOCK myRngFunc
      * extern int myRngFunc(byte* output, word32 sz);

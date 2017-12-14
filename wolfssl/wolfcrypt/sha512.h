@@ -84,6 +84,9 @@ enum {
 };
 
 
+#ifdef WOLFSSL_IMX6_CAAM
+    #include "wolfssl/wolfcrypt/port/caam/wolfcaam_sha.h"
+#else
 /* wc_Sha512 digest */
 typedef struct wc_Sha512 {
     word64  digest[WC_SHA512_DIGEST_SIZE / sizeof(word64)];
@@ -99,6 +102,7 @@ typedef struct wc_Sha512 {
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
 } wc_Sha512;
+#endif
 
 #endif /* HAVE_FIPS */
 

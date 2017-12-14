@@ -6078,7 +6078,7 @@ static void AddFragHeaders(byte* output, word32 fragSz, word32 fragOffset,
 
 
 /* return bytes received, -1 on error */
-static int Receive(WOLFSSL* ssl, byte* buf, word32 sz)
+static int wolfSSLReceive(WOLFSSL* ssl, byte* buf, word32 sz)
 {
     int recvd;
 
@@ -11607,7 +11607,7 @@ static int GetInputData(WOLFSSL *ssl, word32 size)
 
     /* read data from network */
     do {
-        in = Receive(ssl,
+        in = wolfSSLReceive(ssl,
                      ssl->buffers.inputBuffer.buffer +
                      ssl->buffers.inputBuffer.length,
                      inSz);
