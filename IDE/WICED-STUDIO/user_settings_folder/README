@@ -1,0 +1,1 @@
+The user settings directory should be placed in wolfssl at the same level as the openssl and wolfcrypt directory.

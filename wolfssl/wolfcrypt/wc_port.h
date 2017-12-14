@@ -468,6 +468,12 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define USE_WOLF_TM
     #define USE_WOLF_TIME_T
 
+#elif defined(WOLFSSL_WICED)
+    #include <time.h>
+    time_t wiced_pseudo_unix_epoch_time(time_t * timer);
+    #define XTIME(t1)       wiced_pseudo_unix_epoch_time((t1))
+    #define HAVE_GMTIME_R
+
 #elif defined(IDIRECT_DEV_TIME)
     /*Gets the timestamp from cloak software owned by VT iDirect
     in place of time() from <time.h> */

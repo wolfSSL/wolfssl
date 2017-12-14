@@ -172,6 +172,11 @@
 /* Uncomment next line if building for using XILINX */
 /* #define WOLFSSL_XILINX */
 
+/* Uncomment the next line when using WICED Studio. */
+/*    #ifndef WOLFSSL_WICED
+        #define WOLFSSL_WICED
+      #endif
+*/
 /* Uncomment next line if building for Nucleus 1.2 */
 /* #define WOLFSSL_NUCLEUS_1_2 */
 
@@ -215,6 +220,10 @@
 
 #ifdef IPHONE
     #define SIZEOF_LONG_LONG 8
+#endif
+
+#if defined(WOLFSSL_WICED)
+    #include "wolfssl/user_settings_folder/user_settings.h"
 #endif
 
 #ifdef THREADX

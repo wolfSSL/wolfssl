@@ -25,6 +25,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <stdio.h>
 
 #ifdef XMALLOC_USER
     #include <stdlib.h>  /* we're using malloc / free direct here */
@@ -196,7 +197,7 @@
 #endif
 
 
-#ifdef THREADX
+#if defined(THREADX) && !defined(WOLFSSL_WICED)
     /* since just testing, use THREADX log printf instead */
     int dc_log_printf(char*, ...);
         #undef printf
