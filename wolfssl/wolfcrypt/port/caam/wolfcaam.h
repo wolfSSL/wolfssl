@@ -48,13 +48,6 @@ WOLFSSL_API int wc_caamOpenBlob(byte* data, word32 dataSz, byte* out,
 WOLFSSL_API int wc_caamCreateBlob(byte* data, word32 dataSz, byte* out,
 	word32* outSz);
 
-/* Status Registers */
-#define WC_CAAM_STATUS      WC_CAAM_BASE + 0x0FD4
-#define WC_CAAM_VERSION_MS  WC_CAAM_BASE + 0x0FE8
-#define WC_CAAM_VERSION_LS  WC_CAAM_BASE + 0x0FEC
-#define WC_CAMM_SUPPORT_MS  WC_CAAM_BASE + 0x0FF0
-#define WC_CAMM_SUPPORT_LS  WC_CAAM_BASE + 0x0FF4
-
 /* additional size that is added by CAAM when creating a blob */
 #define WC_CAAM_BLOB_SZ 48
 

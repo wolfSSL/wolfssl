@@ -44,21 +44,21 @@
 #if defined(WOLFSSL_CAAM_PRINT) || defined(WOLFSSL_CAAM_DEBUG)
 #include <stdio.h>
 #include <wolfssl/version.h>
-	  
+
 static void wc_caamBanner(void)
 {
     printf("********* wolfSSL Version %s : Printing Out CAAM Information ********\n",
-	    LIBWOLFSSL_VERSION_STRING);
+        LIBWOLFSSL_VERSION_STRING);
     printf("CAAM Status [0x%8.8x]   = 0x%8.8x\n",
-	    CAAM_STATUS, WC_CAAM_READ(CAAM_STATUS));
+        CAAM_STATUS, WC_CAAM_READ(CAAM_STATUS));
     printf("CAAM Version MS Register [0x%8.8x]  = 0x%8.8x\n",
-	    CAAM_VERSION_MS, WC_CAAM_READ(CAAM_VERSION_MS));
+        CAAM_VERSION_MS, WC_CAAM_READ(CAAM_VERSION_MS));
     printf("CAAM Version LS Register [0x%8.8x]  = 0x%8.8x\n",
-	    CAAM_VERSION_LS, WC_CAAM_READ(CAAM_VERSION_LS));
+        CAAM_VERSION_LS, WC_CAAM_READ(CAAM_VERSION_LS));
     printf("CAAM Support MS Register [0x%8.8x] = 0x%8.8x\n",
-	    CAMM_SUPPORT_MS, WC_CAAM_READ(CAMM_SUPPORT_MS));
+        CAMM_SUPPORT_MS, WC_CAAM_READ(CAMM_SUPPORT_MS));
     printf("CAAM Support LS [0x%8.8x] = 0x%8.8x\n",
-	    CAMM_SUPPORT_LS, WC_CAAM_READ(CAMM_SUPPORT_LS));
+        CAMM_SUPPORT_LS, WC_CAAM_READ(CAMM_SUPPORT_LS));
     printf("********************************************************************\n\n");
 }
 #endif
@@ -70,13 +70,13 @@ static void wc_caamBanner(void)
  * returns 0 on success
  *
  * NOTE this is how IODevice is defined in INTEGRITY "typedef struct
- *      IODeviceStruct	    *IODevice;"
+ *      IODeviceStruct        *IODevice;"
  */
 int wc_caamSetResource(IODevice ioDev)
 {
     WOLFSSL_MSG("Setting CAAM driver");
     caam = ioDev;
-	
+
     return 0;
 }
 
@@ -90,28 +90,28 @@ int wc_caamInit()
 
     /* get the driver up */
     if (caam == NULLIODevice) {
-	WOLFSSL_MSG("Starting CAAM driver");
+        WOLFSSL_MSG("Starting CAAM driver");
         if (RequestResource((Object *)&caam, "wolfSSL_CAAM_Driver",
-	    WC_CAAM_PASSWORD) != Success) {
+            WC_CAAM_PASSWORD) != Success) {
             WOLFSSL_MSG("Unable to get the CAAM IODevice, check password?");
         }
     }
-    
+
 #if defined(WOLFSSL_CAAM_PRINT) || defined(WOLFSSL_CAAM_DEBUG)
     /* print out CAAM version/info and wolfSSL version */
     wc_caamBanner();
 #endif
-    
-    /* check that for implemented modules 
+
+    /* check that for implemented modules
      * bits 0-3 AES, 4-7 DES, 12-15 Hashing , 16-19 RNG */
     reg = WC_CAAM_READ(CAMM_SUPPORT_LS);
 
     #ifndef WC_NO_RNG
     if (((reg & 0x000F0000) >> 16) > 0) {
         WOLFSSL_MSG("Found CAAM RNG hardware module");
-	if ((WC_CAAM_READ(CAAM_RTMCTL) & 0x40000001) != 0x40000001) {
+        if ((WC_CAAM_READ(CAAM_RTMCTL) & 0x40000001) != 0x40000001) {
              WOLFSSL_MSG("Error CAAM RNG has not been set up");
-	}
+        }
     }
     #endif
 
@@ -121,21 +121,20 @@ int wc_caamInit()
     }
     else {
         WOLFSSL_MSG("Hashing not supported by CAAM");
-	return WC_CAAM_E;
+        return WC_CAAM_E;
     }
     #endif
 
-    
     #ifndef NO_AES
     if ((reg & 0x0000000F) > 0) {
         WOLFSSL_MSG("Found CAAM AES module");
     }
     else {
         WOLFSSL_MSG("AES not supported by CAAM");
-	return WC_CAAM_E;
+        return WC_CAAM_E;
     }
     #endif
-    
+
     return 0;
 }
 
@@ -149,12 +148,12 @@ int wc_caamFree()
 word32 wc_caamReadRegister(word32 reg)
 {
     Value out = 0;
-    
+
     if (caam == NULLIODevice) {
          WOLFSSL_MSG("Error CAAM IODevice not found! Bad password?");
          return 0;
     }
-     
+
     if (ReadIODeviceRegister(caam, reg, &out) != Success) {
          WOLFSSL_MSG("Error reading register\n");
     }
@@ -168,7 +167,7 @@ void wc_caamWriteRegister(word32 reg, word32 value)
          WOLFSSL_MSG("Error CAAM IODevice not found! Bad password?");
          return;
     }
-     
+
     if (WriteIODeviceRegister(caam, reg, value) != Success) {
          WOLFSSL_MSG("Error writing to register\n");
     }
@@ -178,21 +177,21 @@ void wc_caamWriteRegister(word32 reg, word32 value)
 int wc_caamAddAndWait(Buffer* buf, word32 arg[4], word32 type)
 {
     int ret;
-     if (caam == NULLIODevice) {
-          WOLFSSL_MSG("Error CAAM IODevice not found! Bad password?");
-	  return WC_CAAM_E;
-     }
-     
-     if ((ret = SynchronousSendIORequest(caam, type, (const Value*)arg, buf))
-	     != Success) {
-	 #if defined(WOLFSSL_CAAM_PRINT) || defined(WOLFSSL_CAAM_DEBUG)
-         printf("ret of SynchronousSendIORequest = %d type = %d\n", ret, type);
-         #endif
-	 return WC_CAAM_E;
-     }
+    if (caam == NULLIODevice) {
+        WOLFSSL_MSG("Error CAAM IODevice not found! Bad password?");
+        return WC_CAAM_E;
+    }
 
-     (void)ret;
-     return 0;
+    if ((ret = SynchronousSendIORequest(caam, type, (const Value*)arg, buf))
+         != Success) {
+    #if defined(WOLFSSL_CAAM_PRINT) || defined(WOLFSSL_CAAM_DEBUG)
+        printf("ret of SynchronousSendIORequest = %d type = %d\n", ret, type);
+    #endif
+        return WC_CAAM_E;
+    }
+
+    (void)ret;
+    return 0;
 }
 
 
@@ -202,7 +201,7 @@ int wc_caamCreateBlob(byte* data, word32 dataSz, byte* out, word32* outSz)
     word32 arg[4];
     int ret;
     word32 local[2] = {0,0};
-	
+
     if (*outSz < dataSz + WC_CAAM_BLOB_SZ) {
         return BAD_FUNC_ARG;
     }
@@ -210,7 +209,7 @@ int wc_caamCreateBlob(byte* data, word32 dataSz, byte* out, word32* outSz)
     in[0].BufferType = DataBuffer;
     in[0].TheAddress = (Address)local;
     in[0].Length = sizeof(local);
-    
+
     in[1].BufferType = DataBuffer;
     in[1].TheAddress = (Address)data;
     in[1].Length = dataSz;
@@ -220,10 +219,10 @@ int wc_caamCreateBlob(byte* data, word32 dataSz, byte* out, word32* outSz)
     in[2].Length = dataSz + WC_CAAM_BLOB_SZ;
 
     arg[2] = dataSz;
-    
+
     if ((ret = wc_caamAddAndWait(in, arg, CAAM_BLOB_ENCAP)) != 0) {
         WOLFSSL_MSG("Error with CAAM blob create");
-	return ret;
+        return ret;
     }
 
     *outSz = dataSz + WC_CAAM_BLOB_SZ;
@@ -237,7 +236,7 @@ int wc_caamOpenBlob(byte* data, word32 dataSz, byte* out, word32* outSz)
     word32 arg[4];
     int ret;
     word32 local[2] = {0,0};
-	
+
     if (*outSz < dataSz - WC_CAAM_BLOB_SZ) {
         return BAD_FUNC_ARG;
     }
@@ -245,7 +244,7 @@ int wc_caamOpenBlob(byte* data, word32 dataSz, byte* out, word32* outSz)
     in[0].BufferType = DataBuffer;
     in[0].TheAddress = (Address)local;
     in[0].Length = sizeof(local);
-    
+
     in[0].BufferType = DataBuffer;
     in[0].TheAddress = (Address)data;
     in[0].Length = dataSz;
@@ -255,10 +254,10 @@ int wc_caamOpenBlob(byte* data, word32 dataSz, byte* out, word32* outSz)
     in[1].Length = dataSz - WC_CAAM_BLOB_SZ;
 
     arg[2] = dataSz;
-    
+
     if ((ret = wc_caamAddAndWait(in, arg, CAAM_BLOB_DECAP)) != 0) {
         WOLFSSL_MSG("Error with CAAM blob create");
-	return ret;
+        return ret;
     }
 
     *outSz = dataSz - WC_CAAM_BLOB_SZ;
