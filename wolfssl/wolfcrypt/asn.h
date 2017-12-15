@@ -111,13 +111,8 @@ enum PBES {
     PBE_SHA1_DES     = 1,
     PBE_SHA1_DES3    = 2,
     PBE_SHA1_RC4_128 = 3,
+    PBE_AES256_CBC   = 4,
     PBES2            = 13       /* algo ID */
-};
-
-enum ENCRYPTION_TYPES {
-    DES_TYPE  = 0,
-    DES3_TYPE = 1,
-    RC4_TYPE  = 2
 };
 
 enum ECC_TYPES {
@@ -219,6 +214,7 @@ enum Oid_Types {
     oidKdfType          = 11,
     oidKeyWrapType      = 12,
     oidCmsKeyAgreeType  = 13,
+    oidHmacType         = 14,
     oidIgnoreType
 };
 
@@ -303,6 +299,14 @@ enum Ecc_Sum {
 
 enum KDF_Sum {
     PBKDF2_OID = 660
+};
+
+
+enum HMAC_Sum {
+    HMAC_SHA224_OID = 652,
+    HMAC_SHA256_OID = 653,
+    HMAC_SHA384_OID = 654,
+    HMAC_SHA512_OID = 655
 };
 
 
