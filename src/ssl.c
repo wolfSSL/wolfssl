@@ -11494,6 +11494,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     long wolfSSL_CTX_clear_options(WOLFSSL_CTX* ctx, long opt)
     {
         WOLFSSL_ENTER("SSL_CTX_clear_options");
+        if(ctx == NULL)
+            return BAD_FUNC_ARG;
         ctx->mask &= ~opt;
         return ctx->mask;
     }
