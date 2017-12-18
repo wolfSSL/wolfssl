@@ -10636,7 +10636,7 @@ static void test_wolfSSL_ASN1_TIME_adj(void)
     const int hour = 60*60;
     const int min  = 60;
     const byte asn_utc_time = ASN_UTC_TIME;
-#ifndef TIME_T_NOT_LONG
+#if !defined(TIME_T_NOT_LONG) && !defined(NO_64BIT)
     const byte asn_gen_time = ASN_GENERALIZED_TIME;
 #endif
     WOLFSSL_ASN1_TIME *asn_time, *s;
