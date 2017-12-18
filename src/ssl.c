@@ -15267,11 +15267,13 @@ void wolfSSL_set_connect_state(WOLFSSL* ssl)
     #ifndef NO_DH
     /* client creates its own DH parameters on handshake */
     if (ssl->buffers.serverDH_P.buffer && ssl->buffers.weOwnDH) {
-        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_DH);
+        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap,
+            DYNAMIC_TYPE_PUBLIC_KEY);
     }
     ssl->buffers.serverDH_P.buffer = NULL;
     if (ssl->buffers.serverDH_G.buffer && ssl->buffers.weOwnDH) {
-        XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap, DYNAMIC_TYPE_DH);
+        XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap,
+            DYNAMIC_TYPE_PUBLIC_KEY);
     }
     ssl->buffers.serverDH_G.buffer = NULL;
     #endif
