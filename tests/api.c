@@ -10671,7 +10671,7 @@ static void test_wolfSSL_ASN1_TIME_adj(void)
     XMEMSET(date_str, 0, sizeof(date_str));
 
     /* Generalized time will overflow time_t if not long */
-#ifndef TIME_T_NOT_LONG
+#if !defined(TIME_T_NOT_LONG) && !defined(NO_64BIT)
     s = (WOLFSSL_ASN1_TIME*)XMALLOC(sizeof(WOLFSSL_ASN1_TIME), NULL,
                                     DYNAMIC_TYPE_OPENSSL);
     /* GeneralizedTime notation test */
@@ -10686,7 +10686,7 @@ static void test_wolfSSL_ASN1_TIME_adj(void)
 
     XFREE(s,NULL,DYNAMIC_TYPE_OPENSSL);
     XMEMSET(date_str, 0, sizeof(date_str));
-#endif
+#endif /* !TIME_T_NOT_LONG && !NO_64BIT */
 
     /* if WOLFSSL_ASN1_TIME struct is not allocated */
     s = NULL;
