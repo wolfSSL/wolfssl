@@ -7348,7 +7348,8 @@ int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
     /* sanity check on arguments */
     if (aes == NULL || out == NULL || in == NULL || nonce == NULL
-            || authTag == NULL || nonceSz < 7 || nonceSz > 13)
+            || authTag == NULL || nonceSz < 7 || nonceSz > 13 ||
+            authTagSz > AES_BLOCK_SIZE)
         return BAD_FUNC_ARG;
 
     XMEMCPY(B+1, nonce, nonceSz);
@@ -7416,7 +7417,8 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 
     /* sanity check on arguments */
     if (aes == NULL || out == NULL || in == NULL || nonce == NULL
-            || authTag == NULL || nonceSz < 7 || nonceSz > 13)
+            || authTag == NULL || nonceSz < 7 || nonceSz > 13 ||
+            authTagSz > AES_BLOCK_SIZE)
         return BAD_FUNC_ARG;
 
     o = out;
