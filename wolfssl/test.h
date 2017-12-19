@@ -1128,6 +1128,42 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
 #endif /* USE_WINDOWS_API */
 
 
+#if defined(HAVE_OCSP) && defined(WOLFSSL_NONBLOCK_OCSP)
+static INLINE int OCSPIOCb(void* ioCtx, const char* url, int urlSz,
+    unsigned char* request, int requestSz, unsigned char** response)
+{
+#ifdef TEST_NONBLOCK_CERTS
+    static int ioCbCnt = 0;
+#endif
+
+    (void)ioCtx;
+    (void)url;
+    (void)urlSz;
+    (void)request;
+    (void)requestSz;
+    (void)response;
+
+#ifdef TEST_NONBLOCK_CERTS
+    if (ioCbCnt) {
+        ioCbCnt = 0;
+        return EmbedOcspLookup(ioCtx, url, urlSz, request, requestSz, response);
+    }
+    else {
+        ioCbCnt = 1;
+        return WOLFSSL_CBIO_ERR_WANT_READ;
+    }
+#else
+    return EmbedOcspLookup(ioCtx, url, urlSz, request, requestSz, response);
+#endif
+}
+
+static INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
+{
+    (void)ioCtx;
+    (void)response;
+}
+#endif
+
 #if !defined(NO_CERTS)
     #if !defined(NO_FILESYSTEM) || \
         (defined(NO_FILESYSTEM) && defined(FORCE_BUFFER_TEST))

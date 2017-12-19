@@ -7751,6 +7751,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     ProcPeerCertArgs* args = (ProcPeerCertArgs*)ssl->async.args;
     typedef char args_test[sizeof(ssl->async.args) >= sizeof(*args) ? 1 : -1];
     (void)sizeof(args_test);
+#elif defined(WOLFSSL_NONBLOCK_OCSP)
+    ProcPeerCertArgs* args = ssl->nonblockarg;
 #else
     ProcPeerCertArgs  args[1];
 #endif
@@ -7770,6 +7772,15 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             goto exit_ppc;
     }
     else
+#elif defined(WOLFSSL_NONBLOCK_OCSP)
+    if (args == NULL) {
+        args = (ProcPeerCertArgs*)XMALLOC(
+            sizeof(ProcPeerCertArgs), ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (args == NULL) {
+            ERROR_OUT(MEMORY_E, exit_ppc);
+        }
+    }
+    if (ssl->nonblockarg == NULL) /* new args */
 #endif
     {
         /* Reset state */
@@ -7780,6 +7791,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         args->begin = *inOutIdx;
     #ifdef WOLFSSL_ASYNC_CRYPT
         ssl->async.freeArgs = FreeProcPeerCertArgs;
+    #elif defined(WOLFSSL_NONBLOCK_OCSP)
+        ssl->nonblockarg = args;
     #endif
     }
 
@@ -8228,9 +8241,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             WOLFSSL_MSG("Doing Non Leaf OCSP check");
                             ret = CheckCertOCSP_ex(ssl->ctx->cm->ocsp,
                                                     args->dCert, NULL, ssl);
-                        #ifdef WOLFSSL_ASYNC_CRYPT
-                            /* non-blocking socket re-entry requires async */
-                            if (ret == WANT_READ) {
+                        #ifdef WOLFSSL_NONBLOCK_OCSP
+                            if (ret == OCSP_WANT_READ) {
                                 goto exit_ppc;
                             }
                         #endif
@@ -8248,9 +8260,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                                 ssl->ctx->cm->crlCheckAll) {
                             WOLFSSL_MSG("Doing Non Leaf CRL check");
                             ret = CheckCertCRL(ssl->ctx->cm->crl, args->dCert);
-                        #ifdef WOLFSSL_ASYNC_CRYPT
-                            /* non-blocking socket re-entry requires async */
-                            if (ret == WANT_READ) {
+                        #ifdef WOLFSSL_NONBLOCK_OCSP
+                            if (ret == OCSP_WANT_READ) {
                                 goto exit_ppc;
                             }
                         #endif
@@ -8378,7 +8389,21 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                 }
             #endif /* HAVE_SECURE_RENEGOTIATION */
+            } /* if (count > 0) */
 
+            /* Check for error */
+            if (args->fatal && ret != 0) {
+                goto exit_ppc;
+            }
+
+            /* Advance state and proceed */
+            ssl->options.asyncState = TLS_ASYNC_VERIFY;
+        } /* case TLS_ASYNC_DO */
+        FALL_THROUGH;
+
+        case TLS_ASYNC_VERIFY:
+        {
+            if (args->count > 0) {
             #if defined(HAVE_OCSP) || defined(HAVE_CRL)
                 if (args->fatal == 0) {
                     int doLookup = 1;
@@ -8405,9 +8430,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         WOLFSSL_MSG("Doing Leaf OCSP check");
                         ret = CheckCertOCSP_ex(ssl->ctx->cm->ocsp,
                                                     args->dCert, NULL, ssl);
-                    #ifdef WOLFSSL_ASYNC_CRYPT
-                        /* non-blocking socket re-entry requires async */
-                        if (ret == WANT_READ) {
+                    #ifdef WOLFSSL_NONBLOCK_OCSP
+                        if (ret == OCSP_WANT_READ) {
                             goto exit_ppc;
                         }
                     #endif
@@ -8426,9 +8450,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     if (doLookup && ssl->ctx->cm->crlEnabled) {
                         WOLFSSL_MSG("Doing Leaf CRL check");
                         ret = CheckCertCRL(ssl->ctx->cm->crl, args->dCert);
-                    #ifdef WOLFSSL_ASYNC_CRYPT
-                        /* non-blocking socket re-entry requires async */
-                        if (ret == WANT_READ) {
+                    #ifdef WOLFSSL_NONBLOCK_OCSP
+                        if (ret == OCSP_WANT_READ) {
                             goto exit_ppc;
                         }
                     #endif
@@ -8498,21 +8521,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 }
 
                 ssl->options.havePeerCert = 1;
-            } /* if (count > 0) */
 
-            /* Check for error */
-            if (args->fatal && ret != 0) {
-                goto exit_ppc;
-            }
-
-            /* Advance state and proceed */
-            ssl->options.asyncState = TLS_ASYNC_VERIFY;
-        } /* case TLS_ASYNC_DO */
-        FALL_THROUGH;
-
-        case TLS_ASYNC_VERIFY:
-        {
-            if (args->count > 0) {
                 args->domain = (char*)XMALLOC(ASN_NAME_MAX, ssl->heap,
                                                     DYNAMIC_TYPE_STRING);
                 if (args->domain == NULL) {
@@ -8897,16 +8906,23 @@ exit_ppc:
 
     WOLFSSL_LEAVE("ProcessPeerCerts", ret);
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-    if (ret == WC_PENDING_E || ret == WANT_READ) {
+
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
+    if (ret == WC_PENDING_E || ret == OCSP_WANT_READ) {
         /* Mark message as not recevied so it can process again */
         ssl->msgsReceived.got_certificate = 0;
 
         return ret;
     }
-#endif /* WOLFSSL_ASYNC_CRYPT */
+#endif /* WOLFSSL_ASYNC_CRYPT || WOLFSSL_NONBLOCK_OCSP */
 
     FreeProcPeerCertArgs(ssl, args);
+
+#if !defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_NONBLOCK_OCSP)
+    XFREE(args, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    ssl->nonblockarg = NULL;
+#endif
+
     FreeKeyExchange(ssl);
 
     return ret;
@@ -9702,9 +9718,9 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ret = DECODE_E;
     }
 
-#ifdef WOLFSSL_ASYNC_CRYPT
+#if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
     /* if async, offset index so this msg will be processed again */
-    if (ret == WC_PENDING_E && *inOutIdx > 0) {
+    if ((ret == WC_PENDING_E || ret == OCSP_WANT_READ) && *inOutIdx > 0) {
         *inOutIdx -= HANDSHAKE_HEADER_SZ;
     #ifdef WOLFSSL_DTLS
         if (ssl->options.dtls) {
@@ -9712,7 +9728,12 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         }
     #endif
     }
+#ifdef WOLFSSL_NONBLOCK_OCSP
+    if (ret == OCSP_WANT_READ) {
+        ret = WANT_READ; /* treat as normal WANT_READ for non-block handling */
+    }
 #endif
+#endif /* WOLFSSL_ASYNC_CRYPT || WOLFSSL_NONBLOCK_OCSP */
 
     WOLFSSL_LEAVE("DoHandShakeMsgType()", ret);
     return ret;
@@ -14449,6 +14470,9 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case OCSP_INVALID_STATUS:
         return "Invalid OCSP Status Error";
+
+    case OCSP_WANT_READ:
+        return "OCSP nonblock wants read";
 
     case RSA_KEY_SIZE_E:
         return "RSA key too small";

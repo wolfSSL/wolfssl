@@ -3282,6 +3282,8 @@ struct WOLFSSL {
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     struct WOLFSSL_ASYNC async;
+#elif defined(WOLFSSL_NONBLOCK_OCSP)
+    void*           nonblockarg;        /* dynamic arg for handling non-block resume */
 #endif
     void*           hsKey;              /* Handshake key (RsaKey or ecc_key) allocated from heap */
     word32          hsType;             /* Type of Handshake key (hsKey) */
