@@ -933,7 +933,7 @@ static int wolfIO_HttpProcessResponseBuf(int sfd, byte **recvBuf, int* recvBufSz
     return 0;
 }
 
-int wolfIO_HttpProcessResponse(int sfd, const char* appStr,
+int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
     byte** respBuf, byte* httpBuf, int httpBufSz, int dynType, void* heap)
 {
     int result = 0;
@@ -1016,9 +1016,21 @@ int wolfIO_HttpProcessResponse(int sfd, const char* appStr,
                 case phr_have_length:
                 case phr_have_type:
                     if (XSTRNCASECMP(start, "Content-Type:", 13) == 0) {
+                        int i;
+
                         start += 13;
                         while (*start == ' ' && *start != '\0') start++;
-                        if (XSTRNCASECMP(start, appStr, XSTRLEN(appStr)) != 0) {
+
+                        /* try and match against appStrList */
+                        i = 0;
+                        while (appStrList[i] != NULL) {
+                            if (XSTRNCASECMP(start, appStrList[i],
+                                                XSTRLEN(appStrList[i])) == 0) {
+                                break;
+                            }
+                            i++;
+                        }
+                        if (appStrList[i] == NULL) {
                             WOLFSSL_MSG("wolfIO_HttpProcessResponse appstr mismatch");
                             return -1;
                         }
@@ -1168,7 +1180,12 @@ int wolfIO_HttpBuildRequestOcsp(const char* domainName, const char* path,
 int wolfIO_HttpProcessResponseOcsp(int sfd, byte** respBuf,
                                        byte* httpBuf, int httpBufSz, void* heap)
 {
-    return wolfIO_HttpProcessResponse(sfd, "application/ocsp-response",
+    const char* appStrList[] = {
+        "application/ocsp-response",
+        NULL
+    };
+
+    return wolfIO_HttpProcessResponse(sfd, appStrList,
         respBuf, httpBuf, httpBufSz, DYNAMIC_TYPE_OCSP, heap);
 }
 
@@ -1277,7 +1294,13 @@ int wolfIO_HttpProcessResponseCrl(WOLFSSL_CRL* crl, int sfd, byte* httpBuf,
     int result;
     byte *respBuf = NULL;
 
-    result = wolfIO_HttpProcessResponse(sfd, "application/pkix-crl",
+    const char* appStrList[] = {
+        "application/pkix-crl",
+        "application/x-pkcs7-crl",
+        NULL
+    };
+
+    result = wolfIO_HttpProcessResponse(sfd, appStrList,
         &respBuf, httpBuf, httpBufSz, DYNAMIC_TYPE_CRL, crl->heap);
     if (result >= 0) {
         result = BufferLoadCRL(crl, respBuf, result, WOLFSSL_FILETYPE_ASN1, 0);
