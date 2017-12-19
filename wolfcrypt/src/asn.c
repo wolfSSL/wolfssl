@@ -2109,17 +2109,14 @@ static int DecryptKey(const char* password, int passwordSz, byte* salt,
 #endif
 
         default:
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-            return ALGO_ID_E;
+            ret = ALGO_ID_E;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(key, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
-    return 0;
+    return ret;
 }
 
 

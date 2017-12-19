@@ -24262,7 +24262,7 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
         (void)depth;
         WOLFSSL_STUB("wolfSSL_set_verify_depth");
 #else
-        ssl->options.verifyDepth = depth;
+        ssl->options.verifyDepth = (byte)depth;
 #endif
     }
 
