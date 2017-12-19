@@ -15291,9 +15291,26 @@ void wolfSSL_set_connect_state(WOLFSSL* ssl)
     word16 haveRSA = 1;
     word16 havePSK = 0;
 
-    if (ssl->options.side == WOLFSSL_SERVER_END) {
-        ssl->options.side = WOLFSSL_CLIENT_END;
+    if (ssl == NULL) {
+        WOLFSSL_MSG("WOLFSSL struct pointer passed in was null");
+        return;
+    }
 
+    #ifndef NO_DH
+    /* client creates its own DH parameters on handshake */
+    if (ssl->buffers.serverDH_P.buffer && ssl->buffers.weOwnDH) {
+        XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap,
+            DYNAMIC_TYPE_PUBLIC_KEY);
+    }
+    ssl->buffers.serverDH_P.buffer = NULL;
+    if (ssl->buffers.serverDH_G.buffer && ssl->buffers.weOwnDH) {
+        XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap,
+            DYNAMIC_TYPE_PUBLIC_KEY);
+    }
+    ssl->buffers.serverDH_G.buffer = NULL;
+    #endif
+
+    if (ssl->options.side == WOLFSSL_SERVER_END) {
         #ifdef NO_RSA
             haveRSA = 0;
         #endif
@@ -15305,6 +15322,7 @@ void wolfSSL_set_connect_state(WOLFSSL* ssl)
                    ssl->options.haveECDSAsig, ssl->options.haveECC,
                    ssl->options.haveStaticECC, ssl->options.side);
     }
+    ssl->options.side = WOLFSSL_CLIENT_END;
 }
 #endif
 
