@@ -285,12 +285,11 @@ struct ecc_key {
     const ecc_set_type* dp;     /* domain parameters, either points to NIST
                                    curves (idx >= 0) or user supplied */
     void* heap;         /* heap hint */
-#ifdef WOLFSSL_ATECC508A
-    int  slot;        /* Key Slot Number (-1 unknown) */
-    byte pubkey[PUB_KEY_SIZE];
-#else
     ecc_point pubkey;   /* public key */
     mp_int    k;        /* private key */
+#ifdef WOLFSSL_ATECC508A
+    int  slot;        /* Key Slot Number (-1 unknown) */
+    byte pubkey_raw[PUB_KEY_SIZE];
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     mp_int* r;          /* sign/verify temps */
@@ -409,7 +408,6 @@ int wc_ecc_get_curve_id_from_params(int fieldSize,
         const byte* Bf, word32 BfSz, const byte* order, word32 orderSz,
         const byte* Gx, word32 GxSz, const byte* Gy, word32 GySz, int cofactor);
 
-#ifndef WOLFSSL_ATECC508A
 
 WOLFSSL_API
 ecc_point* wc_ecc_new_point(void);
@@ -425,6 +423,8 @@ WOLFSSL_API
 int wc_ecc_cmp_point(ecc_point* a, ecc_point *b);
 WOLFSSL_API
 int wc_ecc_point_is_at_infinity(ecc_point *p);
+
+#ifndef WOLFSSL_ATECC508A
 WOLFSSL_API
 int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
                   mp_int* a, mp_int* modulus, int map);
