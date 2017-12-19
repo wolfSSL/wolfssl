@@ -90,6 +90,7 @@ ntru-key.raw
 key.der
 key.pem
 ecc-public-key.der
+ecc-key-pkcs8.der
 ecc-key.der
 ecc-key.pem
 certreq.der

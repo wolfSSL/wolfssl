@@ -645,10 +645,9 @@ static int CheckBitString(const byte* input, word32* inOutIdx, int* len,
     return 0;
 }
 
-#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN)
-
-#if (!defined(NO_RSA) && !defined(HAVE_USER_RSA)) || \
-    defined(HAVE_ECC) || defined(HAVE_ED25519)
+#if (!defined(NO_RSA) && !defined(HAVE_USER_RSA) && \
+     (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))) || \
+     defined(HAVE_ECC) || defined(HAVE_ED25519)
 /* Set the DER/BER encoding of the ASN.1 BIT_STRING header.
  *
  * len         Length of data to encode.
@@ -668,6 +667,12 @@ static word32 SetBitString(word32 len, byte unusedBits, byte* output)
 
     return idx;
 }
+#endif /* !NO_RSA || HAVE_ECC || HAVE_ED25519 */
+
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN)
+
+#if (!defined(NO_RSA) && !defined(HAVE_USER_RSA)) || \
+    defined(HAVE_ECC) || defined(HAVE_ED25519)
 
 #ifdef WOLFSSL_CERT_EXT
 /* Set the DER/BER encoding of the ASN.1 BIT_STRING with a 16-bit value.
@@ -3906,7 +3911,7 @@ WOLFSSL_LOCAL word32 SetExplicit(byte number, word32 len, byte* output)
 }
 
 
-#if defined(HAVE_ECC) && (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
+#if defined(HAVE_ECC)
 
 static int SetCurve(ecc_key* key, byte* output)
 {
@@ -3945,7 +3950,7 @@ static int SetCurve(ecc_key* key, byte* output)
     return idx;
 }
 
-#endif /* HAVE_ECC && (WOLFSSL_CERT_GEN || WOLFSSL_KEY_GEN) */
+#endif /* HAVE_ECC */
 
 
 static INLINE int IsSigAlgoECDSA(int algoOID)
@@ -6756,7 +6761,7 @@ static word32 SetUTF8String(word32 len, byte* output)
 
 #endif /*WOLFSSL_CERT_GEN */
 
-#if defined(HAVE_ECC) && (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))
+#if defined(HAVE_ECC)
 
 /* Write a public ECC key to output */
 static int SetEccPublicKey(byte* output, ecc_key* key, int with_header)
@@ -6887,7 +6892,7 @@ int wc_EccPublicKeyToDer(ecc_key* key, byte* output, word32 inLen,
 
     return SetEccPublicKey(output, key, with_AlgCurve);
 }
-#endif /* HAVE_ECC && (WOLFSSL_CERT_GEN || WOLFSSL_KEY_GEN) */
+#endif /* HAVE_ECC */
 
 #if defined(HAVE_ED25519) && (defined(WOLFSSL_CERT_GEN) || \
                               defined(WOLFSSL_KEY_GEN))
@@ -9877,8 +9882,6 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
 }
 
 
-#ifdef WOLFSSL_KEY_GEN
-
 /* build DER formatted ECC key, include optional public key if requested,
  * return length on success, negative on error */
 static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 inLen,
@@ -10012,7 +10015,74 @@ int wc_EccPrivateKeyToDer(ecc_key* key, byte* output, word32 inLen)
     return wc_BuildEccKeyDer(key, output, inLen, 0);
 }
 
-#endif /* WOLFSSL_KEY_GEN */
+/* Write only private ecc key to unencrypted PKCS#8 format.
+ *
+ * If output is NULL, places required PKCS#8 buffer size in outLen and
+ * returns LENGTH_ONLY_E.
+ *
+ * return length on success else < 0 */
+int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output, word32* outLen)
+{
+    int ret, tmpDerSz;
+    int algoID = 0;
+    word32 oidSz = 0;
+    word32 pkcs8Sz = 0;
+    const byte* curveOID = NULL;
+    byte* tmpDer = NULL;
+
+    if (key == NULL || outLen == NULL)
+        return BAD_FUNC_ARG;
+
+    /* set algoID, get curve OID */
+    algoID = ECDSAk;
+    ret = wc_ecc_get_oid(key->dp->oidSum, &curveOID, &oidSz);
+    if (ret < 0)
+        return ret;
+
+    /* temp buffer for plain DER key */
+    tmpDer = (byte*)XMALLOC(ECC_BUFSIZE, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmpDer == NULL)
+        return MEMORY_E;
+
+    XMEMSET(tmpDer, 0, ECC_BUFSIZE);
+
+    tmpDerSz = wc_BuildEccKeyDer(key, tmpDer, ECC_BUFSIZE, 0);
+    if (tmpDerSz < 0) {
+        XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return tmpDerSz;
+    }
+
+    /* get pkcs8 expected output size */
+    ret = wc_CreatePKCS8Key(NULL, &pkcs8Sz, tmpDer, tmpDerSz, algoID,
+                            curveOID, oidSz);
+    if (ret != LENGTH_ONLY_E) {
+        XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+
+    if (output == NULL) {
+        XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        *outLen = pkcs8Sz;
+        return LENGTH_ONLY_E;
+
+    } else if (*outLen < pkcs8Sz) {
+        XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        WOLFSSL_MSG("Input buffer too small for ECC PKCS#8 key");
+        return BUFFER_E;
+    }
+
+    ret = wc_CreatePKCS8Key(output, &pkcs8Sz, tmpDer, tmpDerSz,
+                            algoID, curveOID, oidSz);
+    if (ret < 0) {
+        XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+
+    XFREE(tmpDer, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+    *outLen = ret;
+    return ret;
+}
 
 #endif  /* HAVE_ECC */
 

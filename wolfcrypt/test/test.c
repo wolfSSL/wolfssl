@@ -6874,6 +6874,7 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         static const char* eccCaKeyPemFile  = CERT_PREFIX "ecc-key.pem";
         static const char* eccPubKeyDerFile = CERT_PREFIX "ecc-public-key.der";
         static const char* eccCaKeyTempFile = CERT_PREFIX "ecc-key.der";
+        static const char* eccPkcs8KeyDerFile = CERT_PREFIX "ecc-key-pkcs8.der";
     #endif
     #if defined(WOLFSSL_CERT_GEN) || \
             (defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT))
@@ -11173,10 +11174,11 @@ done:
 #ifdef WOLFSSL_KEY_GEN
 static int ecc_test_key_gen(WC_RNG* rng, int keySize)
 {
-    int   ret = 0;
-    int   derSz;
-    byte* der;
-    byte* pem;
+    int    ret = 0;
+    int    derSz;
+    word32 pkcs8Sz;
+    byte*  der;
+    byte*  pem;
     ecc_key userA;
 
     der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
@@ -11226,6 +11228,23 @@ static int ecc_test_key_gen(WC_RNG* rng, int keySize)
 
     ret = SaveDerAndPem(der, derSz, NULL, 0, eccPubKeyDerFile,
         NULL, 0, -6515);
+    if (ret != 0) {
+        goto done;
+    }
+
+    /* test export of PKCS#8 unecrypted private key */
+    pkcs8Sz = FOURK_BUF;
+    derSz = wc_EccPrivateKeyToPKCS8(&userA, der, &pkcs8Sz);
+    if (derSz < 0) {
+        ERROR_OUT(derSz, done);
+    }
+
+    if (derSz == 0) {
+        ERROR_OUT(-6516, done);
+    }
+
+    ret = SaveDerAndPem(der, derSz, NULL, 0, eccPkcs8KeyDerFile,
+                        NULL, 0, -6517);
     if (ret != 0) {
         goto done;
     }

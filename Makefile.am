@@ -33,6 +33,7 @@ CLEANFILES+= cert.der \
              key.der \
              key.pem \
              ntru-cert.der \
+             ecc-key-pkcs8.der \
              ntru-cert.pem \
              ntru-key.raw \
              othercert.der \
