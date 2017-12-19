@@ -109,7 +109,14 @@ enum {
     ECC_MAXSIZE_GEN = 74,   /* MAX Buffer size required when generating ECC keys*/
     ECC_MAX_PAD_SZ  = 4,    /* ECC maximum padding size */
     ECC_MAX_OID_LEN = 16,
-    ECC_MAX_SIG_SIZE= ((MAX_ECC_BYTES * 2) + ECC_MAX_PAD_SZ + SIG_HEADER_SZ)
+    ECC_MAX_SIG_SIZE= ((MAX_ECC_BYTES * 2) + ECC_MAX_PAD_SZ + SIG_HEADER_SZ),
+
+    /* max crypto hardware size */
+#ifdef WOLFSSL_ATECC508A
+    ECC_MAX_CRYPTO_HW_SIZE = ATECC_KEY_SIZE, /* from port/atmel/atmel.h */
+#elif defined(PLUTON_CRYPTO_ECC)
+    ECC_MAX_CRYPTO_HW_SIZE = 32,
+#endif
 };
 
 /* Curve Types */
@@ -290,6 +297,9 @@ struct ecc_key {
 #ifdef WOLFSSL_ATECC508A
     int  slot;        /* Key Slot Number (-1 unknown) */
     byte pubkey_raw[PUB_KEY_SIZE];
+#endif
+#ifdef PLUTON_CRYPTO_ECC
+    int devId;
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     mp_int* r;          /* sign/verify temps */
