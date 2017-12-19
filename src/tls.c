@@ -3079,7 +3079,7 @@ static word16 TLSX_PointFormat_Write(PointFormat* list, byte* output)
         list = list->next;
     }
 
-    output[0] = offset - ENUM_LEN;
+    output[0] = (byte)(offset - ENUM_LEN);
 
     return offset;
 }

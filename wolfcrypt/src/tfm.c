@@ -1933,14 +1933,14 @@ int fp_to_unsigned_bin_at_pos(int x, fp_int *t, unsigned char *b)
    fp_digit n;
 
    for (j=0,i=0; i<t->used-1; ) {
-       b[x++] = t->dp[i] >> j;
+       b[x++] = (unsigned char)(t->dp[i] >> j);
        j += 8;
        i += j == DIGIT_BIT;
        j &= DIGIT_BIT - 1;
    }
    n = t->dp[i];
    while (n != 0) {
-       b[x++] = n;
+       b[x++] = (unsigned char)n;
        n >>= 8;
    }
    return x;
