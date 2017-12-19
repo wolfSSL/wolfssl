@@ -7072,7 +7072,6 @@ static int test_wc_CamelliaSetKey (void)
         }
     } /* END bad args. */
 
-    printf(resultFmt, ret == 0 ? passed : failed);
 
 #endif
     return ret;
@@ -10683,7 +10682,7 @@ static void test_wolfSSL_ASN1_TIME_adj(void)
     AssertTrue(asn_time->data[0] == asn_gen_time);
     XSTRNCPY(date_str,(const char*) &asn_time->data+2, 15);
     AssertIntEQ(0, XMEMCMP(date_str, "20550313091000Z", 15));
-
+    
     XFREE(s,NULL,DYNAMIC_TYPE_OPENSSL);
     XMEMSET(date_str, 0, sizeof(date_str));
 #endif /* !TIME_T_NOT_LONG && !NO_64BIT */

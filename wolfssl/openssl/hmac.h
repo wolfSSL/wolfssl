@@ -36,6 +36,7 @@
 #endif
 
 #include <wolfssl/openssl/evp.h>
+#include <wolfssl/openssl/opensslv.h>
 #include <wolfssl/wolfcrypt/hmac.h>
 
 #ifdef __cplusplus
@@ -54,27 +55,40 @@ typedef struct WOLFSSL_HMAC_CTX {
     int  type;
 } WOLFSSL_HMAC_CTX;
 
-
-WOLFSSL_API void wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key,
+#ifdef WOLFSSL_SIGNAL
+WOLFSSL_API int wolfSSL_HMAC_CTX_init(WOLFSSL_HMAC_CTX* ctx);
+WOLFSSL_API int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key,
                                  int keylen, const EVP_MD* type);
 WOLFSSL_API int wolfSSL_HMAC_Init_ex(WOLFSSL_HMAC_CTX* ctx, const void* key,
                                      int len, const EVP_MD* md, void* impl);
-WOLFSSL_API void wolfSSL_HMAC_Update(WOLFSSL_HMAC_CTX* ctx,
+WOLFSSL_API int wolfSSL_HMAC_Update(WOLFSSL_HMAC_CTX* ctx,
                                    const unsigned char* data, int len);
-WOLFSSL_API void wolfSSL_HMAC_Final(WOLFSSL_HMAC_CTX* ctx, unsigned char* hash,
+WOLFSSL_API int wolfSSL_HMAC_Final(WOLFSSL_HMAC_CTX* ctx, unsigned char* hash,
                                   unsigned int* len);
+WOLFSSL_API int wolfSSL_HMAC_cleanup(WOLFSSL_HMAC_CTX* ctx);
+#else
+WOLFSSL_API void wolfSSL_HMAC_CTX_init(WOLFSSL_HMAC_CTX* ctx);
+WOLFSSL_API void wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key,
+                                           int keylen, const EVP_MD* type);
+WOLFSSL_API void wolfSSL_HMAC_Init_ex(WOLFSSL_HMAC_CTX* ctx, const void* key,
+                                              int len, const EVP_MD* md, void* impl);
+WOLFSSL_API void wolfSSL_HMAC_Update(WOLFSSL_HMAC_CTX* ctx,
+                                             const unsigned char* data, int len);
+WOLFSSL_API void wolfSSL_HMAC_Final(WOLFSSL_HMAC_CTX* ctx, unsigned char* hash,
+                                            unsigned int* len);
 WOLFSSL_API void wolfSSL_HMAC_cleanup(WOLFSSL_HMAC_CTX* ctx);
-
+#endif
 
 typedef struct WOLFSSL_HMAC_CTX HMAC_CTX;
 
 #define HMAC(a,b,c,d,e,f,g) wolfSSL_HMAC((a),(b),(c),(d),(e),(f),(g))
 
-#define HMAC_Init    wolfSSL_HMAC_Init
-#define HMAC_Init_ex wolfSSL_HMAC_Init_ex
-#define HMAC_Update  wolfSSL_HMAC_Update
-#define HMAC_Final   wolfSSL_HMAC_Final
-#define HMAC_cleanup wolfSSL_HMAC_cleanup
+#define HMAC_CTX_init    wolfSSL_HMAC_CTX_init
+#define HMAC_Init        wolfSSL_HMAC_Init
+#define HMAC_Init_ex     wolfSSL_HMAC_Init_ex
+#define HMAC_Update      wolfSSL_HMAC_Update
+#define HMAC_Final       wolfSSL_HMAC_Final
+#define HMAC_cleanup     wolfSSL_HMAC_cleanup
 
 
 #ifdef __cplusplus
