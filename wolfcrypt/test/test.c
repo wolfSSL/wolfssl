@@ -11143,6 +11143,9 @@ static int ecc_test_make_pub(WC_RNG* rng)
     /* make public key for shared secret */
     wc_ecc_init(&pub);
     ret = wc_ecc_make_key(rng, 32, &pub);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &pub.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+#endif
     if (ret != 0) {
         ERROR_OUT(-6830, done);
     }
@@ -11974,6 +11977,9 @@ static int ecc_def_curve_test(WC_RNG *rng)
     wc_ecc_init(&key);
 
     ret = wc_ecc_make_key(rng, 32, &key);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+#endif
     if (ret != 0) {
         ret = -6643;
         goto done;
@@ -12277,6 +12283,9 @@ static int ecc_test_cert_gen(WC_RNG* rng)
     }
 
     ret = wc_ecc_make_key(rng, 32, &certPubKey);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &certPubKey.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+#endif
     if (ret != 0) {
         ERROR_OUT(-6726, exit);
     }
