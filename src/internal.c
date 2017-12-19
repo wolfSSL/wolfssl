@@ -2699,7 +2699,8 @@ static INLINE void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsType)
 }
 #endif /* !NO_WOLFSSL_SERVER || !NO_CERTS */
 
-#if !defined(NO_DH) || defined(HAVE_ECC)
+#if !defined(NO_DH) || defined(HAVE_ECC) || \
+    (!defined(NO_RSA) && defined(WC_RSA_PSS))
 
 static enum wc_HashType HashAlgoToType(int hashAlgo)
 {
@@ -2729,8 +2730,10 @@ static enum wc_HashType HashAlgoToType(int hashAlgo)
     return WC_HASH_TYPE_NONE;
 }
 
-#ifndef NO_CERTS
+#endif /* !NO_DH || HAVE_ECC || (!NO_RSA && WC_RSA_PSS) */
 
+
+#ifndef NO_CERTS
 
 void InitX509Name(WOLFSSL_X509_NAME* name, int dynamicFlag)
 {
@@ -2840,10 +2843,8 @@ void FreeX509(WOLFSSL_X509* x509)
     if (x509->altNames)
         FreeAltNames(x509->altNames, x509->heap);
 }
-#endif /* !NO_CERTS */
-#endif /* !NO_DH || HAVE_ECC */
 
-#ifndef NO_CERTS
+
 /* Encode the signature algorithm into buffer.
  *
  * hashalgo  The hash algorithm.
