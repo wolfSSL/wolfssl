@@ -6120,6 +6120,7 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 {
     int ret = 0;
     word32 inIdx = *inOutIdx;
+
     (void)totalSz;
 
     WOLFSSL_ENTER("DoTls13HandShakeMsgType");
