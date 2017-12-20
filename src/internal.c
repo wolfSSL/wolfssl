@@ -8101,6 +8101,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         args->dCertInit = 1;
                     }
 
+                    /* check if returning from non-blocking OCSP */
+                #ifdef WOLFSSL_NONBLOCK_OCSP
+                    if (args->lastErr != OCSP_WANT_READ)
+                    {
+                #endif
+
                     ret = ParseCertRelative(args->dCert, CERT_TYPE,
                                     !ssl->options.verifyNone, ssl->ctx->cm);
                 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -8225,6 +8231,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         WOLFSSL_MSG("Verified CA from chain and already had it");
                     }
 
+                #ifdef WOLFSSL_NONBLOCK_OCSP
+                    }
+                    else {
+                        args->lastErr = 0; /* clear last error */
+                    }
+                #endif
+
             #if defined(HAVE_OCSP) || defined(HAVE_CRL)
                     if (ret == 0) {
                         int doCrlLookup = 1;
@@ -8243,6 +8256,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                                     args->dCert, NULL, ssl);
                         #ifdef WOLFSSL_NONBLOCK_OCSP
                             if (ret == OCSP_WANT_READ) {
+                                args->lastErr = ret;
                                 goto exit_ppc;
                             }
                         #endif
@@ -8262,6 +8276,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             ret = CheckCertCRL(ssl->ctx->cm->crl, args->dCert);
                         #ifdef WOLFSSL_NONBLOCK_OCSP
                             if (ret == OCSP_WANT_READ) {
+                                args->lastErr = ret;
                                 goto exit_ppc;
                             }
                         #endif

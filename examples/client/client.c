@@ -1583,7 +1583,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                                                     | WOLFSSL_OCSP_URL_OVERRIDE);
         }
         else {
-            wolfSSL_CTX_EnableOCSP(ctx, 0);
+            wolfSSL_CTX_EnableOCSP(ctx, WOLFSSL_OCSP_CHECKALL);
         }
 
     #ifdef WOLFSSL_NONBLOCK_OCSP
