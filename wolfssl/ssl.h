@@ -1880,8 +1880,10 @@ WOLFSSL_API int wolfSSL_CTX_UseClientSuites(WOLFSSL_CTX* ctx);
 WOLFSSL_API int wolfSSL_UseClientSuites(WOLFSSL* ssl);
 
 /* async additions */
-WOLFSSL_API int wolfSSL_UseAsync(WOLFSSL*, int devId);
-WOLFSSL_API int wolfSSL_CTX_UseAsync(WOLFSSL_CTX*, int devId);
+#define wolfSSL_UseAsync wolfSSL_SetDevId
+#define wolfSSL_CTX_UseAsync wolfSSL_CTX_SetDevId
+WOLFSSL_API int wolfSSL_SetDevId(WOLFSSL*, int devId);
+WOLFSSL_API int wolfSSL_CTX_SetDevId(WOLFSSL_CTX*, int devId);
 
 /* helpers to get device id and heap */
 WOLFSSL_API int   wolfSSL_CTX_GetDevId(WOLFSSL_CTX* ctx, WOLFSSL* ssl);

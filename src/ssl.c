@@ -1771,10 +1771,9 @@ int wolfSSL_mcast_read(WOLFSSL* ssl, word16* id, void* data, int sz)
 
 #endif /* WOLFSSL_MULTICAST */
 
-#ifdef WOLFSSL_ASYNC_CRYPT
 
-/* let's use async hardware, WOLFSSL_SUCCESS on ok */
-int wolfSSL_UseAsync(WOLFSSL* ssl, int devId)
+/* helpers to set the device id, WOLFSSL_SUCCESS on ok */
+int wolfSSL_SetDevId(WOLFSSL* ssl, int devId)
 {
     if (ssl == NULL)
         return BAD_FUNC_ARG;
@@ -1783,10 +1782,7 @@ int wolfSSL_UseAsync(WOLFSSL* ssl, int devId)
 
     return WOLFSSL_SUCCESS;
 }
-
-
-/* let's use async hardware, WOLFSSL_SUCCESS on ok */
-int wolfSSL_CTX_UseAsync(WOLFSSL_CTX* ctx, int devId)
+int wolfSSL_CTX_SetDevId(WOLFSSL_CTX* ctx, int devId)
 {
     if (ctx == NULL)
         return BAD_FUNC_ARG;
@@ -1795,8 +1791,6 @@ int wolfSSL_CTX_UseAsync(WOLFSSL_CTX* ctx, int devId)
 
     return WOLFSSL_SUCCESS;
 }
-
-#endif /* WOLFSSL_ASYNC_CRYPT */
 
 /* helpers to get device id and heap */
 int wolfSSL_CTX_GetDevId(WOLFSSL_CTX* ctx, WOLFSSL* ssl)

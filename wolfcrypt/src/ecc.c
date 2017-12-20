@@ -3390,6 +3390,10 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
     XMEMSET(key, 0, sizeof(ecc_key));
     key->state = ECC_STATE_NONE;
 
+#ifdef PLUTON_CRYPTO_ECC
+    key->devId = devId;
+#endif
+
 #ifdef WOLFSSL_ATECC508A
     key->slot = atmel_ecc_alloc();
     if (key->slot == ATECC_INVALID_SLOT) {
@@ -3485,41 +3489,61 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
                 break;
             }
 
-        #ifdef WOLFSSL_ATECC508A
-            /* Check args */
-            if (inlen != ATECC_KEY_SIZE || *outlen < SIGN_RSP_SIZE) {
-                return ECC_BAD_ARG_E;
-            }
+        /* hardware crypto */
+        #if defined(WOLFSSL_ATECC508A) || defined(PLUTON_CRYPTO_ECC)
+            #ifdef PLUTON_CRYPTO_ECC
+            if (key->devId != INVALID_DEVID) /* use hardware */
+            #endif
+            {
+                /* Check args */
+                if ( inlen != ECC_MAX_CRYPTO_HW_SIZE ||
+                    *outlen < ECC_MAX_CRYPTO_HW_SIZE*2) {
+                    return ECC_BAD_ARG_E;
+                }
 
-            /* Sign: Result is 32-bytes of R then 32-bytes of S */
-            err = atcatls_sign(key->slot, in, out);
-            if (err != ATCA_SUCCESS) {
-               return BAD_COND_E;
-           }
+            #if defined(WOLFSSL_ATECC508A)
+                /* Sign: Result is 32-bytes of R then 32-bytes of S */
+                err = atcatls_sign(key->slot, in, out);
+                if (err != ATCA_SUCCESS) {
+                   return BAD_COND_E;
+                }
+            #elif defined(PLUTON_CRYPTO_ECC)
+                /* perform ECC sign */
+                err = Crypto_EccSign(in, inlen, out, &outlen);
+                if (err != CRYPTO_RES_SUCCESS) {
+                   return BAD_COND_E;
+                }
+            #endif
 
-            /* Load R and S */
-            err = mp_read_unsigned_bin(r, &out[0], ATECC_KEY_SIZE);
-            if (err != MP_OKAY) {
-                return err;
-            }
-            err = mp_read_unsigned_bin(s, &out[ATECC_KEY_SIZE], ATECC_KEY_SIZE);
-            if (err != MP_OKAY) {
-                return err;
-            }
+                /* Load R and S */
+                err = mp_read_unsigned_bin(r, &out[0], ECC_MAX_CRYPTO_HW_SIZE);
+                if (err != MP_OKAY) {
+                    return err;
+                }
+                err = mp_read_unsigned_bin(s, &out[ECC_MAX_CRYPTO_HW_SIZE],
+                                           ECC_MAX_CRYPTO_HW_SIZE);
+                if (err != MP_OKAY) {
+                    return err;
+                }
 
-            /* Check for zeros */
-            if (mp_iszero(r) || mp_iszero(s)) {
-                return MP_ZERO_E;
+                /* Check for zeros */
+                if (mp_iszero(r) || mp_iszero(s)) {
+                    return MP_ZERO_E;
+                }
             }
+            #ifdef PLUTON_CRYPTO_ECC
+            else {
+                err = wc_ecc_sign_hash_ex(in, inlen, rng, key, r, s);
+            }
+            #endif
 
         #else
-
             err = wc_ecc_sign_hash_ex(in, inlen, rng, key, r, s);
+        #endif
             if (err < 0) {
                 break;
             }
 
-        #endif /* WOLFSSL_ATECC508A */
             FALL_THROUGH;
 
         case ECC_STATE_SIGN_ENCODE:
