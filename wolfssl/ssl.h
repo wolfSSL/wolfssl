@@ -165,7 +165,10 @@ typedef struct WOLFSSL_BIO            WOLFSSL_BIO;
 typedef struct WOLFSSL_BIO_METHOD     WOLFSSL_BIO_METHOD;
 typedef struct WOLFSSL_X509_EXTENSION WOLFSSL_X509_EXTENSION;
 typedef struct WOLFSSL_ASN1_TIME      WOLFSSL_ASN1_TIME;
-typedef struct WOLFSSL_ASN1_INTEGER   WOLFSSL_ASN1_INTEGER;
+#ifndef WOLFSSL_ASN1_INTEGER_TYPE_DEFINED
+    typedef struct WOLFSSL_ASN1_INTEGER   WOLFSSL_ASN1_INTEGER;
+    #define WOLFSSL_ASN1_INTEGER_TYPE_DEFINED
+#endif
 typedef struct WOLFSSL_ASN1_OBJECT    WOLFSSL_ASN1_OBJECT;
 
 typedef struct WOLFSSL_ASN1_STRING      WOLFSSL_ASN1_STRING;
@@ -263,6 +266,7 @@ typedef struct WOLFSSL_X509_STORE_CTX {
     WOLFSSL_X509* current_cert;   /* stunnel dereference */
     WOLFSSL_STACK* chain;
 #ifdef OPENSSL_EXTRA
+    unsigned long flags;         /* Various verify flags */
     WOLFSSL_X509_VERIFY_PARAM* param; /* certificate validation parameter */
 #endif
     char* domain;                /* subject CN domain name */
@@ -650,6 +654,7 @@ WOLFSSL_API int  wolfSSL_BIO_free(WOLFSSL_BIO*);
 WOLFSSL_API int  wolfSSL_BIO_free_all(WOLFSSL_BIO*);
 WOLFSSL_API int  wolfSSL_BIO_read(WOLFSSL_BIO*, void*, int);
 WOLFSSL_API int  wolfSSL_BIO_write(WOLFSSL_BIO*, const void*, int);
+WOLFSSL_API int  wolfSSL_BIO_puts(WOLFSSL_BIO*, const char*);
 WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_push(WOLFSSL_BIO*, WOLFSSL_BIO* append);
 WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_pop(WOLFSSL_BIO*);
 WOLFSSL_API int  wolfSSL_BIO_flush(WOLFSSL_BIO*);
@@ -726,6 +731,7 @@ WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_STORE_CTX_get_current_cert(
                                                         WOLFSSL_X509_STORE_CTX*);
 WOLFSSL_API int   wolfSSL_X509_STORE_CTX_get_error(WOLFSSL_X509_STORE_CTX*);
 WOLFSSL_API int   wolfSSL_X509_STORE_CTX_get_error_depth(WOLFSSL_X509_STORE_CTX*);
+WOLFSSL_API void  wolfSSL_X509_STORE_CTX_set_flags(WOLFSSL_X509_STORE_CTX*,unsigned long);
 
 WOLFSSL_API char*       wolfSSL_X509_NAME_oneline(WOLFSSL_X509_NAME*, char*, int);
 WOLFSSL_API WOLFSSL_X509_NAME*  wolfSSL_X509_get_issuer_name(WOLFSSL_X509*);
@@ -806,7 +812,6 @@ WOLFSSL_API int wolfSSL_ASN1_TIME_print(WOLFSSL_BIO*, const WOLFSSL_ASN1_TIME*);
 
 WOLFSSL_API int  wolfSSL_ASN1_INTEGER_cmp(const WOLFSSL_ASN1_INTEGER*,
                                        const WOLFSSL_ASN1_INTEGER*);
-WOLFSSL_API long wolfSSL_ASN1_INTEGER_get(const WOLFSSL_ASN1_INTEGER*);
 
 #ifdef OPENSSL_EXTRA
 WOLFSSL_API WOLFSSL_BIGNUM *wolfSSL_ASN1_INTEGER_to_BN(const WOLFSSL_ASN1_INTEGER *ai,

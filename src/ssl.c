@@ -19,7 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -6826,7 +6825,6 @@ int wolfSSL_CTX_SetTmpDH_file(WOLFSSL_CTX* ctx, const char* fname, int format)
 
 #ifdef OPENSSL_EXTRA
 /* put SSL type in extra for now, not very common */
-
 WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
         const unsigned char **in, long inSz)
 {
@@ -6861,7 +6859,6 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
 
     return local;
 }
-
 
 long wolfSSL_ctrl(WOLFSSL* ssl, int cmd, long opt, void* pt)
 {
@@ -11558,6 +11555,17 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return ctx->error_depth;
         return WOLFSSL_FATAL_ERROR;
     }
+
+    void wolfSSL_X509_STORE_CTX_set_flags(WOLFSSL_X509_STORE_CTX* ctx,
+                                          unsigned long flags)
+    {
+        WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_set_flags");
+
+        if (ctx != NULL){
+            ctx->flags = flags;
+            }
+    }
+
 #endif
 
 
@@ -11986,6 +11994,15 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return ret;
     }
 
+    int wolfSSL_BIO_puts(WOLFSSL_BIO* bio, const char* data)
+    {
+        int len;
+        WOLFSSL_ENTER("BIO_puts");
+
+        for(len=0; data[len] !='\0'; len += 1);
+
+        return wolfSSL_BIO_write(bio, data,len);
+    }
 
     WOLFSSL_BIO* wolfSSL_BIO_push(WOLFSSL_BIO* top, WOLFSSL_BIO* append)
     {
@@ -12004,6 +12021,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         (void)bio;
         return 1;
     }
+
 
 
 #endif /* OPENSSL_EXTRA || GOAHEAD_WS */
@@ -16909,13 +16927,94 @@ int wolfSSL_ASN1_INTEGER_cmp(const WOLFSSL_ASN1_INTEGER* a,
     return 0;
 }
 
-
+#ifndef NO_STDINT
 long wolfSSL_ASN1_INTEGER_get(const WOLFSSL_ASN1_INTEGER* i)
 {
-    (void)i;
-    return 0;
-}
+  int e;
+  signed_word64 r;
 
+  if (i == NULL){
+      WOLFSSL_MSG("input parameter is NULL");
+      return 0;
+  }
+
+  e = wolfSSL_ASN1_INTEGER_get_int64(&r, i);
+
+  if (e == 0){
+      return -1;
+  }
+
+  if (r > LONG_MAX || r < LONG_MIN){
+      WOLFSSL_MSG("result is larger than LONG_MAX or smaller than LONG_MIN");
+      return -1;
+  }
+
+  return (long)r;
+}
+#endif
+
+int wolfSSL_ASN1_INTEGER_get_int64(signed_word64 *p,
+                                   const WOLFSSL_ASN1_INTEGER *i)
+{
+
+  WOLFSSL_ASN1_STRING *s;
+  int data_length;
+  int negative;
+  word64 *r;
+  int itr;
+
+  s = (WOLFSSL_ASN1_STRING *)i;
+  data_length = (*s).length;
+  negative = (*s).type & WOLFSSL_V_ASN1_NEG;
+
+  if (i == NULL) {
+      WOLFSSL_MSG("input parameter is NULL");
+      return 0;
+  }
+
+  /* INTGER_TYPE check */
+  if (((*s).type & ~WOLFSSL_V_ASN1_NEG) != WOLFSSL_V_ASN1_INTEGER) {
+      WOLFSSL_MSG("bad interger type");
+      return 0;
+  }
+
+  r = (word64 *)p;
+
+  /* ASN1 length check */
+  if (data_length > (signed)sizeof(*r)) {
+      WOLFSSL_MSG("too large data length");
+      return 0;
+  }
+
+  /* data check */
+  if (data_length == 0){
+      WOLFSSL_MSG("no data");
+      return 0;
+  }
+
+  *r = 0;
+  for (itr = 0; itr < data_length; itr++) {
+      *r <<= 8;
+      *r |= s->data[itr];
+  }
+
+  p = (signed_word64 *)r;
+
+  if (negative) {
+      if (*r > WOLFSSL_ABS_INT64_MIN) {
+          WOLFSSL_MSG("too small");
+          return 0;
+      }
+      *p = 0 - (word64)*r;
+  } else {
+      if (*r > WOLFSSL_INT64_MAX) {
+          WOLFSSL_MSG("too large");
+          return 0;
+      }
+      *p = (signed_word64)*r;
+  }
+  return 1;
+}
 
 void* wolfSSL_X509_STORE_CTX_get_ex_data(WOLFSSL_X509_STORE_CTX* ctx, int idx)
 {
@@ -17309,13 +17408,39 @@ WOLFSSL_API int X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg, const unsig
     return WOLFSSL_FAILURE;
 }
 
-/*** TBD ***/
+#if defined(OPENSSL_EXTRA)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA)
 WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_get_privatekey(const WOLFSSL *ssl)
 {
-    (void)ssl;
-    WOLFSSL_STUB("SSL_get_privatekey");
-    return NULL;
+
+  if (ssl == NULL) {
+      return NULL;
+  }
+
+  if (ssl->buffers.weOwnKey) {
+      if (ssl->buffers.key == NULL) {
+          WOLFSSL_MSG("Key buffer not set!");
+          return NULL;
+      }
+      return wolfSSL_d2i_PrivateKey(ssl->buffers.key->type,NULL,
+                    (const unsigned char **)&ssl->buffers.key->buffer,
+                    ssl->buffers.key->length);                                    ;
+  }
+  else { /* if key not owned get parent ctx privateKey or return null */
+      if (ssl->ctx) {
+          if (ssl->ctx->privateKey == NULL) {
+              WOLFSSL_MSG("Ctx Key buffer not set!");
+              return NULL;
+          }
+          return wolfSSL_d2i_PrivateKey(ssl->ctx->privateKey->type,NULL,
+                    (const unsigned char **)&ssl->ctx-> privateKey->buffer,
+                    ssl->ctx->privateKey->length);
+      }
+  }
+  return NULL;
 }
+#endif
+#endif
 
 /*** TBD ***/
 WOLFSSL_API int EVP_PKEY_bits(WOLFSSL_EVP_PKEY *pkey)
@@ -18496,6 +18621,24 @@ int wolfSSL_BN_sub(WOLFSSL_BIGNUM* r, const WOLFSSL_BIGNUM* a,
     WOLFSSL_MSG("wolfSSL_BN_sub mp_sub failed");
     return 0;
 }
+
+int wolfSSL_BN_div(WOLFSSL_BIGNUM* r, WOLFSSL_BIGNUM* m,
+                   const WOLFSSL_BIGNUM* a, const WOLFSSL_BIGNUM* b,
+                   const WOLFSSL_BN_CTX* c)
+{
+    (void)c;
+    WOLFSSL_MSG("wolfSSL_BN_div");
+
+    if (r == NULL || m == NULL || a == NULL || b == NULL)
+        return SSL_FAILURE;
+
+    if (mp_div((mp_int*)a->internal,(mp_int*)b->internal,
+            (mp_int*)r->internal,(mp_int*)m->internal) == MP_OKAY)
+        return SSL_SUCCESS;
+
+    WOLFSSL_MSG("wolfSSL_BN_div mp_div failed");
+    return SSL_FAILURE;
+  }
 
 /* WOLFSSL_SUCCESS on ok */
 int wolfSSL_BN_mod(WOLFSSL_BIGNUM* r, const WOLFSSL_BIGNUM* a,
