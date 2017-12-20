@@ -320,6 +320,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\tls13.c"
+				>
+			</File>
+			<File
 				RelativePath=".\wolfcrypt\src\wc_encrypt.c"
 				>
 			</File>

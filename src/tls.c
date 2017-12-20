@@ -1622,6 +1622,8 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
         switch(type) {
             case WOLFSSL_SNI_HOST_NAME: {
                 int matchStat;
+                byte matched;
+
 #ifdef WOLFSSL_TLS13
                 /* Don't process the second ClientHello SNI extension if there
                  * was problems with the first.
@@ -1629,7 +1631,7 @@ static int TLSX_SNI_Parse(WOLFSSL* ssl, byte* input, word16 length,
                 if (!cacheOnly && sni->status != 0)
                     break;
 #endif
-                byte matched = cacheOnly ||
+                matched = cacheOnly ||
                     ((XSTRLEN(sni->data.host_name) == size) &&
                     (XSTRNCMP(sni->data.host_name,
                                       (const char*)input + offset, size) == 0));
