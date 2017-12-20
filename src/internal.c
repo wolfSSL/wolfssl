@@ -6022,6 +6022,9 @@ static void AddHandShakeHeader(byte* output, word32 length,
 
     /* handshake header */
     hs = (HandShakeHeader*)output;
+    if (hs == NULL)
+        return;
+
     hs->type = type;
     c32to24(length, hs->length);         /* type and length same for each */
 #ifdef WOLFSSL_DTLS
@@ -14098,6 +14101,8 @@ int SendAlert(WOLFSSL* ssl, int severity, int type)
     /* get output buffer */
     output = ssl->buffers.outputBuffer.buffer +
              ssl->buffers.outputBuffer.length;
+    if (output == NULL)
+        return BUFFER_E;
 
     input[0] = (byte)severity;
     input[1] = (byte)type;

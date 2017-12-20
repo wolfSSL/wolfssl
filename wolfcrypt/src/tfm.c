@@ -2915,9 +2915,9 @@ int fp_isprime_ex(fp_int *a, int t)
 
    /* do trial division */
    for (r = 0; r < FP_PRIME_SIZE; r++) {
-       fp_mod_d(a, primes[r], &d);
-       if (d == 0) {
-          return FP_NO;
+       res = fp_mod_d(a, primes[r], &d);
+       if (res != MP_OKAY || d == 0) {
+           return FP_NO;
        }
    }
 
