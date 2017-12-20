@@ -115,12 +115,17 @@ void fe_0(fe h)
   h[9] = 0;
 }
 
-#if defined(HAVE_CURVE25519) && !defined(CURVE25519_SMALL) && \
+
+#if ((defined(HAVE_CURVE25519) && !defined(CURVE25519_SMALL)) || \
+     (defined(HAVE_ED25519) && !defined(ED25519_SMALL))) && \
     !defined(FREESCALE_LTC_ECC)
 void fe_init()
 {
 }
+#endif
 
+#if defined(HAVE_CURVE25519) && !defined(CURVE25519_SMALL) && \
+    !defined(FREESCALE_LTC_ECC)
 int curve25519(byte* q, byte* n, byte* p)
 {
 #if 0
