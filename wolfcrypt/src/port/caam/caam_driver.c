@@ -1159,27 +1159,21 @@ static int shaSize(struct DescStruct* desc)
 {
     /* sanity check on dataSz for context */
     switch (desc->type) {
-        case CAAM_HMAC_MD5:
         case CAAM_MD5:
             return CAAM_MD5_CTXSZ;
 
-        case CAAM_HMAC_SHA:
         case CAAM_SHA:
             return CAAM_SHA_CTXSZ;
 
-        case CAAM_HMAC_SHA224:
         case CAAM_SHA224:
             return CAAM_SHA224_CTXSZ;
 
-        case CAAM_HMAC_SHA256:
         case CAAM_SHA256:
             return CAAM_SHA256_CTXSZ;
 
-        case CAAM_HMAC_SHA384:
         case CAAM_SHA384:
             return CAAM_SHA384_CTXSZ;
 
-        case CAAM_HMAC_SHA512:
         case CAAM_SHA512:
             return CAAM_SHA512_CTXSZ;
 
@@ -1305,69 +1299,6 @@ static Error caamSha(struct DescStruct* desc, int start)
     }
 
     return Success;
-}
-
-
-/******************************************************************************
-  CAAM HMAC Operations
-  ****************************************************************************/
-
-/* Warning currently can only handle a single call not multiple updates and
- * finalize.
- *
- * The only thing HMAC has in addtition to regular SHA/MD5 operations is that
- * there is a key loaded in. This gets the key buffers than calls the pre
- * existing SHA/MD5 function.
- *
- * NOTE: It is expected that the key is smaller than the algorithms digest size
- *
- */
-static Error caamHmac(struct DescStruct* desc)
-{
-    int maxSz = (MAX_CTX * sizeof(UINT4));
-    int keySz = desc->ctxSz; /* from user args[1] */
-    struct buffer* ctx[2];
-    int offset = 0;
-    int sz     = 0;
-    int ctxIdx = 0;
-    int i;
-
-    int ctxSz = shaSize(desc);
-
-     /* get key */
-    for (i = 0; i < desc->DescriptorCount; i++) {
-        struct buffer* buf = &desc->buf[i];
-        unsigned char* local = (unsigned char*)desc->ctxBuf;
-
-        if (sz < keySz) {
-            ctx[ctxIdx++] = buf;
-            sz += buf->dataSz;
-
-            if (sz >= maxSz) {
-                return SizeIsTooLarge;
-            }
-            memcpy((unsigned char*)&local[offset], (unsigned char*)ctx[i]->data,
-            ctx[i]->dataSz);
-            offset += ctx[i]->dataSz;
-            desc->outputIdx = i;
-        }
-        else {
-            break;
-        }
-    }
-    if (sz > maxSz) {
-        return SizeIsTooLarge;
-    }
-
-    /* Add Key command and flush its buffer
-     * Add KEY Load command          0x0240000X
-     * Add address to read key from  0xXXXXXXXX */
-    ASP_FlushCaches((Address)desc->ctxBuf, sz);
-    desc->desc[desc->idx++] = (CAAM_KEY | CAAM_CLASS2) + sz;
-    desc->desc[desc->idx++] = BSP_VirtualToPhysical(desc->ctxBuf);
-
-    /* since calling SHA fuction "as is" the descriptor count needs to be set*/
-    return caamSha(desc, i);
 }
 
 
@@ -1503,14 +1434,6 @@ static Error caamTransferStart(IODeviceVector ioCaam,
         case CAAM_SHA512:
             break;
 
-        case CAAM_HMAC_MD5:
-        case CAAM_HMAC_SHA:
-        case CAAM_HMAC_SHA224:
-        case CAAM_HMAC_SHA256:
-        case CAAM_HMAC_SHA384:
-        case CAAM_HMAC_SHA512:
-            break;
-
         case CAAM_BLOB_ENCAP:
         case CAAM_BLOB_DECAP:
             break;
@@ -1553,13 +1476,6 @@ static Error caamTransferBuffer(IODeviceVector TheIODeviceVector,
         case CAAM_SHA256:
         case CAAM_SHA384:
         case CAAM_SHA512:
-
-        case CAAM_HMAC_MD5:
-        case CAAM_HMAC_SHA:
-        case CAAM_HMAC_SHA224:
-        case CAAM_HMAC_SHA256:
-        case CAAM_HMAC_SHA384:
-        case CAAM_HMAC_SHA512:
 
         case CAAM_BLOB_ENCAP:
         case CAAM_BLOB_DECAP:
@@ -1619,15 +1535,6 @@ static Error caamTransferFinish(IODeviceVector ioCaam, IORequest req)
 
         case CAAM_ENTROPY:
             ret = caamRng(desc);
-            break;
-
-        case CAAM_HMAC_MD5:
-        case CAAM_HMAC_SHA:
-        case CAAM_HMAC_SHA224:
-        case CAAM_HMAC_SHA256:
-        case CAAM_HMAC_SHA384:
-        case CAAM_HMAC_SHA512:
-            ret = caamHmac(desc);
             break;
 
         case CAAM_BLOB_ENCAP:
