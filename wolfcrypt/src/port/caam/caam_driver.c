@@ -61,12 +61,13 @@ struct DescStruct {
     struct buffer          buf[MAX_BUF]; /* buffers holding data input address */
     UINT4                  desc[MAX_DESC_SZ]; /* max size of 64 word32 */
     UINT4                  aadSzBuf[4];       /* Formated AAD size for CCM */
-    UINT4                  shaBuf[ALIGN_BUF]; /* 64 byte buffer for non page align */
+    UINT4                  alignBuf[ALIGN_BUF]; /* 64 byte buffer for non page
+                                                   align */
     UINT4                  iv[MAX_CTX]; /* AES IV and also hash state */
     UINT4                  ctxBuf[MAX_CTX]; /* key */
     Address                output; /* address to output buffer */
     Address                ctxOut; /* address to update buffer holding state */
-    Value                  shaIdx;  /* index for descriptor buffer */
+    Value                  alignIdx;/* index for align buffer */
     Value                  idx;     /* index for descriptor buffer */
     Value                  headIdx; /* for first portion of descriptor buffer */
     Value                  lastIdx; /* for last portion of descriptor buffer */
@@ -78,7 +79,8 @@ struct DescStruct {
     Value                  type;
     Value                  state;
     Value                  DescriptorCount;
-    Boolean                running; /* True if building/running descriptor is in process */
+    Boolean                running; /* True if building/running descriptor is
+                                       in process */
 };
 
 struct CAAM_DEVICE {
@@ -399,33 +401,33 @@ static int caamAddIO(struct DescStruct* desc, UINT4 options, UINT4 sz,
         if (dataSz % align > 0) {
             /* store potental overlap */
             int tmpSz  = dataSz % align;
-            int add = (tmpSz < (align - desc->shaIdx)) ? tmpSz :
-                align - desc->shaIdx;
-            unsigned char* local = (unsigned char*)desc->shaBuf;
+            int add = (tmpSz < (align - desc->alignIdx)) ? tmpSz :
+                align - desc->alignIdx;
+            unsigned char* local = (unsigned char*)desc->alignBuf;
 
             /* if already something in the buffer then add from front */
-            if (desc->shaIdx > 0) {
-                memcpy((unsigned char*)&local[desc->shaIdx],
+            if (desc->alignIdx > 0) {
+                memcpy((unsigned char*)&local[desc->alignIdx],
                 (unsigned char*)data, add);
                 data += add;
             }
             else {
-                memcpy((unsigned char*)&local[desc->shaIdx],
+                memcpy((unsigned char*)&local[desc->alignIdx],
                 (unsigned char*)data + (blocks * align), add);
             }
             dataSz -= add;
-            desc->shaIdx += add;
+            desc->alignIdx += add;
         }
 
-        if (desc->shaIdx == align) {
+        if (desc->alignIdx == align) {
             desc->lastFifo = desc->idx;
             if (desc->idx + 2 > MAX_DESC_SZ) {
                 return -1;
             }
-            desc->desc[desc->idx++] = options + desc->shaIdx;
-            desc->desc[desc->idx++] = BSP_VirtualToPhysical(desc->shaBuf);
-            ASP_FlushCaches((Address)desc->shaBuf, desc->shaIdx);
-            outSz += desc->shaIdx;
+            desc->desc[desc->idx++] = options + desc->alignIdx;
+            desc->desc[desc->idx++] = BSP_VirtualToPhysical(desc->alignBuf);
+            ASP_FlushCaches((Address)desc->alignBuf, desc->alignIdx);
+            outSz += desc->alignIdx;
         }
 
         if (blocks > 0) {
@@ -439,8 +441,8 @@ static int caamAddIO(struct DescStruct* desc, UINT4 options, UINT4 sz,
 
             /* only one buffer available for align cases so exit here and make
             a new descriptor after running current one */
-            if (desc->shaIdx == align) {
-                desc->shaIdx = 0;
+            if (desc->alignIdx == align) {
+                desc->alignIdx = 0;
                 i++; /* start at next buffer */
                 break;
             }
@@ -992,29 +994,29 @@ static Error caamAead(struct DescStruct* desc)
         }
 
         /* handle alignment constraints on input */
-        if (desc->shaIdx > 0) {
-            sz = desc->shaIdx;
+        if (desc->alignIdx > 0) {
+            sz = desc->alignIdx;
 
             /* if there is more input buffers then add part of it */
             if (i < desc->outputIdx && i < desc->DescriptorCount) {
-                sz = align - desc->shaIdx;
+                sz = align - desc->alignIdx;
                 sz = (sz <= desc->buf[i].dataSz) ? sz : desc->buf[i].dataSz;
-                memcpy((unsigned char*)(desc->shaBuf) + desc->shaIdx,
+                memcpy((unsigned char*)(desc->alignBuf) + desc->alignIdx,
                        (unsigned char*)(desc->buf[i].data), sz);
 
                 desc->buf[i].dataSz -= sz;
                 desc->buf[i].data   += sz;
-                sz += desc->shaIdx;
+                sz += desc->alignIdx;
             }
 
             if (desc->idx + 2 > MAX_DESC_SZ) {
                 return TransferFailed;
             }
-            ASP_FlushCaches((Address)desc->shaBuf, sz);
+            ASP_FlushCaches((Address)desc->alignBuf, sz);
             desc->desc[desc->idx++] = (CAAM_FIFO_L | FIFOL_TYPE_LC1 |
                                        CAAM_CLASS1 | FIFOL_TYPE_MSG) + sz;
-            desc->desc[desc->idx++] = BSP_VirtualToPhysical(desc->shaBuf);
-            desc->shaIdx = 0;
+            desc->desc[desc->idx++] = BSP_VirtualToPhysical(desc->alignBuf);
+            desc->alignIdx = 0;
         }
         else {
             sz = desc->buf[i].dataSz;
@@ -1023,12 +1025,12 @@ static Error caamAead(struct DescStruct* desc)
                 align = 1;
             }
 
-            desc->shaIdx = sz % align;
-            if (desc->shaIdx != 0) {
-                sz -= desc->shaIdx;
-                memcpy((unsigned char*)desc->shaBuf,
+            desc->alignIdx = sz % align;
+            if (desc->alignIdx != 0) {
+                sz -= desc->alignIdx;
+                memcpy((unsigned char*)desc->alignBuf,
                        (unsigned char*)(desc->buf[i].data) + sz,
-                       desc->shaIdx);
+                       desc->alignIdx);
             }
 
             if (desc->idx + 2 > MAX_DESC_SZ) {
@@ -1457,9 +1459,9 @@ static Error caamTransferStart(IODeviceVector ioCaam,
     desc->output = 0;
     desc->ctxOut = 0;
     desc->outputIdx = 0;
-    desc->shaIdx   = 0;
+    desc->alignIdx = 0;
     desc->lastFifo = 0;
-    desc->state  = args[0];
+    desc->state    = args[0];
     desc->ctxSz    = args[1];
     desc->inputSz  = args[2];
     desc->aadSz    = 0;
