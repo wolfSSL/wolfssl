@@ -446,9 +446,9 @@ int wolfcrypt_test(void* args)
 
 #ifndef NO_ASN
     if ( (ret = asn_test()) != 0)
-        return err_sys("base64   test failed!\n", ret);
+        return err_sys("asn      test failed!\n", ret);
     else
-        printf( "base64   test passed!\n");
+        printf( "asn      test passed!\n");
 #endif
 
 #ifndef NO_MD5
