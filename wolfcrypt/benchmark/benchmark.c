@@ -2012,6 +2012,9 @@ void bench_aesccm(void)
     DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
     DECLARE_VAR(bench_tag, byte, AES_AUTH_TAG_SZ, HEAP_HINT);
 
+    XMEMSET(bench_tag, 0, AES_AUTH_TAG_SZ);
+    XMEMSET(bench_additional, 0, AES_AUTH_ADD_SZ);
+
     if ((ret = wc_AesCcmSetKey(&enc, bench_key, 16)) != 0) {
         printf("wc_AesCcmSetKey failed, ret = %d\n", ret);
         return;
