@@ -345,7 +345,7 @@ WOLFSSL_API  int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags);
     WOLFSSL_API  int wolfIO_HttpBuildRequest(const char* reqType,
         const char* domainName, const char* path, int pathLen, int reqSz,
         const char* contentType, unsigned char* buf, int bufSize);
-    WOLFSSL_API  int wolfIO_HttpProcessResponse(int sfd, const char* appStr,
+    WOLFSSL_API  int wolfIO_HttpProcessResponse(int sfd, const char** appStrList,
         unsigned char** respBuf, unsigned char* httpBuf, int httpBufSz,
         int dynType, void* heap);
 #endif /* HAVE_HTTP_CLIENT */
