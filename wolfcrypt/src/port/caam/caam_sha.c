@@ -63,7 +63,7 @@
   Common Code Between SHA Functions
   ****************************************************************************/
 
-static int _InitSha(Sha* sha, void* heap, int devId, word32 digestSz,
+static int _InitSha(wc_Sha* sha, void* heap, int devId, word32 digestSz,
 	word32 type)
 {
     Buffer buf[1];
@@ -97,7 +97,7 @@ static int _InitSha(Sha* sha, void* heap, int devId, word32 digestSz,
 }
 
 
-static int _ShaUpdate(Sha* sha, const byte* data, word32 len, word32 digestSz,
+static int _ShaUpdate(wc_Sha* sha, const byte* data, word32 len, word32 digestSz,
 	word32 type)
 {   
     Buffer buf[2];
@@ -185,7 +185,7 @@ static int _ShaUpdate(Sha* sha, const byte* data, word32 len, word32 digestSz,
 }
 
 
-static int _ShaFinal(Sha* sha, byte* out, word32 digestSz,
+static int _ShaFinal(wc_Sha* sha, byte* out, word32 digestSz,
 	word32 type)
 {    
     Buffer buf[2];
@@ -322,7 +322,7 @@ int wc_Sha256Update(wc_Sha256* sha, const byte* data, word32 len)
 }
 
 
-int wc_Sha256Final(wc-Sha256* sha, byte* out)
+int wc_Sha256Final(wc_Sha256* sha, byte* out)
 {
     int ret;
     if ((ret = _ShaFinal(sha, out, SHA256_DIGEST_SIZE, CAAM_SHA256)) != 0) {

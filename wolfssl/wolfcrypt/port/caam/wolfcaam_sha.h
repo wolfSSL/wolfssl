@@ -63,22 +63,22 @@
 #endif /* WC_CAAM_MAX_DIGEST */
 
 
-typedef struct Sha {
+typedef struct wc_Sha {
     word32  ctx[(WC_CAAM_MAX_DIGEST + WC_CAAM_CTXLEN) / sizeof(word32)];
     word32  buffLen;   /* in bytes          */
     word32  buffer[WC_CAAM_HASH_BLOCK  / sizeof(word32)];
-} Sha;
+} wc_Sha;
 
 #ifndef NO_MD5
-    typedef struct Sha wc_Md5;
+    typedef struct wc_Sha wc_Md5;
 #endif
 
 #ifndef NO_SHA256
-    typedef struct Sha wc_Sha256;
+    typedef struct wc_Sha wc_Sha256;
 #endif
 
 #ifdef WOLFSSL_SHA512
-    typedef struct Sha wc_Sha512;
+    typedef struct wc_Sha wc_Sha512;
 #endif
 
 #endif /* WOLFSSL_IMX6_CAAM */

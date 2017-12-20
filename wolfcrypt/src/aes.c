@@ -243,9 +243,11 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#if !defined(WOLFSSL_ARMASM) && !defined(WOLFSSL_IMX6_CAAM)
+#if !defined(WOLFSSL_ARMASM)
 
 #ifdef WOLFSSL_IMX6_CAAM_BLOB
+    /* case of possibly not using hardware acceleration for AES but using key
+       blobs */
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
 
@@ -785,6 +787,17 @@
         }
     #endif /* HAVE_AES_DECRYPT */
 
+#elif defined(WOLFSSL_IMX6_CAAM)
+        static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+        {
+            wc_AesEncryptDirect(aes, outBlock, inBlock);
+            return 0;
+        }
+        static int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+        {
+            wc_AesDecryptDirect(aes, outBlock, inBlock);
+            return 0;
+        }
 #else
 
     /* using wolfCrypt software AES implementation */
@@ -1978,6 +1991,9 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         return wc_AesSetKey(aes, userKey, keylen, iv, dir);
     }
 
+#elif defined(WOLFSSL_IMX6_CAAM)
+      /* implemented in wolfcrypt/src/port/caam/caam_aes.c */
+
 #else
     static int wc_AesSetKeyLocal(Aes* aes, const byte* userKey, word32 keylen,
                 const byte* iv, int dir)
@@ -2288,6 +2304,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             LTC_AES_DecryptEcb(LTC_BASE, in, out, AES_BLOCK_SIZE,
                 key, keySize, kLTC_EncryptKey);
         }
+
+    #elif defined(WOLFSSL_IMX6_CAAM)
+        /* implemented in wolfcrypt/src/port/caam/caam_aes.c */
 
     #else
         /* Allow direct access to one block encrypt */
@@ -2856,6 +2875,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     }
     #endif /* HAVE_AES_DECRYPT */
 
+#elif defined(WOLFSSL_IMX6_CAAM)
+      /* implemented in wolfcrypt/src/port/caam/caam_aes.c */
+
 #else
 
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
@@ -3246,6 +3268,9 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             return 0;
         }
 
+    #elif defined(WOLFSSL_IMX6_CAAM)
+        /* implemented in wolfcrypt/src/port/caam/caam_aes.c */
+
     #else
 
         /* Use software based AES counter */
@@ -3432,10 +3457,10 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
         byte   local[32];
         word32 localSz = 32;
 
-        if (keylen == (16 + WC_CAAM_BLOB_SZ) ||
-          keylen == (24 + WC_CAAM_BLOB_SZ) ||
-          keylen == (32 + WC_CAAM_BLOB_SZ)) {
-            if (wc_caamOpenBlob((byte*)userKey, keylen, local, &localSz) != 0) {
+        if (len == (16 + WC_CAAM_BLOB_SZ) ||
+          len == (24 + WC_CAAM_BLOB_SZ) ||
+          len == (32 + WC_CAAM_BLOB_SZ)) {
+            if (wc_caamOpenBlob((byte*)key, len, local, &localSz) != 0) {
                  return BAD_FUNC_ARG;
             }
 

@@ -86,14 +86,17 @@ int wc_caamSetResource(IODevice ioDev)
  */
 int wc_caamInit()
 {
+    int    ret;
     word32 reg;
 
     /* get the driver up */
     if (caam == NULLIODevice) {
         WOLFSSL_MSG("Starting CAAM driver");
-        if (RequestResource((Object *)&caam, "wolfSSL_CAAM_Driver",
-            WC_CAAM_PASSWORD) != Success) {
+        if ((ret = (int)RequestResource((Object *)&caam, "wolfSSL_CAAM_Driver",
+            WC_CAAM_PASSWORD)) != (int)Success) {
             WOLFSSL_MSG("Unable to get the CAAM IODevice, check password?");
+            WOLFSSL_LEAVE("wc_caamInit: error from driver = ", ret);
+            ret = 0; /* not a hard failure because user can set resource */
         }
     }
 
@@ -135,6 +138,7 @@ int wc_caamInit()
     }
     #endif
 
+    (void)ret;
     return 0;
 }
 
@@ -174,6 +178,8 @@ void wc_caamWriteRegister(word32 reg, word32 value)
 }
 
 
+/* return 0 on success and WC_CAAM_E on failure. Can also return WC_CAAM_WAIT
+ * in the case that the driver is waiting for a resource. */
 int wc_caamAddAndWait(Buffer* buf, word32 arg[4], word32 type)
 {
     int ret;
@@ -187,6 +193,13 @@ int wc_caamAddAndWait(Buffer* buf, word32 arg[4], word32 type)
     #if defined(WOLFSSL_CAAM_PRINT) || defined(WOLFSSL_CAAM_DEBUG)
         printf("ret of SynchronousSendIORequest = %d type = %d\n", ret, type);
     #endif
+
+        /* if waiting for resource or RNG return waiting */
+        if (ret == Waiting) {
+            WOLFSSL_MSG("Waiting on CAAM driver");
+            return WC_CAAM_WAIT;
+        }
+
         return WC_CAAM_E;
     }
 

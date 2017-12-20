@@ -32,23 +32,23 @@
   ****************************************************************************/
 
 /* descriptor commands */
-#define CAAM_KEY   0x00000000
-#define CAAM_LOAD  0x10000000
+#define CAAM_KEY      0x00000000
+#define CAAM_LOAD     0x10000000
 #define CAAM_LOAD_CTX 0x10200000
-#define CAAM_IMM   0x00800000
-#define CAAM_FIFO_L  0x20000000
-#define CAAM_FIFO_S  0x60000000
+#define CAAM_IMM      0x00800000
+#define CAAM_FIFO_L   0x20000000
+#define CAAM_FIFO_S   0x60000000
 #define CAAM_FIFO_S_SKEY 0x60260000
-#define CAAM_STORE 0x50000000
-#define CAAM_STORE_CTX 0x50200000
-#define CAAM_MOVE  0x78000000
-#define CAAM_OP    0x80000000
-#define CAAM_SIG   0x90000000
-#define CAAM_JUMP  0xA0000000
-#define CAAM_SEQI  0xF0000000/* SEQ in  */
-#define CAAM_SEQO  0xF8000000/* SEQ out */
-#define CAAM_HEAD  0xB0800000
-#define CAAM_NWB   0x00200000
+#define CAAM_STORE       0x50000000
+#define CAAM_STORE_CTX   0x50200000
+#define CAAM_MOVE        0x78000000
+#define CAAM_OP          0x80000000
+#define CAAM_SIG         0x90000000
+#define CAAM_JUMP        0xA0000000
+#define CAAM_SEQI        0xF0000000/* SEQ in  */
+#define CAAM_SEQO        0xF8000000/* SEQ out */
+#define CAAM_HEAD        0xB0800000
+#define CAAM_NWB         0x00200000
 
 #define CAAM_BLOB_ENCAP 0x07000000
 #define CAAM_BLOB_DECAP 0x06000000
@@ -58,7 +58,7 @@
 #define CAAM_CLASS1 0x02000000/* i.e. AES */
 #define CAAM_CLASS2 0x04000000/* i.e. hash algos */
 
-#define CAAM_ENC    0x0000000D/* init and finalize with enc */
+#define CAAM_ENC    0x00000001
 #define CAAM_DEC    0x00000000
 #define CAAM_ALG_INIT   0x00000004
 #define CAAM_ALG_INITF  0x0000000C
@@ -105,10 +105,14 @@
 
 #define FIFOL_TYPE_MSG 0x00100000
 #define FIFOL_TYPE_AAD 0x00300000
+#define FIFOL_TYPE_FC1 0x00010000
 #define FIFOL_TYPE_LC1 0x00020000
 #define FIFOL_TYPE_LC2 0x00040000
 
 #define FIFOS_TYPE_MSG 0x00300000
+
+/* continue bit set if more output is expected */
+#define CAAM_FIFOS_CONT 0x00800000
 
 #define CAAM_PAGE_SZ 4096
 
@@ -168,7 +172,6 @@
 #define CAAM_CTX1        CAAM_BASE + 0x8100
 #define CAAM_CTRIV       CAAM_CTX1 + 8 /* AES-CTR iv is in 2 and 3 */
 #define CAAM_CBCIV       CAAM_CTX1     /* AES-CBC iv is in 1 and 2 */
-
 
 
 /* instantiate RNG and create JDKEK, TDKEK, and TDSK key */

@@ -437,6 +437,9 @@ const char* wc_GetErrorString(int error)
     case WC_CAAM_E:
         return "Error with CAAM use";
 
+    case WC_CAAM_WAIT:
+        return "CAAM Driver waiting on resource";
+
     default:
         return "unknown error number";
 
