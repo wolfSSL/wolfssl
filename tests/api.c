@@ -7927,10 +7927,11 @@ static int test_wc_RsaKeyToDer (void)
     RsaKey  genKey;
     WC_RNG  rng;
     byte*   der;
+    word32  derSz = 611;
 
     /* (2 x 128) + 2 (possible leading 00) + (5 x 64) + 5 (possible leading 00)
        + 3 (e) + 8 (ASN tag) + 10 (ASN length) + 4 seqSz + 3 version */
-    der = (byte*)XMALLOC(611, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    der = (byte*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
         ret = WOLFSSL_FATAL_ERROR;
     }
@@ -7952,7 +7953,7 @@ static int test_wc_RsaKeyToDer (void)
     printf(testingFmt, "wc_RsaKeyToDer()");
 
     if (ret == 0) {
-        ret = wc_RsaKeyToDer(&genKey, der, 610);
+        ret = wc_RsaKeyToDer(&genKey, der, derSz);
         if (ret > 0) {
             ret = 0;
         } else {
