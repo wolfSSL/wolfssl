@@ -58,6 +58,12 @@
         if (sha == NULL ||  (data == NULL && len > 0)) {
             return BAD_FUNC_ARG;
         }
+
+        if (data == NULL && len == 0) {
+            /* valid, but do nothing */
+            return 0;
+        }
+
         return Sha256Update_fips(sha, data, len);
     }
     int wc_Sha256Final(wc_Sha256* sha, byte* out)
@@ -433,6 +439,11 @@ static int InitSha256(wc_Sha256* sha256)
             return BAD_FUNC_ARG;
         }
 
+        if (data == NULL && len == 0) {
+            /* valid arguments, but do nothing */
+            return 0;
+        }
+
         /* do block size increments */
         local = (byte*)sha256->buffer;
 
@@ -669,6 +680,11 @@ static INLINE void AddLength(wc_Sha256* sha256, word32 len)
 
         if (sha256 == NULL || (data == NULL && len > 0)) {
             return BAD_FUNC_ARG;
+        }
+
+        if (data == NULL && len == 0) {
+            /* valid, but do nothing */
+            return 0;
         }
 
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA256)
