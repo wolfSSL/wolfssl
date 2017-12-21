@@ -326,18 +326,19 @@ WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD* method)
 void wolfSSL_CTX_free(WOLFSSL_CTX* ctx)
 {
     WOLFSSL_ENTER("SSL_CTX_free");
+    if (ctx) {
 #if defined(OPENSSL_EXTRA) && defined(WOLFCRYPT_HAVE_SRP) \
 && !defined(NO_SHA256) && !defined(WC_NO_RNG)
-    if (ctx->srp != NULL){
-        if (ctx->srp_password != NULL){
-            XFREE(ctx->srp_password, ctx->heap, DYNAMIC_TYPE_SRP);
+        if (ctx->srp != NULL){
+            if (ctx->srp_password != NULL){
+                XFREE(ctx->srp_password, ctx->heap, DYNAMIC_TYPE_SRP);
+            }
+            wc_SrpTerm(ctx->srp);
+            XFREE(ctx->srp, ctx->heap, DYNAMIC_TYPE_SRP);
         }
-        wc_SrpTerm(ctx->srp);
-        XFREE(ctx->srp, ctx->heap, DYNAMIC_TYPE_SRP);
-    }
 #endif
-    if (ctx)
         FreeSSL_Ctx(ctx);
+    }
 
     WOLFSSL_LEAVE("SSL_CTX_free", 0);
 }
@@ -16661,6 +16662,9 @@ void wolfSSL_X509_STORE_CTX_set_time(WOLFSSL_X509_STORE_CTX* ctx,
 {
     (void)flags;
 
+    if (ctx == NULL)
+        return;
+
     ctx->param->check_time = t;
     ctx->param->flags |= WOLFSSL_USE_CHECK_TIME;
 }
@@ -19227,10 +19231,12 @@ WOLFSSL_BIGNUM *wolfSSL_BN_mod_inverse(WOLFSSL_BIGNUM *r,
                                        const WOLFSSL_BIGNUM *n,
                                        WOLFSSL_BN_CTX *ctx)
 {
-    WOLFSSL_ENTER("wolfSSL_BN_mod_inverse");
+    int dynamic = 0;
 
     /* ctx is not used */
     (void)ctx;
+
+    WOLFSSL_ENTER("wolfSSL_BN_mod_inverse");
 
     /* check parameter */
     if (r == NULL) {
@@ -19239,15 +19245,22 @@ WOLFSSL_BIGNUM *wolfSSL_BN_mod_inverse(WOLFSSL_BIGNUM *r,
             WOLFSSL_MSG("WolfSSL_BN_new() failed");
             return NULL;
         }
+        dynamic = 1;
     }
 
     if (a == NULL) {
         WOLFSSL_MSG("a NULL error");
+        if (dynamic == 1) {
+            wolfSSL_BN_free(r);
+        }
         return NULL;
     }
 
     if (n == NULL) {
         WOLFSSL_MSG("n NULL error");
+        if (dynamic == 1) {
+            wolfSSL_BN_free(r);
+        }
         return NULL;
     }
 
@@ -19255,6 +19268,9 @@ WOLFSSL_BIGNUM *wolfSSL_BN_mod_inverse(WOLFSSL_BIGNUM *r,
     if (mp_invmod((mp_int *)a->internal,(mp_int *)n->internal,
                   (mp_int*)r->internal) == MP_VAL){
         WOLFSSL_MSG("mp_invmod() error");
+        if (dynamic == 1) {
+            wolfSSL_BN_free(r);
+        }
         return NULL;
     }
 
