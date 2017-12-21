@@ -38,6 +38,64 @@ wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 before calling wolfSSL_new();  Though it's not recommended.
 ```
 
+# wolfSSL (Formerly CyaSSL) Release 3.13.0 (12/21/2017)
+
+wolfSSL 3.13.0 includes bug fixes and new features, including support for
+TLS 1.3 Draft 21, performance and footprint optimizations, build fixes,
+updated examples and project files, and one vulnerability fix. The full list
+of changes and additions in this release include:
+
+* Fixes for TLS 1.3, support for Draft 21
+* TLS 1.0 disabled by default, addition of “--enable-tls10” configure option
+* New option to reduce SHA-256 code size at expense of performance
+  (USE_SLOW_SHA256)
+* New option for memory reduced build (--enable-lowresource)
+* AES-GCM performance improvements on AVX1 (IvyBridge) and AVX2
+* SHA-256 and SHA-512 performance improvements using AVX1/2 ASM
+* SHA-3 size and performance optimizations
+* Fixes for Intel AVX2 builds on Mac/OSX
+* Intel assembly for Curve25519, and Ed25519 performance optimizations
+* New option to force 32-bit mode with “--enable-32bit”
+* New option to disable all inline assembly with “--disable-asm”
+* Ability to override maximum signature algorithms using WOLFSSL_MAX_SIGALGO
+* Fixes for handling of unsupported TLS extensions.
+* Fixes for compiling AES-GCM code with GCC 4.8.*
+* Allow adjusting static I/O buffer size with WOLFMEM_IO_SZ
+* Fixes for building without a filesystem
+* Removes 3DES and SHA1 dependencies from PKCS#7
+* Adds ability to disable PKCS#7 EncryptedData type (NO_PKCS7_ENCRYPTED_DATA)
+* Add ability to get client-side SNI
+* Expanded OpenSSL compatibility layer
+* Fix for logging file names with OpenSSL compatibility layer enabled, with
+  WOLFSSL_MAX_ERROR_SZ user-overridable
+* Adds static memory support to the wolfSSL example client
+* Fixes for sniffer to use TLS 1.2 client method
+* Adds option to wolfCrypt benchmark to benchmark individual algorithms
+* Adds option to wolfCrypt benchmark to display benchmarks in powers
+  of 10 (-base10)
+* Updated Visual Studio for ARM builds (for ECC supported curves and SHA-384)
+* Updated Texas Instruments TI-RTOS build
+* Updated STM32 CubeMX build with fixes for SHA
+* Updated IAR EWARM project files
+* Updated Apple Xcode projects with the addition of a benchmark example project
+
+This release of wolfSSL fixes 1 security vulnerability.
+
+wolfSSL is cited in the recent ROBOT Attack by Böck, Somorovsky, and Young.
+The paper notes that wolfSSL only gives a weak oracle without a practical
+attack but this is still a flaw.  This release contains a fix for this report.
+Please note that wolfSSL has static RSA cipher suites disabled by default as
+of version 3.6.6 because of the lack of perfect forward secrecy.  Only users
+who have explicitly enabled static RSA cipher suites with WOLFSSL_STATIC_RSA
+and use those suites on a host are affected.  More information will be
+available on our website at:
+
+https://wolfssl.com/wolfSSL/security/vulnerabilities.php
+
+See INSTALL file for build instructions.
+More info can be found on-line at http://wolfssl.com/wolfSSL/Docs.html
+
+
 # wolfSSL (Formerly CyaSSL) Release 3.12.2 (10/23/2017)
 
 ## Release 3.12.2 of wolfSSL has bug fixes and new features including:
