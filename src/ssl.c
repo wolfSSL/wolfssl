@@ -19227,10 +19227,12 @@ WOLFSSL_BIGNUM *wolfSSL_BN_mod_inverse(WOLFSSL_BIGNUM *r,
                                        const WOLFSSL_BIGNUM *n,
                                        WOLFSSL_BN_CTX *ctx)
 {
-    WOLFSSL_ENTER("wolfSSL_BN_mod_inverse");
+    int dynamic = 0;
 
     /* ctx is not used */
     (void)ctx;
+
+    WOLFSSL_ENTER("wolfSSL_BN_mod_inverse");
 
     /* check parameter */
     if (r == NULL) {
@@ -19239,15 +19241,22 @@ WOLFSSL_BIGNUM *wolfSSL_BN_mod_inverse(WOLFSSL_BIGNUM *r,
             WOLFSSL_MSG("WolfSSL_BN_new() failed");
             return NULL;
         }
+        dynamic = 1;
     }
 
     if (a == NULL) {
         WOLFSSL_MSG("a NULL error");
+        if (dynamic == 1) {
+            wolfSSL_BN_free(r);
+        }
         return NULL;
     }
 
     if (n == NULL) {
         WOLFSSL_MSG("n NULL error");
+        if (dynamic == 1) {
+            wolfSSL_BN_free(r);
+        }
         return NULL;
     }
 
@@ -19255,6 +19264,9 @@ WOLFSSL_BIGNUM *wolfSSL_BN_mod_inverse(WOLFSSL_BIGNUM *r,
     if (mp_invmod((mp_int *)a->internal,(mp_int *)n->internal,
                   (mp_int*)r->internal) == MP_VAL){
         WOLFSSL_MSG("mp_invmod() error");
+        if (dynamic == 1) {
+            wolfSSL_BN_free(r);
+        }
         return NULL;
     }
 
