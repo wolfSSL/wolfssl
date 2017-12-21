@@ -326,18 +326,19 @@ WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD* method)
 void wolfSSL_CTX_free(WOLFSSL_CTX* ctx)
 {
     WOLFSSL_ENTER("SSL_CTX_free");
+    if (ctx) {
 #if defined(OPENSSL_EXTRA) && defined(WOLFCRYPT_HAVE_SRP) \
 && !defined(NO_SHA256) && !defined(WC_NO_RNG)
-    if (ctx->srp != NULL){
-        if (ctx->srp_password != NULL){
-            XFREE(ctx->srp_password, ctx->heap, DYNAMIC_TYPE_SRP);
+        if (ctx->srp != NULL){
+            if (ctx->srp_password != NULL){
+                XFREE(ctx->srp_password, ctx->heap, DYNAMIC_TYPE_SRP);
+            }
+            wc_SrpTerm(ctx->srp);
+            XFREE(ctx->srp, ctx->heap, DYNAMIC_TYPE_SRP);
         }
-        wc_SrpTerm(ctx->srp);
-        XFREE(ctx->srp, ctx->heap, DYNAMIC_TYPE_SRP);
-    }
 #endif
-    if (ctx)
         FreeSSL_Ctx(ctx);
+    }
 
     WOLFSSL_LEAVE("SSL_CTX_free", 0);
 }
