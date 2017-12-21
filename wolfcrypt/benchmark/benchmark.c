@@ -206,7 +206,8 @@ static int bench_asym_algs = 0;
 /* Other cryptographic algorithms to benchmark. */
 static int bench_other_algs = 0;
 
-#ifndef WOLFSSL_BENCHMARK_ALL
+#if !defined(WOLFSSL_BENCHMARK_ALL) && !defined(NO_MAIN_DRIVER)
+
 /* The mapping of command line option to bit values. */
 typedef struct bench_alg {
     /* Command line option string. */
@@ -215,8 +216,8 @@ typedef struct bench_alg {
     int val;
 } bench_alg;
 
-/* All recoginized cipher algorithm choosing command line options. */
-static bench_alg bench_cipher_opt[] = {
+/* All recognized cipher algorithm choosing command line options. */
+static const bench_alg bench_cipher_opt[] = {
     { "-cipher",             -1                      },
 #ifdef HAVE_AES_CBC
     { "-aes_cbc",            BENCH_AES_CBC           },
@@ -263,8 +264,8 @@ static bench_alg bench_cipher_opt[] = {
     { NULL, 0}
 };
 
-/* All recoginized digest algorithm choosing command line options. */
-static bench_alg bench_digest_opt[] = {
+/* All recognized digest algorithm choosing command line options. */
+static const bench_alg bench_digest_opt[] = {
     { "-digest",             -1                      },
 #ifndef NO_MD5
     { "-md5",                BENCH_MD5               },
@@ -315,8 +316,8 @@ static bench_alg bench_digest_opt[] = {
     { NULL, 0}
 };
 
-/* All recoginized MAC algorithm choosing command line options. */
-static bench_alg bench_mac_opt[] = {
+/* All recognized MAC algorithm choosing command line options. */
+static const bench_alg bench_mac_opt[] = {
     { "-mac",                -1                      },
 #ifdef WOLFSSL_CMAC
     { "-cmac",               BENCH_CMAC              },
@@ -345,8 +346,8 @@ static bench_alg bench_mac_opt[] = {
     { NULL, 0}
 };
 
-/* All recoginized asymmetric algorithm choosing command line options. */
-static bench_alg bench_asym_opt[] = {
+/* All recognized asymmetric algorithm choosing command line options. */
+static const bench_alg bench_asym_opt[] = {
     { "-asym",               -1                      },
 #ifndef NO_RSA
     #ifdef WOLFSSL_KEY_GEN
@@ -381,9 +382,9 @@ static bench_alg bench_asym_opt[] = {
     { NULL, 0}
 };
 
-/* All recoginized other cryptographic algorithm choosing command line options.
+/* All recognized other cryptographic algorithm choosing command line options.
  */
-static bench_alg bench_other_opt[] = {
+static const bench_alg bench_other_opt[] = {
     { "-other",              -1                      },
 #ifndef WC_NO_RNG
     { "-rng",                BENCH_RNG               },

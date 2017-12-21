@@ -5315,15 +5315,15 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 {
     int ret;
 
+    if (key == NULL || priv == NULL)
+        return BAD_FUNC_ARG;
+
     /* public optional, NULL if only importing private */
     if (pub != NULL) {
         ret = wc_ecc_import_x963_ex(pub, pubSz, key, curve_id);
         key->type = ECC_PRIVATEKEY;
     }
     else {
-        if (key == NULL || priv == NULL)
-            return BAD_FUNC_ARG;
-
         /* make sure required variables are reset */
         wc_ecc_reset(key);
 
@@ -5334,7 +5334,6 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 
     if (ret != 0)
         return ret;
-
 
 #ifdef WOLFSSL_ATECC508A
     /* TODO: Implement equiv call to ATECC508A */
