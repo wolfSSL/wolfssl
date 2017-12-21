@@ -215,7 +215,8 @@ int wc_caamCreateBlob(byte* data, word32 dataSz, byte* out, word32* outSz)
     int ret;
     word32 local[2] = {0,0};
 
-    if (*outSz < dataSz + WC_CAAM_BLOB_SZ) {
+    if (data == NULL || out == NULL || outSz == NULL ||
+            *outSz < dataSz + WC_CAAM_BLOB_SZ) {
         return BAD_FUNC_ARG;
     }
 
@@ -250,7 +251,8 @@ int wc_caamOpenBlob(byte* data, word32 dataSz, byte* out, word32* outSz)
     int ret;
     word32 local[2] = {0,0};
 
-    if (*outSz < dataSz - WC_CAAM_BLOB_SZ) {
+    if (data == NULL || out == NULL || outSz == NULL ||
+            *outSz < dataSz - WC_CAAM_BLOB_SZ) {
         return BAD_FUNC_ARG;
     }
 

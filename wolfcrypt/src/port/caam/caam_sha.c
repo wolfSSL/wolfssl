@@ -64,7 +64,7 @@
   ****************************************************************************/
 
 static int _InitSha(wc_Sha* sha, void* heap, int devId, word32 digestSz,
-	word32 type)
+    word32 type)
 {
     Buffer buf[1];
     word32 arg[4];
@@ -78,7 +78,7 @@ static int _InitSha(wc_Sha* sha, void* heap, int devId, word32 digestSz,
     }
 
     XMEMSET(sha, 0, sizeof(Sha));
-    
+
     /* Set buffer for context */
     buf[0].BufferType = DataBuffer | LastBuffer;
     buf[0].TheAddress = (Address)sha->ctx;
@@ -87,24 +87,24 @@ static int _InitSha(wc_Sha* sha, void* heap, int devId, word32 digestSz,
 
     arg[0] = CAAM_ALG_INIT;
     arg[1] = digestSz + WC_CAAM_CTXLEN;
-    
+
     if ((ret = wc_caamAddAndWait(buf, arg, type)) != 0) {
         WOLFSSL_MSG("Error with CAAM SHA init");
-	return ret;
+        return ret;
     }
-    
+
     return 0;
 }
 
 
 static int _ShaUpdate(wc_Sha* sha, const byte* data, word32 len, word32 digestSz,
-	word32 type)
-{   
+    word32 type)
+{
     Buffer buf[2];
     word32 arg[4];
     int ret;
     byte* local;
-	
+
     if (sha == NULL ||(data == NULL && len > 0)) {
         return BAD_FUNC_ARG;
     }
@@ -115,87 +115,87 @@ static int _ShaUpdate(wc_Sha* sha, const byte* data, word32 len, word32 digestSz
     /* check for filling out existing buffer */
     if (sha->buffLen > 0) {
         word32 add = min(len, WC_CAAM_HASH_BLOCK - sha->buffLen);
-	XMEMCPY(&local[sha->buffLen], data, add);
+        XMEMCPY(&local[sha->buffLen], data, add);
 
-	sha->buffLen += add;
-	data         += add;
-	len          -= add;
-	
-	if (sha->buffLen == WC_CAAM_HASH_BLOCK) {
+        sha->buffLen += add;
+        data         += add;
+        len          -= add;
+
+        if (sha->buffLen == WC_CAAM_HASH_BLOCK) {
             /* Set buffer for context */
             buf[0].BufferType = DataBuffer;
             buf[0].TheAddress = (Address)sha->ctx;
             buf[0].Length     = digestSz + WC_CAAM_CTXLEN;
-	    buf[0].Transferred = 0;
+            buf[0].Transferred = 0;
 
             /* data to update with */
             buf[1].BufferType = DataBuffer | LastBuffer;
             buf[1].TheAddress = (Address)sha->buffer;
             buf[1].Length     = sha->buffLen;
-	    buf[1].Transferred = 0;
-	    
-	    arg[0] = CAAM_ALG_UPDATE;
+            buf[1].Transferred = 0;
+
+            arg[0] = CAAM_ALG_UPDATE;
             arg[1] = digestSz + WC_CAAM_CTXLEN;
-	    
+
             if ((ret = wc_caamAddAndWait(buf, arg, type)) != 0) {
-                 WOLFSSL_MSG("Error with CAAM SHA update");
-	         return ret;
+                WOLFSSL_MSG("Error with CAAM SHA update");
+                return ret;
             }
-	    sha->buffLen = 0; /* cleared out buffer */
-	}
+            sha->buffLen = 0; /* cleared out buffer */
+        }
     }
 
     /* check if multiple full blocks can be done */
     if (len >= WC_CAAM_HASH_BLOCK) {
         word32 sz = len / WC_CAAM_HASH_BLOCK;
-	sz = sz * WC_CAAM_HASH_BLOCK;
-	
+        sz = sz * WC_CAAM_HASH_BLOCK;
+
         /* Set buffer for context */
         buf[0].BufferType = DataBuffer;
         buf[0].TheAddress = (Address)sha->ctx;
         buf[0].Length     = digestSz + WC_CAAM_CTXLEN;
-	buf[0].Transferred = 0;
+        buf[0].Transferred = 0;
 
         /* data to update with */
         buf[1].BufferType = DataBuffer | LastBuffer;
         buf[1].TheAddress = (Address)data;
         buf[1].Length     = sz;
-	buf[1].Transferred = 0;
-	
+        buf[1].Transferred = 0;
+
         arg[0] = CAAM_ALG_UPDATE;
         arg[1] = digestSz + WC_CAAM_CTXLEN;
-	
+
         if ((ret = wc_caamAddAndWait(buf, arg, type)) != 0) {
             WOLFSSL_MSG("Error with CAAM SHA update");
-	    return ret;
+            return ret;
         }
 
-	len  -= sz;
-	data += sz;
+        len  -= sz;
+        data += sz;
     }
 
     /* check for left overs */
     if (len > 0) {
         word32 add = min(len, WC_CAAM_HASH_BLOCK - sha->buffLen);
-	XMEMCPY(&local[sha->buffLen], data, add);
-	sha->buffLen += add;
+        XMEMCPY(&local[sha->buffLen], data, add);
+        sha->buffLen += add;
     }
-    
+
     return 0;
 }
 
 
 static int _ShaFinal(wc_Sha* sha, byte* out, word32 digestSz,
-	word32 type)
-{    
+    word32 type)
+{
     Buffer buf[2];
     word32 arg[4];
     int ret;
-    
+
     if (sha == NULL || out == NULL) {
         return BAD_FUNC_ARG;
     }
-    
+
     /* Set buffer for context */
     buf[0].BufferType = DataBuffer;
     buf[0].TheAddress = (Address)sha->ctx;
@@ -210,12 +210,12 @@ static int _ShaFinal(wc_Sha* sha, byte* out, word32 digestSz,
 
     arg[0] = CAAM_ALG_FINAL;
     arg[1] = digestSz + WC_CAAM_CTXLEN;
-	    
+
     if ((ret = wc_caamAddAndWait(buf, arg, type)) != 0) {
-	WOLFSSL_MSG("Error with CAAM SHA init");
-	return ret;
+        WOLFSSL_MSG("Error with CAAM SHA init");
+        return ret;
     }
-    
+
     return 0;
 }
 
@@ -230,7 +230,7 @@ int wc_InitMd5_ex(wc_Md5* sha, void* heap, int devId)
 
 
 int wc_Md5Update(wc_Md5* sha, const byte* data, word32 len)
-{    
+{
     return _ShaUpdate(sha, data, len, MD5_DIGEST_SIZE, CAAM_MD5);
 }
 
@@ -259,7 +259,7 @@ int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
 
 
 int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
-{    
+{
     return _ShaUpdate(sha, data, len, SHA_DIGEST_SIZE, CAAM_SHA);
 }
 
@@ -288,13 +288,13 @@ int wc_InitSha224_ex(wc_Sha224* sha, void* heap, int devId)
 
 
 int wc_Sha224Update(wc_Sha224* sha, const byte* data, word32 len)
-{    
+{
     return _ShaUpdate(sha, data, len, SHA256_DIGEST_SIZE, CAAM_SHA224);
 }
 
 
 int wc_Sha224Final(wc_Sha224* sha, byte* out)
-{    
+{
     int ret;
     if ((ret = _ShaFinal(sha, out, SHA256_DIGEST_SIZE, CAAM_SHA224)) != 0) {
         return ret;
@@ -317,7 +317,7 @@ int wc_InitSha256_ex(wc_Sha256* sha, void* heap, int devId)
 
 
 int wc_Sha256Update(wc_Sha256* sha, const byte* data, word32 len)
-{    
+{
     return _ShaUpdate(sha, data, len, SHA256_DIGEST_SIZE, CAAM_SHA256);
 }
 
@@ -346,13 +346,13 @@ int wc_InitSha384_ex(wc_Sha384* sha, void* heap, int devId)
 
 
 int wc_Sha384Update(wc_Sha384* sha, const byte* data, word32 len)
-{    
+{
     return _ShaUpdate(sha, data, len, SHA512_DIGEST_SIZE, CAAM_SHA384);
 }
 
 
 int wc_Sha384Final(wc_Sha384* sha, byte* out)
-{    
+{
     int ret;
     if ((ret = _ShaFinal(sha, out, SHA512_DIGEST_SIZE, CAAM_SHA384)) != 0) {
         return ret;
@@ -376,13 +376,13 @@ int wc_InitSha512_ex(wc_Sha512* sha, void* heap, int devId)
 
 
 int wc_Sha512Update(wc_Sha512* sha, const byte* data, word32 len)
-{    
+{
     return _ShaUpdate(sha, data, len, SHA512_DIGEST_SIZE, CAAM_SHA512);
 }
 
 
 int wc_Sha512Final(wc_Sha512* sha, byte* out)
-{    
+{
     int ret;
     if ((ret = _ShaFinal(sha, out, SHA512_DIGEST_SIZE, CAAM_SHA512)) != 0) {
         return ret;
