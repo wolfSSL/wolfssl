@@ -352,11 +352,8 @@ static Error caamDoJob(struct DescStruct* desc)
             pt += 21;
         }
         snprintf(pt, sizeof(msg) - (z * 21), "status = 0x%8.8x\n", status);
-        //if (desc->output != 0) { /* for testing */
-        //    memcpy((char*)desc->output, msg, sizeof(msg));
-        //}
-        if (desc->ctxOut != 0) { /* for testing */
-            memcpy((char*)desc->ctxOut, msg, sizeof(msg));
+        if (desc->buf[0].data != 0) { /* for testing */
+            memcpy((char*)desc->buf[0].data, msg, sizeof(msg));
         }
         }
         #endif
@@ -560,8 +557,167 @@ static Error caamBlob(struct DescStruct* desc)
   CAAM AES Operations
   ****************************************************************************/
 
-/* AES operations follow the buffer sequence of KEY -> (IV or B0 | CTR0) -> (AD)
- * -> Input -> Output
+/* returns amount writin on success and negative value in error case.
+ * Is different from caamAddIO in that it only adds a single input buffer
+ * rather than multiple ones.
+ */
+static int caamAesInput(struct DescStruct* desc, UINT4* idx, int align,
+    UINT4 totalSz)
+{
+    int sz;
+    UINT4 i = *idx;
+
+    /* handle alignment constraints on input */
+    if (desc->alignIdx > 0) {
+        sz = desc->alignIdx;
+
+        /* if there is more input buffers then add part of it */
+        if (i < desc->outputIdx && i < desc->DescriptorCount) {
+            sz = align - desc->alignIdx;
+            sz = (sz <= desc->buf[i].dataSz) ? sz : desc->buf[i].dataSz;
+            memcpy((unsigned char*)(desc->alignBuf) + desc->alignIdx,
+                   (unsigned char*)(desc->buf[i].data), sz);
+
+            desc->buf[i].dataSz -= sz;
+            desc->buf[i].data   += sz;
+            sz += desc->alignIdx;
+        }
+
+        if (desc->idx + 2 > MAX_DESC_SZ) {
+            return -1;
+        }
+        ASP_FlushCaches((Address)desc->alignBuf, sz);
+        desc->desc[desc->idx++] = (CAAM_FIFO_L | FIFOL_TYPE_LC1 |
+                                   CAAM_CLASS1 | FIFOL_TYPE_MSG) + sz;
+        desc->desc[desc->idx++] = BSP_VirtualToPhysical(desc->alignBuf);
+        desc->alignIdx = 0;
+    }
+    else {
+        sz = desc->buf[i].dataSz;
+        if ((totalSz + sz) == desc->inputSz) { /* not an issue on final */
+            align = 1;
+        }
+
+        desc->alignIdx = sz % align;
+        if (desc->alignIdx != 0) {
+            sz -= desc->alignIdx;
+            memcpy((unsigned char*)desc->alignBuf,
+                   (unsigned char*)(desc->buf[i].data) + sz,
+                   desc->alignIdx);
+        }
+
+        if (desc->idx + 2 > MAX_DESC_SZ) {
+            return -1;
+        }
+        desc->desc[desc->idx++] = (CAAM_FIFO_L | FIFOL_TYPE_LC1 |
+                                   CAAM_CLASS1 | FIFOL_TYPE_MSG) + sz;
+        desc->desc[desc->idx++] = BSP_VirtualToPhysical(desc->buf[i].data);
+        i++;
+    }
+
+    *idx = i;
+    return sz;
+}
+
+
+/* returns enum Success on success, all other return values should be
+ * considered an error.
+ *
+ * ofst    is the amount of leftover buffer from previous calls
+ * inputSz is the amount of input in bytes that is being matched to output
+ */
+static Error caamAesOutput(struct DescStruct* desc, int* ofst, UINT4 inputSz)
+{
+    int offset = *ofst;
+
+    if (desc->output != 0 && offset > 0 && inputSz > 0) {
+        UINT4 addSz;
+
+        /* handle potential leftovers */
+        addSz = (inputSz >= offset) ? offset : inputSz;
+
+        inputSz -= addSz;
+        desc->desc[desc->idx++] = CAAM_FIFO_S | FIFOS_TYPE_MSG + addSz;
+        if (inputSz > 0) { /* check if expecting more output */
+            desc->desc[desc->idx - 1] |= CAAM_FIFOS_CONT;
+        }
+        desc->desc[desc->idx++] = BSP_VirtualToPhysical(desc->output);
+
+        if (addSz == offset) {
+            /* reset */
+            desc->output = 0;
+            offset       = 0;
+        }
+        else {
+            offset -= addSz;
+            desc->output += addSz;
+
+            if (offset < 0) {
+                return TransferFailed;
+            }
+        }
+    }
+
+    for (; desc->lastIdx < desc->DescriptorCount; desc->lastIdx++) {
+        struct buffer* buf = &desc->buf[desc->lastIdx];
+
+        if (inputSz > 0) {
+            int tmp;
+
+            if (buf->dataSz <= inputSz) {
+                tmp = buf->dataSz;
+            }
+            else {
+                offset = buf->dataSz - inputSz;
+                tmp    = inputSz;
+                desc->output = buf->data + tmp;
+            }
+            inputSz -= tmp;
+            if (desc->idx + 2 > MAX_DESC_SZ) {
+                return TransferFailed;
+            }
+            desc->desc[desc->idx++] = CAAM_FIFO_S | FIFOS_TYPE_MSG + tmp;
+            if (inputSz > 0) { /* check if expecting more output */
+                desc->desc[desc->idx - 1] |= CAAM_FIFOS_CONT;
+            }
+            desc->desc[desc->idx++] = BSP_VirtualToPhysical(buf->data);
+        }
+        else {
+            break;
+        }
+    }
+
+    *ofst = offset;
+    return Success;
+}
+
+
+/* check size of output and get starting buffer for it */
+static Error caamAesOutSz(struct DescStruct* desc, UINT4 i)
+{
+    int sz = 0;
+
+    for (desc->outputIdx = i; desc->outputIdx < desc->DescriptorCount &&
+    sz < desc->inputSz; desc->outputIdx++) {
+        sz += desc->buf[desc->outputIdx].dataSz;
+    }
+    desc->lastIdx = desc->outputIdx;
+
+    /* make certain that output size is same as input */
+    sz = 0;
+    for (; desc->lastIdx < desc->DescriptorCount; desc->lastIdx++) {
+        sz += desc->buf[desc->lastIdx].dataSz;
+    }
+    if (sz != desc->inputSz) {
+        return SizeIsTooLarge;
+    }
+    desc->lastIdx = desc->outputIdx;
+
+    return Success;
+}
+
+
+/* AES operations follow the buffer sequence of KEY -> (IV) -> Input -> Output
  */
 static Error caamAes(struct DescStruct* desc)
 {
@@ -569,7 +725,7 @@ static Error caamAes(struct DescStruct* desc)
     struct buffer* iv[3];
     Value ofst = 0;
     Error err;
-    UINT4 i;
+    UINT4 i, totalSz = 0;
     int ctxIdx = 0;
     int ivIdx  = 0;
     int offset = 0;
@@ -686,15 +842,16 @@ static Error caamAes(struct DescStruct* desc)
              CAAM_ALG_UPDATE | desc->state;
 
     /* find output buffers */
-    sz = 0;
-    for (desc->outputIdx = i; desc->outputIdx < desc->DescriptorCount &&
-        sz < desc->inputSz; desc->outputIdx++) {
-        sz += desc->buf[desc->outputIdx].dataSz;
+    if (caamAesOutSz(desc, i) != Success) {
+        return SizeIsTooLarge;
     }
 
+    /* set alignment constraints */
+    if (desc->type == CAAM_AESCBC) {
+        align = 16;
+    }
 
-    /* indefinit loop for AES operations */
-    desc->lastIdx = desc->outputIdx;
+    /* indefinit loop for input/output buffers */
     desc->headIdx = desc->idx;
     desc->output  = 0;
     offset = 0; /* store left over amount for output buffer */
@@ -705,58 +862,13 @@ static Error caamAes(struct DescStruct* desc)
          * time out errors on the FIFO load of 1c.
          * @TODO this could be a place for optimization if more data could be
          * loaded in at one time */
-        if (desc->idx + 2 > MAX_DESC_SZ) {
+        if ((sz = caamAesInput(desc, &i, align, totalSz)) < 0) {
             return TransferFailed;
         }
-        sz = desc->buf[i].dataSz;
-        desc->desc[desc->idx++] = (CAAM_FIFO_L | FIFOL_TYPE_LC1 | CAAM_CLASS1 |
-                FIFOL_TYPE_MSG) + sz;
-        desc->desc[desc->idx++] = BSP_VirtualToPhysical(desc->buf[i].data);
-        i++;
+        totalSz += sz;
 
-        /* handle output buffers  */
-        if (desc->output != 0 && offset > 0 && sz > 0) {
-            /* handle potential leftovers */
-            sz -= offset;
-            desc->desc[desc->idx++] = CAAM_FIFO_S | FIFOS_TYPE_MSG + offset;
-            if (sz > 0) { /* check if expecting more output */
-                desc->desc[desc->idx - 1] |= CAAM_FIFOS_CONT;
-            }
-            desc->desc[desc->idx++] = BSP_VirtualToPhysical(desc->output);
-
-            /* reset */
-            desc->output = 0;
-            offset       = 0;
-        }
-
-        for (; desc->lastIdx < desc->DescriptorCount; desc->lastIdx++) {
-            struct buffer* buf = &desc->buf[desc->lastIdx];
-
-            if (sz > 0) {
-                int tmp;
-
-                if (buf->dataSz <= sz) {
-                    tmp = buf->dataSz;
-                }
-                else {
-                    offset = buf->dataSz - sz;
-                    tmp    = sz;
-                    desc->output = buf->data + tmp;
-                }
-
-                sz -= tmp;
-                if (desc->idx + 2 > MAX_DESC_SZ) {
-                    return TransferFailed;
-                }
-                desc->desc[desc->idx++] = CAAM_FIFO_S | FIFOS_TYPE_MSG + tmp;
-                if (sz > 0) { /* check if expecting more output */
-                    desc->desc[desc->idx - 1] |= CAAM_FIFOS_CONT;
-                }
-                desc->desc[desc->idx++] = BSP_VirtualToPhysical(buf->data);
-            }
-            else {
-                break;
-            }
+        if (caamAesOutput(desc, &offset, sz) != Success) {
+            return TransferFailed;
         }
 
         /* store updated IV */
@@ -772,7 +884,7 @@ static Error caamAes(struct DescStruct* desc)
             return err;
         }
         ASP_FlushCaches((Address)desc->iv, 16);
-    } while (desc->lastIdx < desc->DescriptorCount);
+    } while (desc->lastIdx < desc->DescriptorCount || offset > 0);
 
     /* flush output buffers */
     for (i = desc->outputIdx; i < desc->lastIdx; i++) {
@@ -975,130 +1087,20 @@ static Error caamAead(struct DescStruct* desc)
             }
 
             /* find output buffers */
-            sz = 0;
-            for (desc->outputIdx = i; desc->outputIdx < desc->DescriptorCount &&
-            sz < desc->inputSz; desc->outputIdx++) {
-                sz += desc->buf[desc->outputIdx].dataSz;
-            }
-            desc->lastIdx = desc->outputIdx;
-
-            /* make certain that output size is same as input */
-            sz = 0;
-            for (; desc->lastIdx < desc->DescriptorCount; desc->lastIdx++) {
-                sz += desc->buf[desc->lastIdx].dataSz;
-            }
-            if (sz > desc->inputSz) {
+            if (caamAesOutSz(desc, i) != Success) {
                 return SizeIsTooLarge;
             }
-            desc->lastIdx = desc->outputIdx;
         }
 
         /* handle alignment constraints on input */
-        if (desc->alignIdx > 0) {
-            sz = desc->alignIdx;
-
-            /* if there is more input buffers then add part of it */
-            if (i < desc->outputIdx && i < desc->DescriptorCount) {
-                sz = align - desc->alignIdx;
-                sz = (sz <= desc->buf[i].dataSz) ? sz : desc->buf[i].dataSz;
-                memcpy((unsigned char*)(desc->alignBuf) + desc->alignIdx,
-                       (unsigned char*)(desc->buf[i].data), sz);
-
-                desc->buf[i].dataSz -= sz;
-                desc->buf[i].data   += sz;
-                sz += desc->alignIdx;
-            }
-
-            if (desc->idx + 2 > MAX_DESC_SZ) {
-                return TransferFailed;
-            }
-            ASP_FlushCaches((Address)desc->alignBuf, sz);
-            desc->desc[desc->idx++] = (CAAM_FIFO_L | FIFOL_TYPE_LC1 |
-                                       CAAM_CLASS1 | FIFOL_TYPE_MSG) + sz;
-            desc->desc[desc->idx++] = BSP_VirtualToPhysical(desc->alignBuf);
-            desc->alignIdx = 0;
+        if ((sz = caamAesInput(desc, &i, align, totalSz)) < 0) {
+            return TransferFailed;
         }
-        else {
-            sz = desc->buf[i].dataSz;
-            totalSz += sz;
-            if (totalSz == desc->inputSz) { /* not an issue on final */
-                align = 1;
-            }
+        totalSz += sz;
 
-            desc->alignIdx = sz % align;
-            if (desc->alignIdx != 0) {
-                sz -= desc->alignIdx;
-                memcpy((unsigned char*)desc->alignBuf,
-                       (unsigned char*)(desc->buf[i].data) + sz,
-                       desc->alignIdx);
-            }
-
-            if (desc->idx + 2 > MAX_DESC_SZ) {
-                return TransferFailed;
-            }
-            desc->desc[desc->idx++] = (CAAM_FIFO_L | FIFOL_TYPE_LC1 |
-                                       CAAM_CLASS1 | FIFOL_TYPE_MSG) + sz;
-            desc->desc[desc->idx++] = BSP_VirtualToPhysical(desc->buf[i].data);
-            i++;
-        }
-
-        /************** handle output buffers  *******************************/
-        if (desc->output != 0 && offset > 0 && sz > 0) {
-            UINT4 addSz;
-
-            /* handle potential leftovers */
-            addSz = (sz >= offset) ? offset : sz;
-
-            sz -= addSz;
-            desc->desc[desc->idx++] = CAAM_FIFO_S | FIFOS_TYPE_MSG + addSz;
-            if (sz > 0) { /* check if expecting more output */
-                desc->desc[desc->idx - 1] |= CAAM_FIFOS_CONT;
-            }
-            desc->desc[desc->idx++] = BSP_VirtualToPhysical(desc->output);
-
-            if (addSz == offset) {
-                /* reset */
-                desc->output = 0;
-                offset       = 0;
-            }
-            else {
-                offset -= addSz;
-                desc->output += addSz;
-
-                if (offset < 0) {
-                    return Failure;
-                }
-            }
-        }
-
-        for (; desc->lastIdx < desc->DescriptorCount; desc->lastIdx++) {
-            struct buffer* buf = &desc->buf[desc->lastIdx];
-
-            if (sz > 0) {
-                int tmp;
-
-                if (buf->dataSz <= sz) {
-                    tmp = buf->dataSz;
-                }
-                else {
-                    offset = buf->dataSz - sz;
-                    tmp    = sz;
-                    desc->output = buf->data + tmp;
-                }
-
-                sz -= tmp;
-                if (desc->idx + 2 > MAX_DESC_SZ) {
-                    return TransferFailed;
-                }
-                desc->desc[desc->idx++] = CAAM_FIFO_S | FIFOS_TYPE_MSG + tmp;
-                if (sz > 0) { /* check if expecting more output */
-                    desc->desc[desc->idx - 1] |= CAAM_FIFOS_CONT;
-                }
-                desc->desc[desc->idx++] = BSP_VirtualToPhysical(buf->data);
-            }
-            else {
-                break;
-            }
+        /* handle output buffers  */
+        if (caamAesOutput(desc, &offset, sz) != Success) {
+            return TransferFailed;
         }
 
         /* store updated IV, if is last then set offset and final for MAC */
@@ -1186,7 +1188,7 @@ static int shaSize(struct DescStruct* desc)
  * start: the index to start traversing through buffers. It's needed to allow
  *       for HMAC to reuse this code.
  *
- *  return Success on success. All other return values are considered a fail
+ * return Success on success. All other return values are considered a fail
  *         case.
  */
 static Error caamSha(struct DescStruct* desc, int start)
