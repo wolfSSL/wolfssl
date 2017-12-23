@@ -847,7 +847,7 @@ static Error caamAes(struct DescStruct* desc)
     }
 
     /* set alignment constraints */
-    if (desc->type == CAAM_AESCBC) {
+    if (desc->type == CAAM_AESCBC || desc->type == CAAM_AESECB) {
         align = 16;
     }
 
@@ -1403,6 +1403,10 @@ static Error caamTransferStart(IODeviceVector ioCaam,
     switch (type) {
         case CAAM_AESECB:
         case CAAM_AESCBC:
+            if (desc->inputSz % 16 != 0) {
+                return ArgumentError;
+            }
+            /* fall through to break */
         case CAAM_AESCTR:
             break;
 
