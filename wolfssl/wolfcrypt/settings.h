@@ -1196,6 +1196,12 @@ extern void uITRON4_free(void *p) ;
 
     #undef  WOLFSSL_IMX6_CAAM_BLOB
     #define WOLFSSL_IMX6_CAAM_BLOB
+
+#ifdef HAVE_AESGCM
+    /* large performance gain with HAVE_AES_ECB defined */
+    #undef HAVE_AES_ECB
+    #define HAVE_AES_ECB
+#endif
 #endif
 
 #if !defined(XMALLOC_USER) && !defined(MICRIUM_MALLOC) && \

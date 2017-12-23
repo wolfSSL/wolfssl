@@ -3050,6 +3050,11 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #endif /* HAVE_AES_CBC */
 
 #ifdef HAVE_AES_ECB
+#ifdef WOLFSSL_IMX6_CAAM
+    /* implemented in wolfcrypt/src/port/caam/caam_aes.c */
+#else
+
+/* software implementation */
 int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
     word32 blocks = sz / AES_BLOCK_SIZE;
@@ -3082,6 +3087,7 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     }
     return 0;
 }
+#endif
 #endif
 
 /* AES-CTR */
@@ -6955,6 +6961,25 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
     /* process remainder using partial handling */
 #endif
+
+#if defined(HAVE_AES_ECB) && !defined(WOLFSSL_PIC32MZ_CRYPT)
+    /* some hardware acceleration can gain performance from doing AES encryption
+     * of the whole buffer at once */
+    if (c != p) { /* can not handle inline encryption */
+        while (blocks--) {
+            IncrementGcmCounter(ctr);
+            XMEMCPY(c, ctr, AES_BLOCK_SIZE);
+            c += AES_BLOCK_SIZE;
+        }
+
+        /* reset number of blocks and then do encryption */
+        blocks = sz / AES_BLOCK_SIZE;
+        wc_AesEcbEncrypt(aes, out, out, AES_BLOCK_SIZE * blocks);
+        xorbuf(out, p, AES_BLOCK_SIZE * blocks);
+        p += AES_BLOCK_SIZE * blocks;
+    }
+    else
+#endif /* HAVE_AES_ECB */
     while (blocks--) {
         IncrementGcmCounter(ctr);
     #ifndef WOLFSSL_PIC32MZ_CRYPT
@@ -7234,6 +7259,24 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* process remainder using partial handling */
 #endif
 
+#if defined(HAVE_AES_ECB) && !defined(WOLFSSL_PIC32MZ_CRYPT)
+    /* some hardware acceleration can gain performance from doing AES encryption
+     * of the whole buffer at once */
+    if (c != p) { /* can not handle inline decryption */
+        while (blocks--) {
+            IncrementGcmCounter(ctr);
+            XMEMCPY(p, ctr, AES_BLOCK_SIZE);
+            p += AES_BLOCK_SIZE;
+        }
+
+        /* reset number of blocks and then do encryption */
+        blocks = sz / AES_BLOCK_SIZE;
+        wc_AesEcbEncrypt(aes, out, out, AES_BLOCK_SIZE * blocks);
+        xorbuf(out, c, AES_BLOCK_SIZE * blocks);
+        c += AES_BLOCK_SIZE * blocks;
+    }
+    else
+#endif /* HAVE_AES_ECB */
     while (blocks--) {
         IncrementGcmCounter(ctr);
     #ifndef WOLFSSL_PIC32MZ_CRYPT
@@ -7244,13 +7287,13 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         p += AES_BLOCK_SIZE;
         c += AES_BLOCK_SIZE;
     }
+
     if (partial != 0) {
         IncrementGcmCounter(ctr);
         wc_AesEncrypt(aes, ctr, scratch);
         xorbuf(scratch, c, partial);
         XMEMCPY(p, scratch, partial);
     }
-
 #endif
 
     return ret;
