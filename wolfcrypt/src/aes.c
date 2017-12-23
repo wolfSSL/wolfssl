@@ -8012,6 +8012,45 @@ int wc_AesXtsDecryptSector(XtsAes* aes, byte* out, const byte* in, word32 sz,
     return wc_AesXtsDecrypt(aes, out, in, sz, (const byte*)i, AES_BLOCK_SIZE);
 }
 
+#ifdef HAVE_AES_ECB
+/* helper function for encrypting / decrypting full buffer at once */
+static int _AesXtsHelper(Aes* aes, byte* out, const byte* in, word32 sz, int dir)
+{
+    word32 outSz   = sz;
+    word32 totalSz = (sz / AES_BLOCK_SIZE) * AES_BLOCK_SIZE; /* total bytes */
+    byte*  pt      = out;
+
+    outSz -= AES_BLOCK_SIZE;
+
+    while (outSz > 0) {
+        word32 j;
+        byte carry = 0;
+
+        /* multiply by shift left and propogate carry */
+        for (j = 0; j < AES_BLOCK_SIZE && outSz > 0; j++, outSz--) {
+            byte tmpC;
+
+            tmpC   = (pt[j] >> 7) & 0x01;
+            pt[j+AES_BLOCK_SIZE] = ((pt[j] << 1) + carry) & 0xFF;
+            carry  = tmpC;
+        }
+        if (carry) {
+            pt[AES_BLOCK_SIZE] ^= GF_XTS;
+        }
+
+        pt += AES_BLOCK_SIZE;
+    }
+
+    xorbuf(out, in, totalSz);
+    if (dir == AES_ENCRYPTION) {
+        return wc_AesEcbEncrypt(aes, out, out, totalSz);
+    }
+    else {
+        return wc_AesEcbDecrypt(aes, out, out, totalSz);
+    }
+}
+#endif /* HAVE_AES_ECB */
+
 
 /* AES with XTS mode. (XTS) XEX encryption with Tweak and cipher text Stealing.
  *
@@ -8051,14 +8090,30 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
         wc_AesEncryptDirect(tweak, tmp, i);
 
+    #ifdef HAVE_AES_ECB
+        /* encrypt all of buffer at once when possible */
+        if (in != out) { /* can not handle inline */
+            XMEMCPY(out, tmp, AES_BLOCK_SIZE);
+            if ((ret = _AesXtsHelper(aes, out, in, sz, AES_ENCRYPTION)) != 0) {
+                return ret;
+            }
+        }
+    #endif
+
         while (blocks > 0) {
             word32 j;
             byte carry = 0;
             byte buf[AES_BLOCK_SIZE];
 
+    #ifdef HAVE_AES_ECB
+            if (in == out) { /* check for if inline */
+    #endif
             XMEMCPY(buf, in, AES_BLOCK_SIZE);
             xorbuf(buf, tmp, AES_BLOCK_SIZE);
             wc_AesEncryptDirect(aes, out, buf);
+    #ifdef HAVE_AES_ECB
+            }
+    #endif
             xorbuf(out, tmp, AES_BLOCK_SIZE);
 
             /* multiply by shift left and propogate carry */
@@ -8151,12 +8206,28 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
             blocks--;
         }
 
+    #ifdef HAVE_AES_ECB
+        /* decrypt all of buffer at once when possible */
+        if (in != out) { /* can not handle inline */
+            XMEMCPY(out, tmp, AES_BLOCK_SIZE);
+            if ((ret = _AesXtsHelper(aes, out, in, sz, AES_DECRYPTION)) != 0) {
+                return ret;
+            }
+        }
+    #endif
+
         while (blocks > 0) {
             byte buf[AES_BLOCK_SIZE];
 
+    #ifdef HAVE_AES_ECB
+            if (in == out) { /* check for if inline */
+    #endif
             XMEMCPY(buf, in, AES_BLOCK_SIZE);
             xorbuf(buf, tmp, AES_BLOCK_SIZE);
             wc_AesDecryptDirect(aes, out, buf);
+    #ifdef HAVE_AES_ECB
+            }
+    #endif
             xorbuf(out, tmp, AES_BLOCK_SIZE);
 
             /* multiply by shift left and propogate carry */
