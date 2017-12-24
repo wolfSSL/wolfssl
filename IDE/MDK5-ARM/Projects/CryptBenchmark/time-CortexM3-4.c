@@ -1,4 +1,4 @@
-/* time-STM32F2.c
+/* time-CortexM3-4.c
  *
  * Copyright (C) 2006-2017 wolfSSL Inc.
  *
@@ -24,6 +24,23 @@
     #include <config.h>
 #endif
 
+#include <wolfssl/wolfcrypt/settings.h>
+
+#ifdef WOLFSSL_CURRTIME_OSTICK
+#include <stdint.h>
+extern uint32_t os_time;
+
+uint32_t HAL_GetTick(void) { 
+  return os_time; 
+}
+
+double current_time(int reset)
+{
+      if(reset) os_time = 0 ;
+      return (double)os_time /1000.0;
+}
+
+#else
 
 #include <stdint.h>
 #define DWT                 ((DWT_Type       *)     (0xE0001000UL)     )
@@ -40,3 +57,4 @@ double current_time(int reset)
       if(reset) DWT->CYCCNT = 0 ;
       return ((double)DWT->CYCCNT/SystemCoreClock) ;
 }
+#endif
