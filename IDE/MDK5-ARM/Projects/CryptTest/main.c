@@ -26,15 +26,31 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #include "wolfcrypt/test/test.h"
-#include "cmsis_os.h"
+
 #include <stdio.h>
-#include "stm32f2xx_hal.h"
 
 /*-----------------------------------------------------------------------------
- *        System Clock Configuration
+ *        MPU Depend Configurations
  *----------------------------------------------------------------------------*/
-void SystemClock_Config(void) {
-    #warning "write MPU specific System Clock Set up\n"
+
+#warning "write MPU specific Set up\n"
+
+static void MPU_Config (void) {
+
+}
+
+static void CPU_CACHE_Enable (void) {
+
+}
+
+static void SystemClock_Config (void) {
+
+}
+
+extern uint32_t os_time;
+
+uint32_t HAL_GetTick(void) { 
+  return os_time; 
 }
 
 /*-----------------------------------------------------------------------------
@@ -47,13 +63,13 @@ static void init_filesystem (void) {
   int32_t retv;
 
   retv = finit ("M0:");
-  if (retv == 0) {
+  if (retv == fsOK) {
     retv = fmount ("M0:");
-    if (retv == 0) {
+    if (retv == fsOK) {
       printf ("Drive M0 ready!\n");
     }
     else {
-      printf ("Drive M0 mount failed!\n");
+      printf ("Drive M0 mount failed(%d)!\n", retv);
     }
   }
   else {
@@ -69,16 +85,16 @@ static void init_filesystem (void) {
 int main()
 {
     void * arg = NULL ;
+    MPU_Config(); 
+    CPU_CACHE_Enable();
+    HAL_Init();                        /* Initialize the HAL Library     */
+    SystemClock_Config();              /* Configure the System Clock     */
 
-	HAL_Init();                               /* Initialize the HAL Library     */
-	SystemClock_Config();              /* Configure the System Clock     */
-
-	#if !defined(NO_FILESYSTEM)
+    #if !defined(NO_FILESYSTEM)
     init_filesystem ();
-	#endif
-  osDelay(1000) ;
+    #endif
 
-    printf("=== Start: Crypt test ===\n") ;
+    printf("=== Start: Crypt test ===  (%d)\n", os_time) ;
         wolfcrypt_test(arg) ;
     printf("=== End: Crypt test  ===\n") ;
 
