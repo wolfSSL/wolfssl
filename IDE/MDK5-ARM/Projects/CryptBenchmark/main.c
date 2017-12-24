@@ -27,10 +27,6 @@
 
 #include "wolfcrypt/test/test.h"
 
-#include <stdio.h>
-#include "stm32f2xx_hal.h"
-#include "cmsis_os.h"
-
 /*-----------------------------------------------------------------------------
  *        System Clock Configuration
  *----------------------------------------------------------------------------*/
@@ -77,7 +73,6 @@ int main()
 	#if !defined(NO_FILESYSTEM)
        init_filesystem ();
 	#endif
-       osDelay(300) ;
 
        printf("=== Start: Crypt Benchmark ===\n") ;
        benchmark_test(arg) ;

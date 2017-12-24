@@ -20,9 +20,9 @@
 #define WOLFSSL_SHA384
 #define HAVE_ECC
 #define HAVE_CURVE25519
-#define CURVE25519_SMALL
+/* #define CURVE25519_SMALL */
 #define HAVE_ED25519
-#define ED25519_SMALL
+/* #define ED25519_SMALL */
 
 #define NO_ERROR_STRINGS
 #define NO_BIG_INT
@@ -69,6 +69,7 @@ unsigned int HAL_GetTick(void);
 #define HAVE_TM_TYPE
 
 #define WOLFSSL_USER_CURRTIME /* for benchmark */
+#define WOLFSSL_CURRTIME_OSTICK /* use OS tich for current_time */
 
 #define USE_FAST_MATH
 #define TFM_TIMING_RESISTANT
