@@ -29,14 +29,12 @@
 
 #ifdef HAVE_FIPS
     /* for fips @wc_fips */
-    #include <cyassl/ctaocrypt/sha3.h>
+    #include <wolfssl/wolfcrypt/fips.h>
 #endif
 
 #ifdef __cplusplus
     extern "C" {
 #endif
-
-#ifndef HAVE_FIPS /* avoid redefinition of structs */
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
@@ -75,7 +73,7 @@ enum {
     #include "wolfssl/wolfcrypt/port/xilinx/xil-sha3.h"
 #else
 /* Sha3 digest */
-typedef struct Sha3 {
+struct Sha3 {
     /* State data that is processed for each block. */
     word64 s[25];
     /* Unprocessed message data. */
@@ -88,9 +86,13 @@ typedef struct Sha3 {
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
-} Sha3;
+};
 #endif
-#endif /* HAVE_FIPS */
+#ifndef WC_SHA3_TYPE_DEFINED
+    typedef struct Sha3 Sha3;
+    #define WC_SHA3_TYPE_DEFINED
+#endif
+
 
 WOLFSSL_API int wc_InitSha3_224(Sha3*, void*, int);
 WOLFSSL_API int wc_Sha3_224_Update(Sha3*, const byte*, word32);

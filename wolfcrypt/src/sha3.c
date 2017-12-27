@@ -31,128 +31,6 @@
 #include <wolfssl/wolfcrypt/sha3.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
-/* fips wrapper calls, user can call direct */
-#ifdef HAVE_FIPS
-
-    int wc_InitSha3_224(Sha3* sha, void* heap, int devId)
-    {
-        (void)heap;
-        (void)devId;
-        if (sha == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        return InitSha3_224_fips(sha);
-    }
-    int wc_Sha3_224_Update(Sha3* sha, const byte* data, word32 len)
-    {
-        if (sha == NULL ||  (data == NULL && len > 0)) {
-            return BAD_FUNC_ARG;
-        }
-        return Sha3_224_Update_fips(sha, data, len);
-    }
-    int wc_Sha3_224_Final(Sha3* sha, byte* out)
-    {
-        if (sha == NULL || out == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        return Sha3_224_Final_fips(sha, out);
-    }
-    void wc_Sha3_224_Free(Sha3* sha)
-    {
-        (void)sha;
-        /* Not supported in FIPS */
-    }
-
-    int wc_InitSha3_256(Sha3* sha, void* heap, int devId)
-    {
-        (void)heap;
-        (void)devId;
-        if (sha == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        return InitSha3_256_fips(sha);
-    }
-    int wc_Sha3_256_Update(Sha3* sha, const byte* data, word32 len)
-    {
-        if (sha == NULL ||  (data == NULL && len > 0)) {
-            return BAD_FUNC_ARG;
-        }
-        return Sha3_256_Update_fips(sha, data, len);
-    }
-    int wc_Sha3_256_Final(Sha3* sha, byte* out)
-    {
-        if (sha == NULL || out == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        return Sha3_256_Final_fips(sha, out);
-    }
-    void wc_Sha3_256_Free(Sha3* sha)
-    {
-        (void)sha;
-        /* Not supported in FIPS */
-    }
-
-    int wc_InitSha3_384(Sha3* sha, void* heap, int devId)
-    {
-        (void)heap;
-        (void)devId;
-        if (sha == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        return InitSha3_384_fips(sha);
-    }
-    int wc_Sha3_384_Update(Sha3* sha, const byte* data, word32 len)
-    {
-        if (sha == NULL ||  (data == NULL && len > 0)) {
-            return BAD_FUNC_ARG;
-        }
-        return Sha3_384_Update_fips(sha, data, len);
-    }
-    int wc_Sha3_384_Final(Sha3* sha, byte* out)
-    {
-        if (sha == NULL || out == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        return Sha3_384_Final_fips(sha, out);
-    }
-    void wc_Sha3_384_Free(Sha3* sha)
-    {
-        (void)sha;
-        /* Not supported in FIPS */
-    }
-
-    int wc_InitSha3_512(Sha3* sha, void* heap, int devId)
-    {
-        (void)heap;
-        (void)devId;
-        if (sha == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        return InitSha3_512_fips(sha);
-    }
-    int wc_Sha3_512_Update(Sha3* sha, const byte* data, word32 len)
-    {
-        if (sha == NULL ||  (data == NULL && len > 0)) {
-            return BAD_FUNC_ARG;
-        }
-        return Sha3_512_Update_fips(sha, data, len);
-    }
-    int wc_Sha3_512_Final(Sha3* sha, byte* out)
-    {
-        if (sha == NULL || out == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        return Sha3_512_Final_fips(sha, out);
-    }
-    void wc_Sha3_512_Free(Sha3* sha)
-    {
-        (void)sha;
-        /* Not supported in FIPS */
-    }
-
-#else /* else build without fips */
-
-
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -870,7 +748,7 @@ static void wc_Sha3Free(Sha3* sha3)
     wolfAsync_DevCtxFree(&sha3->asyncDev, WOLFSSL_ASYNC_MARKER_SHA3);
 #endif /* WOLFSSL_ASYNC_CRYPT */
 }
-#endif /* HAVE_FIPS */
+
 
 /* Copy the state of the SHA3 operation.
  *
