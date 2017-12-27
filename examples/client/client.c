@@ -1872,6 +1872,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
     if (statusRequest) {
+        if (wolfSSL_CTX_EnableOCSPStapling(ctx) != WOLFSSL_SUCCESS)
+            err_sys("can't enable OCSP Stapling Certificate Manager");
+
         switch (statusRequest) {
             case WOLFSSL_CSR_OCSP:
                 if (wolfSSL_UseOCSPStapling(ssl, WOLFSSL_CSR_OCSP,
@@ -1889,6 +1892,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
     if (statusRequest) {
+        if (wolfSSL_CTX_EnableOCSPStapling(ctx) != WOLFSSL_SUCCESS)
+            err_sys("can't enable OCSP Stapling Certificate Manager");
+
         switch (statusRequest) {
             case WOLFSSL_CSR2_OCSP:
                 if (wolfSSL_UseOCSPStaplingV2(ssl,
