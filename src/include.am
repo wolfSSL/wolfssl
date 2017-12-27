@@ -60,6 +60,10 @@ if BUILD_SHA512
 src_libwolfssl_la_SOURCES += ctaocrypt/src/sha512.c
 endif
 
+if BUILD_FIPS_V2
+src_libwolfssl_la_SOURCES += wolfcrypt/src/sha3.c
+endif
+
 src_libwolfssl_la_SOURCES += ctaocrypt/src/fips.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/fipsv2.c
 src_libwolfssl_la_SOURCES += ctaocrypt/src/fips_test.c
@@ -150,8 +154,10 @@ if BUILD_SHA512
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sha512.c
 endif
 
+if !BUILD_FIPS_V2
 if BUILD_SHA3
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sha3.c
+endif
 endif
 
 src_libwolfssl_la_SOURCES += \
