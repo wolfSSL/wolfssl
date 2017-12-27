@@ -63,6 +63,16 @@
 #ifdef WOLFSSL_SHA384
     #include <wolfssl/wolfcrypt/sha512.h>
 #endif
+
+#ifdef WOLFSSL_SHA3
+    #include <wolfssl/wolfcrypt/sha3.h>
+    #ifndef HEAP_HINT
+        #define HEAP_HINT   NULL
+    #endif
+    static int devId = INVALID_DEVID;
+
+#endif
+
 #ifndef NO_AES
     #include <wolfssl/wolfcrypt/aes.h>
     #ifdef HAVE_AES_DECRYPT
@@ -171,7 +181,6 @@
     #define USE_CERT_BUFFERS_2048
 #endif
 #include <wolfssl/certs_test.h>
-
 
 typedef struct testVector {
     const char* input;
@@ -4167,6 +4176,923 @@ static int test_wc_RipeMdFinal (void)
 #endif
     return flag;
 } /* END test_wc_RipeMdFinal */
+
+
+
+
+
+/*
+ * Testing wc_InitSha3_224, wc_InitSha3_256, wc_InitSha3_384, and
+ * wc_InitSha3_512
+ */
+static int test_wc_InitSha3 (void)
+{
+    int             ret = 0;
+
+#if defined(WOLFSSL_SHA3)
+    Sha3            sha3;
+
+    #if !defined(WOLFSSL_NOSHA3_224)
+        printf(testingFmt, "wc_InitSha3_224()");
+
+        ret = wc_InitSha3_224(&sha3, HEAP_HINT, devId);
+
+        /* Test bad args. */
+        if (ret == 0) {
+            ret = wc_InitSha3_224(NULL, HEAP_HINT, devId);
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            } else if (ret == 0) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+        }
+        wc_Sha3_224_Free(&sha3);
+        printf(resultFmt, ret == 0 ? passed : failed);
+    #endif /* NOSHA3_224 */
+    #if !defined(WOLFSSL_NOSHA3_256)
+        if (ret == 0) {
+            printf(testingFmt, "wc_InitSha3_256()");
+
+            ret = wc_InitSha3_256(&sha3, HEAP_HINT, devId);
+            /* Test bad args. */
+            if (ret == 0) {
+                ret = wc_InitSha3_256(NULL, HEAP_HINT, devId);
+                if (ret == BAD_FUNC_ARG) {
+                    ret = 0;
+                } else if (ret == 0) {
+                    ret = WOLFSSL_FATAL_ERROR;
+                }
+            }
+            wc_Sha3_256_Free(&sha3);
+            printf(resultFmt, ret == 0 ? passed : failed);
+        } /* END sha3_256 */
+    #endif /* NOSHA3_256 */
+    #if !defined(WOLFSSL_NOSHA3_384)
+        if (ret == 0) {
+            printf(testingFmt, "wc_InitSha3_384()");
+
+            ret = wc_InitSha3_384(&sha3, HEAP_HINT, devId);
+            /* Test bad args. */
+            if (ret == 0) {
+                ret = wc_InitSha3_384(NULL, HEAP_HINT, devId);
+                if (ret == BAD_FUNC_ARG) {
+                    ret = 0;
+                } else if (ret == 0) {
+                    ret = WOLFSSL_FATAL_ERROR;
+                }
+            }
+            wc_Sha3_384_Free(&sha3);
+            printf(resultFmt, ret == 0 ? passed : failed);
+        } /* END sha3_384 */
+    #endif /* NOSHA3_384 */
+    #if !defined(WOLFSSL_NOSHA3_512)
+        if (ret == 0) {
+            printf(testingFmt, "wc_InitSha3_512()");
+
+            ret = wc_InitSha3_512(&sha3, HEAP_HINT, devId);
+            /* Test bad args. */
+            if (ret == 0) {
+                ret = wc_InitSha3_512(NULL, HEAP_HINT, devId);
+                if (ret == BAD_FUNC_ARG) {
+                    ret = 0;
+                } else if (ret == 0) {
+                    ret = WOLFSSL_FATAL_ERROR;
+                }
+            }
+            wc_Sha3_512_Free(&sha3);
+            printf(resultFmt, ret == 0 ? passed : failed);
+        } /* END sha3_512 */
+    #endif /* NOSHA3_512 */
+#endif
+    return ret;
+
+} /* END test_wc_InitSha3 */
+
+
+/*
+ * Testing wc_Sha3_Update()
+ */
+static int testing_wc_Sha3_Update (void)
+{
+    int         ret = 0;
+
+#if defined(WOLFSSL_SHA3)
+    Sha3        sha3;
+    byte        msg[] = "Everybody's working for the weekend.";
+    byte        msg2[] = "Everybody gets Friday off.";
+    byte        msgCmp[] = "\x45\x76\x65\x72\x79\x62\x6f\x64\x79\x27\x73\x20"
+                        "\x77\x6f\x72\x6b\x69\x6e\x67\x20\x66\x6f\x72\x20\x74"
+                        "\x68\x65\x20\x77\x65\x65\x6b\x65\x6e\x64\x2e\x45\x76"
+                        "\x65\x72\x79\x62\x6f\x64\x79\x20\x67\x65\x74\x73\x20"
+                        "\x46\x72\x69\x64\x61\x79\x20\x6f\x66\x66\x2e";
+    word32      msglen = sizeof(msg) - 1;
+    word32      msg2len = sizeof(msg2);
+    word32      msgCmplen = sizeof(msgCmp);
+
+    #if !defined(WOLFSSL_NOSHA3_224)
+        printf(testingFmt, "wc_Sha3_224_Update()");
+
+        ret = wc_InitSha3_224(&sha3, HEAP_HINT, devId);
+        if (ret != 0) {
+            return ret;
+        }
+
+        ret = wc_Sha3_224_Update(&sha3, msg, msglen);
+        if (XMEMCMP(msg, sha3.t, msglen) || sha3.i != msglen) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+        if (ret == 0) {
+            ret = wc_Sha3_224_Update(&sha3, msg2, msg2len);
+            if (ret == 0 && XMEMCMP(sha3.t, msgCmp, msgCmplen) != 0) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+        }
+        /* Pass bad args. */
+        if (ret == 0) {
+            ret = wc_Sha3_224_Update(NULL, msg2, msg2len);
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_Sha3_224_Update(&sha3, NULL, 5);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                wc_Sha3_224_Free(&sha3);
+                if (wc_InitSha3_224(&sha3, HEAP_HINT, devId)) {
+                    return ret;
+                }
+                ret = wc_Sha3_224_Update(&sha3, NULL, 0);
+                if (ret == 0) {
+                    ret = wc_Sha3_224_Update(&sha3, msg2, msg2len);
+                }
+                if (ret == 0 && XMEMCMP(msg2, sha3.t, msg2len) != 0) {
+                    ret = WOLFSSL_FATAL_ERROR;
+                }
+            }
+        }
+        wc_Sha3_224_Free(&sha3);
+
+        printf(resultFmt, ret == 0 ? passed : failed);
+    #endif /* SHA3_224 */
+
+    #if !defined(WOLFSSL_NOSHA3_256)
+        if (ret == 0) {
+            printf(testingFmt, "wc_Sha3_256_Update()");
+
+            ret = wc_InitSha3_256(&sha3, HEAP_HINT, devId);
+            if (ret != 0) {
+                return ret;
+            }
+            ret = wc_Sha3_256_Update(&sha3, msg, msglen);
+            if (XMEMCMP(msg, sha3.t, msglen) || sha3.i != msglen) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+            if (ret == 0) {
+                ret = wc_Sha3_256_Update(&sha3, msg2, msg2len);
+                if (XMEMCMP(sha3.t, msgCmp, msgCmplen) != 0) {
+                    ret = WOLFSSL_FATAL_ERROR;
+                }
+            }
+            /* Pass bad args. */
+            if (ret == 0) {
+                ret = wc_Sha3_256_Update(NULL, msg2, msg2len);
+                if (ret == BAD_FUNC_ARG) {
+                    ret = wc_Sha3_256_Update(&sha3, NULL, 5);
+                }
+                if (ret == BAD_FUNC_ARG) {
+                    wc_Sha3_256_Free(&sha3);
+                    if (wc_InitSha3_256(&sha3, HEAP_HINT, devId)) {
+                        return ret;
+                    }
+                    ret = wc_Sha3_256_Update(&sha3, NULL, 0);
+                    if (ret == 0) {
+                        ret = wc_Sha3_256_Update(&sha3, msg2, msg2len);
+                    }
+                    if (ret == 0 && XMEMCMP(msg2, sha3.t, msg2len) != 0) {
+                        ret = WOLFSSL_FATAL_ERROR;
+                    }
+                }
+            }
+            wc_Sha3_256_Free(&sha3);
+
+            printf(resultFmt, ret == 0 ? passed : failed);
+        }
+    #endif /* SHA3_256 */
+
+    #if !defined(WOLFSSL_NOSHA3_384)
+        if (ret == 0) {
+            printf(testingFmt, "wc_Sha3_384_Update()");
+
+            ret = wc_InitSha3_384(&sha3, HEAP_HINT, devId);
+            if (ret != 0) {
+                return ret;
+            }
+            ret = wc_Sha3_384_Update(&sha3, msg, msglen);
+            if (XMEMCMP(msg, sha3.t, msglen) || sha3.i != msglen) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+            if (ret == 0) {
+                ret = wc_Sha3_384_Update(&sha3, msg2, msg2len);
+                if (XMEMCMP(sha3.t, msgCmp, msgCmplen) != 0) {
+                    ret = WOLFSSL_FATAL_ERROR;
+                }
+            }
+            /* Pass bad args. */
+            if (ret == 0) {
+                ret = wc_Sha3_384_Update(NULL, msg2, msg2len);
+                if (ret == BAD_FUNC_ARG) {
+                    ret = wc_Sha3_384_Update(&sha3, NULL, 5);
+                }
+                if (ret == BAD_FUNC_ARG) {
+                    wc_Sha3_384_Free(&sha3);
+                    if (wc_InitSha3_384(&sha3, HEAP_HINT, devId)) {
+                        return ret;
+                    }
+                    ret = wc_Sha3_384_Update(&sha3, NULL, 0);
+                    if (ret == 0) {
+                        ret = wc_Sha3_384_Update(&sha3, msg2, msg2len);
+                    }
+                    if (ret == 0 && XMEMCMP(msg2, sha3.t, msg2len) != 0) {
+                        ret = WOLFSSL_FATAL_ERROR;
+                    }
+                }
+            }
+            wc_Sha3_384_Free(&sha3);
+
+            printf(resultFmt, ret == 0 ? passed : failed);
+        }
+    #endif /* SHA3_384 */
+
+    #if !defined(WOLFSSL_NOSHA3_512)
+        if (ret == 0) {
+            printf(testingFmt, "wc_Sha3_512_Update()");
+
+            ret = wc_InitSha3_512(&sha3, HEAP_HINT, devId);
+            if (ret != 0) {
+                return ret;
+            }
+            ret = wc_Sha3_512_Update(&sha3, msg, msglen);
+            if (XMEMCMP(msg, sha3.t, msglen) || sha3.i != msglen) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+            if (ret == 0) {
+                ret = wc_Sha3_512_Update(&sha3, msg2, msg2len);
+                if (XMEMCMP(sha3.t, msgCmp, msgCmplen) != 0) {
+                    ret = WOLFSSL_FATAL_ERROR;
+                }
+            }
+            /* Pass bad args. */
+            if (ret == 0) {
+                ret = wc_Sha3_512_Update(NULL, msg2, msg2len);
+                if (ret == BAD_FUNC_ARG) {
+                    ret = wc_Sha3_512_Update(&sha3, NULL, 5);
+                }
+                if (ret == BAD_FUNC_ARG) {
+                    wc_Sha3_512_Free(&sha3);
+                    if (wc_InitSha3_512(&sha3, HEAP_HINT, devId)) {
+                        return ret;
+                    }
+                    ret = wc_Sha3_512_Update(&sha3, NULL, 0);
+                    if (ret == 0) {
+                        ret = wc_Sha3_512_Update(&sha3, msg2, msg2len);
+                    }
+                    if (ret == 0 && XMEMCMP(msg2, sha3.t, msg2len) != 0) {
+                        ret = WOLFSSL_FATAL_ERROR;
+                    }
+                }
+            }
+            wc_Sha3_512_Free(&sha3);
+            printf(resultFmt, ret == 0 ? passed : failed);
+        }
+    #endif /* SHA3_512 */
+#endif /* WOLFSSL_SHA3 */
+    return ret;
+
+} /* END testing_wc_Sha3_Update */
+
+/*
+ *  Testing wc_Sha3_224_Final()
+ */
+static int test_wc_Sha3_224_Final (void)
+{
+    int         ret = 0;
+
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
+    Sha3        sha3;
+    const char* msg    = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnom"
+                         "nopnopq";
+    const char* expOut = "\x8a\x24\x10\x8b\x15\x4a\xda\x21\xc9\xfd\x55"
+                         "\x74\x49\x44\x79\xba\x5c\x7e\x7a\xb7\x6e\xf2"
+                         "\x64\xea\xd0\xfc\xce\x33";
+    byte        hash[SHA3_224_DIGEST_SIZE];
+    byte        hashRet[SHA3_224_DIGEST_SIZE];
+
+    /* Init stack variables. */
+    XMEMSET(hash, 0, sizeof(hash));
+
+    printf(testingFmt, "wc_Sha3_224_Final()");
+
+    ret = wc_InitSha3_224(&sha3, HEAP_HINT, devId);
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret= wc_Sha3_224_Update(&sha3, (byte*)msg, (word32)XSTRLEN(msg));
+    if (ret == 0) {
+        ret = wc_Sha3_224_Final(&sha3, hash);
+        if (ret == 0 && XMEMCMP(expOut, hash, SHA3_224_DIGEST_SIZE) != 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_Sha3_224_Final(NULL, hash);
+        if (ret == 0) {
+            ret = wc_Sha3_224_Final(&sha3, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    if (ret == 0) {
+        printf(testingFmt, "wc_Sha3_224_GetHash()");
+
+        ret = wc_InitSha3_224(&sha3, HEAP_HINT, devId);
+        if (ret != 0) {
+            return ret;
+        }
+
+        /* Init stack variables. */
+        XMEMSET(hash, 0, sizeof(hash));
+        XMEMSET(hashRet, 0, sizeof(hashRet));
+
+        ret= wc_Sha3_224_Update(&sha3, (byte*)msg, (word32)XSTRLEN(msg));
+        if (ret == 0) {
+            ret = wc_Sha3_224_GetHash(&sha3, hashRet);
+        }
+
+        if (ret == 0) {
+            ret = wc_Sha3_224_Final(&sha3, hash);
+            if (ret == 0 && XMEMCMP(hash, hashRet, SHA3_224_DIGEST_SIZE) != 0) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+        }
+        if (ret == 0) {
+            /* Test bad args. */
+            ret = wc_Sha3_224_GetHash(NULL, hashRet);
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_Sha3_224_GetHash(&sha3, NULL);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            } else if (ret == 0) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+        }
+
+        printf(resultFmt, ret == 0 ? passed : failed);
+    }
+
+    wc_Sha3_224_Free(&sha3);
+#endif
+    return ret;
+} /* END test_wc_Sha3_224_Final */
+
+
+/*
+ *  Testing wc_Sha3_256_Final()
+ */
+static int test_wc_Sha3_256_Final (void)
+{
+    int         ret = 0;
+
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+    Sha3        sha3;
+    const char* msg    = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnom"
+                         "nopnopq";
+    const char* expOut = "\x41\xc0\xdb\xa2\xa9\xd6\x24\x08\x49\x10\x03\x76\xa8"
+                        "\x23\x5e\x2c\x82\xe1\xb9\x99\x8a\x99\x9e\x21\xdb\x32"
+                        "\xdd\x97\x49\x6d\x33\x76";
+    byte        hash[SHA3_256_DIGEST_SIZE];
+    byte        hashRet[SHA3_256_DIGEST_SIZE];
+
+    /* Init stack variables. */
+    XMEMSET(hash, 0, sizeof(hash));
+
+    printf(testingFmt, "wc_Sha3_256_Final()");
+
+    ret = wc_InitSha3_256(&sha3, HEAP_HINT, devId);
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret= wc_Sha3_256_Update(&sha3, (byte*)msg, (word32)XSTRLEN(msg));
+    if (ret == 0) {
+        ret = wc_Sha3_256_Final(&sha3, hash);
+        if (ret == 0 && XMEMCMP(expOut, hash, SHA3_256_DIGEST_SIZE) != 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_Sha3_256_Final(NULL, hash);
+        if (ret == 0) {
+            ret = wc_Sha3_256_Final(&sha3, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+    printf(resultFmt, ret == 0 ? passed : failed);
+    if (ret == 0) {
+        printf(testingFmt, "wc_Sha3_256_GetHash()");
+
+        ret = wc_InitSha3_256(&sha3, HEAP_HINT, devId);
+        if (ret != 0) {
+            return ret;
+        }
+        /* Init stack variables. */
+        XMEMSET(hash, 0, sizeof(hash));
+        XMEMSET(hashRet, 0, sizeof(hashRet));
+
+        ret= wc_Sha3_256_Update(&sha3, (byte*)msg, (word32)XSTRLEN(msg));
+        if (ret == 0) {
+            ret = wc_Sha3_256_GetHash(&sha3, hashRet);
+        }
+        if (ret == 0) {
+            ret = wc_Sha3_256_Final(&sha3, hash);
+            if (ret == 0 && XMEMCMP(hash, hashRet, SHA3_256_DIGEST_SIZE) != 0) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+        }
+        if (ret == 0) {
+            /* Test bad args. */
+            ret = wc_Sha3_256_GetHash(NULL, hashRet);
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_Sha3_256_GetHash(&sha3, NULL);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            } else if (ret == 0) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+        }
+
+        printf(resultFmt, ret == 0 ? passed : failed);
+    }
+
+    wc_Sha3_256_Free(&sha3);
+#endif
+    return ret;
+} /* END test_wc_Sha3_256_Final */
+
+
+/*
+ *  Testing wc_Sha3_384_Final()
+ */
+static int test_wc_Sha3_384_Final (void)
+{
+    int         ret = 0;
+
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
+    Sha3        sha3;
+    const char* msg    = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnom"
+                         "nopnopq";
+    const char* expOut = "\x99\x1c\x66\x57\x55\xeb\x3a\x4b\x6b\xbd\xfb\x75\xc7"
+                         "\x8a\x49\x2e\x8c\x56\xa2\x2c\x5c\x4d\x7e\x42\x9b\xfd"
+                         "\xbc\x32\xb9\xd4\xad\x5a\xa0\x4a\x1f\x07\x6e\x62\xfe"
+                         "\xa1\x9e\xef\x51\xac\xd0\x65\x7c\x22";
+    byte        hash[SHA3_384_DIGEST_SIZE];
+    byte        hashRet[SHA3_384_DIGEST_SIZE];
+
+    /* Init stack variables. */
+    XMEMSET(hash, 0, sizeof(hash));
+
+    printf(testingFmt, "wc_Sha3_384_Final()");
+
+    ret = wc_InitSha3_384(&sha3, HEAP_HINT, devId);
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret= wc_Sha3_384_Update(&sha3, (byte*)msg, (word32)XSTRLEN(msg));
+    if (ret == 0) {
+        ret = wc_Sha3_384_Final(&sha3, hash);
+        if (ret == 0 && XMEMCMP(expOut, hash, SHA3_384_DIGEST_SIZE) != 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_Sha3_384_Final(NULL, hash);
+        if (ret == 0) {
+            ret = wc_Sha3_384_Final(&sha3, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+    printf(resultFmt, ret == 0 ? passed : failed);
+    if (ret == 0) {
+        printf(testingFmt, "wc_Sha3_384_GetHash()");
+
+        ret = wc_InitSha3_384(&sha3, HEAP_HINT, devId);
+        if (ret != 0) {
+            return ret;
+        }
+        /* Init stack variables. */
+        XMEMSET(hash, 0, sizeof(hash));
+        XMEMSET(hashRet, 0, sizeof(hashRet));
+
+        ret= wc_Sha3_384_Update(&sha3, (byte*)msg, (word32)XSTRLEN(msg));
+        if (ret == 0) {
+            ret = wc_Sha3_384_GetHash(&sha3, hashRet);
+        }
+        if (ret == 0) {
+            ret = wc_Sha3_384_Final(&sha3, hash);
+            if (ret == 0 && XMEMCMP(hash, hashRet, SHA3_384_DIGEST_SIZE) != 0) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+        }
+        if (ret == 0) {
+            /* Test bad args. */
+            ret = wc_Sha3_384_GetHash(NULL, hashRet);
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_Sha3_384_GetHash(&sha3, NULL);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            } else if (ret == 0) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+        }
+
+        printf(resultFmt, ret == 0 ? passed : failed);
+    }
+
+    wc_Sha3_384_Free(&sha3);
+#endif
+    return ret;
+} /* END test_wc_Sha3_384_Final */
+
+
+
+/*
+ *  Testing wc_Sha3_512_Final()
+ */
+static int test_wc_Sha3_512_Final (void)
+{
+    int         ret = 0;
+
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
+    Sha3        sha3;
+    const char* msg    = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnom"
+                         "nopnopq";
+    const char* expOut = "\x04\xa3\x71\xe8\x4e\xcf\xb5\xb8\xb7\x7c\xb4\x86\x10"
+                         "\xfc\xa8\x18\x2d\xd4\x57\xce\x6f\x32\x6a\x0f\xd3\xd7"
+                         "\xec\x2f\x1e\x91\x63\x6d\xee\x69\x1f\xbe\x0c\x98\x53"
+                         "\x02\xba\x1b\x0d\x8d\xc7\x8c\x08\x63\x46\xb5\x33\xb4"
+                         "\x9c\x03\x0d\x99\xa2\x7d\xaf\x11\x39\xd6\xe7\x5e";
+    byte        hash[SHA3_512_DIGEST_SIZE];
+    byte        hashRet[SHA3_512_DIGEST_SIZE];
+
+    /* Init stack variables. */
+    XMEMSET(hash, 0, sizeof(hash));
+
+    printf(testingFmt, "wc_Sha3_512_Final()");
+
+    ret = wc_InitSha3_512(&sha3, HEAP_HINT, devId);
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret= wc_Sha3_512_Update(&sha3, (byte*)msg, (word32)XSTRLEN(msg));
+    if (ret == 0) {
+        ret = wc_Sha3_512_Final(&sha3, hash);
+        if (ret == 0 && XMEMCMP(expOut, hash, SHA3_512_DIGEST_SIZE) != 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_Sha3_512_Final(NULL, hash);
+        if (ret == 0) {
+            ret = wc_Sha3_384_Final(&sha3, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+    printf(resultFmt, ret == 0 ? passed : failed);
+    if (ret == 0) {
+        printf(testingFmt, "wc_Sha3_512_GetHash()");
+
+        ret = wc_InitSha3_512(&sha3, HEAP_HINT, devId);
+        if (ret != 0) {
+            return ret;
+        }
+        /* Init stack variables. */
+        XMEMSET(hash, 0, sizeof(hash));
+        XMEMSET(hashRet, 0, sizeof(hashRet));
+
+        ret= wc_Sha3_512_Update(&sha3, (byte*)msg, (word32)XSTRLEN(msg));
+        if (ret == 0) {
+            ret = wc_Sha3_512_GetHash(&sha3, hashRet);
+        }
+        if (ret == 0) {
+            ret = wc_Sha3_512_Final(&sha3, hash);
+            if (ret == 0 && XMEMCMP(hash, hashRet, SHA3_512_DIGEST_SIZE) != 0) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+        }
+        if (ret == 0) {
+            /* Test bad args. */
+            ret = wc_Sha3_512_GetHash(NULL, hashRet);
+            if (ret == BAD_FUNC_ARG) {
+                ret = wc_Sha3_512_GetHash(&sha3, NULL);
+            }
+            if (ret == BAD_FUNC_ARG) {
+                ret = 0;
+            } else if (ret == 0) {
+                ret = WOLFSSL_FATAL_ERROR;
+            }
+        }
+
+        printf(resultFmt, ret == 0 ? passed : failed);
+    }
+
+    wc_Sha3_512_Free(&sha3);
+#endif
+    return ret;
+} /* END test_wc_Sha3_512_Final */
+
+
+/*
+ *  Testing wc_Sha3_224_Copy()
+ */
+static int test_wc_Sha3_224_Copy (void)
+{
+    int         ret = 0;
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
+    Sha3        sha3, sha3Cpy;
+    const char* msg = "Everyone gets Friday off.";
+    word32      msglen = (word32)XSTRLEN(msg);
+    byte        hash[SHA3_224_DIGEST_SIZE];
+    byte        hashCpy[SHA3_224_DIGEST_SIZE];
+
+    XMEMSET(hash, 0, sizeof(hash));
+    XMEMSET(hashCpy, 0, sizeof(hashCpy));
+
+    printf(testingFmt, "wc_Sha3_224_Copy()");
+
+    ret = wc_InitSha3_224(&sha3, HEAP_HINT, devId);
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret = wc_InitSha3_224(&sha3Cpy, HEAP_HINT, devId);
+    if (ret != 0) {
+    wc_Sha3_224_Free(&sha3);
+    return ret;
+    }
+
+    ret = wc_Sha3_224_Update(&sha3, (byte*)msg, msglen);
+
+    if (ret == 0) {
+        ret = wc_Sha3_224_Copy(&sha3Cpy, &sha3);
+        if (ret == 0) {
+            ret = wc_Sha3_224_Final(&sha3, hash);
+            if (ret == 0) {
+                ret = wc_Sha3_224_Final(&sha3Cpy, hashCpy);
+            }
+        }
+        if (ret == 0 && XMEMCMP(hash, hashCpy, sizeof(hash)) != 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_Sha3_224_Copy(NULL, &sha3);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Sha3_224_Copy(&sha3Cpy, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+
+} /* END test_wc_Sha3_224_Copy */
+
+
+
+/*
+ *  Testing wc_Sha3_256_Copy()
+ */
+static int test_wc_Sha3_256_Copy (void)
+{
+    int         ret = 0;
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
+    Sha3        sha3, sha3Cpy;
+    const char* msg = "Everyone gets Friday off.";
+    word32      msglen = (word32)XSTRLEN(msg);
+    byte        hash[SHA3_256_DIGEST_SIZE];
+    byte        hashCpy[SHA3_256_DIGEST_SIZE];
+
+    XMEMSET(hash, 0, sizeof(hash));
+    XMEMSET(hashCpy, 0, sizeof(hashCpy));
+
+    printf(testingFmt, "wc_Sha3_256_Copy()");
+
+    ret = wc_InitSha3_256(&sha3, HEAP_HINT, devId);
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret = wc_InitSha3_256(&sha3Cpy, HEAP_HINT, devId);
+    if (ret != 0) {
+    wc_Sha3_256_Free(&sha3);
+    return ret;
+    }
+
+    ret = wc_Sha3_256_Update(&sha3, (byte*)msg, msglen);
+
+    if (ret == 0) {
+        ret = wc_Sha3_256_Copy(&sha3Cpy, &sha3);
+        if (ret == 0) {
+            ret = wc_Sha3_256_Final(&sha3, hash);
+            if (ret == 0) {
+                ret = wc_Sha3_256_Final(&sha3Cpy, hashCpy);
+            }
+        }
+        if (ret == 0 && XMEMCMP(hash, hashCpy, sizeof(hash)) != 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_Sha3_256_Copy(NULL, &sha3);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Sha3_256_Copy(&sha3Cpy, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+
+} /* END test_wc_Sha3_256_Copy */
+
+
+
+/*
+ *  Testing wc_Sha3_384_Copy()
+ */
+static int test_wc_Sha3_384_Copy (void)
+{
+    int         ret = 0;
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
+    Sha3        sha3, sha3Cpy;
+    const char* msg = "Everyone gets Friday off.";
+    word32      msglen = (word32)XSTRLEN(msg);
+    byte        hash[SHA3_384_DIGEST_SIZE];
+    byte        hashCpy[SHA3_384_DIGEST_SIZE];
+
+    XMEMSET(hash, 0, sizeof(hash));
+    XMEMSET(hashCpy, 0, sizeof(hashCpy));
+
+    printf(testingFmt, "wc_Sha3_384_Copy()");
+
+    ret = wc_InitSha3_384(&sha3, HEAP_HINT, devId);
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret = wc_InitSha3_384(&sha3Cpy, HEAP_HINT, devId);
+    if (ret != 0) {
+    wc_Sha3_384_Free(&sha3);
+    return ret;
+    }
+
+    ret = wc_Sha3_384_Update(&sha3, (byte*)msg, msglen);
+
+    if (ret == 0) {
+        ret = wc_Sha3_384_Copy(&sha3Cpy, &sha3);
+        if (ret == 0) {
+            ret = wc_Sha3_384_Final(&sha3, hash);
+            if (ret == 0) {
+                ret = wc_Sha3_384_Final(&sha3Cpy, hashCpy);
+            }
+        }
+        if (ret == 0 && XMEMCMP(hash, hashCpy, sizeof(hash)) != 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_Sha3_384_Copy(NULL, &sha3);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Sha3_384_Copy(&sha3Cpy, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+
+} /* END test_wc_Sha3_384_Copy */
+
+
+/*
+ *  Testing wc_Sha3_512_Copy()
+ */
+static int test_wc_Sha3_512_Copy (void)
+{
+    int         ret = 0;
+
+#if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_512)
+    Sha3        sha3, sha3Cpy;
+    const char* msg = "Everyone gets Friday off.";
+    word32      msglen = (word32)XSTRLEN(msg);
+    byte        hash[SHA3_512_DIGEST_SIZE];
+    byte        hashCpy[SHA3_512_DIGEST_SIZE];
+
+    XMEMSET(hash, 0, sizeof(hash));
+    XMEMSET(hashCpy, 0, sizeof(hashCpy));
+
+
+    printf(testingFmt, "wc_Sha3_512_Copy()");
+
+    ret = wc_InitSha3_512(&sha3, HEAP_HINT, devId);
+    if (ret != 0) {
+        return ret;
+    }
+
+    ret = wc_InitSha3_512(&sha3Cpy, HEAP_HINT, devId);
+    if (ret != 0) {
+    wc_Sha3_512_Free(&sha3);
+    return ret;
+    }
+
+    ret = wc_Sha3_512_Update(&sha3, (byte*)msg, msglen);
+
+    if (ret == 0) {
+        ret = wc_Sha3_512_Copy(&sha3Cpy, &sha3);
+        if (ret == 0) {
+            ret = wc_Sha3_512_Final(&sha3, hash);
+            if (ret == 0) {
+                ret = wc_Sha3_512_Final(&sha3Cpy, hashCpy);
+            }
+        }
+        if (ret == 0 && XMEMCMP(hash, hashCpy, sizeof(hash)) != 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_Sha3_512_Copy(NULL, &sha3);
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Sha3_512_Copy(&sha3Cpy, NULL);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+
+} /* END test_wc_Sha3_512_Copy */
+
 
 
 
@@ -11524,6 +12450,17 @@ void ApiTest(void)
     AssertFalse(test_wc_InitRipeMd());
     AssertFalse(test_wc_RipeMdUpdate());
     AssertFalse(test_wc_RipeMdFinal());
+
+    AssertIntEQ(test_wc_InitSha3(), 0);
+    AssertIntEQ(testing_wc_Sha3_Update(), 0);
+    AssertIntEQ(test_wc_Sha3_224_Final(), 0);
+    AssertIntEQ(test_wc_Sha3_256_Final(), 0);
+    AssertIntEQ(test_wc_Sha3_384_Final(), 0);
+    AssertIntEQ(test_wc_Sha3_512_Final(), 0);
+    AssertIntEQ(test_wc_Sha3_224_Copy(), 0);
+    AssertIntEQ(test_wc_Sha3_256_Copy(), 0);
+    AssertIntEQ(test_wc_Sha3_384_Copy(), 0);
+    AssertIntEQ(test_wc_Sha3_512_Copy(), 0);
 
     AssertFalse(test_wc_Md5HmacSetKey());
     AssertFalse(test_wc_Md5HmacUpdate());
