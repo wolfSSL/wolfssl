@@ -1,6 +1,6 @@
 /* caam_driver.c
  *
- * Copyright (C) 2006-2016 wolfSSL Inc.
+ * Copyright (C) 2006-2017 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -105,13 +105,13 @@ static Error caamReset()
 {
     int t = 100000; /* time out counter for flushing job ring */
 
-    /* make sure interupts are masked in JRCFGR0_LS register */
+    /* make sure interrupts are masked in JRCFGR0_LS register */
     CAAM_WRITE(CAAM_BASE | 0x1054, CAAM_READ(CAAM_BASE | 0x1054) | 1);
 
     /* flush and reset job rings using JRCR0 register */
     CAAM_WRITE(CAAM_BASE | 0x106C, 1);
 
-    /* check register JRINTR for if halt is in prgress */
+    /* check register JRINTR for if halt is in progress */
     while (t > 0 && ((CAAM_READ(CAAM_BASE | 0x104C) & 0x4) == 0x4)) t--;
     if (t == 0) {
         /*unrecoverable failure, the job ring is locked, up hard reset needed*/
@@ -145,14 +145,14 @@ static Error caamCreatePartition(unsigned char page, unsigned char par)
         return MemoryMapMayNotBeEmpty;
     }
 
-    /* set generic all access permisions, gets reset later */
+    /* set generic all access permissions, gets reset later */
     CAAM_WRITE(CAAM_BASE | (0x1108 + (par * 16)), 0xF);
     CAAM_WRITE(CAAM_BASE | (0x110C + (par * 16)), 0xF);
     CAAM_WRITE(CAAM_BASE | (0x1104 + (par * 16)), 0xFF);
 
     /* check ownership of page */
     CAAM_WRITE(CAAM_BASE | 0x10F4, (page << 16) | 0x5);
-    /* wait for inquery cmd to complete */
+    /* wait for inquiry cmd to complete */
     while ((CAAM_READ(CAAM_BASE | 0x10FC) & 0x0000C000) > 0 &&
        (CAAM_READ(CAAM_BASE | 0x10FC) & 0x00003000)  == 0) {
     }
@@ -163,7 +163,7 @@ static Error caamCreatePartition(unsigned char page, unsigned char par)
                (CAAM_READ(CAAM_BASE | 0x10FC) & 0x00003000)  == 0) {}
         if ((CAAM_READ(CAAM_BASE | 0x10FC) & 0x00003000)  > 0) {
             /* error while deallocating page */
-            return MemoryMapMayNotBeEmpty; /* PSP set on page or is unavialbale */
+            return MemoryMapMayNotBeEmpty; /* PSP set on page or is unavailable */
         }
     }
     else {
@@ -186,7 +186,7 @@ static Error caamCreatePartition(unsigned char page, unsigned char par)
 
     /* double check ownership now of page */
     CAAM_WRITE(CAAM_BASE | 0x10F4, (page << 16) | 0x5);
-    /* wait for inquery cmd to complete */
+    /* wait for inquiry cmd to complete */
     while ((CAAM_READ(CAAM_BASE | 0x10FC) & 0x0000C000) > 0 &&
        (CAAM_READ(CAAM_BASE | 0x10FC) & 0x00003000)  == 0) {
     }
@@ -286,7 +286,7 @@ static int caamInitRng(struct CAAM_DEVICE* dev)
     reg |= CAAM_CTLERR;
     CAAM_WRITE(CAAM_RTMCTL, reg);
 
-    /* check input slot is avialable and then add */
+    /* check input slot is available and then add */
     if (CAAM_READ(CAAM_BASE | 0x1014) > 0) {
         UINT4* in = (UINT4*)dev->ring.JobIn;
 
@@ -318,7 +318,7 @@ static Error caamDoJob(struct DescStruct* desc)
     desc->desc[0] &= 0xFFFFFF80;
     desc->desc[0] += desc->idx;
 
-    /* check input slot is avialable and then add */
+    /* check input slot is available and then add */
     if (CAAM_READ(CAAM_BASE | 0x1014) > 0) {
         UINT4* in = (UINT4*)desc->caam->ring.JobIn;
 
@@ -396,7 +396,7 @@ static int caamAddIO(struct DescStruct* desc, UINT4 options, UINT4 sz,
         }
 
         if (dataSz % align > 0) {
-            /* store potental overlap */
+            /* store potential overlap */
             int tmpSz  = dataSz % align;
             int add = (tmpSz < (align - desc->alignIdx)) ? tmpSz :
                 align - desc->alignIdx;
@@ -557,7 +557,7 @@ static Error caamBlob(struct DescStruct* desc)
   CAAM AES Operations
   ****************************************************************************/
 
-/* returns amount writin on success and negative value in error case.
+/* returns amount written on success and negative value in error case.
  * Is different from caamAddIO in that it only adds a single input buffer
  * rather than multiple ones.
  */
@@ -786,7 +786,7 @@ static Error caamAes(struct DescStruct* desc)
 
         case CAAM_AESCTR:
             ofst = 0x00001000;
-            /* fall through because states are the same only the offest changes */
+            /* fall through because states are the same only the offset changes */
 
         case CAAM_AESCBC:
         {
@@ -851,7 +851,7 @@ static Error caamAes(struct DescStruct* desc)
         align = 16;
     }
 
-    /* indefinit loop for input/output buffers */
+    /* indefinite loop for input/output buffers */
     desc->headIdx = desc->idx;
     desc->output  = 0;
     offset = 0; /* store left over amount for output buffer */
@@ -1047,7 +1047,7 @@ static Error caamAead(struct DescStruct* desc)
                     FIFOL_TYPE_AAD + desc->aadSz;
                 desc->desc[desc->idx++] = BSP_VirtualToPhysical(desc->aadSzBuf);
 
-                /* now set aadSz to unformated version for getting buffers */
+                /* now set aadSz to unformatted version for getting buffers */
                 if (desc->aadSz == 2) {
                     unsigned char* pt = (unsigned char*)desc->aadSzBuf;
                     desc->aadSz = (((UINT4)pt[0] & 0xFF) << 8) |
@@ -1230,7 +1230,7 @@ static Error caamSha(struct DescStruct* desc, int start)
     ASP_FlushCaches((Address)desc->iv, ctxSz);
     /*Manage Context (current digest + 8 byte running message length)*/
     if ((desc->state & CAAM_ALG_INIT) != CAAM_ALG_INIT) {
-        /* dont load into the class 2 context register on inti.
+        /* don't load into the class 2 context register on inti.
            Found that loading in caused context to not get set. */
         if (desc->idx + 2 > MAX_DESC_SZ) {
             return TransferFailed;
@@ -1588,7 +1588,7 @@ static void HandleInterrupt(Address id)
     Value InterruptStatus = INTERRUPT_AtomicWrite(&local->InterruptStatus, 0);
     int i;
 
-    /* Loop through decriptors and try to dismiss them */
+    /* Loop through descriptors and try to dismiss them */
     for (i = 0; i < DESC_COUNT; i++) {
         struct DescStruct* desc = &local->DescArray[i];
         if (InterruptStatus & (1 << i)) {
@@ -1650,7 +1650,7 @@ void  InitCAAM(void)
     }
 
 
-    /* call interupt to make IORequests available */
+    /* call interrupt to make IORequests available */
     caam.InterruptStatus = 0;
     INTERRUPT_InitCall(&caam.HandleInterruptCall,
         &HandleInterrupt, "Start up CAAM IORequest");
@@ -1667,7 +1667,7 @@ void  InitCAAM(void)
 
     /* set up job ring */
 
-    /* @TODO create partion in physical memory for job rings
+    /* @TODO create partition in physical memory for job rings
        current partion security is set to the default */
     for (i = 1; i < CAAM_PAGE_MAX; i++) {
         ret = caamCreatePartition(i, i);

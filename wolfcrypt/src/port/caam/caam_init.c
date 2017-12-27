@@ -1,6 +1,6 @@
 /* caam_init.c
  *
- * Copyright (C) 2006-2016 wolfSSL Inc.
+ * Copyright (C) 2006-2017 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -124,7 +124,7 @@ int wc_caamInit()
     }
     else {
         WOLFSSL_MSG("Hashing not supported by CAAM");
-        return WC_CAAM_E;
+        return WC_HW_E;
     }
     #endif
 
@@ -134,7 +134,7 @@ int wc_caamInit()
     }
     else {
         WOLFSSL_MSG("AES not supported by CAAM");
-        return WC_CAAM_E;
+        return WC_HW_E;
     }
     #endif
 
@@ -178,14 +178,14 @@ void wc_caamWriteRegister(word32 reg, word32 value)
 }
 
 
-/* return 0 on success and WC_CAAM_E on failure. Can also return WC_CAAM_WAIT
+/* return 0 on success and WC_HW_E on failure. Can also return WC_HW_WAIT_E
  * in the case that the driver is waiting for a resource. */
 int wc_caamAddAndWait(Buffer* buf, word32 arg[4], word32 type)
 {
     int ret;
     if (caam == NULLIODevice) {
         WOLFSSL_MSG("Error CAAM IODevice not found! Bad password?");
-        return WC_CAAM_E;
+        return WC_HW_E;
     }
 
     if ((ret = SynchronousSendIORequest(caam, type, (const Value*)arg, buf))
@@ -197,10 +197,10 @@ int wc_caamAddAndWait(Buffer* buf, word32 arg[4], word32 type)
         /* if waiting for resource or RNG return waiting */
         if (ret == Waiting) {
             WOLFSSL_MSG("Waiting on CAAM driver");
-            return WC_CAAM_WAIT;
+            return WC_HW_WAIT_E;
         }
 
-        return WC_CAAM_E;
+        return WC_HW_E;
     }
 
     (void)ret;

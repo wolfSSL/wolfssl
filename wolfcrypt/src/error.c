@@ -434,11 +434,11 @@ const char* wc_GetErrorString(int error)
     case ECC_PRIVATEONLY_E:
         return "Invalid use of private only ECC key";
 
-    case WC_CAAM_E:
-        return "Error with CAAM use";
+    case WC_HW_E:
+        return "Error with hardware crypto use";
 
-    case WC_CAAM_WAIT:
-        return "CAAM Driver waiting on resource";
+    case WC_HW_WAIT_E:
+        return "Hardware waiting on resource";
 
     default:
         return "unknown error number";

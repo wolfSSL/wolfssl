@@ -1657,7 +1657,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             }
 
             /* driver could be waiting for entropy */
-            if (ret != WC_CAAM_WAIT) {
+            if (ret != WC_HW_WAIT_E) {
                 return ret;
             }
             sleep(1);
