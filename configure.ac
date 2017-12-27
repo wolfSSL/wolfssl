@@ -2095,7 +2095,7 @@ AM_CONDITIONAL([BUILD_SHA224], [test "x$ENABLED_SHA224" = "xyes"])
 SHA3_DEFAULT=no
 if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"
 then
-    if test "x$ENABLED_FIPS" = "xno"
+    if test "x$ENABLED_FIPS" = "xno" || test "x$FIPS_VERSION" = "xv2"
     then
         SHA3_DEFAULT=yes
     fi
