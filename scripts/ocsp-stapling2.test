@@ -2,7 +2,7 @@
 
 # ocsp-stapling.test
 
-trap 'for i in `jobs -p`; do pkill -TERM -P $i; kill $i; done' EXIT
+trap 'for i in `jobs -p`; do pkill -TERM -P $i; done' EXIT
 
 [ ! -x ./examples/client/client ] && echo -e "\n\nClient doesn't exist" && exit 1
 
