@@ -24,25 +24,18 @@
         #include <config.h>
 #endif
 
+#include <wolfssl/wolfcrypt/settings.h>
+
 #include <wolfssl/ssl.h>
 
 #if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
         #include <stdio.h>
         #include <string.h>
-
-        #if !defined(WOLFSSL_MDK_ARM)
-            #include "cmsis_os.h"
-            #include "rl_fs.h"
-            #include "rl_net.h"
-        #else
-            #include "rtl.h"
-            #include "wolfssl_MDK_ARM.h"
-        #endif
+        #include "cmsis_os.h"
+        #include "rl_fs.h"
+        #include "rl_net.h"
+        #include "wolfssl_MDK_ARM.h"
 #endif
-
-#include <wolfssl/wolfcrypt/settings.h>
-
-#include <wolfssl/ssl.h>
 
 #include <wolfssl/test.h>
 
@@ -109,8 +102,10 @@ static int NonBlockingSSL_Connect(WOLFSSL* ssl)
     while (ret != WOLFSSL_SUCCESS && (error == WOLFSSL_ERROR_WANT_READ ||
                                   error == WOLFSSL_ERROR_WANT_WRITE ||
                                   error == WC_PENDING_E)) {
+    #ifdef WOLFSSL_DTLS
         int currTimeout = 1;
-
+    #endif
+                                                                        
         if (error == WOLFSSL_ERROR_WANT_READ)
             printf("... client would read block\n");
         else if (error == WOLFSSL_ERROR_WANT_WRITE)
