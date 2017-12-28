@@ -17106,8 +17106,10 @@ WOLFSSL_X509_STORE_CTX* wolfSSL_X509_STORE_CTX_new(void)
     WOLFSSL_X509_STORE_CTX* ctx = (WOLFSSL_X509_STORE_CTX*)XMALLOC(
                                     sizeof(WOLFSSL_X509_STORE_CTX), NULL,
                                     DYNAMIC_TYPE_X509_CTX);
-    if (ctx != NULL)
+    if (ctx != NULL) {
+        ctx->param = NULL;
         wolfSSL_X509_STORE_CTX_init(ctx, NULL, NULL, NULL);
+    }
 
     return ctx;
 }
@@ -17131,12 +17133,14 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
         ctx->error_depth = 0;
         ctx->discardSessionCerts = 0;
 #ifdef OPENSSL_EXTRA
-        ctx->param = (WOLFSSL_X509_VERIFY_PARAM*)XMALLOC(
-                       sizeof(WOLFSSL_X509_VERIFY_PARAM),
-                       NULL,DYNAMIC_TYPE_OPENSSL);
-        if (ctx->param == NULL){
-            WOLFSSL_MSG("wolfSSL_X509_STORE_CTX_init failed");
-            return SSL_FATAL_ERROR;
+        if (ctx->param == NULL) {
+            ctx->param = (WOLFSSL_X509_VERIFY_PARAM*)XMALLOC(
+                           sizeof(WOLFSSL_X509_VERIFY_PARAM),
+                           NULL,DYNAMIC_TYPE_OPENSSL);
+            if (ctx->param == NULL){
+                WOLFSSL_MSG("wolfSSL_X509_STORE_CTX_init failed");
+                return SSL_FATAL_ERROR;
+            }
         }
 #endif
         return SSL_SUCCESS;
@@ -21767,7 +21771,7 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
 
     if (ctx == NULL) {
         WOLFSSL_MSG("no ctx on init");
-        return SSL_FAILURE;
+        return WOLFSSL_FAILURE;
     }
 
     if (type) {
@@ -21775,21 +21779,21 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
 
         if (XSTRNCMP(type, "MD5", 3) == 0) {
             WOLFSSL_MSG("md5 hmac");
-            ctx->type = MD5;
+            ctx->type = WC_MD5;
         }
         else if (XSTRNCMP(type, "SHA256", 6) == 0) {
             WOLFSSL_MSG("sha256 hmac");
-            ctx->type = SHA256;
+            ctx->type = WC_SHA256;
         }
 
         /* has to be last since would pick or 256, 384, or 512 too */
         else if (XSTRNCMP(type, "SHA", 3) == 0) {
             WOLFSSL_MSG("sha hmac");
-            ctx->type = SHA;
+            ctx->type = WC_SHA;
         }
         else {
             WOLFSSL_MSG("bad init type");
-            return SSL_FAILURE;
+            return WOLFSSL_FAILURE;
         }
     }
 
@@ -21801,15 +21805,15 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
                                        (word32)keylen);
             if (hmac_error < 0){
                 wc_HmacFree(&ctx->hmac);
-                return SSL_FAILURE;
+                return WOLFSSL_FAILURE;
             }
         }
     } else {
         WOLFSSL_MSG("no key or keylen");
-        return SSL_FAILURE;
+        return WOLFSSL_FAILURE;
     }
 
-    return SSL_SUCCESS;
+    return WOLFSSL_SUCCESS;
 }
 
 
@@ -21822,7 +21826,7 @@ int wolfSSL_HMAC_Update(WOLFSSL_HMAC_CTX* ctx, const unsigned char* data,
 
     if (ctx == NULL) {
         WOLFSSL_MSG("no ctx");
-        return SSL_FAILURE;
+        return WOLFSSL_FAILURE;
     }
 
     if (data) {
@@ -21830,11 +21834,11 @@ int wolfSSL_HMAC_Update(WOLFSSL_HMAC_CTX* ctx, const unsigned char* data,
         hmac_error = wc_HmacUpdate(&ctx->hmac, data, (word32)len);
         if (hmac_error < 0){
             WOLFSSL_MSG("hmac update error");
-            return SSL_FAILURE;
+            return WOLFSSL_FAILURE;
         }
     }
 
-    return SSL_SUCCESS;
+    return WOLFSSL_SUCCESS;
 }
 
 
@@ -21847,37 +21851,37 @@ int wolfSSL_HMAC_Final(WOLFSSL_HMAC_CTX* ctx, unsigned char* hash,
 
     if (ctx == NULL || hash == NULL || len == NULL) {
         WOLFSSL_MSG("invalid parameter");
-        return SSL_FAILURE;
+        return WOLFSSL_FAILURE;
     }
 
     WOLFSSL_MSG("final hmac");
     hmac_error = wc_HmacFinal(&ctx->hmac, hash);
     if (hmac_error < 0){
         WOLFSSL_MSG("final hmac error");
-        return SSL_FAILURE;
+        return WOLFSSL_FAILURE;
     }
 
     if (len) {
         WOLFSSL_MSG("setting output len");
         switch (ctx->type) {
-        case MD5:
-            *len = MD5_DIGEST_SIZE;
+        case WC_MD5:
+            *len = WC_MD5_DIGEST_SIZE;
             break;
 
-        case SHA:
-            *len = SHA_DIGEST_SIZE;
+        case WC_SHA:
+            *len = WC_SHA_DIGEST_SIZE;
             break;
 
-        case SHA256:
-            *len = SHA256_DIGEST_SIZE;
+        case WC_SHA256:
+            *len = WC_SHA256_DIGEST_SIZE;
             break;
 
         default:
             WOLFSSL_MSG("bad hmac type");
-            return SSL_FAILURE;
+            return WOLFSSL_FAILURE;
         }
     }
-    return SSL_SUCCESS;
+    return WOLFSSL_SUCCESS;
 }
 
 
@@ -22864,7 +22868,13 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new(void)
     XMEMSET(external->pub_key, 0, sizeof(WOLFSSL_EC_POINT));
 
     key = (ecc_key*)external->internal;
-    external->pub_key->internal = (ecc_point*)&key->pubkey;
+    external->pub_key->internal = wc_ecc_new_point();
+    if (wc_ecc_copy_point((ecc_point*)&key->pubkey,
+                external->pub_key->internal) != MP_OKAY) {
+        WOLFSSL_MSG("wc_ecc_copy_point failure");
+        wolfSSL_EC_KEY_free(external);
+        return NULL;
+    }
 
     /* curve group */
     external->group = (WOLFSSL_EC_GROUP*)XMALLOC(sizeof(WOLFSSL_EC_GROUP), NULL,

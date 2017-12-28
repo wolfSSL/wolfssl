@@ -14928,7 +14928,7 @@ static void test_wolfSSL_HMAC(void)
     AssertIntEQ(HMAC_Update(&hmac, key, (int)sizeof(key)), SSL_SUCCESS);
     AssertIntEQ(HMAC_Update(&hmac, NULL, 0), SSL_SUCCESS);
     AssertIntEQ(HMAC_Final(&hmac, hash, &len), SSL_SUCCESS);
-    AssertIntEQ(len, (int)SHA256_DIGEST_SIZE);
+    AssertIntEQ(len, (int)WC_SHA256_DIGEST_SIZE);
 
     HMAC_cleanup(&hmac);
 
@@ -15926,7 +15926,7 @@ void ApiTest(void)
     /* test the no op functions for compatibility */
     test_no_op_functions();
 
-    AssertIntEQ(test_wolfSSL_Cleanup(), SSL_SUCCESS);
+    AssertIntEQ(test_wolfSSL_Cleanup(), WOLFSSL_SUCCESS);
 
     /* wolfCrypt ASN tests */
     test_wc_GetPkcs8TraditionalOffset();
