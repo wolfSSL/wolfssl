@@ -58,7 +58,11 @@
 #endif
 
 typedef char WOLFSSL_EVP_CIPHER;
-typedef char WOLFSSL_EVP_MD;
+#ifndef WOLFSSL_EVP_TYPE_DEFINED
+typedef struct WOLFSSL_EVP_PKEY WOLFSSL_EVP_PKEY;
+typedef char   WOLFSSL_EVP_MD;
+#define WOLFSSL_EVP_TYPE_DEFINED
+#endif
 
 #ifndef NO_MD5
     WOLFSSL_API const WOLFSSL_EVP_MD* wolfSSL_EVP_md5(void);
@@ -199,11 +203,6 @@ typedef struct WOLFSSL_EVP_CIPHER_CTX {
     int  lastUsed;
 } WOLFSSL_EVP_CIPHER_CTX;
 
-
-#ifndef WOLFSSL_EVP_PKEY_TYPE_DEFINED /* guard on redeclaration */
-typedef struct WOLFSSL_EVP_PKEY     WOLFSSL_EVP_PKEY;
-#define WOLFSSL_EVP_PKEY_TYPE_DEFINED
-#endif
 
 typedef struct  WOLFSSL_EVP_PKEY_CTX {
     WOLFSSL_EVP_PKEY *pkey;
@@ -429,7 +428,6 @@ typedef WOLFSSL_EVP_MD         EVP_MD;
 typedef WOLFSSL_EVP_CIPHER     EVP_CIPHER;
 typedef WOLFSSL_EVP_MD_CTX     EVP_MD_CTX;
 typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
-typedef WOLFSSL_EVP_PKEY_CTX   EVP_PKEY_CTX;
 
 #ifndef NO_MD5
     #define EVP_md5       wolfSSL_EVP_md5

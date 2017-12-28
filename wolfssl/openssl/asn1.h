@@ -25,7 +25,6 @@
 #define WOLFSSL_ASN1_H_
 
 #include <wolfssl/openssl/ssl.h>
-typedef struct WOLFSSL_ASN1_STRING      ASN1_STRING;
 
 #define ASN1_STRING_new      wolfSSL_ASN1_STRING_type_new
 #define ASN1_STRING_type_new wolfSSL_ASN1_STRING_type_new
