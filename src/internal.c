@@ -1506,7 +1506,6 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
         while (ctx->ca_names != NULL) {
             WOLFSSL_STACK *next = ctx->ca_names->next;
             wolfSSL_X509_NAME_free(ctx->ca_names->data.name);
-            XFREE(ctx->ca_names->data.name, NULL, DYNAMIC_TYPE_OPENSSL);
             XFREE(ctx->ca_names, NULL, DYNAMIC_TYPE_OPENSSL);
             ctx->ca_names = next;
         }
@@ -2765,8 +2764,10 @@ void FreeX509Name(WOLFSSL_X509_NAME* name, void* heap)
 #ifdef OPENSSL_EXTRA
         {
             int i;
-            if (name->fullName.fullName != NULL)
+            if (name->fullName.fullName != NULL) {
                 XFREE(name->fullName.fullName, heap, DYNAMIC_TYPE_X509);
+                name->fullName.fullName = NULL;
+            }
             for (i = 0; i < MAX_NAME_ENTRIES; i++) {
                 /* free ASN1 string data */
                 if (name->extra[i].set && name->extra[i].data.data != NULL) {

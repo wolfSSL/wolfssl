@@ -57,6 +57,7 @@ struct WOLFSSL_RSA {
     void*          internal;  /* our RSA */
     char           inSet;     /* internal set from external ? */
     char           exSet;     /* external set from internal ? */
+    char           ownRng;    /* flag for if the rng should be free'd */
 };
 
 

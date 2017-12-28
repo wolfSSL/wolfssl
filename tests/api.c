@@ -14863,6 +14863,8 @@ static void test_wolfSSL_ERR_put_error(void)
 
     printf(testingFmt, "wolfSSL_ERR_put_error()");
 
+
+    ERR_clear_error(); /* clear out any error nodes */
     ERR_put_error(0,SYS_F_ACCEPT, 0, "this file", 0);
     AssertIntEQ(ERR_get_error_line(&file, &line), 0);
     ERR_put_error(0,SYS_F_BIND, 1, "this file", 1);

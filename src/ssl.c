@@ -20453,8 +20453,11 @@ WOLFSSL_RSA* wolfSSL_RSA_new(void)
             rng = NULL;
         }
 
-        if (initGlobalRNG)
+        external->ownRng = 1;
+        if (rng == NULL && initGlobalRNG) {
+            external->ownRng = 0;
             rng = &globalRNG;
+        }
 
         if (rng == NULL) {
             WOLFSSL_MSG("wolfSSL_RSA_new no WC_RNG for blinding");
@@ -20481,10 +20484,15 @@ void wolfSSL_RSA_free(WOLFSSL_RSA* rsa)
         if (rsa->internal) {
 #if !defined(HAVE_FIPS) && !defined(HAVE_USER_RSA) && \
     !defined(HAVE_FAST_RSA) && defined(WC_RSA_BLINDING)
-            WC_RNG* rng = ((RsaKey*)rsa->internal)->rng;
-            if (rng != NULL && rng != &globalRNG) {
-                wc_FreeRng(rng);
-                XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
+            WC_RNG* rng;
+
+            /* check if RNG is owned before freeing it */
+            if (rsa->ownRng) {
+                rng = ((RsaKey*)rsa->internal)->rng;
+                if (rng != NULL && rng != &globalRNG) {
+                    wc_FreeRng(rng);
+                    XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
+                }
             }
 #endif /* WC_RSA_BLINDING */
             wc_FreeRsaKey((RsaKey*)rsa->internal);
@@ -21812,15 +21820,18 @@ int wolfSSL_HMAC_Update(WOLFSSL_HMAC_CTX* ctx, const unsigned char* data,
 
     WOLFSSL_MSG("wolfSSL_HMAC_Update");
 
-    if (ctx == NULL || data == NULL) {
-        WOLFSSL_MSG("no ctx or data");
+    if (ctx == NULL) {
+        WOLFSSL_MSG("no ctx");
         return SSL_FAILURE;
     }
-    WOLFSSL_MSG("updating hmac");
-    hmac_error = wc_HmacUpdate(&ctx->hmac, data, (word32)len);
-    if (hmac_error < 0){
-        WOLFSSL_MSG("hmac update error");
-        return SSL_FAILURE;
+
+    if (data) {
+        WOLFSSL_MSG("updating hmac");
+        hmac_error = wc_HmacUpdate(&ctx->hmac, data, (word32)len);
+        if (hmac_error < 0){
+            WOLFSSL_MSG("hmac update error");
+            return SSL_FAILURE;
+        }
     }
 
     return SSL_SUCCESS;
@@ -21924,9 +21935,11 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *k
     pkey->ownRsa = 0; /* pkey does not own RSA */
     pkey->type = EVP_PKEY_RSA;
 #ifdef WC_RSA_BLINDING
-    if (wc_RsaSetRNG((RsaKey*)(pkey->rsa->internal), &(pkey->rng)) != 0) {
-        WOLFSSL_MSG("Error setting RSA rng");
-        return SSL_FAILURE;
+    if (key->ownRng == 0) {
+        if (wc_RsaSetRNG((RsaKey*)(pkey->rsa->internal), &(pkey->rng)) != 0) {
+            WOLFSSL_MSG("Error setting RSA rng");
+            return SSL_FAILURE;
+        }
     }
 #endif
     return 1;

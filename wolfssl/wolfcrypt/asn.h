@@ -188,8 +188,6 @@ enum Misc_ASN {
     MAX_KEYUSAGE_SZ     = 18,      /* Max encoded Key Usage length */
     MAX_EXTKEYUSAGE_SZ  = 12 + (6 * (8 + 2)), /* Max encoded ExtKeyUsage
                         (SEQ/LEN + OBJID + OCTSTR/LEN + SEQ + (6 * (SEQ + OID))) */
-    MAX_OID_SZ          = 32,      /* Max DER length of OID*/
-    MAX_OID_STRING_SZ   = 64,      /* Max string length representation of OID*/
     MAX_CERTPOL_NB      = CTC_MAX_CERTPOL_NB,/* Max number of Cert Policy */
     MAX_CERTPOL_SZ      = CTC_MAX_CERTPOL_SZ,
 #endif
