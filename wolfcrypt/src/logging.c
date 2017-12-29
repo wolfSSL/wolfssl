@@ -32,15 +32,6 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 
-#ifdef __cplusplus
-    extern "C" {
-#endif
-    WOLFSSL_API int  wolfSSL_Debugging_ON(void);
-    WOLFSSL_API void wolfSSL_Debugging_OFF(void);
-#ifdef __cplusplus
-    }
-#endif
-
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
 static wolfSSL_Mutex debug_mutex; /* mutex for access to debug structure */
 
@@ -63,7 +54,7 @@ static struct wc_error_queue* wc_last_node;
 
 
 
-#if defined(DEBUG_WOLFSSL)
+#ifdef DEBUG_WOLFSSL
 
 /* Set these to default values initially. */
 static wolfSSL_Logging_cb log_function = NULL;
@@ -72,17 +63,12 @@ static int loggingEnabled = 0;
 #endif /* DEBUG_WOLFSSL */
 
 
+/* allow this to be set to NULL, so logs can be redirected to default output */
 int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb f)
 {
 #ifdef DEBUG_WOLFSSL
-    int res = 0;
-
-    if (f)
-        log_function = f;
-    else
-        res = BAD_FUNC_ARG;
-
-    return res;
+    log_function = f;
+    return 0;
 #else
     (void)f;
     return NOT_COMPILED_IN;
@@ -122,6 +108,8 @@ void wolfSSL_Debugging_OFF(void)
     int sprintf(char* buf, const char *fmt, ...);
 #elif defined(MICRIUM)
     #include <bsp_ser.h>
+#elif defined(WOLFSSL_USER_LOG)
+    /* user includes their own headers */
 #else
     #include <stdio.h>   /* for default printf stuff */
 #endif
@@ -136,7 +124,12 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
         log_function(logLevel, logMessage);
     else {
         if (loggingEnabled) {
-#if defined(THREADX) && !defined(THREADX_NO_DC_PRINTF)
+#if defined(WOLFSSL_USER_LOG)
+            WOLFSSL_USER_LOG(logMessage);
+#elif defined(WOLFSSL_LOG_PRINTF)
+            printf("%s\n", logMessage);
+
+#elif defined(THREADX) && !defined(THREADX_NO_DC_PRINTF)
             dc_log_printf("%s\n", logMessage);
 #elif defined(MICRIUM)
             BSP_Ser_Printf("%s\r\n", logMessage);
@@ -144,13 +137,12 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
             fflush(stdout) ;
             printf("%s\n", logMessage);
             fflush(stdout) ;
-#elif defined(WOLFSSL_LOG_PRINTF)
-            printf("%s\n", logMessage);
 #elif defined(WOLFSSL_UTASKER)
             fnDebugMsg((char*)logMessage);
             fnDebugMsg("\r\n");
 #elif defined(MQX_USE_IO_OLD)
             fprintf(_mqxio_stderr, "%s\n", logMessage);
+
 #else
             fprintf(stderr, "%s\n", logMessage);
 #endif
@@ -158,7 +150,7 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
     }
 }
 
-
+#ifndef WOLFSSL_DEBUG_ERRORS_ONLY
 void WOLFSSL_MSG(const char* msg)
 {
     if (loggingEnabled)
@@ -223,56 +215,71 @@ void WOLFSSL_LEAVE(const char* msg, int ret)
         wolfssl_log(LEAVE_LOG , buffer);
     }
 }
-#endif  /* DEBUG_WOLFSSL */
+#endif /* !WOLFSSL_DEBUG_ERRORS_ONLY */
+#endif /* DEBUG_WOLFSSL */
 
 /*
  * When using OPENSSL_EXTRA or DEBUG_WOLFSSL_VERBOSE macro then WOLFSSL_ERROR is
  * mapped to new funtion WOLFSSL_ERROR_LINE which gets the line # and function
  * name where WOLFSSL_ERROR is called at.
  */
-#if (defined(DEBUG_WOLFSSL) || defined(WOLFSSL_NGINX)) || defined(WOLFSSL_HAPROXY)
-    #if (defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE))
+#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+
+#if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
 void WOLFSSL_ERROR_LINE(int error, const char* func, unsigned int line,
-            const char* file, void* usrCtx)
-    #else
+        const char* file, void* usrCtx)
+#else
 void WOLFSSL_ERROR(int error)
-    #endif
+#endif
 {
-    #if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_NGINX)
+#if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_NGINX)
     if (loggingEnabled && error != WC_PENDING_E)
-    #endif
+#endif
     {
         char buffer[WOLFSSL_MAX_ERROR_SZ];
-        #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
-            (void)usrCtx; /* a user ctx for future flexibility */
-            (void)func;
 
-            if (wc_LockMutex(&debug_mutex) != 0) {
-                WOLFSSL_MSG("Lock debug mutex failed");
-                XSNPRINTF(buffer, sizeof(buffer),
-                        "wolfSSL error occurred, error = %d", error);
-            }
-            else {
-                if (error < 0) error = error - (2*error); /*get absolute value*/
-                XSNPRINTF(buffer, sizeof(buffer),
-                        "wolfSSL error occurred, error = %d line:%d file:%s",
-                    error, line, file);
-                if (wc_AddErrorNode(error, line, buffer, (char*)file) != 0) {
-                    WOLFSSL_MSG("Error creating logging node");
-                    /* with void function there is no return here, continue on
-                     * to unlock mutex and log what buffer was created. */
-                }
+    #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+        (void)usrCtx; /* a user ctx for future flexibility */
+        (void)func;
 
-                wc_UnLockMutex(&debug_mutex);
-            }
-        #else
+        if (wc_LockMutex(&debug_mutex) != 0) {
+            WOLFSSL_MSG("Lock debug mutex failed");
             XSNPRINTF(buffer, sizeof(buffer),
                     "wolfSSL error occurred, error = %d", error);
-        #endif
-        #ifdef DEBUG_WOLFSSL
+        }
+        else {
+            if (error < 0)
+                error = error - (2 * error); /* get absolute value */
+            XSNPRINTF(buffer, sizeof(buffer),
+                    "wolfSSL error occurred, error = %d line:%d file:%s",
+                    error, line, file);
+            if (wc_AddErrorNode(error, line, buffer, (char*)file) != 0) {
+                WOLFSSL_MSG("Error creating logging node");
+                /* with void function there is no return here, continue on
+                 * to unlock mutex and log what buffer was created. */
+            }
+
+            wc_UnLockMutex(&debug_mutex);
+        }
+    #else
+        XSNPRINTF(buffer, sizeof(buffer),
+                "wolfSSL error occurred, error = %d", error);
+    #endif
+
+    #ifdef DEBUG_WOLFSSL
         wolfssl_log(ERROR_LOG , buffer);
-        #endif
+    #endif
     }
+}
+
+void WOLFSSL_ERROR_MSG(const char* msg)
+{
+#ifdef DEBUG_WOLFSSL
+    if (loggingEnabled)
+        wolfssl_log(ERROR_LOG , msg);
+#else
+    (void)msg;
+#endif
 }
 
 #endif  /* DEBUG_WOLFSSL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
