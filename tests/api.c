@@ -10826,8 +10826,8 @@ static int test_wc_ed25519_import_public (void)
 
 
     ret = wc_InitRng(&rng);
-        if (ret == 0) {
-            ret = wc_ed25519_init(&pubKey);
+    if (ret == 0) {
+        ret = wc_ed25519_init(&pubKey);
         if (ret == 0) {
             ret = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &pubKey);
         }
