@@ -19,6 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/*!
+    \file wolfssl/wolfio.h
+*/
 
 #ifndef WOLFSSL_IO_H
 #define WOLFSSL_IO_H

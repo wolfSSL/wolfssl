@@ -1,5 +1,9 @@
 /* pem.h for openssl */
 
+/*!
+    \file wolfssl/openssl/pem.h
+*/
+
 
 #ifndef WOLFSSL_PEM_H_
 #define WOLFSSL_PEM_H_

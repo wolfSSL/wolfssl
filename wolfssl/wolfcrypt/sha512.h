@@ -19,6 +19,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/*!
+    \file wolfssl/wolfcrypt/sha512.h
+*/
+
 
 #ifndef WOLF_CRYPT_SHA512_H
 #define WOLF_CRYPT_SHA512_H

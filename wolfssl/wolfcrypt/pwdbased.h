@@ -19,6 +19,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+/*!
+    \file wolfssl/wolfcrypt/pwdbased.h
+*/
 
 #ifndef WOLF_CRYPT_PWDBASED_H
 #define WOLF_CRYPT_PWDBASED_H

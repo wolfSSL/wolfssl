@@ -1,4 +1,7 @@
-/* bn.h for openssl */
+/*!
+    \file wolfssl/openssl/bn.h
+    \brief bn.h for openssl
+*/
 
 
 #ifndef WOLFSSL_BN_H_
