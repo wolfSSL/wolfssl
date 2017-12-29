@@ -22870,7 +22870,7 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_new(void)
     key = (ecc_key*)external->internal;
     external->pub_key->internal = wc_ecc_new_point();
     if (wc_ecc_copy_point((ecc_point*)&key->pubkey,
-                external->pub_key->internal) != MP_OKAY) {
+                (ecc_point*)external->pub_key->internal) != MP_OKAY) {
         WOLFSSL_MSG("wc_ecc_copy_point failure");
         wolfSSL_EC_KEY_free(external);
         return NULL;
