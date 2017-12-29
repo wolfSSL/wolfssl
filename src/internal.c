@@ -4242,7 +4242,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->buffers.outputBuffer.buffer = ssl->buffers.outputBuffer.staticBuffer;
     ssl->buffers.outputBuffer.bufferSize  = STATIC_BUFFER_LEN;
 
-#if defined(KEEP_PEER_CERT) || defined(GOAHEAD_WS)
+#ifdef KEEP_PEER_CERT
     InitX509(&ssl->peerCert, 0, ssl->heap);
 #endif
 
@@ -4760,7 +4760,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
           DYNAMIC_TYPE_COOKIE_PWD);
 #endif
 #endif /* WOLFSSL_DTLS */
-#if defined(OPENSSL_EXTRA) || defined(GOAHEAD_WS)
+#ifdef OPENSSL_EXTRA
     if (ssl->biord != ssl->biowr)        /* only free write if different */
         wolfSSL_BIO_free(ssl->biowr);
     wolfSSL_BIO_free(ssl->biord);        /* always free read bio */
@@ -4823,7 +4823,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     if (ssl->nxCtx.nxPacket)
         nx_packet_release(ssl->nxCtx.nxPacket);
 #endif
-#if defined(KEEP_PEER_CERT) || defined(GOAHEAD_WS)
+#ifdef KEEP_PEER_CERT
     FreeX509(&ssl->peerCert);
 #endif
 
