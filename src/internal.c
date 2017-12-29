@@ -5660,7 +5660,7 @@ ProtocolVersion MakeDTLSv1_2(void)
     }
 #endif
 
-#elif defined(TIME_OVERRIDES)
+#elif defined(TIME_OVERRIDES) || defined(USER_TIME)
 
     /* use same asn time overrides unless user wants tick override above */
 
