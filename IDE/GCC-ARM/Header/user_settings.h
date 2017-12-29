@@ -80,9 +80,13 @@ extern "C" {
     //#define RSA_LOW_MEM
 
     /* Enables blinding mode, to prevent timing attacks */
-    #undef  WC_RSA_BLINDING
-    #define WC_RSA_BLINDING
-
+    #if 1
+        #undef  WC_RSA_BLINDING
+        #define WC_RSA_BLINDING
+    #else
+        #undef  WC_NO_HARDEN
+        #define WC_NO_HARDEN
+    #endif
 #else
     #define NO_RSA
 #endif
@@ -200,6 +204,8 @@ extern "C" {
 /* Sha256 */
 #undef NO_SHA256
 #if 1
+    /* not unrolled - ~2k smaller and ~25% slower */
+    #define USE_SLOW_SHA256
 #else
     #define NO_SHA256
 #endif
@@ -216,7 +222,7 @@ extern "C" {
     #endif
 
     /* over twice as small, but 50% slower */
-    #define USE_SLOW_SHA2
+    #define USE_SLOW_SHA512
 #endif
 
 /* MD5 */
