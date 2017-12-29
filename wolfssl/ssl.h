@@ -634,8 +634,11 @@ WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl);
                            /* what's ref count */
 
 WOLFSSL_API void wolfSSL_X509_free(WOLFSSL_X509*);
+
+#ifdef OPENSSL_EXTRA
 WOLFSSL_API void wolfSSL_OPENSSL_free(void*);
 WOLFSSL_API void *wolfSSL_OPENSSL_malloc(size_t a);
+#endif
 
 WOLFSSL_API int wolfSSL_OCSP_parse_url(char* url, char** host, char** port,
                                      char** path, int* ssl);
