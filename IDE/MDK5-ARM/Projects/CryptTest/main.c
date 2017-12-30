@@ -29,11 +29,11 @@
 
 #include <stdio.h>
 
-/*-----------------------------------------------------------------------------
- *        MPU Depend Configurations
- *----------------------------------------------------------------------------*/
+#warning "write MPU specific Set ups\n"
 
-#warning "write MPU specific Set up\n"
+static void SystemClock_Config (void) {
+
+}
 
 static void MPU_Config (void) {
 
@@ -41,16 +41,6 @@ static void MPU_Config (void) {
 
 static void CPU_CACHE_Enable (void) {
 
-}
-
-static void SystemClock_Config (void) {
-
-}
-
-extern uint32_t os_time;
-
-uint32_t HAL_GetTick(void) { 
-  return os_time; 
 }
 
 /*-----------------------------------------------------------------------------
@@ -94,7 +84,7 @@ int main()
     init_filesystem ();
     #endif
 
-    printf("=== Start: Crypt test ===  (%d)\n", os_time) ;
+    printf("=== Start: Crypt test === \n") ;
         wolfcrypt_test(arg) ;
     printf("=== End: Crypt test  ===\n") ;
 

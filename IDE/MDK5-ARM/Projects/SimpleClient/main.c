@@ -67,6 +67,8 @@
 
 //------------- <<< end of configuration section >>> -----------------------
 
+#warning "write MPU specific Set ups\n"
+    
 static void SystemClock_Config (void) {
 
 }
