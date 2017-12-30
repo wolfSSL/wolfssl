@@ -62,15 +62,12 @@
         #include <rtcs.h>
     #elif defined(FREESCALE_KSDK_MQX)
         #include <rtcs.h>
-    #elif defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
-        #if !defined(WOLFSSL_MDK_ARM)
-            #include "cmsis_os.h"
-            #include "rl_net.h"
-        #else
-            #include <rtl.h>
-        #endif
+    #elif (defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET))&& defined(WOLFSSL_CMSIS_RTOS)
+        #include "cmsis_os.h"
+        #include "rl_net.h"
         #include "errno.h"
-        #define SOCKET_T int
+	#elif defined(WOLFSSL_CMSIS_RTOS)
+        #include "cmsis_os.h"
     #elif defined(WOLFSSL_TIRTOS)
         #include <sys/socket.h>
     #elif defined(FREERTOS_TCP)
@@ -176,7 +173,6 @@
         #define SOCKET_ECONNABORTED NIO_ECONNABORTED
     #endif
 #elif defined(WOLFSSL_MDK_ARM)|| defined(WOLFSSL_KEIL_TCP_NET)
-    #if !defined(WOLFSSL_MDK_ARM)
         #define SOCKET_EWOULDBLOCK BSD_ERROR_WOULDBLOCK
         #define SOCKET_EAGAIN      BSD_ERROR_LOCKED
         #define SOCKET_ECONNRESET  BSD_ERROR_CLOSED
@@ -184,15 +180,6 @@
         #define SOCKET_EPIPE       BSD_ERROR
         #define SOCKET_ECONNREFUSED BSD_ERROR
         #define SOCKET_ECONNABORTED BSD_ERROR
-    #else
-        #define SOCKET_EWOULDBLOCK SCK_EWOULDBLOCK
-        #define SOCKET_EAGAIN      SCK_ELOCKED
-        #define SOCKET_ECONNRESET  SCK_ECLOSED
-        #define SOCKET_EINTR       SCK_ERROR
-        #define SOCKET_EPIPE       SCK_ERROR
-        #define SOCKET_ECONNREFUSED SCK_ERROR
-        #define SOCKET_ECONNABORTED SCK_ERROR
-    #endif
 #elif defined(WOLFSSL_PICOTCP)
     #define SOCKET_EWOULDBLOCK  PICO_ERR_EAGAIN
     #define SOCKET_EAGAIN       PICO_ERR_EAGAIN
