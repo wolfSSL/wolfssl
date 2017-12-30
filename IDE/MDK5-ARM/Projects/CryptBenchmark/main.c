@@ -27,11 +27,18 @@
 
 #include "wolfcrypt/test/test.h"
 
-/*-----------------------------------------------------------------------------
- *        System Clock Configuration
- *----------------------------------------------------------------------------*/
-void SystemClock_Config(void) {
-    #warning "write MPU specific System Clock Set up\n"
+#warning "write MPU specific Set ups\n"
+    
+static void SystemClock_Config (void) {
+
+}
+
+static void MPU_Config (void) {
+
+}
+
+static void CPU_CACHE_Enable (void) {
+
 }
 
 /*-----------------------------------------------------------------------------
@@ -44,13 +51,13 @@ static void init_filesystem (void) {
   int32_t retv;
 
   retv = finit ("M0:");
-  if (retv == 0) {
+  if (retv == fsOK) {
     retv = fmount ("M0:");
-    if (retv == 0) {
+    if (retv == fsOK) {
       printf ("Drive M0 ready!\n");
     }
     else {
-      printf ("Drive M0 mount failed!\n");
+      printf ("Drive M0 mount failed(%d)!\n", retv);
     }
   }
   else {
@@ -62,21 +69,27 @@ static void init_filesystem (void) {
 /*-----------------------------------------------------------------------------
  *       mian entry
  *----------------------------------------------------------------------------*/
- void    benchmark_test(void *arg) ;
+void benchmark_test(void *arg) ;
+
 int main()
 {
-     void * arg = NULL ;
+    void * arg = NULL ;
+    
+    MPU_Config(); 
+    CPU_CACHE_Enable();
+    HAL_Init();                        /* Initialize the HAL Library     */
+    SystemClock_Config();              /* Configure the System Clock     */
+    BSP_IO_Init();                     /* Enable BSP module              */
+    BSP_IO_ConfigPin(IO_PIN_11, IO_MODE_OUTPUT_OD_PU);
+    BSP_IO_WritePin (IO_PIN_11, BSP_IO_PIN_RESET); /* Put camera in reset state */
 
-	    HAL_Init();                               /* Initialize the HAL Library     */
-	    SystemClock_Config();              /* Configure the System Clock     */
+  	#if !defined(NO_FILESYSTEM)
+    init_filesystem ();
+	  #endif
 
-	#if !defined(NO_FILESYSTEM)
-       init_filesystem ();
-	#endif
-
-       printf("=== Start: Crypt Benchmark ===\n") ;
-       benchmark_test(arg) ;
-       printf("=== End: Crypt Benchmark  ===\n") ;
-
+    printf("=== Start: Crypt Benchmark ===\n") ;
+    benchmark_test(arg) ;
+    printf("=== End: Crypt Benchmark  ===\n") ;
 
 }
+
