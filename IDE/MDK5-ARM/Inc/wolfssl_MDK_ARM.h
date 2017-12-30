@@ -73,7 +73,9 @@ typedef int socklen_t ;
 #define tcp_socket    wolfssl_tcp_soket
 #define tcp_listen    wolfssl_tcp_listen
 #define tcp_select(a,b)    (0)
-
+#define connect(a,b,c)    connect(a, (SOCKADDR *)(b), c)
+#define SOCKADDR struct sockaddr
+	
 /** KEIL-RL TCPnet ****/
 /* TCPnet BSD socket does not have following functions. */
 extern char *inet_ntoa(struct in_addr in);
