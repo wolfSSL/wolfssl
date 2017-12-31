@@ -380,11 +380,6 @@
           <GroupName>Configuration</GroupName>
           <Files>
             <File>
-              <FileName>config-Crypt.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\RTE\wolfSSL\config-Crypt.h</FilePath>
-            </File>
-            <File>
               <FileName>user_settings.h</FileName>
               <FileType>5</FileType>
               <FilePath>.\RTE\wolfSSL\user_settings.h</FilePath>
@@ -407,12 +402,7 @@
             <File>
               <FileName>main.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\..\wolfssl\IDE\MDK5-ARM\Projects\CryptBenchmark\main.c</FilePath>
-            </File>
-            <File>
-              <FileName>time-CortexM3-4.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\time-CortexM3-4.c</FilePath>
+              <FilePath>.\main.c</FilePath>
             </File>
           </Files>
         </Group>
@@ -717,24 +707,24 @@
       </file>
       <file attr="config" category="source" name="FileSystem\Config\FS_Config.c" version="6.2.0">
         <instance index="0">RTE\File_System\FS_Config.c</instance>
-        <component Cbundle="MDK-Pro" Cclass="File System" Cgroup="CORE" Cvariant="LFN" Cvendor="Keil" Cversion="6.9.8" condition="CMSIS Core with RTOS and File System I/O"/>
-        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.4.1"/>
+        <component Cbundle="MDK-Pro" Cclass="File System" Cgroup="CORE" Cvariant="LFN" Cvendor="Keil" Cversion="6.10.0" condition="CMSIS Core with RTOS and File System I/O"/>
+        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.5.0"/>
         <targetInfos>
           <targetInfo name="wolfSSL-Benchmark"/>
         </targetInfos>
       </file>
       <file attr="config" category="source" name="FileSystem\Config\FS_Config_MC.h" version="6.2.0">
         <instance index="0">RTE\File_System\FS_Config_MC_0.h</instance>
-        <component Cbundle="MDK-Pro" Cclass="File System" Cgroup="Drive" Csub="Memory Card" Cvendor="Keil" Cversion="6.9.8" condition="File System and SD/MMC Driver" maxInstances="2"/>
-        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.4.1"/>
+        <component Cbundle="MDK-Pro" Cclass="File System" Cgroup="Drive" Csub="Memory Card" Cvendor="Keil" Cversion="6.10.0" condition="File System and SD/MMC Driver" maxInstances="2"/>
+        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.5.0"/>
         <targetInfos>
           <targetInfo name="wolfSSL-Benchmark"/>
         </targetInfos>
       </file>
       <file attr="config" category="source" name="FileSystem\Config\FS_Config_NOR.h" version="6.2.0">
         <instance index="0">RTE\File_System\FS_Config_NOR_0.h</instance>
-        <component Cbundle="MDK-Pro" Cclass="File System" Cgroup="Drive" Csub="NOR" Cvendor="Keil" Cversion="6.9.8" condition="File System and Flash Driver" maxInstances="2"/>
-        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.4.1"/>
+        <component Cbundle="MDK-Pro" Cclass="File System" Cgroup="Drive" Csub="NOR" Cvendor="Keil" Cversion="6.10.0" condition="File System and Flash Driver" maxInstances="2"/>
+        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.5.0"/>
         <targetInfos>
           <targetInfo name="wolfSSL-Benchmark"/>
         </targetInfos>
@@ -770,12 +760,10 @@
         <targetInfos/>
       </file>
       <file attr="config" category="header" name="wolfssl\IDE\MDK5-ARM\Conf\config-Crypt.h">
-        <instance index="0">RTE\wolfSSL\config-Crypt.h</instance>
+        <instance index="0" removed="1">RTE\wolfSSL\config-Crypt.h</instance>
         <component Cbundle="wolfSSL" Cclass="wolfSSL" Cgroup="wolfCrypt" Csub="CORE" Cvendor="wolfSSL" Cversion="" condition="wolfCrypt-Core"/>
         <package license="wolfssl\IDE\MDK5-ARM\Docs\wolfSSL-License.txt" name="wolfSSL" schemaVersion="1.4" url="http://www.wolfSSL.com/files/ide" vendor="wolfSSL" version="3.13.0"/>
-        <targetInfos>
-          <targetInfo name="wolfSSL-Benchmark"/>
-        </targetInfos>
+        <targetInfos/>
       </file>
       <file attr="config" category="header" name="wolfssl\IDE\MDK5-ARM\Conf\config-wolfSSL.h">
         <instance index="0" removed="1">RTE\wolfSSL\config-wolfSSL.h</instance>

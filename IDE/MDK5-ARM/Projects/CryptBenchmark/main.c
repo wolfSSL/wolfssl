@@ -26,6 +26,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #include "wolfcrypt/test/test.h"
+#include <time.h>
 
 #warning "write MPU specific Set ups\n"
     
@@ -40,6 +41,49 @@ static void MPU_Config (void) {
 static void CPU_CACHE_Enable (void) {
 
 }
+
+extern uint32_t os_time;
+
+#ifdef RTE_CMSIS_RTOS_RTX
+uint32_t HAL_GetTick(void) { 
+  return os_time; 
+}
+#endif
+
+time_t time(time_t *t){
+     return os_time	;
+}
+
+
+#ifdef WOLFSSL_CURRTIME_OSTICK
+
+#include <stdint.h>
+extern uint32_t os_time;
+
+double current_time(int reset)
+{
+      if(reset) os_time = 0 ;
+      return (double)os_time /1000.0;
+}
+
+#else
+
+#include <stdint.h>
+#define DWT                 ((DWT_Type       *)     (0xE0001000UL)     )
+typedef struct
+{
+  uint32_t CTRL;                    /*!< Offset: 0x000 (R/W)  Control Register                          */
+  uint32_t CYCCNT;                  /*!< Offset: 0x004 (R/W)  Cycle Count Register                      */
+} DWT_Type;
+
+extern uint32_t SystemCoreClock ;
+
+double current_time(int reset)
+{
+      if(reset) DWT->CYCCNT = 0 ;
+      return ((double)DWT->CYCCNT/SystemCoreClock) ;
+}
+#endif
 
 /*-----------------------------------------------------------------------------
  *        Initialize a Flash Memory Card
@@ -79,9 +123,6 @@ int main()
     CPU_CACHE_Enable();
     HAL_Init();                        /* Initialize the HAL Library     */
     SystemClock_Config();              /* Configure the System Clock     */
-    BSP_IO_Init();                     /* Enable BSP module              */
-    BSP_IO_ConfigPin(IO_PIN_11, IO_MODE_OUTPUT_OD_PU);
-    BSP_IO_WritePin (IO_PIN_11, BSP_IO_PIN_RESET); /* Put camera in reset state */
 
   	#if !defined(NO_FILESYSTEM)
     init_filesystem ();
