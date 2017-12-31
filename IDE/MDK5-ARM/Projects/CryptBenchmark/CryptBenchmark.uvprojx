@@ -501,20 +501,20 @@
           <targetInfo name="wolfSSL-Benchmark"/>
         </targetInfos>
       </component>
-      <component Cbundle="MDK-Pro" Cclass="File System" Cgroup="CORE" Cvariant="LFN" Cvendor="Keil" Cversion="6.9.8" condition="CMSIS Core with RTOS and File System I/O">
-        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.4.1"/>
+      <component Cbundle="MDK-Pro" Cclass="File System" Cgroup="CORE" Cvariant="LFN" Cvendor="Keil" Cversion="6.10.0" condition="CMSIS Core with RTOS and File System I/O">
+        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.5.0"/>
         <targetInfos>
           <targetInfo name="wolfSSL-Benchmark"/>
         </targetInfos>
       </component>
-      <component Cbundle="MDK-Pro" Cclass="File System" Cgroup="Drive" Csub="Memory Card" Cvendor="Keil" Cversion="6.9.8" condition="File System and SD/MMC Driver" maxInstances="2">
-        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.4.1"/>
+      <component Cbundle="MDK-Pro" Cclass="File System" Cgroup="Drive" Csub="Memory Card" Cvendor="Keil" Cversion="6.10.0" condition="File System and SD/MMC Driver" maxInstances="2">
+        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.5.0"/>
         <targetInfos>
           <targetInfo name="wolfSSL-Benchmark"/>
         </targetInfos>
       </component>
-      <component Cbundle="MDK-Pro" Cclass="File System" Cgroup="Drive" Csub="NOR" Cvendor="Keil" Cversion="6.9.8" condition="File System and Flash Driver" maxInstances="2">
-        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.4.1"/>
+      <component Cbundle="MDK-Pro" Cclass="File System" Cgroup="Drive" Csub="NOR" Cvendor="Keil" Cversion="6.10.0" condition="File System and Flash Driver" maxInstances="2">
+        <package name="MDK-Middleware" schemaVersion="1.4" url="http://www.keil.com/pack/" vendor="Keil" version="7.5.0"/>
         <targetInfos>
           <targetInfo name="wolfSSL-Benchmark"/>
         </targetInfos>
@@ -597,6 +597,12 @@
           <targetInfo name="wolfSSL-Benchmark"/>
         </targetInfos>
       </component>
+      <component Cclass="Device" Cgroup="STM32Cube HAL" Csub="HASH" Cvendor="Keil" Cversion="1.2.0" condition="STM32F756_777_779 HAL DMA">
+        <package name="STM32F7xx_DFP" schemaVersion="1.3" url="http://www.keil.com/pack" vendor="Keil" version="2.9.0"/>
+        <targetInfos>
+          <targetInfo name="wolfSSL-Benchmark"/>
+        </targetInfos>
+      </component>
       <component Cclass="Device" Cgroup="STM32Cube HAL" Csub="I2C" Cvendor="Keil" Cversion="1.2.0" condition="STM32F7 HAL DMA">
         <package name="STM32F7xx_DFP" schemaVersion="1.3" url="http://www.keil.com/pack" vendor="Keil" version="2.9.0"/>
         <targetInfos>
@@ -616,6 +622,12 @@
         </targetInfos>
       </component>
       <component Cclass="Device" Cgroup="STM32Cube HAL" Csub="RCC" Cvendor="Keil" Cversion="1.2.0" condition="STM32F7 HAL GPIO">
+        <package name="STM32F7xx_DFP" schemaVersion="1.3" url="http://www.keil.com/pack" vendor="Keil" version="2.9.0"/>
+        <targetInfos>
+          <targetInfo name="wolfSSL-Benchmark"/>
+        </targetInfos>
+      </component>
+      <component Cclass="Device" Cgroup="STM32Cube HAL" Csub="RNG" Cvendor="Keil" Cversion="1.2.0" condition="STM32F7 HAL">
         <package name="STM32F7xx_DFP" schemaVersion="1.3" url="http://www.keil.com/pack" vendor="Keil" version="2.9.0"/>
         <targetInfos>
           <targetInfo name="wolfSSL-Benchmark"/>
