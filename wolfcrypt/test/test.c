@@ -150,13 +150,6 @@
 
 #include <wolfssl/certs_test.h>
 
-#if defined(WOLFSSL_MDK_ARM)
-        #include <stdio.h>
-        #include <stdlib.h>
-    extern FILE * wolfSSL_fopen(const char *fname, const char *mode) ;
-    #define fopen wolfSSL_fopen
-#endif
-
 #ifdef HAVE_NTRU
     #include "libntruencrypt/ntru_crypto.h"
 #endif
@@ -6796,9 +6789,6 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 #ifdef FREESCALE_MQX
     #define CERT_PREFIX "a:\\"
     #define CERT_PATH_SEP "\\"
-#elif defined(WOLFSSL_MKD_SHELL)
-    #define CERT_PREFIX ""
-    #define CERT_PATH_SEP "/"
 #elif defined(WOLFSSL_uTKERNEL2)
     #define CERT_PREFIX "/uda/"
     #define CERT_PATH_SEP "/"

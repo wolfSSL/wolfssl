@@ -23,39 +23,62 @@
     #include <config.h>
 #endif
 
-#include <wolfssl/wolfcrypt/visibility.h>
-#include <wolfssl/wolfcrypt/logging.h>
+#include "wolfssl/wolfcrypt/settings.h"
 
-#include "stm32f2xx_hal.h"
-#include "cmsis_os.h"
-#include "rl_net.h"
-#include <stdio.h>
+#include "cmsis_os.h"                 /* CMSIS RTOS definitions             */
+#include "rl_net.h"                      /* Network definitions                */
+#include <time.h>
 
-#include <wolfssl/ssl.h>
 
-/*-----------------------------------------------------------------------------
- *        Initialize Clock Configuration
- *----------------------------------------------------------------------------*/
-void SystemClock_Config(void) {
-    #warning "write MPU specific System Clock Set up\n"
-}
+//-------- <<< Use Configuration Wizard in Context Menu >>> -----------------
+
+//   <h>Server parameter
+//   ====================
+
+//   <s.6>Port
+//   <i> Default: "11111"
+#define SERVER_PORT "11111"
+//   </h>
+
+//   <h>Protocol
+//   ====================
+
+//   <o>SSL/TLS Version<0=> SSL3 <1=> TLS1.0 <2=> TLS1.1 <3=> TLS1.2 <4=> TLS1.3
+#define TLS_VER 3
+
+//   <s.2>Other option
+#define OTHER_OPTIONS ""
+//   </h>
+
+//   <h>RTC: for validate certificate date
+//    <o>Year <1970-2099>
+#define RTC_YEAR 2018
+//    <o>Month <1=>Jan<2=>Feb<3=>Mar<4=>Apr<5=>May<6=>Jun<7=>Jul<8=>Aut<9=>Sep<10=>Oct<11=>Nov<12=>Dec
+#define RTC_MONTH 1
+//    <o>Day <1-31>
+#define RTC_DAY 1
+//    </h>
+
+//------------- <<< end of configuration section >>> -----------------------
+
 
 /*-----------------------------------------------------------------------------
  *        Initialize a Flash Memory Card
  *----------------------------------------------------------------------------*/
- #if !defined(NO_FILESYSTEM)
-#include "rl_fs.h"
+#if !defined(NO_FILESYSTEM)
+#include "rl_fs.h"                      /* FileSystem definitions             */
+
 static void init_filesystem (void) {
   int32_t retv;
 
   retv = finit ("M0:");
-  if (retv == 0) {
+  if (retv == fsOK) {
     retv = fmount ("M0:");
-    if (retv == 0) {
+    if (retv == fsOK) {
       printf ("Drive M0 ready!\n");
     }
     else {
-      printf ("Drive M0 mount failed!\n");
+      printf ("Drive M0 mount failed(%d)!\n", retv);
     }
   }
   else {
@@ -65,10 +88,68 @@ static void init_filesystem (void) {
 #endif
 
 
-/*-----------------------------------------------------------------------------
- *       mian entry
- *----------------------------------------------------------------------------*/
+void net_loop(void const *arg)
+{
+    while(1) {
+        net_main ();
+        osThreadYield ();
+    }
+}
 
+osThreadDef(net_loop, osPriorityLow, 2, 0);
+
+
+extern uint32_t os_time;
+static time_t epoctime = 0;
+
+#ifdef RTE_CMSIS_RTOS_RTX
+uint32_t HAL_GetTick(void) { 
+  return os_time; 
+}
+#endif
+
+time_t time(time_t *t){
+     return epoctime    ;
+}
+
+void setTime(time_t t){
+    epoctime = t;;
+}
+
+#ifdef WOLFSSL_CURRTIME_OSTICK
+
+#include <stdint.h>
+extern uint32_t os_time;
+
+double current_time(int reset)
+{
+      if(reset) os_time = 0 ;
+      return (double)os_time /1000.0;
+}
+
+#else
+
+#include <stdint.h>
+#define DWT                 ((DWT_Type       *)     (0xE0001000UL)     )
+typedef struct
+{
+  uint32_t CTRL;                    /*!< Offset: 0x000 (R/W)  Control Register                          */
+  uint32_t CYCCNT;                  /*!< Offset: 0x004 (R/W)  Cycle Count Register                      */
+} DWT_Type;
+
+extern uint32_t SystemCoreClock ;
+
+double current_time(int reset)
+{
+      if(reset) DWT->CYCCNT = 0 ;
+      return ((double)DWT->CYCCNT/SystemCoreClock) ;
+}
+#endif
+
+/*----------------------------------------------------------------------------
+  Main Thread 'main': Run Network
+ *---------------------------------------------------------------------------*/
+#include <stdio.h>
 typedef struct func_args {
     int    argc;
     char** argv;
@@ -76,22 +157,43 @@ typedef struct func_args {
 
 extern void echoserver_test(func_args * args) ;
 
-int main()
-{
-    func_args args ;
-		args.argc = 1 ;
+int myoptind = 0;
+char* myoptarg = NULL;
 
-    SystemClock_Config ();
+int main (void) {
+    
+    struct tm *tm_gm; 
+       time_t now;
+       static char *argv[] =
+          {   "server" } ;
+     static   func_args args  = { 1, argv } ;
+
+    MPU_Config();                             /* Configure the MPU              */
+    CPU_CACHE_Enable();                       /* Enable the CPU Cache           */
+    HAL_Init();                               /* Initialize the HAL Library     */
+    SystemClock_Config();                     /* Configure the System Clock     */
+
+    setTime((RTC_YEAR-1970)*365*24*60*60 + RTC_MONTH*30*24*60*60 + RTC_DAY*24*60*60);
+    now = time(NULL);
+    tm_gm = gmtime(&now);
+    printf("RTC=%04d/%02d/%02d\n", tm_gm->tm_year + 1900, tm_gm->tm_mon + 1, tm_gm->tm_mday);
+         
     #if !defined(NO_FILESYSTEM)
     init_filesystem ();
     #endif
-    netInitialize() ;
-    osDelay(300) ;
-    #if defined(DEBUG_WOLFSSL)
+    net_initialize ();
+
+        #if defined(DEBUG_WOLFSSL)
          printf("Turning ON Debug message\n") ;
          wolfSSL_Debugging_ON() ;
     #endif
-        printf("echoserver: Started\n") ;
+
+    osThreadCreate (osThread(net_loop), NULL);
+
     echoserver_test(&args) ;
     printf("echoserver: Terminated\n") ;
+    while(1)
+        osDelay(1000);
+
 }
+
