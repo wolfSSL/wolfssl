@@ -18,7 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
- 
+
 #define NO_MAIN_DRIVER
 #define BENCH_EMBEDDED
 #define NO_DEV_RANDOM
@@ -39,7 +39,7 @@
 
 
 //  <h>Common options
-//        <o> MPU<0=>Undefined<1=>STM32F4xx<2=>STM32F7xx<3=>STM32F7xx
+//        <o> MPU<0=>Undefined<1=>STM32F2xx<2=>STM32F4xx<3=>STM32F7xx
 #define MDK_CONF_MPU 3
 #if     MDK_CONF_MPU == 0
 
@@ -107,7 +107,7 @@
 
 //   <o> Network<0=>None <1=>RLnet <2=>User I/O
 #define MDK_CONF_NETWORK 1
-#if   MDK_CONF_NETWORK_ == 0
+#if   MDK_CONF_NETWORK == 0
 #elif MDK_CONF_NETWORK == 1
 #define WOLFSSL_KEIL_TCP_NET
 #elif MDK_CONF_NETWORK == 2

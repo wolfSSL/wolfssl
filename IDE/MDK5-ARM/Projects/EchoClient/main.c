@@ -32,7 +32,7 @@
 #if defined(STM32F7xx)
 #include "stm32f7xx_hal.h"
 #elif defined(STM32F4xx)
-#include "stm32f2xx_hal.h"
+#include "stm32f4xx_hal.h"
 #elif defined(STM32F2xx)
 #include "stm32f2xx_hal.h"
 #endif
@@ -49,10 +49,7 @@
 //    </h>
 
 //------------- <<< end of configuration section >>> -----------------------
-#warning "write MPU specific Set ups\n"
-static void SystemClock_Config (void) {
 
-}
 #warning "write MPU specific Set ups\n"
 static void SystemClock_Config (void) {
 
