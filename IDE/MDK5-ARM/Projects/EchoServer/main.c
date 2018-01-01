@@ -29,6 +29,15 @@
 #include "rl_net.h"                      /* Network definitions                */
 #include <time.h>
 
+#ifdef WOLFSSL_STM32_CUBEMX
+#if defined(STM32F7xx)
+#include "stm32f7xx_hal.h"
+#elif defined(STM32F4xx)
+#include "stm32f2xx_hal.h"
+#elif defined(STM32F2xx)
+#include "stm32f2xx_hal.h"
+#endif
+#endif
 
 //-------- <<< Use Configuration Wizard in Context Menu >>> -----------------
 
@@ -60,6 +69,19 @@
 //    </h>
 
 //------------- <<< end of configuration section >>> -----------------------
+
+#warning "write MPU specific Set ups\n"
+static void SystemClock_Config (void) {
+
+}
+
+static void MPU_Config (void) {
+
+}
+
+static void CPU_CACHE_Enable (void) {
+
+}
 
 
 /*-----------------------------------------------------------------------------
@@ -98,23 +120,23 @@ void net_loop(void const *arg)
 
 osThreadDef(net_loop, osPriorityLow, 2, 0);
 
-
-extern uint32_t os_time;
-static time_t epoctime = 0;
-
 #ifdef RTE_CMSIS_RTOS_RTX
+extern uint32_t os_time;
+static  time_t epochTime;
+
 uint32_t HAL_GetTick(void) { 
-  return os_time; 
+    return os_time; 
 }
-#endif
 
 time_t time(time_t *t){
-     return epoctime    ;
+     return epochTime ;
 }
 
 void setTime(time_t t){
-    epoctime = t;;
+    epochTime = t;
 }
+#endif
+
 
 #ifdef WOLFSSL_CURRTIME_OSTICK
 
@@ -161,10 +183,7 @@ int myoptind = 0;
 char* myoptarg = NULL;
 
 int main (void) {
-    
-    struct tm *tm_gm; 
-       time_t now;
-       static char *argv[] =
+     static char *argv[] =
           {   "server" } ;
      static   func_args args  = { 1, argv } ;
 
@@ -173,20 +192,17 @@ int main (void) {
     HAL_Init();                               /* Initialize the HAL Library     */
     SystemClock_Config();                     /* Configure the System Clock     */
 
-    setTime((RTC_YEAR-1970)*365*24*60*60 + RTC_MONTH*30*24*60*60 + RTC_DAY*24*60*60);
-    now = time(NULL);
-    tm_gm = gmtime(&now);
-    printf("RTC=%04d/%02d/%02d\n", tm_gm->tm_year + 1900, tm_gm->tm_mon + 1, tm_gm->tm_mday);
-         
     #if !defined(NO_FILESYSTEM)
     init_filesystem ();
     #endif
     net_initialize ();
 
-        #if defined(DEBUG_WOLFSSL)
+    #if defined(DEBUG_WOLFSSL)
          printf("Turning ON Debug message\n") ;
          wolfSSL_Debugging_ON() ;
     #endif
+
+    setTime((RTC_YEAR-1970)*365*24*60*60 + RTC_MONTH*30*24*60*60 + RTC_DAY*24*60*60);
 
     osThreadCreate (osThread(net_loop), NULL);
 
