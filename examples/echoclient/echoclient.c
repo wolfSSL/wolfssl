@@ -35,20 +35,11 @@
 #if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
         #include <stdio.h>
         #include <string.h>
-
-        #if !defined(WOLFSSL_MDK_ARM)
-            #include "cmsis_os.h"
-            #include "rl_net.h"
-        #else
-            #include "rtl.h"
-            #include "wolfssl_MDK_ARM.h"
-        #endif
-        #if defined(WOLFSSL_MDK_SHELL)
-            char * wolfssl_fgets ( char * str, int num, FILE * f ) ;
-            #define fgets wolfssl_fgets
-        #endif
+        #include "cmsis_os.h"
+        #include "rl_fs.h"
+        #include "rl_net.h"
+        #include "wolfssl_MDK_ARM.h"
 #endif
-
 
 #include <cyassl/test.h>
 
