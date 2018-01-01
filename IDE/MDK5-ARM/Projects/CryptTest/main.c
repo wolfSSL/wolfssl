@@ -28,9 +28,22 @@
 #include "wolfcrypt/test/test.h"
 
 #include <stdio.h>
+#include <time.h>
+
+/* Dummy definition for test RTC */
+#define RTC_YEAR 2018
+#define RTC_MONTH 1
+#define RTC_DAY 1
+
+#if defined(STM32F7xx)
+#include "stm32f7xx_hal.h"
+#elif defined(STM32F4xx)
+#include "stm32f2xx_hal.h"
+#elif defined(STM32F2xx)
+#include "stm32f2xx_hal.h"
+#endif
 
 #warning "write MPU specific Set ups\n"
-
 static void SystemClock_Config (void) {
 
 }
@@ -42,6 +55,53 @@ static void MPU_Config (void) {
 static void CPU_CACHE_Enable (void) {
 
 }
+
+
+#ifdef RTE_CMSIS_RTOS_RTX
+extern uint32_t os_time;
+static  time_t epochTime;
+
+uint32_t HAL_GetTick(void) { 
+    return os_time; 
+}
+
+time_t time(time_t *t){
+     return epochTime ;
+}
+
+void setTime(time_t t){
+    epochTime = t;
+}
+#endif
+#ifdef WOLFSSL_CURRTIME_OSTICK
+
+#include <stdint.h>
+extern uint32_t os_time;
+
+double current_time(int reset)
+{
+      if(reset) os_time = 0 ;
+      return (double)os_time /1000.0;
+}
+
+#else
+
+#include <stdint.h>
+#define DWT                 ((DWT_Type       *)     (0xE0001000UL)     )
+typedef struct
+{
+  uint32_t CTRL;                    /*!< Offset: 0x000 (R/W)  Control Register                          */
+  uint32_t CYCCNT;                  /*!< Offset: 0x004 (R/W)  Cycle Count Register                      */
+} DWT_Type;
+
+extern uint32_t SystemCoreClock ;
+
+double current_time(int reset)
+{
+      if(reset) DWT->CYCCNT = 0 ;
+      return ((double)DWT->CYCCNT/SystemCoreClock) ;
+}
+#endif
 
 /*-----------------------------------------------------------------------------
  *        Initialize a Flash Memory Card
@@ -68,13 +128,14 @@ static void init_filesystem (void) {
 }
 #endif
 
+
 /*-----------------------------------------------------------------------------
  *       mian entry
  *----------------------------------------------------------------------------*/
-
 int main()
 {
     void * arg = NULL ;
+
     MPU_Config(); 
     CPU_CACHE_Enable();
     HAL_Init();                        /* Initialize the HAL Library     */
@@ -83,6 +144,8 @@ int main()
     #if !defined(NO_FILESYSTEM)
     init_filesystem ();
     #endif
+
+    setTime((RTC_YEAR-1970)*365*24*60*60 + RTC_MONTH*30*24*60*60 + RTC_DAY*24*60*60);
 
     printf("=== Start: Crypt test === \n") ;
         wolfcrypt_test(arg) ;
