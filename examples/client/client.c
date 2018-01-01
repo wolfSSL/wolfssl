@@ -102,9 +102,7 @@ static int NonBlockingSSL_Connect(WOLFSSL* ssl)
     while (ret != WOLFSSL_SUCCESS && (error == WOLFSSL_ERROR_WANT_READ ||
                                   error == WOLFSSL_ERROR_WANT_WRITE ||
                                   error == WC_PENDING_E)) {
-    #ifdef WOLFSSL_DTLS
         int currTimeout = 1;
-    #endif
                                                                         
         if (error == WOLFSSL_ERROR_WANT_READ)
             printf("... client would read block\n");
