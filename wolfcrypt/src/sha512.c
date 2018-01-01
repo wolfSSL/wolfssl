@@ -156,18 +156,6 @@
     /* #define DEBUG_YMM  */
 #endif
 
-
-#if defined(HAVE_BYTEREVERSE64) && \
-        !defined(HAVE_INTEL_AVX1) && !defined(HAVE_INTEL_AVX2)
-    #define ByteReverseWords64(out, in, size) ByteReverseWords64_1(out, size)
-    #define ByteReverseWords64_1(buf, size) \
-        { unsigned int i ;\
-            for(i=0; i< size/sizeof(word64); i++){\
-                __asm__ volatile("bswapq %0":"+r"(buf[i])::) ;\
-            }\
-        }
-#endif
-
 #if defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH)
     /* functions defined in wolfcrypt/src/port/caam/caam_sha.c */
 #else
