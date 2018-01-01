@@ -33,13 +33,26 @@
 
 #define WOLFSSL_USER_CURRTIME /* for benchmark */
 #define WOLFSSL_CURRTIME_OSTICK /* use OS tich for current_time */
-
-#define XVALIDATE_DATE(d, f,t) (1)
+#define WOLFSSL_GMTIME
 
 // <<< Use Configuration Wizard in Context Menu >>>
 
 
 //  <h>Common options
+//        <o> MPU<0=>Undefined<1=>STM32F4xx<2=>STM32F7xx<3=>STM32F7xx
+#define MDK_CONF_MPU 3
+#if     MDK_CONF_MPU == 0
+
+#elif   MDK_CONF_MPU == 1
+#define WOLFSSL_STM32_CUBEMX
+#define STM32F2xx
+#elif MDK_CONF_MPU == 2
+#define WOLFSSL_STM32_CUBEMX
+#define STM32F4xx
+#elif MDK_CONF_MPU == 3
+#define WOLFSSL_STM32_CUBEMX
+#define STM32F7xx
+#endif
 
 //        <o> Thread/RTOS<0=>Single Threaded <1=>FreeRTOS <2=>SafeRTOS<3=>Windows
 //         <4=>PThread <5=>ThreadX<6=> ThreadX/NetX
@@ -94,7 +107,7 @@
 
 //   <o> Network<0=>None <1=>RLnet <2=>User I/O
 #define MDK_CONF_NETWORK 1
-#if   MDK_CONF_NETWORK == 0
+#if   MDK_CONF_NETWORK_ == 0
 #elif MDK_CONF_NETWORK == 1
 #define WOLFSSL_KEIL_TCP_NET
 #elif MDK_CONF_NETWORK == 2
@@ -362,38 +375,57 @@
 
 //  <h>Hardware Crypt (See document for usage)
 //      <e>Hardware RNG
-#define MDK_CONF_STM32F2_RNG 0
+#define MDK_CONF_STM32F2_RNG 1
 #if MDK_CONF_STM32F2_RNG == 1
 #define WOLFSSL_STM32_CUBEMX
 #define STM32_RNG
-#define WOLFSSL_STM32F7
-#define STM32F7xx
 #define WC_ASYNC_DEV_SIZE 320+24
 #define STM32_HAL_TIMEOUT 0xFF
-#else
+
+#if defined(STM32F2xx)
+#define WOLFSSL_STM32F2
+#elif defined(STM32F4xx)
+#define WOLFSSL_STM32F4
+#elif defined(STM32F7xx)
+#define WOLFSSL_STM32F7
+#endif
 
 #endif
 //  </e>
 //      <e>Hardware Crypt
-#define MDK_CONF_STM32F2_CRYPTO 0
+#define MDK_CONF_STM32F2_CRYPTO 1
 #if MDK_CONF_STM32F2_CRYPTO == 1
 #define WOLFSSL_STM32_CUBEMX
 #define STM32_CRYPTO
-#define WOLFSSL_STM32F7
-#define STM32F7xx
 #define WC_ASYNC_DEV_SIZE 320+24
 #define STM32_HAL_TIMEOUT 0xFF
+
+#if defined(STM32F2xx)
+#define WOLFSSL_STM32F2
+#elif defined(STM32F4xx)
+#define WOLFSSL_STM32F4
+#elif defined(STM32F7xx)
+#define WOLFSSL_STM32F7
+#endif
+
 #endif
 //  </e>
 //      <e>Hardware Hash
-#define MDK_CONF_STM32F2_HASH 0
+#define MDK_CONF_STM32F2_HASH 1
 #if MDK_CONF_STM32F2_HASH == 1
 #define WOLFSSL_STM32_CUBEMX
 #define STM32_HASH
-#define WOLFSSL_STM32F7
-#define STM32F7xx
 #define WC_ASYNC_DEV_SIZE 320+24
 #define STM32_HAL_TIMEOUT 0xFF
+
+#if defined(STM32F2xx)
+#define WOLFSSL_STM32F2
+#elif defined(STM32F4xx)
+#define WOLFSSL_STM32F4
+#elif defined(STM32F7xx)
+#define WOLFSSL_STM32F7
+#endif
+
 #endif
 //  </e>
 // </h>
