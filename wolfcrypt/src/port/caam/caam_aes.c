@@ -22,7 +22,8 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_IMX6_CAAM) && !defined(NO_AES)
+#if defined(WOLFSSL_IMX6_CAAM) && !defined(NO_AES) && \
+   !defined(NO_IMX6_CAAM_AES)
 
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>

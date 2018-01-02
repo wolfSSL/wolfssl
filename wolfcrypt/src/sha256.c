@@ -118,7 +118,7 @@
 static INLINE void AddLength(wc_Sha256* sha256, word32 len);
 
 #if !defined(WOLFSSL_PIC32MZ_HASH) && !defined(STM32_HASH) && \
-    !defined(WOLFSSL_IMX6_CAAM)
+    (!defined(WOLFSSL_IMX6_CAAM) || defined(NO_IMX6_CAAM_HASH))
 static int InitSha256(wc_Sha256* sha256)
 {
     int ret = 0;
@@ -519,7 +519,7 @@ static int InitSha256(wc_Sha256* sha256)
 
         return ret;
     }
-#elif defined(WOLFSSL_IMX6_CAAM)
+#elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH)
     /* functions defined in wolfcrypt/src/port/caam/caam_sha256.c */
 #else
     #define NEED_SOFT_SHA256
@@ -2708,7 +2708,7 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2_RORX_Len(wc_Sha256* sha256,
         return ret;
     }
 
-#elif defined(WOLFSSL_IMX6_CAAM)
+#elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH)
     /* functions defined in wolfcrypt/src/port/caam/caam_sha256.c */
 #else
 

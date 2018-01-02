@@ -1637,7 +1637,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         Buffer buf[1];
         int ret  = 0;
-        int times = 10, i;
+        int times = 1000, i;
 
         (void)os;
 
@@ -1657,10 +1657,10 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             }
 
             /* driver could be waiting for entropy */
-            if (ret != WC_HW_WAIT_E) {
+            if (ret != RAN_BLOCK_E) {
                 return ret;
             }
-            sleep(1);
+            usleep(100);
         }
 
         if (i == times && ret != Success) {

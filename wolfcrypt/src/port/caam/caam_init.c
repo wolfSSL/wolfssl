@@ -179,7 +179,8 @@ void wc_caamWriteRegister(word32 reg, word32 value)
 
 
 /* return 0 on success and WC_HW_E on failure. Can also return WC_HW_WAIT_E
- * in the case that the driver is waiting for a resource. */
+ * in the case that the driver is waiting for a resource or RAN_BLOCK_E if
+ * waiting for entropy. */
 int wc_caamAddAndWait(Buffer* buf, word32 arg[4], word32 type)
 {
     int ret;
@@ -196,6 +197,11 @@ int wc_caamAddAndWait(Buffer* buf, word32 arg[4], word32 type)
 
         /* if waiting for resource or RNG return waiting */
         if (ret == Waiting) {
+            WOLFSSL_MSG("Waiting on entropy from driver");
+            return RAN_BLOCK_E;
+        }
+
+        if (ret == ResourceNotAvailable) {
             WOLFSSL_MSG("Waiting on CAAM driver");
             return WC_HW_WAIT_E;
         }

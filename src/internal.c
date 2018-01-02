@@ -19592,8 +19592,6 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
 #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519)
     int      keySz;
     word32   idx;
-    (void)idx;
-    (void)keySz;
 #else
     (void)length;
 #endif
@@ -19720,6 +19718,8 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
     }
 #endif
 
+    (void)idx;
+    (void)keySz;
 exit_dpk:
     return ret;
 }

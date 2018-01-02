@@ -168,7 +168,7 @@
         }
 #endif
 
-#ifdef WOLFSSL_IMX6_CAAM /* hardware */
+#if defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH)
     /* functions defined in wolfcrypt/src/port/caam/caam_sha.c */
 #else
 
@@ -2545,7 +2545,7 @@ static int Transform_Sha512_AVX2_RORX_Len(wc_Sha512* sha512, word32 len)
 /* -------------------------------------------------------------------------- */
 #ifdef WOLFSSL_SHA384
 
-#ifdef WOLFSSL_IMX6_CAAM /* hardware */
+#if defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH)
     /* functions defined in wolfcrypt/src/port/caam/caam_sha.c */
 #else
 

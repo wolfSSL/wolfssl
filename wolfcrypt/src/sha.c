@@ -316,7 +316,7 @@ static INLINE void AddLength(wc_Sha* sha, word32 len);
         return ret;
     }
 
-#elif defined(WOLFSSL_IMX6_CAAM)
+#elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH)
     /* wolfcrypt/src/port/caam/caam_sha.c */
 #else
 
