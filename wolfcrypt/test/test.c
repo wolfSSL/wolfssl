@@ -15100,11 +15100,14 @@ int logging_test(void)
     WOLFSSL_BUFFER(NULL, 0);
     WOLFSSL_ERROR(MEMORY_E);
     WOLFSSL_ERROR_MSG(msg);
-    i = log_cnt; /* capture log count */
 
     /* turn off logs */
     wolfSSL_Debugging_OFF();
 
+    /* capture log count */
+    i = log_cnt;
+
+    /* validate no logs are output when disabled */
     WOLFSSL_MSG(msg);
     WOLFSSL_BUFFER(a, sizeof(a));
     WOLFSSL_BUFFER(b, sizeof(b));

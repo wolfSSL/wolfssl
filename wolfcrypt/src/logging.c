@@ -123,30 +123,28 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
     if (log_function)
         log_function(logLevel, logMessage);
     else {
-        if (loggingEnabled) {
 #if defined(WOLFSSL_USER_LOG)
-            WOLFSSL_USER_LOG(logMessage);
+        WOLFSSL_USER_LOG(logMessage);
 #elif defined(WOLFSSL_LOG_PRINTF)
-            printf("%s\n", logMessage);
+        printf("%s\n", logMessage);
 
 #elif defined(THREADX) && !defined(THREADX_NO_DC_PRINTF)
-            dc_log_printf("%s\n", logMessage);
+        dc_log_printf("%s\n", logMessage);
 #elif defined(MICRIUM)
-            BSP_Ser_Printf("%s\r\n", logMessage);
+        BSP_Ser_Printf("%s\r\n", logMessage);
 #elif defined(WOLFSSL_MDK_ARM)
-            fflush(stdout) ;
-            printf("%s\n", logMessage);
-            fflush(stdout) ;
+        fflush(stdout) ;
+        printf("%s\n", logMessage);
+        fflush(stdout) ;
 #elif defined(WOLFSSL_UTASKER)
-            fnDebugMsg((char*)logMessage);
-            fnDebugMsg("\r\n");
+        fnDebugMsg((char*)logMessage);
+        fnDebugMsg("\r\n");
 #elif defined(MQX_USE_IO_OLD)
-            fprintf(_mqxio_stderr, "%s\n", logMessage);
+        fprintf(_mqxio_stderr, "%s\n", logMessage);
 
 #else
-            fprintf(stderr, "%s\n", logMessage);
+        fprintf(stderr, "%s\n", logMessage);
 #endif
-        }
     }
 }
 
@@ -232,8 +230,8 @@ void WOLFSSL_ERROR_LINE(int error, const char* func, unsigned int line,
 void WOLFSSL_ERROR(int error)
 #endif
 {
-#if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_NGINX)
-    if (loggingEnabled && error != WC_PENDING_E)
+#ifdef WOLFSSL_ASYNC_CRYPT
+    if (error != WC_PENDING_E)
 #endif
     {
         char buffer[WOLFSSL_MAX_ERROR_SZ];
@@ -267,7 +265,8 @@ void WOLFSSL_ERROR(int error)
     #endif
 
     #ifdef DEBUG_WOLFSSL
-        wolfssl_log(ERROR_LOG , buffer);
+        if (loggingEnabled)
+            wolfssl_log(ERROR_LOG , buffer);
     #endif
     }
 }
