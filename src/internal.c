@@ -3828,7 +3828,20 @@ int DhAgree(WOLFSSL* ssl, DhKey* dhKey,
         return ret;
 #endif
 
-    ret = wc_DhAgree(dhKey, agree, agreeSz, priv, privSz, otherPub, otherPubSz);
+#ifdef HAVE_PK_CALLBACKS
+    if (ssl->ctx->DhAgreeCb) {
+        void* ctx = wolfSSL_GetDhAgreeCtx(ssl);
+
+        WOLFSSL_MSG("Calling DhAgree Callback Function");
+        ret = ssl->ctx->DhAgreeCb(ssl, dhKey, priv, privSz,
+                    otherPub, otherPubSz, agree, agreeSz, ctx);
+    }
+    else
+#endif
+    {
+        ret = wc_DhAgree(dhKey, agree, agreeSz, priv, privSz, otherPub,
+                otherPubSz);
+    }
 
     /* Handle async pending response */
 #ifdef WOLFSSL_ASYNC_CRYPT
