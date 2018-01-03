@@ -1183,6 +1183,27 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif /*(WOLFSSL_XILINX_CRYPT)*/
 
+#ifdef WOLFSSL_IMX6
+    #ifndef SIZEOF_LONG_LONG
+        #define SIZEOF_LONG_LONG 8
+    #endif
+#endif
+
+/* if defined turn on all CAAM support */
+#ifdef WOLFSSL_IMX6_CAAM
+    #undef  WOLFSSL_IMX6_CAAM_RNG
+    #define WOLFSSL_IMX6_CAAM_RNG
+
+    #undef  WOLFSSL_IMX6_CAAM_BLOB
+    #define WOLFSSL_IMX6_CAAM_BLOB
+
+#if defined(HAVE_AESGCM) || defined(WOLFSSL_AES_XTS)
+    /* large performance gain with HAVE_AES_ECB defined */
+    #undef HAVE_AES_ECB
+    #define HAVE_AES_ECB
+#endif
+#endif
+
 #if !defined(XMALLOC_USER) && !defined(MICRIUM_MALLOC) && \
     !defined(WOLFSSL_LEANPSK) && !defined(NO_WOLFSSL_MEMORY) && \
     !defined(XMALLOC_OVERRIDE)

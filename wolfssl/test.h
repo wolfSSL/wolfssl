@@ -790,7 +790,11 @@ static INLINE int tcp_select(SOCKET_T socketfd, int to_sec)
 {
     fd_set recvfds, errfds;
     SOCKET_T nfds = socketfd + 1;
-    struct timeval timeout = { (to_sec > 0) ? to_sec : 0, 0};
+#if !defined(__INTEGRITY)
+    struct timeval timeout = {(to_sec > 0) ? to_sec : 0, 0};
+#else
+    struct timeval timeout;
+#endif
     int result;
 
     FD_ZERO(&recvfds);
@@ -798,6 +802,9 @@ static INLINE int tcp_select(SOCKET_T socketfd, int to_sec)
     FD_ZERO(&errfds);
     FD_SET(socketfd, &errfds);
 
+#if defined(__INTEGRITY)
+    timeout.tv_sec = (long long)(to_sec > 0) ? to_sec : 0, 0;
+#endif
     result = select(nfds, &recvfds, NULL, &errfds, &timeout);
 
     if (result == 0)

@@ -123,7 +123,8 @@
 
 static INLINE void AddLength(wc_Sha256* sha256, word32 len);
 
-#if !defined(WOLFSSL_PIC32MZ_HASH) && !defined(STM32_HASH)
+#if !defined(WOLFSSL_PIC32MZ_HASH) && !defined(STM32_HASH) && \
+    (!defined(WOLFSSL_IMX6_CAAM) || defined(NO_IMX6_CAAM_HASH))
 static int InitSha256(wc_Sha256* sha256)
 {
     int ret = 0;
@@ -529,7 +530,8 @@ static int InitSha256(wc_Sha256* sha256)
 
         return ret;
     }
-
+#elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH)
+    /* functions defined in wolfcrypt/src/port/caam/caam_sha256.c */
 #else
     #define NEED_SOFT_SHA256
 
@@ -2722,7 +2724,12 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2_RORX_Len(wc_Sha256* sha256,
         return ret;
     }
 
+#elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH)
+    /* functions defined in wolfcrypt/src/port/caam/caam_sha256.c */
 #else
+
+    #define NEED_SOFT_SHA224
+
 
     static int InitSha224(wc_Sha224* sha224)
     {
@@ -2755,6 +2762,7 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2_RORX_Len(wc_Sha256* sha256,
 
 #endif /* STM32_HASH */
 
+#if defined(NEED_SOFT_SHA224) || defined(STM32_HASH)
     int wc_InitSha224_ex(wc_Sha224* sha224, void* heap, int devId)
     {
         int ret = 0;
@@ -2776,11 +2784,6 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2_RORX_Len(wc_Sha256* sha256,
     #endif /* WOLFSSL_ASYNC_CRYPT */
 
         return ret;
-    }
-
-    int wc_InitSha224(wc_Sha224* sha224)
-    {
-        return wc_InitSha224_ex(sha224, NULL, INVALID_DEVID);
     }
 
     int wc_Sha224Update(wc_Sha224* sha224, const byte* data, word32 len)
@@ -2832,6 +2835,12 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2_RORX_Len(wc_Sha256* sha256,
 
         return InitSha224(sha224);  /* reset state */
     }
+#endif /* end of SHA224 software implementation */
+
+    int wc_InitSha224(wc_Sha224* sha224)
+    {
+        return wc_InitSha224_ex(sha224, NULL, INVALID_DEVID);
+    }
 
     void wc_Sha224Free(wc_Sha224* sha224)
     {
@@ -2842,7 +2851,6 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2_RORX_Len(wc_Sha256* sha256,
         wolfAsync_DevCtxFree(&sha224->asyncDev, WOLFSSL_ASYNC_MARKER_SHA224);
     #endif /* WOLFSSL_ASYNC_CRYPT */
     }
-
 #endif /* WOLFSSL_SHA224 */
 
 

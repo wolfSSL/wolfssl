@@ -59,6 +59,11 @@
     #include <wolfssl/wolfcrypt/mem_track.h>
 #endif
 
+#if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
+    defined(WOLFSSL_IMX6_CAAM_BLOB)
+    #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
+#endif
+
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
     #pragma warning(disable: 4996)
@@ -153,6 +158,13 @@ int wolfCrypt_Init(void)
     #endif
 #endif
 
+#if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
+    defined(WOLFSSL_IMX6_CAAM_BLOB)
+        if ((ret = wc_caamInit()) != 0) {
+            return ret;
+        }
+#endif
+
         initRefCount = 1;
     }
 
@@ -187,6 +199,11 @@ int wolfCrypt_Cleanup(void)
 
     #ifdef WOLFSSL_ASYNC_CRYPT
         wolfAsync_HardwareStop();
+    #endif
+
+    #if defined(WOLFSSL_IMX6_CAAM) || defined(WOLFSSL_IMX6_CAAM_RNG) || \
+        defined(WOLFSSL_IMX6_CAAM_BLOB)
+        wc_caamFree();
     #endif
 
         initRefCount = 0; /* allow re-init */

@@ -113,6 +113,9 @@
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
     #include <wolfssl/wolfcrypt/logging.h>
 #endif
+#ifdef WOLFSSL_IMX6_CAAM_BLOB
+    #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
+#endif
 
 /* only for stack size check */
 #ifdef HAVE_STACK_SIZE
@@ -316,6 +319,9 @@ int logging_test(void);
 int mutex_test(void);
 #if defined(USE_WOLFSSL_MEMORY) && !defined(FREERTOS)
 int memcb_test(void);
+#endif
+#ifdef WOLFSSL_IMX6_CAAM_BLOB
+int blob_test(void);
 #endif
 
 #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND) && \
@@ -872,6 +878,13 @@ int wolfcrypt_test(void* args)
         return err_sys("memcb    test failed!\n", ret);
     else
         printf( "memcb    test passed!\n");
+#endif
+
+#ifdef WOLFSSL_IMX6_CAAM_BLOB
+    if ( (ret = blob_test()) != 0)
+        return err_sys("blob     test failed!\n", ret);
+    else
+        printf( "blob     test passed!\n");
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -15265,6 +15278,85 @@ exit_memcb:
     return ret;
 }
 #endif
+
+
+#ifdef WOLFSSL_IMX6_CAAM_BLOB
+int blob_test(void)
+{
+    int ret = 0;
+    byte out[112];
+    byte blob[112];
+    word32 outSz;
+
+    const byte iv[] =
+        {
+            0xf0,0xf1,0xf2,0xf3,0xf4,0xf5,0xf6,0xf7,
+            0xf8,0xf9,0xfa,0xfb,0xfc,0xfd,0xfe,0xff
+        };
+
+    const byte text[] =
+        {
+            0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+            0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a,
+            0xae,0x2d,0x8a,0x57,0x1e,0x03,0xac,0x9c,
+            0x9e,0xb7,0x6f,0xac,0x45,0xaf,0x8e,0x51,
+            0x30,0xc8,0x1c,0x46,0xa3,0x5c,0xe4,0x11,
+            0xe5,0xfb,0xc1,0x19,0x1a,0x0a,0x52,0xef,
+            0xf6,0x9f,0x24,0x45,0xdf,0x4f,0x9b,0x17,
+            0xad,0x2b,0x41,0x7b,0xe6,0x6c,0x37,0x10
+        };
+
+
+    memset(blob, 0, sizeof(blob));
+    outSz = sizeof(blob);
+    ret = wc_caamCreateBlob((byte*)iv, sizeof(iv), blob, &outSz);
+    if (ret != 0) {
+        ERROR_OUT(-8200, exit_blob);
+    }
+
+    blob[outSz - 2] += 1;
+    ret = wc_caamOpenBlob(blob, outSz, out, &outSz);
+    if (ret == 0) { /* should fail with altered blob */
+        ERROR_OUT(-8201, exit_blob);
+    }
+
+    memset(blob, 0, sizeof(blob));
+    outSz = sizeof(blob);
+    ret = wc_caamCreateBlob((byte*)iv, sizeof(iv), blob, &outSz);
+    if (ret != 0) {
+        ERROR_OUT(-8202, exit_blob);
+    }
+
+    ret = wc_caamOpenBlob(blob, outSz, out, &outSz);
+    if (ret != 0) {
+        ERROR_OUT(-8203, exit_blob);
+    }
+
+    if (XMEMCMP(out, iv, sizeof(iv))) {
+        ERROR_OUT(-8204, exit_blob);
+    }
+
+    memset(blob, 0, sizeof(blob));
+    outSz = sizeof(blob);
+    ret = wc_caamCreateBlob((byte*)text, sizeof(text), blob, &outSz);
+    if (ret != 0) {
+        ERROR_OUT(-8205, exit_blob);
+    }
+
+    ret = wc_caamOpenBlob(blob, outSz, out, &outSz);
+    if (ret != 0) {
+        ERROR_OUT(-8206, exit_blob);
+    }
+
+    if (XMEMCMP(out, text, sizeof(text))) {
+        ERROR_OUT(-8207, exit_blob);
+    }
+
+    exit_blob:
+
+    return ret;
+}
+#endif /* WOLFSSL_IMX6_CAAM_BLOB */
 
 #undef ERROR_OUT
 

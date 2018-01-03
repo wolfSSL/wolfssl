@@ -243,7 +243,13 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#ifndef WOLFSSL_ARMASM
+#if !defined(WOLFSSL_ARMASM)
+
+#ifdef WOLFSSL_IMX6_CAAM_BLOB
+    /* case of possibly not using hardware acceleration for AES but using key
+       blobs */
+    #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
+#endif
 
 #ifdef DEBUG_AESNI
     #include <stdio.h>
@@ -781,6 +787,17 @@
         }
     #endif /* HAVE_AES_DECRYPT */
 
+#elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES)
+        static int wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+        {
+            wc_AesEncryptDirect(aes, outBlock, inBlock);
+            return 0;
+        }
+        static int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
+        {
+            wc_AesDecryptDirect(aes, outBlock, inBlock);
+            return 0;
+        }
 #else
 
     /* using wolfCrypt software AES implementation */
@@ -1974,6 +1991,9 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         return wc_AesSetKey(aes, userKey, keylen, iv, dir);
     }
 
+#elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES)
+      /* implemented in wolfcrypt/src/port/caam/caam_aes.c */
+
 #else
     static int wc_AesSetKeyLocal(Aes* aes, const byte* userKey, word32 keylen,
                 const byte* iv, int dir)
@@ -2131,10 +2151,27 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen,
         const byte* iv, int dir)
     {
+        int ret;
     #if defined(AES_MAX_KEY_SIZE)
         const word32 max_key_len = (AES_MAX_KEY_SIZE / 8);
     #endif
 
+    #ifdef WOLFSSL_IMX6_CAAM_BLOB
+        byte   local[32];
+        word32 localSz = 32;
+
+        if (keylen == (16 + WC_CAAM_BLOB_SZ) ||
+                keylen == (24 + WC_CAAM_BLOB_SZ) ||
+                keylen == (32 + WC_CAAM_BLOB_SZ)) {
+            if (wc_caamOpenBlob((byte*)userKey, keylen, local, &localSz) != 0) {
+                return BAD_FUNC_ARG;
+            }
+
+            /* set local values */
+            userKey = local;
+            keylen = localSz;
+        }
+    #endif
         if (aes == NULL ||
                 !((keylen == 16) || (keylen == 24) || (keylen == 32))) {
             return BAD_FUNC_ARG;
@@ -2178,7 +2215,12 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         }
     #endif /* WOLFSSL_AESNI */
 
-        return wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir);
+        ret = wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir);
+
+    #ifdef WOLFSSL_IMX6_CAAM_BLOB
+        ForceZero(local, sizeof(local));
+    #endif
+        return ret;
     }
 
     #if defined(WOLFSSL_AES_DIRECT) || defined(WOLFSSL_AES_COUNTER)
@@ -2186,7 +2228,32 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
         int wc_AesSetKeyDirect(Aes* aes, const byte* userKey, word32 keylen,
                             const byte* iv, int dir)
         {
-            return wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir);
+            int ret;
+
+        #ifdef WOLFSSL_IMX6_CAAM_BLOB
+            byte   local[32];
+            word32 localSz = 32;
+
+            if (keylen == (16 + WC_CAAM_BLOB_SZ) ||
+             keylen == (24 + WC_CAAM_BLOB_SZ) ||
+             keylen == (32 + WC_CAAM_BLOB_SZ)) {
+                if (wc_caamOpenBlob((byte*)userKey, keylen, local, &localSz)
+                        != 0) {
+                    return BAD_FUNC_ARG;
+                }
+
+                /* set local values */
+                userKey = local;
+                keylen = localSz;
+            }
+        #endif
+            ret = wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir);
+
+        #ifdef WOLFSSL_IMX6_CAAM_BLOB
+            ForceZero(local, sizeof(local));
+        #endif
+
+            return ret;
         }
     #endif /* WOLFSSL_AES_DIRECT || WOLFSSL_AES_COUNTER */
 #endif /* wc_AesSetKey block */
@@ -2237,6 +2304,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             LTC_AES_DecryptEcb(LTC_BASE, in, out, AES_BLOCK_SIZE,
                 key, keySize, kLTC_EncryptKey);
         }
+
+    #elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES)
+        /* implemented in wolfcrypt/src/port/caam/caam_aes.c */
 
     #else
         /* Allow direct access to one block encrypt */
@@ -2805,6 +2875,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     }
     #endif /* HAVE_AES_DECRYPT */
 
+#elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES)
+      /* implemented in wolfcrypt/src/port/caam/caam_aes.c */
+
 #else
 
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
@@ -2977,6 +3050,11 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #endif /* HAVE_AES_CBC */
 
 #ifdef HAVE_AES_ECB
+#if defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES)
+    /* implemented in wolfcrypt/src/port/caam/caam_aes.c */
+#else
+
+/* software implementation */
 int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 {
     word32 blocks = sz / AES_BLOCK_SIZE;
@@ -3009,6 +3087,7 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     }
     return 0;
 }
+#endif
 #endif
 
 /* AES-CTR */
@@ -3195,6 +3274,9 @@ int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
             return 0;
         }
 
+    #elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES)
+        /* implemented in wolfcrypt/src/port/caam/caam_aes.c */
+
     #else
 
         /* Use software based AES counter */
@@ -3377,6 +3459,23 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     int  ret;
     byte iv[AES_BLOCK_SIZE];
 
+    #ifdef WOLFSSL_IMX6_CAAM_BLOB
+        byte   local[32];
+        word32 localSz = 32;
+
+        if (len == (16 + WC_CAAM_BLOB_SZ) ||
+          len == (24 + WC_CAAM_BLOB_SZ) ||
+          len == (32 + WC_CAAM_BLOB_SZ)) {
+            if (wc_caamOpenBlob((byte*)key, len, local, &localSz) != 0) {
+                 return BAD_FUNC_ARG;
+            }
+
+            /* set local values */
+            key = local;
+            len = localSz;
+        }
+    #endif
+
     if (!((len == 16) || (len == 24) || (len == 32)))
         return BAD_FUNC_ARG;
 
@@ -3400,6 +3499,10 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
 
 #if defined(WOLFSSL_XILINX_CRYPT)
     wc_AesGcmSetKey_ex(aes, key, len, XSECURE_CSU_AES_KEY_SRC_KUP);
+#endif
+
+#ifdef WOLFSSL_IMX6_CAAM_BLOB
+    ForceZero(local, sizeof(local));
 #endif
 
     return ret;
@@ -6858,6 +6961,25 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
     /* process remainder using partial handling */
 #endif
+
+#if defined(HAVE_AES_ECB) && !defined(WOLFSSL_PIC32MZ_CRYPT)
+    /* some hardware acceleration can gain performance from doing AES encryption
+     * of the whole buffer at once */
+    if (c != p) { /* can not handle inline encryption */
+        while (blocks--) {
+            IncrementGcmCounter(ctr);
+            XMEMCPY(c, ctr, AES_BLOCK_SIZE);
+            c += AES_BLOCK_SIZE;
+        }
+
+        /* reset number of blocks and then do encryption */
+        blocks = sz / AES_BLOCK_SIZE;
+        wc_AesEcbEncrypt(aes, out, out, AES_BLOCK_SIZE * blocks);
+        xorbuf(out, p, AES_BLOCK_SIZE * blocks);
+        p += AES_BLOCK_SIZE * blocks;
+    }
+    else
+#endif /* HAVE_AES_ECB */
     while (blocks--) {
         IncrementGcmCounter(ctr);
     #ifndef WOLFSSL_PIC32MZ_CRYPT
@@ -7137,6 +7259,24 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* process remainder using partial handling */
 #endif
 
+#if defined(HAVE_AES_ECB) && !defined(WOLFSSL_PIC32MZ_CRYPT)
+    /* some hardware acceleration can gain performance from doing AES encryption
+     * of the whole buffer at once */
+    if (c != p) { /* can not handle inline decryption */
+        while (blocks--) {
+            IncrementGcmCounter(ctr);
+            XMEMCPY(p, ctr, AES_BLOCK_SIZE);
+            p += AES_BLOCK_SIZE;
+        }
+
+        /* reset number of blocks and then do encryption */
+        blocks = sz / AES_BLOCK_SIZE;
+        wc_AesEcbEncrypt(aes, out, out, AES_BLOCK_SIZE * blocks);
+        xorbuf(out, c, AES_BLOCK_SIZE * blocks);
+        c += AES_BLOCK_SIZE * blocks;
+    }
+    else
+#endif /* HAVE_AES_ECB */
     while (blocks--) {
         IncrementGcmCounter(ctr);
     #ifndef WOLFSSL_PIC32MZ_CRYPT
@@ -7147,13 +7287,13 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         p += AES_BLOCK_SIZE;
         c += AES_BLOCK_SIZE;
     }
+
     if (partial != 0) {
         IncrementGcmCounter(ctr);
         wc_AesEncrypt(aes, ctr, scratch);
         xorbuf(scratch, c, partial);
         XMEMCPY(p, scratch, partial);
     }
-
 #endif
 
     return ret;
@@ -7191,6 +7331,9 @@ int wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz)
 
 #if defined(HAVE_COLDFIRE_SEC)
     #error "Coldfire SEC doesn't currently support AES-CCM mode"
+
+#elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES)
+    /* implemented in wolfcrypt/src/port/caam_aes.c */
 
 #elif defined(FREESCALE_LTC)
 
@@ -7869,6 +8012,45 @@ int wc_AesXtsDecryptSector(XtsAes* aes, byte* out, const byte* in, word32 sz,
     return wc_AesXtsDecrypt(aes, out, in, sz, (const byte*)i, AES_BLOCK_SIZE);
 }
 
+#ifdef HAVE_AES_ECB
+/* helper function for encrypting / decrypting full buffer at once */
+static int _AesXtsHelper(Aes* aes, byte* out, const byte* in, word32 sz, int dir)
+{
+    word32 outSz   = sz;
+    word32 totalSz = (sz / AES_BLOCK_SIZE) * AES_BLOCK_SIZE; /* total bytes */
+    byte*  pt      = out;
+
+    outSz -= AES_BLOCK_SIZE;
+
+    while (outSz > 0) {
+        word32 j;
+        byte carry = 0;
+
+        /* multiply by shift left and propogate carry */
+        for (j = 0; j < AES_BLOCK_SIZE && outSz > 0; j++, outSz--) {
+            byte tmpC;
+
+            tmpC   = (pt[j] >> 7) & 0x01;
+            pt[j+AES_BLOCK_SIZE] = ((pt[j] << 1) + carry) & 0xFF;
+            carry  = tmpC;
+        }
+        if (carry) {
+            pt[AES_BLOCK_SIZE] ^= GF_XTS;
+        }
+
+        pt += AES_BLOCK_SIZE;
+    }
+
+    xorbuf(out, in, totalSz);
+    if (dir == AES_ENCRYPTION) {
+        return wc_AesEcbEncrypt(aes, out, out, totalSz);
+    }
+    else {
+        return wc_AesEcbDecrypt(aes, out, out, totalSz);
+    }
+}
+#endif /* HAVE_AES_ECB */
+
 
 /* AES with XTS mode. (XTS) XEX encryption with Tweak and cipher text Stealing.
  *
@@ -7908,14 +8090,30 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
 
         wc_AesEncryptDirect(tweak, tmp, i);
 
+    #ifdef HAVE_AES_ECB
+        /* encrypt all of buffer at once when possible */
+        if (in != out) { /* can not handle inline */
+            XMEMCPY(out, tmp, AES_BLOCK_SIZE);
+            if ((ret = _AesXtsHelper(aes, out, in, sz, AES_ENCRYPTION)) != 0) {
+                return ret;
+            }
+        }
+    #endif
+
         while (blocks > 0) {
             word32 j;
             byte carry = 0;
             byte buf[AES_BLOCK_SIZE];
 
+    #ifdef HAVE_AES_ECB
+            if (in == out) { /* check for if inline */
+    #endif
             XMEMCPY(buf, in, AES_BLOCK_SIZE);
             xorbuf(buf, tmp, AES_BLOCK_SIZE);
             wc_AesEncryptDirect(aes, out, buf);
+    #ifdef HAVE_AES_ECB
+            }
+    #endif
             xorbuf(out, tmp, AES_BLOCK_SIZE);
 
             /* multiply by shift left and propogate carry */
@@ -8008,12 +8206,28 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
             blocks--;
         }
 
+    #ifdef HAVE_AES_ECB
+        /* decrypt all of buffer at once when possible */
+        if (in != out) { /* can not handle inline */
+            XMEMCPY(out, tmp, AES_BLOCK_SIZE);
+            if ((ret = _AesXtsHelper(aes, out, in, sz, AES_DECRYPTION)) != 0) {
+                return ret;
+            }
+        }
+    #endif
+
         while (blocks > 0) {
             byte buf[AES_BLOCK_SIZE];
 
+    #ifdef HAVE_AES_ECB
+            if (in == out) { /* check for if inline */
+    #endif
             XMEMCPY(buf, in, AES_BLOCK_SIZE);
             xorbuf(buf, tmp, AES_BLOCK_SIZE);
             wc_AesDecryptDirect(aes, out, buf);
+    #ifdef HAVE_AES_ECB
+            }
+    #endif
             xorbuf(out, tmp, AES_BLOCK_SIZE);
 
             /* multiply by shift left and propogate carry */
