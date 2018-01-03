@@ -15068,14 +15068,14 @@ done:
 #endif
 
 #ifdef DEBUG_WOLFSSL
-static int log_cnt = 0;
+static THREAD_LS_T int log_cnt = 0;
 static void my_Logging_cb(const int logLevel, const char *const logMessage)
 {
     (void)logLevel;
     (void)logMessage;
     log_cnt++;
 }
-#endif
+#endif /* DEBUG_WOLFSSL */
 
 int logging_test(void)
 {
