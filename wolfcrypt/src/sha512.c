@@ -156,6 +156,10 @@
     /* #define DEBUG_YMM  */
 #endif
 
+#if defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH)
+    /* functions defined in wolfcrypt/src/port/caam/caam_sha.c */
+#else
+
 static int InitSha512(wc_Sha512* sha512)
 {
     if (sha512 == NULL)
@@ -611,7 +615,7 @@ int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
 
     return Sha512Update(sha512, data, len);
 }
-
+#endif /* WOLFSSL_IMX6_CAAM */
 
 static INLINE int Sha512Final(wc_Sha512* sha512)
 {
@@ -2528,6 +2532,11 @@ static int Transform_Sha512_AVX2_RORX_Len(wc_Sha512* sha512, word32 len)
 /* SHA384 */
 /* -------------------------------------------------------------------------- */
 #ifdef WOLFSSL_SHA384
+
+#if defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH)
+    /* functions defined in wolfcrypt/src/port/caam/caam_sha.c */
+#else
+
 static int InitSha384(wc_Sha384* sha384)
 {
     if (sha384 == NULL) {
@@ -2632,6 +2641,7 @@ int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
     return ret;
 }
 #endif
+#endif /* WOLFSSL_IMX6_CAAM */
 
 int wc_InitSha384(wc_Sha384* sha384)
 {
