@@ -721,13 +721,27 @@ static word32 SetBitString16Bit(word16 val, byte* output)
 
 
 /* hashType */
+#ifdef HAVE_MD2
 static const byte hashMd2hOid[] = {42, 134, 72, 134, 247, 13, 2, 2};
+#endif /* HAVE_MD2 */
+#ifdef HAVE_MD5
 static const byte hashMd5hOid[] = {42, 134, 72, 134, 247, 13, 2, 5};
+#endif /* HAVE_MD5 */
+#ifdef HAVE_SHA
 static const byte hashSha1hOid[] = {43, 14, 3, 2, 26};
+#endif /* HAVE_SHA */
+#ifdef HAVE_SHA224
 static const byte hashSha224hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 4};
+#endif /* HAVE_SHA224 */
+#ifdef HAVE_SHA256
 static const byte hashSha256hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 1};
+#endif /* HAVE_SHA256 */
+#ifdef HAVE_SHA384
 static const byte hashSha384hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 2};
+#endif /* HAVE_SHA384 */
+#ifdef HAVE_SHA512
 static const byte hashSha512hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 3};
+#endif /* HAVE_SHA512 */
 
 /* hmacType */
 static const byte hmacSha224Oid[] = {42, 134, 72, 134, 247, 13, 2, 8};
@@ -740,20 +754,44 @@ static const byte hmacSha512Oid[] = {42, 134, 72, 134, 247, 13, 2, 11};
     static const byte sigSha1wDsaOid[] = {42, 134, 72, 206, 56, 4, 3};
 #endif /* NO_DSA */
 #ifndef NO_RSA
+#ifdef HAVE_MD2
     static const byte sigMd2wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1, 2};
+#endif /* HAVE_MD2 */
+#ifdef HAVE_MD5
     static const byte sigMd5wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1, 4};
+#endif /* HAVE_MD5 */
+#ifdef HAVE_SHA
     static const byte sigSha1wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1, 5};
+#endif /* HAVE_SHA */
+#ifdef HAVE_SHA224
     static const byte sigSha224wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1,14};
+#endif /* HAVE_SHA224 */
+#ifdef HAVE_SHA256
     static const byte sigSha256wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1,11};
+#endif /* HAVE_SHA256 */
+#ifdef HAVE_SHA384
     static const byte sigSha384wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1,12};
+#endif /* HAVE_SHA384 */
+#ifdef HAVE_SHA512
     static const byte sigSha512wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1,13};
+#endif /* HAVE_SHA512 */
 #endif /* NO_RSA */
 #ifdef HAVE_ECC
+#ifdef HAVE_SHA
     static const byte sigSha1wEcdsaOid[] = {42, 134, 72, 206, 61, 4, 1};
+#endif /* HAVE_SHA */
+#ifdef HAVE_SHA224
     static const byte sigSha224wEcdsaOid[] = {42, 134, 72, 206, 61, 4, 3, 1};
+#endif /* HAVE_SHA224 */
+#ifdef HAVE_SHA256
     static const byte sigSha256wEcdsaOid[] = {42, 134, 72, 206, 61, 4, 3, 2};
+#endif /* HAVE_SHA256 */
+#ifdef HAVE_SHA384
     static const byte sigSha384wEcdsaOid[] = {42, 134, 72, 206, 61, 4, 3, 3};
+#endif /* HAVE_SHA384 */
+#ifdef HAVE_SHA512
     static const byte sigSha512wEcdsaOid[] = {42, 134, 72, 206, 61, 4, 3, 4};
+#endif /* HAVE_SHA512 */
 #endif /* HAVE_ECC */
 #ifdef HAVE_ED25519
     static const byte sigEd25519Oid[] = {43, 101, 112};
@@ -782,24 +820,40 @@ static const byte hmacSha512Oid[] = {42, 134, 72, 134, 247, 13, 2, 11};
 #endif /* HAVE_ECC */
 
 /* blkType */
+#ifndef NO_AES
 static const byte blkAes128CbcOid[] = {96, 134, 72, 1, 101, 3, 4, 1, 2};
 static const byte blkAes192CbcOid[] = {96, 134, 72, 1, 101, 3, 4, 1, 22};
 static const byte blkAes256CbcOid[] = {96, 134, 72, 1, 101, 3, 4, 1, 42};
+#endif /* !NO_AES */
 static const byte blkDesCbcOid[]  = {43, 14, 3, 2, 7};
+#ifndef NO_DES3
 static const byte blkDes3CbcOid[] = {42, 134, 72, 134, 247, 13, 3, 7};
+#endif /* !NO_DES3 */
 
 /* keyWrapType */
+#ifdef HAVE_AES_KEYWRAP
 static const byte wrapAes128Oid[] = {96, 134, 72, 1, 101, 3, 4, 1, 5};
 static const byte wrapAes192Oid[] = {96, 134, 72, 1, 101, 3, 4, 1, 25};
 static const byte wrapAes256Oid[] = {96, 134, 72, 1, 101, 3, 4, 1, 45};
+#endif /* HAVE_AES_KEYWRAP */
 
 /* cmsKeyAgreeType */
+#ifdef HAVE_SHA
 static const byte dhSinglePass_stdDH_sha1kdf_Oid[]   =
                                           {43, 129, 5, 16, 134, 72, 63, 0, 2};
+#endif /* HAVE_SHA */
+#ifdef HAVE_SHA224
 static const byte dhSinglePass_stdDH_sha224kdf_Oid[] = {43, 129, 4, 1, 11, 0};
+#endif /* HAVE_SHA224 */
+#ifdef HAVE_SHA256
 static const byte dhSinglePass_stdDH_sha256kdf_Oid[] = {43, 129, 4, 1, 11, 1};
+#endif /* HAVE_SHA256 */
+#ifdef HAVE_SHA384
 static const byte dhSinglePass_stdDH_sha384kdf_Oid[] = {43, 129, 4, 1, 11, 2};
+#endif /* HAVE_SHA384 */
+#ifdef HAVE_SHA512
 static const byte dhSinglePass_stdDH_sha512kdf_Oid[] = {43, 129, 4, 1, 11, 3};
+#endif /* HAVE_SHA512 */
 
 /* ocspType */
 #ifdef HAVE_OCSP
@@ -809,7 +863,9 @@ static const byte dhSinglePass_stdDH_sha512kdf_Oid[] = {43, 129, 4, 1, 11, 3};
 
 /* certExtType */
 static const byte extBasicCaOid[] = {85, 29, 19};
+#ifdef WOLFSSL_ALT_NAMES
 static const byte extAltNamesOid[] = {85, 29, 17};
+#endif /* WOLFSSL_ALT_NAMES */
 static const byte extCrlDistOid[] = {85, 29, 31};
 static const byte extAuthInfoOid[] = {43, 6, 1, 5, 5, 7, 1, 1};
 static const byte extAuthKeyOid[] = {85, 29, 35};
@@ -818,7 +874,9 @@ static const byte extCertPolicyOid[] = {85, 29, 32};
 static const byte extKeyUsageOid[] = {85, 29, 15};
 static const byte extInhibitAnyOid[] = {85, 29, 54};
 static const byte extExtKeyUsageOid[] = {85, 29, 37};
+#ifndef IGNORE_NAME_CONSTRAINTS
 static const byte extNameConsOid[] = {85, 29, 30};
+#endif /* IGNORE_NAME_CONSTRAINTS */
 
 /* certAuthInfoType */
 static const byte extAuthInfoOcspOid[] = {43, 6, 1, 5, 5, 7, 48, 1};
@@ -828,7 +886,9 @@ static const byte extAuthInfoCaIssuerOid[] = {43, 6, 1, 5, 5, 7, 48, 2};
 static const byte extCertPolicyAnyOid[] = {85, 29, 32, 0};
 
 /* certKeyUseType */
+#ifdef WOLFSSL_ALT_NAMES
 static const byte extAltNamesHwNameOid[] = {43, 6, 1, 5, 5, 7, 8, 4};
+#endif /* WOLFSSL_ALT_NAMES */
 
 /* certKeyUseType */
 static const byte extExtKeyUsageAnyOid[] = {85, 29, 37, 0};
@@ -837,7 +897,9 @@ static const byte extExtKeyUsageClientAuthOid[]   = {43, 6, 1, 5, 5, 7, 3, 2};
 static const byte extExtKeyUsageCodeSigningOid[]  = {43, 6, 1, 5, 5, 7, 3, 3};
 static const byte extExtKeyUsageEmailProtectOid[] = {43, 6, 1, 5, 5, 7, 3, 4};
 static const byte extExtKeyUsageTimestampOid[]    = {43, 6, 1, 5, 5, 7, 3, 8};
+#ifdef HAVE_OCSP
 static const byte extExtKeyUsageOcspSignOid[]     = {43, 6, 1, 5, 5, 7, 3, 9};
+#endif /* HAVE_OCSP */
 
 /* kdfType */
 static const byte pbkdf2Oid[] = {42, 134, 72, 134, 247, 13, 1, 5, 12};
@@ -852,34 +914,48 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
 
         case oidHashType:
             switch (id) {
+                #ifdef HAVE_MD2
                 case MD2h:
                     oid = hashMd2hOid;
                     *oidSz = sizeof(hashMd2hOid);
                     break;
+                #endif
+                #ifdef HAVE_MD5
                 case MD5h:
                     oid = hashMd5hOid;
                     *oidSz = sizeof(hashMd5hOid);
                     break;
+                #endif
+                #ifdef HAVE_SHA
                 case SHAh:
                     oid = hashSha1hOid;
                     *oidSz = sizeof(hashSha1hOid);
                     break;
+                #endif
+                #ifdef HAVE_SHA224
                 case SHA224h:
                     oid = hashSha224hOid;
                     *oidSz = sizeof(hashSha224hOid);
                     break;
+                #endif
+                #ifdef HAVE_SHA256
                 case SHA256h:
                     oid = hashSha256hOid;
                     *oidSz = sizeof(hashSha256hOid);
                     break;
+                #endif
+                #ifdef HAVE_SHA384
                 case SHA384h:
                     oid = hashSha384hOid;
                     *oidSz = sizeof(hashSha384hOid);
                     break;
+                #endif
+                #ifdef HAVE_SHA512
                 case SHA512h:
                     oid = hashSha512hOid;
                     *oidSz = sizeof(hashSha512hOid);
                     break;
+                #endif
             }
             break;
 
@@ -891,57 +967,83 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     *oidSz = sizeof(sigSha1wDsaOid);
                     break;
                 #endif /* NO_DSA */
+
                 #ifndef NO_RSA
+                #ifdef HAVE_MD2
                 case CTC_MD2wRSA:
                     oid = sigMd2wRsaOid;
                     *oidSz = sizeof(sigMd2wRsaOid);
                     break;
+                    #endif
+                    #ifdef HAVE_MD5
                 case CTC_MD5wRSA:
                     oid = sigMd5wRsaOid;
                     *oidSz = sizeof(sigMd5wRsaOid);
                     break;
+                    #endif
+                    #ifdef HAVE_SHA
                 case CTC_SHAwRSA:
                     oid = sigSha1wRsaOid;
                     *oidSz = sizeof(sigSha1wRsaOid);
                     break;
+                    #endif
+                    #ifdef HAVE_SHA224
                 case CTC_SHA224wRSA:
                     oid = sigSha224wRsaOid;
                     *oidSz = sizeof(sigSha224wRsaOid);
                     break;
+                    #endif
+                    #ifdef HAVE_SHA256
                 case CTC_SHA256wRSA:
                     oid = sigSha256wRsaOid;
                     *oidSz = sizeof(sigSha256wRsaOid);
                     break;
+                    #endif
+                    #ifdef HAVE_SHA384
                 case CTC_SHA384wRSA:
                     oid = sigSha384wRsaOid;
                     *oidSz = sizeof(sigSha384wRsaOid);
                     break;
+                    #endif
+                    #ifdef HAVE_SHA512
                 case CTC_SHA512wRSA:
                     oid = sigSha512wRsaOid;
                     *oidSz = sizeof(sigSha512wRsaOid);
                     break;
+                    #endif
                 #endif /* NO_RSA */
+
                 #ifdef HAVE_ECC
+                #ifdef HAVE_SHA
                 case CTC_SHAwECDSA:
                     oid = sigSha1wEcdsaOid;
                     *oidSz = sizeof(sigSha1wEcdsaOid);
                     break;
+                    #endif
+                    #ifdef HAVE_SHA224
                 case CTC_SHA224wECDSA:
                     oid = sigSha224wEcdsaOid;
                     *oidSz = sizeof(sigSha224wEcdsaOid);
                     break;
+                    #endif
+                    #ifdef HAVE_SHA256
                 case CTC_SHA256wECDSA:
                     oid = sigSha256wEcdsaOid;
                     *oidSz = sizeof(sigSha256wEcdsaOid);
                     break;
+                    #endif
+                    #ifdef HAVE_SHA384
                 case CTC_SHA384wECDSA:
                     oid = sigSha384wEcdsaOid;
                     *oidSz = sizeof(sigSha384wEcdsaOid);
                     break;
+                    #endif
+                    #ifdef HAVE_SHA512
                 case CTC_SHA512wECDSA:
                     oid = sigSha512wEcdsaOid;
                     *oidSz = sizeof(sigSha512wEcdsaOid);
                     break;
+                    #endif
                 #endif /* HAVE_ECC */
                 #ifdef HAVE_ED25519
                 case CTC_ED25519:
@@ -1001,6 +1103,7 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
 
         case oidBlkType:
             switch (id) {
+                #ifndef NO_AES
                 case AES128CBCb:
                     oid = blkAes128CbcOid;
                     *oidSz = sizeof(blkAes128CbcOid);
@@ -1013,14 +1116,17 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = blkAes256CbcOid;
                     *oidSz = sizeof(blkAes256CbcOid);
                     break;
+                #endif /* !NO_AES */
                 case DESb:
                     oid = blkDesCbcOid;
                     *oidSz = sizeof(blkDesCbcOid);
                     break;
+                #ifndef NO_DES3
                 case DES3b:
                     oid = blkDes3CbcOid;
                     *oidSz = sizeof(blkDes3CbcOid);
                     break;
+                #endif /* !NO_DES3 */
             }
             break;
 
@@ -1045,10 +1151,12 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = extBasicCaOid;
                     *oidSz = sizeof(extBasicCaOid);
                     break;
+                #ifdef WOLFSSL_ALT_NAMES
                 case ALT_NAMES_OID:
                     oid = extAltNamesOid;
                     *oidSz = sizeof(extAltNamesOid);
                     break;
+                #endif /* WOLFSSL_ALT_NAMES */
                 case CRL_DIST_OID:
                     oid = extCrlDistOid;
                     *oidSz = sizeof(extCrlDistOid);
@@ -1081,13 +1189,16 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = extExtKeyUsageOid;
                     *oidSz = sizeof(extExtKeyUsageOid);
                     break;
+                #ifndef IGNORE_NAME_CONSTRAINTS
                 case NAME_CONS_OID:
                     oid = extNameConsOid;
                     *oidSz = sizeof(extNameConsOid);
                     break;
+                #endif /* IGNORE_NAME_CONSTRAINTS */
             }
             break;
 
+        #ifdef HAVE_OCSP
         case oidCertAuthInfoType:
             switch (id) {
                 case AIA_OCSP_OID:
@@ -1100,6 +1211,7 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     break;
             }
             break;
+        #endif /* HAVE_OCSP */
 
         case oidCertPolicyType:
             switch (id) {
@@ -1110,6 +1222,7 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
             }
             break;
 
+        #ifdef WOLFSSL_ALT_NAMES
         case oidCertAltNameType:
             switch (id) {
                 case HW_NAME_OID:
@@ -1118,6 +1231,7 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     break;
             }
             break;
+        #endif /* WOLFSSL_ALT_NAMES */
 
         case oidCertKeyUseType:
             switch (id) {
@@ -1145,10 +1259,12 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = extExtKeyUsageTimestampOid;
                     *oidSz = sizeof(extExtKeyUsageTimestampOid);
                     break;
+                #ifdef HAVE_OCSP
                 case EKU_OCSP_SIGN_OID:
                     oid = extExtKeyUsageOcspSignOid;
                     *oidSz = sizeof(extExtKeyUsageOcspSignOid);
                     break;
+                #endif /* HAVE_OCSP */
             }
             break;
 
@@ -1161,6 +1277,7 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
             }
             break;
 
+        #ifdef HAVE_AES_KEYWRAP
         case oidKeyWrapType:
             switch (id) {
                 case AES128_WRAP:
@@ -1177,29 +1294,40 @@ static const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     break;
             }
             break;
+        #endif /* HAVE_AES_KEYWRAP */
 
         case oidCmsKeyAgreeType:
             switch (id) {
+                #ifdef HAVE_SHA
                 case dhSinglePass_stdDH_sha1kdf_scheme:
                     oid = dhSinglePass_stdDH_sha1kdf_Oid;
                     *oidSz = sizeof(dhSinglePass_stdDH_sha1kdf_Oid);
                     break;
+                #endif /* HAVE_SHA */
+                #ifdef HAVE_SHA224
                 case dhSinglePass_stdDH_sha224kdf_scheme:
                     oid = dhSinglePass_stdDH_sha224kdf_Oid;
                     *oidSz = sizeof(dhSinglePass_stdDH_sha224kdf_Oid);
                     break;
+                #endif /* HAVE_SHA224 */
+                #ifdef HAVE_SHA256
                 case dhSinglePass_stdDH_sha256kdf_scheme:
                     oid = dhSinglePass_stdDH_sha256kdf_Oid;
                     *oidSz = sizeof(dhSinglePass_stdDH_sha256kdf_Oid);
                     break;
+                #endif /* HAVE_SHA256 */
+                #ifdef HAVE_SHA384
                 case dhSinglePass_stdDH_sha384kdf_scheme:
                     oid = dhSinglePass_stdDH_sha384kdf_Oid;
                     *oidSz = sizeof(dhSinglePass_stdDH_sha384kdf_Oid);
                     break;
+                #endif /* HAVE_SHA384 */
+                #ifdef HAVE_SHA512
                 case dhSinglePass_stdDH_sha512kdf_scheme:
                     oid = dhSinglePass_stdDH_sha512kdf_Oid;
                     *oidSz = sizeof(dhSinglePass_stdDH_sha512kdf_Oid);
                     break;
+                #endif /* HAVE_SHA512 */
             }
             break;
 
@@ -4752,6 +4880,7 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
 
 #endif /* IGNORE_NAME_CONSTRAINTS */
 
+#ifdef WOLFSSL_ALT_NAMES
 static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
 {
     word32 idx = 0;
@@ -4935,6 +5064,7 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
     }
     return 0;
 }
+#endif /* WOLFSSL_ALT_NAMES */
 
 static int DecodeBasicCaConstraint(byte* input, int sz, DecodedCert* cert)
 {
@@ -5646,6 +5776,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
                     return ASN_PARSE_E;
                 break;
 
+            #ifdef WOLFSSL_ALT_NAMES
             case ALT_NAMES_OID:
                 #ifdef OPENSSL_EXTRA
                     cert->extSubjAltNameSet = 1;
@@ -5654,6 +5785,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 if (DecodeAltNames(&input[idx], length, cert) < 0)
                     return ASN_PARSE_E;
                 break;
+            #endif /* WOLFSSL_ALT_NAMES */
 
             case AUTH_KEY_OID:
                 cert->extAuthKeyIdSet = 1;
@@ -7590,9 +7722,11 @@ static int SetExtKeyUsage(byte* output, word32 outSz, byte input)
         if (input & EXTKEYUSE_TIMESTAMP)
             ret |= SetOjectIdValue(output, outSz, &idx,
                 extExtKeyUsageTimestampOid, sizeof(extExtKeyUsageTimestampOid));
+        #ifdef HAVE_OCSP
         if (input & EXTKEYUSE_OCSP_SIGN)
             ret |= SetOjectIdValue(output, outSz, &idx,
                 extExtKeyUsageOcspSignOid, sizeof(extExtKeyUsageOcspSignOid));
+        #endif /* HAVE_OCSP */
     }
     if (ret != 0)
         return ASN_PARSE_E;
@@ -9376,8 +9510,10 @@ int wc_SetExtKeyUsage(Cert *cert, const char *value)
             cert->extKeyUsage |= EXTKEYUSE_EMAILPROT;
         else if (!XSTRNCASECMP(token, "timeStamping", len))
             cert->extKeyUsage |= EXTKEYUSE_TIMESTAMP;
+        #ifdef HAVE_OCSP
         else if (!XSTRNCASECMP(token, "OCSPSigning", len))
             cert->extKeyUsage |= EXTKEYUSE_OCSP_SIGN;
+        #endif /* HAVE_OCSP */
         else {
             ret = EXTKEYUSAGE_E;
             break;
