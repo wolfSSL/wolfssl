@@ -162,10 +162,9 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 
 /* Internal return codes */
 #define DRBG_SUCCESS      0
-#define DRBG_ERROR        1
-#define DRBG_FAILURE      2
-#define DRBG_NEED_RESEED  3
-#define DRBG_CONT_FAILURE 4
+#define DRBG_FAILURE      1
+#define DRBG_NEED_RESEED  2
+#define DRBG_CONT_FAILURE 3
 
 /* RNG health states */
 #define DRBG_NOT_INIT     0
