@@ -324,16 +324,6 @@ int memcb_test(void);
 int blob_test(void);
 #endif
 
-#if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND) && \
-        !defined(OPENSSL_EXTRA) && !defined(HAVE_STACK_SIZE)
-#ifdef __cplusplus
-    extern "C" {
-#endif
-    WOLFSSL_API int wolfSSL_Debugging_ON(void);
-#ifdef __cplusplus
-    }  /* extern "C" */
-#endif
-#endif
 
 /* General big buffer size for many tests. */
 #define FOURK_BUF 4096
@@ -861,12 +851,10 @@ int wolfcrypt_test(void* args)
         printf( "mp       test passed!\n");
 #endif
 
-#ifdef HAVE_VALGRIND
     if ( (ret = logging_test()) != 0)
         return err_sys("logging  test failed!\n", ret);
     else
         printf( "logging  test passed!\n");
-#endif
 
     if ( (ret = mutex_test()) != 0)
         return err_sys("mutex    test failed!\n", ret);
@@ -15092,24 +15080,15 @@ done:
 }
 #endif
 
-#ifdef HAVE_VALGRIND
-/* Need a static build to have access to symbols. */
-
-#ifndef WOLFSSL_SSL_H
-/* APIs hiding in ssl.h */
-extern int wolfSSL_Debugging_ON(void);
-extern void wolfSSL_Debugging_OFF(void);
-#endif
-
 #ifdef DEBUG_WOLFSSL
-static int log_cnt = 0;
+static THREAD_LS_T int log_cnt = 0;
 static void my_Logging_cb(const int logLevel, const char *const logMessage)
 {
     (void)logLevel;
     (void)logMessage;
     log_cnt++;
 }
-#endif
+#endif /* DEBUG_WOLFSSL */
 
 int logging_test(void)
 {
@@ -15117,55 +15096,60 @@ int logging_test(void)
     const char* msg = "Testing, testing. 1, 2, 3, 4 ...";
     byte        a[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
     byte        b[256];
-    size_t      i;
+    int         i;
 
-    for (i = 0; i < sizeof(b); i++)
+    for (i = 0; i < (int)sizeof(b); i++)
         b[i] = i;
 
     if (wolfSSL_Debugging_ON() != 0)
         return -7900;
-    if (wolfSSL_SetLoggingCb(NULL) != BAD_FUNC_ARG)
+
+    if (wolfSSL_SetLoggingCb(my_Logging_cb) != 0)
         return -7901;
 
     WOLFSSL_MSG(msg);
     WOLFSSL_BUFFER(a, sizeof(a));
     WOLFSSL_BUFFER(b, sizeof(b));
     WOLFSSL_BUFFER(NULL, 0);
+    WOLFSSL_ERROR(MEMORY_E);
+    WOLFSSL_ERROR_MSG(msg);
 
+    /* turn off logs */
     wolfSSL_Debugging_OFF();
 
+    /* capture log count */
+    i = log_cnt;
+
+    /* validate no logs are output when disabled */
     WOLFSSL_MSG(msg);
+    WOLFSSL_BUFFER(a, sizeof(a));
     WOLFSSL_BUFFER(b, sizeof(b));
+    WOLFSSL_BUFFER(NULL, 0);
+    WOLFSSL_ERROR(MEMORY_E);
+    WOLFSSL_ERROR_MSG(msg);
 
-    if (wolfSSL_SetLoggingCb(my_Logging_cb) != 0)
-        return -7902;
-
-    wolfSSL_Debugging_OFF();
-
-    WOLFSSL_MSG(msg);
-    WOLFSSL_BUFFER(b, sizeof(b));
-
-    if (log_cnt != 0)
-        return -7903;
-    if (wolfSSL_Debugging_ON() != 0)
+    /* check the logs were disabled */
+    if (i != log_cnt)
         return -7904;
 
-    WOLFSSL_MSG(msg);
-    WOLFSSL_BUFFER(b, sizeof(b));
+    /* restore callback and leave logging enabled */
+    wolfSSL_SetLoggingCb(NULL);
+    wolfSSL_Debugging_ON();
 
-    /* One call for each line of output. */
-    if (log_cnt != 17)
-        return -7905;
+    /* suppress unused args */
+    (void)a;
+    (void)b;
+
 #else
     if (wolfSSL_Debugging_ON() != NOT_COMPILED_IN)
         return -7906;
     wolfSSL_Debugging_OFF();
     if (wolfSSL_SetLoggingCb(NULL) != NOT_COMPILED_IN)
         return -7907;
-#endif
+#endif /* DEBUG_WOLFSSL */
     return 0;
 }
-#endif
+
 
 int mutex_test(void)
 {

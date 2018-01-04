@@ -33,7 +33,7 @@
 #endif
 
 
-enum  CYA_Log_Levels {
+enum wc_LogLevels {
     ERROR_LOG = 0,
     INFO_LOG,
     ENTER_LOG,
@@ -42,9 +42,15 @@ enum  CYA_Log_Levels {
 };
 
 typedef void (*wolfSSL_Logging_cb)(const int logLevel,
-                                  const char *const logMessage);
+                                   const char *const logMessage);
 
 WOLFSSL_API int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb log_function);
+
+/* turn logging on, only if compiled in */
+WOLFSSL_API int  wolfSSL_Debugging_ON(void);
+/* turn logging off */
+WOLFSSL_API void wolfSSL_Debugging_OFF(void);
+
 
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
     WOLFSSL_LOCAL int wc_LoggingInit(void);
@@ -59,9 +65,10 @@ WOLFSSL_API int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb log_function);
     #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
         WOLFSSL_API   void wc_ERR_print_errors_fp(FILE* fp);
     #endif
-#endif /* defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE) */
+#endif /* OPENSSL_EXTRA || DEBUG_WOLFSSL_VERBOSE */
 
-#ifdef DEBUG_WOLFSSL
+
+#if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_DEBUG_ERRORS_ONLY)
     #if defined(_WIN32)
         #if defined(INTIME_RTOS)
             #define __func__ NULL
@@ -73,15 +80,15 @@ WOLFSSL_API int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb log_function);
     /* a is prepended to m and b is appended, creating a log msg a + m + b */
     #define WOLFSSL_LOG_CAT(a, m, b) #a " " m " "  #b
 
-    void WOLFSSL_ENTER(const char* msg);
-    void WOLFSSL_LEAVE(const char* msg, int ret);
+    WOLFSSL_API void WOLFSSL_ENTER(const char* msg);
+    WOLFSSL_API void WOLFSSL_LEAVE(const char* msg, int ret);
     #define WOLFSSL_STUB(m) \
         WOLFSSL_MSG(WOLFSSL_LOG_CAT(wolfSSL Stub, m, not implemented))
 
-    void WOLFSSL_MSG(const char* msg);
-    void WOLFSSL_BUFFER(const byte* buffer, word32 length);
+    WOLFSSL_API void WOLFSSL_MSG(const char* msg);
+    WOLFSSL_API void WOLFSSL_BUFFER(const byte* buffer, word32 length);
 
-#else /* DEBUG_WOLFSSL   */
+#else
 
     #define WOLFSSL_ENTER(m)
     #define WOLFSSL_LEAVE(m, r)
@@ -90,18 +97,23 @@ WOLFSSL_API int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb log_function);
     #define WOLFSSL_MSG(m)
     #define WOLFSSL_BUFFER(b, l)
 
-#endif /* DEBUG_WOLFSSL  */
+#endif /* DEBUG_WOLFSSL && !WOLFSSL_DEBUG_ERRORS_ONLY */
 
-#if (defined(DEBUG_WOLFSSL) || defined(WOLFSSL_NGINX)) || defined(WOLFSSL_HAPROXY)
-    #if (defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE))
-    void WOLFSSL_ERROR_LINE(int err, const char* func, unsigned int line,
+#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+
+    #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+        WOLFSSL_API void WOLFSSL_ERROR_LINE(int err, const char* func, unsigned int line,
             const char* file, void* ctx);
-    #define WOLFSSL_ERROR(x) WOLFSSL_ERROR_LINE((x), __func__, __LINE__, __FILE__,NULL)
+        #define WOLFSSL_ERROR(x) \
+            WOLFSSL_ERROR_LINE((x), __func__, __LINE__, __FILE__, NULL)
     #else
-    void WOLFSSL_ERROR(int);
+        WOLFSSL_API void WOLFSSL_ERROR(int err);
     #endif
+    WOLFSSL_API void WOLFSSL_ERROR_MSG(const char* msg);
+
 #else
     #define WOLFSSL_ERROR(e)
+    #define WOLFSSL_ERROR_MSG(m)
 #endif
 
 #ifdef __cplusplus

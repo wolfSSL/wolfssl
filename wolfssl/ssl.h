@@ -30,6 +30,7 @@
 /* for users not using preprocessor flags*/
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/version.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef HAVE_WOLF_EVENT
     #include <wolfssl/wolfcrypt/wolfevent.h>
@@ -1320,11 +1321,6 @@ WOLFSSL_API int wolfSSL_Cleanup(void);
 WOLFSSL_API const char* wolfSSL_lib_version(void);
 /* which library version do we have in hex */
 WOLFSSL_API unsigned int wolfSSL_lib_version_hex(void);
-
-/* turn logging on, only if compiled in */
-WOLFSSL_API int  wolfSSL_Debugging_ON(void);
-/* turn logging off */
-WOLFSSL_API void wolfSSL_Debugging_OFF(void);
 
 /* do accept or connect depedning on side */
 WOLFSSL_API int wolfSSL_negotiate(WOLFSSL* ssl);
