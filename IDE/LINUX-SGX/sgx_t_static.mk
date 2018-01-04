@@ -142,4 +142,4 @@ libwolfssl.sgx.static.lib.a: $(Wolfssl_C_Objects)
 	@echo "LINK =>  $@"
 
 clean:
-	@rm -f wolfcrypt.* static_trusted/wolfssl_t.* libwolfssl.sgx.static.lib.a  $(Wolfssl_C_Objects)
+	@rm -f ../../wolfcrypt/benchmark/*.o ../../wolfcrypt/test/*.o static_trusted/wolfssl_t.* libwolfssl.sgx.static.lib.a  $(Wolfssl_C_Objects)

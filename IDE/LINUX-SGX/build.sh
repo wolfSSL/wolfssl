@@ -1,0 +1,8 @@
+#!/bin/sh
+
+
+CFLAGS="-DDEBUG_WOLFSSL"
+export CFLAGS=${CFLAGS}
+
+make -f sgx_t_static.mk HAVE_WOLFSSL_BENCHMARK=1 HAVE_WOLFSSL_TEST=1
+
