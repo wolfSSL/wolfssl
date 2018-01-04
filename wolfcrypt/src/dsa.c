@@ -99,64 +99,126 @@ void wc_FreeDsaKey(DsaKey* key)
 
 #ifdef WOLFSSL_KEY_GEN
 
+/* validate that (L,N) match allowed sizes from FIPS 186-4, Section 4.2.
+ * l - represents L, the size of p in bits
+ * n - represents N, the size of q in bits
+ * return 0 on success, -1 on error */
+static int CheckDsaLN(int l, int n)
+{
+    int ret = -1;
+
+    switch (l) {
+        case 1024:
+            if (n == 160)
+                ret = 0;
+            break;
+        case 2048:
+            if (n == 224 || n == 256)
+                ret = 0;
+            break;
+        case 3072:
+            if (n == 256)
+                ret = 0;
+            break;
+        default:
+            break;
+    }
+
+    return ret;
+}
+
+/* Create DSA key pair (&dsa->x, &dsa->y)
+ *
+ * Based on NIST FIPS 186-4,
+ * "B.1.1 Key Pair Generation Using Extra Random Bits"
+ *
+ * rng - pointer to initialized WC_RNG structure
+ * dsa - pointer to initialized DsaKey structure, will hold generated key
+ *
+ * return 0 on success, negative on error */
 int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
 {
-    unsigned char *buf;
-    int qsize, err;
+    byte* cBuf;
+    int qSz, pSz, cSz, err;
+    mp_int tmpQ;
 
     if (rng == NULL || dsa == NULL)
         return BAD_FUNC_ARG;
 
-    qsize = mp_unsigned_bin_size(&dsa->q);
-    if (qsize == 0)
+    qSz = mp_unsigned_bin_size(&dsa->q);
+    pSz = mp_unsigned_bin_size(&dsa->p);
+
+    /* verify (L,N) pair bit lengths */
+    if (CheckDsaLN(pSz * 8, qSz * 8) != 0)
         return BAD_FUNC_ARG;
 
-    /* allocate ram */
-    buf = (unsigned char *)XMALLOC(qsize, dsa->heap,
-                                   DYNAMIC_TYPE_TMP_BUFFER);
-    if (buf == NULL)
+    /* generate extra 64 bits so that bias from mod function is negligible */
+    cSz = qSz + 8;
+    cBuf = (byte*)XMALLOC(cSz, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (cBuf == NULL) {
         return MEMORY_E;
+    }
 
-    if (mp_init(&dsa->x) != MP_OKAY) {
-        XFREE(buf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        return MP_INIT_E;
+    if ((err = mp_init_multi(&dsa->x, &dsa->y, &tmpQ, NULL, NULL, NULL))
+                   != MP_OKAY) {
+        XFREE(cBuf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return err;
     }
 
     do {
-        /* make a random exponent mod q */
-        err = wc_RNG_GenerateBlock(rng, buf, qsize);
+        /* generate N+64 bits (c) from RBG into &dsa->x, making sure positive.
+         * Hash_DRBG uses SHA-256 which matches maximum
+         * requested_security_strength of (L,N) */
+        err = wc_RNG_GenerateBlock(rng, cBuf, cSz);
         if (err != MP_OKAY) {
             mp_clear(&dsa->x);
-            XFREE(buf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            mp_clear(&dsa->y);
+            mp_clear(&tmpQ);
+            XFREE(cBuf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
             return err;
         }
 
-        err = mp_read_unsigned_bin(&dsa->x, buf, qsize);
+        err = mp_read_unsigned_bin(&dsa->x, cBuf, cSz);
         if (err != MP_OKAY) {
             mp_clear(&dsa->x);
-            XFREE(buf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            mp_clear(&dsa->y);
+            mp_clear(&tmpQ);
+            XFREE(cBuf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
             return err;
         }
     } while (mp_cmp_d(&dsa->x, 1) != MP_GT);
 
-    XFREE(buf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(cBuf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
-    if (mp_init(&dsa->y) != MP_OKAY) {
-        mp_clear(&dsa->x);
-        return MP_INIT_E;
-    }
+    /* tmpQ = q - 1 */
+    if (err == MP_OKAY)
+        err = mp_copy(&dsa->q, &tmpQ);
+
+    if (err == MP_OKAY)
+        err = mp_sub_d(&tmpQ, 1, &tmpQ);
+
+    /* x = c mod (q-1), &dsa->x holds c */
+    if (err == MP_OKAY)
+        err = mp_mod(&dsa->x, &tmpQ, &dsa->x);
+
+    /* x = c mod (q-1) + 1 */
+    if (err == MP_OKAY)
+        err = mp_add_d(&dsa->x, 1, &dsa->x);
 
     /* public key : y = g^x mod p */
-    err = mp_exptmod(&dsa->g, &dsa->x, &dsa->p, &dsa->y);
+    if (err == MP_OKAY)
+        err = mp_exptmod(&dsa->g, &dsa->x, &dsa->p, &dsa->y);
+
+    if (err == MP_OKAY)
+        dsa->type = DSA_PRIVATE;
+
     if (err != MP_OKAY) {
         mp_clear(&dsa->x);
         mp_clear(&dsa->y);
-        return err;
     }
+    mp_clear(&tmpQ);
 
-    dsa->type = DSA_PRIVATE;
-
-    return MP_OKAY;
+    return err;
 }
 
 /* modulus_size in bits */
