@@ -15087,7 +15087,7 @@ static int my_DhCallback(WOLFSSL* ssl, struct DhKey* key,
 };
 
 static void test_dh_ctx_setup(WOLFSSL_CTX* ctx) {
-    wolfSSL_CTX_SetDhAgreeCb(ctx, &my_DhCallback);
+    wolfSSL_CTX_SetDhAgreeCb(ctx, my_DhCallback);
     AssertIntEQ(wolfSSL_CTX_set_cipher_list(ctx, "DHE-RSA-AES128-SHA256"),
             WOLFSSL_SUCCESS);
 }
