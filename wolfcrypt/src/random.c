@@ -25,6 +25,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 
 /* on HPUX 11 you may need to install /dev/random see
    http://h20293.www2.hp.com/portal/swdepot/displayProductInfo.do?productNumber=KRNG11I
@@ -35,7 +36,10 @@
 #include <wolfssl/wolfcrypt/cpuid.h>
 
 
-#ifdef HAVE_FIPS
+/* If building for old FIPS. */
+#if defined(HAVE_FIPS) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
+
 int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz)
 {
     return GenerateSeed(os, seed, sz);
@@ -79,14 +83,13 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
     {
         return RNG_HealthTest_fips(reseed, entropyA, entropyASz,
                               entropyB, entropyBSz, output, outputSz);
-    }
+   }
 #endif /* HAVE_HASHDRBG */
 
-#else /* else build without fips */
+#else /* else build without fips, or for new fips */
 
 #ifndef WC_NO_RNG /* if not FIPS and RNG is disabled then do not compile */
 
-#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/sha256.h>
 
 #ifdef NO_INLINE

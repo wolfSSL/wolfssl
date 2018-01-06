@@ -30,10 +30,10 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
-#ifdef HAVE_FIPS
-/* for fips @wc_fips */
-#include <cyassl/ctaocrypt/random.h>
-#endif
+#if defined(HAVE_FIPS) && \
+    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+    #include <wolfssl/wolfcrypt/fips.h>
+#endif /* HAVE_FIPS_VERSION >= 2 */
 
 #ifdef __cplusplus
     extern "C" {
@@ -70,7 +70,9 @@
 #endif
 
 
-#ifndef HAVE_FIPS /* avoid redefining structs and macros */
+/* avoid redefinition of structs */
+#if !defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 
 /* RNG supports the following sources (in order):
  * 1. CUSTOM_RAND_GENERATE_BLOCK: Defines name of function as RNG source and
@@ -151,7 +153,7 @@ struct WC_RNG {
 #endif
 };
 
-#endif /* HAVE_FIPS */
+#endif /* NO FIPS or have FIPS v2*/
 
 /* NO_OLD_RNGNAME removes RNG struct name to prevent possible type conflicts,
  * can't be used with CTaoCrypt FIPS */
