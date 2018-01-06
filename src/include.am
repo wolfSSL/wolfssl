@@ -27,10 +27,17 @@ endif # BUILD_FAST_RSA
 if BUILD_FIPS
 src_libwolfssl_la_SOURCES += ctaocrypt/src/wolfcrypt_first.c
 
+if BUILD_FIPS_V2
 src_libwolfssl_la_SOURCES += \
-               ctaocrypt/src/hmac.c \
+               wolfcrypt/src/hmac.c \
+               wolfcrypt/src/random.c \
+               wolfcrypt/src/sha256.c
+else
+src_libwolfssl_la_SOURCES += \
+               ctaocrypt/src/hmac.c
                ctaocrypt/src/random.c \
                ctaocrypt/src/sha256.c
+endif
 
 if BUILD_RSA
 if BUILD_FIPS_V2
@@ -82,14 +89,18 @@ src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/hash.c \
                wolfcrypt/src/cpuid.c
 
+if !BUILD_FIPS_V2
 if BUILD_RNG
 src_libwolfssl_la_SOURCES += wolfcrypt/src/random.c
 endif
+endif
 
+if !BUILD_FIPS_V2
 if BUILD_ARMASM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-sha256.c
 else
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sha256.c
+endif
 endif
 
 if BUILD_WOLFEVENT
