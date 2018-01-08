@@ -2418,6 +2418,9 @@ struct WOLFSSL_CTX {
             CallbackX25519SharedSecret X25519SharedSecretCb;
         #endif
     #endif /* HAVE_ECC */
+    #ifndef NO_DH
+        CallbackDhAgree DhAgreeCb;      /* User DH Agree Callback handler */
+    #endif
     #ifndef NO_RSA
         CallbackRsaSign   RsaSignCb;    /* User RsaSign   Callback handler */
         CallbackRsaVerify RsaVerifyCb;  /* User RsaVerify Callback handler */
@@ -3498,6 +3501,9 @@ struct WOLFSSL {
             void* X25519SharedSecretCtx; /* X25519 Pms Callback Context */
         #endif
     #endif /* HAVE_ECC */
+    #ifndef NO_DH
+        void* DhAgreeCtx; /* DH Pms Callback Context */
+    #endif /* !NO_DH */
     #ifndef NO_RSA
         void* RsaSignCtx;     /* Rsa Sign   Callback Context */
         void* RsaVerifyCtx;   /* Rsa Verify Callback Context */

@@ -2013,6 +2013,21 @@ static INLINE int myX25519SharedSecret(WOLFSSL* ssl, curve25519_key* otherKey,
 
 #endif /* HAVE_ECC */
 
+#ifndef NO_DH
+static INLINE int myDhCallback(WOLFSSL* ssl, struct DhKey* key,
+        const unsigned char* priv, unsigned int privSz,
+        const unsigned char* pubKeyDer, unsigned int pubKeySz,
+        unsigned char* out, unsigned int* outlen,
+        void* ctx)
+{
+    (void)ctx;
+    (void)ssl;
+    /* return 0 on success */
+    return wc_DhAgree(key, out, outlen, priv, privSz, pubKeyDer, pubKeySz);
+};
+
+#endif /* !NO_DH */
+
 #ifndef NO_RSA
 
 static INLINE int myRsaSign(WOLFSSL* ssl, const byte* in, word32 inSz,
@@ -2244,6 +2259,9 @@ static INLINE void SetupPkCallbacks(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
         wolfSSL_CTX_SetEccVerifyCb(ctx, myEccVerify);
         wolfSSL_CTX_SetEccSharedSecretCb(ctx, myEccSharedSecret);
     #endif /* HAVE_ECC */
+    #ifndef NO_DH
+        wolfSSL_CTX_SetDhAgreeCb(ctx, myDhCallback);
+    #endif
     #ifdef HAVE_ED25519
         wolfSSL_CTX_SetEd25519SignCb(ctx, myEd25519Sign);
         wolfSSL_CTX_SetEd25519VerifyCb(ctx, myEd25519Verify);

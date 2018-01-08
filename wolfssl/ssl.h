@@ -1690,6 +1690,19 @@ WOLFSSL_API void  wolfSSL_CTX_SetEccSharedSecretCb(WOLFSSL_CTX*, CallbackEccShar
 WOLFSSL_API void  wolfSSL_SetEccSharedSecretCtx(WOLFSSL* ssl, void *ctx);
 WOLFSSL_API void* wolfSSL_GetEccSharedSecretCtx(WOLFSSL* ssl);
 
+#ifndef NO_DH
+/* Public DH Key Callback support */
+struct DhKey;
+typedef int (*CallbackDhAgree)(WOLFSSL* ssl, struct DhKey* key,
+        const unsigned char* priv, unsigned int privSz,
+        const unsigned char* otherPubKeyDer, unsigned int otherPubKeySz,
+        unsigned char* out, unsigned int* outlen,
+        void* ctx);
+WOLFSSL_API void  wolfSSL_CTX_SetDhAgreeCb(WOLFSSL_CTX*, CallbackDhAgree);
+WOLFSSL_API void  wolfSSL_SetDhAgreeCtx(WOLFSSL* ssl, void *ctx);
+WOLFSSL_API void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl);
+#endif /* !NO_DH */
+
 struct ed25519_key;
 typedef int (*CallbackEd25519Sign)(WOLFSSL* ssl,
        const unsigned char* in, unsigned int inSz,
