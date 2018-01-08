@@ -200,6 +200,9 @@
     #ifndef DSA_SIG_SIZE
         #define DSA_SIG_SIZE 40
     #endif
+    #ifndef MAX_DSA_PARAM_SIZE
+        #define MAX_DSA_PARAM_SIZE 256
+    #endif
 #endif
 
 #ifdef WOLFSSL_CMAC
@@ -10664,6 +10667,289 @@ static int test_wc_DsaKeyToDer (void)
 
 } /* END test_wc_DsaKeyToDer */
 
+/*
+ * Testing wc_DsaImportParamsRaw()
+ */
+static int test_wc_DsaImportParamsRaw (void)
+{
+    int     ret = 0;
+
+#if !defined(NO_DSA)
+    DsaKey  key;
+
+    /* [mod = L=1024, N=160], from CAVP KeyPair */
+    const char* p = "d38311e2cd388c3ed698e82fdf88eb92b5a9a483dc88005d"
+                    "4b725ef341eabb47cf8a7a8a41e792a156b7ce97206c4f9c"
+                    "5ce6fc5ae7912102b6b502e59050b5b21ce263dddb2044b6"
+                    "52236f4d42ab4b5d6aa73189cef1ace778d7845a5c1c1c71"
+                    "47123188f8dc551054ee162b634d60f097f719076640e209"
+                    "80a0093113a8bd73";
+    const char* q = "96c5390a8b612c0e422bb2b0ea194a3ec935a281";
+    const char* g = "06b7861abbd35cc89e79c52f68d20875389b127361ca66822"
+                    "138ce4991d2b862259d6b4548a6495b195aa0e0b6137ca37e"
+                    "b23b94074d3c3d300042bdf15762812b6333ef7b07ceba786"
+                    "07610fcc9ee68491dbc1e34cd12615474e52b18bc934fb00c"
+                    "61d39e7da8902291c4434a4e2224c3f4fd9f93cd6f4f17fc0"
+                    "76341a7e7d9";
+
+    /* invalid p and q parameters */
+    const char* invalidP = "d38311e2cd388c3ed698e82fdf88eb92b5a9a483dc88005d";
+    const char* invalidQ = "96c5390a";
+
+    printf(testingFmt, "wc_DsaImportParamsRaw()");
+
+    ret = wc_InitDsaKey(&key);
+    if (ret == 0) {
+        ret = wc_DsaImportParamsRaw(&key, p, q, g);
+    }
+
+    /* test bad args */
+    if (ret == 0) {
+        /* null key struct */
+        ret = wc_DsaImportParamsRaw(NULL, p, q, g);
+        if (ret == BAD_FUNC_ARG) {
+            /* null param pointers */
+            ret = wc_DsaImportParamsRaw(&key, NULL, NULL, NULL);
+        }
+
+        if (ret == BAD_FUNC_ARG) {
+            /* illegal p length */
+            ret = wc_DsaImportParamsRaw(&key, invalidP, q, g);
+        }
+
+        if (ret == BAD_FUNC_ARG) {
+            /* illegal q length */
+            ret = wc_DsaImportParamsRaw(&key, p, invalidQ, g);
+            if (ret == BAD_FUNC_ARG)
+                ret = 0;
+        }
+
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    wc_FreeDsaKey(&key);
+
+#endif
+
+    return ret;
+
+} /* END test_wc_DsaImportParamsRaw */
+
+/*
+ * Testing wc_DsaExportParamsRaw()
+ */
+static int test_wc_DsaExportParamsRaw (void)
+{
+    int     ret = 0;
+
+#if !defined(NO_DSA)
+    DsaKey  key;
+
+    /* [mod = L=1024, N=160], from CAVP KeyPair */
+    const char* p = "d38311e2cd388c3ed698e82fdf88eb92b5a9a483dc88005d"
+                    "4b725ef341eabb47cf8a7a8a41e792a156b7ce97206c4f9c"
+                    "5ce6fc5ae7912102b6b502e59050b5b21ce263dddb2044b6"
+                    "52236f4d42ab4b5d6aa73189cef1ace778d7845a5c1c1c71"
+                    "47123188f8dc551054ee162b634d60f097f719076640e209"
+                    "80a0093113a8bd73";
+    const char* q = "96c5390a8b612c0e422bb2b0ea194a3ec935a281";
+    const char* g = "06b7861abbd35cc89e79c52f68d20875389b127361ca66822"
+                    "138ce4991d2b862259d6b4548a6495b195aa0e0b6137ca37e"
+                    "b23b94074d3c3d300042bdf15762812b6333ef7b07ceba786"
+                    "07610fcc9ee68491dbc1e34cd12615474e52b18bc934fb00c"
+                    "61d39e7da8902291c4434a4e2224c3f4fd9f93cd6f4f17fc0"
+                    "76341a7e7d9";
+
+    const char* pCompare = "\xd3\x83\x11\xe2\xcd\x38\x8c\x3e\xd6\x98\xe8\x2f"
+                           "\xdf\x88\xeb\x92\xb5\xa9\xa4\x83\xdc\x88\x00\x5d"
+                           "\x4b\x72\x5e\xf3\x41\xea\xbb\x47\xcf\x8a\x7a\x8a"
+                           "\x41\xe7\x92\xa1\x56\xb7\xce\x97\x20\x6c\x4f\x9c"
+                           "\x5c\xe6\xfc\x5a\xe7\x91\x21\x02\xb6\xb5\x02\xe5"
+                           "\x90\x50\xb5\xb2\x1c\xe2\x63\xdd\xdb\x20\x44\xb6"
+                           "\x52\x23\x6f\x4d\x42\xab\x4b\x5d\x6a\xa7\x31\x89"
+                           "\xce\xf1\xac\xe7\x78\xd7\x84\x5a\x5c\x1c\x1c\x71"
+                           "\x47\x12\x31\x88\xf8\xdc\x55\x10\x54\xee\x16\x2b"
+                           "\x63\x4d\x60\xf0\x97\xf7\x19\x07\x66\x40\xe2\x09"
+                           "\x80\xa0\x09\x31\x13\xa8\xbd\x73";
+    const char* qCompare = "\x96\xc5\x39\x0a\x8b\x61\x2c\x0e\x42\x2b\xb2\xb0"
+                           "\xea\x19\x4a\x3e\xc9\x35\xa2\x81";
+    const char* gCompare = "\x06\xb7\x86\x1a\xbb\xd3\x5c\xc8\x9e\x79\xc5\x2f"
+                           "\x68\xd2\x08\x75\x38\x9b\x12\x73\x61\xca\x66\x82"
+                           "\x21\x38\xce\x49\x91\xd2\xb8\x62\x25\x9d\x6b\x45"
+                           "\x48\xa6\x49\x5b\x19\x5a\xa0\xe0\xb6\x13\x7c\xa3"
+                           "\x7e\xb2\x3b\x94\x07\x4d\x3c\x3d\x30\x00\x42\xbd"
+                           "\xf1\x57\x62\x81\x2b\x63\x33\xef\x7b\x07\xce\xba"
+                           "\x78\x60\x76\x10\xfc\xc9\xee\x68\x49\x1d\xbc\x1e"
+                           "\x34\xcd\x12\x61\x54\x74\xe5\x2b\x18\xbc\x93\x4f"
+                           "\xb0\x0c\x61\xd3\x9e\x7d\xa8\x90\x22\x91\xc4\x43"
+                           "\x4a\x4e\x22\x24\xc3\xf4\xfd\x9f\x93\xcd\x6f\x4f"
+                           "\x17\xfc\x07\x63\x41\xa7\xe7\xd9";
+
+    byte pOut[MAX_DSA_PARAM_SIZE];
+    byte qOut[MAX_DSA_PARAM_SIZE];
+    byte gOut[MAX_DSA_PARAM_SIZE];
+    word32 pOutSz, qOutSz, gOutSz;
+
+    printf(testingFmt, "wc_DsaExportParamsRaw()");
+
+    ret = wc_InitDsaKey(&key);
+    if (ret == 0) {
+        /* first test using imported raw parameters, for expected */
+        ret = wc_DsaImportParamsRaw(&key, p, q, g);
+    }
+
+    if (ret == 0) {
+        pOutSz = sizeof(pOut);
+        qOutSz = sizeof(qOut);
+        gOutSz = sizeof(gOut);
+        ret = wc_DsaExportParamsRaw(&key, pOut, &pOutSz, qOut, &qOutSz,
+                                    gOut, &gOutSz);
+    }
+
+    if (ret == 0) {
+        /* validate exported parameters are correct */
+        if ((XMEMCMP(pOut, pCompare, pOutSz) != 0) ||
+            (XMEMCMP(qOut, qCompare, qOutSz) != 0) ||
+            (XMEMCMP(gOut, gCompare, gOutSz) != 0) ) {
+            ret = -1;
+        }
+    }
+
+    /* test bad args */
+    if (ret == 0) {
+        /* null key struct */
+        ret = wc_DsaExportParamsRaw(NULL, pOut, &pOutSz, qOut, &qOutSz,
+                                    gOut, &gOutSz);
+
+        if (ret == BAD_FUNC_ARG) {
+            /* null output pointers */
+            ret = wc_DsaExportParamsRaw(&key, NULL, &pOutSz, NULL, &qOutSz,
+                                        NULL, &gOutSz);
+        }
+
+        if (ret == BAD_FUNC_ARG) {
+            /* null output size pointers */
+            ret = wc_DsaExportParamsRaw(&key, pOut, NULL, qOut, NULL,
+                                        gOut, NULL);
+        }
+
+        if (ret == BAD_FUNC_ARG) {
+            /* p output buffer size too small */
+            pOutSz = 1;
+            ret = wc_DsaExportParamsRaw(&key, pOut, &pOutSz, qOut, &qOutSz,
+                                        gOut, &gOutSz);
+            pOutSz = sizeof(pOut);
+        }
+
+        if (ret == BUFFER_E) {
+            /* q output buffer size too small */
+            qOutSz = 1;
+            ret = wc_DsaExportParamsRaw(&key, pOut, &pOutSz, qOut, &qOutSz,
+                                        gOut, &gOutSz);
+            qOutSz = sizeof(qOut);
+        }
+
+        if (ret == BUFFER_E) {
+            /* g output buffer size too small */
+            gOutSz = 1;
+            ret = wc_DsaExportParamsRaw(&key, pOut, &pOutSz, qOut, &qOutSz,
+                                        gOut, &gOutSz);
+            if (ret == BUFFER_E)
+                ret = 0;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    wc_FreeDsaKey(&key);
+
+#endif
+
+    return ret;
+
+} /* END test_wc_DsaExportParamsRaw */
+
+/*
+ * Testing wc_DsaExportKeyRaw()
+ */
+static int test_wc_DsaExportKeyRaw (void)
+{
+    int     ret = 0;
+
+#if !defined(NO_DSA) && defined(HAVE_KEY_GEN)
+    DsaKey  key;
+    WC_RNG  rng;
+
+    byte xOut[MAX_DSA_PARAM_SIZE];
+    byte yOut[MAX_DSA_PARAM_SIZE];
+    word32 xOutSz, yOutSz;
+
+    printf(testingFmt, "wc_DsaExportKeyRaw()");
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0) {
+        ret = wc_InitDsaKey(&key);
+    }
+
+    if (ret == 0) {
+        ret = wc_MakeDsaParameters(&rng, 1024, &key);
+
+        if (ret == 0)  {
+            ret = wc_MakeDsaKey(&rng, &key);
+        }
+    }
+
+    /* try successful export */
+    if (ret == 0) {
+        xOutSz = sizeof(xOut);
+        yOutSz = sizeof(yOut);
+        ret = wc_DsaExportKeyRaw(&key, xOut, &xOutSz, yOut, &yOutSz);
+    }
+
+    /* test bad args */
+    if (ret == 0) {
+        /* null key struct */
+        ret = wc_DsaExportKeyRaw(NULL, xOut, &xOutSz, yOut, &yOutSz);
+
+        if (ret == BAD_FUNC_ARG) {
+            /* null output pointers */
+            ret = wc_DsaExportKeyRaw(&key, NULL, &xOutSz, NULL, &yOutSz);
+        }
+
+        if (ret == BAD_FUNC_ARG) {
+            /* null output size pointers */
+            ret = wc_DsaExportKeyRaw(&key, xOut, NULL, yOut, NULL);
+        }
+
+        if (ret == BAD_FUNC_ARG) {
+            /* x output buffer size too small */
+            xOutSz = 1;
+            ret = wc_DsaExportKeyRaw(&key, xOut, &xOutSz, yOut, &yOutSz);
+            xOutSz = sizeof(xOut);
+        }
+
+        if (ret == BUFFER_E) {
+            /* y output buffer size too small */
+            yOutSz = 1;
+            ret = wc_DsaExportKeyRaw(&key, xOut, &xOutSz, yOut, &yOutSz);
+
+            if (ret == BUFFER_E)
+                ret = 0;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    wc_FreeDsaKey(&key);
+    wc_FreeRng(&rng);
+
+#endif
+
+    return ret;
+
+} /* END test_wc_DsaExportParamsRaw */
+
 
 /*
  * Testing wc_ed25519_make_key().
@@ -15274,6 +15560,9 @@ void ApiTest(void)
     AssertIntEQ(test_wc_DsaPublicPrivateKeyDecode(), 0);
     AssertIntEQ(test_wc_MakeDsaKey(), 0);
     AssertIntEQ(test_wc_DsaKeyToDer(), 0);
+    AssertIntEQ(test_wc_DsaImportParamsRaw(), 0);
+    AssertIntEQ(test_wc_DsaExportParamsRaw(), 0);
+    AssertIntEQ(test_wc_DsaExportKeyRaw(), 0);
 
 #ifdef OPENSSL_EXTRA
     /*wolfSSS_EVP_get_cipherbynid test*/
