@@ -703,8 +703,11 @@ MP_API int mp_radix_size (mp_int * a, int radix, int *size);
     #define mp_dump(desc, a, verbose)
 #endif
 
-#ifdef HAVE_ECC
+#if !defined(NO_DSA) || defined(HAVE_ECC)
     MP_API int mp_read_radix(mp_int* a, const char* str, int radix);
+#endif
+
+#ifdef HAVE_ECC
     MP_API int mp_sqr(fp_int *a, fp_int *b);
     MP_API int mp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp);
     MP_API int mp_montgomery_setup(fp_int *a, fp_digit *rho);

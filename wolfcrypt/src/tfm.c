@@ -3076,15 +3076,16 @@ int mp_add_d(fp_int *a, fp_digit b, fp_int *c)
 #endif  /* HAVE_ECC || !NO_PWDBASED */
 
 
-#if defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
-    defined(WOLFSSL_DEBUG_MATH) || defined(DEBUG_WOLFSSL)
+#if !defined(NO_DSA) || defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN) || \
+    defined(HAVE_COMP_KEY) || defined(WOLFSSL_DEBUG_MATH) || \
+    defined(DEBUG_WOLFSSL)
 
 /* chars used in radix conversions */
 static const char* const fp_s_rmap = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                                      "abcdefghijklmnopqrstuvwxyz+/";
 #endif
 
-#ifdef HAVE_ECC
+#if !defined(NO_DSA) || defined(HAVE_ECC)
 #if DIGIT_BIT == 64 || DIGIT_BIT == 32
 static int fp_read_radix_16(fp_int *a, const char *str)
 {
@@ -3196,6 +3197,10 @@ int mp_read_radix(mp_int *a, const char *str, int radix)
 {
     return fp_read_radix(a, str, radix);
 }
+
+#endif /* !defined(NO_DSA) || defined(HAVE_ECC) */
+
+#ifdef HAVE_ECC
 
 /* fast math conversion */
 int mp_sqr(fp_int *A, fp_int *B)

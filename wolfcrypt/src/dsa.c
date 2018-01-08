@@ -97,7 +97,6 @@ void wc_FreeDsaKey(DsaKey* key)
     mp_clear(&key->p);
 }
 
-#ifdef WOLFSSL_KEY_GEN
 
 /* validate that (L,N) match allowed sizes from FIPS 186-4, Section 4.2.
  * l - represents L, the size of p in bits
@@ -126,6 +125,9 @@ static int CheckDsaLN(int l, int n)
 
     return ret;
 }
+
+
+#ifdef WOLFSSL_KEY_GEN
 
 /* Create DSA key pair (&dsa->x, &dsa->y)
  *
@@ -220,6 +222,7 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
 
     return err;
 }
+
 
 /* modulus_size in bits */
 int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
@@ -421,6 +424,157 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
     return MP_OKAY;
 }
 #endif /* WOLFSSL_KEY_GEN */
+
+
+/* Import raw DSA parameters into DsaKey structure for use with wc_MakeDsaKey(),
+ * input parameters (p,q,g) should be represented as ASCII hex values.
+ *
+ * dsa  - pointer to initialized DsaKey structure
+ * p    - DSA (p) parameter, ASCII hex string
+ * pSz  - length of p
+ * q    - DSA (q) parameter, ASCII hex string
+ * qSz  - length of q
+ * g    - DSA (g) parameter, ASCII hex string
+ * gSz  - length of g
+ *
+ * returns 0 on success, negative upon failure
+ */
+int wc_DsaImportParamsRaw(DsaKey* dsa, const char* p, const char* q,
+                          const char* g)
+{
+    int err;
+    word32 pSz, qSz;
+
+    if (dsa == NULL || p == NULL || q == NULL || g == NULL)
+        return BAD_FUNC_ARG;
+
+    /* read p */
+    err = mp_read_radix(&dsa->p, p, MP_RADIX_HEX);
+
+    /* read q */
+    if (err == MP_OKAY)
+        err = mp_read_radix(&dsa->q, q, MP_RADIX_HEX);
+
+    /* read g */
+    if (err == MP_OKAY)
+        err = mp_read_radix(&dsa->g, g, MP_RADIX_HEX);
+
+    /* verify (L,N) pair bit lengths */
+    pSz = mp_unsigned_bin_size(&dsa->p);
+    qSz = mp_unsigned_bin_size(&dsa->q);
+
+    if (CheckDsaLN(pSz * 8, qSz * 8) != 0) {
+        WOLFSSL_MSG("Invalid DSA p or q parameter size");
+        err = BAD_FUNC_ARG;
+    }
+
+    if (err != MP_OKAY) {
+        mp_clear(&dsa->p);
+        mp_clear(&dsa->q);
+        mp_clear(&dsa->g);
+    }
+
+    return err;
+}
+
+
+/* Export raw DSA parameters from DsaKey structure
+ *
+ * dsa  - pointer to initialized DsaKey structure
+ * p    - output location for DSA (p) parameter
+ * pSz  - [IN/OUT] size of output buffer for p, size of p
+ * q    - output location for DSA (q) parameter
+ * qSz  - [IN/OUT] size of output buffer for q, size of q
+ * g    - output location for DSA (g) parameter
+ * gSz  - [IN/OUT] size of output buffer for g, size of g
+ *
+ * returns 0 on success, negative upon failure
+ */
+int wc_DsaExportParamsRaw(DsaKey* dsa, byte* p, word32* pSz,
+                          byte* q, word32* qSz, byte* g, word32* gSz)
+{
+    int err;
+    word32 tmp;
+
+    if (dsa == NULL || p == NULL || pSz == NULL || q == NULL ||
+        qSz == NULL || g == NULL || gSz == NULL)
+        return BAD_FUNC_ARG;
+
+    /* export p */
+    tmp = mp_unsigned_bin_size(&dsa->p);
+    if (*pSz < tmp) {
+        WOLFSSL_MSG("Output buffer for DSA p parameter too small");
+        return BUFFER_E;
+    }
+    *pSz = tmp;
+    err = mp_to_unsigned_bin(&dsa->p, p);
+
+    /* export q */
+    if (err == MP_OKAY) {
+        tmp = mp_unsigned_bin_size(&dsa->q);
+        if (*qSz < tmp) {
+            WOLFSSL_MSG("Output buffer to DSA q parameter too small");
+            return BUFFER_E;
+        }
+        *qSz = tmp;
+        err = mp_to_unsigned_bin(&dsa->q, q);
+    }
+
+    /* export g */
+    if (err == MP_OKAY) {
+        tmp = mp_unsigned_bin_size(&dsa->g);
+        if (*gSz < tmp) {
+            WOLFSSL_MSG("Output buffer to DSA g parameter too small");
+            return BUFFER_E;
+        }
+        *gSz = tmp;
+        err = mp_to_unsigned_bin(&dsa->g, g);
+    }
+
+    return err;
+}
+
+
+/* Export raw DSA key (x, y) from DsaKey structure
+ *
+ * dsa  - pointer to initialized DsaKey structure
+ * x    - output location for private key
+ * xSz  - [IN/OUT] size of output buffer for x, size of x
+ * y    - output location for public key
+ * ySz  - [IN/OUT] size of output buffer for y, size of y
+ *
+ * returns 0 on success, negative upon failure
+ */
+int wc_DsaExportKeyRaw(DsaKey* dsa, byte* x, word32* xSz, byte* y, word32* ySz)
+{
+    int err;
+    word32 tmp;
+
+    if (dsa == NULL || x == NULL || xSz == NULL || y == NULL || ySz == NULL)
+        return BAD_FUNC_ARG;
+
+    /* export x */
+    tmp = mp_unsigned_bin_size(&dsa->x);
+    if (*xSz < tmp) {
+        WOLFSSL_MSG("Output buffer for DSA private key (x) too small");
+        return BUFFER_E;
+    }
+    *xSz = tmp;
+    err = mp_to_unsigned_bin(&dsa->x, x);
+
+    /* export y */
+    if (err == MP_OKAY) {
+        tmp = mp_unsigned_bin_size(&dsa->y);
+        if (*ySz < tmp) {
+            WOLFSSL_MSG("Output buffer to DSA public key (y) too small");
+            return BUFFER_E;
+        }
+        *ySz = tmp;
+        err = mp_to_unsigned_bin(&dsa->y, y);
+    }
+
+    return err;
+}
 
 
 int wc_DsaSign(const byte* digest, byte* out, DsaKey* key, WC_RNG* rng)
