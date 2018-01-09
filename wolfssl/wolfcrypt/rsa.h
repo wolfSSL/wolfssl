@@ -150,6 +150,10 @@ WOLFSSL_API int  wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
 WOLFSSL_API int  wc_RsaPSS_Sign(const byte* in, word32 inLen, byte* out,
                                 word32 outLen, enum wc_HashType hash, int mgf,
                                 RsaKey* key, WC_RNG* rng);
+WOLFSSL_API int  wc_RsaPSS_Sign_ex(const byte* in, word32 inLen, byte* out,
+                                   word32 outLen, enum wc_HashType hash,
+                                   int mgf, int saltLen, RsaKey* key,
+                                   WC_RNG* rng);
 WOLFSSL_API int  wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out,
                                     RsaKey* key);
 WOLFSSL_API int  wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out,
@@ -157,9 +161,22 @@ WOLFSSL_API int  wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out,
 WOLFSSL_API int  wc_RsaPSS_VerifyInline(byte* in, word32 inLen, byte** out,
                                         enum wc_HashType hash, int mgf,
                                         RsaKey* key);
+WOLFSSL_API int  wc_RsaPSS_VerifyInline_ex(byte* in, word32 inLen, byte** out,
+                                           enum wc_HashType hash, int mgf,
+                                           int saltLen, RsaKey* key);
+WOLFSSL_API int  wc_RsaPSS_Verify(byte* in, word32 inLen, byte* out,
+                                  word32 outLen, enum wc_HashType hash, int mgf,
+                                  RsaKey* key);
+WOLFSSL_API int  wc_RsaPSS_Verify_ex(byte* in, word32 inLen, byte* out,
+                                     word32 outLen, enum wc_HashType hash,
+                                     int mgf, int saltLen, RsaKey* key);
 WOLFSSL_API int  wc_RsaPSS_CheckPadding(const byte* in, word32 inLen, byte* sig,
                                         word32 sigSz,
                                         enum wc_HashType hashType);
+WOLFSSL_API int  wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inLen,
+                                           byte* sig, word32 sigSz,
+                                           enum wc_HashType hashType,
+                                           int saltLen);
 
 WOLFSSL_API int  wc_RsaEncryptSize(RsaKey* key);
 
