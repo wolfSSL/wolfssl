@@ -23864,29 +23864,6 @@ void* wolfSSL_GetEccSharedSecretCtx(WOLFSSL* ssl)
 }
 #endif /* HAVE_ECC */
 
-#ifndef NO_DH
-
-void wolfSSL_CTX_SetDhAgreeCb(WOLFSSL_CTX* ctx, CallbackDhAgree cb)
-{
-    if (ctx)
-        ctx->DhAgreeCb = cb;
-}
-
-void wolfSSL_SetDhAgreeCtx(WOLFSSL* ssl, void *ctx)
-{
-    if (ssl)
-        ssl->DhAgreeCtx = ctx;
-}
-
-void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
-{
-    if (ssl)
-        return ssl->DhAgreeCtx;
-
-    return NULL;
-}
-#endif /* !NO_DH */
-
 #ifdef HAVE_ED25519
 void  wolfSSL_CTX_SetEd25519SignCb(WOLFSSL_CTX* ctx, CallbackEd25519Sign cb)
 {
@@ -24101,6 +24078,29 @@ void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl)
 
 #endif /* HAVE_PK_CALLBACKS */
 #endif /* NO_CERTS */
+
+#if defined(HAVE_PK_CALLBACKS) && !defined(NO_DH)
+
+void wolfSSL_CTX_SetDhAgreeCb(WOLFSSL_CTX* ctx, CallbackDhAgree cb)
+{
+    if (ctx)
+        ctx->DhAgreeCb = cb;
+}
+
+void wolfSSL_SetDhAgreeCtx(WOLFSSL* ssl, void *ctx)
+{
+    if (ssl)
+        ssl->DhAgreeCtx = ctx;
+}
+
+void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
+{
+    if (ssl)
+        return ssl->DhAgreeCtx;
+
+    return NULL;
+}
+#endif /* HAVE_PK_CALLBACKS && !NO_DH */
 
 
 #ifdef WOLFSSL_HAVE_WOLFSCEP

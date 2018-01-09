@@ -24,6 +24,9 @@
     #ifdef HAVE_ECC
         #include <wolfssl/wolfcrypt/ecc.h>
     #endif /* HAVE_ECC */
+    #ifndef NO_DH
+        #include <wolfssl/wolfcrypt/dh.h>
+    #endif /* !NO_DH */
     #ifdef HAVE_ED25519
         #include <wolfssl/wolfcrypt/ed25519.h>
     #endif /* HAVE_ED25519 */
