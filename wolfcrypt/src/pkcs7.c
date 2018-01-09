@@ -619,8 +619,8 @@ static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd,
 }
 
 
-/* gets correct encryption algo ID for SignedData, either RSAk or
- * CTC_<hash>wECDSA, from pkcs7->publicKeyOID.
+/* gets correct encryption algo ID for SignedData, either CTC_<hash>wRSA or
+ * CTC_<hash>wECDSA, from pkcs7->publicKeyOID and pkcs7->hashOID.
  *
  * pkcs7          - pointer to PKCS7 structure
  * digEncAlgoId   - [OUT] output int to store correct algo ID in
@@ -638,8 +638,29 @@ static int wc_PKCS7_SignedDataGetEncAlgoId(PKCS7* pkcs7, int* digEncAlgoId,
 
     if (pkcs7->publicKeyOID == RSAk) {
 
-        algoId = pkcs7->encryptOID;
-        algoType = oidKeyType;
+        algoType = oidSigType;
+
+        switch (pkcs7->hashOID) {
+            case SHAh:
+                algoId = CTC_SHAwRSA;
+                break;
+
+            case SHA224h:
+                algoId = CTC_SHA224wRSA;
+                break;
+
+            case SHA256h:
+                algoId = CTC_SHA256wRSA;
+                break;
+
+            case SHA384h:
+                algoId = CTC_SHA384wRSA;
+                break;
+
+            case SHA512h:
+                algoId = CTC_SHA512wRSA;
+                break;
+        }
 
     } else if (pkcs7->publicKeyOID == ECDSAk) {
 
@@ -1508,7 +1529,8 @@ static int wc_PKCS7_SignedDataVerifySignature(PKCS7* pkcs7, byte* sig,
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_SMALL_STACK
-    pkcs7Digest = (byte*)XMALLOC(MAX_PKCS7_DIGEST_SZ, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    pkcs7Digest = (byte*)XMALLOC(MAX_PKCS7_DIGEST_SZ, NULL,
+                                 DYNAMIC_TYPE_TMP_BUFFER);
     if (pkcs7Digest == NULL)
         return MEMORY_E;
 #endif
@@ -1559,10 +1581,76 @@ static int wc_PKCS7_SignedDataVerifySignature(PKCS7* pkcs7, byte* sig,
 }
 
 
+/* set correct public key OID based on signature OID, stores in
+ * pkcs7->publicKeyOID and returns same value */
+static int wc_PKCS7_SetPublicKeyOID(PKCS7* pkcs7, int sigOID)
+{
+    if (pkcs7 == NULL)
+        return BAD_FUNC_ARG;
+
+    pkcs7->publicKeyOID = 0;
+
+    switch (sigOID) {
+
+    #ifndef NO_RSA
+        /* RSA signature types */
+        case CTC_MD2wRSA:
+        case CTC_MD5wRSA:
+        case CTC_SHAwRSA:
+        case CTC_SHA224wRSA:
+        case CTC_SHA256wRSA:
+        case CTC_SHA384wRSA:
+        case CTC_SHA512wRSA:
+            pkcs7->publicKeyOID = RSAk;
+            break;
+
+        /* if sigOID is already RSAk */
+        case RSAk:
+            pkcs7->publicKeyOID = sigOID;
+            break;
+    #endif
+
+    #ifndef NO_DSA
+        /* DSA signature types */
+        case CTC_SHAwDSA:
+            pkcs7->publicKeyOID = DSAk;
+            break;
+
+        /* if sigOID is already DSAk */
+        case DSAk:
+            pkcs7->publicKeyOID = sigOID;
+            break;
+    #endif
+
+    #ifdef HAVE_ECC
+        /* ECDSA signature types */
+        case CTC_SHAwECDSA:
+        case CTC_SHA224wECDSA:
+        case CTC_SHA256wECDSA:
+        case CTC_SHA384wECDSA:
+        case CTC_SHA512wECDSA:
+            pkcs7->publicKeyOID = ECDSAk;
+            break;
+
+        /* if sigOID is already ECDSAk */
+        case ECDSAk:
+            pkcs7->publicKeyOID = sigOID;
+            break;
+    #endif
+
+        default:
+            WOLFSSL_MSG("Unsupported public key algorithm");
+            return ASN_SIG_KEY_E;
+    }
+
+    return pkcs7->publicKeyOID;
+}
+
+
 /* Finds the certificates in the message and saves it. */
 int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
 {
-    word32 idx, contentType, hashOID;
+    word32 idx, contentType, hashOID, sigOID;
     int length, version, ret;
     byte* content = NULL;
     byte* sig = NULL;
@@ -1730,12 +1818,17 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
             idx += length;
         }
 
-        /* Get the sequence of digestEncryptionAlgorithm */
-        if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        /* Get digestEncryptionAlgorithm */
+        if (GetAlgoId(pkiMsg, &idx, &sigOID, oidSigType, pkiMsgSz) < 0) {
             return ASN_PARSE_E;
+        }
 
-        /* Skip it */
-        idx += length;
+        /* store public key type based on digestEncryptionAlgorithm */
+        ret = wc_PKCS7_SetPublicKeyOID(pkcs7, sigOID);
+        if (ret <= 0) {
+            WOLFSSL_MSG("Failed to set public key OID from signature");
+            return ret;
+        }
 
         /* Get the signature */
         if (pkiMsg[idx] == ASN_OCTET_STRING) {

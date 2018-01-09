@@ -3828,7 +3828,20 @@ int DhAgree(WOLFSSL* ssl, DhKey* dhKey,
         return ret;
 #endif
 
-    ret = wc_DhAgree(dhKey, agree, agreeSz, priv, privSz, otherPub, otherPubSz);
+#ifdef HAVE_PK_CALLBACKS
+    if (ssl->ctx->DhAgreeCb) {
+        void* ctx = wolfSSL_GetDhAgreeCtx(ssl);
+
+        WOLFSSL_MSG("Calling DhAgree Callback Function");
+        ret = ssl->ctx->DhAgreeCb(ssl, dhKey, priv, privSz,
+                    otherPub, otherPubSz, agree, agreeSz, ctx);
+    }
+    else
+#endif
+    {
+        ret = wc_DhAgree(dhKey, agree, agreeSz, priv, privSz, otherPub,
+                otherPubSz);
+    }
 
     /* Handle async pending response */
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -6084,7 +6097,7 @@ static void AddFragHeaders(byte* output, word32 fragSz, word32 fragOffset,
 
 
 /* return bytes received, -1 on error */
-static int Receive(WOLFSSL* ssl, byte* buf, word32 sz)
+static int wolfSSLReceive(WOLFSSL* ssl, byte* buf, word32 sz)
 {
     int recvd;
 
@@ -11613,7 +11626,7 @@ static int GetInputData(WOLFSSL *ssl, word32 size)
 
     /* read data from network */
     do {
-        in = Receive(ssl,
+        in = wolfSSLReceive(ssl,
                      ssl->buffers.inputBuffer.buffer +
                      ssl->buffers.inputBuffer.length,
                      inSz);
@@ -19615,8 +19628,6 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
 #if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519)
     int      keySz;
     word32   idx;
-    (void)idx;
-    (void)keySz;
 #else
     (void)length;
 #endif
@@ -19743,6 +19754,8 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
     }
 #endif
 
+    (void)idx;
+    (void)keySz;
 exit_dpk:
     return ret;
 }

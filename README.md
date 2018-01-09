@@ -74,7 +74,7 @@ updated examples and project files, and one vulnerability fix. The full list
 of changes and additions in this release include:
 
 * Fixes for TLS 1.3, support for Draft 21
-* TLS 1.0 disabled by default, addition of “--enable-tls10” configure option
+* TLS 1.0 disabled by default, addition of “--enable-tlsv10” configure option
 * New option to reduce SHA-256 code size at expense of performance
   (USE_SLOW_SHA256)
 * New option for memory reduced build (--enable-lowresource)

@@ -32,6 +32,7 @@
 /* for users not using preprocessor flags*/
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/version.h>
+#include <wolfssl/wolfcrypt/logging.h>
 
 #ifdef HAVE_WOLF_EVENT
     #include <wolfssl/wolfcrypt/wolfevent.h>
@@ -1323,11 +1324,6 @@ WOLFSSL_API const char* wolfSSL_lib_version(void);
 /* which library version do we have in hex */
 WOLFSSL_API unsigned int wolfSSL_lib_version_hex(void);
 
-/* turn logging on, only if compiled in */
-WOLFSSL_API int  wolfSSL_Debugging_ON(void);
-/* turn logging off */
-WOLFSSL_API void wolfSSL_Debugging_OFF(void);
-
 /* do accept or connect depedning on side */
 WOLFSSL_API int wolfSSL_negotiate(WOLFSSL* ssl);
 /* turn on wolfSSL data compression */
@@ -1695,6 +1691,19 @@ typedef int (*CallbackEccSharedSecret)(WOLFSSL* ssl, struct ecc_key* otherKey,
 WOLFSSL_API void  wolfSSL_CTX_SetEccSharedSecretCb(WOLFSSL_CTX*, CallbackEccSharedSecret);
 WOLFSSL_API void  wolfSSL_SetEccSharedSecretCtx(WOLFSSL* ssl, void *ctx);
 WOLFSSL_API void* wolfSSL_GetEccSharedSecretCtx(WOLFSSL* ssl);
+
+#ifndef NO_DH
+/* Public DH Key Callback support */
+struct DhKey;
+typedef int (*CallbackDhAgree)(WOLFSSL* ssl, struct DhKey* key,
+        const unsigned char* priv, unsigned int privSz,
+        const unsigned char* otherPubKeyDer, unsigned int otherPubKeySz,
+        unsigned char* out, unsigned int* outlen,
+        void* ctx);
+WOLFSSL_API void  wolfSSL_CTX_SetDhAgreeCb(WOLFSSL_CTX*, CallbackDhAgree);
+WOLFSSL_API void  wolfSSL_SetDhAgreeCtx(WOLFSSL* ssl, void *ctx);
+WOLFSSL_API void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl);
+#endif /* !NO_DH */
 
 struct ed25519_key;
 typedef int (*CallbackEd25519Sign)(WOLFSSL* ssl,

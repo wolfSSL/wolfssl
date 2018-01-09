@@ -113,6 +113,9 @@
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
     #include <wolfssl/wolfcrypt/logging.h>
 #endif
+#ifdef WOLFSSL_IMX6_CAAM_BLOB
+    #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
+#endif
 
 /* only for stack size check */
 #ifdef HAVE_STACK_SIZE
@@ -317,17 +320,10 @@ int mutex_test(void);
 #if defined(USE_WOLFSSL_MEMORY) && !defined(FREERTOS)
 int memcb_test(void);
 #endif
+#ifdef WOLFSSL_IMX6_CAAM_BLOB
+int blob_test(void);
+#endif
 
-#if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND) && \
-        !defined(OPENSSL_EXTRA) && !defined(HAVE_STACK_SIZE)
-#ifdef __cplusplus
-    extern "C" {
-#endif
-    WOLFSSL_API int wolfSSL_Debugging_ON(void);
-#ifdef __cplusplus
-    }  /* extern "C" */
-#endif
-#endif
 
 /* General big buffer size for many tests. */
 #define FOURK_BUF 4096
@@ -855,12 +851,10 @@ int wolfcrypt_test(void* args)
         printf( "mp       test passed!\n");
 #endif
 
-#ifdef HAVE_VALGRIND
     if ( (ret = logging_test()) != 0)
         return err_sys("logging  test failed!\n", ret);
     else
         printf( "logging  test passed!\n");
-#endif
 
     if ( (ret = mutex_test()) != 0)
         return err_sys("mutex    test failed!\n", ret);
@@ -872,6 +866,13 @@ int wolfcrypt_test(void* args)
         return err_sys("memcb    test failed!\n", ret);
     else
         printf( "memcb    test passed!\n");
+#endif
+
+#ifdef WOLFSSL_IMX6_CAAM_BLOB
+    if ( (ret = blob_test()) != 0)
+        return err_sys("blob     test failed!\n", ret);
+    else
+        printf( "blob     test passed!\n");
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -15079,24 +15080,15 @@ done:
 }
 #endif
 
-#ifdef HAVE_VALGRIND
-/* Need a static build to have access to symbols. */
-
-#ifndef WOLFSSL_SSL_H
-/* APIs hiding in ssl.h */
-extern int wolfSSL_Debugging_ON(void);
-extern void wolfSSL_Debugging_OFF(void);
-#endif
-
 #ifdef DEBUG_WOLFSSL
-static int log_cnt = 0;
+static THREAD_LS_T int log_cnt = 0;
 static void my_Logging_cb(const int logLevel, const char *const logMessage)
 {
     (void)logLevel;
     (void)logMessage;
     log_cnt++;
 }
-#endif
+#endif /* DEBUG_WOLFSSL */
 
 int logging_test(void)
 {
@@ -15104,55 +15096,60 @@ int logging_test(void)
     const char* msg = "Testing, testing. 1, 2, 3, 4 ...";
     byte        a[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
     byte        b[256];
-    size_t      i;
+    int         i;
 
-    for (i = 0; i < sizeof(b); i++)
+    for (i = 0; i < (int)sizeof(b); i++)
         b[i] = i;
 
     if (wolfSSL_Debugging_ON() != 0)
         return -7900;
-    if (wolfSSL_SetLoggingCb(NULL) != BAD_FUNC_ARG)
+
+    if (wolfSSL_SetLoggingCb(my_Logging_cb) != 0)
         return -7901;
 
     WOLFSSL_MSG(msg);
     WOLFSSL_BUFFER(a, sizeof(a));
     WOLFSSL_BUFFER(b, sizeof(b));
     WOLFSSL_BUFFER(NULL, 0);
+    WOLFSSL_ERROR(MEMORY_E);
+    WOLFSSL_ERROR_MSG(msg);
 
+    /* turn off logs */
     wolfSSL_Debugging_OFF();
 
+    /* capture log count */
+    i = log_cnt;
+
+    /* validate no logs are output when disabled */
     WOLFSSL_MSG(msg);
+    WOLFSSL_BUFFER(a, sizeof(a));
     WOLFSSL_BUFFER(b, sizeof(b));
+    WOLFSSL_BUFFER(NULL, 0);
+    WOLFSSL_ERROR(MEMORY_E);
+    WOLFSSL_ERROR_MSG(msg);
 
-    if (wolfSSL_SetLoggingCb(my_Logging_cb) != 0)
-        return -7902;
-
-    wolfSSL_Debugging_OFF();
-
-    WOLFSSL_MSG(msg);
-    WOLFSSL_BUFFER(b, sizeof(b));
-
-    if (log_cnt != 0)
-        return -7903;
-    if (wolfSSL_Debugging_ON() != 0)
+    /* check the logs were disabled */
+    if (i != log_cnt)
         return -7904;
 
-    WOLFSSL_MSG(msg);
-    WOLFSSL_BUFFER(b, sizeof(b));
+    /* restore callback and leave logging enabled */
+    wolfSSL_SetLoggingCb(NULL);
+    wolfSSL_Debugging_ON();
 
-    /* One call for each line of output. */
-    if (log_cnt != 17)
-        return -7905;
+    /* suppress unused args */
+    (void)a;
+    (void)b;
+
 #else
     if (wolfSSL_Debugging_ON() != NOT_COMPILED_IN)
         return -7906;
     wolfSSL_Debugging_OFF();
     if (wolfSSL_SetLoggingCb(NULL) != NOT_COMPILED_IN)
         return -7907;
-#endif
+#endif /* DEBUG_WOLFSSL */
     return 0;
 }
-#endif
+
 
 int mutex_test(void)
 {
@@ -15265,6 +15262,85 @@ exit_memcb:
     return ret;
 }
 #endif
+
+
+#ifdef WOLFSSL_IMX6_CAAM_BLOB
+int blob_test(void)
+{
+    int ret = 0;
+    byte out[112];
+    byte blob[112];
+    word32 outSz;
+
+    const byte iv[] =
+        {
+            0xf0,0xf1,0xf2,0xf3,0xf4,0xf5,0xf6,0xf7,
+            0xf8,0xf9,0xfa,0xfb,0xfc,0xfd,0xfe,0xff
+        };
+
+    const byte text[] =
+        {
+            0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+            0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a,
+            0xae,0x2d,0x8a,0x57,0x1e,0x03,0xac,0x9c,
+            0x9e,0xb7,0x6f,0xac,0x45,0xaf,0x8e,0x51,
+            0x30,0xc8,0x1c,0x46,0xa3,0x5c,0xe4,0x11,
+            0xe5,0xfb,0xc1,0x19,0x1a,0x0a,0x52,0xef,
+            0xf6,0x9f,0x24,0x45,0xdf,0x4f,0x9b,0x17,
+            0xad,0x2b,0x41,0x7b,0xe6,0x6c,0x37,0x10
+        };
+
+
+    memset(blob, 0, sizeof(blob));
+    outSz = sizeof(blob);
+    ret = wc_caamCreateBlob((byte*)iv, sizeof(iv), blob, &outSz);
+    if (ret != 0) {
+        ERROR_OUT(-8200, exit_blob);
+    }
+
+    blob[outSz - 2] += 1;
+    ret = wc_caamOpenBlob(blob, outSz, out, &outSz);
+    if (ret == 0) { /* should fail with altered blob */
+        ERROR_OUT(-8201, exit_blob);
+    }
+
+    memset(blob, 0, sizeof(blob));
+    outSz = sizeof(blob);
+    ret = wc_caamCreateBlob((byte*)iv, sizeof(iv), blob, &outSz);
+    if (ret != 0) {
+        ERROR_OUT(-8202, exit_blob);
+    }
+
+    ret = wc_caamOpenBlob(blob, outSz, out, &outSz);
+    if (ret != 0) {
+        ERROR_OUT(-8203, exit_blob);
+    }
+
+    if (XMEMCMP(out, iv, sizeof(iv))) {
+        ERROR_OUT(-8204, exit_blob);
+    }
+
+    memset(blob, 0, sizeof(blob));
+    outSz = sizeof(blob);
+    ret = wc_caamCreateBlob((byte*)text, sizeof(text), blob, &outSz);
+    if (ret != 0) {
+        ERROR_OUT(-8205, exit_blob);
+    }
+
+    ret = wc_caamOpenBlob(blob, outSz, out, &outSz);
+    if (ret != 0) {
+        ERROR_OUT(-8206, exit_blob);
+    }
+
+    if (XMEMCMP(out, text, sizeof(text))) {
+        ERROR_OUT(-8207, exit_blob);
+    }
+
+    exit_blob:
+
+    return ret;
+}
+#endif /* WOLFSSL_IMX6_CAAM_BLOB */
 
 #undef ERROR_OUT
 
