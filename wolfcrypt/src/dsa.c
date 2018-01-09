@@ -99,24 +99,24 @@ void wc_FreeDsaKey(DsaKey* key)
 
 
 /* validate that (L,N) match allowed sizes from FIPS 186-4, Section 4.2.
- * l - represents L, the size of p in bits
- * n - represents N, the size of q in bits
+ * modLen - represents L, the size of p (prime modulus) in bits
+ * divLen - represents N, the size of q (prime divisor) in bits
  * return 0 on success, -1 on error */
-static int CheckDsaLN(int l, int n)
+static int CheckDsaLN(int modLen, int divLen)
 {
     int ret = -1;
 
-    switch (l) {
+    switch (modLen) {
         case 1024:
-            if (n == 160)
+            if (divLen == 160)
                 ret = 0;
             break;
         case 2048:
-            if (n == 224 || n == 256)
+            if (divLen == 224 || divLen == 256)
                 ret = 0;
             break;
         case 3072:
-            if (n == 256)
+            if (divLen == 256)
                 ret = 0;
             break;
         default:
@@ -151,11 +151,11 @@ int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa)
     pSz = mp_unsigned_bin_size(&dsa->p);
 
     /* verify (L,N) pair bit lengths */
-    if (CheckDsaLN(pSz * 8, qSz * 8) != 0)
+    if (CheckDsaLN(pSz * WOLFSSL_BIT_SIZE, qSz * WOLFSSL_BIT_SIZE) != 0)
         return BAD_FUNC_ARG;
 
     /* generate extra 64 bits so that bias from mod function is negligible */
-    cSz = qSz + 8;
+    cSz = qSz + (64 / WOLFSSL_BIT_SIZE);
     cBuf = (byte*)XMALLOC(cSz, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (cBuf == NULL) {
         return MEMORY_E;
@@ -253,7 +253,7 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
     }
 
     /* modulus size in bytes */
-    msize = modulus_size / 8;
+    msize = modulus_size / WOLFSSL_BIT_SIZE;
 
     /* allocate ram */
     buf = (unsigned char *)XMALLOC(msize - qsize,
@@ -463,7 +463,7 @@ int wc_DsaImportParamsRaw(DsaKey* dsa, const char* p, const char* q,
     pSz = mp_unsigned_bin_size(&dsa->p);
     qSz = mp_unsigned_bin_size(&dsa->q);
 
-    if (CheckDsaLN(pSz * 8, qSz * 8) != 0) {
+    if (CheckDsaLN(pSz * WOLFSSL_BIT_SIZE, qSz * WOLFSSL_BIT_SIZE) != 0) {
         WOLFSSL_MSG("Invalid DSA p or q parameter size");
         err = BAD_FUNC_ARG;
     }
