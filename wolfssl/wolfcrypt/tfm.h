@@ -32,6 +32,9 @@
  *  to fit CyaSSL's needs.
  */
 
+/*!
+    \file wolfssl/wolfcrypt/tfm.h
+*/
 
 #ifndef WOLF_CRYPT_TFM_H
 #define WOLF_CRYPT_TFM_H
