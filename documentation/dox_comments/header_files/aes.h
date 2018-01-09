@@ -149,10 +149,9 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     AES. This function is only enabled if WOLFSSL_AES_COUNTER is enabled at 
     compile time. The AES structure should be initialized through AesSetKey 
     before calling this function. Note that this function is used for both 
-    decryption and encryption.
-    
-    _NOTE:_ Regarding using same API for encryption and decryption.
-    User should differentiate between Aes structures for encrypt/decrypt.
+    decryption and encryption. _NOTE:_ Regarding using same API for encryption 
+    and decryption. User should differentiate between Aes structures 
+    for encrypt/decrypt.
     
     \return none
     
@@ -192,10 +191,9 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     the output block, out. It uses the key and iv (initialization vector) 
     of the provided AES structure, which should be initialized with 
     wc_AesSetKey before calling this function. It is only enabled if the 
-    configure option WOLFSSL_AES_DIRECT is enabled.
-    
-    __Warning:__ In nearly all use cases ECB mode is considered to be 
-    less secure. Please avoid using ECB API’s directly whenever possible
+    configure option WOLFSSL_AES_DIRECT is enabled. __Warning:__ In nearly all 
+    use cases ECB mode is considered to be less secure. Please avoid using ECB 
+    API’s directly whenever possible
     
     \param aes pointer to the AES object used to encrypt data
     \param out pointer to the output buffer in which to store the cipher 
@@ -216,17 +214,16 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     \sa wc_AesSetKeyDirect
 */
  WOLFSSL_API void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
- /*!
+/*!
     \ingroup AES
     \brief This function is a one-block decrypt of the input block, in, into 
     the output block, out. It uses the key and iv (initialization vector) of 
     the provided AES structure, which should be initialized with wc_AesSetKey 
     before calling this function. It is only enabled if the configure option 
     WOLFSSL_AES_DIRECT is enabled, and there is support for direct AES 
-    encryption on the system in question.
-    
-    __Warning:__ In nearly all use cases ECB mode is considered to be less 
-    secure. Please avoid using ECB API’s directly whenever possible
+    encryption on the system in question. __Warning:__ In nearly all use cases 
+    ECB mode is considered to be less secure. Please avoid using ECB API’s 
+    directly whenever possible
     
     \return none
     
@@ -250,16 +247,15 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     \sa wc_AesSetKeyDirect
  */
  WOLFSSL_API void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
- /*!
+/*!
     \ingroup AES
     \brief This function is used to set the AES keys for CTR mode with AES. 
     It initializes an AES object with the given key, iv 
     (initialization vector), and encryption dir (direction). It is only 
     enabled if the configure option WOLFSSL_AES_DIRECT is enabled. 
-    Currently wc_AesSetKeyDirect uses wc_AesSetKey internally.
-    
-    __Warning:__ In nearly all use cases ECB mode is considered to be 
-    less secure. Please avoid using ECB API’s directly whenever possible
+    Currently wc_AesSetKeyDirect uses wc_AesSetKey internally. __Warning:__ In 
+    nearly all use cases ECB mode is considered to be less secure. Please avoid 
+    using ECB API’s directly whenever possible
     
     \return 0 On successfully setting the key.
     \return BAD_FUNC_ARG Returned if the given key is an invalid length.
@@ -288,7 +284,7 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     \sa wc_AesEncryptDirect
     \sa wc_AesDecryptDirect
     \sa wc_AesSetKey
- */
+*/
  WOLFSSL_API int  wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
                                 const byte* iv, int dir);
 /*!
@@ -319,7 +315,7 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     \sa wc_AesGcmDecrypt
 */
  WOLFSSL_API int  wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len);
- /*!
+/*!
     \ingroup AES
     \brief This function encrypts the input message, held in the buffer in, 
     and stores the resulting cipher text in the output buffer out. It 
@@ -361,13 +357,13 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     
     \sa wc_AesGcmSetKey
     \sa wc_AesGcmDecrypt
- */
+*/
  WOLFSSL_API int  wc_AesGcmEncrypt(Aes* aes, byte* out,
                                    const byte* in, word32 sz,
                                    const byte* iv, word32 ivSz,
                                    byte* authTag, word32 authTagSz,
                                    const byte* authIn, word32 authInSz);
- /*!
+/*!
     \ingroup AES
     \brief This function decrypts the input cipher text, held in the buffer 
     in, and stores the resulting message text in the output buffer out. 
@@ -409,7 +405,7 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     
     \sa wc_AesGcmSetKey
     \sa wc_AesGcmEncrypt
- */
+*/
  WOLFSSL_API int  wc_AesGcmDecrypt(Aes* aes, byte* out,
                                    const byte* in, word32 sz,
                                    const byte* iv, word32 ivSz,
@@ -435,9 +431,9 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     \endcode
     
     \sa wc_GmacUpdate
- */
+*/
  WOLFSSL_API int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len);
- /*!
+/*!
     \ingroup AES
     \brief This function generates the Gmac hash of the authIn input and 
     stores the result in the authTag buffer. After running wc_GmacUpdate, 
@@ -470,7 +466,7 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     \endcode
     
     \sa wc_GmacSetKey
- */
+*/
  WOLFSSL_API int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
                                const byte* authIn, word32 authInSz,
                                byte* authTag, word32 authTagSz);
@@ -498,7 +494,7 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     \sa wc_AesCcmDecrypt
 */
  WOLFSSL_API int  wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz);
- /*!
+/*!
     \ingroup AES
     
     \brief This function encrypts the input message, in, into the output 
@@ -540,13 +536,13 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     
     \sa wc_AesCcmSetKey
     \sa wc_AesCcmDecrypt
- */
+*/
  WOLFSSL_API int  wc_AesCcmEncrypt(Aes* aes, byte* out,
                                    const byte* in, word32 inSz,
                                    const byte* nonce, word32 nonceSz,
                                    byte* authTag, word32 authTagSz,
                                    const byte* authIn, word32 authInSz);
- /*!
+/*!
     \ingroup AES
     
     \brief This function decrypts the input cipher text, in, into 
@@ -594,7 +590,7 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     
     \sa wc_AesCcmSetKey
     \sa wc_AesCcmEncrypt
- */
+*/
  WOLFSSL_API int  wc_AesCcmDecrypt(Aes* aes, byte* out,
                                    const byte* in, word32 inSz,
                                    const byte* nonce, word32 nonceSz,
@@ -604,9 +600,7 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     \ingroup AES
 
     \brief This is to help with setting keys to correct encrypt or 
-    decrypt type.
-
-    \note Is up to user to call wc_AesXtsFree on aes key when done.
+    decrypt type. It is up to user to call wc_AesXtsFree on aes key when done.
 
     \return 0 Success
 
@@ -766,6 +760,7 @@ WOLFSSL_API int wc_AesXtsEncrypt(XtsAes* aes, byte* out,
     \param iSz   size of i buffer, should always be AES_BLOCK_SIZE but having
                  this input adds a sanity check on how the user calls the
                  function.
+                 
     _Example_
     \code
     XtsAes aes;

@@ -1,36 +1,15 @@
 wolfSSL with Doxygen 1.8.13
 
----- Dependencies ----
-
-cmake
-make
-git
-latex (with pdflatex included)
-( The pdflatex dependency can be removed by setting USE_PDFLATEX to NO in the
-file "Doxyfile" located at documentation/formats/pdf/Doxyfile )
-
----- Generating the Documentation ----
+---- Generating the HTML ----
 
 If you are looking to just generate the html documentation and not interested in
-how to add your own just run one of the following comands from the main wolfssl
-directory:
-    
-    make dox (this option will make both html and pdf documentation)
-    make dox-html (only html documentation)
-    make dox-pdf  (only pdf documentation)
-
-If it is the first time running one of the above commands the command will take
-some time to run. This is because the doxygen repository must be clones and then
-built along with the time taken to make the documentation.
-
-Once documentation generation has completed to open the html use a browser to 
-open documentation/html/index.html. To open the generated pdf looking for 
-refman.pdf located and documentation/refman.pdf.
+how to add your own just run the GENERATE_HTML.sh script and then open the 
+html/index.html file with your preferred browser.
 
 ---- Configure ----
 
-Doxygen uses a file called "Doxyfile" to hold all its values for configuration.
-If needed, to generate a fresh Doxfile run the command 
+Doxygen uses a file called "Doxyfile" to hold all its values for configurations.
+If needed to generate a fresh Doxfile run the command 
 
     doxygen -g
     
@@ -51,12 +30,15 @@ Below are some the the settings that are currently used:
     
    GENERATE_LATEX
 
-    - tells doxygen whether or not to generate LATEX documentation. The Latex
-      that is generated is used to generate a PDF as well.
+    - tells doxygen whether or not to generate LATEX documentation.
+
+   GENERATE_MAN
+
+    - tells doxygen whether or not to generate MAN pages.
 
    ENABLE_PREPROCESSING
 
-    - tells doxygen whether or not to ignore C/C++ preprocessors directives i.e #ifdef, #ifndef
+    - allows doxygen to include items for preprocessing like #ifdef, #endif, etc.
     
    EXCLUDE
     
@@ -65,25 +47,17 @@ Below are some the the settings that are currently used:
    HTML_EXTRA_STYLESHEET
     
     -allows the user to specify their own css style sheet to use for the doxygen html.
-    
-    SHOW_USED_FILES and SHOW_FILES
-    
-    - when using groups it is important to keep these options set to yes otherwise
-    functions with documentation that are not part of a group may fail to be included
-    in the generated documentation.
 
 ---- Embedding Documentation ----
 
-Doxygen API documentation should be placed in the documentation/dox_comments/
+Doxygen stype API documentation should be placed in the documentation/dox_comments/
 directory. The documentation should be stored in a file in this directory with the 
 same name of the file in which the API resides in the wolfssl repository. C code
 header files (*.h) should be used when writing the API documentation. If API in a 
-file is being documented for the first time be sure to add the to the top of the 
-original file:
-
-    /*!
-        \file wolfssl/PATH_TO_FILE/FILE_NAME
-    */
+file is documented be sure to add the the top of the original file:
+/*!
+    \file wolfssl/PATH_TO_FILE/FILE_NAME
+*/
 
 This ensures that the file will be linked to in the doxygen generated html.
 When specifying a specific file with the \file command be sure to include part of
@@ -93,7 +67,6 @@ when multiple files share the same name.
 To ensure that doxygen documents a specific API in to a desired module be sure 
 to include that module's name in the \ingroup. The current modules to choose from
 are as follows but new group can be made:
-
     \ingroup 3DES
     \ingroup AES
     \ingroup ARC4
@@ -123,18 +96,13 @@ are as follows but new group can be made:
     \ingroup wolfCrypt
     \ingroup openSSL
     \ingroup CertManager
-    \ingroup TLS
-    \ingroup CertsKeys
-    \ingroup Setup
-    \ingroup IO
-    \ingroup Debug
 
 If one of the above modules/ groups does not fit a desired function then a new 
-group will need to be created. To do this include add a new group definition
-to the doxygen_groups.h file located at documentation/formats/pdf/doxygen_groups.h
+group will need to be created. To do this include the following at the top of 
+the ssl.h file in wolfssl/wolfssl maintaining the alphabetical order:
 
     /*!
-        \defgroup <group name> <description>
+        \defgroup <group name>
     */
 
 The general outline when documenting within the wolfssl library in doxygen should
@@ -154,17 +122,12 @@ look like as follows:
             // any example code here
         \endcode
         
-        \sa // stands for see also. Each API reference here should begin with \sa
-        \sa <Function>
-        \sa <Function>
+        \sa // stands for see also. Each API reference here should have its own \sa
     */
 
-When adding new documentation be sure to keep the secions, \ingroup, \brief,
-\param, \return, Etc. seperated with at least 1 newline. This insures that when
-doxygen attempts to generate documentation the sections do not overlap eachother
-and produce errors (this is especialy important when the latex is being generated).
-Once finished creating new documentation it is highly recommended to generate new
-html and pdf to ensure no errors were introduced that prevent documentation 
-generation and that the documentation shows up correctly.
+Be careful when including extra line breaks. This can throw off the formatting doxygen generates
+and may cause undesired misaligned sections in the doxygen generated documentation. It is a good
+idea to check how your documentation looks as you work so that mistakes are not repeatedly being made
+throughout the documentation process.
 
 

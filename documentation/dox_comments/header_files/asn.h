@@ -1,5 +1,5 @@
 /*!
-    \ingroup ASN.1
+    \ingroup ASN
     
     \brief This function converts a pem certificate to a der certificate, 
     and places the resulting certificate in the derBuf buffer provided.

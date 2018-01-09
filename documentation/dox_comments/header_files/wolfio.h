@@ -305,6 +305,8 @@ WOLFSSL_API void wolfSSL_SetIOReadCtx( WOLFSSL* ssl, void *ctx);
 */
 WOLFSSL_API void wolfSSL_SetIOWriteCtx(WOLFSSL* ssl, void *ctx);
 /*!
+    \ingroup IO
+
     \brief This function returns the IOCB_ReadCtx member of the WOLFSSL struct.
     
     \return pointer This function returns a void pointer to the IOCB_ReadCtx 
@@ -332,6 +334,8 @@ WOLFSSL_API void wolfSSL_SetIOWriteCtx(WOLFSSL* ssl, void *ctx);
 */
 WOLFSSL_API void* wolfSSL_GetIOReadCtx( WOLFSSL* ssl);
 /*!
+    \ingroup IO
+
     \brief This function returns the IOCB_WriteCtx member of the WOLFSSL structure.
     
     \return pointer This function returns a void pointer to the IOCB_WriteCtx 
@@ -433,6 +437,8 @@ WOLFSSL_API void wolfSSL_SetIOReadFlags( WOLFSSL* ssl, int flags);
 */
 WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 /*!
+    \ingroup IO
+
     \brief This function sets the nxSocket and nxWait members of the nxCtx 
     struct within the WOLFSSL structure.
     
@@ -491,6 +497,8 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
 */
     WOLFSSL_API void  wolfSSL_CTX_SetGenCookie(WOLFSSL_CTX*, CallbackGenCookie);
 /*!
+    \ingroup Setup
+
     \brief This function returns the IOCB_CookieCtx member of the 
     WOLFSSL structure.
     

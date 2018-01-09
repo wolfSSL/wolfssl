@@ -138,6 +138,7 @@ div.navtab {
 #top {
     width: 100%;
     margin: auto;
+    text-align:center;
 }
 
 /* added for wolfssl */
@@ -199,7 +200,6 @@ h4,h5 {
     vertical-align: bottom;
     bottom: 0;
     right: 0;
-    float: right;
 }
 
 /* added for wolfssl*/
@@ -216,9 +216,8 @@ h4,h5 {
 
 /* added for wolfssl*/
 #main-nav{
-    width: 100%;
+    display: inline-block;
     background-image: none;
-    float: right;
 }
 
 .header {
@@ -435,6 +434,51 @@ div.center {
 
 div.center img {
 	border: 0px;
+}
+
+/* added for wolfssl */
+#footer {
+    width:100%%;
+    margin: 0 auto;
+    text-align:center;
+}
+
+/* added for wolfssl */
+div.lowNav {
+    display: inline-block;
+    vertical-align: top;
+}
+
+/* added for wolfssl*/
+ul.lowNavList {
+    list-style:none;
+}
+
+/* added for wolfssl */
+div#lowCenter {
+    display: inline-block;
+    list-style: none;
+}
+
+/* added for wolfssl */
+p#center.footText {
+    display: inline-block;
+    vertical-align: top;
+}
+
+div#lowCenter {
+    display: inline-block;
+    list-style: none;
+}
+
+/* added for wolfssl */
+#footer.lowCenter p {
+    display: inline-block;
+}
+
+/* added for wolfssl */
+#footer.lowCenter#lowNav {
+    display: inline-block;
 }
 
 address.footer {

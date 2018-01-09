@@ -1,0 +1,12 @@
+/*
+    This file is for customizing the doxygen mainpage style.
+*/
+/*!
+    \mainpage This Documentation Covers %wolfSSL, %wolfCrypt, and %CertManager API
+    
+    \section website Useful Links
+    https://wolfssl.com/wolfSSL/Home.html - Main website<br>
+    https://wolfssl.com/wolfSSL/Docs-wolfssl-manual-17-wolfssl-api-reference.html - %wolfSSL Manual<br>
+    https://www.wolfssl.com/docs/wolfssl-manual/ch18/ - wolfCrypt Manual<br>
+    https://github.com/wolfssl/wolfssl.git - Git repository
+*/
