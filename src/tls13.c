@@ -4145,7 +4145,7 @@ static int CreateECCEncodedSig(byte* sigData, int sigDataSz, int hashAlgo)
  * based on the digest of the signature data.
  *
  * ssl       The SSL/TLS object.
- * hashAlgo  The signature algorithm used to generate signature.
+ * sigAlgo   The signature algorithm used to generate signature.
  * hashAlgo  The hash algorithm used to generate signature.
  * decSig    The decrypted signature.
  * decSigSz  The size of the decrypted signature.
@@ -4170,7 +4170,7 @@ static int CheckRSASignature(WOLFSSL* ssl, int sigAlgo, int hashAlgo,
         if (ret < 0)
             return ret;
 
-        /* PSS signature can be done in-pace */
+        /* PSS signature can be done in-place */
         ret = CreateRSAEncodedSig(sigData, sigData, sigDataSz,
                                   sigAlgo, hashAlgo);
         if (ret < 0)

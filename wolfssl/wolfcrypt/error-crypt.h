@@ -194,7 +194,9 @@ enum {
     WC_HW_E             = -248,  /* Error with hardware crypto use */
     WC_HW_WAIT_E        = -249,  /* Hardware waiting on resource */
 
-    WC_LAST_E           = -249,  /* Update this to indicate last error */
+    PSS_SALTLEN_E       = -250,  /* PSS length of salt is to long for hash */
+
+    WC_LAST_E           = -250,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes

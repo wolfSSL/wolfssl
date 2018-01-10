@@ -7653,6 +7653,175 @@ done:
 #endif
 
 #define RSA_TEST_BYTES 256
+
+#ifdef WC_RSA_PSS
+static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
+{
+    byte             digest[WC_MAX_DIGEST_SIZE];
+    int              ret     = 0;
+    const char*      inStr   = "Everyone gets Friday off.";
+    word32           inLen   = (word32)XSTRLEN((char*)inStr);
+    word32           outSz;
+    word32           plainSz;
+    word32           digestSz;
+    int              i, j;
+#ifdef RSA_PSS_TEST_WRONG_PARAMS
+    int              k, l;
+#endif
+    byte*            plain;
+    int              mgf[]   = {
+#ifndef NO_SHA
+                                 WC_MGF1SHA1,
+#endif
+#ifdef WOLFSSL_SHA224
+                                 WC_MGF1SHA224,
+#endif
+                                 WC_MGF1SHA256,
+#ifdef WOLFSSL_SHA384
+                                 WC_MGF1SHA384,
+#endif
+#ifdef WOLFSSL_SHA512
+                                 WC_MGF1SHA512
+#endif
+                               };
+    enum wc_HashType hash[]  = {
+#ifndef NO_SHA
+                                 WC_HASH_TYPE_SHA,
+#endif
+#ifdef WOLFSSL_SHA224
+                                 WC_HASH_TYPE_SHA224,
+#endif
+                                 WC_HASH_TYPE_SHA256,
+#ifdef WOLFSSL_SHA384
+                                 WC_HASH_TYPE_SHA384,
+#endif
+#ifdef WOLFSSL_SHA512
+                                 WC_HASH_TYPE_SHA512,
+#endif
+                               };
+
+    DECLARE_VAR_INIT(in, byte, inLen, inStr, HEAP_HINT);
+    DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
+    DECLARE_VAR(sig, byte, RSA_TEST_BYTES, HEAP_HINT);
+
+    /* Test all combinations of hash and MGF. */
+    for (j = 0; j < (int)(sizeof(hash)/sizeof(*hash)); j++) {
+        /* Calculate hash of message. */
+        ret = wc_Hash(hash[j], in, inLen, digest, sizeof(digest));
+        if (ret != 0)
+            ERROR_OUT(-5450, exit_rsa_pss);
+        digestSz = wc_HashGetDigestSize(hash[j]);
+
+        for (i = 0; i < (int)(sizeof(mgf)/sizeof(*mgf)); i++) {
+            outSz = RSA_TEST_BYTES;
+            ret = wc_RsaPSS_Sign_ex(digest, digestSz, out, outSz, hash[j],
+                                    mgf[i], -1, key, rng);
+            if (ret <= 0)
+                ERROR_OUT(-5451, exit_rsa_pss);
+            outSz = ret;
+
+            XMEMCPY(sig, out, outSz);
+            plain = NULL;
+            ret = wc_RsaPSS_VerifyInline_ex(sig, outSz, &plain, hash[j],
+                                            mgf[i], -1, key);
+            if (ret <= 0)
+                ERROR_OUT(-5452, exit_rsa_pss);
+            plainSz = ret;
+
+            ret = wc_RsaPSS_CheckPadding(digest, digestSz, plain, plainSz,
+                                         hash[j]);
+            if (ret != 0)
+                ERROR_OUT(-5453, exit_rsa_pss);
+
+#ifdef RSA_PSS_TEST_WRONG_PARAMS
+            for (k = 0; k < (int)(sizeof(mgf)/sizeof(*mgf)); k++) {
+                for (l = 0; l < (int)(sizeof(hash)/sizeof(*hash)); l++) {
+                    if (i == k && j == l)
+                        continue;
+
+                    XMEMCPY(sig, out, outSz);
+                    ret = wc_RsaPSS_VerifyInline_ex(sig, outSz, (byte**)&plain,
+                                                    hash[l], mgf[k], -1, key);
+                    if (ret >= 0)
+                        ERROR_OUT(-5454, exit_rsa_pss);
+                }
+            }
+#endif
+        }
+    }
+
+    /* Test that a salt length of zero works. */
+    digestSz = wc_HashGetDigestSize(hash[0]);
+    outSz = RSA_TEST_BYTES;
+    ret = wc_RsaPSS_Sign_ex(digest, digestSz, out, outSz, hash[0], mgf[0], 0,
+                            key, rng);
+    if (ret <= 0)
+        ERROR_OUT(-5460, exit_rsa_pss);
+    outSz = ret;
+
+    ret = wc_RsaPSS_Verify_ex(out, outSz, sig, outSz, hash[0], mgf[0], 0,
+                                    key);
+    if (ret <= 0)
+        ERROR_OUT(-5461, exit_rsa_pss);
+    plainSz = ret;
+
+    ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, sig, plainSz, hash[0],
+                                    0);
+    if (ret != 0)
+        ERROR_OUT(-5462, exit_rsa_pss);
+
+    XMEMCPY(sig, out, outSz);
+    plain = NULL;
+    ret = wc_RsaPSS_VerifyInline_ex(sig, outSz, &plain, hash[0], mgf[0], 0,
+                                    key);
+    if (ret <= 0)
+        ERROR_OUT(-5463, exit_rsa_pss);
+    plainSz = ret;
+
+    ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz, hash[0],
+                                    0);
+    if (ret != 0)
+        ERROR_OUT(-5464, exit_rsa_pss);
+
+    /* Test bad salt lengths in various APIs. */
+    digestSz = wc_HashGetDigestSize(hash[0]);
+    outSz = RSA_TEST_BYTES;
+    ret = wc_RsaPSS_Sign_ex(digest, digestSz, out, outSz, hash[0], mgf[0], -2,
+                            key, rng);
+    if (ret != PSS_SALTLEN_E)
+        ERROR_OUT(-5470, exit_rsa_pss);
+    ret = wc_RsaPSS_Sign_ex(digest, digestSz, out, outSz, hash[0], mgf[0],
+                            digestSz + 1, key, rng);
+    if (ret != PSS_SALTLEN_E)
+        ERROR_OUT(-5471, exit_rsa_pss);
+
+    ret = wc_RsaPSS_VerifyInline_ex(sig, outSz, &plain, hash[0], mgf[0], -2,
+                                    key);
+    if (ret != PSS_SALTLEN_E)
+        ERROR_OUT(-5472, exit_rsa_pss);
+    ret = wc_RsaPSS_VerifyInline_ex(sig, outSz, &plain, hash[0], mgf[0],
+                                    digestSz + 1, key);
+    if (ret != PSS_SALTLEN_E)
+        ERROR_OUT(-5473, exit_rsa_pss);
+
+    ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz, hash[0],
+                                    -2);
+    if (ret != PSS_SALTLEN_E)
+        ERROR_OUT(-5474, exit_rsa_pss);
+    ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz, hash[0],
+                                    digestSz + 1);
+    if (ret != PSS_SALTLEN_E)
+        ERROR_OUT(-5475, exit_rsa_pss);
+
+    ret = 0;
+exit_rsa_pss:
+    FREE_VAR(in, HEAP_HINT);
+    FREE_VAR(out, HEAP_HINT);
+
+    return ret;
+}
+#endif
+
 int rsa_test(void)
 {
     int    ret;
@@ -8966,6 +9135,10 @@ int rsa_test(void)
     }
 #endif /* WOLFSSL_CERT_REQ */
 #endif /* WOLFSSL_CERT_GEN */
+
+#ifdef WC_RSA_PSS
+    ret = rsa_pss_test(&rng, &key);
+#endif
 
 exit_rsa:
     wc_FreeRsaKey(&key);
