@@ -1,3 +1,24 @@
+/* sha.h
+ *
+ * Copyright (C) 2006-2017 wolfSSL Inc.
+ *
+ * This file is part of wolfSSL.
+ *
+ * wolfSSL is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * wolfSSL is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
+ */
+
 /* sha.h for openssl */
 
 
@@ -18,7 +39,7 @@
 
 typedef struct WOLFSSL_SHA_CTX {
     /* big enough to hold wolfcrypt Sha, but check on init */
-    int holder[28 + (WC_ASYNC_DEV_SIZE / sizeof(int))];
+    void* holder[(112 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
 } WOLFSSL_SHA_CTX;
 
 WOLFSSL_API int wolfSSL_SHA_Init(WOLFSSL_SHA_CTX*);
@@ -53,7 +74,7 @@ typedef WOLFSSL_SHA_CTX SHA_CTX;
  * Sha224, is expected to also be 16 byte aligned addresses.  */
 typedef struct WOLFSSL_SHA224_CTX {
     /* big enough to hold wolfcrypt Sha224, but check on init */
-    ALIGN16 int holder[34 + (WC_ASYNC_DEV_SIZE / sizeof(int))];
+    ALIGN16 void* holder[(272 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
 } WOLFSSL_SHA224_CTX;
 
 WOLFSSL_API int wolfSSL_SHA224_Init(WOLFSSL_SHA224_CTX*);
@@ -80,7 +101,7 @@ typedef WOLFSSL_SHA224_CTX SHA224_CTX;
  * Sha256, is expected to also be 16 byte aligned addresses.  */
 typedef struct WOLFSSL_SHA256_CTX {
     /* big enough to hold wolfcrypt Sha256, but check on init */
-    ALIGN16 int holder[34 + (WC_ASYNC_DEV_SIZE / sizeof(int))];
+    ALIGN16 void* holder[(272 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
 } WOLFSSL_SHA256_CTX;
 
 WOLFSSL_API int wolfSSL_SHA256_Init(WOLFSSL_SHA256_CTX*);
@@ -104,7 +125,7 @@ typedef WOLFSSL_SHA256_CTX SHA256_CTX;
 
 typedef struct WOLFSSL_SHA384_CTX {
     /* big enough to hold wolfCrypt Sha384, but check on init */
-    long long holder[32 + (WC_ASYNC_DEV_SIZE / sizeof(long long))];
+    void* holder[(256 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
 } WOLFSSL_SHA384_CTX;
 
 WOLFSSL_API int wolfSSL_SHA384_Init(WOLFSSL_SHA384_CTX*);
@@ -129,7 +150,7 @@ typedef WOLFSSL_SHA384_CTX SHA384_CTX;
 
 typedef struct WOLFSSL_SHA512_CTX {
     /* big enough to hold wolfCrypt Sha384, but check on init */
-    long long holder[36 + (WC_ASYNC_DEV_SIZE / sizeof(long long))];
+    void* holder[(288 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
 } WOLFSSL_SHA512_CTX;
 
 WOLFSSL_API int wolfSSL_SHA512_Init(WOLFSSL_SHA512_CTX*);
