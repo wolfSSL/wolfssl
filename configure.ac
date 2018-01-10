@@ -2029,6 +2029,9 @@ then
     AS_IF([test "x$FIPS_VERSION" = "xv2"],
           [AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS_VERSION=2 -DWOLFSSL_KEY_GEN"
            ENABLED_KEYGEN="yes"
+		   AS_IF([test "x$ENABLED_AESCCM" != "xyes"],
+			     [ENABLED_AESCCM="yes"
+				  AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"])
            AS_IF([test "x$ENABLED_RSAPSS" != "xyes"],
 			     [ENABLED_RSAPSS="yes"
 				  AM_CFLAGS="$AM_CFLAGS -DWC_RSA_PSS"])
