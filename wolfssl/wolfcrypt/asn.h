@@ -30,7 +30,8 @@
 #include <wolfssl/wolfcrypt/integer.h>
 
 /* fips declare of RsaPrivateKeyDecode @wc_fips */
-#if defined(HAVE_FIPS) && !defined(NO_RSA)
+#if defined(HAVE_FIPS) && !defined(NO_RSA) && \
+	(!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
     #include <cyassl/ctaocrypt/rsa.h>
 #endif
 

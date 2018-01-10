@@ -186,7 +186,7 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
 * wc_RsaPublicKeyDecode
 */
 
-#else /* else build without fips */
+#else /* else build without fips, or for new fips */
 
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/logging.h>

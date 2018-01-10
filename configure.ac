@@ -1935,7 +1935,16 @@ then
     # Add the FIPS flag.
     AS_IF([test "x$FIPS_VERSION" = "xv2"],
           [AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS_VERSION=2 -DWOLFSSL_KEY_GEN"
-           ENABLED_KEYGEN="yes"])
+           ENABLED_KEYGEN="yes"
+           AS_IF([test "x$ENABLED_RSAPSS" != "xyes"],
+			     [ENABLED_RSAPSS="yes"
+				  AM_CFLAGS="$AM_CFLAGS -DWC_RSA_PSS"])
+           AS_IF([test "x$ENABLED_ECC" != "xyes"],
+			     [ENABLED_ECC="yes"
+				  AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
+                  AS_IF([test "x$ENABLED_ECC_SHAMIR" = "xyes"],
+                        [AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"])])
+		  ])
 else
     if test "x$ENABLED_FORTRESS" = "xyes"
     then

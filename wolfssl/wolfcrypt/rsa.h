@@ -39,7 +39,8 @@
     #include "user_rsa.h"
 #else
 
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && \
+	(!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
 /* for fips @wc_fips */
 #include <cyassl/ctaocrypt/rsa.h>
 #if defined(CYASSL_KEY_GEN) && !defined(WOLFSSL_KEY_GEN)
@@ -48,7 +49,11 @@
 #else
     #include <wolfssl/wolfcrypt/integer.h>
     #include <wolfssl/wolfcrypt/random.h>
-#endif /* HAVE_FIPS */
+#endif /* HAVE_FIPS && HAVE_FIPS_VERION 1 */
+#if defined(HAVE_FIPS) && \
+	defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+#include <wolfssl/wolfcrypt/fips.h>
+#endif
 
 /* header file needed for OAEP padding */
 #include <wolfssl/wolfcrypt/hash.h>
@@ -62,7 +67,8 @@
 #endif
 
 /* avoid redefinition of structs */
-#if !defined(HAVE_FIPS)
+#if !defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
@@ -180,7 +186,9 @@ WOLFSSL_API int  wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inLen,
 
 WOLFSSL_API int  wc_RsaEncryptSize(RsaKey* key);
 
-#ifndef HAVE_FIPS /* to avoid asn duplicate symbols @wc_fips */
+#if !defined(HAVE_FIPS) || \
+	(defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
+/* to avoid asn duplicate symbols @wc_fips */
 WOLFSSL_API int  wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
                                                                RsaKey*, word32);
 WOLFSSL_API int  wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx,
