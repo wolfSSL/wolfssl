@@ -2606,7 +2606,27 @@ exit_tte:
 }
 
 
-/* encrypt PKCS 12 content */
+/* encrypt PKCS 12 content
+ *
+ * NOTE: if out is NULL then outSz is set with the total buffer size needed and
+ *       the error value LENGTH_ONLY_E is returned.
+ *
+ * input      data to encrypt
+ * inputSz    size of input buffer
+ * out        buffer to hold the result
+ * outSz      size of out buffer
+ * password   password if used. Can be NULL for no password
+ * passwordSz size of password buffer
+ * vPKCS      version of PKCS i.e. PKCS5v2
+ * vAlgo      algorithm version
+ * salt       buffer holding salt if used. If NULL then a random salt is created
+ * saltSz     size of salt buffer if it is not NULL
+ * itt        number of iterations used
+ * rng        random number generator to use
+ * heap       possible heap hint for mallocs/frees
+ *
+ * returns the total size of encrypted content on success.
+ */
 int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
         const char* password, int passwordSz, int vPKCS, int vAlgo,
         byte* salt, word32 saltSz, int itt, WC_RNG* rng, void* heap)
@@ -2640,6 +2660,10 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
 
     if (saltSz > MAX_SALT_SIZE)
         return ASN_PARSE_E;
+
+    if (outSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
     if (out == NULL) {
         sz = inputSz;
@@ -2769,7 +2793,17 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
 }
 
 
-/* decrypt PKCS */
+/* decrypt PKCS
+ *
+ * NOTE: input buffer is overwritten with decrypted data!
+ *
+ * input[in/out] data to decrypt and results are written to
+ * sz            size of input buffer
+ * password      password if used. Can be NULL for no password
+ * passwordSz    size of password buffer
+ *
+ * returns the total size of decrypted content on success.
+ */
 int DecryptContent(byte* input, word32 sz,const char* password,int passwordSz)
 {
     word32 inOutIdx = 0, seqEnd, oid;

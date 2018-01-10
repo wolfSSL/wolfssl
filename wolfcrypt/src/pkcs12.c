@@ -1144,7 +1144,21 @@ exit_pk12par:
 }
 
 
-
+/* Helper function to shroud keys.
+ *
+ * pkcs12 structure to use with shrouding key
+ * rng    random number generator used
+ * out    buffer to hold results
+ * outSz  size of out buffer
+ * key    key that is going to be shrouded
+ * keySz  size of key buffer
+ * vAlgo  algorithm version
+ * pass   password to use
+ * passSz size of pass buffer
+ * itt    number of iterations
+ *
+ * returns the size of the shrouded key on success
+ */
 static int wc_PKCS12_shroud_key(WC_PKCS12* pkcs12, WC_RNG* rng,
         byte* out, word32* outSz, byte* key, word32 keySz, int vAlgo,
         const char* pass, int passSz, int itt)
@@ -1219,6 +1233,21 @@ static int wc_PKCS12_shroud_key(WC_PKCS12* pkcs12, WC_RNG* rng,
 }
 
 
+/* Helper function to create key bag.
+ *
+ * pkcs12 structure to use with key bag
+ * rng    random number generator used
+ * out    buffer to hold results
+ * outSz  size of out buffer
+ * key    key that is going into key bag
+ * keySz  size of key buffer
+ * algo   algorithm version
+ * iter   number of iterations
+ * pass   password to use
+ * passSz size of pass buffer
+ *
+ * returns the size of the key bag on success
+ */
 static int wc_PKCS12_create_key_bag(WC_PKCS12* pkcs12, WC_RNG* rng,
         byte* out, word32* outSz, byte* key, word32 keySz, int algo, int iter,
         char* pass, int passSz)
@@ -1293,6 +1322,16 @@ static int wc_PKCS12_create_key_bag(WC_PKCS12* pkcs12, WC_RNG* rng,
 }
 
 
+/* Helper function to create cert bag.
+ *
+ * pkcs12 structure to use with cert bag
+ * out    buffer to hold results
+ * outSz  size of out buffer
+ * cert   cert that is going into cert bag
+ * certSz size of cert buffer
+ *
+ * returns the size of the cert bag on success
+ */
 static int wc_PKCS12_create_cert_bag(WC_PKCS12* pkcs12,
         byte* out, word32* outSz, byte* cert, word32 certSz)
 {
@@ -1385,6 +1424,22 @@ static int wc_PKCS12_create_cert_bag(WC_PKCS12* pkcs12,
 }
 
 
+/* Helper function to encrypt content.
+ *
+ * pkcs12    structure to use with key bag
+ * rng       random number generator used
+ * out       buffer to hold results
+ * outSz     size of out buffer
+ * content   content to encrypt
+ * contentSz size of content buffer
+ * vAlgo     algorithm version
+ * pass      password to use
+ * passSz    size of pass buffer
+ * iter      number of iterations
+ * type      content type i.e WC_PKCS12_ENCRYPTED_DATA or WC_PKCS12_DATA
+ *
+ * returns the size of result on success
+ */
 static int wc_PKCS12_encrypt_content(WC_PKCS12* pkcs12, WC_RNG* rng,
         byte* out, word32* outSz, byte* content, word32 contentSz, int vAlgo,
         const char* pass, int passSz, int iter, int type)
