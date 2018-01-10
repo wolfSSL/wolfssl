@@ -172,10 +172,11 @@
     #endif /* HAVE_AESGCM */
 
     /* AES-CCM */
-    #ifdef HAVE_AESCCM
-        void wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz)
+    #if defined(HAVE_AESCCM) && \
+		defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+        int wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz)
         {
-            AesCcmSetKey(aes, key, keySz);
+            return AesCcmSetKey(aes, key, keySz);
         }
         int wc_AesCcmEncrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
                                       const byte* nonce, word32 nonceSz,
@@ -209,7 +210,7 @@
                     authTag, authTagSz, authIn, authInSz);
             }
         #endif /* HAVE_AES_DECRYPT */
-    #endif /* HAVE_AESCCM */
+    #endif /* HAVE_AESCCM && HAVE_FIPS_VERSION 2 */
 
     int  wc_AesInit(Aes* aes, void* h, int i)
     {
