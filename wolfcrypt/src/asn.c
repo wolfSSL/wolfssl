@@ -1804,8 +1804,8 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
     #ifdef HAVE_ECC
     if (der->keyOID == ECDSAk) {
         ecc_key key_pair;
-        byte*   privDer;
-        word32  privSz;
+        byte    privDer[MAX_ECC_BYTES];
+        word32  privSz = MAX_ECC_BYTES;
         word32  keyIdx = 0;
 
         if ((ret = wc_ecc_init(&key_pair)) < 0)
@@ -1814,15 +1814,6 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
         if ((ret = wc_EccPrivateKeyDecode(key, &keyIdx, &key_pair,
                                                                  keySz)) == 0) {
             WOLFSSL_MSG("Checking ECC key pair");
-
-            if ((privSz = wc_ecc_size(&key_pair)) <= 0) {
-                return WC_KEY_SIZE_E;
-            }
-
-            privDer = (byte*)XMALLOC(privSz, der->heap, DYNAMIC_TYPE_KEY);
-            if (privDer == NULL) {
-                return MEMORY_E;
-            }
 
             if ((ret = wc_ecc_export_private_only(&key_pair, privDer, &privSz))
                                                                          == 0) {
@@ -1842,9 +1833,8 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
                         ret = 1;
                     }
                 }
+                ForceZero(privDer, privSz);
             }
-            XFREE(privDer, der->heap, DYNAMIC_TYPE_KEY);
-
         }
         wc_ecc_free(&key_pair);
     }
