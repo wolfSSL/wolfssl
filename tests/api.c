@@ -10828,7 +10828,7 @@ static int test_wc_DsaExportParamsRaw (void)
                                         NULL, &gOutSz);
         }
 
-        if (ret == BAD_FUNC_ARG) {
+        if (ret == LENGTH_ONLY_E) {
             /* null output size pointers */
             ret = wc_DsaExportParamsRaw(&key, pOut, NULL, qOut, NULL,
                                         gOut, NULL);
@@ -10877,7 +10877,7 @@ static int test_wc_DsaExportKeyRaw (void)
 {
     int     ret = 0;
 
-#if !defined(NO_DSA) && defined(HAVE_KEY_GEN)
+#if !defined(NO_DSA) && defined(WOLFSSL_KEY_GEN)
     DsaKey  key;
     WC_RNG  rng;
 
@@ -10917,7 +10917,7 @@ static int test_wc_DsaExportKeyRaw (void)
             ret = wc_DsaExportKeyRaw(&key, NULL, &xOutSz, NULL, &yOutSz);
         }
 
-        if (ret == BAD_FUNC_ARG) {
+        if (ret == LENGTH_ONLY_E) {
             /* null output size pointers */
             ret = wc_DsaExportKeyRaw(&key, xOut, NULL, yOut, NULL);
         }
