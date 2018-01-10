@@ -57,8 +57,8 @@ WOLFSSL_API WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz,
         int keyType, void* heap);
 
 
-WOLFSSL_API int wc_PKCS12_SetHeap(WC_PKCS12* pkcs12, void* heap);
-WOLFSSL_API void* wc_PKCS12_GetHeap(WC_PKCS12* pkcs12);
+WOLFSSL_LOCAL int wc_PKCS12_SetHeap(WC_PKCS12* pkcs12, void* heap);
+WOLFSSL_LOCAL void* wc_PKCS12_GetHeap(WC_PKCS12* pkcs12);
 
 WOLFSSL_LOCAL void wc_FreeCertList(WC_DerCertList* list, void* heap);
 

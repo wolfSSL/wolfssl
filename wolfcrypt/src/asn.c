@@ -849,6 +849,8 @@ static const byte pbeSha1Des[] = {42, 134, 72, 134, 247, 13, 1, 5, 10};
 static const byte pbeSha1RC4128[] = {42, 134, 72, 134, 247, 13, 1, 12, 1, 1};
 static const byte pbeSha1Des3[] = {42, 134, 72, 134, 247, 13, 1, 12, 1, 3};
 
+
+/* returns a pointer to the OID string on success and NULL on fail */
 const byte* OidFromId(word32 id, word32 type, word32* oidSz)
 {
     const byte* oid = NULL;
@@ -1956,7 +1958,10 @@ static int CheckAlgoV2(int oid, int* id)
 }
 
 
-/* Decrypt/Encrypt input in place from parameters based on id */
+/* Decrypt/Encrypt input in place from parameters based on id
+ *
+ * returns a negative value on fail case
+ */
 static int CryptKey(const char* password, int passwordSz, byte* salt,
                       int saltSz, int iterations, int id, byte* input,
                       int length, int version, byte* cbcIv, int enc)
@@ -2266,6 +2271,8 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
  * vAlgo is the algorithm version to use
  *
  * if salt is NULL a random number is generated
+ *
+ * returns the size of encrypted data on success
  */
 int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
         const char* password,int passwordSz, int vPKCS, int vAlgo,
@@ -2336,7 +2343,7 @@ int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
         }
 
 
-        /* leave room for a sequence (contains salt and itterations int) */
+        /* leave room for a sequence (contains salt and iterations int) */
         inOutIdx += MAX_SEQ_SZ; sz = 0;
 
         /* place salt in buffer */
@@ -2346,7 +2353,7 @@ int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
         XMEMCPY(out + inOutIdx, salt, saltSz);
         inOutIdx += saltSz; sz += saltSz;
 
-        /* place itteration count in buffer */
+        /* place iteration count in buffer */
         out[inOutIdx++] = ASN_INTEGER; sz++;
         out[inOutIdx++] = sizeof(word32); sz++;
         out[inOutIdx++] = (itt >> 24) & 0xFF;

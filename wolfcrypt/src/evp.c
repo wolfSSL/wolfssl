@@ -782,6 +782,13 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
     }
 }
 
+
+/* Initialize a WOLFSSL_EVP_PKEY_CTX structure to encrypt data
+ *
+ * ctx    WOLFSSL_EVP_PKEY_CTX structure to use with encryption
+ *
+ * Returns WOLFSSL_FAILURE on failure and WOLFSSL_SUCCESS on success
+ */
 WOLFSSL_API int wolfSSL_EVP_PKEY_encrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx)
 {
     if (ctx == NULL) return WOLFSSL_FAILURE;
@@ -801,6 +808,13 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_encrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx)
 
 }
 
+
+/* Get the size in bits for WOLFSSL_EVP_PKEY key
+ *
+ * pkey WOLFSSL_EVP_PKEY structure to get key size of
+ *
+ * returns the size in bits of key on success
+ */
 WOLFSSL_API int wolfSSL_EVP_PKEY_bits(const WOLFSSL_EVP_PKEY *pkey)
 {
     int bytes;
@@ -811,6 +825,14 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_bits(const WOLFSSL_EVP_PKEY *pkey)
     return bytes*8 ;
 }
 
+
+/* Get the size in bytes for WOLFSSL_EVP_PKEY key
+ *
+ * pkey WOLFSSL_EVP_PKEY structure to get key size of
+ *
+ * returns the size of a key on success which is the maximum size of a
+ *         signature
+ */
 WOLFSSL_API int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey)
 {
     if (pkey == NULL)return 0;
@@ -836,13 +858,30 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey)
     }
 }
 
+
+/* Initialize structure for signing
+ *
+ * ctx  WOLFSSL_EVP_MD_CTX structure to initialize
+ * type is the type of message digest to use
+ *
+ * returns WOLFSSL_SUCCESS on success
+ */
 WOLFSSL_API int wolfSSL_EVP_SignInit(WOLFSSL_EVP_MD_CTX *ctx, const WOLFSSL_EVP_MD *type)
 {
-    if (ctx == NULL)return 0;
+    if (ctx == NULL) return WOLFSSL_FAILURE;
     WOLFSSL_ENTER("EVP_SignInit");
     return wolfSSL_EVP_DigestInit(ctx,type);
 }
 
+
+/* Update structure with data for signing
+ *
+ * ctx  WOLFSSL_EVP_MD_CTX structure to update
+ * data buffer holding data to update with for sign
+ * len  length of data buffer
+ *
+ * returns WOLFSSL_SUCCESS on success
+ */
 WOLFSSL_API int wolfSSL_EVP_SignUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *data, size_t len)
 {
     if (ctx == NULL)return 0;
@@ -869,6 +908,15 @@ static int md2nid(int md)
 }
 #endif /* NO_RSA */
 
+/* Finalize structure for signing
+ *
+ * ctx    WOLFSSL_EVP_MD_CTX structure to finalize
+ * sigret buffer to hold resulting signature
+ * siglen length of sigret buffer
+ * pkey   key to sign with
+ *
+ * returns WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on failure
+ */
 WOLFSSL_API int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
                   unsigned int *siglen, WOLFSSL_EVP_PKEY *pkey)
 {
@@ -904,20 +952,47 @@ WOLFSSL_API int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *si
     }
 }
 
+
+/* Initialize structure for verifying signature
+ *
+ * ctx  WOLFSSL_EVP_MD_CTX structure to initialize
+ * type is the type of message digest to use
+ *
+ * returns WOLFSSL_SUCCESS on success
+ */
 WOLFSSL_API int wolfSSL_EVP_VerifyInit(WOLFSSL_EVP_MD_CTX *ctx, const WOLFSSL_EVP_MD *type)
 {
-    if (ctx == NULL)return 0;
+    if (ctx == NULL) return WOLFSSL_FAILURE;
     WOLFSSL_ENTER("EVP_VerifyInit");
     return wolfSSL_EVP_DigestInit(ctx,type);
 }
 
+
+/* Update structure for verifying signature
+ *
+ * ctx  WOLFSSL_EVP_MD_CTX structure to update
+ * data buffer holding data to update with for verify
+ * len  length of data buffer
+ *
+ * returns WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on failure
+ */
 WOLFSSL_API int wolfSSL_EVP_VerifyUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *data, size_t len)
 {
-    if (ctx == NULL)return 0;
+    if (ctx == NULL) return WOLFSSL_FAILURE;
     WOLFSSL_ENTER("EVP_VerifyUpdate");
     return wolfSSL_EVP_DigestUpdate(ctx, data, len);
 }
 
+
+/* Finalize structure for verifying signature
+ *
+ * ctx    WOLFSSL_EVP_MD_CTX structure to finalize
+ * sig    buffer holding signature
+ * siglen length of sig buffer
+ * pkey   key to verify with
+ *
+ * returns WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on failure
+ */
 WOLFSSL_API int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
         unsigned char*sig, unsigned int siglen, WOLFSSL_EVP_PKEY *pkey)
 {
@@ -925,7 +1000,7 @@ WOLFSSL_API int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
     unsigned char md[MAX_DIGEST_SIZE];
     unsigned int mdsize;
 
-    if (ctx == NULL) return 0;
+    if (ctx == NULL) return WOLFSSL_FAILURE;
     WOLFSSL_ENTER("EVP_VerifyFinal");
     ret = wolfSSL_EVP_DigestFinal(ctx, md, &mdsize);
     if (ret <= 0) return ret;
@@ -937,7 +1012,7 @@ WOLFSSL_API int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
     case EVP_PKEY_RSA:{
         int nid = md2nid(ctx->macType);
-        if(nid < 0)return 0;
+        if (nid < 0) return WOLFSSL_FAILURE;
         return wolfSSL_RSA_verify(nid, md, mdsize, sig,
                 (unsigned int)siglen, pkey->rsa);
     }

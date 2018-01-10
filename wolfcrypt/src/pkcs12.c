@@ -470,7 +470,11 @@ exit_gsd:
 }
 
 
-/* expects PKCS12 signData to be set up with OID */
+/* expects PKCS12 signData to be set up with OID
+ *
+ * returns the size of mac created on success. A negative value will be returned
+ *         in the case that an error happened.
+ */
 static int wc_PKCS12_create_mac(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
                          const byte* psw, word32 pswSz, byte* out, word32 outSz)
 {
@@ -1610,6 +1614,8 @@ static int wc_PKCS12_encrypt_content(WC_PKCS12* pkcs12, WC_RNG* rng,
  * iter    : number of itterations with encryption
  * macIter : number of itterations when creating MAC
  * keyType : flag for signature and/or encryption key
+ *
+ * returns a pointer to a new WC_PKCS12 structure on success and NULL if failed
  */
 WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
         byte* key, word32 keySz, byte* cert, word32 certSz, WC_DerCertList* ca,
@@ -1638,10 +1644,22 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
 
     WOLFSSL_ENTER("wc_PKCS12_create()");
 
-    pkcs12 = wc_PKCS12_new();
-    wc_PKCS12_SetHeap(pkcs12, heap);
-    wc_InitRng_ex(&rng, heap, INVALID_DEVID);
+    if ((ret = wc_InitRng_ex(&rng, heap, INVALID_DEVID)) != 0) {
+        return NULL;
+    }
 
+    if ((pkcs12 = wc_PKCS12_new()) == NULL) {
+        wc_FreeRng(&rng);
+        WOLFSSL_LEAVE("wc_PKCS12_create", MEMORY_E);
+        return NULL;
+    }
+
+    if ((ret = wc_PKCS12_SetHeap(pkcs12, heap)) != 0) {
+        wc_PKCS12_free(pkcs12);
+        wc_FreeRng(&rng);
+        WOLFSSL_LEAVE("wc_PKCS12_create", ret);
+        return NULL;
+    }
 
     if (iter <= 0) {
         iter = WC_PKCS12_ITT_DEFAULT;
@@ -1690,7 +1708,7 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
     if (keyBuf == NULL) {
         wc_PKCS12_free(pkcs12);
         wc_FreeRng(&rng);
-        WOLFSSL_MSG("Memory error");
+        WOLFSSL_LEAVE("wc_PKCS12_create", MEMORY_E);
         return NULL;
     }
 
@@ -2037,7 +2055,7 @@ int wc_PKCS12_SetHeap(WC_PKCS12* pkcs12, void* heap)
     }
     pkcs12->heap = heap;
 
-    return 1;
+    return 0;
 }
 
 

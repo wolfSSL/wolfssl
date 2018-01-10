@@ -54,6 +54,16 @@ static int wolfSSL_getLineLength(char* in, int inSz)
 }
 
 
+/* Gets the next line from bio. Goes until a new line character or end of
+ * buffer is reached.
+ *
+ * bio  the structure to read a new line from
+ * buf  buffer to hold the result
+ * sz   the size of "buf" buffer
+ *
+ * returns the size of the result placed in buf on success and a 0 or negative
+ *         value in an error case.
+ */
 int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
 {
     int ret = WOLFSSL_BIO_UNSET;
