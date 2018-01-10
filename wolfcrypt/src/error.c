@@ -458,6 +458,9 @@ const char* wc_GetErrorString(int error)
     case DH_KAT_FIPS_E:
         return "wolfcrypt FIPS DH Known Answer Test Failure";
 
+    case AESCCM_KAT_FIPS_E:
+        return "AESCCM Known Answer Test check FIPS error";
+
     default:
         return "unknown error number";
 
