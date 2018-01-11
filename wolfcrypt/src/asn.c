@@ -1803,22 +1803,37 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
 
     #ifdef HAVE_ECC
     if (der->keyOID == ECDSAk) {
-        word32  keyIdx = 0;
         ecc_key key_pair;
+        byte    privDer[MAX_ECC_BYTES];
+        word32  privSz = MAX_ECC_BYTES;
+        word32  keyIdx = 0;
 
         if ((ret = wc_ecc_init(&key_pair)) < 0)
             return ret;
+
         if ((ret = wc_EccPrivateKeyDecode(key, &keyIdx, &key_pair,
                                                                  keySz)) == 0) {
             WOLFSSL_MSG("Checking ECC key pair");
-            keyIdx = 0;
-            if ((ret = wc_ecc_import_x963(der->publicKey, der->pubKeySize,
-                                                             &key_pair)) == 0) {
-                /* public and private extracted successfuly no check if is
+
+            if ((ret = wc_ecc_export_private_only(&key_pair, privDer, &privSz))
+                                                                         == 0) {
+                wc_ecc_free(&key_pair);
+                ret = wc_ecc_init(&key_pair);
+                if (ret == 0) {
+                    ret = wc_ecc_import_private_key((const byte*)privDer,
+                                            privSz, (const byte*)der->publicKey,
+                                            der->pubKeySize, &key_pair);
+                }
+
+                /* public and private extracted successfuly now check if is
                  * a pair and also do sanity checks on key. wc_ecc_check_key
                  * checks that private * base generator equals pubkey */
-                if ((ret = wc_ecc_check_key(&key_pair)) == 0)
-                    ret = 1;
+                if (ret == 0) {
+                    if ((ret = wc_ecc_check_key(&key_pair)) == 0) {
+                        ret = 1;
+                    }
+                }
+                ForceZero(privDer, privSz);
             }
         }
         wc_ecc_free(&key_pair);

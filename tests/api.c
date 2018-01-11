@@ -13613,7 +13613,7 @@ static void test_wolfSSL_ASN1_TIME_print()
 static void test_wolfSSL_private_keys(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
-       !defined(NO_FILESYSTEM) && !defined(NO_RSA)
+       !defined(NO_FILESYSTEM)
     WOLFSSL*     ssl;
     WOLFSSL_CTX* ctx;
     EVP_PKEY* pkey = NULL;
@@ -13623,6 +13623,7 @@ static void test_wolfSSL_private_keys(void)
     OpenSSL_add_all_digests();
     OpenSSL_add_all_algorithms();
 
+#ifndef NO_RSA
     AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
     AssertTrue(SSL_CTX_use_certificate_file(ctx, svrCertFile, WOLFSSL_FILETYPE_PEM));
     AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, WOLFSSL_FILETYPE_PEM));
@@ -13662,11 +13663,40 @@ static void test_wolfSSL_private_keys(void)
     EVP_PKEY_free(pkey);
     SSL_free(ssl); /* frees x509 also since loaded into ssl */
     SSL_CTX_free(ctx);
+#endif /* end of RSA private key match tests */
+
+
+#ifdef HAVE_ECC
+    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
+    AssertTrue(SSL_CTX_use_certificate_file(ctx, eccCertFile,
+                                                         WOLFSSL_FILETYPE_PEM));
+    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, eccKeyFile,
+                                                         WOLFSSL_FILETYPE_PEM));
+    AssertNotNull(ssl = SSL_new(ctx));
+
+    AssertIntEQ(wolfSSL_check_private_key(ssl), WOLFSSL_SUCCESS);
+    SSL_free(ssl);
+
+
+    AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, cliEccKeyFile,
+                                                         WOLFSSL_FILETYPE_PEM));
+    AssertNotNull(ssl = SSL_new(ctx));
+
+    AssertIntNE(wolfSSL_check_private_key(ssl), WOLFSSL_SUCCESS);
+
+    SSL_free(ssl);
+    SSL_CTX_free(ctx);
+#endif /* end of ECC private key match tests */
+
 
     /* test existence of no-op macros in wolfssl/openssl/ssl.h */
     CONF_modules_free();
     ENGINE_cleanup();
     CONF_modules_unload();
+
+    (void)ssl;
+    (void)ctx;
+    (void)pkey;
 
     printf(resultFmt, passed);
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) */
