@@ -74,6 +74,14 @@ WOLFSSL_API int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa);
 WOLFSSL_API int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa);
 #endif
 
+/* raw export functions */
+WOLFSSL_API int wc_DsaImportParamsRaw(DsaKey* dsa, const char* p,
+                                      const char* q, const char* g);
+WOLFSSL_API int wc_DsaExportParamsRaw(DsaKey* dsa, byte* p, word32* pSz,
+                                      byte* q, word32* qSz, byte* g,
+                                      word32* gSz);
+WOLFSSL_API int wc_DsaExportKeyRaw(DsaKey* dsa, byte* x, word32* xSz, byte* y,
+                                   word32* ySz);
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
