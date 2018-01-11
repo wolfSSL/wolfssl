@@ -19,6 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#ifndef WOLFSSL_OPENSSL_ERR_
+#define WOLFSSL_OPENSSL_ERR_
+
 /* err.h for openssl */
 #define ERR_load_crypto_strings          wolfSSL_ERR_load_crypto_strings
 #define ERR_peek_last_error              wolfSSL_ERR_peek_last_error
+
+#endif /* WOLFSSL_OPENSSL_ERR_ */
+

@@ -1,6 +1,6 @@
-/* asn1.h
+/* objects.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -19,17 +19,30 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-/* asn1.h for openssl */
 
-#ifndef WOLFSSL_ASN1_H_
-#define WOLFSSL_ASN1_H_
+#ifndef WOLFSSL_OBJECTS_H_
+#define WOLFSSL_OBJECTS_H_
 
+#include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/openssl/ssl.h>
 
-#define ASN1_STRING_new      wolfSSL_ASN1_STRING_type_new
-#define ASN1_STRING_type_new wolfSSL_ASN1_STRING_type_new
-#define ASN1_STRING_set      wolfSSL_ASN1_STRING_set
-#define ASN1_STRING_free     wolfSSL_ASN1_STRING_free
+#ifdef __cplusplus
+    extern "C" {
+#endif
 
-#define V_ASN1_OCTET_STRING  0x04 /* tag for ASN1_OCTET_STRING */
-#endif /* WOLFSSL_ASN1_H_ */
+#define OBJ_nid2sn  wolfSSL_OBJ_nid2sn
+#define OBJ_obj2nid wolfSSL_OBJ_obj2nid
+#define OBJ_sn2nid  wolfSSL_OBJ_sn2nid
+#define OBJ_nid2ln  wolfSSL_OBJ_nid2ln
+#define OBJ_txt2nid wolfSSL_OBJ_txt2nid
+#define OBJ_nid2obj wolfSSL_OBJ_nid2obj
+#define OBJ_obj2txt wolfSSL_OBJ_obj2txt
+#define OBJ_cleanup wolfSSL_OBJ_cleanup
+#define ASN1_OBJECT_free wolfSSL_ASN1_OBJECT_free
+
+
+#ifdef __cplusplus
+    }  /* extern "C" */
+#endif
+
+#endif /* WOLFSSL_OBJECTS_H_ */

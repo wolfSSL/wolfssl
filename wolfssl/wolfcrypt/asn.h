@@ -103,15 +103,19 @@ enum DN_Tags {
     ASN_LOCALITY_NAME = 0x07,   /* L  */
     ASN_STATE_NAME    = 0x08,   /* ST */
     ASN_ORG_NAME      = 0x0a,   /* O  */
-    ASN_ORGUNIT_NAME  = 0x0b    /* OU */
+    ASN_ORGUNIT_NAME  = 0x0b,   /* OU */
+    ASN_EMAIL_NAME    = 0x98    /* not oid number there is 97 in 2.5.4.0-97 */
 };
 
 enum PBES {
     PBE_MD5_DES      = 0,
-    PBE_SHA1_DES     = 1,
-    PBE_SHA1_DES3    = 2,
-    PBE_SHA1_RC4_128 = 3,
+    PBE_SHA1_RC4_128 = 1,
+    PBE_SHA1_DES     = 2,
+    PBE_SHA1_DES3    = 3,
     PBE_AES256_CBC   = 4,
+
+    PBE_SHA1_RC4_128_SUM = 657,
+    PBE_SHA1_DES3_SUM    = 659,
     PBES2            = 13       /* algo ID */
 };
 
@@ -146,6 +150,7 @@ enum Misc_ASN {
     MAX_ENCODED_SIG_SZ  = 512,
     MAX_SIG_SZ          = 256,
     MAX_ALGO_SZ         =  20,
+    MAX_SHORT_SZ        =   6,     /* asn int + byte len + 4 byte length */
     MAX_SEQ_SZ          =   5,     /* enum(seq | con) + length(4) */
     MAX_SET_SZ          =   5,     /* enum(set | con) + length(4) */
     MAX_OCTET_STR_SZ    =   5,     /* enum(set | con) + length(4) */
@@ -174,16 +179,19 @@ enum Misc_ASN {
     #endif
                                    /* Max total extensions, id + len + others */
 #endif
+#if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA)
+    MAX_OID_SZ          = 32,      /* Max DER length of OID*/
+    MAX_OID_STRING_SZ   = 64,      /* Max string length representation of OID*/
+#endif
 #ifdef WOLFSSL_CERT_EXT
     MAX_KID_SZ			= 45,	   /* Max encoded KID length (SHA-256 case) */
     MAX_KEYUSAGE_SZ     = 18,      /* Max encoded Key Usage length */
     MAX_EXTKEYUSAGE_SZ  = 12 + (6 * (8 + 2)), /* Max encoded ExtKeyUsage
                         (SEQ/LEN + OBJID + OCTSTR/LEN + SEQ + (6 * (SEQ + OID))) */
-    MAX_OID_SZ          = 32,      /* Max DER length of OID*/
-    MAX_OID_STRING_SZ   = 64,      /* Max string length representation of OID*/
     MAX_CERTPOL_NB      = CTC_MAX_CERTPOL_NB,/* Max number of Cert Policy */
     MAX_CERTPOL_SZ      = CTC_MAX_CERTPOL_SZ,
 #endif
+    MAX_NAME_ENTRIES    = 5,       /* extra entries added to x509 name struct */
     OCSP_NONCE_EXT_SZ   = 35,      /* OCSP Nonce Extension size */
     MAX_OCSP_EXT_SZ     = 58,      /* Max OCSP Extension length */
     MAX_OCSP_NONCE_SZ   = 16,      /* OCSP Nonce size           */
@@ -214,7 +222,8 @@ enum Oid_Types {
     oidKdfType          = 11,
     oidKeyWrapType      = 12,
     oidCmsKeyAgreeType  = 13,
-    oidHmacType         = 14,
+    oidPBEType          = 14,
+    oidHmacType         = 15,
     oidIgnoreType
 };
 
@@ -645,10 +654,12 @@ struct DecodedCert {
     SignatureCtx sigCtx;
 };
 
-
+#define WOLFSSL_MAX_SNAME 40
 struct WOLFSSL_ASN1_OBJECT {
     void*  heap;
     byte*  obj;
+    /* sName is short name i.e sha256 rather than oid (null terminated) */
+    char   sName[WOLFSSL_MAX_SNAME];
     int    type; /* oid */
     word32 objSz;
     byte   dynamic; /* if 1 then obj was dynamiclly created, 0 otherwise */
@@ -748,9 +759,11 @@ WOLFSSL_ASN_API void InitDecodedCert(DecodedCert*, byte*, word32, void*);
 WOLFSSL_ASN_API void FreeDecodedCert(DecodedCert*);
 WOLFSSL_ASN_API int  ParseCert(DecodedCert*, int type, int verify, void* cm);
 
+WOLFSSL_LOCAL int DecodePolicyOID(char *o, word32 oSz, byte *in, word32 inSz);
 WOLFSSL_LOCAL int ParseCertRelative(DecodedCert*,int type,int verify,void* cm);
 WOLFSSL_LOCAL int DecodeToKey(DecodedCert*, int verify);
 
+WOLFSSL_LOCAL const byte* OidFromId(word32 id, word32 type, word32* oidSz);
 WOLFSSL_LOCAL Signer* MakeSigner(void*);
 WOLFSSL_LOCAL void    FreeSigner(Signer*, void*);
 WOLFSSL_LOCAL void    FreeSignerTable(Signer**, int, void*);
@@ -763,7 +776,13 @@ WOLFSSL_ASN_API int ToTraditional(byte* buffer, word32 length);
 WOLFSSL_LOCAL int ToTraditionalInline(const byte* input, word32* inOutIdx,
                                       word32 length);
 WOLFSSL_LOCAL int ToTraditionalEnc(byte* buffer, word32 length,const char*,int);
+WOLFSSL_ASN_API int UnTraditionalEnc(byte* key, word32 keySz, byte* out,
+        word32* outSz, const char* password, int passwordSz, int vPKCS,
+        int vAlgo, byte* salt, word32 saltSz, int itt, WC_RNG* rng, void* heap);
 WOLFSSL_LOCAL int DecryptContent(byte* input, word32 sz,const char* psw,int pswSz);
+WOLFSSL_LOCAL int EncryptContent(byte* input, word32 sz, byte* out, word32* outSz,
+        const char* password,int passwordSz, int vPKCS, int vAlgo,
+        byte* salt, word32 saltSz, int itt, WC_RNG* rng, void* heap);
 WOLFSSL_LOCAL int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID,
         word32* oidSz, int* algoID, void* heap);
 

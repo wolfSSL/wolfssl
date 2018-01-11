@@ -41,7 +41,7 @@
 #endif
 
 
-typedef Aes AES_KEY;
+typedef struct Aes AES_KEY;
 
 WOLFSSL_API void wolfSSL_AES_set_encrypt_key
     (const unsigned char *, const int bits, AES_KEY *);

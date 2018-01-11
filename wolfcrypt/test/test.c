@@ -266,8 +266,15 @@ int  random_test(void);
 int  pwdbased_test(void);
 int  ripemd_test(void);
 #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
-    int  openssl_test(void);   /* test mini api */
+int  openssl_test(void);   /* test mini api */
+
+int  openssl_pkey_test(void);
+int  openssl_pkey0_test(void);
+int  openssl_pkey1_test(void);
+int  openSSL_evpMD_test(void);
+int  openssl_evpSig_test(void);
 #endif
+
 int pbkdf1_test(void);
 int pkcs12_test(void);
 int pbkdf2_test(void);
@@ -762,6 +769,27 @@ int wolfcrypt_test(void* args)
         return err_sys("OPENSSL  test failed!\n", ret);
     else
         printf( "OPENSSL  test passed!\n");
+
+    if ( (ret = openSSL_evpMD_test()) != 0)
+        return err_sys("OPENSSL (EVP MD) test failed!\n", ret);
+    else
+        printf( "OPENSSL (EVP MD) passed!\n");
+
+    if ( (ret = openssl_pkey0_test()) != 0)
+        return err_sys("OPENSSL (PKEY0) test failed!\n", ret);
+    else
+        printf( "OPENSSL (PKEY0) passed!\n");
+
+    if ( (ret = openssl_pkey1_test()) != 0)
+        return err_sys("OPENSSL (PKEY1) test failed!\n", ret);
+    else
+        printf( "OPENSSL (PKEY1) passed!\n");
+
+    if ( (ret = openssl_evpSig_test()) != 0)
+        return err_sys("OPENSSL (EVP Sign/Verify) test failed!\n", ret);
+    else
+        printf( "OPENSSL (EVP Sign/Verify) passed!\n");
+
 #endif
 
 #ifdef HAVE_ECC
@@ -4197,9 +4225,42 @@ int des3_test(void)
     if (XMEMCMP(cipher, verify3, sizeof(cipher)))
         return -3907;
 
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
+    /* test the same vectors with using compatibility layer */
+    {
+        DES_key_schedule ks1;
+        DES_key_schedule ks2;
+        DES_key_schedule ks3;
+        DES_cblock iv4;
+
+        XMEMCPY(ks1, key3, sizeof(DES_key_schedule));
+        XMEMCPY(ks2, key3 + 8, sizeof(DES_key_schedule));
+        XMEMCPY(ks3, key3 + 16, sizeof(DES_key_schedule));
+        XMEMCPY(iv4, iv3, sizeof(DES_cblock));
+
+        XMEMSET(plain, 0, sizeof(plain));
+        XMEMSET(cipher, 0, sizeof(cipher));
+
+        DES_ede3_cbc_encrypt(vector, cipher, sizeof(vector), &ks1, &ks2, &ks3,
+                &iv4, DES_ENCRYPT);
+        DES_ede3_cbc_encrypt(cipher, plain, sizeof(cipher), &ks1, &ks2, &ks3,
+                &iv4, DES_DECRYPT);
+
+        if (XMEMCMP(plain, vector, sizeof(plain)))
+            return -37;
+
+        if (XMEMCMP(cipher, verify3, sizeof(cipher)))
+            return -38;
+    }
+#endif /* OPENSSL_EXTRA */
+
     wc_Des3Free(&enc);
     wc_Des3Free(&dec);
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    wc_Des3AsyncFree(&enc);
+    wc_Des3AsyncFree(&dec);
+#endif
     return 0;
 }
 #endif /* NO_DES */
@@ -10371,13 +10432,645 @@ int openssl_test(void)
         if (XMEMCMP(plain, cbcPlain, 18))
             return -5977;
 
+        total = 0;
+        EVP_CIPHER_CTX_init(&en);
+        if (EVP_EncryptInit(&en, EVP_aes_128_cbc(),
+            (unsigned char*)key, (unsigned char*)iv) == 0)
+            return -3431;
+        if (EVP_CipherUpdate(&en, (byte*)cipher, &outlen, (byte*)cbcPlain, 9) == 0)
+            return -3432;
+        if(outlen != 0)
+            return -3433;
+        total += outlen;
+
+        if (EVP_CipherUpdate(&en, (byte*)&cipher[total], &outlen, (byte*)&cbcPlain[9]  , 9) == 0)
+            return -3434;
+        if(outlen != 16)
+            return -3435;
+        total += outlen;
+
+        if (EVP_EncryptFinal(&en, (byte*)&cipher[total], &outlen) == 0)
+            return -3436;
+        if(outlen != 16)
+            return -3437;
+        total += outlen;
+        if(total != 32)
+            return 3438;
+
+        total = 0;
+        EVP_CIPHER_CTX_init(&de);
+        if (EVP_DecryptInit(&de, EVP_aes_128_cbc(),
+            (unsigned char*)key, (unsigned char*)iv) == 0)
+            return -3440;
+
+        if (EVP_CipherUpdate(&de, (byte*)plain, &outlen, (byte*)cipher, 6) == 0)
+            return -3441;
+        if(outlen != 0)
+            return -3442;
+        total += outlen;
+
+        if (EVP_CipherUpdate(&de, (byte*)&plain[total], &outlen, (byte*)&cipher[6], 12) == 0)
+            return -3443;
+        if(outlen != 0)
+        total += outlen;
+
+        if (EVP_CipherUpdate(&de, (byte*)&plain[total], &outlen, (byte*)&cipher[6+12], 14) == 0)
+            return -3443;
+        if(outlen != 16)
+            return -3444;
+        total += outlen;
+
+        if (EVP_DecryptFinal(&de, (byte*)&plain[total], &outlen) == 0)
+            return -3445;
+        if(outlen != 2)
+            return -3446;
+        total += outlen;
+
+        if(total != 18)
+            return 3447;
+
+        if (XMEMCMP(plain, cbcPlain, 18))
+            return -3448;
+
     }
 #endif /* ifndef NO_AES */
     return 0;
 }
 
+int openSSL_evpMD_test(void)
+{
+#if !defined(NO_SHA256) && !defined(NO_SHA)
+    int ret ;
+    WOLFSSL_EVP_MD_CTX* ctx;
+    WOLFSSL_EVP_MD_CTX* ctx2;
 
-#endif /* OPENSSL_EXTRA && !WOLFCRYPT_ONLY */
+    ctx = EVP_MD_CTX_create();
+    ctx2 = EVP_MD_CTX_create();
+
+    ret = EVP_DigestInit(ctx, EVP_sha256());
+    if (ret != SSL_SUCCESS) {
+        return -3449;
+    }
+
+    ret = EVP_MD_CTX_copy(ctx2, ctx);
+    if (ret != SSL_SUCCESS) {
+        return -3450;
+    }
+
+    if (EVP_MD_type(EVP_sha256()) != EVP_MD_CTX_type(ctx2)) {
+        return -3451;
+    }
+
+    ret = EVP_DigestInit(ctx, EVP_sha1());
+    if (ret != SSL_SUCCESS) {
+        return -3452;
+    }
+
+    if (EVP_MD_type(EVP_sha256()) != EVP_MD_CTX_type(ctx2)) {
+        return -3453;
+    }
+
+    ret = EVP_MD_CTX_copy_ex(ctx2, ctx);
+    if (ret != SSL_SUCCESS) {
+        return -3454;
+    }
+
+    if (EVP_MD_type(EVP_sha256()) == EVP_MD_CTX_type(ctx2)) {
+        return -3455;
+    }
+
+    if (EVP_MD_type(EVP_sha1()) != EVP_MD_CTX_type(ctx2)) {
+        return -3456;
+    }
+
+    EVP_MD_CTX_destroy(ctx);
+    EVP_MD_CTX_destroy(ctx2);
+#endif /* NO_SHA256 */
+
+    return 0;
+}
+
+#ifdef DEBUG_SIGN
+static void show(const char *title, const char *p, unsigned int s) {
+    char* i;
+    printf("%s: ", title);
+    for (i = p;
+            i < p + s;
+            printf("%c", *i), i++);
+    printf("\n");
+}
+#else
+#define show(a,b,c)
+#endif
+
+#define FOURK_BUFF 4096
+
+#define ERR_BASE_PKEY -5000
+int openssl_pkey0_test(void)
+{
+#if !defined(NO_RSA) && !defined(HAVE_USER_RSA) && !defined(NO_SHA)
+    byte*   prvTmp;
+    byte*   pubTmp;
+    int prvBytes;
+    int pubBytes;
+    RSA *prvRsa;
+    RSA *pubRsa;
+    EVP_PKEY *prvPkey;
+    EVP_PKEY *pubPkey;
+    EVP_PKEY_CTX *enc;
+    EVP_PKEY_CTX *dec;
+
+    int    ret;
+    byte   in[] = "Everyone gets Friday off.";
+    byte   out[256];
+    size_t outlen;
+    byte   plain[256];
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
+    FILE    *keyFile, *keypubFile;
+    char cliKey[]    = "./certs/client-key.der";
+    char cliKeypub[] = "./certs/client-keyPub.der";
+
+#endif
+
+    prvTmp = (byte*)XMALLOC(FOURK_BUFF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (prvTmp == NULL)
+        return ERR_BASE_PKEY-1;
+    pubTmp = (byte*)XMALLOC(FOURK_BUFF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pubTmp == NULL)
+        return ERR_BASE_PKEY-2;
+
+#ifdef USE_CERT_BUFFERS_1024
+    XMEMCPY(prvTmp, client_key_der_1024, sizeof_client_key_der_1024);
+    prvBytes = sizeof_client_key_der_1024;
+    XMEMCPY(pubTmp, client_keypub_der_1024, sizeof_client_keypub_der_1024);
+    pubBytes = sizeof_client_keypub_der_1024;
+#elif defined(USE_CERT_BUFFERS_2048)
+    XMEMCPY(prvTmp, client_key_der_2048, sizeof_client_key_der_2048);
+    prvBytes = sizeof_client_key_der_2048;
+    XMEMCPY(pubTmp, client_keypub_der_2048, sizeof_client_keypub_der_2048);
+    pubBytes = sizeof_client_keypub_der_2048;
+#else
+    keyFile = fopen(cliKey, "rb");
+    if (!keyFile) {
+        err_sys("can't open ./certs/client-key.der, "
+                "Please run from wolfSSL home dir", ERR_BASE_PKEY-3);
+        XFREE(prvTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        return ERR_BASE_PKEY-3;
+    }
+    prvBytes = (int)fread(prvTmp, 1, (int)FOURK_BUFF, keyFile);
+    fclose(keyFile);
+    keypubFile = fopen(cliKeypub, "rb");
+    if (!keypubFile) {
+        err_sys("can't open ./certs/client-cert.der, "
+                "Please run from wolfSSL home dir", -4);
+        XFREE(pubTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        return ERR_BASE_PKEY-4;
+    }
+    pubBytes = (int)fread(pubTmp, 1, (int)FOURK_BUFF, keypubFile);
+    fclose(keypubFile);
+    #endif /* USE_CERT_BUFFERS */
+
+        prvRsa = wolfSSL_RSA_new();
+        pubRsa = wolfSSL_RSA_new();
+        if((prvRsa == NULL) || (pubRsa == NULL)){
+          printf("error with RSA_new\n");
+          return ERR_BASE_PKEY-10;
+        }
+
+        ret = wolfSSL_RSA_LoadDer_ex(prvRsa, prvTmp, prvBytes, WOLFSSL_RSA_LOAD_PRIVATE);
+        if(ret != SSL_SUCCESS){
+          printf("error with RSA_LoadDer_ex\n");
+          return ERR_BASE_PKEY-11;
+        }
+
+        ret = wolfSSL_RSA_LoadDer_ex(pubRsa, pubTmp, pubBytes, WOLFSSL_RSA_LOAD_PUBLIC);
+        if(ret != SSL_SUCCESS){
+          printf("error with RSA_LoadDer_ex\n");
+          return ERR_BASE_PKEY-12;
+        }
+
+        prvPkey = wolfSSL_PKEY_new();
+        pubPkey = wolfSSL_PKEY_new();
+        if((prvPkey == NULL) || (pubPkey == NULL)){
+            printf("error with PKEY_new\n");
+            return ERR_BASE_PKEY-13;
+        }
+        ret  = wolfSSL_EVP_PKEY_set1_RSA(prvPkey, prvRsa);
+        ret += wolfSSL_EVP_PKEY_set1_RSA(pubPkey, pubRsa);
+        if(ret != 2){
+            printf("error with PKEY_set1_RSA\n");
+            return ERR_BASE_PKEY-14;
+        }
+
+        dec = EVP_PKEY_CTX_new(prvPkey, NULL);
+        enc = EVP_PKEY_CTX_new(pubPkey, NULL);
+        if((dec == NULL)||(enc==NULL)){
+            printf("error with EVP_PKEY_CTX_new\n");
+            return ERR_BASE_PKEY-15;
+        }
+
+        ret = EVP_PKEY_decrypt_init(dec);
+        if (ret != 1) {
+            printf("error with decrypt init\n");
+            return ERR_BASE_PKEY-16;
+        }
+        ret = EVP_PKEY_encrypt_init(enc);
+        if (ret != 1) {
+            printf("error with encrypt init\n");
+            return ERR_BASE_PKEY-17;
+        }
+        memset(out, 0, sizeof(out));
+        ret = EVP_PKEY_encrypt(enc, out, &outlen, in, sizeof(in));
+        if (ret < 0) {
+            printf("error encrypting msg\n");
+            return ERR_BASE_PKEY-18;
+        }
+
+        show("encrypted msg", out, outlen);
+
+        memset(plain, 0, sizeof(plain));
+        ret = EVP_PKEY_decrypt(dec, plain, &outlen, out, sizeof(out));
+        if (ret != 1) {
+            printf("error decrypting msg\n");
+            return ERR_BASE_PKEY-19;
+        }
+        show("decrypted msg", plain, outlen);
+
+        /* RSA_PKCS1_OAEP_PADDING test */
+        ret = EVP_PKEY_decrypt_init(dec);
+        if (ret != 1) {
+            printf("error with decrypt init\n");
+            return ERR_BASE_PKEY-30;
+        }
+        ret = EVP_PKEY_encrypt_init(enc);
+        if (ret != 1) {
+            printf("error with encrypt init\n");
+            return ERR_BASE_PKEY-31;
+        }
+
+        if (EVP_PKEY_CTX_set_rsa_padding(dec, RSA_PKCS1_PADDING) <= 0) {
+              printf("first set rsa padding error\n");
+              return ERR_BASE_PKEY-32;
+        }
+
+        if (EVP_PKEY_CTX_set_rsa_padding(dec, RSA_PKCS1_OAEP_PADDING) <= 0){
+            printf("second set rsa padding error\n");
+            return ERR_BASE_PKEY-33;
+        }
+
+        if (EVP_PKEY_CTX_set_rsa_padding(enc, RSA_PKCS1_OAEP_PADDING) <= 0) {
+            printf("third set rsa padding error\n");
+            return ERR_BASE_PKEY-34;
+        }
+
+        memset(out, 0, sizeof(out));
+        ret = EVP_PKEY_encrypt(enc, out, &outlen, in, sizeof(in));
+        if (ret < 0) {
+            printf("error encrypting msg\n");
+            return ERR_BASE_PKEY-35;
+        }
+
+        show("encrypted msg", out, outlen);
+
+        memset(plain, 0, sizeof(plain));
+        ret = EVP_PKEY_decrypt(dec, plain, &outlen, out, sizeof(out));
+        if (ret != 1) {
+            printf("error decrypting msg\n");
+            return ERR_BASE_PKEY-36;
+        }
+
+        show("decrypted msg", plain, outlen);
+
+        wolfSSL_RSA_free(prvRsa);
+        wolfSSL_RSA_free(pubRsa);
+        EVP_PKEY_free(pubPkey);
+        EVP_PKEY_free(prvPkey);
+        EVP_PKEY_CTX_free(dec);
+        EVP_PKEY_CTX_free(enc);
+        XFREE(prvTmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(pubTmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+#endif /* NO_RSA */
+
+        return 0;
+
+}
+
+
+int openssl_pkey1_test(void)
+{
+    int ret = 0;
+#if !defined(NO_FILESYSTEM) && !defined(NO_RSA) && !defined(HAVE_USER_RSA) && \
+    !defined(NO_SHA) && !defined(USE_CERT_BUFFERS_1024)
+    EVP_PKEY_CTX* dec = NULL;
+    EVP_PKEY_CTX* enc = NULL;
+    EVP_PKEY* pubKey  = NULL;
+    EVP_PKEY* prvKey  = NULL;
+    X509* x509 = NULL;
+
+    const unsigned char msg[] = "sugar slapped";
+    const unsigned char* clikey;
+    unsigned char tmp[FOURK_BUF];
+    long cliKeySz;
+    unsigned char cipher[256];
+    unsigned char plain[256];
+    size_t outlen = sizeof(cipher);
+    char cliCert[] = "./certs/client-cert.pem";
+    FILE* f;
+
+#if defined(USE_CERT_BUFFERS_2048)
+    XMEMCPY(tmp, client_key_der_2048, sizeof_client_key_der_2048);
+    cliKeySz = (long)sizeof_client_key_der_2048;
+#else
+    f = fopen(clientKey, "rb");
+
+    if (!f) {
+        err_sys("can't open ./certs/client-key.der, "
+                "Please run from wolfSSL home dir", -40);
+        return -40;
+    }
+
+    cliKeySz = (long)fread(tmp, 1, FOURK_BUF, f);
+    fclose(f);
+#endif /* USE_CERT_BUFFERS */
+    clikey = tmp;
+
+    if ((prvKey = EVP_PKEY_new()) == NULL) {
+        return -41;
+    }
+    EVP_PKEY_free(prvKey);
+    prvKey = NULL;
+
+    /* using existing wolfSSL api to get public and private key */
+    f = fopen(cliCert, "rb");
+    if (f == NULL) {
+        return -42;
+    }
+
+    x509 = wolfSSL_X509_load_certificate_file(cliCert, SSL_FILETYPE_PEM);
+    fclose(f);
+    if (x509 == NULL) {
+        ret = -43;
+        goto openssl_pkey1_test_done;
+    }
+
+    pubKey = X509_get_pubkey(x509);
+    if (pubKey == NULL) {
+        ret = -44;
+        goto openssl_pkey1_test_done;
+    }
+
+    prvKey = d2i_PrivateKey(EVP_PKEY_RSA, NULL, &clikey, cliKeySz);
+    if (prvKey == NULL) {
+        ret = -45;
+        goto openssl_pkey1_test_done;
+    }
+
+    /* phase 2 API to create EVP_PKEY_CTX and encrypt/decrypt */
+    if (EVP_PKEY_bits(prvKey) != 2048) {
+        ret = -46;
+        goto openssl_pkey1_test_done;
+    }
+
+    if (EVP_PKEY_size(prvKey) != 256) {
+        ret = -47;
+        goto openssl_pkey1_test_done;
+    }
+
+    dec = EVP_PKEY_CTX_new(prvKey, NULL);
+    enc = EVP_PKEY_CTX_new(pubKey, NULL);
+    if (dec == NULL || enc == NULL) {
+        ret = -48;
+        goto openssl_pkey1_test_done;
+    }
+
+    if (EVP_PKEY_decrypt_init(dec) != 1) {
+        ret = -49;
+        goto openssl_pkey1_test_done;
+    }
+
+    if (EVP_PKEY_encrypt_init(enc) != 1) {
+        ret = -50;
+        goto openssl_pkey1_test_done;
+    }
+
+    if (EVP_PKEY_CTX_set_rsa_padding(dec, RSA_PKCS1_PADDING) <= 0) {
+        ret = -51;
+        goto openssl_pkey1_test_done;
+    }
+
+    if (EVP_PKEY_CTX_set_rsa_padding(dec, RSA_PKCS1_OAEP_PADDING) <= 0){
+        ret = -52;
+        goto openssl_pkey1_test_done;
+    }
+
+    if (EVP_PKEY_CTX_set_rsa_padding(enc, RSA_PKCS1_OAEP_PADDING) <= 0) {
+        ret = -53;
+        goto openssl_pkey1_test_done;
+    }
+
+    XMEMSET(cipher, 0, sizeof(cipher));
+    if (EVP_PKEY_encrypt(enc, cipher, &outlen, msg, sizeof(msg)) < 0) {
+        ret = -54;
+        goto openssl_pkey1_test_done;
+    }
+
+    XMEMSET(plain, 0, sizeof(plain));
+    if (EVP_PKEY_decrypt(dec, plain, &outlen, cipher, sizeof(cipher)) != 1) {
+        ret = -55;
+        goto openssl_pkey1_test_done;
+    }
+
+openssl_pkey1_test_done:
+    if (pubKey != NULL) {
+        EVP_PKEY_free(pubKey);
+    }
+    if (prvKey != NULL) {
+        EVP_PKEY_free(prvKey);
+    }
+    if (dec != NULL) {
+        EVP_PKEY_CTX_free(dec);
+    }
+    if (enc != NULL) {
+        EVP_PKEY_CTX_free(enc);
+    }
+    if (x509 != NULL) {
+        X509_free(x509);
+    }
+
+#endif
+    return ret;
+}
+
+
+#define ERR_BASE_EVPSIG -5100
+
+int openssl_evpSig_test()
+{
+#if !defined(NO_RSA) && !defined(NO_SHA) && !defined(HAVE_USER_RSA)
+  	byte*   prvTmp;
+	byte*   pubTmp;
+	int prvBytes;
+	int pubBytes;
+    RSA *prvRsa;
+	RSA *pubRsa;
+	EVP_PKEY *prvPkey;
+	EVP_PKEY *pubPkey;
+
+    EVP_MD_CTX* sign;
+    EVP_MD_CTX* verf;
+    char msg[] = "see spot run";
+    unsigned char sig[256];
+    unsigned int sigSz;
+    const void* pt;
+    unsigned int count;
+    int ret, ret1, ret2;
+
+    #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
+    FILE    *keyFile, *keypubFile;
+    char cliKey[]    = "./certs/client-key.der";
+    char cliKeypub[] = "./certs/client-keyPub.der";
+    #endif
+
+    prvTmp = (byte*)XMALLOC(FOURK_BUFF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (prvTmp == NULL)
+        return ERR_BASE_EVPSIG-1;
+    pubTmp = (byte*)XMALLOC(FOURK_BUFF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pubTmp == NULL) {
+        XFREE(prvTmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return ERR_BASE_EVPSIG-2;
+    }
+
+#ifdef USE_CERT_BUFFERS_1024
+    XMEMCPY(prvTmp, client_key_der_1024, sizeof_client_key_der_1024);
+    prvBytes = sizeof_client_key_der_1024;
+    XMEMCPY(pubTmp, client_keypub_der_1024, sizeof_client_keypub_der_1024);
+    pubBytes = sizeof_client_keypub_der_1024;
+#elif defined(USE_CERT_BUFFERS_2048)
+    XMEMCPY(prvTmp, client_key_der_2048, sizeof_client_key_der_2048);
+    prvBytes = sizeof_client_key_der_2048;
+    XMEMCPY(pubTmp, client_keypub_der_2048, sizeof_client_keypub_der_2048);
+    pubBytes = sizeof_client_keypub_der_2048;
+#else
+    keyFile = fopen(cliKey, "rb");
+    if (!keyFile) {
+        err_sys("can't open ./certs/client-key.der, "
+                "Please run from wolfSSL home dir", -40);
+        XFREE(prvTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        return ERR_BASE_EVPSIG-3;
+    }
+    prvBytes = (int)fread(prvTmp, 1, (int)FOURK_BUFF, keyFile);
+    fclose(keyFile);
+    keypubFile = fopen(cliKeypub, "rb");
+    if (!keypubFile) {
+        XFREE(pubTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(prvTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        err_sys("can't open ./certs/client-cert.der, "
+                "Please run from wolfSSL home dir", -41);
+        return ERR_BASE_EVPSIG-4;
+    }
+    pubBytes = (int)fread(pubTmp, 1, (int)FOURK_BUFF, keypubFile);
+    fclose(keypubFile);
+    #endif /* USE_CERT_BUFFERS */
+
+    prvRsa = wolfSSL_RSA_new();
+    pubRsa = wolfSSL_RSA_new();
+    if((prvRsa == NULL) || (pubRsa == NULL)){
+        XFREE(pubTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(prvTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        err_sys("ERROR with RSA_new", -41);
+        return ERR_BASE_EVPSIG-5;
+    }
+
+    ret1 = wolfSSL_RSA_LoadDer_ex(prvRsa, prvTmp, prvBytes, WOLFSSL_RSA_LOAD_PRIVATE);
+    ret2 = wolfSSL_RSA_LoadDer_ex(pubRsa, pubTmp, pubBytes, WOLFSSL_RSA_LOAD_PUBLIC);
+    if((ret1 != SSL_SUCCESS) || (ret2 != SSL_SUCCESS)){
+      printf("error with RSA_LoadDer_ex\n");
+      return ERR_BASE_EVPSIG-6;
+    }
+
+    prvPkey = wolfSSL_PKEY_new();
+    pubPkey = wolfSSL_PKEY_new();
+    if((prvPkey == NULL) || (pubPkey == NULL)){
+        XFREE(pubTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(prvTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        printf("error with KEY_new\n");
+        return ERR_BASE_EVPSIG-7;
+    }
+    ret1  = wolfSSL_EVP_PKEY_set1_RSA(prvPkey, prvRsa);
+    ret2  = wolfSSL_EVP_PKEY_set1_RSA(pubPkey, pubRsa);
+    if((ret1 != 1) || (ret2 != 1)){
+        XFREE(pubTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(prvTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        printf("error with EVP_PKEY_set1_RSA\n");
+        return ERR_BASE_EVPSIG-8;
+    }
+
+    /****************** sign and verify *******************/
+    sign = EVP_MD_CTX_create();
+    verf = EVP_MD_CTX_create();
+    if((sign == NULL)||(verf == NULL)){
+        printf("error with EVP_MD_CTX_create\n");
+        return ERR_BASE_EVPSIG-10;
+    }
+
+    ret = EVP_SignInit(sign, EVP_sha1());
+    if(ret != SSL_SUCCESS){
+      printf("error with EVP_SignInit\n");
+      return ERR_BASE_EVPSIG-11;
+    }
+
+    count = sizeof(msg);
+    show("message = ", (char *)msg, count);
+
+    /* sign */
+    memset(sig, 0, sizeof(sig));
+    pt = (const void*)msg;
+    ret1 = EVP_SignUpdate(sign, pt, count);
+    ret2 = EVP_SignFinal(sign, sig, &sigSz, prvPkey);
+    if((ret1 != SSL_SUCCESS) || (ret2 != SSL_SUCCESS)){
+        printf("error with EVP_MD_CTX_create\n");
+        return ERR_BASE_EVPSIG-12;
+    }
+    show("signature = ", (char *)sig, sigSz);
+
+    /* verify */
+    pt = (const void*)msg;
+    ret1 = EVP_VerifyInit(verf, EVP_sha1());
+    ret2 = EVP_VerifyUpdate(verf, pt, count);
+    if((ret1 != SSL_SUCCESS) || (ret2 != SSL_SUCCESS)){
+        printf("error with EVP_Verify\n");
+        return ERR_BASE_EVPSIG-13;
+    }
+    if (EVP_VerifyFinal(verf, sig, sigSz, pubPkey) != 1) {
+        XFREE(pubTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(prvTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        printf("error with EVP_VerifyFinal\n");
+        return ERR_BASE_EVPSIG-14;
+    }
+
+    /* expect fail without update */
+    EVP_VerifyInit(verf, EVP_sha1());
+    if (EVP_VerifyFinal(verf, sig, sigSz, pubPkey) == 1) {
+        XFREE(pubTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(prvTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        printf("EVP_VerifyInit without update not detected\n");
+        return ERR_BASE_EVPSIG-15;
+    }
+
+    XFREE(pubTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(prvTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+    EVP_MD_CTX_destroy(sign);
+    EVP_MD_CTX_destroy(verf);
+
+    wolfSSL_RSA_free(prvRsa);
+    wolfSSL_RSA_free(pubRsa);
+    EVP_PKEY_free(pubPkey);
+    EVP_PKEY_free(prvPkey);
+
+#endif /* NO_RSA */
+    return 0;
+}
+#endif /* OPENSSL_EXTRA */
 
 
 #ifndef NO_PWDBASED

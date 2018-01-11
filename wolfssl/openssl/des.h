@@ -53,6 +53,7 @@ enum {
 };
 
 
+WOLFSSL_API int wolfSSL_DES_is_weak_key(WOLFSSL_const_DES_cblock* key);
 WOLFSSL_API int wolfSSL_DES_set_key(WOLFSSL_const_DES_cblock* myDes,
                                                WOLFSSL_DES_key_schedule* key);
 WOLFSSL_API int wolfSSL_DES_set_key_checked(WOLFSSL_const_DES_cblock* myDes,
@@ -86,6 +87,7 @@ typedef WOLFSSL_const_DES_cblock const_DES_cblock;
 typedef WOLFSSL_DES_key_schedule DES_key_schedule;
 
 #define DES_check_key(x) /* Define WOLFSSL_CHECK_DESKEY to check key */
+#define DES_is_weak_key       wolfSSL_DES_is_weak_key
 #define DES_set_key           wolfSSL_DES_set_key
 #define DES_set_key_checked   wolfSSL_DES_set_key_checked
 #define DES_set_key_unchecked wolfSSL_DES_set_key_unchecked

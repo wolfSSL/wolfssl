@@ -32,18 +32,10 @@
     extern "C" {
 #endif
 
-
-enum  { 
-    RSA_PKCS1_PADDING = 1,
-    RSA_PKCS1_OAEP_PADDING = 4
- };
-
-/* rsaTypes */
-enum {
-    NID_sha256 = 672,
-    NID_sha384 = 673,
-    NID_sha512 = 674
-};
+#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+#define RSA_PKCS1_PADDING      WC_RSA_PKCSV15_PAD
+#define RSA_PKCS1_OAEP_PADDING WC_RSA_OAEP_PAD
+#endif
 
 #ifndef WOLFSSL_RSA_TYPE_DEFINED /* guard on redeclaration */
 typedef struct WOLFSSL_RSA            WOLFSSL_RSA;
@@ -53,6 +45,7 @@ typedef struct WOLFSSL_RSA            WOLFSSL_RSA;
 typedef WOLFSSL_RSA                   RSA;
 
 struct WOLFSSL_RSA {
+    void* heap;
 	WOLFSSL_BIGNUM* n;
 	WOLFSSL_BIGNUM* e;
 	WOLFSSL_BIGNUM* d;
@@ -64,6 +57,7 @@ struct WOLFSSL_RSA {
     void*          internal;  /* our RSA */
     char           inSet;     /* internal set from external ? */
     char           exSet;     /* external set from internal ? */
+    char           ownRng;    /* flag for if the rng should be free'd */
 };
 
 
@@ -83,11 +77,20 @@ WOLFSSL_API int wolfSSL_RSA_size(const WOLFSSL_RSA*);
 WOLFSSL_API int wolfSSL_RSA_sign(int type, const unsigned char* m,
                                unsigned int mLen, unsigned char* sigRet,
                                unsigned int* sigLen, WOLFSSL_RSA*);
+WOLFSSL_API int wolfSSL_RSA_sign_ex(int type, const unsigned char* m,
+                               unsigned int mLen, unsigned char* sigRet,
+                               unsigned int* sigLen, WOLFSSL_RSA*, int);
+WOLFSSL_API int wolfSSL_RSA_verify(int type, const unsigned char* m,
+                               unsigned int mLen, const unsigned char* sig,
+                               unsigned int sigLen, WOLFSSL_RSA*);
 WOLFSSL_API int wolfSSL_RSA_public_decrypt(int flen, const unsigned char* from,
                                   unsigned char* to, WOLFSSL_RSA*, int padding);
 WOLFSSL_API int wolfSSL_RSA_GenAdd(WOLFSSL_RSA*);
 WOLFSSL_API int wolfSSL_RSA_LoadDer(WOLFSSL_RSA*, const unsigned char*, int sz);
+WOLFSSL_API int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA*, const unsigned char*, int sz, int opt);
 
+#define WOLFSSL_RSA_LOAD_PRIVATE 1
+#define WOLFSSL_RSA_LOAD_PUBLIC  2
 
 #define RSA_new  wolfSSL_RSA_new
 #define RSA_free wolfSSL_RSA_free
@@ -100,11 +103,12 @@ WOLFSSL_API int wolfSSL_RSA_LoadDer(WOLFSSL_RSA*, const unsigned char*, int sz);
 
 #define RSA_size           wolfSSL_RSA_size
 #define RSA_sign           wolfSSL_RSA_sign
+#define RSA_verify          wolfSSL_RSA_verify
 #define RSA_public_decrypt wolfSSL_RSA_public_decrypt
 
 
 #ifdef __cplusplus
-    }  /* extern "C" */ 
+    }  /* extern "C" */
 #endif
 
 #endif /* header */

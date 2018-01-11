@@ -48,6 +48,7 @@ struct wc_error_queue {
     int    line;
 };
 volatile struct wc_error_queue* wc_errors;
+static struct wc_error_queue* wc_current_node;
 static struct wc_error_queue* wc_last_node;
 /* pointer to last node in queue to make insertion O(1) */
 #endif
@@ -292,6 +293,7 @@ int wc_LoggingInit(void)
         return BAD_MUTEX_E;
     }
     wc_errors          = NULL;
+    wc_current_node    = NULL;
     wc_last_node       = NULL;
 
     return 0;
@@ -376,6 +378,53 @@ int wc_PeekErrorNode(int idx, const char **file, const char **reason,
 }
 
 
+/* Pulls the current node from error queue and increments current state.
+ * Note: this does not delete nodes because input arguments are pointing to
+ *       node buffers.
+ *
+ * file   pointer to file that error was in. Can be NULL to return no file.
+ * reason error string giving reason for error. Can be NULL to return no reason.
+ * line   retrun line number of where error happened.
+ *
+ * returns the error value on success and BAD_MUTEX_E or BAD_STATE_E on failure
+ */
+int wc_PullErrorNode(const char **file, const char **reason, int *line)
+{
+    struct wc_error_queue* err;
+    int value;
+
+    if (wc_LockMutex(&debug_mutex) != 0) {
+        WOLFSSL_MSG("Lock debug mutex failed");
+        return BAD_MUTEX_E;
+    }
+
+    err = wc_current_node;
+    if (err == NULL) {
+        WOLFSSL_MSG("No Errors in queue");
+        wc_UnLockMutex(&debug_mutex);
+        return BAD_STATE_E;
+    }
+
+    if (file != NULL) {
+        *file = err->file;
+    }
+
+    if (reason != NULL) {
+        *reason = err->error;
+    }
+
+    if (line != NULL) {
+        *line = err->line;
+    }
+
+    value = err->value;
+    wc_current_node = err->next;
+    wc_UnLockMutex(&debug_mutex);
+
+    return value;
+}
+
+
 /* create new error node and add it to the queue
  * buffers are assumed to be of size WOLFSSL_MAX_ERROR_SZ for this internal
  * function. debug_mutex should be locked before a call to this function. */
@@ -429,12 +478,19 @@ int wc_AddErrorNode(int error, int line, char* buf, char* file)
             else {
                 wc_errors    = err;
                 wc_last_node = err;
+                wc_current_node = err;
             }
         }
         else {
             wc_last_node->next = err;
             err->prev = wc_last_node;
             wc_last_node = err;
+
+            /* check the case where have read to the end of the queue and the
+             * current node to read needs updated */
+            if (wc_current_node == NULL) {
+                wc_current_node = err;
+            }
         }
     }
 
