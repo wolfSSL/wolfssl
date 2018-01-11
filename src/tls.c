@@ -6422,7 +6422,7 @@ static int TLSX_PreSharedKey_Parse(WOLFSSL* ssl, byte* input, word16 length,
             /* Length of binder */
             list->binderLen = input[idx++];
             if (list->binderLen < WC_SHA256_DIGEST_SIZE ||
-                    list->binderLen > MAX_DIGEST_SIZE)
+                    list->binderLen > WC_MAX_DIGEST_SIZE)
                 return BUFFER_E;
             if (len < OPAQUE8_LEN + list->binderLen)
                 return BUFFER_E;

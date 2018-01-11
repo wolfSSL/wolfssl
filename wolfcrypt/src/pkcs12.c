@@ -575,7 +575,7 @@ static int wc_PKCS12_verify(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
 {
     MacData* mac;
     int ret;
-    byte digest[MAX_DIGEST_SIZE];
+    byte digest[WC_MAX_DIGEST_SIZE];
 
     if (pkcs12 == NULL || pkcs12->signData == NULL || data == NULL) {
         return BAD_FUNC_ARG;
@@ -588,13 +588,13 @@ static int wc_PKCS12_verify(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
 #endif
 
     /* check if this builds digest size is too small */
-    if (mac->digestSz > MAX_DIGEST_SIZE) {
+    if (mac->digestSz > WC_MAX_DIGEST_SIZE) {
         WOLFSSL_MSG("PKCS12 max digest size too small");
         return BAD_FUNC_ARG;
     }
 
     if ((ret = wc_PKCS12_create_mac(pkcs12, data, dataSz, psw, pswSz,
-            digest, MAX_DIGEST_SIZE)) < 0) {
+            digest, WC_MAX_DIGEST_SIZE)) < 0) {
         return ret;
     }
 
@@ -1969,7 +1969,7 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
     /* create MAC */
     if (macIter > 0) {
         MacData* mac;
-        byte digest[MAX_DIGEST_SIZE]; /* for MAC */
+        byte digest[WC_MAX_DIGEST_SIZE]; /* for MAC */
 
         mac = (MacData*)XMALLOC(sizeof(MacData), heap, DYNAMIC_TYPE_PKCS);
         if (mac == NULL) {
@@ -2019,7 +2019,7 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
             return NULL;
         }
         ret = wc_PKCS12_create_mac(pkcs12, safe->data, safe->dataSz,
-                         (const byte*)pass, passSz, digest, MAX_DIGEST_SIZE);
+                         (const byte*)pass, passSz, digest, WC_MAX_DIGEST_SIZE);
         if (ret < 0) {
             wc_PKCS12_free(pkcs12);
             wc_FreeRng(&rng);

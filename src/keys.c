@@ -2985,14 +2985,14 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
 
         if (clientCopy) {
             XMEMCPY(ssl->keys.client_write_MAC_secret,
-                    keys->client_write_MAC_secret, MAX_DIGEST_SIZE);
+                    keys->client_write_MAC_secret, WC_MAX_DIGEST_SIZE);
             XMEMCPY(ssl->keys.client_write_key,
                     keys->client_write_key, AES_256_KEY_SIZE);
             XMEMCPY(ssl->keys.client_write_IV,
                     keys->client_write_IV, MAX_WRITE_IV_SZ);
         } else {
             XMEMCPY(ssl->keys.server_write_MAC_secret,
-                    keys->server_write_MAC_secret, MAX_DIGEST_SIZE);
+                    keys->server_write_MAC_secret, WC_MAX_DIGEST_SIZE);
             XMEMCPY(ssl->keys.server_write_key,
                     keys->server_write_key, AES_256_KEY_SIZE);
             XMEMCPY(ssl->keys.server_write_IV,

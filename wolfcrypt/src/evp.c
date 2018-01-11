@@ -921,7 +921,7 @@ WOLFSSL_API int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *si
                   unsigned int *siglen, WOLFSSL_EVP_PKEY *pkey)
 {
     unsigned int mdsize;
-    unsigned char md[MAX_DIGEST_SIZE];
+    unsigned char md[WC_MAX_DIGEST_SIZE];
     int ret;
     if (ctx == NULL) return WOLFSSL_FAILURE;
     WOLFSSL_ENTER("EVP_SignFinal");
@@ -997,7 +997,7 @@ WOLFSSL_API int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
         unsigned char*sig, unsigned int siglen, WOLFSSL_EVP_PKEY *pkey)
 {
     int ret;
-    unsigned char md[MAX_DIGEST_SIZE];
+    unsigned char md[WC_MAX_DIGEST_SIZE];
     unsigned int mdsize;
 
     if (ctx == NULL) return WOLFSSL_FAILURE;
@@ -1165,7 +1165,7 @@ int wolfSSL_EVP_DigestSignUpdate(WOLFSSL_EVP_MD_CTX *ctx,
 int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx,
                                 unsigned char *sig, size_t *siglen)
 {
-    unsigned char digest[MAX_DIGEST_SIZE];
+    unsigned char digest[WC_MAX_DIGEST_SIZE];
     Hmac hmacCopy;
     int hashLen, ret;
 

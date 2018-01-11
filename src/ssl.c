@@ -9658,7 +9658,7 @@ int wolfSSL_Cleanup(void)
 /* some session IDs aren't random after all, let's make them random */
 static INLINE word32 HashSession(const byte* sessionID, word32 len, int* error)
 {
-    byte digest[MAX_DIGEST_SIZE];
+    byte digest[WC_MAX_DIGEST_SIZE];
 
 #ifndef NO_MD5
     *error =  wc_Md5Hash(sessionID, len, digest);
@@ -27992,7 +27992,7 @@ static int wolfSSL_TicketKeyCb(WOLFSSL* ssl,
                                   int enc, unsigned char* encTicket,
                                   int encTicketLen, int* encLen, void* ctx)
 {
-    byte                    digest[MAX_DIGEST_SIZE];
+    byte                    digest[WC_MAX_DIGEST_SIZE];
     WOLFSSL_EVP_CIPHER_CTX  evpCtx;
     WOLFSSL_HMAC_CTX        hmacCtx;
     unsigned int            mdSz = 0;
