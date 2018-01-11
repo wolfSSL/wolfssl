@@ -1064,13 +1064,11 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
         goto done;
     }
 
-#ifdef NO_PSK
     #if !defined(NO_FILESYSTEM) && !defined(NO_DH)
         wolfSSL_SetTmpDH_file(ssl, dhParamFile, WOLFSSL_FILETYPE_PEM);
     #elif !defined(NO_DH)
         SetDH(ssl);  /* will repick suites with DHE, higher priority than PSK */
     #endif
-#endif
 
     /* call ssl setup callback */
     if (cbf != NULL && cbf->ssl_ready != NULL) {
@@ -15160,7 +15158,8 @@ static void test_DhCallbacks(void)
     func_args   server_args;
     func_args   client_args;
     THREAD_TYPE serverThread;
-    callback_functions func_cb;
+    callback_functions func_cb_client;
+    callback_functions func_cb_server;
     int  test;
 
     printf(testingFmt, "test_DhCallbacks");
@@ -15191,7 +15190,8 @@ static void test_DhCallbacks(void)
 #endif
     XMEMSET(&server_args, 0, sizeof(func_args));
     XMEMSET(&client_args, 0, sizeof(func_args));
-    XMEMSET(&func_cb, 0, sizeof(callback_functions));
+    XMEMSET(&func_cb_client, 0, sizeof(callback_functions));
+    XMEMSET(&func_cb_server, 0, sizeof(callback_functions));
 
     StartTCP();
     InitTcpReady(&ready);
@@ -15207,10 +15207,15 @@ static void test_DhCallbacks(void)
     client_args.return_code = TEST_FAIL;
 
     /* set callbacks to use DH functions */
-    func_cb.ctx_ready = &test_dh_ctx_setup;
-    func_cb.ssl_ready = &test_dh_ssl_setup;
-    client_args.callbacks = &func_cb;
-    server_args.callbacks = &func_cb;
+    func_cb_client.ctx_ready = &test_dh_ctx_setup;
+    func_cb_client.ssl_ready = &test_dh_ssl_setup;
+    func_cb_client.method = wolfTLSv1_2_client_method;
+    client_args.callbacks = &func_cb_client;
+
+    func_cb_server.ctx_ready = &test_dh_ctx_setup;
+    func_cb_server.ssl_ready = &test_dh_ssl_setup;
+    func_cb_server.method = wolfTLSv1_2_server_method;
+    server_args.callbacks = &func_cb_server;
 
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
@@ -15232,7 +15237,8 @@ static void test_DhCallbacks(void)
 #endif
     XMEMSET(&server_args, 0, sizeof(func_args));
     XMEMSET(&client_args, 0, sizeof(func_args));
-    XMEMSET(&func_cb, 0, sizeof(callback_functions));
+    XMEMSET(&func_cb_client, 0, sizeof(callback_functions));
+    XMEMSET(&func_cb_server, 0, sizeof(callback_functions));
 
     StartTCP();
     InitTcpReady(&ready);
@@ -15248,10 +15254,15 @@ static void test_DhCallbacks(void)
     client_args.return_code = TEST_FAIL;
 
     /* set callbacks to use DH functions */
-    func_cb.ctx_ready = &test_dh_ctx_setup;
-    func_cb.ssl_ready = &test_dh_ssl_setup_fail;
-    client_args.callbacks = &func_cb;
-    server_args.callbacks = &func_cb;
+    func_cb_client.ctx_ready = &test_dh_ctx_setup;
+    func_cb_client.ssl_ready = &test_dh_ssl_setup_fail;
+    func_cb_client.method = wolfTLSv1_2_client_method;
+    client_args.callbacks = &func_cb_client;
+
+    func_cb_server.ctx_ready = &test_dh_ctx_setup;
+    func_cb_server.ssl_ready = &test_dh_ssl_setup_fail;
+    func_cb_server.method = wolfTLSv1_2_server_method;
+    server_args.callbacks = &func_cb_server;
 
     start_thread(test_server_nofail, &server_args, &serverThread);
     wait_tcp_ready(&server_args);
