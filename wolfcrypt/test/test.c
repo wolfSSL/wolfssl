@@ -5685,7 +5685,7 @@ int aesgcm_test(void)
         return -4309;
 #endif /* BENCH_AESGCM_LARGE */
 
-#if !defined(HAVE_FIPS) && !defined(STM32_CRYPTO)
+#ifdef ENABLE_NON_12BYTE_IV_TEST
     /* Variable IV length test */
     for (ivlen=0; ivlen<(int)sizeof(k1); ivlen++) {
          /* AES-GCM encrypt and decrypt both use AES encrypt internally */
@@ -5725,6 +5725,29 @@ int aesgcm_test(void)
             return -4313;
     }
 
+#ifdef BENCH_AESGCM_LARGE
+    /* Variable plain text length test */
+    for (plen=1; plen<BENCH_AESGCM_LARGE; plen++) {
+        /* AES-GCM encrypt and decrypt both use AES encrypt internally */
+        result = wc_AesGcmEncrypt(&enc, large_output, large_input,
+                                  plen, iv1, sizeof(iv1), resultT,
+                                  sizeof(resultT), a, sizeof(a));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+        if (result != 0)
+            return -4314;
+
+        result = wc_AesGcmDecrypt(&enc, large_outdec, large_output,
+                                  plen, iv1, sizeof(iv1), resultT,
+                                  sizeof(resultT), a, sizeof(a));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+        if (result != 0)
+            return -4315;
+    }
+#else
     /* Variable plain text length test */
     for (plen=1; plen<(int)sizeof(p); plen++) {
          /* AES-GCM encrypt and decrypt both use AES encrypt internally */
@@ -5743,6 +5766,7 @@ int aesgcm_test(void)
         if (result != 0)
             return -4315;
     }
+#endif /* BENCH_AESGCM_LARGE */
 
     /* test with IV != 12 bytes */
 #ifdef ENABLE_NON_12BYTE_IV_TEST
