@@ -15503,6 +15503,41 @@ static void test_wolfSSL_BIO_gets(void)
 }
 
 
+static void test_wolfSSL_d2i_PUBKEY(void)
+{
+    #if defined(OPENSSL_EXTRA)
+    BIO*  bio;
+    EVP_PKEY* pkey;
+
+    printf(testingFmt, "wolfSSL_d2i_PUBKEY()");
+
+    AssertNotNull(bio = BIO_new(BIO_s_mem()));
+    AssertNull(d2i_PUBKEY_bio(NULL, NULL));
+
+#if defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+    /* RSA PUBKEY test */
+    AssertIntGT(BIO_write(bio, client_keypub_der_2048,
+                sizeof_client_keypub_der_2048), 0);
+    AssertNotNull(pkey = d2i_PUBKEY_bio(bio, NULL));
+    EVP_PKEY_free(pkey);
+#endif
+
+#if defined(USE_CERT_BUFFERS_256) && defined(HAVE_ECC)
+    /* ECC PUBKEY test */
+    AssertIntGT(BIO_write(bio, ecc_clikeypub_der_256,
+                sizeof_ecc_clikeypub_der_256), 0);
+    AssertNotNull(pkey = d2i_PUBKEY_bio(bio, NULL));
+    EVP_PKEY_free(pkey);
+#endif
+
+    BIO_free(bio);
+
+    (void)pkey;
+    printf(resultFmt, passed);
+    #endif
+}
+
+
 static void test_no_op_functions(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -16308,6 +16343,7 @@ void ApiTest(void)
     test_wolfSSL_OBJ();
     test_wolfSSL_X509_NAME_ENTRY();
     test_wolfSSL_BIO_gets();
+    test_wolfSSL_d2i_PUBKEY();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();
