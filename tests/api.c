@@ -11043,11 +11043,11 @@ static int test_wc_DsaExportKeyRaw (void)
 static int test_wc_ed25519_make_key (void)
 {
     int ret = 0;
-        
+
 #if defined(HAVE_ED25519)
     ed25519_key     key;
     WC_RNG          rng;
-        
+
     ret = wc_InitRng(&rng);
     if (ret == 0) {
         ret = wc_ed25519_init(&key);
@@ -15020,7 +15020,7 @@ static void test_wolfSSL_ASN1_TIME_adj(void)
     AssertTrue(asn_time->data[0] == asn_gen_time);
     XSTRNCPY(date_str,(const char*) &asn_time->data+2, 15);
     AssertIntEQ(0, XMEMCMP(date_str, "20550313091000Z", 15));
-    
+
     XFREE(s,NULL,DYNAMIC_TYPE_OPENSSL);
     XMEMSET(date_str, 0, sizeof(date_str));
 #endif /* !TIME_T_NOT_LONG && !NO_64BIT */
@@ -15228,7 +15228,7 @@ static void test_wolfSSL_HMAC(void)
     HMAC_CTX hmac;
     ENGINE* e = NULL;
     const unsigned char key[] = "simple test key";
-    unsigned char hash[MAX_DIGEST_SIZE];
+    unsigned char hash[WC_MAX_DIGEST_SIZE];
     unsigned int len;
 
 

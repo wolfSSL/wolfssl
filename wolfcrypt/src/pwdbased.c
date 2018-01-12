@@ -171,7 +171,7 @@ int wc_PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
 #ifdef WOLFSSL_SMALL_STACK
     byte*  buffer;
 #else
-    byte   buffer[MAX_DIGEST_SIZE];
+    byte   buffer[WC_MAX_DIGEST_SIZE];
 #endif
 
     hLen = GetDigestSize(hashType);
@@ -179,7 +179,7 @@ int wc_PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_SMALL_STACK
-    buffer = (byte*)XMALLOC(MAX_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    buffer = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (buffer == NULL)
         return MEMORY_E;
 #endif

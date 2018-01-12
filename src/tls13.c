@@ -257,7 +257,7 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
                         const byte* secret, const byte* label, word32 labelLen,
                         byte* msg, int msgLen, int hashAlgo)
 {
-    byte        hash[MAX_DIGEST_SIZE];
+    byte        hash[WC_MAX_DIGEST_SIZE];
     Digest      digest;
     word32      hashSz = 0;
     const byte* protocol;
@@ -345,7 +345,7 @@ static int DeriveKey(WOLFSSL* ssl, byte* output, int outputLen,
                      int hashAlgo, int includeMsgs)
 {
     int         ret = 0;
-    byte        hash[MAX_DIGEST_SIZE];
+    byte        hash[WC_MAX_DIGEST_SIZE];
     word32      hashSz = 0;
     word32      hashOutSz = 0;
     const byte* protocol;
@@ -2153,7 +2153,7 @@ static int WritePSKBinders(WOLFSSL* ssl, byte* output, word32 idx)
     int           ret;
     TLSX*         ext;
     PreSharedKey* current;
-    byte          binderKey[MAX_DIGEST_SIZE];
+    byte          binderKey[WC_MAX_DIGEST_SIZE];
     word16        len;
 
     ext = TLSX_Find(ssl->extensions, TLSX_PRE_SHARED_KEY);
@@ -2378,7 +2378,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 static int CreateCookie(WOLFSSL* ssl, byte* hash, byte hashSz)
 {
     int  ret;
-    byte mac[MAX_DIGEST_SIZE];
+    byte mac[WC_MAX_DIGEST_SIZE];
     Hmac cookieHmac;
     byte cookieType;
     byte macSz;
@@ -2448,7 +2448,7 @@ static int RestartHandshakeHash(WOLFSSL* ssl)
 
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     if (ssl->options.sendCookie) {
-        byte   cookie[OPAQUE8_LEN + MAX_DIGEST_SIZE + OPAQUE16_LEN * 2];
+        byte   cookie[OPAQUE8_LEN + WC_MAX_DIGEST_SIZE + OPAQUE16_LEN * 2];
         TLSX*  ext;
         word32 idx = 0;
 
@@ -2898,8 +2898,8 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     TLSX*         ext;
     word16        bindersLen;
     PreSharedKey* current;
-    byte          binderKey[MAX_DIGEST_SIZE];
-    byte          binder[MAX_DIGEST_SIZE];
+    byte          binderKey[WC_MAX_DIGEST_SIZE];
+    byte          binder[WC_MAX_DIGEST_SIZE];
     word32        binderLen;
     word16        modes;
 #ifdef WOLFSSL_EARLY_DATA
@@ -3131,7 +3131,7 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
 static int CheckCookie(WOLFSSL* ssl, byte* cookie, byte cookieSz)
 {
     int  ret;
-    byte mac[MAX_DIGEST_SIZE];
+    byte mac[WC_MAX_DIGEST_SIZE];
     Hmac cookieHmac;
     byte cookieType;
     byte macSz;
@@ -3971,7 +3971,7 @@ static const byte clientCertVfyLabel[CERT_VFY_LABEL_SZ] =
 /* Maximum length of the signature data. */
 #define MAX_SIG_DATA_SZ            (SIGNING_DATA_PREFIX_SZ + \
                                     CERT_VFY_LABEL_SZ      + \
-                                    MAX_DIGEST_SIZE)
+                                    WC_MAX_DIGEST_SIZE)
 
 /* Create the signature data for TLS v1.3 certificate verification.
  *
@@ -5166,7 +5166,7 @@ static int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     int    ret;
     word32 finishedSz = 0;
     byte*  secret;
-    byte   mac[MAX_DIGEST_SIZE];
+    byte   mac[WC_MAX_DIGEST_SIZE];
 
     WOLFSSL_ENTER("DoTls13Finished");
 
@@ -5264,7 +5264,7 @@ static int SendTls13Finished(WOLFSSL* ssl)
 
     WOLFSSL_ENTER("SendTls13Finished");
 
-    outputSz = MAX_DIGEST_SIZE + DTLS_HANDSHAKE_HEADER_SZ + MAX_MSG_EXTRA;
+    outputSz = WC_MAX_DIGEST_SIZE + DTLS_HANDSHAKE_HEADER_SZ + MAX_MSG_EXTRA;
     /* Check buffers are big enough and grow if needed. */
     if ((ret = CheckAvailableSize(ssl, outputSz)) != 0)
         return ret;
@@ -5744,7 +5744,7 @@ static int ExpectedResumptionSecret(WOLFSSL* ssl)
 {
     int         ret;
     word32      finishedSz = 0;
-    byte        mac[MAX_DIGEST_SIZE];
+    byte        mac[WC_MAX_DIGEST_SIZE];
     Digest      digest;
     static byte header[] = { 0x14, 0x00, 0x00, 0x00 };
 

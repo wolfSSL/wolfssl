@@ -973,7 +973,7 @@ enum Misc {
     SIZEOF_SENDER   =  4,       /* clnt or srvr           */
     FINISHED_SZ     = 36,       /* WC_MD5_DIGEST_SIZE + WC_SHA_DIGEST_SIZE */
     MAX_RECORD_SIZE = 16384,    /* 2^14, max size by standard */
-    MAX_MSG_EXTRA   = 38 + MAX_DIGEST_SIZE,
+    MAX_MSG_EXTRA   = 38 + WC_MAX_DIGEST_SIZE,
                                 /* max added to msg, mac + pad  from */
                                 /* RECORD_HEADER_SZ + BLOCK_SZ (pad) + Max
                                    digest sz + BLOC_SZ (iv) + pad byte (1) */
@@ -1070,7 +1070,7 @@ enum Misc {
     MAX_LABEL_SZ        = 34,  /* Maximum length of a label */
     MAX_HKDF_LABEL_SZ   = OPAQUE16_LEN +
                           OPAQUE8_LEN + PROTOCOL_LABEL_SZ + MAX_LABEL_SZ +
-                          OPAQUE8_LEN + MAX_DIGEST_SIZE,
+                          OPAQUE8_LEN + WC_MAX_DIGEST_SIZE,
     MAX_REQUEST_SZ      = 256, /* Maximum cert req len (no auth yet */
     SESSION_FLUSH_COUNT = 256, /* Flush session cache unless user turns off */
 
@@ -1762,8 +1762,8 @@ typedef struct WOLFSSL_DTLS_PEERSEQ {
 /* keys and secrets
  * keep as a constant size (no additional ifdefs) for session export */
 typedef struct Keys {
-    byte client_write_MAC_secret[MAX_DIGEST_SIZE];   /* max sizes */
-    byte server_write_MAC_secret[MAX_DIGEST_SIZE];
+    byte client_write_MAC_secret[WC_MAX_DIGEST_SIZE];   /* max sizes */
+    byte server_write_MAC_secret[WC_MAX_DIGEST_SIZE];
     byte client_write_key[AES_256_KEY_SIZE];         /* max sizes */
     byte server_write_key[AES_256_KEY_SIZE];
     byte client_write_IV[MAX_WRITE_IV_SZ];               /* max sizes */
@@ -2166,7 +2166,7 @@ typedef struct PreSharedKey {
     byte                 cipherSuite0;            /* Cipher Suite       */
     byte                 cipherSuite;             /* Cipher Suite       */
     word32               binderLen;               /* Length of HMAC     */
-    byte                 binder[MAX_DIGEST_SIZE]; /* HMAC of hanshake   */
+    byte                 binder[WC_MAX_DIGEST_SIZE]; /* HMAC of hanshake   */
     byte                 hmac;                    /* HMAC algorithm     */
     byte                 resumption:1;            /* Resumption PSK     */
     byte                 chosen:1;                /* Server's choice    */

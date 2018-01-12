@@ -26,27 +26,7 @@
 #ifndef WOLF_CRYPT_HMAC_H
 #define WOLF_CRYPT_HMAC_H
 
-#include <wolfssl/wolfcrypt/types.h>
-
-#ifndef NO_MD5
-    #include <wolfssl/wolfcrypt/md5.h>
-#endif
-
-#ifndef NO_SHA
-    #include <wolfssl/wolfcrypt/sha.h>
-#endif
-
-#if !defined(NO_SHA256) || defined(WOLFSSL_SHA224)
-    #include <wolfssl/wolfcrypt/sha256.h>
-#endif
-
-#ifdef WOLFSSL_SHA512
-    #include <wolfssl/wolfcrypt/sha512.h>
-#endif
-
-#ifdef HAVE_BLAKE2
-    #include <wolfssl/wolfcrypt/blake2.h>
-#endif
+#include <wolfssl/wolfcrypt/hash.h>
 
 #ifdef HAVE_FIPS
 /* for fips */
@@ -61,6 +41,10 @@
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
+#endif
+
+#ifndef NO_OLD_WC_NAMES
+    #define HMAC_BLOCK_SIZE WC_HMAC_BLOCK_SIZE
 #endif
 
 enum {
@@ -95,26 +79,19 @@ enum {
 
 /* Select the largest available hash for the buffer size. */
 #if defined(WOLFSSL_SHA512)
-    MAX_DIGEST_SIZE = WC_SHA512_DIGEST_SIZE,
-    HMAC_BLOCK_SIZE = WC_SHA512_BLOCK_SIZE,
+    WC_HMAC_BLOCK_SIZE = WC_SHA512_BLOCK_SIZE,
 #elif defined(HAVE_BLAKE2)
-    MAX_DIGEST_SIZE = BLAKE2B_OUTBYTES,
-    HMAC_BLOCK_SIZE = BLAKE2B_BLOCKBYTES,
+    WC_HMAC_BLOCK_SIZE = BLAKE2B_BLOCKBYTES,
 #elif defined(WOLFSSL_SHA384)
-    MAX_DIGEST_SIZE = WC_SHA384_DIGEST_SIZE,
-    HMAC_BLOCK_SIZE = WC_SHA384_BLOCK_SIZE
+    WC_HMAC_BLOCK_SIZE = WC_SHA384_BLOCK_SIZE
 #elif !defined(NO_SHA256)
-    MAX_DIGEST_SIZE = WC_SHA256_DIGEST_SIZE,
-    HMAC_BLOCK_SIZE = WC_SHA256_BLOCK_SIZE
+    WC_HMAC_BLOCK_SIZE = WC_SHA256_BLOCK_SIZE
 #elif defined(WOLFSSL_SHA224)
-    MAX_DIGEST_SIZE = WC_SHA224_DIGEST_SIZE,
-    HMAC_BLOCK_SIZE = WC_SHA224_BLOCK_SIZE
+    WC_HMAC_BLOCK_SIZE = WC_SHA224_BLOCK_SIZE
 #elif !defined(NO_SHA)
-    MAX_DIGEST_SIZE = WC_SHA_DIGEST_SIZE,
-    HMAC_BLOCK_SIZE = WC_SHA_BLOCK_SIZE,
+    WC_HMAC_BLOCK_SIZE = WC_SHA_BLOCK_SIZE,
 #elif !defined(NO_MD5)
-    MAX_DIGEST_SIZE = WC_MD5_DIGEST_SIZE,
-    HMAC_BLOCK_SIZE = WC_MD5_BLOCK_SIZE,
+    WC_HMAC_BLOCK_SIZE = WC_MD5_BLOCK_SIZE,
 #else
     #error "You have to have some kind of hash if you want to use HMAC."
 #endif
@@ -149,9 +126,9 @@ typedef union {
 /* Hmac digest */
 typedef struct Hmac {
     Hash    hash;
-    word32  ipad[HMAC_BLOCK_SIZE  / sizeof(word32)];  /* same block size all*/
-    word32  opad[HMAC_BLOCK_SIZE  / sizeof(word32)];
-    word32  innerHash[MAX_DIGEST_SIZE / sizeof(word32)];
+    word32  ipad[WC_HMAC_BLOCK_SIZE  / sizeof(word32)];  /* same block size all*/
+    word32  opad[WC_HMAC_BLOCK_SIZE  / sizeof(word32)];
+    word32  innerHash[WC_MAX_DIGEST_SIZE / sizeof(word32)];
     void*   heap;                 /* heap hint */
     byte    macType;              /* md5 sha or sha256 */
     byte    innerHashKeyed;       /* keyed flag */

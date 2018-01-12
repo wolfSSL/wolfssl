@@ -684,7 +684,7 @@ static int ImportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     idx++; /* no truncated hmac */
 #endif
     sz = exp[idx++];
-    if (sz > MAX_DIGEST_SIZE || sz + idx > len) {
+    if (sz > WC_MAX_DIGEST_SIZE || sz + idx > len) {
         return BUFFER_E;
     }
     XMEMCPY(keys->client_write_MAC_secret, exp + idx, sz); idx += sz;
@@ -11416,7 +11416,7 @@ static INLINE int GetRounds(int pLen, int padLen, int t)
 static int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int t,
                            int pLen, int content)
 {
-    byte verify[MAX_DIGEST_SIZE];
+    byte verify[WC_MAX_DIGEST_SIZE];
     byte dmy[sizeof(WOLFSSL) >= MAX_PAD_SIZE ? 1 : MAX_PAD_SIZE] = {0};
     byte* dummy = sizeof(dmy) < MAX_PAD_SIZE ? (byte*) ssl : dmy;
     int  ret = 0;
@@ -11679,7 +11679,7 @@ static INLINE int VerifyMac(WOLFSSL* ssl, const byte* input, word32 msgSz,
 #else
     word32 digestSz = ssl->specs.hash_size;
 #endif
-    byte   verify[MAX_DIGEST_SIZE];
+    byte   verify[WC_MAX_DIGEST_SIZE];
 
     if (ssl->specs.cipher_type == block) {
         if (ssl->options.tls1_1)
@@ -12370,7 +12370,7 @@ int SendChangeCipher(WOLFSSL* ssl)
 static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
                  int content, int verify)
 {
-    byte   result[MAX_DIGEST_SIZE];
+    byte   result[WC_MAX_DIGEST_SIZE];
     word32 digestSz = ssl->specs.hash_size;            /* actual sizes */
     word32 padSz    = ssl->specs.pad_size;
     int    ret      = 0;
@@ -12838,11 +12838,11 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             #ifdef WOLFSSL_SMALL_STACK
                 byte* hmac = NULL;
             #else
-                byte  hmac[MAX_DIGEST_SIZE];
+                byte  hmac[WC_MAX_DIGEST_SIZE];
             #endif
 
             #ifdef WOLFSSL_SMALL_STACK
-                hmac = (byte*)XMALLOC(MAX_DIGEST_SIZE, ssl->heap,
+                hmac = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, ssl->heap,
                                                        DYNAMIC_TYPE_DIGEST);
                 if (hmac == NULL)
                     ERROR_OUT(MEMORY_E, exit_buildmsg);

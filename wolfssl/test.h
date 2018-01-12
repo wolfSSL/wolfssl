@@ -1641,7 +1641,7 @@ static INLINE int myDecryptVerifyCb(WOLFSSL* ssl,
     unsigned int padByte = 0;
     Hmac hmac;
     byte myInner[WOLFSSL_TLS_HMAC_INNER_SZ];
-    byte verify[MAX_DIGEST_SIZE];
+    byte verify[WC_MAX_DIGEST_SIZE];
     const char* tlsStr = "TLS";
 
     /* example supports (d)tls aes */

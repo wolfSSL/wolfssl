@@ -2470,7 +2470,7 @@ int hash_test(void)
     int              ret, exp_ret;
     int              i, j;
     byte             data[] = "0123456789abcdef0123456789abcdef012345";
-    byte             out[MAX_DIGEST_SIZE];
+    byte             out[WC_MAX_DIGEST_SIZE];
     enum wc_HashType typesGood[] = { WC_HASH_TYPE_MD5, WC_HASH_TYPE_SHA,
                                      WC_HASH_TYPE_SHA224, WC_HASH_TYPE_SHA256,
                                      WC_HASH_TYPE_SHA384, WC_HASH_TYPE_SHA512 };
@@ -2960,7 +2960,7 @@ int hmac_sha256_test(void)
     if (wc_HmacSizeByType(20) != BAD_FUNC_ARG)
         return -2815;
 #endif
-    if (wolfSSL_GetHmacMaxSize() != MAX_DIGEST_SIZE)
+    if (wolfSSL_GetHmacMaxSize() != WC_MAX_DIGEST_SIZE)
         return -2816;
 
     return 0;

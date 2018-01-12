@@ -394,7 +394,9 @@ static const bench_alg bench_other_opt[] = {
 #endif
     { NULL, 0}
 };
-#endif
+
+#endif /* !WOLFSSL_BENCHMARK_ALL && !NO_MAIN_DRIVER */
+
 
 #ifdef HAVE_WNR
     const char* wnrConfigFile = "wnr-example.conf";
@@ -1424,6 +1426,12 @@ exit:
 #ifdef WOLFSSL_ASYNC_CRYPT
     wolfAsync_DevClose(&devId);
 #endif
+
+    (void)bench_cipher_algs;
+    (void)bench_digest_algs;
+    (void)bench_mac_algs;
+    (void)bench_asym_algs;
+    (void)bench_other_algs;
 
     return NULL;
 }
@@ -3336,7 +3344,7 @@ static void bench_hmac(int doAsync, int type, int digestSz,
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
 #if defined(BENCH_EMBEDDED)
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, MAX_DIGEST_SIZE, HEAP_HINT);
+    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_MAX_DIGEST_SIZE, HEAP_HINT);
     (void)digestSz;
 #else
     DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, digestSz, HEAP_HINT);
