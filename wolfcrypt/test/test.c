@@ -7249,7 +7249,7 @@ static int rsa_flatten_test(RsaKey* key)
      */
     if (ret == 0)
 #elif defined(HAVE_FIPS) && \
-	  (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
+      (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
     if (ret != 0)
 #else
     if (ret != RSA_BUFFER_E)
@@ -8396,11 +8396,11 @@ int rsa_test(void)
 #ifdef WOLFSSL_KEY_GEN
     {
         int    derSz = 0;
-		int    keySz = 1024;
+        int    keySz = 1024;
 
-		#ifdef HAVE_FIPS
-			keySz = 2048;
-		#endif /* HAVE_FIPS */
+        #ifdef HAVE_FIPS
+            keySz = 2048;
+        #endif /* HAVE_FIPS */
 
         ret = wc_InitRsaKey(&genKey, HEAP_HINT);
         if (ret != 0) {

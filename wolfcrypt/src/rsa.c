@@ -30,7 +30,7 @@
 #ifndef NO_RSA
 
 #if defined(HAVE_FIPS) && \
-	defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
 
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
     #define FIPS_NO_WRAPPERS
@@ -68,7 +68,7 @@ RSA Key Size Configuration:
 
 /* If building for old FIPS. */
 #if defined(HAVE_FIPS) && \
-	(!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
 
 int  wc_InitRsaKey(RsaKey* key, void* ptr)
 {
@@ -119,7 +119,7 @@ int  wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out,
 int  wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
                                   word32 outLen, RsaKey* key)
 {
-	if (in == NULL || out == NULL || key == NULL) {
+    if (in == NULL || out == NULL || key == NULL) {
         return BAD_FUNC_ARG;
     }
     return RsaPrivateDecrypt_fips(in, inLen, out, outLen, key);
@@ -165,19 +165,19 @@ int  wc_RsaEncryptSize(RsaKey* key)
 
 
 int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
-						   word32* bSz)
+                           word32* bSz)
 {
 
-	/* not specified as fips so not needing _fips */
-	return RsaFlattenPublicKey(key, a, aSz, b, bSz);
+    /* not specified as fips so not needing _fips */
+    return RsaFlattenPublicKey(key, a, aSz, b, bSz);
 }
 
 
 #ifdef WOLFSSL_KEY_GEN
-	int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
-	{
-		return MakeRsaKey(key, size, e, rng);
-	}
+    int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
+    {
+        return MakeRsaKey(key, size, e, rng);
+    }
 #endif
 
 
@@ -2120,6 +2120,9 @@ static int RsaGetValue(mp_int* in, byte* out, word32* outSz)
     word32 sz;
     int ret = 0;
 
+    if (in == NULL || out == NULL || outSz == NULL)
+        return BAD_FUNC_ARG;
+
     sz = (word32)mp_unsigned_bin_size(in);
     if (sz > *outSz)
         ret = RSA_BUFFER_E;
@@ -2339,8 +2342,7 @@ int wc_CheckProbablePrime(const byte* pRaw, word32 pRawSz,
 
     if (ret == MP_OKAY) {
         if (qRaw != NULL) {
-            if (ret == MP_OKAY)
-                ret = mp_read_unsigned_bin(&q, qRaw, qRawSz);
+            ret = mp_read_unsigned_bin(&q, qRaw, qRawSz);
             if (ret == MP_OKAY)
                 Q = &q;
         }
@@ -2402,6 +2404,8 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     if (err == MP_OKAY)
         err = mp_set_int(&tmp3, e);
 
+    /* The failCount value comes from NIST FIPS 186-4, section B.3.3,
+     * process steps 4.7 and 5.8. */
     failCount = 5 * (size / 2);
     primeSz = size / 16; /* size is the size of n in bits.
                             primeSz is in bytes. */
