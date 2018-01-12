@@ -232,7 +232,7 @@ static const bench_alg bench_cipher_opt[] = {
 #ifdef WOLFSSL_AES_XTS
     { "-aes-xts",            BENCH_AES_XTS           },
 #endif
-#ifdef HAVE_AES_CFB
+#ifdef WOLFSSL_AES_CFB
     { "-aes-cfb",            BENCH_AES_CFB           },
 #endif
 #ifdef WOLFSSL_AES_COUNTER
@@ -1081,7 +1081,7 @@ static void* benchmarks_do(void* args)
     if (bench_all || (bench_cipher_algs & BENCH_AES_XTS))
         bench_aesxts();
 #endif
-#ifdef HAVE_AES_CFB
+#ifdef WOLFSSL_AES_CFB
     if (bench_all || (bench_cipher_algs & BENCH_AES_CFB))
         bench_aescfb();
 #endif
@@ -1914,7 +1914,7 @@ void bench_aesecb(int doAsync)
 }
 #endif /* WOLFSSL_AES_DIRECT */
 
-#ifdef HAVE_AES_CFB
+#ifdef WOLFSSL_AES_CFB
 static void bench_aescfb_internal(const byte* key, word32 keySz, const byte* iv,
                                   const char* label)
 {
@@ -1948,7 +1948,7 @@ void bench_aescfb(void)
     bench_aescfb_internal(bench_key, 24, bench_iv, "AES-192-CFB");
     bench_aescfb_internal(bench_key, 32, bench_iv, "AES-256-CFB");
 }
-#endif /* HAVE_AES_CFB */
+#endif /* WOLFSSL_AES_CFB */
 
 
 #ifdef WOLFSSL_AES_XTS

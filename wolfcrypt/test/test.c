@@ -4267,7 +4267,7 @@ int des3_test(void)
 
 
 #ifndef NO_AES
-#ifdef HAVE_AES_CFB
+#ifdef WOLFSSL_AES_CFB
     /* Test cases from NIST SP 800-38A, Recommendation for Block Cipher Modes of Operation Methods an*/
     static int aescfb_test(void)
     {
@@ -4508,7 +4508,7 @@ int des3_test(void)
 
         return ret;
     }
-#endif /* HAVE_AES_CFB */
+#endif /* WOLFSSL_AES_CFB */
 
 static int aes_key_size_test(void)
 {
@@ -5647,7 +5647,7 @@ int aes192_test(void)
 
 #endif /* HAVE_AES_CBC */
 
-#if defined(HAVE_AES_CFB)
+#if defined(WOLFSSL_AES_CFB)
     ret = aescfb_test();
     if (ret != 0)
         return ret;
@@ -10417,7 +10417,7 @@ static int openssl_aes_test(void)
     }
 #endif /* HAVE_AES_COUNTER */
 
-#ifdef HAVE_AES_CFB
+#ifdef WOLFSSL_AES_CFB
     {
         AES_KEY enc;
         AES_KEY dec;
@@ -10476,7 +10476,7 @@ static int openssl_aes_test(void)
         if (num != 0)
             return -3331;
     }
-#endif /* HAVE_AES_CFB */
+#endif /* WOLFSSL_AES_CFB */
     return 0;
 }
 #endif /* !defined(NO_AES) && !defined(WOLFCRYPT_ONLY) */
@@ -10699,10 +10699,9 @@ int openssl_test(void)
 
 #endif /* NO_DES3 */
 
-    #if !defined(NO_AES) && !defined(WOLFCRYPT_ONLY)
+#if !defined(NO_AES) && !defined(WOLFCRYPT_ONLY)
         if (openssl_aes_test() != 0)
             return -3429;
-    #endif
 
     {  /* evp_cipher test: EVP_aes_128_cbc */
         EVP_CIPHER_CTX ctx;
@@ -10840,7 +10839,6 @@ int openssl_test(void)
 #define OPENSSL_TEST_ERROR (-10000)
 
 
-#ifndef NO_AES
 #ifdef WOLFSSL_AES_DIRECT
   /* enable HAVE_AES_DECRYPT for AES_encrypt/decrypt */
 {
