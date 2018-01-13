@@ -164,6 +164,7 @@ then
     enable_aesgcm=yes
     enable_aesccm=yes
     enable_aesctr=yes
+    enable_aescfb=yes
     enable_camellia=yes
     enable_ripemd=yes
     enable_sha512=yes
@@ -810,6 +811,19 @@ then
         # This is already implied by fortress build
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_COUNTER -DWOLFSSL_AES_DIRECT"
     fi
+fi
+
+
+# AES-CFB
+AC_ARG_ENABLE([aescfb],
+    [AS_HELP_STRING([--enable-aescfb],[Enable wolfSSL AES-CFB support (default: disabled)])],
+    [ ENABLED_AESCFB=$enableval ],
+    [ ENABLED_AESCFB=no ]
+    )
+
+if test "$ENABLED_AESCFB" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_CFB"
 fi
 
 

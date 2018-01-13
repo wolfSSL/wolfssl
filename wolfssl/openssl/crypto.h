@@ -36,6 +36,9 @@
 WOLFSSL_API const char*   wolfSSLeay_version(int type);
 WOLFSSL_API unsigned long wolfSSLeay(void);
 
+/* depreciated */
+#define CRYPTO_thread_id() 0
+
 #define CRYPTO_THREADID void
 
 #define SSLeay_version wolfSSLeay_version

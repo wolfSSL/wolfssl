@@ -10,6 +10,10 @@
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/random.h>
+#include <wolfssl/wolfcrypt/mem_track.h>
+#if defined(OPENSSL_EXTRA) && defined(SHOW_CERTS)
+    #include <wolfssl/openssl/ssl.h> /* for domain component NID value */
+#endif
 
 #ifdef ATOMIC_USER
     #include <wolfssl/wolfcrypt/aes.h>
@@ -124,7 +128,6 @@
 #ifdef HAVE_CAVIUM
     #include <wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h>
 #endif
-
 #ifdef _MSC_VER
     /* disable conversion warning */
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
@@ -518,6 +521,30 @@ static INLINE void ShowX509(WOLFSSL_X509* x509, const char* hdr)
 
     XFREE(subject, 0, DYNAMIC_TYPE_OPENSSL);
     XFREE(issuer,  0, DYNAMIC_TYPE_OPENSSL);
+
+#if defined(OPENSSL_EXTRA) && defined(SHOW_CERTS)
+    {
+        WOLFSSL_BIO* bio;
+        char buf[256]; /* should be size of ASN_NAME_MAX */
+        int  textSz;
+
+
+        /* print out domain component if certificate has it */
+        textSz = wolfSSL_X509_NAME_get_text_by_NID(
+                wolfSSL_X509_get_subject_name(x509), NID_domainComponent,
+                buf, sizeof(buf));
+        if (textSz > 0) {
+            printf("Domain Component = %s\n", buf);
+        }
+
+        bio = wolfSSL_BIO_new(wolfSSL_BIO_s_file());
+        if (bio != NULL) {
+            wolfSSL_BIO_set_fp(bio, stdout, BIO_NOCLOSE);
+            wolfSSL_X509_print(bio, x509);
+            wolfSSL_BIO_free(bio);
+        }
+    }
+#endif
 }
 
 #endif /* KEEP_PEER_CERT || SESSION_CERTS */

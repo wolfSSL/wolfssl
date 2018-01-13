@@ -103,8 +103,13 @@ enum DN_Tags {
     ASN_LOCALITY_NAME = 0x07,   /* L  */
     ASN_STATE_NAME    = 0x08,   /* ST */
     ASN_ORG_NAME      = 0x0a,   /* O  */
-    ASN_ORGUNIT_NAME  = 0x0b,   /* OU */
-    ASN_EMAIL_NAME    = 0x98    /* not oid number there is 97 in 2.5.4.0-97 */
+    ASN_ORGUNIT_NAME  = 0x0b,    /* OU */
+    ASN_EMAIL_NAME    = 0x98,    /* not oid number there is 97 in 2.5.4.0-97 */
+
+    /* pilot attribute types
+     * OID values of 0.9.2342.19200300.100.1.* */
+    ASN_USER_ID          = 0x01, /* UID */
+    ASN_DOMAIN_COMPONENT = 0x19  /* DC */
 };
 
 enum PBES {
@@ -439,6 +444,8 @@ struct DecodedName {
     int     uidLen;
     int     serialIdx;
     int     serialLen;
+    int     dcIdx;
+    int     dcLen;
 };
 
 enum SignatureState {
@@ -787,7 +794,8 @@ WOLFSSL_LOCAL int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID,
         word32* oidSz, int* algoID, void* heap);
 
 typedef struct tm wolfssl_tm;
-#if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_EXTRA) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 WOLFSSL_LOCAL int GetTimeString(byte* date, int format, char* buf, int len);
 #endif
 WOLFSSL_LOCAL int ExtractDate(const unsigned char* date, unsigned char format,
@@ -800,6 +808,7 @@ WOLFSSL_ASN_API int SetName(byte* output, word32 outputSz, CertName* name);
 #endif
 WOLFSSL_LOCAL int GetShortInt(const byte* input, word32* inOutIdx, int* number,
                               word32 maxIdx);
+WOLFSSL_LOCAL char* GetSigName(int oid);
 WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx);
 WOLFSSL_LOCAL int GetSequence(const byte* input, word32* inOutIdx, int* len,
