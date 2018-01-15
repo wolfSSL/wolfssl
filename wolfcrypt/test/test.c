@@ -7558,7 +7558,8 @@ static int rsa_flatten_test(RsaKey* key)
      *     -101 = USER_CRYPTO_ERROR
      */
     if (ret == 0)
-#elif defined(HAVE_FIPS)
+#elif defined(HAVE_FIPS) && \
+      (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
     if (ret != 0)
 #else
     if (ret != RSA_BUFFER_E)
@@ -8358,7 +8359,8 @@ int rsa_test(void)
     #ifndef WC_NO_RSA_OAEP
     /* OAEP padding testing */
     #if !defined(HAVE_FAST_RSA) && !defined(HAVE_USER_RSA) && \
-        !defined(HAVE_FIPS)
+        (!defined(HAVE_FIPS) || \
+         (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
     #ifndef NO_SHA
     XMEMSET(plain, 0, plainSz);
 
@@ -8704,11 +8706,17 @@ int rsa_test(void)
 #ifdef WOLFSSL_KEY_GEN
     {
         int    derSz = 0;
+        int    keySz = 1024;
+
+        #ifdef HAVE_FIPS
+            keySz = 2048;
+        #endif /* HAVE_FIPS */
+
         ret = wc_InitRsaKey(&genKey, HEAP_HINT);
         if (ret != 0) {
             ERROR_OUT(-5550, exit_rsa);
         }
-        ret = wc_MakeRsaKey(&genKey, 1024, WC_RSA_EXPONENT, &rng);
+        ret = wc_MakeRsaKey(&genKey, keySz, WC_RSA_EXPONENT, &rng);
         if (ret != 0) {
             ERROR_OUT(-5551, exit_rsa);
         }

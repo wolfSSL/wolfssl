@@ -1917,8 +1917,10 @@ AC_ARG_ENABLE([fips],
     [ ENABLED_FIPS=no ]
     )
 
-if test "x$ENABLED_FIPS" = "xyes"
+if test "x$ENABLED_FIPS" != "xno"
 then
+    FIPS_VERSION=$ENABLED_FIPS
+    ENABLED_FIPS=yes
     # requires thread local storage
     if test "$thread_ls_on" = "no"
     then
@@ -1944,6 +1946,19 @@ then
         ENABLED_DES3="yes"
     fi
     AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS"
+    # Add the FIPS flag.
+    AS_IF([test "x$FIPS_VERSION" = "xv2"],
+          [AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS_VERSION=2 -DWOLFSSL_KEY_GEN"
+           ENABLED_KEYGEN="yes"
+           AS_IF([test "x$ENABLED_RSAPSS" != "xyes"],
+			     [ENABLED_RSAPSS="yes"
+				  AM_CFLAGS="$AM_CFLAGS -DWC_RSA_PSS"])
+           AS_IF([test "x$ENABLED_ECC" != "xyes"],
+			     [ENABLED_ECC="yes"
+				  AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
+                  AS_IF([test "x$ENABLED_ECC_SHAMIR" = "xyes"],
+                        [AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"])])
+		  ])
 else
     if test "x$ENABLED_FORTRESS" = "xyes"
     then
@@ -1952,6 +1967,7 @@ else
 fi
 
 AM_CONDITIONAL([BUILD_FIPS], [test "x$ENABLED_FIPS" = "xyes"])
+AM_CONDITIONAL([BUILD_FIPS_V2], [test "x$FIPS_VERSION" = "xv2"])
 
 
 # set sha224 default

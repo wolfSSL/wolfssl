@@ -443,6 +443,9 @@ const char* wc_GetErrorString(int error)
     case PSS_SALTLEN_E:
         return "PSS - Length of salt is too big for hash algorithm";
 
+    case PRIME_GEN_E:
+        return "Unable to find a prime for RSA key";
+
     default:
         return "unknown error number";
 

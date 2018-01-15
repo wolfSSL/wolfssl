@@ -33,7 +33,15 @@ src_libwolfssl_la_SOURCES += \
                ctaocrypt/src/sha256.c
 
 if BUILD_RSA
+if BUILD_FIPS_V2
+src_libwolfssl_la_SOURCES += wolfcrypt/src/rsa.c
+else
 src_libwolfssl_la_SOURCES += ctaocrypt/src/rsa.c
+endif
+endif
+
+if BUILD_ECC
+src_libwolfssl_la_SOURCES += wolfcrypt/src/ecc.c
 endif
 
 if BUILD_AES
@@ -53,6 +61,7 @@ src_libwolfssl_la_SOURCES += ctaocrypt/src/sha512.c
 endif
 
 src_libwolfssl_la_SOURCES += ctaocrypt/src/fips.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/fipsv2.c
 src_libwolfssl_la_SOURCES += ctaocrypt/src/fips_test.c
 
 # fips last file
@@ -87,7 +96,9 @@ if BUILD_RSA
 if BUILD_FAST_RSA
 src_libwolfssl_la_SOURCES += wolfcrypt/user-crypto/src/rsa.c
 else
+if !BUILD_FIPS_V2
 src_libwolfssl_la_SOURCES += wolfcrypt/src/rsa.c
+endif
 endif
 endif
 endif
@@ -218,8 +229,10 @@ if BUILD_SLOWMATH
 src_libwolfssl_la_SOURCES += wolfcrypt/src/integer.c
 endif
 
+if !BUILD_FIPS
 if BUILD_ECC
 src_libwolfssl_la_SOURCES += wolfcrypt/src/ecc.c
+endif
 endif
 
 if BUILD_CURVE25519
