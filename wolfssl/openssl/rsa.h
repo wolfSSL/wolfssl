@@ -33,8 +33,19 @@
 #endif
 
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
-#define RSA_PKCS1_PADDING      WC_RSA_PKCSV15_PAD
-#define RSA_PKCS1_OAEP_PADDING WC_RSA_OAEP_PAD
+#if defined(HAVE_FIPS) || \
+        (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION < 2))
+    /*
+    choice of padding added after fips, so not available when using fips RSA
+    */
+
+    /* Padding types */
+    #define RSA_PKCS1_PADDING      0
+    #define RSA_PKCS1_OAEP_PADDING 1
+#else
+    #define RSA_PKCS1_PADDING      WC_RSA_PKCSV15_PAD
+    #define RSA_PKCS1_OAEP_PADDING WC_RSA_OAEP_PAD
+#endif /* HAVE_FIPS */
 #endif
 
 #ifndef WOLFSSL_RSA_TYPE_DEFINED /* guard on redeclaration */
