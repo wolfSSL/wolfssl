@@ -405,12 +405,20 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
         #define XINET_PTON(a,b,c)   InetPton((a),(b),(c))
     #endif
 #endif
+
 #ifndef XHTONS
     #define XHTONS(a) htons((a))
+#endif
+#ifndef XHTONL
+    #define XHTONL(a) htonl((a))
 #endif
 #ifndef XNTOHS
     #define XNTOHS(a) ntohs((a))
 #endif
+#ifndef XNTOHL
+    #define XNTOHL(a) ntohl((a))
+#endif
+
 
 #ifndef WOLFSSL_IP4
     #define WOLFSSL_IP4 AF_INET

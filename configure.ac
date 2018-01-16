@@ -3139,6 +3139,7 @@ AS_IF([test "x$ENABLED_CRYPTONLY" = "xyes"], [ENABLED_EXAMPLES="no"])
 AM_CONDITIONAL([BUILD_EXAMPLE_SERVERS], [test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
 AM_CONDITIONAL([BUILD_EXAMPLE_CLIENTS], [test "x$ENABLED_EXAMPLES" = "xyes"])
 AM_CONDITIONAL([BUILD_TESTS], [test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
+AM_CONDITIONAL([BUILD_THREADED_EXAMPLES], [test "x$ENABLED_SINGLETHREADED" = "xno" && test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
 
 # Enable wolfCrypt test and benchmark
 AC_ARG_ENABLE([crypttests],
@@ -3304,6 +3305,22 @@ AC_ARG_WITH([intelqa],
 )
 
 AM_CONDITIONAL([BUILD_INTEL_QA], [test "x$ENABLED_INTEL_QA" = "xyes"])
+
+
+# TPM
+AC_ARG_ENABLE([tpm2],
+    [AS_HELP_STRING([--enable-tpm2],[Enable TPM 2.0 support (default: disabled)])],
+    [ ENABLED_TPM2=$enableval ],
+    [ ENABLED_TPM2=no ],
+    )
+
+if test "$ENABLED_TPM2" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TPM2"
+fi
+
+AM_CONDITIONAL([BUILD_TPM2], [test "x$ENABLED_TPM2" = "xyes"])
+
 
 # Single Precision maths implementation
 AC_ARG_ENABLE([sp],
@@ -4240,6 +4257,7 @@ echo "   * Write duplicate:            $ENABLED_WRITEDUP"
 echo "   * Intel Quick Assist:         $ENABLED_INTEL_QA"
 echo "   * Xilinx Hardware Acc.:       $ENABLED_XILINX"
 echo "   * Inline Code:                $ENABLED_INLINE"
+echo "   * TPM2:                       $ENABLED_TPM2"
 echo ""
 echo "---"
 

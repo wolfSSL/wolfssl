@@ -93,3 +93,6 @@ if BUILD_SP
 nobase_include_HEADERS+= wolfssl/wolfcrypt/sp.h
 endif
 
+if BUILD_TPM2
+nobase_include_HEADERS+= wolfssl/wolfcrypt/tpm2.h
+endif
