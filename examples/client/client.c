@@ -2005,8 +2005,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     ret = NonBlockingSSL_Connect(ssl);  /* will keep retrying on timeout */
 #endif
     if (ret != WOLFSSL_SUCCESS) {
-        printf("wolfSSL_connect error %d, %s\n", ret,
-            wolfSSL_ERR_error_string(ret, buffer));
+        printf("wolfSSL_connect error %d, %s\n", err,
+            wolfSSL_ERR_error_string(err, buffer));
         wolfSSL_free(ssl);
         wolfSSL_CTX_free(ctx);
         err_sys("wolfSSL_connect failed");

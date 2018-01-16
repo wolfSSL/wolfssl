@@ -924,6 +924,8 @@ WOLFSSL_API WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509*);
 
 WOLFSSL_API int wolfSSL_ASN1_TIME_print(WOLFSSL_BIO*, const WOLFSSL_ASN1_TIME*);
 
+WOLFSSL_API char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* time,
+                                                            char* buf, int len);
 WOLFSSL_API int  wolfSSL_ASN1_INTEGER_cmp(const WOLFSSL_ASN1_INTEGER*,
                                        const WOLFSSL_ASN1_INTEGER*);
 WOLFSSL_API long wolfSSL_ASN1_INTEGER_get(const WOLFSSL_ASN1_INTEGER*);
@@ -2411,11 +2413,6 @@ WOLFSSL_API int wolfSSL_accept_ex(WOLFSSL*, HandShakeCallBack, TimeoutCallBack,
 #ifdef WOLFSSL_HAVE_CERT_SERVICE
     WOLFSSL_API void wolfSSL_cert_service(void);
 #endif
-
-#if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
-WOLFSSL_API char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* time,
-                                                            char* buf, int len);
-#endif /* WOLFSSL_MYSQL_COMPATIBLE */
 
 #ifdef OPENSSL_EXTRA
 
