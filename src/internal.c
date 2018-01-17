@@ -8382,13 +8382,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                     sizeof(WOLFSSL_X509_STORE_CTX), ssl->heap,
                                                     DYNAMIC_TYPE_TMP_BUFFER);
                         if (store == NULL) {
-                            ERROR_OUT(MEMORY_E, exit_dc);
+                            ERROR_OUT(MEMORY_E, exit_ppc);
                         }
                         WOLFSSL_X509* x509 = (WOLFSSL_X509*)XMALLOC(
                                 sizeof(WOLFSSL_X509), ssl->heap,
                                 DYNAMIC_TYPE_X509);
                         if (x509 == NULL) {
-                            ERROR_OUT(MEMORY_E, exit_dc);
+                            ERROR_OUT(MEMORY_E, exit_ppc);
                         }
                     #else
                         WOLFSSL_X509_STORE_CTX  store[1];
@@ -8428,7 +8428,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     #ifndef NO_CERTS
                         FreeX509(x509);
                     #endif
-                    #ifdef SESSION_CERTS
+                    #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
                         wolfSSL_sk_X509_free(store->chain);
                         store->chain = NULL;
                     #endif
@@ -9077,7 +9077,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 args->idx += ssl->keys.padSz;
             }
 
-        #ifdef SESSION_CERTS
+        #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
             wolfSSL_sk_X509_free(store->chain);
             store->chain = NULL;
         #endif

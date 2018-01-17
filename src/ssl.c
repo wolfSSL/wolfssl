@@ -7171,38 +7171,45 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
         XMEMCPY(local->pkey.ptr, *in + idx, inSz - idx);
     }
 
+    switch (type) {
 #ifndef NO_RSA
-    if (type == EVP_PKEY_RSA && local != NULL){
-        local->ownRsa = 1;
-        local->rsa = wolfSSL_RSA_new();
-        if (local->rsa == NULL) {
-            wolfSSL_EVP_PKEY_free(local);
-            return NULL;
-        }
-        if (wolfSSL_RSA_LoadDer_ex(local->rsa,
-                  (const unsigned char*)local->pkey.ptr, local->pkey_sz,
-                  WOLFSSL_RSA_LOAD_PRIVATE) != SSL_SUCCESS) {
-            wolfSSL_EVP_PKEY_free(local);
-            return NULL;
-      }
-    }
+        case EVP_PKEY_RSA:
+            local->ownRsa = 1;
+            local->rsa = wolfSSL_RSA_new();
+            if (local->rsa == NULL) {
+                wolfSSL_EVP_PKEY_free(local);
+                return NULL;
+            }
+            if (wolfSSL_RSA_LoadDer_ex(local->rsa,
+                      (const unsigned char*)local->pkey.ptr, local->pkey_sz,
+                      WOLFSSL_RSA_LOAD_PRIVATE) != SSL_SUCCESS) {
+                wolfSSL_EVP_PKEY_free(local);
+                return NULL;
+            }
+            break;
 #endif /* NO_RSA */
 #ifdef HAVE_ECC
-    if (type == EVP_PKEY_EC && local != NULL){
-        local->ownEcc = 1;
-        local->ecc = wolfSSL_EC_KEY_new();
-        if (local->ecc == NULL) {
-            wolfSSL_EVP_PKEY_free(local);
-            return NULL;
-        }
-        if (wolfSSL_EC_KEY_LoadDer(local->ecc,
-                  (const unsigned char*)local->pkey.ptr, local->pkey_sz)
-                  != SSL_SUCCESS) {
-            wolfSSL_EVP_PKEY_free(local);
-            return NULL;
-      }
-    }
+        case EVP_PKEY_EC:
+            local->ownEcc = 1;
+            local->ecc = wolfSSL_EC_KEY_new();
+            if (local->ecc == NULL) {
+                wolfSSL_EVP_PKEY_free(local);
+                return NULL;
+            }
+            if (wolfSSL_EC_KEY_LoadDer(local->ecc,
+                      (const unsigned char*)local->pkey.ptr, local->pkey_sz)
+                      != SSL_SUCCESS) {
+                wolfSSL_EVP_PKEY_free(local);
+                return NULL;
+            }
+            break;
 #endif /* HAVE_ECC */
+
+        default:
+            WOLFSSL_MSG("Unsupported key type");
+            wolfSSL_EVP_PKEY_free(local);
+            return NULL;
+    }
 
     /* advance pointer with success */
     if (local != NULL) {
@@ -11953,62 +11960,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 
 
-#if !defined(NO_RSA) && !defined(HAVE_USER_RSA) && !defined(HAVE_FAST_RSA)
-    /* Generates a RSA key of length len
-     *
-     * len  length of RSA key i.e. 2048
-     * e    e to use when generating RSA key
-     * f    callback function for generation details
-     * data user callback argument
-     *
-     * Note: Because of wc_MakeRsaKey an RSA key size generated can be slightly
-     *       rounded down. For example generating a key of size 2999 with e =
-     *       65537 will make a key of size 374 instead of 375.
-     * Returns a new RSA key on success and NULL on failure
-     */
-    WOLFSSL_RSA* wolfSSL_RSA_generate_key(int len, unsigned long e,
-                                          void(*f)(int, int, void*), void* data)
-    {
-        WOLFSSL_RSA*    rsa = NULL;
-        WOLFSSL_BIGNUM* bn  = NULL;
-
-        WOLFSSL_ENTER("wolfSSL_RSA_generate_key");
-
-        (void)f;
-        (void)data;
-
-        if (len < 0) {
-            WOLFSSL_MSG("Bad argument: length was less than 0");
-            return NULL;
-        }
-
-        bn = wolfSSL_BN_new();
-        if (bn == NULL) {
-            WOLFSSL_MSG("Error creating big number");
-            return NULL;
-        }
-
-        if (wolfSSL_BN_set_word(bn, (WOLFSSL_BN_ULONG)e) != SSL_SUCCESS) {
-            WOLFSSL_MSG("Error using e value");
-            wolfSSL_BN_free(bn);
-            return NULL;
-        }
-
-        rsa = wolfSSL_RSA_new();
-        if (rsa == NULL) {
-            WOLFSSL_MSG("memory error");
-        }
-        else {
-            if (wolfSSL_RSA_generate_key_ex(rsa, len, bn, NULL) != SSL_SUCCESS){
-                wolfSSL_RSA_free(rsa);
-                rsa = NULL;
-            }
-        }
-        wolfSSL_BN_free(bn);
-
-        return rsa;
-    }
-#endif /* NO_RSA */
 
 
 #ifndef NO_CERTS
@@ -21141,6 +21092,7 @@ WOLFSSL_SESSION* wolfSSL_d2i_SSL_SESSION(WOLFSSL_SESSION** sess,
                                       DYNAMIC_TYPE_OPENSSL);
         if (s == NULL)
             return NULL;
+        XMEMSET(s, 0, sizeof(WOLFSSL_SESSION));
         s->isAlloced = 1;
 #ifdef HAVE_SESSION_TICKET
         s->isDynamic = 0;
@@ -23716,63 +23668,6 @@ static int SetRsaInternal(WOLFSSL_RSA* rsa)
     return WOLFSSL_SUCCESS;
 }
 
-/* return compliant with OpenSSL
- *   1 if success, 0 if error
- */
-int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA* rsa, int bits, WOLFSSL_BIGNUM* bn,
-                                void* cb)
-{
-    int ret = WOLFSSL_FAILURE;
-
-    (void)cb;
-    (void)bn;
-    (void)bits;
-
-    WOLFSSL_ENTER("wolfSSL_RSA_generate_key_ex");
-
-    if (rsa == NULL || rsa->internal == NULL) {
-        /* bit size checked during make key call */
-        WOLFSSL_MSG("bad arguments");
-        return WOLFSSL_FAILURE;
-    }
-
-#ifdef WOLFSSL_KEY_GEN
-    {
-    #ifdef WOLFSSL_SMALL_STACK
-        WC_RNG* rng = NULL;
-    #else
-        WC_RNG  rng[1];
-    #endif
-
-    #ifdef WOLFSSL_SMALL_STACK
-        rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
-        if (rng == NULL)
-            return WOLFSSL_FAILURE;
-    #endif
-
-        if (wc_InitRng(rng) < 0)
-            WOLFSSL_MSG("RNG init failed");
-        else if (wc_MakeRsaKey((RsaKey*)rsa->internal, bits,
-                    wolfSSL_BN_get_word(bn), rng) != MP_OKAY)
-            WOLFSSL_MSG("wc_MakeRsaKey failed");
-        else if (SetRsaExternal(rsa) != WOLFSSL_SUCCESS)
-            WOLFSSL_MSG("SetRsaExternal failed");
-        else {
-            rsa->inSet = 1;
-            ret = WOLFSSL_SUCCESS;
-        }
-
-        wc_FreeRng(rng);
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
-    #endif
-    }
-#else
-    WOLFSSL_MSG("No Key Gen built in");
-#endif
-    return ret;
-}
-
 
 /* SSL_SUCCESS on ok */
 #ifndef NO_WOLFSSL_STUB
@@ -24034,6 +23929,7 @@ int wolfSSL_RSA_private_encrypt(int len, unsigned char* in,
 
     return sz;
 }
+#endif /* HAVE_USER_RSA */
 
 /* return compliant with OpenSSL
  *   RSA modulus size in bytes, -1 if error
@@ -24043,7 +23939,7 @@ int wolfSSL_RSA_size(const WOLFSSL_RSA* rsa)
     WOLFSSL_ENTER("wolfSSL_RSA_size");
 
     if (rsa == NULL)
-        return SSL_FATAL_ERROR;
+        return WOLFSSL_FATAL_ERROR;
     if (rsa->inSet == 0)
     {
         if (SetRsaInternal((WOLFSSL_RSA*)rsa) != SSL_SUCCESS) {
@@ -24051,9 +23947,122 @@ int wolfSSL_RSA_size(const WOLFSSL_RSA* rsa)
             return 0;
         }
     }
-    return wolfSSL_BN_num_bytes(rsa->n);
+    return wc_RsaEncryptSize((RsaKey*)rsa->internal);
 }
-#endif /* HAVE_USER_RSA */
+
+
+/* Generates a RSA key of length len
+ *
+ * len  length of RSA key i.e. 2048
+ * e    e to use when generating RSA key
+ * f    callback function for generation details
+ * data user callback argument
+ *
+ * Note: Because of wc_MakeRsaKey an RSA key size generated can be slightly
+ *       rounded down. For example generating a key of size 2999 with e =
+ *       65537 will make a key of size 374 instead of 375.
+ * Returns a new RSA key on success and NULL on failure
+ */
+WOLFSSL_RSA* wolfSSL_RSA_generate_key(int len, unsigned long e,
+                                      void(*f)(int, int, void*), void* data)
+{
+    WOLFSSL_RSA*    rsa = NULL;
+    WOLFSSL_BIGNUM* bn  = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_RSA_generate_key");
+
+    (void)f;
+    (void)data;
+
+    if (len < 0) {
+        WOLFSSL_MSG("Bad argument: length was less than 0");
+        return NULL;
+    }
+
+    bn = wolfSSL_BN_new();
+    if (bn == NULL) {
+        WOLFSSL_MSG("Error creating big number");
+        return NULL;
+    }
+
+    if (wolfSSL_BN_set_word(bn, (WOLFSSL_BN_ULONG)e) != SSL_SUCCESS) {
+        WOLFSSL_MSG("Error using e value");
+        wolfSSL_BN_free(bn);
+        return NULL;
+    }
+
+    rsa = wolfSSL_RSA_new();
+    if (rsa == NULL) {
+        WOLFSSL_MSG("memory error");
+    }
+    else {
+        if (wolfSSL_RSA_generate_key_ex(rsa, len, bn, NULL) != SSL_SUCCESS){
+            wolfSSL_RSA_free(rsa);
+            rsa = NULL;
+        }
+    }
+    wolfSSL_BN_free(bn);
+
+    return rsa;
+}
+
+
+/* return compliant with OpenSSL
+ *   1 if success, 0 if error
+ */
+int wolfSSL_RSA_generate_key_ex(WOLFSSL_RSA* rsa, int bits, WOLFSSL_BIGNUM* bn,
+                                void* cb)
+{
+    int ret = WOLFSSL_FAILURE;
+
+    (void)cb;
+    (void)bn;
+    (void)bits;
+
+    WOLFSSL_ENTER("wolfSSL_RSA_generate_key_ex");
+
+    if (rsa == NULL || rsa->internal == NULL) {
+        /* bit size checked during make key call */
+        WOLFSSL_MSG("bad arguments");
+        return WOLFSSL_FAILURE;
+    }
+
+#ifdef WOLFSSL_KEY_GEN
+    {
+    #ifdef WOLFSSL_SMALL_STACK
+        WC_RNG* rng = NULL;
+    #else
+        WC_RNG  rng[1];
+    #endif
+
+    #ifdef WOLFSSL_SMALL_STACK
+        rng = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
+        if (rng == NULL)
+            return WOLFSSL_FAILURE;
+    #endif
+
+        if (wc_InitRng(rng) < 0)
+            WOLFSSL_MSG("RNG init failed");
+        else if (wc_MakeRsaKey((RsaKey*)rsa->internal, bits,
+                    wolfSSL_BN_get_word(bn), rng) != MP_OKAY)
+            WOLFSSL_MSG("wc_MakeRsaKey failed");
+        else if (SetRsaExternal(rsa) != WOLFSSL_SUCCESS)
+            WOLFSSL_MSG("SetRsaExternal failed");
+        else {
+            rsa->inSet = 1;
+            ret = WOLFSSL_SUCCESS;
+        }
+
+        wc_FreeRng(rng);
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(rng, NULL, DYNAMIC_TYPE_RNG);
+    #endif
+    }
+#else
+    WOLFSSL_MSG("No Key Gen built in");
+#endif
+    return ret;
+}
 #endif /* NO_RSA */
 
 #ifndef NO_DSA
