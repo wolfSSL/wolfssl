@@ -4239,6 +4239,7 @@ echo "   * AES Key Wrap:               $ENABLED_AESKEYWRAP"
 echo "   * Write duplicate:            $ENABLED_WRITEDUP"
 echo "   * Intel Quick Assist:         $ENABLED_INTEL_QA"
 echo "   * Xilinx Hardware Acc.:       $ENABLED_XILINX"
+echo "   * Inline Code:                $ENABLED_INLINE"
 echo ""
 echo "---"
 
