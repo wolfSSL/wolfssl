@@ -852,11 +852,12 @@ static INLINE void tcp_listen(SOCKET_T* sockfd, word16* port, int useAnyAddr,
     if (bind(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
         err_sys("tcp bind failed");
     if (!udp) {
-        #ifndef WOLFSSL_KEIL_TCP_NET
-            if (listen(*sockfd, 5) != 0)
+        #ifdef WOLFSSL_KEIL_TCP_NET
+            #define SOCK_LISTEN_MAX_QUEUE 1
         #else
-            if (listen(*sockfd, 1) != 0)
+            #define SOCK_LISTEN_MAX_QUEUE 5
         #endif
+        if (listen(*sockfd, SOCK_LISTEN_MAX_QUEUE) != 0)
                 err_sys("tcp listen failed");
     }
     #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_TIRTOS)
