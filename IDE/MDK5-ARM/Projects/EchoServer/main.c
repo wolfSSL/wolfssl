@@ -29,14 +29,12 @@
 #include "rl_net.h"                      /* Network definitions                */
 #include <time.h>
 
-#ifdef WOLFSSL_STM32_CUBEMX
 #if defined(STM32F7xx)
 #include "stm32f7xx_hal.h"
 #elif defined(STM32F4xx)
 #include "stm32f4xx_hal.h"
 #elif defined(STM32F2xx)
 #include "stm32f2xx_hal.h"
-#endif
 #endif
 
 //-------- <<< Use Configuration Wizard in Context Menu >>> -----------------

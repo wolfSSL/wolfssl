@@ -25,8 +25,6 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#include "wolfcrypt/test/test.h"
-
 #include <stdio.h>
 #include <time.h>
 
@@ -61,8 +59,8 @@ static void CPU_CACHE_Enable (void) {
 extern uint32_t os_time;
 static  time_t epochTime;
 
-uint32_t HAL_GetTick(void) { 
-    return os_time; 
+uint32_t HAL_GetTick(void) {
+    return os_time;
 }
 
 time_t time(time_t *t){
@@ -132,6 +130,8 @@ static void init_filesystem (void) {
 /*-----------------------------------------------------------------------------
  *       mian entry
  *----------------------------------------------------------------------------*/
+void wolfcrypt_test(void *arg) ;
+
 int main()
 {
     void * arg = NULL ;

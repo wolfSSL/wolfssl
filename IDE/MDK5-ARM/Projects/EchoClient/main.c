@@ -97,7 +97,7 @@ void net_loop(void const *arg)
     }
 }
 
-osThreadDef(net_loop, osPriorityNormal, 2, 0);
+osThreadDef(net_loop, osPriorityLow, 2, 0);
 
 #ifdef RTE_CMSIS_RTOS_RTX
 extern uint32_t os_time;
@@ -123,8 +123,8 @@ extern uint32_t os_time;
 
 double current_time(int reset)
 {
-      if(reset) os_time = 0 ;
-      return (double)os_time /1000.0;
+    if(reset) os_time = 0 ;
+    return (double)os_time /1000.0;
 }
 
 #else
@@ -133,16 +133,16 @@ double current_time(int reset)
 #define DWT                 ((DWT_Type       *)     (0xE0001000UL)     )
 typedef struct
 {
-  uint32_t CTRL;                    /*!< Offset: 0x000 (R/W)  Control Register                          */
-  uint32_t CYCCNT;                  /*!< Offset: 0x004 (R/W)  Cycle Count Register                      */
+  uint32_t CTRL;       /*!< Offset: 0x000 (R/W)  Control Register           */
+  uint32_t CYCCNT;     /*!< Offset: 0x004 (R/W)  Cycle Count Register       */
 } DWT_Type;
 
 extern uint32_t SystemCoreClock ;
 
 double current_time(int reset)
 {
-      if(reset) DWT->CYCCNT = 0 ;
-      return ((double)DWT->CYCCNT/SystemCoreClock) ;
+    if(reset) DWT->CYCCNT = 0 ;
+    return ((double)DWT->CYCCNT/SystemCoreClock) ;
 }
 #endif
 
