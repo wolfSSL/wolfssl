@@ -2268,7 +2268,7 @@ struct WOLFSSL_CTX {
 #endif
     Suites*     suites;           /* make dynamic, user may not need/set */
     void*       heap;             /* for user memory overrides */
-    int         verifyDepth;
+    byte        verifyDepth;
     byte        verifyPeer;
     byte        verifyNone;
     byte        failNoCert;
@@ -3320,7 +3320,6 @@ struct WOLFSSL {
     WOLFSSL_SESSION* extSession;
 #endif
     WOLFSSL_ALERT_HISTORY alert_history;
-    int             verifyDepth;
     int             error;
     int             rfd;                /* read  file descriptor */
     int             wfd;                /* write file descriptor */
@@ -3329,6 +3328,7 @@ struct WOLFSSL {
     word32          timeout;            /* session timeout */
     word32          fragOffset;         /* fragment offset */
     word16          curSize;
+    byte            verifyDepth;
     RecordLayerHeader curRL;
     MsgsReceived    msgsReceived;       /* peer messages received */
     ProtocolVersion version;            /* negotiated version */

@@ -6794,7 +6794,7 @@ void wolfSSL_CTX_set_verify_depth(WOLFSSL_CTX *ctx, int depth) {
         return;
     }
 
-    ctx->verifyDepth = depth;
+    ctx->verifyDepth = (byte)depth;
 }
 
 
@@ -14367,7 +14367,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         if (enc){
             wc_Des_CbcEncrypt(&myDes, output, input, (word32)blk*DES_BLOCK_SIZE);
             if(lb_sz){
-                XMEMSET(lastblock, DES_BLOCK_SIZE, 0);
+                XMEMSET(lastblock, 0, DES_BLOCK_SIZE);
                 XMEMCPY(lastblock, input+length-lb_sz, lb_sz);
                 wc_Des_CbcEncrypt(&myDes, output+blk*DES_BLOCK_SIZE,
                     lastblock, (word32)DES_BLOCK_SIZE);
@@ -14409,7 +14409,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             wc_Des3_SetKey(&des, key, (const byte*)ivec, DES_ENCRYPTION);
             wc_Des3_CbcEncrypt(&des, output, input, (word32)blk*DES_BLOCK_SIZE);
             if(lb_sz){
-                XMEMSET(lastblock, DES_BLOCK_SIZE, 0);
+                XMEMSET(lastblock, 0, DES_BLOCK_SIZE);
                 XMEMCPY(lastblock, input+sz-lb_sz, lb_sz);
                 wc_Des3_CbcEncrypt(&des, output+blk*DES_BLOCK_SIZE,
                     lastblock, (word32)DES_BLOCK_SIZE);
@@ -14446,7 +14446,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         if (enc){
             wc_Des_CbcEncrypt(&myDes, output, input, (word32)blk*DES_BLOCK_SIZE);
             if(lb_sz){
-                XMEMSET(lastblock, DES_BLOCK_SIZE, 0);
+                XMEMSET(lastblock, 0, DES_BLOCK_SIZE);
                 XMEMCPY(lastblock, input+length-lb_sz, lb_sz);
                 wc_Des_CbcEncrypt(&myDes, output+blk*DES_BLOCK_SIZE,
                     lastblock, (word32)DES_BLOCK_SIZE);
@@ -14614,7 +14614,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             return SSL_FAILURE;
         }
         XMEMCPY(ctx->sessionCtx, sid_ctx, sid_ctx_len);
-        ctx->sessionCtxSz = sid_ctx_len;
+        ctx->sessionCtxSz = (byte)sid_ctx_len;
 
         return SSL_SUCCESS;
     }
@@ -14639,7 +14639,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             return SSL_FAILURE;
         }
         XMEMCPY(ssl->sessionCtx, id, len);
-        ssl->sessionCtxSz = len;
+        ssl->sessionCtxSz = (byte)len;
 
         return SSL_SUCCESS;
     }
@@ -24684,64 +24684,64 @@ int wolfSSL_HMAC_CTX_copy(WOLFSSL_HMAC_CTX* des, WOLFSSL_HMAC_CTX* src)
     /* requires that hash structures have no dynamic parts to them */
     switch (src->hmac.macType) {
     #ifndef NO_MD5
-        case MD5:
-            XMEMCPY(&des->hmac.hash.md5, &src->hmac.hash.md5, sizeof(Md5));
+        case WC_MD5:
+            XMEMCPY(&des->hmac.hash.md5, &src->hmac.hash.md5, sizeof(wc_Md5));
             break;
     #endif /* !NO_MD5 */
 
     #ifndef NO_SHA
-        case SHA:
-            XMEMCPY(&des->hmac.hash.sha, &src->hmac.hash.sha, sizeof(Sha));
+        case WC_SHA:
+            XMEMCPY(&des->hmac.hash.sha, &src->hmac.hash.sha, sizeof(wc_Sha));
             break;
     #endif /* !NO_SHA */
 
     #ifdef WOLFSSL_SHA224
-        case SHA224:
+        case WC_SHA224:
             XMEMCPY(&des->hmac.hash.sha224, &src->hmac.hash.sha224,
-                    sizeof(Sha224));
+                    sizeof(wc_Sha224));
             break;
     #endif /* WOLFSSL_SHA224 */
 
     #ifndef NO_SHA256
-        case SHA256:
+        case WC_SHA256:
             XMEMCPY(&des->hmac.hash.sha256, &src->hmac.hash.sha256,
-                    sizeof(Sha256));
+                    sizeof(wc_Sha256));
             break;
     #endif /* !NO_SHA256 */
 
     #ifdef WOLFSSL_SHA512
     #ifdef WOLFSSL_SHA384
-        case SHA384:
+        case WC_SHA384:
             XMEMCPY(&des->hmac.hash.sha384, &src->hmac.hash.sha384,
-                    sizeof(Sha384));
+                    sizeof(wc_Sha384));
             break;
     #endif /* WOLFSSL_SHA384 */
-        case SHA512:
+        case WC_SHA512:
             XMEMCPY(&des->hmac.hash.sha512, &src->hmac.hash.sha512,
-                    sizeof(Sha512));
+                    sizeof(wc_Sha512));
             break;
     #endif /* WOLFSSL_SHA512 */
 
         default:
             WOLFSSL_MSG("Unknown or unsupported hash type");
-            return SSL_FAILURE;
+            return WOLFSSL_FAILURE;
     }
 
-    XMEMCPY((byte*)des->hmac.ipad, (byte*)src->hmac.ipad, HMAC_BLOCK_SIZE);
-    XMEMCPY((byte*)des->hmac.opad, (byte*)src->hmac.opad, HMAC_BLOCK_SIZE);
+    XMEMCPY((byte*)des->hmac.ipad, (byte*)src->hmac.ipad, WC_HMAC_BLOCK_SIZE);
+    XMEMCPY((byte*)des->hmac.opad, (byte*)src->hmac.opad, WC_HMAC_BLOCK_SIZE);
     XMEMCPY((byte*)des->hmac.innerHash, (byte*)src->hmac.innerHash,
-                                                               MAX_DIGEST_SIZE);
+                                                            WC_MAX_DIGEST_SIZE);
     des->hmac.heap    = src->hmac.heap;
     des->hmac.macType = src->hmac.macType;
     des->hmac.innerHashKeyed = src->hmac.innerHashKeyed;
     XMEMCPY((byte *)&des->save_ipad, (byte *)&src->hmac.ipad,
-                                        HMAC_BLOCK_SIZE);
+                                        WC_HMAC_BLOCK_SIZE);
     XMEMCPY((byte *)&des->save_opad, (byte *)&src->hmac.opad,
-                                        HMAC_BLOCK_SIZE);
+                                        WC_HMAC_BLOCK_SIZE);
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     XMEMCPY(des->hmac.asyncDev, src->hmac.asyncDev, sizeof(WC_ASYNC_DEV));
-    XMEMCPY(des->hmac.keyRaw, src->hmac.keyRaw, HMAC_BLOCK_SIZE);
+    XMEMCPY(des->hmac.keyRaw, src->hmac.keyRaw, WC_HMAC_BLOCK_SIZE);
     des->hmac.keyLen = src->hmac.keyLen;
     #ifdef HAVE_CAVIUM
         des->hmac.data = (byte*)XMALLOC(src->hmac.dataLen, des->heap,
@@ -24753,7 +24753,7 @@ int wolfSSL_HMAC_CTX_copy(WOLFSSL_HMAC_CTX* des, WOLFSSL_HMAC_CTX* src)
         des->hmac.dataLen = src->hmac.dataLen;
     #endif /* HAVE_CAVIUM */
 #endif /* WOLFSSL_ASYNC_CRYPT */
-        return SSL_SUCCESS;
+        return WOLFSSL_SUCCESS;
 }
 
 int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
@@ -24813,20 +24813,20 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
                 return WOLFSSL_FAILURE;
             }
             XMEMCPY((byte *)&ctx->save_ipad, (byte *)&ctx->hmac.ipad,
-                                        HMAC_BLOCK_SIZE);
+                                        WC_HMAC_BLOCK_SIZE);
             XMEMCPY((byte *)&ctx->save_opad, (byte *)&ctx->hmac.opad,
-                                        HMAC_BLOCK_SIZE);
+                                        WC_HMAC_BLOCK_SIZE);
         }
         /* OpenSSL compat, no error */
     } else if(ctx->type >= 0) { /* MD5 == 0 */
         WOLFSSL_MSG("recover hmac");
         if (wc_HmacInit(&ctx->hmac, NULL, INVALID_DEVID) == 0) {
-            ctx->hmac.macType = ctx->type;
+            ctx->hmac.macType = (byte)ctx->type;
             ctx->hmac.innerHashKeyed = 0;
             XMEMCPY((byte *)&ctx->hmac.ipad, (byte *)&ctx->save_ipad,
-                                       HMAC_BLOCK_SIZE);
+                                       WC_HMAC_BLOCK_SIZE);
             XMEMCPY((byte *)&ctx->hmac.opad, (byte *)&ctx->save_opad,
-                                       HMAC_BLOCK_SIZE);
+                                       WC_HMAC_BLOCK_SIZE);
             if ((hmac_error = _InitHmac(&ctx->hmac, ctx->hmac.macType, ctx->hmac.heap))
                     !=0) {
                return hmac_error;
@@ -28463,7 +28463,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             *out += sz;
         }
         else {
-            *out = XMALLOC(sz, NULL, DYNAMIC_TYPE_OPENSSL);
+            *out = (unsigned char*)XMALLOC(sz, NULL, DYNAMIC_TYPE_OPENSSL);
             if (*out == NULL) {
                 return MEMORY_E;
             }
@@ -29206,10 +29206,11 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
      *
      * Returns a pointer to the message digest on success and NULL on failure.
      */
-    unsigned char *wolfSSL_SHA1(const unsigned char *d, size_t n, unsigned char *md)
+    unsigned char *wolfSSL_SHA1(const unsigned char *d, size_t n,
+            unsigned char *md)
     {
-        static byte dig[SHA_DIGEST_SIZE];
-        Sha sha;
+        static byte dig[WC_SHA_DIGEST_SIZE];
+        wc_Sha sha;
 
         WOLFSSL_ENTER("wolfSSL_SHA1");
 
@@ -29231,7 +29232,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         wc_ShaFree(&sha);
 
         if (md != NULL) {
-            XMEMCPY(md, dig, SHA_DIGEST_SIZE);
+            XMEMCPY(md, dig, WC_SHA_DIGEST_SIZE);
             return md;
         }
         else {

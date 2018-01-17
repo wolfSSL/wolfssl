@@ -12766,7 +12766,7 @@ static int test_wc_ecc_encryptDecrypt (void)
     WC_RNG      rng;
     const char* msg   = "EccBlock Size 16";
     word32      msgSz = (word32)XSTRLEN(msg);
-    byte        out[XSTRLEN(msg) + SHA256_DIGEST_SIZE];
+    byte        out[XSTRLEN(msg) + WC_SHA256_DIGEST_SIZE];
     word32      outSz = (word32)sizeof(out);
     byte        plain[XSTRLEN(msg)];
     word32      plainSz = (word32)sizeof(plain);
@@ -15903,7 +15903,8 @@ static void test_wolfSSL_sk_GENERAL_NAME(void)
     AssertNotNull(x509 = d2i_X509(NULL, &bufPt, bytes));
 
     /* current cert has no alt names */
-    AssertNull(sk = X509_get_ext_d2i(x509, NID_subject_alt_name, NULL, NULL));
+    AssertNull(sk = (WOLF_STACK_OF(ASN1_OBJECT)*)X509_get_ext_d2i(x509,
+                NID_subject_alt_name, NULL, NULL));
 
     AssertIntEQ(sk_GENERAL_NAME_num(sk), -1);
 #if 0
@@ -16254,11 +16255,11 @@ static void test_wolfSSL_SHA(void)
         const unsigned char in[] = "abc";
         unsigned char expected[] = "\xA9\x99\x3E\x36\x47\x06\x81\x6A\xBA\x3E"
                                     "\x25\x71\x78\x50\xC2\x6C\x9C\xD0\xD8\x9D";
-        unsigned char out[SHA_DIGEST_SIZE];
+        unsigned char out[WC_SHA_DIGEST_SIZE];
 
-        XMEMSET(out, 0, SHA_DIGEST_SIZE);
+        XMEMSET(out, 0, WC_SHA_DIGEST_SIZE);
         AssertNotNull(SHA1(in, XSTRLEN((char*)in), out));
-        AssertIntEQ(XMEMCMP(out, expected, SHA_DIGEST_SIZE), 0);
+        AssertIntEQ(XMEMCMP(out, expected, WC_SHA_DIGEST_SIZE), 0);
     }
     #endif
     printf(resultFmt, passed);
@@ -16271,7 +16272,7 @@ static void test_wolfSSL_DH_1536_prime(void)
     BIGNUM* bn;
     unsigned char bits[200];
     int sz = 192; /* known binary size */
-    const char expected[] = {
+    const byte expected[] = {
         0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
         0xC9,0x0F,0xDA,0xA2,0x21,0x68,0xC2,0x34,
         0xC4,0xC6,0x62,0x8B,0x80,0xDC,0x1C,0xD1,
