@@ -66,7 +66,7 @@
         #include "cmsis_os.h"
         #include "rl_net.h"
         #include "errno.h"
-	#elif defined(WOLFSSL_CMSIS_RTOS)
+    #elif defined(WOLFSSL_CMSIS_RTOS)
         #include "cmsis_os.h"
     #elif defined(WOLFSSL_TIRTOS)
         #include <sys/socket.h>
