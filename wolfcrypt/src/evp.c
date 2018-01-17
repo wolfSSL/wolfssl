@@ -714,7 +714,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_decrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
         if(len < 0)return 0;
         else {
             *outlen = len ;
-            return 1;
+            return WOLFSSL_SUCCESS;
         }
 #endif /* NO_RSA */
 
@@ -740,7 +740,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_decrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx)
     switch(ctx->pkey->type){
     case EVP_PKEY_RSA:
         ctx->op = EVP_PKEY_OP_DECRYPT;
-        return 1;
+        return WOLFSSL_SUCCESS;
 
     case EVP_PKEY_EC:
         WOLFSSL_MSG("not implemented");

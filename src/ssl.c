@@ -6361,7 +6361,7 @@ int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx)
     WOLFSSL_ENTER("wolfSSL_CTX_check_private_key");
 
     if (ctx == NULL) {
-        return SSL_FAILURE;
+        return WOLFSSL_FAILURE;
     }
 
 #ifndef NO_CERTS
@@ -6370,7 +6370,7 @@ int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx)
     InitDecodedCert(&der, buff, size, ctx->heap);
     if (ParseCertRelative(&der, CERT_TYPE, NO_VERIFY, NULL) != 0) {
         FreeDecodedCert(&der);
-        return SSL_FAILURE;
+        return WOLFSSL_FAILURE;
     }
 
     size = ctx->privateKey->length;
@@ -6379,14 +6379,14 @@ int wolfSSL_CTX_check_private_key(const WOLFSSL_CTX* ctx)
     FreeDecodedCert(&der);
 
     if (ret == 1) {
-        return SSL_SUCCESS;
+        return WOLFSSL_SUCCESS;
     }
     else {
-        return SSL_FAILURE;
+        return WOLFSSL_FAILURE;
     }
 #else
     WOLFSSL_MSG("NO_CERTS is defined, can not check private key");
-    return SSL_FAILURE;
+    return WOLFSSL_FAILURE;
 #endif
 }
 
@@ -11492,10 +11492,10 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         ssl->biowr = wr;
 
         /* set SSL to use BIO callbacks instead */
-        if (rd->type != WOLFSSL_BIO_SOCKET) {
+        if (rd != NULL && rd->type != WOLFSSL_BIO_SOCKET) {
             ssl->CBIORecv = BioReceive;
         }
-        if (wr->type != WOLFSSL_BIO_SOCKET) {
+        if (wr != NULL && wr->type != WOLFSSL_BIO_SOCKET) {
             ssl->CBIOSend = BioSend;
         }
     }
@@ -16394,6 +16394,10 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_sk_GENERAL_NAME_value(WOLFSSL_STACK* sk, int i)
     cur = sk;
     for (j = 0; j < i && cur != NULL; j++) {
         cur = cur->next;
+    }
+
+    if (cur == NULL) {
+        return NULL;
     }
 
     return cur->data.obj;
@@ -21573,10 +21577,10 @@ int wolfSSL_RAND_write_file(const char* fname)
  */
 int wolfSSL_RAND_egd(const char* nm)
 {
-#if defined(USE_WOLFSSL_IO) && !defined(USE_WINDOWS_API)
+#if defined(USE_WOLFSSL_IO) && !defined(USE_WINDOWS_API) && !defined(HAVE_FIPS)
     struct sockaddr_un rem;
     int fd;
-    int ret = SSL_SUCCESS;
+    int ret = WOLFSSL_SUCCESS;
     word32 bytes = 0;
     word32 idx   = 0;
 #ifndef WOLFSSL_SMALL_STACK
@@ -21586,7 +21590,7 @@ int wolfSSL_RAND_egd(const char* nm)
     buf = (unsigned char*)XMALLOC(256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (buf == NULL) {
         WOLFSSL_MSG("Not enough memory");
-        return SSL_FATAL_ERROR;
+        return WOLFSSL_FATAL_ERROR;
     }
 #endif
 
@@ -21594,7 +21598,7 @@ int wolfSSL_RAND_egd(const char* nm)
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
-        return SSL_FATAL_ERROR;
+        return WOLFSSL_FATAL_ERROR;
     }
 
     fd = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -21603,36 +21607,38 @@ int wolfSSL_RAND_egd(const char* nm)
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(buf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
-        return SSL_FATAL_ERROR;
+        return WOLFSSL_FATAL_ERROR;
     }
-    if (ret == SSL_SUCCESS) {
+    if (ret == WOLFSSL_SUCCESS) {
         rem.sun_family = AF_UNIX;
         XMEMCPY(rem.sun_path, nm, XSTRLEN(nm));
     }
 
     /* connect to egd server */
-    if (ret == SSL_SUCCESS) {
+    if (ret == WOLFSSL_SUCCESS) {
         if (connect(fd, (struct sockaddr*)&rem, sizeof(struct sockaddr_un))
                 == -1) {
             WOLFSSL_MSG("error connecting to egd server");
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
     }
 
-    while (ret == SSL_SUCCESS && bytes < 255 && idx + 2 < 256) {
-        if (ret == SSL_SUCCESS) {
+    while (ret == WOLFSSL_SUCCESS && bytes < 255 && idx + 2 < 256) {
+        if (ret == WOLFSSL_SUCCESS) {
             buf[idx]     = WOLFSSL_EGD_NBLOCK;
             buf[idx + 1] = 255 - bytes; /* request 255 bytes from server */
             ret = (int)write(fd, buf + idx, 2);
             if (ret <= 0 || ret != 2) {
                 if (errno == EAGAIN) {
-                    ret = SSL_SUCCESS;
+                    ret = WOLFSSL_SUCCESS;
                     continue;
                 }
                 WOLFSSL_MSG("error requesting entropy from egd server");
-                ret = SSL_FATAL_ERROR;
+                ret = WOLFSSL_FATAL_ERROR;
             }
-            ret = SSL_SUCCESS;
+            else {
+                ret = WOLFSSL_SUCCESS;
+            }
         }
 
         /* attempting to read */
@@ -21640,19 +21646,19 @@ int wolfSSL_RAND_egd(const char* nm)
         ret = (int)read(fd, buf + idx, 256 - bytes);
         if (ret == 0) {
             WOLFSSL_MSG("error reading entropy from egd server");
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
             break;
         }
         if (ret > 0 && buf[idx] > 0) {
             bytes += buf[idx]; /* egd stores amount sent in first byte */
             if (bytes + idx > 255 || buf[idx] > ret) {
                 WOLFSSL_MSG("Buffer error");
-                ret = SSL_FATAL_ERROR;
+                ret = WOLFSSL_FATAL_ERROR;
                 break;
             }
             XMEMMOVE(buf + idx, buf + idx + 1, buf[idx]);
             idx = bytes;
-            ret = SSL_SUCCESS;
+            ret = WOLFSSL_SUCCESS;
             if (bytes >= 255) {
                 break;
             }
@@ -21660,27 +21666,27 @@ int wolfSSL_RAND_egd(const char* nm)
         else {
             if (errno == EAGAIN || errno == EINTR) {
                 WOLFSSL_MSG("EGD would read");
-                ret = SSL_SUCCESS; /* try again */
+                ret = WOLFSSL_SUCCESS; /* try again */
             }
             else if (buf[idx] == 0) {
                 /* if egd returned 0 then there is no more entropy to be had.
                    Do not try more reads. */
-                ret = SSL_SUCCESS;
+                ret = WOLFSSL_SUCCESS;
                 break;
             }
             else {
                 WOLFSSL_MSG("Error with read");
-                ret = SSL_FATAL_ERROR;
+                ret = WOLFSSL_FATAL_ERROR;
             }
         }
     }
 
-    if (bytes > 0 && ret == SSL_SUCCESS) {
+    if (bytes > 0 && ret == WOLFSSL_SUCCESS) {
         wolfSSL_RAND_Init(); /* call to check global RNG is created */
-        if (wc_RNG_DRBG_Reseed(globalRNG.drbg, (const byte*) buf, bytes)
+        if (wc_RNG_DRBG_Reseed(&globalRNG, (const byte*) buf, bytes)
                 != 0) {
             WOLFSSL_MSG("Error with reseeding DRBG structure");
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
         #ifdef SHOW_SECRETS
         { /* print out entropy found */
@@ -21700,17 +21706,18 @@ int wolfSSL_RAND_egd(const char* nm)
     #endif
     close(fd);
 
-    if (ret == SSL_SUCCESS) {
+    if (ret == WOLFSSL_SUCCESS) {
         return bytes;
     }
     else {
         return ret;
     }
-#else /* defined(USE_WOLFSSL_IO) && !defined(USE_WINDOWS_API) */
+#else /* defined(USE_WOLFSSL_IO) && !defined(USE_WINDOWS_API) && !HAVE_FIPS */
     WOLFSSL_MSG("Type of socket needed is not available");
+    WOLFSSL_MSG("\tor using FIPS mode where RNG API is not available");
     (void)nm;
 
-    return SSL_FATAL_ERROR;
+    return WOLFSSL_FATAL_ERROR;
 #endif /* defined(USE_WOLFSSL_IO) && !defined(USE_WINDOWS_API) */
 }
 
@@ -22489,7 +22496,7 @@ char *wolfSSL_BN_bn2dec(const WOLFSSL_BIGNUM *bn)
         return NULL;
     }
 
-    buf = (char*) XMALLOC(len, NULL, DYNAMIC_TYPE_ECC);
+    buf = (char*) XMALLOC(len, NULL, DYNAMIC_TYPE_OPENSSL);
     if (buf == NULL) {
         WOLFSSL_MSG("BN_bn2dec malloc buffer failure");
         return NULL;
@@ -24771,7 +24778,7 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
         }
         else if (XSTRNCMP(type, "SHA224", 6) == 0) {
             WOLFSSL_MSG("sha224 hmac");
-            ctx->type = SHA224;
+            ctx->type = WC_SHA224;
         }
         else if (XSTRNCMP(type, "SHA256", 6) == 0) {
             WOLFSSL_MSG("sha256 hmac");
@@ -24779,11 +24786,11 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
         }
         else if (XSTRNCMP(type, "SHA384", 6) == 0) {
             WOLFSSL_MSG("sha384 hmac");
-            ctx->type = SHA384;
+            ctx->type = WC_SHA384;
         }
         else if (XSTRNCMP(type, "SHA512", 6) == 0) {
             WOLFSSL_MSG("sha512 hmac");
-            ctx->type = SHA512;
+            ctx->type = WC_SHA512;
         }
 
         /* has to be last since would pick or 256, 384, or 512 too */

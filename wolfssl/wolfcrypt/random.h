@@ -132,11 +132,6 @@ typedef struct OS_Seed {
     #define WC_RNG_TYPE_DEFINED
 #endif
 
-#ifdef HAVE_HASHDRBG
-    /* Private DRBG state */
-    typedef struct DRBG DRBG;
-#endif
-
 /* RNG context */
 struct WC_RNG {
     OS_Seed seed;
@@ -180,7 +175,7 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG*);
 
 
 #ifdef HAVE_HASHDRBG
-    WOLFSSL_LOCAL int wc_RNG_DRBG_Reseed(DRBG* drbg, const byte* entropy,
+    WOLFSSL_LOCAL int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* entropy,
                                         word32 entropySz);
     WOLFSSL_API int wc_RNG_HealthTest(int reseed,
                                         const byte* entropyA, word32 entropyASz,

@@ -189,6 +189,10 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
 }
 
 
+/* Converts data into base64 output
+ *
+ * returns the resulting buffer size on success.
+ */
 static int wolfSSL_BIO_BASE64_write(WOLFSSL_BIO* bio, const void* data,
         word32 inLen, byte* out, word32* outLen)
 {
@@ -197,27 +201,31 @@ static int wolfSSL_BIO_BASE64_write(WOLFSSL_BIO* bio, const void* data,
 
     WOLFSSL_ENTER("wolfSSL_BIO_BASE64_write");
 
+    if (bio == NULL || data == NULL || out == NULL || outLen == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
 #if defined(WOLFSSL_BASE64_ENCODE)
     tmp = (byte*)XMALLOC(*outLen, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL) {
-        return SSL_FATAL_ERROR;
+        return WOLFSSL_FATAL_ERROR;
     }
 
     if ((bio->flags & WOLFSSL_BIO_FLAG_BASE64_NO_NL) ==
             WOLFSSL_BIO_FLAG_BASE64_NO_NL) {
         if (Base64_Encode_NoNl((const byte*)data, inLen,
                 tmp, outLen) < 0) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
     }
     else {
         if (Base64_Encode((const byte*)data, inLen,
                 tmp, outLen) < 0) {
-            ret = SSL_FATAL_ERROR;
+            ret = WOLFSSL_FATAL_ERROR;
         }
     }
 
-    if (ret != SSL_FATAL_ERROR) {
+    if (ret != WOLFSSL_FATAL_ERROR) {
         ret = (int)*outLen;
         XMEMCPY(out, tmp, *outLen);
 
@@ -257,14 +265,22 @@ static int wolfSSL_BIO_SSL_write(WOLFSSL_BIO* bio, const void* data,
 }
 
 
+/* Writes to a WOLFSSL_BIO_BIO type.
+ *
+ * returns the amount written on success
+ */
 static int wolfSSL_BIO_BIO_write(WOLFSSL_BIO* bio, const void* data,
         int len)
 {
-    /* internal function where arguments have already been sanity checked */
     int   sz;
     char* buf;
 
     WOLFSSL_ENTER("wolfSSL_BIO_BIO_write");
+
+    /*adding in sanity checks for static analysis tools */
+    if (bio == NULL || data == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
     sz = wolfSSL_BIO_nwrite(bio, &buf, len);
 
@@ -293,11 +309,14 @@ static int wolfSSL_BIO_BIO_write(WOLFSSL_BIO* bio, const void* data,
 static int wolfSSL_BIO_MEMORY_write(WOLFSSL_BIO* bio, const void* data,
         int len)
 {
-    /* internal function where arguments have already been sanity checked */
     int   sz;
     const unsigned char* buf;
 
     WOLFSSL_ENTER("wolfSSL_BIO_MEMORY_write");
+
+    if (bio == NULL || data == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
     sz = wolfSSL_BIO_pending(bio);
     if (sz < 0) {

@@ -8963,8 +8963,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             }
         #endif
             if (ret != 0) {
-                int why = bad_certificate;
                 if (!ssl->options.verifyNone) {
+                    int why = bad_certificate;
+
                     if (ret == ASN_AFTER_DATE_E || ret == ASN_BEFORE_DATE_E) {
                         why = certificate_expired;
                     }
@@ -9007,10 +9008,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         }
                     #endif /* SESSION_CERTS */
                     }
-                }
-                if (ret != 0) {
-                    SendAlert(ssl, alert_fatal, why);   /* try to send */
-                    ssl->options.isClosed = 1;
+                    if (ret != 0) {
+                        SendAlert(ssl, alert_fatal, why);   /* try to send */
+                        ssl->options.isClosed = 1;
+                    }
                 }
 
                 ssl->error = ret;
@@ -13186,10 +13187,10 @@ int SendFinished(WOLFSSL* ssl)
 #endif
         if (ssl->options.side == WOLFSSL_SERVER_END) {
         #ifdef OPENSSL_EXTRA
-			ssl->options.serverState = SERVER_FINISHED_COMPLETE;
-			ssl->cbmode = SSL_CB_MODE_WRITE;
+            ssl->options.serverState = SERVER_FINISHED_COMPLETE;
+            ssl->cbmode = SSL_CB_MODE_WRITE;
             if (ssl->CBIS != NULL)
-				ssl->CBIS(ssl, SSL_CB_HANDSHAKE_DONE, SSL_SUCCESS);
+                ssl->CBIS(ssl, SSL_CB_HANDSHAKE_DONE, SSL_SUCCESS);
         #endif
             ssl->options.handShakeState = HANDSHAKE_DONE;
             ssl->options.handShakeDone  = 1;
@@ -13198,10 +13199,10 @@ int SendFinished(WOLFSSL* ssl)
     else {
         if (ssl->options.side == WOLFSSL_CLIENT_END) {
         #ifdef OPENSSL_EXTRA
-			ssl->options.clientState = CLIENT_FINISHED_COMPLETE;
-			ssl->cbmode = SSL_CB_MODE_WRITE;
+            ssl->options.clientState = CLIENT_FINISHED_COMPLETE;
+            ssl->cbmode = SSL_CB_MODE_WRITE;
             if (ssl->CBIS != NULL)
-				ssl->CBIS(ssl, SSL_CB_HANDSHAKE_DONE, SSL_SUCCESS);
+                ssl->CBIS(ssl, SSL_CB_HANDSHAKE_DONE, SSL_SUCCESS);
         #endif
             ssl->options.handShakeState = HANDSHAKE_DONE;
             ssl->options.handShakeDone  = 1;
@@ -13233,21 +13234,21 @@ int SendCertificate(WOLFSSL* ssl)
 
     if (ssl->options.sendVerify == SEND_BLANK_CERT) {
     #ifdef OPENSSL_EXTRA
-	    if (ssl->version.major == SSLv3_MAJOR
-		    && ssl->version.minor == SSLv3_MINOR){
+        if (ssl->version.major == SSLv3_MAJOR
+            && ssl->version.minor == SSLv3_MINOR){
             SendAlert(ssl, alert_warning, no_certificate);
-		    return 0;
-		} else {
+            return 0;
+        } else {
     #endif
-	        certSz = 0;
-		    certChainSz = 0;
-		    headerSz = CERT_HEADER_SZ;
-		    length = CERT_HEADER_SZ;
-		    listSz = 0;
+            certSz = 0;
+            certChainSz = 0;
+            headerSz = CERT_HEADER_SZ;
+            length = CERT_HEADER_SZ;
+            listSz = 0;
     #ifdef OPENSSL_EXTRA
-		}
-	#endif
-	}
+        }
+    #endif
+    }
     else {
         if (!ssl->buffers.certificate) {
             WOLFSSL_MSG("Send Cert missing certificate buffer");

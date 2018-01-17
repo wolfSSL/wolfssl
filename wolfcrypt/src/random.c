@@ -188,7 +188,7 @@ enum {
 };
 
 
-struct DRBG {
+typedef struct DRBG {
     word32 reseedCtr;
     word32 lastBlock;
     byte V[DRBG_SEED_LEN];
@@ -198,7 +198,7 @@ struct DRBG {
     int devId;
 #endif
     byte   matchCount;
-};
+} DRBG;
 
 
 static int wc_RNG_HealthTestLocal(int reseed);
@@ -278,7 +278,7 @@ static int Hash_df(DRBG* drbg, byte* out, word32 outSz, byte type,
 }
 
 /* Returns: DRBG_SUCCESS or DRBG_FAILURE */
-int wc_RNG_DRBG_Reseed(DRBG* drbg, const byte* entropy, word32 entropySz)
+static int Hash_DRBG_Reseed(DRBG* drbg, const byte* entropy, word32 entropySz)
 {
     byte seed[DRBG_SEED_LEN];
 
@@ -299,6 +299,16 @@ int wc_RNG_DRBG_Reseed(DRBG* drbg, const byte* entropy, word32 entropySz)
     drbg->lastBlock = 0;
     drbg->matchCount = 0;
     return DRBG_SUCCESS;
+}
+
+/* Returns: DRBG_SUCCESS and DRBG_FAILURE or BAD_FUNC_ARG on fail */
+int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* entropy, word32 entropySz)
+{
+    if (rng == NULL || entropy == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    return Hash_DRBG_Reseed(rng->drbg, entropy, entropySz);
 }
 
 static INLINE void array_add_one(byte* data, word32 dataSz)
@@ -647,7 +657,7 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
             byte entropy[ENTROPY_SZ];
 
             if (wc_GenerateSeed(&rng->seed, entropy, ENTROPY_SZ) == 0 &&
-                wc_RNG_DRBG_Reseed(rng->drbg, entropy, ENTROPY_SZ)
+                Hash_DRBG_Reseed(rng->drbg, entropy, ENTROPY_SZ)
                                                               == DRBG_SUCCESS) {
 
                 ret = Hash_DRBG_Generate(rng->drbg, NULL, 0);
@@ -756,7 +766,7 @@ int wc_RNG_HealthTest(int reseed, const byte* entropyA, word32 entropyASz,
     }
 
     if (reseed) {
-        if (wc_RNG_DRBG_Reseed(drbg, entropyB, entropyBSz) != 0) {
+        if (Hash_DRBG_Reseed(drbg, entropyB, entropyBSz) != 0) {
             goto exit_rng_ht;
         }
     }
