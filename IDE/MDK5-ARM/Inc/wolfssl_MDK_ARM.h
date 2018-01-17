@@ -68,7 +68,6 @@ typedef int socklen_t ;
 #define tcp_connect   wolfssl_tcp_connect
 #define tcp_socket    wolfssl_tcp_soket
 #define tcp_listen    wolfssl_tcp_listen
-#define tcp_select   wolfssl_tcp_select
 #define connect(a,b,c)    connect(a, (SOCKADDR *)(b), c)
 #define SOCKADDR struct sockaddr
 	

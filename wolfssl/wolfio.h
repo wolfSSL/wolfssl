@@ -62,7 +62,7 @@
         #include <rtcs.h>
     #elif defined(FREESCALE_KSDK_MQX)
         #include <rtcs.h>
-    #elif (defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET))&& defined(WOLFSSL_CMSIS_RTOS)
+    #elif (defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET))
         #include "cmsis_os.h"
         #include "rl_net.h"
         #include "errno.h"

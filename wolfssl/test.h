@@ -61,9 +61,6 @@
     #elif defined (WOLFSSL_CMSIS_RTOS)
         #define sleep(t)  osDelay(t/1000+1) ;
     #endif
-
-    static int wolfssl_tcp_select(int sd, int timeout)
-    {        return 0 ;  }
 #elif defined(WOLFSSL_TIRTOS)
     #include <string.h>
     #include <netdb.h>
@@ -820,7 +817,7 @@ static INLINE int tcp_select(SOCKET_T socketfd, int to_sec)
 
     return TEST_SELECT_FAIL;
 }
-#elif defined(WOLFSSL_TIRTOS)
+#elif defined(WOLFSSL_TIRTOS) || defined(WOLFSSL_KEIL_TCP_NET)
 static INLINE int tcp_select(SOCKET_T socketfd, int to_sec)
 {
     return TEST_RECV_READY;
