@@ -330,7 +330,7 @@ then
 fi
 
 
-# Post-handshake Authentication
+# Hello Retry Request Cookie
 AC_ARG_ENABLE([hrrcookie],
     [AS_HELP_STRING([--enable-hrrcookie],[Enable the server to send Cookie Extension in HRR with state (default: disabled)])],
     [ ENABLED_SEND_HRR_COOKIE=$enableval ],

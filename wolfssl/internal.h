@@ -955,7 +955,7 @@ enum Misc {
 #ifdef WOLFSSL_TLS13_DRAFT_18
     TLS_DRAFT_MINOR = 0x12,     /* Minor version number of TLS draft */
 #else
-    TLS_DRAFT_MINOR = 0x15,     /* Minor version number of TLS draft */
+    TLS_DRAFT_MINOR = 0x16,     /* Minor version number of TLS draft */
 #endif
     OLD_HELLO_ID    = 0x01,     /* SSLv2 Client Hello Indicator */
     INVALID_BYTE    = 0xff,     /* Used to initialize cipher specs values */
@@ -2928,6 +2928,9 @@ typedef struct Options {
 #ifdef WOLFSSL_ALT_CERT_CHAINS
     word16            usingAltCertChain:1;/* Alternate cert chain was used */
 #endif
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
+    word16            sentChangeCipher:1; /* Change Cipher Spec sent */
+#endif
 
     /* need full byte values for this section */
     byte            processReply;           /* nonblocking resume */
@@ -2962,7 +2965,6 @@ typedef struct Options {
 #ifdef WOLFSSL_EARLY_DATA
     word32          maxEarlyDataSz;
 #endif
-
 } Options;
 
 typedef struct Arrays {
@@ -3178,7 +3180,7 @@ typedef struct DtlsMsg {
 typedef struct MsgsReceived {
     word16 got_hello_request:1;
     word16 got_client_hello:2;
-    word16 got_server_hello:1;
+    word16 got_server_hello:2;
     word16 got_hello_verify_request:1;
     word16 got_session_ticket:1;
     word16 got_end_of_early_data:1;
@@ -3664,7 +3666,11 @@ WOLFSSL_LOCAL int SendTicket(WOLFSSL*);
 WOLFSSL_LOCAL int DoClientTicket(WOLFSSL*, const byte*, word32);
 WOLFSSL_LOCAL int SendData(WOLFSSL*, const void*, int);
 #ifdef WOLFSSL_TLS13
+#ifdef WOLFSSL_TLS13_DRAFT_18
 WOLFSSL_LOCAL int SendTls13HelloRetryRequest(WOLFSSL*);
+#else
+WOLFSSL_LOCAL int SendTls13ServerHello(WOLFSSL*, byte);
+#endif
 #endif
 WOLFSSL_LOCAL int SendCertificate(WOLFSSL*);
 WOLFSSL_LOCAL int SendCertificateRequest(WOLFSSL*);

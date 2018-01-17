@@ -6005,8 +6005,13 @@ static void AddRecordHeader(byte* output, word32 length, byte type, WOLFSSL* ssl
     rl->type    = type;
     rl->pvMajor = ssl->version.major;       /* type and version same in each */
 #ifdef WOLFSSL_TLS13
-    if (IsAtLeastTLSv1_3(ssl->version))
+    if (IsAtLeastTLSv1_3(ssl->version)) {
+#ifdef WOLFSSL_TLS13_DRAFT_18
         rl->pvMinor = TLSv1_MINOR;
+#else
+        rl->pvMinor = TLSv1_2_MINOR;
+#endif
+    }
     else
 #endif
         rl->pvMinor = ssl->version.minor;
@@ -6490,7 +6495,12 @@ static int GetRecordHeader(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #else
     if (rh->pvMajor != ssl->version.major ||
         (rh->pvMinor != ssl->version.minor &&
-         (!IsAtLeastTLSv1_3(ssl->version) || rh->pvMinor != TLSv1_MINOR)))
+#ifdef WOLFSSL_TLS13_DRAFT_18
+         (!IsAtLeastTLSv1_3(ssl->version) || rh->pvMinor != TLSv1_MINOR)
+#else
+         (!IsAtLeastTLSv1_3(ssl->version) || rh->pvMinor != TLSv1_2_MINOR)
+#endif
+        ))
 #endif
     {
         if (ssl->options.side == WOLFSSL_SERVER_END &&
@@ -11918,7 +11928,14 @@ int ProcessReply(WOLFSSL* ssl)
         /* decrypt message */
         case decryptMessage:
 
-            if (IsEncryptionOn(ssl, 0) && ssl->keys.decryptedCur == 0) {
+#if !defined(WOLFSSL_TLS13) || defined(WOLFSSL_TLS13_DRAFT_18)
+            if (IsEncryptionOn(ssl, 0) && ssl->keys.decryptedCur == 0)
+#else
+            if (IsEncryptionOn(ssl, 0) && ssl->keys.decryptedCur == 0 &&
+                                        (!IsAtLeastTLSv1_3(ssl->version) ||
+                                         ssl->curRL.type != change_cipher_spec))
+#endif
+            {
                 bufferStatic* in = &ssl->buffers.inputBuffer;
 
                 ret = SanityCheckCipherText(ssl, ssl->curSize);
@@ -12005,7 +12022,14 @@ int ProcessReply(WOLFSSL* ssl)
         /* verify digest of message */
         case verifyMessage:
 
-            if (IsEncryptionOn(ssl, 0) && ssl->keys.decryptedCur == 0) {
+#if !defined(WOLFSSL_TLS13) || defined(WOLFSSL_TLS13_DRAFT_18)
+            if (IsEncryptionOn(ssl, 0) && ssl->keys.decryptedCur == 0)
+#else
+            if (IsEncryptionOn(ssl, 0) && ssl->keys.decryptedCur == 0 &&
+                                        (!IsAtLeastTLSv1_3(ssl->version) ||
+                                         ssl->curRL.type != change_cipher_spec))
+#endif
+            {
                 if (!atomicUser) {
                     ret = VerifyMac(ssl, ssl->buffers.inputBuffer.buffer +
                                     ssl->buffers.inputBuffer.idx,
@@ -12122,6 +12146,26 @@ int ProcessReply(WOLFSSL* ssl)
                             AddLateRecordHeader(&ssl->curRL, &ssl->timeoutInfo);
                         }
                     #endif
+
+#ifdef WOLFSSL_TLS13
+    #ifdef WOLFSSL_TLS13_DRAFT_18
+                    if (IsAtLeastTLSv1_3(ssl->version)) {
+                        SendAlert(ssl, alert_fatal, illegal_parameter);
+                        return UNKNOWN_RECORD_TYPE;
+                    }
+    #else
+                    if (IsAtLeastTLSv1_3(ssl->version)) {
+                        word32 i = ssl->buffers.inputBuffer.idx;
+                        if (ssl->curSize != 1 ||
+                                      ssl->buffers.inputBuffer.buffer[i] != 1) {
+                            SendAlert(ssl, alert_fatal, illegal_parameter);
+                            return UNKNOWN_RECORD_TYPE;
+                        }
+                        ssl->buffers.inputBuffer.idx++;
+                        break;
+                    }
+    #endif
+#endif
 
                     ret = SanityCheckMsgReceived(ssl, change_cipher_hs);
                     if (ret != 0) {
