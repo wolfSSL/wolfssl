@@ -2249,8 +2249,15 @@ static const byte lower_bound[] = {
 };
 
 
+/* returns 1 on key size ok and 0 if not ok */
 static INLINE int RsaSizeCheck(int size)
 {
+    if (size < RSA_MIN_SIZE || size > RSA_MAX_SIZE) {
+        return 0;
+    }
+
+#ifdef HAVE_FIPS
+    /* Key size requirements for CAVP */
     switch (size) {
         case 1024:
         case 2048:
@@ -2258,7 +2265,11 @@ static INLINE int RsaSizeCheck(int size)
         case 4096:
             return 1;
     }
+
     return 0;
+#else
+    return 1; /* allow unusual key sizes in non FIPS mode */
+#endif /* HAVE_FIPS */
 }
 
 
