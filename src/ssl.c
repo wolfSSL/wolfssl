@@ -21635,9 +21635,7 @@ int wolfSSL_RAND_egd(const char* nm)
                 }
                 WOLFSSL_MSG("error requesting entropy from egd server");
                 ret = WOLFSSL_FATAL_ERROR;
-            }
-            else {
-                ret = WOLFSSL_SUCCESS;
+                break;
             }
         }
 

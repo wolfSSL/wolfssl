@@ -24,7 +24,7 @@
 #ifndef WOLFSSL_CALLBACKS_H
 #define WOLFSSL_CALLBACKS_H
 
-#include <sys/time.h>
+#include <wolfssl/wolfcrypt/wc_port.h>
 
 #ifdef __cplusplus
     extern "C" {

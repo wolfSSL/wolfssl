@@ -22,6 +22,12 @@
 #if !defined(WOLFSSL_BIO_INCLUDED)
     #warning bio.c does not need to be compiled seperatly from ssl.c
 #else
+
+
+/* Helper function to decode a base64 input
+ *
+ * returns size of resulting buffer on success
+ */
 static int wolfSSL_BIO_BASE64_read(WOLFSSL_BIO* bio, void* buf, int len)
 {
     word32 frmtSz = len;
@@ -38,6 +44,10 @@ static int wolfSSL_BIO_BASE64_read(WOLFSSL_BIO* bio, void* buf, int len)
 }
 
 
+/* Helper function to read from WOLFSSL_BIO_BIO type
+ *
+ * returns amount in bytes read on success
+ */
 static int wolfSSL_BIO_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
 {
     int   sz;
@@ -110,6 +120,10 @@ static int wolfSSL_BIO_MEMORY_read(WOLFSSL_BIO* bio, void* buf, int len)
 }
 
 
+/* Helper function to read from WOLFSSL_BIO_SSL type
+ *
+ * returns the number of bytes read on success
+ */
 static int wolfSSL_BIO_SSL_read(WOLFSSL_BIO* bio, void* buf,
         int len, WOLFSSL_BIO* front)
 {
@@ -119,7 +133,7 @@ static int wolfSSL_BIO_SSL_read(WOLFSSL_BIO* bio, void* buf,
 
     /* already got eof, again is error */
     if (bio && front->eof)
-        return SSL_FATAL_ERROR;
+        return WOLFSSL_FATAL_ERROR;
 
     ret = wolfSSL_read(bio->ssl, buf, len);
     if (ret == 0)
@@ -134,6 +148,15 @@ static int wolfSSL_BIO_SSL_read(WOLFSSL_BIO* bio, void* buf,
 }
 
 
+
+/* Used to read data from a WOLFSSL_BIO structure
+ *
+ * bio  structure to read data from
+ * buf  buffer to hold the result
+ * len  length of buf buffer
+ *
+ * returns the number of bytes read on success
+ */
 int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
 {
     int  ret = 0;
@@ -244,6 +267,10 @@ static int wolfSSL_BIO_BASE64_write(WOLFSSL_BIO* bio, const void* data,
 }
 
 
+/* Helper function for writing to a WOLFSSL_BIO_SSL type
+ *
+ * returns the amount written in bytes on success
+ */
 static int wolfSSL_BIO_SSL_write(WOLFSSL_BIO* bio, const void* data,
         int len, WOLFSSL_BIO* front)
 {
@@ -328,7 +355,7 @@ static int wolfSSL_BIO_MEMORY_write(WOLFSSL_BIO* bio, const void* data,
         bio->mem = (byte*)XMALLOC(len, bio->heap, DYNAMIC_TYPE_OPENSSL);
         if (bio->mem == NULL) {
             WOLFSSL_MSG("Error on malloc");
-            return SSL_FAILURE;
+            return WOLFSSL_FAILURE;
         }
         bio->memLen = len;
         if (bio->mem_buf != NULL) {
@@ -346,7 +373,7 @@ static int wolfSSL_BIO_MEMORY_write(WOLFSSL_BIO* bio, const void* data,
             DYNAMIC_TYPE_OPENSSL);
         if (bio->mem == NULL) {
             WOLFSSL_MSG("Error on realloc");
-            return SSL_FAILURE;
+            return WOLFSSL_FAILURE;
         }
         bio->memLen = sz + len;
         if (bio->mem_buf != NULL) {
@@ -362,6 +389,14 @@ static int wolfSSL_BIO_MEMORY_write(WOLFSSL_BIO* bio, const void* data,
 }
 
 
+/* Writes data to a WOLFSSL_BIO structure
+ *
+ * bio  structure to write to
+ * data holds the data to be written
+ * len  length of data buffer
+ *
+ * returns the amount written in bytes on success
+ */
 int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
 {
     int  ret = 0;
@@ -510,7 +545,7 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
     WOLFSSL_ENTER("wolfSSL_BIO_gets");
 
     if (bio == NULL || buf == NULL) {
-        return SSL_FAILURE;
+        return WOLFSSL_FAILURE;
     }
 
     /* not enough space for character plus terminator */
