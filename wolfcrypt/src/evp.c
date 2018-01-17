@@ -20,7 +20,9 @@
  */
 
 #if !defined(WOLFSSL_EVP_INCLUDED)
-    #warning evp.c does not need to be compiled seperatly from ssl.c
+    #ifndef WOLFSSL_IGNORE_FILE_WARN
+        #warning evp.c does not need to be compiled seperatly from ssl.c
+    #endif
 #else
 
 static unsigned int cipherType(const WOLFSSL_EVP_CIPHER *cipher);
