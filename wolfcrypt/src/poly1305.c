@@ -743,11 +743,11 @@ POLY1305_NOINLINE static void poly1305_blocks_avx2(Poly1305* ctx,
 {
     ALIGN256 word64 r4[5][4];
     ALIGN256 word64 s[4][4];
-    register word32 t0 asm("r8");
-    register word32 t1 asm("r9");
-    register word32 t2 asm("r10");
-    register word32 t3 asm("r11");
-    register word32 t4 asm("r12");
+    register word32 t0 asm("r8") = 0;
+    register word32 t1 asm("r9") = 0;
+    register word32 t2 asm("r10") = 0;
+    register word32 t3 asm("r11") = 0;
+    register word32 t4 asm("r12") = 0;
     static const word64 mask[4] = { 0x0000000003ffffff, 0x0000000003ffffff,
                                     0x0000000003ffffff, 0x0000000003ffffff };
 
