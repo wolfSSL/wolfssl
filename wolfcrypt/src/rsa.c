@@ -2456,7 +2456,12 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
             if (err == MP_OKAY)
                 err = wc_CheckProbablePrime_ex(&p, NULL, &tmp3, size, &isPrime);
 
+#ifdef WOLFSSL_FIPS
             i++;
+#else
+            /* Keep the old retry behavior in non-FIPS build. */
+            (void)i;
+#endif
         } while (err == MP_OKAY && !isPrime && i < failCount);
     }
 
@@ -2487,7 +2492,12 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
             if (err == MP_OKAY)
                 err = wc_CheckProbablePrime_ex(&p, &q, &tmp3, size, &isPrime);
 
+#ifdef WOLFSSL_FIPS
             i++;
+#else
+            /* Keep the old retry behavior in non-FIPS build. */
+            (void)i;
+#endif
         } while (err == MP_OKAY && !isPrime && i < failCount);
     }
 
