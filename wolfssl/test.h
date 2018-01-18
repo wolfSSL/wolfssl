@@ -65,10 +65,6 @@
     #elif defined (WOLFSSL_CMSIS_RTOS)
         #define sleep(t)  osDelay(t/1000+1) ;
     #endif
-
-    static int wolfssl_tcp_select(int sd, int timeout)
-    {        return 0 ;  }
-        #define tcp_select(sd,t)   wolfssl_tcp_select(sd, t)  /* avoid conflicting Keil TCP tcp_select */
 #elif defined(WOLFSSL_TIRTOS)
     #include <string.h>
     #include <netdb.h>
@@ -848,7 +844,7 @@ static INLINE int tcp_select(SOCKET_T socketfd, int to_sec)
 
     return TEST_SELECT_FAIL;
 }
-#elif defined(WOLFSSL_TIRTOS)
+#elif defined(WOLFSSL_TIRTOS) || defined(WOLFSSL_KEIL_TCP_NET)
 static INLINE int tcp_select(SOCKET_T socketfd, int to_sec)
 {
     return TEST_RECV_READY;
@@ -880,8 +876,13 @@ static INLINE void tcp_listen(SOCKET_T* sockfd, word16* port, int useAnyAddr,
     if (bind(*sockfd, (const struct sockaddr*)&addr, sizeof(addr)) != 0)
         err_sys("tcp bind failed");
     if (!udp) {
-        if (listen(*sockfd, 5) != 0)
-            err_sys("tcp listen failed");
+        #ifdef WOLFSSL_KEIL_TCP_NET
+            #define SOCK_LISTEN_MAX_QUEUE 1
+        #else
+            #define SOCK_LISTEN_MAX_QUEUE 5
+        #endif
+        if (listen(*sockfd, SOCK_LISTEN_MAX_QUEUE) != 0)
+                err_sys("tcp listen failed");
     }
     #if !defined(USE_WINDOWS_API) && !defined(WOLFSSL_TIRTOS)
         if (*port == 0) {

@@ -993,8 +993,6 @@ extern void uITRON4_free(void *p) ;
     #define NO_WOLFSSL_DIR
     #undef  NO_RABBIT
     #define NO_RABBIT
-    #undef  NO_64BIT
-    #define NO_64BIT
     #ifndef NO_STM32_RNG
         #undef  STM32_RNG
         #define STM32_RNG
