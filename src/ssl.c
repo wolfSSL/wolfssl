@@ -15110,9 +15110,9 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
                 textSz = name->fullName.ouLen;
                 break;
             case ASN_DOMAIN_COMPONENT:
-                //text = name->fullName.fullName + name->fullName.dcIdx;
-                //textSz = name->fullName.dcLen;
-            break;
+                text = name->fullName.fullName + name->fullName.dcIdx[0];
+                textSz = name->fullName.dcLen[0];
+                break;
             default:
                 WOLFSSL_MSG("Entry type not found");
                 return SSL_FATAL_ERROR;
@@ -16235,6 +16235,14 @@ WOLFSSL_X509* wolfSSL_sk_X509_pop(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk) {
 }
 
 
+/* Getter function for WOLFSSL_X509_NAME pointer
+ *
+ * sk is the stack to retrieve pointer from
+ * i  is the index value in stack
+ *
+ * returns a pointer to a WOLFSSL_X509_NAME structure on success and NULL on
+ *         fail
+ */
 void* wolfSSL_sk_X509_NAME_value(const STACK_OF(WOLFSSL_X509_NAME)* sk, int i)
 {
     WOLFSSL_ENTER("wolfSSL_sk_X509_NAME_value");
@@ -16247,6 +16255,15 @@ void* wolfSSL_sk_X509_NAME_value(const STACK_OF(WOLFSSL_X509_NAME)* sk, int i)
     return sk->data.name;
 }
 
+
+/* Getter function for WOLFSSL_X509 pointer
+ *
+ * sk is the stack to retrieve pointer from
+ * i  is the index value in stack
+ *
+ * returns a pointer to a WOLFSSL_X509 structure on success and NULL on
+ *         fail
+ */
 void* wolfSSL_sk_X509_value(STACK_OF(WOLFSSL_X509)* sk, int i)
 {
     WOLFSSL_ENTER("wolfSSL_sk_X509_value");
