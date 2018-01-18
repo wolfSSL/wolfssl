@@ -39,10 +39,7 @@
  * the size of RC4_KEY structures. */
 typedef struct WOLFSSL_RC4_KEY {
     /* big enough for Arc4 from wolfssl/wolfcrypt/arc4.h */
-    unsigned char holder[272];
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        unsigned char additional[64]; /* async uses additional memory */
-    #endif
+    void* holder[(272 + WC_ASYNC_DEV_SIZE) / sizeof(void*)];
 } WOLFSSL_RC4_KEY;
 typedef WOLFSSL_RC4_KEY RC4_KEY;
 

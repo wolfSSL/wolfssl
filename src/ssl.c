@@ -24766,8 +24766,7 @@ int wolfSSL_HMAC_CTX_copy(WOLFSSL_HMAC_CTX* des, WOLFSSL_HMAC_CTX* src)
                                         WC_HMAC_BLOCK_SIZE);
 
 #ifdef WOLFSSL_ASYNC_CRYPT
-    XMEMCPY(des->hmac.asyncDev, src->hmac.asyncDev, sizeof(WC_ASYNC_DEV));
-    XMEMCPY(des->hmac.keyRaw, src->hmac.keyRaw, WC_HMAC_BLOCK_SIZE);
+    XMEMCPY(&des->hmac.asyncDev, &src->hmac.asyncDev, sizeof(WC_ASYNC_DEV));
     des->hmac.keyLen = src->hmac.keyLen;
     #ifdef HAVE_CAVIUM
         des->hmac.data = (byte*)XMALLOC(src->hmac.dataLen, des->heap,

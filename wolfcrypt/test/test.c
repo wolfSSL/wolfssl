@@ -4257,10 +4257,6 @@ int des3_test(void)
     wc_Des3Free(&enc);
     wc_Des3Free(&dec);
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-    wc_Des3AsyncFree(&enc);
-    wc_Des3AsyncFree(&dec);
-#endif
     return 0;
 }
 #endif /* NO_DES */

@@ -43,10 +43,7 @@
  * to need the size of the structure. */
 typedef struct WOLFSSL_AES_KEY {
     /* aligned and big enough for Aes from wolfssl/wolfcrypt/aes.h */
-    ALIGN16 void* holder[360 / sizeof(void*)];
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        void* additional[64 / sizeof(void*)]; /* async uses additional memory */
-    #endif
+    ALIGN16 void* holder[(360 + WC_ASYNC_DEV_SIZE)/ sizeof(void*)];
     #ifdef GCM_TABLE
     /* key-based fast multiplication table. */
     ALIGN16 void* M0[4096 / sizeof(void*)];
