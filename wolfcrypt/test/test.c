@@ -8011,16 +8011,33 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
 
         for (i = 0; i < (int)(sizeof(mgf)/sizeof(*mgf)); i++) {
             outSz = RSA_TEST_BYTES;
-            ret = wc_RsaPSS_Sign_ex(digest, digestSz, out, outSz, hash[j],
-                                    mgf[i], -1, key, rng);
+            do {
+            #if defined(WOLFSSL_ASYNC_CRYPT)
+                ret = wc_AsyncWait(ret, &key->asyncDev,
+                    WC_ASYNC_FLAG_CALL_AGAIN);
+            #endif
+                if (ret >= 0) {
+                    ret = wc_RsaPSS_Sign_ex(digest, digestSz, out, outSz,
+                        hash[j], mgf[i], -1, key, rng);
+                }
+            } while (ret == WC_PENDING_E);
             if (ret <= 0)
                 ERROR_OUT(-5451, exit_rsa_pss);
             outSz = ret;
 
             XMEMCPY(sig, out, outSz);
             plain = NULL;
-            ret = wc_RsaPSS_VerifyInline_ex(sig, outSz, &plain, hash[j],
-                                            mgf[i], -1, key);
+
+            do {
+            #if defined(WOLFSSL_ASYNC_CRYPT)
+                ret = wc_AsyncWait(ret, &key->asyncDev,
+                    WC_ASYNC_FLAG_CALL_AGAIN);
+            #endif
+                if (ret >= 0) {
+                    ret = wc_RsaPSS_VerifyInline_ex(sig, outSz, &plain, hash[j],
+                        mgf[i], -1, key);
+                }
+            } while (ret == WC_PENDING_E);
             if (ret <= 0)
                 ERROR_OUT(-5452, exit_rsa_pss);
             plainSz = ret;
@@ -8037,8 +8054,17 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
                         continue;
 
                     XMEMCPY(sig, out, outSz);
-                    ret = wc_RsaPSS_VerifyInline_ex(sig, outSz, (byte**)&plain,
-                                                    hash[l], mgf[k], -1, key);
+
+                    do {
+                    #if defined(WOLFSSL_ASYNC_CRYPT)
+                        ret = wc_AsyncWait(ret, &key->asyncDev,
+                            WC_ASYNC_FLAG_CALL_AGAIN);
+                    #endif
+                        if (ret >= 0) {
+                            ret = wc_RsaPSS_VerifyInline_ex(sig, outSz,
+                                (byte**)&plain, hash[l], mgf[k], -1, key);
+                        }
+                    } while (ret == WC_PENDING_E);
                     if (ret >= 0)
                         ERROR_OUT(-5454, exit_rsa_pss);
                 }
@@ -8050,27 +8076,59 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
     /* Test that a salt length of zero works. */
     digestSz = wc_HashGetDigestSize(hash[0]);
     outSz = RSA_TEST_BYTES;
-    ret = wc_RsaPSS_Sign_ex(digest, digestSz, out, outSz, hash[0], mgf[0], 0,
-                            key, rng);
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev,
+            WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret >= 0) {
+            ret = wc_RsaPSS_Sign_ex(digest, digestSz, out, outSz, hash[0],
+                mgf[0], 0, key, rng);
+        }
+    } while (ret == WC_PENDING_E);
     if (ret <= 0)
         ERROR_OUT(-5460, exit_rsa_pss);
     outSz = ret;
 
-    ret = wc_RsaPSS_Verify_ex(out, outSz, sig, outSz, hash[0], mgf[0], 0,
-                                    key);
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev,
+            WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret >= 0) {
+            ret = wc_RsaPSS_Verify_ex(out, outSz, sig, outSz, hash[0], mgf[0],
+                0, key);
+        }
+    } while (ret == WC_PENDING_E);
     if (ret <= 0)
         ERROR_OUT(-5461, exit_rsa_pss);
     plainSz = ret;
 
-    ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, sig, plainSz, hash[0],
-                                    0);
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev,
+            WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret >= 0) {
+            ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, sig, plainSz,
+                hash[0], 0);
+        }
+    } while (ret == WC_PENDING_E);
     if (ret != 0)
         ERROR_OUT(-5462, exit_rsa_pss);
 
     XMEMCPY(sig, out, outSz);
     plain = NULL;
-    ret = wc_RsaPSS_VerifyInline_ex(sig, outSz, &plain, hash[0], mgf[0], 0,
-                                    key);
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev,
+            WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret >= 0) {
+            ret = wc_RsaPSS_VerifyInline_ex(sig, outSz, &plain, hash[0], mgf[0],
+                0, key);
+        }
+    } while (ret == WC_PENDING_E);
     if (ret <= 0)
         ERROR_OUT(-5463, exit_rsa_pss);
     plainSz = ret;
@@ -8083,21 +8141,55 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
     /* Test bad salt lengths in various APIs. */
     digestSz = wc_HashGetDigestSize(hash[0]);
     outSz = RSA_TEST_BYTES;
-    ret = wc_RsaPSS_Sign_ex(digest, digestSz, out, outSz, hash[0], mgf[0], -2,
-                            key, rng);
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev,
+            WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret >= 0) {
+            ret = wc_RsaPSS_Sign_ex(digest, digestSz, out, outSz, hash[0],
+                mgf[0], -2, key, rng);
+        }
+    } while (ret == WC_PENDING_E);
     if (ret != PSS_SALTLEN_E)
         ERROR_OUT(-5470, exit_rsa_pss);
-    ret = wc_RsaPSS_Sign_ex(digest, digestSz, out, outSz, hash[0], mgf[0],
-                            digestSz + 1, key, rng);
+
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev,
+            WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret >= 0) {
+            ret = wc_RsaPSS_Sign_ex(digest, digestSz, out, outSz, hash[0],
+                mgf[0], digestSz + 1, key, rng);
+        }
+    } while (ret == WC_PENDING_E);
     if (ret != PSS_SALTLEN_E)
         ERROR_OUT(-5471, exit_rsa_pss);
 
-    ret = wc_RsaPSS_VerifyInline_ex(sig, outSz, &plain, hash[0], mgf[0], -2,
-                                    key);
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev,
+            WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret >= 0) {
+            ret = wc_RsaPSS_VerifyInline_ex(sig, outSz, &plain, hash[0],
+                mgf[0], -2, key);
+        }
+    } while (ret == WC_PENDING_E);
     if (ret != PSS_SALTLEN_E)
         ERROR_OUT(-5472, exit_rsa_pss);
-    ret = wc_RsaPSS_VerifyInline_ex(sig, outSz, &plain, hash[0], mgf[0],
-                                    digestSz + 1, key);
+
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key->asyncDev,
+            WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret >= 0) {
+            ret = wc_RsaPSS_VerifyInline_ex(sig, outSz, &plain, hash[0], mgf[0],
+                digestSz + 1, key);
+        }
+    } while (ret == WC_PENDING_E);
     if (ret != PSS_SALTLEN_E)
         ERROR_OUT(-5473, exit_rsa_pss);
 
