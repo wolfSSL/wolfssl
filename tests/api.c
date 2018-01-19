@@ -13808,6 +13808,8 @@ static void test_wolfSSL_private_keys(void)
 #ifdef USE_CERT_BUFFERS_2048
     {
     const unsigned char* server_key = (const unsigned char*)server_key_der_2048;
+    unsigned char buf[FOURK_BUF];
+    word32 bufSz;
 
     AssertIntEQ(SSL_use_RSAPrivateKey_ASN1(ssl,
                 (unsigned char*)client_key_der_2048,
@@ -13838,6 +13840,15 @@ static void test_wolfSSL_private_keys(void)
     AssertNotNull(wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, &pkey,
                 &server_key, (long)sizeof_server_key_der_2048));
     AssertIntEQ(SSL_use_PrivateKey(ssl, pkey), WOLFSSL_SUCCESS);
+
+    /* check striping PKCS8 header with wolfSSL_d2i_PrivateKey */
+    bufSz = FOURK_BUF;
+    AssertIntGT((bufSz = wc_CreatePKCS8Key(buf, &bufSz,
+                    (byte*)server_key_der_2048, sizeof_server_key_der_2048,
+                    RSAk, NULL, 0)), 0);
+    server_key = (const unsigned char*)buf;
+    AssertNotNull(wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, &pkey, &server_key,
+                (long)bufSz));
     }
 #endif
 
