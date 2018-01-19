@@ -8735,7 +8735,29 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 #ifndef NO_WOLFSSL_CLIENT
 
 #ifndef NO_OLD_TLS
+
     #ifdef WOLFSSL_ALLOW_TLSV10
+    #ifdef OPENSSL_EXTRA
+    /* Gets a WOLFSL_METHOD type that is not set as client or server
+     *
+     * Returns a pointer to a WOLFSSL_METHOD struct
+     */
+    WOLFSSL_METHOD* wolfTLSv1_method(void) {
+        WOLFSSL_METHOD* m;
+        WOLFSSL_ENTER("wolfTLSv1_method");
+    #ifndef NO_WOLFSSL_CLIENT
+        m = wolfTLSv1_client_method();
+    #else
+        m = wolfTLSv1_server_method();
+    #endif
+        if (m != NULL) {
+            m->side = WOLFSSL_NEITHER_END;
+        }
+
+        return m;
+    }
+    #endif /* OPENSSL_EXTRA */
+
     WOLFSSL_METHOD* wolfTLSv1_client_method(void)
     {
         return wolfTLSv1_client_method_ex(NULL);

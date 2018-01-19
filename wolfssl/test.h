@@ -261,6 +261,7 @@
 #define svrCertFile    "certs/server-cert.pem"
 #define svrKeyFile     "certs/server-key.pem"
 #define cliCertFile    "certs/client-cert.pem"
+#define cliCertDerFile "certs/client-cert.der"
 #define cliKeyFile     "certs/client-key.pem"
 #define ntruCertFile   "certs/ntru-cert.pem"
 #define ntruKeyFile    "certs/ntru-key.raw"
@@ -280,6 +281,7 @@
 #define svrCertFile    "./certs/server-cert.pem"
 #define svrKeyFile     "./certs/server-key.pem"
 #define cliCertFile    "./certs/client-cert.pem"
+#define cliCertDerFile "./certs/client-cert.der"
 #define cliKeyFile     "./certs/client-key.pem"
 #define ntruCertFile   "./certs/ntru-cert.pem"
 #define ntruKeyFile    "./certs/ntru-key.raw"
@@ -468,8 +470,14 @@ static INLINE int PasswordCallBack(char* passwd, int sz, int rw, void* userdata)
 {
     (void)rw;
     (void)userdata;
-    strncpy(passwd, "yassl123", sz);
-    return 8;
+    if (userdata != NULL) {
+        strncpy(passwd, (char*)userdata, sz);
+        return (int)XSTRLEN((char*)userdata);
+    }
+    else {
+        strncpy(passwd, "yassl123", sz);
+        return 8;
+    }
 }
 
 #endif

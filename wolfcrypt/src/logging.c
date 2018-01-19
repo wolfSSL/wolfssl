@@ -30,7 +30,10 @@
 
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
-
+#if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
+/* avoid adding WANT_READ and WANT_WRITE to error queue */
+#include <wolfssl/error-ssl.h>
+#endif
 
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
 static wolfSSL_Mutex debug_mutex; /* mutex for access to debug structure */
@@ -247,6 +250,11 @@ void WOLFSSL_ERROR(int error)
                     "wolfSSL error occurred, error = %d", error);
         }
         else {
+            #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
+            /* If running in compatibility mode do not add want read and
+               want right to error queue */
+            if (error != WANT_READ && error != WANT_WRITE) {
+            #endif
             if (error < 0)
                 error = error - (2 * error); /* get absolute value */
             XSNPRINTF(buffer, sizeof(buffer),
@@ -257,6 +265,9 @@ void WOLFSSL_ERROR(int error)
                 /* with void function there is no return here, continue on
                  * to unlock mutex and log what buffer was created. */
             }
+            #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
+            }
+            #endif
 
             wc_UnLockMutex(&debug_mutex);
         }
@@ -315,8 +326,6 @@ int wc_LoggingCleanup(void)
 }
 
 
-#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_MYSQL_COMPATIBLE)
 /* peek at an error node
  *
  * idx : if -1 then the most recent node is looked at, otherwise search
@@ -530,12 +539,12 @@ void wc_RemoveErrorNode(int idx)
     wc_UnLockMutex(&debug_mutex);
 }
 
-#endif /* DEBUG_WOLFSSL || WOLFSSL_NGINX */
 
 /* Clears out the list of error nodes.
  */
 void wc_ClearErrorNodes(void)
 {
+#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_NGINX)
     if (wc_LockMutex(&debug_mutex) != 0) {
         WOLFSSL_MSG("Lock debug mutex failed");
         return;
@@ -557,6 +566,7 @@ void wc_ClearErrorNodes(void)
     wc_errors    = NULL;
     wc_last_node = NULL;
     wc_UnLockMutex(&debug_mutex);
+#endif /* DEBUG_WOLFSSL || WOLFSSL_NGINX */
 }
 
 int wc_SetLoggingHeap(void* h)
@@ -569,6 +579,38 @@ int wc_SetLoggingHeap(void* h)
     wc_UnLockMutex(&debug_mutex);
     return 0;
 }
+
+
+/* frees all nodes in the queue
+ *
+ * id  this is the thread id
+ */
+int wc_ERR_remove_state(void)
+{
+    struct wc_error_queue* current;
+    struct wc_error_queue* next;
+
+    if (wc_LockMutex(&debug_mutex) != 0) {
+        WOLFSSL_MSG("Lock debug mutex failed");
+        return BAD_MUTEX_E;
+    }
+
+    /* free all nodes from error queue */
+    current = (struct wc_error_queue*)wc_errors;
+    while (current != NULL) {
+        next = current->next;
+        XFREE(current, current->heap, DYNAMIC_TYPE_LOG);
+        current = next;
+    }
+
+    wc_errors          = NULL;
+    wc_last_node       = NULL;
+
+    wc_UnLockMutex(&debug_mutex);
+
+    return 0;
+}
+
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
 /* empties out the error queue into the file */

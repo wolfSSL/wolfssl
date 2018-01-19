@@ -301,6 +301,16 @@ static int Hash_DRBG_Reseed(DRBG* drbg, const byte* entropy, word32 entropySz)
     return DRBG_SUCCESS;
 }
 
+/* Returns: DRBG_SUCCESS and DRBG_FAILURE or BAD_FUNC_ARG on fail */
+int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* entropy, word32 entropySz)
+{
+    if (rng == NULL || entropy == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    return Hash_DRBG_Reseed(rng->drbg, entropy, entropySz);
+}
+
 static INLINE void array_add_one(byte* data, word32 dataSz)
 {
     int i;

@@ -166,9 +166,7 @@ int wc_HmacSizeByType(int type)
     return ret;
 }
 
-
-/* software implementation */
-static int _InitHmac(Hmac* hmac, int type, void* heap)
+int _InitHmac(Hmac* hmac, int type, void* heap)
 {
     int ret = 0;
 

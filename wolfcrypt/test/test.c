@@ -4250,10 +4250,6 @@ int des3_test(void)
     wc_Des3Free(&enc);
     wc_Des3Free(&dec);
 
-#ifdef WOLFSSL_ASYNC_CRYPT
-    wc_Des3AsyncFree(&enc);
-    wc_Des3AsyncFree(&dec);
-#endif
     return 0;
 }
 #endif /* NO_DES */
@@ -11367,6 +11363,7 @@ int openssl_pkey0_test(void)
     byte   in[] = "Everyone gets Friday off.";
     byte   out[256];
     size_t outlen;
+    size_t keySz;
     byte   plain[256];
 #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
     FILE    *keyFile, *keypubFile;
@@ -11431,6 +11428,7 @@ int openssl_pkey0_test(void)
           printf("error with RSA_LoadDer_ex\n");
           return ERR_BASE_PKEY-12;
         }
+        keySz = (size_t)RSA_size(pubRsa);
 
         prvPkey = wolfSSL_PKEY_new();
         pubPkey = wolfSSL_PKEY_new();
@@ -11464,7 +11462,7 @@ int openssl_pkey0_test(void)
         }
         memset(out, 0, sizeof(out));
         ret = EVP_PKEY_encrypt(enc, out, &outlen, in, sizeof(in));
-        if (ret < 0) {
+        if (ret != 1) {
             printf("error encrypting msg\n");
             return ERR_BASE_PKEY-18;
         }
@@ -11472,7 +11470,7 @@ int openssl_pkey0_test(void)
         show("encrypted msg", out, outlen);
 
         memset(plain, 0, sizeof(plain));
-        ret = EVP_PKEY_decrypt(dec, plain, &outlen, out, sizeof(out));
+        ret = EVP_PKEY_decrypt(dec, plain, &outlen, out, keySz);
         if (ret != 1) {
             printf("error decrypting msg\n");
             return ERR_BASE_PKEY-19;
@@ -11508,7 +11506,7 @@ int openssl_pkey0_test(void)
 
         memset(out, 0, sizeof(out));
         ret = EVP_PKEY_encrypt(enc, out, &outlen, in, sizeof(in));
-        if (ret < 0) {
+        if (ret != 1) {
             printf("error encrypting msg\n");
             return ERR_BASE_PKEY-35;
         }
@@ -11516,7 +11514,7 @@ int openssl_pkey0_test(void)
         show("encrypted msg", out, outlen);
 
         memset(plain, 0, sizeof(plain));
-        ret = EVP_PKEY_decrypt(dec, plain, &outlen, out, sizeof(out));
+        ret = EVP_PKEY_decrypt(dec, plain, &outlen, out, keySz);
         if (ret != 1) {
             printf("error decrypting msg\n");
             return ERR_BASE_PKEY-36;

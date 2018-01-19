@@ -156,6 +156,8 @@ WOLFSSL_API void wc_HmacFree(Hmac*);
 
 WOLFSSL_API int wolfSSL_GetHmacMaxSize(void);
 
+WOLFSSL_LOCAL int _InitHmac(Hmac* hmac, int type, void* heap);
+
 #ifdef HAVE_HKDF
 
 WOLFSSL_API int wc_HKDF_Extract(int type, const byte* salt, word32 saltSz,

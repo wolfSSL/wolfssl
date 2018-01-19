@@ -812,9 +812,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    disableCRL    = 0;
     int    externalTest  = 0;
     int    ret;
-#ifndef WOLFSSL_CALLBACKS
     int    err           = 0;
-#endif
     int    scr           = 0;    /* allow secure renegotiation */
     int    forceScr      = 0;    /* force client initiaed scr */
     int    useClientCert = 1;

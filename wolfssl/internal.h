@@ -108,8 +108,10 @@
 
 #include <wolfssl/wolfcrypt/hash.h>
 
-#ifdef WOLFSSL_CALLBACKS
+#if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
     #include <wolfssl/callbacks.h>
+#endif
+#ifdef WOLFSSL_CALLBACKS
     #include <signal.h>
 #endif
 
@@ -1180,9 +1182,15 @@ enum Misc {
 
     PREV_ORDER         = -1,   /* Sequence number is in previous epoch. */
     PEER_ORDER         = 1,    /* Peer sequence number for verify. */
-    CUR_ORDER          = 0     /* Current sequence number. */
+    CUR_ORDER          = 0,    /* Current sequence number. */
+    WRITE_PROTO        = 1,    /* writing a protocol message */
+    READ_PROTO         = 0     /* reading a protocol message */
 };
 
+/* minimum Downgrade Minor version */
+#ifndef WOLFSSL_MIN_DOWNGRADE
+    #define WOLFSSL_MIN_DOWNGRADE TLSv1_MINOR
+#endif
 
 /* Set max implicit IV size for AEAD cipher suites */
 #define AEAD_MAX_IMP_SZ 12
@@ -1304,11 +1312,13 @@ enum states {
     SERVER_CERT_COMPLETE,
     SERVER_KEYEXCHANGE_COMPLETE,
     SERVER_HELLODONE_COMPLETE,
+	SERVER_CHANGECIPHERSPEC_COMPLETE,
     SERVER_FINISHED_COMPLETE,
     SERVER_HELLO_RETRY_REQUEST,
 
     CLIENT_HELLO_COMPLETE,
     CLIENT_KEYEXCHANGE_COMPLETE,
+	CLIENT_CHANGECIPHERSPEC_COMPLETE,
     CLIENT_FINISHED_COMPLETE,
 
     HANDSHAKE_DONE
@@ -1356,6 +1366,7 @@ struct WOLFSSL_BIO_METHOD {
 
 /* wolfSSL BIO type */
 struct WOLFSSL_BIO {
+    WOLFSSL_BUF_MEM* mem_buf;
     WOLFSSL*     ssl;           /* possible associated ssl */
 #ifndef NO_FILESYSTEM
     XFILE        file;
@@ -1372,6 +1383,7 @@ struct WOLFSSL_BIO {
     int         memLen;        /* memory buffer length */
     int         fd;            /* possible file descriptor */
     int         eof;           /* eof flag */
+    int         flags;
     byte        type;          /* method type */
     byte        close;         /* close flag */
 };
@@ -2258,6 +2270,7 @@ struct WOLFSSL_CTX {
 #endif
     Suites*     suites;           /* make dynamic, user may not need/set */
     void*       heap;             /* for user memory overrides */
+    byte        verifyDepth;
     byte        verifyPeer;
     byte        verifyNone;
     byte        failNoCert;
@@ -2305,11 +2318,13 @@ struct WOLFSSL_CTX {
     short       minEccKeySz;      /* minimum ECC key size */
 #endif
 #ifdef OPENSSL_EXTRA
+    byte              sessionCtx[ID_LEN]; /* app session context ID */
     word32            disabledCurves;   /* curves disabled by user */
-    byte              verifyDepth;      /* maximum verification depth */
     unsigned long     mask;             /* store SSL_OP_ flags */
     const unsigned char *alpn_cli_protos;/* ALPN client protocol list */
     unsigned int         alpn_cli_protos_len;
+    byte              sessionCtxSz;
+    CallbackInfoState* CBIS;      /* used to get info about SSL state */
 #endif
     CallbackIORecv CBIORecv;
     CallbackIOSend CBIOSend;
@@ -2346,6 +2361,7 @@ struct WOLFSSL_CTX {
     pem_password_cb* passwd_cb;
     void*           userdata;
     WOLFSSL_X509_STORE x509_store; /* points to ctx->cm */
+    WOLFSSL_X509_STORE* x509_store_pt; /* take ownership of external store */
     byte            readAhead;
     void*           userPRFArg; /* passed to prf callback */
 #endif
@@ -2680,6 +2696,10 @@ struct WOLFSSL_SESSION {
     word16             idLen;                     /* serverID length          */
     byte               serverID[SERVER_ID_LEN];   /* for easier client lookup */
 #endif
+#ifdef OPENSSL_EXTRA
+    byte               sessionCtxSz;              /* sessionCtx length        */
+    byte               sessionCtx[ID_LEN];        /* app specific context id  */
+#endif
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     #ifdef WOLFSSL_TLS13
     byte               namedGroup;
@@ -2692,6 +2712,8 @@ struct WOLFSSL_SESSION {
     #ifdef WOLFSSL_EARLY_DATA
     word32             maxEarlyDataSz;
     #endif
+#endif
+#ifdef HAVE_SESSION_TICKET
     byte*              ticket;
     word16             ticketLen;
     byte               staticTicket[SESSION_TICKET_LEN];
@@ -3276,6 +3298,8 @@ struct WOLFSSL {
              /* side that decrements dupCount to zero frees overall structure */
     byte            dupSide;            /* write side or read side */
 #endif
+    CallbackIORecv  CBIORecv;
+    CallbackIOSend  CBIOSend;
 #ifdef WOLFSSL_STATIC_MEMORY
     WOLFSSL_HEAP_HINT heap_hint;
 #endif
@@ -3308,6 +3332,7 @@ struct WOLFSSL {
     word32          timeout;            /* session timeout */
     word32          fragOffset;         /* fragment offset */
     word16          curSize;
+    byte            verifyDepth;
     RecordLayerHeader curRL;
     MsgsReceived    msgsReceived;       /* peer messages received */
     ProtocolVersion version;            /* negotiated version */
@@ -3316,10 +3341,15 @@ struct WOLFSSL {
     Keys            keys;
     Options         options;
 #ifdef OPENSSL_EXTRA
+    CallbackInfoState* CBIS;             /* used to get info about SSL state */
+    int              cbmode;             /* read or write on info callback */
+    int              cbtype;             /* event type in info callback */
     WOLFSSL_BIO*     biord;              /* socket bio read  to free/close */
     WOLFSSL_BIO*     biowr;              /* socket bio write to free/close */
+    byte             sessionCtx[ID_LEN]; /* app session context ID */
     unsigned long    peerVerifyRet;
     byte             readAhead;
+    byte             sessionCtxSz;       /* size of sessionCtx stored */
 #ifdef HAVE_PK_CALLBACKS
     void*            loggingCtx;         /* logging callback argument */
 #endif
@@ -3401,8 +3431,8 @@ struct WOLFSSL {
 #endif /* WOLFSSL_DTLS_DROP_STATS */
 #endif /* WOLFSSL_DTLS */
 #ifdef WOLFSSL_CALLBACKS
-    HandShakeInfo   handShakeInfo;      /* info saved during handshake */
     TimeoutInfo     timeoutInfo;        /* info saved during handshake */
+    HandShakeInfo   handShakeInfo;      /* info saved during handshake */
 #endif
 #ifdef OPENSSL_EXTRA
     SSL_Msg_Cb      protoMsgCb;         /* inspect protocol message callback */
@@ -3575,20 +3605,21 @@ typedef struct EncryptedInfo {
 #endif
 
 
-#ifdef WOLFSSL_CALLBACKS
+#if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
     WOLFSSL_LOCAL
     void InitHandShakeInfo(HandShakeInfo*, WOLFSSL*);
     WOLFSSL_LOCAL
     void FinishHandShakeInfo(HandShakeInfo*);
     WOLFSSL_LOCAL
-    void AddPacketName(const char*, HandShakeInfo*);
+    void AddPacketName(WOLFSSL* ssl, const char* name);
 
     WOLFSSL_LOCAL
     void InitTimeoutInfo(TimeoutInfo*);
     WOLFSSL_LOCAL
     void FreeTimeoutInfo(TimeoutInfo*, void*);
     WOLFSSL_LOCAL
-    void AddPacketInfo(const char*, TimeoutInfo*, const byte*, int, void*);
+    void AddPacketInfo(WOLFSSL* ssl, const char* name, int type,
+                               const byte* data, int sz, int write, void* heap);
     WOLFSSL_LOCAL
     void AddLateName(const char*, TimeoutInfo*);
     WOLFSSL_LOCAL
