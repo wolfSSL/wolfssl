@@ -343,7 +343,7 @@ typedef struct WOLFSSL_X509_STORE_CTX {
     void* ex_data;               /* external data, for fortress build */
     void* userCtx;               /* user ctx */
     int   error;                 /* current error */
-    int   error_depth;           /* cert depth for this error */
+    int   error_depth;           /* index of cert depth for this error */
     int   discardSessionCerts;   /* so verify callback can flag for discard */
     int   totalCerts;            /* number of peer cert buffers */
     WOLFSSL_BUFFER_INFO* certs;  /* peer certs */

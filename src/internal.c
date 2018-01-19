@@ -8439,10 +8439,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             wolfSSL_sk_X509_free(store->chain);
                             store->chain = NULL;
                         #endif
-                        #ifdef WOLFSSL_SMALL_STACK
-                            XFREE(x509, ssl->heap, DYNAMIC_TYPE_X509);
-                            XFREE(store, ssl->heap, DYNAMIC_TYPE_X509_STORE);
-                        #endif
                         #ifdef SESSION_CERTS
                             if (store->discardSessionCerts) {
                                 WOLFSSL_MSG("Verify callback requested discard sess certs");
@@ -8452,6 +8448,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             #endif
                             }
                         #endif /* SESSION_CERTS */
+                        #ifdef WOLFSSL_SMALL_STACK
+                            XFREE(x509, ssl->heap, DYNAMIC_TYPE_X509);
+                            XFREE(store, ssl->heap, DYNAMIC_TYPE_X509_STORE);
+                        #endif
                         }
                         if (ret != 0) {
                             SendAlert(ssl, alert_fatal, why);   /* try to send */
@@ -8525,10 +8525,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         wolfSSL_sk_X509_free(store->chain);
                         store->chain = NULL;
                     #endif
-                    #ifdef WOLFSSL_SMALL_STACK
-                        XFREE(store, ssl->heap, DYNAMIC_TYPE_X509_STORE);
-                        XFREE(x509, ssl->heap, DYNAMIC_TYPE_X509);
-                    #endif
                     #ifdef SESSION_CERTS
                         if (store->discardSessionCerts) {
                             WOLFSSL_MSG("Verify callback requested discard sess certs");
@@ -8538,6 +8534,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         #endif
                         }
                     #endif /* SESSION_CERTS */
+                    #ifdef WOLFSSL_SMALL_STACK
+                        XFREE(store, ssl->heap, DYNAMIC_TYPE_X509_STORE);
+                        XFREE(x509, ssl->heap, DYNAMIC_TYPE_X509);
+                    #endif
                     }
                 }
             #endif /* WOLFSSL_ALWAYS_VERIFY_CB */
@@ -8614,8 +8614,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 }
                 else if (ret == ASN_PARSE_E || ret == BUFFER_E) {
                     WOLFSSL_MSG("Got Peer cert ASN PARSE or BUFFER ERROR");
-                    SendAlert(ssl, alert_fatal, bad_certificate);
                 #ifdef OPENSSL_EXTRA
+                    SendAlert(ssl, alert_fatal, bad_certificate);
                     ssl->peerVerifyRet = X509_V_ERR_CERT_REJECTED;
                 #endif
                     args->fatal = 1;
@@ -8632,10 +8632,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                     else {
                         WOLFSSL_MSG("\tNo callback override available, fatal");
-                        SendAlert(ssl, alert_fatal, bad_certificate);
                         args->fatal = 1;
+                    #ifdef OPENSSL_EXTRA
+                        SendAlert(ssl, alert_fatal, bad_certificate);
+                    #endif
                     }
                 }
+
             #ifdef HAVE_SECURE_RENEGOTIATION
                 if (args->fatal == 0 && ssl->secure_renegotiation
                                && ssl->secure_renegotiation->enabled) {
@@ -8805,8 +8808,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                 if (args->fatal) {
                     ssl->error = ret;
-                    SendAlert(ssl, alert_fatal, bad_certificate);
                 #ifdef OPENSSL_EXTRA
+                    SendAlert(ssl, alert_fatal, bad_certificate);
                     ssl->peerVerifyRet = X509_V_ERR_CERT_REJECTED;
                 #endif
                     goto exit_ppc;
