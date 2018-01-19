@@ -11586,6 +11586,7 @@ int openssl_pkey0_test(void)
               return ERR_BASE_PKEY-32;
         }
 
+#ifndef HAVE_FIPS
         if (EVP_PKEY_CTX_set_rsa_padding(dec, RSA_PKCS1_OAEP_PADDING) <= 0){
             printf("second set rsa padding error\n");
             return ERR_BASE_PKEY-33;
@@ -11595,6 +11596,7 @@ int openssl_pkey0_test(void)
             printf("third set rsa padding error\n");
             return ERR_BASE_PKEY-34;
         }
+#endif
 
         memset(out, 0, sizeof(out));
         ret = EVP_PKEY_encrypt(enc, out, &outlen, in, sizeof(in));
@@ -11647,40 +11649,38 @@ int openssl_pkey1_test(void)
     unsigned char cipher[256];
     unsigned char plain[256];
     size_t outlen = sizeof(cipher);
-    char cliCert[] = "./certs/client-cert.pem";
-    FILE* f;
 
 #if defined(USE_CERT_BUFFERS_2048)
     XMEMCPY(tmp, client_key_der_2048, sizeof_client_key_der_2048);
     cliKeySz = (long)sizeof_client_key_der_2048;
+
+    x509 = wolfSSL_X509_load_certificate_buffer(client_cert_der_2048,
+            sizeof_client_cert_der_2048, SSL_FILETYPE_ASN1);
 #else
+    FILE* f;
+
     f = fopen(clientKey, "rb");
 
     if (!f) {
         err_sys("can't open ./certs/client-key.der, "
-                "Please run from wolfSSL home dir", -40);
-        return -40;
+                "Please run from wolfSSL home dir", -41);
+        return -41;
     }
 
     cliKeySz = (long)fread(tmp, 1, FOURK_BUF, f);
     fclose(f);
+
+    /* using existing wolfSSL api to get public and private key */
+    x509 = wolfSSL_X509_load_certificate_file(clientCert, SSL_FILETYPE_ASN1);
 #endif /* USE_CERT_BUFFERS */
     clikey = tmp;
 
     if ((prvKey = EVP_PKEY_new()) == NULL) {
-        return -41;
+        return -42;
     }
     EVP_PKEY_free(prvKey);
     prvKey = NULL;
 
-    /* using existing wolfSSL api to get public and private key */
-    f = fopen(cliCert, "rb");
-    if (f == NULL) {
-        return -42;
-    }
-
-    x509 = wolfSSL_X509_load_certificate_file(cliCert, SSL_FILETYPE_PEM);
-    fclose(f);
     if (x509 == NULL) {
         ret = -43;
         goto openssl_pkey1_test_done;
@@ -11731,6 +11731,7 @@ int openssl_pkey1_test(void)
         goto openssl_pkey1_test_done;
     }
 
+#ifndef HAVE_FIPS
     if (EVP_PKEY_CTX_set_rsa_padding(dec, RSA_PKCS1_OAEP_PADDING) <= 0){
         ret = -52;
         goto openssl_pkey1_test_done;
@@ -11740,6 +11741,7 @@ int openssl_pkey1_test(void)
         ret = -53;
         goto openssl_pkey1_test_done;
     }
+#endif
 
     XMEMSET(cipher, 0, sizeof(cipher));
     if (EVP_PKEY_encrypt(enc, cipher, &outlen, msg, sizeof(msg)) < 0) {

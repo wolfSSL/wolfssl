@@ -1403,6 +1403,12 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_AES_DIRECT
         #endif
     #endif
+    #ifdef WOLFSSL_AES_CFB
+        /* AES-CFB makes calls to AES direct functions */
+        #ifndef WOLFSSL_AES_DIRECT
+        #define WOLFSSL_AES_DIRECT
+        #endif
+    #endif
 #endif
 
 /* if desktop type system and fastmath increase default max bits */
