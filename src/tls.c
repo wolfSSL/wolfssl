@@ -993,8 +993,6 @@ int TLSX_HandleUnsupportedExtension(WOLFSSL* ssl)
 
 #endif
 
-#ifndef NO_WOLFSSL_SERVER
-
 /** Mark an extension to be sent back to the client. */
 void TLSX_SetResponse(WOLFSSL* ssl, TLSX_Type type);
 
@@ -1005,8 +1003,6 @@ void TLSX_SetResponse(WOLFSSL* ssl, TLSX_Type type)
     if (extension)
         extension->resp = 1;
 }
-
-#endif
 
 /******************************************************************************/
 /* Application-Layer Protocol Negotiation                                     */
