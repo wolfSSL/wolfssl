@@ -3006,8 +3006,8 @@ static int wc_PKCS7_GetPadSize(word32 inputSz, word32 blockSz)
 
 /* pad input data to blockSz chunk, place in outSz. out must be big enough
  * for input + pad bytes. See wc_PKCS7_GetPadLength() helper. */
-static int wc_PKCS7_PadData(byte* in, word32 inSz, byte* out, word32 outSz,
-                            word32 blockSz)
+int wc_PKCS7_PadData(byte* in, word32 inSz, byte* out, word32 outSz,
+                     word32 blockSz)
 {
     int i, padSz;
 
