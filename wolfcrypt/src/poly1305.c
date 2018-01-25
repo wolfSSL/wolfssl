@@ -1008,6 +1008,10 @@ static void poly1305_final_avx2(Poly1305* ctx, byte* mac)
           [r3] "r" (ctx->r3), [r4] "r" (ctx->r4)
         : "memory", "ymm0"
     );
+
+    ctx->leftover = 0;
+    ctx->finished = 0;
+    ctx->started = 0;
 }
 #endif
 
