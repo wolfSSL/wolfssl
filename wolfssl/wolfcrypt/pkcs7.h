@@ -146,6 +146,7 @@ WOLFSSL_API int  wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
                                           word32 pkiMsgSz, byte* output,
                                           word32 outputSz);
 
+WOLFSSL_API int wc_PKCS7_GetPadSize(word32 inputSz, word32 blockSz);
 WOLFSSL_API int wc_PKCS7_PadData(byte* in, word32 inSz, byte* out, word32 outSz,
                                  word32 blockSz);
 
