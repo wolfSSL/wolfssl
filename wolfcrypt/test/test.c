@@ -16429,6 +16429,12 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
     if (out == NULL)
         return -7700;
 
+    ret = wc_PKCS7_PadData((byte*)data, sizeof(data), out, outSz, 16);
+    if (ret < 0) {
+        XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return -7710;
+    }
+
 #ifndef HAVE_FIPS
     ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
 #else
