@@ -22720,6 +22720,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ssl->version.minor > pv.minor) {
             byte haveRSA = 0;
             byte havePSK = 0;
+            int  keySz   = 0;
+
             if (!ssl->options.downgrade) {
                 WOLFSSL_MSG("Client trying to connect with lesser version");
                 return VERSION_ERROR;
@@ -22755,8 +22757,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifndef NO_PSK
             havePSK = ssl->options.havePSK;
 #endif
+#ifndef NO_CERTS
+            keySz = ssl->buffers.keySz;
+#endif
 
-            InitSuites(ssl->suites, ssl->version, ssl->keySz, haveRSA, havePSK,
+            InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
                        ssl->options.haveDH, ssl->options.haveNTRU,
                        ssl->options.haveECDSAsig, ssl->options.haveECC,
                        ssl->options.haveStaticECC, ssl->options.side);
