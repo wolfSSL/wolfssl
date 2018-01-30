@@ -1248,10 +1248,8 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_LOG_PRINTF
         #define WOLFSSL_DH_CONST
     #endif /* _MSC_VER */
-    #ifndef HAVE_FIPS
-      #ifndef NO_RSA
+    #if !defined(HAVE_FIPS) && !defined(NO_RSA)
         #define WC_RSA_BLINDING
-      #endif
     #endif
     #define SINGLE_THREADED
     #define NO_ASN_TIME /* can not use headers such as windows.h */
