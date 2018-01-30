@@ -91,6 +91,18 @@
 
 #endif
 
+STATIC INLINE word16 ByteReverseWord16(word16 value)
+{
+#if defined(__ICCARM__)
+    return (word16)__REV16(value);
+#elif defined(KEIL_INTRINSICS)
+    return (word16)__rev16(value);
+#elif defined(__GNUC_PREREQ) && __GNUC_PREREQ(4, 3)
+    return (word16)__builtin_bswap16(value);
+#else
+    return (value >> 8) | (value << 8);
+#endif
+}
 
 STATIC INLINE word32 ByteReverseWord32(word32 value)
 {
@@ -101,6 +113,8 @@ STATIC INLINE word32 ByteReverseWord32(word32 value)
     return (word32)__REV(value);
 #elif defined(KEIL_INTRINSICS)
     return (word32)__rev(value);
+#elif defined(__GNUC_PREREQ) && __GNUC_PREREQ(4, 3)
+    return (word32)__builtin_bswap32(value);
 #elif defined(FAST_ROTATE)
     /* 5 instructions with rotate instruction, 9 without */
     return (rotrFixed(value, 8U) & 0xff00ff00) |

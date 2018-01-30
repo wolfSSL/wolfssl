@@ -1,0 +1,5 @@
+# vim:ft=automake
+# All paths should be given relative to the root
+
+EXTRA_DIST+= examples/tpm/tpm2_demo.c
+EXTRA_DIST+= examples/tpm/README.md
