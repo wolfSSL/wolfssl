@@ -74,7 +74,9 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/xilinx/xil-sha3.h \
                          wolfssl/wolfcrypt/port/caam/caam_driver.h \
                          wolfssl/wolfcrypt/port/caam/wolfcaam.h \
-                         wolfssl/wolfcrypt/port/caam/wolfcaam_sha.h
+                         wolfssl/wolfcrypt/port/caam/wolfcaam_sha.h \
+                         wolfssl/wolfcrypt/port/st/stm32.h \
+                         wolfssl/wolfcrypt/port/st/stm32_hash.h
 
 if BUILD_ASYNCCRYPT
 nobase_include_HEADERS+= wolfssl/wolfcrypt/async.h

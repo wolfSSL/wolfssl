@@ -57,6 +57,9 @@ enum {
 #ifdef WOLFSSL_MICROCHIP_PIC32MZ
     #include <wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h>
 #endif
+#ifdef STM32_HASH
+    #include <wolfssl/wolfcrypt/port/st/stm32.h>
+#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
@@ -69,6 +72,9 @@ enum {
 
 /* MD5 digest */
 typedef struct wc_Md5 {
+#ifdef STM32_HASH
+    STM32_HASH_Context stmCtx;
+#else
     word32  buffLen;   /* in bytes          */
     word32  loLen;     /* length in bytes   */
     word32  hiLen;     /* length in bytes   */
@@ -82,9 +88,7 @@ typedef struct wc_Md5 {
 #ifdef WOLFSSL_PIC32MZ_HASH
     hashUpdCache cache; /* cache for updates */
 #endif
-#if defined(STM32_HASH) && defined(WOLFSSL_STM32_CUBEMX)
-    HASH_HandleTypeDef hashHandle;
-#endif
+#endif /* STM32_HASH */
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
