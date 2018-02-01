@@ -153,10 +153,10 @@ DISTCLEANFILES+= wolfssl-config
 clean-local:
 	-rm -rf documentation/build/
 	-rm -rf documentation/html/
-	-rm documentation/refman.pdf
-	-rm documentation/doxygen_warnings
-	-rm documentation/doxygen_html_warnings
-	-rm documentation/doxygen_pdf_warnings
+	-rm -f documentation/refman.pdf
+	-rm -f documentation/doxygen_warnings
+	-rm -f documentation/doxygen_html_warnings
+	-rm -f documentation/doxygen_pdf_warnings
 
 maintainer-clean-local:
 	-rm Makefile.in
