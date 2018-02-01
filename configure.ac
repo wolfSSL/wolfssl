@@ -1881,7 +1881,8 @@ fi
 AS_IF([test "x$ENABLED_CMAC" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CMAC -DWOLFSSL_AES_DIRECT"])
 
-AM_CONDITIONAL([BUILD_CMAC], [test "x$ENABLED_CMAC" = "xyes"])
+#AM_CONDITIONAL([BUILD_CMAC], [test "x$ENABLED_CMAC" = "xyes"])
+#moved to FIPS section
 
 
 # AES-XTS
@@ -1994,6 +1995,9 @@ then
 				  AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
                   AS_IF([test "x$ENABLED_ECC_SHAMIR" = "xyes"],
                         [AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"])])
+           AS_IF([test "x$ENABLED_CMAC" != "xyes"],
+                 [ENABLED_CMAC="yes"
+                  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CMAC -DWOLFSSL_AES_DIRECT"])
 		  ])
 else
     if test "x$ENABLED_FORTRESS" = "xyes"
@@ -2004,6 +2008,7 @@ fi
 
 AM_CONDITIONAL([BUILD_FIPS], [test "x$ENABLED_FIPS" = "xyes"])
 AM_CONDITIONAL([BUILD_FIPS_V2], [test "x$FIPS_VERSION" = "xv2"])
+AM_CONDITIONAL([BUILD_CMAC], [test "x$ENABLED_CMAC" = "xyes"])
 
 # SELFTEST
 AC_ARG_ENABLE([selftest],
