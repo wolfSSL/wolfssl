@@ -329,6 +329,12 @@
         /* snprintf is used in asn.c for GetTimeString, PKCS7 test, and when
            debugging is turned on */
         #ifndef USE_WINDOWS_API
+            #if defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
+               !defined(NO_STDIO_FILESYSTEM)
+                /* case where stdio is not included else where but is needed for
+                 * snprintf */
+                #include <stdio.h>
+            #endif
             #define XSNPRINTF snprintf
         #else
             #define XSNPRINTF _snprintf
@@ -350,9 +356,18 @@
         #endif
 	#endif
 
+    #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
+        !defined(NO_STDIO_FILESYSTEM)
+        #ifndef XGETENV
+            #include <stdlib.h>
+            #define XGETENV getenv
+        #endif
+    #endif /* OPENSSL_EXTRA */
+
 	#ifndef CTYPE_USER
 	    #include <ctype.h>
-	    #if defined(HAVE_ECC) || defined(HAVE_OCSP) || defined(WOLFSSL_KEY_GEN)
+	    #if defined(HAVE_ECC) || defined(HAVE_OCSP) || \
+            defined(WOLFSSL_KEY_GEN) || !defined(NO_DSA)
 	        #define XTOUPPER(c)     toupper((c))
 	        #define XISALPHA(c)     isalpha((c))
 	    #endif
@@ -452,6 +467,7 @@
         DYNAMIC_TYPE_SALT         = 87,
         DYNAMIC_TYPE_HASH_TMP     = 88,
         DYNAMIC_TYPE_BLOB         = 89,
+        DYNAMIC_TYPE_NAME_ENTRY   = 90,
 	};
 
 	/* max error buffer string size */

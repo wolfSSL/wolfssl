@@ -10,6 +10,10 @@ To create the static library, simply call make:
 
 `make -f sgx_t_static.mk all`
 
+To clean the static library and compiled objects use the provided clean script:
+
+`clean.sh`
+
 This will create a local static library, libwolfssl.sgx.static.lib.a, that can be linked with SGX enclaves to access wolfSSL APIs using SGX hardware.
 
 ### Customization:
@@ -19,6 +23,9 @@ This will create a local static library, libwolfssl.sgx.static.lib.a, that can b
 
 For example, to enable all three:
 `make -f sgx_t_static.mk CFLAGS=-DDEBUG_WOLFSSL HAVE_WOLFSSL_BENCHMARK=1 HAVE_WOLFSSL_TEST=1`
+
+NOTE: This more customized step has been provided for easier execution in the
+      script `build.sh`
 
 ### Limitations:
     Single Threaded (multiple threaded applications have not been tested)

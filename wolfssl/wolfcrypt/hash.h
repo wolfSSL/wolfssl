@@ -40,10 +40,18 @@
 #if defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
     #include <wolfssl/wolfcrypt/sha512.h>
 #endif
+#ifdef HAVE_BLAKE2
+    #include <wolfssl/wolfcrypt/blake2.h>
+#endif
 
 #ifdef __cplusplus
     extern "C" {
 #endif
+
+#if !defined(HAVE_FIPS) && !defined(NO_OLD_WC_NAMES)
+    #define MAX_DIGEST_SIZE WC_MAX_DIGEST_SIZE
+#endif
+
 
 /* Hash types */
 enum wc_HashType {
@@ -84,6 +92,8 @@ typedef union {
    Note if this gets up to the size of 80 or over check smallstack build */
 #if defined(WOLFSSL_SHA512)
     #define WC_MAX_DIGEST_SIZE WC_SHA512_DIGEST_SIZE
+#elif defined(HAVE_BLAKE2)
+    #define WC_MAX_DIGEST_SIZE BLAKE2B_OUTBYTES
 #elif defined(WOLFSSL_SHA384)
     #define WC_MAX_DIGEST_SIZE WC_SHA384_DIGEST_SIZE
 #elif !defined(NO_SHA256)

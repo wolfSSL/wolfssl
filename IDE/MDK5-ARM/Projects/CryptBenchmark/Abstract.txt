@@ -1,14 +1,10 @@
-This program is a simple benchmark of wolfCrypt library.
+wolfCrypt Benchmark
 
-In order to run this benchmark, copy 
-{PACK}\wolfSSL\CyaSSL\{version}\cyassl\certs folder and files to the SD memory.
+Use Configuration Wizard tab
+user_settings.h for wolfCrypt options
 
-For benchmark configuration, refer config-Crypt.h.
+For further options, details, see wolfSSL User Manual.
 
-For the hardware crypt on config-Crypt.h, download 
-STSW-STM32062: STM32F2xx standard peripherals library at 
-http://www.st.com/. Copy Libraries\STM32F2xx_StdPeriph_Driver\{inc,src} to 
- {PACK}\cyassl\IDE\MDK5-ARM\STM32F2xx_StdPeriph_Lib
 
 Support
 -------

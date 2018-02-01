@@ -1,6 +1,6 @@
-/* time-STM32F2.c
+/* objects.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -20,23 +20,29 @@
  */
 
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
+#ifndef WOLFSSL_OBJECTS_H_
+#define WOLFSSL_OBJECTS_H_
+
+#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/openssl/ssl.h>
+
+#ifdef __cplusplus
+    extern "C" {
 #endif
 
+#define OBJ_nid2sn  wolfSSL_OBJ_nid2sn
+#define OBJ_obj2nid wolfSSL_OBJ_obj2nid
+#define OBJ_sn2nid  wolfSSL_OBJ_sn2nid
+#define OBJ_nid2ln  wolfSSL_OBJ_nid2ln
+#define OBJ_txt2nid wolfSSL_OBJ_txt2nid
+#define OBJ_nid2obj wolfSSL_OBJ_nid2obj
+#define OBJ_obj2txt wolfSSL_OBJ_obj2txt
+#define OBJ_cleanup wolfSSL_OBJ_cleanup
+#define ASN1_OBJECT_free wolfSSL_ASN1_OBJECT_free
 
-#include <stdint.h>
-#define DWT                 ((DWT_Type       *)     (0xE0001000UL)     )
-typedef struct
-{
-  uint32_t CTRL;                    /*!< Offset: 0x000 (R/W)  Control Register                          */
-  uint32_t CYCCNT;                  /*!< Offset: 0x004 (R/W)  Cycle Count Register                      */
-} DWT_Type;
 
-extern uint32_t SystemCoreClock ;
+#ifdef __cplusplus
+    }  /* extern "C" */
+#endif
 
-double current_time(int reset)
-{
-      if(reset) DWT->CYCCNT = 0 ;
-      return ((double)DWT->CYCCNT/SystemCoreClock) ;
-}
+#endif /* WOLFSSL_OBJECTS_H_ */

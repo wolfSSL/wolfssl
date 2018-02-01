@@ -164,6 +164,7 @@ then
     enable_aesgcm=yes
     enable_aesccm=yes
     enable_aesctr=yes
+    enable_aescfb=yes
     enable_camellia=yes
     enable_ripemd=yes
     enable_sha512=yes
@@ -329,7 +330,7 @@ then
 fi
 
 
-# Post-handshake Authentication
+# Hello Retry Request Cookie
 AC_ARG_ENABLE([hrrcookie],
     [AS_HELP_STRING([--enable-hrrcookie],[Enable the server to send Cookie Extension in HRR with state (default: disabled)])],
     [ ENABLED_SEND_HRR_COOKIE=$enableval ],
@@ -459,7 +460,8 @@ fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
 then
-  AM_CFLAGS="-DOPENSSL_EXTRA $AM_CFLAGS"
+  AM_CFLAGS="-DOPENSSL_EXTRA -DWOLFSSL_ALWAYS_VERIFY_CB $AM_CFLAGS"
+  AM_CFLAGS="-DWOLFSSL_VERIFY_CB_ALL_CERTS $AM_CFLAGS"
 fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "$ENABLED_SMALL" = "yes"
@@ -810,6 +812,19 @@ then
         # This is already implied by fortress build
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_COUNTER -DWOLFSSL_AES_DIRECT"
     fi
+fi
+
+
+# AES-CFB
+AC_ARG_ENABLE([aescfb],
+    [AS_HELP_STRING([--enable-aescfb],[Enable wolfSSL AES-CFB support (default: disabled)])],
+    [ ENABLED_AESCFB=$enableval ],
+    [ ENABLED_AESCFB=no ]
+    )
+
+if test "$ENABLED_AESCFB" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_CFB"
 fi
 
 
@@ -1294,9 +1309,6 @@ then
 fi
 
 
-AM_CONDITIONAL([BUILD_CURVE25519], [test "x$ENABLED_CURVE25519" = "xyes"])
-AM_CONDITIONAL([BUILD_CURVE25519_SMALL], [test "x$ENABLED_CURVE25519_SMALL" = "xyes"])
-
 # ED25519
 AC_ARG_ENABLE([ed25519],
     [AS_HELP_STRING([--enable-ed25519],[Enable ED25519 (default: disabled)])],
@@ -1316,6 +1328,7 @@ then
     then
         AM_CFLAGS="$AM_CFLAGS -DED25519_SMALL"
         ENABLED_ED25519_SMALL=yes
+        ENABLED_CURVE25519_SMALL=yes
         ENABLED_ED25519=yes
     fi
 
@@ -1332,6 +1345,9 @@ AM_CONDITIONAL([BUILD_ED25519], [test "x$ENABLED_ED25519" = "xyes"])
 AM_CONDITIONAL([BUILD_ED25519_SMALL], [test "x$ENABLED_ED25519_SMALL" = "xyes"])
 AM_CONDITIONAL([BUILD_FEMATH],  [test "x$ENABLED_FEMATH" = "xyes"])
 AM_CONDITIONAL([BUILD_GEMATH],  [test "x$ENABLED_GEMATH" = "xyes"])
+AM_CONDITIONAL([BUILD_CURVE25519], [test "x$ENABLED_CURVE25519" = "xyes"])
+AM_CONDITIONAL([BUILD_CURVE25519_SMALL], [test "x$ENABLED_CURVE25519_SMALL" = "xyes"])
+
 
 # FP ECC, Fixed Point cache ECC
 AC_ARG_ENABLE([fpecc],
@@ -1903,8 +1919,10 @@ AC_ARG_ENABLE([fips],
     [ ENABLED_FIPS=no ]
     )
 
-if test "x$ENABLED_FIPS" = "xyes"
+if test "x$ENABLED_FIPS" != "xno"
 then
+    FIPS_VERSION=$ENABLED_FIPS
+    ENABLED_FIPS=yes
     # requires thread local storage
     if test "$thread_ls_on" = "no"
     then
@@ -1930,6 +1948,19 @@ then
         ENABLED_DES3="yes"
     fi
     AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS"
+    # Add the FIPS flag.
+    AS_IF([test "x$FIPS_VERSION" = "xv2"],
+          [AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS_VERSION=2 -DWOLFSSL_KEY_GEN"
+           ENABLED_KEYGEN="yes"
+           AS_IF([test "x$ENABLED_RSAPSS" != "xyes"],
+			     [ENABLED_RSAPSS="yes"
+				  AM_CFLAGS="$AM_CFLAGS -DWC_RSA_PSS"])
+           AS_IF([test "x$ENABLED_ECC" != "xyes"],
+			     [ENABLED_ECC="yes"
+				  AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
+                  AS_IF([test "x$ENABLED_ECC_SHAMIR" = "xyes"],
+                        [AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"])])
+		  ])
 else
     if test "x$ENABLED_FORTRESS" = "xyes"
     then
@@ -1938,6 +1969,7 @@ else
 fi
 
 AM_CONDITIONAL([BUILD_FIPS], [test "x$ENABLED_FIPS" = "xyes"])
+AM_CONDITIONAL([BUILD_FIPS_V2], [test "x$FIPS_VERSION" = "xv2"])
 
 
 # set sha224 default
@@ -4208,6 +4240,7 @@ echo "   * AES Key Wrap:               $ENABLED_AESKEYWRAP"
 echo "   * Write duplicate:            $ENABLED_WRITEDUP"
 echo "   * Intel Quick Assist:         $ENABLED_INTEL_QA"
 echo "   * Xilinx Hardware Acc.:       $ENABLED_XILINX"
+echo "   * Inline Code:                $ENABLED_INLINE"
 echo ""
 echo "---"
 

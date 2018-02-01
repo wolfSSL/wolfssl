@@ -18,6 +18,8 @@ if test -e .git; then
   # touch fips files for non fips distribution
   touch ./ctaocrypt/src/fips.c
   touch ./ctaocrypt/src/fips_test.c
+  touch ./wolfcrypt/src/fipsv2.c
+  touch ./wolfssl/wolfcrypt/fips.h
 
   # touch async crypt files
   touch ./wolfcrypt/src/async.c

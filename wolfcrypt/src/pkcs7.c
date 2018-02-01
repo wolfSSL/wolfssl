@@ -1657,6 +1657,7 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
     byte* cert = NULL;
     byte* signedAttrib = NULL;
     int contentSz = 0, sigSz = 0, certSz = 0, signedAttribSz = 0;
+    byte degenerate;
 
     if (pkcs7 == NULL || pkiMsg == NULL || pkiMsgSz == 0)
         return BAD_FUNC_ARG;
@@ -1702,6 +1703,7 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
 
     /* Skip the set. */
     idx += length;
+    degenerate = (length == 0)? 1 : 0;
 
     /* Get the inner ContentInfo sequence */
     if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
@@ -1716,24 +1718,41 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
         return PKCS7_OID_E;
     }
 
-    if (pkiMsg[idx++] != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
-        return ASN_PARSE_E;
+    /* Check for content info, it could be omitted when degenerate */
+    {
+        word32 localIdx = idx;
+        ret = 0;
+        if (pkiMsg[localIdx++] != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+            ret = ASN_PARSE_E;
 
-    if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) <= 0)
-        return ASN_PARSE_E;
+        if (ret == 0 && GetLength(pkiMsg, &localIdx, &length, pkiMsgSz) <= 0)
+            ret = ASN_PARSE_E;
 
-    if (pkiMsg[idx++] != ASN_OCTET_STRING)
-        return ASN_PARSE_E;
+        if (ret == 0 && pkiMsg[localIdx++] != ASN_OCTET_STRING)
+            ret = ASN_PARSE_E;
 
-    if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
-        return ASN_PARSE_E;
+        if (ret == 0 && GetLength(pkiMsg, &localIdx, &length, pkiMsgSz) < 0)
+            ret = ASN_PARSE_E;
 
-    /* Save the inner data as the content. */
-    if (length > 0) {
-        /* Local pointer for calculating hashes later */
-        pkcs7->content = content = &pkiMsg[idx];
-        pkcs7->contentSz = contentSz = length;
-        idx += length;
+        /* Save the inner data as the content. */
+        if (length > 0) {
+            /* Local pointer for calculating hashes later */
+            pkcs7->content = content = &pkiMsg[localIdx];
+            pkcs7->contentSz = contentSz = length;
+            localIdx += length;
+        }
+
+        /* update idx if successful */
+        if (ret == 0) {
+            idx = localIdx;
+        }
+    }
+
+    /* If getting the content info failed with non degenerate then return the
+     * error case. Otherwise with a degenerate it is ok if the content
+     * info was omitted */
+    if (!degenerate && ret != 0) {
+        return ret;
     }
 
     /* Get the implicit[0] set of certificates */
@@ -2972,7 +2991,7 @@ static int wc_PKCS7_GenerateIV(PKCS7* pkcs7, WC_RNG* rng, byte* iv, word32 ivSz)
 
 
 /* return size of padded data, padded to blockSz chunks, or negative on error */
-static int wc_PKCS7_GetPadSize(word32 inputSz, word32 blockSz)
+int wc_PKCS7_GetPadSize(word32 inputSz, word32 blockSz)
 {
     int padSz;
 
@@ -2986,9 +3005,9 @@ static int wc_PKCS7_GetPadSize(word32 inputSz, word32 blockSz)
 
 
 /* pad input data to blockSz chunk, place in outSz. out must be big enough
- * for input + pad bytes. See wc_PKCS7_GetPadLength() helper. */
-static int wc_PKCS7_PadData(byte* in, word32 inSz, byte* out, word32 outSz,
-                            word32 blockSz)
+ * for input + pad bytes. See wc_PKCS7_GetPadSize() helper. */
+int wc_PKCS7_PadData(byte* in, word32 inSz, byte* out, word32 outSz,
+                     word32 blockSz)
 {
     int i, padSz;
 
@@ -2996,7 +3015,7 @@ static int wc_PKCS7_PadData(byte* in, word32 inSz, byte* out, word32 outSz,
         out == NULL || outSz == 0)
         return BAD_FUNC_ARG;
 
-    padSz = blockSz - (inSz % blockSz);
+    padSz = wc_PKCS7_GetPadSize(inSz, blockSz);
 
     if (outSz < (inSz + padSz))
         return BAD_FUNC_ARG;

@@ -38,7 +38,9 @@ tags
 cyassl-config
 wolfssl-config
 cyassl.sublime*
+fips.h
 fips.c
+fipsv2.c
 fips_test.c
 fips
 src/async.c

@@ -71,6 +71,8 @@
     #include "kernel.h"
 #elif  defined(WOLFSSL_uTKERNEL2)
     #include "tk/tkernel.h"
+#elif defined(WOLFSSL_CMSIS_RTOS)
+    #include "cmsis_os.h"
 #elif defined(WOLFSSL_MDK_ARM)
     #if defined(WOLFSSL_MDK5)
         #include "cmsis_os.h"
@@ -195,6 +197,13 @@ WOLFSSL_API wolfSSL_Mutex* wc_InitAndAllocMutex(void);
 WOLFSSL_API int wc_FreeMutex(wolfSSL_Mutex*);
 WOLFSSL_API int wc_LockMutex(wolfSSL_Mutex*);
 WOLFSSL_API int wc_UnLockMutex(wolfSSL_Mutex*);
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+/* dynamiclly set which mutex to use. unlock / lock is controlled by flag */
+typedef void (mutex_cb)(int flag, int type, const char* file, int line);
+
+WOLFSSL_API int wc_LockMutex_ex(int flag, int type, const char* file, int line);
+WOLFSSL_API int wc_SetMutexCb(mutex_cb* cb);
+#endif
 
 /* main crypto initialization function */
 WOLFSSL_API int wolfCrypt_Init(void);

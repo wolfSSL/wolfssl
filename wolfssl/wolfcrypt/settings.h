@@ -993,8 +993,6 @@ extern void uITRON4_free(void *p) ;
     #define NO_WOLFSSL_DIR
     #undef  NO_RABBIT
     #define NO_RABBIT
-    #undef  NO_64BIT
-    #define NO_64BIT
     #ifndef NO_STM32_RNG
         #undef  STM32_RNG
         #define STM32_RNG
@@ -1250,7 +1248,7 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_LOG_PRINTF
         #define WOLFSSL_DH_CONST
     #endif /* _MSC_VER */
-    #ifndef NO_RSA
+    #if !defined(HAVE_FIPS) && !defined(NO_RSA)
         #define WC_RSA_BLINDING
     #endif
     #define SINGLE_THREADED
@@ -1401,6 +1399,12 @@ extern void uITRON4_free(void *p) ;
     #endif
     #ifdef WOLFSSL_AES_XTS
         /* AES-XTS makes calls to AES direct functions */
+        #ifndef WOLFSSL_AES_DIRECT
+        #define WOLFSSL_AES_DIRECT
+        #endif
+    #endif
+    #ifdef WOLFSSL_AES_CFB
+        /* AES-CFB makes calls to AES direct functions */
         #ifndef WOLFSSL_AES_DIRECT
         #define WOLFSSL_AES_DIRECT
         #endif

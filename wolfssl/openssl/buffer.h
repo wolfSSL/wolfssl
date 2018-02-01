@@ -1,6 +1,6 @@
-/* time-STM32F2.c
+/* buffer.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2016 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -20,23 +20,32 @@
  */
 
 
-#ifdef HAVE_CONFIG_H
-    #include <config.h>
+#ifndef WOLFSSL_BUFFER_H_
+#define WOLFSSL_BUFFER_H_
+
+#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/openssl/ssl.h>
+
+#ifdef __cplusplus
+    extern "C" {
 #endif
 
 
-#include <stdint.h>
-#define DWT                 ((DWT_Type       *)     (0xE0001000UL)     )
-typedef struct
-{
-  uint32_t CTRL;                    /*!< Offset: 0x000 (R/W)  Control Register                          */
-  uint32_t CYCCNT;                  /*!< Offset: 0x004 (R/W)  Cycle Count Register                      */
-} DWT_Type;
+WOLFSSL_API WOLFSSL_BUF_MEM* wolfSSL_BUF_MEM_new(void);
+WOLFSSL_API int wolfSSL_BUF_MEM_grow(WOLFSSL_BUF_MEM* buf, size_t len);
+WOLFSSL_API void wolfSSL_BUF_MEM_free(WOLFSSL_BUF_MEM* buf);
 
-extern uint32_t SystemCoreClock ;
 
-double current_time(int reset)
-{
-      if(reset) DWT->CYCCNT = 0 ;
-      return ((double)DWT->CYCCNT/SystemCoreClock) ;
-}
+#define BUF_MEM_new  wolfSSL_BUF_MEM_new
+#define BUF_MEM_grow wolfSSL_BUF_MEM_grow
+#define BUF_MEM_free wolfSSL_BUF_MEM_free
+
+/* error codes */
+#define ERR_R_MALLOC_FAILURE  MEMORY_E
+
+
+#ifdef __cplusplus
+    }  /* extern "C" */
+#endif
+
+#endif /* WOLFSSL_BUFFER_H_ */

@@ -156,7 +156,6 @@
     /* #define DEBUG_YMM  */
 #endif
 
-
 #if defined(HAVE_BYTEREVERSE64) && \
         !defined(HAVE_INTEL_AVX1) && !defined(HAVE_INTEL_AVX2)
     #define ByteReverseWords64(out, in, size) ByteReverseWords64_1(out, size)

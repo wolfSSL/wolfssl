@@ -166,9 +166,7 @@ int wc_HmacSizeByType(int type)
     return ret;
 }
 
-
-/* software implementation */
-static int _InitHmac(Hmac* hmac, int type, void* heap)
+int _InitHmac(Hmac* hmac, int type, void* heap)
 {
     int ret = 0;
 
@@ -251,7 +249,7 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_HMAC)
     if (hmac->asyncDev.marker == WOLFSSL_ASYNC_MARKER_HMAC) {
     #if defined(HAVE_CAVIUM)
-        if (length > HMAC_BLOCK_SIZE) {
+        if (length > WC_HMAC_BLOCK_SIZE) {
             return WC_KEY_SIZE_E;
         }
 
@@ -807,7 +805,7 @@ void wc_HmacFree(Hmac* hmac)
 
 int wolfSSL_GetHmacMaxSize(void)
 {
-    return MAX_DIGEST_SIZE;
+    return WC_MAX_DIGEST_SIZE;
 }
 
 #ifdef HAVE_HKDF
@@ -825,7 +823,7 @@ int wolfSSL_GetHmacMaxSize(void)
     int wc_HKDF_Extract(int type, const byte* salt, word32 saltSz,
                         const byte* inKey, word32 inKeySz, byte* out)
     {
-        byte   tmp[MAX_DIGEST_SIZE]; /* localSalt helper */
+        byte   tmp[WC_MAX_DIGEST_SIZE]; /* localSalt helper */
         Hmac   myHmac;
         int    ret;
         const  byte* localSalt;  /* either points to user input or tmp */
@@ -870,7 +868,7 @@ int wolfSSL_GetHmacMaxSize(void)
     int wc_HKDF_Expand(int type, const byte* inKey, word32 inKeySz,
                        const byte* info, word32 infoSz, byte* out, word32 outSz)
     {
-        byte   tmp[MAX_DIGEST_SIZE];
+        byte   tmp[WC_MAX_DIGEST_SIZE];
         Hmac   myHmac;
         int    ret = 0;
         word32 outIdx = 0;
@@ -931,7 +929,7 @@ int wolfSSL_GetHmacMaxSize(void)
                        const byte* info,  word32 infoSz,
                        byte* out,         word32 outSz)
     {
-        byte   prk[MAX_DIGEST_SIZE];
+        byte   prk[WC_MAX_DIGEST_SIZE];
         int    hashSz = wc_HmacSizeByType(type);
         int    ret;
 
