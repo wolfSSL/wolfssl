@@ -8352,19 +8352,21 @@ static int test_wc_AesGcmEncryptDecrypt (void)
                     sizeof(vector), iv, sizeof(iv)/sizeof(byte),
                     resultT, sizeof(resultT) - 5, a, sizeof(a));
         }
-        if (gcmE == BAD_FUNC_ARG) {
-            gcmE = wc_AesGcmEncrypt(&aes, enc, vector, sizeof(vector), longIV,
-                            sizeof(longIV)/sizeof(byte), resultT, sizeof(resultT),
-                            a, sizeof(a));
-        }
-        #ifdef HAVE_FIPS
-            if (gcmE == BAD_FUNC_ARG) {
-                gcmE = 0;
-            } else {
-                gcmE = WOLFSSL_FATAL_ERROR;
-            }
-        #endif
-    } /* END wc_AesGcmEncrypt */
+
+		if (gcmE == BAD_FUNC_ARG) {
+			gcmE = 0;
+		} else {
+			gcmE = WOLFSSL_FATAL_ERROR;
+		}
+	}
+
+	/* This case is now considered good. Long IVs are now allowed. */
+	if (gcmE == 0) {
+		gcmE = wc_AesGcmEncrypt(&aes, enc, vector, sizeof(vector), longIV,
+						sizeof(longIV)/sizeof(byte), resultT, sizeof(resultT),
+						a, sizeof(a));
+	}
+    /* END wc_AesGcmEncrypt */
 
     printf(resultFmt, gcmE == 0 ? passed : failed);
     if (gcmE != 0) {

@@ -31,8 +31,14 @@
 
 #ifndef NO_AES
 
+#if defined(HAVE_FIPS) && \
+    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+    #include <wolfssl/wolfcrypt/fips.h>
+#endif /* HAVE_FIPS_VERSION >= 2 */
+
 /* included for fips @wc_fips */
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && \
+	(!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
 #include <cyassl/ctaocrypt/aes.h>
 #if defined(CYASSL_AES_COUNTER) && !defined(WOLFSSL_AES_COUNTER)
     #define WOLFSSL_AES_COUNTER
@@ -62,7 +68,9 @@
     extern "C" {
 #endif
 
-#ifndef HAVE_FIPS /* to avoid redefinition of structures */
+/* avoid redefinition of structs */
+#if !defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>

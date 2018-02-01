@@ -461,6 +461,9 @@ const char* wc_GetErrorString(int error)
     case AESCCM_KAT_FIPS_E:
         return "AESCCM Known Answer Test check FIPS error";
 
+    case SHA3_KAT_FIPS_E:
+        return "SHA-3 Known Answer Test check FIPS error";
+
     default:
         return "unknown error number";
 

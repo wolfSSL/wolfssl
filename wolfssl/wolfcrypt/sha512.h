@@ -1,6 +1,6 @@
 /* sha512.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2018 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -31,8 +31,13 @@
 
 #ifdef WOLFSSL_SHA512
 
-/* for fips @wc_fips */
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && \
+    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+    #include <wolfssl/wolfcrypt/fips.h>
+#endif /* HAVE_FIPS_VERSION >= 2 */
+
+#if defined(HAVE_FIPS) && \
+	(!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
     #define wc_Sha512             Sha512
     #define WC_SHA512             SHA512
     #define WC_SHA512_BLOCK_SIZE  SHA512_BLOCK_SIZE
@@ -50,6 +55,7 @@
     #if defined(WOLFSSL_SHA384)
         #define CYASSL_SHA384
     #endif
+	/* for fips @wc_fips */
     #include <cyassl/ctaocrypt/sha512.h>
 #endif
 
@@ -57,7 +63,9 @@
     extern "C" {
 #endif
 
-#ifndef HAVE_FIPS /* avoid redefinition of structs */
+/* avoid redefinition of structs */
+#if !defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
@@ -121,7 +129,9 @@ WOLFSSL_API int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst);
 
 #if defined(WOLFSSL_SHA384)
 
-#ifndef HAVE_FIPS /* avoid redefinition of structs */
+/* avoid redefinition of structs */
+#if !defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 
 #ifndef NO_OLD_WC_NAMES
     #define Sha384             wc_Sha384
