@@ -206,8 +206,9 @@ enum {
     ECDSA_PAT_FIPS_E    = -255,  /* ECDSA PAT failure */
     DH_KAT_FIPS_E       = -256,  /* DH KAT failure */
     AESCCM_KAT_FIPS_E   = -257,  /* AESCCM KAT failure */
+    SHA3_KAT_FIPS_E     = -258,  /* SHA-3 KAT failure */
 
-    WC_LAST_E           = -257,  /* Update this to indicate last error */
+    WC_LAST_E           = -258,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes

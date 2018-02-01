@@ -32,6 +32,19 @@
 
 */
 
+#if defined(HAVE_FIPS) && \
+	defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+
+    #ifdef USE_WINDOWS_API
+        #pragma code_seg(".fipsA$d")
+        #pragma const_seg(".fipsB$d")
+    #endif
+#endif
+
+
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
 

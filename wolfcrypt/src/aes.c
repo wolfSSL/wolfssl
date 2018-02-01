@@ -28,12 +28,27 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 #if !defined(NO_AES)
+
+#if defined(HAVE_FIPS) && \
+	defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+
+    #ifdef USE_WINDOWS_API
+        #pragma code_seg(".fipsA$d")
+        #pragma const_seg(".fipsB$d")
+    #endif
+#endif
+
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
 
 
 /* fips wrapper calls, user can call direct */
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
+
     int wc_AesSetKey(Aes* aes, const byte* key, word32 len, const byte* iv,
                               int dir)
     {
@@ -228,7 +243,7 @@
             AesFree(aes); */
     }
 
-#else /* HAVE_FIPS */
+#else /* else build without fips, or for FIPS v2 */
 
 
 #if defined(WOLFSSL_TI_CRYPT)
