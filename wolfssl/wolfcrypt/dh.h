@@ -30,12 +30,21 @@
 
 #ifndef NO_DH
 
+#if defined(HAVE_FIPS) && \
+    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+    #include <wolfssl/wolfcrypt/fips.h>
+#endif /* HAVE_FIPS_VERSION >= 2 */
+
 #include <wolfssl/wolfcrypt/integer.h>
 #include <wolfssl/wolfcrypt/random.h>
 
 #ifdef __cplusplus
     extern "C" {
 #endif
+
+/* avoid redefinition of structs */
+#if !defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
@@ -56,6 +65,7 @@ typedef struct DhKey {
 #endif
 } DhKey;
 
+#endif /* HAVE_FIPS */
 
 #ifdef HAVE_FFDHE_2048
 WOLFSSL_API const DhParams* wc_Dh_ffdhe2048_Get(void);
@@ -75,7 +85,7 @@ WOLFSSL_API const DhParams* wc_Dh_ffdhe8192_Get(void);
 
 WOLFSSL_API int wc_InitDhKey(DhKey* key);
 WOLFSSL_API int wc_InitDhKey_ex(DhKey* key, void* heap, int devId);
-WOLFSSL_API void wc_FreeDhKey(DhKey* key);
+WOLFSSL_API int wc_FreeDhKey(DhKey* key);
 
 WOLFSSL_API int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng, byte* priv,
                                  word32* privSz, byte* pub, word32* pubSz);
