@@ -28,6 +28,18 @@
 
 #ifndef NO_DH
 
+#if defined(HAVE_FIPS) && \
+	defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+
+    #ifdef USE_WINDOWS_API
+        #pragma code_seg(".fipsA$d")
+        #pragma const_seg(".fipsB$d")
+    #endif
+#endif
+
 #include <wolfssl/wolfcrypt/dh.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
@@ -524,7 +536,7 @@ int wc_InitDhKey(DhKey* key)
 }
 
 
-void wc_FreeDhKey(DhKey* key)
+int wc_FreeDhKey(DhKey* key)
 {
     if (key) {
         mp_clear(&key->p);
@@ -535,6 +547,7 @@ void wc_FreeDhKey(DhKey* key)
         wolfAsync_DevCtxFree(&key->asyncDev, WOLFSSL_ASYNC_MARKER_DH);
     #endif
     }
+    return 0;
 }
 
 
