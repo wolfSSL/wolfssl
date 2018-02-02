@@ -7132,6 +7132,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
 {
     WOLFSSL_EVP_PKEY* local;
     word32 idx = 0;
+    int    ret;
 
     WOLFSSL_ENTER("wolfSSL_d2i_PrivateKey");
 
@@ -7140,8 +7141,17 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey(int type, WOLFSSL_EVP_PKEY** out,
         return NULL;
     }
 
-    if (ToTraditionalInline((const byte*)(*in), &idx, (word32)inSz) > 0) {
+    /* Check if input buffer has PKCS8 header. In the case that it does not
+     * have a PKCS8 header then do not error out. */
+    if ((ret = ToTraditionalInline((const byte*)(*in), &idx, (word32)inSz))
+            > 0) {
         WOLFSSL_MSG("Found and removed PKCS8 header");
+    }
+    else {
+        if (ret != ASN_PARSE_E) {
+            WOLFSSL_MSG("Unexpected error with trying to remove PKCS8 header");
+            return NULL;
+        }
     }
 
     if (out != NULL && *out != NULL) {

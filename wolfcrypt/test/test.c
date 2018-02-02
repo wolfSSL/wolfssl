@@ -9117,7 +9117,8 @@ int rsa_test(void)
         int         certSz;
         size_t      bytes3;
         word32      idx3 = 0;
-    #if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
+    #if (!defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)) \
+        || !defined(USE_CERT_BUFFERS_256)
         FILE*       file3;
     #endif
     #ifdef WOLFSSL_TEST_CERT
