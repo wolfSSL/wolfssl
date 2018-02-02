@@ -16560,12 +16560,48 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
             return -7709;
         }
 
+
+        {
+            /* check getting signed attributes */
+        #ifndef NO_SHA
+            byte buf[(WC_SHA_DIGEST_SIZE + 1) * 2 + 1];
+        #else
+            byte buf[(WC_SHA256_DIGEST_SIZE + 1) * 2 + 1];
+        #endif
+            byte* oidPt = transIdOid + 2; /* skip object id tag and size */
+            int oidSz = (int)sizeof(transIdOid) - 2;
+            int bufSz = 0;
+
+            if (testVectors[i].signedAttribs != NULL &&
+                    wc_PKCS7_GetAttributeValue(&pkcs7, oidPt, oidSz,
+                    NULL, (word32*)&bufSz) != LENGTH_ONLY_E) {
+                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                wc_PKCS7_Free(&pkcs7);
+                return -7710;
+            }
+
+            if (bufSz > (int)sizeof(buf)) {
+                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                wc_PKCS7_Free(&pkcs7);
+                return -7711;
+            }
+
+            bufSz = wc_PKCS7_GetAttributeValue(&pkcs7, oidPt, oidSz,
+                    buf, (word32*)&bufSz);
+            if ((testVectors[i].signedAttribs != NULL && bufSz < 0) ||
+                (testVectors[i].signedAttribs == NULL && bufSz > 0)) {
+                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                wc_PKCS7_Free(&pkcs7);
+                return -7712;
+            }
+        }
+
     #ifdef PKCS7_OUTPUT_TEST_BUNDLES
         file = fopen("./pkcs7cert.der", "wb");
         if (!file) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(&pkcs7);
-            return -7710;
+            return -7713;
         }
         ret = (int)fwrite(pkcs7.singleCert, 1, pkcs7.singleCertSz, file);
         fclose(file);
