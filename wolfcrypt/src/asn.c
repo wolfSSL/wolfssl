@@ -10548,9 +10548,8 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
 {
     int    length;
     int    ret;
-#ifdef ECC_CHECK_PUBLIC_KEY_OID
+    int    curve_id = ECC_CURVE_DEF;
     word32 oidSum;
-#endif
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
         return BAD_FUNC_ARG;
@@ -10566,17 +10565,14 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
         return ret;
 
     /* ecc params information */
-#ifdef ECC_CHECK_PUBLIC_KEY_OID
     ret = GetObjectId(input, inOutIdx, &oidSum, oidIgnoreType, inSz);
     if (ret != 0)
         return ret;
-    if (CheckCurve(oidSum) < 0)
+
+    /* get curve id */
+    curve_id = wc_ecc_get_oid(oidSum, NULL, 0);
+    if (curve_id < 0)
         return ECC_CURVE_OID_E;
-#else
-    ret = SkipObjectId(input, inOutIdx, inSz);
-    if (ret != 0)
-        return ret;
-#endif
 
     /* key header */
     ret = CheckBitString(input, inOutIdx, NULL, inSz, 1, NULL);
@@ -10584,8 +10580,10 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
         return ret;
 
     /* This is the raw point data compressed or uncompressed. */
-    if (wc_ecc_import_x963(input + *inOutIdx, inSz - *inOutIdx, key) != 0)
+    if (wc_ecc_import_x963_ex(input + *inOutIdx, inSz - *inOutIdx, key,
+                                                            curve_id) != 0) {
         return ASN_ECC_KEY_E;
+    }
 
     return 0;
 }
@@ -10860,9 +10858,6 @@ int wc_Ed25519PublicKeyDecode(const byte* input, word32* inOutIdx,
 {
     int    length;
     int    ret;
-#ifdef ECC_CHECK_PUBLIC_KEY_OID
-    word32 oidSum;
-#endif
 
     if (input == NULL || inOutIdx == NULL || key == NULL || inSz == 0)
         return BAD_FUNC_ARG;
