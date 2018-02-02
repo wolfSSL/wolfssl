@@ -5474,6 +5474,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
     if (ssl && resetSuites) {
         word16 havePSK = 0;
         word16 haveRSA = 0;
+        int    keySz   = 0;
 
         #ifndef NO_PSK
         if (ssl->options.havePSK) {
@@ -5483,9 +5484,12 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         #ifndef NO_RSA
             haveRSA = 1;
         #endif
+        #ifndef NO_CERTS
+            keySz = ssl->buffers.keySz;
+        #endif
 
         /* let's reset suites */
-        InitSuites(ssl->suites, ssl->version, ssl->buffers.keySz, haveRSA,
+        InitSuites(ssl->suites, ssl->version, keySz, haveRSA,
                    havePSK, ssl->options.haveDH, ssl->options.haveNTRU,
                    ssl->options.haveECDSAsig, ssl->options.haveECC,
                    ssl->options.haveStaticECC, ssl->options.side);
