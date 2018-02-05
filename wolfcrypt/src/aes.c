@@ -8015,6 +8015,31 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
 #endif /* (WOLFSSL_XILINX_CRYPT) */
 
+
+int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
+                        byte* iv, word32 ivSz, byte* authTag, word32 authTagSz,
+                        const byte* authIn, word32 authInSz, WC_RNG* rng)
+{
+    int ret = 0;
+
+    if (aes == NULL || out == NULL || (in == NULL && sz != 0) ||
+        iv == NULL || ivSz != NONCE_SZ || (authIn == NULL && authInSz != 0) ||
+        rng == NULL) {
+
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0)
+        ret = wc_RNG_GenerateBlock(rng, iv, ivSz);
+
+    if (ret == 0)
+        ret = wc_AesGcmEncrypt(aes, out, in, sz, iv, ivSz,
+                               authTag, authTagSz, authIn, authInSz);
+
+    return ret;
+}
+
+
 WOLFSSL_API int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len)
 {
     if (gmac == NULL || key == NULL) {

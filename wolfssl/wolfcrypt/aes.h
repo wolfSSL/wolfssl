@@ -48,7 +48,6 @@
 #endif
 #endif
 
-#ifndef HAVE_FIPS /* to avoid redefinition of macros */
 
 #ifdef WOLFSSL_AESNI
 
@@ -58,11 +57,11 @@
 
 #endif /* WOLFSSL_AESNI */
 
+
 #ifdef WOLFSSL_XILINX_CRYPT
 #include "xsecure_aes.h"
 #endif
 
-#endif /* HAVE_FIPS */
 
 #ifdef __cplusplus
     extern "C" {
@@ -141,6 +140,8 @@ typedef struct XtsAes {
 #endif
 
 #ifdef HAVE_AESGCM
+#include <wolfssl/wolfcrypt/random.h>
+
 typedef struct Gmac {
     Aes aes;
 } Gmac;
@@ -213,6 +214,13 @@ WOLFSSL_API int wc_AesEcbDecrypt(Aes* aes, byte* out,
                                    const byte* iv, word32 ivSz,
                                    const byte* authTag, word32 authTagSz,
                                    const byte* authIn, word32 authInSz);
+
+ WOLFSSL_API int  wc_AesGcmEncrypt_ex(Aes* aes, byte* out,
+                                      const byte* in, word32 sz,
+                                      byte* iv, word32 ivSz,
+                                      byte* authTag, word32 authTagSz,
+                                      const byte* authIn, word32 authInSz,
+                                      WC_RNG* rng);
 
  WOLFSSL_API int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len);
  WOLFSSL_API int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
