@@ -50,7 +50,6 @@
 #if defined(STM32_HASH)
 
     /* Supports CubeMX HAL or Standard Peripheral Library */
-    #include <wolfssl/wolfcrypt/port/st/stm32_hash.h>
 	#define HAVE_MD5_CUST_API
 
     int wc_InitMd5_ex(wc_Md5* md5, void* heap, int devId)

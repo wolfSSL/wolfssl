@@ -374,7 +374,6 @@ static int InitSha256(wc_Sha256* sha256)
 #elif defined(STM32_HASH_SHA2)
 
     /* Supports CubeMX HAL or Standard Peripheral Library */
-    #include <wolfssl/wolfcrypt/port/st/stm32_hash.h>
 
     int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     {
@@ -2476,7 +2475,6 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2_RORX_Len(wc_Sha256* sha256,
 #ifdef STM32_HASH_SHA2
 
     /* Supports CubeMX HAL or Standard Peripheral Library */
-    #include <wolfssl/wolfcrypt/port/st/stm32_hash.h>
 
     int wc_InitSha224_ex(wc_Sha224* sha224, void* heap, int devId)
     {

@@ -95,7 +95,6 @@
 #elif defined(STM32_HASH)
 
     /* Supports CubeMX HAL or Standard Peripheral Library */
-    #include <wolfssl/wolfcrypt/port/st/stm32_hash.h>
     int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
     {
         if (sha == NULL) {
