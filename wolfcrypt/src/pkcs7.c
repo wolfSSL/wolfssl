@@ -970,6 +970,11 @@ static int wc_PKCS7_SetHashType(PKCS7* pkcs7, enum wc_HashType* type)
 
     switch (pkcs7->hashOID) {
 
+#ifndef NO_MD5
+        case MD5h:
+            *type = WC_HASH_TYPE_MD5;
+            break;
+#endif
 #ifndef NO_SHA
         case SHAh:
             *type = WC_HASH_TYPE_SHA;
@@ -1956,6 +1961,30 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
 
             /* This will reset PKCS7 structure and then set the certificate */
             wc_PKCS7_InitWithCert(pkcs7, cert, certSz);
+
+            /* iterate through any additional certificates */
+            if (MAX_PKCS7_CERTS > 0) {
+                word32 localIdx;
+                int sz = 0;
+                int i;
+
+                pkcs7->cert[0]   = cert;
+                pkcs7->certSz[0] = certSz;
+                certIdx = idx + certSz;
+
+                for (i = 1; i < MAX_PKCS7_CERTS && certIdx + 1 < pkiMsgSz; i++) {
+                    localIdx = certIdx;
+
+                    if (pkiMsg[certIdx++] == (ASN_CONSTRUCTED | ASN_SEQUENCE)) {
+                        if (GetLength(pkiMsg, &certIdx, &sz, pkiMsgSz) < 0)
+                            return ASN_PARSE_E;
+
+                        pkcs7->cert[i]   = &pkiMsg[localIdx];
+                        pkcs7->certSz[i] = sz + (certIdx - localIdx);
+                        certIdx += sz;
+                    }
+                }
+            }
         }
         idx += length;
     }

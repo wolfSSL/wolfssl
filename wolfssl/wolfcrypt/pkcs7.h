@@ -43,6 +43,11 @@
     extern "C" {
 #endif
 
+/* Max number of certificates that PKCS7 structure can parse */
+#ifndef MAX_PKCS7_CERTS
+#define MAX_PKCS7_CERTS 4
+#endif
+
 /* PKCS#7 content types, ref RFC 2315 (Section 14) */
 enum PKCS7_TYPES {
     PKCS7_MSG                 = 650,   /* 1.2.840.113549.1.7   */
@@ -100,6 +105,8 @@ typedef struct PKCS7 {
     int keyAgreeOID;              /* key agreement algorithm OID          */
 
     void*  heap;                  /* heap hint for dynamic memory         */
+    byte*  cert[MAX_PKCS7_CERTS];
+    word32 certSz[MAX_PKCS7_CERTS];
     byte*  singleCert;            /* recipient cert, DER, not owner       */
     word32 singleCertSz;          /* size of recipient cert buffer, bytes */
     byte issuerHash[KEYID_SIZE];  /* hash of all alt Names                */
