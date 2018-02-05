@@ -1235,7 +1235,7 @@ extern void uITRON4_free(void *p) ;
 #ifdef WOLFSSL_SGX
     #ifdef _MSC_VER
         #define NO_RC4
-        #if !defined(HAVE_FIPS) && !defined(WOLFSSL_SGX)
+        #ifndef HAVE_FIPS
             #define WOLFCRYPT_ONLY
             #define NO_DES3
             #define NO_SHA
