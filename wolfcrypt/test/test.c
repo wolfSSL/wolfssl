@@ -6482,6 +6482,54 @@ int aesgcm_test(void)
         return -4325;
 #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_256 */
+
+    /* Test encrypt with internally generated IV */
+    {
+        WC_RNG rng;
+        byte randIV[12];
+
+        result = wc_InitRng(&rng);
+        if (result != 0)
+            return -8208;
+
+        XMEMSET(randIV, 0, sizeof(randIV));
+        XMEMSET(resultT, 0, sizeof(resultT));
+        XMEMSET(resultC, 0, sizeof(resultC));
+        XMEMSET(resultP, 0, sizeof(resultP));
+
+        wc_AesGcmSetKey(&enc, k1, sizeof(k1));
+        result = wc_AesGcmEncrypt_ex(&enc, resultC, p, sizeof(p),
+                        randIV, sizeof(randIV), resultT, sizeof(resultT),
+                        a, sizeof(a), &rng);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+        if (result != 0)
+            return -8209;
+
+        /* Check the IV has been set. */
+        {
+            word32 i, ivSum = 0;
+
+            for (i = 0; i < sizeof(randIV); i++)
+                ivSum += randIV[i];
+            if (ivSum == 0)
+                return -8210;
+        }
+
+        result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC),
+                          randIV, sizeof(randIV), resultT, sizeof(resultT),
+                          a, sizeof(a));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+        if (result != 0)
+            return -8211;
+        if (XMEMCMP(p, resultP, sizeof(resultP)))
+            return -8212;
+        wc_FreeRng(&rng);
+    }
+
     wc_AesFree(&enc);
 
     return 0;
