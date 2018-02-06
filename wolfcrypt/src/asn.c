@@ -5433,6 +5433,16 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
             }
             length -= (idx - lenStartIdx);
 
+        #ifndef WOLFSSL_NO_ASN_STRICT
+            /* Verify RFC 5280 Sec 4.2.1.6 rule:
+                "The name MUST NOT be a relative URI" */
+
+            if (XSTRNCMP((const char*)&input[idx], "://", strLen + 1) != 0) {
+                WOLFSSL_MSG("\tAlt Name must be absolute URI");
+                return ASN_ALT_NAME_E;
+            }
+        #endif
+
             uriEntry = (DNS_entry*)XMALLOC(sizeof(DNS_entry), cert->heap,
                                         DYNAMIC_TYPE_ALTNAME);
             if (uriEntry == NULL) {
@@ -6264,8 +6274,9 @@ static int DecodeCertExtensions(DecodedCert* cert)
                     cert->extSubjAltNameSet = 1;
                     cert->extSubjAltNameCrit = critical;
                 #endif
-                if (DecodeAltNames(&input[idx], length, cert) < 0)
-                    return ASN_PARSE_E;
+                ret = DecodeAltNames(&input[idx], length, cert);
+                if (ret < 0)
+                    return ret;
                 break;
 
             case AUTH_KEY_OID:
@@ -6335,6 +6346,9 @@ static int DecodeCertExtensions(DecodedCert* cert)
             #ifndef IGNORE_NAME_CONSTRAINTS
             case NAME_CONS_OID:
             #ifndef WOLFSSL_NO_ASN_STRICT
+                /* Verify RFC 5280 Sec 4.2.1.10 rule:
+                    "The name constraints extension,
+                    which MUST be used only in a CA certificate" */
                 if (!cert->ca) {
                     WOLFSSL_MSG("Name constraints allowed only for CA certs");
                     return ASN_NAME_INVALID_E;
