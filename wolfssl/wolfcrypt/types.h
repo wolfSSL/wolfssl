@@ -246,7 +246,7 @@
 				#define XFREE(p, h, t)       {void* xp = (p); if((xp)) wolfSSL_Free((xp), (h), (t));}
 				#define XREALLOC(p, n, h, t) wolfSSL_Realloc((p), (n), (h), (t))
             #endif /* WOLFSSL_DEBUG_MEMORY */
-        #else
+        #elif !defined(FREERTOS) && !defined(FREERTOS_TCP)
             #ifdef WOLFSSL_DEBUG_MEMORY
 				#define XMALLOC(s, h, t)     ((void)h, (void)t, wolfSSL_Malloc((s), __func__, __LINE__))
 				#define XFREE(p, h, t)       {void* xp = (p); if((xp)) wolfSSL_Free((xp), __func__, __LINE__);}
