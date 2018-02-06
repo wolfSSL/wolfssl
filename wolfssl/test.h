@@ -695,7 +695,7 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
 #else
     addr->sin6_family = AF_INET_V;
     addr->sin6_port = XHTONS(port);
-    if ((size_t)peer != INADDR_ANY) {
+    if ((size_t)peer == INADDR_ANY) {
         addr->sin6_addr = in6addr_any;
     }
     else {
