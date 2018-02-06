@@ -549,7 +549,6 @@ struct DecodedCert {
     char*   subjectCN;               /* CommonName                       */
     int     subjectCNLen;            /* CommonName Length                */
     char    subjectCNEnc;            /* CommonName Encoding              */
-    int     subjectCNStored;         /* have we saved a copy we own      */
     char    issuer[ASN_NAME_MAX];    /* full name including common name  */
     char    subject[ASN_NAME_MAX];   /* full name including common name  */
     int     verify;                  /* Default to yes, but could be off */
@@ -567,36 +566,12 @@ struct DecodedCert {
     byte*   extCrlInfo;              /* CRL Distribution Points          */
     int     extCrlInfoSz;            /* length of the URI                */
     byte    extSubjKeyId[KEYID_SIZE]; /* Subject Key ID                  */
-    byte    extSubjKeyIdSet;         /* Set when the SKID was read from cert */
     byte    extAuthKeyId[KEYID_SIZE]; /* Authority Key ID                */
-    byte    extAuthKeyIdSet;         /* Set when the AKID was read from cert */
-#ifndef IGNORE_NAME_CONSTRAINTS
-    byte    extNameConstraintSet;
-#endif /* IGNORE_NAME_CONSTRAINTS */
-    byte    isCA;                    /* CA basic constraint true         */
-    byte    pathLengthSet;           /* CA basic const path length set   */
     byte    pathLength;              /* CA basic constraint path length  */
-    byte    weOwnAltNames;           /* altNames haven't been given to copy */
-    byte    extKeyUsageSet;
     word16  extKeyUsage;             /* Key usage bitfield               */
-    byte    extExtKeyUsageSet;       /* Extended Key Usage               */
     byte    extExtKeyUsage;          /* Extended Key usage bitfield      */
+
 #ifdef OPENSSL_EXTRA
-    byte    extCRLdistSet;
-    byte    extCRLdistCrit;
-    byte    extAuthInfoSet;
-    byte    extAuthInfoCrit;
-    byte    extBasicConstSet;
-    byte    extBasicConstCrit;
-    byte    extSubjAltNameSet;
-    byte    extSubjAltNameCrit;
-    byte    extAuthKeyIdCrit;
-#ifndef IGNORE_NAME_CONSTRAINTS
-    byte    extNameConstraintCrit;
-#endif /* IGNORE_NAME_CONSTRAINTS */
-    byte    extSubjKeyIdCrit;
-    byte    extKeyUsageCrit;
-    byte    extExtKeyUsageCrit;
     byte*   extExtKeyUsageSrc;
     word32  extExtKeyUsageSz;
     word32  extExtKeyUsageCount;
@@ -605,6 +580,7 @@ struct DecodedCert {
     byte*   extSubjKeyIdSrc;
     word32  extSubjKeyIdSz;
 #endif
+
 #if defined(HAVE_ECC) || defined(HAVE_ED25519)
     word32  pkCurveOID;           /* Public Key's curve OID */
 #endif /* HAVE_ECC */
@@ -620,7 +596,7 @@ struct DecodedCert {
     byte*   subjectRaw;               /* pointer to subject inside source */
     int     subjectRawLen;
 #endif
-#if defined(WOLFSSL_CERT_GEN)
+#ifdef WOLFSSL_CERT_GEN
     /* easy access to subject info for other sign */
     char*   subjectSN;
     int     subjectSNLen;
@@ -654,10 +630,6 @@ struct DecodedCert {
     byte*   hwType;
     int     hwSerialNumSz;
     byte*   hwSerialNum;
-    #ifdef OPENSSL_EXTRA
-        byte    extCertPolicySet;
-        byte    extCertPolicyCrit;
-    #endif /* OPENSSL_EXTRA */
 #endif /* WOLFSSL_SEP */
 #ifdef WOLFSSL_CERT_EXT
     char    extCertPolicies[MAX_CERTPOL_NB][MAX_CERTPOL_SZ];
@@ -666,6 +638,44 @@ struct DecodedCert {
 
     Signer* ca;
     SignatureCtx sigCtx;
+
+    /* Option Bits */
+    byte subjectCNStored : 1;      /* have we saved a copy we own */
+    byte extSubjKeyIdSet : 1;      /* Set when the SKID was read from cert */
+    byte extAuthKeyIdSet : 1;      /* Set when the AKID was read from cert */
+#ifndef IGNORE_NAME_CONSTRAINTS
+    byte extNameConstraintSet : 1;
+#endif
+    byte isCA : 1;                 /* CA basic constraint true */
+    byte pathLengthSet : 1;        /* CA basic const path length set */
+    byte weOwnAltNames : 1;        /* altNames haven't been given to copy */
+    byte extKeyUsageSet : 1;
+    byte extExtKeyUsageSet : 1;    /* Extended Key Usage set */
+    byte extCRLdistSet : 1;
+    byte extAuthInfoSet : 1;
+    byte extBasicConstSet : 1;
+    byte extSubjAltNameSet : 1;
+    byte inhibitAnyOidSet : 1;
+#ifdef WOLFSSL_SEP
+    byte extCertPolicySet : 1;
+#endif
+#ifdef OPENSSL_EXTRA
+    byte extCRLdistCrit : 1;
+    byte extAuthInfoCrit : 1;
+    byte extBasicConstCrit : 1;
+    byte extSubjAltNameCrit : 1;
+    byte extAuthKeyIdCrit : 1;
+    #ifndef IGNORE_NAME_CONSTRAINTS
+        byte extNameConstraintCrit : 1;
+    #endif
+    byte extSubjKeyIdCrit : 1;
+    byte extKeyUsageCrit : 1;
+    byte extExtKeyUsageCrit : 1;
+#endif /* OPENSSL_EXTRA */
+#ifdef WOLFSSL_SEP
+    byte extCertPolicyCrit : 1;
+#endif
+
 };
 
 

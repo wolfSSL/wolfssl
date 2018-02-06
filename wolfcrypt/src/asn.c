@@ -6175,6 +6175,30 @@ int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
     }
 #endif /* WOLFSSL_SEP */
 
+/* Macro to check if bit is set, if not sets and return success.
+    Otherwise returns failure */
+#ifndef WOLFSSL_NO_ASN_STRICT
+    #define VERIFY_AND_SET_OID(bit) \
+    ({ \
+        int bitvalid; \
+        if (bit == 0) { \
+            bit = 1; \
+            bitvalid = 0;  /* success */ \
+        } \
+        else { \
+            bitvalid = -1; /* fail */ \
+        } \
+        bitvalid; \
+    })
+#else
+    /* With no strict defined, the verify is skipped */
+    #define VERIFY_AND_SET_OID(bit) \
+    ({ \
+        bit = 1; \
+        0; /* success */ \
+    })
+#endif
+
 static int DecodeCertExtensions(DecodedCert* cert)
 /*
  *  Processing the Certificate Extensions. This does not modify the current
@@ -6243,8 +6267,9 @@ static int DecodeCertExtensions(DecodedCert* cert)
 
         switch (oid) {
             case BASIC_CA_OID:
+                if (VERIFY_AND_SET_OID(cert->extBasicConstSet))
+                    return ASN_OBJECT_ID_E;
                 #ifdef OPENSSL_EXTRA
-                    cert->extBasicConstSet = 1;
                     cert->extBasicConstCrit = critical;
                 #endif
                 if (DecodeBasicCaConstraint(&input[idx], length, cert) < 0)
@@ -6252,8 +6277,9 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 break;
 
             case CRL_DIST_OID:
+                if (VERIFY_AND_SET_OID(cert->extCRLdistSet))
+                    return ASN_OBJECT_ID_E;
                 #ifdef OPENSSL_EXTRA
-                    cert->extCRLdistSet  = 1;
                     cert->extCRLdistCrit = critical;
                 #endif
                 if (DecodeCrlDist(&input[idx], length, cert) < 0)
@@ -6261,8 +6287,9 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 break;
 
             case AUTH_INFO_OID:
+                if (VERIFY_AND_SET_OID(cert->extAuthInfoSet))
+                    return ASN_OBJECT_ID_E;
                 #ifdef OPENSSL_EXTRA
-                    cert->extAuthInfoSet  = 1;
                     cert->extAuthInfoCrit = critical;
                 #endif
                 if (DecodeAuthInfo(&input[idx], length, cert) < 0)
@@ -6270,8 +6297,9 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 break;
 
             case ALT_NAMES_OID:
+                if (VERIFY_AND_SET_OID(cert->extSubjAltNameSet))
+                    return ASN_OBJECT_ID_E;
                 #ifdef OPENSSL_EXTRA
-                    cert->extSubjAltNameSet = 1;
                     cert->extSubjAltNameCrit = critical;
                 #endif
                 ret = DecodeAltNames(&input[idx], length, cert);
@@ -6280,7 +6308,8 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 break;
 
             case AUTH_KEY_OID:
-                cert->extAuthKeyIdSet = 1;
+                if (VERIFY_AND_SET_OID(cert->extAuthKeyIdSet))
+                    return ASN_OBJECT_ID_E;
                 #ifdef OPENSSL_EXTRA
                     cert->extAuthKeyIdCrit = critical;
                 #endif
@@ -6289,7 +6318,8 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 break;
 
             case SUBJ_KEY_OID:
-                cert->extSubjKeyIdSet = 1;
+                if (VERIFY_AND_SET_OID(cert->extSubjKeyIdSet))
+                    return ASN_OBJECT_ID_E;
                 #ifdef OPENSSL_EXTRA
                     cert->extSubjKeyIdCrit = critical;
                 #endif
@@ -6311,8 +6341,9 @@ static int DecodeCertExtensions(DecodedCert* cert)
 
             case CERT_POLICY_OID:
                 #ifdef WOLFSSL_SEP
+                    if (VERIFY_AND_SET_OID(cert->extCertPolicySet))
+                        return ASN_OBJECT_ID_E;
                     #ifdef OPENSSL_EXTRA
-                        cert->extCertPolicySet = 1;
                         cert->extCertPolicyCrit = critical;
                     #endif
                 #endif
@@ -6326,7 +6357,8 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 break;
 
             case KEY_USAGE_OID:
-                cert->extKeyUsageSet = 1;
+                if (VERIFY_AND_SET_OID(cert->extKeyUsageSet))
+                    return ASN_OBJECT_ID_E;
                 #ifdef OPENSSL_EXTRA
                     cert->extKeyUsageCrit = critical;
                 #endif
@@ -6335,7 +6367,8 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 break;
 
             case EXT_KEY_USAGE_OID:
-                cert->extExtKeyUsageSet = 1;
+                if (VERIFY_AND_SET_OID(cert->extExtKeyUsageSet))
+                    return ASN_OBJECT_ID_E;
                 #ifdef OPENSSL_EXTRA
                     cert->extExtKeyUsageCrit = critical;
                 #endif
@@ -6354,7 +6387,8 @@ static int DecodeCertExtensions(DecodedCert* cert)
                     return ASN_NAME_INVALID_E;
                 }
             #endif
-                cert->extNameConstraintSet = 1;
+                if (VERIFY_AND_SET_OID(cert->extNameConstraintSet))
+                    return ASN_OBJECT_ID_E;
                 #ifdef OPENSSL_EXTRA
                     cert->extNameConstraintCrit = critical;
                 #endif
@@ -6364,6 +6398,8 @@ static int DecodeCertExtensions(DecodedCert* cert)
             #endif /* IGNORE_NAME_CONSTRAINTS */
 
             case INHIBIT_ANY_OID:
+                if (VERIFY_AND_SET_OID(cert->inhibitAnyOidSet))
+                    return ASN_OBJECT_ID_E;
                 WOLFSSL_MSG("Inhibit anyPolicy extension not supported yet.");
                 break;
 
