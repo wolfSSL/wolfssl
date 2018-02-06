@@ -34,6 +34,8 @@ ASN Options:
  * ASN_DUMP_OID: Allows dump of OID information for debugging.
  * RSA_DECODE_EXTRA: Decodes extra information in RSA public key.
  * WOLFSSL_CERT_GEN: Cert generation. Saves extra certificate info in GetName.
+ * WOLFSSL_NO_ASN_STRICT: Disable strict RFC compliance checks to
+    restore 3.13.0 behavior.
  * WOLFSSL_NO_OCSP_OPTIONAL_CERTS: Skip optional OCSP certs (responder issuer
     must still be trusted)
  * WOLFSSL_NO_TRUSTED_CERTS_VERIFY: Workaround for situation where entire cert
@@ -47,11 +49,6 @@ ASN Options:
 */
 
 #ifndef NO_ASN
-
-#ifdef HAVE_RTP_SYS
-    #include "os.h"           /* dc_rtc_api needs    */
-    #include "dc_rtc_api.h"   /* to get current time */
-#endif
 
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/coding.h>
@@ -6337,6 +6334,12 @@ static int DecodeCertExtensions(DecodedCert* cert)
 
             #ifndef IGNORE_NAME_CONSTRAINTS
             case NAME_CONS_OID:
+            #ifndef WOLFSSL_NO_ASN_STRICT
+                if (!cert->ca) {
+                    WOLFSSL_MSG("Name constraints allowed only for CA certs");
+                    return ASN_NAME_INVALID_E;
+                }
+            #endif
                 cert->extNameConstraintSet = 1;
                 #ifdef OPENSSL_EXTRA
                     cert->extNameConstraintCrit = critical;

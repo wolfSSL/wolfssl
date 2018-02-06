@@ -38,11 +38,11 @@
 
 /* IPP header files for library initialization */
 #ifdef HAVE_FAST_RSA
-#include <ipp.h>
-#include <ippcp.h>
+    #include <ipp.h>
+    #include <ippcp.h>
 #endif
 
-#if defined(FREESCALE_LTC_TFM)
+#ifdef FREESCALE_LTC_TFM
     #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
 #endif
 
