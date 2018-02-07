@@ -46,157 +46,57 @@
 #endif
 
 
-static INLINE void AddLength(wc_Md5* md5, word32 len);
-
 /* Hardware Acceleration */
 #if defined(STM32_HASH)
 
-    /*
-     * STM32F2/F4/F7 hardware MD5 support through the HASH_* API's from the
-     * Standard Peripheral Library or CubeMX (See note in README).
-     */
-
+    /* Supports CubeMX HAL or Standard Peripheral Library */
 	#define HAVE_MD5_CUST_API
-
-    /* STM32 register size, bytes */
-    #ifdef WOLFSSL_STM32_CUBEMX
-        #define MD5_REG_SIZE  WC_MD5_BLOCK_SIZE
-    #else
-        #define MD5_REG_SIZE  4
-        /* STM32 struct notes:
-         * md5->buffer  = first 4 bytes used to hold partial block if needed
-         * md5->buffLen = num bytes currently stored in md5->buffer
-         * md5->loLen   = num bytes that have been written to STM32 FIFO
-         */
-    #endif
-    #define MD5_HW_TIMEOUT 0xFF
 
     int wc_InitMd5_ex(wc_Md5* md5, void* heap, int devId)
     {
-        if (md5 == NULL)
+        if (md5 == NULL) {
             return BAD_FUNC_ARG;
-
-        (void)heap;
-        (void)devId;
-
-        md5->heap = heap;
-        XMEMSET(md5->buffer, 0, sizeof(md5->buffer));
-        md5->buffLen = 0;
-        md5->loLen = 0;
-        md5->hiLen = 0;
-
-        /* initialize HASH peripheral */
-    #ifdef WOLFSSL_STM32_CUBEMX
-        HAL_HASH_DeInit(&md5->hashHandle);
-        md5->hashHandle.Init.DataType = HASH_DATATYPE_8B;
-        if (HAL_HASH_Init(&md5->hashHandle) != HAL_OK) {
-            return ASYNC_INIT_E;
         }
-        /* reset the hash control register */
-        /* required because Cube MX is not clearing algo bits */
-        HASH->CR &= ~HASH_CR_ALGO;
-    #else
-		HASH_DeInit();
 
-        /* reset the control register */
-        HASH->CR &= ~ (HASH_CR_ALGO | HASH_CR_DATATYPE | HASH_CR_MODE);
+        (void)devId;
+        (void)heap;
 
-		/* configure algo used, algo mode, datatype */
-		HASH->CR |= (HASH_AlgoSelection_MD5 | HASH_AlgoMode_HASH
-				   | HASH_DataType_8b);
-
-		/* reset HASH processor */
-		HASH->CR |= HASH_CR_INIT;
-    #endif
+        wc_Stm32_Hash_Init(&md5->stmCtx);
 
         return 0;
     }
 
     int wc_Md5Update(wc_Md5* md5, const byte* data, word32 len)
     {
-        int ret = 0;
-        byte* local;
+        int ret;
 
         if (md5 == NULL || (data == NULL && len > 0)) {
             return BAD_FUNC_ARG;
         }
 
-        /* do block size increments */
-        local = (byte*)md5->buffer;
-
-        /* check that internal buffLen is valid */
-        if (md5->buffLen >= MD5_REG_SIZE)
-            return BUFFER_E;
-
-        while (len) {
-            word32 add = min(len, MD5_REG_SIZE - md5->buffLen);
-            XMEMCPY(&local[md5->buffLen], data, add);
-
-            md5->buffLen += add;
-            data         += add;
-            len          -= add;
-
-            if (md5->buffLen == MD5_REG_SIZE) {
-            #ifdef WOLFSSL_STM32_CUBEMX
-                if (HAL_HASH_MD5_Accumulate(
-                        &md5->hashHandle, local, MD5_REG_SIZE) != HAL_OK) {
-                    ret = ASYNC_OP_E;
-                }
-            #else
-                HASH_DataIn(*(uint32_t*)local);
-            #endif
-
-                AddLength(md5, MD5_REG_SIZE);
-                md5->buffLen = 0;
-            }
+        ret = wolfSSL_CryptHwMutexLock();
+        if (ret == 0) {
+            ret = wc_Stm32_Hash_Update(&md5->stmCtx, HASH_AlgoSelection_MD5,
+                data, len);
+            wolfSSL_CryptHwMutexUnLock();
         }
         return ret;
     }
 
     int wc_Md5Final(wc_Md5* md5, byte* hash)
     {
-        int ret = 0;
+        int ret;
 
-        if (md5 == NULL || hash == NULL)
+        if (md5 == NULL || hash == NULL) {
             return BAD_FUNC_ARG;
-
-    #ifdef WOLFSSL_STM32_CUBEMX
-        if (HAL_HASH_MD5_Start(&md5->hashHandle,
-                (byte*)md5->buffer, md5->buffLen,
-                (byte*)md5->digest, MD5_HW_TIMEOUT) != HAL_OK) {
-            ret = ASYNC_OP_E;
-        }
-    #else
-        __IO uint16_t nbvalidbitsdata = 0;
-
-        /* finish reading any trailing bytes into FIFO */
-        if (md5->buffLen > 0) {
-			HASH_DataIn(*(uint32_t*)md5->buffer);
-            AddLength(md5, md5->buffLen);
         }
 
-        /* calculate number of valid bits in last word of input data */
-        nbvalidbitsdata = 8 * (md5->loLen % MD5_REG_SIZE);
-
-        /* configure number of valid bits in last word of the data */
-        HASH_SetLastWordValidBitsNbr(nbvalidbitsdata);
-
-        /* start HASH processor */
-        HASH_StartDigest();
-
-        /* wait until Busy flag == RESET */
-        while (HASH_GetFlagStatus(HASH_FLAG_BUSY) != RESET) {}
-
-        /* read message digest */
-        md5->digest[0] = HASH->HR[0];
-        md5->digest[1] = HASH->HR[1];
-        md5->digest[2] = HASH->HR[2];
-        md5->digest[3] = HASH->HR[3];
-
-        ByteReverseWords(md5->digest, md5->digest, WC_MD5_DIGEST_SIZE);
-    #endif /* WOLFSSL_STM32_CUBEMX */
-
-        XMEMCPY(hash, md5->digest, WC_MD5_DIGEST_SIZE);
+        ret = wolfSSL_CryptHwMutexLock();
+        if (ret == 0) {
+            ret = wc_Stm32_Hash_Final(&md5->stmCtx, HASH_AlgoSelection_MD5,
+                hash, WC_MD5_DIGEST_SIZE);
+            wolfSSL_CryptHwMutexUnLock();
+        }
 
         (void)wc_InitMd5(md5);  /* reset state */
 
@@ -332,7 +232,8 @@ static INLINE void AddLength(wc_Md5* md5, word32 len);
     }
 #endif /* NEED_SOFT_MD5 */
 
-#if !defined(HAVE_MD5_CUST_API) || defined(STM32_HASH)
+#ifndef HAVE_MD5_CUST_API
+
 static INLINE void AddLength(wc_Md5* md5, word32 len)
 {
     word32 tmp = md5->loLen;
@@ -340,9 +241,7 @@ static INLINE void AddLength(wc_Md5* md5, word32 len)
         md5->hiLen++;                       /* carry low to high */
     }
 }
-#endif
 
-#ifndef HAVE_MD5_CUST_API
 static int _InitMd5(wc_Md5* md5)
 {
     int ret = 0;

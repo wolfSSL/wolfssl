@@ -19,6 +19,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#if defined(__INTEGRITY) || defined(INTEGRITY)
+
 /* build into Integrity kernel */
 #include <bsp.h>
 #include "wolfssl/wolfcrypt/port/caam/caam_driver.h"
@@ -1707,3 +1709,5 @@ void  InitCAAM(void)
 }
 
 void (*__ghsentry_bspuserinit_InitCAAM)(void) = &InitCAAM;
+
+#endif /* INTEGRITY */
