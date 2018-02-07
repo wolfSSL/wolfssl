@@ -7647,7 +7647,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     dCert->weOwnAltNames = 0;
     x509->altNamesNext   = x509->altNames;  /* index hint */
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && !defined(IGNORE_NAME_CONSTRAINTS)
     /* add copies of alternate emails from dCert to X509 */
     if (dCert->altEmailNames != NULL) {
         DNS_entry* cur = dCert->altEmailNames;
