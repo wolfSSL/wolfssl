@@ -129,10 +129,10 @@ int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz)
 {
     const byte* subKey;
 
-    if (cmac == NULL || out == NULL)
+    if (cmac == NULL || out == NULL || outSz == NULL)
         return BAD_FUNC_ARG;
 
-    if (outSz != NULL && *outSz < AES_BLOCK_SIZE)
+    if (*outSz < WC_CMAC_TAG_MIN_SZ || *outSz > WC_CMAC_TAG_MAX_SZ)
         return BUFFER_E;
 
     if (cmac->bufferSz == AES_BLOCK_SIZE) {
@@ -151,10 +151,10 @@ int wc_CmacFinal(Cmac* cmac, byte* out, word32* outSz)
     }
     xorbuf(cmac->buffer, cmac->digest, AES_BLOCK_SIZE);
     xorbuf(cmac->buffer, subKey, AES_BLOCK_SIZE);
-    wc_AesEncryptDirect(&cmac->aes, out, cmac->buffer);
+    wc_AesEncryptDirect(&cmac->aes, cmac->digest, cmac->buffer);
 
-    if (outSz != NULL)
-        *outSz = AES_BLOCK_SIZE;
+    XMEMCPY(out, cmac->digest, *outSz);
+
     ForceZero(cmac, sizeof(Cmac));
 
     return 0;

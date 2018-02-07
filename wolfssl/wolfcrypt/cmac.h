@@ -56,6 +56,9 @@ typedef enum CmacType {
     WC_CMAC_AES = 1
 } CmacType;
 
+#define WC_CMAC_TAG_MAX_SZ AES_BLOCK_SIZE
+#define WC_CMAC_TAG_MIN_SZ (AES_BLOCK_SIZE/4)
+
 #endif /* HAVE_FIPS */
 
 WOLFSSL_API
