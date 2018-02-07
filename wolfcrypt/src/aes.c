@@ -3820,7 +3820,7 @@ while (0)
     "aesenc	"#o1"(%[KEY]), %%xmm11\n\t"     \
     "pxor      %%xmm2, %%xmm1\n\t"              \
     "pxor      %%xmm3, %%xmm1\n\t"              \
- 
+
 #define AESENC_PCLMUL_N(src, o1, o2, o3)        \
     "movdqu	"#o3"("VAR(HTR)"), %%xmm12\n\t" \
     "movdqu	"#o2"("#src"), %%xmm0\n\t"      \
@@ -4742,7 +4742,7 @@ static void AES_GCM_encrypt(const unsigned char *in, unsigned char *out,
     "vaesenc	"#o1"(%[KEY]), %%xmm11, %%xmm11\n\t" \
     "vpxor      %%xmm2, %%xmm1, %%xmm1\n\t"          \
     "vpxor      %%xmm3, %%xmm1, %%xmm1\n\t"          \
- 
+
 #define VAESENC_PCLMUL_N(src, o1, o2, o3)             \
     "vmovdqu	"#o3"("VAR(HTR)"), %%xmm12\n\t"       \
     "vmovdqu	"#o2"("#src"), %%xmm0\n\t"            \
@@ -4767,7 +4767,7 @@ static void AES_GCM_encrypt(const unsigned char *in, unsigned char *out,
     "vpxor      %%xmm15, %%xmm1, %%xmm1\n\t"          \
     "vpxor      %%xmm15, %%xmm3, %%xmm3\n\t"          \
     "vpxor      %%xmm13, %%xmm1, %%xmm1\n\t"          \
- 
+
 #define VAESENC_PCLMUL_L(o)                         \
     "vpslldq	$8, %%xmm1, %%xmm14\n\t"            \
     "vpsrldq	$8, %%xmm1, %%xmm1\n\t"             \
@@ -5556,7 +5556,7 @@ static void AES_GCM_encrypt_avx1(const unsigned char *in, unsigned char *out,
     "vaesenc	%%xmm0, %%xmm9, %%xmm9\n\t"           \
     "vaesenc	%%xmm0, %%xmm10, %%xmm10\n\t"         \
     "vaesenc	%%xmm0, %%xmm11, %%xmm11\n\t"         \
- 
+
 #define VAESENC_PCLMUL_AVX2_2(src, o1, o2, o3)        \
     "vmovdqu	"#o2"("#src"), %%xmm12\n\t"           \
     "vmovdqu	"#o3"("VAR(HTR)"), %%xmm0\n\t"        \
@@ -5798,7 +5798,7 @@ static void AES_GCM_encrypt_avx1(const unsigned char *in, unsigned char *out,
     "vpshufd	$0x4e, %%xmm6, %%xmm6\n\t"              \
     "vpxor	%%xmm7, %%xmm8, %%xmm8\n\t"             \
     "vpxor	%%xmm8, %%xmm6, %%xmm6\n\t"             \
-    "vpxor	%%xmm5, %%xmm6, "#r"\n\t" 
+    "vpxor	%%xmm5, %%xmm6, "#r"\n\t"
 #define GHASH_GFMUL_RED_AVX2(r, a, b)                   \
        _GHASH_GFMUL_RED_AVX2(r, a, b)
 
@@ -7253,9 +7253,9 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return BAD_FUNC_ARG;
     }
 
-    ret = wc_AesGetKeySize(aes, &keySize);
-    if (ret != 0)
-        return ret;
+    status = wc_AesGetKeySize(aes, &keySize);
+    if (status)
+        return status;
 
     status = LTC_AES_EncryptTagGcm(LTC_BASE, in, out, sz, iv, ivSz,
         authIn, authInSz, (byte*)aes->key, keySize, authTag, authTagSz);
@@ -7270,6 +7270,7 @@ static INLINE int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in,
                                          byte* authTag, word32 authTagSz,
                                          const byte* authIn, word32 authInSz)
 {
+    int ret;
     word32 keySize;
     byte initialCounter[AES_BLOCK_SIZE];
     #ifdef WOLFSSL_STM32_CUBEMX
@@ -7563,7 +7564,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                    const byte* authTag, word32 authTagSz,
                    const byte* authIn, word32 authInSz)
 {
-    int ret = 0;
+    int ret;
     word32 keySize;
     status_t status;
 
@@ -7589,7 +7590,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                    const byte* authTag, word32 authTagSz,
                    const byte* authIn, word32 authInSz)
 {
-    int ret = 0;
+    int ret;
     word32 keySize;
     #ifdef WOLFSSL_STM32_CUBEMX
         CRYP_HandleTypeDef hcryp;
