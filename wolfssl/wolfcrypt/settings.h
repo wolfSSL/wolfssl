@@ -543,7 +543,8 @@ extern void uITRON4_free(void *p) ;
     #include "FreeRTOS.h"
 
     /* FreeRTOS pvPortRealloc() only in AVR32_UC3 port */
-    #if !defined(XMALLOC_USER) && !defined(NO_WOLFSSL_MEMORY)
+    #if !defined(XMALLOC_USER) && !defined(NO_WOLFSSL_MEMORY) && \
+        !defined(WOLFSSL_STATIC_MEMORY)
         #define XMALLOC(s, h, type)  pvPortMalloc((s))
         #define XFREE(p, h, type)    vPortFree((p))
     #endif
@@ -574,20 +575,19 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 #ifdef FREERTOS_TCP
+    #if !defined(NO_WOLFSSL_MEMORY) && !defined(XMALLOC_USER) && \
+        !defined(WOLFSSL_STATIC_MEMORY)
+        #define XMALLOC(s, h, type)  pvPortMalloc((s))
+        #define XFREE(p, h, type)    vPortFree((p))
+    #endif
 
-#if !defined(NO_WOLFSSL_MEMORY) && !defined(XMALLOC_USER)
-#define XMALLOC(s, h, type)  pvPortMalloc((s))
-#define XFREE(p, h, type)    vPortFree((p))
-#endif
+    #define WOLFSSL_GENSEED_FORTEST
 
-#define WOLFSSL_GENSEED_FORTEST
-
-#define NO_WOLFSSL_DIR
-#define NO_WRITEV
-#define USE_FAST_MATH
-#define TFM_TIMING_RESISTANT
-#define NO_MAIN_DRIVER
-
+    #define NO_WOLFSSL_DIR
+    #define NO_WRITEV
+    #define USE_FAST_MATH
+    #define TFM_TIMING_RESISTANT
+    #define NO_MAIN_DRIVER
 #endif
 
 #ifdef WOLFSSL_TIRTOS

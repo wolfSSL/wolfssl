@@ -533,7 +533,11 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
             }
         #else
         #ifndef WOLFSSL_NO_MALLOC
-            res = malloc(size);
+            #ifdef FREERTOS
+                res = pvPortMalloc(size);
+            #else
+                res = malloc(size);
+            #endif
         #else
             WOLFSSL_MSG("No heap hint found to use and no malloc");
             #ifdef WOLFSSL_DEBUG_MEMORY
@@ -667,7 +671,11 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
             }
         #endif
         #ifndef WOLFSSL_NO_MALLOC
-            free(ptr);
+            #ifdef FREERTOS
+                vPortFree(ptr);
+            #else
+                free(ptr);
+            #endif
         #else
             WOLFSSL_MSG("Error trying to call free when turned off");
         #endif /* WOLFSSL_NO_MALLOC */
