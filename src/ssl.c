@@ -24885,40 +24885,46 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
             WOLFSSL_MSG("md5 hmac");
             ctx->type = WC_MD5;
         }
+        else
 #endif
 #ifdef WOLFSSL_SHA224
-        else if (XSTRNCMP(type, "SHA224", 6) == 0) {
+        if (XSTRNCMP(type, "SHA224", 6) == 0) {
             WOLFSSL_MSG("sha224 hmac");
             ctx->type = WC_SHA224;
         }
+        else
 #endif
 #ifndef NO_SHA256
-        else if (XSTRNCMP(type, "SHA256", 6) == 0) {
+        if (XSTRNCMP(type, "SHA256", 6) == 0) {
             WOLFSSL_MSG("sha256 hmac");
             ctx->type = WC_SHA256;
         }
+        else
 #endif
 #ifdef WOLFSSL_SHA384
-        else if (XSTRNCMP(type, "SHA384", 6) == 0) {
+        if (XSTRNCMP(type, "SHA384", 6) == 0) {
             WOLFSSL_MSG("sha384 hmac");
             ctx->type = WC_SHA384;
         }
+        else
 #endif
 #ifdef WOLFSSL_SHA512
-        else if (XSTRNCMP(type, "SHA512", 6) == 0) {
+        if (XSTRNCMP(type, "SHA512", 6) == 0) {
             WOLFSSL_MSG("sha512 hmac");
             ctx->type = WC_SHA512;
         }
+        else
 #endif
 
 #ifndef NO_SHA
         /* has to be last since would pick or 256, 384, or 512 too */
-        else if (XSTRNCMP(type, "SHA", 3) == 0) {
+        if (XSTRNCMP(type, "SHA", 3) == 0) {
             WOLFSSL_MSG("sha hmac");
             ctx->type = WC_SHA;
         }
+        else
 #endif
-        else {
+        {
             WOLFSSL_MSG("bad init type");
             return WOLFSSL_FAILURE;
         }
@@ -24955,6 +24961,8 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
             }
         }
     }
+
+    (void)hmac_error;
 
     return WOLFSSL_SUCCESS;
 }
