@@ -604,6 +604,29 @@
         #define EXIT_TEST(ret) return ret
     #endif
 
+
+    #if defined(__GNUC__)
+        #define WOLFSSL_PACK __attribute__ ((packed))
+    #else
+        #define WOLFSSL_PACK
+    #endif
+
+    #ifndef __GNUC_PREREQ
+        #if defined(__GNUC__) && defined(__GNUC_MINOR__)
+            #define __GNUC_PREREQ(maj, min) \
+                ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
+        #else
+            #define __GNUC_PREREQ(maj, min) (0) /* not GNUC */
+        #endif
+    #endif
+
+    #if defined(__GNUC__)
+        #define WC_NORETURN __attribute__((noreturn))
+    #else
+        #define WC_NORETURN
+    #endif
+
+
 	#ifdef __cplusplus
 	    }   /* extern "C" */
 	#endif
