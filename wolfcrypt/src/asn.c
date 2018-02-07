@@ -6363,7 +6363,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 /* Verify RFC 5280 Sec 4.2.1.10 rule:
                     "The name constraints extension,
                     which MUST be used only in a CA certificate" */
-                if (!cert->ca) {
+                if (!cert->isCA) {
                     WOLFSSL_MSG("Name constraints allowed only for CA certs");
                     return ASN_NAME_INVALID_E;
                 }
