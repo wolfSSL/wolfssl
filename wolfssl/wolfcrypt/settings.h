@@ -1310,7 +1310,7 @@ extern void uITRON4_free(void *p) ;
 /* user can specify what curves they want with ECC_USER_CURVES otherwise
  * all curves are on by default for now */
 #ifndef ECC_USER_CURVES
-    #ifndef HAVE_ALL_CURVES
+    #if !defined(WOLFSSL_SP_MATH) && !defined(HAVE_ALL_CURVES)
         #define HAVE_ALL_CURVES
     #endif
 #endif
@@ -1325,6 +1325,10 @@ extern void uITRON4_free(void *p) ;
     #ifndef NO_ECC_VERIFY
         #undef HAVE_ECC_VERIFY
         #define HAVE_ECC_VERIFY
+    #endif
+    #ifndef NO_ECC_CHECK_KEY
+        #undef HAVE_ECC_CHECK_KEY
+        #define HAVE_ECC_CHECK_KEY
     #endif
     #ifndef NO_ECC_DHE
         #undef HAVE_ECC_DHE
