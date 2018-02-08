@@ -671,16 +671,19 @@ int wolfcrypt_test(void* args)
     else
         printf( "AES      test passed!\n");
 
+#ifdef WOLFSSL_AES_192
     if ( (ret = aes192_test()) != 0)
         return err_sys("AES192   test failed!\n", ret);
     else
         printf( "AES192   test passed!\n");
+#endif
 
+#ifdef WOLFSSL_AES_256
     if ( (ret = aes256_test()) != 0)
         return err_sys("AES256   test failed!\n", ret);
     else
         printf( "AES256   test passed!\n");
-
+#endif
 #ifdef HAVE_AESGCM
     if ( (ret = aesgcm_test()) != 0)
         return err_sys("AES-GCM  test failed!\n", ret);
@@ -5721,6 +5724,7 @@ int aes_test(void)
     return ret;
 }
 
+#ifdef WOLFSSL_AES_192
 int aes192_test(void)
 {
 #ifdef HAVE_AES_CBC
@@ -5811,7 +5815,9 @@ int aes192_test(void)
 
     return ret;
 }
+#endif /* WOLFSSL_AES_192 */
 
+#ifdef WOLFSSL_AES_256
 int aes256_test(void)
 {
 #ifdef HAVE_AES_CBC
@@ -5896,6 +5902,7 @@ int aes256_test(void)
 
     return ret;
 }
+#endif /* WOLFSSL_AES_256 */
 
 
 #ifdef HAVE_AESGCM

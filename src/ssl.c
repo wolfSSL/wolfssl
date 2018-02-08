@@ -13405,12 +13405,14 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 #endif
 #endif /* NO_DES3 */
 
+#ifndef NO_RC4
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_rc4(void)
     {
         static const char* type = "ARC4";
         WOLFSSL_ENTER("wolfSSL_EVP_rc4");
         return type;
     }
+#endif
 
 #ifdef HAVE_IDEA
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_idea_cbc(void)
@@ -14339,12 +14341,19 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             return NULL;  /* no static buffer support */
         }
 
+#ifndef NO_MD5
         if (XSTRNCMP(evp_md, "MD5", 3) == 0)
             type = WC_MD5;
-        else if (XSTRNCMP(evp_md, "SHA", 3) == 0)
+        else
+#endif
+#ifndef NO_SHA
+            if (XSTRNCMP(evp_md, "SHA", 3) == 0)
             type = WC_SHA;
         else
+#endif
+        {
             return NULL;
+        }
 
     #ifdef WOLFSSL_SMALL_STACK
         hmac = (Hmac*)XMALLOC(sizeof(Hmac), heap, DYNAMIC_TYPE_HMAC);
@@ -14370,6 +14379,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         XFREE(hmac, heap, DYNAMIC_TYPE_HMAC);
     #endif
 
+        (void)evp_md;
         return ret;
     }
 
