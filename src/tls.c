@@ -8846,7 +8846,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
         (void)heap;
         if (method) {
 #if !defined(NO_SHA256) || defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
-#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NGINX)
+#if defined(WOLFSSL_TLS13)
             InitSSL_Method(method, MakeTLSv1_3());
 #else
             InitSSL_Method(method, MakeTLSv1_2());

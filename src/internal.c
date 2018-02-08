@@ -4764,7 +4764,7 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     XFREE(ssl->buffers.serverDH_Priv.buffer, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
     XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     /* parameters (p,g) may be owned by ctx */
-    if (ssl->buffers.weOwnDH || ssl->options.side == WOLFSSL_CLIENT_END) {
+    if (ssl->buffers.weOwnDH) {
         XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     }
@@ -5013,7 +5013,7 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     XFREE(ssl->buffers.serverDH_Pub.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     ssl->buffers.serverDH_Pub.buffer = NULL;
     /* parameters (p,g) may be owned by ctx */
-    if (ssl->buffers.weOwnDH || ssl->options.side == WOLFSSL_CLIENT_END) {
+    if (ssl->buffers.weOwnDH) {
         XFREE(ssl->buffers.serverDH_G.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
         ssl->buffers.serverDH_G.buffer = NULL;
         XFREE(ssl->buffers.serverDH_P.buffer, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
@@ -7990,12 +7990,16 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             while (listSz) {
                 word32 certSz;
 
-                if (args->totalCerts >= ssl->verifyDepth) {
-                #ifdef OPENSSL_EXTRA
+            #ifdef OPENSSL_EXTRA
+                if (args->totalCerts > ssl->verifyDepth) {
                     ssl->peerVerifyRet = X509_V_ERR_CERT_CHAIN_TOO_LONG;
-                #endif
                     ERROR_OUT(MAX_CHAIN_ERROR, exit_ppc);
                 }
+            #else
+                if (args->totalCerts >= ssl->verifyDepth) {
+                    ERROR_OUT(MAX_CHAIN_ERROR, exit_ppc);
+                }
+            #endif
 
                 if ((args->idx - args->begin) + OPAQUE24_LEN > totalSz) {
                     ERROR_OUT(BUFFER_ERROR, exit_ppc);
@@ -17842,6 +17846,8 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                                                                         length);
                     args->idx += length;
 
+                    ssl->buffers.weOwnDH = 1;
+
                     /* pub */
                     if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
                         ERROR_OUT(BUFFER_ERROR, exit_dske);
@@ -18032,6 +18038,8 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     XMEMCPY(ssl->buffers.serverDH_G.buffer, input + args->idx,
                                                                         length);
                     args->idx += length;
+
+                    ssl->buffers.weOwnDH = 1;
 
                     /* pub */
                     if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
