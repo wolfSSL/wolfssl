@@ -783,39 +783,87 @@ static word32 SetBitString16Bit(word16 val, byte* output)
 
 
 /* hashType */
-static const byte hashMd2hOid[] = {42, 134, 72, 134, 247, 13, 2, 2};
-static const byte hashMd5hOid[] = {42, 134, 72, 134, 247, 13, 2, 5};
-static const byte hashSha1hOid[] = {43, 14, 3, 2, 26};
-static const byte hashSha224hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 4};
-static const byte hashSha256hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 1};
-static const byte hashSha384hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 2};
-static const byte hashSha512hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 3};
+#ifdef WOLFSSL_MD2
+    static const byte hashMd2hOid[] = {42, 134, 72, 134, 247, 13, 2, 2};
+#endif
+#ifndef NO_MD5
+    static const byte hashMd5hOid[] = {42, 134, 72, 134, 247, 13, 2, 5};
+#endif
+#ifndef NO_SHA
+    static const byte hashSha1hOid[] = {43, 14, 3, 2, 26};
+#endif
+#ifdef WOLFSSL_SHA224
+    static const byte hashSha224hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 4};
+#endif
+#ifndef NO_SHA256
+    static const byte hashSha256hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 1};
+#endif
+#ifdef WOLFSSL_SHA384
+    static const byte hashSha384hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 2};
+#endif
+#ifdef WOLFSSL_SHA512
+    static const byte hashSha512hOid[] = {96, 134, 72, 1, 101, 3, 4, 2, 3};
+#endif
 
 /* hmacType */
-static const byte hmacSha224Oid[] = {42, 134, 72, 134, 247, 13, 2, 8};
-static const byte hmacSha256Oid[] = {42, 134, 72, 134, 247, 13, 2, 9};
-static const byte hmacSha384Oid[] = {42, 134, 72, 134, 247, 13, 2, 10};
-static const byte hmacSha512Oid[] = {42, 134, 72, 134, 247, 13, 2, 11};
+#ifndef NO_HMAC
+    #ifdef WOLFSSL_SHA224
+    static const byte hmacSha224Oid[] = {42, 134, 72, 134, 247, 13, 2, 8};
+    #endif
+    #ifndef NO_SHA256
+    static const byte hmacSha256Oid[] = {42, 134, 72, 134, 247, 13, 2, 9};
+    #endif
+    #ifdef WOLFSSL_SHA384
+    static const byte hmacSha384Oid[] = {42, 134, 72, 134, 247, 13, 2, 10};
+    #endif
+    #ifdef WOLFSSL_SHA512
+    static const byte hmacSha512Oid[] = {42, 134, 72, 134, 247, 13, 2, 11};
+    #endif
+#endif
 
 /* sigType */
-#ifndef NO_DSA
+#if !defined(NO_DSA) && !defined(NO_SHA)
     static const byte sigSha1wDsaOid[] = {42, 134, 72, 206, 56, 4, 3};
 #endif /* NO_DSA */
 #ifndef NO_RSA
+    #ifdef WOLFSSL_MD2
     static const byte sigMd2wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1, 2};
+    #endif
+    #ifndef NO_MD5
     static const byte sigMd5wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1, 4};
+    #endif
+    #ifndef NO_SHA
     static const byte sigSha1wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1, 5};
+    #endif
+    #ifdef WOLFSSL_SHA224
     static const byte sigSha224wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1,14};
+    #endif
+    #ifndef NO_SHA256
     static const byte sigSha256wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1,11};
+    #endif
+    #ifdef WOLFSSL_SHA384
     static const byte sigSha384wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1,12};
+    #endif
+    #ifdef WOLFSSL_SHA512
     static const byte sigSha512wRsaOid[] = {42, 134, 72, 134, 247, 13, 1, 1,13};
+    #endif
 #endif /* NO_RSA */
 #ifdef HAVE_ECC
+    #ifndef NO_SHA
     static const byte sigSha1wEcdsaOid[] = {42, 134, 72, 206, 61, 4, 1};
+    #endif
+    #ifdef WOLFSSL_SHA224
     static const byte sigSha224wEcdsaOid[] = {42, 134, 72, 206, 61, 4, 3, 1};
+    #endif
+    #ifndef NO_SHA256
     static const byte sigSha256wEcdsaOid[] = {42, 134, 72, 206, 61, 4, 3, 2};
+    #endif
+    #ifdef WOLFSSL_SHA384
     static const byte sigSha384wEcdsaOid[] = {42, 134, 72, 206, 61, 4, 3, 3};
+    #endif
+    #ifdef WOLFSSL_SHA512
     static const byte sigSha512wEcdsaOid[] = {42, 134, 72, 206, 61, 4, 3, 4};
+    #endif
 #endif /* HAVE_ECC */
 #ifdef HAVE_ED25519
     static const byte sigEd25519Oid[] = {43, 101, 112};
@@ -905,11 +953,17 @@ static const byte extExtKeyUsageOcspSignOid[]     = {43, 6, 1, 5, 5, 7, 3, 9};
 static const byte pbkdf2Oid[] = {42, 134, 72, 134, 247, 13, 1, 5, 12};
 
 /* PKCS5 */
+#if !defined(NO_DES3) && !defined(NO_SHA)
 static const byte pbeSha1Des[] = {42, 134, 72, 134, 247, 13, 1, 5, 10};
+#endif
 
 /* PKCS12 */
+#if !defined(NO_RC4) && !defined(NO_SHA)
 static const byte pbeSha1RC4128[] = {42, 134, 72, 134, 247, 13, 1, 12, 1, 1};
+#endif
+#if !defined(NO_DES3) && !defined(NO_SHA)
 static const byte pbeSha1Des3[] = {42, 134, 72, 134, 247, 13, 1, 12, 1, 3};
+#endif
 
 
 /* returns a pointer to the OID string on success and NULL on fail */
@@ -923,96 +977,134 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
 
         case oidHashType:
             switch (id) {
+            #ifdef WOLFSSL_MD2
                 case MD2h:
                     oid = hashMd2hOid;
                     *oidSz = sizeof(hashMd2hOid);
                     break;
+            #endif
+            #ifndef NO_MD5
                 case MD5h:
                     oid = hashMd5hOid;
                     *oidSz = sizeof(hashMd5hOid);
                     break;
+            #endif
+            #ifndef NO_SHA
                 case SHAh:
                     oid = hashSha1hOid;
                     *oidSz = sizeof(hashSha1hOid);
                     break;
+            #endif
+            #ifdef WOLFSSL_SHA224
                 case SHA224h:
                     oid = hashSha224hOid;
                     *oidSz = sizeof(hashSha224hOid);
                     break;
+            #endif
+            #ifndef NO_SHA256
                 case SHA256h:
                     oid = hashSha256hOid;
                     *oidSz = sizeof(hashSha256hOid);
                     break;
+            #endif
+            #ifdef WOLFSSL_SHA384
                 case SHA384h:
                     oid = hashSha384hOid;
                     *oidSz = sizeof(hashSha384hOid);
                     break;
+            #endif
+            #ifdef WOLFSSL_SHA512
                 case SHA512h:
                     oid = hashSha512hOid;
                     *oidSz = sizeof(hashSha512hOid);
                     break;
+            #endif
             }
             break;
 
         case oidSigType:
             switch (id) {
-                #ifndef NO_DSA
+                #if !defined(NO_DSA) && !defined(NO_SHA)
                 case CTC_SHAwDSA:
                     oid = sigSha1wDsaOid;
                     *oidSz = sizeof(sigSha1wDsaOid);
                     break;
                 #endif /* NO_DSA */
                 #ifndef NO_RSA
+                #ifdef WOLFSSL_MD2
                 case CTC_MD2wRSA:
                     oid = sigMd2wRsaOid;
                     *oidSz = sizeof(sigMd2wRsaOid);
                     break;
+                #endif
+                #ifndef NO_MD5
                 case CTC_MD5wRSA:
                     oid = sigMd5wRsaOid;
                     *oidSz = sizeof(sigMd5wRsaOid);
                     break;
+                #endif
+                #ifndef NO_SHA
                 case CTC_SHAwRSA:
                     oid = sigSha1wRsaOid;
                     *oidSz = sizeof(sigSha1wRsaOid);
                     break;
+                #endif
+                #ifdef WOLFSSL_SHA224
                 case CTC_SHA224wRSA:
                     oid = sigSha224wRsaOid;
                     *oidSz = sizeof(sigSha224wRsaOid);
                     break;
+                #endif
+                #ifndef NO_SHA256
                 case CTC_SHA256wRSA:
                     oid = sigSha256wRsaOid;
                     *oidSz = sizeof(sigSha256wRsaOid);
                     break;
+                #endif
+                #ifdef WOLFSSL_SHA384
                 case CTC_SHA384wRSA:
                     oid = sigSha384wRsaOid;
                     *oidSz = sizeof(sigSha384wRsaOid);
                     break;
+                #endif
+                #ifdef WOLFSSL_SHA512
                 case CTC_SHA512wRSA:
                     oid = sigSha512wRsaOid;
                     *oidSz = sizeof(sigSha512wRsaOid);
                     break;
+                #endif /* WOLFSSL_SHA512 */
                 #endif /* NO_RSA */
                 #ifdef HAVE_ECC
+                #ifndef NO_SHA
                 case CTC_SHAwECDSA:
                     oid = sigSha1wEcdsaOid;
                     *oidSz = sizeof(sigSha1wEcdsaOid);
                     break;
+                #endif
+                #ifdef WOLFSSL_SHA224
                 case CTC_SHA224wECDSA:
                     oid = sigSha224wEcdsaOid;
                     *oidSz = sizeof(sigSha224wEcdsaOid);
                     break;
+                #endif
+                #ifndef NO_SHA256
                 case CTC_SHA256wECDSA:
                     oid = sigSha256wEcdsaOid;
                     *oidSz = sizeof(sigSha256wEcdsaOid);
                     break;
+                #endif
+                #ifdef WOLFSSL_SHA384
                 case CTC_SHA384wECDSA:
                     oid = sigSha384wEcdsaOid;
                     *oidSz = sizeof(sigSha384wEcdsaOid);
                     break;
+                #endif
+                #ifdef WOLFSSL_SHA512
                 case CTC_SHA512wECDSA:
                     oid = sigSha512wEcdsaOid;
                     *oidSz = sizeof(sigSha512wEcdsaOid);
                     break;
+                #endif
                 #endif /* HAVE_ECC */
                 #ifdef HAVE_ED25519
                 case CTC_ED25519:
@@ -1072,18 +1164,27 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
 
         case oidBlkType:
             switch (id) {
+    #ifdef HAVE_AES_CBC
+        #ifdef WOLFSSL_AES_128
                 case AES128CBCb:
                     oid = blkAes128CbcOid;
                     *oidSz = sizeof(blkAes128CbcOid);
                     break;
+        #endif
+        #ifdef WOLFSSL_AES_192
                 case AES192CBCb:
                     oid = blkAes192CbcOid;
                     *oidSz = sizeof(blkAes192CbcOid);
                     break;
+        #endif
+        #ifdef WOLFSSL_AES_256
                 case AES256CBCb:
                     oid = blkAes256CbcOid;
                     *oidSz = sizeof(blkAes256CbcOid);
                     break;
+        #endif
+    #endif /* HAVE_AES_CBC */
+    #ifndef NO_DES3
                 case DESb:
                     oid = blkDesCbcOid;
                     *oidSz = sizeof(blkDesCbcOid);
@@ -1092,6 +1193,7 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = blkDes3CbcOid;
                     *oidSz = sizeof(blkDes3CbcOid);
                     break;
+    #endif /* !NO_DES3 */
             }
             break;
 
@@ -1234,20 +1336,25 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
 
         case oidPBEType:
             switch (id) {
+        #if !defined(NO_SHA) && !defined(NO_RC4)
                 case PBE_SHA1_RC4_128:
                     oid = pbeSha1RC4128;
                     *oidSz = sizeof(pbeSha1RC4128);
                     break;
-
+        #endif
+        #if !defined(NO_SHA) && !defined(NO_DES3)
                 case PBE_SHA1_DES:
                     oid = pbeSha1Des;
                     *oidSz = sizeof(pbeSha1Des);
                     break;
 
+        #endif
+        #if !defined(NO_SHA) && !defined(NO_DES3)
                 case PBE_SHA1_DES3:
                     oid = pbeSha1Des3;
                     *oidSz = sizeof(pbeSha1Des3);
                     break;
+        #endif
             }
             break;
 
@@ -1293,26 +1400,36 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
             }
             break;
 
+#ifndef NO_HMAC
         case oidHmacType:
             switch (id) {
+        #ifdef WOLFSSL_SHA224
                 case HMAC_SHA224_OID:
                     oid = hmacSha224Oid;
                     *oidSz = sizeof(hmacSha224Oid);
                     break;
+        #endif
+        #ifndef NO_SHA256
                 case HMAC_SHA256_OID:
                     oid = hmacSha256Oid;
                     *oidSz = sizeof(hmacSha256Oid);
                     break;
+        #endif
+        #ifdef WOLFSSL_SHA284
                 case HMAC_SHA384_OID:
                     oid = hmacSha384Oid;
                     *oidSz = sizeof(hmacSha384Oid);
                     break;
+        #endif
+        #ifdef WOLFSSL_SHA512
                 case HMAC_SHA512_OID:
                     oid = hmacSha512Oid;
                     *oidSz = sizeof(hmacSha512Oid);
                     break;
+        #endif
             }
             break;
+#endif /* !NO_HMAC */
 
         case oidIgnoreType:
         default:
