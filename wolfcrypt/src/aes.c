@@ -30,7 +30,7 @@
 #if !defined(NO_AES)
 
 #if defined(HAVE_FIPS) && \
-	defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
 
     /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
     #define FIPS_NO_WRAPPERS
@@ -188,7 +188,7 @@
 
     /* AES-CCM */
     #if defined(HAVE_AESCCM) && \
-		defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+        defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
         int wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz)
         {
             return AesCcmSetKey(aes, key, keySz);

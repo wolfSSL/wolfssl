@@ -6561,6 +6561,9 @@ int gmac_test(void)
         0xaa, 0x10, 0xf1, 0x6d, 0x22, 0x7d, 0xc4, 0x1b
     };
 
+#if !defined(HAVE_FIPS)
+	/* FIPS builds only allow 16-byte auth tags. */
+	/* This sample uses a 15-byte auth tag. */
     const byte k2[] =
     {
         0x40, 0xf7, 0xec, 0xb2, 0x52, 0x6d, 0xaa, 0xd4,
@@ -6581,6 +6584,7 @@ int gmac_test(void)
         0xc6, 0x81, 0x79, 0x8e, 0x3d, 0xda, 0xb0, 0x9f,
         0x8d, 0x83, 0xb0, 0xbb, 0x14, 0xb6, 0x91
     };
+#endif /* HAVE_FIPS */
 
     byte tag[16];
 
@@ -6591,11 +6595,13 @@ int gmac_test(void)
     if (XMEMCMP(t1, tag, sizeof(t1)) != 0)
         return -4400;
 
+#if !defined(HAVE_FIPS)
     XMEMSET(tag, 0, sizeof(tag));
     wc_GmacSetKey(&gmac, k2, sizeof(k2));
     wc_GmacUpdate(&gmac, iv2, sizeof(iv2), a2, sizeof(a2), tag, sizeof(t2));
     if (XMEMCMP(t2, tag, sizeof(t2)) != 0)
         return -4401;
+#endif /* HAVE_FIPS */
 
     return 0;
 }
