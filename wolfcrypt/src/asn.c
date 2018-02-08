@@ -395,24 +395,48 @@ static int GetInteger7Bit(const byte* input, word32* inOutIdx, word32 maxIdx)
 }
 
 
-#ifndef NO_DSA
+#if !defined(NO_DSA) && !defined(NO_SHA)
 static char sigSha1wDsaName[] = "SHAwDSA";
 #endif /* NO_DSA */
 #ifndef NO_RSA
-static char sigMd2wRsaName[] = "MD2wRSA";
-static char sigMd5wRsaName[] = "MD5wRSA";
-static char sigSha1wRsaName[] = "SHAwRSA";
-static char sigSha224wRsaName[] = "SHA224wRSA";
-static char sigSha256wRsaName[] = "SHA256wRSA";
-static char sigSha384wRsaName[] = "SHA384wRSA";
-static char sigSha512wRsaName[] = "SHA512wRSA";
+#ifdef WOLFSSL_MD2
+    static char sigMd2wRsaName[] = "MD2wRSA";
+#endif
+#ifndef NO_MD5
+    static char sigMd5wRsaName[] = "MD5wRSA";
+#endif
+#ifndef NO_SHA
+    static char sigSha1wRsaName[] = "SHAwRSA";
+#endif
+#ifdef WOLFSSL_SHA224
+    static char sigSha224wRsaName[] = "SHA224wRSA";
+#endif
+#ifndef NO_SHA256
+    static char sigSha256wRsaName[] = "SHA256wRSA";
+#endif
+#ifdef WOLFSSL_SHA384
+    static char sigSha384wRsaName[] = "SHA384wRSA";
+#endif
+#ifdef WOLFSSL_SHA512
+    static char sigSha512wRsaName[] = "SHA512wRSA";
+#endif
 #endif /* NO_RSA */
 #ifdef HAVE_ECC
-static char sigSha1wEcdsaName[] = "SHAwECDSA";
-static char sigSha224wEcdsaName[] = "SHA224wECDSA";
-static char sigSha256wEcdsaName[] = "SHA256wECDSA";
-static char sigSha384wEcdsaName[] = "SHA384wECDSA";
-static char sigSha512wEcdsaName[] = "SHA512wECDSA";
+#ifndef NO_SHA
+    static char sigSha1wEcdsaName[] = "SHAwECDSA";
+#endif
+#ifdef WOLFSSL_SHA224
+    static char sigSha224wEcdsaName[] = "SHA224wECDSA";
+#endif
+#ifndef NO_SHA256
+    static char sigSha256wEcdsaName[] = "SHA256wECDSA";
+#endif
+#ifdef WOLFSSL_SHA384
+    static char sigSha384wEcdsaName[] = "SHA384wECDSA";
+#endif
+#ifdef WOLFSSL_SHA512
+    static char sigSha512wEcdsaName[] = "SHA512wECDSA";
+#endif
 #endif /* HAVE_ECC */
 static char sigUnknownName[] = "Unknown";
 
@@ -423,38 +447,62 @@ static char sigUnknownName[] = "Unknown";
  */
 char* GetSigName(int oid) {
     switch (oid) {
-        #ifndef NO_DSA
+    #if !defined(NO_DSA) && !defined(NO_SHA)
         case CTC_SHAwDSA:
             return sigSha1wDsaName;
-        #endif /* NO_DSA */
-        #ifndef NO_RSA
+    #endif /* NO_DSA && NO_SHA */
+    #ifndef NO_RSA
+        #ifdef WOLFSSL_MD2
         case CTC_MD2wRSA:
             return sigMd2wRsaName;
+        #endif
+        #ifndef NO_MD5
         case CTC_MD5wRSA:
             return sigMd5wRsaName;
+        #endif
+        #ifndef NO_SHA
         case CTC_SHAwRSA:
             return sigSha1wRsaName;
+        #endif
+        #ifdef WOLFSSL_SHA224
         case CTC_SHA224wRSA:
             return sigSha224wRsaName;
+        #endif
+        #ifndef NO_SHA256
         case CTC_SHA256wRSA:
             return sigSha256wRsaName;
+        #endif
+        #ifdef WOLFSSL_SHA384
         case CTC_SHA384wRSA:
             return sigSha384wRsaName;
+        #endif
+        #ifdef WOLFSSL_SHA512
         case CTC_SHA512wRSA:
             return sigSha512wRsaName;
-        #endif /* NO_RSA */
-        #ifdef HAVE_ECC
+        #endif
+    #endif /* NO_RSA */
+    #ifdef HAVE_ECC
+        #ifndef NO_SHA
         case CTC_SHAwECDSA:
             return sigSha1wEcdsaName;
+        #endif
+        #ifdef WOLFSSL_SHA224
         case CTC_SHA224wECDSA:
             return sigSha224wEcdsaName;
+        #endif
+        #ifndef NO_SHA256
         case CTC_SHA256wECDSA:
             return sigSha256wEcdsaName;
+        #endif
+        #ifdef WOLFSSL_SHA384
         case CTC_SHA384wECDSA:
             return sigSha384wEcdsaName;
+        #endif
+        #ifdef WOLFSSL_SHA512
         case CTC_SHA512wECDSA:
             return sigSha512wEcdsaName;
-        #endif /* HAVE_ECC */
+        #endif
+    #endif /* HAVE_ECC */
         default:
             return sigUnknownName;
     }
