@@ -1399,6 +1399,20 @@ extern void uITRON4_free(void *p) ;
         #undef  AES_MAX_KEY_SIZE
         #define AES_MAX_KEY_SIZE    256
     #endif
+
+    #ifndef NO_AES_128
+        #undef  WOLFSSL_AES_128
+        #define WOLFSSL_AES_128
+    #endif
+    #if !defined(NO_AES_192) && AES_MAX_KEY_SIZE >= 192
+        #undef  WOLFSSL_AES_192
+        #define WOLFSSL_AES_192
+    #endif
+    #if !defined(NO_AES_256) && AES_MAX_KEY_SIZE >= 256
+        #undef  WOLFSSL_AES_256
+        #define WOLFSSL_AES_256
+    #endif
+
     #ifndef NO_AES_DECRYPT
         #undef  HAVE_AES_DECRYPT
         #define HAVE_AES_DECRYPT

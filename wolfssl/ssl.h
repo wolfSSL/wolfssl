@@ -1775,7 +1775,9 @@ enum BulkCipherAlgorithm {
     wolfssl_des,
     wolfssl_triple_des,             /* leading 3 (3des) not valid identifier */
     wolfssl_des40,
+#ifdef HAVE_IDEA
     wolfssl_idea,
+#endif
     wolfssl_aes,
     wolfssl_aes_gcm,
     wolfssl_aes_ccm,
