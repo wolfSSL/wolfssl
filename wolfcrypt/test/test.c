@@ -16464,13 +16464,13 @@ int pkcs7encrypted_test(void)
 
     PKCS7Attrib attribs[] =
     {
-        { genAttrOid, sizeof(genAttrOid), genAttr, sizeof(genAttr) }
+        { genAttrOid, genAttr, sizeof(genAttrOid), sizeof(genAttr) }
     };
 
     PKCS7Attrib multiAttribs[] =
     {
-        { genAttrOid, sizeof(genAttrOid), genAttr, sizeof(genAttr) },
-        { genAttrOid2, sizeof(genAttrOid2), genAttr2, sizeof(genAttr2) }
+        { genAttrOid, genAttr, sizeof(genAttrOid), sizeof(genAttr) },
+        { genAttrOid2, genAttr2, sizeof(genAttrOid2), sizeof(genAttr2) }
     };
 #endif /* NO_AES */
 
@@ -16638,12 +16638,12 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
 
     PKCS7Attrib attribs[] =
     {
-        { transIdOid, sizeof(transIdOid),
-                     transId, sizeof(transId) - 1 }, /* take off the null */
-        { messageTypeOid, sizeof(messageTypeOid),
-                     messageType, sizeof(messageType) },
-        { senderNonceOid, sizeof(senderNonceOid),
-                     senderNonce, sizeof(senderNonce) }
+        { transIdOid, transId, sizeof(transIdOid),
+                               sizeof(transId) - 1 }, /* take off the null */
+        { messageTypeOid, messageType, sizeof(messageTypeOid),
+                                       sizeof(messageType) },
+        { senderNonceOid, senderNonce, sizeof(senderNonceOid),
+                                       sizeof(senderNonce) }
     };
 
     const pkcs7SignedVector testVectors[] =
