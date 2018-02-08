@@ -741,6 +741,7 @@ int wc_ecc_point_is_at_infinity(ecc_point *p);
     mp_int multiplicand;
     mp_int modulus;
     int map;
+    \endcode
     
     \sa none
 */

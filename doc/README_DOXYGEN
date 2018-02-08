@@ -5,9 +5,21 @@ wolfSSL with Doxygen 1.8.13
 cmake
 make
 git
-latex (with pdflatex included)
-( The pdflatex dependency can be removed by setting USE_PDFLATEX to NO in the
-file "Doxyfile" located at documentation/formats/pdf/Doxyfile )
+latex (With pdflatex included. However the pdflatex dependency can be removed by 
+setting USE_PDFLATEX to NO in the file "Doxyfile" located at 
+doc/formats/pdf/Doxyfile )
+
+The following texlive packages were used when creating this 
+documentation:
+texlive [installed]
+texlive-base [installed,automatic]
+texlive-binaries [installed]
+texlive-font-utils [installed]
+texlive-fonts-recommended [installed,automatic]
+texlive-latex-base [installed,automatic]
+texlive-latex-extra [installed]
+texlive-latex-recommended [installed]
+texlive-pictures [installed,automatic]
 
 ---- Generating the Documentation ----
 
@@ -24,8 +36,8 @@ some time to run. This is because the doxygen repository must be clones and then
 built along with the time taken to make the documentation.
 
 Once documentation generation has completed to open the html use a browser to 
-open documentation/html/index.html. To open the generated pdf looking for 
-refman.pdf located and documentation/refman.pdf.
+open doc/html/index.html. To open the generated pdf looking for 
+refman.pdf located and doc/refman.pdf.
 
 ---- Configure ----
 
@@ -74,7 +86,7 @@ Below are some the the settings that are currently used:
 
 ---- Embedding Documentation ----
 
-Doxygen API documentation should be placed in the documentation/dox_comments/
+Doxygen API documentation should be placed in the doc/dox_comments/
 directory. The documentation should be stored in a file in this directory with the 
 same name of the file in which the API resides in the wolfssl repository. C code
 header files (*.h) should be used when writing the API documentation. If API in a 

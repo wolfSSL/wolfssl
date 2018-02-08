@@ -3,3 +3,21 @@
 # All paths should be given relative to the root
 
 dist_doc_DATA+= doc/README.txt
+
+dox-pdf:
+	echo "Generating PDF"
+	cd doc && ./generate_documentation.sh -pdf > ./doxygen_pdf_warnings || (echo "HTML generation failed $$?"; exit 1)
+
+dox-html:
+	echo "Generating HTML"
+	cd doc && ./generate_documentation.sh -html > ./doxygen_html_warnings || (echo "HTML generation failed $$?"; exit 1)
+
+dox: dox-html dox-pdf
+
+clean-local:
+	-rm -rf doc/build/
+	-rm -rf doc/html/
+	-rm -f doc/refman.pdf
+	-rm -f doc/doxygen_warnings
+	-rm -f doc/doxygen_html_warnings
+	-rm -f doc/doxygen_pdf_warnings

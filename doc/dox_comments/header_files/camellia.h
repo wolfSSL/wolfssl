@@ -62,7 +62,7 @@ WOLFSSL_API int  wc_CamelliaSetKey(Camellia* cam,
     \endcode
     
     \sa wc_CamelliaSetKey
-    */
+*/
 WOLFSSL_API int  wc_CamelliaSetIV(Camellia* cam, const byte* iv);
 /*!
     \ingroup Camellia
@@ -115,7 +115,7 @@ WOLFSSL_API int  wc_CamelliaEncryptDirect(Camellia* cam, byte* out,
     byte decrypted[16];
 
     wc_CamelliaDecryptDirect(&cam, decrypted, cipher);
-    \endode
+    \endcode
     
     \sa wc_CamelliaEncryptDirect
 */

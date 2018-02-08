@@ -150,14 +150,6 @@ tests/unit.log: testsuite/testsuite.log
 DISTCLEANFILES+= cyassl-config
 DISTCLEANFILES+= wolfssl-config
 
-clean-local:
-	-rm -rf documentation/build/
-	-rm -rf documentation/html/
-	-rm -f documentation/refman.pdf
-	-rm -f documentation/doxygen_warnings
-	-rm -f documentation/doxygen_html_warnings
-	-rm -f documentation/doxygen_pdf_warnings
-
 maintainer-clean-local:
 	-rm Makefile.in
 	-rm aclocal.m4
@@ -216,12 +208,3 @@ merge-clean:
 	@find ./ | $(GREP) \.BASE | xargs rm -f
 	@find ./ | $(GREP) \~$$ | xargs rm -f
 	
-dox-pdf:
-	echo "Generating PDF"
-	cd documentation && ./generate_documentation.sh -pdf > ./doxygen_pdf_warnings || (echo "HTML generation failed $$?"; exit 1)
-
-dox-html:
-	echo "Generating HTML"
-	cd documentation && ./generate_documentation.sh -html > ./doxygen_html_warnings || (echo "HTML generation failed $$?"; exit 1)
-
-dox: dox-html dox-pdf
