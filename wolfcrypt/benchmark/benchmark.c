@@ -2102,27 +2102,49 @@ void bench_poly1305()
     Poly1305 enc;
     byte     mac[16];
     double   start;
-    int      ret, i, count;
+    int      ret = 0, i, count;
 
-    ret = wc_Poly1305SetKey(&enc, bench_key, 32);
-    if (ret != 0) {
-        printf("Poly1305SetKey failed, ret = %d\n", ret);
-        return;
-    }
-
-    bench_stats_start(&count, &start);
-    do {
-        for (i = 0; i < numBlocks; i++) {
-            ret = wc_Poly1305Update(&enc, bench_plain, BENCH_SIZE);
-            if (ret != 0) {
-                printf("Poly1305Update failed: %d\n", ret);
-                break;
-            }
+    if (digest_stream) {
+        ret = wc_Poly1305SetKey(&enc, bench_key, 32);
+        if (ret != 0) {
+            printf("Poly1305SetKey failed, ret = %d\n", ret);
+            return;
         }
-        wc_Poly1305Final(&enc, mac);
-        count += i;
-    } while (bench_stats_sym_check(start));
-    bench_stats_sym_finish("POLY1305", 0, count, bench_size, start, ret);
+
+        bench_stats_start(&count, &start);
+        do {
+            for (i = 0; i < numBlocks; i++) {
+                ret = wc_Poly1305Update(&enc, bench_plain, BENCH_SIZE);
+                if (ret != 0) {
+                    printf("Poly1305Update failed: %d\n", ret);
+                    break;
+                }
+            }
+            wc_Poly1305Final(&enc, mac);
+            count += i;
+        } while (bench_stats_sym_check(start));
+        bench_stats_sym_finish("POLY1305", 0, count, bench_size, start, ret);
+    }
+    else {
+        bench_stats_start(&count, &start);
+        do {
+            for (i = 0; i < numBlocks; i++) {
+                ret = wc_Poly1305SetKey(&enc, bench_key, 32);
+                if (ret != 0) {
+                    printf("Poly1305SetKey failed, ret = %d\n", ret);
+                    return;
+                }
+                ret = wc_Poly1305Update(&enc, bench_plain, BENCH_SIZE);
+                if (ret != 0) {
+                    printf("Poly1305Update failed: %d\n", ret);
+                    break;
+                }
+                wc_Poly1305Final(&enc, mac);
+            }
+            count += i;
+        } while (bench_stats_sym_check(start));
+        bench_stats_sym_finish("POLY1305", 0, count, bench_size, start, ret);
+    }
 }
 #endif /* HAVE_POLY1305 */
 

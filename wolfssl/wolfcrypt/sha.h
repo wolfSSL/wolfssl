@@ -55,6 +55,9 @@
 #ifdef WOLFSSL_MICROCHIP_PIC32MZ
     #include <wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h>
 #endif
+#ifdef STM32_HASH
+    #include <wolfssl/wolfcrypt/port/st/stm32.h>
+#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
@@ -85,9 +88,11 @@ enum {
 #else
 /* Sha digest */
 typedef struct wc_Sha {
-    #ifdef FREESCALE_LTC_SHA
+#ifdef FREESCALE_LTC_SHA
         ltc_hash_ctx_t ctx;
-    #else
+#elif defined(STM32_HASH)
+        STM32_HASH_Context stmCtx;
+#else
         word32  buffLen;   /* in bytes          */
         word32  loLen;     /* length in bytes   */
         word32  hiLen;     /* length in bytes   */
@@ -101,13 +106,10 @@ typedef struct wc_Sha {
     #ifdef WOLFSSL_PIC32MZ_HASH
         hashUpdCache cache; /* cache for updates */
     #endif
-    #if defined(STM32_HASH) && defined(WOLFSSL_STM32_CUBEMX)
-        HASH_HandleTypeDef hashHandle;
-    #endif
     #ifdef WOLFSSL_ASYNC_CRYPT
         WC_ASYNC_DEV asyncDev;
     #endif /* WOLFSSL_ASYNC_CRYPT */
-#endif /* FREESCALE_LTC_SHA */
+#endif
 } wc_Sha;
 
 #endif /* WOLFSSL_TI_HASH */

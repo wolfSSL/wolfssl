@@ -2687,6 +2687,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
     #endif /* WOLFSSL_TLS13_MIDDLEBOX_COMPAT */
     i += sessIdSz;
+    ssl->options.haveSessionId = 1;
 #endif /* WOLFSSL_TLS13_DRAFT_18 */
 
 #ifdef WOLFSSL_TLS13_DRAFT_18
@@ -3634,6 +3635,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     *inOutIdx = i;
 
     ssl->options.clientState = CLIENT_HELLO_COMPLETE;
+    ssl->options.haveSessionId = 1;
 
     WOLFSSL_LEAVE("DoTls13ClientHello", ret);
 

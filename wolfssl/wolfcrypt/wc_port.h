@@ -188,7 +188,7 @@
     /* Define stubs, since HW mutex is disabled */
     #define wolfSSL_CryptHwMutexInit()      0 /* Success */
     #define wolfSSL_CryptHwMutexLock()      0 /* Success */
-    #define wolfSSL_CryptHwMutexUnLock()    0 /* Success */
+    #define wolfSSL_CryptHwMutexUnLock()    (void)0 /* Success */
 #endif /* WOLFSSL_CRYPT_HW_MUTEX */
 
 /* Mutex functions */
