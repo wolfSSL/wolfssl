@@ -82,6 +82,10 @@ if BUILD_AES
 src_libwolfssl_la_SOURCES += wolfcrypt/src/aes.c
 endif
 
+if BUILD_AESNI
+src_libwolfssl_la_SOURCES += wolfcrypt/src/aes_asm.s
+endif
+
 if BUILD_DES3
 src_libwolfssl_la_SOURCES += wolfcrypt/src/des3.c
 endif
@@ -273,8 +277,10 @@ if BUILD_DSA
 src_libwolfssl_la_SOURCES += wolfcrypt/src/dsa.c
 endif
 
+if !BUILD_FIPS_V2
 if BUILD_AESNI
 src_libwolfssl_la_SOURCES += wolfcrypt/src/aes_asm.S
+endif
 endif
 
 if BUILD_CAMELLIA
