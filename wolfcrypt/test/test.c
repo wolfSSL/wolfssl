@@ -6068,6 +6068,33 @@ int aesgcm_test(void)
         return -4320;
 #endif /* ENABLE_NON_12BYTE_IV_TEST */
 
+    XMEMSET(resultT, 0, sizeof(resultT));
+    XMEMSET(resultC, 0, sizeof(resultC));
+    XMEMSET(resultP, 0, sizeof(resultP));
+
+    wc_AesGcmSetKey(&enc, k1, sizeof(k1));
+    /* AES-GCM encrypt and decrypt both use AES encrypt internally */
+    result = wc_AesGcmEncrypt(&enc, resultC, p, sizeof(p), iv1, sizeof(iv1),
+                                resultT + 1, sizeof(resultT) - 1, a, sizeof(a));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (result != 0)
+        return -4321;
+    if (XMEMCMP(c1, resultC, sizeof(resultC)))
+        return -4322;
+    if (XMEMCMP(t1, resultT + 1, sizeof(resultT) - 1))
+        return -4323;
+
+    result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC),
+              iv1, sizeof(iv1), resultT + 1, sizeof(resultT) - 1, a, sizeof(a));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (result != 0)
+        return -4324;
+    if (XMEMCMP(p, resultP, sizeof(resultP)))
+        return -4325;
     wc_AesFree(&enc);
 
     return 0;

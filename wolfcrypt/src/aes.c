@@ -3535,7 +3535,8 @@ int wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len)
     #define M128_INIT(x,y) { (x), (y) }
 #endif
 
-static const __m128i MOD2_128 = M128_INIT(0x1, 0xc200000000000000UL);
+static const __m128i MOD2_128 = M128_INIT(0x1,
+                                           (long long int)0xc200000000000000UL);
 
 
 /* See Intel® Carry-Less Multiplication Instruction
@@ -4459,15 +4460,66 @@ while (0)
     "movdqu	"VAR(TR)", %%xmm0\n\t"        \
     "pxor	"VAR(XR)", %%xmm0\n\t"        \
 
+#define STORE_TAG()                           \
+    "cmpl	$16, %[tbytes]\n\t"           \
+    "je		71f\n\t"                      \
+    "xorq	%%rcx, %%rcx\n\t"             \
+    "movdqu	%%xmm0, (%%rsp)\n\t"          \
+    "73:\n\t"                                 \
+    "movzbl	(%%rsp,%%rcx,1), %%r13d\n\t"  \
+    "movb	%%r13b, (%[tag],%%rcx,1)\n\t" \
+    "incl	%%ecx\n\t"                    \
+    "cmpl	%[tbytes], %%ecx\n\t"         \
+    "jne	73b\n\t"                      \
+    "jmp	72f\n\t"                      \
+    "\n"                                      \
+    "71:\n\t"                                 \
+    "movdqu	%%xmm0, (%[tag])\n\t"         \
+    "\n"                                      \
+    "72:\n\t"
+
+#define CMP_TAG()                                          \
+    "cmpl	$16, %[tbytes]\n\t"                        \
+    "je		71f\n\t"                                   \
+    "subq	$16, %%rsp\n\t"                            \
+    "xorq	%%rcx, %%rcx\n\t"                          \
+    "xorq	%%rax, %%rax\n\t"                          \
+    "movdqu	%%xmm0, (%%rsp)\n\t"                       \
+    "\n"                                                   \
+    "73:\n\t"                                              \
+    "movzbl	(%%rsp,%%rcx,1), %%r13d\n\t"               \
+    "xorb	(%[tag],%%rcx,1), %%r13b\n\t"              \
+    "orb	%%r13b, %%al\n\t"                          \
+    "incl	%%ecx\n\t"                                 \
+    "cmpl	%[tbytes], %%ecx\n\t"                      \
+    "jne	73b\n\t"                                   \
+    "cmpb	$0x00, %%al\n\t"                           \
+    "sete	%%al\n\t"                                  \
+    "addq	$16, %%rsp\n\t"                            \
+    "xorq	%%rcx, %%rcx\n\t"                          \
+    "jmp	72f\n\t"                                   \
+    "\n"                                                   \
+    "71:\n\t"                                              \
+    "movdqu	(%[tag]), %%xmm1\n\t"                      \
+    "pcmpeqb	%%xmm1, %%xmm0\n\t"                        \
+    "pmovmskb	%%xmm0, %%edx\n\t"                         \
+    "# %%edx == 0xFFFF then return 1 else => return 0\n\t" \
+    "xorl	%%eax, %%eax\n\t"                          \
+    "cmpl	$0xffff, %%edx\n\t"                        \
+    "sete	%%al\n\t"                                  \
+    "\n"                                                   \
+    "72:\n\t"                                              \
+    "movl	%%eax, (%[res])\n\t"
 
 static void AES_GCM_encrypt(const unsigned char *in, unsigned char *out,
                             const unsigned char* addt,
-                            const unsigned char* ivec,
-                            unsigned char *tag, unsigned int nbytes,
-                            unsigned int abytes, unsigned int ibytes,
+                            const unsigned char* ivec, unsigned char *tag,
+                            unsigned int nbytes, unsigned int abytes,
+                            unsigned int ibytes, unsigned int tbytes,
                             const unsigned char* key, int nr)
 {
     register const unsigned char* iv asm("rax") = ivec;
+    register unsigned int ivLen asm("ebx") = ibytes;
 
     __asm__ __volatile__ (
         "subq	$"VAR(STACK_OFFSET)", %%rsp\n\t"
@@ -4619,14 +4671,14 @@ static void AES_GCM_encrypt(const unsigned char *in, unsigned char *out,
         "55:\n\t"
 
         CALC_TAG()
-        "movdqu	%%xmm0, (%[tag])\n\t"
+        STORE_TAG()
         "addq	$"VAR(STACK_OFFSET)", %%rsp\n\t"
 
         :
         : [KEY] "r" (key),
           [in] "r" (in), [out] "r" (out), [nr] "r" (nr),
           [nbytes] "r" (nbytes), [abytes] "r" (abytes), [addt] "r" (addt),
-          [ivec] "r" (iv), [ibytes] "r" (ibytes),
+          [ivec] "r" (iv), [ibytes] "r" (ivLen), [tbytes] "r" (tbytes),
           [tag] "r" (tag),
           [BSWAP_MASK] "m" (BSWAP_MASK),
           [BSWAP_EPI64] "m" (BSWAP_EPI64),
@@ -4640,7 +4692,7 @@ static void AES_GCM_encrypt(const unsigned char *in, unsigned char *out,
         : "xmm15", "xmm14", "xmm13", "xmm12",
           "xmm0", "xmm1", "xmm2", "xmm3", "memory",
           "xmm4", "xmm5", "xmm6", "xmm7", "xmm8", "xmm9", "xmm10", "xmm11",
-          "rbx", "rcx", "rdx", "r13"
+          "rcx", "rdx", "r13"
     );
 }
 
@@ -5379,15 +5431,65 @@ static void AES_GCM_encrypt(const unsigned char *in, unsigned char *out,
     "vpshufb	%[BSWAP_MASK], "VAR(XR)", "VAR(XR)"\n\t" \
     "vpxor	"VAR(TR)", "VAR(XR)", %%xmm0\n\t"        \
 
+#define STORE_TAG_AVX()                       \
+    "cmpl	$16, %[tbytes]\n\t"           \
+    "je		71f\n\t"                      \
+    "xorq	%%rcx, %%rcx\n\t"             \
+    "vmovdqu	%%xmm0, (%%rsp)\n\t"          \
+    "73:\n\t"                                 \
+    "movzbl	(%%rsp,%%rcx,1), %%r13d\n\t"  \
+    "movb	%%r13b, (%[tag],%%rcx,1)\n\t" \
+    "incl	%%ecx\n\t"                    \
+    "cmpl	%[tbytes], %%ecx\n\t"         \
+    "jne	73b\n\t"                      \
+    "jmp	72f\n\t"                      \
+    "\n"                                      \
+    "71:\n\t"                                 \
+    "vmovdqu	%%xmm0, (%[tag])\n\t"         \
+    "\n"                                      \
+    "72:\n\t"
+
+#define CMP_TAG_AVX()                                      \
+    "cmpl	$16, %[tbytes]\n\t"                        \
+    "je		71f\n\t"                                   \
+    "subq	$16, %%rsp\n\t"                            \
+    "xorq	%%rcx, %%rcx\n\t"                          \
+    "xorq	%%rax, %%rax\n\t"                          \
+    "vmovdqu	%%xmm0, (%%rsp)\n\t"                       \
+    "\n"                                                   \
+    "73:\n\t"                                              \
+    "movzbl	(%%rsp,%%rcx,1), %%r13d\n\t"               \
+    "xorb	(%[tag],%%rcx,1), %%r13b\n\t"              \
+    "orb	%%r13b, %%al\n\t"                          \
+    "incl	%%ecx\n\t"                                 \
+    "cmpl	%[tbytes], %%ecx\n\t"                      \
+    "jne	73b\n\t"                                   \
+    "cmpb	$0x00, %%al\n\t"                           \
+    "sete	%%al\n\t"                                  \
+    "addq	$16, %%rsp\n\t"                            \
+    "jmp	72f\n\t"                                   \
+    "\n"                                                   \
+    "71:\n\t"                                              \
+    "vmovdqu	(%[tag]), %%xmm1\n\t"                      \
+    "vpcmpeqb	%%xmm1, %%xmm0, %%xmm0\n\t"                \
+    "vpmovmskb	%%xmm0, %%edx\n\t"                         \
+    "# %%edx == 0xFFFF then return 1 else => return 0\n\t" \
+    "xorl	%%eax, %%eax\n\t"                          \
+    "cmpl	$0xffff, %%edx\n\t"                        \
+    "sete	%%al\n\t"                                  \
+    "\n"                                                   \
+    "72:\n\t"                                              \
+    "movl	%%eax, (%[res])\n\t"
 
 static void AES_GCM_encrypt_avx1(const unsigned char *in, unsigned char *out,
                                  const unsigned char* addt,
-                                 const unsigned char* ivec,
-                                 unsigned char *tag, unsigned int nbytes,
-                                 unsigned int abytes, unsigned int ibytes,
+                                 const unsigned char* ivec, unsigned char *tag,
+                                 unsigned int nbytes, unsigned int abytes,
+                                 unsigned int ibytes, unsigned int tbytes,
                                  const unsigned char* key, int nr)
 {
     register const unsigned char* iv asm("rax") = ivec;
+    register unsigned int ivLen asm("ebx") = ibytes;
 
     __asm__ __volatile__ (
         "subq		$"VAR(STACK_OFFSET)", %%rsp\n\t"
@@ -5510,7 +5612,7 @@ static void AES_GCM_encrypt_avx1(const unsigned char *in, unsigned char *out,
         "55:\n\t"
 
         CALC_TAG_AVX1()
-        "vmovdqu	%%xmm0, (%[tag])\n\t"
+        STORE_TAG_AVX()
         "addq		$"VAR(STACK_OFFSET)", %%rsp\n\t"
         "vzeroupper\n\t"
 
@@ -5518,7 +5620,7 @@ static void AES_GCM_encrypt_avx1(const unsigned char *in, unsigned char *out,
         : [KEY] "r" (key),
           [in] "r" (in), [out] "r" (out), [nr] "r" (nr),
           [nbytes] "r" (nbytes), [abytes] "r" (abytes), [addt] "r" (addt),
-          [ivec] "r" (iv), [ibytes] "r" (ibytes),
+          [ivec] "r" (iv), [ibytes] "r" (ivLen), [tbytes] "r" (tbytes),
           [tag] "r" (tag),
           [BSWAP_MASK] "m" (BSWAP_MASK),
           [BSWAP_EPI64] "m" (BSWAP_EPI64),
@@ -5532,7 +5634,7 @@ static void AES_GCM_encrypt_avx1(const unsigned char *in, unsigned char *out,
         : "xmm15", "xmm14", "xmm13", "xmm12",
           "xmm0", "xmm1", "xmm2", "xmm3", "memory",
           "xmm4", "xmm5", "xmm6", "xmm7", "xmm8", "xmm9", "xmm10", "xmm11",
-          "rbx", "rcx", "rdx", "r13"
+          "rcx", "rdx", "r13"
     );
 }
 
@@ -6201,12 +6303,13 @@ static void AES_GCM_encrypt_avx1(const unsigned char *in, unsigned char *out,
 
 static void AES_GCM_encrypt_avx2(const unsigned char *in, unsigned char *out,
                                  const unsigned char* addt,
-                                 const unsigned char* ivec,
-                                 unsigned char *tag, unsigned int nbytes,
-                                 unsigned int abytes, unsigned int ibytes,
+                                 const unsigned char* ivec, unsigned char *tag,
+                                 unsigned int nbytes, unsigned int abytes,
+                                 unsigned int ibytes, unsigned int tbytes,
                                  const unsigned char* key, int nr)
 {
     register const unsigned char* iv asm("rax") = ivec;
+    register unsigned int ivLen asm("ebx") = ibytes;
 
     __asm__ __volatile__ (
         "subq		$"VAR(STACK_OFFSET)", %%rsp\n\t"
@@ -6321,7 +6424,7 @@ static void AES_GCM_encrypt_avx2(const unsigned char *in, unsigned char *out,
         "55:\n\t"
 
         CALC_TAG_AVX2()
-        "vmovdqu	%%xmm0, (%[tag])\n\t"
+        STORE_TAG_AVX()
         "addq		$"VAR(STACK_OFFSET)", %%rsp\n\t"
         "vzeroupper\n\t"
 
@@ -6329,7 +6432,7 @@ static void AES_GCM_encrypt_avx2(const unsigned char *in, unsigned char *out,
         : [KEY] "r" (key),
           [in] "r" (in), [out] "r" (out), [nr] "r" (nr),
           [nbytes] "r" (nbytes), [abytes] "r" (abytes), [addt] "r" (addt),
-          [ivec] "r" (iv), [ibytes] "r" (ibytes),
+          [ivec] "r" (iv), [ibytes] "r" (ivLen), [tbytes] "r" (tbytes),
           [tag] "r" (tag),
           [BSWAP_MASK] "m" (BSWAP_MASK),
           [BSWAP_EPI64] "m" (BSWAP_EPI64),
@@ -6343,7 +6446,7 @@ static void AES_GCM_encrypt_avx2(const unsigned char *in, unsigned char *out,
         : "xmm15", "xmm14", "xmm13", "xmm12",
           "xmm0", "xmm1", "xmm2", "xmm3", "memory",
           "xmm4", "xmm5", "xmm6", "xmm7", "xmm8", "xmm9", "xmm10", "xmm11",
-          "rbx", "rcx", "rdx", "r13"
+          "rcx", "rdx", "r13"
     );
 }
 #endif /* HAVE_INTEL_AVX2 */
@@ -6355,13 +6458,15 @@ static void AES_GCM_encrypt_avx2(const unsigned char *in, unsigned char *out,
 static void AES_GCM_decrypt(const unsigned char *in, unsigned char *out,
                             const unsigned char* addt,
                             const unsigned char* ivec, const unsigned char *tag,
-                            int nbytes, int abytes, int ibytes,
+                            int nbytes, int abytes, int ibytes, int tbytes,
                             const unsigned char* key, int nr, int* res)
 {
     register const unsigned char* iv asm("rax") = ivec;
     register int ivLen asm("ebx") = ibytes;
+    register int tagLen asm("edx") = tbytes;
 
     __asm__ __volatile__ (
+        "pushq		%%rdx\n\t"
         "subq		$"VAR(STACK_OFFSET)", %%rsp\n\t"
         /* Counter is xmm13 */
         "pxor		%%xmm13, %%xmm13\n\t"
@@ -6442,21 +6547,15 @@ static void AES_GCM_decrypt(const unsigned char *in, unsigned char *out,
         "55:\n\t"
 
         CALC_TAG()
-        "movdqu		(%[tag]), %%xmm1\n\t"
-        "pcmpeqb	%%xmm1, %%xmm0\n\t"
-        "pmovmskb	%%xmm0, %%edx\n\t"
-        "# %%edx == 0xFFFF then return 1 else => return 0\n\t"
-        "xorl		%%eax, %%eax\n\t"
-        "cmpl		$0xffff, %%edx\n\t"
-        "sete		%%al\n\t"
-        "movl		%%eax, (%[res])\n\t"
         "addq		$"VAR(STACK_OFFSET)", %%rsp\n\t"
+        "popq		%%rdx\n\t"
+        CMP_TAG()
 
         :
         : [KEY] "r" (key),
           [in] "r" (in), [out] "r" (out), [nr] "r" (nr),
           [nbytes] "r" (nbytes), [abytes] "r" (abytes), [addt] "r" (addt),
-          [ivec] "r" (iv), [ibytes] "r" (ivLen),
+          [ivec] "r" (iv), [ibytes] "r" (ivLen), [tbytes] "r" (tagLen),
           [tag] "r" (tag), [res] "r" (res),
           [BSWAP_MASK] "m" (BSWAP_MASK),
           [BSWAP_EPI64] "m" (BSWAP_EPI64),
@@ -6470,7 +6569,7 @@ static void AES_GCM_decrypt(const unsigned char *in, unsigned char *out,
         : "xmm15", "xmm14", "xmm13", "xmm12",
           "xmm0", "xmm1", "xmm2", "xmm3", "memory",
           "xmm4", "xmm5", "xmm6", "xmm7", "xmm8", "xmm9", "xmm10", "xmm11",
-          "rcx", "rdx", "r13"
+          "rcx", "r13"
     );
 }
 
@@ -6479,13 +6578,15 @@ static void AES_GCM_decrypt_avx1(const unsigned char *in, unsigned char *out,
                                  const unsigned char* addt,
                                  const unsigned char* ivec,
                                  const unsigned char *tag, int nbytes,
-                                 int abytes, int ibytes,
+                                 int abytes, int ibytes, int tbytes,
                                  const unsigned char* key, int nr, int* res)
 {
     register const unsigned char* iv asm("rax") = ivec;
     register int ivLen asm("ebx") = ibytes;
+    register int tagLen asm("edx") = tbytes;
 
     __asm__ __volatile__ (
+        "pushq		%%rdx\n\t"
         "subq		$"VAR(STACK_OFFSET)", %%rsp\n\t"
         /* Counter is xmm13 */
         "vpxor		%%xmm13, %%xmm13, %%xmm13\n\t"
@@ -6562,22 +6663,16 @@ static void AES_GCM_decrypt_avx1(const unsigned char *in, unsigned char *out,
         "55:\n\t"
 
         CALC_TAG_AVX1()
-        "vmovdqu	(%[tag]), %%xmm1\n\t"
-        "vpcmpeqb	%%xmm1, %%xmm0, %%xmm0\n\t"
-        "vpmovmskb	%%xmm0, %%edx\n\t"
-        "# %%edx == 0xFFFF then return 1 else => return 0\n\t"
-        "xorl		%%eax, %%eax\n\t"
-        "cmpl		$0xffff, %%edx\n\t"
-        "sete		%%al\n\t"
-        "movl		%%eax, (%[res])\n\t"
         "addq		$"VAR(STACK_OFFSET)", %%rsp\n\t"
+        "popq		%%rdx\n\t"
+        CMP_TAG_AVX()
         "vzeroupper\n\t"
 
         :
         : [KEY] "r" (key),
           [in] "r" (in), [out] "r" (out), [nr] "r" (nr),
           [nbytes] "r" (nbytes), [abytes] "r" (abytes), [addt] "r" (addt),
-          [ivec] "r" (iv), [ibytes] "r" (ivLen),
+          [ivec] "r" (iv), [ibytes] "r" (ivLen), [tbytes] "r" (tagLen),
           [tag] "r" (tag), [res] "r" (res),
           [BSWAP_MASK] "m" (BSWAP_MASK),
           [BSWAP_EPI64] "m" (BSWAP_EPI64),
@@ -6591,7 +6686,7 @@ static void AES_GCM_decrypt_avx1(const unsigned char *in, unsigned char *out,
         : "xmm15", "xmm14", "xmm13", "xmm12",
           "xmm0", "xmm1", "xmm2", "xmm3", "memory",
           "xmm4", "xmm5", "xmm6", "xmm7", "xmm8", "xmm9", "xmm10", "xmm11",
-          "rcx", "rdx", "r13"
+          "rcx", "r13"
     );
 }
 
@@ -6600,13 +6695,15 @@ static void AES_GCM_decrypt_avx2(const unsigned char *in, unsigned char *out,
                                  const unsigned char* addt,
                                  const unsigned char* ivec,
                                  const unsigned char *tag, int nbytes,
-                                 int abytes, int ibytes,
+                                 int abytes, int ibytes, int tbytes,
                                  const unsigned char* key, int nr, int* res)
 {
     register const unsigned char* iv asm("rax") = ivec;
     register int ivLen asm("ebx") = ibytes;
+    register int tagLen asm("edx") = tbytes;
 
     __asm__ __volatile__ (
+        "pushq		%%rdx\n\t"
         "subq		$"VAR(STACK_OFFSET)", %%rsp\n\t"
         /* Counter is xmm13 */
         "vpxor		%%xmm13, %%xmm13, %%xmm13\n\t"
@@ -6689,22 +6786,16 @@ static void AES_GCM_decrypt_avx2(const unsigned char *in, unsigned char *out,
         "55:\n\t"
 
         CALC_TAG_AVX2()
-        "vmovdqu	(%[tag]), %%xmm1\n\t"
-        "vpcmpeqb	%%xmm1, %%xmm0, %%xmm0\n\t"
-        "vpmovmskb	%%xmm0, %%edx\n\t"
-        "# %%edx == 0xFFFF then return 1 else => return 0\n\t"
-        "xorl		%%eax, %%eax\n\t"
-        "cmpl		$0xffff, %%edx\n\t"
-        "sete		%%al\n\t"
-        "movl		%%eax, (%[res])\n\t"
         "addq		$"VAR(STACK_OFFSET)", %%rsp\n\t"
+        "popq		%%rdx\n\t"
+        CMP_TAG_AVX()
         "vzeroupper\n\t"
 
         :
         : [KEY] "r" (key),
           [in] "r" (in), [out] "r" (out), [nr] "r" (nr),
           [nbytes] "r" (nbytes), [abytes] "r" (abytes), [addt] "r" (addt),
-          [ivec] "r" (iv), [ibytes] "r" (ivLen),
+          [ivec] "r" (iv), [ibytes] "r" (ivLen), [tbytes] "r" (tagLen),
           [tag] "r" (tag), [res] "r" (res),
           [BSWAP_MASK] "m" (BSWAP_MASK),
           [BSWAP_EPI64] "m" (BSWAP_EPI64),
@@ -6718,7 +6809,7 @@ static void AES_GCM_decrypt_avx2(const unsigned char *in, unsigned char *out,
         : "xmm15", "xmm14", "xmm13", "xmm12",
           "xmm0", "xmm1", "xmm2", "xmm3", "memory",
           "xmm4", "xmm5", "xmm6", "xmm7", "xmm8", "xmm9", "xmm10", "xmm11",
-          "rcx", "rdx", "r13"
+          "rcx", "r13"
     );
 }
 #endif /* HAVE_INTEL_AVX2 */
@@ -7527,23 +7618,23 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #ifdef WOLFSSL_AESNI
     #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_AVX2(intel_flags)) {
-        AES_GCM_encrypt_avx2(in, out, authIn, iv, authTag,
-                        sz, authInSz, ivSz, (const byte*)aes->key, aes->rounds);
+        AES_GCM_encrypt_avx2(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
+                                 authTagSz, (const byte*)aes->key, aes->rounds);
         return 0;
     }
     else
     #endif
     #ifdef HAVE_INTEL_AVX1
     if (IS_INTEL_AVX1(intel_flags)) {
-        AES_GCM_encrypt_avx1(in, out, authIn, iv, authTag,
-                        sz, authInSz, ivSz, (const byte*)aes->key, aes->rounds);
+        AES_GCM_encrypt_avx1(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
+                                 authTagSz, (const byte*)aes->key, aes->rounds);
         return 0;
     }
     else
     #endif
     if (haveAESNI) {
-        AES_GCM_encrypt(in, out, authIn, iv, authTag,
-                        sz, authInSz, ivSz, (const byte*)aes->key, aes->rounds);
+        AES_GCM_encrypt(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
+                                 authTagSz, (const byte*)aes->key, aes->rounds);
         return 0;
     }
     else
@@ -7870,8 +7961,8 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #ifdef WOLFSSL_AESNI
     #ifdef HAVE_INTEL_AVX2
     if (IS_INTEL_AVX2(intel_flags)) {
-        AES_GCM_decrypt_avx2(in, out, authIn, iv, authTag, sz, authInSz,
-                                      ivSz, (byte*)aes->key, aes->rounds, &res);
+        AES_GCM_decrypt_avx2(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
+                                 authTagSz, (byte*)aes->key, aes->rounds, &res);
         if (res == 0)
             return AES_GCM_AUTH_E;
         return 0;
@@ -7880,8 +7971,8 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     #endif
     #ifdef HAVE_INTEL_AVX1
     if (IS_INTEL_AVX1(intel_flags)) {
-        AES_GCM_decrypt_avx1(in, out, authIn, iv, authTag, sz, authInSz,
-                                      ivSz, (byte*)aes->key, aes->rounds, &res);
+        AES_GCM_decrypt_avx1(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
+                                 authTagSz, (byte*)aes->key, aes->rounds, &res);
         if (res == 0)
             return AES_GCM_AUTH_E;
         return 0;
@@ -7890,7 +7981,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     #endif
     if (haveAESNI) {
         AES_GCM_decrypt(in, out, authIn, iv, authTag, sz, authInSz, ivSz,
-                                            (byte*)aes->key, aes->rounds, &res);
+                                 authTagSz, (byte*)aes->key, aes->rounds, &res);
         if (res == 0)
             return AES_GCM_AUTH_E;
         return 0;
