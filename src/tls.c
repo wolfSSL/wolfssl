@@ -5988,6 +5988,11 @@ static int TLSX_KeyShare_Parse(WOLFSSL* ssl, byte* input, word16 length,
         if (TLSX_KeyShare_Find(ssl, group))
             return BAD_KEY_SHARE_DATA;
 
+        /* Clear out unusable key shares. */
+        ret = TLSX_KeyShare_Empty(ssl);
+        if (ret != 0)
+            return ret;
+
         /* Try to use the server's group. */
         ret = TLSX_KeyShare_Use(ssl, group, 0, NULL, NULL);
     }
