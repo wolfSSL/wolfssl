@@ -2028,7 +2028,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS"
     # Add the FIPS flag.
     AS_IF([test "x$FIPS_VERSION" = "xv2"],
-          [AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS_VERSION=2 -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224"
+          [AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS_VERSION=2 -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB"
            ENABLED_KEYGEN="yes"
            ENABLED_SHA224="yes"
            AS_IF([test "x$ENABLED_AESCCM" != "xyes"],
@@ -2042,9 +2042,12 @@ then
                   AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
                   AS_IF([test "x$ENABLED_ECC_SHAMIR" = "xyes"],
                         [AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"])])
+           AS_IF([test "x$ENABLED_AESCTR" != "xyes"],
+                 [ENABLED_AESCTR="yes"
+                  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_COUNTER"])
            AS_IF([test "x$ENABLED_CMAC" != "xyes"],
                  [ENABLED_CMAC="yes"
-                  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CMAC -DWOLFSSL_AES_DIRECT"])
+                  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CMAC"])
           ])
 else
     if test "x$ENABLED_FORTRESS" = "xyes"
