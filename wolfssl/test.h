@@ -372,12 +372,6 @@ void join_thread(THREAD_TYPE);
 static const word16      wolfSSLPort = 11111;
 
 
-#if defined(__GNUC__)
-    #define WC_NORETURN __attribute__((noreturn))
-#else
-    #define WC_NORETURN
-#endif
-
 static INLINE WC_NORETURN void err_sys(const char* msg)
 {
     printf("wolfSSL error: %s\n", msg);

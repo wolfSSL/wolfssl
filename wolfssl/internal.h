@@ -1324,13 +1324,6 @@ enum states {
     HANDSHAKE_DONE
 };
 
-
-#if defined(__GNUC__)
-    #define WOLFSSL_PACK __attribute__ ((packed))
-#else
-    #define WOLFSSL_PACK
-#endif
-
 /* SSL Version */
 typedef struct ProtocolVersion {
     byte major;
