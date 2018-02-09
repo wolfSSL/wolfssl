@@ -3907,6 +3907,10 @@ static int wc_PKCS7_DecodeKari(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
         return ret;
     }
 
+    /* if user has not explicitly set keyAgreeOID, set from one in bundle */
+    if (pkcs7->keyAgreeOID == 0)
+        pkcs7->keyAgreeOID = keyAgreeOID;
+
     /* set direction based on key wrap algorithm */
     switch (keyWrapOID) {
 #ifndef NO_AES
