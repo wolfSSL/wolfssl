@@ -274,12 +274,23 @@ function run_renewcerts(){
     openssl x509 -inform PEM -in server-ecc.pem -outform DER -out server-ecc.der
     openssl x509 -inform PEM -in server-ecc-comp.pem -outform DER -out server-ecc-comp.der
 
+    ############################################################
+    ###### update the ecc-rsa-server.p12 file ##################
+    ############################################################
+    echo "Updating ecc-rsa-server.p12 (password is \"\")"
+    echo ""
+    echo "" | openssl pkcs12 -des3 -descert -export -in server-ecc-rsa.pem -inkey ecc-key.pem -certfile server-ecc.pem -out ecc-rsa-server.p12 -password stdin
+
+    ############################################################
+    ########## store DER files as buffers ######################
+    ############################################################
     echo "Changing directory to wolfssl root..."
     echo ""
     cd ../
     echo "Execute ./gencertbuf.pl..."
     echo ""
     ./gencertbuf.pl
+
     ############################################################
     ########## generate the new crls ###########################
     ############################################################

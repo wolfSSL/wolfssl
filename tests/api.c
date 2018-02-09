@@ -2528,7 +2528,9 @@ static void test_wolfSSL_PKCS12(void)
     !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA)
     byte buffer[5300];
     char file[] = "./certs/test-servercert.p12";
+    char order[] = "./certs/ecc-rsa-server.p12";
     char pass[] = "a password";
+    WOLFSSL_X509_NAME* subject;
     FILE *f;
     int  bytes, ret;
     WOLFSSL_BIO      *bio;
@@ -2536,6 +2538,7 @@ static void test_wolfSSL_PKCS12(void)
     WC_PKCS12        *pkcs12;
     WC_PKCS12        *pkcs12_2;
     WOLFSSL_X509     *cert;
+    WOLFSSL_X509     *x509;
     WOLFSSL_X509     *tmp;
     WOLF_STACK_OF(WOLFSSL_X509) *ca;
 
@@ -2646,6 +2649,54 @@ static void test_wolfSSL_PKCS12(void)
     BIO_free(bio);
     PKCS12_free(pkcs12);
     PKCS12_free(pkcs12_2);
+    sk_X509_free(ca);
+
+
+    /* test order of parsing */
+    f = fopen(order, "rb");
+    AssertNotNull(f);
+    bytes = (int)fread(buffer, 1, sizeof(buffer), f);
+    fclose(f);
+
+    AssertNotNull(bio = BIO_new_mem_buf((void*)buffer, bytes));
+    AssertNotNull(pkcs12 = d2i_PKCS12_bio(bio, NULL));
+    AssertIntEQ((ret = PKCS12_parse(pkcs12, "", &pkey, &cert, &ca)),
+            WOLFSSL_SUCCESS);
+    AssertNotNull(pkey);
+    AssertNotNull(cert);
+    AssertNotNull(ca);
+
+    /* compare subject lines of certificates */
+    AssertNotNull(subject = wolfSSL_X509_get_subject_name(cert));
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(eccRsaCertFile,
+                SSL_FILETYPE_PEM));
+    AssertIntEQ(wolfSSL_X509_NAME_cmp((const WOLFSSL_X509_NAME*)subject,
+            (const WOLFSSL_X509_NAME*)wolfSSL_X509_get_subject_name(x509)), 0);
+    X509_free(x509);
+
+    /* test expected fail case */
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(eccCertFile,
+                SSL_FILETYPE_PEM));
+    AssertIntNE(wolfSSL_X509_NAME_cmp((const WOLFSSL_X509_NAME*)subject,
+            (const WOLFSSL_X509_NAME*)wolfSSL_X509_get_subject_name(x509)), 0);
+    X509_free(x509);
+    X509_free(cert);
+
+    /* get subject line from ca stack */
+    AssertNotNull(cert = sk_X509_pop(ca));
+    AssertNotNull(subject = wolfSSL_X509_get_subject_name(cert));
+
+    /* compare subject from certificate in ca to expected */
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(eccCertFile,
+                SSL_FILETYPE_PEM));
+    AssertIntEQ(wolfSSL_X509_NAME_cmp((const WOLFSSL_X509_NAME*)subject,
+            (const WOLFSSL_X509_NAME*)wolfSSL_X509_get_subject_name(x509)), 0);
+
+    EVP_PKEY_free(pkey);
+    X509_free(x509);
+    X509_free(cert);
+    BIO_free(bio);
+    PKCS12_free(pkcs12);
     sk_X509_free(ca);
 
     printf(resultFmt, passed);
