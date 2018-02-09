@@ -5867,6 +5867,43 @@ int aesgcm_test(void)
         0xdc, 0xf5, 0x66, 0xff, 0x29, 0x1c, 0x25, 0xbb,
         0xb8, 0x56, 0x8f, 0xc3, 0xd3, 0x76, 0xa6, 0xd9
     };
+
+    /* The following is an interesting test case from the example
+     * FIPS test vectors for AES-GCM. IVlen = 1 byte */
+    const byte p3[] =
+    {
+        0x57, 0xce, 0x45, 0x1f, 0xa5, 0xe2, 0x35, 0xa5,
+        0x8e, 0x1a, 0xa2, 0x3b, 0x77, 0xcb, 0xaf, 0xe2
+    };
+
+    const byte k3[] =
+    {
+        0xbb, 0x01, 0xd7, 0x03, 0x81, 0x1c, 0x10, 0x1a,
+        0x35, 0xe0, 0xff, 0xd2, 0x91, 0xba, 0xf2, 0x4b
+    };
+
+    const byte iv3[] =
+    {
+        0xca
+    };
+
+    const byte c3[] =
+    {
+        0x6b, 0x5f, 0xb3, 0x9d, 0xc1, 0xc5, 0x7a, 0x4f,
+        0xf3, 0x51, 0x4d, 0xc2, 0xd5, 0xf0, 0xd0, 0x07
+    };
+
+    const byte a3[] =
+    {
+        0x40, 0xfc, 0xdc, 0xd7, 0x4a, 0xd7, 0x8b, 0xf1,
+        0x3e, 0x7c, 0x60, 0x55, 0x50, 0x51, 0xdd, 0x54
+    };
+
+    const byte t3[] =
+    {
+        0x06, 0x90, 0xed, 0x01, 0x34, 0xdd, 0xc6, 0x95,
+        0x31, 0x2e, 0x2a, 0xf9, 0x57, 0x7a, 0x1e, 0xa6
+    };
 #endif
 
     byte resultT[sizeof(t1)];
@@ -6066,6 +6103,34 @@ int aesgcm_test(void)
         return -4319;
     if (XMEMCMP(p, resultP, sizeof(resultP)))
         return -4320;
+
+    XMEMSET(resultT, 0, sizeof(resultT));
+    XMEMSET(resultC, 0, sizeof(resultC));
+    XMEMSET(resultP, 0, sizeof(resultP));
+
+    wc_AesGcmSetKey(&enc, k3, sizeof(k3));
+    /* AES-GCM encrypt and decrypt both use AES encrypt internally */
+    result = wc_AesGcmEncrypt(&enc, resultC, p3, sizeof(p3), iv3, sizeof(iv3),
+                                        resultT, sizeof(t3), a3, sizeof(a3));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (result != 0)
+        return -8209;
+    if (XMEMCMP(c3, resultC, sizeof(c3)))
+        return -8210;
+    if (XMEMCMP(t3, resultT, sizeof(t3)))
+        return -8211;
+
+    result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(c3),
+                      iv3, sizeof(iv3), resultT, sizeof(t3), a3, sizeof(a3));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (result != 0)
+        return -8212;
+    if (XMEMCMP(p3, resultP, sizeof(p3)))
+        return -8213;
 #endif /* ENABLE_NON_12BYTE_IV_TEST */
 
     wc_AesFree(&enc);
