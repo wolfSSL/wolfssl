@@ -93,10 +93,6 @@ typedef struct PKCS7DecodedAttrib {
 
 
 typedef struct PKCS7 {
-    byte issuerHash[KEYID_SIZE];  /* hash of all alt Names                */
-    byte issuerSn[MAX_SN_SZ];     /* singleCert's serial number           */
-    byte publicKey[MAX_RSA_INT_SZ + MAX_RSA_E_SZ ];/*MAX RSA key size (m + e)*/
-    word32 certSz[MAX_PKCS7_CERTS];
     WC_RNG* rng;
     PKCS7Attrib* signedAttribs;
     byte* content;                /* inner content, not owner             */
@@ -131,6 +127,10 @@ typedef struct PKCS7 {
     int encryptOID;               /* key encryption algorithm OID         */
     int keyWrapOID;               /* key wrap algorithm OID               */
     int keyAgreeOID;              /* key agreement algorithm OID          */
+    byte issuerHash[KEYID_SIZE];  /* hash of all alt Names                */
+    byte issuerSn[MAX_SN_SZ];     /* singleCert's serial number           */
+    byte publicKey[MAX_RSA_INT_SZ + MAX_RSA_E_SZ ];/*MAX RSA key size (m + e)*/
+    word32 certSz[MAX_PKCS7_CERTS];
 } PKCS7;
 
 

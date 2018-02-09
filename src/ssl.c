@@ -29428,31 +29428,37 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                 break;
 
                 /* oidCmsKeyAgreeType */
+        #ifndef NO_SHA
             case dhSinglePass_stdDH_sha1kdf_scheme:
                 sName = "DH-SHA kdf";
                 type = oidCmsKeyAgreeType;
                 break;
-
+        #endif
+        #ifdef WOLFSSL_SHA224
             case dhSinglePass_stdDH_sha224kdf_scheme:
                 sName = "DH-SHA224 kdf";
                 type = oidCmsKeyAgreeType;
                 break;
-
+        #endif
+        #ifndef NO_SHA256
             case dhSinglePass_stdDH_sha256kdf_scheme:
                 sName = "DH-SHA256 kdf";
                 type = oidCmsKeyAgreeType;
                 break;
 
+        #endif
+        #ifdef WOLFSSL_SHA384
             case dhSinglePass_stdDH_sha384kdf_scheme:
                 sName = "DH-SHA384 kdf";
                 type = oidCmsKeyAgreeType;
                 break;
-
+        #endif
+        #ifdef WOLFSSL_SHA512
             case dhSinglePass_stdDH_sha512kdf_scheme:
                 sName = "DH-SHA512 kdf";
                 type = oidCmsKeyAgreeType;
                 break;
-
+        #endif
             default:
                 WOLFSSL_MSG("NID not in table");
                 return NULL;
@@ -29960,16 +29966,26 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             /* oidCmsKeyAgreeType */
             case oidCmsKeyAgreeType:
                 switch (oid) {
+                    #ifndef NO_SHA
                     case dhSinglePass_stdDH_sha1kdf_scheme:
                         return dhSinglePass_stdDH_sha1kdf_scheme;
+                    #endif
+                    #ifdef WOLFSSL_SHA224
                     case dhSinglePass_stdDH_sha224kdf_scheme:
                         return dhSinglePass_stdDH_sha224kdf_scheme;
+                    #endif
+                    #ifndef NO_SHA256
                     case dhSinglePass_stdDH_sha256kdf_scheme:
                         return dhSinglePass_stdDH_sha256kdf_scheme;
+                    #endif
+                    #ifdef WOLFSSL_SHA384
                     case dhSinglePass_stdDH_sha384kdf_scheme:
                         return dhSinglePass_stdDH_sha384kdf_scheme;
+                    #endif
+                    #ifdef WOLFSSL_SHA512
                     case dhSinglePass_stdDH_sha512kdf_scheme:
                         return dhSinglePass_stdDH_sha512kdf_scheme;
+                    #endif
                 }
                 break;
 
