@@ -958,8 +958,10 @@ enum Misc {
     TLS_DRAFT_MAJOR = 0x7f,     /* Draft TLS major version number */
 #ifdef WOLFSSL_TLS13_DRAFT_18
     TLS_DRAFT_MINOR = 0x12,     /* Minor version number of TLS draft */
-#else
+#elif defined(WOLFSSL_TLS13_DRAFT_22)
     TLS_DRAFT_MINOR = 0x16,     /* Minor version number of TLS draft */
+#else
+    TLS_DRAFT_MINOR = 0x17,     /* Minor version number of TLS draft */
 #endif
     OLD_HELLO_ID    = 0x01,     /* SSLv2 Client Hello Indicator */
     INVALID_BYTE    = 0xff,     /* Used to initialize cipher specs values */
@@ -1841,7 +1843,6 @@ typedef enum {
     TLSX_QUANTUM_SAFE_HYBRID        = 0x0018, /* a.k.a. QSH  */
     TLSX_SESSION_TICKET             = 0x0023,
 #ifdef WOLFSSL_TLS13
-    TLSX_KEY_SHARE                  = 0x0028,
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     TLSX_PRE_SHARED_KEY             = 0x0029,
     #endif
@@ -1855,6 +1856,12 @@ typedef enum {
     #endif
     #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
     TLSX_POST_HANDSHAKE_AUTH        = 0x0031,
+    #endif
+    #if defined(WOLFSSL_TLS13_DRAFT_18) || defined(WOLFSSL_TLS13_DRAFT_22)
+    TLSX_KEY_SHARE                  = 0x0028,
+    #else
+    TLSX_SIGNATURE_ALGORITHMS_CERT  = 0x0032,
+    TLSX_KEY_SHARE                  = 0x0033,
     #endif
 #endif
     TLSX_RENEGOTIATION_INFO         = 0xff01
@@ -3374,6 +3381,13 @@ struct WOLFSSL {
     word16          namedGroup;
 #endif
     byte            pssAlgo;
+#ifdef WOLFSSL_TLS13
+    #if !defined(WOLFSSL_TLS13_DRAFT_18) && !defined(WOLFSSL_TLS13_DRAFT_22)
+    word16          certHashSigAlgoSz;  /* SigAlgoCert ext length in bytes */
+    byte            certHashSigAlgo[WOLFSSL_MAX_SIGALGO]; /* cert sig/algo to
+                                                           * offer */
+    #endif /* !WOLFSSL_TLS13_DRAFT_18 && !WOLFSSL_TLS13_DRAFT_22 */
+#endif
 #ifdef HAVE_NTRU
     word16          peerNtruKeyLen;
     byte            peerNtruKey[MAX_NTRU_PUB_KEY_SZ];

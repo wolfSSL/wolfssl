@@ -293,6 +293,18 @@ then
 fi
 
 
+# TLS v1.3 Draft 22
+AC_ARG_ENABLE([tls13-draft22],
+    [AS_HELP_STRING([--enable-tls13-draft22],[Enable wolfSSL TLS v1.3 Draft 22 (default: disabled)])],
+    [ ENABLED_TLS13_DRAFT22=$enableval ],
+    [ ENABLED_TLS13_DRAFT22=no ]
+    )
+if test "$ENABLED_TLS13_DRAFT22" = "yes"
+then
+  AM_CFLAGS="-DWOLFSSL_TLS13_DRAFT_22 $AM_CFLAGS"
+fi
+
+
 # TLS v1.3
 AC_ARG_ENABLE([tls13],
     [AS_HELP_STRING([--enable-tls13],[Enable wolfSSL TLS v1.3 (default: disabled)])],
@@ -300,7 +312,7 @@ AC_ARG_ENABLE([tls13],
     [ ENABLED_TLS13=no ]
     )
 
-if test "$ENABLED_TLS13_DRAFT18" = "yes"
+if test "$ENABLED_TLS13_DRAFT18" = "yes" || test "$ENABLED_TLS13_DRAFT22" = "yes"
 then
     ENABLED_TLS13="yes"
 fi
