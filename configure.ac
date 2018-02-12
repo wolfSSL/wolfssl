@@ -2048,6 +2048,9 @@ then
            AS_IF([test "x$ENABLED_CMAC" != "xyes"],
                  [ENABLED_CMAC="yes"
                   AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CMAC"])
+           AS_IF([test "x$ENABLED_HKDF" != "xyes"],
+                 [ENABLED_HKDF="yes"
+                  AM_CFLAGS="$AM_CFLAGS -DHAVE_HKDF"])
           ])
 else
     if test "x$ENABLED_FORTRESS" = "xyes"
