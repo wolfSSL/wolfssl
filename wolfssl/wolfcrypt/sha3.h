@@ -61,6 +61,15 @@ enum {
     SHA3_512_COUNT        =  9
 };
 
+#define WC_SHA3_224             SHA3_224
+#define WC_SHA3_224_DIGEST_SIZE SHA3_224_DIGEST_SIZE
+#define WC_SHA3_256             SHA3_256
+#define WC_SHA3_256_DIGEST_SIZE SHA3_256_DIGEST_SIZE
+#define WC_SHA3_384             SHA3_384
+#define WC_SHA3_384_DIGEST_SIZE SHA3_384_DIGEST_SIZE
+#define WC_SHA3_512             SHA3_512
+#define WC_SHA3_512_DIGEST_SIZE SHA3_512_DIGEST_SIZE
+
 
 #ifdef WOLFSSL_XILINX_CRYPT
     #include "wolfssl/wolfcrypt/port/xilinx/xil-sha3.h"

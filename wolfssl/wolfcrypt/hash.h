@@ -40,6 +40,9 @@
 #ifdef HAVE_BLAKE2
     #include <wolfssl/wolfcrypt/blake2.h>
 #endif
+#ifdef WOLFSSL_SHA3
+    #include <wolfssl/wolfcrypt/sha3.h>
+#endif
 
 #ifdef __cplusplus
     extern "C" {
@@ -87,7 +90,9 @@ typedef union {
 
 /* Find largest possible digest size
    Note if this gets up to the size of 80 or over check smallstack build */
-#if defined(WOLFSSL_SHA512)
+#if defined(WOLFSSL_SHA3)
+    #define WC_MAX_DIGEST_SIZE WC_SHA3_512_DIGEST_SIZE
+#elif defined(WOLFSSL_SHA512)
     #define WC_MAX_DIGEST_SIZE WC_SHA512_DIGEST_SIZE
 #elif defined(HAVE_BLAKE2)
     #define WC_MAX_DIGEST_SIZE BLAKE2B_OUTBYTES
