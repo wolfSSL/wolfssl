@@ -25,6 +25,10 @@
  * https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305-10
  */
 
+/*!
+    \file wolfssl/wolfcrypt/chacha20_poly1305.h
+*/
+
 #ifndef WOLF_CRYPT_CHACHA20_POLY1305_H
 #define WOLF_CRYPT_CHACHA20_POLY1305_H
 

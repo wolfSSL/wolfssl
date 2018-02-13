@@ -21,8 +21,9 @@
 
 
 
-/*  evp.h defines mini evp openssl compatibility layer
- *
+/*!
+    \file wolfssl/openssl/evp.h
+    \brief evp.h defines mini evp openssl compatibility layer
  */
 
 
