@@ -1232,11 +1232,21 @@ extern void uITRON4_free(void *p) ;
 
 #ifdef WOLFSSL_SGX
     #ifdef _MSC_VER
-        #define WOLFCRYPT_ONLY
         #define NO_RC4
-        #define NO_DES3
-        #define NO_SHA
-        #define NO_MD5
+        #ifndef HAVE_FIPS
+            #define WOLFCRYPT_ONLY
+            #define NO_DES3
+            #define NO_SHA
+            #define NO_MD5
+        #else
+            #define TFM_TIMING_RESISTANT
+            #define NO_WOLFSSL_DIR
+            #define NO_FILESYSTEM
+            #define NO_WRITEV
+            #define NO_MAIN_DRIVER
+            #define WOLFSSL_LOG_PRINTF
+            #define WOLFSSL_DH_CONST
+        #endif
     #else
         #define HAVE_ECC
         #define ECC_TIMING_RESISTANT
