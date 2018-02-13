@@ -3591,7 +3591,7 @@ void FreeDecodedCert(DecodedCert* cert)
     XFREE(cert->hwType, cert->heap, DYNAMIC_TYPE_X509_EXT);
     XFREE(cert->hwSerialNum, cert->heap, DYNAMIC_TYPE_X509_EXT);
 #endif /* WOLFSSL_SEP */
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     if (cert->issuerName.fullName != NULL)
         XFREE(cert->issuerName.fullName, cert->heap, DYNAMIC_TYPE_X509);
     if (cert->subjectName.fullName != NULL)
@@ -3829,7 +3829,7 @@ static int GetName(DecodedCert* cert, int nameType)
     char*  full;
     byte*  hash;
     word32 idx;
-    #ifdef OPENSSL_EXTRA
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         DecodedName* dName =
                   (nameType == ISSUER) ? &cert->issuerName : &cert->subjectName;
         int dcnum = 0;
@@ -3941,7 +3941,7 @@ static int GetName(DecodedCert* cert, int nameType)
                     idx += 4;
                     copy = TRUE;
                 }
-                #ifdef OPENSSL_EXTRA
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     dName->cnIdx = cert->srcIdx;
                     dName->cnLen = strLen;
                 #endif /* OPENSSL_EXTRA */
@@ -3959,7 +3959,7 @@ static int GetName(DecodedCert* cert, int nameType)
                         cert->subjectSNEnc = b;
                     }
                 #endif /* WOLFSSL_CERT_GEN */
-                #ifdef OPENSSL_EXTRA
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     dName->snIdx = cert->srcIdx;
                     dName->snLen = strLen;
                 #endif /* OPENSSL_EXTRA */
@@ -3977,7 +3977,7 @@ static int GetName(DecodedCert* cert, int nameType)
                         cert->subjectCEnc = b;
                     }
                 #endif /* WOLFSSL_CERT_GEN */
-                #ifdef OPENSSL_EXTRA
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     dName->cIdx = cert->srcIdx;
                     dName->cLen = strLen;
                 #endif /* OPENSSL_EXTRA */
@@ -3995,7 +3995,7 @@ static int GetName(DecodedCert* cert, int nameType)
                         cert->subjectLEnc = b;
                     }
                 #endif /* WOLFSSL_CERT_GEN */
-                #ifdef OPENSSL_EXTRA
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     dName->lIdx = cert->srcIdx;
                     dName->lLen = strLen;
                 #endif /* OPENSSL_EXTRA */
@@ -4013,7 +4013,7 @@ static int GetName(DecodedCert* cert, int nameType)
                         cert->subjectSTEnc = b;
                     }
                 #endif /* WOLFSSL_CERT_GEN */
-                #ifdef OPENSSL_EXTRA
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     dName->stIdx = cert->srcIdx;
                     dName->stLen = strLen;
                 #endif /* OPENSSL_EXTRA */
@@ -4031,7 +4031,7 @@ static int GetName(DecodedCert* cert, int nameType)
                         cert->subjectOEnc = b;
                     }
                 #endif /* WOLFSSL_CERT_GEN */
-                #ifdef OPENSSL_EXTRA
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     dName->oIdx = cert->srcIdx;
                     dName->oLen = strLen;
                 #endif /* OPENSSL_EXTRA */
@@ -4049,7 +4049,7 @@ static int GetName(DecodedCert* cert, int nameType)
                         cert->subjectOUEnc = b;
                     }
                 #endif /* WOLFSSL_CERT_GEN */
-                #ifdef OPENSSL_EXTRA
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     dName->ouIdx = cert->srcIdx;
                     dName->ouLen = strLen;
                 #endif /* OPENSSL_EXTRA */
@@ -4060,7 +4060,7 @@ static int GetName(DecodedCert* cert, int nameType)
                    idx += 14;
                    copy = TRUE;
                 }
-                #ifdef OPENSSL_EXTRA
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     dName->snIdx = cert->srcIdx;
                     dName->snLen = strLen;
                 #endif /* OPENSSL_EXTRA */
@@ -4114,7 +4114,7 @@ static int GetName(DecodedCert* cert, int nameType)
                         cert->subjectEmailLen = adv;
                     }
                 #endif /* WOLFSSL_CERT_GEN */
-                #ifdef OPENSSL_EXTRA
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     dName->emailIdx = cert->srcIdx;
                     dName->emailLen = adv;
                 #endif /* OPENSSL_EXTRA */
@@ -4160,7 +4160,8 @@ static int GetName(DecodedCert* cert, int nameType)
                         case ASN_USER_ID:
                             XMEMCPY(&full[idx], "/UID=", 5);
                             idx += 5;
-                        #ifdef OPENSSL_EXTRA
+                        #if defined(OPENSSL_EXTRA) || \
+                            defined(OPENSSL_EXTRA_X509_SMALL)
                             dName->uidIdx = cert->srcIdx;
                             dName->uidLen = adv;
                         #endif /* OPENSSL_EXTRA */
@@ -4169,7 +4170,8 @@ static int GetName(DecodedCert* cert, int nameType)
                         case ASN_DOMAIN_COMPONENT:
                             XMEMCPY(&full[idx], "/DC=", 4);
                             idx += 4;
-                        #ifdef OPENSSL_EXTRA
+                        #if defined(OPENSSL_EXTRA) || \
+                            defined(OPENSSL_EXTRA_X509_SMALL)
                             dName->dcIdx[dcnum] = cert->srcIdx;
                             dName->dcLen[dcnum] = adv;
                             dName->dcNum = dcnum + 1;
@@ -4191,7 +4193,7 @@ static int GetName(DecodedCert* cert, int nameType)
     }
     full[idx++] = 0;
 
-    #ifdef OPENSSL_EXTRA
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     {
         int totalLen = 0;
         int i = 0;
@@ -5925,7 +5927,7 @@ static int DecodeAuthKeyId(byte* input, int sz, DecodedCert* cert)
         return ASN_PARSE_E;
     }
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     cert->extAuthKeyIdSrc = &input[idx];
     cert->extAuthKeyIdSz = length;
 #endif /* OPENSSL_EXTRA */
@@ -5959,7 +5961,7 @@ static int DecodeSubjKeyId(byte* input, int sz, DecodedCert* cert)
     if (ret < 0)
         return ret;
 
-    #ifdef OPENSSL_EXTRA
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         cert->extSubjKeyIdSrc = &input[idx];
         cert->extSubjKeyIdSz = length;
     #endif /* OPENSSL_EXTRA */
@@ -6010,7 +6012,7 @@ static int DecodeExtKeyUsage(byte* input, int sz, DecodedCert* cert)
         return ASN_PARSE_E;
     }
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     cert->extExtKeyUsageSrc = input + idx;
     cert->extExtKeyUsageSz = length;
 #endif
@@ -6043,7 +6045,7 @@ static int DecodeExtKeyUsage(byte* input, int sz, DecodedCert* cert)
                 break;
         }
 
-    #ifdef OPENSSL_EXTRA
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         cert->extExtKeyUsageCount++;
     #endif
     }
@@ -6427,7 +6429,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
         switch (oid) {
             case BASIC_CA_OID:
                 VERIFY_AND_SET_OID(cert->extBasicConstSet);
-                #ifdef OPENSSL_EXTRA
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     cert->extBasicConstCrit = critical;
                 #endif
                 if (DecodeBasicCaConstraint(&input[idx], length, cert) < 0)
@@ -6436,7 +6438,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
 
             case CRL_DIST_OID:
                 VERIFY_AND_SET_OID(cert->extCRLdistSet);
-                #ifdef OPENSSL_EXTRA
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     cert->extCRLdistCrit = critical;
                 #endif
                 if (DecodeCrlDist(&input[idx], length, cert) < 0)
@@ -6445,7 +6447,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
 
             case AUTH_INFO_OID:
                 VERIFY_AND_SET_OID(cert->extAuthInfoSet);
-                #ifdef OPENSSL_EXTRA
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     cert->extAuthInfoCrit = critical;
                 #endif
                 if (DecodeAuthInfo(&input[idx], length, cert) < 0)
@@ -6454,7 +6456,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
 
             case ALT_NAMES_OID:
                 VERIFY_AND_SET_OID(cert->extSubjAltNameSet);
-                #ifdef OPENSSL_EXTRA
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     cert->extSubjAltNameCrit = critical;
                 #endif
                 ret = DecodeAltNames(&input[idx], length, cert);
@@ -6464,7 +6466,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
 
             case AUTH_KEY_OID:
                 VERIFY_AND_SET_OID(cert->extAuthKeyIdSet);
-                #ifdef OPENSSL_EXTRA
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     cert->extAuthKeyIdCrit = critical;
                 #endif
                 if (DecodeAuthKeyId(&input[idx], length, cert) < 0)
@@ -6473,7 +6475,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
 
             case SUBJ_KEY_OID:
                 VERIFY_AND_SET_OID(cert->extSubjKeyIdSet);
-                #ifdef OPENSSL_EXTRA
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     cert->extSubjKeyIdCrit = critical;
                 #endif
                 #ifndef WOLFSSL_ALLOW_CRIT_SKID
@@ -6495,7 +6497,8 @@ static int DecodeCertExtensions(DecodedCert* cert)
             case CERT_POLICY_OID:
                 #ifdef WOLFSSL_SEP
                     VERIFY_AND_SET_OID(cert->extCertPolicySet);
-                    #ifdef OPENSSL_EXTRA
+                    #if defined(OPENSSL_EXTRA) || \
+                        defined(OPENSSL_EXTRA_X509_SMALL)
                         cert->extCertPolicyCrit = critical;
                     #endif
                 #endif
@@ -6510,7 +6513,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
 
             case KEY_USAGE_OID:
                 VERIFY_AND_SET_OID(cert->extKeyUsageSet);
-                #ifdef OPENSSL_EXTRA
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     cert->extKeyUsageCrit = critical;
                 #endif
                 if (DecodeKeyUsage(&input[idx], length, cert) < 0)
@@ -6519,7 +6522,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
 
             case EXT_KEY_USAGE_OID:
                 VERIFY_AND_SET_OID(cert->extExtKeyUsageSet);
-                #ifdef OPENSSL_EXTRA
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     cert->extExtKeyUsageCrit = critical;
                 #endif
                 if (DecodeExtKeyUsage(&input[idx], length, cert) < 0)
@@ -6538,7 +6541,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 }
             #endif
                 VERIFY_AND_SET_OID(cert->extNameConstraintSet);
-                #ifdef OPENSSL_EXTRA
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     cert->extNameConstraintCrit = critical;
                 #endif
                 if (DecodeNameConstraints(&input[idx], length, cert) < 0)

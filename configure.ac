@@ -511,9 +511,14 @@ fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "$ENABLED_SMALL" = "yes"
 then
-    AC_MSG_ERROR([cannot enable small and opensslextra, only one or the other.])
+   AC_MSG_ERROR([cannot enable small and opensslextra, only one or the other.])
 fi
 
+if test "$ENABLED_OPENSSLEXTRA" = "x509small"
+then
+  AC_MSG_NOTICE([Enabling only a subset of X509 opensslextra])
+  AM_CFLAGS="-DOPENSSL_EXTRA_X509_SMALL"
+fi
 
 # High Strength Build
 AC_ARG_ENABLE([maxstrength],

@@ -1630,6 +1630,16 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
+/* switch for compatibility layer functionality. Has subparts i.e. BIO/X509
+ * When opensslextra is enabled all subparts should be turned on. */
+#ifdef OPENSSL_EXTRA
+    #undef  OPENSSL_EXTRA_X509_SMALL
+    #define OPENSSL_EXTRA_X509_SMALL
+
+    #undef  OPENSSL_EXTRA_PKEY
+    #define OPENSSL_EXTRA_PKEY
+#endif /* OPENSSL_EXTRA */
+    
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif

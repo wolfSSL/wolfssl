@@ -3047,7 +3047,8 @@ struct WOLFSSL_X509_NAME {
     int   dynamicName;
     int   sz;
     char  staticName[ASN_NAME_MAX];
-#if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    !defined(NO_ASN)
     DecodedName fullName;
     WOLFSSL_X509_NAME_ENTRY cnEntry;
     WOLFSSL_X509_NAME_ENTRY extra[MAX_NAME_ENTRIES]; /* extra entries added */
@@ -3077,7 +3078,7 @@ struct WOLFSSL_X509 {
     byte             hwType[EXTERNAL_SERIAL_SIZE];
     int              hwSerialNumSz;
     byte             hwSerialNum[EXTERNAL_SERIAL_SIZE];
-    #ifdef OPENSSL_EXTRA
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
         byte             certPolicySet;
         byte             certPolicyCrit;
     #endif /* OPENSSL_EXTRA */
@@ -3105,7 +3106,7 @@ struct WOLFSSL_X509 {
     char             certPolicies[MAX_CERTPOL_NB][MAX_CERTPOL_SZ];
     int              certPoliciesNb;
 #endif /* WOLFSSL_CERT_EXT */
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 #ifdef HAVE_EX_DATA
     void*            ex_data[MAX_EX_DATA];
 #endif
@@ -3140,7 +3141,7 @@ struct WOLFSSL_X509 {
     byte             subjAltNameCrit:1;
     byte             authKeyIdSet:1;
     byte             authKeyIdCrit:1;
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
     byte             serial[EXTERNAL_SERIAL_SIZE];
     char             subjectCN[ASN_NAME_MAX];        /* common name short cut */
 #ifdef WOLFSSL_CERT_REQ

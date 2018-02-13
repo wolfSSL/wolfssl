@@ -571,7 +571,7 @@ struct DecodedCert {
     word16  extKeyUsage;             /* Key usage bitfield               */
     byte    extExtKeyUsage;          /* Extended Key usage bitfield      */
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     byte*   extExtKeyUsageSrc;
     word32  extExtKeyUsageSz;
     word32  extExtKeyUsageCount;
@@ -619,7 +619,7 @@ struct DecodedCert {
     char*   subjectEmail;
     int     subjectEmailLen;
 #endif /* WOLFSSL_CERT_GEN */
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     DecodedName issuerName;
     DecodedName subjectName;
 #endif /* OPENSSL_EXTRA */
@@ -659,7 +659,7 @@ struct DecodedCert {
 #ifdef WOLFSSL_SEP
     byte extCertPolicySet : 1;
 #endif
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     byte extCRLdistCrit : 1;
     byte extAuthInfoCrit : 1;
     byte extBasicConstCrit : 1;
@@ -758,7 +758,8 @@ struct TrustedPeerCert {
 
 
 /* for testing or custom openssl wrappers */
-#if defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA)
+#if defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA_X509_SMALL)
     #define WOLFSSL_ASN_API WOLFSSL_API
 #else
     #define WOLFSSL_ASN_API WOLFSSL_LOCAL

@@ -84,7 +84,7 @@
         #define NO_OLD_WC_NAMES
     #endif
 
-#elif defined(OPENSSL_EXTRA)
+#elif (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
     #include <wolfssl/openssl/bn.h>
     #include <wolfssl/openssl/hmac.h>
 
@@ -223,7 +223,7 @@ struct WOLFSSL_EVP_PKEY {
     union {
         char* ptr; /* der format of key / or raw for NTRU */
     } pkey;
-    #ifdef OPENSSL_EXTRA
+    #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
     #ifndef NO_RSA
         WOLFSSL_RSA* rsa;
         byte      ownRsa; /* if struct owns RSA and should free it */
@@ -233,7 +233,7 @@ struct WOLFSSL_EVP_PKEY {
         byte      ownEcc; /* if struct owns ECC and should free it */
     #endif
     WC_RNG rng;
-    #endif
+    #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
     #ifdef HAVE_ECC
         int pkey_curve;
     #endif
@@ -2416,6 +2416,21 @@ WOLFSSL_API int wolfSSL_accept_ex(WOLFSSL*, HandShakeCallBack, TimeoutCallBack,
     WOLFSSL_API void wolfSSL_cert_service(void);
 #endif
 
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+/* Smaller subset of X509 compatibility functions. Avoid increasing the size of
+ * this subset and its memory usage */
+
+#include <wolfssl/openssl/asn1.h>
+struct WOLFSSL_X509_NAME_ENTRY {
+    WOLFSSL_ASN1_OBJECT* object; /* not defined yet */
+    WOLFSSL_ASN1_STRING  data;
+    WOLFSSL_ASN1_STRING* value;  /* points to data, for lighttpd port */
+    int nid; /* i.e. ASN_COMMON_NAME */
+    int set;
+    int size;
+};
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
 #ifdef OPENSSL_EXTRA
 
 enum {
@@ -2521,16 +2536,6 @@ struct WOLFSSL_ASN1_BIT_STRING {
     long flags;
 };
 
-
-#include <wolfssl/openssl/asn1.h>
-struct WOLFSSL_X509_NAME_ENTRY {
-    WOLFSSL_ASN1_OBJECT* object; /* not defined yet */
-    WOLFSSL_ASN1_STRING  data;
-    WOLFSSL_ASN1_STRING* value;  /* points to data, for lighttpd port */
-    int nid; /* i.e. ASN_COMMON_NAME */
-    int set;
-    int size;
-};
 
 #if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) \
                          || defined(HAVE_STUNNEL) \
