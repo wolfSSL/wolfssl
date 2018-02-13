@@ -2651,7 +2651,7 @@ static void test_wolfSSL_PKCS12(void)
     PKCS12_free(pkcs12_2);
     sk_X509_free(ca);
 
-
+#ifdef HAVE_ECC
     /* test order of parsing */
     f = fopen(order, "rb");
     AssertNotNull(f);
@@ -2698,6 +2698,7 @@ static void test_wolfSSL_PKCS12(void)
     BIO_free(bio);
     PKCS12_free(pkcs12);
     sk_X509_free(ca);
+#endif /* HAVE_ECC */
 
     printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA */
