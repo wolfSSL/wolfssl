@@ -7964,12 +7964,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         #endif
 
             /* allocate buffer for certs */
-            args->certs = (buffer*)XMALLOC(sizeof(buffer) * MAX_CHAIN_DEPTH,
+            args->certs = (buffer*)XMALLOC(sizeof(buffer) * ssl->verifyDepth,
                                             ssl->heap, DYNAMIC_TYPE_DER);
             if (args->certs == NULL) {
                 ERROR_OUT(MEMORY_E, exit_ppc);
             }
-            XMEMSET(args->certs, 0, sizeof(buffer) * MAX_CHAIN_DEPTH);
+            XMEMSET(args->certs, 0, sizeof(buffer) * ssl->verifyDepth);
 
             /* Certificate List */
             if ((args->idx - args->begin) + OPAQUE24_LEN > totalSz) {
@@ -7990,16 +7990,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             while (listSz) {
                 word32 certSz;
 
-            #ifdef OPENSSL_EXTRA
-                if (args->totalCerts > ssl->verifyDepth) {
-                    ssl->peerVerifyRet = X509_V_ERR_CERT_CHAIN_TOO_LONG;
-                    ERROR_OUT(MAX_CHAIN_ERROR, exit_ppc);
-                }
-            #else
                 if (args->totalCerts >= ssl->verifyDepth) {
+            #ifdef OPENSSL_EXTRA
+                    ssl->peerVerifyRet = X509_V_ERR_CERT_CHAIN_TOO_LONG;
+            #endif
                     ERROR_OUT(MAX_CHAIN_ERROR, exit_ppc);
                 }
-            #endif
 
                 if ((args->idx - args->begin) + OPAQUE24_LEN > totalSz) {
                     ERROR_OUT(BUFFER_ERROR, exit_ppc);
