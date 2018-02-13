@@ -952,12 +952,22 @@ static const byte wrapAes192Oid[] = {96, 134, 72, 1, 101, 3, 4, 1, 25};
 static const byte wrapAes256Oid[] = {96, 134, 72, 1, 101, 3, 4, 1, 45};
 
 /* cmsKeyAgreeType */
-static const byte dhSinglePass_stdDH_sha1kdf_Oid[]   =
+#ifndef NO_SHA
+    static const byte dhSinglePass_stdDH_sha1kdf_Oid[]   =
                                           {43, 129, 5, 16, 134, 72, 63, 0, 2};
-static const byte dhSinglePass_stdDH_sha224kdf_Oid[] = {43, 129, 4, 1, 11, 0};
-static const byte dhSinglePass_stdDH_sha256kdf_Oid[] = {43, 129, 4, 1, 11, 1};
-static const byte dhSinglePass_stdDH_sha384kdf_Oid[] = {43, 129, 4, 1, 11, 2};
-static const byte dhSinglePass_stdDH_sha512kdf_Oid[] = {43, 129, 4, 1, 11, 3};
+#endif
+#ifdef WOLFSSL_SHA224
+    static const byte dhSinglePass_stdDH_sha224kdf_Oid[] = {43, 129, 4, 1, 11, 0};
+#endif
+#ifndef NO_SHA256
+    static const byte dhSinglePass_stdDH_sha256kdf_Oid[] = {43, 129, 4, 1, 11, 1};
+#endif
+#ifdef WOLFSSL_SHA384
+    static const byte dhSinglePass_stdDH_sha384kdf_Oid[] = {43, 129, 4, 1, 11, 2};
+#endif
+#ifdef WOLFSSL_SHA512
+    static const byte dhSinglePass_stdDH_sha512kdf_Oid[] = {43, 129, 4, 1, 11, 3};
+#endif
 
 /* ocspType */
 #ifdef HAVE_OCSP
@@ -1408,43 +1418,59 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
 
         case oidKeyWrapType:
             switch (id) {
+            #ifdef WOLFSSL_AES_128
                 case AES128_WRAP:
                     oid = wrapAes128Oid;
                     *oidSz = sizeof(wrapAes128Oid);
                     break;
+            #endif
+            #ifdef WOLFSSL_AES_192
                 case AES192_WRAP:
                     oid = wrapAes192Oid;
                     *oidSz = sizeof(wrapAes192Oid);
                     break;
+            #endif
+            #ifdef WOLFSSL_AES_256
                 case AES256_WRAP:
                     oid = wrapAes256Oid;
                     *oidSz = sizeof(wrapAes256Oid);
                     break;
+            #endif
             }
             break;
 
         case oidCmsKeyAgreeType:
             switch (id) {
+            #ifndef NO_SHA
                 case dhSinglePass_stdDH_sha1kdf_scheme:
                     oid = dhSinglePass_stdDH_sha1kdf_Oid;
                     *oidSz = sizeof(dhSinglePass_stdDH_sha1kdf_Oid);
                     break;
+            #endif
+            #ifdef WOLFSSL_SHA224
                 case dhSinglePass_stdDH_sha224kdf_scheme:
                     oid = dhSinglePass_stdDH_sha224kdf_Oid;
                     *oidSz = sizeof(dhSinglePass_stdDH_sha224kdf_Oid);
                     break;
+            #endif
+            #ifndef NO_SHA256
                 case dhSinglePass_stdDH_sha256kdf_scheme:
                     oid = dhSinglePass_stdDH_sha256kdf_Oid;
                     *oidSz = sizeof(dhSinglePass_stdDH_sha256kdf_Oid);
                     break;
+            #endif
+            #ifdef WOLFSSL_SHA384
                 case dhSinglePass_stdDH_sha384kdf_scheme:
                     oid = dhSinglePass_stdDH_sha384kdf_Oid;
                     *oidSz = sizeof(dhSinglePass_stdDH_sha384kdf_Oid);
                     break;
+            #endif
+            #ifdef WOLFSSL_SHA512
                 case dhSinglePass_stdDH_sha512kdf_scheme:
                     oid = dhSinglePass_stdDH_sha512kdf_Oid;
                     *oidSz = sizeof(dhSinglePass_stdDH_sha512kdf_Oid);
                     break;
+            #endif
             }
             break;
 
