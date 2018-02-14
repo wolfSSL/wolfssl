@@ -77,8 +77,8 @@ enum Pkcs7_Misc {
 
 typedef struct PKCS7Attrib {
     byte* oid;
-    byte* value;
     word32 oidSz;
+    byte* value;
     word32 valueSz;
 } PKCS7Attrib;
 
@@ -86,8 +86,8 @@ typedef struct PKCS7Attrib {
 typedef struct PKCS7DecodedAttrib {
     struct PKCS7DecodedAttrib* next;
     byte* oid;
-    byte* value;
     word32 oidSz;
+    byte* value;
     word32 valueSz;
 } PKCS7DecodedAttrib;
 

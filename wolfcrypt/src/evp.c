@@ -493,28 +493,46 @@ static unsigned int cipherType(const WOLFSSL_EVP_CIPHER *cipher)
   #endif
 
   #if !defined(NO_AES) && defined(HAVE_AES_CBC)
+      #ifdef WOLFSSL_AES_128
       else if (XSTRNCMP(cipher, EVP_AES_128_CBC, EVP_AES_SIZE) == 0)
           return AES_128_CBC_TYPE;
+      #endif
+      #ifdef WOLFSSL_AES_192
       else if (XSTRNCMP(cipher, EVP_AES_192_CBC, EVP_AES_SIZE) == 0)
           return AES_192_CBC_TYPE;
+      #endif
+      #ifdef WOLFSSL_AES_256
       else if (XSTRNCMP(cipher, EVP_AES_256_CBC, EVP_AES_SIZE) == 0)
           return AES_256_CBC_TYPE;
+      #endif
   #endif /* !NO_AES && HAVE_AES_CBC */
   #if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER)
+      #ifdef WOLFSSL_AES_128
       else if (XSTRNCMP(cipher, EVP_AES_128_CTR, EVP_AES_SIZE) == 0)
           return AES_128_CTR_TYPE;
+      #endif
+      #ifdef WOLFSSL_AES_192
       else if (XSTRNCMP(cipher, EVP_AES_192_CTR, EVP_AES_SIZE) == 0)
           return AES_192_CTR_TYPE;
+      #endif
+      #ifdef WOLFSSL_AES_256
       else if (XSTRNCMP(cipher, EVP_AES_256_CTR, EVP_AES_SIZE) == 0)
           return AES_256_CTR_TYPE;
+      #endif
   #endif /* !NO_AES && HAVE_AES_CBC */
   #if !defined(NO_AES) && defined(HAVE_AES_ECB)
+      #ifdef WOLFSSL_AES_128
       else if (XSTRNCMP(cipher, EVP_AES_128_ECB, EVP_AES_SIZE) == 0)
           return AES_128_ECB_TYPE;
+      #endif
+      #ifdef WOLFSSL_AES_192
       else if (XSTRNCMP(cipher, EVP_AES_192_ECB, EVP_AES_SIZE) == 0)
           return AES_192_ECB_TYPE;
+      #endif
+      #ifdef WOLFSSL_AES_256
       else if (XSTRNCMP(cipher, EVP_AES_256_ECB, EVP_AES_SIZE) == 0)
           return AES_256_ECB_TYPE;
+      #endif
   #endif /* !NO_AES && HAVE_AES_CBC */
       else return 0;
 }

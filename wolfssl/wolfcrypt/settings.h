@@ -1412,6 +1412,9 @@ extern void uITRON4_free(void *p) ;
         #undef  WOLFSSL_AES_256
         #define WOLFSSL_AES_256
     #endif
+    #if !defined(WOLFSSL_AES_128) && defined(HAVE_ECC_ENCRYPT)
+        #warning HAVE_ECC_ENCRYPT uses AES 128 bit keys
+     #endif
 
     #ifndef NO_AES_DECRYPT
         #undef  HAVE_AES_DECRYPT
@@ -1635,9 +1638,6 @@ extern void uITRON4_free(void *p) ;
 #ifdef OPENSSL_EXTRA
     #undef  OPENSSL_EXTRA_X509_SMALL
     #define OPENSSL_EXTRA_X509_SMALL
-
-    #undef  OPENSSL_EXTRA_PKEY
-    #define OPENSSL_EXTRA_PKEY
 #endif /* OPENSSL_EXTRA */
     
 #ifdef __cplusplus

@@ -3349,6 +3349,7 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
             return wolfSSL_EVP_aes_256_cbc();
         #endif
     #endif
+    #ifdef WOLFSSL_AES_COUNTER
         #ifdef WOLFSSL_AES_128
         case NID_aes_128_ctr:
             return wolfSSL_EVP_aes_128_ctr();
@@ -3361,6 +3362,8 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
         case NID_aes_256_ctr:
             return wolfSSL_EVP_aes_256_ctr();
         #endif
+    #endif /* WOLFSSL_AES_COUNTER */
+    #ifdef HAVE_AES_ECB
         #ifdef WOLFSSL_AES_128
         case NID_aes_128_ecb:
             return wolfSSL_EVP_aes_128_ecb();
@@ -3373,6 +3376,7 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
         case NID_aes_256_ecb:
             return wolfSSL_EVP_aes_256_ecb();
         #endif
+    #endif /* HAVE_AES_ECB */
 #endif
 
 #ifndef NO_DES3
@@ -4521,15 +4525,23 @@ static int wolfssl_decrypt_buffer_key(DerBuffer* der, byte* password,
                                         key, info->iv);
 #endif /* NO_DES3 */
 #if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT)
+    #ifdef WOLFSSL_AES_128
     if (XSTRNCMP(info->name, EVP_AES_128_CBC, EVP_AES_SIZE) == 0)
         ret = wc_AesCbcDecryptWithKey(der->buffer, der->buffer, der->length,
                                       key, AES_128_KEY_SIZE, info->iv);
-    else if (XSTRNCMP(info->name, EVP_AES_192_CBC, EVP_AES_SIZE) == 0)
+    else
+    #endif /* WOLFSSL_AES_128 */
+    #ifdef WOLFSSL_AES_192
+    if (XSTRNCMP(info->name, EVP_AES_192_CBC, EVP_AES_SIZE) == 0)
         ret = wc_AesCbcDecryptWithKey(der->buffer, der->buffer, der->length,
                                       key, AES_192_KEY_SIZE, info->iv);
-    else if (XSTRNCMP(info->name, EVP_AES_256_CBC, EVP_AES_SIZE) == 0)
+    else
+    #endif /* WOLFSSL_AES_192 */
+    #ifdef WOLFSSL_AES_256
+    if (XSTRNCMP(info->name, EVP_AES_256_CBC, EVP_AES_SIZE) == 0)
         ret = wc_AesCbcDecryptWithKey(der->buffer, der->buffer, der->length,
                                       key, AES_256_KEY_SIZE, info->iv);
+    #endif /* WOLFSSL_AES_256 */
 #endif /* !NO_AES && HAVE_AES_CBC && HAVE_AES_DECRYPT */
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -4610,7 +4622,7 @@ static int wolfssl_encrypt_buffer_key(byte* der, word32 derSz, byte* password,
                                           key, AES_192_KEY_SIZE, info->iv);
         else
     #endif
-    #ifdef WOLFSSL_AES_192
+    #ifdef WOLFSSL_AES_256
         if (XSTRNCMP(info->name, EVP_AES_256_CBC, EVP_AES_SIZE) == 0)
             ret = wc_AesCbcEncryptWithKey(der, der, derSz,
                                           key, AES_256_KEY_SIZE, info->iv);
@@ -12570,7 +12582,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                 }
                 else
                 #endif
-                #ifdef WOLFSSL_AES_192
+                #ifdef WOLFSSL_AES_256
                 if (XSTRNCMP(type, EVP_AES_256_CBC, EVP_AES_SIZE) == 0) {
                     keyLen = AES_256_KEY_SIZE;
                     ivLen  = AES_IV_SIZE;
@@ -13521,7 +13533,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             }
             ret = 0;
         }
-        else
         #endif /* WOLFSSL_AES_128 */
         #ifdef WOLFSSL_AES_192
         if (ctx->cipherType == AES_192_CBC_TYPE ||
@@ -13547,7 +13558,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             }
             ret = 0;
         }
-        else
         #endif /* WOLFSSL_AES_192 */
         #ifdef WOLFSSL_AES_256
         if (ctx->cipherType == AES_256_CBC_TYPE ||
@@ -13581,7 +13591,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     #endif /* HAVE_AES_CBC */
 #ifdef WOLFSSL_AES_COUNTER
         #ifdef WOLFSSL_AES_128
-        else if (ctx->cipherType == AES_128_CTR_TYPE ||
+        if (ctx->cipherType == AES_128_CTR_TYPE ||
                  (type && XSTRNCMP(type, EVP_AES_128_CTR, EVP_AES_SIZE) == 0)) {
             WOLFSSL_MSG("EVP_AES_128_CTR");
             ctx->flags     &= ~WOLFSSL_EVP_CIPH_MODE;
@@ -13604,7 +13614,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             }
             ret = 0;
         }
-        else
         #endif /* WOLFSSL_AES_128 */
         #ifdef WOLFSSL_AES_192
         if (ctx->cipherType == AES_192_CTR_TYPE ||
@@ -13630,7 +13639,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             }
             ret = 0;
         }
-        else
         #endif /* WOLFSSL_AES_192 */
         #ifdef WOLFSSL_AES_256
         if (ctx->cipherType == AES_256_CTR_TYPE ||
@@ -13659,7 +13667,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         #endif /* WOLFSSL_AES_256 */
 #endif /* WOLFSSL_AES_CTR */
         #ifdef WOLFSSL_AES_128
-        else if (ctx->cipherType == AES_128_ECB_TYPE ||
+        if (ctx->cipherType == AES_128_ECB_TYPE ||
             (type && XSTRNCMP(type, EVP_AES_128_ECB, EVP_AES_SIZE) == 0)) {
             WOLFSSL_MSG("EVP_AES_128_ECB");
             ctx->cipherType = AES_128_ECB_TYPE;
@@ -13677,7 +13685,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 return ret;
             ret = 0;
         }
-        else
         #endif /* WOLFSSL_AES_128 */
         #ifdef WOLFSSL_AES_192
         if (ctx->cipherType == AES_192_ECB_TYPE ||
@@ -13698,7 +13705,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 return ret;
             ret = 0;
         }
-        else
         #endif /* WOLFSSL_AES_192 */
         #ifdef WOLFSSL_AES_256
         if (ctx->cipherType == AES_256_ECB_TYPE ||
@@ -25701,17 +25707,31 @@ int wolfSSL_EVP_CIPHER_iv_length(const WOLFSSL_EVP_CIPHER* cipher)
     WOLFSSL_MSG("wolfSSL_EVP_CIPHER_iv_length");
 
 #ifndef NO_AES
-    if ((XSTRNCMP(name, EVP_AES_128_CBC, XSTRLEN(EVP_AES_128_CBC)) == 0) ||
-           (XSTRNCMP(name, EVP_AES_192_CBC, XSTRLEN(EVP_AES_192_CBC)) == 0) ||
-           (XSTRNCMP(name, EVP_AES_256_CBC, XSTRLEN(EVP_AES_256_CBC)) == 0)) {
+    #ifdef WOLFSSL_AES_128
+    if (XSTRNCMP(name, EVP_AES_128_CBC, XSTRLEN(EVP_AES_128_CBC)) == 0)
         return AES_BLOCK_SIZE;
-    }
+    #endif
+    #ifdef WOLFSSL_AES_192
+    if (XSTRNCMP(name, EVP_AES_192_CBC, XSTRLEN(EVP_AES_192_CBC)) == 0)
+        return AES_BLOCK_SIZE;
+    #endif
+    #ifdef WOLFSSL_AES_256
+    if (XSTRNCMP(name, EVP_AES_256_CBC, XSTRLEN(EVP_AES_256_CBC)) == 0)
+        return AES_BLOCK_SIZE;
+    #endif
 #ifdef WOLFSSL_AES_COUNTER
-    if ((XSTRNCMP(name, EVP_AES_128_CTR, XSTRLEN(EVP_AES_128_CTR)) == 0) ||
-           (XSTRNCMP(name, EVP_AES_192_CTR, XSTRLEN(EVP_AES_192_CTR)) == 0) ||
-           (XSTRNCMP(name, EVP_AES_256_CTR, XSTRLEN(EVP_AES_256_CTR)) == 0)) {
+    #ifdef WOLFSSL_AES_128
+    if (XSTRNCMP(name, EVP_AES_128_CTR, XSTRLEN(EVP_AES_128_CTR)) == 0)
         return AES_BLOCK_SIZE;
-    }
+    #endif
+    #ifdef WOLFSSL_AES_192
+    if (XSTRNCMP(name, EVP_AES_192_CTR, XSTRLEN(EVP_AES_192_CTR)) == 0)
+        return AES_BLOCK_SIZE;
+    #endif
+    #ifdef WOLFSSL_AES_256
+    if (XSTRNCMP(name, EVP_AES_256_CTR, XSTRLEN(EVP_AES_256_CTR)) == 0)
+        return AES_BLOCK_SIZE;
+    #endif
 #endif
 #endif
 
