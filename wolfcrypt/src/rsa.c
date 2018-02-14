@@ -1198,12 +1198,14 @@ static int wc_RsaFunctionXil(const byte* in, word32 inLen, byte* out,
 static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
                           word32* outLen, int type, RsaKey* key, WC_RNG* rng)
 {
+#ifndef WOLFSSL_SP_MATH
     mp_int tmp;
 #ifdef WC_RSA_BLINDING
     mp_int rnd, rndi;
 #endif
     int    ret = 0;
     word32 keyLen, len;
+#endif
 
 #ifdef WOLFSSL_HAVE_SP_RSA
 #ifndef WOLFSSL_SP_NO_2048
@@ -1244,6 +1246,9 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 #endif
 #endif /* WOLFSSL_HAVE_SP_RSA */
 
+#ifdef WOLFSSL_SP_MATH
+    return WC_KEY_SIZE_E;
+#else
     (void)rng;
 
     if (mp_init(&tmp) != MP_OKAY)
@@ -1391,6 +1396,7 @@ done:
     }
 #endif
     return ret;
+#endif
 }
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)

@@ -612,8 +612,10 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
     byte* pub, word32* pubSz)
 {
     int ret = 0;
+#ifndef WOLFSSL_SP_MATH
     mp_int x;
     mp_int y;
+#endif
 
 #ifdef WOLFSSL_HAVE_SP_DH
 #ifndef WOLFSSL_SP_NO_2048
@@ -626,6 +628,7 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
 #endif
 #endif
 
+#ifndef WOLFSSL_SP_MATH
     if (mp_init_multi(&x, &y, 0, 0, 0, 0) != MP_OKAY)
         return MP_INIT_E;
 
@@ -643,6 +646,9 @@ static int GeneratePublicDh(DhKey* key, byte* priv, word32 privSz,
 
     mp_clear(&y);
     mp_clear(&x);
+#else
+    ret = WC_KEY_SIZE_E;
+#endif
 
     return ret;
 }
@@ -734,6 +740,7 @@ int wc_DhCheckPubKey(DhKey* key, const byte* pub, word32 pubSz)
 {
     int ret = 0;
 
+#ifndef WOLFSSL_SP_MATH
     mp_int x;
     mp_int y;
 
@@ -767,6 +774,11 @@ int wc_DhCheckPubKey(DhKey* key, const byte* pub, word32 pubSz)
 
     mp_clear(&y);
     mp_clear(&x);
+#else
+    (void)key;
+    (void)pub;
+    (void)pubSz;
+#endif
 
     return ret;
 }
@@ -800,9 +812,11 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
     const byte* priv, word32 privSz, const byte* otherPub, word32 pubSz)
 {
     int ret = 0;
-    mp_int x;
     mp_int y;
+#ifndef WOLFSSL_SP_MATH
+    mp_int x;
     mp_int z;
+#endif
 
     if (wc_DhCheckPubKey(key, otherPub, pubSz) != 0) {
         WOLFSSL_MSG("wc_DhAgree wc_DhCheckPubKey failed");
@@ -842,6 +856,7 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
 #endif
 #endif
 
+#ifndef WOLFSSL_SP_MATH
     if (mp_init_multi(&x, &y, &z, 0, 0, 0) != MP_OKAY)
         return MP_INIT_E;
 
@@ -863,6 +878,7 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
     mp_clear(&z);
     mp_clear(&y);
     mp_forcezero(&x);
+#endif
 
     return ret;
 }

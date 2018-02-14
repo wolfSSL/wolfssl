@@ -38822,6 +38822,12 @@ static sp_point p256_base = {
     /* infinity */
     0
 };
+#if defined(HAVE_ECC_CHECK_KEY) || defined(HAVE_COMP_KEY)
+static sp_digit p256_b[10] = {
+    0x3d2604b,0x38f0f89,0x30f63bc,0x2c3314e,0x0651d06,0x1a621af,0x2bbd557,
+    0x24f9ecf,0x1d8aa3a,0x016b18d
+};
+#endif
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
 /* Allocate memory for point and return error. */
@@ -39075,7 +39081,7 @@ static int sp_256_to_mp(sp_digit* a, mp_int* r)
 {
     int err;
 
-    err = mp_grow(r, (256 + sizeof (mp_digit) - 1) / sizeof(mp_digit));
+    err = mp_grow(r, (256 + DIGIT_BIT - 1) / DIGIT_BIT);
     if (err == MP_OKAY) {
 #if DIGIT_BIT == 26
         XMEMCPY(r->dp, a, sizeof(sp_digit) * 10);
@@ -43764,6 +43770,593 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
 }
 #endif /* HAVE_ECC_VERIFY */
 
+#ifdef HAVE_ECC_CHECK_KEY
+/* Check that the x and y oridinates are a valid point on the curve.
+ *
+ * point  EC point.
+ * heap   Heap to use if dynamically allocating.
+ * returns MEMORY_E if dynamic memory allocation fails, MP_VAL if the point is
+ * not on the curve and MP_OKAY otherwise.
+ */
+static int sp_256_ecc_is_point_10(sp_point* point, void* heap)
+{
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    sp_digit* d = NULL;
+#else
+    sp_digit t1d[2*10];
+    sp_digit t2d[2*10];
+#endif
+    sp_digit* t1;
+    sp_digit* t2;
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    d = XMALLOC(sizeof(sp_digit) * 10 * 4, heap, DYNAMIC_TYPE_ECC);
+    if (d != NULL) {
+        t1 = d + 0 * 10;
+        t2 = d + 2 * 10;
+    }
+    else
+        err = MEMORY_E;
+#else
+    (void)heap;
+
+    t1 = t1d;
+    t2 = t2d;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_256_sqr_10(t1, point->y);
+        sp_256_mod_10(t1, t1, p256_mod);
+        sp_256_sqr_10(t2, point->x);
+        sp_256_mod_10(t2, t2, p256_mod);
+        sp_256_mul_10(t2, t2, point->x);
+        sp_256_mod_10(t2, t2, p256_mod);
+	sp_256_sub_10(t2, p256_mod, t2);
+        sp_256_mont_add_10(t1, t1, t2, p256_mod);
+
+        sp_256_mont_add_10(t1, t1, point->x, p256_mod);
+        sp_256_mont_add_10(t1, t1, point->x, p256_mod);
+        sp_256_mont_add_10(t1, t1, point->x, p256_mod);
+
+        if (sp_256_cmp_10(t1, p256_b) != 0)
+            err = MP_VAL;
+    }
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (d != NULL)
+        XFREE(d, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+/* Check that the x and y oridinates are a valid point on the curve.
+ *
+ * pX  X ordinate of EC point.
+ * pY  Y ordinate of EC point.
+ * returns MEMORY_E if dynamic memory allocation fails, MP_VAL if the point is
+ * not on the curve and MP_OKAY otherwise.
+ */
+int sp_ecc_is_point_256(mp_int* pX, mp_int* pY)
+{
+#if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
+    sp_point pubd;
+#endif
+    sp_point* pub;
+    byte one[1] = { 1 };
+    int err;
+
+    err = sp_ecc_point_new(NULL, pubd, pub);
+    if (err == MP_OKAY) {
+        sp_256_from_mp(pub->x, 10, pX);
+        sp_256_from_mp(pub->y, 10, pY);
+        sp_256_from_bin(pub->z, 10, one, sizeof(one));
+
+        err = sp_256_ecc_is_point_10(pub, NULL);
+    }
+
+    sp_ecc_point_free(pub, 0, NULL);
+
+    return err;
+}
+
+/* Check that the private scalar generates the EC point (px, py), the point is
+ * on the curve and the point has the correct order.
+ *
+ * pX     X ordinate of EC point.
+ * pY     Y ordinate of EC point.
+ * privm  Private scalar that generates EC point.
+ * returns MEMORY_E if dynamic memory allocation fails, MP_VAL if the point is
+ * not on the curve, ECC_INF_E if the point does not have the correct order,
+ * ECC_PRIV_KEY_E when the private scalar doesn't generate the EC point and
+ * MP_OKAY otherwise.
+ */
+int sp_ecc_check_key_256(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
+{
+#if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
+    sp_digit privd[10];
+    sp_point pubd;
+    sp_point pd;
+#endif
+    sp_digit* priv = NULL;
+    sp_point* pub;
+    sp_point* p = NULL;
+    byte one[1] = { 1 };
+    int err;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    err = sp_ecc_point_new(heap, pubd, pub);
+    if (err == MP_OKAY)
+        err = sp_ecc_point_new(heap, pd, p);
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (err == MP_OKAY) {
+        priv = XMALLOC(sizeof(sp_digit) * 10, heap, DYNAMIC_TYPE_ECC);
+        if (priv == NULL)
+            err = MEMORY_E;
+    }
+#else
+    priv = privd;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_256_from_mp(pub->x, 10, pX);
+        sp_256_from_mp(pub->y, 10, pY);
+        sp_256_from_bin(pub->z, 10, one, sizeof(one));
+        sp_256_from_mp(priv, 10, privm);
+
+        /* Check point at infinitiy. */
+        if (sp_256_iszero_10(pub->x) &&
+            sp_256_iszero_10(pub->y))
+            err = ECC_INF_E;
+    }
+
+    if (err == MP_OKAY) {
+        /* Check range of X and Y */
+        if (sp_256_cmp_10(pub->x, p256_mod) >= 0 ||
+            sp_256_cmp_10(pub->y, p256_mod) >= 0)
+            err = ECC_OUT_OF_RANGE_E;
+    }
+
+    if (err == MP_OKAY) {
+        /* Check point is on curve */
+        err = sp_256_ecc_is_point_10(pub, heap);
+    }
+
+    if (err == MP_OKAY) {
+        /* Point * order = infinity */
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+            err = sp_256_ecc_mulmod_avx2_10(p, pub, p256_order, 1, heap);
+        else
+#endif
+            err = sp_256_ecc_mulmod_10(p, pub, p256_order, 1, heap);
+    }
+    if (err == MP_OKAY) {
+        /* Check result is infinity */
+        if (!sp_256_iszero_10(p->x) ||
+            !sp_256_iszero_10(p->y)) {
+            err = ECC_INF_E;
+        }
+    }
+
+    if (err == MP_OKAY) {
+        /* Base * private = point */
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+            err = sp_256_ecc_mulmod_base_avx2_10(p, priv, 1, heap);
+        else
+#endif
+            err = sp_256_ecc_mulmod_base_10(p, priv, 1, heap);
+    }
+    if (err == MP_OKAY) {
+        /* Check result is public key */
+        if (sp_256_cmp_10(p->x, pub->x) != 0 ||
+            sp_256_cmp_10(p->y, pub->y) != 0) {
+            err = ECC_PRIV_KEY_E;
+        }
+    }
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (priv != NULL)
+        XFREE(priv, heap, DYNAMIC_TYPE_ECC);
+#endif
+    sp_ecc_point_free(p, 0, heap);
+    sp_ecc_point_free(pub, 0, heap);
+
+    return err;
+}
+#endif
+#ifdef WOLFSSL_PUBLIC_ECC_ADD_DBL
+/* Add two projective EC points together.
+ * (pX, pY, pZ) + (qX, qY, qZ) = (rX, rY, rZ)
+ *
+ * pX   First EC point's X ordinate.
+ * pY   First EC point's Y ordinate.
+ * pZ   First EC point's Z ordinate.
+ * qX   Second EC point's X ordinate.
+ * qY   Second EC point's Y ordinate.
+ * qZ   Second EC point's Z ordinate.
+ * rX   Resultant EC point's X ordinate.
+ * rY   Resultant EC point's Y ordinate.
+ * rZ   Resultant EC point's Z ordinate.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
+                              mp_int* qX, mp_int* qY, mp_int* qZ,
+                              mp_int* rX, mp_int* rY, mp_int* rZ)
+{
+#if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
+    sp_digit tmpd[2 * 10 * 5];
+    sp_point pd;
+    sp_point qd;
+#endif
+    sp_digit* tmp;
+    sp_point* p;
+    sp_point* q = NULL;
+    int err;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    err = sp_ecc_point_new(NULL, pd, p);
+    if (err == MP_OKAY)
+        err = sp_ecc_point_new(NULL, qd, q);
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (err == MP_OKAY) {
+        tmp = XMALLOC(sizeof(sp_digit) * 2 * 10 * 5, NULL, DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
+            err = MEMORY_E;
+    }
+#else
+    tmp = tmpd;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_256_from_mp(p->x, 10, pX);
+        sp_256_from_mp(p->y, 10, pY);
+        sp_256_from_mp(p->z, 10, pZ);
+        sp_256_from_mp(q->x, 10, qX);
+        sp_256_from_mp(q->y, 10, qY);
+        sp_256_from_mp(q->z, 10, qZ);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+            sp_256_proj_point_add_avx2_10(p, p, q, tmp);
+        else
+#endif
+            sp_256_proj_point_add_10(p, p, q, tmp);
+    }
+
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->x, rX);
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->y, rY);
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->z, rZ);
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (tmp != NULL)
+        XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
+#endif
+    sp_ecc_point_free(q, 0, NULL);
+    sp_ecc_point_free(p, 0, NULL);
+
+    return err;
+}
+
+/* Double a projective EC point.
+ * (pX, pY, pZ) + (pX, pY, pZ) = (rX, rY, rZ)
+ *
+ * pX   EC point's X ordinate.
+ * pY   EC point's Y ordinate.
+ * pZ   EC point's Z ordinate.
+ * rX   Resultant EC point's X ordinate.
+ * rY   Resultant EC point's Y ordinate.
+ * rZ   Resultant EC point's Z ordinate.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+int sp_ecc_proj_dbl_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
+                              mp_int* rX, mp_int* rY, mp_int* rZ)
+{
+#if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
+    sp_digit tmpd[2 * 10 * 2];
+    sp_point pd;
+#endif
+    sp_digit* tmp;
+    sp_point* p;
+    int err;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    err = sp_ecc_point_new(NULL, pd, p);
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (err == MP_OKAY) {
+        tmp = XMALLOC(sizeof(sp_digit) * 2 * 10 * 2, NULL, DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
+            err = MEMORY_E;
+    }
+#else
+    tmp = tmpd;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_256_from_mp(p->x, 10, pX);
+        sp_256_from_mp(p->y, 10, pY);
+        sp_256_from_mp(p->z, 10, pZ);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+            sp_256_proj_point_dbl_avx2_10(p, p, tmp);
+        else
+#endif
+            sp_256_proj_point_dbl_10(p, p, tmp);
+    }
+
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->x, rX);
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->y, rY);
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->z, rZ);
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (tmp != NULL)
+        XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
+#endif
+    sp_ecc_point_free(p, 0, NULL);
+
+    return err;
+}
+
+/* Map a projective EC point to affine in place.
+ * pZ will be one.
+ *
+ * pX   EC point's X ordinate.
+ * pY   EC point's Y ordinate.
+ * pZ   EC point's Z ordinate.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ)
+{
+#if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
+    sp_digit tmpd[2 * 10 * 4];
+    sp_point pd;
+#endif
+    sp_digit* tmp;
+    sp_point* p;
+    int err;
+
+    err = sp_ecc_point_new(NULL, pd, p);
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (err == MP_OKAY) {
+        tmp = XMALLOC(sizeof(sp_digit) * 2 * 10 * 4, NULL, DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
+            err = MEMORY_E;
+    }
+#else
+    tmp = tmpd;
+#endif
+    if (err == MP_OKAY) {
+        sp_256_from_mp(p->x, 10, pX);
+        sp_256_from_mp(p->y, 10, pY);
+        sp_256_from_mp(p->z, 10, pZ);
+
+        sp_256_map_10(p, p, tmp);
+    }
+
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->x, pX);
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->y, pY);
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->z, pZ);
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (tmp != NULL)
+        XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
+#endif
+    sp_ecc_point_free(p, 0, NULL);
+
+    return err;
+}
+#endif /* WOLFSSL_PUBLIC_ECC_ADD_DBL */
+#ifdef HAVE_COMP_KEY
+/* Find the square root of a number mod the prime of the curve.
+ *
+ * y  The number to operate on and the result.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+static int sp_256_mont_sqrt_10(sp_digit* y)
+{
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    sp_digit* d;
+#else
+    sp_digit t1d[2 * 10];
+    sp_digit t2d[2 * 10];
+#endif
+    sp_digit* t1;
+    sp_digit* t2;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    d = XMALLOC(sizeof(sp_digit) * 4 * 10, NULL, DYNAMIC_TYPE_ECC);
+    if (d != NULL) {
+        t1 = d + 0 * 10;
+        t2 = d + 2 * 10;
+    }
+    else
+        err = MEMORY_E;
+#else
+    t1 = t1d;
+    t2 = t2d;
+#endif
+
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
+            /* t2 = y ^ 0x2 */
+            sp_256_mont_sqr_avx2_10(t2, y, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0x3 */
+            sp_256_mont_mul_avx2_10(t1, t2, y, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xc */
+            sp_256_mont_sqr_n_avx2_10(t2, t1, 2, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xf */
+            sp_256_mont_mul_avx2_10(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xf0 */
+            sp_256_mont_sqr_n_avx2_10(t2, t1, 4, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xff */
+            sp_256_mont_mul_avx2_10(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xff00 */
+            sp_256_mont_sqr_n_avx2_10(t2, t1, 8, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffff */
+            sp_256_mont_mul_avx2_10(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xffff0000 */
+            sp_256_mont_sqr_n_avx2_10(t2, t1, 16, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff */
+            sp_256_mont_mul_avx2_10(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000000 */
+            sp_256_mont_sqr_n_avx2_10(t1, t1, 32, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000001 */
+            sp_256_mont_mul_avx2_10(t1, t1, y, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000001000000000000000000000000 */
+            sp_256_mont_sqr_n_avx2_10(t1, t1, 96, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000001000000000000000000000001 */
+            sp_256_mont_mul_avx2_10(t1, t1, y, p256_mod, p256_mp_mod);
+            sp_256_mont_sqr_n_avx2_10(y, t1, 94, p256_mod, p256_mp_mod);
+        }
+        else
+#endif
+        {
+            /* t2 = y ^ 0x2 */
+            sp_256_mont_sqr_10(t2, y, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0x3 */
+            sp_256_mont_mul_10(t1, t2, y, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xc */
+            sp_256_mont_sqr_n_10(t2, t1, 2, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xf */
+            sp_256_mont_mul_10(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xf0 */
+            sp_256_mont_sqr_n_10(t2, t1, 4, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xff */
+            sp_256_mont_mul_10(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xff00 */
+            sp_256_mont_sqr_n_10(t2, t1, 8, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffff */
+            sp_256_mont_mul_10(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xffff0000 */
+            sp_256_mont_sqr_n_10(t2, t1, 16, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff */
+            sp_256_mont_mul_10(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000000 */
+            sp_256_mont_sqr_n_10(t1, t1, 32, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000001 */
+            sp_256_mont_mul_10(t1, t1, y, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000001000000000000000000000000 */
+            sp_256_mont_sqr_n_10(t1, t1, 96, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000001000000000000000000000001 */
+            sp_256_mont_mul_10(t1, t1, y, p256_mod, p256_mp_mod);
+            sp_256_mont_sqr_n_10(y, t1, 94, p256_mod, p256_mp_mod);
+        }
+    }
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (d != NULL)
+        XFREE(d, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+/* Uncompress the point given the X ordinate.
+ *
+ * xm    X ordinate.
+ * odd   Whether the Y ordinate is odd.
+ * ym    Calculated Y ordinate.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
+{
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    sp_digit* d;
+#else
+    sp_digit xd[2 * 10];
+    sp_digit yd[2 * 10];
+#endif
+    sp_digit* x;
+    sp_digit* y;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    d = XMALLOC(sizeof(sp_digit) * 4 * 10, NULL, DYNAMIC_TYPE_ECC);
+    if (d != NULL) {
+        x = d + 0 * 10;
+        y = d + 2 * 10;
+    }
+    else
+        err = MEMORY_E;
+#else
+    x = xd;
+    y = yd;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_256_from_mp(x, 10, xm);
+
+        err = sp_256_mod_mul_norm_10(x, x, p256_mod);
+    }
+
+    if (err == MP_OKAY) {
+        /* y = x^3 */
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
+            sp_256_mont_sqr_avx2_10(y, x, p256_mod, p256_mp_mod);
+            sp_256_mont_mul_avx2_10(y, y, x, p256_mod, p256_mp_mod);
+        }
+        else
+#endif
+        {
+            sp_256_mont_sqr_10(y, x, p256_mod, p256_mp_mod);
+            sp_256_mont_mul_10(y, y, x, p256_mod, p256_mp_mod);
+        }
+        /* y = x^3 - 3x */
+        sp_256_mont_sub_10(y, y, x, p256_mod);
+        sp_256_mont_sub_10(y, y, x, p256_mod);
+        sp_256_mont_sub_10(y, y, x, p256_mod);
+        /* y = x^3 - 3x + b */
+        err = sp_256_mod_mul_norm_10(x, p256_b, p256_mod);
+    }
+    if (err == MP_OKAY) {
+        sp_256_mont_add_10(y, y, x, p256_mod);
+        /* y = sqrt(x^3 - 3x + b) */
+        err = sp_256_mont_sqrt_10(y);
+    }
+    if (err == MP_OKAY) {
+        XMEMSET(y + 10, 0, 10 * sizeof(sp_digit));
+        sp_256_mont_reduce_10(y, p256_mod, p256_mp_mod);
+        if (((y[0] ^ odd) & 1) != 0)
+            sp_256_mont_sub_10(y, p256_mod, y, p256_mod);
+
+        err = sp_256_to_mp(y, ym);
+    }
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (d != NULL)
+        XFREE(d, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+#endif
 #endif /* WOLFSSL_SP_NO_256 */
 #endif /* SP_WORD_SIZE == 32 */
 #endif
@@ -43837,6 +44430,12 @@ static sp_point p256_base = {
     /* infinity */
     0
 };
+#if defined(HAVE_ECC_CHECK_KEY) || defined(HAVE_COMP_KEY)
+static sp_digit p256_b[5] = {
+    0xe3c3e27d2604bl,0xb0cc53b0f63bcl,0x69886bc651d06l,0x93e7b3ebbd557l,
+    0x05ac635d8aa3al
+};
+#endif
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
 /* Allocate memory for point and return error. */
@@ -44073,7 +44672,7 @@ static int sp_256_to_mp(sp_digit* a, mp_int* r)
 {
     int err;
 
-    err = mp_grow(r, (256 + sizeof (mp_digit) - 1) / sizeof(mp_digit));
+    err = mp_grow(r, (256 + DIGIT_BIT - 1) / DIGIT_BIT);
     if (err == MP_OKAY) {
 #if DIGIT_BIT == 52
         XMEMCPY(r->dp, a, sizeof(sp_digit) * 5);
@@ -48554,6 +49153,593 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
 }
 #endif /* HAVE_ECC_VERIFY */
 
+#ifdef HAVE_ECC_CHECK_KEY
+/* Check that the x and y oridinates are a valid point on the curve.
+ *
+ * point  EC point.
+ * heap   Heap to use if dynamically allocating.
+ * returns MEMORY_E if dynamic memory allocation fails, MP_VAL if the point is
+ * not on the curve and MP_OKAY otherwise.
+ */
+static int sp_256_ecc_is_point_5(sp_point* point, void* heap)
+{
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    sp_digit* d = NULL;
+#else
+    sp_digit t1d[2*5];
+    sp_digit t2d[2*5];
+#endif
+    sp_digit* t1;
+    sp_digit* t2;
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    d = XMALLOC(sizeof(sp_digit) * 5 * 4, heap, DYNAMIC_TYPE_ECC);
+    if (d != NULL) {
+        t1 = d + 0 * 5;
+        t2 = d + 2 * 5;
+    }
+    else
+        err = MEMORY_E;
+#else
+    (void)heap;
+
+    t1 = t1d;
+    t2 = t2d;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_256_sqr_5(t1, point->y);
+        sp_256_mod_5(t1, t1, p256_mod);
+        sp_256_sqr_5(t2, point->x);
+        sp_256_mod_5(t2, t2, p256_mod);
+        sp_256_mul_5(t2, t2, point->x);
+        sp_256_mod_5(t2, t2, p256_mod);
+	sp_256_sub_5(t2, p256_mod, t2);
+        sp_256_mont_add_5(t1, t1, t2, p256_mod);
+
+        sp_256_mont_add_5(t1, t1, point->x, p256_mod);
+        sp_256_mont_add_5(t1, t1, point->x, p256_mod);
+        sp_256_mont_add_5(t1, t1, point->x, p256_mod);
+
+        if (sp_256_cmp_5(t1, p256_b) != 0)
+            err = MP_VAL;
+    }
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (d != NULL)
+        XFREE(d, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+/* Check that the x and y oridinates are a valid point on the curve.
+ *
+ * pX  X ordinate of EC point.
+ * pY  Y ordinate of EC point.
+ * returns MEMORY_E if dynamic memory allocation fails, MP_VAL if the point is
+ * not on the curve and MP_OKAY otherwise.
+ */
+int sp_ecc_is_point_256(mp_int* pX, mp_int* pY)
+{
+#if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
+    sp_point pubd;
+#endif
+    sp_point* pub;
+    byte one[1] = { 1 };
+    int err;
+
+    err = sp_ecc_point_new(NULL, pubd, pub);
+    if (err == MP_OKAY) {
+        sp_256_from_mp(pub->x, 5, pX);
+        sp_256_from_mp(pub->y, 5, pY);
+        sp_256_from_bin(pub->z, 5, one, sizeof(one));
+
+        err = sp_256_ecc_is_point_5(pub, NULL);
+    }
+
+    sp_ecc_point_free(pub, 0, NULL);
+
+    return err;
+}
+
+/* Check that the private scalar generates the EC point (px, py), the point is
+ * on the curve and the point has the correct order.
+ *
+ * pX     X ordinate of EC point.
+ * pY     Y ordinate of EC point.
+ * privm  Private scalar that generates EC point.
+ * returns MEMORY_E if dynamic memory allocation fails, MP_VAL if the point is
+ * not on the curve, ECC_INF_E if the point does not have the correct order,
+ * ECC_PRIV_KEY_E when the private scalar doesn't generate the EC point and
+ * MP_OKAY otherwise.
+ */
+int sp_ecc_check_key_256(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
+{
+#if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
+    sp_digit privd[5];
+    sp_point pubd;
+    sp_point pd;
+#endif
+    sp_digit* priv = NULL;
+    sp_point* pub;
+    sp_point* p = NULL;
+    byte one[1] = { 1 };
+    int err;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    err = sp_ecc_point_new(heap, pubd, pub);
+    if (err == MP_OKAY)
+        err = sp_ecc_point_new(heap, pd, p);
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (err == MP_OKAY) {
+        priv = XMALLOC(sizeof(sp_digit) * 5, heap, DYNAMIC_TYPE_ECC);
+        if (priv == NULL)
+            err = MEMORY_E;
+    }
+#else
+    priv = privd;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_256_from_mp(pub->x, 5, pX);
+        sp_256_from_mp(pub->y, 5, pY);
+        sp_256_from_bin(pub->z, 5, one, sizeof(one));
+        sp_256_from_mp(priv, 5, privm);
+
+        /* Check point at infinitiy. */
+        if (sp_256_iszero_5(pub->x) &&
+            sp_256_iszero_5(pub->y))
+            err = ECC_INF_E;
+    }
+
+    if (err == MP_OKAY) {
+        /* Check range of X and Y */
+        if (sp_256_cmp_5(pub->x, p256_mod) >= 0 ||
+            sp_256_cmp_5(pub->y, p256_mod) >= 0)
+            err = ECC_OUT_OF_RANGE_E;
+    }
+
+    if (err == MP_OKAY) {
+        /* Check point is on curve */
+        err = sp_256_ecc_is_point_5(pub, heap);
+    }
+
+    if (err == MP_OKAY) {
+        /* Point * order = infinity */
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+            err = sp_256_ecc_mulmod_avx2_5(p, pub, p256_order, 1, heap);
+        else
+#endif
+            err = sp_256_ecc_mulmod_5(p, pub, p256_order, 1, heap);
+    }
+    if (err == MP_OKAY) {
+        /* Check result is infinity */
+        if (!sp_256_iszero_5(p->x) ||
+            !sp_256_iszero_5(p->y)) {
+            err = ECC_INF_E;
+        }
+    }
+
+    if (err == MP_OKAY) {
+        /* Base * private = point */
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+            err = sp_256_ecc_mulmod_base_avx2_5(p, priv, 1, heap);
+        else
+#endif
+            err = sp_256_ecc_mulmod_base_5(p, priv, 1, heap);
+    }
+    if (err == MP_OKAY) {
+        /* Check result is public key */
+        if (sp_256_cmp_5(p->x, pub->x) != 0 ||
+            sp_256_cmp_5(p->y, pub->y) != 0) {
+            err = ECC_PRIV_KEY_E;
+        }
+    }
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (priv != NULL)
+        XFREE(priv, heap, DYNAMIC_TYPE_ECC);
+#endif
+    sp_ecc_point_free(p, 0, heap);
+    sp_ecc_point_free(pub, 0, heap);
+
+    return err;
+}
+#endif
+#ifdef WOLFSSL_PUBLIC_ECC_ADD_DBL
+/* Add two projective EC points together.
+ * (pX, pY, pZ) + (qX, qY, qZ) = (rX, rY, rZ)
+ *
+ * pX   First EC point's X ordinate.
+ * pY   First EC point's Y ordinate.
+ * pZ   First EC point's Z ordinate.
+ * qX   Second EC point's X ordinate.
+ * qY   Second EC point's Y ordinate.
+ * qZ   Second EC point's Z ordinate.
+ * rX   Resultant EC point's X ordinate.
+ * rY   Resultant EC point's Y ordinate.
+ * rZ   Resultant EC point's Z ordinate.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
+                              mp_int* qX, mp_int* qY, mp_int* qZ,
+                              mp_int* rX, mp_int* rY, mp_int* rZ)
+{
+#if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
+    sp_digit tmpd[2 * 5 * 5];
+    sp_point pd;
+    sp_point qd;
+#endif
+    sp_digit* tmp;
+    sp_point* p;
+    sp_point* q = NULL;
+    int err;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    err = sp_ecc_point_new(NULL, pd, p);
+    if (err == MP_OKAY)
+        err = sp_ecc_point_new(NULL, qd, q);
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (err == MP_OKAY) {
+        tmp = XMALLOC(sizeof(sp_digit) * 2 * 5 * 5, NULL, DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
+            err = MEMORY_E;
+    }
+#else
+    tmp = tmpd;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_256_from_mp(p->x, 5, pX);
+        sp_256_from_mp(p->y, 5, pY);
+        sp_256_from_mp(p->z, 5, pZ);
+        sp_256_from_mp(q->x, 5, qX);
+        sp_256_from_mp(q->y, 5, qY);
+        sp_256_from_mp(q->z, 5, qZ);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+            sp_256_proj_point_add_avx2_5(p, p, q, tmp);
+        else
+#endif
+            sp_256_proj_point_add_5(p, p, q, tmp);
+    }
+
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->x, rX);
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->y, rY);
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->z, rZ);
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (tmp != NULL)
+        XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
+#endif
+    sp_ecc_point_free(q, 0, NULL);
+    sp_ecc_point_free(p, 0, NULL);
+
+    return err;
+}
+
+/* Double a projective EC point.
+ * (pX, pY, pZ) + (pX, pY, pZ) = (rX, rY, rZ)
+ *
+ * pX   EC point's X ordinate.
+ * pY   EC point's Y ordinate.
+ * pZ   EC point's Z ordinate.
+ * rX   Resultant EC point's X ordinate.
+ * rY   Resultant EC point's Y ordinate.
+ * rZ   Resultant EC point's Z ordinate.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+int sp_ecc_proj_dbl_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
+                              mp_int* rX, mp_int* rY, mp_int* rZ)
+{
+#if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
+    sp_digit tmpd[2 * 5 * 2];
+    sp_point pd;
+#endif
+    sp_digit* tmp;
+    sp_point* p;
+    int err;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    err = sp_ecc_point_new(NULL, pd, p);
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (err == MP_OKAY) {
+        tmp = XMALLOC(sizeof(sp_digit) * 2 * 5 * 2, NULL, DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
+            err = MEMORY_E;
+    }
+#else
+    tmp = tmpd;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_256_from_mp(p->x, 5, pX);
+        sp_256_from_mp(p->y, 5, pY);
+        sp_256_from_mp(p->z, 5, pZ);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+            sp_256_proj_point_dbl_avx2_5(p, p, tmp);
+        else
+#endif
+            sp_256_proj_point_dbl_5(p, p, tmp);
+    }
+
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->x, rX);
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->y, rY);
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->z, rZ);
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (tmp != NULL)
+        XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
+#endif
+    sp_ecc_point_free(p, 0, NULL);
+
+    return err;
+}
+
+/* Map a projective EC point to affine in place.
+ * pZ will be one.
+ *
+ * pX   EC point's X ordinate.
+ * pY   EC point's Y ordinate.
+ * pZ   EC point's Z ordinate.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ)
+{
+#if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
+    sp_digit tmpd[2 * 5 * 4];
+    sp_point pd;
+#endif
+    sp_digit* tmp;
+    sp_point* p;
+    int err;
+
+    err = sp_ecc_point_new(NULL, pd, p);
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (err == MP_OKAY) {
+        tmp = XMALLOC(sizeof(sp_digit) * 2 * 5 * 4, NULL, DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
+            err = MEMORY_E;
+    }
+#else
+    tmp = tmpd;
+#endif
+    if (err == MP_OKAY) {
+        sp_256_from_mp(p->x, 5, pX);
+        sp_256_from_mp(p->y, 5, pY);
+        sp_256_from_mp(p->z, 5, pZ);
+
+        sp_256_map_5(p, p, tmp);
+    }
+
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->x, pX);
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->y, pY);
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->z, pZ);
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (tmp != NULL)
+        XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
+#endif
+    sp_ecc_point_free(p, 0, NULL);
+
+    return err;
+}
+#endif /* WOLFSSL_PUBLIC_ECC_ADD_DBL */
+#ifdef HAVE_COMP_KEY
+/* Find the square root of a number mod the prime of the curve.
+ *
+ * y  The number to operate on and the result.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+static int sp_256_mont_sqrt_5(sp_digit* y)
+{
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    sp_digit* d;
+#else
+    sp_digit t1d[2 * 5];
+    sp_digit t2d[2 * 5];
+#endif
+    sp_digit* t1;
+    sp_digit* t2;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    d = XMALLOC(sizeof(sp_digit) * 4 * 5, NULL, DYNAMIC_TYPE_ECC);
+    if (d != NULL) {
+        t1 = d + 0 * 5;
+        t2 = d + 2 * 5;
+    }
+    else
+        err = MEMORY_E;
+#else
+    t1 = t1d;
+    t2 = t2d;
+#endif
+
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
+            /* t2 = y ^ 0x2 */
+            sp_256_mont_sqr_avx2_5(t2, y, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0x3 */
+            sp_256_mont_mul_avx2_5(t1, t2, y, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xc */
+            sp_256_mont_sqr_n_avx2_5(t2, t1, 2, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xf */
+            sp_256_mont_mul_avx2_5(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xf0 */
+            sp_256_mont_sqr_n_avx2_5(t2, t1, 4, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xff */
+            sp_256_mont_mul_avx2_5(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xff00 */
+            sp_256_mont_sqr_n_avx2_5(t2, t1, 8, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffff */
+            sp_256_mont_mul_avx2_5(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xffff0000 */
+            sp_256_mont_sqr_n_avx2_5(t2, t1, 16, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff */
+            sp_256_mont_mul_avx2_5(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000000 */
+            sp_256_mont_sqr_n_avx2_5(t1, t1, 32, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000001 */
+            sp_256_mont_mul_avx2_5(t1, t1, y, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000001000000000000000000000000 */
+            sp_256_mont_sqr_n_avx2_5(t1, t1, 96, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000001000000000000000000000001 */
+            sp_256_mont_mul_avx2_5(t1, t1, y, p256_mod, p256_mp_mod);
+            sp_256_mont_sqr_n_avx2_5(y, t1, 94, p256_mod, p256_mp_mod);
+        }
+        else
+#endif
+        {
+            /* t2 = y ^ 0x2 */
+            sp_256_mont_sqr_5(t2, y, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0x3 */
+            sp_256_mont_mul_5(t1, t2, y, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xc */
+            sp_256_mont_sqr_n_5(t2, t1, 2, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xf */
+            sp_256_mont_mul_5(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xf0 */
+            sp_256_mont_sqr_n_5(t2, t1, 4, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xff */
+            sp_256_mont_mul_5(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xff00 */
+            sp_256_mont_sqr_n_5(t2, t1, 8, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffff */
+            sp_256_mont_mul_5(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xffff0000 */
+            sp_256_mont_sqr_n_5(t2, t1, 16, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff */
+            sp_256_mont_mul_5(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000000 */
+            sp_256_mont_sqr_n_5(t1, t1, 32, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000001 */
+            sp_256_mont_mul_5(t1, t1, y, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000001000000000000000000000000 */
+            sp_256_mont_sqr_n_5(t1, t1, 96, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000001000000000000000000000001 */
+            sp_256_mont_mul_5(t1, t1, y, p256_mod, p256_mp_mod);
+            sp_256_mont_sqr_n_5(y, t1, 94, p256_mod, p256_mp_mod);
+        }
+    }
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (d != NULL)
+        XFREE(d, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+/* Uncompress the point given the X ordinate.
+ *
+ * xm    X ordinate.
+ * odd   Whether the Y ordinate is odd.
+ * ym    Calculated Y ordinate.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
+{
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    sp_digit* d;
+#else
+    sp_digit xd[2 * 5];
+    sp_digit yd[2 * 5];
+#endif
+    sp_digit* x;
+    sp_digit* y;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    d = XMALLOC(sizeof(sp_digit) * 4 * 5, NULL, DYNAMIC_TYPE_ECC);
+    if (d != NULL) {
+        x = d + 0 * 5;
+        y = d + 2 * 5;
+    }
+    else
+        err = MEMORY_E;
+#else
+    x = xd;
+    y = yd;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_256_from_mp(x, 5, xm);
+
+        err = sp_256_mod_mul_norm_5(x, x, p256_mod);
+    }
+
+    if (err == MP_OKAY) {
+        /* y = x^3 */
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
+            sp_256_mont_sqr_avx2_5(y, x, p256_mod, p256_mp_mod);
+            sp_256_mont_mul_avx2_5(y, y, x, p256_mod, p256_mp_mod);
+        }
+        else
+#endif
+        {
+            sp_256_mont_sqr_5(y, x, p256_mod, p256_mp_mod);
+            sp_256_mont_mul_5(y, y, x, p256_mod, p256_mp_mod);
+        }
+        /* y = x^3 - 3x */
+        sp_256_mont_sub_5(y, y, x, p256_mod);
+        sp_256_mont_sub_5(y, y, x, p256_mod);
+        sp_256_mont_sub_5(y, y, x, p256_mod);
+        /* y = x^3 - 3x + b */
+        err = sp_256_mod_mul_norm_5(x, p256_b, p256_mod);
+    }
+    if (err == MP_OKAY) {
+        sp_256_mont_add_5(y, y, x, p256_mod);
+        /* y = sqrt(x^3 - 3x + b) */
+        err = sp_256_mont_sqrt_5(y);
+    }
+    if (err == MP_OKAY) {
+        XMEMSET(y + 5, 0, 5 * sizeof(sp_digit));
+        sp_256_mont_reduce_5(y, p256_mod, p256_mp_mod);
+        if (((y[0] ^ odd) & 1) != 0)
+            sp_256_mont_sub_5(y, p256_mod, y, p256_mod);
+
+        err = sp_256_to_mp(y, ym);
+    }
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (d != NULL)
+        XFREE(d, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+#endif
 #endif /* WOLFSSL_SP_NO_256 */
 #endif /* SP_WORD_SIZE == 64 */
 #endif
@@ -48604,6 +49790,12 @@ static sp_digit p256_norm_order[4] = {
 #if defined(HAVE_ECC_SIGN) || defined(HAVE_ECC_VERIFY)
 /* The Montogmery multiplier for order of the curve P256. */
 static sp_digit p256_mp_order = 0xccd1c8aaee00bc4fl;
+#endif
+#if defined(HAVE_ECC_CHECK_KEY) || defined(HAVE_COMP_KEY)
+static sp_digit p256_b[4] = {
+    0x3bce3c3e27d2604bl,0x651d06b0cc53b0f6l,0xb3ebbd55769886bcl,
+    0x5ac635d8aa3a93e7l
+};
 #endif
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
@@ -48792,7 +49984,7 @@ static int sp_256_to_mp(sp_digit* a, mp_int* r)
 {
     int err;
 
-    err = mp_grow(r, (256 + sizeof (mp_digit) - 1) / sizeof(mp_digit));
+    err = mp_grow(r, (256 + DIGIT_BIT - 1) / DIGIT_BIT);
     if (err == MP_OKAY) {
 #if DIGIT_BIT == 64
         XMEMCPY(r->dp, a, sizeof(sp_digit) * 4);
@@ -65720,6 +66912,593 @@ int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX,
 }
 #endif /* HAVE_ECC_VERIFY */
 
+#ifdef HAVE_ECC_CHECK_KEY
+/* Check that the x and y oridinates are a valid point on the curve.
+ *
+ * point  EC point.
+ * heap   Heap to use if dynamically allocating.
+ * returns MEMORY_E if dynamic memory allocation fails, MP_VAL if the point is
+ * not on the curve and MP_OKAY otherwise.
+ */
+static int sp_256_ecc_is_point_4(sp_point* point, void* heap)
+{
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    sp_digit* d = NULL;
+#else
+    sp_digit t1d[2*4];
+    sp_digit t2d[2*4];
+#endif
+    sp_digit* t1;
+    sp_digit* t2;
+    int err = MP_OKAY;
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    d = XMALLOC(sizeof(sp_digit) * 4 * 4, heap, DYNAMIC_TYPE_ECC);
+    if (d != NULL) {
+        t1 = d + 0 * 4;
+        t2 = d + 2 * 4;
+    }
+    else
+        err = MEMORY_E;
+#else
+    (void)heap;
+
+    t1 = t1d;
+    t2 = t2d;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_256_sqr_4(t1, point->y);
+        sp_256_mod_4(t1, t1, p256_mod);
+        sp_256_sqr_4(t2, point->x);
+        sp_256_mod_4(t2, t2, p256_mod);
+        sp_256_mul_4(t2, t2, point->x);
+        sp_256_mod_4(t2, t2, p256_mod);
+	sp_256_sub_4(t2, p256_mod, t2);
+        sp_256_mont_add_4(t1, t1, t2, p256_mod);
+
+        sp_256_mont_add_4(t1, t1, point->x, p256_mod);
+        sp_256_mont_add_4(t1, t1, point->x, p256_mod);
+        sp_256_mont_add_4(t1, t1, point->x, p256_mod);
+
+        if (sp_256_cmp_4(t1, p256_b) != 0)
+            err = MP_VAL;
+    }
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (d != NULL)
+        XFREE(d, heap, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+/* Check that the x and y oridinates are a valid point on the curve.
+ *
+ * pX  X ordinate of EC point.
+ * pY  Y ordinate of EC point.
+ * returns MEMORY_E if dynamic memory allocation fails, MP_VAL if the point is
+ * not on the curve and MP_OKAY otherwise.
+ */
+int sp_ecc_is_point_256(mp_int* pX, mp_int* pY)
+{
+#if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
+    sp_point pubd;
+#endif
+    sp_point* pub;
+    byte one[1] = { 1 };
+    int err;
+
+    err = sp_ecc_point_new(NULL, pubd, pub);
+    if (err == MP_OKAY) {
+        sp_256_from_mp(pub->x, 4, pX);
+        sp_256_from_mp(pub->y, 4, pY);
+        sp_256_from_bin(pub->z, 4, one, sizeof(one));
+
+        err = sp_256_ecc_is_point_4(pub, NULL);
+    }
+
+    sp_ecc_point_free(pub, 0, NULL);
+
+    return err;
+}
+
+/* Check that the private scalar generates the EC point (px, py), the point is
+ * on the curve and the point has the correct order.
+ *
+ * pX     X ordinate of EC point.
+ * pY     Y ordinate of EC point.
+ * privm  Private scalar that generates EC point.
+ * returns MEMORY_E if dynamic memory allocation fails, MP_VAL if the point is
+ * not on the curve, ECC_INF_E if the point does not have the correct order,
+ * ECC_PRIV_KEY_E when the private scalar doesn't generate the EC point and
+ * MP_OKAY otherwise.
+ */
+int sp_ecc_check_key_256(mp_int* pX, mp_int* pY, mp_int* privm, void* heap)
+{
+#if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
+    sp_digit privd[4];
+    sp_point pubd;
+    sp_point pd;
+#endif
+    sp_digit* priv = NULL;
+    sp_point* pub;
+    sp_point* p = NULL;
+    byte one[1] = { 1 };
+    int err;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    err = sp_ecc_point_new(heap, pubd, pub);
+    if (err == MP_OKAY)
+        err = sp_ecc_point_new(heap, pd, p);
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (err == MP_OKAY) {
+        priv = XMALLOC(sizeof(sp_digit) * 4, heap, DYNAMIC_TYPE_ECC);
+        if (priv == NULL)
+            err = MEMORY_E;
+    }
+#else
+    priv = privd;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_256_from_mp(pub->x, 4, pX);
+        sp_256_from_mp(pub->y, 4, pY);
+        sp_256_from_bin(pub->z, 4, one, sizeof(one));
+        sp_256_from_mp(priv, 4, privm);
+
+        /* Check point at infinitiy. */
+        if (sp_256_iszero_4(pub->x) &&
+            sp_256_iszero_4(pub->y))
+            err = ECC_INF_E;
+    }
+
+    if (err == MP_OKAY) {
+        /* Check range of X and Y */
+        if (sp_256_cmp_4(pub->x, p256_mod) >= 0 ||
+            sp_256_cmp_4(pub->y, p256_mod) >= 0)
+            err = ECC_OUT_OF_RANGE_E;
+    }
+
+    if (err == MP_OKAY) {
+        /* Check point is on curve */
+        err = sp_256_ecc_is_point_4(pub, heap);
+    }
+
+    if (err == MP_OKAY) {
+        /* Point * order = infinity */
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+            err = sp_256_ecc_mulmod_avx2_4(p, pub, p256_order, 1, heap);
+        else
+#endif
+            err = sp_256_ecc_mulmod_4(p, pub, p256_order, 1, heap);
+    }
+    if (err == MP_OKAY) {
+        /* Check result is infinity */
+        if (!sp_256_iszero_4(p->x) ||
+            !sp_256_iszero_4(p->y)) {
+            err = ECC_INF_E;
+        }
+    }
+
+    if (err == MP_OKAY) {
+        /* Base * private = point */
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+            err = sp_256_ecc_mulmod_base_avx2_4(p, priv, 1, heap);
+        else
+#endif
+            err = sp_256_ecc_mulmod_base_4(p, priv, 1, heap);
+    }
+    if (err == MP_OKAY) {
+        /* Check result is public key */
+        if (sp_256_cmp_4(p->x, pub->x) != 0 ||
+            sp_256_cmp_4(p->y, pub->y) != 0) {
+            err = ECC_PRIV_KEY_E;
+        }
+    }
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (priv != NULL)
+        XFREE(priv, heap, DYNAMIC_TYPE_ECC);
+#endif
+    sp_ecc_point_free(p, 0, heap);
+    sp_ecc_point_free(pub, 0, heap);
+
+    return err;
+}
+#endif
+#ifdef WOLFSSL_PUBLIC_ECC_ADD_DBL
+/* Add two projective EC points together.
+ * (pX, pY, pZ) + (qX, qY, qZ) = (rX, rY, rZ)
+ *
+ * pX   First EC point's X ordinate.
+ * pY   First EC point's Y ordinate.
+ * pZ   First EC point's Z ordinate.
+ * qX   Second EC point's X ordinate.
+ * qY   Second EC point's Y ordinate.
+ * qZ   Second EC point's Z ordinate.
+ * rX   Resultant EC point's X ordinate.
+ * rY   Resultant EC point's Y ordinate.
+ * rZ   Resultant EC point's Z ordinate.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
+                              mp_int* qX, mp_int* qY, mp_int* qZ,
+                              mp_int* rX, mp_int* rY, mp_int* rZ)
+{
+#if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
+    sp_digit tmpd[2 * 4 * 5];
+    sp_point pd;
+    sp_point qd;
+#endif
+    sp_digit* tmp;
+    sp_point* p;
+    sp_point* q = NULL;
+    int err;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    err = sp_ecc_point_new(NULL, pd, p);
+    if (err == MP_OKAY)
+        err = sp_ecc_point_new(NULL, qd, q);
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (err == MP_OKAY) {
+        tmp = XMALLOC(sizeof(sp_digit) * 2 * 4 * 5, NULL, DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
+            err = MEMORY_E;
+    }
+#else
+    tmp = tmpd;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_256_from_mp(p->x, 4, pX);
+        sp_256_from_mp(p->y, 4, pY);
+        sp_256_from_mp(p->z, 4, pZ);
+        sp_256_from_mp(q->x, 4, qX);
+        sp_256_from_mp(q->y, 4, qY);
+        sp_256_from_mp(q->z, 4, qZ);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+            sp_256_proj_point_add_avx2_4(p, p, q, tmp);
+        else
+#endif
+            sp_256_proj_point_add_4(p, p, q, tmp);
+    }
+
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->x, rX);
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->y, rY);
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->z, rZ);
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (tmp != NULL)
+        XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
+#endif
+    sp_ecc_point_free(q, 0, NULL);
+    sp_ecc_point_free(p, 0, NULL);
+
+    return err;
+}
+
+/* Double a projective EC point.
+ * (pX, pY, pZ) + (pX, pY, pZ) = (rX, rY, rZ)
+ *
+ * pX   EC point's X ordinate.
+ * pY   EC point's Y ordinate.
+ * pZ   EC point's Z ordinate.
+ * rX   Resultant EC point's X ordinate.
+ * rY   Resultant EC point's Y ordinate.
+ * rZ   Resultant EC point's Z ordinate.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+int sp_ecc_proj_dbl_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
+                              mp_int* rX, mp_int* rY, mp_int* rZ)
+{
+#if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
+    sp_digit tmpd[2 * 4 * 2];
+    sp_point pd;
+#endif
+    sp_digit* tmp;
+    sp_point* p;
+    int err;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+    err = sp_ecc_point_new(NULL, pd, p);
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (err == MP_OKAY) {
+        tmp = XMALLOC(sizeof(sp_digit) * 2 * 4 * 2, NULL, DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
+            err = MEMORY_E;
+    }
+#else
+    tmp = tmpd;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_256_from_mp(p->x, 4, pX);
+        sp_256_from_mp(p->y, 4, pY);
+        sp_256_from_mp(p->z, 4, pZ);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+            sp_256_proj_point_dbl_avx2_4(p, p, tmp);
+        else
+#endif
+            sp_256_proj_point_dbl_4(p, p, tmp);
+    }
+
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->x, rX);
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->y, rY);
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->z, rZ);
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (tmp != NULL)
+        XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
+#endif
+    sp_ecc_point_free(p, 0, NULL);
+
+    return err;
+}
+
+/* Map a projective EC point to affine in place.
+ * pZ will be one.
+ *
+ * pX   EC point's X ordinate.
+ * pY   EC point's Y ordinate.
+ * pZ   EC point's Z ordinate.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ)
+{
+#if !defined(WOLFSSL_SP_SMALL) && !defined(WOLFSSL_SMALL_STACK)
+    sp_digit tmpd[2 * 4 * 4];
+    sp_point pd;
+#endif
+    sp_digit* tmp;
+    sp_point* p;
+    int err;
+
+    err = sp_ecc_point_new(NULL, pd, p);
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (err == MP_OKAY) {
+        tmp = XMALLOC(sizeof(sp_digit) * 2 * 4 * 4, NULL, DYNAMIC_TYPE_ECC);
+        if (tmp == NULL)
+            err = MEMORY_E;
+    }
+#else
+    tmp = tmpd;
+#endif
+    if (err == MP_OKAY) {
+        sp_256_from_mp(p->x, 4, pX);
+        sp_256_from_mp(p->y, 4, pY);
+        sp_256_from_mp(p->z, 4, pZ);
+
+        sp_256_map_4(p, p, tmp);
+    }
+
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->x, pX);
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->y, pY);
+    if (err == MP_OKAY)
+        err = sp_256_to_mp(p->z, pZ);
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (tmp != NULL)
+        XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
+#endif
+    sp_ecc_point_free(p, 0, NULL);
+
+    return err;
+}
+#endif /* WOLFSSL_PUBLIC_ECC_ADD_DBL */
+#ifdef HAVE_COMP_KEY
+/* Find the square root of a number mod the prime of the curve.
+ *
+ * y  The number to operate on and the result.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+static int sp_256_mont_sqrt_4(sp_digit* y)
+{
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    sp_digit* d;
+#else
+    sp_digit t1d[2 * 4];
+    sp_digit t2d[2 * 4];
+#endif
+    sp_digit* t1;
+    sp_digit* t2;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    d = XMALLOC(sizeof(sp_digit) * 4 * 4, NULL, DYNAMIC_TYPE_ECC);
+    if (d != NULL) {
+        t1 = d + 0 * 4;
+        t2 = d + 2 * 4;
+    }
+    else
+        err = MEMORY_E;
+#else
+    t1 = t1d;
+    t2 = t2d;
+#endif
+
+    if (err == MP_OKAY) {
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
+            /* t2 = y ^ 0x2 */
+            sp_256_mont_sqr_avx2_4(t2, y, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0x3 */
+            sp_256_mont_mul_avx2_4(t1, t2, y, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xc */
+            sp_256_mont_sqr_n_avx2_4(t2, t1, 2, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xf */
+            sp_256_mont_mul_avx2_4(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xf0 */
+            sp_256_mont_sqr_n_avx2_4(t2, t1, 4, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xff */
+            sp_256_mont_mul_avx2_4(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xff00 */
+            sp_256_mont_sqr_n_avx2_4(t2, t1, 8, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffff */
+            sp_256_mont_mul_avx2_4(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xffff0000 */
+            sp_256_mont_sqr_n_avx2_4(t2, t1, 16, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff */
+            sp_256_mont_mul_avx2_4(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000000 */
+            sp_256_mont_sqr_n_avx2_4(t1, t1, 32, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000001 */
+            sp_256_mont_mul_avx2_4(t1, t1, y, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000001000000000000000000000000 */
+            sp_256_mont_sqr_n_avx2_4(t1, t1, 96, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000001000000000000000000000001 */
+            sp_256_mont_mul_avx2_4(t1, t1, y, p256_mod, p256_mp_mod);
+            sp_256_mont_sqr_n_avx2_4(y, t1, 94, p256_mod, p256_mp_mod);
+        }
+        else
+#endif
+        {
+            /* t2 = y ^ 0x2 */
+            sp_256_mont_sqr_4(t2, y, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0x3 */
+            sp_256_mont_mul_4(t1, t2, y, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xc */
+            sp_256_mont_sqr_n_4(t2, t1, 2, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xf */
+            sp_256_mont_mul_4(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xf0 */
+            sp_256_mont_sqr_n_4(t2, t1, 4, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xff */
+            sp_256_mont_mul_4(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xff00 */
+            sp_256_mont_sqr_n_4(t2, t1, 8, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffff */
+            sp_256_mont_mul_4(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t2 = y ^ 0xffff0000 */
+            sp_256_mont_sqr_n_4(t2, t1, 16, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff */
+            sp_256_mont_mul_4(t1, t1, t2, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000000 */
+            sp_256_mont_sqr_n_4(t1, t1, 32, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000001 */
+            sp_256_mont_mul_4(t1, t1, y, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000001000000000000000000000000 */
+            sp_256_mont_sqr_n_4(t1, t1, 96, p256_mod, p256_mp_mod);
+            /* t1 = y ^ 0xffffffff00000001000000000000000000000001 */
+            sp_256_mont_mul_4(t1, t1, y, p256_mod, p256_mp_mod);
+            sp_256_mont_sqr_n_4(y, t1, 94, p256_mod, p256_mp_mod);
+        }
+    }
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (d != NULL)
+        XFREE(d, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+
+/* Uncompress the point given the X ordinate.
+ *
+ * xm    X ordinate.
+ * odd   Whether the Y ordinate is odd.
+ * ym    Calculated Y ordinate.
+ * returns MEMORY_E if dynamic memory allocation fails and MP_OKAY otherwise.
+ */
+int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym)
+{
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    sp_digit* d;
+#else
+    sp_digit xd[2 * 4];
+    sp_digit yd[2 * 4];
+#endif
+    sp_digit* x;
+    sp_digit* y;
+    int err = MP_OKAY;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    d = XMALLOC(sizeof(sp_digit) * 4 * 4, NULL, DYNAMIC_TYPE_ECC);
+    if (d != NULL) {
+        x = d + 0 * 4;
+        y = d + 2 * 4;
+    }
+    else
+        err = MEMORY_E;
+#else
+    x = xd;
+    y = yd;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_256_from_mp(x, 4, xm);
+
+        err = sp_256_mod_mul_norm_4(x, x, p256_mod);
+    }
+
+    if (err == MP_OKAY) {
+        /* y = x^3 */
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags)) {
+            sp_256_mont_sqr_avx2_4(y, x, p256_mod, p256_mp_mod);
+            sp_256_mont_mul_avx2_4(y, y, x, p256_mod, p256_mp_mod);
+        }
+        else
+#endif
+        {
+            sp_256_mont_sqr_4(y, x, p256_mod, p256_mp_mod);
+            sp_256_mont_mul_4(y, y, x, p256_mod, p256_mp_mod);
+        }
+        /* y = x^3 - 3x */
+        sp_256_mont_sub_4(y, y, x, p256_mod);
+        sp_256_mont_sub_4(y, y, x, p256_mod);
+        sp_256_mont_sub_4(y, y, x, p256_mod);
+        /* y = x^3 - 3x + b */
+        err = sp_256_mod_mul_norm_4(x, p256_b, p256_mod);
+    }
+    if (err == MP_OKAY) {
+        sp_256_mont_add_4(y, y, x, p256_mod);
+        /* y = sqrt(x^3 - 3x + b) */
+        err = sp_256_mont_sqrt_4(y);
+    }
+    if (err == MP_OKAY) {
+        XMEMSET(y + 4, 0, 4 * sizeof(sp_digit));
+        sp_256_mont_reduce_4(y, p256_mod, p256_mp_mod);
+        if (((y[0] ^ odd) & 1) != 0)
+            sp_256_mont_sub_4(y, p256_mod, y, p256_mod);
+
+        err = sp_256_to_mp(y, ym);
+    }
+
+#if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
+    if (d != NULL)
+        XFREE(d, NULL, DYNAMIC_TYPE_ECC);
+#endif
+
+    return err;
+}
+#endif
 #endif /* WOLFSSL_SP_NO_256 */
 #endif /* SP_WORD_SIZE == 64 */
 #endif

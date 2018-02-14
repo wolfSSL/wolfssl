@@ -44,36 +44,70 @@
     #ifndef ECC_PRIV_KEY_BUF
         #define ECC_PRIV_KEY_BUF 66  /* For non user defined curves. */
     #endif
-    /* ecc key sizes: 14, 16, 20, 24, 28, 30, 32, 40, 48, 64*/
-    #ifndef KEY14
-        #define KEY14 14
-    #endif
-    #if !defined(KEY16)
-        #define KEY16 16
-    #endif
-    #if !defined(KEY20)
-        #define KEY20 20
-    #endif
-    #if !defined(KEY24)
-        #define KEY24 24
-    #endif
-    #if !defined(KEY28)
-        #define KEY28 28
-    #endif
-    #if !defined(KEY30)
-        #define KEY30 30
-    #endif
-    #if !defined(KEY32)
-        #define KEY32 32
-    #endif
-    #if !defined(KEY40)
-        #define KEY40 40
-    #endif
-    #if !defined(KEY48)
-        #define KEY48 48
-    #endif
-    #if !defined(KEY64)
-        #define KEY64 64
+    #ifdef HAVE_ALL_CURVES
+        /* ecc key sizes: 14, 16, 20, 24, 28, 30, 32, 40, 48, 64*/
+        #ifndef KEY14
+            #define KEY14 14
+        #endif
+        #if !defined(KEY16)
+            #define KEY16 16
+        #endif
+        #if !defined(KEY20)
+            #define KEY20 20
+        #endif
+        #if !defined(KEY24)
+            #define KEY24 24
+        #endif
+        #if !defined(KEY28)
+            #define KEY28 28
+        #endif
+        #if !defined(KEY30)
+            #define KEY30 30
+        #endif
+        #if !defined(KEY32)
+            #define KEY32 32
+        #endif
+        #if !defined(KEY40)
+            #define KEY40 40
+        #endif
+        #if !defined(KEY48)
+            #define KEY48 48
+        #endif
+        #if !defined(KEY64)
+            #define KEY64 64
+        #endif
+    #else
+        /* ecc key sizes: 14, 16, 20, 24, 28, 30, 32, 40, 48, 64*/
+        #ifndef KEY14
+            #define KEY14 32
+        #endif
+        #if !defined(KEY16)
+            #define KEY16 32
+        #endif
+        #if !defined(KEY20)
+            #define KEY20 32
+        #endif
+        #if !defined(KEY24)
+            #define KEY24 32
+        #endif
+        #if !defined(KEY28)
+            #define KEY28 32
+        #endif
+        #if !defined(KEY30)
+            #define KEY30 32
+        #endif
+        #if !defined(KEY32)
+            #define KEY32 32
+        #endif
+        #if !defined(KEY40)
+            #define KEY40 32
+        #endif
+        #if !defined(KEY48)
+            #define KEY48 32
+        #endif
+        #if !defined(KEY64)
+            #define KEY64 32
+        #endif
     #endif
     #if !defined(HAVE_COMP_KEY)
         #if !defined(NOCOMP)
@@ -11733,7 +11767,6 @@ static int test_wc_ed25519_exportKey (void)
 
 } /* END test_wc_ed25519_exportKey */
 
-
 /*
  * Testing wc_ecc_make_key.
  */
@@ -12524,10 +12557,20 @@ static int test_wc_ecc_import_raw (void)
 
 #ifdef HAVE_ECC
     ecc_key     key;
+#ifdef HAVE_ALL_CURVES
     const char* qx = "07008ea40b08dbe76432096e80a2494c94982d2d5bcf98e6";
     const char* qy = "76fab681d00b414ea636ba215de26d98c41bd7f2e4d65477";
     const char* d  = "e14f37b3d1374ff8b03f41b9b3fdd2f0ebccf275d660d7f3";
     const char* curveName = "SECP192R1";
+#else
+    const char* qx =
+              "6c450448386596485678dcf46ccf75e80ff292443cddab1ff216d0c72cd9341";
+    const char* qy =
+              "9cac72ff8a90e4939e37714bfa07ae4612588535c3fdeab63ceb29b1d80f0d1";
+    const char* d  =
+             "1e1dd938e15bdd036b0b0e2a6dc62fe7b46dbe042ac42310c6d5db0cda63e807";
+    const char* curveName = "SECP256R1";
+#endif
 
     ret = wc_ecc_init(&key);
 
@@ -13160,8 +13203,8 @@ static int test_wc_ecc_shared_secret_ssh (void)
 #if defined(HAVE_ECC) && defined(HAVE_ECC_DHE)
     ecc_key     key, key2;
     WC_RNG      rng;
-    int         keySz = 32;
-    int         key2Sz = 24;
+    int         keySz = KEY32;
+    int         key2Sz = KEY24;
     byte        secret[keySz];
     word32      secretLen = keySz;
 

@@ -2228,10 +2228,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                                 WOLFSSL_ECC_SECP256R1) != WOLFSSL_SUCCESS) {
             err_sys("unable to use curve secp256r1");
         }
+        #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
         if (wolfSSL_UseKeyShare(sslResume,
                                 WOLFSSL_ECC_SECP384R1) != WOLFSSL_SUCCESS) {
             err_sys("unable to use curve secp384r1");
         }
+        #endif
     #endif
     #ifdef HAVE_FFDHE_2048
         if (wolfSSL_UseKeyShare(sslResume, WOLFSSL_FFDHE_2048) != WOLFSSL_SUCCESS) {

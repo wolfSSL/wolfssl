@@ -9868,6 +9868,7 @@ static int dh_generate_test(WC_RNG *rng)
     DhKey  smallKey;
     byte   p[2] = { 0, 5 };
     byte   g[2] = { 0, 2 };
+#ifndef WOLFSSL_SP_MATH
 #ifdef WOLFSSL_DH_CONST
     /* the table for constant DH lookup will round to the lowest byte size 21 */
     byte   priv[21];
@@ -9878,6 +9879,7 @@ static int dh_generate_test(WC_RNG *rng)
 #endif
     word32 privSz = sizeof(priv);
     word32 pubSz = sizeof(pub);
+#endif
 
     ret = wc_InitDhKey_ex(&smallKey, HEAP_HINT, devId);
     if (ret != 0)
@@ -9909,6 +9911,7 @@ static int dh_generate_test(WC_RNG *rng)
         ERROR_OUT(-5706, exit_gen_test);
     }
 
+#ifndef WOLFSSL_SP_MATH
     /* Use API. */
     ret = wc_DhGenerateKeyPair(&smallKey, rng, priv, &privSz, pub, &pubSz);
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -9917,6 +9920,10 @@ static int dh_generate_test(WC_RNG *rng)
     if (ret != 0) {
         ret = -5707;
     }
+#else
+    (void)rng;
+    ret = 0;
+#endif
 
 exit_gen_test:
     wc_FreeDhKey(&smallKey);
@@ -14315,7 +14322,9 @@ static int ecc_test_cert_gen(WC_RNG* rng)
     }
     bytes = fread(der, 1, FOURK_BUF, file);
     fclose(file);
+#ifdef ENABLE_ECC384_CERT_GEN_TEST
     (void)eccCaKey384File;
+#endif
 #endif /* USE_CERT_BUFFERS_256 */
 #endif /* ENABLE_ECC384_CERT_GEN_TEST */
 
@@ -14393,7 +14402,9 @@ static int ecc_test_cert_gen(WC_RNG* rng)
                                       sizeof_ca_ecc_cert_der_256);
 #else
     ret = wc_SetIssuer(&myCert, eccCaCertFile);
+#ifdef ENABLE_ECC384_CERT_GEN_TEST
     (void)eccCaCert384File;
+#endif
 #endif
 #endif /* ENABLE_ECC384_CERT_GEN_TEST */
     if (ret < 0) {

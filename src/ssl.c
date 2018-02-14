@@ -21495,7 +21495,8 @@ int wolfSSL_RAND_write_file(const char* fname)
     #ifndef WOLFSSL_SMALL_STACK
         unsigned char buf[1024];
     #else
-        unsigned char* buf = XMALLOC(1024, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        unsigned char* buf = (unsigned char *)XMALLOC(1024, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
         if (buf == NULL) {
             WOLFSSL_MSG("malloc failed");
             return SSL_FAILURE;
