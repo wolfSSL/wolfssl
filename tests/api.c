@@ -15546,6 +15546,9 @@ static void test_wolfSSL_ERR_put_error(void)
     AssertIntEQ(ERR_get_error_line(&file, &line), 0);
     AssertNull(file);
 
+    /* Empty and free up all error nodes */
+    ERR_clear_error();
+
     printf(resultFmt, passed);
     #endif
 }
