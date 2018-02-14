@@ -2273,28 +2273,29 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
 {
     word32 tmpIdx = 0;
 
-    #ifdef HAVE_ECC
-    ecc_key ecc;
-    #endif
+    if (key == NULL || algoID == NULL)
+        return BAD_FUNC_ARG;
 
-#ifdef HAVE_ED25519
-    ed25519_key ed25519;
-    #endif
+    *algoID = 0;
 
     #ifndef NO_RSA
-    RsaKey rsa;
+    {
+        RsaKey rsa;
 
-    wc_InitRsaKey(&rsa, heap);
-    if (wc_RsaPrivateKeyDecode(key, &tmpIdx, &rsa, keySz) == 0) {
-        *algoID = RSAk;
+        wc_InitRsaKey(&rsa, heap);
+        if (wc_RsaPrivateKeyDecode(key, &tmpIdx, &rsa, keySz) == 0) {
+            *algoID = RSAk;
+        }
+        else {
+            WOLFSSL_MSG("Not RSA DER key");
+        }
+        wc_FreeRsaKey(&rsa);
     }
-    else {
-        WOLFSSL_MSG("Not RSA DER key");
-    }
-    wc_FreeRsaKey(&rsa);
     #endif /* NO_RSA */
     #ifdef HAVE_ECC
-    if (algoID == 0) {
+    if (*algoID == 0) {
+        ecc_key ecc;
+
         tmpIdx = 0;
         wc_ecc_init_ex(&ecc, heap, INVALID_DEVID);
         if (wc_EccPrivateKeyDecode(key, &tmpIdx, &ecc, keySz) == 0) {
@@ -2315,6 +2316,9 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
 #endif /* HAVE_ECC */
 #ifdef HAVE_ED25519
     if (*algoID != RSAk && *algoID != ECDSAk) {
+        ed25519_key ed25519;
+
+        tmpIdx = 0;
         if (wc_ed25519_init(&ed25519) == 0) {
             if (wc_Ed25519PrivateKeyDecode(key, &tmpIdx, &ed25519, keySz)
                                                                          == 0) {
