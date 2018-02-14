@@ -68,6 +68,11 @@
    #define MAX(x,y) ((x)>(y)?(x):(y))
 #endif
 
+#ifdef WOLFSSL_PUBLIC_MP
+    #define MP_API   WOLFSSL_API
+#else
+    #define MP_API   WOLFSSL_LOCAL
+#endif
 
 #if !defined(WOLFSSL_HAVE_SP_RSA) && !defined(WOLFSSL_HAVE_SP_DH)
     #if !defined(NO_PWDBASED) && defined(WOLFSSL_SHA512)
@@ -90,27 +95,27 @@ typedef struct sp_int {
 } sp_int;
 
 
-WOLFSSL_LOCAL int sp_init(sp_int* a);
-WOLFSSL_API   int sp_init_multi(sp_int* a, sp_int* b, sp_int* c, sp_int* d,
-                                sp_int* e, sp_int* f);
-WOLFSSL_LOCAL void sp_clear(sp_int* a);
-WOLFSSL_LOCAL int sp_unsigned_bin_size(sp_int* a);
-WOLFSSL_LOCAL int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz);
-WOLFSSL_LOCAL int sp_read_radix(sp_int* a, const char* in, int radix);
-WOLFSSL_LOCAL int sp_cmp(sp_int* a, sp_int* b);
-WOLFSSL_LOCAL int sp_count_bits(sp_int* a);
-WOLFSSL_LOCAL int sp_leading_bit(sp_int* a);
-WOLFSSL_LOCAL int sp_to_unsigned_bin(sp_int* a, byte* in);
-WOLFSSL_LOCAL void sp_forcezero(sp_int* a);
-WOLFSSL_LOCAL int sp_copy(sp_int* a, sp_int* b);
-WOLFSSL_LOCAL int sp_set(sp_int* a, sp_int_digit d);
-WOLFSSL_LOCAL int sp_iszero(sp_int* a);
-WOLFSSL_LOCAL void sp_clamp(sp_int* a);
-WOLFSSL_LOCAL int sp_grow(sp_int* a, int l);
-WOLFSSL_LOCAL void sp_zero(sp_int* a);
-WOLFSSL_LOCAL int sp_add_d(sp_int* a, sp_int_digit d, sp_int* r);
-WOLFSSL_LOCAL int sp_lshd(sp_int* a, int s);
-WOLFSSL_LOCAL int sp_add(sp_int* a, sp_int* b, sp_int* r);
+MP_API int sp_init(sp_int* a);
+WOLFSSL_API int sp_init_multi(sp_int* a, sp_int* b, sp_int* c, sp_int* d,
+                              sp_int* e, sp_int* f);
+MP_API void sp_clear(sp_int* a);
+MP_API int sp_unsigned_bin_size(sp_int* a);
+MP_API int sp_read_unsigned_bin(sp_int* a, const byte* in, word32 inSz);
+MP_API int sp_read_radix(sp_int* a, const char* in, int radix);
+MP_API int sp_cmp(sp_int* a, sp_int* b);
+MP_API int sp_count_bits(sp_int* a);
+MP_API int sp_leading_bit(sp_int* a);
+MP_API int sp_to_unsigned_bin(sp_int* a, byte* in);
+MP_API void sp_forcezero(sp_int* a);
+MP_API int sp_copy(sp_int* a, sp_int* b);
+MP_API int sp_set(sp_int* a, sp_int_digit d);
+MP_API int sp_iszero(sp_int* a);
+MP_API void sp_clamp(sp_int* a);
+MP_API int sp_grow(sp_int* a, int l);
+MP_API void sp_zero(sp_int* a);
+MP_API int sp_add_d(sp_int* a, sp_int_digit d, sp_int* r);
+MP_API int sp_lshd(sp_int* a, int s);
+MP_API int sp_add(sp_int* a, sp_int* b, sp_int* r);
 
 typedef sp_int mp_int;
 typedef sp_digit mp_digit;
