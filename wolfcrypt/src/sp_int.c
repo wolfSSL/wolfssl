@@ -276,7 +276,7 @@ int sp_leading_bit(sp_int* a)
         d = a->dp[a->used - 1];
         while (d > (sp_int_digit)0xff)
             d >>= 8;
-        bit = d >> 7;
+        bit = (int)(d >> 7);
     }
 
     return bit;
@@ -465,7 +465,7 @@ int sp_add(sp_int* a, sp_int* b, sp_int* r)
         c = r->dp[i] == 0;
     }
     r->dp[i] = c;
-    a->used = i + c;
+    a->used = (int)(i + c);
 
     return MP_OKAY;
 }

@@ -5785,6 +5785,7 @@ int wc_ecc_sig_size(ecc_key* key)
 
 
 #ifndef WOLFSSL_SP_MATH
+
 /** Our FP cache */
 typedef struct {
    ecc_point* g;               /* cached COPY of base point */
@@ -5802,7 +5803,6 @@ static THREAD_LS_T fp_cache_t fp_cache[FP_ENTRIES];
     static volatile int initMutex = 0;  /* prevent multiple mutex inits */
     static wolfSSL_Mutex ecc_fp_lock;
 #endif /* HAVE_THREAD_LS */
-#endif /* WOLFSSL_SP_MATH */
 
 /* simple table to help direct the generation of the LUT */
 static const struct {
@@ -6334,7 +6334,7 @@ static const struct {
 #endif
 };
 
-#ifndef WOLFSSL_SP_MATH
+
 /* find a hole and free as required, return -1 if no hole found */
 static int find_hole(void)
 {
