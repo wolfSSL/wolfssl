@@ -206,6 +206,9 @@ const char* wc_GetErrorString(int error)
     case ASN_CRIT_EXT_E:
         return "X.509 Critical extension ignored or invalid";
 
+    case ASN_ALT_NAME_E:
+        return "ASN alternate name error";
+
     case ECC_BAD_ARG_E :
         return "ECC input argument wrong type, invalid input";
 

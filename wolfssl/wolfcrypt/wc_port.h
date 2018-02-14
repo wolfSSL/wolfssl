@@ -357,6 +357,9 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define NEED_TMP_TIME
 
 #elif defined(HAVE_RTP_SYS)
+    #include "os.h"           /* dc_rtc_api needs    */
+    #include "dc_rtc_api.h"   /* to get current time */
+
     /* uses parital <time.h> structures */
     #define XTIME(tl)       (0)
     #define XGMTIME(c, t)   rtpsys_gmtime((c))

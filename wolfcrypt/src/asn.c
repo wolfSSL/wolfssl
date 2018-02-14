@@ -34,6 +34,8 @@ ASN Options:
  * ASN_DUMP_OID: Allows dump of OID information for debugging.
  * RSA_DECODE_EXTRA: Decodes extra information in RSA public key.
  * WOLFSSL_CERT_GEN: Cert generation. Saves extra certificate info in GetName.
+ * WOLFSSL_NO_ASN_STRICT: Disable strict RFC compliance checks to
+    restore 3.13.0 behavior.
  * WOLFSSL_NO_OCSP_OPTIONAL_CERTS: Skip optional OCSP certs (responder issuer
     must still be trusted)
  * WOLFSSL_NO_TRUSTED_CERTS_VERIFY: Workaround for situation where entire cert
@@ -47,11 +49,6 @@ ASN Options:
 */
 
 #ifndef NO_ASN
-
-#ifdef HAVE_RTP_SYS
-    #include "os.h"           /* dc_rtc_api needs    */
-    #include "dc_rtc_api.h"   /* to get current time */
-#endif
 
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/coding.h>
@@ -5436,6 +5433,16 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
             }
             length -= (idx - lenStartIdx);
 
+        #ifndef WOLFSSL_NO_ASN_STRICT
+            /* Verify RFC 5280 Sec 4.2.1.6 rule:
+                "The name MUST NOT be a relative URI" */
+
+            if (XSTRNCMP((const char*)&input[idx], "://", strLen + 1) != 0) {
+                WOLFSSL_MSG("\tAlt Name must be absolute URI");
+                return ASN_ALT_NAME_E;
+            }
+        #endif
+
             uriEntry = (DNS_entry*)XMALLOC(sizeof(DNS_entry), cert->heap,
                                         DYNAMIC_TYPE_ALTNAME);
             if (uriEntry == NULL) {
@@ -6168,13 +6175,27 @@ int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
     }
 #endif /* WOLFSSL_SEP */
 
+/* Macro to check if bit is set, if not sets and return success.
+    Otherwise returns failure */
+/* Macro required here because bit-field operation */
+#ifndef WOLFSSL_NO_ASN_STRICT
+    #define VERIFY_AND_SET_OID(bit) \
+        if (bit == 0) \
+            bit = 1; \
+        else \
+            return ASN_OBJECT_ID_E;
+#else
+    /* With no strict defined, the verify is skipped */
+#define VERIFY_AND_SET_OID(bit) bit = 1;
+#endif
+
 static int DecodeCertExtensions(DecodedCert* cert)
 /*
  *  Processing the Certificate Extensions. This does not modify the current
  *  index. It is works starting with the recorded extensions pointer.
  */
 {
-    int ret;
+    int ret = 0;
     word32 idx = 0;
     int sz = cert->extensionsSz;
     byte* input = cert->extensions;
@@ -6236,8 +6257,8 @@ static int DecodeCertExtensions(DecodedCert* cert)
 
         switch (oid) {
             case BASIC_CA_OID:
+                VERIFY_AND_SET_OID(cert->extBasicConstSet);
                 #ifdef OPENSSL_EXTRA
-                    cert->extBasicConstSet = 1;
                     cert->extBasicConstCrit = critical;
                 #endif
                 if (DecodeBasicCaConstraint(&input[idx], length, cert) < 0)
@@ -6245,8 +6266,8 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 break;
 
             case CRL_DIST_OID:
+                VERIFY_AND_SET_OID(cert->extCRLdistSet);
                 #ifdef OPENSSL_EXTRA
-                    cert->extCRLdistSet  = 1;
                     cert->extCRLdistCrit = critical;
                 #endif
                 if (DecodeCrlDist(&input[idx], length, cert) < 0)
@@ -6254,8 +6275,8 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 break;
 
             case AUTH_INFO_OID:
+                VERIFY_AND_SET_OID(cert->extAuthInfoSet);
                 #ifdef OPENSSL_EXTRA
-                    cert->extAuthInfoSet  = 1;
                     cert->extAuthInfoCrit = critical;
                 #endif
                 if (DecodeAuthInfo(&input[idx], length, cert) < 0)
@@ -6263,16 +6284,17 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 break;
 
             case ALT_NAMES_OID:
+                VERIFY_AND_SET_OID(cert->extSubjAltNameSet);
                 #ifdef OPENSSL_EXTRA
-                    cert->extSubjAltNameSet = 1;
                     cert->extSubjAltNameCrit = critical;
                 #endif
-                if (DecodeAltNames(&input[idx], length, cert) < 0)
-                    return ASN_PARSE_E;
+                ret = DecodeAltNames(&input[idx], length, cert);
+                if (ret < 0)
+                    return ret;
                 break;
 
             case AUTH_KEY_OID:
-                cert->extAuthKeyIdSet = 1;
+                VERIFY_AND_SET_OID(cert->extAuthKeyIdSet);
                 #ifdef OPENSSL_EXTRA
                     cert->extAuthKeyIdCrit = critical;
                 #endif
@@ -6281,7 +6303,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 break;
 
             case SUBJ_KEY_OID:
-                cert->extSubjKeyIdSet = 1;
+                VERIFY_AND_SET_OID(cert->extSubjKeyIdSet);
                 #ifdef OPENSSL_EXTRA
                     cert->extSubjKeyIdCrit = critical;
                 #endif
@@ -6303,8 +6325,8 @@ static int DecodeCertExtensions(DecodedCert* cert)
 
             case CERT_POLICY_OID:
                 #ifdef WOLFSSL_SEP
+                    VERIFY_AND_SET_OID(cert->extCertPolicySet);
                     #ifdef OPENSSL_EXTRA
-                        cert->extCertPolicySet = 1;
                         cert->extCertPolicyCrit = critical;
                     #endif
                 #endif
@@ -6318,7 +6340,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 break;
 
             case KEY_USAGE_OID:
-                cert->extKeyUsageSet = 1;
+                VERIFY_AND_SET_OID(cert->extKeyUsageSet);
                 #ifdef OPENSSL_EXTRA
                     cert->extKeyUsageCrit = critical;
                 #endif
@@ -6327,7 +6349,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 break;
 
             case EXT_KEY_USAGE_OID:
-                cert->extExtKeyUsageSet = 1;
+                VERIFY_AND_SET_OID(cert->extExtKeyUsageSet);
                 #ifdef OPENSSL_EXTRA
                     cert->extExtKeyUsageCrit = critical;
                 #endif
@@ -6337,7 +6359,16 @@ static int DecodeCertExtensions(DecodedCert* cert)
 
             #ifndef IGNORE_NAME_CONSTRAINTS
             case NAME_CONS_OID:
-                cert->extNameConstraintSet = 1;
+            #ifndef WOLFSSL_NO_ASN_STRICT
+                /* Verify RFC 5280 Sec 4.2.1.10 rule:
+                    "The name constraints extension,
+                    which MUST be used only in a CA certificate" */
+                if (!cert->isCA) {
+                    WOLFSSL_MSG("Name constraints allowed only for CA certs");
+                    return ASN_NAME_INVALID_E;
+                }
+            #endif
+                VERIFY_AND_SET_OID(cert->extNameConstraintSet);
                 #ifdef OPENSSL_EXTRA
                     cert->extNameConstraintCrit = critical;
                 #endif
@@ -6347,6 +6378,7 @@ static int DecodeCertExtensions(DecodedCert* cert)
             #endif /* IGNORE_NAME_CONSTRAINTS */
 
             case INHIBIT_ANY_OID:
+                VERIFY_AND_SET_OID(cert->inhibitAnyOidSet);
                 WOLFSSL_MSG("Inhibit anyPolicy extension not supported yet.");
                 break;
 
