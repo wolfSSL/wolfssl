@@ -15039,8 +15039,8 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
     }
 }
 
-
-void wolfSSL_FreeX509(WOLFSSL_X509* x509)
+/* Frees an external WOLFSSL_X509 structure */
+void wolfSSL_X509_free(WOLFSSL_X509* x509)
 {
     WOLFSSL_ENTER("wolfSSL_FreeX509");
     ExternalFreeX509(x509);
@@ -16199,14 +16199,6 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
 #endif
 
 #if !defined(NO_CERTS)
-/* Frees an external WOLFSSL_X509 structure */
-void wolfSSL_X509_free(WOLFSSL_X509* x509)
-{
-    WOLFSSL_ENTER("wolfSSL_X509_free");
-    ExternalFreeX509(x509);
-}
-
-
 /* returns a pointer to a new WOLFSSL_X509 structure on success and NULL on
  * fail
  */

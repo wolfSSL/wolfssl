@@ -939,17 +939,34 @@ static word32 SetBitString16Bit(word16 val, byte* output)
     /* See "ecc_sets" table in ecc.c */
 #endif /* HAVE_ECC */
 
+#ifdef HAVE_AES_CBC
 /* blkType */
-static const byte blkAes128CbcOid[] = {96, 134, 72, 1, 101, 3, 4, 1, 2};
-static const byte blkAes192CbcOid[] = {96, 134, 72, 1, 101, 3, 4, 1, 22};
-static const byte blkAes256CbcOid[] = {96, 134, 72, 1, 101, 3, 4, 1, 42};
-static const byte blkDesCbcOid[]  = {43, 14, 3, 2, 7};
-static const byte blkDes3CbcOid[] = {42, 134, 72, 134, 247, 13, 3, 7};
+    #ifdef WOLFSSL_AES_128
+    static const byte blkAes128CbcOid[] = {96, 134, 72, 1, 101, 3, 4, 1, 2};
+    #endif
+    #ifdef WOLFSSL_AES_192
+    static const byte blkAes192CbcOid[] = {96, 134, 72, 1, 101, 3, 4, 1, 22};
+    #endif
+    #ifdef WOLFSSL_AES_256
+    static const byte blkAes256CbcOid[] = {96, 134, 72, 1, 101, 3, 4, 1, 42};
+    #endif
+#endif /* HAVE_AES_CBC */
+
+#ifndef NO_DES3
+    static const byte blkDesCbcOid[]  = {43, 14, 3, 2, 7};
+    static const byte blkDes3CbcOid[] = {42, 134, 72, 134, 247, 13, 3, 7};
+#endif
 
 /* keyWrapType */
-static const byte wrapAes128Oid[] = {96, 134, 72, 1, 101, 3, 4, 1, 5};
-static const byte wrapAes192Oid[] = {96, 134, 72, 1, 101, 3, 4, 1, 25};
-static const byte wrapAes256Oid[] = {96, 134, 72, 1, 101, 3, 4, 1, 45};
+#ifdef WOLFSSL_AES_128
+    static const byte wrapAes128Oid[] = {96, 134, 72, 1, 101, 3, 4, 1, 5};
+#endif
+#ifdef WOLFSSL_AES_192
+    static const byte wrapAes192Oid[] = {96, 134, 72, 1, 101, 3, 4, 1, 25};
+#endif
+#ifdef WOLFSSL_AES_256
+    static const byte wrapAes256Oid[] = {96, 134, 72, 1, 101, 3, 4, 1, 45};
+#endif
 
 /* cmsKeyAgreeType */
 #ifndef NO_SHA
@@ -1489,7 +1506,7 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     *oidSz = sizeof(hmacSha256Oid);
                     break;
         #endif
-        #ifdef WOLFSSL_SHA284
+        #ifdef WOLFSSL_SHA384
                 case HMAC_SHA384_OID:
                     oid = hmacSha384Oid;
                     *oidSz = sizeof(hmacSha384Oid);
