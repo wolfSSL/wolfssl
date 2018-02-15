@@ -53,8 +53,8 @@
         /* lwIP needs to be configured to use sockets API in this mode */
         /* LWIP_SOCKET 1 in lwip/opt.h or in build */
         #include "lwip/sockets.h"
-        #include <errno.h>
         #ifndef LWIP_PROVIDE_ERRNO
+            #include <errno.h>
             #define LWIP_PROVIDE_ERRNO 1
         #endif
     #elif defined(FREESCALE_MQX)
