@@ -154,7 +154,11 @@ void* wolfSSL_Realloc(void *ptr, size_t size)
     #endif
     }
     else {
+    #ifndef WOLFSSL_NO_MALLOC
         res = realloc(ptr, size);
+    #else
+        WOLFSSL_MSG("No realloc available");
+    #endif
     }
 
     return res;
