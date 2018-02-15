@@ -984,10 +984,6 @@ static int wc_ecc_export_x963_compressed(ecc_key*, byte* out, word32* outLen);
 #ifndef WOLFSSL_SP_MATH
 static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
         mp_int* prime, mp_int* order);
-#ifdef ECC_SHAMIR
-static int ecc_mul2add(ecc_point* A, mp_int* kA, ecc_point* B, mp_int* kB,
-                       ecc_point* C, mp_int* a, mp_int* modulus, void* heap);
-#endif
 #endif
 
 int mp_jacobi(mp_int* a, mp_int* n, int* c);
@@ -3921,7 +3917,7 @@ static int normal_ecc_mul2add(ecc_point* A, mp_int* kA,
                              ecc_point* C, mp_int* a, mp_int* modulus,
                              void* heap)
 #else
-static int ecc_mul2add(ecc_point* A, mp_int* kA,
+int ecc_mul2add(ecc_point* A, mp_int* kA,
                     ecc_point* B, mp_int* kB,
                     ecc_point* C, mp_int* a, mp_int* modulus,
                     void* heap)
