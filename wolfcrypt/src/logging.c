@@ -267,6 +267,11 @@ void WOLFSSL_ERROR(int error)
             }
             #if defined(OPENSSL_EXTRA) && !defined(WOLFCRYPT_ONLY)
             }
+            else {
+                XSNPRINTF(buffer, sizeof(buffer),
+                    "wolfSSL error occurred, error = %d", error);
+
+            }
             #endif
 
             wc_UnLockMutex(&debug_mutex);
