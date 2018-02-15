@@ -5783,6 +5783,9 @@ int aes_test(void)
     wc_AesFree(&dec);
 #endif
 
+    (void)plain;
+    (void)cipher;
+
     return ret;
 }
 
@@ -6342,6 +6345,7 @@ int aesgcm_test(void)
 #endif /* WOLFSSL_AES_128 */
 #endif /* ENABLE_NON_12BYTE_IV_TEST */
 
+#ifdef WOLFSSL_AES_256
     XMEMSET(resultT, 0, sizeof(resultT));
     XMEMSET(resultC, 0, sizeof(resultC));
     XMEMSET(resultP, 0, sizeof(resultP));
@@ -6369,6 +6373,7 @@ int aesgcm_test(void)
         return -4324;
     if (XMEMCMP(p, resultP, sizeof(resultP)))
         return -4325;
+#endif /* WOLFSSL_AES_256 */
     wc_AesFree(&enc);
 
     return 0;

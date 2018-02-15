@@ -4608,6 +4608,7 @@ static int wolfssl_encrypt_buffer_key(byte* der, word32 derSz, byte* password,
             ret = wc_Des_CbcEncryptWithKey(der, der, derSz, key, info->iv);
         else if (XSTRNCMP(info->name, EVP_DES_EDE3_CBC, EVP_DES_EDE3_SIZE) == 0)
             ret = wc_Des3_CbcEncryptWithKey(der, der, derSz, key, info->iv);
+        else
 #endif /* NO_DES3 */
 #ifndef NO_AES
     #ifdef WOLFSSL_AES_128
@@ -16190,13 +16191,10 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
 #endif
 
 
-#if defined(OPENSSL_EXTRA_X509_SMALL)
+#if defined(OPENSSL_EXTRA_X509_SMALL) || defined(KEEP_PEER_CERT) || \
+    defined(SESSION_CERTS)
 /* Smaller subset of X509 compatibility functions. Avoid increasing the size of
  * this subset and its memory usage */
-
-#ifdef HAVE_ECC
-    static int SetECKeyExternal(WOLFSSL_EC_KEY* eckey);
-#endif
 
 #if !defined(NO_CERTS)
 /* returns a pointer to a new WOLFSSL_X509 structure on success and NULL on
@@ -16214,6 +16212,42 @@ WOLFSSL_X509* wolfSSL_X509_new()
 
     return x509;
 }
+
+WOLFSSL_X509_NAME* wolfSSL_X509_get_subject_name(WOLFSSL_X509* cert)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_get_subject_name");
+    if (cert && cert->subject.sz != 0)
+        return &cert->subject;
+    return NULL;
+}
+
+
+
+WOLFSSL_X509_NAME* wolfSSL_X509_get_issuer_name(WOLFSSL_X509* cert)
+{
+    WOLFSSL_ENTER("X509_get_issuer_name");
+    if (cert && cert->issuer.sz != 0)
+        return &cert->issuer;
+    return NULL;
+}
+
+
+int wolfSSL_X509_get_signature_type(WOLFSSL_X509* x509)
+{
+    int type = 0;
+
+    WOLFSSL_ENTER("wolfSSL_X509_get_signature_type");
+
+    if (x509 != NULL)
+        type = x509->sigOID;
+
+    return type;
+}
+
+#if defined(OPENSSL_EXTRA_X509_SMALL)
+#ifdef HAVE_ECC
+    static int SetECKeyExternal(WOLFSSL_EC_KEY* eckey);
+#endif
 
 /* Used to get a string from the WOLFSSL_X509_NAME structure that
  * corresponds with the NID value passed in.
@@ -16296,37 +16330,6 @@ int wolfSSL_X509_NAME_get_text_by_NID(WOLFSSL_X509_NAME* name,
     return (textSz - 1); /* do not include null character in size */
 }
 
-
-WOLFSSL_X509_NAME* wolfSSL_X509_get_subject_name(WOLFSSL_X509* cert)
-{
-    WOLFSSL_ENTER("wolfSSL_X509_get_subject_name");
-    if (cert && cert->subject.sz != 0)
-        return &cert->subject;
-    return NULL;
-}
-
-
-
-WOLFSSL_X509_NAME* wolfSSL_X509_get_issuer_name(WOLFSSL_X509* cert)
-{
-    WOLFSSL_ENTER("X509_get_issuer_name");
-    if (cert && cert->issuer.sz != 0)
-        return &cert->issuer;
-    return NULL;
-}
-
-
-int wolfSSL_X509_get_signature_type(WOLFSSL_X509* x509)
-{
-    int type = 0;
-
-    WOLFSSL_ENTER("wolfSSL_X509_get_signature_type");
-
-    if (x509 != NULL)
-        type = x509->sigOID;
-
-    return type;
-}
 
 /* Creates a new WOLFSSL_EVP_PKEY structure that has the public key from x509
  *
@@ -16417,6 +16420,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
     }
     return key;
 }
+#endif /* OPENSSL_EXTRA_X509_SMALL */
 #endif /* !NO_CERTS */
 
 /* End of smaller subset of X509 compatibility functions. Avoid increasing the
