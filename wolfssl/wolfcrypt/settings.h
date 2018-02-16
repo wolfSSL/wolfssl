@@ -1616,6 +1616,13 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
+#if defined(NO_OLD_WC_NAMES) || defined(OPENSSL_EXTRA)
+    /* added to have compatibility with SHA256() */
+    #if !defined(NO_OLD_SHA256_NAMES) && !defined(HAVE_FIPS)
+        #define NO_OLD_SHA256_NAMES
+    #endif
+#endif
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif
