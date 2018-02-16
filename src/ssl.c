@@ -4677,20 +4677,30 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                              break;
         case CRL_TYPE:       header=BEGIN_X509_CRL;   footer=END_X509_CRL;
                              break;
+#ifndef NO_DH
         case DH_PARAM_TYPE:  header=BEGIN_DH_PARAM;   footer=END_DH_PARAM;
                              break;
+#endif
+#ifndef NO_DSA
         case DSA_PARAM_TYPE: header=BEGIN_DSA_PARAM;  footer=END_DSA_PARAM;
                              break;
+#endif
+#ifdef WOLFSSL_CERT_REQ
         case CERTREQ_TYPE:   header=BEGIN_CERT_REQ;   footer=END_CERT_REQ;
                              break;
+#endif
         case DSA_TYPE:       header=BEGIN_DSA_PRIV;   footer=END_DSA_PRIV;
                              break;
+#ifdef HAVE_ECC
         case ECC_TYPE:       header=BEGIN_EC_PRIV;    footer=END_EC_PRIV;
                              break;
+#endif
         case RSA_TYPE:       header=BEGIN_RSA_PRIV;   footer=END_RSA_PRIV;
                              break;
+#ifdef HAVE_ED25519
         case ED25519_TYPE:   header=BEGIN_EDDSA_PRIV; footer=END_EDDSA_PRIV;
                              break;
+#endif
         case PUBLICKEY_TYPE: header=BEGIN_PUB_KEY;    footer=END_PUB_KEY;
                              break;
         default:             header=BEGIN_RSA_PRIV;   footer=END_RSA_PRIV;
@@ -4703,18 +4713,29 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
         if (headerEnd || type != PRIVATEKEY_TYPE) {
             break;
-        } else if (header == BEGIN_RSA_PRIV) {
-                   header =  BEGIN_PRIV_KEY;       footer = END_PRIV_KEY;
-        } else if (header == BEGIN_PRIV_KEY) {
-                   header =  BEGIN_ENC_PRIV_KEY;   footer = END_ENC_PRIV_KEY;
-        } else if (header == BEGIN_ENC_PRIV_KEY) {
-                   header =  BEGIN_EC_PRIV;        footer = END_EC_PRIV;
-        } else if (header == BEGIN_EC_PRIV) {
-                   header =  BEGIN_DSA_PRIV;       footer = END_DSA_PRIV;
-        } else if (header == BEGIN_DSA_PRIV) {
-                   header =  BEGIN_EDDSA_PRIV;     footer = END_EDDSA_PRIV;
         } else
+        if (header == BEGIN_RSA_PRIV) {
+            header =  BEGIN_PRIV_KEY;       footer = END_PRIV_KEY;
+        } else
+        if (header == BEGIN_PRIV_KEY) {
+            header =  BEGIN_ENC_PRIV_KEY;   footer = END_ENC_PRIV_KEY;
+        } else
+#ifdef HAVE_ECC
+        if (header == BEGIN_ENC_PRIV_KEY) {
+            header =  BEGIN_EC_PRIV;        footer = END_EC_PRIV;
+        } else
+        if (header == BEGIN_EC_PRIV) {
+            header =  BEGIN_DSA_PRIV;       footer = END_DSA_PRIV;
+        } else
+#endif
+#ifdef HAVE_ED25519
+        if (header == BEGIN_DSA_PRIV) {
+            header =  BEGIN_EDDSA_PRIV;     footer = END_EDDSA_PRIV;
+        } else
+#endif
+        {
             break;
+        }
     }
 
     if (!headerEnd) {
@@ -4739,8 +4760,13 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     }
 
     if (type == PRIVATEKEY_TYPE) {
-        if (eccKey)
+        if (eccKey) {
+        #ifdef HAVE_ECC
             *eccKey = header == BEGIN_EC_PRIV;
+        #else
+            *eccKey = 0;
+        #endif
+        }
     }
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \

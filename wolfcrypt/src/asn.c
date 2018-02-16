@@ -7077,12 +7077,18 @@ WOLFSSL_LOCAL int GetSerialNumber(const byte* input, word32* inOutIdx,
 
 const char* const BEGIN_CERT         = "-----BEGIN CERTIFICATE-----";
 const char* const END_CERT           = "-----END CERTIFICATE-----";
-const char* const BEGIN_CERT_REQ     = "-----BEGIN CERTIFICATE REQUEST-----";
-const char* const END_CERT_REQ       = "-----END CERTIFICATE REQUEST-----";
-const char* const BEGIN_DH_PARAM     = "-----BEGIN DH PARAMETERS-----";
-const char* const END_DH_PARAM       = "-----END DH PARAMETERS-----";
-const char* const BEGIN_DSA_PARAM    = "-----BEGIN DSA PARAMETERS-----";
-const char* const END_DSA_PARAM      = "-----END DSA PARAMETERS-----";
+#ifdef WOLFSSL_CERT_REQ
+    const char* const BEGIN_CERT_REQ     = "-----BEGIN CERTIFICATE REQUEST-----";
+    const char* const END_CERT_REQ       = "-----END CERTIFICATE REQUEST-----";
+#endif
+#ifndef NO_DH
+    const char* const BEGIN_DH_PARAM     = "-----BEGIN DH PARAMETERS-----";
+    const char* const END_DH_PARAM       = "-----END DH PARAMETERS-----";
+#endif
+#ifndef NO_DSA
+    const char* const BEGIN_DSA_PARAM    = "-----BEGIN DSA PARAMETERS-----";
+    const char* const END_DSA_PARAM      = "-----END DSA PARAMETERS-----";
+#endif
 const char* const BEGIN_X509_CRL     = "-----BEGIN X509 CRL-----";
 const char* const END_X509_CRL       = "-----END X509 CRL-----";
 const char* const BEGIN_RSA_PRIV     = "-----BEGIN RSA PRIVATE KEY-----";
@@ -7091,14 +7097,18 @@ const char* const BEGIN_PRIV_KEY     = "-----BEGIN PRIVATE KEY-----";
 const char* const END_PRIV_KEY       = "-----END PRIVATE KEY-----";
 const char* const BEGIN_ENC_PRIV_KEY = "-----BEGIN ENCRYPTED PRIVATE KEY-----";
 const char* const END_ENC_PRIV_KEY   = "-----END ENCRYPTED PRIVATE KEY-----";
-const char* const BEGIN_EC_PRIV      = "-----BEGIN EC PRIVATE KEY-----";
-const char* const END_EC_PRIV        = "-----END EC PRIVATE KEY-----";
+#ifdef HAVE_ECC
+    const char* const BEGIN_EC_PRIV      = "-----BEGIN EC PRIVATE KEY-----";
+    const char* const END_EC_PRIV        = "-----END EC PRIVATE KEY-----";
+#endif
 const char* const BEGIN_DSA_PRIV     = "-----BEGIN DSA PRIVATE KEY-----";
 const char* const END_DSA_PRIV       = "-----END DSA PRIVATE KEY-----";
 const char* const BEGIN_PUB_KEY      = "-----BEGIN PUBLIC KEY-----";
 const char* const END_PUB_KEY        = "-----END PUBLIC KEY-----";
-const char* const BEGIN_EDDSA_PRIV   = "-----BEGIN EDDSA PRIVATE KEY-----";
-const char* const END_EDDSA_PRIV     = "-----END EDDSA PRIVATE KEY-----";
+#ifdef HAVE_ED25519
+    const char* const BEGIN_EDDSA_PRIV   = "-----BEGIN EDDSA PRIVATE KEY-----";
+    const char* const END_EDDSA_PRIV     = "-----END EDDSA PRIVATE KEY-----";
+#endif
 
 #if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) || defined(OPENSSL_EXTRA)
 
