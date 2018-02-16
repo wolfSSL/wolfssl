@@ -723,6 +723,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_decrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
     case EVP_PKEY_EC:
         WOLFSSL_MSG("not implemented");
         /* not implemented */
+        FALL_THROUGH;
     default:
         return WOLFSSL_FAILURE;
     }
@@ -747,6 +748,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_decrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx)
     case EVP_PKEY_EC:
         WOLFSSL_MSG("not implemented");
         /* not implemented */
+        FALL_THROUGH;
     default:
 
         return WOLFSSL_FAILURE;
@@ -793,6 +795,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_encrypt(WOLFSSL_EVP_PKEY_CTX *ctx,
     case EVP_PKEY_EC:
         WOLFSSL_MSG("not implemented");
         /* not implemented */
+        FALL_THROUGH;
     default:
         return WOLFSSL_FAILURE;
     }
@@ -817,6 +820,7 @@ WOLFSSL_API int wolfSSL_EVP_PKEY_encrypt_init(WOLFSSL_EVP_PKEY_CTX *ctx)
     case EVP_PKEY_EC:
         WOLFSSL_MSG("not implemented");
         /* not implemented */
+        FALL_THROUGH;
     default:
 
         return WOLFSSL_FAILURE;
@@ -976,6 +980,7 @@ WOLFSSL_API int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *si
     case EVP_PKEY_EC:
         WOLFSSL_MSG("not implemented");
         /* not implemented */
+    	FALL_THROUGH;
     default:
         return WOLFSSL_FAILURE;
     }
@@ -1051,6 +1056,7 @@ WOLFSSL_API int wolfSSL_EVP_VerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
     case EVP_PKEY_EC:
         WOLFSSL_MSG("not implemented");
         /* not implemented */
+        FALL_THROUGH;
     default:
         return 0;
     }
