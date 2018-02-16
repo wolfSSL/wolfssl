@@ -20764,6 +20764,45 @@ int wolfSSL_AES_set_decrypt_key(const unsigned char *key, const int bits,
 }
 
 
+#ifdef HAVE_AES_ECB
+/* Encrypt/decrypt a 16 byte block of data using the key passed in.
+ *
+ * in  buffer to encrypt/decyrpt
+ * out buffer to hold result of encryption/decryption
+ * key AES structure to use with encryption/decryption
+ * enc AES_ENCRPT for encryption and AES_DECRYPT for decryption
+ */
+void wolfSSL_AES_ecb_encrypt(const unsigned char *in, unsigned char* out,
+                             AES_KEY *key, const int enc)
+{
+    Aes* aes;
+
+    WOLFSSL_ENTER("wolfSSL_AES_ecb_encrypt");
+
+    if (key == NULL || in == NULL || out == NULL) {
+        WOLFSSL_MSG("Error, Null argument passed in");
+        return;
+    }
+
+    aes = (Aes*)key;
+    if (enc == AES_ENCRYPT) {
+        if (wc_AesEcbEncrypt(aes, out, in, AES_BLOCK_SIZE) != 0) {
+            WOLFSSL_MSG("Error with AES CBC encrypt");
+        }
+    }
+    else {
+    #ifdef HAVE_AES_DECRYPT
+        if (wc_AesEcbDecrypt(aes, out, in, AES_BLOCK_SIZE) != 0) {
+            WOLFSSL_MSG("Error with AES CBC decrypt");
+        }
+    #else
+        WOLFSSL_MSG("AES decryption not compiled in");
+    #endif
+    }
+}
+#endif /* HAVE_AES_ECB */
+
+
 /* Encrypt data using key and iv passed in. iv gets updated to most recent iv
  * state after encryptiond/decryption.
  *
