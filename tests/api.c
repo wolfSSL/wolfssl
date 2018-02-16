@@ -15919,6 +15919,7 @@ static void test_wolfSSL_SESSION(void)
     tcp_connect(&sockfd, wolfSSLIP, ready.port, 0, 0, ssl);
     AssertIntEQ(wolfSSL_set_fd(ssl, sockfd), SSL_SUCCESS);
 
+    err = 0; /* Reset error */
     do {
 #ifdef WOLFSSL_ASYNC_CRYPT
         if (err == WC_PENDING_E) {
@@ -15927,7 +15928,6 @@ static void test_wolfSSL_SESSION(void)
         }
 #endif
 
-        err = 0; /* Reset error */
         ret = wolfSSL_connect(ssl);
         if (ret != SSL_SUCCESS) {
             err = wolfSSL_get_error(ssl, 0);

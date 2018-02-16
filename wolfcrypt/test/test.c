@@ -5894,7 +5894,7 @@ int aes256_test(void)
 
 #endif /* HAVE_AES_CBC */
 
-    return 0;
+    return ret;
 }
 
 
