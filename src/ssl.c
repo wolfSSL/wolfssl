@@ -27586,6 +27586,43 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
 }
 
 
+#ifndef NO_RSA
+/* Uses the same format of input as wolfSSL_PEM_read_bio_PrivateKey but expects
+ * the results to be an RSA key.
+ *
+ * bio  structure to read RSA private key from
+ * rsa  if not null is then set to the result
+ * cb   password callback for reading PEM
+ * pass password string
+ *
+ * returns a pointer to a new WOLFSSL_RSA structure on success and NULL on fail
+ */
+WOLFSSL_RSA* wolfSSL_PEM_read_bio_RSAPrivateKey(WOLFSSL_BIO* bio,
+        WOLFSSL_RSA** rsa, pem_password_cb* cb, void* pass)
+{
+    WOLFSSL_EVP_PKEY* pkey;
+    WOLFSSL_RSA* local;
+
+    pkey = wolfSSL_PEM_read_bio_PrivateKey(bio, NULL, cb, pass);
+    if (pkey == NULL) {
+        return NULL;
+    }
+
+    /* Since the WOLFSSL_RSA structure is being taken from WOLFSSL_EVP_PEKY the
+     * flag indicating that the WOLFSSL_RSA structure is owned should be FALSE
+     * to avoid having it free'd */
+    pkey->ownRsa = 0;
+    local = pkey->rsa;
+    if (rsa != NULL) {
+        *rsa = local;
+    }
+
+    wolfSSL_EVP_PKEY_free(pkey);
+    return local;
+}
+#endif /* !NO_RSA */
+
+
 /* return of pkey->type which will be EVP_PKEY_RSA for example.
  *
  * type  type of EVP_PKEY
