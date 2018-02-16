@@ -5312,22 +5312,26 @@ static int aes_cbc_test(void)
     ret = wc_AesCbcEncryptWithKey(cipher, msg, AES_BLOCK_SIZE, key, 17, NULL);
     if (ret != BAD_FUNC_ARG)
         return -4100;
+#ifdef HAVE_AES_DECRYPT
     ret = wc_AesCbcDecryptWithKey(plain, cipher, AES_BLOCK_SIZE, key, 17, NULL);
     if (ret != BAD_FUNC_ARG)
         return -4101;
+#endif
 
     ret = wc_AesCbcEncryptWithKey(cipher, msg, AES_BLOCK_SIZE, key,
                                   AES_BLOCK_SIZE, iv);
     if (ret != 0)
         return -4102;
+#ifdef HAVE_AES_DECRYPT
     ret = wc_AesCbcDecryptWithKey(plain, cipher, AES_BLOCK_SIZE, key,
                                   AES_BLOCK_SIZE, iv);
     if (ret != 0)
         return -4103;
-
     if (XMEMCMP(plain, msg, AES_BLOCK_SIZE) != 0)
         return -4104;
+#endif /* HAVE_AES_DECRYPT */
 
+    (void)plain;
     return 0;
 }
 #endif
@@ -5781,9 +5785,9 @@ int aes_test(void)
     wc_AesFree(&enc);
 #ifdef HAVE_AES_DECRYPT
     wc_AesFree(&dec);
+    (void)plain;
 #endif
 
-    (void)plain;
     (void)cipher;
 
     return ret;
@@ -6162,6 +6166,7 @@ int aesgcm_test(void)
     if (XMEMCMP(t1, resultT, sizeof(resultT)))
         return -4304;
 
+#ifdef HAVE_AES_DECRYPT
     result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC),
                       iv1, sizeof(iv1), resultT, sizeof(resultT), a, sizeof(a));
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -6171,6 +6176,7 @@ int aesgcm_test(void)
         return -4305;
     if (XMEMCMP(p, resultP, sizeof(resultP)))
         return -4306;
+#endif /* HAVE_AES_DECRYPT */
 
     /* Large buffer test */
 #ifdef BENCH_AESGCM_LARGE
@@ -6188,6 +6194,7 @@ int aesgcm_test(void)
     if (result != 0)
         return -4307;
 
+#ifdef HAVE_AES_DECRYPT
     result = wc_AesGcmDecrypt(&enc, large_outdec, large_output,
                               BENCH_AESGCM_LARGE, iv1, sizeof(iv1), resultT,
                               sizeof(resultT), a, sizeof(a));
@@ -6198,6 +6205,7 @@ int aesgcm_test(void)
         return -4308;
     if (XMEMCMP(large_input, large_outdec, BENCH_AESGCM_LARGE))
         return -4309;
+#endif /* HAVE_AES_DECRYPT */
 #endif /* BENCH_AESGCM_LARGE */
 #ifdef ENABLE_NON_12BYTE_IV_TEST
     /* Variable IV length test */
@@ -6210,6 +6218,7 @@ int aesgcm_test(void)
 #endif
         if (result != 0)
             return -4310;
+#ifdef HAVE_AES_DECRYPT
         result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC), k1,
                          (word32)ivlen, resultT, sizeof(resultT), a, sizeof(a));
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -6217,6 +6226,7 @@ int aesgcm_test(void)
 #endif
         if (result != 0)
             return -4311;
+#endif /* HAVE_AES_DECRYPT */
     }
 #endif
 
@@ -6230,6 +6240,7 @@ int aesgcm_test(void)
 #endif
         if (result != 0)
             return -4312;
+#ifdef HAVE_AES_DECRYPT
         result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC), iv1,
                         sizeof(iv1), resultT, sizeof(resultT), p, (word32)alen);
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -6237,6 +6248,7 @@ int aesgcm_test(void)
 #endif
         if (result != 0)
             return -4313;
+#endif /* HAVE_AES_DECRYPT */
     }
 
 #ifdef BENCH_AESGCM_LARGE
@@ -6252,6 +6264,7 @@ int aesgcm_test(void)
         if (result != 0)
             return -4314;
 
+#ifdef HAVE_AES_DECRYPT
         result = wc_AesGcmDecrypt(&enc, large_outdec, large_output,
                                   plen, iv1, sizeof(iv1), resultT,
                                   sizeof(resultT), a, sizeof(a));
@@ -6260,6 +6273,7 @@ int aesgcm_test(void)
 #endif
         if (result != 0)
             return -4315;
+#endif /* HAVE_AES_DECRYPT */
     }
 #else
     /* Variable plain text length test */
@@ -6272,6 +6286,7 @@ int aesgcm_test(void)
 #endif
         if (result != 0)
             return -4314;
+#ifdef HAVE_AES_DECRYPT
         result = wc_AesGcmDecrypt(&enc, resultP, resultC, (word32)plen, iv1,
                            sizeof(iv1), resultT, sizeof(resultT), a, sizeof(a));
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -6279,6 +6294,7 @@ int aesgcm_test(void)
 #endif
         if (result != 0)
             return -4315;
+#endif /* HAVE_AES_DECRYPT */
     }
 #endif /* BENCH_AESGCM_LARGE */
 #endif /* WOLFSSL_AES_256 */
@@ -6304,6 +6320,7 @@ int aesgcm_test(void)
     if (XMEMCMP(t2, resultT, sizeof(resultT)))
         return -4318;
 
+#ifdef HAVE_AES_DECRYPT
     result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC),
                       iv2, sizeof(iv2), resultT, sizeof(resultT), a, sizeof(a));
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -6313,6 +6330,7 @@ int aesgcm_test(void)
         return -4319;
     if (XMEMCMP(p, resultP, sizeof(resultP)))
         return -4320;
+#endif /* HAVE_AES_DECRYPT */
 
     XMEMSET(resultT, 0, sizeof(resultT));
     XMEMSET(resultC, 0, sizeof(resultC));
@@ -6333,6 +6351,7 @@ int aesgcm_test(void)
     if (XMEMCMP(t3, resultT, sizeof(t3)))
         return -8211;
 
+#ifdef HAVE_AES_DECRYPT
     result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(c3),
                       iv3, sizeof(iv3), resultT, sizeof(t3), a3, sizeof(a3));
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -6342,6 +6361,7 @@ int aesgcm_test(void)
         return -8212;
     if (XMEMCMP(p3, resultP, sizeof(p3)))
         return -8213;
+#endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_128 */
 #endif /* ENABLE_NON_12BYTE_IV_TEST */
 
@@ -6364,6 +6384,7 @@ int aesgcm_test(void)
     if (XMEMCMP(t1, resultT + 1, sizeof(resultT) - 1))
         return -4323;
 
+#ifdef HAVE_AES_DECRYPT
     result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC),
               iv1, sizeof(iv1), resultT + 1, sizeof(resultT) - 1, a, sizeof(a));
 #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -6373,6 +6394,7 @@ int aesgcm_test(void)
         return -4324;
     if (XMEMCMP(p, resultP, sizeof(resultP)))
         return -4325;
+#endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_256 */
     wc_AesFree(&enc);
 

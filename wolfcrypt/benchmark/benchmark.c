@@ -1694,6 +1694,7 @@ exit_aes_dec:
 
 #endif /* HAVE_AES_DECRYPT */
 
+    (void)decLabel;
 exit:
 
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
@@ -1781,6 +1782,7 @@ static void bench_aesgcm_internal(int doAsync, const byte* key, word32 keySz,
 exit_aes_gcm:
     bench_stats_sym_finish(encLabel, doAsync, count, bench_size, start, ret);
 
+#ifdef HAVE_AES_DECRYPT
     /* GCM uses same routine in backend for both encrypt and decrypt */
     bench_stats_start(&count, &start);
     do {
@@ -1804,6 +1806,9 @@ exit_aes_gcm:
     } while (bench_stats_sym_check(start));
 exit_aes_gcm_dec:
     bench_stats_sym_finish(decLabel, doAsync, count, bench_size, start, ret);
+#endif /* HAVE_AES_DECRYPT */
+
+    (void)decLabel;
 
 exit:
 
