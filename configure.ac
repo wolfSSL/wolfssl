@@ -219,6 +219,7 @@ then
     enable_scrypt=yes
 
     AM_CFLAGS="-DHAVE_AES_DECRYPT $AM_CFLAGS"
+    AM_CFLAGS="-DHAVE_AES_ECB $AM_CFLAGS"
 fi
 AM_CONDITIONAL([BUILD_ALL], [test "x$ENABLED_ALL" = "xyes"])
 
