@@ -1555,10 +1555,12 @@ WOLFSSL_LOCAL int  SetCipherList(WOLFSSL_CTX*, Suites*, const char* list);
     typedef unsigned int (*wc_psk_server_callback)(WOLFSSL*, const char*,
                           unsigned char*, unsigned int);
 #endif /* PSK_TYPES_DEFINED */
-#ifdef WOLFSSL_DTLS
+#if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SESSION_EXPORT) && \
+   !defined(WOLFSSL_DTLS_EXPORT_TYPES)
     typedef int (*wc_dtls_export)(WOLFSSL* ssl,
                    unsigned char* exportBuffer, unsigned int sz, void* userCtx);
-#endif
+#define WOLFSSL_DTLS_EXPORT_TYPES
+#endif /* WOLFSSL_DTLS_EXPORT_TYPES */
 
 
 /* wolfSSL Cipher type just points back to SSL */
@@ -2330,8 +2332,8 @@ struct WOLFSSL_CTX {
     CallbackIOSend CBIOSend;
 #ifdef WOLFSSL_DTLS
     CallbackGenCookie CBIOCookie;       /* gen cookie callback */
-    wc_dtls_export    dtls_export;      /* export function for DTLS session */
 #ifdef WOLFSSL_SESSION_EXPORT
+    wc_dtls_export  dtls_export;        /* export function for DTLS session */
     CallbackGetPeer CBGetPeer;
     CallbackSetPeer CBSetPeer;
 #endif
@@ -3425,7 +3427,9 @@ struct WOLFSSL {
     DtlsMsg*        dtls_rx_msg_list;
     void*           IOCB_CookieCtx;     /* gen cookie ctx */
     word32          dtls_expected_rx;
+#ifdef WOLFSSL_SESSION_EXPORT
     wc_dtls_export  dtls_export;        /* export function for session */
+#endif
 #ifdef WOLFSSL_SCTP
     word16          dtlsMtuSz;
 #endif /* WOLFSSL_SCTP */

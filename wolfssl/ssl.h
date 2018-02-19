@@ -443,8 +443,13 @@ WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_2_client_method(void);
 
 #ifdef WOLFSSL_SESSION_EXPORT
 #ifdef WOLFSSL_DTLS
+
+#ifndef WOLFSSL_DTLS_EXPORT_TYPES
 typedef int (*wc_dtls_export)(WOLFSSL* ssl,
                    unsigned char* exportBuffer, unsigned int sz, void* userCtx);
+#define WOLFSSL_DTLS_EXPORT_TYPES
+#endif /* WOLFSSL_DTLS_EXPORT_TYPES */
+
 WOLFSSL_API int wolfSSL_dtls_import(WOLFSSL* ssl, unsigned char* buf,
                                                                unsigned int sz);
 WOLFSSL_API int wolfSSL_CTX_dtls_set_export(WOLFSSL_CTX* ctx,
