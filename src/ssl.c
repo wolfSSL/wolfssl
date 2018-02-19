@@ -4897,8 +4897,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         return 0;
     }
 
-#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-        defined(HAVE_WEBSERVER)) && !defined(NO_PWDBASED)
+#if (defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)) && !defined(NO_PWDBASED)
     if (encrypted_key || header == BEGIN_ENC_PRIV_KEY) {
         int   passwordSz;
     #ifdef WOLFSSL_SMALL_STACK
@@ -4942,8 +4941,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             }
         }
     }
-#endif  /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || HAVE_WEBSERVER ||
-           NO_PWDBASED */
+#endif  /* OPENSSL_EXTRA || HAVE_WEBSERVER || NO_PWDBASED */
 
     return 0;
 }
