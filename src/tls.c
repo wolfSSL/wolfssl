@@ -1408,7 +1408,7 @@ static SNI* TLSX_SNI_New(byte type, const void* data, word16 size, void* heap)
                                                      DYNAMIC_TYPE_TLSX);
                 if (sni->data.host_name) {
                     XSTRNCPY(sni->data.host_name, (const char*)data, size);
-                    sni->data.host_name[size] = 0;
+                    sni->data.host_name[size] = '\0';
                 } else {
                     XFREE(sni, heap, DYNAMIC_TYPE_TLSX);
                     sni = NULL;
@@ -7398,7 +7398,7 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType)
                 length += PHA_GET_SIZE(msgType);
                 break;
     #endif
- 
+
     #if !defined(WOLFSSL_TLS13_DRAFT_18) && !defined(WOLFSSL_TLS13_DRAFT_22)
             case TLSX_SIGNATURE_ALGORITHMS_CERT:
                 length += SAC_GET_SIZE(extension->data);

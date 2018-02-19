@@ -719,8 +719,9 @@ int wolfSSL_get_ciphers(char* buf, int len)
 
         /* Check to make sure buf is large enough and will not overflow */
         if (totalInc < len) {
-            XSTRNCPY(buf, ciphers[i], XSTRLEN(ciphers[i]));
-            buf += XSTRLEN(ciphers[i]);
+            size_t cipherLen = XSTRLEN(ciphers[i]);
+            XSTRNCPY(buf, ciphers[i], cipherLen);
+            buf += cipherLen;
 
             if (i < size - 1)
                 *buf++ = delim;
@@ -2172,8 +2173,8 @@ int wolfSSL_UseALPN(WOLFSSL* ssl, char *protocol_name_list,
         return MEMORY_ERROR;
     }
 
-    XMEMSET(list, 0, protocol_name_listSz+1);
     XSTRNCPY(list, protocol_name_list, protocol_name_listSz);
+    list[protocol_name_listSz] = '\0';
 
     /* read all protocol name from the list */
     token[idx] = XSTRTOK(list, ",", &ptr);
@@ -10753,13 +10754,14 @@ int wolfSSL_check_domain_name(WOLFSSL* ssl, const char* dn)
     if (ssl->buffers.domainName.buffer)
         XFREE(ssl->buffers.domainName.buffer, ssl->heap, DYNAMIC_TYPE_DOMAIN);
 
-    ssl->buffers.domainName.length = (word32)XSTRLEN(dn) + 1;
-    ssl->buffers.domainName.buffer = (byte*) XMALLOC(
-                ssl->buffers.domainName.length, ssl->heap, DYNAMIC_TYPE_DOMAIN);
+    ssl->buffers.domainName.length = (word32)XSTRLEN(dn);
+    ssl->buffers.domainName.buffer = (byte*)XMALLOC(
+            ssl->buffers.domainName.length + 1, ssl->heap, DYNAMIC_TYPE_DOMAIN);
 
     if (ssl->buffers.domainName.buffer) {
-        XSTRNCPY((char*)ssl->buffers.domainName.buffer, dn,
-                ssl->buffers.domainName.length);
+        char* domainName = (char*)ssl->buffers.domainName.buffer;
+        XSTRNCPY(domainName, dn, ssl->buffers.domainName.length);
+        domainName[ssl->buffers.domainName.length] = '\0';
         return WOLFSSL_SUCCESS;
     }
     else {
@@ -11104,7 +11106,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     {
         WOLFSSL_ENTER("SSL_CTX_use_psk_identity_hint");
         if (hint == 0)
-            ctx->server_hint[0] = 0;
+            ctx->server_hint[0] = '\0';
         else {
             XSTRNCPY(ctx->server_hint, hint, sizeof(ctx->server_hint));
             ctx->server_hint[MAX_PSK_ID_LEN] = '\0'; /* null term */
@@ -25460,7 +25462,7 @@ static int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
     }
 
     /* set the cipher name on info */
-    XSTRNCPY(info->name, cipher, NAME_SZ);
+    XSTRNCPY(info->name, cipher, NAME_SZ-1);
     info->name[NAME_SZ-1] = '\0'; /* null term */
 
     /* Generate a random salt */
