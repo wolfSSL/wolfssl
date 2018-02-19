@@ -43,6 +43,11 @@
     extern "C" {
 #endif
 
+/* Max number of certificates that PKCS7 structure can parse */
+#ifndef MAX_PKCS7_CERTS
+#define MAX_PKCS7_CERTS 4
+#endif
+
 /* PKCS#7 content types, ref RFC 2315 (Section 14) */
 enum PKCS7_TYPES {
     PKCS7_MSG                 = 650,   /* 1.2.840.113549.1.7   */
@@ -100,6 +105,8 @@ typedef struct PKCS7 {
     int keyAgreeOID;              /* key agreement algorithm OID          */
 
     void*  heap;                  /* heap hint for dynamic memory         */
+    byte*  cert[MAX_PKCS7_CERTS];
+    word32 certSz[MAX_PKCS7_CERTS];
     byte*  singleCert;            /* recipient cert, DER, not owner       */
     word32 singleCertSz;          /* size of recipient cert buffer, bytes */
     byte issuerHash[KEYID_SIZE];  /* hash of all alt Names                */
@@ -108,7 +115,7 @@ typedef struct PKCS7 {
     byte issuerSn[MAX_SN_SZ];     /* singleCert's serial number           */
     word32 issuerSnSz;            /* length of serial number              */
 
-    byte publicKey[512];
+    byte publicKey[MAX_RSA_INT_SZ + MAX_RSA_E_SZ ];/*MAX RSA key size (m + e)*/
     word32 publicKeySz;
     word32 publicKeyOID;          /* key OID (RSAk, ECDSAk, etc) */
     byte*  privateKey;            /* private key, DER, not owner          */
@@ -134,6 +141,8 @@ WOLFSSL_API int  wc_PKCS7_Init(PKCS7* pkcs7, void* heap, int devId);
 WOLFSSL_API int  wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz);
 WOLFSSL_API void wc_PKCS7_Free(PKCS7* pkcs7);
 
+WOLFSSL_API int wc_PKCS7_GetAttributeValue(PKCS7* pkcs7, const byte* oid,
+        word32 oidSz, byte* out, word32* outSz);
 WOLFSSL_API int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,
                                        word32 outputSz);
 WOLFSSL_API int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
