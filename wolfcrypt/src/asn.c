@@ -786,6 +786,128 @@ static word32 SetBitString(word32 len, byte unusedBits, byte* output)
 }
 #endif /* !NO_RSA || HAVE_ECC || HAVE_ED25519 */
 
+#ifdef ASN_BER_TO_DER
+/* Convert a BER encoding with indefinite length items to DER.
+ *
+ * ber     BER encoded data.
+ * length  Length of BER encoded data.
+ * der     Buffer to hold DER encoded version of data.
+ *         NULL indicates only the length is required.
+ * returns the length of the DER data on success, ASN_PARSE_E if the BER data is
+ *         invalid and BAD_FUNC_ARG if ber is NULL.
+ */
+int wc_BerToDer(byte* ber, word32 length, byte* der)
+{
+    int ret;
+    word32 i, j, k;
+    int len, l;
+    int indef;
+    int depth = 1;
+    word32 cnt;
+    byte lenBytes[4];
+
+    if (ber == NULL)
+        return BAD_FUNC_ARG;
+
+    for (i = 0, j = 0; i < length; ) {
+        if (i + 1 >= length)
+            return ASN_PARSE_E;
+
+        if (ber[i] == 0 && ber[i+1] == 0) {
+            if (--depth == 0)
+                break;
+
+            i += 2;
+            continue;
+        }
+
+        indef = ber[i+1] == 0x80;
+        if (indef && ber[i] < 0x40 && ber[i] != 0x30 && ber[i] != 0x31) {
+            if (der != NULL)
+                der[j] = ber[i] & 0x1f;
+            i++; j++;
+            i++;
+
+            if (i + 1 >= length)
+                return ASN_PARSE_E;
+
+            len = 0;
+            k = i;
+            while (ber[k] != 0x00) {
+                k++;
+                ret = GetLength(ber, &k, &l, length);
+                if (ret < 0)
+                    return ASN_PARSE_E;
+                k += l;
+                len += l;
+
+                if (k + 1 >= length)
+                    return ASN_PARSE_E;
+            }
+
+            if (der == NULL) {
+                j += SetLength(len, lenBytes);
+                j += len;
+            }
+            else {
+                j += SetLength(len, der + j);
+                k = i;
+                while (ber[k] != 0x00) {
+                    k++;
+                    ret = GetLength(ber, &k, &l, length);
+                    if (ret < 0)
+                        return ASN_PARSE_E;
+                    XMEMCPY(der + j, ber + k, l);
+                    k += l; j += l;
+                }
+            }
+            i = k + 2;
+
+            continue;
+        }
+
+        if (der != NULL)
+            der[j] = ber[i];
+        i++; j++;
+
+        cnt = i;
+        ret = GetLength(ber, &cnt, &len, length);
+        if (ret < 0)
+            return ASN_PARSE_E;
+        cnt -= i;
+        if (der != NULL) {
+            for (k = 0; k < cnt; k++)
+                der[j + k] = ber[i + k];
+        }
+        i += cnt; j += cnt;
+        if (cnt == 0) {
+            i++;
+            len = wc_BerToDer(ber + i, length - i, NULL);
+            if (len < 0)
+                return len;
+            if (der != NULL)
+                j += SetLength(len, der + j);
+            else
+                j += SetLength(len, lenBytes);
+        }
+
+        if (!indef) {
+            if (i + len > length)
+                return ASN_PARSE_E;
+
+            if (der != NULL)
+                XMEMCPY(der + j, ber + i, len);
+            i += len;
+            j += len;
+        }
+        else
+            depth++;
+    }
+
+    return j;
+}
+#endif
+
 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN)
 
 #if (!defined(NO_RSA) && !defined(HAVE_USER_RSA)) || \

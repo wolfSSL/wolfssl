@@ -16702,6 +16702,9 @@ int pkcs7encrypted_test(void)
         pkcs7.unprotectedAttribs   = testVectors[i].attribs;
         pkcs7.unprotectedAttribsSz = testVectors[i].attribsSz;
         pkcs7.heap                 = HEAP_HINT;
+#ifdef ASN_BER_TO_DER
+        pkcs7.der                  = NULL;
+#endif
 
         /* encode encryptedData */
         encryptedSz = wc_PKCS7_EncodeEncryptedData(&pkcs7, encrypted,
