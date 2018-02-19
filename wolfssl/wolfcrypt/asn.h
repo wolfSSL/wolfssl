@@ -86,7 +86,8 @@ enum ASN_Tags {
     ASN_GENERALIZED_TIME  = 0x18,
     CRL_EXTENSIONS        = 0xa0,
     ASN_EXTENSIONS        = 0xa3,
-    ASN_LONG_LENGTH       = 0x80
+    ASN_LONG_LENGTH       = 0x80,
+    ASN_INDEF_LENGTH      = 0x80
 };
 
 #define ASN_UTC_TIME_SIZE 14
@@ -765,7 +766,8 @@ struct TrustedPeerCert {
     #define WOLFSSL_ASN_API WOLFSSL_LOCAL
 #endif
 
-WOLFSSL_ASN_API int wc_BerToDer(byte* ber, word32 length, byte* der);
+WOLFSSL_ASN_API int wc_BerToDer(byte* ber, word32 berSz, byte* der,
+                                word32* derSz);
 
 WOLFSSL_ASN_API void FreeAltNames(DNS_entry*, void*);
 #ifndef IGNORE_NAME_CONSTRAINTS

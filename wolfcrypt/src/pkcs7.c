@@ -1856,15 +1856,17 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
 
     if (length == 0 && pkiMsg[idx-1] == 0x80) {
 #ifdef ASN_BER_TO_DER
-        int len;
+        word32 len;
 
-        len = wc_BerToDer(pkiMsg, pkiMsgSz, NULL);
-        if (len < 0)
-            return len;
+        ret = wc_BerToDer(pkiMsg, pkiMsgSz, NULL, &len);
+        if (ret != LENGTH_ONLY_E)
+            return ret;
         pkcs7->der = XMALLOC(len, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         if (pkcs7->der == NULL)
             return MEMORY_E;
-        wc_BerToDer(pkiMsg, pkiMsgSz, pkcs7->der);
+        ret = wc_BerToDer(pkiMsg, pkiMsgSz, pkcs7->der, &len);
+        if (ret < 0)
+            return ret;
 
         pkiMsg = pkcs7->der;
         pkiMsgSz = len;
@@ -4343,15 +4345,17 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
 
     if (length == 0 && pkiMsg[idx-1] == 0x80) {
 #ifdef ASN_BER_TO_DER
-        int len;
+        word32 len;
 
-        len = wc_BerToDer(pkiMsg, pkiMsgSz, NULL);
-        if (len < 0)
-            return len;
+        ret = wc_BerToDer(pkiMsg, pkiMsgSz, NULL, &len);
+        if (ret != LENGTH_ONLY_E)
+            return ret;
         pkcs7->der = XMALLOC(len, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         if (pkcs7->der == NULL)
             return MEMORY_E;
-        wc_BerToDer(pkiMsg, pkiMsgSz, pkcs7->der);
+        ret = wc_BerToDer(pkiMsg, pkiMsgSz, pkcs7->der, &len);
+        if (ret < 0)
+            return ret;
 
         pkiMsg = pkcs7->der;
         pkiMsgSz = len;

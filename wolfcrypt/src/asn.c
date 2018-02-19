@@ -789,30 +789,43 @@ static word32 SetBitString(word32 len, byte unusedBits, byte* output)
 #ifdef ASN_BER_TO_DER
 /* Convert a BER encoding with indefinite length items to DER.
  *
- * ber     BER encoded data.
- * length  Length of BER encoded data.
- * der     Buffer to hold DER encoded version of data.
- *         NULL indicates only the length is required.
- * returns the length of the DER data on success, ASN_PARSE_E if the BER data is
- *         invalid and BAD_FUNC_ARG if ber is NULL.
+ * ber    BER encoded data.
+ * berSz  Length of BER encoded data.
+ * der    Buffer to hold DER encoded version of data.
+ *        NULL indicates only the length is required.
+ * derSz  The size of the buffer to hold the DER encoded data.
+ *        Will be set if der is NULL, otherwise the value is checked as der is
+ *        filled.
+ * returns ASN_PARSE_E if the BER data is invalid and BAD_FUNC_ARG if ber or
+ * derSz are NULL.
  */
-int wc_BerToDer(byte* ber, word32 length, byte* der)
+int wc_BerToDer(byte* ber, word32 berSz, byte* der, word32* derSz)
 {
     int ret;
     word32 i, j, k;
     int len, l;
     int indef;
     int depth = 1;
-    word32 cnt;
+    byte type;
+    word32 cnt, sz;
+    word32 outSz;
     byte lenBytes[4];
 
-    if (ber == NULL)
+    if (ber == NULL || derSz == NULL)
         return BAD_FUNC_ARG;
 
-    for (i = 0, j = 0; i < length; ) {
-        if (i + 1 >= length)
+    outSz = *derSz;
+
+    for (i = 0, j = 0; i < berSz; ) {
+        /* Check that there is data for an ASN item to parse. */
+        if (i + 1 > berSz)
             return ASN_PARSE_E;
 
+        /* End Of Content (EOC) mark end of indefinite length items.
+         * EOCs are not encoded in DER.
+         * Keep track of no. indefinite length items that have not been
+         * terminated in depth.
+         */
         if (ber[i] == 0 && ber[i+1] == 0) {
             if (--depth == 0)
                 break;
@@ -821,90 +834,155 @@ int wc_BerToDer(byte* ber, word32 length, byte* der)
             continue;
         }
 
-        indef = ber[i+1] == 0x80;
-        if (indef && ber[i] < 0x40 && ber[i] != 0x30 && ber[i] != 0x31) {
-            if (der != NULL)
-                der[j] = ber[i] & 0x1f;
+        /* Indefinite length is encoded as: 0x80 */
+        type = ber[i];
+        indef = ber[i+1] == ASN_INDEF_LENGTH;
+        if (indef && (type & 0xC0) == 0 &&
+                                   ber[i] != (ASN_SEQUENCE | ASN_CONSTRUCTED) &&
+                                   ber[i] != (ASN_SET      | ASN_CONSTRUCTED)) {
+            /* Indefinite length OCTET STRING or other simple type.
+             * Put all the data into one entry.
+             */
+
+            /* Type no longer constructed. */
+            type &= ~ASN_CONSTRUCTED;
+            if (der != NULL) {
+                /* Ensure space for type. */
+                if (j + 1 >= outSz)
+                    return BUFFER_E;
+                der[j] = type;
+            }
             i++; j++;
+            /* Skip indefinite length. */
             i++;
 
-            if (i + 1 >= length)
+            /* There must be further ASN1 items to combine. */
+            if (i + 1 >= berSz)
                 return ASN_PARSE_E;
 
+            /* Calculate length of combined data. */
             len = 0;
             k = i;
             while (ber[k] != 0x00) {
+                /* Each ASN item must be the same type as the constructed. */
+                if (ber[k] != type)
+                    return ASN_PARSE_E;
                 k++;
-                ret = GetLength(ber, &k, &l, length);
+
+                ret = GetLength(ber, &k, &l, berSz);
                 if (ret < 0)
                     return ASN_PARSE_E;
                 k += l;
                 len += l;
 
-                if (k + 1 >= length)
+                /* Must at least have terminating EOC. */
+                if (k + 1 >= berSz)
                     return ASN_PARSE_E;
             }
+            /* Ensure a valid EOC ASN item. */
+            if (ber[k+1] != 0x00)
+                return ASN_PARSE_E;
 
             if (der == NULL) {
+                /* Add length of ASN item length encoding and data. */
                 j += SetLength(len, lenBytes);
                 j += len;
             }
             else {
+                /* Check space for encoded length. */
+                if (SetLength(len, lenBytes) > outSz - j)
+                    return BUFFER_E;
+                /* Encode new length. */
                 j += SetLength(len, der + j);
+
+                /* Encode data in single item. */
                 k = i;
                 while (ber[k] != 0x00) {
+                    /* Skip ASN type. */
                     k++;
-                    ret = GetLength(ber, &k, &l, length);
+
+                    /* Find length of data in ASN item. */
+                    ret = GetLength(ber, &k, &l, berSz);
                     if (ret < 0)
                         return ASN_PARSE_E;
+
+                    /* Ensure space for data and copy in. */
+                    if (j + l > outSz)
+                        return BUFFER_E;
                     XMEMCPY(der + j, ber + k, l);
                     k += l; j += l;
                 }
             }
+            /* Continue conversion after EOC. */
             i = k + 2;
 
             continue;
         }
 
-        if (der != NULL)
+        if (der != NULL) {
+            /* Ensure space for type and at least one byte of length. */
+            if (j + 1 >= outSz)
+                return BUFFER_E;
+            /* Put in type. */
             der[j] = ber[i];
+        }
         i++; j++;
 
-        cnt = i;
-        ret = GetLength(ber, &cnt, &len, length);
-        if (ret < 0)
-            return ASN_PARSE_E;
-        cnt -= i;
-        if (der != NULL) {
-            for (k = 0; k < cnt; k++)
-                der[j + k] = ber[i + k];
-        }
-        i += cnt; j += cnt;
-        if (cnt == 0) {
+        if (indef) {
+            /* Skip indefinite length. */
             i++;
-            len = wc_BerToDer(ber + i, length - i, NULL);
-            if (len < 0)
-                return len;
-            if (der != NULL)
-                j += SetLength(len, der + j);
-            else
-                j += SetLength(len, lenBytes);
-        }
+            /* Calculate the size of the data inside constructed. */
+            ret = wc_BerToDer(ber + i, berSz - i, NULL, &sz);
+            if (ret != LENGTH_ONLY_E)
+                return ret;
 
-        if (!indef) {
-            if (i + len > length)
+            if (der != NULL) {
+                /* Ensure space for encoded length. */
+                if (SetLength(sz, lenBytes) > outSz - j)
+                    return BUFFER_E;
+                /* Encode real length. */
+                j += SetLength(sz, der + j);
+            }
+            else {
+                /* Add size of encoded length. */
+                j += SetLength(sz, lenBytes);
+            }
+
+            /* Another EOC to find. */
+            depth++;
+        }
+        else {
+            /* Get the size of the encode length and length value. */
+            cnt = i;
+            ret = GetLength(ber, &cnt, &len, berSz);
+            if (ret < 0)
+                return ASN_PARSE_E;
+            cnt -= i;
+
+            /* Check there is enough data to copy out. */
+            if (i + cnt + len > berSz)
                 return ASN_PARSE_E;
 
-            if (der != NULL)
-                XMEMCPY(der + j, ber + i, len);
-            i += len;
-            j += len;
+            if (der != NULL) {
+                /* Ensure space in DER buffer. */
+                if (j + cnt + len > outSz)
+                    return BUFFER_E;
+                /* Copy length and data into DER buffer. */
+                XMEMCPY(der + j, ber + i, cnt + len);
+            }
+            /* Continue conversion after this ASN item. */
+            i += cnt + len;
+            j += cnt + len;
         }
-        else
-            depth++;
     }
 
-    return j;
+    /* Return length if no buffer to write to. */
+    if (der == NULL) {
+        *derSz = j;
+        return LENGTH_ONLY_E;
+    }
+
+    return 0;
 }
 #endif
 
