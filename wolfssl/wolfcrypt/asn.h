@@ -571,7 +571,7 @@ struct DecodedCert {
     word16  extKeyUsage;             /* Key usage bitfield               */
     byte    extExtKeyUsage;          /* Extended Key usage bitfield      */
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     byte*   extExtKeyUsageSrc;
     word32  extExtKeyUsageSz;
     word32  extExtKeyUsageCount;
@@ -619,7 +619,7 @@ struct DecodedCert {
     char*   subjectEmail;
     int     subjectEmailLen;
 #endif /* WOLFSSL_CERT_GEN */
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     DecodedName issuerName;
     DecodedName subjectName;
 #endif /* OPENSSL_EXTRA */
@@ -659,7 +659,7 @@ struct DecodedCert {
 #ifdef WOLFSSL_SEP
     byte extCertPolicySet : 1;
 #endif
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     byte extCRLdistCrit : 1;
     byte extAuthInfoCrit : 1;
     byte extBasicConstCrit : 1;
@@ -679,30 +679,30 @@ struct DecodedCert {
 };
 
 
-extern const char* BEGIN_CERT;
-extern const char* END_CERT;
-extern const char* BEGIN_CERT_REQ;
-extern const char* END_CERT_REQ;
-extern const char* BEGIN_DSA_PARAM;
-extern const char* END_DSA_PARAM;
-extern const char* BEGIN_DH_PARAM;
-extern const char* END_DH_PARAM;
-extern const char* BEGIN_X509_CRL;
-extern const char* END_X509_CRL;
-extern const char* BEGIN_RSA_PRIV;
-extern const char* END_RSA_PRIV;
-extern const char* BEGIN_PRIV_KEY;
-extern const char* END_PRIV_KEY;
-extern const char* BEGIN_ENC_PRIV_KEY;
-extern const char* END_ENC_PRIV_KEY;
-extern const char* BEGIN_EC_PRIV;
-extern const char* END_EC_PRIV;
-extern const char* BEGIN_DSA_PRIV;
-extern const char* END_DSA_PRIV;
-extern const char* BEGIN_PUB_KEY;
-extern const char* END_PUB_KEY;
-extern const char* BEGIN_EDDSA_PRIV;
-extern const char* END_EDDSA_PRIV;
+extern const char* const BEGIN_CERT;
+extern const char* const END_CERT;
+extern const char* const BEGIN_CERT_REQ;
+extern const char* const END_CERT_REQ;
+extern const char* const BEGIN_DSA_PARAM;
+extern const char* const END_DSA_PARAM;
+extern const char* const BEGIN_DH_PARAM;
+extern const char* const END_DH_PARAM;
+extern const char* const BEGIN_X509_CRL;
+extern const char* const END_X509_CRL;
+extern const char* const BEGIN_RSA_PRIV;
+extern const char* const END_RSA_PRIV;
+extern const char* const BEGIN_PRIV_KEY;
+extern const char* const END_PRIV_KEY;
+extern const char* const BEGIN_ENC_PRIV_KEY;
+extern const char* const END_ENC_PRIV_KEY;
+extern const char* const BEGIN_EC_PRIV;
+extern const char* const END_EC_PRIV;
+extern const char* const BEGIN_DSA_PRIV;
+extern const char* const END_DSA_PRIV;
+extern const char* const BEGIN_PUB_KEY;
+extern const char* const END_PUB_KEY;
+extern const char* const BEGIN_EDDSA_PRIV;
+extern const char* const END_EDDSA_PRIV;
 
 #ifdef NO_SHA
     #define SIGNER_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
@@ -758,7 +758,8 @@ struct TrustedPeerCert {
 
 
 /* for testing or custom openssl wrappers */
-#if defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA)
+#if defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
+    defined(OPENSSL_EXTRA_X509_SMALL)
     #define WOLFSSL_ASN_API WOLFSSL_API
 #else
     #define WOLFSSL_ASN_API WOLFSSL_LOCAL

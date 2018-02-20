@@ -84,56 +84,53 @@ typedef struct PKCS7Attrib {
 
 
 typedef struct PKCS7DecodedAttrib {
+    struct PKCS7DecodedAttrib* next;
     byte* oid;
     word32 oidSz;
     byte* value;
     word32 valueSz;
-    struct PKCS7DecodedAttrib* next;
 } PKCS7DecodedAttrib;
 
 
 typedef struct PKCS7 {
-    byte* content;                /* inner content, not owner             */
-    word32 contentSz;             /* content size                         */
-    int contentOID;               /* PKCS#7 content type OID sum          */
-
     WC_RNG* rng;
-
-    int hashOID;
-    int encryptOID;               /* key encryption algorithm OID         */
-    int keyWrapOID;               /* key wrap algorithm OID               */
-    int keyAgreeOID;              /* key agreement algorithm OID          */
-
+    PKCS7Attrib* signedAttribs;
+    byte* content;                /* inner content, not owner             */
+    byte*  singleCert;            /* recipient cert, DER, not owner       */
+    byte*  issuer;                /* issuer name of singleCert            */
+    byte*  privateKey;            /* private key, DER, not owner          */
     void*  heap;                  /* heap hint for dynamic memory         */
     byte*  cert[MAX_PKCS7_CERTS];
-    word32 certSz[MAX_PKCS7_CERTS];
-    byte*  singleCert;            /* recipient cert, DER, not owner       */
-    word32 singleCertSz;          /* size of recipient cert buffer, bytes */
-    byte issuerHash[KEYID_SIZE];  /* hash of all alt Names                */
-    byte*  issuer;                /* issuer name of singleCert            */
-    word32 issuerSz;              /* length of issuer name                */
-    byte issuerSn[MAX_SN_SZ];     /* singleCert's serial number           */
-    word32 issuerSnSz;            /* length of serial number              */
 
-    byte publicKey[MAX_RSA_INT_SZ + MAX_RSA_E_SZ ];/*MAX RSA key size (m + e)*/
-    word32 publicKeySz;
-    word32 publicKeyOID;          /* key OID (RSAk, ECDSAk, etc) */
-    byte*  privateKey;            /* private key, DER, not owner          */
-    word32 privateKeySz;          /* size of private key buffer, bytes    */
-
-    PKCS7Attrib* signedAttribs;
-    word32 signedAttribsSz;
+    /* Encrypted-data Content Type */
+    byte*        encryptionKey;         /* block cipher encryption key */
+    PKCS7Attrib* unprotectedAttribs;    /* optional */
+    PKCS7DecodedAttrib* decodedAttrib;  /* linked list of decoded attribs */
 
     /* Enveloped-data optional ukm, not owner */
     byte*  ukm;
     word32 ukmSz;
 
-    /* Encrypted-data Content Type */
-    byte*        encryptionKey;         /* block cipher encryption key */
-    word32       encryptionKeySz;       /* size of key buffer, bytes */
-    PKCS7Attrib* unprotectedAttribs;    /* optional */
-    word32       unprotectedAttribsSz;
-    PKCS7DecodedAttrib* decodedAttrib;  /* linked list of decoded attribs */
+    word32 encryptionKeySz;       /* size of key buffer, bytes */
+    word32 unprotectedAttribsSz;
+    word32 contentSz;             /* content size                         */
+    word32 singleCertSz;          /* size of recipient cert buffer, bytes */
+    word32 issuerSz;              /* length of issuer name                */
+    word32 issuerSnSz;            /* length of serial number              */
+
+    word32 publicKeySz;
+    word32 publicKeyOID;          /* key OID (RSAk, ECDSAk, etc) */
+    word32 privateKeySz;          /* size of private key buffer, bytes    */
+    word32 signedAttribsSz;
+    int contentOID;               /* PKCS#7 content type OID sum          */
+    int hashOID;
+    int encryptOID;               /* key encryption algorithm OID         */
+    int keyWrapOID;               /* key wrap algorithm OID               */
+    int keyAgreeOID;              /* key agreement algorithm OID          */
+    byte issuerHash[KEYID_SIZE];  /* hash of all alt Names                */
+    byte issuerSn[MAX_SN_SZ];     /* singleCert's serial number           */
+    byte publicKey[MAX_RSA_INT_SZ + MAX_RSA_E_SZ ];/*MAX RSA key size (m + e)*/
+    word32 certSz[MAX_PKCS7_CERTS];
 } PKCS7;
 
 
