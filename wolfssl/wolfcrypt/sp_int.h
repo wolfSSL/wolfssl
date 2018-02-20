@@ -112,6 +112,8 @@ MP_API int sp_set(sp_int* a, sp_int_digit d);
 MP_API int sp_iszero(sp_int* a);
 MP_API void sp_clamp(sp_int* a);
 MP_API int sp_grow(sp_int* a, int l);
+MP_API int sp_sub_d(sp_int* a, sp_int_digit d, sp_int* r);
+MP_API int sp_cmp_d(sp_int* a, sp_int_digit d);
 MP_API void sp_zero(sp_int* a);
 MP_API int sp_add_d(sp_int* a, sp_int_digit d, sp_int* r);
 MP_API int sp_lshd(sp_int* a, int s);
@@ -155,6 +157,8 @@ typedef sp_digit mp_digit;
 #define mp_iszero               sp_iszero
 #define mp_clamp                sp_clamp
 #define mp_grow                 sp_grow
+#define mp_sub_d                sp_sub_d
+#define mp_cmp_d                sp_cmp_d
 #define mp_zero                 sp_zero
 #define mp_add_d                sp_add_d
 #define mp_lshd                 sp_lshd
