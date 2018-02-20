@@ -7152,6 +7152,13 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
         return MEMORY_E;
     }
 #endif
+
+    /* null term and leave room for \n */
+    header[headerLen-1] = '\0';
+    footer[footerLen-1] = '\0';
+    headerLen -= 2;
+    footerLen -= 2;
+
     if (type == CERT_TYPE) {
         XSTRNCPY(header, BEGIN_CERT, headerLen);
         XSTRNCAT(header, "\n", 1);
@@ -8512,7 +8519,7 @@ static int EncodePolicyOID(byte *out, word32 *outSz, const char *in, void* heap)
         return MEMORY_E;
 
     XSTRNCPY(str, in, len);
-    str[len] = 0x00;
+    str[len] = '\0';
 
     nb_val = 0;
 
@@ -10163,12 +10170,13 @@ int wc_SetKeyUsage(Cert *cert, const char *value)
 
     cert->keyUsage = 0;
 
-    str = (char*)XMALLOC(XSTRLEN(value)+1, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    len = (word32)XSTRLEN(value);
+    str = (char*)XMALLOC(len+1, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (str == NULL)
         return MEMORY_E;
 
-    XMEMSET(str, 0, XSTRLEN(value)+1);
-    XSTRNCPY(str, value, XSTRLEN(value));
+    XSTRNCPY(str, value, len);
+    str[len] = '\0';
 
     /* parse value, and set corresponding Key Usage value */
     if ((token = XSTRTOK(str, ",", &ptr)) == NULL) {
@@ -10222,12 +10230,13 @@ int wc_SetExtKeyUsage(Cert *cert, const char *value)
 
     cert->extKeyUsage = 0;
 
-    str = (char*)XMALLOC(XSTRLEN(value)+1, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    len = (word32)XSTRLEN(value);
+    str = (char*)XMALLOC(len+1, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (str == NULL)
         return MEMORY_E;
 
-    XMEMSET(str, 0, XSTRLEN(value)+1);
-    XSTRNCPY(str, value, XSTRLEN(value));
+    XSTRNCPY(str, value, len);
+    str[len] = '\0';
 
     /* parse value, and set corresponding Key Usage value */
     if ((token = XSTRTOK(str, ",", &ptr)) == NULL) {
@@ -10450,56 +10459,56 @@ static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
             sz = (decoded->subjectCNLen < CTC_NAME_SIZE) ? decoded->subjectCNLen
                                                          : CTC_NAME_SIZE - 1;
             XSTRNCPY(cn->commonName, decoded->subjectCN, CTC_NAME_SIZE);
-            cn->commonName[sz] = 0;
+            cn->commonName[sz] = '\0';
             cn->commonNameEnc = decoded->subjectCNEnc;
         }
         if (decoded->subjectC) {
             sz = (decoded->subjectCLen < CTC_NAME_SIZE) ? decoded->subjectCLen
                                                         : CTC_NAME_SIZE - 1;
             XSTRNCPY(cn->country, decoded->subjectC, CTC_NAME_SIZE);
-            cn->country[sz] = 0;
+            cn->country[sz] = '\0';
             cn->countryEnc = decoded->subjectCEnc;
         }
         if (decoded->subjectST) {
             sz = (decoded->subjectSTLen < CTC_NAME_SIZE) ? decoded->subjectSTLen
                                                          : CTC_NAME_SIZE - 1;
             XSTRNCPY(cn->state, decoded->subjectST, CTC_NAME_SIZE);
-            cn->state[sz] = 0;
+            cn->state[sz] = '\0';
             cn->stateEnc = decoded->subjectSTEnc;
         }
         if (decoded->subjectL) {
             sz = (decoded->subjectLLen < CTC_NAME_SIZE) ? decoded->subjectLLen
                                                         : CTC_NAME_SIZE - 1;
             XSTRNCPY(cn->locality, decoded->subjectL, CTC_NAME_SIZE);
-            cn->locality[sz] = 0;
+            cn->locality[sz] = '\0';
             cn->localityEnc = decoded->subjectLEnc;
         }
         if (decoded->subjectO) {
             sz = (decoded->subjectOLen < CTC_NAME_SIZE) ? decoded->subjectOLen
                                                         : CTC_NAME_SIZE - 1;
             XSTRNCPY(cn->org, decoded->subjectO, CTC_NAME_SIZE);
-            cn->org[sz] = 0;
+            cn->org[sz] = '\0';
             cn->orgEnc = decoded->subjectOEnc;
         }
         if (decoded->subjectOU) {
             sz = (decoded->subjectOULen < CTC_NAME_SIZE) ? decoded->subjectOULen
                                                          : CTC_NAME_SIZE - 1;
             XSTRNCPY(cn->unit, decoded->subjectOU, CTC_NAME_SIZE);
-            cn->unit[sz] = 0;
+            cn->unit[sz] = '\0';
             cn->unitEnc = decoded->subjectOUEnc;
         }
         if (decoded->subjectSN) {
             sz = (decoded->subjectSNLen < CTC_NAME_SIZE) ? decoded->subjectSNLen
                                                          : CTC_NAME_SIZE - 1;
             XSTRNCPY(cn->sur, decoded->subjectSN, CTC_NAME_SIZE);
-            cn->sur[sz] = 0;
+            cn->sur[sz] = '\0';
             cn->surEnc = decoded->subjectSNEnc;
         }
         if (decoded->subjectEmail) {
             sz = (decoded->subjectEmailLen < CTC_NAME_SIZE)
                ?  decoded->subjectEmailLen : CTC_NAME_SIZE - 1;
             XSTRNCPY(cn->email, decoded->subjectEmail, CTC_NAME_SIZE);
-            cn->email[sz] = 0;
+            cn->email[sz] = '\0';
         }
     }
 
