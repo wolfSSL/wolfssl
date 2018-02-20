@@ -295,6 +295,9 @@ struct ecc_key {
     word32 flags;
     const ecc_set_type* dp;     /* domain parameters, either points to NIST
                                    curves (idx >= 0) or user supplied */
+#ifdef WOLFSSL_CUSTOM_CURVES
+    int deallocSet;
+#endif
     void* heap;         /* heap hint */
     ecc_point pubkey;   /* public key */
     mp_int    k;        /* private key */

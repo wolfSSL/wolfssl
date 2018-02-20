@@ -3885,8 +3885,8 @@ int wc_ecc_free(ecc_key* key)
 #endif
 
 #ifdef WOLFSSL_ATECC508A
-   atmel_ecc_free(key->slot);
-   key->slot = -1;
+    atmel_ecc_free(key->slot);
+    key->slot = -1;
 #else
 
     mp_clear(key->pubkey.x);
@@ -3895,7 +3895,27 @@ int wc_ecc_free(ecc_key* key)
 
     mp_forcezero(&key->k);
 #endif /* WOLFSSL_ATECC508A */
-	return 0;
+
+#ifdef WOLFSSL_CUSTOM_CURVES
+    if (key->deallocSet && key->dp != NULL) {
+        if (key->dp->prime != NULL)
+            XFREE((void*)key->dp->prime, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+        if (key->dp->Af != NULL)
+            XFREE((void*)key->dp->Af, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+        if (key->dp->Bf != NULL)
+            XFREE((void*)key->dp->Bf, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+        if (key->dp->order != NULL)
+            XFREE((void*)key->dp->order, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+        if (key->dp->Gx != NULL)
+            XFREE((void*)key->dp->Gx, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+        if (key->dp->Gy != NULL)
+            XFREE((void*)key->dp->Gy, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+
+        XFREE((void*)key->dp, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+    }
+#endif
+
+    return 0;
 }
 
 #ifndef WOLFSSL_SP_MATH
@@ -5454,6 +5474,7 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
                                  int curve_id)
 {
     int ret;
+    word32 idx = 0;
 
     if (key == NULL || priv == NULL)
         return BAD_FUNC_ARG;
@@ -5461,6 +5482,8 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
     /* public optional, NULL if only importing private */
     if (pub != NULL) {
         ret = wc_ecc_import_x963_ex(pub, pubSz, key, curve_id);
+        if (ret < 0)
+            ret = wc_EccPublicKeyDecode(pub, &idx, key, pubSz);
         key->type = ECC_PRIVATEKEY;
     }
     else {

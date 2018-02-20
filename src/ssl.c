@@ -16415,6 +16415,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
             /* decode ECC key */
             #ifdef HAVE_ECC
             if (key->type == EVP_PKEY_EC) {
+                word32 idx = 0;
+
                 key->ownEcc = 1;
                 key->ecc = wolfSSL_EC_KEY_new();
                 if (key->ecc == NULL || key->ecc->internal == NULL) {
@@ -16424,9 +16426,9 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
 
                 /* not using wolfSSL_EC_KEY_LoadDer because public key in x509
                  * is in the format of x963 (no sequence at start of buffer) */
-                if (wc_ecc_import_x963((const unsigned char*)key->pkey.ptr,
-                            key->pkey_sz, (ecc_key*)key->ecc->internal) < 0) {
-                    WOLFSSL_MSG("wc_ecc_import_x963 failed");
+                if (wc_EccPublicKeyDecode((const unsigned char*)key->pkey.ptr,
+                        &idx, (ecc_key*)key->ecc->internal, key->pkey_sz) < 0) {
+                    WOLFSSL_MSG("wc_EccPublicKeyDecode failed");
                     XFREE(key, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                     wolfSSL_EC_KEY_free(key->ecc);
                     return NULL;
