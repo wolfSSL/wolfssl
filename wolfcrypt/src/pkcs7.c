@@ -1844,6 +1844,9 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
     byte* signedAttrib = NULL;
     int contentSz = 0, sigSz = 0, certSz = 0, signedAttribSz = 0;
     byte degenerate;
+#ifdef ASN_BER_TO_DER
+    byte* der;
+#endif
 
     if (pkcs7 == NULL || pkiMsg == NULL || pkiMsgSz == 0)
         return BAD_FUNC_ARG;
@@ -1988,8 +1991,14 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
                 certSz += (certIdx - idx);
             }
 
+#ifdef ASN_BER_TO_DER
+            der = pkcs7->der;
+#endif
             /* This will reset PKCS7 structure and then set the certificate */
             wc_PKCS7_InitWithCert(pkcs7, cert, certSz);
+#ifdef ASN_BER_TO_DER
+            pkcs7->der = der;
+#endif
 
             /* iterate through any additional certificates */
             if (MAX_PKCS7_CERTS > 0) {
