@@ -3570,10 +3570,11 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return ret;
     }
 
-#ifdef HAVE_STUNNEL
+#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     if ((ret = SNI_Callback(ssl)) != 0)
         return ret;
-#endif /*HAVE_STUNNEL*/
+    ssl->options.side = WOLFSSL_SERVER_END;
+#endif /* HAVE_STUNNELi || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 
     if (TLSX_Find(ssl->extensions, TLSX_SUPPORTED_VERSIONS) == NULL) {
         if (!ssl->options.downgrade) {

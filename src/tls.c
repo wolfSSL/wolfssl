@@ -8062,7 +8062,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             }
 
         #if defined(HAVE_SESSION_TICKET)
-            if (ssl->options.resuming && ssl->ctx->ticketEncCb != NULL) {
+            if (ssl->options.resuming && ssl->session.ticketLen > 0) {
                 WOLFSSL_SESSION* sess = &ssl->session;
                 word32           milli;
 
