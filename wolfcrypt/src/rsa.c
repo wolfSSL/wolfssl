@@ -1523,7 +1523,7 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
  *          RSA_PUBLIC_DECRYPT, RSA_PRIVATE_ENCRYPT, RSA_PRIVATE_DECRYPT}
  * rng      wolfSSL RNG to use if needed
  *
- * returns 0 on success
+ * returns size of result on success
  */
 int wc_RsaDirect(byte* in, word32 inLen, byte* out, word32* outSz,
         RsaKey* key, int type, WC_RNG* rng)
@@ -1560,7 +1560,48 @@ int wc_RsaDirect(byte* in, word32 inLen, byte* out, word32* outSz,
         return LENGTH_ONLY_E;
     }
 
-    return wc_RsaFunction(in, inLen, out, outSz, type, key, rng);
+    switch (key->state) {
+        case RSA_STATE_NONE:
+        case RSA_STATE_ENCRYPT_PAD:
+        case RSA_STATE_ENCRYPT_EXPTMOD:
+        case RSA_STATE_DECRYPT_EXPTMOD:
+        case RSA_STATE_DECRYPT_UNPAD:
+            key->state = (type == RSA_PRIVATE_ENCRYPT ||
+                    type == RSA_PUBLIC_ENCRYPT) ? RSA_STATE_ENCRYPT_EXPTMOD:
+                                                  RSA_STATE_DECRYPT_EXPTMOD;
+
+            key->dataLen = *outSz;
+
+            ret = wc_RsaFunction(in, inLen, out, &key->dataLen, type, key, rng);
+            if (ret >= 0 || ret == WC_PENDING_E) {
+                key->state = (type == RSA_PRIVATE_ENCRYPT ||
+                    type == RSA_PUBLIC_ENCRYPT) ? RSA_STATE_ENCRYPT_RES:
+                                                  RSA_STATE_DECRYPT_RES;
+            }
+            if (ret < 0) {
+                break;
+            }
+
+            FALL_THROUGH;
+
+        case RSA_STATE_ENCRYPT_RES:
+        case RSA_STATE_DECRYPT_RES:
+            ret = key->dataLen;
+            break;
+
+        default:
+            ret = BAD_STATE_E;
+    }
+
+    /* if async pending then skip cleanup*/
+    if (ret == WC_PENDING_E) {
+        return ret;
+    }
+
+    key->state = RSA_STATE_NONE;
+    wc_RsaCleanup(key);
+
+    return ret;
 }
 #endif /* WC_RSA_NO_PADDING */
 

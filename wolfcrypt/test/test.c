@@ -8585,8 +8585,16 @@ int rsa_no_pad_test(void)
 
     inLen = wc_RsaEncryptSize(&key);
     XMEMSET(tmp, 7, inLen);
-    ret = wc_RsaDirect(tmp, inLen, out, &outSz, &key, RSA_PRIVATE_ENCRYPT, &rng);
-    if (ret != 0) {
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret >= 0) {
+            ret = wc_RsaDirect(tmp, inLen, out, &outSz, &key,
+                    RSA_PRIVATE_ENCRYPT, &rng);
+        }
+    } while (ret == WC_PENDING_E);
+    if (ret <= 0) {
         ERROR_OUT(-506, exit_rsa_nopadding);
     }
 
@@ -8596,9 +8604,16 @@ int rsa_no_pad_test(void)
     }
 
     /* decrypt with public key and compare result */
-    ret = wc_RsaDirect(out, outSz, plain, &plainSz, &key, RSA_PUBLIC_DECRYPT,
-            &rng);
-    if (ret != 0) {
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret >= 0) {
+            ret = wc_RsaDirect(out, outSz, plain, &plainSz, &key,
+                    RSA_PUBLIC_DECRYPT, &rng);
+        }
+    } while (ret == WC_PENDING_E);
+    if (ret <= 0) {
         ERROR_OUT(-508, exit_rsa_nopadding);
     }
 
@@ -8614,15 +8629,28 @@ int rsa_no_pad_test(void)
 #endif
 
     /* test encrypt and decrypt using WC_RSA_NO_PAD */
-    ret = wc_RsaPublicEncrypt_ex(tmp, inLen, out, (int)outSz, &key, &rng,
-            WC_RSA_NO_PAD, WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0);
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret >= 0) {
+            ret = wc_RsaPublicEncrypt_ex(tmp, inLen, out, (int)outSz, &key, &rng,
+                WC_RSA_NO_PAD, WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0);
+        }
+    } while (ret == WC_PENDING_E);
     if (ret < 0) {
         ERROR_OUT(-511, exit_rsa_nopadding);
     }
 
-    printf("outSz = %d plainSz = %d\n", outSz, plainSz);
-    ret = wc_RsaPrivateDecrypt_ex(out, outSz, plain, (int)plainSz, &key,
-            WC_RSA_NO_PAD, WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0);
+    do {
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+    #endif
+        if (ret >= 0) {
+            ret = wc_RsaPrivateDecrypt_ex(out, outSz, plain, (int)plainSz, &key,
+                WC_RSA_NO_PAD, WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0);
+        }
+    } while (ret == WC_PENDING_E);
     if (ret < 0) {
         ERROR_OUT(-512, exit_rsa_nopadding);
     }
