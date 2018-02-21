@@ -871,6 +871,23 @@ static int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
             break;
     #endif
 
+    #ifdef WC_RSA_NO_PADDING
+        case WC_RSA_NO_PAD:
+            WOLFSSL_MSG("wolfSSL Using NO padding");
+
+            /* In the case of no padding being used check that input is exactly
+             * the RSA key length */
+            if (bits <= 0 || inputLen != ((word32)bits/8)) {
+                WOLFSSL_MSG("Bad input size");
+                ret = RSA_PAD_E;
+            }
+            else {
+                XMEMCPY(pkcsBlock, input, inputLen);
+                ret = 0;
+            }
+            break;
+    #endif
+
         default:
             WOLFSSL_MSG("Unknown RSA Pad Type");
             ret = RSA_PAD_E;
@@ -1099,7 +1116,10 @@ static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
     return outputLen;
 }
 
-/* helper function to direct unpadding */
+/* helper function to direct unpadding
+ *
+ * bits is the key modulus size in bits
+ */
 static int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
                           byte padValue, int padType, enum wc_HashType hType,
                           int mgf, byte* optLabel, word32 labelLen, int saltLen,
@@ -1128,6 +1148,25 @@ static int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
                                                            saltLen, bits, heap);
             break;
     #endif
+
+    #ifdef WC_RSA_NO_PADDING
+        case WC_RSA_NO_PAD:
+            WOLFSSL_MSG("wolfSSL Using NO un-padding");
+
+            /* In the case of no padding being used check that input is exactly
+             * the RSA key length */
+            if (bits <= 0 || pkcsBlockLen != ((word32)bits/8)) {
+                WOLFSSL_MSG("Bad input size");
+                ret = RSA_PAD_E;
+            }
+            else {
+                if (out != NULL) {
+                    *out = pkcsBlock;
+                }
+                ret = pkcsBlockLen;
+            }
+            break;
+    #endif /* WC_RSA_NO_PADDING */
 
         default:
             WOLFSSL_MSG("Unknown RSA UnPad Type");
@@ -1470,6 +1509,62 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
 }
 #endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_RSA */
 
+#ifdef WC_RSA_NO_PADDING
+/* Function that does the RSA operation directly with no padding.
+ *
+ * in       buffer to do operation on
+ * inLen    length of input buffer
+ * out      buffer to hold results
+ * outSz    gets set to size of result buffer. Should be passed in as length
+ *          of out buffer. If the pointer "out" is null then outSz gets set to
+ *          the expected buffer size needed and LENGTH_ONLY_E gets returned.
+ * key      RSA key to use for encrypt/decrypt
+ * type     if using private or public key {RSA_PUBLIC_ENCRYPT,
+ *          RSA_PUBLIC_DECRYPT, RSA_PRIVATE_ENCRYPT, RSA_PRIVATE_DECRYPT}
+ * rng      wolfSSL RNG to use if needed
+ *
+ * returns 0 on success
+ */
+int wc_RsaDirect(byte* in, word32 inLen, byte* out, word32* outSz,
+        RsaKey* key, int type, WC_RNG* rng)
+{
+    int ret;
+
+    if (in == NULL || outSz == NULL || key == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* sanity check on type of RSA operation */
+    switch (type) {
+        case RSA_PUBLIC_ENCRYPT:
+        case RSA_PUBLIC_DECRYPT:
+        case RSA_PRIVATE_ENCRYPT:
+        case RSA_PRIVATE_DECRYPT:
+            break;
+        default:
+            WOLFSSL_MSG("Bad RSA type");
+            return BAD_FUNC_ARG;
+    }
+
+    if ((ret = wc_RsaEncryptSize(key)) < 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (inLen != (word32)ret) {
+        WOLFSSL_MSG("Bad input length. Should be RSA key size");
+        return BAD_FUNC_ARG;
+    }
+
+    if (out == NULL) {
+        *outSz = inLen;
+        return LENGTH_ONLY_E;
+    }
+
+    return wc_RsaFunction(in, inLen, out, outSz, type, key, rng);
+}
+#endif /* WC_RSA_NO_PADDING */
+
+
 int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
                           word32* outLen, int type, RsaKey* key, WC_RNG* rng)
 {
@@ -1517,8 +1612,8 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
    rsa_type  : type of RSA: RSA_PUBLIC_ENCRYPT, RSA_PUBLIC_DECRYPT,
         RSA_PRIVATE_ENCRYPT or RSA_PRIVATE_DECRYPT
    pad_value: RSA_BLOCK_TYPE_1 or RSA_BLOCK_TYPE_2
-   pad_type  : type of padding: WC_RSA_PKCSV15_PAD, WC_RSA_OAEP_PAD or
-        WC_RSA_PSS_PAD
+   pad_type  : type of padding: WC_RSA_PKCSV15_PAD, WC_RSA_OAEP_PAD,
+        WC_RSA_NO_PAD or WC_RSA_PSS_PAD
    hash  : type of hash algorithm to use found in wolfssl/wolfcrypt/hash.h
    mgf   : type of mask generation function to use
    label : optional label
@@ -1548,6 +1643,11 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
     }
 
     if (inLen > (word32)(sz - RSA_MIN_PAD_SZ)) {
+#ifdef WC_RSA_NO_PADDING
+        /* In the case that no padding is used the input length can and should
+         * be the same size as the RSA key. */
+        if (pad_type != WC_RSA_NO_PAD)
+#endif
         return RSA_BUFFER_E;
     }
 
@@ -1630,8 +1730,8 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
    rsa_type  : type of RSA: RSA_PUBLIC_ENCRYPT, RSA_PUBLIC_DECRYPT,
         RSA_PRIVATE_ENCRYPT or RSA_PRIVATE_DECRYPT
    pad_value: RSA_BLOCK_TYPE_1 or RSA_BLOCK_TYPE_2
-   pad_type  : type of padding: WC_RSA_PKCSV15_PAD, WC_RSA_OAEP_PAD
-        WC_RSA_PSS_PAD
+   pad_type  : type of padding: WC_RSA_PKCSV15_PAD, WC_RSA_OAEP_PAD,
+        WC_RSA_NO_PAD, WC_RSA_PSS_PAD
    hash  : type of hash algorithm to use found in wolfssl/wolfcrypt/hash.h
    mgf   : type of mask generation function to use
    label : optional label
@@ -1777,7 +1877,7 @@ int wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out, word32 outLen,
 }
 
 
-#ifndef WC_NO_RSA_OAEP
+#if !defined(WC_NO_RSA_OAEP) || defined(WC_RSA_NO_PADDING)
 int wc_RsaPublicEncrypt_ex(const byte* in, word32 inLen, byte* out,
                     word32 outLen, RsaKey* key, WC_RNG* rng, int type,
                     enum wc_HashType hash, int mgf, byte* label,
@@ -1829,7 +1929,7 @@ int wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
         WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0, 0, rng);
 }
 
-#ifndef WC_NO_RSA_OAEP
+#if !defined(WC_NO_RSA_OAEP) || defined(WC_RSA_NO_PADDING)
 int wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen, byte* out,
                             word32 outLen, RsaKey* key, int type,
                             enum wc_HashType hash, int mgf, byte* label,
@@ -1843,7 +1943,7 @@ int wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen, byte* out,
         RSA_PRIVATE_DECRYPT, RSA_BLOCK_TYPE_2, type, hash, mgf, label,
         labelSz, 0, rng);
 }
-#endif /* WC_NO_RSA_OAEP */
+#endif /* WC_NO_RSA_OAEP || WC_RSA_NO_PADDING */
 
 
 int wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out, RsaKey* key)

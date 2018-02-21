@@ -250,6 +250,7 @@ int  gmac_test(void);
 int  aesccm_test(void);
 int  aeskeywrap_test(void);
 int  camellia_test(void);
+int  rsa_no_pad_test(void);
 int  rsa_test(void);
 int  dh_test(void);
 int  dsa_test(void);
@@ -731,6 +732,12 @@ int wolfcrypt_test(void* args)
 #endif
 
 #ifndef NO_RSA
+    #ifdef WC_RSA_NO_PADDING
+    if ( (ret = rsa_no_pad_test()) != 0)
+        return err_sys("RSA NOPAD test failed!\n", ret);
+    else
+        printf( "RSA NOPAD test passed!\n");
+    #endif
     if ( (ret = rsa_test()) != 0)
         return err_sys("RSA      test failed!\n", ret);
     else
@@ -8493,6 +8500,173 @@ exit_rsa_pss:
     return ret;
 }
 #endif
+
+#ifdef WC_RSA_NO_PADDING
+int rsa_no_pad_test(void)
+{
+    WC_RNG rng;
+    RsaKey key;
+    byte*  tmp = NULL;
+    size_t bytes;
+    int    ret;
+    word32 inLen   = 0;
+    word32 idx     = 0;
+    word32 outSz   = RSA_TEST_BYTES;
+    word32 plainSz = RSA_TEST_BYTES;
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) \
+                                    && !defined(NO_FILESYSTEM)
+    FILE    *file;
+#endif
+    DECLARE_VAR(out, byte, RSA_TEST_BYTES, HEAP_HINT);
+    DECLARE_VAR(plain, byte, RSA_TEST_BYTES, HEAP_HINT);
+
+    /* initialize stack structures */
+    XMEMSET(&rng, 0, sizeof(rng));
+    XMEMSET(&key, 0, sizeof(key));
+#ifdef USE_CERT_BUFFERS_1024
+    bytes = (size_t)sizeof_client_key_der_1024;
+	if (bytes < (size_t)sizeof_client_cert_der_1024)
+		bytes = (size_t)sizeof_client_cert_der_1024;
+#elif defined(USE_CERT_BUFFERS_2048)
+    bytes = (size_t)sizeof_client_key_der_2048;
+	if (bytes < (size_t)sizeof_client_cert_der_2048)
+		bytes = (size_t)sizeof_client_cert_der_2048;
+#else
+	bytes = FOURK_BUF;
+#endif
+
+    tmp = (byte*)XMALLOC(bytes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (tmp == NULL
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        || out == NULL || plain == NULL
+    #endif
+    ) {
+        return -500;
+    }
+
+#ifdef USE_CERT_BUFFERS_1024
+    XMEMCPY(tmp, client_key_der_1024, (size_t)sizeof_client_key_der_1024);
+#elif defined(USE_CERT_BUFFERS_2048)
+    XMEMCPY(tmp, client_key_der_2048, (size_t)sizeof_client_key_der_2048);
+#elif !defined(NO_FILESYSTEM)
+    file = fopen(clientKey, "rb");
+    if (!file) {
+        err_sys("can't open ./certs/client-key.der, "
+                "Please run from wolfSSL home dir", -40);
+        ERROR_OUT(-501, exit_rsa_nopadding);
+    }
+
+    bytes = fread(tmp, 1, FOURK_BUF, file);
+    fclose(file);
+#else
+    /* No key to use. */
+    ERROR_OUT(-502, exit_rsa_nopadding);
+#endif /* USE_CERT_BUFFERS */
+
+    ret = wc_InitRsaKey_ex(&key, HEAP_HINT, devId);
+    if (ret != 0) {
+        ERROR_OUT(-503, exit_rsa_nopadding);
+    }
+    ret = wc_RsaPrivateKeyDecode(tmp, &idx, &key, (word32)bytes);
+    if (ret != 0) {
+        ERROR_OUT(-504, exit_rsa_nopadding);
+    }
+
+    /* after loading in key use tmp as the test buffer */
+
+#ifndef HAVE_FIPS
+    ret = wc_InitRng_ex(&rng, HEAP_HINT, devId);
+#else
+    ret = wc_InitRng(&rng);
+#endif
+    if (ret != 0) {
+        ERROR_OUT(-505, exit_rsa_nopadding);
+    }
+
+    inLen = wc_RsaEncryptSize(&key);
+    XMEMSET(tmp, 7, inLen);
+    ret = wc_RsaDirect(tmp, inLen, out, &outSz, &key, RSA_PRIVATE_ENCRYPT, &rng);
+    if (ret != 0) {
+        ERROR_OUT(-506, exit_rsa_nopadding);
+    }
+
+    /* encrypted result should not be the same as input */
+    if (XMEMCMP(out, tmp, inLen) == 0) {
+        ERROR_OUT(-507, exit_rsa_nopadding);
+    }
+
+    /* decrypt with public key and compare result */
+    ret = wc_RsaDirect(out, outSz, plain, &plainSz, &key, RSA_PUBLIC_DECRYPT,
+            &rng);
+    if (ret != 0) {
+        ERROR_OUT(-508, exit_rsa_nopadding);
+    }
+
+    if (XMEMCMP(plain, tmp, inLen) != 0) {
+        ERROR_OUT(-509, exit_rsa_nopadding);
+    }
+
+#ifdef WC_RSA_BLINDING
+    ret = wc_RsaSetRNG(&key, &rng);
+    if (ret < 0) {
+        ERROR_OUT(-510, exit_rsa_nopadding);
+    }
+#endif
+
+    /* test encrypt and decrypt using WC_RSA_NO_PAD */
+    ret = wc_RsaPublicEncrypt_ex(tmp, inLen, out, (int)outSz, &key, &rng,
+            WC_RSA_NO_PAD, WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0);
+    if (ret < 0) {
+        ERROR_OUT(-511, exit_rsa_nopadding);
+    }
+
+    printf("outSz = %d plainSz = %d\n", outSz, plainSz);
+    ret = wc_RsaPrivateDecrypt_ex(out, outSz, plain, (int)plainSz, &key,
+            WC_RSA_NO_PAD, WC_HASH_TYPE_NONE, WC_MGF1NONE, NULL, 0);
+    if (ret < 0) {
+        ERROR_OUT(-512, exit_rsa_nopadding);
+    }
+
+    if (XMEMCMP(plain, tmp, inLen) != 0) {
+        ERROR_OUT(-513, exit_rsa_nopadding);
+    }
+
+    /* test some bad arguments */
+    ret = wc_RsaDirect(out, outSz, plain, &plainSz, &key, -1,
+            &rng);
+    if (ret != BAD_FUNC_ARG) {
+        ERROR_OUT(-514, exit_rsa_nopadding);
+    }
+
+    ret = wc_RsaDirect(out, outSz, plain, &plainSz, NULL, RSA_PUBLIC_DECRYPT,
+            &rng);
+    if (ret != BAD_FUNC_ARG) {
+        ERROR_OUT(-515, exit_rsa_nopadding);
+    }
+
+    ret = wc_RsaDirect(out, outSz, NULL, &plainSz, &key, RSA_PUBLIC_DECRYPT,
+            &rng);
+    if (ret != LENGTH_ONLY_E || plainSz != inLen) {
+        ERROR_OUT(-516, exit_rsa_nopadding);
+    }
+
+    ret = wc_RsaDirect(out, outSz - 10, plain, &plainSz, &key,
+            RSA_PUBLIC_DECRYPT, &rng);
+    if (ret != BAD_FUNC_ARG) {
+        ERROR_OUT(-517, exit_rsa_nopadding);
+    }
+
+    /* if making it to this point of code without hitting an ERROR_OUT then
+     * all tests have passed */
+    ret = 0;
+
+exit_rsa_nopadding:
+    wc_FreeRsaKey(&key);
+    wc_FreeRng(&rng);
+
+    return ret;
+}
+#endif /* WC_RSA_NO_PADDING */
 
 int rsa_test(void)
 {
