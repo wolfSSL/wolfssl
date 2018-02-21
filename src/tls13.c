@@ -3173,6 +3173,9 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
         break;
     }
 
+    if (current == NULL)
+        return 0;
+
     /* Hash the rest of the ClientHello. */
     ret = HashInputRaw(ssl, input + helloSz - bindersLen, bindersLen);
     if (ret != 0)
