@@ -793,11 +793,6 @@
             wc_AesEncryptDirect(aes, outBlock, inBlock);
             return 0;
         }
-        static int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
-        {
-            wc_AesDecryptDirect(aes, outBlock, inBlock);
-            return 0;
-        }
 #else
 
     /* using wolfCrypt software AES implementation */
