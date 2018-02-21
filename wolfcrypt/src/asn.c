@@ -11025,12 +11025,13 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
 #ifdef WOLFSSL_CUSTOM_CURVES
 static void ByteToHex(byte n, char* str)
 {
-    static char hex[] = { '0', '1', '2', '3', '4', '5', '6', '7',
-                          '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+    static const char hexChar[] = { '0', '1', '2', '3', '4', '5', '6', '7',
+                                    '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
 
-    str[0] = hex[n >> 4];
-    str[1] = hex[n & 0xf];
+    str[0] = hexChar[n >> 4];
+    str[1] = hexChar[n & 0xf];
 }
+
 static int ASNToHexString(const byte* input, word32* inOutIdx, char** out,
                           word32 inSz, void* heap, int heapType)
 {
@@ -11047,7 +11048,7 @@ static int ASNToHexString(const byte* input, word32* inOutIdx, char** out,
             return ASN_PARSE_E;
     }
 
-    str = XMALLOC(len * 2 + 1, heap, heapType);
+    str = (char*)XMALLOC(len * 2 + 1, heap, heapType);
     for (i=0; i<len; i++)
         ByteToHex(input[*inOutIdx + i], str + i*2);
     str[len*2] = '\0';
@@ -11082,20 +11083,21 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
 
     if (input[*inOutIdx] == (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
 #ifdef WOLFSSL_CUSTOM_CURVES
-        ecc_set_type* params;
+        ecc_set_type* curve;
         int len;
         char* point;
 
         ret = 0;
 
-        params = XMALLOC(sizeof(*params), NULL, DYNAMIC_TYPE_ECC_BUFFER);
-        if (params == NULL)
+        curve = (ecc_set_type*)XMALLOC(sizeof(*curve), key->heap,
+                                                       DYNAMIC_TYPE_ECC_BUFFER);
+        if (curve == NULL)
             ret = MEMORY_E;
 
         if (ret == 0) {
-            XMEMSET(params, 0, sizeof(*params));
-            params->name = "Custom";
-            params->id = ECC_CURVE_CUSTOM;
+            XMEMSET(curve, 0, sizeof(*curve));
+            curve->name = "Custom";
+            curve->id = ECC_CURVE_CUSTOM;
 
             if (GetSequence(input, inOutIdx, &length, inSz) < 0)
                 ret = ASN_PARSE_E;
@@ -11108,22 +11110,22 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
         }
         if (ret == 0) {
             SkipObjectId(input, inOutIdx, inSz);
-            ret = ASNToHexString(input, inOutIdx, (char**)&params->prime, inSz,
-                                                 NULL, DYNAMIC_TYPE_ECC_BUFFER);
+            ret = ASNToHexString(input, inOutIdx, (char**)&curve->prime, inSz,
+                                            key->heap, DYNAMIC_TYPE_ECC_BUFFER);
         }
         if (ret == 0) {
-            params->size = (int)XSTRLEN(params->prime) / 2;
+            curve->size = (int)XSTRLEN(curve->prime) / 2;
 
             if (GetSequence(input, inOutIdx, &length, inSz) < 0)
                 ret = ASN_PARSE_E;
         }
         if (ret == 0) {
-            ret = ASNToHexString(input, inOutIdx, (char**)&params->Af, inSz,
-                                                 NULL, DYNAMIC_TYPE_ECC_BUFFER);
+            ret = ASNToHexString(input, inOutIdx, (char**)&curve->Af, inSz,
+                                            key->heap, DYNAMIC_TYPE_ECC_BUFFER);
         }
         if (ret == 0) {
-            ret = ASNToHexString(input, inOutIdx, (char**)&params->Bf, inSz,
-                                                 NULL, DYNAMIC_TYPE_ECC_BUFFER);
+            ret = ASNToHexString(input, inOutIdx, (char**)&curve->Bf, inSz,
+                                            key->heap, DYNAMIC_TYPE_ECC_BUFFER);
         }
         if (ret == 0) {
             if (input[*inOutIdx] == ASN_BIT_STRING) {
@@ -11133,56 +11135,42 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
             }
         }
         if (ret == 0) {
-            ret = ASNToHexString(input, inOutIdx, (char**)&point, inSz, NULL,
-                                                       DYNAMIC_TYPE_ECC_BUFFER);
+            ret = ASNToHexString(input, inOutIdx, (char**)&point, inSz,
+                                            key->heap, DYNAMIC_TYPE_ECC_BUFFER);
         }
         if (ret == 0) {
-            params->Gx = XMALLOC(params->size * 2 + 2, NULL,
+            curve->Gx = (const char*)XMALLOC(curve->size * 2 + 2, key->heap,
                                                        DYNAMIC_TYPE_ECC_BUFFER);
-            params->Gy = XMALLOC(params->size * 2 + 2, NULL,
+            curve->Gy = (const char*)XMALLOC(curve->size * 2 + 2, key->heap,
                                                        DYNAMIC_TYPE_ECC_BUFFER);
-            if (params->Gx == NULL || params->Gy == NULL)
+            if (curve->Gx == NULL || curve->Gy == NULL)
                 ret = MEMORY_E;
         }
         if (ret == 0) {
-            XMEMCPY((char*)params->Gx, point + 2, params->size * 2);
-            XMEMCPY((char*)params->Gy, point + params->size * 2 + 2,
-                                                              params->size * 2);
-            ((char*)params->Gx)[params->size * 2] = '\0';
-            ((char*)params->Gy)[params->size * 2] = '\0';
-            XFREE(point, NULL, DYNAMIC_TYPE_ECC_BUFFER);
-            ret = ASNToHexString(input, inOutIdx, (char**)&params->order, inSz,
-                                                 NULL, DYNAMIC_TYPE_ECC_BUFFER);
+            XMEMCPY((char*)curve->Gx, point + 2, curve->size * 2);
+            XMEMCPY((char*)curve->Gy, point + curve->size * 2 + 2,
+                                                               curve->size * 2);
+            ((char*)curve->Gx)[curve->size * 2] = '\0';
+            ((char*)curve->Gy)[curve->size * 2] = '\0';
+            XFREE(point, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+            ret = ASNToHexString(input, inOutIdx, (char**)&curve->order, inSz,
+                                            key->heap, DYNAMIC_TYPE_ECC_BUFFER);
         }
         if (ret == 0) {
-            params->cofactor = GetInteger7Bit(input, inOutIdx, inSz);
+            curve->cofactor = GetInteger7Bit(input, inOutIdx, inSz);
 
-            params->oid = NULL;
-            params->oidSz = 0;
-            params->oidSum = 0;
+            curve->oid = NULL;
+            curve->oidSz = 0;
+            curve->oidSum = 0;
 
-            if (wc_ecc_set_custom_curve(key, params) < 0) {
+            if (wc_ecc_set_custom_curve(key, curve) < 0) {
                 ret = ASN_PARSE_E;
             }
             key->deallocSet = 1;
-            params = NULL;
+            curve = NULL;
         }
-        if (params != NULL) {
-            if (params->prime != NULL)
-                XFREE((void*)params->prime, NULL, DYNAMIC_TYPE_ECC_BUFFER);
-            if (params->Af != NULL)
-                XFREE((void*)params->Af, NULL, DYNAMIC_TYPE_ECC_BUFFER);
-            if (params->Bf != NULL)
-                XFREE((void*)params->Bf, NULL, DYNAMIC_TYPE_ECC_BUFFER);
-            if (params->order != NULL)
-                XFREE((void*)params->order, NULL, DYNAMIC_TYPE_ECC_BUFFER);
-            if (params->Gx != NULL)
-                XFREE((void*)params->Gx, NULL, DYNAMIC_TYPE_ECC_BUFFER);
-            if (params->Gy != NULL)
-                XFREE((void*)params->Gy, NULL, DYNAMIC_TYPE_ECC_BUFFER);
-
-            XFREE((void*)params, NULL, DYNAMIC_TYPE_ECC_BUFFER);
-        }
+        if (curve != NULL)
+            wc_ecc_free_curve(curve, key->heap);
 
         if (ret < 0)
             return ret;

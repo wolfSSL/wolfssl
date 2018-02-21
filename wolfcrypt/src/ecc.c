@@ -3869,6 +3869,28 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 #endif /* WOLFSSL_ATECC508A */
 #endif /* HAVE_ECC_SIGN */
 
+#ifdef WOLFSSL_CUSTOM_CURVES
+void wc_ecc_free_curve(const ecc_set_type* curve, void* heap)
+{
+    if (curve->prime != NULL)
+        XFREE((void*)curve->prime, heap, DYNAMIC_TYPE_ECC_BUFFER);
+    if (curve->Af != NULL)
+        XFREE((void*)curve->Af, heap, DYNAMIC_TYPE_ECC_BUFFER);
+    if (curve->Bf != NULL)
+        XFREE((void*)curve->Bf, heap, DYNAMIC_TYPE_ECC_BUFFER);
+    if (curve->order != NULL)
+        XFREE((void*)curve->order, heap, DYNAMIC_TYPE_ECC_BUFFER);
+    if (curve->Gx != NULL)
+        XFREE((void*)curve->Gx, heap, DYNAMIC_TYPE_ECC_BUFFER);
+    if (curve->Gy != NULL)
+        XFREE((void*)curve->Gy, heap, DYNAMIC_TYPE_ECC_BUFFER);
+
+    XFREE((void*)curve, heap, DYNAMIC_TYPE_ECC_BUFFER);
+
+    (void)heap;
+}
+#endif /* WOLFSSL_CUSTOM_CURVES */
+
 /**
   Free an ECC key from memory
   key   The key you wish to free
@@ -3897,22 +3919,8 @@ int wc_ecc_free(ecc_key* key)
 #endif /* WOLFSSL_ATECC508A */
 
 #ifdef WOLFSSL_CUSTOM_CURVES
-    if (key->deallocSet && key->dp != NULL) {
-        if (key->dp->prime != NULL)
-            XFREE((void*)key->dp->prime, NULL, DYNAMIC_TYPE_ECC_BUFFER);
-        if (key->dp->Af != NULL)
-            XFREE((void*)key->dp->Af, NULL, DYNAMIC_TYPE_ECC_BUFFER);
-        if (key->dp->Bf != NULL)
-            XFREE((void*)key->dp->Bf, NULL, DYNAMIC_TYPE_ECC_BUFFER);
-        if (key->dp->order != NULL)
-            XFREE((void*)key->dp->order, NULL, DYNAMIC_TYPE_ECC_BUFFER);
-        if (key->dp->Gx != NULL)
-            XFREE((void*)key->dp->Gx, NULL, DYNAMIC_TYPE_ECC_BUFFER);
-        if (key->dp->Gy != NULL)
-            XFREE((void*)key->dp->Gy, NULL, DYNAMIC_TYPE_ECC_BUFFER);
-
-        XFREE((void*)key->dp, NULL, DYNAMIC_TYPE_ECC_BUFFER);
-    }
+    if (key->deallocSet && key->dp != NULL)
+        wc_ecc_free_curve(key->dp, key->heap);
 #endif
 
     return 0;

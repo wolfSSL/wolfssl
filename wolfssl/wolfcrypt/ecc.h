@@ -397,6 +397,10 @@ WOLFSSL_API
 int wc_ecc_init(ecc_key* key);
 WOLFSSL_API
 int wc_ecc_init_ex(ecc_key* key, void* heap, int devId);
+#ifdef WOLFSSL_CUSTOM_CURVES
+WOLFSSL_LOCAL
+void wc_ecc_free_curve(const ecc_set_type* curve, void* heap);
+#endif
 WOLFSSL_API
 int wc_ecc_free(ecc_key* key);
 WOLFSSL_API
