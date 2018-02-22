@@ -217,6 +217,7 @@ WOLFSSL_API int wc_RsaSetRNG(RsaKey* key, WC_RNG* rng);
 #define WC_RSA_PKCSV15_PAD 0
 #define WC_RSA_OAEP_PAD    1
 #define WC_RSA_PSS_PAD     2
+#define WC_RSA_NO_PAD      3
 
 WOLFSSL_API int  wc_RsaPublicEncrypt_ex(const byte* in, word32 inLen, byte* out,
                    word32 outLen, RsaKey* key, WC_RNG* rng, int type,
@@ -227,6 +228,8 @@ WOLFSSL_API int  wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen,
 WOLFSSL_API int  wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen,
                       byte** out, RsaKey* key, int type, enum wc_HashType hash,
                       int mgf, byte* label, word32 lableSz);
+WOLFSSL_API int wc_RsaDirect(byte* in, word32 inLen, byte* out, word32* outSz,
+                   RsaKey* key, int type, WC_RNG* rng);
 #endif /* HAVE_FIPS*/
 WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
                                                                        word32*);
