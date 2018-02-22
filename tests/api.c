@@ -2800,6 +2800,10 @@ static void test_wolfSSL_PKCS12(void)
     sk_X509_free(ca);
 #endif /* HAVE_ECC */
 
+    (void)x509;
+    (void)subject;
+    (void)order;
+
     printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA */
 }
