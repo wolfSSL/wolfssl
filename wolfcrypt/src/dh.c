@@ -728,6 +728,81 @@ static int wc_DhGenerateKeyPair_Async(DhKey* key, WC_RNG* rng,
 #endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_DH */
 
 
+/* Check DH Public Key for invalid numbers, optionally allowing
+ * the public key to be checked against the large prime (q).
+ *
+ * key     DH key group parameters.
+ * pub     Public Key.
+ * pubSz   Public Key size.
+ * prime   Large prime (q), optionally NULL to skip check
+ * primeSz Size of large prime
+ *
+ *  returns 0 on success or error code
+ */
+int wc_DhCheckPubKey_ex(DhKey* key, const byte* pub, word32 pubSz,
+                        const byte* prime, word32 primeSz)
+{
+    int ret = 0;
+    mp_int y;
+    mp_int p;
+    mp_int q;
+
+    if (key == NULL || pub == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (mp_init_multi(&y, &p, &q, NULL, NULL, NULL) != MP_OKAY) {
+        return MP_INIT_E;
+    }
+
+    if (mp_read_unsigned_bin(&y, pub, pubSz) != MP_OKAY) {
+        ret = MP_READ_E;
+    }
+
+    if (ret == 0 && prime != NULL) {
+        if (mp_read_unsigned_bin(&q, prime, primeSz) != MP_OKAY)
+            ret = MP_READ_E;
+    }
+
+    /* pub (y) should not be 0 or 1 */
+    if (ret == 0 && mp_cmp_d(&y, 2) == MP_LT) {
+        ret = MP_CMP_E;
+    }
+
+    /* pub (y) shouldn't be greater than or equal to p - 1 */
+    if (ret == 0 && mp_copy(&key->p, &p) != MP_OKAY) {
+        ret = MP_INIT_E;
+    }
+    if (ret == 0 && mp_sub_d(&p, 2, &p) != MP_OKAY) {
+        ret = MP_SUB_E;
+    }
+    if (ret == 0 && mp_cmp(&y, &p) == MP_GT) {
+        ret = MP_CMP_E;
+    }
+
+    if (ret == 0 && prime != NULL) {
+
+        /* restore key->p into p */
+        if (mp_copy(&key->p, &p) != MP_OKAY)
+            ret = MP_INIT_E;
+
+        /* calculate (y^q) mod(p), store back into y */
+        if (ret == 0 && mp_exptmod(&y, &q, &p, &y) != MP_OKAY)
+            ret = MP_EXPTMOD_E;
+
+        /* verify above == 1 */
+        if (ret == 0 && mp_cmp_d(&y, 1) != MP_EQ)
+            ret = MP_CMP_E;
+    }
+
+    mp_clear(&y);
+    mp_clear(&p);
+    mp_clear(&q);
+
+    return ret;
+}
+
+
 /* Check DH Public Key for invalid numbers
  *
  * key   DH key group parameters.
@@ -738,42 +813,7 @@ static int wc_DhGenerateKeyPair_Async(DhKey* key, WC_RNG* rng,
  */
 int wc_DhCheckPubKey(DhKey* key, const byte* pub, word32 pubSz)
 {
-    int ret = 0;
-    mp_int x;
-    mp_int y;
-
-    if (key == NULL || pub == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    if (mp_init_multi(&x, &y, NULL, NULL, NULL, NULL) != MP_OKAY) {
-        return MP_INIT_E;
-    }
-
-    if (mp_read_unsigned_bin(&x, pub, pubSz) != MP_OKAY) {
-        ret = MP_READ_E;
-    }
-
-    /* pub should not be 0 or 1 */
-    if (ret == 0 && mp_cmp_d(&x, 2) == MP_LT) {
-        ret = MP_CMP_E;
-    }
-
-    /* pub shouldn't be greater than or equal to p - 1 */
-    if (ret == 0 && mp_copy(&key->p, &y) != MP_OKAY) {
-        ret = MP_INIT_E;
-    }
-    if (ret == 0 && mp_sub_d(&y, 2, &y) != MP_OKAY) {
-        ret = MP_SUB_E;
-    }
-    if (ret == 0 && mp_cmp(&x, &y) == MP_GT) {
-        ret = MP_CMP_E;
-    }
-
-    mp_clear(&y);
-    mp_clear(&x);
-
-    return ret;
+    return wc_DhCheckPubKey_ex(key, pub, pubSz, NULL, 0);
 }
 
 
