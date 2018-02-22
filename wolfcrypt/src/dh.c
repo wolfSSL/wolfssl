@@ -739,8 +739,6 @@ static int wc_DhGenerateKeyPair_Async(DhKey* key, WC_RNG* rng,
 int wc_DhCheckPubKey(DhKey* key, const byte* pub, word32 pubSz)
 {
     int ret = 0;
-
-#ifndef WOLFSSL_SP_MATH
     mp_int x;
     mp_int y;
 
@@ -774,11 +772,6 @@ int wc_DhCheckPubKey(DhKey* key, const byte* pub, word32 pubSz)
 
     mp_clear(&y);
     mp_clear(&x);
-#else
-    (void)key;
-    (void)pub;
-    (void)pubSz;
-#endif
 
     return ret;
 }
