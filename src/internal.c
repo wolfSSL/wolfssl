@@ -8918,8 +8918,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #ifdef HAVE_ECC
                     case ECDSAk:
                     {
-                        int curveId;
                         int keyRet = 0;
+                        word32 idx = 0;
+
                         if (ssl->peerEccDsaKey == NULL) {
                             /* alloc/init on demand */
                             keyRet = AllocKey(ssl, DYNAMIC_TYPE_ECC,
@@ -8930,11 +8931,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             ssl->peerEccDsaKeyPresent = 0;
                         }
 
-                        curveId = wc_ecc_get_oid(args->dCert->keyOID, NULL, NULL);
                         if (keyRet != 0 ||
-                            wc_ecc_import_x963_ex(args->dCert->publicKey,
-                                    args->dCert->pubKeySize, ssl->peerEccDsaKey,
-                                                            curveId) != 0) {
+                            wc_EccPublicKeyDecode(args->dCert->publicKey, &idx,
+                                                ssl->peerEccDsaKey,
+                                                args->dCert->pubKeySize) != 0) {
                             ret = PEER_KEY_ERROR;
                         }
                         else {

@@ -1380,6 +1380,7 @@ static int wc_PKCS7_EcdsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
     ecc_key stack_key;
     ecc_key* key = &stack_key;
 #endif
+    word32 idx = 0;
 
     if (pkcs7 == NULL || sig == NULL)
         return BAD_FUNC_ARG;
@@ -1409,7 +1410,8 @@ static int wc_PKCS7_EcdsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
         return ret;
     }
 
-    if (wc_ecc_import_x963(pkcs7->publicKey, pkcs7->publicKeySz, key) < 0) {
+    if (wc_EccPublicKeyDecode(pkcs7->publicKey, &idx, key,
+                                                      pkcs7->publicKeySz) < 0) {
         WOLFSSL_MSG("ASN ECDSA key decode error");
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2346,9 +2348,11 @@ static int wc_PKCS7_KariParseRecipCert(WC_PKCS7_KARI* kari, const byte* cert,
     /* get recip public key */
     if (kari->direction == WC_PKCS7_ENCODE) {
 
-        ret = wc_ecc_import_x963(kari->decoded->publicKey,
-                                 kari->decoded->pubKeySize,
-                                 kari->recipKey);
+        idx = 0;
+        ret = wc_EccPublicKeyDecode(kari->decoded->publicKey, &idx,
+                                    kari->recipKey, kari->decoded->pubKeySize);
+        if (ret != 0)
+            return ret;
     }
     /* get recip private key */
     else if (kari->direction == WC_PKCS7_DECODE) {
