@@ -17431,6 +17431,13 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
         }
 #endif /* HAVE_SECRET_CALLBACK */
 
+        return CompleteServerHello(ssl);
+    }
+
+    int CompleteServerHello(WOLFSSL* ssl)
+    {
+        int ret;
+
         if (ssl->options.resuming) {
             if (DSH_CheckSessionId(ssl)) {
                 if (SetCipherSpecs(ssl) == 0) {
