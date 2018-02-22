@@ -799,13 +799,13 @@ static word32 SetBitString(word32 len, byte unusedBits, byte* output)
  * returns ASN_PARSE_E if the BER data is invalid and BAD_FUNC_ARG if ber or
  * derSz are NULL.
  */
-int wc_BerToDer(byte* ber, word32 berSz, byte* der, word32* derSz)
+int wc_BerToDer(const byte* ber, word32 berSz, byte* der, word32* derSz)
 {
     int ret;
     word32 i, j, k;
     int len, l;
     int indef;
-    int depth = 1;
+    int depth = 0;
     byte type;
     word32 cnt, sz;
     word32 outSz;
@@ -818,7 +818,7 @@ int wc_BerToDer(byte* ber, word32 berSz, byte* der, word32* derSz)
 
     for (i = 0, j = 0; i < berSz; ) {
         /* Check that there is data for an ASN item to parse. */
-        if (i + 1 > berSz)
+        if (i + 2 > berSz)
             return ASN_PARSE_E;
 
         /* End Of Content (EOC) mark end of indefinite length items.
@@ -827,6 +827,8 @@ int wc_BerToDer(byte* ber, word32 berSz, byte* der, word32* derSz)
          * terminated in depth.
          */
         if (ber[i] == 0 && ber[i+1] == 0) {
+            if (depth == 0)
+                break;
             if (--depth == 0)
                 break;
 
@@ -857,7 +859,7 @@ int wc_BerToDer(byte* ber, word32 berSz, byte* der, word32* derSz)
             i++;
 
             /* There must be further ASN1 items to combine. */
-            if (i + 1 >= berSz)
+            if (i + 2 > berSz)
                 return ASN_PARSE_E;
 
             /* Calculate length of combined data. */
@@ -876,7 +878,7 @@ int wc_BerToDer(byte* ber, word32 berSz, byte* der, word32* derSz)
                 len += l;
 
                 /* Must at least have terminating EOC. */
-                if (k + 1 >= berSz)
+                if (k + 2 > berSz)
                     return ASN_PARSE_E;
             }
             /* Ensure a valid EOC ASN item. */
@@ -975,6 +977,9 @@ int wc_BerToDer(byte* ber, word32 berSz, byte* der, word32* derSz)
             j += cnt + len;
         }
     }
+
+    if (depth >= 1)
+        return ASN_PARSE_E;
 
     /* Return length if no buffer to write to. */
     if (der == NULL) {

@@ -766,7 +766,7 @@ struct TrustedPeerCert {
     #define WOLFSSL_ASN_API WOLFSSL_LOCAL
 #endif
 
-WOLFSSL_ASN_API int wc_BerToDer(byte* ber, word32 berSz, byte* der,
+WOLFSSL_ASN_API int wc_BerToDer(const byte* ber, word32 berSz, byte* der,
                                 word32* derSz);
 
 WOLFSSL_ASN_API void FreeAltNames(DNS_entry*, void*);
