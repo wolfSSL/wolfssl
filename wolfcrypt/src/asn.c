@@ -7021,8 +7021,21 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                         if (cert->pathLengthSet &&
                             cert->pathLength >= cert->ca->pathLength) {
 
-                            WOLFSSL_MSG("CA signing CA with longer path length");
-                            return ASN_PATHLEN_INV_E;
+                            /* RFC 5246 says: Because certificate validation requires 
+                             * that root keys be distributed independently, the self-signed
+                             * certificate that specifies the root certificate authority MAY be 
+                             * omitted from the chain.
+                             * That means RFC 5246 allows server to send the self-signed
+                             * certificate that specifies the root certificate authority
+                             * in the chain, this case must be handled:
+                             */
+                            if ((cert->pathLength == cert->ca->pathLength) &&
+                                (XMEMCMP(cert->subjectHash, cert->issuerHash, KEYID_SIZE) == 0)) {
+                                WOLFSSL_MSG("Self-signed known root CA detected");
+                            } else {
+                                WOLFSSL_MSG("CA signing CA with longer path length");
+                                return ASN_PATHLEN_INV_E;
+                            }
                         }
                     }
                 }
