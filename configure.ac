@@ -217,6 +217,7 @@ then
     enable_aeskeywrap=yes
     enable_x963kdf=yes
     enable_scrypt=yes
+    enable_indef=yes
 
     AM_CFLAGS="-DHAVE_AES_DECRYPT $AM_CFLAGS"
     AM_CFLAGS="-DHAVE_AES_ECB $AM_CFLAGS"
@@ -512,9 +513,14 @@ fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "$ENABLED_SMALL" = "yes"
 then
-    AC_MSG_ERROR([cannot enable small and opensslextra, only one or the other.])
+   AC_MSG_ERROR([cannot enable small and opensslextra, only one or the other.])
 fi
 
+if test "$ENABLED_OPENSSLEXTRA" = "x509small"
+then
+  AC_MSG_NOTICE([Enabling only a subset of X509 opensslextra])
+  AM_CFLAGS="-DOPENSSL_EXTRA_X509_SMALL"
+fi
 
 # High Strength Build
 AC_ARG_ENABLE([maxstrength],
@@ -2658,6 +2664,19 @@ fi
 AM_CONDITIONAL([BUILD_SRP], [test "x$ENABLED_SRP" = "xyes"])
 
 
+# Indefinite length encoded BER message support
+AC_ARG_ENABLE([indef],
+    [AS_HELP_STRING([--enable-indef],[Enable parsing of indefinite length encoded msgs (default: disabled)])],
+    [ ENABLED_BER_INDEF=$enableval ],
+    [ ENABLED_BER_INDEF=no ]
+    )
+
+if test "x$ENABLED_BER_INDEF" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DASN_BER_TO_DER"
+fi
+
+
 
 # Small Stack
 AC_ARG_ENABLE([smallstack],
@@ -4244,6 +4263,7 @@ echo "   * SIGNAL:                     $ENABLED_SIGNAL"
 echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                       $ENABLED_DTLS"
 echo "   * SCTP:                       $ENABLED_SCTP"
+echo "   * Indefinite Length:          $ENABLED_BER_INDEF"
 echo "   * Multicast:                  $ENABLED_MCAST"
 echo "   * Old TLS Versions:           $ENABLED_OLD_TLS"
 echo "   * SSL version 3.0:            $ENABLED_SSLV3"

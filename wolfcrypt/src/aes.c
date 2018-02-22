@@ -793,11 +793,6 @@
             wc_AesEncryptDirect(aes, outBlock, inBlock);
             return 0;
         }
-        static int wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
-        {
-            wc_AesDecryptDirect(aes, outBlock, inBlock);
-            return 0;
-        }
 #else
 
     /* using wolfCrypt software AES implementation */
@@ -2031,7 +2026,8 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 #ifdef NEED_AES_TABLES
 
         switch (keylen) {
-    #if defined(AES_MAX_KEY_SIZE) && AES_MAX_KEY_SIZE >= 128
+    #if defined(AES_MAX_KEY_SIZE) && AES_MAX_KEY_SIZE >= 128 && \
+            defined(WOLFSSL_AES_128)
         case 16:
             while (1)
             {
@@ -2052,7 +2048,8 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
             break;
     #endif /* 128 */
 
-    #if defined(AES_MAX_KEY_SIZE) && AES_MAX_KEY_SIZE >= 192
+    #if defined(AES_MAX_KEY_SIZE) && AES_MAX_KEY_SIZE >= 192 && \
+            defined(WOLFSSL_AES_192)
         case 24:
             /* for (;;) here triggers a bug in VC60 SP4 w/ Pro Pack */
             while (1)
@@ -2076,7 +2073,8 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
             break;
     #endif /* 192 */
 
-    #if defined(AES_MAX_KEY_SIZE) && AES_MAX_KEY_SIZE >= 256
+    #if defined(AES_MAX_KEY_SIZE) && AES_MAX_KEY_SIZE >= 256 && \
+            defined(WOLFSSL_AES_256)
         case 32:
             while (1)
             {

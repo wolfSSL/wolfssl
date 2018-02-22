@@ -383,6 +383,60 @@ int sp_grow(sp_int* a, int l)
     return MP_OKAY;
 }
 
+/* Sub a one digit number from the big number.
+ *
+ * a  SP integer.
+ * d  Digit to subtract.
+ * r  SP integer - result.
+ * returns MP_OKAY always.
+ */
+int sp_sub_d(sp_int* a, sp_int_digit d, sp_int* r)
+{
+    int i = 0;
+
+    r->used = a->used;
+    r->dp[0] = a->dp[0] - d;
+    if (r->dp[i] > a->dp[i]) {
+        for (; i < a->used; i++) {
+            r->dp[i] = a->dp[i] - 1;
+            if (r->dp[i] != (sp_int_digit)-1)
+               break;
+        }
+    }
+    for (; i < a->used; i++)
+        r->dp[i] = a->dp[i];
+
+    return MP_OKAY;
+}
+
+/* Compare a one digit number with a big number.
+ *
+ * a  SP integer.
+ * d  Digit to compare with.
+ * returns MP_GT if a is greater than d, MP_LT if a is less than d and MP_EQ
+ * when a equals d.
+ */
+int sp_cmp_d(sp_int *a, sp_int_digit d)
+{
+    /* special case for zero*/
+    if (a->used == 0) {
+        if (d == 0)
+            return MP_EQ;
+        else
+            return MP_LT;
+    }
+    else if (a->used > 1)
+        return MP_GT;
+
+    /* compare the only digit of a to d */
+    if (a->dp[0] > d)
+        return MP_GT;
+    else if (a->dp[0] < d)
+        return MP_LT;
+    return MP_EQ;
+}
+
+
 #if defined(USE_FAST_MATH) || !defined(NO_BIG_INT)
 /* Clear all data in the big number and sets value to zero.
  *
@@ -405,6 +459,7 @@ int sp_add_d(sp_int* a, sp_int_digit d, sp_int* r)
 {
     int i = 0;
 
+    r->used = a->used;
     r->dp[0] = a->dp[0] + d;
     if (r->dp[i] < a->dp[i]) {
         for (; i < a->used; i++) {
@@ -413,9 +468,9 @@ int sp_add_d(sp_int* a, sp_int_digit d, sp_int* r)
                break;
         }
 
-        if (i == a->used && r->dp[i] == 0) {
-            a->used++;
-            a->dp[i] = 1;
+        if (i == a->used) {
+            r->used++;
+            r->dp[i] = 1;
         }
     }
     for (; i < a->used; i++)
@@ -465,7 +520,7 @@ int sp_add(sp_int* a, sp_int* b, sp_int* r)
         c = r->dp[i] == 0;
     }
     r->dp[i] = c;
-    a->used = (int)(i + c);
+    r->used = (int)(i + c);
 
     return MP_OKAY;
 }

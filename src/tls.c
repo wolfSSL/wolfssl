@@ -1408,7 +1408,7 @@ static SNI* TLSX_SNI_New(byte type, const void* data, word16 size, void* heap)
                                                      DYNAMIC_TYPE_TLSX);
                 if (sni->data.host_name) {
                     XSTRNCPY(sni->data.host_name, (const char*)data, size);
-                    sni->data.host_name[size] = 0;
+                    sni->data.host_name[size] = '\0';
                 } else {
                     XFREE(sni, heap, DYNAMIC_TYPE_TLSX);
                     sni = NULL;
@@ -4679,6 +4679,13 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL *ssl, byte* input,
         if (major != pv.major)
             return VERSION_ERROR;
 
+        /* Version is TLS v1.2 to handle downgrading from TLS v1.3+. */
+        if (ssl->options.downgrade && ssl->version.minor == TLSv1_2_MINOR &&
+                                                       minor >= TLSv1_3_MINOR) {
+            /* Set minor version back to TLS v1.3+ */
+            ssl->version.minor = ssl->ctx->method->version.minor;
+        }
+
         /* No upgrade allowed. */
         if (ssl->version.minor < minor)
             return VERSION_ERROR;
@@ -7398,7 +7405,7 @@ static word16 TLSX_GetSize(TLSX* list, byte* semaphore, byte msgType)
                 length += PHA_GET_SIZE(msgType);
                 break;
     #endif
- 
+
     #if !defined(WOLFSSL_TLS13_DRAFT_18) && !defined(WOLFSSL_TLS13_DRAFT_22)
             case TLSX_SIGNATURE_ALGORITHMS_CERT:
                 length += SAC_GET_SIZE(extension->data);
@@ -8062,7 +8069,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
             }
 
         #if defined(HAVE_SESSION_TICKET)
-            if (ssl->options.resuming) {
+            if (ssl->options.resuming && ssl->session.ticketLen > 0) {
                 WOLFSSL_SESSION* sess = &ssl->session;
                 word32           milli;
 

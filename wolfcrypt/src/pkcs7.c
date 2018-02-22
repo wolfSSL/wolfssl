@@ -338,6 +338,92 @@ void wc_PKCS7_Free(PKCS7* pkcs7)
         return;
 
     wc_PKCS7_FreeDecodedAttrib(pkcs7->decodedAttrib, pkcs7->heap);
+
+#ifdef ASN_BER_TO_DER
+    if (pkcs7->der != NULL)
+        XFREE(pkcs7->der, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+#endif
+}
+
+
+/* helper function for parsing through attributes and finding a specific one.
+ * returns PKCS7DecodedAttrib pointer on success */
+static PKCS7DecodedAttrib* findAttrib(PKCS7* pkcs7, const byte* oid, word32 oidSz)
+{
+    PKCS7DecodedAttrib* list;
+
+    if (pkcs7 == NULL || oid == NULL) {
+        return NULL;
+    }
+
+    /* search attributes for pkiStatus */
+    list = pkcs7->decodedAttrib;
+    while (list != NULL) {
+        word32 sz  = oidSz;
+        word32 idx = 0;
+        int    length = 0;
+
+        if (list->oid[idx++] != ASN_OBJECT_ID) {
+            WOLFSSL_MSG("Bad attribute ASN1 syntax");
+            return NULL;
+        }
+
+        if (GetLength(list->oid, &idx, &length, list->oidSz) < 0) {
+            WOLFSSL_MSG("Bad attribute length");
+            return NULL;
+        }
+
+        sz = (sz < (word32)length)? sz : (word32)length;
+        if (XMEMCMP(oid, list->oid + idx, sz) == 0) {
+            return list;
+        }
+        list = list->next;
+    }
+    return NULL;
+}
+
+
+/* Searches through decoded attributes and returns the value for the first one
+ * matching the oid passed in. Note that this value includes the leading ASN1
+ * syntax. So for a printable string of "3" this would be something like
+ *
+ * 0x13, 0x01, 0x33
+ *  ID   SIZE  "3"
+ *
+ * pkcs7  structure to get value from
+ * oid    OID value to search for with attributes
+ * oidSz  size of oid buffer
+ * out    buffer to hold result
+ * outSz  size of out buffer (if out is NULL this is set to needed size and
+          LENGTH_ONLY_E is returned)
+ *
+ * returns size of value on success
+ */
+int wc_PKCS7_GetAttributeValue(PKCS7* pkcs7, const byte* oid, word32 oidSz,
+        byte* out, word32* outSz)
+{
+    PKCS7DecodedAttrib* attrib;
+
+    if (pkcs7 == NULL || oid == NULL || outSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    attrib = findAttrib(pkcs7, oid, oidSz);
+    if (attrib == NULL) {
+        return ASN_PARSE_E;
+    }
+
+    if (out == NULL) {
+        *outSz = attrib->valueSz;
+        return LENGTH_ONLY_E;
+    }
+
+    if (*outSz < attrib->valueSz) {
+        return BUFFER_E;
+    }
+
+    XMEMCPY(out, attrib->value, attrib->valueSz);
+    return attrib->valueSz;
 }
 
 
@@ -889,6 +975,11 @@ static int wc_PKCS7_SetHashType(PKCS7* pkcs7, enum wc_HashType* type)
 
     switch (pkcs7->hashOID) {
 
+#ifndef NO_MD5
+        case MD5h:
+            *type = WC_HASH_TYPE_MD5;
+            break;
+#endif
 #ifndef NO_SHA
         case SHAh:
             *type = WC_HASH_TYPE_SHA;
@@ -1289,6 +1380,7 @@ static int wc_PKCS7_EcdsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
     ecc_key stack_key;
     ecc_key* key = &stack_key;
 #endif
+    word32 idx = 0;
 
     if (pkcs7 == NULL || sig == NULL)
         return BAD_FUNC_ARG;
@@ -1318,7 +1410,8 @@ static int wc_PKCS7_EcdsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
         return ret;
     }
 
-    if (wc_ecc_import_x963(pkcs7->publicKey, pkcs7->publicKeySz, key) < 0) {
+    if (wc_EccPublicKeyDecode(pkcs7->publicKey, &idx, key,
+                                                      pkcs7->publicKeySz) < 0) {
         WOLFSSL_MSG("ASN ECDSA key decode error");
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1647,6 +1740,101 @@ static int wc_PKCS7_SetPublicKeyOID(PKCS7* pkcs7, int sigOID)
 }
 
 
+/* Parses through the attributes and adds them to the PKCS7 structure
+ * Creates dynamic attribute structures that are free'd with calling
+ * wc_PKCS7_Free()
+ *
+ * NOTE: An attribute has the ASN1 format of
+ ** Sequence
+ ****** Object ID
+ ****** Set
+ ********** {PritnableString, UTCTime, OCTET STRING ...}
+ *
+ * pkcs7  the PKCS7 structure to put the parsed attributes into
+ * in     buffer holding all attributes
+ * inSz   size of in buffer
+ *
+ * returns the number of attributes parsed on success
+ */
+static int wc_PKCS7_ParseAttribs(PKCS7* pkcs7, byte* in, int inSz)
+{
+    int    found = 0;
+    word32 idx   = 0;
+    word32 oid;
+
+    if (pkcs7 == NULL || in == NULL || inSz < 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    while (idx < (word32)inSz) {
+        int length  = 0;
+        int oidIdx;
+        PKCS7DecodedAttrib* attrib;
+
+        if (GetSequence(in, &idx, &length, inSz) < 0)
+            return ASN_PARSE_E;
+
+        attrib = (PKCS7DecodedAttrib*)XMALLOC(sizeof(PKCS7DecodedAttrib),
+                pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        if (attrib == NULL) {
+            return MEMORY_E;
+        }
+        XMEMSET(attrib, 0, sizeof(PKCS7DecodedAttrib));
+
+        oidIdx = idx;
+        if (GetObjectId(in, &idx, &oid, oidIgnoreType, inSz)
+                < 0) {
+            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            return ASN_PARSE_E;
+        }
+        attrib->oidSz = idx - oidIdx;
+        attrib->oid = (byte*)XMALLOC(attrib->oidSz, pkcs7->heap,
+                                     DYNAMIC_TYPE_PKCS7);
+        if (attrib->oid == NULL) {
+            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            return MEMORY_E;
+        }
+        XMEMCPY(attrib->oid, in + oidIdx, attrib->oidSz);
+
+
+        /* Get Set that contains the printable string value */
+        if (GetSet(in, &idx, &length, inSz) < 0) {
+            XFREE(attrib->oid, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            return ASN_PARSE_E;
+        }
+
+        if ((inSz - idx) < (word32)length) {
+            XFREE(attrib->oid, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            return ASN_PARSE_E;
+        }
+
+        attrib->valueSz = (word32)length;
+        attrib->value = (byte*)XMALLOC(attrib->valueSz, pkcs7->heap,
+                                       DYNAMIC_TYPE_PKCS7);
+        if (attrib->value == NULL) {
+            XFREE(attrib->oid, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            return MEMORY_E;
+        }
+        XMEMCPY(attrib->value, in + idx, attrib->valueSz);
+        idx += length;
+
+        /* store attribute in linked list */
+        if (pkcs7->decodedAttrib != NULL) {
+            attrib->next = pkcs7->decodedAttrib;
+            pkcs7->decodedAttrib = attrib;
+        } else {
+            pkcs7->decodedAttrib = attrib;
+        }
+        found++;
+    }
+
+    return found;
+}
+
+
 /* Finds the certificates in the message and saves it. */
 int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
 {
@@ -1658,6 +1846,9 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
     byte* signedAttrib = NULL;
     int contentSz = 0, sigSz = 0, certSz = 0, signedAttribSz = 0;
     byte degenerate;
+#ifdef ASN_BER_TO_DER
+    byte* der;
+#endif
 
     if (pkcs7 == NULL || pkiMsg == NULL || pkiMsgSz == 0)
         return BAD_FUNC_ARG;
@@ -1667,6 +1858,30 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
     /* Get the contentInfo sequence */
     if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
         return ASN_PARSE_E;
+
+    if (length == 0 && pkiMsg[idx-1] == 0x80) {
+#ifdef ASN_BER_TO_DER
+        word32 len;
+
+        ret = wc_BerToDer(pkiMsg, pkiMsgSz, NULL, &len);
+        if (ret != LENGTH_ONLY_E)
+            return ret;
+        pkcs7->der = (byte*)XMALLOC(len, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        if (pkcs7->der == NULL)
+            return MEMORY_E;
+        ret = wc_BerToDer(pkiMsg, pkiMsgSz, pkcs7->der, &len);
+        if (ret < 0)
+            return ret;
+
+        pkiMsg = pkcs7->der;
+        pkiMsgSz = len;
+        idx = 0;
+        if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+            return ASN_PARSE_E;
+#else
+        return BER_INDEF_E;
+#endif
+    }
 
     /* Get the contentInfo contentType */
     if (wc_GetContentType(pkiMsg, &idx, &contentType, pkiMsgSz) < 0)
@@ -1737,8 +1952,8 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
         /* Save the inner data as the content. */
         if (length > 0) {
             /* Local pointer for calculating hashes later */
-            pkcs7->content = content = &pkiMsg[localIdx];
-            pkcs7->contentSz = contentSz = length;
+            content   = &pkiMsg[localIdx];
+            contentSz = length;
             localIdx += length;
         }
 
@@ -1777,10 +1992,46 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
                 cert = &pkiMsg[idx];
                 certSz += (certIdx - idx);
             }
+
+#ifdef ASN_BER_TO_DER
+            der = pkcs7->der;
+#endif
+            /* This will reset PKCS7 structure and then set the certificate */
             wc_PKCS7_InitWithCert(pkcs7, cert, certSz);
+#ifdef ASN_BER_TO_DER
+            pkcs7->der = der;
+#endif
+
+            /* iterate through any additional certificates */
+            if (MAX_PKCS7_CERTS > 0) {
+                word32 localIdx;
+                int sz = 0;
+                int i;
+
+                pkcs7->cert[0]   = cert;
+                pkcs7->certSz[0] = certSz;
+                certIdx = idx + certSz;
+
+                for (i = 1; i < MAX_PKCS7_CERTS && certIdx + 1 < pkiMsgSz; i++) {
+                    localIdx = certIdx;
+
+                    if (pkiMsg[certIdx++] == (ASN_CONSTRUCTED | ASN_SEQUENCE)) {
+                        if (GetLength(pkiMsg, &certIdx, &sz, pkiMsgSz) < 0)
+                            return ASN_PARSE_E;
+
+                        pkcs7->cert[i]   = &pkiMsg[localIdx];
+                        pkcs7->certSz[i] = sz + (certIdx - localIdx);
+                        certIdx += sz;
+                    }
+                }
+            }
         }
         idx += length;
     }
+
+    /* set content and size after init of PKCS7 structure */
+    pkcs7->content   = content;
+    pkcs7->contentSz = contentSz;
 
     /* Get the implicit[1] set of crls */
     if (pkiMsg[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1)) {
@@ -1833,6 +2084,11 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
             /* save pointer and length */
             signedAttrib = &pkiMsg[idx];
             signedAttribSz = length;
+
+            if (wc_PKCS7_ParseAttribs(pkcs7, signedAttrib, signedAttribSz) <0) {
+                WOLFSSL_MSG("Error parsing signed attributes");
+                return ASN_PARSE_E;
+            }
 
             idx += length;
         }
@@ -2092,9 +2348,11 @@ static int wc_PKCS7_KariParseRecipCert(WC_PKCS7_KARI* kari, const byte* cert,
     /* get recip public key */
     if (kari->direction == WC_PKCS7_ENCODE) {
 
-        ret = wc_ecc_import_x963(kari->decoded->publicKey,
-                                 kari->decoded->pubKeySize,
-                                 kari->recipKey);
+        idx = 0;
+        ret = wc_EccPublicKeyDecode(kari->decoded->publicKey, &idx,
+                                    kari->recipKey, kari->decoded->pubKeySize);
+        if (ret != 0)
+            return ret;
     }
     /* get recip private key */
     else if (kari->direction == WC_PKCS7_DECODE) {
@@ -4083,6 +4341,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     int encryptedContentSz;
     byte padLen;
     byte* encryptedContent = NULL;
+    int explicitOctet;
 
     if (pkcs7 == NULL || pkcs7->singleCert == NULL ||
         pkcs7->singleCertSz == 0 || pkcs7->privateKey == NULL ||
@@ -4096,6 +4355,30 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     /* read past ContentInfo, verify type is envelopedData */
     if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
         return ASN_PARSE_E;
+
+    if (length == 0 && pkiMsg[idx-1] == 0x80) {
+#ifdef ASN_BER_TO_DER
+        word32 len;
+
+        ret = wc_BerToDer(pkiMsg, pkiMsgSz, NULL, &len);
+        if (ret != LENGTH_ONLY_E)
+            return ret;
+        pkcs7->der = (byte*)XMALLOC(len, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        if (pkcs7->der == NULL)
+            return MEMORY_E;
+        ret = wc_BerToDer(pkiMsg, pkiMsgSz, pkcs7->der, &len);
+        if (ret < 0)
+            return ret;
+
+        pkiMsg = pkcs7->der;
+        pkiMsgSz = len;
+        idx = 0;
+        if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+            return ASN_PARSE_E;
+#else
+        return BER_INDEF_E;
+#endif
+    }
 
     if (wc_GetContentType(pkiMsg, &idx, &contentType, pkiMsgSz) < 0)
         return ASN_PARSE_E;
@@ -4219,19 +4502,39 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     XMEMCPY(tmpIv, &pkiMsg[idx], length);
     idx += length;
 
+    explicitOctet = pkiMsg[idx] == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0);
+
     /* read encryptedContent, cont[0] */
-    if (pkiMsg[idx++] != (ASN_CONTEXT_SPECIFIC | 0)) {
+    if (pkiMsg[idx] != (ASN_CONTEXT_SPECIFIC | 0) &&
+        pkiMsg[idx] != (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0)) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(decryptedKey, NULL, DYNAMIC_TYPE_PKCS7);
 #endif
         return ASN_PARSE_E;
     }
+    idx++;
 
     if (GetLength(pkiMsg, &idx, &encryptedContentSz, pkiMsgSz) <= 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(decryptedKey, NULL, DYNAMIC_TYPE_PKCS7);
 #endif
         return ASN_PARSE_E;
+    }
+
+    if (explicitOctet) {
+        if (pkiMsg[idx++] != ASN_OCTET_STRING) {
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(decryptedKey, NULL, DYNAMIC_TYPE_PKCS7);
+#endif
+            return ASN_PARSE_E;
+        }
+
+        if (GetLength(pkiMsg, &idx, &encryptedContentSz, pkiMsgSz) <= 0) {
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(decryptedKey, NULL, DYNAMIC_TYPE_PKCS7);
+#endif
+            return ASN_PARSE_E;
+        }
     }
 
     encryptedContent = (byte*)XMALLOC(encryptedContentSz, pkcs7->heap,
@@ -4516,9 +4819,8 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 static int wc_PKCS7_DecodeUnprotectedAttributes(PKCS7* pkcs7, byte* pkiMsg,
                                              word32 pkiMsgSz, word32* inOutIdx)
 {
-    int length, attribLen;
-    word32 oid, savedIdx, idx;
-    PKCS7DecodedAttrib* attrib = NULL;
+    int ret, attribLen;
+    word32 idx;
 
     if (pkcs7 == NULL || pkiMsg == NULL ||
         pkiMsgSz == 0 || inOutIdx == NULL)
@@ -4534,67 +4836,8 @@ static int wc_PKCS7_DecodeUnprotectedAttributes(PKCS7* pkcs7, byte* pkiMsg,
         return ASN_PARSE_E;
 
     /* loop through attributes */
-    while (attribLen > 0) {
-
-        if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
-            return ASN_PARSE_E;
-
-        attribLen -= (length + 2); /* TAG + LENGTH + DATA */
-        savedIdx = idx;
-
-        attrib = (PKCS7DecodedAttrib*)XMALLOC(sizeof(PKCS7DecodedAttrib),
-                                              pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-        if (attrib == NULL) {
-            return MEMORY_E;
-        }
-        XMEMSET(attrib, 0, sizeof(PKCS7DecodedAttrib));
-
-        /* save attribute OID bytes and size */
-        if (GetObjectId(pkiMsg, &idx, &oid, oidIgnoreType, pkiMsgSz) < 0) {
-            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-            return ASN_PARSE_E;
-        }
-
-        attrib->oidSz = idx - savedIdx;
-        attrib->oid = (byte*)XMALLOC(attrib->oidSz, pkcs7->heap,
-                                     DYNAMIC_TYPE_PKCS7);
-        if (attrib->oid == NULL) {
-            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-            return MEMORY_E;
-        }
-        XMEMCPY(attrib->oid, pkiMsg + savedIdx, attrib->oidSz);
-
-        /* save attribute value bytes and size */
-        if (GetSet(pkiMsg, &idx, &length, pkiMsgSz) < 0) {
-            XFREE(attrib->oid, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-            return ASN_PARSE_E;
-        }
-
-        if ((pkiMsgSz - idx) < (word32)length) {
-            XFREE(attrib->oid, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-            return ASN_PARSE_E;
-        }
-
-        attrib->valueSz = (word32)length;
-        attrib->value = (byte*)XMALLOC(attrib->valueSz, pkcs7->heap,
-                                       DYNAMIC_TYPE_PKCS7);
-        if (attrib->value == NULL) {
-            XFREE(attrib->oid, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-            XFREE(attrib, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-            return MEMORY_E;
-        }
-        XMEMCPY(attrib->value, pkiMsg + idx, attrib->valueSz);
-        idx += length;
-
-        /* store attribute in linked list */
-        if (pkcs7->decodedAttrib != NULL) {
-            attrib->next = pkcs7->decodedAttrib;
-            pkcs7->decodedAttrib = attrib;
-        } else {
-            pkcs7->decodedAttrib = attrib;
-        }
+    if ((ret = wc_PKCS7_ParseAttribs(pkcs7, pkiMsg + idx, attribLen)) < 0) {
+        return ret;
     }
 
     *inOutIdx = idx;

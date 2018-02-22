@@ -102,6 +102,7 @@ static INLINE int wolfSSL_LastError(void)
 #endif /* USE_WOLFSSL_IO || HAVE_HTTP_CLIENT */
 
 
+#ifdef OPENSSL_EXTRA
 /* Use the WOLFSSL read BIO for receiving data. This is set by the fucntion wolfSSL_set_bio and can also be set by wolfSSL_SetIORecv.
  *
  * ssl  WOLFSSL struct passed in that has this function set as the receive callback.
@@ -116,7 +117,7 @@ int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
     int recvd = WOLFSSL_CBIO_ERR_GENERAL;
 
     WOLFSSL_ENTER("BioReceive");
-#ifdef OPENSSL_EXTRA
+
     if (ssl->biord == NULL) {
         WOLFSSL_MSG("WOLFSSL biord not set");
         return WOLFSSL_CBIO_ERR_GENERAL;
@@ -137,12 +138,7 @@ int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
             WOLFSSL_MSG("This BIO type is unknown / unsupported");
             return WOLFSSL_CBIO_ERR_GENERAL;
     }
-#else
-    (void)ssl;
-    (void)buf;
-    (void)sz;
-    WOLFSSL_MSG("OPENSSL_EXTRA not compiled in");
-#endif
+
     (void)ctx;
     return recvd;
 }
@@ -161,7 +157,6 @@ int BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 {
     int sent = WOLFSSL_CBIO_ERR_GENERAL;
 
-#ifdef OPENSSL_EXTRA
     if (ssl->biowr == NULL) {
         WOLFSSL_MSG("WOLFSSL biowr not set\n");
         return WOLFSSL_CBIO_ERR_GENERAL;
@@ -179,16 +174,11 @@ int BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
             WOLFSSL_MSG("This BIO type is unknown / unsupported");
             return WOLFSSL_CBIO_ERR_GENERAL;
     }
-#else
-    (void)ssl;
-    (void)buf;
-    (void)sz;
-    WOLFSSL_MSG("OPENSSL_EXTRA not compiled in");
-#endif
     (void)ctx;
 
     return sent;
 }
+#endif
 
 
 #ifdef USE_WOLFSSL_IO

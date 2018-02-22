@@ -449,6 +449,9 @@ const char* wc_GetErrorString(int error)
     case PRIME_GEN_E:
         return "Unable to find a prime for RSA key";
 
+    case BER_INDEF_E:
+        return "Unable to decode an indefinite length encoded message";
+
     default:
         return "unknown error number";
 

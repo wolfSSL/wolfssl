@@ -247,9 +247,15 @@
     #include <wolfssl/wolfcrypt/ed25519.h>
 #endif
 
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+    #include <wolfssl/openssl/ssl.h>
+    #ifndef NO_ASN
+    /* for ASN_COMMON_NAME DN_tags enum */
+    #include <wolfssl/wolfcrypt/asn.h>
+    #endif
+#endif
 #ifdef OPENSSL_EXTRA
     #include <wolfssl/openssl/asn1.h>
-    #include <wolfssl/openssl/ssl.h>
     #include <wolfssl/openssl/crypto.h>
     #include <wolfssl/openssl/pkcs12.h>
     #include <wolfssl/openssl/evp.h>
@@ -267,10 +273,6 @@
 #endif
 #ifndef NO_DES3
     #include <wolfssl/openssl/des.h>
-#endif
-#ifndef NO_ASN
-    /* for ASN_COMMON_NAME DN_tags enum */
-    #include <wolfssl/wolfcrypt/asn.h>
 #endif
 #endif /* OPENSSL_EXTRA */
 
@@ -958,15 +960,79 @@ static void test_wolfSSL_EC(void)
 static void test_wolfSSL_EVP_get_cipherbynid(void)
 {
 #ifndef NO_AES
-      AssertNotNull(strcmp("EVP_AES_128_CBC", wolfSSL_EVP_get_cipherbynid(419)));
-      AssertNotNull(strcmp("EVP_AES_192_CBC", wolfSSL_EVP_get_cipherbynid(423)));
-      AssertNotNull(strcmp("EVP_AES_256_CBC", wolfSSL_EVP_get_cipherbynid(427)));
-      AssertNotNull(strcmp("EVP_AES_128_CTR", wolfSSL_EVP_get_cipherbynid(904)));
-      AssertNotNull(strcmp("EVP_AES_192_CTR", wolfSSL_EVP_get_cipherbynid(905)));
-      AssertNotNull(strcmp("EVP_AES_256_CTR", wolfSSL_EVP_get_cipherbynid(906)));
-      AssertNotNull(strcmp("EVP_AES_128_ECB", wolfSSL_EVP_get_cipherbynid(418)));
-      AssertNotNull(strcmp("EVP_AES_192_ECB", wolfSSL_EVP_get_cipherbynid(422)));
-      AssertNotNull(strcmp("EVP_AES_256_ECB", wolfSSL_EVP_get_cipherbynid(426)));
+    const WOLFSSL_EVP_CIPHER* c;
+
+    c = wolfSSL_EVP_get_cipherbynid(419);
+    #if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_128)
+        AssertNotNull(c);
+        AssertNotNull(strcmp("EVP_AES_128_CBC", c));
+    #else
+        AssertNull(c);
+    #endif
+
+    c = wolfSSL_EVP_get_cipherbynid(423);
+    #if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_192)
+        AssertNotNull(c);
+        AssertNotNull(strcmp("EVP_AES_192_CBC", c));
+    #else
+        AssertNull(c);
+    #endif
+
+    c = wolfSSL_EVP_get_cipherbynid(427);
+    #if defined(HAVE_AES_CBC) && defined(WOLFSSL_AES_256)
+        AssertNotNull(c);
+        AssertNotNull(strcmp("EVP_AES_256_CBC", c));
+    #else
+        AssertNull(c);
+    #endif
+
+    c = wolfSSL_EVP_get_cipherbynid(904);
+    #if defined(WOLFSSL_AES_COUNTER) && defined(WOLFSSL_AES_128)
+        AssertNotNull(c);
+        AssertNotNull(strcmp("EVP_AES_128_CTR", c));
+    #else
+        AssertNull(c);
+    #endif
+
+    c = wolfSSL_EVP_get_cipherbynid(905);
+    #if defined(WOLFSSL_AES_COUNTER) && defined(WOLFSSL_AES_192)
+        AssertNotNull(c);
+        AssertNotNull(strcmp("EVP_AES_192_CTR", c));
+    #else
+        AssertNull(c);
+    #endif
+
+    c = wolfSSL_EVP_get_cipherbynid(906);
+    #if defined(WOLFSSL_AES_COUNTER) && defined(WOLFSSL_AES_256)
+        AssertNotNull(c);
+        AssertNotNull(strcmp("EVP_AES_256_CTR", c));
+    #else
+        AssertNull(c);
+    #endif
+
+    c = wolfSSL_EVP_get_cipherbynid(418);
+    #if defined(HAVE_AES_ECB) && defined(WOLFSSL_AES_128)
+        AssertNotNull(c);
+        AssertNotNull(strcmp("EVP_AES_128_ECB", c));
+    #else
+        AssertNull(c);
+    #endif
+
+    c = wolfSSL_EVP_get_cipherbynid(422);
+    #if defined(HAVE_AES_ECB) && defined(WOLFSSL_AES_192)
+        AssertNotNull(c);
+        AssertNotNull(strcmp("EVP_AES_192_ECB", c));
+    #else
+        AssertNull(c);
+    #endif
+
+    c = wolfSSL_EVP_get_cipherbynid(426);
+    #if defined(HAVE_AES_ECB) && defined(WOLFSSL_AES_256)
+        AssertNotNull(c);
+        AssertNotNull(strcmp("EVP_AES_256_ECB", c));
+    #else
+        AssertNull(c);
+    #endif
 #endif
 
 #ifndef NO_DES3
@@ -2736,6 +2802,10 @@ static void test_wolfSSL_PKCS12(void)
     PKCS12_free(pkcs12);
     sk_X509_free(ca);
 #endif /* HAVE_ECC */
+
+    (void)x509;
+    (void)subject;
+    (void)order;
 
     printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA */
@@ -6814,13 +6884,18 @@ static int test_wc_InitCmac (void)
 
     printf(testingFmt, "wc_InitCmac()");
 
+#ifdef WOLFSSL_AES_128
     ret = wc_InitCmac(&cmac1, key1, key1Sz, type, NULL);
-    if (ret == 0) {
+#endif
+#ifdef WOLFSSL_AES_192
+    if (ret == 0)
         ret = wc_InitCmac(&cmac2, key2, key2Sz, type, NULL);
-    }
-    if (ret == 0) {
+#endif
+#ifdef WOLFSSL_AES_256
+    if (ret == 0)
         ret = wc_InitCmac(&cmac3, key3, key3Sz, type, NULL);
-    }
+#endif
+
     /* Test bad args. */
     if (ret == 0) {
         ret = wc_InitCmac(NULL, key3, key3Sz, type, NULL);
@@ -6840,6 +6915,13 @@ static int test_wc_InitCmac (void)
         }
     }
 
+    (void)key1;
+    (void)key1Sz;
+    (void)key2;
+    (void)key2Sz;
+    (void)cmac1;
+    (void)cmac2;
+
     printf(resultFmt, ret == 0 ? passed : failed);
 
 #endif
@@ -6855,7 +6937,7 @@ static int test_wc_CmacUpdate (void)
 {
     int         ret = 0;
 
-#if defined(WOLFSSL_CMAC) && !defined(NO_AES)
+#if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_128)
     Cmac        cmac;
     byte        key[] =
     {
@@ -6909,7 +6991,7 @@ static int test_wc_CmacFinal (void)
 {
     int         ret = 0;
 
-#if defined(WOLFSSL_CMAC) && !defined(NO_AES)
+#if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_128)
     Cmac        cmac;
     byte        key[] =
     {
@@ -6985,7 +7067,7 @@ static int test_wc_CmacFinal (void)
 static int test_wc_AesCmacGenerate (void)
 {
     int         ret = 0;
-#if defined(WOLFSSL_CMAC) && !defined(NO_AES)
+#if defined(WOLFSSL_CMAC) && !defined(NO_AES) && defined(WOLFSSL_AES_128)
     Cmac        cmac;
     byte        key[] =
     {
@@ -7663,7 +7745,7 @@ static int test_wc_ChaCha20Poly1305_aead (void)
 static int test_wc_AesSetIV (void)
 {
     int     ret = 0;
-#ifndef NO_AES
+#if !defined(NO_AES) && defined(WOLFSSL_AES_128)
     Aes     aes;
     byte    key16[] =
     {
@@ -7717,12 +7799,15 @@ static int test_wc_AesSetKey (void)
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
         0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
     };
+#ifdef WOLFSSL_AES_192
     byte    key24[] =
     {
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
         0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37
     };
+#endif
+#ifdef WOLFSSL_AES_256
     byte    key32[] =
     {
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
@@ -7730,6 +7815,7 @@ static int test_wc_AesSetKey (void)
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
         0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
     };
+#endif
     byte    badKey16[] =
     {
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
@@ -7743,16 +7829,23 @@ static int test_wc_AesSetKey (void)
     if (ret != 0)
         return ret;
 
+#ifdef WOLFSSL_AES_128
     ret = wc_AesSetKey(&aes, key16, (word32) sizeof(key16) / sizeof(byte),
                                                         iv, AES_ENCRYPTION);
+#endif
+#ifdef WOLFSSL_AES_192
     if (ret == 0) {
         ret = wc_AesSetKey (&aes, key24, (word32) sizeof(key24) / sizeof(byte),
                                                            iv, AES_ENCRYPTION);
     }
+#endif
+#ifdef WOLFSSL_AES_256
     if (ret == 0) {
         ret = wc_AesSetKey (&aes, key32, (word32) sizeof(key32) / sizeof(byte),
                                                            iv, AES_ENCRYPTION);
     }
+#endif
+
     /* Pass in bad args. */
     if (ret == 0) {
         ret = wc_AesSetKey (NULL, key16, (word32) sizeof(key16) / sizeof(byte),
@@ -7786,7 +7879,8 @@ static int test_wc_AesSetKey (void)
 static int test_wc_AesCbcEncryptDecrypt (void)
 {
     int     ret = 0;
-#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT)
+#if !defined(NO_AES) && defined(HAVE_AES_CBC) && defined(HAVE_AES_DECRYPT)&& \
+    defined(WOLFSSL_AES_256)
     Aes     aes;
     byte    key32[] =
     {
@@ -7932,7 +8026,7 @@ static int test_wc_AesCbcEncryptDecrypt (void)
 static int test_wc_AesCtrEncryptDecrypt (void)
 {
     int     ret = 0;
-#if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER)
+#if !defined(NO_AES) && defined(WOLFSSL_AES_COUNTER) && defined(WOLFSSL_AES_256)
     Aes     aesEnc, aesDec;
     byte    key32[] =
     {
@@ -8019,17 +8113,22 @@ static int test_wc_AesGcmSetKey (void)
 #if  !defined(NO_AES) && defined(HAVE_AESGCM)
 
     Aes     aes;
+#ifdef WOLFSSL_AES_128
     byte    key16[] =
     {
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
         0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
     };
+#endif
+#ifdef WOLFSSL_AES_192
     byte    key24[] =
     {
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
         0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37
     };
+#endif
+#ifdef WOLFSSL_AES_256
     byte    key32[] =
     {
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
@@ -8037,6 +8136,7 @@ static int test_wc_AesGcmSetKey (void)
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
         0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
     };
+#endif
     byte    badKey16[] =
     {
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
@@ -8062,13 +8162,19 @@ static int test_wc_AesGcmSetKey (void)
     if (ret != 0)
         return ret;
 
+#ifdef WOLFSSL_AES_128
     ret = wc_AesGcmSetKey(&aes, key16, sizeof(key16)/sizeof(byte));
+#endif
+#ifdef WOLFSSL_AES_192
     if (ret == 0) {
         ret = wc_AesGcmSetKey(&aes, key24, sizeof(key24)/sizeof(byte));
     }
+#endif
+#ifdef WOLFSSL_AES_256
     if (ret == 0) {
         ret = wc_AesGcmSetKey(&aes, key32, sizeof(key32)/sizeof(byte));
     }
+#endif
 
     /* Pass in bad args. */
     if (ret == 0) {
@@ -8100,7 +8206,7 @@ static int test_wc_AesGcmSetKey (void)
 static int test_wc_AesGcmEncryptDecrypt (void)
 {
     int     ret = 0;
-#if !defined(NO_AES) && defined(HAVE_AESGCM)
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_256)
 
     Aes     aes;
     byte    key32[] =
@@ -8251,12 +8357,15 @@ static int test_wc_GmacSetKey (void)
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
         0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
     };
+#ifdef WOLFSSL_AES_192
     byte    key24[] =
     {
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
         0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37
     };
+#endif
+#ifdef WOLFSSL_AES_256
     byte    key32[] =
     {
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
@@ -8264,6 +8373,7 @@ static int test_wc_GmacSetKey (void)
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
         0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66
     };
+#endif
     byte    badKey16[] =
     {
         0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
@@ -8289,13 +8399,19 @@ static int test_wc_GmacSetKey (void)
     if (ret != 0)
         return ret;
 
+#ifdef WOLFSSL_AES_128
     ret = wc_GmacSetKey(&gmac, key16, sizeof(key16)/sizeof(byte));
+#endif
+#ifdef WOLFSSL_AES_192
     if (ret == 0) {
         ret = wc_GmacSetKey(&gmac, key24, sizeof(key24)/sizeof(byte));
     }
+#endif
+#ifdef WOLFSSL_AES_256
     if (ret == 0) {
         ret = wc_GmacSetKey(&gmac, key32, sizeof(key32)/sizeof(byte));
     }
+#endif
 
     /* Pass in bad args. */
     if (ret == 0) {
@@ -8336,17 +8452,22 @@ static int test_wc_GmacUpdate (void)
     int     ret = 0;
 #if !defined(NO_AES) && defined(HAVE_AESGCM)
     Gmac    gmac;
+#ifdef WOLFSSL_AES_128
     const byte key16[] =
     {
         0x89, 0xc9, 0x49, 0xe9, 0xc8, 0x04, 0xaf, 0x01,
         0x4d, 0x56, 0x04, 0xb3, 0x94, 0x59, 0xf2, 0xc8
     };
+#endif
+#ifdef WOLFSSL_AES_192
     byte    key24[] =
     {
         0x41, 0xc5, 0xda, 0x86, 0x67, 0xef, 0x72, 0x52,
         0x20, 0xff, 0xe3, 0x9a, 0xe0, 0xac, 0x59, 0x0a,
         0xc9, 0xfc, 0xa7, 0x29, 0xab, 0x60, 0xad, 0xa0
     };
+#endif
+#ifdef WOLFSSL_AES_256
    byte    key32[] =
     {
         0x78, 0xdc, 0x4e, 0x0a, 0xaf, 0x52, 0xd9, 0x35,
@@ -8354,46 +8475,59 @@ static int test_wc_GmacUpdate (void)
         0xca, 0x1f, 0xd4, 0x75, 0xf5, 0xda, 0x86, 0xa4,
         0x9c, 0x8d, 0xd7, 0x3d, 0x68, 0xc8, 0xe2, 0x23
     };
+#endif
+#ifdef WOLFSSL_AES_128
     const byte authIn[] =
     {
         0x82, 0xad, 0xcd, 0x63, 0x8d, 0x3f, 0xa9, 0xd9,
         0xf3, 0xe8, 0x41, 0x00, 0xd6, 0x1e, 0x07, 0x77
     };
+#endif
+#ifdef WOLFSSL_AES_192
     const byte authIn2[] =
     {
        0x8b, 0x5c, 0x12, 0x4b, 0xef, 0x6e, 0x2f, 0x0f,
        0xe4, 0xd8, 0xc9, 0x5c, 0xd5, 0xfa, 0x4c, 0xf1
     };
+#endif
     const byte authIn3[] =
     {
         0xb9, 0x6b, 0xaa, 0x8c, 0x1c, 0x75, 0xa6, 0x71,
         0xbf, 0xb2, 0xd0, 0x8d, 0x06, 0xbe, 0x5f, 0x36
     };
+#ifdef WOLFSSL_AES_128
     const byte tag1[] = /* Known. */
     {
         0x88, 0xdb, 0x9d, 0x62, 0x17, 0x2e, 0xd0, 0x43,
         0xaa, 0x10, 0xf1, 0x6d, 0x22, 0x7d, 0xc4, 0x1b
     };
+#endif
+#ifdef WOLFSSL_AES_192
     const byte tag2[] = /* Known */
     {
         0x20, 0x4b, 0xdb, 0x1b, 0xd6, 0x21, 0x54, 0xbf,
         0x08, 0x92, 0x2a, 0xaa, 0x54, 0xee, 0xd7, 0x05
     };
+#endif
     const byte tag3[] = /* Known */
     {
         0x3e, 0x5d, 0x48, 0x6a, 0xa2, 0xe3, 0x0b, 0x22,
         0xe0, 0x40, 0xb8, 0x57, 0x23, 0xa0, 0x6e, 0x76
     };
+#ifdef WOLFSSL_AES_128
     const byte iv[] =
     {
         0xd1, 0xb1, 0x04, 0xc8, 0x15, 0xbf, 0x1e, 0x94,
         0xe2, 0x8c, 0x8f, 0x16
     };
+#endif
+#ifdef WOLFSSL_AES_192
     const byte iv2[] =
     {
         0x05, 0xad, 0x13, 0xa5, 0xe2, 0xc2, 0xab, 0x66,
         0x7e, 0x1a, 0x6f, 0xbc
     };
+#endif
     const byte iv3[] =
     {
         0xd7, 0x9c, 0xf2, 0x2d, 0x50, 0x4c, 0xc7, 0x93,
@@ -8414,6 +8548,7 @@ static int test_wc_GmacUpdate (void)
     if (ret != 0)
         return ret;
 
+#ifdef WOLFSSL_AES_128
     ret = wc_GmacSetKey(&gmac, key16, sizeof(key16));
     if (ret == 0) {
         ret = wc_GmacUpdate(&gmac, iv, sizeof(iv), authIn, sizeof(authIn),
@@ -8421,29 +8556,36 @@ static int test_wc_GmacUpdate (void)
         if (ret == 0) {
             ret = XMEMCMP(tag1, tagOut, sizeof(tag1));
         }
-        if (ret == 0) {
-            XMEMSET(&gmac, 0, sizeof(Gmac));
-            ret = wc_GmacSetKey(&gmac, key24, sizeof(key24)/sizeof(byte));
-        }
-        if (ret == 0) {
-            ret = wc_GmacUpdate(&gmac, iv2, sizeof(iv2), authIn2,
-                                sizeof(authIn2), tagOut2, sizeof(tag2));
-        }
-        if (ret == 0) {
-            ret = XMEMCMP(tagOut2, tag2, sizeof(tag2));
-        }
-        if (ret == 0) {
-            XMEMSET(&gmac, 0, sizeof(Gmac));
-            ret = wc_GmacSetKey(&gmac, key32, sizeof(key32)/sizeof(byte));
-        }
-        if (ret == 0) {
-            ret = wc_GmacUpdate(&gmac, iv3, sizeof(iv3), authIn3,
-                                sizeof(authIn3), tagOut3, sizeof(tag3));
-        }
-        if (ret == 0) {
-            ret = XMEMCMP(tag3, tagOut3, sizeof(tag3));
-        }
     }
+#endif
+
+#ifdef WOLFSSL_AES_192
+    if (ret == 0) {
+        XMEMSET(&gmac, 0, sizeof(Gmac));
+        ret = wc_GmacSetKey(&gmac, key24, sizeof(key24)/sizeof(byte));
+    }
+    if (ret == 0) {
+        ret = wc_GmacUpdate(&gmac, iv2, sizeof(iv2), authIn2,
+                            sizeof(authIn2), tagOut2, sizeof(tag2));
+    }
+    if (ret == 0) {
+        ret = XMEMCMP(tagOut2, tag2, sizeof(tag2));
+    }
+#endif
+
+#ifdef WOLFSSL_AES_256
+    if (ret == 0) {
+        XMEMSET(&gmac, 0, sizeof(Gmac));
+        ret = wc_GmacSetKey(&gmac, key32, sizeof(key32)/sizeof(byte));
+    }
+    if (ret == 0) {
+        ret = wc_GmacUpdate(&gmac, iv3, sizeof(iv3), authIn3,
+                            sizeof(authIn3), tagOut3, sizeof(tag3));
+    }
+    if (ret == 0) {
+        ret = XMEMCMP(tag3, tagOut3, sizeof(tag3));
+    }
+#endif
 
     /*Pass bad args. */
     if (ret == 0) {
@@ -10142,13 +10284,19 @@ static int test_wc_AesCcmSetKey (void)
     if (ret != 0)
         return ret;
 
+#ifdef WOLFSSL_AES_128
     ret = wc_AesCcmSetKey(&aes, key16, sizeof(key16));
+#endif
+#ifdef WOLFSSL_AES_192
     if (ret == 0) {
         ret = wc_AesCcmSetKey(&aes, key24, sizeof(key24));
-        if (ret == 0) {
-            ret = wc_AesCcmSetKey(&aes, key32, sizeof(key32));
-        }
     }
+#endif
+#ifdef WOLFSSL_AES_256
+    if (ret == 0) {
+        ret = wc_AesCcmSetKey(&aes, key32, sizeof(key32));
+    }
+#endif
 
     /* Test bad args. */
     if (ret == 0) {
@@ -10181,7 +10329,7 @@ static int test_wc_AesCcmSetKey (void)
 static int test_wc_AesCcmEncryptDecrypt (void)
 {
     int ret = 0;
-#ifdef HAVE_AESCCM
+#if defined(HAVE_AESCCM) && defined(WOLFSSL_AES_128)
     Aes aes;
     const byte  key16[] =
     {
@@ -12884,7 +13032,7 @@ static int test_wc_ecc_encryptDecrypt (void)
 {
     int         ret = 0;
 
-#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && defined(WOLFSSL_AES_128)
     ecc_key     srvKey, cliKey;
     WC_RNG      rng;
     const char* msg   = "EccBlock Size 16";
@@ -14662,8 +14810,8 @@ static void test_wolfSSL_CTX_add_client_CA(void)
 
 static void test_wolfSSL_X509_NID(void)
 {
-    #if defined(OPENSSL_EXTRA) && !defined(NO_RSA)\
-    && defined(USE_CERT_BUFFERS_2048) && !defined(NO_ASN)
+    #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+    !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048) && !defined(NO_ASN)
     int   sigType;
     int   nameSz;
 
@@ -17082,8 +17230,14 @@ static int my_DhCallback(WOLFSSL* ssl, struct DhKey* key,
 
 static void test_dh_ctx_setup(WOLFSSL_CTX* ctx) {
     wolfSSL_CTX_SetDhAgreeCb(ctx, my_DhCallback);
+#ifdef WOLFSSL_AES_128
     AssertIntEQ(wolfSSL_CTX_set_cipher_list(ctx, "DHE-RSA-AES128-SHA256"),
             WOLFSSL_SUCCESS);
+#endif
+#ifdef WOLFSSL_AES_256
+    AssertIntEQ(wolfSSL_CTX_set_cipher_list(ctx, "DHE-RSA-AES256-SHA256"),
+            WOLFSSL_SUCCESS);
+#endif
 }
 
 
