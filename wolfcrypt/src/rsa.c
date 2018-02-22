@@ -877,7 +877,7 @@ static int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
 
             /* In the case of no padding being used check that input is exactly
              * the RSA key length */
-            if (bits <= 0 || inputLen != ((word32)bits/8)) {
+            if (bits <= 0 || inputLen != ((word32)bits/WOLFSSL_BIT_SIZE)) {
                 WOLFSSL_MSG("Bad input size");
                 ret = RSA_PAD_E;
             }
@@ -1155,7 +1155,7 @@ static int wc_RsaUnPad_ex(byte* pkcsBlock, word32 pkcsBlockLen, byte** out,
 
             /* In the case of no padding being used check that input is exactly
              * the RSA key length */
-            if (bits <= 0 || pkcsBlockLen != ((word32)bits/8)) {
+            if (bits <= 0 || pkcsBlockLen != ((word32)bits/WOLFSSL_BIT_SIZE)) {
                 WOLFSSL_MSG("Bad input size");
                 ret = RSA_PAD_E;
             }
