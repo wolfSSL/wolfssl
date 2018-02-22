@@ -1027,6 +1027,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 break;
 
             case 'v' :
+                if (myoptarg[0] == 'd') {
+                    version = CLIENT_DOWNGRADE_VERSION;
+                    break;
+                }
                 version = atoi(myoptarg);
                 if (version < 0 || version > 4) {
                     Usage();
@@ -1414,6 +1418,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             method = wolfTLSv1_3_client_method_ex;
             break;
     #endif
+
+        case CLIENT_DOWNGRADE_VERSION:
+            method = wolfSSLv23_client_method_ex;
+            break;
 #endif /* NO_TLS */
 
 #ifdef WOLFSSL_DTLS

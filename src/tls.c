@@ -4679,6 +4679,13 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL *ssl, byte* input,
         if (major != pv.major)
             return VERSION_ERROR;
 
+        /* Version is TLS v1.2 to handle downgrading from TLS v1.3+. */
+        if (ssl->options.downgrade && ssl->version.minor == TLSv1_2_MINOR &&
+                                                       minor >= TLSv1_3_MINOR) {
+            /* Set minor version back to TLS v1.3+ */
+            ssl->version.minor = ssl->ctx->method->version.minor;
+        }
+
         /* No upgrade allowed. */
         if (ssl->version.minor < minor)
             return VERSION_ERROR;
