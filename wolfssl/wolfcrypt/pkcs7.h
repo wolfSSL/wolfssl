@@ -100,6 +100,9 @@ typedef struct PKCS7 {
     byte*  issuer;                /* issuer name of singleCert            */
     byte*  privateKey;            /* private key, DER, not owner          */
     void*  heap;                  /* heap hint for dynamic memory         */
+#ifdef ASN_BER_TO_DER
+    byte*  der;                   /* DER encoded version of message       */
+#endif
     byte*  cert[MAX_PKCS7_CERTS];
 
     /* Encrypted-data Content Type */
