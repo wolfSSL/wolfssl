@@ -2628,6 +2628,179 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
 
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #ifdef WOLFSSL_HAVE_SP_DH
+/* Convert an array of sp_digit to an mp_int.
+ *
+ * a  A single precision integer.
+ * r  A multi-precision integer.
+ */
+static int sp_2048_to_mp(sp_digit* a, mp_int* r)
+{
+    int err;
+
+    err = mp_grow(r, (2048 + DIGIT_BIT - 1) / DIGIT_BIT);
+    if (err == MP_OKAY) {
+#if DIGIT_BIT == 21
+        XMEMCPY(r->dp, a, sizeof(sp_digit) * 98);
+        r->used = 98;
+        mp_clamp(r);
+#elif DIGIT_BIT < 21
+        int i, j = 0, s = 0;
+
+        r->dp[0] = 0;
+        for (i = 0; i < 98; i++) {
+            r->dp[j] |= a[i] << s;
+            r->dp[j] &= (1l << DIGIT_BIT) - 1;
+            s = DIGIT_BIT - s;
+            r->dp[++j] = a[i] >> s;
+            while (s + DIGIT_BIT <= 21) {
+                s += DIGIT_BIT;
+                r->dp[j] &= (1l << DIGIT_BIT) - 1;
+                r->dp[++j] = a[i] >> s;
+            }
+            s = 21 - s;
+        }
+        r->used = (2048 + DIGIT_BIT - 1) / DIGIT_BIT;
+        mp_clamp(r);
+#else
+        int i, j = 0, s = 0;
+
+        r->dp[0] = 0;
+        for (i = 0; i < 98; i++) {
+            r->dp[j] |= ((mp_digit)a[i]) << s;
+            if (s + 21 >= DIGIT_BIT) {
+    #if DIGIT_BIT < 32
+                r->dp[j] &= (1l << DIGIT_BIT) - 1;
+    #endif
+                s = DIGIT_BIT - s;
+                r->dp[++j] = a[i] >> s;
+                s = 21 - s;
+            }
+            else
+                s += 21;
+        }
+        r->used = (2048 + DIGIT_BIT - 1) / DIGIT_BIT;
+        mp_clamp(r);
+#endif
+    }
+
+    return err;
+}
+
+/* Perform the modular exponentiation for Diffie-Hellman.
+ *
+ * base  Base. MP integer.
+ * exp   Exponent. MP integer.
+ * mod   Modulus. MP integer.
+ * res   Result. MP integer.
+ * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * and MEMORY_E if memory allocation fails.
+ */
+int sp_ModExp_2048(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
+{
+#ifdef WOLFSSL_SP_SMALL
+    int err = MP_OKAY;
+    sp_digit* d = NULL;
+    sp_digit* b;
+    sp_digit* e;
+    sp_digit* m;
+    sp_digit* r;
+    int expBits = mp_count_bits(exp);
+
+    if (mp_count_bits(base) > 2048 || expBits > 2048 ||
+                                                   mp_count_bits(mod) != 2048) {
+        err = MP_READ_E;
+    }
+
+    if (err == MP_OKAY) {
+        d = (sp_digit*)XMALLOC(sizeof(*d) * 98 * 4, NULL,
+                               DYNAMIC_TYPE_TMP_BUFFER);
+        if (d == NULL)
+            err = MEMORY_E;
+    }
+
+    if (err == MP_OKAY) {
+        b = d;
+        e = b + 98 * 2;
+        m = e + 98;
+        r = b;
+
+        sp_2048_from_mp(b, 98, base);
+        sp_2048_from_mp(e, 98, exp);
+        sp_2048_from_mp(m, 98, mod);
+
+        err = sp_2048_mod_exp_98(r, b, e, mp_count_bits(exp), m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_2048_to_mp(r, res);
+    }
+
+    if (d != NULL) {
+        XMEMSET(e, 0, sizeof(sp_digit) * 98);
+        XFREE(d, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    return err;
+#else
+#ifndef WOLFSSL_SMALL_STACK
+    sp_digit bd[196], ed[98], md[98];
+#else
+    sp_digit* d = NULL;
+#endif
+    sp_digit* b;
+    sp_digit* e;
+    sp_digit* m;
+    sp_digit* r;
+    int err = MP_OKAY;
+    int expBits = mp_count_bits(exp);
+
+    if (mp_count_bits(base) > 2048 || expBits > 2048 ||
+                                                   mp_count_bits(mod) != 2048) {
+        err = MP_READ_E;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (err == MP_OKAY) {
+        d = (sp_digit*)XMALLOC(sizeof(*d) * 98 * 4, NULL,
+                               DYNAMIC_TYPE_TMP_BUFFER);
+        if (d == NULL)
+            err = MEMORY_E;
+    }
+
+    if (err == MP_OKAY) {
+        b = d;
+        e = b + 98 * 2;
+        m = e + 98;
+        r = b;
+    }
+#else
+    r = b = bd;
+    e = ed;
+    m = md;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_2048_from_mp(b, 98, base);
+        sp_2048_from_mp(e, 98, exp);
+        sp_2048_from_mp(m, 98, mod);
+
+        err = sp_2048_mod_exp_98(r, b, e, expBits, m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_2048_to_mp(r, res);
+    }
+
+    XMEMSET(e, 0, sizeof(sp_digit) * 98);
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (d != NULL)
+        XFREE(d, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return err;
+#endif
+}
+
 /* Perform the modular exponentiation for Diffie-Hellman.
  *
  * base     Base.
@@ -5436,6 +5609,179 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
 
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #ifdef WOLFSSL_HAVE_SP_DH
+/* Convert an array of sp_digit to an mp_int.
+ *
+ * a  A single precision integer.
+ * r  A multi-precision integer.
+ */
+static int sp_3072_to_mp(sp_digit* a, mp_int* r)
+{
+    int err;
+
+    err = mp_grow(r, (3072 + DIGIT_BIT - 1) / DIGIT_BIT);
+    if (err == MP_OKAY) {
+#if DIGIT_BIT == 22
+        XMEMCPY(r->dp, a, sizeof(sp_digit) * 140);
+        r->used = 140;
+        mp_clamp(r);
+#elif DIGIT_BIT < 22
+        int i, j = 0, s = 0;
+
+        r->dp[0] = 0;
+        for (i = 0; i < 140; i++) {
+            r->dp[j] |= a[i] << s;
+            r->dp[j] &= (1l << DIGIT_BIT) - 1;
+            s = DIGIT_BIT - s;
+            r->dp[++j] = a[i] >> s;
+            while (s + DIGIT_BIT <= 22) {
+                s += DIGIT_BIT;
+                r->dp[j] &= (1l << DIGIT_BIT) - 1;
+                r->dp[++j] = a[i] >> s;
+            }
+            s = 22 - s;
+        }
+        r->used = (3072 + DIGIT_BIT - 1) / DIGIT_BIT;
+        mp_clamp(r);
+#else
+        int i, j = 0, s = 0;
+
+        r->dp[0] = 0;
+        for (i = 0; i < 140; i++) {
+            r->dp[j] |= ((mp_digit)a[i]) << s;
+            if (s + 22 >= DIGIT_BIT) {
+    #if DIGIT_BIT < 32
+                r->dp[j] &= (1l << DIGIT_BIT) - 1;
+    #endif
+                s = DIGIT_BIT - s;
+                r->dp[++j] = a[i] >> s;
+                s = 22 - s;
+            }
+            else
+                s += 22;
+        }
+        r->used = (3072 + DIGIT_BIT - 1) / DIGIT_BIT;
+        mp_clamp(r);
+#endif
+    }
+
+    return err;
+}
+
+/* Perform the modular exponentiation for Diffie-Hellman.
+ *
+ * base  Base. MP integer.
+ * exp   Exponent. MP integer.
+ * mod   Modulus. MP integer.
+ * res   Result. MP integer.
+ * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * and MEMORY_E if memory allocation fails.
+ */
+int sp_ModExp_3072(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
+{
+#ifdef WOLFSSL_SP_SMALL
+    int err = MP_OKAY;
+    sp_digit* d = NULL;
+    sp_digit* b;
+    sp_digit* e;
+    sp_digit* m;
+    sp_digit* r;
+    int expBits = mp_count_bits(exp);
+
+    if (mp_count_bits(base) > 3072 || expBits > 3072 ||
+                                                   mp_count_bits(mod) != 3072) {
+        err = MP_READ_E;
+    }
+
+    if (err == MP_OKAY) {
+        d = (sp_digit*)XMALLOC(sizeof(*d) * 140 * 4, NULL,
+                               DYNAMIC_TYPE_TMP_BUFFER);
+        if (d == NULL)
+            err = MEMORY_E;
+    }
+
+    if (err == MP_OKAY) {
+        b = d;
+        e = b + 140 * 2;
+        m = e + 140;
+        r = b;
+
+        sp_3072_from_mp(b, 140, base);
+        sp_3072_from_mp(e, 140, exp);
+        sp_3072_from_mp(m, 140, mod);
+
+        err = sp_3072_mod_exp_140(r, b, e, mp_count_bits(exp), m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_3072_to_mp(r, res);
+    }
+
+    if (d != NULL) {
+        XMEMSET(e, 0, sizeof(sp_digit) * 140);
+        XFREE(d, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    return err;
+#else
+#ifndef WOLFSSL_SMALL_STACK
+    sp_digit bd[280], ed[140], md[140];
+#else
+    sp_digit* d = NULL;
+#endif
+    sp_digit* b;
+    sp_digit* e;
+    sp_digit* m;
+    sp_digit* r;
+    int err = MP_OKAY;
+    int expBits = mp_count_bits(exp);
+
+    if (mp_count_bits(base) > 3072 || expBits > 3072 ||
+                                                   mp_count_bits(mod) != 3072) {
+        err = MP_READ_E;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (err == MP_OKAY) {
+        d = (sp_digit*)XMALLOC(sizeof(*d) * 140 * 4, NULL,
+                               DYNAMIC_TYPE_TMP_BUFFER);
+        if (d == NULL)
+            err = MEMORY_E;
+    }
+
+    if (err == MP_OKAY) {
+        b = d;
+        e = b + 140 * 2;
+        m = e + 140;
+        r = b;
+    }
+#else
+    r = b = bd;
+    e = ed;
+    m = md;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_3072_from_mp(b, 140, base);
+        sp_3072_from_mp(e, 140, exp);
+        sp_3072_from_mp(m, 140, mod);
+
+        err = sp_3072_mod_exp_140(r, b, e, expBits, m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_3072_to_mp(r, res);
+    }
+
+    XMEMSET(e, 0, sizeof(sp_digit) * 140);
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (d != NULL)
+        XFREE(d, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return err;
+#endif
+}
+
 /* Perform the modular exponentiation for Diffie-Hellman.
  *
  * base     Base.
@@ -8379,6 +8725,179 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
 
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #ifdef WOLFSSL_HAVE_SP_DH
+/* Convert an array of sp_digit to an mp_int.
+ *
+ * a  A single precision integer.
+ * r  A multi-precision integer.
+ */
+static int sp_2048_to_mp(sp_digit* a, mp_int* r)
+{
+    int err;
+
+    err = mp_grow(r, (2048 + DIGIT_BIT - 1) / DIGIT_BIT);
+    if (err == MP_OKAY) {
+#if DIGIT_BIT == 57
+        XMEMCPY(r->dp, a, sizeof(sp_digit) * 36);
+        r->used = 36;
+        mp_clamp(r);
+#elif DIGIT_BIT < 57
+        int i, j = 0, s = 0;
+
+        r->dp[0] = 0;
+        for (i = 0; i < 36; i++) {
+            r->dp[j] |= a[i] << s;
+            r->dp[j] &= (1l << DIGIT_BIT) - 1;
+            s = DIGIT_BIT - s;
+            r->dp[++j] = a[i] >> s;
+            while (s + DIGIT_BIT <= 57) {
+                s += DIGIT_BIT;
+                r->dp[j] &= (1l << DIGIT_BIT) - 1;
+                r->dp[++j] = a[i] >> s;
+            }
+            s = 57 - s;
+        }
+        r->used = (2048 + DIGIT_BIT - 1) / DIGIT_BIT;
+        mp_clamp(r);
+#else
+        int i, j = 0, s = 0;
+
+        r->dp[0] = 0;
+        for (i = 0; i < 36; i++) {
+            r->dp[j] |= ((mp_digit)a[i]) << s;
+            if (s + 57 >= DIGIT_BIT) {
+    #if DIGIT_BIT < 64
+                r->dp[j] &= (1l << DIGIT_BIT) - 1;
+    #endif
+                s = DIGIT_BIT - s;
+                r->dp[++j] = a[i] >> s;
+                s = 57 - s;
+            }
+            else
+                s += 57;
+        }
+        r->used = (2048 + DIGIT_BIT - 1) / DIGIT_BIT;
+        mp_clamp(r);
+#endif
+    }
+
+    return err;
+}
+
+/* Perform the modular exponentiation for Diffie-Hellman.
+ *
+ * base  Base. MP integer.
+ * exp   Exponent. MP integer.
+ * mod   Modulus. MP integer.
+ * res   Result. MP integer.
+ * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * and MEMORY_E if memory allocation fails.
+ */
+int sp_ModExp_2048(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
+{
+#ifdef WOLFSSL_SP_SMALL
+    int err = MP_OKAY;
+    sp_digit* d = NULL;
+    sp_digit* b;
+    sp_digit* e;
+    sp_digit* m;
+    sp_digit* r;
+    int expBits = mp_count_bits(exp);
+
+    if (mp_count_bits(base) > 2048 || expBits > 2048 ||
+                                                   mp_count_bits(mod) != 2048) {
+        err = MP_READ_E;
+    }
+
+    if (err == MP_OKAY) {
+        d = (sp_digit*)XMALLOC(sizeof(*d) * 36 * 4, NULL,
+                               DYNAMIC_TYPE_TMP_BUFFER);
+        if (d == NULL)
+            err = MEMORY_E;
+    }
+
+    if (err == MP_OKAY) {
+        b = d;
+        e = b + 36 * 2;
+        m = e + 36;
+        r = b;
+
+        sp_2048_from_mp(b, 36, base);
+        sp_2048_from_mp(e, 36, exp);
+        sp_2048_from_mp(m, 36, mod);
+
+        err = sp_2048_mod_exp_36(r, b, e, mp_count_bits(exp), m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_2048_to_mp(r, res);
+    }
+
+    if (d != NULL) {
+        XMEMSET(e, 0, sizeof(sp_digit) * 36);
+        XFREE(d, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    return err;
+#else
+#ifndef WOLFSSL_SMALL_STACK
+    sp_digit bd[72], ed[36], md[36];
+#else
+    sp_digit* d = NULL;
+#endif
+    sp_digit* b;
+    sp_digit* e;
+    sp_digit* m;
+    sp_digit* r;
+    int err = MP_OKAY;
+    int expBits = mp_count_bits(exp);
+
+    if (mp_count_bits(base) > 2048 || expBits > 2048 ||
+                                                   mp_count_bits(mod) != 2048) {
+        err = MP_READ_E;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (err == MP_OKAY) {
+        d = (sp_digit*)XMALLOC(sizeof(*d) * 36 * 4, NULL,
+                               DYNAMIC_TYPE_TMP_BUFFER);
+        if (d == NULL)
+            err = MEMORY_E;
+    }
+
+    if (err == MP_OKAY) {
+        b = d;
+        e = b + 36 * 2;
+        m = e + 36;
+        r = b;
+    }
+#else
+    r = b = bd;
+    e = ed;
+    m = md;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_2048_from_mp(b, 36, base);
+        sp_2048_from_mp(e, 36, exp);
+        sp_2048_from_mp(m, 36, mod);
+
+        err = sp_2048_mod_exp_36(r, b, e, expBits, m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_2048_to_mp(r, res);
+    }
+
+    XMEMSET(e, 0, sizeof(sp_digit) * 36);
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (d != NULL)
+        XFREE(d, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return err;
+#endif
+}
+
 /* Perform the modular exponentiation for Diffie-Hellman.
  *
  * base     Base.
@@ -11578,6 +12097,179 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
 
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #ifdef WOLFSSL_HAVE_SP_DH
+/* Convert an array of sp_digit to an mp_int.
+ *
+ * a  A single precision integer.
+ * r  A multi-precision integer.
+ */
+static int sp_3072_to_mp(sp_digit* a, mp_int* r)
+{
+    int err;
+
+    err = mp_grow(r, (3072 + DIGIT_BIT - 1) / DIGIT_BIT);
+    if (err == MP_OKAY) {
+#if DIGIT_BIT == 57
+        XMEMCPY(r->dp, a, sizeof(sp_digit) * 54);
+        r->used = 54;
+        mp_clamp(r);
+#elif DIGIT_BIT < 57
+        int i, j = 0, s = 0;
+
+        r->dp[0] = 0;
+        for (i = 0; i < 54; i++) {
+            r->dp[j] |= a[i] << s;
+            r->dp[j] &= (1l << DIGIT_BIT) - 1;
+            s = DIGIT_BIT - s;
+            r->dp[++j] = a[i] >> s;
+            while (s + DIGIT_BIT <= 57) {
+                s += DIGIT_BIT;
+                r->dp[j] &= (1l << DIGIT_BIT) - 1;
+                r->dp[++j] = a[i] >> s;
+            }
+            s = 57 - s;
+        }
+        r->used = (3072 + DIGIT_BIT - 1) / DIGIT_BIT;
+        mp_clamp(r);
+#else
+        int i, j = 0, s = 0;
+
+        r->dp[0] = 0;
+        for (i = 0; i < 54; i++) {
+            r->dp[j] |= ((mp_digit)a[i]) << s;
+            if (s + 57 >= DIGIT_BIT) {
+    #if DIGIT_BIT < 64
+                r->dp[j] &= (1l << DIGIT_BIT) - 1;
+    #endif
+                s = DIGIT_BIT - s;
+                r->dp[++j] = a[i] >> s;
+                s = 57 - s;
+            }
+            else
+                s += 57;
+        }
+        r->used = (3072 + DIGIT_BIT - 1) / DIGIT_BIT;
+        mp_clamp(r);
+#endif
+    }
+
+    return err;
+}
+
+/* Perform the modular exponentiation for Diffie-Hellman.
+ *
+ * base  Base. MP integer.
+ * exp   Exponent. MP integer.
+ * mod   Modulus. MP integer.
+ * res   Result. MP integer.
+ * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * and MEMORY_E if memory allocation fails.
+ */
+int sp_ModExp_3072(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
+{
+#ifdef WOLFSSL_SP_SMALL
+    int err = MP_OKAY;
+    sp_digit* d = NULL;
+    sp_digit* b;
+    sp_digit* e;
+    sp_digit* m;
+    sp_digit* r;
+    int expBits = mp_count_bits(exp);
+
+    if (mp_count_bits(base) > 3072 || expBits > 3072 ||
+                                                   mp_count_bits(mod) != 3072) {
+        err = MP_READ_E;
+    }
+
+    if (err == MP_OKAY) {
+        d = (sp_digit*)XMALLOC(sizeof(*d) * 54 * 4, NULL,
+                               DYNAMIC_TYPE_TMP_BUFFER);
+        if (d == NULL)
+            err = MEMORY_E;
+    }
+
+    if (err == MP_OKAY) {
+        b = d;
+        e = b + 54 * 2;
+        m = e + 54;
+        r = b;
+
+        sp_3072_from_mp(b, 54, base);
+        sp_3072_from_mp(e, 54, exp);
+        sp_3072_from_mp(m, 54, mod);
+
+        err = sp_3072_mod_exp_54(r, b, e, mp_count_bits(exp), m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_3072_to_mp(r, res);
+    }
+
+    if (d != NULL) {
+        XMEMSET(e, 0, sizeof(sp_digit) * 54);
+        XFREE(d, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+    return err;
+#else
+#ifndef WOLFSSL_SMALL_STACK
+    sp_digit bd[108], ed[54], md[54];
+#else
+    sp_digit* d = NULL;
+#endif
+    sp_digit* b;
+    sp_digit* e;
+    sp_digit* m;
+    sp_digit* r;
+    int err = MP_OKAY;
+    int expBits = mp_count_bits(exp);
+
+    if (mp_count_bits(base) > 3072 || expBits > 3072 ||
+                                                   mp_count_bits(mod) != 3072) {
+        err = MP_READ_E;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (err == MP_OKAY) {
+        d = (sp_digit*)XMALLOC(sizeof(*d) * 54 * 4, NULL,
+                               DYNAMIC_TYPE_TMP_BUFFER);
+        if (d == NULL)
+            err = MEMORY_E;
+    }
+
+    if (err == MP_OKAY) {
+        b = d;
+        e = b + 54 * 2;
+        m = e + 54;
+        r = b;
+    }
+#else
+    r = b = bd;
+    e = ed;
+    m = md;
+#endif
+
+    if (err == MP_OKAY) {
+        sp_3072_from_mp(b, 54, base);
+        sp_3072_from_mp(e, 54, exp);
+        sp_3072_from_mp(m, 54, mod);
+
+        err = sp_3072_mod_exp_54(r, b, e, expBits, m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_3072_to_mp(r, res);
+    }
+
+    XMEMSET(e, 0, sizeof(sp_digit) * 54);
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (d != NULL)
+        XFREE(d, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return err;
+#endif
+}
+
 /* Perform the modular exponentiation for Diffie-Hellman.
  *
  * base     Base.
@@ -21499,6 +22191,110 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
 }
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #ifdef WOLFSSL_HAVE_SP_DH
+/* Convert an array of sp_digit to an mp_int.
+ *
+ * a  A single precision integer.
+ * r  A multi-precision integer.
+ */
+static int sp_2048_to_mp(sp_digit* a, mp_int* r)
+{
+    int err;
+
+    err = mp_grow(r, (2048 + DIGIT_BIT - 1) / DIGIT_BIT);
+    if (err == MP_OKAY) {
+#if DIGIT_BIT == 64
+        XMEMCPY(r->dp, a, sizeof(sp_digit) * 32);
+        r->used = 32;
+        mp_clamp(r);
+#elif DIGIT_BIT < 64
+        int i, j = 0, s = 0;
+
+        r->dp[0] = 0;
+        for (i = 0; i < 32; i++) {
+            r->dp[j] |= a[i] << s;
+            r->dp[j] &= (1l << DIGIT_BIT) - 1;
+            s = DIGIT_BIT - s;
+            r->dp[++j] = a[i] >> s;
+            while (s + DIGIT_BIT <= 64) {
+                s += DIGIT_BIT;
+                r->dp[j] &= (1l << DIGIT_BIT) - 1;
+                r->dp[++j] = a[i] >> s;
+            }
+            s = 64 - s;
+        }
+        r->used = (2048 + DIGIT_BIT - 1) / DIGIT_BIT;
+        mp_clamp(r);
+#else
+        int i, j = 0, s = 0;
+
+        r->dp[0] = 0;
+        for (i = 0; i < 32; i++) {
+            r->dp[j] |= ((mp_digit)a[i]) << s;
+            if (s + 64 >= DIGIT_BIT) {
+    #if DIGIT_BIT < 64
+                r->dp[j] &= (1l << DIGIT_BIT) - 1;
+    #endif
+                s = DIGIT_BIT - s;
+                r->dp[++j] = a[i] >> s;
+                s = 64 - s;
+            }
+            else
+                s += 64;
+        }
+        r->used = (2048 + DIGIT_BIT - 1) / DIGIT_BIT;
+        mp_clamp(r);
+#endif
+    }
+
+    return err;
+}
+
+/* Perform the modular exponentiation for Diffie-Hellman.
+ *
+ * base  Base. MP integer.
+ * exp   Exponent. MP integer.
+ * mod   Modulus. MP integer.
+ * res   Result. MP integer.
+ * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * and MEMORY_E if memory allocation fails.
+ */
+int sp_ModExp_2048(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
+{
+    int err = MP_OKAY;
+    sp_digit b[64], e[32], m[32];
+    sp_digit* r = b;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+    int expBits = mp_count_bits(exp);
+
+    if (mp_count_bits(base) > 2048 || expBits > 2048 ||
+                                                   mp_count_bits(mod) != 2048) {
+        err = MP_READ_E;
+    }
+
+    if (err == MP_OKAY) {
+        sp_2048_from_mp(b, 32, base);
+        sp_2048_from_mp(e, 32, exp);
+        sp_2048_from_mp(m, 32, mod);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+            err = sp_2048_mod_exp_avx2_32(r, b, e, expBits, m, 0);
+        else
+#endif
+            err = sp_2048_mod_exp_32(r, b, e, expBits, m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_2048_to_mp(r, res);
+    }
+
+    XMEMSET(e, 0, sizeof(e));
+
+    return err;
+}
+
 /* Perform the modular exponentiation for Diffie-Hellman.
  *
  * base     Base.
@@ -21547,7 +22343,6 @@ int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
         }
         *outLen -= i;
         XMEMMOVE(out, out + i, *outLen);
-
     }
 
     XMEMSET(e, 0, sizeof(e));
@@ -38689,6 +39484,110 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
 }
 #endif /* WOLFSSL_HAVE_SP_RSA */
 #ifdef WOLFSSL_HAVE_SP_DH
+/* Convert an array of sp_digit to an mp_int.
+ *
+ * a  A single precision integer.
+ * r  A multi-precision integer.
+ */
+static int sp_3072_to_mp(sp_digit* a, mp_int* r)
+{
+    int err;
+
+    err = mp_grow(r, (3072 + DIGIT_BIT - 1) / DIGIT_BIT);
+    if (err == MP_OKAY) {
+#if DIGIT_BIT == 64
+        XMEMCPY(r->dp, a, sizeof(sp_digit) * 48);
+        r->used = 48;
+        mp_clamp(r);
+#elif DIGIT_BIT < 64
+        int i, j = 0, s = 0;
+
+        r->dp[0] = 0;
+        for (i = 0; i < 48; i++) {
+            r->dp[j] |= a[i] << s;
+            r->dp[j] &= (1l << DIGIT_BIT) - 1;
+            s = DIGIT_BIT - s;
+            r->dp[++j] = a[i] >> s;
+            while (s + DIGIT_BIT <= 64) {
+                s += DIGIT_BIT;
+                r->dp[j] &= (1l << DIGIT_BIT) - 1;
+                r->dp[++j] = a[i] >> s;
+            }
+            s = 64 - s;
+        }
+        r->used = (3072 + DIGIT_BIT - 1) / DIGIT_BIT;
+        mp_clamp(r);
+#else
+        int i, j = 0, s = 0;
+
+        r->dp[0] = 0;
+        for (i = 0; i < 48; i++) {
+            r->dp[j] |= ((mp_digit)a[i]) << s;
+            if (s + 64 >= DIGIT_BIT) {
+    #if DIGIT_BIT < 64
+                r->dp[j] &= (1l << DIGIT_BIT) - 1;
+    #endif
+                s = DIGIT_BIT - s;
+                r->dp[++j] = a[i] >> s;
+                s = 64 - s;
+            }
+            else
+                s += 64;
+        }
+        r->used = (3072 + DIGIT_BIT - 1) / DIGIT_BIT;
+        mp_clamp(r);
+#endif
+    }
+
+    return err;
+}
+
+/* Perform the modular exponentiation for Diffie-Hellman.
+ *
+ * base  Base. MP integer.
+ * exp   Exponent. MP integer.
+ * mod   Modulus. MP integer.
+ * res   Result. MP integer.
+ * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * and MEMORY_E if memory allocation fails.
+ */
+int sp_ModExp_3072(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
+{
+    int err = MP_OKAY;
+    sp_digit b[96], e[48], m[48];
+    sp_digit* r = b;
+#ifdef HAVE_INTEL_AVX2
+    word32 cpuid_flags = cpuid_get_flags();
+#endif
+    int expBits = mp_count_bits(exp);
+
+    if (mp_count_bits(base) > 3072 || expBits > 3072 ||
+                                                   mp_count_bits(mod) != 3072) {
+        err = MP_READ_E;
+    }
+
+    if (err == MP_OKAY) {
+        sp_3072_from_mp(b, 48, base);
+        sp_3072_from_mp(e, 48, exp);
+        sp_3072_from_mp(m, 48, mod);
+
+#ifdef HAVE_INTEL_AVX2
+        if (IS_INTEL_BMI2(cpuid_flags) && IS_INTEL_ADX(cpuid_flags))
+            err = sp_3072_mod_exp_avx2_48(r, b, e, expBits, m, 0);
+        else
+#endif
+            err = sp_3072_mod_exp_48(r, b, e, expBits, m, 0);
+    }
+
+    if (err == MP_OKAY) {
+        err = sp_3072_to_mp(r, res);
+    }
+
+    XMEMSET(e, 0, sizeof(e));
+
+    return err;
+}
+
 /* Perform the modular exponentiation for Diffie-Hellman.
  *
  * base     Base.
@@ -38737,7 +39636,6 @@ int sp_DhExp_3072(mp_int* base, const byte* exp, word32 expLen,
         }
         *outLen -= i;
         XMEMMOVE(out, out + i, *outLen);
-
     }
 
     XMEMSET(e, 0, sizeof(e));

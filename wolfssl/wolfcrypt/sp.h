@@ -66,6 +66,11 @@ WOLFSSL_LOCAL int sp_RsaPrivate_3072(const byte* in, word32 inLen,
 
 #ifdef WOLFSSL_HAVE_SP_DH
 
+WOLFSSL_LOCAL int sp_ModExp_2048(mp_int* base, mp_int* exp, mp_int* mod,
+    mp_int* res);
+WOLFSSL_LOCAL int sp_ModExp_3072(mp_int* base, mp_int* exp, mp_int* mod,
+    mp_int* res);
+
 WOLFSSL_LOCAL int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
     mp_int* mod, byte* out, word32* outLen);
 WOLFSSL_LOCAL int sp_DhExp_3072(mp_int* base, const byte* exp, word32 expLen,

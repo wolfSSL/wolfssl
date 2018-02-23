@@ -785,10 +785,38 @@ int wc_DhCheckPubKey_ex(DhKey* key, const byte* pub, word32 pubSz,
         /* restore key->p into p */
         if (mp_copy(&key->p, &p) != MP_OKAY)
             ret = MP_INIT_E;
+    }
 
-        /* calculate (y^q) mod(p), store back into y */
-        if (ret == 0 && mp_exptmod(&y, &q, &p, &y) != MP_OKAY)
-            ret = MP_EXPTMOD_E;
+    if (ret == 0 && prime != NULL) {
+#ifdef WOLFSSL_HAVE_SP_DH
+#ifndef WOLFSSL_SP_NO_2048
+        if (mp_count_bits(&key->p) == 2048) {
+            ret = sp_ModExp_2048(&y, &q, &p, &y);
+            if (ret != 0)
+                ret = MP_EXPTMOD_E;
+        }
+        else
+#endif
+#ifndef WOLFSSL_SP_NO_3072
+        if (mp_count_bits(&key->p) == 3072) {
+            ret = sp_ModExp_3072(&y, &q, &p, &y);
+            if (ret != 0)
+                ret = MP_EXPTMOD_E;
+        }
+        else
+#endif
+#endif
+
+#ifndef WOLFSSL_SP_MATH
+        {
+            /* calculate (y^q) mod(p), store back into y */
+            if (ret == 0 && mp_exptmod(&y, &q, &p, &y) != MP_OKAY)
+                ret = MP_EXPTMOD_E;
+        }
+#else
+        {
+        }
+#endif
 
         /* verify above == 1 */
         if (ret == 0 && mp_cmp_d(&y, 1) != MP_EQ)
