@@ -1633,6 +1633,13 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
+#if defined(NO_OLD_WC_NAMES) || defined(OPENSSL_EXTRA)
+    /* added to have compatibility with SHA256() */
+    #if !defined(NO_OLD_SHA256_NAMES) && !defined(HAVE_FIPS)
+        #define NO_OLD_SHA256_NAMES
+    #endif
+#endif
+
 /* switch for compatibility layer functionality. Has subparts i.e. BIO/X509
  * When opensslextra is enabled all subparts should be turned on. */
 #ifdef OPENSSL_EXTRA
@@ -1640,6 +1647,7 @@ extern void uITRON4_free(void *p) ;
     #define OPENSSL_EXTRA_X509_SMALL
 #endif /* OPENSSL_EXTRA */
     
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif

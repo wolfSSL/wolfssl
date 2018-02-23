@@ -268,6 +268,9 @@
     #include <wolfssl/openssl/crypto.h>
     #include <wolfssl/openssl/hmac.h>
     #include <wolfssl/openssl/objects.h>
+#ifndef NO_AES
+    #include <wolfssl/openssl/aes.h>
+#endif
 #ifndef NO_DES3
     #include <wolfssl/openssl/des.h>
 #endif
@@ -16620,6 +16623,80 @@ static void test_wolfSSL_DH_1536_prime(void)
 #endif
 }
 
+static void test_wolfSSL_AES_ecb_encrypt(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_AES) && defined(HAVE_AES_ECB)
+    AES_KEY aes;
+    const byte msg[] =
+    {
+      0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+      0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a
+    };
+
+    const byte verify[] =
+    {
+        0xf3,0xee,0xd1,0xbd,0xb5,0xd2,0xa0,0x3c,
+        0x06,0x4b,0x5a,0x7e,0x3d,0xb1,0x81,0xf8
+    };
+
+    const byte key[] =
+    {
+      0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
+      0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
+      0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
+      0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4
+    };
+
+
+    byte out[AES_BLOCK_SIZE];
+
+    printf(testingFmt, "wolfSSL_AES_ecb_encrypt()");
+
+    AssertIntEQ(AES_set_encrypt_key(key, sizeof(key)*8, &aes), 0);
+    XMEMSET(out, 0, AES_BLOCK_SIZE);
+    AES_ecb_encrypt(msg, out, &aes, AES_ENCRYPT);
+    AssertIntEQ(XMEMCMP(out, verify, AES_BLOCK_SIZE), 0);
+
+#ifdef HAVE_AES_DECRYPT
+    AssertIntEQ(AES_set_decrypt_key(key, sizeof(key)*8, &aes), 0);
+    XMEMSET(out, 0, AES_BLOCK_SIZE);
+    AES_ecb_encrypt(verify, out, &aes, AES_DECRYPT);
+    AssertIntEQ(XMEMCMP(out, msg, AES_BLOCK_SIZE), 0);
+#endif
+
+    /* test bad arguments */
+    AES_ecb_encrypt(NULL, out, &aes, AES_DECRYPT);
+    AES_ecb_encrypt(verify, NULL, &aes, AES_DECRYPT);
+    AES_ecb_encrypt(verify, out, NULL, AES_DECRYPT);
+
+    printf(resultFmt, passed);
+#endif
+}
+
+static void test_wolfSSL_SHA256(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256) && \
+    defined(NO_OLD_SHA256_NAMES) && !defined(HAVE_FIPS)
+    unsigned char input[] =
+        "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
+    unsigned char output[] =
+        "\x24\x8D\x6A\x61\xD2\x06\x38\xB8\xE5\xC0\x26\x93\x0C\x3E\x60"
+        "\x39\xA3\x3C\xE4\x59\x64\xFF\x21\x67\xF6\xEC\xED\xD4\x19\xDB"
+        "\x06\xC1";
+    size_t inLen;
+    byte hash[WC_SHA256_DIGEST_SIZE];
+
+    printf(testingFmt, "wolfSSL_SHA256()");
+    inLen  = XSTRLEN((char*)input);
+
+    XMEMSET(hash, 0, WC_SHA256_DIGEST_SIZE);
+    AssertNotNull(SHA256(input, inLen, hash));
+    AssertIntEQ(XMEMCMP(hash, output, WC_SHA256_DIGEST_SIZE), 0);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_no_op_functions(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -17453,6 +17530,8 @@ void ApiTest(void)
     test_wolfSSL_msg_callback();
     test_wolfSSL_SHA();
     test_wolfSSL_DH_1536_prime();
+    test_wolfSSL_AES_ecb_encrypt();
+    test_wolfSSL_SHA256();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();

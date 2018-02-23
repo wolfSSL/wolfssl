@@ -105,7 +105,7 @@ int CRYPT_SHA_Initialize(CRYPT_SHA_CTX* sha)
     if (sha == NULL)
         return BAD_FUNC_ARG;
 
-    return wc_InitSha((Sha*)sha);
+    return wc_InitSha((wc_Sha*)sha);
 }
 
 int CRYPT_SHA_DataSizeSet(CRYPT_SHA_CTX* sha, unsigned int sz)
@@ -114,7 +114,7 @@ int CRYPT_SHA_DataSizeSet(CRYPT_SHA_CTX* sha, unsigned int sz)
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_PIC32MZ_HASH
-    wc_ShaSizeSet((Sha*)sha, sz);
+    wc_ShaSizeSet((wc_Sha*)sha, sz);
 #else
     (void)sz;
 #endif
@@ -129,7 +129,7 @@ int CRYPT_SHA_DataAdd(CRYPT_SHA_CTX* sha, const unsigned char* input,
     if (sha == NULL || input == NULL)
         return BAD_FUNC_ARG;
 
-    return wc_ShaUpdate((Sha*)sha, input, sz);
+    return wc_ShaUpdate((wc_Sha*)sha, input, sz);
 }
 
 
@@ -139,7 +139,7 @@ int CRYPT_SHA_Finalize(CRYPT_SHA_CTX* sha, unsigned char* digest)
     if (sha == NULL || digest == NULL)
         return BAD_FUNC_ARG;
 
-    return wc_ShaFinal((Sha*)sha, digest);
+    return wc_ShaFinal((wc_Sha*)sha, digest);
 }
 #endif
 
@@ -148,13 +148,13 @@ int CRYPT_SHA_Finalize(CRYPT_SHA_CTX* sha, unsigned char* digest)
 /* Initialize SHA-256 */
 int CRYPT_SHA256_Initialize(CRYPT_SHA256_CTX* sha256)
 {
-    typedef char sha_test[sizeof(CRYPT_SHA256_CTX) >= sizeof(Sha256) ? 1 : -1];
+    typedef char sha_test[sizeof(CRYPT_SHA256_CTX) >= sizeof(wc_Sha256) ? 1 : -1];
     (void)sizeof(sha_test);
 
     if (sha256 == NULL)
         return BAD_FUNC_ARG;
 
-    return wc_InitSha256((Sha256*)sha256);
+    return wc_InitSha256((wc_Sha256*)sha256);
 }
 
 int CRYPT_SHA256_DataSizeSet(CRYPT_SHA256_CTX* sha256, unsigned int sz)
@@ -163,7 +163,7 @@ int CRYPT_SHA256_DataSizeSet(CRYPT_SHA256_CTX* sha256, unsigned int sz)
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_PIC32MZ_HASH
-    wc_Sha256SizeSet((Sha256*)sha256, sz);
+    wc_Sha256SizeSet((wc_Sha256*)sha256, sz);
 #else
     (void)sz;
 #endif
@@ -178,7 +178,7 @@ int CRYPT_SHA256_DataAdd(CRYPT_SHA256_CTX* sha256, const unsigned char* input,
     if (sha256 == NULL || input == NULL)
         return BAD_FUNC_ARG;
 
-    return wc_Sha256Update((Sha256*)sha256, input, sz);
+    return wc_Sha256Update((wc_Sha256*)sha256, input, sz);
 }
 
 
@@ -188,7 +188,7 @@ int CRYPT_SHA256_Finalize(CRYPT_SHA256_CTX* sha256, unsigned char* digest)
     if (sha256 == NULL || digest == NULL)
         return BAD_FUNC_ARG;
 
-    return wc_Sha256Final((Sha256*)sha256, digest);
+    return wc_Sha256Final((wc_Sha256*)sha256, digest);
 }
 #endif
 
@@ -197,13 +197,13 @@ int CRYPT_SHA256_Finalize(CRYPT_SHA256_CTX* sha256, unsigned char* digest)
 /* Initialize SHA-384 */
 int CRYPT_SHA384_Initialize(CRYPT_SHA384_CTX* sha384)
 {
-    typedef char sha_test[sizeof(CRYPT_SHA384_CTX) >= sizeof(Sha384) ? 1 : -1];
+    typedef char sha_test[sizeof(CRYPT_SHA384_CTX) >= sizeof(wc_Sha384) ? 1 : -1];
     (void)sizeof(sha_test);
 
     if (sha384 == NULL)
         return BAD_FUNC_ARG;
 
-    return wc_InitSha384((Sha384*)sha384);
+    return wc_InitSha384((wc_Sha384*)sha384);
 }
 
 
@@ -214,7 +214,7 @@ int CRYPT_SHA384_DataAdd(CRYPT_SHA384_CTX* sha384, const unsigned char* input,
     if (sha384 == NULL || input == NULL)
         return BAD_FUNC_ARG;
 
-    return wc_Sha384Update((Sha384*)sha384, input, sz);
+    return wc_Sha384Update((wc_Sha384*)sha384, input, sz);
 }
 
 
@@ -224,7 +224,7 @@ int CRYPT_SHA384_Finalize(CRYPT_SHA384_CTX* sha384, unsigned char* digest)
     if (sha384 == NULL || digest == NULL)
         return BAD_FUNC_ARG;
 
-    return wc_Sha384Final((Sha384*)sha384, digest);
+    return wc_Sha384Final((wc_Sha384*)sha384, digest);
 }
 #endif
 
@@ -232,13 +232,13 @@ int CRYPT_SHA384_Finalize(CRYPT_SHA384_CTX* sha384, unsigned char* digest)
 /* Initialize SHA-512 */
 int CRYPT_SHA512_Initialize(CRYPT_SHA512_CTX* sha512)
 {
-    typedef char sha_test[sizeof(CRYPT_SHA512_CTX) >= sizeof(Sha512) ? 1 : -1];
+    typedef char sha_test[sizeof(CRYPT_SHA512_CTX) >= sizeof(wc_Sha512) ? 1 : -1];
     (void)sizeof(sha_test);
 
     if (sha512 == NULL)
         return BAD_FUNC_ARG;
 
-    return wc_InitSha512((Sha512*)sha512);
+    return wc_InitSha512((wc_Sha512*)sha512);
 }
 
 
@@ -249,7 +249,7 @@ int CRYPT_SHA512_DataAdd(CRYPT_SHA512_CTX* sha512, const unsigned char* input,
     if (sha512 == NULL || input == NULL)
         return BAD_FUNC_ARG;
 
-    return wc_Sha512Update((Sha512*)sha512, input, sz);
+    return wc_Sha512Update((wc_Sha512*)sha512, input, sz);
 }
 
 
@@ -259,7 +259,7 @@ int CRYPT_SHA512_Finalize(CRYPT_SHA512_CTX* sha512, unsigned char* digest)
     if (sha512 == NULL || digest == NULL)
         return BAD_FUNC_ARG;
 
-    return wc_Sha512Final((Sha512*)sha512, digest);
+    return wc_Sha512Final((wc_Sha512*)sha512, digest);
 }
 #endif
 

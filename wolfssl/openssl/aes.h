@@ -58,11 +58,15 @@ WOLFSSL_API int wolfSSL_AES_set_decrypt_key
 WOLFSSL_API void wolfSSL_AES_cbc_encrypt
     (const unsigned char *in, unsigned char* out, size_t len,
      AES_KEY *key, unsigned char* iv, const int enc);
+WOLFSSL_API void wolfSSL_AES_ecb_encrypt
+    (const unsigned char *in, unsigned char* out,
+     AES_KEY *key, const int enc);
 WOLFSSL_API void wolfSSL_AES_cfb128_encrypt
     (const unsigned char *in, unsigned char* out, size_t len,
      AES_KEY *key, unsigned char* iv, int* num, const int enc);
 
 #define AES_cbc_encrypt     wolfSSL_AES_cbc_encrypt
+#define AES_ecb_encrypt     wolfSSL_AES_ecb_encrypt
 #define AES_cfb128_encrypt  wolfSSL_AES_cfb128_encrypt
 #define AES_set_encrypt_key wolfSSL_AES_set_encrypt_key
 #define AES_set_decrypt_key wolfSSL_AES_set_decrypt_key

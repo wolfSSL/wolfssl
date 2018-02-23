@@ -21108,6 +21108,45 @@ int wolfSSL_AES_set_decrypt_key(const unsigned char *key, const int bits,
 }
 
 
+#ifdef HAVE_AES_ECB
+/* Encrypt/decrypt a 16 byte block of data using the key passed in.
+ *
+ * in  buffer to encrypt/decyrpt
+ * out buffer to hold result of encryption/decryption
+ * key AES structure to use with encryption/decryption
+ * enc AES_ENCRPT for encryption and AES_DECRYPT for decryption
+ */
+void wolfSSL_AES_ecb_encrypt(const unsigned char *in, unsigned char* out,
+                             AES_KEY *key, const int enc)
+{
+    Aes* aes;
+
+    WOLFSSL_ENTER("wolfSSL_AES_ecb_encrypt");
+
+    if (key == NULL || in == NULL || out == NULL) {
+        WOLFSSL_MSG("Error, Null argument passed in");
+        return;
+    }
+
+    aes = (Aes*)key;
+    if (enc == AES_ENCRYPT) {
+        if (wc_AesEcbEncrypt(aes, out, in, AES_BLOCK_SIZE) != 0) {
+            WOLFSSL_MSG("Error with AES CBC encrypt");
+        }
+    }
+    else {
+    #ifdef HAVE_AES_DECRYPT
+        if (wc_AesEcbDecrypt(aes, out, in, AES_BLOCK_SIZE) != 0) {
+            WOLFSSL_MSG("Error with AES CBC decrypt");
+        }
+    #else
+        WOLFSSL_MSG("AES decryption not compiled in");
+    #endif
+    }
+}
+#endif /* HAVE_AES_ECB */
+
+
 /* Encrypt data using key and iv passed in. iv gets updated to most recent iv
  * state after encryptiond/decryption.
  *
@@ -29750,6 +29789,52 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     }
 #endif /* ! NO_SHA */
 
+#ifndef NO_SHA256
+    /* One shot SHA256 hash of message.
+     *
+     * d  message to hash
+     * n  size of d buffer
+     * md buffer to hold digest. Should be WC_SHA256_DIGEST_SIZE.
+     *
+     * Note: if md is null then a static buffer of WC_SHA256_DIGEST_SIZE is used.
+     *       When the static buffer is used this function is not thread safe.
+     *
+     * Returns a pointer to the message digest on success and NULL on failure.
+     */
+    unsigned char *wolfSSL_SHA256(const unsigned char *d, size_t n,
+            unsigned char *md)
+    {
+        static byte dig[WC_SHA256_DIGEST_SIZE];
+        wc_Sha256 sha;
+
+        WOLFSSL_ENTER("wolfSSL_SHA256");
+
+        if (wc_InitSha256_ex(&sha, NULL, 0) != 0) {
+            WOLFSSL_MSG("SHA256 Init failed");
+            return NULL;
+        }
+
+        if (wc_Sha256Update(&sha, (const byte*)d, (word32)n) != 0) {
+            WOLFSSL_MSG("SHA256 Update failed");
+            return NULL;
+        }
+
+        if (wc_Sha256Final(&sha, dig) != 0) {
+            WOLFSSL_MSG("SHA256 Final failed");
+            return NULL;
+        }
+
+        wc_Sha256Free(&sha);
+
+        if (md != NULL) {
+            XMEMCPY(md, dig, WC_SHA256_DIGEST_SIZE);
+            return md;
+        }
+        else {
+            return (unsigned char*)dig;
+        }
+    }
+#endif /* ! NO_SHA256 */
     char wolfSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x)
     {
         int ret;
