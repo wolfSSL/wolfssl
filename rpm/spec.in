@@ -221,6 +221,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/random.h
 %{_includedir}/wolfssl/wolfcrypt/ripemd.h
 %{_includedir}/wolfssl/wolfcrypt/rsa.h
+%{_includedir}/wolfssl/wolfcrypt/selftest.h
 %{_includedir}/wolfssl/wolfcrypt/settings.h
 %{_includedir}/wolfssl/wolfcrypt/signature.h
 %{_includedir}/wolfssl/wolfcrypt/sha.h

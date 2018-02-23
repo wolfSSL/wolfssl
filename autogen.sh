@@ -21,6 +21,9 @@ if test -e .git; then
   touch ./wolfcrypt/src/fipsv2.c
   touch ./wolfssl/wolfcrypt/fips.h
 
+  # touch CAVP selftest files for non-selftest distribution
+  touch ./wolfcrypt/src/selftest.c
+
   # touch async crypt files
   touch ./wolfcrypt/src/async.c
   touch ./wolfssl/wolfcrypt/async.h

@@ -107,6 +107,9 @@
 #ifdef HAVE_FIPS
     #include <wolfssl/wolfcrypt/fips_test.h>
 #endif
+#ifdef HAVE_SELFTEST
+    #include <wolfssl/wolfcrypt/selftest.h>
+#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
@@ -432,6 +435,13 @@ int wolfcrypt_test(void* args)
 #else
     (void)devId;
 #endif /* WOLFSSL_ASYNC_CRYPT */
+
+#ifdef HAVE_SELFTEST
+    if ( (ret = wolfCrypt_SelfTest()) != 0)
+        return err_sys("CAVP selftest failed!\n", ret);
+    else
+        printf("CAVP selftest passed!\n");
+#endif
 
     if ( (ret = error_test()) != 0)
         return err_sys("error    test failed!\n", ret);

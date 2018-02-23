@@ -68,6 +68,11 @@ src_libwolfssl_la_SOURCES += ctaocrypt/src/fips_test.c
 src_libwolfssl_la_SOURCES += ctaocrypt/src/wolfcrypt_last.c
 endif
 
+# CAVP self test
+if BUILD_SELFTEST
+src_libwolfssl_la_SOURCES += wolfcrypt/src/selftest.c
+endif
+
 src_libwolfssl_la_SOURCES += \
                wolfcrypt/src/hmac.c \
                wolfcrypt/src/hash.c \

@@ -1991,6 +1991,20 @@ fi
 AM_CONDITIONAL([BUILD_FIPS], [test "x$ENABLED_FIPS" = "xyes"])
 AM_CONDITIONAL([BUILD_FIPS_V2], [test "x$FIPS_VERSION" = "xv2"])
 
+# SELFTEST
+AC_ARG_ENABLE([selftest],
+    [AS_HELP_STRING([--enable-selftest],[Enable selftest, Will NOT work w/o CAVP selftest license (default: disabled)])],
+    [ ENABLED_SELFTEST=$enableval ],
+    [ ENABLED_SELFTEST=no ]
+    )
+
+if test "x$ENABLED_SELFTEST" == "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_SELFTEST"
+fi
+
+AM_CONDITIONAL([BUILD_SELFTEST], [test "x$ENABLED_SELFTEST" = "xyes"])
+
 
 # set sha224 default
 SHA224_DEFAULT=no
