@@ -197,10 +197,10 @@ enum {
 
     PSS_SALTLEN_E       = -250,  /* PSS length of salt is to long for hash */
     PRIME_GEN_E         = -251,  /* Failure finding a prime. */
-
     BER_INDEF_E         = -252,  /* Cannot decode indefinite length BER. */
+    RSA_OUT_OF_RANGE_E  = -253,  /* Ciphertext to decrypt out of range. */
 
-    WC_LAST_E           = -252,  /* Update this to indicate last error */
+    WC_LAST_E           = -253,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes

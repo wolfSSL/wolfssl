@@ -9496,6 +9496,83 @@ static int test_wc_MakeRsaKey (void)
 } /* END test_wc_MakeRsaKey */
 
 /*
+ * Test the bounds checking on the cipher text versus the key modulus.
+ * 1. Make a new RSA key.
+ * 2. Set c to 1.
+ * 3. Decrypt c into k. (error)
+ * 4. Copy the key modulus to c and sub 1 from the copy.
+ * 5. Decrypt c into k. (error)
+ * Valid bounds test cases are covered by all the other RSA tests.
+ */
+static int test_RsaDecryptBoundsCheck(void)
+{
+    int ret = 0;
+#if !defined(NO_RSA) && defined(WC_RSA_NO_PADDING) && \
+    (defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048)) && \
+    defined(WOLFSSL_PUBLIC_MP) && !defined(NO_RSA_BOUNDS_CHECK)
+    RsaKey key;
+    byte flatC[256];
+    word32 flatCSz;
+    byte out[256];
+    word32 outSz = sizeof(out);
+    WC_RNG rng;
+
+    printf(testingFmt, "RSA decrypt bounds check");
+
+    ret = wc_InitRng(&rng);
+
+    if (ret == 0)
+        ret = wc_InitRsaKey(&key, NULL);
+
+    if (ret == 0) {
+        const byte* derKey;
+        word32 derKeySz;
+        word32 idx = 0;
+
+        #ifdef USE_CERT_BUFFERS_1024
+            derKey = server_key_der_1024;
+            derKeySz = (word32)sizeof_server_key_der_1024;
+            flatCSz = 128;
+        #else
+            derKey = server_key_der_2048;
+            derKeySz = (word32)sizeof_server_key_der_2048;
+            flatCSz = 256;
+        #endif
+
+        ret = wc_RsaPrivateKeyDecode(derKey, &idx, &key, derKeySz);
+    }
+
+    if (ret == 0) {
+        XMEMSET(flatC, 0, flatCSz);
+        flatC[flatCSz-1] = 1;
+
+        ret = wc_RsaDirect(flatC, flatCSz, out, &outSz, &key,
+                           RSA_PRIVATE_DECRYPT, &rng);
+    }
+    if (ret == RSA_OUT_OF_RANGE_E) {
+        mp_int c;
+        mp_init_copy(&c, &key.n);
+        mp_sub_d(&c, 1, &c);
+        mp_to_unsigned_bin(&c, flatC);
+        ret = wc_RsaDirect(flatC, sizeof(flatC), out, &outSz, &key,
+                           RSA_PRIVATE_DECRYPT, NULL);
+        mp_clear(&c);
+    }
+    if (ret == RSA_OUT_OF_RANGE_E)
+        ret = 0;
+
+    if (wc_FreeRsaKey(&key) || wc_FreeRng(&rng) || ret != 0)
+        ret = WOLFSSL_FATAL_ERROR;
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+
+#endif
+    return ret;
+
+} /* END test_wc_RsaDecryptBoundsCheck */
+
+/*
  * Testing wc_SetKeyUsage()
  */
 static int test_wc_SetKeyUsage (void)
@@ -17586,6 +17663,7 @@ void ApiTest(void)
     AssertIntEQ(test_wc_RsaEncryptSize(), 0);
     AssertIntEQ(test_wc_RsaSSL_SignVerify(), 0);
     AssertIntEQ(test_wc_RsaFlattenPublicKey(), 0);
+    AssertIntEQ(test_RsaDecryptBoundsCheck(), 0);
     AssertIntEQ(test_wc_AesCcmSetKey(), 0);
     AssertIntEQ(test_wc_AesCcmEncryptDecrypt(), 0);
     AssertIntEQ(test_wc_Hc128_SetKey(), 0);

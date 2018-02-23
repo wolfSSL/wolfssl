@@ -1326,7 +1326,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
         /* tmp = tmp*rnd mod n */
         if (mp_mulmod(&tmp, &rnd, &key->n, &tmp) != MP_OKAY)
             ERROR_OUT(MP_MULMOD_E);
-    #endif /* WC_RSA_BLINGING */
+    #endif /* WC_RSA_BLINDING */
 
     #ifdef RSA_LOW_MEM      /* half as much memory but twice as slow */
         if (mp_exptmod(&tmp, &key->d, &key->n, &tmp) != MP_OKAY)
@@ -1609,12 +1609,43 @@ int wc_RsaDirect(byte* in, word32 inLen, byte* out, word32* outSz,
 int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
                           word32* outLen, int type, RsaKey* key, WC_RNG* rng)
 {
-    int ret;
+    int ret = 0;
 
     if (key == NULL || in == NULL || inLen == 0 || out == NULL ||
             outLen == NULL || *outLen == 0 || type == RSA_TYPE_UNKNOWN) {
         return BAD_FUNC_ARG;
     }
+
+#ifndef NO_RSA_BOUNDS_CHECK
+    if (type == RSA_PRIVATE_DECRYPT &&
+        key->state == RSA_STATE_DECRYPT_EXPTMOD) {
+
+        /* Check that 1 < in < n-1. (Requirement of 800-56B.) */
+        mp_int c;
+
+        if (mp_init(&c) != MP_OKAY)
+            ret = MEMORY_E;
+        if (ret == 0) {
+            if (mp_read_unsigned_bin(&c, in, inLen) != 0)
+                ret = MP_READ_E;
+        }
+        if (ret == 0) {
+            /* check c > 1 */
+            if (mp_cmp_d(&c, 1) != MP_GT)
+                ret = RSA_OUT_OF_RANGE_E;
+        }
+        if (ret == 0) {
+            /* check c+1 < n */
+            mp_add_d(&c, 1, &c);
+            if (mp_cmp(&c, &key->n) != MP_LT)
+                ret = RSA_OUT_OF_RANGE_E;
+        }
+        mp_clear(&c);
+
+        if (ret != 0)
+            return ret;
+    }
+#endif /* NO_RSA_BOUNDS_CHECK */
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA &&
