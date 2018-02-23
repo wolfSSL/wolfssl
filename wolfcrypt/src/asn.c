@@ -4164,9 +4164,9 @@ static int GetName(DecodedCert* cert, int nameType)
 
         /* v1 name types */
         if (joint[0] == 0x55 && joint[1] == 0x04) {
-            byte   id;
-            byte   copy = FALSE;
+            const char*  copy = NULL;
             int    strLen;
+            byte   id;
 
             cert->srcIdx += 2;
             id = cert->source[cert->srcIdx++];
@@ -4189,22 +4189,14 @@ static int GetName(DecodedCert* cert, int nameType)
                     cert->subjectCNEnc = b;
                 }
 
-                if (!tooBig) {
-                    XMEMCPY(&full[idx], "/CN=", 4);
-                    idx += 4;
-                    copy = TRUE;
-                }
+                copy = WOLFSSL_COMMON_NAME;
                 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     dName->cnIdx = cert->srcIdx;
                     dName->cnLen = strLen;
                 #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_SUR_NAME) {
-                if (!tooBig) {
-                    XMEMCPY(&full[idx], "/SN=", 4);
-                    idx += 4;
-                    copy = TRUE;
-                }
+                copy = WOLFSSL_SUR_NAME;
                 #ifdef WOLFSSL_CERT_GEN
                     if (nameType == SUBJECT) {
                         cert->subjectSN = (char*)&cert->source[cert->srcIdx];
@@ -4218,11 +4210,7 @@ static int GetName(DecodedCert* cert, int nameType)
                 #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_COUNTRY_NAME) {
-                if (!tooBig) {
-                    XMEMCPY(&full[idx], "/C=", 3);
-                    idx += 3;
-                    copy = TRUE;
-                }
+                copy = WOLFSSL_COUNTRY_NAME;
                 #ifdef WOLFSSL_CERT_GEN
                     if (nameType == SUBJECT) {
                         cert->subjectC = (char*)&cert->source[cert->srcIdx];
@@ -4236,11 +4224,7 @@ static int GetName(DecodedCert* cert, int nameType)
                 #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_LOCALITY_NAME) {
-                if (!tooBig) {
-                    XMEMCPY(&full[idx], "/L=", 3);
-                    idx += 3;
-                    copy = TRUE;
-                }
+                copy = WOLFSSL_LOCALITY_NAME;
                 #ifdef WOLFSSL_CERT_GEN
                     if (nameType == SUBJECT) {
                         cert->subjectL = (char*)&cert->source[cert->srcIdx];
@@ -4254,11 +4238,7 @@ static int GetName(DecodedCert* cert, int nameType)
                 #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_STATE_NAME) {
-                if (!tooBig) {
-                    XMEMCPY(&full[idx], "/ST=", 4);
-                    idx += 4;
-                    copy = TRUE;
-                }
+                copy = WOLFSSL_STATE_NAME;
                 #ifdef WOLFSSL_CERT_GEN
                     if (nameType == SUBJECT) {
                         cert->subjectST = (char*)&cert->source[cert->srcIdx];
@@ -4272,11 +4252,7 @@ static int GetName(DecodedCert* cert, int nameType)
                 #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_ORG_NAME) {
-                if (!tooBig) {
-                    XMEMCPY(&full[idx], "/O=", 3);
-                    idx += 3;
-                    copy = TRUE;
-                }
+                copy = WOLFSSL_ORG_NAME;
                 #ifdef WOLFSSL_CERT_GEN
                     if (nameType == SUBJECT) {
                         cert->subjectO = (char*)&cert->source[cert->srcIdx];
@@ -4290,11 +4266,7 @@ static int GetName(DecodedCert* cert, int nameType)
                 #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_ORGUNIT_NAME) {
-                if (!tooBig) {
-                    XMEMCPY(&full[idx], "/OU=", 4);
-                    idx += 4;
-                    copy = TRUE;
-                }
+                copy = WOLFSSL_ORGUNIT_NAME;
                 #ifdef WOLFSSL_CERT_GEN
                     if (nameType == SUBJECT) {
                         cert->subjectOU = (char*)&cert->source[cert->srcIdx];
@@ -4308,17 +4280,15 @@ static int GetName(DecodedCert* cert, int nameType)
                 #endif /* OPENSSL_EXTRA */
             }
             else if (id == ASN_SERIAL_NUMBER) {
-                if (!tooBig) {
-                   XMEMCPY(&full[idx], "/serialNumber=", 14);
-                   idx += 14;
-                   copy = TRUE;
-                }
+                copy = WOLFSSL_SERIAL_NUMBER;
                 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     dName->snIdx = cert->srcIdx;
                     dName->snLen = strLen;
                 #endif /* OPENSSL_EXTRA */
             }
             if (copy && !tooBig) {
+                XMEMCPY(&full[idx], copy, XSTRLEN(copy));
+                idx += XSTRLEN(copy);
                 XMEMCPY(&full[idx], &cert->source[cert->srcIdx], strLen);
                 idx += strLen;
             }

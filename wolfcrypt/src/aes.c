@@ -8374,15 +8374,21 @@ int wc_AesGetKeySize(Aes* aes, word32* keySize)
     }
 
     switch (aes->rounds) {
+    #ifdef WOLFSSL_AES_128
     case 10:
         *keySize = 16;
         break;
+    #endif
+    #ifdef WOLFSSL_AES_192
     case 12:
         *keySize = 24;
         break;
+    #endif
+    #ifdef WOLFSSL_AES_256
     case 14:
         *keySize = 32;
         break;
+    #endif
     default:
         *keySize = 0;
         ret = BAD_FUNC_ARG;
