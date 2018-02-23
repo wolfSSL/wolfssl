@@ -18922,7 +18922,7 @@ void wolfSSL_X509_STORE_CTX_set_time(WOLFSSL_X509_STORE_CTX* ctx,
 {
     (void)flags;
 
-    if (ctx == NULL)
+    if (ctx == NULL || ctx->param == NULL)
         return;
 
     ctx->param->check_time = t;
