@@ -398,6 +398,7 @@ enum KeyIdType {
 #define KEYUSE_DECIPHER_ONLY  0x8000
 
 /* Extended Key Usage bits (internal mapping only) */
+#define EXTKEYUSE_USER        0x80
 #define EXTKEYUSE_OCSP_SIGN   0x40
 #define EXTKEYUSE_TIMESTAMP   0x20
 #define EXTKEYUSE_EMAILPROT   0x10
@@ -876,6 +877,7 @@ enum cert_enums {
     NAME_ENTRIES    =  8,
     JOINT_LEN       =  2,
     EMAIL_JOINT_LEN =  9,
+    PILOT_JOINT_LEN =  10,
     RSA_KEY         = 10,
     NTRU_KEY        = 11,
     ECC_KEY         = 12,

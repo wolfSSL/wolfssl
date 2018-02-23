@@ -195,6 +195,9 @@
 
 #include "wolfcrypt/test/test.h"
 
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_MULTI_ATTRIB)
+static void initDefaultName(void);
+#endif
 
 /* for async devices */
 static int devId = INVALID_DEVID;
@@ -422,6 +425,10 @@ int wolfcrypt_test(void* args)
                        -1001);
 #endif /* USE_FAST_MATH */
 #endif /* !NO_BIG_INT */
+
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_MULTI_ATTRIB)
+initDefaultName();
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevOpen(&devId);
@@ -7621,6 +7628,54 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
 
 
 #ifdef WOLFSSL_CERT_GEN
+#ifdef WOLFSSL_MULTI_ATTRIB
+static CertName certDefaultName;
+static void initDefaultName(void)
+{
+    XMEMCPY(certDefaultName.country, "US", sizeof("US"));
+    certDefaultName.countryEnc = CTC_PRINTABLE;
+    XMEMCPY(certDefaultName.state, "Orgeon", sizeof("Orgeon"));
+    certDefaultName.stateEnc = CTC_UTF8;
+    XMEMCPY(certDefaultName.locality, "Portland", sizeof("Portland"));
+    certDefaultName.localityEnc = CTC_UTF8;
+    XMEMCPY(certDefaultName.sur, "Test", sizeof("Test"));
+    certDefaultName.surEnc = CTC_UTF8;
+    XMEMCPY(certDefaultName.org, "wolfSSL", sizeof("wolfSSL"));
+    certDefaultName.orgEnc = CTC_UTF8;
+    XMEMCPY(certDefaultName.unit, "Development", sizeof("Development"));
+    certDefaultName.unitEnc = CTC_UTF8;
+    XMEMCPY(certDefaultName.commonName, "www.wolfssl.com", sizeof("www.wolfssl.com"));
+    certDefaultName.commonNameEnc = CTC_UTF8;
+    XMEMCPY(certDefaultName.email, "info@wolfssl.com", sizeof("info@wolfssl.com"));
+
+#ifdef WOLFSSL_TEST_CERT
+    {
+        NameAttrib* n;
+        /* test having additional OUs and setting DC */
+        n = &certDefaultName.name[0];
+        n->id   = ASN_ORGUNIT_NAME;
+        n->type = CTC_UTF8;
+        n->sz   = sizeof("Development-2");
+        XMEMCPY(n->value, "Development-2", sizeof("Development-2"));
+
+    #if CTC_MAX_ATTRIB > 3
+        n = &certDefaultName.name[1];
+        n->id   = ASN_DOMAIN_COMPONENT;
+        n->type = CTC_UTF8;
+        n->sz   = sizeof("com");
+        XMEMCPY(n->value, "com", sizeof("com"));
+
+        n = &certDefaultName.name[2];
+        n->id   = ASN_DOMAIN_COMPONENT;
+        n->type = CTC_UTF8;
+        n->sz   = sizeof("wolfssl");
+        XMEMCPY(n->value, "wolfssl", sizeof("wolfssl"));
+
+    #endif
+    }
+#endif /* WOLFSSL_TEST_CERT */
+}
+#else
 static const CertName certDefaultName = {
     "US",               CTC_PRINTABLE,  /* country */
     "Orgeon",           CTC_UTF8,       /* state */
@@ -7631,6 +7686,7 @@ static const CertName certDefaultName = {
     "www.wolfssl.com",  CTC_UTF8,       /* commonName */
     "info@wolfssl.com"                  /* email */
 };
+#endif /* WOLFSSL_MULTI_ATTRIB */
 
 #ifdef WOLFSSL_CERT_EXT
     #if (defined(HAVE_ED25519) && defined(WOLFSSL_TEST_CERT)) || \
@@ -9309,6 +9365,15 @@ int rsa_test(void)
         if (wc_SetKeyUsage(&myCert,"cRLSign,keyCertSign") != 0) {
             ERROR_OUT(-5575, exit_rsa);
         }
+    #ifdef WOLFSSL_EKU_OID
+        {
+            const char unique[] = "2.16.840.1.111111.100.1.10.1";
+            if (wc_SetExtKeyUsageOID(&myCert, unique, sizeof(unique), 0,
+                        HEAP_HINT) != 0) {
+                ERROR_OUT(-5651, exit_rsa);
+            }
+        }
+    #endif /* WOLFSSL_EKU_OID */
     #endif /* WOLFSSL_CERT_EXT */
 
         ret = 0;
