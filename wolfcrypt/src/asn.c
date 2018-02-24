@@ -4288,7 +4288,7 @@ static int GetName(DecodedCert* cert, int nameType)
             }
             if (copy && !tooBig) {
                 XMEMCPY(&full[idx], copy, XSTRLEN(copy));
-                idx += XSTRLEN(copy);
+                idx += (word32)XSTRLEN(copy);
                 XMEMCPY(&full[idx], &cert->source[cert->srcIdx], strLen);
                 idx += strLen;
             }
