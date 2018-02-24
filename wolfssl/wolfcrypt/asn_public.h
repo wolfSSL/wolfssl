@@ -117,9 +117,12 @@ enum Ctc_Misc {
     #ifndef CTC_MAX_EKU_NB
         #define CTC_MAX_EKU_NB 1
     #endif
-    #ifndef CTX_MAX_EKU_OID_SZ
-        #define CTX_MAX_EKU_OID_SZ 30
+    #ifndef CTC_MAX_EKU_OID_SZ
+        #define CTC_MAX_EKU_OID_SZ 30
     #endif
+#else
+    #undef CTC_MAX_EKU_OID_SZ
+    #define CTC_MAX_EKU_OID_SZ 0
 #endif
 
 
@@ -191,7 +194,7 @@ typedef struct Cert {
     byte    extKeyUsage;                 /* Extended Key Usage */
 #ifdef WOLFSSL_EKU_OID
     /* Extended Key Usage OIDs */
-    byte    extKeyUsageOID[CTC_MAX_EKU_NB][CTX_MAX_EKU_OID_SZ];
+    byte    extKeyUsageOID[CTC_MAX_EKU_NB][CTC_MAX_EKU_OID_SZ];
     byte    extKeyUsageOIDSz[CTC_MAX_EKU_NB];
 #endif
     char    certPolicies[CTC_MAX_CERTPOL_NB][CTC_MAX_CERTPOL_SZ];

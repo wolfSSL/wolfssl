@@ -7814,83 +7814,39 @@ int wc_InitCert(Cert* cert)
         return BAD_FUNC_ARG;
     }
 
+    XMEMSET(cert, 0, sizeof(Cert));
+
     cert->version    = 2;   /* version 3 is hex 2 */
     cert->sigType    = CTC_SHAwRSA;
     cert->daysValid  = 500;
     cert->selfSigned = 1;
-    cert->isCA       = 0;
-    cert->bodySz     = 0;
-#ifdef WOLFSSL_ALT_NAMES
-    cert->altNamesSz   = 0;
-    cert->beforeDateSz = 0;
-    cert->afterDateSz  = 0;
-#endif
-#ifdef WOLFSSL_CERT_EXT
-    cert->skidSz = 0;
-    cert->akidSz = 0;
-    cert->keyUsage = 0;
-    cert->extKeyUsage = 0;
-    cert->certPoliciesNb = 0;
-    XMEMSET(cert->akid, 0, CTC_MAX_AKID_SIZE);
-    XMEMSET(cert->skid, 0, CTC_MAX_SKID_SIZE);
-    XMEMSET(cert->certPolicies, 0, CTC_MAX_CERTPOL_NB*CTC_MAX_CERTPOL_SZ);
-#endif
     cert->keyType    = RSA_KEY;
-    XMEMSET(cert->serial, 0, CTC_SERIAL_SIZE);
-    cert->serialSz = 0;
 
-    cert->issuer.country[0] = '\0';
     cert->issuer.countryEnc = CTC_PRINTABLE;
-    cert->issuer.state[0] = '\0';
     cert->issuer.stateEnc = CTC_UTF8;
-    cert->issuer.locality[0] = '\0';
     cert->issuer.localityEnc = CTC_UTF8;
-    cert->issuer.sur[0] = '\0';
     cert->issuer.surEnc = CTC_UTF8;
-    cert->issuer.org[0] = '\0';
     cert->issuer.orgEnc = CTC_UTF8;
-    cert->issuer.unit[0] = '\0';
     cert->issuer.unitEnc = CTC_UTF8;
-    cert->issuer.commonName[0] = '\0';
     cert->issuer.commonNameEnc = CTC_UTF8;
-    cert->issuer.email[0] = '\0';
 
-    cert->subject.country[0] = '\0';
     cert->subject.countryEnc = CTC_PRINTABLE;
-    cert->subject.state[0] = '\0';
     cert->subject.stateEnc = CTC_UTF8;
-    cert->subject.locality[0] = '\0';
     cert->subject.localityEnc = CTC_UTF8;
-    cert->subject.sur[0] = '\0';
     cert->subject.surEnc = CTC_UTF8;
-    cert->subject.org[0] = '\0';
     cert->subject.orgEnc = CTC_UTF8;
-    cert->subject.unit[0] = '\0';
     cert->subject.unitEnc = CTC_UTF8;
-    cert->subject.commonName[0] = '\0';
     cert->subject.commonNameEnc = CTC_UTF8;
-    cert->subject.email[0] = '\0';
 
 #ifdef WOLFSSL_MULTI_ATTRIB
     for (i = 0; i < CTC_MAX_ATTRIB; i++) {
-        cert->issuer.name[i].sz    = 0;
-        cert->issuer.name[i].id    = 0;
-        cert->issuer.name[i].type  = CTC_UTF8;
-        cert->issuer.name[i].value[0] = '\0';
-
-        cert->subject.name[i].sz    = 0;
-        cert->subject.name[i].id    = 0;
+        cert->issuer.name[i].type   = CTC_UTF8;
         cert->subject.name[i].type  = CTC_UTF8;
-        cert->subject.name[i].value[0] = '\0';
     }
 #endif /* WOLFSSL_MULTI_ATTRIB */
-#ifdef WOLFSSL_CERT_REQ
-    cert->challengePw[0] ='\0';
-#endif
+
 #ifdef WOLFSSL_HEAP_TEST
     cert->heap = (void*)WOLFSSL_HEAP_TEST;
-#else
-    cert->heap = NULL;
 #endif
 
     (void)i;
@@ -8908,7 +8864,7 @@ static int SetAltNames(byte *out, word32 outSz, byte *input, word32 length)
  *
  * returns length on success
  */
-static int _EncodeName(EncodedName* name, const char* nameStr, char nameType,
+static int wc_EncodeName(EncodedName* name, const char* nameStr, char nameType,
         byte type)
 {
     word32 idx = 0;
@@ -9059,7 +9015,7 @@ int SetName(byte* output, word32 outputSz, CertName* name)
         int ret;
         const char* nameStr = GetOneName(name, i);
 
-        ret = _EncodeName(&names[i], nameStr, GetNameType(name, i),
+        ret = wc_EncodeName(&names[i], nameStr, GetNameType(name, i),
                           GetNameId(i));
         if (ret < 0) {
         #ifdef WOLFSSL_SMALL_STACK
@@ -9073,7 +9029,7 @@ int SetName(byte* output, word32 outputSz, CertName* name)
     for (i = 0; i < CTC_MAX_ATTRIB; i++) {
         if (name->name[i].sz > 0) {
             int ret;
-            ret = _EncodeName(&addNames[i], name->name[i].value,
+            ret = wc_EncodeName(&addNames[i], name->name[i].value,
                         name->name[i].type, name->name[i].id);
             if (ret < 0) {
             #ifdef WOLFSSL_SMALL_STACK
@@ -10640,7 +10596,7 @@ int wc_SetExtKeyUsageOID(Cert *cert, const char *in, word32 sz, byte idx,
     byte oid[MAX_OID_SZ];
     word32 oidSz = MAX_OID_SZ;
 
-    if (idx >= CTC_MAX_EKU_NB || sz >= CTX_MAX_EKU_OID_SZ) {
+    if (idx >= CTC_MAX_EKU_NB || sz >= CTC_MAX_EKU_OID_SZ) {
         WOLFSSL_MSG("Either idx or sz was too large");
         return BAD_FUNC_ARG;
     }

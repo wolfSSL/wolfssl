@@ -9966,6 +9966,15 @@ int rsa_test(void)
                             "emailProtection,timeStamping,OCSPSigning") != 0) {
             ERROR_OUT(-5645, exit_rsa);
         }
+    #ifdef WOLFSSL_EKU_OID
+        {
+            const char unique[] = "2.16.840.1.111111.100.1.10.1";
+            if (wc_SetExtKeyUsageOID(&req, unique, sizeof(unique), 0,
+                        HEAP_HINT) != 0) {
+                ERROR_OUT(-5652, exit_rsa);
+            }
+        }
+    #endif /* WOLFSSL_EKU_OID */
     #endif /* WOLFSSL_CERT_EXT */
 
         derSz = wc_MakeCertReq(&req, der, FOURK_BUF, &key, NULL);
