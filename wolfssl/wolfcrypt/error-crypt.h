@@ -208,9 +208,15 @@ enum {
 };
 
 
+#ifdef NO_ERROR_STRINGS
+    #define wc_GetErrorString(error) "no support for error strings built in"
+    #define wc_ErrorString(err, buf) \
+        XSTRNCPY((buf), wc_GetErrorString((err)), WOLFSSL_MAX_ERROR_SZ);
+
+#else
 WOLFSSL_API void wc_ErrorString(int err, char* buff);
 WOLFSSL_API const char* wc_GetErrorString(int error);
-
+#endif
 
 #ifdef __cplusplus
     } /* extern "C" */

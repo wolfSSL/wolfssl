@@ -15941,10 +15941,17 @@ const char* GetCipherNameInternal(const char* cipherName, int cipherSuite)
         return NULL;
     }
 
-    first = (XSTRSTR(cipherName, "CHACHA")) ? "CHACHA"
-          : (XSTRSTR(cipherName, "EC"))     ? "EC"
-          : (XSTRSTR(cipherName, "CCM"))    ? "CCM"
-          : NULL; /* normal */
+    first =
+    #ifdef HAVE_CHACHA
+        (XSTRSTR(cipherName, "CHACHA")) ? "CHACHA" :
+    #endif
+    #ifdef HAVE_ECC
+        (XSTRSTR(cipherName, "EC"))     ? "EC" :
+    #endif
+    #ifdef HAVE_AESCCM
+        (XSTRSTR(cipherName, "CCM"))    ? "CCM" :
+    #endif
+        NULL; /* normal */
 
     for (i = 0; i < (int)(sizeof(cipher_name_idx)/sizeof(int)); i++) {
         if (cipher_name_idx[i] == cipherSuite) {
