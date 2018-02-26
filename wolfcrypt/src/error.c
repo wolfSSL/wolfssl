@@ -446,6 +446,9 @@ const char* wc_GetErrorString(int error)
     case BER_INDEF_E:
         return "Unable to decode an indefinite length encoded message";
 
+    case RSA_OUT_OF_RANGE_E:
+        return "Ciphertext to decrypt is out of range";
+
     default:
         return "unknown error number";
 
