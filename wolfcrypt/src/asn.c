@@ -11039,6 +11039,10 @@ static int ASNToHexString(const byte* input, word32* inOutIdx, char** out,
     int i;
     char* str;
 
+    if (*inOutIdx >= inSz) {
+        return BUFFER_E;
+    }
+
     if (input[*inOutIdx] == ASN_INTEGER) {
         if (GetASNInt(input, inOutIdx, &len, inSz) < 0)
             return ASN_PARSE_E;
@@ -11080,6 +11084,10 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     ret = SkipObjectId(input, inOutIdx, inSz);
     if (ret != 0)
         return ret;
+
+    if (*inOutIdx >= inSz) {
+        return BUFFER_E;
+    }
 
     if (input[*inOutIdx] == (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
 #ifdef WOLFSSL_CUSTOM_CURVES
@@ -11131,7 +11139,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
             if (input[*inOutIdx] == ASN_BIT_STRING) {
                 len = 0;
                 ret = GetASNHeader(input, ASN_BIT_STRING, inOutIdx, &len, inSz);
-                inOutIdx += len;
+                *inOutIdx += len;
             }
         }
         if (ret == 0) {
