@@ -574,7 +574,7 @@ static void* server_thread(void* args)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wformat-nonliteral"
 #endif
-static void print_stats(stats_t* stat, const char* desc, const char* cipher, int verbose)
+static void print_stats(stats_t* wcStat, const char* desc, const char* cipher, int verbose)
 {
     const char* formatStr;
 
@@ -596,14 +596,14 @@ static void print_stats(stats_t* stat, const char* desc, const char* cipher, int
     printf(formatStr,
            desc,
            cipher,
-           stat->txTotal + stat->rxTotal,
-           stat->connCount,
-           stat->txTime * 1000,
-           stat->rxTime * 1000,
-           stat->txTotal / stat->txTime / 1024 / 1024,
-           stat->rxTotal / stat->rxTime / 1024 / 1024,
-           stat->connTime * 1000,
-           stat->connTime * 1000 / stat->connCount);
+           wcStat->txTotal + wcStat->rxTotal,
+           wcStat->connCount,
+           wcStat->txTime * 1000,
+           wcStat->rxTime * 1000,
+           wcStat->txTotal / wcStat->txTime / 1024 / 1024,
+           wcStat->rxTotal / wcStat->rxTime / 1024 / 1024,
+           wcStat->connTime * 1000,
+           wcStat->connTime * 1000 / wcStat->connCount);
 }
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
@@ -613,7 +613,7 @@ int bench_tls(void)
 {
     info_t theadInfo[THREAD_COUNT];
     info_t* info;
-    int i, shutdown;
+    int i, doShutdown;
     char *cipher, *next_cipher, ciphers[4096];
 
 #ifdef DEBUG_WOLFSSL
@@ -672,15 +672,15 @@ int bench_tls(void)
 
         /* Suspend shutdown until all threads are closed */
         do {
-            shutdown = 1;
+            doShutdown = 1;
 
             for (i = 0; i < THREAD_COUNT; ++i) {
                 info = &theadInfo[i];
                 if (!info->to_client.done || !info->to_server.done) {
-                    shutdown = 0;
+                    doShutdown = 0;
                 }
             }
-        } while (!shutdown);
+        } while (!doShutdown);
 
 #ifdef SHOW_VERBOSE_OUTPUT
         printf("Shutdown complete\n");
