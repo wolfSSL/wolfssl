@@ -8,11 +8,11 @@
 
 ## Setup
 
-1. Using the STM32CubeMX tool, load the `<wolfssl-root>/IDE/OPENSTM32/wolfSTM32.ino` file.
+1. Using the STM32CubeMX tool, load the `<wolfssl-root>/IDE/OPENSTM32/wolfSTM32.ioc` file.
 2. Adjust the HAL options based on your specific micro-controller.
 3. Generate source code.
 4. Run `SystemWorkbench` and choose a new workspace location for this project.
-5. Import `wolfSTM32' project from `<wolfssl-root>/IDE/OPENSTM32/`.
+5. Import `'wolfSTM32' project from `<wolfssl-root>/IDE/OPENSTM32/`.
 6. Adjust the micro-controller define in `Project Settings -> C/C++ General -> Paths and Symbols -> Symbols -> GNU C`. Example uses `STM32F437xx`, but should be changed to reflect your micro-controller type.
 7. Build and Run
 
