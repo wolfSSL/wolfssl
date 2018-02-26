@@ -33,15 +33,9 @@
     #pragma warning(disable: 4996)
 #endif
 
+#ifndef NO_ERROR_STRINGS
 const char* wc_GetErrorString(int error)
 {
-#ifdef NO_ERROR_STRINGS
-
-    (void)error;
-    return "no support for error strings built in";
-
-#else
-
     switch (error) {
 
     case OPEN_RAN_E :
@@ -456,12 +450,11 @@ const char* wc_GetErrorString(int error)
         return "unknown error number";
 
     }
-
-#endif /* NO_ERROR_STRINGS */
-
 }
 
 void wc_ErrorString(int error, char* buffer)
 {
     XSTRNCPY(buffer, wc_GetErrorString(error), WOLFSSL_MAX_ERROR_SZ);
 }
+#endif /* !NO_ERROR_STRINGS */
+

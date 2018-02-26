@@ -115,6 +115,17 @@ enum DN_Tags {
     ASN_DOMAIN_COMPONENT = 0x19  /* DC */
 };
 
+/* DN Tag Strings */
+#define WOLFSSL_COMMON_NAME "/CN"
+#define WOLFSSL_SUR_NAME    "/SN"
+#define WOLFSSL_SERIAL_NUMBER "/serialNumber="
+#define WOLFSSL_COUNTRY_NAME "/C"
+#define WOLFSSL_LOCALITY_NAME "/L"
+#define WOLFSSL_STATE_NAME   "/ST"
+#define WOLFSSL_ORG_NAME     "/O"
+#define WOLFSSL_ORGUNIT_NAME "/OU"
+#define WOLFSSL_DOMAIN_COMPONENT "/DC"
+
 enum PBES {
     PBE_MD5_DES      = 0,
     PBE_SHA1_RC4_128 = 1,
