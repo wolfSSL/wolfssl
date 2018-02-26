@@ -11032,19 +11032,14 @@ static void ByteToHex(byte n, char* str)
     str[1] = hexChar[n & 0xf];
 }
 
-/*
- * outLen gets set to the size of buffer malloc'd (including null terminator)
- *
- * returns 0 on success
- */
-static int ASNToHexString(const byte* input, word32* inOutIdx, int* outLen,
-        char** out, word32 inSz, void* heap, int heapType)
+/* returns 0 on success */
+static int ASNToHexString(const byte* input, word32* inOutIdx, char** out,
+                          word32 inSz, void* heap, int heapType)
 {
     int len;
     int i;
     char* str;
 
-    *outLen = 0;
     if (*inOutIdx >= inSz) {
         return BUFFER_E;
     }
@@ -11064,8 +11059,7 @@ static int ASNToHexString(const byte* input, word32* inOutIdx, int* outLen,
     str[len*2] = '\0';
 
     *inOutIdx += len;
-    *out    = str;
-    *outLen = len * 2 + 1;
+    *out = str;
 
     return 0;
 }
@@ -11125,8 +11119,8 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
         }
         if (ret == 0) {
             SkipObjectId(input, inOutIdx, inSz);
-            ret = ASNToHexString(input, inOutIdx, &len, (char**)&curve->prime,
-                                      inSz, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+            ret = ASNToHexString(input, inOutIdx, (char**)&curve->prime, inSz,
+                                            key->heap, DYNAMIC_TYPE_ECC_BUFFER);
         }
         if (ret == 0) {
             curve->size = (int)XSTRLEN(curve->prime) / 2;
@@ -11135,12 +11129,12 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                 ret = ASN_PARSE_E;
         }
         if (ret == 0) {
-            ret = ASNToHexString(input, inOutIdx, &len, (char**)&curve->Af,
-                                      inSz, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+            ret = ASNToHexString(input, inOutIdx, (char**)&curve->Af, inSz,
+                                            key->heap, DYNAMIC_TYPE_ECC_BUFFER);
         }
         if (ret == 0) {
-            ret = ASNToHexString(input, inOutIdx, &len, (char**)&curve->Bf,
-                                      inSz, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+            ret = ASNToHexString(input, inOutIdx, (char**)&curve->Bf, inSz,
+                                            key->heap, DYNAMIC_TYPE_ECC_BUFFER);
         }
         if (ret == 0) {
             if (*inOutIdx < inSz && input[*inOutIdx] == ASN_BIT_STRING) {
@@ -11150,9 +11144,9 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
             }
         }
         if (ret == 0) {
-            ret = ASNToHexString(input, inOutIdx, &len, (char**)&point, inSz,
+            ret = ASNToHexString(input, inOutIdx, (char**)&point, inSz,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
-            if (ret == 0 && len < (curve->size * 4) + 2) {
+            if (ret == 0 && (int)XSTRLEN(point) < (curve->size * 4) + 2) {
                 XFREE(point, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
                 ret = BUFFER_E;
             }
@@ -11174,8 +11168,8 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
             ((char*)curve->Gx)[curve->size * 2] = '\0';
             ((char*)curve->Gy)[curve->size * 2] = '\0';
             XFREE(point, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
-            ret = ASNToHexString(input, inOutIdx, &len, (char**)&curve->order,
-                                      inSz, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+            ret = ASNToHexString(input, inOutIdx, (char**)&curve->order, inSz,
+                                            key->heap, DYNAMIC_TYPE_ECC_BUFFER);
         }
         if (ret == 0) {
             curve->cofactor = GetInteger7Bit(input, inOutIdx, inSz);
