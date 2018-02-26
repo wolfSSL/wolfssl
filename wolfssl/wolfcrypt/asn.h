@@ -194,7 +194,8 @@ enum Misc_ASN {
 #ifdef WOLFSSL_CERT_EXT
     MAX_KID_SZ			= 45,	   /* Max encoded KID length (SHA-256 case) */
     MAX_KEYUSAGE_SZ     = 18,      /* Max encoded Key Usage length */
-    MAX_EXTKEYUSAGE_SZ  = 12 + (6 * (8 + 2)), /* Max encoded ExtKeyUsage
+    MAX_EXTKEYUSAGE_SZ  = 12 + (6 * (8 + 2)) +
+                          CTC_MAX_EKU_OID_SZ, /* Max encoded ExtKeyUsage
                         (SEQ/LEN + OBJID + OCTSTR/LEN + SEQ + (6 * (SEQ + OID))) */
     MAX_CERTPOL_NB      = CTC_MAX_CERTPOL_NB,/* Max number of Cert Policy */
     MAX_CERTPOL_SZ      = CTC_MAX_CERTPOL_SZ,
@@ -398,6 +399,7 @@ enum KeyIdType {
 #define KEYUSE_DECIPHER_ONLY  0x8000
 
 /* Extended Key Usage bits (internal mapping only) */
+#define EXTKEYUSE_USER        0x80
 #define EXTKEYUSE_OCSP_SIGN   0x40
 #define EXTKEYUSE_TIMESTAMP   0x20
 #define EXTKEYUSE_EMAILPROT   0x10
@@ -876,6 +878,7 @@ enum cert_enums {
     NAME_ENTRIES    =  8,
     JOINT_LEN       =  2,
     EMAIL_JOINT_LEN =  9,
+    PILOT_JOINT_LEN =  10,
     RSA_KEY         = 10,
     NTRU_KEY        = 11,
     ECC_KEY         = 12,
