@@ -11143,7 +11143,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                                       inSz, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
         }
         if (ret == 0) {
-            if (input[*inOutIdx] == ASN_BIT_STRING) {
+            if (*inOutIdx < inSz && input[*inOutIdx] == ASN_BIT_STRING) {
                 len = 0;
                 ret = GetASNHeader(input, ASN_BIT_STRING, inOutIdx, &len, inSz);
                 *inOutIdx += len;
