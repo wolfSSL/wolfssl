@@ -2821,9 +2821,11 @@ static int wc_ecc_shared_secret_gen_sync(ecc_key* private_key, ecc_point* point,
 #endif
 #endif
 #ifdef WOLFSSL_SP_MATH
+    {
         err = WC_KEY_SIZE_E;
 
         (void)curve;
+    }
 #else
     {
         /* make new point */
