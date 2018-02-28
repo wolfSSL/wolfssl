@@ -123,9 +123,6 @@ typedef WOLFSSL_SHA256_CTX SHA256_CTX;
     /* SHA256 is only available in non-fips mode because of SHA256 enum in FIPS
      * build. */
     #define SHA256 wolfSSL_SHA256
-    #define SHA256_BLOCK_SIZE  WC_SHA256_BLOCK_SIZE
-    #define SHA256_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
-    #define SHA256_PAD_SIZE    WC_SHA256_PAD_SIZE
 #endif
 
 
