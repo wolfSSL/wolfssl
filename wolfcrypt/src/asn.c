@@ -11146,6 +11146,10 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
         if (ret == 0) {
             ret = ASNToHexString(input, inOutIdx, (char**)&point, inSz,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+
+            /* sanity check that point buffer is not smaller than the expected
+             * size to hold ( 0 4 || Gx || Gy )
+             * where Gx and Gy are each the size of curve->size * 2 */
             if (ret == 0 && (int)XSTRLEN(point) < (curve->size * 4) + 2) {
                 XFREE(point, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
                 ret = BUFFER_E;
