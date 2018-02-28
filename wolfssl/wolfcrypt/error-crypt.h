@@ -201,8 +201,9 @@ enum {
     RSA_OUT_OF_RANGE_E  = -253,  /* Ciphertext to decrypt out of range. */
     RSAPSS_PAT_FIPS_E   = -254,  /* RSA-PSS PAT failure */
     ECDSA_PAT_FIPS_E    = -255,  /* ECDSA PAT failure */
+    DH_KAT_FIPS_E       = -256,  /* DH KAT failure */
 
-    WC_LAST_E           = -255,  /* Update this to indicate last error */
+    WC_LAST_E           = -256,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes
