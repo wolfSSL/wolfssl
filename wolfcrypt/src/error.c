@@ -449,6 +449,15 @@ const char* wc_GetErrorString(int error)
     case RSA_OUT_OF_RANGE_E:
         return "Ciphertext to decrypt is out of range";
 
+    case RSAPSS_PAT_FIPS_E:
+        return "wolfcrypt FIPS RSA-PSS Pairwise Agreement Test Failure";
+
+    case ECDSA_PAT_FIPS_E:
+        return "wolfcrypt FIPS ECDSA Pairwise Agreement Test Failure";
+
+    case DH_KAT_FIPS_E:
+        return "wolfcrypt FIPS DH Known Answer Test Failure";
+
     default:
         return "unknown error number";
 
