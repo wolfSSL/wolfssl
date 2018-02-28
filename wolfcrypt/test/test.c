@@ -910,7 +910,9 @@ initDefaultName();
         printf( "mp       test passed!\n");
 #endif
 
-#ifdef ASN_BER_TO_DER
+#if defined(ASN_BER_TO_DER) && \
+    (defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
+     defined(OPENSSL_EXTRA_X509_SMALL))
     if ( (ret = berder_test()) != 0)
         return err_sys("ber-der  test failed!\n", ret);
     else
@@ -17692,7 +17694,10 @@ done:
 }
 #endif
 
-#ifdef ASN_BER_TO_DER
+#if defined(ASN_BER_TO_DER) && \
+    (defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
+     defined(OPENSSL_EXTRA_X509_SMALL))
+/* wc_BerToDer is only public facing in the case of test cert or opensslextra */
 typedef struct berDerTestData {
     const byte *in;
     word32 inSz;
