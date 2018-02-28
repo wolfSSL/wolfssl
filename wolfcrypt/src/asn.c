@@ -11128,12 +11128,17 @@ static void ByteToHex(byte n, char* str)
     str[1] = hexChar[n & 0xf];
 }
 
+/* returns 0 on success */
 static int ASNToHexString(const byte* input, word32* inOutIdx, char** out,
                           word32 inSz, void* heap, int heapType)
 {
     int len;
     int i;
     char* str;
+
+    if (*inOutIdx >= inSz) {
+        return BUFFER_E;
+    }
 
     if (input[*inOutIdx] == ASN_INTEGER) {
         if (GetASNInt(input, inOutIdx, &len, inSz) < 0)
@@ -11176,6 +11181,10 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     ret = SkipObjectId(input, inOutIdx, inSz);
     if (ret != 0)
         return ret;
+
+    if (*inOutIdx >= inSz) {
+        return BUFFER_E;
+    }
 
     if (input[*inOutIdx] == (ASN_SEQUENCE | ASN_CONSTRUCTED)) {
 #ifdef WOLFSSL_CUSTOM_CURVES
@@ -11224,23 +11233,33 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
         }
         if (ret == 0) {
-            if (input[*inOutIdx] == ASN_BIT_STRING) {
+            if (*inOutIdx < inSz && input[*inOutIdx] == ASN_BIT_STRING) {
                 len = 0;
                 ret = GetASNHeader(input, ASN_BIT_STRING, inOutIdx, &len, inSz);
-                inOutIdx += len;
+                *inOutIdx += len;
             }
         }
         if (ret == 0) {
             ret = ASNToHexString(input, inOutIdx, (char**)&point, inSz,
                                             key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+
+            /* sanity check that point buffer is not smaller than the expected
+             * size to hold ( 0 4 || Gx || Gy )
+             * where Gx and Gy are each the size of curve->size * 2 */
+            if (ret == 0 && (int)XSTRLEN(point) < (curve->size * 4) + 2) {
+                XFREE(point, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
+                ret = BUFFER_E;
+            }
         }
         if (ret == 0) {
             curve->Gx = (const char*)XMALLOC(curve->size * 2 + 2, key->heap,
                                                        DYNAMIC_TYPE_ECC_BUFFER);
             curve->Gy = (const char*)XMALLOC(curve->size * 2 + 2, key->heap,
                                                        DYNAMIC_TYPE_ECC_BUFFER);
-            if (curve->Gx == NULL || curve->Gy == NULL)
+            if (curve->Gx == NULL || curve->Gy == NULL) {
+                XFREE(point, key->heap, DYNAMIC_TYPE_ECC_BUFFER);
                 ret = MEMORY_E;
+            }
         }
         if (ret == 0) {
             XMEMCPY((char*)curve->Gx, point + 2, curve->size * 2);
