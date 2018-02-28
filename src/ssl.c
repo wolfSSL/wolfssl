@@ -31988,7 +31988,7 @@ void wolfSSL_OPENSSL_config(char *config_name)
 #endif
 #endif
 
-#ifdef WOLFSSL_NGINX
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a, void *b, void *c)
 {
     static int x509_idx = 0;
