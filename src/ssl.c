@@ -4904,18 +4904,18 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     #ifdef WOLFSSL_SMALL_STACK
         char* password = NULL;
     #else
-        char  password[80];
+        char  password[NAME_SZ];
     #endif
 
         if (!info || !info->ctx || !info->ctx->passwd_cb)
             return WOLFSSL_BAD_FILE;  /* no callback error */
 
     #ifdef WOLFSSL_SMALL_STACK
-        password = (char*)XMALLOC(80, heap, DYNAMIC_TYPE_STRING);
+        password = (char*)XMALLOC(NAME_SZ, heap, DYNAMIC_TYPE_STRING);
         if (password == NULL)
             return MEMORY_E;
     #endif
-        passwordSz = info->ctx->passwd_cb(password, sizeof(password), 0,
+        passwordSz = info->ctx->passwd_cb(password, NAME_SZ, 0,
                                           info->ctx->userdata);
         /* convert and adjust length */
         if (header == BEGIN_ENC_PRIV_KEY) {
@@ -5180,11 +5180,11 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 #ifdef WOLFSSL_SMALL_STACK
         char* password = NULL;
 #else
-        char  password[80];
+        char  password[NAME_SZ];
 #endif
 
     #ifdef WOLFSSL_SMALL_STACK
-        password = (char*)XMALLOC(80, heap, DYNAMIC_TYPE_STRING);
+        password = (char*)XMALLOC(NAME_SZ, heap, DYNAMIC_TYPE_STRING);
         if (password == NULL)
             ret = MEMORY_E;
         else
@@ -5193,7 +5193,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             ret = NO_PASSWORD;
         }
         else {
-            passwordSz = ctx->passwd_cb(password, sizeof(password),
+            passwordSz = ctx->passwd_cb(password, NAME_SZ,
                                         0, ctx->userdata);
 
             /* decrypt the key */
