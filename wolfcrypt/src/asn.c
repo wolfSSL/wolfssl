@@ -3482,6 +3482,9 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
             return ASN_PARSE_E;
 
         /* Option NULL ASN.1 tag */
+        if (*inOutIdx  >= inSz) {
+            return BUFFER_E;
+        }
         if (input[*inOutIdx] == ASN_TAG_NULL) {
             ret = GetASNNull(input, inOutIdx, inSz);
             if (ret != 0)
