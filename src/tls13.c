@@ -3622,7 +3622,8 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
     if (TLSX_Find(ssl->extensions, TLSX_SUPPORTED_VERSIONS) == NULL) {
         if (!ssl->options.downgrade) {
-            WOLFSSL_MSG("Client trying to connect with lesser version");
+            WOLFSSL_MSG("Client trying to connect with lesser version than "
+                        "TLS v1.3");
             return VERSION_ERROR;
         }
         ssl->version.minor = pv.minor;

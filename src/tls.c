@@ -9008,7 +9008,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
             InitSSL_Method(method, MakeTLSv1_1());
     #endif
 #endif
-#ifndef NO_OLD_TLS
+#if !defined(NO_OLD_TLS) || defined(WOLFSSL_TLS13)
             method->downgrade = 1;
 #endif
         }
@@ -9132,7 +9132,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
             #error Must have SHA256, SHA384 or SHA512 enabled for TLS 1.2
     #endif
 #endif
-#ifndef NO_OLD_TLS
+#if !defined(NO_OLD_TLS) || defined(WOLFSSL_TLS13)
             method->downgrade = 1;
 #endif
             method->side      = WOLFSSL_SERVER_END;
