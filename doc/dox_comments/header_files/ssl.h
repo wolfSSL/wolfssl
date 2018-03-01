@@ -4464,7 +4464,17 @@ WOLFSSL_API long wolfSSL_CTX_set_tlsext_opaque_prf_input_callback_arg(
     
     \return val Returns the updated options mask value stored in ssl.
     
-    \param ssl WOLFSSL structure to set options mask.
+    \param s WOLFSSL structure to set options mask.
+    \param op This function sets the options mask in the ssl.
+    Some valid options are:
+    SSL_OP_ALL
+    SSL_OP_COOKIE_EXCHANGE
+    SSL_OP_NO_SSLv2
+    SSL_OP_NO_SSLv3
+    SSL_OP_NO_TLSv1
+    SSL_OP_NO_TLSv1_1
+    SSL_OP_NO_TLSv1_2
+    SSL_OP_NO_COMPRESSION
     
     _Example_
     \code
@@ -4479,7 +4489,7 @@ WOLFSSL_API long wolfSSL_CTX_set_tlsext_opaque_prf_input_callback_arg(
     \sa wolfSSL_free
     \sa wolfSSL_get_options
 */
-WOLFSSL_API unsigned long wolfSSL_set_options(WOLFSSL *s, unsigned long op);
+WOLFSSL_API long wolfSSL_set_options(WOLFSSL *s, long op);
 /*!
     \ingroup Setup
 
@@ -4501,7 +4511,7 @@ WOLFSSL_API unsigned long wolfSSL_set_options(WOLFSSL *s, unsigned long op);
     \sa wolfSSL_free
     \sa wolfSSL_set_options
 */
-WOLFSSL_API unsigned long wolfSSL_get_options(const WOLFSSL *s);
+WOLFSSL_API long wolfSSL_get_options(const WOLFSSL *s);
 /*!
     \ingroup Setup
 
@@ -5157,47 +5167,6 @@ WOLFSSL_API const char* wolfSSL_lib_version(void);
     \sa wolfSSL_lib_version
 */
 WOLFSSL_API unsigned int wolfSSL_lib_version_hex(void);
-/*!
-    \ingroup Debug
-
-    \brief If logging has been enabled at build time this function turns on 
-    logging at runtime.  To enable logging at build time use --enable-debug 
-    or define DEBUG_WOLFSSL.
-    
-    \return 0 upon success.
-    \return NOT_COMPILED_IN is the error that will be returned if logging 
-    isn’t enabled for this build.
-    
-    \param none No parameters.
-    
-    _Example_
-    \code
-    wolfSSL_Debugging_ON();
-    \endcode
-    
-    \sa wolfSSL_Debugging_OFF
-    \sa wolfSSL_SetLoggingCb
-*/
-WOLFSSL_API int  wolfSSL_Debugging_ON(void);
-/*!
-    \ingroup Debug
-
-    \brief This function turns off runtime logging messages.  If they’re 
-    already off, no action is taken.
-    
-    \return none No returns.
-    
-    \param none No parameters.
-    
-    _Example_
-    \code
-    wolfSSL_Debugging_OFF();
-    \endcode
-    
-    \sa wolfSSL_Debugging_ON
-    \sa wolfSSL_SetLoggingCb
-*/
-WOLFSSL_API void wolfSSL_Debugging_OFF(void);
 /*!
     \ingroup IO
 

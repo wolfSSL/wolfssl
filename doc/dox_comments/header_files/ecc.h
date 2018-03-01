@@ -474,7 +474,7 @@ int wc_ecc_init(ecc_key* key);
     
     \brief This function frees an ecc_key object after it has been used.
     
-    \return none No returns.
+    \return int integer returned indicating wolfSSL error or success status.
     
     \param key pointer to the ecc_key object to free
     
@@ -488,7 +488,7 @@ int wc_ecc_init(ecc_key* key);
     \sa wc_ecc_init
 */
 WOLFSSL_API
-void wc_ecc_free(ecc_key* key);
+int wc_ecc_free(ecc_key* key);
 /*!
     \ingroup ECC
     
@@ -745,7 +745,6 @@ int wc_ecc_point_is_at_infinity(ecc_point *p);
     
     \sa none
 */
-#ifndef WOLFSSL_ATECC508A
 WOLFSSL_API
 int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
                   mp_int* a, mp_int* modulus, int map);

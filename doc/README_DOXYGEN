@@ -24,7 +24,7 @@ texlive-pictures [installed,automatic]
 ---- Generating the Documentation ----
 
 If you are looking to just generate the html documentation and not interested in
-how to add your own just run one of the following comands from the main wolfssl
+how to add your own just run one of the following commands from the main wolfssl
 directory:
     
     make dox (this option will make both html and pdf documentation)
@@ -153,7 +153,7 @@ The general outline when documenting within the wolfssl library in doxygen shoul
 look like as follows: 
 
     /*!
-        \ingroup //if API should be in a seperate module
+        \ingroup //if API should be in a separate module
         
         \brief <description of API>
         
@@ -171,12 +171,10 @@ look like as follows:
         \sa <Function>
     */
 
-When adding new documentation be sure to keep the secions, \ingroup, \brief,
-\param, \return, Etc. seperated with at least 1 newline. This insures that when
-doxygen attempts to generate documentation the sections do not overlap eachother
-and produce errors (this is especialy important when the latex is being generated).
+When adding new documentation be sure to keep the sections, \ingroup, \brief,
+\param, \return, Etc. separated with at least 1 newline. This insures that when
+doxygen attempts to generate documentation the sections do not overlap each other
+and produce errors (this is especially important when the latex is being generated).
 Once finished creating new documentation it is highly recommended to generate new
 html and pdf to ensure no errors were introduced that prevent documentation 
 generation and that the documentation shows up correctly.
-
-

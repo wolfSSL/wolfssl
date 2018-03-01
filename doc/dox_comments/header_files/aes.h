@@ -153,7 +153,8 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     and decryption. User should differentiate between Aes structures 
     for encrypt/decrypt.
     
-    \return none
+    \return int integer values corresponding to wolfSSL error or success
+    status
     
     \param aes pointer to the AES object used to decrypt data
     \param out pointer to the output buffer in which to store the cipher 
@@ -183,7 +184,7 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     
     \sa wc_AesSetKey
 */
- WOLFSSL_API void wc_AesCtrEncrypt(Aes* aes, byte* out,
+ WOLFSSL_API int wc_AesCtrEncrypt(Aes* aes, byte* out,
                                    const byte* in, word32 sz);
 /*!
     \ingroup AES

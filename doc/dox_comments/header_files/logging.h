@@ -33,3 +33,44 @@
     \sa wolfSSL_Debugging_OFF
 */
 WOLFSSL_API int wolfSSL_SetLoggingCb(wolfSSL_Logging_cb log_function);
+/*!
+    \ingroup Debug
+
+    \brief If logging has been enabled at build time this function turns on 
+    logging at runtime.  To enable logging at build time use --enable-debug 
+    or define DEBUG_WOLFSSL.
+    
+    \return 0 upon success.
+    \return NOT_COMPILED_IN is the error that will be returned if logging 
+    isn’t enabled for this build.
+    
+    \param none No parameters.
+    
+    _Example_
+    \code
+    wolfSSL_Debugging_ON();
+    \endcode
+    
+    \sa wolfSSL_Debugging_OFF
+    \sa wolfSSL_SetLoggingCb
+*/
+WOLFSSL_API int  wolfSSL_Debugging_ON(void);
+/*!
+    \ingroup Debug
+
+    \brief This function turns off runtime logging messages.  If they’re 
+    already off, no action is taken.
+    
+    \return none No returns.
+    
+    \param none No parameters.
+    
+    _Example_
+    \code
+    wolfSSL_Debugging_OFF();
+    \endcode
+    
+    \sa wolfSSL_Debugging_ON
+    \sa wolfSSL_SetLoggingCb
+*/
+WOLFSSL_API void wolfSSL_Debugging_OFF(void);
