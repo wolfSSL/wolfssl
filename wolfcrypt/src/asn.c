@@ -4102,6 +4102,10 @@ static int GetName(DecodedCert* cert, int nameType)
         hash = cert->subjectHash;
     }
 
+    if (cert->srcIdx >= cert->maxIdx) {
+        return BUFFER_E;
+    }
+
     if (cert->source[cert->srcIdx] == ASN_OBJECT_ID) {
         WOLFSSL_MSG("Trying optional prefix...");
 
