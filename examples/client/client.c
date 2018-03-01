@@ -1358,6 +1358,15 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             done += 1;
         #endif
 
+        /* For the external test, if we disable AES, GoDaddy will reject the
+         * connection. They only currently support AES suites, RC4 and 3DES
+         * suites. With AES disabled we only offer PolyChacha suites. */
+        #if defined(NO_AES) && !defined(HAVE_AESGCM)
+            if (!XSTRNCMP(domain, "www.wolfssl.com", 15)) {
+                done += 1;
+            }
+        #endif
+
         if (done) {
             printf("external test can't be run in this mode");
 
