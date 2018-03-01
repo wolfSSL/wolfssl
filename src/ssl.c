@@ -4839,7 +4839,8 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                 return WOLFSSL_BAD_FILE;
 
             /* eat blank line */
-            while (*newline == '\r' || *newline == '\n')
+            while (newline < bufferEnd &&
+                    (*newline == '\r' || *newline == '\n'))
                 newline++;
             headerEnd = newline;
 
