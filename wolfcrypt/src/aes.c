@@ -3056,47 +3056,6 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #endif /* AES-CBC block */
 #endif /* HAVE_AES_CBC */
 
-#ifdef HAVE_AES_ECB
-#if defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES)
-    /* implemented in wolfcrypt/src/port/caam/caam_aes.c */
-#else
-
-/* software implementation */
-int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
-{
-    word32 blocks = sz / AES_BLOCK_SIZE;
-
-    if ((in == NULL) || (out == NULL) || (aes == NULL))
-      return BAD_FUNC_ARG;
-    while (blocks>0) {
-      wc_AesEncryptDirect(aes, out, in);
-      out += AES_BLOCK_SIZE;
-      in  += AES_BLOCK_SIZE;
-      sz  -= AES_BLOCK_SIZE;
-      blocks--;
-    }
-    return 0;
-}
-
-
-int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
-{
-    word32 blocks = sz / AES_BLOCK_SIZE;
-
-    if ((in == NULL) || (out == NULL) || (aes == NULL))
-      return BAD_FUNC_ARG;
-    while (blocks>0) {
-      wc_AesDecryptDirect(aes, out, in);
-      out += AES_BLOCK_SIZE;
-      in  += AES_BLOCK_SIZE;
-      sz  -= AES_BLOCK_SIZE;
-      blocks--;
-    }
-    return 0;
-}
-#endif
-#endif
-
 /* AES-CTR */
 #if defined(WOLFSSL_AES_COUNTER)
 
@@ -8399,6 +8358,47 @@ int wc_AesGetKeySize(Aes* aes, word32* keySize)
 
 #endif /* !WOLFSSL_ARMASM */
 #endif /* !WOLFSSL_TI_CRYPT */
+
+#ifdef HAVE_AES_ECB
+#if defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES)
+    /* implemented in wolfcrypt/src/port/caam/caam_aes.c */
+#else
+
+/* software implementation */
+int wc_AesEcbEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    word32 blocks = sz / AES_BLOCK_SIZE;
+
+    if ((in == NULL) || (out == NULL) || (aes == NULL))
+      return BAD_FUNC_ARG;
+    while (blocks>0) {
+      wc_AesEncryptDirect(aes, out, in);
+      out += AES_BLOCK_SIZE;
+      in  += AES_BLOCK_SIZE;
+      sz  -= AES_BLOCK_SIZE;
+      blocks--;
+    }
+    return 0;
+}
+
+
+int wc_AesEcbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
+{
+    word32 blocks = sz / AES_BLOCK_SIZE;
+
+    if ((in == NULL) || (out == NULL) || (aes == NULL))
+      return BAD_FUNC_ARG;
+    while (blocks>0) {
+      wc_AesDecryptDirect(aes, out, in);
+      out += AES_BLOCK_SIZE;
+      in  += AES_BLOCK_SIZE;
+      sz  -= AES_BLOCK_SIZE;
+      blocks--;
+    }
+    return 0;
+}
+#endif
+#endif /* HAVE_AES_ECB */
 
 #ifdef WOLFSSL_AES_CFB
 /* CFB 128
