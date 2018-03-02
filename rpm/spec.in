@@ -69,11 +69,12 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_docdir}/wolfssl/example/sctp-server.c
 %{_docdir}/wolfssl/example/sctp-client-dtls.c
 %{_docdir}/wolfssl/example/sctp-server-dtls.c
+%{_docdir}/wolfssl/example/tls_bench.c
 %{_docdir}/wolfssl/README.txt
 %{_libdir}/libwolfssl.la
 %{_libdir}/libwolfssl.so
-%{_libdir}/libwolfssl.so.15
-%{_libdir}/libwolfssl.so.15.0.0
+%{_libdir}/libwolfssl.so.16
+%{_libdir}/libwolfssl.so.16.0.0
 
 %files devel
 %defattr(-,root,root,-)
@@ -196,6 +197,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/ed25519.h
 %{_includedir}/wolfssl/wolfcrypt/error-crypt.h
 %{_includedir}/wolfssl/wolfcrypt/fe_operations.h
+%{_includedir}/wolfssl/wolfcrypt/fips.h
 %{_includedir}/wolfssl/wolfcrypt/fips_test.h
 %{_includedir}/wolfssl/wolfcrypt/ge_operations.h
 %{_includedir}/wolfssl/wolfcrypt/hash.h
@@ -221,7 +223,6 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/random.h
 %{_includedir}/wolfssl/wolfcrypt/ripemd.h
 %{_includedir}/wolfssl/wolfcrypt/rsa.h
-%{_includedir}/wolfssl/wolfcrypt/selftest.h
 %{_includedir}/wolfssl/wolfcrypt/settings.h
 %{_includedir}/wolfssl/wolfcrypt/signature.h
 %{_includedir}/wolfssl/wolfcrypt/sha.h
@@ -241,6 +242,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/openssl/asn1.h
 %{_includedir}/wolfssl/openssl/bio.h
 %{_includedir}/wolfssl/openssl/bn.h
+%{_includedir}/wolfssl/openssl/buffer.h
 %{_includedir}/wolfssl/openssl/conf.h
 %{_includedir}/wolfssl/openssl/crypto.h
 %{_includedir}/wolfssl/openssl/des.h
@@ -259,12 +261,14 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/openssl/md4.h
 %{_includedir}/wolfssl/openssl/md5.h
 %{_includedir}/wolfssl/openssl/ocsp.h
+%{_includedir}/wolfssl/openssl/objects.h
 %{_includedir}/wolfssl/openssl/opensslconf.h
 %{_includedir}/wolfssl/openssl/opensslv.h
 %{_includedir}/wolfssl/openssl/ossl_typ.h
 %{_includedir}/wolfssl/openssl/pem.h
 %{_includedir}/wolfssl/openssl/pkcs12.h
 %{_includedir}/wolfssl/openssl/rand.h
+%{_includedir}/wolfssl/openssl/rc4.h
 %{_includedir}/wolfssl/openssl/ripemd.h
 %{_includedir}/wolfssl/openssl/rsa.h
 %{_includedir}/wolfssl/openssl/sha.h
@@ -283,6 +287,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Fri Mar 02 2018 Jacob Barthelmeh <jacob@wolfssl.com>
+- Added headder files fips.h, buffer.h, objects.h, rc4.h and example tls_bench.c
 * Fri Sep 08 2017 Jacob Barthelmeh <jacob@wolfssl.com>
 - Change name for header wolfssl/io.h to wolfssl/wolfio.h
 * Fri Aug 04 2017 Jacob Barthelmeh <jacob@wolfssl.com>
