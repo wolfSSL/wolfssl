@@ -1314,8 +1314,9 @@ int wolfSSL_dtls_import_internal(WOLFSSL* ssl, byte* buf, word32 sz)
         return MATCH_SUITE_ERROR;
     }
 
-    /* do not allow stream ciphers with DTLS */
-    if (ssl->specs.cipher_type == stream) {
+    /* do not allow stream ciphers with DTLS, except for NULL cipher */
+    if (ssl->specs.cipher_type == stream &&
+        ssl->specs.bulk_cipher_algorithm != wolfssl_cipher_null) {
         WOLFSSL_MSG("Can not import stream ciphers for DTLS");
         return SANITY_CIPHER_E;
     }
