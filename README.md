@@ -66,6 +66,49 @@ wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 before calling wolfSSL_new();  Though it's not recommended.
 ```
 
+# wolfSSL Release 3.14.0 (3/02/2018)
+
+Release 3.14.0 of wolfSSL embedded TLS has bug fixes and new features including:
+
+* TLS 1.3 draft 22 and 23 support added
+* Additional unit tests for; SHA3, AES-CMAC, Ed25519, ECC, RSA-PSS, AES-GCM
+* Many additions to the OpenSSL compatibility layer were made in this release. Some of these being enhancements to PKCS12, WOLFSSL_X509 use, WOLFSSL_EVP_PKEY, and WOLFSSL_BIO operations
+* AVX1 and AVX2 performance improvements with ChaCha20 and Poly1305
+* Added i.MX CAAM driver support with Integrity OS support
+* Improvements to logging with debugging, including exposing more API calls and adding options to reduce debugging code size
+* Fix for signature type detection with PKCS7 RSA SignedData
+* Public key call back functions added for DH Agree
+* RSA-PSS API added for operating on non inline buffers (separate input and output buffers)
+* API added for importing and exporting raw DSA parameters
+* Updated DSA key generation to be FIPS 186-4 compliant
+* Fix for wolfSSL_check_private_key when comparing ECC keys
+* Support for AES Cipher Feedback(CFB) mode added
+* Updated RSA key generation to be FIPS 186-4 compliant
+* Update added for the ARM CMSIS software pack
+* WOLFSSL_IGNORE_FILE_WARN macro added for avoiding build warnings when not working with autotools
+* Performance improvements for AES-GCM with AVX1 and AVX2
+* Fix for possible memory leak on error case with wc_RsaKeyToDer function
+* Make wc_PKCS7_PadData function available
+* Updates made to building SGX on Linux
+* STM32 hashing algorithm improvements including clock/power optimizations and auto detection of if SHA2 is supported
+* Update static memory feature for FREERTOS use
+* Reverse the order that certificates are compared during PKCS12 parse to account for case where multiple certificates have the same matching private key
+* Update NGINX port to version 1.13.8
+* Support for HMAC-SHA3 added
+* Added stricter ASN checks to enforce RFC 5280 rules. Thanks to the report from Professor Zhenhua Duan, Professor Cong Tian, and Ph.D candidate Chu Chen from Institute of Computing Theory and Technology (ICTT) of Xidian University.
+* Option to have ecc_mul2add function public facing
+* Getter function wc_PKCS7_GetAttributeValue added for PKCS7 attributes
+* Macros NO_AES_128, NO_AES_192, NO_AES_256 added for AES key size selection at compile time
+* Support for writing multiple organizations units (OU) and domain components (DC) with CSR and certificate creation
+* Support for indefinite length BER encodings in PKCS7
+* Added API for additional validation of prime q in a public DH key
+* Added support for RSA encrypt and decrypt without padding
+
+
+See INSTALL file for build instructions.
+More info can be found on-line at http://wolfssl.com/wolfSSL/Docs.html
+
+
 # wolfSSL (Formerly CyaSSL) Release 3.13.0 (12/21/2017)
 
 wolfSSL 3.13.0 includes bug fixes and new features, including support for
