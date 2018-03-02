@@ -35,8 +35,8 @@
     #define FIPS_NO_WRAPPERS
 
     #ifdef USE_WINDOWS_API
-        #pragma code_seg(".fipsA$d")
-        #pragma const_seg(".fipsB$d")
+        #pragma code_seg(".fipsA$l")
+        #pragma const_seg(".fipsB$l")
     #endif
 #endif
 

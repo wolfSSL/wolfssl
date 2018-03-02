@@ -98,8 +98,8 @@ ECC Curve Sizes:
     #define FIPS_NO_WRAPPERS
 
 	#ifdef USE_WINDOWS_API
-		#pragma code_seg(".fipsA$e2")
-		#pragma const_seg(".fipsB$e2")
+		#pragma code_seg(".fipsA$f")
+		#pragma const_seg(".fipsB$f")
 	#endif
 #endif
 
