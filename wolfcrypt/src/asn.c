@@ -2014,7 +2014,7 @@ WOLFSSL_LOCAL int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,
         return ASN_OBJECT_ID_E;
 
     /* could have NULL tag and 0 terminator, but may not */
-    if (input[idx] == ASN_TAG_NULL) {
+    if (idx < maxIdx && input[idx] == ASN_TAG_NULL) {
         ret = GetASNNull(input, &idx, maxIdx);
         if (ret != 0)
             return ret;
@@ -3482,6 +3482,9 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
             return ASN_PARSE_E;
 
         /* Option NULL ASN.1 tag */
+        if (*inOutIdx  >= inSz) {
+            return BUFFER_E;
+        }
         if (input[*inOutIdx] == ASN_TAG_NULL) {
             ret = GetASNNull(input, inOutIdx, inSz);
             if (ret != 0)
@@ -4097,6 +4100,10 @@ static int GetName(DecodedCert* cert, int nameType)
     else {
         full = cert->subject;
         hash = cert->subjectHash;
+    }
+
+    if (cert->srcIdx >= cert->maxIdx) {
+        return BUFFER_E;
     }
 
     if (cert->source[cert->srcIdx] == ASN_OBJECT_ID) {

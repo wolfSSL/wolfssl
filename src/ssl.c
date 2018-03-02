@@ -4839,7 +4839,8 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                 return WOLFSSL_BAD_FILE;
 
             /* eat blank line */
-            while (*newline == '\r' || *newline == '\n')
+            while (newline < bufferEnd &&
+                    (*newline == '\r' || *newline == '\n'))
                 newline++;
             headerEnd = newline;
 
@@ -4904,18 +4905,18 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     #ifdef WOLFSSL_SMALL_STACK
         char* password = NULL;
     #else
-        char  password[80];
+        char  password[NAME_SZ];
     #endif
 
         if (!info || !info->ctx || !info->ctx->passwd_cb)
             return WOLFSSL_BAD_FILE;  /* no callback error */
 
     #ifdef WOLFSSL_SMALL_STACK
-        password = (char*)XMALLOC(80, heap, DYNAMIC_TYPE_STRING);
+        password = (char*)XMALLOC(NAME_SZ, heap, DYNAMIC_TYPE_STRING);
         if (password == NULL)
             return MEMORY_E;
     #endif
-        passwordSz = info->ctx->passwd_cb(password, sizeof(password), 0,
+        passwordSz = info->ctx->passwd_cb(password, NAME_SZ, 0,
                                           info->ctx->userdata);
         /* convert and adjust length */
         if (header == BEGIN_ENC_PRIV_KEY) {
@@ -5180,11 +5181,11 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 #ifdef WOLFSSL_SMALL_STACK
         char* password = NULL;
 #else
-        char  password[80];
+        char  password[NAME_SZ];
 #endif
 
     #ifdef WOLFSSL_SMALL_STACK
-        password = (char*)XMALLOC(80, heap, DYNAMIC_TYPE_STRING);
+        password = (char*)XMALLOC(NAME_SZ, heap, DYNAMIC_TYPE_STRING);
         if (password == NULL)
             ret = MEMORY_E;
         else
@@ -5193,7 +5194,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             ret = NO_PASSWORD;
         }
         else {
-            passwordSz = ctx->passwd_cb(password, sizeof(password),
+            passwordSz = ctx->passwd_cb(password, NAME_SZ,
                                         0, ctx->userdata);
 
             /* decrypt the key */
@@ -31988,7 +31989,7 @@ void wolfSSL_OPENSSL_config(char *config_name)
 #endif
 #endif
 
-#ifdef WOLFSSL_NGINX
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a, void *b, void *c)
 {
     static int x509_idx = 0;

@@ -823,7 +823,9 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define ERR_LIB_PEM             9
 #define ERR_LIB_X509            10
 
-#ifdef WOLFSSL_NGINX
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
+    defined(WOLFSSL_MYSQL_COMPATIBLE)
+
 #include <wolfssl/error-ssl.h>
 
 #define OPENSSL_STRING    WOLFSSL_STRING
