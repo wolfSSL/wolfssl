@@ -4,7 +4,7 @@ TMP="/tmp/`basename $0`"
 
 gen_cert() {
     openssl req -x509 -keyform DER -key certs/server-key.der \
-                      -outform DER -out $OUT -config $CONFIG \
+      -days 1000 -new -outform DER -out $OUT -config $CONFIG \
         >$TMP 2>&1
 
     if [ "$?" = "0" -a -f $OUT ]; then
