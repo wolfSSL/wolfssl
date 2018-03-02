@@ -18268,12 +18268,14 @@ WC_PKCS12* wolfSSL_PKCS12_create(char* pass, char* name,
 
             curDer = (byte*)wolfSSL_X509_get_der(sk->data.x509, &curDerSz);
             if (certDer == NULL || curDerSz < 0) {
+                XFREE(cur, NULL, DYNAMIC_TYPE_PKCS);
                 wc_FreeCertList(list, NULL);
                 return NULL;
             }
 
             cur->buffer = (byte*)XMALLOC(curDerSz, NULL, DYNAMIC_TYPE_PKCS);
             if (cur->buffer == NULL) {
+                XFREE(cur, NULL, DYNAMIC_TYPE_PKCS);
                 wc_FreeCertList(list, NULL);
                 return NULL;
             }
