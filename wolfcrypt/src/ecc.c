@@ -3588,11 +3588,14 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
                    return BAD_COND_E;
                 }
             #elif defined(PLUTON_CRYPTO_ECC)
-                /* perform ECC sign */
-                err = Crypto_EccSign(in, inlen, out, outlen);
-                if (err != CRYPTO_RES_SUCCESS ||
-                                        *outlen != ECC_MAX_CRYPTO_HW_SIZE*2) {
-                   return BAD_COND_E;
+                {
+                    /* perform ECC sign */
+                    word32 raw_sig_size = *outlen;
+                    err = Crypto_EccSign(in, inlen, out, &raw_sig_size);
+                    if (err != CRYPTO_RES_SUCCESS ||
+                                    raw_sig_size != ECC_MAX_CRYPTO_HW_SIZE*2) {
+                       return BAD_COND_E;
+                    }
                 }
             #endif
 
