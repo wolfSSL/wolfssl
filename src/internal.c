@@ -20081,12 +20081,8 @@ exit_scke:
 int DecodePrivateKey(WOLFSSL *ssl, word16* length)
 {
     int      ret = BAD_FUNC_ARG;
-#if !defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519)
     int      keySz;
     word32   idx;
-#else
-    (void)length;
-#endif
 
     /* make sure private key exists */
     if (ssl->buffers.key == NULL || ssl->buffers.key->buffer == NULL) {
@@ -20197,7 +20193,6 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         WOLFSSL_MSG("Using ED25519 private key");
 
         /* Check it meets the minimum ECC key size requirements. */
-        (void)keySz;
         if (ED25519_KEY_SIZE < ssl->options.minEccKeySz) {
             WOLFSSL_MSG("ED25519 key size too small");
             ERROR_OUT(ECC_KEY_SIZE_E, exit_dpk);
@@ -20212,6 +20207,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
 
     (void)idx;
     (void)keySz;
+    (void)length;
 exit_dpk:
     return ret;
 }
@@ -24165,6 +24161,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #endif
 
         (void)size;
+        (void)input;
 
         WOLFSSL_ENTER("DoClientKeyExchange");
 

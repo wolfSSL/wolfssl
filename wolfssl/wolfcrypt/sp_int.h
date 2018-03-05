@@ -26,19 +26,33 @@
 #include <stdint.h>
 #include <limits.h>
 
-#if defined(NO_64BIT) || !defined(HAVE___UINT128_T)
-#define SP_WORD_SIZE 32
-#else
-#define SP_WORD_SIZE 64
+#ifdef WOLFSSL_SP_X86_64_ASM
+    #define SP_WORD_SIZE 64
+
+    #define HAVE_INTEL_AVX1
+    #define HAVE_INTEL_AVX2
+#elif defined(WOLFSSL_SP_ARM64_ASM)
+    #define SP_WORD_SIZE 64
+#elif defined(WOLFSSL_SP_ARM32_ASM)
+    #define SP_WORD_SIZE 32
 #endif
 
-#if !defined(WOLFSSL_X86_64_BUILD) || !defined(USE_INTEL_SPEEDUP)
+#ifndef SP_WORD_SIZE
+    #if defined(NO_64BIT) || !defined(HAVE___UINT128_T)
+        #define SP_WORD_SIZE 32
+    #else
+        #define SP_WORD_SIZE 64
+    #endif
+#endif
+
+#ifndef WOLFSSL_SP_ASM
   #if SP_WORD_SIZE == 32
     typedef int32_t sp_digit;
     typedef uint32_t sp_int_digit;
   #elif SP_WORD_SIZE == 64
     typedef int64_t sp_digit;
     typedef uint64_t sp_int_digit;
+    typedef unsigned long uint128_t __attribute__ ((mode(TI)));
     typedef long int128_t __attribute__ ((mode(TI)));
   #else
     #error Word size not defined
