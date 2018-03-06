@@ -24,6 +24,13 @@ echo "Please install make"
 exit 1
 fi
 
+./check_api.sh
+
+if [ $? = 1 ]; then
+echo "Not all API match"
+exit 1
+fi
+
 if [ ! -e "build/bin/doxygen" ]; then
 mkdir -p build
 cd build

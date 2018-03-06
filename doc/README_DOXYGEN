@@ -5,21 +5,19 @@ wolfSSL with Doxygen 1.8.13
 cmake
 make
 git
-latex (With pdflatex included. However the pdflatex dependency can be removed by 
+latex-see below (With pdflatex included. However the pdflatex dependency can be removed by 
 setting USE_PDFLATEX to NO in the file "Doxyfile" located at 
 doc/formats/pdf/Doxyfile )
 
-The following texlive packages were used when creating this 
-documentation:
-texlive [installed]
-texlive-base [installed,automatic]
-texlive-binaries [installed]
-texlive-font-utils [installed]
-texlive-fonts-recommended [installed,automatic]
-texlive-latex-base [installed,automatic]
-texlive-latex-extra [installed]
-texlive-latex-recommended [installed]
-texlive-pictures [installed,automatic]
+The following texlive packages were installed when creating this 
+documentation on Linux Mint:
+sudo apt install texlive
+sudo apt install texlive-latex-extra
+
+For Mac users Basic Tex from TUG is recommended. After installing BasicTex
+additional dependencies will need to be met:
+% sudo tlmgr update --self
+% sudo tlmgr install tabu varwidth multirow adjustbox collectbox sectsty tocloft collection-fontsextra
 
 ---- Generating the Documentation ----
 
