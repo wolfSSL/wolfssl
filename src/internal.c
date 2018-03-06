@@ -16527,7 +16527,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
                     haveAnon = 1;
                 else
             #endif
-                if ((haveRSAsig == 0)
+                if (haveRSAsig == 0
                     #ifndef NO_PSK
                         && (XSTRSTR(name, "PSK") == NULL)
                     #endif
