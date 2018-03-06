@@ -297,6 +297,7 @@ struct WOLFSSL_X509_STORE {
 #ifdef OPENSSL_EXTRA
 #define WOLFSSL_USE_CHECK_TIME 0x2
 #define WOLFSSL_NO_CHECK_TIME  0x200000
+#define WOLFSSL_NO_WILDCARDS   0x4
 struct WOLFSSL_X509_VERIFY_PARAM {
     time_t  check_time;
     unsigned long flags;
