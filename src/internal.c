@@ -15965,12 +15965,15 @@ const char* GetCipherNameInternal(const char* cipherName, int cipherSuite)
 
             /* if first is null then not any */
             if (first == NULL) {
+            #if defined(HAVE_AESCCM) || defined(HAVE_CHACHA) || \
+                defined(HAVE_ECC)
                 if (    !XSTRSTR(nameFound, "CHACHA") &&
                         !XSTRSTR(nameFound, "EC") &&
                         !XSTRSTR(nameFound, "CCM")) {
                     result = nameFound;
                     break;
                 }
+            #endif
             }
             else if (XSTRSTR(nameFound, first)) {
                 result = nameFound;
@@ -16486,26 +16489,51 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
                     return 0; /* suites buffer not large enough, error out */
                 }
 
-                suites->suites[idx++] = (XSTRSTR(name, "TLS13"))  ? TLS13_BYTE
-                                      : (XSTRSTR(name, "CHACHA")) ? CHACHA_BYTE
-                                      : (XSTRSTR(name, "QSH"))    ? QSH_BYTE
-                                      : (XSTRSTR(name, "EC"))     ? ECC_BYTE
-                                      : (XSTRSTR(name, "CCM"))    ? ECC_BYTE
-                                      : 0x00; /* normal */
-                suites->suites[idx++] = (byte)cipher_name_idx[i];
+                suites->suites[idx++] =
+            #ifdef WOLFSSL_TLS13
+                    (XSTRSTR(name, "TLS13"))  ? TLS13_BYTE :
+            #endif
+            #ifdef HAVE_CHACHA
+                    (XSTRSTR(name, "CHACHA")) ? CHACHA_BYTE :
+            #endif
+            #ifdef HAVE_QSH
+                    (XSTRSTR(name, "QSH"))    ? QSH_BYTE :
+            #endif
+            #ifdef HAVE_ECC
+                    (XSTRSTR(name, "EC"))     ? ECC_BYTE :
+            #endif
+            #ifdef HAVE_AESCCM
+                    (XSTRSTR(name, "CCM"))    ? ECC_BYTE :
+            #endif
+                    0x00; /* normal */
 
+                suites->suites[idx++] = (byte)cipher_name_idx[i];
                 /* The suites are either ECDSA, RSA, PSK, or Anon. The RSA
                  * suites don't necessarily have RSA in the name. */
+            #ifdef WOLFSSL_TLS13
                 if (XSTRSTR(name, "TLS13")) {
                     haveRSAsig = 1;
                     haveECDSAsig = 1;
                 }
-                else if ((haveECDSAsig == 0) && XSTRSTR(name, "ECDSA"))
+                else
+            #endif
+            #ifdef HAVE_ECC
+                if ((haveECDSAsig == 0) && XSTRSTR(name, "ECDSA"))
                     haveECDSAsig = 1;
-                else if (XSTRSTR(name, "ADH"))
+                else
+            #endif
+            #ifdef HAVE_ANON
+                if (XSTRSTR(name, "ADH"))
                     haveAnon = 1;
-                else if ((haveRSAsig == 0) && (XSTRSTR(name, "PSK") == NULL))
+                else
+            #endif
+                if ((haveRSAsig == 0)
+                    #ifndef NO_PSK
+                        && (XSTRSTR(name, "PSK") == NULL)
+                    #endif
+                   ) {
                     haveRSAsig = 1;
+                }
 
                 ret = 1; /* found at least one */
                 break;

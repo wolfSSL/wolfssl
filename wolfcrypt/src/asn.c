@@ -4460,7 +4460,7 @@ static int GetName(DecodedCert* cert, int nameType)
 
             if (dName->cnLen != 0) {
                 dName->entryCount++;
-                XMEMCPY(&dName->fullName[idx], "/CN=", 4);
+                XMEMCPY(&dName->fullName[idx], WOLFSSL_COMMON_NAME, 4);
                 idx += 4;
                 XMEMCPY(&dName->fullName[idx],
                                      &cert->source[dName->cnIdx], dName->cnLen);
@@ -4469,7 +4469,7 @@ static int GetName(DecodedCert* cert, int nameType)
             }
             if (dName->snLen != 0) {
                 dName->entryCount++;
-                XMEMCPY(&dName->fullName[idx], "/SN=", 4);
+                XMEMCPY(&dName->fullName[idx], WOLFSSL_SUR_NAME, 4);
                 idx += 4;
                 XMEMCPY(&dName->fullName[idx],
                                      &cert->source[dName->snIdx], dName->snLen);
@@ -4478,7 +4478,7 @@ static int GetName(DecodedCert* cert, int nameType)
             }
             if (dName->cLen != 0) {
                 dName->entryCount++;
-                XMEMCPY(&dName->fullName[idx], "/C=", 3);
+                XMEMCPY(&dName->fullName[idx], WOLFSSL_COUNTRY_NAME, 3);
                 idx += 3;
                 XMEMCPY(&dName->fullName[idx],
                                        &cert->source[dName->cIdx], dName->cLen);
@@ -4487,7 +4487,7 @@ static int GetName(DecodedCert* cert, int nameType)
             }
             if (dName->lLen != 0) {
                 dName->entryCount++;
-                XMEMCPY(&dName->fullName[idx], "/L=", 3);
+                XMEMCPY(&dName->fullName[idx], WOLFSSL_LOCALITY_NAME, 3);
                 idx += 3;
                 XMEMCPY(&dName->fullName[idx],
                                        &cert->source[dName->lIdx], dName->lLen);
@@ -4496,7 +4496,7 @@ static int GetName(DecodedCert* cert, int nameType)
             }
             if (dName->stLen != 0) {
                 dName->entryCount++;
-                XMEMCPY(&dName->fullName[idx], "/ST=", 4);
+                XMEMCPY(&dName->fullName[idx], WOLFSSL_STATE_NAME, 4);
                 idx += 4;
                 XMEMCPY(&dName->fullName[idx],
                                      &cert->source[dName->stIdx], dName->stLen);
@@ -4505,7 +4505,7 @@ static int GetName(DecodedCert* cert, int nameType)
             }
             if (dName->oLen != 0) {
                 dName->entryCount++;
-                XMEMCPY(&dName->fullName[idx], "/O=", 3);
+                XMEMCPY(&dName->fullName[idx], WOLFSSL_ORG_NAME, 3);
                 idx += 3;
                 XMEMCPY(&dName->fullName[idx],
                                        &cert->source[dName->oIdx], dName->oLen);
@@ -4514,7 +4514,7 @@ static int GetName(DecodedCert* cert, int nameType)
             }
             if (dName->ouLen != 0) {
                 dName->entryCount++;
-                XMEMCPY(&dName->fullName[idx], "/OU=", 4);
+                XMEMCPY(&dName->fullName[idx], WOLFSSL_ORGUNIT_NAME, 4);
                 idx += 4;
                 XMEMCPY(&dName->fullName[idx],
                                      &cert->source[dName->ouIdx], dName->ouLen);
@@ -4533,7 +4533,7 @@ static int GetName(DecodedCert* cert, int nameType)
             for (i = 0;i < dName->dcNum;i++){
                 if (dName->dcLen[i] != 0) {
                     dName->entryCount++;
-                    XMEMCPY(&dName->fullName[idx], "/DC=", 4);
+                    XMEMCPY(&dName->fullName[idx], WOLFSSL_DOMAIN_COMPONENT, 4);
                     idx += 4;
                     XMEMCPY(&dName->fullName[idx],
                                     &cert->source[dName->dcIdx[i]], dName->dcLen[i]);
@@ -4552,7 +4552,7 @@ static int GetName(DecodedCert* cert, int nameType)
             }
             if (dName->serialLen != 0) {
                 dName->entryCount++;
-                XMEMCPY(&dName->fullName[idx], "/serialNumber=", 14);
+                XMEMCPY(&dName->fullName[idx], WOLFSSL_SERIAL_NUMBER, 14);
                 idx += 14;
                 XMEMCPY(&dName->fullName[idx],
                              &cert->source[dName->serialIdx], dName->serialLen);
@@ -7293,8 +7293,10 @@ const char* const END_ENC_PRIV_KEY     = "-----END ENCRYPTED PRIVATE KEY-----";
     const char* const BEGIN_EC_PRIV    = "-----BEGIN EC PRIVATE KEY-----";
     const char* const END_EC_PRIV      = "-----END EC PRIVATE KEY-----";
 #endif
-const char* const BEGIN_DSA_PRIV       = "-----BEGIN DSA PRIVATE KEY-----";
-const char* const END_DSA_PRIV         = "-----END DSA PRIVATE KEY-----";
+#if defined(HAVE_ECC) || defined(HAVE_ED25519) || !defined(NO_DSA)
+    const char* const BEGIN_DSA_PRIV   = "-----BEGIN DSA PRIVATE KEY-----";
+    const char* const END_DSA_PRIV     = "-----END DSA PRIVATE KEY-----";
+#endif
 const char* const BEGIN_PUB_KEY        = "-----BEGIN PUBLIC KEY-----";
 const char* const END_PUB_KEY          = "-----END PUBLIC KEY-----";
 #ifdef HAVE_ED25519
