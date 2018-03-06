@@ -8023,8 +8023,8 @@ int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
     int ret = 0;
 
     if (aes == NULL || out == NULL || (in == NULL && sz != 0) ||
-        iv == NULL || ivSz != NONCE_SZ || (authIn == NULL && authInSz != 0) ||
-        rng == NULL) {
+        iv == NULL || ivSz == 0 || (authIn == NULL && authInSz != 0) ||
+		rng == NULL) {
 
         ret = BAD_FUNC_ARG;
     }
