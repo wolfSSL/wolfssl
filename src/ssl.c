@@ -4690,8 +4690,10 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         case CERTREQ_TYPE:   header=BEGIN_CERT_REQ;   footer=END_CERT_REQ;
                              break;
 #endif
+#ifndef NO_DSA
         case DSA_TYPE:       header=BEGIN_DSA_PRIV;   footer=END_DSA_PRIV;
                              break;
+#endif
 #ifdef HAVE_ECC
         case ECC_TYPE:       header=BEGIN_EC_PRIV;    footer=END_EC_PRIV;
                              break;
@@ -4801,6 +4803,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             }
         #endif
 
+            (void)lineSz;
             if (start == NULL) return WOLFSSL_BAD_FILE;
             if (info == NULL)  return WOLFSSL_BAD_FILE;
 
