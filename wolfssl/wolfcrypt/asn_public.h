@@ -115,6 +115,34 @@ enum Ctc_Misc {
 
 #ifdef WOLFSSL_CERT_GEN
 
+#ifdef WOLFSSL_EKU_OID
+    #ifndef CTC_MAX_EKU_NB
+        #define CTC_MAX_EKU_NB 1
+    #endif
+    #ifndef CTC_MAX_EKU_OID_SZ
+        #define CTC_MAX_EKU_OID_SZ 30
+    #endif
+#else
+    #undef CTC_MAX_EKU_OID_SZ
+    #define CTC_MAX_EKU_OID_SZ 0
+#endif
+
+
+#ifdef WOLFSSL_MULTI_ATTRIB
+#ifndef CTC_MAX_ATTRIB
+    #define CTC_MAX_ATTRIB 4
+#endif
+
+/* ASN Encoded Name field */
+typedef struct NameAttrib {
+    int  sz;                     /* actual string value length */
+    int  id;                     /* id of name */
+    int  type;                   /* enc of name */
+    char value[CTC_NAME_SIZE];   /* name */
+} NameAttrib;
+#endif /* WOLFSSL_MULTI_ATTRIB */
+
+
 typedef struct CertName {
     char country[CTC_NAME_SIZE];
     char countryEnc;
@@ -131,6 +159,9 @@ typedef struct CertName {
     char commonName[CTC_NAME_SIZE];
     char commonNameEnc;
     char email[CTC_NAME_SIZE];  /* !!!! email has to be last !!!! */
+#ifdef WOLFSSL_MULTI_ATTRIB
+    NameAttrib name[CTC_MAX_ATTRIB];
+#endif
 } CertName;
 
 
@@ -163,6 +194,11 @@ typedef struct Cert {
     int     akidSz;                      /* AKID size in bytes */
     word16  keyUsage;                    /* Key Usage */
     byte    extKeyUsage;                 /* Extended Key Usage */
+#ifdef WOLFSSL_EKU_OID
+    /* Extended Key Usage OIDs */
+    byte    extKeyUsageOID[CTC_MAX_EKU_NB][CTC_MAX_EKU_OID_SZ];
+    byte    extKeyUsageOIDSz[CTC_MAX_EKU_NB];
+#endif
     char    certPolicies[CTC_MAX_CERTPOL_NB][CTC_MAX_CERTPOL_SZ];
     word16  certPoliciesNb;              /* Number of Cert Policy */
 #endif
@@ -245,6 +281,14 @@ WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
  */
 WOLFSSL_API int wc_SetExtKeyUsage(Cert *cert, const char *value);
 
+
+#ifdef WOLFSSL_EKU_OID
+/* Set ExtendedKeyUsage with unique OID
+ * oid is expected to be in byte representation
+ */
+WOLFSSL_API int wc_SetExtKeyUsageOID(Cert *cert, const char *oid, word32 sz,
+                                     byte idx, void* heap);
+#endif /* WOLFSSL_EKU_OID */
 #endif /* WOLFSSL_CERT_EXT */
 
     #ifdef HAVE_NTRU

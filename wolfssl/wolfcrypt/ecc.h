@@ -299,6 +299,9 @@ struct ecc_key {
     word32 flags;
     const ecc_set_type* dp;     /* domain parameters, either points to NIST
                                    curves (idx >= 0) or user supplied */
+#ifdef WOLFSSL_CUSTOM_CURVES
+    int deallocSet;
+#endif
     void* heap;         /* heap hint */
     ecc_point pubkey;   /* public key */
     mp_int    k;        /* private key */
@@ -338,6 +341,10 @@ const char* wc_ecc_get_name(int curve_id);
 #else
     #define ECC_API    WOLFSSL_LOCAL
 #endif
+
+ECC_API int ecc_mul2add(ecc_point* A, mp_int* kA,
+                ecc_point* B, mp_int* kB,
+                ecc_point* C, mp_int* a, mp_int* modulus, void* heap);
 
 ECC_API int ecc_map(ecc_point*, mp_int*, mp_digit);
 ECC_API int ecc_projective_add_point(ecc_point* P, ecc_point* Q, ecc_point* R,
@@ -394,6 +401,10 @@ WOLFSSL_API
 int wc_ecc_init(ecc_key* key);
 WOLFSSL_API
 int wc_ecc_init_ex(ecc_key* key, void* heap, int devId);
+#ifdef WOLFSSL_CUSTOM_CURVES
+WOLFSSL_LOCAL
+void wc_ecc_free_curve(const ecc_set_type* curve, void* heap);
+#endif
 WOLFSSL_API
 int wc_ecc_free(ecc_key* key);
 WOLFSSL_API

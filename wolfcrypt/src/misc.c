@@ -101,6 +101,9 @@ STATIC INLINE word32 ByteReverseWord32(word32 value)
     return (word32)__REV(value);
 #elif defined(KEIL_INTRINSICS)
     return (word32)__rev(value);
+#elif defined(WOLF_ALLOW_BUILTIN) && \
+        defined(__GNUC_PREREQ) && __GNUC_PREREQ(4, 3)
+    return (word32)__builtin_bswap32(value);
 #elif defined(FAST_ROTATE)
     /* 5 instructions with rotate instruction, 9 without */
     return (rotrFixed(value, 8U) & 0xff00ff00) |
@@ -141,7 +144,9 @@ STATIC INLINE word64 rotrFixed64(word64 x, word64 y)
 
 STATIC INLINE word64 ByteReverseWord64(word64 value)
 {
-#if defined(WOLFCRYPT_SLOW_WORD64)
+#if defined(WOLF_ALLOW_BUILTIN) && defined(__GNUC_PREREQ) && __GNUC_PREREQ(4, 3)
+    return (word64)__builtin_bswap64(value);
+#elif defined(WOLFCRYPT_SLOW_WORD64)
 	return (word64)((word64)ByteReverseWord32((word32) value)) << 32 |
                     (word64)ByteReverseWord32((word32)(value   >> 32));
 #else
@@ -250,44 +255,44 @@ STATIC INLINE void c32to24(word32 in, word24 out)
 }
 
 /* convert 16 bit integer to opaque */
-STATIC INLINE void c16toa(word16 u16, byte* c)
+STATIC INLINE void c16toa(word16 wc_u16, byte* c)
 {
-    c[0] = (u16 >> 8) & 0xff;
-    c[1] =  u16 & 0xff;
+    c[0] = (wc_u16 >> 8) & 0xff;
+    c[1] =  wc_u16 & 0xff;
 }
 
 /* convert 32 bit integer to opaque */
-STATIC INLINE void c32toa(word32 u32, byte* c)
+STATIC INLINE void c32toa(word32 wc_u32, byte* c)
 {
-    c[0] = (u32 >> 24) & 0xff;
-    c[1] = (u32 >> 16) & 0xff;
-    c[2] = (u32 >>  8) & 0xff;
-    c[3] =  u32 & 0xff;
+    c[0] = (wc_u32 >> 24) & 0xff;
+    c[1] = (wc_u32 >> 16) & 0xff;
+    c[2] = (wc_u32 >>  8) & 0xff;
+    c[3] =  wc_u32 & 0xff;
 }
 
 /* convert a 24 bit integer into a 32 bit one */
-STATIC INLINE void c24to32(const word24 u24, word32* u32)
+STATIC INLINE void c24to32(const word24 wc_u24, word32* wc_u32)
 {
-    *u32 = (u24[0] << 16) | (u24[1] << 8) | u24[2];
+    *wc_u32 = (wc_u24[0] << 16) | (wc_u24[1] << 8) | wc_u24[2];
 }
 
 
 /* convert opaque to 24 bit integer */
-STATIC INLINE void ato24(const byte* c, word32* u24)
+STATIC INLINE void ato24(const byte* c, word32* wc_u24)
 {
-    *u24 = (c[0] << 16) | (c[1] << 8) | c[2];
+    *wc_u24 = (c[0] << 16) | (c[1] << 8) | c[2];
 }
 
 /* convert opaque to 16 bit integer */
-STATIC INLINE void ato16(const byte* c, word16* u16)
+STATIC INLINE void ato16(const byte* c, word16* wc_u16)
 {
-    *u16 = (word16) ((c[0] << 8) | (c[1]));
+    *wc_u16 = (word16) ((c[0] << 8) | (c[1]));
 }
 
 /* convert opaque to 32 bit integer */
-STATIC INLINE void ato32(const byte* c, word32* u32)
+STATIC INLINE void ato32(const byte* c, word32* wc_u32)
 {
-    *u32 = (c[0] << 24) | (c[1] << 16) | (c[2] << 8) | c[3];
+    *wc_u32 = (c[0] << 24) | (c[1] << 16) | (c[2] << 8) | c[3];
 }
 
 

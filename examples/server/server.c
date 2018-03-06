@@ -643,6 +643,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 break;
 
             case 'v' :
+                if (myoptarg[0] == 'd') {
+                    version = SERVER_DOWNGRADE_VERSION;
+                    break;
+                }
                 version = atoi(myoptarg);
                 if (version < 0 || version > 4) {
                     Usage();
@@ -893,6 +897,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             method = wolfTLSv1_3_server_method_ex;
             break;
     #endif
+
+        case SERVER_DOWNGRADE_VERSION:
+            method = wolfSSLv23_server_method_ex;
+            break;
 #endif /* NO_TLS */
 
 #ifdef CYASSL_DTLS

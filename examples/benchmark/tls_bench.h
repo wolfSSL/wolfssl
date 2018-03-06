@@ -1,4 +1,4 @@
-/* wolfssl_version.h.in
+/* tls_bench.h
  *
  * Copyright (C) 2006-2017 wolfSSL Inc.
  *
@@ -20,21 +20,11 @@
  */
 
 
-#ifndef WOLFSSL_VERSION_H
-#define WOLFSSL_VERSION_H
+#ifndef WOLFSSL_TLS_BENCH_H
+#define WOLFSSL_TLS_BENCH_H
 
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#define LIBWOLFSSL_VERSION_STRING "3.14.0"
-#define LIBWOLFSSL_VERSION_HEX 0x03014000
-
-#ifdef __cplusplus
-}
-#endif
+int bench_tls(void);
 
 
-#endif /* WOLFSSL_VERSION_H */
-
+#endif /* WOLFSSL_TLS_BENCH_H */

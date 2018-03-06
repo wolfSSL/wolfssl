@@ -1,4 +1,4 @@
-/* tls-bench.c
+/* tls_bench.c
  *
  * Copyright (C) 2006-2017 wolfSSL Inc.
  *
@@ -22,21 +22,26 @@
 
 /*
 Example gcc build statement
-gcc -lwolfssl -lpthread -o tls-bench tls-bench.c
-./tls-bench
+gcc -lwolfssl -lpthread -o tls_bench tls_bench.c
+./tls_bench
 
 Or
 
-extern int bench_tls(void);
+#include <examples/benchmark/tls_bench.h>
 bench_tls();
 */
 
 
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
 #ifndef WOLFSSL_USER_SETTINGS
-#include <wolfssl/options.h>
+    #include <wolfssl/options.h>
 #endif
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/ssl.h>
+
+#include <examples/benchmark/tls_bench.h>
 
 /* force certificate test buffers to be included via headers */
 #undef  USE_CERT_BUFFERS_2048
@@ -257,6 +262,8 @@ static int ServerSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
     pthread_cond_signal(&info->to_client.cond);
     pthread_mutex_unlock(&info->to_client.mutex);
 
+    (void)ssl;
+
     return sz;
 }
 
@@ -286,6 +293,8 @@ static int ServerRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
     if (info->to_client.done != 0)
         return -1;
 
+    (void)ssl;
+
     return sz;
 }
 
@@ -309,6 +318,8 @@ static int ClientSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 
     pthread_cond_signal(&info->to_server.cond);
     pthread_mutex_unlock(&info->to_server.mutex);
+
+    (void)ssl;
 
     return sz;
 }
@@ -336,11 +347,13 @@ static int ClientRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 
     pthread_mutex_unlock(&info->to_client.mutex);
 
+    (void)ssl;
+
     return sz;
 }
 
 
-static void err_sys(const char* msg)
+static WC_NORETURN void err_sys(const char* msg)
 {
     printf("wolfSSL error: %s\n", msg);
     exit(1);
@@ -371,18 +384,25 @@ static void* client_thread(void* args)
     cli_ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
     if (cli_ctx == NULL) err_sys("error creating ctx");
 
-    if (strstr(info->cipher, "ECDSA"))
+#ifndef NO_CERTS
+#ifdef HAVE_ECC
+    if (strstr(info->cipher, "ECDSA")) {
         ret = wolfSSL_CTX_load_verify_buffer(cli_ctx, ca_ecc_cert_der_256, sizeof_ca_ecc_cert_der_256, WOLFSSL_FILETYPE_ASN1);
+    }
     else
+#endif
+    {
         ret = wolfSSL_CTX_load_verify_buffer(cli_ctx, ca_cert_der_2048, sizeof_ca_cert_der_2048, WOLFSSL_FILETYPE_ASN1);
-    if (ret != SSL_SUCCESS) err_sys("error loading CA");
+    }
+    if (ret != WOLFSSL_SUCCESS) err_sys("error loading CA");
+#endif
 
     wolfSSL_SetIOSend(cli_ctx, ClientSend);
     wolfSSL_SetIORecv(cli_ctx, ClientRecv);
 
     /* set cipher suite */
     ret = wolfSSL_CTX_set_cipher_list(cli_ctx, info->cipher);
-    if (ret != SSL_SUCCESS) err_sys("error setting cipher suite");
+    if (ret != WOLFSSL_SUCCESS) err_sys("error setting cipher suite");
 
 #ifndef NO_DH
     wolfSSL_CTX_SetMinDhKey_Sz(cli_ctx, MIN_DHKEY_BITS);
@@ -399,7 +419,7 @@ static void* client_thread(void* args)
         start = gettime_secs(1);
         ret = wolfSSL_connect(cli_ssl);
         start = gettime_secs(0) - start;
-        if (ret != SSL_SUCCESS) {
+        if (ret != WOLFSSL_SUCCESS) {
             if (info->shutdown)
                 break;
             err_sys("error connecting client");
@@ -463,24 +483,36 @@ static void* server_thread(void* args)
     srv_ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method());
     if (srv_ctx == NULL) err_sys("error creating server ctx");
 
-    if (strstr(info->cipher, "ECDSA"))
+#ifndef NO_CERTS
+#ifdef HAVE_ECC
+    if (strstr(info->cipher, "ECDSA")) {
         ret = wolfSSL_CTX_use_PrivateKey_buffer(srv_ctx, ecc_key_der_256, sizeof_ecc_key_der_256, WOLFSSL_FILETYPE_ASN1);
+    }
     else
+#endif
+    {
         ret = wolfSSL_CTX_use_PrivateKey_buffer(srv_ctx, server_key_der_2048, sizeof_server_key_der_2048, WOLFSSL_FILETYPE_ASN1);
-    if (ret != SSL_SUCCESS) err_sys("error loading server key");
+    }
+    if (ret != WOLFSSL_SUCCESS) err_sys("error loading server key");
 
-    if (strstr(info->cipher, "ECDSA"))
+#ifdef HAVE_ECC
+    if (strstr(info->cipher, "ECDSA")) {
         ret = wolfSSL_CTX_use_certificate_buffer(srv_ctx, serv_ecc_der_256, sizeof_serv_ecc_der_256, WOLFSSL_FILETYPE_ASN1);
+    }
     else
+#endif
+    {
         ret = wolfSSL_CTX_use_certificate_buffer(srv_ctx, server_cert_der_2048, sizeof_server_cert_der_2048, WOLFSSL_FILETYPE_ASN1);
-    if (ret != SSL_SUCCESS) err_sys("error loading server cert");
+    }
+    if (ret != WOLFSSL_SUCCESS) err_sys("error loading server cert");
+#endif
 
     wolfSSL_SetIOSend(srv_ctx, ServerSend);
     wolfSSL_SetIORecv(srv_ctx, ServerRecv);
 
     /* set cipher suite */
     ret = wolfSSL_CTX_set_cipher_list(srv_ctx, info->cipher);
-    if (ret != SSL_SUCCESS) err_sys("error setting cipher suite");
+    if (ret != WOLFSSL_SUCCESS) err_sys("error setting cipher suite");
 
 #ifndef NO_DH
     wolfSSL_CTX_SetMinDhKey_Sz(srv_ctx, MIN_DHKEY_BITS);
@@ -498,7 +530,7 @@ static void* server_thread(void* args)
         start = gettime_secs(1);
         ret = wolfSSL_accept(srv_ssl);
         start = gettime_secs(0) - start;
-        if (ret != SSL_SUCCESS) {
+        if (ret != WOLFSSL_SUCCESS) {
             if (info->shutdown)
                 break;
             err_sys("error on server accept");
@@ -538,9 +570,14 @@ static void* server_thread(void* args)
     return NULL;
 }
 
-static void print_stats(stats_t* stat, const char* desc, const char* cipher, int verbose)
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-nonliteral"
+#endif
+static void print_stats(stats_t* wcStat, const char* desc, const char* cipher, int verbose)
 {
     const char* formatStr;
+
     if (verbose) {
         formatStr = "wolfSSL %s Benchmark on %s:\n"
                "\tTotal       : %9d bytes\n"
@@ -559,21 +596,24 @@ static void print_stats(stats_t* stat, const char* desc, const char* cipher, int
     printf(formatStr,
            desc,
            cipher,
-           stat->txTotal + stat->rxTotal,
-           stat->connCount,
-           stat->txTime * 1000,
-           stat->rxTime * 1000,
-           stat->txTotal / stat->txTime / 1024 / 1024,
-           stat->rxTotal / stat->rxTime / 1024 / 1024,
-           stat->connTime * 1000,
-           stat->connTime * 1000 / stat->connCount);
+           wcStat->txTotal + wcStat->rxTotal,
+           wcStat->connCount,
+           wcStat->txTime * 1000,
+           wcStat->rxTime * 1000,
+           wcStat->txTotal / wcStat->txTime / 1024 / 1024,
+           wcStat->rxTotal / wcStat->rxTime / 1024 / 1024,
+           wcStat->connTime * 1000,
+           wcStat->connTime * 1000 / wcStat->connCount);
 }
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
 int bench_tls(void)
 {
     info_t theadInfo[THREAD_COUNT];
     info_t* info;
-    int i, shutdown;
+    int i, doShutdown;
     char *cipher, *next_cipher, ciphers[4096];
 
 #ifdef DEBUG_WOLFSSL
@@ -632,15 +672,15 @@ int bench_tls(void)
 
         /* Suspend shutdown until all threads are closed */
         do {
-            shutdown = 1;
+            doShutdown = 1;
 
             for (i = 0; i < THREAD_COUNT; ++i) {
                 info = &theadInfo[i];
                 if (!info->to_client.done || !info->to_server.done) {
-                    shutdown = 0;
+                    doShutdown = 0;
                 }
             }
-        } while (!shutdown);
+        } while (!doShutdown);
 
 #ifdef SHOW_VERBOSE_OUTPUT
         printf("Shutdown complete\n");

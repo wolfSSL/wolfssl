@@ -1027,6 +1027,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 break;
 
             case 'v' :
+                if (myoptarg[0] == 'd') {
+                    version = CLIENT_DOWNGRADE_VERSION;
+                    break;
+                }
                 version = atoi(myoptarg);
                 if (version < 0 || version > 4) {
                     Usage();
@@ -1354,6 +1358,15 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             done += 1;
         #endif
 
+        /* For the external test, if we disable AES, GoDaddy will reject the
+         * connection. They only currently support AES suites, RC4 and 3DES
+         * suites. With AES disabled we only offer PolyChacha suites. */
+        #if defined(NO_AES) && !defined(HAVE_AESGCM)
+            if (!XSTRNCMP(domain, "www.wolfssl.com", 15)) {
+                done += 1;
+            }
+        #endif
+
         if (done) {
             printf("external test can't be run in this mode");
 
@@ -1414,6 +1427,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             method = wolfTLSv1_3_client_method_ex;
             break;
     #endif
+
+        case CLIENT_DOWNGRADE_VERSION:
+            method = wolfSSLv23_client_method_ex;
+            break;
 #endif /* NO_TLS */
 
 #ifdef WOLFSSL_DTLS
@@ -2228,10 +2245,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                                 WOLFSSL_ECC_SECP256R1) != WOLFSSL_SUCCESS) {
             err_sys("unable to use curve secp256r1");
         }
+        #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
         if (wolfSSL_UseKeyShare(sslResume,
                                 WOLFSSL_ECC_SECP384R1) != WOLFSSL_SUCCESS) {
             err_sys("unable to use curve secp384r1");
         }
+        #endif
     #endif
     #ifdef HAVE_FFDHE_2048
         if (wolfSSL_UseKeyShare(sslResume, WOLFSSL_FFDHE_2048) != WOLFSSL_SUCCESS) {

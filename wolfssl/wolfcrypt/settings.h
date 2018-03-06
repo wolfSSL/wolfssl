@@ -1232,11 +1232,21 @@ extern void uITRON4_free(void *p) ;
 
 #ifdef WOLFSSL_SGX
     #ifdef _MSC_VER
-        #define WOLFCRYPT_ONLY
         #define NO_RC4
-        #define NO_DES3
-        #define NO_SHA
-        #define NO_MD5
+        #ifndef HAVE_FIPS
+            #define WOLFCRYPT_ONLY
+            #define NO_DES3
+            #define NO_SHA
+            #define NO_MD5
+        #else
+            #define TFM_TIMING_RESISTANT
+            #define NO_WOLFSSL_DIR
+            #define NO_FILESYSTEM
+            #define NO_WRITEV
+            #define NO_MAIN_DRIVER
+            #define WOLFSSL_LOG_PRINTF
+            #define WOLFSSL_DH_CONST
+        #endif
     #else
         #define HAVE_ECC
         #define ECC_TIMING_RESISTANT
@@ -1310,7 +1320,7 @@ extern void uITRON4_free(void *p) ;
 /* user can specify what curves they want with ECC_USER_CURVES otherwise
  * all curves are on by default for now */
 #ifndef ECC_USER_CURVES
-    #ifndef HAVE_ALL_CURVES
+    #if !defined(WOLFSSL_SP_MATH) && !defined(HAVE_ALL_CURVES)
         #define HAVE_ALL_CURVES
     #endif
 #endif
@@ -1325,6 +1335,10 @@ extern void uITRON4_free(void *p) ;
     #ifndef NO_ECC_VERIFY
         #undef HAVE_ECC_VERIFY
         #define HAVE_ECC_VERIFY
+    #endif
+    #ifndef NO_ECC_CHECK_KEY
+        #undef HAVE_ECC_CHECK_KEY
+        #define HAVE_ECC_CHECK_KEY
     #endif
     #ifndef NO_ECC_DHE
         #undef HAVE_ECC_DHE
@@ -1385,6 +1399,23 @@ extern void uITRON4_free(void *p) ;
         #undef  AES_MAX_KEY_SIZE
         #define AES_MAX_KEY_SIZE    256
     #endif
+
+    #ifndef NO_AES_128
+        #undef  WOLFSSL_AES_128
+        #define WOLFSSL_AES_128
+    #endif
+    #if !defined(NO_AES_192) && AES_MAX_KEY_SIZE >= 192
+        #undef  WOLFSSL_AES_192
+        #define WOLFSSL_AES_192
+    #endif
+    #if !defined(NO_AES_256) && AES_MAX_KEY_SIZE >= 256
+        #undef  WOLFSSL_AES_256
+        #define WOLFSSL_AES_256
+    #endif
+    #if !defined(WOLFSSL_AES_128) && defined(HAVE_ECC_ENCRYPT)
+        #warning HAVE_ECC_ENCRYPT uses AES 128 bit keys
+     #endif
+
     #ifndef NO_AES_DECRYPT
         #undef  HAVE_AES_DECRYPT
         #define HAVE_AES_DECRYPT
@@ -1601,6 +1632,21 @@ extern void uITRON4_free(void *p) ;
         #endif
     #endif
 #endif
+
+#if defined(NO_OLD_WC_NAMES) || defined(OPENSSL_EXTRA)
+    /* added to have compatibility with SHA256() */
+    #if !defined(NO_OLD_SHA256_NAMES) && !defined(HAVE_FIPS)
+        #define NO_OLD_SHA256_NAMES
+    #endif
+#endif
+
+/* switch for compatibility layer functionality. Has subparts i.e. BIO/X509
+ * When opensslextra is enabled all subparts should be turned on. */
+#ifdef OPENSSL_EXTRA
+    #undef  OPENSSL_EXTRA_X509_SMALL
+    #define OPENSSL_EXTRA_X509_SMALL
+#endif /* OPENSSL_EXTRA */
+    
 
 #ifdef __cplusplus
     }   /* extern "C" */

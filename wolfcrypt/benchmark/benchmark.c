@@ -1694,6 +1694,7 @@ exit_aes_dec:
 
 #endif /* HAVE_AES_DECRYPT */
 
+    (void)decLabel;
 exit:
 
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
@@ -1703,12 +1704,18 @@ exit:
 
 void bench_aescbc(int doAsync)
 {
+#ifdef WOLFSSL_AES_128
     bench_aescbc_internal(doAsync, bench_key, 16, bench_iv,
                  "AES-128-CBC-enc", "AES-128-CBC-dec");
+#endif
+#ifdef WOLFSSL_AES_192
     bench_aescbc_internal(doAsync, bench_key, 24, bench_iv,
                  "AES-192-CBC-enc", "AES-192-CBC-dec");
+#endif
+#ifdef WOLFSSL_AES_256
     bench_aescbc_internal(doAsync, bench_key, 32, bench_iv,
                  "AES-256-CBC-enc", "AES-256-CBC-dec");
+#endif
 }
 
 #endif /* HAVE_AES_CBC */
@@ -1775,6 +1782,7 @@ static void bench_aesgcm_internal(int doAsync, const byte* key, word32 keySz,
 exit_aes_gcm:
     bench_stats_sym_finish(encLabel, doAsync, count, bench_size, start, ret);
 
+#ifdef HAVE_AES_DECRYPT
     /* GCM uses same routine in backend for both encrypt and decrypt */
     bench_stats_start(&count, &start);
     do {
@@ -1798,6 +1806,9 @@ exit_aes_gcm:
     } while (bench_stats_sym_check(start));
 exit_aes_gcm_dec:
     bench_stats_sym_finish(decLabel, doAsync, count, bench_size, start, ret);
+#endif /* HAVE_AES_DECRYPT */
+
+    (void)decLabel;
 
 exit:
 
@@ -1815,12 +1826,18 @@ exit:
 
 void bench_aesgcm(int doAsync)
 {
+#ifdef WOLFSSL_AES_128
     bench_aesgcm_internal(doAsync, bench_key, 16, bench_iv, 12,
                           "AES-128-GCM-enc", "AES-128-GCM-dec");
+#endif
+#ifdef WOLFSSL_AES_192
     bench_aesgcm_internal(doAsync, bench_key, 24, bench_iv, 12,
                           "AES-192-GCM-enc", "AES-192-GCM-dec");
+#endif
+#ifdef WOLFSSL_AES_256
     bench_aesgcm_internal(doAsync, bench_key, 32, bench_iv, 12,
                           "AES-256-GCM-enc", "AES-256-GCM-dec");
+#endif
 }
 #endif /* HAVE_AESGCM */
 
@@ -1917,12 +1934,18 @@ exit:
 
 void bench_aesecb(int doAsync)
 {
+#ifdef WOLFSSL_AES_128
     bench_aesecb_internal(doAsync, bench_key, 16,
                  "AES-128-ECB-enc", "AES-128-ECB-dec");
+#endif
+#ifdef WOLFSSL_AES_192
     bench_aesecb_internal(doAsync, bench_key, 24,
                  "AES-192-ECB-enc", "AES-192-ECB-dec");
+#endif
+#ifdef WOLFSSL_AES_256
     bench_aesecb_internal(doAsync, bench_key, 32,
                  "AES-256-ECB-enc", "AES-256-ECB-dec");
+#endif
 }
 #endif /* WOLFSSL_AES_DIRECT */
 
@@ -1956,9 +1979,15 @@ static void bench_aescfb_internal(const byte* key, word32 keySz, const byte* iv,
 
 void bench_aescfb(void)
 {
+#ifdef WOLFSSL_AES_128
     bench_aescfb_internal(bench_key, 16, bench_iv, "AES-128-CFB");
+#endif
+#ifdef WOLFSSL_AES_192
     bench_aescfb_internal(bench_key, 24, bench_iv, "AES-192-CFB");
+#endif
+#ifdef WOLFSSL_AES_256
     bench_aescfb_internal(bench_key, 32, bench_iv, "AES-256-CFB");
+#endif
 }
 #endif /* WOLFSSL_AES_CFB */
 
@@ -2053,9 +2082,15 @@ static void bench_aesctr_internal(const byte* key, word32 keySz, const byte* iv,
 
 void bench_aesctr(void)
 {
+#ifdef WOLFSSL_AES_128
     bench_aesctr_internal(bench_key, 16, bench_iv, "AES-128-CTR");
+#endif
+#ifdef WOLFSSL_AES_192
     bench_aesctr_internal(bench_key, 24, bench_iv, "AES-192-CTR");
+#endif
+#ifdef WOLFSSL_AES_256
     bench_aesctr_internal(bench_key, 32, bench_iv, "AES-256-CTR");
+#endif
 }
 #endif /* WOLFSSL_AES_COUNTER */
 

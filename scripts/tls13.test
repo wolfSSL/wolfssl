@@ -373,6 +373,22 @@ if [ $RESULT -eq 0 ]; then
 fi
 echo ""
 
+# TLS Downgrade server / TLS 1.2 client.
+echo -e "\n\nTLS server downgrading to TLS v1.2"
+port=0
+./examples/server/server -v d -R $ready_file -p $port &
+server_pid=$!
+create_port
+./examples/client/client -v 3 -p $port
+RESULT=$?
+remove_ready_file
+if [ $RESULT -ne 0 ]; then
+    echo -e "\n\nIssue with TLS server downgrading to TLS v1.2"
+    do_cleanup
+    exit 1
+fi
+echo ""
+
 # TLS 1.2 server / TLS 1.3 client.
 echo -e "\n\nTLS v1.3 client upgrading server to TLS v1.3"
 port=0
@@ -384,6 +400,22 @@ RESULT=$?
 remove_ready_file
 if [ $RESULT -eq 0 ]; then
     echo -e "\n\nIssue with TLS v1.3 client upgrading server to TLS v1.3"
+    do_cleanup
+    exit 1
+fi
+echo ""
+
+# TLS 1.2 server / TLS downgrade client.
+echo -e "\n\nTLS client downgrading to TLS v1.2"
+port=0
+./examples/server/server -v 3 -R $ready_file -p $port &
+server_pid=$!
+create_port
+./examples/client/client -v d -p $port
+RESULT=$?
+remove_ready_file
+if [ $RESULT -ne 0 ]; then
+    echo -e "\n\nIssue with TLS client downgrading to TLS v1.2"
     do_cleanup
     exit 1
 fi

@@ -1,6 +1,6 @@
-/* wolfssl_version.h.in
+/* selftest.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2018 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -20,21 +20,26 @@
  */
 
 
-#ifndef WOLFSSL_VERSION_H
-#define WOLFSSL_VERSION_H
+
+#ifndef WOLFCRYPT_SELF_TEST_H
+#define WOLFCRYPT_SELF_TEST_H
+
+#include <wolfssl/wolfcrypt/types.h>
 
 
 #ifdef __cplusplus
-extern "C" {
+    extern "C" {
 #endif
 
-#define LIBWOLFSSL_VERSION_STRING "3.14.0"
-#define LIBWOLFSSL_VERSION_HEX 0x03014000
+#ifdef HAVE_SELFTEST
+    /* wolfCrypt self test, runs CAVP KATs */
+    WOLFSSL_API int wolfCrypt_SelfTest(void);
+#endif
 
 #ifdef __cplusplus
-}
+    } /* extern "C" */
 #endif
 
+#endif /* WOLFCRYPT_SELF_TEST_H */
 
-#endif /* WOLFSSL_VERSION_H */
 

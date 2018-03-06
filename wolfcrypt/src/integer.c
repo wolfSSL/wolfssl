@@ -45,6 +45,8 @@
 
 #ifndef USE_FAST_MATH
 
+#ifndef WOLFSSL_SP_MATH
+
 #include <wolfssl/wolfcrypt/integer.h>
 
 #if defined(FREESCALE_LTC_TFM)
@@ -4952,6 +4954,8 @@ void mp_dump(const char* desc, mp_int* a, byte verbose)
 #endif /* WOLFSSL_DEBUG_MATH */
 
 #endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(WOLFSSL_DEBUG_MATH) */
+
+#endif /* WOLFSSL_SP_MATH */
 
 #endif /* USE_FAST_MATH */
 

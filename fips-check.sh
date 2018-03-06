@@ -18,7 +18,7 @@
 
 function Usage() {
     echo "Usage: $0 [platform] [keep]"
-    echo "Where \"platform\" is one of linux (default), ios, android, windows, freertos, openrtos-3.9.2, linux-ecc"
+    echo "Where \"platform\" is one of linux (default), ios, android, windows, freertos, openrtos-3.9.2, linux-ecc, netbsd-selftest"
     echo "Where \"keep\" means keep (default off) XXX-fips-test temp dir around for inspection"
 }
 
@@ -62,6 +62,15 @@ WC_MODS=( aes des3 sha sha256 sha512 rsa hmac random )
 TEST_DIR=XXX-fips-test
 WC_INC_PATH=cyassl/ctaocrypt
 WC_SRC_PATH=ctaocrypt/src
+CAVP_SELFTEST_ONLY="no"
+
+# non-FIPS, CAVP only but pull in selftest
+# will reset above variables below in platform switch
+NETBSD_FIPS_VERSION=v3.14.2
+NETBSD_FIPS_REPO=git@github.com:wolfssl/fips.git
+NETBSD_CTAO_VERSION=v3.14.2
+NETBSD_CTAO_REPO=git@github.com:wolfssl/wolfssl.git
+
 
 if [ "x$1" == "x" ]; then PLATFORM="linux"; else PLATFORM=$1; fi
 
@@ -111,6 +120,17 @@ linux-ecc)
   CTAO_VERSION=$LINUX_ECC_CTAO_VERSION
   CTAO_REPO=$LINUX_ECC_CTAO_REPO
   ;;
+netbsd-selftest)
+  FIPS_VERSION=$NETBSD_FIPS_VERSION
+  FIPS_REPO=$NETBSD_FIPS_REPO
+  CTAO_VERSION=$NETBSD_CTAO_VERSION
+  CTAO_REPO=$NETBSD_CTAO_REPO
+  FIPS_SRCS=( selftest.c )
+  WC_MODS=( dh ecc rsa dsa aes sha sha256 sha512 hmac random )
+  WC_INC_PATH=wolfssl/wolfcrypt
+  WC_SRC_PATH=wolfcrypt/src
+  CAVP_SELFTEST_ONLY="yes"
+  ;;
 *)
   Usage
   exit 1
@@ -132,11 +152,14 @@ do
 done
 
 # The following is temporary. We are using random.c from a separate release
-pushd old-tree
-git checkout v3.6.0
-popd
-cp old-tree/$WC_SRC_PATH/random.c $WC_SRC_PATH
-cp old-tree/$WC_INC_PATH/random.h $WC_INC_PATH
+if [ "x$CAVP_SELFTEST_ONLY" == "xno" ];
+then
+    pushd old-tree
+    git checkout v3.6.0
+    popd
+    cp old-tree/$WC_SRC_PATH/random.c $WC_SRC_PATH
+    cp old-tree/$WC_INC_PATH/random.h $WC_INC_PATH
+fi
 
 # clone the FIPS repository
 git clone -b $FIPS_VERSION $FIPS_REPO fips
@@ -149,14 +172,22 @@ done
 
 # run the make test
 ./autogen.sh
-./configure --enable-fips
+if [ "x$CAVP_SELFTEST_ONLY" == "xyes" ];
+then
+    ./configure --enable-selftest
+else
+    ./configure --enable-fips
+fi
 make
 [ $? -ne 0 ] && echo "\n\nMake failed. Debris left for analysis." && exit 1
 
-NEWHASH=`./wolfcrypt/test/testwolfcrypt | sed -n 's/hash = \(.*\)/\1/p'`
-if [ -n "$NEWHASH" ]; then
-    sed -i.bak "s/^\".*\";/\"${NEWHASH}\";/" $WC_SRC_PATH/fips_test.c
-    make clean
+if [ "x$CAVP_SELFTEST_ONLY" == "xno" ];
+then
+    NEWHASH=`./wolfcrypt/test/testwolfcrypt | sed -n 's/hash = \(.*\)/\1/p'`
+    if [ -n "$NEWHASH" ]; then
+        sed -i.bak "s/^\".*\";/\"${NEWHASH}\";/" $WC_SRC_PATH/fips_test.c
+        make clean
+    fi
 fi
 
 make test

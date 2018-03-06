@@ -78,10 +78,25 @@ enum {
 #ifndef WOLFSSL_SHA224
     WC_SHA224  = 8,
 #endif
-
+#ifndef WOLFSSL_SHA3
+    WC_SHA3_224 = 10,
+    WC_SHA3_256 = 11,
+    WC_SHA3_384 = 12,
+    WC_SHA3_512 = 13,
+#else
+    /* These values are used for HMAC, not SHA-3 directly.
+     * They come from from FIPS PUB 202. */
+    WC_SHA3_224_BLOCK_SIZE = 144,
+    WC_SHA3_256_BLOCK_SIZE = 136,
+    WC_SHA3_384_BLOCK_SIZE = 104,
+    WC_SHA3_512_BLOCK_SIZE = 72,
+#endif
 
 /* Select the largest available hash for the buffer size. */
-#if defined(WOLFSSL_SHA512)
+#if defined(WOLFSSL_SHA3)
+    WC_HMAC_BLOCK_SIZE = WC_SHA3_224_BLOCK_SIZE
+        /* SHA3-224 has the largest block size */
+#elif defined(WOLFSSL_SHA512)
     WC_HMAC_BLOCK_SIZE = WC_SHA512_BLOCK_SIZE,
 #elif defined(HAVE_BLAKE2)
     WC_HMAC_BLOCK_SIZE = BLAKE2B_BLOCKBYTES,
@@ -123,6 +138,9 @@ typedef union {
 #endif
 #ifdef HAVE_BLAKE2
     Blake2b blake2b;
+#endif
+#ifdef WOLFSSL_SHA3
+    Sha3 sha3;
 #endif
 } Hash;
 

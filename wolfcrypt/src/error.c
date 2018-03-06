@@ -33,15 +33,9 @@
     #pragma warning(disable: 4996)
 #endif
 
+#ifndef NO_ERROR_STRINGS
 const char* wc_GetErrorString(int error)
 {
-#ifdef NO_ERROR_STRINGS
-
-    (void)error;
-    return "no support for error strings built in";
-
-#else
-
     switch (error) {
 
     case OPEN_RAN_E :
@@ -205,6 +199,9 @@ const char* wc_GetErrorString(int error)
 
     case ASN_CRIT_EXT_E:
         return "X.509 Critical extension ignored or invalid";
+
+    case ASN_ALT_NAME_E:
+        return "ASN alternate name error";
 
     case ECC_BAD_ARG_E :
         return "ECC input argument wrong type, invalid input";
@@ -446,16 +443,30 @@ const char* wc_GetErrorString(int error)
     case PRIME_GEN_E:
         return "Unable to find a prime for RSA key";
 
+    case BER_INDEF_E:
+        return "Unable to decode an indefinite length encoded message";
+
+    case RSA_OUT_OF_RANGE_E:
+        return "Ciphertext to decrypt is out of range";
+
+    case RSAPSS_PAT_FIPS_E:
+        return "wolfcrypt FIPS RSA-PSS Pairwise Agreement Test Failure";
+
+    case ECDSA_PAT_FIPS_E:
+        return "wolfcrypt FIPS ECDSA Pairwise Agreement Test Failure";
+
+    case DH_KAT_FIPS_E:
+        return "wolfcrypt FIPS DH Known Answer Test Failure";
+
     default:
         return "unknown error number";
 
     }
-
-#endif /* NO_ERROR_STRINGS */
-
 }
 
 void wc_ErrorString(int error, char* buffer)
 {
     XSTRNCPY(buffer, wc_GetErrorString(error), WOLFSSL_MAX_ERROR_SZ);
 }
+#endif /* !NO_ERROR_STRINGS */
+

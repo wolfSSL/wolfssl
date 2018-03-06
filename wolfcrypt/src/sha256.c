@@ -359,9 +359,9 @@ static int InitSha256(wc_Sha256* sha256)
         int ret = wolfSSL_CryptHwMutexLock();
         if (ret == 0) {
     #ifdef FREESCALE_MMCAU_CLASSIC_SHA
-            cau_sha256_hash_n(sha256->buffer, 1, sha256->digest);
+            cau_sha256_hash_n((byte*)sha256->buffer, 1, sha256->digest);
     #else
-            MMCAU_SHA256_HashN(sha256->buffer, 1, sha256->digest);
+            MMCAU_SHA256_HashN((byte*)sha256->buffer, 1, sha256->digest);
     #endif
             wolfSSL_CryptHwMutexUnLock();
         }

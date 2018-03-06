@@ -4,7 +4,7 @@ TMP="/tmp/`basename $0`"
 
 gen_cert() {
     openssl req -x509 -keyform DER -key certs/server-key.der \
-                      -outform DER -out $OUT -config $CONFIG \
+      -days 1000 -new -outform DER -out $OUT -config $CONFIG \
         >$TMP 2>&1
 
     if [ "$?" = "0" -a -f $OUT ]; then
@@ -33,9 +33,13 @@ L             = Brisbane
 O             = wolfSSL Inc
 OU            = Engineering
 CN            = www.wolfssl.com
-emailAddress  = support@www.wolfsssl.com
+emailAddress  = support@wolfsssl.com
 
 [ v3_ca ]
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints = critical, CA:true, pathlen:0
+keyUsage = critical, digitalSignature, cRLSign, keyCertSign
 nameConstraints = critical,permitted;email:.wolfssl.com
 nsComment       = "Testing name constraints"
 
@@ -58,7 +62,7 @@ L             = Brisbane
 O             = wolfSSL Inc
 OU            = Engineering
 CN            = www.wolfssl.com
-emailAddress  = support@www.wolfsssl.com
+emailAddress  = support@wolfsssl.com
 
 [ v3_ca ]
 inhibitAnyPolicy = critical,1

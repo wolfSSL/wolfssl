@@ -768,6 +768,7 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
 {
     ContentInfo* ci       = NULL;
     WC_DerCertList* certList = NULL;
+    WC_DerCertList* tailList = NULL;
     byte* buf             = NULL;
     word32 i, oid;
     int ret, pswSz;
@@ -1067,12 +1068,13 @@ int wc_PKCS12_parse(WC_PKCS12* pkcs12, const char* psw,
 
                     /* put the new node into the list */
                     if (certList != NULL) {
-                        WOLFSSL_MSG("Pushing new cert onto stack");
-                        node->next = certList;
-                        certList = node;
+                        WOLFSSL_MSG("Pushing new cert onto queue");
+                        tailList->next = node;
+                        tailList = node;
                     }
                     else {
                         certList = node;
+                        tailList = node;
                     }
 
                     /* on to next */

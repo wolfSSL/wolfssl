@@ -6,7 +6,7 @@
 #
 #
 
-AC_INIT([wolfssl],[3.13.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
+AC_INIT([wolfssl],[3.14.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -35,7 +35,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h:config.in])dnl Keep filename to 8.3 for MS-DOS.
 
 #shared library versioning
-WOLFSSL_LIBRARY_VERSION=15:0:0
+WOLFSSL_LIBRARY_VERSION=16:0:0
 #                       | | |
 #                +------+ | +---+
 #                |        |     |
@@ -217,8 +217,10 @@ then
     enable_aeskeywrap=yes
     enable_x963kdf=yes
     enable_scrypt=yes
+    enable_indef=yes
 
     AM_CFLAGS="-DHAVE_AES_DECRYPT $AM_CFLAGS"
+    AM_CFLAGS="-DHAVE_AES_ECB $AM_CFLAGS"
 fi
 AM_CONDITIONAL([BUILD_ALL], [test "x$ENABLED_ALL" = "xyes"])
 
@@ -293,6 +295,18 @@ then
 fi
 
 
+# TLS v1.3 Draft 22
+AC_ARG_ENABLE([tls13-draft22],
+    [AS_HELP_STRING([--enable-tls13-draft22],[Enable wolfSSL TLS v1.3 Draft 22 (default: disabled)])],
+    [ ENABLED_TLS13_DRAFT22=$enableval ],
+    [ ENABLED_TLS13_DRAFT22=no ]
+    )
+if test "$ENABLED_TLS13_DRAFT22" = "yes"
+then
+  AM_CFLAGS="-DWOLFSSL_TLS13_DRAFT_22 $AM_CFLAGS"
+fi
+
+
 # TLS v1.3
 AC_ARG_ENABLE([tls13],
     [AS_HELP_STRING([--enable-tls13],[Enable wolfSSL TLS v1.3 (default: disabled)])],
@@ -300,7 +314,7 @@ AC_ARG_ENABLE([tls13],
     [ ENABLED_TLS13=no ]
     )
 
-if test "$ENABLED_TLS13_DRAFT18" = "yes"
+if test "$ENABLED_TLS13_DRAFT18" = "yes" || test "$ENABLED_TLS13_DRAFT22" = "yes"
 then
     ENABLED_TLS13="yes"
 fi
@@ -425,6 +439,39 @@ AC_ARG_ENABLE([haproxy],
     [ ENABLED_HAPROXY=no ]
     )
 
+# wpa_supplicant support
+AC_ARG_ENABLE([wpas],
+    [AS_HELP_STRING([--enable-wpas],[Enable wpa_supplicant support (default: disabled)])],
+    [ ENABLED_WPAS=$enableval ],
+    [ ENABLED_WPAS=no ]
+    )
+
+# Fortress build
+AC_ARG_ENABLE([fortress],
+    [AS_HELP_STRING([--enable-fortress],[Enable SSL fortress build (default: disabled)])],
+    [ ENABLED_FORTRESS=$enableval ],
+    [ ENABLED_FORTRESS=no ]
+    )
+
+if test "$ENABLED_OPENSSH" = "yes"
+then
+    ENABLED_FORTRESS="yes"
+fi
+
+# ssl bump build
+AC_ARG_ENABLE([bump],
+    [AS_HELP_STRING([--enable-bump],[Enable SSL Bump build (default: disabled)])],
+    [ ENABLED_BUMP=$enableval ],
+    [ ENABLED_BUMP=no ]
+    )
+
+# SNIFFER
+AC_ARG_ENABLE([sniffer],
+   [AS_HELP_STRING([--enable-sniffer],[Enable wolfSSL sniffer support (default: disabled)])],
+   [ ENABLED_SNIFFER=$enableval ],
+   [ ENABLED_SNIFFER=no ]
+   )
+
 # signal compatibility build
 AC_ARG_ENABLE([signal],
     [AS_HELP_STRING([--enable-signal],[Enable signal (default: disabled)])],
@@ -453,7 +500,7 @@ AC_ARG_ENABLE([opensslextra],
     [ ENABLED_OPENSSLEXTRA=$enableval ],
     [ ENABLED_OPENSSLEXTRA=no ]
     )
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_SIGNAL" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_SIGNAL" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_FORTRESS" = "yes" || test "$ENABLED_BUMP" = "yes" || test "$ENABLED_SNIFFER" = "yes"
 then
     ENABLED_OPENSSLEXTRA="yes"
 fi
@@ -466,9 +513,15 @@ fi
 
 if test "$ENABLED_OPENSSLEXTRA" = "yes" && test "$ENABLED_SMALL" = "yes"
 then
-    AC_MSG_ERROR([cannot enable small and opensslextra, only one or the other.])
+   AC_MSG_ERROR([cannot enable small and opensslextra, only one or the other.])
 fi
 
+if test "$ENABLED_OPENSSLEXTRA" = "x509small"
+then
+  AC_MSG_NOTICE([Enabling only a subset of X509 opensslextra])
+  AM_CFLAGS="-DOPENSSL_EXTRA_X509_SMALL $AM_CFLAGS"
+  AM_CFLAGS="-DWOLFSSL_EKU_OID -DWOLFSSL_MULTI_ATTRIB $AM_CFLAGS"
+fi
 
 # High Strength Build
 AC_ARG_ENABLE([maxstrength],
@@ -506,53 +559,28 @@ fi
 AM_CONDITIONAL([BUILD_IPV6], [test "x$ENABLED_IPV6" = "xyes"])
 
 
-# wpa_supplicant support
-AC_ARG_ENABLE([wpas],
-    [AS_HELP_STRING([--enable-wpas],[Enable wpa_supplicant support (default: disabled)])],
-    [ ENABLED_WPAS=$enableval ],
-    [ ENABLED_WPAS=no ]
-    )
 if test "$ENABLED_WPAS" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_SECRET_CALLBACK -DWOLFSSL_STATIC_RSA"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_PUBLIC_MP -DWOLFSSL_PUBLIC_ECC_ADD_DBL"
     AM_CFLAGS="$AM_CFLAGS -DATOMIC_USER -DHAVE_EX_DATA -DWOLFSSL_KEEP_PEER_CERT"
     AM_CFLAGS="$AM_CFLAGS -DHAVE_EXT_CACHE"
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_VERIFY_CB -DOPENSSL_EXTRA"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALWAYS_VERIFY_CB"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_DIRECT -DWOLFSSL_DER_LOAD"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_KEY_GEN"
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_WPAS"
 fi
 
 
-# Fortress build
-AC_ARG_ENABLE([fortress],
-    [AS_HELP_STRING([--enable-fortress],[Enable SSL fortress build (default: disabled)])],
-    [ ENABLED_FORTRESS=$enableval ],
-    [ ENABLED_FORTRESS=no ]
-    )
-
-if test "$ENABLED_OPENSSH" = "yes"
-then
-    ENABLED_FORTRESS="yes"
-fi
-
 if test "$ENABLED_FORTRESS" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DFORTRESS -DWOLFSSL_ALWAYS_VERIFY_CB -DOPENSSL_EXTRA -DWOLFSSL_AES_COUNTER -DWOLFSSL_AES_DIRECT -DWOLFSSL_DER_LOAD -DWOLFSSL_KEY_GEN"
+    AM_CFLAGS="$AM_CFLAGS -DFORTRESS -DWOLFSSL_ALWAYS_VERIFY_CB -DWOLFSSL_AES_COUNTER -DWOLFSSL_AES_DIRECT -DWOLFSSL_DER_LOAD -DWOLFSSL_KEY_GEN"
 fi
 
-
-# ssl bump build
-AC_ARG_ENABLE([bump],
-    [AS_HELP_STRING([--enable-bump],[Enable SSL Bump build (default: disabled)])],
-    [ ENABLED_BUMP=$enableval ],
-    [ ENABLED_BUMP=no ]
-    )
 
 if test "$ENABLED_BUMP" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DLARGE_STATIC_BUFFERS -DWOLFSSL_CERT_GEN -DWOLFSSL_KEY_GEN -DHUGE_SESSION_CACHE -DOPENSSL_EXTRA -DFP_MAX_BITS=8192 -DWOLFSSL_DER_LOAD -DWOLFSSL_ALT_NAMES -DWOLFSSL_TEST_CERT"
+    AM_CFLAGS="$AM_CFLAGS -DLARGE_STATIC_BUFFERS -DWOLFSSL_CERT_GEN -DWOLFSSL_KEY_GEN -DHUGE_SESSION_CACHE -DFP_MAX_BITS=8192 -DWOLFSSL_DER_LOAD -DWOLFSSL_ALT_NAMES -DWOLFSSL_TEST_CERT"
 fi
 
 ENABLED_SLOWMATH="yes"
@@ -716,13 +744,6 @@ fi
 AM_CONDITIONAL([BUILD_PKCALLBACKS],   [ test "x$ENABLED_PKCALLBACKS" = "xyes" ])
 
 
-# SNIFFER
-AC_ARG_ENABLE([sniffer],
-   [AS_HELP_STRING([--enable-sniffer],[Enable wolfSSL sniffer support (default: disabled)])],
-   [ ENABLED_SNIFFER=$enableval ],
-   [ ENABLED_SNIFFER=no ]
-   )
-
 # sniffer doesn't work in maxstrength mode
 if test "$ENABLED_SNIFFER" = "yes" && test "$ENABLED_MAXSTRENGTH" = "yes"
 then
@@ -732,7 +753,7 @@ fi
 ENABLED_SNIFFTEST=no
 AS_IF([ test "x$ENABLED_SNIFFER" = "xyes" ],
       [
-          AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SNIFFER -DOPENSSL_EXTRA"
+          AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SNIFFER"
           AC_CHECK_HEADERS([pcap/pcap.h],
               [ ENABLED_SNIFFTEST=yes ],
               [ AC_MSG_WARN([cannot enable sniffer test without having libpcap available.]) ]
@@ -1971,6 +1992,20 @@ fi
 AM_CONDITIONAL([BUILD_FIPS], [test "x$ENABLED_FIPS" = "xyes"])
 AM_CONDITIONAL([BUILD_FIPS_V2], [test "x$FIPS_VERSION" = "xv2"])
 
+# SELFTEST
+AC_ARG_ENABLE([selftest],
+    [AS_HELP_STRING([--enable-selftest],[Enable selftest, Will NOT work w/o CAVP selftest license (default: disabled)])],
+    [ ENABLED_SELFTEST=$enableval ],
+    [ ENABLED_SELFTEST=no ]
+    )
+
+if test "x$ENABLED_SELFTEST" == "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_SELFTEST"
+fi
+
+AM_CONDITIONAL([BUILD_SELFTEST], [test "x$ENABLED_SELFTEST" = "xyes"])
+
 
 # set sha224 default
 SHA224_DEFAULT=no
@@ -2191,7 +2226,6 @@ AC_ARG_ENABLE([ocspstapling],
 
 if test "x$ENABLED_NGINX" = "xyes" || test "x$ENABLED_WPAS" = "xyes" || test "x$ENABLED_HAPROXY" = "xyes"
 then
-    echo "ELLO"
     ENABLED_CERTIFICATE_STATUS_REQUEST="yes"
 fi
 
@@ -2643,6 +2677,19 @@ then
 fi
 
 AM_CONDITIONAL([BUILD_SRP], [test "x$ENABLED_SRP" = "xyes"])
+
+
+# Indefinite length encoded BER message support
+AC_ARG_ENABLE([indef],
+    [AS_HELP_STRING([--enable-indef],[Enable parsing of indefinite length encoded msgs (default: disabled)])],
+    [ ENABLED_BER_INDEF=$enableval ],
+    [ ENABLED_BER_INDEF=no ]
+    )
+
+if test "x$ENABLED_BER_INDEF" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DASN_BER_TO_DER"
+fi
 
 
 
@@ -3140,6 +3187,7 @@ AS_IF([test "x$ENABLED_CRYPTONLY" = "xyes"], [ENABLED_EXAMPLES="no"])
 AM_CONDITIONAL([BUILD_EXAMPLE_SERVERS], [test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
 AM_CONDITIONAL([BUILD_EXAMPLE_CLIENTS], [test "x$ENABLED_EXAMPLES" = "xyes"])
 AM_CONDITIONAL([BUILD_TESTS], [test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
+AM_CONDITIONAL([BUILD_THREADED_EXAMPLES], [test "x$ENABLED_SINGLETHREADED" = "xno" && test "x$ENABLED_EXAMPLES" = "xyes" && test "x$ENABLED_LEANTLS" = "xno"])
 
 # Enable wolfCrypt test and benchmark
 AC_ARG_ENABLE([crypttests],
@@ -3313,6 +3361,9 @@ AC_ARG_ENABLE([sp],
     [ ENABLED_SP=no ],
     )
 
+ENABLED_SP_RSA=no
+ENABLED_SP_DH=no
+ENABLED_SP_ECC=no
 for v in `echo $ENABLED_SP | tr "," " "`
 do
   case $v in
@@ -3402,6 +3453,38 @@ if test "$ENABLED_ECC" = "yes" && test "$ENABLED_SP_ECC" = "yes"; then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_SP_ECC"
 fi
 AM_CONDITIONAL([BUILD_SP], [test "x$ENABLED_SP" = "xyes"])
+
+AC_ARG_ENABLE([sp-math],
+    [AS_HELP_STRING([--enable-sp-math],[Enable Single Precision math implementation only (default: disabled)])],
+    [ ENABLED_SP_MATH=$enableval ],
+    [ ENABLED_SP_MATH=no ],
+    )
+if test "$ENABLED_SP_MATH" = "yes"; then
+    if test "$ENABLED_SP" = "no"; then
+        AC_MSG_ERROR([Must have SP enabled: --enable-sp])
+    fi
+    if test "$ENABLED_ECCCUSTCURVES" = "yes"; then
+        AC_MSG_ERROR([Cannot use single precision math and custom curves])
+    fi
+    if test "$ENABLED_OPENSSLEXTRA" = "yes"; then
+        AC_MSG_ERROR([Cannot use single precision math and OpenSSL extra])
+    fi
+    if test "$ENABLED_DSA" = "yes"; then
+        AC_MSG_ERROR([Cannot use single precision math and DSA])
+    fi
+    if test "$ENABLED_SRP" = "yes"; then
+        AC_MSG_ERROR([Cannot use single precision math and SRP])
+    fi
+    if test "$ENABLED_SP_RSA" = "no" && test "$ENABLED_RSA" = "yes"; then
+        AC_MSG_ERROR([Cannot use P256 single precision only math and RSA])
+    fi
+    if test "$ENABLED_SP_DH" = "no" && test "$ENABLED_DH" = "yes"; then
+        AC_MSG_ERROR([Cannot use P256 single precision only math and DH])
+    fi
+fi
+if test "$ENABLED_SP_MATH" = "yes"; then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SP_MATH"
+fi
 
 # Fast RSA using Intel IPP
 ippdir="${srcdir}/IPP"
@@ -3704,6 +3787,7 @@ AC_ARG_ENABLE([oldnames],
 if test "x$ENABLED_OLDNAMES" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_OLD_RNGNAME -DNO_OLD_WC_NAMES -DNO_OLD_SSL_NAMES"
+    AM_CFLAGS="$AM_CFLAGS -DNO_OLD_SHA256_NAMES"
 fi
 
 
@@ -3833,6 +3917,9 @@ then
         ENABLED_PKCS7="yes"
     fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_HAVE_WOLFSCEP"
+fi
+if test "$ENABLED_SP_MATH" = "yes" && test "$ENABLED_KEYGEN" = "yes"; then
+    AC_MSG_ERROR([Cannot use single precision math and key generation])
 fi
 
 if test "x$ENABLED_PKCS7" = "xyes"
@@ -4191,6 +4278,7 @@ echo "   * SIGNAL:                     $ENABLED_SIGNAL"
 echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                       $ENABLED_DTLS"
 echo "   * SCTP:                       $ENABLED_SCTP"
+echo "   * Indefinite Length:          $ENABLED_BER_INDEF"
 echo "   * Multicast:                  $ENABLED_MCAST"
 echo "   * Old TLS Versions:           $ENABLED_OLD_TLS"
 echo "   * SSL version 3.0:            $ENABLED_SSLV3"

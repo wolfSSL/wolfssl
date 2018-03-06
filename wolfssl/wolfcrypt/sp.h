@@ -31,34 +31,9 @@
 #include <stdint.h>
 
 #include <wolfssl/wolfcrypt/integer.h>
+#include <wolfssl/wolfcrypt/sp_int.h>
+
 #include <wolfssl/wolfcrypt/ecc.h>
-
-#if defined(NO_64BIT) || !defined(HAVE___UINT128_T)
-#define SP_WORD_SIZE 32
-#else
-#define SP_WORD_SIZE 64
-#endif
-
-#if !defined(WOLFSSL_X86_64_BUILD) || !defined(USE_INTEL_SPEEDUP)
-  #if SP_WORD_SIZE == 32
-    typedef int32_t sp_digit;
-  #elif SP_WORD_SIZE == 64
-    typedef int64_t sp_digit;
-    typedef long int128_t __attribute__ ((mode(TI)));
-  #else
-    #error Word size not defined
-  #endif
-#else
-  #if SP_WORD_SIZE == 32
-    typedef uint32_t sp_digit;
-  #elif SP_WORD_SIZE == 64
-    typedef uint64_t sp_digit;
-    typedef unsigned long uint128_t __attribute__ ((mode(TI)));
-    typedef long int128_t __attribute__ ((mode(TI)));
-  #else
-    #error Word size not defined
-  #endif
-#endif
 
 #if defined(_MSC_VER)
     #define SP_NOINLINE __declspec(noinline)
@@ -67,6 +42,7 @@
 #else
     #define 5P_NOINLINE
 #endif
+
 
 #ifdef __cplusplus
     extern "C" {
@@ -90,6 +66,11 @@ WOLFSSL_LOCAL int sp_RsaPrivate_3072(const byte* in, word32 inLen,
 
 #ifdef WOLFSSL_HAVE_SP_DH
 
+WOLFSSL_LOCAL int sp_ModExp_2048(mp_int* base, mp_int* exp, mp_int* mod,
+    mp_int* res);
+WOLFSSL_LOCAL int sp_ModExp_3072(mp_int* base, mp_int* exp, mp_int* mod,
+    mp_int* res);
+
 WOLFSSL_LOCAL int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
     mp_int* mod, byte* out, word32* outLen);
 WOLFSSL_LOCAL int sp_DhExp_3072(mp_int* base, const byte* exp, word32 expLen,
@@ -110,6 +91,15 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
                     mp_int* rm, mp_int* sm, void* heap);
 int sp_ecc_verify_256(const byte* hash, word32 hashLen, mp_int* pX, mp_int* pY,
                       mp_int* pZ, mp_int* r, mp_int* sm, int* res, void* heap);
+int sp_ecc_is_point_256(mp_int* pX, mp_int* pY);
+int sp_ecc_check_key_256(mp_int* pX, mp_int* pY, mp_int* privm, void* heap);
+int sp_ecc_proj_add_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
+                              mp_int* qX, mp_int* qY, mp_int* qZ,
+                              mp_int* rX, mp_int* rY, mp_int* rZ);
+int sp_ecc_proj_dbl_point_256(mp_int* pX, mp_int* pY, mp_int* pZ,
+                              mp_int* rX, mp_int* rY, mp_int* rZ);
+int sp_ecc_map_256(mp_int* pX, mp_int* pY, mp_int* pZ);
+int sp_ecc_uncompress_256(mp_int* xm, int odd, mp_int* ym);
 
 #endif /*ifdef WOLFSSL_HAVE_SP_ECC */
 

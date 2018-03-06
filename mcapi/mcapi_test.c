@@ -279,10 +279,10 @@ static int check_sha(void)
 static int check_sha256(void)
 {
     CRYPT_SHA256_CTX mcSha256;
-    Sha256           defSha256;
+    wc_Sha256        defSha256;
     int              ret;
     byte             mcDigest[CRYPT_SHA256_DIGEST_SIZE];
-    byte             defDigest[SHA256_DIGEST_SIZE];
+    byte             defDigest[WC_SHA256_DIGEST_SIZE];
 
     CRYPT_SHA256_Initialize(&mcSha256);
     ret = wc_InitSha256(&defSha256);
@@ -319,10 +319,10 @@ static int check_sha256(void)
 static int check_sha384(void)
 {
     CRYPT_SHA384_CTX mcSha384;
-    Sha384           defSha384;
+    wc_Sha384        defSha384;
     int              ret;
     byte             mcDigest[CRYPT_SHA384_DIGEST_SIZE];
-    byte             defDigest[SHA384_DIGEST_SIZE];
+    byte             defDigest[WC_SHA384_DIGEST_SIZE];
 
     CRYPT_SHA384_Initialize(&mcSha384);
     ret = wc_InitSha384(&defSha384);
@@ -359,10 +359,10 @@ static int check_sha384(void)
 static int check_sha512(void)
 {
     CRYPT_SHA512_CTX mcSha512;
-    Sha512           defSha512;
+    wc_Sha512        defSha512;
     int              ret;
     byte             mcDigest[CRYPT_SHA512_DIGEST_SIZE];
-    byte             defDigest[SHA512_DIGEST_SIZE];
+    byte             defDigest[WC_SHA512_DIGEST_SIZE];
 
     CRYPT_SHA512_Initialize(&mcSha512);
     ret = wc_InitSha512(&defSha512);
@@ -402,13 +402,13 @@ static int check_hmac(void)
     Hmac           defHmac;
     int            ret;
     byte           mcDigest[CRYPT_SHA512_DIGEST_SIZE];
-    byte           defDigest[SHA512_DIGEST_SIZE];
+    byte           defDigest[WC_SHA512_DIGEST_SIZE];
 
     strncpy((char*)key, "Jefe", 4);
 
     /* SHA1 */
     CRYPT_HMAC_SetKey(&mcHmac, CRYPT_HMAC_SHA, key, 4);
-    ret = wc_HmacSetKey(&defHmac, SHA, key, 4);
+    ret = wc_HmacSetKey(&defHmac, WC_SHA, key, 4);
     if (ret != 0) {
         printf("hmac sha setkey default failed\n");
         return -1;
@@ -436,7 +436,7 @@ static int check_hmac(void)
 
     /* SHA-256 */
     CRYPT_HMAC_SetKey(&mcHmac, CRYPT_HMAC_SHA256, key, 4);
-    ret = wc_HmacSetKey(&defHmac, SHA256, key, 4);
+    ret = wc_HmacSetKey(&defHmac, WC_SHA256, key, 4);
     if (ret != 0) {
         printf("hmac sha256 setkey default failed\n");
         return -1;
@@ -464,7 +464,7 @@ static int check_hmac(void)
 
     /* SHA-384 */
     CRYPT_HMAC_SetKey(&mcHmac, CRYPT_HMAC_SHA384, key, 4);
-    ret = wc_HmacSetKey(&defHmac, SHA384, key, 4);
+    ret = wc_HmacSetKey(&defHmac, WC_SHA384, key, 4);
     if (ret != 0) {
         printf("hmac sha384 setkey default failed\n");
         return -1;
@@ -492,7 +492,7 @@ static int check_hmac(void)
 
     /* SHA-512 */
     CRYPT_HMAC_SetKey(&mcHmac, CRYPT_HMAC_SHA512, key, 4);
-    ret = wc_HmacSetKey(&defHmac, SHA512, key, 4);
+    ret = wc_HmacSetKey(&defHmac, WC_SHA512, key, 4);
     if (ret != 0) {
         printf("hmac sha512 setkey default failed\n");
         return -1;

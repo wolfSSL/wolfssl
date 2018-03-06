@@ -2605,6 +2605,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     int             ret;
 #ifndef WOLFSSL_TLS13_DRAFT_18
     byte            sessIdSz;
+    const byte*     sessId;
     byte            b;
 #endif
     word16          totalExtSz;
@@ -2668,35 +2669,18 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     sessIdSz = input[i++];
     if ((i - begin) + sessIdSz > helloSz)
         return BUFFER_ERROR;
-    #ifdef WOLFSSL_TLS13_MIDDLEBOX_COMPAT
-    if (sessIdSz == 0)
-        return INVALID_PARAMETER;
-    if (ssl->session.sessionIDSz != 0) {
-        if (ssl->session.sessionIDSz != sessIdSz ||
-                    XMEMCMP(ssl->session.sessionID, input + i, sessIdSz) != 0) {
-            return INVALID_PARAMETER;
-        }
-    }
-    else if (XMEMCMP(ssl->arrays->clientRandom, input + i, sessIdSz) != 0)
-        return INVALID_PARAMETER;
-    #else
-    if (sessIdSz != ssl->session.sessionIDSz || (sessIdSz > 0 &&
-                   XMEMCMP(ssl->session.sessionID, input + i, sessIdSz) != 0)) {
-        WOLFSSL_MSG("Server sent different session id");
-        return INVALID_PARAMETER;
-    }
-    #endif /* WOLFSSL_TLS13_MIDDLEBOX_COMPAT */
+    sessId = input + i;
     i += sessIdSz;
-    ssl->options.haveSessionId = 1;
 #endif /* WOLFSSL_TLS13_DRAFT_18 */
+    ssl->options.haveSessionId = 1;
 
 #ifdef WOLFSSL_TLS13_DRAFT_18
-    /* Ciphersuite and extensions length check */
+    /* Ciphersuite check */
     if ((i - begin) + OPAQUE16_LEN + OPAQUE16_LEN > helloSz)
         return BUFFER_ERROR;
 #else
-    /* Ciphersuite, compression and extensions length check */
-    if ((i - begin) + OPAQUE16_LEN + OPAQUE16_LEN + OPAQUE16_LEN > helloSz)
+    /* Ciphersuite and compression check */
+    if ((i - begin) + OPAQUE16_LEN + OPAQUE8_LEN > helloSz)
         return BUFFER_ERROR;
 #endif
 
@@ -2713,18 +2697,33 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 #endif
 
-    /* Get extension length and length check. */
-    ato16(&input[i], &totalExtSz);
-    i += OPAQUE16_LEN;
-    if ((i - begin) + totalExtSz > helloSz)
-        return BUFFER_ERROR;
+#ifndef WOLFSSL_TLS13_DRAFT_18
+    if ((i - begin) + OPAQUE16_LEN > helloSz) {
+        if (!ssl->options.downgrade)
+            return BUFFER_ERROR;
+        ssl->version.minor = TLSv1_2_MINOR;
+        ssl->options.haveEMS = 0;
+    }
+    if ((i - begin) < helloSz)
+#endif
+    {
+        /* Get extension length and length check. */
+        ato16(&input[i], &totalExtSz);
+        i += OPAQUE16_LEN;
+        if ((i - begin) + totalExtSz > helloSz)
+            return BUFFER_ERROR;
 
-    /* Parse and handle extensions. */
-    ret = TLSX_Parse(ssl, (byte *) input + i, totalExtSz, extMsgType, NULL);
-    if (ret != 0)
-        return ret;
+#ifndef WOLFSSL_TLS13_DRAFT_18
+        if (ssl->options.downgrade)
+            ssl->version.minor = TLSv1_2_MINOR;
+#endif
+        /* Parse and handle extensions. */
+        ret = TLSX_Parse(ssl, (byte *) input + i, totalExtSz, extMsgType, NULL);
+        if (ret != 0)
+            return ret;
 
-    i += totalExtSz;
+        i += totalExtSz;
+    }
     *inOutIdx = i;
 
     ssl->options.serverState = SERVER_HELLO_COMPLETE;
@@ -2738,6 +2737,51 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return SESSION_SECRET_CB_E;
     }
 #endif /* HAVE_SECRET_CALLBACK */
+
+#ifndef WOLFSSL_TLS13_DRAFT_18
+    /* Version only negotiated in extensions for TLS v1.3.
+     * Only now do we know how to deal with session id.
+     */
+    if (!IsAtLeastTLSv1_3(ssl->version)) {
+        ssl->arrays->sessionIDSz = sessIdSz;
+
+        if (ssl->arrays->sessionIDSz > ID_LEN) {
+            WOLFSSL_MSG("Invalid session ID size");
+            ssl->arrays->sessionIDSz = 0;
+            return BUFFER_ERROR;
+        }
+        else if (ssl->arrays->sessionIDSz) {
+            XMEMCPY(ssl->arrays->sessionID, sessId, ssl->arrays->sessionIDSz);
+            ssl->options.haveSessionId = 1;
+        }
+
+        /* Complete TLS v1.2 processing of ServerHello. */
+        ret = CompleteServerHello(ssl);
+
+        WOLFSSL_LEAVE("DoTls13ServerHello", ret);
+
+        return ret;
+    }
+
+    #ifdef WOLFSSL_TLS13_MIDDLEBOX_COMPAT
+    if (sessIdSz == 0)
+        return INVALID_PARAMETER;
+    if (ssl->session.sessionIDSz != 0) {
+        if (ssl->session.sessionIDSz != sessIdSz ||
+                   XMEMCMP(ssl->session.sessionID, sessId, sessIdSz) != 0) {
+            return INVALID_PARAMETER;
+        }
+    }
+    else if (XMEMCMP(ssl->arrays->clientRandom, sessId, sessIdSz) != 0)
+        return INVALID_PARAMETER;
+    #else
+    if (sessIdSz != ssl->session.sessionIDSz || (sessIdSz > 0 &&
+                  XMEMCMP(ssl->session.sessionID, sessId, sessIdSz) != 0)) {
+        WOLFSSL_MSG("Server sent different session id");
+        return INVALID_PARAMETER;
+    }
+    #endif /* WOLFSSL_TLS13_MIDDLEBOX_COMPAT */
+#endif
 
     ret = SetCipherSpecs(ssl);
     if (ret != 0)
@@ -3173,6 +3217,9 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
         break;
     }
 
+    if (current == NULL)
+        return 0;
+
     /* Hash the rest of the ClientHello. */
     ret = HashInputRaw(ssl, input + helloSz - bindersLen, bindersLen);
     if (ret != 0)
@@ -3567,10 +3614,11 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return ret;
     }
 
-#ifdef HAVE_STUNNEL
+#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     if ((ret = SNI_Callback(ssl)) != 0)
         return ret;
-#endif /*HAVE_STUNNEL*/
+    ssl->options.side = WOLFSSL_SERVER_END;
+#endif /* HAVE_STUNNELi || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 
     if (TLSX_Find(ssl->extensions, TLSX_SUPPORTED_VERSIONS) == NULL) {
         if (!ssl->options.downgrade) {

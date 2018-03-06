@@ -86,7 +86,7 @@
         #define NO_OLD_WC_NAMES
     #endif
 
-#elif defined(OPENSSL_EXTRA)
+#elif (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
     #include <wolfssl/openssl/bn.h>
     #include <wolfssl/openssl/hmac.h>
 
@@ -225,7 +225,7 @@ struct WOLFSSL_EVP_PKEY {
     union {
         char* ptr; /* der format of key / or raw for NTRU */
     } pkey;
-    #ifdef OPENSSL_EXTRA
+    #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
     #ifndef NO_RSA
         WOLFSSL_RSA* rsa;
         byte      ownRsa; /* if struct owns RSA and should free it */
@@ -235,7 +235,7 @@ struct WOLFSSL_EVP_PKEY {
         byte      ownEcc; /* if struct owns ECC and should free it */
     #endif
     WC_RNG rng;
-    #endif
+    #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
     #ifdef HAVE_ECC
         int pkey_curve;
     #endif
@@ -445,8 +445,13 @@ WOLFSSL_API WOLFSSL_METHOD *wolfTLSv1_2_client_method(void);
 
 #ifdef WOLFSSL_SESSION_EXPORT
 #ifdef WOLFSSL_DTLS
+
+#ifndef WOLFSSL_DTLS_EXPORT_TYPES
 typedef int (*wc_dtls_export)(WOLFSSL* ssl,
                    unsigned char* exportBuffer, unsigned int sz, void* userCtx);
+#define WOLFSSL_DTLS_EXPORT_TYPES
+#endif /* WOLFSSL_DTLS_EXPORT_TYPES */
+
 WOLFSSL_API int wolfSSL_dtls_import(WOLFSSL* ssl, unsigned char* buf,
                                                                unsigned int sz);
 WOLFSSL_API int wolfSSL_CTX_dtls_set_export(WOLFSSL_CTX* ctx,
@@ -735,7 +740,6 @@ WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl);
                            /* what's ref count */
 
 WOLFSSL_API WOLFSSL_X509* wolfSSL_X509_new(void);
-WOLFSSL_API void wolfSSL_X509_free(WOLFSSL_X509*);
 
 #ifdef OPENSSL_EXTRA
 WOLFSSL_API void wolfSSL_OPENSSL_free(void*);
@@ -926,7 +930,7 @@ WOLFSSL_API WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509*);
 
 WOLFSSL_API int wolfSSL_ASN1_TIME_print(WOLFSSL_BIO*, const WOLFSSL_ASN1_TIME*);
 
-WOLFSSL_API char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* time,
+WOLFSSL_API char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* t,
                                                             char* buf, int len);
 WOLFSSL_API int  wolfSSL_ASN1_INTEGER_cmp(const WOLFSSL_ASN1_INTEGER*,
                                        const WOLFSSL_ASN1_INTEGER*);
@@ -1472,7 +1476,8 @@ WOLFSSL_API unsigned char* wolfSSL_get_chain_cert(WOLFSSL_X509_CHAIN*, int idx);
 /* index cert in X509 */
 WOLFSSL_API WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN*, int idx);
 /* free X509 */
-WOLFSSL_API void wolfSSL_FreeX509(WOLFSSL_X509*);
+#define wolfSSL_FreeX509(x509) wolfSSL_X509_free((x509))
+WOLFSSL_API void wolfSSL_X509_free(WOLFSSL_X509*);
 /* get index cert in PEM */
 WOLFSSL_API int  wolfSSL_get_chain_cert_pem(WOLFSSL_X509_CHAIN*, int idx,
                                 unsigned char* buf, int inLen, int* outLen);
@@ -1777,7 +1782,9 @@ enum BulkCipherAlgorithm {
     wolfssl_des,
     wolfssl_triple_des,             /* leading 3 (3des) not valid identifier */
     wolfssl_des40,
+#ifdef HAVE_IDEA
     wolfssl_idea,
+#endif
     wolfssl_aes,
     wolfssl_aes_gcm,
     wolfssl_aes_ccm,
@@ -2416,6 +2423,21 @@ WOLFSSL_API int wolfSSL_accept_ex(WOLFSSL*, HandShakeCallBack, TimeoutCallBack,
     WOLFSSL_API void wolfSSL_cert_service(void);
 #endif
 
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+/* Smaller subset of X509 compatibility functions. Avoid increasing the size of
+ * this subset and its memory usage */
+
+#include <wolfssl/openssl/asn1.h>
+struct WOLFSSL_X509_NAME_ENTRY {
+    WOLFSSL_ASN1_OBJECT* object; /* not defined yet */
+    WOLFSSL_ASN1_STRING  data;
+    WOLFSSL_ASN1_STRING* value;  /* points to data, for lighttpd port */
+    int nid; /* i.e. ASN_COMMON_NAME */
+    int set;
+    int size;
+};
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
+
 #ifdef OPENSSL_EXTRA
 
 enum {
@@ -2522,16 +2544,6 @@ struct WOLFSSL_ASN1_BIT_STRING {
 };
 
 
-#include <wolfssl/openssl/asn1.h>
-struct WOLFSSL_X509_NAME_ENTRY {
-    WOLFSSL_ASN1_OBJECT* object; /* not defined yet */
-    WOLFSSL_ASN1_STRING  data;
-    WOLFSSL_ASN1_STRING* value;  /* points to data, for lighttpd port */
-    int nid; /* i.e. ASN_COMMON_NAME */
-    int set;
-    int size;
-};
-
 #if defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE) \
                          || defined(HAVE_STUNNEL) \
                          || defined(WOLFSSL_NGINX) \
@@ -2550,6 +2562,7 @@ WOLFSSL_API WOLFSSL_ASN1_OBJECT * wolfSSL_X509_NAME_ENTRY_get_object(WOLFSSL_X50
 WOLFSSL_API WOLFSSL_X509_NAME_ENTRY *wolfSSL_X509_NAME_get_entry(WOLFSSL_X509_NAME *name, int loc);
 WOLFSSL_API void wolfSSL_sk_X509_NAME_pop_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk, void f (WOLFSSL_X509_NAME*));
 WOLFSSL_API unsigned char *wolfSSL_SHA1(const unsigned char *d, size_t n, unsigned char *md);
+WOLFSSL_API unsigned char *wolfSSL_SHA256(const unsigned char *d, size_t n, unsigned char *md);
 WOLFSSL_API int wolfSSL_X509_check_private_key(WOLFSSL_X509*, WOLFSSL_EVP_PKEY*);
 WOLFSSL_API WOLF_STACK_OF(WOLFSSL_X509_NAME) *wolfSSL_dup_CA_list( WOLF_STACK_OF(WOLFSSL_X509_NAME) *sk );
 

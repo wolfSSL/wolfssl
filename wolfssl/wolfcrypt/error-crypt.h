@@ -99,6 +99,7 @@ enum {
     ASN_DH_KEY_E       = -158,  /* ASN key init error, invalid input */
     ASN_NTRU_KEY_E     = -159,  /* ASN ntru key decode error, invalid input */
     ASN_CRIT_EXT_E     = -160,  /* ASN unsupported critical extension */
+    ASN_ALT_NAME_E     = -161,  /* ASN alternate name error */
 
     ECC_BAD_ARG_E      = -170,  /* ECC input argument of wrong type */
     ASN_ECC_KEY_E      = -171,  /* ASN ECC bad input */
@@ -198,8 +199,13 @@ enum {
 
     PSS_SALTLEN_E       = -250,  /* PSS length of salt is to long for hash */
     PRIME_GEN_E         = -251,  /* Failure finding a prime. */
+    BER_INDEF_E         = -252,  /* Cannot decode indefinite length BER. */
+    RSA_OUT_OF_RANGE_E  = -253,  /* Ciphertext to decrypt out of range. */
+    RSAPSS_PAT_FIPS_E   = -254,  /* RSA-PSS PAT failure */
+    ECDSA_PAT_FIPS_E    = -255,  /* ECDSA PAT failure */
+    DH_KAT_FIPS_E       = -256,  /* DH KAT failure */
 
-    WC_LAST_E           = -251,  /* Update this to indicate last error */
+    WC_LAST_E           = -256,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes
@@ -207,9 +213,15 @@ enum {
 };
 
 
+#ifdef NO_ERROR_STRINGS
+    #define wc_GetErrorString(error) "no support for error strings built in"
+    #define wc_ErrorString(err, buf) \
+        XSTRNCPY((buf), wc_GetErrorString((err)), WOLFSSL_MAX_ERROR_SZ);
+
+#else
 WOLFSSL_API void wc_ErrorString(int err, char* buff);
 WOLFSSL_API const char* wc_GetErrorString(int error);
-
+#endif
 
 #ifdef __cplusplus
     } /* extern "C" */

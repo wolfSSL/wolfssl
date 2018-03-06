@@ -234,9 +234,11 @@
 #define SERVER_DEFAULT_VERSION 3
 #define SERVER_DTLS_DEFAULT_VERSION (-2)
 #define SERVER_INVALID_VERSION (-99)
+#define SERVER_DOWNGRADE_VERSION (-98)
 #define CLIENT_DEFAULT_VERSION 3
 #define CLIENT_DTLS_DEFAULT_VERSION (-2)
 #define CLIENT_INVALID_VERSION (-99)
+#define CLIENT_DOWNGRADE_VERSION (-98)
 #if !defined(NO_FILESYSTEM) && defined(WOLFSSL_MAX_STRENGTH)
     #define DEFAULT_MIN_DHKEY_BITS 2048
 #else
@@ -258,6 +260,7 @@
 #define caCertFile     "certs/ca-cert.pem"
 #define eccCertFile    "certs/server-ecc.pem"
 #define eccKeyFile     "certs/ecc-key.pem"
+#define eccRsaCertFile "certs/server-ecc-rsa.pem"
 #define svrCertFile    "certs/server-cert.pem"
 #define svrKeyFile     "certs/server-key.pem"
 #define cliCertFile    "certs/client-cert.pem"
@@ -278,6 +281,7 @@
 #define caCertFile     "./certs/ca-cert.pem"
 #define eccCertFile    "./certs/server-ecc.pem"
 #define eccKeyFile     "./certs/ecc-key.pem"
+#define eccRsaCertFile "./certs/server-ecc-rsa.pem"
 #define svrCertFile    "./certs/server-cert.pem"
 #define svrKeyFile     "./certs/server-key.pem"
 #define cliCertFile    "./certs/client-cert.pem"
@@ -369,12 +373,6 @@ void join_thread(THREAD_TYPE);
 #endif
 static const word16      wolfSSLPort = 11111;
 
-
-#if defined(__GNUC__)
-    #define WC_NORETURN __attribute__((noreturn))
-#else
-    #define WC_NORETURN
-#endif
 
 static INLINE WC_NORETURN void err_sys(const char* msg)
 {
