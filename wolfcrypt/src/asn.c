@@ -7316,15 +7316,15 @@ int wc_DerToPem(const byte* der, word32 derSz,
 int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
              byte *cipher_info, int type)
 {
-    int headerLen = MAX_X509_HEADER_SZ + HEADER_ENCRYPTED_KEY_SIZE;
-    int footerLen = MAX_X509_HEADER_SZ;
 #ifdef WOLFSSL_SMALL_STACK
     char* header = NULL;
     char* footer = NULL;
 #else
-    char header[headerLen];
-    char footer[footerLen];
+    char header[MAX_X509_HEADER_SZ + HEADER_ENCRYPTED_KEY_SIZE];
+    char footer[MAX_X509_HEADER_SZ];
 #endif
+    int headerLen = MAX_X509_HEADER_SZ + HEADER_ENCRYPTED_KEY_SIZE;
+    int footerLen = MAX_X509_HEADER_SZ;
     int i;
     int err;
     int outLen;   /* return length or error */
