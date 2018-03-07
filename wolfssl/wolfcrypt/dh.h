@@ -42,10 +42,6 @@
     extern "C" {
 #endif
 
-/* avoid redefinition of structs */
-#if !defined(HAVE_FIPS) || \
-    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
-
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
@@ -65,7 +61,6 @@ typedef struct DhKey {
 #endif
 } DhKey;
 
-#endif /* HAVE_FIPS */
 
 #ifdef HAVE_FFDHE_2048
 WOLFSSL_API const DhParams* wc_Dh_ffdhe2048_Get(void);

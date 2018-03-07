@@ -38,7 +38,7 @@
 
 /* included for fips @wc_fips */
 #if defined(HAVE_FIPS) && \
-	(!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
 #include <cyassl/ctaocrypt/aes.h>
 #if defined(CYASSL_AES_COUNTER) && !defined(WOLFSSL_AES_COUNTER)
     #define WOLFSSL_AES_COUNTER
@@ -60,6 +60,10 @@
 
 #ifdef WOLFSSL_XILINX_CRYPT
 #include "xsecure_aes.h"
+#endif
+
+#if defined(HAVE_AESGCM) && !defined(WC_NO_RNG)
+    #include <wolfssl/wolfcrypt/random.h>
 #endif
 
 
@@ -128,8 +132,6 @@ typedef struct XtsAes {
 #endif
 
 #ifdef HAVE_AESGCM
-#include <wolfssl/wolfcrypt/random.h>
-
 typedef struct Gmac {
     Aes aes;
 } Gmac;
@@ -203,12 +205,14 @@ WOLFSSL_API int wc_AesEcbDecrypt(Aes* aes, byte* out,
                                    const byte* authTag, word32 authTagSz,
                                    const byte* authIn, word32 authInSz);
 
+#ifndef WC_NO_RNG
  WOLFSSL_API int  wc_AesGcmEncrypt_ex(Aes* aes, byte* out,
                                       const byte* in, word32 sz,
                                       byte* iv, word32 ivSz,
                                       byte* authTag, word32 authTagSz,
                                       const byte* authIn, word32 authInSz,
                                       WC_RNG* rng);
+#endif /* WC_NO_RNG */
 
  WOLFSSL_API int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len);
  WOLFSSL_API int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,

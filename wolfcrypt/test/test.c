@@ -6489,6 +6489,8 @@ int aesgcm_test(void)
 #endif /* WOLFSSL_AES_256 */
 
     /* Test encrypt with internally generated IV */
+#if !defined(WC_NO_RNG) && \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
     {
         WC_RNG rng;
         byte randIV[12];
@@ -6534,6 +6536,7 @@ int aesgcm_test(void)
             return -8212;
         wc_FreeRng(&rng);
     }
+#endif /* WC_NO_RNG && FIPSv2 */
 
     wc_AesFree(&enc);
 

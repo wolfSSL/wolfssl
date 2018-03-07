@@ -8360,12 +8360,19 @@ static int test_wc_AesGcmEncryptDecrypt (void)
 		}
 	}
 
-	/* This case is now considered good. Long IVs are now allowed. */
+    /* This case is now considered good. Long IVs are now allowed.
+     * Except for the original FIPS release, it still has an upper
+     * bound on the IV length. */
+#if !defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 	if (gcmE == 0) {
 		gcmE = wc_AesGcmEncrypt(&aes, enc, vector, sizeof(vector), longIV,
 						sizeof(longIV)/sizeof(byte), resultT, sizeof(resultT),
 						a, sizeof(a));
 	}
+#else
+    (void)longIV;
+#endif /* Old FIPS */
     /* END wc_AesGcmEncrypt */
 
     printf(resultFmt, gcmE == 0 ? passed : failed);

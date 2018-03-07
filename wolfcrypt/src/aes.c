@@ -7972,6 +7972,8 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #endif /* (WOLFSSL_XILINX_CRYPT) */
 
 
+#ifndef WC_NO_RNG
+
 int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
                         byte* iv, word32 ivSz, byte* authTag, word32 authTagSz,
                         const byte* authIn, word32 authInSz, WC_RNG* rng)
@@ -7994,6 +7996,8 @@ int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
 
     return ret;
 }
+
+#endif /* WC_NO_RNG */
 
 
 WOLFSSL_API int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len)
