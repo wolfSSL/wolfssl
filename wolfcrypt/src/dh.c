@@ -908,6 +908,11 @@ int wc_DhCheckPubKey_ex(DhKey* key, const byte* pub, word32 pubSz,
     if (ret == 0 && prime != NULL) {
         if (mp_read_unsigned_bin(&q, prime, primeSz) != MP_OKAY)
             ret = MP_READ_E;
+
+    } else if (mp_iszero(&key->q) == MP_NO) {
+        /* use q available in DhKey */
+        if (mp_copy(&key->q, &q) != MP_OKAY)
+            ret = MP_INIT_E;
     }
 
     /* pub (y) should not be 0 or 1 */
@@ -926,7 +931,7 @@ int wc_DhCheckPubKey_ex(DhKey* key, const byte* pub, word32 pubSz,
         ret = MP_CMP_E;
     }
 
-    if (ret == 0 && prime != NULL) {
+    if (ret == 0 && (prime != NULL || (mp_iszero(&key->q) == MP_NO) )) {
 
         /* restore key->p into p */
         if (mp_copy(&key->p, &p) != MP_OKAY)
