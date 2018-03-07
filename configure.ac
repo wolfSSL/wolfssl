@@ -1036,18 +1036,11 @@ fi
 AM_CONDITIONAL([BUILD_BLAKE2], [test "x$ENABLED_BLAKE2" = "xyes"])
 
 
-# set sha512 default
-SHA512_DEFAULT=no
-if test "$host_cpu" = "x86_64"
-then
-SHA512_DEFAULT=yes
-fi
-
 # SHA512
 AC_ARG_ENABLE([sha512],
-    [AS_HELP_STRING([--enable-sha512],[Enable wolfSSL SHA-512 support (default: enabled on x86_64)])],
+    [AS_HELP_STRING([--enable-sha512],[Enable wolfSSL SHA-512 support (default: enabled)])],
     [ ENABLED_SHA512=$enableval ],
-    [ ENABLED_SHA512=$SHA512_DEFAULT ]
+    [ ENABLED_SHA512=yes ]
     )
 
 # options that don't require sha512
@@ -1212,27 +1205,20 @@ fi
 AM_CONDITIONAL([BUILD_DSA], [test "x$ENABLED_DSA" = "xyes"])
 
 
-# set ecc default
-ECC_DEFAULT=no
-
-if test "$host_cpu" = "x86_64"
-then
-ECC_DEFAULT=yes
-fi
 
 # ECC Shamir
 AC_ARG_ENABLE([eccshamir],
-    [AS_HELP_STRING([--enable-eccshamir],[Enable ECC Shamir (default: enabled on x86_64)])],
+    [AS_HELP_STRING([--enable-eccshamir],[Enable ECC Shamir (default: enabled)])],
     [ ENABLED_ECC_SHAMIR=$enableval ],
-    [ ENABLED_ECC_SHAMIR=$ECC_DEFAULT ]
+    [ ENABLED_ECC_SHAMIR=yes ]
     )
 
 
 # ECC
 AC_ARG_ENABLE([ecc],
-    [AS_HELP_STRING([--enable-ecc],[Enable ECC (default: enabled on x86_64)])],
+    [AS_HELP_STRING([--enable-ecc],[Enable ECC (default: enabled)])],
     [ ENABLED_ECC=$enableval ],
-    [ ENABLED_ECC=$ECC_DEFAULT ]
+    [ ENABLED_ECC=yes ]
     )
 
 # lean psk doesn't need ecc
@@ -2009,7 +1995,7 @@ AM_CONDITIONAL([BUILD_SELFTEST], [test "x$ENABLED_SELFTEST" = "xyes"])
 
 # set sha224 default
 SHA224_DEFAULT=no
-if test "$host_cpu" = "x86_64"
+if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"
 then
     if test "x$ENABLED_FIPS" = "xno"
     then
@@ -2019,7 +2005,7 @@ fi
 
 # SHA224
 AC_ARG_ENABLE([sha224],
-    [AS_HELP_STRING([--enable-sha224],[Enable wolfSSL SHA-224 support (default: enabled on x86_64)])],
+    [AS_HELP_STRING([--enable-sha224],[Enable wolfSSL SHA-224 support (default: enabled on x86_64/aarch64)])],
     [ ENABLED_SHA224=$enableval ],
     [ ENABLED_SHA224=$SHA224_DEFAULT ]
     )
@@ -2034,7 +2020,7 @@ AM_CONDITIONAL([BUILD_SHA224], [test "x$ENABLED_SHA224" = "xyes"])
 
 # set sha3 default
 SHA3_DEFAULT=no
-if test "$host_cpu" = "x86_64"
+if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"
 then
     if test "x$ENABLED_FIPS" = "xno"
     then
@@ -2044,7 +2030,7 @@ fi
 
 # SHA3
 AC_ARG_ENABLE([sha3],
-    [AS_HELP_STRING([--enable-sha3],[Enable wolfSSL SHA-3 support (default: enabled on x86_64)])],
+    [AS_HELP_STRING([--enable-sha3],[Enable wolfSSL SHA-3 support (default: enabled on x86_64/aarch64)])],
     [ ENABLED_SHA3=$enableval ],
     [ ENABLED_SHA3=$SHA3_DEFAULT ]
     )
@@ -2558,7 +2544,7 @@ fi
 AC_ARG_ENABLE([supportedcurves],
     [AS_HELP_STRING([--enable-supportedcurves],[Enable Supported Elliptic Curves (default: enabled)])],
     [ENABLED_SUPPORTED_CURVES=$enableval],
-    [ENABLED_SUPPORTED_CURVES=$ECC_DEFAULT])
+    [ENABLED_SUPPORTED_CURVES=yes])
 
 if test "x$ENABLED_SUPPORTED_CURVES" = "xyes"
 then
@@ -3115,14 +3101,14 @@ fi
 # set fastmath default
 FASTMATH_DEFAULT=no
 
-if test "$host_cpu" = "x86_64"
+if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"
 then
     FASTMATH_DEFAULT=yes
 fi
 
 # fastmath
 AC_ARG_ENABLE([fastmath],
-    [AS_HELP_STRING([--enable-fastmath],[Enable fast math ops (default: enabled on x86_64)])],
+    [AS_HELP_STRING([--enable-fastmath],[Enable fast math ops (default: enabled on x86_64/aarch64)])],
     [ ENABLED_FASTMATH=$enableval ],
     [ ENABLED_FASTMATH=$FASTMATH_DEFAULT]
     )
