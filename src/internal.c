@@ -12244,10 +12244,20 @@ int ProcessReply(WOLFSSL* ssl)
                     }
                     else {
                     #ifdef WOLFSSL_TLS13
+                    #if defined(WOLFSSL_TLS13_DRAFT_18) || \
+                        defined(WOLFSSL_TLS13_DRAFT_22) || \
+                        defined(WOLFSSL_TLS13_DRAFT_23)
                         ret = DecryptTls13(ssl,
                                            in->buffer + in->idx,
                                            in->buffer + in->idx,
-                                           ssl->curSize);
+                                           ssl->curSize, NULL, 0);
+                    #else
+                        ret = DecryptTls13(ssl,
+                                        in->buffer + in->idx,
+                                        in->buffer + in->idx,
+                                        ssl->curSize,
+                                        (byte*)&ssl->curRL, RECORD_HEADER_SZ);
+                    #endif
                     #else
                         ret = DECRYPT_ERROR;
                     #endif /* WOLFSSL_TLS13 */

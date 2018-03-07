@@ -307,6 +307,18 @@ then
 fi
 
 
+# TLS v1.3 Draft 23
+AC_ARG_ENABLE([tls13-draft23],
+    [AS_HELP_STRING([--enable-tls13-draft23],[Enable wolfSSL TLS v1.3 Draft 23 (default: disabled)])],
+    [ ENABLED_TLS13_DRAFT23=$enableval ],
+    [ ENABLED_TLS13_DRAFT23=no ]
+    )
+if test "$ENABLED_TLS13_DRAFT23" = "yes"
+then
+  AM_CFLAGS="-DWOLFSSL_TLS13_DRAFT_23 $AM_CFLAGS"
+fi
+
+
 # TLS v1.3
 AC_ARG_ENABLE([tls13],
     [AS_HELP_STRING([--enable-tls13],[Enable wolfSSL TLS v1.3 (default: disabled)])],
@@ -314,7 +326,7 @@ AC_ARG_ENABLE([tls13],
     [ ENABLED_TLS13=no ]
     )
 
-if test "$ENABLED_TLS13_DRAFT18" = "yes" || test "$ENABLED_TLS13_DRAFT22" = "yes"
+if test "$ENABLED_TLS13_DRAFT18" = "yes" || test "$ENABLED_TLS13_DRAFT22" = "yes" || test "$ENABLED_TLS13_DRAFT23" = "yes"
 then
     ENABLED_TLS13="yes"
 fi
@@ -4311,6 +4323,8 @@ echo "   * SSL version 3.0:            $ENABLED_SSLV3"
 echo "   * TLS v1.0:                   $ENABLED_TLSV10"
 echo "   * TLS v1.3:                   $ENABLED_TLS13"
 echo "   * TLS v1.3 Draft 18:          $ENABLED_TLS13_DRAFT18"
+echo "   * TLS v1.3 Draft 22:          $ENABLED_TLS13_DRAFT22"
+echo "   * TLS v1.3 Draft 23:          $ENABLED_TLS13_DRAFT23"
 echo "   * Post-handshake Auth:        $ENABLED_TLS13_POST_AUTH"
 echo "   * Early Data:                 $ENABLED_TLS13_EARLY_DATA"
 echo "   * Send State in HRR Cookie:   $ENABLED_SEND_HRR_COOKIE"
