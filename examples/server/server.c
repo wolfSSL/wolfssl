@@ -27,7 +27,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #ifdef HAVE_ECC
-    #include <wolfssl/wolfcrypt/ecc.h>   /* ecc_fp_free */
+    #include <wolfssl/wolfcrypt/ecc.h>   /* wc_ecc_fp_free */
 #endif
 
 #if defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
@@ -1137,7 +1137,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
     if (useAnon) {
 #ifdef HAVE_ANON
-        SSL_CTX_allow_anon_cipher(ctx);
+        wolfSSL_CTX_allow_anon_cipher(ctx);
         if (cipherList == NULL || (cipherList && useDefCipherList)) {
             const char* defaultCipherList;
             defaultCipherList = "ADH-AES256-GCM-SHA384:"
@@ -1179,7 +1179,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
 #ifdef HAVE_SNI
     if (sniHostName)
-        if (SSL_CTX_UseSNI(ctx, WOLFSSL_SNI_HOST_NAME, sniHostName,
+        if (wolfSSL_CTX_UseSNI(ctx, WOLFSSL_SNI_HOST_NAME, sniHostName,
                     (word16) XSTRLEN(sniHostName)) != WOLFSSL_SUCCESS)
             err_sys_ex(runWithErrors, "UseSNI failed");
 #endif
@@ -1681,7 +1681,7 @@ exit:
 
 #if defined(NO_MAIN_DRIVER) && defined(HAVE_ECC) && defined(FP_ECC) \
                             && defined(HAVE_THREAD_LS)
-    ecc_fp_free();  /* free per thread cache */
+    wc_ecc_fp_free();  /* free per thread cache */
 #endif
 
 #ifdef WOLFSSL_TIRTOS
