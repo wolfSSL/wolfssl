@@ -981,7 +981,7 @@ static int wc_ecc_export_x963_compressed(ecc_key*, byte* out, word32* outLen);
     typedef void* ecc_curve_spec;
 #else
 
-#ifndef WOLFSSL_SP_MATH
+#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || !defined(WOLFSSL_SP_MATH)
 static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
         mp_int* prime, mp_int* order);
 #endif
@@ -5042,7 +5042,7 @@ static int ecc_check_privkey_gen_helper(ecc_key* key)
 #endif /* WOLFSSL_VALIDATE_ECC_IMPORT */
 
 
-#ifndef WOLFSSL_SP_MATH
+#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || !defined(WOLFSSL_SP_MATH)
 /* validate order * pubkey = point at infinity, 0 on success */
 static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
         mp_int* prime, mp_int* order)
@@ -5083,7 +5083,6 @@ static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
     return err;
 }
 #endif
-
 #endif /* !WOLFSSL_ATECC508A */
 
 
