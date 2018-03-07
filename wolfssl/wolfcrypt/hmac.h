@@ -173,11 +173,6 @@ typedef struct Hmac {
 #endif /* WOLFSSL_ASYNC_CRYPT */
 } Hmac;
 
-#ifndef WC_HMAC_TYPE_DEFINED
-    typedef struct RsaKey RsaKey;
-    #define WC_HMAC_TYPE_DEFINED
-#endif
-
 #endif /* HAVE_FIPS */
 
 /* does init */

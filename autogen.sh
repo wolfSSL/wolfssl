@@ -20,6 +20,8 @@ if test -e .git; then
   touch ./ctaocrypt/src/fips_test.c
   touch ./wolfcrypt/src/fips.c
   touch ./wolfcrypt/src/fips_test.c
+  touch ./wolfcrypt/src/wolfcrypt_first.c
+  touch ./wolfcrypt/src/wolfcrypt_last.c
   touch ./wolfssl/wolfcrypt/fips.h
 
   # touch CAVP selftest files for non-selftest distribution
