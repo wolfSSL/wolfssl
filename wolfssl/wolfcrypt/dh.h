@@ -46,7 +46,7 @@ typedef struct DhParams {
 
 /* Diffie-Hellman Key */
 typedef struct DhKey {
-    mp_int p, g;                            /* group parameters  */
+    mp_int p, g, q;                         /* group parameters  */
     void* heap;
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
@@ -84,6 +84,8 @@ WOLFSSL_API int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key,
                            word32);
 WOLFSSL_API int wc_DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
                         word32 gSz);
+WOLFSSL_API int wc_DhSetKey_ex(DhKey* key, const byte* p, word32 pSz,
+                        const byte* g, word32 gSz, const byte* q, word32 qSz);
 WOLFSSL_API int wc_DhParamsLoad(const byte* input, word32 inSz, byte* p,
                             word32* pInOutSz, byte* g, word32* gInOutSz);
 WOLFSSL_API int wc_DhCheckPubKey(DhKey* key, const byte* pub, word32 pubSz);
