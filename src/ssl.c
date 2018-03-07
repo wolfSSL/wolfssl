@@ -32179,6 +32179,11 @@ int wolfSSL_X509_check_host(X509 *x, const char *chk, size_t chklen,
     (void)flags;
     (void)peername;
 
+    if (flags == WOLFSSL_NO_WILDCARDS) {
+        WOLFSSL_MSG("X509_CHECK_FLAG_NO_WILDCARDS not yet implemented");
+        return WOLFSSL_FAILURE;
+    }
+
     InitDecodedCert(&dCert, x->derCert->buffer, x->derCert->length, NULL);
     ret = ParseCertRelative(&dCert, CERT_TYPE, 0, NULL);
     if (ret != 0)
