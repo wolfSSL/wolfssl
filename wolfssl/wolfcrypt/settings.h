@@ -986,7 +986,7 @@ extern void uITRON4_free(void *p) ;
 #endif
 
 #if defined(WOLFSSL_STM32F2) || defined(WOLFSSL_STM32F4) || \
-    defined(WOLFSSL_STM32F7)
+    defined(WOLFSSL_STM32F7) || defined(WOLFSSL_STM32F1)
 
     #define SIZEOF_LONG_LONG 8
     #define NO_DEV_RANDOM
@@ -1016,6 +1016,8 @@ extern void uITRON4_free(void *p) ;
             #include "stm32f4xx_hal.h"
         #elif defined(WOLFSSL_STM32F7)
             #include "stm32f7xx_hal.h"
+        #elif defined(WOLFSSL_STM32F1)
+            #include "stm32f1xx_hal.h"
         #endif
 
         #ifndef STM32_HAL_TIMEOUT
@@ -1040,6 +1042,8 @@ extern void uITRON4_free(void *p) ;
             #endif
         #elif defined(WOLFSSL_STM32F7)
             #include "stm32f7xx.h"
+        #elif defined(WOLFSSL_STM32F1)
+            #include "stm32f1xx.h"
         #endif
     #endif /* WOLFSSL_STM32_CUBEMX */
 #endif /* WOLFSSL_STM32F2 || WOLFSSL_STM32F4 || WOLFSSL_STM32F7 */
@@ -1646,7 +1650,7 @@ extern void uITRON4_free(void *p) ;
     #undef  OPENSSL_EXTRA_X509_SMALL
     #define OPENSSL_EXTRA_X509_SMALL
 #endif /* OPENSSL_EXTRA */
-    
+
 
 #ifdef __cplusplus
     }   /* extern "C" */
