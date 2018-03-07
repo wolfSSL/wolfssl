@@ -4641,10 +4641,9 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL *ssl, byte* input,
                 if (!ssl->options.downgrade)
                     continue;
 
-#ifdef NO_OLD_TLS
-                if (minor < TLSv1_2_MINOR)
+                if (minor < ssl->options.minDowngrade)
                     continue;
-#endif
+
                 /* Downgrade the version. */
                 ssl->version.minor = minor;
             }
@@ -4695,10 +4694,9 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL *ssl, byte* input,
             if (!ssl->options.downgrade)
                 return VERSION_ERROR;
 
-#ifdef NO_OLD_TLS
-            if (minor < TLSv1_2_MINOR)
+            if (minor < ssl->options.minDowngrade)
                 return VERSION_ERROR;
-#endif
+
             /* Downgrade the version. */
             ssl->version.minor = minor;
         }

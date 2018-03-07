@@ -2643,6 +2643,11 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return VERSION_ERROR;
     }
 #else
+    if (pv.major == ssl->version.major  && pv.minor < TLSv1_2_MINOR &&
+                                                       ssl->options.downgrade) {
+        ssl->version = pv;
+        return DoServerHello(ssl, input, inOutIdx, helloSz);
+    }
     if (pv.major != ssl->version.major || pv.minor != TLSv1_2_MINOR)
         return VERSION_ERROR;
 #endif
@@ -3626,6 +3631,9 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         "TLS v1.3");
             return VERSION_ERROR;
         }
+
+        if (pv.minor < ssl->options.minDowngrade)
+            return VERSION_ERROR;
         ssl->version.minor = pv.minor;
     }
 
