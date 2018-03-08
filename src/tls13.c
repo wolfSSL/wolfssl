@@ -2645,7 +2645,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #else
     if (pv.major == ssl->version.major  && pv.minor < TLSv1_2_MINOR &&
                                                        ssl->options.downgrade) {
-        ssl->version = pv;
+        ssl->version.minor = TLSv1_2_MINOR;
         return DoServerHello(ssl, input, inOutIdx, helloSz);
     }
     if (pv.major != ssl->version.major || pv.minor != TLSv1_2_MINOR)
