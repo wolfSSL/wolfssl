@@ -31991,7 +31991,7 @@ void wolfSSL_OPENSSL_config(char *config_name)
 #endif
 #endif
 
-#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
 int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a, void *b, void *c)
 {
     static int x509_idx = 0;
@@ -32372,6 +32372,9 @@ int wolfSSL_CTX_set_tlsext_ticket_key_cb(WOLFSSL_CTX *ctx, int (*cb)(
 }
 #endif /* HAVE_SESSION_TICKET */
 
+#endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY || OPENSSL_EXTRA */
+
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 #ifdef HAVE_OCSP
 /* Not an OpenSSL API. */
 int wolfSSL_get_ocsp_response(WOLFSSL* ssl, byte** response)
@@ -32395,7 +32398,9 @@ int wolfSSL_set_ocsp_url(WOLFSSL* ssl, char* url)
     ssl->url = url;
     return WOLFSSL_SUCCESS;
 }
+#endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
 int wolfSSL_CTX_get_extra_chain_certs(WOLFSSL_CTX* ctx, WOLF_STACK_OF(X509)** chain)
 {
     word32         idx;
