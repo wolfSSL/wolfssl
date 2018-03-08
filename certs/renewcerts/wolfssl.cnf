@@ -170,6 +170,13 @@ authorityKeyIdentifier=keyid:always,issuer:always
 basicConstraints=critical, CA:TRUE
 keyUsage=critical, nonRepudiation, keyEncipherment
 
+# ca-ecc-cert extensions
+[ ca_ecc_cert ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always
+basicConstraints=critical, CA:TRUE
+keyUsage=critical, digitalSignature, keyCertSign, cRLSign
+
 #tsa default
 [ tsa ]
 default_tsa = tsa_config1
