@@ -4690,8 +4690,10 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         case CERTREQ_TYPE:   header=BEGIN_CERT_REQ;   footer=END_CERT_REQ;
                              break;
 #endif
+#ifndef NO_DSA
         case DSA_TYPE:       header=BEGIN_DSA_PRIV;   footer=END_DSA_PRIV;
                              break;
+#endif
 #ifdef HAVE_ECC
         case ECC_TYPE:       header=BEGIN_EC_PRIV;    footer=END_EC_PRIV;
                              break;
@@ -4782,7 +4784,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             word32 lineSz;
             char*  finish;
             word32 finishSz;
-            char*  start;
+            char*  start = NULL;
             word32 startSz;
             char*  newline;
 
@@ -4791,12 +4793,17 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             }
 
             lineSz = (word32)(bufferEnd - line);
+        #ifndef NO_DES3
             start = XSTRNSTR(line, "DES", min(lineSz, PEM_LINE_LEN));
+        #endif
 
+        #ifndef NO_AES
             if (start == NULL) {
                 start = XSTRNSTR(line, "AES", min(lineSz, PEM_LINE_LEN));
             }
+        #endif
 
+            (void)lineSz;
             if (start == NULL) return WOLFSSL_BAD_FILE;
             if (info == NULL)  return WOLFSSL_BAD_FILE;
 
@@ -16097,20 +16104,29 @@ const char* wolfSSL_get_version(WOLFSSL* ssl)
     WOLFSSL_ENTER("SSL_get_version");
     if (ssl->version.major == SSLv3_MAJOR) {
         switch (ssl->version.minor) {
+        #ifndef NO_OLD_TLS
+            #ifdef WOLFSSL_ALLOW_SSLV3
             case SSLv3_MINOR :
                 return "SSLv3";
+            #endif
+            #ifdef WOLFSSL_ALLOW_TLSV10
             case TLSv1_MINOR :
                 return "TLSv1";
+            #endif
             case TLSv1_1_MINOR :
                 return "TLSv1.1";
+        #endif
             case TLSv1_2_MINOR :
                 return "TLSv1.2";
+        #ifdef WOLFSSL_TLS13
             case TLSv1_3_MINOR :
                 return "TLSv1.3";
+        #endif
             default:
                 return "unknown";
         }
     }
+#ifdef WOLFSSL_DTLS
     else if (ssl->version.major == DTLS_MAJOR) {
         switch (ssl->version.minor) {
             case DTLS_MINOR :
@@ -16121,6 +16137,7 @@ const char* wolfSSL_get_version(WOLFSSL* ssl)
                 return "unknown";
         }
     }
+#endif /* WOLFSSL_DTLS */
     return "unknown";
 }
 
@@ -29433,6 +29450,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                 type = oidBlkType;
                 break;
 
+        #ifndef NO_DES3
             case NID_des:
                 id = DESb;
                 sName = "DES-CBC";
@@ -29444,6 +29462,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                 sName = "DES3-CBC";
                 type = oidBlkType;
                 break;
+        #endif /* !NO_DES3 */
 
         #ifdef HAVE_OCSP
             case NID_id_pkix_OCSP_basic:
