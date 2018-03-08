@@ -12536,9 +12536,13 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             int ret = wc_PullErrorNode(NULL, NULL, NULL);
 
             if (ret < 0) {
+                if (ret == BAD_STATE_E) return 0; /* no errors in queue */
                 WOLFSSL_MSG("Error with pulling error node!");
                 WOLFSSL_LEAVE("wolfSSL_ERR_get_error", ret);
                 ret = 0 - ret; /* return absolute value of error */
+
+                /* panic and try to clear out nodes */
+                wc_ClearErrorNodes();
             }
 
             return (unsigned long)ret;
@@ -14870,8 +14874,13 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     #ifdef DEBUG_WOLFSSL
         int ret = wc_PullErrorNode(file, NULL, line);
         if (ret < 0) {
+            if (ret == BAD_STATE_E) return 0; /* no errors in queue */
             WOLFSSL_MSG("Issue getting error node");
-            return 0;
+            WOLFSSL_LEAVE("wolfSSL_ERR_get_error_line", ret);
+            ret = 0 - ret; /* return absolute value of error */
+
+            /* panic and try to clear out nodes */
+            wc_ClearErrorNodes();
         }
         return (unsigned long)ret;
     #else
@@ -14956,7 +14965,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
      * data  output data. Is a string if ERR_TXT_STRING flag is used
      * flags bit flag to adjust data output
      *
-     * Returns the error value
+     * Returns the error value or 0 if no errors are in the queue
      */
     unsigned long wolfSSL_ERR_get_error_line_data(const char** file, int* line,
                                                   const char** data, int *flags)
@@ -14969,9 +14978,13 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             if ((*flags & ERR_TXT_STRING) == ERR_TXT_STRING) {
                 ret = wc_PullErrorNode(file, data, line);
                 if (ret < 0) {
+                    if (ret == BAD_STATE_E) return 0; /* no errors in queue */
                     WOLFSSL_MSG("Error with pulling error node!");
                     WOLFSSL_LEAVE("wolfSSL_ERR_get_error_line_data", ret);
                     ret = 0 - ret; /* return absolute value of error */
+
+                    /* panic and try to clear out nodes */
+                    wc_ClearErrorNodes();
                 }
 
                 return (unsigned long)ret;
@@ -14980,9 +14993,13 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
         ret = wc_PullErrorNode(file, NULL, line);
         if (ret < 0) {
+            if (ret == BAD_STATE_E) return 0; /* no errors in queue */
             WOLFSSL_MSG("Error with pulling error node!");
             WOLFSSL_LEAVE("wolfSSL_ERR_get_error_line_data", ret);
             ret = 0 - ret; /* return absolute value of error */
+
+            /* panic and try to clear out nodes */
+            wc_ClearErrorNodes();
         }
 
         return (unsigned long)ret;
