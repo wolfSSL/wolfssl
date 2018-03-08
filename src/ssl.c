@@ -12532,7 +12532,17 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return ret;
         }
 #elif (defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE))
-        return wc_PullErrorNode(NULL, NULL, NULL);
+        {
+            int ret = wc_PullErrorNode(NULL, NULL, NULL);
+
+            if (ret < 0) {
+                WOLFSSL_MSG("Error with pulling error node!");
+                WOLFSSL_LEAVE("wolfSSL_ERR_get_error", ret);
+                ret = 0 - ret; /* return absolute value of error */
+            }
+
+            return (unsigned long)ret;
+        }
 #else
         return (unsigned long)(0 - NOT_COMPILED_IN);
 #endif
@@ -14951,15 +14961,31 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     unsigned long wolfSSL_ERR_get_error_line_data(const char** file, int* line,
                                                   const char** data, int *flags)
     {
+        int ret;
+
         WOLFSSL_STUB("wolfSSL_ERR_get_error_line_data");
 
         if (flags != NULL) {
             if ((*flags & ERR_TXT_STRING) == ERR_TXT_STRING) {
-                return wc_PullErrorNode(file, data, line);
+                ret = wc_PullErrorNode(file, data, line);
+                if (ret < 0) {
+                    WOLFSSL_MSG("Error with pulling error node!");
+                    WOLFSSL_LEAVE("wolfSSL_ERR_get_error_line_data", ret);
+                    ret = 0 - ret; /* return absolute value of error */
+                }
+
+                return (unsigned long)ret;
             }
         }
 
-        return wc_PullErrorNode(file, NULL, line);
+        ret = wc_PullErrorNode(file, NULL, line);
+        if (ret < 0) {
+            WOLFSSL_MSG("Error with pulling error node!");
+            WOLFSSL_LEAVE("wolfSSL_ERR_get_error_line_data", ret);
+            ret = 0 - ret; /* return absolute value of error */
+        }
+
+        return (unsigned long)ret;
     }
 
 
