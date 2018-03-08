@@ -981,7 +981,7 @@ static int wc_ecc_export_x963_compressed(ecc_key*, byte* out, word32* outLen);
     typedef void* ecc_curve_spec;
 #else
 
-#ifndef WOLFSSL_SP_MATH
+#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || !defined(WOLFSSL_SP_MATH)
 static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
         mp_int* prime, mp_int* order);
 #endif
@@ -3588,11 +3588,14 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
                    return BAD_COND_E;
                 }
             #elif defined(PLUTON_CRYPTO_ECC)
-                /* perform ECC sign */
-                err = Crypto_EccSign(in, inlen, out, outlen);
-                if (err != CRYPTO_RES_SUCCESS ||
-                                        *outlen != ECC_MAX_CRYPTO_HW_SIZE*2) {
-                   return BAD_COND_E;
+                {
+                    /* perform ECC sign */
+                    word32 raw_sig_size = *outlen;
+                    err = Crypto_EccSign(in, inlen, out, &raw_sig_size);
+                    if (err != CRYPTO_RES_SUCCESS ||
+                                    raw_sig_size != ECC_MAX_CRYPTO_HW_SIZE*2) {
+                       return BAD_COND_E;
+                    }
                 }
             #endif
 
@@ -5039,7 +5042,7 @@ static int ecc_check_privkey_gen_helper(ecc_key* key)
 #endif /* WOLFSSL_VALIDATE_ECC_IMPORT */
 
 
-#ifndef WOLFSSL_SP_MATH
+#if defined(WOLFSSL_VALIDATE_ECC_KEYGEN) || !defined(WOLFSSL_SP_MATH)
 /* validate order * pubkey = point at infinity, 0 on success */
 static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
         mp_int* prime, mp_int* order)
@@ -5080,7 +5083,6 @@ static int ecc_check_pubkey_order(ecc_key* key, ecc_point* pubkey, mp_int* a,
     return err;
 }
 #endif
-
 #endif /* !WOLFSSL_ATECC508A */
 
 

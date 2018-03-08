@@ -107,9 +107,24 @@ endif
 endif
 endif
 endif
+
 if BUILD_SP
-src_libwolfssl_la_SOURCES += wolfcrypt/src/sp.c
+if BUILD_SP_C
+src_libwolfssl_la_SOURCES += wolfcrypt/src/sp_c32.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/sp_c64.c
+endif
+if BUILD_SP_X86_64
+src_libwolfssl_la_SOURCES += wolfcrypt/src/sp_x86_64.c
+endif
+if BUILD_SP_ARM32
+src_libwolfssl_la_SOURCES += wolfcrypt/src/sp_arm32.c
+endif
+if BUILD_SP_ARM64
+src_libwolfssl_la_SOURCES += wolfcrypt/src/sp_arm64.c
+endif
+if BUILD_SP_INT
 src_libwolfssl_la_SOURCES += wolfcrypt/src/sp_int.c
+endif
 endif
 
 if BUILD_AES
