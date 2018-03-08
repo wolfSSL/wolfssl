@@ -1261,7 +1261,11 @@ enum Misc {
 
 /* minimum Downgrade Minor version */
 #ifndef WOLFSSL_MIN_DOWNGRADE
-    #define WOLFSSL_MIN_DOWNGRADE TLSv1_MINOR
+    #ifndef NO_OLD_TLS
+        #define WOLFSSL_MIN_DOWNGRADE TLSv1_MINOR
+    #else
+        #define WOLFSSL_MIN_DOWNGRADE TLSv1_2_MINOR
+    #endif
 #endif
 
 /* Set max implicit IV size for AEAD cipher suites */
