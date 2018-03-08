@@ -32170,9 +32170,21 @@ int wolfSSL_SSL_do_handshake(WOLFSSL *s)
     if (s == NULL)
         return WOLFSSL_FAILURE;
 
-    if (s->options.side == WOLFSSL_CLIENT_END)
+    if (s->options.side == WOLFSSL_CLIENT_END) {
+    #ifndef NO_WOLFSSL_CLIENT
         return wolfSSL_connect(s);
+    #else
+        WOLFSSL_MSG("Client not compiled in");
+        return WOLFSSL_FAILURE;
+    #endif
+    }
+
+#ifndef NO_WOLFSSL_SERVER
     return wolfSSL_accept(s);
+#else
+    WOLFSSL_MSG("Server not compiled in");
+    return WOLFSSL_FAILURE;
+#endif
 }
 
 int wolfSSL_SSL_in_init(WOLFSSL *s)
@@ -32298,7 +32310,7 @@ int wolfSSL_i2a_ASN1_INTEGER(BIO *bp, const WOLFSSL_ASN1_INTEGER *a)
 }
 
 
-#ifdef HAVE_SESSION_TICKET
+#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
 /* Expected return values from implementations of OpenSSL ticket key callback.
  */
 #define TICKET_KEY_CB_RET_FAILURE    -1
