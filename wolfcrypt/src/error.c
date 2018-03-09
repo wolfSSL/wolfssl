@@ -467,6 +467,9 @@ const char* wc_GetErrorString(int error)
     case SHA3_KAT_FIPS_E:
         return "SHA-3 Known Answer Test check FIPS error";
 
+    case ECDHE_KAT_FIPS_E:
+        return "wolfcrypt FIPS ECDHE Known Answer Test Failure";
+
     default:
         return "unknown error number";
 
