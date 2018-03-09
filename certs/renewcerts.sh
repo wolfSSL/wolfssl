@@ -440,11 +440,21 @@ elif [ ! -z "$1" ]; then
     if [ "$1" == "--override-ntru" ]; then
         echo "overriding ntru, update all certs except ntru."
         run_renewcerts
+    #valid argument create ed25519 certificates
+    elif [ "$1" == "--ed25519" ] || [ "$2" == "--ed25519" ]; then
+        echo ""
+        echo "Enter directory to ed25519 certificate generation example."
+        echo "Can be found at https://github.com/wolfSSL/wolfssl-examples"
+        read ED25519_DIR
+        pushd ./certs/ed25519
+        ./gen-ed25519.sh ${ED25519_DIR}
+        popd
     #valid argument print out other valid arguments
     elif [ "$1" == "-h" ] || [ "$1" == "-help" ]; then
         echo ""
         echo "\"no argument\"        will attempt to update all certificates"
         echo "--override-ntru      updates all certificates except ntru"
+        echo "--ed25519            updates all ed25519 certificates"
         echo "-h or -help          display this menu"
         echo ""
         echo ""
