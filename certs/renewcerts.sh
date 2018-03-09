@@ -240,7 +240,7 @@ function run_renewcerts(){
     mv tmp.pem client-ecc-cert.pem
 
     ############################################################
-    ########## update the self-signed server-ecc.pem ###########
+    ########## update the server-ecc.pem #######################
     ############################################################
     echo "Updating server-ecc.pem"
     echo ""
@@ -248,7 +248,7 @@ function run_renewcerts(){
     echo -e "US\nWashington\nSeattle\nEliptic\nECC\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ecc-key.pem -nodes -out server-ecc.csr
 
 
-    openssl x509 -req -in server-ecc.csr -days 1000 -extfile wolfssl.cnf -extensions wolfssl_opts -signkey ecc-key.pem -out server-ecc.pem
+    openssl x509 -req -in server-ecc.csr -days 1000 -extfile wolfssl.cnf -extensions server_ecc -CAfile ca-ecc-cert.pem -CAkey ca-ecc-key.pem -out server-ecc.pem
     rm server-ecc.csr
 
     openssl x509 -in server-ecc.pem -text > tmp.pem
@@ -330,6 +330,13 @@ function run_renewcerts(){
     echo "" | openssl pkcs12 -des3 -descert -export -in server-ecc-rsa.pem -inkey ecc-key.pem -certfile server-ecc.pem -out ecc-rsa-server.p12 -password stdin
 
     ############################################################
+    ###### update the test-servercert.p12 file #################
+    ############################################################
+    echo "Updating test-servercert.p12 (password is \"wolfSSL test\")"
+    echo ""
+    echo "wolfSSL test" | openssl pkcs12 -des3 -descert -export -in server-cert.pem -inkey server-key.pem -certfile ca-cert.pem -out test-servercert.p12 -password stdin
+
+    ############################################################
     ###### calling gen-ext-certs.sh           ##################
     ############################################################
     echo "Calling gen-ext-certs.sh"
@@ -337,6 +344,15 @@ function run_renewcerts(){
     cd ..
     ./certs/test/gen-ext-certs.sh
     cd ./certs
+
+    ############################################################
+    ###### calling gen-badsig.sh              ##################
+    ############################################################
+    echo "Calling gen-badsig.sh"
+    echo ""
+    cd ./test
+    ./gen-badsig.sh
+    cd ../
 
     ############################################################
     ########## store DER files as buffers ######################
