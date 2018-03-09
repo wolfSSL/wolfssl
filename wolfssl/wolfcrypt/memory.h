@@ -22,6 +22,9 @@
 
 /* submitted by eof */
 
+/*!
+    \file wolfssl/wolfcrypt/memory.h
+*/
 
 #ifndef WOLFSSL_MEMORY_H
 #define WOLFSSL_MEMORY_H
