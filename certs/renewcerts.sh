@@ -423,6 +423,19 @@ then
     echo "changed directory to wolfssl root directory."
     echo ""
 
+    echo ""
+    echo "Enter directory to ed25519 certificate generation example."
+    echo "Can be found at https://github.com/wolfSSL/wolfssl-examples"
+    read ED25519_DIR
+    if [ -d "${ED25519_DIR}" ]; then
+        pushd ./certs/ed25519
+        ./gen-ed25519.sh ${ED25519_DIR}
+        popd
+    else
+        echo "Unable to find directory ${ED25519_DIR}"
+        exit 1
+    fi
+
     ############################################################
     ########## update ntru if already installed ################
     ############################################################
@@ -524,3 +537,4 @@ else
     fi #END now defined
 fi #END already defined
 
+exit 0

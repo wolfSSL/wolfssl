@@ -104,4 +104,10 @@ mv tmp eccSrvCRL.pem
 # install (only needed if working outside wolfssl)
 #cp eccSrvCRL.pem ~/wolfssl/certs/crl/eccSrvCRL.pem
 
+# caEccCrl
+openssl ca -config ../ecc/wolfssl.cnf -gencrl -crldays 1000 -out caEccCrl.pem -keyfile ../ca-ecc-key.pem -cert ../ca-ecc-cert.pem
+
+# ca-ecc384-cert
+openssl ca -config ../ecc/wolfssl.cnf -gencrl -crldays 1000 -out caEcc384Crl.pem -keyfile ../ca-ecc384-key.pem -cert ../ca-ecc384-cert.pem
+
 exit 0
