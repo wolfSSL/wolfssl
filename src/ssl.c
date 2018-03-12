@@ -30082,16 +30082,24 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             /* oidBlkType */
             case oidBlkType:
                 switch (oid) {
+                #ifdef WOLFSSL_AES_128
                     case AES128CBCb:
                         return AES128CBCb;
+                #endif
+                #ifdef WOLFSSL_AES_192
                     case AES192CBCb:
                         return AES192CBCb;
+                #endif
+                #ifdef WOLFSSL_AES_256
                     case AES256CBCb:
                         return AES256CBCb;
+                #endif
+                #ifndef NO_DES3
                     case DESb:
                         return NID_des;
                     case DES3b:
                         return NID_des3;
+                #endif
                 }
                 break;
 
