@@ -260,6 +260,7 @@ enum Hash_Sum  {
 };
 
 
+#if !defined(NO_DES3) || !defined(NO_AES)
 enum Block_Sum {
 #ifdef WOLFSSL_AES_128
     AES128CBCb = 414,
@@ -275,6 +276,7 @@ enum Block_Sum {
     DES3b      = 652
 #endif
 };
+#endif /* !NO_DES3 || !NO_AES */
 
 
 enum Key_Sum {
@@ -286,6 +288,7 @@ enum Key_Sum {
 };
 
 
+#ifndef NO_AES
 enum KeyWrap_Sum {
 #ifdef WOLFSSL_AES_128
     AES128_WRAP = 417,
@@ -297,7 +300,7 @@ enum KeyWrap_Sum {
     AES256_WRAP = 457
 #endif
 };
-
+#endif /* !NO_AES */
 
 enum Key_Agree {
     dhSinglePass_stdDH_sha1kdf_scheme   = 464,
