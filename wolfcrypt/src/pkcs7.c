@@ -157,9 +157,15 @@ static int wc_PKCS7_GetOIDBlockSize(int oid)
 
     switch (oid) {
 #ifndef NO_AES
+    #ifdef WOLFSSL_AES_128
         case AES128CBCb:
+    #endif
+    #ifdef WOLFSSL_AES_192
         case AES192CBCb:
+    #endif
+    #ifdef WOLFSSL_AES_256
         case AES256CBCb:
+    #endif
             blockSz = AES_BLOCK_SIZE;
             break;
 #endif
@@ -185,20 +191,24 @@ static int wc_PKCS7_GetOIDKeySize(int oid)
 
     switch (oid) {
 #ifndef NO_AES
+    #ifdef WOLFSSL_AES_128
         case AES128CBCb:
         case AES128_WRAP:
             blockKeySz = 16;
             break;
-
+    #endif
+    #ifdef WOLFSSL_AES_192
         case AES192CBCb:
         case AES192_WRAP:
             blockKeySz = 24;
             break;
-
+    #endif
+    #ifdef WOLFSSL_AES_256
         case AES256CBCb:
         case AES256_WRAP:
             blockKeySz = 32;
             break;
+    #endif
 #endif
 #ifndef NO_DES3
         case DESb:
@@ -2165,9 +2175,15 @@ static int wc_PKCS7_KariKeyWrap(byte* cek, word32 cekSz, byte* kek,
 
     switch (keyWrapAlgo) {
 #ifndef NO_AES
+    #ifdef WOLFSSL_AES_128
         case AES128_WRAP:
+    #endif
+    #ifdef WOLFSSL_AES_192
         case AES192_WRAP:
+    #endif
+    #ifdef WOLFSSL_AES_256
         case AES256_WRAP:
+    #endif
 
             if (direction == AES_ENCRYPTION) {
 
@@ -2669,9 +2685,15 @@ static int wc_CreateKeyAgreeRecipientInfo(PKCS7* pkcs7, const byte* cert,
     /* set direction based on keyWrapAlgo */
     switch (keyWrapAlgo) {
 #ifndef NO_AES
+    #ifdef WOLFSSL_AES_128
         case AES128_WRAP:
+    #endif
+    #ifdef WOLFSSL_AES_192
         case AES192_WRAP:
+    #endif
+    #ifdef WOLFSSL_AES_256
         case AES256_WRAP:
+    #endif
             direction = AES_ENCRYPTION;
             break;
 #endif
@@ -3104,13 +3126,26 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
 
     switch (encryptOID) {
 #ifndef NO_AES
+    #ifdef WOLFSSL_AES_128
         case AES128CBCb:
+    #endif
+    #ifdef WOLFSSL_AES_192
         case AES192CBCb:
+    #endif
+    #ifdef WOLFSSL_AES_256
         case AES256CBCb:
-            if ( (encryptOID == AES128CBCb && keySz != 16 ) ||
-                 (encryptOID == AES192CBCb && keySz != 24 ) ||
-                 (encryptOID == AES256CBCb && keySz != 32 ) ||
-                 (ivSz  != AES_BLOCK_SIZE) )
+    #endif
+            if (
+                #ifdef WOLFSSL_AES_128
+                    (encryptOID == AES128CBCb && keySz != 16 ) ||
+                #endif
+                #ifdef WOLFSSL_AES_192
+                    (encryptOID == AES192CBCb && keySz != 24 ) ||
+                #endif
+                #ifdef WOLFSSL_AES_256
+                    (encryptOID == AES256CBCb && keySz != 32 ) ||
+                #endif
+                    (ivSz  != AES_BLOCK_SIZE) )
                 return BAD_FUNC_ARG;
 
             ret = wc_AesSetKey(&aes, key, keySz, iv, AES_ENCRYPTION);
@@ -3168,13 +3203,26 @@ static int wc_PKCS7_DecryptContent(int encryptOID, byte* key, int keySz,
 
     switch (encryptOID) {
 #ifndef NO_AES
+    #ifdef WOLFSSL_AES_128
         case AES128CBCb:
+    #endif
+    #ifdef WOLFSSL_AES_192
         case AES192CBCb:
+    #endif
+    #ifdef WOLFSSL_AES_256
         case AES256CBCb:
-            if ( (encryptOID == AES128CBCb && keySz != 16 ) ||
-                 (encryptOID == AES192CBCb && keySz != 24 ) ||
-                 (encryptOID == AES256CBCb && keySz != 32 ) ||
-                 (ivSz  != AES_BLOCK_SIZE) )
+    #endif
+            if (
+                #ifdef WOLFSSL_AES_128
+                    (encryptOID == AES128CBCb && keySz != 16 ) ||
+                #endif
+                #ifdef WOLFSSL_AES_192
+                    (encryptOID == AES192CBCb && keySz != 24 ) ||
+                #endif
+                #ifdef WOLFSSL_AES_256
+                    (encryptOID == AES256CBCb && keySz != 32 ) ||
+                #endif
+                    (ivSz  != AES_BLOCK_SIZE) )
                 return BAD_FUNC_ARG;
 
             ret = wc_AesSetKey(&aes, key, keySz, iv, AES_DECRYPTION);
@@ -4172,9 +4220,15 @@ static int wc_PKCS7_DecodeKari(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
     /* set direction based on key wrap algorithm */
     switch (keyWrapOID) {
 #ifndef NO_AES
+    #ifdef WOLFSSL_AES_128
         case AES128_WRAP:
+    #endif
+    #ifdef WOLFSSL_AES_192
         case AES192_WRAP:
+    #endif
+    #ifdef WOLFSSL_AES_256
         case AES256_WRAP:
+    #endif
             direction = AES_DECRYPTION;
             break;
 #endif

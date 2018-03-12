@@ -261,11 +261,19 @@ enum Hash_Sum  {
 
 
 enum Block_Sum {
+#ifdef WOLFSSL_AES_128
     AES128CBCb = 414,
+#endif
+#ifdef WOLFSSL_AES_192
     AES192CBCb = 434,
+#endif
+#ifdef WOLFSSL_AES_256
     AES256CBCb = 454,
+#endif
+#ifndef NO_DES3
     DESb       = 69,
     DES3b      = 652
+#endif
 };
 
 
@@ -279,9 +287,15 @@ enum Key_Sum {
 
 
 enum KeyWrap_Sum {
+#ifdef WOLFSSL_AES_128
     AES128_WRAP = 417,
+#endif
+#ifdef WOLFSSL_AES_192
     AES192_WRAP = 437,
+#endif
+#ifdef WOLFSSL_AES_256
     AES256_WRAP = 457
+#endif
 };
 
 
