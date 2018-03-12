@@ -1852,4 +1852,214 @@ int MicriumGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *ctx)
 
 #endif /* MICRIUM */
 
+#if defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP)
+
+#include <os/os_error.h>
+#include <os/os_mbuf.h>
+#include <os/os_mempool.h>
+
+#define MB_NAME "wolfssl_mb"
+
+typedef struct Mynewt_Ctx {
+        struct mn_socket *mnSocket;          /* send/recv socket handler */
+        struct mn_sockaddr_in mnSockAddrIn;  /* socket address */
+        struct os_mbuf *mnPacket;            /* incoming packet handle
+                                                for short reads */
+        int reading;                         /* reading flag */
+
+        /* private */
+        void *mnMemBuffer;                   /* memory buffer for mempool */
+        struct os_mempool mnMempool;         /* mempool */
+        struct os_mbuf_pool mnMbufpool;      /* mbuf pool */
+} Mynewt_Ctx;
+
+void mynewt_ctx_clear(void *ctx) {
+    Mynewt_Ctx *mynewt_ctx = (Mynewt_Ctx*)ctx;
+    if(!mynewt_ctx) return;
+
+    if(mynewt_ctx->mnPacket) {
+        os_mbuf_free_chain(mynewt_ctx->mnPacket);
+        mynewt_ctx->mnPacket = NULL;
+    }
+    os_mempool_clear(&mynewt_ctx->mnMempool);
+    XFREE(mynewt_ctx->mnMemBuffer, 0, 0);
+    XFREE(mynewt_ctx, 0, 0);
+}
+
+/* return Mynewt_Ctx instance */
+void* mynewt_ctx_new() {
+    int rc = 0;
+    Mynewt_Ctx *mynewt_ctx = NULL;
+    int mem_buf_count = MYNEWT_VAL(WOLFSSL_MNSOCK_MEM_BUF_COUNT);;
+    int mem_buf_size = MYNEWT_VAL(WOLFSSL_MNSOCK_MEM_BUF_SIZE);
+    int mempool_bytes = OS_MEMPOOL_BYTES(mem_buf_count, mem_buf_size);
+
+    mynewt_ctx = (Mynewt_Ctx *)XMALLOC(sizeof(struct Mynewt_Ctx),
+                                       NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if(!mynewt_ctx) return NULL;
+
+    XMEMSET(mynewt_ctx, 0, sizeof(Mynewt_Ctx));
+    mynewt_ctx->mnMemBuffer = XMALLOC(mempool_bytes, 0, 0);
+    if(!mynewt_ctx->mnMemBuffer) {
+        mynewt_ctx_clear((void*)mynewt_ctx);
+        return NULL;
+    }
+
+    rc = os_mempool_init(&mynewt_ctx->mnMempool,
+                         mem_buf_count, mem_buf_size,
+                         mynewt_ctx->mnMemBuffer, MB_NAME);
+    if(rc != 0) {
+        mynewt_ctx_clear((void*)mynewt_ctx);
+        return NULL;
+    }
+    rc = os_mbuf_pool_init(&mynewt_ctx->mnMbufpool, &mynewt_ctx->mnMempool,
+                           mem_buf_count, mem_buf_size);
+    if(rc != 0) {
+        mynewt_ctx_clear((void*)mynewt_ctx);
+        return NULL;
+    }
+
+    return mynewt_ctx;
+}
+
+static void mynewt_sock_writable(void *arg, int err);
+static void mynewt_sock_readable(void *arg, int err);
+static const union mn_socket_cb mynewt_sock_cbs = {
+    .socket.writable = mynewt_sock_writable,
+    .socket.readable = mynewt_sock_readable,
+};
+static void mynewt_sock_writable(void *arg, int err)
+{
+    /* do nothing */
+}
+static void mynewt_sock_readable(void *arg, int err)
+{
+    Mynewt_Ctx *mynewt_ctx = (Mynewt_Ctx *)arg;
+    if (err && mynewt_ctx->reading) {
+        mynewt_ctx->reading = 0;
+    }
+}
+
+/* The Mynewt receive callback
+ *  return :  bytes read, or error
+ */
+int Mynewt_Receive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
+{
+    Mynewt_Ctx *mynewt_ctx = (Mynewt_Ctx*)ctx;
+    int rc = 0;
+    struct mn_sockaddr_in from;
+    struct os_mbuf *m;
+    int read_sz = 0;
+    uint16_t total;
+
+    if (mynewt_ctx == NULL || mynewt_ctx->mnSocket == NULL) {
+        WOLFSSL_MSG("Mynewt Recv NULL parameters");
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+
+    if(mynewt_ctx->mnPacket == NULL) {
+        mynewt_ctx->mnPacket = os_mbuf_get_pkthdr(&mynewt_ctx->mnMbufpool, 0);
+        if(mynewt_ctx->mnPacket == NULL) {
+            return MEMORY_E;
+        }
+
+        mynewt_ctx->reading = 1;
+        while(mynewt_ctx->reading && rc == 0) {
+            rc = mn_recvfrom(mynewt_ctx->mnSocket, &m, (struct mn_sockaddr *) &from);
+            if(rc == MN_ECONNABORTED) {
+                rc = 0;
+                mynewt_ctx->reading = 0;
+                break;
+            }
+            if (!(rc == 0 || rc == MN_EAGAIN)) {
+                WOLFSSL_MSG("Mynewt Recv receive error");
+                mynewt_ctx->reading = 0;
+                break;
+            }
+            if(rc == 0) {
+                int len = OS_MBUF_PKTLEN(m);
+                if(len == 0) {
+                    break;
+                }
+                rc = os_mbuf_appendfrom(mynewt_ctx->mnPacket, m, 0, len);
+                if(rc != 0) {
+                    WOLFSSL_MSG("Mynewt Recv os_mbuf_appendfrom error");
+                    break;
+                }
+                os_mbuf_free_chain(m);
+                m = NULL;
+            } else if(rc == MN_EAGAIN) {
+                /* continue to until reading all of packet data. */
+                rc = 0;
+                break;
+            }
+        }
+        if(rc != 0) {
+            mynewt_ctx->reading = 0;
+            os_mbuf_free_chain(mynewt_ctx->mnPacket);
+            mynewt_ctx->mnPacket = NULL;
+            return rc;
+        }
+    }
+
+    if(mynewt_ctx->mnPacket) {
+        total = OS_MBUF_PKTLEN(mynewt_ctx->mnPacket);
+        read_sz = (total >= sz)? sz : total;
+
+        os_mbuf_copydata(mynewt_ctx->mnPacket, 0, read_sz, (void*)buf);
+        os_mbuf_adj(mynewt_ctx->mnPacket, read_sz);
+
+        if (read_sz == total) {
+            WOLFSSL_MSG("Mynewt Recv Drained packet");
+            os_mbuf_free_chain(mynewt_ctx->mnPacket);
+            mynewt_ctx->mnPacket = NULL;
+        }
+    }
+
+    return read_sz;
+}
+
+/* The Mynewt send callback
+ *  return : bytes sent, or error
+ */
+int Mynewt_Send(WOLFSSL* ssl, char *buf, int sz, void *ctx)
+{
+    Mynewt_Ctx *mynewt_ctx = (Mynewt_Ctx*)ctx;
+    int rc = 0;
+    struct os_mbuf *m = NULL;
+    int write_sz = 0;
+    m = os_msys_get_pkthdr(sz, 0);
+    if (!m) {
+        WOLFSSL_MSG("Mynewt Send os_msys_get_pkthdr error");
+        return WOLFSSL_CBIO_ERR_GENERAL;
+    }
+    rc = os_mbuf_copyinto(m, 0, buf, sz);
+    if (rc != 0) {
+        WOLFSSL_MSG("Mynewt Send os_mbuf_copyinto error");
+        os_mbuf_free_chain(m);
+        return rc;
+    }
+    rc = mn_sendto(mynewt_ctx->mnSocket, m, (struct mn_sockaddr *)&mynewt_ctx->mnSockAddrIn);
+    if(rc != 0) {
+        WOLFSSL_MSG("Mynewt Send mn_sendto error");
+        os_mbuf_free_chain(m);
+        return rc;
+    }
+    write_sz = sz;
+    return write_sz;
+}
+
+/* like set_fd, but for default NetX context */
+void wolfSSL_SetIO_Mynewt(WOLFSSL* ssl, struct mn_socket* mnSocket, struct mn_sockaddr_in* mnSockAddrIn)
+{
+    if (ssl && ssl->mnCtx) {
+        Mynewt_Ctx *mynewt_ctx = (Mynewt_Ctx *)ssl->mnCtx;
+        mynewt_ctx->mnSocket = mnSocket;
+        memcpy(&mynewt_ctx->mnSockAddrIn, mnSockAddrIn, sizeof(struct mn_sockaddr_in));
+        mn_socket_set_cbs(mynewt_ctx->mnSocket, mnSocket, &mynewt_sock_cbs);
+    }
+}
+
+#endif /* defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP) */
+
 #endif /* WOLFCRYPT_ONLY */

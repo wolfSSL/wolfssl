@@ -1907,6 +1907,25 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         return ret;
     }
 
+#elif defined(WOLFSSL_APACHE_MYNEWT)
+
+    #include <stdlib.h>
+    #include "os/os_time.h"
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int i;
+        srand(os_time_get());
+
+        for (i = 0; i < sz; i++ ) {
+            output[i] = rand() % 256;
+            if ((i % 8) == 7) {
+                srand(os_time_get());
+            }
+        }
+
+        return 0;
+    }
+
 #elif defined(CUSTOM_RAND_GENERATE_BLOCK)
     /* #define CUSTOM_RAND_GENERATE_BLOCK myRngFunc
      * extern int myRngFunc(byte* output, word32 sz);

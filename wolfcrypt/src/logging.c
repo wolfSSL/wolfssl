@@ -117,6 +117,11 @@ static WC_INLINE double current_time(int reset)
 static wolfSSL_Logging_cb log_function = NULL;
 static int loggingEnabled = 0;
 
+#if defined(WOLFSSL_APACHE_MYNEWT)
+#include "log/log.h"
+static struct log mynewt_log;
+#endif /* WOLFSSL_APACHE_MYNEWT */
+
 #endif /* DEBUG_WOLFSSL */
 
 
@@ -137,6 +142,9 @@ int wolfSSL_Debugging_ON(void)
 {
 #ifdef DEBUG_WOLFSSL
     loggingEnabled = 1;
+#if defined(WOLFSSL_APACHE_MYNEWT)
+    log_register("wolfcrypt", &mynewt_log, &log_console_handler, NULL, LOG_SYSLEVEL);
+#endif /* WOLFSSL_APACHE_MYNEWT */
     return 0;
 #else
     return NOT_COMPILED_IN;
@@ -237,6 +245,8 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
 #elif defined(MQX_USE_IO_OLD)
         fprintf(_mqxio_stderr, "%s\n", logMessage);
 
+#elif defined(WOLFSSL_APACHE_MYNEWT)
+        LOG_DEBUG(&mynewt_log, LOG_MODULE_DEFAULT, "%s\n", logMessage);
 #else
         fprintf(stderr, "%s\n", logMessage);
 #endif
