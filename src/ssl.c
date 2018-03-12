@@ -12539,7 +12539,21 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return ret;
         }
 #elif (defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE))
-        return wc_PullErrorNode(NULL, NULL, NULL);
+        {
+            int ret = wc_PullErrorNode(NULL, NULL, NULL);
+
+            if (ret < 0) {
+                if (ret == BAD_STATE_E) return 0; /* no errors in queue */
+                WOLFSSL_MSG("Error with pulling error node!");
+                WOLFSSL_LEAVE("wolfSSL_ERR_get_error", ret);
+                ret = 0 - ret; /* return absolute value of error */
+
+                /* panic and try to clear out nodes */
+                wc_ClearErrorNodes();
+            }
+
+            return (unsigned long)ret;
+        }
 #else
         return (unsigned long)(0 - NOT_COMPILED_IN);
 #endif
@@ -14867,8 +14881,13 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     #ifdef DEBUG_WOLFSSL
         int ret = wc_PullErrorNode(file, NULL, line);
         if (ret < 0) {
+            if (ret == BAD_STATE_E) return 0; /* no errors in queue */
             WOLFSSL_MSG("Issue getting error node");
-            return 0;
+            WOLFSSL_LEAVE("wolfSSL_ERR_get_error_line", ret);
+            ret = 0 - ret; /* return absolute value of error */
+
+            /* panic and try to clear out nodes */
+            wc_ClearErrorNodes();
         }
         return (unsigned long)ret;
     #else
@@ -14953,20 +14972,44 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
      * data  output data. Is a string if ERR_TXT_STRING flag is used
      * flags bit flag to adjust data output
      *
-     * Returns the error value
+     * Returns the error value or 0 if no errors are in the queue
      */
     unsigned long wolfSSL_ERR_get_error_line_data(const char** file, int* line,
                                                   const char** data, int *flags)
     {
+        int ret;
+
         WOLFSSL_STUB("wolfSSL_ERR_get_error_line_data");
 
         if (flags != NULL) {
             if ((*flags & ERR_TXT_STRING) == ERR_TXT_STRING) {
-                return wc_PullErrorNode(file, data, line);
+                ret = wc_PullErrorNode(file, data, line);
+                if (ret < 0) {
+                    if (ret == BAD_STATE_E) return 0; /* no errors in queue */
+                    WOLFSSL_MSG("Error with pulling error node!");
+                    WOLFSSL_LEAVE("wolfSSL_ERR_get_error_line_data", ret);
+                    ret = 0 - ret; /* return absolute value of error */
+
+                    /* panic and try to clear out nodes */
+                    wc_ClearErrorNodes();
+                }
+
+                return (unsigned long)ret;
             }
         }
 
-        return wc_PullErrorNode(file, NULL, line);
+        ret = wc_PullErrorNode(file, NULL, line);
+        if (ret < 0) {
+            if (ret == BAD_STATE_E) return 0; /* no errors in queue */
+            WOLFSSL_MSG("Error with pulling error node!");
+            WOLFSSL_LEAVE("wolfSSL_ERR_get_error_line_data", ret);
+            ret = 0 - ret; /* return absolute value of error */
+
+            /* panic and try to clear out nodes */
+            wc_ClearErrorNodes();
+        }
+
+        return (unsigned long)ret;
     }
 
 
@@ -32010,7 +32053,7 @@ void wolfSSL_OPENSSL_config(char *config_name)
 #endif
 #endif
 
-#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
 int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a, void *b, void *c)
 {
     static int x509_idx = 0;
@@ -32146,9 +32189,21 @@ int wolfSSL_SSL_do_handshake(WOLFSSL *s)
     if (s == NULL)
         return WOLFSSL_FAILURE;
 
-    if (s->options.side == WOLFSSL_CLIENT_END)
+    if (s->options.side == WOLFSSL_CLIENT_END) {
+    #ifndef NO_WOLFSSL_CLIENT
         return wolfSSL_connect(s);
+    #else
+        WOLFSSL_MSG("Client not compiled in");
+        return WOLFSSL_FAILURE;
+    #endif
+    }
+
+#ifndef NO_WOLFSSL_SERVER
     return wolfSSL_accept(s);
+#else
+    WOLFSSL_MSG("Server not compiled in");
+    return WOLFSSL_FAILURE;
+#endif
 }
 
 int wolfSSL_SSL_in_init(WOLFSSL *s)
@@ -32274,7 +32329,7 @@ int wolfSSL_i2a_ASN1_INTEGER(BIO *bp, const WOLFSSL_ASN1_INTEGER *a)
 }
 
 
-#ifdef HAVE_SESSION_TICKET
+#if defined(HAVE_SESSION_TICKET) && !defined(NO_WOLFSSL_SERVER)
 /* Expected return values from implementations of OpenSSL ticket key callback.
  */
 #define TICKET_KEY_CB_RET_FAILURE    -1
@@ -32391,6 +32446,9 @@ int wolfSSL_CTX_set_tlsext_ticket_key_cb(WOLFSSL_CTX *ctx, int (*cb)(
 }
 #endif /* HAVE_SESSION_TICKET */
 
+#endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY || OPENSSL_EXTRA */
+
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 #ifdef HAVE_OCSP
 /* Not an OpenSSL API. */
 int wolfSSL_get_ocsp_response(WOLFSSL* ssl, byte** response)
@@ -32414,7 +32472,9 @@ int wolfSSL_set_ocsp_url(WOLFSSL* ssl, char* url)
     ssl->url = url;
     return WOLFSSL_SUCCESS;
 }
+#endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
 int wolfSSL_CTX_get_extra_chain_certs(WOLFSSL_CTX* ctx, WOLF_STACK_OF(X509)** chain)
 {
     word32         idx;

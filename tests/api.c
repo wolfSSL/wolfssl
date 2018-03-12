@@ -15844,6 +15844,7 @@ static void test_wolfSSL_ERR_put_error(void)
     file = NULL;
     AssertIntEQ(ERR_get_error_line(&file, &line), 0);
     AssertNull(file);
+    AssertIntEQ(ERR_get_error_line_data(&file, &line, NULL, NULL), 0);
 
     /* Empty and free up all error nodes */
     ERR_clear_error();
