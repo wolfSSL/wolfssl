@@ -2431,6 +2431,7 @@ static int CheckAlgo(int first, int second, int* id, int* version)
    < 0 on error */
 static int CheckAlgoV2(int oid, int* id)
 {
+    (void)id; /* not used if AES and DES3 disabled */
     switch (oid) {
 #ifndef NO_DES3
     case DESb:
