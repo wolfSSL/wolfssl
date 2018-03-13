@@ -5056,6 +5056,7 @@ int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
 
     return err;
 }
+
 #endif /* WOLFSSL_HAVE_SP_DH */
 
 #endif /* WOLFSSL_SP_NO_2048 */
@@ -12036,6 +12037,7 @@ int sp_DhExp_3072(mp_int* base, const byte* exp, word32 expLen,
 
     return err;
 }
+
 #endif /* WOLFSSL_HAVE_SP_DH */
 
 #endif /* WOLFSSL_SP_NO_3072 */

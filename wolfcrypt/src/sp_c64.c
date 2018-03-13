@@ -48,13 +48,13 @@
 
 #include <wolfssl/wolfcrypt/sp.h>
 
+#ifndef WOLFSSL_SP_ASM
+#if SP_WORD_SIZE == 64
 #if defined(WOLFSSL_SP_CACHE_RESISTANT) || defined(WOLFSSL_SP_SMALL)
 /* Mask for address to obfuscate which of the two address will be used. */
 static const size_t addr_mask[2] = { 0, (size_t)-1 };
 #endif
 
-#ifndef WOLFSSL_SP_ASM
-#if SP_WORD_SIZE == 64
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
 #ifndef WOLFSSL_SP_NO_2048
 /* Read big endian unsigned byte aray into r.
@@ -197,7 +197,8 @@ static void sp_2048_to_bin(sp_digit* r, byte* a)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static void sp_2048_mul_9(sp_digit* r, const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static void sp_2048_mul_9(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 {
     int128_t t0   = ((int128_t)a[ 0]) * b[ 0];
     int128_t t1   = ((int128_t)a[ 0]) * b[ 1]
@@ -306,7 +307,7 @@ static void sp_2048_mul_9(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * r  A single precision integer.
  * a  A single precision integer.
  */
-static void sp_2048_sqr_9(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_2048_sqr_9(sp_digit* r, const sp_digit* a)
 {
     int128_t t0   =  ((int128_t)a[ 0]) * a[ 0];
     int128_t t1   = (((int128_t)a[ 0]) * a[ 1]) * 2;
@@ -380,7 +381,7 @@ static void sp_2048_sqr_9(sp_digit* r, const sp_digit* a)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_2048_add_9(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_2048_add_9(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     r[ 0] = a[ 0] + b[ 0];
@@ -402,7 +403,7 @@ static int sp_2048_add_9(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_2048_add_18(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_2048_add_18(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     int i;
@@ -429,7 +430,7 @@ static int sp_2048_add_18(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_2048_sub_18(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_2048_sub_18(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     int i;
@@ -456,7 +457,8 @@ static int sp_2048_sub_18(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static void sp_2048_mul_18(sp_digit* r, const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static void sp_2048_mul_18(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 {
     sp_digit* z0 = r;
     sp_digit z1[18];
@@ -478,7 +480,7 @@ static void sp_2048_mul_18(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * r  A single precision integer.
  * a  A single precision integer.
  */
-static void sp_2048_sqr_18(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_2048_sqr_18(sp_digit* r, const sp_digit* a)
 {
     sp_digit* z0 = r;
     sp_digit z1[18];
@@ -499,7 +501,7 @@ static void sp_2048_sqr_18(sp_digit* r, const sp_digit* a)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_2048_add_36(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_2048_add_36(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     int i;
@@ -528,7 +530,7 @@ static int sp_2048_add_36(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_2048_sub_36(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_2048_sub_36(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     int i;
@@ -557,7 +559,8 @@ static int sp_2048_sub_36(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static void sp_2048_mul_36(sp_digit* r, const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static void sp_2048_mul_36(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 {
     sp_digit* z0 = r;
     sp_digit z1[36];
@@ -579,7 +582,7 @@ static void sp_2048_mul_36(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * r  A single precision integer.
  * a  A single precision integer.
  */
-static void sp_2048_sqr_36(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_2048_sqr_36(sp_digit* r, const sp_digit* a)
 {
     sp_digit* z0 = r;
     sp_digit z1[36];
@@ -602,7 +605,7 @@ static void sp_2048_sqr_36(sp_digit* r, const sp_digit* a)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_2048_add_36(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_2048_add_36(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     int i;
@@ -620,7 +623,7 @@ static int sp_2048_add_36(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_2048_sub_36(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_2048_sub_36(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     int i;
@@ -639,7 +642,8 @@ static int sp_2048_sub_36(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static void sp_2048_mul_36(sp_digit* r, const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static void sp_2048_mul_36(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 {
     int i, j, k;
     int128_t c;
@@ -669,7 +673,7 @@ static void sp_2048_mul_36(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * r  A single precision integer.
  * a  A single precision integer.
  */
-static void sp_2048_sqr_36(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_2048_sqr_36(sp_digit* r, const sp_digit* a)
 {
     int i, j, k;
     int128_t c;
@@ -706,7 +710,7 @@ static void sp_2048_sqr_36(sp_digit* r, const sp_digit* a)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_2048_add_18(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_2048_add_18(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     int i;
@@ -724,7 +728,7 @@ static int sp_2048_add_18(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_2048_sub_18(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_2048_sub_18(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     int i;
@@ -743,7 +747,8 @@ static int sp_2048_sub_18(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static void sp_2048_mul_18(sp_digit* r, const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static void sp_2048_mul_18(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 {
     int i, j, k;
     int128_t c;
@@ -773,7 +778,7 @@ static void sp_2048_mul_18(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * r  A single precision integer.
  * a  A single precision integer.
  */
-static void sp_2048_sqr_18(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_2048_sqr_18(sp_digit* r, const sp_digit* a)
 {
     int i, j, k;
     int128_t c;
@@ -939,7 +944,7 @@ static void sp_2048_cond_sub_18(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A scalar.
  */
-static void sp_2048_mul_add_18(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_2048_mul_add_18(sp_digit* r, const sp_digit* a,
         const sp_digit b)
 {
 #ifdef WOLFSSL_SP_SMALL
@@ -1114,7 +1119,8 @@ static void sp_2048_mont_sqr_18(sp_digit* r, sp_digit* a, sp_digit* m,
  * a  A single precision integer.
  * b  A scalar.
  */
-static void sp_2048_mul_d_18(sp_digit* r, const sp_digit* a, const sp_digit b)
+SP_NOINLINE static void sp_2048_mul_d_18(sp_digit* r, const sp_digit* a,
+    const sp_digit b)
 {
 #ifdef WOLFSSL_SP_SMALL
     int128_t tb = b;
@@ -1191,6 +1197,43 @@ static void sp_2048_cond_add_18(sp_digit* r, const sp_digit* a,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
+#ifdef WOLFSSL_SMALL
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static int sp_2048_sub_18(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    int i;
+
+    for (i = 0; i < 18; i++)
+        r[i] = a[i] - b[i];
+
+    return 0;
+}
+
+#endif
+#ifdef WOLFSSL_SMALL
+/* Add b to a into r. (r = a + b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static int sp_2048_add_18(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    int i;
+
+    for (i = 0; i < 18; i++)
+        r[i] = a[i] + b[i];
+
+    return 0;
+}
+#endif
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
@@ -1709,7 +1752,7 @@ static void sp_2048_cond_sub_36(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A scalar.
  */
-static void sp_2048_mul_add_36(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_2048_mul_add_36(sp_digit* r, const sp_digit* a,
         const sp_digit b)
 {
 #ifdef WOLFSSL_SP_SMALL
@@ -1918,7 +1961,8 @@ static void sp_2048_mont_sqr_36(sp_digit* r, sp_digit* a, sp_digit* m,
  * a  A single precision integer.
  * b  A scalar.
  */
-static void sp_2048_mul_d_36(sp_digit* r, const sp_digit* a, const sp_digit b)
+SP_NOINLINE static void sp_2048_mul_d_36(sp_digit* r, const sp_digit* a,
+    const sp_digit b)
 {
 #ifdef WOLFSSL_SP_SMALL
     int128_t tb = b;
@@ -2001,6 +2045,43 @@ static void sp_2048_cond_add_36(sp_digit* r, const sp_digit* a,
 #endif /* WOLFSSL_SP_SMALL */
 }
 
+#ifdef WOLFSSL_SMALL
+/* Sub b from a into r. (r = a - b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static int sp_2048_sub_36(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    int i;
+
+    for (i = 0; i < 36; i++)
+        r[i] = a[i] - b[i];
+
+    return 0;
+}
+
+#endif
+#ifdef WOLFSSL_SMALL
+/* Add b to a into r. (r = a + b)
+ *
+ * r  A single precision integer.
+ * a  A single precision integer.
+ * b  A single precision integer.
+ */
+SP_NOINLINE static int sp_2048_add_36(sp_digit* r, const sp_digit* a,
+        const sp_digit* b)
+{
+    int i;
+
+    for (i = 0; i < 36; i++)
+        r[i] = a[i] + b[i];
+
+    return 0;
+}
+#endif
 /* Divide d in a and put remainder into r (m*d + r = a)
  * m is not calculated as it is not needed at this time.
  *
@@ -3170,6 +3251,7 @@ int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
     return err;
 #endif
 }
+
 #endif /* WOLFSSL_HAVE_SP_DH */
 
 #endif /* WOLFSSL_SP_NO_2048 */
@@ -3315,7 +3397,8 @@ static void sp_3072_to_bin(sp_digit* r, byte* a)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static void sp_3072_mul_9(sp_digit* r, const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static void sp_3072_mul_9(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 {
     int128_t t0   = ((int128_t)a[ 0]) * b[ 0];
     int128_t t1   = ((int128_t)a[ 0]) * b[ 1]
@@ -3424,7 +3507,7 @@ static void sp_3072_mul_9(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * r  A single precision integer.
  * a  A single precision integer.
  */
-static void sp_3072_sqr_9(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_3072_sqr_9(sp_digit* r, const sp_digit* a)
 {
     int128_t t0   =  ((int128_t)a[ 0]) * a[ 0];
     int128_t t1   = (((int128_t)a[ 0]) * a[ 1]) * 2;
@@ -3498,7 +3581,7 @@ static void sp_3072_sqr_9(sp_digit* r, const sp_digit* a)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_3072_add_9(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_3072_add_9(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     r[ 0] = a[ 0] + b[ 0];
@@ -3520,7 +3603,7 @@ static int sp_3072_add_9(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_3072_add_18(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_3072_add_18(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     int i;
@@ -3547,7 +3630,7 @@ static int sp_3072_add_18(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_3072_sub_18(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_3072_sub_18(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     int i;
@@ -3574,7 +3657,8 @@ static int sp_3072_sub_18(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static void sp_3072_mul_18(sp_digit* r, const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static void sp_3072_mul_18(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 {
     sp_digit* z0 = r;
     sp_digit z1[18];
@@ -3596,7 +3680,7 @@ static void sp_3072_mul_18(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * r  A single precision integer.
  * a  A single precision integer.
  */
-static void sp_3072_sqr_18(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_3072_sqr_18(sp_digit* r, const sp_digit* a)
 {
     sp_digit* z0 = r;
     sp_digit z1[18];
@@ -3617,7 +3701,7 @@ static void sp_3072_sqr_18(sp_digit* r, const sp_digit* a)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_3072_sub_36(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_3072_sub_36(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     int i;
@@ -3646,7 +3730,7 @@ static int sp_3072_sub_36(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_3072_add_36(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_3072_add_36(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     int i;
@@ -3675,7 +3759,8 @@ static int sp_3072_add_36(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static void sp_3072_mul_54(sp_digit* r, const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static void sp_3072_mul_54(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 {
     sp_digit p0[36];
     sp_digit p1[36];
@@ -3723,7 +3808,7 @@ static void sp_3072_mul_54(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * r  A single precision integer.
  * a  A single precision integer.
  */
-static void sp_3072_sqr_54(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_3072_sqr_54(sp_digit* r, const sp_digit* a)
 {
     sp_digit p0[36];
     sp_digit p1[36];
@@ -3768,7 +3853,7 @@ static void sp_3072_sqr_54(sp_digit* r, const sp_digit* a)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_3072_add_54(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_3072_add_54(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     int i;
@@ -3785,7 +3870,7 @@ static int sp_3072_add_54(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_3072_add_54(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_3072_add_54(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     int i;
@@ -3818,7 +3903,7 @@ static int sp_3072_add_54(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_3072_sub_54(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_3072_sub_54(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     int i;
@@ -3836,7 +3921,7 @@ static int sp_3072_sub_54(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_3072_sub_54(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_3072_sub_54(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     int i;
@@ -3869,7 +3954,8 @@ static int sp_3072_sub_54(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static void sp_3072_mul_54(sp_digit* r, const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static void sp_3072_mul_54(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 {
     int i, j, k;
     int128_t c;
@@ -3899,7 +3985,7 @@ static void sp_3072_mul_54(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * r  A single precision integer.
  * a  A single precision integer.
  */
-static void sp_3072_sqr_54(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_3072_sqr_54(sp_digit* r, const sp_digit* a)
 {
     int i, j, k;
     int128_t c;
@@ -3936,7 +4022,7 @@ static void sp_3072_sqr_54(sp_digit* r, const sp_digit* a)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_3072_add_27(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_3072_add_27(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     int i;
@@ -3953,7 +4039,7 @@ static int sp_3072_add_27(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_3072_add_27(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_3072_add_27(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     int i;
@@ -3983,7 +4069,7 @@ static int sp_3072_add_27(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_3072_sub_27(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_3072_sub_27(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     int i;
@@ -4001,7 +4087,7 @@ static int sp_3072_sub_27(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_3072_sub_27(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_3072_sub_27(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     int i;
@@ -4031,7 +4117,8 @@ static int sp_3072_sub_27(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static void sp_3072_mul_27(sp_digit* r, const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static void sp_3072_mul_27(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 {
     int i, j, k;
     int128_t c;
@@ -4063,7 +4150,8 @@ static void sp_3072_mul_27(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static void sp_3072_mul_27(sp_digit* r, const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static void sp_3072_mul_27(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 {
     int i, j;
     int128_t t[54];
@@ -4087,7 +4175,7 @@ static void sp_3072_mul_27(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * r  A single precision integer.
  * a  A single precision integer.
  */
-static void sp_3072_sqr_27(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_3072_sqr_27(sp_digit* r, const sp_digit* a)
 {
     int i, j, k;
     int128_t c;
@@ -4121,7 +4209,7 @@ static void sp_3072_sqr_27(sp_digit* r, const sp_digit* a)
  * r  A single precision integer.
  * a  A single precision integer.
  */
-static void sp_3072_sqr_27(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_3072_sqr_27(sp_digit* r, const sp_digit* a)
 {
     int i, j;
     int128_t t[54];
@@ -4280,7 +4368,7 @@ static void sp_3072_cond_sub_27(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A scalar.
  */
-static void sp_3072_mul_add_27(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_3072_mul_add_27(sp_digit* r, const sp_digit* a,
         const sp_digit b)
 {
 #ifdef WOLFSSL_SP_SMALL
@@ -4471,7 +4559,8 @@ static void sp_3072_mont_sqr_27(sp_digit* r, sp_digit* a, sp_digit* m,
  * a  A single precision integer.
  * b  A scalar.
  */
-static void sp_3072_mul_d_27(sp_digit* r, const sp_digit* a, const sp_digit b)
+SP_NOINLINE static void sp_3072_mul_d_27(sp_digit* r, const sp_digit* a,
+    const sp_digit b)
 {
 #ifdef WOLFSSL_SP_SMALL
     int128_t tb = b;
@@ -5075,7 +5164,7 @@ static void sp_3072_cond_sub_54(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A scalar.
  */
-static void sp_3072_mul_add_54(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_3072_mul_add_54(sp_digit* r, const sp_digit* a,
         const sp_digit b)
 {
 #ifdef WOLFSSL_SP_SMALL
@@ -5285,7 +5374,8 @@ static void sp_3072_mont_sqr_54(sp_digit* r, sp_digit* a, sp_digit* m,
  * a  A single precision integer.
  * b  A scalar.
  */
-static void sp_3072_mul_d_54(sp_digit* r, const sp_digit* a, const sp_digit b)
+SP_NOINLINE static void sp_3072_mul_d_54(sp_digit* r, const sp_digit* a,
+    const sp_digit b)
 {
 #ifdef WOLFSSL_SP_SMALL
     int128_t tb = b;
@@ -6544,6 +6634,7 @@ int sp_DhExp_3072(mp_int* base, const byte* exp, word32 expLen,
     return err;
 #endif
 }
+
 #endif /* WOLFSSL_HAVE_SP_DH */
 
 #endif /* WOLFSSL_SP_NO_3072 */
@@ -7012,7 +7103,7 @@ static void sp_256_cond_sub_5(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A scalar.
  */
-static void sp_256_mul_add_5(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_256_mul_add_5(sp_digit* r, const sp_digit* a,
         const sp_digit b)
 {
 #ifdef WOLFSSL_SP_SMALL
@@ -7122,7 +7213,8 @@ static void sp_256_mont_reduce_5(sp_digit* a, sp_digit* m, sp_digit mp)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static void sp_256_mul_5(sp_digit* r, const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static void sp_256_mul_5(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 {
     int i, j, k;
     int128_t c;
@@ -7154,7 +7246,8 @@ static void sp_256_mul_5(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static void sp_256_mul_5(sp_digit* r, const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static void sp_256_mul_5(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 {
     int128_t t0   = ((int128_t)a[ 0]) * b[ 0];
     int128_t t1   = ((int128_t)a[ 0]) * b[ 1]
@@ -7217,7 +7310,7 @@ static void sp_256_mont_mul_5(sp_digit* r, sp_digit* a, sp_digit* b,
  * r  A single precision integer.
  * a  A single precision integer.
  */
-static void sp_256_sqr_5(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_256_sqr_5(sp_digit* r, const sp_digit* a)
 {
     int i, j, k;
     int128_t c;
@@ -7251,7 +7344,7 @@ static void sp_256_sqr_5(sp_digit* r, const sp_digit* a)
  * r  A single precision integer.
  * a  A single precision integer.
  */
-static void sp_256_sqr_5(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_256_sqr_5(sp_digit* r, const sp_digit* a)
 {
     int128_t t0   =  ((int128_t)a[ 0]) * a[ 0];
     int128_t t1   = (((int128_t)a[ 0]) * a[ 1]) * 2;
@@ -7442,7 +7535,7 @@ static void sp_256_map_5(sp_point* r, sp_point* p, sp_digit* t)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_256_add_5(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_256_add_5(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     int i;
@@ -7459,7 +7552,7 @@ static int sp_256_add_5(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_256_add_5(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_256_add_5(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     r[ 0] = a[ 0] + b[ 0];
@@ -7527,7 +7620,7 @@ static void sp_256_mont_tpl_5(sp_digit* r, sp_digit* a, sp_digit* m)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_256_sub_5(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_256_sub_5(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     int i;
@@ -7545,7 +7638,7 @@ static int sp_256_sub_5(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static int sp_256_sub_5(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static int sp_256_sub_5(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     r[ 0] = a[ 0] - b[ 0];
@@ -7604,7 +7697,7 @@ static void sp_256_mont_sub_5(sp_digit* r, sp_digit* a, sp_digit* b,
  * r  Result of shift.
  * a  Number to shift.
  */
-static void sp_256_rshift1_5(sp_digit* r, sp_digit* a)
+SP_NOINLINE static void sp_256_rshift1_5(sp_digit* r, sp_digit* a)
 {
 #ifdef WOLFSSL_SP_SMALL
     int i;
@@ -10308,7 +10401,7 @@ static int sp_256_iszero_5(const sp_digit* a)
  * r  A single precision integer.
  * a  A single precision integer.
  */
-static void sp_256_add_one_5(sp_digit* a)
+SP_NOINLINE static void sp_256_add_one_5(sp_digit* a)
 {
     a[0]++;
     sp_256_norm_5(a);
@@ -10573,7 +10666,8 @@ int sp_ecc_secret_gen_256(mp_int* priv, ecc_point* pub, byte* out,
  * a  A single precision integer.
  * b  A scalar.
  */
-static void sp_256_mul_d_5(sp_digit* r, const sp_digit* a, const sp_digit b)
+SP_NOINLINE static void sp_256_mul_d_5(sp_digit* r, const sp_digit* a,
+    const sp_digit b)
 {
 #ifdef WOLFSSL_SP_SMALL
     int128_t tb = b;

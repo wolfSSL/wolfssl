@@ -436,6 +436,103 @@ int sp_cmp_d(sp_int *a, sp_int_digit d)
     return MP_EQ;
 }
 
+/* Left shift the number by number of bits.
+ * Bits may be larger than the word size.
+ *
+ * a  SP integer.
+ * n  Number of bits to shift.
+ * returns MP_OKAY always.
+ */
+static int sp_lshb(sp_int* a, int n)
+{
+    int i;
+
+    if (n >= SP_WORD_SIZE) {
+        sp_lshd(a, n / SP_WORD_SIZE);
+        n %= SP_WORD_SIZE;
+    }
+
+    if (n == 0)
+        return MP_OKAY;
+
+    a->dp[a->used] = 0;
+    for (i = a->used - 1; i >= 0; i--) {
+        a->dp[i+1] |= a->dp[i] >> (SP_WORD_SIZE - n);
+        a->dp[i] = a->dp[i] << n;
+    }
+    if (a->dp[a->used] != 0)
+        a->used++;
+
+    return MP_OKAY;
+}
+
+/* Subtract two large numbers into result: r = a - b
+ * a must be greater than b.
+ *
+ * a  SP integer.
+ * b  SP integer.
+ * r  SP integer.
+ * returns MP_OKAY always.
+ */
+static int sp_sub(sp_int* a, sp_int* b, sp_int* r)
+{
+    int i;
+    sp_int_digit c = 0;
+    sp_int_digit t;
+
+    for (i = 0; i < a->used && i < b->used; i++) {
+        t = a->dp[i] - b->dp[i] - c;
+        if (c == 0)
+            c = t > a->dp[i];
+        else
+            c = t >= a->dp[i];
+        r->dp[i] = t;
+    }
+    for (; i < a->used; i++) {
+        r->dp[i] = a->dp[i] - c;
+        c = r->dp[i] == (sp_int_digit)-1;
+    }
+    r->used = i;
+    sp_clamp(r);
+
+    return MP_OKAY;
+}
+
+/* Calculate the r = a mod m.
+ *
+ * a  SP integer.
+ * m  SP integer.
+ * r  SP integer.
+ * returns MP_OKAY always.
+ */
+int sp_mod(sp_int* a, sp_int* m, sp_int* r)
+{
+    sp_int t;
+    int mBits = sp_count_bits(m);
+    int rBits;
+
+    if (a != r)
+        sp_copy(a, r);
+    sp_init(&t);
+
+    rBits = sp_count_bits(r);
+    while (rBits > mBits) {
+        sp_copy(m, &t);
+        sp_lshb(&t, rBits - mBits);
+
+        if (sp_cmp(&t, r) == MP_GT) {
+            sp_copy(m, &t);
+            sp_lshb(&t, rBits - mBits - 1);
+        }
+        sp_sub(r, &t, r);
+
+        rBits = sp_count_bits(r);
+    }
+    if (sp_cmp(r, m) != MP_LT)
+        sp_sub(r, m, r);
+
+    return MP_OKAY;
+}
 
 #if defined(USE_FAST_MATH) || !defined(NO_BIG_INT)
 /* Clear all data in the big number and sets value to zero.
@@ -493,23 +590,33 @@ int sp_lshd(sp_int* a, int s)
 
     XMEMMOVE(a->dp + s, a->dp, a->used * SP_INT_DIGITS);
     a->used += s;
+    XMEMSET(a->dp, 0, s * sizeof(sp_int_digit));
 
     return MP_OKAY;
 }
 #endif
 
 #ifndef NO_PWDBASED
+/* Add two large numbers into result: r = a + b
+ *
+ * a  SP integer.
+ * b  SP integer.
+ * r  SP integer.
+ * returns MP_OKAY always.
+ */
 int sp_add(sp_int* a, sp_int* b, sp_int* r)
 {
     int i;
     sp_digit c = 0;
+    sp_digit t;
 
     for (i = 0; i < a->used && i < b->used; i++) {
-        r->dp[i] = a->dp[i] + b->dp[i] + c;
+        t = a->dp[i] + b->dp[i] + c;
         if (c == 0)
-            c = r->dp[i] < a->dp[i];
+            c = t < a->dp[i];
         else
-            c = r->dp[i] <= a->dp[i];
+            c = t <= a->dp[i];
+        r->dp[i] = t;
     }
     for (; i < a->used; i++) {
         r->dp[i] = a->dp[i] + c;

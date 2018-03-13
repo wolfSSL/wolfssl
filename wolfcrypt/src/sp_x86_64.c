@@ -186,7 +186,8 @@ static void sp_2048_to_bin(sp_digit* r, byte* a)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static void sp_2048_mul_16(sp_digit* r, const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static void sp_2048_mul_16(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 {
     sp_digit tmp[16];
 
@@ -1799,7 +1800,7 @@ static void sp_2048_mul_16(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * r  A single precision integer.
  * a  A single precision integer.
  */
-static void sp_2048_sqr_16(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_2048_sqr_16(sp_digit* r, const sp_digit* a)
 {
     sp_digit tmp[16];
 
@@ -2856,7 +2857,7 @@ static void sp_2048_sqr_16(sp_digit* r, const sp_digit* a)
  * a   First number to multiply.
  * b   Second number to multiply.
  */
-static void sp_2048_mul_avx2_16(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_2048_mul_avx2_16(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit tmp[2*16];
@@ -4504,7 +4505,7 @@ static void sp_2048_mul_avx2_16(sp_digit* r, const sp_digit* a,
  * r  A single precision integer.
  * a  A single precision integer.
  */
-static void sp_2048_sqr_avx2_16(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_2048_sqr_avx2_16(sp_digit* r, const sp_digit* a)
 {
     sp_digit tmp[32];
 
@@ -5508,7 +5509,7 @@ static void sp_2048_sqr_avx2_16(sp_digit* r, const sp_digit* a)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static sp_digit sp_2048_add_16(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static sp_digit sp_2048_add_16(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit c = 0;
@@ -5576,7 +5577,8 @@ static sp_digit sp_2048_add_16(sp_digit* r, const sp_digit* a,
  * a  A single precision integer and result.
  * b  A single precision integer.
  */
-static sp_digit sp_2048_sub_in_place_32(sp_digit* a, const sp_digit* b)
+SP_NOINLINE static sp_digit sp_2048_sub_in_place_32(sp_digit* a,
+    const sp_digit* b)
 {
     sp_digit c = 0;
 
@@ -5724,7 +5726,7 @@ static sp_digit sp_2048_sub_in_place_32(sp_digit* a, const sp_digit* b)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static sp_digit sp_2048_add_32(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static sp_digit sp_2048_add_32(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit c = 0;
@@ -5870,7 +5872,7 @@ static void sp_2048_mask_16(sp_digit* r, sp_digit* a, sp_digit m)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static void sp_2048_mul_32(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_2048_mul_32(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit* z0 = r;
@@ -5902,7 +5904,7 @@ static void sp_2048_mul_32(sp_digit* r, const sp_digit* a,
  * r  A single precision integer.
  * a  A single precision integer.
  */
-static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
 {
     sp_digit* z0 = r;
     sp_digit z2[32];
@@ -5931,7 +5933,7 @@ static void sp_2048_sqr_32(sp_digit* r, const sp_digit* a)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static void sp_2048_mul_avx2_32(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_2048_mul_avx2_32(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit* z0 = r;
@@ -5965,7 +5967,7 @@ static void sp_2048_mul_avx2_32(sp_digit* r, const sp_digit* a,
  * r  A single precision integer.
  * a  A single precision integer.
  */
-static void sp_2048_sqr_avx2_32(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_2048_sqr_avx2_32(sp_digit* r, const sp_digit* a)
 {
     sp_digit* z0 = r;
     sp_digit z2[32];
@@ -6017,7 +6019,8 @@ static void sp_2048_mont_setup(sp_digit* a, sp_digit* rho)
  * a  A single precision integer and result.
  * b  A single precision integer.
  */
-static sp_digit sp_2048_sub_in_place_16(sp_digit* a, const sp_digit* b)
+SP_NOINLINE static sp_digit sp_2048_sub_in_place_16(sp_digit* a,
+    const sp_digit* b)
 {
     sp_digit c = 0;
 
@@ -6473,7 +6476,7 @@ static void sp_2048_mont_sqr_16(sp_digit* r, sp_digit* a, sp_digit* m,
  * a  A single precision integer.
  * b  A single precision digit.
  */
-static void sp_2048_mul_d_16(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_2048_mul_d_16(sp_digit* r, const sp_digit* a,
         const sp_digit b)
 {
     __asm__ __volatile__ (
@@ -6616,7 +6619,7 @@ static void sp_2048_mul_d_16(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision digit.
  */
-static void sp_2048_mul_d_avx2_16(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_2048_mul_d_avx2_16(sp_digit* r, const sp_digit* a,
         const sp_digit b)
 {
     __asm__ __volatile__ (
@@ -8074,7 +8077,7 @@ static void sp_2048_mont_sqr_32(sp_digit* r, sp_digit* a, sp_digit* m,
  * a  A single precision integer.
  * b  A single precision digit.
  */
-static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
         const sp_digit b)
 {
     __asm__ __volatile__ (
@@ -8345,7 +8348,7 @@ static void sp_2048_mul_d_32(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision digit.
  */
-static void sp_2048_mul_d_avx2_32(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_2048_mul_d_avx2_32(sp_digit* r, const sp_digit* a,
         const sp_digit b)
 {
     __asm__ __volatile__ (
@@ -10167,7 +10170,8 @@ static void sp_3072_to_bin(sp_digit* r, byte* a)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static void sp_3072_mul_24(sp_digit* r, const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static void sp_3072_mul_24(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 {
     sp_digit tmp[24];
 
@@ -13732,7 +13736,7 @@ static void sp_3072_mul_24(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * r  A single precision integer.
  * a  A single precision integer.
  */
-static void sp_3072_sqr_24(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_3072_sqr_24(sp_digit* r, const sp_digit* a)
 {
     sp_digit tmp[24];
 
@@ -15901,7 +15905,7 @@ static void sp_3072_sqr_24(sp_digit* r, const sp_digit* a)
  * a   First number to multiply.
  * b   Second number to multiply.
  */
-static void sp_3072_mul_avx2_24(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_3072_mul_avx2_24(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit tmp[2*24];
@@ -19517,7 +19521,7 @@ static void sp_3072_mul_avx2_24(sp_digit* r, const sp_digit* a,
  * r  A single precision integer.
  * a  A single precision integer.
  */
-static void sp_3072_sqr_avx2_24(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_3072_sqr_avx2_24(sp_digit* r, const sp_digit* a)
 {
     sp_digit tmp[48];
 
@@ -21591,7 +21595,7 @@ static void sp_3072_sqr_avx2_24(sp_digit* r, const sp_digit* a)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static sp_digit sp_3072_add_24(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static sp_digit sp_3072_add_24(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit c = 0;
@@ -21683,7 +21687,8 @@ static sp_digit sp_3072_add_24(sp_digit* r, const sp_digit* a,
  * a  A single precision integer and result.
  * b  A single precision integer.
  */
-static sp_digit sp_3072_sub_in_place_48(sp_digit* a, const sp_digit* b)
+SP_NOINLINE static sp_digit sp_3072_sub_in_place_48(sp_digit* a,
+    const sp_digit* b)
 {
     sp_digit c = 0;
 
@@ -21895,7 +21900,7 @@ static sp_digit sp_3072_sub_in_place_48(sp_digit* a, const sp_digit* b)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static sp_digit sp_3072_add_48(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static sp_digit sp_3072_add_48(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit c = 0;
@@ -22089,7 +22094,7 @@ static void sp_3072_mask_24(sp_digit* r, sp_digit* a, sp_digit m)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static void sp_3072_mul_48(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_3072_mul_48(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit* z0 = r;
@@ -22121,7 +22126,7 @@ static void sp_3072_mul_48(sp_digit* r, const sp_digit* a,
  * r  A single precision integer.
  * a  A single precision integer.
  */
-static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
 {
     sp_digit* z0 = r;
     sp_digit z2[48];
@@ -22150,7 +22155,7 @@ static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static void sp_3072_mul_avx2_48(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_3072_mul_avx2_48(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit* z0 = r;
@@ -22184,7 +22189,7 @@ static void sp_3072_mul_avx2_48(sp_digit* r, const sp_digit* a,
  * r  A single precision integer.
  * a  A single precision integer.
  */
-static void sp_3072_sqr_avx2_48(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_3072_sqr_avx2_48(sp_digit* r, const sp_digit* a)
 {
     sp_digit* z0 = r;
     sp_digit z2[48];
@@ -22236,7 +22241,8 @@ static void sp_3072_mont_setup(sp_digit* a, sp_digit* rho)
  * a  A single precision integer and result.
  * b  A single precision integer.
  */
-static sp_digit sp_3072_sub_in_place_24(sp_digit* a, const sp_digit* b)
+SP_NOINLINE static sp_digit sp_3072_sub_in_place_24(sp_digit* a,
+    const sp_digit* b)
 {
     sp_digit c = 0;
 
@@ -22860,7 +22866,7 @@ static void sp_3072_mont_sqr_24(sp_digit* r, sp_digit* a, sp_digit* m,
  * a  A single precision integer.
  * b  A single precision digit.
  */
-static void sp_3072_mul_d_24(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_3072_mul_d_24(sp_digit* r, const sp_digit* a,
         const sp_digit b)
 {
     __asm__ __volatile__ (
@@ -23067,7 +23073,7 @@ static void sp_3072_mul_d_24(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision digit.
  */
-static void sp_3072_mul_d_avx2_24(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_3072_mul_d_avx2_24(sp_digit* r, const sp_digit* a,
         const sp_digit b)
 {
     __asm__ __volatile__ (
@@ -24951,7 +24957,7 @@ static void sp_3072_mont_sqr_48(sp_digit* r, sp_digit* a, sp_digit* m,
  * a  A single precision integer.
  * b  A single precision digit.
  */
-static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
         const sp_digit b)
 {
     __asm__ __volatile__ (
@@ -25350,7 +25356,7 @@ static void sp_3072_mul_d_48(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision digit.
  */
-static void sp_3072_mul_d_avx2_48(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_3072_mul_d_avx2_48(sp_digit* r, const sp_digit* a,
         const sp_digit b)
 {
     __asm__ __volatile__ (
@@ -27845,7 +27851,7 @@ static sp_digit sp_256_cond_sub_4(sp_digit* r, sp_digit* a, sp_digit* b,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static sp_digit sp_256_sub_4(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static sp_digit sp_256_sub_4(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit c = 0;
@@ -28637,7 +28643,7 @@ static void sp_256_mont_sub_4(sp_digit* r, sp_digit* a, sp_digit* b,
  * a  Number to divide.
  * m  Modulus (prime).
  */
-static void sp_256_div2_4(sp_digit* r, sp_digit* a, sp_digit* m)
+SP_NOINLINE static void sp_256_div2_4(sp_digit* r, sp_digit* a, sp_digit* m)
 {
     __asm__ __volatile__ (
         "movq	0(%[a]), %%rax\n\t"
@@ -44674,7 +44680,7 @@ int sp_ecc_secret_gen_256(mp_int* priv, ecc_point* pub, byte* out,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static sp_digit sp_256_add_4(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static sp_digit sp_256_add_4(sp_digit* r, const sp_digit* a,
         const sp_digit* b)
 {
     sp_digit c = 0;
@@ -44709,7 +44715,8 @@ static sp_digit sp_256_add_4(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static void sp_256_mul_4(sp_digit* r, const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static void sp_256_mul_4(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 {
     sp_digit tmp[4];
 
@@ -44940,7 +44947,8 @@ SP_NOINLINE static void sp_256_mul_avx2_4(sp_digit* r, const sp_digit* a,
  * a  A single precision integer and result.
  * b  A single precision integer.
  */
-static sp_digit sp_256_sub_in_place_4(sp_digit* a, const sp_digit* b)
+SP_NOINLINE static sp_digit sp_256_sub_in_place_4(sp_digit* a,
+    const sp_digit* b)
 {
     sp_digit c = 0;
 
@@ -44976,7 +44984,7 @@ static sp_digit sp_256_sub_in_place_4(sp_digit* a, const sp_digit* b)
  * a  A single precision integer.
  * b  A single precision digit.
  */
-static void sp_256_mul_d_4(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_256_mul_d_4(sp_digit* r, const sp_digit* a,
         const sp_digit b)
 {
     __asm__ __volatile__ (
@@ -45023,7 +45031,7 @@ static void sp_256_mul_d_4(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision digit.
  */
-static void sp_256_mul_d_avx2_4(sp_digit* r, const sp_digit* a,
+SP_NOINLINE static void sp_256_mul_d_avx2_4(sp_digit* r, const sp_digit* a,
         const sp_digit b)
 {
     __asm__ __volatile__ (
@@ -45169,7 +45177,7 @@ static INLINE int sp_256_mod_4(sp_digit* r, sp_digit* a, sp_digit* m)
  * r  A single precision integer.
  * a  A single precision integer.
  */
-static void sp_256_sqr_4(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_256_sqr_4(sp_digit* r, const sp_digit* a)
 {
     sp_digit tmp[4];
 
