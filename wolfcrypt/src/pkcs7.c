@@ -737,53 +737,68 @@ static int wc_PKCS7_SignedDataGetEncAlgoId(PKCS7* pkcs7, int* digEncAlgoId,
         algoType = oidSigType;
 
         switch (pkcs7->hashOID) {
+        #ifndef NO_SHA
             case SHAh:
                 algoId = CTC_SHAwRSA;
                 break;
-
+        #endif
+        #ifdef WOLFSSL_SHA224
             case SHA224h:
                 algoId = CTC_SHA224wRSA;
                 break;
-
+        #endif
+        #ifndef NO_SHA256
             case SHA256h:
                 algoId = CTC_SHA256wRSA;
                 break;
-
+        #endif
+        #ifdef WOLFSSL_SHA384
             case SHA384h:
                 algoId = CTC_SHA384wRSA;
                 break;
-
+        #endif
+        #ifdef WOLFSSL_SHA512
             case SHA512h:
                 algoId = CTC_SHA512wRSA;
                 break;
+        #endif
         }
 
-    } else if (pkcs7->publicKeyOID == ECDSAk) {
+    }
+#ifdef HAVE_ECC
+    else if (pkcs7->publicKeyOID == ECDSAk) {
 
         algoType = oidSigType;
 
         switch (pkcs7->hashOID) {
+        #ifndef NO_SHA
             case SHAh:
                 algoId = CTC_SHAwECDSA;
                 break;
-
+        #endif
+        #ifdef WOLFSSL_SHA224
             case SHA224h:
                 algoId = CTC_SHA224wECDSA;
                 break;
-
+        #endif
+        #ifndef NO_SHA256
             case SHA256h:
                 algoId = CTC_SHA256wECDSA;
                 break;
-
+        #endif
+        #ifdef WOLFSSL_SHA384
             case SHA384h:
                 algoId = CTC_SHA384wECDSA;
                 break;
-
+        #endif
+        #ifdef WOLFSSL_SHA512
             case SHA512h:
                 algoId = CTC_SHA512wECDSA;
                 break;
+        #endif
         }
     }
+#endif /* HAVE_ECC */
 
     if (algoId == 0) {
         WOLFSSL_MSG("Invalid signature algorithm type");
@@ -4456,8 +4471,11 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
         return ASN_PARSE_E;
 
     /* TODO :: make this more accurate */
-    if ((pkcs7->publicKeyOID == RSAk && version != 0) ||
-        (pkcs7->publicKeyOID == ECDSAk && version != 2)) {
+    if ((pkcs7->publicKeyOID == RSAk && version != 0)
+    #ifdef HAVE_ECC
+            || (pkcs7->publicKeyOID == ECDSAk && version != 2)
+    #endif
+            ) {
         WOLFSSL_MSG("PKCS#7 envelopedData needs to be of version 0");
         return ASN_VERSION_E;
     }
