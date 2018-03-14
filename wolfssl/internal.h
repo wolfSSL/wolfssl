@@ -3831,11 +3831,9 @@ WOLFSSL_LOCAL int SetTicket(WOLFSSL*, const byte*, word32);
                                                  enum wc_HashType hashType);
             WOLFSSL_LOCAL int ConvertHashPss(int hashAlgo, enum wc_HashType* hashType, int* mgf);
         #endif
-        WOLFSSL_LOCAL int VerifyRsaSign(WOLFSSL* ssl,
-                                        byte* verifySig, word32 sigSz,
-                                        const byte* plain, word32 plainSz,
-                                        int sigAlgo, int hashAlgo,
-                                        RsaKey* key);
+        WOLFSSL_LOCAL int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig,
+            word32 sigSz, const byte* plain, word32 plainSz, int sigAlgo,
+            int hashAlgo, RsaKey* key, const byte* keyBuf, word32 keySz, void* ctx);
         WOLFSSL_LOCAL int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz,
             byte* out, word32* outSz, int sigAlgo, int hashAlgo, RsaKey* key,
             const byte* keyBuf, word32 keySz, void* ctx);
