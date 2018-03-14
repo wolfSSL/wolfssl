@@ -6687,9 +6687,9 @@ int DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     else {
         if (inputLength + ssl->arrays->pendingMsgOffset >
                                                     ssl->arrays->pendingMsgSz) {
-            return BUFFER_ERROR;
+            inputLength = ssl->arrays->pendingMsgSz -
+                                                  ssl->arrays->pendingMsgOffset;
         }
-
         XMEMCPY(ssl->arrays->pendingMsg + ssl->arrays->pendingMsgOffset,
                 input + *inOutIdx, inputLength);
         ssl->arrays->pendingMsgOffset += inputLength;
