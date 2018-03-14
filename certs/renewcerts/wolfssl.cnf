@@ -125,6 +125,40 @@ subjectKeyIdentifier=hash
 authorityKeyIdentifier=keyid:always,issuer:always
 basicConstraints=CA:true
 
+# CA with pathlen 0
+[ pathlen_0 ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=CA:true,pathlen:0
+keyUsage=keyCertSign, cRLSign
+
+# CA with pathlen 1
+[ pathlen_1 ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=CA:true,pathlen:1
+keyUsage=keyCertSign, cRLSign
+
+# CA with pathlen 127
+[ pathlen_127 ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=CA:true,pathlen:127
+keyUsage=keyCertSign, cRLSign
+
+# CA with pathlen 128
+[ pathlen_128 ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=CA:true,pathlen:128
+keyUsage=keyCertSign, cRLSign
+
+# test pathlen server cert
+[ test_pathlen ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=CA:false
+
 # Extensions to add to a certificate request
 [ v3_req ]
 basicConstraints = CA:FALSE

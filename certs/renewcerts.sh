@@ -355,6 +355,32 @@ function run_renewcerts(){
     cd ../
 
     ############################################################
+    ########## generate ocsp certs        ######################
+    ############################################################
+    echo "Changing directory to ocsp..."
+    echo ""
+
+    # guard against recursive calls to renewcerts.sh
+    if [ -d ocsp ]; then
+        cd ./ocsp
+        echo "Execute ./renewcerts.sh..."
+        ./renewcerts.sh
+        cd ../
+    else
+        echo "Error could not find ocsp directory"
+        exit 1
+    fi
+
+    ############################################################
+    ###### calling assemble-chains.sh         ##################
+    ############################################################
+    echo "Calling assemble-chains.sh"
+    echo ""
+    cd ./test-pathlen
+    ./assemble-chains.sh
+    cd ../
+
+    ############################################################
     ########## store DER files as buffers ######################
     ############################################################
     echo "Changing directory to wolfssl root..."
