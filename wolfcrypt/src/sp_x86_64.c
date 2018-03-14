@@ -171,10 +171,9 @@ static void sp_2048_to_bin(sp_digit* r, byte* a)
             if (j < 0)
                 break;
         }
-        if (j < 0)
-            break;
         s = 8 - (b - 64);
-        a[j] = 0;
+        if (j >= 0)
+            a[j] = 0;
         if (s != 0)
             j++;
     }
@@ -10155,10 +10154,9 @@ static void sp_3072_to_bin(sp_digit* r, byte* a)
             if (j < 0)
                 break;
         }
-        if (j < 0)
-            break;
         s = 8 - (b - 64);
-        a[j] = 0;
+        if (j >= 0)
+            a[j] = 0;
         if (s != 0)
             j++;
     }
@@ -44598,10 +44596,9 @@ static void sp_256_to_bin(sp_digit* r, byte* a)
             if (j < 0)
                 break;
         }
-        if (j < 0)
-            break;
         s = 8 - (b - 64);
-        a[j] = 0;
+        if (j >= 0)
+            a[j] = 0;
         if (s != 0)
             j++;
     }

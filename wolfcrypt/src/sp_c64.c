@@ -181,10 +181,9 @@ static void sp_2048_to_bin(sp_digit* r, byte* a)
             if (j < 0)
                 break;
         }
-        if (j < 0)
-            break;
         s = 8 - (b - 57);
-        a[j] = 0;
+        if (j >= 0)
+            a[j] = 0;
         if (s != 0)
             j++;
     }
@@ -1252,14 +1251,14 @@ static int sp_2048_div_18(sp_digit* a, sp_digit* d, sp_digit* m,
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     sp_digit* td;
 #else
-    sp_digit t1d[36], t2d[36];
+    sp_digit t1d[36], t2d[18 + 1];
 #endif
     sp_digit* t1;
     sp_digit* t2;
     int err = MP_OKAY;
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
-    td = XMALLOC(sizeof(sp_digit) * 4 * 18, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    td = XMALLOC(sizeof(sp_digit) * (3 * 18 + 1), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (td != NULL) {
         t1 = td;
         t2 = td + 2 * 18;
@@ -2100,14 +2099,14 @@ static int sp_2048_div_36(sp_digit* a, sp_digit* d, sp_digit* m,
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     sp_digit* td;
 #else
-    sp_digit t1d[72], t2d[72];
+    sp_digit t1d[72], t2d[36 + 1];
 #endif
     sp_digit* t1;
     sp_digit* t2;
     int err = MP_OKAY;
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
-    td = XMALLOC(sizeof(sp_digit) * 4 * 36, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    td = XMALLOC(sizeof(sp_digit) * (3 * 36 + 1), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (td != NULL) {
         t1 = td;
         t2 = td + 2 * 36;
@@ -3381,10 +3380,9 @@ static void sp_3072_to_bin(sp_digit* r, byte* a)
             if (j < 0)
                 break;
         }
-        if (j < 0)
-            break;
         s = 8 - (b - 57);
-        a[j] = 0;
+        if (j >= 0)
+            a[j] = 0;
         if (s != 0)
             j++;
     }
@@ -4658,14 +4656,14 @@ static int sp_3072_div_27(sp_digit* a, sp_digit* d, sp_digit* m,
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     sp_digit* td;
 #else
-    sp_digit t1d[54], t2d[54];
+    sp_digit t1d[54], t2d[27 + 1];
 #endif
     sp_digit* t1;
     sp_digit* t2;
     int err = MP_OKAY;
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
-    td = XMALLOC(sizeof(sp_digit) * 4 * 27, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    td = XMALLOC(sizeof(sp_digit) * (3 * 27 + 1), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (td != NULL) {
         t1 = td;
         t2 = td + 2 * 27;
@@ -5482,14 +5480,14 @@ static int sp_3072_div_54(sp_digit* a, sp_digit* d, sp_digit* m,
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     sp_digit* td;
 #else
-    sp_digit t1d[108], t2d[108];
+    sp_digit t1d[108], t2d[54 + 1];
 #endif
     sp_digit* t1;
     sp_digit* t2;
     int err = MP_OKAY;
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
-    td = XMALLOC(sizeof(sp_digit) * 4 * 54, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    td = XMALLOC(sizeof(sp_digit) * (3 * 54 + 1), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (td != NULL) {
         t1 = td;
         t2 = td + 2 * 54;
@@ -10580,10 +10578,9 @@ static void sp_256_to_bin(sp_digit* r, byte* a)
             if (j < 0)
                 break;
         }
-        if (j < 0)
-            break;
         s = 8 - (b - 52);
-        a[j] = 0;
+        if (j >= 0)
+            a[j] = 0;
         if (s != 0)
             j++;
     }
@@ -10716,14 +10713,14 @@ static int sp_256_div_5(sp_digit* a, sp_digit* d, sp_digit* m,
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     sp_digit* td;
 #else
-    sp_digit t1d[10], t2d[10];
+    sp_digit t1d[10], t2d[5 + 1];
 #endif
     sp_digit* t1;
     sp_digit* t2;
     int err = MP_OKAY;
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
-    td = XMALLOC(sizeof(sp_digit) * 4 * 5, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    td = XMALLOC(sizeof(sp_digit) * (3 * 5 + 1), NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (td != NULL) {
         t1 = td;
         t2 = td + 2 * 5;
