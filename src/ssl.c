@@ -7787,7 +7787,7 @@ static int wolfSSL_EVP_Digest(unsigned char* in, int inSz, unsigned char* out,
             if (XSTRNCMP("SHA384", evp, 6) == 0) {
                 hash = WC_HASH_TYPE_SHA384;
             }
-            else 
+            else
             #endif
             #ifdef WOLFSSL_SHA512
             if (XSTRNCMP("SHA512", evp, 6) == 0) {
@@ -15174,7 +15174,7 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
     return newX509;
 }
 
-#endif /* KEEP_PEER_CERT || SESSION_CERTS || OPENSSL_EXTRA || 
+#endif /* KEEP_PEER_CERT || SESSION_CERTS || OPENSSL_EXTRA ||
           OPENSSL_EXTRA_X509_SMALL */
 
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
@@ -28685,6 +28685,12 @@ void  wolfSSL_CTX_SetRsaVerifyCb(WOLFSSL_CTX* ctx, CallbackRsaVerify cb)
         ctx->RsaVerifyCb = cb;
 }
 
+void  wolfSSL_CTX_SetRsaVerifySignCb(WOLFSSL_CTX* ctx, CallbackRsaVerify cb)
+{
+    if (ctx)
+        ctx->RsaVerifySignCb = cb;
+}
+
 
 void  wolfSSL_SetRsaVerifyCtx(WOLFSSL* ssl, void *ctx)
 {
@@ -28729,6 +28735,12 @@ void  wolfSSL_CTX_SetRsaPssVerifyCb(WOLFSSL_CTX* ctx, CallbackRsaPssVerify cb)
 {
     if (ctx)
         ctx->RsaPssVerifyCb = cb;
+}
+
+void  wolfSSL_CTX_SetRsaPssVerifySignCb(WOLFSSL_CTX* ctx, CallbackRsaPssVerify cb)
+{
+    if (ctx)
+        ctx->RsaPssVerifySignCb = cb;
 }
 
 

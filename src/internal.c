@@ -3139,7 +3139,7 @@ int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
             return ret;
     #ifdef HAVE_PK_CALLBACKS
         if (ssl->ctx->RsaPssVerifyCb) {
-            ret = ssl->ctx->RsaPssVerifyCb(ssl, verifySig, sigSz, &out,
+            ret = ssl->ctx->RsaPssVerifySignCb(ssl, verifySig, sigSz, &out,
                                            TypeHash(hashAlgo), mgf,
                                            keyBuf, keySz, ctx);
         }
@@ -3161,7 +3161,7 @@ int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
     {
     #ifdef HAVE_PK_CALLBACKS
         if (ssl->ctx->RsaVerifyCb) {
-            ret = ssl->ctx->RsaVerifyCb(ssl, verifySig, sigSz, &out,
+            ret = ssl->ctx->RsaVerifySignCb(ssl, verifySig, sigSz, &out,
                 keyBuf, keySz, ctx);
         }
         else

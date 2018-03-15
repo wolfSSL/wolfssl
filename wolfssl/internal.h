@@ -2507,11 +2507,13 @@ struct WOLFSSL_CTX {
         CallbackDhAgree DhAgreeCb;      /* User DH Agree Callback handler */
     #endif
     #ifndef NO_RSA
-        CallbackRsaSign   RsaSignCb;    /* User RsaSign   Callback handler */
-        CallbackRsaVerify RsaVerifyCb;  /* User RsaVerify Callback handler */
+        CallbackRsaSign   RsaSignCb;       /* User RsaSign Callback handler (priv key) */
+        CallbackRsaVerify RsaVerifyCb;     /* User RsaVerify Callback handler (pub key) */
+        CallbackRsaVerify RsaVerifySignCb; /* User RsaVerifySign Callback handler (priv key) */
         #ifdef WC_RSA_PSS
-            CallbackRsaPssSign   RsaPssSignCb;    /* User RsaPssSign */
-            CallbackRsaPssVerify RsaPssVerifyCb;  /* User RsaPssVerify */
+            CallbackRsaPssSign   RsaPssSignCb;       /* User RsaPssSign (priv key) */
+            CallbackRsaPssVerify RsaPssVerifyCb;     /* User RsaPssVerify (pub key) */
+            CallbackRsaPssVerify RsaPssVerifySignCb; /* User RsaPssVerifySign (priv key) */
         #endif
         CallbackRsaEnc    RsaEncCb;     /* User Rsa Public Encrypt  handler */
         CallbackRsaDec    RsaDecCb;     /* User Rsa Private Decrypt handler */
