@@ -43,7 +43,7 @@
 
 /* User can override STM32_HASH_CLOCK_ENABLE and STM32_HASH_CLOCK_DISABLE */
 #ifndef STM32_HASH_CLOCK_ENABLE
-    static inline void wc_Stm32_Hash_Clock_Enable(STM32_HASH_Context* stmCtx)
+    static INLINE void wc_Stm32_Hash_Clock_Enable(STM32_HASH_Context* stmCtx)
     {
     #ifdef WOLFSSL_STM32_CUBEMX
         __HAL_RCC_HASH_CLK_ENABLE();
@@ -56,7 +56,7 @@
 #endif
 
 #ifndef STM32_HASH_CLOCK_DISABLE
-    static inline void wc_Stm32_Hash_Clock_Disable(STM32_HASH_Context* stmCtx)
+    static INLINE void wc_Stm32_Hash_Clock_Disable(STM32_HASH_Context* stmCtx)
     {
     #ifdef WOLFSSL_STM32_CUBEMX
         __HAL_RCC_HASH_CLK_DISABLE();
@@ -69,7 +69,7 @@
 #endif
 
 /* STM32 Port Internal Functions */
-static inline void wc_Stm32_Hash_SaveContext(STM32_HASH_Context* ctx)
+static INLINE void wc_Stm32_Hash_SaveContext(STM32_HASH_Context* ctx)
 {
     int i;
 
@@ -82,7 +82,7 @@ static inline void wc_Stm32_Hash_SaveContext(STM32_HASH_Context* ctx)
     }
 }
 
-static inline int wc_Stm32_Hash_RestoreContext(STM32_HASH_Context* ctx)
+static INLINE int wc_Stm32_Hash_RestoreContext(STM32_HASH_Context* ctx)
 {
     int i;
 
@@ -104,7 +104,7 @@ static inline int wc_Stm32_Hash_RestoreContext(STM32_HASH_Context* ctx)
     return 0;
 }
 
-static inline void wc_Stm32_Hash_GetDigest(byte* hash, int digestSize)
+static INLINE void wc_Stm32_Hash_GetDigest(byte* hash, int digestSize)
 {
     word32 digest[HASH_MAX_DIGEST/sizeof(word32)];
 
@@ -132,7 +132,7 @@ static inline void wc_Stm32_Hash_GetDigest(byte* hash, int digestSize)
 
 
 /* STM32 Port Exposed Functions */
-static inline int wc_Stm32_Hash_WaitDone(void)
+static INLINE int wc_Stm32_Hash_WaitDone(void)
 {
     /* wait until hash hardware is not busy */
     int timeout = 0;
