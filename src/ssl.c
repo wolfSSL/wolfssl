@@ -31033,50 +31033,45 @@ int wolfSSL_PEM_write_bio_X509_AUX(WOLFSSL_BIO *bp, WOLFSSL_X509 *x)
 
 int wolfSSL_PEM_write_bio_X509(WOLFSSL_BIO *bio, WOLFSSL_X509 *cert)
 {
-    byte* certDer;
+    byte* pem;
+    int   pemSz = 0;
+    const unsigned char* der;
     int derSz;
-    int pemSz;
     int ret;
 
-    WOLFSSL_ENTER("wolfSSL_PEM_write_bio_X509");
+    WOLFSSL_ENTER("wolfSSL_PEM_write_bio_X509_AUX()");
 
     if (bio == NULL || cert == NULL) {
+        WOLFSSL_MSG("NULL argument passed in");
         return WOLFSSL_FAILURE;
     }
 
-    if (bio->type != WOLFSSL_BIO_MEMORY) {
-        WOLFSSL_MSG("BIO type not supported for writing X509 as PEM");
+    der = wolfSSL_X509_get_der(cert, &derSz);
+    if (der == NULL) {
         return WOLFSSL_FAILURE;
     }
 
-    certDer = cert->derCert->buffer;
-    derSz   = cert->derCert->length;
-
-    /* Get PEM encoded length and allocate memory for it. */
-    pemSz = wc_DerToPem(certDer, derSz, NULL, 0, CERT_TYPE);
+    /* get PEM size */
+    pemSz = wc_DerToPemEx(der, derSz, NULL, 0, NULL, CERT_TYPE);
     if (pemSz < 0) {
-        WOLFSSL_LEAVE("wolfSSL_PEM_write_bio_X509", pemSz);
-        return WOLFSSL_FAILURE;
-    }
-    if (bio->mem != NULL) {
-        XFREE(bio->mem, NULL, DYNAMIC_TYPE_OPENSSL);
-    }
-    bio->mem = (byte*)XMALLOC(pemSz, NULL, DYNAMIC_TYPE_OPENSSL);
-    if (bio->mem == NULL) {
-        return WOLFSSL_FAILURE;
-    }
-    bio->memLen = pemSz;
-    if (bio->mem_buf != NULL) {
-        bio->mem_buf->data = (char*)bio->mem;
-        bio->mem_buf->length = bio->memLen;
-    }
-
-    ret = wc_DerToPemEx(certDer, derSz, bio->mem, bio->memLen, NULL, CERT_TYPE);
-    if (ret < 0) {
-        WOLFSSL_LEAVE("wolfSSL_PEM_write_bio_X509", ret);
         return WOLFSSL_FAILURE;
     }
 
+    /* create PEM buffer and convert from DER */
+    pem = (byte*)XMALLOC(pemSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pem == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+    if (wc_DerToPemEx(der, derSz, pem, pemSz, NULL, CERT_TYPE) < 0) {
+        XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return WOLFSSL_FAILURE;
+    }
+
+    /* write the PEM to BIO */
+    ret = wolfSSL_BIO_write(bio, pem, pemSz);
+    XFREE(pem, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    if (ret <= 0) return WOLFSSL_FAILURE;
     return WOLFSSL_SUCCESS;
 }
 
