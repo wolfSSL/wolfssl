@@ -251,6 +251,10 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz)
     void* heap;
 
 
+    if (pkcs7 == NULL || (cert == NULL && certSz != 0)) {
+        return BAD_FUNC_ARG;
+    }
+
 #ifdef WOLFSSL_HEAP_TEST
     heap = (void*)WOLFSSL_HEAP_TEST;
 #else
@@ -439,6 +443,10 @@ int wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output, word32 outputSz)
     word32 octetStrSz;
     word32 oidSz = (word32)sizeof(oid);
     int idx = 0;
+
+    if (pkcs7 == NULL || output == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
     octetStrSz = SetOctetString(pkcs7->contentSz, octetStr);
     seqSz = SetSequence(pkcs7->contentSz + octetStrSz + oidSz, seq);
@@ -4868,7 +4876,6 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
     if (pkiMsg == NULL || pkiMsgSz == 0 ||
         output == NULL || outputSz == 0)
         return BAD_FUNC_ARG;
-
     /* read past ContentInfo, verify type is encrypted-data */
     if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
         return ASN_PARSE_E;
