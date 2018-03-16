@@ -41,6 +41,7 @@
 #endif
 #include <wolfssl/wolfcrypt/pkcs12.h>
 #include <wolfssl/wolfcrypt/pwdbased.h>
+#include <wolfssl/wolfcrypt/hash.h>
 
 
 #define ERROR_OUT(err, eLabel) { ret = (err); goto eLabel; }
@@ -480,7 +481,8 @@ static int wc_PKCS12_create_mac(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
 {
     Hmac     hmac;
     MacData* mac;
-    int ret, typeH, kLen;
+    int ret, kLen;
+    enum wc_HashType hashT;
     int idx = 0;
     int id  = 3; /* value from RFC 7292 indicating key is used for MAC */
     word32 i;
@@ -509,35 +511,12 @@ static int wc_PKCS12_create_mac(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
     unicodePasswd[idx++] = 0x00;
 
     /* get hash type used and resulting size of HMAC key */
-    switch (mac->oid) {
-    #ifndef NO_SHA
-        case SHAh: /* 88 */
-            typeH = WC_SHA;
-            kLen  = WC_SHA_DIGEST_SIZE;
-            break;
-    #endif
-    #ifndef NO_SHA256
-        case SHA256h: /* 414 */
-            typeH = WC_SHA256;
-            kLen  = WC_SHA256_DIGEST_SIZE;
-            break;
-    #endif
-    #ifdef WOLFSSL_SHA384
-        case SHA384h:  /* 415 */
-            typeH = WC_SHA384;
-            kLen  = WC_SHA384_DIGEST_SIZE;
-            break;
-    #endif
-    #ifdef WOLFSSL_SHA512
-        case SHA512h: /* 416 */
-            typeH = WC_SHA512;
-            kLen  = WC_SHA512_DIGEST_SIZE;
-            break;
-    #endif
-        default: /* May be SHA224 or was just not built in */
-            WOLFSSL_MSG("Unsupported hash used");
-            return BAD_FUNC_ARG;
+    hashT = wc_OidGetHash(mac->oid);
+    if (hashT == WC_HASH_TYPE_NONE) {
+        WOLFSSL_MSG("Unsupported hash used");
+        return BAD_FUNC_ARG;
     }
+    kLen = wc_HashGetDigestSize(hashT);
 
     /* check out buffer is large enough */
     if (kLen < 0 || outSz < (word32)kLen) {
@@ -546,7 +525,7 @@ static int wc_PKCS12_create_mac(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
 
     /* idx contains size of unicodePasswd */
     if ((ret = wc_PKCS12_PBKDF_ex(key, unicodePasswd, idx, mac->salt,
-                   mac->saltSz, mac->itt, kLen, typeH, id, pkcs12->heap)) < 0) {
+              mac->saltSz, mac->itt, kLen, (int)hashT, id, pkcs12->heap)) < 0) {
         return ret;
     }
 
@@ -554,7 +533,7 @@ static int wc_PKCS12_create_mac(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
     if ((ret = wc_HmacInit(&hmac, pkcs12->heap, INVALID_DEVID)) != 0) {
         return ret;
     }
-    ret = wc_HmacSetKey(&hmac, typeH, key, kLen);
+    ret = wc_HmacSetKey(&hmac, (int)hashT, key, kLen);
     if (ret == 0)
         ret = wc_HmacUpdate(&hmac, data, dataSz);
     if (ret == 0)

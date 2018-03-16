@@ -994,58 +994,6 @@ static int wc_PKCS7_SignedDataBuildSignature(PKCS7* pkcs7,
     return ret;
 }
 
-
-/* sets the wc_HashType in ESD struct based on pkcs7->hashOID
- *
- * pkcs7 - pointer to initialized PKCS7 struct
- * type  - [OUT] pointer to wc_HashType for output
- *
- * returns hash digest size on success, negative on error */
-static int wc_PKCS7_SetHashType(PKCS7* pkcs7, enum wc_HashType* type)
-{
-    if (pkcs7 == NULL || type == NULL)
-        return BAD_FUNC_ARG;
-
-    switch (pkcs7->hashOID) {
-
-#ifndef NO_MD5
-        case MD5h:
-            *type = WC_HASH_TYPE_MD5;
-            break;
-#endif
-#ifndef NO_SHA
-        case SHAh:
-            *type = WC_HASH_TYPE_SHA;
-            break;
-#endif
-#ifdef WOLFSSL_SHA224
-        case SHA224h:
-            *type = WC_HASH_TYPE_SHA224;
-            break;
-#endif
-#ifndef NO_SHA256
-        case SHA256h:
-            *type = WC_HASH_TYPE_SHA256;
-            break;
-#endif
-#ifdef WOLFSSL_SHA384
-        case SHA384h:
-            *type = WC_HASH_TYPE_SHA384;
-            break;
-#endif
-#ifdef WOLFSSL_SHA512
-        case SHA512h:
-            *type = WC_HASH_TYPE_SHA512;
-            break;
-#endif
-        default:
-            return BAD_FUNC_ARG;
-    }
-
-    return wc_HashGetDigestSize(*type);
-}
-
-
 /* build PKCS#7 signedData content type */
 int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 {
@@ -1097,13 +1045,15 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
     XMEMSET(esd, 0, sizeof(ESD));
 
-    hashSz = wc_PKCS7_SetHashType(pkcs7, &esd->hashType);
-    if (hashSz < 0) {
+    esd->hashType = wc_OidGetHash(pkcs7->hashOID);
+    ret = wc_HashGetDigestSize(esd->hashType);
+    if (ret < 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(esd, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-        return hashSz;
+        return ret;
     }
+    hashSz = ret;
 
     ret = wc_HashInit(&esd->hash, esd->hashType);
     if (ret != 0) {
@@ -1521,13 +1471,15 @@ static int wc_PKCS7_BuildSignedDataDigest(PKCS7* pkcs7, byte* signedAttrib,
     XMEMSET(digest,      0, WC_MAX_DIGEST_SIZE);
     XMEMSET(digestInfo,  0, MAX_PKCS7_DIGEST_SZ);
 
-    hashSz = wc_PKCS7_SetHashType(pkcs7, &hashType);
-    if (hashSz < 0) {
+    hashType = wc_OidGetHash(pkcs7->hashOID);
+    ret = wc_HashGetDigestSize(hashType);
+    if (ret < 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(digestInfo, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-        return hashSz;
+        return ret;
     }
+    hashSz = ret;
 
     /* calculate digest */
     ret = wc_HashInit(&hash, hashType);
