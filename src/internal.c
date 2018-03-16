@@ -3108,6 +3108,9 @@ int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
     int   ret;
 
     (void)ssl;
+    (void)keyBuf;
+    (void)keySz;
+    (void)ctx;
     (void)sigAlgo;
     (void)hashAlgo;
 
