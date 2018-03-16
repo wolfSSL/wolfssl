@@ -467,6 +467,12 @@ const char* wc_GetErrorString(int error)
     case ECDHE_KAT_FIPS_E:
         return "wolfcrypt FIPS ECDHE Known Answer Test Failure";
 
+    case AES_GCM_OVERFLOW_E:
+        return "AES-GCM invocation counter overflow";
+
+    case AES_CCM_OVERFLOW_E:
+        return "AES-CCM invocation counter overflow";
+
     default:
         return "unknown error number";
 

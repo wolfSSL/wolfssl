@@ -6488,9 +6488,10 @@ int aesgcm_test(void)
 #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_256 */
 
-    /* Test encrypt with internally generated IV */
-#if !defined(WC_NO_RNG) && \
+#if !defined(HAVE_FIPS) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
+    /* Test encrypt with internally generated IV */
+#ifndef WC_NO_RNG
     {
         WC_RNG rng;
         byte randIV[12];
@@ -6505,9 +6506,15 @@ int aesgcm_test(void)
         XMEMSET(resultP, 0, sizeof(resultP));
 
         wc_AesGcmSetKey(&enc, k1, sizeof(k1));
-        result = wc_AesGcmEncrypt_ex(&enc, resultC, p, sizeof(p),
-                        randIV, sizeof(randIV), resultT, sizeof(resultT),
-                        a, sizeof(a), &rng);
+        result = wc_AesGcmSetIV(&enc, NULL, sizeof(randIV), NULL, 0, &rng);
+        if (result != 0)
+            return -8213;
+
+        result = wc_AesGcmEncrypt_ex(&enc,
+                        resultC, p, sizeof(p),
+                        randIV, sizeof(randIV),
+                        resultT, sizeof(resultT),
+                        a, sizeof(a));
 #if defined(WOLFSSL_ASYNC_CRYPT)
         result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
@@ -6524,8 +6531,10 @@ int aesgcm_test(void)
                 return -8210;
         }
 
-        result = wc_AesGcmDecrypt(&enc, resultP, resultC, sizeof(resultC),
-                          randIV, sizeof(randIV), resultT, sizeof(resultT),
+        result = wc_AesGcmDecrypt(&enc,
+                          resultP, resultC, sizeof(resultC),
+                          randIV, sizeof(randIV),
+                          resultT, sizeof(resultT),
                           a, sizeof(a));
 #if defined(WOLFSSL_ASYNC_CRYPT)
         result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
@@ -6536,7 +6545,8 @@ int aesgcm_test(void)
             return -8212;
         wc_FreeRng(&rng);
     }
-#endif /* WC_NO_RNG && FIPSv2 */
+#endif /* WC_NO_RNG */
+#endif
 
     wc_AesFree(&enc);
 
@@ -6569,7 +6579,8 @@ int gmac_test(void)
         0xaa, 0x10, 0xf1, 0x6d, 0x22, 0x7d, 0xc4, 0x1b
     };
 
-#if !defined(HAVE_FIPS)
+#if !defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 	/* FIPS builds only allow 16-byte auth tags. */
 	/* This sample uses a 15-byte auth tag. */
     const byte k2[] =
@@ -6592,7 +6603,7 @@ int gmac_test(void)
         0xc6, 0x81, 0x79, 0x8e, 0x3d, 0xda, 0xb0, 0x9f,
         0x8d, 0x83, 0xb0, 0xbb, 0x14, 0xb6, 0x91
     };
-#endif /* HAVE_FIPS */
+#endif
 
     byte tag[16];
 
@@ -6603,12 +6614,54 @@ int gmac_test(void)
     if (XMEMCMP(t1, tag, sizeof(t1)) != 0)
         return -4400;
 
-#if !defined(HAVE_FIPS)
+#if !defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
     XMEMSET(tag, 0, sizeof(tag));
     wc_GmacSetKey(&gmac, k2, sizeof(k2));
     wc_GmacUpdate(&gmac, iv2, sizeof(iv2), a2, sizeof(a2), tag, sizeof(t2));
     if (XMEMCMP(t2, tag, sizeof(t2)) != 0)
         return -4401;
+
+#ifndef WC_NO_RNG
+    {
+        const byte badT[] =
+        {
+            0xde, 0xad, 0xbe, 0xef, 0x17, 0x2e, 0xd0, 0x43,
+            0xaa, 0x10, 0xf1, 0x6d, 0x22, 0x7d, 0xc4, 0x1b
+        };
+
+        WC_RNG rng;
+        byte iv[12];
+
+        #ifndef HAVE_FIPS
+            if (wc_InitRng_ex(&rng, HEAP_HINT, devId) != 0)
+                return -8214;
+        #else
+            if (wc_InitRng(&rng) != 0)
+                return -8214;
+        #endif
+
+        if (wc_GmacVerify(k1, sizeof(k1), iv1, sizeof(iv1), a1, sizeof(a1),
+                    t1, sizeof(t1)) != 0)
+            return -8215;
+        if (wc_GmacVerify(k1, sizeof(k1), iv1, sizeof(iv1), a1, sizeof(a1),
+                    badT, sizeof(badT)) != AES_GCM_AUTH_E)
+            return -8216;
+        if (wc_GmacVerify(k2, sizeof(k2), iv2, sizeof(iv2), a2, sizeof(a2),
+                    t2, sizeof(t2)) != 0)
+            return -8217;
+
+        XMEMSET(tag, 0, sizeof(tag));
+        XMEMSET(iv, 0, sizeof(iv));
+        if (wc_Gmac(k1, sizeof(k1), iv, sizeof(iv), a1, sizeof(a1),
+                    tag, sizeof(tag), &rng) != 0)
+            return -8218;
+        if (wc_GmacVerify(k1, sizeof(k1), iv, sizeof(iv), a1, sizeof(a1),
+                    tag, sizeof(tag)) != 0)
+            return -8219;
+        wc_FreeRng(&rng);
+    }
+#endif /* WC_NO_RNG */
 #endif /* HAVE_FIPS */
 
     return 0;
@@ -6663,6 +6716,7 @@ int aesccm_test(void)
     byte t2[sizeof(t)];
     byte p2[sizeof(p)];
     byte c2[sizeof(c)];
+    byte iv2[sizeof(iv)];
 
     int result;
 
@@ -6704,6 +6758,26 @@ int aesccm_test(void)
     XMEMSET(c2, 0, sizeof(c2));
     if (XMEMCMP(p2, c2, sizeof(p2)))
         return -4507;
+
+    XMEMSET(&enc, 0, sizeof(Aes)); /* clear context */
+    XMEMSET(t2, 0, sizeof(t2));
+    XMEMSET(c2, 0, sizeof(c2));
+    XMEMSET(p2, 0, sizeof(p2));
+    XMEMSET(iv2, 0, sizeof(iv2));
+
+    if (wc_AesCcmSetKey(&enc, k, sizeof(k)) != 0)
+        return -8220;
+    if (wc_AesCcmSetNonce(&enc, iv, sizeof(iv)) != 0)
+        return -8221;
+    if (wc_AesCcmEncrypt_ex(&enc, c2, p, sizeof(c2), iv2, sizeof(iv2),
+                            t2, sizeof(t2), a, sizeof(a)) != 0)
+        return -8222;
+    if (XMEMCMP(iv, iv2, sizeof(iv2)))
+        return -8223;
+    if (XMEMCMP(c, c2, sizeof(c2)))
+        return -8224;
+    if (XMEMCMP(t, t2, sizeof(t2)))
+        return -8225;
 
     return 0;
 }
