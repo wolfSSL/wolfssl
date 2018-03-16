@@ -1081,6 +1081,10 @@ static int wc_DhAgree_Sync(DhKey* key, byte* agree, word32* agreeSz,
     if (ret == 0 && mp_exptmod(&y, &x, &key->p, &z) != MP_OKAY)
         ret = MP_EXPTMOD_E;
 
+    /* make sure z is not one (SP800-56A, 5.7.1.1) */
+    if (ret == 0 && (mp_cmp_d(&z, 1) == MP_EQ))
+        ret = MP_VAL;
+
     if (ret == 0 && mp_to_unsigned_bin(&z, agree) != MP_OKAY)
         ret = MP_TO_E;
 
