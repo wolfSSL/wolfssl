@@ -1725,8 +1725,11 @@ static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
 
 #ifdef HAVE_WRITE_DUP
     if (ssl->dupWrite) {
-        if (ssl->error != 0 && ssl->error != WANT_READ &&
-                               ssl->error != WC_PENDING_E) {
+        if (ssl->error != 0 && ssl->error != WANT_READ
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            && ssl->error != WC_PENDING_E
+        #endif
+        ) {
             int notifyErr;
 
             WOLFSSL_MSG("Notifying write side of fatal read error");
@@ -7787,7 +7790,7 @@ static int wolfSSL_EVP_Digest(unsigned char* in, int inSz, unsigned char* out,
             if (XSTRNCMP("SHA384", evp, 6) == 0) {
                 hash = WC_HASH_TYPE_SHA384;
             }
-            else 
+            else
             #endif
             #ifdef WOLFSSL_SHA512
             if (XSTRNCMP("SHA512", evp, 6) == 0) {
@@ -15217,7 +15220,7 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
     return newX509;
 }
 
-#endif /* KEEP_PEER_CERT || SESSION_CERTS || OPENSSL_EXTRA || 
+#endif /* KEEP_PEER_CERT || SESSION_CERTS || OPENSSL_EXTRA ||
           OPENSSL_EXTRA_X509_SMALL */
 
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)

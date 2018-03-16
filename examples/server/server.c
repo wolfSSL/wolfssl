@@ -126,9 +126,12 @@ static int NonBlockingSSL_Accept(SSL* ssl)
     SOCKET_T sockfd = (SOCKET_T)CyaSSL_get_fd(ssl);
     int select_ret = 0;
 
-    while (ret != WOLFSSL_SUCCESS && (error == WOLFSSL_ERROR_WANT_READ ||
-                                  error == WOLFSSL_ERROR_WANT_WRITE ||
-                                  error == WC_PENDING_E)) {
+    while (ret != WOLFSSL_SUCCESS &&
+        (error == WOLFSSL_ERROR_WANT_READ || error == WOLFSSL_ERROR_WANT_WRITE
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            || error == WC_PENDING_E
+        #endif
+    )) {
         int currTimeout = 1;
 
         if (error == WOLFSSL_ERROR_WANT_READ) {
@@ -137,22 +140,26 @@ static int NonBlockingSSL_Accept(SSL* ssl)
         else if (error == WOLFSSL_ERROR_WANT_WRITE) {
             /* printf("... server would write block\n"); */
         }
+
     #ifdef WOLFSSL_ASYNC_CRYPT
-        else if (error == WC_PENDING_E) {
+        if (error == WC_PENDING_E) {
             ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
             if (ret < 0) break;
         }
+        else
     #endif
-
-        if (error != WC_PENDING_E) {
+        {
         #ifdef CYASSL_DTLS
             currTimeout = CyaSSL_dtls_get_current_timeout(ssl);
         #endif
             select_ret = tcp_select(sockfd, currTimeout);
         }
 
-        if ((select_ret == TEST_RECV_READY) ||
-            (select_ret == TEST_ERROR_READY) || error == WC_PENDING_E) {
+        if ((select_ret == TEST_RECV_READY) || (select_ret == TEST_ERROR_READY)
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            || error == WC_PENDING_E
+        #endif
+        ) {
             #ifndef CYASSL_CALLBACKS
                 ret = SSL_accept(ssl);
             #else
@@ -217,7 +224,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int throughput)
                     else
                 #endif
                     if (err != WOLFSSL_ERROR_WANT_READ &&
-                                                 err != WOLFSSL_ERROR_ZERO_RETURN) {
+                                             err != WOLFSSL_ERROR_ZERO_RETURN) {
                         printf("SSL_read echo error %d\n", err);
                         err_sys_ex(runWithErrors, "SSL_read failed");
                     }

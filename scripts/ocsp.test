@@ -13,7 +13,7 @@ RESULT=$?
 [ $RESULT -ne 0 ] && exit 0
 
 # client test against the server
-./examples/client/client -X -C -h $server -p 443 -A $ca -g -o
+./examples/client/client -X -C -h $server -p 443 -A $ca -g -o -N
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
 
