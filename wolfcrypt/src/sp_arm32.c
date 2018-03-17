@@ -171,10 +171,9 @@ static void sp_2048_to_bin(sp_digit* r, byte* a)
             if (j < 0)
                 break;
         }
-        if (j < 0)
-            break;
         s = 8 - (b - 32);
-        a[j] = 0;
+        if (j >= 0)
+            a[j] = 0;
         if (s != 0)
             j++;
     }
@@ -7326,6 +7325,7 @@ int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
 
     return err;
 }
+
 #endif /* WOLFSSL_HAVE_SP_DH */
 
 #endif /* WOLFSSL_SP_NO_2048 */
@@ -7451,10 +7451,9 @@ static void sp_3072_to_bin(sp_digit* r, byte* a)
             if (j < 0)
                 break;
         }
-        if (j < 0)
-            break;
         s = 8 - (b - 32);
-        a[j] = 0;
+        if (j >= 0)
+            a[j] = 0;
         if (s != 0)
             j++;
     }
@@ -8892,7 +8891,8 @@ static sp_digit sp_3072_add_32(sp_digit* r, const sp_digit* a,
  * a  A single precision integer.
  * b  A single precision integer.
  */
-static void sp_3072_mul_48(sp_digit* r, const sp_digit* a, const sp_digit* b)
+SP_NOINLINE static void sp_3072_mul_48(sp_digit* r, const sp_digit* a,
+    const sp_digit* b)
 {
     sp_digit p0[32];
     sp_digit p1[32];
@@ -8940,7 +8940,7 @@ static void sp_3072_mul_48(sp_digit* r, const sp_digit* a, const sp_digit* b)
  * r  A single precision integer.
  * a  A single precision integer.
  */
-static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
+SP_NOINLINE static void sp_3072_sqr_48(sp_digit* r, const sp_digit* a)
 {
     sp_digit p0[32];
     sp_digit p1[32];
@@ -16728,6 +16728,7 @@ int sp_DhExp_3072(mp_int* base, const byte* exp, word32 expLen,
 
     return err;
 }
+
 #endif /* WOLFSSL_HAVE_SP_DH */
 
 #endif /* WOLFSSL_SP_NO_3072 */
@@ -22319,10 +22320,9 @@ static void sp_256_to_bin(sp_digit* r, byte* a)
             if (j < 0)
                 break;
         }
-        if (j < 0)
-            break;
         s = 8 - (b - 32);
-        a[j] = 0;
+        if (j >= 0)
+            a[j] = 0;
         if (s != 0)
             j++;
     }

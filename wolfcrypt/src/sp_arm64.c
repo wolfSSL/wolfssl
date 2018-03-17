@@ -171,10 +171,9 @@ static void sp_2048_to_bin(sp_digit* r, byte* a)
             if (j < 0)
                 break;
         }
-        if (j < 0)
-            break;
         s = 8 - (b - 64);
-        a[j] = 0;
+        if (j >= 0)
+            a[j] = 0;
         if (s != 0)
             j++;
     }
@@ -5056,6 +5055,7 @@ int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
 
     return err;
 }
+
 #endif /* WOLFSSL_HAVE_SP_DH */
 
 #endif /* WOLFSSL_SP_NO_2048 */
@@ -5181,10 +5181,9 @@ static void sp_3072_to_bin(sp_digit* r, byte* a)
             if (j < 0)
                 break;
         }
-        if (j < 0)
-            break;
         s = 8 - (b - 64);
-        a[j] = 0;
+        if (j >= 0)
+            a[j] = 0;
         if (s != 0)
             j++;
     }
@@ -12036,6 +12035,7 @@ int sp_DhExp_3072(mp_int* base, const byte* exp, word32 expLen,
 
     return err;
 }
+
 #endif /* WOLFSSL_HAVE_SP_DH */
 
 #endif /* WOLFSSL_SP_NO_3072 */
@@ -27934,10 +27934,9 @@ static void sp_256_to_bin(sp_digit* r, byte* a)
             if (j < 0)
                 break;
         }
-        if (j < 0)
-            break;
         s = 8 - (b - 64);
-        a[j] = 0;
+        if (j >= 0)
+            a[j] = 0;
         if (s != 0)
             j++;
     }
