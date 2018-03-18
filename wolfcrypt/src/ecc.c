@@ -7970,6 +7970,23 @@ done:
  */
 int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
 {
+#ifdef SQRTMOD_USE_MOD_EXP
+  int res;
+
+  mp_int e;
+
+  res = mp_init(&e);
+  if (res == MP_OKAY)
+      res = mp_add_d(prime, 1, &e);
+  if (res == MP_OKAY)
+      res = mp_div_2d(&e, 2, &e, NULL);
+  if (res == MP_OKAY)
+      res = mp_exptmod(n, &e, prime, ret);
+
+  mp_clear(&e);
+
+  return res;
+#else
   int res, legendre, done = 0;
   mp_int t1, C, Q, S, Z, M, T, R, two;
   mp_digit i;
@@ -8148,6 +8165,7 @@ int mp_sqrtmod_prime(mp_int* n, mp_int* prime, mp_int* ret)
   mp_clear(&two);
 
   return res;
+#endif
 }
 #endif
 #endif /* !WOLFSSL_ATECC508A */

@@ -7002,6 +7002,19 @@ int wolfSSL_CTX_use_certificate_chain_file(WOLFSSL_CTX* ctx, const char* file)
 }
 
 
+int wolfSSL_CTX_use_certificate_chain_file_format(WOLFSSL_CTX* ctx,
+                                                  const char* file, int format)
+{
+   /* process up to MAX_CHAIN_DEPTH plus subject cert */
+   WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_chain_file_format");
+   if (ProcessFile(ctx, file, format, CERT_TYPE, NULL, 1, NULL)
+                   == WOLFSSL_SUCCESS)
+       return WOLFSSL_SUCCESS;
+
+   return WOLFSSL_FAILURE;
+}
+
+
 #ifndef NO_DH
 
 /* server Diffie-Hellman parameters */
@@ -7949,6 +7962,18 @@ int wolfSSL_use_certificate_chain_file(WOLFSSL* ssl, const char* file)
    WOLFSSL_ENTER("wolfSSL_use_certificate_chain_file");
    if (ProcessFile(ssl->ctx, file, WOLFSSL_FILETYPE_PEM, CERT_TYPE,
                    ssl, 1, NULL) == WOLFSSL_SUCCESS)
+       return WOLFSSL_SUCCESS;
+
+   return WOLFSSL_FAILURE;
+}
+
+int wolfSSL_use_certificate_chain_file_format(WOLFSSL* ssl, const char* file,
+                                              int format)
+{
+   /* process up to MAX_CHAIN_DEPTH plus subject cert */
+   WOLFSSL_ENTER("wolfSSL_use_certificate_chain_file_format");
+   if (ProcessFile(ssl->ctx, file, format, CERT_TYPE, ssl, 1,
+                   NULL) == WOLFSSL_SUCCESS)
        return WOLFSSL_SUCCESS;
 
    return WOLFSSL_FAILURE;
@@ -16099,7 +16124,7 @@ void wolfSSL_set_connect_state(WOLFSSL* ssl)
         InitSuites(ssl->suites, ssl->version, ssl->buffers.keySz, haveRSA,
                    havePSK, ssl->options.haveDH, ssl->options.haveNTRU,
                    ssl->options.haveECDSAsig, ssl->options.haveECC,
-                   ssl->options.haveStaticECC, ssl->options.side);
+                   ssl->options.haveStaticECC, WOLFSSL_CLIENT_END);
     }
     ssl->options.side = WOLFSSL_CLIENT_END;
 }
@@ -21377,24 +21402,21 @@ int wolfSSL_ASN1_GENERALIZEDTIME_print(WOLFSSL_BIO* bio,
     return 0;
 }
 
-#ifndef NO_WOLFSSL_STUB
-int  wolfSSL_sk_num(WOLFSSL_X509_REVOKED* rev)
+int  wolfSSL_sk_num(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)
 {
-    (void)rev;
-    WOLFSSL_STUB("OPENSSL_sk_num");
-    return 0;
+    if (sk == NULL)
+        return 0;
+    return (int)sk->num;
 }
-#endif
 
-#ifndef NO_WOLFSSL_STUB
-void* wolfSSL_sk_value(WOLFSSL_X509_REVOKED* rev, int i)
+void* wolfSSL_sk_value(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, int i)
 {
-    (void)rev;
-    (void)i;
-    WOLFSSL_STUB("OPENSSL_sk_value");
-    return 0;
+    for (; sk != NULL && i > 0; i--)
+        sk = sk->next;
+    if (sk == NULL)
+        return NULL;
+    return (void*)sk->data.obj;
 }
-#endif
 
 /* stunnel 4.28 needs */
 void wolfSSL_CTX_sess_set_get_cb(WOLFSSL_CTX* ctx,

@@ -1753,13 +1753,13 @@ void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, int haveRSAsig,
         #ifdef WC_RSA_PSS
             if (tls1_2) {
             #ifdef WOLFSSL_SHA512
-                if (keySz >= MIN_RSA_SHA512_PSS_BITS) {
+                if (keySz == 0 || keySz >= MIN_RSA_SHA512_PSS_BITS) {
                     suites->hashSigAlgo[idx++] = rsa_pss_sa_algo;
                     suites->hashSigAlgo[idx++] = sha512_mac;
                 }
             #endif
             #ifdef WOLFSSL_SHA384
-                if (keySz >= MIN_RSA_SHA384_PSS_BITS) {
+                if (keySz == 0 || keySz >= MIN_RSA_SHA384_PSS_BITS) {
                   suites->hashSigAlgo[idx++] = rsa_pss_sa_algo;
                   suites->hashSigAlgo[idx++] = sha384_mac;
                 }
@@ -8488,11 +8488,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         XMEMSET(store, 0, sizeof(WOLFSSL_X509_STORE_CTX));
 
                         store->error = ret;
-                    #ifdef WOLFSSL_WPAS
-                        store->error_depth = 0;
-                    #else
                         store->error_depth = args->certIdx;
-                    #endif
                         store->discardSessionCerts = 0;
                         store->domain = args->domain;
                         store->userCtx = ssl->verifyCbCtx;
@@ -14569,6 +14565,11 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     }
 
     switch (error) {
+
+#ifdef WOLFSSL_WPAS
+    case 0 :
+        return "ok";
+#endif
 
     case UNSUPPORTED_SUITE :
         return "unsupported cipher suite";
@@ -22929,6 +22930,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         XMEMSET(&cookieHmac, 0, sizeof(Hmac));
 #endif /* WOLFSSL_DTLS */
+
 
 #ifdef WOLFSSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName(ssl, "ClientHello");
