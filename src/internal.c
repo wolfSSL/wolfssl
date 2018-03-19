@@ -8069,9 +8069,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                     ret = ParseCertRelative(args->dCert, CERT_TYPE, 0,
                                                             ssl->ctx->cm);
-                    if (ret != 0 && ret != WC_PENDING_E)
-                        goto exit_ppc;
-
                 #ifdef WOLFSSL_ASYNC_CRYPT
                     if (ret == WC_PENDING_E) {
                         ret = wolfSSL_AsyncPush(ssl,
@@ -8079,6 +8076,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         goto exit_ppc;
                     }
                 #endif
+                    if (ret != 0)
+                        goto exit_ppc;
 
                 #ifndef NO_SKID
                     if (args->dCert->extAuthKeyIdSet) {
@@ -8137,9 +8136,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                     ret = ParseCertRelative(args->dCert, CERT_TYPE, 0,
                                                                   ssl->ctx->cm);
-                    if (ret != 0 && ret != WC_PENDING_E) {
-                        goto exit_ppc;
-                    }
                 #ifdef WOLFSSL_ASYNC_CRYPT
                     if (ret == WC_PENDING_E) {
                         ret = wolfSSL_AsyncPush(ssl,
@@ -8147,6 +8143,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         goto exit_ppc;
                     }
                 #endif
+                    if (ret != 0) {
+                        goto exit_ppc;
+                    }
 
                 #ifndef NO_SKID
                     subjectHash = args->dCert->extSubjKeyId;
@@ -9935,8 +9934,14 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     /* Also, skip hashing the client_hello message here for DTLS. It will be
      * hashed later if the DTLS cookie is correct. */
     if (type != hello_request &&
-            !(IsDtlsNotSctpMode(ssl) && type == client_hello) &&
-            ssl->error != WC_PENDING_E) {
+            !(IsDtlsNotSctpMode(ssl) && type == client_hello)
+    #ifdef WOLFSSL_ASYNC_CRYPT
+            && ssl->error != WC_PENDING_E
+    #endif
+    #ifdef WOLFSSL_NONBLOCK_OCSP
+            && ssl->error != OCSP_WANT_READ
+    #endif
+    ) {
         ret = HashInput(ssl, input + *inOutIdx, size);
         if (ret != 0) return ret;
     }
@@ -10064,11 +10069,6 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         }
     #endif
     }
-#ifdef WOLFSSL_NONBLOCK_OCSP
-    if (ret == OCSP_WANT_READ) {
-        ret = WANT_READ; /* treat as normal WANT_READ for non-block handling */
-    }
-#endif
 #endif /* WOLFSSL_ASYNC_CRYPT || WOLFSSL_NONBLOCK_OCSP */
 
     WOLFSSL_LEAVE("DoHandShakeMsgType()", ret);
@@ -10427,10 +10427,12 @@ static int DtlsMsgDrain(WOLFSSL* ssl)
         ssl->keys.dtls_expected_peer_handshake_number++;
         ret = DoHandShakeMsgType(ssl, item->msg,
                                  &idx, item->type, item->sz, item->sz);
+    #ifdef WOLFSSL_ASYNC_CRYPT
         if (ret == WC_PENDING_E) {
             ssl->keys.dtls_expected_peer_handshake_number--;
             break;
         }
+    #endif
         ssl->dtls_rx_msg_list = item->next;
         DtlsMsgDelete(item, ssl->heap);
         item = ssl->dtls_rx_msg_list;
@@ -12046,8 +12048,14 @@ int ProcessReply(WOLFSSL* ssl)
         atomicUser = 1;
 #endif
 
-    if (ssl->error != 0 && ssl->error != WANT_READ &&
-        ssl->error != WANT_WRITE && ssl->error != WC_PENDING_E) {
+    if (ssl->error != 0 && ssl->error != WANT_READ && ssl->error != WANT_WRITE
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        && ssl->error != WC_PENDING_E
+    #endif
+    #ifdef WOLFSSL_NONBLOCK_OCSP
+        && ssl->error != OCSP_WANT_READ
+    #endif
+    ) {
         WOLFSSL_MSG("ProcessReply retry in error state, not allowed");
         return ssl->error;
     }
@@ -14198,8 +14206,13 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         ret,
         dtlsExtra = 0;
 
-    if (ssl->error == WANT_WRITE || ssl->error == WC_PENDING_E)
+    if (ssl->error == WANT_WRITE
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        || ssl->error == WC_PENDING_E
+    #endif
+    ) {
         ssl->error = 0;
+    }
 
 #ifdef WOLFSSL_DTLS
     if (ssl->options.dtls) {
@@ -14223,10 +14236,12 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         int err;
         WOLFSSL_MSG("handshake not complete, trying to finish");
         if ( (err = wolfSSL_negotiate(ssl)) != WOLFSSL_SUCCESS) {
+        #ifdef WOLFSSL_ASYNC_CRYPT
             /* if async would block return WANT_WRITE */
             if (ssl->error == WC_PENDING_E) {
                 return WOLFSSL_CBIO_ERR_WANT_WRITE;
             }
+        #endif
             return  err;
         }
     }
@@ -14353,7 +14368,11 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
     WOLFSSL_ENTER("ReceiveData()");
 
     /* reset error state */
-    if (ssl->error == WANT_READ || ssl->error == WC_PENDING_E) {
+    if (ssl->error == WANT_READ
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        || ssl->error == WC_PENDING_E
+    #endif
+    ) {
         ssl->error = 0;
     }
 

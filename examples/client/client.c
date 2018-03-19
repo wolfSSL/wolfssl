@@ -40,6 +40,7 @@
 #include <wolfssl/test.h>
 
 #include <examples/client/client.h>
+#include <wolfssl/error-ssl.h>
 
 #ifndef NO_WOLFSSL_CLIENT
 
@@ -99,31 +100,41 @@ static int NonBlockingSSL_Connect(WOLFSSL* ssl)
     error = wolfSSL_get_error(ssl, 0);
     sockfd = (SOCKET_T)wolfSSL_get_fd(ssl);
 
-    while (ret != WOLFSSL_SUCCESS && (error == WOLFSSL_ERROR_WANT_READ ||
-                                  error == WOLFSSL_ERROR_WANT_WRITE ||
-                                  error == WC_PENDING_E)) {
+    while (ret != WOLFSSL_SUCCESS &&
+        (error == WOLFSSL_ERROR_WANT_READ || error == WOLFSSL_ERROR_WANT_WRITE
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            || error == WC_PENDING_E
+        #endif
+        #ifdef WOLFSSL_NONBLOCK_OCSP
+            || error == OCSP_WANT_READ
+        #endif
+    )) {
         int currTimeout = 1;
-                                                                        
+
         if (error == WOLFSSL_ERROR_WANT_READ)
             printf("... client would read block\n");
         else if (error == WOLFSSL_ERROR_WANT_WRITE)
             printf("... client would write block\n");
+
 #ifdef WOLFSSL_ASYNC_CRYPT
-        else if (error == WC_PENDING_E) {
+        if (error == WC_PENDING_E) {
             ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
             if (ret < 0) break;
         }
+        else
 #endif
-
-        if (error != WC_PENDING_E) {
+        {
     #ifdef WOLFSSL_DTLS
             currTimeout = wolfSSL_dtls_get_current_timeout(ssl);
     #endif
             select_ret = tcp_select(sockfd, currTimeout);
         }
 
-        if ((select_ret == TEST_RECV_READY) ||
-            (select_ret == TEST_ERROR_READY) || error == WC_PENDING_E) {
+        if ((select_ret == TEST_RECV_READY) || (select_ret == TEST_ERROR_READY)
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            || error == WC_PENDING_E
+        #endif
+        ) {
         #ifndef WOLFSSL_CALLBACKS
             ret = wolfSSL_connect(ssl);
         #else
@@ -635,7 +646,11 @@ static void ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead)
                 err_sys("SSL_read failed");
             }
         }
-    } while (err == WC_PENDING_E || (mustRead && err == WOLFSSL_ERROR_WANT_READ));
+    } while ((mustRead && err == WOLFSSL_ERROR_WANT_READ)
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        || err == WC_PENDING_E
+    #endif
+    );
     if (ret > 0) {
         reply[ret] = 0;
         printf("%s\n", reply);
