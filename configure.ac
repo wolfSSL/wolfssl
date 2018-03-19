@@ -3957,7 +3957,7 @@ then
         ENABLED_AESKEYWRAP="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_KEYWRAP -DWOLFSSL_AES_DIRECT"
     fi
-    if test "x$ENABLED_X963KDF" = "xno"
+    if test "x$ENABLED_X963KDF" = "xno" && test "$ENABLED_ECC" = "yes"
     then
         ENABLED_X963KDF="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_X963_KDF"
