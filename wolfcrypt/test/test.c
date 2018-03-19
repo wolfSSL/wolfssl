@@ -14450,7 +14450,7 @@ static int ecc_exp_imp_test(ecc_key* key)
     byte       priv[32];
     word32     privLen;
     byte       pub[65];
-    word32     pubLen;
+    word32     pubLen, pubLenX, pubLenY;
     const char qx[] = "7a4e287890a1a47ad3457e52f2f76a83"
                       "ce46cbc947616d0cbaa82323818a793d";
     const char qy[] = "eec4084f5b29ebf29c44cce3b3059610"
@@ -14492,14 +14492,55 @@ static int ecc_exp_imp_test(ecc_key* key)
     wc_ecc_init(&keyImp);
 
     curve_id = wc_ecc_get_curve_id(key->idx);
-    if (curve_id < 0)
-        return -6635;
+    if (curve_id < 0) {
+        ret = -6635;
+        goto done;
+    }
 
     /* test import private only */
     ret = wc_ecc_import_private_key_ex(priv, privLen, NULL, 0, &keyImp,
                                        curve_id);
-    if (ret != 0)
-        return -6636;
+    if (ret != 0) {
+        ret = -6636;
+        goto done;
+    }
+
+    wc_ecc_free(&keyImp);
+    wc_ecc_init(&keyImp);
+
+    /* test export public raw */
+    pubLenX = pubLenY = 32;
+    ret = wc_ecc_export_public_raw(key, pub, &pubLenX, &pub[32], &pubLenY);
+    if (ret != 0) {
+        ret = -6637;
+        goto done;
+    }
+
+    /* test import of public */
+    ret = wc_ecc_import_unsigned(&keyImp, pub, &pub[32], NULL, ECC_SECP256R1);
+    if (ret != 0) {
+        ret = -6638;
+        goto done;
+    }
+
+    wc_ecc_free(&keyImp);
+    wc_ecc_init(&keyImp);
+
+    /* test export private and public raw */
+    pubLenX = pubLenY = privLen = 32;
+    ret = wc_ecc_export_private_raw(key, pub, &pubLenX, &pub[32], &pubLenY,
+        priv, &privLen);
+    if (ret != 0) {
+        ret = -6639;
+        goto done;
+    }
+
+    /* test import of private and public */
+    ret = wc_ecc_import_unsigned(&keyImp, pub, &pub[32], priv, ECC_SECP256R1);
+    if (ret != 0) {
+        ret = -6640;
+        goto done;
+    }
 
 done:
     wc_ecc_free(&keyImp);
@@ -14538,7 +14579,7 @@ static int ecc_mulmod_test(ecc_key* key1)
     ret = wc_ecc_mulmod(&key1->k, &key2.pubkey, &key3.pubkey, &key2.k, &key3.k,
                         1);
     if (ret != 0) {
-        ret = -6637;
+        ret = -6641;
         goto done;
     }
 
@@ -14558,21 +14599,21 @@ static int ecc_ssh_test(ecc_key* key)
     /* Parameter Validation testing. */
     ret = wc_ecc_shared_secret_ssh(NULL, &key->pubkey, out, &outLen);
     if (ret != BAD_FUNC_ARG)
-        return -6638;
+        return -6642;
     ret = wc_ecc_shared_secret_ssh(key, NULL, out, &outLen);
     if (ret != BAD_FUNC_ARG)
-        return -6639;
+        return -6643;
     ret = wc_ecc_shared_secret_ssh(key, &key->pubkey, NULL, &outLen);
     if (ret != BAD_FUNC_ARG)
-        return -6640;
+        return -6644;
     ret = wc_ecc_shared_secret_ssh(key, &key->pubkey, out, NULL);
     if (ret != BAD_FUNC_ARG)
-        return -6641;
+        return -6645;
 
     /* Use API. */
     ret = wc_ecc_shared_secret_ssh(key, &key->pubkey, out, &outLen);
     if (ret != 0)
-        return -6642;
+        return -6646;
     return 0;
 }
 #endif
@@ -14589,7 +14630,7 @@ static int ecc_def_curve_test(WC_RNG *rng)
     ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
 #endif
     if (ret != 0) {
-        ret = -6643;
+        ret = -6647;
         goto done;
     }
 
@@ -17852,7 +17893,7 @@ int berder_test(void)
           0x31, 0x03,
             0x06, 0x01, 0x01
     };
-    
+
     berDerTestData testData[] = {
         { good1_in, sizeof(good1_in), good1_out, sizeof(good1_out) },
         { good2_in, sizeof(good2_in), good2_out, sizeof(good2_out) },

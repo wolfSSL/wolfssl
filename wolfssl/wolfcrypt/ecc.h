@@ -125,6 +125,15 @@ enum {
 #elif defined(PLUTON_CRYPTO_ECC)
     ECC_MAX_CRYPTO_HW_SIZE = 32,
 #endif
+
+    /* point encoding type */
+    ECC_TYPE_HEX_STR = 1,
+    ECC_TYPE_UNSIGNED_BIN = 2,
+
+    /* point compression type */
+    ECC_POINT_COMP_EVEN = 0x02,
+    ECC_POINT_COMP_ODD = 0x03,
+    ECC_POINT_UNCOMP = 0x04,
 };
 
 /* Curve Types */
@@ -498,6 +507,9 @@ int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
 WOLFSSL_API
 int wc_ecc_import_raw_ex(ecc_key* key, const char* qx, const char* qy,
                    const char* d, int curve_id);
+WOLFSSL_API
+int wc_ecc_import_unsigned(ecc_key* key, byte* qx, byte* qy,
+                   byte* d, int curve_id);
 #endif /* HAVE_ECC_KEY_IMPORT */
 
 #ifdef HAVE_ECC_KEY_EXPORT
