@@ -8,6 +8,10 @@
 #                       client-ecc-cert.der
 #                       ca-cert.pem
 #                       ca-cert.der
+#                       ca-ecc-cert.pem
+#                       ca-ecc-cert.der
+#                       ca-ecc384-cert.pem
+#                       ca-ecc384-cert.der
 #                       server-cert.pem
 #                       server-cert.der
 #                       server-ecc-rsa.pem
@@ -17,6 +21,7 @@
 #                       server-ecc-comp.pem
 #                       client-ca.pem
 #                       test/digsigku.pem
+#                       ecc-privOnlyCert.pem
 # updates the following crls:
 #                       crl/cliCrl.pem
 #                       crl/crl.pem
@@ -100,12 +105,38 @@ function run_renewcerts(){
     openssl x509 -in ca-cert.pem -text > tmp.pem
     mv tmp.pem ca-cert.pem
     ############################################################
+    ########## update the self-signed ca-ecc-cert.pem ##########
+    ############################################################
+    echo "Updating ca-ecc-cert.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e  "US\nWashington\nSeattle\nwolfSSL\nDevelopment\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ca-ecc-key.pem -nodes -out ca-ecc-cert.csr
+
+    openssl x509 -req -in ca-ecc-cert.csr -days 1000 -extfile wolfssl.cnf -extensions ca_ecc_cert -signkey ca-ecc-key.pem -out ca-ecc-cert.pem
+    rm ca-ecc-cert.csr
+
+    openssl x509 -in ca-ecc-cert.pem -text > tmp.pem
+    mv tmp.pem ca-ecc-cert.pem
+    ############################################################
+    ########## update the self-signed ca-ecc384-cert.pem #######
+    ############################################################
+    echo "Updating ca-ecc384-cert.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e  "US\nWashington\nSeattle\nwolfSSL\nDevelopment\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ca-ecc384-key.pem -nodes -sha384 -out ca-ecc384-cert.csr
+
+    openssl x509 -req -in ca-ecc384-cert.csr -days 1000 -extfile wolfssl.cnf -extensions ca_ecc_cert -signkey ca-ecc384-key.pem -sha384 -out ca-ecc384-cert.pem
+    rm ca-ecc384-cert.csr
+
+    openssl x509 -in ca-ecc384-cert.pem -text > tmp.pem
+    mv tmp.pem ca-ecc384-cert.pem
+    ############################################################
     ##### update the self-signed (1024-bit) ca-cert.pem ########
     ############################################################
     echo "Updating 1024-bit ca-cert.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e  "US\nMontana\nBozeman\nSawtooth\nConsulting_1024\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key \1024/ca-key.pem -nodes -out \1024/ca-cert.csr
+    echo -e  "US\nMontana\nBozeman\nSawtooth\nConsulting_1024\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key \1024/ca-key.pem -nodes -sha1 -out \1024/ca-cert.csr
 
     openssl x509 -req -in \1024/ca-cert.csr -days 1000 -extfile wolfssl.cnf -extensions wolfssl_opts -signkey \1024/ca-key.pem -out \1024/ca-cert.pem
     rm \1024/ca-cert.csr
@@ -169,7 +200,7 @@ function run_renewcerts(){
     echo "Updating 1024-bit server-cert.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e "US\nMontana\nBozeman\nwolfSSL\nSupport_1024\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key \1024/server-key.pem -nodes > \1024/server-req.pem
+    echo -e "US\nMontana\nBozeman\nwolfSSL\nSupport_1024\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key \1024/server-key.pem -nodes -sha1 > \1024/server-req.pem
 
     openssl x509 -req -in \1024/server-req.pem -extfile wolfssl.cnf -extensions wolfssl_opts -days 1000 -CA \1024/ca-cert.pem -CAkey \1024/ca-key.pem -set_serial 01 > \1024/server-cert.pem
 
@@ -209,7 +240,7 @@ function run_renewcerts(){
     mv tmp.pem client-ecc-cert.pem
 
     ############################################################
-    ########## update the self-signed server-ecc.pem ###########
+    ########## update the server-ecc.pem #######################
     ############################################################
     echo "Updating server-ecc.pem"
     echo ""
@@ -217,7 +248,7 @@ function run_renewcerts(){
     echo -e "US\nWashington\nSeattle\nEliptic\nECC\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ecc-key.pem -nodes -out server-ecc.csr
 
 
-    openssl x509 -req -in server-ecc.csr -days 1000 -extfile wolfssl.cnf -extensions wolfssl_opts -signkey ecc-key.pem -out server-ecc.pem
+    openssl x509 -req -in server-ecc.csr -days 1000 -extfile wolfssl.cnf -extensions server_ecc -CAfile ca-ecc-cert.pem -CAkey ca-ecc-key.pem -out server-ecc.pem
     rm server-ecc.csr
 
     openssl x509 -in server-ecc.pem -text > tmp.pem
@@ -245,6 +276,18 @@ function run_renewcerts(){
     cat client-cert.pem client-ecc-cert.pem > client-ca.pem
 
     ############################################################
+    ###### update the self-signed ecc-privOnlyCert.pem #########
+    ############################################################
+    echo "Updating ecc-privOnlyCert.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e ".\n.\n.\nWR\n.\nDE\n.\n.\n.\n" | openssl req -new -key ecc-privOnlyKey.pem -nodes -out ecc-privOnly.csr
+
+
+    openssl x509 -req -in ecc-privOnly.csr -days 1000 -signkey ecc-privOnlyKey.pem -out ecc-privOnlyCert.pem
+    rm ecc-privOnly.csr
+
+    ############################################################
     ###### update the self-signed test/digsigku.pem   ##########
     ############################################################
     echo "Updating test/digsigku.pem"
@@ -263,10 +306,15 @@ function run_renewcerts(){
     ############################################################
     ########## make .der files from .pem files #################
     ############################################################
-    openssl x509 -inform PEM -in \1024/client-cert.pem -outform DER -out \1024/client-cert.der
     echo "Creating der formatted certs..."
     echo ""
+    openssl x509 -inform PEM -in \1024/client-cert.pem -outform DER -out \1024/client-cert.der
+    openssl x509 -inform PEM -in \1024/server-cert.pem -outform DER -out \1024/server-cert.der
+    openssl x509 -inform PEM -in \1024/ca-cert.pem -outform DER -out \1024/ca-cert.der
+
     openssl x509 -inform PEM -in ca-cert.pem -outform DER -out ca-cert.der
+    openssl x509 -inform PEM -in ca-ecc-cert.pem -outform DER -out ca-ecc-cert.der
+    openssl x509 -inform PEM -in ca-ecc384-cert.pem -outform DER -out ca-ecc384-cert.der
     openssl x509 -inform PEM -in client-cert.pem -outform DER -out client-cert.der
     openssl x509 -inform PEM -in server-cert.pem -outform DER -out server-cert.der
     openssl x509 -inform PEM -in client-ecc-cert.pem -outform DER -out client-ecc-cert.der
@@ -280,6 +328,57 @@ function run_renewcerts(){
     echo "Updating ecc-rsa-server.p12 (password is \"\")"
     echo ""
     echo "" | openssl pkcs12 -des3 -descert -export -in server-ecc-rsa.pem -inkey ecc-key.pem -certfile server-ecc.pem -out ecc-rsa-server.p12 -password stdin
+
+    ############################################################
+    ###### update the test-servercert.p12 file #################
+    ############################################################
+    echo "Updating test-servercert.p12 (password is \"wolfSSL test\")"
+    echo ""
+    echo "wolfSSL test" | openssl pkcs12 -des3 -descert -export -in server-cert.pem -inkey server-key.pem -certfile ca-cert.pem -out test-servercert.p12 -password stdin
+
+    ############################################################
+    ###### calling gen-ext-certs.sh           ##################
+    ############################################################
+    echo "Calling gen-ext-certs.sh"
+    echo ""
+    cd ..
+    ./certs/test/gen-ext-certs.sh
+    cd ./certs
+
+    ############################################################
+    ###### calling gen-badsig.sh              ##################
+    ############################################################
+    echo "Calling gen-badsig.sh"
+    echo ""
+    cd ./test
+    ./gen-badsig.sh
+    cd ../
+
+    ############################################################
+    ########## generate ocsp certs        ######################
+    ############################################################
+    echo "Changing directory to ocsp..."
+    echo ""
+
+    # guard against recursive calls to renewcerts.sh
+    if [ -d ocsp ]; then
+        cd ./ocsp
+        echo "Execute ./renewcerts.sh..."
+        ./renewcerts.sh
+        cd ../
+    else
+        echo "Error could not find ocsp directory"
+        exit 1
+    fi
+
+    ############################################################
+    ###### calling assemble-chains.sh         ##################
+    ############################################################
+    echo "Calling assemble-chains.sh"
+    echo ""
+    cd ./test-pathlen
+    ./assemble-chains.sh
+    cd ../
 
     ############################################################
     ########## store DER files as buffers ######################
@@ -350,6 +449,19 @@ then
     echo "changed directory to wolfssl root directory."
     echo ""
 
+    echo ""
+    echo "Enter directory to ed25519 certificate generation example."
+    echo "Can be found at https://github.com/wolfSSL/wolfssl-examples"
+    read ED25519_DIR
+    if [ -d "${ED25519_DIR}" ]; then
+        pushd ./certs/ed25519
+        ./gen-ed25519.sh ${ED25519_DIR}
+        popd
+    else
+        echo "Unable to find directory ${ED25519_DIR}"
+        exit 1
+    fi
+
     ############################################################
     ########## update ntru if already installed ################
     ############################################################
@@ -367,11 +479,21 @@ elif [ ! -z "$1" ]; then
     if [ "$1" == "--override-ntru" ]; then
         echo "overriding ntru, update all certs except ntru."
         run_renewcerts
+    #valid argument create ed25519 certificates
+    elif [ "$1" == "--ed25519" ] || [ "$2" == "--ed25519" ]; then
+        echo ""
+        echo "Enter directory to ed25519 certificate generation example."
+        echo "Can be found at https://github.com/wolfSSL/wolfssl-examples"
+        read ED25519_DIR
+        pushd ./certs/ed25519
+        ./gen-ed25519.sh ${ED25519_DIR}
+        popd
     #valid argument print out other valid arguments
     elif [ "$1" == "-h" ] || [ "$1" == "-help" ]; then
         echo ""
         echo "\"no argument\"        will attempt to update all certificates"
         echo "--override-ntru      updates all certificates except ntru"
+        echo "--ed25519            updates all ed25519 certificates"
         echo "-h or -help          display this menu"
         echo ""
         echo ""
@@ -441,3 +563,4 @@ else
     fi #END now defined
 fi #END already defined
 
+exit 0
