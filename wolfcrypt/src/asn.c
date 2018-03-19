@@ -2431,16 +2431,21 @@ static int CheckAlgo(int first, int second, int* id, int* version)
    < 0 on error */
 static int CheckAlgoV2(int oid, int* id)
 {
+    (void)id; /* not used if AES and DES3 disabled */
     switch (oid) {
+#ifndef NO_DES3
     case DESb:
         *id = PBE_SHA1_DES;
         return 0;
     case DES3b:
         *id = PBE_SHA1_DES3;
         return 0;
+#endif
+#ifdef WOLFSSL_AES_256
     case AES256CBCb:
         *id = PBE_AES256_CBC;
         return 0;
+#endif
     default:
         return ALGO_ID_E;
 
