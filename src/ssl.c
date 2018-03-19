@@ -28685,10 +28685,10 @@ void  wolfSSL_CTX_SetRsaVerifyCb(WOLFSSL_CTX* ctx, CallbackRsaVerify cb)
         ctx->RsaVerifyCb = cb;
 }
 
-void  wolfSSL_CTX_SetRsaVerifySignCb(WOLFSSL_CTX* ctx, CallbackRsaVerify cb)
+void  wolfSSL_CTX_SetRsaSignCheckCb(WOLFSSL_CTX* ctx, CallbackRsaVerify cb)
 {
     if (ctx)
-        ctx->RsaVerifySignCb = cb;
+        ctx->RsaSignCheckCb = cb;
 }
 
 
@@ -28737,10 +28737,10 @@ void  wolfSSL_CTX_SetRsaPssVerifyCb(WOLFSSL_CTX* ctx, CallbackRsaPssVerify cb)
         ctx->RsaPssVerifyCb = cb;
 }
 
-void  wolfSSL_CTX_SetRsaPssVerifySignCb(WOLFSSL_CTX* ctx, CallbackRsaPssVerify cb)
+void  wolfSSL_CTX_SetRsaPssSignCheckCb(WOLFSSL_CTX* ctx, CallbackRsaPssVerify cb)
 {
     if (ctx)
-        ctx->RsaPssVerifySignCb = cb;
+        ctx->RsaPssSignCheckCb = cb;
 }
 
 

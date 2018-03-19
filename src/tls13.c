@@ -5000,7 +5000,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     ssl->suites->hashAlgo, (RsaKey*)ssl->hsKey,
                     ssl->buffers.key->buffer, ssl->buffers.key->length,
                 #ifdef HAVE_PK_CALLBACKS
-                    ssl->RsaVerifyCtx
+                    ssl->RsaSignCtx
                 #else
                     NULL
                 #endif

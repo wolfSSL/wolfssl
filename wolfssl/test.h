@@ -2121,7 +2121,7 @@ static INLINE int myRsaVerify(WOLFSSL* ssl, byte* sig, word32 sigSz,
     return ret;
 }
 
-static INLINE int myRsaVerifySign(WOLFSSL* ssl, byte* sig, word32 sigSz,
+static INLINE int myRsaSignCheck(WOLFSSL* ssl, byte* sig, word32 sigSz,
         byte** out, const byte* key, word32 keySz, void* ctx)
 {
     int     ret;
@@ -2239,7 +2239,7 @@ static INLINE int myRsaPssVerify(WOLFSSL* ssl, byte* sig, word32 sigSz,
     return ret;
 }
 
-static INLINE int myRsaPssVerifySign(WOLFSSL* ssl, byte* sig, word32 sigSz,
+static INLINE int myRsaPssSignCheck(WOLFSSL* ssl, byte* sig, word32 sigSz,
         byte** out, int hash, int mgf, const byte* key, word32 keySz, void* ctx)
 {
     enum wc_HashType hashType = WC_HASH_TYPE_NONE;
@@ -2371,11 +2371,11 @@ static INLINE void SetupPkCallbacks(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
     #ifndef NO_RSA
         wolfSSL_CTX_SetRsaSignCb(ctx, myRsaSign);
         wolfSSL_CTX_SetRsaVerifyCb(ctx, myRsaVerify);
-        wolfSSL_CTX_SetRsaVerifySignCb(ctx, myRsaVerifySign);
+        wolfSSL_CTX_SetRsaSignCheckCb(ctx, myRsaSignCheck);
         #ifdef WC_RSA_PSS
             wolfSSL_CTX_SetRsaPssSignCb(ctx, myRsaPssSign);
             wolfSSL_CTX_SetRsaPssVerifyCb(ctx, myRsaPssVerify);
-            wolfSSL_CTX_SetRsaPssVerifySignCb(ctx, myRsaPssVerifySign);
+            wolfSSL_CTX_SetRsaPssSignCheckCb(ctx, myRsaPssSignCheck);
         #endif
         wolfSSL_CTX_SetRsaEncCb(ctx, myRsaEnc);
         wolfSSL_CTX_SetRsaDecCb(ctx, myRsaDec);

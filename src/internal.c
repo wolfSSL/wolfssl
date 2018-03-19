@@ -3100,6 +3100,7 @@ int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, int sigAlgo,
 }
 
 /* Verify RSA signature, 0 on success */
+/* This function is used to check the sign result */
 int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
     const byte* plain, word32 plainSz, int sigAlgo, int hashAlgo, RsaKey* key,
     const byte* keyBuf, word32 keySz, void* ctx)
@@ -3141,8 +3142,13 @@ int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
         if (ret != 0)
             return ret;
     #ifdef HAVE_PK_CALLBACKS
-        if (ssl->ctx->RsaPssVerifyCb) {
-            ret = ssl->ctx->RsaPssVerifySignCb(ssl, verifySig, sigSz, &out,
+        if (ssl->ctx->RsaPssSignCheckCb) {
+            /* The key buffer includes private/public portion,
+                but only public is used */
+            /* If HSM hardware is checking the signature result you can
+                optionally skip the sign check and return 0 */
+            /* The ctx here is the RsaSignCtx set using wolfSSL_SetRsaSignCtx */
+            ret = ssl->ctx->RsaPssSignCheckCb(ssl, verifySig, sigSz, &out,
                                            TypeHash(hashAlgo), mgf,
                                            keyBuf, keySz, ctx);
         }
@@ -3163,8 +3169,13 @@ int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
 #endif /* WC_RSA_PSS */
     {
     #ifdef HAVE_PK_CALLBACKS
-        if (ssl->ctx->RsaVerifyCb) {
-            ret = ssl->ctx->RsaVerifySignCb(ssl, verifySig, sigSz, &out,
+        if (ssl->ctx->RsaSignCheckCb) {
+            /* The key buffer includes private/public portion,
+                but only public is used */
+            /* If HSM hardware is checking the signature result you can
+                optionally skip the sign check and return 0 */
+            /* The ctx here is the RsaSignCtx set using wolfSSL_SetRsaSignCtx */
+            ret = ssl->ctx->RsaSignCheckCb(ssl, verifySig, sigSz, &out,
                 keyBuf, keySz, ctx);
         }
         else
@@ -20577,7 +20588,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
                     args->sigAlgo, ssl->suites->hashAlgo, key,
                     ssl->buffers.key->buffer, ssl->buffers.key->length,
                 #ifdef HAVE_PK_CALLBACKS
-                    ssl->RsaVerifyCtx
+                    ssl->RsaSignCtx
                 #else
                     NULL
                 #endif
@@ -22338,7 +22349,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     key, ssl->buffers.key->buffer,
                                     ssl->buffers.key->length,
                                 #ifdef HAVE_PK_CALLBACKS
-                                    ssl->RsaVerifyCtx
+                                    ssl->RsaSignCtx
                                 #else
                                     NULL
                                 #endif
@@ -22416,7 +22427,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     key, ssl->buffers.key->buffer,
                                     ssl->buffers.key->length,
                                 #ifdef HAVE_PK_CALLBACKS
-                                    ssl->RsaVerifyCtx
+                                    ssl->RsaSignCtx
                                 #else
                                     NULL
                                 #endif
