@@ -1753,16 +1753,12 @@ void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, int haveRSAsig,
         #ifdef WC_RSA_PSS
             if (tls1_2) {
             #ifdef WOLFSSL_SHA512
-                if (keySz == 0 || keySz >= MIN_RSA_SHA512_PSS_BITS) {
-                    suites->hashSigAlgo[idx++] = rsa_pss_sa_algo;
-                    suites->hashSigAlgo[idx++] = sha512_mac;
-                }
+                suites->hashSigAlgo[idx++] = rsa_pss_sa_algo;
+                suites->hashSigAlgo[idx++] = sha512_mac;
             #endif
             #ifdef WOLFSSL_SHA384
-                if (keySz == 0 || keySz >= MIN_RSA_SHA384_PSS_BITS) {
-                  suites->hashSigAlgo[idx++] = rsa_pss_sa_algo;
-                  suites->hashSigAlgo[idx++] = sha384_mac;
-                }
+                suites->hashSigAlgo[idx++] = rsa_pss_sa_algo;
+                suites->hashSigAlgo[idx++] = sha384_mac;
             #endif
             #ifndef NO_SHA256
                 suites->hashSigAlgo[idx++] = rsa_pss_sa_algo;
