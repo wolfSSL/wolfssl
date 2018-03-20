@@ -2436,9 +2436,12 @@ struct WOLFSSL_CTX {
 #ifdef HAVE_ANON
     byte        haveAnon;               /* User wants to allow Anon suites */
 #endif /* HAVE_ANON */
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_WEBSERVER)
     pem_password_cb* passwd_cb;
     void*           userdata;
+#endif
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     WOLFSSL_X509_STORE x509_store; /* points to ctx->cm */
     WOLFSSL_X509_STORE* x509_store_pt; /* take ownership of external store */
     byte            readAhead;
