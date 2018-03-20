@@ -6618,7 +6618,7 @@ int aesgcm_test(void)
         XMEMSET(resultP, 0, sizeof(resultP));
 
         wc_AesGcmSetKey(&enc, k1, sizeof(k1));
-        result = wc_AesGcmSetIV(&enc, NULL, sizeof(randIV), NULL, 0, &rng);
+        result = wc_AesGcmSetIV(&enc, sizeof(randIV), NULL, 0, &rng);
         if (result != 0)
             return -8213;
 
