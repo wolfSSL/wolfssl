@@ -1030,8 +1030,10 @@ enum Misc {
     TLS_DRAFT_MINOR = 0x12,     /* Minor version number of TLS draft */
 #elif defined(WOLFSSL_TLS13_DRAFT_22)
     TLS_DRAFT_MINOR = 0x16,     /* Minor version number of TLS draft */
-#else
+#elif defined(WOLFSSL_TLS13_DRAFT_23)
     TLS_DRAFT_MINOR = 0x17,     /* Minor version number of TLS draft */
+#else
+    TLS_DRAFT_MINOR = 0x1b,     /* Minor version number of TLS draft */
 #endif
     OLD_HELLO_ID    = 0x01,     /* SSLv2 Client Hello Indicator */
     INVALID_BYTE    = 0xff,     /* Used to initialize cipher specs values */
@@ -1506,7 +1508,7 @@ WOLFSSL_LOCAL int SNI_Callback(WOLFSSL* ssl);
 #endif
 #ifdef WOLFSSL_TLS13
 WOLFSSL_LOCAL int  DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
-                                word16 sz);
+                                word16 sz, const byte* aad, word16 aadSz);
 WOLFSSL_LOCAL int  DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input,
                                            word32* inOutIdx, byte type,
                                            word32 size, word32 totalSz);

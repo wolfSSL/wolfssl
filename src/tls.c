@@ -4606,7 +4606,6 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL *ssl, byte* input,
 {
     ProtocolVersion pv = ssl->ctx->method->version;
     int i;
-    int ret = VERSION_ERROR;
     int len;
     byte major, minor;
 
@@ -4660,7 +4659,6 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL *ssl, byte* input,
                 TLSX_SetResponse(ssl, TLSX_SUPPORTED_VERSIONS);
 #endif
             }
-            ret = 0;
             break;
         }
     }
@@ -4682,9 +4680,12 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL *ssl, byte* input,
         if (major != pv.major)
             return VERSION_ERROR;
 
+        /* Can't downgrade with this extension below TLS v1.3. */
+        if (minor < TLSv1_3_MINOR)
+            return VERSION_ERROR;
+
         /* Version is TLS v1.2 to handle downgrading from TLS v1.3+. */
-        if (ssl->options.downgrade && ssl->version.minor == TLSv1_2_MINOR &&
-                                                       minor >= TLSv1_3_MINOR) {
+        if (ssl->options.downgrade && ssl->version.minor == TLSv1_2_MINOR) {
             /* Set minor version back to TLS v1.3+ */
             ssl->version.minor = ssl->ctx->method->version.minor;
         }
@@ -4704,14 +4705,12 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL *ssl, byte* input,
             /* Downgrade the version. */
             ssl->version.minor = minor;
         }
-
-        ret = 0;
     }
 #endif
     else
         return SANITY_MSG_E;
 
-    return ret;
+    return 0;
 }
 
 /* Sets a new SupportedVersions extension into the extension list.

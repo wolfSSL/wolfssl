@@ -1500,12 +1500,14 @@ static INLINE void BuildTls13Nonce(WOLFSSL* ssl, byte* nonce, const byte* iv,
  * input   The data to encrypt.
  * sz      The number of bytes to encrypt.
  * nonce   The nonce to use with ChaCha20.
+ * aad     The additional authentication data.
+ * aadSz   The size of the addition authentication data.
  * tag     The authentication tag buffer.
  * returns 0 on success, otherwise failure.
  */
 static int ChaCha20Poly1305_Encrypt(WOLFSSL* ssl, byte* output,
                                     const byte* input, word16 sz, byte* nonce,
-                                    byte* tag)
+                                    const byte* aad, word16 aadSz, byte* tag)
 {
     int    ret    = 0;
     byte   poly[CHACHA20_256_KEY_SIZE];
@@ -1534,8 +1536,8 @@ static int ChaCha20Poly1305_Encrypt(WOLFSSL* ssl, byte* output,
     if (ret != 0)
         return ret;
     /* Add authentication code of encrypted data to end. */
-    ret = wc_Poly1305_MAC(ssl->auth.poly1305, NULL, 0, output, sz, tag,
-                          POLY1305_AUTH_SZ);
+    ret = wc_Poly1305_MAC(ssl->auth.poly1305, (byte*)aad, aadSz, output, sz,
+                          tag, POLY1305_AUTH_SZ);
 
     return ret;
 }
@@ -1546,13 +1548,15 @@ static int ChaCha20Poly1305_Encrypt(WOLFSSL* ssl, byte* output,
  * ssl     The SSL/TLS object.
  * output  The buffer to write encrypted data and authentication tag into.
  *         May be the same pointer as input.
- * input   The data to encrypt.
+ * input   The record header and data to encrypt.
  * sz      The number of bytes to encrypt.
+ * aad     The additional authentication data.
+ * aadSz   The size of the addition authentication data.
  * asyncOkay If non-zero can return WC_PENDING_E, otherwise blocks on crypto
  * returns 0 on success, otherwise failure.
  */
 static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
-                        word16 sz, int asyncOkay)
+                        word16 sz, const byte* aad, word16 aadSz, int asyncOkay)
 {
     int    ret    = 0;
     word16 dataSz = sz - ssl->specs.aead_mac_size;
@@ -1585,6 +1589,11 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
         #ifdef WOLFSSL_DEBUG_TLS
             WOLFSSL_MSG("Data to encrypt");
             WOLFSSL_BUFFER(input, dataSz);
+#if !defined(WOLFSSL_TLS13_DRAFT_18) && !defined(WOLFSSL_TLS13_DRAFT_22) && \
+                                        !defined(WOLFSSL_TLS13_DRAFT_23)
+            WOLFSSL_MSG("Addition Authentication Data");
+            WOLFSSL_BUFFER(aad, aadSz);
+#endif
         #endif
 
             if (ssl->encrypt.nonce == NULL)
@@ -1617,7 +1626,7 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
                     nonceSz = AESGCM_NONCE_SZ;
                     ret = wc_AesGcmEncrypt(ssl->encrypt.aes, output, input,
                         dataSz, ssl->encrypt.nonce, nonceSz,
-                        output + dataSz, macSz, NULL, 0);
+                        output + dataSz, macSz, aad, aadSz);
                     break;
             #endif
 
@@ -1634,14 +1643,14 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
                     nonceSz = AESCCM_NONCE_SZ;
                     ret = wc_AesCcmEncrypt(ssl->encrypt.aes, output, input,
                         dataSz, ssl->encrypt.nonce, nonceSz,
-                        output + dataSz, macSz, NULL, 0);
+                        output + dataSz, macSz, aad, aadSz);
                     break;
             #endif
 
             #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
                 case wolfssl_chacha:
                     ret = ChaCha20Poly1305_Encrypt(ssl, output, input, dataSz,
-                        ssl->encrypt.nonce, output + dataSz);
+                        ssl->encrypt.nonce, aad, aadSz, output + dataSz);
                     break;
             #endif
 
@@ -1700,11 +1709,14 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
  * input   The data to decrypt.
  * sz      The number of bytes to decrypt.
  * nonce   The nonce to use with ChaCha20.
+ * aad     The additional authentication data.
+ * aadSz   The size of the addition authentication data.
  * tagIn   The authentication tag data from packet.
  * returns 0 on success, otherwise failure.
  */
 static int ChaCha20Poly1305_Decrypt(WOLFSSL* ssl, byte* output,
                                     const byte* input, word16 sz, byte* nonce,
+                                    const byte* aad, word16 aadSz,
                                     const byte* tagIn)
 {
     int ret;
@@ -1729,8 +1741,8 @@ static int ChaCha20Poly1305_Decrypt(WOLFSSL* ssl, byte* output,
     if (ret != 0)
         return ret;
     /* Generate authentication tag for encrypted data. */
-    if ((ret = wc_Poly1305_MAC(ssl->auth.poly1305, NULL, 0, (byte*)input, sz,
-                               tag, sizeof(tag))) != 0) {
+    if ((ret = wc_Poly1305_MAC(ssl->auth.poly1305, (byte*)aad, aadSz,
+                                    (byte*)input, sz, tag, sizeof(tag))) != 0) {
         return ret;
     }
 
@@ -1752,11 +1764,14 @@ static int ChaCha20Poly1305_Decrypt(WOLFSSL* ssl, byte* output,
  * ssl     The SSL/TLS object.
  * output  The buffer to write decrypted data into.
  *         May be the same pointer as input.
- * input   The data to encrypt and authentication tag.
+ * input   The data to decrypt and authentication tag.
  * sz      The length of the encrypted data plus authentication tag.
+ * aad     The additional authentication data.
+ * aadSz   The size of the addition authentication data.
  * returns 0 on success, otherwise failure.
  */
-int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz)
+int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
+                 const byte* aad, word16 aadSz)
 {
     int    ret    = 0;
     word16 dataSz = sz - ssl->specs.aead_mac_size;
@@ -1797,6 +1812,11 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz)
         #ifdef WOLFSSL_DEBUG_TLS
             WOLFSSL_MSG("Data to decrypt");
             WOLFSSL_BUFFER(input, dataSz);
+#if !defined(WOLFSSL_TLS13_DRAFT_18) && !defined(WOLFSSL_TLS13_DRAFT_22) && \
+                                        !defined(WOLFSSL_TLS13_DRAFT_23)
+            WOLFSSL_MSG("Addition Authentication Data");
+            WOLFSSL_BUFFER(aad, aadSz);
+#endif
             WOLFSSL_MSG("Authentication tag");
             WOLFSSL_BUFFER(input + dataSz, macSz);
         #endif
@@ -1831,7 +1851,7 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz)
                     nonceSz = AESGCM_NONCE_SZ;
                     ret = wc_AesGcmDecrypt(ssl->decrypt.aes, output, input,
                         dataSz, ssl->decrypt.nonce, nonceSz,
-                        input + dataSz, macSz, NULL, 0);
+                        input + dataSz, macSz, aad, aadSz);
                 #ifdef WOLFSSL_ASYNC_CRYPT
                     if (ret == WC_PENDING_E) {
                         ret = wolfSSL_AsyncPush(ssl,
@@ -1854,7 +1874,7 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz)
                     nonceSz = AESCCM_NONCE_SZ;
                     ret = wc_AesCcmDecrypt(ssl->decrypt.aes, output, input,
                         dataSz, ssl->decrypt.nonce, nonceSz,
-                        input + dataSz, macSz, NULL, 0);
+                        input + dataSz, macSz, aad, aadSz);
                 #ifdef WOLFSSL_ASYNC_CRYPT
                     if (ret == WC_PENDING_E) {
                         ret = wolfSSL_AsyncPush(ssl,
@@ -1867,7 +1887,7 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz)
             #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
                 case wolfssl_chacha:
                     ret = ChaCha20Poly1305_Decrypt(ssl, output, input, dataSz,
-                        ssl->decrypt.nonce, input + dataSz);
+                        ssl->decrypt.nonce, aad, aadSz, input + dataSz);
                     break;
             #endif
 
@@ -2060,8 +2080,17 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             else
         #endif
             {
+#if defined(WOLFSSL_TLS13_DRAFT_18) || defined(WOLFSSL_TLS13_DRAFT_22) || \
+                                       defined(WOLFSSL_TLS13_DRAFT_23)
                 output += args->headerSz;
-                ret = EncryptTls13(ssl, output, output, args->size, asyncOkay);
+                ret = EncryptTls13(ssl, output, output, args->size, NULL, 0,
+                                                                     asyncOkay);
+#else
+                const byte* aad = output;
+                output += args->headerSz;
+                ret = EncryptTls13(ssl, output, output, args->size, aad,
+                                   RECORD_HEADER_SZ, asyncOkay);
+#endif
             }
             break;
         }
