@@ -2101,9 +2101,7 @@ static INLINE int myRsaSign(WOLFSSL* ssl, const byte* in, word32 inSz,
 
 
 static INLINE int myRsaVerify(WOLFSSL* ssl, byte* sig, word32 sigSz,
-        byte** out,
-        const byte* key, word32 keySz,
-        void* ctx)
+        byte** out, const byte* key, word32 keySz, void* ctx)
 {
     int     ret;
     word32  idx = 0;
@@ -2115,6 +2113,27 @@ static INLINE int myRsaVerify(WOLFSSL* ssl, byte* sig, word32 sigSz,
     ret = wc_InitRsaKey(&myKey, NULL);
     if (ret == 0) {
         ret = wc_RsaPublicKeyDecode(key, &idx, &myKey, keySz);
+        if (ret == 0)
+            ret = wc_RsaSSL_VerifyInline(sig, sigSz, out, &myKey);
+        wc_FreeRsaKey(&myKey);
+    }
+
+    return ret;
+}
+
+static INLINE int myRsaSignCheck(WOLFSSL* ssl, byte* sig, word32 sigSz,
+        byte** out, const byte* key, word32 keySz, void* ctx)
+{
+    int     ret;
+    word32  idx = 0;
+    RsaKey  myKey;
+
+    (void)ssl;
+    (void)ctx;
+
+    ret = wc_InitRsaKey(&myKey, NULL);
+    if (ret == 0) {
+        ret = wc_RsaPrivateKeyDecode(key, &idx, &myKey, keySz);
         if (ret == 0)
             ret = wc_RsaSSL_VerifyInline(sig, sigSz, out, &myKey);
         wc_FreeRsaKey(&myKey);
@@ -2219,6 +2238,48 @@ static INLINE int myRsaPssVerify(WOLFSSL* ssl, byte* sig, word32 sigSz,
 
     return ret;
 }
+
+static INLINE int myRsaPssSignCheck(WOLFSSL* ssl, byte* sig, word32 sigSz,
+        byte** out, int hash, int mgf, const byte* key, word32 keySz, void* ctx)
+{
+    enum wc_HashType hashType = WC_HASH_TYPE_NONE;
+    int              ret;
+    word32           idx = 0;
+    RsaKey           myKey;
+
+    (void)ssl;
+    (void)ctx;
+
+    switch (hash) {
+#ifndef NO_SHA256
+        case SHA256h:
+            hashType = WC_HASH_TYPE_SHA256;
+            break;
+#endif
+#ifdef WOLFSSL_SHA384
+        case SHA384h:
+            hashType = WC_HASH_TYPE_SHA384;
+            break;
+#endif
+#ifdef WOLFSSL_SHA512
+        case SHA512h:
+            hashType = WC_HASH_TYPE_SHA512;
+            break;
+#endif
+    }
+
+    ret = wc_InitRsaKey(&myKey, NULL);
+    if (ret == 0) {
+        ret = wc_RsaPrivateKeyDecode(key, &idx, &myKey, keySz);
+        if (ret == 0) {
+            ret = wc_RsaPSS_VerifyInline(sig, sigSz, out, hashType, mgf,
+                                         &myKey);
+            }
+        wc_FreeRsaKey(&myKey);
+    }
+
+    return ret;
+}
 #endif
 
 
@@ -2310,9 +2371,11 @@ static INLINE void SetupPkCallbacks(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
     #ifndef NO_RSA
         wolfSSL_CTX_SetRsaSignCb(ctx, myRsaSign);
         wolfSSL_CTX_SetRsaVerifyCb(ctx, myRsaVerify);
+        wolfSSL_CTX_SetRsaSignCheckCb(ctx, myRsaSignCheck);
         #ifdef WC_RSA_PSS
             wolfSSL_CTX_SetRsaPssSignCb(ctx, myRsaPssSign);
             wolfSSL_CTX_SetRsaPssVerifyCb(ctx, myRsaPssVerify);
+            wolfSSL_CTX_SetRsaPssSignCheckCb(ctx, myRsaPssSignCheck);
         #endif
         wolfSSL_CTX_SetRsaEncCb(ctx, myRsaEnc);
         wolfSSL_CTX_SetRsaDecCb(ctx, myRsaDec);

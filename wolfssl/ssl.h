@@ -1893,6 +1893,7 @@ typedef int (*CallbackRsaVerify)(WOLFSSL* ssl,
        const unsigned char* keyDer, unsigned int keySz,
        void* ctx);
 WOLFSSL_API void  wolfSSL_CTX_SetRsaVerifyCb(WOLFSSL_CTX*, CallbackRsaVerify);
+WOLFSSL_API void  wolfSSL_CTX_SetRsaSignCheckCb(WOLFSSL_CTX*, CallbackRsaVerify);
 WOLFSSL_API void  wolfSSL_SetRsaVerifyCtx(WOLFSSL* ssl, void *ctx);
 WOLFSSL_API void* wolfSSL_GetRsaVerifyCtx(WOLFSSL* ssl);
 
@@ -1915,6 +1916,8 @@ typedef int (*CallbackRsaPssVerify)(WOLFSSL* ssl,
        void* ctx);
 WOLFSSL_API void  wolfSSL_CTX_SetRsaPssVerifyCb(WOLFSSL_CTX*,
                                                 CallbackRsaPssVerify);
+WOLFSSL_API void  wolfSSL_CTX_SetRsaPssSignCheckCb(WOLFSSL_CTX*,
+                                                    CallbackRsaPssVerify);
 WOLFSSL_API void  wolfSSL_SetRsaPssVerifyCtx(WOLFSSL* ssl, void *ctx);
 WOLFSSL_API void* wolfSSL_GetRsaPssVerifyCtx(WOLFSSL* ssl);
 #endif

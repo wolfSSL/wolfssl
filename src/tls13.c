@@ -4997,7 +4997,14 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 /* check for signature faults */
                 ret = VerifyRsaSign(ssl, args->verifySig, args->sigLen,
                     sig->buffer, sig->length, args->sigAlgo,
-                    ssl->suites->hashAlgo, (RsaKey*)ssl->hsKey);
+                    ssl->suites->hashAlgo, (RsaKey*)ssl->hsKey,
+                    ssl->buffers.key->buffer, ssl->buffers.key->length,
+                #ifdef HAVE_PK_CALLBACKS
+                    ssl->RsaSignCtx
+                #else
+                    NULL
+                #endif
+                );
             }
         #endif /* !NO_RSA */
 

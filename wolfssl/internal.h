@@ -2507,11 +2507,13 @@ struct WOLFSSL_CTX {
         CallbackDhAgree DhAgreeCb;      /* User DH Agree Callback handler */
     #endif
     #ifndef NO_RSA
-        CallbackRsaSign   RsaSignCb;    /* User RsaSign   Callback handler */
-        CallbackRsaVerify RsaVerifyCb;  /* User RsaVerify Callback handler */
+        CallbackRsaSign   RsaSignCb;      /* User RsaSign Callback handler (priv key) */
+        CallbackRsaVerify RsaVerifyCb;    /* User RsaVerify Callback handler (pub key) */
+        CallbackRsaVerify RsaSignCheckCb; /* User VerifyRsaSign Callback handler (priv key) */
         #ifdef WC_RSA_PSS
-            CallbackRsaPssSign   RsaPssSignCb;    /* User RsaPssSign */
-            CallbackRsaPssVerify RsaPssVerifyCb;  /* User RsaPssVerify */
+            CallbackRsaPssSign   RsaPssSignCb;       /* User RsaSign (priv key) */
+            CallbackRsaPssVerify RsaPssVerifyCb;     /* User RsaVerify (pub key) */
+            CallbackRsaPssVerify RsaPssSignCheckCb; /* User VerifyRsaSign (priv key) */
         #endif
         CallbackRsaEnc    RsaEncCb;     /* User Rsa Public Encrypt  handler */
         CallbackRsaDec    RsaDecCb;     /* User Rsa Private Decrypt handler */
@@ -3831,11 +3833,9 @@ WOLFSSL_LOCAL int SetTicket(WOLFSSL*, const byte*, word32);
                                                  enum wc_HashType hashType);
             WOLFSSL_LOCAL int ConvertHashPss(int hashAlgo, enum wc_HashType* hashType, int* mgf);
         #endif
-        WOLFSSL_LOCAL int VerifyRsaSign(WOLFSSL* ssl,
-                                        byte* verifySig, word32 sigSz,
-                                        const byte* plain, word32 plainSz,
-                                        int sigAlgo, int hashAlgo,
-                                        RsaKey* key);
+        WOLFSSL_LOCAL int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig,
+            word32 sigSz, const byte* plain, word32 plainSz, int sigAlgo,
+            int hashAlgo, RsaKey* key, const byte* keyBuf, word32 keySz, void* ctx);
         WOLFSSL_LOCAL int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz,
             byte* out, word32* outSz, int sigAlgo, int hashAlgo, RsaKey* key,
             const byte* keyBuf, word32 keySz, void* ctx);
