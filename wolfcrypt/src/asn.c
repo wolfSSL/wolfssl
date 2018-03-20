@@ -7351,76 +7351,51 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
     }
 #endif
 
-    /* null term and leave room for \n */
-    header[--headerLen] = '\0';
-    footer[--footerLen] = '\0';
+    /* null term and leave room for newline */
+    header[--headerLen] = '\0'; header[--headerLen] = '\0';
+    footer[--footerLen] = '\0'; footer[--footerLen] = '\0';
 
+    /* build header and footer based on type */
     if (type == CERT_TYPE) {
         XSTRNCPY(header, BEGIN_CERT, headerLen);
-        XSTRNCAT(header, "\n", 1);
-
         XSTRNCPY(footer, END_CERT, footerLen);
-        XSTRNCAT(footer, "\n", 1);
     }
     else if (type == PRIVATEKEY_TYPE) {
         XSTRNCPY(header, BEGIN_RSA_PRIV, headerLen);
-        XSTRNCAT(header, "\n", 1);
-
         XSTRNCPY(footer, END_RSA_PRIV, footerLen);
-        XSTRNCAT(footer, "\n", 1);
     }
     else if (type == PUBLICKEY_TYPE) {
         XSTRNCPY(header, BEGIN_PUB_KEY, headerLen);
-        XSTRNCAT(header, "\n", 1);
-
         XSTRNCPY(footer, END_PUB_KEY, footerLen);
-        XSTRNCAT(footer, "\n", 1);
     }
 #ifndef NO_DSA
     else if (type == DSA_PRIVATEKEY_TYPE) {
         XSTRNCPY(header, BEGIN_DSA_PRIV, headerLen);
-        XSTRNCAT(header, "\n", 1);
-
         XSTRNCPY(footer, END_DSA_PRIV, footerLen);
-        XSTRNCAT(footer, "\n", 1);
     }
 #endif
 #ifdef HAVE_ECC
     else if (type == ECC_PRIVATEKEY_TYPE) {
         XSTRNCPY(header, BEGIN_EC_PRIV, headerLen);
-        XSTRNCAT(header, "\n", 1);
-
         XSTRNCPY(footer, END_EC_PRIV, footerLen);
-        XSTRNCAT(footer, "\n", 1);
     }
 #endif
 #ifdef HAVE_ED25519
     else if (type == EDDSA_PRIVATEKEY_TYPE) {
         XSTRNCPY(header, BEGIN_EDDSA_PRIV, headerLen);
-        XSTRNCAT(header, "\n", 1);
-
         XSTRNCPY(footer, END_EDDSA_PRIV, footerLen);
-        XSTRNCAT(footer, "\n", 1);
     }
 #endif
 #ifdef WOLFSSL_CERT_REQ
-    else if (type == CERTREQ_TYPE)
-    {
+    else if (type == CERTREQ_TYPE) {
         XSTRNCPY(header, BEGIN_CERT_REQ, headerLen);
-        XSTRNCAT(header, "\n", 1);
-
         XSTRNCPY(footer, END_CERT_REQ, footerLen);
-        XSTRNCAT(footer, "\n", 1);
     }
 #endif
 #ifdef HAVE_CRL
-    else if (type == CRL_TYPE)
-    {
+    else if (type == CRL_TYPE) {
         XSTRNCPY(header, BEGIN_X509_CRL, headerLen);
-        XSTRNCAT(header, "\n", 1);
-
         XSTRNCPY(footer, END_X509_CRL, footerLen);
-        XSTRNCAT(footer, "\n", 1);
     }
 #endif
     else {
@@ -7431,16 +7406,20 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
         return BAD_FUNC_ARG;
     }
 
+    /* add new line to end */
+    XSTRNCAT(header, "\n", 2);
+    XSTRNCAT(footer, "\n", 2);
+
     /* extra header information for encrypted key */
     if (cipher_info != NULL) {
         size_t cipherInfoStrLen = XSTRLEN((char*)cipher_info);
-        if (cipherInfoStrLen > HEADER_ENCRYPTED_KEY_SIZE - (23+10+2))
-            cipherInfoStrLen = HEADER_ENCRYPTED_KEY_SIZE - (23+10+2);
+        if (cipherInfoStrLen > HEADER_ENCRYPTED_KEY_SIZE - (23+10+3))
+            cipherInfoStrLen = HEADER_ENCRYPTED_KEY_SIZE - (23+10+3);
 
         XSTRNCAT(header, "Proc-Type: 4,ENCRYPTED\n", 23);
         XSTRNCAT(header, "DEK-Info: ", 10);
         XSTRNCAT(header, (char*)cipher_info, cipherInfoStrLen);
-        XSTRNCAT(header, "\n\n", 2);
+        XSTRNCAT(header, "\n\n", 3);
     }
 
     headerLen = (int)XSTRLEN(header);
