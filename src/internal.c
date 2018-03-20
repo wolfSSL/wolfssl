@@ -162,8 +162,10 @@ int IsAtLeastTLSv1_2(const WOLFSSL* ssl)
 {
     if (ssl->version.major == SSLv3_MAJOR && ssl->version.minor >=TLSv1_2_MINOR)
         return 1;
+#ifdef WOLFSSL_DTLS
     if (ssl->version.major == DTLS_MAJOR && ssl->version.minor <= DTLSv1_2_MINOR)
         return 1;
+#endif
 
     return 0;
 }

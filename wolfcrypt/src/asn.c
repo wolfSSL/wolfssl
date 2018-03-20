@@ -2388,10 +2388,14 @@ static int CheckAlgo(int first, int second, int* id, int* version)
 
     if (first == 1) {
         switch (second) {
+#if !defined(NO_SHA)
+    #ifndef NO_RC4
         case PBE_SHA1_RC4_128:
             *id = PBE_SHA1_RC4_128;
             *version = PKCS12v1;
             return 0;
+    #endif
+    #ifndef NO_DES3
         case PBE_SHA1_DES:
             *id = PBE_SHA1_DES;
             *version = PKCS12v1;
@@ -2400,6 +2404,8 @@ static int CheckAlgo(int first, int second, int* id, int* version)
             *id = PBE_SHA1_DES3;
             *version = PKCS12v1;
             return 0;
+    #endif
+#endif /* !NO_SHA */
         default:
             return ALGO_ID_E;
         }
@@ -2414,12 +2420,18 @@ static int CheckAlgo(int first, int second, int* id, int* version)
     }
 
     switch (second) {
+#ifndef NO_DES3
+    #ifndef NO_MD5
     case 3:                   /* see RFC 2898 for ids */
         *id = PBE_MD5_DES;
         return 0;
+    #endif
+    #ifndef NO_SHA
     case 10:
         *id = PBE_SHA1_DES;
         return 0;
+    #endif
+#endif /* !NO_DES3 */
     default:
         return ALGO_ID_E;
 
@@ -2433,7 +2445,7 @@ static int CheckAlgoV2(int oid, int* id)
 {
     (void)id; /* not used if AES and DES3 disabled */
     switch (oid) {
-#ifndef NO_DES3
+#if !defined(NO_DES3) && !defined(NO_SHA)
     case DESb:
         *id = PBE_SHA1_DES;
         return 0;
@@ -2477,11 +2489,14 @@ static int CryptKey(const char* password, int passwordSz, byte* salt,
     WOLFSSL_ENTER("CryptKey()");
 
     switch (id) {
+    #ifndef NO_DES3
+        #ifndef NO_MD5
         case PBE_MD5_DES:
             typeH = WC_MD5;
             derivedLen = 16;           /* may need iv for v1.5 */
             break;
-
+        #endif
+        #ifndef NO_SHA
         case PBE_SHA1_DES:
             typeH = WC_SHA;
             derivedLen = 16;           /* may need iv for v1.5 */
@@ -2491,17 +2506,20 @@ static int CryptKey(const char* password, int passwordSz, byte* salt,
             typeH = WC_SHA;
             derivedLen = 32;           /* may need iv for v1.5 */
             break;
-
+        #endif /* !NO_SHA */
+    #endif /* !NO_DES3 */
+    #if !defined(NO_SHA) && !defined(NO_RC4)
         case PBE_SHA1_RC4_128:
             typeH = WC_SHA;
             derivedLen = 16;
             break;
-
+    #endif
+    #ifdef WOLFSSL_AES_256
         case PBE_AES256_CBC:
             typeH = WC_SHA256;
             derivedLen = 32;
             break;
-
+    #endif
         default:
             WOLFSSL_MSG("Unknown/Unsupported encrypt/decrypt id");
             return ALGO_ID_E;
@@ -2563,6 +2581,7 @@ static int CryptKey(const char* password, int passwordSz, byte* salt,
 
     switch (id) {
 #ifndef NO_DES3
+    #if !defined(NO_SHA) || !defined(NO_MD5)
         case PBE_MD5_DES:
         case PBE_SHA1_DES:
         {
@@ -2593,7 +2612,9 @@ static int CryptKey(const char* password, int passwordSz, byte* salt,
             }
             break;
         }
+    #endif /* !NO_SHA || !NO_MD5 */
 
+    #ifndef NO_SHA
         case PBE_SHA1_DES3:
         {
             Des3   des;
@@ -2635,8 +2656,9 @@ static int CryptKey(const char* password, int passwordSz, byte* salt,
             }
             break;
         }
+    #endif /* !NO_SHA */
 #endif
-#ifndef NO_RC4
+#if !defined(NO_RC4) && !defined(NO_SHA)
         case PBE_SHA1_RC4_128:
         {
             Arc4    dec;
@@ -2647,6 +2669,7 @@ static int CryptKey(const char* password, int passwordSz, byte* salt,
         }
 #endif
 #ifndef NO_AES
+    #ifdef WOLFSSL_AES_256
         case PBE_AES256_CBC:
         {
             Aes dec;
@@ -2665,6 +2688,7 @@ static int CryptKey(const char* password, int passwordSz, byte* salt,
             ForceZero(&dec, sizeof(Aes));
             break;
         }
+    #endif /* WOLFSSL_AES_256 */
 #endif
 
         default:
@@ -3179,6 +3203,7 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     if (out == NULL) {
         sz = inputSz;
         switch (id) {
+        #if !defined(NO_DES3) && (!defined(NO_MD5) || !defined(NO_SHA))
             case PBE_MD5_DES:
             case PBE_SHA1_DES:
             case PBE_SHA1_DES3:
@@ -3187,10 +3212,11 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
                 sz &= 0xfffffff8;
                 sz += 8;
                 break;
-
+        #endif /* !NO_DES3 && (!NO_MD5 || !NO_SHA) */
+        #if !defined(NO_RC4) && !defined(NO_SHA)
             case PBE_SHA1_RC4_128:
                 break;
-
+        #endif
             case -1:
                 break;
 
@@ -5025,6 +5051,7 @@ static int SetCurve(ecc_key* key, byte* output)
 #endif /* HAVE_ECC */
 
 
+#ifdef HAVE_ECC
 static INLINE int IsSigAlgoECDSA(int algoOID)
 {
     /* ECDSA sigAlgo must not have ASN1 NULL parameters */
@@ -5035,6 +5062,7 @@ static INLINE int IsSigAlgoECDSA(int algoOID)
 
     return 0;
 }
+#endif
 
 WOLFSSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
 {
@@ -5044,8 +5072,14 @@ WOLFSSL_LOCAL word32 SetAlgoID(int algoOID, byte* output, int type, int curveSz)
     byte   seqArray[MAX_SEQ_SZ + 1];  /* add object_id to end */
 
     tagSz = (type == oidHashType ||
-             (type == oidSigType && !IsSigAlgoECDSA(algoOID) &&
-                                         algoOID != ED25519k) ||
+             (type == oidSigType
+        #ifdef HAVE_ECC
+              && !IsSigAlgoECDSA(algoOID)
+        #endif
+        #ifdef HAVE_ED25519
+              && algoOID != ED25519k
+        #endif
+              ) ||
              (type == oidKeyType && algoOID == RSAk)) ? 2 : 0;
 
     algoName = OidFromId(algoOID, type, &algoSz);
@@ -7800,7 +7834,13 @@ int wc_InitCert(Cert* cert)
     XMEMSET(cert, 0, sizeof(Cert));
 
     cert->version    = 2;   /* version 3 is hex 2 */
+#ifndef NO_SHA
     cert->sigType    = CTC_SHAwRSA;
+#elif !defined(NO_SHA256)
+    cert->sigType    = CTC_SHA256wRSA;
+#else
+    cert->sigType    = 0;
+#endif
     cert->daysValid  = 500;
     cert->selfSigned = 1;
     cert->keyType    = RSA_KEY;

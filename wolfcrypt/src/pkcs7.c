@@ -3414,9 +3414,12 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     outerContentTypeSz = wc_SetContentType(ENVELOPED_DATA, outerContentType);
 
     /* version, defined as 0 in RFC 2315 */
+#ifdef HAVE_ECC
     if (pkcs7->publicKeyOID == ECDSAk) {
         verSz = SetMyVersion(2, ver, 0);
-    } else {
+    } else
+#endif
+    {
         verSz = SetMyVersion(0, ver, 0);
     }
 
