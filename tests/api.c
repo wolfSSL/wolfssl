@@ -39,15 +39,13 @@
 #ifndef ONEK_BUF
     #define ONEK_BUF 1024
 #endif
-#ifdef WOLFSSL_STATIC_MEMORY
-    static WOLFSSL_HEAP_HINT* HEAP_HINT
-#else
-    #define HEAP_HINT NULL
-#endif /* WOLFSSL_STAIC_MEMORY */
-
 #if defined(WOLFSSL_STATIC_MEMORY)
     #include <wolfssl/wolfcrypt/memory.h>
 #endif /* WOLFSSL_STATIC_MEMORY */
+#ifndef HEAP_HINT
+    #define HEAP_HINT NULL
+#endif /* WOLFSSL_STAIC_MEMORY */
+
 #ifdef WOLFSSL_ASNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
