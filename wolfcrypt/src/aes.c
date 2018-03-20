@@ -3344,7 +3344,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
  */
 
 enum {
-    GCM_NONCE_SZ = 12,
+    GCM_NONCE_MAX_SZ = 16, /* wolfCrypt's maximum nonce size allowed. */
+    GCM_NONCE_MID_SZ = 12, /* The usual default nonce size for AES-GCM. */
+    GCM_NONCE_MIN_SZ = 8,  /* wolfCrypt's minimum nonce size allowed. */
     CCM_NONCE_MIN_SZ = 7,
     CCM_NONCE_MAX_SZ = 13,
     CTR_SZ   = 4,
@@ -7467,7 +7469,7 @@ int AES_GCM_encrypt_C(Aes* aes, byte* out, const byte* in, word32 sz,
 
     ctr = counter;
     XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
-    if (ivSz == GCM_NONCE_SZ) {
+    if (ivSz == GCM_NONCE_MID_SZ) {
         XMEMCPY(initialCounter, iv, ivSz);
         initialCounter[AES_BLOCK_SIZE - 1] = 1;
     }
@@ -7554,7 +7556,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                                                        defined(WOLFSSL_STM32F7))
 
     /* additional argument checks - STM32 HW only supports 12 byte IV */
-    if (ivSz != GCM_NONCE_SZ) {
+    if (ivSz != GCM_NONCE_MID_SZ) {
         return BAD_FUNC_ARG;
     }
 
@@ -7695,7 +7697,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
     /* additional argument checks - STM32 HW only supports 12 byte IV */
-    if (ivSz != GCM_NONCE_SZ) {
+    if (ivSz != GCM_NONCE_MID_SZ) {
         return BAD_FUNC_ARG;
     }
 
@@ -7829,7 +7831,7 @@ int AES_GCM_decrypt_C(Aes* aes, byte* out, const byte* in, word32 sz,
     ctr = counter;
 
     XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
-    if (ivSz == GCM_NONCE_SZ) {
+    if (ivSz == GCM_NONCE_MID_SZ) {
         XMEMCPY(initialCounter, iv, ivSz);
         initialCounter[AES_BLOCK_SIZE - 1] = 1;
     }
@@ -7992,18 +7994,43 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #ifndef WC_NO_RNG
 
-int wc_AesGcmSetIV(Aes* aes, const byte* extIv, word32 ivSz,
+int wc_AesGcmSetExtIV(Aes* aes, const byte* iv, word32 ivSz)
+{
+    int ret = 0;
+
+    if (aes == NULL || iv == NULL ||
+        (ivSz != GCM_NONCE_MIN_SZ && ivSz != GCM_NONCE_MID_SZ &&
+         ivSz != GCM_NONCE_MAX_SZ)) {
+
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        XMEMCPY((byte*)aes->reg, iv, ivSz);
+
+        /* If the IV is 96, allow for a 2^64 invocation counter.
+         * For any other size for the nonce, limit the invocation
+         * counter to 32-bits. (SP 800-38D 8.3) */
+        aes->invokeCtr[0] = 0;
+        aes->invokeCtr[1] = (ivSz == GCM_NONCE_MID_SZ) ? 0 : 0xFFFFFFFF;
+        aes->nonceSz = ivSz;
+    }
+
+    return ret;
+}
+
+
+int wc_AesGcmSetIV(Aes* aes, word32 ivSz,
                    const byte* ivFixed, word32 ivFixedSz,
                    WC_RNG* rng)
 {
     int ret = 0;
 
-    if (aes == NULL ||
-        (extIv != NULL && ivFixed != NULL) ||
-        (extIv == NULL && ivFixed == NULL && rng == NULL) ||
+    if (aes == NULL || rng == NULL ||
+        (ivSz != GCM_NONCE_MIN_SZ && ivSz != GCM_NONCE_MID_SZ &&
+         ivSz != GCM_NONCE_MAX_SZ) ||
         (ivFixed == NULL && ivFixedSz != 0) ||
-        (ivFixed != NULL && ivFixedSz != AES_IV_FIXED_SZ) ||
-        ivSz != GCM_NONCE_SZ) {
+        (ivFixed != NULL && ivFixedSz != AES_IV_FIXED_SZ)) {
 
         ret = BAD_FUNC_ARG;
     }
@@ -8011,24 +8038,19 @@ int wc_AesGcmSetIV(Aes* aes, const byte* extIv, word32 ivSz,
     if (ret == 0) {
         byte* iv = (byte*)aes->reg;
 
-        if (extIv == NULL) {
-            if (ivFixedSz)
-                XMEMCPY((byte*)aes->reg, ivFixed, ivFixedSz);
+        if (ivFixedSz)
+            XMEMCPY(iv, ivFixed, ivFixedSz);
 
-            if (rng == NULL)
-                XMEMSET(iv + ivFixedSz, 0, ivSz - ivFixedSz);
-            else
-                ret = wc_RNG_GenerateBlock(rng,
-                                       iv + ivFixedSz, ivSz - ivFixedSz);
-        }
-        else
-            XMEMCPY(iv, extIv, ivSz);
+        ret = wc_RNG_GenerateBlock(rng, iv + ivFixedSz, ivSz - ivFixedSz);
     }
 
     if (ret == 0) {
-        /* If the IV is 96-bits, allow for a 2^64 invocation counter. */
+        /* If the IV is 96, allow for a 2^64 invocation counter.
+         * For any other size for the nonce, limit the invocation
+         * counter to 32-bits. (SP 800-38D 8.3) */
         aes->invokeCtr[0] = 0;
-        aes->invokeCtr[1] = 0;
+        aes->invokeCtr[1] = (ivSz == GCM_NONCE_MID_SZ) ? 0 : 0xFFFFFFFF;
+        aes->nonceSz = ivSz;
     }
 
     return ret;
@@ -8043,7 +8065,7 @@ int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
     int ret = 0;
 
     if (aes == NULL || (sz != 0 && (in == NULL || out == NULL)) ||
-        ivOut == NULL || ivOutSz != GCM_NONCE_SZ ||
+        ivOut == NULL || ivOutSz != aes->nonceSz ||
         (authIn == NULL && authInSz != 0)) {
 
         ret = BAD_FUNC_ARG;
@@ -8060,11 +8082,11 @@ int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
 
     if (ret == 0) {
         ret = wc_AesGcmEncrypt(aes, out, in, sz,
-                               (byte*)aes->reg, GCM_NONCE_SZ,
+                               (byte*)aes->reg, ivOutSz,
                                authTag, authTagSz,
                                authIn, authInSz);
-        XMEMCPY(ivOut, aes->reg, GCM_NONCE_SZ);
-        IncCtr((byte*)aes->reg, GCM_NONCE_SZ);
+        XMEMCPY(ivOut, aes->reg, ivOutSz);
+        IncCtr((byte*)aes->reg, ivOutSz);
     }
 
     return ret;
@@ -8077,9 +8099,8 @@ int wc_Gmac(const byte* key, word32 keySz, byte* iv, word32 ivSz,
     Aes aes;
     int ret = 0;
 
-    if (key == NULL || iv == NULL || ivSz != GCM_NONCE_SZ ||
-        (authIn == NULL && authInSz != 0) || authTag == NULL ||
-        authTagSz == 0 || rng == NULL) {
+    if (key == NULL || iv == NULL || (authIn == NULL && authInSz != 0) ||
+        authTag == NULL || authTagSz == 0 || rng == NULL) {
 
         ret = BAD_FUNC_ARG;
     }
@@ -8087,7 +8108,7 @@ int wc_Gmac(const byte* key, word32 keySz, byte* iv, word32 ivSz,
     if (ret == 0)
         ret = wc_AesGcmSetKey(&aes, key, keySz);
     if (ret == 0)
-        ret = wc_AesGcmSetIV(&aes, NULL, GCM_NONCE_SZ, NULL, 0, rng);
+        ret = wc_AesGcmSetIV(&aes, ivSz, NULL, 0, rng);
     if (ret == 0)
         ret = wc_AesGcmEncrypt_ex(&aes, NULL, NULL, 0, iv, ivSz,
                                   authTag, authTagSz, authIn, authInSz);
@@ -8104,9 +8125,8 @@ int wc_GmacVerify(const byte* key, word32 keySz,
     Aes aes;
     int ret = 0;
 
-    if (key == NULL || iv == NULL || ivSz != GCM_NONCE_SZ ||
-        (authIn == NULL && authInSz != 0) || authTag == NULL ||
-        authTagSz == 0 || authTagSz > AES_BLOCK_SIZE) {
+    if (key == NULL || iv == NULL || (authIn == NULL && authInSz != 0) ||
+        authTag == NULL || authTagSz == 0 || authTagSz > AES_BLOCK_SIZE) {
 
         ret = BAD_FUNC_ARG;
     }

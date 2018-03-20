@@ -99,8 +99,6 @@ typedef struct Aes {
 
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
     word32 invokeCtr[2];
-#endif
-#ifdef HAVE_AESCCM
     word32 nonceSz;
 #endif
 #ifdef HAVE_AESGCM
@@ -213,7 +211,8 @@ WOLFSSL_API int wc_AesEcbDecrypt(Aes* aes, byte* out,
                                    const byte* authIn, word32 authInSz);
 
 #ifndef WC_NO_RNG
- WOLFSSL_API int  wc_AesGcmSetIV(Aes* aes, const byte* extIv, word32 ivSz,
+ WOLFSSL_API int  wc_AesGcmSetExtIV(Aes* aes, const byte* iv, word32 ivSz);
+ WOLFSSL_API int  wc_AesGcmSetIV(Aes* aes, word32 ivSz,
                                    const byte* ivFixed, word32 ivFixedSz,
                                    WC_RNG* rng);
  WOLFSSL_API int  wc_AesGcmEncrypt_ex(Aes* aes, byte* out,
