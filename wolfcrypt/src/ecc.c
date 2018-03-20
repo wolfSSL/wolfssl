@@ -3531,6 +3531,68 @@ int wc_ecc_set_flags(ecc_key* key, word32 flags)
 #ifdef HAVE_ECC_SIGN
 
 #ifndef NO_ASN
+
+#if defined(WOLFSSL_ATECC508A) || defined(PLUTON_CRYPTO_ECC)
+static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
+    mp_int* r, mp_int* s, byte* out, word32 *outlen, WC_RNG* rng,
+    ecc_key* key)
+{
+    int err;
+
+#ifdef PLUTON_CRYPTO_ECC
+    if (key->devId != INVALID_DEVID) /* use hardware */
+#endif
+    {
+        int keysize = key->dp->size;
+
+        /* Check args */
+        if (keysize > ECC_MAX_CRYPTO_HW_SIZE || inlen != keysize ||
+                                                *outlen < keysize*2) {
+            return ECC_BAD_ARG_E;
+        }
+
+    #if defined(WOLFSSL_ATECC508A)
+        /* Sign: Result is 32-bytes of R then 32-bytes of S */
+        err = atcatls_sign(key->slot, in, out);
+        if (err != ATCA_SUCCESS) {
+           return BAD_COND_E;
+        }
+    #elif defined(PLUTON_CRYPTO_ECC)
+        {
+            /* perform ECC sign */
+            word32 raw_sig_size = *outlen;
+            err = Crypto_EccSign(in, inlen, out, &raw_sig_size);
+            if (err != CRYPTO_RES_SUCCESS || raw_sig_size != keysize*2){
+               return BAD_COND_E;
+            }
+        }
+    #endif
+
+        /* Load R and S */
+        err = mp_read_unsigned_bin(r, &out[0], keysize);
+        if (err != MP_OKAY) {
+            return err;
+        }
+        err = mp_read_unsigned_bin(s, &out[keysize], keysize);
+        if (err != MP_OKAY) {
+            return err;
+        }
+
+        /* Check for zeros */
+        if (mp_iszero(r) || mp_iszero(s)) {
+            return MP_ZERO_E;
+        }
+    }
+#ifdef PLUTON_CRYPTO_ECC
+    else {
+        err = wc_ecc_sign_hash_ex(in, inlen, rng, key, r, s);
+    }
+#endif
+
+    return err;
+}
+#endif /* WOLFSSL_ATECC508A || PLUTON_CRYPTO_ECC */
+
 /**
  Sign a message digest
  in        The message digest to sign
@@ -3571,56 +3633,7 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 
         /* hardware crypto */
         #if defined(WOLFSSL_ATECC508A) || defined(PLUTON_CRYPTO_ECC)
-            #ifdef PLUTON_CRYPTO_ECC
-            if (key->devId != INVALID_DEVID) /* use hardware */
-            #endif
-            {
-                /* Check args */
-                if ( inlen != ECC_MAX_CRYPTO_HW_SIZE ||
-                    *outlen < ECC_MAX_CRYPTO_HW_SIZE*2) {
-                    return ECC_BAD_ARG_E;
-                }
-
-            #if defined(WOLFSSL_ATECC508A)
-                /* Sign: Result is 32-bytes of R then 32-bytes of S */
-                err = atcatls_sign(key->slot, in, out);
-                if (err != ATCA_SUCCESS) {
-                   return BAD_COND_E;
-                }
-            #elif defined(PLUTON_CRYPTO_ECC)
-                {
-                    /* perform ECC sign */
-                    word32 raw_sig_size = *outlen;
-                    err = Crypto_EccSign(in, inlen, out, &raw_sig_size);
-                    if (err != CRYPTO_RES_SUCCESS ||
-                                    raw_sig_size != ECC_MAX_CRYPTO_HW_SIZE*2) {
-                       return BAD_COND_E;
-                    }
-                }
-            #endif
-
-                /* Load R and S */
-                err = mp_read_unsigned_bin(r, &out[0], ECC_MAX_CRYPTO_HW_SIZE);
-                if (err != MP_OKAY) {
-                    return err;
-                }
-                err = mp_read_unsigned_bin(s, &out[ECC_MAX_CRYPTO_HW_SIZE],
-                                           ECC_MAX_CRYPTO_HW_SIZE);
-                if (err != MP_OKAY) {
-                    return err;
-                }
-
-                /* Check for zeros */
-                if (mp_iszero(r) || mp_iszero(s)) {
-                    return MP_ZERO_E;
-                }
-            }
-            #ifdef PLUTON_CRYPTO_ECC
-            else {
-                err = wc_ecc_sign_hash_ex(in, inlen, rng, key, r, s);
-            }
-            #endif
-
+            err = wc_ecc_sign_hash_hw(in, inlen, r, s, out, outlen, rng, key);
         #else
             err = wc_ecc_sign_hash_ex(in, inlen, rng, key, r, s);
         #endif
@@ -3657,6 +3670,7 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 
         default:
             err = BAD_STATE_E;
+            break;
     }
 
     /* if async pending then return and skip done cleanup below */
@@ -4552,6 +4566,8 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
 {
     int err = 0;
     int compressed = 0;
+    int keysize;
+    byte pointType;
 
     if (in == NULL || point == NULL || (curve_idx < 0) ||
         (wc_ecc_is_valid_idx(curve_idx) == 0))
@@ -4576,12 +4592,14 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
     if (err != MP_OKAY)
         return MEMORY_E;
 
-    /* check for 4, 2, or 3 */
-    if (in[0] != 0x04 && in[0] != 0x02 && in[0] != 0x03) {
+    /* check for point type (4, 2, or 3) */
+    pointType = in[0];
+    if (pointType != ECC_POINT_UNCOMP && pointType != ECC_POINT_COMP_EVEN &&
+                                         pointType != ECC_POINT_COMP_ODD) {
         err = ASN_PARSE_E;
     }
 
-    if (in[0] == 0x02 || in[0] == 0x03) {
+    if (pointType == ECC_POINT_COMP_EVEN || pointType == ECC_POINT_COMP_ODD) {
 #ifdef HAVE_COMP_KEY
         compressed = 1;
 #else
@@ -4589,14 +4607,21 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
 #endif
     }
 
+    /* adjust to skip first byte */
+    inLen -= 1;
+    in += 1;
+
+    /* calculate key size based on inLen / 2 */
+    keysize = inLen>>1;
+
 #ifdef WOLFSSL_ATECC508A
     /* populate key->pubkey_raw */
-    XMEMCPY(key->pubkey_raw, (byte*)in+1, PUB_KEY_SIZE);
+    XMEMCPY(key->pubkey_raw, (byte*)in, PUB_KEY_SIZE);
 #endif
 
     /* read data */
     if (err == MP_OKAY)
-        err = mp_read_unsigned_bin(point->x, (byte*)in+1, (inLen-1)>>1);
+        err = mp_read_unsigned_bin(point->x, (byte*)in, keysize);
 
 #ifdef HAVE_COMP_KEY
     if (err == MP_OKAY && compressed == 1) {   /* build y */
@@ -4638,8 +4663,8 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
 
         /* adjust y */
         if (err == MP_OKAY) {
-            if ((mp_isodd(&t2) == MP_YES && in[0] == 0x03) ||
-                (mp_isodd(&t2) == MP_NO && in[0] == 0x02)) {
+            if ((mp_isodd(&t2) == MP_YES && pointType == ECC_POINT_COMP_ODD) ||
+                (mp_isodd(&t2) == MP_NO &&  pointType == ECC_POINT_COMP_EVEN)) {
                 err = mp_mod(&t2, curve->prime, point->y);
             }
             else {
@@ -4654,14 +4679,13 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
 
         wc_ecc_curve_free(curve);
 #else
-        sp_ecc_uncompress_256(point->x, in[0], point->y);
+        sp_ecc_uncompress_256(point->x, pointType, point->y);
 #endif
     }
 #endif
 
     if (err == MP_OKAY && compressed == 0)
-        err = mp_read_unsigned_bin(point->y,
-                                   (byte*)in+1+((inLen-1)>>1), (inLen-1)>>1);
+        err = mp_read_unsigned_bin(point->y, (byte*)in + keysize, keysize);
     if (err == MP_OKAY)
         err = mp_set(point->z, 1);
 
@@ -4717,8 +4741,8 @@ int wc_ecc_export_point_der(const int curve_idx, ecc_point* point, byte* out,
 
 #else
 
-    /* store byte 0x04 */
-    out[0] = 0x04;
+    /* store byte point type */
+    out[0] = ECC_POINT_UNCOMP;
 
 #ifdef WOLFSSL_SMALL_STACK
     buf = (byte*)XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_ECC_BUFFER);
@@ -4798,8 +4822,8 @@ int wc_ecc_export_x963(ecc_key* key, byte* out, word32* outLen)
       return BUFFER_E;
    }
 
-   /* store byte 0x04 */
-   out[0] = 0x04;
+   /* store byte point type */
+   out[0] = ECC_POINT_UNCOMP;
 
 #ifdef WOLFSSL_SMALL_STACK
    buf = (byte*)XMALLOC(ECC_BUFSIZE, NULL, DYNAMIC_TYPE_ECC_BUFFER);
@@ -5188,6 +5212,8 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
 {
     int err = MP_OKAY;
     int compressed = 0;
+    int keysize = 0;
+    byte pointType;
 
     if (in == NULL || key == NULL)
         return BAD_FUNC_ARG;
@@ -5216,12 +5242,14 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
     if (err != MP_OKAY)
         return MEMORY_E;
 
-    /* check for 4, 2, or 3 */
-    if (in[0] != 0x04 && in[0] != 0x02 && in[0] != 0x03) {
+    /* check for point type (4, 2, or 3) */
+    pointType = in[0];
+    if (pointType != ECC_POINT_UNCOMP && pointType != ECC_POINT_COMP_EVEN &&
+                                         pointType != ECC_POINT_COMP_ODD) {
         err = ASN_PARSE_E;
     }
 
-    if (in[0] == 0x02 || in[0] == 0x03) {
+    if (pointType == ECC_POINT_COMP_EVEN || pointType == ECC_POINT_COMP_ODD) {
     #ifdef HAVE_COMP_KEY
         compressed = 1;
     #else
@@ -5229,23 +5257,26 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
     #endif
     }
 
+    /* adjust to skip first byte */
+    inLen -= 1;
+    in += 1;
+
     if (err == MP_OKAY) {
-        int keysize;
     #ifdef HAVE_COMP_KEY
         /* adjust inLen if compressed */
         if (compressed)
-            inLen = (inLen-1)*2 + 1;  /* used uncompressed len */
+            inLen = inLen*2 + 1;  /* used uncompressed len */
     #endif
 
         /* determine key size */
-        keysize = ((inLen-1)>>1);
+        keysize = (inLen>>1);
         err = wc_ecc_set_curve(key, keysize, curve_id);
         key->type = ECC_PUBLICKEY;
     }
 
     /* read data */
     if (err == MP_OKAY)
-        err = mp_read_unsigned_bin(key->pubkey.x, (byte*)in+1, (inLen-1)>>1);
+        err = mp_read_unsigned_bin(key->pubkey.x, (byte*)in, keysize);
 
 #ifdef HAVE_COMP_KEY
     if (err == MP_OKAY && compressed == 1) {   /* build y */
@@ -5288,8 +5319,8 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
 
         /* adjust y */
         if (err == MP_OKAY) {
-            if ((mp_isodd(&t2) == MP_YES && in[0] == 0x03) ||
-                (mp_isodd(&t2) == MP_NO && in[0] == 0x02)) {
+            if ((mp_isodd(&t2) == MP_YES && pointType == ECC_POINT_COMP_ODD) ||
+                (mp_isodd(&t2) == MP_NO &&  pointType == ECC_POINT_COMP_EVEN)) {
                 err = mp_mod(&t2, curve->prime, &t2);
             }
             else {
@@ -5306,14 +5337,13 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
 
         wc_ecc_curve_free(curve);
 #else
-        sp_ecc_uncompress_256(key->pubkey.x, in[0], key->pubkey.y);
+        sp_ecc_uncompress_256(key->pubkey.x, pointType, key->pubkey.y);
 #endif
     }
 #endif /* HAVE_COMP_KEY */
 
     if (err == MP_OKAY && compressed == 0)
-        err = mp_read_unsigned_bin(key->pubkey.y, (byte*)in+1+((inLen-1)>>1),
-                                                                (inLen-1)>>1);
+        err = mp_read_unsigned_bin(key->pubkey.y, (byte*)in + keysize, keysize);
     if (err == MP_OKAY)
         err = mp_set(key->pubkey.z, 1);
 
@@ -5679,7 +5709,7 @@ int wc_ecc_sig_to_rs(const byte* sig, word32 sigLen, byte* r, word32* rLen,
 
 #ifdef HAVE_ECC_KEY_IMPORT
 static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
-          const char* qy, const char* d, int curve_id)
+          const char* qy, const char* d, int curve_id, int encType)
 {
     int err = MP_OKAY;
 
@@ -5720,12 +5750,23 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
         return MEMORY_E;
 
     /* read Qx */
-    if (err == MP_OKAY)
-        err = mp_read_radix(key->pubkey.x, qx, MP_RADIX_HEX);
+    if (err == MP_OKAY) {
+        if (encType == ECC_TYPE_HEX_STR)
+            err = mp_read_radix(key->pubkey.x, qx, MP_RADIX_HEX);
+        else
+            err = mp_read_unsigned_bin(key->pubkey.x, (const byte*)qx,
+                key->dp->size);
+    }
 
     /* read Qy */
-    if (err == MP_OKAY)
-        err = mp_read_radix(key->pubkey.y, qy, MP_RADIX_HEX);
+    if (err == MP_OKAY) {
+        if (encType == ECC_TYPE_HEX_STR)
+            err = mp_read_radix(key->pubkey.y, qy, MP_RADIX_HEX);
+        else
+            err = mp_read_unsigned_bin(key->pubkey.y, (const byte*)qy,
+                key->dp->size);
+
+    }
 
     if (err == MP_OKAY)
         err = mp_set(key->pubkey.z, 1);
@@ -5734,7 +5775,13 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
     if (err == MP_OKAY) {
         if (d != NULL) {
             key->type = ECC_PRIVATEKEY;
-            err = mp_read_radix(&key->k, d, MP_RADIX_HEX);
+
+            if (encType == ECC_TYPE_HEX_STR)
+                err = mp_read_radix(&key->k, d, MP_RADIX_HEX);
+            else
+                err = mp_read_unsigned_bin(&key->k, (const byte*)d,
+                    key->dp->size);
+
         } else {
             key->type = ECC_PUBLICKEY;
         }
@@ -5769,8 +5816,17 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
 int wc_ecc_import_raw_ex(ecc_key* key, const char* qx, const char* qy,
                    const char* d, int curve_id)
 {
-    return wc_ecc_import_raw_private(key, qx, qy, d, curve_id);
+    return wc_ecc_import_raw_private(key, qx, qy, d, curve_id,
+        ECC_TYPE_HEX_STR);
 
+}
+
+/* Import x, y and optional private (d) as unsigned binary */
+int wc_ecc_import_unsigned(ecc_key* key, byte* qx, byte* qy,
+                   byte* d, int curve_id)
+{
+    return wc_ecc_import_raw_private(key, (const char*)qx, (const char*)qy,
+        (const char*)d, curve_id, ECC_TYPE_UNSIGNED_BIN);
 }
 
 /**
@@ -5805,7 +5861,8 @@ int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
         WOLFSSL_MSG("ecc_set curve name not found");
         err = ASN_PARSE_E;
     } else {
-        return wc_ecc_import_raw_private(key, qx, qy, d, ecc_sets[x].id);
+        return wc_ecc_import_raw_private(key, qx, qy, d, ecc_sets[x].id,
+            ECC_TYPE_HEX_STR);
     }
 
     return err;
@@ -8221,7 +8278,7 @@ static int wc_ecc_export_x963_compressed(ecc_key* key, byte* out, word32* outLen
 #else
 
    /* store first byte */
-   out[0] = mp_isodd(key->pubkey.y) == MP_YES ? 0x03 : 0x02;
+   out[0] = mp_isodd(key->pubkey.y) == MP_YES ? ECC_POINT_COMP_ODD : ECC_POINT_COMP_EVEN;
 
    /* pad and store x */
    XMEMSET(out+1, 0, numlen);
