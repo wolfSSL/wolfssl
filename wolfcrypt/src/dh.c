@@ -966,6 +966,7 @@ int wc_DhCheckPubKey_ex(DhKey* key, const byte* pub, word32 pubSz,
         }
 #else
         {
+            ret = WC_KEY_SIZE_E;
         }
 #endif
 

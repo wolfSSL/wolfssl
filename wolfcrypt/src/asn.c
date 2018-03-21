@@ -4301,6 +4301,10 @@ static int GetName(DecodedCert* cert, int nameType)
             if (copy && !tooBig) {
                 XMEMCPY(&full[idx], copy, XSTRLEN(copy));
                 idx += (word32)XSTRLEN(copy);
+            #ifdef WOLFSSL_WPAS
+                full[idx] = '=';
+                idx++;
+            #endif
                 XMEMCPY(&full[idx], &cert->source[cert->srcIdx], strLen);
                 idx += strLen;
             }
@@ -6900,6 +6904,7 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
     int    badDate = 0;
     int    criticalExt = 0;
     word32 confirmOID;
+    int    selfSigned = 0;
 
     if (cert == NULL) {
         return BAD_FUNC_ARG;
@@ -6990,18 +6995,25 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
         #endif
     #else
             cert->ca = GetCA(cm, cert->issuerHash);
+            if (XMEMCMP(cert->issuerHash, cert->subjectHash, KEYID_SIZE) == 0)
+                selfSigned = 1;
     #endif /* !NO_SKID */
 
             WOLFSSL_MSG("About to verify certificate signature");
             if (cert->ca) {
-                if (cert->isCA) {
-                    if (cert->ca->pathLengthSet) {
+                if (cert->isCA && cert->ca->pathLengthSet) {
+                    if (selfSigned) {
+                        if (cert->ca->pathLength != 0) {
+                           WOLFSSL_MSG("Root CA with path length > 0");
+                           return ASN_PATHLEN_INV_E;
+                        }
+                    }
+                    else {
                         if (cert->ca->pathLength == 0) {
                             WOLFSSL_MSG("CA with path length 0 signing a CA");
                             return ASN_PATHLEN_INV_E;
                         }
-                        if (cert->pathLengthSet &&
-                            cert->pathLength >= cert->ca->pathLength) {
+                        else if (cert->pathLength >= cert->ca->pathLength) {
 
                             WOLFSSL_MSG("CA signing CA with longer path length");
                             return ASN_PATHLEN_INV_E;
