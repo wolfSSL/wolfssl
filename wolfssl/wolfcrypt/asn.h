@@ -715,12 +715,18 @@ struct DecodedCert {
 
 extern const char* const BEGIN_CERT;
 extern const char* const END_CERT;
-extern const char* const BEGIN_CERT_REQ;
-extern const char* const END_CERT_REQ;
-extern const char* const BEGIN_DSA_PARAM;
-extern const char* const END_DSA_PARAM;
-extern const char* const BEGIN_DH_PARAM;
-extern const char* const END_DH_PARAM;
+#ifdef WOLFSSL_CERT_REQ
+    extern const char* const BEGIN_CERT_REQ;
+    extern const char* const END_CERT_REQ;
+#endif
+#ifndef NO_DSA
+    extern const char* const BEGIN_DSA_PARAM;
+    extern const char* const END_DSA_PARAM;
+#endif
+#ifndef NO_DH
+    extern const char* const BEGIN_DH_PARAM;
+    extern const char* const END_DH_PARAM;
+#endif
 extern const char* const BEGIN_X509_CRL;
 extern const char* const END_X509_CRL;
 extern const char* const BEGIN_RSA_PRIV;
@@ -729,14 +735,20 @@ extern const char* const BEGIN_PRIV_KEY;
 extern const char* const END_PRIV_KEY;
 extern const char* const BEGIN_ENC_PRIV_KEY;
 extern const char* const END_ENC_PRIV_KEY;
-extern const char* const BEGIN_EC_PRIV;
-extern const char* const END_EC_PRIV;
-extern const char* const BEGIN_DSA_PRIV;
-extern const char* const END_DSA_PRIV;
+#ifdef HAVE_ECC
+    extern const char* const BEGIN_EC_PRIV;
+    extern const char* const END_EC_PRIV;
+#endif
+#if defined(HAVE_ECC) || defined(HAVE_ED25519) || !defined(NO_DSA)
+    extern const char* const BEGIN_DSA_PRIV;
+    extern const char* const END_DSA_PRIV;
+#endif
 extern const char* const BEGIN_PUB_KEY;
 extern const char* const END_PUB_KEY;
-extern const char* const BEGIN_EDDSA_PRIV;
-extern const char* const END_EDDSA_PRIV;
+#ifdef HAVE_ED25519
+    extern const char* const BEGIN_EDDSA_PRIV;
+    extern const char* const END_EDDSA_PRIV;
+#endif
 
 #ifdef NO_SHA
     #define SIGNER_DIGEST_SIZE WC_SHA256_DIGEST_SIZE

@@ -568,6 +568,7 @@ void wc_FreeDhKey(DhKey* key)
 #endif
 
 
+#ifndef WOLFSSL_NO_DH186
 /* validate that (L,N) match allowed sizes from SP 800-56A, Section 5.5.1.1.
  * modLen - represents L, the size of p in bits
  * divLen - represents N, the size of q in bits
@@ -698,6 +699,7 @@ static int GeneratePrivateDh186(DhKey* key, WC_RNG* rng, byte* priv,
 
     return err;
 }
+#endif /* WOLFSSL_NO_DH186 */
 
 
 static int GeneratePrivateDh(DhKey* key, WC_RNG* rng, byte* priv,
@@ -706,13 +708,16 @@ static int GeneratePrivateDh(DhKey* key, WC_RNG* rng, byte* priv,
     int ret = 0;
     word32 sz = 0;
 
+#ifndef WOLFSSL_NO_DH186
     if (mp_iszero(&key->q) == MP_NO) {
 
         /* q param available, use NIST FIPS 186-4, "B.1.1 Key Pair
          * Generation Using Extra Random Bits" */
         ret = GeneratePrivateDh186(key, rng, priv, privSz);
 
-    } else {
+    } else
+#endif
+    {
 
         sz = mp_unsigned_bin_size(&key->p);
 

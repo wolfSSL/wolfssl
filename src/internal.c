@@ -162,8 +162,10 @@ int IsAtLeastTLSv1_2(const WOLFSSL* ssl)
 {
     if (ssl->version.major == SSLv3_MAJOR && ssl->version.minor >=TLSv1_2_MINOR)
         return 1;
+#ifdef WOLFSSL_DTLS
     if (ssl->version.major == DTLS_MAJOR && ssl->version.minor <= DTLSv1_2_MINOR)
         return 1;
+#endif
 
     return 0;
 }
@@ -1704,17 +1706,13 @@ void FreeCiphers(WOLFSSL* ssl)
 
 void InitCipherSpecs(CipherSpecs* cs)
 {
+    XMEMSET(cs, 0, sizeof(CipherSpecs));
+
     cs->bulk_cipher_algorithm = INVALID_BYTE;
     cs->cipher_type           = INVALID_BYTE;
     cs->mac_algorithm         = INVALID_BYTE;
     cs->kea                   = INVALID_BYTE;
     cs->sig_algo              = INVALID_BYTE;
-
-    cs->hash_size   = 0;
-    cs->static_ecdh = 0;
-    cs->key_size    = 0;
-    cs->iv_size     = 0;
-    cs->block_size  = 0;
 }
 
 void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, int haveRSAsig,
@@ -1725,6 +1723,7 @@ void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, int haveRSAsig,
     (void)tls1_2;
     (void)keySz;
 
+#if defined(HAVE_ECC) || defined(HAVE_ED25519)
     if (haveECDSAsig) {
         #ifdef WOLFSSL_SHA512
             suites->hashSigAlgo[idx++] = sha512_mac;
@@ -1748,6 +1747,7 @@ void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, int haveRSAsig,
             suites->hashSigAlgo[idx++] = ED25519_SA_MINOR;
         #endif
     }
+#endif /* HAVE_ECC || HAVE_ED25519 */
 
     if (haveRSAsig) {
         #ifdef WC_RSA_PSS
@@ -1785,13 +1785,15 @@ void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, int haveRSAsig,
         #endif
     }
 
+#ifdef HAVE_ANON
     if (haveAnon) {
-        #ifdef HAVE_ANON
             suites->hashSigAlgo[idx++] = sha_mac;
             suites->hashSigAlgo[idx++] = anonymous_sa_algo;
-        #endif
     }
+#endif
 
+    (void)haveAnon;
+    (void)haveECDSAsig;
     suites->hashSigAlgoSz = (word16)idx;
 }
 
@@ -1817,6 +1819,9 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     (void)haveNTRU;
     (void)haveStaticECC;
     (void)haveECC;
+    (void)side;
+    (void)haveRSA;    /* some builds won't read */
+    (void)haveRSAsig; /* non ecc builds won't read */
 
     if (suites == NULL) {
         WOLFSSL_MSG("InitSuites pointer error");
@@ -1826,15 +1831,15 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     if (suites->setSuites)
         return;      /* trust user settings, don't override */
 
+#ifndef NO_WOLFSSL_SERVER
     if (side == WOLFSSL_SERVER_END && haveStaticECC) {
         haveRSA = 0;   /* can't do RSA with ECDSA key */
-        (void)haveRSA; /* some builds won't read */
     }
 
     if (side == WOLFSSL_SERVER_END && haveECDSAsig) {
         haveRSAsig = 0;     /* can't have RSA sig if signed by ECDSA */
-        (void)haveRSAsig;   /* non ecc builds won't read */
     }
+#endif /* !NO_WOLFSSL_SERVER */
 
 #ifdef WOLFSSL_DTLS
     if (pv.major == DTLS_MAJOR) {
@@ -4435,10 +4440,12 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
     }
 
+#ifdef HAVE_WRITE_DUP
     if (writeDup) {
         /* all done */
         return 0;
     }
+#endif
 
     /* hsHashes */
     ret = InitHandshakeHashes(ssl);

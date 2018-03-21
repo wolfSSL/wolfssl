@@ -2811,6 +2811,83 @@ static void test_wolfSSL_PKCS12(void)
 #endif /* OPENSSL_EXTRA */
 }
 
+
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+        !defined(NO_DES3) && !defined(NO_FILESYSTEM) && \
+        !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA)
+/* for PKCS8 test case */
+static INLINE int PKCS8TestCallBack(char* passwd, int sz, int rw, void* userdata)
+{
+    int flag = 0;
+
+    (void)rw;
+    if (userdata != NULL) {
+        flag = *((int*)userdata); /* user set data */
+    }
+
+    switch (flag) {
+        case 1: /* flag set for specific WOLFSSL_CTX structure, note userdata
+                 * can be anything the user wishes to be passed to the callback
+                 * associated with the WOLFSSL_CTX */
+            strncpy(passwd, "yassl123", sz);
+            return 8;
+
+       default:
+            return BAD_FUNC_ARG;
+    }
+}
+#endif
+
+/* Testing functions dealing with PKCS8 */
+static void test_wolfSSL_PKCS8(void)
+{
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+        !defined(NO_DES3) && !defined(NO_FILESYSTEM) && \
+        !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA)
+    byte buffer[FOURK_BUF];
+    byte der[FOURK_BUF];
+    char file[] = "./certs/server-keyPkcs8Enc.pem";
+    FILE *f;
+    int  flag = 1;
+    int  bytes;
+    WOLFSSL_CTX* ctx;
+
+    printf(testingFmt, "wolfSSL_PKCS8()");
+
+    f = fopen(file, "rb");
+    AssertNotNull(f);
+    bytes = (int)fread(buffer, 1, sizeof(buffer), f);
+    fclose(f);
+
+    /* Note that wolfSSL_Init() or wolfCrypt_Init() has been called before these
+     * function calls */
+
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    wolfSSL_CTX_set_default_passwd_cb(ctx, &PKCS8TestCallBack);
+    wolfSSL_CTX_set_default_passwd_cb_userdata(ctx, (void*)&flag);
+    AssertIntEQ(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+                SSL_FILETYPE_PEM), SSL_SUCCESS);
+
+    /* this next case should fail if setting the user flag to a value other
+     * than 1 due to the password callback functions return value */
+    flag = 0;
+    wolfSSL_CTX_set_default_passwd_cb_userdata(ctx, (void*)&flag);
+    AssertIntNE(wolfSSL_CTX_use_PrivateKey_buffer(ctx, buffer, bytes,
+                SSL_FILETYPE_PEM), SSL_SUCCESS);
+
+    wolfSSL_CTX_free(ctx);
+
+    /* decrypt PKCS8 PEM to key in DER format with not using WOLFSSL_CTX */
+    AssertIntGT(wolfSSL_KeyPemToDer(buffer, bytes, der, FOURK_BUF, "yassl123"),
+                0);
+
+    /* test that error value is returned with a bad password */
+    AssertIntLT(wolfSSL_KeyPemToDer(buffer, bytes, der, FOURK_BUF, "bad"), 0);
+
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA */
+}
+
 /* Testing functions dealing with PKCS5 */
 static void test_wolfSSL_PKCS5(void)
 {
@@ -17546,6 +17623,7 @@ void ApiTest(void)
     /* X509 tests */
     test_wolfSSL_X509_NAME_get_entry();
     test_wolfSSL_PKCS12();
+    test_wolfSSL_PKCS8();
     test_wolfSSL_PKCS5();
 
     /*OCSP Stapling. */

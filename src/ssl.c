@@ -50,8 +50,8 @@
     #endif
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) || \
-                              defined(WOLFSSL_KEY_GEN)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+        defined(HAVE_WEBSERVER) || defined(WOLFSSL_KEY_GEN)
     #include <wolfssl/openssl/evp.h>
     /* openssl headers end, wolfssl internal headers next */
     #include <wolfssl/wolfcrypt/wc_encrypt.h>
@@ -3189,7 +3189,8 @@ int wolfSSL_CertPemToDer(const unsigned char* pem, int pemSz,
 
 #endif /* NO_CERTS */
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_WEBSERVER)
 
 static struct cipher{
         unsigned char type;
@@ -3527,7 +3528,7 @@ static INLINE int OurPasswordCb(char* passwd, int sz, int rw, void* userdata)
     return min((word32)sz, (word32)XSTRLEN((char*)userdata));
 }
 
-#endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || HAVE_WEBSERVER */
 
 #ifndef NO_CERTS
 
@@ -3562,7 +3563,8 @@ int wolfSSL_KeyPemToDer(const unsigned char* pem, int pemSz,
     info->ctx      = NULL;
     info->consumed = 0;
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_WEBSERVER)
     if (pass) {
         info->ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
         if (info->ctx == NULL) {
@@ -4469,7 +4471,8 @@ int wolfSSL_Init(void)
 }
 
 
-#if (defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)) && !defined(NO_CERTS)
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+            defined(HAVE_WEBSERVER)) && !defined(NO_CERTS)
 
 /* WOLFSSL_SUCCESS if ok, <= 0 else */
 static int wolfssl_decrypt_buffer_key(DerBuffer* der, byte* password,
@@ -4559,7 +4562,8 @@ static int wolfssl_decrypt_buffer_key(DerBuffer* der, byte* password,
 
     return WOLFSSL_FATAL_ERROR;
 }
-#endif /* defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER) */
+#endif /* defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) ||
+          defined(HAVE_WEBSERVER) */
 
 
 #if defined(WOLFSSL_KEY_GEN) && defined(OPENSSL_EXTRA)
@@ -4909,7 +4913,8 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         return 0;
     }
 
-#if (defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)) && !defined(NO_PWDBASED)
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+        defined(HAVE_WEBSERVER)) && !defined(NO_PWDBASED)
     if (encrypted_key || header == BEGIN_ENC_PRIV_KEY) {
         int   passwordSz;
     #ifdef WOLFSSL_SMALL_STACK
@@ -4953,7 +4958,8 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             }
         }
     }
-#endif  /* OPENSSL_EXTRA || HAVE_WEBSERVER || NO_PWDBASED */
+#endif  /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || HAVE_WEBSERVER ||
+           NO_PWDBASED */
 
     return 0;
 }
@@ -5183,7 +5189,8 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         return ret;
     }
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_WEBSERVER)
     /* for WOLFSSL_FILETYPE_PEM, PemToDer manage the decryption if required */
     if (info->set && (format != WOLFSSL_FILETYPE_PEM)) {
         /* decrypt */
@@ -5224,7 +5231,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             return ret;
         }
     }
-#endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || HAVE_WEBSERVER */
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(info, heap, DYNAMIC_TYPE_ENCRYPTEDINFO);
@@ -12503,7 +12510,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 #endif /* OPENSSL_EXTRA */
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_WEBSERVER)
 
     void wolfSSL_CTX_set_default_passwd_cb_userdata(WOLFSSL_CTX* ctx,
                                                    void* userdata)
@@ -12519,72 +12527,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         if (ctx != NULL) {
             ctx->passwd_cb = cb;
         }
-    }
-
-    int wolfSSL_num_locks(void)
-    {
-        return 0;
-    }
-
-    void wolfSSL_set_locking_callback(void (*f)(int, int, const char*, int))
-    {
-        WOLFSSL_ENTER("wolfSSL_set_locking_callback");
-
-        if (wc_SetMutexCb(f) != 0) {
-            WOLFSSL_MSG("Error when setting mutex call back");
-        }
-    }
-
-
-    typedef unsigned long (idCb)(void);
-    static idCb* inner_idCb = NULL;
-
-    unsigned long wolfSSL_thread_id(void)
-    {
-        if (inner_idCb != NULL) {
-            return inner_idCb();
-        }
-        else {
-            return 0;
-        }
-    }
-
-
-    void wolfSSL_set_id_callback(unsigned long (*f)(void))
-    {
-        inner_idCb = f;
-    }
-
-    unsigned long wolfSSL_ERR_get_error(void)
-    {
-        WOLFSSL_ENTER("wolfSSL_ERR_get_error");
-
-#if defined(WOLFSSL_NGINX)
-        {
-            unsigned long ret = wolfSSL_ERR_peek_error_line_data(NULL, NULL,
-                                                                 NULL, NULL);
-            wc_RemoveErrorNode(-1);
-            return ret;
-        }
-#elif (defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE))
-        {
-            int ret = wc_PullErrorNode(NULL, NULL, NULL);
-
-            if (ret < 0) {
-                if (ret == BAD_STATE_E) return 0; /* no errors in queue */
-                WOLFSSL_MSG("Error with pulling error node!");
-                WOLFSSL_LEAVE("wolfSSL_ERR_get_error", ret);
-                ret = 0 - ret; /* return absolute value of error */
-
-                /* panic and try to clear out nodes */
-                wc_ClearErrorNodes();
-            }
-
-            return (unsigned long)ret;
-        }
-#else
-        return (unsigned long)(0 - NOT_COMPILED_IN);
-#endif
     }
 
 #ifndef NO_MD5
@@ -12722,6 +12664,75 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 
 #endif /* NO_MD5 */
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || HAVE_WEBSERVER */
+
+
+#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+    int wolfSSL_num_locks(void)
+    {
+        return 0;
+    }
+
+    void wolfSSL_set_locking_callback(void (*f)(int, int, const char*, int))
+    {
+        WOLFSSL_ENTER("wolfSSL_set_locking_callback");
+
+        if (wc_SetMutexCb(f) != 0) {
+            WOLFSSL_MSG("Error when setting mutex call back");
+        }
+    }
+
+
+    typedef unsigned long (idCb)(void);
+    static idCb* inner_idCb = NULL;
+
+    unsigned long wolfSSL_thread_id(void)
+    {
+        if (inner_idCb != NULL) {
+            return inner_idCb();
+        }
+        else {
+            return 0;
+        }
+    }
+
+
+    void wolfSSL_set_id_callback(unsigned long (*f)(void))
+    {
+        inner_idCb = f;
+    }
+
+    unsigned long wolfSSL_ERR_get_error(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_ERR_get_error");
+
+#if defined(WOLFSSL_NGINX)
+        {
+            unsigned long ret = wolfSSL_ERR_peek_error_line_data(NULL, NULL,
+                                                                 NULL, NULL);
+            wc_RemoveErrorNode(-1);
+            return ret;
+        }
+#elif (defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE))
+        {
+            int ret = wc_PullErrorNode(NULL, NULL, NULL);
+
+            if (ret < 0) {
+                if (ret == BAD_STATE_E) return 0; /* no errors in queue */
+                WOLFSSL_MSG("Error with pulling error node!");
+                WOLFSSL_LEAVE("wolfSSL_ERR_get_error", ret);
+                ret = 0 - ret; /* return absolute value of error */
+
+                /* panic and try to clear out nodes */
+                wc_ClearErrorNodes();
+            }
+
+            return (unsigned long)ret;
+        }
+#else
+        return (unsigned long)(0 - NOT_COMPILED_IN);
+#endif
+    }
 
 #endif /* OPENSSL_EXTRA || HAVE_WEBSERVER */
 
