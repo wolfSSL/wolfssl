@@ -1534,19 +1534,23 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                     oid = extExtKeyUsageOid;
                     *oidSz = sizeof(extExtKeyUsageOid);
                     break;
+            #ifndef IGNORE_NAME_CONSTRAINTS
                 case NAME_CONS_OID:
                     oid = extNameConsOid;
                     *oidSz = sizeof(extNameConsOid);
                     break;
+            #endif
             }
             break;
 
         case oidCertAuthInfoType:
             switch (id) {
+            #ifdef HAVE_OCSP
                 case AIA_OCSP_OID:
                     oid = extAuthInfoOcspOid;
                     *oidSz = sizeof(extAuthInfoOcspOid);
                     break;
+            #endif
                 case AIA_CA_ISSUER_OID:
                     oid = extAuthInfoCaIssuerOid;
                     *oidSz = sizeof(extAuthInfoCaIssuerOid);
