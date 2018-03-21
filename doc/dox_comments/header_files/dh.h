@@ -80,7 +80,7 @@ WOLFSSL_API void wc_FreeDhKey(DhKey* key);
 
     wc_InitDhKey(&key); // initialize key
     // Set DH parameters using wc_DhSetKey or wc_DhKeyDecode
-    RNG rng;
+    WC_RNG rng;
     wc_InitRng(&rng); // initialize rng
     ret = wc_DhGenerateKeyPair(&key, &rng, priv, &privSz, pub, &pubSz);
     \endcode

@@ -5877,6 +5877,10 @@ int wc_ecc_size(ecc_key* key)
     return key->dp->size;
 }
 
+int wc_ecc_sig_size_calc(int sz)
+{
+    return (sz * 2) + SIG_HEADER_SZ + ECC_MAX_PAD_SZ;
+}
 
 /* worst case estimate, check actual return from wc_ecc_sign_hash for actual
    value of signature size in octets */
@@ -5886,7 +5890,7 @@ int wc_ecc_sig_size(ecc_key* key)
     if (sz <= 0)
         return sz;
 
-    return (sz * 2) + SIG_HEADER_SZ + ECC_MAX_PAD_SZ;
+    return wc_ecc_sig_size_calc(sz);
 }
 
 

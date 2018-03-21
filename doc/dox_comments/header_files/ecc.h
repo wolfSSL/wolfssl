@@ -41,7 +41,7 @@
     \code
     ecc_key key;
     wc_ecc_init(&key);
-    RNG rng;
+    WC_WC_RNG rng;
     wc_InitRng(&rng);
     wc_ecc_make_key(&rng, 32, &key); // initialize 32 byte ecc key
     \endcode
@@ -51,6 +51,7 @@
 */
 WOLFSSL_API
 int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key);
+
 /*!
     \ingroup ECC
     
@@ -65,7 +66,7 @@ int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key);
     _Example_
     \code
     ecc_key key;
-    RNG rng;
+    WC_WC_RNG rng;
     int check_result;
     wc_ecc_init(&key);
     wc_InitRng(&rng);
@@ -86,6 +87,7 @@ int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key);
 */
 WOLFSSL_API
 int wc_ecc_make_pub(ecc_key* key, ecc_point* pubOut);
+
 /*!
     \ingroup ECC
     
@@ -139,7 +141,7 @@ int wc_ecc_make_pub(ecc_key* key, ecc_point* pubOut);
     _Example_
     \code
     ecc_key priv, pub;
-    RNG rng;
+    WC_WC_RNG rng;
     byte secret[1024]; // can hold 1024 byte shared secret key
     word32 secretSz = sizeof(secret);
     int ret;
@@ -161,6 +163,7 @@ int wc_ecc_make_pub(ecc_key* key, ecc_point* pubOut);
 WOLFSSL_API
 int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
                       word32* outlen);
+
 /*!
     \ingroup ECC
     
@@ -206,6 +209,7 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
 WOLFSSL_API
 int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
                              byte* out, word32 *outlen);
+
 /*!
     \ingroup ECC
     
@@ -254,7 +258,7 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
     _Example_
     \code
     ecc_key key;
-    RNG rng;
+    WC_WC_RNG rng;
     int ret, sigSz;
 
     byte sig[512]; // will hold generated signature
@@ -274,6 +278,7 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
 WOLFSSL_API
 int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
                      WC_RNG* rng, ecc_key* key);
+
 /*!
     \ingroup ECC
     
@@ -319,7 +324,7 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     _Example_
     \code
     ecc_key key;
-    WC_RNG rng;
+    WC_WC_WC_RNG rng;
     int ret, sigSz;
     mp_int r; // destination for r component of signature.
     mp_int s; // destination for s component of signature.
@@ -342,6 +347,7 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
 WOLFSSL_API
 int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                         ecc_key* key, mp_int *r, mp_int *s);
+
 /*!
     \ingroup ECC
     
@@ -409,6 +415,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 WOLFSSL_API
 int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
                     word32 hashlen, int* stat, ecc_key* key);
+
 /*!
     \ingroup ECC
     
@@ -447,6 +454,7 @@ Note: Do not use the return value to test for valid.  Only use stat.
 WOLFSSL_API
 int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
                           word32 hashlen, int* stat, ecc_key* key);
+
 /*!
     \ingroup ECC
     
@@ -469,6 +477,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 */
 WOLFSSL_API
 int wc_ecc_init(ecc_key* key);
+
 /*!
     \ingroup ECC
     
@@ -489,6 +498,7 @@ int wc_ecc_init(ecc_key* key);
 */
 WOLFSSL_API
 int wc_ecc_free(ecc_key* key);
+
 /*!
     \ingroup ECC
     
@@ -513,6 +523,7 @@ int wc_ecc_free(ecc_key* key);
 */
 WOLFSSL_API
 void wc_ecc_fp_free(void);
+
 /*!
     \ingroup ECC
     
@@ -526,7 +537,7 @@ void wc_ecc_fp_free(void);
     _Example_
     \code
     ecc_key key;
-    RNG rng;
+    WC_WC_RNG rng;
     int is_valid;
     wc_ecc_init(&key);
     wc_InitRng(&rng);
@@ -546,6 +557,7 @@ void wc_ecc_fp_free(void);
 */
 WOLFSSL_API
 int wc_ecc_is_valid_idx(int n);
+
 /*!
     \ingroup ECC
     
@@ -573,6 +585,7 @@ int wc_ecc_is_valid_idx(int n);
 */
 WOLFSSL_API
 ecc_point* wc_ecc_new_point(void);
+
 /*!
     \ingroup ECC
     
@@ -600,6 +613,7 @@ ecc_point* wc_ecc_new_point(void);
 */
 WOLFSSL_API
 void wc_ecc_del_point(ecc_point* p);
+
 /*!
     \ingroup ECC
     
@@ -632,6 +646,7 @@ void wc_ecc_del_point(ecc_point* p);
 */
 WOLFSSL_API
 int wc_ecc_copy_point(ecc_point* p, ecc_point *r);
+
 /*!
     \ingroup ECC
     
@@ -674,6 +689,7 @@ int wc_ecc_copy_point(ecc_point* p, ecc_point *r);
 */
 WOLFSSL_API
 int wc_ecc_cmp_point(ecc_point* a, ecc_point *b);
+
 /*!
     \ingroup ECC
     
@@ -714,6 +730,7 @@ int wc_ecc_cmp_point(ecc_point* a, ecc_point *b);
 */
 WOLFSSL_API
 int wc_ecc_point_is_at_infinity(ecc_point *p);
+
 /*!
     \ingroup ECC
     
@@ -748,6 +765,7 @@ int wc_ecc_point_is_at_infinity(ecc_point *p);
 WOLFSSL_API
 int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
                   mp_int* a, mp_int* modulus, int map);
+
 /*!
     \ingroup ECC
     
@@ -812,6 +830,7 @@ int wc_ecc_mulmod(mp_int* k, ecc_point *G, ecc_point *R,
 */
 WOLFSSL_API
 int wc_ecc_export_x963(ecc_key*, byte* out, word32* outLen);
+
 /*!
     \ingroup ECC
     
@@ -882,6 +901,7 @@ int wc_ecc_export_x963(ecc_key*, byte* out, word32* outLen);
 */
 WOLFSSL_API
 int wc_ecc_export_x963_ex(ecc_key*, byte* out, word32* outLen, int compressed);
+
 /*!
     \ingroup ECC
     
@@ -944,6 +964,7 @@ int wc_ecc_export_x963_ex(ecc_key*, byte* out, word32* outLen, int compressed);
 */
 WOLFSSL_API
 int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key);
+
 /*!
     \ingroup ECC
     
@@ -1013,6 +1034,7 @@ NOT_COMPILED_IN Returned if the HAVE_COMP_KEY was not enabled at compile
 WOLFSSL_API
 int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
                            word32 pubSz, ecc_key* key);
+
 /*!
     \ingroup ECC
     
@@ -1077,6 +1099,7 @@ int wc_ecc_import_private_key(const byte* priv, word32 privSz, const byte* pub,
 */
 WOLFSSL_API
 int wc_ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen);
+
 /*!
     \ingroup ECC
     
@@ -1142,6 +1165,7 @@ int wc_ecc_rs_to_sig(const char* r, const char* s, byte* out, word32* outlen);
 WOLFSSL_API
 int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
                    const char* d, const char* curveName);
+
 /*!
     \ingroup ECC
     
@@ -1203,6 +1227,7 @@ int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
 */
 WOLFSSL_API
 int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen);
+
 /*!
     \ingroup ECC
     
@@ -1235,6 +1260,7 @@ int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen);
 WOLFSSL_API
 int wc_ecc_export_point_der(const int curve_idx, ecc_point* point,
                             byte* out, word32* outLen);
+
 /*!
     \ingroup ECC
     
@@ -1266,6 +1292,7 @@ int wc_ecc_export_point_der(const int curve_idx, ecc_point* point,
 WOLFSSL_API
 int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
                             ecc_point* point);
+
 /*!
     \ingroup ECC
     
@@ -1292,12 +1319,40 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
 */
 WOLFSSL_API
 int wc_ecc_size(ecc_key* key);
+
 /*!
     \ingroup ECC
     
     \brief This function returns the worst case size for an ECC signature, 
-    given by: keySz * 2 + SIG_HEADER_SZ + 4 The actual signature size can 
-    be computed with wc_ecc_sign_hash.
+    given by: (keySz * 2) + SIG_HEADER_SZ + ECC_MAX_PAD_SZ.
+    The actual signature size can be computed with wc_ecc_sign_hash.
+    
+    \return returns the maximum signature 
+    size, in octets
+    
+    \param key size
+    
+    _Example_
+    \code
+    int sigSz = wc_ecc_sig_size(32);
+    if ( sigSz == 0) {
+    	// error determining sig size
+    }
+    \endcode
+
+    \sa wc_ecc_sign_hash
+    \sa wc_ecc_sig_size
+*/
+WOLFSSL_API
+int wc_ecc_sig_size_calc(int sz);
+
+
+/*!
+    \ingroup ECC
+    
+    \brief This function returns the worst case size for an ECC signature, 
+    given by: (keySz * 2) + SIG_HEADER_SZ + ECC_MAX_PAD_SZ.
+    The actual signature size can be computed with wc_ecc_sign_hash.
     
     \return Success Given a valid key, returns the maximum signature 
     size, in octets
@@ -1314,17 +1369,20 @@ int wc_ecc_size(ecc_key* key);
 
     sigSz = wc_ecc_sig_size(&key);
     if ( sigSz == 0) {
-    	// error determining sig size
+        // error determining sig size
     }
     \endcode
 
     \sa wc_ecc_sign_hash
+    \sa wc_ecc_sig_size_calc
 */
 WOLFSSL_API
 int wc_ecc_sig_size(ecc_key* key);
+
+
 /*!
     \ingroup ECC
-    
+
     \brief This function allocates and initializes space for a new ECC 
     context object to allow secure message exchange with ECC.
     
@@ -1340,11 +1398,11 @@ int wc_ecc_sig_size(ecc_key* key);
     _Example_
     \code
     ecEncCtx* ctx;
-    RNG rng;
+    WC_WC_RNG rng;
     wc_InitRng(&rng);
     ctx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng);
     if(ctx == NULL) {
-	    // error generating new ecEncCtx object
+        // error generating new ecEncCtx object
     }
     \endcode
     
@@ -1353,6 +1411,7 @@ int wc_ecc_sig_size(ecc_key* key);
 */
 WOLFSSL_API
 ecEncCtx* wc_ecc_ctx_new(int flags, WC_RNG* rng);
+
 /*!
     \ingroup ECC
     
@@ -1366,7 +1425,7 @@ ecEncCtx* wc_ecc_ctx_new(int flags, WC_RNG* rng);
     _Example_
     \code
     ecEncCtx* ctx;
-    RNG rng;
+    WC_WC_RNG rng;
     wc_InitRng(&rng);
     ctx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng);
     // do secure communication
@@ -1378,6 +1437,7 @@ ecEncCtx* wc_ecc_ctx_new(int flags, WC_RNG* rng);
 */
 WOLFSSL_API
 void wc_ecc_ctx_free(ecEncCtx*);
+
 /*!
     \ingroup ECC
     
@@ -1395,7 +1455,7 @@ void wc_ecc_ctx_free(ecEncCtx*);
     _Example_
     \code
     ecEncCtx* ctx;
-    RNG rng;
+    WC_WC_RNG rng;
     wc_InitRng(&rng);
     ctx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng);
     // do secure communication
@@ -1408,6 +1468,7 @@ void wc_ecc_ctx_free(ecEncCtx*);
 */
 WOLFSSL_API
 int wc_ecc_ctx_reset(ecEncCtx*, WC_RNG*);  /* reset for use again w/o alloc/free */
+
 /*!
     \ingroup ECC
     
@@ -1426,7 +1487,7 @@ int wc_ecc_ctx_reset(ecEncCtx*, WC_RNG*);  /* reset for use again w/o alloc/free
     _Example_
     \code
     ecEncCtx* ctx;
-    RNG rng;
+    WC_WC_RNG rng;
     const byte* salt;
     wc_InitRng(&rng);
     ctx = wc_ecc_ctx_new(REQ_RESP_CLIENT, &rng);
@@ -1441,6 +1502,7 @@ int wc_ecc_ctx_reset(ecEncCtx*, WC_RNG*);  /* reset for use again w/o alloc/free
 */
 WOLFSSL_API
 const byte* wc_ecc_ctx_get_own_salt(ecEncCtx*);
+
 /*!
     \ingroup ECC
     
@@ -1461,7 +1523,7 @@ const byte* wc_ecc_ctx_get_own_salt(ecEncCtx*);
     _Example_
     \code
     ecEncCtx* cliCtx, srvCtx;
-    RNG rng;
+    WC_WC_RNG rng;
     const byte* cliSalt, srvSalt;
     int ret;
 
@@ -1478,6 +1540,7 @@ const byte* wc_ecc_ctx_get_own_salt(ecEncCtx*);
 */
 WOLFSSL_API
 int wc_ecc_ctx_set_peer_salt(ecEncCtx*, const byte* salt);
+
 /*!
     \ingroup ECC
     
@@ -1508,6 +1571,7 @@ int wc_ecc_ctx_set_peer_salt(ecEncCtx*, const byte* salt);
 */
 WOLFSSL_API
 int wc_ecc_ctx_set_info(ecEncCtx*, const byte* info, int sz);
+
 /*!
     \ingroup ECC
     
@@ -1568,6 +1632,7 @@ int wc_ecc_ctx_set_info(ecEncCtx*, const byte* info, int sz);
 WOLFSSL_API
 int wc_ecc_encrypt(ecc_key* privKey, ecc_key* pubKey, const byte* msg,
                 word32 msgSz, byte* out, word32* outSz, ecEncCtx* ctx);
+
 /*!
     \ingroup ECC
     

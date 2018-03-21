@@ -463,7 +463,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    useNtruKey   = 0;
     int    nonBlocking  = 0;
     int    fewerPackets = 0;
+#ifdef HAVE_PK_CALLBACKS
     int    pkCallbacks  = 0;
+    PkCbInfo pkCbInfo;
+#endif
     int    wc_shutdown     = 0;
     int    resume = 0;
     int    resumeCount = 0;
@@ -549,7 +552,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     ourCert    = (char*)eccCertFile;
     ourKey     = (char*)eccKeyFile;
 #endif
-    (void)pkCallbacks;
+
     (void)needDH;
     (void)ourKey;
     (void)ourCert;
@@ -1041,6 +1044,12 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     }
 #endif
 #if !defined(NO_CERTS)
+#ifdef HAVE_PK_CALLBACKS
+    pkCbInfo.ourKey = ourKey;
+    #ifdef TEST_PK_PRIVKEY
+    if (!pkCallbacks)
+    #endif
+#endif
     if (!useNtruKey && (!usePsk || usePskPlus) && !useAnon) {
     #if !defined(NO_FILESYSTEM)
         if (SSL_CTX_use_PrivateKey_file(ctx, ourKey, WOLFSSL_FILETYPE_PEM)
@@ -1180,6 +1189,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
     }
 
+#ifdef HAVE_PK_CALLBACKS
+        if (pkCallbacks)
+            SetupPkCallbacks(ctx);
+#endif
+
         ssl = SSL_new(ctx);
         if (ssl == NULL)
             err_sys_ex(runWithErrors, "unable to get SSL");
@@ -1255,9 +1269,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         if (SSL_CTX_load_verify_locations(ctx, "certs/ocsp/intermediate3-ca-cert.pem", 0) != WOLFSSL_SUCCESS)
             err_sys_ex(runWithErrors, "can't load ca file, Please run from wolfSSL home dir");
 #endif
+
 #ifdef HAVE_PK_CALLBACKS
         if (pkCallbacks)
-            SetupPkCallbacks(ctx, ssl);
+            SetupPkCallbackContexts(ssl, &pkCbInfo);
 #endif
 
         /* do accept */

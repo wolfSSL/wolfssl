@@ -722,6 +722,7 @@ static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
 #endif /* !WC_NO_RSA_OAEP */
 
 #ifdef WC_RSA_PSS
+
 /* 0x00 .. 0x00 0x01 | Salt | Gen Hash | 0xbc
  * XOR MGF over all bytes down to end of Salt
  * Gen Hash = HASH(8 * 0x00 | Message Hash | Salt)
@@ -774,7 +775,7 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
     h = pkcsBlock + pkcsBlockLen - 1 - hLen;
     if ((ret = wc_Hash(hType, s, (word32)(m - s), h, hLen)) != 0)
         return ret;
-    pkcsBlock[pkcsBlockLen - 1] = 0xbc;
+    pkcsBlock[pkcsBlockLen - 1] = RSA_PSS_PAD_TERM;
 
     ret = RsaMGF(mgf, h, hLen, pkcsBlock, pkcsBlockLen - hLen - 1, heap);
     if (ret != 0)
@@ -1028,8 +1029,8 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
     if ((int)pkcsBlockLen - hLen - 1 < saltLen + 2)
         return PSS_SALTLEN_E;
 
-    if (pkcsBlock[pkcsBlockLen - 1] != 0xbc) {
-        WOLFSSL_MSG("RsaUnPad_PSS: Padding Error 0xBC");
+    if (pkcsBlock[pkcsBlockLen - 1] != RSA_PSS_PAD_TERM) {
+        WOLFSSL_MSG("RsaUnPad_PSS: Padding Term Error");
         return BAD_PADDING_E;
     }
 
@@ -2139,7 +2140,7 @@ int wc_RsaPSS_Verify_ex(byte* in, word32 inLen, byte* out, word32 outLen,
  * Salt length is equal to hash length.
  *
  * in        Hash of the data that is being verified.
- * inSz      Length of hash.     
+ * inSz      Length of hash.
  * sig       Buffer holding PSS data.
  * sigSz     Size of PSS data.
  * hashType  Hash algorithm.
@@ -2156,7 +2157,7 @@ int wc_RsaPSS_CheckPadding(const byte* in, word32 inSz, byte* sig,
 /* Checks the PSS data to ensure that the signature matches.
  *
  * in        Hash of the data that is being verified.
- * inSz      Length of hash.     
+ * inSz      Length of hash.
  * sig       Buffer holding PSS data.
  * sigSz     Size of PSS data.
  * hashType  Hash algorithm.

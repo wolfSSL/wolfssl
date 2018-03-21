@@ -231,7 +231,7 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     }
 #endif
 
-    /* Build Client Command */
+    /* Build Server Command */
     if (addNoVerify) {
         printf("repeating test with client cert request off\n");
         if (svrArgs.argc >= MAX_ARGS)
@@ -261,6 +261,9 @@ static int execute_test_case(int svr_argc, char** svr_argv,
         else
             svr_argv[svrArgs.argc++] = forceDefCipherListFlag;
     }
+#ifdef TEST_PK_PRIVKEY
+    svr_argv[svrArgs.argc++] = (char*)"-P";
+#endif
 
     /* update server flags list */
     commandLine[0] = '\0';
@@ -321,6 +324,9 @@ static int execute_test_case(int svr_argc, char** svr_argv,
         else
             cli_argv[cliArgs.argc++] = forceDefCipherListFlag;
     }
+#ifdef TEST_PK_PRIVKEY
+    cli_argv[cliArgs.argc++] = (char*)"-P";
+#endif
 
     commandLine[0] = '\0';
     added = 0;

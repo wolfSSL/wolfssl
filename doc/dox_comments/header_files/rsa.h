@@ -28,6 +28,7 @@
     \sa wc_FreeRsaKey
 */
 WOLFSSL_API int  wc_InitRsaKey(RsaKey* key, void* heap);
+
 /*!
     \ingroup RSA
     
@@ -49,6 +50,7 @@ WOLFSSL_API int  wc_InitRsaKey(RsaKey* key, void* heap);
     \sa wc_InitRsaKey
 */
 WOLFSSL_API int  wc_FreeRsaKey(RsaKey* key);
+
 /*!
     \ingroup RSA
     
@@ -122,6 +124,7 @@ WOLFSSL_API int  wc_FreeRsaKey(RsaKey* key);
 */
 WOLFSSL_API int  wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
                                  word32 outLen, RsaKey* key, WC_RNG* rng);
+
 /*!
     \ingroup RSA
     
@@ -145,6 +148,7 @@ WOLFSSL_API int  wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
 */
 WOLFSSL_API int  wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out,
                                         RsaKey* key);
+
 /*!
     \ingroup RSA
     
@@ -178,6 +182,7 @@ WOLFSSL_API int  wc_RsaPrivateDecryptInline(byte* in, word32 inLen, byte** out,
 */
 WOLFSSL_API int  wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
                                   word32 outLen, RsaKey* key);
+
 /*!
     \ingroup RSA
     
@@ -210,6 +215,7 @@ WOLFSSL_API int  wc_RsaPrivateDecrypt(const byte* in, word32 inLen, byte* out,
 */
 WOLFSSL_API int  wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
                             word32 outLen, RsaKey* key, WC_RNG* rng);
+
 /*!
     \ingroup RSA
     
@@ -227,7 +233,7 @@ WOLFSSL_API int  wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
     _Example_
     \code
     RsaKey key;
-    RNG rng;
+    WC_WC_RNG rng;
     int ret = 0;
     long e = 65537; // standard value to use for exponent
     wc_InitRsaKey(&key, NULL); // not using heap hint. No custom memory
@@ -247,6 +253,7 @@ WOLFSSL_API int  wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out,
 */
 WOLFSSL_API int  wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out,
                                     RsaKey* key);
+
 /*!
     \ingroup RSA
     
@@ -278,6 +285,7 @@ WOLFSSL_API int  wc_RsaSSL_VerifyInline(byte* in, word32 inLen, byte** out,
 */
 WOLFSSL_API int  wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out,
                               word32 outLen, RsaKey* key);
+
 /*!
     \ingroup RSA
     
@@ -298,6 +306,7 @@ WOLFSSL_API int  wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out,
     \sa XMEMSET
 */
 WOLFSSL_API int  wc_RsaEncryptSize(RsaKey* key);
+
 /*!
     \ingroup RSA
     
@@ -341,6 +350,7 @@ WOLFSSL_API int  wc_RsaEncryptSize(RsaKey* key);
 */
 WOLFSSL_API int  wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
                                                                RsaKey*, word32);
+
 /*!
     \ingroup RSA
     
@@ -389,6 +399,7 @@ WOLFSSL_API int  wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
 */
 WOLFSSL_API int  wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx,
                                                                RsaKey*, word32);
+
 /*!
     \ingroup RSA
     
@@ -433,6 +444,7 @@ WOLFSSL_API int  wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx,
 */
 WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
                                         const byte* e, word32 eSz, RsaKey* key);
+
 /*!
     \ingroup RSA
     
@@ -454,7 +466,7 @@ WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
     // Allocate memory for der
     int derSz = // Amount of memory allocated for der;
     RsaKey key;
-    RNG rng;
+    WC_WC_RNG rng;
     long e = 65537; // standard value to use for exponent
     ret = wc_MakeRsaKey(&key, 2048, e, &rng); // generate 2048 bit long 
     private key
@@ -472,6 +484,7 @@ WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
     \sa wc_InitRng
 */
     WOLFSSL_API int wc_RsaKeyToDer(RsaKey*, byte* output, word32 inLen);
+
 /*!
     \ingroup RSA
     
@@ -496,7 +509,7 @@ WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
 
     _Example_
     \code
-    WC_RNG rng;
+    WC_WC_WC_RNG rng;
     RsaKey key;
     byte in[] = “I use Turing Machines to ask questions”
     byte out[256];
@@ -516,6 +529,7 @@ WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
 WOLFSSL_API int  wc_RsaPublicEncrypt_ex(const byte* in, word32 inLen, byte* out,
                    word32 outLen, RsaKey* key, WC_RNG* rng, int type,
                    enum wc_HashType hash, int mgf, byte* label, word32 lableSz);
+
 /*!
     \ingroup RSA
     
@@ -542,7 +556,7 @@ WOLFSSL_API int  wc_RsaPublicEncrypt_ex(const byte* in, word32 inLen, byte* out,
 
     _Example_
     \code
-    WC_RNG rng;
+    WC_WC_WC_RNG rng;
     RsaKey key;
     byte in[] = “I use Turing Machines to ask questions”
     byte out[256];
@@ -568,6 +582,7 @@ WOLFSSL_API int  wc_RsaPublicEncrypt_ex(const byte* in, word32 inLen, byte* out,
 WOLFSSL_API int  wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen,
                    byte* out, word32 outLen, RsaKey* key, int type,
                    enum wc_HashType hash, int mgf, byte* label, word32 lableSz);
+
 /*!
     \ingroup RSA
     
@@ -598,7 +613,7 @@ WOLFSSL_API int  wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen,
 
     _Example_
     \code
-    WC_RNG rng;
+    WC_WC_WC_RNG rng;
     RsaKey key;
     byte in[] = “I use Turing Machines to ask questions”
     byte out[256];
@@ -625,6 +640,7 @@ WOLFSSL_API int  wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen,
 WOLFSSL_API int  wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen,
                       byte** out, RsaKey* key, int type, enum wc_HashType hash,
                       int mgf, byte* label, word32 lableSz);
+
 /*!
     \ingroup RSA
     
@@ -669,6 +685,7 @@ WOLFSSL_API int  wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen,
 */
 WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
                                                                        word32*);
+
 /*!
     \ingroup RSA
     
@@ -703,6 +720,7 @@ WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
     \sa wc_RsaInitKey
 */
     WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey*, byte* output, word32 inLen);
+
 /*!
     \ingroup RSA
     
@@ -757,7 +775,7 @@ WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
     _Example_
     \code
     RsaKey priv;
-    RNG rng;
+    WC_WC_RNG rng;
     int ret = 0;
     long e = 65537; // standard value to use for exponent
 

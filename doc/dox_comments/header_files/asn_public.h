@@ -51,7 +51,7 @@ WOLFSSL_API int wc_InitCert(Cert*);
     \code
     Cert myCert;
     wc_InitCert(&myCert); 
-    RNG rng;
+    WC_RNG rng;
     //initialize rng;
     RsaKey key;
     //initialize key;
@@ -149,7 +149,7 @@ WOLFSSL_API int  wc_MakeCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
     // initialize myCert, derCert
     RsaKey key;
     // initialize key;
-    RNG rng;
+    WC_RNG rng;
     // initialize rng
 
     word32 certSz;
@@ -195,7 +195,7 @@ WOLFSSL_API int  wc_SignCert(int requestSz, int sigType, byte* derBuffer,
     // initialize myCert, derCert
     RsaKey key;
     // initialize key;
-    RNG rng;
+    WC_RNG rng;
     // initialize rng
 
     word32 certSz;
@@ -899,7 +899,7 @@ WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
     \code
     Cert myCert;
     // initialize myCert
-    RNG rng;
+    WC_RNG rng;
     //initialize rng;
     byte ntruPublicKey[NTRU_KEY_SIZE];
     //initialize ntruPublicKey; 
@@ -1222,7 +1222,7 @@ WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
     \code
     ecc_key key;
     wc_ecc_init(&key);
-    WC_RNG rng;
+    WC_WC_RNG rng;
     wc_InitRng(&rng);
     wc_ecc_make_key(&rng, 24, &key);
     int derSz = // Some appropriate size for der;

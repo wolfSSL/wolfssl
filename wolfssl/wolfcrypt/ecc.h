@@ -541,6 +541,8 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
 WOLFSSL_API
 int wc_ecc_size(ecc_key* key);
 WOLFSSL_API
+int wc_ecc_sig_size_calc(int sz);
+WOLFSSL_API
 int wc_ecc_sig_size(ecc_key* key);
 
 WOLFSSL_API

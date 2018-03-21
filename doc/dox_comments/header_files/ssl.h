@@ -3589,7 +3589,7 @@ WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get1_session(WOLFSSL* ssl);
     downgrade to SSLv3 if needed. In this case, the client will be able to 
     connect to a server running SSLv3 - TLSv1.2.
 
-    \return pointer upon succes a pointer to a WOLFSSL_METHOD.
+    \return pointer upon success a pointer to a WOLFSSL_METHOD.
     \return Failure If memory allocation fails when calling XMALLOC, 
     the failure value of the underlying malloc() implementation will be 
     returned (typically NULL with errno will be set to ENOMEM).

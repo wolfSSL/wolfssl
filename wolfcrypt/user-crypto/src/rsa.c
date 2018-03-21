@@ -162,7 +162,7 @@ int wc_Rsa_unsigned_bin_size(void* bn)
 #define MP_OKAY 0
 #endif
 
-/* extract the bn value to a unsigned byte array and return MP_OKAY on succes */
+/* extract the bn value to a unsigned byte array and return MP_OKAY on success */
 int wc_Rsa_to_unsigned_bin(void* bn, byte* in, int inLen)
 {
     if (ippsGetOctString_BN((Ipp8u*)in, inLen, bn) != ippStsNoErr) {

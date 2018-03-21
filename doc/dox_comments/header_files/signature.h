@@ -106,7 +106,7 @@ WOLFSSL_API int wc_SignatureVerify(
     _Example_
     \code
     int ret;
-    RNG rng;
+    WC_RNG rng;
     ecc_key eccKey;
     
     wc_InitRng(&rng);
