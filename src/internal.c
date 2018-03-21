@@ -1824,6 +1824,8 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     (void)haveStaticECC;
     (void)haveECC;
     (void)side;
+    (void)haveRSA;    /* some builds won't read */
+    (void)haveRSAsig; /* non ecc builds won't read */
 
     if (suites == NULL) {
         WOLFSSL_MSG("InitSuites pointer error");
@@ -1836,12 +1838,10 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
 #ifndef NO_WOLFSSL_SERVER
     if (side == WOLFSSL_SERVER_END && haveStaticECC) {
         haveRSA = 0;   /* can't do RSA with ECDSA key */
-        (void)haveRSA; /* some builds won't read */
     }
 
     if (side == WOLFSSL_SERVER_END && haveECDSAsig) {
         haveRSAsig = 0;     /* can't have RSA sig if signed by ECDSA */
-        (void)haveRSAsig;   /* non ecc builds won't read */
     }
 #endif /* !NO_WOLFSSL_SERVER */
 
