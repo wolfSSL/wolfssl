@@ -3953,6 +3953,7 @@ int DhAgree(WOLFSSL* ssl, DhKey* dhKey,
 int wolfSSL_CTX_IsPrivatePkSet(WOLFSSL_CTX* ctx)
 {
     int pkcbset = 0;
+    (void)ctx;
 #if defined(HAVE_ECC) || defined(HAVE_ED25519) || !defined(NO_RSA)
     if (0
     #ifdef HAVE_ECC
