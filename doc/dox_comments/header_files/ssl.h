@@ -1489,8 +1489,8 @@ WOLFSSL_API WOLFSSL* wolfSSL_new(WOLFSSL_CTX*);
     }
     \endcode
     
-    \sa wolfSSL_SetIOSend
-    \sa wolfSSL_SetIORecv
+    \sa wolfSSL_CTX_SetIOSend
+    \sa wolfSSL_CTX_SetIORecv
     \sa wolfSSL_SetIOReadCtx
     \sa wolfSSL_SetIOWriteCtx
 */

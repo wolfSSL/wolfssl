@@ -498,8 +498,8 @@
  */
 
 #define CyaSSL_accept_ex              wolfSSL_accept_ex
-#define CyaSSL_SetIORecv              wolfSSL_SetIORecv
-#define CyaSSL_SetIOSend              wolfSSL_SetIOSend
+#define CyaSSL_SetIORecv              wolfSSL_CTX_SetIORecv
+#define CyaSSL_SetIOSend              wolfSSL_CTX_SetIOSend
 #define CyaSSL_connect_ex             wolfSSL_connect_ex
 #define CyaSSL_CTX_SetCACb            wolfSSL_CTX_SetCACb
 #define CyaSSL_SetIOReadCtx           wolfSSL_SetIOReadCtx
