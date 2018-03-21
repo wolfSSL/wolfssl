@@ -1211,7 +1211,9 @@ static const byte extExtKeyUsageOid[] = {85, 29, 37};
 static const byte extNameConsOid[] = {85, 29, 30};
 
 /* certAuthInfoType */
-static const byte extAuthInfoOcspOid[] = {43, 6, 1, 5, 5, 7, 48, 1};
+#ifdef HAVE_OCSP
+    static const byte extAuthInfoOcspOid[] = {43, 6, 1, 5, 5, 7, 48, 1};
+#endif
 static const byte extAuthInfoCaIssuerOid[] = {43, 6, 1, 5, 5, 7, 48, 2};
 
 /* certPolicyType */
