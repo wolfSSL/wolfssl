@@ -2350,27 +2350,27 @@ struct WOLFSSL_CTX {
     Suites*     suites;           /* make dynamic, user may not need/set */
     void*       heap;             /* for user memory overrides */
     byte        verifyDepth;
-    byte        verifyPeer;
-    byte        verifyNone;
-    byte        failNoCert;
-    byte        failNoCertxPSK;   /* fail if no cert with the exception of PSK*/
-    byte        sessionCacheOff;
-    byte        sessionCacheFlushOff;
+    byte        verifyPeer:1;
+    byte        verifyNone:1;
+    byte        failNoCert:1;
+    byte        failNoCertxPSK:1; /* fail if no cert with the exception of PSK*/
+    byte        sessionCacheOff:1;
+    byte        sessionCacheFlushOff:1;
 #ifdef HAVE_EXT_CACHE
-    byte        internalCacheOff;
+    byte        internalCacheOff:1;
 #endif
-    byte        sendVerify;       /* for client side */
-    byte        haveRSA;          /* RSA available */
-    byte        haveECC;          /* ECC available */
-    byte        haveDH;           /* server DH parms set by user */
-    byte        haveNTRU;         /* server private NTRU  key loaded */
-    byte        haveECDSAsig;     /* server cert signed w/ ECDSA */
-    byte        haveStaticECC;    /* static server ECC private key */
-    byte        partialWrite;     /* only one msg per write call */
-    byte        quietShutdown;    /* don't send close notify */
-    byte        groupMessages;    /* group handshake messages before sending */
+    byte        sendVerify;       /* for client side (can not be single bit) */
+    byte        haveRSA:1;        /* RSA available */
+    byte        haveECC:1;        /* ECC available */
+    byte        haveDH:1;         /* server DH parms set by user */
+    byte        haveNTRU:1;       /* server private NTRU  key loaded */
+    byte        haveECDSAsig:1;   /* server cert signed w/ ECDSA */
+    byte        haveStaticECC:1;  /* static server ECC private key */
+    byte        partialWrite:1;   /* only one msg per write call */
+    byte        quietShutdown:1;  /* don't send close notify */
+    byte        groupMessages:1;  /* group handshake messages before sending */
     byte        minDowngrade;     /* minimum downgrade version */
-    byte        haveEMS;          /* have extended master secret extension */
+    byte        haveEMS:1;        /* have extended master secret extension */
     byte        useClientOrder:1; /* Use client's cipher preference order */
 #ifdef WOLFSSL_TLS13
     byte        noTicketTls13:1;  /* Server won't create new Ticket */
