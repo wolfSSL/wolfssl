@@ -232,18 +232,18 @@
     // Receive callback prototype
     int MyEmbedReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
     // Register the custom receive callback with wolfSSL
-    wolfSSL_SetIORecv(ctx, MyEmbedReceive);
+    wolfSSL_CTX_SetIORecv(ctx, MyEmbedReceive);
     int MyEmbedReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)                   
     {
 	    // custom EmbedReceive function
     }
     \endcode
     
-    \sa wolfSSL_SetIOSend
+    \sa wolfSSL_CTX_SetIOSend
     \sa wolfSSL_SetIOReadCtx
     \sa wolfSSL_SetIOWriteCtx
 */
-WOLFSSL_API void wolfSSL_SetIORecv(WOLFSSL_CTX*, CallbackIORecv);
+WOLFSSL_API void wolfSSL_CTX_SetIORecv(WOLFSSL_CTX*, CallbackIORecv);
 /*!
     \brief This function registers a context for the SSL session’s receive 
     callback function.  By default, wolfSSL sets the file descriptor passed to 
@@ -269,8 +269,8 @@ WOLFSSL_API void wolfSSL_SetIORecv(WOLFSSL_CTX*, CallbackIORecv);
     ...
     \endcode
     
-    \sa wolfSSL_SetIORecv
-    \sa wolfSSL_SetIOSend
+    \sa wolfSSL_CTX_SetIORecv
+    \sa wolfSSL_CTX_SetIOSend
     \sa wolfSSL_SetIOWriteCtx
 */
 WOLFSSL_API void wolfSSL_SetIOReadCtx( WOLFSSL* ssl, void *ctx);
@@ -299,8 +299,8 @@ WOLFSSL_API void wolfSSL_SetIOReadCtx( WOLFSSL* ssl, void *ctx);
     ...
     \endcode
     
-    \sa wolfSSL_SetIORecv
-    \sa wolfSSL_SetIOSend
+    \sa wolfSSL_CTX_SetIORecv
+    \sa wolfSSL_CTX_SetIOSend
     \sa wolfSSL_SetIOReadCtx
 */
 WOLFSSL_API void wolfSSL_SetIOWriteCtx(WOLFSSL* ssl, void *ctx);
@@ -330,7 +330,7 @@ WOLFSSL_API void wolfSSL_SetIOWriteCtx(WOLFSSL* ssl, void *ctx);
     \sa wolfSSL_SetIOReadFlags
     \sa wolfSSL_SetIOWriteCtx
     \sa wolfSSL_SetIOReadCtx
-    \sa wolfSSL_SetIOSend
+    \sa wolfSSL_CTX_SetIOSend
 */
 WOLFSSL_API void* wolfSSL_GetIOReadCtx( WOLFSSL* ssl);
 /*!
@@ -358,14 +358,14 @@ WOLFSSL_API void* wolfSSL_GetIOReadCtx( WOLFSSL* ssl);
     \sa wolfSSL_GetIOReadCtx
     \sa wolfSSL_SetIOWriteCtx
     \sa wolfSSL_SetIOReadCtx
-    \sa wolfSSL_SetIOSend
+    \sa wolfSSL_CTX_SetIOSend
 */
 WOLFSSL_API void* wolfSSL_GetIOWriteCtx(WOLFSSL* ssl);
 /*!
     \brief This function sets the flags for the receive callback to use for 
     the given SSL session.  The receive callback could be either the default 
     wolfSSL EmbedReceive callback, or a custom callback specified by the user 
-    (see  wolfSSL_SetIORecv). The default flag value is set internally by 
+    (see  wolfSSL_CTX_SetIORecv). The default flag value is set internally by 
     wolfSSL to the value of 0. The default wolfSSL receive callback uses the 
     recv() function to receive data from the socket. From the recv() man page: 
     “The flags argument to a recv() function is formed by or'ing one or more 
@@ -397,8 +397,8 @@ WOLFSSL_API void* wolfSSL_GetIOWriteCtx(WOLFSSL* ssl);
     ...
     \endcode
     
-    \sa wolfSSL_SetIORecv
-    \sa wolfSSL_SetIOSend
+    \sa wolfSSL_CTX_SetIORecv
+    \sa wolfSSL_CTX_SetIOSend
     \sa wolfSSL_SetIOReadCtx
 */
 WOLFSSL_API void wolfSSL_SetIOReadFlags( WOLFSSL* ssl, int flags);
@@ -406,7 +406,7 @@ WOLFSSL_API void wolfSSL_SetIOReadFlags( WOLFSSL* ssl, int flags);
     \brief This function sets the flags for the send callback to use for the 
     given SSL session.  The send callback could be either the default wolfSSL 
     EmbedSend callback, or a custom callback specified by the user (see  
-    wolfSSL_SetIOSend). The default flag value is set internally by wolfSSL 
+    wolfSSL_CTX_SetIOSend). The default flag value is set internally by wolfSSL 
     to the value of 0. The default wolfSSL send callback uses the send() 
     function to send data from the socket.  From the send() man page: “The 
     flags parameter may include one or more of the following: 
@@ -431,8 +431,8 @@ WOLFSSL_API void wolfSSL_SetIOReadFlags( WOLFSSL* ssl, int flags);
     ...
     \endcode
     
-    \sa wolfSSL_SetIORecv
-    \sa wolfSSL_SetIOSend
+    \sa wolfSSL_CTX_SetIORecv
+    \sa wolfSSL_CTX_SetIOSend
     \sa wolfSSL_SetIOReadCtx
 */
 WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);

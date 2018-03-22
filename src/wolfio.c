@@ -46,7 +46,7 @@
 Possible IO enable options:
  * WOLFSSL_USER_IO:     Disables default Embed* callbacks and     default: off
                         allows user to define their own using
-                        wolfSSL_SetIORecv and wolfSSL_SetIOSend
+                        wolfSSL_CTX_SetIORecv and wolfSSL_CTX_SetIOSend
  * USE_WOLFSSL_IO:      Enables the wolfSSL IO functions          default: off
  * HAVE_HTTP_CLIENT:    Enables HTTP client API's                 default: off
                                      (unless HAVE_OCSP or HAVE_CRL_IO defined)
@@ -103,9 +103,11 @@ static INLINE int wolfSSL_LastError(void)
 
 
 #ifdef OPENSSL_EXTRA
-/* Use the WOLFSSL read BIO for receiving data. This is set by the fucntion wolfSSL_set_bio and can also be set by wolfSSL_SetIORecv.
+/* Use the WOLFSSL read BIO for receiving data. This is set by the function
+ * wolfSSL_set_bio and can also be set by wolfSSL_CTX_SetIORecv.
  *
- * ssl  WOLFSSL struct passed in that has this function set as the receive callback.
+ * ssl  WOLFSSL struct passed in that has this function set as the receive
+ *      callback.
  * buf  buffer to fill with data read
  * sz   size of buf buffer
  * ctx  a user set context
@@ -144,7 +146,8 @@ int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 }
 
 
-/* Use the WOLFSSL write BIO for sending data. This is set by the fucntion wolfSSL_set_bio and can also be set by wolfSSL_SetIOSend.
+/* Use the WOLFSSL write BIO for sending data. This is set by the function
+ * wolfSSL_set_bio and can also be set by wolfSSL_CTX_SetIOSend.
  *
  * ssl  WOLFSSL struct passed in that has this function set as the send callback.
  * buf  buffer with data to write out
@@ -1452,13 +1455,13 @@ int EmbedCrlLookup(WOLFSSL_CRL* crl, const char* url, int urlSz)
 
 
 
-WOLFSSL_API void wolfSSL_SetIORecv(WOLFSSL_CTX *ctx, CallbackIORecv CBIORecv)
+WOLFSSL_API void wolfSSL_CTX_SetIORecv(WOLFSSL_CTX *ctx, CallbackIORecv CBIORecv)
 {
     ctx->CBIORecv = CBIORecv;
 }
 
 
-WOLFSSL_API void wolfSSL_SetIOSend(WOLFSSL_CTX *ctx, CallbackIOSend CBIOSend)
+WOLFSSL_API void wolfSSL_CTX_SetIOSend(WOLFSSL_CTX *ctx, CallbackIOSend CBIOSend)
 {
     ctx->CBIOSend = CBIOSend;
 }

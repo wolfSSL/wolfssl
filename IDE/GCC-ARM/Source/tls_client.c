@@ -108,8 +108,8 @@ static int tls_client(void)
     /*------------------------------------------------------------------------*/
     /* END CIPHER SUITE OPTIONS */
     /*------------------------------------------------------------------------*/
-    wolfSSL_SetIORecv(ctx, CbIORecv);
-    wolfSSL_SetIOSend(ctx, CbIOSend);
+    wolfSSL_CTX_SetIORecv(ctx, CbIORecv);
+    wolfSSL_CTX_SetIOSend(ctx, CbIOSend);
 
     if ((ssl = wolfSSL_new(ctx)) == NULL) {
         error = wolfSSL_get_error(ssl, 0);

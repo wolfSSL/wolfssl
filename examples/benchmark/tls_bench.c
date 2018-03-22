@@ -397,8 +397,8 @@ static void* client_thread(void* args)
     if (ret != WOLFSSL_SUCCESS) err_sys("error loading CA");
 #endif
 
-    wolfSSL_SetIOSend(cli_ctx, ClientSend);
-    wolfSSL_SetIORecv(cli_ctx, ClientRecv);
+    wolfSSL_CTX_SetIOSend(cli_ctx, ClientSend);
+    wolfSSL_CTX_SetIORecv(cli_ctx, ClientRecv);
 
     /* set cipher suite */
     ret = wolfSSL_CTX_set_cipher_list(cli_ctx, info->cipher);
@@ -507,8 +507,8 @@ static void* server_thread(void* args)
     if (ret != WOLFSSL_SUCCESS) err_sys("error loading server cert");
 #endif
 
-    wolfSSL_SetIOSend(srv_ctx, ServerSend);
-    wolfSSL_SetIORecv(srv_ctx, ServerRecv);
+    wolfSSL_CTX_SetIOSend(srv_ctx, ServerSend);
+    wolfSSL_CTX_SetIORecv(srv_ctx, ServerRecv);
 
     /* set cipher suite */
     ret = wolfSSL_CTX_set_cipher_list(srv_ctx, info->cipher);
