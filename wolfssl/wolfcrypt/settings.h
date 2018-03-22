@@ -1564,7 +1564,7 @@ extern void uITRON4_free(void *p) ;
     #ifndef HAVE_AES_KEYWRAP
         #error PKCS7 requires AES key wrap please define HAVE_AES_KEYWRAP
     #endif
-    #ifndef HAVE_X963_KDF
+    #if defined(HAVE_ECC) && !defined(HAVE_X963_KDF)
         #error PKCS7 requires X963 KDF please define HAVE_X963_KDF
     #endif
 #endif
