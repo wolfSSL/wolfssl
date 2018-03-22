@@ -2864,6 +2864,10 @@ WOLFSSL_API void wolfSSL_EC_POINT_dump(const char *msg, const WOLFSSL_EC_POINT *
 
 #endif /* OPENSSL_EXTRA */
 
+#ifdef HAVE_PK_CALLBACKS
+WOLFSSL_API int wolfSSL_CTX_IsPrivatePkSet(WOLFSSL_CTX* ctx);
+#endif
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

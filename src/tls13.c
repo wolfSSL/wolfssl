@@ -1616,7 +1616,7 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
             #ifdef BUILD_AESGCM
                 case wolfssl_aes_gcm:
                 #ifdef WOLFSSL_ASYNC_CRYPT
-                    /* intialize event */
+                    /* initialize event */
                     asyncDev = &ssl->encrypt.aes->asyncDev;
                     ret = wolfSSL_AsyncInit(ssl, asyncDev, event_flags);
                     if (ret != 0)
@@ -1633,7 +1633,7 @@ static int EncryptTls13(WOLFSSL* ssl, byte* output, const byte* input,
             #ifdef HAVE_AESCCM
                 case wolfssl_aes_ccm:
                 #ifdef WOLFSSL_ASYNC_CRYPT
-                    /* intialize event */
+                    /* initialize event */
                     asyncDev = &ssl->encrypt.aes->asyncDev;
                     ret = wolfSSL_AsyncInit(ssl, asyncDev, event_flags);
                     if (ret != 0)
@@ -1841,7 +1841,7 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
             #ifdef BUILD_AESGCM
                 case wolfssl_aes_gcm:
                 #ifdef WOLFSSL_ASYNC_CRYPT
-                    /* intialize event */
+                    /* initialize event */
                     ret = wolfSSL_AsyncInit(ssl, &ssl->decrypt.aes->asyncDev,
                         WC_ASYNC_FLAG_CALL_AGAIN);
                     if (ret != 0)
@@ -1864,7 +1864,7 @@ int DecryptTls13(WOLFSSL* ssl, byte* output, const byte* input, word16 sz,
             #ifdef HAVE_AESCCM
                 case wolfssl_aes_ccm:
                 #ifdef WOLFSSL_ASYNC_CRYPT
-                    /* intialize event */
+                    /* initialize event */
                     ret = wolfSSL_AsyncInit(ssl, &ssl->decrypt.aes->asyncDev,
                         WC_ASYNC_FLAG_CALL_AGAIN);
                     if (ret != 0)
@@ -2261,6 +2261,7 @@ static int WritePSKBinders(WOLFSSL* ssl, byte* output, word32 idx)
 }
 #endif
 
+/* handle generation of TLS 1.3 client_hello (1) */
 /* Send a ClientHello message to the server.
  * Include the information required to start a handshake with servers using
  * protocol versions less than TLS v1.3.
@@ -2536,6 +2537,7 @@ static int RestartHandshakeHash(WOLFSSL* ssl)
 #endif
 
 #ifdef WOLFSSL_TLS13_DRAFT_18
+/* handle rocessing of TLS 1.3 hello_retry_request (6) */
 /* Parse and handle a HelloRetryRequest message.
  * Only a client will receive this message.
  *
@@ -2615,6 +2617,7 @@ static byte helloRetryRequestRandom[] = {
 };
 #endif
 
+/* handle processing of TLS 1.3 server_hello (2) and hello_retry_request (6) */
 /* Handle the ServerHello message from the server.
  * Only a client will receive this message.
  *
@@ -2859,6 +2862,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     return ret;
 }
 
+/* handle processing TLS 1.3 encrypted_extensions (8) */
 /* Parse and handle an EncryptedExtensions message.
  * Only a client will receive this message.
  *
@@ -2918,6 +2922,7 @@ static int DoTls13EncryptedExtensions(WOLFSSL* ssl, const byte* input,
     return ret;
 }
 
+/* handle processing TLS v1.3 certificate_request (13) */
 /* Handle a TLS v1.3 CertificateRequest message.
  * This message is always encrypted.
  * Only a client will receive this message.
@@ -3522,6 +3527,7 @@ static int RestartHandshakeHashWithCookie(WOLFSSL* ssl, Cookie* cookie)
 }
 #endif
 
+/* handle processing of TLS 1.3 client_hello (1) */
 /* Handle a ClientHello handshake message.
  * If the protocol version in the message is not TLS v1.3 or higher, use
  * DoClientHello()
@@ -3729,6 +3735,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 }
 
 #ifdef WOLFSSL_TLS13_DRAFT_18
+/* handle generation of TLS 1.3 hello_retry_request (6) */
 /* Send the HelloRetryRequest message to indicate the negotiated protocol
  * version and security parameters the server is willing to use.
  * Only a server will send this message.
@@ -3813,6 +3820,7 @@ int SendTls13HelloRetryRequest(WOLFSSL* ssl)
 #ifdef WOLFSSL_TLS13_DRAFT_18
 static
 #endif
+/* handle generation of TLS 1.3 server_hello (2) */
 int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
 {
     byte*  output;
@@ -3940,6 +3948,7 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
     return ret;
 }
 
+/* handle generation of TLS 1.3 encrypted_extensions (8) */
 /* Send the rest of the extensions encrypted under the handshake key.
  * This message is always encrypted in TLS v1.3.
  * Only a server will send this message.
@@ -4029,6 +4038,7 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
 }
 
 #ifndef NO_CERTS
+/* handle generation TLS v1.3 certificate_request (13) */
 /* Send the TLS v1.3 CertificateRequest message.
  * This message is always encrypted in TLS v1.3.
  * Only a server will send this message.
@@ -4550,6 +4560,7 @@ static word32 AddCertExt(byte* cert, word32 len, word32 idx, word32 fragSz,
     return i;
 }
 
+/* handle generation TLS v1.3 certificate (11) */
 /* Send the certificate for this end and any CAs that help with validation.
  * This message is always encrypted in TLS v1.3.
  *
@@ -4799,6 +4810,7 @@ static void FreeScv13Args(WOLFSSL* ssl, void* pArgs)
     }
 }
 
+/* handle generation TLS v1.3 certificate_verify (15) */
 /* Send the TLS v1.3 CertificateVerify message.
  * A hash of all the message so far is used.
  * The signed data is:
@@ -4874,9 +4886,23 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
             args->verify =
                           &args->output[RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ];
 
-            ret = DecodePrivateKey(ssl, &args->length);
-            if (ret != 0)
-                goto exit_scv;
+            if (ssl->buffers.key == NULL) {
+            #ifdef HAVE_PK_CALLBACKS
+                if (wolfSSL_CTX_IsPrivatePkSet(ssl->ctx))
+                    args->length = GetPrivateKeySigSize(ssl);
+                else
+            #endif
+                    ERROR_OUT(NO_PRIVATE_KEY, exit_scv);
+            }
+            else {
+                ret = DecodePrivateKey(ssl, &args->length);
+                if (ret != 0)
+                    goto exit_scv;
+            }
+
+            if (args->length <= 0) {
+                ERROR_OUT(NO_PRIVATE_KEY, exit_scv);
+            }
 
             /* Add signature algorithm. */
             if (ssl->hsType == DYNAMIC_TYPE_RSA)
@@ -4952,11 +4978,11 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 ret = EccSign(ssl, args->sigData, args->sigDataSz,
                     args->verify + HASH_SIG_SIZE + VERIFY_HEADER,
                     &sig->length, (ecc_key*)ssl->hsKey,
-            #if defined(HAVE_PK_CALLBACKS)
-                    ssl->buffers.key->buffer, ssl->buffers.key->length,
+            #ifdef HAVE_PK_CALLBACKS
+                    ssl->buffers.key,
                     ssl->EccSignCtx
             #else
-                    NULL, 0, NULL
+                    NULL, NULL
             #endif
                 );
                 args->length = sig->length;
@@ -4967,11 +4993,11 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 ret = Ed25519Sign(ssl, args->sigData, args->sigDataSz,
                     args->verify + HASH_SIG_SIZE + VERIFY_HEADER,
                     &sig->length, (ed25519_key*)ssl->hsKey,
-            #if defined(HAVE_PK_CALLBACKS)
-                    ssl->buffers.key->buffer, ssl->buffers.key->length,
+            #ifdef HAVE_PK_CALLBACKS
+                    ssl->buffers.key,
                     ssl->Ed25519SignCtx
             #else
-                    NULL, 0, NULL
+                    NULL, NULL
             #endif
                 );
                 args->length = sig->length;
@@ -4984,7 +5010,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     args->verify + HASH_SIG_SIZE + VERIFY_HEADER, &args->sigLen,
                     args->sigAlgo, ssl->suites->hashAlgo,
                     (RsaKey*)ssl->hsKey,
-                    ssl->buffers.key->buffer, ssl->buffers.key->length,
+                    ssl->buffers.key,
                 #ifdef HAVE_PK_CALLBACKS
                     ssl->RsaSignCtx
                 #else
@@ -5027,7 +5053,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 ret = VerifyRsaSign(ssl, args->verifySig, args->sigLen,
                     sig->buffer, sig->length, args->sigAlgo,
                     ssl->suites->hashAlgo, (RsaKey*)ssl->hsKey,
-                    ssl->buffers.key->buffer, ssl->buffers.key->length,
+                    ssl->buffers.key,
                 #ifdef HAVE_PK_CALLBACKS
                     ssl->RsaSignCtx
                 #else
@@ -5115,7 +5141,7 @@ exit_scv:
     return ret;
 }
 
-
+/* handle processing TLS v1.3 certificate (11) */
 /* Parse and handle a TLS v1.3 Certificate message.
  *
  * ssl       The SSL/TLS object.
@@ -5177,6 +5203,7 @@ static void FreeDcv13Args(WOLFSSL* ssl, void* pArgs)
     (void)ssl;
 }
 
+/* handle processing TLS v1.3 certificate_verify (15) */
 /* Parse and handle a TLS v1.3 CertificateVerify message.
  *
  * ssl       The SSL/TLS object.
@@ -5342,11 +5369,10 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 ret = RsaVerify(ssl, sig->buffer, sig->length, &args->output,
                     args->sigAlgo, args->hashAlgo, ssl->peerRsaKey,
                 #ifdef HAVE_PK_CALLBACKS
-                    ssl->buffers.peerRsaKey.buffer,
-                    ssl->buffers.peerRsaKey.length,
+                    &ssl->buffers.peerRsaKey,
                     ssl->RsaVerifyCtx
                 #else
-                    NULL, 0, NULL
+                    NULL, NULL
                 #endif
                 );
                 if (ret >= 0) {
@@ -5363,11 +5389,10 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                     args->sigData, args->sigDataSz,
                     ssl->peerEccDsaKey,
                 #ifdef HAVE_PK_CALLBACKS
-                    ssl->buffers.peerEccDsaKey.buffer,
-                    ssl->buffers.peerEccDsaKey.length,
+                    &ssl->buffers.peerEccDsaKey,
                     ssl->EccVerifyCtx
                 #else
-                    NULL, 0, NULL
+                    NULL, NULL
                 #endif
                 );
             }
@@ -5380,11 +5405,10 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                     args->sigData, args->sigDataSz,
                     ssl->peerEd25519Key,
                 #ifdef HAVE_PK_CALLBACKS
-                    ssl->buffers.peerEd25519Key.buffer,
-                    ssl->buffers.peerEd25519Key.length,
+                    &ssl->buffers.peerEd25519Key,
                     ssl->Ed25519VerifyCtx
                 #else
-                    NULL, 0, NULL
+                    NULL, NULL
                 #endif
                 );
             }
@@ -5698,6 +5722,7 @@ static int SendTls13Finished(WOLFSSL* ssl)
     return ret;
 }
 
+/* handle generation TLS v1.3 key_update (24) */
 /* Send the TLS v1.3 KeyUpdate message.
  *
  * ssl  The SSL/TLS object.
@@ -5769,6 +5794,7 @@ static int SendTls13KeyUpdate(WOLFSSL* ssl)
     return ret;
 }
 
+/* handle processing TLS v1.3 key_update (24) */
 /* Parse and handle a TLS v1.3 KeyUpdate message.
  *
  * ssl       The SSL/TLS object.
@@ -5880,6 +5906,7 @@ static int SendTls13EndOfEarlyData(WOLFSSL* ssl)
 #endif /* !NO_WOLFSSL_CLIENT */
 
 #ifndef NO_WOLFSSL_SERVER
+/* handle processing of TLS 1.3 end_of_early_data (5) */
 /* Parse the TLS v1.3 EndOfEarlyData message that indicates that there will be
  * no more early application data.
  * The decryption key now changes to the pre-calculated handshake key.
@@ -7324,16 +7351,27 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
     }
 
 #ifndef NO_CERTS
-    /* in case used set_accept_state after init */
-    if (!havePSK && !haveAnon &&
-        (!ssl->buffers.certificate ||
-         !ssl->buffers.certificate->buffer ||
-         !ssl->buffers.key ||
-         !ssl->buffers.key->buffer)) {
-        WOLFSSL_MSG("accept error: don't have server cert and key");
-        ssl->error = NO_PRIVATE_KEY;
-        WOLFSSL_ERROR(ssl->error);
-        return WOLFSSL_FATAL_ERROR;
+    /* allow no private key if using PK callbacks and CB is set */
+    if (!havePSK && !haveAnon) {
+        if (!ssl->buffers.certificate ||
+            !ssl->buffers.certificate->buffer) {
+
+            WOLFSSL_MSG("accept error: server cert required");
+            WOLFSSL_ERROR(ssl->error = NO_PRIVATE_KEY);
+            return WOLFSSL_FATAL_ERROR;
+        }
+
+    #ifdef HAVE_PK_CALLBACKS
+        if (wolfSSL_CTX_IsPrivatePkSet(ssl->ctx)) {
+            WOLFSSL_MSG("Using PK for server private key");
+        }
+        else
+    #endif
+        if (!ssl->buffers.key || !ssl->buffers.key->buffer) {
+            WOLFSSL_MSG("accept error: server key required");
+            WOLFSSL_ERROR(ssl->error = NO_PRIVATE_KEY);
+            return WOLFSSL_FATAL_ERROR;
+        }
     }
 #endif
 

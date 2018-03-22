@@ -23,7 +23,7 @@
     \code
     curve25519_key key;
     wc_curve25519_init(&key); // initialize key
-    RNG rng;
+    WC_RNG rng;
     wc_InitRng(&rng); // initialize random number generator
 
     if( wc_curve25519_make_key(&rng, 32, &key) != 0) { 

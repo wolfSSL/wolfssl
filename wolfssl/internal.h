@@ -1492,6 +1492,9 @@ WOLFSSL_LOCAL int  CheckVersion(WOLFSSL *ssl, ProtocolVersion pv);
 WOLFSSL_LOCAL void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
                                    word32 hashSigAlgoSz);
 WOLFSSL_LOCAL int  DecodePrivateKey(WOLFSSL *ssl, word16* length);
+#ifdef HAVE_PK_CALLBACKS
+WOLFSSL_LOCAL int GetPrivateKeySigSize(WOLFSSL* ssl);
+#endif
 WOLFSSL_LOCAL void FreeKeyExchange(WOLFSSL* ssl);
 WOLFSSL_LOCAL int  ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx, word32 size);
 WOLFSSL_LOCAL int  MatchDomainName(const char* pattern, int len, const char* str);
@@ -3840,25 +3843,25 @@ WOLFSSL_LOCAL int SetTicket(WOLFSSL*, const byte*, word32);
         #endif
         WOLFSSL_LOCAL int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig,
             word32 sigSz, const byte* plain, word32 plainSz, int sigAlgo,
-            int hashAlgo, RsaKey* key, const byte* keyBuf, word32 keySz, void* ctx);
+            int hashAlgo, RsaKey* key, DerBuffer* keyBufInfo, void* ctx);
         WOLFSSL_LOCAL int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz,
             byte* out, word32* outSz, int sigAlgo, int hashAlgo, RsaKey* key,
-            const byte* keyBuf, word32 keySz, void* ctx);
+            DerBuffer* keyBufInfo, void* ctx);
         WOLFSSL_LOCAL int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz,
             byte** out, int sigAlgo, int hashAlgo, RsaKey* key,
-            const byte* keyBuf, word32 keySz, void* ctx);
+            buffer* keyBufInfo, void* ctx);
         WOLFSSL_LOCAL int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out,
-            word32* outSz, RsaKey* key, const byte* keyBuf, word32 keySz, void* ctx);
+            word32* outSz, RsaKey* key, DerBuffer* keyBufInfo, void* ctx);
         WOLFSSL_LOCAL int RsaEnc(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
-            word32* outSz, RsaKey* key, const byte* keyBuf, word32 keySz, void* ctx);
+            word32* outSz, RsaKey* key, buffer* keyBufInfo, void* ctx);
     #endif /* !NO_RSA */
 
     #ifdef HAVE_ECC
         WOLFSSL_LOCAL int EccSign(WOLFSSL* ssl, const byte* in, word32 inSz,
-            byte* out, word32* outSz, ecc_key* key, byte* keyBuf, word32 keySz,
+            byte* out, word32* outSz, ecc_key* key, DerBuffer* keyBufInfo,
             void* ctx);
         WOLFSSL_LOCAL int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz,
-            const byte* out, word32 outSz, ecc_key* key, byte* keyBuf, word32 keySz,
+            const byte* out, word32 outSz, ecc_key* key, buffer* keyBufInfo,
             void* ctx);
         WOLFSSL_LOCAL int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key,
             ecc_key* pub_key, byte* pubKeyDer, word32* pubKeySz, byte* out,
@@ -3866,11 +3869,11 @@ WOLFSSL_LOCAL int SetTicket(WOLFSSL*, const byte*, word32);
     #endif /* HAVE_ECC */
     #ifdef HAVE_ED25519
         WOLFSSL_LOCAL int Ed25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz,
-            byte* out, word32* outSz, ed25519_key* key, byte* keyBuf,
-            word32 keySz, void* ctx);
+            byte* out, word32* outSz, ed25519_key* key, DerBuffer* keyBufInfo,
+            void* ctx);
         WOLFSSL_LOCAL int Ed25519Verify(WOLFSSL* ssl, const byte* in,
             word32 inSz, const byte* msg, word32 msgSz, ed25519_key* key,
-            byte* keyBuf, word32 keySz, void* ctx);
+            buffer* keyBufInfo, void* ctx);
     #endif /* HAVE_ED25519 */
 
 

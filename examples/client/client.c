@@ -833,7 +833,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    useClientCert = 1;
     int    fewerPackets  = 0;
     int    atomicUser    = 0;
+#ifdef HAVE_PK_CALLBACKS
     int    pkCallbacks   = 0;
+    PkCbInfo pkCbInfo;
+#endif
     int    overrideDateErrors = 0;
     int    minDhKeyBits  = DEFAULT_MIN_DHKEY_BITS;
     char*  alpnList = NULL;
@@ -926,7 +929,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)session;
     (void)sslResume;
     (void)atomicUser;
-    (void)pkCallbacks;
     (void)scr;
     (void)forceScr;
     (void)ourKey;
@@ -1619,26 +1621,35 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     wolfSSL_CTX_SetCACb(ctx, CaCb);
 #endif
 
-#if !defined(NO_CERTS)
+#ifndef NO_CERTS
     if (useClientCert){
-#if !defined(NO_FILESYSTEM)
+    #ifndef NO_FILESYSTEM
         if (wolfSSL_CTX_use_certificate_chain_file(ctx, ourCert)
                                                            != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx);
             err_sys("can't load client cert file, check file and run from"
                     " wolfSSL home dir");
         }
+    #else
+        load_buffer(ctx, ourCert, WOLFSSL_CERT_CHAIN);
+    #endif
 
+    #ifdef HAVE_PK_CALLBACKS
+        pkCbInfo.ourKey = ourKey;
+        #ifdef TEST_PK_PRIVKEY
+        if (!pkCallbacks)
+        #endif
+    #endif
+    #ifndef NO_FILESYSTEM
         if (wolfSSL_CTX_use_PrivateKey_file(ctx, ourKey, WOLFSSL_FILETYPE_PEM)
                                          != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx);
             err_sys("can't load client private key file, check file and run "
                     "from wolfSSL home dir");
         }
-#else
-        load_buffer(ctx, ourCert, WOLFSSL_CERT_CHAIN);
+    #else
         load_buffer(ctx, ourKey, WOLFSSL_KEY);
-#endif  /* !defined(NO_FILESYSTEM) */
+    #endif
     }
 
     /* for testing only - use client cert as CA to force no signer error */
@@ -1651,28 +1662,28 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 
     if (!usePsk && !useAnon && !useVerifyCb) {
-#if !defined(NO_FILESYSTEM)
+    #if !defined(NO_FILESYSTEM)
         if (wolfSSL_CTX_load_verify_locations(ctx, verifyCert,0)
                                                            != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx);
             err_sys("can't load ca file, Please run from wolfSSL home dir");
         }
-#else
+    #else
         load_buffer(ctx, verifyCert, WOLFSSL_CA);
-#endif  /* !defined(NO_FILESYSTEM) */
-#ifdef HAVE_ECC
+    #endif  /* !NO_FILESYSTEM */
+    #ifdef HAVE_ECC
         /* load ecc verify too, echoserver uses it by default w/ ecc */
-#if !defined(NO_FILESYSTEM)
+        #ifndef NO_FILESYSTEM
         if (wolfSSL_CTX_load_verify_locations(ctx, eccCertFile, 0)
                                                            != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx);
             err_sys("can't load ecc ca file, Please run from wolfSSL home dir");
         }
-#else
+        #else
         load_buffer(ctx, eccCertFile, WOLFSSL_CA);
-#endif  /* !defined(NO_FILESYSTEM) */
-#endif /* HAVE_ECC */
-#if defined(WOLFSSL_TRUST_PEER_CERT) && !defined(NO_FILESYSTEM)
+        #endif /* !NO_FILESYSTEM */
+    #endif /* HAVE_ECC */
+    #if defined(WOLFSSL_TRUST_PEER_CERT) && !defined(NO_FILESYSTEM)
         if (trustCert) {
             if ((ret = wolfSSL_CTX_trust_peer_cert(ctx, trustCert,
                                     WOLFSSL_FILETYPE_PEM)) != WOLFSSL_SUCCESS) {
@@ -1680,7 +1691,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 err_sys("can't load trusted peer cert file");
             }
         }
-#endif /* WOLFSSL_TRUST_PEER_CERT && !NO_FILESYSTEM */
+    #endif /* WOLFSSL_TRUST_PEER_CERT && !NO_FILESYSTEM */
     }
     if (useVerifyCb)
         wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, myVerify);
@@ -1688,7 +1699,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, 0);
     else if (!usePsk && !useAnon && overrideDateErrors == 1)
         wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, myDateCb);
-#endif /* !defined(NO_CERTS) */
+#endif /* !NO_CERTS */
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevOpen(&devId);
@@ -1805,6 +1816,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
 #endif
     }
+
+#ifdef HAVE_PK_CALLBACKS
+    if (pkCallbacks)
+        SetupPkCallbacks(ctx);
+#endif
 
     ssl = wolfSSL_new(ctx);
     if (ssl == NULL) {
@@ -1999,7 +2015,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 #ifdef HAVE_PK_CALLBACKS
     if (pkCallbacks)
-        SetupPkCallbacks(ctx, ssl);
+        SetupPkCallbackContexts(ssl, &pkCbInfo);
 #endif
     if (matchName && doPeerCheck)
         wolfSSL_check_domain_name(ssl, domain);

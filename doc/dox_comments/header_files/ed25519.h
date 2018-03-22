@@ -18,7 +18,7 @@
     \code
     ed25519_key key;
     wc_ed25519_init(&key);
-    RNG rng;
+    WC_RNG rng;
     wc_InitRng(&rng);
     wc_ed25519_make_key(&rng, 32, &key); // initialize 32 byte ed25519 key
     \endcode
@@ -51,7 +51,7 @@ int wc_ed25519_make_key(WC_RNG* rng, int keysize, ed25519_key* key);
     _Example_
     \code
     ed25519_key key;
-    RNG rng;
+    WC_RNG rng;
     int ret, sigSz;
 
     byte sig[64]; // will hold generated signature
@@ -332,7 +332,7 @@ int wc_ed25519_export_private_only(ed25519_key* key, byte* out, word32* outLen);
     ed25519_key key;
     wc_ed25519_init(&key);
 
-    RNG rng;
+    WC_RNG rng;
     wc_InitRng(&rng);
 
     wc_ed25519_make_key(&rng, 32, &key); // initialize 32 byte ed25519 key
@@ -432,7 +432,7 @@ int wc_ed25519_size(ed25519_key* key);
     ed25519_key key;
     wc_ed25519_init(&key);
 
-    RNG rng;
+    WC_RNG rng;
     wc_InitRng(&rng);
 
     wc_ed25519_make_key(&rng, 32, &key); // initialize 32 byte ed25519 key
@@ -457,7 +457,7 @@ int wc_ed25519_priv_size(ed25519_key* key);
     \code
     ed25519_key key;
     wc_ed25519_init(&key);
-    RNG rng;
+    WC_RNG rng;
     wc_InitRng(&rng);
 
     wc_ed25519_make_key(&rng, 32, &key); // initialize 32 byte ed25519 key
