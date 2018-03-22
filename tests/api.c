@@ -45,7 +45,6 @@
 #ifndef HEAP_HINT
     #define HEAP_HINT NULL
 #endif /* WOLFSSL_STAIC_MEMORY */
-
 #ifdef WOLFSSL_ASNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
@@ -168,8 +167,6 @@
     #ifndef HEAP_HINT
         #define HEAP_HINT   NULL
     #endif
-
-
 #endif
 
 #ifndef NO_AES
@@ -238,6 +235,9 @@
     #include <wolfssl/wolfcrypt/asn.h>
 #endif
 
+#if defined(WOLFSSL_SHA3) || defined(HAVE_PKCS7)
+    static int  devId = INVALID_DEVID;
+#endif
 #ifndef NO_DSA
     #include <wolfssl/wolfcrypt/dsa.h>
     #ifndef ONEK_BUF
@@ -4544,7 +4544,6 @@ static int test_wc_InitSha3 (void)
     int             ret = 0;
 #if defined(WOLFSSL_SHA3)
     Sha3            sha3;
-    static int devId = INVALID_DEVID;
 
     #if !defined(WOLFSSL_NOSHA3_224)
         printf(testingFmt, "wc_InitSha3_224()");
@@ -4642,7 +4641,6 @@ static int testing_wc_Sha3_Update (void)
     word32      msglen = sizeof(msg) - 1;
     word32      msg2len = sizeof(msg2);
     word32      msgCmplen = sizeof(msgCmp);
-    static int devId = INVALID_DEVID;
 
     #if !defined(WOLFSSL_NOSHA3_224)
         printf(testingFmt, "wc_Sha3_224_Update()");
@@ -4838,7 +4836,6 @@ static int test_wc_Sha3_224_Final (void)
                          "\x64\xea\xd0\xfc\xce\x33";
     byte        hash[SHA3_224_DIGEST_SIZE];
     byte        hashRet[SHA3_224_DIGEST_SIZE];
-    static int devId = INVALID_DEVID;
 
     /* Init stack variables. */
     XMEMSET(hash, 0, sizeof(hash));
@@ -4932,7 +4929,6 @@ static int test_wc_Sha3_256_Final (void)
                         "\xdd\x97\x49\x6d\x33\x76";
     byte        hash[SHA3_256_DIGEST_SIZE];
     byte        hashRet[SHA3_256_DIGEST_SIZE];
-    static int devId = INVALID_DEVID;
 
     /* Init stack variables. */
     XMEMSET(hash, 0, sizeof(hash));
@@ -5024,7 +5020,6 @@ static int test_wc_Sha3_384_Final (void)
                          "\xa1\x9e\xef\x51\xac\xd0\x65\x7c\x22";
     byte        hash[SHA3_384_DIGEST_SIZE];
     byte        hashRet[SHA3_384_DIGEST_SIZE];
-    static int devId = INVALID_DEVID;
 
     /* Init stack variables. */
     XMEMSET(hash, 0, sizeof(hash));
@@ -5118,7 +5113,6 @@ static int test_wc_Sha3_512_Final (void)
                          "\x9c\x03\x0d\x99\xa2\x7d\xaf\x11\x39\xd6\xe7\x5e";
     byte        hash[SHA3_512_DIGEST_SIZE];
     byte        hashRet[SHA3_512_DIGEST_SIZE];
-    static int devId = INVALID_DEVID;
 
     /* Init stack variables. */
     XMEMSET(hash, 0, sizeof(hash));
@@ -5205,7 +5199,6 @@ static int test_wc_Sha3_224_Copy (void)
     word32      msglen = (word32)XSTRLEN(msg);
     byte        hash[SHA3_224_DIGEST_SIZE];
     byte        hashCpy[SHA3_224_DIGEST_SIZE];
-    static int devId = INVALID_DEVID;
 
     XMEMSET(hash, 0, sizeof(hash));
     XMEMSET(hashCpy, 0, sizeof(hashCpy));
@@ -5271,7 +5264,6 @@ static int test_wc_Sha3_256_Copy (void)
     word32      msglen = (word32)XSTRLEN(msg);
     byte        hash[SHA3_256_DIGEST_SIZE];
     byte        hashCpy[SHA3_256_DIGEST_SIZE];
-    static int devId = INVALID_DEVID;
 
     XMEMSET(hash, 0, sizeof(hash));
     XMEMSET(hashCpy, 0, sizeof(hashCpy));
@@ -5337,7 +5329,6 @@ static int test_wc_Sha3_384_Copy (void)
     word32      msglen = (word32)XSTRLEN(msg);
     byte        hash[SHA3_384_DIGEST_SIZE];
     byte        hashCpy[SHA3_384_DIGEST_SIZE];
-    static int devId = INVALID_DEVID;
 
     XMEMSET(hash, 0, sizeof(hash));
     XMEMSET(hashCpy, 0, sizeof(hashCpy));
@@ -5403,7 +5394,6 @@ static int test_wc_Sha3_512_Copy (void)
     word32      msglen = (word32)XSTRLEN(msg);
     byte        hash[SHA3_512_DIGEST_SIZE];
     byte        hashCpy[SHA3_512_DIGEST_SIZE];
-    static int devId = INVALID_DEVID;
 
     XMEMSET(hash, 0, sizeof(hash));
     XMEMSET(hashCpy, 0, sizeof(hashCpy));
@@ -13828,7 +13818,6 @@ static void test_wc_PKCS7_Init (void)
 {
 #if defined(HAVE_PKCS7)
     PKCS7       pkcs7;
-    static int devId = INVALID_DEVID;
     void*       heap = NULL;
 
     printf(testingFmt, "wc_PKCS7_Init()");
@@ -14151,8 +14140,8 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
     const char  input[] = "Test data to encode.";
     int         i;
     int         testSz = 0;
-    #if !defined(NO_RSA) && !defined(NO_AES) && (!defined(NO_SHA) |\
-        !defined(NO_SHA256) | !defined(NO_SHA512))
+    #if !defined(NO_RSA) && !defined(NO_AES) && (!defined(NO_SHA) ||\
+        !defined(NO_SHA256) || !defined(NO_SHA512))
 
         byte*   rsaCert     = NULL;
         byte*   rsaPrivKey  = NULL;
@@ -14166,8 +14155,8 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
             rsaPrivKeySz = (word32)sizeof(rsaClientKey);
         #endif
     #endif
-    #if defined(HAVE_ECC) && !defined(NO_AES) && (!defined(NO_SHA) |\
-        !defined(NO_SHA256) | !defined(NO_SHA512))
+    #if defined(HAVE_ECC) && !defined(NO_AES) && (!defined(NO_SHA) ||\
+        !defined(NO_SHA256) || !defined(NO_SHA512))
 
         byte*   eccCert     = NULL;
         byte*   eccPrivKey  = NULL;
@@ -14246,6 +14235,7 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
         eccCertSz = (word32)FOURK_BUF;
         eccCert = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         eccCertSz = (word32)fread(eccCert, 1, eccCertSz, certFile);
+        fclose(certFile);
         keyFile = fopen(eccClientKey, "rb");
         AssertNotNull(keyFile);
         eccPrivKeySz = (word32)FOURK_BUF;
@@ -14405,7 +14395,6 @@ static void test_wc_PKCS7_EncodeEncryptedData (void)
     byte        encrypted[TWOK_BUF];
     byte        decoded[TWOK_BUF];
     word32      tmpWrd32 = 0;
-    static int  devId = INVALID_DEVID;
     int         tmpInt = 0;
     int         decodedSz;
     int         encryptedSz;
