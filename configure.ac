@@ -1759,6 +1759,18 @@ then
 fi
 
 
+# Base16
+AC_ARG_ENABLE([base16],
+    [AS_HELP_STRING([--enable-base16],[Enable Base16 encoding/decoding (default: disabled)])],
+    [ ENABLED_BASE16=$enableval ],
+    [ ENABLED_BASE16=no ]
+    )
+if test "$ENABLED_BASE16" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_BASE16"
+fi
+
+
 # DES3
 AC_ARG_ENABLE([des3],
     [AS_HELP_STRING([--enable-des3],[Enable DES3 (default: disabled)])],

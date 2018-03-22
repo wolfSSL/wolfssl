@@ -344,12 +344,10 @@ int Base64_Encode_NoNl(const byte* in, word32 inLen, byte* out, word32* outLen)
     return DoBase64_Encode(in, inLen, out, outLen, WC_NO_NL_ENC);
 }
 
-#endif  /* defined(WOLFSSL_BASE64_ENCODE) */
+#endif /* WOLFSSL_BASE64_ENCODE */
 
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-    defined(HAVE_WEBSERVER) || defined(HAVE_FIPS) || \
-    defined(HAVE_ECC_CDH) || defined(HAVE_SELFTEST)
+#ifdef WOLFSSL_BASE16
 
 static
 const byte hexDecode[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
@@ -455,6 +453,6 @@ int Base16_Encode(const byte* in, word32 inLen, byte* out, word32* outLen)
     return 0;
 }
 
-#endif /* (OPENSSL_EXTRA) || (HAVE_WEBSERVER) || (HAVE_FIPS) */
+#endif /* WOLFSSL_BASE16 */
 
-#endif /* NO_CODING */
+#endif /* !NO_CODING */

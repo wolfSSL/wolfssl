@@ -218,6 +218,7 @@ typedef struct testVector {
 
 int  error_test(void);
 int  base64_test(void);
+int  base16_test(void);
 int  asn_test(void);
 int  md2_test(void);
 int  md5_test(void);
@@ -455,12 +456,18 @@ initDefaultName();
     else
         printf( "error    test passed!\n");
 
-#if !defined(NO_CODING) && defined(WOLFSSL_BASE64_ENCODE)
+#ifndef NO_CODING
     if ( (ret = base64_test()) != 0)
         return err_sys("base64   test failed!\n", ret);
     else
         printf( "base64   test passed!\n");
+#ifdef WOLFSSL_BASE16
+    if ( (ret = base16_test()) != 0)
+        return err_sys("base16   test failed!\n", ret);
+    else
+        printf( "base16   test passed!\n");
 #endif
+#endif /* !NO_CODING */
 
 #ifndef NO_ASN
     if ( (ret = asn_test()) != 0)
@@ -1114,7 +1121,8 @@ int error_test(void)
     return 0;
 }
 
-#if !defined(NO_CODING) && defined(WOLFSSL_BASE64_ENCODE)
+#ifndef NO_CODING
+
 int base64_test(void)
 {
     int        ret;
@@ -1122,10 +1130,12 @@ int base64_test(void)
     const byte goodEnd[] = "A+Gd \r\n";
     byte       out[128];
     word32     outLen;
+#ifdef WOLFSSL_BASE64_ENCODE
     byte       data[3];
     word32     dataLen;
     byte       longData[79] = { 0 };
     const byte symbols[] = "+/A=";
+#endif
     const byte badSmall[] = "AAA Gdj=";
     const byte badLarge[] = "AAA~Gdj=";
     const byte badEOL[] = "A+Gd ";
@@ -1162,6 +1172,7 @@ int base64_test(void)
             return -1214 - i;
     }
 
+#ifdef WOLFSSL_BASE64_ENCODE
     /* Decode and encode all symbols - non-alphanumeric. */
     dataLen = sizeof(data);
     ret = Base64_Decode(symbols, sizeof(symbols), data, &dataLen);
@@ -1206,10 +1217,49 @@ int base64_test(void)
     ret = Base64_Encode_NoNl(longData, dataLen, out, &outLen);
     if (ret != 0)
         return -1233;
+#endif
 
     return 0;
 }
-#endif
+
+#ifdef WOLFSSL_BASE16
+int base16_test(void)
+{
+    int ret;
+    const byte testData[] = "SomeDataToEncode\n";
+    const byte encodedTestData[] = "536F6D6544617461546F456E636F64650A00";
+    byte   encoded[40];
+    word32 encodedLen;
+    byte   plain[40];
+    word32 len;
+
+    /* length returned includes null termination */
+    encodedLen = sizeof(encoded);
+    ret = Base16_Encode(testData, sizeof(testData), encoded, &encodedLen);
+    if (ret != 0)
+        return -1234;
+
+    len = (word32)XSTRLEN((char*)encoded);
+    if (len != encodedLen - 1)
+        return -1235;
+
+    len = sizeof(plain);
+    ret = Base16_Decode(encoded, encodedLen - 1, plain, &len);
+    if (ret != 0)
+        return -1236;
+
+    if (len != sizeof(testData) || XMEMCMP(testData, plain, len) != 0)
+        return -1237;
+
+    if (encodedLen != sizeof(encodedTestData) ||
+        XMEMCMP(encoded, encodedTestData, encodedLen) != 0) {
+        return -1238;
+    }
+
+    return 0;
+}
+#endif /* WOLFSSL_BASE16 */
+#endif /* !NO_CODING */
 
 #ifndef NO_ASN
 int asn_test(void)
