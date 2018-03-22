@@ -3271,9 +3271,12 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
    }
 
    /* populate key->pubkey */
-   err = mp_read_unsigned_bin(key->pubkey.x, key->pubkey_raw, 32);
+   err = mp_read_unsigned_bin(key->pubkey.x, key->pubkey_raw,
+                              ECC_MAX_CRYPTO_HW_SIZE);
    if (err = MP_OKAY)
-       err = mp_read_unsigned_bin(key->pubkey.y, key->pubkey_raw + 32, 32);
+       err = mp_read_unsigned_bin(key->pubkey.y,
+                                  key->pubkey_raw + ECC_MAX_CRYPTO_HW_SIZE,
+                                  ECC_MAX_CRYPTO_HW_SIZE);
 #else
 
 #ifdef WOLFSSL_HAVE_SP_ECC
@@ -4616,7 +4619,7 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
 
 #ifdef WOLFSSL_ATECC508A
     /* populate key->pubkey_raw */
-    XMEMCPY(key->pubkey_raw, (byte*)in, PUB_KEY_SIZE);
+    XMEMCPY(key->pubkey_raw, (byte*)in, sizeof(key->pubkey_raw));
 #endif
 
     /* read data */

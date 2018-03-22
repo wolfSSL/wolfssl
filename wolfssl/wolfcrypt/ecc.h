@@ -122,6 +122,7 @@ enum {
     /* max crypto hardware size */
 #ifdef WOLFSSL_ATECC508A
     ECC_MAX_CRYPTO_HW_SIZE = ATECC_KEY_SIZE, /* from port/atmel/atmel.h */
+    ECC_MAX_CRYPTO_HW_PUBKEY_SIZE = (ATECC_KEY_SIZE*2)
 #elif defined(PLUTON_CRYPTO_ECC)
     ECC_MAX_CRYPTO_HW_SIZE = 32,
 #endif
@@ -316,7 +317,7 @@ struct ecc_key {
     mp_int    k;        /* private key */
 #ifdef WOLFSSL_ATECC508A
     int  slot;        /* Key Slot Number (-1 unknown) */
-    byte pubkey_raw[PUB_KEY_SIZE];
+    byte pubkey_raw[ECC_MAX_CRYPTO_HW_PUBKEY_SIZE];
 #endif
 #ifdef PLUTON_CRYPTO_ECC
     int devId;
