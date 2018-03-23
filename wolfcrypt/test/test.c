@@ -10771,6 +10771,25 @@ static int dh_fips_generate_test(WC_RNG *rng)
         ret = -5727;
     }
 
+#ifdef WOLFSSL_KEY_GEN
+
+    if (ret == 0) {
+        ret = wc_DhGenerateParams(rng, 2048, &key);
+        if (ret != 0) {
+            ERROR_OUT(-8226, exit_gen_test);
+        }
+
+        privSz = sizeof(priv);
+        pubSz = sizeof(pub);
+
+        ret = wc_DhGenerateKeyPair(&key, rng, priv, &privSz, pub, &pubSz);
+        if (ret != 0) {
+            ret = -8227;
+        }
+    }
+
+#endif /* WOLFSSL_KEY_GEN */
+
 exit_gen_test:
     wc_FreeDhKey(&key);
 
