@@ -1240,4 +1240,249 @@ int wc_DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
     return wc_DhSetKey_ex(key, p, pSz, g, gSz, NULL, 0);
 }
 
+
+#ifdef WOLFSSL_KEY_GEN
+
+/* modulus_size in bits */
+int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
+{
+    mp_int  tmp, tmp2;
+    int     groupSz, bufSz = 0,
+            primeCheckCount = 0,
+            primeCheck = MP_NO,
+            ret = 0;
+    unsigned char *buf = NULL;
+
+    if (rng == NULL || dh == NULL)
+        ret = BAD_FUNC_ARG;
+
+    /* set group size in bytes from modulus size
+     * FIPS 186-4 defines valid values (1024, 160) (2048, 256) (3072, 256)
+     */
+    if (ret == 0) {
+        switch (modSz) {
+            case 1024:
+                groupSz = 20;
+                break;
+            case 2048:
+            case 3072:
+                groupSz = 32;
+                break;
+            default:
+                ret = BAD_FUNC_ARG;
+                break;
+        }
+    }
+
+    if (ret == 0) {
+        /* modulus size in bytes */
+        modSz /= WOLFSSL_BIT_SIZE;
+        bufSz = modSz - groupSz;
+
+        /* allocate ram */
+        buf = (unsigned char *)XMALLOC(bufSz,
+                                       dh->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (buf == NULL)
+            ret = MEMORY_E;
+    }
+
+    /* make a random string that will be multplied against q */
+    if (ret == 0)
+        ret = wc_RNG_GenerateBlock(rng, buf, bufSz);
+
+    if (ret == 0) {
+        /* force magnitude */
+        buf[0] |= 0xC0;
+        /* force even */
+        buf[bufSz - 1] &= ~1;
+
+        if (mp_init_multi(&tmp, &tmp2, &dh->p, &dh->q, &dh->g, 0)
+                != MP_OKAY) {
+            ret = MP_INIT_E;
+        }
+    }
+
+    if (ret == 0) {
+        if (mp_read_unsigned_bin(&tmp2, buf, bufSz) != MP_OKAY)
+            ret = MP_READ_E;
+    }
+
+    /* make our prime q */
+    if (ret == 0) {
+        if (mp_rand_prime(&dh->q, groupSz, rng, NULL) != MP_OKAY)
+            ret = PRIME_GEN_E;
+    }
+
+    /* p = random * q */
+    if (ret == 0) {
+        if (mp_mul(&dh->q, &tmp2, &dh->p) != MP_OKAY)
+            ret = MP_MUL_E;
+    }
+
+    /* p = random * q + 1, so q is a prime divisor of p-1 */
+    if (ret == 0) {
+        if (mp_add_d(&dh->p, 1, &dh->p) != MP_OKAY)
+            ret = MP_ADD_E;
+    }
+
+    /* tmp = 2q  */
+    if (ret == 0) {
+        if (mp_add(&dh->q, &dh->q, &tmp) != MP_OKAY)
+            ret = MP_ADD_E;
+    }
+
+    /* loop until p is prime */
+    if (ret == 0) {
+        do {
+            if (mp_prime_is_prime(&dh->p, 8, &primeCheck) != MP_OKAY)
+                ret = PRIME_GEN_E;
+
+            if (primeCheck != MP_YES) {
+                /* p += 2q */
+                if (mp_add(&tmp, &dh->p, &dh->p) != MP_OKAY)
+                    ret = MP_ADD_E;
+                else
+                    primeCheckCount++;
+            }
+        } while (ret == 0 && primeCheck == MP_NO);
+    }
+
+    /* tmp2 += (2*loop_check_prime)
+     * to have p = (q * tmp2) + 1 prime
+     */
+    if (primeCheckCount) {
+        if (mp_add_d(&tmp2, 2 * primeCheckCount, &tmp2) != MP_OKAY)
+            ret = MP_ADD_E;
+    }
+
+    /* find a value g for which g^tmp2 != 1 */
+    if (mp_set(&dh->g, 1) != MP_OKAY)
+        ret = MP_ZERO_E;
+
+    if (ret == 0) {
+        do {
+            if (mp_add_d(&dh->g, 1, &dh->g) != MP_OKAY)
+                ret = MP_ADD_E;
+            else if (mp_exptmod(&dh->g, &tmp2, &dh->p, &tmp) != MP_OKAY)
+                ret = MP_EXPTMOD_E;
+        } while (ret == 0 && mp_cmp_d(&tmp, 1) == MP_EQ);
+    }
+
+    /* at this point tmp generates a group of order q mod p */
+    mp_exch(&tmp, &dh->g);
+
+    /* clear the parameters if there was an error */
+    if (ret != 0) {
+        mp_clear(&dh->q);
+        mp_clear(&dh->p);
+        mp_clear(&dh->g);
+    }
+
+    ForceZero(buf, bufSz);
+    XFREE(buf, dh->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    mp_clear(&tmp);
+    mp_clear(&tmp2);
+
+    return ret;
+}
+
+
+/* Export raw DH parameters from DhKey structure
+ *
+ * dh   - pointer to initialized DhKey structure
+ * p    - output location for DH (p) parameter
+ * pSz  - [IN/OUT] size of output buffer for p, size of p
+ * q    - output location for DH (q) parameter
+ * qSz  - [IN/OUT] size of output buffer for q, size of q
+ * g    - output location for DH (g) parameter
+ * gSz  - [IN/OUT] size of output buffer for g, size of g
+ *
+ * If p, q, and g pointers are all passed in as NULL, the function
+ * will set pSz, qSz, and gSz to the required output buffer sizes for p,
+ * q, and g. In this case, the function will return LENGTH_ONLY_E.
+ *
+ * returns 0 on success, negative upon failure
+ */
+int wc_DhExportParamsRaw(DhKey* dh, byte* p, word32* pSz,
+                         byte* q, word32* qSz, byte* g, word32* gSz)
+{
+    int ret = 0;
+    word32 pLen, qLen, gLen;
+
+    if (dh == NULL || pSz == NULL || qSz == NULL || gSz == NULL)
+        ret = BAD_FUNC_ARG;
+
+    /* get required output buffer sizes */
+    if (ret == 0) {
+        pLen = mp_unsigned_bin_size(&dh->p);
+        qLen = mp_unsigned_bin_size(&dh->q);
+        gLen = mp_unsigned_bin_size(&dh->g);
+
+        /* return buffer sizes and LENGTH_ONLY_E if buffers are NULL */
+        if (p == NULL && q == NULL && g == NULL) {
+            *pSz = pLen;
+            *qSz = qLen;
+            *gSz = gLen;
+            ret = LENGTH_ONLY_E;
+        }
+    }
+
+    if (ret == 0) {
+        if (p == NULL || q == NULL || g == NULL)
+            ret = BAD_FUNC_ARG;
+    }
+
+    /* export p */
+    if (ret == 0) {
+        if (*pSz < pLen) {
+            WOLFSSL_MSG("Output buffer for DH p parameter too small, "
+                        "required size placed into pSz");
+            *pSz = pLen;
+            ret = BUFFER_E;
+        }
+    }
+
+    if (ret == 0) {
+        *pSz = pLen;
+        if (mp_to_unsigned_bin(&dh->p, p) != MP_OKAY)
+            ret = MP_TO_E;
+    }
+
+    /* export q */
+    if (ret == 0) {
+        if (*qSz < qLen) {
+            WOLFSSL_MSG("Output buffer for DH q parameter too small, "
+                        "required size placed into qSz");
+            *qSz = qLen;
+            ret = BUFFER_E;
+        }
+    }
+
+    if (ret == 0) {
+        *qSz = qLen;
+        if (mp_to_unsigned_bin(&dh->q, q) != MP_OKAY)
+            ret = MP_TO_E;
+    }
+
+    /* export g */
+    if (ret == 0) {
+        if (*gSz < gLen) {
+            WOLFSSL_MSG("Output buffer for DH g parameter too small, "
+                        "required size placed into gSz");
+            *gSz = gLen;
+            ret = BUFFER_E;
+        }
+    }
+
+    if (ret == 0) {
+        *gSz = gLen;
+        if (mp_to_unsigned_bin(&dh->g, g) != MP_OKAY)
+            ret = MP_TO_E;
+    }
+
+    return ret;
+}
+
+#endif /* WOLFSSL_KEY_GEN */
+
 #endif /* NO_DH */
