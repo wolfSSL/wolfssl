@@ -46,6 +46,7 @@
 
         #define HAVE_ECC
         #define ECC_SHAMIR
+        #define ECC_TIMING_RESISTANT
     #else
         /* The servers and clients */
         #define OPENSSL_EXTRA
