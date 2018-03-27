@@ -46,7 +46,7 @@
     #include <wolfssl/wolfcrypt/port/nxp/ksdk_port.h>
 #endif
 
-#ifdef WOLFSSL_ATMEL
+#if defined(WOLFSSL_ATMEL) || defined(WOLFSSL_ATECC508A)
     #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
 #endif
 
@@ -129,7 +129,7 @@ int wolfCrypt_Init(void)
         }
     #endif
 
-    #ifdef WOLFSSL_ATMEL
+    #if defined(WOLFSSL_ATMEL) || defined(WOLFSSL_ATECC508A)
         atmel_init();
     #endif
 

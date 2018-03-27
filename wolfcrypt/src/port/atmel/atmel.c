@@ -25,18 +25,20 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#ifdef WOLFSSL_ATMEL
+#if defined(WOLFSSL_ATMEL) || defined(WOLFSSL_ATECC508A)
 
 #include <wolfssl/wolfcrypt/memory.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/ssl.h>
 #include <wolfssl/internal.h>
 
+#ifdef WOLFSSL_ATMEL
 #define Aes Aes_Remap
 #define Gmac Gmac_Remap
 #include "asf.h"
 #undef Aes
 #undef Gmac
+#endif /* WOLFSSL_ATMEL */
 
 #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
 
@@ -102,16 +104,20 @@ int atmel_get_random_block(unsigned char* output, unsigned int sz)
 	return atmel_get_random_number((uint32_t)sz, (uint8_t*)output);
 }
 
+#ifdef WOLFSSL_ATMEL
 extern struct rtc_module *_rtc_instance[RTC_INST_NUM];
+#endif
 long atmel_get_curr_time_and_date(long* tm)
 {
     (void)tm;
 
+#ifdef WOLFSSL_ATMEL
 	/* Get current time */
     //struct rtc_calendar_time rtcTime;
 	//rtc_calendar_get_time(_rtc_instance[0], &rtcTime);
 
     /* Convert rtc_calendar_time to seconds since UTC */
+#endif
 
     return 0;
 }
@@ -241,4 +247,4 @@ void atmel_init(void)
     }
 }
 
-#endif /* WOLFSSL_ATMEL */
+#endif /* WOLFSSL_ATMEL || WOLFSSL_ATECC508A */
