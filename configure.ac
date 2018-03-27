@@ -3843,6 +3843,14 @@ then
 fi
 
 
+# Default optimization enable
+AC_ARG_ENABLE([optimized],
+    [AS_HELP_STRING([--enable-optimized],[Enable default optimization options (default: enabled)])],
+    [ ENABLED_OPTIMIZED=$enableval ],
+    [ ENABLED_OPTIMIZED=yes ]
+    )
+
+
 # check if PSK was enabled for conditionally running psk.test script
 AM_CONDITIONAL([BUILD_PSK], [test "x$ENABLED_PSK" = "xyes"])
 
@@ -4056,6 +4064,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -Wall -Wno-unused"
     if test "$ax_enable_debug" = "no"
     then
+    AS_IF([test "x$ENABLED_OPTIMIZED" = "xyes"], [
         if test "$ENABLED_FASTMATH" = "yes"
         then
             AM_CFLAGS="$AM_CFLAGS $OPTIMIZE_FAST_CFLAGS"
@@ -4066,6 +4075,7 @@ then
         else
             AM_CFLAGS="$AM_CFLAGS $OPTIMIZE_CFLAGS"
         fi
+    ])
     fi
 fi
 
