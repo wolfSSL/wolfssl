@@ -66,7 +66,7 @@ CAVP_SELFTEST_ONLY="no"
 
 # non-FIPS, CAVP only but pull in selftest
 # will reset above variables below in platform switch
-NETBSD_FIPS_VERSION=v3.14.2
+NETBSD_FIPS_VERSION=v3.14.2a
 NETBSD_FIPS_REPO=git@github.com:wolfssl/fips.git
 NETBSD_CTAO_VERSION=v3.14.2
 NETBSD_CTAO_REPO=git@github.com:wolfssl/wolfssl.git
