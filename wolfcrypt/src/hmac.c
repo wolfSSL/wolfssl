@@ -462,7 +462,7 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
     #ifdef WOLFSSL_SHA3
         case WC_SHA3_224:
             hmac_block_size = WC_SHA3_224_BLOCK_SIZE;
-            if (length <= WC_SHA3_224_DIGEST_SIZE) {
+            if (length <= WC_SHA3_224_BLOCK_SIZE) {
                 if (key != NULL) {
                     XMEMCPY(ip, key, length);
                 }
@@ -480,7 +480,7 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
             break;
         case WC_SHA3_256:
             hmac_block_size = WC_SHA3_256_BLOCK_SIZE;
-            if (length <= WC_SHA3_256_DIGEST_SIZE) {
+            if (length <= WC_SHA3_256_BLOCK_SIZE) {
                 if (key != NULL) {
                     XMEMCPY(ip, key, length);
                 }
@@ -498,7 +498,7 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
             break;
         case WC_SHA3_384:
             hmac_block_size = WC_SHA3_384_BLOCK_SIZE;
-            if (length <= WC_SHA3_384_DIGEST_SIZE) {
+            if (length <= WC_SHA3_384_BLOCK_SIZE) {
                 if (key != NULL) {
                     XMEMCPY(ip, key, length);
                 }
@@ -516,7 +516,7 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
             break;
         case WC_SHA3_512:
             hmac_block_size = WC_SHA3_512_BLOCK_SIZE;
-            if (length <= WC_SHA3_512_DIGEST_SIZE) {
+            if (length <= WC_SHA3_512_BLOCK_SIZE) {
                 if (key != NULL) {
                     XMEMCPY(ip, key, length);
                 }
