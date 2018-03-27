@@ -14566,12 +14566,14 @@ static int ecc_exp_imp_test(ecc_key* key)
         goto done;
     }
 
+#ifndef HAVE_SELFTEST
     /* test import of public */
     ret = wc_ecc_import_unsigned(&keyImp, pub, &pub[32], NULL, ECC_SECP256R1);
     if (ret != 0) {
         ret = -6638;
         goto done;
     }
+#endif
 
     wc_ecc_free(&keyImp);
     wc_ecc_init(&keyImp);
@@ -14585,12 +14587,14 @@ static int ecc_exp_imp_test(ecc_key* key)
         goto done;
     }
 
+#ifndef HAVE_SELFTEST
     /* test import of private and public */
     ret = wc_ecc_import_unsigned(&keyImp, pub, &pub[32], priv, ECC_SECP256R1);
     if (ret != 0) {
         ret = -6640;
         goto done;
     }
+#endif
 
 done:
     wc_ecc_free(&keyImp);

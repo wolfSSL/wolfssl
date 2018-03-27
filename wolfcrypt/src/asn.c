@@ -1208,7 +1208,9 @@ static const byte extCertPolicyOid[] = {85, 29, 32};
 static const byte extKeyUsageOid[] = {85, 29, 15};
 static const byte extInhibitAnyOid[] = {85, 29, 54};
 static const byte extExtKeyUsageOid[] = {85, 29, 37};
-static const byte extNameConsOid[] = {85, 29, 30};
+#ifndef IGNORE_NAME_CONSTRAINTS
+    static const byte extNameConsOid[] = {85, 29, 30};
+#endif
 
 /* certAuthInfoType */
 #ifdef HAVE_OCSP
