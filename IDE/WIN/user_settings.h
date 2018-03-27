@@ -36,6 +36,17 @@
         #define WOLFSSL_SNIFFER
         #define HAVE_TLS_EXTENSIONS
         #define HAVE_SECURE_RENEGOTIATION
+
+        #define HAVE_AESGCM
+        #define WOLFSSL_SHA384
+        #define WOLFSSL_SHA512
+
+        #define HAVE_SUPPORTED_CURVES
+        #define HAVE_TLS_EXTENSIONS
+
+        #define HAVE_ECC
+        #define ECC_SHAMIR
+        #define ECC_TIMING_RESISTANT
     #else
         /* The servers and clients */
         #define OPENSSL_EXTRA
