@@ -514,11 +514,6 @@ WOLFSSL_API int wolfSSL_use_RSAPrivateKey_file(WOLFSSL*, const char*, int);
     /* load NTRU private key blob */
 #endif
 
-#ifndef WOLFSSL_PEMCERT_TODER_DEFINED
-    WOLFSSL_API int wolfSSL_PemCertToDer(const char*, unsigned char*, int);
-    #define WOLFSSL_PEMCERT_TODER_DEFINED
-#endif
-
 #endif /* !NO_FILESYSTEM && !NO_CERTS */
 
 WOLFSSL_API WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD*);
@@ -1710,17 +1705,6 @@ WOLFSSL_API int wolfSSL_KeyPemToDer(const unsigned char*, int,
                                     unsigned char*, int, const char*);
 WOLFSSL_API int wolfSSL_CertPemToDer(const unsigned char*, int,
                                      unsigned char*, int, int);
-#if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_PUB_PEM_TO_DER)
-    #ifndef WOLFSSL_PEMPUBKEY_TODER_DEFINED
-        #ifndef NO_FILESYSTEM
-            WOLFSSL_API int wolfSSL_PemPubKeyToDer(const char* fileName,
-                                                   unsigned char* derBuf, int derSz);
-        #endif
-        WOLFSSL_API int wolfSSL_PubKeyPemToDer(const unsigned char*, int,
-                                               unsigned char*, int);
-        #define WOLFSSL_PEMPUBKEY_TODER_DEFINED
-    #endif /* WOLFSSL_PEMPUBKEY_TODER_DEFINED */
-#endif /* WOLFSSL_CERT_EXT || WOLFSSL_PUB_PEM_TO_DER*/
 
 typedef void (*CallbackCACache)(unsigned char* der, int sz, int type);
 typedef void (*CbMissingCRL)(const char* url);

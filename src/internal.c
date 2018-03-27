@@ -14974,9 +14974,6 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case SUITES_ERROR:
         return "Suites Pointer Error";
 
-    case SSL_NO_PEM_HEADER:
-        return "No PEM Header Error";
-
     case OUT_OF_ORDER_E:
         return "Out of order message, fatal";
 

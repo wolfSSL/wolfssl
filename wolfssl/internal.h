@@ -1521,17 +1521,6 @@ WOLFSSL_LOCAL int DoTls13ServerHello(WOLFSSL* ssl, const byte* input,
                                      word32* inOutIdx, word32 helloSz);
 #endif
 
-#ifndef NO_CERTS
-    /* wolfSSL DER buffer */
-    typedef struct DerBuffer {
-        byte*  buffer;
-        void* heap;
-        word32 length;
-        int type; /* enum CertType */
-        int dynType; /* DYNAMIC_TYPE_* */
-    } DerBuffer;
-#endif /* !NO_CERTS */
-
 
 enum {
     FORCED_FREE = 1,
@@ -3665,30 +3654,8 @@ void FreeSSL(WOLFSSL*, void* heap);
 WOLFSSL_API void SSL_ResourceFree(WOLFSSL*);   /* Micrium uses */
 
 
-enum {
-    IV_SZ   = 32,          /* max iv sz */
-    NAME_SZ = 80          /* max one line */
-};
-
-
-typedef struct EncryptedInfo {
-    char     name[NAME_SZ];    /* encryption name */
-    byte     iv[IV_SZ];        /* encrypted IV */
-    word32   ivSz;             /* encrypted IV size */
-    long     consumed;         /* tracks PEM bytes consumed */
-    byte     set;              /* if encryption set */
-    WOLFSSL_CTX* ctx;              /* CTX owner */
-} EncryptedInfo;
-
 
 #ifndef NO_CERTS
-
-    WOLFSSL_LOCAL int AllocDer(DerBuffer** der, word32 length, int type, void* heap);
-    WOLFSSL_LOCAL void FreeDer(DerBuffer** der);
-
-    WOLFSSL_LOCAL int PemToDer(const unsigned char* buff, long sz, int type,
-                              DerBuffer** pDer, void* heap, EncryptedInfo* info,
-                              int* eccKey);
 
     WOLFSSL_LOCAL int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                                     long sz, int format, int type, WOLFSSL* ssl,

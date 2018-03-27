@@ -50,6 +50,9 @@
     #define WC_RNG_TYPE_DEFINED
 #endif
 
+struct WOLFSSL_CTX;
+
+
 /* Certificate file Type */
 enum CertType {
     CERT_TYPE       = 0,
@@ -111,6 +114,29 @@ enum Ctc_Misc {
     CTC_MAX_CERTPOL_NB = 2 /* Max number of Certificate Policy */
 #endif /* WOLFSSL_CERT_EXT */
 };
+
+/* DER buffer */
+typedef struct DerBuffer {
+    byte*  buffer;
+    void*  heap;
+    word32 length;
+    int    type;    /* enum CertType */
+    int    dynType; /* DYNAMIC_TYPE_* */
+} DerBuffer;
+
+enum {
+    IV_SZ   = 32,          /* max iv sz */
+    NAME_SZ = 80           /* max one line */
+};
+
+typedef struct EncryptedInfo {
+    char     name[NAME_SZ];    /* encryption name */
+    byte     iv[IV_SZ];        /* encrypted IV */
+    word32   ivSz;             /* encrypted IV size */
+    long     consumed;         /* tracks PEM bytes consumed */
+    byte     set;              /* if encryption set */
+    struct WOLFSSL_CTX* ctx;   /* CTX owner */
+} EncryptedInfo;
 
 
 #ifdef WOLFSSL_CERT_GEN
@@ -209,6 +235,7 @@ typedef struct Cert {
 } Cert;
 
 
+
 /* Initialize and Set Certificate defaults:
    version    = 3 (0x2)
    serial     = 0 (Will be randomly generated)
@@ -299,6 +326,7 @@ WOLFSSL_API int wc_SetExtKeyUsageOID(Cert *cert, const char *oid, word32 sz,
 
 #endif /* WOLFSSL_CERT_GEN */
 
+
 #if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_PUB_PEM_TO_DER)
     #ifndef WOLFSSL_PEMPUBKEY_TODER_DEFINED
         #ifndef NO_FILESYSTEM
@@ -321,6 +349,25 @@ WOLFSSL_API int wc_SetExtKeyUsageOID(Cert *cert, const char *oid, word32 sz,
     WOLFSSL_API int wc_DerToPemEx(const byte* der, word32 derSz, byte* output,
                                 word32 outputSz, byte *cipherIno, int type);
 #endif
+
+WOLFSSL_API int wc_PemToDer(const unsigned char* buff, long longSz, int type,
+          DerBuffer** pDer, void* heap, EncryptedInfo* info, int* eccKey);
+
+#ifdef WOLFSSL_CERT_GEN
+#ifndef NO_FILESYSTEM
+    WOLFSSL_API int wolfSSL_PemCertToDer(const char* fileName,
+                                         unsigned char* derBuf, int derSz);
+#endif
+#endif /* WOLFSSL_CERT_GEN */
+
+#if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_PUB_PEM_TO_DER)
+    #ifndef NO_FILESYSTEM
+        WOLFSSL_API int wolfSSL_PemPubKeyToDer(const char* fileName,
+                                               unsigned char* derBuf, int derSz);
+    #endif
+    WOLFSSL_API int wolfSSL_PubKeyPemToDer(const unsigned char*, int,
+                                               unsigned char*, int);
+#endif /* WOLFSSL_CERT_EXT || WOLFSSL_PUB_PEM_TO_DER */
 
 #ifdef HAVE_ECC
     /* private key helpers */

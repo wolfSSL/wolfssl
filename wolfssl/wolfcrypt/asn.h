@@ -914,6 +914,15 @@ WOLFSSL_LOCAL int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der);
 WOLFSSL_LOCAL void InitSignatureCtx(SignatureCtx* sigCtx, void* heap, int devId);
 WOLFSSL_LOCAL void FreeSignatureCtx(SignatureCtx* sigCtx);
 
+#ifndef NO_CERTS
+
+WOLFSSL_LOCAL int PemToDer(const unsigned char* buff, long sz, int type,
+                          DerBuffer** pDer, void* heap, EncryptedInfo* info,
+                          int* eccKey);
+WOLFSSL_LOCAL int AllocDer(DerBuffer** der, word32 length, int type, void* heap);
+WOLFSSL_LOCAL void FreeDer(DerBuffer** der);
+
+#endif /* !NO_CERTS */
 
 #ifdef WOLFSSL_CERT_GEN
 
@@ -927,15 +936,6 @@ enum cert_enums {
     ECC_KEY         = 12,
     ED25519_KEY     = 13
 };
-
-#ifndef WOLFSSL_PEMCERT_TODER_DEFINED
-#ifndef NO_FILESYSTEM
-/* forward from wolfSSL */
-WOLFSSL_API
-int wolfSSL_PemCertToDer(const char* fileName,unsigned char* derBuf,int derSz);
-#define WOLFSSL_PEMCERT_TODER_DEFINED
-#endif
-#endif
 
 #endif /* WOLFSSL_CERT_GEN */
 
