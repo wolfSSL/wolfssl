@@ -14217,8 +14217,7 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
     const char  input[] = "Test data to encode.";
     int         i;
     int         testSz = 0;
-    #if !defined(NO_RSA) && !defined(NO_AES) && (!defined(NO_SHA) ||\
-        !defined(NO_SHA256) || !defined(NO_SHA512))
+    #if !defined(NO_RSA)
 
         byte*   rsaCert     = NULL;
         byte*   rsaPrivKey  = NULL;
@@ -14232,8 +14231,7 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
             rsaPrivKeySz = (word32)sizeof(rsaClientKey);
         #endif
     #endif
-    #if defined(HAVE_ECC) && !defined(NO_AES) && (!defined(NO_SHA) ||\
-        !defined(NO_SHA256) || !defined(NO_SHA512))
+    #if defined(HAVE_ECC)
 
         byte*   eccCert     = NULL;
         byte*   eccPrivKey  = NULL;
