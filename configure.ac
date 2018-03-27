@@ -10,9 +10,11 @@ AC_INIT([wolfssl],[3.14.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl]
 
 AC_CONFIG_AUX_DIR([build-aux])
 
-# The following sets CFLAGS to empty if unset on command line. We do not want
-# the default "-g -O2" that AC_PROG_CC sets automatically.
+# The following sets CFLAGS and CXXFLAGS to empty if unset on command line.
+# We do not want the default "-g -O2" that AC_PROG_CC AC_PROG_CXX sets
+# automatically.
 : ${CFLAGS=""}
+: ${CXXFLAGS=""}
 
 AC_CANONICAL_HOST
 AC_CANONICAL_BUILD
@@ -4104,7 +4106,7 @@ if test "$ENABLED_DISTRO" = "no"
 then
     CFLAGS="$CFLAGS $USER_C_EXTRA_FLAGS"
 fi
-OPTION_FLAGS="$USER_CFLAGS $USER_C_EXTRA_FLAGS $AM_CFLAGS"
+OPTION_FLAGS="$USER_CFLAGS $USER_C_EXTRA_FLAGS $CPPFLAGS $AM_CFLAGS"
 
 
 
