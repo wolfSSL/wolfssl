@@ -954,6 +954,11 @@ initDefaultName();
     wolfAsync_DevClose(&devId);
 #endif
 
+    /* cleanup the thread if fixed point cache is enabled and have thread local */
+#if defined(HAVE_THREAD_LS) && defined(HAVE_ECC) && defined(FP_ECC)
+    wc_ecc_fp_free();
+#endif
+
     ((func_args*)args)->return_code = ret;
 
     EXIT_TEST(ret);
@@ -965,6 +970,7 @@ initDefaultName();
     /* so overall tests can pull in test function */
     int main(int argc, char** argv)
     {
+        int ret;
         func_args args;
 
 #ifdef HAVE_WNR
@@ -977,7 +983,10 @@ initDefaultName();
         args.argc = argc;
         args.argv = argv;
 
-        wolfCrypt_Init();
+        if ((ret = wolfCrypt_Init()) != 0) {
+            printf("wolfCrypt_Init failed %d\n", ret);
+            err_sys("Error with wolfCrypt_Init!\n", -1003);
+        }
 
     #ifdef HAVE_STACK_SIZE
         StackSizeCheck(&args, wolfcrypt_test);
@@ -985,13 +994,14 @@ initDefaultName();
         wolfcrypt_test(&args);
     #endif
 
-        if (wolfCrypt_Cleanup() != 0) {
-            err_sys("Error with wolfCrypt_Cleanup!\n", -1003);
+        if ((ret = wolfCrypt_Cleanup()) != 0) {
+            printf("wolfCrypt_Cleanup failed %d\n", ret);
+            err_sys("Error with wolfCrypt_Cleanup!\n", -1004);
         }
 
 #ifdef HAVE_WNR
         if (wc_FreeNetRandom() < 0)
-            err_sys("Failed to free netRandom context", -1004);
+            err_sys("Failed to free netRandom context", -1005);
 #endif /* HAVE_WNR */
 
         return args.return_code;

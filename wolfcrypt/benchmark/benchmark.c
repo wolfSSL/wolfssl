@@ -1439,6 +1439,11 @@ exit:
     wolfAsync_DevClose(&devId);
 #endif
 
+/* cleanup the thread if fixed point cache is enabled and have thread local */
+#if defined(HAVE_THREAD_LS) && defined(HAVE_ECC) && defined(FP_ECC)
+    wc_ecc_fp_free();
+#endif
+
     (void)bench_cipher_algs;
     (void)bench_digest_algs;
     (void)bench_mac_algs;
