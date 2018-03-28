@@ -755,8 +755,14 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
     if (hLen < 0)
         return hLen;
 
-    if (saltLen == -1)
+    if (saltLen == -1) {
         saltLen = hLen;
+        #ifdef WOLFSSL_SHA512
+            /* See FIPS 186-4 section 5.5 item (e). */
+            if (bits == 1024 && hLen == WC_SHA512_DIGEST_SIZE)
+                saltLen = RSA_PSS_SALT_MAX_SZ;
+        #endif
+    }
     else if (saltLen > hLen || saltLen < -1)
         return PSS_SALTLEN_E;
     if ((int)pkcsBlockLen - hLen - 1 < saltLen + 2)
@@ -1022,8 +1028,14 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
     if (hLen < 0)
         return hLen;
 
-    if (saltLen == -1)
+    if (saltLen == -1) {
         saltLen = hLen;
+        #ifdef WOLFSSL_SHA512
+            /* See FIPS 186-4 section 5.5 item (e). */
+            if (bits == 1024 && hLen == WC_SHA512_DIGEST_SIZE)
+                saltLen = RSA_PSS_SALT_MAX_SZ;
+        #endif
+    }
     else if (saltLen > hLen || saltLen < -1)
         return PSS_SALTLEN_E;
     if ((int)pkcsBlockLen - hLen - 1 < saltLen + 2)
@@ -2203,6 +2215,103 @@ int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, byte* sig,
 
     return ret;
 }
+
+
+/* Verify the message signed with RSA-PSS.
+ * The input buffer is reused for the ouput buffer.
+ * Salt length is equal to hash length.
+ *
+ * in     Buffer holding encrypted data.
+ * inLen  Length of data in buffer.
+ * out    Pointer to address containing the PSS data.
+ * digest Hash of the data that is being verified.
+ * digestLen Length of hash.
+ * hash   Hash algorithm.
+ * mgf    Mask generation function.
+ * key    Public RSA key.
+ * returns the length of the PSS data on success and negative indicates failure.
+ */
+int wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
+                           const byte* digest, word32 digestLen,
+                           enum wc_HashType hash, int mgf, RsaKey* key)
+{
+    int ret = 0, verify, saltLen, hLen;
+
+    hLen = wc_HashGetDigestSize(hash);
+    if (hLen < 0)
+        return hLen;
+    if ((word32)hLen != digestLen)
+        return BAD_FUNC_ARG;
+
+    saltLen = hLen;
+    #ifdef WOLFSSL_SHA512
+        /* See FIPS 186-4 section 5.5 item (e). */
+        if (mp_unsigned_bin_size(&key->n) == 1024 &&
+            hLen == WC_SHA512_DIGEST_SIZE) {
+
+            saltLen = RSA_PSS_SALT_MAX_SZ;
+        }
+    #endif
+
+    verify = wc_RsaPSS_VerifyInline_ex(in, inLen, out, hash, mgf, saltLen, key);
+    if (verify > 0)
+        ret = wc_RsaPSS_CheckPadding_ex(digest, digestLen, *out, verify,
+                                        hash, saltLen);
+    if (ret == 0)
+        ret = verify;
+
+    return ret;
+}
+
+
+/* Verify the message signed with RSA-PSS.
+ * Salt length is equal to hash length.
+ *
+ * in     Buffer holding encrypted data.
+ * inLen  Length of data in buffer.
+ * out    Pointer to address containing the PSS data.
+ * outLen Length of the output.
+ * digest Hash of the data that is being verified.
+ * digestLen Length of hash.
+ * hash   Hash algorithm.
+ * mgf    Mask generation function.
+ * key    Public RSA key.
+ * returns the length of the PSS data on success and negative indicates failure.
+ */
+int wc_RsaPSS_VerifyCheck(byte* in, word32 inLen, byte* out, word32 outLen,
+                          const byte* digest, word32 digestLen,
+                          enum wc_HashType hash, int mgf,
+                          RsaKey* key)
+{
+    int ret = 0, verify, saltLen, hLen;
+
+    hLen = wc_HashGetDigestSize(hash);
+    if (hLen < 0)
+        return hLen;
+    if ((word32)hLen != digestLen)
+        return BAD_FUNC_ARG;
+
+    saltLen = hLen;
+    #ifdef WOLFSSL_SHA512
+        /* See FIPS 186-4 section 5.5 item (e). */
+        if (mp_unsigned_bin_size(&key->n) == 1024 &&
+            hLen == WC_SHA512_DIGEST_SIZE) {
+
+            saltLen = RSA_PSS_SALT_MAX_SZ;
+        }
+    #endif
+
+    verify = wc_RsaPSS_Verify_ex(in, inLen, out, outLen, hash,
+                                 mgf, saltLen, key);
+    if (verify > 0)
+        ret = wc_RsaPSS_CheckPadding_ex(digest, digestLen, out, verify,
+                                        hash, saltLen);
+    if (ret == 0)
+        ret = verify;
+
+    return ret;
+}
+
 #endif
 
 int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
