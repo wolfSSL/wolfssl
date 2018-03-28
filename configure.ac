@@ -10,9 +10,11 @@ AC_INIT([wolfssl],[3.14.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl]
 
 AC_CONFIG_AUX_DIR([build-aux])
 
-# The following sets CFLAGS to empty if unset on command line. We do not want
-# the default "-g -O2" that AC_PROG_CC sets automatically.
+# The following sets CFLAGS and CXXFLAGS to empty if unset on command line.
+# We do not want the default "-g -O2" that AC_PROG_CC AC_PROG_CXX sets
+# automatically.
 : ${CFLAGS=""}
+: ${CXXFLAGS=""}
 
 AC_CANONICAL_HOST
 AC_CANONICAL_BUILD
@@ -3841,6 +3843,14 @@ then
 fi
 
 
+# Default optimization CFLAGS enable
+AC_ARG_ENABLE([optflags],
+    [AS_HELP_STRING([--enable-optflags],[Enable default optimization CFLAGS for the compiler (default: enabled)])],
+    [ ENABLED_OPTFLAGS=$enableval ],
+    [ ENABLED_OPTFLAGS=yes ]
+    )
+
+
 # check if PSK was enabled for conditionally running psk.test script
 AM_CONDITIONAL([BUILD_PSK], [test "x$ENABLED_PSK" = "xyes"])
 
@@ -4054,6 +4064,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -Wall -Wno-unused"
     if test "$ax_enable_debug" = "no"
     then
+    AS_IF([test "x$ENABLED_OPTFLAGS" = "xyes"], [
         if test "$ENABLED_FASTMATH" = "yes"
         then
             AM_CFLAGS="$AM_CFLAGS $OPTIMIZE_FAST_CFLAGS"
@@ -4064,6 +4075,7 @@ then
         else
             AM_CFLAGS="$AM_CFLAGS $OPTIMIZE_CFLAGS"
         fi
+    ])
     fi
 fi
 
@@ -4104,7 +4116,7 @@ if test "$ENABLED_DISTRO" = "no"
 then
     CFLAGS="$CFLAGS $USER_C_EXTRA_FLAGS"
 fi
-OPTION_FLAGS="$USER_CFLAGS $USER_C_EXTRA_FLAGS $AM_CFLAGS"
+OPTION_FLAGS="$USER_CFLAGS $USER_C_EXTRA_FLAGS $CPPFLAGS $AM_CFLAGS"
 
 
 
