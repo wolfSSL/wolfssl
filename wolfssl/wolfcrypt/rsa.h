@@ -100,6 +100,7 @@ enum {
     RSA_MIN_PAD_SZ   = 11,     /* separator + 0 + pad value + 8 pads */
 
     RSA_PSS_PAD_SZ = 8,
+    RSA_PSS_SALT_MAX_SZ = 62,
 
 #ifdef OPENSSL_EXTRA
     RSA_PKCS1_PADDING_SIZE = 11,
@@ -190,6 +191,15 @@ WOLFSSL_API int  wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inLen,
                                            byte* sig, word32 sigSz,
                                            enum wc_HashType hashType,
                                            int saltLen);
+WOLFSSL_API int  wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
+                               const byte* digest, word32 digentLen,
+                               enum wc_HashType hash, int mgf,
+                               RsaKey* key);
+WOLFSSL_API int  wc_RsaPSS_VerifyCheck(byte* in, word32 inLen,
+                               byte* out, word32 outLen,
+                               const byte* digest, word32 digestLen,
+                               enum wc_HashType hash, int mgf,
+                               RsaKey* key);
 
 WOLFSSL_API int  wc_RsaEncryptSize(RsaKey* key);
 
