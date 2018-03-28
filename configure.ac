@@ -3843,11 +3843,11 @@ then
 fi
 
 
-# Default optimization enable
-AC_ARG_ENABLE([optimized],
-    [AS_HELP_STRING([--enable-optimized],[Enable default optimization options (default: enabled)])],
-    [ ENABLED_OPTIMIZED=$enableval ],
-    [ ENABLED_OPTIMIZED=yes ]
+# Default optimization CFLAGS enable
+AC_ARG_ENABLE([optflags],
+    [AS_HELP_STRING([--enable-optflags],[Enable default optimization CFLAGS for the compiler (default: enabled)])],
+    [ ENABLED_OPTFLAGS=$enableval ],
+    [ ENABLED_OPTFLAGS=yes ]
     )
 
 
@@ -4064,7 +4064,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -Wall -Wno-unused"
     if test "$ax_enable_debug" = "no"
     then
-    AS_IF([test "x$ENABLED_OPTIMIZED" = "xyes"], [
+    AS_IF([test "x$ENABLED_OPTFLAGS" = "xyes"], [
         if test "$ENABLED_FASTMATH" = "yes"
         then
             AM_CFLAGS="$AM_CFLAGS $OPTIMIZE_FAST_CFLAGS"
