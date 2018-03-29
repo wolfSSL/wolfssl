@@ -14217,8 +14217,8 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
     const char  input[] = "Test data to encode.";
     int         i;
     int         testSz = 0;
-    #if !defined(NO_RSA) && !defined(NO_AES) && (!defined(NO_SHA) ||\
-        !defined(NO_SHA256) || !defined(NO_SHA512))
+    #if !defined(NO_RSA) && (!defined(NO_AES) || (!defined(NO_SHA) ||\
+        !defined(NO_SHA256) || !defined(NO_SHA512)))
 
         byte*   rsaCert     = NULL;
         byte*   rsaPrivKey  = NULL;
@@ -14232,8 +14232,8 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
             rsaPrivKeySz = (word32)sizeof(rsaClientKey);
         #endif
     #endif
-    #if defined(HAVE_ECC) && !defined(NO_AES) && (!defined(NO_SHA) ||\
-        !defined(NO_SHA256) || !defined(NO_SHA512))
+    #if defined(HAVE_ECC) && (!defined(NO_AES) || (!defined(NO_SHA) ||\
+        !defined(NO_SHA256) || !defined(NO_SHA512)))
 
         byte*   eccCert     = NULL;
         byte*   eccPrivKey  = NULL;
@@ -14253,7 +14253,8 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
     FILE* keyFile;
 #endif
 
-#ifndef NO_RSA
+#if !defined(NO_RSA) && (!defined(NO_AES) || (!defined(NO_SHA) ||\
+    !defined(NO_SHA256) || !defined(NO_SHA512)))
     /* RSA certs and keys. */
     #if defined(USE_CERT_BUFFERS_1024)
         /* Allocate buffer space. */
@@ -14296,11 +14297,13 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
 #endif /* NO_RSA */
 
 /* ECC */
-#if defined(HAVE_ECC)
+#if defined(HAVE_ECC) && (!defined(NO_AES) || (!defined(NO_SHA) ||\
+    !defined(NO_SHA256) || !defined(NO_SHA512)))
+
     #ifdef USE_CERT_BUFFERS_256
         eccCert = (byte*)XMALLOC(TWOK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         /* Init buffer. */
-        eccCertSz = (word32)sizeof_cliecc_cert_der_256;
+       eccCertSz = (word32)sizeof_cliecc_cert_der_256;
         XMEMCPY(eccCert, cliecc_cert_der_256, eccCertSz);
         eccPrivKey = (byte*)XMALLOC(TWOK_BUF, HEAP_HINT,
                                 DYNAMIC_TYPE_TMP_BUFFER);
