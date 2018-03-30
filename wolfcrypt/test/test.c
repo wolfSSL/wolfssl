@@ -8873,8 +8873,8 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
                 ERROR_OUT(-5452, exit_rsa_pss);
             plainSz = ret;
 
-            ret = wc_RsaPSS_CheckPadding(digest, digestSz, plain, plainSz,
-                                         hash[j]);
+            ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz,
+                                         hash[j], -1, wc_RsaEncryptSize(key)*8);
             if (ret != 0)
                 ERROR_OUT(-5453, exit_rsa_pss);
 
@@ -8942,7 +8942,7 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
     #endif
         if (ret >= 0) {
             ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, sig, plainSz,
-                hash[0], 0);
+                hash[0], 0, 0);
         }
     } while (ret == WC_PENDING_E);
     if (ret != 0)
@@ -8965,7 +8965,7 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
     plainSz = ret;
 
     ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz, hash[0],
-                                    0);
+                                    0, 0);
     if (ret != 0)
         ERROR_OUT(-5464, exit_rsa_pss);
 
@@ -9025,11 +9025,11 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
         ERROR_OUT(-5473, exit_rsa_pss);
 
     ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz, hash[0],
-                                    -2);
+                                    -2, 0);
     if (ret != PSS_SALTLEN_E)
         ERROR_OUT(-5474, exit_rsa_pss);
     ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz, hash[0],
-                                    digestSz + 1);
+                                    digestSz + 1, 0);
     if (ret != PSS_SALTLEN_E)
         ERROR_OUT(-5475, exit_rsa_pss);
 
