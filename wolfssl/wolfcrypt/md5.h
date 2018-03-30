@@ -52,11 +52,12 @@
 
 /* in bytes */
 enum {
-    WC_MD5             =  0,      /* hash type unique */
+    WC_MD5             =  WC_HASH_TYPE_MD5,
     WC_MD5_BLOCK_SIZE  = 64,
     WC_MD5_DIGEST_SIZE = 16,
     WC_MD5_PAD_SIZE    = 56
 };
+
 
 #ifdef WOLFSSL_MICROCHIP_PIC32MZ
     #include <wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h>

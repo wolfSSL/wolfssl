@@ -450,7 +450,7 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
     #ifdef WOLFSSL_SHA3
         case WC_SHA3_224:
             hmac_block_size = WC_SHA3_224_BLOCK_SIZE;
-            if (length <= SHA3_224_DIGEST_SIZE) {
+            if (length <= WC_SHA3_224_DIGEST_SIZE) {
                 if (key != NULL) {
                     XMEMCPY(ip, key, length);
                 }
@@ -463,12 +463,12 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
                 if (ret != 0)
                     break;
 
-                length = SHA3_224_DIGEST_SIZE;
+                length = WC_SHA3_224_DIGEST_SIZE;
             }
             break;
         case WC_SHA3_256:
             hmac_block_size = WC_SHA3_256_BLOCK_SIZE;
-            if (length <= SHA3_256_DIGEST_SIZE) {
+            if (length <= WC_SHA3_256_DIGEST_SIZE) {
                 if (key != NULL) {
                     XMEMCPY(ip, key, length);
                 }
@@ -481,12 +481,12 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
                 if (ret != 0)
                     break;
 
-                length = SHA3_256_DIGEST_SIZE;
+                length = WC_SHA3_256_DIGEST_SIZE;
             }
             break;
         case WC_SHA3_384:
             hmac_block_size = WC_SHA3_384_BLOCK_SIZE;
-            if (length <= SHA3_384_DIGEST_SIZE) {
+            if (length <= WC_SHA3_384_DIGEST_SIZE) {
                 if (key != NULL) {
                     XMEMCPY(ip, key, length);
                 }
@@ -499,12 +499,12 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
                 if (ret != 0)
                     break;
 
-                length = SHA3_384_DIGEST_SIZE;
+                length = WC_SHA3_384_DIGEST_SIZE;
             }
             break;
         case WC_SHA3_512:
             hmac_block_size = WC_SHA3_512_BLOCK_SIZE;
-            if (length <= SHA3_512_DIGEST_SIZE) {
+            if (length <= WC_SHA3_512_DIGEST_SIZE) {
                 if (key != NULL) {
                     XMEMCPY(ip, key, length);
                 }
@@ -517,7 +517,7 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
                 if (ret != 0)
                     break;
 
-                length = SHA3_512_DIGEST_SIZE;
+                length = WC_SHA3_512_DIGEST_SIZE;
             }
             break;
     #endif /* WOLFSSL_SHA3 */
@@ -899,7 +899,7 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
             if (ret != 0)
                 break;
             ret = wc_Sha3_224_Update(&hmac->hash.sha3, (byte*)hmac->innerHash,
-                                                          SHA3_224_DIGEST_SIZE);
+                                                          WC_SHA3_224_DIGEST_SIZE);
             if (ret != 0)
                 break;
             ret = wc_Sha3_224_Final(&hmac->hash.sha3, hash);
@@ -913,7 +913,7 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
             if (ret != 0)
                 break;
             ret = wc_Sha3_256_Update(&hmac->hash.sha3, (byte*)hmac->innerHash,
-                                                          SHA3_256_DIGEST_SIZE);
+                                                          WC_SHA3_256_DIGEST_SIZE);
             if (ret != 0)
                 break;
             ret = wc_Sha3_256_Final(&hmac->hash.sha3, hash);
@@ -927,7 +927,7 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
             if (ret != 0)
                 break;
             ret = wc_Sha3_384_Update(&hmac->hash.sha3, (byte*)hmac->innerHash,
-                                                          SHA3_384_DIGEST_SIZE);
+                                                          WC_SHA3_384_DIGEST_SIZE);
             if (ret != 0)
                 break;
             ret = wc_Sha3_384_Final(&hmac->hash.sha3, hash);
@@ -941,7 +941,7 @@ int wc_HmacFinal(Hmac* hmac, byte* hash)
             if (ret != 0)
                 break;
             ret = wc_Sha3_512_Update(&hmac->hash.sha3, (byte*)hmac->innerHash,
-                                                          SHA3_512_DIGEST_SIZE);
+                                                          WC_SHA3_512_DIGEST_SIZE);
             if (ret != 0)
                 break;
             ret = wc_Sha3_512_Final(&hmac->hash.sha3, hash);

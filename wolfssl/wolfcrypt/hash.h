@@ -46,6 +46,13 @@
 #ifdef WOLFSSL_SHA3
     #include <wolfssl/wolfcrypt/sha3.h>
 #endif
+#ifndef NO_MD4
+    #include <wolfssl/wolfcrypt/md4.h>
+#endif
+#ifdef WOLFSSL_MD2
+    #include <wolfssl/wolfcrypt/md2.h>
+#endif
+
 
 #ifdef __cplusplus
     extern "C" {
@@ -55,20 +62,6 @@
     #define MAX_DIGEST_SIZE WC_MAX_DIGEST_SIZE
 #endif
 
-
-/* Hash types */
-enum wc_HashType {
-    WC_HASH_TYPE_NONE = 0,
-    WC_HASH_TYPE_MD2 = 1,
-    WC_HASH_TYPE_MD4 = 2,
-    WC_HASH_TYPE_MD5 = 3,
-    WC_HASH_TYPE_SHA = 4, /* SHA-1 (not old SHA-0) */
-    WC_HASH_TYPE_SHA224 = 9,
-    WC_HASH_TYPE_SHA256 = 5,
-    WC_HASH_TYPE_SHA384 = 6,
-    WC_HASH_TYPE_SHA512 = 7,
-    WC_HASH_TYPE_MD5_SHA = 8,
-};
 
 typedef union {
     #ifndef NO_MD5

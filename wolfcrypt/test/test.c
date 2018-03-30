@@ -2176,9 +2176,9 @@ exit:
 #ifndef WOLFSSL_NOSHA3_224
 static int sha3_224_test(void)
 {
-    Sha3  sha;
-    byte  hash[SHA3_224_DIGEST_SIZE];
-    byte  hashcopy[SHA3_224_DIGEST_SIZE];
+    wc_Sha3  sha;
+    byte  hash[WC_SHA3_224_DIGEST_SIZE];
+    byte  hashcopy[WC_SHA3_224_DIGEST_SIZE];
 
     testVector a, b, c;
     testVector test_sha[3];
@@ -2189,19 +2189,19 @@ static int sha3_224_test(void)
     a.output = "\x6b\x4e\x03\x42\x36\x67\xdb\xb7\x3b\x6e\x15\x45\x4f\x0e\xb1"
                "\xab\xd4\x59\x7f\x9a\x1b\x07\x8e\x3f\x5b\x5a\x6b\xc7";
     a.inLen  = XSTRLEN(a.input);
-    a.outLen = SHA3_224_DIGEST_SIZE;
+    a.outLen = WC_SHA3_224_DIGEST_SIZE;
 
     b.input  = "abc";
     b.output = "\xe6\x42\x82\x4c\x3f\x8c\xf2\x4a\xd0\x92\x34\xee\x7d\x3c\x76"
                "\x6f\xc9\xa3\xa5\x16\x8d\x0c\x94\xad\x73\xb4\x6f\xdf";
     b.inLen  = XSTRLEN(b.input);
-    b.outLen = SHA3_224_DIGEST_SIZE;
+    b.outLen = WC_SHA3_224_DIGEST_SIZE;
 
     c.input  = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
     c.output = "\x8a\x24\x10\x8b\x15\x4a\xda\x21\xc9\xfd\x55\x74\x49\x44\x79"
                "\xba\x5c\x7e\x7a\xb7\x6e\xf2\x64\xea\xd0\xfc\xce\x33";
     c.inLen  = XSTRLEN(c.input);
-    c.outLen = SHA3_224_DIGEST_SIZE;
+    c.outLen = WC_SHA3_224_DIGEST_SIZE;
 
     test_sha[0] = a;
     test_sha[1] = b;
@@ -2223,9 +2223,9 @@ static int sha3_224_test(void)
         if (ret != 0)
             ERROR_OUT(-2030 - i, exit);
 
-        if (XMEMCMP(hash, test_sha[i].output, SHA3_224_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_sha[i].output, WC_SHA3_224_DIGEST_SIZE) != 0)
             ERROR_OUT(-2040 - i, exit);
-        if (XMEMCMP(hash, hashcopy, SHA3_224_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, hashcopy, WC_SHA3_224_DIGEST_SIZE) != 0)
             ERROR_OUT(-2050 - i, exit);
     }
 
@@ -2248,7 +2248,7 @@ static int sha3_224_test(void)
     ret = wc_Sha3_224_Final(&sha, hash);
     if (ret != 0)
         ERROR_OUT(-2061, exit);
-    if (XMEMCMP(hash, large_digest, SHA3_224_DIGEST_SIZE) != 0)
+    if (XMEMCMP(hash, large_digest, WC_SHA3_224_DIGEST_SIZE) != 0)
         ERROR_OUT(-2062, exit);
     } /* END LARGE HASH TEST */
 
@@ -2262,9 +2262,9 @@ exit:
 #ifndef WOLFSSL_NOSHA3_256
 static int sha3_256_test(void)
 {
-    Sha3  sha;
-    byte  hash[SHA3_256_DIGEST_SIZE];
-    byte  hashcopy[SHA3_256_DIGEST_SIZE];
+    wc_Sha3  sha;
+    byte  hash[WC_SHA3_256_DIGEST_SIZE];
+    byte  hashcopy[WC_SHA3_256_DIGEST_SIZE];
 
     testVector a, b, c;
     testVector test_sha[3];
@@ -2276,21 +2276,21 @@ static int sha3_256_test(void)
                "\x62\xf5\x80\xff\x4d\xe4\x3b\x49\xfa\x82\xd8\x0a\x4b\x80\xf8"
                "\x43\x4a";
     a.inLen  = XSTRLEN(a.input);
-    a.outLen = SHA3_256_DIGEST_SIZE;
+    a.outLen = WC_SHA3_256_DIGEST_SIZE;
 
     b.input  = "abc";
     b.output = "\x3a\x98\x5d\xa7\x4f\xe2\x25\xb2\x04\x5c\x17\x2d\x6b\xd3\x90"
                "\xbd\x85\x5f\x08\x6e\x3e\x9d\x52\x5b\x46\xbf\xe2\x45\x11\x43"
                "\x15\x32";
     b.inLen  = XSTRLEN(b.input);
-    b.outLen = SHA3_256_DIGEST_SIZE;
+    b.outLen = WC_SHA3_256_DIGEST_SIZE;
 
     c.input  = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
     c.output = "\x41\xc0\xdb\xa2\xa9\xd6\x24\x08\x49\x10\x03\x76\xa8\x23\x5e"
                "\x2c\x82\xe1\xb9\x99\x8a\x99\x9e\x21\xdb\x32\xdd\x97\x49\x6d"
                "\x33\x76";
     c.inLen  = XSTRLEN(c.input);
-    c.outLen = SHA3_256_DIGEST_SIZE;
+    c.outLen = WC_SHA3_256_DIGEST_SIZE;
 
     test_sha[0] = a;
     test_sha[1] = b;
@@ -2312,9 +2312,9 @@ static int sha3_256_test(void)
         if (ret != 0)
             ERROR_OUT(-2130 - i, exit);
 
-        if (XMEMCMP(hash, test_sha[i].output, SHA3_256_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_sha[i].output, WC_SHA3_256_DIGEST_SIZE) != 0)
             ERROR_OUT(-2140 - i, exit);
-        if (XMEMCMP(hash, hashcopy, SHA3_256_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, hashcopy, WC_SHA3_256_DIGEST_SIZE) != 0)
             ERROR_OUT(-2150 - i, exit);
     }
 
@@ -2337,7 +2337,7 @@ static int sha3_256_test(void)
     ret = wc_Sha3_256_Final(&sha, hash);
     if (ret != 0)
         ERROR_OUT(-2161, exit);
-    if (XMEMCMP(hash, large_digest, SHA3_256_DIGEST_SIZE) != 0)
+    if (XMEMCMP(hash, large_digest, WC_SHA3_256_DIGEST_SIZE) != 0)
         ERROR_OUT(-2162, exit);
     } /* END LARGE HASH TEST */
 
@@ -2351,9 +2351,9 @@ exit:
 #ifndef WOLFSSL_NOSHA3_384
 static int sha3_384_test(void)
 {
-    Sha3  sha;
-    byte  hash[SHA3_384_DIGEST_SIZE];
-    byte  hashcopy[SHA3_384_DIGEST_SIZE];
+    wc_Sha3  sha;
+    byte  hash[WC_SHA3_384_DIGEST_SIZE];
+    byte  hashcopy[WC_SHA3_384_DIGEST_SIZE];
 
     testVector a, b, c;
     testVector test_sha[3];
@@ -2366,7 +2366,7 @@ static int sha3_384_test(void)
                "\x3a\x2a\xc3\x71\x38\x31\x26\x4a\xdb\x47\xfb\x6b\xd1\xe0\x58"
                "\xd5\xf0\x04";
     a.inLen  = XSTRLEN(a.input);
-    a.outLen = SHA3_384_DIGEST_SIZE;
+    a.outLen = WC_SHA3_384_DIGEST_SIZE;
 
     b.input  = "abc";
     b.output = "\xec\x01\x49\x82\x88\x51\x6f\xc9\x26\x45\x9f\x58\xe2\xc6\xad"
@@ -2374,7 +2374,7 @@ static int sha3_384_test(void)
                "\xe4\xb2\x98\xd8\x8c\xea\x92\x7a\xc7\xf5\x39\xf1\xed\xf2\x28"
                "\x37\x6d\x25";
     b.inLen  = XSTRLEN(b.input);
-    b.outLen = SHA3_384_DIGEST_SIZE;
+    b.outLen = WC_SHA3_384_DIGEST_SIZE;
 
     c.input  = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
     c.output = "\x99\x1c\x66\x57\x55\xeb\x3a\x4b\x6b\xbd\xfb\x75\xc7\x8a\x49"
@@ -2382,7 +2382,7 @@ static int sha3_384_test(void)
                "\xad\x5a\xa0\x4a\x1f\x07\x6e\x62\xfe\xa1\x9e\xef\x51\xac\xd0"
                "\x65\x7c\x22";
     c.inLen  = XSTRLEN(c.input);
-    c.outLen = SHA3_384_DIGEST_SIZE;
+    c.outLen = WC_SHA3_384_DIGEST_SIZE;
 
     test_sha[0] = a;
     test_sha[1] = b;
@@ -2404,9 +2404,9 @@ static int sha3_384_test(void)
         if (ret != 0)
             ERROR_OUT(-2230 - i, exit);
 
-        if (XMEMCMP(hash, test_sha[i].output, SHA3_384_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_sha[i].output, WC_SHA3_384_DIGEST_SIZE) != 0)
             ERROR_OUT(-2240 - i, exit);
-        if (XMEMCMP(hash, hashcopy, SHA3_384_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, hashcopy, WC_SHA3_384_DIGEST_SIZE) != 0)
             ERROR_OUT(-2250 - i, exit);
     }
 
@@ -2430,7 +2430,7 @@ static int sha3_384_test(void)
     ret = wc_Sha3_384_Final(&sha, hash);
     if (ret != 0)
         ERROR_OUT(-2261, exit);
-    if (XMEMCMP(hash, large_digest, SHA3_384_DIGEST_SIZE) != 0)
+    if (XMEMCMP(hash, large_digest, WC_SHA3_384_DIGEST_SIZE) != 0)
         ERROR_OUT(-2262, exit);
     } /* END LARGE HASH TEST */
 
@@ -2444,9 +2444,9 @@ exit:
 #ifndef WOLFSSL_NOSHA3_512
 static int sha3_512_test(void)
 {
-    Sha3  sha;
-    byte  hash[SHA3_512_DIGEST_SIZE];
-    byte  hashcopy[SHA3_512_DIGEST_SIZE];
+    wc_Sha3  sha;
+    byte  hash[WC_SHA3_512_DIGEST_SIZE];
+    byte  hashcopy[WC_SHA3_512_DIGEST_SIZE];
 
     testVector a, b, c;
     testVector test_sha[3];
@@ -2460,7 +2460,7 @@ static int sha3_512_test(void)
                "\x3a\xc5\x58\xf5\x00\x19\x9d\x95\xb6\xd3\xe3\x01\x75\x85\x86"
                "\x28\x1d\xcd\x26";
     a.inLen  = XSTRLEN(a.input);
-    a.outLen = SHA3_512_DIGEST_SIZE;
+    a.outLen = WC_SHA3_512_DIGEST_SIZE;
 
     b.input  = "abc";
     b.output = "\xb7\x51\x85\x0b\x1a\x57\x16\x8a\x56\x93\xcd\x92\x4b\x6b\x09"
@@ -2469,7 +2469,7 @@ static int sha3_512_test(void)
                "\xe3\x93\x40\x57\x34\x0b\x4c\xf4\x08\xd5\xa5\x65\x92\xf8\x27"
                "\x4e\xec\x53\xf0";
     b.inLen  = XSTRLEN(b.input);
-    b.outLen = SHA3_512_DIGEST_SIZE;
+    b.outLen = WC_SHA3_512_DIGEST_SIZE;
 
     c.input  = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
     c.output = "\x04\xa3\x71\xe8\x4e\xcf\xb5\xb8\xb7\x7c\xb4\x86\x10\xfc\xa8"
@@ -2478,7 +2478,7 @@ static int sha3_512_test(void)
                "\x8c\x08\x63\x46\xb5\x33\xb4\x9c\x03\x0d\x99\xa2\x7d\xaf\x11"
                "\x39\xd6\xe7\x5e";
     c.inLen  = XSTRLEN(c.input);
-    c.outLen = SHA3_512_DIGEST_SIZE;
+    c.outLen = WC_SHA3_512_DIGEST_SIZE;
 
     test_sha[0] = a;
     test_sha[1] = b;
@@ -2500,9 +2500,9 @@ static int sha3_512_test(void)
         if (ret != 0)
             ERROR_OUT(-2330 - i, exit);
 
-        if (XMEMCMP(hash, test_sha[i].output, SHA3_512_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, test_sha[i].output, WC_SHA3_512_DIGEST_SIZE) != 0)
             ERROR_OUT(-2340 - i, exit);
-        if (XMEMCMP(hash, hashcopy, SHA3_512_DIGEST_SIZE) != 0)
+        if (XMEMCMP(hash, hashcopy, WC_SHA3_512_DIGEST_SIZE) != 0)
             ERROR_OUT(-2350 - i, exit);
     }
 
@@ -2527,7 +2527,7 @@ static int sha3_512_test(void)
     ret = wc_Sha3_512_Final(&sha, hash);
     if (ret != 0)
         ERROR_OUT(-2361, exit);
-    if (XMEMCMP(hash, large_digest, SHA3_512_DIGEST_SIZE) != 0)
+    if (XMEMCMP(hash, large_digest, WC_SHA3_512_DIGEST_SIZE) != 0)
         ERROR_OUT(-2362, exit);
     } /* END LARGE HASH TEST */
 
@@ -3342,7 +3342,7 @@ int hmac_sha512_test(void)
 int hmac_sha3_test(void)
 {
     Hmac hmac;
-    byte hash[SHA3_512_DIGEST_SIZE];
+    byte hash[WC_SHA3_512_DIGEST_SIZE];
 
     const char* key[3] =
     {
@@ -3375,8 +3375,8 @@ int hmac_sha3_test(void)
 
     const int hashSz[4] =
     {
-        SHA3_224_DIGEST_SIZE, SHA3_256_DIGEST_SIZE,
-        SHA3_384_DIGEST_SIZE, SHA3_512_DIGEST_SIZE
+        WC_SHA3_224_DIGEST_SIZE, WC_SHA3_256_DIGEST_SIZE,
+        WC_SHA3_384_DIGEST_SIZE, WC_SHA3_512_DIGEST_SIZE
     };
 
     const char* output[12] =

@@ -34,7 +34,7 @@
 typedef struct Sha3 {
     XSecure_Sha3 hw;
     XCsuDma      dma;
-} Sha3;
+} wc_Sha3;
 
 #ifdef __cplusplus
     } /* extern "C" */

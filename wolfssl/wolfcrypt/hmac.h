@@ -58,31 +58,31 @@ enum {
 
 /* If any hash is not enabled, add the ID here. */
 #ifdef NO_MD5
-    WC_MD5     = 0,
+    WC_MD5     = WC_HASH_TYPE_MD5+,
 #endif
 #ifdef NO_SHA
-    WC_SHA     = 1,
+    WC_SHA     = WC_HASH_TYPE_SHA,
 #endif
 #ifdef NO_SHA256
-    WC_SHA256  = 2,
+    WC_SHA256  = WC_HASH_TYPE_SHA256,
 #endif
 #ifndef WOLFSSL_SHA512
-    WC_SHA512  = 4,
+    WC_SHA512  = WC_HASH_TYPE_SHA512,
 #endif
 #ifndef WOLFSSL_SHA384
-    WC_SHA384  = 5,
+    WC_SHA384  = WC_HASH_TYPE_SHA384,
 #endif
 #ifndef HAVE_BLAKE2
-    BLAKE2B_ID = 7,
+    BLAKE2B_ID = WC_HASH_TYPE_BLAKE2B,
 #endif
 #ifndef WOLFSSL_SHA224
-    WC_SHA224  = 8,
+    WC_SHA224  = WC_HASH_TYPE_SHA224,
 #endif
 #ifndef WOLFSSL_SHA3
-    WC_SHA3_224 = 10,
-    WC_SHA3_256 = 11,
-    WC_SHA3_384 = 12,
-    WC_SHA3_512 = 13,
+    WC_SHA3_224 = WC_HASH_TYPE_SHA3_224,
+    WC_SHA3_256 = WC_HASH_TYPE_SHA3_256,
+    WC_SHA3_384 = WC_HASH_TYPE_SHA3_384,
+    WC_SHA3_512 = WC_HASH_TYPE_SHA3_512,
 #endif
 };
 
@@ -120,7 +120,7 @@ typedef union {
     Blake2b blake2b;
 #endif
 #ifdef WOLFSSL_SHA3
-    Sha3 sha3;
+    wc_Sha3 sha3;
 #endif
 } Hash;
 
