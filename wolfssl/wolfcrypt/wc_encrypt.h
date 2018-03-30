@@ -98,9 +98,9 @@ WOLFSSL_API int wc_Des3_CbcDecryptWithKey(byte* out,
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     struct EncryptedInfo;
     WOLFSSL_API int wc_BufferKeyDecrypt(struct EncryptedInfo* info, byte* der, word32 derSz,
-        const byte* password, int passwordSz);
+        const byte* password, int passwordSz, int hashType);
     WOLFSSL_API int wc_BufferKeyEncrypt(struct EncryptedInfo* info, byte* der, word32 derSz,
-        const byte* password, int passwordSz);
+        const byte* password, int passwordSz, int hashType);
 #endif /* WOLFSSL_ENCRYPTED_KEYS */
 
 #ifdef __cplusplus

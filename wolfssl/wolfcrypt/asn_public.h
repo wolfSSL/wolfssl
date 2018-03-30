@@ -142,7 +142,6 @@ typedef struct EncryptedInfo {
     long     consumed;         /* tracks PEM bytes consumed */
 
     int      cipherType;
-    int      hashType;
     word32   keySz;
     word32   ivSz;             /* salt or encrypted IV size */
 

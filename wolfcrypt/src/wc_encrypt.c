@@ -239,7 +239,7 @@ int wc_Des3_CbcDecryptWithKey(byte* out, const byte* in, word32 sz,
 #ifdef WOLFSSL_ENCRYPTED_KEYS
 
 int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
-    const byte* password, int passwordSz)
+    const byte* password, int passwordSz, int hashType)
 {
     int ret;
 #ifdef WOLFSSL_SMALL_STACK
@@ -267,7 +267,7 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
 #endif
 
     if ((ret = wc_PBKDF1(key, password, passwordSz, info->iv, info->ivSz, 1,
-                                        info->keySz, info->hashType)) != 0) {
+                                        info->keySz, hashType)) != 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(key, NULL, DYNAMIC_TYPE_SYMETRIC_KEY);
 #endif
@@ -295,7 +295,7 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
 }
 
 int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
-    const byte* password, int passwordSz)
+    const byte* password, int passwordSz, int hashType)
 {
     int ret;
 #ifdef WOLFSSL_SMALL_STACK
@@ -319,7 +319,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
 #endif /* WOLFSSL_SMALL_STACK */
 
     if ((ret = wc_PBKDF1(key, password, passwordSz, info->iv, info->ivSz, 1,
-                                        info->keySz, info->hashType)) != 0) {
+                                        info->keySz, hashType)) != 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(key, NULL, DYNAMIC_TYPE_SYMETRIC_KEY);
 #endif

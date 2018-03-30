@@ -4608,7 +4608,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
             /* decrypt the key */
             ret = wc_BufferKeyDecrypt(info, der->buffer, der->length,
-                (byte*)password, passwordSz);
+                (byte*)password, passwordSz, WC_MD5);
         }
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -11838,6 +11838,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     #endif
 
         XMEMSET(info, 0, sizeof(EncryptedInfo));
+        info->ivSz = EVP_SALT_SIZE;
 
         ret = wolfSSL_EVP_get_hashinfo(md, &hashType, NULL);
         if (ret == 0)
@@ -25101,7 +25102,7 @@ static int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
     (*derSz) += paddingSz;
 
     /* encrypt buffer */
-    if (wc_BufferKeyEncrypt(info, der, *derSz, passwd, passwdSz) != 0) {
+    if (wc_BufferKeyEncrypt(info, der, *derSz, passwd, passwdSz, WC_MD5) != 0) {
         WOLFSSL_MSG("encrypt key failed");
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(info, NULL, DYNAMIC_TYPE_ENCRYPTEDINFO);

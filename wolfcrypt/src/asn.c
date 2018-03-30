@@ -7468,12 +7468,12 @@ int wc_EncryptedInfoGet(EncryptedInfo* info, const char* cipherInfo)
     if (XSTRNCMP(cipherInfo, kEncTypeDes, XSTRLEN(kEncTypeDes)) == 0) {
         info->cipherType = WC_CIPHER_DES;
         info->keySz = DES_KEY_SIZE;
-        info->ivSz  = DES_IV_SIZE;
+        if (info->ivSz == 0) info->ivSz  = DES_IV_SIZE;
     }
     else if (XSTRNCMP(cipherInfo, kEncTypeDes3, XSTRLEN(kEncTypeDes3)) == 0) {
         info->cipherType = WC_CIPHER_DES3;
         info->keySz = DES3_KEY_SIZE;
-        info->ivSz  = DES_IV_SIZE;
+        if (info->ivSz == 0) info->ivSz  = DES_IV_SIZE;
     }
     else
 #endif /* NO_DES3 */
@@ -7483,7 +7483,7 @@ int wc_EncryptedInfoGet(EncryptedInfo* info, const char* cipherInfo)
     if (XSTRNCMP(cipherInfo, kEncTypeAesCbc128, XSTRLEN(kEncTypeAesCbc128)) == 0) {
         info->cipherType = WC_CIPHER_AES_CBC;
         info->keySz = AES_128_KEY_SIZE;
-        info->ivSz  = AES_IV_SIZE;
+        if (info->ivSz == 0) info->ivSz  = AES_IV_SIZE;
     }
     else
 #endif
@@ -7491,7 +7491,7 @@ int wc_EncryptedInfoGet(EncryptedInfo* info, const char* cipherInfo)
     if (XSTRNCMP(cipherInfo, kEncTypeAesCbc192, XSTRLEN(kEncTypeAesCbc192)) == 0) {
         info->cipherType = WC_CIPHER_AES_CBC;
         info->keySz = AES_192_KEY_SIZE;
-        info->ivSz  = AES_IV_SIZE;
+        if (info->ivSz == 0) info->ivSz  = AES_IV_SIZE;
     }
     else
 #endif
@@ -7499,7 +7499,7 @@ int wc_EncryptedInfoGet(EncryptedInfo* info, const char* cipherInfo)
     if (XSTRNCMP(cipherInfo, kEncTypeAesCbc256, XSTRLEN(kEncTypeAesCbc256)) == 0) {
         info->cipherType = WC_CIPHER_AES_CBC;
         info->keySz = AES_256_KEY_SIZE;
-        info->ivSz  = AES_IV_SIZE;
+        if (info->ivSz == 0) info->ivSz  = AES_IV_SIZE;
     }
     else
 #endif
@@ -7511,7 +7511,7 @@ int wc_EncryptedInfoGet(EncryptedInfo* info, const char* cipherInfo)
     return ret;
 }
 
-static int wc_EncryptedInfo_Parse(EncryptedInfo* info,
+static int wc_EncryptedInfoParse(EncryptedInfo* info,
     char** pBuffer, size_t bufSz)
 {
     int err = 0;
@@ -7550,7 +7550,7 @@ static int wc_EncryptedInfo_Parse(EncryptedInfo* info,
             return BUFFER_E;
 
         /* skip dec-info and ": " */
-        start += XSTRLEN(kDecInfoHeader) + 2;
+        start += XSTRLEN(kDecInfoHeader);
         if (start[0] == ':')
             start++;
         if (start[0] == ' ')
@@ -7567,11 +7567,14 @@ static int wc_EncryptedInfo_Parse(EncryptedInfo* info,
             finishSz = (word32)(bufferEnd - finish);
             newline = XSTRNSTR(finish, "\r", min(finishSz, PEM_LINE_LEN));
 
+            /* get cipher name */
             if (NAME_SZ < (finish - start)) /* buffer size of info->name */
                 return BUFFER_E;
             if (XMEMCPY(info->name, start, finish - start) == NULL)
                 return BUFFER_E;
             info->name[finish - start] = '\0'; /* null term */
+
+            /* get IV */
             if (finishSz < sizeof(info->iv) + 1)
                 return BUFFER_E;
             if (XMEMCPY(info->iv, finish + 1, sizeof(info->iv)) == NULL)
@@ -7607,7 +7610,7 @@ static int wc_EncryptedInfo_Parse(EncryptedInfo* info,
     return err;
 }
 
-static int wc_EncryptedInfo_Append(char* dest, char* cipherInfo)
+static int wc_EncryptedInfoAppend(char* dest, char* cipherInfo)
 {
     if (cipherInfo != NULL) {
         size_t cipherInfoStrLen = XSTRLEN(cipherInfo);
@@ -7686,7 +7689,7 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
     XSTRNCAT(footer, "\n", 2);
 
 #ifdef WOLFSSL_ENCRYPTED_KEYS
-    err = wc_EncryptedInfo_Append(header, (char*)cipher_info);
+    err = wc_EncryptedInfoAppend(header, (char*)cipher_info);
     if (err != 0) {
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -7908,7 +7911,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     if (info) {
-        ret = wc_EncryptedInfo_Parse(info, &headerEnd, bufferEnd - headerEnd);
+        ret = wc_EncryptedInfoParse(info, &headerEnd, bufferEnd - headerEnd);
         if (ret < 0)
             return ret;
         if (info->set)
@@ -8006,7 +8009,7 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         /* decrypt the key */
         else {
             ret = wc_BufferKeyDecrypt(info, der->buffer, der->length,
-                (byte*)password, passwordSz);
+                (byte*)password, passwordSz, WC_MD5);
     #ifdef WOLFSSL_SMALL_STACK
             XFREE(password, heap, DYNAMIC_TYPE_STRING);
     #endif
