@@ -667,10 +667,10 @@ int bench_tls(void* args)
 
 
     /* Vars configured by command line arguments */
-    unsigned argRuntimeSec = 1;
+    int argRuntimeSec = 1;
     char *argCipherList = NULL;
-    unsigned argTestSizeBytes = (1024 * 1024);
-    unsigned argTestPacketSize = 1024;
+    int argTestSizeBytes = (1024 * 1024);
+    int argTestPacketSize = 1024;
 
     /* Avoid unused warnings */
     (void) argRuntimeSec;
@@ -691,7 +691,7 @@ int bench_tls(void* args)
                 exit(EXIT_SUCCESS);
 
             case 'b' :
-                argTestSizeBytes = strtoul(myoptarg, NULL, 0);
+                argTestSizeBytes = atoi(myoptarg);
                 break;
 
 #ifdef DEBUG_WOLFSSL
@@ -709,11 +709,11 @@ int bench_tls(void* args)
                 break;
 
             case 'p' :
-                argTestPacketSize = strtoul(myoptarg, NULL, 0);
+                argTestPacketSize = atoi(myoptarg);
                 break;
 
             case 't' :
-                argRuntimeSec = strtoul(myoptarg, NULL, 0);
+                argRuntimeSec = atoi(myoptarg);
                 break;
 
             default:
