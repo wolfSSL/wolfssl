@@ -341,18 +341,13 @@ WOLFSSL_API int wc_SetExtKeyUsageOID(Cert *cert, const char *oid, word32 sz,
 
 
 #if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_PUB_PEM_TO_DER)
-    #ifndef WOLFSSL_PEMPUBKEY_TODER_DEFINED
-        #ifndef NO_FILESYSTEM
-        /* forward from wolfssl */
+    #ifndef NO_FILESYSTEM
         WOLFSSL_API int wolfSSL_PemPubKeyToDer(const char* fileName,
                                                unsigned char* derBuf, int derSz);
-        #endif
+    #endif
 
-        /* forward from wolfssl */
-        WOLFSSL_API int wolfSSL_PubKeyPemToDer(const unsigned char*, int,
-                                               unsigned char*, int);
-        #define WOLFSSL_PEMPUBKEY_TODER_DEFINED
-    #endif /* WOLFSSL_PEMPUBKEY_TODER_DEFINED */
+    WOLFSSL_API int wolfSSL_PubKeyPemToDer(const unsigned char*, int,
+                                           unsigned char*, int);
 #endif /* WOLFSSL_CERT_EXT || WOLFSSL_PUB_PEM_TO_DER */
 
 #ifdef WOLFSSL_DER_TO_PEM
