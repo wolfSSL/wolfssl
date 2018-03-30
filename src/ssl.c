@@ -4603,12 +4603,17 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             ret = NO_PASSWORD;
         }
         else {
-            passwordSz = info->passwd_cb(password, passwordSz, PEM_PASS_READ,
+            ret = info->passwd_cb(password, passwordSz, PEM_PASS_READ,
                 info->passwd_userdata);
+            if (ret >= 0) {
+                passwordSz = ret;
 
-            /* decrypt the key */
-            ret = wc_BufferKeyDecrypt(info, der->buffer, der->length,
-                (byte*)password, passwordSz, WC_MD5);
+                /* decrypt the key */
+                ret = wc_BufferKeyDecrypt(info, der->buffer, der->length,
+                    (byte*)password, passwordSz, WC_MD5);
+
+                ForceZero(password, passwordSz);
+            }
         }
 
     #ifdef WOLFSSL_SMALL_STACK

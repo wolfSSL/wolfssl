@@ -7990,30 +7990,31 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     #endif
 
         /* get password */
-        passwordSz = info->passwd_cb(password, passwordSz, PEM_PASS_READ,
+        ret = info->passwd_cb(password, passwordSz, PEM_PASS_READ,
             info->passwd_userdata);
+        if (ret >= 0) {
+            passwordSz = ret;
 
-        /* convert and adjust length */
-        if (header == BEGIN_ENC_PRIV_KEY) {
-            ret = ToTraditionalEnc(der->buffer, der->length,
-                                   password, passwordSz);
-    #ifdef WOLFSSL_SMALL_STACK
-            XFREE(password, NULL, DYNAMIC_TYPE_STRING);
-    #endif
-            if (ret < 0) {
-                return ret;
+            /* convert and adjust length */
+            if (header == BEGIN_ENC_PRIV_KEY) {
+                ret = ToTraditionalEnc(der->buffer, der->length,
+                                       password, passwordSz);
+
+                if (ret >= 0) {
+                    der->length = ret;
+                }
             }
+            /* decrypt the key */
+            else {
+                ret = wc_BufferKeyDecrypt(info, der->buffer, der->length,
+                    (byte*)password, passwordSz, WC_MD5);
+            }
+            ForceZero(password, passwordSz);
+        }
 
-            der->length = ret;
-        }
-        /* decrypt the key */
-        else {
-            ret = wc_BufferKeyDecrypt(info, der->buffer, der->length,
-                (byte*)password, passwordSz, WC_MD5);
     #ifdef WOLFSSL_SMALL_STACK
-            XFREE(password, heap, DYNAMIC_TYPE_STRING);
+        XFREE(password, heap, DYNAMIC_TYPE_STRING);
     #endif
-        }
     }
 #endif /* WOLFSSL_ENCRYPTED_KEYS */
 
