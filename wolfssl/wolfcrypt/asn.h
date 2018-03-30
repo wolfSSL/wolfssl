@@ -221,13 +221,21 @@ enum Misc_ASN {
     EIGHTK_BUF          = 8192,    /* Tmp buffer size           */
     MAX_PUBLIC_KEY_SZ   = MAX_NTRU_ENC_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
                                    /* use bigger NTRU size */
+#ifdef WOLFSSL_ENCRYPTED_KEYS
     HEADER_ENCRYPTED_KEY_SIZE = 88,/* Extra header size for encrypted key */
+#else
+    HEADER_ENCRYPTED_KEY_SIZE = 0,
+#endif
     TRAILING_ZERO       = 1,       /* Used for size of zero pad */
     MIN_VERSION_SZ      = 3,       /* Min bytes needed for GetMyVersion */
 #if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || \
     defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
     MAX_TIME_STRING_SZ  = 25,      /* Max length of formatted time string */
 #endif
+
+    PEM_LINE_LEN       = 80,       /* PEM line max + fudge */
+    FILE_BUFFER_SIZE   = 1024,     /* default static file buffer size for input,
+                                    will use dynamic buffer if not big enough */
 };
 
 
@@ -712,43 +720,6 @@ struct DecodedCert {
 
 };
 
-
-extern const char* const BEGIN_CERT;
-extern const char* const END_CERT;
-#ifdef WOLFSSL_CERT_REQ
-    extern const char* const BEGIN_CERT_REQ;
-    extern const char* const END_CERT_REQ;
-#endif
-#ifndef NO_DSA
-    extern const char* const BEGIN_DSA_PARAM;
-    extern const char* const END_DSA_PARAM;
-#endif
-#ifndef NO_DH
-    extern const char* const BEGIN_DH_PARAM;
-    extern const char* const END_DH_PARAM;
-#endif
-extern const char* const BEGIN_X509_CRL;
-extern const char* const END_X509_CRL;
-extern const char* const BEGIN_RSA_PRIV;
-extern const char* const END_RSA_PRIV;
-extern const char* const BEGIN_PRIV_KEY;
-extern const char* const END_PRIV_KEY;
-extern const char* const BEGIN_ENC_PRIV_KEY;
-extern const char* const END_ENC_PRIV_KEY;
-#ifdef HAVE_ECC
-    extern const char* const BEGIN_EC_PRIV;
-    extern const char* const END_EC_PRIV;
-#endif
-#if defined(HAVE_ECC) || defined(HAVE_ED25519) || !defined(NO_DSA)
-    extern const char* const BEGIN_DSA_PRIV;
-    extern const char* const END_DSA_PRIV;
-#endif
-extern const char* const BEGIN_PUB_KEY;
-extern const char* const END_PUB_KEY;
-#ifdef HAVE_ED25519
-    extern const char* const BEGIN_EDDSA_PRIV;
-    extern const char* const END_EDDSA_PRIV;
-#endif
 
 #ifdef NO_SHA
     #define SIGNER_DIGEST_SIZE WC_SHA256_DIGEST_SIZE

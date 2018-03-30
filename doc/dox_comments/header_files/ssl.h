@@ -7227,7 +7227,6 @@ WOLFSSL_API int wolfSSL_SetVersion(WOLFSSL* ssl, int version);
     \endcode
     
     \sa PemToDer
-    \sa wolfssl_decrypt_buffer_key
 */
 WOLFSSL_API int wolfSSL_KeyPemToDer(const unsigned char*, int,
                                     unsigned char*, int, const char*);
@@ -11338,7 +11337,7 @@ WOLFSSL_API size_t wolfSSL_get_client_random(const WOLFSSL* ssl,
     _Example_
     \code
     WOLFSSL_CTX* ctx;
-    Pem_password_cb cb;
+    pem_password_cb cb;
     // setup ctx
     cb = wolfSSL_CTX_get_default_passwd_cb(ctx);
     //use cb

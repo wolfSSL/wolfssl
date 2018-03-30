@@ -58,7 +58,14 @@ enum {
 
     SHA3_512              = 13,   /* hash type unique */
     SHA3_512_DIGEST_SIZE  = 64,
-    SHA3_512_COUNT        =  9
+    SHA3_512_COUNT        =  9,
+
+    /* These values are used for HMAC, not SHA-3 directly.
+     * They come from from FIPS PUB 202. */
+    WC_SHA3_224_BLOCK_SIZE = 144,
+    WC_SHA3_256_BLOCK_SIZE = 136,
+    WC_SHA3_384_BLOCK_SIZE = 104,
+    WC_SHA3_512_BLOCK_SIZE = 72,
 };
 
 #define WC_SHA3_224             SHA3_224

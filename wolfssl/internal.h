@@ -1069,7 +1069,6 @@ enum Misc {
     COMPRESS_UPPER      = 55,  /* compression calc numerator */
     COMPRESS_LOWER      = 64,  /* compression calc denominator */
 
-    PEM_LINE_LEN   = 80,       /* PEM line max + fudge */
     LENGTH_SZ      =  2,       /* length field for HMAC, data only */
     VERSION_SZ     =  2,       /* length of proctocol version */
     SEQ_SZ         =  8,       /* 64 bit sequence number  */
@@ -1152,15 +1151,6 @@ enum Misc {
     MAX_REQUEST_SZ      = 256, /* Maximum cert req len (no auth yet */
     SESSION_FLUSH_COUNT = 256, /* Flush session cache unless user turns off */
 
-    RC4_KEY_SIZE        = 16,  /* always 128bit           */
-    DES_KEY_SIZE        =  8,  /* des                     */
-    DES3_KEY_SIZE       = 24,  /* 3 des ede               */
-    DES_IV_SIZE         = DES_BLOCK_SIZE,
-    AES_256_KEY_SIZE    = 32,  /* for 256 bit             */
-    AES_192_KEY_SIZE    = 24,  /* for 192 bit             */
-    AES_IV_SIZE         = 16,  /* always block size       */
-    AES_128_KEY_SIZE    = 16,  /* for 128 bit             */
-
     AEAD_SEQ_OFFSET     = 4,   /* Auth Data: Sequence number */
     AEAD_TYPE_OFFSET    = 8,   /* Auth Data: Type            */
     AEAD_VMAJ_OFFSET    = 9,   /* Auth Data: Major Version   */
@@ -1238,8 +1228,6 @@ enum Misc {
 
     MAX_X509_SIZE      = 2048, /* max static x509 buffer size */
     CERT_MIN_SIZE      =  256, /* min PEM cert size with header/footer */
-    FILE_BUFFER_SIZE   = 1024, /* default static file buffer size for input,
-                                  will use dynamic buffer if not big enough */
 
     MAX_NTRU_PUB_KEY_SZ = 1027, /* NTRU max for now */
     MAX_NTRU_ENCRYPT_SZ = 1027, /* NTRU max for now */
@@ -2428,10 +2416,9 @@ struct WOLFSSL_CTX {
 #ifdef HAVE_ANON
     byte        haveAnon;               /* User wants to allow Anon suites */
 #endif /* HAVE_ANON */
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-    defined(HAVE_WEBSERVER)
+#ifdef WOLFSSL_ENCRYPTED_KEYS
     pem_password_cb* passwd_cb;
-    void*           userdata;
+    void*            passwd_userdata;
 #endif
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     WOLFSSL_X509_STORE x509_store; /* points to ctx->cm */

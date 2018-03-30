@@ -33,30 +33,75 @@
     extern "C" {
 #endif
 
+enum CipherTypes {
+    WC_CIPHER_NONE,
 #ifndef NO_AES
-WOLFSSL_API int  wc_AesCbcEncryptWithKey(byte* out, const byte* in, word32 inSz,
-                                         const byte* key, word32 keySz,
-                                         const byte* iv);
-WOLFSSL_API int  wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
-                                         const byte* key, word32 keySz,
-                                         const byte* iv);
+    #ifdef HAVE_AES_CBC
+        WC_CIPHER_AES_CBC,
+    #endif
+    #ifdef HAVE_AESGCM
+        WC_CIPHER_AES_GCM,
+    #endif
+    #ifdef WOLFSSL_AES_COUNTER
+        WC_CIPHER_AES_CTR,
+    #endif
+    #ifdef WOLFSSL_AES_XTS
+        WC_CIPHER_AES_XTS,
+    #endif
+    #ifdef WOLFSSL_AES_CFB
+        WC_CIPHER_AES_CFB,
+    #endif
+#endif
+#ifndef NO_DES3
+    WC_CIPHER_DES3,
+#endif
+#ifndef NO_DES
+    WC_CIPHER_DES,
+#endif
+#ifdef HAVE_CHAHCA
+    WC_CIPHER_CHACHA,
+#endif
+#ifdef HAVE_HC128
+    WC_CIPHER_HC128,
+#endif
+};
+
+
+#ifndef NO_AES
+WOLFSSL_API int wc_AesCbcEncryptWithKey(byte* out, const byte* in, word32 inSz,
+                                        const byte* key, word32 keySz,
+                                        const byte* iv);
+WOLFSSL_API int wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
+                                        const byte* key, word32 keySz,
+                                        const byte* iv);
 #endif /* !NO_AES */
 
 
 #ifndef NO_DES3
-WOLFSSL_API int  wc_Des_CbcDecryptWithKey(byte* out,
+WOLFSSL_API int wc_Des_CbcDecryptWithKey(byte* out,
+                                         const byte* in, word32 sz,
+                                         const byte* key, const byte* iv);
+WOLFSSL_API int wc_Des_CbcEncryptWithKey(byte* out,
+                                         const byte* in, word32 sz,
+                                         const byte* key, const byte* iv);
+WOLFSSL_API int wc_Des3_CbcEncryptWithKey(byte* out,
                                           const byte* in, word32 sz,
                                           const byte* key, const byte* iv);
-WOLFSSL_API int  wc_Des_CbcEncryptWithKey(byte* out,
+WOLFSSL_API int wc_Des3_CbcDecryptWithKey(byte* out,
                                           const byte* in, word32 sz,
                                           const byte* key, const byte* iv);
-WOLFSSL_API int  wc_Des3_CbcEncryptWithKey(byte* out,
-                                           const byte* in, word32 sz,
-                                           const byte* key, const byte* iv);
-WOLFSSL_API int  wc_Des3_CbcDecryptWithKey(byte* out,
-                                           const byte* in, word32 sz,
-                                           const byte* key, const byte* iv);
 #endif /* !NO_DES3 */
+
+
+
+
+#ifdef WOLFSSL_ENCRYPTED_KEYS
+    struct EncryptedInfo;
+    WOLFSSL_API int wc_BufferKeyDecrypt(struct EncryptedInfo* info, byte* der, word32 derSz,
+        const byte* password, int passwordSz);
+    WOLFSSL_API int wc_BufferKeyEncrypt(struct EncryptedInfo* info, byte* der, word32 derSz,
+        const byte* password, int passwordSz);
+#endif /* WOLFSSL_ENCRYPTED_KEYS */
 
 #ifdef __cplusplus
     }  /* extern "C" */

@@ -442,11 +442,7 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
         return BAD_FUNC_ARG;
 
     if (type == WOLFSSL_FILETYPE_PEM) {
-        int eccKey = 0;   /* not used */
-        EncryptedInfo info;
-        info.ctx = NULL;
-
-        ret = PemToDer(buff, sz, CRL_TYPE, &der, NULL, &info, &eccKey);
+        ret = PemToDer(buff, sz, CRL_TYPE, &der, NULL, NULL, NULL);
         if (ret == 0) {
             myBuffer = der->buffer;
             sz = der->length;

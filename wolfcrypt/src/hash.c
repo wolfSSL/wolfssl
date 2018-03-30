@@ -154,6 +154,56 @@ int wc_HashGetDigestSize(enum wc_HashType hash_type)
     return dig_size;
 }
 
+
+/* Get Hash block size */
+int wc_HashGetBlockSize(enum wc_HashType hash_type)
+{
+    int block_size = HASH_TYPE_E; /* Default to hash type error */
+    switch (hash_type)
+    {
+        case WC_HASH_TYPE_MD5:
+#ifndef NO_MD5
+            block_size = WC_MD5_BLOCK_SIZE;
+#endif
+            break;
+        case WC_HASH_TYPE_SHA:
+#ifndef NO_SHA
+            block_size = WC_SHA_BLOCK_SIZE;
+#endif
+            break;
+        case WC_HASH_TYPE_SHA224:
+#ifdef WOLFSSL_SHA224
+            block_size = WC_SHA224_BLOCK_SIZE;
+#endif
+            break;
+        case WC_HASH_TYPE_SHA256:
+#ifndef NO_SHA256
+            block_size = WC_SHA256_BLOCK_SIZE;
+#endif
+            break;
+        case WC_HASH_TYPE_SHA384:
+#if defined(WOLFSSL_SHA512) && defined(WOLFSSL_SHA384)
+            block_size = WC_SHA384_BLOCK_SIZE;
+#endif
+            break;
+        case WC_HASH_TYPE_SHA512:
+#ifdef WOLFSSL_SHA512
+            block_size = WC_SHA512_BLOCK_SIZE;
+#endif
+            break;
+
+        /* Not Supported */
+        case WC_HASH_TYPE_MD5_SHA:
+        case WC_HASH_TYPE_MD2:
+        case WC_HASH_TYPE_MD4:
+        case WC_HASH_TYPE_NONE:
+        default:
+            block_size = BAD_FUNC_ARG;
+            break;
+    }
+    return block_size;
+}
+
 /* Generic Hashing Wrapper */
 int wc_Hash(enum wc_HashType hash_type, const byte* data,
     word32 data_len, byte* hash, word32 hash_len)

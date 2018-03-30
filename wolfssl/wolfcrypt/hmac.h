@@ -83,37 +83,17 @@ enum {
     WC_SHA3_256 = 11,
     WC_SHA3_384 = 12,
     WC_SHA3_512 = 13,
-#else
-    /* These values are used for HMAC, not SHA-3 directly.
-     * They come from from FIPS PUB 202. */
-    WC_SHA3_224_BLOCK_SIZE = 144,
-    WC_SHA3_256_BLOCK_SIZE = 136,
-    WC_SHA3_384_BLOCK_SIZE = 104,
-    WC_SHA3_512_BLOCK_SIZE = 72,
-#endif
-
-/* Select the largest available hash for the buffer size. */
-#if defined(WOLFSSL_SHA3)
-    WC_HMAC_BLOCK_SIZE = WC_SHA3_224_BLOCK_SIZE
-        /* SHA3-224 has the largest block size */
-#elif defined(WOLFSSL_SHA512)
-    WC_HMAC_BLOCK_SIZE = WC_SHA512_BLOCK_SIZE,
-#elif defined(HAVE_BLAKE2)
-    WC_HMAC_BLOCK_SIZE = BLAKE2B_BLOCKBYTES,
-#elif defined(WOLFSSL_SHA384)
-    WC_HMAC_BLOCK_SIZE = WC_SHA384_BLOCK_SIZE
-#elif !defined(NO_SHA256)
-    WC_HMAC_BLOCK_SIZE = WC_SHA256_BLOCK_SIZE
-#elif defined(WOLFSSL_SHA224)
-    WC_HMAC_BLOCK_SIZE = WC_SHA224_BLOCK_SIZE
-#elif !defined(NO_SHA)
-    WC_HMAC_BLOCK_SIZE = WC_SHA_BLOCK_SIZE,
-#elif !defined(NO_MD5)
-    WC_HMAC_BLOCK_SIZE = WC_MD5_BLOCK_SIZE,
-#else
-    #error "You have to have some kind of hash if you want to use HMAC."
 #endif
 };
+
+/* Select the largest available hash for the buffer size. */
+#define WC_HMAC_BLOCK_SIZE WC_MAX_BLOCK_SIZE
+
+#if !defined(WOLFSSL_SHA3) && !defined(WOLFSSL_SHA512) && !defined(HAVE_BLAKE2) && \
+    !defined(WOLFSSL_SHA384) && defined(NO_SHA256) && defined(WOLFSSL_SHA224) && \
+     defined(NO_SHA) && defined(NO_MD5)
+    #error "You have to have some kind of hash if you want to use HMAC."
+#endif
 
 
 /* hash union */
