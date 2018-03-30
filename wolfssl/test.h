@@ -462,7 +462,7 @@ static INLINE int mygetopt(int argc, char** argv, const char* optstring)
 }
 
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+#ifdef WOLFSSL_ENCRYPTED_KEYS
 
 static INLINE int PasswordCallBack(char* passwd, int sz, int rw, void* userdata)
 {

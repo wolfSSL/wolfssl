@@ -159,7 +159,7 @@ void echoclient_test(void* args)
 #endif
     }
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+#ifdef WOLFSSL_ENCRYPTED_KEYS
     SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 

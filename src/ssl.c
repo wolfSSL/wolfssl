@@ -54,8 +54,9 @@
         defined(HAVE_WEBSERVER) || defined(WOLFSSL_KEY_GEN)
     #include <wolfssl/openssl/evp.h>
     /* openssl headers end, wolfssl internal headers next */
-    #include <wolfssl/wolfcrypt/wc_encrypt.h>
 #endif
+
+#include <wolfssl/wolfcrypt/wc_encrypt.h>
 
 #ifdef OPENSSL_EXTRA
     /* openssl headers begin */
@@ -3429,6 +3430,9 @@ void wolfSSL_EVP_init(void)
 #endif
 }
 
+#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || HAVE_WEBSERVER */
+
+
 /* our KeyPemToDer password callback, password in userData */
 static INLINE int OurPasswordCb(char* passwd, int sz, int rw, void* userdata)
 {
@@ -3440,8 +3444,6 @@ static INLINE int OurPasswordCb(char* passwd, int sz, int rw, void* userdata)
     XSTRNCPY(passwd, (char*)userdata, sz);
     return min((word32)sz, (word32)XSTRLEN((char*)userdata));
 }
-
-#endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || HAVE_WEBSERVER */
 
 #ifndef NO_CERTS
 
@@ -3501,7 +3503,6 @@ int wolfSSL_KeyPemToDer(const unsigned char* pem, int pemSz,
 }
 
 #endif /* !NO_CERTS */
-
 
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
@@ -4543,10 +4544,12 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 #endif
 
     XMEMSET(info, 0, sizeof(EncryptedInfo));
+#ifdef WOLFSSL_ENCRYPTED_KEYS
     if (ctx) {
         info->passwd_cb       = ctx->passwd_cb;
         info->passwd_userdata = ctx->passwd_userdata;
     }
+#endif
 
     if (format == WOLFSSL_FILETYPE_PEM) {
         ret = PemToDer(buff, sz, type, &der, heap, info, &eccKey);
@@ -11782,8 +11785,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 #endif /* OPENSSL_EXTRA */
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-    defined(HAVE_WEBSERVER)
+#ifdef WOLFSSL_ENCRYPTED_KEYS
 
     void wolfSSL_CTX_set_default_passwd_cb_userdata(WOLFSSL_CTX* ctx,
                                                    void* userdata)
@@ -11820,6 +11822,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return ctx->passwd_userdata;
     }
 
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_WEBSERVER)
 
     int wolfSSL_EVP_BytesToKey(const WOLFSSL_EVP_CIPHER* type,
                        const WOLFSSL_EVP_MD* md, const byte* salt,
@@ -11863,6 +11867,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL || HAVE_WEBSERVER */
+#endif /* WOLFSSL_ENCRYPTED_KEYS */
 
 
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)

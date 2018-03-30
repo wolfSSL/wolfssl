@@ -1186,7 +1186,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     wolfSSL_CTX_set_verify(ctx,
                           WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
 
-#ifdef OPENSSL_EXTRA
+#ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
@@ -1334,7 +1334,7 @@ static void test_client_nofail(void* args, void *cb)
     }
     ctx = wolfSSL_CTX_new(method);
 
-#ifdef OPENSSL_EXTRA
+#ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
@@ -1466,7 +1466,7 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
     wolfSSL_CTX_set_verify(ctx,
                           WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
 
-#ifdef OPENSSL_EXTRA
+#ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 #ifdef WOLFSSL_SESSION_EXPORT
@@ -1606,7 +1606,7 @@ static void run_wolfssl_client(void* args)
 
     ((func_args*)args)->return_code = TEST_FAIL;
 
-#ifdef OPENSSL_EXTRA
+#ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
@@ -2890,7 +2890,8 @@ static void test_wolfSSL_PKCS8(void)
 {
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
         !defined(NO_DES3) && !defined(NO_FILESYSTEM) && \
-        !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA)
+        !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA) && \
+        defined(WOLFSSL_ENCRYPTED_KEYS)
     byte buffer[FOURK_BUF];
     byte der[FOURK_BUF];
     char file[] = "./certs/server-keyPkcs8Enc.pem";
@@ -15235,7 +15236,8 @@ static void test_wolfSSL_PEM_PrivateKey(void)
     EVP_PKEY_free(pkey);
     EVP_PKEY_free(pkey2);
 
-    #if !defined(NO_DES3) /* key is DES encrypted */
+    /* key is DES encrypted */
+    #if !defined(NO_DES3) && defined(WOLFSSL_ENCRYPTED_KEYS)
     {
         pem_password_cb* passwd_cb;
         void* passwd_cb_userdata;
@@ -15245,7 +15247,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
         AssertNotNull(ctx = SSL_CTX_new(TLSv1_2_server_method()));
 
         AssertNotNull(bio = BIO_new_file("./certs/server-keyEnc.pem", "rb"));
-        SSL_CTX_set_default_passwd_cb(ctx, &PasswordCallBack);
+        SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
         AssertNotNull(passwd_cb = SSL_CTX_get_default_passwd_cb(ctx));
         AssertNull(passwd_cb_userdata =
             SSL_CTX_get_default_passwd_cb_userdata(ctx));
@@ -15565,8 +15567,10 @@ static void test_wolfSSL_CTX_add_extra_chain_cert(void)
 
     AssertIntEQ((int)SSL_CTX_add_extra_chain_cert(ctx, x509), SSL_SUCCESS);
 
+#ifdef WOLFSSL_ENCRYPTED_KEYS
     AssertNull(SSL_CTX_get_default_passwd_cb(ctx));
     AssertNull(SSL_CTX_get_default_passwd_cb_userdata(ctx));
+#endif
 
     SSL_CTX_free(ctx);
     printf(resultFmt, passed);
@@ -17116,8 +17120,9 @@ static void test_wolfSSL_SESSION(void)
     AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, cliCertFile, SSL_FILETYPE_PEM));
     AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, SSL_FILETYPE_PEM));
     AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0), SSL_SUCCESS);
+#ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
-
+#endif
 
     XMEMSET(&server_args, 0, sizeof(func_args));
 #ifdef WOLFSSL_TIRTOS
