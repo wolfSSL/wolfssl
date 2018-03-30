@@ -74,15 +74,15 @@ OPENRTOS_3_9_2_CTAO_REPO=git@github.com:cyassl/cyassl.git
 #NOTE: Does not include the SGX examples yet, update version once fipsv2 is
 #      finished and merge conflicts can be resolved. This will be tagged as
 #      v3.12.4.sgx-examples
+#SGX_FIPS_VERSION=v3.12.4.sgx-examples
 SGX_FIPS_VERSION=v3.6.6
-SGX_FIPS_REPO=git@github.com/wolfSSL/fips.git
-#NOTE: Waiting to be merged
-#SGX_CTAO_VERSION=3.12.4
+SGX_FIPS_REPO=git@github.com:wolfSSL/fips.git
+SGX_CTAO_VERSION=v3.12.4
 SGX_CTAO_REPO=git@github.com:cyassl/cyassl.git
 
-NETOS_7_6_FIPS_VERSION=v3.12.4
-NETOS_7_6_FIPS_REPO=git@github.com/wolfSSL/fips.git
-#NETOS_7_6_CTAO_VERSION=3.12.4
+NETOS_7_6_FIPS_VERSION=v3.12.6
+NETOS_7_6_FIPS_REPO=git@github.com:wolfSSL/fips.git
+NETOS_7_6_CTAO_VERSION=v3.12.4
 NETOS_7_6_CTAO_REPO=git@github.com:cyassl/cyassl.git
 
 
