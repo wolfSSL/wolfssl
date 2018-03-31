@@ -28,7 +28,7 @@ gcc -lwolfssl -lpthread -o tls_bench tls_bench.c
 Or
 
 #include <examples/benchmark/tls_bench.h>
-bench_tls();
+bench_tls(args);
 */
 
 
@@ -59,14 +59,16 @@ bench_tls();
 #include <unistd.h>
 #include <sys/time.h>
 
-/* configuration parameters */
-#define THREAD_COUNT   2
-#define MEM_BUFFER_SZ  (1024*16) /* Must be large enough to handle max packet size */
-#define MIN_DHKEY_BITS 1024
+/* Defaults for configuration parameters */
+#define THREAD_PAIRS    1 /* Thread pairs of server/client */
+#define MEM_BUFFER_SZ   (1024*16) /* Must be large enough to handle max packet size */
+#define MIN_DHKEY_BITS  1024
+#define RUNTIME_SEC     1
+#define TEST_SIZE_BYTES (1024 * 1024)
+#define TEST_PACKET_SIZE 1024
+#define SHOW_VERBOSE 0 /* Default output is tab delimited format */
 
-/* default output is tab delimited format. Uncomment these to show more */
-//#define SHOW_PEER_INFO
-//#define SHOW_VERBOSE_OUTPUT
+static int argShowPeerInfo = 0; /* Show more info about wolfSSL configuration */
 
 static const char* kTestStr =
 "Biodiesel cupidatat marfa, cliche aute put a bird on it incididunt elit\n"
@@ -220,39 +222,6 @@ typedef struct {
 int myoptind = 0;
 char* myoptarg = NULL;
 
-#ifdef SHOW_PEER_INFO
-static void showPeer(WOLFSSL* ssl)
-{
-    WOLFSSL_CIPHER* cipher;
-#ifdef HAVE_ECC
-    const char *name;
-#endif
-#ifndef NO_DH
-    int bits;
-#endif
-
-    printf("SSL version is %s\n", wolfSSL_get_version(ssl));
-
-    cipher = wolfSSL_get_current_cipher(ssl);
-    printf("SSL cipher suite is %s\n", wolfSSL_CIPHER_get_name(cipher));
-
-#ifdef HAVE_ECC
-    if ((name = wolfSSL_get_curve_name(ssl)) != NULL)
-        printf("SSL curve name is %s\n", name);
-#endif
-#ifndef NO_DH
-    if ((bits = wolfSSL_GetDhKey_Sz(ssl)) > 0)
-        printf("SSL DH size is %d bits\n", bits);
-#endif
-    if (wolfSSL_session_reused(ssl))
-        printf("SSL reused session\n");
-#ifdef WOLFSSL_ALT_CERT_CHAINS
-    if (wolfSSL_is_peer_alt_cert_chain(ssl))
-        printf("Alternate cert chain used\n");
-#endif
-}
-#endif
-
 /* server send callback */
 static int ServerSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 {
@@ -382,9 +351,7 @@ static void* client_thread(void* args)
     int ret;
     WOLFSSL_CTX* cli_ctx;
     WOLFSSL* cli_ssl;
-#ifdef SHOW_PEER_INFO
     int haveShownPeerInfo = 0;
-#endif
 
     /* set up client */
     cli_ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
@@ -415,7 +382,7 @@ static void* client_thread(void* args)
 #endif
 
     /* Allocate and initialize a packet sized buffer */
-    writeBuf = malloc(info->packetSize);
+    writeBuf = (unsigned char*)malloc(info->packetSize);
     if (writeBuf != NULL) {
         strncpy((char*)writeBuf, kTestStr, info->packetSize);
         *(writeBuf + info->packetSize) = '\0';
@@ -442,12 +409,10 @@ static void* client_thread(void* args)
         }
         info->client_stats.connTime += start;
 
-#ifdef SHOW_PEER_INFO
-        if (!haveShownPeerInfo) {
+        if ((argShowPeerInfo) && (!haveShownPeerInfo)) {
             haveShownPeerInfo = 1;
             showPeer(cli_ssl);
         }
-#endif
 
         /* write test message to server */
         while (info->client_stats.rxTotal < info->numBytes) {
@@ -631,14 +596,17 @@ static void Usage(void)
     printf("tls_bench "    LIBWOLFSSL_VERSION_STRING
            " NOTE: All files relative to wolfSSL home dir\n");
     printf("-?          Help, print this usage\n");
-    printf("-b <num>    The total <num> bytes transferred per test connection, default 1 MB\n");
+    printf("-b <num>    The total <num> bytes transferred per test connection, default %d\n", TEST_SIZE_BYTES);
 #ifdef DEBUG_WOLFSSL
     printf("-d          Enable debug messages\n");
 #endif
-    printf("-e          List Every cipher suite available, \n");
+    printf("-e          List Every cipher suite available\n");
+    printf("-i          Show peer info\n");
     printf("-l <str>    Cipher suite list (: delimited)\n");
-    printf("-t <num>    Time <num> (seconds) to run each test, default 1\n");
-    printf("-p <num>    The packet size <num> in bytes [1-16kB], default 1 kB\n");
+    printf("-t <num>    Time <num> (seconds) to run each test, default %d\n", RUNTIME_SEC);
+    printf("-p <num>    The packet size <num> in bytes [1-16kB], default %d\n", TEST_PACKET_SIZE);
+    printf("-v          Show verbose output\n");
+    printf("-T <num>    Thread pairs of server/client, default %d\n", THREAD_PAIRS);
 }
 
 static void ShowCiphers(void)
@@ -657,26 +625,20 @@ static void ShowCiphers(void)
 
 int bench_tls(void* args)
 {
-    info_t theadInfo[THREAD_COUNT];
-    info_t* info;
+    info_t *theadInfo, *info;
     int i, doShutdown;
     char *cipher, *next_cipher, ciphers[4096];
     int     argc = ((func_args*)args)->argc;
     char**  argv = ((func_args*)args)->argv;
     int    ch;
 
-
     /* Vars configured by command line arguments */
-    int argRuntimeSec = 1;
+    int argRuntimeSec = RUNTIME_SEC;
     char *argCipherList = NULL;
-    int argTestSizeBytes = (1024 * 1024);
-    int argTestPacketSize = 1024;
-
-    /* Avoid unused warnings */
-    (void) argRuntimeSec;
-    (void) argCipherList;
-    (void) argTestSizeBytes;
-    (void) argTestPacketSize;
+    int argTestSizeBytes = TEST_SIZE_BYTES;
+    int argTestPacketSize = TEST_PACKET_SIZE;
+    int argThreadPairs = THREAD_PAIRS;
+    int argShowVerbose = SHOW_VERBOSE;
 
     ((func_args*)args)->return_code = -1; /* error state */
 
@@ -684,7 +646,7 @@ int bench_tls(void* args)
     wolfSSL_Init();
 
     /* Parse command line arguments */
-    while ((ch = mygetopt(argc, argv, "?" "b:del:p:t:")) != -1) {
+    while ((ch = mygetopt(argc, argv, "?" "b:deil:p:t:vT:")) != -1) {
         switch (ch) {
             case '?' :
                 Usage();
@@ -704,6 +666,10 @@ int bench_tls(void* args)
                 ShowCiphers();
                 exit(EXIT_SUCCESS);
 
+            case 'i' :
+                argShowPeerInfo = 1;
+                break;
+
             case 'l' :
                 argCipherList = myoptarg;
                 break;
@@ -714,6 +680,14 @@ int bench_tls(void* args)
 
             case 't' :
                 argRuntimeSec = atoi(myoptarg);
+                break;
+
+            case 'v' :
+                argShowVerbose = 1;
+                break;
+
+            case 'T' :
+                argThreadPairs = atoi(myoptarg);
                 break;
 
             default:
@@ -735,9 +709,8 @@ int bench_tls(void* args)
         cipher = ciphers;
     }
 
-#ifndef SHOW_VERBOSE_OUTPUT
-    printf("Side\tCipher\tTotal Bytes\tNum Conns\tRx ms\tTx ms\tRx MB/s\tTx MB/s\tConnect Total ms\tConnect Avg ms\n");
-#endif
+    /* Allocate test info array */
+    theadInfo = (info_t*)malloc(sizeof(info_t) * argThreadPairs);
 
     /* parse by : */
     while ((cipher != NULL) && (cipher[0] != '\0')) {
@@ -746,13 +719,12 @@ int bench_tls(void* args)
             cipher[next_cipher - cipher] = '\0';
         }
 
-    #ifdef SHOW_VERBOSE_OUTPUT
+    if (argShowVerbose) {
         printf("Cipher: %s\n", cipher);
-    #endif
+    }
 
-        memset(&theadInfo, 0, sizeof(theadInfo));
-        for (i=0; i<THREAD_COUNT; i++) {
-            info = &theadInfo[i];
+        for (i=0; i<argThreadPairs; i++) {
+            info = (info_t*)memset(&theadInfo[i], 0, sizeof(info_t));
 
             info->cipher = cipher;
             info->numBytes = argTestSizeBytes;
@@ -775,7 +747,7 @@ int bench_tls(void* args)
         sleep(argRuntimeSec);
 
         /* mark threads to quit */
-        for (i = 0; i < THREAD_COUNT; ++i) {
+        for (i = 0; i < argThreadPairs; ++i) {
             info = &theadInfo[i];
             info->shutdown = 1;
         }
@@ -784,7 +756,7 @@ int bench_tls(void* args)
         do {
             doShutdown = 1;
 
-            for (i = 0; i < THREAD_COUNT; ++i) {
+            for (i = 0; i < argThreadPairs; ++i) {
                 info = &theadInfo[i];
                 if (!info->to_client.done || !info->to_server.done) {
                     doShutdown = 0;
@@ -794,18 +766,18 @@ int bench_tls(void* args)
             }
         } while (!doShutdown);
 
-#ifdef SHOW_VERBOSE_OUTPUT
-        printf("Shutdown complete\n");
+        if (argShowVerbose) {
+            printf("Shutdown complete\n");
 
-        /* print results */
-        for (i = 0; i < THREAD_COUNT; ++i) {
-            info = &theadInfo[i];
+            /* print results */
+            for (i = 0; i < argThreadPairs; ++i) {
+                info = &theadInfo[i];
 
-            printf("\nThread %d\n", i);
-            print_stats(&info->server_stats, "Server", info->cipher, 1);
-            print_stats(&info->client_stats, "Server", info->cipher, 1);
+                printf("\nThread %d\n", i);
+                print_stats(&info->server_stats, "Server", info->cipher, 1);
+                print_stats(&info->client_stats, "Server", info->cipher, 1);
+            }
         }
-#endif
 
         /* print combined results for more than one thread */
         {
@@ -814,7 +786,7 @@ int bench_tls(void* args)
             memset(&cli_comb, 0, sizeof(cli_comb));
             memset(&srv_comb, 0, sizeof(srv_comb));
 
-            for (i = 0; i < THREAD_COUNT; ++i) {
+            for (i = 0; i < argThreadPairs; ++i) {
                 info = &theadInfo[i];
 
                 cli_comb.connCount += info->client_stats.connCount;
@@ -836,11 +808,14 @@ int bench_tls(void* args)
                 srv_comb.txTime += info->server_stats.txTime;
             }
 
-        #ifdef SHOW_VERBOSE_OUTPUT
-            printf("Totals for %d Threads\n", THREAD_COUNT);
-        #endif
-            print_stats(&srv_comb, "Server", theadInfo[0].cipher, 0);
-            print_stats(&cli_comb, "Client", theadInfo[0].cipher, 0);
+            if (argShowVerbose) {
+                printf("Totals for %d Threads\n", argThreadPairs);
+            }
+            else {
+                printf("Side\tCipher\tTotal Bytes\tNum Conns\tRx ms\tTx ms\tRx MB/s\tTx MB/s\tConnect Total ms\tConnect Avg ms\n");
+                print_stats(&srv_comb, "Server", theadInfo[0].cipher, 0);
+                print_stats(&cli_comb, "Client", theadInfo[0].cipher, 0);
+            }
         }
 
         /* target next cipher */
@@ -849,6 +824,9 @@ int bench_tls(void* args)
 
     /* Cleanup the wolfSSL environment */
     wolfSSL_Cleanup();
+
+    /* Free theadInfo array */
+    free(theadInfo);
 
     /* Return reporting a success */
     return (((func_args*)args)->return_code = 0);
