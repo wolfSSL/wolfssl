@@ -58,7 +58,7 @@ enum {
 
 /* If any hash is not enabled, add the ID here. */
 #ifdef NO_MD5
-    WC_MD5     = WC_HASH_TYPE_MD5+,
+    WC_MD5     = WC_HASH_TYPE_MD5,
 #endif
 #ifdef NO_SHA
     WC_SHA     = WC_HASH_TYPE_SHA,
