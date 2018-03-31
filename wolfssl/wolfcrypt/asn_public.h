@@ -369,15 +369,6 @@ WOLFSSL_API int wc_PemToDer(const unsigned char* buff, long longSz, int type,
 #endif
 #endif /* WOLFSSL_CERT_GEN */
 
-#if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_PUB_PEM_TO_DER)
-    #ifndef NO_FILESYSTEM
-        WOLFSSL_API int wolfSSL_PemPubKeyToDer(const char* fileName,
-                                               unsigned char* derBuf, int derSz);
-    #endif
-    WOLFSSL_API int wolfSSL_PubKeyPemToDer(const unsigned char*, int,
-                                               unsigned char*, int);
-#endif /* WOLFSSL_CERT_EXT || WOLFSSL_PUB_PEM_TO_DER */
-
 #ifdef HAVE_ECC
     /* private key helpers */
     WOLFSSL_API int wc_EccPrivateKeyDecode(const byte*, word32*,
