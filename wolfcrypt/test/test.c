@@ -12152,7 +12152,7 @@ int openssl_test(void)
             return -5960;
         /* openSSL compatibility, if(inlen == 0)return 1; */
         if (EVP_CipherUpdate(&en, (byte*)cipher, &outlen,
-                                                    (byte*)cbcPlain, 0) == 0)
+                                                    (byte*)cbcPlain, 0) != 1)
             return -5960;
 
         EVP_CIPHER_CTX_init(&en);
