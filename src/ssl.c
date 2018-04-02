@@ -11816,7 +11816,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
                        const byte* data, int sz, int count, byte* key, byte* iv)
     {
         int ret;
-        int hashType;
+        int hashType = WC_HASH_TYPE_NONE;
     #ifdef WOLFSSL_SMALL_STACK
         EncryptedInfo* info = NULL;
     #else

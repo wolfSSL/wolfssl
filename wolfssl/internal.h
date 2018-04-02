@@ -1151,6 +1151,18 @@ enum Misc {
     MAX_REQUEST_SZ      = 256, /* Maximum cert req len (no auth yet */
     SESSION_FLUSH_COUNT = 256, /* Flush session cache unless user turns off */
 
+#ifdef HAVE_FIPS
+    /* these moved into wolfCrypt, but kept here for backwards compatibility with FIPS */
+    RC4_KEY_SIZE        = 16,  /* always 128bit           */
+    DES_KEY_SIZE        =  8,  /* des                     */
+    DES3_KEY_SIZE       = 24,  /* 3 des ede               */
+    DES_IV_SIZE         = DES_BLOCK_SIZE,
+    AES_256_KEY_SIZE    = 32,  /* for 256 bit             */
+    AES_192_KEY_SIZE    = 24,  /* for 192 bit             */
+    AES_IV_SIZE         = 16,  /* always block size       */
+    AES_128_KEY_SIZE    = 16,  /* for 128 bit             */
+#endif
+
     AEAD_SEQ_OFFSET     = 4,   /* Auth Data: Sequence number */
     AEAD_TYPE_OFFSET    = 8,   /* Auth Data: Type            */
     AEAD_VMAJ_OFFSET    = 9,   /* Auth Data: Major Version   */

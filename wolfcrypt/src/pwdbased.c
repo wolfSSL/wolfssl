@@ -97,25 +97,31 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
     while (keyOutput < (keyLen + ivLen)) {
         digestLeft = diestLen;
         /* D_(i - 1) */
-        if (keyOutput) /* first time D_0 is empty */
+        if (keyOutput) { /* first time D_0 is empty */
             err = wc_HashUpdate(hash, hashT, digest, diestLen);
+            if (err != 0) break;
+        }
 
         /* data */
-        if (err == 0)
-            err = wc_HashUpdate(hash, hashT, passwd, passwdLen);
-        /* salt */
-        if (salt && err == 0)
-            err = wc_HashUpdate(hash, hashT, salt, saltLen);
+        err = wc_HashUpdate(hash, hashT, passwd, passwdLen);
+        if (err != 0) break;
 
-        if (err == 0)
-            err = wc_HashFinal(hash, hashT, digest);
+        /* salt */
+        if (salt) {
+            err = wc_HashUpdate(hash, hashT, salt, saltLen);
+            if (err != 0) break;
+        }
+
+        err = wc_HashFinal(hash, hashT, digest);
+        if (err != 0) break;
 
         /* count */
-        if (err == 0) {
-            for (i = 1; i < iterations; i++) {
-                err = wc_HashUpdate(hash, hashT, digest, diestLen);
-                err = wc_HashFinal(hash, hashT, digest);
-            }
+        for (i = 1; i < iterations; i++) {
+            err = wc_HashUpdate(hash, hashT, digest, diestLen);
+            if (err != 0) break;
+
+            err = wc_HashFinal(hash, hashT, digest);
+            if (err != 0) break;
         }
 
         if (keyLeft) {
@@ -141,10 +147,13 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
     XFREE(hash, heap, DYNAMIC_TYPE_HASHCTX);
 #endif
 
+    if (err != 0)
+        return err;
+
     if (keyOutput != (keyLen + ivLen))
         return BUFFER_E;
 
-    return 0;
+    return err;
 }
 
 /* PKCS#5 v1.5 */

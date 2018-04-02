@@ -1658,6 +1658,14 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_DER_TO_PEM
 #endif
 
+/* keep backwards compatibility enabling encrypted private key */
+#ifndef WOLFSSL_ENCRYPTED_KEYS
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+        defined(HAVE_WEBSERVER)
+        #define WOLFSSL_ENCRYPTED_KEYS
+    #endif
+#endif
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif

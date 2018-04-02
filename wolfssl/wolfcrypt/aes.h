@@ -76,8 +76,8 @@ enum {
     AES_BLOCK_SIZE = 16,
 
     AES_128_KEY_SIZE    = 16,  /* for 128 bit             */
-    AES_256_KEY_SIZE    = 32,  /* for 256 bit             */
     AES_192_KEY_SIZE    = 24,  /* for 192 bit             */
+    AES_256_KEY_SIZE    = 32,  /* for 256 bit             */
     AES_IV_SIZE         = 16,  /* always block size       */
 };
 
