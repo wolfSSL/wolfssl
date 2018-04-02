@@ -150,7 +150,7 @@ static const char* kTestStr =
 
 #ifndef NO_DH
 /* dh1024 p */
-static unsigned char p[] =
+static const unsigned char p[] =
 {
     0xE6, 0x96, 0x9D, 0x3D, 0x49, 0x5B, 0xE3, 0x2C, 0x7C, 0xF1, 0x80, 0xC3,
     0xBD, 0xD4, 0x79, 0x8E, 0x91, 0xB7, 0x81, 0x82, 0x51, 0xBB, 0x05, 0x5E,
@@ -166,7 +166,7 @@ static unsigned char p[] =
 };
 
 /* dh1024 g */
-static unsigned char g[] =
+static const unsigned char g[] =
 {
     0x02,
 };
@@ -711,17 +711,20 @@ int bench_tls(void* args)
 
     /* Allocate test info array */
     theadInfo = (info_t*)malloc(sizeof(info_t) * argThreadPairs);
+    if (theadInfo != NULL) {
+        memset(theadInfo, 0, sizeof(info_t) * argThreadPairs);
+    }
 
     /* parse by : */
-    while ((cipher != NULL) && (cipher[0] != '\0')) {
+    while ((cipher != NULL) && (cipher[0] != '\0') && (theadInfo != NULL)) {
         next_cipher = strchr(cipher, ':');
         if (next_cipher != NULL) {
             cipher[next_cipher - cipher] = '\0';
         }
 
-    if (argShowVerbose) {
-        printf("Cipher: %s\n", cipher);
-    }
+        if (argShowVerbose) {
+            printf("Cipher: %s\n", cipher);
+        }
 
         for (i=0; i<argThreadPairs; i++) {
             info = (info_t*)memset(&theadInfo[i], 0, sizeof(info_t));
@@ -780,42 +783,40 @@ int bench_tls(void* args)
         }
 
         /* print combined results for more than one thread */
-        {
-            stats_t cli_comb;
-            stats_t srv_comb;
-            memset(&cli_comb, 0, sizeof(cli_comb));
-            memset(&srv_comb, 0, sizeof(srv_comb));
+        stats_t cli_comb;
+        stats_t srv_comb;
+        memset(&cli_comb, 0, sizeof(cli_comb));
+        memset(&srv_comb, 0, sizeof(srv_comb));
 
-            for (i = 0; i < argThreadPairs; ++i) {
-                info = &theadInfo[i];
+        for (i = 0; i < argThreadPairs; ++i) {
+            info = &theadInfo[i];
 
-                cli_comb.connCount += info->client_stats.connCount;
-                srv_comb.connCount += info->server_stats.connCount;
+            cli_comb.connCount += info->client_stats.connCount;
+            srv_comb.connCount += info->server_stats.connCount;
 
-                cli_comb.connTime += info->client_stats.connTime;
-                srv_comb.connTime += info->server_stats.connTime;
+            cli_comb.connTime += info->client_stats.connTime;
+            srv_comb.connTime += info->server_stats.connTime;
 
-                cli_comb.rxTotal += info->client_stats.rxTotal;
-                srv_comb.rxTotal += info->server_stats.rxTotal;
+            cli_comb.rxTotal += info->client_stats.rxTotal;
+            srv_comb.rxTotal += info->server_stats.rxTotal;
 
-                cli_comb.rxTime += info->client_stats.rxTime;
-                srv_comb.rxTime += info->server_stats.rxTime;
+            cli_comb.rxTime += info->client_stats.rxTime;
+            srv_comb.rxTime += info->server_stats.rxTime;
 
-                cli_comb.txTotal += info->client_stats.txTotal;
-                srv_comb.txTotal += info->server_stats.txTotal;
+            cli_comb.txTotal += info->client_stats.txTotal;
+            srv_comb.txTotal += info->server_stats.txTotal;
 
-                cli_comb.txTime += info->client_stats.txTime;
-                srv_comb.txTime += info->server_stats.txTime;
-            }
+            cli_comb.txTime += info->client_stats.txTime;
+            srv_comb.txTime += info->server_stats.txTime;
+        }
 
-            if (argShowVerbose) {
-                printf("Totals for %d Threads\n", argThreadPairs);
-            }
-            else {
-                printf("Side\tCipher\tTotal Bytes\tNum Conns\tRx ms\tTx ms\tRx MB/s\tTx MB/s\tConnect Total ms\tConnect Avg ms\n");
-                print_stats(&srv_comb, "Server", theadInfo[0].cipher, 0);
-                print_stats(&cli_comb, "Client", theadInfo[0].cipher, 0);
-            }
+        if (argShowVerbose) {
+            printf("Totals for %d Threads\n", argThreadPairs);
+        }
+        else {
+            printf("Side\tCipher\tTotal Bytes\tNum Conns\tRx ms\tTx ms\tRx MB/s\tTx MB/s\tConnect Total ms\tConnect Avg ms\n");
+            print_stats(&srv_comb, "Server", theadInfo[0].cipher, 0);
+            print_stats(&cli_comb, "Client", theadInfo[0].cipher, 0);
         }
 
         /* target next cipher */
