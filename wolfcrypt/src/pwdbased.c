@@ -58,18 +58,23 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
 #else
     wc_HashAlg  hash[1];
 #endif
+    enum wc_HashType hashT;
 
     (void)heap;
 
-    err = wc_HashGetDigestSize(hashType);
+    if (key == NULL || keyLen < 0 || passwdLen < 0 || saltLen < 0 ||
+                    ivLen < 0 || hashType < 0 || hashType > WC_HASH_TYPE_MAX) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (iterations <= 0)
+        iterations = 1;
+
+    hashT = (enum wc_HashType)hashType;
+    err = wc_HashGetDigestSize(hashT);
     if (err < 0)
         return err;
     diestLen = err;
-
-    if (key == NULL || keyLen < 0 || passwd == NULL || passwdLen == 0 ||
-                                                            iterations < 1) {
-        return BAD_FUNC_ARG;
-    }
 
     /* initialize hash */
 #ifdef WOLFSSL_SMALL_STACK
@@ -79,7 +84,7 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
         return MEMORY_E;
 #endif
 
-    err = wc_HashInit(hash, hashType);
+    err = wc_HashInit(hash, hashT);
     if (err != 0) {
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(hash, heap, DYNAMIC_TYPE_HASHCTX);
@@ -93,23 +98,23 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
         digestLeft = diestLen;
         /* D_(i - 1) */
         if (keyOutput) /* first time D_0 is empty */
-            err = wc_HashUpdate(hash, hashType, digest, diestLen);
+            err = wc_HashUpdate(hash, hashT, digest, diestLen);
 
         /* data */
         if (err == 0)
-            err = wc_HashUpdate(hash, hashType, passwd, passwdLen);
+            err = wc_HashUpdate(hash, hashT, passwd, passwdLen);
         /* salt */
         if (salt && err == 0)
-            err = wc_HashUpdate(hash, hashType, salt, saltLen);
+            err = wc_HashUpdate(hash, hashT, salt, saltLen);
 
         if (err == 0)
-            err = wc_HashFinal(hash, hashType, digest);
+            err = wc_HashFinal(hash, hashT, digest);
 
         /* count */
         if (err == 0) {
             for (i = 1; i < iterations; i++) {
-                err = wc_HashUpdate(hash, hashType, digest, diestLen);
-                err = wc_HashFinal(hash, hashType, digest);
+                err = wc_HashUpdate(hash, hashT, digest, diestLen);
+                err = wc_HashFinal(hash, hashT, digest);
             }
         }
 
@@ -164,8 +169,19 @@ int wc_PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
     byte   buffer[WC_MAX_DIGEST_SIZE];
     Hmac   hmac[1];
 #endif
+    enum wc_HashType hashT;
 
-    hLen = wc_HashGetDigestSize(hashType);
+    if (output == NULL || pLen < 0 || sLen < 0 || kLen < 0 ||
+                                hashType < 0 || hashType > WC_HASH_TYPE_MAX) {
+        return BAD_FUNC_ARG;
+    }
+
+    if (iterations <= 0)
+        iterations = 1;
+
+    hashT = (enum wc_HashType)hashType;
+
+    hLen = wc_HashGetDigestSize(hashT);
     if (hLen < 0)
         return BAD_FUNC_ARG;
 
@@ -180,7 +196,7 @@ int wc_PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
 
     ret = wc_HmacInit(hmac, NULL, INVALID_DEVID);
     if (ret == 0) {
-        ret = wc_HmacSetKey(hmac, hashType, passwd, pLen);
+        ret = wc_HmacSetKey(hmac, hashT, passwd, pLen);
 
         while (ret == 0 && kLen) {
             int currentLen;
@@ -249,9 +265,14 @@ static int DoPKCS12Hash(int hashType, byte* buffer, word32 totalLen,
 #else
     wc_HashAlg  hash[1];
 #endif
+    enum wc_HashType hashT;
 
-    if (buffer == NULL || Ai == NULL)
+    if (buffer == NULL || Ai == NULL || hashType < 0 ||
+                                                hashType > WC_HASH_TYPE_MAX) {
         return BAD_FUNC_ARG;
+    }
+
+    hashT = (enum wc_HashType)hashType;
 
     /* initialize hash */
 #ifdef WOLFSSL_SMALL_STACK
@@ -261,7 +282,7 @@ static int DoPKCS12Hash(int hashType, byte* buffer, word32 totalLen,
         return MEMORY_E;
 #endif
 
-    ret = wc_HashInit(hash, hashType);
+    ret = wc_HashInit(hash, hashT);
     if (ret != 0) {
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(hash, NULL, DYNAMIC_TYPE_HASHCTX);
@@ -269,16 +290,16 @@ static int DoPKCS12Hash(int hashType, byte* buffer, word32 totalLen,
         return ret;
     }
 
-    ret = wc_HashUpdate(hash, hashType, buffer, totalLen);
+    ret = wc_HashUpdate(hash, hashT, buffer, totalLen);
 
     if (ret == 0)
-        ret = wc_HashFinal(hash, hashType, Ai);
+        ret = wc_HashFinal(hash, hashT, Ai);
 
     for (i = 1; i < iterations; i++) {
         if (ret == 0)
-            ret = wc_HashUpdate(hash, hashType, Ai, u);
+            ret = wc_HashUpdate(hash, hashT, Ai, u);
         if (ret == 0)
-            ret = wc_HashFinal(hash, hashType, Ai);
+            ret = wc_HashFinal(hash, hashT, Ai);
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -289,8 +310,9 @@ static int DoPKCS12Hash(int hashType, byte* buffer, word32 totalLen,
 }
 
 
-int wc_PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,const byte* salt,
-                 int saltLen, int iterations, int kLen, int hashType, int id)
+int wc_PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,
+    const byte* salt, int saltLen, int iterations, int kLen, int hashType,
+    int id)
 {
     return wc_PKCS12_PBKDF_ex(output, passwd, passLen, salt, saltLen,
                               iterations, kLen, hashType, id, NULL);
@@ -322,18 +344,25 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
     byte   Ai[WC_MAX_DIGEST_SIZE];
     byte   B[WC_MAX_BLOCK_SIZE];
 #endif
+    enum wc_HashType hashT;
 
-	(void)heap;
+    (void)heap;
+    
+    if (output == NULL || passLen < 0 || saltLen < 0 || kLen < 0 ||
+                                hashType < 0 || hashType > WC_HASH_TYPE_MAX) {
+        return BAD_FUNC_ARG;
+    }
 
-    if (!iterations)
+    if (iterations <= 0)
         iterations = 1;
 
-    ret = wc_HashGetDigestSize(hashType);
+    hashT = (enum wc_HashType)hashType;
+    ret = wc_HashGetDigestSize(hashT);
     if (ret < 0)
         return ret;
     u = ret;
 
-    ret = wc_HashGetBlockSize(hashType);
+    ret = wc_HashGetBlockSize(hashT);
     if (ret < 0)
         return ret;
     v = ret;

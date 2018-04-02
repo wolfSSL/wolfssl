@@ -234,8 +234,6 @@ enum Misc_ASN {
 #endif
 
     PEM_LINE_LEN       = 80,       /* PEM line max + fudge */
-    FILE_BUFFER_SIZE   = 1024,     /* default static file buffer size for input,
-                                    will use dynamic buffer if not big enough */
 };
 
 

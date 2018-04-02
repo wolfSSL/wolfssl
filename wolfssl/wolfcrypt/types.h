@@ -296,9 +296,6 @@
         #define FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP)  /* nothing to free, its stack */
     #endif
 
-    #ifndef WOLFSSL_LEANPSK
-	    char* mystrnstr(const char* s1, const char* s2, unsigned int n);
-    #endif
     #if !defined(USE_WOLF_STRTOK) && \
             (defined(__MINGW32__) || defined(WOLFSSL_TIRTOS))
         #define USE_WOLF_STRTOK
@@ -500,6 +497,8 @@
         WC_HASH_TYPE_SHA3_384 = 12,
         WC_HASH_TYPE_SHA3_512 = 13,
         WC_HASH_TYPE_BLAKE2B = 14,
+
+        WC_HASH_TYPE_MAX = WC_HASH_TYPE_BLAKE2B
     };
 
 	/* settings detection for compile vs runtime math incompatibilities */

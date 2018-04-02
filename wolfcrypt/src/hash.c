@@ -46,7 +46,7 @@ enum Hash_Sum  {
     SHA384h = 415,
     SHA512h = 416
 };
-#endif
+#endif /* !NO_ASN */
 
 int wc_HashGetOID(enum wc_HashType hash_type)
 {
@@ -104,7 +104,9 @@ int wc_HashGetOID(enum wc_HashType hash_type)
     }
     return oid;
 }
-#endif
+#endif /* !NO_ASN || !NO_DH || HAVE_ECC */
+
+
 
 /* Get Hash digest size */
 int wc_HashGetDigestSize(enum wc_HashType hash_type)
