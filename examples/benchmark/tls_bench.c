@@ -28,7 +28,7 @@ gcc -lwolfssl -lpthread -o tls_bench tls_bench.c
 Or
 
 #include <examples/benchmark/tls_bench.h>
-bench_tls();
+bench_tls(args);
 */
 
 
@@ -40,6 +40,8 @@ bench_tls();
 #endif
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/ssl.h>
+
+#include <wolfssl/test.h>
 
 #include <examples/benchmark/tls_bench.h>
 
@@ -57,15 +59,16 @@ bench_tls();
 #include <unistd.h>
 #include <sys/time.h>
 
-/* configuration parameters */
-#define THREAD_COUNT   2
-#define RUNTIME_SEC    2
-#define MEM_BUFFER_SZ  (1024*5)
-#define MIN_DHKEY_BITS 1024
+/* Defaults for configuration parameters */
+#define THREAD_PAIRS    1 /* Thread pairs of server/client */
+#define MEM_BUFFER_SZ   (1024*16) /* Must be large enough to handle max packet size */
+#define MIN_DHKEY_BITS  1024
+#define RUNTIME_SEC     1
+#define TEST_SIZE_BYTES (1024 * 1024)
+#define TEST_PACKET_SIZE 1024
+#define SHOW_VERBOSE 0 /* Default output is tab delimited format */
 
-/* default output is tab delimited format. Uncomment these to show more */
-//#define SHOW_PEER_INFO
-//#define SHOW_VERBOSE_OUTPUT
+static int argShowPeerInfo = 0; /* Show more info about wolfSSL configuration */
 
 static const char* kTestStr =
 "Biodiesel cupidatat marfa, cliche aute put a bird on it incididunt elit\n"
@@ -147,7 +150,7 @@ static const char* kTestStr =
 
 #ifndef NO_DH
 /* dh1024 p */
-static unsigned char p[] =
+static const unsigned char p[] =
 {
     0xE6, 0x96, 0x9D, 0x3D, 0x49, 0x5B, 0xE3, 0x2C, 0x7C, 0xF1, 0x80, 0xC3,
     0xBD, 0xD4, 0x79, 0x8E, 0x91, 0xB7, 0x81, 0x82, 0x51, 0xBB, 0x05, 0x5E,
@@ -163,7 +166,7 @@ static unsigned char p[] =
 };
 
 /* dh1024 g */
-static unsigned char g[] =
+static const unsigned char g[] =
 {
     0x02,
 };
@@ -194,6 +197,12 @@ typedef struct {
 typedef struct {
     const char* cipher;
 
+    /* The total number of bytes to transfer per connection */
+    int numBytes;
+
+    /* The data payload size in the packet. Will be padded if packet size > buffer size. */
+    int packetSize;
+
     /* client messages to server in memory */
     memBuf_t to_server;
 
@@ -209,38 +218,9 @@ typedef struct {
     int shutdown;
 } info_t;
 
-#ifdef SHOW_PEER_INFO
-static void showPeer(WOLFSSL* ssl)
-{
-    WOLFSSL_CIPHER* cipher;
-#ifdef HAVE_ECC
-    const char *name;
-#endif
-#ifndef NO_DH
-    int bits;
-#endif
-
-    printf("SSL version is %s\n", wolfSSL_get_version(ssl));
-
-    cipher = wolfSSL_get_current_cipher(ssl);
-    printf("SSL cipher suite is %s\n", wolfSSL_CIPHER_get_name(cipher));
-
-#ifdef HAVE_ECC
-    if ((name = wolfSSL_get_curve_name(ssl)) != NULL)
-        printf("SSL curve name is %s\n", name);
-#endif
-#ifndef NO_DH
-    if ((bits = wolfSSL_GetDhKey_Sz(ssl)) > 0)
-        printf("SSL DH size is %d bits\n", bits);
-#endif
-    if (wolfSSL_session_reused(ssl))
-        printf("SSL reused session\n");
-#ifdef WOLFSSL_ALT_CERT_CHAINS
-    if (wolfSSL_is_peer_alt_cert_chain(ssl))
-        printf("Alternate cert chain used\n");
-#endif
-}
-#endif
+/* Global vars for argument parsing */
+int myoptind = 0;
+char* myoptarg = NULL;
 
 /* server send callback */
 static int ServerSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
@@ -353,12 +333,6 @@ static int ClientRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 }
 
 
-static WC_NORETURN void err_sys(const char* msg)
-{
-    printf("wolfSSL error: %s\n", msg);
-    exit(1);
-}
-
 static double gettime_secs(int reset)
 {
     struct timeval tv;
@@ -372,13 +346,12 @@ static void* client_thread(void* args)
 {
     info_t* info = (info_t*)args;
     unsigned char buf[MEM_BUFFER_SZ];
+    unsigned char *writeBuf;
     double start;
-    int ret, len;
+    int ret;
     WOLFSSL_CTX* cli_ctx;
     WOLFSSL* cli_ssl;
-#ifdef SHOW_PEER_INFO
     int haveShownPeerInfo = 0;
-#endif
 
     /* set up client */
     cli_ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
@@ -408,6 +381,16 @@ static void* client_thread(void* args)
     wolfSSL_CTX_SetMinDhKey_Sz(cli_ctx, MIN_DHKEY_BITS);
 #endif
 
+    /* Allocate and initialize a packet sized buffer */
+    writeBuf = (unsigned char*)malloc(info->packetSize);
+    if (writeBuf != NULL) {
+        strncpy((char*)writeBuf, kTestStr, info->packetSize);
+        *(writeBuf + info->packetSize) = '\0';
+    }
+    else {
+        err_sys("failed to allocate memory");
+    }
+
     while (!info->shutdown) {
         cli_ssl = wolfSSL_new(cli_ctx);
         if (cli_ctx == NULL) err_sys("error creating client object");
@@ -426,33 +409,32 @@ static void* client_thread(void* args)
         }
         info->client_stats.connTime += start;
 
-#ifdef SHOW_PEER_INFO
-        if (!haveShownPeerInfo) {
+        if ((argShowPeerInfo) && (!haveShownPeerInfo)) {
             haveShownPeerInfo = 1;
             showPeer(cli_ssl);
         }
-#endif
 
         /* write test message to server */
-        len = (int)strlen(kTestStr)+1; /* include null term */
-        start = gettime_secs(1);
-        ret = wolfSSL_write(cli_ssl, kTestStr, len);
-        info->client_stats.txTime += gettime_secs(0) - start;
-        if (ret > 0) {
-            info->client_stats.txTotal += ret;
-        }
+        while (info->client_stats.rxTotal < info->numBytes) {
+            start = gettime_secs(1);
+            ret = wolfSSL_write(cli_ssl, writeBuf, info->packetSize);
+            info->client_stats.txTime += gettime_secs(0) - start;
+            if (ret > 0) {
+                info->client_stats.txTotal += ret;
+            }
 
-        /* read echo of message */
-        start = gettime_secs(1);
-        ret = wolfSSL_read(cli_ssl, buf, sizeof(buf)-1);
-        info->client_stats.rxTime += gettime_secs(0) - start;
-        if (ret > 0) {
-            info->client_stats.rxTotal += ret;
-        }
+            /* read echo of message */
+            start = gettime_secs(1);
+            ret = wolfSSL_read(cli_ssl, buf, sizeof(buf)-1);
+            info->client_stats.rxTime += gettime_secs(0) - start;
+            if (ret > 0) {
+                info->client_stats.rxTotal += ret;
+            }
 
-        /* validate echo */
-        if (strncmp(kTestStr, (char*)buf, strlen(kTestStr)) != 0) {
-            err_sys("echo check failed!\n");
+            /* validate echo */
+            if (strncmp((char*)writeBuf, (char*)buf, info->packetSize) != 0) {
+                err_sys("echo check failed!\n");
+            }
         }
 
         info->client_stats.connCount++;
@@ -462,6 +444,7 @@ static void* client_thread(void* args)
 
     /* clean up */
     wolfSSL_CTX_free(cli_ctx);
+    free(writeBuf);
 
     pthread_cond_signal(&info->to_server.cond);
     info->to_client.done = 1;
@@ -538,22 +521,24 @@ static void* server_thread(void* args)
 
         info->server_stats.connTime += start;
 
-        /* read msg post handshake from client */
-        memset(buf, 0, sizeof(buf));
-        start = gettime_secs(1);
-        ret = wolfSSL_read(srv_ssl, buf, sizeof(buf)-1);
-        info->server_stats.rxTime += gettime_secs(0) - start;
-        if (ret > 0) {
-            info->server_stats.rxTotal += ret;
-            len = ret;
-        }
+        while (info->server_stats.txTotal < info->numBytes) {
+            /* read msg post handshake from client */
+            memset(buf, 0, sizeof(buf));
+            start = gettime_secs(1);
+            ret = wolfSSL_read(srv_ssl, buf, sizeof(buf)-1);
+            info->server_stats.rxTime += gettime_secs(0) - start;
+            if (ret > 0) {
+                info->server_stats.rxTotal += ret;
+                len = ret;
+            }
 
-        /* write message back to client */
-        start = gettime_secs(1);
-        ret = wolfSSL_write(srv_ssl, buf, len);
-        info->server_stats.txTime += gettime_secs(0) - start;
-        if (ret > 0) {
-            info->server_stats.txTotal += ret;
+            /* write message back to client */
+            start = gettime_secs(1);
+            ret = wolfSSL_write(srv_ssl, buf, len);
+            info->server_stats.txTime += gettime_secs(0) - start;
+            if (ret > 0) {
+                info->server_stats.txTotal += ret;
+            }
         }
 
         info->server_stats.connCount++;
@@ -605,48 +590,148 @@ static void print_stats(stats_t* wcStat, const char* desc, const char* cipher, i
            wcStat->connTime * 1000,
            wcStat->connTime * 1000 / wcStat->connCount);
 }
+
+static void Usage(void)
+{
+    printf("tls_bench "    LIBWOLFSSL_VERSION_STRING
+           " NOTE: All files relative to wolfSSL home dir\n");
+    printf("-?          Help, print this usage\n");
+    printf("-b <num>    The total <num> bytes transferred per test connection, default %d\n", TEST_SIZE_BYTES);
+#ifdef DEBUG_WOLFSSL
+    printf("-d          Enable debug messages\n");
+#endif
+    printf("-e          List Every cipher suite available\n");
+    printf("-i          Show peer info\n");
+    printf("-l <str>    Cipher suite list (: delimited)\n");
+    printf("-t <num>    Time <num> (seconds) to run each test, default %d\n", RUNTIME_SEC);
+    printf("-p <num>    The packet size <num> in bytes [1-16kB], default %d\n", TEST_PACKET_SIZE);
+    printf("-v          Show verbose output\n");
+    printf("-T <num>    Thread pairs of server/client, default %d\n", THREAD_PAIRS);
+}
+
+static void ShowCiphers(void)
+{
+    char ciphers[4096];
+
+    int ret = wolfSSL_get_ciphers(ciphers, (int)sizeof(ciphers));
+
+    if (ret == WOLFSSL_SUCCESS)
+        printf("%s\n", ciphers);
+}
+
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
 
-int bench_tls(void)
+int bench_tls(void* args)
 {
-    info_t theadInfo[THREAD_COUNT];
-    info_t* info;
+    info_t *theadInfo, *info;
     int i, doShutdown;
     char *cipher, *next_cipher, ciphers[4096];
+    int     argc = ((func_args*)args)->argc;
+    char**  argv = ((func_args*)args)->argv;
+    int    ch;
 
-#ifdef DEBUG_WOLFSSL
-    wolfSSL_Debugging_ON();
-#endif
+    /* Vars configured by command line arguments */
+    int argRuntimeSec = RUNTIME_SEC;
+    char *argCipherList = NULL;
+    int argTestSizeBytes = TEST_SIZE_BYTES;
+    int argTestPacketSize = TEST_PACKET_SIZE;
+    int argThreadPairs = THREAD_PAIRS;
+    int argShowVerbose = SHOW_VERBOSE;
+
+    ((func_args*)args)->return_code = -1; /* error state */
 
     /* Initialize wolfSSL */
     wolfSSL_Init();
 
-    /* Run for each cipher */
-    wolfSSL_get_ciphers(ciphers, (int)sizeof(ciphers));
+    /* Parse command line arguments */
+    while ((ch = mygetopt(argc, argv, "?" "b:deil:p:t:vT:")) != -1) {
+        switch (ch) {
+            case '?' :
+                Usage();
+                exit(EXIT_SUCCESS);
 
-#ifndef SHOW_VERBOSE_OUTPUT
-    printf("Side\tCipher\tTotal Bytes\tNum Conns\tRx ms\tTx ms\tRx MB/s\tTx MB/s\tConnect Total ms\tConnect Avg ms\n");
+            case 'b' :
+                argTestSizeBytes = atoi(myoptarg);
+                break;
+
+#ifdef DEBUG_WOLFSSL
+            case 'd' :
+                wolfSSL_Debugging_ON();
+                break;
 #endif
 
+            case 'e' :
+                ShowCiphers();
+                exit(EXIT_SUCCESS);
+
+            case 'i' :
+                argShowPeerInfo = 1;
+                break;
+
+            case 'l' :
+                argCipherList = myoptarg;
+                break;
+
+            case 'p' :
+                argTestPacketSize = atoi(myoptarg);
+                break;
+
+            case 't' :
+                argRuntimeSec = atoi(myoptarg);
+                break;
+
+            case 'v' :
+                argShowVerbose = 1;
+                break;
+
+            case 'T' :
+                argThreadPairs = atoi(myoptarg);
+                break;
+
+            default:
+                Usage();
+                exit(MY_EX_USAGE);
+        }
+    }
+
+    /* reset for test cases */
+    myoptind = 0;
+
+    if (argCipherList != NULL) {
+        /* Use the list from CL argument */
+        cipher = argCipherList;
+    }
+    else {
+        /* Run for each cipher */
+        wolfSSL_get_ciphers(ciphers, (int)sizeof(ciphers));
+        cipher = ciphers;
+    }
+
+    /* Allocate test info array */
+    theadInfo = (info_t*)malloc(sizeof(info_t) * argThreadPairs);
+    if (theadInfo != NULL) {
+        memset(theadInfo, 0, sizeof(info_t) * argThreadPairs);
+    }
+
     /* parse by : */
-    cipher = ciphers;
-    while (cipher != NULL && cipher[0] != '\0') {
+    while ((cipher != NULL) && (cipher[0] != '\0') && (theadInfo != NULL)) {
         next_cipher = strchr(cipher, ':');
         if (next_cipher != NULL) {
             cipher[next_cipher - cipher] = '\0';
         }
 
-    #ifdef SHOW_VERBOSE_OUTPUT
-        printf("Cipher: %s\n", cipher);
-    #endif
+        if (argShowVerbose) {
+            printf("Cipher: %s\n", cipher);
+        }
 
-        memset(&theadInfo, 0, sizeof(theadInfo));
-        for (i=0; i<THREAD_COUNT; i++) {
-            info = &theadInfo[i];
+        for (i=0; i<argThreadPairs; i++) {
+            info = (info_t*)memset(&theadInfo[i], 0, sizeof(info_t));
 
             info->cipher = cipher;
+            info->numBytes = argTestSizeBytes;
+            info->packetSize = argTestPacketSize;
 
             pthread_mutex_init(&info->to_server.mutex, NULL);
             pthread_mutex_init(&info->to_client.mutex, NULL);
@@ -662,10 +747,10 @@ int bench_tls(void)
         }
 
         /* run for x time */
-        sleep(RUNTIME_SEC);
+        sleep(argRuntimeSec);
 
         /* mark threads to quit */
-        for (i = 0; i < THREAD_COUNT; ++i) {
+        for (i = 0; i < argThreadPairs; ++i) {
             info = &theadInfo[i];
             info->shutdown = 1;
         }
@@ -674,83 +759,92 @@ int bench_tls(void)
         do {
             doShutdown = 1;
 
-            for (i = 0; i < THREAD_COUNT; ++i) {
+            for (i = 0; i < argThreadPairs; ++i) {
                 info = &theadInfo[i];
                 if (!info->to_client.done || !info->to_server.done) {
                     doShutdown = 0;
+                    sleep(1); /* Allow other threads to run */
                 }
+
             }
         } while (!doShutdown);
 
-#ifdef SHOW_VERBOSE_OUTPUT
-        printf("Shutdown complete\n");
+        if (argShowVerbose) {
+            printf("Shutdown complete\n");
 
-        /* print results */
-        for (i = 0; i < THREAD_COUNT; ++i) {
-            info = &theadInfo[i];
-
-            printf("\nThread %d\n", i);
-            print_stats(&info->server_stats, "Server", info->cipher, 1);
-            print_stats(&info->client_stats, "Server", info->cipher, 1);
-        }
-#endif
-
-        /* print combined results for more than one thread */
-        {
-            stats_t cli_comb;
-            stats_t srv_comb;
-            memset(&cli_comb, 0, sizeof(cli_comb));
-            memset(&srv_comb, 0, sizeof(srv_comb));
-
-            for (i = 0; i < THREAD_COUNT; ++i) {
+            /* print results */
+            for (i = 0; i < argThreadPairs; ++i) {
                 info = &theadInfo[i];
 
-                cli_comb.connCount += info->client_stats.connCount;
-                srv_comb.connCount += info->server_stats.connCount;
-
-                cli_comb.connTime += info->client_stats.connTime;
-                srv_comb.connTime += info->server_stats.connTime;
-
-                cli_comb.rxTotal += info->client_stats.rxTotal;
-                srv_comb.rxTotal += info->server_stats.rxTotal;
-
-                cli_comb.rxTime += info->client_stats.rxTime;
-                srv_comb.rxTime += info->server_stats.rxTime;
-
-                cli_comb.txTotal += info->client_stats.txTotal;
-                srv_comb.txTotal += info->server_stats.txTotal;
-
-                cli_comb.txTime += info->client_stats.txTime;
-                srv_comb.txTime += info->server_stats.txTime;
+                printf("\nThread %d\n", i);
+                print_stats(&info->server_stats, "Server", info->cipher, 1);
+                print_stats(&info->client_stats, "Server", info->cipher, 1);
             }
+        }
 
-        #ifdef SHOW_VERBOSE_OUTPUT
-            printf("Totals for %d Threads\n", THREAD_COUNT);
-        #endif
+        /* print combined results for more than one thread */
+        stats_t cli_comb;
+        stats_t srv_comb;
+        memset(&cli_comb, 0, sizeof(cli_comb));
+        memset(&srv_comb, 0, sizeof(srv_comb));
+
+        for (i = 0; i < argThreadPairs; ++i) {
+            info = &theadInfo[i];
+
+            cli_comb.connCount += info->client_stats.connCount;
+            srv_comb.connCount += info->server_stats.connCount;
+
+            cli_comb.connTime += info->client_stats.connTime;
+            srv_comb.connTime += info->server_stats.connTime;
+
+            cli_comb.rxTotal += info->client_stats.rxTotal;
+            srv_comb.rxTotal += info->server_stats.rxTotal;
+
+            cli_comb.rxTime += info->client_stats.rxTime;
+            srv_comb.rxTime += info->server_stats.rxTime;
+
+            cli_comb.txTotal += info->client_stats.txTotal;
+            srv_comb.txTotal += info->server_stats.txTotal;
+
+            cli_comb.txTime += info->client_stats.txTime;
+            srv_comb.txTime += info->server_stats.txTime;
+        }
+
+        if (argShowVerbose) {
+            printf("Totals for %d Threads\n", argThreadPairs);
+        }
+        else {
+            printf("Side\tCipher\tTotal Bytes\tNum Conns\tRx ms\tTx ms\tRx MB/s\tTx MB/s\tConnect Total ms\tConnect Avg ms\n");
             print_stats(&srv_comb, "Server", theadInfo[0].cipher, 0);
             print_stats(&cli_comb, "Client", theadInfo[0].cipher, 0);
         }
 
         /* target next cipher */
-        cipher = (next_cipher) ? next_cipher+1 : NULL;
+        cipher = (next_cipher != NULL) ? (next_cipher + 1) : NULL;
     }
 
-    /* Cleanup and return */
-    wolfSSL_Cleanup();      /* Cleanup the wolfSSL environment          */
+    /* Cleanup the wolfSSL environment */
+    wolfSSL_Cleanup();
 
-    return 0;               /* Return reporting a success               */
+    /* Free theadInfo array */
+    free(theadInfo);
+
+    /* Return reporting a success */
+    return (((func_args*)args)->return_code = 0);
 }
 
 #ifndef NO_MAIN_DRIVER
 
 int main(int argc, char** argv)
 {
-    (void)argc;
-    (void)argv;
+    func_args args;
 
-    bench_tls();
+    args.argc = argc;
+    args.argv = argv;
 
-    return 0;
+    bench_tls(&args);
+
+    return(args.return_code);
 }
 
 #endif

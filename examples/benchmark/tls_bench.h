@@ -24,7 +24,7 @@
 #define WOLFSSL_TLS_BENCH_H
 
 
-int bench_tls(void);
+int bench_tls(void* args);
 
 
 #endif /* WOLFSSL_TLS_BENCH_H */
