@@ -315,12 +315,13 @@ WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
     int blocks;
     int fill;
 
-    *outl = 0;
     if ((ctx == NULL) || (inl < 0) ||
         (outl == NULL)|| (out == NULL) || (in == NULL)) return BAD_FUNC_ARG;
     WOLFSSL_ENTER("wolfSSL_EVP_CipherUpdate");
 
-    if (inl == 0) return WOLFSSL_FAILURE;
+    *outl = 0;
+    if (inl == 0) return WOLFSSL_SUCCESS;
+    
     if (ctx->bufUsed > 0) { /* concatinate them if there is anything */
         fill = fillBuff(ctx, in, inl);
         inl -= fill;

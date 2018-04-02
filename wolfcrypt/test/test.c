@@ -12150,6 +12150,15 @@ int openssl_test(void)
         if (EVP_CipherInit(&en, EVP_aes_128_cbc(),
             (unsigned char*)key, (unsigned char*)iv, 1) == 0)
             return -5960;
+        /* openSSL compatibility, if(inlen == 0)return 1; */
+        if (EVP_CipherUpdate(&en, (byte*)cipher, &outlen,
+                                                    (byte*)cbcPlain, 0) != 1)
+            return -5960;
+
+        EVP_CIPHER_CTX_init(&en);
+        if (EVP_CipherInit(&en, EVP_aes_128_cbc(),
+            (unsigned char*)key, (unsigned char*)iv, 1) == 0)
+            return -5960;
         if (EVP_CipherUpdate(&en, (byte*)cipher, &outlen,
                                                     (byte*)cbcPlain, 9) == 0)
             return -5961;
@@ -12268,6 +12277,7 @@ int openssl_test(void)
 
         if (XMEMCMP(plain, cbcPlain, 18))
             return -3448;
+
 
     }
 #endif /* WOLFSSL_AES_128 */
