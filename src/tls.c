@@ -8917,6 +8917,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
         WOLFSSL_METHOD* method =
                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
                                                      heap, DYNAMIC_TYPE_METHOD);
+        (void)heap;
         if (method)
             InitSSL_Method(method, MakeTLSv1());
         return method;
@@ -8933,6 +8934,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
         WOLFSSL_METHOD* method =
                               (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
                                                      heap, DYNAMIC_TYPE_METHOD);
+        (void)heap;
         if (method)
             InitSSL_Method(method, MakeTLSv1_1());
         return method;
@@ -9034,6 +9036,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
         WOLFSSL_METHOD* method =
                               (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
                                                      heap, DYNAMIC_TYPE_METHOD);
+        (void)heap;
         if (method) {
             InitSSL_Method(method, MakeTLSv1());
             method->side = WOLFSSL_SERVER_END;
@@ -9052,6 +9055,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
         WOLFSSL_METHOD* method =
                               (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
                                                      heap, DYNAMIC_TYPE_METHOD);
+        (void)heap;
         if (method) {
             InitSSL_Method(method, MakeTLSv1_1());
             method->side = WOLFSSL_SERVER_END;

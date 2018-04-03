@@ -459,6 +459,8 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
     byte   B[PBKDF_DIGEST_SIZE];
 #endif
 
+	(void)heap;
+
     if (!iterations)
         iterations = 1;
 
