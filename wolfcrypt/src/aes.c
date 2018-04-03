@@ -7544,10 +7544,17 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
     /* if async and byte count above threshold */
+    /* only 12-byte IV is supported in HW */
     if (aes->asyncDev.marker == WOLFSSL_ASYNC_MARKER_AES &&
-                                                sz >= WC_ASYNC_THRESH_AES_GCM) {
+                            sz >= WC_ASYNC_THRESH_AES_GCM && ivSz == NONCE_SZ) {
     #if defined(HAVE_CAVIUM)
-        /* Not yet supported, contact wolfSSL if interested in using */
+        #ifdef HAVE_CAVIUM_V
+        if (authInSz == 20) { /* Nitrox V GCM is only working with 20 byte AAD */
+            return NitroxAesGcmEncrypt(aes, out, in, sz,
+                (const byte*)aes->asyncKey, aes->keylen, iv, ivSz,
+                authTag, authTagSz, authIn, authInSz);
+        }
+        #endif
     #elif defined(HAVE_INTEL_QA)
         return IntelQaSymAesGcmEncrypt(&aes->asyncDev, out, in, sz,
             (const byte*)aes->asyncKey, aes->keylen, iv, ivSz,
@@ -7887,10 +7894,17 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
     /* if async and byte count above threshold */
+    /* only 12-byte IV is supported in HW */
     if (aes->asyncDev.marker == WOLFSSL_ASYNC_MARKER_AES &&
-                                                sz >= WC_ASYNC_THRESH_AES_GCM) {
+                            sz >= WC_ASYNC_THRESH_AES_GCM && ivSz == NONCE_SZ) {
     #if defined(HAVE_CAVIUM)
-        /* Not yet supported, contact wolfSSL if interested in using */
+        #ifdef HAVE_CAVIUM_V
+        if (authInSz == 20) { /* Nitrox V GCM is only working with 20 byte AAD */
+            return NitroxAesGcmDecrypt(aes, out, in, sz,
+                (const byte*)aes->asyncKey, aes->keylen, iv, ivSz,
+                authTag, authTagSz, authIn, authInSz);
+        }
+        #endif
     #elif defined(HAVE_INTEL_QA)
         return IntelQaSymAesGcmDecrypt(&aes->asyncDev, out, in, sz,
             (const byte*)aes->asyncKey, aes->keylen, iv, ivSz,

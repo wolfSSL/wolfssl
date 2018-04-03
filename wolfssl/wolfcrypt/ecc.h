@@ -326,6 +326,10 @@ struct ecc_key {
     mp_int* r;          /* sign/verify temps */
     mp_int* s;
     WC_ASYNC_DEV asyncDev;
+    #ifdef HAVE_CAVIUM_V
+        mp_int* e;      /* Sign, Verify and Shared Secret */
+        mp_int* signK;
+    #endif
     #ifdef WOLFSSL_CERT_GEN
         CertSignCtx certSignCtx; /* context info for cert sign (MakeSignature) */
     #endif
