@@ -14002,8 +14002,8 @@ done:
 static int ecc_test_make_pub(WC_RNG* rng)
 {
     ecc_key key;
-    unsigned char* exportBuf;
-    unsigned char* tmp;
+    unsigned char* exportBuf = NULL;
+    unsigned char* tmp = NULL;
     unsigned char msg[] = "test wolfSSL ECC public gen";
     word32 x, tmpSz;
     int ret = 0;
@@ -14018,14 +14018,15 @@ static int ecc_test_make_pub(WC_RNG* rng)
     FILE* file;
 #endif
 
+    wc_ecc_init(&key);
+
     tmp = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL) {
-        return -6810;
+        ERROR_OUT(-6810, done);
     }
     exportBuf = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (exportBuf == NULL) {
-        XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -6811;
+        ERROR_OUT(-6811, done);
     }
 
 #ifdef USE_CERT_BUFFERS_256
@@ -14040,8 +14041,6 @@ static int ecc_test_make_pub(WC_RNG* rng)
     tmpSz = (word32)fread(tmp, 1, FOURK_BUF, file);
     fclose(file);
 #endif /* USE_CERT_BUFFERS_256 */
-
-    wc_ecc_init(&key);
 
     /* import private only then test with */
     ret = wc_ecc_import_private_key(tmp, tmpSz, NULL, 0, NULL);

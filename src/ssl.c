@@ -24380,64 +24380,6 @@ int wolfSSL_HMAC_CTX_copy(WOLFSSL_HMAC_CTX* des, WOLFSSL_HMAC_CTX* src)
         return WOLFSSL_SUCCESS;
 }
 
-#ifdef HAVE_FIPS
-int _InitHmac(Hmac* hmac, int type, void* heap)
-{
-    int ret = 0;
-
-    switch (type) {
-    #ifndef NO_MD5
-        case WC_MD5:
-            ret = wc_InitMd5(&hmac->hash.md5);
-            break;
-    #endif /* !NO_MD5 */
-
-    #ifndef NO_SHA
-        case WC_SHA:
-            ret = wc_InitSha(&hmac->hash.sha);
-            break;
-    #endif /* !NO_SHA */
-
-    #ifdef WOLFSSL_SHA224
-        case WC_SHA224:
-            ret = wc_InitSha224(&hmac->hash.sha224);
-            break;
-    #endif /* WOLFSSL_SHA224 */
-
-    #ifndef NO_SHA256
-        case WC_SHA256:
-            ret = wc_InitSha256(&hmac->hash.sha256);
-            break;
-    #endif /* !NO_SHA256 */
-
-    #ifdef WOLFSSL_SHA512
-    #ifdef WOLFSSL_SHA384
-        case WC_SHA384:
-            ret = wc_InitSha384(&hmac->hash.sha384);
-            break;
-    #endif /* WOLFSSL_SHA384 */
-        case WC_SHA512:
-            ret = wc_InitSha512(&hmac->hash.sha512);
-            break;
-    #endif /* WOLFSSL_SHA512 */
-
-    #ifdef HAVE_BLAKE2
-        case BLAKE2B_ID:
-            ret = wc_InitBlake2b(&hmac->hash.blake2b, BLAKE2B_256);
-            break;
-    #endif /* HAVE_BLAKE2 */
-
-        default:
-            ret = BAD_FUNC_ARG;
-            break;
-    }
-
-    (void)heap;
-
-    return ret;
-}
-#endif /* HAVE_FIPS */
-
 
 int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
                   const EVP_MD* type)
