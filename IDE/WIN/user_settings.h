@@ -22,6 +22,24 @@
     #define NO_RABBIT
     #define NO_DSA
     #define NO_MD4
+
+    #if defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+        #define WOLFSSL_SHA224
+        #define WOLFSSL_SHA3
+        #define WC_RSA_PSS
+        #define WC_RSA_NO_PADDING
+        #define HAVE_ECC
+        #define ECC_SHAMIR
+        #define HAVE_ECC_CDH
+        #define ECC_TIMING_RESISTANT
+        #define WOLFSSL_AES_COUNTER
+        #define WOLFSSL_AES_DIRECT
+        #define HAVE_AES_ECB
+        #define HAVE_AESCCM
+        #define WOLFSSL_CMAC
+        #define HAVE_HKDF
+        #define WOLFSSL_PUBLIC_MP
+    #endif /* FIPS v2 */
 #else
     /* Enables blinding mode, to prevent timing attacks */
     #define WC_RSA_BLINDING

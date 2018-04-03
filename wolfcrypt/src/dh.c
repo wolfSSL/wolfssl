@@ -1247,7 +1247,7 @@ int wc_DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
 int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
 {
     mp_int  tmp, tmp2;
-    int     groupSz, bufSz = 0,
+    int     groupSz = 0, bufSz = 0,
             primeCheckCount = 0,
             primeCheck = MP_NO,
             ret = 0;
@@ -1407,7 +1407,7 @@ int wc_DhExportParamsRaw(DhKey* dh, byte* p, word32* pSz,
                          byte* q, word32* qSz, byte* g, word32* gSz)
 {
     int ret = 0;
-    word32 pLen, qLen, gLen;
+    word32 pLen = 0, qLen = 0, gLen = 0;
 
     if (dh == NULL || pSz == NULL || qSz == NULL || gSz == NULL)
         ret = BAD_FUNC_ARG;

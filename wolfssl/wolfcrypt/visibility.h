@@ -27,7 +27,10 @@
 
 
 /* for compatibility and so that fips is using same name of macro @wc_fips */
-#ifdef HAVE_FIPS
+/* The following visibility wrappers are for old FIPS. New FIPS should use
+ * the same as a non-FIPS build. */
+#if defined(HAVE_FIPS) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
     #include <cyassl/ctaocrypt/visibility.h>
     #define WOLFSSL_API   CYASSL_API
 	#define WOLFSSL_LOCAL CYASSL_LOCAL
