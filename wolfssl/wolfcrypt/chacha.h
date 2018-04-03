@@ -44,7 +44,8 @@
 #define CHACHA_CHUNK_BYTES (CHACHA_CHUNK_WORDS * sizeof(word32))
 
 enum {
-	CHACHA_ENC_TYPE = 7     /* cipher unique type */
+	CHACHA_ENC_TYPE = WC_CIPHER_CHACHA,    /* cipher unique type */
+    CHACHA_MAX_KEY_SZ = 32,
 };
 
 typedef struct ChaCha {

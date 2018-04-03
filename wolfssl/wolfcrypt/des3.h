@@ -46,8 +46,8 @@
 #endif
 
 enum {
-    DES_ENC_TYPE    = 2,     /* cipher unique type */
-    DES3_ENC_TYPE   = 3,     /* cipher unique type */
+    DES_ENC_TYPE    = WC_CIPHER_DES,     /* cipher unique type */
+    DES3_ENC_TYPE   = WC_CIPHER_DES3,    /* cipher unique type */
 
     DES_BLOCK_SIZE  = 8,
     DES_KS_SIZE     = 32,    /* internal DES key buffer size */

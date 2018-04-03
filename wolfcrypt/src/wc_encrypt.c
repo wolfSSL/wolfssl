@@ -247,7 +247,7 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
 #ifdef WOLFSSL_SMALL_STACK
     byte* key      = NULL;
 #else
-    byte  key[AES_MAX_KEY_SIZE];
+    byte  key[WC_MAX_SYM_KEY_SIZE];
 #endif
 
     (void)derSz;
@@ -264,7 +264,7 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    key = (byte*)XMALLOC(AES_MAX_KEY_SIZE, NULL, DYNAMIC_TYPE_SYMETRIC_KEY);
+    key = (byte*)XMALLOC(WC_MAX_SYM_KEY_SIZE, NULL, DYNAMIC_TYPE_SYMETRIC_KEY);
     if (key == NULL) {
         return MEMORY_E;
     }
@@ -306,7 +306,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
 #ifdef WOLFSSL_SMALL_STACK
     byte* key      = NULL;
 #else
-    byte  key[AES_MAX_KEY_SIZE];
+    byte  key[WC_MAX_SYM_KEY_SIZE];
 #endif
 
     (void)derSz;
@@ -319,7 +319,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    key = (byte*)XMALLOC(AES_MAX_KEY_SIZE, NULL, DYNAMIC_TYPE_SYMETRIC_KEY);
+    key = (byte*)XMALLOC(WC_MAX_SYM_KEY_SIZE, NULL, DYNAMIC_TYPE_SYMETRIC_KEY);
     if (key == NULL) {
         return MEMORY_E;
     }

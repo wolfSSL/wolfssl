@@ -106,6 +106,7 @@
     #include <wolfssl/wolfcrypt/dh.h>
 #endif
 
+#include <wolfssl/wolfcrypt/wc_encrypt.h>
 #include <wolfssl/wolfcrypt/hash.h>
 
 #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
@@ -1153,7 +1154,6 @@ enum Misc {
 
 #ifdef HAVE_FIPS
     /* these moved into wolfCrypt, but kept here for backwards compatibility with FIPS */
-    RC4_KEY_SIZE        = 16,  /* always 128bit           */
     DES_KEY_SIZE        =  8,  /* des                     */
     DES3_KEY_SIZE       = 24,  /* 3 des ede               */
     DES_IV_SIZE         = DES_BLOCK_SIZE,
@@ -1161,6 +1161,10 @@ enum Misc {
     AES_192_KEY_SIZE    = 24,  /* for 192 bit             */
     AES_IV_SIZE         = 16,  /* always block size       */
     AES_128_KEY_SIZE    = 16,  /* for 128 bit             */
+
+    MAX_SYM_KEY_SIZE    = AES_256_KEY_SIZE,
+#else
+    MAX_SYM_KEY_SIZE    = WC_MAX_SYM_KEY_SIZE,
 #endif
 
     AEAD_SEQ_OFFSET     = 4,   /* Auth Data: Sequence number */
@@ -1844,8 +1848,8 @@ typedef struct WOLFSSL_DTLS_PEERSEQ {
 typedef struct Keys {
     byte client_write_MAC_secret[WC_MAX_DIGEST_SIZE];   /* max sizes */
     byte server_write_MAC_secret[WC_MAX_DIGEST_SIZE];
-    byte client_write_key[AES_256_KEY_SIZE];         /* max sizes */
-    byte server_write_key[AES_256_KEY_SIZE];
+    byte client_write_key[MAX_SYM_KEY_SIZE];         /* max sizes */
+    byte server_write_key[MAX_SYM_KEY_SIZE];
     byte client_write_IV[MAX_WRITE_IV_SZ];               /* max sizes */
     byte server_write_IV[MAX_WRITE_IV_SZ];
 #if defined(HAVE_AEAD) || defined(WOLFSSL_SESSION_EXPORT)

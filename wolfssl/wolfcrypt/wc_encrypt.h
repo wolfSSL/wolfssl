@@ -33,38 +33,18 @@
     extern "C" {
 #endif
 
-enum CipherTypes {
-    WC_CIPHER_NONE,
+/* determine max cipher key size */
 #ifndef NO_AES
-    #ifdef HAVE_AES_CBC
-        WC_CIPHER_AES_CBC,
-    #endif
-    #ifdef HAVE_AESGCM
-        WC_CIPHER_AES_GCM,
-    #endif
-    #ifdef WOLFSSL_AES_COUNTER
-        WC_CIPHER_AES_CTR,
-    #endif
-    #ifdef WOLFSSL_AES_XTS
-        WC_CIPHER_AES_XTS,
-    #endif
-    #ifdef WOLFSSL_AES_CFB
-        WC_CIPHER_AES_CFB,
-    #endif
+    #define WC_MAX_SYM_KEY_SIZE     (AES_MAX_KEY_SIZE/8)
+#elif defined(HAVE_CHACHA)
+    #define WC_MAX_SYM_KEY_SIZE     CHACHA_MAX_KEY_SZ
+#elif !defined(NO_DES)
+    #define WC_MAX_SYM_KEY_SIZE     DES3_KEY_SIZE
+#elif !defined(NO_RC4)
+    #define WC_MAX_SYM_KEY_SIZE     RC4_KEY_SIZE
+#else
+    #define WC_MAX_SYM_KEY_SIZE     32
 #endif
-#ifndef NO_DES3
-    WC_CIPHER_DES3,
-#endif
-#ifndef NO_DES
-    WC_CIPHER_DES,
-#endif
-#ifdef HAVE_CHAHCA
-    WC_CIPHER_CHACHA,
-#endif
-#ifdef HAVE_HC128
-    WC_CIPHER_HC128,
-#endif
-};
 
 
 #ifndef NO_AES

@@ -501,6 +501,24 @@
         WC_HASH_TYPE_MAX = WC_HASH_TYPE_BLAKE2B
     };
 
+    /* cipher types */
+    enum CipherTypes {
+        WC_CIPHER_NONE = 0,
+        WC_CIPHER_AES = 1,
+        WC_CIPHER_AES_CBC = 2,
+        WC_CIPHER_AES_GCM = 3,
+        WC_CIPHER_AES_CTR = 4,
+        WC_CIPHER_AES_XTS = 5,
+        WC_CIPHER_AES_CFB = 6,
+        WC_CIPHER_DES3 = 7,
+        WC_CIPHER_DES = 8,
+        WC_CIPHER_CHACHA = 9,
+        WC_CIPHER_HC128 = 10,
+
+        WC_CIPHER_MAX = WC_CIPHER_HC128
+    };
+
+
 	/* settings detection for compile vs runtime math incompatibilities */
 	enum {
 	#if !defined(USE_FAST_MATH) && !defined(SIZEOF_LONG) && !defined(SIZEOF_LONG_LONG)
