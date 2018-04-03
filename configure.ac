@@ -3907,8 +3907,9 @@ AS_IF([test "x$ENABLED_OCSP" = "xyes" && \
 
 # checks for pkcs7 needed enables
 AS_IF([test "x$ENABLED_PKCS7" = "xyes" && \
-       test "x$ENABLED_RSA" = "xno"],
-      [AC_MSG_ERROR([please enable rsa if enabling pkcs7.])])
+       test "x$ENABLED_RSA" = "xno" && \
+       test "x$ENABLED_ECC" = "xno"],
+      [AC_MSG_ERROR([please enable ecc or rsa if enabling pkcs7.])])
 
 AS_IF([test "x$ENABLED_PKCS7" = "xyes" && \
        test "x$ENABLED_SHA" = "xno"],
