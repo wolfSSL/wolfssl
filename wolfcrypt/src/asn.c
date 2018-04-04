@@ -11075,6 +11075,9 @@ int wc_EccPrivateKeyDecode(const byte* input, word32* inOutIdx, ecc_key* key,
     if (GetMyVersion(input, inOutIdx, &version, inSz) < 0)
         return ASN_PARSE_E;
 
+    if (*inOutIdx >= inSz)
+        return ASN_PARSE_E;
+
     b = input[*inOutIdx];
     *inOutIdx += 1;
 
