@@ -1539,8 +1539,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (useAnon) {
 #ifdef HAVE_ANON
         if (cipherList == NULL || (cipherList && useDefCipherList)) {
+            const char* defaultCipherList;
             wolfSSL_CTX_allow_anon_cipher(ctx);
-            if (wolfSSL_CTX_set_cipher_list(ctx,"ADH-AES128-SHA")
+            defaultCipherList = "ADH-AES256-GCM-SHA384:"
+                                "ADH-AES128-SHA";
+            if (wolfSSL_CTX_set_cipher_list(ctx,defaultCipherList)
                                                            != WOLFSSL_SUCCESS) {
                 wolfSSL_CTX_free(ctx);
                 err_sys("client can't set cipher list 4");
