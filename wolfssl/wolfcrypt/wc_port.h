@@ -319,10 +319,6 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 
 #endif /* !NO_FILESYSTEM */
 
-#ifdef USE_WOLF_STRTOK
-    WOLFSSL_LOCAL char* wc_strtok(char *str, const char *delim, char **nextp);
-#endif
-
 /* Windows API defines its own min() macro. */
 #if defined(USE_WINDOWS_API)
     #if defined(min) || defined(WOLFSSL_MYSQL_COMPATIBLE)

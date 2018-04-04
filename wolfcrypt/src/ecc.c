@@ -2728,6 +2728,49 @@ int wc_ecc_get_curve_id_from_params(int fieldSize,
 }
 
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+static INLINE int wc_ecc_alloc_mpint(ecc_key* key, mp_int** mp)
+{
+   if (key == NULL || mp == NULL)
+      return BAD_FUNC_ARG;
+   if (*mp == NULL) {
+      *mp = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_BIGINT);
+      if (*mp == NULL) {
+         return MEMORY_E;
+      }
+      XMEMSET(*mp, 0, sizeof(mp_int));
+   }
+   return 0;
+}
+static INLINE void wc_ecc_free_mpint(ecc_key* key, mp_int** mp)
+{
+   if (key && mp && *mp) {
+      mp_clear(*mp);
+      XFREE(*mp, key->heap, DYNAMIC_TYPE_BIGINT);
+      *mp = NULL;
+   }
+}
+
+static int wc_ecc_alloc_async(ecc_key* key)
+{
+    int err = wc_ecc_alloc_mpint(key, &key->r);
+    if (err == 0)
+        err = wc_ecc_alloc_mpint(key, &key->s);
+    return err;
+}
+
+static void wc_ecc_free_async(ecc_key* key)
+{
+    wc_ecc_free_mpint(key, &key->r);
+    wc_ecc_free_mpint(key, &key->s);
+#ifdef HAVE_CAVIUM_V
+    wc_ecc_free_mpint(key, &key->e);
+    wc_ecc_free_mpint(key, &key->signK);
+#endif /* HAVE_CAVIUM_V */
+}
+#endif /* WOLFSSL_ASYNC_CRYPT */
+
+
 #ifdef HAVE_ECC_DHE
 /**
   Create an ECC shared secret between two keys
@@ -2872,26 +2915,45 @@ static int wc_ecc_shared_secret_gen_async(ecc_key* private_key,
 {
     int err;
 
-#ifdef HAVE_CAVIUM
-    /* TODO: Not implemented - use software for now */
-    err = wc_ecc_shared_secret_gen_sync(private_key, point, out, outlen, curve);
+#if defined(HAVE_CAVIUM_V) || defined(HAVE_INTEL_QA)
+#ifdef HAVE_CAVIUM_V
+    /* verify the curve is supported by hardware */
+    if (NitroxEccIsCurveSupported(private_key))
+#endif
+    {
+        word32 keySz = private_key->dp->size;
 
-#elif defined(HAVE_INTEL_QA)
-    /* sync public key x/y */
-    err = wc_ecc_curve_load(private_key->dp, &curve, ECC_CURVE_FIELD_BF);
-    if (err == MP_OKAY)
-        err = wc_mp_to_bigint(&private_key->k, &private_key->k.raw);
-    if (err == MP_OKAY)
-        err = wc_mp_to_bigint(point->x, &point->x->raw);
-    if (err == MP_OKAY)
-        err = wc_mp_to_bigint(point->y, &point->y->raw);
-    if (err == MP_OKAY)
-        err = IntelQaEcdh(&private_key->asyncDev,
-            &private_key->k.raw, &point->x->raw, &point->y->raw,
-            out, outlen,
-            &curve->Af->raw, &curve->Bf->raw, &curve->prime->raw,
-            private_key->dp->cofactor);
-#else /* WOLFSSL_ASYNC_CRYPT_TEST */
+        /* sync public key x/y */
+        err = wc_mp_to_bigint_sz(&private_key->k, &private_key->k.raw, keySz);
+        if (err == MP_OKAY)
+            err = wc_mp_to_bigint_sz(point->x, &point->x->raw, keySz);
+        if (err == MP_OKAY)
+            err = wc_mp_to_bigint_sz(point->y, &point->y->raw, keySz);
+    #ifdef HAVE_CAVIUM_V
+        /* allocate buffer for output */
+        if (err == MP_OKAY)
+            err = wc_ecc_alloc_mpint(private_key, &private_key->e);
+        if (err == MP_OKAY)
+            err = wc_bigint_alloc(&private_key->e->raw,
+                NitroxEccGetSize(private_key)*2);
+        if (err == MP_OKAY)
+            err = NitroxEcdh(private_key,
+                &private_key->k.raw, &point->x->raw, &point->y->raw,
+                private_key->e->raw.buf, &private_key->e->raw.len,
+                &curve->prime->raw);
+    #else
+        if (err == MP_OKAY)
+            err = wc_ecc_curve_load(private_key->dp, &curve, ECC_CURVE_FIELD_BF);
+        if (err == MP_OKAY)
+            err = IntelQaEcdh(&private_key->asyncDev,
+                &private_key->k.raw, &point->x->raw, &point->y->raw,
+                out, outlen,
+                &curve->Af->raw, &curve->Bf->raw, &curve->prime->raw,
+                private_key->dp->cofactor);
+    #endif
+        return err;
+    }
+#elif defined(WOLFSSL_ASYNC_CRYPT_TEST)
     if (wc_AsyncTestInit(&private_key->asyncDev, ASYNC_TEST_ECC_SHARED_SEC)) {
         WC_ASYNC_TEST* testDev = &private_key->asyncDev.test;
         testDev->eccSharedSec.private_key = private_key;
@@ -2900,8 +2962,10 @@ static int wc_ecc_shared_secret_gen_async(ecc_key* private_key,
         testDev->eccSharedSec.outLen = outlen;
         return WC_PENDING_E;
     }
-    err = wc_ecc_shared_secret_gen_sync(private_key, point, out, outlen, curve);
 #endif
+
+    /* use sync in other cases */
+    err = wc_ecc_shared_secret_gen_sync(private_key, point, out, outlen, curve);
 
     return err;
 }
@@ -2983,6 +3047,18 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
 
         case ECC_STATE_SHARED_SEC_RES:
             private_key->state = ECC_STATE_SHARED_SEC_RES;
+        #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
+            if (private_key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
+            #ifdef HAVE_CAVIUM_V
+                /* verify the curve is supported by hardware */
+                if (NitroxEccIsCurveSupported(private_key)) {
+                    /* copy output */
+                    *outlen = private_key->dp->size;
+                    XMEMCPY(out, private_key->e->raw.buf, *outlen);
+                }
+            #endif /* HAVE_CAVIUM_V */
+            }
+        #endif /* WOLFSSL_ASYNC_CRYPT */
             err = 0;
             break;
 
@@ -2996,6 +3072,10 @@ int wc_ecc_shared_secret_ex(ecc_key* private_key, ecc_point* point,
         return err;
     }
 
+    /* cleanup */
+#ifdef WOLFSSL_ASYNC_CRYPT
+    wc_ecc_free_async(private_key);
+#endif
     private_key->state = ECC_STATE_NONE;
 
     return err;
@@ -3397,66 +3477,6 @@ int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key)
     return wc_ecc_make_key_ex(rng, keysize, key, ECC_CURVE_DEF);
 }
 
-static INLINE int wc_ecc_alloc_rs(ecc_key* key, mp_int** r, mp_int** s)
-{
-    int err = 0;
-
-#ifndef WOLFSSL_ASYNC_CRYPT
-    (void)key;
-#endif
-
-    if (*r == NULL) {
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        *r = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_BIGINT);
-        if (*r == NULL) {
-            return MEMORY_E;
-        }
-        key->r = *r;
-    #endif
-    }
-    if (*s == NULL) {
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        *s = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_BIGINT);
-        if (*s == NULL) {
-            XFREE(*r, key->heap, DYNAMIC_TYPE_BIGINT);
-            return MEMORY_E;
-        }
-        key->s = *s;
-    #endif
-    }
-
-    /* initialize mp_int */
-    if (*r)
-        XMEMSET(*r, 0, sizeof(mp_int));
-    if (*s)
-        XMEMSET(*s, 0, sizeof(mp_int));
-
-    return err;
-}
-
-static INLINE void wc_ecc_free_rs(ecc_key* key, mp_int** r, mp_int** s)
-{
-    if (*r) {
-        mp_clear(*r);
-
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        XFREE(*r, key->heap, DYNAMIC_TYPE_BIGINT);
-        key->r = NULL;
-    #endif
-        *r = NULL;
-    }
-    if (*s) {
-        mp_clear(*s);
-
-    #ifdef WOLFSSL_ASYNC_CRYPT
-        XFREE(*s, key->heap, DYNAMIC_TYPE_BIGINT);
-        key->s = NULL;
-    #endif
-        *s = NULL;
-    }
-    (void)key;
-}
-
 /* Setup dynamic pointers if using normal math for proper freeing */
 int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
 {
@@ -3612,8 +3632,6 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     mp_int *r = NULL, *s = NULL;
 #ifndef WOLFSSL_ASYNC_CRYPT
     mp_int r_lcl, s_lcl;
-    r = &r_lcl;
-    s = &s_lcl;
 #endif
 
     if (in == NULL || out == NULL || outlen == NULL || key == NULL ||
@@ -3621,14 +3639,21 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
         return ECC_BAD_ARG_E;
     }
 
+#ifdef WOLFSSL_ASYNC_CRYPT
+    err = wc_ecc_alloc_async(key);
+    if (err != 0)
+        return err;
+    r = key->r;
+    s = key->s;
+#else
+    r = &r_lcl;
+    s = &s_lcl;
+#endif
+
     switch(key->state) {
         case ECC_STATE_NONE:
         case ECC_STATE_SIGN_DO:
             key->state = ECC_STATE_SIGN_DO;
-
-            err = wc_ecc_alloc_rs(key, &r, &s);
-            if (err != 0)
-                break;
 
             if ((err = mp_init_multi(r, s, NULL, NULL, NULL, NULL)) != MP_OKAY){
                 break;
@@ -3650,13 +3675,13 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
             key->state = ECC_STATE_SIGN_ENCODE;
 
         #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
-            /* restore r/s */
-            r = key->r;
-            s = key->s;
-
             if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
-                /* only do this if not simulator, since it overwrites result */
+                #ifdef HAVE_CAVIUM_V
+                    /* Nitrox requires r and s in sep buffer, so split it */
+                    NitroxEccRsSplit(key, &r->raw, &s->raw);
+                #endif
                 #ifndef WOLFSSL_ASYNC_CRYPT_TEST
+                    /* only do this if not simulator, since it overwrites result */
                     wc_bigint_to_mp(&r->raw, r);
                     wc_bigint_to_mp(&s->raw, s);
                 #endif
@@ -3666,7 +3691,7 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
             /* encoded with DSA header */
             err = StoreECC_DSA_Sig(out, outlen, r, s);
 
-            /* always free r/s */
+            /* done with R/S */
             mp_clear(r);
             mp_clear(s);
             break;
@@ -3683,7 +3708,9 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
     }
 
     /* cleanup */
-    wc_ecc_free_rs(key, &r, &s);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    wc_ecc_free_async(key);
+#endif
     key->state = ECC_STATE_NONE;
 
     return err;
@@ -3705,8 +3732,12 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 {
    int    err;
 #ifndef WOLFSSL_SP_MATH
-   mp_int e;
+   mp_int* e;
+#if !defined(WOLFSSL_ASYNC_CRYPT) || !defined(HAVE_CAVIUM_V)
+   mp_int  e_lcl;
 #endif
+#endif /* !WOLFSSL_SP_MATH */
+
    DECLARE_CURVE_SPECS(1)
 
    if (in == NULL || r == NULL || s == NULL || key == NULL || rng == NULL)
@@ -3739,7 +3770,8 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
             return sp_ecc_sign_256(in, inlen, rng, &key->k, r, s, key->heap);
 #endif
     }
-#endif
+#endif /* WOLFSSL_HAVE_SP_ECC */
+
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
        defined(WOLFSSL_ASYNC_CRYPT_TEST)
@@ -3757,9 +3789,18 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
     }
 #endif
 
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM_V)
+   err = wc_ecc_alloc_mpint(key, &key->e);
+   if (err != 0)
+      return err;
+   e = key->e;
+#else
+   e = &e_lcl;
+#endif
+
    /* get the hash and load it as a bignum into 'e' */
    /* init the bignums */
-   if ((err = mp_init(&e)) != MP_OKAY) {
+   if ((err = mp_init(e)) != MP_OKAY) {
       return err;
    }
 
@@ -3774,11 +3815,11 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
        /* truncate down to byte size, may be all that's needed */
        if ((WOLFSSL_BIT_SIZE * inlen) > orderBits)
            inlen = (orderBits + WOLFSSL_BIT_SIZE - 1) / WOLFSSL_BIT_SIZE;
-       err = mp_read_unsigned_bin(&e, (byte*)in, inlen);
+       err = mp_read_unsigned_bin(e, (byte*)in, inlen);
 
        /* may still need bit truncation too */
        if (err == MP_OKAY && (WOLFSSL_BIT_SIZE * inlen) > orderBits)
-           mp_rshb(&e, WOLFSSL_BIT_SIZE - (orderBits & 0x7));
+           mp_rshb(e, WOLFSSL_BIT_SIZE - (orderBits & 0x7));
    }
 
    /* make up a key and export the public copy */
@@ -3788,40 +3829,74 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 
    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
         if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
-        #ifdef HAVE_CAVIUM
-            /* TODO: Not implemented */
-        #elif defined(HAVE_INTEL_QA)
-           mp_int k;
+        #if defined(HAVE_CAVIUM_V) || defined(HAVE_INTEL_QA)
+        #ifdef HAVE_CAVIUM_V
+            if (NitroxEccIsCurveSupported(key))
+        #endif
+            {
+               word32 keySz = key->dp->size;
+               mp_int* k;
+            #ifdef HAVE_CAVIUM_V
+               err = wc_ecc_alloc_mpint(key, &key->signK);
+               if (err != 0)
+                  return err;
+               k = key->signK;
+            #else
+               mp_int k_lcl;
+               k = &k_lcl;
+            #endif
 
-           err = mp_init(&k);
-           /* make sure r and s are allocated */
-           if (err == MP_OKAY)
-               err = wc_bigint_alloc(&key->r->raw, key->dp->size);
-           if (err == MP_OKAY)
-               err = wc_bigint_alloc(&key->s->raw, key->dp->size);
-           /* load e and k */
-           if (err == MP_OKAY)
-               err = wc_mp_to_bigint(&e, &e.raw);
-           if (err == MP_OKAY)
-               err = wc_mp_to_bigint(&key->k, &key->k.raw);
-           if (err == MP_OKAY)
-               err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ALL);
-           if (err == MP_OKAY)
-               err = wc_ecc_gen_k(rng, key->dp->size, &k, curve->order);
-           if (err == MP_OKAY)
-               err = wc_mp_to_bigint(&k, &k.raw);
-           if (err == MP_OKAY)
-               err = IntelQaEcdsaSign(&key->asyncDev, &e.raw, &key->k.raw,
-                  &k.raw, &r->raw, &s->raw, &curve->Af->raw, &curve->Bf->raw,
-                  &curve->prime->raw, &curve->order->raw, &curve->Gx->raw,
-                  &curve->Gy->raw);
+               err = mp_init(k);
 
-           mp_clear(&e);
-           mp_clear(&k);
-           wc_ecc_curve_free(curve);
+                /* make sure r and s are allocated */
+           #ifdef HAVE_CAVIUM_V
+               /* Nitrox V needs single buffer for R and S */
+               if (err == MP_OKAY)
+                   err = wc_bigint_alloc(&key->r->raw, NitroxEccGetSize(key)*2);
+               /* Nitrox V only needs Prime and Order */
+               if (err == MP_OKAY)
+                   err = wc_ecc_curve_load(key->dp, &curve,
+                        (ECC_CURVE_FIELD_PRIME | ECC_CURVE_FIELD_ORDER));
+           #else
+               if (err == MP_OKAY)
+                   err = wc_bigint_alloc(&key->r->raw, key->dp->size);
+               if (err == MP_OKAY)
+                   err = wc_ecc_curve_load(key->dp, &curve, ECC_CURVE_FIELD_ALL);
+           #endif
+               if (err == MP_OKAY)
+                   err = wc_bigint_alloc(&key->s->raw, key->dp->size);
 
-           return err;
-       #endif
+               /* load e and k */
+               if (err == MP_OKAY)
+                   err = wc_mp_to_bigint_sz(e, &e->raw, keySz);
+               if (err == MP_OKAY)
+                   err = wc_mp_to_bigint_sz(&key->k, &key->k.raw, keySz);
+               if (err == MP_OKAY)
+                   err = wc_ecc_gen_k(rng, key->dp->size, k, curve->order);
+               if (err == MP_OKAY)
+                   err = wc_mp_to_bigint_sz(k, &k->raw, keySz);
+
+           #ifdef HAVE_CAVIUM_V
+               if (err == MP_OKAY)
+                   err = NitroxEcdsaSign(key, &e->raw, &key->k.raw, &k->raw,
+                    &r->raw, &s->raw, &curve->prime->raw, &curve->order->raw);
+           #else
+               if (err == MP_OKAY)
+                   err = IntelQaEcdsaSign(&key->asyncDev, &e->raw, &key->k.raw,
+                      &k->raw, &r->raw, &s->raw, &curve->Af->raw, &curve->Bf->raw,
+                      &curve->prime->raw, &curve->order->raw, &curve->Gx->raw,
+                      &curve->Gy->raw);
+           #endif
+
+           #ifndef HAVE_CAVIUM_V
+               mp_clear(e);
+               mp_clear(k);
+           #endif
+               wc_ecc_curve_free(curve);
+
+               return err;
+           }
+       #endif /* HAVE_CAVIUM_V || HAVE_INTEL_QA */
        }
    #endif /* WOLFSSL_ASYNC_CRYPT */
 
@@ -3865,7 +3940,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                    if (err != MP_OKAY) break;
 
                    /* s = e +  xr */
-                   err = mp_add(&e, s, s);
+                   err = mp_add(e, s, s);
                    if (err != MP_OKAY) break;
 
                    /* s = e +  xr */
@@ -3883,9 +3958,9 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
        }
    }
 
-   mp_clear(&e);
+   mp_clear(e);
    wc_ecc_curve_free(curve);
-#endif
+#endif /* WOLFSSL_SP_MATH */
 
    return err;
 }
@@ -3924,9 +3999,11 @@ int wc_ecc_free(ecc_key* key)
         return 0;
     }
 
-#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
+#ifdef WOLFSSL_ASYNC_CRYPT
+    #ifdef WC_ASYNC_ENABLE_ECC
     wolfAsync_DevCtxFree(&key->asyncDev, WOLFSSL_ASYNC_MARKER_ECC);
-    wc_ecc_free_rs(key, &key->r, &key->s);
+    #endif
+    wc_ecc_free_async(key);
 #endif
 
 #ifdef WOLFSSL_ATECC508A
@@ -4206,13 +4283,22 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     mp_int *r = NULL, *s = NULL;
 #ifndef WOLFSSL_ASYNC_CRYPT
     mp_int r_lcl, s_lcl;
-    r = &r_lcl;
-    s = &s_lcl;
 #endif
 
     if (sig == NULL || hash == NULL || res == NULL || key == NULL) {
         return ECC_BAD_ARG_E;
     }
+
+#ifdef WOLFSSL_ASYNC_CRYPT
+    err = wc_ecc_alloc_async(key);
+    if (err != 0)
+        return err;
+    r = key->r;
+    s = key->s;
+#else
+    r = &r_lcl;
+    s = &s_lcl;
+#endif
 
     switch(key->state) {
         case ECC_STATE_NONE:
@@ -4226,10 +4312,6 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
              * If either of those don't allocate correctly, none of
              * the rest of this function will execute, and everything
              * gets cleaned up at the end. */
-            err = wc_ecc_alloc_rs(key, &r, &s);
-            if (err != 0)
-                break;
-
             /* decode DSA header */
             err = DecodeECC_DSA_Sig(sig, siglen, r, s);
             if (err < 0) {
@@ -4250,12 +4332,6 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
             key->state = ECC_STATE_VERIFY_RES;
             err = 0;
 
-        #ifdef WOLFSSL_ASYNC_CRYPT
-            /* restore r/s */
-            r = key->r;
-            s = key->s;
-        #endif
-
             /* done with R/S */
             mp_clear(r);
             mp_clear(s);
@@ -4272,7 +4348,9 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     }
 
     /* cleanup */
-    wc_ecc_free_rs(key, &r, &s);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    wc_ecc_free_async(key);
+#endif
     key->state = ECC_STATE_NONE;
 
     return err;
@@ -4294,19 +4372,20 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
                     word32 hashlen, int* res, ecc_key* key)
 {
    int           err;
-#ifndef WOLFSSL_ATECC508A
-#ifndef WOLFSSL_SP_MATH
+#ifdef WOLFSSL_ATECC508A
+   byte sigRS[ATECC_KEY_SIZE*2];
+#elif !defined(WOLFSSL_SP_MATH)
    int          did_init = 0;
    ecc_point    *mG = NULL, *mQ = NULL;
    mp_int        v;
    mp_int        w;
    mp_int        u1;
    mp_int        u2;
-   mp_int        e;
-   DECLARE_CURVE_SPECS(ECC_CURVE_FIELD_COUNT)
+   mp_int*       e;
+#if !defined(WOLFSSL_ASYNC_CRYPT) || !defined(HAVE_CAVIUM_V)
+   mp_int        e_lcl;
 #endif
-#else
-   byte sigRS[ATECC_KEY_SIZE*2];
+   DECLARE_CURVE_SPECS(ECC_CURVE_FIELD_COUNT)
 #endif
 
    if (r == NULL || s == NULL || hash == NULL || res == NULL || key == NULL)
@@ -4386,7 +4465,16 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 #endif
 #endif
 
-   err = mp_init(&e);
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(HAVE_CAVIUM_V)
+   err = wc_ecc_alloc_mpint(key, &key->e);
+   if (err != 0)
+      return err;
+   e = key->e;
+#else
+   e = &e_lcl;
+#endif
+
+   err = mp_init(e);
    if (err != MP_OKAY)
       return MEMORY_E;
 
@@ -4410,36 +4498,48 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
        /* truncate down to byte size, may be all that's needed */
        if ( (WOLFSSL_BIT_SIZE * hashlen) > orderBits)
            hashlen = (orderBits + WOLFSSL_BIT_SIZE - 1) / WOLFSSL_BIT_SIZE;
-       err = mp_read_unsigned_bin(&e, hash, hashlen);
+       err = mp_read_unsigned_bin(e, hash, hashlen);
 
        /* may still need bit truncation too */
        if (err == MP_OKAY && (WOLFSSL_BIT_SIZE * hashlen) > orderBits)
-           mp_rshb(&e, WOLFSSL_BIT_SIZE - (orderBits & 0x7));
+           mp_rshb(e, WOLFSSL_BIT_SIZE - (orderBits & 0x7));
    }
 
    /* check for async hardware acceleration */
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
    if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
-   #ifdef HAVE_CAVIUM
-      /* TODO: Not implemented */
-   #elif defined(HAVE_INTEL_QA)
-      err = wc_mp_to_bigint(&e, &e.raw);
-      if (err == MP_OKAY)
-          err = wc_mp_to_bigint(key->pubkey.x, &key->pubkey.x->raw);
-      if (err == MP_OKAY)
-          err = wc_mp_to_bigint(key->pubkey.y, &key->pubkey.y->raw);
-      if (err == MP_OKAY)
-          err = IntelQaEcdsaVerify(&key->asyncDev, &e.raw, &key->pubkey.x->raw,
-                &key->pubkey.y->raw, &r->raw, &s->raw, &curve->Af->raw,
-                &curve->Bf->raw, &curve->prime->raw, &curve->order->raw,
-                &curve->Gx->raw, &curve->Gy->raw, res);
-
-      mp_clear(&e);
-
-      wc_ecc_curve_free(curve);
-
-      return err;
+   #if defined(HAVE_CAVIUM_V) || defined(HAVE_INTEL_QA)
+   #ifdef HAVE_CAVIUM_V
+      if (NitroxEccIsCurveSupported(key))
    #endif
+      {
+          word32 keySz = key->dp->size;
+
+          err = wc_mp_to_bigint_sz(e, &e->raw, keySz);
+          if (err == MP_OKAY)
+              err = wc_mp_to_bigint_sz(key->pubkey.x, &key->pubkey.x->raw, keySz);
+          if (err == MP_OKAY)
+              err = wc_mp_to_bigint_sz(key->pubkey.y, &key->pubkey.y->raw, keySz);
+          if (err == MP_OKAY)
+          #ifdef HAVE_CAVIUM_V
+              err = NitroxEcdsaVerify(key, &e->raw, &key->pubkey.x->raw,
+                    &key->pubkey.y->raw, &r->raw, &s->raw,
+                    &curve->prime->raw, &curve->order->raw, res);
+          #else
+              err = IntelQaEcdsaVerify(&key->asyncDev, &e->raw, &key->pubkey.x->raw,
+                    &key->pubkey.y->raw, &r->raw, &s->raw, &curve->Af->raw,
+                    &curve->Bf->raw, &curve->prime->raw, &curve->order->raw,
+                    &curve->Gx->raw, &curve->Gy->raw, res);
+          #endif
+
+      #ifndef HAVE_CAVIUM_V
+          mp_clear(e);
+      #endif
+          wc_ecc_curve_free(curve);
+
+          return err;
+      }
+   #endif /* HAVE_CAVIUM_V || HAVE_INTEL_QA */
    }
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
@@ -4465,7 +4565,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
    /* u1 = ew */
    if (err == MP_OKAY)
-       err = mp_mulmod(&e, &w, curve->order, &u1);
+       err = mp_mulmod(e, &w, curve->order, &u1);
 
    /* u2 = rw */
    if (err == MP_OKAY)
@@ -4494,7 +4594,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
        err = wc_ecc_mulmod_ex(&u2, mQ, mQ, curve->Af, curve->prime, 0, key->heap);
    if (err == MP_OKAY)
        err = wc_ecc_point_add(mG, mQ, mG, curve->prime);
-#else /* FREESCALE_LTC_ECC */
+#else
 #ifndef ECC_SHAMIR
     {
         mp_digit      mp = 0;
@@ -4544,7 +4644,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
    wc_ecc_del_point_h(mG, key->heap);
    wc_ecc_del_point_h(mQ, key->heap);
 
-   mp_clear(&e);
+   mp_clear(e);
    if (did_init) {
        mp_clear(&v);
        mp_clear(&w);
@@ -4554,7 +4654,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
    wc_ecc_curve_free(curve);
 
-#endif
+#endif /* WOLFSSL_SP_MATH */
 #endif /* WOLFSSL_ATECC508A */
 
    return err;

@@ -2908,6 +2908,7 @@ static int wc_CreateKeyAgreeRecipientInfo(PKCS7* pkcs7, const byte* cert,
 
 #endif /* HAVE_ECC */
 
+#ifndef NO_RSA
 
 /* create ASN.1 formatted RecipientInfo structure, returns sequence size */
 static int wc_CreateRecipientInfo(const byte* cert, word32 certSz,
@@ -3128,6 +3129,7 @@ static int wc_CreateRecipientInfo(const byte* cert, word32 certSz,
 
     return totalSz;
 }
+#endif /* !NO_RSA */
 
 
 /* encrypt content using encryptOID algo */
@@ -3457,7 +3459,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
     /* build RecipientInfo, only handle 1 for now */
     switch (pkcs7->publicKeyOID) {
-
+#ifndef NO_RSA
         case RSAk:
             recipSz = wc_CreateRecipientInfo(pkcs7->singleCert,
                                     pkcs7->singleCertSz,
@@ -3466,7 +3468,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
                                     contentKeyEnc, &contentKeyEncSz, recip,
                                     MAX_RECIP_SZ, pkcs7->heap);
             break;
-
+#endif
 #ifdef HAVE_ECC
         case ECDSAk:
             recipSz = wc_CreateKeyAgreeRecipientInfo(pkcs7, pkcs7->singleCert,
@@ -3656,7 +3658,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     return idx;
 }
 
-
+#ifndef NO_RSA
 /* decode KeyTransRecipientInfo (ktri), return 0 on success, <0 on error */
 static int wc_PKCS7_DecodeKtri(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
                                word32* idx, byte* decryptedKey,
@@ -3819,7 +3821,7 @@ static int wc_PKCS7_DecodeKtri(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
 
     return 0;
 }
-
+#endif /* !NO_RSA */
 
 #ifdef HAVE_ECC
 
@@ -4353,12 +4355,16 @@ static int wc_PKCS7_DecodeRecipientInfos(PKCS7* pkcs7, byte* pkiMsg,
             if (version != 0)
                 return ASN_VERSION_E;
 
+        #ifndef NO_RSA
             /* found ktri */
             ret = wc_PKCS7_DecodeKtri(pkcs7, pkiMsg, pkiMsgSz, idx,
                                       decryptedKey, decryptedKeySz,
                                       recipFound);
             if (ret != 0)
                 return ret;
+        #else
+            return NOT_COMPILED_IN;
+        #endif
         }
         else {
             /* kari is IMPLICIT[1] */

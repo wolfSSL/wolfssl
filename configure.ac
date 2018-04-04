@@ -3290,8 +3290,8 @@ AC_ARG_WITH([cavium-v],
     [  --with-cavium-v=PATH    PATH to Cavium V/software dir ],
     [
         AC_MSG_CHECKING([for cavium])
-        CPPFLAGS="$CPPFLAGS -DHAVE_CAVIUM -DHAVE_CAVIUM_V"
-        LIB_ADD="-lrt $LIB_ADD"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_CAVIUM -DHAVE_CAVIUM_V"
+        LIB_ADD="-lrt -lcrypto $LIB_ADD"
 
         if test "x$withval" == "xyes" ; then
             AC_MSG_ERROR([need a PATH for --with-cavium])
@@ -3300,21 +3300,17 @@ AC_ARG_WITH([cavium-v],
             trycaviumdir=$withval
         fi
 
-        LDFLAGS="$AM_LDFLAGS $trycaviumdir/api/obj/cavium_common.o $trycaviumdir/api/obj/cavium_sym_crypto.o $trycaviumdir/api/obj/cavium_asym_crypto.o"
-        CPPFLAGS="$CPPFLAGS -I$trycaviumdir/include"
+        AC_CHECK_FILES([$trycaviumdir/lib/libnitrox.a], [AM_CPPFLAGS="-I$trycaviumdir/include $AM_CPPFLAGS"], [ENABLED_CAVIUM_V=no])
+        LIB_STATIC_ADD="$trycaviumdir/lib/libnitrox.a $LIB_STATIC_ADD"
 
-        #AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include "cavium_common.h"]], [[ CspShutdown(0); ]])],[ cavium_linked=yes ],[ cavium_linked=no ])
-
-        if test "x$cavium_linked" == "xno" ; then
-            AC_MSG_ERROR([cavium isn't found.
-            If it's already installed, specify its path using --with-cavium-v=/dir/])
-        else
-            AM_CFLAGS="$AM_CFLAGS -DHAVE_CAVIUM -DHAVE_CAVIUM_V"
+        if test "$ENABLED_CAVIUM_V" = "no"; then
+            AC_MSG_ERROR([Could not find Nitrox library])
         fi
-        AC_MSG_RESULT([yes])
 
         enable_shared=no
         enable_static=yes
+        enable_opensslextra=yes
+
         ENABLED_CAVIUM=yes
         ENABLED_CAVIUM_V=yes
     ],
@@ -3325,6 +3321,7 @@ AC_ARG_WITH([cavium-v],
 )
 
 AM_CONDITIONAL([BUILD_CAVIUM], [test "x$ENABLED_CAVIUM" = "xyes"])
+AM_CONDITIONAL([BUILD_CAVIUM_V], [test "x$ENABLED_CAVIUM_V" = "xyes"])
 
 
 # Intel Quick Assist
@@ -3907,8 +3904,9 @@ AS_IF([test "x$ENABLED_OCSP" = "xyes" && \
 
 # checks for pkcs7 needed enables
 AS_IF([test "x$ENABLED_PKCS7" = "xyes" && \
-       test "x$ENABLED_RSA" = "xno"],
-      [AC_MSG_ERROR([please enable rsa if enabling pkcs7.])])
+       test "x$ENABLED_RSA" = "xno" && \
+       test "x$ENABLED_ECC" = "xno"],
+      [AC_MSG_ERROR([please enable ecc or rsa if enabling pkcs7.])])
 
 AS_IF([test "x$ENABLED_PKCS7" = "xyes" && \
        test "x$ENABLED_SHA" = "xno"],

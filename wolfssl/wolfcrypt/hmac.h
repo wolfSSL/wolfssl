@@ -157,10 +157,6 @@ typedef struct Hmac {
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
     word16       keyLen;          /* hmac key length (key in ipad) */
-    #ifdef HAVE_CAVIUM
-        byte*    data;            /* buffered input data for one call */
-        word16   dataLen;
-    #endif /* HAVE_CAVIUM */
 #endif /* WOLFSSL_ASYNC_CRYPT */
 } Hmac;
 
