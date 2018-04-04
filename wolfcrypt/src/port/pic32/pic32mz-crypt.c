@@ -224,20 +224,6 @@ static int Pic32Crypto(const byte* in, int inLen, word32* out, int outLen,
 
         wolfSSL_CryptHwMutexUnLock();
 
-        if (iv && ivLen > 0) {
-            /* set iv for the next call */
-            if (dir == PIC32_ENCRYPTION) {
-                XMEMCPY(iv, KVA0_TO_KVA1(out + (outLen - ivLen)), ivLen);
-            #if !PIC32_NO_OUT_SWAP
-                /* hardware already swapped output, so we need to swap back */
-                ByteReverseWords(iv, iv, ivLen);
-            #endif
-            }
-            else {
-                ByteReverseWords(iv, KVA0_TO_KVA1(in + (inLen - ivLen)), ivLen);
-            }
-        }
-
         /* copy result to output */
     #if PIC32_NO_OUT_SWAP
         /* swap bytes */

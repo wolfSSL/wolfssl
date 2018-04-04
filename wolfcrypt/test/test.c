@@ -5593,6 +5593,89 @@ int aes_test(void)
     }
 #endif /* WOLFSSL_AESNI HAVE_AES_DECRYPT */
 
+    /* Test of AES IV state with encrypt/decrypt */
+#ifdef WOLFSSL_AES_128
+    {
+        /* Test Vector from "NIST Special Publication 800-38A, 2001 Edition"
+         * https://nvlpubs.nist.gov/nistpubs/legacy/sp/nistspecialpublication800-38a.pdf
+         */
+        const byte msg2[] =
+        {
+            0x6b, 0xc1, 0xbe, 0xe2, 0x2e, 0x40, 0x9f, 0x96,
+            0xe9, 0x3d, 0x7e, 0x11, 0x73, 0x93, 0x17, 0x2a,
+            0xae, 0x2d, 0x8a, 0x57, 0x1e, 0x03, 0xac, 0x9c,
+            0x9e, 0xb7, 0x6f, 0xac, 0x45, 0xaf, 0x8e, 0x51
+        };
+
+        const byte verify2[] =
+        {
+            0x76, 0x49, 0xab, 0xac, 0x81, 0x19, 0xb2, 0x46,
+            0xce, 0xe9, 0x8e, 0x9b, 0x12, 0xe9, 0x19, 0x7d,
+            0x50, 0x86, 0xcb, 0x9b, 0x50, 0x72, 0x19, 0xee,
+            0x95, 0xdb, 0x11, 0x3a, 0x91, 0x76, 0x78, 0xb2
+        };
+        byte key2[] = {
+            0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
+            0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c
+        };
+        byte iv2[]  = {
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f
+        };
+
+
+        ret = wc_AesSetKey(&enc, key2, sizeof(key2), iv2, AES_ENCRYPTION);
+        if (ret != 0)
+            return -5366;
+        XMEMSET(cipher, 0, AES_BLOCK_SIZE * 2);
+        ret = wc_AesCbcEncrypt(&enc, cipher, msg2, AES_BLOCK_SIZE);
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+        if (ret != 0)
+            return -5367;
+        if (XMEMCMP(cipher, verify2, AES_BLOCK_SIZE))
+            return -5368;
+
+        ret = wc_AesCbcEncrypt(&enc, cipher + AES_BLOCK_SIZE,
+                msg2 + AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+        if (ret != 0)
+            return -5369;
+        if (XMEMCMP(cipher + AES_BLOCK_SIZE, verify2 + AES_BLOCK_SIZE,
+                    AES_BLOCK_SIZE))
+            return -5370;
+
+        #if defined(HAVE_AES_DECRYPT)
+        ret = wc_AesSetKey(&dec, key2, sizeof(key2), iv2, AES_DECRYPTION);
+        if (ret != 0)
+            return -5371;
+        XMEMSET(plain, 0, AES_BLOCK_SIZE * 2);
+        ret = wc_AesCbcDecrypt(&dec, plain, verify2, AES_BLOCK_SIZE);
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &dec.asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+        if (ret != 0)
+            return -5372;
+        if (XMEMCMP(plain, msg2, AES_BLOCK_SIZE))
+            return -5373;
+
+        ret = wc_AesCbcDecrypt(&dec, plain + AES_BLOCK_SIZE,
+                verify2 + AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+    #if defined(WOLFSSL_ASYNC_CRYPT)
+        ret = wc_AsyncWait(ret, &dec.asyncDev, WC_ASYNC_FLAG_NONE);
+    #endif
+        if (ret != 0)
+            return -5374;
+        if (XMEMCMP(plain + AES_BLOCK_SIZE, msg2 + AES_BLOCK_SIZE,
+                    AES_BLOCK_SIZE))
+            return -5375;
+
+        #endif /* HAVE_AES_DECRYPT */
+    }
+#endif /* WOLFSSL_AES_128 */
 #endif /* HAVE_AES_CBC */
 
 #ifdef WOLFSSL_AES_COUNTER
