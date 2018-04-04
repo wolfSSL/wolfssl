@@ -5208,7 +5208,6 @@ void FreeSSL(WOLFSSL* ssl, void* heap)
     (void)heap;
 }
 
-
 #if !defined(NO_OLD_TLS) || defined(HAVE_CHACHA) || defined(HAVE_AESCCM) \
     || defined(HAVE_AESGCM) || defined(WOLFSSL_DTLS)
 static INLINE void GetSEQIncrement(WOLFSSL* ssl, int verify, word32 seq[2])
@@ -13585,6 +13584,7 @@ int SendCertificate(WOLFSSL* ssl)
         length -= (ssl->fragOffset + headerSz);
 
     maxFragment = MAX_RECORD_SIZE;
+
     if (ssl->options.dtls) {
     #ifdef WOLFSSL_DTLS
         maxFragment = MAX_MTU - DTLS_RECORD_HEADER_SZ
@@ -13592,10 +13592,7 @@ int SendCertificate(WOLFSSL* ssl)
     #endif /* WOLFSSL_DTLS */
     }
 
-    #ifdef HAVE_MAX_FRAGMENT
-    if (ssl->max_fragment != 0 && maxFragment >= ssl->max_fragment)
-        maxFragment = ssl->max_fragment;
-    #endif /* HAVE_MAX_FRAGMENT */
+    maxFragment = wolfSSL_GetMaxRecordSize(ssl, maxFragment);
 
     while (length > 0 && ret == 0) {
         byte*  output = NULL;
@@ -14447,10 +14444,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 
         if (sent == sz) break;
 
-        len = min(sz - sent, OUTPUT_RECORD_SIZE);
-#ifdef HAVE_MAX_FRAGMENT
-        len = min(len, ssl->max_fragment);
-#endif
+        len = wolfSSL_GetMaxRecordSize(ssl, sz - sent);
 
 #ifdef WOLFSSL_DTLS
         if (IsDtlsNotSctpMode(ssl)) {
@@ -25639,6 +25633,30 @@ int wolfSSL_AsyncPush(WOLFSSL* ssl, WC_ASYNC_DEV* asyncDev)
 }
 
 #endif /* WOLFSSL_ASYNC_CRYPT */
+
+
+/* return the max record size */
+int wolfSSL_GetMaxRecordSize(WOLFSSL* ssl, int maxFragment)
+{
+    (void) ssl; /* Avoid compiler warnings */
+
+    if (maxFragment > MAX_RECORD_SIZE) {
+        maxFragment = MAX_RECORD_SIZE;
+    }
+
+#ifdef HAVE_MAX_FRAGMENT
+    if ((ssl->max_fragment != 0) && (maxFragment > ssl->max_fragment)) {
+        maxFragment = ssl->max_fragment;
+    }
+#endif /* HAVE_MAX_FRAGMENT */
+#ifdef WOLFSSL_DTLS
+    if ((ssl->options.dtls) && (maxFragment > MAX_UDP_SIZE)) {
+        maxFragment = MAX_UDP_SIZE;
+    }
+#endif
+
+    return (maxFragment);
+}
 
 
 #undef ERROR_OUT
