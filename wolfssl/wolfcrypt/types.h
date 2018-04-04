@@ -299,6 +299,10 @@
     #ifndef WOLFSSL_LEANPSK
 	    char* mystrnstr(const char* s1, const char* s2, unsigned int n);
     #endif
+    #if !defined(USE_WOLF_STRTOK) && \
+            (defined(__MINGW32__) || defined(WOLFSSL_TIRTOS))
+        #define USE_WOLF_STRTOK
+    #endif
 
 	#ifndef STRING_USER
 	    #include <string.h>
@@ -341,11 +345,7 @@
 
         #if defined(WOLFSSL_CERT_EXT) || defined(HAVE_ALPN)
             /* use only Thread Safe version of strtok */
-            #if defined(__MINGW32__) || defined(WOLFSSL_TIRTOS) || \
-                    defined(USE_WOLF_STRTOK)
-                #ifndef USE_WOLF_STRTOK
-                    #define USE_WOLF_STRTOK
-                #endif
+            #if defined(USE_WOLF_STRTOK)
                 #define XSTRTOK wc_strtok
             #elif defined(USE_WINDOWS_API) || defined(INTIME_RTOS)
                 #define XSTRTOK strtok_s
@@ -354,6 +354,10 @@
             #endif
         #endif
 	#endif
+
+    #ifdef USE_WOLF_STRTOK
+        WOLFSSL_LOCAL char* wc_strtok(char *str, const char *delim, char **nextp);
+    #endif
 
     #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
         !defined(NO_STDIO_FILESYSTEM)
