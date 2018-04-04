@@ -80,12 +80,12 @@
     #define MAX_ECC_BITS    384
 #elif defined(HAVE_ECC320)
     #define MAX_ECC_BITS    320
+#elif !defined(NO_ECC256)
+    #define MAX_ECC_BITS    256
 #elif defined(HAVE_ECC239)
     #define MAX_ECC_BITS    239
 #elif defined(HAVE_ECC224)
     #define MAX_ECC_BITS    224
-#elif !defined(NO_ECC256)
-    #define MAX_ECC_BITS    256
 #elif defined(HAVE_ECC192)
     #define MAX_ECC_BITS    192
 #elif defined(HAVE_ECC160)
