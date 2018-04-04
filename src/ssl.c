@@ -16195,7 +16195,7 @@ int wolfSSL_session_reused(WOLFSSL* ssl)
     return ssl->options.resuming;
 }
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(HAVE_EXT_CACHE)
 void wolfSSL_SESSION_free(WOLFSSL_SESSION* session)
 {
     if (session == NULL)
