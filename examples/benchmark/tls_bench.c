@@ -414,25 +414,25 @@ static void* client_thread(void* args)
             showPeer(cli_ssl);
         }
 
-        /* write test message to server */
-        while (info->client_stats.rxTotal < info->numBytes) {
-            start = gettime_secs(1);
-            ret = wolfSSL_write(cli_ssl, writeBuf, info->packetSize);
-            info->client_stats.txTime += gettime_secs(0) - start;
-            if (ret > 0) {
-                info->client_stats.txTotal += ret;
-            }
+        /* Allocate buf after handshake is complete */
+        bufSize = wolfSSL_GetMaxOutputSize(cli_ssl);
+        if (bufSize > 0) {
+            buf = (unsigned char*)malloc(bufSize);
+        }
+        else {
+            buf = NULL;
+        }
 
-            /* Allocate buf after handshake is complete */
-            bufSize = wolfSSL_GetMaxOutputSize(cli_ssl);
-            if (bufSize > 0) {
-                buf = (unsigned char*)malloc(bufSize);
-            }
-            else {
-                buf = NULL;
-            }
+        if (buf != NULL) {
+            /* write test message to server */
+            while (info->client_stats.rxTotal < info->numBytes) {
+                start = gettime_secs(1);
+                ret = wolfSSL_write(cli_ssl, writeBuf, info->packetSize);
+                info->client_stats.txTime += gettime_secs(0) - start;
+                if (ret > 0) {
+                    info->client_stats.txTotal += ret;
+                }
 
-            if (buf != NULL) {
                 /* read echo of message */
                 start = gettime_secs(1);
                 ret = wolfSSL_read(cli_ssl, buf, bufSize-1);
@@ -445,13 +445,14 @@ static void* client_thread(void* args)
                 if (strncmp((char*)writeBuf, (char*)buf, info->packetSize) != 0) {
                     err_sys("echo check failed!\n");
                 }
-                free(buf);
-            }
-            else {
-                err_sys("failed to allocate memory");
             }
 
+            free(buf);
         }
+        else {
+            err_sys("failed to allocate memory");
+        }
+
 
         info->client_stats.connCount++;
 

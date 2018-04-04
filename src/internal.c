@@ -25655,7 +25655,7 @@ int wolfSSL_GetMaxRecordSize(WOLFSSL* ssl, int maxFragment)
     }
 #endif
 
-    return (maxFragment);
+    return maxFragment;
 }
 
 
