@@ -19038,7 +19038,9 @@ void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY* key)
 }
 #endif /* OPENSSL_EXTRA_X509_SMALL */
 
+
 #ifdef OPENSSL_EXTRA
+
 void wolfSSL_X509_STORE_CTX_set_time(WOLFSSL_X509_STORE_CTX* ctx,
                                     unsigned long flags,
                                     time_t t)
@@ -19059,9 +19061,6 @@ void wolfSSL_X509_OBJECT_free_contents(WOLFSSL_X509_OBJECT* obj)
     WOLFSSL_STUB("X509_OBJECT_free_contents");
 }
 #endif
-
-
-
 
 #ifndef NO_WOLFSSL_STUB
 int wolfSSL_X509_cmp_current_time(const WOLFSSL_ASN1_TIME* asnTime)
@@ -19127,6 +19126,7 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
     return a;
 }
 
+#endif /* OPENSSL_EXTRA */
 
 #if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || \
     defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
@@ -19184,10 +19184,14 @@ char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* t, char* buf, int len)
 
     return buf;
 }
-#endif /* WOLFSSL_MYSQL_COMPATIBLE */
+#endif /* WOLFSSL_MYSQL_COMPATIBLE || WOLFSSL_NGINX || WOLFSSL_HAPROXY ||
+    OPENSSL_EXTRA*/
 
-#if defined(OPENSSL_EXTRA) && !defined(NO_ASN_TIME) \
-&& !defined(USER_TIME) && !defined(TIME_OVERRIDES) && !defined(NO_FILESYSTEM)
+
+#ifdef OPENSSL_EXTRA
+
+#if !defined(NO_ASN_TIME) && !defined(USER_TIME) && \
+    !defined(TIME_OVERRIDES) && !defined(NO_FILESYSTEM)
 
 WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
                                     int offset_day, long offset_sec)
@@ -19272,8 +19276,7 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
 
     return s;
 }
-#endif /* OPENSSL_EXTRA && !NO_ASN_TIME && !USER_TIME */
-       /* && !TIME_OVERRIDES && !NO_FILESYSTEM */
+#endif /* !NO_ASN_TIME && !USER_TIME && !TIME_OVERRIDES && !NO_FILESYSTEM */
 
 #ifndef NO_WOLFSSL_STUB
 int wolfSSL_ASN1_INTEGER_cmp(const WOLFSSL_ASN1_INTEGER* a,
@@ -19360,11 +19363,7 @@ unsigned long wolfSSL_ERR_peek_error(void)
 {
     WOLFSSL_ENTER("wolfSSL_ERR_peek_error");
 
-#ifdef OPENSSL_EXTRA
     return wolfSSL_ERR_peek_error_line_data(NULL, NULL, NULL, NULL);
-#else
-    return 0;
-#endif
 }
 
 
@@ -20255,7 +20254,6 @@ WOLFSSL_API int wolfSSL_sk_SSL_COMP_zero(WOLFSSL_STACK* st)
 }
 #endif
 
-#ifdef OPENSSL_EXTRA
 #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
 long wolfSSL_set_tlsext_status_type(WOLFSSL *s, int type)
 {
@@ -20278,7 +20276,6 @@ long wolfSSL_set_tlsext_status_type(WOLFSSL *s, int type)
 
 }
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST */
-#endif /* OPENSSL_EXTRA */
 
 #ifndef NO_WOLFSSL_STUB
 WOLFSSL_API long wolfSSL_get_tlsext_status_exts(WOLFSSL *s, void *arg)
@@ -21453,6 +21450,9 @@ void* wolfSSL_sk_value(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, int i)
     return (void*)sk->data.obj;
 }
 
+#endif /* OPENSSL_EXTRA */
+
+#if defined(OPENSSL_EXTRA) || defined(HAVE_EXT_CACHE)
 /* stunnel 4.28 needs */
 void wolfSSL_CTX_sess_set_get_cb(WOLFSSL_CTX* ctx,
                     WOLFSSL_SESSION*(*f)(WOLFSSL*, unsigned char*, int, int*))
@@ -21486,6 +21486,9 @@ void wolfSSL_CTX_sess_set_remove_cb(WOLFSSL_CTX* ctx, void (*f)(WOLFSSL_CTX*,
     (void)f;
 #endif
 }
+#endif /* OPENSSL_EXTRA || HAVE_EXT_CACHE */
+
+#ifdef OPENSSL_EXTRA
 
 /*
  *
