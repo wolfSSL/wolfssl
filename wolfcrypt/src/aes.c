@@ -2867,18 +2867,48 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
-        return wc_Pic32AesCrypt(
+        int ret;
+
+        /* hardware fails on input that is not a multiple of AES block size */
+        if (sz % AES_BLOCK_SIZE != 0) {
+            return BAD_FUNC_ARG;
+        }
+
+        ret = wc_Pic32AesCrypt(
             aes->key, aes->keylen, aes->reg, AES_BLOCK_SIZE,
             out, in, sz, PIC32_ENCRYPTION,
             PIC32_ALGO_AES, PIC32_CRYPTOALGO_RCBC);
+
+        /* store iv for next call */
+        if (ret == 0) {
+            XMEMCPY(aes->reg, out + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+        }
+
+        return ret;
     }
     #ifdef HAVE_AES_DECRYPT
     int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
-        return wc_Pic32AesCrypt(
+        int ret;
+        byte scratch[AES_BLOCK_SIZE];
+
+        /* hardware fails on input that is not a multiple of AES block size */
+        if (sz % AES_BLOCK_SIZE != 0) {
+            return BAD_FUNC_ARG;
+        }
+        XMEMCPY(scratch, in + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+
+        ret = wc_Pic32AesCrypt(
             aes->key, aes->keylen, aes->reg, AES_BLOCK_SIZE,
             out, in, sz, PIC32_DECRYPTION,
             PIC32_ALGO_AES, PIC32_CRYPTOALGO_RCBC);
+
+        /* store iv for next call */
+        if (ret == 0) {
+            XMEMCPY((byte*)aes->reg, scratch, AES_BLOCK_SIZE);
+        }
+
+        return ret;
     }
     #endif /* HAVE_AES_DECRYPT */
 
