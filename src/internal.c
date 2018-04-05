@@ -13587,6 +13587,9 @@ int SendCertificate(WOLFSSL* ssl)
 
     if (ssl->options.dtls) {
     #ifdef WOLFSSL_DTLS
+        /* The 100 bytes is used to account for the UDP and IP headers.
+           It can also include the record padding and MAC if the
+           SendCertificate is called for a secure renegotiation. */
         maxFragment = MAX_MTU - DTLS_RECORD_HEADER_SZ
                       - DTLS_HANDSHAKE_HEADER_SZ - 100;
     #endif /* WOLFSSL_DTLS */
