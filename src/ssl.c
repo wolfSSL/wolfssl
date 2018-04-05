@@ -1386,8 +1386,6 @@ int wolfSSL_CTX_is_static_memory(WOLFSSL_CTX* ctx, WOLFSSL_MEM_STATS* mem_stats)
 /* return max record layer size plaintext input size */
 int wolfSSL_GetMaxOutputSize(WOLFSSL* ssl)
 {
-    int maxSize = OUTPUT_RECORD_SIZE;
-
     WOLFSSL_ENTER("wolfSSL_GetMaxOutputSize");
 
     if (ssl == NULL)
@@ -1398,17 +1396,7 @@ int wolfSSL_GetMaxOutputSize(WOLFSSL* ssl)
         return BAD_FUNC_ARG;
     }
 
-#ifdef HAVE_MAX_FRAGMENT
-    maxSize = min(maxSize, ssl->max_fragment);
-#endif
-
-#ifdef WOLFSSL_DTLS
-    if (ssl->options.dtls) {
-        maxSize = min(maxSize, MAX_UDP_SIZE);
-    }
-#endif
-
-    return maxSize;
+    return wolfSSL_GetMaxRecordSize(ssl, OUTPUT_RECORD_SIZE);
 }
 
 
@@ -1717,10 +1705,8 @@ static int wolfSSL_read_internal(WOLFSSL* ssl, void* data, int sz, int peek)
     }
 #endif
 
-    sz = min(sz, OUTPUT_RECORD_SIZE);
-#ifdef HAVE_MAX_FRAGMENT
-    sz = min(sz, ssl->max_fragment);
-#endif
+    sz = wolfSSL_GetMaxRecordSize(ssl, sz);
+
     ret = ReceiveData(ssl, (byte*)data, sz, peek);
 
 #ifdef HAVE_WRITE_DUP
