@@ -7636,7 +7636,12 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
         } else
 #endif
 #ifdef HAVE_ED25519
-        if (header == BEGIN_DSA_PRIV) {
+    #ifdef HAVE_ECC
+        if (header == BEGIN_DSA_PRIV)
+    #else
+        if (header == BEGIN_ENC_PRIV_KEY)
+    #endif
+        {
             header =  BEGIN_EDDSA_PRIV;     footer = END_EDDSA_PRIV;
         } else
 #endif
