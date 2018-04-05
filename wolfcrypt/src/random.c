@@ -1725,21 +1725,23 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
                  /* success, we're done */
                  return ret;
              }
-    #ifdef FORCE_FAILURE_RDSEED
+        #ifdef FORCE_FAILURE_RDSEED
              /* don't fallback to /dev/urandom */
              return ret;
-    #else
-             /* fallback to /dev/urandom attempt */
+        #else
+             /* reset error and fallback to using /dev/urandom */
              ret = 0;
-    #endif
+        #endif
         }
-
     #endif /* HAVE_INTEL_RDSEED */
 
-        os->fd = open("/dev/urandom",O_RDONLY);
-        if (os->fd == -1) {
+    #ifndef NO_DEV_URANDOM /* way to disable use of /dev/urandom */
+        os->fd = open("/dev/urandom", O_RDONLY);
+        if (os->fd == -1)
+    #endif
+        {
             /* may still have /dev/random */
-            os->fd = open("/dev/random",O_RDONLY);
+            os->fd = open("/dev/random", O_RDONLY);
             if (os->fd == -1)
                 return OPEN_RAN_E;
         }
@@ -1755,7 +1757,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
             output += len;
 
             if (sz) {
-    #ifdef BLOCKING
+    #if defined(BLOCKING) || defined(WC_RNG_BLOCKING)
                 sleep(0);             /* context switch */
     #else
                 ret = RAN_BLOCK_E;
