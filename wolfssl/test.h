@@ -1401,6 +1401,40 @@ static INLINE int myDateCb(int preverify, WOLFSSL_X509_STORE_CTX* store)
 }
 
 
+#ifdef HAVE_EXT_CACHE
+
+static INLINE WOLFSSL_SESSION* mySessGetCb(WOLFSSL* ssl, unsigned char* id, 
+    int id_len, int* copy)
+{
+    (void)ssl;
+    (void)id;
+    (void)id_len;
+    (void)copy;
+
+    /* using internal cache, this is for testing only */
+    return NULL;
+}
+
+static INLINE int mySessNewCb(WOLFSSL* ssl, WOLFSSL_SESSION* session)
+{
+    (void)ssl;
+    (void)session;
+
+    /* using internal cache, this is for testing only */
+    return 0;
+}
+
+static INLINE void mySessRemCb(WOLFSSL_CTX* ctx, WOLFSSL_SESSION* session)
+{
+    (void)ctx;
+    (void)session;
+
+    /* using internal cache, this is for testing only */
+}
+
+#endif /* HAVE_EXT_CACHE */
+
+
 #ifdef HAVE_CRL
 
 static INLINE void CRL_CallBack(const char* url)

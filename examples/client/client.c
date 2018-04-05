@@ -1621,6 +1621,12 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     wolfSSL_CTX_SetCACb(ctx, CaCb);
 #endif
 
+#ifdef HAVE_EXT_CACHE
+    wolfSSL_CTX_sess_set_get_cb(ctx, mySessGetCb);
+    wolfSSL_CTX_sess_set_new_cb(ctx, mySessNewCb);
+    wolfSSL_CTX_sess_set_remove_cb(ctx, mySessRemCb);
+#endif
+
 #ifndef NO_CERTS
     if (useClientCert){
     #ifndef NO_FILESYSTEM
