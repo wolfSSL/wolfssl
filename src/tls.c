@@ -5313,18 +5313,22 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
                 /* Make an ECC key. */
                 ret = wc_curve25519_init(key);
-                if (ret != 0)
+                if (ret != 0) {
+                    eccKey = (ecc_key*)key; /* assign for freeing key */
                     goto end;
+                }
                 ret = wc_curve25519_make_key(ssl->rng, keySize, key);
-                if (ret != 0)
+                if (ret != 0) {
+                    eccKey = (ecc_key*)key; /* assign for freeing key */
                     goto end;
-
+                }
                 /* Allocate space for the public key. */
                 keyData = (byte*)XMALLOC(dataSize, ssl->heap,
                                          DYNAMIC_TYPE_PUBLIC_KEY);
                 if (keyData == NULL) {
                     WOLFSSL_MSG("Key data Memory error");
                     ret = MEMORY_E;
+                    eccKey = (ecc_key*)key; /* assign for freeing key */
                     goto end;
                 }
 
@@ -5332,6 +5336,7 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
                 if (wc_curve25519_export_public_ex(key, keyData, &dataSize,
                                                   EC25519_LITTLE_ENDIAN) != 0) {
                     ret = ECC_EXPORT_ERROR;
+                    eccKey = (ecc_key*)key; /* assign for freeing key */
                     goto end;
                 }
 
@@ -5716,27 +5721,28 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
                     return MEMORY_ERROR;
                 }
                 ret = wc_curve25519_init(peerEccKey);
-                if (ret != 0)
-                    return ret;
+                if (ret == 0) {
 #ifdef WOLFSSL_DEBUG_TLS
-                WOLFSSL_MSG("Peer Curve25519 Key");
-                WOLFSSL_BUFFER(keyShareEntry->ke, keyShareEntry->keLen);
+                    WOLFSSL_MSG("Peer Curve25519 Key");
+                    WOLFSSL_BUFFER(keyShareEntry->ke, keyShareEntry->keLen);
 #endif
-
-                /* Point is validated by import function. */
-                if (wc_curve25519_import_public_ex(keyShareEntry->ke,
-                                               keyShareEntry->keLen, peerEccKey,
-                                               EC25519_LITTLE_ENDIAN) != 0) {
-                    return ECC_PEERKEY_ERROR;
+                    /* Point is validated by import function. */
+                    if (wc_curve25519_import_public_ex(keyShareEntry->ke,
+                                           keyShareEntry->keLen, peerEccKey,
+                                           EC25519_LITTLE_ENDIAN) != 0) {
+                        ret = ECC_PEERKEY_ERROR;
+                    }
+                    else {
+                        ssl->arrays->preMasterSz = ENCRYPT_LEN;
+                        ret = wc_curve25519_shared_secret_ex(key, peerEccKey,
+                                                ssl->arrays->preMasterSecret,
+                                                &ssl->arrays->preMasterSz,
+                                                EC25519_LITTLE_ENDIAN);
+                        wc_curve25519_free(peerEccKey);
+                        ssl->ecdhCurveOID = ECC_X25519_OID;
+                    }
                 }
-
-                ssl->arrays->preMasterSz = ENCRYPT_LEN;
-                ret = wc_curve25519_shared_secret_ex(key, peerEccKey,
-                    ssl->arrays->preMasterSecret, &ssl->arrays->preMasterSz,
-                    EC25519_LITTLE_ENDIAN);
-                wc_curve25519_free(peerEccKey);
                 XFREE(peerEccKey, ssl->heap, DYNAMIC_TYPE_TLSX);
-                ssl->ecdhCurveOID = ECC_X25519_OID;
                 return ret;
             }
     #endif
@@ -8157,9 +8163,6 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
     (void)public_key;
     (void)public_key_len;
     (void)ssl;
-
-    if (ret == WOLFSSL_SUCCESS)
-        ret = 0;
 
     return ret;
 }
