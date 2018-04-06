@@ -134,7 +134,7 @@ static int wolfSSL_BIO_SSL_read(WOLFSSL_BIO* bio, void* buf,
     WOLFSSL_ENTER("wolfSSL_BIO_SSL_write");
 
     /* already got eof, again is error */
-    if (bio && front->eof)
+    if (front->eof)
         return WOLFSSL_FATAL_ERROR;
 
     ret = wolfSSL_read(bio->ssl, buf, len);

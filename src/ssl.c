@@ -29186,11 +29186,13 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             i = XFTELL(bp->file);
             if (i < 0)
                 return NULL;
-            XFSEEK(bp->file, 0, SEEK_END);
+            if (XFSEEK(bp->file, 0, SEEK_END) != 0)
+                return NULL;
             l = XFTELL(bp->file);
             if (l < 0)
                 return NULL;
-            XFSEEK(bp->file, i, SEEK_SET);
+            if (XFSEEK(bp->file, i, SEEK_SET) != 0)
+                return NULL;
 #else
             WOLFSSL_MSG("Unable to read file with NO_FILESYSTEM defined");
             return NULL;

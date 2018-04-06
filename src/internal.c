@@ -11744,10 +11744,10 @@ static INLINE void RmdRounds(int rounds, const byte* data, int sz)
     RipeMd ripemd;
     int i;
 
-    wc_InitRipeMd(&ripemd);
+    (void)wc_InitRipeMd(&ripemd);
 
     for (i = 0; i < rounds; i++)
-        wc_RipeMdUpdate(&ripemd, data, sz);
+        (void)wc_RipeMdUpdate(&ripemd, data, sz);
 }
 
 #endif
@@ -14681,11 +14681,13 @@ int SendAlert(WOLFSSL* ssl, int severity, int type)
     if ((ret = CheckAvailableSize(ssl, outputSz)) != 0)
         return ret;
 
+    /* Check output buffer */
+    if (ssl->buffers.outputBuffer.buffer == NULL)
+        return BUFFER_E;
+
     /* get output buffer */
     output = ssl->buffers.outputBuffer.buffer +
              ssl->buffers.outputBuffer.length;
-    if (output == NULL)
-        return BUFFER_E;
 
     input[0] = (byte)severity;
     input[1] = (byte)type;
@@ -18380,7 +18382,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                 #endif
 
                     if (ssl->peerEccKey == NULL) {
-                        AllocKey(ssl, DYNAMIC_TYPE_ECC,
+                        ret = AllocKey(ssl, DYNAMIC_TYPE_ECC,
                                  (void**)&ssl->peerEccKey);
                         if (ret != 0) {
                             goto exit_dske;

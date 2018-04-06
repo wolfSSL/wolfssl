@@ -247,6 +247,8 @@ static int CheckCertCRLList(WOLFSSL_CRL* crl, DecodedCert* cert, int *pFoundEntr
                 ca = GetCA(crl->cm, issuerHash);
             #endif /* NO_SKID */
                 if (ca == NULL) {
+                    XFREE(sig, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
+                    XFREE(tbs, crl->heap, DYNAMIC_TYPE_CRL_ENTRY);
                     WOLFSSL_MSG("Did NOT find CRL issuer CA");
                     return ASN_CRL_NO_SIGNER_E;
                 }
