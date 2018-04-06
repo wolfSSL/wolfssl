@@ -131,10 +131,10 @@ static int wolfSSL_BIO_SSL_read(WOLFSSL_BIO* bio, void* buf,
 {
     int ret;
 
-    WOLFSSL_ENTER("wolfSSL_BIO_SSL_write");
+    WOLFSSL_ENTER("wolfSSL_BIO_SSL_read");
 
     /* already got eof, again is error */
-    if (front->eof)
+    if ((front == NULL) || front->eof)
         return WOLFSSL_FATAL_ERROR;
 
     ret = wolfSSL_read(bio->ssl, buf, len);
@@ -168,7 +168,7 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
     WOLFSSL_ENTER("wolfSSL_BIO_read");
 
     /* start at end of list and work backwards */
-    while (bio->next != NULL) {
+    while ((bio != NULL) && (bio->next != NULL)) {
         bio = bio->next;
     }
 
