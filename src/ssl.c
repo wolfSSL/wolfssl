@@ -13969,7 +13969,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             ctx->keyLen = 0;
             ctx->block_size = 16;
         }
-
+        (void)ret; /* remove warning. If execution reaches this point, ret=0 */
         return WOLFSSL_SUCCESS;
     }
 
