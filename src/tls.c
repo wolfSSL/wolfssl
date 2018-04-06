@@ -919,6 +919,8 @@ static TLSX* TLSX_New(TLSX_Type type, void* data, void* heap)
 {
     TLSX* extension = (TLSX*)XMALLOC(sizeof(TLSX), heap, DYNAMIC_TYPE_TLSX);
 
+    (void)heap;
+
     if (extension) {
         extension->type = type;
         extension->data = data;
@@ -2886,6 +2888,8 @@ static int TLSX_SupportedCurve_New(SupportedCurve** curve, word16 name,
     if (curve == NULL)
         return BAD_FUNC_ARG;
 
+    (void)heap;
+
     *curve = (SupportedCurve*)XMALLOC(sizeof(SupportedCurve), heap,
                                                              DYNAMIC_TYPE_TLSX);
     if (*curve == NULL)
@@ -2901,6 +2905,8 @@ static int TLSX_PointFormat_New(PointFormat** point, byte format, void* heap)
 {
     if (point == NULL)
         return BAD_FUNC_ARG;
+
+    (void)heap;
 
     *point = (PointFormat*)XMALLOC(sizeof(PointFormat), heap,
                                                              DYNAMIC_TYPE_TLSX);
@@ -4393,7 +4399,7 @@ int TLSX_ValidateQSHScheme(TLSX** extensions, word16 theirs) {
 
     for (format = (QSHScheme*)extension->data; format; format = format->next) {
         if (format->name == theirs) {
-	        WOLFSSL_MSG("Found Matching QSH Scheme");
+            WOLFSSL_MSG("Found Matching QSH Scheme");
             return 1; /* have QSH */
         }
     }
@@ -4437,33 +4443,33 @@ int TLSX_UseQSHScheme(TLSX** extensions, word16 name, byte* pKey, word16 pkeySz,
 
     /* if scheme is implemented than add */
     if (TLSX_HaveQSHScheme(name)) {
-	    if ((ret = TLSX_QSH_Append(&format, name, pKey, pkeySz)) != 0)
-	        return ret;
+        if ((ret = TLSX_QSH_Append(&format, name, pKey, pkeySz)) != 0)
+            return ret;
 
-	    if (!extension) {
-	        if ((ret = TLSX_Push(extensions, TLSX_QUANTUM_SAFE_HYBRID, format,
+        if (!extension) {
+            if ((ret = TLSX_Push(extensions, TLSX_QUANTUM_SAFE_HYBRID, format,
                                                                   heap)) != 0) {
-	            XFREE(format, 0, DYNAMIC_TYPE_TLSX);
-	            return ret;
-	        }
-	    }
-	    else {
-	        /* push new QSH object to extension data. */
-	        format->next = (QSHScheme*)extension->data;
-	        extension->data = (void*)format;
+                XFREE(format, 0, DYNAMIC_TYPE_TLSX);
+                return ret;
+            }
+        }
+        else {
+            /* push new QSH object to extension data. */
+            format->next = (QSHScheme*)extension->data;
+            extension->data = (void*)format;
 
-	        /* look for another format of the same name to remove (replacement) */
-	        do {
-	            if (format->next && (format->next->name == name)) {
-	                QSHScheme* next = format->next;
+            /* look for another format of the same name to remove (replacement) */
+            do {
+                if (format->next && (format->next->name == name)) {
+                    QSHScheme* next = format->next;
 
-	                format->next = next->next;
-	                XFREE(next, 0, DYNAMIC_TYPE_TLSX);
+                    format->next = next->next;
+                    XFREE(next, 0, DYNAMIC_TYPE_TLSX);
 
-	                break;
-	            }
-	        } while ((format = format->next));
-	    }
+                    break;
+                }
+            } while ((format = format->next));
+        }
     }
     return WOLFSSL_SUCCESS;
 }
@@ -8917,6 +8923,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
         WOLFSSL_METHOD* method =
                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
                                                      heap, DYNAMIC_TYPE_METHOD);
+        (void)heap;
         if (method)
             InitSSL_Method(method, MakeTLSv1());
         return method;
@@ -8933,6 +8940,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
         WOLFSSL_METHOD* method =
                               (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
                                                      heap, DYNAMIC_TYPE_METHOD);
+        (void)heap;
         if (method)
             InitSSL_Method(method, MakeTLSv1_1());
         return method;
@@ -9034,6 +9042,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
         WOLFSSL_METHOD* method =
                               (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
                                                      heap, DYNAMIC_TYPE_METHOD);
+        (void)heap;
         if (method) {
             InitSSL_Method(method, MakeTLSv1());
             method->side = WOLFSSL_SERVER_END;
@@ -9052,6 +9061,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
         WOLFSSL_METHOD* method =
                               (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
                                                      heap, DYNAMIC_TYPE_METHOD);
+        (void)heap;
         if (method) {
             InitSSL_Method(method, MakeTLSv1_1());
             method->side = WOLFSSL_SERVER_END;

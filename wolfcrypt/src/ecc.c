@@ -2404,6 +2404,8 @@ ecc_point* wc_ecc_new_point_h(void* heap)
 {
    ecc_point* p;
 
+   (void)heap;
+
    p = (ecc_point*)XMALLOC(sizeof(ecc_point), heap, DYNAMIC_TYPE_ECC);
    if (p == NULL) {
       return NULL;
