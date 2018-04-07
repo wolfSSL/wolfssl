@@ -953,7 +953,7 @@ static const byte writeIVLabel[WRITE_IV_LABEL_SZ+1]   = "iv";
  */
 static int DeriveTls13Keys(WOLFSSL* ssl, int secret, int side, int store)
 {
-    int   ret;
+    int   ret = BAD_FUNC_ARG; /* Assume failure */
     int   i = 0;
 #ifdef WOLFSSL_SMALL_STACK
     byte* key_dig;
@@ -2012,12 +2012,15 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
     switch (ssl->options.buildMsgState) {
         case BUILD_MSG_BEGIN:
         {
-            if (output == NULL || input == NULL)
-                return BAD_FUNC_ARG;
-            /* catch mistaken sizeOnly parameter */
-            if (sizeOnly && (output || input)) {
-                WOLFSSL_MSG("BuildTls13Message with sizeOnly doesn't need "
-                            "input or output");
+           /* catch mistaken sizeOnly parameter */
+            if (sizeOnly) {
+                if (output || input) {
+                    WOLFSSL_MSG("BuildTls13Message with sizeOnly "
+                                "doesn't need input or output");
+                    return BAD_FUNC_ARG;
+                }
+            }
+            else if (output == NULL || input == NULL) {
                 return BAD_FUNC_ARG;
             }
 
