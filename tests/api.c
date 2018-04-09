@@ -18123,6 +18123,14 @@ static int test_tls13_apis(void)
                 WOLFSSL_SUCCESS);
     AssertIntEQ(wolfSSL_UseKeyShare(clientSsl, WOLFSSL_ECC_SECP256R1),
                 WOLFSSL_SUCCESS);
+#elif defined(HAVE_CURVE25519)
+    AssertIntEQ(wolfSSL_UseKeyShare(NULL, WOLFSSL_ECC_X25519), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_UseKeyShare(serverSsl, WOLFSSL_ECC_X25519),
+                SIDE_ERROR);
+    AssertIntEQ(wolfSSL_UseKeyShare(clientTls12Ssl, WOLFSSL_ECC_X25519),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_UseKeyShare(clientSsl, WOLFSSL_ECC_X25519),
+                WOLFSSL_SUCCESS);
 #else
     AssertIntEQ(wolfSSL_UseKeyShare(NULL, WOLFSSL_ECC_SECP256R1), BAD_FUNC_ARG);
     AssertIntEQ(wolfSSL_UseKeyShare(serverSsl, WOLFSSL_ECC_SECP256R1),
