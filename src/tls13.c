@@ -4632,12 +4632,7 @@ static int SendTls13Certificate(WOLFSSL* ssl)
     if (ssl->fragOffset != 0)
         length -= (ssl->fragOffset + headerSz);
 
-    maxFragment = MAX_RECORD_SIZE;
-
-    #ifdef HAVE_MAX_FRAGMENT
-    if (ssl->max_fragment != 0 && maxFragment >= ssl->max_fragment)
-        maxFragment = ssl->max_fragment;
-    #endif /* HAVE_MAX_FRAGMENT */
+    maxFragment = wolfSSL_GetMaxRecordSize(ssl, MAX_RECORD_SIZE);
 
     while (length > 0 && ret == 0) {
         byte*  output = NULL;

@@ -919,6 +919,8 @@ static TLSX* TLSX_New(TLSX_Type type, void* data, void* heap)
 {
     TLSX* extension = (TLSX*)XMALLOC(sizeof(TLSX), heap, DYNAMIC_TYPE_TLSX);
 
+    (void)heap;
+
     if (extension) {
         extension->type = type;
         extension->data = data;
@@ -2886,6 +2888,8 @@ static int TLSX_SupportedCurve_New(SupportedCurve** curve, word16 name,
     if (curve == NULL)
         return BAD_FUNC_ARG;
 
+    (void)heap;
+
     *curve = (SupportedCurve*)XMALLOC(sizeof(SupportedCurve), heap,
                                                              DYNAMIC_TYPE_TLSX);
     if (*curve == NULL)
@@ -2901,6 +2905,8 @@ static int TLSX_PointFormat_New(PointFormat** point, byte format, void* heap)
 {
     if (point == NULL)
         return BAD_FUNC_ARG;
+
+    (void)heap;
 
     *point = (PointFormat*)XMALLOC(sizeof(PointFormat), heap,
                                                              DYNAMIC_TYPE_TLSX);
@@ -4393,7 +4399,7 @@ int TLSX_ValidateQSHScheme(TLSX** extensions, word16 theirs) {
 
     for (format = (QSHScheme*)extension->data; format; format = format->next) {
         if (format->name == theirs) {
-	        WOLFSSL_MSG("Found Matching QSH Scheme");
+            WOLFSSL_MSG("Found Matching QSH Scheme");
             return 1; /* have QSH */
         }
     }
@@ -4437,33 +4443,33 @@ int TLSX_UseQSHScheme(TLSX** extensions, word16 name, byte* pKey, word16 pkeySz,
 
     /* if scheme is implemented than add */
     if (TLSX_HaveQSHScheme(name)) {
-	    if ((ret = TLSX_QSH_Append(&format, name, pKey, pkeySz)) != 0)
-	        return ret;
+        if ((ret = TLSX_QSH_Append(&format, name, pKey, pkeySz)) != 0)
+            return ret;
 
-	    if (!extension) {
-	        if ((ret = TLSX_Push(extensions, TLSX_QUANTUM_SAFE_HYBRID, format,
+        if (!extension) {
+            if ((ret = TLSX_Push(extensions, TLSX_QUANTUM_SAFE_HYBRID, format,
                                                                   heap)) != 0) {
-	            XFREE(format, 0, DYNAMIC_TYPE_TLSX);
-	            return ret;
-	        }
-	    }
-	    else {
-	        /* push new QSH object to extension data. */
-	        format->next = (QSHScheme*)extension->data;
-	        extension->data = (void*)format;
+                XFREE(format, 0, DYNAMIC_TYPE_TLSX);
+                return ret;
+            }
+        }
+        else {
+            /* push new QSH object to extension data. */
+            format->next = (QSHScheme*)extension->data;
+            extension->data = (void*)format;
 
-	        /* look for another format of the same name to remove (replacement) */
-	        do {
-	            if (format->next && (format->next->name == name)) {
-	                QSHScheme* next = format->next;
+            /* look for another format of the same name to remove (replacement) */
+            do {
+                if (format->next && (format->next->name == name)) {
+                    QSHScheme* next = format->next;
 
-	                format->next = next->next;
-	                XFREE(next, 0, DYNAMIC_TYPE_TLSX);
+                    format->next = next->next;
+                    XFREE(next, 0, DYNAMIC_TYPE_TLSX);
 
-	                break;
-	            }
-	        } while ((format = format->next));
-	    }
+                    break;
+                }
+            } while ((format = format->next));
+        }
     }
     return WOLFSSL_SUCCESS;
 }
@@ -5250,7 +5256,7 @@ end:
 }
 #endif
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
 /* Create a key share entry using named elliptic curve parameters group.
  * Generates a key pair.
  *
@@ -5263,13 +5269,17 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
     int      ret;
     byte*    keyData = NULL;
     word32   dataSize;
+    byte*    keyPtr = NULL;
     word32   keySize;
-    ecc_key* eccKey = NULL;
+#ifdef HAVE_ECC
+    ecc_key* eccKey;
     word16   curveId;
+#endif
 
     /* TODO: [TLS13] The key sizes should come from wolfcrypt. */
     /* Translate named group to a curve id. */
     switch (kse->group) {
+#ifdef HAVE_ECC
     #if !defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
         case WOLFSSL_ECC_SECP256R1:
@@ -5297,52 +5307,49 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
             break;
         #endif /* !NO_ECC_SECP */
     #endif
+#endif
     #ifdef HAVE_CURVE25519
         case WOLFSSL_ECC_X25519:
             {
-                curve25519_key* key;
+                curve25519_key* curve_key;
                 /* Allocate an ECC key to hold private key. */
-                key = (curve25519_key*)XMALLOC(sizeof(curve25519_key),
+                keyPtr = (byte*)XMALLOC(sizeof(curve25519_key),
                                            ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
-                if (key == NULL) {
+                if (keyPtr == NULL) {
                     WOLFSSL_MSG("EccTempKey Memory error");
                     return MEMORY_E;
                 }
+                curve_key = (curve25519_key*)keyPtr;
 
                 dataSize = keySize = 32;
 
                 /* Make an ECC key. */
-                ret = wc_curve25519_init(key);
-                if (ret != 0) {
-                    eccKey = (ecc_key*)key; /* assign for freeing key */
+                ret = wc_curve25519_init(curve_key);
+                if (ret != 0)
                     goto end;
-                }
-                ret = wc_curve25519_make_key(ssl->rng, keySize, key);
-                if (ret != 0) {
-                    eccKey = (ecc_key*)key; /* assign for freeing key */
+                ret = wc_curve25519_make_key(ssl->rng, keySize, curve_key);
+                if (ret != 0)
                     goto end;
-                }
+
                 /* Allocate space for the public key. */
                 keyData = (byte*)XMALLOC(dataSize, ssl->heap,
                                          DYNAMIC_TYPE_PUBLIC_KEY);
                 if (keyData == NULL) {
                     WOLFSSL_MSG("Key data Memory error");
                     ret = MEMORY_E;
-                    eccKey = (ecc_key*)key; /* assign for freeing key */
                     goto end;
                 }
 
                 /* Export public key. */
-                if (wc_curve25519_export_public_ex(key, keyData, &dataSize,
+                if (wc_curve25519_export_public_ex(curve_key, keyData, &dataSize,
                                                   EC25519_LITTLE_ENDIAN) != 0) {
                     ret = ECC_EXPORT_ERROR;
-                    eccKey = (ecc_key*)key; /* assign for freeing key */
                     goto end;
                 }
 
                 kse->ke = keyData;
                 kse->keLen = dataSize;
-                kse->key = key;
+                kse->key = keyPtr;
 
 #ifdef WOLFSSL_DEBUG_TLS
                 WOLFSSL_MSG("Public Curve25519 Key");
@@ -5362,13 +5369,15 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
             return BAD_FUNC_ARG;
     }
 
+#ifdef HAVE_ECC
     /* Allocate an ECC key to hold private key. */
-    eccKey = (ecc_key*)XMALLOC(sizeof(ecc_key), ssl->heap,
+    keyPtr = (byte*)XMALLOC(sizeof(ecc_key), ssl->heap,
                                DYNAMIC_TYPE_PRIVATE_KEY);
-    if (eccKey == NULL) {
+    if (keyPtr == NULL) {
         WOLFSSL_MSG("EccTempKey Memory error");
         return MEMORY_E;
     }
+    eccKey = (ecc_key*)keyPtr;
 
     /* Make an ECC key. */
     ret = wc_ecc_init_ex(eccKey, ssl->heap, ssl->devId);
@@ -5400,20 +5409,21 @@ static int TLSX_KeyShare_GenEccKey(WOLFSSL *ssl, KeyShareEntry* kse)
 
     kse->ke = keyData;
     kse->keLen = dataSize;
-    kse->key = eccKey;
+    kse->key = keyPtr;
 
 #ifdef WOLFSSL_DEBUG_TLS
     WOLFSSL_MSG("Public ECC Key");
     WOLFSSL_BUFFER(keyData, dataSize);
 #endif
+#endif /* HAVE_ECC */
 
 end:
     if (ret != 0) {
         /* Data owned by key share entry otherwise. */
-        if (eccKey != NULL)
-            XFREE(eccKey, ssl->heap, DYNAMIC_TYPE_TLSX);
+        if (keyPtr != NULL)
+            XFREE(keyPtr, ssl->heap, DYNAMIC_TYPE_PRIVATE_KEY);
         if (keyData != NULL)
-            XFREE(keyData, ssl->heap, DYNAMIC_TYPE_TLSX);
+            XFREE(keyData, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     }
     return ret;
 }
@@ -5431,7 +5441,7 @@ static int TLSX_KeyShare_GenKey(WOLFSSL *ssl, KeyShareEntry *kse)
     if ((kse->group & NAMED_DH_MASK) == NAMED_DH_MASK)
         return TLSX_KeyShare_GenDhKey(ssl, kse);
 #endif
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
     return TLSX_KeyShare_GenEccKey(ssl, kse);
 #else
     return NOT_COMPILED_IN;
@@ -8920,6 +8930,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
         WOLFSSL_METHOD* method =
                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
                                                      heap, DYNAMIC_TYPE_METHOD);
+        (void)heap;
         if (method)
             InitSSL_Method(method, MakeTLSv1());
         return method;
@@ -8936,6 +8947,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
         WOLFSSL_METHOD* method =
                               (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
                                                      heap, DYNAMIC_TYPE_METHOD);
+        (void)heap;
         if (method)
             InitSSL_Method(method, MakeTLSv1_1());
         return method;
@@ -9037,6 +9049,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
         WOLFSSL_METHOD* method =
                               (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
                                                      heap, DYNAMIC_TYPE_METHOD);
+        (void)heap;
         if (method) {
             InitSSL_Method(method, MakeTLSv1());
             method->side = WOLFSSL_SERVER_END;
@@ -9055,6 +9068,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
         WOLFSSL_METHOD* method =
                               (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
                                                      heap, DYNAMIC_TYPE_METHOD);
+        (void)heap;
         if (method) {
             InitSSL_Method(method, MakeTLSv1_1());
             method->side = WOLFSSL_SERVER_END;

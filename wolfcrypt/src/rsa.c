@@ -1465,6 +1465,7 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
     case RSA_PRIVATE_DECRYPT:
     case RSA_PRIVATE_ENCRYPT:
     #ifdef HAVE_CAVIUM
+        key->dataLen = key->n.raw.len;
         ret = NitroxRsaExptMod(in, inLen,
                                key->d.raw.buf, key->d.raw.len,
                                key->n.raw.buf, key->n.raw.len,
@@ -1489,6 +1490,7 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
     case RSA_PUBLIC_ENCRYPT:
     case RSA_PUBLIC_DECRYPT:
     #ifdef HAVE_CAVIUM
+        key->dataLen = key->n.raw.len;
         ret = NitroxRsaExptMod(in, inLen,
                                key->e.raw.buf, key->e.raw.len,
                                key->n.raw.buf, key->n.raw.len,
@@ -1735,7 +1737,8 @@ static int RsaPublicEncryptEx(const byte* in, word32 inLen, byte* out,
 
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA) && \
             defined(HAVE_CAVIUM)
-        if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA && key->n.raw.buf) {
+        if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA &&
+                                 pad_type != WC_RSA_PSS_PAD && key->n.raw.buf) {
             /* Async operations that include padding */
             if (rsa_type == RSA_PUBLIC_ENCRYPT &&
                                                 pad_value == RSA_BLOCK_TYPE_2) {
@@ -1837,14 +1840,14 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA) && \
             defined(HAVE_CAVIUM)
         /* Async operations that include padding */
-        if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA) {
+        if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA &&
+                                                   pad_type != WC_RSA_PSS_PAD) {
             if (rsa_type == RSA_PRIVATE_DECRYPT &&
                                                 pad_value == RSA_BLOCK_TYPE_2) {
                 key->state = RSA_STATE_DECRYPT_RES;
                 key->data = NULL;
-                if (outPtr)
-                    *outPtr = in;
-                return NitroxRsaPrivateDecrypt(in, inLen, out, &key->dataLen, key);
+                return NitroxRsaPrivateDecrypt(in, inLen, out, &key->dataLen,
+                                               key);
             }
             else if (rsa_type == RSA_PUBLIC_DECRYPT &&
                                                 pad_value == RSA_BLOCK_TYPE_1) {
@@ -1915,14 +1918,14 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
     case RSA_STATE_DECRYPT_RES:
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA) && \
             defined(HAVE_CAVIUM)
-        if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA) {
-            /* return event ret */
-            ret = key->asyncDev.event.ret;
-            if (ret == 0) {
-                /* convert result */
-                byte* dataLen = (byte*)&key->dataLen;
-                ret = (dataLen[0] << 8) | (dataLen[1]);
-            }
+        if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA &&
+                                                   pad_type != WC_RSA_PSS_PAD) {
+            /* convert result */
+            byte* dataLen = (byte*)&key->dataLen;
+            ret = (dataLen[0] << 8) | (dataLen[1]);
+
+            if (outPtr)
+                *outPtr = in;
         }
     #endif
         break;

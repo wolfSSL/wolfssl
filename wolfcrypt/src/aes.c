@@ -2867,18 +2867,48 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
-        return wc_Pic32AesCrypt(
+        int ret;
+
+        /* hardware fails on input that is not a multiple of AES block size */
+        if (sz % AES_BLOCK_SIZE != 0) {
+            return BAD_FUNC_ARG;
+        }
+
+        ret = wc_Pic32AesCrypt(
             aes->key, aes->keylen, aes->reg, AES_BLOCK_SIZE,
             out, in, sz, PIC32_ENCRYPTION,
             PIC32_ALGO_AES, PIC32_CRYPTOALGO_RCBC);
+
+        /* store iv for next call */
+        if (ret == 0) {
+            XMEMCPY(aes->reg, out + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+        }
+
+        return ret;
     }
     #ifdef HAVE_AES_DECRYPT
     int wc_AesCbcDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
     {
-        return wc_Pic32AesCrypt(
+        int ret;
+        byte scratch[AES_BLOCK_SIZE];
+
+        /* hardware fails on input that is not a multiple of AES block size */
+        if (sz % AES_BLOCK_SIZE != 0) {
+            return BAD_FUNC_ARG;
+        }
+        XMEMCPY(scratch, in + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+
+        ret = wc_Pic32AesCrypt(
             aes->key, aes->keylen, aes->reg, AES_BLOCK_SIZE,
             out, in, sz, PIC32_DECRYPTION,
             PIC32_ALGO_AES, PIC32_CRYPTOALGO_RCBC);
+
+        /* store iv for next call */
+        if (ret == 0) {
+            XMEMCPY((byte*)aes->reg, scratch, AES_BLOCK_SIZE);
+        }
+
+        return ret;
     }
     #endif /* HAVE_AES_DECRYPT */
 
@@ -7544,10 +7574,17 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
     /* if async and byte count above threshold */
+    /* only 12-byte IV is supported in HW */
     if (aes->asyncDev.marker == WOLFSSL_ASYNC_MARKER_AES &&
-                                                sz >= WC_ASYNC_THRESH_AES_GCM) {
+                            sz >= WC_ASYNC_THRESH_AES_GCM && ivSz == NONCE_SZ) {
     #if defined(HAVE_CAVIUM)
-        /* Not yet supported, contact wolfSSL if interested in using */
+        #ifdef HAVE_CAVIUM_V
+        if (authInSz == 20) { /* Nitrox V GCM is only working with 20 byte AAD */
+            return NitroxAesGcmEncrypt(aes, out, in, sz,
+                (const byte*)aes->asyncKey, aes->keylen, iv, ivSz,
+                authTag, authTagSz, authIn, authInSz);
+        }
+        #endif
     #elif defined(HAVE_INTEL_QA)
         return IntelQaSymAesGcmEncrypt(&aes->asyncDev, out, in, sz,
             (const byte*)aes->asyncKey, aes->keylen, iv, ivSz,
@@ -7887,10 +7924,17 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
     /* if async and byte count above threshold */
+    /* only 12-byte IV is supported in HW */
     if (aes->asyncDev.marker == WOLFSSL_ASYNC_MARKER_AES &&
-                                                sz >= WC_ASYNC_THRESH_AES_GCM) {
+                            sz >= WC_ASYNC_THRESH_AES_GCM && ivSz == NONCE_SZ) {
     #if defined(HAVE_CAVIUM)
-        /* Not yet supported, contact wolfSSL if interested in using */
+        #ifdef HAVE_CAVIUM_V
+        if (authInSz == 20) { /* Nitrox V GCM is only working with 20 byte AAD */
+            return NitroxAesGcmDecrypt(aes, out, in, sz,
+                (const byte*)aes->asyncKey, aes->keylen, iv, ivSz,
+                authTag, authTagSz, authIn, authInSz);
+        }
+        #endif
     #elif defined(HAVE_INTEL_QA)
         return IntelQaSymAesGcmDecrypt(&aes->asyncDev, out, in, sz,
             (const byte*)aes->asyncKey, aes->keylen, iv, ivSz,

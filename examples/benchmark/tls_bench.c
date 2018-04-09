@@ -345,10 +345,10 @@ static double gettime_secs(int reset)
 static void* client_thread(void* args)
 {
     info_t* info = (info_t*)args;
-    unsigned char buf[MEM_BUFFER_SZ];
+    unsigned char* buf;
     unsigned char *writeBuf;
     double start;
-    int ret;
+    int ret, bufSize;
     WOLFSSL_CTX* cli_ctx;
     WOLFSSL* cli_ssl;
     int haveShownPeerInfo = 0;
@@ -414,28 +414,45 @@ static void* client_thread(void* args)
             showPeer(cli_ssl);
         }
 
-        /* write test message to server */
-        while (info->client_stats.rxTotal < info->numBytes) {
-            start = gettime_secs(1);
-            ret = wolfSSL_write(cli_ssl, writeBuf, info->packetSize);
-            info->client_stats.txTime += gettime_secs(0) - start;
-            if (ret > 0) {
-                info->client_stats.txTotal += ret;
-            }
-
-            /* read echo of message */
-            start = gettime_secs(1);
-            ret = wolfSSL_read(cli_ssl, buf, sizeof(buf)-1);
-            info->client_stats.rxTime += gettime_secs(0) - start;
-            if (ret > 0) {
-                info->client_stats.rxTotal += ret;
-            }
-
-            /* validate echo */
-            if (strncmp((char*)writeBuf, (char*)buf, info->packetSize) != 0) {
-                err_sys("echo check failed!\n");
-            }
+        /* Allocate buf after handshake is complete */
+        bufSize = wolfSSL_GetMaxOutputSize(cli_ssl);
+        if (bufSize > 0) {
+            buf = (unsigned char*)malloc(bufSize);
         }
+        else {
+            buf = NULL;
+        }
+
+        if (buf != NULL) {
+            /* write test message to server */
+            while (info->client_stats.rxTotal < info->numBytes) {
+                start = gettime_secs(1);
+                ret = wolfSSL_write(cli_ssl, writeBuf, info->packetSize);
+                info->client_stats.txTime += gettime_secs(0) - start;
+                if (ret > 0) {
+                    info->client_stats.txTotal += ret;
+                }
+
+                /* read echo of message */
+                start = gettime_secs(1);
+                ret = wolfSSL_read(cli_ssl, buf, bufSize-1);
+                info->client_stats.rxTime += gettime_secs(0) - start;
+                if (ret > 0) {
+                    info->client_stats.rxTotal += ret;
+                }
+
+                /* validate echo */
+                if (strncmp((char*)writeBuf, (char*)buf, info->packetSize) != 0) {
+                    err_sys("echo check failed!\n");
+                }
+            }
+
+            free(buf);
+        }
+        else {
+            err_sys("failed to allocate memory");
+        }
+
 
         info->client_stats.connCount++;
 
@@ -456,9 +473,9 @@ static void* client_thread(void* args)
 static void* server_thread(void* args)
 {
     info_t* info = (info_t*)args;
-    unsigned char buf[MEM_BUFFER_SZ];
+    unsigned char *buf;
     double start;
-    int ret, len = 0;
+    int ret, len = 0, bufSize;
     WOLFSSL_CTX* srv_ctx;
     WOLFSSL* srv_ssl;
 
@@ -521,24 +538,39 @@ static void* server_thread(void* args)
 
         info->server_stats.connTime += start;
 
-        while (info->server_stats.txTotal < info->numBytes) {
-            /* read msg post handshake from client */
-            memset(buf, 0, sizeof(buf));
-            start = gettime_secs(1);
-            ret = wolfSSL_read(srv_ssl, buf, sizeof(buf)-1);
-            info->server_stats.rxTime += gettime_secs(0) - start;
-            if (ret > 0) {
-                info->server_stats.rxTotal += ret;
-                len = ret;
-            }
+        /* Allocate buf after handshake is complete */
+        bufSize = wolfSSL_GetMaxOutputSize(srv_ssl);
+        if (bufSize > 0) {
+            buf = (unsigned char*)malloc(bufSize);
+        }
+        else {
+            buf = NULL;
+        }
 
-            /* write message back to client */
-            start = gettime_secs(1);
-            ret = wolfSSL_write(srv_ssl, buf, len);
-            info->server_stats.txTime += gettime_secs(0) - start;
-            if (ret > 0) {
-                info->server_stats.txTotal += ret;
+        if (buf != NULL) {
+            while (info->server_stats.txTotal < info->numBytes) {
+                /* read msg post handshake from client */
+                memset(buf, 0, bufSize);
+                start = gettime_secs(1);
+                ret = wolfSSL_read(srv_ssl, buf, bufSize-1);
+                info->server_stats.rxTime += gettime_secs(0) - start;
+                if (ret > 0) {
+                    info->server_stats.rxTotal += ret;
+                    len = ret;
+                }
+
+                /* write message back to client */
+                start = gettime_secs(1);
+                ret = wolfSSL_write(srv_ssl, buf, len);
+                info->server_stats.txTime += gettime_secs(0) - start;
+                if (ret > 0) {
+                    info->server_stats.txTotal += ret;
+                }
             }
+            free(buf);
+        }
+        else {
+            err_sys("failed to allocate memory");
         }
 
         info->server_stats.connCount++;

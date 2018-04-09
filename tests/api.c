@@ -307,6 +307,9 @@
 #ifndef USE_CERT_BUFFERS_2048
     #define USE_CERT_BUFFERS_2048
 #endif
+#ifndef USE_CERT_BUFFERS_256
+    #define USE_CERT_BUFFERS_256
+#endif
 #include <wolfssl/certs_test.h>
 
 typedef struct testVector {
@@ -13918,6 +13921,7 @@ static void test_wc_PKCS7_InitWithCert (void)
 #if defined(HAVE_PKCS7)
     PKCS7       pkcs7;
 
+#ifndef NO_RSA
     #if defined(USE_CERT_BUFFERS_2048)
         unsigned char    cert[sizeof_client_cert_der_2048];
         int              certSz = (int)sizeof(cert);
@@ -13932,14 +13936,33 @@ static void test_wc_PKCS7_InitWithCert (void)
         unsigned char   cert[ONEK_BUF];
         FILE*           fp;
         int             certSz;
-        fp = fopen("./certs/client_cert_der_1024", "rb");
+        fp = fopen("./certs/1024/client-cert.der", "rb");
 
         AssertNotNull(fp);
 
         certSz = fread(cert, 1, sizeof_client_cert_der_1024, fp);
         fclose(fp);
     #endif
+#elif defined(HAVE_ECC)
+    #if defined(USE_CERT_BUFFERS_256)
+        unsigned char    cert[sizeof_cliecc_cert_der_256];
+        int              certSz = (int)sizeof(cert);
+        XMEMSET(cert, 0, certSz);
+        XMEMCPY(cert, cliecc_cert_der_256, sizeof_cliecc_cert_der_256);
+    #else
+        unsigned char   cert[ONEK_BUF];
+        FILE*           fp;
+        int             certSz;
+        fp = fopen("./certs/client-ecc-cert.der", "rb");
 
+        AssertNotNull(fp);
+
+        certSz = fread(cert, 1, sizeof_cliecc_cert_der_256, fp);
+        fclose(fp);
+    #endif
+#else
+        #error PKCS7 requires ECC or RSA
+#endif
     printf(testingFmt, "wc_PKCS7_InitWithCert()");
     /* If initialization is not successful, it's free'd in init func. */
     AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, (byte*)cert, (word32)certSz), 0);
@@ -13972,6 +13995,7 @@ static void test_wc_PKCS7_EncodeData (void)
     byte        output[FOURK_BUF];
     byte        data[] = "My encoded DER cert.";
 
+#ifndef NO_RSA
     #if defined(USE_CERT_BUFFERS_2048)
         unsigned char cert[sizeof_client_cert_der_2048];
         unsigned char key[sizeof_client_key_der_2048];
@@ -13998,16 +14022,43 @@ static void test_wc_PKCS7_EncodeData (void)
         int             certSz;
         int             keySz;
 
-        fp = fopen("./certs/client_cert_der_1024", "rb");
+        fp = fopen("./certs/1024/client-cert.der", "rb");
         AssertNotNull(fp);
         certSz = fread(cert, 1, sizeof_client_cert_der_1024, fp);
         fclose(fp);
 
-        fp = fopen("./certs/client_key_der_1024", "rb");
+        fp = fopen("./certs/1024/client-key.der", "rb");
         AssertNotNull(fp);
         keySz = fread(key, 1, sizeof_client_key_der_1024, fp);
         fclose(fp);
     #endif
+#elif defined(HAVE_ECC)
+    #if defined(USE_CERT_BUFFERS_256)
+        unsigned char    cert[sizeof_cliecc_cert_der_256];
+        unsigned char    key[sizeof_ecc_clikey_der_256];
+        int              certSz = (int)sizeof(cert);
+        int              keySz = (int)sizeof(key);
+        XMEMSET(cert, 0, certSz);
+        XMEMSET(key, 0, keySz);
+        XMEMCPY(cert, cliecc_cert_der_256, sizeof_cliecc_cert_der_256);
+        XMEMCPY(key, ecc_clikey_der_256, sizeof_ecc_clikey_der_256);
+    #else
+        unsigned char   cert[ONEK_BUF];
+        unsigned char   key[ONEK_BUF];
+        FILE*           fp;
+        int             certSz, keySz;
+
+        fp = fopen("./certs/client-ecc-cert.der", "rb");
+        AssertNotNull(fp);
+        certSz = fread(cert, 1, sizeof_cliecc_cert_der_256, fp);
+        fclose(fp);
+
+        fp = fopen("./certs/client-ecc-key.der", "rb");
+        AssertNotNull(fp);
+        keySz = fread(key, 1, sizeof_ecc_clikey_der_256, fp);
+        fclose(fp);
+    #endif
+#endif
 
     XMEMSET(output, 0, sizeof(output));
 
@@ -14049,6 +14100,7 @@ static void test_wc_PKCS7_EncodeSignedData (void)
     word32      badOutSz = (word32)sizeof(badOut);
     byte        data[] = "Test data to encode.";
 
+#ifndef NO_RSA
     #if defined(USE_CERT_BUFFERS_2048)
         byte        key[sizeof_client_key_der_2048];
         byte        cert[sizeof_client_cert_der_2048];
@@ -14074,16 +14126,43 @@ static void test_wc_PKCS7_EncodeSignedData (void)
         int             certSz;
         int             keySz;
 
-        fp = fopen("./certs/client_cert_der_1024", "rb");
+        fp = fopen("./certs/1024/client-cert.der", "rb");
         AssertNotNull(fp);
         certSz = fread(cert, 1, sizeof_client_cert_der_1024, fp);
         fclose(fp);
 
-        fp = fopen("./certs/client_key_der_1024", "rb");
+        fp = fopen("./certs/1024/client-key.der", "rb");
         AssertNotNull(fp);
         keySz = fread(key, 1, sizeof_client_key_der_1024, fp);
         fclose(fp);
     #endif
+#elif defined(HAVE_ECC)
+    #if defined(USE_CERT_BUFFERS_256)
+        unsigned char    cert[sizeof_cliecc_cert_der_256];
+        unsigned char    key[sizeof_ecc_clikey_der_256];
+        int              certSz = (int)sizeof(cert);
+        int              keySz = (int)sizeof(key);
+        XMEMSET(cert, 0, certSz);
+        XMEMSET(key, 0, keySz);
+        XMEMCPY(cert, cliecc_cert_der_256, sizeof_cliecc_cert_der_256);
+        XMEMCPY(key, ecc_clikey_der_256, sizeof_ecc_clikey_der_256);
+    #else
+        unsigned char   cert[ONEK_BUF];
+        unsigned char   key[ONEK_BUF];
+        FILE*           fp;
+        int             certSz, keySz;
+
+        fp = fopen("./certs/client-ecc-cert.der", "rb");
+        AssertNotNull(fp);
+        certSz = fread(cert, 1, sizeof_cliecc_cert_der_256, fp);
+        fclose(fp);
+
+        fp = fopen("./certs/client-ecc-key.der", "rb");
+        AssertNotNull(fp);
+        keySz = fread(key, 1, sizeof_ecc_clikey_der_256, fp);
+        fclose(fp);
+    #endif
+#endif
 
     XMEMSET(output, 0, outputSz);
     AssertIntEQ(wc_InitRng(&rng), 0);
@@ -14135,6 +14214,7 @@ static void test_wc_PKCS7_VerifySignedData(void)
     word32      badOutSz = (word32)sizeof(badOut);
     byte        data[] = "Test data to encode.";
 
+#ifndef NO_RSA
     #if defined(USE_CERT_BUFFERS_2048)
         byte        key[sizeof_client_key_der_2048];
         byte        cert[sizeof_client_cert_der_2048];
@@ -14160,16 +14240,43 @@ static void test_wc_PKCS7_VerifySignedData(void)
         int             certSz;
         int             keySz;
 
-        fp = fopen("./certs/client_cert_der_1024", "rb");
+        fp = fopen("./certs/1024/client-cert.der", "rb");
         AssertNotNull(fp);
         certSz = fread(cert, 1, sizeof_client_cert_der_1024, fp);
         fclose(fp);
 
-        fp = fopen("./certs/client_key_der_1024", "rb");
+        fp = fopen("./certs/1024/client-key.der", "rb");
         AssertNotNull(fp);
         keySz = fread(key, 1, sizeof_client_key_der_1024, fp);
         fclose(fp);
     #endif
+#elif defined(HAVE_ECC)
+    #if defined(USE_CERT_BUFFERS_256)
+        unsigned char    cert[sizeof_cliecc_cert_der_256];
+        unsigned char    key[sizeof_ecc_clikey_der_256];
+        int              certSz = (int)sizeof(cert);
+        int              keySz = (int)sizeof(key);
+        XMEMSET(cert, 0, certSz);
+        XMEMSET(key, 0, keySz);
+        XMEMCPY(cert, cliecc_cert_der_256, sizeof_cliecc_cert_der_256);
+        XMEMCPY(key, ecc_clikey_der_256, sizeof_ecc_clikey_der_256);
+    #else
+        unsigned char   cert[ONEK_BUF];
+        unsigned char   key[ONEK_BUF];
+        FILE*           fp;
+        int             certSz, keySz;
+
+        fp = fopen("./certs/client-ecc-cert.der", "rb");
+        AssertNotNull(fp);
+        certSz = fread(cert, 1, sizeof_cliecc_cert_der_256, fp);
+        fclose(fp);
+
+        fp = fopen("./certs/client-ecc-key.der", "rb");
+        AssertNotNull(fp);
+        keySz = fread(key, 1, sizeof_ecc_clikey_der_256, fp);
+        fclose(fp);
+    #endif
+#endif
 
     XMEMSET(output, 0, outputSz);
     AssertIntEQ(wc_InitRng(&rng), 0);
@@ -18015,6 +18122,14 @@ static int test_tls13_apis(void)
     AssertIntEQ(wolfSSL_UseKeyShare(clientTls12Ssl, WOLFSSL_ECC_SECP256R1),
                 WOLFSSL_SUCCESS);
     AssertIntEQ(wolfSSL_UseKeyShare(clientSsl, WOLFSSL_ECC_SECP256R1),
+                WOLFSSL_SUCCESS);
+#elif defined(HAVE_CURVE25519)
+    AssertIntEQ(wolfSSL_UseKeyShare(NULL, WOLFSSL_ECC_X25519), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_UseKeyShare(serverSsl, WOLFSSL_ECC_X25519),
+                SIDE_ERROR);
+    AssertIntEQ(wolfSSL_UseKeyShare(clientTls12Ssl, WOLFSSL_ECC_X25519),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_UseKeyShare(clientSsl, WOLFSSL_ECC_X25519),
                 WOLFSSL_SUCCESS);
 #else
     AssertIntEQ(wolfSSL_UseKeyShare(NULL, WOLFSSL_ECC_SECP256R1), BAD_FUNC_ARG);
