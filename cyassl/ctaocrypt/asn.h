@@ -38,10 +38,8 @@
 
 #include <wolfssl/wolfcrypt/asn.h>
 
-#ifndef WOLFSSL_PEMCERT_TODER_DEFINED
 #ifndef NO_FILESYSTEM
-    #define CyaSSL_PemCertToDer wolfSSL_PemCertToDer
-#endif
+    #define CyaSSL_PemCertToDer wc_PemCertToDer
 #endif
 
 #endif /* CTAO_CRYPT_ASN_H */

@@ -1666,6 +1666,13 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
+/* support for disabling PEM to DER */
+#if !defined(WOLFSSL_NO_PEM)
+    #undef  WOLFSSL_PEM_TO_DER
+    #define WOLFSSL_PEM_TO_DER
+#endif
+
+
 #ifdef __cplusplus
     }   /* extern "C" */
 #endif

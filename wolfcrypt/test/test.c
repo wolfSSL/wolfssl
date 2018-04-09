@@ -1042,12 +1042,12 @@ static int _SaveDerAndPem(const byte* der, int derSz,
     #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         FILE* pemFile;
     #endif
-
+    #ifdef WOLFSSL_DER_TO_PEM
         pemSz = wc_DerToPem(der, derSz, pem, pemSz, pemType);
         if (pemSz < 0) {
             return errBase + 2;
         }
-
+    #endif
     #if !defined(NO_FILESYSTEM) && !defined(NO_WRITE_TEMP_FILES)
         pemFile = fopen(filePem, "wb");
         if (!pemFile) {

@@ -913,11 +913,11 @@ WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
     \sa wc_InitCert
     \sa wc_MakeCert
 */
-        WOLFSSL_API int  wc_MakeNtruCert(Cert*, byte* derBuffer, word32 derSz,
-                                     const byte* ntruKey, word16 keySz,
-                                     WC_RNG*);
+WOLFSSL_API int  wc_MakeNtruCert(Cert*, byte* derBuffer, word32 derSz,
+                             const byte* ntruKey, word16 keySz,
+                             WC_RNG*);
 /*!
-    \ingroup Keys
+    \ingroup ASN
     
     \brief Loads a PEM key from a file and converts to a DER encoded buffer.
     
@@ -936,18 +936,18 @@ WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
     char* some_file = "filename";
     unsigned char der[];
 
-    if(wolfSSL_PemPubKeyToDer(some_file, der, sizeof(der)) != 0)
+    if(wc_PemPubKeyToDer(some_file, der, sizeof(der)) != 0)
     {
         //Handle Error
     }
     \endcode
     
-    \sa wolfSSL_PubKeyPemToDer
+    \sa wc_PubKeyPemToDer
 */
-        WOLFSSL_API int wolfSSL_PemPubKeyToDer(const char* fileName,
-                                               unsigned char* derBuf, int derSz);
+WOLFSSL_API int wc_PemPubKeyToDer(const char* fileName,
+                                       unsigned char* derBuf, int derSz);
 /*!
-    \ingroup Keys
+    \ingroup ASN
     
     \brief Convert a PEM encoded public key to DER.  Returns the number of 
     bytes written to the buffer or a negative value for an error.
@@ -966,17 +966,53 @@ WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
     byte some_pem[] = { Initialize with PEM key }
     unsigned char out_buffer[1024]; // Ensure buffer is large enough to fit DER
 
-    if(wolfSSL_PubKeyPemToDer(some_pem, sizeof(some_pem), out_buffer, 
+    if(wc_PubKeyPemToDer(some_pem, sizeof(some_pem), out_buffer, 
     sizeof(out_buffer)) < 0)
     {
         // Handle error
     }
     \endcode
 
-    \sa wolfSSL_PemPubKeyToDer
+    \sa wc_PemPubKeyToDer
 */
-        WOLFSSL_API int wolfSSL_PubKeyPemToDer(const unsigned char*, int,
-                                               unsigned char*, int);
+WOLFSSL_API int wc_PubKeyPemToDer(const unsigned char*, int,
+                                       unsigned char*, int);
+
+/*!
+    \ingroup ASN
+    
+    \brief This function converts a pem certificate to a der certificate, 
+    and places the resulting certificate in the derBuf buffer provided.
+    
+    \return Success On success returns the size of the derBuf generated
+    \return BUFFER_E Returned if the size of derBuf is too small to hold 
+    the certificate generated
+    \return MEMORY_E Returned if the call to XMALLOC fails
+    
+    \param fileName path to the file containing a pem certificate to 
+    convert to a der certificate
+    \param derBuf pointer to a char buffer in which to store the 
+    converted certificate
+    \param derSz size of the char buffer in which to store the 
+    converted certificate
+    
+    _Example_
+    \code
+    char * file = “./certs/client-cert.pem”;
+    int derSz;
+    byte * der = (byte*)XMALLOC(EIGHTK_BUF, NULL, DYNAMIC_TYPE_CERT);
+
+    derSz = wc_PemCertToDer(file, der, EIGHTK_BUF);
+    if(derSz <= 0) {
+        //PemCertToDer error
+    }
+    \endcode
+    
+    \sa none
+*/
+WOLFSSL_API
+int wc_PemCertToDer(const char* fileName,unsigned char* derBuf,int derSz);
+
 /*!
     \ingroup ASN
     
@@ -1015,7 +1051,7 @@ WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
     pemSz = wc_DerToPem(der, derSz,pemFormatted,FOURK_BUF, CERT_TYPE);
     \endcode
     
-    \sa wolfSSL_PemCertToDer
+    \sa wc_PemCertToDer
 */
     WOLFSSL_API int wc_DerToPem(const byte* der, word32 derSz, byte* output,
                                 word32 outputSz, int type);
@@ -1059,10 +1095,108 @@ WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
     pemSz = wc_DerToPemEx(der, derSz,pemFormatted,FOURK_BUF, ,CERT_TYPE);
     \endcode
     
-    \sa wolfSSL_PemCertToDer
+    \sa wc_PemCertToDer
 */
     WOLFSSL_API int wc_DerToPemEx(const byte* der, word32 derSz, byte* output,
                                 word32 outputSz, byte *cipherIno, int type);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Converts a key in PEM format to DER format.
+    
+    \return int the function returns the number of bytes written to 
+    the buffer on successful execution.
+    \return int negative int returned indicating an error.
+    
+    \param pem a pointer to the PEM encoded certificate.
+    \param pemSz the size of the PEM buffer (pem)
+    \param buff a pointer to the copy of the buffer member of the 
+    DerBuffer struct.
+    \param buffSz size of the buffer space allocated in the DerBuffer struct.
+    \param pass password passed into the function.
+    
+    _Example_
+    \code
+    byte* loadBuf;
+    long fileSz = 0;
+    byte* bufSz;
+    static int LoadKeyFile(byte** keyBuf, word32* keyBufSz, 
+    const char* keyFile,
+                    int typeKey, const char* pasword);
+    …
+    bufSz = wc_KeyPemToDer(loadBuf, (int)fileSz, saveBuf,
+    (int)fileSz, password);
+
+    if(saveBufSz > 0){
+        // Bytes were written to the buffer.
+    }
+    \endcode
+    
+    \sa wc_PemToDer
+*/
+WOLFSSL_API int wc_KeyPemToDer(const unsigned char*, int,
+                                    unsigned char*, int, const char*);
+/*!
+    \ingroup CertsKeys
+
+    \brief This function converts a PEM formatted certificate to DER 
+    format. Calls OpenSSL function PemToDer.
+    
+    \return buffer returns the bytes written to the buffer.
+    
+    \param pem pointer PEM formatted certificate.
+    \param pemSz size of the certificate.
+    \param buff buffer to be copied to DER format.
+    \param buffSz size of the buffer.
+    \param type Certificate file type found in asn_public.h enum CertType.
+    
+    _Example_
+    \code
+    const unsigned char* pem;
+    int pemSz;
+    unsigned char buff[BUFSIZE];
+    int buffSz = sizeof(buff)/sizeof(char);
+    int type;   
+    ...
+    if(wc_CertPemToDer(pem, pemSz, buff, buffSz, type) <= 0) {
+        // There were bytes written to buffer
+    }
+    \endcode
+    
+    \sa wc_PemToDer
+*/
+WOLFSSL_API int wc_CertPemToDer(const unsigned char*, int,
+                                     unsigned char*, int, int);
+/*!
+    \ingroup CertsKeys
+
+    \brief Converts the PEM format to DER format.
+    
+    \return int an int type representing the bytes written to buffer.
+    \param <0 returned for an error.
+    \param BAD_FUNC_ARG returned if the DER length is incorrect or if the 
+    pem buff, or buffSz arguments are NULL.
+    
+    _Example_
+    \code
+    unsigned char* pem = “pem file”;
+    int pemSz = sizeof(pem)/sizeof(char);
+    unsigned char* buff;
+    int buffSz;
+    ...
+    if(wc_PubKeyPemToDer(pem, pemSz, buff, buffSz)!= SSL_SUCCESS){
+        // Conversion was not successful
+    }
+    \endcode
+    
+    \sa wc_PubKeyPemToDer
+    \sa wc_PemPubKeyToDer
+    \sa wc_PemToDer
+*/
+        WOLFSSL_API int wc_PubKeyPemToDer(const unsigned char*, int,
+                                               unsigned char*, int);
+
 /*!
     \ingroup ASN
     

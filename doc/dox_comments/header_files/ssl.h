@@ -1366,38 +1366,7 @@ WOLFSSL_API int wolfSSL_use_RSAPrivateKey_file(WOLFSSL*, const char*, int);
     \sa wolfSSL_use_certificate_chain_buffer
 */
     WOLFSSL_API int wolfSSL_CTX_use_NTRUPrivateKey_file(WOLFSSL_CTX*, const char*);
-/*!
-    \ingroup openSSL
-    
-    \brief Loads the PEM certificate from fileName and converts it into DER 
-    format, placing the result into derBuffer which is of size derSz.
-    
-    \return Success If successful the call will return the number of bytes 
-    written to derBuffer.
-    \return SSL_BAD_FILE will be returned if the file doesn’t exist, can’t be 
-    read, or is corrupted.
-    \return MEMORY_E will be returned if an out of memory condition occurs.
-    \return SSL_NO_PEM_HEADER will be returned if the PEM certificate header 
-    can’t be found.
-    \return BUFFER_E will be returned if a chain buffer is bigger than the 
-    receiving buffer.
-    
-    \param filename pointer to the name of the PEM-formatted certificate for 
-    conversion.
-    \param derBuffer the buffer for which the converted PEM certificate will 
-    be placed in DER format.
-    \param derSz size of derBuffer.
-    
-    _Example_
-    \code
-    int derSz;
-    byte derBuf[...];
-    derSz = wolfSSL_PemCertToDer(“./cert.pem”, derBuf, sizeof(derBuf));
-    \endcode
-    
-    \sa SSL_get_peer_certificate
-*/
-    WOLFSSL_API int wolfSSL_PemCertToDer(const char*, unsigned char*, int);
+
 /*!
     \ingroup Setup
 
@@ -7193,102 +7162,7 @@ WOLFSSL_API int wolfSSL_GetMaxOutputSize(WOLFSSL*);
     \sa wolfSSL_CTX_new
 */
 WOLFSSL_API int wolfSSL_SetVersion(WOLFSSL* ssl, int version);
-/*!
-    \ingroup CertsKeys
 
-    \brief Converts a key in PEM format to DER format.
-    
-    \return int the function returns the number of bytes written to 
-    the buffer on successful execution.
-    \return int negative int returned indicating an error.
-    
-    \param pem a pointer to the PEM encoded certificate.
-    \param pemSz the size of the PEM buffer (pem)
-    \param buff a pointer to the copy of the buffer member of the 
-    DerBuffer struct.
-    \param buffSz size of the buffer space allocated in the DerBuffer struct.
-    \param pass password passed into the function.
-    
-    _Example_
-    \code
-    byte* loadBuf;
-    long fileSz = 0;
-    byte* bufSz;
-    static int LoadKeyFile(byte** keyBuf, word32* keyBufSz, 
-    const char* keyFile,
-					int typeKey, const char* pasword);
-    …
-    bufSz = wolfSSL_KeyPemToDer(loadBuf, (int)fileSz, saveBuf,
-    (int)fileSz, password);
-
-    if(saveBufSz > 0){
-    	// Bytes were written to the buffer.
-    }
-    \endcode
-    
-    \sa PemToDer
-*/
-WOLFSSL_API int wolfSSL_KeyPemToDer(const unsigned char*, int,
-                                    unsigned char*, int, const char*);
-/*!
-    \ingroup CertsKeys
-
-    \brief This function converts a PEM formatted certificate to DER 
-    format. Calls OpenSSL function PemToDer.
-    
-    \return buffer returns the bytes written to the buffer.
-    
-    \param pem pointer PEM formatted certificate.
-    \param pemSz size of the certificate.
-    \param buff buffer to be copied to DER format.
-    \param buffSz size of the buffer.
-    \param type Certificate file type found in asn_public.h enum CertType.
-    
-    _Example_
-    \code
-    const unsigned char* pem;
-    int pemSz;
-    unsigned char buff[BUFSIZE];
-    int buffSz = sizeof(buff)/sizeof(char);
-    int type;   
-    ...
-    if(wolfSSL_CertPemToDer(pem, pemSz, buff, buffSz, type) <= 0) {
-	    // There were bytes written to buffer
-    }
-    \endcode
-    
-    \sa PemToDer
-*/
-WOLFSSL_API int wolfSSL_CertPemToDer(const unsigned char*, int,
-                                     unsigned char*, int, int);
-/*!
-    \ingroup CertsKeys
-
-    \brief Converts the PEM format to DER format.
-    
-    \return int an int type representing the bytes written to buffer.
-    \param <0 returned for an error.
-    \param BAD_FUNC_ARG returned if the DER length is incorrect or if the 
-    pem buff, or buffSz arguments are NULL.
-    
-    _Example_
-    \code
-    unsigned char* pem = “pem file”;
-    int pemSz = sizeof(pem)/sizeof(char);
-    unsigned char* buff;
-    int buffSz;
-    ...
-    if(wolfSSL_PubKeyPemToDer(pem, pemSz, buff, buffSz)!= SSL_SUCCESS){
-	    // Conversion was not successful
-    }
-    \endcode
-    
-    \sa wolfSSL_PubKeyPemToDer
-    \sa wolfSSL_PemPubKeyToDer
-    \sa PemToDer
-*/
-        WOLFSSL_API int wolfSSL_PubKeyPemToDer(const unsigned char*, int,
-                                               unsigned char*, int);
 /*!
     \brief Allows caller to set the Atomic User Record Processing 
     Mac/Encrypt Callback.  The callback should return 0 for success 

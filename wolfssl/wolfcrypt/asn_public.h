@@ -340,15 +340,39 @@ WOLFSSL_API int wc_SetExtKeyUsageOID(Cert *cert, const char *oid, word32 sz,
 #endif /* WOLFSSL_CERT_GEN */
 
 
+#if defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM)
+
+    WOLFSSL_API int wc_PemGetHeaderFooter(int type, const char** header, 
+        const char** footer);
+
+#endif
+
+#ifdef WOLFSSL_PEM_TO_DER
+    WOLFSSL_API int wc_PemToDer(const unsigned char* buff, long longSz, int type,
+              DerBuffer** pDer, void* heap, EncryptedInfo* info, int* eccKey);
+
+    WOLFSSL_API int wc_KeyPemToDer(const unsigned char*, int,
+                                   unsigned char*, int, const char*);
+    WOLFSSL_API int wc_CertPemToDer(const unsigned char*, int,
+                                    unsigned char*, int, int);
+#endif /* WOLFSSL_PEM_TO_DER */
+
 #if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_PUB_PEM_TO_DER)
     #ifndef NO_FILESYSTEM
-        WOLFSSL_API int wolfSSL_PemPubKeyToDer(const char* fileName,
-                                               unsigned char* derBuf, int derSz);
+        WOLFSSL_API int wc_PemPubKeyToDer(const char* fileName,
+                                          unsigned char* derBuf, int derSz);
     #endif
 
-    WOLFSSL_API int wolfSSL_PubKeyPemToDer(const unsigned char*, int,
-                                           unsigned char*, int);
+    WOLFSSL_API int wc_PubKeyPemToDer(const unsigned char*, int,
+                                      unsigned char*, int);
 #endif /* WOLFSSL_CERT_EXT || WOLFSSL_PUB_PEM_TO_DER */
+
+#ifdef WOLFSSL_CERT_GEN
+    #ifndef NO_FILESYSTEM
+        WOLFSSL_API int wc_PemCertToDer(const char* fileName,
+                                        unsigned char* derBuf, int derSz);
+    #endif
+#endif /* WOLFSSL_CERT_GEN */
 
 #ifdef WOLFSSL_DER_TO_PEM
     WOLFSSL_API int wc_DerToPem(const byte* der, word32 derSz, byte* output,
@@ -356,18 +380,6 @@ WOLFSSL_API int wc_SetExtKeyUsageOID(Cert *cert, const char *oid, word32 sz,
     WOLFSSL_API int wc_DerToPemEx(const byte* der, word32 derSz, byte* output,
                                 word32 outputSz, byte *cipherIno, int type);
 #endif
-
-WOLFSSL_API int wc_PemGetHeaderFooter(int type, const char** header, 
-    const char** footer);
-WOLFSSL_API int wc_PemToDer(const unsigned char* buff, long longSz, int type,
-          DerBuffer** pDer, void* heap, EncryptedInfo* info, int* eccKey);
-
-#ifdef WOLFSSL_CERT_GEN
-#ifndef NO_FILESYSTEM
-    WOLFSSL_API int wolfSSL_PemCertToDer(const char* fileName,
-                                         unsigned char* derBuf, int derSz);
-#endif
-#endif /* WOLFSSL_CERT_GEN */
 
 #ifdef HAVE_ECC
     /* private key helpers */

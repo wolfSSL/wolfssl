@@ -1189,7 +1189,7 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
 
         ret = -1;
         if (saveBuf != NULL) {
-            saveBufSz = wolfSSL_KeyPemToDer(loadBuf, (int)fileSz,
+            saveBufSz = wc_KeyPemToDer(loadBuf, (int)fileSz,
                                                 saveBuf, (int)fileSz, password);
             if (saveBufSz < 0) {
                 saveBufSz = 0;

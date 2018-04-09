@@ -1702,10 +1702,14 @@ WOLFSSL_API int wolfSSL_GetOutputSize(WOLFSSL*, int);
 WOLFSSL_API int wolfSSL_GetMaxOutputSize(WOLFSSL*);
 WOLFSSL_API int wolfSSL_GetVersion(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_SetVersion(WOLFSSL* ssl, int version);
-WOLFSSL_API int wolfSSL_KeyPemToDer(const unsigned char*, int,
-                                    unsigned char*, int, const char*);
-WOLFSSL_API int wolfSSL_CertPemToDer(const unsigned char*, int,
-                                     unsigned char*, int, int);
+
+/* moved to asn.c, old names kept for backwards compatability */
+#define wolfSSL_KeyPemToDer    wc_KeyPemToDer
+#define wolfSSL_CertPemToDer   wc_CertPemToDer
+#define wolfSSL_PemPubKeyToDer wc_PemPubKeyToDer
+#define wolfSSL_PubKeyPemToDer wc_PubKeyPemToDer
+#define wolfSSL_PemCertToDer   wc_PemCertToDer
+
 
 typedef void (*CallbackCACache)(unsigned char* der, int sz, int type);
 typedef void (*CbMissingCRL)(const char* url);

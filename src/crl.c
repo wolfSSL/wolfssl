@@ -442,6 +442,7 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
         return BAD_FUNC_ARG;
 
     if (type == WOLFSSL_FILETYPE_PEM) {
+    #ifdef WOLFSSL_PEM_TO_DER
         ret = PemToDer(buff, sz, CRL_TYPE, &der, NULL, NULL, NULL);
         if (ret == 0) {
             myBuffer = der->buffer;
@@ -452,6 +453,9 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
             FreeDer(&der);
             return -1;
         }
+    #else
+        ret = NOT_COMPILED_IN;
+    #endif
     }
 
 #ifdef WOLFSSL_SMALL_STACK

@@ -1323,7 +1323,7 @@ static INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
             return MEMORY_E;
         }
 
-        ret = wolfSSL_KeyPemToDer(buf, (word32)bufLen, *derBuf, (word32)bufLen, NULL);
+        ret = wc_KeyPemToDer(buf, (word32)bufLen, *derBuf, (word32)bufLen, NULL);
         if (ret < 0) {
             free(buf);
             free(*derBuf);

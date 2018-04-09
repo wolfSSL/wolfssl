@@ -2926,11 +2926,11 @@ static void test_wolfSSL_PKCS8(void)
     wolfSSL_CTX_free(ctx);
 
     /* decrypt PKCS8 PEM to key in DER format with not using WOLFSSL_CTX */
-    AssertIntGT(wolfSSL_KeyPemToDer(buffer, bytes, der, FOURK_BUF, "yassl123"),
+    AssertIntGT(wc_KeyPemToDer(buffer, bytes, der, FOURK_BUF, "yassl123"),
                 0);
 
     /* test that error value is returned with a bad password */
-    AssertIntLT(wolfSSL_KeyPemToDer(buffer, bytes, der, FOURK_BUF, "bad"), 0);
+    AssertIntLT(wc_KeyPemToDer(buffer, bytes, der, FOURK_BUF, "bad"), 0);
 
     printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA */
