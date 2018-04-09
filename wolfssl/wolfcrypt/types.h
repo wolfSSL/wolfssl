@@ -296,9 +296,6 @@
         #define FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP)  /* nothing to free, its stack */
     #endif
 
-    #ifndef WOLFSSL_LEANPSK
-	    char* mystrnstr(const char* s1, const char* s2, unsigned int n);
-    #endif
     #if !defined(USE_WOLF_STRTOK) && \
             (defined(__MINGW32__) || defined(WOLFSSL_TIRTOS))
         #define USE_WOLF_STRTOK
@@ -483,6 +480,43 @@
 	    MIN_STACK_BUFFER = 8
 	};
 
+    /* hash types */
+    enum wc_HashType {
+        WC_HASH_TYPE_NONE = 0,
+        WC_HASH_TYPE_MD2 = 1,
+        WC_HASH_TYPE_MD4 = 2,
+        WC_HASH_TYPE_MD5 = 3,
+        WC_HASH_TYPE_SHA = 4, /* SHA-1 (not old SHA-0) */
+        WC_HASH_TYPE_SHA224 = 5,
+        WC_HASH_TYPE_SHA256 = 6,
+        WC_HASH_TYPE_SHA384 = 7,
+        WC_HASH_TYPE_SHA512 = 8,
+        WC_HASH_TYPE_MD5_SHA = 9,
+        WC_HASH_TYPE_SHA3_224 = 10,
+        WC_HASH_TYPE_SHA3_256 = 11,
+        WC_HASH_TYPE_SHA3_384 = 12,
+        WC_HASH_TYPE_SHA3_512 = 13,
+        WC_HASH_TYPE_BLAKE2B = 14,
+
+        WC_HASH_TYPE_MAX = WC_HASH_TYPE_BLAKE2B
+    };
+
+    /* cipher types */
+    enum CipherTypes {
+        WC_CIPHER_NONE = 0,
+        WC_CIPHER_AES = 1,
+        WC_CIPHER_AES_CBC = 2,
+        WC_CIPHER_AES_GCM = 3,
+        WC_CIPHER_AES_CTR = 4,
+        WC_CIPHER_AES_XTS = 5,
+        WC_CIPHER_AES_CFB = 6,
+        WC_CIPHER_DES3 = 7,
+        WC_CIPHER_DES = 8,
+        WC_CIPHER_CHACHA = 9,
+        WC_CIPHER_HC128 = 10,
+
+        WC_CIPHER_MAX = WC_CIPHER_HC128
+    };
 
 
 	/* settings detection for compile vs runtime math incompatibilities */

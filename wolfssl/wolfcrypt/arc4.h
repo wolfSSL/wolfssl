@@ -38,7 +38,8 @@
 
 enum {
 	ARC4_ENC_TYPE   = 4,    /* cipher unique type */
-    ARC4_STATE_SIZE = 256
+    ARC4_STATE_SIZE = 256,
+    RC4_KEY_SIZE    = 16,   /* always 128bit           */
 };
 
 /* ARC4 encryption and decryption */

@@ -658,11 +658,21 @@ int SuiteTest(void)
         goto exit;
     }
 #endif
-
 #ifndef NO_PSK
     /* add psk extra suites */
     strcpy(argv0[1], "tests/test-psk-no-id.conf");
     printf("starting psk no identity extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+#endif
+#if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_DES3)
+    /* test encrypted keys */
+    strcpy(argv0[1], "tests/test-enckeys.conf");
+    printf("starting encrypted keys extra cipher suite tests\n");
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);

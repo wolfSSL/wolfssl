@@ -36,7 +36,7 @@
 
 /* in bytes */
 enum {
-    MD4             =  9,    /* hash type unique */
+    MD4             =  WC_HASH_TYPE_MD4,
     MD4_BLOCK_SIZE  = 64,
     MD4_DIGEST_SIZE = 16,
     MD4_PAD_SIZE    = 56

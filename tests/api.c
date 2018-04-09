@@ -1186,7 +1186,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     wolfSSL_CTX_set_verify(ctx,
                           WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
 
-#ifdef OPENSSL_EXTRA
+#ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
@@ -1334,7 +1334,7 @@ static void test_client_nofail(void* args, void *cb)
     }
     ctx = wolfSSL_CTX_new(method);
 
-#ifdef OPENSSL_EXTRA
+#ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
@@ -1466,7 +1466,7 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
     wolfSSL_CTX_set_verify(ctx,
                           WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
 
-#ifdef OPENSSL_EXTRA
+#ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 #ifdef WOLFSSL_SESSION_EXPORT
@@ -1606,7 +1606,7 @@ static void run_wolfssl_client(void* args)
 
     ((func_args*)args)->return_code = TEST_FAIL;
 
-#ifdef OPENSSL_EXTRA
+#ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
@@ -2890,7 +2890,8 @@ static void test_wolfSSL_PKCS8(void)
 {
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
         !defined(NO_DES3) && !defined(NO_FILESYSTEM) && \
-        !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA)
+        !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA) && \
+        defined(WOLFSSL_ENCRYPTED_KEYS)
     byte buffer[FOURK_BUF];
     byte der[FOURK_BUF];
     char file[] = "./certs/server-keyPkcs8Enc.pem";
@@ -2925,11 +2926,11 @@ static void test_wolfSSL_PKCS8(void)
     wolfSSL_CTX_free(ctx);
 
     /* decrypt PKCS8 PEM to key in DER format with not using WOLFSSL_CTX */
-    AssertIntGT(wolfSSL_KeyPemToDer(buffer, bytes, der, FOURK_BUF, "yassl123"),
+    AssertIntGT(wc_KeyPemToDer(buffer, bytes, der, FOURK_BUF, "yassl123"),
                 0);
 
     /* test that error value is returned with a bad password */
-    AssertIntLT(wolfSSL_KeyPemToDer(buffer, bytes, der, FOURK_BUF, "bad"), 0);
+    AssertIntLT(wc_KeyPemToDer(buffer, bytes, der, FOURK_BUF, "bad"), 0);
 
     printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA */
@@ -4623,7 +4624,7 @@ static int test_wc_InitSha3 (void)
 {
     int             ret = 0;
 #if defined(WOLFSSL_SHA3)
-    Sha3            sha3;
+    wc_Sha3            sha3;
 
     #if !defined(WOLFSSL_NOSHA3_224)
         printf(testingFmt, "wc_InitSha3_224()");
@@ -4710,7 +4711,7 @@ static int testing_wc_Sha3_Update (void)
     int         ret = 0;
 
 #if defined(WOLFSSL_SHA3)
-    Sha3        sha3;
+    wc_Sha3        sha3;
     byte        msg[] = "Everybody's working for the weekend.";
     byte        msg2[] = "Everybody gets Friday off.";
     byte        msgCmp[] = "\x45\x76\x65\x72\x79\x62\x6f\x64\x79\x27\x73\x20"
@@ -4908,14 +4909,14 @@ static int test_wc_Sha3_224_Final (void)
     int         ret = 0;
 
 #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
-    Sha3        sha3;
+    wc_Sha3        sha3;
     const char* msg    = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnom"
                          "nopnopq";
     const char* expOut = "\x8a\x24\x10\x8b\x15\x4a\xda\x21\xc9\xfd\x55"
                          "\x74\x49\x44\x79\xba\x5c\x7e\x7a\xb7\x6e\xf2"
                          "\x64\xea\xd0\xfc\xce\x33";
-    byte        hash[SHA3_224_DIGEST_SIZE];
-    byte        hashRet[SHA3_224_DIGEST_SIZE];
+    byte        hash[WC_SHA3_224_DIGEST_SIZE];
+    byte        hashRet[WC_SHA3_224_DIGEST_SIZE];
 
     /* Init stack variables. */
     XMEMSET(hash, 0, sizeof(hash));
@@ -4930,7 +4931,7 @@ static int test_wc_Sha3_224_Final (void)
     ret= wc_Sha3_224_Update(&sha3, (byte*)msg, (word32)XSTRLEN(msg));
     if (ret == 0) {
         ret = wc_Sha3_224_Final(&sha3, hash);
-        if (ret == 0 && XMEMCMP(expOut, hash, SHA3_224_DIGEST_SIZE) != 0) {
+        if (ret == 0 && XMEMCMP(expOut, hash, WC_SHA3_224_DIGEST_SIZE) != 0) {
             ret = WOLFSSL_FATAL_ERROR;
         }
     }
@@ -4967,7 +4968,7 @@ static int test_wc_Sha3_224_Final (void)
 
         if (ret == 0) {
             ret = wc_Sha3_224_Final(&sha3, hash);
-            if (ret == 0 && XMEMCMP(hash, hashRet, SHA3_224_DIGEST_SIZE) != 0) {
+            if (ret == 0 && XMEMCMP(hash, hashRet, WC_SHA3_224_DIGEST_SIZE) != 0) {
                 ret = WOLFSSL_FATAL_ERROR;
             }
         }
@@ -5001,14 +5002,14 @@ static int test_wc_Sha3_256_Final (void)
     int         ret = 0;
 
 #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
-    Sha3        sha3;
+    wc_Sha3        sha3;
     const char* msg    = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnom"
                          "nopnopq";
     const char* expOut = "\x41\xc0\xdb\xa2\xa9\xd6\x24\x08\x49\x10\x03\x76\xa8"
                         "\x23\x5e\x2c\x82\xe1\xb9\x99\x8a\x99\x9e\x21\xdb\x32"
                         "\xdd\x97\x49\x6d\x33\x76";
-    byte        hash[SHA3_256_DIGEST_SIZE];
-    byte        hashRet[SHA3_256_DIGEST_SIZE];
+    byte        hash[WC_SHA3_256_DIGEST_SIZE];
+    byte        hashRet[WC_SHA3_256_DIGEST_SIZE];
 
     /* Init stack variables. */
     XMEMSET(hash, 0, sizeof(hash));
@@ -5023,7 +5024,7 @@ static int test_wc_Sha3_256_Final (void)
     ret= wc_Sha3_256_Update(&sha3, (byte*)msg, (word32)XSTRLEN(msg));
     if (ret == 0) {
         ret = wc_Sha3_256_Final(&sha3, hash);
-        if (ret == 0 && XMEMCMP(expOut, hash, SHA3_256_DIGEST_SIZE) != 0) {
+        if (ret == 0 && XMEMCMP(expOut, hash, WC_SHA3_256_DIGEST_SIZE) != 0) {
             ret = WOLFSSL_FATAL_ERROR;
         }
     }
@@ -5057,7 +5058,7 @@ static int test_wc_Sha3_256_Final (void)
         }
         if (ret == 0) {
             ret = wc_Sha3_256_Final(&sha3, hash);
-            if (ret == 0 && XMEMCMP(hash, hashRet, SHA3_256_DIGEST_SIZE) != 0) {
+            if (ret == 0 && XMEMCMP(hash, hashRet, WC_SHA3_256_DIGEST_SIZE) != 0) {
                 ret = WOLFSSL_FATAL_ERROR;
             }
         }
@@ -5091,15 +5092,15 @@ static int test_wc_Sha3_384_Final (void)
     int         ret = 0;
 
 #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
-    Sha3        sha3;
+    wc_Sha3        sha3;
     const char* msg    = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnom"
                          "nopnopq";
     const char* expOut = "\x99\x1c\x66\x57\x55\xeb\x3a\x4b\x6b\xbd\xfb\x75\xc7"
                          "\x8a\x49\x2e\x8c\x56\xa2\x2c\x5c\x4d\x7e\x42\x9b\xfd"
                          "\xbc\x32\xb9\xd4\xad\x5a\xa0\x4a\x1f\x07\x6e\x62\xfe"
                          "\xa1\x9e\xef\x51\xac\xd0\x65\x7c\x22";
-    byte        hash[SHA3_384_DIGEST_SIZE];
-    byte        hashRet[SHA3_384_DIGEST_SIZE];
+    byte        hash[WC_SHA3_384_DIGEST_SIZE];
+    byte        hashRet[WC_SHA3_384_DIGEST_SIZE];
 
     /* Init stack variables. */
     XMEMSET(hash, 0, sizeof(hash));
@@ -5114,7 +5115,7 @@ static int test_wc_Sha3_384_Final (void)
     ret= wc_Sha3_384_Update(&sha3, (byte*)msg, (word32)XSTRLEN(msg));
     if (ret == 0) {
         ret = wc_Sha3_384_Final(&sha3, hash);
-        if (ret == 0 && XMEMCMP(expOut, hash, SHA3_384_DIGEST_SIZE) != 0) {
+        if (ret == 0 && XMEMCMP(expOut, hash, WC_SHA3_384_DIGEST_SIZE) != 0) {
             ret = WOLFSSL_FATAL_ERROR;
         }
     }
@@ -5148,7 +5149,7 @@ static int test_wc_Sha3_384_Final (void)
         }
         if (ret == 0) {
             ret = wc_Sha3_384_Final(&sha3, hash);
-            if (ret == 0 && XMEMCMP(hash, hashRet, SHA3_384_DIGEST_SIZE) != 0) {
+            if (ret == 0 && XMEMCMP(hash, hashRet, WC_SHA3_384_DIGEST_SIZE) != 0) {
                 ret = WOLFSSL_FATAL_ERROR;
             }
         }
@@ -5183,7 +5184,7 @@ static int test_wc_Sha3_512_Final (void)
     int         ret = 0;
 
 #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
-    Sha3        sha3;
+    wc_Sha3        sha3;
     const char* msg    = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnom"
                          "nopnopq";
     const char* expOut = "\x04\xa3\x71\xe8\x4e\xcf\xb5\xb8\xb7\x7c\xb4\x86\x10"
@@ -5191,8 +5192,8 @@ static int test_wc_Sha3_512_Final (void)
                          "\xec\x2f\x1e\x91\x63\x6d\xee\x69\x1f\xbe\x0c\x98\x53"
                          "\x02\xba\x1b\x0d\x8d\xc7\x8c\x08\x63\x46\xb5\x33\xb4"
                          "\x9c\x03\x0d\x99\xa2\x7d\xaf\x11\x39\xd6\xe7\x5e";
-    byte        hash[SHA3_512_DIGEST_SIZE];
-    byte        hashRet[SHA3_512_DIGEST_SIZE];
+    byte        hash[WC_SHA3_512_DIGEST_SIZE];
+    byte        hashRet[WC_SHA3_512_DIGEST_SIZE];
 
     /* Init stack variables. */
     XMEMSET(hash, 0, sizeof(hash));
@@ -5207,7 +5208,7 @@ static int test_wc_Sha3_512_Final (void)
     ret= wc_Sha3_512_Update(&sha3, (byte*)msg, (word32)XSTRLEN(msg));
     if (ret == 0) {
         ret = wc_Sha3_512_Final(&sha3, hash);
-        if (ret == 0 && XMEMCMP(expOut, hash, SHA3_512_DIGEST_SIZE) != 0) {
+        if (ret == 0 && XMEMCMP(expOut, hash, WC_SHA3_512_DIGEST_SIZE) != 0) {
             ret = WOLFSSL_FATAL_ERROR;
         }
     }
@@ -5241,7 +5242,7 @@ static int test_wc_Sha3_512_Final (void)
         }
         if (ret == 0) {
             ret = wc_Sha3_512_Final(&sha3, hash);
-            if (ret == 0 && XMEMCMP(hash, hashRet, SHA3_512_DIGEST_SIZE) != 0) {
+            if (ret == 0 && XMEMCMP(hash, hashRet, WC_SHA3_512_DIGEST_SIZE) != 0) {
                 ret = WOLFSSL_FATAL_ERROR;
             }
         }
@@ -5274,11 +5275,11 @@ static int test_wc_Sha3_224_Copy (void)
 {
     int         ret = 0;
 #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_224)
-    Sha3        sha3, sha3Cpy;
+    wc_Sha3        sha3, sha3Cpy;
     const char* msg = "Everyone gets Friday off.";
     word32      msglen = (word32)XSTRLEN(msg);
-    byte        hash[SHA3_224_DIGEST_SIZE];
-    byte        hashCpy[SHA3_224_DIGEST_SIZE];
+    byte        hash[WC_SHA3_224_DIGEST_SIZE];
+    byte        hashCpy[WC_SHA3_224_DIGEST_SIZE];
 
     XMEMSET(hash, 0, sizeof(hash));
     XMEMSET(hashCpy, 0, sizeof(hashCpy));
@@ -5339,11 +5340,11 @@ static int test_wc_Sha3_256_Copy (void)
 {
     int         ret = 0;
 #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_256)
-    Sha3        sha3, sha3Cpy;
+    wc_Sha3        sha3, sha3Cpy;
     const char* msg = "Everyone gets Friday off.";
     word32      msglen = (word32)XSTRLEN(msg);
-    byte        hash[SHA3_256_DIGEST_SIZE];
-    byte        hashCpy[SHA3_256_DIGEST_SIZE];
+    byte        hash[WC_SHA3_256_DIGEST_SIZE];
+    byte        hashCpy[WC_SHA3_256_DIGEST_SIZE];
 
     XMEMSET(hash, 0, sizeof(hash));
     XMEMSET(hashCpy, 0, sizeof(hashCpy));
@@ -5404,11 +5405,11 @@ static int test_wc_Sha3_384_Copy (void)
 {
     int         ret = 0;
 #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_384)
-    Sha3        sha3, sha3Cpy;
+    wc_Sha3        sha3, sha3Cpy;
     const char* msg = "Everyone gets Friday off.";
     word32      msglen = (word32)XSTRLEN(msg);
-    byte        hash[SHA3_384_DIGEST_SIZE];
-    byte        hashCpy[SHA3_384_DIGEST_SIZE];
+    byte        hash[WC_SHA3_384_DIGEST_SIZE];
+    byte        hashCpy[WC_SHA3_384_DIGEST_SIZE];
 
     XMEMSET(hash, 0, sizeof(hash));
     XMEMSET(hashCpy, 0, sizeof(hashCpy));
@@ -5469,11 +5470,11 @@ static int test_wc_Sha3_512_Copy (void)
     int         ret = 0;
 
 #if defined(WOLFSSL_SHA3) && !defined(WOLFSSL_NOSHA3_512)
-    Sha3        sha3, sha3Cpy;
+    wc_Sha3        sha3, sha3Cpy;
     const char* msg = "Everyone gets Friday off.";
     word32      msglen = (word32)XSTRLEN(msg);
-    byte        hash[SHA3_512_DIGEST_SIZE];
-    byte        hashCpy[SHA3_512_DIGEST_SIZE];
+    byte        hash[WC_SHA3_512_DIGEST_SIZE];
+    byte        hashCpy[WC_SHA3_512_DIGEST_SIZE];
 
     XMEMSET(hash, 0, sizeof(hash));
     XMEMSET(hashCpy, 0, sizeof(hashCpy));
@@ -15235,7 +15236,8 @@ static void test_wolfSSL_PEM_PrivateKey(void)
     EVP_PKEY_free(pkey);
     EVP_PKEY_free(pkey2);
 
-    #if !defined(NO_DES3) /* key is DES encrypted */
+    /* key is DES encrypted */
+    #if !defined(NO_DES3) && defined(WOLFSSL_ENCRYPTED_KEYS)
     {
         pem_password_cb* passwd_cb;
         void* passwd_cb_userdata;
@@ -15245,7 +15247,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
         AssertNotNull(ctx = SSL_CTX_new(TLSv1_2_server_method()));
 
         AssertNotNull(bio = BIO_new_file("./certs/server-keyEnc.pem", "rb"));
-        SSL_CTX_set_default_passwd_cb(ctx, &PasswordCallBack);
+        SSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
         AssertNotNull(passwd_cb = SSL_CTX_get_default_passwd_cb(ctx));
         AssertNull(passwd_cb_userdata =
             SSL_CTX_get_default_passwd_cb_userdata(ctx));
@@ -15565,8 +15567,10 @@ static void test_wolfSSL_CTX_add_extra_chain_cert(void)
 
     AssertIntEQ((int)SSL_CTX_add_extra_chain_cert(ctx, x509), SSL_SUCCESS);
 
+#ifdef WOLFSSL_ENCRYPTED_KEYS
     AssertNull(SSL_CTX_get_default_passwd_cb(ctx));
     AssertNull(SSL_CTX_get_default_passwd_cb_userdata(ctx));
+#endif
 
     SSL_CTX_free(ctx);
     printf(resultFmt, passed);
@@ -17116,8 +17120,9 @@ static void test_wolfSSL_SESSION(void)
     AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, cliCertFile, SSL_FILETYPE_PEM));
     AssertTrue(wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, SSL_FILETYPE_PEM));
     AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0), SSL_SUCCESS);
+#ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
-
+#endif
 
     XMEMSET(&server_args, 0, sizeof(func_args));
 #ifdef WOLFSSL_TIRTOS

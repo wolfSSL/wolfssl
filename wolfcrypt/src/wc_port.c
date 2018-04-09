@@ -1431,6 +1431,26 @@ time_t XTIME(time_t * timer)
 #endif /* WOLFSSL_XILINX */
 #endif /* !NO_ASN_TIME */
 
+#ifndef WOLFSSL_LEANPSK
+char* mystrnstr(const char* s1, const char* s2, unsigned int n)
+{
+    unsigned int s2_len = (unsigned int)XSTRLEN(s2);
+
+    if (s2_len == 0)
+        return (char*)s1;
+
+    while (n >= s2_len && s1[0]) {
+        if (s1[0] == s2[0])
+            if (XMEMCMP(s1, s2, s2_len) == 0)
+                return (char*)s1;
+        s1++;
+        n--;
+    }
+
+    return NULL;
+}
+#endif
+
 #if defined(WOLFSSL_TI_CRYPT) || defined(WOLFSSL_TI_HASH)
     #include <wolfcrypt/src/port/ti/ti-ccm.c>  /* initialize and Mutex for TI Crypt Engine */
     #include <wolfcrypt/src/port/ti/ti-hash.c> /* md5, sha1, sha224, sha256 */

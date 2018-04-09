@@ -27,5 +27,6 @@ EXTRA_DIST += tests/test.conf \
               tests/test-dtls.conf \
               tests/test-sctp.conf \
               tests/test-sig.conf \
-              tests/test-ed25519.conf
+              tests/test-ed25519.conf \
+              tests/test-enckeys.conf
 DISTCLEANFILES+= tests/.libs/unit.test

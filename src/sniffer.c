@@ -1189,7 +1189,7 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
 
         ret = -1;
         if (saveBuf != NULL) {
-            saveBufSz = wolfSSL_KeyPemToDer(loadBuf, (int)fileSz,
+            saveBufSz = wc_KeyPemToDer(loadBuf, (int)fileSz,
                                                 saveBuf, (int)fileSz, password);
             if (saveBufSz < 0) {
                 saveBufSz = 0;
@@ -1300,9 +1300,11 @@ static int SetNamedPrivateKey(const char* name, const char* address, int port,
 
     if (name == NULL) {
         if (password) {
+    #ifdef WOLFSSL_ENCRYPTED_KEYS
             SSL_CTX_set_default_passwd_cb(sniffer->ctx, SetPassword);
             SSL_CTX_set_default_passwd_cb_userdata(
                                                  sniffer->ctx, (void*)password);
+    #endif
         }
         ret = SSL_CTX_use_PrivateKey_file(sniffer->ctx, keyFile, type);
         if (ret != WOLFSSL_SUCCESS) {

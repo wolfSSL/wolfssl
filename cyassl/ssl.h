@@ -657,7 +657,6 @@
 
 
 /* OpenSSL Compatibility Layer */
-#define CyaSSL_PemCertToDer               wolfSSL_PemCertToDer
 #define CyaSSL_get_sessionID              wolfSSL_get_sessionID
 #define CyaSSL_get_peer_count             wolfSSL_get_peer_count
 #define CyaSSL_get_chain_cert             wolfSSL_get_chain_cert

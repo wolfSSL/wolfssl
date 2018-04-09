@@ -81,7 +81,7 @@
 
 /* in bytes */
 enum {
-    WC_SHA512              =   4,   /* hash type unique */
+    WC_SHA512              =   WC_HASH_TYPE_SHA512,
     WC_SHA512_BLOCK_SIZE   = 128,
     WC_SHA512_DIGEST_SIZE  =  64,
     WC_SHA512_PAD_SIZE     = 112
@@ -133,11 +133,12 @@ WOLFSSL_API int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst);
 
 /* in bytes */
 enum {
-    WC_SHA384              =   5,   /* hash type unique */
+    WC_SHA384              =   WC_HASH_TYPE_SHA384,
     WC_SHA384_BLOCK_SIZE   =   WC_SHA512_BLOCK_SIZE,
     WC_SHA384_DIGEST_SIZE  =   48,
     WC_SHA384_PAD_SIZE     =   WC_SHA512_PAD_SIZE
 };
+
 
 typedef wc_Sha512 wc_Sha384;
 #endif /* HAVE_FIPS */

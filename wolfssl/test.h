@@ -462,7 +462,7 @@ static INLINE int mygetopt(int argc, char** argv, const char* optstring)
 }
 
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+#ifdef WOLFSSL_ENCRYPTED_KEYS
 
 static INLINE int PasswordCallBack(char* passwd, int sz, int rw, void* userdata)
 {
@@ -1323,7 +1323,7 @@ static INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
             return MEMORY_E;
         }
 
-        ret = wolfSSL_KeyPemToDer(buf, (word32)bufLen, *derBuf, (word32)bufLen, NULL);
+        ret = wc_KeyPemToDer(buf, (word32)bufLen, *derBuf, (word32)bufLen, NULL);
         if (ret < 0) {
             free(buf);
             free(*derBuf);

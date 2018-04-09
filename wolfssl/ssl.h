@@ -33,6 +33,7 @@
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/version.h>
 #include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/asn_public.h>
 
 #ifdef HAVE_WOLF_EVENT
     #include <wolfssl/wolfcrypt/wolfevent.h>
@@ -514,11 +515,6 @@ WOLFSSL_API int wolfSSL_use_RSAPrivateKey_file(WOLFSSL*, const char*, int);
     /* load NTRU private key blob */
 #endif
 
-#ifndef WOLFSSL_PEMCERT_TODER_DEFINED
-    WOLFSSL_API int wolfSSL_PemCertToDer(const char*, unsigned char*, int);
-    #define WOLFSSL_PEMCERT_TODER_DEFINED
-#endif
-
 #endif /* !NO_FILESYSTEM && !NO_CERTS */
 
 WOLFSSL_API WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD*);
@@ -597,7 +593,6 @@ WOLFSSL_API
 #endif /* SESSION_INDEX && SESSION_CERTS */
 
 typedef int (*VerifyCallback)(int, WOLFSSL_X509_STORE_CTX*);
-typedef int (pem_password_cb)(char*, int, int, void*);
 #ifdef OPENSSL_EXTRA
 typedef void (CallbackInfoState)(const WOLFSSL*, int, int);
 
@@ -963,7 +958,8 @@ WOLFSSL_API void wolfSSL_CTX_set_default_passwd_cb_userdata(WOLFSSL_CTX*,
                                                           void* userdata);
 WOLFSSL_API void wolfSSL_CTX_set_default_passwd_cb(WOLFSSL_CTX*,
                                                    pem_password_cb*);
-
+WOLFSSL_API pem_password_cb* wolfSSL_CTX_get_default_passwd_cb(WOLFSSL_CTX *ctx);
+WOLFSSL_API void *wolfSSL_CTX_get_default_passwd_cb_userdata(WOLFSSL_CTX *ctx);
 
 WOLFSSL_API void wolfSSL_CTX_set_info_callback(WOLFSSL_CTX*,
                           void (*)(const WOLFSSL* ssl, int type, int val));
@@ -1706,21 +1702,14 @@ WOLFSSL_API int wolfSSL_GetOutputSize(WOLFSSL*, int);
 WOLFSSL_API int wolfSSL_GetMaxOutputSize(WOLFSSL*);
 WOLFSSL_API int wolfSSL_GetVersion(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_SetVersion(WOLFSSL* ssl, int version);
-WOLFSSL_API int wolfSSL_KeyPemToDer(const unsigned char*, int,
-                                    unsigned char*, int, const char*);
-WOLFSSL_API int wolfSSL_CertPemToDer(const unsigned char*, int,
-                                     unsigned char*, int, int);
-#if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_PUB_PEM_TO_DER)
-    #ifndef WOLFSSL_PEMPUBKEY_TODER_DEFINED
-        #ifndef NO_FILESYSTEM
-            WOLFSSL_API int wolfSSL_PemPubKeyToDer(const char* fileName,
-                                                   unsigned char* derBuf, int derSz);
-        #endif
-        WOLFSSL_API int wolfSSL_PubKeyPemToDer(const unsigned char*, int,
-                                               unsigned char*, int);
-        #define WOLFSSL_PEMPUBKEY_TODER_DEFINED
-    #endif /* WOLFSSL_PEMPUBKEY_TODER_DEFINED */
-#endif /* WOLFSSL_CERT_EXT || WOLFSSL_PUB_PEM_TO_DER*/
+
+/* moved to asn.c, old names kept for backwards compatability */
+#define wolfSSL_KeyPemToDer    wc_KeyPemToDer
+#define wolfSSL_CertPemToDer   wc_CertPemToDer
+#define wolfSSL_PemPubKeyToDer wc_PemPubKeyToDer
+#define wolfSSL_PubKeyPemToDer wc_PubKeyPemToDer
+#define wolfSSL_PemCertToDer   wc_PemCertToDer
+
 
 typedef void (*CallbackCACache)(unsigned char* der, int sz, int type);
 typedef void (*CbMissingCRL)(const char* url);
@@ -2535,8 +2524,6 @@ WOLFSSL_API size_t wolfSSL_get_server_random(const WOLFSSL *ssl,
                                              unsigned char *out, size_t outlen);
 WOLFSSL_API size_t wolfSSL_get_client_random(const WOLFSSL* ssl,
                                               unsigned char* out, size_t outSz);
-WOLFSSL_API pem_password_cb* wolfSSL_CTX_get_default_passwd_cb(WOLFSSL_CTX *ctx);
-WOLFSSL_API void *wolfSSL_CTX_get_default_passwd_cb_userdata(WOLFSSL_CTX *ctx);
 WOLFSSL_API int wolfSSL_CTX_use_PrivateKey(WOLFSSL_CTX *ctx, WOLFSSL_EVP_PKEY *pkey);
 WOLFSSL_API WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509(WOLFSSL_BIO *bp, WOLFSSL_X509 **x, pem_password_cb *cb, void *u);
 WOLFSSL_API WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509_AUX

@@ -338,7 +338,7 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
     if (ctx == NULL)
         return BAD_FUNC_ARG;
 
-    if (keySz != 16 && keySz != 32)
+    if (keySz != (CHACHA_MAX_KEY_SZ/2) && keySz != CHACHA_MAX_KEY_SZ)
         return BAD_FUNC_ARG;
 
 #ifdef XSTREAM_ALIGN
@@ -369,7 +369,7 @@ int wc_Chacha_SetKey(ChaCha* ctx, const byte* key, word32 keySz)
     ctx->X[5] = U8TO32_LITTLE(k +  4);
     ctx->X[6] = U8TO32_LITTLE(k +  8);
     ctx->X[7] = U8TO32_LITTLE(k + 12);
-    if (keySz == 32) {
+    if (keySz == CHACHA_MAX_KEY_SZ) {
         k += 16;
         constants = sigma;
     }

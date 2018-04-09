@@ -116,10 +116,10 @@ int CRYPT_HMAC_Finalize(CRYPT_HMAC_CTX*, unsigned char*);
 
 /* HMAC types */
 enum {
-    CRYPT_HMAC_SHA    = 1,
-    CRYPT_HMAC_SHA256 = 2,
-    CRYPT_HMAC_SHA384 = 5,
-    CRYPT_HMAC_SHA512 = 4
+    CRYPT_HMAC_SHA    = 4,
+    CRYPT_HMAC_SHA256 = 6,
+    CRYPT_HMAC_SHA384 = 7,
+    CRYPT_HMAC_SHA512 = 8
 };
 
 

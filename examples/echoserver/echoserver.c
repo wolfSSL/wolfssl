@@ -148,7 +148,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     ctx    = CyaSSL_CTX_new(method);
     /* CyaSSL_CTX_set_session_cache_mode(ctx, WOLFSSL_SESS_CACHE_OFF); */
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+#ifdef WOLFSSL_ENCRYPTED_KEYS
     CyaSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 

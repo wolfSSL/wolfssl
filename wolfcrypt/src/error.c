@@ -263,6 +263,9 @@ const char* wc_GetErrorString(int error)
     case ASN_OCSP_CONFIRM_E :
         return "ASN OCSP sig error, confirm failure";
 
+    case ASN_NO_PEM_HEADER:
+        return "ASN no PEM Header Error";
+
     case BAD_STATE_E:
         return "Bad state operation";
 

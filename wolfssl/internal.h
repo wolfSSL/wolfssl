@@ -106,6 +106,7 @@
     #include <wolfssl/wolfcrypt/dh.h>
 #endif
 
+#include <wolfssl/wolfcrypt/wc_encrypt.h>
 #include <wolfssl/wolfcrypt/hash.h>
 
 #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
@@ -1069,7 +1070,6 @@ enum Misc {
     COMPRESS_UPPER      = 55,  /* compression calc numerator */
     COMPRESS_LOWER      = 64,  /* compression calc denominator */
 
-    PEM_LINE_LEN   = 80,       /* PEM line max + fudge */
     LENGTH_SZ      =  2,       /* length field for HMAC, data only */
     VERSION_SZ     =  2,       /* length of proctocol version */
     SEQ_SZ         =  8,       /* 64 bit sequence number  */
@@ -1152,7 +1152,8 @@ enum Misc {
     MAX_REQUEST_SZ      = 256, /* Maximum cert req len (no auth yet */
     SESSION_FLUSH_COUNT = 256, /* Flush session cache unless user turns off */
 
-    RC4_KEY_SIZE        = 16,  /* always 128bit           */
+#ifdef HAVE_FIPS
+    /* these moved into wolfCrypt, but kept here for backwards compatibility with FIPS */
     DES_KEY_SIZE        =  8,  /* des                     */
     DES3_KEY_SIZE       = 24,  /* 3 des ede               */
     DES_IV_SIZE         = DES_BLOCK_SIZE,
@@ -1160,6 +1161,11 @@ enum Misc {
     AES_192_KEY_SIZE    = 24,  /* for 192 bit             */
     AES_IV_SIZE         = 16,  /* always block size       */
     AES_128_KEY_SIZE    = 16,  /* for 128 bit             */
+
+    MAX_SYM_KEY_SIZE    = AES_256_KEY_SIZE,
+#else
+    MAX_SYM_KEY_SIZE    = WC_MAX_SYM_KEY_SIZE,
+#endif
 
     AEAD_SEQ_OFFSET     = 4,   /* Auth Data: Sequence number */
     AEAD_TYPE_OFFSET    = 8,   /* Auth Data: Type            */
@@ -1238,8 +1244,6 @@ enum Misc {
 
     MAX_X509_SIZE      = 2048, /* max static x509 buffer size */
     CERT_MIN_SIZE      =  256, /* min PEM cert size with header/footer */
-    FILE_BUFFER_SIZE   = 1024, /* default static file buffer size for input,
-                                  will use dynamic buffer if not big enough */
 
     MAX_NTRU_PUB_KEY_SZ = 1027, /* NTRU max for now */
     MAX_NTRU_ENCRYPT_SZ = 1027, /* NTRU max for now */
@@ -1520,17 +1524,6 @@ WOLFSSL_LOCAL int  DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input,
 WOLFSSL_LOCAL int DoTls13ServerHello(WOLFSSL* ssl, const byte* input,
                                      word32* inOutIdx, word32 helloSz);
 #endif
-
-#ifndef NO_CERTS
-    /* wolfSSL DER buffer */
-    typedef struct DerBuffer {
-        byte*  buffer;
-        void* heap;
-        word32 length;
-        int type; /* enum CertType */
-        int dynType; /* DYNAMIC_TYPE_* */
-    } DerBuffer;
-#endif /* !NO_CERTS */
 
 
 enum {
@@ -1855,8 +1848,8 @@ typedef struct WOLFSSL_DTLS_PEERSEQ {
 typedef struct Keys {
     byte client_write_MAC_secret[WC_MAX_DIGEST_SIZE];   /* max sizes */
     byte server_write_MAC_secret[WC_MAX_DIGEST_SIZE];
-    byte client_write_key[AES_256_KEY_SIZE];         /* max sizes */
-    byte server_write_key[AES_256_KEY_SIZE];
+    byte client_write_key[MAX_SYM_KEY_SIZE];         /* max sizes */
+    byte server_write_key[MAX_SYM_KEY_SIZE];
     byte client_write_IV[MAX_WRITE_IV_SZ];               /* max sizes */
     byte server_write_IV[MAX_WRITE_IV_SZ];
 #if defined(HAVE_AEAD) || defined(WOLFSSL_SESSION_EXPORT)
@@ -2439,10 +2432,9 @@ struct WOLFSSL_CTX {
 #ifdef HAVE_ANON
     byte        haveAnon;               /* User wants to allow Anon suites */
 #endif /* HAVE_ANON */
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-    defined(HAVE_WEBSERVER)
+#ifdef WOLFSSL_ENCRYPTED_KEYS
     pem_password_cb* passwd_cb;
-    void*           userdata;
+    void*            passwd_userdata;
 #endif
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     WOLFSSL_X509_STORE x509_store; /* points to ctx->cm */
@@ -3665,30 +3657,8 @@ void FreeSSL(WOLFSSL*, void* heap);
 WOLFSSL_API void SSL_ResourceFree(WOLFSSL*);   /* Micrium uses */
 
 
-enum {
-    IV_SZ   = 32,          /* max iv sz */
-    NAME_SZ = 80          /* max one line */
-};
-
-
-typedef struct EncryptedInfo {
-    char     name[NAME_SZ];    /* encryption name */
-    byte     iv[IV_SZ];        /* encrypted IV */
-    word32   ivSz;             /* encrypted IV size */
-    long     consumed;         /* tracks PEM bytes consumed */
-    byte     set;              /* if encryption set */
-    WOLFSSL_CTX* ctx;              /* CTX owner */
-} EncryptedInfo;
-
 
 #ifndef NO_CERTS
-
-    WOLFSSL_LOCAL int AllocDer(DerBuffer** der, word32 length, int type, void* heap);
-    WOLFSSL_LOCAL void FreeDer(DerBuffer** der);
-
-    WOLFSSL_LOCAL int PemToDer(const unsigned char* buff, long sz, int type,
-                              DerBuffer** pDer, void* heap, EncryptedInfo* info,
-                              int* eccKey);
 
     WOLFSSL_LOCAL int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                                     long sz, int format, int type, WOLFSSL* ssl,
