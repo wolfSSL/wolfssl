@@ -1587,7 +1587,7 @@ int wc_Poly1305_MAC(Poly1305* ctx, byte* additional, word32 addSz,
     int ret;
     byte padding[WC_POLY1305_PAD_SZ - 1];
     word32 paddingLen;
-    byte little64[8];
+    byte little64[16];
 
     XMEMSET(padding, 0, sizeof(padding));
 
@@ -1627,13 +1627,7 @@ int wc_Poly1305_MAC(Poly1305* ctx, byte* additional, word32 addSz,
 
     /* size of additional data and input as little endian 64 bit types */
     U32TO64(addSz, little64);
-    ret = wc_Poly1305Update(ctx, little64, sizeof(little64));
-    if (ret)
-    {
-        return ret;
-    }
-
-    U32TO64(sz, little64);
+    U32TO64(sz, little64 + 8);
     ret = wc_Poly1305Update(ctx, little64, sizeof(little64));
     if (ret)
     {

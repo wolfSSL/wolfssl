@@ -437,8 +437,8 @@ if [ $RESULT -ne 0 ]; then
 fi
 echo ""
 
-# TLS 1.3 server / TLS 1.3 client don't use (EC)DHE with PSK.
-echo -e "\n\nTLS v1.3 KeyUpdate"
+# TLS 1.3 server / TLS 1.3 client - don't use (EC)DHE with PSK.
+echo -e "\n\nTLS v1.3 PSK without (EC)DHE"
 port=0
 ./examples/server/server -v 4 -r -R $ready_file -p $port &
 server_pid=$!
@@ -447,7 +447,7 @@ create_port
 RESULT=$?
 remove_ready_file
 if [ $RESULT -ne 0 ]; then
-    echo -e "\n\nIssue with TLS v1.3 KeyUpdate"
+    echo -e "\n\nIssue with TLS v1.3 PSK without (EC)DHE"
     do_cleanup
     exit 1
 fi

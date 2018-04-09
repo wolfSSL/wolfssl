@@ -1092,14 +1092,29 @@ static INLINE unsigned int my_psk_client_cb(WOLFSSL* ssl, const char* hint,
     /* see internal.h MAX_PSK_ID_LEN for PSK identity limit */
     strncpy(identity, kIdentityStr, id_max_len);
 
-    /* test key in hex is 0x1a2b3c4d , in decimal 439,041,101 , we're using
-       unsigned binary */
-    key[0] = 26;
-    key[1] = 43;
-    key[2] = 60;
-    key[3] = 77;
+    if (wolfSSL_GetVersion(ssl) < WOLFSSL_TLSV1_3) {
+        /* test key in hex is 0x1a2b3c4d , in decimal 439,041,101 , we're using
+           unsigned binary */
+        key[0] = 0x1a;
+        key[1] = 0x2b;
+        key[2] = 0x3c;
+        key[3] = 0x4d;
 
-    return 4;   /* length of key in octets or 0 for error */
+
+        return 4;   /* length of key in octets or 0 for error */
+    }
+    else {
+        int i;
+        int b = 0x01;
+
+        for (i = 0; i < 32; i++, b += 0x22) {
+            if (b >= 0x100)
+                b = 0x01;
+            key[i] = b;
+        }
+
+        return 32;   /* length of key in octets or 0 for error */
+    }
 }
 
 
@@ -1113,14 +1128,29 @@ static INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identity,
     if (strncmp(identity, kIdentityStr, strlen(kIdentityStr)) != 0)
         return 0;
 
-    /* test key in hex is 0x1a2b3c4d , in decimal 439,041,101 , we're using
-       unsigned binary */
-    key[0] = 26;
-    key[1] = 43;
-    key[2] = 60;
-    key[3] = 77;
+    if (wolfSSL_GetVersion(ssl) < WOLFSSL_TLSV1_3) {
+        /* test key in hex is 0x1a2b3c4d , in decimal 439,041,101 , we're using
+           unsigned binary */
+        key[0] = 0x1a;
+        key[1] = 0x2b;
+        key[2] = 0x3c;
+        key[3] = 0x4d;
 
-    return 4;   /* length of key in octets or 0 for error */
+
+        return 4;   /* length of key in octets or 0 for error */
+    }
+    else {
+        int i;
+        int b = 0x01;
+
+        for (i = 0; i < 32; i++, b += 0x22) {
+            if (b >= 0x100)
+                b = 0x01;
+            key[i] = b;
+        }
+
+        return 32;   /* length of key in octets or 0 for error */
+    }
 }
 
 #endif /* NO_PSK */

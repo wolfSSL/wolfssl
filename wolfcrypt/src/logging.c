@@ -56,7 +56,90 @@ static struct wc_error_queue* wc_last_node;
 /* pointer to last node in queue to make insertion O(1) */
 #endif
 
+#ifdef WOLFSSL_FUNC_TIME
+static double wc_func_start[WC_FUNC_COUNT];
+static double wc_func_time[WC_FUNC_COUNT] = { 0, };
+static const char* wc_func_name[WC_FUNC_COUNT] = {
+    "SendClientHello",
+    "DoClientHello",
+    "SendServerHello",
+    "DoServerHello",
+    "SendEncryptedExtensions",
+    "DoEncryptedExtensions",
+    "SendCertificateRequest",
+    "DoCertificateRequest",
+    "SendCertificate",
+    "DoCertificate",
+    "SendCertificateVerify",
+    "DoCertificateVerify",
+    "SendFinished",
+    "DoFinished",
+    "SendKeyUpdate",
+    "DoKeyUpdate",
+    "SendEarlyData",
+    "DoEarlyData",
+    "SendNewSessionTicket",
+    "DoNewSessionTicket",
+    "SendServerHelloDone",
+    "DoServerHelloDone",
+    "SendTicket",
+    "DoTicket",
+    "SendClientKeyExchange",
+    "DoClientKeyExchange",
+    "SendCertificateStatus",
+    "DoCertificateStatus",
+    "SendServerKeyExchange",
+    "DoServerKeyExchange",
+    "SendEarlyData",
+    "DoEarlyData",
+};
 
+#if defined(WOLFSSL_USER_CURRTIME)
+    extern   double current_time(int reset);
+
+#elif defined(USE_WINDOWS_API)
+
+    #define WIN32_LEAN_AND_MEAN
+    #include <windows.h>
+
+    static INLINE double current_time(int reset)
+    {
+        static int init = 0;
+        static LARGE_INTEGER freq;
+
+        LARGE_INTEGER count;
+
+        if (!init) {
+            QueryPerformanceFrequency(&freq);
+            init = 1;
+        }
+
+        QueryPerformanceCounter(&count);
+
+        (void)reset;
+        return (double)count.QuadPart / freq.QuadPart;
+    }
+
+#elif defined(WOLFSSL_TIRTOS)
+    extern double current_time();
+#else
+
+#if !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_KEIL_TCP_NET) && !defined(WOLFSSL_CHIBIOS)
+    #include <sys/time.h>
+
+    static INLINE double current_time(int reset)
+    {
+        struct timeval tv;
+        gettimeofday(&tv, 0);
+        (void)reset;
+
+        return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
+    }
+#else
+    extern double current_time(int reset);
+#endif
+#endif /* USE_WINDOWS_API */
+#endif
 
 #ifdef DEBUG_WOLFSSL
 
@@ -98,6 +181,40 @@ void wolfSSL_Debugging_OFF(void)
 #endif
 }
 
+#ifdef WOLFSSL_FUNC_TIME
+void WOLFSSL_START(int funcNum)
+{
+    double now = current_time(0) * 1000.0;
+#ifdef WOLFSSL_FUNC_TIME_LOG
+    fprintf(stderr, "%17.3f: START - %s\n", now, wc_func_name[funcNum]);
+#endif
+    wc_func_start[funcNum] = now;
+}
+
+void WOLFSSL_END(int funcNum)
+{
+    double now = current_time(0) * 1000.0;
+    wc_func_time[funcNum] += now - wc_func_start[funcNum];
+#ifdef WOLFSSL_FUNC_TIME_LOG
+    fprintf(stderr, "%17.3f: END   - %s\n", now, wc_func_name[funcNum]);
+#endif
+}
+
+void WOLFSSL_TIME(int count)
+{
+    int i;
+    double avg, total = 0;
+
+    for (i = 0; i < WC_FUNC_COUNT; i++) {
+        if (wc_func_time[i] > 0) {
+            avg = wc_func_time[i] / count;
+            fprintf(stderr, "%8.3f ms: %s\n", avg, wc_func_name[i]);
+            total += avg;
+        }
+    }
+    fprintf(stderr, "%8.3f ms\n", total);
+}
+#endif
 
 #ifdef DEBUG_WOLFSSL
 
