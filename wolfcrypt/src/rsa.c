@@ -1636,8 +1636,12 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
                 ret = RSA_OUT_OF_RANGE_E;
         }
         if (ret == 0) {
+            /* add c+1 */
+            if (mp_add_d(&c, 1, &c) != MP_OKAY)
+                ret = MP_ADD_E;
+        }
+        if (ret == 0) {
             /* check c+1 < n */
-            mp_add_d(&c, 1, &c);
             if (mp_cmp(&c, &key->n) != MP_LT)
                 ret = RSA_OUT_OF_RANGE_E;
         }

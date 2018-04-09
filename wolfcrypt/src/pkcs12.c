@@ -437,12 +437,12 @@ static int GetSignData(WC_PKCS12* pkcs12, const byte* mem, word32* idx,
 
     curIdx += mac->saltSz;
 
-    /* check for MAC itterations, default to 1 */
-    mac->itt = 1;
+    /* check for MAC iterations, default to 1 */
+    mac->itt = WC_PKCS12_MAC_DEFAULT;
     if (curIdx < totalSz) {
         int number = 0;
         if ((ret = GetShortInt(mem, &curIdx, &number, totalSz)) >= 0) {
-            /* found a itteration value */
+            /* found a iteration value */
             mac->itt = number;
         }
     }
@@ -1516,6 +1516,7 @@ static int wc_PKCS12_encrypt_content(WC_PKCS12* pkcs12, WC_RNG* rng,
 
         if ((ret = EncryptContent(content, contentSz, tmp, &encSz,
                    pass, passSz, vPKCS, vAlgo, NULL, 0, iter, rng, heap)) < 0) {
+            XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
             return ret;
         }
         encSz = ret;
@@ -1605,17 +1606,21 @@ static int wc_PKCS12_encrypt_content(WC_PKCS12* pkcs12, WC_RNG* rng,
 
 
 /*
- * p    : password to use with encryption
+ * pass : password to use with encryption
+ * passSz : size of the password buffer
  * name : friendlyName to use
- * key  : DER format of key with keySz being the size of this buffer
- * cert : DER format of certificate with certSz being the size of this buffer
+ * key  : DER format of key
+ * keySz : size of key buffer
+ * cert : DER format of certificate
+ * certSz : size of the certificate buffer
  * ca   : a list of extra certificates
  * nidKey  : type of encryption to use on the key (-1 means no encryption)
- * nidCert : type of ecnryption to use on the certificate
+ * nidCert : type of encryption to use on the certificate
  *           (-1 means no encryption)
- * iter    : number of itterations with encryption
- * macIter : number of itterations when creating MAC
+ * iter    : number of iterations with encryption
+ * macIter : number of iterations when creating MAC
  * keyType : flag for signature and/or encryption key
+ * heap : pointer to allocate from memory
  *
  * returns a pointer to a new WC_PKCS12 structure on success and NULL if failed
  */
@@ -1752,6 +1757,7 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
         wc_PKCS12_free(pkcs12);
         wc_FreeRng(&rng);
         XFREE(keyBuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(keyCi, heap, DYNAMIC_TYPE_TMP_BUFFER);
         WOLFSSL_LEAVE("wc_PKCS12_create", ret);
         return NULL;
     }
@@ -1793,6 +1799,7 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
 
         default:
             WOLFSSL_MSG("Unknown/Unsupported certificate encryption");
+            XFREE(keyCi, heap, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS12_free(pkcs12);
             wc_FreeRng(&rng);
             return NULL;
@@ -1801,6 +1808,7 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
     /* get max size of buffer needed */
     ret = wc_PKCS12_create_cert_bag(pkcs12, NULL, &certBufSz, cert, certSz);
     if (ret != LENGTH_ONLY_E) {
+        XFREE(keyCi, heap, DYNAMIC_TYPE_TMP_BUFFER);
         wc_PKCS12_free(pkcs12);
         wc_FreeRng(&rng);
         return NULL;
@@ -1815,6 +1823,7 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
             ret = wc_PKCS12_create_cert_bag(pkcs12, NULL, &curBufSz,
                     current->buffer, current->bufferSz);
             if (ret != LENGTH_ONLY_E) {
+                XFREE(keyCi, heap, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS12_free(pkcs12);
                 wc_FreeRng(&rng);
                 return NULL;
@@ -1830,6 +1839,7 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
     /* completed getting max size, now create buffer and start adding bags */
     certBuf = (byte*)XMALLOC(certBufSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (certBuf == NULL) {
+        XFREE(keyCi, heap, DYNAMIC_TYPE_TMP_BUFFER);
         wc_PKCS12_free(pkcs12);
         wc_FreeRng(&rng);
         WOLFSSL_MSG("Memory error creating certificate bags");
@@ -1842,6 +1852,7 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
     sz = certBufSz - idx;
     if ((ret = wc_PKCS12_create_cert_bag(pkcs12, certBuf + idx, &sz,
             cert, certSz)) < 0) {
+        XFREE(keyCi, heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(certBuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
         wc_PKCS12_free(pkcs12);
         wc_FreeRng(&rng);
@@ -1856,6 +1867,7 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
             sz = certBufSz - idx;
             if ((ret = wc_PKCS12_create_cert_bag(pkcs12, certBuf + idx, &sz,
                current->buffer, current->bufferSz)) < 0) {
+                XFREE(keyCi, heap, DYNAMIC_TYPE_TMP_BUFFER);
                 XFREE(certBuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS12_free(pkcs12);
                 wc_FreeRng(&rng);
@@ -1875,6 +1887,7 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
     ret = wc_PKCS12_encrypt_content(pkcs12, &rng, NULL, &certCiSz,
             NULL, certBufSz, algo, pass, passSz, iter, type);
     if (ret != LENGTH_ONLY_E) {
+        XFREE(keyCi, heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(certBuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
         wc_PKCS12_free(pkcs12);
         wc_FreeRng(&rng);
@@ -1883,6 +1896,7 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
     }
     certCi = (byte*)XMALLOC(certCiSz, heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (certCi == NULL) {
+        XFREE(keyCi, heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(certBuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
         wc_PKCS12_free(pkcs12);
         wc_FreeRng(&rng);
@@ -1892,7 +1906,9 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
     ret = wc_PKCS12_encrypt_content(pkcs12, &rng, certCi, &certCiSz,
             certBuf, certBufSz, algo, pass, passSz, iter, type);
     if (ret < 0) {
+        XFREE(keyCi, heap, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(certBuf, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(certCi, heap, DYNAMIC_TYPE_TMP_BUFFER);
         wc_PKCS12_free(pkcs12);
         wc_FreeRng(&rng);
         WOLFSSL_LEAVE("wc_PKCS12_create()", ret);
@@ -1916,6 +1932,8 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
     safe = (AuthenticatedSafe*)XMALLOC(sizeof(AuthenticatedSafe), heap,
             DYNAMIC_TYPE_PKCS);
     if (safe == NULL) {
+        XFREE(keyCi, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(certCi, heap, DYNAMIC_TYPE_TMP_BUFFER);
         wc_PKCS12_free(pkcs12);
         wc_FreeRng(&rng);
         return NULL;
@@ -1926,6 +1944,8 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
     safe->dataSz = certCiSz + keyCiSz;
     safe->data   = (byte*)XMALLOC(safe->dataSz, heap, DYNAMIC_TYPE_PKCS);
     if (safe->data == NULL) {
+        XFREE(keyCi, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(certCi, heap, DYNAMIC_TYPE_TMP_BUFFER);
         wc_PKCS12_free(pkcs12);
         wc_FreeRng(&rng);
         return NULL;
@@ -1997,13 +2017,8 @@ WC_PKCS12* wc_PKCS12_create(char* pass, word32 passSz, char* name,
             return NULL;
         #endif
 
-        /* if macIter is 0 then default to 1 */
-        if (macIter == 0) {
-            mac->itt = WC_PKCS12_MAC_DEFAULT;
-        }
-        else {
-            mac->itt = macIter;
-        }
+        /* store number of iterations */
+        mac->itt = macIter;
 
         /* set mac salt */
         mac->saltSz = 8;
