@@ -1692,7 +1692,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
       defined(WOLFSSL_uITRON4)  || defined(WOLFSSL_uTKERNEL2) || \
       defined(WOLFSSL_LPC43xx)  || defined(WOLFSSL_STM32F2xx) || \
       defined(MBED)             || defined(WOLFSSL_EMBOS) || \
-      defined(WOLFSSL_GENSEED_FORTEST) || defined(WOLFSSL_CHIBIOS)
+      defined(WOLFSSL_GENSEED_FORTEST) || defined(WOLFSSL_CHIBIOS) || \
+      defined(HAVE_FUZZER)
 
     /* these platforms do not have a default random seed and
        you'll need to implement your own wc_GenerateSeed or define via
@@ -1773,11 +1774,13 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #endif
 
 #ifdef USE_TEST_GENSEED
+    #ifndef HAVE_FUZZER
     #ifndef _MSC_VER
         #warning "write a real random seed!!!!, just for testing now"
     #else
         #pragma message("Warning: write a real random seed!!!!, just for testing now")
     #endif
+    #endif /* HAVE_FUZZER */
 
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
