@@ -222,8 +222,11 @@ then
     enable_indef=yes
     enable_enckeys=yes
 
-    AM_CFLAGS="-DHAVE_AES_DECRYPT $AM_CFLAGS"
-    AM_CFLAGS="-DHAVE_AES_ECB $AM_CFLAGS"
+    # Enable AES Decrypt, AES ECB, Alt Names, DER Load, Keep Certs, CRL IO with Timeout
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES -DWOLFSSL_DER_LOAD -DKEEP_OUR_CERT -DKEEP_PEER_CERT -DHAVE_CRL_IO -DHAVE_IO_TIMEOUT"
+
+    # Enable DH const table speedups (eliminates `-lm` math lib dependency)
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072 -DHAVE_FFDHE_4096 -DHAVE_FFDHE_6144 -DHAVE_FFDHE_8192"
 fi
 AM_CONDITIONAL([BUILD_ALL], [test "x$ENABLED_ALL" = "xyes"])
 
@@ -540,7 +543,7 @@ fi
 
 # High Strength Build
 AC_ARG_ENABLE([maxstrength],
-    [AS_HELP_STRING([--enable-maxstrength],[Enable Max Strengh build, allows TLSv1.2-AEAD-PFS ciphers only (default: disabled)])],
+    [AS_HELP_STRING([--enable-maxstrength],[Enable Max Strength build, allows TLSv1.2-AEAD-PFS ciphers only (default: disabled)])],
     [ENABLED_MAXSTRENGTH=$enableval],
     [ENABLED_MAXSTRENGTH=no])
 
@@ -1910,6 +1913,17 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_WEBSERVER"
 fi
 
+# Web Client Build (HTTP Client)
+AC_ARG_ENABLE([webclient],
+    [AS_HELP_STRING([--enable-webclient],[Enable Web Client (HTTP) (default: disabled)])],
+    [ ENABLED_WEBCLIENT=$enableval ],
+    [ ENABLED_WEBCLIENT=no ]
+    )
+
+if test "$ENABLED_WEBCLIENT" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_HTTP_CLIENT"
+fi
 
 
 # HC128
