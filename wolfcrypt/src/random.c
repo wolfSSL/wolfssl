@@ -163,6 +163,10 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
     #ifdef HAVE_INTEL_RDRAND
     static int wc_GenerateRand_IntelRD(OS_Seed* os, byte* output, word32 sz);
     #endif
+
+#ifdef USE_WINDOWS_API
+    #include <immintrin.h>
+#endif /* USE_WINDOWS_API */
 #endif
 
 /* Start NIST DRBG code */
@@ -1019,14 +1023,31 @@ int wc_FreeNetRandom(void)
 
 #ifdef HAVE_INTEL_RDSEED
 
-/* return 0 on success */
-static INLINE int IntelRDseed64(word64* seed)
-{
-    unsigned char ok;
+#ifndef USE_WINDOWS_API
 
-    __asm__ volatile("rdseed %0; setc %1":"=r"(*seed), "=qm"(ok));
-    return (ok) ? 0 : -1;
-}
+    /* return 0 on success */
+    static INLINE int IntelRDseed64(word64* seed)
+    {
+        unsigned char ok;
+
+        __asm__ volatile("rdseed %0; setc %1":"=r"(*seed), "=qm"(ok));
+        return (ok) ? 0 : -1;
+    }
+
+#else /* USE_WINDOWS_API */
+    /* The compiler Visual Studio uses does not allow inline assembly.
+     * It does allow for Intel intrinsic functions. */
+
+    /* return 0 on success */
+    static INLINE int IntelRDseed64(word64* seed)
+    {
+        int ok;
+
+        ok = _rdseed64_step(seed);
+        return (ok) ? 0 : -1;
+    }
+
+#endif /* USE_WINDOWS_API */
 
 /* return 0 on success */
 static INLINE int IntelRDseed64_r(word64* rnd)
@@ -1073,6 +1094,8 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
 
 #ifdef HAVE_INTEL_RDRAND
 
+#ifndef USE_WINDOWS_API
+
 /* return 0 on success */
 static INLINE int IntelRDrand64(word64 *rnd)
 {
@@ -1082,6 +1105,22 @@ static INLINE int IntelRDrand64(word64 *rnd)
 
     return (ok) ? 0 : -1;
 }
+
+#else /* USE_WINDOWS_API */
+    /* The compiler Visual Studio uses does not allow inline assembly.
+     * It does allow for Intel intrinsic functions. */
+
+/* return 0 on success */
+static INLINE int IntelRDrand64(word64 *rnd)
+{
+    int ok;
+
+    ok = _rdrand64_step(rnd);
+
+    return (ok) ? 0 : -1;
+}
+
+#endif /* USE_WINDOWS_API */
 
 /* return 0 on success */
 static INLINE int IntelRDrand64_r(word64 *rnd)
