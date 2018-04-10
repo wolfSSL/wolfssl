@@ -2628,8 +2628,9 @@ static void test_wolfSSL_DisableExtendedMasterSecret(void)
 static void test_wolfSSL_X509_NAME_get_entry(void)
 {
 #if !defined(NO_CERTS) && !defined(NO_RSA)
-#if defined(OPENSSL_EXTRA) && (defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)) \
-    && (defined(HAVE_LIGHTY) || defined(WOLFSSL_MYSQL_COMPATIBLE)) || defined(WOLFSSL_HAPROXY)
+#if defined(OPENSSL_ALL) || \
+        (defined(OPENSSL_EXTRA) && \
+            (defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)))
     printf(testingFmt, "wolfSSL_X509_NAME_get_entry()");
 
     {
@@ -2665,8 +2666,8 @@ static void test_wolfSSL_X509_NAME_get_entry(void)
     }
 
     printf(resultFmt, passed);
-#endif /* OPENSSL_EXTRA */
-#endif /* !NO_CERTS */
+#endif /* OPENSSL_ALL || (OPENSSL_EXTRA && (KEEP_PEER_CERT || SESSION_CERTS) */
+#endif /* !NO_CERTS && !NO_RSA */
 }
 
 

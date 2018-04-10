@@ -1519,7 +1519,7 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
             ctx->ca_names = next;
         }
     #endif
-    #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
         while (ctx->x509Chain != NULL) {
             WOLFSSL_STACK *next = ctx->x509Chain->next;
             wolfSSL_X509_free(ctx->x509Chain->data.x509);
@@ -4466,7 +4466,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
 #ifdef HAVE_ALPN
     ssl->alpn_client_list = NULL;
-    #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
         ssl->alpnSelect    = ctx->alpnSelect;
         ssl->alpnSelectArg = ctx->alpnSelectArg;
     #endif
@@ -7679,7 +7679,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     }
     x509->subject.x509 = x509;
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
-#ifdef WOLFSSL_NGINX
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
     XMEMCPY(x509->subject.raw, dCert->subjectRaw, dCert->subjectRawLen);
     x509->subject.rawLen = dCert->subjectRawLen;
 #endif
@@ -8415,7 +8415,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                         XMEMCPY(add->buffer, cert->buffer, cert->length);
 
-                    #ifdef WOLFSSL_NGINX
+                    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
                         if (args->certIdx > args->untrustedDepth)
                             args->untrustedDepth = (char) args->certIdx + 1;
                     #endif
@@ -13795,7 +13795,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     int    sendSz;
     word32 i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
     word32 dnLen = 0;
-#ifdef WOLFSSL_NGINX
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
     WOLF_STACK_OF(WOLFSSL_X509_NAME)* names;
 #endif
 
@@ -13805,7 +13805,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     if (IsAtLeastTLSv1_2(ssl))
         reqSz += LENGTH_SZ + ssl->suites->hashSigAlgoSz;
 
-#ifdef WOLFSSL_NGINX
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
     /* Certificate Authorities */
     names = ssl->ctx->ca_names;
     while (names != NULL) {
@@ -13866,7 +13866,7 @@ int SendCertificateRequest(WOLFSSL* ssl)
     /* Certificate Authorities */
     c16toa((word16)dnLen, &output[i]);  /* auth's */
     i += REQ_HEADER_SZ;
-#ifdef WOLFSSL_NGINX
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
     names = ssl->ctx->ca_names;
     while (names != NULL) {
         byte seq[MAX_SEQ_SZ];
@@ -23594,11 +23594,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     return VERSION_ERROR;
                 }
     #endif
-#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+    #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
                 if((ret=SNI_Callback(ssl)))
                     return ret;
                 ssl->options.side = WOLFSSL_SERVER_END;
-#endif /*HAVE_STUNNEL*/
+    #endif
 
                 i += totalExtSz;
 #else
@@ -25525,7 +25525,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 
 
-#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY)
     int SNI_Callback(WOLFSSL* ssl)
     {
         /* Stunnel supports a custom sni callback to switch an SSL's ctx
@@ -25541,7 +25542,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
         return 0;
     }
-#endif /* HAVE_STUNNEL || WOLGSSL_NGINX */
+#endif /* OPENSSL_ALL || HAVE_STUNNEL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
+
 #endif /* NO_WOLFSSL_SERVER */
 
 

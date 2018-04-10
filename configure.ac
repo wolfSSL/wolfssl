@@ -159,6 +159,7 @@ then
     enable_tls13=yes
     enable_openssh=yes
     enable_opensslextra=yes
+    enable_opensslall=yes
     enable_savesession=yes
     enable_savecert=yes
     enable_atomicuser=yes
@@ -437,6 +438,22 @@ fi
 AM_CONDITIONAL([BUILD_RNG], [test "x$ENABLED_RNG" = "xyes"])
 
 
+
+# List of open source project defines using our openssl compatibility layer:
+# openssh (--enable-openssh)
+# nginix (--enable-nginx) WOLFSSL_NGINX
+# haproxy (--enable-haproxy) WOLFSSL_HAPROXY
+# wpa_supplicant (--enable-wpas) WOLFSSL_WPAS
+# ssl fortress (--enable-fortress) FORTRESS
+# ssl bump (--enable-bump)
+# signal (--enable-signal)
+# lighty (--enable-lighty) HAVE_LIGHTY
+# stunnel (--enable-stunnel) HAVE_STUNNEL
+# HAVE_POCO_LIB
+# WOLFSSL_MYSQL_COMPATIBLE
+# web server (--enable-webserver) HAVE_WEBSERVER
+
+
 # OpenSSH compatibility Build
 AC_ARG_ENABLE([openssh],
     [AS_HELP_STRING([--enable-openssh],[Enable OpenSSH compatibility build (default: disabled)])],
@@ -512,13 +529,25 @@ then
 fi
 
 
+# OPENSSL Compatibility ALL
+AC_ARG_ENABLE([opensslall],
+[AS_HELP_STRING([--enable-opensslall],[Enable all OpenSSL API, size++ (default: disabled)])],
+[ ENABLED_OPENSSLALL=$enableval ],
+[ ENABLED_OPENSSLALL=no ]
+)
+
+if test "$ENABLED_OPENSSLALL" = "yes"
+then
+AM_CFLAGS="-DOPENSSL_ALL $AM_CFLAGS"
+fi
+
 # OPENSSL Extra Compatibility
 AC_ARG_ENABLE([opensslextra],
     [AS_HELP_STRING([--enable-opensslextra],[Enable extra OpenSSL API, size+ (default: disabled)])],
     [ ENABLED_OPENSSLEXTRA=$enableval ],
     [ ENABLED_OPENSSLEXTRA=no ]
     )
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_SIGNAL" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_FORTRESS" = "yes" || test "$ENABLED_BUMP" = "yes" || test "$ENABLED_SNIFFER" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_SIGNAL" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_FORTRESS" = "yes" || test "$ENABLED_BUMP" = "yes" || test "$ENABLED_SNIFFER" = "yes" || test "$ENABLED_OPENSSLALL" = "yes"
 then
     ENABLED_OPENSSLEXTRA="yes"
 fi
@@ -2217,7 +2246,7 @@ AC_ARG_ENABLE([ocsp],
     [ ENABLED_OCSP=no ],
     )
 
-if test "x$ENABLED_NGINX" = "xyes"
+if test "x$ENABLED_OPENSSLALL" = "xyes" || test "x$ENABLED_NGINX" = "xyes"
 then
     ENABLED_OCSP=yes
 fi

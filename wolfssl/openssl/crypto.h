@@ -50,7 +50,7 @@ WOLFSSL_API unsigned long wolfSSLeay(void);
 /* this function was used to set the default malloc, free, and realloc */
 #define CRYPTO_malloc_init() /* CRYPTO_malloc_init is not needed */
 
-#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
+#if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
     defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
 #define CRYPTO_set_mem_ex_functions      wolfSSL_CRYPTO_set_mem_ex_functions
 #define FIPS_mode                        wolfSSL_FIPS_mode
@@ -68,6 +68,6 @@ typedef void (CRYPTO_free_func)(void*parent, void*ptr, CRYPTO_EX_DATA *ad, int i
 #define CRYPTO_THREAD_r_lock wc_LockMutex
 #define CRYPTO_THREAD_unlock wc_UnLockMutex
 
-#endif /* HAVE_STUNNEL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
+#endif /* OPENSSL_ALL || HAVE_STUNNEL || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 
 #endif /* header */

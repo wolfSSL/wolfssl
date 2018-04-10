@@ -85,7 +85,7 @@
     #include <wolfssl/wolfcrypt/idea.h>
     #include <wolfssl/wolfcrypt/curve25519.h>
     #include <wolfssl/wolfcrypt/ed25519.h>
-    #ifdef HAVE_STUNNEL
+    #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL)
         #include <wolfssl/openssl/ocsp.h>
     #endif /* WITH_STUNNEL */
     #ifdef WOLFSSL_SHA512
@@ -2980,8 +2980,7 @@ void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm)
                 FreeOCSP(cm->ocsp, 1);
             XFREE(cm->ocspOverrideURL, cm->heap, DYNAMIC_TYPE_URL);
         #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
-         || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) \
-         || defined(WOLFSSL_HAPROXY)
+         || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
             if (cm->ocsp_stapling)
                 FreeOCSP(cm->ocsp_stapling, 1);
         #endif
@@ -6224,8 +6223,8 @@ int wolfSSL_CTX_SetTmpDH_file(WOLFSSL_CTX* ctx, const char* fname, int format)
 #endif /* NO_FILESYSTEM */
 
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-    defined(HAVE_WEBSERVER)
+#if defined(OPENSSL_EXTRA) || !defined(NO_PWDBASED) && \
+    (defined(OPENSSL_EXTRA_X509_SMALL) || defined(HAVE_WEBSERVER))
 
 static int wolfSSL_EVP_get_hashinfo(const WOLFSSL_EVP_MD* evp,
     int* pHash, int* pHashSz)
@@ -11682,8 +11681,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return ctx->passwd_userdata;
     }
 
-#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-     defined(HAVE_WEBSERVER)) && !defined(NO_PWDBASED)
+#if !defined(NO_PWDBASED) && (defined(OPENSSL_EXTRA) || \
+        defined(OPENSSL_EXTRA_X509_SMALL) || defined(HAVE_WEBSERVER))
 
     int wolfSSL_EVP_BytesToKey(const WOLFSSL_EVP_CIPHER* type,
                        const WOLFSSL_EVP_MD* md, const byte* salt,
@@ -11769,7 +11768,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     {
         WOLFSSL_ENTER("wolfSSL_ERR_get_error");
 
-#if defined(WOLFSSL_NGINX)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
         {
             unsigned long ret = wolfSSL_ERR_peek_error_line_data(NULL, NULL,
                                                                  NULL, NULL);
@@ -13526,7 +13525,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     {
         WOLFSSL_ENTER("wolfSSL_ERR_clear_error");
 
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
         wc_ClearErrorNodes();
+#endif
     }
 
 
@@ -14096,7 +14097,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 #endif /* OPENSSL_EXTRA */
 
 
-#if defined(KEEP_PEER_CERT)
+#ifdef KEEP_PEER_CERT
     #ifdef SESSION_CERTS
     /* Decode the X509 DER encoded certificate into a WOLFSSL_X509 object.
      *
@@ -14135,7 +14136,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
         return ret;
     }
-    #endif
+    #endif /* SESSION_CERTS */
 
 
     WOLFSSL_X509* wolfSSL_get_peer_certificate(WOLFSSL* ssl)
@@ -14279,7 +14280,7 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
 #endif /* KEEP_PEER_CERT || SESSION_CERTS || OPENSSL_EXTRA ||
           OPENSSL_EXTRA_X509_SMALL */
 
-#if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
+#if defined(OPENSSL_ALL) || defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
     /* return the next, if any, altname from the peer cert */
     char* wolfSSL_X509_get_next_altname(WOLFSSL_X509* cert)
     {
@@ -14314,12 +14315,6 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
 
         return isCA;
     }
-
-
-
-
-
-
 
     int wolfSSL_X509_get_signature(WOLFSSL_X509* x509,
                                                  unsigned char* buf, int* bufSz)
@@ -18116,7 +18111,7 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
 #endif /* OPENSSL_EXTRA */
 
 #if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
+    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
 int wolfSSL_ASN1_TIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_TIME* asnTime)
 {
     char buf[MAX_TIME_STRING_SZ];
@@ -18367,7 +18362,7 @@ int wolfSSL_ERR_GET_REASON(unsigned long err)
 
     WOLFSSL_ENTER("wolfSSL_ERR_GET_REASON");
 
-#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     /* Nginx looks for this error to know to stop parsing certificates. */
     if (err == ((ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE))
         return PEM_R_NO_START_LINE;
@@ -19222,7 +19217,7 @@ long wolfSSL_set_tlsext_debug_arg(WOLFSSL* ssl, void *arg)
 }
 #endif /* HAVE_PK_CALLBACKS */
 
-#ifdef WOLFSSL_HAPROXY
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY)
 const unsigned char *SSL_SESSION_get0_id_context(const SSL_SESSION *sess, unsigned int *sid_ctx_length)
 {
     const byte *c = wolfSSL_SESSION_get_id((SSL_SESSION *)sess, sid_ctx_length);
@@ -19399,7 +19394,7 @@ WOLFSSL_API int i2t_ASN1_OBJECT(char *buf, int buf_len, WOLFSSL_ASN1_OBJECT *a)
 }
 #endif
 
-#ifdef WOLFSSL_HAPROXY
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY)
 #ifndef NO_WOLFSSL_STUB
 /*** TBD ***/
 WOLFSSL_API size_t SSL_get_finished(const WOLFSSL *s, void *buf, size_t count)
@@ -28234,7 +28229,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                 break;
             }
         }
-    #ifdef WOLFSSL_NGINX
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
         if (l == 0)
             WOLFSSL_ERROR(ASN_NO_PEM_HEADER);
     #endif
@@ -29513,7 +29508,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     }
     #endif
 
-#endif /* HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || HAVE_STUNNEL || WOLFSSL_NGINX || HAVE_POCO_LIB || WOLFSSL_HAPROXY */
+#endif /* OPENSSL_ALL || HAVE_LIGHTY || WOLFSSL_MYSQL_COMPATIBLE || HAVE_STUNNEL || WOLFSSL_NGINX || HAVE_POCO_LIB || WOLFSSL_HAPROXY */
 #endif /* OPENSSL_EXTRA */
 
 #ifdef OPENSSL_EXTRA
@@ -29527,7 +29522,7 @@ unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line)
 
     (void)line;
     (void)file;
-#if defined(WOLFSSL_NGINX) || defined(DEBUG_WOLFSSL) || defined(WOLFSSL_HAPROXY)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(DEBUG_WOLFSSL) || defined(WOLFSSL_HAPROXY)
     {
         int ret;
 
@@ -29535,7 +29530,7 @@ unsigned long wolfSSL_ERR_peek_last_error_line(const char **file, int *line)
             WOLFSSL_MSG("Issue peeking at error node in queue");
             return 0;
         }
-    #ifdef WOLFSSL_NGINX
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
         if (ret == -ASN_NO_PEM_HEADER)
             return (ERR_LIB_PEM << 24) | PEM_R_NO_START_LINE;
     #endif
@@ -30280,10 +30275,10 @@ int wolfSSL_SESSION_get_ex_new_index(long idx, void* data, void* cb1,
     (void)cb1;
     (void)cb2;
     (void)cb3;
-    if(XSTRNCMP((const char*)data, "redirect index", 14) == 0) {
+    if (XSTRNCMP((const char*)data, "redirect index", 14) == 0) {
         return 0;
     }
-    else if(XSTRNCMP((const char*)data, "addr index", 10) == 0) {
+    else if (XSTRNCMP((const char*)data, "addr index", 10) == 0) {
         return 1;
     }
     return WOLFSSL_FAILURE;
@@ -30366,7 +30361,7 @@ unsigned long wolfSSL_ERR_peek_last_error(void)
 {
     WOLFSSL_ENTER("wolfSSL_ERR_peek_last_error");
 
-#ifdef WOLFSSL_NGINX
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
     {
         int ret;
 
@@ -30650,9 +30645,10 @@ WOLF_STACK_OF(WOLFSSL_X509)* wolfSSL_X509_STORE_get1_certs(WOLFSSL_X509_STORE_CT
 #endif
 
 #endif /* OPENSSL_EXTRA and HAVE_STUNNEL */
-#if defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX))\
-    || defined(WOLFSSL_HAPROXY)
 
+#if defined(OPENSSL_ALL) || \
+    (defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || \
+     defined(WOLFSSL_NGINX)) || defined(WOLFSSL_HAPROXY))
 
 const byte* wolfSSL_SESSION_get_id(WOLFSSL_SESSION* sess, unsigned int* idLen)
 {
@@ -30666,8 +30662,9 @@ const byte* wolfSSL_SESSION_get_id(WOLFSSL_SESSION* sess, unsigned int* idLen)
 }
 #endif
 
-#if (defined(OPENSSL_EXTRA) && defined(HAVE_STUNNEL)) \
+#if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && defined(HAVE_STUNNEL)) \
     || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX)
+
 int wolfSSL_CTX_get_verify_mode(WOLFSSL_CTX* ctx)
 {
     int mode = 0;
@@ -31099,8 +31096,8 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
         *flags = 0;
     }
 
-#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
-    defined(WOLFSSL_MYSQL_COMPATIBLE)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || \
+    defined(WOLFSSL_HAPROXY) || defined(WOLFSSL_MYSQL_COMPATIBLE)
     {
         int ret = 0;
 
@@ -31129,7 +31126,7 @@ unsigned long wolfSSL_ERR_peek_error_line_data(const char **file, int *line,
 }
 #endif
 
-#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 
 #ifndef NO_WOLFSSL_STUB
 WOLF_STACK_OF(WOLFSSL_CIPHER) *wolfSSL_get_ciphers_compat(const WOLFSSL *ssl)
@@ -31149,7 +31146,8 @@ void wolfSSL_OPENSSL_config(char *config_name)
 #endif
 #endif
 
-#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
+    || defined(OPENSSL_EXTRA)
 int wolfSSL_X509_get_ex_new_index(int idx, void *arg, void *a, void *b, void *c)
 {
     static int x509_idx = 0;
@@ -31544,7 +31542,7 @@ int wolfSSL_CTX_set_tlsext_ticket_key_cb(WOLFSSL_CTX *ctx, int (*cb)(
 
 #endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY || OPENSSL_EXTRA */
 
-#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 #ifdef HAVE_OCSP
 /* Not an OpenSSL API. */
 int wolfSSL_get_ocsp_response(WOLFSSL* ssl, byte** response)

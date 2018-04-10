@@ -600,7 +600,7 @@ enum {
 #define PEM_write_bio_X509_REQ wolfSSL_PEM_write_bio_X509_REQ
 #define PEM_write_bio_X509_AUX wolfSSL_PEM_write_bio_X509_AUX
 
-#ifdef WOLFSSL_HAPROXY
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_HAPROXY)
 #define SSL_get_rbio                      wolfSSL_SSL_get_rbio
 #define SSL_get_wbio                      wolfSSL_SSL_get_wbio
 #define SSL_do_handshake                  wolfSSL_SSL_do_handshake
@@ -611,7 +611,7 @@ enum {
 #define sk_SSL_CIPHER_num                 wolfSSL_sk_SSL_CIPHER_num
 #define sk_SSL_COMP_zero                  wolfSSL_sk_SSL_COMP_zero
 #define sk_SSL_CIPHER_value               wolfSSL_sk_SSL_CIPHER_value
-#endif /* WOLFSSL_HAPROXY */
+#endif /* OPENSSL_ALL || WOLFSSL_HAPROXY */
 
 #define SSL_CTX_set_tmp_dh wolfSSL_CTX_set_tmp_dh
 
@@ -825,7 +825,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define ERR_LIB_X509            10
 
 #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
-    defined(WOLFSSL_MYSQL_COMPATIBLE)
+    defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_ALL)
 
 #include <wolfssl/error-ssl.h>
 
