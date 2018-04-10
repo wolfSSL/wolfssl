@@ -1152,7 +1152,8 @@ enum Misc {
     MAX_REQUEST_SZ      = 256, /* Maximum cert req len (no auth yet */
     SESSION_FLUSH_COUNT = 256, /* Flush session cache unless user turns off */
 
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
     MAX_SYM_KEY_SIZE    = AES_256_KEY_SIZE,
 #else
     MAX_SYM_KEY_SIZE    = WC_MAX_SYM_KEY_SIZE,
