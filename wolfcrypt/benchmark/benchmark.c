@@ -4480,7 +4480,8 @@ void bench_eccEncrypt(void)
         printf("wc_ecc_encrypt make key A failed: %d\n", ret);
         return;
     }
-    wc_ecc_init_ex(&userB, HEAP_HINT, devId);
+
+    ret = wc_ecc_init_ex(&userB, HEAP_HINT, devId);
     if (ret != 0) {
         printf("wc_ecc_encrypt make key B failed: %d\n", ret);
         wc_ecc_free(&userA);

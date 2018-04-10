@@ -22089,6 +22089,7 @@ int wolfSSL_RAND_egd(const char* nm)
     if (ret == WOLFSSL_SUCCESS) {
         rem.sun_family = AF_UNIX;
         XSTRNCPY(rem.sun_path, nm, sizeof(rem.sun_path));
+        rem.sun_path[sizeof(rem.sun_path)-1] = '\0';
     }
 
     /* connect to egd server */

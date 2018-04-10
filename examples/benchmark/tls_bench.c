@@ -393,7 +393,7 @@ static void* client_thread(void* args)
 
     while (!info->shutdown) {
         cli_ssl = wolfSSL_new(cli_ctx);
-        if (cli_ctx == NULL) err_sys("error creating client object");
+        if (cli_ssl == NULL) err_sys("error creating client object");
 
         wolfSSL_SetIOReadCtx(cli_ssl, info);
         wolfSSL_SetIOWriteCtx(cli_ssl, info);
@@ -521,7 +521,7 @@ static void* server_thread(void* args)
 
     while (!info->shutdown) {
         srv_ssl = wolfSSL_new(srv_ctx);
-        if (srv_ctx == NULL) err_sys("error creating server object");
+        if (srv_ssl == NULL) err_sys("error creating server object");
 
         wolfSSL_SetIOReadCtx(srv_ssl, info);
         wolfSSL_SetIOWriteCtx(srv_ssl, info);
