@@ -321,7 +321,7 @@ WOLFSSL_API int wolfSSL_EVP_CipherUpdate(WOLFSSL_EVP_CIPHER_CTX *ctx,
 
     *outl = 0;
     if (inl == 0) return WOLFSSL_SUCCESS;
-    
+
     if (ctx->bufUsed > 0) { /* concatinate them if there is anything */
         fill = fillBuff(ctx, in, inl);
         inl -= fill;
@@ -449,7 +449,7 @@ WOLFSSL_API int wolfSSL_EVP_CIPHER_CTX_block_size(const WOLFSSL_EVP_CIPHER_CTX *
 {
     if (ctx == NULL) return BAD_FUNC_ARG;
     switch (ctx->cipherType) {
-
+#if !defined(NO_AES) || !defined(NO_DES3)
 #if !defined(NO_AES) && defined(HAVE_AES_CBC)
     case AES_128_CBC_TYPE:
     case AES_192_CBC_TYPE:
@@ -472,6 +472,7 @@ WOLFSSL_API int wolfSSL_EVP_CIPHER_CTX_block_size(const WOLFSSL_EVP_CIPHER_CTX *
     case DES_EDE3_ECB_TYPE:
 #endif
         return ctx->block_size;
+#endif /* !NO_AES || !NO_DES3 */
     default:
         return 0;
     }
