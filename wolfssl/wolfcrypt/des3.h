@@ -39,6 +39,14 @@
     extern "C" {
 #endif
 
+/* these are required for FIPS and non-FIPS */
+enum {
+    DES_KEY_SIZE        =  8,  /* des                     */
+    DES3_KEY_SIZE       = 24,  /* 3 des ede               */
+    DES_IV_SIZE         = 16,
+};
+
+
 #ifndef HAVE_FIPS /* to avoid redefinition of macros */
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -51,10 +59,6 @@ enum {
 
     DES_BLOCK_SIZE  = 8,
     DES_KS_SIZE     = 32,    /* internal DES key buffer size */
-
-    DES_KEY_SIZE    =  8,    /* des */
-    DES3_KEY_SIZE   = 24,    /* 3 des ede */
-    DES_IV_SIZE     = DES_BLOCK_SIZE,
 
     DES_ENCRYPTION  = 0,
     DES_DECRYPTION  = 1

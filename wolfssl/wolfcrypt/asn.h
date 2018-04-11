@@ -129,18 +129,6 @@ enum DN_Tags {
 #define WOLFSSL_ORGUNIT_NAME     "/OU="
 #define WOLFSSL_DOMAIN_COMPONENT "/DC="
 
-enum PBES {
-    PBE_MD5_DES      = 0,
-    PBE_SHA1_RC4_128 = 1,
-    PBE_SHA1_DES     = 2,
-    PBE_SHA1_DES3    = 3,
-    PBE_AES256_CBC   = 4,
-
-    PBE_SHA1_RC4_128_SUM = 657,
-    PBE_SHA1_DES3_SUM    = 659,
-    PBES2            = 13       /* algo ID */
-};
-
 enum ECC_TYPES {
     ECC_PREFIX_0 = 160,
     ECC_PREFIX_1 = 161
@@ -150,12 +138,6 @@ enum Misc_ASN {
     ASN_NAME_MAX        = 256,
     MAX_SALT_SIZE       =  64,     /* MAX PKCS Salt length */
     MAX_IV_SIZE         =  64,     /* MAX PKCS Iv length */
-    MAX_KEY_SIZE        =  64,     /* MAX PKCS Key  length */
-    PKCS5               =   5,     /* PKCS oid tag */
-    PKCS5v2             =   6,     /* PKCS #5 v2.0 */
-    PKCS8v0             =   0,     /* default PKCS#8 version */
-    PKCS12v1            =  12,     /* PKCS #12 */
-    MAX_UNICODE_SZ      = 256,
     ASN_BOOL_SIZE       =   2,     /* including type */
     ASN_ECC_HEADER_SZ   =   2,     /* String type + 1 byte len */
     ASN_ECC_CONTEXT_SZ  =   2,     /* Content specific type + 1 byte len */
@@ -1071,4 +1053,36 @@ WOLFSSL_LOCAL void FreeDecodedCRL(DecodedCRL*);
 #endif
 
 #endif /* !NO_ASN */
+
+
+#if !defined(NO_ASN) || !defined(NO_PWDBASED)
+
+#ifndef MAX_KEY_SIZE
+    #define MAX_KEY_SIZE    64  /* MAX PKCS Key length */
+#endif
+#ifndef MAX_UNICODE_SZ
+    #define MAX_UNICODE_SZ  256
+#endif
+
+enum PBESTypes {
+    PBE_MD5_DES      = 0,
+    PBE_SHA1_RC4_128 = 1,
+    PBE_SHA1_DES     = 2,
+    PBE_SHA1_DES3    = 3,
+    PBE_AES256_CBC   = 4,
+
+    PBE_SHA1_RC4_128_SUM = 657,
+    PBE_SHA1_DES3_SUM    = 659,
+    PBES2            = 13       /* algo ID */
+};
+
+enum PKCSTypes {
+    PKCS5v2             =   6,     /* PKCS #5 v2.0 */
+    PKCS12v1            =  12,     /* PKCS #12 */
+    PKCS5               =   5,     /* PKCS oid tag */
+    PKCS8v0             =   0,     /* default PKCS#8 version */
+};
+
+#endif /* !NO_ASN || !NO_PWDBASED */
+
 #endif /* WOLF_CRYPT_ASN_H */

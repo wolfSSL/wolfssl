@@ -1153,15 +1153,6 @@ enum Misc {
     SESSION_FLUSH_COUNT = 256, /* Flush session cache unless user turns off */
 
 #ifdef HAVE_FIPS
-    /* these moved into wolfCrypt, but kept here for backwards compatibility with FIPS */
-    DES_KEY_SIZE        =  8,  /* des                     */
-    DES3_KEY_SIZE       = 24,  /* 3 des ede               */
-    DES_IV_SIZE         = DES_BLOCK_SIZE,
-    AES_256_KEY_SIZE    = 32,  /* for 256 bit             */
-    AES_192_KEY_SIZE    = 24,  /* for 192 bit             */
-    AES_IV_SIZE         = 16,  /* always block size       */
-    AES_128_KEY_SIZE    = 16,  /* for 128 bit             */
-
     MAX_SYM_KEY_SIZE    = AES_256_KEY_SIZE,
 #else
     MAX_SYM_KEY_SIZE    = WC_MAX_SYM_KEY_SIZE,

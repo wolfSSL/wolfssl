@@ -48,6 +48,62 @@ enum Hash_Sum  {
 };
 #endif /* !NO_ASN */
 
+
+/* function converts int hash type to enum */
+enum wc_HashType wc_HashTypeConvert(int hashType)
+{
+    /* Default to hash type none as error */
+    enum wc_HashType eHashType = WC_HASH_TYPE_NONE;
+#ifdef HAVE_FIPS
+    /* original FIPSv1 requires a mapping for unique hash type to wc_HashType */
+    switch (hashType) {
+    #ifndef NO_MD5
+        case WC_MD5:
+            eHashType = WC_HASH_TYPE_MD5;
+            break;
+    #endif /* !NO_MD5 */
+    #ifndef NO_SHA
+        case WC_SHA:
+            eHashType = WC_HASH_TYPE_SHA;
+            break;
+    #endif /* !NO_SHA */
+
+    #ifdef WOLFSSL_SHA224
+        case WC_SHA224:
+            eHashType = WC_HASH_TYPE_SHA224;
+            break;
+    #endif /* WOLFSSL_SHA224 */
+
+    #ifndef NO_SHA256
+        case WC_SHA256:
+            eHashType = WC_HASH_TYPE_SHA256;
+            break;
+    #endif /* !NO_SHA256 */
+
+    #ifdef WOLFSSL_SHA512
+    #ifdef WOLFSSL_SHA384
+        case WC_SHA384:
+            eHashType = WC_HASH_TYPE_SHA384;
+            break;
+    #endif /* WOLFSSL_SHA384 */
+        case WC_SHA512:
+            eHashType = WC_HASH_TYPE_SHA512;
+            break;
+    #endif /* WOLFSSL_SHA512 */
+        default:
+            eHashType = WC_HASH_TYPE_NONE;
+            break;
+    }
+#else
+    /* current master uses same unique types as wc_HashType */
+    if (hashType > 0 && hashType <= WC_HASH_TYPE_MAX) {
+        eHashType = (enum wc_HashType)hashType;
+    }
+#endif
+    return eHashType;
+}
+
+
 int wc_HashGetOID(enum wc_HashType hash_type)
 {
     int oid = HASH_TYPE_E; /* Default to hash type error */

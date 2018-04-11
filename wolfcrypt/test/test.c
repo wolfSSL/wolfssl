@@ -13147,15 +13147,23 @@ int pbkdf1_test(void)
 int pwdbased_test(void)
 {
    int ret = 0;
-#ifndef NO_SHA
-   ret += pbkdf1_test();
-#endif
-   ret += pbkdf2_test();
-   ret += pkcs12_test();
-#ifdef HAVE_SCRYPT
-   ret += scrypt_test();
-#endif
 
+#ifndef NO_SHA
+   ret = pbkdf1_test();
+   if (ret != 0)
+      return ret;
+#endif
+   ret = pbkdf2_test();
+   if (ret != 0)
+      return ret;
+   ret = pkcs12_test();
+   if (ret != 0)
+      return ret;
+#ifdef HAVE_SCRYPT
+   ret = scrypt_test();
+   if (ret != 0)
+      return ret;
+#endif
    return ret;
 }
 
