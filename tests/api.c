@@ -9183,8 +9183,9 @@ static int test_wc_Arc4Process (void)
     int ret = 0;
 #ifndef NO_RC4
     Arc4 enc, dec;
-    const char* key = "\x01\x23\x45\x67\x89\xab\xcd\xef";
-    const char* input = "\x01\x23\x45\x67\x89\xab\xcd\xef";
+    const char* key[] = {"\x01\x23\x45\x67\x89\xab\xcd\xef"};
+    int keyLen = 8;
+    const char* input[] = {"\x01\x23\x45\x67\x89\xab\xcd\xef"};
     byte cipher[8];
     byte plain[8];
 
@@ -9201,20 +9202,17 @@ static int test_wc_Arc4Process (void)
     printf(testingFmt, "wc_Arc4Process()");
 
     if (ret == 0) {
-        ret = wc_Arc4SetKey(&enc, (byte*)key, sizeof(key)/sizeof(char));
+        ret = wc_Arc4SetKey(&enc, (byte*)key, keyLen);
     }
     if (ret == 0) {
-        ret = wc_Arc4SetKey(&dec, (byte*)key, sizeof(key)/sizeof(char));
+        ret = wc_Arc4SetKey(&dec, (byte*)key, keyLen);
     }
     if (ret == 0) {
-        ret = wc_Arc4Process(&enc, cipher, (byte*)input,
-                                    (word32)(sizeof(input)/sizeof(char)));
+        ret = wc_Arc4Process(&enc, cipher, (byte*)input, keyLen);
     }
     if (ret == 0) {
-        ret = wc_Arc4Process(&dec, plain, cipher,
-                                    (word32)(sizeof(input)/sizeof(char)));
-        if (ret != 0 || XMEMCMP(plain, input,
-                            (unsigned int)(sizeof(input)/sizeof(char)))) {
+        ret = wc_Arc4Process(&dec, plain, cipher, keyLen);
+        if (ret != 0 || XMEMCMP(plain, input, keyLen)) {
             ret = WOLFSSL_FATAL_ERROR;
         } else {
             ret = 0;
@@ -9223,15 +9221,12 @@ static int test_wc_Arc4Process (void)
 
     /* Bad args. */
     if (ret == 0) {
-        ret = wc_Arc4Process(NULL, plain, cipher,
-                                (word32)(sizeof(input)/sizeof(char)));
+        ret = wc_Arc4Process(NULL, plain, cipher, keyLen);
         if (ret == BAD_FUNC_ARG) {
-            ret = wc_Arc4Process(&dec, NULL, cipher,
-                                (word32)(sizeof(input)/sizeof(char)));
+            ret = wc_Arc4Process(&dec, NULL, cipher, keyLen);
         }
         if (ret == BAD_FUNC_ARG) {
-            ret = wc_Arc4Process(&dec, plain, NULL,
-                                (word32)(sizeof(input)/sizeof(char)));
+            ret = wc_Arc4Process(&dec, plain, NULL, keyLen);
         }
         if (ret == BAD_FUNC_ARG) {
             ret = 0;
@@ -10758,7 +10753,7 @@ static int test_wc_Hc128_Process (void)
     const char* key =  "\x0F\x62\xB5\x08\x5B\xAE\x01\x54"
                        "\xA7\xFA\x4D\xA0\xF3\x46\x99\xEC";
     const char* input = "Encrypt Hc128, and then Decrypt.";
-    size_t inlen = XSTRLEN(input);
+    size_t inlen = XSTRLEN(input) + 1; /* Add null terminator */
     byte cipher[inlen];
     byte plain[inlen];
 
@@ -11896,7 +11891,7 @@ static int test_wc_ed25519_export (void)
     if (ret == 0) {
         ret = wc_ed25519_export_private_only(&key, priv, &privSz);
         if (ret == 0 && (privSz != ED25519_KEY_SIZE
-                                        || XMEMCMP(key.k, priv, pubSz) != 0)) {
+                                        || XMEMCMP(key.k, priv, privSz) != 0)) {
             ret = SSL_FATAL_ERROR;
         }
         if (ret == 0) {
@@ -13239,7 +13234,7 @@ static int test_wc_ecc_encryptDecrypt (void)
     word32      msgSz = (word32)XSTRLEN(msg);
     byte        out[XSTRLEN(msg) + WC_SHA256_DIGEST_SIZE];
     word32      outSz = (word32)sizeof(out);
-    byte        plain[XSTRLEN(msg)];
+    byte        plain[XSTRLEN(msg) + 1];
     word32      plainSz = (word32)sizeof(plain);
     int         keySz = KEY20;
 
@@ -16684,7 +16679,7 @@ static void test_wolfSSL_RAND(void)
     {
         char fname[100];
 
-        AssertNotNull(RAND_file_name(fname, sizeof(fname)));
+        AssertNotNull(RAND_file_name(fname, (sizeof(fname) - 1)));
         AssertIntEQ(RAND_write_file(NULL), 0);
     }
 #endif
