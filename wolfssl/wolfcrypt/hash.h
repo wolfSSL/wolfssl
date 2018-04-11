@@ -119,6 +119,8 @@ typedef union {
 WOLFSSL_API int wc_HashGetOID(enum wc_HashType hash_type);
 #endif
 
+WOLFSSL_API enum wc_HashType wc_HashTypeConvert(int hashType);
+
 WOLFSSL_API int wc_HashGetDigestSize(enum wc_HashType hash_type);
 WOLFSSL_API int wc_HashGetBlockSize(enum wc_HashType hash_type);
 WOLFSSL_API int wc_Hash(enum wc_HashType hash_type,

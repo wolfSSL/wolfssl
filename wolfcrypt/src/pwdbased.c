@@ -62,15 +62,14 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
 
     (void)heap;
 
-    if (key == NULL || keyLen < 0 || passwdLen < 0 || saltLen < 0 ||
-                    ivLen < 0 || hashType < 0 || hashType > WC_HASH_TYPE_MAX) {
+    if (key == NULL || keyLen < 0 || passwdLen < 0 || saltLen < 0 || ivLen < 0){
         return BAD_FUNC_ARG;
     }
 
     if (iterations <= 0)
         iterations = 1;
 
-    hashT = (enum wc_HashType)hashType;
+    hashT = wc_HashTypeConvert(hashType);
     err = wc_HashGetDigestSize(hashT);
     if (err < 0)
         return err;
@@ -180,16 +179,14 @@ int wc_PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
 #endif
     enum wc_HashType hashT;
 
-    if (output == NULL || pLen < 0 || sLen < 0 || kLen < 0 ||
-                                hashType < 0 || hashType > WC_HASH_TYPE_MAX) {
+    if (output == NULL || pLen < 0 || sLen < 0 || kLen < 0) {
         return BAD_FUNC_ARG;
     }
 
     if (iterations <= 0)
         iterations = 1;
 
-    hashT = (enum wc_HashType)hashType;
-
+    hashT = wc_HashTypeConvert(hashType);
     hLen = wc_HashGetDigestSize(hashT);
     if (hLen < 0)
         return BAD_FUNC_ARG;
@@ -205,7 +202,8 @@ int wc_PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
 
     ret = wc_HmacInit(hmac, NULL, INVALID_DEVID);
     if (ret == 0) {
-        ret = wc_HmacSetKey(hmac, hashT, passwd, pLen);
+        /* use int hashType here, since HMAC FIPS uses the old unique value */
+        ret = wc_HmacSetKey(hmac, hashType, passwd, pLen);
 
         while (ret == 0 && kLen) {
             int currentLen;
@@ -276,12 +274,11 @@ static int DoPKCS12Hash(int hashType, byte* buffer, word32 totalLen,
 #endif
     enum wc_HashType hashT;
 
-    if (buffer == NULL || Ai == NULL || hashType < 0 ||
-                                                hashType > WC_HASH_TYPE_MAX) {
+    if (buffer == NULL || Ai == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    hashT = (enum wc_HashType)hashType;
+    hashT = wc_HashTypeConvert(hashType);
 
     /* initialize hash */
 #ifdef WOLFSSL_SMALL_STACK
@@ -356,16 +353,15 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
     enum wc_HashType hashT;
 
     (void)heap;
-    
-    if (output == NULL || passLen < 0 || saltLen < 0 || kLen < 0 ||
-                                hashType < 0 || hashType > WC_HASH_TYPE_MAX) {
+
+    if (output == NULL || passLen < 0 || saltLen < 0 || kLen < 0) {
         return BAD_FUNC_ARG;
     }
 
     if (iterations <= 0)
         iterations = 1;
 
-    hashT = (enum wc_HashType)hashType;
+    hashT = wc_HashTypeConvert(hashType);
     ret = wc_HashGetDigestSize(hashT);
     if (ret < 0)
         return ret;
