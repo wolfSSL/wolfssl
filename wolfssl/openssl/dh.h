@@ -71,8 +71,9 @@ typedef WOLFSSL_DH DH;
     }  /* extern "C" */
 #endif
 
-#ifdef HAVE_STUNNEL
+#if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL)
 #define DH_generate_parameters    wolfSSL_DH_generate_parameters
 #define DH_generate_parameters_ex wolfSSL_DH_generate_parameters_ex
-#endif /* HAVE_STUNNEL */
-#endif /* header */
+#endif /* OPENSSL_ALL || HAVE_STUNNEL */
+
+#endif /* WOLFSSL_DH_H_ */

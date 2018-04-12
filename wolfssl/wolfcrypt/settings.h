@@ -1587,7 +1587,7 @@ extern void uITRON4_free(void *p) ;
     #undef HAVE_GMTIME_R /* don't trust macro with windows */
 #endif /* WOLFSSL_MYSQL_COMPATIBLE */
 
-#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
     #define SSL_OP_NO_COMPRESSION    SSL_OP_NO_COMPRESSION
     #define OPENSSL_NO_ENGINE
     #define X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT
@@ -1670,6 +1670,12 @@ extern void uITRON4_free(void *p) ;
 #if !defined(WOLFSSL_NO_PEM)
     #undef  WOLFSSL_PEM_TO_DER
     #define WOLFSSL_PEM_TO_DER
+#endif
+
+/* Parts of the openssl compatibility layer require peer certs */
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+    #undef  KEEP_PEER_CERT
+    #define KEEP_PEER_CERT
 #endif
 
 

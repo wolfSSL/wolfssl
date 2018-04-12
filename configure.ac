@@ -159,6 +159,7 @@ then
     enable_tls13=yes
     enable_openssh=yes
     enable_opensslextra=yes
+    enable_opensslall=yes
     enable_savesession=yes
     enable_savecert=yes
     enable_atomicuser=yes
@@ -222,8 +223,11 @@ then
     enable_indef=yes
     enable_enckeys=yes
 
-    AM_CFLAGS="-DHAVE_AES_DECRYPT $AM_CFLAGS"
-    AM_CFLAGS="-DHAVE_AES_ECB $AM_CFLAGS"
+    # Enable AES Decrypt, AES ECB, Alt Names, DER Load, Keep Certs, CRL IO with Timeout
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_AES_DECRYPT -DHAVE_AES_ECB -DWOLFSSL_ALT_NAMES -DWOLFSSL_DER_LOAD -DKEEP_OUR_CERT -DKEEP_PEER_CERT -DHAVE_CRL_IO -DHAVE_IO_TIMEOUT"
+
+    # Enable DH const table speedups (eliminates `-lm` math lib dependency)
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_FFDHE_2048 -DHAVE_FFDHE_3072 -DHAVE_FFDHE_4096 -DHAVE_FFDHE_6144 -DHAVE_FFDHE_8192"
 fi
 AM_CONDITIONAL([BUILD_ALL], [test "x$ENABLED_ALL" = "xyes"])
 
@@ -434,6 +438,22 @@ fi
 AM_CONDITIONAL([BUILD_RNG], [test "x$ENABLED_RNG" = "xyes"])
 
 
+
+# List of open source project defines using our openssl compatibility layer:
+# openssh (--enable-openssh)
+# nginix (--enable-nginx) WOLFSSL_NGINX
+# haproxy (--enable-haproxy) WOLFSSL_HAPROXY
+# wpa_supplicant (--enable-wpas) WOLFSSL_WPAS
+# ssl fortress (--enable-fortress) FORTRESS
+# ssl bump (--enable-bump)
+# signal (--enable-signal)
+# lighty (--enable-lighty) HAVE_LIGHTY
+# stunnel (--enable-stunnel) HAVE_STUNNEL
+# HAVE_POCO_LIB
+# WOLFSSL_MYSQL_COMPATIBLE
+# web server (--enable-webserver) HAVE_WEBSERVER
+
+
 # OpenSSH compatibility Build
 AC_ARG_ENABLE([openssh],
     [AS_HELP_STRING([--enable-openssh],[Enable OpenSSH compatibility build (default: disabled)])],
@@ -509,13 +529,25 @@ then
 fi
 
 
+# OPENSSL Compatibility ALL
+AC_ARG_ENABLE([opensslall],
+[AS_HELP_STRING([--enable-opensslall],[Enable all OpenSSL API, size++ (default: disabled)])],
+[ ENABLED_OPENSSLALL=$enableval ],
+[ ENABLED_OPENSSLALL=no ]
+)
+
+if test "$ENABLED_OPENSSLALL" = "yes"
+then
+AM_CFLAGS="-DOPENSSL_ALL $AM_CFLAGS"
+fi
+
 # OPENSSL Extra Compatibility
 AC_ARG_ENABLE([opensslextra],
     [AS_HELP_STRING([--enable-opensslextra],[Enable extra OpenSSL API, size+ (default: disabled)])],
     [ ENABLED_OPENSSLEXTRA=$enableval ],
     [ ENABLED_OPENSSLEXTRA=no ]
     )
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_SIGNAL" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_FORTRESS" = "yes" || test "$ENABLED_BUMP" = "yes" || test "$ENABLED_SNIFFER" = "yes"
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_SIGNAL" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_FORTRESS" = "yes" || test "$ENABLED_BUMP" = "yes" || test "$ENABLED_SNIFFER" = "yes" || test "$ENABLED_OPENSSLALL" = "yes"
 then
     ENABLED_OPENSSLEXTRA="yes"
 fi
@@ -540,7 +572,7 @@ fi
 
 # High Strength Build
 AC_ARG_ENABLE([maxstrength],
-    [AS_HELP_STRING([--enable-maxstrength],[Enable Max Strengh build, allows TLSv1.2-AEAD-PFS ciphers only (default: disabled)])],
+    [AS_HELP_STRING([--enable-maxstrength],[Enable Max Strength build, allows TLSv1.2-AEAD-PFS ciphers only (default: disabled)])],
     [ENABLED_MAXSTRENGTH=$enableval],
     [ENABLED_MAXSTRENGTH=no])
 
@@ -1910,6 +1942,17 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_WEBSERVER"
 fi
 
+# Web Client Build (HTTP Client)
+AC_ARG_ENABLE([webclient],
+    [AS_HELP_STRING([--enable-webclient],[Enable Web Client (HTTP) (default: disabled)])],
+    [ ENABLED_WEBCLIENT=$enableval ],
+    [ ENABLED_WEBCLIENT=no ]
+    )
+
+if test "$ENABLED_WEBCLIENT" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_HTTP_CLIENT"
+fi
 
 
 # HC128
@@ -2203,7 +2246,7 @@ AC_ARG_ENABLE([ocsp],
     [ ENABLED_OCSP=no ],
     )
 
-if test "x$ENABLED_NGINX" = "xyes"
+if test "x$ENABLED_OPENSSLALL" = "xyes" || test "x$ENABLED_NGINX" = "xyes"
 then
     ENABLED_OCSP=yes
 fi
