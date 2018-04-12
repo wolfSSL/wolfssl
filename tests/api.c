@@ -17745,6 +17745,39 @@ static void test_wolfSSL_SHA256(void)
 #endif
 }
 
+static void test_wolfSSL_X509_get_serialNumber(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    !defined(NO_RSA)
+    ASN1_INTEGER* a;
+    BIGNUM* bn;
+    X509*   x509;
+
+
+    printf(testingFmt, "wolfSSL_X509_get_serialNumber()");
+
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
+                                                      SSL_FILETYPE_PEM));
+    AssertNotNull(a = X509_get_serialNumber(x509));
+
+    /* check on value of ASN1 Integer */
+    AssertNotNull(bn = ASN1_INTEGER_to_BN(a, NULL));
+    AssertIntEQ(BN_get_word(bn), 1);
+
+    BN_free(bn);
+    ASN1_INTEGER_free(a);
+
+    /* hard test free'ing with dynamic buffer to make sure there is no leaks */
+    a = ASN1_INTEGER_new();
+    AssertNotNull(a->data = (unsigned char*)XMALLOC(100, NULL,
+                DYNAMIC_TYPE_OPENSSL));
+    a->isDynamic = 1;
+    ASN1_INTEGER_free(a);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_no_op_functions(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -18589,6 +18622,7 @@ void ApiTest(void)
     test_wolfSSL_DH_1536_prime();
     test_wolfSSL_AES_ecb_encrypt();
     test_wolfSSL_SHA256();
+    test_wolfSSL_X509_get_serialNumber();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();

@@ -379,6 +379,8 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define ASN1_GENERALIZEDTIME_print   wolfSSL_ASN1_GENERALIZEDTIME_print
 #define ASN1_TIME_adj                wolfSSL_ASN1_TIME_adj
 
+#define ASN1_INTEGER_new wolfSSL_ASN1_INTEGER_new
+#define ASN1_INTEGER_free wolfSSL_ASN1_INTEGER_free
 #define ASN1_INTEGER_cmp wolfSSL_ASN1_INTEGER_cmp
 #define ASN1_INTEGER_get wolfSSL_ASN1_INTEGER_get
 #define ASN1_INTEGER_to_BN wolfSSL_ASN1_INTEGER_to_BN
