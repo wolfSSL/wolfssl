@@ -126,7 +126,7 @@ int wc_HashGetOID(enum wc_HashType hash_type)
         #endif
             break;
         case WC_HASH_TYPE_SHA224:
-        #if defined(WOLFSSL_SHA224)
+        #ifdef WOLFSSL_SHA224
             oid = SHA224h;
         #endif
             break;
@@ -136,7 +136,7 @@ int wc_HashGetOID(enum wc_HashType hash_type)
         #endif
             break;
         case WC_HASH_TYPE_SHA384:
-        #if defined(WOLFSSL_SHA512) && defined(WOLFSSL_SHA384)
+        #ifdef WOLFSSL_SHA384
             oid = SHA384h;
         #endif
             break;
@@ -159,6 +159,52 @@ int wc_HashGetOID(enum wc_HashType hash_type)
             break;
     }
     return oid;
+}
+
+enum wc_HashType wc_OidGetHash(int oid)
+{
+    enum wc_HashType hash_type = WC_HASH_TYPE_NONE;
+    switch (oid)
+    {
+        case MD2h:
+        #ifdef WOLFSSL_MD2
+            hash_type = WC_HASH_TYPE_MD2;
+        #endif
+            break;
+        case MD5h:
+        #ifndef NO_MD5
+            hash_type = WC_HASH_TYPE_MD5;
+        #endif
+            break;
+        case SHAh:
+        #ifndef NO_SHA
+            hash_type = WC_HASH_TYPE_SHA;
+        #endif
+            break;
+        case SHA224h:
+        #if defined(WOLFSSL_SHA224)
+            hash_type = WC_HASH_TYPE_SHA224;
+        #endif
+            break;
+        case SHA256h:
+        #ifndef NO_SHA256
+            hash_type = WC_HASH_TYPE_SHA256;
+        #endif
+            break;
+        case SHA384h:
+        #ifdef WOLFSSL_SHA384
+            hash_type = WC_HASH_TYPE_SHA384;
+        #endif
+            break;
+        case SHA512h:
+        #ifdef WOLFSSL_SHA512
+            hash_type = WC_HASH_TYPE_SHA512;
+        #endif
+            break;
+        default:
+            break;
+    }
+    return hash_type;
 }
 #endif /* !NO_ASN || !NO_DH || HAVE_ECC */
 

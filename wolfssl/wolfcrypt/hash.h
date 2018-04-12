@@ -117,6 +117,7 @@ typedef union {
 
 #if !defined(NO_ASN) || !defined(NO_DH) || defined(HAVE_ECC)
 WOLFSSL_API int wc_HashGetOID(enum wc_HashType hash_type);
+WOLFSSL_API enum wc_HashType wc_OidGetHash(int oid);
 #endif
 
 WOLFSSL_API enum wc_HashType wc_HashTypeConvert(int hashType);

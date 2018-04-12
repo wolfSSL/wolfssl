@@ -4897,38 +4897,15 @@ word32 wc_EncodeSignature(byte* out, const byte* digest, word32 digSz,
 
 int wc_GetCTC_HashOID(int type)
 {
-    switch (type) {
-#ifdef WOLFSSL_MD2
-        case MD2:
-            return MD2h;
-#endif
-#ifndef NO_MD5
-        case WC_MD5:
-            return MD5h;
-#endif
-#ifndef NO_SHA
-        case WC_SHA:
-            return SHAh;
-#endif
-#ifdef WOLFSSL_SHA224
-        case WC_SHA224:
-            return SHA224h;
-#endif
-#ifndef NO_SHA256
-        case WC_SHA256:
-            return SHA256h;
-#endif
-#ifdef WOLFSSL_SHA384
-        case WC_SHA384:
-            return SHA384h;
-#endif
-#ifdef WOLFSSL_SHA512
-        case WC_SHA512:
-            return SHA512h;
-#endif
-        default:
-            return 0;
-    };
+    int ret;
+    enum wc_HashType hType;
+
+    hType = wc_HashTypeConvert(type);
+    ret = wc_HashGetOID(hType);
+    if (ret < 0)
+        ret = 0; /* backwards compatibility */
+
+    return ret;
 }
 
 void InitSignatureCtx(SignatureCtx* sigCtx, void* heap, int devId)
