@@ -190,6 +190,7 @@ struct WOLFSSL_ASN1_INTEGER {
     /* ASN_INTEGER | LENGTH | hex of number */
 
     unsigned char* data;
+    word32 dataMax;   /* max size of data buffer */
     byte isDynamic:1; /* flag for if data pointer dynamic (1 is yes 0 is no) */
 };
 

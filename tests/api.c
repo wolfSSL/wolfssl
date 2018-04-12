@@ -15995,7 +15995,7 @@ static void test_wolfSSL_BN(void)
     BIGNUM* b;
     BIGNUM* c;
     BIGNUM* d;
-    ASN1_INTEGER ai;
+    ASN1_INTEGER* ai;
     unsigned char value[1];
 
     printf(testingFmt, "wolfSSL_BN()");
@@ -16006,12 +16006,14 @@ static void test_wolfSSL_BN(void)
 
     value[0] = 0x03;
 
+    AssertNotNull(ai = ASN1_INTEGER_new());
     /* at the moment hard setting since no set function */
-    ai.data[0] = 0x02; /* tag for ASN_INTEGER */
-    ai.data[1] = 0x01; /* length of integer */
-    ai.data[2] = value[0];
+    ai->data[0] = 0x02; /* tag for ASN_INTEGER */
+    ai->data[1] = 0x01; /* length of integer */
+    ai->data[2] = value[0];
 
-    AssertNotNull(a = ASN1_INTEGER_to_BN(&ai, NULL));
+    AssertNotNull(a = ASN1_INTEGER_to_BN(ai, NULL));
+    ASN1_INTEGER_free(ai);
 
     value[0] = 0x02;
     AssertNotNull(BN_bin2bn(value, sizeof(value), b));

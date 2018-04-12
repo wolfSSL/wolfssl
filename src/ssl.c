@@ -18101,7 +18101,8 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_ASN1_INTEGER_new(void)
     }
 
     XMEMSET(a, 0, sizeof(WOLFSSL_ASN1_INTEGER));
-    a->data = a->intData;
+    a->data    = a->intData;
+    a->dataMax = WOLFSSL_ASN1_INTEGER_MAX;
     return a;
 }
 
@@ -18138,6 +18139,7 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
             wolfSSL_ASN1_INTEGER_free(a);
             return NULL;
         }
+        a->dataMax   = x509->serialSz + 2;
         a->isDynamic = 1;
     }
 
@@ -22911,7 +22913,7 @@ WOLFSSL_BIGNUM *wolfSSL_ASN1_INTEGER_to_BN(const WOLFSSL_ASN1_INTEGER *ai,
         return NULL;
     }
 
-    if ((ret = GetInt(&mpi, ai->data, &idx, sizeof(ai->data))) != 0) {
+    if ((ret = GetInt(&mpi, ai->data, &idx, ai->dataMax)) != 0) {
         /* expecting ASN1 format for INTEGER */
         WOLFSSL_LEAVE("wolfSSL_ASN1_INTEGER_to_BN", ret);
         return NULL;
