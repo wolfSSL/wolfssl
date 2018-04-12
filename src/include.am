@@ -204,7 +204,7 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/dsa.c
 endif
 
 if BUILD_AESNI
-src_libwolfssl_la_SOURCES += wolfcrypt/src/aes_asm.s
+src_libwolfssl_la_SOURCES += wolfcrypt/src/aes_asm.S
 endif
 
 if BUILD_CAMELLIA
