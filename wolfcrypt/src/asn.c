@@ -10932,6 +10932,7 @@ int wc_SetSubjectKeyId(Cert *cert, const char* file)
             WOLFSSL_MSG("wc_EccPublicKeyDecode failed");
             XFREE(der, cert->heap, DYNAMIC_TYPE_CERT);
             wc_ecc_free(eckey);
+            XFREE(eckey, cert->heap, DYNAMIC_TYPE_ECC);
             return PUBLIC_KEY_E;
         }
 #else
