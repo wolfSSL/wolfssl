@@ -4898,9 +4898,10 @@ word32 wc_EncodeSignature(byte* out, const byte* digest, word32 digSz,
 int wc_GetCTC_HashOID(int type)
 {
     int ret;
+    enum wc_HashType hType;
 
-    /* hash type is same as enum HashType (ex WC_SHA is WC_HASH_TYPE_SHA) */
-    ret = wc_HashGetOID((enum wc_HashType)type);
+    hType = wc_HashTypeConvert(type);
+    ret = wc_HashGetOID(hType);
     if (ret < 0)
         ret = 0; /* backwards compatibility */
 
