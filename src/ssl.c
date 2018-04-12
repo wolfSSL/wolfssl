@@ -4986,9 +4986,10 @@ static int ProcessChainBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 #ifdef HAVE_CRL
         if (ret < 0) {
             DerBuffer*    der = NULL;
+            EncryptedInfo info;
 
             WOLFSSL_MSG("Trying a CRL");
-            if (PemToDer(buff + used, sz - used, CRL_TYPE, &der, NULL, NULL,
+            if (PemToDer(buff + used, sz - used, CRL_TYPE, &der, NULL, &info,
                                                                    NULL) == 0) {
                 WOLFSSL_MSG("   Proccessed a CRL");
                 wolfSSL_CertManagerLoadCRLBuffer(ctx->cm, der->buffer,
