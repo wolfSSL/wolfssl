@@ -6987,6 +6987,7 @@ static void AES_GCM_encrypt(const unsigned char *in,
                               const unsigned char* ivec,
                               unsigned char *tag, unsigned int nbytes,
                               unsigned int abytes, unsigned int ibytes,
+                              unsigned int tbytes,
                               const unsigned char* key, int nr)
 {
     int i, j ,k;
@@ -7414,7 +7415,8 @@ static void AES_GCM_encrypt(const unsigned char *in,
     X = gfmul_shifted(X, H);
     X = _mm_shuffle_epi8(X, BSWAP_MASK);
     T = _mm_xor_si128(X, T);
-    _mm_storeu_si128((__m128i*)tag, T);
+    /*_mm_storeu_si128((__m128i*)tag, T);*/
+    XMEMCPY(tag, &T, tbytes);
 }
 
 #ifdef HAVE_AES_DECRYPT
@@ -7424,8 +7426,8 @@ static void AES_GCM_decrypt(const unsigned char *in,
                            const unsigned char* addt,
                            const unsigned char* ivec,
                            const unsigned char *tag, int nbytes, int abytes,
-                           int ibytes, const unsigned char* key, int nr,
-                           int* res)
+                           int ibytes, word32 tbytes, const unsigned char* key,
+                           int nr, int* res)
 {
     int i, j ,k;
     __m128i H, Y, T;
@@ -7739,8 +7741,9 @@ static void AES_GCM_decrypt(const unsigned char *in,
     X = _mm_shuffle_epi8(X, BSWAP_MASK);
     T = _mm_xor_si128(X, T);
 
-    if (0xffff !=
-           _mm_movemask_epi8(_mm_cmpeq_epi8(T, _mm_loadu_si128((__m128i*)tag))))
+/*    if (0xffff !=
+           _mm_movemask_epi8(_mm_cmpeq_epi8(T, _mm_loadu_si128((__m128i*)tag)))) */
+    if (XMEMCMP(tag, &T, tbytes) != 0)
         *res = 0; /* in case the authentication failed */
     else
         *res = 1; /* when successful returns 1 */
