@@ -472,6 +472,16 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 #endif
 #endif /* NO_ASN_TIME */
 
+#ifndef WOLFSSL_LEANPSK
+    char* mystrnstr(const char* s1, const char* s2, unsigned int n);
+#endif
+
+#ifndef FILE_BUFFER_SIZE
+    #define FILE_BUFFER_SIZE 1024     /* default static file buffer size for input,
+                                    will use dynamic buffer if not big enough */
+#endif
+
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif

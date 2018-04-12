@@ -2944,10 +2944,10 @@ exit:
 #ifndef WOLFSSL_NOSHA3_224
 void bench_sha3_224(int doAsync)
 {
-    Sha3   hash[BENCH_MAX_PENDING];
+    wc_Sha3   hash[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, SHA3_224_DIGEST_SIZE, HEAP_HINT);
+    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA3_224_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
@@ -3024,10 +3024,10 @@ exit:
 #ifndef WOLFSSL_NOSHA3_256
 void bench_sha3_256(int doAsync)
 {
-    Sha3   hash[BENCH_MAX_PENDING];
+    wc_Sha3   hash[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, SHA3_256_DIGEST_SIZE, HEAP_HINT);
+    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA3_256_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
@@ -3104,10 +3104,10 @@ exit:
 #ifndef WOLFSSL_NOSHA3_384
 void bench_sha3_384(int doAsync)
 {
-    Sha3   hash[BENCH_MAX_PENDING];
+    wc_Sha3   hash[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, SHA3_384_DIGEST_SIZE, HEAP_HINT);
+    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA3_384_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));
@@ -3184,10 +3184,10 @@ exit:
 #ifndef WOLFSSL_NOSHA3_512
 void bench_sha3_512(int doAsync)
 {
-    Sha3   hash[BENCH_MAX_PENDING];
+    wc_Sha3   hash[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, SHA3_512_DIGEST_SIZE, HEAP_HINT);
+    DECLARE_ARRAY(digest, byte, BENCH_MAX_PENDING, WC_SHA3_512_DIGEST_SIZE, HEAP_HINT);
 
     /* clear for done cleanup */
     XMEMSET(hash, 0, sizeof(hash));

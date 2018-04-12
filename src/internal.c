@@ -686,21 +686,21 @@ static int ImportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     idx++; /* no truncated hmac */
 #endif
     sz = exp[idx++];
-    if (sz > WC_MAX_DIGEST_SIZE || sz + idx > len) {
+    if (sz > sizeof(keys->client_write_MAC_secret) || sz + idx > len) {
         return BUFFER_E;
     }
     XMEMCPY(keys->client_write_MAC_secret, exp + idx, sz); idx += sz;
     XMEMCPY(keys->server_write_MAC_secret, exp + idx, sz); idx += sz;
 
     sz = exp[idx++];
-    if (sz > AES_256_KEY_SIZE || sz + idx > len) {
+    if (sz > sizeof(keys->client_write_key) || sz + idx > len) {
         return BUFFER_E;
     }
     XMEMCPY(keys->client_write_key, exp + idx, sz); idx += sz;
     XMEMCPY(keys->server_write_key, exp + idx, sz); idx += sz;
 
     sz = exp[idx++];
-    if (sz > MAX_WRITE_IV_SZ || sz + idx > len) {
+    if (sz > sizeof(keys->client_write_IV) || sz + idx > len) {
         return BUFFER_E;
     }
     XMEMCPY(keys->client_write_IV, exp + idx, sz); idx += sz;
@@ -709,7 +709,7 @@ static int ImportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     idx += AEAD_MAX_EXP_SZ;
 
     sz = exp[idx++];
-    if (sz > AEAD_MAX_IMP_SZ || sz + idx > len) {
+    if (sz > sizeof(keys->aead_enc_imp_IV) || sz + idx > len) {
         return BUFFER_E;
     }
     XMEMCPY(keys->aead_enc_imp_IV, exp + idx, sz); idx += sz;
@@ -14973,9 +14973,6 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
 
     case SUITES_ERROR:
         return "Suites Pointer Error";
-
-    case SSL_NO_PEM_HEADER:
-        return "No PEM Header Error";
 
     case OUT_OF_ORDER_E:
         return "Out of order message, fatal";

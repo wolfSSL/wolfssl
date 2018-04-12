@@ -62,6 +62,16 @@
     extern "C" {
 #endif
 
+/* these are required for FIPS and non-FIPS */
+enum {    
+    AES_128_KEY_SIZE    = 16,  /* for 128 bit             */
+    AES_192_KEY_SIZE    = 24,  /* for 192 bit             */
+    AES_256_KEY_SIZE    = 32,  /* for 256 bit             */
+
+    AES_IV_SIZE         = 16,  /* always block size       */
+};
+
+
 #ifndef HAVE_FIPS /* to avoid redefinition of structures */
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -69,11 +79,13 @@
 #endif
 
 enum {
-    AES_ENC_TYPE   = 1,   /* cipher unique type */
+    AES_ENC_TYPE   = WC_CIPHER_AES,   /* cipher unique type */
     AES_ENCRYPTION = 0,
     AES_DECRYPTION = 1,
-    KEYWRAP_BLOCK_SIZE = 8,
-    AES_BLOCK_SIZE = 16
+
+    AES_BLOCK_SIZE      = 16,
+
+    KEYWRAP_BLOCK_SIZE  = 8,
 };
 
 

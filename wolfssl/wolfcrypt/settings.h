@@ -1651,6 +1651,27 @@ extern void uITRON4_free(void *p) ;
     #define OPENSSL_EXTRA_X509_SMALL
 #endif /* OPENSSL_EXTRA */
 
+/* support for converting DER to PEM */
+#if defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN) || \
+        defined(OPENSSL_EXTRA)
+    #undef  WOLFSSL_DER_TO_PEM
+    #define WOLFSSL_DER_TO_PEM
+#endif
+
+/* keep backwards compatibility enabling encrypted private key */
+#ifndef WOLFSSL_ENCRYPTED_KEYS
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
+        defined(HAVE_WEBSERVER)
+        #define WOLFSSL_ENCRYPTED_KEYS
+    #endif
+#endif
+
+/* support for disabling PEM to DER */
+#if !defined(WOLFSSL_NO_PEM)
+    #undef  WOLFSSL_PEM_TO_DER
+    #define WOLFSSL_PEM_TO_DER
+#endif
+
 
 #ifdef __cplusplus
     }   /* extern "C" */

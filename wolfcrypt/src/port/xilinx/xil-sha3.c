@@ -44,7 +44,7 @@
  * heap  memory heap hint to use
  * devId used for async operations (currently not supported here)
  */
-int wc_InitSha3_384(Sha3* sha, void* heap, int devId)
+int wc_InitSha3_384(wc_Sha3* sha, void* heap, int devId)
 {
     XCsuDma_Config* con;
 
@@ -80,7 +80,7 @@ int wc_InitSha3_384(Sha3* sha, void* heap, int devId)
  * data  message to update SHA3 state with
  * len   length of data buffer
  */
-int wc_Sha3_384_Update(Sha3* sha, const byte* data, word32 len)
+int wc_Sha3_384_Update(wc_Sha3* sha, const byte* data, word32 len)
 {
     if (sha == NULL ||  (data == NULL && len > 0)) {
         return BAD_FUNC_ARG;
@@ -96,7 +96,7 @@ int wc_Sha3_384_Update(Sha3* sha, const byte* data, word32 len)
  * sha  SHA3 structure to get hash
  * out  digest out, expected to be large enough to hold SHA3 digest
  */
-int wc_Sha3_384_Final(Sha3* sha, byte* out)
+int wc_Sha3_384_Final(wc_Sha3* sha, byte* out)
 {
     if (sha == NULL || out == NULL) {
         return BAD_FUNC_ARG;
@@ -111,7 +111,7 @@ int wc_Sha3_384_Final(Sha3* sha, byte* out)
  *
  * sha  SHA3 structure to free
  */
-void wc_Sha3_384_Free(Sha3* sha)
+void wc_Sha3_384_Free(wc_Sha3* sha)
 {
     (void)sha;
     /* nothing to free yet */
@@ -123,9 +123,9 @@ void wc_Sha3_384_Free(Sha3* sha)
  * sha  SHA3 structure to get hash
  * out  digest out, expected to be large enough to hold SHA3 digest
  */
-int wc_Sha3_384_GetHash(Sha3* sha, byte* out)
+int wc_Sha3_384_GetHash(wc_Sha3* sha, byte* out)
 {
-    Sha3 s;
+    wc_Sha3 s;
 
     if (sha == NULL || out == NULL) {
         return BAD_FUNC_ARG;
@@ -145,13 +145,13 @@ int wc_Sha3_384_GetHash(Sha3* sha, byte* out)
  * src SHA3 structure to make copy of
  * dst [out]structure to hold copy
  */
-int wc_Sha3_384_Copy(Sha3* src, Sha3* dst)
+int wc_Sha3_384_Copy(wc_Sha3* src, wc_Sha3* dst)
 {
     if (src == NULL || dst== NULL) {
         return BAD_FUNC_ARG;
     }
 
-    XMEMCPY((byte*)dst, (byte*)src, sizeof(Sha3));
+    XMEMCPY((byte*)dst, (byte*)src, sizeof(wc_Sha3));
     return 0;
 }
 

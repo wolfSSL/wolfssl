@@ -129,18 +129,6 @@ enum DN_Tags {
 #define WOLFSSL_ORGUNIT_NAME     "/OU="
 #define WOLFSSL_DOMAIN_COMPONENT "/DC="
 
-enum PBES {
-    PBE_MD5_DES      = 0,
-    PBE_SHA1_RC4_128 = 1,
-    PBE_SHA1_DES     = 2,
-    PBE_SHA1_DES3    = 3,
-    PBE_AES256_CBC   = 4,
-
-    PBE_SHA1_RC4_128_SUM = 657,
-    PBE_SHA1_DES3_SUM    = 659,
-    PBES2            = 13       /* algo ID */
-};
-
 enum ECC_TYPES {
     ECC_PREFIX_0 = 160,
     ECC_PREFIX_1 = 161
@@ -150,12 +138,6 @@ enum Misc_ASN {
     ASN_NAME_MAX        = 256,
     MAX_SALT_SIZE       =  64,     /* MAX PKCS Salt length */
     MAX_IV_SIZE         =  64,     /* MAX PKCS Iv length */
-    MAX_KEY_SIZE        =  64,     /* MAX PKCS Key  length */
-    PKCS5               =   5,     /* PKCS oid tag */
-    PKCS5v2             =   6,     /* PKCS #5 v2.0 */
-    PKCS8v0             =   0,     /* default PKCS#8 version */
-    PKCS12v1            =  12,     /* PKCS #12 */
-    MAX_UNICODE_SZ      = 256,
     ASN_BOOL_SIZE       =   2,     /* including type */
     ASN_ECC_HEADER_SZ   =   2,     /* String type + 1 byte len */
     ASN_ECC_CONTEXT_SZ  =   2,     /* Content specific type + 1 byte len */
@@ -221,13 +203,19 @@ enum Misc_ASN {
     EIGHTK_BUF          = 8192,    /* Tmp buffer size           */
     MAX_PUBLIC_KEY_SZ   = MAX_NTRU_ENC_SZ + MAX_ALGO_SZ + MAX_SEQ_SZ * 2,
                                    /* use bigger NTRU size */
+#ifdef WOLFSSL_ENCRYPTED_KEYS
     HEADER_ENCRYPTED_KEY_SIZE = 88,/* Extra header size for encrypted key */
+#else
+    HEADER_ENCRYPTED_KEY_SIZE = 0,
+#endif
     TRAILING_ZERO       = 1,       /* Used for size of zero pad */
     MIN_VERSION_SZ      = 3,       /* Min bytes needed for GetMyVersion */
 #if defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || \
     defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
     MAX_TIME_STRING_SZ  = 25,      /* Max length of formatted time string */
 #endif
+
+    PEM_LINE_LEN       = 80,       /* PEM line max + fudge */
 };
 
 
@@ -713,43 +701,6 @@ struct DecodedCert {
 };
 
 
-extern const char* const BEGIN_CERT;
-extern const char* const END_CERT;
-#ifdef WOLFSSL_CERT_REQ
-    extern const char* const BEGIN_CERT_REQ;
-    extern const char* const END_CERT_REQ;
-#endif
-#ifndef NO_DSA
-    extern const char* const BEGIN_DSA_PARAM;
-    extern const char* const END_DSA_PARAM;
-#endif
-#ifndef NO_DH
-    extern const char* const BEGIN_DH_PARAM;
-    extern const char* const END_DH_PARAM;
-#endif
-extern const char* const BEGIN_X509_CRL;
-extern const char* const END_X509_CRL;
-extern const char* const BEGIN_RSA_PRIV;
-extern const char* const END_RSA_PRIV;
-extern const char* const BEGIN_PRIV_KEY;
-extern const char* const END_PRIV_KEY;
-extern const char* const BEGIN_ENC_PRIV_KEY;
-extern const char* const END_ENC_PRIV_KEY;
-#ifdef HAVE_ECC
-    extern const char* const BEGIN_EC_PRIV;
-    extern const char* const END_EC_PRIV;
-#endif
-#if defined(HAVE_ECC) || defined(HAVE_ED25519) || !defined(NO_DSA)
-    extern const char* const BEGIN_DSA_PRIV;
-    extern const char* const END_DSA_PRIV;
-#endif
-extern const char* const BEGIN_PUB_KEY;
-extern const char* const END_PUB_KEY;
-#ifdef HAVE_ED25519
-    extern const char* const BEGIN_EDDSA_PRIV;
-    extern const char* const END_EDDSA_PRIV;
-#endif
-
 #ifdef NO_SHA
     #define SIGNER_DIGEST_SIZE WC_SHA256_DIGEST_SIZE
 #else
@@ -914,6 +865,15 @@ WOLFSSL_LOCAL int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der);
 WOLFSSL_LOCAL void InitSignatureCtx(SignatureCtx* sigCtx, void* heap, int devId);
 WOLFSSL_LOCAL void FreeSignatureCtx(SignatureCtx* sigCtx);
 
+#ifndef NO_CERTS
+
+WOLFSSL_LOCAL int PemToDer(const unsigned char* buff, long sz, int type,
+                          DerBuffer** pDer, void* heap, EncryptedInfo* info,
+                          int* eccKey);
+WOLFSSL_LOCAL int AllocDer(DerBuffer** der, word32 length, int type, void* heap);
+WOLFSSL_LOCAL void FreeDer(DerBuffer** der);
+
+#endif /* !NO_CERTS */
 
 #ifdef WOLFSSL_CERT_GEN
 
@@ -927,15 +887,6 @@ enum cert_enums {
     ECC_KEY         = 12,
     ED25519_KEY     = 13
 };
-
-#ifndef WOLFSSL_PEMCERT_TODER_DEFINED
-#ifndef NO_FILESYSTEM
-/* forward from wolfSSL */
-WOLFSSL_API
-int wolfSSL_PemCertToDer(const char* fileName,unsigned char* derBuf,int derSz);
-#define WOLFSSL_PEMCERT_TODER_DEFINED
-#endif
-#endif
 
 #endif /* WOLFSSL_CERT_GEN */
 
@@ -1102,4 +1053,36 @@ WOLFSSL_LOCAL void FreeDecodedCRL(DecodedCRL*);
 #endif
 
 #endif /* !NO_ASN */
+
+
+#if !defined(NO_ASN) || !defined(NO_PWDBASED)
+
+#ifndef MAX_KEY_SIZE
+    #define MAX_KEY_SIZE    64  /* MAX PKCS Key length */
+#endif
+#ifndef MAX_UNICODE_SZ
+    #define MAX_UNICODE_SZ  256
+#endif
+
+enum PBESTypes {
+    PBE_MD5_DES      = 0,
+    PBE_SHA1_RC4_128 = 1,
+    PBE_SHA1_DES     = 2,
+    PBE_SHA1_DES3    = 3,
+    PBE_AES256_CBC   = 4,
+
+    PBE_SHA1_RC4_128_SUM = 657,
+    PBE_SHA1_DES3_SUM    = 659,
+    PBES2            = 13       /* algo ID */
+};
+
+enum PKCSTypes {
+    PKCS5v2             =   6,     /* PKCS #5 v2.0 */
+    PKCS12v1            =  12,     /* PKCS #12 */
+    PKCS5               =   5,     /* PKCS oid tag */
+    PKCS8v0             =   0,     /* default PKCS#8 version */
+};
+
+#endif /* !NO_ASN || !NO_PWDBASED */
+
 #endif /* WOLF_CRYPT_ASN_H */

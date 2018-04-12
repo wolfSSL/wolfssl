@@ -220,6 +220,7 @@ then
     enable_x963kdf=yes
     enable_scrypt=yes
     enable_indef=yes
+    enable_enckeys=yes
 
     AM_CFLAGS="-DHAVE_AES_DECRYPT $AM_CFLAGS"
     AM_CFLAGS="-DHAVE_AES_ECB $AM_CFLAGS"
@@ -3057,6 +3058,24 @@ fi
 AM_CONDITIONAL([BUILD_MD4], [test "x$ENABLED_MD4" = "xyes"])
 
 
+# Encrypted keys
+AC_ARG_ENABLE([enckeys],
+    [AS_HELP_STRING([--enable-enckeys],[Enable PEM encrypted private key support (default: disabled)])],
+    [ ENABLED_ENCKEYS=$enableval ],
+    [ ENABLED_ENCKEYS=no ]
+    )
+
+if test "$ENABLED_OPENSSLEXTRA" = "yes" || test "$ENABLED_WEBSERVER" = "yes"
+then
+    ENABLED_ENCKEYS=yes
+fi
+
+if test "$ENABLED_ENCKEYS" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ENCRYPTED_KEYS"
+fi
+
+
 # PWDBASED has to come after certservice since we want it on w/o explicit on
 # PWDBASED
 AC_ARG_ENABLE([pwdbased],
@@ -3067,9 +3086,9 @@ AC_ARG_ENABLE([pwdbased],
 
 if test "$ENABLED_PWDBASED" = "no"
 then
-    if test "$ENABLED_OPENSSLEXTRA" = "yes" || test "$ENABLED_WEBSERVER" = "yes"
+    if test "$ENABLED_OPENSSLEXTRA" = "yes" || test "$ENABLED_WEBSERVER" = "yes" || test "$ENABLED_ENCKEYS" = "yes"
     then
-        # opensslextra and webserver needs pwdbased
+        # opensslextra, webserver and enckeys needs pwdbased
         ENABLED_PWDBASED=yes
     else
         AM_CFLAGS="$AM_CFLAGS -DNO_PWDBASED"

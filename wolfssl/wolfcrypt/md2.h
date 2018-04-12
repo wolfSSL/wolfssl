@@ -37,7 +37,7 @@
 
 /* in bytes */
 enum {
-    MD2             =  6,    /* hash type unique */
+    MD2             =  WC_HASH_TYPE_MD2,
     MD2_BLOCK_SIZE  = 16,
     MD2_DIGEST_SIZE = 16,
     MD2_PAD_SIZE    = 16,
