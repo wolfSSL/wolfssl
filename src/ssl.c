@@ -6224,8 +6224,8 @@ int wolfSSL_CTX_SetTmpDH_file(WOLFSSL_CTX* ctx, const char* fname, int format)
 #endif /* NO_FILESYSTEM */
 
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || \
-    defined(HAVE_WEBSERVER)
+#if defined(OPENSSL_EXTRA) || ((defined(OPENSSL_EXTRA_X509_SMALL) || \
+    defined(HAVE_WEBSERVER)) && !defined(NO_PWDBASED))
 
 static int wolfSSL_EVP_get_hashinfo(const WOLFSSL_EVP_MD* evp,
     int* pHash, int* pHashSz)
