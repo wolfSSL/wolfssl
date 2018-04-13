@@ -1,4 +1,4 @@
-/* aes_asm.s
+/* aes_asm.S
  *
  * Copyright (C) 2006-2017 wolfSSL Inc.
  *
