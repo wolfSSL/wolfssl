@@ -26,6 +26,9 @@
 ;
 ;   /* This file is in intel asm syntax, see .s for at&t syntax */
 ;
+
+fipsAh SEGMENT ALIAS(".fipsA$h") 'CODE'
+
 ;	/*
 ;	AES_CBC_encrypt[const	,unsigned	char*in
 ;	unsigned	,char*out
@@ -34,7 +37,6 @@
 ;	const	,unsigned	char*KS
 ;	int	nr]
 ;	*/
-_text SEGMENT
 AES_CBC_encrypt PROC
 ;#	parameter	1:	rdi
 ;#	parameter	2:	rsi
@@ -1502,4 +1504,5 @@ MAKE_RK256_b:
 	pxor	xmm3,xmm2
 	ret
 
+fipsAh ENDS
 END
