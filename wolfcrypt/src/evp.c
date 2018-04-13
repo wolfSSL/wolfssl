@@ -288,9 +288,6 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
     #endif
     #ifndef NO_RC4
         case ARC4_TYPE:
-        if (ctx->enc)
-            wc_Arc4Process(&ctx->cipher.arc4, out, in, inl);
-        else
             wc_Arc4Process(&ctx->cipher.arc4, out, in, inl);
         break;
     #endif

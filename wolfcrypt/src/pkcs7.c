@@ -1846,7 +1846,7 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
 
     if (length == 0 && pkiMsg[idx-1] == 0x80) {
 #ifdef ASN_BER_TO_DER
-        word32 len;
+        word32 len = 0;
 
         ret = wc_BerToDer(pkiMsg, pkiMsgSz, NULL, &len);
         if (ret != LENGTH_ONLY_E)
@@ -1854,6 +1854,7 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
         pkcs7->der = (byte*)XMALLOC(len, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         if (pkcs7->der == NULL)
             return MEMORY_E;
+        len = 0;
         ret = wc_BerToDer(pkiMsg, pkiMsgSz, pkcs7->der, &len);
         if (ret < 0)
             return ret;
@@ -2357,9 +2358,6 @@ static int wc_PKCS7_KariParseRecipCert(WC_PKCS7_KARI* kari, const byte* cert,
         /* bad direction */
         return BAD_FUNC_ARG;
     }
-
-    if (ret != 0)
-        return ret;
 
     (void)idx;
 
@@ -4396,7 +4394,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
 
     if (length == 0 && pkiMsg[idx-1] == 0x80) {
 #ifdef ASN_BER_TO_DER
-        word32 len;
+        word32 len = 0;
 
         ret = wc_BerToDer(pkiMsg, pkiMsgSz, NULL, &len);
         if (ret != LENGTH_ONLY_E)
@@ -4404,6 +4402,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
         pkcs7->der = (byte*)XMALLOC(len, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         if (pkcs7->der == NULL)
             return MEMORY_E;
+        len = 0;
         ret = wc_BerToDer(pkiMsg, pkiMsgSz, pkcs7->der, &len);
         if (ret < 0)
             return ret;

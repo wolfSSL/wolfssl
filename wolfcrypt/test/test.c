@@ -13443,7 +13443,11 @@ static int ecc_test_vector_item(const eccVector* vector)
     ecc_key userA;
     DECLARE_VAR(sig, byte, ECC_SIG_SIZE, HEAP_HINT);
 
-    wc_ecc_init_ex(&userA, HEAP_HINT, devId);
+    ret = wc_ecc_init_ex(&userA, HEAP_HINT, devId);
+    if (ret != 0) {
+        FREE_VAR(sig, HEAP_HINT);
+        return ret;
+    }
 
     XMEMSET(sig, 0, ECC_SIG_SIZE);
     x = ECC_SIG_SIZE;
