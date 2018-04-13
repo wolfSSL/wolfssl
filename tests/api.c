@@ -17761,6 +17761,7 @@ static void test_wolfSSL_X509_get_serialNumber(void)
     AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
                                                       SSL_FILETYPE_PEM));
     AssertNotNull(a = X509_get_serialNumber(x509));
+    X509_free(x509);
 
     /* check on value of ASN1 Integer */
     AssertNotNull(bn = ASN1_INTEGER_to_BN(a, NULL));
