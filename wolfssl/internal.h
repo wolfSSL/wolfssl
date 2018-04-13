@@ -1026,6 +1026,7 @@ enum Misc {
     TLSv1_1_MINOR   = 2,        /* TLSv1_1 minor version number */
     TLSv1_2_MINOR   = 3,        /* TLSv1_2 minor version number */
     TLSv1_3_MINOR   = 4,        /* TLSv1_3 minor version number */
+#ifndef WOLFSSL_TLS13_FINAL
     TLS_DRAFT_MAJOR = 0x7f,     /* Draft TLS major version number */
 #ifdef WOLFSSL_TLS13_DRAFT_18
     TLS_DRAFT_MINOR = 0x12,     /* Minor version number of TLS draft */
@@ -1034,7 +1035,8 @@ enum Misc {
 #elif defined(WOLFSSL_TLS13_DRAFT_23)
     TLS_DRAFT_MINOR = 0x17,     /* Minor version number of TLS draft */
 #else
-    TLS_DRAFT_MINOR = 0x1b,     /* Minor version number of TLS draft */
+    TLS_DRAFT_MINOR = 0x1c,     /* Minor version number of TLS draft */
+#endif
 #endif
     OLD_HELLO_ID    = 0x01,     /* SSLv2 Client Hello Indicator */
     INVALID_BYTE    = 0xff,     /* Used to initialize cipher specs values */
@@ -1380,6 +1382,7 @@ enum states {
     NULL_STATE = 0,
 
     SERVER_HELLOVERIFYREQUEST_COMPLETE,
+    SERVER_HELLO_RETRY_REQUEST_COMPLETE,
     SERVER_HELLO_COMPLETE,
     SERVER_ENCRYPTED_EXTENSIONS_COMPLETE,
     SERVER_CERT_COMPLETE,
@@ -1387,7 +1390,6 @@ enum states {
     SERVER_HELLODONE_COMPLETE,
 	SERVER_CHANGECIPHERSPEC_COMPLETE,
     SERVER_FINISHED_COMPLETE,
-    SERVER_HELLO_RETRY_REQUEST,
 
     CLIENT_HELLO_COMPLETE,
     CLIENT_KEYEXCHANGE_COMPLETE,
@@ -1465,6 +1467,8 @@ struct WOLFSSL_METHOD {
 /* wolfSSL buffer type - internal uses "buffer" type */
 typedef WOLFSSL_BUFFER_INFO buffer;
 
+typedef struct Suites Suites;
+
 
 /* defaults to client */
 WOLFSSL_LOCAL void InitSSL_Method(WOLFSSL_METHOD*, ProtocolVersion);
@@ -1474,6 +1478,8 @@ WOLFSSL_LOCAL int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             word32 size, word32 totalSz, int sniff);
 WOLFSSL_LOCAL int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx);
 /* TLS v1.3 needs these */
+WOLFSSL_LOCAL int  HandleTlsResumption(WOLFSSL* ssl, int bogusID,
+                                       Suites* clSuites);
 WOLFSSL_LOCAL int  DoClientHello(WOLFSSL* ssl, const byte* input, word32*,
                                  word32);
 #ifdef WOLFSSL_TLS13
@@ -1513,7 +1519,8 @@ WOLFSSL_LOCAL int  DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input,
 WOLFSSL_LOCAL int  DoTls13HandShakeMsg(WOLFSSL* ssl, byte* input,
                                        word32* inOutIdx, word32 totalSz);
 WOLFSSL_LOCAL int DoTls13ServerHello(WOLFSSL* ssl, const byte* input,
-                                     word32* inOutIdx, word32 helloSz);
+                                     word32* inOutIdx, word32 helloSz,
+                                     byte* extMsgType);
 #endif
 
 
@@ -1594,7 +1601,7 @@ typedef struct {
 } bufferStatic;
 
 /* Cipher Suites holder */
-typedef struct Suites {
+struct Suites {
     word16 suiteSz;                 /* suite length in bytes        */
     word16 hashSigAlgoSz;           /* SigAlgo extension length in bytes */
     byte   suites[WOLFSSL_MAX_SUITE_SZ];
@@ -1602,7 +1609,7 @@ typedef struct Suites {
     byte   setSuites;               /* user set suites from default */
     byte   hashAlgo;                /* selected hash algorithm */
     byte   sigAlgo;                 /* selected sig algorithm */
-} Suites;
+};
 
 
 WOLFSSL_LOCAL void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig,
@@ -1935,6 +1942,7 @@ typedef struct TLSX {
 } TLSX;
 
 WOLFSSL_LOCAL TLSX*  TLSX_Find(TLSX* list, TLSX_Type type);
+WOLFSSL_LOCAL void   TLSX_Remove(TLSX** list, TLSX_Type type, void* heap);
 WOLFSSL_LOCAL void   TLSX_FreeAll(TLSX* list, void* heap);
 WOLFSSL_LOCAL int    TLSX_SupportExtensions(WOLFSSL* ssl);
 WOLFSSL_LOCAL int    TLSX_PopulateExtensions(WOLFSSL* ssl, byte isRequest);
@@ -2100,6 +2108,9 @@ WOLFSSL_LOCAL int TLSX_UsePointFormat(TLSX** extensions, byte point,
 #ifndef NO_WOLFSSL_SERVER
 WOLFSSL_LOCAL int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first,
                                                                    byte second);
+WOLFSSL_LOCAL int TLSX_SupportedCurve_CheckPriority(WOLFSSL* ssl);
+WOLFSSL_LOCAL int TLSX_SupportedCurve_Preferred(WOLFSSL* ssl,
+                                                            int checkSupported);
 #endif
 
 #endif /* HAVE_SUPPORTED_CURVES */
@@ -2420,6 +2431,10 @@ struct WOLFSSL_CTX {
     wc_psk_server_callback server_psk_cb;  /* server callback */
     char        server_hint[MAX_PSK_ID_LEN + NULL_TERM_LEN];
 #endif /* HAVE_SESSION_TICKET || !NO_PSK */
+#ifdef WOLFSSL_TLS13
+    word16          group[WOLFSSL_MAX_GROUP_COUNT];
+    byte            numGroups;
+#endif
 #ifdef WOLFSSL_EARLY_DATA
     word32          maxEarlyDataSz;
 #endif
@@ -2773,9 +2788,11 @@ struct WOLFSSL_SESSION {
     byte               sessionCtxSz;              /* sessionCtx length        */
     byte               sessionCtx[ID_LEN];        /* app specific context id  */
 #endif
+#ifdef WOLFSSL_TLS13
+    word16             namedGroup;
+#endif
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     #ifdef WOLFSSL_TLS13
-    byte               namedGroup;
     word32             ticketSeen;                /* Time ticket seen (ms) */
     word32             ticketAdd;                 /* Added by client */
         #ifndef WOLFSSL_TLS13_DRAFT_18
@@ -3060,7 +3077,11 @@ typedef struct Options {
     byte            verifyDepth;      /* maximum verification depth */
 #endif
 #ifdef WOLFSSL_EARLY_DATA
+    word16          pskIdIndex;
     word32          maxEarlyDataSz;
+#endif
+#ifdef WOLFSSL_TLS13
+    byte            oldMinor;          /* client preferred version < TLS 1.3 */
 #endif
 } Options;
 
@@ -3357,6 +3378,15 @@ struct CertReqCtx {
 };
 #endif
 
+#ifdef WOLFSSL_EARLY_DATA
+typedef enum EarlyDataState {
+    no_early_data,
+    expecting_early_data,
+    process_early_data,
+    done_early_data
+} EarlyDataState;
+#endif
+
 /* wolfSSL ssl type */
 struct WOLFSSL {
     WOLFSSL_CTX*    ctx;
@@ -3448,6 +3478,8 @@ struct WOLFSSL {
 #endif
 #ifdef WOLFSSL_TLS13
     word16          namedGroup;
+    word16          group[WOLFSSL_MAX_GROUP_COUNT];
+    byte            numGroups;
 #endif
     byte            pssAlgo;
 #ifdef WOLFSSL_TLS13
@@ -3636,7 +3668,7 @@ struct WOLFSSL {
         void* jObjectRef;     /* reference to WolfSSLSession in JNI wrapper */
 #endif /* WOLFSSL_JNI */
 #ifdef WOLFSSL_EARLY_DATA
-    int earlyData;
+    EarlyDataState earlyData;
     word32 earlyDataSz;
 #endif
 };

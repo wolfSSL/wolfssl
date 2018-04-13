@@ -18087,6 +18087,8 @@ static int test_tls13_apis(void)
 #ifdef WOLFSSL_EARLY_DATA
     int          outSz;
 #endif
+    int          groups[1] = { WOLFSSL_ECC_X25519 };
+    int          numGroups = 1;
 
     clientTls12Ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
     clientTls12Ssl = wolfSSL_new(clientTls12Ctx);
@@ -18189,6 +18191,38 @@ static int test_tls13_apis(void)
                 BAD_FUNC_ARG);
     AssertIntEQ(wolfSSL_request_certificate(serverSsl), NOT_READY_ERROR);
 #endif
+
+#ifndef WOLFSSL_NO_SERVER_GROUPS_EXT
+    AssertIntEQ(wolfSSL_preferred_group(NULL), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_preferred_group(serverSsl), SIDE_ERROR);
+    AssertIntEQ(wolfSSL_preferred_group(clientTls12Ssl), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_preferred_group(clientSsl), NOT_READY_ERROR);
+#endif
+
+    AssertIntEQ(wolfSSL_CTX_set_groups(NULL, NULL, 0), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_CTX_set_groups(clientCtx, NULL, 0), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_CTX_set_groups(NULL, groups, numGroups), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_CTX_set_groups(clientTls12Ctx, groups, numGroups),
+                BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_CTX_set_groups(clientCtx, groups,
+                                       WOLFSSL_MAX_GROUP_COUNT + 1),
+                BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_CTX_set_groups(clientCtx, groups, numGroups),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_set_groups(serverCtx, groups, numGroups),
+                WOLFSSL_SUCCESS);
+
+    AssertIntEQ(wolfSSL_set_groups(NULL, NULL, 0), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_set_groups(clientSsl, NULL, 0), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_set_groups(NULL, groups, numGroups), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_set_groups(clientTls12Ssl, groups, numGroups),
+                BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_set_groups(clientSsl, groups,
+                                   WOLFSSL_MAX_GROUP_COUNT + 1), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_set_groups(clientSsl, groups, numGroups),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_set_groups(serverSsl, groups, numGroups),
+                WOLFSSL_SUCCESS);
 
 #ifdef WOLFSSL_EARLY_DATA
     AssertIntEQ(wolfSSL_CTX_set_max_early_data(NULL, 0), BAD_FUNC_ARG);

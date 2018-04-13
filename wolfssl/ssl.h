@@ -396,6 +396,8 @@ enum AlertLevel {
 
 /* Maximum master key length (SECRET_LEN) */
 #define WOLFSSL_MAX_MASTER_KEY_LENGTH 48
+/* Maximum number of groups that can be set */
+#define WOLFSSL_MAX_GROUP_COUNT       10
 
 typedef WOLFSSL_METHOD* (*wolfSSL_method_func)(void* heap);
 WOLFSSL_API WOLFSSL_METHOD *wolfSSLv3_server_method_ex(void* heap);
@@ -552,6 +554,11 @@ WOLFSSL_API int  wolfSSL_CTX_allow_post_handshake_auth(WOLFSSL_CTX* ctx);
 WOLFSSL_API int  wolfSSL_allow_post_handshake_auth(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_request_certificate(WOLFSSL* ssl);
 
+WOLFSSL_API int  wolfSSL_preferred_group(WOLFSSL* ssl);
+WOLFSSL_API int  wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups,
+                                        int count);
+WOLFSSL_API int  wolfSSL_set_groups(WOLFSSL* ssl, int* groups, int count);
+
 WOLFSSL_API int  wolfSSL_connect_TLSv13(WOLFSSL*);
 WOLFSSL_API int  wolfSSL_accept_TLSv13(WOLFSSL*);
 
@@ -575,12 +582,11 @@ WOLFSSL_API void wolfSSL_set_quiet_shutdown(WOLFSSL*, int);
 WOLFSSL_API int  wolfSSL_get_error(WOLFSSL*, int);
 WOLFSSL_API int  wolfSSL_get_alert_history(WOLFSSL*, WOLFSSL_ALERT_HISTORY *);
 
-WOLFSSL_API int        wolfSSL_set_session(WOLFSSL* ssl,WOLFSSL_SESSION* session);
-WOLFSSL_API long       wolfSSL_SSL_SESSION_set_timeout(WOLFSSL_SESSION* session, long t);
-WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL* ssl);
-WOLFSSL_API void       wolfSSL_flush_sessions(WOLFSSL_CTX *ctx, long tm);
-WOLFSSL_API int        wolfSSL_SetServerID(WOLFSSL* ssl, const unsigned char*,
-                                         int, int);
+WOLFSSL_API int  wolfSSL_set_session(WOLFSSL*, WOLFSSL_SESSION*);
+WOLFSSL_API long wolfSSL_SSL_SESSION_set_timeout(WOLFSSL_SESSION*, long);
+WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL*);
+WOLFSSL_API void wolfSSL_flush_sessions(WOLFSSL_CTX*, long);
+WOLFSSL_API int  wolfSSL_SetServerID(WOLFSSL*, const unsigned char*, int, int);
 
 #ifdef SESSION_INDEX
 WOLFSSL_API int wolfSSL_GetSessionIndex(WOLFSSL* ssl);
