@@ -9041,11 +9041,11 @@ int wc_AesGcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
     if (ret == 0) {
+        XMEMCPY(ivOut, aes->reg, ivOutSz);
         ret = wc_AesGcmEncrypt(aes, out, in, sz,
                                (byte*)aes->reg, ivOutSz,
                                authTag, authTagSz,
                                authIn, authInSz);
-        XMEMCPY(ivOut, aes->reg, ivOutSz);
         IncCtr((byte*)aes->reg, ivOutSz);
     }
 
