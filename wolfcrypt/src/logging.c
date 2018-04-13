@@ -57,6 +57,10 @@ static struct wc_error_queue* wc_last_node;
 #endif
 
 #ifdef WOLFSSL_FUNC_TIME
+/* WARNING: This code is only to be used for debugging performance.
+ *          The code is not thread-safe.
+ *          Do not use WOLFSSL_FUNC_TIME in production code.
+ */
 static double wc_func_start[WC_FUNC_COUNT];
 static double wc_func_time[WC_FUNC_COUNT] = { 0, };
 static const char* wc_func_name[WC_FUNC_COUNT] = {
@@ -94,52 +98,18 @@ static const char* wc_func_name[WC_FUNC_COUNT] = {
     "DoEarlyData",
 };
 
-#if defined(WOLFSSL_USER_CURRTIME)
-    extern   double current_time(int reset);
+#include <sys/time.h>
 
-#elif defined(USE_WINDOWS_API)
+/* WARNING: This function is not portable. */
+static INLINE double current_time(int reset)
+{
+    struct timeval tv;
+    gettimeofday(&tv, 0);
+    (void)reset;
 
-    #define WIN32_LEAN_AND_MEAN
-    #include <windows.h>
-
-    static INLINE double current_time(int reset)
-    {
-        static int init = 0;
-        static LARGE_INTEGER freq;
-
-        LARGE_INTEGER count;
-
-        if (!init) {
-            QueryPerformanceFrequency(&freq);
-            init = 1;
-        }
-
-        QueryPerformanceCounter(&count);
-
-        (void)reset;
-        return (double)count.QuadPart / freq.QuadPart;
-    }
-
-#elif defined(WOLFSSL_TIRTOS)
-    extern double current_time();
-#else
-
-#if !defined(WOLFSSL_MDK_ARM) && !defined(WOLFSSL_KEIL_TCP_NET) && !defined(WOLFSSL_CHIBIOS)
-    #include <sys/time.h>
-
-    static INLINE double current_time(int reset)
-    {
-        struct timeval tv;
-        gettimeofday(&tv, 0);
-        (void)reset;
-
-        return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
-    }
-#else
-    extern double current_time(int reset);
-#endif
-#endif /* USE_WINDOWS_API */
-#endif
+    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
+}
+#endif /* WOLFSSL_FUNC_TIME */
 
 #ifdef DEBUG_WOLFSSL
 
@@ -182,6 +152,10 @@ void wolfSSL_Debugging_OFF(void)
 }
 
 #ifdef WOLFSSL_FUNC_TIME
+/* WARNING: This code is only to be used for debugging performance.
+ *          The code is not thread-safe.
+ *          Do not use WOLFSSL_FUNC_TIME in production code.
+ */
 void WOLFSSL_START(int funcNum)
 {
     double now = current_time(0) * 1000.0;

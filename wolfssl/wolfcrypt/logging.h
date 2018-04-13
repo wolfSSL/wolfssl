@@ -46,6 +46,10 @@ enum wc_LogLevels {
 };
 
 #ifdef WOLFSSL_FUNC_TIME
+/* WARNING: This code is only to be used for debugging performance.
+ *          The code is not thread-safe.
+ *          Do not use WOLFSSL_FUNC_TIME in production code.
+ */
 enum wc_FuncNum {
     WC_FUNC_CLIENT_HELLO_SEND = 0,
     WC_FUNC_CLIENT_HELLO_DO,
@@ -113,6 +117,10 @@ WOLFSSL_API void wolfSSL_Debugging_OFF(void);
 #endif /* OPENSSL_EXTRA || DEBUG_WOLFSSL_VERBOSE */
 
 #ifdef WOLFSSL_FUNC_TIME
+    /* WARNING: This code is only to be used for debugging performance.
+     *          The code is not thread-safe.
+     *          Do not use WOLFSSL_FUNC_TIME in production code.
+     */
     WOLFSSL_API void WOLFSSL_START(int funcNum);
     WOLFSSL_API void WOLFSSL_END(int funcNum);
     WOLFSSL_API void WOLFSSL_TIME(int count);

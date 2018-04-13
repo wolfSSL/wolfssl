@@ -484,9 +484,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    resume = 0;
     int    resumeCount = 0;
     int    loops = 1;
-#ifdef WOLFSSL_FUNC_TIME
     int    cnt = 0;
-#endif
     int    echoData = 0;
     int    block = TEST_BUFFER_SIZE;
     int    throughput = 0;
@@ -1641,15 +1639,14 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         }
         resumeCount = 0;
 
-#ifdef WOLFSSL_FUNC_TIME
         cnt++;
-#endif
         if (loops > 0 && --loops == 0) {
             break;  /* out of while loop, done with normal and resume option */
         }
     } /* while(1) */
 
     WOLFSSL_TIME(cnt);
+    (void)cnt;
 
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
