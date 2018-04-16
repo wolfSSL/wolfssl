@@ -9387,7 +9387,17 @@ exit_ppc:
 static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                                                 word32 size)
 {
-    return ProcessPeerCerts(ssl, input, inOutIdx, size);
+    int ret;
+
+    WOLFSSL_START(WC_FUNC_CERTIFICATE_DO);
+    WOLFSSL_ENTER("DoCertificateVerify");
+
+    ret = ProcessPeerCerts(ssl, input, inOutIdx, size);
+
+    WOLFSSL_LEAVE("DoCertificateVerify", ret);
+    WOLFSSL_END(WC_FUNC_CERTIFICATE_DO);
+
+    return ret;
 }
 
 /* handle processing of certificate_status (22) */
@@ -9397,6 +9407,9 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     int    ret = 0;
     byte   status_type;
     word32 status_length;
+
+    WOLFSSL_START(WC_FUNC_CERTIFICATE_STATUS_DO);
+    WOLFSSL_ENTER("DoCertificateStatus");
 
     if (size < ENUM_LEN + OPAQUE24_LEN)
         return BUFFER_ERROR;
@@ -9595,6 +9608,9 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     if (ret != 0)
         SendAlert(ssl, alert_fatal, bad_certificate_status_response);
 
+    WOLFSSL_LEAVE("DoCertificateStatus", ret);
+    WOLFSSL_END(WC_FUNC_CERTIFICATE_STATUS_DO);
+
     return ret;
 }
 
@@ -9637,6 +9653,9 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
                                                       word32 totalSz, int sniff)
 {
     word32 finishedSz = (ssl->options.tls ? TLS_FINISHED_SZ : FINISHED_SZ);
+
+    WOLFSSL_START(WC_FUNC_FINISHED_DO);
+    WOLFSSL_ENTER("DoFinished");
 
     if (finishedSz != size)
         return BUFFER_ERROR;
@@ -9704,6 +9723,9 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
 			ssl->options.handShakeDone  = 1;
         }
     }
+
+    WOLFSSL_LEAVE("DoFinished", 0);
+    WOLFSSL_END(WC_FUNC_FINISHED_DO);
 
     return 0;
 }
@@ -13431,6 +13453,9 @@ int SendFinished(WOLFSSL* ssl)
     int              headerSz = HANDSHAKE_HEADER_SZ;
     int              outputSz;
 
+    WOLFSSL_START(WC_FUNC_FINISHED_SEND);
+    WOLFSSL_ENTER("SendFinished");
+
     /* setup encrypt keys */
     if ((ret = SetKeysSide(ssl, ENCRYPT_SIDE_ONLY)) != 0)
         return ret;
@@ -13525,7 +13550,12 @@ int SendFinished(WOLFSSL* ssl)
 
     ssl->buffers.outputBuffer.length += sendSz;
 
-    return SendBuffered(ssl);
+    ret = SendBuffered(ssl);
+
+    WOLFSSL_LEAVE("SendFinished", ret);
+    WOLFSSL_END(WC_FUNC_FINISHED_SEND);
+
+    return ret;
 }
 
 
@@ -13536,6 +13566,9 @@ int SendCertificate(WOLFSSL* ssl)
     int    ret = 0;
     word32 certSz, certChainSz, headerSz, listSz, payloadSz;
     word32 length, maxFragment;
+
+    WOLFSSL_START(WC_FUNC_CERTIFICATE_SEND);
+    WOLFSSL_ENTER("SendCertificate");
 
     if (ssl->options.usingPSK_cipher || ssl->options.usingAnon_cipher)
         return 0;  /* not needed */
@@ -13784,6 +13817,10 @@ int SendCertificate(WOLFSSL* ssl)
             ssl->options.serverState = SERVER_CERT_COMPLETE;
         }
     }
+
+    WOLFSSL_LEAVE("SendCertificate", ret);
+    WOLFSSL_END(WC_FUNC_CERTIFICATE_SEND);
+
     return ret;
 }
 
@@ -13801,6 +13838,9 @@ int SendCertificateRequest(WOLFSSL* ssl)
 
     int  typeTotal = 1;  /* only 1 for now */
     int  reqSz = ENUM_LEN + typeTotal + REQ_HEADER_SZ;  /* add auth later */
+
+    WOLFSSL_START(WC_FUNC_CERTIFICATE_REQUEST_SEND);
+    WOLFSSL_ENTER("SendCertificateRequest");
 
     if (IsAtLeastTLSv1_2(ssl))
         reqSz += LENGTH_SZ + ssl->suites->hashSigAlgoSz;
@@ -13904,9 +13944,14 @@ int SendCertificateRequest(WOLFSSL* ssl)
     #endif
     ssl->buffers.outputBuffer.length += sendSz;
     if (ssl->options.groupMessages)
-        return 0;
+        ret = 0;
     else
-        return SendBuffered(ssl);
+        ret = SendBuffered(ssl);
+
+    WOLFSSL_LEAVE("SendCertificateRequest", ret);
+    WOLFSSL_END(WC_FUNC_CERTIFICATE_REQUEST_SEND);
+
+    return ret;
 }
 
 #ifndef NO_WOLFSSL_SERVER
@@ -14021,6 +14066,7 @@ int SendCertificateStatus(WOLFSSL* ssl)
     int ret = 0;
     byte status_type = 0;
 
+    WOLFSSL_START(WC_FUNC_CERTIFICATE_STATUS_SEND);
     WOLFSSL_ENTER("SendCertificateStatus");
 
     (void) ssl;
@@ -14354,6 +14400,9 @@ int SendCertificateStatus(WOLFSSL* ssl)
         default:
             break;
     }
+
+    WOLFSSL_LEAVE("SendCertificateStatus", ret);
+    WOLFSSL_END(WC_FUNC_CERTIFICATE_STATUS_SEND);
 
     return ret;
 }
@@ -17025,11 +17074,13 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
         int                ret;
         word16             extSz = 0;
 
-
 #ifdef WOLFSSL_TLS13
         if (IsAtLeastTLSv1_3(ssl->version))
             return SendTls13ClientHello(ssl);
 #endif
+
+        WOLFSSL_START(WC_FUNC_CLIENT_HELLO_SEND);
+        WOLFSSL_ENTER("SendClientHello");
 
         if (ssl->suites == NULL) {
             WOLFSSL_MSG("Bad suites pointer in SendClientHello");
@@ -17241,7 +17292,12 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
 
         ssl->buffers.outputBuffer.length += sendSz;
 
-        return SendBuffered(ssl);
+        ret = SendBuffered(ssl);
+
+        WOLFSSL_LEAVE("SendClientHello", ret);
+        WOLFSSL_END(WC_FUNC_CLIENT_HELLO_SEND);
+
+        return ret;
     }
 
 
@@ -17442,6 +17498,9 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
         word32          i = *inOutIdx;
         word32          begin = i;
         int             ret;
+
+        WOLFSSL_START(WC_FUNC_SERVER_HELLO_DO);
+        WOLFSSL_ENTER("DoServerHello");
 
 #ifdef WOLFSSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName(ssl, "ServerHello");
@@ -17652,7 +17711,12 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
         }
 #endif /* HAVE_SECRET_CALLBACK */
 
-        return CompleteServerHello(ssl);
+        ret = CompleteServerHello(ssl);
+
+        WOLFSSL_LEAVE("DoServerHello", ret);
+        WOLFSSL_END(WC_FUNC_SERVER_HELLO_DO);
+
+        return ret;
     }
 
     int CompleteServerHello(WOLFSSL* ssl)
@@ -17732,6 +17796,9 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
     {
         word16 len;
         word32 begin = *inOutIdx;
+
+        WOLFSSL_START(WC_FUNC_CERTIFICATE_REQUEST_DO);
+        WOLFSSL_ENTER("DoCertificateRequest");
 
         #ifdef WOLFSSL_CALLBACKS
             if (ssl->hsInfoOn)
@@ -17821,6 +17888,9 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
 
         if (IsEncryptionOn(ssl, 0))
             *inOutIdx += ssl->keys.padSz;
+
+        WOLFSSL_LEAVE("DoCertificateRequest", 0);
+        WOLFSSL_END(WC_FUNC_CERTIFICATE_REQUEST_DO);
 
         return 0;
     }
@@ -17948,6 +18018,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
     (void)input;
     (void)size;
 
+    WOLFSSL_START(WC_FUNC_SERVER_KEY_EXCHANGE_DO);
     WOLFSSL_ENTER("DoServerKeyExchange");
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -18857,6 +18928,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
 exit_dske:
 
     WOLFSSL_LEAVE("DoServerKeyExchange", ret);
+    WOLFSSL_END(WC_FUNC_SERVER_KEY_EXCHANGE_DO);
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* Handle async operation */
@@ -19296,6 +19368,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
     SckeArgs  args[1];
 #endif
 
+    WOLFSSL_START(WC_FUNC_CLIENT_KEY_EXCHANGE_SEND);
     WOLFSSL_ENTER("SendClientKeyExchange");
 
 #ifdef OPENSSL_EXTRA
@@ -20270,6 +20343,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
 exit_scke:
 
     WOLFSSL_LEAVE("SendClientKeyExchange", ret);
+    WOLFSSL_END(WC_FUNC_CLIENT_KEY_EXCHANGE_SEND);
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* Handle async operation */
@@ -20517,6 +20591,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
     ScvArgs  args[1];
 #endif
 
+    WOLFSSL_START(WC_FUNC_CERTIFICATE_VERIFY_SEND);
     WOLFSSL_ENTER("SendCertificateVerify");
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -20909,6 +20984,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
 exit_scv:
 
     WOLFSSL_LEAVE("SendCertificateVerify", ret);
+    WOLFSSL_END(WC_FUNC_CERTIFICATE_VERIFY_SEND);
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* Handle async operation */
@@ -21031,6 +21107,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         byte               sessIdSz = ID_LEN;
         byte               echoId   = 0;  /* ticket echo id flag */
         byte               cacheOff = 0;  /* session cache off flag */
+
+        WOLFSSL_START(WC_FUNC_SERVER_HELLO_SEND);
+        WOLFSSL_ENTER("SendServerHello");
 
         length = VERSION_SZ + RAN_LEN
                + ID_LEN + ENUM_LEN
@@ -21209,9 +21288,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
 
         if (ssl->options.groupMessages)
-            return 0;
+            ret = 0;
         else
-            return SendBuffered(ssl);
+            ret = SendBuffered(ssl);
+
+        WOLFSSL_LEAVE("SendServerHello", ret);
+        WOLFSSL_END(WC_FUNC_SERVER_HELLO_SEND);
+
+        return ret;
     }
 
 
@@ -21372,6 +21456,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         SskeArgs  args[1];
     #endif
 
+        WOLFSSL_START(WC_FUNC_SERVER_KEY_EXCHANGE_SEND);
         WOLFSSL_ENTER("SendServerKeyExchange");
 
     #ifdef WOLFSSL_ASYNC_CRYPT
@@ -22755,6 +22840,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     exit_sske:
 
         WOLFSSL_LEAVE("SendServerKeyExchange", ret);
+        WOLFSSL_END(WC_FUNC_SERVER_KEY_EXCHANGE_SEND);
 
     #ifdef WOLFSSL_ASYNC_CRYPT
         /* Handle async operation */
@@ -23192,6 +23278,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         Suites          clSuites;
         word32          i = *inOutIdx;
         word32          begin = i;
+        int             ret = 0;
 #ifdef WOLFSSL_DTLS
         Hmac            cookieHmac;
         byte            peerCookie[MAX_COOKIE_LEN];
@@ -23202,6 +23289,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         XMEMSET(&cookieHmac, 0, sizeof(Hmac));
 #endif /* WOLFSSL_DTLS */
 
+        WOLFSSL_START(WC_FUNC_CLIENT_HELLO_DO);
+        WOLFSSL_ENTER("DoClientHello");
 
 #ifdef WOLFSSL_CALLBACKS
         if (ssl->hsInfoOn) AddPacketName(ssl, "ClientHello");
@@ -23216,7 +23305,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ssl->chVersion = pv;   /* store */
 #ifdef WOLFSSL_DTLS
         if (IsDtlsNotSctpMode(ssl)) {
-            int ret;
             #if defined(NO_SHA) && defined(NO_SHA256)
                 #error "DTLS needs either SHA or SHA-256"
             #endif /* NO_SHA && NO_SHA256 */
@@ -23363,7 +23451,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         XMEMCPY(ssl->arrays->clientRandom, input + i, RAN_LEN);
 #ifdef WOLFSSL_DTLS
         if (IsDtlsNotSctpMode(ssl)) {
-            int ret = wc_HmacUpdate(&cookieHmac, input + i, RAN_LEN);
+            ret = wc_HmacUpdate(&cookieHmac, input + i, RAN_LEN);
             if (ret != 0) return ret;
         }
 #endif /* WOLFSSL_DTLS */
@@ -23396,7 +23484,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             XMEMCPY(ssl->arrays->sessionID, input + i, b);
 #ifdef WOLFSSL_DTLS
             if (IsDtlsNotSctpMode(ssl)) {
-                int ret = wc_HmacUpdate(&cookieHmac, input + i - 1, b + 1);
+                ret = wc_HmacUpdate(&cookieHmac, input + i - 1, b + 1);
                 if (ret != 0) return ret;
             }
 #endif /* WOLFSSL_DTLS */
@@ -23452,8 +23540,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef HAVE_SERVER_RENEGOTIATION_INFO
         /* check for TLS_EMPTY_RENEGOTIATION_INFO_SCSV suite */
         if (FindSuite(&clSuites, 0, TLS_EMPTY_RENEGOTIATION_INFO_SCSV) >= 0) {
-            int ret = 0;
-
             ret = TLSX_AddEmptyRenegotiationInfo(&ssl->extensions, ssl->heap);
             if (ret != WOLFSSL_SUCCESS)
                 return ret;
@@ -23462,7 +23548,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
 #ifdef WOLFSSL_DTLS
         if (IsDtlsNotSctpMode(ssl)) {
-            int ret = wc_HmacUpdate(&cookieHmac,
+            ret = wc_HmacUpdate(&cookieHmac,
                                     input + i - OPAQUE16_LEN,
                                     clSuites.suiteSz + OPAQUE16_LEN);
             if (ret != 0) return ret;
@@ -23485,7 +23571,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef WOLFSSL_DTLS
         if (IsDtlsNotSctpMode(ssl)) {
             byte newCookie[MAX_COOKIE_LEN];
-            int ret;
 
             ret = wc_HmacUpdate(&cookieHmac, input + i - 1, b + 1);
             if (ret != 0) return ret;
@@ -23559,7 +23644,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             QSH_Init(ssl);
         #endif
             if (TLSX_SupportExtensions(ssl)) {
-                int ret = 0;
 #else
             if (IsAtLeastTLSv1_2(ssl)) {
 #endif
@@ -23658,7 +23742,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         /* ProcessOld uses same resume code */
         if (ssl->options.resuming) {
-            int ret = -1;
             WOLFSSL_SESSION* session = GetSession(ssl,
                                                   ssl->arrays->masterSecret, 1);
             #ifdef HAVE_SESSION_TICKET
@@ -23719,10 +23802,18 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 #endif
                 ssl->options.clientState = CLIENT_KEYEXCHANGE_COMPLETE;
 
+                WOLFSSL_LEAVE("DoClientHello", ret);
+                WOLFSSL_END(WC_FUNC_CLIENT_HELLO_DO);
+
                 return ret;
             }
         }
-        return MatchSuite(ssl, &clSuites);
+        ret = MatchSuite(ssl, &clSuites);
+
+        WOLFSSL_LEAVE("DoClientHello", ret);
+        WOLFSSL_END(WC_FUNC_CLIENT_HELLO_DO);
+
+        return ret;
     }
 
 
@@ -23760,6 +23851,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         DcvArgs  args[1];
     #endif
 
+        WOLFSSL_START(WC_FUNC_CERTIFICATE_VERIFY_DO);
         WOLFSSL_ENTER("DoCertificateVerify");
 
     #ifdef WOLFSSL_ASYNC_CRYPT
@@ -24032,6 +24124,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     exit_dcv:
 
         WOLFSSL_LEAVE("DoCertificateVerify", ret);
+        WOLFSSL_END(WC_FUNC_CERTIFICATE_VERIFY_DO);
 
     #ifdef WOLFSSL_ASYNC_CRYPT
         /* Handle async operation */
@@ -24066,6 +24159,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         byte* output;
         int   sendSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
         int   ret;
+
+        WOLFSSL_START(WC_FUNC_SERVER_HELLO_DONE_SEND);
+        WOLFSSL_ENTER("SendServerHelloDone");
 
     #ifdef WOLFSSL_DTLS
         if (ssl->options.dtls)
@@ -24107,7 +24203,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         ssl->buffers.outputBuffer.length += sendSz;
 
-        return SendBuffered(ssl);
+        ret = SendBuffered(ssl);
+
+        WOLFSSL_LEAVE("SendServerHelloDone", ret);
+        WOLFSSL_END(WC_FUNC_SERVER_HELLO_DONE_SEND);
+
+        return ret;
     }
 
 
@@ -24257,6 +24358,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         int             outLen;
         word16          inLen;
 
+        WOLFSSL_START(WC_FUNC_TICKET_DO);
+        WOLFSSL_ENTER("DoClientTicket");
+
         if (len > SESSION_TICKET_LEN ||
              len < (word32)(sizeof(InternalTicket) + WOLFSSL_TICKET_FIXED_SZ)) {
             return BAD_TICKET_MSG_SZ;
@@ -24310,6 +24414,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
         }
 
+        WOLFSSL_LEAVE("DoClientTicket", ret);
+        WOLFSSL_END(WC_FUNC_TICKET_DO);
+
         return ret;
     }
 
@@ -24322,6 +24429,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         int                sendSz;
         word32             length = SESSION_HINT_SZ + LENGTH_SZ;
         word32             idx    = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+
+        WOLFSSL_START(WC_FUNC_TICKET_SEND);
+        WOLFSSL_ENTER("SendTicket");
 
         if (ssl->options.createTicket) {
             ret = CreateTicket(ssl);
@@ -24372,7 +24482,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         if (ret != 0) return ret;
         ssl->buffers.outputBuffer.length += sendSz;
 
-        return SendBuffered(ssl);
+        ret = SendBuffered(ssl);
+
+        WOLFSSL_LEAVE("SendTicket", ret);
+        WOLFSSL_END(WC_FUNC_TICKET_SEND);
+
+        return ret;
     }
 
 #endif /* HAVE_SESSION_TICKET */
@@ -24466,6 +24581,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         (void)size;
         (void)input;
 
+        WOLFSSL_START(WC_FUNC_CLIENT_KEY_EXCHANGE_DO);
         WOLFSSL_ENTER("DoClientKeyExchange");
 
     #ifdef WOLFSSL_ASYNC_CRYPT
@@ -25502,6 +25618,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     exit_dcke:
 
         WOLFSSL_LEAVE("DoClientKeyExchange", ret);
+        WOLFSSL_END(WC_FUNC_CLIENT_KEY_EXCHANGE_DO);
 
     #ifdef WOLFSSL_ASYNC_CRYPT
         /* Handle async operation */

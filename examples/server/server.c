@@ -186,14 +186,15 @@ static int NonBlockingSSL_Accept(SSL* ssl)
 }
 
 /* Echo number of bytes specified by -e arg */
-int ServerEchoData(SSL* ssl, int clientfd, int echoData, int throughput)
+int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
+                   int throughput)
 {
     int ret = 0, err;
     double start = 0, rx_time = 0, tx_time = 0;
     int xfer_bytes = 0, select_ret, len, rx_pos;
     char* buffer;
 
-    buffer = (char*)malloc(TEST_BUFFER_SIZE);
+    buffer = (char*)malloc(block);
     if (!buffer) {
         err_sys_ex(runWithErrors, "Server buffer malloc failed");
     }
@@ -204,7 +205,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int throughput)
         select_ret = tcp_select(clientfd, 1); /* Timeout=1 second */
         if (select_ret == TEST_RECV_READY) {
 
-            len = min(TEST_BUFFER_SIZE, throughput - xfer_bytes);
+            len = min(block, throughput - xfer_bytes);
             rx_pos = 0;
 
             if (throughput) {
@@ -414,15 +415,27 @@ static void Usage(void)
     printf("-C <num>    The number of connections to accept, default: 1\n");
     printf("-H <arg>    Internal tests [defCipherList, badCert]\n");
 #ifdef WOLFSSL_TLS13
-    printf("-K          Key Exchange for PSK not using (EC)DHE\n");
     printf("-U          Update keys and IVs before sending\n");
+    printf("-K          Key Exchange for PSK not using (EC)DHE\n");
+#ifndef NO_DH
+    printf("-y          Pre-generate Key Share using FFDHE_2048 only\n");
+#endif
+#ifdef HAVE_ECC
+    printf("-Y          Pre-generate Key Share using P-256 only \n");
+#endif
+#ifdef HAVE_CURVE25519
+    printf("-t          Pre-generate Key share using Curve25519 only\n");
+#endif
+#ifdef HAVE_SESSION_TICKET
+    printf("-T          Do not generate session ticket\n");
+#endif
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
     printf("-Q          Request certificate from client post-handshake\n");
 #endif
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     printf("-J          Server sends Cookie Extension containing state\n");
 #endif
-#endif
+#endif /* WOLFSSL_TLS13 */
 #ifdef WOLFSSL_EARLY_DATA
     printf("-0          Early data read from client (0-RTT handshake)\n");
 #endif
@@ -471,7 +484,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int    resume = 0;
     int    resumeCount = 0;
     int    loops = 1;
+    int    cnt = 0;
     int    echoData = 0;
+    int    block = TEST_BUFFER_SIZE;
     int    throughput = 0;
     int    minDhKeyBits  = DEFAULT_MIN_DHKEY_BITS;
     short  minRsaKeyBits = DEFAULT_MIN_RSAKEY_BITS;
@@ -544,6 +559,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         WOLFSSL_MEM_STATS mem_stats;
     #endif
 #endif
+#ifdef WOLFSSL_TLS13
+    int onlyKeyShare = 0;
+    int noTicket = 0;
+#endif
+    int useX25519 = 0;
 
     ((func_args*)args)->return_code = -1; /* error state */
 
@@ -570,6 +590,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     (void)updateKeysIVs;
     (void)mcastID;
     (void)useBadCert;
+    (void)useX25519;
 
 #ifdef CYASSL_TIRTOS
     fdOpenSession(Task_self());
@@ -578,10 +599,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_VXWORKS
     useAnyAddr = 1;
 #else
-    /* Not Used: h, m, t, y, z, F, M, T, V, W, X, Y */
+    /* Not Used: h, m, z, F, M, T, V, W, X */
     while ((ch = mygetopt(argc, argv, "?"
-                "abc:defgijk:l:nop:q:rsuv:wx"
-                "A:B:C:D:E:GH:IJKL:NO:PQR:S:UYZ:"
+                "abc:defgijk:l:nop:q:rstuv:wxy"
+                "A:B:C:D:E:GH:IJKL:NO:PQR:S:TUYZ:"
                 "03:")) != -1) {
         switch (ch) {
             case '?' :
@@ -781,7 +802,13 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
             case 'B':
                 throughput = atoi(myoptarg);
-                if (throughput <= 0) {
+                for (; *myoptarg != '\0'; myoptarg++) {
+                    if (*myoptarg == ',') {
+                        block = atoi(myoptarg + 1);
+                        break;
+                    }
+                }
+                if (throughput <= 0 || block <= 0) {
                     Usage();
                     exit(MY_EX_USAGE);
                 }
@@ -803,9 +830,36 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 useWebServerMsg = 1;
                 break;
 
+            case 'y' :
+                #if defined(WOLFSSL_TLS13) && !defined(NO_DH)
+                    onlyKeyShare = 1;
+                #endif
+                break;
+
+            case 'Y' :
+                #if defined(WOLFSSL_TLS13) && defined(HAVE_ECC)
+                    onlyKeyShare = 2;
+                #endif
+                break;
+
+            case 't' :
+                #ifdef HAVE_CURVE25519
+                    useX25519 = 1;
+                    #if defined(WOLFSSL_TLS13) && defined(HAVE_ECC)
+                        onlyKeyShare = 2;
+                    #endif
+                #endif
+                break;
+
             case 'K' :
                 #ifdef WOLFSSL_TLS13
                     noPskDheKe = 1;
+                #endif
+                break;
+
+            case 'T' :
+                #if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+                    noTicket = 1;
                 #endif
                 break;
 
@@ -1154,6 +1208,8 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_TLS13
         if (noPskDheKe)
             wolfSSL_CTX_no_dhe_psk(ctx);
+        if (noTicket)
+            wolfSSL_CTX_no_ticket_TLSv13(ctx);
 #endif
 
     while (1) {
@@ -1274,6 +1330,43 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         if (pkCallbacks)
             SetupPkCallbackContexts(ssl, &pkCbInfo);
 #endif
+
+    #ifdef WOLFSSL_TLS13
+        if (version >= 4) {
+            WOLFSSL_START(WC_FUNC_CLIENT_KEY_EXCHANGE_DO);
+            if (onlyKeyShare == 2) {
+                if (useX25519 == 1) {
+        #ifdef HAVE_CURVE25519
+                    if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519)
+                                                           != WOLFSSL_SUCCESS) {
+                        err_sys("unable to use curve x25519");
+                    }
+        #endif
+                }
+                else
+                {
+        #ifdef HAVE_ECC
+            #if defined(HAVE_ECC256) || defined(HAVE_ALL_CURVES)
+                if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_SECP256R1)
+                                                           != WOLFSSL_SUCCESS) {
+                    err_sys("unable to use curve secp256r1");
+                }
+            #endif
+        #endif
+                }
+            }
+            else if (onlyKeyShare == 1) {
+        #ifdef HAVE_FFDHE_2048
+                if (wolfSSL_UseKeyShare(ssl, WOLFSSL_FFDHE_2048)
+                                                           != WOLFSSL_SUCCESS) {
+                    err_sys("unable to use DH 2048-bit parameters");
+                }
+        #endif
+            }
+            WOLFSSL_END(WC_FUNC_CLIENT_KEY_EXCHANGE_DO);
+        }
+    #endif
+
 
         /* do accept */
         readySignal = ((func_args*)args)->signal;
@@ -1470,10 +1563,14 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
 
         if (echoData == 0 && throughput == 0) {
+            ServerRead(ssl, input, sizeof(input)-1);
+            err = SSL_get_error(ssl, 0);
+        }
+
+        if (err != WOLFSSL_ERROR_ZERO_RETURN && echoData == 0 &&
+                                                              throughput == 0) {
             const char* write_msg;
             int write_msg_sz;
-
-            ServerRead(ssl, input, sizeof(input)-1);
 
 #ifdef WOLFSSL_TLS13
             if (updateKeysIVs)
@@ -1503,7 +1600,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
         }
         else {
-            ServerEchoData(ssl, clientfd, echoData, throughput);
+            ServerEchoData(ssl, clientfd, echoData, block, throughput);
         }
 
 #if defined(WOLFSSL_MDK_SHELL) && defined(HAVE_MDK_RTX)
@@ -1542,10 +1639,14 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         }
         resumeCount = 0;
 
+        cnt++;
         if (loops > 0 && --loops == 0) {
             break;  /* out of while loop, done with normal and resume option */
         }
     } /* while(1) */
+
+    WOLFSSL_TIME(cnt);
+    (void)cnt;
 
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)

@@ -49,12 +49,6 @@
     #include <stdio.h>
 #endif
 
-#ifdef WOLFSSL_X86_64_BUILD
-#if defined(USE_INTEL_SPEEDUP) && !defined(NO_CHACHA_ASM)
-    #define USE_INTEL_CHACHA_SPEEDUP
-#endif
-#endif
-
 #ifdef USE_INTEL_CHACHA_SPEEDUP
     #include <emmintrin.h>
     #include <immintrin.h>
@@ -70,7 +64,6 @@
         #undef NO_AVX2_SUPPORT
     #endif
 
-    #define HAVE_INTEL_AVX1
     #ifndef NO_AVX2_SUPPORT
         #define HAVE_INTEL_AVX2
     #endif

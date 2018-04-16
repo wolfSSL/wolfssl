@@ -56,7 +56,60 @@ static struct wc_error_queue* wc_last_node;
 /* pointer to last node in queue to make insertion O(1) */
 #endif
 
+#ifdef WOLFSSL_FUNC_TIME
+/* WARNING: This code is only to be used for debugging performance.
+ *          The code is not thread-safe.
+ *          Do not use WOLFSSL_FUNC_TIME in production code.
+ */
+static double wc_func_start[WC_FUNC_COUNT];
+static double wc_func_time[WC_FUNC_COUNT] = { 0, };
+static const char* wc_func_name[WC_FUNC_COUNT] = {
+    "SendClientHello",
+    "DoClientHello",
+    "SendServerHello",
+    "DoServerHello",
+    "SendEncryptedExtensions",
+    "DoEncryptedExtensions",
+    "SendCertificateRequest",
+    "DoCertificateRequest",
+    "SendCertificate",
+    "DoCertificate",
+    "SendCertificateVerify",
+    "DoCertificateVerify",
+    "SendFinished",
+    "DoFinished",
+    "SendKeyUpdate",
+    "DoKeyUpdate",
+    "SendEarlyData",
+    "DoEarlyData",
+    "SendNewSessionTicket",
+    "DoNewSessionTicket",
+    "SendServerHelloDone",
+    "DoServerHelloDone",
+    "SendTicket",
+    "DoTicket",
+    "SendClientKeyExchange",
+    "DoClientKeyExchange",
+    "SendCertificateStatus",
+    "DoCertificateStatus",
+    "SendServerKeyExchange",
+    "DoServerKeyExchange",
+    "SendEarlyData",
+    "DoEarlyData",
+};
 
+#include <sys/time.h>
+
+/* WARNING: This function is not portable. */
+static INLINE double current_time(int reset)
+{
+    struct timeval tv;
+    gettimeofday(&tv, 0);
+    (void)reset;
+
+    return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
+}
+#endif /* WOLFSSL_FUNC_TIME */
 
 #ifdef DEBUG_WOLFSSL
 
@@ -98,6 +151,44 @@ void wolfSSL_Debugging_OFF(void)
 #endif
 }
 
+#ifdef WOLFSSL_FUNC_TIME
+/* WARNING: This code is only to be used for debugging performance.
+ *          The code is not thread-safe.
+ *          Do not use WOLFSSL_FUNC_TIME in production code.
+ */
+void WOLFSSL_START(int funcNum)
+{
+    double now = current_time(0) * 1000.0;
+#ifdef WOLFSSL_FUNC_TIME_LOG
+    fprintf(stderr, "%17.3f: START - %s\n", now, wc_func_name[funcNum]);
+#endif
+    wc_func_start[funcNum] = now;
+}
+
+void WOLFSSL_END(int funcNum)
+{
+    double now = current_time(0) * 1000.0;
+    wc_func_time[funcNum] += now - wc_func_start[funcNum];
+#ifdef WOLFSSL_FUNC_TIME_LOG
+    fprintf(stderr, "%17.3f: END   - %s\n", now, wc_func_name[funcNum]);
+#endif
+}
+
+void WOLFSSL_TIME(int count)
+{
+    int i;
+    double avg, total = 0;
+
+    for (i = 0; i < WC_FUNC_COUNT; i++) {
+        if (wc_func_time[i] > 0) {
+            avg = wc_func_time[i] / count;
+            fprintf(stderr, "%8.3f ms: %s\n", avg, wc_func_name[i]);
+            total += avg;
+        }
+    }
+    fprintf(stderr, "%8.3f ms\n", total);
+}
+#endif
 
 #ifdef DEBUG_WOLFSSL
 

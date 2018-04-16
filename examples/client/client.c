@@ -193,10 +193,10 @@ static void ShowVersions(void)
 Benchmark = number of connections. */
 static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
     int dtlsUDP, int dtlsSCTP, int benchmark, int resumeSession, int useX25519,
-    int helloRetry)
+    int helloRetry, int onlyKeyShare, int version)
 {
     /* time passed in number of connects give average */
-    int times = benchmark;
+    int times = benchmark, skip = times * 0.1;
     int loops = resumeSession ? 2 : 1;
     int i = 0, err, ret;
 #ifndef NO_SESSION_CACHE
@@ -204,12 +204,14 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
 #endif
 #ifdef WOLFSSL_TLS13
     byte* reply[80];
-    static const char msg[] = "hello wolfssl!";
+    static const char msg[] = "GET /index.html HTTP/1.0\r\n\r\n";
 #endif
 
     (void)resumeSession;
     (void)useX25519;
     (void)helloRetry;
+    (void)onlyKeyShare;
+    (void)version;
 
     while (loops--) {
     #ifndef NO_SESSION_CACHE
@@ -219,14 +221,56 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
 
         for (i = 0; i < times; i++) {
             SOCKET_T sockfd;
-            WOLFSSL* ssl = wolfSSL_new(ctx);
+            WOLFSSL* ssl;
+
+            if (i == skip)
+                start = current_time(1);
+
+            ssl = wolfSSL_new(ctx);
             if (ssl == NULL)
                 err_sys("unable to get SSL object");
 
-    #ifdef WOLFSSL_TLS13
-            if (helloRetry)
-                wolfSSL_NoKeyShares(ssl);
-    #endif
+        #ifdef WOLFSSL_TLS13
+            if (version >= 4) {
+                if (!helloRetry) {
+                    WOLFSSL_START(WC_FUNC_CLIENT_KEY_EXCHANGE_SEND);
+                    if (onlyKeyShare == 0 || onlyKeyShare == 2) {
+                    #ifdef HAVE_CURVE25519
+                        if (useX25519) {
+                            if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519)
+                                                           != WOLFSSL_SUCCESS) {
+                                err_sys("unable to use curve x25519");
+                            }
+                        }
+                        else
+                    #endif
+                    #ifdef HAVE_ECC
+                        #if defined(HAVE_ECC256) || defined(HAVE_ALL_CURVES)
+                        if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_SECP256R1)
+                                                           != WOLFSSL_SUCCESS) {
+                            err_sys("unable to use curve secp256r1");
+                        }
+                        else
+                        #endif
+                    #endif
+                        {
+                        }
+                    }
+                    if (onlyKeyShare == 0 || onlyKeyShare == 1) {
+                    #ifdef HAVE_FFDHE_2048
+                        if (wolfSSL_UseKeyShare(ssl, WOLFSSL_FFDHE_2048)
+                                                           != WOLFSSL_SUCCESS) {
+                            err_sys("unable to use DH 2048-bit parameters");
+                        }
+                    #endif
+                    }
+                    WOLFSSL_END(WC_FUNC_CLIENT_KEY_EXCHANGE_SEND);
+                }
+                else {
+                    wolfSSL_NoKeyShares(ssl);
+                }
+            }
+        #endif
 
             tcp_connect(&sockfd, host, port, dtlsUDP, dtlsSCTP, ssl);
 
@@ -234,21 +278,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
             if (benchResume)
                 wolfSSL_set_session(ssl, benchSession);
     #endif
-    #ifdef WOLFSSL_TLS13
-        #ifdef HAVE_CURVE25519
-            #ifndef NO_SESSION_CACHE
-            if (benchResume) {
-            }
-            else
-            #endif
-            if (useX25519) {
-                if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519)
-                                                               != WOLFSSL_SUCCESS) {
-                    err_sys("unable to use curve x25519");
-                }
-            }
-        #endif
-    #endif
+
             if (wolfSSL_set_fd(ssl, sockfd) != WOLFSSL_SUCCESS) {
                 err_sys("error in setting fd");
             }
@@ -271,7 +301,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
             }
 
     #ifdef WOLFSSL_TLS13
-            if (resumeSession) {
+            if (version >= 4 && resumeSession && !benchResume) {
                 if (wolfSSL_write(ssl, msg, sizeof(msg)-1) <= 0)
                     err_sys("SSL_write failed");
 
@@ -279,6 +309,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
                     err_sys("SSL_read failed");
             }
     #endif
+
 
             wolfSSL_shutdown(ssl);
     #ifndef NO_SESSION_CACHE
@@ -290,7 +321,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
             CloseSocket(sockfd);
         }
         avg = current_time(0) - start;
-        avg /= times;
+        avg /= (times - skip);
         avg *= 1000;   /* milliseconds */
     #ifndef NO_SESSION_CACHE
         if (benchResume)
@@ -298,6 +329,8 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
         else
     #endif
             printf("wolfSSL_connect avg took: %8.3f milliseconds\n", avg);
+
+        WOLFSSL_TIME(times);
     }
 
     return EXIT_SUCCESS;
@@ -305,7 +338,7 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
 
 /* Measures throughput in kbps. Throughput = number of bytes */
 static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
-    int dtlsUDP, int dtlsSCTP, int throughput, int useX25519)
+    int dtlsUDP, int dtlsSCTP, int block, int throughput, int useX25519)
 {
     double start, conn_time = 0, tx_time = 0, rx_time = 0;
     SOCKET_T sockfd;
@@ -355,8 +388,8 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
         conn_time = current_time(0) - start;
 
         /* Allocate TX/RX buffers */
-        tx_buffer = (char*)XMALLOC(TEST_BUFFER_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        rx_buffer = (char*)XMALLOC(TEST_BUFFER_SIZE, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        tx_buffer = (char*)XMALLOC(block, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        rx_buffer = (char*)XMALLOC(block, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (tx_buffer && rx_buffer) {
             WC_RNG rng;
 
@@ -370,7 +403,7 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
                 int xfer_bytes;
 
                 /* Generate random data to send */
-                ret = wc_RNG_GenerateBlock(&rng, (byte*)tx_buffer, TEST_BUFFER_SIZE);
+                ret = wc_RNG_GenerateBlock(&rng, (byte*)tx_buffer, block);
                 wc_FreeRng(&rng);
                 if(ret != 0) {
                     err_sys("wc_RNG_GenerateBlock failed");
@@ -382,7 +415,7 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
                     int len, rx_pos, select_ret;
 
                     /* Determine packet size */
-                    len = min(TEST_BUFFER_SIZE, throughput - xfer_bytes);
+                    len = min(block, throughput - xfer_bytes);
 
                     /* Perform TX */
                     start = current_time(1);
@@ -814,6 +847,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    useAnon  = 0;
     int    sendGET  = 0;
     int    benchmark = 0;
+    int    block = TEST_BUFFER_SIZE;
     int    throughput = 0;
     int    doDTLS    = 0;
     int    dtlsUDP   = 0;
@@ -873,8 +907,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     byte disableExtMasterSecret = 0;
 #endif
     int helloRetry = 0;
-#ifdef WOLFSSL_TLS13
     int onlyKeyShare = 0;
+#ifdef WOLFSSL_TLS13
     int noPskDheKe = 0;
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
     int postHandAuth = 0;
@@ -943,6 +977,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)updateKeysIVs;
     (void)useX25519;
     (void)helloRetry;
+    (void)onlyKeyShare;
     (void)useBadCert;
 
     StackTrap();
@@ -1110,7 +1145,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
             case 'B' :
                 throughput = atoi(myoptarg);
-                if (throughput <= 0) {
+                for (; *myoptarg != '\0'; myoptarg++) {
+                    if (*myoptarg == ',') {
+                        block = atoi(myoptarg + 1);
+                        break;
+                    }
+                }
+                if (throughput <= 0 || block <= 0) {
                     Usage();
                     exit(MY_EX_USAGE);
                 }
@@ -1763,11 +1804,20 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif /* HAVE_CURVE25519 && HAVE_SUPPORTED_CURVES */
 
+#ifdef WOLFSSL_TLS13
+    if (noPskDheKe)
+        wolfSSL_CTX_no_dhe_psk(ctx);
+#endif
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+    if (postHandAuth)
+        wolfSSL_CTX_allow_post_handshake_auth(ctx);
+#endif
+
     if (benchmark) {
         ((func_args*)args)->return_code =
             ClientBenchmarkConnections(ctx, host, port, dtlsUDP, dtlsSCTP,
                                        benchmark, resumeSession, useX25519,
-                                       helloRetry);
+                                       helloRetry, onlyKeyShare, version);
         wolfSSL_CTX_free(ctx);
         exit(EXIT_SUCCESS);
     }
@@ -1775,7 +1825,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if(throughput) {
         ((func_args*)args)->return_code =
             ClientBenchmarkThroughput(ctx, host, port, dtlsUDP, dtlsSCTP,
-                                      throughput, useX25519);
+                                      block, throughput, useX25519);
         wolfSSL_CTX_free(ctx);
         exit(EXIT_SUCCESS);
     }
@@ -1793,15 +1843,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_CTX_free(ctx);
         err_sys("error setting read ahead value");
     }
-    #endif
-
-    #ifdef WOLFSSL_TLS13
-    if (noPskDheKe)
-        wolfSSL_CTX_no_dhe_psk(ctx);
-    #endif
-    #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-    if (postHandAuth)
-        wolfSSL_CTX_allow_post_handshake_auth(ctx);
     #endif
 
 #if defined(WOLFSSL_STATIC_MEMORY) && defined(DEBUG_WOLFSSL)
@@ -2270,6 +2311,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 
 #ifdef WOLFSSL_TLS13
+    if (!helloRetry) {
     #ifdef HAVE_CURVE25519
         if (useX25519) {
             if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519) != WOLFSSL_SUCCESS) {
@@ -2294,6 +2336,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             err_sys("unable to use DH 2048-bit parameters");
         }
     #endif
+    }
+    else {
+        wolfSSL_NoKeyShares(ssl);
+    }
 #endif
 
 #ifndef WOLFSSL_CALLBACKS

@@ -2213,18 +2213,21 @@ WOLFSSL_LOCAL int TLSX_Cookie_Use(WOLFSSL* ssl, byte* data, word16 len,
 
 /* The KeyShare extension information - entry in a linked list. */
 typedef struct KeyShareEntry {
-    word16                group;  /* NamedGroup               */
-    byte*                 ke;     /* Key exchange data        */
-    word32                keLen;  /* Key exchange data length */
-    void*                 key;    /* Private key              */
-    word32                keyLen; /* Private key length       */
-    struct KeyShareEntry* next;   /* List pointer             */
+    word16                group;     /* NamedGroup               */
+    byte*                 ke;        /* Key exchange data        */
+    word32                keLen;     /* Key exchange data length */
+    void*                 key;       /* Private key              */
+    word32                keyLen;    /* Private key length       */
+    byte*                 pubKey;    /* Public key               */
+    word32                pubKeyLen; /* Public key length        */
+    struct KeyShareEntry* next;      /* List pointer             */
 } KeyShareEntry;
 
 WOLFSSL_LOCAL int TLSX_KeyShare_Use(WOLFSSL* ssl, word16 group, word16 len,
                                     byte* data, KeyShareEntry **kse);
 WOLFSSL_LOCAL int TLSX_KeyShare_Empty(WOLFSSL* ssl);
 WOLFSSL_LOCAL int TLSX_KeyShare_Establish(WOLFSSL* ssl);
+WOLFSSL_LOCAL int TLSX_KeyShare_DeriveSecret(WOLFSSL* ssl);
 
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
