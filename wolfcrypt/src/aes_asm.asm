@@ -27,7 +27,21 @@
 ;   /* This file is in intel asm syntax, see .s for at&t syntax */
 ;
 
-fipsAh SEGMENT ALIAS(".fipsA$h") 'CODE'
+
+fips_version = 0
+IFDEF HAVE_FIPS
+  fips_version = 1
+  IFDEF HAVE_FIPS_VERSION
+    fips_version = HAVE_FIPS_VERSION
+  ENDIF
+ENDIF
+
+IF fips_version GE 2
+  fipsAh SEGMENT ALIAS(".fipsA$h") 'CODE'
+ELSE
+  _text SEGMENT
+ENDIF
+
 
 ;	/*
 ;	AES_CBC_encrypt[const	,unsigned	char*in
@@ -1504,5 +1518,11 @@ MAKE_RK256_b:
 	pxor	xmm3,xmm2
 	ret
 
-fipsAh ENDS
+
+IF fips_version GE 2
+  fipsAh ENDS
+ELSE
+  _text ENDS
+ENDIF
+
 END
