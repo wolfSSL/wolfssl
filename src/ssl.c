@@ -13466,6 +13466,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                                 unsigned char* md, unsigned int* md_len)
     {
         int type;
+        int mdlen;
         unsigned char* ret = NULL;
 #ifdef WOLFSSL_SMALL_STACK
         Hmac* hmac = NULL;
@@ -13481,19 +13482,45 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         }
 
 #ifndef NO_MD5
-        if (XSTRNCMP(evp_md, "MD5", 3) == 0)
+        if (XSTRNCMP(evp_md, "MD5", 3) == 0) {
             type = WC_MD5;
-        else
+            mdlen = WC_MD5_DIGEST_SIZE;
+        } else
+#endif
+#ifdef WOLFSSL_SHA224
+        if (XSTRNCMP(evp_md, "SHA224", 6) == 0) {
+            type = WC_SHA224;
+            mdlen = WC_SHA224_DIGEST_SIZE;
+        } else
+#endif
+#ifndef NO_SHA256
+        if (XSTRNCMP(evp_md, "SHA256", 6) == 0) {
+            type = WC_SHA256;
+            mdlen = WC_SHA256_DIGEST_SIZE;
+        } else
+#endif
+#ifdef WOLFSSL_SHA512
+#ifdef WOLFSSL_SHA384
+        if (XSTRNCMP(evp_md, "SHA384", 6) == 0) {
+            type = WC_SHA384;
+            mdlen = WC_SHA384_DIGEST_SIZE;
+        } else
+#endif
+        if (XSTRNCMP(evp_md, "SHA512", 6) == 0) {
+            type = WC_SHA512;
+            mdlen = WC_SHA512_DIGEST_SIZE;
+        } else
 #endif
 #ifndef NO_SHA
-            if (XSTRNCMP(evp_md, "SHA", 3) == 0)
+        if (XSTRNCMP(evp_md, "SHA", 3) == 0) {
             type = WC_SHA;
-        else
+            mdlen = WC_SHA_DIGEST_SIZE;
+        } else
 #endif
         {
             return NULL;
         }
-
+    printf("mdlen = %d\n", mdlen);
     #ifdef WOLFSSL_SMALL_STACK
         hmac = (Hmac*)XMALLOC(sizeof(Hmac), heap, DYNAMIC_TYPE_HMAC);
         if (hmac == NULL)
@@ -13505,8 +13532,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 if (wc_HmacUpdate(hmac, d, n) == 0) {
                     if (wc_HmacFinal(hmac, md) == 0) {
                         if (md_len)
-                            *md_len = (type == WC_MD5) ? (int)WC_MD5_DIGEST_SIZE
-                                                    : (int)WC_SHA_DIGEST_SIZE;
+                            *md_len = mdlen;
                         ret = md;
                     }
                 }

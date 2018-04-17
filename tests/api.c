@@ -16842,9 +16842,31 @@ static void test_wolfSSL_HMAC(void)
     AssertIntEQ(len, (int)WC_SHA256_DIGEST_SIZE);
 
     HMAC_cleanup(&hmac);
+#endif
+
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256)
+    len = 0;
+    AssertNotNull(HMAC(EVP_sha256(), key, (int)sizeof(key), NULL, 0, hash, &len));
+    AssertIntEQ(len, (int)WC_SHA256_DIGEST_SIZE);
+#endif
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_SHA224)
+    len = 0;
+    AssertNotNull(HMAC(EVP_sha224(), key, (int)sizeof(key), NULL, 0, hash, &len));
+    AssertIntEQ(len, (int)WC_SHA224_DIGEST_SIZE);
+#endif
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_SHA384) && !defined(WOLFSSL_SHA512)
+    len = 0;
+    AssertNotNull(HMAC(EVP_sha384(), key, (int)sizeof(key), NULL, 0, hash, &len));
+    AssertIntEQ(len, (int)WC_SHA384_DIGEST_SIZE);
+#endif
+#if defined(OPENSSL_EXTRA) && !defined(WOLFSSL_SHA512)
+    len = 0;
+    AssertNotNull(HMAC(EVP_sha512(), key, (int)sizeof(key), NULL, 0, hash, &len));
+    AssertIntEQ(len, (int)WC_SHA512_DIGEST_SIZE);
+#endif
 
     printf(resultFmt, passed);
-    #endif
+
 }
 
 
