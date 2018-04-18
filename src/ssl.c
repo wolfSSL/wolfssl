@@ -13520,7 +13520,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         {
             return NULL;
         }
-    printf("mdlen = %d\n", mdlen);
+    
     #ifdef WOLFSSL_SMALL_STACK
         hmac = (Hmac*)XMALLOC(sizeof(Hmac), heap, DYNAMIC_TYPE_HMAC);
         if (hmac == NULL)
