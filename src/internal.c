@@ -18569,9 +18569,11 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                         input + args->begin, verifySz); /* message */
 
                     if (args->sigAlgo != ed25519_sa_algo) {
+                        int tmp_sz = wc_HashGetDigestSize(hashType);
+                        ssl->buffers.digest.length = (tmp_sz > 0) ?
+                                                     (unsigned int)tmp_sz : 0;
+
                         /* buffer for hash */
-                        ssl->buffers.digest.length =
-                                                 wc_HashGetDigestSize(hashType);
                         ssl->buffers.digest.buffer = (byte*)XMALLOC(
                             ssl->buffers.digest.length, ssl->heap,
                             DYNAMIC_TYPE_DIGEST);
