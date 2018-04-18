@@ -18597,7 +18597,7 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
              "DTLSv1_2 write Server Hello Verify Request",
              "DTLSv1_2 Server Hello Verify Request"},
         },
-		{
+        {
             {"SSLv3 read Server Hello",
              "SSLv3 write Server Hello",
              "SSLv3 Server Hello"},
@@ -18638,7 +18638,7 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
              "DTLSv1_2 write Server Session Ticket",
              "DTLSv1_2 Server Session Ticket"},
         },
-		{
+        {
             {"SSLv3 read Server Cert",
              "SSLv3 write Server Cert",
              "SSLv3 Server Cert"},
@@ -18698,7 +18698,7 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
              "DTLSv1_2 write Server Hello Done",
              "DTLSv1_2 Server Hello Done"},
         },
-		{
+        {
             {"SSLv3 read Server Change CipherSpec",
              "SSLv3 write Server Change CipherSpec",
              "SSLv3 Server Change CipherSpec"},
@@ -18718,7 +18718,7 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
              "DTLSv1_2 write Server Change CipherSpec",
              "DTLSv1_2 Server Change CipherSpec"},
         },
-		{
+        {
             {"SSLv3 read Server Finished",
              "SSLv3 write Server Finished",
              "SSLv3 Server Finished"},
@@ -18778,7 +18778,7 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
              "DTLSv1_2 write Client Key Exchange",
              "DTLSv1_2 Client Key Exchange"},
         },
-		{
+        {
             {"SSLv3 read Client Change CipherSpec",
              "SSLv3 write Client Change CipherSpec",
              "SSLv3 Client Change CipherSpec"},
@@ -18850,31 +18850,31 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
     };
 
     enum IOMode {
-      SS_READ = 0,
-      SS_WRITE,
-      SS_NEITHER
+        SS_READ = 0,
+        SS_WRITE,
+        SS_NEITHER
     };
 
-	enum SslState {
-	  ss_null_state = 0,
-	  ss_server_helloverify,
-	  ss_server_hello,
-	  ss_sessionticket,
-	  ss_server_cert,
-	  ss_server_keyexchange,
-	  ss_server_hellodone,
-	  ss_server_changecipherspec,
-	  ss_server_finished,
-	  ss_client_hello,
-	  ss_client_keyexchange,
-	  ss_client_changecipherspec,
-	  ss_client_finished,
-	  ss_handshake_done
-	};
+    enum SslState {
+        ss_null_state = 0,
+        ss_server_helloverify,
+        ss_server_hello,
+        ss_sessionticket,
+        ss_server_cert,
+        ss_server_keyexchange,
+        ss_server_hellodone,
+        ss_server_changecipherspec,
+        ss_server_finished,
+        ss_client_hello,
+        ss_client_keyexchange,
+        ss_client_changecipherspec,
+        ss_client_finished,
+        ss_handshake_done
+    };
 
     int protocol = 0;
     int cbmode = 0;
-	int state = 0;
+    int state = 0;
 
     WOLFSSL_ENTER("wolfSSL_state_string_long");
     if (ssl == NULL) {
@@ -18884,138 +18884,141 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
 
     /* Get state of callback */
     if (ssl->cbmode == SSL_CB_MODE_WRITE){
-		cbmode =  SS_WRITE;
+        cbmode =  SS_WRITE;
     } else if (ssl->cbmode == SSL_CB_MODE_READ){
-		cbmode =  SS_READ;
+        cbmode =  SS_READ;
     } else {
-		cbmode =  SS_NEITHER;
+        cbmode =  SS_NEITHER;
     }
 
     /* Get protocol version */
     switch (ssl->version.major){
-	case SSLv3_MAJOR:
-		switch (ssl->version.minor){
-		    case TLSv1_MINOR:
-                protocol = TLS_V1;
-				break;
-            case TLSv1_1_MINOR:
-                protocol = TLS_V1_1;
-				break;
-            case TLSv1_2_MINOR:
-                protocol = TLS_V1_2;
-				break;
-            case SSLv3_MINOR:
-                protocol = SSL_V3;
-				break;
-            default:
-                protocol = UNKNOWN;
+        case SSLv3_MAJOR:
+            switch (ssl->version.minor){
+                case TLSv1_MINOR:
+                    protocol = TLS_V1;
+                    break;
+                case TLSv1_1_MINOR:
+                    protocol = TLS_V1_1;
+                    break;
+                case TLSv1_2_MINOR:
+                    protocol = TLS_V1_2;
+                    break;
+                case SSLv3_MINOR:
+                    protocol = SSL_V3;
+                    break;
+                default:
+                    protocol = UNKNOWN;
             }
-        break;
-	case DTLS_MAJOR:
-		switch (ssl->version.minor){
-    case DTLS_MINOR:
-      protocol = DTLS_V1;
-      break;
-    case DTLSv1_2_MINOR:
-      protocol = DTLS_V1_2;
-      break;
-    default:
-      protocol = UNKNOWN;
+            break;
+        case DTLS_MAJOR:
+            switch (ssl->version.minor){
+        case DTLS_MINOR:
+            protocol = DTLS_V1;
+            break;
+        case DTLSv1_2_MINOR:
+            protocol = DTLS_V1_2;
+            break;
+        default:
+            protocol = UNKNOWN;
     }
     break;
-	default:
-		protocol = UNKNOWN;
+    default:
+        protocol = UNKNOWN;
     }
 
-	/* accept process */
-	if (ssl->cbmode == SSL_CB_MODE_READ){
-		state = ssl->cbtype;
-		switch (state) {
-		case hello_verify_request:
-			state = ss_server_helloverify;
-			break;
-		case session_ticket:
-			state = ss_sessionticket;
-			break;
-		case server_hello:
-			state = ss_server_hello;
-			break;
-		case server_hello_done:
-			state = ss_server_hellodone;
-			break;
-		case certificate:
-			state = ss_server_cert;
-			break;
-		case server_key_exchange:
-			state = ss_server_keyexchange;
-			break;
-		case client_hello:
-			state = ss_client_hello;
-			break;
-		case client_key_exchange:
-			state = ss_client_keyexchange;
-			break;
-		case finished:
-			if (ssl->options.side == WOLFSSL_SERVER_END)
-				state = ss_client_finished;
-			else if (ssl->options.side == WOLFSSL_CLIENT_END)
-				state = ss_server_finished;
-			break;
-		default:
-			WOLFSSL_MSG("Unknown State");
-			state = ss_null_state;
-		}
-	} else {
-		/* Send process */
-		if (ssl->options.side == WOLFSSL_SERVER_END)
-			state = ssl->options.serverState;
-		else
-			state = ssl->options.clientState;
+    /* accept process */
+    if (ssl->cbmode == SSL_CB_MODE_READ){
+        state = ssl->cbtype;
+        switch (state) {
+            case hello_verify_request:
+                state = ss_server_helloverify;
+                break;
+            case session_ticket:
+                state = ss_sessionticket;
+                break;
+            case server_hello:
+                state = ss_server_hello;
+                break;
+            case server_hello_done:
+                state = ss_server_hellodone;
+                break;
+            case certificate:
+                state = ss_server_cert;
+                break;
+            case server_key_exchange:
+                state = ss_server_keyexchange;
+                break;
+            case client_hello:
+                state = ss_client_hello;
+                break;
+            case client_key_exchange:
+                state = ss_client_keyexchange;
+                break;
+            case finished:
+                if (ssl->options.side == WOLFSSL_SERVER_END)
+                    state = ss_client_finished;
+                else if (ssl->options.side == WOLFSSL_CLIENT_END)
+                    state = ss_server_finished;
+                break;
+            default:
+                WOLFSSL_MSG("Unknown State");
+                state = ss_null_state;
+        }
+    } else {
+        /* Send process */
+        if (ssl->options.side == WOLFSSL_SERVER_END)
+            state = ssl->options.serverState;
+        else
+            state = ssl->options.clientState;
 
-		switch(state){
-		case SERVER_HELLOVERIFYREQUEST_COMPLETE:
-			state = ss_server_helloverify;
-			break;
-		case SERVER_HELLO_COMPLETE:
-			state = ss_server_hello;
-			break;
-		case SERVER_CERT_COMPLETE:
-			state = ss_server_cert;
-			break;
-		case SERVER_KEYEXCHANGE_COMPLETE:
-			state = ss_server_keyexchange;
-			break;
-		case SERVER_HELLODONE_COMPLETE:
-			state = ss_server_hellodone;
-			break;
-		case SERVER_CHANGECIPHERSPEC_COMPLETE:
-			state = ss_server_changecipherspec;
-			break;
-		case SERVER_FINISHED_COMPLETE:
-			state = ss_server_finished;
-			break;
-		case CLIENT_HELLO_COMPLETE:
-			state = ss_client_hello;
-			break;
-		case CLIENT_KEYEXCHANGE_COMPLETE:
-			state = ss_client_keyexchange;
-			break;
-		case CLIENT_CHANGECIPHERSPEC_COMPLETE:
-			state = ss_client_changecipherspec;
-			break;
-		case CLIENT_FINISHED_COMPLETE:
-			state = ss_client_finished;
-			break;
-		case HANDSHAKE_DONE:
-			state = ss_handshake_done;
-			break;
-		default:
-			WOLFSSL_MSG("Unknown State");
-			state = ss_null_state;
-		}
-	}
+        switch(state){
+            case SERVER_HELLOVERIFYREQUEST_COMPLETE:
+                state = ss_server_helloverify;
+                break;
+            case SERVER_HELLO_COMPLETE:
+                state = ss_server_hello;
+                break;
+            case SERVER_CERT_COMPLETE:
+                state = ss_server_cert;
+                break;
+            case SERVER_KEYEXCHANGE_COMPLETE:
+                state = ss_server_keyexchange;
+                break;
+            case SERVER_HELLODONE_COMPLETE:
+                state = ss_server_hellodone;
+                break;
+            case SERVER_CHANGECIPHERSPEC_COMPLETE:
+                state = ss_server_changecipherspec;
+                break;
+            case SERVER_FINISHED_COMPLETE:
+                state = ss_server_finished;
+                break;
+            case CLIENT_HELLO_COMPLETE:
+                state = ss_client_hello;
+                break;
+            case CLIENT_KEYEXCHANGE_COMPLETE:
+                state = ss_client_keyexchange;
+                break;
+            case CLIENT_CHANGECIPHERSPEC_COMPLETE:
+                state = ss_client_changecipherspec;
+                break;
+            case CLIENT_FINISHED_COMPLETE:
+                state = ss_client_finished;
+                break;
+            case HANDSHAKE_DONE:
+                state = ss_handshake_done;
+                break;
+            default:
+                WOLFSSL_MSG("Unknown State");
+                state = ss_null_state;
+        }
+    }
 
-	return OUTPUT_STR[state][protocol][cbmode];
+    if (protocol == UNKNOWN)
+        return NULL;
+    else
+        return OUTPUT_STR[state][protocol][cbmode];
 }
 
 #ifndef NO_WOLFSSL_STUB
@@ -31493,14 +31496,18 @@ static int wolfSSL_TicketKeyCb(WOLFSSL* ssl,
         *encLen = encTicketLen;
 
         /* HMAC the encrypted data into the parameter 'mac'. */
-        wolfSSL_HMAC_Update(&hmacCtx, encTicket, encTicketLen);
-        wolfSSL_HMAC_Final(&hmacCtx, mac, &mdSz);
+        if (!wolfSSL_HMAC_Update(&hmacCtx, encTicket, encTicketLen))
+            goto end;
+        if (!wolfSSL_HMAC_Final(&hmacCtx, mac, &mdSz))
+            goto end;
     }
     else
     {
         /* HMAC the encrypted data and compare it to the passed in data. */
-        wolfSSL_HMAC_Update(&hmacCtx, encTicket, encTicketLen);
-        wolfSSL_HMAC_Final(&hmacCtx, digest, &mdSz);
+        if (!wolfSSL_HMAC_Update(&hmacCtx, encTicket, encTicketLen))
+            goto end;
+        if (!wolfSSL_HMAC_Final(&hmacCtx, digest, &mdSz))
+            goto end;
         if (XMEMCMP(mac, digest, mdSz) != 0)
             goto end;
 

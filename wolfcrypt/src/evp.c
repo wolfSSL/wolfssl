@@ -248,10 +248,7 @@ static int evpCipherBlock(WOLFSSL_EVP_CIPHER_CTX *ctx,
         case AES_128_CTR_TYPE:
         case AES_192_CTR_TYPE:
         case AES_256_CTR_TYPE:
-            if (ctx->enc)
-                ret = wc_AesCtrEncrypt(&ctx->cipher.aes, out, in, inl);
-            else
-                ret = wc_AesCtrEncrypt(&ctx->cipher.aes, out, in, inl);
+            ret = wc_AesCtrEncrypt(&ctx->cipher.aes, out, in, inl);
             break;
     #endif
     #if !defined(NO_AES) && defined(HAVE_AES_ECB)
