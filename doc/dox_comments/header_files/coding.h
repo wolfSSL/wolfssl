@@ -74,8 +74,8 @@ WOLFSSL_API int Base64_Decode(const byte* in, word32 inLen, byte* out,
     \sa Base64_EncodeEsc
     \sa Base64_Decode
 */
-    WOLFSSL_API
-    int Base64_Encode(const byte* in, word32 inLen, byte* out,
+WOLFSSL_API
+int Base64_Encode(const byte* in, word32 inLen, byte* out,
                                   word32* outLen);
 /*!
     \ingroup Base_Encoding
@@ -116,7 +116,7 @@ WOLFSSL_API int Base64_Decode(const byte* in, word32 inLen, byte* out,
     \sa Base64_Encode
     \sa Base64_Decode
 */
-    int Base64_EncodeEsc(const byte* in, word32 inLen, byte* out,
+int Base64_EncodeEsc(const byte* in, word32 inLen, byte* out,
                                   word32* outLen);
 /*!
     \ingroup Base_Encoding
@@ -154,8 +154,8 @@ WOLFSSL_API int Base64_Decode(const byte* in, word32 inLen, byte* out,
     \sa Base64_Encode
     \sa Base64_Decode
 */
-    WOLFSSL_API
-    int Base64_Encode_NoNl(const byte* in, word32 inLen, byte* out,
+WOLFSSL_API
+int Base64_Encode_NoNl(const byte* in, word32 inLen, byte* out,
                                   word32* outLen);
 /*!
     \ingroup Base_Encoding
@@ -192,8 +192,8 @@ WOLFSSL_API int Base64_Decode(const byte* in, word32 inLen, byte* out,
     \sa Base64_Decode
     \sa Base16_Encode
 */
-    WOLFSSL_API
-    int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen);
+WOLFSSL_API
+int Base16_Decode(const byte* in, word32 inLen, byte* out, word32* outLen);
 /*!
     \ingroup Base_Encoding
     
@@ -224,5 +224,5 @@ WOLFSSL_API int Base64_Decode(const byte* in, word32 inLen, byte* out,
     \sa Base64_Decode
     \sa Base16_Decode
 */
-    WOLFSSL_API
-    int Base16_Encode(const byte* in, word32 inLen, byte* out, word32* outLen);
+WOLFSSL_API
+int Base16_Encode(const byte* in, word32 inLen, byte* out, word32* outLen);

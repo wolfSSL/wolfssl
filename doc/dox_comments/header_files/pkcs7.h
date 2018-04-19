@@ -111,7 +111,7 @@ WOLFSSL_API void wc_PKCS7_Free(PKCS7* pkcs7);
     pkcs7.contentSz = dataSz;
     ... etc.
 
-    ret = wc_PKCS7_EnocodeData(&pkcs7, pkcs7Buff, sizeof(pkcs7Buff));
+    ret = wc_PKCS7_EncodeData(&pkcs7, pkcs7Buff, sizeof(pkcs7Buff));
     if ( ret != 0 ) {
 	    // error encoding into output buffer
     }
@@ -182,7 +182,7 @@ WOLFSSL_API int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,
     pkcs7.contentSz = dataSz;
     ... etc.
 
-    ret = wc_PKCS7_EnocodeSignedData(&pkcs7, pkcs7Buff, sizeof(pkcs7Buff));
+    ret = wc_PKCS7_EncodeSignedData(&pkcs7, pkcs7Buff, sizeof(pkcs7Buff));
     if ( ret != 0 ) {
     	// error encoding into output buffer
     }
@@ -258,7 +258,7 @@ WOLFSSL_API int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
     pkcs7.contentSz = dataSz;
     ... etc.
 
-    ret = wc_PKCS7_EnocodeSignedData(&pkcs7, pkcs7Buff, sizeof(pkcs7Buff));
+    ret = wc_PKCS7_EncodeSignedData(&pkcs7, pkcs7Buff, sizeof(pkcs7Buff));
     if ( ret != 0 ) {
     	// error encoding into output buffer
     }

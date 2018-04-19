@@ -18,7 +18,7 @@
     \code
     RsaKey enc;
     int ret;
-    ret = wc_RsaInitKey(&enc, NULL); // not using heap hint. No custom memory
+    ret = wc_InitRsaKey(&enc, NULL); // not using heap hint. No custom memory
     if ( ret != 0 ) {
     	// error initializing RSA key
     }

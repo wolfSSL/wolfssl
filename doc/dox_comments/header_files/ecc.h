@@ -86,7 +86,7 @@ int wc_ecc_make_key(WC_RNG* rng, int keysize, ecc_key* key);
     \sa wc_ecc_point_is_at_infinity
 */
 WOLFSSL_API
-int wc_ecc_make_pub(ecc_key* key, ecc_point* pubOut);
+int wc_ecc_check_key(ecc_key* key);
 
 /*!
     \ingroup ECC
@@ -195,7 +195,7 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
 
     point = wc_ecc_new_point();
 
-    result = wc_ecc_shared_secret_ssh(&key, point, 
+    result = wc_ecc_shared_secret_ex(&key, point, 
     &shared_secret, &secret_size);
 
     if (result != MP_OKAY)
@@ -1334,7 +1334,7 @@ int wc_ecc_size(ecc_key* key);
     
     _Example_
     \code
-    int sigSz = wc_ecc_sig_size(32);
+    int sigSz = wc_ecc_sig_size_calc(32);
     if ( sigSz == 0) {
     	// error determining sig size
     }

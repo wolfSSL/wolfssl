@@ -387,7 +387,7 @@ WOLFSSL_API int  wc_SetSubject(Cert*, const char*);
     \sa wc_InitCert
     \sa wc_SetIssuer
 */
-    WOLFSSL_API int  wc_SetAltNames(Cert*, const char*);
+WOLFSSL_API int  wc_SetAltNames(Cert*, const char*);
 /*!
     \ingroup ASN
     
@@ -1194,7 +1194,7 @@ WOLFSSL_API int wc_CertPemToDer(const unsigned char*, int,
     \sa wc_PemPubKeyToDer
     \sa wc_PemToDer
 */
-        WOLFSSL_API int wc_PubKeyPemToDer(const unsigned char*, int,
+WOLFSSL_API int wc_PubKeyPemToDer(const unsigned char*, int,
                                                unsigned char*, int);
 
 /*!
@@ -1246,7 +1246,7 @@ WOLFSSL_API int wc_CertPemToDer(const unsigned char*, int,
     // read key into tmp buffer
 
     wc_ecc_init(&key); // initialize key
-    ret = wc_Ecc_PrivateKeyDecode(tmp, &idx, &key, (word32)inSz);
+    ret = wc_EccPrivateKeyDecode(tmp, &idx, &key, (word32)inSz);
     if(ret < 0) {
         // error decoding ecc key
     }

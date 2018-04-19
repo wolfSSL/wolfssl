@@ -81,7 +81,7 @@ WOLFSSL_API int wc_Blake2bUpdate(Blake2b*, const byte*, word32);
     wc_InitBlake2b(&b2b, 64); 
     ... // call wc_Blake2bUpdate to add data to hash
 
-    ret = 2c_Blake2bFinal(&b2b, hash, 64);
+    ret = wc_Blake2bFinal(&b2b, hash, 64);
     if( ret != 0) {
     	// error generating blake2b hash
     }

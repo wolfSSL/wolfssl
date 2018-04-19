@@ -36,7 +36,7 @@ WOLFSSL_API const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_des_ede3_ecb(void);
     _Example_
     \code
     WOLFSSL_EVP_CIPHER* cipher;
-    cipher = wolfSSL_EVP_des_ecb();
+    cipher = wolfSSL_EVP_des_cbc();
     …
     \endcode
     

@@ -295,7 +295,7 @@ WOLFSSL_API void wolfSSL_SetIOReadCtx( WOLFSSL* ssl, void *ctx);
     WOLFSSL* ssl = 0;
     ...
     // Manually setting the socket fd as the send CTX, for example
-    wolfSSL_SetIOSendCtx(ssl, &sockfd);
+    wolfSSL_SetIOWriteCtx(ssl, &sockfd);
     ...
     \endcode
     
@@ -427,7 +427,7 @@ WOLFSSL_API void wolfSSL_SetIOReadFlags( WOLFSSL* ssl, int flags);
     WOLFSSL* ssl = 0;
     ...
     // Manually setting send flags to 0
-    wolfSSL_SetIOSendFlags(ssl, 0);
+    wolfSSL_SetIOWriteFlags(ssl, 0);
     ...
     \endcode
     
