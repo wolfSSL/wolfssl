@@ -33,7 +33,7 @@ There are many reasons to choose wolfSSL as your embedded SSL solution. Some of 
 wolfSSL as of 3.6.6 no longer enables SSLv3 by default.  wolfSSL also no
 longer supports static key cipher suites with PSK, RSA, or ECDH.  This means
 if you plan to use TLS cipher suites you must enable DH (DH is on by default),
-or enable ECC (ECC is on by default on 64bit systems), or you must enable static
+or enable ECC (ECC is on by default), or you must enable static
 key cipher suites with
     WOLFSSL_STATIC_DH
     WOLFSSL_STATIC_RSA
