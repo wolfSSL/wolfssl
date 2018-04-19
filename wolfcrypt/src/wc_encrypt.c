@@ -262,6 +262,8 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
     if (Base16_Decode(info->iv, info->ivSz, info->iv, &info->ivSz) != 0) {
         return BUFFER_E;
     }
+    if (info->ivSz < PKCS5_SALT_SZ)
+        return BUFFER_E;
 
 #ifdef WOLFSSL_SMALL_STACK
     key = (byte*)XMALLOC(WC_MAX_SYM_KEY_SIZE, NULL, DYNAMIC_TYPE_SYMETRIC_KEY);
@@ -271,7 +273,7 @@ int wc_BufferKeyDecrypt(EncryptedInfo* info, byte* der, word32 derSz,
 #endif
 
 #ifndef NO_PWDBASED
-    if ((ret = wc_PBKDF1(key, password, passwordSz, info->iv, info->ivSz, 1,
+    if ((ret = wc_PBKDF1(key, password, passwordSz, info->iv, PKCS5_SALT_SZ, 1,
                                         info->keySz, hashType)) != 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(key, NULL, DYNAMIC_TYPE_SYMETRIC_KEY);
@@ -314,7 +316,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
     (void)hashType;
 
     if (der == NULL || password == NULL || info == NULL || info->keySz == 0 ||
-            info->ivSz == 0) {
+            info->ivSz < PKCS5_SALT_SZ) {
         return BAD_FUNC_ARG;
     }
 
@@ -326,7 +328,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
 #endif /* WOLFSSL_SMALL_STACK */
 
 #ifndef NO_PWDBASED
-    if ((ret = wc_PBKDF1(key, password, passwordSz, info->iv, info->ivSz, 1,
+    if ((ret = wc_PBKDF1(key, password, passwordSz, info->iv, PKCS5_SALT_SZ, 1,
                                         info->keySz, hashType)) != 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(key, NULL, DYNAMIC_TYPE_SYMETRIC_KEY);
