@@ -34,6 +34,7 @@
 #include <wolfssl/version.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
+#include <wolfssl/wolfcrypt/hash.h>
 
 #ifdef HAVE_WOLF_EVENT
     #include <wolfssl/wolfcrypt/wolfevent.h>
