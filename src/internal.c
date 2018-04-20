@@ -2022,6 +2022,13 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     }
 #endif
 
+#ifdef BUILD_TLS_DH_anon_WITH_AES_256_GCM_SHA384
+    if (tls1_2 && haveDH) {
+      suites->suites[idx++] = 0;
+      suites->suites[idx++] = TLS_DH_anon_WITH_AES_256_GCM_SHA384;
+    }
+#endif
+
 #ifdef BUILD_TLS_DHE_PSK_WITH_AES_128_GCM_SHA256
     if (tls1_2 && haveDH && havePSK) {
         suites->suites[idx++] = 0;
@@ -7448,6 +7455,10 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 #endif
 #ifdef HAVE_ANON
         case TLS_DH_anon_WITH_AES_128_CBC_SHA :
+            if (requirement == REQUIRES_DHE)
+                return 1;
+            break;
+        case TLS_DH_anon_WITH_AES_256_GCM_SHA384:
             if (requirement == REQUIRES_DHE)
                 return 1;
             break;
@@ -15613,6 +15624,10 @@ static const char* const cipher_names[] =
     "ADH-AES128-SHA",
 #endif
 
+#ifdef BUILD_TLS_DH_anon_WITH_AES_256_GCM_SHA384
+    "ADH-AES256-GCM-SHA384",
+#endif
+
 #ifdef BUILD_TLS_QSH
     "QSH",
 #endif
@@ -16080,6 +16095,10 @@ static const int cipher_name_idx[] =
 
 #ifdef BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA
     TLS_DH_anon_WITH_AES_128_CBC_SHA,
+#endif
+
+#ifdef BUILD_TLS_DH_anon_WITH_AES_256_GCM_SHA384
+    TLS_DH_anon_WITH_AES_256_GCM_SHA384,
 #endif
 
 #ifdef BUILD_TLS_QSH
@@ -16644,6 +16663,12 @@ const char* wolfSSL_get_cipher_name_from_suite(const unsigned char cipherSuite,
             case TLS_DH_anon_WITH_AES_128_CBC_SHA :
                 return "TLS_DH_anon_WITH_AES_128_CBC_SHA";
 #endif
+
+#ifdef BUILD_TLS_DH_anon_WITH_AES_256_GCM_SHA384
+            case TLS_DH_anon_WITH_AES_256_GCM_SHA384:
+                return "TLS_DH_anon_WITH_AES_256_GCM_SHA384";
+#endif
+
 #ifdef BUILD_WDM_WITH_NULL_SHA256
             case WDM_WITH_NULL_SHA256 :
                 return "WDM_WITH_NULL_SHA256";

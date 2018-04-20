@@ -463,6 +463,10 @@
     #if defined(HAVE_ANON) && !defined(NO_TLS) && !defined(NO_DH) && \
         !defined(NO_AES) && !defined(NO_SHA) && defined(WOLFSSL_AES_128)
         #define BUILD_TLS_DH_anon_WITH_AES_128_CBC_SHA
+
+        #if defined(WOLFSSL_SHA384) && defined(HAVE_AESGCM)
+            #define BUILD_TLS_DH_anon_WITH_AES_256_GCM_SHA384
+        #endif
     #endif
 
     #if !defined(NO_DH) && !defined(NO_PSK) && !defined(NO_TLS)
@@ -913,6 +917,7 @@ enum {
     TLS_RSA_WITH_AES_256_GCM_SHA384          = 0x9d,
     TLS_DHE_RSA_WITH_AES_128_GCM_SHA256      = 0x9e,
     TLS_DHE_RSA_WITH_AES_256_GCM_SHA384      = 0x9f,
+    TLS_DH_anon_WITH_AES_256_GCM_SHA384      = 0xa7,
     TLS_PSK_WITH_AES_128_GCM_SHA256          = 0xa8,
     TLS_PSK_WITH_AES_256_GCM_SHA384          = 0xa9,
     TLS_DHE_PSK_WITH_AES_128_GCM_SHA256      = 0xaa,

@@ -1149,7 +1149,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #ifdef HAVE_ANON
         CyaSSL_CTX_allow_anon_cipher(ctx);
         if (cipherList == NULL || (cipherList && useDefCipherList)) {
-            if (SSL_CTX_set_cipher_list(ctx, "ADH-AES128-SHA") != WOLFSSL_SUCCESS)
+            const char* defaultCipherList;
+            defaultCipherList = "ADH-AES256-GCM-SHA384:"
+                                "ADH-AES128-SHA";
+            if (SSL_CTX_set_cipher_list(ctx, defaultCipherList)
+                                                            != WOLFSSL_SUCCESS)
                 err_sys_ex(runWithErrors, "server can't set cipher list 4");
         }
 #endif
