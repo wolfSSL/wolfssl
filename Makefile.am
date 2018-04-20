@@ -207,4 +207,7 @@ merge-clean:
 	@find ./ | $(GREP) \.OTHER | xargs rm -f
 	@find ./ | $(GREP) \.BASE | xargs rm -f
 	@find ./ | $(GREP) \~$$ | xargs rm -f
-	
+
+dist-hook:
+	cp $(distdir)/wolfssl/options.h.in $(distdir)/wolfssl/options.h
+
