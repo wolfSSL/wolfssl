@@ -31498,6 +31498,11 @@ static int wolfSSL_TicketKeyCb(WOLFSSL* ssl,
         /* HMAC the encrypted data into the parameter 'mac'. */
         if (!wolfSSL_HMAC_Update(&hmacCtx, encTicket, encTicketLen))
             goto end;
+#ifdef WOLFSSL_SHA512
+        /* Check for SHA512, which would overrun the mac buffer */
+        if (hmacCtx.hmac.macType == WC_SHA512)
+            goto end;
+#endif
         if (!wolfSSL_HMAC_Final(&hmacCtx, mac, &mdSz))
             goto end;
     }

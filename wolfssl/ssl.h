@@ -34,7 +34,6 @@
 #include <wolfssl/version.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
-#include <wolfssl/wolfcrypt/hash.h>
 
 #ifdef HAVE_WOLF_EVENT
     #include <wolfssl/wolfcrypt/wolfevent.h>
@@ -2310,7 +2309,7 @@ WOLFSSL_API int wolfSSL_set_SessionTicket_cb(WOLFSSL*,
 
 #define WOLFSSL_TICKET_NAME_SZ 16
 #define WOLFSSL_TICKET_IV_SZ   16
-#define WOLFSSL_TICKET_MAC_SZ  WC_MAX_DIGEST_SIZE
+#define WOLFSSL_TICKET_MAC_SZ  32
 
 enum TicketEncRet {
     WOLFSSL_TICKET_RET_FATAL  = -1,  /* fatal error, don't use ticket */
