@@ -449,7 +449,7 @@ static void test_harness(void* vargs)
                 break;
             case '#':
                 /* Ignore lines that start with a #. */
-                comment = strsep(&cursor, "\n");
+                comment = XSTRSEP(&cursor, "\n");
 #ifdef DEBUG_SUITE_TESTS
                 printf("%s\n", comment);
 #else
@@ -460,18 +460,18 @@ static void test_harness(void* vargs)
                 /* Parameters start with a -. They end in either a newline
                  * or a space. Capture until either, save in Args list. */
                 if (cliMode)
-                    cliArgs[cliArgsSz++] = strsep(&cursor, " \n");
+                    cliArgs[cliArgsSz++] = XSTRSEP(&cursor, " \n");
                 else
-                    svrArgs[svrArgsSz++] = strsep(&cursor, " \n");
+                    svrArgs[svrArgsSz++] = XSTRSEP(&cursor, " \n");
                 break;
             default:
                 /* Anything from cursor until end of line that isn't the above
                  * is data for a paramter. Just up until the next newline in
                  * the Args list. */
                 if (cliMode)
-                    cliArgs[cliArgsSz++] = strsep(&cursor, "\n");
+                    cliArgs[cliArgsSz++] = XSTRSEP(&cursor, "\n");
                 else
-                    svrArgs[svrArgsSz++] = strsep(&cursor, "\n");
+                    svrArgs[svrArgsSz++] = XSTRSEP(&cursor, "\n");
                 if (*cursor == 0)  /* eof */
                     do_it = 1;
         }
