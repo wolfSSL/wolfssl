@@ -34,7 +34,7 @@
 #endif
 
 /* detect C99 */
-#if defined(__STDC_VERSION__)
+#if !defined(WOLF_C99) && defined(__STDC_VERSION__)
     #if __STDC_VERSION__ >= 199901L
         #define WOLF_C99
     #endif
