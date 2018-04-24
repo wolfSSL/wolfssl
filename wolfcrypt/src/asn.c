@@ -4705,6 +4705,7 @@ int wc_GetDateAsCalendarTime(const byte* date, int length, byte format,
     return 0;
 }
 
+#ifdef WOLFSSL_CERT_GEN
 int wc_GetCertDates(Cert* cert, struct tm* before, struct tm* after)
 {
     int ret = 0;
@@ -4730,6 +4731,7 @@ int wc_GetCertDates(Cert* cert, struct tm* before, struct tm* after)
 
     return ret;
 }
+#endif /* WOLFSSL_CERT_GEN */
 #endif /* !NO_ASN_TIME */
 
 
@@ -12385,7 +12387,7 @@ static int GetBasicDate(const byte* source, word32* idx, byte* date,
                         byte* format, int maxIdx)
 {
     int    ret, length;
-    byte  *datePtr = NULL;
+    const byte *datePtr = NULL;
 
     WOLFSSL_ENTER("GetBasicDate");
 
