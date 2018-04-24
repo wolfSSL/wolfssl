@@ -15991,7 +15991,7 @@ static void test_wolfSSL_BN(void)
     BIGNUM* b;
     BIGNUM* c;
     BIGNUM* d;
-    ASN1_INTEGER ai;
+    ASN1_INTEGER* ai;
     unsigned char value[1];
 
     printf(testingFmt, "wolfSSL_BN()");
@@ -16002,12 +16002,14 @@ static void test_wolfSSL_BN(void)
 
     value[0] = 0x03;
 
+    AssertNotNull(ai = ASN1_INTEGER_new());
     /* at the moment hard setting since no set function */
-    ai.data[0] = 0x02; /* tag for ASN_INTEGER */
-    ai.data[1] = 0x01; /* length of integer */
-    ai.data[2] = value[0];
+    ai->data[0] = 0x02; /* tag for ASN_INTEGER */
+    ai->data[1] = 0x01; /* length of integer */
+    ai->data[2] = value[0];
 
-    AssertNotNull(a = ASN1_INTEGER_to_BN(&ai, NULL));
+    AssertNotNull(a = ASN1_INTEGER_to_BN(ai, NULL));
+    ASN1_INTEGER_free(ai);
 
     value[0] = 0x02;
     AssertNotNull(BN_bin2bn(value, sizeof(value), b));
@@ -17763,6 +17765,40 @@ static void test_wolfSSL_SHA256(void)
 #endif
 }
 
+static void test_wolfSSL_X509_get_serialNumber(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    !defined(NO_RSA)
+    ASN1_INTEGER* a;
+    BIGNUM* bn;
+    X509*   x509;
+
+
+    printf(testingFmt, "wolfSSL_X509_get_serialNumber()");
+
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
+                                                      SSL_FILETYPE_PEM));
+    AssertNotNull(a = X509_get_serialNumber(x509));
+    X509_free(x509);
+
+    /* check on value of ASN1 Integer */
+    AssertNotNull(bn = ASN1_INTEGER_to_BN(a, NULL));
+    AssertIntEQ(BN_get_word(bn), 1);
+
+    BN_free(bn);
+    ASN1_INTEGER_free(a);
+
+    /* hard test free'ing with dynamic buffer to make sure there is no leaks */
+    a = ASN1_INTEGER_new();
+    AssertNotNull(a->data = (unsigned char*)XMALLOC(100, NULL,
+                DYNAMIC_TYPE_OPENSSL));
+    a->isDynamic = 1;
+    ASN1_INTEGER_free(a);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_no_op_functions(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -18605,6 +18641,7 @@ void ApiTest(void)
     test_wolfSSL_DH_1536_prime();
     test_wolfSSL_AES_ecb_encrypt();
     test_wolfSSL_SHA256();
+    test_wolfSSL_X509_get_serialNumber();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();

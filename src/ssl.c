@@ -18109,6 +18109,37 @@ WOLFSSL_X509_REVOKED* wolfSSL_sk_X509_REVOKED_value(
 }
 #endif
 
+/* Used to create a new WOLFSSL_ASN1_INTEGER structure.
+ * returns a pointer to new structure on success and NULL on failure
+ */
+WOLFSSL_ASN1_INTEGER* wolfSSL_ASN1_INTEGER_new(void)
+{
+    WOLFSSL_ASN1_INTEGER* a;
+
+    a = (WOLFSSL_ASN1_INTEGER*)XMALLOC(sizeof(WOLFSSL_ASN1_INTEGER), NULL,
+                                       DYNAMIC_TYPE_OPENSSL);
+    if (a == NULL) {
+        return NULL;
+    }
+
+    XMEMSET(a, 0, sizeof(WOLFSSL_ASN1_INTEGER));
+    a->data    = a->intData;
+    a->dataMax = WOLFSSL_ASN1_INTEGER_MAX;
+    return a;
+}
+
+
+/* free's internal elements of WOLFSSL_ASN1_INTEGER and free's "in" itself */
+void wolfSSL_ASN1_INTEGER_free(WOLFSSL_ASN1_INTEGER* in)
+{
+    if (in != NULL) {
+        if (in->isDynamic) {
+            XFREE(in->data, NULL, DYNAMIC_TYPE_OPENSSL);
+        }
+        XFREE(in, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+}
+
 
 WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
 {
@@ -18117,19 +18148,25 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
 
     WOLFSSL_ENTER("wolfSSL_X509_get_serialNumber");
 
-    a = (WOLFSSL_ASN1_INTEGER*)XMALLOC(sizeof(WOLFSSL_ASN1_INTEGER), NULL,
-                                       DYNAMIC_TYPE_OPENSSL);
+    a = wolfSSL_ASN1_INTEGER_new();
     if (a == NULL)
         return NULL;
 
     /* Make sure there is space for the data, ASN.1 type and length. */
-    if (x509->serialSz > (int)(sizeof(WOLFSSL_ASN1_INTEGER) - 2)) {
-        XFREE(a, NULL, DYNAMIC_TYPE_OPENSSL);
-        return NULL;
+    if (x509->serialSz > (WOLFSSL_ASN1_INTEGER_MAX - 2)) {
+        /* dynamicly create data buffer, +2 for type and length */
+        a->data = (unsigned char*)XMALLOC(x509->serialSz + 2, NULL,
+                DYNAMIC_TYPE_OPENSSL);
+        if (a->data == NULL) {
+            wolfSSL_ASN1_INTEGER_free(a);
+            return NULL;
+        }
+        a->dataMax   = x509->serialSz + 2;
+        a->isDynamic = 1;
     }
 
     a->data[i++] = ASN_INTEGER;
-    a->data[i++] = (unsigned char)x509->serialSz;
+    i += SetLength(x509->serialSz, a->data + i);
     XMEMCPY(&a->data[i], x509->serial, x509->serialSz);
 
     return a;
@@ -22902,7 +22939,7 @@ WOLFSSL_BIGNUM *wolfSSL_ASN1_INTEGER_to_BN(const WOLFSSL_ASN1_INTEGER *ai,
         return NULL;
     }
 
-    if ((ret = GetInt(&mpi, ai->data, &idx, sizeof(ai->data))) != 0) {
+    if ((ret = GetInt(&mpi, ai->data, &idx, ai->dataMax)) != 0) {
         /* expecting ASN1 format for INTEGER */
         WOLFSSL_LEAVE("wolfSSL_ASN1_INTEGER_to_BN", ret);
         return NULL;
