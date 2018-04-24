@@ -87,6 +87,11 @@ extern "C" {
         #undef  WC_NO_HARDEN
         #define WC_NO_HARDEN
     #endif
+
+    /* RSA PSS Support */
+    #if 0
+        #define WC_RSA_PSS
+    #endif
 #else
     #define NO_RSA
 #endif
@@ -377,6 +382,9 @@ extern unsigned int custom_rand_generate(void);
 
 #undef  NO_CRYPT_BENCHMARK
 //#define NO_CRYPT_BENCHMARK
+
+#undef  WOLFCRYPT_ONLY
+//#define WOLFCRYPT_ONLY
 
 /* In-lining of misc.c functions */
 /* If defined, must include wolfcrypt/src/misc.c in build */

@@ -64,3 +64,4 @@ AES GCM: `GCM_SMALL`, `GCM_WORD32` or `GCM_TABLE`: Tunes performance and flash/m
 * `USE_SLOW_SHA512`: Over twice as small, but 50% slower
 * `USE_CERT_BUFFERS_1024` or `USE_CERT_BUFFERS_2048`: Size of RSA certs / keys to test with. 
 * `BENCH_EMBEDDED`: Define this if using the wolfCrypt test/benchmark and using a low memory target.
+* `ECC_USER_CURVES`: Allows user to defines curve sizes to enable. Default is 256-bit on. To enable others use `HAVE_ECC192`, `HAVE_ECC224`, etc....
