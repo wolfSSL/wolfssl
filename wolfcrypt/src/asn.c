@@ -4705,7 +4705,7 @@ int wc_GetDateAsCalendarTime(const byte* date, int length, byte format,
     return 0;
 }
 
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_ALT_NAMES)
 int wc_GetCertDates(Cert* cert, struct tm* before, struct tm* after)
 {
     int ret = 0;
@@ -4731,7 +4731,7 @@ int wc_GetCertDates(Cert* cert, struct tm* before, struct tm* after)
 
     return ret;
 }
-#endif /* WOLFSSL_CERT_GEN */
+#endif /* WOLFSSL_CERT_GEN && WOLFSSL_ALT_NAMES */
 #endif /* !NO_ASN_TIME */
 
 

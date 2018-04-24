@@ -1281,12 +1281,6 @@ int asn_test(void)
     byte format;
     int length;
     const byte* datePart;
-
-    ret = wc_GetDateInfo(dateBuf, (int)sizeof(dateBuf), &datePart, &format,
-                         &length);
-    if (ret != 0)
-        return -1300;
-
 #ifndef NO_ASN_TIME
     struct tm time;
     #ifdef WORD64_AVAILABLE
@@ -1294,7 +1288,14 @@ int asn_test(void)
     #else
         word32 now;
     #endif
+#endif
 
+    ret = wc_GetDateInfo(dateBuf, (int)sizeof(dateBuf), &datePart, &format,
+                         &length);
+    if (ret != 0)
+        return -1300;
+
+#ifndef NO_ASN_TIME
     /* Parameter Validation tests. */
     if (wc_GetTime(NULL, sizeof(now)) != BAD_FUNC_ARG)
         return -1301;
@@ -9801,7 +9802,7 @@ int rsa_test(void)
     #ifdef WOLFSSL_TEST_CERT
         DecodedCert decode;
     #endif
-    #ifndef NO_ASN_TIME
+    #if defined(WOLFSSL_ALT_NAMES) && !defined(NO_ASN_TIME)
         struct tm beforeTime;
         struct tm afterTime;
     #endif
@@ -9946,13 +9947,6 @@ int rsa_test(void)
             ERROR_OUT(-5595, exit_rsa);
         }
 
-    #ifndef NO_ASN_TIME
-        ret = wc_GetCertDates(&myCert, &beforeTime, &afterTime);
-        if (ret < 0) {
-            ERROR_OUT(-5576, exit_rsa);
-        }
-    #endif
-
         ret = 0;
         do {
         #if defined(WOLFSSL_ASYNC_CRYPT)
@@ -9964,7 +9958,7 @@ int rsa_test(void)
             }
         } while (ret == WC_PENDING_E);
         if (ret < 0) {
-            ERROR_OUT(-5597, exit_rsa);
+            ERROR_OUT(-5596, exit_rsa);
         }
         certSz = ret;
 
@@ -9973,13 +9967,13 @@ int rsa_test(void)
         ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
         if (ret != 0) {
             FreeDecodedCert(&decode);
-            ERROR_OUT(-5598, exit_rsa);
+            ERROR_OUT(-5597, exit_rsa);
         }
         FreeDecodedCert(&decode);
     #endif
 
         ret = SaveDerAndPem(der, certSz, pem, FOURK_BUF, otherCertDerFile,
-            otherCertPemFile, CERT_TYPE, -5599);
+            otherCertPemFile, CERT_TYPE, -5598);
         if (ret != 0) {
             goto exit_rsa;
         }
