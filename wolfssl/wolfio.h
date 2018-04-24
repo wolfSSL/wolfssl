@@ -262,6 +262,11 @@
         typedef struct hostent          HOSTENT;
     #endif /* HAVE_SOCKADDR */
 
+    /* use gethostbyname for c99 */
+    #ifdef WOLF_C99
+        #undef HAVE_GETADDRINFO
+    #endif
+
     #ifdef HAVE_GETADDRINFO
         typedef struct addrinfo         ADDRINFO;
     #endif
