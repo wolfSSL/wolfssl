@@ -1274,7 +1274,21 @@ int base16_test(void)
 #ifndef NO_ASN
 int asn_test(void)
 {
+    int ret;
+    /* ASN1 encoded date buffer */
+    const byte dateBuf[] = {0x17, 0x0d, 0x31, 0x36, 0x30, 0x38, 0x31, 0x31,
+                            0x32, 0x30, 0x30, 0x37, 0x33, 0x37, 0x5a};
+    byte format;
+    int length;
+    const byte* datePart;
+
+    ret = wc_GetDateInfo(dateBuf, (int)sizeof(dateBuf), &datePart, &format,
+                         &length);
+    if (ret != 0)
+        return -1300;
+
 #ifndef NO_ASN_TIME
+    struct tm time;
     #ifdef WORD64_AVAILABLE
         word64 now;
     #else
@@ -1283,23 +1297,27 @@ int asn_test(void)
 
     /* Parameter Validation tests. */
     if (wc_GetTime(NULL, sizeof(now)) != BAD_FUNC_ARG)
-        return -1300;
-    if (wc_GetTime(&now, 0) != BUFFER_E)
         return -1301;
+    if (wc_GetTime(&now, 0) != BUFFER_E)
+        return -1302;
 
     now = 0;
     if (wc_GetTime(&now, sizeof(now)) != 0) {
-        return -1302;
+        return -1303;
     }
     if (now == 0) {
         printf("RTC/Time not set!\n");
-        return -1303;
+        return -1304;
     }
-#endif
+
+    ret = wc_GetDateAsCalendarTime(datePart, length, format, &time);
+    if (ret != 0)
+        return -1305;
+#endif /* !NO_ASN_TIME */
 
     return 0;
 }
-#endif
+#endif /* !NO_ASN */
 
 #ifdef WOLFSSL_MD2
 int md2_test(void)
@@ -7701,6 +7719,9 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         #ifdef WOLFSSL_CERT_GEN
             static const char* rsaCaKeyFile  = CERT_ROOT "ca-key.der";
             static const char* rsaCaCertFile = CERT_ROOT "ca-cert.pem";
+            #ifdef WOLFSSL_ALT_NAMES
+            static const char* rsaCaCertDerFile = CERT_ROOT "ca-cert.der";
+            #endif
         #endif
     #endif /* !NO_RSA */
     #ifndef NO_DH
@@ -7865,7 +7886,7 @@ static const CertName certDefaultName = {
 
 #ifndef NO_RSA
 
-#if !defined(NO_ASN_TIME) && defined(WOLFSSL_TEST_CERT)
+#ifdef WOLFSSL_TEST_CERT
 int cert_test(void)
 {
     DecodedCert cert;
@@ -7919,7 +7940,7 @@ done:
 
     return ret;
 }
-#endif
+#endif /* WOLFSSL_TEST_CERT */
 
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT)
 int certext_test(void)
@@ -9560,7 +9581,7 @@ int rsa_test(void)
 #endif
 
 #ifdef sizeof
-        #undef sizeof
+    #undef sizeof
 #endif
 
 #ifdef WOLFSSL_TEST_CERT
@@ -9780,6 +9801,10 @@ int rsa_test(void)
     #ifdef WOLFSSL_TEST_CERT
         DecodedCert decode;
     #endif
+    #ifndef NO_ASN_TIME
+        struct tm beforeTime;
+        struct tm afterTime;
+    #endif
 
         der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         if (der == NULL) {
@@ -9789,6 +9814,54 @@ int rsa_test(void)
         if (pem == NULL) {
             ERROR_OUT(-5581, exit_rsa);
         }
+
+        /* Setup Certificate */
+        if (wc_InitCert(&myCert)) {
+            ERROR_OUT(-5582, exit_rsa);
+        }
+
+#ifdef WOLFSSL_ALT_NAMES
+        /* Get CA Cert for testing */
+    #ifdef USE_CERT_BUFFERS_1024
+        XMEMCPY(tmp, ca_cert_der_1024, sizeof_ca_cert_der_1024);
+        bytes3 = sizeof_ca_cert_der_1024;
+    #elif defined(USE_CERT_BUFFERS_2048)
+        XMEMCPY(tmp, ca_cert_der_2048, sizeof_ca_cert_der_2048);
+        bytes3 = sizeof_ca_cert_der_2048;
+    #else
+        file3 = fopen(rsaCaCertDerFile, "rb");
+        if (!file3) {
+            ERROR_OUT(-5583, exit_rsa);
+        }
+        bytes3 = fread(tmp, 1, FOURK_BUF, file3);
+        fclose(file3);
+    #endif /* USE_CERT_BUFFERS */
+
+    #ifndef NO_FILESYSTEM
+        ret = wc_SetAltNames(&myCert, rsaCaCertFile);
+        if (ret != 0) {
+            ERROR_OUT(-5584, exit_rsa);
+        }
+    #endif
+        /* get alt names from der */
+        ret = wc_SetAltNamesBuffer(&myCert, tmp, (int)bytes3);
+        if (ret != 0) {
+            ERROR_OUT(-5585, exit_rsa);
+        }
+
+        /* get dates from der */
+        ret = wc_SetDatesBuffer(&myCert, tmp, (int)bytes3);
+        if (ret != 0) {
+            ERROR_OUT(-5586, exit_rsa);
+        }
+
+    #ifndef NO_ASN_TIME
+        ret = wc_GetCertDates(&myCert, &beforeTime, &afterTime);
+        if (ret < 0) {
+            ERROR_OUT(-5587, exit_rsa);
+        }
+    #endif
+#endif /* WOLFSSL_ALT_NAMES */
 
         /* Get CA Key */
     #ifdef USE_CERT_BUFFERS_1024
@@ -9800,7 +9873,7 @@ int rsa_test(void)
     #else
         file3 = fopen(rsaCaKeyFile, "rb");
         if (!file3) {
-            ERROR_OUT(-5582, exit_rsa);
+            ERROR_OUT(-5588, exit_rsa);
         }
 
         bytes3 = fread(tmp, 1, FOURK_BUF, file3);
@@ -9809,16 +9882,11 @@ int rsa_test(void)
 
         ret = wc_InitRsaKey(&caKey, HEAP_HINT);
         if (ret != 0) {
-            ERROR_OUT(-5583, exit_rsa);
+            ERROR_OUT(-5589, exit_rsa);
         }
         ret = wc_RsaPrivateKeyDecode(tmp, &idx3, &caKey, (word32)bytes3);
         if (ret != 0) {
-            ERROR_OUT(-5584, exit_rsa);
-        }
-
-        /* Setup Certificate */
-        if (wc_InitCert(&myCert)) {
-            ERROR_OUT(-5585, exit_rsa);
+            ERROR_OUT(-5590, exit_rsa);
         }
 
     #ifndef NO_SHA256
@@ -9837,7 +9905,7 @@ int rsa_test(void)
 
         /* add SKID from the Public Key */
         if (wc_SetSubjectKeyIdFromPublicKey(&myCert, &key, NULL) != 0) {
-            ERROR_OUT(-5586, exit_rsa);
+            ERROR_OUT(-5591, exit_rsa);
         }
 
         /* add AKID from the CA certificate */
@@ -9851,12 +9919,12 @@ int rsa_test(void)
         ret = wc_SetAuthKeyId(&myCert, rsaCaCertFile);
     #endif
         if (ret != 0) {
-            ERROR_OUT(-5587, exit_rsa);
+            ERROR_OUT(-5592, exit_rsa);
         }
 
         /* add Key Usage */
         if (wc_SetKeyUsage(&myCert,"keyEncipherment,keyAgreement") != 0) {
-            ERROR_OUT(-5588, exit_rsa);
+            ERROR_OUT(-5593, exit_rsa);
         }
     #endif /* WOLFSSL_CERT_EXT */
 
@@ -9870,13 +9938,20 @@ int rsa_test(void)
         ret = wc_SetIssuer(&myCert, rsaCaCertFile);
     #endif
         if (ret < 0) {
-            ERROR_OUT(-5589, exit_rsa);
+            ERROR_OUT(-5594, exit_rsa);
         }
 
         certSz = wc_MakeCert(&myCert, der, FOURK_BUF, &key, NULL, &rng);
         if (certSz < 0) {
-            ERROR_OUT(-5590, exit_rsa);
+            ERROR_OUT(-5595, exit_rsa);
         }
+
+    #ifndef NO_ASN_TIME
+        ret = wc_GetCertDates(&myCert, &beforeTime, &afterTime);
+        if (ret < 0) {
+            ERROR_OUT(-5576, exit_rsa);
+        }
+    #endif
 
         ret = 0;
         do {
@@ -9889,7 +9964,7 @@ int rsa_test(void)
             }
         } while (ret == WC_PENDING_E);
         if (ret < 0) {
-            ERROR_OUT(-5591, exit_rsa);
+            ERROR_OUT(-5597, exit_rsa);
         }
         certSz = ret;
 
@@ -9898,13 +9973,13 @@ int rsa_test(void)
         ret = ParseCert(&decode, CERT_TYPE, NO_VERIFY, 0);
         if (ret != 0) {
             FreeDecodedCert(&decode);
-            ERROR_OUT(-5592, exit_rsa);
+            ERROR_OUT(-5598, exit_rsa);
         }
         FreeDecodedCert(&decode);
     #endif
 
         ret = SaveDerAndPem(der, certSz, pem, FOURK_BUF, otherCertDerFile,
-            otherCertPemFile, CERT_TYPE, -5593);
+            otherCertPemFile, CERT_TYPE, -5599);
         if (ret != 0) {
             goto exit_rsa;
         }

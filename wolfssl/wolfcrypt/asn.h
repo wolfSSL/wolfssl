@@ -30,6 +30,11 @@
 
 #ifndef NO_ASN
 
+
+#if !defined(NO_ASN_TIME) && defined(NO_TIME_H)
+    #define NO_ASN_TIME /* backwards compatibility with NO_TIME_H */
+#endif
+
 #include <wolfssl/wolfcrypt/integer.h>
 
 /* fips declare of RsaPrivateKeyDecode @wc_fips */
