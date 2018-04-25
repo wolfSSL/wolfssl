@@ -3303,11 +3303,15 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
 #ifndef NO_DES3
 static char *EVP_DES_CBC;
 static char *EVP_DES_ECB;
-static const int  EVP_DES_SIZE = 7;
 
 static char *EVP_DES_EDE3_CBC;
 static char *EVP_DES_EDE3_ECB;
+
+#ifdef OPENSSL_EXTRA
+static const int  EVP_DES_SIZE = 7;
 static const int  EVP_DES_EDE3_SIZE = 12;
+#endif
+
 #endif
 
 #ifdef HAVE_IDEA
@@ -11881,7 +11885,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     XMEMCPY(out, ssl->arrays->clientRandom, size);
     return size;
 }
-#endif /* !defined(NO_WOLFSSL_CLIENT) */
+#endif /* !NO_WOLFSSL_CLIENT */
 
 
     unsigned long wolfSSLeay(void)
@@ -11945,7 +11949,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         return 0;
     }
-#endif /* NO_MD5 */
+#endif /* !NO_MD5 */
 
 
 #ifndef NO_SHA
@@ -12018,9 +12022,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         WOLFSSL_ENTER("SHA1_Final");
         return SHA_Final(input, sha);
     }
-#endif /* NO_SHA */
+#endif /* !NO_SHA */
 
-    #ifdef WOLFSSL_SHA224
+#ifdef WOLFSSL_SHA224
 
     int wolfSSL_SHA224_Init(WOLFSSL_SHA224_CTX* sha)
     {
@@ -12070,7 +12074,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         return 0;
     }
 
-    #endif /* WOLFSSL_SHA224 */
+#endif /* WOLFSSL_SHA224 */
 
 
     int wolfSSL_SHA256_Init(WOLFSSL_SHA256_CTX* sha256)
@@ -12122,7 +12126,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     }
 
 
-    #ifdef WOLFSSL_SHA384
+#ifdef WOLFSSL_SHA384
 
     int wolfSSL_SHA384_Init(WOLFSSL_SHA384_CTX* sha)
     {
@@ -12172,10 +12176,10 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         return 0;
     }
 
-    #endif /* WOLFSSL_SHA384 */
+#endif /* WOLFSSL_SHA384 */
 
 
-   #ifdef WOLFSSL_SHA512
+#ifdef WOLFSSL_SHA512
 
     int wolfSSL_SHA512_Init(WOLFSSL_SHA512_CTX* sha)
     {
@@ -12225,7 +12229,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         return 0;
     }
 
-    #endif /* WOLFSSL_SHA512 */
+#endif /* WOLFSSL_SHA512 */
 
     static const struct s_ent {
         const unsigned char macType;
@@ -12314,7 +12318,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 }
 
 
-    #ifndef NO_MD4
+#ifndef NO_MD4
 
     /* return a pointer to MD4 EVP type */
     const WOLFSSL_EVP_MD* wolfSSL_EVP_md4(void)
@@ -12323,10 +12327,10 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return EVP_get_digestbyname("MD4");
     }
 
-    #endif /* NO_MD4 */
+#endif /* !NO_MD4 */
 
 
-    #ifndef NO_MD5
+#ifndef NO_MD5
 
     const WOLFSSL_EVP_MD* wolfSSL_EVP_md5(void)
     {
@@ -12334,7 +12338,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return EVP_get_digestbyname("MD5");
     }
 
-    #endif /* NO_MD5 */
+#endif /* !NO_MD5 */
 
 
 #ifndef NO_SHA
@@ -12345,7 +12349,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     }
 #endif /* NO_SHA */
 
-    #ifdef WOLFSSL_SHA224
+#ifdef WOLFSSL_SHA224
 
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha224(void)
     {
@@ -12353,7 +12357,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return EVP_get_digestbyname("SHA224");
     }
 
-    #endif /* WOLFSSL_SHA224 */
+#endif /* WOLFSSL_SHA224 */
 
 
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha256(void)
@@ -12362,7 +12366,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return EVP_get_digestbyname("SHA256");
     }
 
-    #ifdef WOLFSSL_SHA384
+#ifdef WOLFSSL_SHA384
 
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha384(void)
     {
@@ -12370,9 +12374,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return EVP_get_digestbyname("SHA384");
     }
 
-    #endif /* WOLFSSL_SHA384 */
+#endif /* WOLFSSL_SHA384 */
 
-    #ifdef WOLFSSL_SHA512
+#ifdef WOLFSSL_SHA512
 
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha512(void)
     {
@@ -12380,7 +12384,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return EVP_get_digestbyname("SHA512");
     }
 
-    #endif /* WOLFSSL_SHA512 */
+#endif /* WOLFSSL_SHA512 */
+
 
     WOLFSSL_EVP_MD_CTX *wolfSSL_EVP_MD_CTX_new(void)
     {
@@ -13529,7 +13534,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         {
             return NULL;
         }
-    
+
     #ifdef WOLFSSL_SMALL_STACK
         hmac = (Hmac*)XMALLOC(sizeof(Hmac), heap, DYNAMIC_TYPE_HMAC);
         if (hmac == NULL)

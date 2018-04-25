@@ -5816,22 +5816,24 @@ static int TLSX_KeyShare_ProcessX25519(WOLFSSL* ssl,
 
 #ifdef HAVE_CURVE25519
     curve25519_key* key = (curve25519_key*)keyShareEntry->key;
-    curve25519_key* peerEccKey;
+    curve25519_key* peerX25519Key;
 
+#ifdef HAVE_ECC
     if (ssl->peerEccKey != NULL) {
         wc_ecc_free(ssl->peerEccKey);
         ssl->peerEccKey = NULL;
     }
+#endif
 
-    peerEccKey = (curve25519_key*)XMALLOC(sizeof(curve25519_key), ssl->heap,
+    peerX25519Key = (curve25519_key*)XMALLOC(sizeof(curve25519_key), ssl->heap,
                                                              DYNAMIC_TYPE_TLSX);
-    if (peerEccKey == NULL) {
+    if (peerX25519Key == NULL) {
         WOLFSSL_MSG("PeerEccKey Memory error");
         return MEMORY_ERROR;
     }
-    ret = wc_curve25519_init(peerEccKey);
+    ret = wc_curve25519_init(peerX25519Key);
     if (ret != 0) {
-        XFREE(peerEccKey, ssl->heap, DYNAMIC_TYPE_TLSX);
+        XFREE(peerX25519Key, ssl->heap, DYNAMIC_TYPE_TLSX);
         return ret;
     }
 #ifdef WOLFSSL_DEBUG_TLS
@@ -5841,7 +5843,7 @@ static int TLSX_KeyShare_ProcessX25519(WOLFSSL* ssl,
 
     /* Point is validated by import function. */
     if (wc_curve25519_import_public_ex(keyShareEntry->ke, keyShareEntry->keLen,
-                                                  peerEccKey,
+                                                  peerX25519Key,
                                                   EC25519_LITTLE_ENDIAN) != 0) {
         ret = ECC_PEERKEY_ERROR;
     }
@@ -5850,14 +5852,13 @@ static int TLSX_KeyShare_ProcessX25519(WOLFSSL* ssl,
         ssl->arrays->preMasterSz = ENCRYPT_LEN;
         ssl->ecdhCurveOID = ECC_X25519_OID;
 
-        /* TODO: Switch to support async */
-        ret = wc_curve25519_shared_secret_ex(key, peerEccKey,
+        ret = wc_curve25519_shared_secret_ex(key, peerX25519Key,
                                                    ssl->arrays->preMasterSecret,
                                                    &ssl->arrays->preMasterSz,
                                                    EC25519_LITTLE_ENDIAN);
     }
-    wc_curve25519_free(peerEccKey);
-    XFREE(peerEccKey, ssl->heap, DYNAMIC_TYPE_TLSX);
+    wc_curve25519_free(peerX25519Key);
+    XFREE(peerX25519Key, ssl->heap, DYNAMIC_TYPE_TLSX);
 #else
     (void)ssl;
     (void)keyShareEntry;
