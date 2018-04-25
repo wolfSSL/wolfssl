@@ -1599,11 +1599,11 @@ int wolfSSL_write(WOLFSSL* ssl, const void* data, int sz)
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_EARLY_DATA
-    if (ssl->earlyData && (ret = wolfSSL_negotiate(ssl)) < 0) {
+    if (ssl->earlyData != no_early_data && (ret = wolfSSL_negotiate(ssl)) < 0) {
         ssl->error = ret;
         return WOLFSSL_FATAL_ERROR;
     }
-    ssl->earlyData = 0;
+    ssl->earlyData = no_early_data;
 #endif
 
 #ifdef HAVE_WRITE_DUP
@@ -8581,6 +8581,10 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             #endif
             /* get response */
             while (ssl->options.serverState < neededState) {
+                #ifdef WOLFSSL_TLS13
+                    if (ssl->options.tls1_3)
+                        return wolfSSL_connect_TLSv13(ssl);
+                #endif
                 if ( (ssl->error = ProcessReply(ssl)) < 0) {
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
@@ -8635,13 +8639,14 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                     /* get response */
                     while (ssl->options.serverState < neededState) {
                         if ( (ssl->error = ProcessReply(ssl)) < 0) {
-                                WOLFSSL_ERROR(ssl->error);
-                                return WOLFSSL_FATAL_ERROR;
+                            WOLFSSL_ERROR(ssl->error);
+                            return WOLFSSL_FATAL_ERROR;
                         }
                         /* if resumption failed, reset needed state */
-                        else if (neededState == SERVER_FINISHED_COMPLETE)
+                        if (neededState == SERVER_FINISHED_COMPLETE) {
                             if (!ssl->options.resuming)
                                 neededState = SERVER_HELLODONE_COMPLETE;
+                        }
                     }
                 }
             #endif
@@ -9759,9 +9764,13 @@ int AddSession(WOLFSSL* ssl)
         session->cipherSuite  = ssl->options.cipherSuite;
     }
 #endif /* SESSION_CERTS || (WOLFSSL_TLS13 & HAVE_SESSION_TICKET) */
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+#if defined(WOLFSSL_TLS13)
     if (error == 0) {
         session->namedGroup     = ssl->session.namedGroup;
+    }
+#endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+    if (error == 0) {
         session->ticketSeen     = ssl->session.ticketSeen;
         session->ticketAdd      = ssl->session.ticketAdd;
 #ifndef WOLFSSL_TLS13_DRAFT_18

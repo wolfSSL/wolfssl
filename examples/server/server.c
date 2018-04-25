@@ -1210,10 +1210,10 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
 #ifdef WOLFSSL_TLS13
-        if (noPskDheKe)
-            wolfSSL_CTX_no_dhe_psk(ctx);
-        if (noTicket)
-            wolfSSL_CTX_no_ticket_TLSv13(ctx);
+    if (noPskDheKe)
+        wolfSSL_CTX_no_dhe_psk(ctx);
+    if (noTicket)
+        wolfSSL_CTX_no_ticket_TLSv13(ctx);
 #endif
 
     while (1) {
@@ -1341,9 +1341,14 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             if (onlyKeyShare == 2) {
                 if (useX25519 == 1) {
         #ifdef HAVE_CURVE25519
+                    int groups[1] = { WOLFSSL_ECC_X25519 };
+
                     if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519)
                                                            != WOLFSSL_SUCCESS) {
                         err_sys("unable to use curve x25519");
+                    }
+                    if (wolfSSL_set_groups(ssl, groups, 1) != WOLFSSL_SUCCESS) {
+                        err_sys("unable to set groups: x25519");
                     }
         #endif
                 }
@@ -1351,19 +1356,29 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 {
         #ifdef HAVE_ECC
             #if defined(HAVE_ECC256) || defined(HAVE_ALL_CURVES)
-                if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_SECP256R1)
+                    int groups[1] = { WOLFSSL_ECC_SECP256R1 };
+
+                    if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_SECP256R1)
                                                            != WOLFSSL_SUCCESS) {
-                    err_sys("unable to use curve secp256r1");
-                }
+                        err_sys("unable to use curve secp256r1");
+                    }
+                    if (wolfSSL_set_groups(ssl, groups, 1) != WOLFSSL_SUCCESS) {
+                        err_sys("unable to set groups: secp256r1");
+                    }
             #endif
         #endif
                 }
             }
             else if (onlyKeyShare == 1) {
         #ifdef HAVE_FFDHE_2048
+                int groups[1] = { WOLFSSL_FFDHE_2048 };
+
                 if (wolfSSL_UseKeyShare(ssl, WOLFSSL_FFDHE_2048)
                                                            != WOLFSSL_SUCCESS) {
                     err_sys("unable to use DH 2048-bit parameters");
+                }
+                if (wolfSSL_set_groups(ssl, groups, 1) != WOLFSSL_SUCCESS) {
+                    err_sys("unable to set groups: DH 2048-bit");
                 }
         #endif
             }
