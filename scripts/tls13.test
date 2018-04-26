@@ -421,6 +421,71 @@ if [ $RESULT -ne 0 ]; then
 fi
 echo ""
 
+# TLS Downgrade server / TLS Downgrade client.
+echo -e "\n\nTLS server and client able to downgrade but don't"
+port=0
+./examples/server/server -v d -R $ready_file -p $port &
+server_pid=$!
+create_port
+./examples/client/client -v d -p $port
+RESULT=$?
+remove_ready_file
+if [ $RESULT -ne 0 ]; then
+    echo -e "\n\nIssue with TLS not downgrading"
+    do_cleanup
+    exit 1
+fi
+echo ""
+
+# TLS Downgrade server / TLS Downgrade client resumption.
+echo -e "\n\nTLS server and client able to downgrade but don't and resume"
+port=0
+./examples/server/server -v d -r -R $ready_file -p $port &
+server_pid=$!
+create_port
+./examples/client/client -v d -r -p $port
+RESULT=$?
+remove_ready_file
+if [ $RESULT -ne 0 ]; then
+    echo -e "\n\nIssue with TLS not downgrading and resumption"
+    do_cleanup
+    exit 1
+fi
+echo ""
+
+# TLS Downgrade server / TLS 1.2 client and resume.
+echo -e "\n\nTLS server downgrade and resume"
+port=0
+./examples/server/server -v d -r -R $ready_file -p $port &
+server_pid=$!
+create_port
+./examples/client/client -v 3 -r -p $port
+RESULT=$?
+remove_ready_file
+if [ $RESULT -ne 0 ]; then
+    echo -e "\n\nIssue with TLS server downgrading and resumption"
+    do_cleanup
+    exit 1
+fi
+echo ""
+
+# TLS 1.2 server / TLS downgrade client and resume.
+echo -e "\n\nTLS client downgrade and resume"
+port=0
+./examples/server/server -v 3 -r -R $ready_file -p $port &
+server_pid=$!
+create_port
+./examples/client/client -v d -r -p $port
+RESULT=$?
+remove_ready_file
+if [ $RESULT -ne 0 ]; then
+    echo -e "\n\nIssue with TLS client downgrading and resumption"
+    do_cleanup
+    exit 1
+fi
+echo ""
+
+# TLS Downgrade server / TLS Downgrade client.
 # TLS 1.3 server / TLS 1.3 client send KeyUpdate before sending app data.
 echo -e "\n\nTLS v1.3 KeyUpdate"
 port=0

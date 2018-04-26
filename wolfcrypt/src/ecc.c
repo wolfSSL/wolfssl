@@ -3903,15 +3903,15 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
    #endif /* WOLFSSL_ASYNC_CRYPT */
 
        /* don't use async for key, since we don't support async return here */
-       if (wc_ecc_init_ex(&pubkey, key->heap, INVALID_DEVID) == MP_OKAY) {
+       if ((err = wc_ecc_init_ex(&pubkey, key->heap, INVALID_DEVID)) == MP_OKAY) {
        #ifdef WOLFSSL_CUSTOM_CURVES
            /* if custom curve, apply params to pubkey */
            if (key->idx == ECC_CUSTOM_IDX) {
-               wc_ecc_set_custom_curve(&pubkey, key->dp);
+               err = wc_ecc_set_custom_curve(&pubkey, key->dp);
            }
        #endif
 
-           for (;;) {
+           for (; err == MP_OKAY;) {
                if (++loop_check > 64) {
                     err = RNG_FAILURE_E;
                     break;

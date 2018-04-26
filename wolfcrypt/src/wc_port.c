@@ -265,7 +265,7 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
             WOLFSSL_MSG("stat on name failed");
             ret = BAD_PATH_ERROR;
             break;
-        } else if (ctx->s.st_mode & S_IFREG) {
+        } else if (S_ISREG(ctx->s.st_mode)) {
             if (name)
                 *name = ctx->name;
             return 0;
@@ -312,7 +312,7 @@ int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
             WOLFSSL_MSG("stat on name failed");
             ret = BAD_PATH_ERROR;
             break;
-        } else if (ctx->s.st_mode & S_IFREG) {
+        } else if (S_ISREG(ctx->s.st_mode)) {
             if (name)
                 *name = ctx->name;
             return 0;
@@ -418,6 +418,33 @@ char* wc_strtok(char *str, const char *delim, char **nextp)
     return ret;
 }
 #endif /* USE_WOLF_STRTOK */
+
+#ifdef USE_WOLF_STRSEP
+char* wc_strsep(char **stringp, const char *delim)
+{
+    char *s, *tok;
+    const char *spanp;
+
+    /* null check */
+    if (stringp == NULL || *stringp == NULL)
+        return NULL;
+
+    s = *stringp;
+    for (tok = s; *tok; ++tok) {
+        for (spanp = delim; *spanp; ++spanp) {
+            /* found delimiter */
+            if (*tok == *spanp) {
+                *tok = '\0'; /* replace delim with null term */
+                *stringp = tok + 1; /* return past delim */
+                return s;
+            }
+        }
+    }
+
+    *stringp = NULL;
+    return s;
+}
+#endif /* USE_WOLF_STRSEP */
 
 #if WOLFSSL_CRYPT_HW_MUTEX
 /* Mutex for protection of cryptography hardware */

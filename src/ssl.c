@@ -1599,11 +1599,11 @@ int wolfSSL_write(WOLFSSL* ssl, const void* data, int sz)
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_EARLY_DATA
-    if (ssl->earlyData && (ret = wolfSSL_negotiate(ssl)) < 0) {
+    if (ssl->earlyData != no_early_data && (ret = wolfSSL_negotiate(ssl)) < 0) {
         ssl->error = ret;
         return WOLFSSL_FATAL_ERROR;
     }
-    ssl->earlyData = 0;
+    ssl->earlyData = no_early_data;
 #endif
 
 #ifdef HAVE_WRITE_DUP
@@ -3303,11 +3303,15 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
 #ifndef NO_DES3
 static char *EVP_DES_CBC;
 static char *EVP_DES_ECB;
-static const int  EVP_DES_SIZE = 7;
 
 static char *EVP_DES_EDE3_CBC;
 static char *EVP_DES_EDE3_ECB;
+
+#ifdef OPENSSL_EXTRA
+static const int  EVP_DES_SIZE = 7;
 static const int  EVP_DES_EDE3_SIZE = 12;
+#endif
+
 #endif
 
 #ifdef HAVE_IDEA
@@ -8581,6 +8585,10 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             #endif
             /* get response */
             while (ssl->options.serverState < neededState) {
+                #ifdef WOLFSSL_TLS13
+                    if (ssl->options.tls1_3)
+                        return wolfSSL_connect_TLSv13(ssl);
+                #endif
                 if ( (ssl->error = ProcessReply(ssl)) < 0) {
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
@@ -8635,13 +8643,14 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                     /* get response */
                     while (ssl->options.serverState < neededState) {
                         if ( (ssl->error = ProcessReply(ssl)) < 0) {
-                                WOLFSSL_ERROR(ssl->error);
-                                return WOLFSSL_FATAL_ERROR;
+                            WOLFSSL_ERROR(ssl->error);
+                            return WOLFSSL_FATAL_ERROR;
                         }
                         /* if resumption failed, reset needed state */
-                        else if (neededState == SERVER_FINISHED_COMPLETE)
+                        if (neededState == SERVER_FINISHED_COMPLETE) {
                             if (!ssl->options.resuming)
                                 neededState = SERVER_HELLODONE_COMPLETE;
+                        }
                     }
                 }
             #endif
@@ -9759,9 +9768,13 @@ int AddSession(WOLFSSL* ssl)
         session->cipherSuite  = ssl->options.cipherSuite;
     }
 #endif /* SESSION_CERTS || (WOLFSSL_TLS13 & HAVE_SESSION_TICKET) */
-#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+#if defined(WOLFSSL_TLS13)
     if (error == 0) {
         session->namedGroup     = ssl->session.namedGroup;
+    }
+#endif
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+    if (error == 0) {
         session->ticketSeen     = ssl->session.ticketSeen;
         session->ticketAdd      = ssl->session.ticketAdd;
 #ifndef WOLFSSL_TLS13_DRAFT_18
@@ -11872,7 +11885,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     XMEMCPY(out, ssl->arrays->clientRandom, size);
     return size;
 }
-#endif /* !defined(NO_WOLFSSL_CLIENT) */
+#endif /* !NO_WOLFSSL_CLIENT */
 
 
     unsigned long wolfSSLeay(void)
@@ -11936,7 +11949,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
 
         return 0;
     }
-#endif /* NO_MD5 */
+#endif /* !NO_MD5 */
 
 
 #ifndef NO_SHA
@@ -12009,9 +12022,9 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         WOLFSSL_ENTER("SHA1_Final");
         return SHA_Final(input, sha);
     }
-#endif /* NO_SHA */
+#endif /* !NO_SHA */
 
-    #ifdef WOLFSSL_SHA224
+#ifdef WOLFSSL_SHA224
 
     int wolfSSL_SHA224_Init(WOLFSSL_SHA224_CTX* sha)
     {
@@ -12061,7 +12074,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         return 0;
     }
 
-    #endif /* WOLFSSL_SHA224 */
+#endif /* WOLFSSL_SHA224 */
 
 
     int wolfSSL_SHA256_Init(WOLFSSL_SHA256_CTX* sha256)
@@ -12113,7 +12126,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
     }
 
 
-    #ifdef WOLFSSL_SHA384
+#ifdef WOLFSSL_SHA384
 
     int wolfSSL_SHA384_Init(WOLFSSL_SHA384_CTX* sha)
     {
@@ -12163,10 +12176,10 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         return 0;
     }
 
-    #endif /* WOLFSSL_SHA384 */
+#endif /* WOLFSSL_SHA384 */
 
 
-   #ifdef WOLFSSL_SHA512
+#ifdef WOLFSSL_SHA512
 
     int wolfSSL_SHA512_Init(WOLFSSL_SHA512_CTX* sha)
     {
@@ -12216,7 +12229,7 @@ size_t wolfSSL_get_client_random(const WOLFSSL* ssl, unsigned char* out,
         return 0;
     }
 
-    #endif /* WOLFSSL_SHA512 */
+#endif /* WOLFSSL_SHA512 */
 
     static const struct s_ent {
         const unsigned char macType;
@@ -12305,7 +12318,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 }
 
 
-    #ifndef NO_MD4
+#ifndef NO_MD4
 
     /* return a pointer to MD4 EVP type */
     const WOLFSSL_EVP_MD* wolfSSL_EVP_md4(void)
@@ -12314,10 +12327,10 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return EVP_get_digestbyname("MD4");
     }
 
-    #endif /* NO_MD4 */
+#endif /* !NO_MD4 */
 
 
-    #ifndef NO_MD5
+#ifndef NO_MD5
 
     const WOLFSSL_EVP_MD* wolfSSL_EVP_md5(void)
     {
@@ -12325,7 +12338,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return EVP_get_digestbyname("MD5");
     }
 
-    #endif /* NO_MD5 */
+#endif /* !NO_MD5 */
 
 
 #ifndef NO_SHA
@@ -12336,7 +12349,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     }
 #endif /* NO_SHA */
 
-    #ifdef WOLFSSL_SHA224
+#ifdef WOLFSSL_SHA224
 
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha224(void)
     {
@@ -12344,7 +12357,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return EVP_get_digestbyname("SHA224");
     }
 
-    #endif /* WOLFSSL_SHA224 */
+#endif /* WOLFSSL_SHA224 */
 
 
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha256(void)
@@ -12353,7 +12366,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return EVP_get_digestbyname("SHA256");
     }
 
-    #ifdef WOLFSSL_SHA384
+#ifdef WOLFSSL_SHA384
 
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha384(void)
     {
@@ -12361,9 +12374,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return EVP_get_digestbyname("SHA384");
     }
 
-    #endif /* WOLFSSL_SHA384 */
+#endif /* WOLFSSL_SHA384 */
 
-    #ifdef WOLFSSL_SHA512
+#ifdef WOLFSSL_SHA512
 
     const WOLFSSL_EVP_MD* wolfSSL_EVP_sha512(void)
     {
@@ -12371,7 +12384,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return EVP_get_digestbyname("SHA512");
     }
 
-    #endif /* WOLFSSL_SHA512 */
+#endif /* WOLFSSL_SHA512 */
+
 
     WOLFSSL_EVP_MD_CTX *wolfSSL_EVP_MD_CTX_new(void)
     {
@@ -13520,7 +13534,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         {
             return NULL;
         }
-    
+
     #ifdef WOLFSSL_SMALL_STACK
         hmac = (Hmac*)XMALLOC(sizeof(Hmac), heap, DYNAMIC_TYPE_HMAC);
         if (hmac == NULL)
@@ -18109,6 +18123,37 @@ WOLFSSL_X509_REVOKED* wolfSSL_sk_X509_REVOKED_value(
 }
 #endif
 
+/* Used to create a new WOLFSSL_ASN1_INTEGER structure.
+ * returns a pointer to new structure on success and NULL on failure
+ */
+WOLFSSL_ASN1_INTEGER* wolfSSL_ASN1_INTEGER_new(void)
+{
+    WOLFSSL_ASN1_INTEGER* a;
+
+    a = (WOLFSSL_ASN1_INTEGER*)XMALLOC(sizeof(WOLFSSL_ASN1_INTEGER), NULL,
+                                       DYNAMIC_TYPE_OPENSSL);
+    if (a == NULL) {
+        return NULL;
+    }
+
+    XMEMSET(a, 0, sizeof(WOLFSSL_ASN1_INTEGER));
+    a->data    = a->intData;
+    a->dataMax = WOLFSSL_ASN1_INTEGER_MAX;
+    return a;
+}
+
+
+/* free's internal elements of WOLFSSL_ASN1_INTEGER and free's "in" itself */
+void wolfSSL_ASN1_INTEGER_free(WOLFSSL_ASN1_INTEGER* in)
+{
+    if (in != NULL) {
+        if (in->isDynamic) {
+            XFREE(in->data, NULL, DYNAMIC_TYPE_OPENSSL);
+        }
+        XFREE(in, NULL, DYNAMIC_TYPE_OPENSSL);
+    }
+}
+
 
 WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
 {
@@ -18117,19 +18162,25 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
 
     WOLFSSL_ENTER("wolfSSL_X509_get_serialNumber");
 
-    a = (WOLFSSL_ASN1_INTEGER*)XMALLOC(sizeof(WOLFSSL_ASN1_INTEGER), NULL,
-                                       DYNAMIC_TYPE_OPENSSL);
+    a = wolfSSL_ASN1_INTEGER_new();
     if (a == NULL)
         return NULL;
 
     /* Make sure there is space for the data, ASN.1 type and length. */
-    if (x509->serialSz > (int)(sizeof(WOLFSSL_ASN1_INTEGER) - 2)) {
-        XFREE(a, NULL, DYNAMIC_TYPE_OPENSSL);
-        return NULL;
+    if (x509->serialSz > (WOLFSSL_ASN1_INTEGER_MAX - 2)) {
+        /* dynamicly create data buffer, +2 for type and length */
+        a->data = (unsigned char*)XMALLOC(x509->serialSz + 2, NULL,
+                DYNAMIC_TYPE_OPENSSL);
+        if (a->data == NULL) {
+            wolfSSL_ASN1_INTEGER_free(a);
+            return NULL;
+        }
+        a->dataMax   = x509->serialSz + 2;
+        a->isDynamic = 1;
     }
 
     a->data[i++] = ASN_INTEGER;
-    a->data[i++] = (unsigned char)x509->serialSz;
+    i += SetLength(x509->serialSz, a->data + i);
     XMEMCPY(&a->data[i], x509->serial, x509->serialSz);
 
     return a;
@@ -18623,7 +18674,7 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
              "DTLSv1_2 write Server Hello Verify Request",
              "DTLSv1_2 Server Hello Verify Request"},
         },
-		{
+        {
             {"SSLv3 read Server Hello",
              "SSLv3 write Server Hello",
              "SSLv3 Server Hello"},
@@ -18664,7 +18715,7 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
              "DTLSv1_2 write Server Session Ticket",
              "DTLSv1_2 Server Session Ticket"},
         },
-		{
+        {
             {"SSLv3 read Server Cert",
              "SSLv3 write Server Cert",
              "SSLv3 Server Cert"},
@@ -18724,7 +18775,7 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
              "DTLSv1_2 write Server Hello Done",
              "DTLSv1_2 Server Hello Done"},
         },
-		{
+        {
             {"SSLv3 read Server Change CipherSpec",
              "SSLv3 write Server Change CipherSpec",
              "SSLv3 Server Change CipherSpec"},
@@ -18744,7 +18795,7 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
              "DTLSv1_2 write Server Change CipherSpec",
              "DTLSv1_2 Server Change CipherSpec"},
         },
-		{
+        {
             {"SSLv3 read Server Finished",
              "SSLv3 write Server Finished",
              "SSLv3 Server Finished"},
@@ -18804,7 +18855,7 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
              "DTLSv1_2 write Client Key Exchange",
              "DTLSv1_2 Client Key Exchange"},
         },
-		{
+        {
             {"SSLv3 read Client Change CipherSpec",
              "SSLv3 write Client Change CipherSpec",
              "SSLv3 Client Change CipherSpec"},
@@ -18876,31 +18927,31 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
     };
 
     enum IOMode {
-      SS_READ = 0,
-      SS_WRITE,
-      SS_NEITHER
+        SS_READ = 0,
+        SS_WRITE,
+        SS_NEITHER
     };
 
-	enum SslState {
-	  ss_null_state = 0,
-	  ss_server_helloverify,
-	  ss_server_hello,
-	  ss_sessionticket,
-	  ss_server_cert,
-	  ss_server_keyexchange,
-	  ss_server_hellodone,
-	  ss_server_changecipherspec,
-	  ss_server_finished,
-	  ss_client_hello,
-	  ss_client_keyexchange,
-	  ss_client_changecipherspec,
-	  ss_client_finished,
-	  ss_handshake_done
-	};
+    enum SslState {
+        ss_null_state = 0,
+        ss_server_helloverify,
+        ss_server_hello,
+        ss_sessionticket,
+        ss_server_cert,
+        ss_server_keyexchange,
+        ss_server_hellodone,
+        ss_server_changecipherspec,
+        ss_server_finished,
+        ss_client_hello,
+        ss_client_keyexchange,
+        ss_client_changecipherspec,
+        ss_client_finished,
+        ss_handshake_done
+    };
 
     int protocol = 0;
     int cbmode = 0;
-	int state = 0;
+    int state = 0;
 
     WOLFSSL_ENTER("wolfSSL_state_string_long");
     if (ssl == NULL) {
@@ -18910,138 +18961,141 @@ const char* wolfSSL_state_string_long(const WOLFSSL* ssl)
 
     /* Get state of callback */
     if (ssl->cbmode == SSL_CB_MODE_WRITE){
-		cbmode =  SS_WRITE;
+        cbmode =  SS_WRITE;
     } else if (ssl->cbmode == SSL_CB_MODE_READ){
-		cbmode =  SS_READ;
+        cbmode =  SS_READ;
     } else {
-		cbmode =  SS_NEITHER;
+        cbmode =  SS_NEITHER;
     }
 
     /* Get protocol version */
     switch (ssl->version.major){
-	case SSLv3_MAJOR:
-		switch (ssl->version.minor){
-		    case TLSv1_MINOR:
-                protocol = TLS_V1;
-				break;
-            case TLSv1_1_MINOR:
-                protocol = TLS_V1_1;
-				break;
-            case TLSv1_2_MINOR:
-                protocol = TLS_V1_2;
-				break;
-            case SSLv3_MINOR:
-                protocol = SSL_V3;
-				break;
-            default:
-                protocol = UNKNOWN;
+        case SSLv3_MAJOR:
+            switch (ssl->version.minor){
+                case TLSv1_MINOR:
+                    protocol = TLS_V1;
+                    break;
+                case TLSv1_1_MINOR:
+                    protocol = TLS_V1_1;
+                    break;
+                case TLSv1_2_MINOR:
+                    protocol = TLS_V1_2;
+                    break;
+                case SSLv3_MINOR:
+                    protocol = SSL_V3;
+                    break;
+                default:
+                    protocol = UNKNOWN;
             }
-        break;
-	case DTLS_MAJOR:
-		switch (ssl->version.minor){
-    case DTLS_MINOR:
-      protocol = DTLS_V1;
-      break;
-    case DTLSv1_2_MINOR:
-      protocol = DTLS_V1_2;
-      break;
-    default:
-      protocol = UNKNOWN;
+            break;
+        case DTLS_MAJOR:
+            switch (ssl->version.minor){
+        case DTLS_MINOR:
+            protocol = DTLS_V1;
+            break;
+        case DTLSv1_2_MINOR:
+            protocol = DTLS_V1_2;
+            break;
+        default:
+            protocol = UNKNOWN;
     }
     break;
-	default:
-		protocol = UNKNOWN;
+    default:
+        protocol = UNKNOWN;
     }
 
-	/* accept process */
-	if (ssl->cbmode == SSL_CB_MODE_READ){
-		state = ssl->cbtype;
-		switch (state) {
-		case hello_verify_request:
-			state = ss_server_helloverify;
-			break;
-		case session_ticket:
-			state = ss_sessionticket;
-			break;
-		case server_hello:
-			state = ss_server_hello;
-			break;
-		case server_hello_done:
-			state = ss_server_hellodone;
-			break;
-		case certificate:
-			state = ss_server_cert;
-			break;
-		case server_key_exchange:
-			state = ss_server_keyexchange;
-			break;
-		case client_hello:
-			state = ss_client_hello;
-			break;
-		case client_key_exchange:
-			state = ss_client_keyexchange;
-			break;
-		case finished:
-			if (ssl->options.side == WOLFSSL_SERVER_END)
-				state = ss_client_finished;
-			else if (ssl->options.side == WOLFSSL_CLIENT_END)
-				state = ss_server_finished;
-			break;
-		default:
-			WOLFSSL_MSG("Unknown State");
-			state = ss_null_state;
-		}
-	} else {
-		/* Send process */
-		if (ssl->options.side == WOLFSSL_SERVER_END)
-			state = ssl->options.serverState;
-		else
-			state = ssl->options.clientState;
+    /* accept process */
+    if (ssl->cbmode == SSL_CB_MODE_READ){
+        state = ssl->cbtype;
+        switch (state) {
+            case hello_verify_request:
+                state = ss_server_helloverify;
+                break;
+            case session_ticket:
+                state = ss_sessionticket;
+                break;
+            case server_hello:
+                state = ss_server_hello;
+                break;
+            case server_hello_done:
+                state = ss_server_hellodone;
+                break;
+            case certificate:
+                state = ss_server_cert;
+                break;
+            case server_key_exchange:
+                state = ss_server_keyexchange;
+                break;
+            case client_hello:
+                state = ss_client_hello;
+                break;
+            case client_key_exchange:
+                state = ss_client_keyexchange;
+                break;
+            case finished:
+                if (ssl->options.side == WOLFSSL_SERVER_END)
+                    state = ss_client_finished;
+                else if (ssl->options.side == WOLFSSL_CLIENT_END)
+                    state = ss_server_finished;
+                break;
+            default:
+                WOLFSSL_MSG("Unknown State");
+                state = ss_null_state;
+        }
+    } else {
+        /* Send process */
+        if (ssl->options.side == WOLFSSL_SERVER_END)
+            state = ssl->options.serverState;
+        else
+            state = ssl->options.clientState;
 
-		switch(state){
-		case SERVER_HELLOVERIFYREQUEST_COMPLETE:
-			state = ss_server_helloverify;
-			break;
-		case SERVER_HELLO_COMPLETE:
-			state = ss_server_hello;
-			break;
-		case SERVER_CERT_COMPLETE:
-			state = ss_server_cert;
-			break;
-		case SERVER_KEYEXCHANGE_COMPLETE:
-			state = ss_server_keyexchange;
-			break;
-		case SERVER_HELLODONE_COMPLETE:
-			state = ss_server_hellodone;
-			break;
-		case SERVER_CHANGECIPHERSPEC_COMPLETE:
-			state = ss_server_changecipherspec;
-			break;
-		case SERVER_FINISHED_COMPLETE:
-			state = ss_server_finished;
-			break;
-		case CLIENT_HELLO_COMPLETE:
-			state = ss_client_hello;
-			break;
-		case CLIENT_KEYEXCHANGE_COMPLETE:
-			state = ss_client_keyexchange;
-			break;
-		case CLIENT_CHANGECIPHERSPEC_COMPLETE:
-			state = ss_client_changecipherspec;
-			break;
-		case CLIENT_FINISHED_COMPLETE:
-			state = ss_client_finished;
-			break;
-		case HANDSHAKE_DONE:
-			state = ss_handshake_done;
-			break;
-		default:
-			WOLFSSL_MSG("Unknown State");
-			state = ss_null_state;
-		}
-	}
+        switch(state){
+            case SERVER_HELLOVERIFYREQUEST_COMPLETE:
+                state = ss_server_helloverify;
+                break;
+            case SERVER_HELLO_COMPLETE:
+                state = ss_server_hello;
+                break;
+            case SERVER_CERT_COMPLETE:
+                state = ss_server_cert;
+                break;
+            case SERVER_KEYEXCHANGE_COMPLETE:
+                state = ss_server_keyexchange;
+                break;
+            case SERVER_HELLODONE_COMPLETE:
+                state = ss_server_hellodone;
+                break;
+            case SERVER_CHANGECIPHERSPEC_COMPLETE:
+                state = ss_server_changecipherspec;
+                break;
+            case SERVER_FINISHED_COMPLETE:
+                state = ss_server_finished;
+                break;
+            case CLIENT_HELLO_COMPLETE:
+                state = ss_client_hello;
+                break;
+            case CLIENT_KEYEXCHANGE_COMPLETE:
+                state = ss_client_keyexchange;
+                break;
+            case CLIENT_CHANGECIPHERSPEC_COMPLETE:
+                state = ss_client_changecipherspec;
+                break;
+            case CLIENT_FINISHED_COMPLETE:
+                state = ss_client_finished;
+                break;
+            case HANDSHAKE_DONE:
+                state = ss_handshake_done;
+                break;
+            default:
+                WOLFSSL_MSG("Unknown State");
+                state = ss_null_state;
+        }
+    }
 
-	return OUTPUT_STR[state][protocol][cbmode];
+    if (protocol == UNKNOWN)
+        return NULL;
+    else
+        return OUTPUT_STR[state][protocol][cbmode];
 }
 
 #ifndef NO_WOLFSSL_STUB
@@ -22899,7 +22953,7 @@ WOLFSSL_BIGNUM *wolfSSL_ASN1_INTEGER_to_BN(const WOLFSSL_ASN1_INTEGER *ai,
         return NULL;
     }
 
-    if ((ret = GetInt(&mpi, ai->data, &idx, sizeof(ai->data))) != 0) {
+    if ((ret = GetInt(&mpi, ai->data, &idx, ai->dataMax)) != 0) {
         /* expecting ASN1 format for INTEGER */
         WOLFSSL_LEAVE("wolfSSL_ASN1_INTEGER_to_BN", ret);
         return NULL;
@@ -31519,14 +31573,23 @@ static int wolfSSL_TicketKeyCb(WOLFSSL* ssl,
         *encLen = encTicketLen;
 
         /* HMAC the encrypted data into the parameter 'mac'. */
-        wolfSSL_HMAC_Update(&hmacCtx, encTicket, encTicketLen);
-        wolfSSL_HMAC_Final(&hmacCtx, mac, &mdSz);
+        if (!wolfSSL_HMAC_Update(&hmacCtx, encTicket, encTicketLen))
+            goto end;
+#ifdef WOLFSSL_SHA512
+        /* Check for SHA512, which would overrun the mac buffer */
+        if (hmacCtx.hmac.macType == WC_SHA512)
+            goto end;
+#endif
+        if (!wolfSSL_HMAC_Final(&hmacCtx, mac, &mdSz))
+            goto end;
     }
     else
     {
         /* HMAC the encrypted data and compare it to the passed in data. */
-        wolfSSL_HMAC_Update(&hmacCtx, encTicket, encTicketLen);
-        wolfSSL_HMAC_Final(&hmacCtx, digest, &mdSz);
+        if (!wolfSSL_HMAC_Update(&hmacCtx, encTicket, encTicketLen))
+            goto end;
+        if (!wolfSSL_HMAC_Final(&hmacCtx, digest, &mdSz))
+            goto end;
         if (XMEMCMP(mac, digest, mdSz) != 0)
             goto end;
 

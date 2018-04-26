@@ -215,6 +215,8 @@ enum Misc_ASN {
     MAX_TIME_STRING_SZ  = 25,      /* Max length of formatted time string */
 #endif
 
+    PKCS5_SALT_SZ       = 8,
+
     PEM_LINE_LEN       = 80,       /* PEM line max + fudge */
 };
 

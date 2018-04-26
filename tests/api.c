@@ -15991,7 +15991,7 @@ static void test_wolfSSL_BN(void)
     BIGNUM* b;
     BIGNUM* c;
     BIGNUM* d;
-    ASN1_INTEGER ai;
+    ASN1_INTEGER* ai;
     unsigned char value[1];
 
     printf(testingFmt, "wolfSSL_BN()");
@@ -16002,12 +16002,14 @@ static void test_wolfSSL_BN(void)
 
     value[0] = 0x03;
 
+    AssertNotNull(ai = ASN1_INTEGER_new());
     /* at the moment hard setting since no set function */
-    ai.data[0] = 0x02; /* tag for ASN_INTEGER */
-    ai.data[1] = 0x01; /* length of integer */
-    ai.data[2] = value[0];
+    ai->data[0] = 0x02; /* tag for ASN_INTEGER */
+    ai->data[1] = 0x01; /* length of integer */
+    ai->data[2] = value[0];
 
-    AssertNotNull(a = ASN1_INTEGER_to_BN(&ai, NULL));
+    AssertNotNull(a = ASN1_INTEGER_to_BN(ai, NULL));
+    ASN1_INTEGER_free(ai);
 
     value[0] = 0x02;
     AssertNotNull(BN_bin2bn(value, sizeof(value), b));
@@ -17763,6 +17765,40 @@ static void test_wolfSSL_SHA256(void)
 #endif
 }
 
+static void test_wolfSSL_X509_get_serialNumber(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    !defined(NO_RSA)
+    ASN1_INTEGER* a;
+    BIGNUM* bn;
+    X509*   x509;
+
+
+    printf(testingFmt, "wolfSSL_X509_get_serialNumber()");
+
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(svrCertFile,
+                                                      SSL_FILETYPE_PEM));
+    AssertNotNull(a = X509_get_serialNumber(x509));
+    X509_free(x509);
+
+    /* check on value of ASN1 Integer */
+    AssertNotNull(bn = ASN1_INTEGER_to_BN(a, NULL));
+    AssertIntEQ(BN_get_word(bn), 1);
+
+    BN_free(bn);
+    ASN1_INTEGER_free(a);
+
+    /* hard test free'ing with dynamic buffer to make sure there is no leaks */
+    a = ASN1_INTEGER_new();
+    AssertNotNull(a->data = (unsigned char*)XMALLOC(100, NULL,
+                DYNAMIC_TYPE_OPENSSL));
+    a->isDynamic = 1;
+    ASN1_INTEGER_free(a);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_no_op_functions(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -18109,6 +18145,8 @@ static int test_tls13_apis(void)
 #ifdef WOLFSSL_EARLY_DATA
     int          outSz;
 #endif
+    int          groups[1] = { WOLFSSL_ECC_X25519 };
+    int          numGroups = 1;
 
     clientTls12Ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
     clientTls12Ssl = wolfSSL_new(clientTls12Ctx);
@@ -18149,7 +18187,7 @@ static int test_tls13_apis(void)
 #elif defined(HAVE_CURVE25519)
     AssertIntEQ(wolfSSL_UseKeyShare(NULL, WOLFSSL_ECC_X25519), BAD_FUNC_ARG);
     AssertIntEQ(wolfSSL_UseKeyShare(serverSsl, WOLFSSL_ECC_X25519),
-                SIDE_ERROR);
+                WOLFSSL_SUCCESS);
     AssertIntEQ(wolfSSL_UseKeyShare(clientTls12Ssl, WOLFSSL_ECC_X25519),
                 WOLFSSL_SUCCESS);
     AssertIntEQ(wolfSSL_UseKeyShare(clientSsl, WOLFSSL_ECC_X25519),
@@ -18211,6 +18249,38 @@ static int test_tls13_apis(void)
                 BAD_FUNC_ARG);
     AssertIntEQ(wolfSSL_request_certificate(serverSsl), NOT_READY_ERROR);
 #endif
+
+#ifndef WOLFSSL_NO_SERVER_GROUPS_EXT
+    AssertIntEQ(wolfSSL_preferred_group(NULL), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_preferred_group(serverSsl), SIDE_ERROR);
+    AssertIntEQ(wolfSSL_preferred_group(clientTls12Ssl), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_preferred_group(clientSsl), NOT_READY_ERROR);
+#endif
+
+    AssertIntEQ(wolfSSL_CTX_set_groups(NULL, NULL, 0), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_CTX_set_groups(clientCtx, NULL, 0), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_CTX_set_groups(NULL, groups, numGroups), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_CTX_set_groups(clientTls12Ctx, groups, numGroups),
+                BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_CTX_set_groups(clientCtx, groups,
+                                       WOLFSSL_MAX_GROUP_COUNT + 1),
+                BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_CTX_set_groups(clientCtx, groups, numGroups),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_set_groups(serverCtx, groups, numGroups),
+                WOLFSSL_SUCCESS);
+
+    AssertIntEQ(wolfSSL_set_groups(NULL, NULL, 0), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_set_groups(clientSsl, NULL, 0), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_set_groups(NULL, groups, numGroups), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_set_groups(clientTls12Ssl, groups, numGroups),
+                BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_set_groups(clientSsl, groups,
+                                   WOLFSSL_MAX_GROUP_COUNT + 1), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_set_groups(clientSsl, groups, numGroups),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_set_groups(serverSsl, groups, numGroups),
+                WOLFSSL_SUCCESS);
 
 #ifdef WOLFSSL_EARLY_DATA
     AssertIntEQ(wolfSSL_CTX_set_max_early_data(NULL, 0), BAD_FUNC_ARG);
@@ -18605,6 +18675,7 @@ void ApiTest(void)
     test_wolfSSL_DH_1536_prime();
     test_wolfSSL_AES_ecb_encrypt();
     test_wolfSSL_SHA256();
+    test_wolfSSL_X509_get_serialNumber();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();

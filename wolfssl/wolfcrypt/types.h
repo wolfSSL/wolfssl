@@ -297,8 +297,11 @@
     #endif
 
     #if !defined(USE_WOLF_STRTOK) && \
-            (defined(__MINGW32__) || defined(WOLFSSL_TIRTOS))
+            (defined(__MINGW32__) || defined(WOLFSSL_TIRTOS) || defined(WOLF_C99))
         #define USE_WOLF_STRTOK
+    #endif
+    #if !defined(USE_WOLF_STRSEP) && (defined(WOLF_C99))
+        #define USE_WOLF_STRSEP
     #endif
 
 	#ifndef STRING_USER
@@ -317,12 +320,22 @@
 	    #define XSTRNCMP(s1,s2,n) strncmp((s1),(s2),(n))
 	    #define XSTRNCAT(s1,s2,n) strncat((s1),(s2),(n))
 
+        #ifdef USE_WOLF_STRSEP
+            #define XSTRSEP(s1,d) wc_strsep((s1),(d))
+        #else
+            #define XSTRSEP(s1,d) strsep((s1),(d))
+        #endif
+
         #if defined(MICROCHIP_PIC32) || defined(WOLFSSL_TIRTOS)
             /* XC32 does not support strncasecmp, so use case sensitive one */
             #define XSTRNCASECMP(s1,s2,n) strncmp((s1),(s2),(n))
         #elif defined(USE_WINDOWS_API)
 	        #define XSTRNCASECMP(s1,s2,n) _strnicmp((s1),(s2),(n))
         #else
+            #if (defined(HAVE_STRINGS_H) || defined(WOLF_C99)) && \
+                !defined(WOLFSSL_SGX)
+                #include <strings.h>
+            #endif
 	        #define XSTRNCASECMP(s1,s2,n) strncasecmp((s1),(s2),(n))
 	    #endif
 
@@ -343,17 +356,20 @@
         #if defined(WOLFSSL_CERT_EXT) || defined(HAVE_ALPN)
             /* use only Thread Safe version of strtok */
             #if defined(USE_WOLF_STRTOK)
-                #define XSTRTOK wc_strtok
+                #define XSTRTOK(s1,d,ptr) wc_strtok((s1),(d),(ptr))
             #elif defined(USE_WINDOWS_API) || defined(INTIME_RTOS)
-                #define XSTRTOK strtok_s
+                #define XSTRTOK(s1,d,ptr) strtok_s((s1),(d),(ptr))
             #else
-                #define XSTRTOK strtok_r
+                #define XSTRTOK(s1,d,ptr) strtok_r((s1),(d),(ptr))
             #endif
         #endif
 	#endif
 
     #ifdef USE_WOLF_STRTOK
-        WOLFSSL_LOCAL char* wc_strtok(char *str, const char *delim, char **nextp);
+        WOLFSSL_API char* wc_strtok(char *str, const char *delim, char **nextp);
+    #endif
+    #ifdef USE_WOLF_STRSEP
+        WOLFSSL_API char* wc_strsep(char **stringp, const char *delim);
     #endif
 
     #if !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \

@@ -33,6 +33,12 @@
     extern "C" {
 #endif
 
+/* detect C99 */
+#if !defined(WOLF_C99) && defined(__STDC_VERSION__)
+    #if __STDC_VERSION__ >= 199901L
+        #define WOLF_C99
+    #endif
+#endif
 
 #ifdef USE_WINDOWS_API
     #ifdef WOLFSSL_GAME_BUILD
@@ -407,6 +413,9 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     /* default */
     /* uses complete <time.h> facility */
     #include <time.h>
+    #if defined(HAVE_SYS_TIME_H) || defined(WOLF_C99)
+        #include <sys/time.h>
+    #endif
 
     /* PowerPC time_t is int */
     #ifdef __PPC__
@@ -420,7 +429,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XTIME(tl)       time((tl))
 #endif
 #if !defined(XGMTIME) && !defined(TIME_OVERRIDES)
-    #if defined(WOLFSSL_GMTIME) || !defined(HAVE_GMTIME_R)
+    #if defined(WOLFSSL_GMTIME) || !defined(HAVE_GMTIME_R) || defined(WOLF_C99)
         #define XGMTIME(c, t)   gmtime((c))
     #else
         #define XGMTIME(c, t)   gmtime_r((c), (t))

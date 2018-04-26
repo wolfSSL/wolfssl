@@ -1416,6 +1416,25 @@ int SetCipherSpecs(WOLFSSL* ssl)
         ssl->options.usingPSK_cipher     = 1;
         break;
 #endif
+        
+#ifdef BUILD_TLS_DH_anon_WITH_AES_256_GCM_SHA384
+    case TLS_DH_anon_WITH_AES_256_GCM_SHA384:
+        ssl->specs.bulk_cipher_algorithm = wolfssl_aes_gcm;
+        ssl->specs.cipher_type           = aead;
+        ssl->specs.mac_algorithm         = sha384_mac;
+        ssl->specs.kea                   = diffie_hellman_kea;
+        ssl->specs.sig_algo              = anonymous_sa_algo;
+        ssl->specs.hash_size             = WC_SHA384_DIGEST_SIZE;
+        ssl->specs.pad_size              = PAD_SHA;
+        ssl->specs.static_ecdh           = 0;
+        ssl->specs.key_size              = AES_256_KEY_SIZE;
+        ssl->specs.block_size            = AES_BLOCK_SIZE;
+        ssl->specs.iv_size               = AESGCM_IMP_IV_SZ;
+        ssl->specs.aead_mac_size         = AES_GCM_AUTH_SZ;
+
+         ssl->options.usingAnon_cipher    = 1;
+        break;
+#endif
 
 #ifdef BUILD_TLS_DHE_PSK_WITH_AES_128_GCM_SHA256
     case TLS_DHE_PSK_WITH_AES_128_GCM_SHA256 :
