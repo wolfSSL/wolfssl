@@ -175,10 +175,8 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #define OUTPUT_BLOCK_LEN  (WC_SHA256_DIGEST_SIZE)
 #define MAX_REQUEST_LEN   (0x10000)
 #define RESEED_INTERVAL   WC_RESEED_INTERVAL
-#define SECURITY_STRENGTH (256)
+#define SECURITY_STRENGTH (2048)
 #define ENTROPY_SZ        (SECURITY_STRENGTH/8)
-#define NONCE_SZ          (ENTROPY_SZ/2)
-#define ENTROPY_NONCE_SZ  (ENTROPY_SZ+NONCE_SZ)
 
 /* Internal return codes */
 #define DRBG_SUCCESS      0
@@ -532,11 +530,18 @@ static int Hash_DRBG_Uninstantiate(DRBG* drbg)
 /* End NIST DRBG Code */
 
 
-int wc_InitRng_ex(WC_RNG* rng, void* heap, int devId)
+static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
+                    void* heap, int devId)
 {
     int ret = RNG_FAILURE_E;
+    word32 entropySz = ENTROPY_SZ;
+
+    (void)nonce;
+    (void)nonceSz;
 
     if (rng == NULL)
+        return BAD_FUNC_ARG;
+    if (nonce == NULL && nonceSz != 0)
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_HEAP_TEST
@@ -580,8 +585,11 @@ int wc_InitRng_ex(WC_RNG* rng, void* heap, int devId)
 	ret = 0; /* success */
 #else
 #ifdef HAVE_HASHDRBG
+    if (nonceSz == 0)
+        entropySz += (entropySz / 2);
+
     if (wc_RNG_HealthTestLocal(0) == 0) {
-        DECLARE_VAR(entropy, byte, ENTROPY_NONCE_SZ, rng->heap);
+        DECLARE_VAR(entropy, byte, entropySz, rng->heap);
 
         rng->drbg =
                 (struct DRBG*)XMALLOC(sizeof(DRBG), rng->heap,
@@ -589,18 +597,15 @@ int wc_InitRng_ex(WC_RNG* rng, void* heap, int devId)
         if (rng->drbg == NULL) {
             ret = MEMORY_E;
         }
-        /* This doesn't use a separate nonce. The entropy input will be
-         * the default size plus the size of the nonce making the seed
-         * size. */
-        else if (wc_GenerateSeed(&rng->seed, entropy, ENTROPY_NONCE_SZ) == 0 &&
-                 Hash_DRBG_Instantiate(rng->drbg, entropy, ENTROPY_NONCE_SZ,
-                                   NULL, 0, rng->heap, devId) == DRBG_SUCCESS) {
+        else if (wc_GenerateSeed(&rng->seed, entropy, entropySz) == 0 &&
+                 Hash_DRBG_Instantiate(rng->drbg, entropy, entropySz,
+                            nonce, nonceSz, rng->heap, devId) == DRBG_SUCCESS) {
             ret = Hash_DRBG_Generate(rng->drbg, NULL, 0);
         }
         else
             ret = DRBG_FAILURE;
 
-        ForceZero(entropy, ENTROPY_NONCE_SZ);
+        ForceZero(entropy, entropySz);
         FREE_VAR(entropy, rng->heap);
     }
     else
@@ -627,9 +632,29 @@ int wc_InitRng_ex(WC_RNG* rng, void* heap, int devId)
     return ret;
 }
 
+
 int wc_InitRng(WC_RNG* rng)
 {
-    return wc_InitRng_ex(rng, NULL, INVALID_DEVID);
+    return _InitRng(rng, NULL, 0, NULL, INVALID_DEVID);
+}
+
+
+int wc_InitRng_ex(WC_RNG* rng, void* heap, int devId)
+{
+    return _InitRng(rng, NULL, 0, heap, devId);
+}
+
+
+int wc_InitRngNonce(WC_RNG* rng, byte* nonce, word32 nonceSz)
+{
+    return _InitRng(rng, nonce, nonceSz, NULL, INVALID_DEVID);
+}
+
+
+int wc_InitRngNonce_ex(WC_RNG* rng, byte* nonce, word32 nonceSz,
+                       void* heap, int devId)
+{
+    return _InitRng(rng, nonce, nonceSz, heap, devId);
 }
 
 
@@ -753,6 +778,20 @@ int wc_RNG_HealthTest(int reseed, const byte* entropyA, word32 entropyASz,
                                   const byte* entropyB, word32 entropyBSz,
                                   byte* output, word32 outputSz)
 {
+    return wc_RNG_HealthTest_ex(reseed, NULL, 0,
+                                entropyA, entropyASz,
+                                entropyB, entropyBSz,
+                                output, outputSz,
+                                NULL, INVALID_DEVID);
+}
+
+
+int wc_RNG_HealthTest_ex(int reseed, const byte* nonce, word32 nonceSz,
+                                  const byte* entropyA, word32 entropyASz,
+                                  const byte* entropyB, word32 entropyBSz,
+                                  byte* output, word32 outputSz,
+                                  void* heap, int devId)
+{
     int ret = -1;
     DRBG* drbg;
 #ifndef WOLFSSL_SMALL_STACK
@@ -780,8 +819,8 @@ int wc_RNG_HealthTest(int reseed, const byte* entropyA, word32 entropyASz,
     drbg = &drbg_var;
 #endif
 
-    if (Hash_DRBG_Instantiate(drbg, entropyA, entropyASz, NULL, 0, NULL,
-                                                    INVALID_DEVID) != 0) {
+    if (Hash_DRBG_Instantiate(drbg, entropyA, entropyASz, nonce, nonceSz,
+                              heap, devId) != 0) {
         goto exit_rng_ht;
     }
 
@@ -847,8 +886,9 @@ const byte outputA[] = {
 const byte entropyB[] = {
     0xa6, 0x5a, 0xd0, 0xf3, 0x45, 0xdb, 0x4e, 0x0e, 0xff, 0xe8, 0x75, 0xc3,
     0xa2, 0xe7, 0x1f, 0x42, 0xc7, 0x12, 0x9d, 0x62, 0x0f, 0xf5, 0xc1, 0x19,
-    0xa9, 0xef, 0x55, 0xf0, 0x51, 0x85, 0xe0, 0xfb, 0x85, 0x81, 0xf9, 0x31,
-    0x75, 0x17, 0x27, 0x6e, 0x06, 0xe9, 0x60, 0x7d, 0xdb, 0xcb, 0xcc, 0x2e
+    0xa9, 0xef, 0x55, 0xf0, 0x51, 0x85, 0xe0, 0xfb, /* nonce next */
+    0x85, 0x81, 0xf9, 0x31, 0x75, 0x17, 0x27, 0x6e, 0x06, 0xe9, 0x60, 0x7d,
+    0xdb, 0xcb, 0xcc, 0x2e
 };
 
 const byte outputB[] = {
@@ -901,6 +941,23 @@ static int wc_RNG_HealthTestLocal(int reseed)
             if (ConstantCompare(check, outputB,
                                 RNG_HEALTH_TEST_CHECK_SIZE) != 0)
                 ret = -1;
+        }
+
+        /* The previous test cases use a large seed instead of a seed and nonce.
+         * entropyB is actually from a test case with a seed and nonce, and
+         * just concatenates them. The pivot point between seed and nonce is
+         * byte 32, feed them into the health test separately. */
+        if (ret == 0) {
+            ret = wc_RNG_HealthTest_ex(0,
+                                    entropyB + 32, sizeof(entropyB) - 32,
+                                    entropyB, 32,
+                                    NULL, 0,
+                                    check, RNG_HEALTH_TEST_CHECK_SIZE,
+                                    NULL, INVALID_DEVID);
+            if (ret == 0) {
+                if (ConstantCompare(check, outputB, sizeof(outputB)) != 0)
+                    ret = -1;
+            }
         }
     }
 
