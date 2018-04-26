@@ -17139,9 +17139,11 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
         if (QSH_Init(ssl) != 0)
             return MEMORY_E;
     #endif
-        extSz = TLSX_GetRequestSize(ssl, client_hello);
-        if (extSz != 0)
-            length += extSz;
+        extSz = 0;
+        ret = TLSX_GetRequestSize(ssl, client_hello, &extSz);
+        if (ret != 0)
+            return ret;
+        length += extSz;
 #else
         if (IsAtLeastTLSv1_2(ssl) && ssl->suites->hashSigAlgoSz)
             extSz += HELLO_EXT_SZ + HELLO_EXT_SIGALGO_SZ
@@ -17232,7 +17234,11 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
             output[idx++] = NO_COMPRESSION;
 
 #ifdef HAVE_TLS_EXTENSIONS
-        idx += TLSX_WriteRequest(ssl, output + idx, client_hello);
+        extSz = 0;
+        ret = TLSX_WriteRequest(ssl, output + idx, client_hello, &extSz);
+        if (ret != 0)
+            return ret;
+        idx += extSz;
 
         (void)idx; /* suppress analyzer warning, keep idx current */
 #else
@@ -21136,13 +21142,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     /* handle generation of server_hello (2) */
     int SendServerHello(WOLFSSL* ssl)
     {
-        byte              *output;
-        word32             length, idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
-        int                sendSz;
-        int                ret;
-        byte               sessIdSz = ID_LEN;
-        byte               echoId   = 0;  /* ticket echo id flag */
-        byte               cacheOff = 0;  /* session cache off flag */
+        int    ret;
+        byte   *output;
+        word16 length;
+        word32 idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+        int    sendSz;
+        byte   sessIdSz = ID_LEN;
+        byte   echoId   = 0;  /* ticket echo id flag */
+        byte   cacheOff = 0;  /* session cache off flag */
 
         WOLFSSL_START(WC_FUNC_SERVER_HELLO_SEND);
         WOLFSSL_ENTER("SendServerHello");
@@ -21153,7 +21160,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                + ENUM_LEN;
 
 #ifdef HAVE_TLS_EXTENSIONS
-        length += TLSX_GetResponseSize(ssl, server_hello);
+        ret = TLSX_GetResponseSize(ssl, server_hello, &length);
+        if (ret != 0)
+            return ret;
     #ifdef HAVE_SESSION_TICKET
         if (ssl->options.useTicket) {
             /* echo session id sz can be 0,32 or bogus len inbetween */
@@ -21280,7 +21289,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         /* last, extensions */
 #ifdef HAVE_TLS_EXTENSIONS
-        TLSX_WriteResponse(ssl, output + idx, server_hello);
+        ret = TLSX_WriteResponse(ssl, output + idx, server_hello, NULL);
+        if (ret != 0)
+            return ret;
 #else
 #ifdef HAVE_EXTENDED_MASTER
         if (ssl->options.haveEMS) {

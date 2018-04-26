@@ -128,6 +128,14 @@
     #define FALSE 0
 #endif
 
+#ifndef HAVE_HKDF
+    #error The build option `HAVE_HKDF` is required for TLS 1.3
+#endif
+#ifndef WC_RSA_PSS
+    #error The build option `WC_RSA_PSS` is required for TLS 1.3
+#endif
+
+
 /* Set ret to error value and jump to label.
  *
  * err     The error value to set.
@@ -2353,7 +2361,7 @@ static int WritePSKBinders(WOLFSSL* ssl, byte* output, word32 idx)
 int SendTls13ClientHello(WOLFSSL* ssl)
 {
     byte*  output;
-    word32 length;
+    word16 length;
     word32 idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
     int    sendSz;
     int    ret;
@@ -2414,7 +2422,9 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         return MEMORY_E;
 #endif
     /* Include length of TLS extensions. */
-    length += TLSX_GetRequestSize(ssl, client_hello);
+    ret = TLSX_GetRequestSize(ssl, client_hello, &length);
+    if (ret != 0)
+        return ret;
 
     /* Total message size. */
     sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
@@ -2482,7 +2492,11 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     output[idx++] = NO_COMPRESSION;
 
     /* Write out extensions for a request. */
-    idx += TLSX_WriteRequest(ssl, output + idx, client_hello);
+    length = 0;
+    ret = TLSX_WriteRequest(ssl, output + idx, client_hello, &length);
+    if (ret != 0)
+        return ret;
+    idx += length;
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
     /* Resumption has a specific set of extensions and binder is calculated
@@ -3988,16 +4002,17 @@ int SendTls13HelloRetryRequest(WOLFSSL* ssl)
     int    ret;
     byte*  output;
     word32 length;
-    word32 len;
+    word16 len;
     word32 idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
     int    sendSz;
 
     WOLFSSL_ENTER("SendTls13HelloRetryRequest");
 
     /* Get the length of the extensions that will be written. */
-    len = TLSX_GetResponseSize(ssl, hello_retry_request);
+    len = 0;
+    ret = TLSX_GetResponseSize(ssl, hello_retry_request, &len);
     /* There must be extensions sent to indicate what client needs to do. */
-    if (len == 0)
+    if (ret != 0)
         return MISSING_HANDSHAKE_DATA;
 
     /* Protocol version + Extensions */
@@ -4026,7 +4041,9 @@ int SendTls13HelloRetryRequest(WOLFSSL* ssl)
     output[idx++] = TLS_DRAFT_MINOR;
 
     /* Add TLS extensions. */
-    TLSX_WriteResponse(ssl, output + idx, hello_retry_request);
+    ret = TLSX_WriteResponse(ssl, output + idx, hello_retry_request, NULL);
+    if (ret != 0)
+        return ret;
     idx += len;
 
 #ifdef WOLFSSL_CALLBACKS
@@ -4063,11 +4080,11 @@ static
 /* handle generation of TLS 1.3 server_hello (2) */
 int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
 {
+    int    ret;
     byte*  output;
-    word32 length;
+    word16 length;
     word32 idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
     int    sendSz;
-    int    ret;
 
     WOLFSSL_START(WC_FUNC_SERVER_HELLO_SEND);
     WOLFSSL_ENTER("SendTls13ServerHello");
@@ -4081,14 +4098,19 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
 
 #ifdef WOLFSSL_TLS13_DRAFT_18
     /* Protocol version, server random, cipher suite and extensions. */
-    length = VERSION_SZ + RAN_LEN + SUITE_LEN +
-             TLSX_GetResponseSize(ssl, server_hello);
+    length = VERSION_SZ + RAN_LEN + SUITE_LEN;
+    ret = TLSX_GetResponseSize(ssl, server_hello, &length);
+    if (ret != 0)
+        return ret;
 #else
     /* Protocol version, server random, session id, cipher suite, compression
      * and extensions.
      */
     length = VERSION_SZ + RAN_LEN + ENUM_LEN + ssl->session.sessionIDSz +
-             SUITE_LEN + COMP_LEN + TLSX_GetResponseSize(ssl, extMsgType);
+             SUITE_LEN + COMP_LEN;
+    ret = TLSX_GetResponseSize(ssl, extMsgType, &length);
+    if (ret != 0)
+        return ret;
 #endif
     sendSz = idx + length;
 
@@ -4158,7 +4180,9 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
 #endif
 
     /* Extensions */
-    TLSX_WriteResponse(ssl, output + idx, extMsgType);
+    ret = TLSX_WriteResponse(ssl, output + idx, extMsgType, NULL);
+    if (ret != 0)
+        return ret;
 
     ssl->buffers.outputBuffer.length += sendSz;
 
@@ -4202,7 +4226,7 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
 {
     int    ret;
     byte*  output;
-    word32 length;
+    word16 length = 0;
     word32 idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
     int    sendSz;
 
@@ -4238,7 +4262,10 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
         return ret;
 #endif
 
-    length = TLSX_GetResponseSize(ssl, encrypted_extensions);
+    ret = TLSX_GetResponseSize(ssl, encrypted_extensions, &length);
+    if (ret != 0)
+        return ret;
+
     sendSz = idx + length;
     /* Encryption always on. */
     sendSz += MAX_MSG_EXTRA;
@@ -4255,7 +4282,9 @@ static int SendTls13EncryptedExtensions(WOLFSSL* ssl)
     /* Put the record and handshake headers on. */
     AddTls13Headers(output, length, encrypted_extensions, ssl);
 
-    TLSX_WriteResponse(ssl, output + idx, encrypted_extensions);
+    ret = TLSX_WriteResponse(ssl, output + idx, encrypted_extensions, NULL);
+    if (ret != 0)
+        return ret;
     idx += length;
 
 #ifdef WOLFSSL_CALLBACKS
@@ -4304,7 +4333,7 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
     int    ret;
     int    sendSz;
     word32 i;
-    int    reqSz;
+    word16 reqSz;
 #ifndef WOLFSSL_TLS13_DRAFT_18
     TLSX*  ext;
 #endif
@@ -4363,8 +4392,10 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
     ext->resp = 0;
 
     i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
-    reqSz = OPAQUE8_LEN + reqCtxLen +
-        TLSX_GetRequestSize(ssl, certificate_request);
+    reqSz = OPAQUE8_LEN + reqCtxLen;
+    ret = TLSX_GetRequestSize(ssl, certificate_request, &reqSz);
+    if (ret != 0)
+        return ret;
 
     sendSz = i + reqSz;
     /* Always encrypted and make room for padding. */
@@ -4389,7 +4420,11 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
     }
 
     /* Certificate extensions. */
-    i += TLSX_WriteRequest(ssl, output + i, certificate_request);
+    reqSz = 0;
+    ret = TLSX_WriteRequest(ssl, output + i, certificate_request, &reqSz);
+    if (ret != 0)
+        return ret;
+    i += reqSz;
 #endif
 
     /* Always encrypted. */
@@ -6457,7 +6492,7 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
     byte*  output;
     int    ret;
     int    sendSz;
-    word32 extSz;
+    word16 extSz;
     word32 length;
     word32 idx = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
 
@@ -6490,7 +6525,10 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
     ssl->session.maxEarlyDataSz = ssl->options.maxEarlyDataSz;
     if (ssl->session.maxEarlyDataSz > 0)
         TLSX_EarlyData_Use(ssl, ssl->session.maxEarlyDataSz);
-    extSz = TLSX_GetResponseSize(ssl, session_ticket);
+    extSz = 0;
+    ret = TLSX_GetResponseSize(ssl, session_ticket, &extSz);
+    if (ret != 0)
+        return ret;
 #else
     extSz = EXTS_SZ;
 #endif
@@ -6535,7 +6573,11 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
     idx += ssl->session.ticketLen;
 
 #ifdef WOLFSSL_EARLY_DATA
-    idx += TLSX_WriteResponse(ssl, output + idx, session_ticket);
+    extSz = 0;
+    ret = TLSX_WriteResponse(ssl, output + idx, session_ticket, &extSz);
+    if (ret != 0)
+        return ret;
+    idx += extSz;
 #else
     /* No extension support - empty extensions. */
     c16toa(0, output + idx);
@@ -6544,9 +6586,9 @@ static int SendTls13NewSessionTicket(WOLFSSL* ssl)
 
     ssl->options.haveSessionId = 1;
 
-    #ifndef NO_SESSION_CACHE
+#ifndef NO_SESSION_CACHE
     AddSession(ssl);
-    #endif
+#endif
 
     /* This message is always encrypted. */
     sendSz = BuildTls13Message(ssl, output, sendSz, output + RECORD_HEADER_SZ,
