@@ -476,6 +476,9 @@ const char* wc_GetErrorString(int error)
     case AES_CCM_OVERFLOW_E:
         return "AES-CCM invocation counter overflow";
 
+    case RSA_KEY_PAIR_E:
+        return "RSA Key Pair-Wise Consistency check fail";
+
     default:
         return "unknown error number";
 

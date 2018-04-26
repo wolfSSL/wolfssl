@@ -410,6 +410,48 @@ int wc_FreeRsaKey(RsaKey* key)
 }
 
 
+/* Check the pair-wise consistency of the RSA key.
+ * Verify that k = (k^e)^d, for some k: 1 < k < n-1. */
+int wc_CheckRsaKey(RsaKey* key)
+{
+    mp_int k, tmp;
+    int ret = 0;
+
+    if (mp_init_multi(&k, &tmp, NULL, NULL, NULL, NULL) != MP_OKAY)
+        ret = MP_INIT_E;
+
+    if (ret == 0) {
+        if (key == NULL)
+            ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        if (mp_set_int(&k, 0x2342) != MP_OKAY)
+            ret = MP_READ_E;
+    }
+
+    if (ret == 0) {
+        if (mp_exptmod(&k, &key->e, &key->n, &tmp) != MP_OKAY)
+            ret = MP_EXPTMOD_E;
+    }
+
+    if (ret == 0) {
+        if (mp_exptmod(&tmp, &key->d, &key->n, &tmp) != MP_OKAY)
+            ret = MP_EXPTMOD_E;
+    }
+
+    if (ret == 0) {
+        if (mp_cmp(&k, &tmp) != MP_EQ)
+            ret = RSA_KEY_PAIR_E;
+    }
+
+    mp_forcezero(&tmp);
+    mp_clear(&tmp);
+    mp_clear(&k);
+    return ret;
+}
+
+
 #if !defined(WC_NO_RSA_OAEP) || defined(WC_RSA_PSS)
 /* Uses MGF1 standard as a mask generation function
    hType: hash type used

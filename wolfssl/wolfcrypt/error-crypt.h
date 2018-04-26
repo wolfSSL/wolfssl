@@ -210,8 +210,9 @@ enum {
     ECDHE_KAT_FIPS_E    = -259,  /* ECDHE KAT failure */
     AES_GCM_OVERFLOW_E  = -260,  /* AES-GCM invocation counter overflow. */
     AES_CCM_OVERFLOW_E  = -261,  /* AES-CCM invocation counter overflow. */
+    RSA_KEY_PAIR_E      = -262,  /* RSA Key Pair-Wise Consistency check fail. */
 
-    WC_LAST_E           = -261,  /* Update this to indicate last error */
+    WC_LAST_E           = -262,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes
