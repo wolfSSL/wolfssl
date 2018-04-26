@@ -2179,7 +2179,7 @@ WOLFSSL_API int  wolfSSL_get_alert_history(WOLFSSL*, WOLFSSL_ALERT_HISTORY *);
     
     \sa wolfSSL_get_session
 */
-WOLFSSL_API int        wolfSSL_set_session(WOLFSSL* ssl,WOLFSSL_SESSION* session);
+WOLFSSL_API int        wolfSSL_set_session(WOLFSSL*, WOLFSSL_SESSION*);
 /*!
     \ingroup IO
 
@@ -2217,7 +2217,7 @@ WOLFSSL_API int        wolfSSL_set_session(WOLFSSL* ssl,WOLFSSL_SESSION* session
     
     \sa wolfSSL_set_session
 */
-WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL* ssl);
+WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL*);
 /*!
     \ingroup IO
 
@@ -2244,7 +2244,7 @@ WOLFSSL_API WOLFSSL_SESSION* wolfSSL_get_session(WOLFSSL* ssl);
     \sa wolfSSL_get_session
     \sa wolfSSL_set_session
 */
-WOLFSSL_API void       wolfSSL_flush_sessions(WOLFSSL_CTX *ctx, long tm);
+WOLFSSL_API void       wolfSSL_flush_sessions(WOLFSSL_CTX*, long);
 /*!
     \ingroup TLS
 
@@ -2279,7 +2279,7 @@ WOLFSSL_API void       wolfSSL_flush_sessions(WOLFSSL_CTX *ctx, long tm);
     
     \sa GetSessionClient
 */
-WOLFSSL_API int        wolfSSL_SetServerID(WOLFSSL* ssl, const unsigned char*,
+WOLFSSL_API int        wolfSSL_SetServerID(WOLFSSL*, const unsigned char*,
                                          int, int);
 /*!
     \ingroup IO

@@ -975,9 +975,8 @@ WOLFSSL_API int wc_PemPubKeyToDer(const char* fileName,
 
     \sa wc_PemPubKeyToDer
 */
-WOLFSSL_API int wc_PubKeyPemToDer(const unsigned char*, int,
-                                       unsigned char*, int);
-
+    WOLFSSL_API int wc_PubKeyPemToDer(const unsigned char*, int,
+                                      unsigned char*, int);
 /*!
     \ingroup ASN
     
@@ -1011,7 +1010,7 @@ WOLFSSL_API int wc_PubKeyPemToDer(const unsigned char*, int,
     \sa none
 */
 WOLFSSL_API
-int wc_PemCertToDer(const char* fileName,unsigned char* derBuf,int derSz);
+int wc_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz);
 
 /*!
     \ingroup ASN
@@ -1168,35 +1167,6 @@ WOLFSSL_API int wc_KeyPemToDer(const unsigned char*, int,
 */
 WOLFSSL_API int wc_CertPemToDer(const unsigned char*, int,
                                      unsigned char*, int, int);
-/*!
-    \ingroup CertsKeys
-
-    \brief Converts the PEM format to DER format.
-    
-    \return int an int type representing the bytes written to buffer.
-    \param <0 returned for an error.
-    \param BAD_FUNC_ARG returned if the DER length is incorrect or if the 
-    pem buff, or buffSz arguments are NULL.
-    
-    _Example_
-    \code
-    unsigned char* pem = “pem file”;
-    int pemSz = sizeof(pem)/sizeof(char);
-    unsigned char* buff;
-    int buffSz;
-    ...
-    if(wc_PubKeyPemToDer(pem, pemSz, buff, buffSz)!= SSL_SUCCESS){
-        // Conversion was not successful
-    }
-    \endcode
-    
-    \sa wc_PubKeyPemToDer
-    \sa wc_PemPubKeyToDer
-    \sa wc_PemToDer
-*/
-WOLFSSL_API int wc_PubKeyPemToDer(const unsigned char*, int,
-                                               unsigned char*, int);
-
 /*!
     \ingroup ASN
     
