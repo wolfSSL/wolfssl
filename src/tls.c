@@ -48,6 +48,7 @@
     #include "libntruencrypt/ntru_crypto.h"
     #include <wolfssl/wolfcrypt/random.h>
 #endif
+
 #ifdef HAVE_QSH
     static int TLSX_AddQSHKey(QSHKey** list, QSHKey* key);
     static byte* TLSX_QSHKeyFind_Pub(QSHKey* qsh, word16* pubLen, word16 name);
@@ -73,6 +74,18 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions);
 #else  /* TLS 1.1 or older */
     #if defined(NO_MD5) && defined(NO_SHA)
         #error Must have SHA1 and MD5 enabled for old TLS
+    #endif
+#endif
+
+#ifdef WOLFSSL_TLS13
+    #if !defined(NO_DH) && \
+        !defined(HAVE_FFDHE_2048) && !defined(HAVE_FFDHE_3072) && \
+        !defined(HAVE_FFDHE_4096) && !defined(HAVE_FFDHE_6144) && \
+        !defined(HAVE_FFDHE_8192)
+        #error Please configure your TLS 1.3 DH key size using either: HAVE_FFDHE_2048, HAVE_FFDHE_3072, HAVE_FFDHE_4096, HAVE_FFDHE_6144 or HAVE_FFDHE_8192
+    #endif
+    #if !defined(NO_RSA) && !defined(WC_RSA_PSS)
+        #error The build option WC_RSA_PSS is required for TLS 1.3 with RSA
     #endif
 #endif
 

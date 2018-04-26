@@ -129,10 +129,7 @@
 #endif
 
 #ifndef HAVE_HKDF
-    #error The build option `HAVE_HKDF` is required for TLS 1.3
-#endif
-#ifndef WC_RSA_PSS
-    #error The build option `WC_RSA_PSS` is required for TLS 1.3
+    #error The build option HAVE_HKDF is required for TLS 1.3
 #endif
 
 
