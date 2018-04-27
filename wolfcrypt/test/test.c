@@ -8205,7 +8205,23 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
 {
     int ret;
     word32 sigSz;
-    byte   in[] = "Everyone gets Friday off.";
+    const byte in[] = "Everyone gets Friday off.";
+    const byte hash[] = {
+        0xf2, 0x02, 0x95, 0x65, 0xcb, 0xf6, 0x2a, 0x59,
+        0x39, 0x2c, 0x05, 0xff, 0x0e, 0x29, 0xaf, 0xfe,
+        0x47, 0x33, 0x8c, 0x99, 0x8d, 0x58, 0x64, 0x83,
+        0xa6, 0x58, 0x0a, 0x33, 0x0b, 0x84, 0x5f, 0x5f
+    };
+    const byte hashEnc[] = {
+        0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86,
+        0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05,
+        0x00, 0x04, 0x20,
+
+        0xf2, 0x02, 0x95, 0x65, 0xcb, 0xf6, 0x2a, 0x59,
+        0x39, 0x2c, 0x05, 0xff, 0x0e, 0x29, 0xaf, 0xfe,
+        0x47, 0x33, 0x8c, 0x99, 0x8d, 0x58, 0x64, 0x83,
+        0xa6, 0x58, 0x0a, 0x33, 0x0b, 0x84, 0x5f, 0x5f
+    };
     word32 inLen = (word32)XSTRLEN((char*)in);
     byte   out[256];
 
@@ -8316,7 +8332,7 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
     if (ret != 0)
         return -5358;
 
-    sigSz = sizeof(out);
+    sigSz = (word32)sizeof(out);
     ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA_W_ENC,
                                in, inLen, out, &sigSz, key, keyLen, rng);
     if (ret != 0)
@@ -8332,6 +8348,30 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
                              inLen, out, (word32)modLen, key, keyLen);
     if (ret == 0)
         return -5361;
+
+
+    /* check hash functions */
+    sigSz = (word32)sizeof(out);
+    ret = wc_SignatureGenerateHash(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA,
+        hash, (int)sizeof(hash), out, &sigSz, key, keyLen, rng);
+    if (ret != 0)
+        return -5362;
+
+    ret = wc_SignatureVerifyHash(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA,
+        hash, (int)sizeof(hash), out, (word32)modLen, key, keyLen);
+    if (ret != 0)
+        return -5363;
+
+    sigSz = (word32)sizeof(out);
+    ret = wc_SignatureGenerateHash(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA_W_ENC,
+        hashEnc, (int)sizeof(hashEnc), out, &sigSz, key, keyLen, rng);
+    if (ret != 0)
+        return -5364;
+
+    ret = wc_SignatureVerifyHash(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_RSA_W_ENC,
+        hashEnc, (int)sizeof(hashEnc), out, (word32)modLen, key, keyLen);
+    if (ret != 0)
+        return -5365;
 
     return 0;
 }
@@ -14589,25 +14629,42 @@ static int ecc_sig_test(WC_RNG* rng, ecc_key* key)
     word32  sigSz;
     int     size;
     byte    out[ECC_MAX_SIG_SIZE];
-    byte   in[] = "Everyone gets Friday off.";
+    byte    in[] = "Everyone gets Friday off.";
+    const byte hash[] = {
+        0xf2, 0x02, 0x95, 0x65, 0xcb, 0xf6, 0x2a, 0x59,
+        0x39, 0x2c, 0x05, 0xff, 0x0e, 0x29, 0xaf, 0xfe,
+        0x47, 0x33, 0x8c, 0x99, 0x8d, 0x58, 0x64, 0x83,
+        0xa6, 0x58, 0x0a, 0x33, 0x0b, 0x84, 0x5f, 0x5f
+    };
     word32 inLen = (word32)XSTRLEN((char*)in);
 
     size = wc_ecc_sig_size(key);
 
     ret = wc_SignatureGetSize(WC_SIGNATURE_TYPE_ECC, key, sizeof(*key));
     if (ret != size)
-        return -6628;
+        return -6740;
 
     sigSz = (word32)ret;
     ret = wc_SignatureGenerate(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_ECC, in,
                                inLen, out, &sigSz, key, sizeof(*key), rng);
     if (ret != 0)
-        return -6629;
+        return -6741;
 
     ret = wc_SignatureVerify(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_ECC, in,
                              inLen, out, sigSz, key, sizeof(*key));
     if (ret != 0)
-        return -6630;
+        return -6742;
+
+    sigSz = (word32)sizeof(out);
+    ret = wc_SignatureGenerateHash(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_ECC,
+        hash, (int)sizeof(hash), out, &sigSz, key, sizeof(*key), rng);
+    if (ret != 0)
+        return -6743;
+
+    ret = wc_SignatureVerifyHash(WC_HASH_TYPE_SHA256, WC_SIGNATURE_TYPE_ECC,
+        hash, (int)sizeof(hash), out, sigSz, key, sizeof(*key));
+    if (ret != 0)
+        return -6744;
 
     return 0;
 }
