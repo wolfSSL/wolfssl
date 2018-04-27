@@ -11563,16 +11563,6 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return bio;
     }
 
-
-#ifdef USE_WINDOWS_API
-    #define CloseSocket(s) closesocket(s)
-#elif defined(WOLFSSL_MDK_ARM)  || defined(WOLFSSL_KEIL_TCP_NET)
-    #define CloseSocket(s) closesocket(s)
-    extern int closesocket(int);
-#else
-    #define CloseSocket(s) close(s)
-#endif
-
     /*
      * Note : If the flag BIO_NOCLOSE is set then freeing memory buffers is up
      *        to the application.

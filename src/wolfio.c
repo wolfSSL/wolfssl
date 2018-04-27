@@ -1337,7 +1337,7 @@ int EmbedOcspLookup(void* ctx, const char* url, int urlSz,
                                                  HTTP_SCRATCH_BUFFER_SIZE, ctx);
             }
 
-            close(sfd);
+            CloseSocket(sfd);
             XFREE(httpBuf, ctx, DYNAMIC_TYPE_OCSP);
         }
     }
@@ -1438,7 +1438,7 @@ int EmbedCrlLookup(WOLFSSL_CRL* crl, const char* url, int urlSz)
                                                       HTTP_SCRATCH_BUFFER_SIZE);
             }
 
-            close(sfd);
+            CloseSocket(sfd);
             XFREE(httpBuf, crl->heap, DYNAMIC_TYPE_CRL);
         }
     }
