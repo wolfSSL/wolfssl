@@ -874,7 +874,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    err           = 0;
     int    scr           = 0;    /* allow secure renegotiation */
     int    forceScr      = 0;    /* force client initiaed scr */
+#ifndef WOLFSSL_NO_CLIENT_AUTH
     int    useClientCert = 1;
+#else
+    int    useClientCert = 0;
+#endif
     int    fewerPackets  = 0;
     int    atomicUser    = 0;
 #ifdef HAVE_PK_CALLBACKS

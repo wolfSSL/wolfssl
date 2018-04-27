@@ -90,6 +90,8 @@ int wc_ed25519_make_key(WC_RNG* rng, int keySz, ed25519_key* key)
     /* put public key after private key, on the same buffer */
     XMEMMOVE(key->k + ED25519_KEY_SIZE, key->p, ED25519_PUB_KEY_SIZE);
 
+    key->pubKeySet = 1;
+
     return ret;
 }
 
@@ -120,6 +122,8 @@ int wc_ed25519_sign_msg(const byte* in, word32 inlen, byte* out,
 
     /* sanity check on arguments */
     if (in == NULL || out == NULL || outLen == NULL || key == NULL)
+        return BAD_FUNC_ARG;
+    if (!key->pubKeySet)
         return BAD_FUNC_ARG;
 
     /* check and set up out length */
@@ -370,6 +374,7 @@ int wc_ed25519_import_public(const byte* in, word32 inLen, ed25519_key* key)
         pubKey.Y = key->pointY;
         LTC_PKHA_Ed25519_PointDecompress(key->p, ED25519_PUB_KEY_SIZE, &pubKey);
 #endif
+        key->pubKeySet = 1;
         return 0;
     }
 
@@ -389,6 +394,8 @@ int wc_ed25519_import_public(const byte* in, word32 inLen, ed25519_key* key)
         ret = ge_compress_key(key->p, in+1,
                               in+1+ED25519_PUB_KEY_SIZE, ED25519_PUB_KEY_SIZE);
 #endif /* FREESCALE_LTC_ECC */
+        if (ret == 0)
+            key->pubKeySet = 1;
         return ret;
     }
 
@@ -403,6 +410,7 @@ int wc_ed25519_import_public(const byte* in, word32 inLen, ed25519_key* key)
         pubKey.Y = key->pointY;
         LTC_PKHA_Ed25519_PointDecompress(key->p, ED25519_PUB_KEY_SIZE, &pubKey);
 #endif
+        key->pubKeySet = 1;
         return 0;
     }
 

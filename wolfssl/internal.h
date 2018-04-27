@@ -3349,6 +3349,11 @@ typedef struct HS_Hashes {
 #ifdef WOLFSSL_SHA512
     wc_Sha512       hashSha512;         /* sha512 hash of handshake msgs */
 #endif
+#if defined(HAVE_ED25519) && !defined(WOLFSSL_NO_CLIENT_AUTH)
+    byte*           messages;           /* handshake messages */
+    int             length;             /* length of handhsake messages' data */
+    int             prevLen;            /* length of messages but last */
+#endif
 } HS_Hashes;
 
 
@@ -3875,6 +3880,7 @@ WOLFSSL_LOCAL int wolfSSL_GetMaxRecordSize(WOLFSSL* ssl, int maxFragment);
             word32* outlen, int side, void* ctx);
     #endif /* HAVE_ECC */
     #ifdef HAVE_ED25519
+        WOLFSSL_LOCAL int Ed25519CheckPubKey(WOLFSSL* ssl);
         WOLFSSL_LOCAL int Ed25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz,
             byte* out, word32* outSz, ed25519_key* key, DerBuffer* keyBufInfo,
             void* ctx);

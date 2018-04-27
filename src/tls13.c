@@ -5252,7 +5252,10 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
         #endif /* HAVE_ECC */
         #ifdef HAVE_ED25519
             if (ssl->hsType == DYNAMIC_TYPE_ED25519) {
-                /* Nothing to do */
+                ret = Ed25519CheckPubKey(ssl);
+                if (ret < 0) {
+                    ERROR_OUT(ret, exit_scv);
+                }
                 sig->length = ED25519_SIG_SIZE;
             }
         #endif /* HAVE_ECC */

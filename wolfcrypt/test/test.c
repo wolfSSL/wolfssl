@@ -17115,6 +17115,38 @@ int ed25519_test(void)
                                    0 /*sizeof(msg1)*/,
                                    sizeof(msg4)
     };
+    static byte privateEd25519[] = {
+        0x30,0x2e,0x02,0x01,0x00,0x30,0x05,0x06,
+        0x03,0x2b,0x65,0x70,0x04,0x22,0x04,0x20,
+        0x9d,0x61,0xb1,0x9d,0xef,0xfd,0x5a,0x60,
+        0xba,0x84,0x4a,0xf4,0x92,0xec,0x2c,0xc4,
+        0x44,0x49,0xc5,0x69,0x7b,0x32,0x69,0x19,
+        0x70,0x3b,0xac,0x03,0x1c,0xae,0x7f,0x60
+    };
+    static byte publicEd25519[] = {
+        0x30,0x2a,0x30,0x05,0x06,0x03,0x2b,0x65,
+        0x70,0x03,0x21,0x00,0xd7,0x5a,0x98,0x01,
+        0x82,0xb1,0x0a,0xb7,0xd5,0x4b,0xfe,0xd3,
+        0xc9,0x64,0x07,0x3a,0x0e,0xe1,0x72,0xf3,
+        0xda,0xa6,0x23,0x25,0xaf,0x02,0x1a,0x68,
+        0xf7,0x07,0x51,0x1a
+    };
+    static byte privPubEd25519[] = {
+        0x30,0x52,0x02,0x01,0x00,0x30,0x05,0x06,
+        0x03,0x2b,0x65,0x70,0x04,0x22,0x04,0x20,
+        0x9d,0x61,0xb1,0x9d,0xef,0xfd,0x5a,0x60,
+        0xba,0x84,0x4a,0xf4,0x92,0xec,0x2c,0xc4,
+        0x44,0x49,0xc5,0x69,0x7b,0x32,0x69,0x19,
+        0x70,0x3b,0xac,0x03,0x1c,0xae,0x7f,0x60,
+        0xa1,0x22,0x04,0x20,0xd7,0x5a,0x98,0x01,
+        0x82,0xb1,0x0a,0xb7,0xd5,0x4b,0xfe,0xd3,
+        0xc9,0x64,0x07,0x3a,0x0e,0xe1,0x72,0xf3,
+        0xda,0xa6,0x23,0x25,0xaf,0x02,0x1a,0x68,
+        0xf7,0x07,0x51,0x1a
+    };
+    word32 idx;
+    ed25519_key key3;
+
 #endif /* HAVE_ED25519_SIGN && HAVE_ED25519_KEY_EXPORT && HAVE_ED25519_KEY_IMPORT */
 
     /* create ed25519 keys */
@@ -17128,6 +17160,7 @@ int ed25519_test(void)
 
     wc_ed25519_init(&key);
     wc_ed25519_init(&key2);
+    wc_ed25519_init(&key3);
     wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key);
     wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key2);
 
@@ -17145,8 +17178,7 @@ int ed25519_test(void)
                 pKeySz[i], &key) != 0)
             return -8901 - i;
 
-        if (wc_ed25519_sign_msg(msgs[i], msgSz[i], out, &outlen, &key)
-                != 0)
+        if (wc_ed25519_sign_msg(msgs[i], msgSz[i], out, &outlen, &key) != 0)
             return -8911 - i;
 
         if (XMEMCMP(out, sigs[i], 64))
@@ -17196,6 +17228,50 @@ int ed25519_test(void)
             return -9011 - i;
 #endif /* HAVE_ED25519_VERIFY */
     }
+
+    /* Try ASN.1 encoded private-only key and public key. */
+    idx = 0;
+    if (wc_Ed25519PrivateKeyDecode(privateEd25519, &idx, &key3,
+                                   sizeof(privateEd25519)) != 0)
+        return -7230 - i;
+
+    if (wc_ed25519_sign_msg(msgs[0], msgSz[0], out, &outlen, &key3)
+                != BAD_FUNC_ARG)
+        return -7231 - i;
+
+    idx = 0;
+    if (wc_Ed25519PublicKeyDecode(publicEd25519, &idx, &key3,
+                                  sizeof(publicEd25519)) != 0)
+        return -7232 - i;
+
+    if (wc_ed25519_sign_msg(msgs[0], msgSz[0], out, &outlen, &key3) != 0)
+        return -7233 - i;
+
+    if (XMEMCMP(out, sigs[0], 64))
+        return -7234 - i;
+
+#if defined(HAVE_ED25519_VERIFY)
+    /* test verify on good msg */
+    if (wc_ed25519_verify_msg(out, outlen, msgs[0], msgSz[0], &verify, &key3)
+                != 0 || verify != 1)
+        return -7233 - i;
+#endif /* HAVE_ED25519_VERIFY */
+
+    wc_ed25519_free(&key3);
+    wc_ed25519_init(&key3);
+
+    idx = 0;
+    if (wc_Ed25519PrivateKeyDecode(privPubEd25519, &idx, &key3,
+                                   sizeof(privPubEd25519)) != 0)
+        return -7230 - i;
+
+    if (wc_ed25519_sign_msg(msgs[0], msgSz[0], out, &outlen, &key3) != 0)
+        return -7233 - i;
+
+    if (XMEMCMP(out, sigs[0], 64))
+        return -7234 - i;
+
+    wc_ed25519_free(&key3);
 #endif /* HAVE_ED25519_SIGN && HAVE_ED25519_KEY_EXPORT && HAVE_ED25519_KEY_IMPORT */
 
     /* clean up keys when done */

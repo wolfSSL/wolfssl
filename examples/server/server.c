@@ -405,6 +405,9 @@ static void Usage(void)
     printf("-n          Use NTRU key (needed for NTRU suites)\n");
 #endif
     printf("-B <num>    Benchmark throughput using <num> bytes and print stats\n");
+#ifdef HAVE_CRL
+    printf("-V          Disable CRL\n");
+#endif
 #ifdef WOLFSSL_TRUST_PEER_CERT
     printf("-E <file>   Path to load trusted peer cert\n");
 #endif
@@ -462,7 +465,14 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     char   input[80];
     int    ch;
     int    version = SERVER_DEFAULT_VERSION;
+#ifndef WOLFSSL_NO_CLIENT_AUTH
     int    doCliCertCheck = 1;
+#else
+    int    doCliCertCheck = 0;
+#endif
+#ifdef HAVE_CRL
+    int    disableCRL = 0;
+#endif
     int    useAnyAddr = 0;
     word16 port = wolfSSLPort;
     int    usePsk = 0;
@@ -601,7 +611,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     /* Not Used: h, m, z, F, M, T, V, W, X */
     while ((ch = mygetopt(argc, argv, "?"
                 "abc:defgijk:l:nop:q:rstuv:wxy"
-                "A:B:C:D:E:GH:IJKL:NO:PQR:S:TUYZ:"
+                "A:B:C:D:E:GH:IJKL:NO:PQR:S:TUVYZ:"
                 "03:")) != -1) {
         switch (ch) {
             case '?' :
@@ -614,6 +624,12 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
             case 'd' :
                 doCliCertCheck = 0;
+                break;
+
+            case 'V' :
+                #ifdef HAVE_CRL
+                    disableCRL = 1;
+                #endif
                 break;
 
             case 'b' :
@@ -1286,6 +1302,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         wolfSSL_SetHsDoneCb(ssl, myHsDoneCb, NULL);
 #endif
 #ifdef HAVE_CRL
+    if (!disableCRL) {
 #ifdef HAVE_CRL_MONITOR
         crlFlags = CYASSL_CRL_MONITOR | CYASSL_CRL_START_MON;
 #endif
@@ -1296,6 +1313,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             err_sys_ex(runWithErrors, "unable to load CRL");
         if (CyaSSL_SetCRL_Cb(ssl, CRL_CallBack) != WOLFSSL_SUCCESS)
             err_sys_ex(runWithErrors, "unable to set CRL callback url");
+    }
 #endif
 #ifdef HAVE_OCSP
         if (useOcsp) {
@@ -1563,17 +1581,19 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
         if (postHandAuth) {
             SSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER |
-                                    ((usePskPlus)? WOLFSSL_VERIFY_FAIL_EXCEPT_PSK :
-                                    WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT),0);
+                                ((usePskPlus) ? WOLFSSL_VERIFY_FAIL_EXCEPT_PSK :
+                                WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT), 0);
             if (SSL_CTX_load_verify_locations(ctx, verifyCert, 0)
-                                                               != WOLFSSL_SUCCESS) {
-                err_sys_ex(runWithErrors, "can't load ca file, Please run from wolfSSL home dir");
+                                                           != WOLFSSL_SUCCESS) {
+                err_sys_ex(runWithErrors, "can't load ca file, Please run from "
+                                          "wolfSSL home dir");
             }
             #ifdef WOLFSSL_TRUST_PEER_CERT
             if (trustCert) {
                 if ((ret = wolfSSL_CTX_trust_peer_cert(ctx, trustCert,
-                                            WOLFSSL_FILETYPE_PEM)) != WOLFSSL_SUCCESS) {
-                    err_sys_ex(runWithErrors, "can't load trusted peer cert file");
+                                    WOLFSSL_FILETYPE_PEM)) != WOLFSSL_SUCCESS) {
+                    err_sys_ex(runWithErrors, "can't load trusted peer cert "
+                                              "file");
                 }
             }
             #endif /* WOLFSSL_TRUST_PEER_CERT */
