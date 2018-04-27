@@ -29,10 +29,11 @@ typedef struct func_args {
     int    return_code;
 } func_args;
 
+void wolfcrypt_test(func_args args);
+
 void main(void)
 {
     func_args args = { 1 };
-    logging_test();
     printf("Start wolfCrypt Test\n");
     wolfcrypt_test(args);
     printf("End wolfCrypt Test\n");
