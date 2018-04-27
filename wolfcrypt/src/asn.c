@@ -8502,6 +8502,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int with_header)
     byte curve[MAX_ALGO_SZ];
     byte pub[ECC_BUFSIZE];
 #endif
+    int ret;
 
 #ifdef WOLFSSL_SMALL_STACK
     pub = (byte*)XMALLOC(ECC_BUFSIZE, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -8509,7 +8510,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int with_header)
         return MEMORY_E;
 #endif
 
-    int ret = wc_ecc_export_x963(key, pub, &pubSz);
+    ret = wc_ecc_export_x963(key, pub, &pubSz);
     if (ret != 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(pub, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
