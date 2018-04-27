@@ -11,7 +11,8 @@
 #define WOLFSSL_NO_CURRDIR
 #define NO_FILESYSTEM
 #define WOLFSSL_LOG_PRINTF
-#define DEBUG_WOLFSSL
+
+/* #define DEBUG_WOLFSSL */
 
 #define OPENSSL_EXTRA
 
@@ -24,7 +25,6 @@
 #define XTIME time
 #define USE_WOLF_SUSECONDS_T
 #define USE_WOLF_TIMEVAL_T
-//#define NO__FUNC__
 
 #define WOLFSSL_USER_CURRTIME /* for benchmark */
 
