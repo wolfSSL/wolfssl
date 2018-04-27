@@ -665,6 +665,7 @@ static int GeneratePrivateDh186(DhKey* key, WC_RNG* rng, byte* priv,
         }
     } while (mp_cmp_d(&tmpX, 1) != MP_GT);
 
+    ForceZero(cBuf, cSz);
     XFREE(cBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     /* tmpQ = q - 1 */
@@ -694,6 +695,7 @@ static int GeneratePrivateDh186(DhKey* key, WC_RNG* rng, byte* priv,
         }
     }
 
+    mp_forcezero(&tmpX);
     mp_clear(&tmpX);
     mp_clear(&tmpQ);
 
