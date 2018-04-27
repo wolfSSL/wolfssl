@@ -85,7 +85,7 @@ WOLFSSL_API int  wc_CamelliaSetIV(Camellia* cam, const byte* iv);
     byte plain[] = { // initialize with message to encrypt };
     byte cipher[16];
     
-    wc_CamelliaEncrypt(&ca, cipher, plain);
+    wc_CamelliaEncryptDirect(&ca, cipher, plain);
     \endcode
     
     \sa wc_CamelliaDecryptDirect

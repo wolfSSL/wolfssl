@@ -24,7 +24,7 @@
     
     \sa wc_FreeNetRandom
 */
-    WOLFSSL_API int  wc_InitNetRandom(const char*, wnr_hmac_key, int);
+WOLFSSL_API int  wc_InitNetRandom(const char*, wnr_hmac_key, int);
 /*!
     \ingroup Random
     
@@ -46,7 +46,7 @@
     
     \sa wc_InitNetRandom
 */
-    WOLFSSL_API int  wc_FreeNetRandom(void);
+WOLFSSL_API int  wc_FreeNetRandom(void);
 /*!
     \ingroup Random
     
@@ -254,7 +254,7 @@ WOLFSSL_API int  wc_FreeRng(WC_RNG*);
     \sa wc_RNG_GenerateByte
     \sa wc_FreeRng
 */
-    WOLFSSL_API int wc_RNG_HealthTest(int reseed,
+WOLFSSL_API int wc_RNG_HealthTest(int reseed,
                                         const byte* entropyA, word32 entropyASz,
                                         const byte* entropyB, word32 entropyBSz,
                                         byte* output, word32 outputSz);

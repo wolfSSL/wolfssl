@@ -227,8 +227,8 @@ WOLFSSL_API int wc_Sha224Update(wc_Sha224*, const byte*, word32);
         WOLFSSL_MSG("wc_InitSha224 failed");
     }
     else {
-        wc_Sha256Update(&sha224, data, len);
-        wc_Sha256Final(&sha224, hash);
+        wc_Sha224Update(&sha224, data, len);
+        wc_Sha224Final(&sha224, hash);
     }
     \endcode
     

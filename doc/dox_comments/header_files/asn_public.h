@@ -20,6 +20,7 @@
     \sa wc_MakeCertReq
 */
 WOLFSSL_API int wc_InitCert(Cert*);
+
 /*!
     \ingroup ASN
     
@@ -65,6 +66,7 @@ WOLFSSL_API int wc_InitCert(Cert*);
 */
 WOLFSSL_API int  wc_MakeCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
                              ecc_key*, WC_RNG*);
+                             
 /*!
     \ingroup ASN
     
@@ -109,8 +111,9 @@ WOLFSSL_API int  wc_MakeCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
     \sa wc_InitCert
     \sa wc_MakeCert
 */
-    WOLFSSL_API int  wc_MakeCertReq(Cert*, byte* derBuffer, word32 derSz,
+WOLFSSL_API int  wc_MakeCertReq(Cert*, byte* derBuffer, word32 derSz,
                                     RsaKey*, ecc_key*);
+                                    
 /*!
     \ingroup ASN
     
@@ -163,6 +166,7 @@ WOLFSSL_API int  wc_MakeCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
 */
 WOLFSSL_API int  wc_SignCert(int requestSz, int sigType, byte* derBuffer,
                              word32 derSz, RsaKey*, ecc_key*, WC_RNG*);
+                             
 /*!
     \ingroup ASN
     
@@ -208,6 +212,7 @@ WOLFSSL_API int  wc_SignCert(int requestSz, int sigType, byte* derBuffer,
 */
 WOLFSSL_API int  wc_MakeSelfCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
                              WC_RNG*);
+                             
 /*!
     \ingroup ASN
     
@@ -270,6 +275,7 @@ WOLFSSL_API int  wc_MakeSelfCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
     \sa wc_SetIssuerBuffer
 */
 WOLFSSL_API int  wc_SetIssuer(Cert*, const char*);
+
 /*!
     \ingroup ASN
     
@@ -328,6 +334,7 @@ WOLFSSL_API int  wc_SetIssuer(Cert*, const char*);
     \sa wc_SetIssuer
 */
 WOLFSSL_API int  wc_SetSubject(Cert*, const char*);
+
 /*!
     \ingroup ASN
     
@@ -387,7 +394,8 @@ WOLFSSL_API int  wc_SetSubject(Cert*, const char*);
     \sa wc_InitCert
     \sa wc_SetIssuer
 */
-    WOLFSSL_API int  wc_SetAltNames(Cert*, const char*);
+WOLFSSL_API int  wc_SetAltNames(Cert*, const char*);
+
 /*!
     \ingroup ASN
     
@@ -453,6 +461,7 @@ WOLFSSL_API int  wc_SetSubject(Cert*, const char*);
     \sa wc_SetIssuer
 */
 WOLFSSL_API int  wc_SetIssuerBuffer(Cert*, const byte*, int);
+
 /*!
     \ingroup ASN
     
@@ -517,6 +526,7 @@ WOLFSSL_API int  wc_SetIssuerBuffer(Cert*, const byte*, int);
     \sa wc_SetSubject
 */
 WOLFSSL_API int  wc_SetSubjectBuffer(Cert*, const byte*, int);
+
 /*!
     \ingroup ASN
     
@@ -584,6 +594,7 @@ WOLFSSL_API int  wc_SetSubjectBuffer(Cert*, const byte*, int);
     \sa wc_SetAltNames
 */
 WOLFSSL_API int  wc_SetAltNamesBuffer(Cert*, const byte*, int);
+
 /*!
     \ingroup ASN
     
@@ -648,6 +659,7 @@ WOLFSSL_API int  wc_SetAltNamesBuffer(Cert*, const byte*, int);
     \sa wc_InitCert
 */
 WOLFSSL_API int  wc_SetDatesBuffer(Cert*, const byte*, int);
+
 /*!
     \ingroup ASN
     
@@ -711,6 +723,7 @@ WOLFSSL_API int wc_SetAuthKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey,
     \sa wc_SetAuthKeyId
 */
 WOLFSSL_API int wc_SetAuthKeyIdFromCert(Cert *cert, const byte *der, int derSz);
+
 /*!
     \ingroup ASN
     
@@ -739,6 +752,7 @@ WOLFSSL_API int wc_SetAuthKeyIdFromCert(Cert *cert, const byte *der, int derSz);
     \sa wc_SetAuthKeyIdFromCert
 */
 WOLFSSL_API int wc_SetAuthKeyId(Cert *cert, const char* file);
+
 /*!
     \ingroup ASN
     
@@ -771,6 +785,7 @@ WOLFSSL_API int wc_SetAuthKeyId(Cert *cert, const char* file);
 */
 WOLFSSL_API int wc_SetSubjectKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey,
                                                 ecc_key *eckey);
+                                                
 /*!
     \ingroup ASN
     
@@ -801,6 +816,7 @@ WOLFSSL_API int wc_SetSubjectKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey,
     \sa wc_SetSubjectKeyIdFromPublicKey
 */
 WOLFSSL_API int wc_SetSubjectKeyId(Cert *cert, const char* file);
+
 /*!
     \ingroup ASN
     
@@ -833,7 +849,8 @@ WOLFSSL_API int wc_SetSubjectKeyId(Cert *cert, const char* file);
 */
 WOLFSSL_API int wc_SetSubjectKeyIdFromNtruPublicKey(Cert *cert, byte *ntruKey,
                                                     word16 ntruKeySz);
- /*!
+                                                    
+/*!
     \ingroup RSA
     
     \brief This function allows you to set the key usage using a comma 
@@ -864,8 +881,9 @@ WOLFSSL_API int wc_SetSubjectKeyIdFromNtruPublicKey(Cert *cert, byte *ntruKey,
     
     \sa wc_InitCert
     \sa wc_MakeRsaKey
- */
+*/
 WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
+
 /*!
     \ingroup ASN
     
@@ -916,6 +934,7 @@ WOLFSSL_API int wc_SetKeyUsage(Cert *cert, const char *value);
 WOLFSSL_API int  wc_MakeNtruCert(Cert*, byte* derBuffer, word32 derSz,
                              const byte* ntruKey, word16 keySz,
                              WC_RNG*);
+                             
 /*!
     \ingroup ASN
     
@@ -946,6 +965,7 @@ WOLFSSL_API int  wc_MakeNtruCert(Cert*, byte* derBuffer, word32 derSz,
 */
 WOLFSSL_API int wc_PemPubKeyToDer(const char* fileName,
                                        unsigned char* derBuf, int derSz);
+                                       
 /*!
     \ingroup ASN
     
@@ -976,8 +996,8 @@ WOLFSSL_API int wc_PemPubKeyToDer(const char* fileName,
     \sa wc_PemPubKeyToDer
 */
 WOLFSSL_API int wc_PubKeyPemToDer(const unsigned char*, int,
-                                       unsigned char*, int);
-
+                                      unsigned char*, int);
+                                      
 /*!
     \ingroup ASN
     
@@ -1011,7 +1031,7 @@ WOLFSSL_API int wc_PubKeyPemToDer(const unsigned char*, int,
     \sa none
 */
 WOLFSSL_API
-int wc_PemCertToDer(const char* fileName,unsigned char* derBuf,int derSz);
+int wc_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz);
 
 /*!
     \ingroup ASN
@@ -1053,8 +1073,9 @@ int wc_PemCertToDer(const char* fileName,unsigned char* derBuf,int derSz);
     
     \sa wc_PemCertToDer
 */
-    WOLFSSL_API int wc_DerToPem(const byte* der, word32 derSz, byte* output,
+WOLFSSL_API int wc_DerToPem(const byte* der, word32 derSz, byte* output,
                                 word32 outputSz, int type);
+                                
 /*!
     \ingroup ASN
     
@@ -1097,7 +1118,7 @@ int wc_PemCertToDer(const char* fileName,unsigned char* derBuf,int derSz);
     
     \sa wc_PemCertToDer
 */
-    WOLFSSL_API int wc_DerToPemEx(const byte* der, word32 derSz, byte* output,
+WOLFSSL_API int wc_DerToPemEx(const byte* der, word32 derSz, byte* output,
                                 word32 outputSz, byte *cipherIno, int type);
 
 /*!
@@ -1137,6 +1158,7 @@ int wc_PemCertToDer(const char* fileName,unsigned char* derBuf,int derSz);
 */
 WOLFSSL_API int wc_KeyPemToDer(const unsigned char*, int,
                                     unsigned char*, int, const char*);
+                                    
 /*!
     \ingroup CertsKeys
 
@@ -1168,35 +1190,7 @@ WOLFSSL_API int wc_KeyPemToDer(const unsigned char*, int,
 */
 WOLFSSL_API int wc_CertPemToDer(const unsigned char*, int,
                                      unsigned char*, int, int);
-/*!
-    \ingroup CertsKeys
-
-    \brief Converts the PEM format to DER format.
-    
-    \return int an int type representing the bytes written to buffer.
-    \param <0 returned for an error.
-    \param BAD_FUNC_ARG returned if the DER length is incorrect or if the 
-    pem buff, or buffSz arguments are NULL.
-    
-    _Example_
-    \code
-    unsigned char* pem = “pem file”;
-    int pemSz = sizeof(pem)/sizeof(char);
-    unsigned char* buff;
-    int buffSz;
-    ...
-    if(wc_PubKeyPemToDer(pem, pemSz, buff, buffSz)!= SSL_SUCCESS){
-        // Conversion was not successful
-    }
-    \endcode
-    
-    \sa wc_PubKeyPemToDer
-    \sa wc_PemPubKeyToDer
-    \sa wc_PemToDer
-*/
-        WOLFSSL_API int wc_PubKeyPemToDer(const unsigned char*, int,
-                                               unsigned char*, int);
-
+                                     
 /*!
     \ingroup ASN
     
@@ -1246,7 +1240,7 @@ WOLFSSL_API int wc_CertPemToDer(const unsigned char*, int,
     // read key into tmp buffer
 
     wc_ecc_init(&key); // initialize key
-    ret = wc_Ecc_PrivateKeyDecode(tmp, &idx, &key, (word32)inSz);
+    ret = wc_EccPrivateKeyDecode(tmp, &idx, &key, (word32)inSz);
     if(ret < 0) {
         // error decoding ecc key
     }
@@ -1254,8 +1248,9 @@ WOLFSSL_API int wc_CertPemToDer(const unsigned char*, int,
     
     \sa wc_RSA_PrivateKeyDecode
 */
-    WOLFSSL_API int wc_EccPrivateKeyDecode(const byte*, word32*,
+WOLFSSL_API int wc_EccPrivateKeyDecode(const byte*, word32*,
                                            ecc_key*, word32);
+                                           
 /*!
     \ingroup ASN
     
@@ -1298,7 +1293,8 @@ WOLFSSL_API int wc_CertPemToDer(const unsigned char*, int,
     
     \sa wc_RsaKeyToDer
 */
-    WOLFSSL_API int wc_EccKeyToDer(ecc_key*, byte* output, word32 inLen);
+WOLFSSL_API int wc_EccKeyToDer(ecc_key*, byte* output, word32 inLen);
+
 /*!
     \ingroup ASN
     
@@ -1331,8 +1327,9 @@ WOLFSSL_API int wc_CertPemToDer(const unsigned char*, int,
     
     \sa wc_ecc_import_x963
 */
-    WOLFSSL_API int wc_EccPublicKeyDecode(const byte*, word32*,
+WOLFSSL_API int wc_EccPublicKeyDecode(const byte*, word32*,
                                               ecc_key*, word32);
+                                              
 /*!
     \ingroup ASN
     
@@ -1371,8 +1368,9 @@ WOLFSSL_API int wc_CertPemToDer(const unsigned char*, int,
     \sa wc_EccKeyToDer
     \sa wc_EccPrivateKeyDecode
 */
-    WOLFSSL_API int wc_EccPublicKeyToDer(ecc_key*, byte* output,
+WOLFSSL_API int wc_EccPublicKeyToDer(ecc_key*, byte* output,
                                          word32 inLen, int with_AlgCurve);
+                                         
 /*!
     \ingroup ASN
     
@@ -1408,6 +1406,7 @@ WOLFSSL_API int wc_CertPemToDer(const unsigned char*, int,
 */
 WOLFSSL_API word32 wc_EncodeSignature(byte* out, const byte* digest,
                                       word32 digSz, int hashOID);
+                                      
 /*!
     \ingroup ASN
     
