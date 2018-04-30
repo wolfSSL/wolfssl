@@ -17,9 +17,23 @@
 #
 
 function Usage() {
-    echo "Usage: $0 [platform] [keep]"
-    echo "Where \"platform\" is one of linux (default), ios, android, windows, freertos, openrtos-3.9.2, linux-ecc, netbsd-selftest"
-    echo "Where \"keep\" means keep (default off) XXX-fips-test temp dir around for inspection"
+    printf '\n%s\n' "Usage: $0 [platform] [keep]"
+    printf '%s\n\n' "Where \"platform\" is one of:"
+    printf '\t%s\n' "linux (default)"
+    printf '\t%s\n' "ios"
+    printf '\t%s\n' "android"
+    printf '\t%s\n' "windows"
+    printf '\t%s\n' "freertos"
+    printf '\t%s\n' "openrtos-3.9.2"
+    printf '\t%s\n' "linux-ecc"
+    printf '\t%s\n' "netbsd-selftest"
+    printf '\t%s\n' "sgx"
+    printf '\t%s\n' "netos-7.6"
+    printf '\n%s\n\n' "Where \"keep\" means keep (default off) XXX-fips-test temp dir around for inspection"
+    printf '%s\n' "EXAMPLE:"
+    printf '%s\n' "---------------------------------"
+    printf '%s\n' "./fips-check.sh windows keep"
+    printf '%s\n\n' "---------------------------------"
 }
 
 LINUX_FIPS_VERSION=v3.2.6
@@ -56,6 +70,21 @@ OPENRTOS_3_9_2_FIPS_VERSION=v3.9.2-OpenRTOS
 OPENRTOS_3_9_2_FIPS_REPO=git@github.com:wolfSSL/fips.git
 OPENRTOS_3_9_2_CTAO_VERSION=v3.6.1
 OPENRTOS_3_9_2_CTAO_REPO=git@github.com:cyassl/cyassl.git
+
+#NOTE: Does not include the SGX examples yet, update version once fipsv2 is
+#      finished and merge conflicts can be resolved. This will be tagged as
+#      v3.12.4.sgx-examples
+#SGX_FIPS_VERSION=v3.12.4.sgx-examples
+SGX_FIPS_VERSION=v3.6.6
+SGX_FIPS_REPO=git@github.com:wolfSSL/fips.git
+SGX_CTAO_VERSION=v3.12.4
+SGX_CTAO_REPO=git@github.com:cyassl/cyassl.git
+
+NETOS_7_6_FIPS_VERSION=v3.12.6
+NETOS_7_6_FIPS_REPO=git@github.com:wolfSSL/fips.git
+NETOS_7_6_CTAO_VERSION=v3.12.4
+NETOS_7_6_CTAO_REPO=git@github.com:cyassl/cyassl.git
+
 
 FIPS_SRCS=( fips.c fips_test.c )
 WC_MODS=( aes des3 sha sha256 sha512 rsa hmac random )
@@ -131,6 +160,18 @@ netbsd-selftest)
   WC_SRC_PATH=wolfcrypt/src
   CAVP_SELFTEST_ONLY="yes"
   ;;
+sgx)
+  FIPS_VERSION=$SGX_FIPS_VERSION
+  FIPS_REPO=$SGX_FIPS_REPO
+  CTAO_VERSION=$SGX_CTAO_VERSION
+  CTAO_REPO=$SGX_CTAO_REPO
+  ;;
+netos-7.6)
+  FIPS_VERSION=$NETOS_7_6_FIPS_VERSION
+  FIPS_REPO=$NETOS_7_6_FIPS_REPO
+  CTAO_VERSION=$NETOS_7_6_CTAO_VERSION
+  CTAO_REPO=$NETOS_7_6_CTAO_REPO
+  ;;
 *)
   Usage
   exit 1
@@ -152,14 +193,17 @@ do
 done
 
 # The following is temporary. We are using random.c from a separate release
-if [ "x$CAVP_SELFTEST_ONLY" == "xno" ];
-then
-    pushd old-tree
-    git checkout v3.6.0
-    popd
-    cp old-tree/$WC_SRC_PATH/random.c $WC_SRC_PATH
-    cp old-tree/$WC_INC_PATH/random.h $WC_INC_PATH
-fi
+# This is forcefully overwriting any other checkout of the cyassl sources.
+# Removing this as default behavior but leaving in comment to allow for easy
+# reference if needed for any testing. Chris to remove when ready.
+#if [ "x$CAVP_SELFTEST_ONLY" == "xno" ];
+#then
+#    pushd old-tree
+#    git checkout v3.6.0
+#    popd
+#    cp old-tree/$WC_SRC_PATH/random.c $WC_SRC_PATH
+#    cp old-tree/$WC_INC_PATH/random.h $WC_INC_PATH
+#fi
 
 # clone the FIPS repository
 git clone -b $FIPS_VERSION $FIPS_REPO fips
