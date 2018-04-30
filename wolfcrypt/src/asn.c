@@ -113,18 +113,6 @@ ASN Options:
     #endif
 #endif
 
-#ifndef NO_ASN_TIME
-/* two byte date/time, add to value */
-static INLINE void GetTime(int* value, const byte* date, int* idx)
-{
-    int i = *idx;
-
-    *value += btoi(date[i++]) * 10;
-    *value += btoi(date[i++]);
-
-    *idx = i;
-}
-#endif /* !NO_ASN_TIME */
 
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of XSTRNCPY */
@@ -4373,42 +4361,43 @@ static int GetName(DecodedCert* cert, int nameType)
 
 
 #ifndef NO_ASN_TIME
-#if !defined(NO_TIME_H) && defined(USE_WOLF_VALIDDATE)
 
-/* to the second */
-static int DateGreaterThan(const struct tm* a, const struct tm* b)
+/* two byte date/time, add to value */
+static INLINE void GetTime(int* value, const byte* date, int* idx)
 {
-    if (a->tm_year > b->tm_year)
-        return 1;
+    int i = *idx;
 
-    if (a->tm_year == b->tm_year && a->tm_mon > b->tm_mon)
-        return 1;
+    *value += btoi(date[i++]) * 10;
+    *value += btoi(date[i++]);
 
-    if (a->tm_year == b->tm_year && a->tm_mon == b->tm_mon &&
-           a->tm_mday > b->tm_mday)
-        return 1;
-
-    if (a->tm_year == b->tm_year && a->tm_mon == b->tm_mon &&
-        a->tm_mday == b->tm_mday && a->tm_hour > b->tm_hour)
-        return 1;
-
-    if (a->tm_year == b->tm_year && a->tm_mon == b->tm_mon &&
-        a->tm_mday == b->tm_mday && a->tm_hour == b->tm_hour &&
-        a->tm_min > b->tm_min)
-        return 1;
-
-    if (a->tm_year == b->tm_year && a->tm_mon == b->tm_mon &&
-        a->tm_mday == b->tm_mday && a->tm_hour == b->tm_hour &&
-        a->tm_min  == b->tm_min  && a->tm_sec > b->tm_sec)
-        return 1;
-
-    return 0; /* false */
+    *idx = i;
 }
 
-
-static INLINE int DateLessThan(const struct tm* a, const struct tm* b)
+int ExtractDate(const unsigned char* date, unsigned char format,
+                                                  struct tm* certTime, int* idx)
 {
-    return DateGreaterThan(b,a);
+    XMEMSET(certTime, 0, sizeof(struct tm));
+
+    if (format == ASN_UTC_TIME) {
+        if (btoi(date[0]) >= 5)
+            certTime->tm_year = 1900;
+        else
+            certTime->tm_year = 2000;
+    }
+    else  { /* format == GENERALIZED_TIME */
+        certTime->tm_year += btoi(date[*idx]) * 1000; *idx = *idx + 1;
+        certTime->tm_year += btoi(date[*idx]) * 100;  *idx = *idx + 1;
+    }
+
+    /* adjust tm_year, tm_mon */
+    GetTime((int*)&certTime->tm_year, date, idx); certTime->tm_year -= 1900;
+    GetTime((int*)&certTime->tm_mon,  date, idx); certTime->tm_mon  -= 1;
+    GetTime((int*)&certTime->tm_mday, date, idx);
+    GetTime((int*)&certTime->tm_hour, date, idx);
+    GetTime((int*)&certTime->tm_min,  date, idx);
+    GetTime((int*)&certTime->tm_sec,  date, idx);
+
+    return 1;
 }
 
 
@@ -4457,33 +4446,44 @@ int GetTimeString(byte* date, int format, char* buf, int len)
 }
 #endif /* OPENSSL_ALL || WOLFSSL_MYSQL_COMPATIBLE || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 
-int ExtractDate(const unsigned char* date, unsigned char format,
-                                                  struct tm* certTime, int* idx)
+
+#if defined(USE_WOLF_VALIDDATE)
+
+/* to the second */
+static int DateGreaterThan(const struct tm* a, const struct tm* b)
 {
-    XMEMSET(certTime, 0, sizeof(struct tm));
+    if (a->tm_year > b->tm_year)
+        return 1;
 
-    if (format == ASN_UTC_TIME) {
-        if (btoi(date[0]) >= 5)
-            certTime->tm_year = 1900;
-        else
-            certTime->tm_year = 2000;
-    }
-    else  { /* format == GENERALIZED_TIME */
-        certTime->tm_year += btoi(date[*idx]) * 1000; *idx = *idx + 1;
-        certTime->tm_year += btoi(date[*idx]) * 100;  *idx = *idx + 1;
-    }
+    if (a->tm_year == b->tm_year && a->tm_mon > b->tm_mon)
+        return 1;
 
-    /* adjust tm_year, tm_mon */
-    GetTime((int*)&certTime->tm_year, date, idx); certTime->tm_year -= 1900;
-    GetTime((int*)&certTime->tm_mon,  date, idx); certTime->tm_mon  -= 1;
-    GetTime((int*)&certTime->tm_mday, date, idx);
-    GetTime((int*)&certTime->tm_hour, date, idx);
-    GetTime((int*)&certTime->tm_min,  date, idx);
-    GetTime((int*)&certTime->tm_sec,  date, idx);
+    if (a->tm_year == b->tm_year && a->tm_mon == b->tm_mon &&
+           a->tm_mday > b->tm_mday)
+        return 1;
 
-    return 1;
+    if (a->tm_year == b->tm_year && a->tm_mon == b->tm_mon &&
+        a->tm_mday == b->tm_mday && a->tm_hour > b->tm_hour)
+        return 1;
+
+    if (a->tm_year == b->tm_year && a->tm_mon == b->tm_mon &&
+        a->tm_mday == b->tm_mday && a->tm_hour == b->tm_hour &&
+        a->tm_min > b->tm_min)
+        return 1;
+
+    if (a->tm_year == b->tm_year && a->tm_mon == b->tm_mon &&
+        a->tm_mday == b->tm_mday && a->tm_hour == b->tm_hour &&
+        a->tm_min  == b->tm_min  && a->tm_sec > b->tm_sec)
+        return 1;
+
+    return 0; /* false */
 }
 
+
+static INLINE int DateLessThan(const struct tm* a, const struct tm* b)
+{
+    return DateGreaterThan(b,a);
+}
 
 /* like atoi but only use first byte */
 /* Make sure before and after dates are valid */
@@ -4560,7 +4560,7 @@ int ValidateDate(const byte* date, byte format, int dateType)
 
     return 1;
 }
-#endif /* !NO_TIME_H && USE_WOLF_VALIDDATE */
+#endif /* USE_WOLF_VALIDDATE */
 
 int wc_GetTime(void* timePtr, word32 timeSize)
 {
@@ -4581,14 +4581,51 @@ int wc_GetTime(void* timePtr, word32 timeSize)
 
 #endif /* !NO_ASN_TIME */
 
-static int GetDate(DecodedCert* cert, int dateType)
-{
-    int    length;
-    byte   date[MAX_DATE_SIZE];
-    byte   b;
-    word32 startIdx = 0;
 
-    XMEMSET(date, 0, MAX_DATE_SIZE);
+/* Get date buffer, format and length. Returns 0=success or error */
+static int GetDateInfo(const byte* source, word32* idx, const byte** pDate,
+                        byte* pFormat, int* pLength, word32 maxIdx)
+{
+    int length;
+    byte format;
+
+    if (source == NULL || idx == NULL)
+        return BAD_FUNC_ARG;
+
+    /* get ASN format header */
+    if (*idx+1 > maxIdx)
+        return BUFFER_E;
+    format = source[*idx];
+    *idx += 1;
+    if (format != ASN_UTC_TIME && format != ASN_GENERALIZED_TIME)
+        return ASN_TIME_E;
+
+    /* get length */
+    if (GetLength(source, idx, &length, maxIdx) < 0)
+        return ASN_PARSE_E;
+    if (length > MAX_DATE_SIZE || length < MIN_DATE_SIZE)
+        return ASN_DATE_SZ_E;
+
+    /* return format, date and length */
+    if (pFormat)
+        *pFormat = format;
+    if (pDate)
+        *pDate = &source[*idx];
+    if (pLength)
+        *pLength = length;
+
+    *idx += length;
+
+    return 0;
+}
+
+static int GetDate(DecodedCert* cert, int dateType, int verify)
+{
+    int    ret, length;
+    const byte *datePtr = NULL;
+    byte   date[MAX_DATE_SIZE];
+    byte   format;
+    word32 startIdx = 0;
 
     if (dateType == BEFORE)
         cert->beforeDate = &cert->source[cert->srcIdx];
@@ -4596,18 +4633,13 @@ static int GetDate(DecodedCert* cert, int dateType)
         cert->afterDate = &cert->source[cert->srcIdx];
     startIdx = cert->srcIdx;
 
-    b = cert->source[cert->srcIdx++];
-    if (b != ASN_UTC_TIME && b != ASN_GENERALIZED_TIME)
-        return ASN_TIME_E;
+    ret = GetDateInfo(cert->source, &cert->srcIdx, &datePtr, &format,
+                      &length, cert->maxIdx);
+    if (ret < 0)
+        return ret;
 
-    if (GetLength(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
-        return ASN_PARSE_E;
-
-    if (length > MAX_DATE_SIZE || length < MIN_DATE_SIZE)
-        return ASN_DATE_SZ_E;
-
-    XMEMCPY(date, &cert->source[cert->srcIdx], length);
-    cert->srcIdx += length;
+    XMEMSET(date, 0, MAX_DATE_SIZE);
+    XMEMCPY(date, datePtr, length);
 
     if (dateType == BEFORE)
         cert->beforeDateLen = cert->srcIdx - startIdx;
@@ -4615,12 +4647,14 @@ static int GetDate(DecodedCert* cert, int dateType)
         cert->afterDateLen  = cert->srcIdx - startIdx;
 
 #ifndef NO_ASN_TIME
-    if (!XVALIDATE_DATE(date, b, dateType)) {
+    if (verify != NO_VERIFY && !XVALIDATE_DATE(date, format, dateType)) {
         if (dateType == BEFORE)
             return ASN_BEFORE_DATE_E;
         else
             return ASN_AFTER_DATE_E;
     }
+#else
+    (void)verify;
 #endif
 
     return 0;
@@ -4634,10 +4668,10 @@ static int GetValidity(DecodedCert* cert, int verify)
     if (GetSequence(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
         return ASN_PARSE_E;
 
-    if (GetDate(cert, BEFORE) < 0 && verify != NO_VERIFY)
-        badDate = ASN_BEFORE_DATE_E;           /* continue parsing */
+    if (GetDate(cert, BEFORE, verify) < 0)
+        badDate = ASN_BEFORE_DATE_E; /* continue parsing */
 
-    if (GetDate(cert, AFTER) < 0 && verify != NO_VERIFY)
+    if (GetDate(cert, AFTER, verify) < 0)
         return ASN_AFTER_DATE_E;
 
     if (badDate != 0)
@@ -4645,6 +4679,60 @@ static int GetValidity(DecodedCert* cert, int verify)
 
     return 0;
 }
+
+
+int wc_GetDateInfo(const byte* certDate, int certDateSz, const byte** date,
+    byte* format, int* length)
+{
+    int ret;
+    word32 idx = 0;
+
+    ret = GetDateInfo(certDate, &idx, date, format, length, certDateSz);
+    if (ret < 0)
+        return ret;
+
+    return 0;
+}
+
+#ifndef NO_ASN_TIME
+int wc_GetDateAsCalendarTime(const byte* date, int length, byte format,
+    struct tm* time)
+{
+    int idx = 0;
+    (void)length;
+    if (!ExtractDate(date, format, time, &idx))
+        return ASN_TIME_E;
+    return 0;
+}
+
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_ALT_NAMES)
+int wc_GetCertDates(Cert* cert, struct tm* before, struct tm* after)
+{
+    int ret = 0;
+    const byte* date;
+    byte format;
+    int length;
+
+    if (cert == NULL)
+        return BAD_FUNC_ARG;
+
+    if (before && cert->beforeDateSz > 0) {
+        ret = wc_GetDateInfo(cert->beforeDate, cert->beforeDateSz, &date,
+                             &format, &length);
+        if (ret == 0)
+            ret = wc_GetDateAsCalendarTime(date, length, format, before);
+    }
+    if (after && cert->afterDateSz > 0) {
+        ret = wc_GetDateInfo(cert->afterDate, cert->afterDateSz, &date,
+                             &format, &length);
+        if (ret == 0)
+            ret = wc_GetDateAsCalendarTime(date, length, format, after);
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_CERT_GEN && WOLFSSL_ALT_NAMES */
+#endif /* !NO_ASN_TIME */
 
 
 int DecodeToKey(DecodedCert* cert, int verify)
@@ -11470,7 +11558,7 @@ int wc_SetSubject(Cert* cert, const char* subjectFile)
 
 #ifdef WOLFSSL_ALT_NAMES
 
-/* Set atl names from file in PEM */
+/* Set alt names from file in PEM */
 int wc_SetAltNames(Cert* cert, const char* file)
 {
     int         ret;
@@ -12298,23 +12386,16 @@ int wc_Ed25519PrivateKeyToDer(ed25519_key* key, byte* output, word32 inLen)
 static int GetBasicDate(const byte* source, word32* idx, byte* date,
                         byte* format, int maxIdx)
 {
-    int    length;
+    int    ret, length;
+    const byte *datePtr = NULL;
 
     WOLFSSL_ENTER("GetBasicDate");
 
-    *format = source[*idx];
-    *idx += 1;
-    if (*format != ASN_UTC_TIME && *format != ASN_GENERALIZED_TIME)
-        return ASN_TIME_E;
+    ret = GetDateInfo(source, idx, &datePtr, format, &length, maxIdx);
+    if (ret < 0)
+        return ret;
 
-    if (GetLength(source, idx, &length, maxIdx) < 0)
-        return ASN_PARSE_E;
-
-    if (length > MAX_DATE_SIZE || length < MIN_DATE_SIZE)
-        return ASN_DATE_SZ_E;
-
-    XMEMCPY(date, &source[*idx], length);
-    *idx += length;
+    XMEMCPY(date, datePtr, length);
 
     return 0;
 }
@@ -13154,7 +13235,7 @@ void FreeDecodedCRL(DecodedCRL* dcrl)
 static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
                       int maxIdx)
 {
-    int    len;
+    int    ret, len;
     word32 end;
     byte   b;
     RevokedCert* rc;
@@ -13184,21 +13265,12 @@ static int GetRevoked(const byte* buff, word32* idx, DecodedCRL* dcrl,
     dcrl->certs = rc;
     dcrl->totalCerts++;
 
-
     /* get date */
-    b = buff[*idx];
-    *idx += 1;
-
-    if (b != ASN_UTC_TIME && b != ASN_GENERALIZED_TIME) {
+    ret = GetDateInfo(buff, idx, NULL, &b, NULL, maxIdx);
+    if (ret < 0) {
         WOLFSSL_MSG("Expecting Date");
-        return ASN_PARSE_E;
+        return ret;
     }
-
-    if (GetLength(buff, idx, &len, maxIdx) < 0)
-        return ASN_PARSE_E;
-
-    /* skip for now */
-    *idx += len;
 
     if (*idx != end)  /* skip extensions */
         *idx = end;
