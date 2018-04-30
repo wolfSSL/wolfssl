@@ -76,6 +76,7 @@
     #include <wolfssl/openssl/ecdh.h>
     #include <wolfssl/openssl/rc4.h>
     /* openssl headers end, wolfssl internal headers next */
+    #include <wolfssl/wolfcrypt/asn.h>
     #include <wolfssl/wolfcrypt/hmac.h>
     #include <wolfssl/wolfcrypt/random.h>
     #include <wolfssl/wolfcrypt/des3.h>
@@ -17958,6 +17959,106 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 }
 #endif /* NO_CERTS */
 
+#ifdef HAVE_CRL
+
+WOLFSSL_X509_CRL* wolfSSL_d2i_X509_CRL(WOLFSSL_X509_CRL** crl, const unsigned char* in, int len)
+{
+    WOLFSSL_X509_CRL *newcrl = NULL;
+    WOLFSSL_CERT_MANAGER *cert= NULL;
+    int ret ;
+
+    WOLFSSL_ENTER("wolfSSL_X509_CRL_d2i");
+
+    if(in == NULL){
+        WOLFSSL_MSG("Bad argument value");
+        return NULL;
+    }
+
+    newcrl = (WOLFSSL_CRL*)XMALLOC(sizeof(WOLFSSL_CRL), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (newcrl == NULL)
+        return NULL;
+    cert = wolfSSL_CertManagerNew();
+    if (cert == NULL){
+        XFREE(newcrl, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return NULL;
+    }
+    if (InitCRL(newcrl, cert) < 0) {
+        WOLFSSL_MSG("Init tmp CRL failed");
+        XFREE(newcrl, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        wolfSSL_CertManagerFree(cert);  
+    }
+    printf("Done InitCRL\n");
+    ret = BufferLoadCRL(newcrl, in, len, WOLFSSL_FILETYPE_ASN1, 1);
+    wolfSSL_CertManagerFree(cert);  
+    if (ret != WOLFSSL_SUCCESS)
+        return NULL;
+
+    if(crl)
+        *crl = newcrl;
+
+    return newcrl;
+}
+
+#ifndef NO_FILESYSTEM
+WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_fp(WOLFSSL_X509_CRL **crl, XFILE file)
+{
+    WOLFSSL_X509_CRL *newcrl = NULL;
+    DerBuffer*   der = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_d2i_X509_CRL_fp");
+
+    if (file != XBADFILE)
+    {
+        byte *fileBuffer = NULL;
+        long sz = 0;
+
+        XFSEEK(file, 0, XSEEK_END);
+        sz = XFTELL(file);
+        XREWIND(file);
+
+        if (sz < 0)
+        {
+            WOLFSSL_MSG("Bad tell on FILE");
+            return NULL;
+        }
+
+        fileBuffer = (byte *)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE);
+        if (fileBuffer != NULL)
+        {
+            int ret = (int)XFREAD(fileBuffer, 1, sz, file);
+            if (ret == sz)
+            {
+                ret = PemToDer(fileBuffer , sz, CRL_TYPE, &der, NULL, NULL, NULL);
+            } else {
+                WOLFSSL_MSG("Pem to Der failed");
+                FreeDer(&der);
+                return NULL;
+            }
+            XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
+            newcrl = wolfSSL_d2i_X509_CRL(NULL, der->buffer, (int)der->length);
+            if(newcrl == NULL)
+            {
+                WOLFSSL_MSG("X509_CRL failed");
+                return NULL;
+            }
+        }
+    }
+
+    if (crl != NULL)
+        *crl = newcrl;
+
+    return newcrl;
+}
+#endif
+
+void wolfSSL_X509_CRL_free(WOLFSSL_X509_CRL *crl)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_CRL_free");
+
+    XFREE(crl, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return;
+}
+
 #ifndef NO_WOLFSSL_STUB
 WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_lastUpdate(WOLFSSL_X509_CRL* crl)
 {
@@ -17985,6 +18086,8 @@ int wolfSSL_X509_CRL_verify(WOLFSSL_X509_CRL* crl, WOLFSSL_EVP_PKEY* key)
     return 0;
 }
 #endif
+#endif /* HAVE_CRL */
+
 #endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA_X509_SMALL)

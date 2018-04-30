@@ -18570,6 +18570,35 @@ static int test_wc_RNG_GenerateBlock()
 }
 #endif
 
+static int test_d2i_X509_CRL(void)
+{
+    #if defined(OPENSSL_EXTRA) && defined(HAVE_CRL)
+    X509_CRL *crl;
+    char file[][100] = {
+        "./certs/crl/crl.pem",
+        "./certs/crl/crl2.pem",
+        "./certs/crl/caEccCrl.pem",
+        "./certs/crl/eccCliCRL.pem",
+        "./certs/crl/eccSrvCRL.pem",
+        ""
+    };
+
+    FILE * fp;
+    int i;
+
+    for(i = 0; file[i][0] != '\0'; i++){
+        AssertNotNull(fp = fopen(file[i], "rb"));
+        AssertNotNull((X509_CRL *)d2i_X509_CRL_fp((X509_CRL **)NULL, fp));
+        AssertNotNull((X509_CRL *)d2i_X509_CRL_fp((X509_CRL **)&crl, fp));
+        AssertNotNull(crl);
+        X509_CRL_free(crl);
+    }
+    X509_CRL_free(NULL);
+    #endif
+    
+    return WOLFSSL_SUCCESS;
+}
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -18676,6 +18705,7 @@ void ApiTest(void)
     test_wolfSSL_AES_ecb_encrypt();
     test_wolfSSL_SHA256();
     test_wolfSSL_X509_get_serialNumber();
+    test_d2i_X509_CRL();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();
