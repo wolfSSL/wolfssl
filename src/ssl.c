@@ -17975,28 +17975,34 @@ WOLFSSL_X509_CRL* wolfSSL_d2i_X509_CRL(WOLFSSL_X509_CRL** crl, const unsigned ch
     }
 
     newcrl = (WOLFSSL_CRL*)XMALLOC(sizeof(WOLFSSL_CRL), NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if (newcrl == NULL)
+    if (newcrl == NULL){
+        WOLFSSL_MSG("New CRL allocation failed");
         return NULL;
+    }
     cert = wolfSSL_CertManagerNew();
     if (cert == NULL){
-        XFREE(newcrl, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return NULL;
+        WOLFSSL_MSG("CertManagerNew failed");
+        goto err_exit;
     }
     if (InitCRL(newcrl, cert) < 0) {
         WOLFSSL_MSG("Init tmp CRL failed");
-        XFREE(newcrl, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        wolfSSL_CertManagerFree(cert);  
+        goto err_exit;
     }
-    printf("Done InitCRL\n");
-    ret = BufferLoadCRL(newcrl, in, len, WOLFSSL_FILETYPE_ASN1, 1);
-    wolfSSL_CertManagerFree(cert);  
-    if (ret != WOLFSSL_SUCCESS)
-        return NULL;
-
+    ret = BufferLoadCRL(newcrl, in, len, WOLFSSL_FILETYPE_ASN1, 1); 
+    if (ret != WOLFSSL_SUCCESS){
+        WOLFSSL_MSG("Buffer Load CRL failed");
+        goto err_exit;
+    }
     if(crl)
         *crl = newcrl;
-
     return newcrl;
+
+err_exit:
+    if(cert != NULL)
+        wolfSSL_CertManagerFree(cert); 
+    if(newcrl != NULL)
+        XFREE(newcrl, NULL, DYNAMIC_TYPE_FILE);   
+    return NULL;
 }
 
 #ifndef NO_FILESYSTEM
@@ -18004,12 +18010,12 @@ WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_fp(WOLFSSL_X509_CRL **crl, XFILE file)
 {
     WOLFSSL_X509_CRL *newcrl = NULL;
     DerBuffer*   der = NULL;
-
+    byte *fileBuffer = NULL;
+    
     WOLFSSL_ENTER("wolfSSL_d2i_X509_CRL_fp");
 
     if (file != XBADFILE)
     {
-        byte *fileBuffer = NULL;
         long sz = 0;
 
         XFSEEK(file, 0, XSEEK_END);
@@ -18028,26 +18034,43 @@ WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_fp(WOLFSSL_X509_CRL **crl, XFILE file)
             int ret = (int)XFREAD(fileBuffer, 1, sz, file);
             if (ret == sz)
             {
-                ret = PemToDer(fileBuffer , sz, CRL_TYPE, &der, NULL, NULL, NULL);
+                #ifdef WOLFSSL_PEM_TO_DER
+                    ret = PemToDer(fileBuffer , sz, CRL_TYPE, &der, NULL, NULL, NULL);
+                #else
+                    ret = NOT_COMPILED_IN;
+                #endif
+                if(ret != 0)
+                {
+                    WOLFSSL_MSG("Pem to Der failed");
+                    goto err_exit;
+                }
             } else {
-                WOLFSSL_MSG("Pem to Der failed");
-                FreeDer(&der);
-                return NULL;
+                WOLFSSL_MSG("File read error");
+                goto err_exit;
             }
             XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
+            fileBuffer = NULL;
             newcrl = wolfSSL_d2i_X509_CRL(NULL, der->buffer, (int)der->length);
             if(newcrl == NULL)
             {
                 WOLFSSL_MSG("X509_CRL failed");
-                return NULL;
+                goto err_exit;
             }
         }
     }
 
     if (crl != NULL)
         *crl = newcrl;
-
     return newcrl;
+
+err_exit:
+    if(der != NULL)
+        FreeDer(&der);
+    if(newcrl != NULL)
+        XFREE(newcrl, NULL, DYNAMIC_TYPE_FILE);
+    if(fileBuffer != NULL)
+        XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
+    return NULL;
 }
 #endif
 
