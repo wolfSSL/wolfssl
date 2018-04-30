@@ -17966,6 +17966,7 @@ WOLFSSL_X509_CRL* wolfSSL_d2i_X509_CRL(WOLFSSL_X509_CRL** crl, const unsigned ch
     WOLFSSL_X509_CRL *newcrl = NULL;
     WOLFSSL_CERT_MANAGER *cert= NULL;
     int ret ;
+    WOLFSSL_X509_CRL* retValue = NULL;
 
     WOLFSSL_ENTER("wolfSSL_X509_CRL_d2i");
 
@@ -17995,14 +17996,16 @@ WOLFSSL_X509_CRL* wolfSSL_d2i_X509_CRL(WOLFSSL_X509_CRL** crl, const unsigned ch
     }
     if(crl)
         *crl = newcrl;
-    return newcrl;
+    retValue = newcrl;
+    goto _exit;
 
 err_exit:
+    if(newcrl != NULL)
+        XFREE(newcrl, NULL, DYNAMIC_TYPE_FILE); 
     if(cert != NULL)
         wolfSSL_CertManagerFree(cert); 
-    if(newcrl != NULL)
-        XFREE(newcrl, NULL, DYNAMIC_TYPE_FILE);   
-    return NULL;
+_exit:
+    return retValue;
 }
 
 #ifndef NO_FILESYSTEM
@@ -18011,6 +18014,7 @@ WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_fp(WOLFSSL_X509_CRL **crl, XFILE file)
     WOLFSSL_X509_CRL *newcrl = NULL;
     DerBuffer*   der = NULL;
     byte *fileBuffer = NULL;
+    WOLFSSL_X509_CRL *retValue = NULL;
     
     WOLFSSL_ENTER("wolfSSL_d2i_X509_CRL_fp");
 
@@ -18061,16 +18065,18 @@ WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_fp(WOLFSSL_X509_CRL **crl, XFILE file)
 
     if (crl != NULL)
         *crl = newcrl;
-    return newcrl;
+    retValue = newcrl;
+    goto _exit;
 
 err_exit:
-    if(der != NULL)
-        FreeDer(&der);
     if(newcrl != NULL)
         XFREE(newcrl, NULL, DYNAMIC_TYPE_FILE);
+_exit:
+    if(der != NULL)
+        FreeDer(&der);
     if(fileBuffer != NULL)
         XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
-    return NULL;
+    return retValue;
 }
 #endif
 
@@ -18078,7 +18084,7 @@ void wolfSSL_X509_CRL_free(WOLFSSL_X509_CRL *crl)
 {
     WOLFSSL_ENTER("wolfSSL_X509_CRL_free");
 
-    XFREE(crl, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    FreeCRL(crl, 0);
     return;
 }
 

@@ -18570,7 +18570,7 @@ static int test_wc_RNG_GenerateBlock()
 }
 #endif
 
-static int test_d2i_X509_CRL(void)
+static void test_d2i_X509_CRL(void)
 {
     #if defined(OPENSSL_EXTRA) && defined(HAVE_CRL)
     X509_CRL *crl;
@@ -18593,10 +18593,10 @@ static int test_d2i_X509_CRL(void)
         AssertNotNull(crl);
         X509_CRL_free(crl);
     }
-    X509_CRL_free(NULL);
+    
     #endif
     
-    return WOLFSSL_SUCCESS;
+    return;
 }
 
 /*----------------------------------------------------------------------------*
