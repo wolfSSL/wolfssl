@@ -24090,25 +24090,25 @@ int wolfSSL_RSA_verify(int type, const unsigned char* m,
     unsigned int   len;
 
     WOLFSSL_ENTER("wolfSSL_RSA_verify");
-    if((m == NULL) || (sig == NULL)) {
+    if ((m == NULL) || (sig == NULL)) {
         WOLFSSL_MSG("Bad function arguments");
         return WOLFSSL_FAILURE;
     }
 
     sigRet = (unsigned char *)XMALLOC(sigLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if(sigRet == NULL){
+    if (sigRet == NULL) {
         WOLFSSL_MSG("Memory failure");
         return WOLFSSL_FAILURE;
     }
     sigDec = (unsigned char *)XMALLOC(sigLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    if(sigDec == NULL){
+    if (sigDec == NULL) {
         WOLFSSL_MSG("Memory failure");
         XFREE(sigRet, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_FAILURE;
     }
     /* get non-encrypted signature to be compared with decrypted sugnature*/
     ret = wolfSSL_RSA_sign_ex(type, m, mLen, sigRet, &len, rsa, 0);
-    if(ret <= 0){
+    if (ret <= 0) {
         WOLFSSL_MSG("Message Digest Error");
         XFREE(sigRet, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(sigDec, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -24116,8 +24116,9 @@ int wolfSSL_RSA_verify(int type, const unsigned char* m,
     }
     show("Encoded Message", sigRet, len);
     /* decrypt signature */
-    ret = wc_RsaSSL_Verify(sig, sigLen, (unsigned char *)sigDec, sigLen, (RsaKey*)rsa->internal);
-    if(ret <= 0){
+    ret = wc_RsaSSL_Verify(sig, sigLen, (unsigned char *)sigDec, sigLen,
+        (RsaKey*)rsa->internal);
+    if (ret <= 0) {
         WOLFSSL_MSG("RSA Decrypt error");
         XFREE(sigRet, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(sigDec, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -24125,12 +24126,13 @@ int wolfSSL_RSA_verify(int type, const unsigned char* m,
     }
     show("Decrypted Signature", sigDec, ret);
 
-    if(XMEMCMP(sigRet, sigDec, ret) == 0){
+    if ((int)len == ret && XMEMCMP(sigRet, sigDec, ret) == 0) {
         WOLFSSL_MSG("wolfSSL_RSA_verify success");
         XFREE(sigRet, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(sigDec, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return WOLFSSL_SUCCESS;
-    } else {
+    }
+    else {
         WOLFSSL_MSG("wolfSSL_RSA_verify failed");
         XFREE(sigRet, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(sigDec, NULL, DYNAMIC_TYPE_TMP_BUFFER);
