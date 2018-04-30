@@ -57,11 +57,20 @@
 #endif
 #endif /* HAVE_QSH */
 
-#if !defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TLS13) && \
-                                          !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)
+#if (!defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TLS13) && \
+        !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)) || \
+    (defined(WOLFSSL_TLS13) && defined(HAVE_SUPPORTED_CURVES))
 static int TLSX_KeyShare_IsSupported(int namedGroup);
+#endif
+
+#if (!defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TLS13) && \
+        !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)) || \
+    (defined(WOLFSSL_TLS13) && !defined(HAVE_ECC) && \
+        defined(HAVE_SUPPORTED_CURVES)) || \
+    (defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES))
 static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions);
 #endif
+
 
 #ifndef NO_TLS
 
@@ -8155,9 +8164,13 @@ static byte* TLSX_QSHKeyFind_Pub(QSHKey* qsh, word16* pubLen, word16 name)
 }
 #endif /* HAVE_QSH */
 
+#if (!defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)) || \
+    (defined(WOLFSSL_TLS13) && !defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)) || \
+    (defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES))
+
 static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
 {
-    int ret;
+    int ret = WOLFSSL_SUCCESS;
 #ifdef WOLFSSL_TLS13
     int i;
 
@@ -8176,7 +8189,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
         }
         return WOLFSSL_SUCCESS;
     }
-#endif
+#endif /* WOLFSSL_TLS13 */
 
 #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
     #ifndef HAVE_FIPS
@@ -8230,6 +8243,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
             #endif
         #endif
 #endif /* HAVE_ECC && HAVE_SUPPORTED_CURVES */
+
         #ifndef HAVE_FIPS
             #if defined(HAVE_CURVE25519)
                 ret = TLSX_UseSupportedCurve(extensions,
@@ -8237,6 +8251,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
                 if (ret != WOLFSSL_SUCCESS) return ret;
             #endif
         #endif /* HAVE_FIPS */
+
 #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
         #if !defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)
             #ifdef HAVE_ECC_KOBLITZ
@@ -8276,7 +8291,7 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
                 if (ret != WOLFSSL_SUCCESS) return ret;
             #endif
         #endif
-#endif
+#endif /* HAVE_ECC && HAVE_SUPPORTED_CURVES */
 
     #ifdef WOLFSSL_TLS13
         if (IsAtLeastTLSv1_3(ssl->version)) {
@@ -8312,10 +8327,15 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
                     return ret;
         #endif
         }
-    #endif
+    #endif /* WOLFSSL_TLS13 */
 
-    return WOLFSSL_SUCCESS;
+    (void)ssl;
+    (void)extensions;
+
+    return ret;
 }
+
+#endif
 
 int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 {
@@ -8455,7 +8475,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 return ret;
             }
 
-        #if !defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
+    #if !defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
         if (TLSX_Find(ssl->ctx->extensions, TLSX_SUPPORTED_GROUPS) == NULL) {
             /* Put in DH groups for TLS 1.3 only. */
             ret = TLSX_PopulateSupportedGroups(ssl, &ssl->extensions);
@@ -8463,7 +8483,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 return ret;
             ret = 0;
         }
-        #endif /* !HAVE_ECC && HAVE_SUPPORTED_CURVES */
+    #endif /* !HAVE_ECC && HAVE_SUPPORTED_CURVES */
 
         #if !defined(WOLFSSL_TLS13_DRAFT_18) && !defined(WOLFSSL_TLS13_DRAFT_22)
             if (ssl->certHashSigAlgoSz > 0) {

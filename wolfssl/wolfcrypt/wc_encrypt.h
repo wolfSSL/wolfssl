@@ -42,7 +42,7 @@
     #define WC_MAX_SYM_KEY_SIZE     (AES_MAX_KEY_SIZE/8)
 #elif defined(HAVE_CHACHA)
     #define WC_MAX_SYM_KEY_SIZE     CHACHA_MAX_KEY_SZ
-#elif !defined(NO_DES)
+#elif !defined(NO_DES3)
     #define WC_MAX_SYM_KEY_SIZE     DES3_KEY_SIZE
 #elif !defined(NO_RC4)
     #define WC_MAX_SYM_KEY_SIZE     RC4_KEY_SIZE
