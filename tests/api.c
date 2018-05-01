@@ -18586,12 +18586,14 @@ static void test_d2i_X509_CRL(void)
     FILE * fp;
     int i;
 
+    printf(testingFmt, "test_d2i_X509_CRL");
     for(i = 0; file[i][0] != '\0'; i++){
         AssertNotNull(fp = fopen(file[i], "rb"));
         AssertNotNull((X509_CRL *)d2i_X509_CRL_fp((X509_CRL **)NULL, fp));
         AssertNotNull((X509_CRL *)d2i_X509_CRL_fp((X509_CRL **)&crl, fp));
         AssertNotNull(crl);
         X509_CRL_free(crl);
+        fclose(fp);
     }
     
     #endif
