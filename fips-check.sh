@@ -194,16 +194,16 @@ done
 
 # The following is temporary. We are using random.c from a separate release
 # This is forcefully overwriting any other checkout of the cyassl sources.
-# Removing this as default behavior but leaving in comment to allow for easy
-# reference if needed for any testing. Chris to remove when ready.
-#if [ "x$CAVP_SELFTEST_ONLY" == "xno" ];
-#then
-#    pushd old-tree
-#    git checkout v3.6.0
-#    popd
-#    cp old-tree/$WC_SRC_PATH/random.c $WC_SRC_PATH
-#    cp old-tree/$WC_INC_PATH/random.h $WC_INC_PATH
-#fi
+# Removing this as default behavior for SGX and netos projects.
+if [ "x$CAVP_SELFTEST_ONLY" == "xno" ] && [ "x$PLATFORM" != "xsgx" ] && \
+   [ "x$PLATFORM" != "xnetos-7.6" ];
+then
+    pushd old-tree
+    git checkout v3.6.0
+    popd
+    cp old-tree/$WC_SRC_PATH/random.c $WC_SRC_PATH
+    cp old-tree/$WC_INC_PATH/random.h $WC_INC_PATH
+fi
 
 # clone the FIPS repository
 git clone -b $FIPS_VERSION $FIPS_REPO fips
