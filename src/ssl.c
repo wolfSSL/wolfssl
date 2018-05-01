@@ -18084,7 +18084,7 @@ void wolfSSL_X509_CRL_free(WOLFSSL_X509_CRL *crl)
 {
     WOLFSSL_ENTER("wolfSSL_X509_CRL_free");
 
-    FreeCRL(crl, 0);
+    FreeCRL(crl, 1);
     return;
 }
 
