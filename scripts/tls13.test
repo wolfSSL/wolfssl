@@ -13,18 +13,21 @@ counter=0
 # let's use absolute path to a local dir (make distcheck may be in sub dir)
 # also let's add some randomness by adding pid in case multiple 'make check's
 # per source tree
-ready_file=`pwd`/wolfssl_psk_ready$$
+ready_file=`pwd`/wolfssl_tls13_ready$$
 
 echo "ready file $ready_file"
 
 create_port() {
-    while [ ! -s $ready_file -a "$counter" -lt 50 ]; do
+    while [ ! -s $ready_file ]; do
+        if [ -a "$counter" -gt 50 ]; then
+            break
+        fi
         echo -e "waiting for ready file..."
         sleep 0.1
         counter=$((counter+ 1))
     done
 
-    if test -e $ready_file; then
+    if [ -e $ready_file ]; then
         echo -e "found ready file, starting client..."
 
         # get created port 0 ephemeral port
@@ -36,9 +39,9 @@ create_port() {
 }
 
 remove_ready_file() {
-    if test -e $ready_file; then
+    if [ -e $ready_file ]; then
         echo -e "removing existing ready file"
-    rm $ready_file
+        rm $ready_file
     fi
 }
 
