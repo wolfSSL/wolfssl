@@ -46,7 +46,8 @@
 	\sa wolfSSL_Free
 	\sa wolfSSL_SetAllocators
 */
-		WOLFSSL_API void* XMALLOC(size_t n, void* heap, int type);
+WOLFSSL_API void* XMALLOC(size_t n, void* heap, int type);
+
 /*!
     \ingroup Memory
     
@@ -91,7 +92,8 @@
 	\sa wolfSSL_Free
 	\sa wolfSSL_SetAllocators
 */
-		WOLFSSL_API void* XREALLOC(void *p, size_t n, void* heap, int type);
+WOLFSSL_API void* XREALLOC(void *p, size_t n, void* heap, int type);
+
 /*!
     \ingroup Memory
     
@@ -138,7 +140,8 @@
 	\sa wolfSSL_Free
 	\sa wolfSSL_SetAllocators
 */
-		WOLFSSL_API void XFREE(void *p, void* heap, int type);
+WOLFSSL_API void XFREE(void *p, void* heap, int type);
+
 /*!
     \ingroup Math
     
@@ -166,4 +169,4 @@
     
     \sa CheckRunTimeFastMath
 */
-	WOLFSSL_API word32 CheckRunTimeSettings(void);
+WOLFSSL_API word32 CheckRunTimeSettings(void);

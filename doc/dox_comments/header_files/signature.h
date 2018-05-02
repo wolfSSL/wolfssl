@@ -31,6 +31,7 @@
 */
 WOLFSSL_API int wc_SignatureGetSize(enum wc_SignatureType sig_type,
     const void* key, word32 key_len);
+
 /*!
     \ingroup Signature
     
@@ -80,6 +81,7 @@ WOLFSSL_API int wc_SignatureVerify(
     const byte* data, word32 data_len,
     const byte* sig, word32 sig_len,
     const void* key, word32 key_len);
+
 /*!
     \ingroup Signature
     

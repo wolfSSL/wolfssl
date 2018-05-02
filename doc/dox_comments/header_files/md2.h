@@ -25,6 +25,7 @@
     \sa wc_Md2Final
 */
 WOLFSSL_API void wc_InitMd2(Md2*);
+
 /*!
     \ingroup MD2
     
@@ -57,6 +58,7 @@ WOLFSSL_API void wc_InitMd2(Md2*);
     \sa wc_InitMd2
 */
 WOLFSSL_API void wc_Md2Update(Md2*, const byte*, word32);
+
 /*!
     \ingroup MD2
     
@@ -87,6 +89,7 @@ WOLFSSL_API void wc_Md2Update(Md2*, const byte*, word32);
     \sa wc_InitMd2
 */
 WOLFSSL_API void wc_Md2Final(Md2*, byte*);
+
 /*!
     \ingroup MD2
     

@@ -16103,8 +16103,11 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
             }
             if (GetTimeString(x509->notBefore + 2, ASN_UTC_TIME,
                 tmp, sizeof(tmp)) != WOLFSSL_SUCCESS) {
-                WOLFSSL_MSG("Error getting not before date");
-                return WOLFSSL_FAILURE;
+                if (GetTimeString(x509->notBefore + 2, ASN_GENERALIZED_TIME,
+                tmp, sizeof(tmp)) != WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("Error getting not before date");
+                    return WOLFSSL_FAILURE;
+                }
             }
             tmp[sizeof(tmp) - 1] = '\0'; /* make sure null terminated */
             if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {
@@ -16116,8 +16119,11 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
             }
             if (GetTimeString(x509->notAfter + 2,ASN_UTC_TIME,
                 tmp, sizeof(tmp)) != WOLFSSL_SUCCESS) {
-                WOLFSSL_MSG("Error getting not before date");
-                return WOLFSSL_FAILURE;
+                if (GetTimeString(x509->notAfter + 2,ASN_GENERALIZED_TIME,
+                    tmp, sizeof(tmp)) != WOLFSSL_SUCCESS) {
+                    WOLFSSL_MSG("Error getting not before date");
+                    return WOLFSSL_FAILURE;
+                }
             }
             tmp[sizeof(tmp) - 1] = '\0'; /* make sure null terminated */
             if (wolfSSL_BIO_write(bio, tmp, (int)XSTRLEN(tmp)) <= 0) {

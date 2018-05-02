@@ -37,6 +37,7 @@
     \sa wc_DeCompress
 */
 WOLFSSL_API int wc_Compress(byte*, word32, const byte*, word32, word32);
+
 /*!
     \ingroup Compression
     

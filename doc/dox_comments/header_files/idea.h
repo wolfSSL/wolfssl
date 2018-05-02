@@ -28,6 +28,7 @@
 */
 WOLFSSL_API int wc_IdeaSetKey(Idea *idea, const byte* key, word16 keySz,
                               const byte *iv, int dir);
+
 /*!
     \ingroup IDEA
     
@@ -55,6 +56,7 @@ WOLFSSL_API int wc_IdeaSetKey(Idea *idea, const byte* key, word16 keySz,
     \sa wc_IdeaSetKey
 */
 WOLFSSL_API int wc_IdeaSetIV(Idea *idea, const byte* iv);
+
 /*!
     \ingroup IDEA
     
@@ -87,6 +89,7 @@ WOLFSSL_API int wc_IdeaSetIV(Idea *idea, const byte* iv);
     \sa wc_IdeaCbcDecrypt
 */
 WOLFSSL_API int wc_IdeaCipher(Idea *idea, byte* out, const byte* in);
+
 /*!
     \ingroup IDEA
     
@@ -122,6 +125,7 @@ WOLFSSL_API int wc_IdeaCipher(Idea *idea, byte* out, const byte* in);
 */
 WOLFSSL_API int wc_IdeaCbcEncrypt(Idea *idea, byte* out,
                                   const byte* in, word32 len);
+
 /*!
     \ingroup IDEA
     
