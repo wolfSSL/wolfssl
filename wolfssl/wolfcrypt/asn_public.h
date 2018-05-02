@@ -288,6 +288,11 @@ WOLFSSL_API int wc_SetSubjectBuffer(Cert*, const byte*, int);
 WOLFSSL_API int wc_SetAltNamesBuffer(Cert*, const byte*, int);
 WOLFSSL_API int wc_SetDatesBuffer(Cert*, const byte*, int);
 
+#ifndef NO_ASN_TIME
+WOLFSSL_API int wc_GetCertDates(Cert* cert, struct tm* before, 
+    struct tm* after);
+#endif
+
 #ifdef WOLFSSL_CERT_EXT
 WOLFSSL_API int wc_SetAuthKeyIdFromPublicKey_ex(Cert *cert, int keyType,
                                                 void* key);
@@ -339,6 +344,12 @@ WOLFSSL_API int wc_SetExtKeyUsageOID(Cert *cert, const char *oid, word32 sz,
 
 #endif /* WOLFSSL_CERT_GEN */
 
+WOLFSSL_API int wc_GetDateInfo(const byte* certDate, int certDateSz, 
+    const byte** date, byte* format, int* length);
+#ifndef NO_ASN_TIME
+WOLFSSL_API int wc_GetDateAsCalendarTime(const byte* date, int length,
+    byte format, struct tm* time);
+#endif
 
 #if defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM)
 
@@ -426,6 +437,7 @@ WOLFSSL_API int wc_GetPkcs8TraditionalOffset(byte* input,
 WOLFSSL_API int wc_CreatePKCS8Key(byte* out, word32* outSz,
        byte* key, word32 keySz, int algoID, const byte* curveOID, word32 oidSz);
 
+#ifndef NO_ASN_TIME
 /* Time */
 /* Returns seconds (Epoch/UTC)
  * timePtr: is "time_t", which is typically "long"
@@ -434,6 +446,7 @@ WOLFSSL_API int wc_CreatePKCS8Key(byte* out, word32* outSz,
     rc = wc_GetTime(&lTime, (word32)sizeof(lTime));
 */
 WOLFSSL_API int wc_GetTime(void* timePtr, word32 timeSize);
+#endif
 
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     WOLFSSL_API int wc_EncryptedInfoGet(EncryptedInfo* info,

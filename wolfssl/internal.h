@@ -1946,26 +1946,28 @@ typedef struct TLSX {
     struct TLSX* next; /* List Behavior   */
 } TLSX;
 
-WOLFSSL_LOCAL TLSX*  TLSX_Find(TLSX* list, TLSX_Type type);
-WOLFSSL_LOCAL void   TLSX_Remove(TLSX** list, TLSX_Type type, void* heap);
-WOLFSSL_LOCAL void   TLSX_FreeAll(TLSX* list, void* heap);
-WOLFSSL_LOCAL int    TLSX_SupportExtensions(WOLFSSL* ssl);
-WOLFSSL_LOCAL int    TLSX_PopulateExtensions(WOLFSSL* ssl, byte isRequest);
+WOLFSSL_LOCAL TLSX* TLSX_Find(TLSX* list, TLSX_Type type);
+WOLFSSL_LOCAL void  TLSX_Remove(TLSX** list, TLSX_Type type, void* heap);
+WOLFSSL_LOCAL void  TLSX_FreeAll(TLSX* list, void* heap);
+WOLFSSL_LOCAL int   TLSX_SupportExtensions(WOLFSSL* ssl);
+WOLFSSL_LOCAL int   TLSX_PopulateExtensions(WOLFSSL* ssl, byte isRequest);
 
 #ifndef NO_WOLFSSL_CLIENT
-WOLFSSL_LOCAL word16 TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType);
-WOLFSSL_LOCAL word16 TLSX_WriteRequest(WOLFSSL* ssl, byte* output,
-                                       byte msgType);
+WOLFSSL_LOCAL int   TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, 
+                                         word16* pLength);
+WOLFSSL_LOCAL int   TLSX_WriteRequest(WOLFSSL* ssl, byte* output,
+                                       byte msgType, word16* pOffset);
 #endif
 
 #ifndef NO_WOLFSSL_SERVER
-WOLFSSL_LOCAL word16 TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType);
-WOLFSSL_LOCAL word16 TLSX_WriteResponse(WOLFSSL* ssl, byte* output,
-                                        byte msgType);
+WOLFSSL_LOCAL int   TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, 
+                                          word16* pLength);
+WOLFSSL_LOCAL int   TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, 
+                                        word16* pOffset);
 #endif
 
-WOLFSSL_LOCAL int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length,
-                             byte msgType, Suites *suites);
+WOLFSSL_LOCAL int   TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length,
+                               byte msgType, Suites *suites);
 
 #elif defined(HAVE_SNI)                           \
    || defined(HAVE_MAX_FRAGMENT)                  \
