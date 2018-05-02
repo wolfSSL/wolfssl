@@ -34,6 +34,7 @@
     \sa wc_Md5Final
 */
 WOLFSSL_API int wc_InitMd5(wc_Md5*);
+
 /*!
     \ingroup MD5
     
@@ -75,6 +76,7 @@ WOLFSSL_API int wc_InitMd5(wc_Md5*);
     \sa wc_InitMd5
 */
 WOLFSSL_API int wc_Md5Update(wc_Md5*, const byte*, word32);
+
 /*!
     \ingroup MD5
     
@@ -115,6 +117,7 @@ WOLFSSL_API int wc_Md5Update(wc_Md5*, const byte*, word32);
     \sa wc_Md5GetHash
 */
 WOLFSSL_API int wc_Md5Final(wc_Md5*, byte*);
+
 /*!
     \ingroup MD5
     
@@ -146,6 +149,7 @@ WOLFSSL_API int wc_Md5Final(wc_Md5*, byte*);
     \sa wc_Md5Final
 */
 WOLFSSL_API void wc_Md5Free(wc_Md5*);
+
 /*!
     \ingroup MD5
     

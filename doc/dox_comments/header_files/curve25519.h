@@ -35,6 +35,7 @@
 */
 WOLFSSL_API
 int wc_curve25519_make_key(WC_RNG* rng, int keysize, curve25519_key* key);
+
 /*!
     \ingroup Curve25519
     
@@ -79,6 +80,7 @@ WOLFSSL_API
 int wc_curve25519_shared_secret(curve25519_key* private_key,
                                 curve25519_key* public_key,
                                 byte* out, word32* outlen);
+
 /*!
     \ingroup Curve25519
     
@@ -126,6 +128,7 @@ WOLFSSL_API
 int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
                                    curve25519_key* public_key,
                                    byte* out, word32* outlen, int endian);
+
 /*!
     \ingroup Curve25519
     
@@ -149,6 +152,7 @@ int wc_curve25519_shared_secret_ex(curve25519_key* private_key,
 */
 WOLFSSL_API
 int wc_curve25519_init(curve25519_key* key);
+
 /*!
     \ingroup Curve25519
     
@@ -170,6 +174,7 @@ int wc_curve25519_init(curve25519_key* key);
 */
 WOLFSSL_API
 void wc_curve25519_free(curve25519_key* key);
+
 /*!
     \ingroup Curve25519
     
@@ -202,6 +207,7 @@ void wc_curve25519_free(curve25519_key* key);
 WOLFSSL_API
 int wc_curve25519_import_private(const byte* priv, word32 privSz,
                                  curve25519_key* key);
+
 /*!
     \ingroup Curve25519
     
@@ -238,6 +244,7 @@ int wc_curve25519_import_private(const byte* priv, word32 privSz,
 WOLFSSL_API
 int wc_curve25519_import_private_ex(const byte* priv, word32 privSz,
                                     curve25519_key* key, int endian);
+
 /*!
     \ingroup Curve25519
     
@@ -282,6 +289,7 @@ int wc_curve25519_import_private_ex(const byte* priv, word32 privSz,
 WOLFSSL_API
 int wc_curve25519_import_private_raw(const byte* priv, word32 privSz,
                             const byte* pub, word32 pubSz, curve25519_key* key);
+
 /*!
     \ingroup Curve25519
     
@@ -327,6 +335,7 @@ WOLFSSL_API
 int wc_curve25519_import_private_raw_ex(const byte* priv, word32 privSz,
                                         const byte* pub, word32 pubSz,
                                         curve25519_key* key, int endian);
+
 /*!
     \ingroup Curve25519
     
@@ -366,6 +375,7 @@ int wc_curve25519_import_private_raw_ex(const byte* priv, word32 privSz,
 WOLFSSL_API
 int wc_curve25519_export_private_raw(curve25519_key* key, byte* out,
                                      word32* outLen);
+
 /*!
     \ingroup Curve25519
     
@@ -408,6 +418,7 @@ int wc_curve25519_export_private_raw(curve25519_key* key, byte* out,
 WOLFSSL_API
 int wc_curve25519_export_private_raw_ex(curve25519_key* key, byte* out,
                                         word32* outLen, int endian);
+
 /*!
     \ingroup Curve25519
     
@@ -450,6 +461,7 @@ parameter does not match the key size of the key structure.
 WOLFSSL_API
 int wc_curve25519_import_public(const byte* in, word32 inLen,
                                 curve25519_key* key);
+
 /*!
     \ingroup Curve25519
     
@@ -493,6 +505,7 @@ int wc_curve25519_import_public(const byte* in, word32 inLen,
 WOLFSSL_API
 int wc_curve25519_import_public_ex(const byte* in, word32 inLen,
                                    curve25519_key* key, int endian);
+
 /*!
     \ingroup Curve25519
     
@@ -527,6 +540,7 @@ int wc_curve25519_import_public_ex(const byte* in, word32 inLen,
 */
 WOLFSSL_API
 int wc_curve25519_export_public(curve25519_key* key, byte* out, word32* outLen);
+
 /*!
     \ingroup Curve25519
     
@@ -566,6 +580,7 @@ int wc_curve25519_export_public(curve25519_key* key, byte* out, word32* outLen);
 WOLFSSL_API
 int wc_curve25519_export_public_ex(curve25519_key* key, byte* out,
                                    word32* outLen, int endian);
+
 /*!
     \ingroup Curve25519
     
@@ -606,6 +621,7 @@ WOLFSSL_API
 int wc_curve25519_export_key_raw(curve25519_key* key,
                                  byte* priv, word32 *privSz,
                                  byte* pub, word32 *pubSz);
+
 /*!
     \ingroup Curve25519
     
@@ -651,6 +667,7 @@ int wc_curve25519_export_key_raw_ex(curve25519_key* key,
                                     byte* priv, word32 *privSz,
                                     byte* pub, word32 *pubSz,
                                     int endian);
+
 /*!
     \ingroup Curve25519
     

@@ -26,6 +26,7 @@
 */
 WOLFSSL_API int wc_Poly1305SetKey(Poly1305* poly1305, const byte* key,
                                   word32 kySz);
+
 /*!
     \ingroup Poly1305
     
@@ -58,6 +59,7 @@ WOLFSSL_API int wc_Poly1305SetKey(Poly1305* poly1305, const byte* key,
     \sa wc_Poly1305Final
 */
 WOLFSSL_API int wc_Poly1305Update(Poly1305* poly1305, const byte*, word32);
+
 /*!
     \ingroup Poly1305
     
@@ -92,6 +94,7 @@ WOLFSSL_API int wc_Poly1305Update(Poly1305* poly1305, const byte*, word32);
     \sa wc_Poly1305Update
 */
 WOLFSSL_API int wc_Poly1305Final(Poly1305* poly1305, byte* tag);
+
 /*!
     \ingroup Poly1305
     

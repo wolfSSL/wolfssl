@@ -36,6 +36,7 @@
 */
 WOLFSSL_API int  wc_Des_SetKey(Des* des, const byte* key,
                                const byte* iv, int dir);
+
 /*!
     \ingroup 3DES
     
@@ -61,6 +62,7 @@ WOLFSSL_API int  wc_Des_SetKey(Des* des, const byte* key,
     \sa wc_Des_SetKey
 */
 WOLFSSL_API void wc_Des_SetIV(Des* des, const byte* iv);
+
 /*!
     \ingroup 3DES
     
@@ -93,6 +95,7 @@ WOLFSSL_API void wc_Des_SetIV(Des* des, const byte* iv);
 */
 WOLFSSL_API int  wc_Des_CbcEncrypt(Des* des, byte* out,
                                    const byte* in, word32 sz);
+
 /*!
     \ingroup 3DES
     
@@ -125,6 +128,7 @@ WOLFSSL_API int  wc_Des_CbcEncrypt(Des* des, byte* out,
 */
 WOLFSSL_API int  wc_Des_CbcDecrypt(Des* des, byte* out,
                                    const byte* in, word32 sz);
+
 /*!
     \ingroup 3DES
     
@@ -156,6 +160,7 @@ WOLFSSL_API int  wc_Des_CbcDecrypt(Des* des, byte* out,
 */
 WOLFSSL_API int  wc_Des_EcbEncrypt(Des* des, byte* out,
                                    const byte* in, word32 sz);
+
 /*!
     \ingroup 3DES
     
@@ -189,6 +194,7 @@ WOLFSSL_API int  wc_Des_EcbEncrypt(Des* des, byte* out,
 */
 WOLFSSL_API int wc_Des3_EcbEncrypt(Des3* des, byte* out,
                                    const byte* in, word32 sz);
+
 /*!
     \ingroup 3DES
     
@@ -229,6 +235,7 @@ WOLFSSL_API int wc_Des3_EcbEncrypt(Des3* des, byte* out,
 */
 WOLFSSL_API int  wc_Des3_SetKey(Des3* des, const byte* key,
                                 const byte* iv,int dir);
+
 /*!
     \ingroup 3DES
     
@@ -257,6 +264,7 @@ WOLFSSL_API int  wc_Des3_SetKey(Des3* des, const byte* key,
     \sa wc_Des3_SetKey
 */
 WOLFSSL_API int  wc_Des3_SetIV(Des3* des, const byte* iv);
+
 /*!
     \ingroup 3DES
     
@@ -289,6 +297,7 @@ WOLFSSL_API int  wc_Des3_SetIV(Des3* des, const byte* iv);
 */
 WOLFSSL_API int  wc_Des3_CbcEncrypt(Des3* des, byte* out,
                                     const byte* in,word32 sz);
+
 /*!
     \ingroup 3DES
     

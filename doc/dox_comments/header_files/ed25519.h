@@ -27,6 +27,7 @@
 */
 WOLFSSL_API
 int wc_ed25519_make_key(WC_RNG* rng, int keysize, ed25519_key* key);
+
 /*!
     \ingroup ED25519
     
@@ -72,6 +73,7 @@ int wc_ed25519_make_key(WC_RNG* rng, int keysize, ed25519_key* key);
 WOLFSSL_API
 int wc_ed25519_sign_msg(const byte* in, word32 inlen, byte* out,
                         word32 *outlen, ed25519_key* key);
+
 /*!
     \ingroup ED25519
     
@@ -119,6 +121,7 @@ int wc_ed25519_sign_msg(const byte* in, word32 inlen, byte* out,
 WOLFSSL_API
 int wc_ed25519_verify_msg(const byte* sig, word32 siglen, const byte* msg,
                           word32 msglen, int* stat, ed25519_key* key);
+
 /*!
     \ingroup ED25519
     
@@ -141,6 +144,7 @@ int wc_ed25519_verify_msg(const byte* sig, word32 siglen, const byte* msg,
 */
 WOLFSSL_API
 int wc_ed25519_init(ed25519_key* key);
+
 /*!
     \ingroup ED25519
     
@@ -162,6 +166,7 @@ int wc_ed25519_init(ed25519_key* key);
 */
 WOLFSSL_API
 void wc_ed25519_free(ed25519_key* key);
+
 /*!
     \ingroup ED25519
     
@@ -196,6 +201,7 @@ void wc_ed25519_free(ed25519_key* key);
 */
 WOLFSSL_API
 int wc_ed25519_import_public(const byte* in, word32 inLen, ed25519_key* key);
+
 /*!
     \ingroup ED25519
     
@@ -235,6 +241,7 @@ int wc_ed25519_import_public(const byte* in, word32 inLen, ed25519_key* key);
 WOLFSSL_API
 int wc_ed25519_import_private_key(const byte* priv, word32 privSz,
                                const byte* pub, word32 pubSz, ed25519_key* key);
+
 /*!
     \ingroup ED25519
     
@@ -275,6 +282,7 @@ int wc_ed25519_import_private_key(const byte* priv, word32 privSz,
 */
 WOLFSSL_API
 int wc_ed25519_export_public(ed25519_key*, byte* out, word32* outLen);
+
 /*!
     \ingroup ED25519
     
@@ -313,6 +321,7 @@ int wc_ed25519_export_public(ed25519_key*, byte* out, word32* outLen);
 */
 WOLFSSL_API
 int wc_ed25519_export_private_only(ed25519_key* key, byte* out, word32* outLen);
+
 /*!
     \ingroup ED25519
     
@@ -350,6 +359,7 @@ int wc_ed25519_export_private_only(ed25519_key* key, byte* out, word32* outLen);
 */
 WOLFSSL_API
 int wc_ed25519_export_private(ed25519_key* key, byte* out, word32* outLen);
+
 /*!
     \ingroup ED25519
     
@@ -390,6 +400,7 @@ WOLFSSL_API
 int wc_ed25519_export_key(ed25519_key* key,
                           byte* priv, word32 *privSz,
                           byte* pub, word32 *pubSz);
+
 /*!
     \ingroup ED25519
     
@@ -417,6 +428,7 @@ int wc_ed25519_export_key(ed25519_key* key,
 */
 WOLFSSL_API
 int wc_ed25519_size(ed25519_key* key);
+
 /*!
     \ingroup ED25519
     
@@ -443,6 +455,7 @@ int wc_ed25519_size(ed25519_key* key);
 */
 WOLFSSL_API
 int wc_ed25519_priv_size(ed25519_key* key);
+
 /*!
     \ingroup ED25519
     
@@ -468,6 +481,7 @@ int wc_ed25519_priv_size(ed25519_key* key);
 */
 WOLFSSL_API
 int wc_ed25519_pub_size(ed25519_key* key);
+
 /*!
     \ingroup ED25519
     
