@@ -56,6 +56,7 @@ static char flagSep[] = " ";
     static char svrPort[] = "0";
 #endif
 static char forceDefCipherListFlag[] = "-HdefCipherList";
+static char skipExitFlag[] = "-HskipExit";
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     static int devId = INVALID_DEVID;
@@ -161,7 +162,7 @@ static int execute_test_case(int svr_argc, char** svr_argv,
                               int cli_argc, char** cli_argv,
                               int addNoVerify, int addNonBlocking,
                               int addDisableEMS, int forceSrvDefCipherList,
-                              int forceCliDefCipherList)
+                              int forceCliDefCipherList, int testShouldFail)
 {
 #ifdef WOLFSSL_TIRTOS
     func_args cliArgs = {0};
@@ -264,6 +265,9 @@ static int execute_test_case(int svr_argc, char** svr_argv,
 #ifdef TEST_PK_PRIVKEY
     svr_argv[svrArgs.argc++] = (char*)"-P";
 #endif
+    if (testShouldFail) {
+        svr_argv[svrArgs.argc++] = skipExitFlag;
+    }
 
     /* update server flags list */
     commandLine[0] = '\0';
@@ -327,6 +331,9 @@ static int execute_test_case(int svr_argc, char** svr_argv,
 #ifdef TEST_PK_PRIVKEY
     cli_argv[cliArgs.argc++] = (char*)"-P";
 #endif
+    if (testShouldFail) {
+        cli_argv[cliArgs.argc++] = skipExitFlag;
+    }
 
     commandLine[0] = '\0';
     added = 0;
@@ -345,13 +352,15 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     client_test(&cliArgs);
 
     /* verify results */
-    if (cliArgs.return_code != 0) {
+    if ((cliArgs.return_code != 0 && testShouldFail == 0) ||
+        (cliArgs.return_code == 0 && testShouldFail != 0)) {
         printf("client_test failed\n");
         exit(EXIT_FAILURE);
     }
 
     join_thread(serverThread);
-    if (svrArgs.return_code != 0) {
+    if ((svrArgs.return_code != 0 && testShouldFail == 0) ||
+        (svrArgs.return_code == 0 && testShouldFail != 0)) {
         printf("server_test failed\n");
         exit(EXIT_FAILURE);
     }
@@ -360,6 +369,11 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     fdCloseSession(Task_self());
 #endif
     FreeTcpReady(&ready);
+
+    /* only run the first test for failure cases */
+    if (testShouldFail) {
+        return NOT_BUILT_IN;
+    }
 
     return 0;
 }
@@ -379,17 +393,22 @@ static void test_harness(void* vargs)
     char* cursor;
     char* comment;
     const char* fname = "tests/test.conf";
+    int   testShouldFail = 0;
 
     if (args->argc == 1) {
         printf("notice: using default file %s\n", fname);
     }
-    else if(args->argc != 2) {
-        printf("usage: harness [FILE]\n");
+    else if(args->argc > 3) {
+        printf("usage: harness [FILE] [ARG]\n");
         args->return_code = 1;
         return;
     }
-    else {
+
+    if (args->argc >= 2) {
         fname = args->argv[1];
+    }
+    if (args->argc == 3) {
+        testShouldFail = 1;
     }
 
     file = fopen(fname, "rb");
@@ -463,6 +482,8 @@ static void test_harness(void* vargs)
                     cliArgs[cliArgsSz++] = XSTRSEP(&cursor, " \n");
                 else
                     svrArgs[svrArgsSz++] = XSTRSEP(&cursor, " \n");
+                if (*cursor == 0)  /* eof */
+                    do_it = 1;
                 break;
             default:
                 /* Anything from cursor until end of line that isn't the above
@@ -474,6 +495,7 @@ static void test_harness(void* vargs)
                     svrArgs[svrArgsSz++] = XSTRSEP(&cursor, "\n");
                 if (*cursor == 0)  /* eof */
                     do_it = 1;
+                break;
         }
 
         if (svrArgsSz == MAX_ARGS || cliArgsSz == MAX_ARGS) {
@@ -483,31 +505,41 @@ static void test_harness(void* vargs)
 
         if (do_it) {
             ret = execute_test_case(svrArgsSz, svrArgs,
-                                    cliArgsSz, cliArgs, 0, 0, 0, 0, 0);
+                                    cliArgsSz, cliArgs, 0, 0, 0, 0, 0,
+                                    testShouldFail);
             /* don't repeat if not supported in build */
             if (ret == 0) {
                 /* test with default cipher list on server side */
                 execute_test_case(svrArgsSz, svrArgs,
-                                  cliArgsSz, cliArgs, 0, 0, 0, 1, 0);
+                                  cliArgsSz, cliArgs, 0, 0, 0, 1, 0,
+                                  testShouldFail);
                 /* test with default cipher list on client side */
                 execute_test_case(svrArgsSz, svrArgs,
-                                  cliArgsSz, cliArgs, 0, 0, 0, 0, 1);
+                                  cliArgsSz, cliArgs, 0, 0, 0, 0, 1,
+                                  testShouldFail);
 
                 execute_test_case(svrArgsSz, svrArgs,
-                                  cliArgsSz, cliArgs, 0, 1, 0, 0, 0);
+                                  cliArgsSz, cliArgs, 0, 1, 0, 0, 0,
+                                  testShouldFail);
                 execute_test_case(svrArgsSz, svrArgs,
-                                  cliArgsSz, cliArgs, 1, 0, 0, 0, 0);
+                                  cliArgsSz, cliArgs, 1, 0, 0, 0, 0,
+                                  testShouldFail);
                 execute_test_case(svrArgsSz, svrArgs,
-                                  cliArgsSz, cliArgs, 1, 1, 0, 0, 0);
+                                  cliArgsSz, cliArgs, 1, 1, 0, 0, 0,
+                                  testShouldFail);
 #ifdef HAVE_EXTENDED_MASTER
                 execute_test_case(svrArgsSz, svrArgs,
-                                  cliArgsSz, cliArgs, 0, 0, 1, 0, 0);
+                                  cliArgsSz, cliArgs, 0, 0, 1, 0, 0,
+                                  testShouldFail);
                 execute_test_case(svrArgsSz, svrArgs,
-                                  cliArgsSz, cliArgs, 0, 1, 1, 0, 0);
+                                  cliArgsSz, cliArgs, 0, 1, 1, 0, 0,
+                                  testShouldFail);
                 execute_test_case(svrArgsSz, svrArgs,
-                                  cliArgsSz, cliArgs, 1, 0, 1, 0, 0);
+                                  cliArgsSz, cliArgs, 1, 0, 1, 0, 0,
+                                  testShouldFail);
                 execute_test_case(svrArgsSz, svrArgs,
-                                  cliArgsSz, cliArgs, 1, 1, 1, 0, 0);
+                                  cliArgsSz, cliArgs, 1, 1, 1, 0, 0,
+                                  testShouldFail);
 #endif
             }
             svrArgsSz = 1;
@@ -526,14 +558,15 @@ int SuiteTest(void)
 {
 #if !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
     func_args args;
-    char argv0[2][80];
-    char* myArgv[2];
+    char argv0[3][80];
+    char* myArgv[3];
 
     printf(" Begin Cipher Suite Tests\n");
 
     /* setup */
     myArgv[0] = argv0[0];
     myArgv[1] = argv0[1];
+    myArgv[2] = argv0[2];
     args.argv = myArgv;
     strcpy(argv0[0], "SuiteTest");
 
@@ -680,6 +713,18 @@ int SuiteTest(void)
         goto exit;
     }
 #endif
+
+    /* failure tests */
+    args.argc = 3;
+    strcpy(argv0[1], "tests/test-fails.conf");
+    strcpy(argv0[2], "-f");
+    printf("starting tests that expect failure\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
 
 exit:
     printf(" End Cipher Suite Tests\n");
