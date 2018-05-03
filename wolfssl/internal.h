@@ -1039,6 +1039,8 @@ enum Misc {
     TLS_DRAFT_MINOR = 0x16,     /* Minor version number of TLS draft */
 #elif defined(WOLFSSL_TLS13_DRAFT_23)
     TLS_DRAFT_MINOR = 0x17,     /* Minor version number of TLS draft */
+#elif defined(WOLFSSL_TLS13_DRAFT_26)
+    TLS_DRAFT_MINOR = 0x1a,     /* Minor version number of TLS draft */
 #else
     TLS_DRAFT_MINOR = 0x1c,     /* Minor version number of TLS draft */
 #endif
