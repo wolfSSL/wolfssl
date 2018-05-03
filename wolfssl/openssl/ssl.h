@@ -513,6 +513,11 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define d2i_X509_bio wolfSSL_d2i_X509_bio
 #define i2d_X509     wolfSSL_i2d_X509
 #define d2i_X509     wolfSSL_d2i_X509
+#define d2i_RSAPublicKey wolfSSL_d2i_RSAPublicKey
+#define i2d_RSAPublicKey wolfSSL_i2d_RSAPublicKey
+#define d2i_X509_CRL wolfSSL_d2i_X509_CRL
+#define d2i_X509_CRL_fp wolfSSL_d2i_X509_CRL_fp
+#define X509_CRL_free wolfSSL_X509_CRL_free
 
 #define SSL_CTX_get_ex_data wolfSSL_CTX_get_ex_data
 #define SSL_CTX_set_ex_data wolfSSL_CTX_set_ex_data
@@ -528,6 +533,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_CTX_get_ex_new_index wolfSSL_CTX_get_ex_new_index
 #define PEM_read_bio_X509 wolfSSL_PEM_read_bio_X509
 #define PEM_read_bio_X509_AUX wolfSSL_PEM_read_bio_X509_AUX
+#define PEM_read_X509_CRL wolfSSL_PEM_read_X509_CRL
 
 /*#if OPENSSL_API_COMPAT < 0x10100000L*/
 #define CONF_modules_free()

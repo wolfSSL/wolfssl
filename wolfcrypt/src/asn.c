@@ -7244,6 +7244,11 @@ const char* const END_PUB_KEY          = "-----END PUBLIC KEY-----";
     const char* const BEGIN_EDDSA_PRIV = "-----BEGIN EDDSA PRIVATE KEY-----";
     const char* const END_EDDSA_PRIV   = "-----END EDDSA PRIVATE KEY-----";
 #endif
+#ifdef HAVE_CRL
+    const char *const BEGIN_CRL = "-----BEGIN X509 CRL-----";
+    const char* const END_CRL   = "-----END X509 CRL-----";
+#endif
+
 
 
 int wc_PemGetHeaderFooter(int type, const char** header, const char** footer)
@@ -7715,6 +7720,11 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     #endif
         {
             header =  BEGIN_EDDSA_PRIV;     footer = END_EDDSA_PRIV;
+        } else
+#endif
+#ifdef HAVE_CRL
+        if (type == CRL_TYPE) {
+            header =  BEGIN_CRL;        footer = END_CRL;
         } else
 #endif
         {
