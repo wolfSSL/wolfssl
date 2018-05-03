@@ -1490,7 +1490,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                 err_sys_ex(runWithErrors, "SSL_accept failed");
 
             ((func_args*)args)->return_code = err;
-            return 0;
+            goto exit;
         }
 
         showPeer(ssl);
@@ -1677,6 +1677,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
     ((func_args*)args)->return_code = 0;
 
+exit:
 
 #if defined(NO_MAIN_DRIVER) && defined(HAVE_ECC) && defined(FP_ECC) \
                             && defined(HAVE_THREAD_LS)

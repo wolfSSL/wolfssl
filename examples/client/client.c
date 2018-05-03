@@ -2115,7 +2115,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         /* if you're getting an error here  */
 
         ((func_args*)args)->return_code = err;
-        return 0;
+        goto exit;
     }
 
     showPeer(ssl);
@@ -2576,6 +2576,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     wolfSSL_CTX_free(ctx);
 
     ((func_args*)args)->return_code = 0;
+
+exit:
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     wolfAsync_DevClose(&devId);
