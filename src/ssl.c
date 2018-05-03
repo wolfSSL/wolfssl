@@ -27502,20 +27502,19 @@ int wolfSSL_i2d_RSAPublicKey(WOLFSSL_RSA *rsa, const unsigned char **pp)
     if((ret = SetRsaInternal(rsa)) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("SetRsaInternal Failed");
         XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return _REXT_OK;
+        return ret;
     }
 
-#if 0
     if((ret = wc_RsaKeyToPublicDer((RsaKey *)rsa->internal, der, derLen)) < 0){
         WOLFSSL_MSG("RsaKeyToPublicDer failed");
         XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
-#endif
 
     *pp = der;
     return ret;
 }
+
 
 /* return WOLFSSL_SUCCESS if success, WOLFSSL_FATAL_ERROR if error */
 int wolfSSL_RSA_LoadDer(WOLFSSL_RSA* rsa, const unsigned char* derBuf, int derSz)
