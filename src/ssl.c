@@ -17958,6 +17958,121 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 }
 #endif /* NO_CERTS */
 
+#ifdef HAVE_CRL
+
+WOLFSSL_X509_CRL* wolfSSL_d2i_X509_CRL(WOLFSSL_X509_CRL** crl, const unsigned char* in, int len)
+{
+    WOLFSSL_X509_CRL *newcrl = NULL;
+    WOLFSSL_CERT_MANAGER *cert= NULL;
+    int ret ;
+
+    WOLFSSL_ENTER("wolfSSL_X509_CRL_d2i");
+
+    if(in == NULL){
+        WOLFSSL_MSG("Bad argument value");
+        return NULL;
+    }
+
+    newcrl = (WOLFSSL_X509_CRL*)XMALLOC(sizeof(WOLFSSL_X509_CRL), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (newcrl == NULL){
+        WOLFSSL_MSG("New CRL allocation failed");
+        return NULL;
+    }
+    cert = wolfSSL_CertManagerNew();
+    if (cert == NULL){
+        WOLFSSL_MSG("CertManagerNew failed");
+        goto err_exit;
+    }
+    if (InitCRL(newcrl, cert) < 0) {
+        WOLFSSL_MSG("Init tmp CRL failed");
+        goto err_exit;
+    }
+    ret = BufferLoadCRL(newcrl, in, len, WOLFSSL_FILETYPE_ASN1, 1); 
+    if (ret != WOLFSSL_SUCCESS){
+        WOLFSSL_MSG("Buffer Load CRL failed");
+        goto err_exit;
+    }
+    if(crl){
+        *crl = newcrl;
+    }
+    goto _exit;
+
+err_exit:
+    if(newcrl != NULL)
+        XFREE(newcrl, NULL, DYNAMIC_TYPE_FILE); 
+    newcrl = NULL;
+    if(cert != NULL)
+        wolfSSL_CertManagerFree(cert); 
+_exit:
+    return newcrl;
+}
+
+#ifndef NO_FILESYSTEM
+WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_fp(WOLFSSL_X509_CRL **crl, XFILE file)
+{
+    WOLFSSL_X509_CRL *newcrl = NULL;
+    DerBuffer*   der = NULL;
+    byte *fileBuffer = NULL;
+    
+    WOLFSSL_ENTER("wolfSSL_d2i_X509_CRL_fp");
+
+    if (file != XBADFILE)
+    {
+        long sz = 0;
+
+        XFSEEK(file, 0, XSEEK_END);
+        sz = XFTELL(file);
+        XREWIND(file);
+
+        if (sz < 0)
+        {
+            WOLFSSL_MSG("Bad tell on FILE");
+            return NULL;
+        }
+
+        fileBuffer = (byte *)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE);
+        if (fileBuffer != NULL)
+        {
+            if((long)XFREAD(fileBuffer, 1, sz, file) != sz)
+            {
+                WOLFSSL_MSG("File read failed");
+                goto err_exit;
+            }          
+            
+            newcrl = wolfSSL_d2i_X509_CRL(NULL, fileBuffer, (int)sz);
+            if(newcrl == NULL)
+            {
+                WOLFSSL_MSG("X509_CRL failed");
+                goto err_exit;
+            }
+        }
+    }
+    if (crl != NULL)
+        *crl = newcrl;
+
+    goto _exit;
+
+err_exit:
+    if(newcrl != NULL)
+        XFREE(newcrl, NULL, DYNAMIC_TYPE_FILE);
+_exit:
+    if(der != NULL)
+        FreeDer(&der);
+    if(fileBuffer != NULL)
+        XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
+    return newcrl;
+}
+#endif
+
+void wolfSSL_X509_CRL_free(WOLFSSL_X509_CRL *crl)
+{
+    WOLFSSL_ENTER("wolfSSL_X509_CRL_free");
+
+    FreeCRL(crl, 1);
+    return;
+}
+#endif
+
 #ifndef NO_WOLFSSL_STUB
 WOLFSSL_ASN1_TIME* wolfSSL_X509_CRL_get_lastUpdate(WOLFSSL_X509_CRL* crl)
 {
@@ -27351,6 +27466,57 @@ int wolfSSL_PEM_write_RSA_PUBKEY(FILE *fp, WOLFSSL_RSA *x)
 #endif /* OPENSSL_EXTRA */
 
 #if !defined(NO_RSA) && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+WOLFSSL_RSA *wolfSSL_d2i_RSAPublicKey(WOLFSSL_RSA **r, const unsigned char **pp, long len)
+{
+    WOLFSSL_RSA *rsa = NULL;
+
+    WOLFSSL_ENTER("d2i_RSAPublicKey");
+    if((rsa = wolfSSL_RSA_new()) == NULL){
+        WOLFSSL_MSG("RSA_new failed");
+        return NULL;
+    }
+    
+    if(wolfSSL_RSA_LoadDer_ex(rsa, *pp, (int)len, WOLFSSL_RSA_LOAD_PUBLIC)
+                                                     != WOLFSSL_SUCCESS){
+        WOLFSSL_MSG("RSA_LoadDer failed");
+        return NULL;
+    }
+    
+    *r = rsa;
+    return rsa;
+}
+
+int wolfSSL_i2d_RSAPublicKey(WOLFSSL_RSA *rsa, const unsigned char **pp)
+{
+    byte *der;
+    word32 derLen = 165;
+    int ret;
+
+    WOLFSSL_ENTER("i2d_RSAPublicKey");
+    if(pp == NULL)
+        return WOLFSSL_FATAL_ERROR;
+    der = (byte*)XMALLOC(derLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL) {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+    if((ret = SetRsaInternal(rsa)) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("SetRsaInternal Failed");
+        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return _REXT_OK;
+    }
+
+#if 0
+    if((ret = wc_RsaKeyToPublicDer((RsaKey *)rsa->internal, der, derLen)) < 0){
+        WOLFSSL_MSG("RsaKeyToPublicDer failed");
+        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        return ret;
+    }
+#endif
+
+    *pp = der;
+    return ret;
+}
+
 /* return WOLFSSL_SUCCESS if success, WOLFSSL_FATAL_ERROR if error */
 int wolfSSL_RSA_LoadDer(WOLFSSL_RSA* rsa, const unsigned char* derBuf, int derSz)
 {
@@ -28334,6 +28500,68 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         return x509;
     }
 
+#ifndef NO_FILESYSTEM
+    WOLFSSL_API WOLFSSL_X509_CRL* wolfSSL_PEM_read_X509_CRL(FILE *fp, WOLFSSL_X509_CRL **crl,
+                                                    pem_password_cb *cb, void *u)
+    {
+#if defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM)
+        unsigned char* pem = NULL;
+        DerBuffer* der = NULL;
+        int pemSz;
+        int derSz;
+        long  i = 0, l;
+        WOLFSSL_X509_CRL* newcrl;
+        
+        WOLFSSL_ENTER("wolfSSL_PEM_read_X509_CRL");
+
+        if (fp == NULL) {
+            WOLFSSL_LEAVE("wolfSSL_PEM_read_X509_CRL", BAD_FUNC_ARG);
+            return NULL;
+        }
+        /* Read in CRL from file */
+        i = XFTELL(fp);
+        if (i < 0) {
+            WOLFSSL_LEAVE("wolfSSL_PEM_read_X509_CRL", BAD_FUNC_ARG);
+            return NULL;
+        }
+
+        if (XFSEEK(fp, 0, SEEK_END) != 0)
+            return NULL;
+        l = XFTELL(fp);
+        if (l < 0)
+            return NULL;
+        if (XFSEEK(fp, i, SEEK_SET) != 0)
+            return NULL;
+        pemSz = (int)(l - i);
+        /* check calculated length */
+        if (pemSz  < 0)
+            return NULL;
+        if((pem = (unsigned char*)XMALLOC(pemSz, 0, DYNAMIC_TYPE_PEM)) == NULL)
+            return NULL;
+
+        if((int)XFREAD((char *)pem, 1, pemSz, fp) != pemSz)
+            goto err_exit;
+        if((PemToDer(pem, pemSz, CRL_TYPE, &der, NULL, NULL, NULL)) < 0)
+            goto err_exit;
+
+        derSz = der->length;
+        if((newcrl = wolfSSL_d2i_X509_CRL(crl, (const unsigned char *)der->buffer, derSz)) == NULL)
+            goto err_exit;
+        return newcrl;
+
+    err_exit:
+        if(pem != NULL)
+            XFREE(pem, 0, DYNAMIC_TYPE_PEM);
+        if(der != NULL)
+            FreeDer(&der);
+        return NULL;
+
+        (void)cb;
+        (void)u;
+    #endif
+
+    }
+#endif
 
     /*
      * bp : bio to read X509 from

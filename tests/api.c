@@ -17376,6 +17376,42 @@ static void test_wolfSSL_RSA(void)
 #endif
 }
 
+static void test_wolfSSL_RSA_DER(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
+
+    RSA *rsa;
+    int i;
+
+    struct
+    {
+        const unsigned char *der;
+        int sz;
+    } tbl[] = {
+#ifdef USE_CERT_BUFFERS_1024
+        {client_key_der_1024, sizeof_client_key_der_1024},
+        {server_key_der_1024, sizeof_server_key_der_1024},
+#endif
+#ifdef USE_CERT_BUFFERS_2048
+        {client_key_der_2048, sizeof_client_key_der_2048},
+        {server_key_der_2048, sizeof_server_key_der_2048},
+#endif
+        {NULL, 0}
+    };
+
+    printf(testingFmt, "test_wolfSSL_RSA_DER()");
+
+    for (i = 0; tbl[i].der != NULL; i++)
+    {
+        AssertNotNull(d2i_RSAPublicKey(&rsa, &tbl[i].der, tbl[i].sz));
+        AssertNotNull(rsa);
+        RSA_free(rsa);
+    }
+    printf(resultFmt, passed);
+
+#endif
+}
+
 static void test_wolfSSL_verify_depth(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
@@ -18570,6 +18606,62 @@ static int test_wc_RNG_GenerateBlock()
 }
 #endif
 
+static void test_wolfSSL_X509_CRL(void)
+{
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL)
+
+    X509_CRL *crl;
+    char pem[][100] = {
+        "./certs/crl/crl.pem",
+        "./certs/crl/crl2.pem",
+        "./certs/crl/caEccCrl.pem",
+        "./certs/crl/eccCliCRL.pem",
+        "./certs/crl/eccSrvCRL.pem",
+        ""
+    };
+
+    char der[][100] = {
+        "./certs/crl/crl.der",
+        "./certs/crl/crl2.der",
+        ""};
+
+    FILE * fp;
+    int i;
+
+    printf(testingFmt, "test_wolfSSL_X509_CRL");
+
+    for (i = 0; pem[i][0] != '\0'; i++)
+    {
+        AssertNotNull(fp = XFOPEN(pem[i], "rb"));
+        AssertNotNull(crl = (X509_CRL *)PEM_read_X509_CRL(fp, (X509_CRL **)NULL, NULL, NULL));
+        AssertNotNull(crl);
+        X509_CRL_free(crl);
+        XFCLOSE(fp);
+        AssertNotNull(fp = XFOPEN(pem[i], "rb"));
+        AssertNotNull((X509_CRL *)PEM_read_X509_CRL(fp, (X509_CRL **)&crl, NULL, NULL));
+        AssertNotNull(crl);
+        X509_CRL_free(crl);
+        XFCLOSE(fp);
+    }
+
+    for(i = 0; der[i][0] != '\0'; i++){
+        AssertNotNull(fp = XFOPEN(der[i], "rb"));
+        AssertNotNull(crl = (X509_CRL *)d2i_X509_CRL_fp((X509_CRL **)NULL, fp));
+        AssertNotNull(crl);
+        X509_CRL_free(crl);
+        XFCLOSE(fp);
+        AssertNotNull(fp = XFOPEN(der[i], "rb"));
+        AssertNotNull((X509_CRL *)d2i_X509_CRL_fp((X509_CRL **)&crl, fp));
+        AssertNotNull(crl);
+        X509_CRL_free(crl);
+        XFCLOSE(fp);
+    }
+
+    printf(resultFmt, passed);
+#endif
+        return;
+}
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -18668,6 +18760,7 @@ void ApiTest(void)
     test_wolfSSL_sk_GENERAL_NAME();
     test_wolfSSL_MD4();
     test_wolfSSL_RSA();
+    test_wolfSSL_RSA_DER();
     test_wolfSSL_verify_depth();
     test_wolfSSL_HMAC_CTX();
     test_wolfSSL_msg_callback();
@@ -18676,6 +18769,7 @@ void ApiTest(void)
     test_wolfSSL_AES_ecb_encrypt();
     test_wolfSSL_SHA256();
     test_wolfSSL_X509_get_serialNumber();
+    test_wolfSSL_X509_CRL();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();
