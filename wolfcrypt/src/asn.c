@@ -8186,7 +8186,7 @@ int wc_PemPubKeyToDer(const char* fileName,
 
 
 #if !defined(NO_RSA) && (defined(WOLFSSL_CERT_GEN) || \
-        (defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA)))
+    ((defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)) && !defined(HAVE_USER_RSA)))
 /* USER RSA ifdef portions used instead of refactor in consideration for
    possible fips build */
 /* Write a public RSA key to output */
@@ -8438,8 +8438,9 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 
     return outLen;
 }
+#endif
 
-
+#if (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)) && !defined(NO_RSA) && !defined(HAVE_USER_RSA)
 /* Convert Rsa Public key to DER format, write to output (inLen), return bytes
    written */
 int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen)
