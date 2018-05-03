@@ -7525,9 +7525,6 @@ int MatchDomainName(const char* pattern, int len, const char* str)
                 return 0;
         }
 
-        if (*str != '\0')
-            str++;
-
         if (len > 0)
             len--;
     }
