@@ -192,43 +192,43 @@ static void ShowVersions(void)
 #ifdef WOLFSSL_TLS13
 static void SetKeyShare(WOLFSSL* ssl, int onlyKeyShare, int useX25519)
 {
+    int groups[3];
+    int count = 0;
+
     (void)useX25519;
 
     WOLFSSL_START(WC_FUNC_CLIENT_KEY_EXCHANGE_SEND);
     if (onlyKeyShare == 0 || onlyKeyShare == 2) {
     #ifdef HAVE_CURVE25519
         if (useX25519) {
-            int groups[1] = { WOLFSSL_ECC_X25519 };
+            groups[count++] = WOLFSSL_ECC_X25519;
             if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_X25519) != WOLFSSL_SUCCESS)
                 err_sys("unable to use curve x25519");
-            if (wolfSSL_set_groups(ssl, groups, 1) != WOLFSSL_SUCCESS)
-                err_sys("unable to set groups: x25519");
         }
         else
     #endif
         {
     #ifdef HAVE_ECC
         #if defined(HAVE_ECC256) || defined(HAVE_ALL_CURVES)
-            int groups[1] = { WOLFSSL_ECC_SECP256R1 };
+            groups[count++] = WOLFSSL_ECC_SECP256R1;
             if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_SECP256R1)
                                                            != WOLFSSL_SUCCESS) {
                 err_sys("unable to use curve secp256r1");
             }
-            if (wolfSSL_set_groups(ssl, groups, 1) != WOLFSSL_SUCCESS)
-                err_sys("unable to set groups: secp256r1");
         #endif
     #endif
         }
     }
     if (onlyKeyShare == 0 || onlyKeyShare == 1) {
     #ifdef HAVE_FFDHE_2048
-        int groups[1] = { WOLFSSL_FFDHE_2048 };
+        groups[count++] = WOLFSSL_FFDHE_2048;
         if (wolfSSL_UseKeyShare(ssl, WOLFSSL_FFDHE_2048) != WOLFSSL_SUCCESS)
             err_sys("unable to use DH 2048-bit parameters");
-        if (wolfSSL_set_groups(ssl, groups, 1) != WOLFSSL_SUCCESS)
-            err_sys("unable to set groups: DH 2048-bit");
     #endif
     }
+
+    if (wolfSSL_set_groups(ssl, groups, count) != WOLFSSL_SUCCESS)
+        err_sys("unable to set groups");
     WOLFSSL_END(WC_FUNC_CLIENT_KEY_EXCHANGE_SEND);
 }
 #endif
