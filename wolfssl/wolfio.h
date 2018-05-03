@@ -147,7 +147,6 @@
     #define SOCKET_EPIPE       WSAEPIPE
     #define SOCKET_ECONNREFUSED WSAENOTCONN
     #define SOCKET_ECONNABORTED WSAECONNABORTED
-    #define close(s) closesocket(s)
 #elif defined(__PPU)
     #define SOCKET_EWOULDBLOCK SYS_NET_EWOULDBLOCK
     #define SOCKET_EAGAIN      SYS_NET_EAGAIN
@@ -208,6 +207,20 @@
     #define SOCKET_ECONNREFUSED ECONNREFUSED
     #define SOCKET_ECONNABORTED ECONNABORTED
 #endif /* USE_WINDOWS_API */
+
+
+#ifdef USE_WINDOWS_API
+    #define CloseSocket(s) closesocket(s)
+    #define StartTCP() { WSADATA wsd; WSAStartup(0x0002, &wsd); }
+#elif defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
+    extern int closesocket(int);
+    #define CloseSocket(s) closesocket(s)
+    #define StartTCP()
+#else
+    #define CloseSocket(s) close(s)
+    #define StartTCP()
+#endif
+
 
 
 #ifdef DEVKITPRO

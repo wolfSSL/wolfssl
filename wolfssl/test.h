@@ -183,17 +183,6 @@
 #endif
 
 
-#ifdef USE_WINDOWS_API
-    #define CloseSocket(s) closesocket(s)
-    #define StartTCP() { WSADATA wsd; WSAStartup(0x0002, &wsd); }
-#elif defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
-    #define CloseSocket(s) closesocket(s)
-    #define StartTCP()
-#else
-    #define CloseSocket(s) close(s)
-    #define StartTCP()
-#endif
-
 
 #ifdef SINGLE_THREADED
     typedef unsigned int  THREAD_RETURN;
