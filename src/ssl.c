@@ -21564,6 +21564,27 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
     return ret;
 }
 
+#define RAND_ENTROPY_SZ (256/16)
+int wolfSSL_RAND_poll()
+{
+    WOLFSSL_ENTER("wolfSSL_RAND_poll");
+    byte  entropy[RAND_ENTROPY_SZ];
+    int  ret = 0;
+
+    if (initGlobalRNG == 0){
+        WOLFSSL_MSG("Global RNG no Init");
+        return  WOLFSSL_FAILURE;
+    }
+    ret = wc_GenerateSeed(&globalRNG.seed, entropy, RAND_ENTROPY_SZ);
+    if (ret != 0){
+        WOLFSSL_MSG("Bad wc_RNG_GenerateBlock");
+        ret = WOLFSSL_FAILURE;
+    }else
+        ret = WOLFSSL_SUCCESS;
+
+    return ret;
+}
+
 WOLFSSL_BN_CTX* wolfSSL_BN_CTX_new(void)
 {
     static int ctx;  /* wolfcrypt doesn't now need ctx */

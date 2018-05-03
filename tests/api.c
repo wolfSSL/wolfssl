@@ -17216,6 +17216,7 @@ static void test_wolfSSL_RAND(void)
     printf(testingFmt, "wolfSSL_RAND()");
 
     RAND_seed(seed, sizeof(seed));
+    AssertIntEQ(RAND_poll(), 1);
     RAND_cleanup();
 
     AssertIntEQ(RAND_egd(NULL), -1);
