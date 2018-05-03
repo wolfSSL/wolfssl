@@ -796,7 +796,7 @@ static void Usage(void)
 #ifdef HAVE_WNR
     printf("-q <file>   Whitewood config file,      default %s\n", wnrConfig);
 #endif
-    printf("-H <arg>    Internal tests [defCipherList, skipExit]\n");
+    printf("-H <arg>    Internal tests [defCipherList, exitWithRet]\n");
 #ifdef WOLFSSL_TLS13
     printf("-J          Use HelloRetryRequest to choose group for KE\n");
     printf("-K          Key Exchange for PSK not using (EC)DHE\n");
@@ -936,7 +936,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     char*  ocspUrl  = NULL;
 #endif
     int useX25519 = 0;
-    int skipExit = 0;
+    int exitWithRet = 0;
 
 #ifdef HAVE_WNR
     const char* wnrConfigFile = wnrConfig;
@@ -1112,9 +1112,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     printf("Using default cipher list for testing\n");
                     useDefCipherList = 1;
                 }
-                else if (XSTRNCMP(myoptarg, "skipExit", 7) == 0) {
+                else if (XSTRNCMP(myoptarg, "exitWithRet", 7) == 0) {
                     printf("Skip exit() for testing\n");
-                    skipExit = 1;
+                    exitWithRet = 1;
                 }
                 else {
                     Usage();
@@ -2100,18 +2100,20 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     ret = NonBlockingSSL_Connect(ssl);  /* will keep retrying on timeout */
 #endif
     if (ret != WOLFSSL_SUCCESS) {
+        err = wolfSSL_get_error(ssl, 0);
         printf("wolfSSL_connect error %d, %s\n", err,
             wolfSSL_ERR_error_string(err, buffer));
+
+        /* cleanup */
         wolfSSL_free(ssl);
         wolfSSL_CTX_free(ctx);
         CloseSocket(sockfd);
 
-        if (!skipExit)
+        if (!exitWithRet)
             err_sys("wolfSSL_connect failed");
         /* see note at top of README */
         /* if you're getting an error here  */
 
-        err = wolfSSL_get_error(ssl, 0);
         ((func_args*)args)->return_code = err;
         return 0;
     }

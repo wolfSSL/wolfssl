@@ -56,7 +56,7 @@ static char flagSep[] = " ";
     static char svrPort[] = "0";
 #endif
 static char forceDefCipherListFlag[] = "-HdefCipherList";
-static char skipExitFlag[] = "-HskipExit";
+static char exitWithRetFlag[] = "-HexitWithRet";
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     static int devId = INVALID_DEVID;
@@ -266,7 +266,7 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     svr_argv[svrArgs.argc++] = (char*)"-P";
 #endif
     if (testShouldFail) {
-        svr_argv[svrArgs.argc++] = skipExitFlag;
+        svr_argv[svrArgs.argc++] = exitWithRetFlag;
     }
 
     /* update server flags list */
@@ -332,7 +332,7 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     cli_argv[cliArgs.argc++] = (char*)"-P";
 #endif
     if (testShouldFail) {
-        cli_argv[cliArgs.argc++] = skipExitFlag;
+        cli_argv[cliArgs.argc++] = exitWithRetFlag;
     }
 
     commandLine[0] = '\0';

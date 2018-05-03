@@ -413,7 +413,7 @@ static void Usage(void)
 #endif
     printf("-g          Return basic HTML web page\n");
     printf("-C <num>    The number of connections to accept, default: 1\n");
-    printf("-H <arg>    Internal tests [defCipherList, skipExit]\n");
+    printf("-H <arg>    Internal tests [defCipherList, exitWithRet]\n");
 #ifdef WOLFSSL_TLS13
     printf("-U          Update keys and IVs before sending\n");
     printf("-K          Key Exchange for PSK not using (EC)DHE\n");
@@ -563,7 +563,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int noTicket = 0;
 #endif
     int useX25519 = 0;
-    int skipExit = 0;
+    int exitWithRet = 0;
 
     ((func_args*)args)->return_code = -1; /* error state */
 
@@ -693,9 +693,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                     printf("Using default cipher list for testing\n");
                     useDefCipherList = 1;
                 }
-                else if (XSTRNCMP(myoptarg, "skipExit", 7) == 0) {
+                else if (XSTRNCMP(myoptarg, "exitWithRet", 7) == 0) {
                     printf("Skip exit() for testing\n");
-                    skipExit = 1;
+                    exitWithRet = 1;
                 }
                 else {
                     Usage();
@@ -1480,15 +1480,15 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             err = SSL_get_error(ssl, 0);
             printf("SSL_accept error %d, %s\n", err,
                                                 ERR_error_string(err, buffer));
-
-            if (!skipExit)
-                err_sys_ex(runWithErrors, "SSL_accept failed");
-
-            /* cleanup and return */
+            /* cleanup */
             SSL_free(ssl);
             SSL_CTX_free(ctx);
             CloseSocket(clientfd);
             CloseSocket(sockfd);
+
+            if (!exitWithRet)
+                err_sys_ex(runWithErrors, "SSL_accept failed");
+
             ((func_args*)args)->return_code = err;
             return 0;
         }
