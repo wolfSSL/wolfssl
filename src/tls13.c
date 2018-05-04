@@ -6312,7 +6312,7 @@ static int DoTls13NewSessionTicket(WOLFSSL* ssl, const byte* input,
     if ((*inOutIdx - begin) + nonceLength > size)
         return BUFFER_ERROR;
     nonce = input + *inOutIdx;
-    *inOutIdx += 1;
+    *inOutIdx += nonceLength;
 #endif
 
     /* Ticket length. */
