@@ -564,10 +564,6 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 
 WOLFSSL_API void printPKEY(WOLFSSL_EVP_PKEY *k);
 
-WOLFSSL_API void wolfSSL_OPENSSL_add_all_algorithms_noconf(void);
-
-#define  OPENSSL_add_all_algorithms_noconf  wolfSSL_OPENSSL_add_all_algorithms_noconf 
-         
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

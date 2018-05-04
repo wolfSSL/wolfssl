@@ -381,6 +381,9 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define ASN1_TIME_print              wolfSSL_ASN1_TIME_print
 #define ASN1_GENERALIZEDTIME_print   wolfSSL_ASN1_GENERALIZEDTIME_print
 #define ASN1_TIME_adj                wolfSSL_ASN1_TIME_adj
+#define ASN1_GENERALIZEDTIME_free    wolfSSL_ASN1_GENERALIZEDTIME_free
+#define ASN1_STRING_print_ex         wolfSSL_ASN1_STRING_print_ex
+#define ASN1_TIME_to_generalizedtime wolfSSL_ASN1_TIME_to_generalizedtime
 
 #define ASN1_INTEGER_new wolfSSL_ASN1_INTEGER_new
 #define ASN1_INTEGER_free wolfSSL_ASN1_INTEGER_free
@@ -919,6 +922,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define SSL_CTX_add_client_CA             wolfSSL_CTX_add_client_CA
 #define SSL_CTX_set_srp_password          wolfSSL_CTX_set_srp_password
 #define SSL_CTX_set_srp_username          wolfSSL_CTX_set_srp_username
+#define OPENSSL_add_algorithms_noconf     wolfSSL_OPENSSL_add_alogrithms_noconf
 
 #ifdef __cplusplus
     } /* extern "C" */

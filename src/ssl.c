@@ -10832,6 +10832,15 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return WOLFSSL_FATAL_ERROR;
     }
 
+#ifndef NO_WOLFSSL_STUB
+    int wolfSSL_OPENSSL_add_all_algorithms_noconf(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_OPENSSL_add_all_algorithms_noconf");
+
+        WOLFSSL_STUB("OPENSSL_add_all_algorigorithms_noconf");
+        return SSL_NOT_IMPLEMENTED;
+    }
+#endif
 
    /* returns previous set cache size which stays constant */
     long wolfSSL_CTX_sess_set_cache_size(WOLFSSL_CTX* ctx, long sz)
@@ -20742,6 +20751,14 @@ int wolfSSL_ASN1_GENERALIZEDTIME_print(WOLFSSL_BIO* bio,
     wolfSSL_BIO_write(bio, p, 4);
 
     return 0;
+}
+
+void wolfSSL_ASN1_GENERALIZEDTIME_free(WOLFSSL_ASN1_TIME* asn1Time)
+{
+    WOLFSSL_ENTER("wolfSSL_ASN1_GENERALIZEDTIME_free");
+    if (asn1Time == NULL)
+        return;
+    XMEMSET(asn1Time->data, 0, sizeof(asn1Time->data));
 }
 
 int  wolfSSL_sk_num(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)

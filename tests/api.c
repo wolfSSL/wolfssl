@@ -15550,6 +15550,23 @@ static void test_wolfSSL_ASN1_TIME_print()
 }
 
 
+static void test_wolfSSL_ASN1_GENERALIZEDTIME_free(){
+    #if defined(OPENSSL_EXTRA)
+    WOLFSSL_ASN1_GENERALIZEDTIME* asn1_gtime;
+    unsigned char nullstr[32];
+
+    XMEMSET(nullstr, 0, 32);
+    asn1_gtime = XMALLOC(sizeof(ASN1_GENERALIZEDTIME), NULL, 
+                            DYNAMIC_TYPE_TMP_BUFFER);
+    XMEMCPY(asn1_gtime->data,"20180504123500Z",15);
+    wolfSSL_ASN1_GENERALIZEDTIME_free(asn1_gtime);
+    AssertIntEQ(0, XMEMCMP(asn1_gtime->data, nullstr, 32));
+
+    XFREE(asn1_gtime, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif /* opensslextra */
+}
+
+
 static void test_wolfSSL_private_keys(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
@@ -19368,6 +19385,7 @@ void ApiTest(void)
     test_wolfSSL_DES();
     test_wolfSSL_certs();
     test_wolfSSL_ASN1_TIME_print();
+    test_wolfSSL_ASN1_GENERALIZEDTIME_free();
     test_wolfSSL_private_keys();
     test_wolfSSL_PEM_PrivateKey();
     test_wolfSSL_PEM_RSAPrivateKey();

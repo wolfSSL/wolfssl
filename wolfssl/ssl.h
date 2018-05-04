@@ -806,6 +806,10 @@ WOLFSSL_API long wolfSSL_BIO_set_fd(WOLFSSL_BIO* b, int fd, int flag);
 WOLFSSL_API void wolfSSL_set_bio(WOLFSSL*, WOLFSSL_BIO* rd, WOLFSSL_BIO* wr);
 WOLFSSL_API int  wolfSSL_add_all_algorithms(void);
 
+#ifdef OPENSSL_EXTRA
+WOLFSSL_API int  wolfSSL_OPENSSL_add_all_algorithms_noconf(void);
+#endif
+
 #ifndef NO_FILESYSTEM
 WOLFSSL_API WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_file(void);
 #endif
@@ -1387,7 +1391,6 @@ enum {
     WOLFSSL_BIO_UNSET = -2,
     WOLFSSL_BIO_SIZE  = 17000 /* default BIO write size if not set */
 };
-
 #endif
 
 WOLFSSL_API void wolfSSL_ERR_put_error(int lib, int fun, int err,
@@ -1439,6 +1442,9 @@ WOLFSSL_API int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO*,
                                          const WOLFSSL_ASN1_UTCTIME*);
 WOLFSSL_API int wolfSSL_ASN1_GENERALIZEDTIME_print(WOLFSSL_BIO*,
                                          const WOLFSSL_ASN1_GENERALIZEDTIME*);
+WOLFSSL_API void wolfSSL_ASN1_GENERALIZEDTIME_free(WOLFSSL_ASN1_GENERALIZEDTIME*);
+WOLFSSL_API int  wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO*, WOLFSSL_ASN1_STRING*,
+                                            unsigned long);
 WOLFSSL_API int   wolfSSL_sk_num(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)*);
 WOLFSSL_API void* wolfSSL_sk_value(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)*, int);
 
