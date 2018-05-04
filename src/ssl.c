@@ -27515,7 +27515,7 @@ int wolfSSL_i2d_RSAPublicKey(WOLFSSL_RSA *rsa, const unsigned char **pp)
         return WOLFSSL_FATAL_ERROR;
     der = (byte*)XMALLOC(derLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
-        ret = WOLFSSL_FATAL_ERROR;
+        return WOLFSSL_FATAL_ERROR;
     }
     if((ret = SetRsaInternal(rsa)) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("SetRsaInternal Failed");
