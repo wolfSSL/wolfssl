@@ -1318,6 +1318,10 @@ static void test_client_nofail(void* args, void *cb)
     int  msgSz = (int)XSTRLEN(msg);
     int  ret, err = 0;
 
+    WOLFSSL_CIPHER* cipher;
+    const char* cipher1;
+    const char* cipher2;
+
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
@@ -1364,6 +1368,7 @@ static void test_client_nofail(void* args, void *cb)
     }
 
     ssl = wolfSSL_new(ctx);
+
     tcp_connect(&sockfd, wolfSSLIP, ((func_args*)args)->signal->port,
                 0, 0, ssl);
     if (wolfSSL_set_fd(ssl, sockfd) != WOLFSSL_SUCCESS) {
@@ -1390,6 +1395,16 @@ static void test_client_nofail(void* args, void *cb)
             err = wolfSSL_get_error(ssl, 0);
         }
     } while (ret != WOLFSSL_SUCCESS && err == WC_PENDING_E);
+
+    /* test the various get cipher name methods */
+    /* two-step method */
+    cipher = wolfSSL_get_current_cipher(ssl);
+    cipher1 = wolfSSL_CIPHER_get_name(cipher);
+    /* one-step method */
+    cipher2 = wolfSSL_get_cipher_name_from_suite_ex(ssl);
+    AssertStrEQ(cipher1, cipher2);
+
+
 
     if (ret != WOLFSSL_SUCCESS) {
         char buff[WOLFSSL_MAX_ERROR_SZ];
