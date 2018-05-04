@@ -1443,8 +1443,6 @@ WOLFSSL_API int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO*,
 WOLFSSL_API int wolfSSL_ASN1_GENERALIZEDTIME_print(WOLFSSL_BIO*,
                                          const WOLFSSL_ASN1_GENERALIZEDTIME*);
 WOLFSSL_API void wolfSSL_ASN1_GENERALIZEDTIME_free(WOLFSSL_ASN1_GENERALIZEDTIME*);
-WOLFSSL_API int  wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO*, WOLFSSL_ASN1_STRING*,
-                                            unsigned long);
 WOLFSSL_API int   wolfSSL_sk_num(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)*);
 WOLFSSL_API void* wolfSSL_sk_value(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)*, int);
 

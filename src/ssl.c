@@ -10832,15 +10832,15 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return WOLFSSL_FATAL_ERROR;
     }
 
-#ifndef NO_WOLFSSL_STUB
     int wolfSSL_OPENSSL_add_all_algorithms_noconf(void)
     {
         WOLFSSL_ENTER("wolfSSL_OPENSSL_add_all_algorithms_noconf");
 
-        WOLFSSL_STUB("OPENSSL_add_all_algorigorithms_noconf");
-        return SSL_NOT_IMPLEMENTED;
+        if  (wolfSSL_add_all_algorithms() == WOLFSSL_FATAL_ERROR)
+            return WOLFSSL_FATAL_ERROR;
+        
+        return  WOLFSSL_SUCCESS;
     }
-#endif
 
    /* returns previous set cache size which stays constant */
     long wolfSSL_CTX_sess_set_cache_size(WOLFSSL_CTX* ctx, long sz)

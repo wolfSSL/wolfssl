@@ -18436,6 +18436,15 @@ static void test_wolfSSL_X509_get_serialNumber(void)
 #endif
 }
 
+
+static void test_wolfSSL_OPENSSL_add_all_algorithms(void){
+#if defined(OPENSSL_EXTRA)
+   AssertIntEQ(wolfSSL_OPENSSL_add_all_algorithms_noconf(),WOLFSSL_SUCCESS);
+   wolfSSL_Cleanup();
+#endif
+}
+
+
 static void test_no_op_functions(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -19440,6 +19449,7 @@ void ApiTest(void)
     test_wolfSSL_SHA256();
     test_wolfSSL_X509_get_serialNumber();
     test_wolfSSL_X509_CRL();
+    test_wolfSSL_OPENSSL_add_all_algorithms();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();
