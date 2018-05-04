@@ -17,3 +17,12 @@ EXTRA_DIST += \
          certs/test/server-cert-rsa-badsig.pem \
 		 certs/test/server-cert-ecc-badsig.der \
          certs/test/server-cert-ecc-badsig.pem
+
+
+EXTRA_DIST += \
+		 certs/test/gen-badaltnamenull.sh \
+         certs/test/server-badaltnamenull.conf \
+         certs/test/server-badaltnamenull.csr \
+         certs/test/server-badaltnamenull.key \
+         certs/test/server-badaltnamenull.pem \
+         certs/test/server-badaltnamenull.der

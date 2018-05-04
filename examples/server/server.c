@@ -413,7 +413,7 @@ static void Usage(void)
 #endif
     printf("-g          Return basic HTML web page\n");
     printf("-C <num>    The number of connections to accept, default: 1\n");
-    printf("-H <arg>    Internal tests [defCipherList, badCert]\n");
+    printf("-H <arg>    Internal tests [defCipherList, exitWithRet]\n");
 #ifdef WOLFSSL_TLS13
     printf("-U          Update keys and IVs before sending\n");
     printf("-K          Key Exchange for PSK not using (EC)DHE\n");
@@ -500,7 +500,6 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     unsigned char alpn_opt = 0;
     char*  cipherList = NULL;
     int    useDefCipherList = 0;
-    int    useBadCert = 0;
     const char* verifyCert = cliCertFile;
     const char* ourCert    = svrCertFile;
     const char* ourKey     = svrKeyFile;
@@ -564,6 +563,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int noTicket = 0;
 #endif
     int useX25519 = 0;
+    int exitWithRet = 0;
 
     ((func_args*)args)->return_code = -1; /* error state */
 
@@ -589,7 +589,6 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     (void)readySignal;
     (void)updateKeysIVs;
     (void)mcastID;
-    (void)useBadCert;
     (void)useX25519;
 
 #ifdef CYASSL_TIRTOS
@@ -694,9 +693,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
                     printf("Using default cipher list for testing\n");
                     useDefCipherList = 1;
                 }
-                else if (XSTRNCMP(myoptarg, "badCert", 7) == 0) {
-                    printf("Using bad certificate for testing\n");
-                    useBadCert = 1;
+                else if (XSTRNCMP(myoptarg, "exitWithRet", 7) == 0) {
+                    printf("Skip exit() for testing\n");
+                    exitWithRet = 1;
                 }
                 else {
                     Usage();
@@ -1051,15 +1050,6 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif
 
 #if !defined(NO_CERTS)
-    /* for testing only - use bad cert as server cert for sig confirm err */
-    if (useBadCert) {
-    #if !defined(NO_RSA)
-        ourCert = "./certs/test/server-cert-rsa-badsig.pem";
-    #elif defined(HAVE_ECC)
-        ourCert = "./certs/test/server-cert-ecc-badsig.pem";
-    #endif
-    }
-
     if ((!usePsk || usePskPlus) && !useAnon) {
     #if !defined(NO_FILESYSTEM)
         if (SSL_CTX_use_certificate_chain_file(ctx, ourCert)
@@ -1490,7 +1480,17 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             err = SSL_get_error(ssl, 0);
             printf("SSL_accept error %d, %s\n", err,
                                                 ERR_error_string(err, buffer));
-            err_sys_ex(runWithErrors, "SSL_accept failed");
+            /* cleanup */
+            SSL_free(ssl);
+            SSL_CTX_free(ctx);
+            CloseSocket(clientfd);
+            CloseSocket(sockfd);
+
+            if (!exitWithRet)
+                err_sys_ex(runWithErrors, "SSL_accept failed");
+
+            ((func_args*)args)->return_code = err;
+            goto exit;
         }
 
         showPeer(ssl);
@@ -1677,6 +1677,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
     ((func_args*)args)->return_code = 0;
 
+exit:
 
 #if defined(NO_MAIN_DRIVER) && defined(HAVE_ECC) && defined(FP_ECC) \
                             && defined(HAVE_THREAD_LS)

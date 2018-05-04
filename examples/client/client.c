@@ -796,7 +796,7 @@ static void Usage(void)
 #ifdef HAVE_WNR
     printf("-q <file>   Whitewood config file,      default %s\n", wnrConfig);
 #endif
-    printf("-H <arg>    Internal tests [defCipherList, badCert]\n");
+    printf("-H <arg>    Internal tests [defCipherList, exitWithRet]\n");
 #ifdef WOLFSSL_TLS13
     printf("-J          Use HelloRetryRequest to choose group for KE\n");
     printf("-K          Key Exchange for PSK not using (EC)DHE\n");
@@ -887,7 +887,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     unsigned char alpn_opt = 0;
     char*  cipherList = NULL;
     int    useDefCipherList = 0;
-    int    useBadCert = 0;
     const char* verifyCert = caCertFile;
     const char* ourCert    = cliCertFile;
     const char* ourKey     = cliKeyFile;
@@ -937,6 +936,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     char*  ocspUrl  = NULL;
 #endif
     int useX25519 = 0;
+    int exitWithRet = 0;
 
 #ifdef HAVE_WNR
     const char* wnrConfigFile = wnrConfig;
@@ -988,7 +988,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)useX25519;
     (void)helloRetry;
     (void)onlyKeyShare;
-    (void)useBadCert;
 
     StackTrap();
 
@@ -1113,9 +1112,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     printf("Using default cipher list for testing\n");
                     useDefCipherList = 1;
                 }
-                else if (XSTRNCMP(myoptarg, "badCert", 7) == 0) {
-                    printf("Using bad certificate for testing\n");
-                    useBadCert = 1;
+                else if (XSTRNCMP(myoptarg, "exitWithRet", 7) == 0) {
+                    printf("Skip exit() for testing\n");
+                    exitWithRet = 1;
                 }
                 else {
                     Usage();
@@ -1712,15 +1711,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #endif
     }
 
-    /* for testing only - use client cert as CA to force no signer error */
-    if (useBadCert) {
-    #if !defined(NO_RSA)
-        verifyCert = "./certs/client-cert.pem";
-    #elif defined(HAVE_ECC)
-        verifyCert = "./certs/client-ecc-cert.pem";
-    #endif
-    }
-
     if (!usePsk && !useAnon && !useVerifyCb) {
     #if !defined(NO_FILESYSTEM)
         if (wolfSSL_CTX_load_verify_locations(ctx, verifyCert,0)
@@ -2110,13 +2100,22 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     ret = NonBlockingSSL_Connect(ssl);  /* will keep retrying on timeout */
 #endif
     if (ret != WOLFSSL_SUCCESS) {
+        err = wolfSSL_get_error(ssl, 0);
         printf("wolfSSL_connect error %d, %s\n", err,
             wolfSSL_ERR_error_string(err, buffer));
+
+        /* cleanup */
         wolfSSL_free(ssl);
         wolfSSL_CTX_free(ctx);
-        err_sys("wolfSSL_connect failed");
+        CloseSocket(sockfd);
+
+        if (!exitWithRet)
+            err_sys("wolfSSL_connect failed");
         /* see note at top of README */
         /* if you're getting an error here  */
+
+        ((func_args*)args)->return_code = err;
+        goto exit;
     }
 
     showPeer(ssl);
@@ -2577,6 +2576,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     wolfSSL_CTX_free(ctx);
 
     ((func_args*)args)->return_code = 0;
+
+exit:
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     wolfAsync_DevClose(&devId);

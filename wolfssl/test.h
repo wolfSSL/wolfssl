@@ -1467,7 +1467,7 @@ static INLINE void CRL_CallBack(const char* url)
 static INLINE void SetDH(WOLFSSL* ssl)
 {
     /* dh1024 p */
-    static unsigned char p[] =
+    static const unsigned char p[] =
     {
         0xE6, 0x96, 0x9D, 0x3D, 0x49, 0x5B, 0xE3, 0x2C, 0x7C, 0xF1, 0x80, 0xC3,
         0xBD, 0xD4, 0x79, 0x8E, 0x91, 0xB7, 0x81, 0x82, 0x51, 0xBB, 0x05, 0x5E,
@@ -1483,7 +1483,7 @@ static INLINE void SetDH(WOLFSSL* ssl)
     };
 
     /* dh1024 g */
-    static unsigned char g[] =
+    static const unsigned char g[] =
     {
       0x02,
     };
@@ -1494,7 +1494,7 @@ static INLINE void SetDH(WOLFSSL* ssl)
 static INLINE void SetDHCtx(WOLFSSL_CTX* ctx)
 {
     /* dh1024 p */
-    static unsigned char p[] =
+    static const unsigned char p[] =
     {
         0xE6, 0x96, 0x9D, 0x3D, 0x49, 0x5B, 0xE3, 0x2C, 0x7C, 0xF1, 0x80, 0xC3,
         0xBD, 0xD4, 0x79, 0x8E, 0x91, 0xB7, 0x81, 0x82, 0x51, 0xBB, 0x05, 0x5E,
@@ -1510,7 +1510,7 @@ static INLINE void SetDHCtx(WOLFSSL_CTX* ctx)
     };
 
     /* dh1024 g */
-    static unsigned char g[] =
+    static const unsigned char g[] =
     {
       0x02,
     };
