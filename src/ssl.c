@@ -28499,7 +28499,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         return x509;
     }
 
-#ifndef NO_FILESYSTEM
+#if defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
     WOLFSSL_API WOLFSSL_X509_CRL* wolfSSL_PEM_read_X509_CRL(FILE *fp, WOLFSSL_X509_CRL **crl,
                                                     pem_password_cb *cb, void *u)
     {
