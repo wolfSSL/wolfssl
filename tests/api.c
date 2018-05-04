@@ -18620,10 +18620,12 @@ static void test_wolfSSL_X509_CRL(void)
         ""
     };
 
+#ifdef HAVE_TEST_d2i_X509_CRL_fp
     char der[][100] = {
         "./certs/crl/crl.der",
         "./certs/crl/crl2.der",
         ""};
+#endif
 
     FILE * fp;
     int i;
@@ -18644,6 +18646,7 @@ static void test_wolfSSL_X509_CRL(void)
         XFCLOSE(fp);
     }
 
+#ifdef HAVE_TEST_d2i_X509_CRL_fp
     for(i = 0; der[i][0] != '\0'; i++){
         AssertNotNull(fp = XFOPEN(der[i], "rb"));
         AssertNotNull(crl = (X509_CRL *)d2i_X509_CRL_fp((X509_CRL **)NULL, fp));
@@ -18656,6 +18659,7 @@ static void test_wolfSSL_X509_CRL(void)
         X509_CRL_free(crl);
         XFCLOSE(fp);
     }
+#endif
 
     printf(resultFmt, passed);
 #endif
