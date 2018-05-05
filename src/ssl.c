@@ -17976,7 +17976,6 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 WOLFSSL_X509_CRL* wolfSSL_d2i_X509_CRL(WOLFSSL_X509_CRL** crl, const unsigned char* in, int len)
 {
     WOLFSSL_X509_CRL *newcrl = NULL;
-    WOLFSSL_CERT_MANAGER *cert= NULL;
     int ret ;
 
     WOLFSSL_ENTER("wolfSSL_X509_CRL_d2i");
@@ -17991,12 +17990,7 @@ WOLFSSL_X509_CRL* wolfSSL_d2i_X509_CRL(WOLFSSL_X509_CRL** crl, const unsigned ch
         WOLFSSL_MSG("New CRL allocation failed");
         return NULL;
     }
-    cert = wolfSSL_CertManagerNew();
-    if (cert == NULL){
-        WOLFSSL_MSG("CertManagerNew failed");
-        goto err_exit;
-    }
-    if (InitCRL(newcrl, cert) < 0) {
+    if (InitCRL(newcrl, NULL) < 0) {
         WOLFSSL_MSG("Init tmp CRL failed");
         goto err_exit;
     }
@@ -18014,8 +18008,6 @@ err_exit:
     if(newcrl != NULL)
         XFREE(newcrl, NULL, DYNAMIC_TYPE_FILE); 
     newcrl = NULL;
-    if(cert != NULL)
-        wolfSSL_CertManagerFree(cert); 
 _exit:
     return newcrl;
 }
@@ -27499,8 +27491,8 @@ WOLFSSL_RSA *wolfSSL_d2i_RSAPublicKey(WOLFSSL_RSA **r, const unsigned char **pp,
         WOLFSSL_MSG("RSA_LoadDer failed");
         return NULL;
     }
-    
-    *r = rsa;
+    if(r != NULL)
+        *r = rsa;
     return rsa;
 }
 
@@ -28560,10 +28552,13 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             goto err_exit;
         if((PemToDer(pem, pemSz, CRL_TYPE, &der, NULL, NULL, NULL)) < 0)
             goto err_exit;
+        XFREE(pem, 0, DYNAMIC_TYPE_PEM);
 
         derSz = der->length;
         if((newcrl = wolfSSL_d2i_X509_CRL(crl, (const unsigned char *)der->buffer, derSz)) == NULL)
             goto err_exit;
+        FreeDer(&der);
+
         return newcrl;
 
     err_exit:
