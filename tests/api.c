@@ -9854,7 +9854,7 @@ static int test_wc_RsaKeyToDer (void)
 static int test_wc_RsaKeyToPublicDer (void)
 { 
     int         ret = 0;
-#if (!defined(NO_RSA) || !defined(HAVE_FAST_RSA) || defined(WOLFSSL_KEY_GEN)) && \
+#if (!defined(NO_RSA) || !defined(HAVE_FAST_RSA)) && defined(WOLFSSL_KEY_GEN) && \
     (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
     RsaKey      key;
     WC_RNG      rng;
