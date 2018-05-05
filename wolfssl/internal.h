@@ -3465,6 +3465,7 @@ struct WOLFSSL {
     unsigned long    peerVerifyRet;
     byte             readAhead;
     byte             sessionCtxSz;       /* size of sessionCtx stored */
+    WOLFSSL_BIO      *bio;               /* BIO tied with SSL */
 #ifdef HAVE_PK_CALLBACKS
     void*            loggingCtx;         /* logging callback argument */
 #endif

@@ -4498,6 +4498,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     /* copy over application session context ID */
     ssl->sessionCtxSz = ctx->sessionCtxSz;
     XMEMCPY(ssl->sessionCtx, ctx->sessionCtx, ctx->sessionCtxSz);
+    ssl->bio = NULL;
 #endif
 
     InitCiphers(ssl);
@@ -5217,6 +5218,10 @@ void FreeSSL(WOLFSSL* ssl, void* heap)
     }
     SSL_ResourceFree(ssl);
     XFREE(ssl, heap, DYNAMIC_TYPE_SSL);
+    #ifdef OPENSSL_EXTRA
+    if(ssl->bio)
+        wolfSSL_BIO_free_all(ssl->bio);
+    #endif
     (void)heap;
 }
 

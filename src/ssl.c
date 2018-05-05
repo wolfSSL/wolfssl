@@ -11479,8 +11479,9 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         if (b != NULL) {
             b->ssl   = ssl;
             b->close = (byte)closeF;
-    /* add to ssl for bio free if SSL_free called before/instead of free_all? */
-        }
+            ssl->bio = b; /* add to ssl for bio free if SSL_free called before/instead of free_all? */
+        } else
+           return BAD_FUNC_ARG;
 
         return 0;
     }
