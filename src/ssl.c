@@ -27525,13 +27525,14 @@ int wolfSSL_i2d_RSAPublicKey(WOLFSSL_RSA *rsa, const unsigned char **pp)
     *pp = der;
     return ret;
 }
+#endif /* #if !defined(HAVE_FAST_RSA) */
 
 /* return WOLFSSL_SUCCESS if success, WOLFSSL_FATAL_ERROR if error */
 int wolfSSL_RSA_LoadDer(WOLFSSL_RSA* rsa, const unsigned char* derBuf, int derSz)
 {
   return wolfSSL_RSA_LoadDer_ex(rsa, derBuf, derSz, WOLFSSL_RSA_LOAD_PRIVATE);
 }
-#endif /* #if !defined(HAVE_FAST_RSA) */
+
 
 int wolfSSL_RSA_LoadDer_ex(WOLFSSL_RSA* rsa, const unsigned char* derBuf,
                                                      int derSz, int opt)
