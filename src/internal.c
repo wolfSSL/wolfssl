@@ -5216,12 +5216,16 @@ void FreeSSL(WOLFSSL* ssl, void* heap)
     if (ssl->ctx) {
         FreeSSL_Ctx(ssl->ctx); /* will decrement and free underyling CTX if 0 */
     }
+
+    #ifdef OPENSSL_EXTRA
+    if(ssl->bio){
+        ssl->bio->ssl = NULL; /* not to be recursive free */
+        wolfSSL_BIO_free_all(ssl->bio);
+    }
+    #endif
+
     SSL_ResourceFree(ssl);
     XFREE(ssl, heap, DYNAMIC_TYPE_SSL);
-    #ifdef OPENSSL_EXTRA
-    if(ssl->bio)
-        wolfSSL_BIO_free_all(ssl->bio);
-    #endif
     (void)heap;
 }
 

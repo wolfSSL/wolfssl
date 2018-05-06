@@ -16489,6 +16489,7 @@ static void test_wolfSSL_BIO(void)
     }
     #endif /* !defined(NO_FILESYSTEM) */
 
+  
     /* test BIO tied with SSL */
     {
         BIO *bio;
@@ -16498,10 +16499,10 @@ static void test_wolfSSL_BIO(void)
         AssertNotNull(bio = BIO_new(wolfSSL_BIO_s_bio()));
         AssertNotNull(ctx = SSL_CTX_new(wolfTLSv1_2_client_method()));
         AssertNotNull(ssl = SSL_new(ctx));
-        AssertIntEQ(BIO_set_ssl(bio, ssl, BIO_NOCLOSE), 0); 
+        AssertIntEQ(BIO_set_ssl(bio, ssl, BIO_CLOSE), 0); 
         SSL_free(ssl);
+        SSL_CTX_free(ctx);
     }
-
 
     printf(resultFmt, passed);
     #endif
