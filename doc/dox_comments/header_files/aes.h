@@ -809,3 +809,31 @@ WOLFSSL_API int wc_AesXtsDecrypt(XtsAes* aes, byte* out,
     \sa wc_AesXtsSetKey
 */
 WOLFSSL_API int wc_AesXtsFree(XtsAes* aes);
+
+
+/*!
+    \ingroup AES
+    \brief Initialize Aes structure. Sets heap hint to be used and ID for use
+    with async hardware
+    \return 0 Success
+
+    \param aes aes structure in to initialize
+    \param heap heap hint to use for malloc / free if needed
+    \param devId ID to use with async hardware
+
+    _Example_
+    \code
+    Aes enc;
+    void* hint = NULL;
+    int devId = INVALID_DEVID; //if not using async INVALID_DEVID is default
+
+    //heap hint could be set here if used
+
+    wc_AesInit(&aes, hint, devId);
+    \endcode
+
+    \sa wc_AesSetKey
+    \sa wc_AesSetIV
+*/
+WOLFSSL_API int  wc_AesInit(Aes* aes, void* heap, int devId);
+
