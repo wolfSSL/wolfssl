@@ -653,6 +653,17 @@ char* wolfSSL_get_cipher_list(int priority)
     return (char*)ciphers[priority];
 }
 
+/**
+  * Get the cipher name from the suite.
+  */
+const char* wolfSSL_get_cipher_name_from_suite_ex(WOLFSSL* ssl)
+{
+    if (ssl)
+        return wolfSSL_get_cipher_name_from_suite(ssl->options.cipherSuite,
+                                                  ssl->options.cipherSuite0);
+    else
+        return 0;
+}
 
 /**
   * Get the name of cipher at priority level passed in.
