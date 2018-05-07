@@ -14364,7 +14364,15 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
 
     return newX509;
 }
-
+#ifndef NO_WOLFSSL_STUB
+WOLFSSL_X509* wolfSSL_d2i_X509_fp(FILE *fp, WOLFSSL_X509 **x509)
+{
+    WOLFSSL_STUB("d2i_X509_fp");
+    (void)fp;
+    (void)x509;
+    return 0;
+}
+#endif
 #endif /* KEEP_PEER_CERT || SESSION_CERTS || OPENSSL_EXTRA ||
           OPENSSL_EXTRA_X509_SMALL */
 
@@ -21582,6 +21590,7 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
 }
 
 #define RAND_ENTROPY_SZ (256/16)
+
 int wolfSSL_RAND_poll()
 {
     WOLFSSL_ENTER("wolfSSL_RAND_poll");
@@ -32619,3 +32628,127 @@ int wolfSSL_CTX_set_alpn_protos(WOLFSSL_CTX *ctx, const unsigned char *p,
 #endif
 
 #endif /* WOLFCRYPT_ONLY */
+
+#if defined(OPENSSL_EXTRA)
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_X509_check_ca(WOLFSSL_X509 *x509)
+{
+    WOLFSSL_STUB("X509_check_ca");
+    (void)x509;
+    return 0;
+}
+
+int wolfSSL_d2i_PKCS12_fp(FILE *fp, WC_PKCS12 *pkcs12)
+{
+    WOLFSSL_STUB("d2i_PKCS12_fp");
+    (void)fp;
+    (void)pkcs12;
+    return 0;
+}
+
+const char *wolfSSL_ASN1_tag2str(int tag){
+    static const char *const tag_label[] = {
+        "EOC", "BOOLEAN", "INTEGER", "BIT STRING", "OCTET STRING", "NULL",
+        "OBJECT", "OBJECT DESCRIPTOR", "EXTERNAL", "REAL", "ENUMRATED",
+        "<ASN1 11>", "UTF8STRING", "<ASN1 13>", "<ASN1 14>", "<ASN1 15>",
+        "SEQUENCE", "SET", "NUMERICSTRING", "PRINTABLESTRING", "T61STRING",
+        "VIDEOTEXTSTRING", "IA5STRING", "TUCTIME", "GENERALIZEDTIME",
+        "GRAPHICSTRING", "VISIBLESTRING", "GENERALSTRING", "UNIVERSALSTRING",
+        "<ASN1 29>", "BMPSTRINT"
+    };
+
+    if ((tag == V_ASN1_NEG_INTEGER) || (tag == V_ASN1_NEG_ENUMERATED))
+        tag &= ~0x100;
+    if (tag < 0 || tag > 30)
+        return "(unknown)";
+    return tag_label[tag];
+}
+
+int wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str, 
+                                 unsigned long flags)
+{
+    WOLFSSL_STUB("ASN1_STRING_PRINT_ex");
+    int strLen = 0;
+    unsigned char *strBuf = NULL;
+
+    if (out == NULL || str == NULL)
+        return WOLFSSL_FAILURE;
+
+    if (flags & ASN1_STRFLGS_SHOW_TYPE){
+        const char *tag = wolfSSL_ASN1_tag2str(str->type);
+        strLen += XSTRLEN(tag);
+        strBuf = (unsigned char *)XMALLOC(strLen + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (strBuf == NULL){
+            WOLFSSL_MSG("memory alloc failed.");
+            return WOLFSSL_FAILURE;
+        }
+        XMEMSET(strBuf, 0, strLen + 1);
+        XSNPRINTF((char*)strBuf, strLen + 1, "%s:", tag);
+        if (wolfSSL_BIO_write(out, strBuf, strLen) <= 0){
+            XFREE(strBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            return WOLFSSL_FAILURE;
+        }
+        strLen++;
+        XFREE(strBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+
+    if (flags & ASN1_STRFLGS_DUMP_ALL){
+        if (!(flags & ASN1_STRFLGS_DUMP_DER)){
+            static const char hexChar[] = { '0', '1', '2', '3', '4', '5', '6',
+                                            '7','8', '9', 'a', 'b', 'c', 'd',
+                                            'e', 'f' };
+            char hextmp[2];
+            char *strPtr, *strEnd;
+
+            strPtr = str->data;
+            strEnd = str->data + str->length; 
+            while (strPtr != strEnd){
+                hextmp[0] = hexChar[*strPtr >> 4];
+                hextmp[1] = hexChar[*strPtr & 0xf];
+                if (wolfSSL_BIO_write(out, hextmp, 2) <= 0){
+                    return WOLFSSL_FAILURE;                    
+                }
+                strPtr++;
+                strLen += 2;
+            }
+            return strLen;
+        }
+        /* ASN1_STRFLGS_DUMP_DER */
+        wolfSSL_BIO_write(out, str->data, str->length);
+        strLen += str->length;
+        return strLen;
+    }
+
+    if (flags & ASN1_STRFLGS_UTF8_CONVERT){
+        /* Not implemented yet */
+    }
+
+    return 0;
+}
+
+WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_to_generalizedtime(WOLFSSL_ASN1_TIME *t,
+                                                    WOLFSSL_ASN1_TIME **out)
+{
+    WOLFSSL_STUB("ASN1_TIME_to_generalizedtime");
+    (void)t;
+    (void)out;
+    return 0;
+}
+
+int wolfSSL_i2c_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER **a, unsigned char **pp)
+{
+    WOLFSSL_STUB("i2c_ASN1_INTEGER");
+    (void)a;
+    (void)pp;
+    return 0;
+}
+
+int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *ctx, WOLFSSL_X509_CRL *x)
+{
+    (void)ctx;
+    (void)x;
+    return 0;
+}
+
+#endif
+#endif
