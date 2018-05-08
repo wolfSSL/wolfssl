@@ -22,6 +22,7 @@
 #                       client-ca.pem
 #                       test/digsigku.pem
 #                       ecc-privOnlyCert.pem
+#                       uri-cert.pem
 # updates the following crls:
 #                       crl/cliCrl.pem
 #                       crl/crl.pem
@@ -44,6 +45,21 @@ function run_renewcerts(){
 
     # To generate these all in sha1 add the flag "-sha1" on appropriate lines
     # That is all lines beginning with:  "openssl req"
+
+    ############################################################
+    #### update the self-signed (2048-bit) client-uri-cert.pem #
+    ############################################################
+    echo "Updating 2048-bit client-uri-cert.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\nMontana\nBozeman\nwolfSSL_2048\nURI\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key client-key.pem -nodes -out client-cert.csr
+
+
+    openssl x509 -req -in client-cert.csr -days 1000 -extfile wolfssl.cnf -extensions uri -signkey client-key.pem -out client-uri-cert.pem
+    rm client-cert.csr
+
+    openssl x509 -in client-uri-cert.pem -text > tmp.pem
+    mv tmp.pem client-uri-cert.pem
 
     ############################################################
     #### update the self-signed (2048-bit) client-cert.pem #####

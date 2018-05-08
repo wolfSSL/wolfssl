@@ -220,6 +220,13 @@ keyUsage=critical, digitalSignature, keyEncipherment, keyAgreement
 extendedKeyUsage=serverAuth
 nsCertType=server
 
+# test parsing URI
+[ uri ]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=CA:false
+subjectAltName=URI:https://www.wolfssl.com
+
 #tsa default
 [ tsa ]
 default_tsa = tsa_config1
