@@ -4328,8 +4328,10 @@ void FreeHandshakeHashes(WOLFSSL* ssl)
         wc_Sha512Free(&ssl->hsHashes->hashSha512);
     #endif
     #if defined(HAVE_ED25519) && !defined(WOLFSSL_NO_CLIENT_AUTH)
-        if (ssl->hsHashes->messages != NULL)
+        if (ssl->hsHashes->messages != NULL) {
             XFREE(ssl->hsHashes->messages, ssl->heap, DYNAMIC_TYPE_HASHES);
+            ssl->hsHashes->messages = NULL;
+         }
     #endif
 
         XFREE(ssl->hsHashes, ssl->heap, DYNAMIC_TYPE_HASHES);
