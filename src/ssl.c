@@ -18006,7 +18006,7 @@ WOLFSSL_X509_CRL* wolfSSL_d2i_X509_CRL(WOLFSSL_X509_CRL** crl, const unsigned ch
 
 err_exit:
     if(newcrl != NULL)
-        XFREE(newcrl, NULL, DYNAMIC_TYPE_FILE); 
+        wolfSSL_X509_CRL_free(newcrl); 
     newcrl = NULL;
 _exit:
     return newcrl;
@@ -18059,7 +18059,7 @@ WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_fp(WOLFSSL_X509_CRL **crl, XFILE file)
 
 err_exit:
     if(newcrl != NULL)
-        XFREE(newcrl, NULL, DYNAMIC_TYPE_FILE);
+        wolfSSL_X509_CRL_free(newcrl);
 _exit:
     if(der != NULL)
         FreeDer(&der);
