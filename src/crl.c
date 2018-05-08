@@ -155,7 +155,6 @@ void FreeCRL(WOLFSSL_CRL* crl, int dynamic)
     CRL_Entry* tmp = crl->crlList;
 
     WOLFSSL_ENTER("FreeCRL");
-    printf("sizeof(CRL_Entry)=%lu\n", sizeof(CRL_Entry));
     if (crl->monitors[0].path)
         XFREE(crl->monitors[0].path, crl->heap, DYNAMIC_TYPE_CRL_MONITOR);
 
