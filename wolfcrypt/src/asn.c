@@ -5717,7 +5717,7 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
             /* Verify RFC 5280 Sec 4.2.1.6 rule:
                 "The name MUST NOT be a relative URI" */
 
-            if (XSTRNCMP((const char*)&input[idx], "://", strLen + 1) != 0) {
+            if (XSTRNSTR((const char*)&input[idx], "://", strLen + 1) == NULL) {
                 WOLFSSL_MSG("\tAlt Name must be absolute URI");
                 return ASN_ALT_NAME_E;
             }
