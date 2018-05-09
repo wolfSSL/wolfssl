@@ -16322,7 +16322,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
                             byte*  der;
 
                             derSz = wc_ecc_size(&ecc) * WOLFSSL_BIT_SIZE;
-                            der = XMALLOC(derSz, x509->heap,
+                            der = (byte*)XMALLOC(derSz, x509->heap,
                                     DYNAMIC_TYPE_TMP_BUFFER);
                             if (der == NULL) {
                                 wc_ecc_free(&ecc);
