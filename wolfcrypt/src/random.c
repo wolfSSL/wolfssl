@@ -177,6 +177,7 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #define RESEED_INTERVAL   WC_RESEED_INTERVAL
 #define SECURITY_STRENGTH (2048)
 #define ENTROPY_SZ        (SECURITY_STRENGTH/8)
+#define MAX_ENTROPY_SZ    (ENTROPY_SZ + ENTROPY_SZ/2)
 
 /* Internal return codes */
 #define DRBG_SUCCESS      0
@@ -586,10 +587,10 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #else
 #ifdef HAVE_HASHDRBG
     if (nonceSz == 0)
-        entropySz += (entropySz / 2);
+        entropySz = MAX_ENTROPY_SZ;
 
     if (wc_RNG_HealthTestLocal(0) == 0) {
-        DECLARE_VAR(entropy, byte, entropySz, rng->heap);
+        DECLARE_VAR(entropy, byte, MAX_ENTROPY_SZ, rng->heap);
 
         rng->drbg =
                 (struct DRBG*)XMALLOC(sizeof(DRBG), rng->heap,

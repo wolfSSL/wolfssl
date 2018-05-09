@@ -10778,7 +10778,7 @@ static int dh_fips_generate_test(WC_RNG *rng)
     ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
 #endif
     if (ret != 0) {
-        ret = -5727;
+        ERROR_OUT(-5727, exit_gen_test);
     }
 
     ret = wc_DhCheckKeyPair(&key, pub, pubSz, priv, privSz);
@@ -10792,8 +10792,6 @@ static int dh_fips_generate_test(WC_RNG *rng)
     if (ret != MP_CMP_E) {
         ERROR_OUT(-8230, exit_gen_test);
     }
-    else
-        ret = 0;
 
 #ifdef WOLFSSL_KEY_GEN
 
@@ -10811,6 +10809,8 @@ static int dh_fips_generate_test(WC_RNG *rng)
     }
 
 #endif /* WOLFSSL_KEY_GEN */
+
+    ret = 0;
 
 exit_gen_test:
     wc_FreeDhKey(&key);
