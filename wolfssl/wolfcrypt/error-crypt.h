@@ -211,8 +211,9 @@ enum {
     AES_GCM_OVERFLOW_E  = -260,  /* AES-GCM invocation counter overflow. */
     AES_CCM_OVERFLOW_E  = -261,  /* AES-CCM invocation counter overflow. */
     RSA_KEY_PAIR_E      = -262,  /* RSA Key Pair-Wise Consistency check fail. */
+    DH_CHECK_PRIV_E     = -263,  /* DH Check Priv Key error */
 
-    WC_LAST_E           = -262,  /* Update this to indicate last error */
+    WC_LAST_E           = -263,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes

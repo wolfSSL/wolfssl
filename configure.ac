@@ -2043,7 +2043,7 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS"
     # Add the FIPS flag.
     AS_IF([test "x$FIPS_VERSION" = "xv2"],
-          [AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS_VERSION=2 -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING -DFP_MAX_BITS=6144"
+          [AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS_VERSION=2 -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING -DFP_MAX_BITS=6144 -DWOLFSSL_VALIDATE_FFC_IMPORT"
            ENABLED_KEYGEN="yes"
            ENABLED_SHA224="yes"
            AS_IF([test "x$ENABLED_AESCCM" != "xyes"],
@@ -2054,7 +2054,7 @@ then
                   AM_CFLAGS="$AM_CFLAGS -DWC_RSA_PSS"])
            AS_IF([test "x$ENABLED_ECC" != "xyes"],
                  [ENABLED_ECC="yes"
-                  AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
+                  AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256 -DWOLFSSL_VALIDATE_ECC_IMPORT"
                   AS_IF([test "x$ENABLED_ECC_SHAMIR" = "xyes"],
                         [AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"])])
            AS_IF([test "x$ENABLED_AESCTR" != "xyes"],
@@ -2066,6 +2066,8 @@ then
            AS_IF([test "x$ENABLED_HKDF" != "xyes"],
                  [ENABLED_HKDF="yes"
                   AM_CFLAGS="$AM_CFLAGS -DHAVE_HKDF"])
+           AS_IF([test "x$ENABLED_INTELASM" = "xyes"],
+                 [AM_CFLAGS="$AM_CFLAGS -DFORCE_FAILURE_RDSEED"])
           ])
 else
     if test "x$ENABLED_FORTRESS" = "xyes"

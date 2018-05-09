@@ -479,6 +479,9 @@ const char* wc_GetErrorString(int error)
     case RSA_KEY_PAIR_E:
         return "RSA Key Pair-Wise Consistency check fail";
 
+    case DH_CHECK_PRIV_E:
+        return "DH Check Private Key failure";
+
     default:
         return "unknown error number";
 

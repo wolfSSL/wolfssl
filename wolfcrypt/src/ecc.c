@@ -5415,6 +5415,7 @@ int wc_ecc_check_key(ecc_key* key)
 
 #else
 
+    /* SP 800-56Ar3, section 5.6.2.3.3, process step 1 */
     /* pubkey point cannot be at infinity */
     if (wc_ecc_point_is_at_infinity(&key->pubkey))
         return ECC_INF_E;
@@ -5437,6 +5438,7 @@ int wc_ecc_check_key(ecc_key* key)
     b = curve->Bf;
 #endif
 
+    /* SP 800-56Ar3, section 5.6.2.3.3, process step 2 */
     /* Qx must be in the range [0, p-1] */
     if (mp_cmp(key->pubkey.x, curve->prime) != MP_LT)
         err = ECC_OUT_OF_RANGE_E;
@@ -5445,15 +5447,18 @@ int wc_ecc_check_key(ecc_key* key)
     if (mp_cmp(key->pubkey.y, curve->prime) != MP_LT)
         err = ECC_OUT_OF_RANGE_E;
 
+    /* SP 800-56Ar3, section 5.6.2.3.3, process steps 3 */
     /* make sure point is actually on curve */
     if (err == MP_OKAY)
         err = wc_ecc_is_point(&key->pubkey, curve->Af, b, curve->prime);
 
+    /* SP 800-56Ar3, section 5.6.2.3.3, process steps 4 */
     /* pubkey * order must be at infinity */
     if (err == MP_OKAY)
         err = ecc_check_pubkey_order(key, &key->pubkey, curve->Af, curve->prime,
                 curve->order);
 
+    /* SP 800-56Ar3, section 5.6.2.1.4, method (b) for ECC */
     /* private * base generator must equal pubkey */
     if (err == MP_OKAY && key->type == ECC_PRIVATEKEY)
         err = ecc_check_privkey_gen(key, curve->Af, curve->prime);

@@ -10781,21 +10781,33 @@ static int dh_fips_generate_test(WC_RNG *rng)
         ret = -5727;
     }
 
+    ret = wc_DhCheckKeyPair(&key, pub, pubSz, priv, privSz);
+    if (ret != 0) {
+        ERROR_OUT(-8229, exit_gen_test);
+    }
+
+    /* Taint the public key so the check fails. */
+    pub[0]++;
+    ret = wc_DhCheckKeyPair(&key, pub, pubSz, priv, privSz);
+    if (ret != MP_CMP_E) {
+        ERROR_OUT(-8230, exit_gen_test);
+    }
+    else
+        ret = 0;
+
 #ifdef WOLFSSL_KEY_GEN
 
-    if (ret == 0) {
-        ret = wc_DhGenerateParams(rng, 2048, &key);
-        if (ret != 0) {
-            ERROR_OUT(-8226, exit_gen_test);
-        }
+    ret = wc_DhGenerateParams(rng, 2048, &key);
+    if (ret != 0) {
+        ERROR_OUT(-8226, exit_gen_test);
+    }
 
-        privSz = sizeof(priv);
-        pubSz = sizeof(pub);
+    privSz = sizeof(priv);
+    pubSz = sizeof(pub);
 
-        ret = wc_DhGenerateKeyPair(&key, rng, priv, &privSz, pub, &pubSz);
-        if (ret != 0) {
-            ret = -8227;
-        }
+    ret = wc_DhGenerateKeyPair(&key, rng, priv, &privSz, pub, &pubSz);
+    if (ret != 0) {
+        ERROR_OUT(-8227, exit_gen_test);
     }
 
 #endif /* WOLFSSL_KEY_GEN */

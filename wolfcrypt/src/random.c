@@ -1143,6 +1143,7 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
         return ret;
 
     XMEMCPY(output, &rndTmp, sz);
+    ForceZero(&rndTmp, sizeof(rndTmp));
 
     return 0;
 }
