@@ -55,7 +55,11 @@ void lm_copy(byte* x, const byte* a)
         x[i] = a[i];
 }
 
-#ifndef FREESCALE_LTC_ECC
+#if ((defined(HAVE_CURVE25519) && !defined(CURVE25519_SMALL)) || \
+	 (defined(HAVE_ED25519) && !defined(ED25519_SMALL))) &&      \
+	!defined(FREESCALE_LTC_ECC)
+	/* to be Complementary to fe_operations.c */
+#else
 void fe_init()
 {
 }

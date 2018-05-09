@@ -460,8 +460,18 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
 #if defined(USE_WOLF_TIME_T)
     typedef long time_t;
 #endif
+#if defined(USE_WOLF_SUSECONDS_T)
+    typedef long suseconds_t;
+#endif
+#if defined(USE_WOLF_TIMEVAL_T)
+    struct timeval
+    {
+        time_t tv_sec;
+        suseconds_t tv_usec;
+    };
+#endif
 
-/* forward declarations */
+    /* forward declarations */
 #if defined(USER_TIME)
     struct tm* gmtime(const time_t* timer);
     extern time_t XTIME(time_t * timer);

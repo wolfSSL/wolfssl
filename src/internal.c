@@ -5978,14 +5978,14 @@ ProtocolVersion MakeDTLSv1_2(void)
 
 #else
     /* Posix style time */
+    #ifndef USER_TIME
     #include <time.h>
+    #endif
 
     word32 LowResTimer(void)
     {
-        return (word32)time(0);
+        return (word32)XTIME(0);
     }
-
-
 #endif
 
 

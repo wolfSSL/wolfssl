@@ -119,6 +119,7 @@ void fe_0(fe h)
 #if ((defined(HAVE_CURVE25519) && !defined(CURVE25519_SMALL)) || \
      (defined(HAVE_ED25519) && !defined(ED25519_SMALL))) && \
     !defined(FREESCALE_LTC_ECC)
+/* to be Complementary to fe_low_mem.c */
 void fe_init()
 {
 }
