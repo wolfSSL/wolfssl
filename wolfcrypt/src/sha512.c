@@ -695,6 +695,20 @@ static INLINE int Sha512Final(wc_Sha512* sha512)
     return 0;
 }
 
+int wc_Sha512FinalRaw(wc_Sha512* sha512, byte* hash)
+{
+    if (sha512 == NULL || hash == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    XMEMCPY(hash, sha512->digest, WC_SHA512_DIGEST_SIZE);
+#if defined(LITTLE_ENDIAN_ORDER)
+    ByteReverseWords64((word64*)hash, (word64*)hash, WC_SHA512_DIGEST_SIZE);
+#endif
+
+    return 0;
+}
+
 int wc_Sha512Final(wc_Sha512* sha512, byte* hash)
 {
     int ret;
@@ -2587,6 +2601,20 @@ int wc_Sha384Update(wc_Sha384* sha384, const byte* data, word32 len)
     return Sha512Update((wc_Sha512*)sha384, data, len);
 }
 
+
+int wc_Sha384FinalRaw(wc_Sha384* sha384, byte* hash)
+{
+    if (sha384 == NULL || hash == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    XMEMCPY(hash, sha384->digest, WC_SHA384_DIGEST_SIZE);
+#if defined(LITTLE_ENDIAN_ORDER)
+    ByteReverseWords64((word64*)hash, (word64*)hash, WC_SHA384_DIGEST_SIZE);
+#endif
+
+    return 0;
+}
 
 int wc_Sha384Final(wc_Sha384* sha384, byte* hash)
 {

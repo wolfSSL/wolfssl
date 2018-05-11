@@ -112,6 +112,7 @@ typedef struct wc_Sha512 {
 WOLFSSL_API int wc_InitSha512(wc_Sha512*);
 WOLFSSL_API int wc_InitSha512_ex(wc_Sha512*, void*, int);
 WOLFSSL_API int wc_Sha512Update(wc_Sha512*, const byte*, word32);
+WOLFSSL_API int wc_Sha512FinalRaw(wc_Sha512*, byte*);
 WOLFSSL_API int wc_Sha512Final(wc_Sha512*, byte*);
 WOLFSSL_API void wc_Sha512Free(wc_Sha512*);
 
@@ -144,6 +145,7 @@ typedef wc_Sha512 wc_Sha384;
 WOLFSSL_API int wc_InitSha384(wc_Sha384*);
 WOLFSSL_API int wc_InitSha384_ex(wc_Sha384*, void*, int);
 WOLFSSL_API int wc_Sha384Update(wc_Sha384*, const byte*, word32);
+WOLFSSL_API int wc_Sha384FinalRaw(wc_Sha384*, byte*);
 WOLFSSL_API int wc_Sha384Final(wc_Sha384*, byte*);
 WOLFSSL_API void wc_Sha384Free(wc_Sha384*);
 
