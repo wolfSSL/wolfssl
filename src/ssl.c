@@ -21079,6 +21079,7 @@ int wolfSSL_RAND_write_file(const char* fname)
     return bytes;
 }
 
+#ifndef FREERTOS_TCP
 
 /* These constant values are protocol values made by egd */
 #if defined(USE_WOLFSSL_IO) && !defined(USE_WINDOWS_API)
@@ -21243,6 +21244,7 @@ int wolfSSL_RAND_egd(const char* nm)
 #endif /* defined(USE_WOLFSSL_IO) && !defined(USE_WINDOWS_API) */
 }
 
+#endif /* !FREERTOS_TCP */
 
 void wolfSSL_RAND_Cleanup(void)
 {
