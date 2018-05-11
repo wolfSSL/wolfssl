@@ -45,6 +45,7 @@
 WOLFSSL_API int  wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
                                          const byte* key, word32 keySz,
                                          const byte* iv);
+
 /*!
     \ingroup 3DES
     
@@ -86,6 +87,7 @@ WOLFSSL_API int  wc_AesCbcDecryptWithKey(byte* out, const byte* in, word32 inSz,
 WOLFSSL_API int  wc_Des_CbcDecryptWithKey(byte* out,
                                           const byte* in, word32 sz,
                                           const byte* key, const byte* iv);
+
 /*!
     \ingroup 3DES
     
@@ -124,6 +126,7 @@ WOLFSSL_API int  wc_Des_CbcDecryptWithKey(byte* out,
 WOLFSSL_API int  wc_Des_CbcEncryptWithKey(byte* out,
                                           const byte* in, word32 sz,
                                           const byte* key, const byte* iv);
+
 /*!
     \ingroup 3DES
     
@@ -165,6 +168,7 @@ WOLFSSL_API int  wc_Des_CbcEncryptWithKey(byte* out,
 WOLFSSL_API int  wc_Des3_CbcEncryptWithKey(byte* out,
                                            const byte* in, word32 sz,
                                            const byte* key, const byte* iv);
+
 /*!
     \ingroup 3DES
     

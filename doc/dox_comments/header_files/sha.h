@@ -25,6 +25,7 @@
     \sa wc_ShaFinal
 */
 WOLFSSL_API int wc_InitSha(wc_Sha*);
+
 /*!
     \ingroup SHA
     
@@ -57,6 +58,7 @@ WOLFSSL_API int wc_InitSha(wc_Sha*);
     \sa wc_InitSha
 */
 WOLFSSL_API int wc_ShaUpdate(wc_Sha*, const byte*, word32);
+
 /*!
     \ingroup SHA
     
@@ -88,6 +90,7 @@ WOLFSSL_API int wc_ShaUpdate(wc_Sha*, const byte*, word32);
     \sa wc_ShaGetHash
 */
 WOLFSSL_API int wc_ShaFinal(wc_Sha*, byte*);
+
 /*!
     \ingroup SHA
     
@@ -111,6 +114,7 @@ WOLFSSL_API int wc_ShaFinal(wc_Sha*, byte*);
     \sa wc_ShaFinal
 */
 WOLFSSL_API void wc_ShaFree(wc_Sha*);
+
 /*!
     \ingroup SHA
     

@@ -25,6 +25,7 @@
     \sa wc_Md4Final
 */
 WOLFSSL_API void wc_InitMd4(Md4*);
+
 /*!
     \ingroup MD4
     
@@ -57,6 +58,7 @@ WOLFSSL_API void wc_InitMd4(Md4*);
     \sa wc_InitMd4
 */
 WOLFSSL_API void wc_Md4Update(Md4*, const byte*, word32);
+
 /*!
     \ingroup MD4
     

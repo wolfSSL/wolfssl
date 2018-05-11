@@ -58,6 +58,7 @@
     \sa wc_PKCS7_Free
 */
 WOLFSSL_API int  wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz);
+
 /*!
     \ingroup PKCS7
     
@@ -78,6 +79,7 @@ WOLFSSL_API int  wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz);
     \sa wc_PKCS7_InitWithCert
 */
 WOLFSSL_API void wc_PKCS7_Free(PKCS7* pkcs7);
+
 /*!
     \ingroup PKCS7
     
@@ -121,6 +123,7 @@ WOLFSSL_API void wc_PKCS7_Free(PKCS7* pkcs7);
 */
 WOLFSSL_API int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,
                                        word32 outputSz);
+
 /*!
     \ingroup PKCS7
     
@@ -193,6 +196,7 @@ WOLFSSL_API int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,
 */
 WOLFSSL_API int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
                                        byte* output, word32 outputSz);
+
 /*!
     \ingroup PKCS7
     
@@ -269,6 +273,7 @@ WOLFSSL_API int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
 */
 WOLFSSL_API int  wc_PKCS7_VerifySignedData(PKCS7* pkcs7,
                                        byte* pkiMsg, word32 pkiMsgSz);
+
 /*!
     \ingroup PKCS7
     
@@ -322,6 +327,7 @@ WOLFSSL_API int  wc_PKCS7_VerifySignedData(PKCS7* pkcs7,
 */
 WOLFSSL_API int  wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
                                           byte* output, word32 outputSz);
+
 /*!
     \ingroup PKCS7
     

@@ -46,6 +46,7 @@
 WOLFSSL_API int wc_PBKDF1(byte* output, const byte* passwd, int pLen,
                       const byte* salt, int sLen, int iterations, int kLen,
                       int typeH);
+
 /*!
     \ingroup Password
     
@@ -94,6 +95,7 @@ WOLFSSL_API int wc_PBKDF1(byte* output, const byte* passwd, int pLen,
 WOLFSSL_API int wc_PBKDF2(byte* output, const byte* passwd, int pLen,
                       const byte* salt, int sLen, int iterations, int kLen,
                       int typeH);
+
 /*!
     \ingroup Password
     

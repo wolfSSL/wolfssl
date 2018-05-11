@@ -20,6 +20,7 @@
     \sa wc_Blake2bUpdate
 */
 WOLFSSL_API int wc_InitBlake2b(Blake2b*, word32);
+
 /*!
     \ingroup BLAKE2
     
@@ -54,6 +55,7 @@ WOLFSSL_API int wc_InitBlake2b(Blake2b*, word32);
     \sa wc_Blake2bFinal
 */
 WOLFSSL_API int wc_Blake2bUpdate(Blake2b*, const byte*, word32);
+
 /*!
     \ingroup BLAKE2
     

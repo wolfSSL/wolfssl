@@ -39,7 +39,8 @@
     \sa TranslateReturnCode
     \sa RECV_FUNCTION
 */
-    WOLFSSL_API int EmbedReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+WOLFSSL_API int EmbedReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+
 /*!
     \brief This function is the send embedded callback.
     
@@ -78,7 +79,8 @@
     \sa InitSSL_Ctx
     \sa LastError
 */
-    WOLFSSL_API int EmbedSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+WOLFSSL_API int EmbedSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+
 /*!
     \brief This function is the receive embedded callback.
     
@@ -114,7 +116,8 @@
     \sa RECVFROM_FUNCTION
     \sa Setsockopt
 */
-        WOLFSSL_API int EmbedReceiveFrom(WOLFSSL* ssl, char* buf, int sz, void*);
+WOLFSSL_API int EmbedReceiveFrom(WOLFSSL* ssl, char* buf, int sz, void*);
+
 /*!
     \brief This function is the send embedded callback.
     
@@ -154,7 +157,8 @@
     \sa EmbedSend
     \sa EmbedReceive
 */
-        WOLFSSL_API int EmbedSendTo(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+WOLFSSL_API int EmbedSendTo(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+
 /*!
     \brief This function is the DTLS Generate Cookie callback.
     
@@ -189,8 +193,9 @@
     \sa XMEMCPY
     \sa XMEMSET
 */
-        WOLFSSL_API int EmbedGenerateCookie(WOLFSSL* ssl, unsigned char* buf,
+WOLFSSL_API int EmbedGenerateCookie(WOLFSSL* ssl, unsigned char* buf,
                                            int sz, void*);
+
 /*!
     \brief This function frees the response buffer.
     
@@ -209,7 +214,8 @@
     
     \sa XFREE
 */
-    WOLFSSL_API void EmbedOcspRespFree(void*, unsigned char*);
+WOLFSSL_API void EmbedOcspRespFree(void*, unsigned char*);
+
 /*!
     \brief This function registers a receive callback for wolfSSL to get input 
     data.  By default, wolfSSL uses EmbedReceive() as the callback which uses 
@@ -244,6 +250,7 @@
     \sa wolfSSL_SetIOWriteCtx
 */
 WOLFSSL_API void wolfSSL_CTX_SetIORecv(WOLFSSL_CTX*, CallbackIORecv);
+
 /*!
     \brief This function registers a context for the SSL session’s receive 
     callback function.  By default, wolfSSL sets the file descriptor passed to 
@@ -274,6 +281,7 @@ WOLFSSL_API void wolfSSL_CTX_SetIORecv(WOLFSSL_CTX*, CallbackIORecv);
     \sa wolfSSL_SetIOWriteCtx
 */
 WOLFSSL_API void wolfSSL_SetIOReadCtx( WOLFSSL* ssl, void *ctx);
+
 /*!
     \brief This function registers a context for the SSL session’s send 
     callback function.  By default, wolfSSL sets the file descriptor passed to 
@@ -304,6 +312,7 @@ WOLFSSL_API void wolfSSL_SetIOReadCtx( WOLFSSL* ssl, void *ctx);
     \sa wolfSSL_SetIOReadCtx
 */
 WOLFSSL_API void wolfSSL_SetIOWriteCtx(WOLFSSL* ssl, void *ctx);
+
 /*!
     \ingroup IO
 
@@ -333,6 +342,7 @@ WOLFSSL_API void wolfSSL_SetIOWriteCtx(WOLFSSL* ssl, void *ctx);
     \sa wolfSSL_CTX_SetIOSend
 */
 WOLFSSL_API void* wolfSSL_GetIOReadCtx( WOLFSSL* ssl);
+
 /*!
     \ingroup IO
 
@@ -361,6 +371,7 @@ WOLFSSL_API void* wolfSSL_GetIOReadCtx( WOLFSSL* ssl);
     \sa wolfSSL_CTX_SetIOSend
 */
 WOLFSSL_API void* wolfSSL_GetIOWriteCtx(WOLFSSL* ssl);
+
 /*!
     \brief This function sets the flags for the receive callback to use for 
     the given SSL session.  The receive callback could be either the default 
@@ -402,6 +413,7 @@ WOLFSSL_API void* wolfSSL_GetIOWriteCtx(WOLFSSL* ssl);
     \sa wolfSSL_SetIOReadCtx
 */
 WOLFSSL_API void wolfSSL_SetIOReadFlags( WOLFSSL* ssl, int flags);
+
 /*!
     \brief This function sets the flags for the send callback to use for the 
     given SSL session.  The send callback could be either the default wolfSSL 
@@ -436,6 +448,7 @@ WOLFSSL_API void wolfSSL_SetIOReadFlags( WOLFSSL* ssl, int flags);
     \sa wolfSSL_SetIOReadCtx
 */
 WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
+
 /*!
     \ingroup IO
 
@@ -467,8 +480,9 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
     \sa NetX_Send
     \sa NetX_Receive
 */
-    WOLFSSL_API void wolfSSL_SetIO_NetX(WOLFSSL* ssl, NX_TCP_SOCKET* nxsocket,
+WOLFSSL_API void wolfSSL_SetIO_NetX(WOLFSSL* ssl, NX_TCP_SOCKET* nxsocket,
                                       ULONG waitoption);
+
 /*!
     \brief This function sets the callback for the CBIOCookie member of the 
     WOLFSSL_CTX structure. The CallbackGenCookie type is a function pointer 
@@ -495,7 +509,8 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
     
     \sa CallbackGenCookie
 */
-    WOLFSSL_API void  wolfSSL_CTX_SetGenCookie(WOLFSSL_CTX*, CallbackGenCookie);
+WOLFSSL_API void  wolfSSL_CTX_SetGenCookie(WOLFSSL_CTX*, CallbackGenCookie);
+
 /*!
     \ingroup Setup
 
@@ -523,4 +538,4 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
     \sa wolfSSL_SetCookieCtx
     \sa wolfSSL_CTX_SetGenCookie
 */
-    WOLFSSL_API void* wolfSSL_GetCookieCtx(WOLFSSL* ssl);
+WOLFSSL_API void* wolfSSL_GetCookieCtx(WOLFSSL* ssl);

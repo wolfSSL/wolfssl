@@ -694,6 +694,7 @@ WOLFSSL_API int  wc_SetDatesBuffer(Cert*, const byte*, int);
 */
 WOLFSSL_API int wc_SetAuthKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey,
                                              ecc_key *eckey);
+
 /*!
     \ingroup ASN
     

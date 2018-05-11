@@ -23,6 +23,7 @@
     \sa wc_GetErrorString
 */
 WOLFSSL_API void wc_ErrorString(int err, char* buff);
+
 /*!
     \ingroup Error
     

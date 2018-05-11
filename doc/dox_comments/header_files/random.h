@@ -25,6 +25,10 @@
     \sa wc_FreeNetRandom
 */
 WOLFSSL_API int  wc_InitNetRandom(const char*, wnr_hmac_key, int);
+<<<<<<< HEAD
+
+=======
+>>>>>>> d60b16c5b8c19cc61db4a5c3f5e085a7a158cd28
 /*!
     \ingroup Random
     
@@ -47,6 +51,10 @@ WOLFSSL_API int  wc_InitNetRandom(const char*, wnr_hmac_key, int);
     \sa wc_InitNetRandom
 */
 WOLFSSL_API int  wc_FreeNetRandom(void);
+<<<<<<< HEAD
+
+=======
+>>>>>>> d60b16c5b8c19cc61db4a5c3f5e085a7a158cd28
 /*!
     \ingroup Random
     
@@ -94,6 +102,7 @@ WOLFSSL_API int  wc_FreeNetRandom(void);
     \sa wc_RNG_HealthTest
 */
 WOLFSSL_API int  wc_InitRng(WC_RNG*);
+
 /*!
     \ingroup Random
     
@@ -133,6 +142,7 @@ WOLFSSL_API int  wc_InitRng(WC_RNG*);
     \sa wc_RNG_HealthTest
 */
 WOLFSSL_API int  wc_RNG_GenerateBlock(WC_RNG*, byte*, word32 sz);
+
 /*!
     \ingroup Random
     
@@ -172,6 +182,7 @@ WOLFSSL_API int  wc_RNG_GenerateBlock(WC_RNG*, byte*, word32 sz);
     \sa wc_RNG_HealthTest
 */
 WOLFSSL_API int  wc_RNG_GenerateByte(WC_RNG*, byte*);
+
 /*!
     \ingroup Random
     
@@ -205,6 +216,7 @@ WOLFSSL_API int  wc_RNG_GenerateByte(WC_RNG*, byte*);
     \sa wc_RNG_HealthTest
 */
 WOLFSSL_API int  wc_FreeRng(WC_RNG*);
+
 /*!
     \ingroup Random
     
