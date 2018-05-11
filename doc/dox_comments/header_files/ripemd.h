@@ -24,6 +24,7 @@
     \sa wc_RipeMdFinal
 */
 WOLFSSL_API int wc_InitRipeMd(RipeMd*);
+
 /*!
     \ingroup RIPEMD
     
@@ -59,6 +60,7 @@ WOLFSSL_API int wc_InitRipeMd(RipeMd*);
     \sa wc_RipeMdFinal
 */
 WOLFSSL_API int wc_RipeMdUpdate(RipeMd*, const byte*, word32);
+
 /*!
     \ingroup RIPEMD 
     

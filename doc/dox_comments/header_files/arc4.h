@@ -33,6 +33,7 @@
     \sa wc_Arc4SetKey
 */
 WOLFSSL_API int wc_Arc4Process(Arc4*, byte*, const byte*, word32);
+
 /*!
     \ingroup ARC4
     

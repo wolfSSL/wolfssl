@@ -25,6 +25,7 @@
     \sa wc_Sha512Final
 */
 WOLFSSL_API int wc_InitSha512(wc_Sha512*);
+
 /*!
     \ingroup SHA
     
@@ -57,6 +58,7 @@ WOLFSSL_API int wc_InitSha512(wc_Sha512*);
     \sa wc_InitSha512
 */
 WOLFSSL_API int wc_Sha512Update(wc_Sha512*, const byte*, word32);
+
 /*!
     \ingroup SHA
     
@@ -87,6 +89,7 @@ WOLFSSL_API int wc_Sha512Update(wc_Sha512*, const byte*, word32);
     \sa wc_InitSha512
 */
 WOLFSSL_API int wc_Sha512Final(wc_Sha512*, byte*);
+
 /*!
     \ingroup SHA
     
@@ -114,6 +117,7 @@ WOLFSSL_API int wc_Sha512Final(wc_Sha512*, byte*);
     \sa wc_Sha384Final
 */
 WOLFSSL_API int wc_InitSha384(wc_Sha384*);
+
 /*!
     \ingroup SHA
     
@@ -146,6 +150,7 @@ WOLFSSL_API int wc_InitSha384(wc_Sha384*);
     \sa wc_InitSha384
 */
 WOLFSSL_API int wc_Sha384Update(wc_Sha384*, const byte*, word32);
+
 /*!
     \ingroup SHA
     

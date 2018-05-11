@@ -19,6 +19,7 @@
     \sa wc_DhGenerateKeyPair
 */
 WOLFSSL_API int wc_InitDhKey(DhKey* key);
+
 /*!
     \ingroup Diffie-Hellman
     
@@ -40,6 +41,7 @@ WOLFSSL_API int wc_InitDhKey(DhKey* key);
     \sa wc_InitDhKey
 */
 WOLFSSL_API void wc_FreeDhKey(DhKey* key);
+
 /*!
     \ingroup Diffie-Hellman
     
@@ -91,6 +93,7 @@ WOLFSSL_API void wc_FreeDhKey(DhKey* key);
 */
 WOLFSSL_API int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng, byte* priv,
                                  word32* privSz, byte* pub, word32* pubSz);
+
 /*!
     \ingroup Diffie-Hellman
     
@@ -142,6 +145,7 @@ WOLFSSL_API int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng, byte* priv,
 WOLFSSL_API int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz,
                        const byte* priv, word32 privSz, const byte* otherPub,
                        word32 pubSz);
+
 /*!
     \ingroup Diffie-Hellman
     
@@ -182,6 +186,7 @@ WOLFSSL_API int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz,
 */
 WOLFSSL_API int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key,
                            word32);
+
 /*!
     \ingroup Diffie-Hellman
     
@@ -222,6 +227,7 @@ WOLFSSL_API int wc_DhKeyDecode(const byte* input, word32* inOutIdx, DhKey* key,
 */
 WOLFSSL_API int wc_DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
                         word32 gSz);
+
 /*!
     \ingroup Diffie-Hellman
     

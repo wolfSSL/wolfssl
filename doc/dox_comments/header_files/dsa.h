@@ -19,6 +19,7 @@
     \sa wc_FreeDsaKey
 */
 WOLFSSL_API int wc_InitDsaKey(DsaKey* key);
+
 /*!
     \ingroup DSA
     
@@ -39,6 +40,7 @@ WOLFSSL_API int wc_InitDsaKey(DsaKey* key);
     \sa wc_FreeDsaKey
 */
 WOLFSSL_API void wc_FreeDsaKey(DsaKey* key);
+
 /*!
     \ingroup DSA
     
@@ -96,6 +98,7 @@ WOLFSSL_API void wc_FreeDsaKey(DsaKey* key);
 */
 WOLFSSL_API int wc_DsaSign(const byte* digest, byte* out,
                            DsaKey* key, WC_RNG* rng);
+
 /*!
     \ingroup DSA
     
@@ -158,6 +161,7 @@ WOLFSSL_API int wc_DsaSign(const byte* digest, byte* out,
 */
 WOLFSSL_API int wc_DsaVerify(const byte* digest, const byte* sig,
                              DsaKey* key, int* answer);
+
 /*!
     \ingroup DSA
     
@@ -197,6 +201,7 @@ WOLFSSL_API int wc_DsaVerify(const byte* digest, const byte* sig,
 */
 WOLFSSL_API int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx,
                                       DsaKey*, word32);
+
 /*!
     \ingroup DSA
     
@@ -237,6 +242,7 @@ WOLFSSL_API int wc_DsaPublicKeyDecode(const byte* input, word32* inOutIdx,
 */
 WOLFSSL_API int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
                                        DsaKey*, word32);
+
 /*!
     \ingroup DSA
     
@@ -271,6 +277,7 @@ WOLFSSL_API int wc_DsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
     \sa wc_MakeDsaKey
 */
 WOLFSSL_API int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen);
+
 /*!
     \ingroup DSA
     
@@ -301,6 +308,7 @@ WOLFSSL_API int wc_DsaKeyToDer(DsaKey* key, byte* output, word32 inLen);
     \sa wc_DsaSign
 */
 WOLFSSL_API int wc_MakeDsaKey(WC_RNG *rng, DsaKey *dsa);
+
 /*!
     \ingroup DSA
     
