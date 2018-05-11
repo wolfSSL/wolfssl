@@ -856,5 +856,5 @@ WOLFSSL_API int wc_AesXtsFree(XtsAes* aes);
     \sa wc_AesSetKey
     \sa wc_AesSetIV
 */
-WOLFSSL_API int  wc_AesInit(Aes* aes, void* heap, int devId);
+WOLFSSL_API int  wc_AesInit(Aes*, void*, int);
 
