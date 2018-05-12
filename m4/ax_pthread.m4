@@ -368,9 +368,9 @@ for ax_pthread_try_flag in $ax_pthread_flags; do
         # We try pthread_create on general principles.
 
         AC_LINK_IFELSE([AC_LANG_PROGRAM([#include <pthread.h>
-#                       if $ax_pthread_check_cond
-#                        error "$ax_pthread_check_macro must be defined"
-#                       endif
+dnl#                       if $ax_pthread_check_cond
+dnl#                        error "$ax_pthread_check_macro must be defined"
+dnl#                       endif
                         static void routine(void *a) { a = 0; }
                         static void *start_routine(void *a) { return a; }],
                        [pthread_t th; pthread_attr_t attr;
