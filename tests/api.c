@@ -2974,7 +2974,11 @@ static void test_wolfSSL_URI(void)
     wolfSSL_FreeX509(x509);
 
     x509 = wolfSSL_X509_load_certificate_file(badUri, WOLFSSL_FILETYPE_PEM);
+#ifndef IGNORE_NAME_CONSTRAINTS
     AssertNull(x509);
+#else
+    AssertNotNull(x509);
+#endif
 
     printf(resultFmt, passed);
 #endif
