@@ -22,7 +22,8 @@
 #                       client-ca.pem
 #                       test/digsigku.pem
 #                       ecc-privOnlyCert.pem
-#                       uri-cert.pem
+#                       client-uri-cert.pem
+#                       client-relative-uri.pem
 # updates the following crls:
 #                       crl/cliCrl.pem
 #                       crl/crl.pem
@@ -60,6 +61,21 @@ function run_renewcerts(){
 
     openssl x509 -in client-uri-cert.pem -text > tmp.pem
     mv tmp.pem client-uri-cert.pem
+
+    ############################################################
+    #### update the self-signed (2048-bit) client-relative-uri.pem
+    ############################################################
+    echo "Updating 2048-bit client-relative-uri.pem"
+    echo ""
+    #pipe the following arguments to openssl req...
+    echo -e "US\nMontana\nBozeman\nwolfSSL_2048\nRELATIVE_URI\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key client-key.pem -nodes -out client-cert.csr
+
+
+    openssl x509 -req -in client-cert.csr -days 1000 -extfile wolfssl.cnf -extensions relative_uri -signkey client-key.pem -out client-relative-uri.pem
+    rm client-cert.csr
+
+    openssl x509 -in client-relative-uri.pem -text > tmp.pem
+    mv tmp.pem client-relative-uri.pem
 
     ############################################################
     #### update the self-signed (2048-bit) client-cert.pem #####

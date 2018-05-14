@@ -2964,6 +2964,7 @@ static void test_wolfSSL_URI(void)
     defined(OPENSSL_EXTRA)  || defined(OPENSSL_EXTRA_X509_SMALL))
     WOLFSSL_X509* x509;
     const char uri[] = "./certs/client-uri-cert.pem";
+    const char badUri[] = "./certs/client-relative-uri.pem";
 
     printf(testingFmt, "wolfSSL URI parse");
 
@@ -2971,6 +2972,9 @@ static void test_wolfSSL_URI(void)
     AssertNotNull(x509);
 
     wolfSSL_FreeX509(x509);
+
+    x509 = wolfSSL_X509_load_certificate_file(badUri, WOLFSSL_FILETYPE_PEM);
+    AssertNull(x509);
 
     printf(resultFmt, passed);
 #endif
