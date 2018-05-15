@@ -120,6 +120,10 @@
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
 
+#define WOLFSSL_MISC_INCLUDED
+#include <wolfcrypt/src/misc.c>
+
+
 /* only for stack size check */
 #ifdef HAVE_STACK_SIZE
     #include <wolfssl/ssl.h>
@@ -335,6 +339,7 @@ int memcb_test(void);
 #ifdef WOLFSSL_IMX6_CAAM_BLOB
 int blob_test(void);
 #endif
+int misc_test(void);
 
 
 /* General big buffer size for many tests. */
@@ -949,6 +954,11 @@ initDefaultName();
     else
         printf( "blob     test passed!\n");
 #endif
+
+    if ( (ret = misc_test()) != 0)
+        return err_sys("misc     test failed!\n", ret);
+    else
+        printf( "misc     test passed!\n");
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     wolfAsync_DevClose(&devId);
@@ -18523,6 +18533,33 @@ int blob_test(void)
     return ret;
 }
 #endif /* WOLFSSL_IMX6_CAAM_BLOB */
+
+int misc_test(void)
+{
+    unsigned char data[32];
+    unsigned int i, j, len;
+
+    /* Test ForceZero */
+    for (i = 0; i < sizeof(data); i++) {
+        for (len = 1; len < sizeof(data) - i; len++) {
+            for (j = 0; j < sizeof(data); j++)
+                data[j] = j + 1;
+
+            ForceZero(data + i, len);
+
+            for (j = 0; j < sizeof(data); j++) {
+                if (j < i || j >= i + len) {
+                    if (data[j] == 0x00)
+                        return -9000;
+                }
+                else if (data[j] != 0x00)
+                    return -9001;
+            }
+        }
+    }
+
+    return 0;
+}
 
 #undef ERROR_OUT
 
