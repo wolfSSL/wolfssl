@@ -6053,18 +6053,26 @@ static int Ed25519Update(WOLFSSL* ssl, const byte* data, int sz)
     int   ret = 0;
     byte* msgs;
 
-    if (!IsAtLeastTLSv1_3(ssl->version) || ssl->options.downgrade) {
-        msgs = (byte*)XREALLOC(ssl->hsHashes->messages,
-                                          ssl->hsHashes->length + sz, ssl->heap,
-                                          DYNAMIC_TYPE_HASHES);
-        if (msgs == NULL)
-            ret = MEMORY_E;
-        if (ret == 0) {
-            ssl->hsHashes->messages = msgs;
-            XMEMCPY(msgs + ssl->hsHashes->length, data, sz);
-            ssl->hsHashes->prevLen = ssl->hsHashes->length;
-            ssl->hsHashes->length += sz;
-        }
+    if (!IsAtLeastTLSv1_2(ssl))
+        return 0;
+    if (IsAtLeastTLSv1_3(ssl->version) && !ssl->options.downgrade)
+        return 0;
+    if (ssl->options.side == WOLFSSL_CLIENT_END &&
+                                        ssl->buffers.keyType != ed25519_sa_algo)
+        return 0;
+    if (ssl->options.side == WOLFSSL_SERVER_END && (ssl->options.resuming ||
+                                                      !ssl->options.verifyPeer))
+        return 0;
+
+    msgs = (byte*)XREALLOC(ssl->hsHashes->messages, ssl->hsHashes->length + sz,
+                                                ssl->heap, DYNAMIC_TYPE_HASHES);
+    if (msgs == NULL)
+        ret = MEMORY_E;
+    if (ret == 0) {
+        ssl->hsHashes->messages = msgs;
+        XMEMCPY(msgs + ssl->hsHashes->length, data, sz);
+        ssl->hsHashes->prevLen = ssl->hsHashes->length;
+        ssl->hsHashes->length += sz;
     }
 
     return ret;
