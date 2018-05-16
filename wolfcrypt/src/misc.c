@@ -199,13 +199,36 @@ STATIC INLINE void xorbuf(void* buf, const void* mask, word32 count)
 STATIC INLINE void ForceZero(const void* mem, word32 len)
 {
     volatile byte* z = (volatile byte*)mem;
+
+#ifndef NO_ALIGNED_FORCEZERO
 #if defined(WOLFSSL_X86_64_BUILD) && defined(WORD64_AVAILABLE)
     volatile word64* w;
 
+    /* align buffer */
+    while (len && ((word64)z % sizeof(word64)) != 0) {
+        *z++ = 0; len--;
+    }
+
+    /* do aligned force zero */
     for (w = (volatile word64*)z; len >= sizeof(*w); len -= sizeof(*w))
         *w++ = 0;
     z = (volatile byte*)w;
+#else
+    volatile word32* w;
+
+    /* align buffer */
+    while (len && ((word32)z % sizeof(word32)) != 0) {
+        *z++ = 0; len--;
+    }
+
+    /* do aligned force zero */
+    for (w = (volatile word32*)z; len >= sizeof(*w); len -= sizeof(*w))
+        *w++ = 0;
+    z = (volatile byte*)w;
 #endif
+#endif /* NO_ALIGNED_FORCEZERO */
+
+    /* do byte by byte force zero */
     while (len--) *z++ = 0;
 }
 
@@ -292,7 +315,7 @@ STATIC INLINE void ato16(const byte* c, word16* wc_u16)
 /* convert opaque to 32 bit integer */
 STATIC INLINE void ato32(const byte* c, word32* wc_u32)
 {
-    *wc_u32 = (c[0] << 24) | (c[1] << 16) | (c[2] << 8) | c[3];
+    *wc_u32 = ((word32)c[0] << 24) | (c[1] << 16) | (c[2] << 8) | c[3];
 }
 
 
