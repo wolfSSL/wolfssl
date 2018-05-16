@@ -2376,11 +2376,18 @@ int SendTls13ClientHello(WOLFSSL* ssl)
     if (ssl->options.resuming &&
             (ssl->session.version.major != ssl->version.major ||
              ssl->session.version.minor != ssl->version.minor)) {
-        /* Cannot resume with a different protocol version - new handshake. */
-        ssl->options.resuming = 0;
-        ssl->version.major = ssl->session.version.major;
-        ssl->version.minor = ssl->session.version.minor;
-        return SendClientHello(ssl);
+    #ifndef WOLFSSL_NO_TLS12
+        if (ssl->session.version.major == ssl->version.major &&
+            ssl->session.version.minor < ssl->version.minor) {
+            /* Cannot resume with a different protocol version. */
+            ssl->options.resuming = 0;
+            ssl->version.major = ssl->session.version.major;
+            ssl->version.minor = ssl->session.version.minor;
+            return SendClientHello(ssl);
+        }
+        else
+    #endif
+            return VERSION_ERROR;
     }
 #endif
 
@@ -2774,15 +2781,18 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     if (ret != 0)
         return ret;
     if (!IsAtLeastTLSv1_3(pv) && pv.major != TLS_DRAFT_MAJOR) {
+#ifndef WOLFSSL_NO_TLS12
         if (ssl->options.downgrade) {
             ssl->version = pv;
             return DoServerHello(ssl, input, inOutIdx, helloSz);
         }
+#endif
 
-        WOLFSSL_MSG("CLient using higher version, fatal error");
+        WOLFSSL_MSG("Client using higher version, fatal error");
         return VERSION_ERROR;
     }
 #else
+#ifndef WOLFSSL_NO_TLS12
     if (pv.major == ssl->version.major  && pv.minor < TLSv1_2_MINOR &&
                                                        ssl->options.downgrade) {
         /* Force client hello version 1.2 to work for static RSA. */
@@ -2790,6 +2800,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ssl->version.minor = TLSv1_2_MINOR;
         return DoServerHello(ssl, input, inOutIdx, helloSz);
     }
+#endif
     if (pv.major != ssl->version.major || pv.minor != TLSv1_2_MINOR)
         return VERSION_ERROR;
 #endif
@@ -2848,7 +2859,9 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     if ((i - begin) + OPAQUE16_LEN > helloSz) {
         if (!ssl->options.downgrade)
             return BUFFER_ERROR;
+#ifndef WOLFSSL_NO_TLS12
         ssl->version.minor = TLSv1_2_MINOR;
+#endif
         ssl->options.haveEMS = 0;
     }
     if ((i - begin) < helloSz)
@@ -2891,6 +2904,7 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
      * Only now do we know how to deal with session id.
      */
     if (!IsAtLeastTLSv1_3(ssl->version)) {
+#ifndef WOLFSSL_NO_TLS12
         ssl->arrays->sessionIDSz = sessIdSz;
 
         if (ssl->arrays->sessionIDSz > ID_LEN) {
@@ -2907,6 +2921,10 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         ssl->chVersion.minor = TLSv1_2_MINOR;
         /* Complete TLS v1.2 processing of ServerHello. */
         ret = CompleteServerHello(ssl);
+#else
+        WOLFSSL_MSG("Client using higher version, fatal error");
+        ret = VERSION_ERROR;
+#endif
 
         WOLFSSL_LEAVE("DoTls13ServerHello", ret);
 
@@ -3744,7 +3762,9 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     word16          totalExtSz = 0;
     int             usingPSK = 0;
     byte            sessIdSz;
+#ifndef WOLFSSL_NO_TLS12
     int             bogusID = 0;
+#endif
 
     WOLFSSL_START(WC_FUNC_CLIENT_HELLO_DO);
     WOLFSSL_ENTER("DoTls13ClientHello");
@@ -3766,8 +3786,10 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     if (pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_3_MINOR)
         pv.minor = TLSv1_2_MINOR;
 
+#ifndef WOLFSSL_NO_TLS12
     if (ssl->version.major == SSLv3_MAJOR && ssl->version.minor < TLSv1_3_MINOR)
         return DoClientHello(ssl, input, inOutIdx, helloSz);
+#endif
 
 #ifdef HAVE_SESSION_TICKET
     if (ssl->options.downgrade) {
@@ -3802,9 +3824,11 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         XMEMCPY(ssl->session.sessionID, input + i, sessIdSz);
         i += ID_LEN;
     }
-#ifdef HAVE_SESSION_TICKET
-    if (sessIdSz > 0 && sessIdSz < ID_LEN)
-        bogusID = 1;
+#ifndef WOLFSSL_NO_TLS12
+    #ifdef HAVE_SESSION_TICKET
+        if (sessIdSz > 0 && sessIdSz < ID_LEN)
+            bogusID = 1;
+    #endif
 #endif
 
     /* Cipher suites */
@@ -3919,6 +3943,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return ret;
 #endif
     }
+#ifndef WOLFSSL_NO_TLS12
     else if (ssl->options.resuming) {
         ret = HandleTlsResumption(ssl, bogusID, &clSuites);
         if (ret != 0)
@@ -3931,6 +3956,12 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return ret;
         }
     }
+#else
+    else {
+        WOLFSSL_MSG("Negotiated lesser version than TLS v1.3");
+        return VERSION_ERROR;
+    }
+#endif
 
     if (!usingPSK) {
         if ((ret = MatchSuite(ssl, &clSuites)) < 0) {
@@ -3941,6 +3972,7 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         /* Check that the negotiated ciphersuite matches protocol version. */
         if (IsAtLeastTLSv1_3(ssl->version)) {
             if (ssl->options.cipherSuite0 != TLS13_BYTE) {
+#ifndef WOLFSSL_NO_TLS12
                 TLSX* ext;
 
                 if (!ssl->options.downgrade) {
@@ -3960,6 +3992,11 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 ext = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_VERSIONS);
                 if (ext != NULL)
                     ext->resp = 0;
+#else
+                WOLFSSL_MSG("Negotiated ciphersuite from lesser version than "
+                            "TLS v1.3");
+                return VERSION_ERROR;
+#endif
             }
         }
         /* VerifyServerSuite handles when version is less than 1.3 */
@@ -7360,8 +7397,10 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
                 return WOLFSSL_SUCCESS;
 
             if (!ssl->options.tls1_3) {
+    #ifndef WOLFSSL_NO_TLS12
                 if (ssl->options.downgrade)
                     return wolfSSL_connect(ssl);
+    #endif
 
                 WOLFSSL_MSG("Client using higher version, fatal error");
                 return VERSION_ERROR;
@@ -7462,9 +7501,14 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             FALL_THROUGH;
 
         case FIRST_REPLY_THIRD:
-            if ((ssl->error = SendTls13Finished(ssl)) != 0) {
-                WOLFSSL_ERROR(ssl->error);
-                return WOLFSSL_FATAL_ERROR;
+        #if !defined(NO_CERTS) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+            if (!ssl->options.sendVerify || !ssl->options.postHandshakeAuth)
+        #endif
+            {
+                if ((ssl->error = SendTls13Finished(ssl)) != 0) {
+                    WOLFSSL_ERROR(ssl->error);
+                    return WOLFSSL_FATAL_ERROR;
+                }
             }
             WOLFSSL_MSG("sent: finished");
 

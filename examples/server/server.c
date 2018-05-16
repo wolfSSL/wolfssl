@@ -281,6 +281,46 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
     return EXIT_SUCCESS;
 }
 
+#ifdef WOLFSSL_TLS13
+static void NonBlockingServerRead(WOLFSSL* ssl, char* input, int inputLen)
+{
+    int ret, err;
+    char buffer[CYASSL_MAX_ERROR_SZ];
+
+    /* Read data */
+    do {
+        err = 0; /* reset error */
+        ret = SSL_read(ssl, input, inputLen);
+        if (ret < 0) {
+            err = SSL_get_error(ssl, 0);
+
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (err == WC_PENDING_E) {
+                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+                if (ret < 0) break;
+            }
+            else
+        #endif
+        #ifdef CYASSL_DTLS
+            if (wolfSSL_dtls(ssl) && err == DECRYPT_ERROR) {
+                printf("Dropped client's message due to a bad MAC\n");
+            }
+            else
+        #endif
+            if (err != WOLFSSL_ERROR_WANT_READ) {
+                printf("SSL_read input error %d, %s\n", err,
+                                                 ERR_error_string(err, buffer));
+                err_sys_ex(runWithErrors, "SSL_read failed");
+            }
+        }
+    } while (err == WC_PENDING_E || err == WOLFSSL_ERROR_WANT_READ);
+    if (ret > 0) {
+        input[ret] = 0; /* null terminate message */
+        printf("Client message: %s\n", input);
+    }
+}
+#endif
+
 static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
 {
     int ret, err;
@@ -543,9 +583,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int noPskDheKe = 0;
 #endif
     int updateKeysIVs = 0;
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     int postHandAuth = 0;
-#endif
 #ifdef WOLFSSL_EARLY_DATA
     int earlyData = 0;
 #endif
@@ -598,6 +636,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     (void)crlFlags;
     (void)readySignal;
     (void)updateKeysIVs;
+    (void)postHandAuth;
     (void)mcastID;
     (void)useX25519;
 
@@ -967,9 +1006,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif /* !NO_OLD_TLS */
 
 #ifndef NO_TLS
+    #ifndef WOLFSSL_NO_TLS12
         case 3:
             method = wolfTLSv1_2_server_method_ex;
             break;
+    #endif
 
     #ifdef WOLFSSL_TLS13
         case 4:
@@ -989,9 +1030,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             break;
     #endif
 
+    #ifndef WOLFSSL_NO_TLS12
         case -2:
             method = wolfDTLSv1_2_server_method_ex;
             break;
+    #endif
 #endif
 
         default:
@@ -1635,10 +1678,13 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             }
             ServerWrite(ssl, write_msg, write_msg_sz);
 
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-            if (postHandAuth) {
+#ifdef WOLFSSL_TLS13
+            if (updateKeysIVs || postHandAuth) {
                 ServerWrite(ssl, write_msg, write_msg_sz);
-                ServerRead(ssl, input, sizeof(input)-1);
+                if (nonBlocking)
+                    NonBlockingServerRead(ssl, input, sizeof(input)-1);
+                else
+                    ServerRead(ssl, input, sizeof(input)-1);
             }
 #endif
         }

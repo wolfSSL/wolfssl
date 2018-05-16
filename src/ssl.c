@@ -564,11 +564,16 @@ int NotifyWriteSide(WOLFSSL* ssl, int err)
 /* set if to use old poly 1 for yes 0 to use new poly */
 int wolfSSL_use_old_poly(WOLFSSL* ssl, int value)
 {
+    (void)ssl;
+    (void)value;
+
+#ifndef WOLFSSL_NO_TLS12
     WOLFSSL_ENTER("SSL_use_old_poly");
     WOLFSSL_MSG("Warning SSL connection auto detects old/new and this function"
             "is depriciated");
     ssl->options.oldPoly = (word16)value;
     WOLFSSL_LEAVE("SSL_use_old_poly", 0);
+#endif
     return 0;
 }
 #endif
@@ -3455,10 +3460,17 @@ static int SetMinVersionHelper(byte* minVersion, int version)
             *minVersion = TLSv1_1_MINOR;
             break;
     #endif
+    #ifndef WOLFSSL_NO_TLS12
         case WOLFSSL_TLSV1_2:
             *minVersion = TLSv1_2_MINOR;
             break;
+    #endif
 #endif
+    #ifdef WOLFSSL_TLS13
+        case WOLFSSL_TLSV1_3:
+            *minVersion = TLSv1_3_MINOR;
+            break;
+    #endif
 
         default:
             WOLFSSL_MSG("Bad function argument");
@@ -3555,9 +3567,11 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
             ssl->version = MakeTLSv1_1();
             break;
     #endif
+    #ifndef WOLFSSL_NO_TLS12
         case WOLFSSL_TLSV1_2:
             ssl->version = MakeTLSv1_2();
             break;
+    #endif
 #endif
 #ifdef WOLFSSL_TLS13
         case WOLFSSL_TLSV1_3:
@@ -5021,14 +5035,18 @@ static INLINE WOLFSSL_METHOD* cm_pick_method(void)
     #ifndef NO_WOLFSSL_CLIENT
         #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
             return wolfSSLv3_client_method();
-        #else
+        #elif !defined(WOLFSSL_NO_TLS12)
             return wolfTLSv1_2_client_method();
+        #elif defined(WOLFSSL_TLS13)
+            return wolfTLSv1_3_client_method();
         #endif
     #elif !defined(NO_WOLFSSL_SERVER)
         #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
             return wolfSSLv3_server_method();
-        #else
+        #elif !defined(WOLFSSL_NO_TLS12)
             return wolfTLSv1_2_server_method();
+        #elif defined(WOLFSSL_TLS13)
+            return wolfTLSv1_3_server_method();
         #endif
     #else
         return NULL;
@@ -8518,7 +8536,9 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
     /* please see note at top of README if you get an error from connect */
     int wolfSSL_connect(WOLFSSL* ssl)
     {
+    #ifndef WOLFSSL_NO_TLS12
         int neededState;
+    #endif
 
         WOLFSSL_ENTER("SSL_connect()");
 
@@ -8540,6 +8560,9 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             return WOLFSSL_FATAL_ERROR;
         }
 
+    #ifdef WOLFSSL_NO_TLS12
+        return wolfSSL_connect_TLSv13(ssl);
+    #else
         #ifdef WOLFSSL_TLS13
             if (ssl->options.tls1_3)
                 return wolfSSL_connect_TLSv13(ssl);
@@ -8789,6 +8812,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             WOLFSSL_MSG("Unknown connect state ERROR");
             return WOLFSSL_FATAL_ERROR; /* unknown connect state */
         }
+    #endif /* !WOLFSSL_NO_TLS12 */
     }
 
 #endif /* NO_WOLFSSL_CLIENT */
@@ -8874,14 +8898,19 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
     int wolfSSL_accept(WOLFSSL* ssl)
     {
+#ifndef WOLFSSL_NO_TLS12
         word16 havePSK = 0;
         word16 haveAnon = 0;
         word16 haveMcast = 0;
+#endif
 
-#ifdef WOLFSSL_TLS13
+#ifdef WOLFSSL_NO_TLS12
+        return wolfSSL_accept_TLSv13(ssl);
+#else
+    #ifdef WOLFSSL_TLS13
         if (ssl->options.tls1_3)
             return wolfSSL_accept_TLSv13(ssl);
-#endif
+    #endif
         WOLFSSL_ENTER("SSL_accept()");
 
         #ifdef HAVE_ERRNO_H
@@ -9160,6 +9189,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             WOLFSSL_MSG("Unknown accept state ERROR");
             return WOLFSSL_FATAL_ERROR;
         }
+#endif /* !WOLFSSL_NO_TLS12 */
     }
 
 #endif /* NO_WOLFSSL_SERVER */
@@ -15247,7 +15277,22 @@ const char* wolfSSL_get_version(WOLFSSL* ssl)
                 return "TLSv1.2";
         #ifdef WOLFSSL_TLS13
             case TLSv1_3_MINOR :
+            /* TODO: [TLS13] Remove draft versions. */
+            #ifndef WOLFSSL_TLS13_FINAL
+                #ifdef WOLFSSL_TLS13_DRAFT_18
+                    return "TLSv1.3 (Draft 18)";
+                #elif defined(WOLFSSL_TLS13_DRAFT_22)
+                    return "TLSv1.3 (Draft 22)";
+                #elif defined(WOLFSSL_TLS13_DRAFT_23)
+                    return "TLSv1.3 (Draft 23)";
+                #elif defined(WOLFSSL_TLS13_DRAFT_26)
+                    return "TLSv1.3 (Draft 26)";
+                #else
+                    return "TLSv1.3 (Draft 28)";
+                #endif
+            #else
                 return "TLSv1.3";
+            #endif
         #endif
             default:
                 return "unknown";
