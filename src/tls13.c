@@ -302,7 +302,7 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
     word32      hashSz = 0;
     const byte* protocol;
     word32      protocolLen;
-    int         digestAlg;
+    int         digestAlg = -1;
     int         ret = BAD_FUNC_ARG;
 
     switch (hashAlgo) {
@@ -345,7 +345,13 @@ static int DeriveKeyMsg(WOLFSSL* ssl, byte* output, int outputLen,
             digestAlg = WC_SHA512;
             break;
 #endif
+        default:
+            digestAlg = -1;
+            break;
     }
+
+    if (digestAlg < 0)
+        return HASH_TYPE_E;
 
     if (ret != 0)
         return ret;
@@ -3729,7 +3735,7 @@ static int RestartHandshakeHashWithCookie(WOLFSSL* ssl, Cookie* cookie)
 int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                        word32 helloSz)
 {
-    int             ret;
+    int             ret = VERSION_ERROR;
     byte            b;
     ProtocolVersion pv;
     Suites          clSuites;

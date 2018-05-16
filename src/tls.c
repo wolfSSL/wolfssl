@@ -6280,6 +6280,8 @@ static int TLSX_KeyShare_New(KeyShareEntry** list, int group, void *heap,
     *list = kse;
     *keyShareEntry = kse;
 
+    (void)heap;
+
     return 0;
 }
 

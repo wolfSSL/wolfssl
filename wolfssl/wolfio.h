@@ -219,6 +219,9 @@
 #else
     #define CloseSocket(s) close(s)
     #define StartTCP()
+    #ifdef FREERTOS_TCP_WINSIM
+        extern int close(int);
+    #endif
 #endif
 
 
