@@ -3612,8 +3612,10 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
 /* Make a work from the front of random hash */
 static INLINE word32 MakeWordFromHash(const byte* hashID)
 {
-    return (hashID[0] << 24) | (hashID[1] << 16) | (hashID[2] <<  8) |
-            hashID[3];
+    return (((word32)hashID[0] << 24) |
+            ((word32)hashID[1] << 16) |
+            ((word32)hashID[2] <<  8) |
+            ((word32)hashID[3]));
 }
 
 #endif /* !NO_CERTS || !NO_SESSION_CACHE */

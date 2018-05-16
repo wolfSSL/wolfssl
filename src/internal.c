@@ -7699,7 +7699,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 
     XMEMCPY(x509->serial, dCert->serial, EXTERNAL_SERIAL_SIZE);
     x509->serialSz = dCert->serialSz;
-    if (dCert->subjectCNLen < ASN_NAME_MAX) {
+    if (dCert->subjectCN && dCert->subjectCNLen < ASN_NAME_MAX) {
         XMEMCPY(x509->subjectCN, dCert->subjectCN, dCert->subjectCNLen);
         x509->subjectCN[dCert->subjectCNLen] = '\0';
     }
@@ -8982,8 +8982,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 }
 
                 /* store for callback use */
-                if (args->dCert->subjectCNLen < ASN_NAME_MAX) {
-                    XMEMCPY(args->domain, args->dCert->subjectCN, args->dCert->subjectCNLen);
+                if (args->dCert->subjectCN &&
+                                    args->dCert->subjectCNLen < ASN_NAME_MAX) {
+                    XMEMCPY(args->domain, args->dCert->subjectCN,
+                        args->dCert->subjectCNLen);
                     args->domain[args->dCert->subjectCNLen] = '\0';
                 }
                 else {
