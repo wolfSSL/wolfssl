@@ -2591,9 +2591,6 @@ int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
                 MAX_LENGTH_SZ + MAX_SHORT_SZ + 1)
                 return BUFFER_E;
 
-        sz =  SetAlgoID(id, out + inOutIdx, oidPBEType, 0);
-        totalSz += sz; inOutIdx += sz;
-
         if (version == PKCS5v2) {
             WOLFSSL_MSG("PKCS5v2 Not supported yet\n");
             return ASN_VERSION_E;
@@ -2621,6 +2618,7 @@ int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
 
         /* leave room for a sequence (contains salt and iterations int) */
         inOutIdx += MAX_SEQ_SZ; sz = 0;
+        inOutIdx += MAX_ALGO_SZ;
 
         /* place salt in buffer */
         out[inOutIdx++] = ASN_OCTET_STRING; sz++;
@@ -2642,7 +2640,13 @@ int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
         inOutIdx -= (sz + MAX_SEQ_SZ);
         tmpSz = SetSequence(sz, out + inOutIdx);
         XMEMMOVE(out + inOutIdx + tmpSz, out + inOutIdx + MAX_SEQ_SZ, sz);
-        inOutIdx += tmpSz + sz; totalSz += tmpSz + sz;
+        totalSz += tmpSz + sz; sz += tmpSz;
+
+        /* add in algo ID */
+        inOutIdx -= MAX_ALGO_SZ;
+        tmpSz =  SetAlgoID(id, out + inOutIdx, oidPBEType, sz);
+        XMEMMOVE(out + inOutIdx + tmpSz, out + inOutIdx + MAX_ALGO_SZ, sz);
+        totalSz += tmpSz; inOutIdx += tmpSz + sz;
 
         /* octet string containing encrypted key */
         out[inOutIdx++] = ASN_OCTET_STRING; totalSz++;
