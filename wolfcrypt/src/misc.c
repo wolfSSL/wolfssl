@@ -205,7 +205,7 @@ STATIC INLINE void ForceZero(const void* mem, word32 len)
     volatile word64* w;
 
     /* align buffer */
-    while (len && ((word64)z % sizeof(word64)) != 0) {
+    while (len && ((size_t)z % sizeof(word64)) != 0) {
         *z++ = 0; len--;
     }
 
@@ -217,7 +217,7 @@ STATIC INLINE void ForceZero(const void* mem, word32 len)
     volatile word32* w;
 
     /* align buffer */
-    while (len && ((word32)z % sizeof(word32)) != 0) {
+    while (len && ((size_t)z % sizeof(word32)) != 0) {
         *z++ = 0; len--;
     }
 
