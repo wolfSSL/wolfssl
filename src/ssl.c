@@ -1476,7 +1476,7 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
     ssl->buffers.serverDH_P.buffer = (byte*)XMALLOC(pSz, ssl->heap,
                                                     DYNAMIC_TYPE_PUBLIC_KEY);
     if (ssl->buffers.serverDH_P.buffer == NULL)
-        return MEMORY_E;
+            return MEMORY_E;
 
     ssl->buffers.serverDH_G.buffer = (byte*)XMALLOC(gSz, ssl->heap,
                                                     DYNAMIC_TYPE_PUBLIC_KEY);
@@ -14364,15 +14364,19 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
 
     return newX509;
 }
+
+
 #ifndef NO_WOLFSSL_STUB
+#ifndef NO_FILESYSTEM
 WOLFSSL_X509* wolfSSL_d2i_X509_fp(FILE *fp, WOLFSSL_X509 **x509)
 {
-    WOLFSSL_STUB("d2i_X509_fp");
+    WOLFSSL_STUB("wolfSSL_d2i_X509_fp");
     (void)fp;
     (void)x509;
     return 0;
 }
-#endif
+#endif  /* !NO_FILESYSTEM */
+#endif  /* !NO_WOLFSSL_STUB */
 #endif /* KEEP_PEER_CERT || SESSION_CERTS || OPENSSL_EXTRA ||
           OPENSSL_EXTRA_X509_SMALL */
 
@@ -32638,6 +32642,7 @@ int wolfSSL_X509_check_ca(WOLFSSL_X509 *x509)
     return 0;
 }
 
+
 int wolfSSL_d2i_PKCS12_fp(FILE *fp, WC_PKCS12 *pkcs12)
 {
     WOLFSSL_STUB("d2i_PKCS12_fp");
@@ -32645,6 +32650,8 @@ int wolfSSL_d2i_PKCS12_fp(FILE *fp, WC_PKCS12 *pkcs12)
     (void)pkcs12;
     return 0;
 }
+#endif /* NO_WOLFSSL_STUB */
+
 
 const char *wolfSSL_ASN1_tag2str(int tag){
     static const char *const tag_label[] = {
@@ -32664,59 +32671,61 @@ const char *wolfSSL_ASN1_tag2str(int tag){
     return tag_label[tag];
 }
 
+
 int wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str, 
                                  unsigned long flags)
 {
-    WOLFSSL_STUB("ASN1_STRING_PRINT_ex");
-    int strLen = 0;
-    unsigned char *strBuf = NULL;
+    WOLFSSL_MSG("ASN1_STRING_PRINT_ex");
+    int str_len = 0;
+    unsigned char *strbuf = NULL;
 
     if (out == NULL || str == NULL)
         return WOLFSSL_FAILURE;
 
     if (flags & ASN1_STRFLGS_SHOW_TYPE){
         const char *tag = wolfSSL_ASN1_tag2str(str->type);
-        strLen += XSTRLEN(tag);
-        strBuf = (unsigned char *)XMALLOC(strLen + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        if (strBuf == NULL){
+        str_len += (int)XSTRLEN(tag);
+        strbuf = (unsigned char *)XMALLOC(str_len + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (strbuf == NULL){
             WOLFSSL_MSG("memory alloc failed.");
             return WOLFSSL_FAILURE;
         }
-        XMEMSET(strBuf, 0, strLen + 1);
-        XSNPRINTF((char*)strBuf, strLen + 1, "%s:", tag);
-        if (wolfSSL_BIO_write(out, strBuf, strLen) <= 0){
-            XFREE(strBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XMEMSET(strbuf, 0, str_len + 1);
+        XSNPRINTF((char*)strbuf, str_len + 1, "%s:", tag);
+        if (wolfSSL_BIO_write(out, strbuf, str_len) <= 0){
+            XFREE(strbuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return WOLFSSL_FAILURE;
         }
-        strLen++;
-        XFREE(strBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        str_len++;
+        XFREE(strbuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     if (flags & ASN1_STRFLGS_DUMP_ALL){
         if (!(flags & ASN1_STRFLGS_DUMP_DER)){
-            static const char hexChar[] = { '0', '1', '2', '3', '4', '5', '6',
+            static const char hex_char[] = { '0', '1', '2', '3', '4', '5', '6',
                                             '7','8', '9', 'a', 'b', 'c', 'd',
                                             'e', 'f' };
-            char hextmp[2];
-            char *strPtr, *strEnd;
+            char hex_tmp[2];
+            char *str_ptr, *str_end;
 
-            strPtr = str->data;
-            strEnd = str->data + str->length; 
-            while (strPtr != strEnd){
-                hextmp[0] = hexChar[*strPtr >> 4];
-                hextmp[1] = hexChar[*strPtr & 0xf];
-                if (wolfSSL_BIO_write(out, hextmp, 2) <= 0){
+            str_ptr = str->data;
+            str_end = str->data + str->length; 
+            while (str_ptr < str_end){
+                hex_tmp[0] = hex_char[*str_ptr >> 4];
+                hex_tmp[1] = hex_char[*str_ptr & 0xf];
+                if (wolfSSL_BIO_write(out, hex_tmp, 2) <= 0){
                     return WOLFSSL_FAILURE;                    
                 }
-                strPtr++;
-                strLen += 2;
+                str_ptr++;
+                str_len += 2;
             }
-            return strLen;
+            return str_len;
         }
         /* ASN1_STRFLGS_DUMP_DER */
-        wolfSSL_BIO_write(out, str->data, str->length);
-        strLen += str->length;
-        return strLen;
+        if (wolfSSL_BIO_write(out, str->data, str->length) <= 0)
+            return WOLFSSL_FAILURE;
+        str_len += str->length;
+        return str_len;
     }
 
     if (flags & ASN1_STRFLGS_UTF8_CONVERT){
@@ -32726,15 +32735,58 @@ int wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str,
     return 0;
 }
 
-WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_to_generalizedtime(WOLFSSL_ASN1_TIME *t,
-                                                    WOLFSSL_ASN1_TIME **out)
-{
-    WOLFSSL_STUB("ASN1_TIME_to_generalizedtime");
-    (void)t;
-    (void)out;
-    return 0;
-}
 
+#ifndef NO_ASN_TIME
+WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_to_generalizedtime(WOLFSSL_ASN1_TIME *t,
+                                                        WOLFSSL_ASN1_TIME **out)
+{
+    WOLFSSL_ENTER("ASN1_TIME_to_generalizedtime");
+    unsigned char time_type;
+    WOLFSSL_ASN1_TIME *ret = NULL;
+    unsigned char *data_ptr = NULL;
+
+    if (t == NULL)
+        return NULL;
+
+    time_type = t->data[0];
+    if (time_type != ASN_UTC_TIME && time_type != ASN_GENERALIZED_TIME){
+        WOLFSSL_MSG("Invalid ASN_TIME type.");
+        return NULL;
+    }
+    if (out == NULL || *out == NULL){
+        ret = (WOLFSSL_ASN1_TIME*)XMALLOC(sizeof(WOLFSSL_ASN1_TIME), NULL, 
+                                        DYNAMIC_TYPE_TMP_BUFFER);
+        if (ret == NULL){
+            WOLFSSL_MSG("memory alloc failed.");
+            return NULL;
+        }
+        XMEMSET(ret, 0, sizeof(WOLFSSL_ASN1_TIME));
+    } else 
+        ret = *out;
+
+    if (time_type == ASN_GENERALIZED_TIME){
+        XMEMCPY(ret->data, t->data, ASN_GENERALIZED_TIME_SIZE);
+        return ret;
+    } else if (time_type == ASN_UTC_TIME){
+        ret->data[0] = ASN_GENERALIZED_TIME;
+        ret->data[1] = ASN_GENERALIZED_TIME_SIZE;
+        data_ptr  = ret->data + 2;
+        if (t->data[2] >= '5') 
+            XSNPRINTF((char*)data_ptr, ASN_UTC_TIME_SIZE + 2, "19%s", t->data + 2);
+        else
+            XSNPRINTF((char*)data_ptr, ASN_UTC_TIME_SIZE + 2, "20%s", t->data + 2);
+
+        return ret;
+    } 
+    
+    WOLFSSL_MSG("Invalid ASN_TIME value");
+    return NULL;
+}
+#endif /* !NO_ASN_TIME */
+
+
+#ifndef NO_WOLFSSL_STUB
+#ifndef NO_ASN
 int wolfSSL_i2c_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER **a, unsigned char **pp)
 {
     WOLFSSL_STUB("i2c_ASN1_INTEGER");
@@ -32742,6 +32794,9 @@ int wolfSSL_i2c_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER **a, unsigned char **pp)
     (void)pp;
     return 0;
 }
+#endif /* !NO_ASN */
+#endif /* !NO_WOLFSSL_STUB */
+
 
 int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *ctx, WOLFSSL_X509_CRL *x)
 {
@@ -32750,5 +32805,4 @@ int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *ctx, WOLFSSL_X509_CRL *x)
     return 0;
 }
 
-#endif
-#endif
+#endif  /* OPENSSLEXTRA */

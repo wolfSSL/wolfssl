@@ -15556,14 +15556,15 @@ static void test_wolfSSL_ASN1_GENERALIZEDTIME_free(){
     unsigned char nullstr[32];
 
     XMEMSET(nullstr, 0, 32);
-    asn1_gtime = XMALLOC(sizeof(ASN1_GENERALIZEDTIME), NULL, 
-                            DYNAMIC_TYPE_TMP_BUFFER);
-    XMEMCPY(asn1_gtime->data,"20180504123500Z",15);
+    asn1_gtime = (WOLFSSL_ASN1_GENERALIZEDTIME*)XMALLOC(
+                    sizeof(WOLFSSL_ASN1_GENERALIZEDTIME), NULL, 
+                    DYNAMIC_TYPE_TMP_BUFFER);
+    XMEMCPY(asn1_gtime->data,"20180504123500Z",ASN_GENERALIZED_TIME_SIZE);
     wolfSSL_ASN1_GENERALIZEDTIME_free(asn1_gtime);
     AssertIntEQ(0, XMEMCMP(asn1_gtime->data, nullstr, 32));
 
     XFREE(asn1_gtime, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    #endif /* opensslextra */
+    #endif /* OPENSSL_EXTRA */
 }
 
 
@@ -17974,6 +17975,7 @@ static void test_wolfSSL_verify_depth(void)
     WOLFSSL_CTX* ctx;
     long         depth;
 
+    printf(testingFmt, "test_wolfSSL_verify_depth()");
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
 
     AssertTrue(wolfSSL_CTX_use_certificate_file(ctx, cliCertFile, SSL_FILETYPE_PEM));
@@ -18439,8 +18441,69 @@ static void test_wolfSSL_X509_get_serialNumber(void)
 
 static void test_wolfSSL_OPENSSL_add_all_algorithms(void){
 #if defined(OPENSSL_EXTRA)
-   AssertIntEQ(wolfSSL_OPENSSL_add_all_algorithms_noconf(),WOLFSSL_SUCCESS);
-   wolfSSL_Cleanup();
+    printf(testingFmt, "wolfSSL_OPENSSL_add_all_algorithms()");
+
+    AssertIntEQ(wolfSSL_OPENSSL_add_all_algorithms_noconf(),WOLFSSL_SUCCESS);
+    wolfSSL_Cleanup();
+
+    printf(resultFmt, passed);
+#endif
+}
+
+static void test_wolfSSL_ASN1_STRING_print_ex(void){
+#if defined(OPENSSL_EXTRA)
+#endif
+}
+
+
+static void test_wolfSSL_ASN1_TIME_to_generalizedtime(void){
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN1_TIME)
+    WOLFSSL_ASN1_TIME *t;
+    WOLFSSL_ASN1_TIME *out;
+    WOLFSSL_ASN1_TIME *gtime;
+
+    printf(testingFmt, "wolfSSL_ASN1_TIME_to_generalizedtime()");
+
+    /* UTC Time test */
+    t = (WOLFSSL_ASN1_TIME*)XMALLOC(sizeof(WOLFSSL_ASN1_TIME), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    XMEMSET(t->data, 0, ASN_GENERALIZED_TIME_SIZE);
+    out = (WOLFSSL_ASN1_TIME*)XMALLOC(sizeof(WOLFSSL_ASN1_TIME), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    t->data[0] = ASN_UTC_TIME;
+    t->data[1] = ASN_UTC_TIME_SIZE;
+    XMEMCPY(t->data + 2,"050727123456Z",ASN_UTC_TIME_SIZE);
+
+    gtime = wolfSSL_ASN1_TIME_to_generalizedtime(t, &out);
+    AssertIntEQ(gtime->data[0], ASN_GENERALIZED_TIME);
+    AssertIntEQ(gtime->data[1], ASN_GENERALIZED_TIME_SIZE);
+    AssertStrEQ((char*)gtime->data + 2, "20050727123456Z");
+
+    /* Generalized Time test */
+    XMEMSET(t, 0, ASN_GENERALIZED_TIME_SIZE);
+    XMEMSET(out, 0, ASN_GENERALIZED_TIME_SIZE);
+    gtime = NULL;
+    t->data[0] = ASN_GENERALIZED_TIME;
+    t->data[1] = ASN_GENERALIZED_TIME_SIZE;
+    XMEMCPY(t->data + 2,"20050727123456Z",ASN_GENERALIZED_TIME_SIZE);
+    gtime = wolfSSL_ASN1_TIME_to_generalizedtime(t, &out);
+    AssertIntEQ(gtime->data[0], ASN_GENERALIZED_TIME);
+    AssertIntEQ(gtime->data[1], ASN_GENERALIZED_TIME_SIZE);
+    AssertStrEQ((char*)gtime->data + 2, "20050727123456Z");
+    XFREE(out, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    /* Null parameter test */
+    XMEMSET(t, 0, ASN_GENERALIZED_TIME_SIZE);
+    gtime = NULL;
+    out = NULL;
+    t->data[0] = ASN_UTC_TIME;
+    t->data[1] = ASN_UTC_TIME_SIZE;
+    XMEMCPY(t->data + 2,"050727123456Z",ASN_UTC_TIME_SIZE);
+    AssertNotNull(gtime = wolfSSL_ASN1_TIME_to_generalizedtime(t, NULL));
+    AssertIntEQ(gtime->data[0], ASN_GENERALIZED_TIME);
+    AssertIntEQ(gtime->data[1], ASN_GENERALIZED_TIME_SIZE);
+    AssertStrEQ((char*)gtime->data + 2, "20050727123456Z");
+
+    XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    printf(resultFmt, passed);
 #endif
 }
 
@@ -19450,6 +19513,8 @@ void ApiTest(void)
     test_wolfSSL_X509_get_serialNumber();
     test_wolfSSL_X509_CRL();
     test_wolfSSL_OPENSSL_add_all_algorithms();
+    test_wolfSSL_ASN1_STRING_print_ex();
+    test_wolfSSL_ASN1_TIME_to_generalizedtime();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();
