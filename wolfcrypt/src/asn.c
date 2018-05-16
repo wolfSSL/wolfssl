@@ -2600,6 +2600,7 @@ int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
 
         if (version == PKCS5v2) {
             WOLFSSL_MSG("PKCS5v2 Not supported yet\n");
+            return ASN_VERSION_E;
         }
 
         if (salt == NULL || saltSz <= 0) {
