@@ -2394,10 +2394,6 @@ static int CheckAlgo(int first, int second, int* id, int* version)
             return 0;
     #endif
     #ifndef NO_DES3
-        case PBE_SHA1_DES:
-            *id = PBE_SHA1_DES;
-            *version = PKCS12v1;
-            return 0;
         case PBE_SHA1_DES3:
             *id = PBE_SHA1_DES3;
             *version = PKCS12v1;
