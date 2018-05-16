@@ -1311,12 +1311,15 @@ static void test_client_nofail(void* args, void *cb)
     WOLFSSL_METHOD*  method  = 0;
     WOLFSSL_CTX*     ctx     = 0;
     WOLFSSL*         ssl     = 0;
+    WOLFSSL_CIPHER*  cipher;
 
     char msg[64] = "hello wolfssl!";
     char reply[1024];
     int  input;
     int  msgSz = (int)XSTRLEN(msg);
     int  ret, err = 0;
+    int  cipherSuite;
+    const char* cipherName1, *cipherName2;
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
@@ -1397,6 +1400,19 @@ static void test_client_nofail(void* args, void *cb)
         /*err_sys("SSL_connect failed");*/
         goto done2;
     }
+
+    /* test the various get cipher methods */
+    cipherSuite = wolfSSL_get_current_cipher_suite(ssl);
+    cipherName1 = wolfSSL_get_cipher_name(ssl);
+    cipherName2 = wolfSSL_get_cipher_name_from_suite(
+        (cipherSuite >> 8), cipherSuite & 0xFF);
+    AssertStrEQ(cipherName1, cipherName2);
+
+    cipher = wolfSSL_get_current_cipher(ssl);
+    cipherName1 = wolfSSL_CIPHER_get_name(cipher);
+    cipherName2 = wolfSSL_get_cipher(ssl);
+    AssertStrEQ(cipherName1, cipherName2);
+
 
     if(cb != NULL)((cbType)cb)(ctx, ssl);
 
