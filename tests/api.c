@@ -9516,7 +9516,8 @@ static int test_wc_RsaPublicKeyDecodeRaw (void)
 } /* END test_wc_RsaPublicKeyDecodeRaw */
 
 
-#if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
+#if (!defined(NO_RSA) || !defined(HAVE_FAST_RSA)) && (defined(WOLFSSL_KEY_GEN) || \
+    defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
     /* In FIPS builds, wc_MakeRsaKey() will return an error if it cannot find
      * a probable prime in 5*(modLen/2) attempts. In non-FIPS builds, it keeps
      * trying until it gets a probable prime. */
@@ -9854,8 +9855,7 @@ static int test_wc_RsaKeyToDer (void)
 static int test_wc_RsaKeyToPublicDer (void)
 { 
     int         ret = 0;
-#if (!defined(NO_RSA) || !defined(HAVE_FAST_RSA)) && defined(WOLFSSL_KEY_GEN) && \
-    (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+#if (!defined(NO_RSA) || !defined(HAVE_FAST_RSA)) && defined(WOLFSSL_KEY_GEN)
     RsaKey      key;
     WC_RNG      rng;
     byte*       der;
@@ -17379,7 +17379,7 @@ static void test_wolfSSL_RSA(void)
 
 static void test_wolfSSL_RSA_DER(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(HAVE_FAST_RSA)
 
     RSA *rsa;
     int i;
