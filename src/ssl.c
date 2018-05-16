@@ -490,7 +490,7 @@ static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
  * turn exisitng object into read only.  Allows concurrent access from two
  * different threads.
  *
- * ssl exisiting WOLFSSL object
+ * ssl existing WOLFSSL object
  *
  * return dup'd WOLFSSL object on success
 */
