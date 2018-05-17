@@ -1411,7 +1411,12 @@ static void test_client_nofail(void* args, void *cb)
     cipher = wolfSSL_get_current_cipher(ssl);
     cipherName1 = wolfSSL_CIPHER_get_name(cipher);
     cipherName2 = wolfSSL_get_cipher(ssl);
+#ifdef NO_ERROR_STRINGS
+    AssertNull(cipherName1);
+    AssertNull(cipherName2);
+#else
     AssertStrEQ(cipherName1, cipherName2);
+#endif
 
 
     if(cb != NULL)((cbType)cb)(ctx, ssl);
