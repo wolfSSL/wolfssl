@@ -24508,7 +24508,8 @@ int wolfSSL_HMAC_Final(WOLFSSL_HMAC_CTX* ctx, unsigned char* hash,
 
     WOLFSSL_MSG("wolfSSL_HMAC_Final");
 
-    if (ctx == NULL || hash == NULL || len == NULL) {
+	/* "len" parameter is optional. */
+    if (ctx == NULL || hash == NULL) {
         WOLFSSL_MSG("invalid parameter");
         return WOLFSSL_FAILURE;
     }
