@@ -194,34 +194,13 @@ int EmbedReceive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     int sd = *(int*)ctx;
     int recvd;
 
-#ifdef WOLFSSL_DTLS
-    {
-        int dtls_timeout = wolfSSL_dtls_get_current_timeout(ssl);
-        if (wolfSSL_dtls(ssl)
-                     && !wolfSSL_get_using_nonblock(ssl)
-                     && dtls_timeout != 0) {
-            #ifdef USE_WINDOWS_API
-                DWORD timeout = dtls_timeout * 1000;
-            #else
-                struct timeval timeout;
-                XMEMSET(&timeout, 0, sizeof(timeout));
-                timeout.tv_sec = dtls_timeout;
-            #endif
-            if (setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout,
-                           sizeof(timeout)) != 0) {
-                WOLFSSL_MSG("setsockopt rcvtimeo failed");
-            }
-        }
-    }
-#endif
-
     recvd = wolfIO_Recv(sd, buf, sz, ssl->rflags);
     if (recvd < 0) {
         int err = wolfSSL_LastError();
         WOLFSSL_MSG("Embed Receive error");
 
         if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
-            if (!wolfSSL_dtls(ssl) || wolfSSL_get_using_nonblock(ssl)) {
+            if (wolfSSL_get_using_nonblock(ssl)) {
                 WOLFSSL_MSG("\tWould block");
                 return WOLFSSL_CBIO_ERR_WANT_READ;
             }
