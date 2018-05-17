@@ -3055,6 +3055,10 @@ typedef struct Options {
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
     word16            sentChangeCipher:1; /* Change Cipher Spec sent */
 #endif
+#if !defined(WOLFSSL_NO_CLIENT_AUTH) && defined(HAVE_ED25519) && \
+                                                !defined(NO_ED25519_CLIENT_AUTH)
+    word16            cacheMessages:1;    /* Cache messages for sign/verify */
+#endif
 
     /* need full byte values for this section */
     byte            processReply;           /* nonblocking resume */
