@@ -646,6 +646,51 @@ int GetShortInt(const byte* input, word32* inOutIdx, int* number, word32 maxIdx)
 
     return *number;
 }
+
+
+/* Set small integer, 32 bits or less. DER encoding with no leading 0s
+ * returns total amount written including ASN tag and length byte on success */
+static int SetShortInt(byte* input, word32* inOutIdx, word32 number,
+        word32 maxIdx)
+{
+    word32 idx = *inOutIdx;
+    word32 len = 0;
+    int    i;
+    byte ar[MAX_LENGTH_SZ];
+
+    /* check for room for type and length bytes */
+    if ((idx + 2) > maxIdx)
+        return BUFFER_E;
+
+    input[idx++] = ASN_INTEGER;
+    idx++; /* place holder for length byte */
+    if (MAX_LENGTH_SZ + idx > maxIdx)
+        return ASN_PARSE_E;
+
+    /* find first non zero byte */
+    XMEMSET(ar, 0, MAX_LENGTH_SZ);
+    c32toa(number, ar);
+    for (i = 0; i < MAX_LENGTH_SZ; i++) {
+        if (ar[i] != 0) {
+            break;
+        }
+    }
+
+    /* handle case of 0 */
+    if (i == MAX_LENGTH_SZ) {
+        input[idx++] = 0; len++;
+    }
+
+    for (; i < MAX_LENGTH_SZ && idx < maxIdx; i++) {
+        input[idx++] = ar[i]; len++;
+    }
+
+    /* set number of bytes for integer and update index value */
+    input[*inOutIdx + 1] = len;
+    *inOutIdx = idx;
+
+    return len + 2; /* size of integer bytes plus ASN TAG and length byte */
+}
 #endif /* !NO_PWDBASED */
 
 /* May not have one, not an error */
@@ -2628,13 +2673,11 @@ int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
         inOutIdx += saltSz; sz += saltSz;
 
         /* place iteration count in buffer */
-        out[inOutIdx++] = ASN_INTEGER; sz++;
-        out[inOutIdx++] = sizeof(word32); sz++;
-        out[inOutIdx++] = (itt >> 24) & 0xFF;
-        out[inOutIdx++] = (itt >> 16) & 0xFF;
-        out[inOutIdx++] = (itt >> 8 ) & 0xFF;
-        out[inOutIdx++] = itt & 0xFF;
-        sz += 4;
+        ret = SetShortInt(out, &inOutIdx, itt, *outSz);
+        if (ret < 0) {
+            return ret;
+        }
+        sz += (word32)ret;
 
         /* wind back index and set sequence then clean up buffer */
         inOutIdx -= (sz + MAX_SEQ_SZ);
@@ -3037,12 +3080,13 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     tmpIdx += saltSz;
 
     /* place itteration setting in buffer */
-    out[tmpIdx++] = ASN_INTEGER;
-    out[tmpIdx++] = sizeof(word32);
-    out[tmpIdx++] = (itt >> 24) & 0xFF;
-    out[tmpIdx++] = (itt >> 16) & 0xFF;
-    out[tmpIdx++] = (itt >> 8)  & 0xFF;
-    out[tmpIdx++] = itt & 0xFF;
+    ret = SetShortInt(out, &tmpIdx, itt, *outSz);
+    if (ret < 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
+        return ret;
+    }
 
     /* rewind and place sequence */
     sz = tmpIdx - inOutIdx - MAX_SEQ_SZ;
