@@ -10298,8 +10298,6 @@ static int test_wc_RsaEncryptSize (void)
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     RsaKey  key;
     WC_RNG  rng;
-    int     enc128 = 128;
-    int     enc512 = 512;
 
     ret = wc_InitRsaKey(&key, NULL);
 
@@ -10313,7 +10311,7 @@ static int test_wc_RsaEncryptSize (void)
         if (ret == 0) {
             ret = wc_RsaEncryptSize(&key);
         }
-        if (ret == enc128) {
+        if (ret == 128) {
             ret = 0;
         } else {
             ret = WOLFSSL_FATAL_ERROR;
@@ -10326,11 +10324,11 @@ static int test_wc_RsaEncryptSize (void)
     }
 
     if (ret == 0) {
-        ret = MAKE_RSA_KEY(&key, FOURK_BUF, WC_RSA_EXPONENT, &rng);
+        ret = MAKE_RSA_KEY(&key, 2048, WC_RSA_EXPONENT, &rng);
         if (ret == 0) {
             ret = wc_RsaEncryptSize(&key);
         }
-        if (ret == enc512) {
+        if (ret == 256) {
             ret = 0;
         } else {
             ret = WOLFSSL_FATAL_ERROR;

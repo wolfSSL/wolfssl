@@ -411,6 +411,7 @@ int wc_FreeRsaKey(RsaKey* key)
 
 
 /* Check the pair-wise consistency of the RSA key.
+ * From NIST SP 800-56B, section 6.4.1.1.
  * Verify that k = (k^e)^d, for some k: 1 < k < n-1. */
 int wc_CheckRsaKey(RsaKey* key)
 {
@@ -2901,7 +2902,11 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     mp_clear(&p);
     mp_clear(&q);
 
-    if (err != MP_OKAY) {
+    /* Perform the pair-wise consistency test on the new key. */
+    if (err == 0)
+        err = wc_CheckRsaKey(key);
+
+    if (err != 0) {
         wc_FreeRsaKey(key);
         return err;
     }
