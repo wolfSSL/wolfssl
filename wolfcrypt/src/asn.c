@@ -5713,6 +5713,11 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
             }
             length -= (idx - lenStartIdx);
 
+            /* check that strLen at index is not past input buffer */
+            if (strLen + (int)idx > sz) {
+                return BUFFER_E;
+            }
+
         #ifndef WOLFSSL_NO_ASN_STRICT
             /* Verify RFC 5280 Sec 4.2.1.6 rule:
                 "The name MUST NOT be a relative URI" */
@@ -5734,8 +5739,8 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
 
                 /* test if no ':' char was found and test that the next two
                  * chars are // to match the pattern "://" */
-                if (i == strLen || (input[idx + i + 1] != '/' ||
-                                    input[idx + i + 2] != '/')) {
+                if (i >= strLen - 2 || (input[idx + i + 1] != '/' ||
+                                        input[idx + i + 2] != '/')) {
                     WOLFSSL_MSG("\tAlt Name must be absolute URI");
                     return ASN_ALT_NAME_E;
                 }
