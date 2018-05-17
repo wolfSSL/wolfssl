@@ -686,7 +686,7 @@ static int SetShortInt(byte* input, word32* inOutIdx, word32 number,
     }
 
     /* set number of bytes for integer and update index value */
-    input[*inOutIdx + 1] = len;
+    input[*inOutIdx + 1] = (byte)len;
     *inOutIdx = idx;
 
     return len + 2; /* size of integer bytes plus ASN TAG and length byte */
