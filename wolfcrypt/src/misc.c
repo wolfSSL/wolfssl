@@ -200,35 +200,14 @@ STATIC INLINE void ForceZero(const void* mem, word32 len)
 {
     volatile byte* z = (volatile byte*)mem;
 
-#ifndef NO_ALIGNED_FORCEZERO
 #if defined(WOLFSSL_X86_64_BUILD) && defined(WORD64_AVAILABLE)
     volatile word64* w;
 
-    /* align buffer */
-    while (len && ((size_t)z % sizeof(word64)) != 0) {
-        *z++ = 0; len--;
-    }
-
-    /* do aligned force zero */
     for (w = (volatile word64*)z; len >= sizeof(*w); len -= sizeof(*w))
         *w++ = 0;
     z = (volatile byte*)w;
-#else
-    volatile word32* w;
-
-    /* align buffer */
-    while (len && ((size_t)z % sizeof(word32)) != 0) {
-        *z++ = 0; len--;
-    }
-
-    /* do aligned force zero */
-    for (w = (volatile word32*)z; len >= sizeof(*w); len -= sizeof(*w))
-        *w++ = 0;
-    z = (volatile byte*)w;
 #endif
-#endif /* NO_ALIGNED_FORCEZERO */
 
-    /* do byte by byte force zero */
     while (len--) *z++ = 0;
 }
 
