@@ -9855,7 +9855,8 @@ static int test_wc_RsaKeyToDer (void)
 static int test_wc_RsaKeyToPublicDer (void)
 { 
     int         ret = 0;
-#if (!defined(NO_RSA) || !defined(HAVE_FAST_RSA)) && defined(WOLFSSL_KEY_GEN)
+#if !defined(NO_RSA) && !defined(HAVE_FAST_RSA) && defined(WOLFSSL_KEY_GEN) &&\
+     (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
     RsaKey      key;
     WC_RNG      rng;
     byte*       der;
@@ -15985,6 +15986,33 @@ static void test_wolfSSL_CTX_set_srp_password(void)
        /* && !NO_SHA256 && !WC_NO_RNG */
 }
 
+static void test_wolfSSL_X509_STORE(void)
+{
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL)
+    X509_STORE *store;
+    X509_CRL *crl;
+    X509 *x509;
+    const char crl_pem[] = "./certs/crl/crl.pem";
+    const char svrCert[] = "./certs/server-cert.pem";
+    XFILE fp;
+
+    printf(testingFmt, "test_wolfSSL_X509_STORE");
+    AssertNotNull(store = (X509_STORE *)X509_STORE_new());
+    AssertNotNull((x509 =
+                       wolfSSL_X509_load_certificate_file(svrCert, SSL_FILETYPE_PEM)));
+    AssertIntEQ(X509_STORE_add_cert(store, x509), SSL_SUCCESS);
+    X509_free(x509);
+    AssertNotNull(fp = XFOPEN(crl_pem, "rb"));
+    AssertNotNull(crl = (X509_CRL *)PEM_read_X509_CRL(fp, (X509_CRL **)NULL, NULL, NULL));
+    XFCLOSE(fp);
+    AssertIntEQ(X509_STORE_add_crl(store, crl), SSL_SUCCESS);
+    X509_CRL_free(crl);
+    X509_STORE_free(store);
+    printf(resultFmt, passed);
+#endif
+    return;
+}
+
 static void test_wolfSSL_BN(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
@@ -18738,6 +18766,7 @@ void ApiTest(void)
     test_wolfSSL_X509_LOOKUP_load_file();
     test_wolfSSL_X509_NID();
     test_wolfSSL_X509_STORE_CTX_set_time();
+    test_wolfSSL_X509_STORE();
     test_wolfSSL_BN();
     test_wolfSSL_PEM_read_bio();
     test_wolfSSL_BIO();
