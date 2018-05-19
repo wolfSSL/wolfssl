@@ -81,7 +81,7 @@
     #define SHA256_NOINLINE
 #endif
 
-#if !defined(NO_OLD_SHA256_NAMES) || !defined(OPENSSL_EXTRA)
+#if !defined(NO_OLD_SHA256_NAMES)
     #define SHA256             WC_SHA256
 #endif
 

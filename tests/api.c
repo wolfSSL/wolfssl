@@ -17753,7 +17753,7 @@ static void test_wolfSSL_SHA(void)
     }
     #endif
 
-    #if !defined(WOLFSSL_SHA512)
+    #if defined(WOLFSSL_SHA512)
     {
         const unsigned char in[] = "abc";
         unsigned char expected[] = "\xdd\xaf\x35\xa1\x93\x61\x7a\xba\xcc\x41\x73\x49\xae\x20\x41"
