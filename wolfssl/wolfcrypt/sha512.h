@@ -71,7 +71,7 @@
     #define SHA512_NOINLINE
 #endif
 
-#ifndef NO_OLD_WC_NAMES
+#if !defined(NO_OLD_WC_NAMES) && !defined(OPENSSL_EXTRA)
     #define Sha512             wc_Sha512
     #define SHA512             WC_SHA512
     #define SHA512_BLOCK_SIZE  WC_SHA512_BLOCK_SIZE
@@ -123,7 +123,7 @@ WOLFSSL_API int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst);
 
 #ifndef HAVE_FIPS /* avoid redefinition of structs */
 
-#ifndef NO_OLD_WC_NAMES
+#if !defined(NO_OLD_SHA_NAMES) && !defined(OPENSSL_EXTRA)
     #define Sha384             wc_Sha384
     #define SHA384             WC_SHA384
     #define SHA384_BLOCK_SIZE  WC_SHA384_BLOCK_SIZE
