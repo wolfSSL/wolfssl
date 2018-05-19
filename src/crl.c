@@ -490,7 +490,7 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
     return ret ? ret : WOLFSSL_SUCCESS; /* convert 0 to WOLFSSL_SUCCESS */
 }
 
-#if defined(OPENSSL_EXTRA) || defined(HAVE_CRL)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_CRL)
 int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newcrl)
 {
     CRL_Entry   *crle;

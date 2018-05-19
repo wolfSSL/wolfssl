@@ -17983,7 +17983,7 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 #ifndef NO_FILESYSTEM
 static void *wolfSSL_d2i_X509_fp_ex(XFILE file, void **x509, int type)
 {
-    void *new = NULL;
+    void *newx509 = NULL;
     DerBuffer*   der = NULL;
     byte *fileBuffer = NULL;
 
@@ -18010,13 +18010,13 @@ static void *wolfSSL_d2i_X509_fp_ex(XFILE file, void **x509, int type)
                 goto err_exit;
             }          
             if(type == CERT_TYPE)
-                new = (void *)wolfSSL_X509_d2i(NULL, fileBuffer, (int)sz);
+                newx509 = (void *)wolfSSL_X509_d2i(NULL, fileBuffer, (int)sz);
             #ifdef HAVE_CRL
             else if(type == CRL_TYPE)
-                new = (void *)wolfSSL_d2i_X509_CRL(NULL, fileBuffer, (int)sz);
+                newx509 = (void *)wolfSSL_d2i_X509_CRL(NULL, fileBuffer, (int)sz);
             #endif
             else goto err_exit;
-            if(new == NULL)
+            if(newx509 == NULL)
             {
                 WOLFSSL_MSG("X509 failed");
                 goto err_exit;
@@ -18024,18 +18024,18 @@ static void *wolfSSL_d2i_X509_fp_ex(XFILE file, void **x509, int type)
         }
     }
     if (x509 != NULL)
-        *x509 = new;
+        *x509 = newx509;
 
     goto _exit;
 
 err_exit:
-    if(new != NULL){
+    if(newx509 != NULL){
         if(type == CERT_TYPE)
-            wolfSSL_X509_free(new);
+            wolfSSL_X509_free((WOLFSSL_X509*)newx509);
         #ifdef HAVE_CRL
         else {
            if(type == CRL_TYPE)
-                wolfSSL_X509_CRL_free(new);
+                wolfSSL_X509_CRL_free((WOLFSSL_X509_CRL*)newx509);
         }
         #endif
     }
@@ -18044,7 +18044,7 @@ _exit:
         FreeDer(&der);
     if(fileBuffer != NULL)
         XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
-    return new;
+    return newx509;
 }
 
 WOLFSSL_X509 *wolfSSL_d2i_X509_fp(XFILE fp, WOLFSSL_X509 **x509)
