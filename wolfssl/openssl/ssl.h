@@ -322,6 +322,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 #define X509_STORE_CTX_get_current_cert wolfSSL_X509_STORE_CTX_get_current_cert
 #define X509_STORE_add_cert             wolfSSL_X509_STORE_add_cert
+#define X509_STORE_add_crl              wolfSSL_X509_STORE_add_crl
 #define X509_STORE_set_flags            wolfSSL_X509_STORE_set_flags
 #define X509_STORE_CTX_set_verify_cb    wolfSSL_X509_STORE_CTX_set_verify_cb
 #define X509_STORE_CTX_free             wolfSSL_X509_STORE_CTX_free
@@ -348,7 +349,8 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define X509_LOOKUP_file wolfSSL_X509_LOOKUP_file
 
 #define X509_STORE_add_lookup wolfSSL_X509_STORE_add_lookup
-#define X509_STORE_new wolfSSL_X509_STORE_new
+#define X509_STORE_new        wolfSSL_X509_STORE_new
+#define X509_STORE_free       wolfSSL_X509_STORE_free
 #define X509_STORE_get_by_subject wolfSSL_X509_STORE_get_by_subject
 #define X509_STORE_CTX_init wolfSSL_X509_STORE_CTX_init
 #define X509_STORE_CTX_cleanup wolfSSL_X509_STORE_CTX_cleanup
@@ -555,7 +557,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define X509_NAME_free wolfSSL_X509_NAME_free
 #define X509_NAME_new  wolfSSL_X509_NAME_new
 
-typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
+    typedef WOLFSSL_X509_NAME_ENTRY X509_NAME_ENTRY;
 
 #define SSL_CTX_use_certificate wolfSSL_CTX_use_certificate
 #define SSL_CTX_use_PrivateKey wolfSSL_CTX_use_PrivateKey

@@ -490,6 +490,34 @@ int BufferLoadCRL(WOLFSSL_CRL* crl, const byte* buff, long sz, int type,
     return ret ? ret : WOLFSSL_SUCCESS; /* convert 0 to WOLFSSL_SUCCESS */
 }
 
+#if defined(OPENSSL_EXTRA) || defined(HAVE_CRL)
+int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *store, WOLFSSL_X509_CRL *newcrl)
+{
+    CRL_Entry   *crle;
+    WOLFSSL_CRL *crl;
+
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_add_crl");
+    if (store == NULL || newcrl == NULL)
+        return BAD_FUNC_ARG;
+
+    crl = store->crl;
+    crle = newcrl->crlList;
+
+    if (wc_LockMutex(&crl->crlLock) != 0)
+    {
+        WOLFSSL_MSG("wc_LockMutex failed");
+        return BAD_MUTEX_E;
+    }
+    crle->next = crl->crlList;
+    crl->crlList = crle;
+    newcrl->crlList = NULL;
+    wc_UnLockMutex(&crl->crlLock);
+
+    WOLFSSL_LEAVE("wolfSSL_X509_STORE_add_crl", WOLFSSL_SUCCESS);
+    
+    return WOLFSSL_SUCCESS;
+}
+#endif
 
 #ifdef HAVE_CRL_MONITOR
 
