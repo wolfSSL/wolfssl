@@ -16671,6 +16671,9 @@ static void test_wolfSSL_X509(void)
     X509_STORE_CTX* ctx;
     X509_STORE* store;
 
+    char der[] = "certs/ca-cert.der";
+    XFILE fp;
+
     printf(testingFmt, "wolfSSL_X509()");
 
     AssertNotNull(x509 = X509_new());
@@ -16694,6 +16697,18 @@ static void test_wolfSSL_X509(void)
 
     X509_STORE_CTX_free(ctx);
     BIO_free(bio);
+
+    /** d2i_X509_fp test **/
+    AssertNotNull(fp = XFOPEN(der, "rb"));
+    AssertNotNull(x509 = (X509 *)d2i_X509_fp(fp, (X509 **)NULL));
+    AssertNotNull(x509);
+    X509_free(x509);
+    XFCLOSE(fp);
+    AssertNotNull(fp = XFOPEN(der, "rb"));
+    AssertNotNull((X509 *)d2i_X509_fp(fp, (X509 **)&x509));
+    AssertNotNull(x509);
+    X509_free(x509);
+    XFCLOSE(fp);
 
     printf(resultFmt, passed);
     #endif
@@ -18724,12 +18739,12 @@ static void test_wolfSSL_X509_CRL(void)
 #ifdef HAVE_TEST_d2i_X509_CRL_fp
     for(i = 0; der[i][0] != '\0'; i++){
         AssertNotNull(fp = XFOPEN(der[i], "rb"));
-        AssertNotNull(crl = (X509_CRL *)d2i_X509_CRL_fp((X509_CRL **)NULL, fp));
+        AssertNotNull(crl = (X509_CRL *)d2i_X509_CRL_fp((fp, X509_CRL **)NULL));
         AssertNotNull(crl);
         X509_CRL_free(crl);
         XFCLOSE(fp);
         AssertNotNull(fp = XFOPEN(der[i], "rb"));
-        AssertNotNull((X509_CRL *)d2i_X509_CRL_fp((X509_CRL **)&crl, fp));
+        AssertNotNull((X509_CRL *)d2i_X509_CRL_fp(fp, (X509_CRL **)&crl));
         AssertNotNull(crl);
         X509_CRL_free(crl);
         XFCLOSE(fp);

@@ -17980,14 +17980,94 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
 }
 #endif /* NO_CERTS */
 
+#ifndef NO_FILESYSTEM
+static void *wolfSSL_d2i_X509_fp_ex(XFILE file, void **x509, int type)
+{
+    void *new = NULL;
+    DerBuffer*   der = NULL;
+    byte *fileBuffer = NULL;
+
+    if (file != XBADFILE)
+    {
+        long sz = 0;
+
+        XFSEEK(file, 0, XSEEK_END);
+        sz = XFTELL(file);
+        XREWIND(file);
+
+        if (sz < 0)
+        {
+            WOLFSSL_MSG("Bad tell on FILE");
+            return NULL;
+        }
+
+        fileBuffer = (byte *)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE);
+        if (fileBuffer != NULL)
+        {
+            if((long)XFREAD(fileBuffer, 1, sz, file) != sz)
+            {
+                WOLFSSL_MSG("File read failed");
+                goto err_exit;
+            }          
+            if(type == CERT_TYPE)
+                new = (void *)wolfSSL_X509_d2i(NULL, fileBuffer, (int)sz);
+            #ifdef HAVE_CRL
+            else if(type == CRL_TYPE)
+                new = (void *)wolfSSL_d2i_X509_CRL(NULL, fileBuffer, (int)sz);
+            #endif
+            else goto err_exit;
+            if(new == NULL)
+            {
+                WOLFSSL_MSG("X509 failed");
+                goto err_exit;
+            }
+        }
+    }
+    if (x509 != NULL)
+        *x509 = new;
+
+    goto _exit;
+
+err_exit:
+    if(new != NULL){
+        if(type == CERT_TYPE)
+            wolfSSL_X509_free(new);
+        #ifdef HAVE_CRL
+        else {
+           if(type == CRL_TYPE)
+                wolfSSL_X509_CRL_free(new);
+        }
+        #endif
+    }
+_exit:
+    if(der != NULL)
+        FreeDer(&der);
+    if(fileBuffer != NULL)
+        XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
+    return new;
+}
+
+WOLFSSL_X509 *wolfSSL_d2i_X509_fp(XFILE fp, WOLFSSL_X509 **x509)
+{
+    WOLFSSL_ENTER("wolfSSL_d2i_X509_fp");
+    return (WOLFSSL_X509 *)wolfSSL_d2i_X509_fp_ex(fp, (void **)x509, CERT_TYPE);
+}
+#endif /* NO_FILESYSTEM */
+
+
 #ifdef HAVE_CRL
+WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_fp(XFILE fp, WOLFSSL_X509_CRL **crl)
+{
+    WOLFSSL_ENTER("wolfSSL_d2i_X509_CRL_fp");
+    return (WOLFSSL_X509_CRL *)wolfSSL_d2i_X509_fp_ex(fp, (void **)crl, CRL_TYPE);
+}
 
 WOLFSSL_X509_CRL* wolfSSL_d2i_X509_CRL(WOLFSSL_X509_CRL** crl, const unsigned char* in, int len)
 {
     WOLFSSL_X509_CRL *newcrl = NULL;
     int ret ;
 
-    WOLFSSL_ENTER("wolfSSL_X509_CRL_d2i");
+    WOLFSSL_ENTER("wolfSSL_d2i_X509_CRL");
 
     if(in == NULL){
         WOLFSSL_MSG("Bad argument value");
@@ -18020,63 +18100,6 @@ err_exit:
 _exit:
     return newcrl;
 }
-
-#ifndef NO_FILESYSTEM
-WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_fp(WOLFSSL_X509_CRL **crl, XFILE file)
-{
-    WOLFSSL_X509_CRL *newcrl = NULL;
-    DerBuffer*   der = NULL;
-    byte *fileBuffer = NULL;
-    
-    WOLFSSL_ENTER("wolfSSL_d2i_X509_CRL_fp");
-
-    if (file != XBADFILE)
-    {
-        long sz = 0;
-
-        XFSEEK(file, 0, XSEEK_END);
-        sz = XFTELL(file);
-        XREWIND(file);
-
-        if (sz < 0)
-        {
-            WOLFSSL_MSG("Bad tell on FILE");
-            return NULL;
-        }
-
-        fileBuffer = (byte *)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE);
-        if (fileBuffer != NULL)
-        {
-            if((long)XFREAD(fileBuffer, 1, sz, file) != sz)
-            {
-                WOLFSSL_MSG("File read failed");
-                goto err_exit;
-            }          
-            
-            newcrl = wolfSSL_d2i_X509_CRL(NULL, fileBuffer, (int)sz);
-            if(newcrl == NULL)
-            {
-                WOLFSSL_MSG("X509_CRL failed");
-                goto err_exit;
-            }
-        }
-    }
-    if (crl != NULL)
-        *crl = newcrl;
-
-    goto _exit;
-
-err_exit:
-    if(newcrl != NULL)
-        wolfSSL_X509_CRL_free(newcrl);
-_exit:
-    if(der != NULL)
-        FreeDer(&der);
-    if(fileBuffer != NULL)
-        XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
-    return newcrl;
-}
-#endif
 
 void wolfSSL_X509_CRL_free(WOLFSSL_X509_CRL *crl)
 {

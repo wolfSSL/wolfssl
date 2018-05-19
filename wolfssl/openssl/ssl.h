@@ -513,6 +513,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define sk_X509_free wolfSSL_sk_X509_free
 #define i2d_X509_bio wolfSSL_i2d_X509_bio
 #define d2i_X509_bio wolfSSL_d2i_X509_bio
+#define d2i_X509_fp wolfSSL_d2i_X509_fp
 #define i2d_X509     wolfSSL_i2d_X509
 #define d2i_X509     wolfSSL_d2i_X509
 #define d2i_RSAPublicKey wolfSSL_d2i_RSAPublicKey
