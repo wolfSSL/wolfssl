@@ -576,6 +576,13 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define X509_NAME_ENTRY_get_data wolfSSL_X509_NAME_ENTRY_get_data
 #define sk_X509_NAME_pop_free  wolfSSL_sk_X509_NAME_pop_free
 #define SHA1 wolfSSL_SHA1
+
+#ifdef OPENSSL_EXTRA
+#define SHA256 wolfSSL_SHA256
+#define SHA384 wolfSSL_SHA384
+#define SHA512 wolfSSL_SHA512
+#endif
+
 #define X509_check_private_key wolfSSL_X509_check_private_key
 #define SSL_dup_CA_list wolfSSL_dup_CA_list
 

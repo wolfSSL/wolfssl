@@ -29310,6 +29310,102 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         }
     }
 #endif /* ! NO_SHA256 */
+
+#if defined(WOLFSSL_SHA384) && defined(WOLFSSL_SHA512) 
+     /* One shot SHA384 hash of message.
+      *
+      * d  message to hash
+      * n  size of d buffer
+      * md buffer to hold digest. Should be WC_SHA256_DIGEST_SIZE.
+      *
+      * Note: if md is null then a static buffer of WC_SHA256_DIGEST_SIZE is used.
+      *       When the static buffer is used this function is not thread safe.
+      *
+      * Returns a pointer to the message digest on success and NULL on failure.
+      */
+     unsigned char *wolfSSL_SHA384(const unsigned char *d, size_t n,
+             unsigned char *md)
+     {
+         static byte dig[WC_SHA384_DIGEST_SIZE];
+         wc_Sha384 sha;
+
+         WOLFSSL_ENTER("wolfSSL_SHA384");
+
+         if (wc_InitSha384_ex(&sha, NULL, 0) != 0) {
+             WOLFSSL_MSG("SHA384 Init failed");
+             return NULL;
+         }
+
+         if (wc_Sha384Update(&sha, (const byte*)d, (word32)n) != 0) {
+             WOLFSSL_MSG("SHA384 Update failed");
+             return NULL;
+         }
+
+         if (wc_Sha384Final(&sha, dig) != 0) {
+             WOLFSSL_MSG("SHA384 Final failed");
+             return NULL;
+         }
+
+         wc_Sha384Free(&sha);
+
+         if (md != NULL) {
+             XMEMCPY(md, dig, WC_SHA384_DIGEST_SIZE);
+             return md;
+         }
+         else {
+             return (unsigned char*)dig;
+         }
+     }
+#endif /* defined(WOLFSSL_SHA384) && defined(WOLFSSL_SHA512)  */
+
+
+#if defined(WOLFSSL_SHA512) 
+     /* One shot SHA512 hash of message.
+      *
+      * d  message to hash
+      * n  size of d buffer
+      * md buffer to hold digest. Should be WC_SHA256_DIGEST_SIZE.
+      *
+      * Note: if md is null then a static buffer of WC_SHA256_DIGEST_SIZE is used.
+      *       When the static buffer is used this function is not thread safe.
+      *
+      * Returns a pointer to the message digest on success and NULL on failure.
+      */
+     unsigned char *wolfSSL_SHA512(const unsigned char *d, size_t n,
+             unsigned char *md)
+     {
+         static byte dig[WC_SHA512_DIGEST_SIZE];
+         wc_Sha384 sha;
+
+         WOLFSSL_ENTER("wolfSSL_SHA512");
+
+         if (wc_InitSha512_ex(&sha, NULL, 0) != 0) {
+             WOLFSSL_MSG("SHA512 Init failed");
+             return NULL;
+         }
+
+         if (wc_Sha512Update(&sha, (const byte*)d, (word32)n) != 0) {
+             WOLFSSL_MSG("SHA512 Update failed");
+             return NULL;
+         }
+
+         if (wc_Sha512Final(&sha, dig) != 0) {
+             WOLFSSL_MSG("SHA512 Final failed");
+             return NULL;
+         }
+
+         wc_Sha512Free(&sha);
+
+         if (md != NULL) {
+             XMEMCPY(md, dig, WC_SHA512_DIGEST_SIZE);
+             return md;
+         }
+         else {
+             return (unsigned char*)dig;
+         }
+     }
+#endif /* defined(WOLFSSL_SHA512)  */
+
     char wolfSSL_CTX_use_certificate(WOLFSSL_CTX *ctx, WOLFSSL_X509 *x)
     {
         int ret;
