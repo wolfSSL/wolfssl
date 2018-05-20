@@ -73,9 +73,6 @@
 
 #if !defined(NO_OLD_WC_NAMES)
     #define Sha512             wc_Sha512
-    #if !defined(OPENSSL_EXTRA)
-    #define SHA512             WC_SHA512
-    #endif
     #define SHA512_BLOCK_SIZE  WC_SHA512_BLOCK_SIZE
     #define SHA512_DIGEST_SIZE WC_SHA512_DIGEST_SIZE
     #define SHA512_PAD_SIZE    WC_SHA512_PAD_SIZE
@@ -127,9 +124,6 @@ WOLFSSL_API int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst);
 
 #if !defined(NO_OLD_SHA_NAMES)
     #define Sha384             wc_Sha384
-    #if !defined(OPENSSL_EXTRA)
-    #define SHA384             WC_SHA384
-    #endif
     #define SHA384_BLOCK_SIZE  WC_SHA384_BLOCK_SIZE
     #define SHA384_DIGEST_SIZE WC_SHA384_DIGEST_SIZE
     #define SHA384_PAD_SIZE    WC_SHA384_PAD_SIZE
