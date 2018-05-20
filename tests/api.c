@@ -18452,6 +18452,70 @@ static void test_wolfSSL_OPENSSL_add_all_algorithms(void){
 
 static void test_wolfSSL_ASN1_STRING_print_ex(void){
 #if defined(OPENSSL_EXTRA)
+    ASN1_STRING* asn_str = NULL;
+    const char data[] = "Hello wolfSSL!";
+    ASN1_STRING* esc_str = NULL;
+    const char esc_data[] = "a+;<>";
+    BIO *bio;
+    unsigned long flags;
+    int p_len;
+    unsigned char rbuf[256];
+    
+    printf(testingFmt, "wolfSSL_ASN1_STRING_print_ex()");
+    
+    /* setup */
+    XMEMSET(rbuf, 0, 256);
+    bio = BIO_new(BIO_s_mem());
+    BIO_set_write_buf_size(bio,256);
+
+    asn_str = ASN1_STRING_type_new(V_ASN1_OCTET_STRING);
+    ASN1_STRING_set(asn_str, (const void*)data, sizeof(data));
+    esc_str = ASN1_STRING_type_new(V_ASN1_OCTET_STRING);
+    ASN1_STRING_set(esc_str, (const void*)esc_data, sizeof(esc_data));
+
+    /* RFC2253 Escape */
+    flags = ASN1_STRFLGS_ESC_2253;
+    p_len = wolfSSL_ASN1_STRING_print_ex(bio, esc_str, flags);
+    AssertIntEQ(p_len, 9);
+    BIO_read(bio, (void*)rbuf, 9);
+    AssertStrEQ((char*)rbuf, "a\\+\\;\\<\\>");
+
+    /* Show type */
+    XMEMSET(rbuf, 0, 256);
+    flags = ASN1_STRFLGS_SHOW_TYPE;
+    p_len = wolfSSL_ASN1_STRING_print_ex(bio, asn_str, flags);
+    AssertIntEQ(p_len, 28);
+    BIO_read(bio, (void*)rbuf, 28);
+    AssertStrEQ((char*)rbuf, "OCTET STRING:Hello wolfSSL!");
+
+    /* Dump All */
+    XMEMSET(rbuf, 0, 256);
+    flags = ASN1_STRFLGS_DUMP_ALL;
+    p_len = wolfSSL_ASN1_STRING_print_ex(bio, asn_str, flags);
+    AssertIntEQ(p_len, 31);
+    BIO_read(bio, (void*)rbuf, 31);
+    AssertStrEQ((char*)rbuf, "#48656C6C6F20776F6C6653534C2100");
+
+    /* Dump Der */
+    XMEMSET(rbuf, 0, 256);
+    flags = ASN1_STRFLGS_DUMP_ALL | ASN1_STRFLGS_DUMP_DER;
+    p_len = wolfSSL_ASN1_STRING_print_ex(bio, asn_str, flags);
+    AssertIntEQ(p_len, 35);
+    BIO_read(bio, (void*)rbuf, 35);
+    AssertStrEQ((char*)rbuf, "#040F48656C6C6F20776F6C6653534C2100");
+
+    /* Dump All + Show type */
+    XMEMSET(rbuf, 0, 256);
+    flags = ASN1_STRFLGS_DUMP_ALL | ASN1_STRFLGS_SHOW_TYPE;
+    p_len = wolfSSL_ASN1_STRING_print_ex(bio, asn_str, flags);
+    AssertIntEQ(p_len, 44);
+    BIO_read(bio, (void*)rbuf, 44);
+    AssertStrEQ((char*)rbuf, "OCTET STRING:#48656C6C6F20776F6C6653534C2100");
+
+    BIO_free(bio);
+    ASN1_STRING_free(asn_str);
+
+    printf(resultFmt, passed);
 #endif
 }
 
