@@ -29416,7 +29416,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
              unsigned char *md)
      {
          static byte dig[WC_SHA512_DIGEST_SIZE];
-         wc_Sha384 sha;
+         wc_Sha512 sha;
 
          WOLFSSL_ENTER("wolfSSL_SHA512");
 
