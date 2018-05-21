@@ -1014,6 +1014,7 @@ enum {
 
 
 enum Misc {
+    CIPHER_BYTE = 0x00,            /* Default ciphers */
     ECC_BYTE    = 0xC0,            /* ECC first cipher suite byte */
     QSH_BYTE    = 0xD0,            /* Quantum-safe Handshake cipher suite */
     CHACHA_BYTE = 0xCC,            /* ChaCha first cipher suite */
@@ -3964,12 +3965,19 @@ WOLFSSL_LOCAL word32  LowResTimer(void);
     WOLFSSL_LOCAL int  CopyDecodedToX509(WOLFSSL_X509*, DecodedCert*);
 #endif
 
-WOLFSSL_LOCAL const char* const* GetCipherNames(void);
+typedef struct CipherSuiteInfo {
+    const char* name;
+    const char* name_iana;
+    byte cipherSuite0;
+    byte cipherSuite;
+} CipherSuiteInfo;
+
+WOLFSSL_LOCAL const CipherSuiteInfo* GetCipherNames(void);
 WOLFSSL_LOCAL int GetCipherNamesSize(void);
-WOLFSSL_LOCAL const char* GetCipherNameInternal(const char* cipherName, int cipherSuite);
+WOLFSSL_LOCAL const char* GetCipherNameInternal(const byte cipherSuite0, const byte cipherSuite);
+WOLFSSL_LOCAL const char* GetCipherNameIana(const byte cipherSuite0, const byte cipherSuite);
 WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_internal(WOLFSSL* ssl);
-WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_from_suite(
-    const unsigned char cipherSuite, const unsigned char cipherSuite0);
+WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_iana(WOLFSSL* ssl);
 
 enum encrypt_side {
     ENCRYPT_SIDE_ONLY = 1,

@@ -644,13 +644,13 @@ int wolfSSL_set_write_fd(WOLFSSL* ssl, int fd)
   */
 char* wolfSSL_get_cipher_list(int priority)
 {
-    const char* const* ciphers = GetCipherNames();
+    const CipherSuiteInfo* ciphers = GetCipherNames();
 
     if (priority >= GetCipherNamesSize() || priority < 0) {
         return 0;
     }
 
-    return (char*)ciphers[priority];
+    return (char*)ciphers[priority].name;
 }
 
 
@@ -683,7 +683,7 @@ char* wolfSSL_get_cipher_list_ex(WOLFSSL* ssl, int priority)
 
 int wolfSSL_get_ciphers(char* buf, int len)
 {
-    const char* const* ciphers = GetCipherNames();
+    const CipherSuiteInfo* ciphers = GetCipherNames();
     int  totalInc = 0;
     int  step     = 0;
     char delim    = ':';
@@ -695,13 +695,13 @@ int wolfSSL_get_ciphers(char* buf, int len)
 
     /* Add each member to the buffer delimited by a : */
     for (i = 0; i < size; i++) {
-        step = (int)(XSTRLEN(ciphers[i]) + 1);  /* delimiter */
+        step = (int)(XSTRLEN(ciphers[i].name) + 1);  /* delimiter */
         totalInc += step;
 
         /* Check to make sure buf is large enough and will not overflow */
         if (totalInc < len) {
-            size_t cipherLen = XSTRLEN(ciphers[i]);
-            XSTRNCPY(buf, ciphers[i], cipherLen);
+            size_t cipherLen = XSTRLEN(ciphers[i].name);
+            XSTRNCPY(buf, ciphers[i].name, cipherLen);
             buf += cipherLen;
 
             if (i < size - 1)
@@ -722,8 +722,7 @@ const char* wolfSSL_get_shared_ciphers(WOLFSSL* ssl, char* buf, int len)
     if (ssl == NULL)
         return NULL;
 
-    cipher = wolfSSL_get_cipher_name_from_suite(ssl->options.cipherSuite,
-                                                ssl->options.cipherSuite0);
+    cipher = wolfSSL_get_cipher_name_iana(ssl);
     len = min(len, (int)(XSTRLEN(cipher) + 1));
     XMEMCPY(buf, cipher, len);
     return buf;
@@ -15291,8 +15290,7 @@ const char* wolfSSL_CIPHER_get_name(const WOLFSSL_CIPHER* cipher)
         return NULL;
     }
 
-    return wolfSSL_get_cipher_name_from_suite(cipher->ssl->options.cipherSuite,
-        cipher->ssl->options.cipherSuite0);
+    return wolfSSL_get_cipher_name_iana(cipher->ssl);
 }
 
 const char* wolfSSL_SESSION_CIPHER_get_name(WOLFSSL_SESSION* session)
@@ -15302,8 +15300,7 @@ const char* wolfSSL_SESSION_CIPHER_get_name(WOLFSSL_SESSION* session)
     }
 
 #ifdef SESSION_CERTS
-    return wolfSSL_get_cipher_name_from_suite(session->cipherSuite,
-        session->cipherSuite0);
+    return GetCipherNameIana(session->cipherSuite0, session->cipherSuite);
 #else
     return NULL;
 #endif
@@ -15321,6 +15318,13 @@ const char* wolfSSL_get_cipher_name(WOLFSSL* ssl)
     /* get access to cipher_name_idx in internal.c */
     return wolfSSL_get_cipher_name_internal(ssl);
 }
+
+const char* wolfSSL_get_cipher_name_from_suite(const byte cipherSuite0,
+    const byte cipherSuite)
+{
+    return GetCipherNameInternal(cipherSuite0, cipherSuite);
+}
+
 
 #ifdef HAVE_ECC
 /* Return the name of the curve used for key exchange as a printable string.
