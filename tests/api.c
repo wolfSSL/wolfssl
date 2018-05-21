@@ -7671,6 +7671,9 @@ static int test_wc_Poly1305SetKey(void)
     /* Test bad args. */
     if (ret == 0) {
         ret = wc_Poly1305SetKey(NULL, key, (word32)(sizeof(key)/sizeof(byte)));
+        if(ret == BAD_FUNC_ARG) {
+            ret = wc_Poly1305SetKey(&ctx, NULL, (word32)(sizeof(key)/sizeof(byte)));
+        }
         if (ret == BAD_FUNC_ARG) {
             ret = wc_Poly1305SetKey(&ctx, key, 18);
         }

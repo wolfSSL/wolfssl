@@ -1222,7 +1222,7 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
     printf("\n");
 #endif
 
-    if (keySz != 32 || ctx == NULL)
+    if (keySz != 32 || ctx == NULL || key == NULL)
         return BAD_FUNC_ARG;
 
 #ifdef USE_INTEL_SPEEDUP
