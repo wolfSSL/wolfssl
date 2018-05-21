@@ -265,6 +265,10 @@
     #include <wolfssl/wolfcrypt/ed25519.h>
 #endif
 
+#ifdef HAVE_CURVE25519
+    #include <wolfssl/wolfcrypt/curve25519.h>
+#endif
+
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
     #include <wolfssl/openssl/ssl.h>
     #ifndef NO_ASN
@@ -12116,6 +12120,43 @@ static int test_wc_ed25519_exportKey (void)
 } /* END test_wc_ed25519_exportKey */
 
 /*
+ * Testing wc_curve25519_init and wc_curve25519_free.
+ */
+static int test_wc_curve25519_init (void)
+{
+    int             ret = 0;
+
+#if defined(HAVE_CURVE25519)
+
+    curve25519_key  key;
+
+    printf(testingFmt, "wc_curve25519_init()");
+
+    ret = wc_curve25519_init(&key);
+
+    /* Test bad args for wc_curve25519_init */
+    if (ret == 0) {
+        ret = wc_curve25519_init(NULL);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    /*  Test good args for wc_curve_25519_free */
+    wc_curve25519_free(&key);
+
+    wc_curve25519_free(NULL);
+
+#endif
+    return ret;
+
+} /* END test_wc_curve25519_init and wc_curve_25519_free*/
+
+/*
  * Testing wc_ecc_make_key.
  */
 static int test_wc_ecc_make_key (void)
@@ -18841,6 +18882,8 @@ void ApiTest(void)
     AssertIntEQ(test_wc_ed25519_export(), 0);
     AssertIntEQ(test_wc_ed25519_size(), 0);
     AssertIntEQ(test_wc_ed25519_exportKey(), 0);
+
+    AssertIntEQ(test_wc_curve25519_init(), 0);
 
     AssertIntEQ(test_wc_ecc_make_key(), 0);
     AssertIntEQ(test_wc_ecc_init(), 0);
