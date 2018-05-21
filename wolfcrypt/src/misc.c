@@ -201,7 +201,14 @@ STATIC INLINE void ForceZero(const void* mem, word32 len)
     volatile byte* z = (volatile byte*)mem;
 #if defined(WOLFSSL_X86_64_BUILD) && defined(WORD64_AVAILABLE)
     volatile word64* w;
+    #ifndef WOLFSSL_UNALIGNED_64BIT_ACCESS
+        word32 l = (sizeof(word64) - ((size_t)z & (sizeof(word64)-1))) &
+                                                             (sizeof(word64)-1);
 
+        if (len < l) l = len;
+        len -= l;
+        while (l--) *z++ = 0;
+    #endif
     for (w = (volatile word64*)z; len >= sizeof(*w); len -= sizeof(*w))
         *w++ = 0;
     z = (volatile byte*)w;
