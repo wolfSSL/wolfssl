@@ -193,6 +193,11 @@
 #ifdef HAVE_CHACHA
     #include <wolfssl/wolfcrypt/chacha.h>
 #endif
+
+#ifdef HAVE_POLY1305
+    #include <wolfssl/wolfcrypt/poly1305.h>
+#endif
+
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
     #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
 #endif
@@ -7402,6 +7407,7 @@ static int test_wc_Des3_SetKey (void)
     return ret;
 
 } /* END test_wc_Des3_SetKey */
+ 
 
 /*
  * Test function for wc_Des3_CbcEncrypt and wc_Des3_CbcDecrypt
@@ -7641,6 +7647,45 @@ static int test_wc_Chacha_SetKey (void)
 #endif
     return ret;
 } /* END test_wc_Chacha_SetKey */
+
+/*
+ * unit test for wc_Poly1305SetKey()
+ */
+static int test_wc_Poly1305SetKey(void)
+{
+    int ret = 0;
+    
+#ifdef HAVE_POLY1305
+    Poly1305      ctx;
+    const byte  key[] =
+    {
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01
+    };
+
+    printf(testingFmt, "wc_Poly1305_SetKey()");
+    
+    ret = wc_Poly1305SetKey(&ctx, key, (word32)(sizeof(key)/sizeof(byte))); 
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_Poly1305SetKey(NULL, key, (word32)(sizeof(key)/sizeof(byte)));
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Poly1305SetKey(&ctx, key, 18);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+    
+#endif
+    return ret;
+} /* END test_wc_Poly1305_SetKey() */
 
 /*
  * Testing wc_Chacha_Process()
@@ -18774,6 +18819,7 @@ void ApiTest(void)
     AssertIntEQ(test_wc_Chacha_SetKey(), 0);
     AssertIntEQ(test_wc_Chacha_Process(), 0);
     AssertIntEQ(test_wc_ChaCha20Poly1305_aead(), 0);
+    AssertIntEQ(test_wc_Poly1305SetKey(), 0);
 
     AssertIntEQ(test_wc_CamelliaSetKey(), 0);
     AssertIntEQ(test_wc_CamelliaSetIV(), 0);
@@ -18801,6 +18847,7 @@ void ApiTest(void)
     AssertIntEQ(test_wc_RsaPublicKeyDecodeRaw(), 0);
     AssertIntEQ(test_wc_MakeRsaKey(), 0);
     AssertIntEQ(test_wc_SetKeyUsage (), 0);
+
 
     AssertIntEQ(test_wc_RsaKeyToDer(), 0);
     AssertIntEQ(test_wc_RsaKeyToPublicDer(), 0);
