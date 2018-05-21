@@ -373,12 +373,14 @@ int CheckCertCRL(WOLFSSL_CRL* crl, DecodedCert* cert)
 
             WOLFSSL_MSG("Issuing missing CRL callback");
             url[0] = '\0';
-            if (cert->extCrlInfoSz < (int)sizeof(url) -1 ) {
-                XMEMCPY(url, cert->extCrlInfo, cert->extCrlInfoSz);
-                url[cert->extCrlInfoSz] = '\0';
-            }
-            else  {
-                WOLFSSL_MSG("CRL url too long");
+            if (cert->extCrlInfo) {
+                if (cert->extCrlInfoSz < (int)sizeof(url) -1 ) {
+                    XMEMCPY(url, cert->extCrlInfo, cert->extCrlInfoSz);
+                    url[cert->extCrlInfoSz] = '\0';
+                }
+                else  {
+                    WOLFSSL_MSG("CRL url too long");
+                }
             }
 
             crl->cm->cbMissingCRL(url);

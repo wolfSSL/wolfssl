@@ -645,7 +645,7 @@ static void scryptROMix(byte* x, byte* v, byte* y, int r, word32 n)
 #endif
 #else
         byte* t = x + (2*r - 1) * 64;
-        j = (t[0] | (t[1] << 8) | (t[2] << 16) | (t[3] << 24)) & (n-1);
+        j = (t[0] | (t[1] << 8) | (t[2] << 16) | ((word32)t[3] << 24)) & (n-1);
 #endif
 #ifdef WORD64_AVAILABLE
         for (k = 0; k < bSz / 8; k++)
