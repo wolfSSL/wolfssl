@@ -119,6 +119,9 @@
 #ifdef WOLFSSL_IMX6_CAAM_BLOB
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
+#ifdef WOLF_CRYPTO_DEV
+    #include <wolfssl/wolfcrypt/cryptodev.h>
+#endif
 
 #define WOLFSSL_MISC_INCLUDED
 #include <wolfcrypt/src/misc.c>
@@ -341,6 +344,9 @@ int blob_test(void);
 #endif
 int misc_test(void);
 
+#ifdef WOLF_CRYPTO_DEV
+int cryptodev_test(void);
+#endif
 
 /* General big buffer size for many tests. */
 #define FOURK_BUF 4096
@@ -959,6 +965,13 @@ initDefaultName();
         return err_sys("misc     test failed!\n", ret);
     else
         printf( "misc     test passed!\n");
+
+#ifdef WOLF_CRYPTO_DEV
+    if ( (ret = cryptodev_test()) != 0)
+        return err_sys("crypto dev test failed!\n", ret);
+    else
+        printf( "crypto dev test passed!\n");
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     wolfAsync_DevClose(&devId);
@@ -8297,7 +8310,7 @@ static int rsa_sig_test(RsaKey* key, word32 keyLen, int modLen, WC_RNG* rng)
      *     -101 = USER_CRYPTO_ERROR
      */
     if (ret == 0)
-#elif defined(WOLFSSL_ASYNC_CRYPT)
+#elif defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLF_CRYPTO_DEV)
     /* async may not require RNG */
     if (ret != 0 && ret != MISSING_RNG_E)
 #elif defined(HAVE_FIPS) || defined(WOLFSSL_ASYNC_CRYPT) || \
@@ -18560,6 +18573,28 @@ int misc_test(void)
 
     return 0;
 }
+
+#ifdef WOLF_CRYPTO_DEV
+int cryptodev_test(void)
+{
+    int ret = 0;
+
+    /* set devId to something other than INVALID_DEVID */
+    devId = 1;
+
+#ifndef NO_RSA
+    if (ret == 0)
+        ret = rsa_test();
+#endif
+#ifdef HAVE_ECC
+    if (ret == 0)
+        ret = ecc_test();
+#endif
+
+    return ret;
+}
+#endif /* WOLF_CRYPTO_DEV */
+
 
 #undef ERROR_OUT
 

@@ -190,6 +190,9 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
 
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/logging.h>
+#ifdef WOLF_CRYPTO_DEV
+    #include <wolfssl/wolfcrypt/cryptodev.h>
+#endif
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -237,8 +240,6 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
         return BAD_FUNC_ARG;
     }
 
-    (void)devId;
-
     XMEMSET(key, 0, sizeof(RsaKey));
 
     key->type = RSA_TYPE_UNKNOWN;
@@ -249,6 +250,12 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
     key->dataIsAlloc = 0;
 #ifdef WC_RSA_BLINDING
     key->rng = NULL;
+#endif
+
+#ifdef WOLF_CRYPTO_DEV
+    key->devId = devId;
+#else
+    (void)devId;
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -263,8 +270,6 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
         if (ret != 0)
             return ret;
     #endif /* WC_ASYNC_ENABLE_RSA */
-#else
-    (void)devId;
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
     ret = mp_init_multi(&key->n, &key->e, NULL, NULL, NULL, NULL);
@@ -1618,6 +1623,15 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
             outLen == NULL || *outLen == 0 || type == RSA_TYPE_UNKNOWN) {
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLF_CRYPTO_DEV
+    if (key->devId != INVALID_DEVID) {
+        ret = wc_CryptoDev_Rsa(in, inLen, out, outLen, type, key, rng);
+        if (ret != NOT_COMPILED_IN)
+            return ret;
+        ret = 0; /* reset error code and try using software */
+    }
+#endif
 
 #ifndef NO_RSA_BOUNDS_CHECK
     if (type == RSA_PRIVATE_DECRYPT &&

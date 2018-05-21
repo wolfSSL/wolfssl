@@ -247,8 +247,8 @@ int wc_PKCS7_Init(PKCS7* pkcs7, void* heap, int devId)
 
     XMEMSET(pkcs7, 0, sizeof(PKCS7));
     pkcs7->heap = heap;
+    pkcs7->devId = devId;
 
-    (void)devId; /* silence unused warning */
     return 0;
 }
 
@@ -600,8 +600,7 @@ static int wc_PKCS7_RsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
         return MEMORY_E;
 #endif
 
-    ret = wc_InitRsaKey(privKey, pkcs7->heap);
-
+    ret = wc_InitRsaKey_ex(privKey, pkcs7->heap, pkcs7->devId);
     if (ret == 0) {
         idx = 0;
         ret = wc_RsaPrivateKeyDecode(pkcs7->privateKey, &idx, privKey,
@@ -649,7 +648,7 @@ static int wc_PKCS7_EcdsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
         return MEMORY_E;
 #endif
 
-    ret = wc_ecc_init_ex(privKey, pkcs7->heap, INVALID_DEVID);
+    ret = wc_ecc_init_ex(privKey, pkcs7->heap, pkcs7->devId);
 
     if (ret == 0) {
         idx = 0;
@@ -1309,7 +1308,7 @@ static int wc_PKCS7_RsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
 
     XMEMSET(digest, 0, MAX_PKCS7_DIGEST_SZ);
 
-    ret = wc_InitRsaKey(key, pkcs7->heap);
+    ret = wc_InitRsaKey_ex(key, pkcs7->heap, pkcs7->devId);
     if (ret != 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1384,7 +1383,7 @@ static int wc_PKCS7_EcdsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
 
     XMEMSET(digest, 0, MAX_PKCS7_DIGEST_SZ);
 
-    ret = wc_ecc_init_ex(key, pkcs7->heap, INVALID_DEVID);
+    ret = wc_ecc_init_ex(key, pkcs7->heap, pkcs7->devId);
     if (ret != 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2124,6 +2123,7 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
 typedef struct WC_PKCS7_KARI {
     DecodedCert* decoded;          /* decoded recip cert */
     void*    heap;                 /* user heap, points to PKCS7->heap */
+    int      devId;                /* device ID for HW based private key */
     ecc_key* recipKey;             /* recip key  (pub | priv) */
     ecc_key* senderKey;            /* sender key (pub | priv) */
     byte*    senderKeyExport;      /* sender ephemeral key DER */
@@ -2249,6 +2249,7 @@ static WC_PKCS7_KARI* wc_PKCS7_KariNew(PKCS7* pkcs7, byte direction)
     kari->direction = direction;
 
     kari->heap = pkcs7->heap;
+    kari->devId = pkcs7->devId;
 
     return kari;
 }
@@ -2333,7 +2334,7 @@ static int wc_PKCS7_KariParseRecipCert(WC_PKCS7_KARI* kari, const byte* cert,
         return BAD_FUNC_ARG;
     }
 
-    ret = wc_ecc_init_ex(kari->recipKey, kari->heap, INVALID_DEVID);
+    ret = wc_ecc_init_ex(kari->recipKey, kari->heap, kari->devId);
     if (ret != 0)
         return ret;
 
@@ -2384,7 +2385,7 @@ static int wc_PKCS7_KariGenerateEphemeralKey(WC_PKCS7_KARI* kari, WC_RNG* rng)
 
     kari->senderKeyExportSz = kari->decoded->pubKeySize;
 
-    ret = wc_ecc_init_ex(kari->senderKey, kari->heap, INVALID_DEVID);
+    ret = wc_ecc_init_ex(kari->senderKey, kari->heap, kari->devId);
     if (ret != 0)
         return ret;
 
@@ -2986,7 +2987,7 @@ static int wc_CreateRecipientInfo(const byte* cert, word32 certSz,
 #endif
 
     /* EncryptedKey */
-    ret = wc_InitRsaKey(pubKey, 0);
+    ret = wc_InitRsaKey_ex(pubKey, heap, INVALID_DEVID);
     if (ret != 0) {
         FreeDecodedCert(decoded);
 #ifdef WOLFSSL_SMALL_STACK
@@ -3250,7 +3251,7 @@ static int wc_PKCS7_GenerateIV(PKCS7* pkcs7, WC_RNG* rng, byte* iv, word32 ivSz)
         if (rnd == NULL)
             return MEMORY_E;
 
-        ret = wc_InitRng_ex(rnd, pkcs7->heap, INVALID_DEVID);
+        ret = wc_InitRng_ex(rnd, pkcs7->heap, pkcs7->devId);
         if (ret != 0) {
             XFREE(rnd, pkcs7->heap, DYNAMIC_TYPE_RNG);
             return ret;
@@ -3384,7 +3385,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     }
 
     /* generate random content encryption key */
-    ret = wc_InitRng_ex(&rng, pkcs7->heap, INVALID_DEVID);
+    ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
     if (ret != 0)
         return ret;
 
@@ -3712,7 +3713,7 @@ static int wc_PKCS7_DecodeKtri(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
     }
 #endif
 
-    ret = wc_InitRsaKey(privKey, 0);
+    ret = wc_InitRsaKey_ex(privKey, NULL, INVALID_DEVID);
     if (ret != 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -3735,7 +3736,7 @@ static int wc_PKCS7_DecodeKtri(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
 
     /* decrypt encryptedKey */
     #ifdef WC_RSA_BLINDING
-    ret = wc_InitRng_ex(&rng, pkcs7->heap, INVALID_DEVID);
+    ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
     if (ret == 0) {
         ret = wc_RsaSetRNG(privKey, &rng);
     }
@@ -3823,7 +3824,7 @@ static int wc_PKCS7_KariGetOriginatorIdentifierOrKey(WC_PKCS7_KARI* kari,
         return ASN_EXPECT_0_E;
 
     /* get sender ephemeral public ECDSA key */
-    ret = wc_ecc_init_ex(kari->senderKey, kari->heap, INVALID_DEVID);
+    ret = wc_ecc_init_ex(kari->senderKey, kari->heap, kari->devId);
     if (ret != 0)
         return ret;
 

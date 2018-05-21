@@ -3868,6 +3868,20 @@ else
 fi
 
 
+# Support for crypto device hardware
+AC_ARG_ENABLE([cryptodev],
+    [AS_HELP_STRING([--enable-cryptodev],[Enable crypto hardware support (default: disabled)])],
+    [ ENABLED_CRYPTODEV=$enableval ],
+    [ ENABLED_CRYPTODEV=no ]
+    )
+
+if test "$ENABLED_CRYPTODEV" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_DEV"
+fi
+AM_CONDITIONAL([BUILD_CRYPTODEV], [test "x$ENABLED_CRYPTODEV" = "xyes"])
+
+
 # Session Export
 AC_ARG_ENABLE([sessionexport],
     [AS_HELP_STRING([--enable-sessionexport],[Enable export and import of sessions (default: disabled)])],
