@@ -18731,9 +18731,6 @@ void ApiTest(void)
     test_wc_ecc_get_curve_id_from_name();
     test_wc_ecc_get_curve_id_from_params();
 
-    /* wolfCrypt curve25519 tests */
-    test_wc_curve25519_init();
-
 #ifdef WOLFSSL_TLS13
     /* TLS v1.3 API tests */
     test_tls13_apis();
