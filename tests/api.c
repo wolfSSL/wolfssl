@@ -24,10 +24,6 @@
  | Includes
  *----------------------------------------------------------------------------*/
 
-#ifndef NO_SIG_WRAPPER
-    #include <wolfssl/wolfcrypt/signature.h>
-#endif
-
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -225,6 +221,11 @@
         #define USER_CRYPTO_ERROR -101 /* error returned by IPP lib. */
     #endif
 #endif
+
+#ifndef NO_SIG_WRAPPER
+    #include <wolfssl/wolfcrypt/signature.h>
+#endif
+
 
 #ifdef HAVE_AESCCM
     #include <wolfssl/wolfcrypt/aes.h>
@@ -14741,8 +14742,7 @@ static int test_wc_SignatureGetSize(void) {
     int ret = 0; 
     enum wc_SignatureType sig_type;
     word32 key_len;
-    ecc_key ecc;
-    
+    ecc_key ecc; 
     RsaKey rsa_key;
     byte* tmp = NULL;
     size_t bytes;
@@ -18964,8 +18964,6 @@ void ApiTest(void)
     AssertIntEQ(test_wc_DsaImportParamsRaw(), 0);
     AssertIntEQ(test_wc_DsaExportParamsRaw(), 0);
     AssertIntEQ(test_wc_DsaExportKeyRaw(), 0);
-
-    /*NEW*/
     AssertIntEQ(test_wc_SignatureGetSize(), 0);
 
 #ifdef OPENSSL_EXTRA
