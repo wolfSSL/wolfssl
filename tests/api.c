@@ -193,6 +193,11 @@
 #ifdef HAVE_CHACHA
     #include <wolfssl/wolfcrypt/chacha.h>
 #endif
+
+#ifdef HAVE_POLY1305
+    #include <wolfssl/wolfcrypt/poly1305.h>
+#endif
+
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305)
     #include <wolfssl/wolfcrypt/chacha20_poly1305.h>
 #endif
@@ -263,6 +268,10 @@
 
 #ifdef HAVE_ED25519
     #include <wolfssl/wolfcrypt/ed25519.h>
+#endif
+
+#ifdef HAVE_CURVE25519
+    #include <wolfssl/wolfcrypt/curve25519.h>
 #endif
 
 #if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
@@ -1311,12 +1320,15 @@ static void test_client_nofail(void* args, void *cb)
     WOLFSSL_METHOD*  method  = 0;
     WOLFSSL_CTX*     ctx     = 0;
     WOLFSSL*         ssl     = 0;
+    WOLFSSL_CIPHER*  cipher;
 
     char msg[64] = "hello wolfssl!";
     char reply[1024];
     int  input;
     int  msgSz = (int)XSTRLEN(msg);
     int  ret, err = 0;
+    int  cipherSuite;
+    const char* cipherName1, *cipherName2;
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
@@ -1397,6 +1409,24 @@ static void test_client_nofail(void* args, void *cb)
         /*err_sys("SSL_connect failed");*/
         goto done2;
     }
+
+    /* test the various get cipher methods */
+    cipherSuite = wolfSSL_get_current_cipher_suite(ssl);
+    cipherName1 = wolfSSL_get_cipher_name(ssl);
+    cipherName2 = wolfSSL_get_cipher_name_from_suite(
+        (cipherSuite >> 8), cipherSuite & 0xFF);
+    AssertStrEQ(cipherName1, cipherName2);
+
+    cipher = wolfSSL_get_current_cipher(ssl);
+    cipherName1 = wolfSSL_CIPHER_get_name(cipher);
+    cipherName2 = wolfSSL_get_cipher(ssl);
+#ifdef NO_ERROR_STRINGS
+    AssertNull(cipherName1);
+    AssertNull(cipherName2);
+#else
+    AssertStrEQ(cipherName1, cipherName2);
+#endif
+
 
     if(cb != NULL)((cbType)cb)(ctx, ssl);
 
@@ -7402,6 +7432,7 @@ static int test_wc_Des3_SetKey (void)
     return ret;
 
 } /* END test_wc_Des3_SetKey */
+ 
 
 /*
  * Test function for wc_Des3_CbcEncrypt and wc_Des3_CbcDecrypt
@@ -7641,6 +7672,48 @@ static int test_wc_Chacha_SetKey (void)
 #endif
     return ret;
 } /* END test_wc_Chacha_SetKey */
+
+/*
+ * unit test for wc_Poly1305SetKey()
+ */
+static int test_wc_Poly1305SetKey(void)
+{
+    int ret = 0;
+    
+#ifdef HAVE_POLY1305
+    Poly1305      ctx;
+    const byte  key[] =
+    {
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01
+    };
+
+    printf(testingFmt, "wc_Poly1305_SetKey()");
+    
+    ret = wc_Poly1305SetKey(&ctx, key, (word32)(sizeof(key)/sizeof(byte))); 
+    /* Test bad args. */
+    if (ret == 0) {
+        ret = wc_Poly1305SetKey(NULL, key, (word32)(sizeof(key)/sizeof(byte)));
+        if(ret == BAD_FUNC_ARG) {
+            ret = wc_Poly1305SetKey(&ctx, NULL, (word32)(sizeof(key)/sizeof(byte)));
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = wc_Poly1305SetKey(&ctx, key, 18);
+        }
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+    
+#endif
+    return ret;
+} /* END test_wc_Poly1305_SetKey() */
 
 /*
  * Testing wc_Chacha_Process()
@@ -12114,6 +12187,43 @@ static int test_wc_ed25519_exportKey (void)
     return ret;
 
 } /* END test_wc_ed25519_exportKey */
+
+/*
+ * Testing wc_curve25519_init and wc_curve25519_free.
+ */
+static int test_wc_curve25519_init (void)
+{
+    int             ret = 0;
+
+#if defined(HAVE_CURVE25519)
+
+    curve25519_key  key;
+
+    printf(testingFmt, "wc_curve25519_init()");
+
+    ret = wc_curve25519_init(&key);
+
+    /* Test bad args for wc_curve25519_init */
+    if (ret == 0) {
+        ret = wc_curve25519_init(NULL);
+        if (ret == BAD_FUNC_ARG) {
+            ret = 0;
+        } else if (ret == 0) {
+            ret = SSL_FATAL_ERROR;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+    /*  Test good args for wc_curve_25519_free */
+    wc_curve25519_free(&key);
+
+    wc_curve25519_free(NULL);
+
+#endif
+    return ret;
+
+} /* END test_wc_curve25519_init and wc_curve_25519_free*/
 
 /*
  * Testing wc_ecc_make_key.
@@ -18813,6 +18923,7 @@ void ApiTest(void)
     AssertIntEQ(test_wc_Chacha_SetKey(), 0);
     AssertIntEQ(test_wc_Chacha_Process(), 0);
     AssertIntEQ(test_wc_ChaCha20Poly1305_aead(), 0);
+    AssertIntEQ(test_wc_Poly1305SetKey(), 0);
 
     AssertIntEQ(test_wc_CamelliaSetKey(), 0);
     AssertIntEQ(test_wc_CamelliaSetIV(), 0);
@@ -18840,6 +18951,7 @@ void ApiTest(void)
     AssertIntEQ(test_wc_RsaPublicKeyDecodeRaw(), 0);
     AssertIntEQ(test_wc_MakeRsaKey(), 0);
     AssertIntEQ(test_wc_SetKeyUsage (), 0);
+
 
     AssertIntEQ(test_wc_RsaKeyToDer(), 0);
     AssertIntEQ(test_wc_RsaKeyToPublicDer(), 0);
@@ -18880,6 +18992,8 @@ void ApiTest(void)
     AssertIntEQ(test_wc_ed25519_export(), 0);
     AssertIntEQ(test_wc_ed25519_size(), 0);
     AssertIntEQ(test_wc_ed25519_exportKey(), 0);
+
+    AssertIntEQ(test_wc_curve25519_init(), 0);
 
     AssertIntEQ(test_wc_ecc_make_key(), 0);
     AssertIntEQ(test_wc_ecc_init(), 0);

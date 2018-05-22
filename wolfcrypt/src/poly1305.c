@@ -1211,6 +1211,9 @@ int wc_Poly1305SetKey(Poly1305* ctx, const byte* key, word32 keySz)
     word64 t0,t1;
 #endif
 
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
 #ifdef CHACHA_AEAD_TEST
     word32 k;
     printf("Poly key used:\n");
