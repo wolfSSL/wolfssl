@@ -14848,7 +14848,7 @@ static int test_wc_HashInit(void)
 {
     int ret = 0, i;  /* 0 indicates tests passed, 1 indicates failure */
 
-    wc_HashAlg hash;  
+    wc_HashAlg hash;    
     
     /* enum for holding supported algorithms, #ifndef's restrict if disabled */
     enum wc_HashType enumArray[] = {
