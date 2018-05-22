@@ -14824,7 +14824,8 @@ static void test_wc_PKCS7_EncodeEncryptedData (void)
                 NULL, sizeof(decoded)), BAD_FUNC_ARG);
     AssertIntEQ(wc_PKCS7_DecodeEncryptedData(&pkcs7, encrypted, encryptedSz,
                 decoded, 0), BAD_FUNC_ARG);
-    /* Test struct fields */
+    /* Test
+     struct fields */
 
     tmpBytePtr = pkcs7.encryptionKey;
     pkcs7.encryptionKey = NULL;
@@ -14853,31 +14854,42 @@ static void test_wc_HashInit(void)
     #ifndef NO_SHA
             WC_HASH_TYPE_SHA,
     #endif
-    #ifndef NO_SHA224
+    #ifndef WOLFSSL_SHA224
             WC_HASH_TYPE_SHA224,
     #endif 
     #ifndef NO_SHA256  
             WC_HASH_TYPE_SHA256,      
     #endif 
-    #ifndef NO_SHA384  
+    #ifndef WOLFSSL_SHA384  
             WC_HASH_TYPE_SHA384,      
     #endif     
-    #ifndef NO_SHA512  
+    #ifndef WOLFSSL_SHA512  
             WC_HASH_TYPE_SHA512,      
     #endif     
     };
+    int ret = 0; /*0 indicates tests passed, 1 indicates failure*/
     int enumlen = (sizeof(enumArray))/4;/*dynamically finds the length*/
-    printf("the len of enum is: %d\n", enumlen);
+
     /*For loop to test various arguments...*/
     for(int i =0; i < enumlen; i++){
     wc_HashAlg hash;
     if(wc_HashInit(&hash, enumArray[i])==BAD_FUNC_ARG){/*checking for bad args*/
-       printf("Testing with argument itm# %d with a goodPtr-BAD_FUNC_ARG\n", i);
+       ret = 1;
     }
-    if(wc_HashInit(NULL, enumArray[i])==BAD_FUNC_ARG){/*checking for null ptr*/
-       printf("Testing with null pointer itm# %d returned BAD_FUNC_ARG\n", i);
+    if(wc_HashInit(NULL, enumArray[i])!=BAD_FUNC_ARG){/*checking for null ptr*/
+       ret = 1;
     }
+
     }/* end of for loop */
+
+    printf(testingFmt, "wc_HashInit()");
+    if(ret==0){/* all tests have passed */
+        printf(resultFmt, passed);
+    }
+    if(ret==1){/* a test has failed */
+        printf(resultFmt, failed);
+    }
+
 }/* end of test_wc_HashInit */
 
 
