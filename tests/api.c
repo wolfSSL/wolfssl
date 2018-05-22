@@ -214,6 +214,10 @@
     #include <wolfssl/wolfcrypt/arc4.h>
 #endif
 
+#ifdef HAVE_BLAKE2
+    #include <wolfssl/wolfcrypt/blake2.h>
+#endif
+
 
 #ifndef NO_RSA
     #include <wolfssl/wolfcrypt/rsa.h>
@@ -3156,6 +3160,77 @@ static void test_wolfSSL_mcast(void)
 /*----------------------------------------------------------------------------*
  |  Wolfcrypt
  *----------------------------------------------------------------------------*/
+
+/* 
+ * Unit test for the wc_InitBlake2b()
+ */
+static int test_wc_InitBlake2b (void)
+{
+    int ret = 0;
+#ifdef HAVE_BLAKE2
+
+    Blake2b blake2;
+
+    printf(testingFmt, "wc_InitBlake2B()");
+
+    /* Test good arg. */
+    ret = wc_InitBlake2b(&blake2, 64);
+    if (ret != 0) {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+
+    /* Test bad arg. */
+    if (!ret) {
+        ret = wc_InitBlake2b(NULL, 64);
+        if (ret == 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        } else {
+            ret = 0;
+        }
+    }
+
+    if (!ret) {
+        ret = wc_InitBlake2b(NULL, 128);
+        if (ret == 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        } else {
+            ret = 0;
+        }
+    }
+
+    if (!ret) {
+        ret = wc_InitBlake2b(&blake2, 128);
+        if (ret == 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        } else {
+            ret = 0;
+        }
+    }
+
+    if (!ret) {
+        ret = wc_InitBlake2b(NULL, 0);
+        if (ret == 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        } else {
+            ret = 0;
+        }
+    }
+
+    if (!ret) {
+        ret = wc_InitBlake2b(&blake2, 0);
+        if (ret == 0) {
+            ret = WOLFSSL_FATAL_ERROR;
+        } else {
+            ret = 0;
+        }
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+
+#endif
+    return ret;
+}     /*END test_wc_InitBlake2b*/
+
 
 /*
  * Unit test for the wc_InitMd5()
@@ -18837,6 +18912,7 @@ void ApiTest(void)
     AssertFalse(test_wc_InitSha224());
     AssertFalse(test_wc_Sha224Update());
     AssertFalse(test_wc_Sha224Final());
+    AssertFalse(test_wc_InitBlake2b());
     AssertFalse(test_wc_InitRipeMd());
     AssertFalse(test_wc_RipeMdUpdate());
     AssertFalse(test_wc_RipeMdFinal());
