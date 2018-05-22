@@ -189,6 +189,7 @@ struct WOLFSSL_ASN1_INTEGER {
      * byte type */
     unsigned char intData[WOLFSSL_ASN1_INTEGER_MAX];
     /* ASN_INTEGER | LENGTH | hex of number */
+    unsigned char negative;   /* negative number flag */
 
     unsigned char* data;
     unsigned int   dataMax;   /* max size of data buffer */
@@ -1528,12 +1529,12 @@ WOLFSSL_API WOLFSSL_X509* wolfSSL_d2i_X509(WOLFSSL_X509** x509,
         const unsigned char** in, int len);
 WOLFSSL_API WOLFSSL_X509*
     wolfSSL_X509_d2i(WOLFSSL_X509** x509, const unsigned char* in, int len);
-WOLFSSL_API WOLFSSL_X509* wolfSSL_d2i_X509_fp(FILE *fp, WOLFSSL_X509 **x509);
 WOLFSSL_API int wolfSSL_i2d_X509(WOLFSSL_X509* x509, unsigned char** out);
 WOLFSSL_API WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL(WOLFSSL_X509_CRL **crl,
                                                    const unsigned char *in, int len);
 #ifndef NO_FILESYSTEM
-WOLFSSL_API WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_fp(XFILE file, WOLFSSL_X509_CRL **crl);
+WOLFSSL_API WOLFSSL_X509* wolfSSL_d2i_X509_fp(FILE *fp, WOLFSSL_X509 **x509);
+WOLFSSL_API WOLFSSL_X509_CRL *wolfSSL_d2i_X509_CRL_fp(WOLFSSL_X509_CRL **crl, XFILE file);
 #endif
 WOLFSSL_API void wolfSSL_X509_CRL_free(WOLFSSL_X509_CRL *crl);
 
@@ -2921,7 +2922,7 @@ WOLFSSL_API const char *wolfSSL_ASN1_tag2str(int tag);
 WOLFSSL_API int wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str, unsigned long flags);
 WOLFSSL_API WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_to_generalizedtime(WOLFSSL_ASN1_TIME *t,
                                                                 WOLFSSL_ASN1_TIME **out);
-WOLFSSL_API int wolfSSL_i2c_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER **a, unsigned char **pp);
+WOLFSSL_API int wolfSSL_i2c_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER *a, unsigned char **pp);
 WOLFSSL_API int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *ctx, WOLFSSL_X509_CRL *x);
 #endif /* OPENSSL_EXTRA */
 

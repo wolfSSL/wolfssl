@@ -17139,8 +17139,8 @@ static void test_wolfSSL_ASN1_TIME_adj(void)
     /* GeneralizedTime notation test */
     /* 2055/03/01 09:00:00 */
     t = (time_t)85 * year + 59 * day + 9 * hour + 21 * day;
-    offset_day = 12;
-    offset_sec = 10 * mini;
+        offset_day = 12;
+        offset_sec = 10 * mini;
     asn_time = wolfSSL_ASN1_TIME_adj(s, t, offset_day, offset_sec);
     AssertTrue(asn_time->data[0] == asn_gen_time);
     XSTRNCPY(date_str,(const char*) &asn_time->data+2, 15);
@@ -18514,6 +18514,7 @@ static void test_wolfSSL_ASN1_STRING_print_ex(void){
 
     BIO_free(bio);
     ASN1_STRING_free(asn_str);
+    ASN1_STRING_free(esc_str);
 
     printf(resultFmt, passed);
 #endif
@@ -19465,6 +19466,96 @@ static void test_wolfSSL_X509_CRL(void)
         return;
 }
 
+static void test_wolfSSL_i2c_ASN1_INTEGER()
+{
+#ifdef OPENSSL_EXTRA
+    ASN1_INTEGER *a;
+    unsigned char *pp,*tpp;
+    int ret;
+
+    a = wolfSSL_ASN1_INTEGER_new();
+
+    /* 40 */
+    a->intData[0] = ASN_INTEGER;
+    a->intData[1] = 1;
+    a->intData[2] = 40;
+    ret = wolfSSL_i2c_ASN1_INTEGER(a, NULL);
+    AssertIntEQ(ret, 1);
+    pp = (unsigned char*)XMALLOC(ret + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    tpp = pp;
+    XMEMSET(pp, 0, ret + 1);
+    wolfSSL_i2c_ASN1_INTEGER(a, &pp); 
+    pp--;
+    AssertIntEQ(*pp, 40);
+    XFREE(tpp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    /* 128 */
+    a->intData[0] = ASN_INTEGER;
+    a->intData[1] = 1;
+    a->intData[2] = 128;
+    ret = wolfSSL_i2c_ASN1_INTEGER(a, NULL);
+    AssertIntEQ(ret, 2);
+    pp = (unsigned char*)XMALLOC(ret + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    tpp = pp;
+    XMEMSET(pp, 0, ret + 1);
+    wolfSSL_i2c_ASN1_INTEGER(a, &pp); 
+    pp--;
+    AssertIntEQ(*(pp--), 128);
+    AssertIntEQ(*pp, 0);
+    XFREE(tpp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    /* -40 */
+    a->intData[0] = ASN_INTEGER;
+    a->intData[1] = 1;
+    a->intData[2] = 40;
+    a->negative = 1;
+    ret = wolfSSL_i2c_ASN1_INTEGER(a, NULL);
+    AssertIntEQ(ret, 1);
+    pp = (unsigned char*)XMALLOC(ret + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    tpp = pp;
+    XMEMSET(pp, 0, ret + 1);
+    wolfSSL_i2c_ASN1_INTEGER(a, &pp); 
+    pp--;
+    AssertIntEQ(*pp, 216);
+    XFREE(tpp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    /* -128 */
+    a->intData[0] = ASN_INTEGER;
+    a->intData[1] = 1;
+    a->intData[2] = 128;
+    a->negative = 1;
+    ret = wolfSSL_i2c_ASN1_INTEGER(a, NULL);
+    AssertIntEQ(ret, 1);
+    pp = (unsigned char*)XMALLOC(ret + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    tpp = pp;
+    XMEMSET(pp, 0, ret + 1);
+    wolfSSL_i2c_ASN1_INTEGER(a, &pp); 
+    pp--;
+    AssertIntEQ(*pp, 128);
+    XFREE(tpp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+    /* -200 */
+    a->intData[0] = ASN_INTEGER;
+    a->intData[1] = 1;
+    a->intData[2] = 200;
+    a->negative = 1;
+    ret = wolfSSL_i2c_ASN1_INTEGER(a, NULL);
+    AssertIntEQ(ret, 2);
+    pp = (unsigned char*)XMALLOC(ret + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    tpp = pp;
+    XMEMSET(pp, 0, ret + 1);
+    wolfSSL_i2c_ASN1_INTEGER(a, &pp); 
+    pp--;
+    AssertIntEQ(*(pp--), 56);
+    AssertIntEQ(*pp, 255);
+
+    XFREE(tpp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    wolfSSL_ASN1_INTEGER_free(a); 
+
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA */
+}
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -19579,6 +19670,7 @@ void ApiTest(void)
     test_wolfSSL_OPENSSL_add_all_algorithms();
     test_wolfSSL_ASN1_STRING_print_ex();
     test_wolfSSL_ASN1_TIME_to_generalizedtime();
+    test_wolfSSL_i2c_ASN1_INTEGER();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();

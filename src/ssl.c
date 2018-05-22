@@ -32637,8 +32637,11 @@ int wolfSSL_CTX_set_alpn_protos(WOLFSSL_CTX *ctx, const unsigned char *p,
 #ifndef NO_WOLFSSL_STUB
 int wolfSSL_X509_check_ca(WOLFSSL_X509 *x509)
 {
-    WOLFSSL_STUB("X509_check_ca");
-    (void)x509;
+    WOLFSSL_ENTER("X509_check_ca");
+
+    if (x509->isCa)
+        return 1;
+
     return 0;
 }
 
@@ -32688,11 +32691,10 @@ static int check_esc_char(char c, char *esc)
 int wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str, 
                                  unsigned long flags)
 {
-    WOLFSSL_ENTER("ASN1_STRING_PRINT_ex");
+    WOLFSSL_ENTER("wolfSSL_ASN1_STRING_PRINT_ex");
     size_t str_len = 0, type_len = 0;
     unsigned char *typebuf = NULL;
     const char *hash="#";
-    //unsigned char * strbuf = NULL;
 
     if (out == NULL || str == NULL)
         return WOLFSSL_FAILURE;
@@ -32702,7 +32704,7 @@ int wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str,
         const char *tag = wolfSSL_ASN1_tag2str(str->type);
         /* colon len + tag len + null*/
         type_len = XSTRLEN(tag) + 2;
-        typebuf = (unsigned char *)XMALLOC(str_len , NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        typebuf = (unsigned char *)XMALLOC(type_len , NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (typebuf == NULL){
             WOLFSSL_MSG("memory alloc failed.");
             return WOLFSSL_FAILURE;
@@ -32721,7 +32723,7 @@ int wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str,
         char *str_ptr, *str_end;
         
         if (type_len > 0){
-            if (wolfSSL_BIO_write(out, typebuf, type_len) != (int)type_len){
+            if (wolfSSL_BIO_write(out, typebuf, (int)type_len) != (int)type_len){
                 XFREE(typebuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 return WOLFSSL_FAILURE;
             }
@@ -32760,12 +32762,11 @@ int wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str,
             str_ptr++;
             str_len += 2;
         }
-        fprintf(stderr, "str_len = %d\n", (int)str_len);
-        return str_len;
+        return (int)str_len;
     }
 
     if (type_len > 0){
-        if (wolfSSL_BIO_write(out, typebuf, type_len) != (int)type_len){
+        if (wolfSSL_BIO_write(out, typebuf, (int)type_len) != (int)type_len){
             XFREE(typebuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             return WOLFSSL_FAILURE;
         }
@@ -32779,7 +32780,6 @@ int wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str,
         esc_ptr = str->data;
         while (*esc_ptr != 0){
             if (check_esc_char(*esc_ptr, esc_ch)){
-                fprintf(stderr, "esc_char = %c\n",*esc_ptr);
                 if (wolfSSL_BIO_write(out,"\\", 1) != 1)
                     goto err_exit; 
                 str_len++;
@@ -32791,7 +32791,7 @@ int wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str,
         }
         if (type_len > 0)
             XFREE(typebuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return str_len;
+        return (int)str_len;
     }
 
     if (wolfSSL_BIO_write(out, str->data, str->length) != str->length){
@@ -32802,7 +32802,7 @@ int wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str,
     str_len += str->length;
 
     XFREE(typebuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    return str_len;
+    return (int)str_len;
 
 err_exit:
     if (type_len > 0)
@@ -32814,7 +32814,7 @@ err_exit:
 WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_to_generalizedtime(WOLFSSL_ASN1_TIME *t,
                                                         WOLFSSL_ASN1_TIME **out)
 {
-    WOLFSSL_ENTER("ASN1_TIME_to_generalizedtime");
+    WOLFSSL_ENTER("wolfSSL_ASN1_TIME_to_generalizedtime");
     unsigned char time_type;
     WOLFSSL_ASN1_TIME *ret = NULL;
     unsigned char *data_ptr = NULL;
@@ -32859,24 +32859,89 @@ WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_to_generalizedtime(WOLFSSL_ASN1_TIME *t,
 #endif /* !NO_ASN_TIME */
 
 
-#ifndef NO_WOLFSSL_STUB
 #ifndef NO_ASN
-int wolfSSL_i2c_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER **a, unsigned char **pp)
+int wolfSSL_i2c_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER *a, unsigned char **pp)
 {
-    WOLFSSL_STUB("i2c_ASN1_INTEGER");
-    (void)a;
-    (void)pp;
-    return 0;
+    WOLFSSL_ENTER("wolfSSL_i2c_ASN1_INTEGER");
+
+    unsigned char *pptr = NULL;
+    char pad = 0 ;
+    unsigned char pad_val = 0;
+    int ret_size = 0;
+    unsigned char data1 = 0;
+    unsigned char neg = 0;
+    int i = 0;
+
+    if (a == NULL)
+        return WOLFSSL_FAILURE;
+
+    ret_size = a->intData[1];
+    if (ret_size == 0)
+        ret_size = 1;
+    else{
+        ret_size = (int)a->intData[1];
+        neg = a->negative;
+        data1 = a->intData[2];
+        if (ret_size == 1 && data1 == 0)
+            neg = 0;
+        /* 0x80 or greater positive number in first byte */
+        if (!neg && (data1 > 127)){
+            pad = 1;
+            pad_val = 0;
+        } else if (neg){
+            /* negative number */
+            if (data1 > 128){
+                pad = 1;
+                pad_val = 0xff;
+            } else if (data1 == 128){
+                for (i = 3; i < a->intData[1] + 2; i++){
+                    if (a->intData[i]){
+                        pad = 1;
+                        pad_val = 0xff;
+                        break;
+                    }
+                }
+            }
+        }
+        ret_size += (int)pad;
+    }
+    if (pp == NULL)
+        return ret_size;
+
+    pptr = *pp;
+    if (pad)
+        *(pptr++) = pad_val;
+    if (a->intData[1] == 0)
+        *(pptr++) = 0;
+    else if (!neg){
+        /* positive number */
+        for (i=0; i < a->intData[1]; i++){
+            *pptr = a->intData[i+2];
+            pptr++;
+        }
+    } else {
+        /* negative number */
+        int str_len = 0;
+
+        /* 0 padding from end of buffer */
+        str_len = (int)a->intData[1];
+        pptr += a->intData[1] - 1;
+        while (!a->intData[str_len + 2] && str_len > 1){
+            *(pptr--) = 0;
+            str_len--; 
+        }
+        /* 2's complement next octet */
+        *(pptr--) = ((a->intData[str_len + 1]) ^ 0xff) + 1;
+        str_len--;
+        /* Complement any octets left */
+        while (str_len > 0){
+            *(pptr--) = a->intData[str_len + 1] ^ 0xff;
+            str_len--;
+        }
+    }
+    *pp += ret_size;
+    return ret_size;
 }
 #endif /* !NO_ASN */
-#endif /* !NO_WOLFSSL_STUB */
-
-
-int wolfSSL_X509_STORE_add_crl(WOLFSSL_X509_STORE *ctx, WOLFSSL_X509_CRL *x)
-{
-    (void)ctx;
-    (void)x;
-    return 0;
-}
 
 #endif  /* OPENSSLEXTRA */
