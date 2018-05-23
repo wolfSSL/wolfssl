@@ -1,5 +1,5 @@
 # ===========================================================================
-#     http://www.gnu.org/software/autoconf-archive/ax_check_library.html
+#     https://www.gnu.org/software/autoconf-archive/ax_check_library.html
 # ===========================================================================
 #
 # SYNOPSIS
@@ -32,7 +32,6 @@
 #
 # LICENSE
 #
-#   Copyright (c) 2012 Brian Aker <brian@tangent.org>
 #   Copyright (c) 2010 Diego Elio Petteno` <flameeyes@gmail.com>
 #
 #   This program is free software: you can redistribute it and/or modify it
@@ -46,7 +45,7 @@
 #   Public License for more details.
 #
 #   You should have received a copy of the GNU General Public License along
-#   with this program. If not, see <http://www.gnu.org/licenses/>.
+#   with this program. If not, see <https://www.gnu.org/licenses/>.
 #
 #   As a special exception, the respective Autoconf Macro's copyright owner
 #   gives unlimited permission to copy, distribute and modify the configure
@@ -61,35 +60,36 @@
 #   modified version of the Autoconf Macro, you may extend this special
 #   exception to the GPL to apply to your modified version as well.
 
-#serial 7
+#serial 5
 
-AC_DEFUN([AX_CHECK_LIBRARY],
-    [AC_ARG_VAR($1[_CPPFLAGS],[C preprocessor flags for ]$1[ headers])
-    AC_ARG_VAR($1[_LDFLAGS],[linker flags for ]$1[ libraries])
+AC_DEFUN([AX_CHECK_LIBRARY], [
+  AC_ARG_VAR($1[_CPPFLAGS], [C preprocessor flags for ]$1[ headers])
+  AC_ARG_VAR($1[_LDFLAGS], [linker flags for ]$1[ libraries])
 
-    AC_CACHE_VAL(AS_TR_SH([ax_cv_have_]$1),
-      [AX_SAVE_FLAGS
+  AC_CACHE_VAL(AS_TR_SH([ax_cv_have_]$1),
+    [save_CPPFLAGS="$CPPFLAGS"
+     save_LDFLAGS="$LDFLAGS"
+     save_LIBS="$LIBS"
 
-      AS_IF([test "x$]$1[_CPPFLAGS" != "x"],
-        [CPPFLAGS="$CPPFLAGS $]$1[_CPPFLAGS"])
+     AS_IF([test "x$]$1[_CPPFLAGS" != "x"],
+       [CPPFLAGS="$CPPFLAGS $]$1[_CPPFLAGS"])
 
-      AS_IF([test "x$]$1[_LDFLAGS" != "x"],
-        [LDFLAGS="$LDFLAGS $]$1[_LDFLAGS"])
+     AS_IF([test "x$]$1[_LDFLAGS" != "x"],
+       [LDFLAGS="$LDFLAGS $]$1[_LDFLAGS"])
 
-      AC_CHECK_HEADER($2, [
-        AC_CHECK_LIB($3, [main],
-          [AS_TR_SH([ax_cv_have_]$1)=yes],
-          [AS_TR_SH([ax_cv_have_]$1)=no])
-        ], [AS_TR_SH([ax_cv_have_]$1)=no])
+     AC_CHECK_HEADER($2, [
+       AC_CHECK_LIB($3, [main],
+         [AS_TR_SH([ax_cv_have_]$1)=yes],
+         [AS_TR_SH([ax_cv_have_]$1)=no])
+     ], [AS_TR_SH([ax_cv_have_]$1)=no])
 
-      AX_RESTORE_FLAGS
-      ])
-
-    AS_IF([test "$]AS_TR_SH([ax_cv_have_]$1)[" = "yes"],
-        [AC_DEFINE([HAVE_]$1, [1], [Define to 1 if ]$1[ is found])
-        AC_SUBST($1[_CPPFLAGS])
-        AC_SUBST($1[_LDFLAGS])
-        AC_SUBST($1[_LIB],[-l]$3)
-        ifelse([$4], , :, [$4])],
-        [ifelse([$5], , :, [$5])])
+     CPPFLAGS="$save_CPPFLAGS"
+     LDFLAGS="$save_LDFLAGS"
+     LIBS="$save_LIBS"
     ])
+
+  AS_IF([test "$]AS_TR_SH([ax_cv_have_]$1)[" = "yes"],
+    AC_DEFINE([HAVE_]$1, [1], [Define to 1 if ]$1[ is found])
+    [$4],
+    [$5])
+])

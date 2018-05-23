@@ -16,6 +16,10 @@ AC_CONFIG_AUX_DIR([build-aux])
 : ${CFLAGS=""}
 : ${CXXFLAGS=""}
 
+# Test ar for the "U" option. Should be checked before the libtool macros.
+xxx_ar_flags=$((ar --help) 2>&1)
+AS_CASE([$xxx_ar_flags],[*'use actual timestamps and uids/gids'*],[: ${AR_FLAGS="Ucru"}])
+
 AC_CANONICAL_HOST
 AC_CANONICAL_BUILD
 
@@ -268,6 +272,9 @@ AC_ARG_ENABLE([singlethreaded],
 AS_IF([ test "x$ENABLED_SINGLETHREADED" = "xno" ],[
        AX_PTHREAD([
                    AC_DEFINE([HAVE_PTHREAD], [1], [Define if you have POSIX threads libraries and header files.])
+                   # If AX_PTHREAD is adding -Qunused-arguments, need to prepend with -Xcompiler libtool will use it. Newer
+                   # versions of clang don't need the -Q flag when using pthreads.
+                   AS_CASE([$PTHREAD_CFLAGS],[-Qunused-arguments*],[PTHREAD_CFLAGS="-Xcompiler $PTHREAD_CFLAGS"])
                    AM_CFLAGS="-D_POSIX_THREADS $AM_CFLAGS $PTHREAD_CFLAGS"
                    LIBS="$LIBS $PTHREAD_LIBS"
                    ],[

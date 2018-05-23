@@ -182,7 +182,7 @@ enum wc_HashType wc_OidGetHash(int oid)
         #endif
             break;
         case SHA224h:
-        #if defined(WOLFSSL_SHA224)
+        #ifdef WOLFSSL_SHA224
             hash_type = WC_HASH_TYPE_SHA224;
         #endif
             break;
@@ -247,7 +247,7 @@ int wc_HashGetDigestSize(enum wc_HashType hash_type)
         #endif
             break;
         case WC_HASH_TYPE_SHA384:
-        #if defined(WOLFSSL_SHA512) && defined(WOLFSSL_SHA384)
+        #ifdef WOLFSSL_SHA384
             dig_size = WC_SHA384_DIGEST_SIZE;
         #endif
             break;

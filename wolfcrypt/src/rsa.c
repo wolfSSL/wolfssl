@@ -2310,8 +2310,7 @@ static int RsaGetValue(mp_int* in, byte* out, word32* outSz)
     word32 sz;
     int ret = 0;
 
-    if (in == NULL || out == NULL || outSz == NULL)
-        return BAD_FUNC_ARG;
+    /* Parameters ensured by calling function. */
 
     sz = (word32)mp_unsigned_bin_size(in);
     if (sz > *outSz)
