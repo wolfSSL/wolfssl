@@ -7084,11 +7084,9 @@ static int sp_2048_mod_exp_16(sp_digit* r, sp_digit* a, sp_digit* e,
 
             sp_2048_mont_mul_16(r, r, t[y], m, mp);
         }
-        y = e[0] & 0xf;
-        sp_2048_mont_sqr_16(r, r, m, mp);
-        sp_2048_mont_sqr_16(r, r, m, mp);
-        sp_2048_mont_sqr_16(r, r, m, mp);
-        sp_2048_mont_sqr_16(r, r, m, mp);
+        y = e[0] & ((1 << c) - 1);
+        for (; c > 0; c--)
+            sp_2048_mont_sqr_16(r, r, m, mp);
         sp_2048_mont_mul_16(r, r, t[y], m, mp);
 
         XMEMSET(&r[16], 0, sizeof(sp_digit) * 16);
@@ -7401,11 +7399,9 @@ static int sp_2048_mod_exp_avx2_16(sp_digit* r, sp_digit* a, sp_digit* e,
 
             sp_2048_mont_mul_avx2_16(r, r, t[y], m, mp);
         }
-        y = e[0] & 0xf;
-        sp_2048_mont_sqr_avx2_16(r, r, m, mp);
-        sp_2048_mont_sqr_avx2_16(r, r, m, mp);
-        sp_2048_mont_sqr_avx2_16(r, r, m, mp);
-        sp_2048_mont_sqr_avx2_16(r, r, m, mp);
+        y = e[0] & ((1 << c) - 1);
+        for (; c > 0; c--)
+            sp_2048_mont_sqr_avx2_16(r, r, m, mp);
         sp_2048_mont_mul_avx2_16(r, r, t[y], m, mp);
 
         XMEMSET(&r[16], 0, sizeof(sp_digit) * 16);
@@ -9126,10 +9122,9 @@ static int sp_2048_mod_exp_32(sp_digit* r, sp_digit* a, sp_digit* e,
 
             sp_2048_mont_mul_32(r, r, t[y], m, mp);
         }
-        y = e[0] & 0x7;
-        sp_2048_mont_sqr_32(r, r, m, mp);
-        sp_2048_mont_sqr_32(r, r, m, mp);
-        sp_2048_mont_sqr_32(r, r, m, mp);
+        y = e[0] & ((1 << c) - 1);
+        for (; c > 0; c--)
+            sp_2048_mont_sqr_32(r, r, m, mp);
         sp_2048_mont_mul_32(r, r, t[y], m, mp);
 
         XMEMSET(&r[32], 0, sizeof(sp_digit) * 32);
@@ -9540,10 +9535,9 @@ static int sp_2048_mod_exp_avx2_32(sp_digit* r, sp_digit* a, sp_digit* e,
 
             sp_2048_mont_mul_avx2_32(r, r, t[y], m, mp);
         }
-        y = e[0] & 0x7;
-        sp_2048_mont_sqr_avx2_32(r, r, m, mp);
-        sp_2048_mont_sqr_avx2_32(r, r, m, mp);
-        sp_2048_mont_sqr_avx2_32(r, r, m, mp);
+        y = e[0] & ((1 << c) - 1);
+        for (; c > 0; c--)
+            sp_2048_mont_sqr_avx2_32(r, r, m, mp);
         sp_2048_mont_mul_avx2_32(r, r, t[y], m, mp);
 
         XMEMSET(&r[32], 0, sizeof(sp_digit) * 32);
@@ -23649,8 +23643,9 @@ static int sp_3072_mod_exp_24(sp_digit* r, sp_digit* a, sp_digit* e,
 
             sp_3072_mont_mul_24(r, r, t[y], m, mp);
         }
-        y = e[0] & 0x1;
-        sp_3072_mont_sqr_24(r, r, m, mp);
+        y = e[0] & ((1 << c) - 1);
+        for (; c > 0; c--)
+            sp_3072_mont_sqr_24(r, r, m, mp);
         sp_3072_mont_mul_24(r, r, t[y], m, mp);
 
         XMEMSET(&r[24], 0, sizeof(sp_digit) * 24);
@@ -24011,8 +24006,9 @@ static int sp_3072_mod_exp_avx2_24(sp_digit* r, sp_digit* a, sp_digit* e,
 
             sp_3072_mont_mul_avx2_24(r, r, t[y], m, mp);
         }
-        y = e[0] & 0x1;
-        sp_3072_mont_sqr_avx2_24(r, r, m, mp);
+        y = e[0] & ((1 << c) - 1);
+        for (; c > 0; c--)
+            sp_3072_mont_sqr_avx2_24(r, r, m, mp);
         sp_3072_mont_mul_avx2_24(r, r, t[y], m, mp);
 
         XMEMSET(&r[24], 0, sizeof(sp_digit) * 24);
@@ -26357,9 +26353,9 @@ static int sp_3072_mod_exp_48(sp_digit* r, sp_digit* a, sp_digit* e,
 
             sp_3072_mont_mul_48(r, r, t[y], m, mp);
         }
-        y = e[0] & 0x3;
-        sp_3072_mont_sqr_48(r, r, m, mp);
-        sp_3072_mont_sqr_48(r, r, m, mp);
+        y = e[0] & ((1 << c) - 1);
+        for (; c > 0; c--)
+            sp_3072_mont_sqr_48(r, r, m, mp);
         sp_3072_mont_mul_48(r, r, t[y], m, mp);
 
         XMEMSET(&r[48], 0, sizeof(sp_digit) * 48);
@@ -26866,9 +26862,9 @@ static int sp_3072_mod_exp_avx2_48(sp_digit* r, sp_digit* a, sp_digit* e,
 
             sp_3072_mont_mul_avx2_48(r, r, t[y], m, mp);
         }
-        y = e[0] & 0x3;
-        sp_3072_mont_sqr_avx2_48(r, r, m, mp);
-        sp_3072_mont_sqr_avx2_48(r, r, m, mp);
+        y = e[0] & ((1 << c) - 1);
+        for (; c > 0; c--)
+            sp_3072_mont_sqr_avx2_48(r, r, m, mp);
         sp_3072_mont_mul_avx2_48(r, r, t[y], m, mp);
 
         XMEMSET(&r[48], 0, sizeof(sp_digit) * 48);
