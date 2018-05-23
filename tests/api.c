@@ -14824,8 +14824,7 @@ static void test_wc_PKCS7_EncodeEncryptedData (void)
                 NULL, sizeof(decoded)), BAD_FUNC_ARG);
     AssertIntEQ(wc_PKCS7_DecodeEncryptedData(&pkcs7, encrypted, encryptedSz,
                 decoded, 0), BAD_FUNC_ARG);
-    /* Test
-     struct fields */
+    /* Test struct fields */
 
     tmpBytePtr = pkcs7.encryptionKey;
     pkcs7.encryptionKey = NULL;
@@ -14841,15 +14840,18 @@ static void test_wc_PKCS7_EncodeEncryptedData (void)
 #endif
 } /* END test_wc_PKCS7_EncodeEncryptedData() */
 
+
 /*----------------------------------------------------------------------------*
  | hash.h Tests
  *----------------------------------------------------------------------------*/
-static int test_wc_HashInit(void) 
+
+
+static int test_wc_HashInit(void)
 {
     int ret = 0, i;  /* 0 indicates tests passed, 1 indicates failure */
 
-    wc_HashAlg hash;    
-    
+    wc_HashAlg hash;
+
     /* enum for holding supported algorithms, #ifndef's restrict if disabled */
     enum wc_HashType enumArray[] = {
     #ifndef NO_MD5
@@ -14860,44 +14862,44 @@ static int test_wc_HashInit(void)
     #endif
     #ifndef WOLFSSL_SHA224
             WC_HASH_TYPE_SHA224,
-    #endif 
-    #ifndef NO_SHA256  
-            WC_HASH_TYPE_SHA256,      
-    #endif 
-    #ifndef WOLFSSL_SHA384  
-            WC_HASH_TYPE_SHA384,      
-    #endif     
-    #ifndef WOLFSSL_SHA512  
-            WC_HASH_TYPE_SHA512,      
-    #endif     
-    }; 
+    #endif
+    #ifndef NO_SHA256
+            WC_HASH_TYPE_SHA256,
+    #endif
+    #ifndef WOLFSSL_SHA384
+            WC_HASH_TYPE_SHA384,
+    #endif
+    #ifndef WOLFSSL_SHA512
+            WC_HASH_TYPE_SHA512,
+    #endif
+    };
     /* dynamically finds the length */
-    int enumlen = (sizeof(enumArray)/sizeof(enum wc_HashType));  
+    int enumlen = (sizeof(enumArray)/sizeof(enum wc_HashType));
 
     /* For loop to test various arguments... */
-    for(i = 0; i < enumlen; i++) {
+    for (i = 0; i < enumlen; i++) {
         /* check for bad args */
-        if(wc_HashInit(&hash, enumArray[i]) == BAD_FUNC_ARG) {  
+        if (wc_HashInit(&hash, enumArray[i]) == BAD_FUNC_ARG) {
             ret = 1;
-            break; 
+            break;
         }
         /* check for null ptr */
-        if(wc_HashInit(NULL, enumArray[i]) != BAD_FUNC_ARG) {  
+        if (wc_HashInit(NULL, enumArray[i]) != BAD_FUNC_ARG) {
             ret = 1;
-            break; 
+            break;
         }
 
-    }/* end of for loop */
+    }  /* end of for loop */
 
     printf(testingFmt, "wc_HashInit()");
-    if(ret==0) {  /* all tests have passed */
+    if (ret==0) {  /* all tests have passed */
         printf(resultFmt, passed);
     }
-    if(ret==1) {  /* a test has failed */
+    else {  /* a test has failed */
         printf(resultFmt, failed);
     }
-    return ret; 
-}/* end of test_wc_HashInit */
+    return ret;
+}  /* end of test_wc_HashInit */
 
 
 /*----------------------------------------------------------------------------*
@@ -19050,7 +19052,6 @@ void ApiTest(void)
     test_wc_PKCS7_EncodeDecodeEnvelopedData();
     test_wc_PKCS7_EncodeEncryptedData();
      
-
     printf(" End API Tests\n");
 
 }
