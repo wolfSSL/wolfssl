@@ -14537,6 +14537,7 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
     printf(testingFmt, "wc_PKCS7_EncodeEnvelopedData()");
     testSz = (int)sizeof(testVectors)/(int)sizeof(pkcs7EnvelopedVector);
     for (i = 0; i < testSz; i++) {
+        AssertIntEQ(wc_PKCS7_Init(&pkcs7, HEAP_HINT, devId), 0);
         AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, (testVectors + i)->cert,
                                     (word32)(testVectors + i)->certSz), 0);
 

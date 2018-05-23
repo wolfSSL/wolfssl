@@ -259,7 +259,7 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz)
 {
     int ret = 0;
     void* heap;
-
+    int devId;
 
     if (pkcs7 == NULL || (cert == NULL && certSz != 0)) {
         return BAD_FUNC_ARG;
@@ -270,9 +270,11 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz)
 #else
     heap = pkcs7->heap;
 #endif
+    devId = pkcs7->devId;
 
     XMEMSET(pkcs7, 0, sizeof(PKCS7));
     pkcs7->heap = heap;
+    pkcs7->devId = devId;
 
     if (cert != NULL && certSz > 0) {
 #ifdef WOLFSSL_SMALL_STACK
@@ -590,9 +592,9 @@ static int wc_PKCS7_RsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
     RsaKey* privKey = &stack_privKey;
 #endif
 
-    if (pkcs7 == NULL || pkcs7->privateKey == NULL || pkcs7->rng == NULL ||
-        in == NULL || esd == NULL)
+    if (pkcs7 == NULL || pkcs7->rng == NULL || in == NULL || esd == NULL) {
         return BAD_FUNC_ARG;
+    }
 
 #ifdef WOLFSSL_SMALL_STACK
     privKey = (RsaKey*)XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -602,11 +604,15 @@ static int wc_PKCS7_RsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
 
     ret = wc_InitRsaKey_ex(privKey, pkcs7->heap, pkcs7->devId);
     if (ret == 0) {
-        idx = 0;
-        ret = wc_RsaPrivateKeyDecode(pkcs7->privateKey, &idx, privKey,
-                                     pkcs7->privateKeySz);
+        if (pkcs7->privateKey != NULL && pkcs7->privateKeySz > 0) {
+            idx = 0;
+            ret = wc_RsaPrivateKeyDecode(pkcs7->privateKey, &idx, privKey,
+                                         pkcs7->privateKeySz);
+        }
+        else if (pkcs7->devId == INVALID_DEVID) {
+            ret = BAD_FUNC_ARG;
+        }
     }
-
     if (ret == 0) {
         ret = wc_RsaSSL_Sign(in, inSz, esd->encContentDigest,
                              sizeof(esd->encContentDigest),
@@ -638,9 +644,9 @@ static int wc_PKCS7_EcdsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
     ecc_key* privKey = &stack_privKey;
 #endif
 
-    if (pkcs7 == NULL || pkcs7->privateKey == NULL || pkcs7->rng == NULL ||
-        in == NULL || esd == NULL)
+    if (pkcs7 == NULL || pkcs7->rng == NULL || in == NULL || esd == NULL) {
         return BAD_FUNC_ARG;
+    }
 
 #ifdef WOLFSSL_SMALL_STACK
     privKey = (ecc_key*)XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -649,13 +655,16 @@ static int wc_PKCS7_EcdsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
 #endif
 
     ret = wc_ecc_init_ex(privKey, pkcs7->heap, pkcs7->devId);
-
     if (ret == 0) {
-        idx = 0;
-        ret = wc_EccPrivateKeyDecode(pkcs7->privateKey, &idx, privKey,
-                                     pkcs7->privateKeySz);
+        if (pkcs7->privateKey != NULL && pkcs7->privateKeySz > 0) {
+            idx = 0;
+            ret = wc_EccPrivateKeyDecode(pkcs7->privateKey, &idx, privKey,
+                                         pkcs7->privateKeySz);
+        }
+        else if (pkcs7->devId == INVALID_DEVID) {
+            ret = BAD_FUNC_ARG;
+        }
     }
-
     if (ret == 0) {
         outSz = sizeof(esd->encContentDigest);
         ret = wc_ecc_sign_hash(in, inSz, esd->encContentDigest,
@@ -1032,9 +1041,9 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     if (pkcs7 == NULL || pkcs7->content == NULL || pkcs7->contentSz == 0 ||
         pkcs7->encryptOID == 0 || pkcs7->hashOID == 0 || pkcs7->rng == 0 ||
         pkcs7->singleCert == NULL || pkcs7->singleCertSz == 0 ||
-        pkcs7->privateKey == NULL || pkcs7->privateKeySz == 0 ||
-        output == NULL || outputSz == 0)
+        output == NULL || outputSz == 0) {
         return BAD_FUNC_ARG;
+    }
 
 #ifdef WOLFSSL_SMALL_STACK
     esd = (ESD*)XMALLOC(sizeof(ESD), NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -2136,6 +2145,7 @@ typedef struct WC_PKCS7_KARI {
     word32   sharedInfoSz;         /* size of ECC-CMS-SharedInfo encoded */
     byte     ukmOwner;             /* do we own ukm buffer? 1:yes, 0:no */
     byte     direction;            /* WC_PKCS7_ENCODE | WC_PKCS7_DECODE */
+    byte     decodedInit : 1;      /* indicates decoded was intiialized */
 } WC_PKCS7_KARI;
 
 
@@ -2247,6 +2257,7 @@ static WC_PKCS7_KARI* wc_PKCS7_KariNew(PKCS7* pkcs7, byte direction)
     kari->sharedInfo = NULL;
     kari->sharedInfoSz = 0;
     kari->direction = direction;
+    kari->decodedInit = 0;
 
     kari->heap = pkcs7->heap;
     kari->devId = pkcs7->devId;
@@ -2264,7 +2275,9 @@ static int wc_PKCS7_KariFree(WC_PKCS7_KARI* kari)
         heap = kari->heap;
 
         if (kari->decoded) {
-            FreeDecodedCert(kari->decoded);
+            if (kari->decodedInit) {
+                FreeDecodedCert(kari->decoded);
+            }
             XFREE(kari->decoded, heap, DYNAMIC_TYPE_PKCS7);
         }
         if (kari->senderKey) {
@@ -2318,12 +2331,9 @@ static int wc_PKCS7_KariParseRecipCert(WC_PKCS7_KARI* kari, const byte* cert,
         cert == NULL || certSz == 0)
         return BAD_FUNC_ARG;
 
-    if (kari->direction == WC_PKCS7_DECODE &&
-        (key == NULL || keySz == 0))
-        return BAD_FUNC_ARG;
-
     /* decode certificate */
     InitDecodedCert(kari->decoded, (byte*)cert, certSz, kari->heap);
+    kari->decodedInit = 1;
     ret = ParseCert(kari->decoded, CA_TYPE, NO_VERIFY, 0);
     if (ret < 0)
         return ret;
@@ -2349,9 +2359,13 @@ static int wc_PKCS7_KariParseRecipCert(WC_PKCS7_KARI* kari, const byte* cert,
     }
     /* get recip private key */
     else if (kari->direction == WC_PKCS7_DECODE) {
-
-        idx = 0;
-        ret = wc_EccPrivateKeyDecode(key, &idx, kari->recipKey, keySz);
+        if (key != NULL && keySz > 0) {
+            idx = 0;
+            ret = wc_EccPrivateKeyDecode(key, &idx, kari->recipKey, keySz);
+        }
+        else if (kari->devId == INVALID_DEVID) {
+            ret = BAD_FUNC_ARG;
+        }
         if (ret != 0)
             return ret;
 
@@ -3722,9 +3736,14 @@ static int wc_PKCS7_DecodeKtri(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
         return ret;
     }
 
-    keyIdx = 0;
-    ret = wc_RsaPrivateKeyDecode(pkcs7->privateKey, &keyIdx, privKey,
-                                 pkcs7->privateKeySz);
+    if (pkcs7->privateKey != NULL && pkcs7->privateKeySz > 0) {
+        keyIdx = 0;
+        ret = wc_RsaPrivateKeyDecode(pkcs7->privateKey, &keyIdx, privKey,
+                                     pkcs7->privateKeySz);
+    }
+    else if (pkcs7->devId == INVALID_DEVID) {
+        ret = BAD_FUNC_ARG;
+    }
     if (ret != 0) {
         WOLFSSL_MSG("Failed to decode RSA private key");
 #ifdef WOLFSSL_SMALL_STACK
@@ -4381,8 +4400,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     int explicitOctet;
 
     if (pkcs7 == NULL || pkcs7->singleCert == NULL ||
-        pkcs7->singleCertSz == 0 || pkcs7->privateKey == NULL ||
-        pkcs7->privateKeySz == 0)
+        pkcs7->singleCertSz == 0)
         return BAD_FUNC_ARG;
 
     if (pkiMsg == NULL || pkiMsgSz == 0 ||
