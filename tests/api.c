@@ -14745,7 +14745,7 @@ static int test_wc_SignatureGetSize_ecc(void)
         word32 key_len;
 
         /* Initialize ECC Key */
-        ecc_key ecc;        
+        ecc_key ecc; 
         const char* qx =
             "fa2737fb93488d19caef11ae7faf6b7f4bcd67b286e3fc54e8a65c2b74aeccb0";
         const char* qy = 
@@ -14774,7 +14774,7 @@ static int test_wc_SignatureGetSize_ecc(void)
                 }  
                 if (ret >= 0) {
                     key_len = 0;
-                    ret = wc_SignatureGetSize(sig_type, &ecc, key_len);         
+                    ret = wc_SignatureGetSize(sig_type, &ecc, key_len); 
                 }
                 if (ret == BAD_FUNC_ARG) {
                     ret = SIG_TYPE_E;
@@ -14826,7 +14826,7 @@ static int test_wc_SignatureGetSize_rsa(void)
         #endif
 
         tmp = (byte*)XMALLOC(bytes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        if (tmp != NULL) {            
+        if (tmp != NULL) {
             #ifdef USE_CERT_BUFFERS_1024
                 XMEMCPY(tmp, client_key_der_1024, 
                     (size_t)sizeof_client_key_ker_1024);
