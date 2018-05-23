@@ -5227,8 +5227,9 @@ void FreeSSL(WOLFSSL* ssl, void* heap)
     (void)heap;
 }
 
-#if !defined(NO_OLD_TLS) || defined(HAVE_CHACHA) || defined(HAVE_AESCCM) \
-    || defined(HAVE_AESGCM) || defined(WOLFSSL_DTLS)
+#if !defined(NO_OLD_TLS) || defined(WOLFSSL_DTLS) || \
+    ((defined(HAVE_CHACHA) || defined(HAVE_AESCCM) || defined(HAVE_AESGCM)) \
+     && defined(HAVE_AEAD))
 static INLINE void GetSEQIncrement(WOLFSSL* ssl, int verify, word32 seq[2])
 {
     if (verify) {
@@ -5341,7 +5342,6 @@ static INLINE void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
     c32toa(seq[1], out + OPAQUE32_LEN);
 }
 #endif
-
 
 #ifdef WOLFSSL_DTLS
 
