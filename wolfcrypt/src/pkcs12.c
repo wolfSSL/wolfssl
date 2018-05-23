@@ -1150,7 +1150,7 @@ static int wc_PKCS12_shroud_key(WC_PKCS12* pkcs12, WC_RNG* rng,
 {
     void* heap;
     word32 tmpIdx = 0;
-    int vPKCS     = 1; /* PKCS#12 is always set to 1 */
+    int vPKCS     = 1; /* PKCS#12 default set to 1 */
     word32 sz;
     word32 totalSz = 0;
     int ret;
@@ -1189,6 +1189,11 @@ static int wc_PKCS12_shroud_key(WC_PKCS12* pkcs12, WC_RNG* rng,
     }
     else {
         WOLFSSL_MSG("creating PKCS12 Shrouded Key Bag");
+
+        if (vAlgo == PBE_SHA1_DES) {
+            vPKCS = PKCS5;
+            vAlgo = 10;
+        }
 
         ret = UnTraditionalEnc(key, keySz, out + tmpIdx, &sz, pass, passSz,
                 vPKCS, vAlgo, NULL, 0, itt, rng, heap);
