@@ -2145,7 +2145,9 @@ typedef struct WC_PKCS7_KARI {
     word32   sharedInfoSz;         /* size of ECC-CMS-SharedInfo encoded */
     byte     ukmOwner;             /* do we own ukm buffer? 1:yes, 0:no */
     byte     direction;            /* WC_PKCS7_ENCODE | WC_PKCS7_DECODE */
-    byte     decodedInit : 1;      /* indicates decoded was intiialized */
+    byte     decodedInit : 1;      /* indicates decoded was initialized */
+    byte     recipKeyInit : 1;     /* indicates recipKey was initialized */
+    byte     senderKeyInit : 1;    /* indicates senderKey was initialized */
 } WC_PKCS7_KARI;
 
 
@@ -2258,6 +2260,8 @@ static WC_PKCS7_KARI* wc_PKCS7_KariNew(PKCS7* pkcs7, byte direction)
     kari->sharedInfoSz = 0;
     kari->direction = direction;
     kari->decodedInit = 0;
+    kari->recipKeyInit = 0;
+    kari->senderKeyInit = 0;
 
     kari->heap = pkcs7->heap;
     kari->devId = pkcs7->devId;
@@ -2275,17 +2279,18 @@ static int wc_PKCS7_KariFree(WC_PKCS7_KARI* kari)
         heap = kari->heap;
 
         if (kari->decoded) {
-            if (kari->decodedInit) {
+            if (kari->decodedInit)
                 FreeDecodedCert(kari->decoded);
-            }
             XFREE(kari->decoded, heap, DYNAMIC_TYPE_PKCS7);
         }
         if (kari->senderKey) {
-            wc_ecc_free(kari->senderKey);
+            if (kari->senderKeyInit)
+                wc_ecc_free(kari->senderKey);
             XFREE(kari->senderKey, heap, DYNAMIC_TYPE_PKCS7);
         }
         if (kari->recipKey) {
-            wc_ecc_free(kari->recipKey);
+            if (kari->recipKeyInit)
+                wc_ecc_free(kari->recipKey);
             XFREE(kari->recipKey, heap, DYNAMIC_TYPE_PKCS7);
         }
         if (kari->senderKeyExport) {
@@ -2348,6 +2353,8 @@ static int wc_PKCS7_KariParseRecipCert(WC_PKCS7_KARI* kari, const byte* cert,
     if (ret != 0)
         return ret;
 
+    kari->recipKeyInit = 1;
+
     /* get recip public key */
     if (kari->direction == WC_PKCS7_ENCODE) {
 
@@ -2402,6 +2409,8 @@ static int wc_PKCS7_KariGenerateEphemeralKey(WC_PKCS7_KARI* kari, WC_RNG* rng)
     ret = wc_ecc_init_ex(kari->senderKey, kari->heap, kari->devId);
     if (ret != 0)
         return ret;
+
+    kari->senderKeyInit = 1;
 
     ret = wc_ecc_make_key_ex(rng, kari->recipKey->dp->size,
                              kari->senderKey, kari->recipKey->dp->id);
@@ -3846,6 +3855,8 @@ static int wc_PKCS7_KariGetOriginatorIdentifierOrKey(WC_PKCS7_KARI* kari,
     ret = wc_ecc_init_ex(kari->senderKey, kari->heap, kari->devId);
     if (ret != 0)
         return ret;
+
+    kari->senderKeyInit = 1;
 
     /* length-1 for unused bits counter */
     ret = wc_ecc_import_x963(pkiMsg + (*idx), length - 1, kari->senderKey);
