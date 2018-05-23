@@ -4186,6 +4186,9 @@ static int wc_PKCS7_DecodeKari(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
                                       pkcs7->privateKeySz);
     if (ret != 0) {
         wc_PKCS7_KariFree(kari);
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(encryptedKey, NULL, DYNAMIC_TYPE_PKCS7);
+        #endif
         return ret;
     }
 
