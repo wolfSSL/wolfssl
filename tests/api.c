@@ -14916,6 +14916,66 @@ static void test_wc_PKCS7_EncodeEncryptedData (void)
 } /* END test_wc_PKCS7_EncodeEncryptedData() */
 
 
+/*----------------------------------------------------------------------------*
+ | hash.h Tests
+ *----------------------------------------------------------------------------*/
+
+
+static int test_wc_HashInit(void)
+{
+    int ret = 0, i;  /* 0 indicates tests passed, 1 indicates failure */
+
+    wc_HashAlg hash;
+
+    /* enum for holding supported algorithms, #ifndef's restrict if disabled */
+    enum wc_HashType enumArray[] = {
+    #ifndef NO_MD5
+            WC_HASH_TYPE_MD5,
+    #endif
+    #ifndef NO_SHA
+            WC_HASH_TYPE_SHA,
+    #endif
+    #ifndef WOLFSSL_SHA224
+            WC_HASH_TYPE_SHA224,
+    #endif
+    #ifndef NO_SHA256
+            WC_HASH_TYPE_SHA256,
+    #endif
+    #ifndef WOLFSSL_SHA384
+            WC_HASH_TYPE_SHA384,
+    #endif
+    #ifndef WOLFSSL_SHA512
+            WC_HASH_TYPE_SHA512,
+    #endif
+    };
+    /* dynamically finds the length */
+    int enumlen = (sizeof(enumArray)/sizeof(enum wc_HashType));
+
+    /* For loop to test various arguments... */
+    for (i = 0; i < enumlen; i++) {
+        /* check for bad args */
+        if (wc_HashInit(&hash, enumArray[i]) == BAD_FUNC_ARG) {
+            ret = 1;
+            break;
+        }
+        /* check for null ptr */
+        if (wc_HashInit(NULL, enumArray[i]) != BAD_FUNC_ARG) {
+            ret = 1;
+            break;
+        }
+
+    }  /* end of for loop */
+
+    printf(testingFmt, "wc_HashInit()");
+    if (ret==0) {  /* all tests have passed */
+        printf(resultFmt, passed);
+    }
+    else {  /* a test has failed */
+        printf(resultFmt, failed);
+    }
+    return ret;
+}  /* end of test_wc_HashInit */
+
 
 /*----------------------------------------------------------------------------*
  | Compatibility Tests
@@ -18944,6 +19004,8 @@ void ApiTest(void)
     AssertFalse(test_wc_Sha384HmacUpdate());
     AssertFalse(test_wc_Sha384HmacFinal());
 
+    AssertIntEQ(test_wc_HashInit(), 0);
+
     AssertIntEQ(test_wc_InitCmac(), 0);
     AssertIntEQ(test_wc_CmacUpdate(), 0);
     AssertIntEQ(test_wc_CmacFinal(), 0);
@@ -19065,7 +19127,7 @@ void ApiTest(void)
     test_wc_PKCS7_VerifySignedData();
     test_wc_PKCS7_EncodeDecodeEnvelopedData();
     test_wc_PKCS7_EncodeEncryptedData();
-
+     
     printf(" End API Tests\n");
 
 }
