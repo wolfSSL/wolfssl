@@ -685,7 +685,8 @@ static int SetShortInt(byte* input, word32* inOutIdx, word32 number,
         input[idx++] = ar[i]; len++;
     }
 
-    /* set number of bytes for integer and update index value */
+    /* jump back to beginning of input buffer using unaltered inOutIdx value
+     * and set number of bytes for integer, then update the index value */
     input[*inOutIdx + 1] = (byte)len;
     *inOutIdx = idx;
 
