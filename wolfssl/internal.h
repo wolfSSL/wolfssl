@@ -773,6 +773,25 @@
     defined(BUILD_TLS_PSK_WITH_AES_256_GCM_SHA384) || \
     defined(BUILD_TLS_DHE_PSK_WITH_AES_256_GCM_SHA384)
     #define BUILD_AESGCM
+#else
+    /* No AES-GCM cipher suites available with build */
+    #define NO_AESGCM_AEAD
+#endif
+
+#if defined(BUILD_TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256) || \
+    defined(BUILD_TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256) || \
+    defined(BUILD_TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256) || \
+    defined(BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256) || \
+    defined(BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256) || \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256) || \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256) || \
+    defined(BUILD_TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256) || \
+    defined(BUILD_TLS_PSK_WITH_CHACHA20_POLY1305_SHA256) || \
+    defined(BUILD_TLS_CHACHA20_POLY1305_SHA256)
+    /* Have an available ChaCha Poly cipher suite */
+#else
+    /* No ChaCha Poly cipher suites available with build */
+    #define NO_CHAPOL_AEAD
 #endif
 
 #if defined(BUILD_TLS_RSA_WITH_HC_128_SHA) || \
@@ -810,8 +829,9 @@
 #endif
 
 #if defined(WOLFSSL_MAX_STRENGTH) || \
-    defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
-    (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
+    (defined(HAVE_AESGCM) && !defined(NO_AESGCM_AEAD)) || \
+     defined(HAVE_AESCCM) || \
+    (defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && !defined(NO_CHAPOL_AEAD))
 
     #define HAVE_AEAD
 #endif
