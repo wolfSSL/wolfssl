@@ -15729,6 +15729,9 @@ int ecc_test_buffers(void) {
     int verify = 0;
     word32 x;
 
+	memset(&cliKey, 0, sizeof(ecc_key));
+	memset(&servKey, 0, sizeof(ecc_key));
+
     bytes = (size_t)sizeof_ecc_clikey_der_256;
     /* place client key into ecc_key struct cliKey */
     ret = wc_EccPrivateKeyDecode(ecc_clikey_der_256, &idx, &cliKey,

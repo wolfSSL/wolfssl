@@ -192,7 +192,7 @@
     </Link>
     <ClCompile>
       <ExceptionHandling>Async</ExceptionHandling>
-      <PreprocessorDefinitions>_USRDLL;WOLFSSL_DLL;BUILDING_WOLFSSL;WOLFSSL_USER_SETTINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_USRDLL;WOLFSSL_DLL;BUILDING_WOLFSSL;WOLFSSL_USER_SETTINGS;_USE_64BIT_TIME_T;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <ObjectFileName>$(IntDir)</ObjectFileName>
@@ -211,7 +211,7 @@
     </Link>
     <ClCompile>
       <ExceptionHandling>Async</ExceptionHandling>
-      <PreprocessorDefinitions>_USRDLL;WOLFSSL_DLL;BUILDING_WOLFSSL;WOLFSSL_USER_SETTINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_USRDLL;WOLFSSL_DLL;BUILDING_WOLFSSL;WOLFSSL_USER_SETTINGS;_USE_64BIT_TIME_T;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <ObjectFileName>$(IntDir)</ObjectFileName>
