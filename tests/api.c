@@ -18451,7 +18451,7 @@ static void test_wolfSSL_OPENSSL_add_all_algorithms(void){
 }
 
 static void test_wolfSSL_ASN1_STRING_print_ex(void){
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
     ASN1_STRING* asn_str = NULL;
     const char data[] = "Hello wolfSSL!";
     ASN1_STRING* esc_str = NULL;
@@ -18459,21 +18459,30 @@ static void test_wolfSSL_ASN1_STRING_print_ex(void){
     BIO *bio;
     unsigned long flags;
     int p_len;
-    unsigned char rbuf[256];
+    unsigned char rbuf[255];
     
     printf(testingFmt, "wolfSSL_ASN1_STRING_print_ex()");
     
     /* setup */
-    XMEMSET(rbuf, 0, 256);
+    XMEMSET(rbuf, 0, 255);
     bio = BIO_new(BIO_s_mem());
-    BIO_set_write_buf_size(bio,256);
+    BIO_set_write_buf_size(bio,255);
 
     asn_str = ASN1_STRING_type_new(V_ASN1_OCTET_STRING);
     ASN1_STRING_set(asn_str, (const void*)data, sizeof(data));
     esc_str = ASN1_STRING_type_new(V_ASN1_OCTET_STRING);
     ASN1_STRING_set(esc_str, (const void*)esc_data, sizeof(esc_data));
 
+    /* no flags */
+    XMEMSET(rbuf, 0, 255);
+    flags = 0;
+    p_len = wolfSSL_ASN1_STRING_print_ex(bio, asn_str, flags);
+    AssertIntEQ(p_len, 15);
+    BIO_read(bio, (void*)rbuf, 15);
+    AssertStrEQ((char*)rbuf, "Hello wolfSSL!");
+
     /* RFC2253 Escape */
+    XMEMSET(rbuf, 0, 255);
     flags = ASN1_STRFLGS_ESC_2253;
     p_len = wolfSSL_ASN1_STRING_print_ex(bio, esc_str, flags);
     AssertIntEQ(p_len, 9);
@@ -18481,7 +18490,7 @@ static void test_wolfSSL_ASN1_STRING_print_ex(void){
     AssertStrEQ((char*)rbuf, "a\\+\\;\\<\\>");
 
     /* Show type */
-    XMEMSET(rbuf, 0, 256);
+    XMEMSET(rbuf, 0, 255);
     flags = ASN1_STRFLGS_SHOW_TYPE;
     p_len = wolfSSL_ASN1_STRING_print_ex(bio, asn_str, flags);
     AssertIntEQ(p_len, 28);
@@ -18489,7 +18498,7 @@ static void test_wolfSSL_ASN1_STRING_print_ex(void){
     AssertStrEQ((char*)rbuf, "OCTET STRING:Hello wolfSSL!");
 
     /* Dump All */
-    XMEMSET(rbuf, 0, 256);
+    XMEMSET(rbuf, 0, 255);
     flags = ASN1_STRFLGS_DUMP_ALL;
     p_len = wolfSSL_ASN1_STRING_print_ex(bio, asn_str, flags);
     AssertIntEQ(p_len, 31);
@@ -18497,7 +18506,7 @@ static void test_wolfSSL_ASN1_STRING_print_ex(void){
     AssertStrEQ((char*)rbuf, "#48656C6C6F20776F6C6653534C2100");
 
     /* Dump Der */
-    XMEMSET(rbuf, 0, 256);
+    XMEMSET(rbuf, 0, 255);
     flags = ASN1_STRFLGS_DUMP_ALL | ASN1_STRFLGS_DUMP_DER;
     p_len = wolfSSL_ASN1_STRING_print_ex(bio, asn_str, flags);
     AssertIntEQ(p_len, 35);
@@ -18505,7 +18514,7 @@ static void test_wolfSSL_ASN1_STRING_print_ex(void){
     AssertStrEQ((char*)rbuf, "#040F48656C6C6F20776F6C6653534C2100");
 
     /* Dump All + Show type */
-    XMEMSET(rbuf, 0, 256);
+    XMEMSET(rbuf, 0, 255);
     flags = ASN1_STRFLGS_DUMP_ALL | ASN1_STRFLGS_SHOW_TYPE;
     p_len = wolfSSL_ASN1_STRING_print_ex(bio, asn_str, flags);
     AssertIntEQ(p_len, 44);
@@ -18519,7 +18528,6 @@ static void test_wolfSSL_ASN1_STRING_print_ex(void){
     printf(resultFmt, passed);
 #endif
 }
-
 
 static void test_wolfSSL_ASN1_TIME_to_generalizedtime(void){
 #if defined(OPENSSL_EXTRA) && !defined(NO_ASN1_TIME)
@@ -18567,11 +18575,11 @@ static void test_wolfSSL_ASN1_TIME_to_generalizedtime(void){
     AssertIntEQ(gtime->data[1], ASN_GENERALIZED_TIME_SIZE);
     AssertStrEQ((char*)gtime->data + 2, "20050727123456Z");
 
+    XFREE(gtime, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     printf(resultFmt, passed);
 #endif
 }
-
 
 static void test_no_op_functions(void)
 {
@@ -19555,7 +19563,6 @@ static void test_wolfSSL_i2c_ASN1_INTEGER()
     printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA */
 }
-
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
