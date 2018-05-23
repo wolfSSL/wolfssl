@@ -6311,8 +6311,8 @@ retry:
                 ssl->options.isClosed = 1;
                 return -1;
 
+            #ifdef WOLFSSL_DTLS
             case WOLFSSL_CBIO_ERR_TIMEOUT:
-                #ifdef WOLFSSL_DTLS
                 if (IsDtlsNotSctpMode(ssl) &&
                     !ssl->options.handShakeDone &&
                     DtlsMsgPoolTimeout(ssl) == 0 &&
@@ -6320,8 +6320,8 @@ retry:
 
                     goto retry;
                 }
-                #endif
                 return -1;
+            #endif
 
             default:
                 return recvd;

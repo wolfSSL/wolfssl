@@ -200,14 +200,8 @@ int EmbedReceive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         WOLFSSL_MSG("Embed Receive error");
 
         if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
-            if (wolfSSL_get_using_nonblock(ssl)) {
-                WOLFSSL_MSG("\tWould block");
-                return WOLFSSL_CBIO_ERR_WANT_READ;
-            }
-            else {
-                WOLFSSL_MSG("\tSocket timeout");
-                return WOLFSSL_CBIO_ERR_TIMEOUT;
-            }
+            WOLFSSL_MSG("\tWould block");
+            return WOLFSSL_CBIO_ERR_WANT_READ;
         }
         else if (err == SOCKET_ECONNRESET) {
             WOLFSSL_MSG("\tConnection reset");
@@ -216,10 +210,6 @@ int EmbedReceive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         else if (err == SOCKET_EINTR) {
             WOLFSSL_MSG("\tSocket interrupted");
             return WOLFSSL_CBIO_ERR_ISR;
-        }
-        else if (err == SOCKET_ECONNREFUSED) {
-            WOLFSSL_MSG("\tConnection refused");
-            return WOLFSSL_CBIO_ERR_WANT_READ;
         }
         else if (err == SOCKET_ECONNABORTED) {
             WOLFSSL_MSG("\tConnection aborted");
@@ -327,7 +317,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         WOLFSSL_MSG("Embed Receive From error");
 
         if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
-            if (wolfSSL_get_using_nonblock(ssl)) {
+            if (wolfSSL_dtls_get_using_nonblock(ssl)) {
                 WOLFSSL_MSG("\tWould block");
                 return WOLFSSL_CBIO_ERR_WANT_READ;
             }
@@ -438,7 +428,7 @@ int EmbedReceiveFromMcast(WOLFSSL *ssl, char *buf, int sz, void *ctx)
         WOLFSSL_MSG("Embed Receive From error");
 
         if (err == SOCKET_EWOULDBLOCK || err == SOCKET_EAGAIN) {
-            if (wolfSSL_get_using_nonblock(ssl)) {
+            if (wolfSSL_dtls_get_using_nonblock(ssl)) {
                 WOLFSSL_MSG("\tWould block");
                 return WOLFSSL_CBIO_ERR_WANT_READ;
             }
@@ -1694,7 +1684,7 @@ int MicriumReceive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     {
         int dtls_timeout = wolfSSL_dtls_get_current_timeout(ssl);
         if (wolfSSL_dtls(ssl)
-                     && !wolfSSL_get_using_nonblock(ssl)
+                     && !wolfSSL_dtls_get_using_nonblock(ssl)
                      && dtls_timeout != 0) {
             /* needs timeout in milliseconds */
             NetSock_CfgTimeoutRxQ_Set(sd, dtls_timeout * 1000, &err);
@@ -1711,7 +1701,7 @@ int MicriumReceive(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
         if (err == NET_ERR_RX || err == NET_SOCK_ERR_RX_Q_EMPTY ||
             err == NET_ERR_FAULT_LOCK_ACQUIRE) {
-            if (!wolfSSL_dtls(ssl) || wolfSSL_get_using_nonblock(ssl)) {
+            if (!wolfSSL_dtls(ssl) || wolfSSL_dtls_get_using_nonblock(ssl)) {
                 WOLFSSL_MSG("\tWould block");
                 return WOLFSSL_CBIO_ERR_WANT_READ;
             }
@@ -1751,7 +1741,7 @@ int MicriumReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     if (ssl->options.handShakeDone)
         dtls_timeout = 0;
 
-    if (!wolfSSL_get_using_nonblock(ssl)) {
+    if (!wolfSSL_dtls_get_using_nonblock(ssl)) {
         /* needs timeout in milliseconds */
         NetSock_CfgTimeoutRxQ_Set(sd, dtls_timeout * 1000, &err);
         if (err != NET_SOCK_ERR_NONE) {
@@ -1766,7 +1756,7 @@ int MicriumReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
 
         if (err == NET_ERR_RX || err == NET_SOCK_ERR_RX_Q_EMPTY ||
             err == NET_ERR_FAULT_LOCK_ACQUIRE) {
-            if (wolfSSL_get_using_nonblock(ssl)) {
+            if (wolfSSL_dtls_get_using_nonblock(ssl)) {
                 WOLFSSL_MSG("\tWould block");
                 return WOLFSSL_CBIO_ERR_WANT_READ;
             }

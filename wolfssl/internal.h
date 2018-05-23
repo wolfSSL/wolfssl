@@ -3010,7 +3010,6 @@ typedef struct Options {
     word16            quietShutdown:1;    /* don't send close notify */
     word16            certOnly:1;         /* stop once we get cert */
     word16            groupMessages:1;    /* group handshake messages */
-    word16            usingNonblock:1;    /* are we using nonblocking socket */
     word16            saveArrays:1;       /* save array Memory for user get keys
                                            or psk */
     word16            weOwnRng:1;         /* will be true unless CTX owns */
@@ -3030,6 +3029,7 @@ typedef struct Options {
 #endif
 #endif
 #ifdef WOLFSSL_DTLS
+    word16            dtlsUseNonblock:1;  /* are we using nonblocking socket */
     word16            dtlsHsRetain:1;     /* DTLS retaining HS data */
     word16            haveMcast:1;        /* using multicast ? */
 #ifdef WOLFSSL_SCTP

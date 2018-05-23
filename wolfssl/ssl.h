@@ -540,8 +540,6 @@ WOLFSSL_API const char* wolfSSL_get_shared_ciphers(WOLFSSL* ssl, char* buf,
     int len);
 WOLFSSL_API const char* wolfSSL_get_curve_name(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_get_fd(const WOLFSSL*);
-WOLFSSL_API void wolfSSL_set_using_nonblock(WOLFSSL*, int);
-WOLFSSL_API int  wolfSSL_get_using_nonblock(WOLFSSL*);
 /* please see note at top of README if you get an error from connect */
 WOLFSSL_API int  wolfSSL_connect(WOLFSSL*);
 WOLFSSL_API int  wolfSSL_write(WOLFSSL*, const void*, int);
@@ -660,6 +658,11 @@ WOLFSSL_API int  wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX*, const char*);
 WOLFSSL_API int  wolfSSL_set_cipher_list(WOLFSSL*, const char*);
 
 /* Nonblocking DTLS helper functions */
+WOLFSSL_API void wolfSSL_dtls_set_using_nonblock(WOLFSSL*, int);
+WOLFSSL_API int  wolfSSL_dtls_get_using_nonblock(WOLFSSL*);
+#define wolfSSL_set_using_nonblock wolfSSL_dtls_set_using_nonblock
+#define wolfSSL_get_using_nonblock wolfSSL_dtls_get_using_nonblock
+    /* The old names are deprecated. */
 WOLFSSL_API int  wolfSSL_dtls_get_current_timeout(WOLFSSL* ssl);
 WOLFSSL_API int  wolfSSL_dtls_set_timeout_init(WOLFSSL* ssl, int);
 WOLFSSL_API int  wolfSSL_dtls_set_timeout_max(WOLFSSL* ssl, int);
