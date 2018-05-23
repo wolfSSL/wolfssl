@@ -1426,7 +1426,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
 #ifndef CYASSL_CALLBACKS
         if (nonBlocking) {
-            CyaSSL_set_using_nonblock(ssl, 1);
+#ifdef WOLFSSL_DTLS
+            if (doDTLS) {
+                wolfSSL_dtls_set_using_nonblock(ssl, 1);
+            }
+#endif
             tcp_set_nonblocking(&clientfd);
         }
 #endif
