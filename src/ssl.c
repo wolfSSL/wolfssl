@@ -21583,19 +21583,19 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
     return ret;
 }
 
-#define RAND_ENTROPY_SZ (256/16)
 
 int wolfSSL_RAND_poll()
 {
     WOLFSSL_ENTER("wolfSSL_RAND_poll");
-    byte  entropy[RAND_ENTROPY_SZ];
+    byte  entropy[16];
     int  ret = 0;
+    const int entropy_sz = 16;
 
     if (initGlobalRNG == 0){
         WOLFSSL_MSG("Global RNG no Init");
         return  WOLFSSL_FAILURE;
     }
-    ret = wc_GenerateSeed(&globalRNG.seed, entropy, RAND_ENTROPY_SZ);
+    ret = wc_GenerateSeed(&globalRNG.seed, entropy, entropy_sz);
     if (ret != 0){
         WOLFSSL_MSG("Bad wc_RNG_GenerateBlock");
         ret = WOLFSSL_FAILURE;
@@ -32628,8 +32628,12 @@ int wolfSSL_X509_check_ca(WOLFSSL_X509 *x509)
 {
     WOLFSSL_ENTER("X509_check_ca");
 
+    if (x509 == NULL)
+        return WOLFSSL_FAILURE;
     if (x509->isCa)
         return 1;
+    if (x509->extKeyUsageCrit)
+        return 4;
 
     return 0;
 }

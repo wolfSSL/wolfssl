@@ -18581,6 +18581,20 @@ static void test_wolfSSL_ASN1_TIME_to_generalizedtime(void){
 #endif
 }
 
+static void test_wolfSSL_X509_check_ca(void){
+#if defined(OPENSSL_EXTRA)
+    WOLFSSL_X509 *x509;
+
+    x509 = wolfSSL_X509_load_certificate_file(svrCertFile, WOLFSSL_FILETYPE_PEM);
+    AssertIntEQ(wolfSSL_X509_check_ca(x509), 1);
+    wolfSSL_X509_free(x509);
+
+    x509 = wolfSSL_X509_load_certificate_file(ntruCertFile, WOLFSSL_FILETYPE_PEM);
+    AssertIntEQ(wolfSSL_X509_check_ca(x509), 0);
+    wolfSSL_X509_free(x509);
+#endif
+}
+
 static void test_no_op_functions(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -19678,6 +19692,7 @@ void ApiTest(void)
     test_wolfSSL_ASN1_STRING_print_ex();
     test_wolfSSL_ASN1_TIME_to_generalizedtime();
     test_wolfSSL_i2c_ASN1_INTEGER();
+    test_wolfSSL_X509_check_ca();
 
     /* test the no op functions for compatibility */
     test_no_op_functions();
