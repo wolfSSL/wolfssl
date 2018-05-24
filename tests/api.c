@@ -249,7 +249,7 @@
     #include <wolfssl/wolfcrypt/asn.h>
 #endif
 
-#if defined(WOLFSSL_SHA3) || defined(HAVE_PKCS7)
+#if defined(WOLFSSL_SHA3) || defined(HAVE_PKCS7) || !defined(NO_RSA)
     static int  devId = INVALID_DEVID;
 #endif
 #ifndef NO_DSA
