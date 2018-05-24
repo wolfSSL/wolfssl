@@ -8678,11 +8678,11 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             FALL_THROUGH;
 
         case FIRST_REPLY_DONE :
-            #ifdef WOLFSSL_TLS13
-                if (ssl->options.tls1_3)
-                    return wolfSSL_connect_TLSv13(ssl);
-            #endif
-            #ifndef NO_CERTS
+            #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
+                #ifdef WOLFSSL_TLS13
+                    if (ssl->options.tls1_3)
+                        return wolfSSL_connect_TLSv13(ssl);
+                #endif
                 if (ssl->options.sendVerify) {
                     if ( (ssl->error = SendCertificate(ssl)) != 0) {
                         WOLFSSL_ERROR(ssl->error);
@@ -8714,7 +8714,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             FALL_THROUGH;
 
         case FIRST_REPLY_SECOND :
-            #ifndef NO_CERTS
+            #if !defined(NO_CERTS) && !defined(WOLFSSL_NO_CLIENT_AUTH)
                 if (ssl->options.sendVerify) {
                     if ( (ssl->error = SendCertificateVerify(ssl)) != 0) {
                         WOLFSSL_ERROR(ssl->error);
@@ -8722,7 +8722,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
                     }
                     WOLFSSL_MSG("sent: certificate verify");
                 }
-            #endif
+            #endif /* !NO_CERTS && !WOLFSSL_NO_CLIENT_AUTH */
             ssl->options.connectState = FIRST_REPLY_THIRD;
             WOLFSSL_MSG("connect state: FIRST_REPLY_THIRD");
             FALL_THROUGH;

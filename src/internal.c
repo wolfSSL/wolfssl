@@ -103,7 +103,8 @@ WOLFSSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
 
 #ifndef NO_WOLFSSL_SERVER
     static int DoClientKeyExchange(WOLFSSL* ssl, byte* input, word32*, word32);
-    #if !defined(NO_RSA) || defined(HAVE_ECC)
+    #if (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519)) && \
+                                                !defined(WOLFSSL_NO_CLIENT_AUTH)
         static int DoCertificateVerify(WOLFSSL* ssl, byte*, word32*, word32);
     #endif
     #ifdef WOLFSSL_DTLS
@@ -2692,7 +2693,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
  *
  * input     The encoded signature algorithm.
  * hashalgo  The hash algorithm.
- * hsType   The signature type.
+ * hsType    The signature type.
  */
 static INLINE void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsType)
 {
@@ -2888,35 +2889,37 @@ static INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
     (void)output;
 }
 
+#if !defined(WOLFSSL_NO_CLIENT_AUTH)
 static void SetDigest(WOLFSSL* ssl, int hashAlgo)
 {
     switch (hashAlgo) {
-        #ifndef NO_SHA
+    #ifndef NO_SHA
         case sha_mac:
             ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha;
             ssl->buffers.digest.length = WC_SHA_DIGEST_SIZE;
             break;
-        #endif /* !NO_SHA */
-        #ifndef NO_SHA256
+    #endif /* !NO_SHA */
+    #ifndef NO_SHA256
         case sha256_mac:
             ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha256;
             ssl->buffers.digest.length = WC_SHA256_DIGEST_SIZE;
             break;
-        #endif /* !NO_SHA256 */
-        #ifdef WOLFSSL_SHA384
+    #endif /* !NO_SHA256 */
+    #ifdef WOLFSSL_SHA384
         case sha384_mac:
             ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha384;
             ssl->buffers.digest.length = WC_SHA384_DIGEST_SIZE;
             break;
-        #endif /* WOLFSSL_SHA384 */
-        #ifdef WOLFSSL_SHA512
+    #endif /* WOLFSSL_SHA384 */
+    #ifdef WOLFSSL_SHA512
         case sha512_mac:
             ssl->buffers.digest.buffer = ssl->hsHashes->certHashes.sha512;
             ssl->buffers.digest.length = WC_SHA512_DIGEST_SIZE;
             break;
-        #endif /* WOLFSSL_SHA512 */
+    #endif /* WOLFSSL_SHA512 */
     } /* switch */
 }
+#endif /* !WOLFSSL_NO_CLIENT_AUTH */
 #endif /* !NO_CERTS */
 
 #ifndef NO_RSA
@@ -3632,6 +3635,43 @@ int EccMakeKey(WOLFSSL* ssl, ecc_key* key, ecc_key* peer)
 #endif /* HAVE_ECC */
 
 #ifdef HAVE_ED25519
+/* Check whether the key contains a public key.
+ * If not then pull it out of the leaf certificate.
+ *
+ * ssl  SSL/TLS object.
+ * returns MEMORY_E when unable to allocate memory, a parsing error, otherwise
+ * 0 on success.
+ */
+int Ed25519CheckPubKey(WOLFSSL* ssl)
+{
+    ed25519_key* key = (ed25519_key*)ssl->hsKey;
+    int ret = 0;
+
+    /* Public key required for signing. */
+    if (!key->pubKeySet) {
+        DerBuffer* leaf = ssl->buffers.certificate;
+        DecodedCert* cert = (DecodedCert*)XMALLOC(sizeof(*cert),
+                                     ssl->heap, DYNAMIC_TYPE_DCERT);
+        if (cert == NULL)
+            ret = MEMORY_E;
+
+        if (ret == 0) {
+            InitDecodedCert(cert, leaf->buffer, leaf->length, ssl->heap);
+            ret = DecodeToKey(cert, 0);
+        }
+        if (ret == 0) {
+            ret = wc_ed25519_import_public(cert->publicKey, cert->pubKeySize,
+                                                                           key);
+        }
+        if (cert != NULL) {
+            FreeDecodedCert(cert);
+            XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
+        }
+    }
+
+    return ret;
+}
+
 /* Sign the data using EdDSA and key using X25519.
  *
  * ssl    SSL object.
@@ -4138,6 +4178,12 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->buffers.keyType = ctx->privateKeyType;
     ssl->buffers.keySz   = ctx->privateKeySz;
 #endif
+#if !defined(WOLFSSL_NO_CLIENT_AUTH) && defined(HAVE_ED25519) && \
+                                        !defined(NO_ED25519_CLIENT_AUTH)
+    ssl->options.cacheMessages = ssl->options.side == WOLFSSL_SERVER_END ||
+                                        ssl->buffers.keyType == ed25519_sa_algo;
+#endif
+
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ssl->devId = ctx->devId;
@@ -4286,6 +4332,12 @@ void FreeHandshakeHashes(WOLFSSL* ssl)
     #endif
     #ifdef WOLFSSL_SHA512
         wc_Sha512Free(&ssl->hsHashes->hashSha512);
+    #endif
+    #if defined(HAVE_ED25519) && !defined(WOLFSSL_NO_CLIENT_AUTH)
+        if (ssl->hsHashes->messages != NULL) {
+            XFREE(ssl->hsHashes->messages, ssl->heap, DYNAMIC_TYPE_HASHES);
+            ssl->hsHashes->messages = NULL;
+         }
     #endif
 
         XFREE(ssl->hsHashes, ssl->heap, DYNAMIC_TYPE_HASHES);
@@ -5994,7 +6046,37 @@ ProtocolVersion MakeDTLSv1_2(void)
         return (word32)XTIME(0);
     }
 #endif
+#if !defined(WOLFSSL_NO_CLIENT_AUTH) && defined(HAVE_ED25519) && \
+                                                !defined(NO_ED25519_CLIENT_AUTH)
+/* Store the message for use with CertificateVerify using Ed25519.
+ *
+ * ssl   SSL/TLS object.
+ * data  Message to store.
+ * sz    Size of message to store.
+ * returns MEMORY_E if not able to reallocate, otherwise 0.
+ */
+static int Ed25519Update(WOLFSSL* ssl, const byte* data, int sz)
+{
+    int   ret = 0;
+    byte* msgs;
 
+    if (ssl->options.cacheMessages) {
+        msgs = (byte*)XREALLOC(ssl->hsHashes->messages,
+                                                ssl->hsHashes->length + sz,
+                                                ssl->heap, DYNAMIC_TYPE_HASHES);
+        if (msgs == NULL)
+            ret = MEMORY_E;
+        if (ret == 0) {
+            ssl->hsHashes->messages = msgs;
+            XMEMCPY(msgs + ssl->hsHashes->length, data, sz);
+            ssl->hsHashes->prevLen = ssl->hsHashes->length;
+            ssl->hsHashes->length += sz;
+        }
+    }
+
+    return ret;
+}
+#endif /* HAVE_ED25519 && !WOLFSSL_NO_CLIENT_AUTH */
 
 #ifndef NO_CERTS
 int HashOutputRaw(WOLFSSL* ssl, const byte* output, int sz)
@@ -6012,30 +6094,36 @@ int HashOutputRaw(WOLFSSL* ssl, const byte* output, int sz)
         ssl->fuzzerCb(ssl, output, sz, FUZZ_HASH, ssl->fuzzerCtx);
 #endif
 #ifndef NO_OLD_TLS
-#ifndef NO_SHA
-    wc_ShaUpdate(&ssl->hsHashes->hashSha, output, sz);
-#endif
-#ifndef NO_MD5
-    wc_Md5Update(&ssl->hsHashes->hashMd5, output, sz);
-#endif
+    #ifndef NO_SHA
+        wc_ShaUpdate(&ssl->hsHashes->hashSha, output, sz);
+    #endif
+    #ifndef NO_MD5
+        wc_Md5Update(&ssl->hsHashes->hashMd5, output, sz);
+    #endif
 #endif /* NO_OLD_TLS */
 
     if (IsAtLeastTLSv1_2(ssl)) {
-#ifndef NO_SHA256
+    #ifndef NO_SHA256
         ret = wc_Sha256Update(&ssl->hsHashes->hashSha256, output, sz);
         if (ret != 0)
             return ret;
-#endif
-#ifdef WOLFSSL_SHA384
+    #endif
+    #ifdef WOLFSSL_SHA384
         ret = wc_Sha384Update(&ssl->hsHashes->hashSha384, output, sz);
         if (ret != 0)
             return ret;
-#endif
-#ifdef WOLFSSL_SHA512
+    #endif
+    #ifdef WOLFSSL_SHA512
         ret = wc_Sha512Update(&ssl->hsHashes->hashSha512, output, sz);
         if (ret != 0)
             return ret;
-#endif
+    #endif
+    #if !defined(WOLFSSL_NO_CLIENT_AUTH) && defined(HAVE_ED25519) && \
+                                                !defined(NO_ED25519_CLIENT_AUTH)
+        ret = Ed25519Update(ssl, output, sz);
+        if (ret != 0)
+            return ret;
+    #endif
     }
 
     return ret;
@@ -6063,30 +6151,36 @@ int HashOutput(WOLFSSL* ssl, const byte* output, int sz, int ivSz)
     }
 #endif
 #ifndef NO_OLD_TLS
-#ifndef NO_SHA
-    wc_ShaUpdate(&ssl->hsHashes->hashSha, adj, sz);
-#endif
-#ifndef NO_MD5
-    wc_Md5Update(&ssl->hsHashes->hashMd5, adj, sz);
-#endif
+    #ifndef NO_SHA
+        wc_ShaUpdate(&ssl->hsHashes->hashSha, adj, sz);
+    #endif
+    #ifndef NO_MD5
+        wc_Md5Update(&ssl->hsHashes->hashMd5, adj, sz);
+    #endif
 #endif
 
     if (IsAtLeastTLSv1_2(ssl)) {
-#ifndef NO_SHA256
+    #ifndef NO_SHA256
         ret = wc_Sha256Update(&ssl->hsHashes->hashSha256, adj, sz);
         if (ret != 0)
             return ret;
-#endif
-#ifdef WOLFSSL_SHA384
+    #endif
+    #ifdef WOLFSSL_SHA384
         ret = wc_Sha384Update(&ssl->hsHashes->hashSha384, adj, sz);
         if (ret != 0)
             return ret;
-#endif
-#ifdef WOLFSSL_SHA512
+    #endif
+    #ifdef WOLFSSL_SHA512
         ret = wc_Sha512Update(&ssl->hsHashes->hashSha512, adj, sz);
         if (ret != 0)
             return ret;
-#endif
+    #endif
+    #if !defined(WOLFSSL_NO_CLIENT_AUTH) && defined(HAVE_ED25519) && \
+                                                !defined(NO_ED25519_CLIENT_AUTH)
+        ret = Ed25519Update(ssl, adj, sz);
+        if (ret != 0)
+            return ret;
+    #endif
     }
 
     return ret;
@@ -6116,30 +6210,36 @@ int HashInput(WOLFSSL* ssl, const byte* input, int sz)
     }
 
 #ifndef NO_OLD_TLS
-#ifndef NO_SHA
-    wc_ShaUpdate(&ssl->hsHashes->hashSha, adj, sz);
-#endif
-#ifndef NO_MD5
-    wc_Md5Update(&ssl->hsHashes->hashMd5, adj, sz);
-#endif
+    #ifndef NO_SHA
+        wc_ShaUpdate(&ssl->hsHashes->hashSha, adj, sz);
+    #endif
+    #ifndef NO_MD5
+        wc_Md5Update(&ssl->hsHashes->hashMd5, adj, sz);
+    #endif
 #endif
 
     if (IsAtLeastTLSv1_2(ssl)) {
-#ifndef NO_SHA256
+    #ifndef NO_SHA256
         ret = wc_Sha256Update(&ssl->hsHashes->hashSha256, adj, sz);
         if (ret != 0)
             return ret;
-#endif
-#ifdef WOLFSSL_SHA384
+    #endif
+    #ifdef WOLFSSL_SHA384
         ret = wc_Sha384Update(&ssl->hsHashes->hashSha384, adj, sz);
         if (ret != 0)
             return ret;
-#endif
-#ifdef WOLFSSL_SHA512
+    #endif
+    #ifdef WOLFSSL_SHA512
         ret = wc_Sha512Update(&ssl->hsHashes->hashSha512, adj, sz);
         if (ret != 0)
             return ret;
-#endif
+    #endif
+    #if !defined(WOLFSSL_NO_CLIENT_AUTH) && defined(HAVE_ED25519) && \
+                                                !defined(NO_ED25519_CLIENT_AUTH)
+        ret = Ed25519Update(ssl, adj, sz);
+        if (ret != 0)
+            return ret;
+    #endif
     }
 
     return ret;
@@ -9185,7 +9285,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         }
                         break;
                     }
-                #endif /* HAVE_ECC */
+                #endif /* HAVE_ED25519 */
                     default:
                         break;
                 }
@@ -9408,7 +9508,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     int ret;
 
     WOLFSSL_START(WC_FUNC_CERTIFICATE_DO);
-    WOLFSSL_ENTER("DoCertificateVerify");
+    WOLFSSL_ENTER("DoCertificate");
 
     ret = ProcessPeerCerts(ssl, input, inOutIdx, size);
 
@@ -9416,7 +9516,7 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     ssl->options.serverState = SERVER_CERT_COMPLETE;
 #endif
 
-    WOLFSSL_LEAVE("DoCertificateVerify", ret);
+    WOLFSSL_LEAVE("DoCertificate", ret);
     WOLFSSL_END(WC_FUNC_CERTIFICATE_DO);
 
     return ret;
@@ -10163,6 +10263,13 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     case server_hello:
         WOLFSSL_MSG("processing server hello");
         ret = DoServerHello(ssl, input, inOutIdx, size);
+    #if !defined(WOLFSSL_NO_CLIENT_AUTH) && defined(HAVE_ED25519) && \
+                                                !defined(NO_ED25519_CLIENT_AUTH)
+        if (ssl->options.resuming || !IsAtLeastTLSv1_2(ssl) ||
+                                               IsAtLeastTLSv1_3(ssl->version)) {
+            ssl->options.cacheMessages = 0;
+        }
+    #endif
         break;
 
 #ifndef NO_CERTS
@@ -10224,6 +10331,13 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     case client_hello:
         WOLFSSL_MSG("processing client hello");
         ret = DoClientHello(ssl, input, inOutIdx, size);
+    #if !defined(WOLFSSL_NO_CLIENT_AUTH) && defined(HAVE_ED25519) && \
+                                                !defined(NO_ED25519_CLIENT_AUTH)
+        if (ssl->options.resuming || !ssl->options.verifyPeer || \
+                     !IsAtLeastTLSv1_2(ssl) || IsAtLeastTLSv1_3(ssl->version)) {
+            ssl->options.cacheMessages = 0;
+        }
+    #endif
         break;
 
     case client_key_exchange:
@@ -10231,12 +10345,13 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         ret = DoClientKeyExchange(ssl, input, inOutIdx, size);
         break;
 
-#if !defined(NO_RSA) || defined(HAVE_ECC)
+#if (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519)) && \
+                                                !defined(WOLFSSL_NO_CLIENT_AUTH)
     case certificate_verify:
         WOLFSSL_MSG("processing certificate verify");
         ret = DoCertificateVerify(ssl, input, inOutIdx, size);
         break;
-#endif /* !NO_RSA || HAVE_ECC */
+#endif /* (!NO_RSA || HAVE_ECC || HAVE_ED25519) && !WOLFSSL_NO_CLIENT_AUTH */
 
 #endif /* !NO_WOLFSSL_SERVER */
 
@@ -13582,6 +13697,7 @@ int SendFinished(WOLFSSL* ssl)
 
 
 #ifndef NO_CERTS
+#if !defined(NO_WOLFSSL_SERVER) || !defined(WOLFSSL_NO_CLIENT_AUTH)
 /* handle generation of certificate (11) */
 int SendCertificate(WOLFSSL* ssl)
 {
@@ -13845,6 +13961,7 @@ int SendCertificate(WOLFSSL* ssl)
 
     return ret;
 }
+#endif /* !NO_WOLFSSL_SERVER || !WOLFSSL_NO_CLIENT_AUTH */
 
 /* handle generation of certificate_request (13) */
 int SendCertificateRequest(WOLFSSL* ssl)
@@ -17743,7 +17860,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                             break;
                         }
                     #endif /* HAVE_ECC */
-                    #ifdef HAVE_ED25519
+                    #if defined(HAVE_ED25519)
                         case ed25519_sa_algo:
                         {
                             if (!ssl->peerEd25519KeyPresent) {
@@ -17751,7 +17868,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                             }
                             break;
                         }
-                    #endif /* HAVE_ECC */
+                    #endif /* HAVE_ED25519 */
 
                     default:
                         ret = ALGO_ID_E;
@@ -17853,7 +17970,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                             break;
                         }
                     #endif /* HAVE_ECC */
-                    #ifdef HAVE_ED25519
+                    #if defined(HAVE_ED25519)
                         case ed25519_sa_algo:
                         {
                             ret = Ed25519Verify(ssl,
@@ -17871,7 +17988,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
 
                             break;
                         }
-                    #endif /* HAVE_ECC */
+                    #endif /* HAVE_ED25519 */
 
                     default:
                         ret = ALGO_ID_E;
@@ -17981,11 +18098,11 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                             /* Nothing to do in this algo */
                             break;
                     #endif /* HAVE_ECC */
-                    #ifdef HAVE_ED25519
+                    #if defined(HAVE_ED25519)
                         case ed25519_sa_algo:
                             /* Nothing to do in this algo */
                             break;
-                    #endif /* HAVE_ECC */
+                    #endif /* HAVE_ED25519 */
                         default:
                             ret = ALGO_ID_E;
                     } /* switch (sigAlgo) */
@@ -19627,9 +19744,9 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
     }
 #endif
 #ifdef HAVE_ED25519
-#if !defined(NO_RSA) || defined(HAVE_ECC)
-    FreeKey(ssl, ssl->hsType, (void**)&ssl->hsKey);
-#endif
+    #if !defined(NO_RSA) || defined(HAVE_ECC)
+        FreeKey(ssl, ssl->hsType, (void**)&ssl->hsKey);
+    #endif
 
     ssl->hsType = DYNAMIC_TYPE_ED25519;
     ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
@@ -19637,13 +19754,13 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
         goto exit_dpk;
     }
 
-#ifdef HAVE_ECC
-    WOLFSSL_MSG("Trying ED25519 private key, ECC didn't work");
-#elif !defined(NO_RSA)
-    WOLFSSL_MSG("Trying ED25519 private key, RSA didn't work");
-#else
-    WOLFSSL_MSG("Trying ED25519 private key");
-#endif
+    #ifdef HAVE_ECC
+        WOLFSSL_MSG("Trying ED25519 private key, ECC didn't work");
+    #elif !defined(NO_RSA)
+        WOLFSSL_MSG("Trying ED25519 private key, RSA didn't work");
+    #else
+        WOLFSSL_MSG("Trying ED25519 private key");
+    #endif
 
     /* Set start of data to beginning of buffer. */
     idx = 0;
@@ -19665,7 +19782,7 @@ int DecodePrivateKey(WOLFSSL *ssl, word16* length)
 
         goto exit_dpk;
     }
-#endif
+#endif /* HAVE_ED25519 */
 
     (void)idx;
     (void)keySz;
@@ -19675,6 +19792,7 @@ exit_dpk:
 }
 
 
+#ifndef WOLFSSL_NO_CLIENT_AUTH
 typedef struct ScvArgs {
     byte*  output; /* not allocated */
 #ifndef NO_RSA
@@ -19883,6 +20001,13 @@ int SendCertificateVerify(WOLFSSL* ssl)
                 c16toa(args->length, args->verify + args->extraSz);
             }
         #endif /* !NO_RSA */
+        #if defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)
+            if (args->sigAlgo == ed25519_sa_algo) {
+                ret = Ed25519CheckPubKey(ssl);
+                if (ret != 0)
+                    goto exit_scv;
+            }
+        #endif /* HAVE_ED25519 && !NO_ED25519_CLIENT_AUTH */
 
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_DO;
@@ -19908,12 +20033,12 @@ int SendCertificateVerify(WOLFSSL* ssl)
                 );
             }
         #endif /* HAVE_ECC */
-        #ifdef HAVE_ED25519
+        #if defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)
            if (ssl->hsType == DYNAMIC_TYPE_ED25519) {
                 ed25519_key* key = (ed25519_key*)ssl->hsKey;
 
                 ret = Ed25519Sign(ssl,
-                    ssl->buffers.digest.buffer, ssl->buffers.digest.length,
+                    ssl->hsHashes->messages, ssl->hsHashes->length,
                     ssl->buffers.sig.buffer, &ssl->buffers.sig.length,
                     key,
             #ifdef HAVE_PK_CALLBACKS
@@ -19924,7 +20049,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
             #endif
                 );
             }
-        #endif /* HAVE_ECC */
+        #endif /* HAVE_ED25519 && !NO_ED25519_CLIENT_AUTH */
         #ifndef NO_RSA
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
                 RsaKey* key = (RsaKey*)ssl->hsKey;
@@ -20133,6 +20258,7 @@ exit_scv:
 
     return ret;
 }
+#endif /* WOLFSSL_NO_CLIENT_AUTH */
 
 #endif /* NO_CERTS */
 
@@ -21330,13 +21456,17 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 break;
                         #endif
                         #endif /* !NO_RSA */
-                        #ifdef HAVE_ED25519
-                            case ed25519_sa_algo:
-                        #endif
                             case ecc_dsa_sa_algo:
                             {
                                 break;
                             }
+                        #ifdef  HAVE_ED25519
+                            case ed25519_sa_algo:
+                                ret = Ed25519CheckPubKey(ssl);
+                                if (ret != 0)
+                                    goto exit_sske;
+                                break;
+                        #endif /* HAVE_ED25519 */
                         } /* switch(ssl->specs.sig_algo) */
                         break;
                     }
@@ -21796,18 +21926,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             }
                         #endif
                             case ecc_dsa_sa_algo:
-                            {
-                                /* Now that we know the real sig size, write it. */
-                                c16toa((word16)args->sigSz,
-                                                    args->output + args->idx);
-
-                                /* And adjust length and sendSz from estimates */
-                                args->length += args->sigSz - args->tmpSigSz;
-                                args->sendSz += args->sigSz - args->tmpSigSz;
-                                break;
-                            }
                         #ifdef HAVE_ED25519
                             case ed25519_sa_algo:
+                        #endif
                             {
                                 /* Now that we know the real sig size, write it. */
                                 c16toa((word16)args->sigSz,
@@ -21818,7 +21939,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 args->sendSz += args->sigSz - args->tmpSigSz;
                                 break;
                             }
-                        #endif
                             default:
                                 ERROR_OUT(ALGO_ID_E, exit_sske);  /* unsupported type */
                         } /* switch(ssl->specs.sig_algo) */
@@ -22977,7 +23097,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 
 
-#if !defined(NO_RSA) || defined(HAVE_ECC)
+#if (!defined(NO_RSA) || defined(HAVE_ECC) || defined(HAVE_ED25519)) && \
+                                                !defined(WOLFSSL_NO_CLIENT_AUTH)
 
     typedef struct DcvArgs {
         byte*  output; /* not allocated */
@@ -23072,10 +23193,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 else if (ssl->peerEccDsaKeyPresent)
                     args->sigAlgo = ecc_dsa_sa_algo;
             #endif
-            #ifdef HAVE_ED25519
+            #if defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)
                 else if (ssl->peerEd25519KeyPresent)
                     args->sigAlgo = ed25519_sa_algo;
-            #endif
+            #endif /* HAVE_ED25519 && !NO_ED25519_CLIENT_AUTH */
 
                 if ((args->idx - args->begin) + OPAQUE16_LEN > size) {
                     ERROR_OUT(BUFFER_ERROR, exit_dcv);
@@ -23116,7 +23237,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     }
                 }
             #endif /* HAVE_ECC */
-            #ifdef HAVE_ED25519
+            #if defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)
                 if (ssl->peerEd25519KeyPresent) {
                     WOLFSSL_MSG("Doing ED25519 peer cert verify");
                     if (IsAtLeastTLSv1_2(ssl) &&
@@ -23125,7 +23246,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                "Oops, peer sent ED25519 key but not in verify");
                     }
                 }
-            #endif /* HAVE_ED25519 */
+            #endif /* HAVE_ED25519 && !NO_ED25519_CLIENT_AUTH */
 
                 /* Advance state and proceed */
                 ssl->options.asyncState = TLS_ASYNC_DO;
@@ -23179,6 +23300,23 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                     );
                 }
             #endif /* HAVE_ECC */
+            #if defined(HAVE_ED25519) && !defined(NO_ED25519_CLIENT_AUTH)
+                if (ssl->peerEd25519KeyPresent) {
+                    WOLFSSL_MSG("Doing Ed25519 peer cert verify");
+
+                    ret = Ed25519Verify(ssl,
+                        input + args->idx, args->sz,
+                        ssl->hsHashes->messages, ssl->hsHashes->prevLen,
+                        ssl->peerEd25519Key,
+                    #ifdef HAVE_PK_CALLBACKS
+                        &ssl->buffers.peerEd25519Key,
+                        ssl->Ed25519VerifyCtx
+                    #else
+                        NULL, NULL
+                    #endif
+                    );
+                }
+            #endif /* HAVE_ED25519 && !NO_ED25519_CLIENT_AUTH */
 
                 /* Check for error */
                 if (ret != 0) {
@@ -23311,7 +23449,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         return ret;
     }
 
-#endif /* !NO_RSA || HAVE_ECC */
+#endif /* (!NO_RSA || HAVE_ECC || HAVE_ED25519) && !WOLFSSL_NO_CLIENT_AUTH */
 
     /* handle generation of server_hello_done (14) */
     int SendServerHelloDone(WOLFSSL* ssl)
