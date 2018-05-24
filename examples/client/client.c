@@ -2075,7 +2075,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_check_domain_name(ssl, domain);
 #ifndef WOLFSSL_CALLBACKS
     if (nonBlocking) {
-        wolfSSL_set_using_nonblock(ssl, 1);
+#ifdef WOLFSSL_DTLS
+        if (doDTLS) {
+            wolfSSL_dtls_set_using_nonblock(ssl, 1);
+        }
+#endif
         tcp_set_nonblocking(&sockfd);
         ret = NonBlockingSSL_Connect(ssl);
     }
@@ -2328,7 +2332,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifndef WOLFSSL_CALLBACKS
         if (nonBlocking) {
-            wolfSSL_set_using_nonblock(sslResume, 1);
+#ifdef WOLFSSL_DTLS
+            if (doDTLS) {
+                wolfSSL_dtls_set_using_nonblock(ssl, 1);
+            }
+#endif
             tcp_set_nonblocking(&sockfd);
             ret = NonBlockingSSL_Connect(sslResume);
         }

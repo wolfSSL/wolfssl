@@ -736,14 +736,6 @@ int wolfSSL_get_fd(const WOLFSSL* ssl)
 }
 
 
-int wolfSSL_get_using_nonblock(WOLFSSL* ssl)
-{
-    WOLFSSL_ENTER("wolfSSL_get_using_nonblock");
-    WOLFSSL_LEAVE("wolfSSL_get_using_nonblock", ssl->options.usingNonblock);
-    return ssl->options.usingNonblock;
-}
-
-
 int wolfSSL_dtls(WOLFSSL* ssl)
 {
     return ssl->options.dtls;
@@ -751,13 +743,6 @@ int wolfSSL_dtls(WOLFSSL* ssl)
 
 
 #ifndef WOLFSSL_LEANPSK
-void wolfSSL_set_using_nonblock(WOLFSSL* ssl, int nonblock)
-{
-    WOLFSSL_ENTER("wolfSSL_set_using_nonblock");
-    ssl->options.usingNonblock = (nonblock != 0);
-}
-
-
 int wolfSSL_dtls_set_peer(WOLFSSL* ssl, void* peer, unsigned int peerSz)
 {
 #ifdef WOLFSSL_DTLS
@@ -8272,13 +8257,47 @@ int wolfSSL_set_cipher_list(WOLFSSL* ssl, const char* list)
 }
 
 
+int wolfSSL_dtls_get_using_nonblock(WOLFSSL* ssl)
+{
+    int useNb = 0;
+
+    WOLFSSL_ENTER("wolfSSL_dtls_get_using_nonblock");
+    if (ssl->options.dtls) {
+#ifdef WOLFSSL_DTLS
+        useNb = ssl->options.dtlsUseNonblock;
+#endif
+    }
+    else {
+        WOLFSSL_MSG("wolfSSL_dtls_get_using_nonblock() is "
+                    "DEPRECATED for non-DTLS use.");
+    }
+    return useNb;
+}
+
+
 #ifndef WOLFSSL_LEANPSK
+
+void wolfSSL_dtls_set_using_nonblock(WOLFSSL* ssl, int nonblock)
+{
+    (void)nonblock;
+
+    WOLFSSL_ENTER("wolfSSL_dtls_set_using_nonblock");
+    if (ssl->options.dtls) {
+#ifdef WOLFSSL_DTLS
+        ssl->options.dtlsUseNonblock = (nonblock != 0);
+#endif
+    }
+    else {
+        WOLFSSL_MSG("wolfSSL_dtls_set_using_nonblock() is "
+                    "DEPRECATED for non-DTLS use.");
+    }
+}
+
+
 #ifdef WOLFSSL_DTLS
 
 int wolfSSL_dtls_get_current_timeout(WOLFSSL* ssl)
 {
-    (void)ssl;
-
     return ssl->dtls_timeout;
 }
 
