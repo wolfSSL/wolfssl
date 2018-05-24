@@ -14950,14 +14950,14 @@ static int test_wc_SignatureGetSize_ecc(void)
             
             /* Test bad args */ 
             if (ret > 0) {
-                sig_type = 100;
+                sig_type = (enum wc_SignatureType) 100;
                 ret = wc_SignatureGetSize(sig_type, &ecc, key_len);
                 if (ret == BAD_FUNC_ARG) {
                     sig_type = WC_SIGNATURE_TYPE_ECC;
                     ret = wc_SignatureGetSize(sig_type, NULL, key_len);
                 }  
                 if (ret >= 0) {
-                    key_len = 0;
+                    key_len = (word32) 0;
                     ret = wc_SignatureGetSize(sig_type, &ecc, key_len); 
                 }
                 if (ret == BAD_FUNC_ARG) {
@@ -15013,7 +15013,7 @@ static int test_wc_SignatureGetSize_rsa(void)
         if (tmp != NULL) {
             #ifdef USE_CERT_BUFFERS_1024
                 XMEMCPY(tmp, client_key_der_1024, 
-                    (size_t)sizeof_client_key_ker_1024);
+                    (size_t)sizeof_client_key_der_1024);
             #elif defined(USE_CERT_BUFFERS_2048)
                 XMEMCPY(tmp, client_key_der_2048, 
                     (size_t)sizeof_client_key_der_2048);
@@ -15049,14 +15049,18 @@ static int test_wc_SignatureGetSize_rsa(void)
             
             /* Test bad args */
             if (ret > 0) {
-                sig_type = 100;
+                sig_type = (enum wc_SignatureType) 100;
                 ret = wc_SignatureGetSize(sig_type, &rsa_key, key_len);
                 if (ret == BAD_FUNC_ARG) {
                     sig_type = WC_SIGNATURE_TYPE_RSA;
                     ret = wc_SignatureGetSize(sig_type, NULL, key_len);
                 }
+            #ifndef HAVE_USER_RSA
                 if (ret == BAD_FUNC_ARG) {
-                    key_len = 0;
+            #else        
+                if (ret == USER_CRYPTO_ERROR) {
+            #endif
+                    key_len = (word32)0;
                     ret = wc_SignatureGetSize(sig_type, &rsa_key, key_len);
                 }
                 if (ret == BAD_FUNC_ARG) {
@@ -15067,6 +15071,7 @@ static int test_wc_SignatureGetSize_rsa(void)
             ret = WOLFSSL_FATAL_ERROR;
         }
         wc_FreeRsaKey(&rsa_key);
+        XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     #else
         ret = SIG_TYPE_E;
     #endif
