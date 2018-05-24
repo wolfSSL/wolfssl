@@ -433,13 +433,19 @@ int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
 
 int wc_ShaFinalRaw(wc_Sha* sha, byte* hash)
 {
+#ifdef LITTLE_ENDIAN_ORDER
+    word32 digest[WC_SHA_DIGEST_SIZE / sizeof(word32)];
+#endif
+
     if (sha == NULL || hash == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    XMEMCPY(hash, sha->digest, WC_SHA_DIGEST_SIZE);
 #ifdef LITTLE_ENDIAN_ORDER
-    ByteReverseWords((word32*)hash, (word32*)hash, WC_SHA_DIGEST_SIZE);
+    ByteReverseWords((word32*)digest, (word32*)sha->digest, WC_SHA_DIGEST_SIZE);
+    XMEMCPY(hash, digest, WC_SHA_DIGEST_SIZE);
+#else
+    XMEMCPY(hash, sha->digest, WC_SHA_DIGEST_SIZE);
 #endif
 
     return 0;
