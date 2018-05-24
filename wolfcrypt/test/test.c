@@ -13017,7 +13017,7 @@ int openssl_evpSig_test()
     show("message = ", (char *)msg, count);
 
     /* sign */
-	XMEMSET(sig, 0, sizeof(sig));
+    XMEMSET(sig, 0, sizeof(sig));
     pt = (const void*)msg;
     ret1 = EVP_SignUpdate(sign, pt, count);
     ret2 = EVP_SignFinal(sign, sig, &sigSz, prvPkey);
@@ -15729,7 +15729,7 @@ int ecc_test_buffers(void) {
     int verify = 0;
     word32 x;
 
-	XMEMSET(&cliKey, 0, sizeof(ecc_key));
+    XMEMSET(&cliKey, 0, sizeof(ecc_key));
     XMEMSET(&servKey, 0, sizeof(ecc_key));
 
     bytes = (size_t)sizeof_ecc_clikey_der_256;
@@ -18486,7 +18486,7 @@ int blob_test(void)
         };
 
 
-	XMEMSET(blob, 0, sizeof(blob));
+    XMEMSET(blob, 0, sizeof(blob));
     outSz = sizeof(blob);
     ret = wc_caamCreateBlob((byte*)iv, sizeof(iv), blob, &outSz);
     if (ret != 0) {
@@ -18499,7 +18499,7 @@ int blob_test(void)
         ERROR_OUT(-8201, exit_blob);
     }
 
-	XMEMSET(blob, 0, sizeof(blob));
+    XMEMSET(blob, 0, sizeof(blob));
     outSz = sizeof(blob);
     ret = wc_caamCreateBlob((byte*)iv, sizeof(iv), blob, &outSz);
     if (ret != 0) {
@@ -18515,7 +18515,7 @@ int blob_test(void)
         ERROR_OUT(-8204, exit_blob);
     }
 
-	XMEMSET(blob, 0, sizeof(blob));
+    XMEMSET(blob, 0, sizeof(blob));
     outSz = sizeof(blob);
     ret = wc_caamCreateBlob((byte*)text, sizeof(text), blob, &outSz);
     if (ret != 0) {
