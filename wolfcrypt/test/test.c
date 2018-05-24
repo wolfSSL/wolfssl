@@ -12671,7 +12671,7 @@ int openssl_pkey0_test(void)
             printf("error with encrypt init\n");
             return ERR_BASE_PKEY-17;
         }
-		XMEMSET(out, 0, sizeof(out));
+        XMEMSET(out, 0, sizeof(out));
         ret = EVP_PKEY_encrypt(enc, out, &outlen, in, sizeof(in));
         if (ret != 1) {
             printf("error encrypting msg\n");
@@ -12680,7 +12680,7 @@ int openssl_pkey0_test(void)
 
         show("encrypted msg", out, outlen);
 
-		XMEMSET(plain, 0, sizeof(plain));
+        XMEMSET(plain, 0, sizeof(plain));
         ret = EVP_PKEY_decrypt(dec, plain, &outlen, out, keySz);
         if (ret != 1) {
             printf("error decrypting msg\n");
@@ -12717,7 +12717,7 @@ int openssl_pkey0_test(void)
         }
 #endif
 
-		XMEMSET(out, 0, sizeof(out));
+        XMEMSET(out, 0, sizeof(out));
         ret = EVP_PKEY_encrypt(enc, out, &outlen, in, sizeof(in));
         if (ret != 1) {
             printf("error encrypting msg\n");
@@ -12726,7 +12726,7 @@ int openssl_pkey0_test(void)
 
         show("encrypted msg", out, outlen);
 
-		XMEMSET(plain, 0, sizeof(plain));
+        XMEMSET(plain, 0, sizeof(plain));
         ret = EVP_PKEY_decrypt(dec, plain, &outlen, out, keySz);
         if (ret != 1) {
             printf("error decrypting msg\n");
