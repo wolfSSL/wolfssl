@@ -2990,6 +2990,34 @@ static void test_wolfSSL_PKCS5(void)
 #endif /* defined(OPENSSL_EXTRA) && !defined(NO_SHA) */
 }
 
+/* test parsing URI from certificate */
+static void test_wolfSSL_URI(void)
+{
+#if !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) \
+    && (defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || \
+    defined(OPENSSL_EXTRA)  || defined(OPENSSL_EXTRA_X509_SMALL))
+    WOLFSSL_X509* x509;
+    const char uri[] = "./certs/client-uri-cert.pem";
+    const char badUri[] = "./certs/client-relative-uri.pem";
+
+    printf(testingFmt, "wolfSSL URI parse");
+
+    x509 = wolfSSL_X509_load_certificate_file(uri, WOLFSSL_FILETYPE_PEM);
+    AssertNotNull(x509);
+
+    wolfSSL_FreeX509(x509);
+
+    x509 = wolfSSL_X509_load_certificate_file(badUri, WOLFSSL_FILETYPE_PEM);
+#ifndef IGNORE_NAME_CONSTRAINTS
+    AssertNull(x509);
+#else
+    AssertNotNull(x509);
+#endif
+
+    printf(resultFmt, passed);
+#endif
+}
+
 /* Testing function  wolfSSL_CTX_SetMinVersion; sets the minimum downgrade
  * version allowed.
  * POST: 1 on success.
@@ -18857,6 +18885,7 @@ void ApiTest(void)
     test_wolfSSL_PKCS12();
     test_wolfSSL_PKCS8();
     test_wolfSSL_PKCS5();
+    test_wolfSSL_URI();
 
     /*OCSP Stapling. */
     AssertIntEQ(test_wolfSSL_UseOCSPStapling(), WOLFSSL_SUCCESS);
