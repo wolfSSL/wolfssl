@@ -12671,7 +12671,7 @@ int openssl_pkey0_test(void)
             printf("error with encrypt init\n");
             return ERR_BASE_PKEY-17;
         }
-        memset(out, 0, sizeof(out));
+		XMEMSET(out, 0, sizeof(out));
         ret = EVP_PKEY_encrypt(enc, out, &outlen, in, sizeof(in));
         if (ret != 1) {
             printf("error encrypting msg\n");
@@ -12680,7 +12680,7 @@ int openssl_pkey0_test(void)
 
         show("encrypted msg", out, outlen);
 
-        memset(plain, 0, sizeof(plain));
+		XMEMSET(plain, 0, sizeof(plain));
         ret = EVP_PKEY_decrypt(dec, plain, &outlen, out, keySz);
         if (ret != 1) {
             printf("error decrypting msg\n");
@@ -12717,7 +12717,7 @@ int openssl_pkey0_test(void)
         }
 #endif
 
-        memset(out, 0, sizeof(out));
+		XMEMSET(out, 0, sizeof(out));
         ret = EVP_PKEY_encrypt(enc, out, &outlen, in, sizeof(in));
         if (ret != 1) {
             printf("error encrypting msg\n");
@@ -12726,7 +12726,7 @@ int openssl_pkey0_test(void)
 
         show("encrypted msg", out, outlen);
 
-        memset(plain, 0, sizeof(plain));
+		XMEMSET(plain, 0, sizeof(plain));
         ret = EVP_PKEY_decrypt(dec, plain, &outlen, out, keySz);
         if (ret != 1) {
             printf("error decrypting msg\n");
@@ -13017,7 +13017,7 @@ int openssl_evpSig_test()
     show("message = ", (char *)msg, count);
 
     /* sign */
-    memset(sig, 0, sizeof(sig));
+	XMEMSET(sig, 0, sizeof(sig));
     pt = (const void*)msg;
     ret1 = EVP_SignUpdate(sign, pt, count);
     ret2 = EVP_SignFinal(sign, sig, &sigSz, prvPkey);
@@ -15729,8 +15729,8 @@ int ecc_test_buffers(void) {
     int verify = 0;
     word32 x;
 
-	memset(&cliKey, 0, sizeof(ecc_key));
-	memset(&servKey, 0, sizeof(ecc_key));
+	XMEMSET(&cliKey, 0, sizeof(ecc_key));
+    XMEMSET(&servKey, 0, sizeof(ecc_key));
 
     bytes = (size_t)sizeof_ecc_clikey_der_256;
     /* place client key into ecc_key struct cliKey */
@@ -18486,7 +18486,7 @@ int blob_test(void)
         };
 
 
-    memset(blob, 0, sizeof(blob));
+	XMEMSET(blob, 0, sizeof(blob));
     outSz = sizeof(blob);
     ret = wc_caamCreateBlob((byte*)iv, sizeof(iv), blob, &outSz);
     if (ret != 0) {
@@ -18499,7 +18499,7 @@ int blob_test(void)
         ERROR_OUT(-8201, exit_blob);
     }
 
-    memset(blob, 0, sizeof(blob));
+	XMEMSET(blob, 0, sizeof(blob));
     outSz = sizeof(blob);
     ret = wc_caamCreateBlob((byte*)iv, sizeof(iv), blob, &outSz);
     if (ret != 0) {
@@ -18515,7 +18515,7 @@ int blob_test(void)
         ERROR_OUT(-8204, exit_blob);
     }
 
-    memset(blob, 0, sizeof(blob));
+	XMEMSET(blob, 0, sizeof(blob));
     outSz = sizeof(blob);
     ret = wc_caamCreateBlob((byte*)text, sizeof(text), blob, &outSz);
     if (ret != 0) {
