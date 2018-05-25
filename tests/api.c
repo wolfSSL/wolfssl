@@ -15058,7 +15058,7 @@ static int test_wc_SignatureGetSize_rsa(void)
             #ifndef HAVE_USER_RSA
                 if (ret == BAD_FUNC_ARG) {
             #else        
-                if (ret == USER_CRYPTO_ERROR) {
+                if (ret == 0) {
             #endif
                     key_len = (word32)0;
                     ret = wc_SignatureGetSize(sig_type, &rsa_key, key_len);
