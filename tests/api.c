@@ -231,6 +231,11 @@
     #endif
 #endif
 
+#ifndef NO_SIG_WRAPPER
+    #include <wolfssl/wolfcrypt/signature.h>
+#endif
+
+
 #ifdef HAVE_AESCCM
     #include <wolfssl/wolfcrypt/aes.h>
 #endif
@@ -244,7 +249,7 @@
     #include <wolfssl/wolfcrypt/asn.h>
 #endif
 
-#if defined(WOLFSSL_SHA3) || defined(HAVE_PKCS7)
+#if defined(WOLFSSL_SHA3) || defined(HAVE_PKCS7) || !defined(NO_RSA)
     static int  devId = INVALID_DEVID;
 #endif
 #ifndef NO_DSA
@@ -14943,12 +14948,176 @@ static void test_wc_PKCS7_EncodeEncryptedData (void)
 #endif
 } /* END test_wc_PKCS7_EncodeEncryptedData() */
 
+/* Testing wc_SignatureGetSize() for signature type ECC */
+static int test_wc_SignatureGetSize_ecc(void)
+{    
+    int ret = 0; 
+    #if defined(HAVE_ECC) && !defined(NO_ECC256)
+        enum wc_SignatureType sig_type;
+        word32 key_len;
 
+        /* Initialize ECC Key */
+        ecc_key ecc; 
+        const char* qx =
+            "fa2737fb93488d19caef11ae7faf6b7f4bcd67b286e3fc54e8a65c2b74aeccb0";
+        const char* qy = 
+            "d4ccd6dae698208aa8c3a6f39e45510d03be09b2f124bfc067856c324f9b4d09";
+        const char* d = 
+            "be34baa8d040a3b991f9075b56ba292f755b90e4b6dc10dad36715c33cfdac25";
+    
+        ret = wc_ecc_init(&ecc);
+        if (ret == 0) {
+            ret = wc_ecc_import_raw(&ecc, qx, qy, d, "SECP256R1");
+        }
+        printf(testingFmt, "wc_SigntureGetSize_ecc()");
+        if (ret == 0) { 
+            /* Input for signature type ECC */
+            sig_type = WC_SIGNATURE_TYPE_ECC;
+            key_len = sizeof(ecc_key);
+            ret = wc_SignatureGetSize(sig_type, &ecc, key_len);
+            
+            /* Test bad args */ 
+            if (ret > 0) {
+                sig_type = (enum wc_SignatureType) 100;
+                ret = wc_SignatureGetSize(sig_type, &ecc, key_len);
+                if (ret == BAD_FUNC_ARG) {
+                    sig_type = WC_SIGNATURE_TYPE_ECC;
+                    ret = wc_SignatureGetSize(sig_type, NULL, key_len);
+                }  
+                if (ret >= 0) {
+                    key_len = (word32) 0;
+                    ret = wc_SignatureGetSize(sig_type, &ecc, key_len); 
+                }
+                if (ret == BAD_FUNC_ARG) {
+                    ret = SIG_TYPE_E;
+                }
+            }
+        } else {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+        wc_ecc_free(&ecc);
+    #else
+        ret = SIG_TYPE_E;
+    #endif
+
+    if (ret == SIG_TYPE_E) {
+        ret = 0;
+    }
+    else {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+    return ret;
+}/* END test_wc_SignatureGetSize_ecc() */
+
+/* Testing wc_SignatureGetSize() for signature type rsa */
+static int test_wc_SignatureGetSize_rsa(void)
+{
+    int ret = 0; 
+    #ifndef NO_RSA
+        enum wc_SignatureType sig_type;
+        word32 key_len;
+        word32 idx = 0;
+
+        /* Initialize RSA Key */
+        RsaKey rsa_key;
+        byte* tmp = NULL;
+        size_t bytes;
+     
+        #ifdef USE_CERT_BUFFERS_1024
+            bytes = (size_t)sizeof_client_key_der_1024;
+            if (bytes < (size_t)sizeof_client_key_der_1024)
+                bytes = (size_t)sizeof_client_cert_der_1024;
+        #elif defined(USE_CERT_BUFFERS_2048)
+            bytes = (size_t)sizeof_client_key_der_2048;
+            if (bytes < (size_t)sizeof_client_cert_der_2048)
+                bytes = (size_t)sizeof_client_cert_der_2048;
+        #else
+            bytes = FOURK_BUF;
+        #endif
+
+        tmp = (byte*)XMALLOC(bytes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmp != NULL) {
+            #ifdef USE_CERT_BUFFERS_1024
+                XMEMCPY(tmp, client_key_der_1024, 
+                    (size_t)sizeof_client_key_der_1024);
+            #elif defined(USE_CERT_BUFFERS_2048)
+                XMEMCPY(tmp, client_key_der_2048, 
+                    (size_t)sizeof_client_key_der_2048);
+            #elif !defined(NO_FILESYSTEM)
+                file = fopen(clientKey, "rb");
+                if (file != NULL) {
+                    bytes = fread(tmp, 1, FOURK_BUF, file);
+                    fclose(file);
+                }
+                else {
+                    ret = WOLFSSL_FATAL_ERROR;
+                }
+            #else
+                ret = WOLFSSL_FATAL_ERROR;
+            #endif
+            if (ret == 0) {
+                ret = wc_InitRsaKey_ex(&rsa_key, HEAP_HINT, devId);
+                if (ret == 0) {
+                    ret = wc_RsaPrivateKeyDecode(tmp, &idx, &rsa_key, 
+                        (word32)bytes);
+                }
+            }
+        } else {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+
+        printf(testingFmt, "wc_SigntureGetSize_rsa()");
+        if (ret == 0) {
+            /* Input for signature type RSA */
+            sig_type = WC_SIGNATURE_TYPE_RSA;
+            key_len = sizeof(RsaKey);
+            ret = wc_SignatureGetSize(sig_type, &rsa_key, key_len);
+            
+            /* Test bad args */
+            if (ret > 0) {
+                sig_type = (enum wc_SignatureType) 100;
+                ret = wc_SignatureGetSize(sig_type, &rsa_key, key_len);
+                if (ret == BAD_FUNC_ARG) {
+                    sig_type = WC_SIGNATURE_TYPE_RSA;
+                    ret = wc_SignatureGetSize(sig_type, NULL, key_len);
+                }
+            #ifndef HAVE_USER_RSA
+                if (ret == BAD_FUNC_ARG) {
+            #else        
+                if (ret == 0) {
+            #endif
+                    key_len = (word32)0;
+                    ret = wc_SignatureGetSize(sig_type, &rsa_key, key_len);
+                }
+                if (ret == BAD_FUNC_ARG) {
+                    ret = SIG_TYPE_E;
+                }
+            }
+        } else {
+            ret = WOLFSSL_FATAL_ERROR;
+        }
+        wc_FreeRsaKey(&rsa_key);
+        XFREE(tmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    #else
+        ret = SIG_TYPE_E;
+    #endif
+            
+    if (ret == SIG_TYPE_E) {
+        ret = 0;
+    }else {
+        ret = WOLFSSL_FATAL_ERROR;
+    }
+ 
+   printf(resultFmt, ret == 0 ? passed : failed);
+   return ret;
+}/* END test_wc_SignatureGetSize_rsa(void) */
+  
 /*----------------------------------------------------------------------------*
  | hash.h Tests
  *----------------------------------------------------------------------------*/
-
-
+  
 static int test_wc_HashInit(void)
 {
     int ret = 0, i;  /* 0 indicates tests passed, 1 indicates failure */
@@ -15004,11 +15173,9 @@ static int test_wc_HashInit(void)
     return ret;
 }  /* end of test_wc_HashInit */
 
-
 /*----------------------------------------------------------------------------*
  | Compatibility Tests
  *----------------------------------------------------------------------------*/
-
 
 static void test_wolfSSL_X509_NAME(void)
 {
@@ -19101,6 +19268,8 @@ void ApiTest(void)
     AssertIntEQ(test_wc_DsaImportParamsRaw(), 0);
     AssertIntEQ(test_wc_DsaExportParamsRaw(), 0);
     AssertIntEQ(test_wc_DsaExportKeyRaw(), 0);
+    AssertIntEQ(test_wc_SignatureGetSize_ecc(), 0);
+    AssertIntEQ(test_wc_SignatureGetSize_rsa(), 0);
 
 #ifdef OPENSSL_EXTRA
     /*wolfSSS_EVP_get_cipherbynid test*/
