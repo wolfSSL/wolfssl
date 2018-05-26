@@ -18028,6 +18028,12 @@ static void *wolfSSL_d2i_X509_fp_ex(XFILE file, void **x509, int type)
             else if(type == CRL_TYPE)
                 newx509 = (void *)wolfSSL_d2i_X509_CRL(NULL, fileBuffer, (int)sz);
             #endif
+            else if(type == PKCS12_TYPE){
+                if((newx509 = wc_PKCS12_new()) == NULL)
+                    goto err_exit;
+                if(wc_d2i_PKCS12(fileBuffer, (int)sz, (WC_PKCS12*)newx509) < 0)
+                    goto err_exit;
+            }
             else goto err_exit;
             if(newx509 == NULL)
             {
@@ -18058,6 +18064,12 @@ _exit:
     if(fileBuffer != NULL)
         XFREE(fileBuffer, NULL, DYNAMIC_TYPE_FILE);
     return newx509;
+}
+
+WOLFSSL_X509_PKCS12 *wolfSSL_d2i_PKCS12_fp(XFILE fp, WOLFSSL_X509_PKCS12 **pkcs12)
+{
+    WOLFSSL_ENTER("wolfSSL_d2i_PKCS12_fp");
+    return (WOLFSSL_X509_PKCS12 *)wolfSSL_d2i_X509_fp_ex(fp, (void **)pkcs12, PKCS12_TYPE);
 }
 
 WOLFSSL_X509 *wolfSSL_d2i_X509_fp(XFILE fp, WOLFSSL_X509 **x509)
