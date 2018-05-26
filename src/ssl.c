@@ -18028,12 +18028,14 @@ static void *wolfSSL_d2i_X509_fp_ex(XFILE file, void **x509, int type)
             else if(type == CRL_TYPE)
                 newx509 = (void *)wolfSSL_d2i_X509_CRL(NULL, fileBuffer, (int)sz);
             #endif
+            #if !defined(NO_ASN) && !defined(NO_PWDBASED)
             else if(type == PKCS12_TYPE){
                 if((newx509 = wc_PKCS12_new()) == NULL)
                     goto err_exit;
                 if(wc_d2i_PKCS12(fileBuffer, (int)sz, (WC_PKCS12*)newx509) < 0)
                     goto err_exit;
             }
+            #endif
             else goto err_exit;
             if(newx509 == NULL)
             {
