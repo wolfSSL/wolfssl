@@ -8326,6 +8326,85 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
 
     return idx;
 }
+
+int RsaPublicKeyDerSize(RsaKey* key, int with_header)
+{
+    byte* dummy = NULL;
+    byte seq[MAX_SEQ_SZ];
+    byte bitString[1 + MAX_LENGTH_SZ + 1];
+    int  nSz;
+    int  eSz;
+    int  seqSz;
+    int  bitStringSz;
+    int  idx;
+
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
+    /* n */
+    dummy = (byte*)XMALLOC(MAX_RSA_INT_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (dummy == NULL)
+        return MEMORY_E;
+
+#ifdef HAVE_USER_RSA
+    nSz = SetASNIntRSA(key->n, dummy);
+#else
+    nSz = SetASNIntMP(&key->n, MAX_RSA_INT_SZ, dummy);
+#endif
+    XFREE(dummy, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (nSz < 0) {
+        return nSz;
+    }
+
+    /* e */
+    dummy = (byte*)XMALLOC(MAX_RSA_E_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (dummy == NULL) {
+        XFREE(dummy, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+
+#ifdef HAVE_USER_RSA
+    eSz = SetASNIntRSA(key->e, dummy);
+#else
+    eSz = SetASNIntMP(&key->e, MAX_RSA_INT_SZ, dummy);
+#endif
+    XFREE(dummy, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (eSz < 0) {
+        return eSz;
+    }
+
+    seqSz  = SetSequence(nSz + eSz, seq);
+
+    /* headers */
+    if (with_header) {
+        int  algoSz;
+        dummy = (byte*)XMALLOC(MAX_RSA_INT_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (dummy == NULL)
+            return MEMORY_E;
+
+        algoSz = SetAlgoID(RSAk, dummy, oidKeyType, 0);
+        bitStringSz  = SetBitString(seqSz + nSz + eSz, 0, bitString);
+
+        idx = SetSequence(nSz + eSz + seqSz + bitStringSz + algoSz, dummy);
+        XFREE(dummy, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+        /* algo */
+        idx += algoSz;
+        /* bit string */
+        idx += bitStringSz;
+    }
+    else
+        idx = 0;
+
+    /* seq */
+    idx += seqSz;
+    /* n */
+    idx += nSz;
+    /* e */
+    idx += eSz;
+
+    return idx;
+}
 #endif /* !NO_RSA && (WOLFSSL_CERT_GEN || (WOLFSSL_KEY_GEN &&
                                            !HAVE_USER_RSA))) */
 

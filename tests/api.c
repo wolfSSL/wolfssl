@@ -18717,7 +18717,7 @@ static void test_wolfSSL_X509_CRL(void)
         ""};
 #endif
 
-    FILE * fp;
+    XFILE fp;
     int i;
 
     printf(testingFmt, "test_wolfSSL_X509_CRL");

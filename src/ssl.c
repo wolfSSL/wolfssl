@@ -27526,6 +27526,10 @@ WOLFSSL_RSA *wolfSSL_d2i_RSAPublicKey(WOLFSSL_RSA **r, const unsigned char **pp,
     WOLFSSL_RSA *rsa = NULL;
 
     WOLFSSL_ENTER("d2i_RSAPublicKey");
+    if(pp == NULL){
+        WOLFSSL_MSG("Bad argument");
+        return NULL;
+    }
     if((rsa = wolfSSL_RSA_new()) == NULL){
         WOLFSSL_MSG("RSA_new failed");
         return NULL;
@@ -27545,22 +27549,22 @@ WOLFSSL_RSA *wolfSSL_d2i_RSAPublicKey(WOLFSSL_RSA **r, const unsigned char **pp,
 int wolfSSL_i2d_RSAPublicKey(WOLFSSL_RSA *rsa, const unsigned char **pp)
 {
     byte *der;
-    word32 derLen = 165;
+    int derLen;
     int ret;
 
     WOLFSSL_ENTER("i2d_RSAPublicKey");
-    if(pp == NULL)
+    if((rsa == NULL) || (pp == NULL))
+        return WOLFSSL_FATAL_ERROR;
+    if((ret = SetRsaInternal(rsa)) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("SetRsaInternal Failed");
+        return ret;
+    }
+    if((derLen = RsaPublicKeyDerSize((RsaKey *)rsa->internal, 1)) < 0)
         return WOLFSSL_FATAL_ERROR;
     der = (byte*)XMALLOC(derLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
         return WOLFSSL_FATAL_ERROR;
     }
-    if((ret = SetRsaInternal(rsa)) != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("SetRsaInternal Failed");
-        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-        return ret;
-    }
-
     if((ret = wc_RsaKeyToPublicDer((RsaKey *)rsa->internal, der, derLen)) < 0){
         WOLFSSL_MSG("RsaKeyToPublicDer failed");
         XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
