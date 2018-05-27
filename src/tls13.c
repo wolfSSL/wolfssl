@@ -6688,10 +6688,6 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
                 WOLFSSL_MSG("NewSessionTicket received out of order");
                 return OUT_OF_ORDER_E;
             }
-            if (ssl->msgsReceived.got_session_ticket) {
-                WOLFSSL_MSG("Duplicate NewSessionTicket received");
-                return DUPLICATE_MSG_E;
-            }
             ssl->msgsReceived.got_session_ticket = 1;
 
             break;
