@@ -18582,7 +18582,7 @@ static void test_wolfSSL_ASN1_TIME_to_generalizedtime(void){
 }
 
 static void test_wolfSSL_X509_check_ca(void){
-#if defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
     WOLFSSL_X509 *x509;
 
     x509 = wolfSSL_X509_load_certificate_file(svrCertFile, WOLFSSL_FILETYPE_PEM);

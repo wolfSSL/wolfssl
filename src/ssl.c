@@ -18150,6 +18150,13 @@ WOLFSSL_X509_PKCS12 *wolfSSL_d2i_PKCS12_fp(XFILE fp, WOLFSSL_X509_PKCS12 **pkcs1
     return (WOLFSSL_X509_PKCS12 *)wolfSSL_d2i_X509_fp_ex(fp, (void **)pkcs12, PKCS12_TYPE);
 }
 
+WOLFSSL_X509_PKCS12 *wolfSSL_d2i_PKCS12_fp(XFILE fp, WOLFSSL_X509_PKCS12 **pkcs12)
+{
+    WOLFSSL_ENTER("wolfSSL_d2i_PKCS12_fp");
+    return (WOLFSSL_X509_PKCS12 *)wolfSSL_d2i_X509_fp_ex(fp, (void **)pkcs12, PKCS12_TYPE);
+}
+
+
 WOLFSSL_X509 *wolfSSL_d2i_X509_fp(XFILE fp, WOLFSSL_X509 **x509)
 {
     WOLFSSL_ENTER("wolfSSL_d2i_X509_fp");
@@ -21589,7 +21596,8 @@ int wolfSSL_RAND_poll()
     WOLFSSL_ENTER("wolfSSL_RAND_poll");
     byte  entropy[16];
     int  ret = 0;
-    const int entropy_sz = 16;
+    word32 entropy_sz = 16;
+
 
     if (initGlobalRNG == 0){
         WOLFSSL_MSG("Global RNG no Init");
@@ -27672,7 +27680,11 @@ WOLFSSL_RSA *wolfSSL_d2i_RSAPublicKey(WOLFSSL_RSA **r, const unsigned char **pp,
 int wolfSSL_i2d_RSAPublicKey(WOLFSSL_RSA *rsa, const unsigned char **pp)
 {
     byte *der;
+<<<<<<< HEAD
     int derLen;
+=======
+    int derLen = 165;
+>>>>>>> d2i_PKCS12_fp
     int ret;
 
     WOLFSSL_ENTER("i2d_RSAPublicKey");
@@ -27682,6 +27694,10 @@ int wolfSSL_i2d_RSAPublicKey(WOLFSSL_RSA *rsa, const unsigned char **pp)
         WOLFSSL_MSG("SetRsaInternal Failed");
         return ret;
     }
+<<<<<<< HEAD
+=======
+
+>>>>>>> d2i_PKCS12_fp
     if((derLen = RsaPublicKeyDerSize((RsaKey *)rsa->internal, 1)) < 0)
         return WOLFSSL_FATAL_ERROR;
     der = (byte*)XMALLOC(derLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
