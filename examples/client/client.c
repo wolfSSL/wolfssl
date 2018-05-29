@@ -166,8 +166,45 @@ static void ShowCiphers(void)
 
     int ret = wolfSSL_get_ciphers(ciphers, (int)sizeof(ciphers));
 
-    if (ret == WOLFSSL_SUCCESS)
+    if (ret == WOLFSSL_SUCCESS) {
+#if defined(WOLFSSL_CERT_EXT) || defined(HAVE_ALPN)
+        int tmpLen = 0;
+        int strLen = (int) XSTRLEN(ciphers);
+
+        char* tmpSingle = NULL;
+        char* tmp = NULL;
+        char* strPntr = ciphers;
+        char* noCiphers;
+
+        const char* delim = ":";
+#endif
         printf("%s\n", ciphers);
+
+#if defined(WOLFSSL_CERT_EXT) || defined(HAVE_ALPN)
+        printf("\n");
+
+        tmp = (char*) XMALLOC((size_t) strLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (tmp == NULL) {
+            printf("malloc in ShowCiphers failed\n");
+            return;
+        }
+
+        while (strLen > 0) {
+            XMEMCPY(tmp, strPntr, strLen);
+
+            tmpSingle = XSTRTOK(tmp, delim, &noCiphers);
+            printf("%s\n", tmpSingle);
+
+            tmpLen = (int) XSTRLEN(tmpSingle);
+            strLen -= tmpLen + 1; /* subtract extracted string + colon */
+            strPntr += tmpLen + 1;
+            XMEMSET(tmpSingle, 0, tmpLen);
+        }
+
+        XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
+#endif /* WOLFSSL_CERT_EXT || HAVE_ALPN */
+    }
 }
 
 /* Shows which versions are valid */
