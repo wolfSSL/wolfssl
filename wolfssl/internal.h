@@ -3997,7 +3997,9 @@ WOLFSSL_LOCAL word32  LowResTimer(void);
 
 typedef struct CipherSuiteInfo {
     const char* name;
+#ifndef NO_ERROR_STRINGS
     const char* name_iana;
+#endif
     byte cipherSuite0;
     byte cipherSuite;
 } CipherSuiteInfo;
