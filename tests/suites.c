@@ -576,7 +576,7 @@ int SuiteTest(void)
 
     (void)test_harness;
 
-    cipherSuiteCtx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+    cipherSuiteCtx = wolfSSL_CTX_new(wolfSSLv23_client_method());
     if (cipherSuiteCtx == NULL) {
         printf("can't get cipher suite ctx\n");
         exit(EXIT_FAILURE);
@@ -628,6 +628,16 @@ int SuiteTest(void)
     /* add TLSv13 ECC extra suites */
     strcpy(argv0[1], "tests/test-tls13-ecc.conf");
     printf("starting TLSv13 ECC extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        exit(EXIT_FAILURE);
+    }
+    #endif
+    #ifndef WOLFSSL_NO_TLS12
+    /* add TLSv13 downgrade tets */
+    strcpy(argv0[1], "tests/test-tls13-down.conf");
+    printf("starting TLSv13 Downgrade extra tests\n");
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
@@ -692,15 +702,28 @@ int SuiteTest(void)
     }
 #endif
 #ifndef NO_PSK
-    /* add psk extra suites */
-    strcpy(argv0[1], "tests/test-psk-no-id.conf");
-    printf("starting psk no identity extra cipher suite tests\n");
+    #ifndef WOLFSSL_NO_TLS12
+    /* add psk cipher suites */
+    strcpy(argv0[1], "tests/test-psk.conf");
+    printf("starting psk cipher suite tests\n");
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
         args.return_code = EXIT_FAILURE;
         goto exit;
     }
+    #endif
+    #ifdef WOLFSSL_TLS13
+    /* add psk extra suites */
+    strcpy(argv0[1], "tests/test-tls13-psk.conf");
+    printf("starting TLS 1.3 psk no identity extra cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+    #endif
 #endif
 #if defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_DES3)
     /* test encrypted keys */

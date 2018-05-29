@@ -182,7 +182,9 @@ static void ShowVersions(void)
     #endif
     printf("2:");
 #endif /* NO_OLD_TLS */
+#ifndef WOLFSSL_NO_TLS12
     printf("3:");
+#endif
 #ifdef WOLFSSL_TLS13
     printf("4:");
 #endif
@@ -1489,9 +1491,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif /* !NO_OLD_TLS */
 
 #ifndef NO_TLS
+    #ifndef WOLFSSL_NO_TLS12
         case 3:
             method = wolfTLSv1_2_client_method_ex;
             break;
+    #endif
 
     #ifdef WOLFSSL_TLS13
         case 4:
@@ -1511,9 +1515,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             break;
         #endif
 
+    #ifndef WOLFSSL_NO_TLS12
         case -2:
             method = wolfDTLSv1_2_client_method_ex;
             break;
+    #endif
 #endif
 
         default:
