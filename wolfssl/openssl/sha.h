@@ -148,7 +148,11 @@ typedef WOLFSSL_SHA384_CTX SHA384_CTX;
 #define SHA384_Init   wolfSSL_SHA384_Init
 #define SHA384_Update wolfSSL_SHA384_Update
 #define SHA384_Final  wolfSSL_SHA384_Final
-
+#if defined(NO_OLD_SHA256_NAMES) && !defined(HAVE_FIPS)
+    /* SHA384 is only available in non-fips mode because of SHA256 enum in FIPS
+     * build. */
+    #define SHA384 wolfSSL_SHA384
+#endif
 #endif /* WOLFSSL_SHA384 */
 
 #ifdef WOLFSSL_SHA512
@@ -173,7 +177,11 @@ typedef WOLFSSL_SHA512_CTX SHA512_CTX;
 #define SHA512_Init   wolfSSL_SHA512_Init
 #define SHA512_Update wolfSSL_SHA512_Update
 #define SHA512_Final  wolfSSL_SHA512_Final
-
+#if defined(NO_OLD_SHA256_NAMES) && !defined(HAVE_FIPS)
+    /* SHA256 is only available in non-fips mode because of SHA256 enum in FIPS
+     * build. */
+    #define SHA512 wolfSSL_SHA512
+#endif
 #endif /* WOLFSSL_SHA512 */
 
 

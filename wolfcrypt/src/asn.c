@@ -502,7 +502,7 @@ char* GetSigName(int oid) {
 #if !defined(NO_DSA) || defined(HAVE_ECC) || \
    (!defined(NO_RSA) && \
         (defined(WOLFSSL_CERT_GEN) || \
-        (defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA))))
+        ((defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)) && !defined(HAVE_USER_RSA))))
 /* Set the DER/BER encoding of the ASN.1 INTEGER header.
  *
  * len        Length of data to encode.
@@ -526,7 +526,7 @@ static int SetASNInt(int len, byte firstByte, byte* output)
 #endif
 
 #if !defined(NO_DSA) || defined(HAVE_ECC) || defined(WOLFSSL_CERT_GEN) || \
-    (defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && !defined(HAVE_USER_RSA))
+    ((defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)) && !defined(NO_RSA) && !defined(HAVE_USER_RSA))
 /* Set the DER/BER encoding of the ASN.1 INTEGER element with an mp_int.
  * The number is assumed to be positive.
  *
@@ -796,10 +796,10 @@ static int CheckBitString(const byte* input, word32* inOutIdx, int* len,
 
 /* RSA (with CertGen or KeyGen) OR ECC OR ED25519 (with CertGen or KeyGen) */
 #if (!defined(NO_RSA) && !defined(HAVE_USER_RSA) && \
-        (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN))) || \
+        (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA))) || \
      defined(HAVE_ECC) || \
     (defined(HAVE_ED25519) && \
-        (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN)))
+        (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)))
 
 /* Set the DER/BER encoding of the ASN.1 BIT_STRING header.
  *
@@ -7314,6 +7314,11 @@ const char* const END_PUB_KEY          = "-----END PUBLIC KEY-----";
     const char* const BEGIN_EDDSA_PRIV = "-----BEGIN EDDSA PRIVATE KEY-----";
     const char* const END_EDDSA_PRIV   = "-----END EDDSA PRIVATE KEY-----";
 #endif
+#ifdef HAVE_CRL
+    const char *const BEGIN_CRL = "-----BEGIN X509 CRL-----";
+    const char* const END_CRL   = "-----END X509 CRL-----";
+#endif
+
 
 
 int wc_PemGetHeaderFooter(int type, const char** header, const char** footer)
@@ -7787,6 +7792,11 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
             header =  BEGIN_EDDSA_PRIV;     footer = END_EDDSA_PRIV;
         } else
 #endif
+#ifdef HAVE_CRL
+        if (type == CRL_TYPE) {
+            header =  BEGIN_CRL;        footer = END_CRL;
+        } else
+#endif
         {
             break;
         }
@@ -8246,7 +8256,7 @@ int wc_PemPubKeyToDer(const char* fileName,
 
 
 #if !defined(NO_RSA) && (defined(WOLFSSL_CERT_GEN) || \
-        (defined(WOLFSSL_KEY_GEN) && !defined(HAVE_USER_RSA)))
+    ((defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)) && !defined(HAVE_USER_RSA)))
 /* USER RSA ifdef portions used instead of refactor in consideration for
    possible fips build */
 /* Write a public RSA key to output */
@@ -8386,6 +8396,85 @@ static int SetRsaPublicKey(byte* output, RsaKey* key,
 
     return idx;
 }
+
+int RsaPublicKeyDerSize(RsaKey* key, int with_header)
+{
+    byte* dummy = NULL;
+    byte seq[MAX_SEQ_SZ];
+    byte bitString[1 + MAX_LENGTH_SZ + 1];
+    int  nSz;
+    int  eSz;
+    int  seqSz;
+    int  bitStringSz;
+    int  idx;
+
+    if (key == NULL)
+        return BAD_FUNC_ARG;
+
+    /* n */
+    dummy = (byte*)XMALLOC(MAX_RSA_INT_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (dummy == NULL)
+        return MEMORY_E;
+
+#ifdef HAVE_USER_RSA
+    nSz = SetASNIntRSA(key->n, dummy);
+#else
+    nSz = SetASNIntMP(&key->n, MAX_RSA_INT_SZ, dummy);
+#endif
+    XFREE(dummy, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (nSz < 0) {
+        return nSz;
+    }
+
+    /* e */
+    dummy = (byte*)XMALLOC(MAX_RSA_E_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (dummy == NULL) {
+        XFREE(dummy, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
+
+#ifdef HAVE_USER_RSA
+    eSz = SetASNIntRSA(key->e, dummy);
+#else
+    eSz = SetASNIntMP(&key->e, MAX_RSA_INT_SZ, dummy);
+#endif
+    XFREE(dummy, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (eSz < 0) {
+        return eSz;
+    }
+
+    seqSz  = SetSequence(nSz + eSz, seq);
+
+    /* headers */
+    if (with_header) {
+        int  algoSz;
+        dummy = (byte*)XMALLOC(MAX_RSA_INT_SZ, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (dummy == NULL)
+            return MEMORY_E;
+
+        algoSz = SetAlgoID(RSAk, dummy, oidKeyType, 0);
+        bitStringSz  = SetBitString(seqSz + nSz + eSz, 0, bitString);
+
+        idx = SetSequence(nSz + eSz + seqSz + bitStringSz + algoSz, dummy);
+        XFREE(dummy, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
+
+        /* algo */
+        idx += algoSz;
+        /* bit string */
+        idx += bitStringSz;
+    }
+    else
+        idx = 0;
+
+    /* seq */
+    idx += seqSz;
+    /* n */
+    idx += nSz;
+    /* e */
+    idx += eSz;
+
+    return idx;
+}
 #endif /* !NO_RSA && (WOLFSSL_CERT_GEN || (WOLFSSL_KEY_GEN &&
                                            !HAVE_USER_RSA))) */
 
@@ -8498,8 +8587,9 @@ int wc_RsaKeyToDer(RsaKey* key, byte* output, word32 inLen)
 
     return outLen;
 }
+#endif
 
-
+#if (defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)) && !defined(NO_RSA) && !defined(HAVE_USER_RSA)
 /* Convert Rsa Public key to DER format, write to output (inLen), return bytes
    written */
 int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen)

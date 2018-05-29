@@ -247,8 +247,9 @@ WOLFSSL_API int wc_RsaExportKey(RsaKey* key,
                                 byte* p, word32* pSz,
                                 byte* q, word32* qSz);
 
+WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey*, byte* output, word32 inLen);
+
 #ifdef WOLFSSL_KEY_GEN
-    WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey*, byte* output, word32 inLen);
     WOLFSSL_API int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng);
     WOLFSSL_API int wc_CheckProbablePrime(const byte* p, word32 pSz,
                                           const byte* q, word32 qSz,
