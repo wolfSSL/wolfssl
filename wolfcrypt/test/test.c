@@ -18575,12 +18575,110 @@ int misc_test(void)
 }
 
 #ifdef WOLF_CRYPTO_DEV
+
+/* Example custom context for crypto callback */
+typedef struct {
+    int exampleVar; /* example, not used */
+} myCryptoDevCtx;
+
+
+/* Example crypto dev callback function that calls software version */
+static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
+{
+    int ret = NOT_COMPILED_IN; /* return this to bypass HW and use SW */
+    myCryptoDevCtx* myCtx = (myCryptoDevCtx*)ctx;
+
+    if (info == NULL)
+        return BAD_FUNC_ARG;
+
+    if (info->algo_type == WC_ALGO_TYPE_PK) {
+    #ifdef DEBUG_WOLFSSL
+        printf("CryptoDevCb: Pk Type %d\n", info->pk.type);
+    #endif
+
+    #ifndef NO_RSA
+        if (info->pk.type == WC_PK_TYPE_RSA) {
+            /* set devId to invalid, so software is used */
+            info->pk.rsa.key->devId = INVALID_DEVID;
+
+            switch (info->pk.rsa.type) {
+                case RSA_PUBLIC_ENCRYPT:
+                case RSA_PUBLIC_DECRYPT:
+                    /* perform software based RSA public op */
+                    ret = wc_RsaFunction(
+                        info->pk.rsa.in, info->pk.rsa.inLen,
+                        info->pk.rsa.out, info->pk.rsa.outLen,
+                        info->pk.rsa.type, info->pk.rsa.key, info->pk.rsa.rng);
+                    break;
+                case RSA_PRIVATE_ENCRYPT:
+                case RSA_PRIVATE_DECRYPT:
+                    /* perform software based RSA private op */
+                    ret = wc_RsaFunction(
+                        info->pk.rsa.in, info->pk.rsa.inLen,
+                        info->pk.rsa.out, info->pk.rsa.outLen,
+                        info->pk.rsa.type, info->pk.rsa.key, info->pk.rsa.rng);
+                    break;
+            }
+
+            /* reset devId */
+            info->pk.rsa.key->devId = devIdArg;
+        }
+    #endif /* !NO_RSA */
+    #ifdef HAVE_ECC
+        if (info->pk.type == WC_PK_TYPE_ECDSA_SIGN) {
+            /* set devId to invalid, so software is used */
+            info->pk.eccsign.key->devId = INVALID_DEVID;
+
+            ret = wc_ecc_sign_hash(
+                info->pk.eccsign.in, info->pk.eccsign.inlen,
+                info->pk.eccsign.out, info->pk.eccsign.outlen,
+                info->pk.eccsign.rng, info->pk.eccsign.key);
+
+            /* reset devId */
+            info->pk.eccsign.key->devId = devIdArg;
+        }
+        else if (info->pk.type == WC_PK_TYPE_ECDSA_VERIFY) {
+            /* set devId to invalid, so software is used */
+            info->pk.eccverify.key->devId = INVALID_DEVID;
+
+            ret = wc_ecc_verify_hash(
+                info->pk.eccverify.sig, info->pk.eccverify.siglen,
+                info->pk.eccverify.hash, info->pk.eccverify.hashlen,
+                info->pk.eccverify.res, info->pk.eccverify.key);
+
+            /* reset devId */
+            info->pk.eccverify.key->devId = devIdArg;
+        }
+        else if (info->pk.type == WC_PK_TYPE_ECDH) {
+            /* set devId to invalid, so software is used */
+            info->pk.ecdh.private_key->devId = INVALID_DEVID;
+
+            ret = wc_ecc_shared_secret(
+                info->pk.ecdh.private_key, info->pk.ecdh.public_key,
+                info->pk.ecdh.out, info->pk.ecdh.outlen);
+
+            /* reset devId */
+            info->pk.ecdh.private_key->devId = devIdArg;
+        }
+    #endif /* HAVE_ECC */
+    }
+
+    (void)myCtx;
+
+    return ret;
+}
+
 int cryptodev_test(void)
 {
     int ret = 0;
+    myCryptoDevCtx myCtx;
+
+    /* example data for callback */
+    myCtx.exampleVar = 1;
 
     /* set devId to something other than INVALID_DEVID */
     devId = 1;
+    ret = wc_CryptoDev_RegisterDevice(devId, myCryptoDevCb, &myCtx);
 
 #ifndef NO_RSA
     if (ret == 0)
@@ -18590,6 +18688,9 @@ int cryptodev_test(void)
     if (ret == 0)
         ret = ecc_test();
 #endif
+
+    /* reset devId */
+    devId = INVALID_DEVID;
 
     return ret;
 }
