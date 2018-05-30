@@ -128,6 +128,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_use_certificate_ASN1      wolfSSL_use_certificate_ASN1
 #define d2i_PKCS8_PRIV_KEY_INFO_bio   wolfSSL_d2i_PKCS8_PKEY_bio
 #define PKCS8_PRIV_KEY_INFO_free      wolfSSL_EVP_PKEY_free
+#define d2i_PKCS12_fp                 wolfSSL_d2i_PKCS12_fp
 
 #define d2i_PUBKEY_bio             wolfSSL_d2i_PUBKEY_bio
 #define d2i_PrivateKey             wolfSSL_d2i_PrivateKey
@@ -297,6 +298,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define RAND_seed       wolfSSL_RAND_seed
 #define RAND_cleanup    wolfSSL_RAND_Cleanup
 #define RAND_add        wolfSSL_RAND_add
+#define RAND_poll       wolfSSL_RAND_poll
 
 #define COMP_zlib                       wolfSSL_COMP_zlib
 #define COMP_rle                        wolfSSL_COMP_rle
@@ -380,6 +382,10 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define ASN1_TIME_print              wolfSSL_ASN1_TIME_print
 #define ASN1_GENERALIZEDTIME_print   wolfSSL_ASN1_GENERALIZEDTIME_print
 #define ASN1_TIME_adj                wolfSSL_ASN1_TIME_adj
+#define ASN1_GENERALIZEDTIME_free    wolfSSL_ASN1_GENERALIZEDTIME_free
+#define ASN1_STRING_print_ex         wolfSSL_ASN1_STRING_print_ex
+#define ASN1_tag2str                 wolfSSL_ASN1_tag2str
+#define ASN1_TIME_to_generalizedtime wolfSSL_ASN1_TIME_to_generalizedtime
 
 #define ASN1_INTEGER_new wolfSSL_ASN1_INTEGER_new
 #define ASN1_INTEGER_free wolfSSL_ASN1_INTEGER_free
@@ -582,8 +588,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 #define X509_check_private_key wolfSSL_X509_check_private_key
 #define SSL_dup_CA_list wolfSSL_dup_CA_list
-
-
+#define X509_check_ca   wolfSSL_X509_check_ca
 
 
 /* NIDs */
@@ -890,6 +895,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define SSL_get0_session                  wolfSSL_SSL_get0_session
 #define X509_check_host                   wolfSSL_X509_check_host
 #define i2a_ASN1_INTEGER                  wolfSSL_i2a_ASN1_INTEGER
+#define i2c_ASN1_INTEGER                  wolfSSL_i2c_ASN1_INTEGER
 #define ERR_peek_error_line_data          wolfSSL_ERR_peek_error_line_data
 #define ERR_load_BIO_strings              wolfSSL_ERR_load_BIO_strings
 #define SSL_CTX_set_tlsext_ticket_key_cb  wolfSSL_CTX_set_tlsext_ticket_key_cb
@@ -918,6 +924,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define SSL_CTX_add_client_CA             wolfSSL_CTX_add_client_CA
 #define SSL_CTX_set_srp_password          wolfSSL_CTX_set_srp_password
 #define SSL_CTX_set_srp_username          wolfSSL_CTX_set_srp_username
+#define OPENSSL_add_all_algorithms_noconf wolfSSL_OPENSSL_add_all_alogrithms_noconf
 
 #ifdef __cplusplus
     } /* extern "C" */
