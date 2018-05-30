@@ -18150,13 +18150,6 @@ WOLFSSL_X509_PKCS12 *wolfSSL_d2i_PKCS12_fp(XFILE fp, WOLFSSL_X509_PKCS12 **pkcs1
     return (WOLFSSL_X509_PKCS12 *)wolfSSL_d2i_X509_fp_ex(fp, (void **)pkcs12, PKCS12_TYPE);
 }
 
-WOLFSSL_X509_PKCS12 *wolfSSL_d2i_PKCS12_fp(XFILE fp, WOLFSSL_X509_PKCS12 **pkcs12)
-{
-    WOLFSSL_ENTER("wolfSSL_d2i_PKCS12_fp");
-    return (WOLFSSL_X509_PKCS12 *)wolfSSL_d2i_X509_fp_ex(fp, (void **)pkcs12, PKCS12_TYPE);
-}
-
-
 WOLFSSL_X509 *wolfSSL_d2i_X509_fp(XFILE fp, WOLFSSL_X509 **x509)
 {
     WOLFSSL_ENTER("wolfSSL_d2i_X509_fp");
@@ -21593,12 +21586,11 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
 
 int wolfSSL_RAND_poll()
 {
-    WOLFSSL_ENTER("wolfSSL_RAND_poll");
     byte  entropy[16];
     int  ret = 0;
     word32 entropy_sz = 16;
 
-
+    WOLFSSL_ENTER("wolfSSL_RAND_poll");
     if (initGlobalRNG == 0){
         WOLFSSL_MSG("Global RNG no Init");
         return  WOLFSSL_FAILURE;
@@ -27680,11 +27672,7 @@ WOLFSSL_RSA *wolfSSL_d2i_RSAPublicKey(WOLFSSL_RSA **r, const unsigned char **pp,
 int wolfSSL_i2d_RSAPublicKey(WOLFSSL_RSA *rsa, const unsigned char **pp)
 {
     byte *der;
-<<<<<<< HEAD
     int derLen;
-=======
-    int derLen = 165;
->>>>>>> d2i_PKCS12_fp
     int ret;
 
     WOLFSSL_ENTER("i2d_RSAPublicKey");
@@ -27694,10 +27682,6 @@ int wolfSSL_i2d_RSAPublicKey(WOLFSSL_RSA *rsa, const unsigned char **pp)
         WOLFSSL_MSG("SetRsaInternal Failed");
         return ret;
     }
-<<<<<<< HEAD
-=======
-
->>>>>>> d2i_PKCS12_fp
     if((derLen = RsaPublicKeyDerSize((RsaKey *)rsa->internal, 1)) < 0)
         return WOLFSSL_FATAL_ERROR;
     der = (byte*)XMALLOC(derLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -32690,11 +32674,11 @@ static int check_esc_char(char c, char *esc)
 int wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str, 
                                  unsigned long flags)
 {
-    WOLFSSL_ENTER("wolfSSL_ASN1_STRING_PRINT_ex");
     size_t str_len = 0, type_len = 0;
     unsigned char *typebuf = NULL;
     const char *hash="#";
 
+    WOLFSSL_ENTER("wolfSSL_ASN1_STRING_PRINT_ex");
     if (out == NULL || str == NULL)
         return WOLFSSL_FAILURE;
 
@@ -32809,11 +32793,11 @@ err_exit:
 WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_to_generalizedtime(WOLFSSL_ASN1_TIME *t,
                                                         WOLFSSL_ASN1_TIME **out)
 {
-    WOLFSSL_ENTER("wolfSSL_ASN1_TIME_to_generalizedtime");
     unsigned char time_type;
     WOLFSSL_ASN1_TIME *ret = NULL;
     unsigned char *data_ptr = NULL;
 
+    WOLFSSL_ENTER("wolfSSL_ASN1_TIME_to_generalizedtime");
     if (t == NULL)
         return NULL;
 
@@ -32857,8 +32841,6 @@ WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_to_generalizedtime(WOLFSSL_ASN1_TIME *t,
 #ifndef NO_ASN
 int wolfSSL_i2c_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER *a, unsigned char **pp)
 {
-    WOLFSSL_ENTER("wolfSSL_i2c_ASN1_INTEGER");
-
     unsigned char *pptr = NULL;
     char pad = 0 ;
     unsigned char pad_val = 0;
@@ -32867,6 +32849,7 @@ int wolfSSL_i2c_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER *a, unsigned char **pp)
     unsigned char neg = 0;
     int i = 0;
 
+    WOLFSSL_ENTER("wolfSSL_i2c_ASN1_INTEGER");
     if (a == NULL)
         return WOLFSSL_FAILURE;
 
