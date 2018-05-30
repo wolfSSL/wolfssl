@@ -18383,7 +18383,7 @@ static void test_wolfSSL_AES_ecb_encrypt(void)
 static void test_wolfSSL_SHA256(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_SHA256) && \
-    defined(NO_OLD_SHA256_NAMES) && !defined(HAVE_FIPS)
+    defined(NO_OLD_SHA_NAMES) && !defined(HAVE_FIPS)
     unsigned char input[] =
         "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
     unsigned char output[] =
