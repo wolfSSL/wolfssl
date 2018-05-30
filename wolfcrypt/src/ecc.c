@@ -3658,7 +3658,6 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
         err = wc_CryptoDev_EccSign(in, inlen, out, outlen, rng, key);
         if (err != NOT_COMPILED_IN)
             return err;
-        err = 0; /* reset error code and try using software */
     }
 #endif
 
@@ -4317,7 +4316,6 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
         err = wc_CryptoDev_EccVerify(sig, siglen, hash, hashlen, res, key);
         if (err != NOT_COMPILED_IN)
             return err;
-        err = 0; /* reset error code and try using software */
     }
 #endif
 
