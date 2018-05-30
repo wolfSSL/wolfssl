@@ -2802,7 +2802,6 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
         err = wc_CryptoDev_Ecdh(private_key, public_key, out, outlen);
         if (err != NOT_COMPILED_IN)
             return err;
-        err = 0; /* reset error code and try using software */
     }
 #endif
 

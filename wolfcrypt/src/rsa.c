@@ -1517,7 +1517,7 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
 }
 #endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_RSA */
 
-#ifdef WC_RSA_NO_PADDING
+#if defined(WC_RSA_DIRECT) || defined(WC_RSA_NO_PADDING)
 /* Function that does the RSA operation directly with no padding.
  *
  * in       buffer to do operation on
@@ -1611,7 +1611,7 @@ int wc_RsaDirect(byte* in, word32 inLen, byte* out, word32* outSz,
 
     return ret;
 }
-#endif /* WC_RSA_NO_PADDING */
+#endif /* WC_RSA_DIRECT || WC_RSA_NO_PADDING */
 
 
 int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
