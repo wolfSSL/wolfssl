@@ -20,7 +20,7 @@
  */
 
 /*!
-    \file wolfssl/wolfcrypt/pksc7.h
+    \file wolfssl/wolfcrypt/pkcs7.h
 */
 
 #ifndef WOLF_CRYPT_PKCS7_H
