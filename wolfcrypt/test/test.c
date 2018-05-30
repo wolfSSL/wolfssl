@@ -14074,7 +14074,7 @@ static int ecc_test_vector_item(const eccVector* vector)
     word32  sigSz;
     ecc_key userA;
     DECLARE_VAR(sig, byte, ECC_SIG_SIZE, HEAP_HINT);
-#ifndef NO_ASN
+#if !defined(NO_ASN) && !defined(HAVE_SELFTEST)
     word32  sigRawSz;
     DECLARE_VAR(sigRaw, byte, ECC_SIG_SIZE, HEAP_HINT);
 #endif
@@ -14096,7 +14096,7 @@ static int ecc_test_vector_item(const eccVector* vector)
     if (ret != 0)
         goto done;
 
-#ifndef NO_ASN
+#if !defined(NO_ASN) && !defined(HAVE_SELFTEST)
     XMEMSET(sigRaw, 0, ECC_SIG_SIZE);
     sigRawSz = ECC_SIG_SIZE;
     ret = wc_ecc_rs_raw_to_sig(vector->r, vector->rSz, vector->s, vector->sSz,

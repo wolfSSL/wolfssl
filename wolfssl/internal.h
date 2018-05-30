@@ -1188,6 +1188,12 @@ enum Misc {
     MAX_SYM_KEY_SIZE    = WC_MAX_SYM_KEY_SIZE,
 #endif
 
+#ifdef HAVE_SELFTEST
+    AES_256_KEY_SIZE    = 32,
+    AES_IV_SIZE         = 16,
+    AES_128_KEY_SIZE    = 16,
+#endif
+
     AEAD_SEQ_OFFSET     = 4,   /* Auth Data: Sequence number */
     AEAD_TYPE_OFFSET    = 8,   /* Auth Data: Type            */
     AEAD_VMAJ_OFFSET    = 9,   /* Auth Data: Major Version   */
