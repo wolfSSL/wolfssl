@@ -62,11 +62,12 @@
     #include <wolfssl/wolfcrypt/async.h>
 #endif
 
+#if !defined(NO_OLD_SHA_NAMES)
+    #define SHA             WC_SHA
+#endif
+
 #ifndef NO_OLD_WC_NAMES
     #define Sha             wc_Sha
-    #if !defined(OPENSSL_EXTRA)
-    #define SHA WC_SHA
-    #endif
     #define SHA_BLOCK_SIZE  WC_SHA_BLOCK_SIZE
     #define SHA_DIGEST_SIZE WC_SHA_DIGEST_SIZE
     #define SHA_PAD_SIZE    WC_SHA_PAD_SIZE

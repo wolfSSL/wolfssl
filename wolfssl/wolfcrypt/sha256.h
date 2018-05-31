@@ -81,7 +81,7 @@
     #define SHA256_NOINLINE
 #endif
 
-#if !defined(NO_OLD_SHA256_NAMES)
+#if !defined(NO_OLD_SHA_NAMES)
     #define SHA256             WC_SHA256
 #endif
 
