@@ -6,7 +6,7 @@
 #
 #
 AC_COPYRIGHT([Copyright (C) 2006-2018 wolfSSL Inc.])
-AC_INIT([wolfssl],[3.14.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
+AC_INIT([wolfssl],[3.15.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -41,18 +41,18 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h:config.in])dnl Keep filename to 8.3 for MS-DOS.
 
 #shared library versioning
-WOLFSSL_LIBRARY_VERSION=16:0:0
-#                       | | |
-#                +------+ | +---+
-#                |        |     |
-#               current:revision:age
-#                |        |     |
-#                |        |     +- increment if interfaces have been added
-#                |        |        set to zero if interfaces have been removed
-#                |        |        or changed
-#                |        +- increment if source code has changed
-#                |           set to zero if current is incremented
-#                +- increment if interfaces have been added, removed or changed
+WOLFSSL_LIBRARY_VERSION=17:0:0
+#                        | | |
+#                 +------+ | +---+
+#                 |        |     |
+#                current:revision:age
+#                 |        |     |
+#                 |        |     +- increment if interfaces have been added
+#                 |        |        set to zero if interfaces have been removed
+#                 |        |        or changed
+#                 |        +- increment if source code has changed
+#                 |           set to zero if current is incremented
+#                 +- increment if interfaces have been added, removed or changed
 AC_SUBST([WOLFSSL_LIBRARY_VERSION])
 
 # capture user C_EXTRA_FLAGS from ./configure line, CFLAGS may hold -g -O2 even
