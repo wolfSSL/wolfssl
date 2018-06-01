@@ -8,6 +8,8 @@ EXTRA_DIST += \
 	     certs/client-cert.pem \
 	     certs/client-keyEnc.pem \
 	     certs/client-key.pem \
+	     certs/client-uri-cert.pem \
+	     certs/client-relative-uri.pem \
 	     certs/ecc-key.pem \
 	     certs/ecc-privkey.pem \
 	     certs/ecc-keyPkcs8Enc.pem \
@@ -63,27 +65,6 @@ EXTRA_DIST += \
 	     certs/server-ecc-self.der \
 	     certs/server-ecc-rsa.der \
 	     certs/server-cert-chain.der
-EXTRA_DIST += \
-         certs/ed25519/ca-ed25519.der \
-         certs/ed25519/ca-ed25519-key.der \
-         certs/ed25519/ca-ed25519-key.pem \
-         certs/ed25519/ca-ed25519.pem \
-         certs/ed25519/client-ed25519.der \
-         certs/ed25519/client-ed25519-key.der \
-         certs/ed25519/client-ed25519-key.pem \
-         certs/ed25519/client-ed25519.pem \
-         certs/ed25519/client-ed25519-priv.pem \
-         certs/ed25519/client-ed25519-priv.pem \
-         certs/ed25519/root-ed25519.der \
-         certs/ed25519/root-ed25519-key.der \
-         certs/ed25519/root-ed25519-key.pem \
-         certs/ed25519/root-ed25519.pem \
-         certs/ed25519/server-ed25519.der \
-         certs/ed25519/server-ed25519-key.der \
-         certs/ed25519/server-ed25519-key.pem \
-         certs/ed25519/server-ed25519.pem \
-         certs/ed25519/server-ed25519-priv.der \
-         certs/ed25519/server-ed25519-priv.pem
 
 # ECC CA prime256v1
 EXTRA_DIST += \
@@ -103,7 +84,11 @@ dist_doc_DATA+= certs/taoCert.txt
 
 EXTRA_DIST+= certs/ntru-key.raw
 
+include certs/1024/include.am
+include certs/crl/include.am
+include certs/ecc/include.am
+include certs/ed25519/include.am
+include certs/external/include.am
+include certs/ocsp/include.am
 include certs/test/include.am
 include certs/test-pathlen/include.am
-include certs/test/include.am
-include certs/ecc/include.am
