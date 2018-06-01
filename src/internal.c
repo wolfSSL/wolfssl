@@ -16868,36 +16868,6 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
         XMEMCPY(ssl->arrays->serverRandom, input + i, RAN_LEN);
         i += RAN_LEN;
 
-        if (!ssl->options.resuming) {
-#ifdef WOLFSSL_TLS13
-            if (IsAtLeastTLSv1_3(ssl->ctx->method->version)) {
-                /* TLS v1.3 capable client not allowed to downgrade when
-                 * connecting to TLS v1.3 capable server unless cipher suite
-                 * demands it.
-                 */
-                if (XMEMCMP(input + i - (TLS13_DOWNGRADE_SZ + 1),
-                                     tls13Downgrade, TLS13_DOWNGRADE_SZ) == 0 &&
-                             (*(input + i - 1) == 0 || *(input + i - 1) == 1)) {
-                    SendAlert(ssl, alert_fatal, illegal_parameter);
-                    return VERSION_ERROR;
-                }
-            }
-            else
-#endif
-            if (ssl->ctx->method->version.major == SSLv3_MAJOR &&
-                             ssl->ctx->method->version.minor == TLSv1_2_MINOR) {
-                /* TLS v1.2 capable client not allowed to downgrade when
-                 * connecting to TLS v1.2 capable server.
-                 */
-                if (XMEMCMP(input + i - (TLS13_DOWNGRADE_SZ + 1),
-                            tls13Downgrade, TLS13_DOWNGRADE_SZ) == 0 &&
-                                                        *(input + i - 1) == 0) {
-                    SendAlert(ssl, alert_fatal, illegal_parameter);
-                    return VERSION_ERROR;
-                }
-            }
-        }
-
         /* session id */
         ssl->arrays->sessionIDSz = input[i++];
 
@@ -17066,7 +17036,37 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
     {
         int ret;
 
-        if (ssl->options.resuming) {
+        if (!ssl->options.resuming) {
+            byte* down = ssl->arrays->serverRandom + RAN_LEN -
+                                                         TLS13_DOWNGRADE_SZ - 1;
+            byte  vers = ssl->arrays->serverRandom[RAN_LEN - 1];
+    #ifdef WOLFSSL_TLS13
+            if (IsAtLeastTLSv1_3(ssl->ctx->method->version)) {
+                /* TLS v1.3 capable client not allowed to downgrade when
+                 * connecting to TLS v1.3 capable server unless cipher suite
+                 * demands it.
+                 */
+                if (XMEMCMP(down, tls13Downgrade, TLS13_DOWNGRADE_SZ) == 0 &&
+                                                     (vers == 0 || vers == 1)) {
+                    SendAlert(ssl, alert_fatal, illegal_parameter);
+                    return VERSION_ERROR;
+                }
+            }
+            else
+    #endif
+            if (ssl->ctx->method->version.major == SSLv3_MAJOR &&
+                             ssl->ctx->method->version.minor == TLSv1_2_MINOR) {
+                /* TLS v1.2 capable client not allowed to downgrade when
+                 * connecting to TLS v1.2 capable server.
+                 */
+                if (XMEMCMP(down, tls13Downgrade, TLS13_DOWNGRADE_SZ) == 0 &&
+                                                                    vers == 0) {
+                    SendAlert(ssl, alert_fatal, illegal_parameter);
+                    return VERSION_ERROR;
+                }
+            }
+        }
+        else {
             if (DSH_CheckSessionId(ssl)) {
                 if (SetCipherSpecs(ssl) == 0) {
 
@@ -17097,11 +17097,11 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
                 ssl->options.resuming = 0; /* server denied resumption try */
             }
         }
-        #ifdef WOLFSSL_DTLS
-            if (ssl->options.dtls) {
-                DtlsMsgPoolReset(ssl);
-            }
-        #endif
+    #ifdef WOLFSSL_DTLS
+        if (ssl->options.dtls) {
+            DtlsMsgPoolReset(ssl);
+        }
+    #endif
 
         return SetCipherSpecs(ssl);
     }
@@ -23461,7 +23461,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                              args->output, args->sigSz,
                                              HashAlgoToType(args->hashAlgo));
                             if (ret != 0)
-                                return ret;
+                                goto exit_dcv;
                         }
                         else
                     #endif
