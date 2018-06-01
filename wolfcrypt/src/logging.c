@@ -711,7 +711,7 @@ int wc_ERR_remove_state(void)
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
 /* empties out the error queue into the file */
-void wc_ERR_print_errors_fp(FILE* fp)
+void wc_ERR_print_errors_fp(XFILE fp)
 {
     WOLFSSL_ENTER("wc_ERR_print_errors_fp");
 
