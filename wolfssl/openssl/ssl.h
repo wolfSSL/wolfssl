@@ -847,13 +847,13 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
                             /* matchs ASN_DOMAIN_COMPONENT in asn.h */
 
  /* matchs ASN_..._NAME in asn.h */
-#define NID_surname      0x04,   /* SN */
-#define NID_serialNumber 0x05,   /* serialNumber */
-#define NID_countryName  0x06,   /* C  */
-#define NID_localityName 0x07,   /* L  */
-#define NID_stateOrProvinceName    0x08,   /* ST */
-#define NID_organizationName       0x0a,   /* O  */
-#define NID_organizationalUnitName 0x0b,   /* OU */
+#define NID_surname      0x04   /* SN */
+#define NID_serialNumber 0x05   /* serialNumber */
+#define NID_countryName  0x06   /* C  */
+#define NID_localityName 0x07   /* L  */
+#define NID_stateOrProvinceName    0x08   /* ST */
+#define NID_organizationName       0x0a   /* O  */
+#define NID_organizationalUnitName 0x0b   /* OU */
 
 
 #define SSL_CTX_set_msg_callback        wolfSSL_CTX_set_msg_callback
@@ -954,6 +954,14 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define SSL_CTX_add_client_CA             wolfSSL_CTX_add_client_CA
 #define SSL_CTX_set_srp_password          wolfSSL_CTX_set_srp_password
 #define SSL_CTX_set_srp_username          wolfSSL_CTX_set_srp_username
+
+#define ERR_NUM_ERRORS                  16
+#define EVP_PKEY_RSA                    6 
+#define EVP_PKEY_RSA2                   19
+#define SN_pkcs9_emailAddress           "Email"
+#define LN_pkcs9_emailAddress           "emailAddress"
+#define NID_pkcs9_emailAddress          48
+#define OBJ_pkcs9_emailAddress          1L,2L,840L,113539L,1L,9L,1L
 
 #ifdef __cplusplus
     } /* extern "C" */
