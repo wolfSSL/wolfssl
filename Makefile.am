@@ -95,10 +95,6 @@ include wrapper/include.am
 include cyassl/include.am
 include wolfssl/include.am
 include certs/include.am
-include certs/1024/include.am
-include certs/crl/include.am
-include certs/external/include.am
-include certs/ocsp/include.am
 include doc/include.am
 include swig/include.am
 
