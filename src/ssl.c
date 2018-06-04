@@ -34056,6 +34056,15 @@ err_exit:
 }
 
 #ifndef NO_ASN_TIME
+int wolfSSL_ASN1_TIME_get_length(WOLFSSL_ASN1_TIME *t)
+{
+    WOLFSSL_ENTER("wolfSSL_ASN1_TIME_get_length");
+    if (t == NULL)
+        return WOLFSSL_FAILURE;
+
+    return (int)t->data[1];
+}
+
 WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_to_generalizedtime(WOLFSSL_ASN1_TIME *t,
                                                         WOLFSSL_ASN1_TIME **out)
 {

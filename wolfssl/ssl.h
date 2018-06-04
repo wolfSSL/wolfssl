@@ -2990,6 +2990,7 @@ WOLFSSL_API void wolfSSL_EC_POINT_dump(const char *msg, const WOLFSSL_EC_POINT *
 
 WOLFSSL_API const char *wolfSSL_ASN1_tag2str(int tag);
 WOLFSSL_API int wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str, unsigned long flags);
+WOLFSSL_API int wolfSSL_ASN1_TIME_get_length(WOLFSSL_ASN1_TIME *t);
 WOLFSSL_API WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_to_generalizedtime(WOLFSSL_ASN1_TIME *t,
                                                                 WOLFSSL_ASN1_TIME **out);
 WOLFSSL_API int wolfSSL_i2c_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER *a, unsigned char **pp);
