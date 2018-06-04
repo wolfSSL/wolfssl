@@ -4353,6 +4353,13 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
             key->state = ECC_STATE_VERIFY_DO;
 
             err = wc_ecc_verify_hash_ex(r, s, hash, hashlen, res, key);
+
+        #ifndef WOLFSSL_ASYNC_CRYPT
+            /* done with R/S */
+            mp_clear(r);
+            mp_clear(s);
+        #endif
+
             if (err < 0) {
                 break;
             }
@@ -4361,10 +4368,6 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
         case ECC_STATE_VERIFY_RES:
             key->state = ECC_STATE_VERIFY_RES;
             err = 0;
-
-            /* done with R/S */
-            mp_clear(r);
-            mp_clear(s);
             break;
 
         default:
