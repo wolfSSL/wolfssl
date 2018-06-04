@@ -34065,6 +34065,20 @@ int wolfSSL_ASN1_TIME_get_length(WOLFSSL_ASN1_TIME *t)
     return (int)t->data[1];
 }
 
+int wolfSSL_ASN1_TIME_get_data(WOLFSSL_ASN1_TIME *t, unsigned char* data)
+{
+    char *dptr = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_ASN1_TIME_get_data");
+    if (t == NULL || data == NULL)
+        return WOLFSSL_FAILURE;
+
+    dptr = (char*)t->data + 2;
+    XSTRNCPY((char*)data, dptr, t->data[1]);
+
+    return WOLFSSL_SUCCESS;
+}
+
 WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_to_generalizedtime(WOLFSSL_ASN1_TIME *t,
                                                         WOLFSSL_ASN1_TIME **out)
 {

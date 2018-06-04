@@ -19686,6 +19686,7 @@ static void test_wolfSSL_ASN1_TIME_to_generalizedtime(void){
     WOLFSSL_ASN1_TIME *out;
     WOLFSSL_ASN1_TIME *gtime;
     int tlen = 0;
+    unsigned char data[ASN_GENERALIZED_TIME_SIZE];
 
     printf(testingFmt, "wolfSSL_ASN1_TIME_to_generalizedtime()");
 
@@ -19704,6 +19705,8 @@ static void test_wolfSSL_ASN1_TIME_to_generalizedtime(void){
 =======
     tlen = wolfSSL_ASN1_TIME_get_length(t);
     AssertIntEQ(tlen, ASN_UTC_TIME_SIZE);
+    wolfSSL_ASN1_TIME_get_data(t,data);
+    AssertStrEQ((char*)data, "050727123456Z");
     gtime = wolfSSL_ASN1_TIME_to_generalizedtime(t, &out);
 >>>>>>> wolfSSL_ASN1_TIME_get_length()
     AssertIntEQ(gtime->data[0], ASN_GENERALIZED_TIME);
@@ -19713,6 +19716,7 @@ static void test_wolfSSL_ASN1_TIME_to_generalizedtime(void){
     /* Generalized Time test */
     XMEMSET(t, 0, ASN_GENERALIZED_TIME_SIZE);
     XMEMSET(out, 0, ASN_GENERALIZED_TIME_SIZE);
+    XMEMSET(data, 0, ASN_GENERALIZED_TIME_SIZE);
     gtime = NULL;
     t->data[0] = ASN_GENERALIZED_TIME;
     t->data[1] = ASN_GENERALIZED_TIME_SIZE;
@@ -19723,6 +19727,8 @@ static void test_wolfSSL_ASN1_TIME_to_generalizedtime(void){
 
     tlen = wolfSSL_ASN1_TIME_get_length(t);
     AssertIntEQ(tlen, ASN_GENERALIZED_TIME_SIZE);
+    wolfSSL_ASN1_TIME_get_data(t,data);
+    AssertStrEQ((char*)data, "20050727123456Z");
     gtime = wolfSSL_ASN1_TIME_to_generalizedtime(t, &out);
 >>>>>>> wolfSSL_ASN1_TIME_get_length()
     AssertIntEQ(gtime->data[0], ASN_GENERALIZED_TIME);
