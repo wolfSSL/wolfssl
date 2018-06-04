@@ -19700,15 +19700,11 @@ static void test_wolfSSL_ASN1_TIME_to_generalizedtime(void){
     t->data[1] = ASN_UTC_TIME_SIZE;
     XMEMCPY(t->data + 2,"050727123456Z",ASN_UTC_TIME_SIZE);
 
-<<<<<<< HEAD
-    AssertNotNull(gtime = wolfSSL_ASN1_TIME_to_generalizedtime(t, &out));
-=======
     tlen = wolfSSL_ASN1_TIME_get_length(t);
     AssertIntEQ(tlen, ASN_UTC_TIME_SIZE);
     wolfSSL_ASN1_TIME_get_data(t,data);
     AssertStrEQ((char*)data, "050727123456Z");
     gtime = wolfSSL_ASN1_TIME_to_generalizedtime(t, &out);
->>>>>>> wolfSSL_ASN1_TIME_get_length()
     AssertIntEQ(gtime->data[0], ASN_GENERALIZED_TIME);
     AssertIntEQ(gtime->data[1], ASN_GENERALIZED_TIME_SIZE);
     AssertStrEQ((char*)gtime->data + 2, "20050727123456Z");
@@ -19721,16 +19717,12 @@ static void test_wolfSSL_ASN1_TIME_to_generalizedtime(void){
     t->data[0] = ASN_GENERALIZED_TIME;
     t->data[1] = ASN_GENERALIZED_TIME_SIZE;
     XMEMCPY(t->data + 2,"20050727123456Z",ASN_GENERALIZED_TIME_SIZE);
-<<<<<<< HEAD
-    AssertNotNull(gtime = wolfSSL_ASN1_TIME_to_generalizedtime(t, &out));
-=======
 
     tlen = wolfSSL_ASN1_TIME_get_length(t);
     AssertIntEQ(tlen, ASN_GENERALIZED_TIME_SIZE);
     wolfSSL_ASN1_TIME_get_data(t,data);
     AssertStrEQ((char*)data, "20050727123456Z");
     gtime = wolfSSL_ASN1_TIME_to_generalizedtime(t, &out);
->>>>>>> wolfSSL_ASN1_TIME_get_length()
     AssertIntEQ(gtime->data[0], ASN_GENERALIZED_TIME);
     AssertIntEQ(gtime->data[1], ASN_GENERALIZED_TIME_SIZE);
     AssertStrEQ((char*)gtime->data + 2, "20050727123456Z");
@@ -19754,6 +19746,31 @@ static void test_wolfSSL_ASN1_TIME_to_generalizedtime(void){
 #endif
 }
 
+static void test_wolfSSL_X509_CA_num(void){
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERT)
+    WOLFSSL_X509_STORE *store;
+    WOLFSSL_X509 *x509_1, *x509_2;
+    int ca_num = 0;
+
+    printf(testingFmt, "wolfSSL_X509_CA_num()");
+
+    store = wolfSSL_X509_STORE_new();
+    x509_1 = wolfSSL_X509_load_certificate_file(svrCertFile, WOLFSSL_FILETYPE_PEM);
+    wolfSSL_X509_STORE_add_cert(store, x509_1);
+    ca_num = wolfSSL_X509_CA_num(store);
+    AssertIntEQ(ca_num, 1);
+
+    x509_2 = wolfSSL_X509_load_certificate_file(eccCertFile, WOLFSSL_FILETYPE_PEM);
+    wolfSSL_X509_STORE_add_cert(store, x509_2);
+    ca_num = wolfSSL_X509_CA_num(store);
+    AssertIntEQ(ca_num, 2);
+
+    wolfSSL_X509_free(x509_1);
+    wolfSSL_X509_free(x509_2);
+    wolfSSL_X509_STORE_free(store);
+    printf(resultFmt, passed);
+#endif
+}
 static void test_wolfSSL_X509_check_ca(void){
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
     WOLFSSL_X509 *x509;
@@ -20989,10 +21006,12 @@ static void test_wolfSSL_X509_CRL(void)
 
 static void test_wolfSSL_i2c_ASN1_INTEGER(void)
 {
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
     ASN1_INTEGER *a;
     unsigned char *pp,*tpp;
     int ret;
+
+    printf(testingFmt, "wolfSSL_i2c_ASN1_INTEGER");
 
     a = wolfSSL_ASN1_INTEGER_new();
 
@@ -21000,13 +21019,13 @@ static void test_wolfSSL_i2c_ASN1_INTEGER(void)
     a->intData[0] = ASN_INTEGER;
     a->intData[1] = 1;
     a->intData[2] = 40;
-    ret = wolfSSL_i2c_ASN1_INTEGER(a, NULL);
+    ret = i2c_ASN1_INTEGER(a, NULL);
     AssertIntEQ(ret, 1);
     AssertNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
                 DYNAMIC_TYPE_TMP_BUFFER));
     tpp = pp;
     XMEMSET(pp, 0, ret + 1);
-    wolfSSL_i2c_ASN1_INTEGER(a, &pp);
+    i2c_ASN1_INTEGER(a, &pp); 
     pp--;
     AssertIntEQ(*pp, 40);
     XFREE(tpp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -21079,7 +21098,7 @@ static void test_wolfSSL_i2c_ASN1_INTEGER(void)
     wolfSSL_ASN1_INTEGER_free(a);
 
     printf(resultFmt, passed);
-#endif /* OPENSSL_EXTRA */
+#endif /* OPENSSL_EXTRA && !NO_ASN */
 }
 
 #ifndef NO_INLINE
@@ -21262,6 +21281,7 @@ void ApiTest(void)
     test_wolfSSL_d2i_PrivateKeys_bio();
 #endif /* OPENSSL_ALL || WOLFSSL_ASIO */
 
+    test_wolfSSL_X509_CA_num();
     /* test the no op functions for compatibility */
     test_no_op_functions();
 

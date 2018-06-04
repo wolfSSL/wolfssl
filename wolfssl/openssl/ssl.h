@@ -404,6 +404,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_CTX_set_info_callback wolfSSL_CTX_set_info_callback
 #define SSL_CTX_set_alpn_protos   wolfSSL_CTX_set_alpn_protos
 #define ERR_peek_error wolfSSL_ERR_peek_error
+#define ERR_peek_last_error wolfSSL_ERR_peek_last_error
 #define ERR_peek_last_error_line  wolfSSL_ERR_peek_last_error_line
 #define ERR_peek_errors_fp         wolfSSL_ERR_peek_errors_fp
 #define ERR_GET_REASON wolfSSL_ERR_GET_REASON
@@ -924,7 +925,6 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define SSL_get0_session                  wolfSSL_SSL_get0_session
 #define X509_check_host                   wolfSSL_X509_check_host
 #define i2a_ASN1_INTEGER                  wolfSSL_i2a_ASN1_INTEGER
-#define i2c_ASN1_INTEGER                  wolfSSL_i2c_ASN1_INTEGER
 #define ERR_peek_error_line_data          wolfSSL_ERR_peek_error_line_data
 #define ERR_load_BIO_strings              wolfSSL_ERR_load_BIO_strings
 #define SSL_CTX_set_tlsext_ticket_key_cb  wolfSSL_CTX_set_tlsext_ticket_key_cb
@@ -950,10 +950,13 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY || WOLFSSL_MYSQL_COMPATIBLE || 
           OPENSSL_ALL || HAVE_LIGHTY */
 
+#ifdef OPENSSL_EXTRA
 #define X509_STORE_CTX_set_time           wolfSSL_X509_STORE_CTX_set_time
 #define SSL_CTX_add_client_CA             wolfSSL_CTX_add_client_CA
 #define SSL_CTX_set_srp_password          wolfSSL_CTX_set_srp_password
 #define SSL_CTX_set_srp_username          wolfSSL_CTX_set_srp_username
+#define OPENSSL_add_all_algorithms_noconf wolfSSL_OPENSSL_add_all_alogrithms_noconf
+#define i2c_ASN1_INTEGER                  wolfSSL_i2c_ASN1_INTEGER
 
 #define ERR_NUM_ERRORS                  16
 #define EVP_PKEY_RSA                    6 
@@ -962,6 +965,11 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define LN_pkcs9_emailAddress           "emailAddress"
 #define NID_pkcs9_emailAddress          48
 #define OBJ_pkcs9_emailAddress          1L,2L,840L,113539L,1L,9L,1L
+
+#define SSL_get_rbio                      wolfSSL_SSL_get_rbio
+#define SSL_get_wbio                      wolfSSL_SSL_get_wbio
+#define SSL_do_handshake                  wolfSSL_SSL_do_handshake
+#endif  /* OPENSSL_EXTRA */
 
 #ifdef __cplusplus
     } /* extern "C" */

@@ -32193,12 +32193,11 @@ void wolfSSL_ERR_load_crypto_strings(void)
     return;
 }
 
-#ifndef NO_WOLFSSL_STUB
 unsigned long wolfSSL_ERR_peek_last_error(void)
 {
     WOLFSSL_ENTER("wolfSSL_ERR_peek_last_error");
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_NGINX)
     {
         int ret;
 
@@ -32214,7 +32213,7 @@ unsigned long wolfSSL_ERR_peek_last_error(void)
     return (unsigned long)(0 - NOT_COMPILED_IN);
 #endif
 }
-#endif
+/* Remove ifdef */
 
 #ifndef NO_WOLFSSL_STUB
 int wolfSSL_FIPS_mode(void)
@@ -34211,4 +34210,35 @@ int wolfSSL_i2c_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER *a, unsigned char **pp)
 }
 #endif /* !NO_ASN */
 
-#endif  /* OPENSSLEXTRA */
+#ifndef NO_CERT
+int wolfSSL_X509_CA_num(WOLFSSL_X509_STORE* store)
+{
+    int i = 0;
+    int cnt_ret = 0;
+    Signer **table;
+
+    WOLFSSL_ENTER("wolfSSL_X509_CA_num");
+    if (store == NULL || store->cm == NULL){
+        WOLFSSL_MSG("invalid parameter");
+        return WOLFSSL_FAILURE;
+    }
+
+    table = store->cm->caTable;
+    if (table){
+        if (wc_LockMutex(&store->cm->caLock) == 0){
+            for (i = 0; i < CA_TABLE_SIZE; i++) {
+                Signer* signer = table[i];
+                while (signer) {
+                    Signer* next = signer->next;
+                    cnt_ret++;
+                    signer = next;
+                }
+            }
+            wc_UnLockMutex(&store->cm->caLock);
+        }
+    }
+
+    return cnt_ret;
+}
+#endif /* !NO_CERT */
+#endif  /* OPENSSL_EXTRA */

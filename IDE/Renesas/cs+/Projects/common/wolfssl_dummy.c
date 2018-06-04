@@ -19,7 +19,10 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-typedef unsigned long time_t;
+#include "../common/user_settings.h" 
+#include "../../../../../wolfssl/wolfcrypt/types.h" 
+
+//typedef unsigned long time_t;
 
 #define YEAR 2018
 #define MON  5
@@ -38,4 +41,13 @@ int strncasecmp(const char *s1, const char * s2, unsigned int sz)
         if(toupper(s1++) != toupper(s2++))
 	    return 1;
     return 0;
+}
+
+char* getenv(const char *env)
+{
+    if (XSTRNCMP(env, "RANDFILE", 9) == 0)
+        return WOLFSSL_GETENV_RANDFILE;
+    else if (XSTRNCMP(env, "HOME", 5) == 0)
+        return WOLFSSL_GETENV_HOME;
+    else return 0;
 }

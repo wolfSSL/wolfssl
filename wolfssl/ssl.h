@@ -2995,6 +2995,7 @@ WOLFSSL_API int wolfSSL_ASN1_TIME_get_data(WOLFSSL_ASN1_TIME *t, unsigned char *
 WOLFSSL_API WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_to_generalizedtime(WOLFSSL_ASN1_TIME *t,
                                                                 WOLFSSL_ASN1_TIME **out);
 WOLFSSL_API int wolfSSL_i2c_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER *a, unsigned char **pp);
+WOLFSSL_API int wolfSSL_X509_CA_num(WOLFSSL_X509_STORE *store);
 #endif /* OPENSSL_EXTRA */
 
 #ifdef HAVE_PK_CALLBACKS
