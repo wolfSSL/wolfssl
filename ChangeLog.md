@@ -1,4 +1,4 @@
-# wolfSSL Release 3.15.0 (05/05/2018)
+# wolfSSL Release 3.15.0 (06/05/2018)
 
 Release 3.15.0 of wolfSSL embedded TLS has bug fixes and new features including:
 
