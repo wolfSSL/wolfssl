@@ -136,6 +136,7 @@ enum processReply {
 
 
 #ifndef WOLFSSL_NO_TLS12
+#if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
 
 /* Server random bytes for TLS v1.3 described downgrade protection mechanism. */
 static const byte tls13Downgrade[7] = {
@@ -143,6 +144,7 @@ static const byte tls13Downgrade[7] = {
 };
 #define TLS13_DOWNGRADE_SZ  sizeof(tls13Downgrade)
 
+#endif /* !NO_WOLFSSL_SERVER || !NO_WOLFSSL_CLIENT */
 
 #ifndef NO_OLD_TLS
 static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
@@ -2735,7 +2737,7 @@ static INLINE void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsType)
 #endif /* !NO_WOLFSSL_SERVER || !NO_CERTS */
 
 #ifndef WOLFSSL_NO_TLS12
-
+#if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
 #if !defined(NO_DH) || defined(HAVE_ECC) || \
                                        (!defined(NO_RSA) && defined(WC_RSA_PSS))
 
@@ -2766,11 +2768,9 @@ static enum wc_HashType HashAlgoToType(int hashAlgo)
 
     return WC_HASH_TYPE_NONE;
 }
-
 #endif /* !NO_DH || HAVE_ECC || (!NO_RSA && WC_RSA_PSS) */
-
-#endif
-
+#endif /* !NO_WOLFSSL_SERVER || !NO_WOLFSSL_CLIENT */
+#endif /* !WOLFSSL_NO_TLS12 */
 
 #ifndef NO_CERTS
 
@@ -2862,6 +2862,7 @@ void FreeX509(WOLFSSL_X509* x509)
 }
 
 
+#if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
 /* Encode the signature algorithm into buffer.
  *
  * hashalgo  The hash algorithm.
@@ -2934,10 +2935,12 @@ static void SetDigest(WOLFSSL* ssl, int hashAlgo)
     } /* switch */
 }
 #endif /* !WOLFSSL_NO_TLS12 && !WOLFSSL_NO_CLIENT_AUTH */
+#endif /* !NO_WOLFSSL_SERVER || !NO_WOLFSSL_CLIENT */
 #endif /* !NO_CERTS */
 
 #ifndef NO_RSA
 #ifndef WOLFSSL_NO_TLS12
+#if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
 static int TypeHash(int hashAlgo)
 {
     switch (hashAlgo) {
@@ -2961,6 +2964,7 @@ static int TypeHash(int hashAlgo)
 
     return 0;
 }
+#endif /* !NO_WOLFSSL_SERVER && !NO_WOLFSSL_CLIENT */
 #endif /* !WOLFSSL_NO_TLS12 */
 
 #if defined(WC_RSA_PSS)
@@ -7078,6 +7082,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 
 #endif /* WOLFSSL_NO_TLS12 */
 
+#if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
     /* cipher requirements */
     enum {
         REQUIRES_RSA,
@@ -7632,6 +7637,8 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 
         return 0;
     }
+
+#endif /* !NO_WOLFSSL_SERVER && !NO_WOLFSSL_CLIENT */
 
 
 #ifndef NO_CERTS

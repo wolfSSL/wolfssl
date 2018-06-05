@@ -1147,6 +1147,8 @@ int wolfSSL_negotiate(WOLFSSL* ssl)
     }
 #endif
 
+    (void)ssl;
+
     WOLFSSL_LEAVE("wolfSSL_negotiate", err);
 
     return err;
@@ -8433,11 +8435,11 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
 #ifdef OPENSSL_EXTRA
     WOLFSSL_METHOD* wolfSSLv23_method(void) {
-        WOLFSSL_METHOD* m;
+        WOLFSSL_METHOD* m = NULL;
         WOLFSSL_ENTER("wolfSSLv23_method");
-#ifndef NO_WOLFSSL_CLIENT
+#if !defined(NO_WOLFSSL_CLIENT)
         m = wolfSSLv23_client_method();
-#else
+#elif !defined(NO_WOLFSSL_SERVER)
         m = wolfSSLv23_server_method();
 #endif
         if (m != NULL) {

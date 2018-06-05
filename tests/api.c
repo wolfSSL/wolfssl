@@ -377,7 +377,8 @@ typedef struct testVector {
 static const char* passed = "passed";
 static const char* failed = "failed";
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    (!defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT))
     static const char* bogusFile  =
     #ifdef _WIN32
         "NUL"
@@ -385,7 +386,7 @@ static const char* failed = "failed";
         "/dev/null"
     #endif
     ;
-#endif
+#endif /* !NO_FILESYSTEM && !NO_CERTS && (!NO_WOLFSSL_SERVER || !NO_WOLFSSL_CLIENT) */
 
 enum {
     TESTING_RSA = 1,
@@ -1147,7 +1148,7 @@ static void test_wolfSSL_EVP_get_cipherbynid(void)
  *----------------------------------------------------------------------------*/
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
     !defined(NO_RSA)        && !defined(SINGLE_THREADED) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
+    (!defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT))
 #define HAVE_IO_TESTS_DEPENDENCIES
 #endif
 
