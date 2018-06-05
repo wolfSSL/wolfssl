@@ -1,26 +1,26 @@
-# wolfSSL Release 3.15.0 (05/01/2018)
+# wolfSSL Release 3.15.0 (05/05/2018)
 
 Release 3.15.0 of wolfSSL embedded TLS has bug fixes and new features including:
 
 * Support for TLS 1.3 Draft versions 23, 26 and 28.
-* Improved downgrade support for TLS 1.3.
-* Improved TLS 1.3 support from interoperability testing.
-* Single Precision assembly code added for ARM and 64-bit ARM.
+* Add FIPS SGX support!
+* Single Precision assembly code added for ARM and 64-bit ARM to enhance performance.
 * Improved performance for Single Precision maths on 32-bit.
-* Allow TLS 1.2 to be compiled out.
-* Ed25519 support in TLS 1.2 and 1.3.
+* Improved downgrade support for the TLS 1.3 handshake.
+* Improved TLS 1.3 support from interoperability testing.
+* Added option to allow TLS 1.2 to be compiled out to reduce size and enhance security.
+* Added option to support Ed25519 in TLS 1.2 and 1.3.
 * Update wolfSSL_HMAC_Final() so the length parameter is optional.
 * Various fixes for Coverity static analysis reports.
 * Add define to use internal struct timeval (USE_WOLF_TIMEVAL_T).
 * Switch LowResTimer() to call XTIME instead of time(0) for better portability.
-* Expanded OpenSSL compatibility layer.
+* Expanded OpenSSL compatibility layer with a bevy of new functions.
 * Added Renesas CS+ project files.
 * Align DH support with NIST SP 800-56A, add wc_DhSetKey_ex() for q parameter.
 * Add build option for CAVP self test build (--enable-selftest).
 * Expose mp_toradix() when WOLFSSL_PUBLIC_MP is defined.
-* Add FIPS SGX support.
 * Example certificate expiration dates and generation script updated.
-* Additional optimizations to trim out unused strings depending on build options. 
+* Additional optimizations to trim out unused strings depending on build options.
 * Fix for DN tag strings to have “=” when returning the string value to users.
 * Fix for wolfSSL_ERR_get_error_line_data return value if no more errors are in the queue.
 * Fix for AES-CBC IV value with PIC32 hardware acceleration.
@@ -85,6 +85,7 @@ Release 3.15.0 of wolfSSL embedded TLS has bug fixes and new features including:
 * Add a disable option (--disable-optflags) to turn off the default optimization flags so user may supply their own custom flags.
 * Correctly touch the dummy fips.h header.
 
+If you have questions on any of this, then email us at info@wolfssl.com.
 See INSTALL file for build instructions.
 More info can be found on-line at http://wolfssl.com/wolfSSL/Docs.html
 
