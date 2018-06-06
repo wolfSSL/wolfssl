@@ -15712,7 +15712,10 @@ static void test_wolfSSL_PEM_PrivateKey(void)
     AssertIntEQ(PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL),
             WOLFSSL_SUCCESS);
 
-    /* test of creating new EVP_PKEY */
+    /* test creating new EVP_PKEY with bad arg */
+    AssertNull((pkey2 = PEM_read_bio_PrivateKey(NULL, NULL, NULL, NULL)));
+
+    /* test creating new EVP_PKEY with good args */
     AssertNotNull((pkey2 = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL)));
     AssertIntEQ((int)XMEMCMP(pkey->pkey.ptr, pkey2->pkey.ptr, pkey->pkey_sz),0);
 
@@ -17518,6 +17521,11 @@ static void test_wolfSSL_BIO_gets(void)
 
     printf(testingFmt, "wolfSSL_X509_BIO_gets()");
 
+    /* try with bad args */
+    AssertNull(bio = BIO_new_mem_buf(NULL, sizeof(msg)));
+    AssertNull(bio = BIO_new_mem_buf((void*)msg, -1));
+
+    /* try with real msg */
     AssertNotNull(bio = BIO_new_mem_buf((void*)msg, sizeof(msg)));
     XMEMSET(buffer, 0, bufferSz);
     AssertNotNull(BIO_push(bio, BIO_new(BIO_s_bio())));

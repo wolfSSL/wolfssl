@@ -11599,12 +11599,15 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     WOLFSSL_BIO* wolfSSL_BIO_new_mem_buf(void* buf, int len)
     {
         WOLFSSL_BIO* bio = NULL;
-        if (buf == NULL)
+
+        if (buf == NULL || len < 0) {
             return bio;
+        }
 
         bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
-        if (bio == NULL)
+        if (bio == NULL) {
             return bio;
+        }
 
         bio->memLen = bio->wrSz = len;
         bio->mem    = (byte*)XMALLOC(len, 0, DYNAMIC_TYPE_OPENSSL);
@@ -27388,6 +27391,10 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
     int eccFlag = 0;
 
     WOLFSSL_ENTER("wolfSSL_PEM_read_bio_PrivateKey");
+
+    if (bio == NULL) {
+        return pkey;
+    }
 
     if ((ret = wolfSSL_BIO_pending(bio)) > 0) {
         memSz = ret;
