@@ -160,7 +160,7 @@ static int NonBlockingSSL_Accept(SSL* ssl)
             || error == WC_PENDING_E
         #endif
         ) {
-            #ifndef CYASSL_CALLBACKS
+            #ifndef WOLFSSL_CALLBACKS
                 ret = SSL_accept(ssl);
             #else
                 ret = SSL_accept_ex(ssl,
@@ -285,7 +285,7 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
 static void NonBlockingServerRead(WOLFSSL* ssl, char* input, int inputLen)
 {
     int ret, err;
-    char buffer[CYASSL_MAX_ERROR_SZ];
+    char buffer[WOLFSSL_MAX_ERROR_SZ];
 
     /* Read data */
     do {
@@ -301,7 +301,7 @@ static void NonBlockingServerRead(WOLFSSL* ssl, char* input, int inputLen)
             }
             else
         #endif
-        #ifdef CYASSL_DTLS
+        #ifdef WOLFSSL_DTLS
             if (wolfSSL_dtls(ssl) && err == DECRYPT_ERROR) {
                 printf("Dropped client's message due to a bad MAC\n");
             }
@@ -1800,7 +1800,7 @@ exit:
         args.signal = &ready;
         InitTcpReady(&ready);
 
-#if defined(DEBUG_CYASSL) && !defined(WOLFSSL_MDK_SHELL)
+#if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_MDK_SHELL)
         wolfSSL_Debugging_ON();
 #endif
         wolfSSL_Init();
