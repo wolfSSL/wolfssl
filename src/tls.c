@@ -99,12 +99,13 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions);
 #endif
 
 
+#ifndef WOLFSSL_NO_TLS12
+
 #ifdef WOLFSSL_SHA384
     #define P_HASH_MAX_SIZE WC_SHA384_DIGEST_SIZE
 #else
     #define P_HASH_MAX_SIZE WC_SHA256_DIGEST_SIZE
 #endif
-
 
 /* compute p_hash for MD5, SHA-1, SHA-256, or SHA-384 for TLSv1 PRF */
 static int p_hash(byte* result, word32 resLen, const byte* secret,
@@ -233,6 +234,8 @@ static int p_hash(byte* result, word32 resLen, const byte* secret,
 
 #undef P_HASH_MAX_SIZE
 
+#endif /* !WOLFSSL_NO_TLS12 */
+
 
 #ifndef NO_OLD_TLS
 
@@ -324,6 +327,8 @@ static int doPRF(byte* digest, word32 digLen, const byte* secret,word32 secLen,
 
 #endif
 
+
+#ifndef WOLFSSL_NO_TLS12
 
 /* Wrapper to call straight thru to p_hash in TSL 1.2 cases to remove stack
    use */
@@ -452,6 +457,7 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
     return ret;
 }
 
+#endif /* !WOLFSSL_NO_TLS12 */
 
 #ifndef NO_OLD_TLS
 
@@ -479,6 +485,8 @@ ProtocolVersion MakeTLSv1_1(void)
 #endif /* !NO_OLD_TLS */
 
 
+#ifndef WOLFSSL_NO_TLS12
+
 ProtocolVersion MakeTLSv1_2(void)
 {
     ProtocolVersion pv;
@@ -487,6 +495,8 @@ ProtocolVersion MakeTLSv1_2(void)
 
     return pv;
 }
+
+#endif /* !WOLFSSL_NO_TLS12 */
 
 #ifdef WOLFSSL_TLS13
 /* The TLS v1.3 protocol version.
@@ -503,6 +513,7 @@ ProtocolVersion MakeTLSv1_3(void)
 }
 #endif
 
+#ifndef WOLFSSL_NO_TLS12
 
 #ifdef HAVE_EXTENDED_MASTER
 static const byte ext_master_label[EXT_MASTER_LABEL_SZ + 1] =
@@ -876,6 +887,8 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
 
     return ret;
 }
+
+#endif /* !WOLFSSL_NO_TLS12 */
 
 #ifdef HAVE_TLS_EXTENSIONS
 
@@ -9464,6 +9477,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 
 #endif /* !NO_OLD_TLS */
 
+#ifndef WOLFSSL_NO_TLS12
 
     WOLFSSL_METHOD* wolfTLSv1_2_client_method(void)
     {
@@ -9480,6 +9494,8 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
             InitSSL_Method(method, MakeTLSv1_2());
         return method;
     }
+
+#endif /* WOLFSSL_NO_TLS12 */
 
 #ifdef WOLFSSL_TLS13
     /* The TLS v1.3 client method data.
@@ -9586,6 +9602,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
     }
 #endif /* !NO_OLD_TLS */
 
+#ifndef WOLFSSL_NO_TLS12
 
     WOLFSSL_METHOD* wolfTLSv1_2_server_method(void)
     {
@@ -9604,6 +9621,8 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
         }
         return method;
     }
+
+#endif /* !WOLFSSL_NO_TLS12 */
 
 #ifdef WOLFSSL_TLS13
     /* The TLS v1.3 server method data.

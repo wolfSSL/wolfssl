@@ -27,7 +27,6 @@
     <ClCompile Include="..\..\wolfcrypt\src\arc4.c" />
     <ClCompile Include="..\..\wolfcrypt\src\asm.c" />
     <ClCompile Include="..\..\wolfcrypt\src\asn.c" />
-    <ClCompile Include="..\..\wolfcrypt\src\async.c" />
     <ClCompile Include="..\..\wolfcrypt\src\blake2b.c" />
     <ClCompile Include="..\..\wolfcrypt\src\camellia.c" />
     <ClCompile Include="..\..\wolfcrypt\src\chacha.c" />
@@ -40,7 +39,6 @@
     <ClCompile Include="..\..\wolfcrypt\src\dh.c" />
     <ClCompile Include="..\..\wolfcrypt\src\dsa.c" />
     <ClCompile Include="..\..\wolfcrypt\src\ecc.c" />
-    <ClCompile Include="..\..\wolfcrypt\src\ecc_fp.c" />
     <ClCompile Include="..\..\wolfcrypt\src\ed25519.c" />
     <ClCompile Include="..\..\wolfcrypt\src\error.c" />
     <ClCompile Include="..\..\wolfcrypt\src\fe_low_mem.c" />
@@ -192,12 +190,8 @@
     </Link>
     <ClCompile>
       <ExceptionHandling>Async</ExceptionHandling>
-      <PreprocessorDefinitions>_USRDLL;WOLFSSL_DLL;BUILDING_WOLFSSL;WOLFSSL_USER_SETTINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_USRDLL;WOLFSSL_DLL;BUILDING_WOLFSSL;WOLFSSL_USER_SETTINGS;_USE_64BIT_TIME_T;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
-      <ObjectFileName>$(IntDir)</ObjectFileName>
-      <XMLDocumentationFileName>$(IntDir)</XMLDocumentationFileName>
-      <ProgramDataBaseFileName>$(IntDir)vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|INtime'">
@@ -211,12 +205,8 @@
     </Link>
     <ClCompile>
       <ExceptionHandling>Async</ExceptionHandling>
-      <PreprocessorDefinitions>_USRDLL;WOLFSSL_DLL;BUILDING_WOLFSSL;WOLFSSL_USER_SETTINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_USRDLL;WOLFSSL_DLL;BUILDING_WOLFSSL;WOLFSSL_USER_SETTINGS;_USE_64BIT_TIME_T;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\..\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
-      <ObjectFileName>$(IntDir)</ObjectFileName>
-      <XMLDocumentationFileName>$(IntDir)</XMLDocumentationFileName>
-      <ProgramDataBaseFileName>$(IntDir)vc$(PlatformToolsetVersion).pdb</ProgramDataBaseFileName>
     </ClCompile>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

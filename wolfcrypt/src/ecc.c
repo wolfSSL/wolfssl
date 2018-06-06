@@ -122,6 +122,10 @@ ECC Curve Sizes:
     #include <wolfssl/wolfcrypt/hash.h>
 #endif
 
+#ifdef WOLF_CRYPTO_DEV
+    #include <wolfssl/wolfcrypt/cryptodev.h>
+#endif
+
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -2964,6 +2968,14 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
        return BAD_FUNC_ARG;
    }
 
+#ifdef WOLF_CRYPTO_DEV
+    if (private_key->devId != INVALID_DEVID) {
+        err = wc_CryptoDev_Ecdh(private_key, public_key, out, outlen);
+        if (err != NOT_COMPILED_IN)
+            return err;
+    }
+#endif
+
    /* type valid? */
    if (private_key->type != ECC_PRIVATEKEY &&
            private_key->type != ECC_PRIVATEKEY_ONLY) {
@@ -3666,8 +3678,10 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
     XMEMSET(key, 0, sizeof(ecc_key));
     key->state = ECC_STATE_NONE;
 
-#ifdef PLUTON_CRYPTO_ECC
+#if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_DEV)
     key->devId = devId;
+#else
+    (void)devId;
 #endif
 
 #ifdef WOLFSSL_ATECC508A
@@ -3703,8 +3717,6 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
     /* handle as async */
     ret = wolfAsync_DevCtxInit(&key->asyncDev, WOLFSSL_ASYNC_MARKER_ECC,
                                                             key->heap, devId);
-#else
-    (void)devId;
 #endif
 
     return ret;
@@ -3811,6 +3823,14 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
                                                                 rng == NULL) {
         return ECC_BAD_ARG_E;
     }
+
+#ifdef WOLF_CRYPTO_DEV
+    if (key->devId != INVALID_DEVID) {
+        err = wc_CryptoDev_EccSign(in, inlen, out, outlen, rng, key);
+        if (err != NOT_COMPILED_IN)
+            return err;
+    }
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     err = wc_ecc_alloc_async(key);
@@ -4462,6 +4482,14 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
         return ECC_BAD_ARG_E;
     }
 
+#ifdef WOLF_CRYPTO_DEV
+    if (key->devId != INVALID_DEVID) {
+        err = wc_CryptoDev_EccVerify(sig, siglen, hash, hashlen, res, key);
+        if (err != NOT_COMPILED_IN)
+            return err;
+    }
+#endif
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     err = wc_ecc_alloc_async(key);
     if (err != 0)
@@ -4496,6 +4524,13 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
             key->state = ECC_STATE_VERIFY_DO;
 
             err = wc_ecc_verify_hash_ex(r, s, hash, hashlen, res, key);
+
+        #ifndef WOLFSSL_ASYNC_CRYPT
+            /* done with R/S */
+            mp_clear(r);
+            mp_clear(s);
+        #endif
+
             if (err < 0) {
                 break;
             }
@@ -4504,10 +4539,6 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
         case ECC_STATE_VERIFY_RES:
             key->state = ECC_STATE_VERIFY_RES;
             err = 0;
-
-            /* done with R/S */
-            mp_clear(r);
-            mp_clear(s);
             break;
 
         default:

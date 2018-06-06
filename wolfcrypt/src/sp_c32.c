@@ -3107,7 +3107,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     byte* out, word32* outLen)
 {
 #ifdef WOLFSSL_SP_SMALL
-    sp_digit* d;
+    sp_digit* d = NULL;
     sp_digit* a;
     sp_digit* m;
     sp_digit* r;
@@ -6476,7 +6476,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
     byte* out, word32* outLen)
 {
 #ifdef WOLFSSL_SP_SMALL
-    sp_digit* d;
+    sp_digit* d = NULL;
     sp_digit* a;
     sp_digit* m;
     sp_digit* r;

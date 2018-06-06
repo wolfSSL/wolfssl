@@ -422,6 +422,9 @@ int main( int argc, char **argv )
 /* Init Blake2b digest, track size in case final doesn't want to "remember" */
 int wc_InitBlake2b(Blake2b* b2b, word32 digestSz)
 {
+    if (b2b == NULL){
+        return -1;
+    }
     b2b->digestSz = digestSz;
 
     return blake2b_init(b2b->S, (byte)digestSz);

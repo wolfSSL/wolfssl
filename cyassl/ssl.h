@@ -485,7 +485,6 @@
 #define CyaDTLSv1_2_client_method         wolfDTLSv1_2_client_method
 #define CyaDTLSv1_2_server_method         wolfDTLSv1_2_server_method
 #define CyaSSL_set_group_messages         wolfSSL_set_group_messages
-#define CyaSSL_set_using_nonblock         wolfSSL_set_using_nonblock
 #define CyaSSL_CTX_set_cipher_list        wolfSSL_CTX_set_cipher_list
 #define CyaSSL_CTX_set_group_messages     wolfSSL_CTX_set_group_messages
 #define CyaSSL_CTX_set_session_cache_mode wolfSSL_CTX_set_session_cache_mode
@@ -623,6 +622,7 @@
 #define CyaSSL_dtls_get_peer            wolfSSL_dtls_get_peer
 #define CyaSSL_dtls_got_timeout         wolfSSL_dtls_got_timeout
 #define CyaSSL_dtls_get_current_timeout wolfSSL_dtls_get_current_timeout
+#define CyaSSL_set_using_nonblock       wolfSSL_dtls_set_using_nonblock
 
 /* Certificate Manager */
 #define CyaSSL_CertManagerNew          wolfSSL_CertManagerNew

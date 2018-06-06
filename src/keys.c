@@ -2125,7 +2125,9 @@ int SetCipherSpecs(WOLFSSL* ssl)
     if (ssl->version.major == 3 && ssl->version.minor >= 1) {
 #ifndef NO_TLS
         ssl->options.tls = 1;
+    #ifndef WOLFSSL_NO_TLS12
         ssl->hmac = TLS_hmac;
+    #endif
         if (ssl->version.minor >= 2) {
             ssl->options.tls1_1 = 1;
             if (ssl->version.minor >= 4)
@@ -3440,14 +3442,14 @@ int MakeMasterSecret(WOLFSSL* ssl)
     }
 #endif
 
-#ifdef NO_OLD_TLS
-    return MakeTlsMasterSecret(ssl);
-#elif !defined(NO_TLS)
-    if (ssl->options.tls) return MakeTlsMasterSecret(ssl);
-#endif
-
 #ifndef NO_OLD_TLS
+    if (ssl->options.tls) return MakeTlsMasterSecret(ssl);
     return MakeSslMasterSecret(ssl);
+#elif !defined(WOLFSSL_NO_TLS12)
+    return MakeTlsMasterSecret(ssl);
+#else
+    (void)ssl;
+    return 0;
 #endif
 }
 

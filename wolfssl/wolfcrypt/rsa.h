@@ -122,6 +122,9 @@ struct RsaKey {
 #ifdef WC_RSA_BLINDING
     WC_RNG* rng;                              /* for PrivateDecrypt blinding */
 #endif
+#ifdef WOLF_CRYPTO_DEV
+    int   devId;
+#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
     #ifdef WOLFSSL_CERT_GEN
@@ -151,7 +154,7 @@ WOLFSSL_API int  wc_CheckRsaKey(RsaKey* key);
 WOLFSSL_LOCAL int wc_InitRsaHw(RsaKey* key);
 #endif /* WOLFSSL_XILINX_CRYPT */
 
-WOLFSSL_LOCAL int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
+WOLFSSL_API int  wc_RsaFunction(const byte* in, word32 inLen, byte* out,
                            word32* outLen, int type, RsaKey* key, WC_RNG* rng);
 
 WOLFSSL_API int  wc_RsaPublicEncrypt(const byte* in, word32 inLen, byte* out,
@@ -246,9 +249,13 @@ WOLFSSL_API int  wc_RsaPrivateDecrypt_ex(const byte* in, word32 inLen,
 WOLFSSL_API int  wc_RsaPrivateDecryptInline_ex(byte* in, word32 inLen,
                       byte** out, RsaKey* key, int type, enum wc_HashType hash,
                       int mgf, byte* label, word32 lableSz);
+#if defined(WC_RSA_DIRECT) || defined(WC_RSA_NO_PADDING)
 WOLFSSL_API int wc_RsaDirect(byte* in, word32 inLen, byte* out, word32* outSz,
                    RsaKey* key, int type, WC_RNG* rng);
+#endif
+
 #endif /* HAVE_FIPS*/
+
 WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
                                                                        word32*);
 WOLFSSL_API int wc_RsaExportKey(RsaKey* key,
@@ -258,8 +265,9 @@ WOLFSSL_API int wc_RsaExportKey(RsaKey* key,
                                 byte* p, word32* pSz,
                                 byte* q, word32* qSz);
 
+WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey*, byte* output, word32 inLen);
+
 #ifdef WOLFSSL_KEY_GEN
-    WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey*, byte* output, word32 inLen);
     WOLFSSL_API int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng);
     WOLFSSL_API int wc_CheckProbablePrime(const byte* p, word32 pSz,
                                           const byte* q, word32 qSz,

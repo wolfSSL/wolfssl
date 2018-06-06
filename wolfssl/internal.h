@@ -773,6 +773,25 @@
     defined(BUILD_TLS_PSK_WITH_AES_256_GCM_SHA384) || \
     defined(BUILD_TLS_DHE_PSK_WITH_AES_256_GCM_SHA384)
     #define BUILD_AESGCM
+#else
+    /* No AES-GCM cipher suites available with build */
+    #define NO_AESGCM_AEAD
+#endif
+
+#if defined(BUILD_TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256) || \
+    defined(BUILD_TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256) || \
+    defined(BUILD_TLS_DHE_PSK_WITH_CHACHA20_POLY1305_SHA256) || \
+    defined(BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256) || \
+    defined(BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256) || \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256) || \
+    defined(BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256) || \
+    defined(BUILD_TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256) || \
+    defined(BUILD_TLS_PSK_WITH_CHACHA20_POLY1305_SHA256) || \
+    defined(BUILD_TLS_CHACHA20_POLY1305_SHA256)
+    /* Have an available ChaCha Poly cipher suite */
+#else
+    /* No ChaCha Poly cipher suites available with build */
+    #define NO_CHAPOL_AEAD
 #endif
 
 #if defined(BUILD_TLS_RSA_WITH_HC_128_SHA) || \
@@ -810,8 +829,9 @@
 #endif
 
 #if defined(WOLFSSL_MAX_STRENGTH) || \
-    defined(HAVE_AESGCM) || defined(HAVE_AESCCM) || \
-    (defined(HAVE_CHACHA) && defined(HAVE_POLY1305))
+    (defined(HAVE_AESGCM) && !defined(NO_AESGCM_AEAD)) || \
+     defined(HAVE_AESCCM) || \
+    (defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && !defined(NO_CHAPOL_AEAD))
 
     #define HAVE_AEAD
 #endif
@@ -1014,6 +1034,7 @@ enum {
 
 
 enum Misc {
+    CIPHER_BYTE = 0x00,            /* Default ciphers */
     ECC_BYTE    = 0xC0,            /* ECC first cipher suite byte */
     QSH_BYTE    = 0xD0,            /* Quantum-safe Handshake cipher suite */
     CHACHA_BYTE = 0xCC,            /* ChaCha first cipher suite */
@@ -1166,6 +1187,12 @@ enum Misc {
     MAX_SYM_KEY_SIZE    = AES_256_KEY_SIZE,
 #else
     MAX_SYM_KEY_SIZE    = WC_MAX_SYM_KEY_SIZE,
+#endif
+
+#ifdef HAVE_SELFTEST
+    AES_256_KEY_SIZE    = 32,
+    AES_IV_SIZE         = 16,
+    AES_128_KEY_SIZE    = 16,
 #endif
 
     AEAD_SEQ_OFFSET     = 4,   /* Auth Data: Sequence number */
@@ -3011,7 +3038,6 @@ typedef struct Options {
     word16            quietShutdown:1;    /* don't send close notify */
     word16            certOnly:1;         /* stop once we get cert */
     word16            groupMessages:1;    /* group handshake messages */
-    word16            usingNonblock:1;    /* are we using nonblocking socket */
     word16            saveArrays:1;       /* save array Memory for user get keys
                                            or psk */
     word16            weOwnRng:1;         /* will be true unless CTX owns */
@@ -3031,6 +3057,7 @@ typedef struct Options {
 #endif
 #endif
 #ifdef WOLFSSL_DTLS
+    word16            dtlsUseNonblock:1;  /* are we using nonblocking socket */
     word16            dtlsHsRetain:1;     /* DTLS retaining HS data */
     word16            haveMcast:1;        /* using multicast ? */
 #ifdef WOLFSSL_SCTP
@@ -3054,6 +3081,10 @@ typedef struct Options {
 #endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
     word16            sentChangeCipher:1; /* Change Cipher Spec sent */
+#endif
+#if !defined(WOLFSSL_NO_CLIENT_AUTH) && defined(HAVE_ED25519) && \
+                                                !defined(NO_ED25519_CLIENT_AUTH)
+    word16            cacheMessages:1;    /* Cache messages for sign/verify */
 #endif
 
     /* need full byte values for this section */
@@ -3348,6 +3379,11 @@ typedef struct HS_Hashes {
 #endif
 #ifdef WOLFSSL_SHA512
     wc_Sha512       hashSha512;         /* sha512 hash of handshake msgs */
+#endif
+#if defined(HAVE_ED25519) && !defined(WOLFSSL_NO_CLIENT_AUTH)
+    byte*           messages;           /* handshake messages */
+    int             length;             /* length of handhsake messages' data */
+    int             prevLen;            /* length of messages but last */
 #endif
 } HS_Hashes;
 
@@ -3875,6 +3911,7 @@ WOLFSSL_LOCAL int wolfSSL_GetMaxRecordSize(WOLFSSL* ssl, int maxFragment);
             word32* outlen, int side, void* ctx);
     #endif /* HAVE_ECC */
     #ifdef HAVE_ED25519
+        WOLFSSL_LOCAL int Ed25519CheckPubKey(WOLFSSL* ssl);
         WOLFSSL_LOCAL int Ed25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz,
             byte* out, word32* outSz, ed25519_key* key, DerBuffer* keyBufInfo,
             void* ctx);
@@ -3965,12 +4002,21 @@ WOLFSSL_LOCAL word32  LowResTimer(void);
     WOLFSSL_LOCAL int  CopyDecodedToX509(WOLFSSL_X509*, DecodedCert*);
 #endif
 
-WOLFSSL_LOCAL const char* const* GetCipherNames(void);
+typedef struct CipherSuiteInfo {
+    const char* name;
+#ifndef NO_ERROR_STRINGS
+    const char* name_iana;
+#endif
+    byte cipherSuite0;
+    byte cipherSuite;
+} CipherSuiteInfo;
+
+WOLFSSL_LOCAL const CipherSuiteInfo* GetCipherNames(void);
 WOLFSSL_LOCAL int GetCipherNamesSize(void);
-WOLFSSL_LOCAL const char* GetCipherNameInternal(const char* cipherName, int cipherSuite);
+WOLFSSL_LOCAL const char* GetCipherNameInternal(const byte cipherSuite0, const byte cipherSuite);
+WOLFSSL_LOCAL const char* GetCipherNameIana(const byte cipherSuite0, const byte cipherSuite);
 WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_internal(WOLFSSL* ssl);
-WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_from_suite(
-    const unsigned char cipherSuite, const unsigned char cipherSuite0);
+WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_iana(WOLFSSL* ssl);
 
 enum encrypt_side {
     ENCRYPT_SIDE_ONLY = 1,

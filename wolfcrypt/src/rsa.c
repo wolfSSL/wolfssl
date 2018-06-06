@@ -190,6 +190,9 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
 
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/logging.h>
+#ifdef WOLF_CRYPTO_DEV
+    #include <wolfssl/wolfcrypt/cryptodev.h>
+#endif
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -237,8 +240,6 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
         return BAD_FUNC_ARG;
     }
 
-    (void)devId;
-
     XMEMSET(key, 0, sizeof(RsaKey));
 
     key->type = RSA_TYPE_UNKNOWN;
@@ -249,6 +250,12 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
     key->dataIsAlloc = 0;
 #ifdef WC_RSA_BLINDING
     key->rng = NULL;
+#endif
+
+#ifdef WOLF_CRYPTO_DEV
+    key->devId = devId;
+#else
+    (void)devId;
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -263,8 +270,6 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
         if (ret != 0)
             return ret;
     #endif /* WC_ASYNC_ENABLE_RSA */
-#else
-    (void)devId;
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
     ret = mp_init_multi(&key->n, &key->e, NULL, NULL, NULL, NULL);
@@ -1564,7 +1569,7 @@ static int wc_RsaFunctionAsync(const byte* in, word32 inLen, byte* out,
 }
 #endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_RSA */
 
-#ifdef WC_RSA_NO_PADDING
+#if defined(WC_RSA_DIRECT) || defined(WC_RSA_NO_PADDING)
 /* Function that does the RSA operation directly with no padding.
  *
  * in       buffer to do operation on
@@ -1658,7 +1663,7 @@ int wc_RsaDirect(byte* in, word32 inLen, byte* out, word32* outSz,
 
     return ret;
 }
-#endif /* WC_RSA_NO_PADDING */
+#endif /* WC_RSA_DIRECT || WC_RSA_NO_PADDING */
 
 
 int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
@@ -1670,6 +1675,15 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
             outLen == NULL || *outLen == 0 || type == RSA_TYPE_UNKNOWN) {
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLF_CRYPTO_DEV
+    if (key->devId != INVALID_DEVID) {
+        ret = wc_CryptoDev_Rsa(in, inLen, out, outLen, type, key, rng);
+        if (ret != NOT_COMPILED_IN)
+            return ret;
+        ret = 0; /* reset error code and try using software */
+    }
+#endif
 
 #ifndef NO_RSA_BOUNDS_CHECK
     if (type == RSA_PRIVATE_DECRYPT &&
@@ -2426,10 +2440,21 @@ int wc_RsaPSS_Sign_ex(const byte* in, word32 inLen, byte* out, word32 outLen,
 
 int wc_RsaEncryptSize(RsaKey* key)
 {
+    int ret;
+
     if (key == NULL) {
         return BAD_FUNC_ARG;
     }
-    return mp_unsigned_bin_size(&key->n);
+
+    ret =  mp_unsigned_bin_size(&key->n);
+
+#ifdef WOLF_CRYPTO_DEV
+    if (ret == 0 && key->devId != INVALID_DEVID) {
+        ret = 2048/8; /* hardware handles, use 2048-bit as default */
+    }
+#endif
+
+    return ret;
 }
 
 
@@ -2468,8 +2493,7 @@ static int RsaGetValue(mp_int* in, byte* out, word32* outSz)
     word32 sz;
     int ret = 0;
 
-    if (in == NULL || out == NULL || outSz == NULL)
-        return BAD_FUNC_ARG;
+    /* Parameters ensured by calling function. */
 
     sz = (word32)mp_unsigned_bin_size(in);
     if (sz > *outSz)

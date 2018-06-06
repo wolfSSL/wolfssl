@@ -6,7 +6,7 @@
 #
 #
 AC_COPYRIGHT([Copyright (C) 2006-2018 wolfSSL Inc.])
-AC_INIT([wolfssl],[3.14.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
+AC_INIT([wolfssl],[3.15.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
 
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -15,6 +15,10 @@ AC_CONFIG_AUX_DIR([build-aux])
 # automatically.
 : ${CFLAGS=""}
 : ${CXXFLAGS=""}
+
+# Test ar for the "U" option. Should be checked before the libtool macros.
+xxx_ar_flags=$((ar --help) 2>&1)
+AS_CASE([$xxx_ar_flags],[*'use actual timestamps and uids/gids'*],[: ${AR_FLAGS="Ucru"}])
 
 AC_CANONICAL_HOST
 AC_CANONICAL_BUILD
@@ -37,18 +41,18 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([config.h:config.in])dnl Keep filename to 8.3 for MS-DOS.
 
 #shared library versioning
-WOLFSSL_LIBRARY_VERSION=16:0:0
-#                       | | |
-#                +------+ | +---+
-#                |        |     |
-#               current:revision:age
-#                |        |     |
-#                |        |     +- increment if interfaces have been added
-#                |        |        set to zero if interfaces have been removed
-#                |        |        or changed
-#                |        +- increment if source code has changed
-#                |           set to zero if current is incremented
-#                +- increment if interfaces have been added, removed or changed
+WOLFSSL_LIBRARY_VERSION=17:0:0
+#                        | | |
+#                 +------+ | +---+
+#                 |        |     |
+#                current:revision:age
+#                 |        |     |
+#                 |        |     +- increment if interfaces have been added
+#                 |        |        set to zero if interfaces have been removed
+#                 |        |        or changed
+#                 |        +- increment if source code has changed
+#                 |           set to zero if current is incremented
+#                 +- increment if interfaces have been added, removed or changed
 AC_SUBST([WOLFSSL_LIBRARY_VERSION])
 
 # capture user C_EXTRA_FLAGS from ./configure line, CFLAGS may hold -g -O2 even
@@ -1501,6 +1505,19 @@ else
         AM_CFLAGS="$AM_CFLAGS -DNO_OLD_TLS"
         ENABLED_OLD_TLS=no
     fi
+fi
+
+
+# TLSv1.2
+AC_ARG_ENABLE([tlsv12],
+    [AS_HELP_STRING([--enable-tlsv12],[Enable TLS versions 1.2 (default: enabled)])],
+    [ ENABLED_TLSV12=$enableval ],
+    [ ENABLED_TLSV12=yes ]
+    )
+
+if test "$ENABLED_TLSV12" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_TLS12 -DNO_OLD_TLS"
 fi
 
 
@@ -3885,6 +3902,20 @@ else
 fi
 
 
+# Support for crypto device hardware
+AC_ARG_ENABLE([cryptodev],
+    [AS_HELP_STRING([--enable-cryptodev],[Enable crypto hardware support (default: disabled)])],
+    [ ENABLED_CRYPTODEV=$enableval ],
+    [ ENABLED_CRYPTODEV=no ]
+    )
+
+if test "$ENABLED_CRYPTODEV" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_DEV"
+fi
+AM_CONDITIONAL([BUILD_CRYPTODEV], [test "x$ENABLED_CRYPTODEV" = "xyes"])
+
+
 # Session Export
 AC_ARG_ENABLE([sessionexport],
     [AS_HELP_STRING([--enable-sessionexport],[Enable export and import of sessions (default: disabled)])],
@@ -3930,7 +3961,7 @@ AC_ARG_ENABLE([oldnames],
 if test "x$ENABLED_OLDNAMES" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_OLD_RNGNAME -DNO_OLD_WC_NAMES -DNO_OLD_SSL_NAMES"
-    AM_CFLAGS="$AM_CFLAGS -DNO_OLD_SHA256_NAMES"
+    AM_CFLAGS="$AM_CFLAGS -DNO_OLD_SHA_NAMES"
 fi
 
 

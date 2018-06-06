@@ -89,9 +89,10 @@
     #define SHA256_NOINLINE
 #endif
 
-#ifndef NO_OLD_SHA256_NAMES
+#if !defined(NO_OLD_SHA_NAMES)
     #define SHA256             WC_SHA256
 #endif
+
 #ifndef NO_OLD_WC_NAMES
     #define Sha256             wc_Sha256
     #define SHA256_BLOCK_SIZE  WC_SHA256_BLOCK_SIZE

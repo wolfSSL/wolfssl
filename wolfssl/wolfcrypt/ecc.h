@@ -345,7 +345,7 @@ struct ecc_key {
     int  slot;        /* Key Slot Number (-1 unknown) */
     byte pubkey_raw[ECC_MAX_CRYPTO_HW_PUBKEY_SIZE];
 #endif
-#ifdef PLUTON_CRYPTO_ECC
+#if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_DEV)
     int devId;
 #endif
 #ifdef WOLFSSL_ASYNC_CRYPT

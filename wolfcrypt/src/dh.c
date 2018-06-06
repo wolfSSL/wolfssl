@@ -1030,8 +1030,7 @@ static int GeneratePrivateDh186(DhKey* key, WC_RNG* rng, byte* priv,
     int qSz, pSz, cSz, err;
     mp_int tmpQ, tmpX;
 
-    if (key == NULL || rng == NULL || priv == NULL || privSz == NULL)
-        return BAD_FUNC_ARG;
+    /* Parameters validated in calling functions. */
 
     if (mp_iszero(&key->q) == MP_YES) {
         WOLFSSL_MSG("DH q parameter needed for FIPS 186-4 key generation");
@@ -1065,14 +1064,8 @@ static int GeneratePrivateDh186(DhKey* key, WC_RNG* rng, byte* priv,
          * Hash_DRBG uses SHA-256 which matches maximum
          * requested_security_strength of (L,N) */
         err = wc_RNG_GenerateBlock(rng, cBuf, cSz);
-        if (err != MP_OKAY) {
-            mp_clear(&tmpX);
-            mp_clear(&tmpQ);
-            XFREE(cBuf, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
-            return err;
-        }
-
-        err = mp_read_unsigned_bin(&tmpX, cBuf, cSz);
+        if (err == MP_OKAY)
+            err = mp_read_unsigned_bin(&tmpX, cBuf, cSz);
         if (err != MP_OKAY) {
             mp_clear(&tmpX);
             mp_clear(&tmpQ);
@@ -1738,57 +1731,71 @@ int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
 int wc_DhSetKey_ex(DhKey* key, const byte* p, word32 pSz, const byte* g,
                    word32 gSz, const byte* q, word32 qSz)
 {
+    int ret = 0;
+    mp_int* keyP = NULL;
+    mp_int* keyG = NULL;
+    mp_int* keyQ = NULL;
+
     if (key == NULL || p == NULL || g == NULL || pSz == 0 || gSz == 0) {
-        return BAD_FUNC_ARG;
+        ret = BAD_FUNC_ARG;
     }
 
-    /* may have leading 0 */
-    if (p[0] == 0) {
-        pSz--; p++;
-    }
-
-    if (g[0] == 0) {
-        gSz--; g++;
-    }
-
-    if (q != NULL) {
-        if (q[0] == 0) {
-            qSz--; q++;
+    if (ret == 0) {
+        /* may have leading 0 */
+        if (p[0] == 0) {
+            pSz--; p++;
         }
-    }
 
-    if (mp_init(&key->p) != MP_OKAY)
-        return MP_INIT_E;
-    if (mp_read_unsigned_bin(&key->p, p, pSz) != 0) {
-        mp_clear(&key->p);
-        return ASN_DH_KEY_E;
-    }
-
-    if (mp_init(&key->g) != MP_OKAY) {
-        mp_clear(&key->p);
-        return MP_INIT_E;
-    }
-    if (mp_read_unsigned_bin(&key->g, g, gSz) != 0) {
-        mp_clear(&key->g);
-        mp_clear(&key->p);
-        return ASN_DH_KEY_E;
-    }
-
-    if (q != NULL) {
-        if (mp_init(&key->q) != MP_OKAY) {
-            mp_clear(&key->g);
-            mp_clear(&key->p);
-            return MP_INIT_E;
+        if (g[0] == 0) {
+            gSz--; g++;
         }
-        if (mp_read_unsigned_bin(&key->q, q, qSz) != 0) {
-            mp_clear(&key->g);
-            mp_clear(&key->p);
-            mp_clear(&key->q);
-            return MP_INIT_E;
+
+        if (q != NULL) {
+            if (q[0] == 0) {
+                qSz--; q++;
+            }
         }
+
+        if (mp_init(&key->p) != MP_OKAY)
+            ret = MP_INIT_E;
     }
 
-    return 0;
+    if (ret == 0) {
+        if (mp_read_unsigned_bin(&key->p, p, pSz) != MP_OKAY)
+            ret = ASN_DH_KEY_E;
+        else
+            keyP = &key->p;
+    }
+    if (ret == 0 && mp_init(&key->g) != MP_OKAY)
+        ret = MP_INIT_E;
+    if (ret == 0) {
+        if (mp_read_unsigned_bin(&key->g, g, gSz) != MP_OKAY)
+            ret = ASN_DH_KEY_E;
+        else
+            keyG = &key->g;
+    }
+
+    if (ret == 0 && q != NULL) {
+        if (mp_init(&key->q) != MP_OKAY)
+            ret = MP_INIT_E;
+    }
+    if (ret == 0 && q != NULL) {
+        if (mp_read_unsigned_bin(&key->q, q, qSz) != MP_OKAY)
+            ret = MP_INIT_E;
+        else
+            keyQ = &key->q;
+    }
+
+    if (ret != 0 && key != NULL) {
+        if (keyQ)
+            mp_clear(keyQ);
+        if (keyG)
+            mp_clear(keyG);
+        if (keyP)
+            mp_clear(keyP);
+    }
+
+    return ret;
 }
 
 

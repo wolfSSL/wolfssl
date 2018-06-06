@@ -30,6 +30,8 @@ setup_files
 
 # caCrl
 # revoke server-revoked-cert.pem
+openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out crl2.pem -keyfile ../client-key.pem -cert ../client-cert.pem
+
 openssl ca -config ../renewcerts/wolfssl.cnf -revoke ../server-revoked-cert.pem -keyfile ../ca-key.pem -cert ../ca-cert.pem
 
 openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out crl.pem -keyfile ../ca-key.pem -cert ../ca-cert.pem
@@ -39,6 +41,11 @@ openssl crl -in crl.pem -text > tmp
 mv tmp crl.pem
 # install (only needed if working outside wolfssl)
 #cp crl.pem ~/wolfssl/certs/crl/crl.pem
+
+# crl2 create
+openssl crl -in crl.pem -text > tmp
+openssl crl -in crl2.pem -text >> tmp
+mv tmp crl2.pem
 
 # caCrl server revoked
 openssl ca -config ../renewcerts/wolfssl.cnf -revoke ../server-cert.pem -keyfile ../ca-key.pem -cert ../ca-cert.pem
@@ -51,6 +58,7 @@ openssl crl -in crl.revoked -text > tmp
 mv tmp crl.revoked
 # install (only needed if working outside wolfssl)
 #cp crl.revoked ~/wolfssl/certs/crl/crl.revoked
+
 
 # remove revoked so next time through the normal CA won't have server revoked
 cp blank.index.txt demoCA/index.txt

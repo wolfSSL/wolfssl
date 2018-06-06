@@ -182,7 +182,9 @@ static void ShowVersions(void)
     #endif
     printf("2:");
 #endif /* NO_OLD_TLS */
+#ifndef WOLFSSL_NO_TLS12
     printf("3:");
+#endif
 #ifdef WOLFSSL_TLS13
     printf("4:");
 #endif
@@ -874,7 +876,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    err           = 0;
     int    scr           = 0;    /* allow secure renegotiation */
     int    forceScr      = 0;    /* force client initiaed scr */
+#ifndef WOLFSSL_NO_CLIENT_AUTH
     int    useClientCert = 1;
+#else
+    int    useClientCert = 0;
+#endif
     int    fewerPackets  = 0;
     int    atomicUser    = 0;
 #ifdef HAVE_PK_CALLBACKS
@@ -1485,9 +1491,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif /* !NO_OLD_TLS */
 
 #ifndef NO_TLS
+    #ifndef WOLFSSL_NO_TLS12
         case 3:
             method = wolfTLSv1_2_client_method_ex;
             break;
+    #endif
 
     #ifdef WOLFSSL_TLS13
         case 4:
@@ -1507,9 +1515,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             break;
         #endif
 
+    #ifndef WOLFSSL_NO_TLS12
         case -2:
             method = wolfDTLSv1_2_client_method_ex;
             break;
+    #endif
 #endif
 
         default:
@@ -2075,7 +2085,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_check_domain_name(ssl, domain);
 #ifndef WOLFSSL_CALLBACKS
     if (nonBlocking) {
-        wolfSSL_set_using_nonblock(ssl, 1);
+#ifdef WOLFSSL_DTLS
+        if (doDTLS) {
+            wolfSSL_dtls_set_using_nonblock(ssl, 1);
+        }
+#endif
         tcp_set_nonblocking(&sockfd);
         ret = NonBlockingSSL_Connect(ssl);
     }
@@ -2328,7 +2342,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifndef WOLFSSL_CALLBACKS
         if (nonBlocking) {
-            wolfSSL_set_using_nonblock(sslResume, 1);
+#ifdef WOLFSSL_DTLS
+            if (doDTLS) {
+                wolfSSL_dtls_set_using_nonblock(ssl, 1);
+            }
+#endif
             tcp_set_nonblocking(&sockfd);
             ret = NonBlockingSSL_Connect(sslResume);
         }
