@@ -13286,7 +13286,7 @@ typedef struct BuildMsgArgs {
     word32 headerSz;
     word16 size;
     word32 ivSz;      /* TLSv1.1  IV */
-    byte   iv[AES_BLOCK_SIZE]; /* max size */
+    byte*  iv;
 } BuildMsgArgs;
 
 static void FreeBuildMsgArgs(WOLFSSL* ssl, void* pArgs)
@@ -13296,7 +13296,10 @@ static void FreeBuildMsgArgs(WOLFSSL* ssl, void* pArgs)
     (void)ssl;
     (void)args;
 
-    /* no allocations in BuildMessage */
+    if (args->iv) {
+        XFREE(args->iv, ssl->heap, DYNAMIC_TYPE_SALT);
+        args->iv = NULL;
+    }
 }
 #endif
 
@@ -13400,7 +13403,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                     args->ivSz = blockSz;
                     args->sz  += args->ivSz;
 
-                    if (args->ivSz > (word32)sizeof(args->iv))
+                    if (args->ivSz > AES_BLOCK_SIZE)
                         ERROR_OUT(BUFFER_E, exit_buildmsg);
                 }
                 args->sz += 1;       /* pad byte */
@@ -13431,6 +13434,10 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             }
 
             if (args->ivSz > 0) {
+                args->iv = (byte*)XMALLOC(args->ivSz, ssl->heap, DYNAMIC_TYPE_SALT);
+                if (args->iv == NULL)
+                    ERROR_OUT(MEMORY_E, exit_buildmsg);
+
                 ret = wc_RNG_GenerateBlock(ssl->rng, args->iv, args->ivSz);
                 if (ret != 0)
                     goto exit_buildmsg;
