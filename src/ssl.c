@@ -13618,7 +13618,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     {
         WOLFSSL_ENTER("wolfSSL_ERR_clear_error");
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_NGINX)
         wc_ClearErrorNodes();
 #endif
     }

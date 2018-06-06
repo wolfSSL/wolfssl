@@ -15687,7 +15687,7 @@ static void test_wolfSSL_private_keys(void)
 static void test_wolfSSL_PEM_PrivateKey(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
-   !defined(NO_FILESYSTEM) && !defined(NO_RSA)   && \
+    (!defined(NO_RSA) || defined(HAVE_ECC)) && \
     defined(USE_CERT_BUFFERS_2048)
 
     EVP_PKEY* pkey  = NULL;
@@ -15696,7 +15696,8 @@ static void test_wolfSSL_PEM_PrivateKey(void)
     /* test creating new EVP_PKEY with bad arg */
     AssertNull((pkey = PEM_read_bio_PrivateKey(NULL, NULL, NULL, NULL)));
 
-#if !defined(NO_FILESYSTEM)
+    /* test loading RSA key using BIO */
+#if !defined(NO_RSA) && !defined(NO_FILESYSTEM)
     {
         BIO*  bio;
         XFILE file;
@@ -15722,7 +15723,34 @@ static void test_wolfSSL_PEM_PrivateKey(void)
     }
 #endif
 
-#if (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN))
+    /* test loading ECC key using BIO */
+#if defined(HAVE_ECC) && !defined(NO_FILESYSTEM)
+    {
+        BIO*  bio;
+        XFILE file;
+        const char* fname = "./certs/ecc-key.pem";
+        size_t sz;
+        byte* buf;
+
+        file = XFOPEN(fname, "rb");
+        AssertTrue((file != XBADFILE));
+        XFSEEK(file, 0, XSEEK_END);
+        sz = XFTELL(file);
+        XREWIND(file);
+        AssertNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
+        AssertIntEQ(XFREAD(buf, 1, sz, file), sz);
+        XFCLOSE(file);
+
+        /* Test using BIO new mem and loading PEM private key */
+        AssertNotNull(bio = BIO_new_mem_buf(buf, (int)sz));
+        AssertNotNull((pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL)));
+        XFREE(buf, NULL, DYNAMIC_TYPE_FILE);
+        BIO_free(bio);
+        EVP_PKEY_free(pkey);
+    }
+#endif
+
+#if !defined(NO_RSA) && (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN))
     {
         BIO*      bio;
         EVP_PKEY* pkey2 = NULL;
@@ -15771,7 +15799,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
     #endif
 
     /* key is DES encrypted */
-    #if !defined(NO_DES3) && defined(WOLFSSL_ENCRYPTED_KEYS)
+    #if !defined(NO_DES3) && defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_FILESYSTEM)
     {
         pem_password_cb* passwd_cb;
         void* passwd_cb_userdata;
@@ -15812,7 +15840,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
     }
     #endif /* !defined(NO_DES3) */
 
-    #ifdef HAVE_ECC
+    #if defined(HAVE_ECC) && !defined(NO_FILESYSTEM)
     {
         unsigned char buf[2048];
         size_t bytes;
@@ -17336,7 +17364,7 @@ static void test_wolfSSL_pseudo_rand(void)
     #endif
 }
 
-static void test_wolfSSL_pkcs8(void)
+static void test_wolfSSL_PKCS8_Compat(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && defined(HAVE_ECC)
     PKCS8_PRIV_KEY_INFO* pt;
@@ -19451,7 +19479,8 @@ static void test_DhCallbacks(void)
 
 #ifdef HAVE_HASHDRBG
 
-static int test_wc_RNG_GenerateBlock()
+#ifdef TEST_RESEED_INTERVAL
+static int test_wc_RNG_GenerateBlock_Reseed()
 {
     int i, ret;
     WC_RNG rng;
@@ -19461,6 +19490,29 @@ static int test_wc_RNG_GenerateBlock()
 
     if (ret == 0) {
         for(i = 0; i < WC_RESEED_INTERVAL + 10; i++) {
+            ret = wc_RNG_GenerateBlock(&rng, key, sizeof(key));
+            if (ret != 0) {
+                break;
+            }
+        }
+    }
+
+    wc_FreeRng(&rng);
+
+    return ret;
+}
+#endif /* TEST_RESEED_INTERVAL */
+
+static int test_wc_RNG_GenerateBlock()
+{
+    int i, ret;
+    WC_RNG rng;
+    byte key[32];
+
+    ret = wc_InitRng(&rng);
+
+    if (ret == 0) {
+        for(i = 0; i < 10; i++) {
             ret = wc_RNG_GenerateBlock(&rng, key, sizeof(key));
             if (ret != 0) {
                 break;
@@ -19711,7 +19763,7 @@ void ApiTest(void)
     test_wolfSSL_CTX_set_srp_username();
     test_wolfSSL_CTX_set_srp_password();
     test_wolfSSL_pseudo_rand();
-    test_wolfSSL_pkcs8();
+    test_wolfSSL_PKCS8_Compat();
     test_wolfSSL_ERR_put_error();
     test_wolfSSL_HMAC();
     test_wolfSSL_OBJ();
@@ -19900,6 +19952,9 @@ void ApiTest(void)
 #endif
 
 #ifdef HAVE_HASHDRBG
+    #ifdef TEST_RESEED_INTERVAL
+    AssertIntEQ(test_wc_RNG_GenerateBlock_Reseed(), 0);
+    #endif
     AssertIntEQ(test_wc_RNG_GenerateBlock(), 0);
 #endif
 
