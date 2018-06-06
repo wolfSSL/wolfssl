@@ -5599,7 +5599,7 @@ WOLFSSL_API int wolfSSL_X509_version(WOLFSSL_X509*);
     \sa XFSEEK
 */
     WOLFSSL_API WOLFSSL_X509*
-        wolfSSL_X509_d2i_fp(WOLFSSL_X509** x509, FILE* file);
+        wolfSSL_X509_d2i_fp(WOLFSSL_X509** x509, XFILE file);
 /*!
     \ingroup CertsKeys
 
