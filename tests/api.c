@@ -15690,6 +15690,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
     (!defined(NO_RSA) || defined(HAVE_ECC)) && \
     defined(USE_CERT_BUFFERS_2048)
 
+    BIO*      bio = NULL;
     EVP_PKEY* pkey  = NULL;
     const unsigned char* server_key = (const unsigned char*)server_key_der_2048;
 
@@ -15699,7 +15700,6 @@ static void test_wolfSSL_PEM_PrivateKey(void)
     /* test loading RSA key using BIO */
 #if !defined(NO_RSA) && !defined(NO_FILESYSTEM)
     {
-        BIO*  bio;
         XFILE file;
         const char* fname = "./certs/server-key.pem";
         size_t sz;
@@ -15719,14 +15719,15 @@ static void test_wolfSSL_PEM_PrivateKey(void)
         AssertNotNull((pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL)));
         XFREE(buf, NULL, DYNAMIC_TYPE_FILE);
         BIO_free(bio);
+        bio = NULL;
         EVP_PKEY_free(pkey);
+        pkey  = NULL;
     }
 #endif
 
     /* test loading ECC key using BIO */
 #if defined(HAVE_ECC) && !defined(NO_FILESYSTEM)
     {
-        BIO*  bio;
         XFILE file;
         const char* fname = "./certs/ecc-key.pem";
         size_t sz;
@@ -15746,13 +15747,14 @@ static void test_wolfSSL_PEM_PrivateKey(void)
         AssertNotNull((pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL)));
         XFREE(buf, NULL, DYNAMIC_TYPE_FILE);
         BIO_free(bio);
+        bio = NULL;
         EVP_PKEY_free(pkey);
+        pkey  = NULL;
     }
 #endif
 
 #if !defined(NO_RSA) && (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN))
     {
-        BIO*      bio;
         EVP_PKEY* pkey2 = NULL;
         unsigned char extra[10];
         int i;
@@ -15793,7 +15795,9 @@ static void test_wolfSSL_PEM_PrivateKey(void)
         }
 
         BIO_free(bio);
+        bio = NULL;
         EVP_PKEY_free(pkey);
+        pkey  = NULL;
         EVP_PKEY_free(pkey2);
     }
     #endif
@@ -15835,7 +15839,9 @@ static void test_wolfSSL_PEM_PrivateKey(void)
         AssertIntEQ(SSL_CTX_use_PrivateKey(ctx, pkey), SSL_SUCCESS);
 
         EVP_PKEY_free(pkey);
+        pkey  = NULL;
         BIO_free(bio);
+        bio = NULL;
         SSL_CTX_free(ctx);
     }
     #endif /* !defined(NO_DES3) */
@@ -15865,6 +15871,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
         AssertIntEQ(SSL_CTX_use_PrivateKey(ctx, pkey), SSL_SUCCESS);
 
         EVP_PKEY_free(pkey);
+        pkey = NULL;
         SSL_CTX_free(ctx);
     }
     #endif
@@ -15872,6 +15879,9 @@ static void test_wolfSSL_PEM_PrivateKey(void)
     printf(resultFmt, passed);
 
     (void)server_key;
+    (void)bio;
+    (void)pkey;
+
 #endif /* OPENSSL_EXTRA && !NO_CERTS && !NO_RSA && USE_CERT_BUFFERS_2048 */
 }
 
