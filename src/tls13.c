@@ -3713,8 +3713,14 @@ static int RestartHandshakeHashWithCookie(WOLFSSL* ssl, Cookie* cookie)
     hrrIdx += 2;
     c16toa(OPAQUE16_LEN, hrr + hrrIdx);
     hrrIdx += 2;
-    hrr[hrrIdx++] = ssl->version.major;
-    hrr[hrrIdx++] = ssl->version.minor;
+    /* TODO: [TLS13] Change to ssl->version.major and minor once final. */
+    #ifdef WOLFSSL_TLS13_FINAL
+        hrr[hrrIdx++] = ssl->version.major;
+        hrr[hrrIdx++] = ssl->version.minor;
+    #else
+        hrr[hrrIdx++] = TLS_DRAFT_MAJOR;
+        hrr[hrrIdx++] = TLS_DRAFT_MINOR;
+    #endif
 #endif
     /* Mandatory Cookie Extension */
     c16toa(TLSX_COOKIE, hrr + hrrIdx);

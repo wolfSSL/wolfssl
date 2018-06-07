@@ -4751,8 +4751,18 @@ static int TLSX_SupportedVersions_Write(void* data, byte* output,
     }
 #ifndef WOLFSSL_TLS13_DRAFT_18
     else if (msgType == server_hello || msgType == hello_retry_request) {
-        output[0] = ssl->version.major;
-        output[1] = ssl->version.minor;
+    #ifndef WOLFSSL_TLS13_FINAL
+        if (ssl->version.major == SSLv3_MAJOR &&
+                                          ssl->version.minor == TLSv1_3_MINOR) {
+            output[0] = TLS_DRAFT_MAJOR;
+            output[1] = TLS_DRAFT_MINOR;
+        }
+        else
+    #endif
+        {
+            output[0] = ssl->version.major;
+            output[1] = ssl->version.minor;
+        }
 
         *pSz += OPAQUE16_LEN;
     }
