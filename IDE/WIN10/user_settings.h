@@ -32,13 +32,16 @@
         #define ECC_SHAMIR
         #define HAVE_ECC_CDH
         #define ECC_TIMING_RESISTANT
+        #define TFM_TIMING_RESISTANT
         #define WOLFSSL_AES_COUNTER
         #define WOLFSSL_AES_DIRECT
         #define HAVE_AES_ECB
         #define HAVE_AESCCM
         #define WOLFSSL_CMAC
         #define HAVE_HKDF
-        #define WOLFSSL_PUBLIC_MP
+        #define WOLFSSL_VALIDATE_ECC_IMPORT
+        #define WOLFSSL_VALIDATE_FFC_IMPORT
+        #define HAVE_FFDHE_Q
     #endif /* FIPS v2 */
 #else
     /* Enables blinding mode, to prevent timing attacks */
