@@ -17511,6 +17511,7 @@ static void test_wolfSSL_X509_STORE(void)
                        wolfSSL_X509_load_certificate_file(svrCert, SSL_FILETYPE_PEM)));
     AssertIntEQ(X509_STORE_add_cert(store, x509), SSL_SUCCESS);
     X509_free(x509);
+
     AssertNotNull(fp = XFOPEN(crl_pem, "rb"));
     AssertNotNull(crl = (X509_CRL *)PEM_read_X509_CRL(fp, (X509_CRL **)NULL, NULL, NULL));
     XFCLOSE(fp);
@@ -19771,6 +19772,7 @@ static void test_wolfSSL_X509_CA_num(void){
     printf(resultFmt, passed);
 #endif
 }
+
 static void test_wolfSSL_X509_check_ca(void){
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
     WOLFSSL_X509 *x509;

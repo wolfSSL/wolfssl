@@ -20259,19 +20259,6 @@ WOLFSSL_API int wolfSSL_sk_SSL_CIPHER_num(const void * p)
 #if !defined(NO_FILESYSTEM)
 #ifndef NO_WOLFSSL_STUB
 /*** TBD ***/
-WOLFSSL_API WOLFSSL_X509 *wolfSSL_PEM_read_X509(FILE *fp, WOLFSSL_X509 **x, pem_password_cb *cb, void *u)
-{
-    (void)fp;
-    (void)x;
-    (void)cb;
-    (void)u;
-    WOLFSSL_STUB("PEM_read_X509");
-    return NULL;
-}
-#endif
-
-#ifndef NO_WOLFSSL_STUB
-/*** TBD ***/
 WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_PrivateKey(FILE *fp, WOLFSSL_EVP_PKEY **x, pem_password_cb *cb, void *u)
 {
     (void)fp;
@@ -29536,23 +29523,21 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
         return x509;
     }
+#include "stdio.h"
 
 #if defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
-    WOLFSSL_API WOLFSSL_X509_CRL* wolfSSL_PEM_read_X509_CRL(XFILE fp, WOLFSSL_X509_CRL **crl,
-                                                    pem_password_cb *cb, void *u)
+    static void* wolfSSL_PEM_read_X509_ex(XFILE fp, void **x,
+                                                    pem_password_cb *cb, void *u, int type)
     {
-#if defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM)
         unsigned char* pem = NULL;
-        DerBuffer* der = NULL;
         int pemSz;
-        int derSz;
         long  i = 0, l;
-        WOLFSSL_X509_CRL* newcrl;
-
-        WOLFSSL_ENTER("wolfSSL_PEM_read_X509_CRL");
+        void *newx509;
+        
+        WOLFSSL_ENTER("wolfSSL_PEM_read_X509");
 
         if (fp == NULL) {
-            WOLFSSL_LEAVE("wolfSSL_PEM_read_X509_CRL", BAD_FUNC_ARG);
+            WOLFSSL_LEAVE("wolfSSL_PEM_read_X509", BAD_FUNC_ARG);
             return NULL;
         }
         /* Read in CRL from file */
@@ -29583,25 +29568,60 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         XFREE(pem, 0, DYNAMIC_TYPE_PEM);
         pem = NULL;
 
-        derSz = der->length;
-        if((newcrl = wolfSSL_d2i_X509_CRL(crl, (const unsigned char *)der->buffer, derSz)) == NULL)
-            goto err_exit;
-        FreeDer(&der);
+        switch(type){
+        case CERT_TYPE:
+            newx509 = (void *)wolfSSL_X509_load_certificate_buffer(pem, pemSz,
+                                                              WOLFSSL_FILETYPE_PEM);
+            break;
+        #ifdef HAVE_CRL
+        case CRL_TYPE:
+            {
+                int derSz;
+                DerBuffer* der = NULL;
+                if((PemToDer(pem, pemSz, CRL_TYPE, &der, NULL, NULL, NULL)) < 0)
+                    goto err_exit;
+                derSz = der->length;
+                if((newx509 = (void *)wolfSSL_d2i_X509_CRL(
+                    (WOLFSSL_X509_CRL **)x, (const unsigned char *)der->buffer, derSz)) == NULL)
+                    goto err_exit;              
+                FreeDer(&der);
+                break;
+            }
+        #endif
 
-        return newcrl;
+        default: 
+            goto err_exit;
+        }
+        if (x != NULL) {
+            *x = newx509;
+        }
+        XFREE(pem, 0, DYNAMIC_TYPE_PEM);
+        return newx509;
 
     err_exit:
         if(pem != NULL)
             XFREE(pem, 0, DYNAMIC_TYPE_PEM);
-        if(der != NULL)
-            FreeDer(&der);
         return NULL;
 
         (void)cb;
         (void)u;
-    #endif
 
     }
+
+    WOLFSSL_API WOLFSSL_X509* wolfSSL_PEM_read_X509(XFILE fp, WOLFSSL_X509 **x,
+                                                    pem_password_cb *cb, void *u)
+    {
+        return (WOLFSSL_X509* )wolfSSL_PEM_read_X509_ex(fp, (void **)x, cb, u, CERT_TYPE);
+    }
+
+#if defined(HAVE_CRL)
+    WOLFSSL_API WOLFSSL_X509_CRL* wolfSSL_PEM_read_X509_CRL(XFILE fp, WOLFSSL_X509_CRL **crl,
+                                                    pem_password_cb *cb, void *u)
+    {
+        return (WOLFSSL_X509_CRL* )wolfSSL_PEM_read_X509_ex(fp, (void **)crl, cb, u, CRL_TYPE);
+    }
+#endif
+  
 #endif
 
     /*
