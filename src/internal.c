@@ -13403,7 +13403,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                     args->ivSz = blockSz;
                     args->sz  += args->ivSz;
 
-                    if (args->ivSz > AES_BLOCK_SIZE)
+                    if (args->ivSz > MAX_IV_SZ)
                         ERROR_OUT(BUFFER_E, exit_buildmsg);
                 }
                 args->sz += 1;       /* pad byte */
@@ -13455,9 +13455,9 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             AddRecordHeader(output, args->size, (byte)type, ssl);
 
             /* write to output */
-            if (args->ivSz) {
+            if (args->ivSz > 0) {
                 XMEMCPY(output + args->idx, args->iv,
-                                        min(args->ivSz, sizeof(args->iv)));
+                                        min(args->ivSz, MAX_IV_SZ));
                 args->idx += args->ivSz;
             }
             XMEMCPY(output + args->idx, input, inSz);
