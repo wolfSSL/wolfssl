@@ -80,7 +80,7 @@
 
 #ifdef WOLFSSL_TLS13
 #ifdef HAVE_SESSION_TICKET
-    #include <sys/time.h>
+    #include <wolfssl/wolfcrypt/wc_port.h>
 #endif
 
 #ifndef WOLFCRYPT_ONLY
