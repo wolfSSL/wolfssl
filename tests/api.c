@@ -8621,23 +8621,23 @@ static int test_wc_AesGcmEncryptDecrypt (void)
                     resultT, sizeof(resultT) - 5, a, sizeof(a));
         }
 
-		if (gcmE == BAD_FUNC_ARG) {
-			gcmE = 0;
-		} else {
-			gcmE = WOLFSSL_FATAL_ERROR;
-		}
-	}
+        if (gcmE == BAD_FUNC_ARG) {
+            gcmE = 0;
+        } else {
+            gcmE = WOLFSSL_FATAL_ERROR;
+        }
+    }
 
     /* This case is now considered good. Long IVs are now allowed.
      * Except for the original FIPS release, it still has an upper
      * bound on the IV length. */
 #if !defined(HAVE_FIPS) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
-	if (gcmE == 0) {
-		gcmE = wc_AesGcmEncrypt(&aes, enc, vector, sizeof(vector), longIV,
-						sizeof(longIV)/sizeof(byte), resultT, sizeof(resultT),
-						a, sizeof(a));
-	}
+    if (gcmE == 0) {
+        gcmE = wc_AesGcmEncrypt(&aes, enc, vector, sizeof(vector), longIV,
+                        sizeof(longIV)/sizeof(byte), resultT, sizeof(resultT),
+                        a, sizeof(a));
+    }
 #else
     (void)longIV;
 #endif /* Old FIPS */
