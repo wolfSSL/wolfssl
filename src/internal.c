@@ -8276,7 +8276,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             }
             c24to32(input + args->idx, &listSz);
             args->idx += OPAQUE24_LEN;
-            if (listSz > MAX_RECORD_SIZE) {
+            if (listSz > MAX_CERTIFICATE_SZ) {
                 ERROR_OUT(BUFFER_ERROR, exit_ppc);
             }
             if ((args->idx - args->begin) + listSz != totalSz) {
