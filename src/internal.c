@@ -7644,6 +7644,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
    return 1 on success */
 int MatchDomainName(const char* pattern, int len, const char* str)
 {
+    int ret = 0;
     char p, s;
 
     if (pattern == NULL || str == NULL || len <= 0)
@@ -7676,11 +7677,17 @@ int MatchDomainName(const char* pattern, int len, const char* str)
                 return 0;
         }
 
-        if (len > 0)
+
+        if (len > 0) {
+            str++;
             len--;
+        }
     }
 
-    return *str == '\0';
+    if (*str == '\0')
+        ret = 1; /* success */
+
+    return ret;
 }
 
 
