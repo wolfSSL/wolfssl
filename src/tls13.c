@@ -3202,16 +3202,6 @@ static int DoTls13CertificateRequest(WOLFSSL* ssl, const byte* input,
     /* This message is always encrypted so add encryption padding. */
     *inOutIdx += ssl->keys.padSz;
 
-#if !defined(NO_WOLFSSL_CLIENT) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-    if (ssl->options.side == WOLFSSL_CLIENT_END &&
-                                ssl->options.handShakeState == HANDSHAKE_DONE) {
-        /* reset handshake states */
-        ssl->options.clientState = CLIENT_HELLO_COMPLETE;
-        ssl->options.connectState  = FIRST_REPLY_DONE;
-        ssl->options.handShakeState = CLIENT_HELLO_COMPLETE;
-    }
-#endif
-
     WOLFSSL_LEAVE("DoTls13CertificateRequest", ret);
     WOLFSSL_END(WC_FUNC_CERTIFICATE_REQUEST_DO);
 
@@ -5855,7 +5845,15 @@ static int DoTls13Finished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     if (*inOutIdx + size + ssl->keys.padSz > totalSz)
         return BUFFER_E;
 
-    if (ssl->options.side == WOLFSSL_CLIENT_END) {
+    if (ssl->options.handShakeDone) {
+        ret = DeriveFinishedSecret(ssl, ssl->arrays->clientSecret,
+                                   ssl->keys.client_write_MAC_secret);
+        if (ret != 0)
+            return ret;
+
+        secret = ssl->keys.client_write_MAC_secret;
+    }
+    else if (ssl->options.side == WOLFSSL_CLIENT_END) {
         /* All the handshake messages have been received to calculate
          * client and server finished keys.
          */
@@ -5961,7 +5959,15 @@ static int SendTls13Finished(WOLFSSL* ssl)
     AddTls13HandShakeHeader(input, finishedSz, 0, finishedSz, finished, ssl);
 
     /* make finished hashes */
-    if (ssl->options.side == WOLFSSL_CLIENT_END)
+    if (ssl->options.handShakeDone) {
+        ret = DeriveFinishedSecret(ssl, ssl->arrays->clientSecret,
+                                   ssl->keys.client_write_MAC_secret);
+        if (ret != 0)
+            return ret;
+
+        secret = ssl->keys.client_write_MAC_secret;
+    }
+    else if (ssl->options.side == WOLFSSL_CLIENT_END)
         secret = ssl->keys.client_write_MAC_secret;
     else {
         /* All the handshake messages have been done to calculate client and
@@ -6864,13 +6870,14 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
                                                   ssl->arrays->psk_keySz != 0) {
                 WOLFSSL_MSG("CertificateRequset received while using PSK");
                 return SANITY_MSG_E;
-                return SANITY_MSG_E;
             }
         #endif
+        #ifndef WOLFSSL_POST_HANDSHAKE_AUTH
             if (ssl->msgsReceived.got_certificate_request) {
                 WOLFSSL_MSG("Duplicate CertificateRequest received");
                 return DUPLICATE_MSG_E;
             }
+        #endif
             ssl->msgsReceived.got_certificate_request = 1;
 
             break;
@@ -6878,20 +6885,20 @@ static int SanityCheckTls13MsgReceived(WOLFSSL* ssl, byte type)
 
         case certificate_verify:
     #ifndef NO_WOLFSSL_CLIENT
-            if (ssl->options.side == WOLFSSL_CLIENT_END &&
-                             ssl->options.serverState != SERVER_CERT_COMPLETE) {
-                WOLFSSL_MSG("No Cert before CertVerify");
-                return OUT_OF_ORDER_E;
+            if (ssl->options.side == WOLFSSL_CLIENT_END) {
+                if (ssl->options.serverState != SERVER_CERT_COMPLETE) {
+                    WOLFSSL_MSG("No Cert before CertVerify");
+                    return OUT_OF_ORDER_E;
+                }
+            #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+                /* Server's authenticating with PSK must not send this. */
+                if (ssl->options.serverState == SERVER_CERT_COMPLETE &&
+                                                  ssl->arrays->psk_keySz != 0) {
+                    WOLFSSL_MSG("CertificateVerify received while using PSK");
+                    return SANITY_MSG_E;
+                }
+            #endif
             }
-        #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-            /* Server's authenticating with PSK must not send this. */
-            if (ssl->options.side == WOLFSSL_CLIENT_END &&
-                             ssl->options.serverState == SERVER_CERT_COMPLETE &&
-                             ssl->arrays->psk_keySz != 0) {
-                WOLFSSL_MSG("CertificateVerify received while using PSK");
-                return SANITY_MSG_E;
-            }
-        #endif
     #endif
     #ifndef NO_WOLFSSL_SERVER
             if (ssl->options.side == WOLFSSL_SERVER_END) {
@@ -7134,47 +7141,61 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
     if (ssl->options.tls1_3) {
         /* Need to hash input message before deriving secrets. */
-#ifndef NO_WOLFSSL_CLIENT
-        if (type == server_hello && ssl->options.side == WOLFSSL_CLIENT_END) {
-            if ((ret = DeriveEarlySecret(ssl)) != 0)
-                return ret;
-            if ((ret = DeriveHandshakeSecret(ssl)) != 0)
-                return ret;
+    #ifndef NO_WOLFSSL_CLIENT
+        if (ssl->options.side == WOLFSSL_CLIENT_END) {
+            if (type == server_hello) {
+                if ((ret = DeriveEarlySecret(ssl)) != 0)
+                    return ret;
+                if ((ret = DeriveHandshakeSecret(ssl)) != 0)
+                    return ret;
 
-            if ((ret = DeriveTls13Keys(ssl, handshake_key,
+                if ((ret = DeriveTls13Keys(ssl, handshake_key,
                                            ENCRYPT_AND_DECRYPT_SIDE, 1)) != 0) {
-                return ret;
+                    return ret;
+                }
+        #ifdef WOLFSSL_EARLY_DATA
+                if ((ret = SetKeysSide(ssl, DECRYPT_SIDE_ONLY)) != 0)
+                    return ret;
+        #else
+                if ((ret = SetKeysSide(ssl, ENCRYPT_AND_DECRYPT_SIDE)) != 0)
+                    return ret;
+        #endif
             }
-    #ifdef WOLFSSL_EARLY_DATA
-            if ((ret = SetKeysSide(ssl, DECRYPT_SIDE_ONLY)) != 0)
-                return ret;
-    #else
-            if ((ret = SetKeysSide(ssl, ENCRYPT_AND_DECRYPT_SIDE)) != 0)
-                return ret;
-    #endif
-        }
 
-        if (type == finished && ssl->options.side == WOLFSSL_CLIENT_END) {
-            if ((ret = DeriveMasterSecret(ssl)) != 0)
-                return ret;
-    #ifdef WOLFSSL_EARLY_DATA
-            if ((ret = DeriveTls13Keys(ssl, traffic_key,
+            if (type == finished) {
+                if ((ret = DeriveMasterSecret(ssl)) != 0)
+                    return ret;
+        #ifdef WOLFSSL_EARLY_DATA
+                if ((ret = DeriveTls13Keys(ssl, traffic_key,
                                        ENCRYPT_AND_DECRYPT_SIDE,
                                        ssl->earlyData == no_early_data)) != 0) {
-                return ret;
-            }
-    #else
-            if ((ret = DeriveTls13Keys(ssl, traffic_key,
+                    return ret;
+                }
+        #else
+                if ((ret = DeriveTls13Keys(ssl, traffic_key,
                                            ENCRYPT_AND_DECRYPT_SIDE, 1)) != 0) {
-                return ret;
+                    return ret;
+                }
+        #endif
             }
-    #endif
+        #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+            if (type == certificate_request &&
+                                ssl->options.handShakeState == HANDSHAKE_DONE) {
+                /* reset handshake states */
+                ssl->options.clientState = CLIENT_HELLO_COMPLETE;
+                ssl->options.connectState  = FIRST_REPLY_DONE;
+                ssl->options.handShakeState = CLIENT_HELLO_COMPLETE;
+
+                if (wolfSSL_connect_TLSv13(ssl) != SSL_SUCCESS)
+                    ret = POST_HAND_AUTH_ERROR;
+            }
+        #endif
         }
-#endif /* NO_WOLFSSL_CLIENT */
+    #endif /* NO_WOLFSSL_CLIENT */
 
 #ifndef NO_WOLFSSL_SERVER
     #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
-        if (type == finished && ssl->options.side == WOLFSSL_SERVER_END) {
+        if (ssl->options.side == WOLFSSL_SERVER_END && type == finished) {
             ret = DeriveResumptionSecret(ssl, ssl->session.masterSecret);
             if (ret != 0)
                 return ret;
@@ -7497,14 +7518,9 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             FALL_THROUGH;
 
         case FIRST_REPLY_THIRD:
-        #if !defined(NO_CERTS) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-            if (!ssl->options.sendVerify || !ssl->options.postHandshakeAuth)
-        #endif
-            {
-                if ((ssl->error = SendTls13Finished(ssl)) != 0) {
-                    WOLFSSL_ERROR(ssl->error);
-                    return WOLFSSL_FATAL_ERROR;
-                }
+            if ((ssl->error = SendTls13Finished(ssl)) != 0) {
+                WOLFSSL_ERROR(ssl->error);
+                return WOLFSSL_FATAL_ERROR;
             }
             WOLFSSL_MSG("sent: finished");
 
@@ -7805,11 +7821,16 @@ int wolfSSL_request_certificate(WOLFSSL* ssl)
         certReqCtx->ctx = certReqCtx->next->ctx + 1;
     ssl->certReqCtx = certReqCtx;
 
+    ssl->msgsReceived.got_certificate = 0;
+    ssl->msgsReceived.got_certificate_verify = 0;
+    ssl->msgsReceived.got_finished = 0;
+
     ret = SendTls13CertificateRequest(ssl, &certReqCtx->ctx, certReqCtx->len);
     if (ret == WANT_WRITE)
         ret = WOLFSSL_ERROR_WANT_WRITE;
     else if (ret == 0)
         ret = WOLFSSL_SUCCESS;
+
     return ret;
 }
 #endif /* !NO_CERTS && WOLFSSL_POST_HANDSHAKE_AUTH */

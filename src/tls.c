@@ -7328,7 +7328,7 @@ int TLSX_PskKeModes_Use(WOLFSSL* ssl, byte modes)
 static word16 TLSX_PostHandAuth_GetSize(byte msgType)
 {
     if (msgType == client_hello)
-        return OPAQUE8_LEN;
+        return 0;
 
     return SANITY_MSG_E;
 }
@@ -7343,10 +7343,10 @@ static word16 TLSX_PostHandAuth_GetSize(byte msgType)
  */
 static word16 TLSX_PostHandAuth_Write(byte* output, byte msgType)
 {
-    if (msgType == client_hello) {
-        *output = 0;
-        return OPAQUE8_LEN;
-    }
+    (void)output;
+
+    if (msgType == client_hello)
+        return 0;
 
     return SANITY_MSG_E;
 }
@@ -7363,15 +7363,11 @@ static word16 TLSX_PostHandAuth_Write(byte* output, byte msgType)
 static int TLSX_PostHandAuth_Parse(WOLFSSL* ssl, byte* input, word16 length,
                                  byte msgType)
 {
-    byte len;
+    (void)input;
 
     if (msgType == client_hello) {
-        /* Ensure length byte exists. */
-        if (length < OPAQUE8_LEN)
-            return BUFFER_E;
-
-        len = input[0];
-        if (length - OPAQUE8_LEN != len || len != 0)
+        /* Ensure extension is empty. */
+        if (length != 0)
             return BUFFER_E;
 
         ssl->options.postHandshakeAuth = 1;
@@ -9347,7 +9343,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 
     #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
             case TLSX_POST_HANDSHAKE_AUTH:
-                WOLFSSL_MSG("PSK Key Exchange Modes extension received");
+                WOLFSSL_MSG("Post Handshake Authentication extension received");
 
                 if (!IsAtLeastTLSv1_3(ssl->version))
                     break;
