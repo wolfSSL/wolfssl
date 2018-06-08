@@ -14025,7 +14025,7 @@ static int test_wc_ecc_mulmod (void)
 {
     int         ret = 0;
 
-#if defined(HAVE_ECC)
+#if defined(HAVE_ECC) && !defined(WOLFSSL_VALIDATE_ECC_IMPORT)
     ecc_key     key1, key2, key3;
     WC_RNG      rng;
 

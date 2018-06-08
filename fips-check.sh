@@ -16,25 +16,26 @@
 #     - keep: (default off) XXX-fips-test temp dir around for inspection
 #
 
-function Usage() {
-    printf '\n%s\n' "Usage: $0 [platform] [keep]"
-    printf '%s\n\n' "Where \"platform\" is one of:"
-    printf '\t%s\n' "linux (default)"
-    printf '\t%s\n' "ios"
-    printf '\t%s\n' "android"
-    printf '\t%s\n' "windows"
-    printf '\t%s\n' "freertos"
-    printf '\t%s\n' "openrtos-3.9.2"
-    printf '\t%s\n' "linux-ecc"
-    printf '\t%s\n' "netbsd-selftest"
-    printf '\t%s\n' "sgx"
-    printf '\t%s\n' "netos-7.6"
-    printf '\t%s\n' "linuxv2"
-    printf '\n%s\n\n' "Where \"keep\" means keep (default off) XXX-fips-test temp dir around for inspection"
-    printf '%s\n' "EXAMPLE:"
-    printf '%s\n' "---------------------------------"
-    printf '%s\n' "./fips-check.sh windows keep"
-    printf '%s\n\n' "---------------------------------"
+Usage() {
+    cat <<usageText
+Usage: $0 [platform [keep]]
+Platform is one of:
+    linux (default)
+    ios
+    android
+    windows
+    freertos
+    openrtos-3.9.2
+    linux-ecc
+    netbsd-selftest
+    sgx
+    netos-7.6
+    linuxv2
+Keep (default off) retains the XXX-fips-test temp dir for inspection.
+
+Example:
+    $0 windows keep
+usageText
 }
 
 LINUX_FIPS_VERSION=v3.2.6
@@ -47,9 +48,9 @@ LINUX_ECC_FIPS_REPO=git@github.com:wolfSSL/fips.git
 LINUX_ECC_CRYPT_VERSION=v3.2.6
 LINUX_ECC_CRYPT_REPO=git@github.com:cyassl/cyassl.git
 
-LINUXV2_FIPS_VERSION=fipsv2
-LINUXV2_FIPS_REPO=git@github.com:ejohnstown/fips.git
-LINUXV2_CRYPT_VERSION=fipsv2
+LINUXV2_FIPS_VERSION=WCv4-stable
+LINUXV2_FIPS_REPO=git@github.com:wolfSSL/fips.git
+LINUXV2_CRYPT_VERSION=WCv4-stable
 
 IOS_FIPS_VERSION=v3.4.8a
 IOS_FIPS_REPO=git@github.com:wolfSSL/fips.git
@@ -104,6 +105,7 @@ CRYPT_INC_PATH=cyassl/ctaocrypt
 CRYPT_SRC_PATH=ctaocrypt/src
 FIPS_OPTION=v1
 CAVP_SELFTEST_ONLY="no"
+GIT="git -c advice.detachedHead=false"
 
 if [ "x$1" == "x" ]; then PLATFORM="linux"; else PLATFORM=$1; fi
 
@@ -192,21 +194,25 @@ netos-7.6)
   exit 1
 esac
 
-git clone . $TEST_DIR
-[ $? -ne 0 ] && echo "\n\nCouldn't duplicate current working directory.\n\n" && exit 1
+if ! $GIT clone . $TEST_DIR; then
+    echo "fips-check: Couldn't duplicate current working directory."
+    exit 1
+fi
 
-pushd $TEST_DIR
+pushd $TEST_DIR || exit 2
 
 if [ "x$FIPS_OPTION" == "xv1" ];
 then
     # make a clone of the last FIPS release tag
-    git clone -b $CRYPT_VERSION $CRYPT_REPO old-tree
-    [ $? -ne 0 ] && echo "\n\nCouldn't checkout the FIPS release.\n\n" && exit 1
+    if ! $GIT clone -b $CRYPT_VERSION $CRYPT_REPO old-tree; then
+        echo "fips-check: Couldn't checkout the FIPS release."
+        exit 1
+    fi
 
-    for MOD in ${WC_MODS[@]}
+    for MOD in "${WC_MODS[@]}"
     do
-        cp old-tree/$CRYPT_SRC_PATH/${MOD}.c $CRYPT_SRC_PATH
-        cp old-tree/$CRYPT_INC_PATH/${MOD}.h $CRYPT_INC_PATH
+        cp "old-tree/$CRYPT_SRC_PATH/${MOD}.c" $CRYPT_SRC_PATH
+        cp "old-tree/$CRYPT_INC_PATH/${MOD}.h" $CRYPT_INC_PATH
     done
 
     # The following is temporary. We are using random.c from a separate release
@@ -215,33 +221,35 @@ then
     if [ "x$CAVP_SELFTEST_ONLY" == "xno" ] && [ "x$PLATFORM" != "xsgx" ] && \
        [ "x$PLATFORM" != "xnetos-7.6" ];
     then
-        pushd old-tree
-        git checkout v3.6.0
-        popd
-        cp old-tree/$CRYPT_SRC_PATH/random.c $CRYPT_SRC_PATH
-        cp old-tree/$CRYPT_INC_PATH/random.h $CRYPT_INC_PATH
+        pushd old-tree || exit 2
+        $GIT checkout v3.6.0
+        popd || exit 2
+        cp "old-tree/$CRYPT_SRC_PATH/random.c" $CRYPT_SRC_PATH
+        cp "old-tree/$CRYPT_INC_PATH/random.h" $CRYPT_INC_PATH
     fi
 else
-    git branch --track $CRYPT_VERSION origin/$CRYPT_VERSION
+    $GIT branch --no-track "my$CRYPT_VERSION" $CRYPT_VERSION
     # Checkout the fips versions of the wolfCrypt files from the repo.
-    for MOD in ${WC_MODS[@]}
+    for MOD in "${WC_MODS[@]}"
     do
-        git checkout $CRYPT_VERSION -- $CRYPT_SRC_PATH/$MOD.c $CRYPT_INC_PATH/$MOD.h
+        $GIT checkout "my$CRYPT_VERSION" -- "$CRYPT_SRC_PATH/$MOD.c" "$CRYPT_INC_PATH/$MOD.h"
     done
 fi
 
 # clone the FIPS repository
-git clone -b $FIPS_VERSION $FIPS_REPO fips
-[ $? -ne 0 ] && echo "\n\nCouldn't checkout the FIPS repository.\n\n" && exit 1
+if ! $GIT clone -b $FIPS_VERSION $FIPS_REPO fips; then
+    echo "fips-check: Couldn't checkout the FIPS repository."
+    exit 1
+fi
 
-for SRC in ${FIPS_SRCS[@]}
+for SRC in "${FIPS_SRCS[@]}"
 do
-    cp fips/$SRC $CRYPT_SRC_PATH
+    cp "fips/$SRC" $CRYPT_SRC_PATH
 done
 
-for INC in ${FIPS_INCS[@]}
+for INC in "${FIPS_INCS[@]}"
 do
-    cp fips/$INC $CRYPT_INC_PATH
+    cp "fips/$INC" $CRYPT_INC_PATH
 done
 
 # run the make test
@@ -252,36 +260,40 @@ then
 else
     ./configure --enable-fips=$FIPS_OPTION
 fi
-make
-[ $? -ne 0 ] && echo "\n\nMake failed. Debris left for analysis." && exit 1
+if ! make; then
+    echo "fips-check: Make failed. Debris left for analysis."
+    exit 3
+fi
 
 if [ "x$CAVP_SELFTEST_ONLY" == "xno" ];
 then
-    NEWHASH=`./wolfcrypt/test/testwolfcrypt | sed -n 's/hash = \(.*\)/\1/p'`
+    NEWHASH=$(./wolfcrypt/test/testwolfcrypt | sed -n 's/hash = \(.*\)/\1/p')
     if [ -n "$NEWHASH" ]; then
         sed -i.bak "s/^\".*\";/\"${NEWHASH}\";/" $CRYPT_SRC_PATH/fips_test.c
         make clean
     fi
 fi
 
-make test
-[ $? -ne 0 ] && echo "\n\nTest failed. Debris left for analysis." && exit 1
+if ! make test; then
+    echo "fips-check: Test failed. Debris left for analysis."
+    exit 3
+fi
 
 if [ ${#FIPS_CONFLICTS[@]} -ne 0 ];
 then
     echo "Due to the way this package is compiled by the customer duplicate"
     echo "source file names are an issue, renaming:"
-    for FNAME in ${FIPS_CONFLICTS[@]}
+    for FNAME in "${FIPS_CONFLICTS[@]}"
     do
         echo "wolfcrypt/src/$FNAME.c to wolfcrypt/src/wc_$FNAME.c"
-        mv ./wolfcrypt/src/$FNAME.c ./wolfcrypt/src/wc_$FNAME.c
+        mv "./wolfcrypt/src/$FNAME.c" "./wolfcrypt/src/wc_$FNAME.c"
     done
     echo "Confirming files were renamed..."
     ls -la ./wolfcrypt/src/wc_*.c
 fi
 
 # Clean up
-popd
+popd || exit 2
 if [ "x$KEEP" == "xno" ];
 then
     rm -rf $TEST_DIR
