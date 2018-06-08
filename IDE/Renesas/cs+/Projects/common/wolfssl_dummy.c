@@ -19,8 +19,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-#include "../common/user_settings.h" 
-#include "../../../../../wolfssl/wolfcrypt/types.h" 
+#ifdef HAVE_CONFIG_H
+    #include <config.h>
+#endif
+
+#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+#include <stdio.h>
 
 //typedef unsigned long time_t;
 
@@ -29,18 +35,17 @@
 
 static int tick = 0;
 
-time_t time(time_t *t)
-{
-    return ((YEAR-1970)*365+30*MON)*24*60*60 + tick++;
-}
-
 #include <ctype.h>
-int strncasecmp(const char *s1, const char * s2, unsigned int sz)
+int strncasecmp(const char *s1, const char *s2, unsigned int sz)
 {
     for( ; sz>0; sz--)
-        if(toupper(s1++) != toupper(s2++))
+        if(toupper(*s1++) != toupper(*s2++))
 	    return 1;
     return 0;
+}
+
+unsigned long user_time(void){ 
+    return ((YEAR-1970)*365+30*MON)*24*60*60 + tick++;
 }
 
 char* getenv(const char *env)
@@ -51,3 +56,5 @@ char* getenv(const char *env)
         return WOLFSSL_GETENV_HOME;
     else return 0;
 }
+
+void abort(void){ while(1); }

@@ -141,7 +141,7 @@
 
 #include <stdlib.h>
 #include <wolfssl/ssl.h>  /* compatibility layer */
-#include <wolfssl/test.h>
+ #include <wolfssl/test.h>
 #include <tests/unit.h>
 #include "examples/server/server.h"
      /* for testing compatibility layer callbacks */
@@ -3073,28 +3073,32 @@ static void test_wolfSSL_X509_NAME_get_entry(void)
         X509* x509;
         ASN1_STRING* asn;
         int idx;
+        ASN1_OBJECT *object = NULL;
 
     #ifndef NO_FILESYSTEM
         x509 = wolfSSL_X509_load_certificate_file(cliCertFile, WOLFSSL_FILETYPE_PEM);
         AssertNotNull(x509);
-
         name = X509_get_subject_name(x509);
+        idx = X509_NAME_get_index_by_NID(name, NID_commonName, -1);
+        AssertIntGE(idx, 0);
+        ne = X509_NAME_get_entry(name, idx);
+        AssertNotNull(ne);
+        asn = X509_NAME_ENTRY_get_data(ne);
+        AssertNotNull(asn);
+        subCN = (char*)ASN1_STRING_data(asn);
+        AssertNotNull(subCN);
+        wolfSSL_FreeX509(x509);
+    #endif
 
+        x509 = wolfSSL_X509_load_certificate_file(cliCertFile, WOLFSSL_FILETYPE_PEM);
+        AssertNotNull(x509);
+        name = X509_get_subject_name(x509);
         idx = X509_NAME_get_index_by_NID(name, NID_commonName, -1);
         AssertIntGE(idx, 0);
 
         ne = X509_NAME_get_entry(name, idx);
         AssertNotNull(ne);
-
-        asn = X509_NAME_ENTRY_get_data(ne);
-        AssertNotNull(asn);
-
-        subCN = (char*)ASN1_STRING_data(asn);
-        AssertNotNull(subCN);
-
-        wolfSSL_FreeX509(x509);
-    #endif
-
+        AssertNotNull(object = X509_NAME_ENTRY_get_object(ne));
     }
 
     printf(resultFmt, passed);
@@ -13061,7 +13065,7 @@ static int test_wc_ecc_shared_secret (void)
     ecc_key     key, pubKey;
     WC_RNG      rng;
     int         keySz = KEY16;
-    byte        out[keySz];
+    byte        out[KEY16];
     word32      outlen = (word32)sizeof(out);
 
     /* Initialize variables. */
@@ -13486,8 +13490,8 @@ static int test_wc_ecc_rs_to_sig (void)
     word32        siglen = (word32)sizeof(sig);
     /*R and S max size is the order of curve. 2^192.*/
     int           keySz = KEY24;
-    byte          r[keySz];
-    byte          s[keySz];
+    byte          r[KEY24];
+    byte          s[KEY24];
     word32        rlen = (word32)sizeof(r);
     word32        slen = (word32)sizeof(s);
 
@@ -14207,7 +14211,7 @@ static int test_wc_ecc_shared_secret_ssh (void)
     WC_RNG      rng;
     int         keySz = KEY32;
     int         key2Sz = KEY24;
-    byte        secret[keySz];
+    byte        secret[KEY32];
     word32      secretLen = keySz;
 
     /* Init stack variables. */
@@ -19748,7 +19752,7 @@ static void test_wolfSSL_ASN1_TIME_to_generalizedtime(void){
 }
 
 static void test_wolfSSL_X509_CA_num(void){
-#if defined(OPENSSL_EXTRA) && !defined(NO_CERT)
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERT) && !defined(NO_FILESYSTEM)
     WOLFSSL_X509_STORE *store;
     WOLFSSL_X509 *x509_1, *x509_2;
     int ca_num = 0;
@@ -19774,7 +19778,7 @@ static void test_wolfSSL_X509_CA_num(void){
 }
 
 static void test_wolfSSL_X509_check_ca(void){
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(NO_FILESYSTEM)
     WOLFSSL_X509 *x509;
 
     x509 = wolfSSL_X509_load_certificate_file(svrCertFile, WOLFSSL_FILETYPE_PEM);
@@ -21006,7 +21010,44 @@ static void test_wolfSSL_X509_CRL(void)
         return;
 }
 
-static void test_wolfSSL_i2c_ASN1_INTEGER(void)
+static void test_wolfSSL_PEM_read_X509(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM)
+    X509 *x509 = NULL;
+    XFILE fp;
+
+    AssertNotNull(fp = XFOPEN(svrCertFile, "rb"));
+    AssertNotNull(x509 = (X509 *)PEM_read_X509(fp, (X509 **)NULL, NULL, NULL));
+    X509_free(x509);
+    XFCLOSE(fp);
+
+#endif
+}
+
+static void test_wolfSSL_X509_NAME_ENTRY_get_object()
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM)
+    X509 *x509 = NULL;
+    X509_NAME* name = NULL;
+    int idx = 0; 
+    X509_NAME_ENTRY *ne = NULL;
+    ASN1_OBJECT *object = NULL;
+
+    x509 = wolfSSL_X509_load_certificate_file(cliCertFile, WOLFSSL_FILETYPE_PEM);
+    AssertNotNull(x509);
+    name = X509_get_subject_name(x509);
+    idx = X509_NAME_get_index_by_NID(name, NID_commonName, -1);
+    AssertIntGE(idx, 0);
+
+    ne = X509_NAME_get_entry(name, idx);
+    AssertNotNull(ne);
+    AssertNotNull(object = X509_NAME_ENTRY_get_object(ne));
+    
+    X509_free(x509);
+#endif
+}
+
+static void test_wolfSSL_i2c_ASN1_INTEGER()
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_ASN)
     ASN1_INTEGER *a;
@@ -21271,6 +21312,8 @@ void ApiTest(void)
     test_wolfSSL_SHA256();
     test_wolfSSL_X509_get_serialNumber();
     test_wolfSSL_X509_CRL();
+    test_wolfSSL_PEM_read_X509();
+    test_wolfSSL_X509_NAME_ENTRY_get_object();
     test_wolfSSL_OPENSSL_add_all_algorithms();
     test_wolfSSL_ASN1_STRING_print_ex();
     test_wolfSSL_ASN1_TIME_to_generalizedtime();

@@ -23,14 +23,15 @@
 #define BENCH_EMBEDDED
 #define NO_WRITEV
 #define WOLFSSL_USER_IO
+#define CloseSocket close
 #define NO_DEV_RANDOM
 #define USE_CERT_BUFFERS_2048
 #define WOLFSSL_USER_CURRTIME
 #define SIZEOF_LONG_LONG 8
 #define NO_WOLFSSL_DIR 
 #define WOLFSSL_NO_CURRDIR
-#define NO_FILESYSTEM
 #define WOLFSSL_LOG_PRINTF
+#define NO_FILESYSTEM
 
 /* #define DEBUG_WOLFSSL */
 
@@ -83,10 +84,10 @@
 
 #if defined(TIME_OVERRIDES) && defined(HAVE_TM_TYPE) && defined(HAVE_TIME_T_TYPE)
    /* #include "time_mng.h" */
-
+    typedef unsigned long Time_t
     #define time_t Time_t
     #define WOLFSSL_GMTIME
-    #define XGTIME gmtime
+    #define XGMTIME gmtime
     #define XTIME user_time
 
     struct tm {
@@ -94,13 +95,15 @@
         int   tm_min;
         int   tm_hour;
         int   tm_mday;
+        int   tm_wday;
         int   tm_mon;
         int   tm_year;
         int   tm_yday;
+        int   tm_isdst;
     };
 #endif
 
-#define HAVE_STUNNEL
+// #define HAVE_STUNNEL
 #define KEEP_OUR_CERT
 
 #ifdef NO_ASN

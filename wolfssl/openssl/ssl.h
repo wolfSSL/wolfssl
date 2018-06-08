@@ -539,6 +539,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define PEM_read_bio_X509 wolfSSL_PEM_read_bio_X509
 #define PEM_read_bio_X509_AUX wolfSSL_PEM_read_bio_X509_AUX
 #define PEM_read_X509_CRL wolfSSL_PEM_read_X509_CRL
+#define PEM_read_X509 wolfSSL_PEM_read_X509
 
 /*#if OPENSSL_API_COMPAT < 0x10100000L*/
 #define CONF_modules_free()
@@ -957,6 +958,8 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define SSL_CTX_set_srp_username          wolfSSL_CTX_set_srp_username
 #define OPENSSL_add_all_algorithms_noconf wolfSSL_OPENSSL_add_all_alogrithms_noconf
 #define i2c_ASN1_INTEGER                  wolfSSL_i2c_ASN1_INTEGER
+#define X509_NAME_ENTRY_get_object        wolfSSL_X509_NAME_ENTRY_get_object
+
 
 #define ERR_NUM_ERRORS                  16
 #define EVP_PKEY_RSA                    6 
