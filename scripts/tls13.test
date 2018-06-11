@@ -14,7 +14,7 @@ counter=0
 # also let's add some randomness by adding pid in case multiple 'make check's
 # per source tree
 ready_file=`pwd`/wolfssl_tls13_ready$$
-client_file=/tmp/wolfssl_tls13_client$$
+client_file=`pwd`/wolfssl_tls13_client$$
 
 echo "ready file $ready_file"
 
@@ -138,6 +138,8 @@ if [ $? -ne 0 ]; then
     fi
     echo ""
 fi
+
+do_cleanup
 
 echo -e "\nALL Tests Passed"
 
