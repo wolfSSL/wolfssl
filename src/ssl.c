@@ -13400,7 +13400,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     }
 
 
-    /* WOLFSSL_SUCCESS on ok */
+    /* WOLFSSL_SUCCESS on ok, WOLFSSL_FAILURE on failure */
     int wolfSSL_EVP_DigestUpdate(WOLFSSL_EVP_MD_CTX* ctx, const void* data,
                                 size_t sz)
     {
@@ -13450,7 +13450,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 break;
 #endif /* WOLFSSL_SHA512 */
             default:
-                return BAD_FUNC_ARG;
+                return WOLFSSL_FAILURE;
         }
 
         return WOLFSSL_SUCCESS;
@@ -13506,7 +13506,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 break;
 #endif /* WOLFSSL_SHA512 */
             default:
-                return BAD_FUNC_ARG;
+                return WOLFSSL_FAILURE;
         }
 
         return WOLFSSL_SUCCESS;
