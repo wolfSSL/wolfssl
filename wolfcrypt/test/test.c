@@ -9759,7 +9759,7 @@ static int rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, byte* tmp)
     ret = 0;
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
 #endif
         if (ret >= 0) {
             ret = wc_MakeSelfCert(myCert, der, FOURK_BUF, key, rng);
@@ -11322,6 +11322,9 @@ static int dh_fips_generate_test(WC_RNG *rng)
     pubSz = sizeof(pub);
 
     ret = wc_DhGenerateKeyPair(&key, rng, priv, &privSz, pub, &pubSz);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
     if (ret != 0) {
         ERROR_OUT(-8227, exit_gen_test);
     }

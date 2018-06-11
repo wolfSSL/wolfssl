@@ -8525,7 +8525,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* if async and byte count above threshold */
     /* only 12-byte IV is supported in HW */
     if (aes->asyncDev.marker == WOLFSSL_ASYNC_MARKER_AES &&
-                            sz >= WC_ASYNC_THRESH_AES_GCM && ivSz == NONCE_SZ) {
+                    sz >= WC_ASYNC_THRESH_AES_GCM && ivSz == GCM_NONCE_MID_SZ) {
     #if defined(HAVE_CAVIUM)
         #ifdef HAVE_CAVIUM_V
         if (authInSz == 20) { /* Nitrox V GCM is only working with 20 byte AAD */
@@ -8878,7 +8878,7 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     /* if async and byte count above threshold */
     /* only 12-byte IV is supported in HW */
     if (aes->asyncDev.marker == WOLFSSL_ASYNC_MARKER_AES &&
-                            sz >= WC_ASYNC_THRESH_AES_GCM && ivSz == NONCE_SZ) {
+                    sz >= WC_ASYNC_THRESH_AES_GCM && ivSz == GCM_NONCE_MID_SZ) {
     #if defined(HAVE_CAVIUM)
         #ifdef HAVE_CAVIUM_V
         if (authInSz == 20) { /* Nitrox V GCM is only working with 20 byte AAD */
