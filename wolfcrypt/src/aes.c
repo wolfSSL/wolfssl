@@ -8427,10 +8427,10 @@ int AES_GCM_encrypt_C(Aes* aes, byte* out, const byte* in, word32 sz,
 #ifdef WOLFSSL_PIC32MZ_CRYPT
     if (blocks) {
         /* use intitial IV for PIC32 HW, but don't use it below */
-        XMEMCPY(aes->tmp, ctr, AES_BLOCK_SIZE);
+        XMEMCPY(aes->reg, ctr, AES_BLOCK_SIZE);
 
         ret = wc_Pic32AesCrypt(
-            aes->key, aes->keylen, aes->tmp, AES_BLOCK_SIZE,
+            aes->key, aes->keylen, aes->reg, AES_BLOCK_SIZE,
             out, in, (blocks * AES_BLOCK_SIZE),
             PIC32_ENCRYPTION, PIC32_ALGO_AES, PIC32_CRYPTOALGO_AES_GCM);
         if (ret != 0)
@@ -8805,10 +8805,10 @@ int AES_GCM_decrypt_C(Aes* aes, byte* out, const byte* in, word32 sz,
 #ifdef WOLFSSL_PIC32MZ_CRYPT
     if (blocks) {
         /* use intitial IV for PIC32 HW, but don't use it below */
-        XMEMCPY(aes->tmp, ctr, AES_BLOCK_SIZE);
+        XMEMCPY(aes->reg, ctr, AES_BLOCK_SIZE);
 
         ret = wc_Pic32AesCrypt(
-            aes->key, aes->keylen, aes->tmp, AES_BLOCK_SIZE,
+            aes->key, aes->keylen, aes->reg, AES_BLOCK_SIZE,
             out, in, (blocks * AES_BLOCK_SIZE),
             PIC32_DECRYPTION, PIC32_ALGO_AES, PIC32_CRYPTOALGO_AES_GCM);
         if (ret != 0)
