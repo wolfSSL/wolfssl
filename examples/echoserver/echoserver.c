@@ -379,22 +379,18 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                 break;
             }
 #endif
-            if ( strncmp(command, "GET", 3) == 0) {
-                char type[]   = "HTTP/1.0 200 ok\r\nContent-type:"
-                                " text/html\r\n\r\n";
-                char header[] = "<html><body BGCOLOR=\"#ffffff\">\n<pre>\n";
-                char body[]   = "greetings from wolfSSL\n";
-                char footer[] = "</body></html>\r\n\r\n";
+            if (strncmp(command, "GET", 3) == 0) {
+                const char resp[] =
+                    "HTTP/1.0 200 ok\r\nContent-type: text/html\r\n\r\n"
+                    "<html><body BGCOLOR=\"#ffffff\"><pre>\r\n"
+                    "greetings from wolfSSL\r\n</body></html>\r\n\r\n";
 
-                strncpy(command, type, sizeof(type));
-                echoSz = sizeof(type) - 1;
-
-                strncpy(&command[echoSz], header, sizeof(header));
-                echoSz += (int)sizeof(header) - 1;
-                strncpy(&command[echoSz], body, sizeof(body));
-                echoSz += (int)sizeof(body) - 1;
-                strncpy(&command[echoSz], footer, sizeof(footer));
-                echoSz += (int)sizeof(footer);
+                echoSz = (int)strlen(resp) + 1;
+                if (echoSz > (int)sizeof(command)) {
+                    /* Internal error. */
+                    err_sys("HTTP response greater than buffer.");
+                }
+                strncpy(command, resp, sizeof(command));
 
                 do {
                     err = 0; /* reset error */

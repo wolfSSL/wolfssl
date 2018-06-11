@@ -247,6 +247,8 @@ int wolfCrypt_Cleanup(void)
 int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
 {
     int ret = -1; /* default to no files found */
+    int pathLen = 0;
+    int dnameLen = 0;
 
     if (name)
         *name = NULL;
@@ -256,10 +258,14 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
     }
 
     XMEMSET(ctx->name, 0, MAX_FILENAME_SZ);
+    pathLen = (int)XSTRLEN(path);
 
 #ifdef USE_WINDOWS_API
-    XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ - 4);
-    XSTRNCAT(ctx->name, "\\*", 3);
+    if (pathLen > MAX_FILENAME_SZ - 3)
+        return BAD_PATH_ERROR;
+
+    XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ - 3);
+    XSTRNCPY(ctx->name + pathLen, "\\*", MAX_FILENAME_SZ - pathLen);
 
     ctx->hFind = FindFirstFileA(ctx->name, &ctx->FindFileData);
     if (ctx->hFind == INVALID_HANDLE_VALUE) {
@@ -269,9 +275,16 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
 
     do {
         if (ctx->FindFileData.dwFileAttributes != FILE_ATTRIBUTE_DIRECTORY) {
-            XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ/2 - 3);
-            XSTRNCAT(ctx->name, "\\", 2);
-            XSTRNCAT(ctx->name, ctx->FindFileData.cFileName, MAX_FILENAME_SZ/2);
+            dnameLen = (int)XSTRLEN(ctx->entry->d_name);
+
+            if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
+                return BAD_PATH_ERROR;
+            }
+            XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ);
+            ctx->name[pathLen] = '\\';
+            XSTRNCPY(ctx->name + pathLen + 1,
+                     ctx->FindFileData.cFileName,
+                     MAX_FILENAME_SZ - pathLen - 1);
             if (name)
                 *name = ctx->name;
             return 0;
@@ -285,9 +298,16 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
     }
 
     while ((ctx->entry = readdir(ctx->dir)) != NULL) {
-        XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ/2 - 2);
-        XSTRNCAT(ctx->name, "/", 1);
-        XSTRNCAT(ctx->name, ctx->entry->d_name, MAX_FILENAME_SZ/2);
+        dnameLen = (int)XSTRLEN(ctx->entry->d_name);
+
+        if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
+            ret = BAD_PATH_ERROR;
+            break;
+        }
+        XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ);
+        ctx->name[pathLen] = '/';
+        XSTRNCPY(ctx->name + pathLen + 1,
+                 ctx->entry->d_name, MAX_FILENAME_SZ - pathLen - 1);
 
         if (stat(ctx->name, &ctx->s) != 0) {
             WOLFSSL_MSG("stat on name failed");
@@ -309,6 +329,8 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
 int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
 {
     int ret = -1; /* default to no file found */
+    int pathLen = 0;
+    int dnameLen = 0;
 
     if (name)
         *name = NULL;
@@ -318,13 +340,21 @@ int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
     }
 
     XMEMSET(ctx->name, 0, MAX_FILENAME_SZ);
+    pathLen = (int)XSTRLEN(path);
 
 #ifdef USE_WINDOWS_API
     while (FindNextFileA(ctx->hFind, &ctx->FindFileData)) {
         if (ctx->FindFileData.dwFileAttributes != FILE_ATTRIBUTE_DIRECTORY) {
-            XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ/2 - 3);
-            XSTRNCAT(ctx->name, "\\", 2);
-            XSTRNCAT(ctx->name, ctx->FindFileData.cFileName, MAX_FILENAME_SZ/2);
+            dnameLen = (int)XSTRLEN(ctx->entry->d_name);
+
+            if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
+                return BAD_PATH_ERROR;
+            }
+            XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ);
+            ctx->name[pathLen] = '\\';
+            XSTRNCPY(ctx->name + pathLen + 1,
+                     ctx->FindFileData.cFileName,
+                     MAX_FILENAME_SZ - pathLen - 1);
             if (name)
                 *name = ctx->name;
             return 0;
@@ -332,9 +362,16 @@ int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
     }
 #else
     while ((ctx->entry = readdir(ctx->dir)) != NULL) {
-        XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ/2 - 2);
-        XSTRNCAT(ctx->name, "/", 1);
-        XSTRNCAT(ctx->name, ctx->entry->d_name, MAX_FILENAME_SZ/2);
+        dnameLen = (int)XSTRLEN(ctx->entry->d_name);
+
+        if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
+            ret = BAD_PATH_ERROR;
+            break;
+        }
+        XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ);
+        ctx->name[pathLen] = '/';
+        XSTRNCPY(ctx->name + pathLen + 1,
+                 ctx->entry->d_name, MAX_FILENAME_SZ - pathLen - 1);
 
         if (stat(ctx->name, &ctx->s) != 0) {
             WOLFSSL_MSG("stat on name failed");
