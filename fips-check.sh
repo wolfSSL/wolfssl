@@ -30,7 +30,7 @@ Platform is one of:
     netbsd-selftest
     sgx
     netos-7.6
-    linuxv2
+    linuxv2 (FIPSv2, use for Win10)
 Keep (default off) retains the XXX-fips-test temp dir for inspection.
 
 Example:
