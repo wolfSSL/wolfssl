@@ -65,6 +65,9 @@ wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 
 before calling wolfSSL_new();  Though it's not recommended.
 ```
+# wolfSSL Release x.x.x
+
+* Added AES performance enhancements on AMD processors using Intel ASM instructions 
 
 # wolfSSL Release 3.14.0 (3/02/2018)
 
