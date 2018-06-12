@@ -78,6 +78,10 @@ hash function. Instead the name WC_SHA, WC_SHA256, WC_SHA384 and WC_SHA512
 should be used for the enum name.
 ```
 
+# wolfSSL Release x.x.x
+
+* Added AES performance enhancements on AMD processors with build option `./configure --enable-intelasm`
+
 # wolfSSL Release 3.15.0 (06/05/2018)
 
 Release 3.15.0 of wolfSSL embedded TLS has bug fixes and new features including:
