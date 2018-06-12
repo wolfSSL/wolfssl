@@ -103,6 +103,21 @@ if [ $? -ne 0 ]; then
     fi
     echo ""
 
+    # psk server with non psk client
+    port=0
+    ./examples/server/server -j -R $ready_file -p $port &
+    server_pid=$!
+    create_port
+    ./examples/client/client -p $port
+    RESULT=$?
+    remove_ready_file
+    if [ $RESULT -ne 0 ]; then
+        echo -e "\n\nClient connection failed"
+        do_cleanup
+        exit 1
+    fi
+    echo ""
+
     # check fail if no auth, psk server with non psk client
     echo "Checking fail when not sending peer cert"
     port=0
