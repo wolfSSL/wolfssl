@@ -65,6 +65,9 @@ wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
 
 before calling wolfSSL_new();  Though it's not recommended.
 ```
+# wolfSSL Release x.x.x
+
+* Added AES performance enhancements on AMD processors using Intel ASM instructions 
 
 ## Note 3
 ```
@@ -74,6 +77,10 @@ NO_OLD_SHA_NAMES. These names get mapped to the OpenSSL API for a single call
 hash function. Instead the name WC_SHA, WC_SHA256, WC_SHA384 and WC_SHA512
 should be used for the enum name.
 ```
+
+# wolfSSL Release x.x.x
+
+* Added AES performance enhancements on AMD processors with build option `./configure --enable-intelasm`
 
 # wolfSSL Release 3.15.0 (06/05/2018)
 

@@ -1,3 +1,7 @@
+# wolfSSL Release x.x.x
+
+* Added AES performance enhancements on AMD processors with build option `./configure --enable-intelasm`
+
 # wolfSSL Release 3.15.0 (06/05/2018)
 
 Release 3.15.0 of wolfSSL embedded TLS has bug fixes and new features including:
