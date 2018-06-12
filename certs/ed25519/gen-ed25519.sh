@@ -16,3 +16,17 @@ popd
 mv ${EXAMPLE}/*.pem .
 mv ${EXAMPLE}/*.der .
 
+convert() {
+    echo -en "\x30\x2e" > ${NAME}-ed25519-priv.der
+    head -c 48 ${NAME}-ed25519-key.der | tail -c 46 >> ${NAME}-ed25519-priv.der
+
+    echo "-----BEGIN PRIVATE KEY-----" > ${NAME}-ed25519-priv.pem
+    openssl base64 -in ${NAME}-ed25519-priv.der >> ${NAME}-ed25519-priv.pem
+    echo "-----END PRIVATE KEY-----" >> ${NAME}-ed25519-priv.pem
+}
+
+NAME=server convert
+NAME=client convert
+NAME=root convert
+NAME=ca convert
+
