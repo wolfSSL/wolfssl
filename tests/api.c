@@ -321,7 +321,7 @@
 #include "wolfssl/internal.h" /* for testing SSL_get_peer_cert_chain */
 #endif
 
-/* enable testing buffer load functions */
+/* force enable test buffers */
 #ifndef USE_CERT_BUFFERS_2048
     #define USE_CERT_BUFFERS_2048
 #endif
@@ -377,7 +377,8 @@ typedef struct testVector {
 static const char* passed = "passed";
 static const char* failed = "failed";
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
+    (!defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT))
     static const char* bogusFile  =
     #ifdef _WIN32
         "NUL"
@@ -385,7 +386,7 @@ static const char* failed = "failed";
         "/dev/null"
     #endif
     ;
-#endif
+#endif /* !NO_FILESYSTEM && !NO_CERTS && (!NO_WOLFSSL_SERVER || !NO_WOLFSSL_CLIENT) */
 
 enum {
     TESTING_RSA = 1,
@@ -1147,7 +1148,7 @@ static void test_wolfSSL_EVP_get_cipherbynid(void)
  *----------------------------------------------------------------------------*/
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
     !defined(NO_RSA)        && !defined(SINGLE_THREADED) && \
-    !defined(NO_WOLFSSL_SERVER) && !defined(NO_WOLFSSL_CLIENT)
+    (!defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT))
 #define HAVE_IO_TESTS_DEPENDENCIES
 #endif
 
@@ -15685,57 +15686,124 @@ static void test_wolfSSL_private_keys(void)
 
 static void test_wolfSSL_PEM_PrivateKey(void)
 {
-    #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
-       !defined(NO_FILESYSTEM) && !defined(NO_RSA)   && \
-       (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN)) && \
-       defined(USE_CERT_BUFFERS_2048)
-    const unsigned char* server_key = (const unsigned char*)server_key_der_2048;
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
+    (!defined(NO_RSA) || defined(HAVE_ECC)) && \
+    defined(USE_CERT_BUFFERS_2048)
+
+    BIO*      bio = NULL;
     EVP_PKEY* pkey  = NULL;
-    EVP_PKEY* pkey2 = NULL;
-    BIO*      bio;
-    unsigned char extra[10];
-    int i;
+    const unsigned char* server_key = (const unsigned char*)server_key_der_2048;
 
-    printf(testingFmt, "wolfSSL_PEM_PrivateKey()");
+    /* test creating new EVP_PKEY with bad arg */
+    AssertNull((pkey = PEM_read_bio_PrivateKey(NULL, NULL, NULL, NULL)));
 
-    XMEMSET(extra, 0, sizeof(extra));
-    AssertNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
-    AssertIntEQ(BIO_set_write_buf_size(bio, 4096), SSL_FAILURE);
+    /* test loading RSA key using BIO */
+#if !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    {
+        XFILE file;
+        const char* fname = "./certs/server-key.pem";
+        size_t sz;
+        byte* buf;
 
-    AssertNull(d2i_PrivateKey(EVP_PKEY_EC, &pkey,
-            &server_key, (long)sizeof_server_key_der_2048));
-    AssertNull(pkey);
+        file = XFOPEN(fname, "rb");
+        AssertTrue((file != XBADFILE));
+        XFSEEK(file, 0, XSEEK_END);
+        sz = XFTELL(file);
+        XREWIND(file);
+        AssertNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
+        AssertIntEQ(XFREAD(buf, 1, sz, file), sz);
+        XFCLOSE(file);
 
-    AssertNotNull(wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, &pkey,
-            &server_key, (long)sizeof_server_key_der_2048));
-    AssertIntEQ(PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL),
-            WOLFSSL_SUCCESS);
-
-    /* test of creating new EVP_PKEY */
-    AssertNotNull((pkey2 = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL)));
-    AssertIntEQ((int)XMEMCMP(pkey->pkey.ptr, pkey2->pkey.ptr, pkey->pkey_sz),0);
-
-    /* test of reuse of EVP_PKEY */
-    AssertNull(PEM_read_bio_PrivateKey(bio, &pkey, NULL, NULL));
-    AssertIntEQ(BIO_pending(bio), 0);
-    AssertIntEQ(PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL),
-            SSL_SUCCESS);
-    AssertIntEQ(BIO_write(bio, extra, 10), 10); /*add 10 extra bytes after PEM*/
-    AssertNotNull(PEM_read_bio_PrivateKey(bio, &pkey, NULL, NULL));
-    AssertNotNull(pkey);
-    AssertIntEQ((int)XMEMCMP(pkey->pkey.ptr, pkey2->pkey.ptr, pkey->pkey_sz),0);
-    AssertIntEQ(BIO_pending(bio), 10); /* check 10 extra bytes still there */
-    AssertIntEQ(BIO_read(bio, extra, 10), 10);
-    for (i = 0; i < 10; i++) {
-        AssertIntEQ(extra[i], 0);
+        /* Test using BIO new mem and loading PEM private key */
+        AssertNotNull(bio = BIO_new_mem_buf(buf, (int)sz));
+        AssertNotNull((pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL)));
+        XFREE(buf, NULL, DYNAMIC_TYPE_FILE);
+        BIO_free(bio);
+        bio = NULL;
+        EVP_PKEY_free(pkey);
+        pkey  = NULL;
     }
+#endif
 
-    BIO_free(bio);
-    EVP_PKEY_free(pkey);
-    EVP_PKEY_free(pkey2);
+    /* test loading ECC key using BIO */
+#if defined(HAVE_ECC) && !defined(NO_FILESYSTEM)
+    {
+        XFILE file;
+        const char* fname = "./certs/ecc-key.pem";
+        size_t sz;
+        byte* buf;
+
+        file = XFOPEN(fname, "rb");
+        AssertTrue((file != XBADFILE));
+        XFSEEK(file, 0, XSEEK_END);
+        sz = XFTELL(file);
+        XREWIND(file);
+        AssertNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
+        AssertIntEQ(XFREAD(buf, 1, sz, file), sz);
+        XFCLOSE(file);
+
+        /* Test using BIO new mem and loading PEM private key */
+        AssertNotNull(bio = BIO_new_mem_buf(buf, (int)sz));
+        AssertNotNull((pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL)));
+        XFREE(buf, NULL, DYNAMIC_TYPE_FILE);
+        BIO_free(bio);
+        bio = NULL;
+        EVP_PKEY_free(pkey);
+        pkey  = NULL;
+    }
+#endif
+
+#if !defined(NO_RSA) && (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN))
+    {
+        EVP_PKEY* pkey2 = NULL;
+        unsigned char extra[10];
+        int i;
+
+        printf(testingFmt, "wolfSSL_PEM_PrivateKey()");
+
+        XMEMSET(extra, 0, sizeof(extra));
+
+        AssertNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+        AssertIntEQ(BIO_set_write_buf_size(bio, 4096), SSL_FAILURE);
+
+        AssertNull(d2i_PrivateKey(EVP_PKEY_EC, &pkey,
+                &server_key, (long)sizeof_server_key_der_2048));
+        AssertNull(pkey);
+
+        AssertNotNull(wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, &pkey,
+                &server_key, (long)sizeof_server_key_der_2048));
+        AssertIntEQ(PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL),
+                WOLFSSL_SUCCESS);
+
+        /* test creating new EVP_PKEY with good args */
+        AssertNotNull((pkey2 = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL)));
+        AssertIntEQ((int)XMEMCMP(pkey->pkey.ptr, pkey2->pkey.ptr, pkey->pkey_sz),0);
+
+        /* test of reuse of EVP_PKEY */
+        AssertNull(PEM_read_bio_PrivateKey(bio, &pkey, NULL, NULL));
+        AssertIntEQ(BIO_pending(bio), 0);
+        AssertIntEQ(PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL),
+                SSL_SUCCESS);
+        AssertIntEQ(BIO_write(bio, extra, 10), 10); /*add 10 extra bytes after PEM*/
+        AssertNotNull(PEM_read_bio_PrivateKey(bio, &pkey, NULL, NULL));
+        AssertNotNull(pkey);
+        AssertIntEQ((int)XMEMCMP(pkey->pkey.ptr, pkey2->pkey.ptr, pkey->pkey_sz),0);
+        AssertIntEQ(BIO_pending(bio), 10); /* check 10 extra bytes still there */
+        AssertIntEQ(BIO_read(bio, extra, 10), 10);
+        for (i = 0; i < 10; i++) {
+            AssertIntEQ(extra[i], 0);
+        }
+
+        BIO_free(bio);
+        bio = NULL;
+        EVP_PKEY_free(pkey);
+        pkey  = NULL;
+        EVP_PKEY_free(pkey2);
+    }
+    #endif
 
     /* key is DES encrypted */
-    #if !defined(NO_DES3) && defined(WOLFSSL_ENCRYPTED_KEYS)
+    #if !defined(NO_DES3) && defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_FILESYSTEM)
     {
         pem_password_cb* passwd_cb;
         void* passwd_cb_userdata;
@@ -15771,12 +15839,14 @@ static void test_wolfSSL_PEM_PrivateKey(void)
         AssertIntEQ(SSL_CTX_use_PrivateKey(ctx, pkey), SSL_SUCCESS);
 
         EVP_PKEY_free(pkey);
+        pkey  = NULL;
         BIO_free(bio);
+        bio = NULL;
         SSL_CTX_free(ctx);
     }
     #endif /* !defined(NO_DES3) */
 
-    #ifdef HAVE_ECC
+    #if defined(HAVE_ECC) && !defined(NO_FILESYSTEM)
     {
         unsigned char buf[2048];
         size_t bytes;
@@ -15801,12 +15871,18 @@ static void test_wolfSSL_PEM_PrivateKey(void)
         AssertIntEQ(SSL_CTX_use_PrivateKey(ctx, pkey), SSL_SUCCESS);
 
         EVP_PKEY_free(pkey);
+        pkey = NULL;
         SSL_CTX_free(ctx);
     }
     #endif
 
     printf(resultFmt, passed);
-    #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) */
+
+    (void)server_key;
+    (void)bio;
+    (void)pkey;
+
+#endif /* OPENSSL_EXTRA && !NO_CERTS && !NO_RSA && USE_CERT_BUFFERS_2048 */
 }
 
 
@@ -17298,7 +17374,7 @@ static void test_wolfSSL_pseudo_rand(void)
     #endif
 }
 
-static void test_wolfSSL_pkcs8(void)
+static void test_wolfSSL_PKCS8_Compat(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && defined(HAVE_ECC)
     PKCS8_PRIV_KEY_INFO* pt;
@@ -17517,6 +17593,11 @@ static void test_wolfSSL_BIO_gets(void)
 
     printf(testingFmt, "wolfSSL_X509_BIO_gets()");
 
+    /* try with bad args */
+    AssertNull(bio = BIO_new_mem_buf(NULL, sizeof(msg)));
+    AssertNull(bio = BIO_new_mem_buf((void*)msg, -1));
+
+    /* try with real msg */
     AssertNotNull(bio = BIO_new_mem_buf((void*)msg, sizeof(msg)));
     XMEMSET(buffer, 0, bufferSz);
     AssertNotNull(BIO_push(bio, BIO_new(BIO_s_bio())));
@@ -19408,7 +19489,8 @@ static void test_DhCallbacks(void)
 
 #ifdef HAVE_HASHDRBG
 
-static int test_wc_RNG_GenerateBlock()
+#ifdef TEST_RESEED_INTERVAL
+static int test_wc_RNG_GenerateBlock_Reseed()
 {
     int i, ret;
     WC_RNG rng;
@@ -19418,6 +19500,29 @@ static int test_wc_RNG_GenerateBlock()
 
     if (ret == 0) {
         for(i = 0; i < WC_RESEED_INTERVAL + 10; i++) {
+            ret = wc_RNG_GenerateBlock(&rng, key, sizeof(key));
+            if (ret != 0) {
+                break;
+            }
+        }
+    }
+
+    wc_FreeRng(&rng);
+
+    return ret;
+}
+#endif /* TEST_RESEED_INTERVAL */
+
+static int test_wc_RNG_GenerateBlock()
+{
+    int i, ret;
+    WC_RNG rng;
+    byte key[32];
+
+    ret = wc_InitRng(&rng);
+
+    if (ret == 0) {
+        for(i = 0; i < 10; i++) {
             ret = wc_RNG_GenerateBlock(&rng, key, sizeof(key));
             if (ret != 0) {
                 break;
@@ -19668,7 +19773,7 @@ void ApiTest(void)
     test_wolfSSL_CTX_set_srp_username();
     test_wolfSSL_CTX_set_srp_password();
     test_wolfSSL_pseudo_rand();
-    test_wolfSSL_pkcs8();
+    test_wolfSSL_PKCS8_Compat();
     test_wolfSSL_ERR_put_error();
     test_wolfSSL_HMAC();
     test_wolfSSL_OBJ();
@@ -19857,6 +19962,9 @@ void ApiTest(void)
 #endif
 
 #ifdef HAVE_HASHDRBG
+    #ifdef TEST_RESEED_INTERVAL
+    AssertIntEQ(test_wc_RNG_GenerateBlock_Reseed(), 0);
+    #endif
     AssertIntEQ(test_wc_RNG_GenerateBlock(), 0);
 #endif
 

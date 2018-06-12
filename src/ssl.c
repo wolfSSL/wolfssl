@@ -1147,6 +1147,8 @@ int wolfSSL_negotiate(WOLFSSL* ssl)
     }
 #endif
 
+    (void)ssl;
+
     WOLFSSL_LEAVE("wolfSSL_negotiate", err);
 
     return err;
@@ -8433,11 +8435,11 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
 #ifdef OPENSSL_EXTRA
     WOLFSSL_METHOD* wolfSSLv23_method(void) {
-        WOLFSSL_METHOD* m;
+        WOLFSSL_METHOD* m = NULL;
         WOLFSSL_ENTER("wolfSSLv23_method");
-#ifndef NO_WOLFSSL_CLIENT
+#if !defined(NO_WOLFSSL_CLIENT)
         m = wolfSSLv23_client_method();
-#else
+#elif !defined(NO_WOLFSSL_SERVER)
         m = wolfSSLv23_server_method();
 #endif
         if (m != NULL) {
@@ -11597,12 +11599,15 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     WOLFSSL_BIO* wolfSSL_BIO_new_mem_buf(void* buf, int len)
     {
         WOLFSSL_BIO* bio = NULL;
-        if (buf == NULL)
+
+        if (buf == NULL || len < 0) {
             return bio;
+        }
 
         bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem());
-        if (bio == NULL)
+        if (bio == NULL) {
             return bio;
+        }
 
         bio->memLen = bio->wrSz = len;
         bio->mem    = (byte*)XMALLOC(len, 0, DYNAMIC_TYPE_OPENSSL);
@@ -13613,7 +13618,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     {
         WOLFSSL_ENTER("wolfSSL_ERR_clear_error");
 
-#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
+#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_NGINX)
         wc_ClearErrorNodes();
 #endif
     }
@@ -27386,6 +27391,10 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
     int eccFlag = 0;
 
     WOLFSSL_ENTER("wolfSSL_PEM_read_bio_PrivateKey");
+
+    if (bio == NULL) {
+        return pkey;
+    }
 
     if ((ret = wolfSSL_BIO_pending(bio)) > 0) {
         memSz = ret;
