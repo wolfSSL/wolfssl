@@ -122,6 +122,10 @@ ECC Curve Sizes:
     #include <wolfssl/wolfcrypt/hash.h>
 #endif
 
+#ifdef WOLF_CRYPTO_DEV
+    #include <wolfssl/wolfcrypt/cryptodev.h>
+#endif
+
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -2793,6 +2797,14 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
        return BAD_FUNC_ARG;
    }
 
+#ifdef WOLF_CRYPTO_DEV
+    if (private_key->devId != INVALID_DEVID) {
+        err = wc_CryptoDev_Ecdh(private_key, public_key, out, outlen);
+        if (err != NOT_COMPILED_IN)
+            return err;
+    }
+#endif
+
    /* type valid? */
    if (private_key->type != ECC_PRIVATEKEY &&
            private_key->type != ECC_PRIVATEKEY_ONLY) {
@@ -3127,17 +3139,17 @@ static int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
     if (err == 0)
         err = mp_read_unsigned_bin(k, (byte*)buf, size);
 
-    /* quick sanity check to make sure we're not dealing with a 0 key */
-    if (err == MP_OKAY) {
-        if (mp_iszero(k) == MP_YES)
-          err = MP_ZERO_E;
-    }
-
     /* the key should be smaller than the order of base point */
     if (err == MP_OKAY) {
         if (mp_cmp(k, order) != MP_LT) {
             err = mp_mod(k, order, k);
         }
+    }
+
+    /* quick sanity check to make sure we're not dealing with a 0 key */
+    if (err == MP_OKAY) {
+        if (mp_iszero(k) == MP_YES)
+          err = MP_ZERO_E;
     }
 
     ForceZero(buf, ECC_MAXSIZE);
@@ -3495,8 +3507,10 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
     XMEMSET(key, 0, sizeof(ecc_key));
     key->state = ECC_STATE_NONE;
 
-#ifdef PLUTON_CRYPTO_ECC
+#if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_DEV)
     key->devId = devId;
+#else
+    (void)devId;
 #endif
 
 #ifdef WOLFSSL_ATECC508A
@@ -3532,8 +3546,6 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
     /* handle as async */
     ret = wolfAsync_DevCtxInit(&key->asyncDev, WOLFSSL_ASYNC_MARKER_ECC,
                                                             key->heap, devId);
-#else
-    (void)devId;
 #endif
 
     return ret;
@@ -3640,6 +3652,14 @@ int wc_ecc_sign_hash(const byte* in, word32 inlen, byte* out, word32 *outlen,
                                                                 rng == NULL) {
         return ECC_BAD_ARG_E;
     }
+
+#ifdef WOLF_CRYPTO_DEV
+    if (key->devId != INVALID_DEVID) {
+        err = wc_CryptoDev_EccSign(in, inlen, out, outlen, rng, key);
+        if (err != NOT_COMPILED_IN)
+            return err;
+    }
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     err = wc_ecc_alloc_async(key);
@@ -3904,12 +3924,32 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 
        /* don't use async for key, since we don't support async return here */
        if ((err = wc_ecc_init_ex(&pubkey, key->heap, INVALID_DEVID)) == MP_OKAY) {
+           mp_int b;
+
+           if (err == MP_OKAY) {
+               err = mp_init(&b);
+           }
+
        #ifdef WOLFSSL_CUSTOM_CURVES
            /* if custom curve, apply params to pubkey */
-           if (key->idx == ECC_CUSTOM_IDX) {
+           if (err == MP_OKAY && key->idx == ECC_CUSTOM_IDX) {
                err = wc_ecc_set_custom_curve(&pubkey, key->dp);
            }
        #endif
+
+           if (err == MP_OKAY) {
+               /* Generate blinding value - non-zero value. */
+               do {
+                   if (++loop_check > 64) {
+                        err = RNG_FAILURE_E;
+                        break;
+                   }
+
+                   err = wc_ecc_gen_k(rng, key->dp->size, &b, curve->order);
+               }
+               while (err == MP_ZERO_E);
+               loop_check = 0;
+           }
 
            for (; err == MP_OKAY;) {
                if (++loop_check > 64) {
@@ -3917,7 +3957,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                     break;
                }
                err = wc_ecc_make_key_ex(rng, key->dp->size, &pubkey,
-                                                              key->dp->id);
+                                                                   key->dp->id);
                if (err != MP_OKAY) break;
 
                /* find r = x1 mod n */
@@ -3933,30 +3973,50 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                    mp_forcezero(&pubkey.k);
                }
                else {
-                   /* find s = (e + xr)/k */
+                   /* find s = (e + xr)/k
+                             = b.(e/k.b + x.r/k.b) */
+
+                   /* k = k.b */
+                   err = mp_mulmod(&pubkey.k, &b, curve->order, &pubkey.k);
+                   if (err != MP_OKAY) break;
+
+                   /* k = 1/k.b */
                    err = mp_invmod(&pubkey.k, curve->order, &pubkey.k);
                    if (err != MP_OKAY) break;
 
-                   /* s = xr */
+                   /* s = x.r */
                    err = mp_mulmod(&key->k, r, curve->order, s);
                    if (err != MP_OKAY) break;
 
-                   /* s = e +  xr */
+                   /* s = x.r/k.b */
+                   err = mp_mulmod(&pubkey.k, s, curve->order, s);
+                   if (err != MP_OKAY) break;
+
+                   /* e = e/k.b */
+                   err = mp_mulmod(&pubkey.k, e, curve->order, e);
+                   if (err != MP_OKAY) break;
+
+                   /* s = e/k.b + x.r/k.b
+                        = (e + x.r)/k.b */
                    err = mp_add(e, s, s);
                    if (err != MP_OKAY) break;
 
-                   /* s = e +  xr */
-                   err = mp_mod(s, curve->order, s);
+                   /* s = b.(e + x.r)/k.b
+                        = (e + x.r)/k */
+                   err = mp_mulmod(s, &b, curve->order, s);
                    if (err != MP_OKAY) break;
 
                    /* s = (e + xr)/k */
-                   err = mp_mulmod(s, &pubkey.k, curve->order, s);
+                   err = mp_mod(s, curve->order, s);
+                   if (err != MP_OKAY) break;
 
                    if (mp_iszero(s) == MP_NO)
                        break;
                 }
            }
            wc_ecc_free(&pubkey);
+           mp_clear(&b);
+           mp_free(&b);
        }
    }
 
@@ -4291,6 +4351,14 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
         return ECC_BAD_ARG_E;
     }
 
+#ifdef WOLF_CRYPTO_DEV
+    if (key->devId != INVALID_DEVID) {
+        err = wc_CryptoDev_EccVerify(sig, siglen, hash, hashlen, res, key);
+        if (err != NOT_COMPILED_IN)
+            return err;
+    }
+#endif
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     err = wc_ecc_alloc_async(key);
     if (err != 0)
@@ -4325,6 +4393,13 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
             key->state = ECC_STATE_VERIFY_DO;
 
             err = wc_ecc_verify_hash_ex(r, s, hash, hashlen, res, key);
+
+        #ifndef WOLFSSL_ASYNC_CRYPT
+            /* done with R/S */
+            mp_clear(r);
+            mp_clear(s);
+        #endif
+
             if (err < 0) {
                 break;
             }
@@ -4333,10 +4408,6 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
         case ECC_STATE_VERIFY_RES:
             key->state = ECC_STATE_VERIFY_RES;
             err = 0;
-
-            /* done with R/S */
-            mp_clear(r);
-            mp_clear(s);
             break;
 
         default:

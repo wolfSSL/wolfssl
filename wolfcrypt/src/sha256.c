@@ -765,6 +765,27 @@ static int InitSha256(wc_Sha256* sha256)
         return XTRANSFORM(sha256);
     }
 
+    int wc_Sha256FinalRaw(wc_Sha256* sha256, byte* hash)
+    {
+    #ifdef LITTLE_ENDIAN_ORDER
+        word32 digest[WC_SHA256_DIGEST_SIZE / sizeof(word32)];
+    #endif
+
+        if (sha256 == NULL || hash == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+    #ifdef LITTLE_ENDIAN_ORDER
+        ByteReverseWords((word32*)digest, (word32*)sha256->digest,
+                                                         WC_SHA256_DIGEST_SIZE);
+        XMEMCPY(hash, digest, WC_SHA256_DIGEST_SIZE);
+    #else
+        XMEMCPY(hash, sha256->digest, WC_SHA256_DIGEST_SIZE);
+    #endif
+
+        return 0;
+    }
+
     int wc_Sha256Final(wc_Sha256* sha256, byte* hash)
     {
         int ret;
@@ -875,231 +896,231 @@ static int InitSha256(wc_Sha256* sha256)
 #if defined(HAVE_INTEL_RORX)
 #define RND_STEP_RORX_0_1(a, b, c, d, e, f, g, h, i) \
     /* L3 = f */                                     \
-    "movl	%"#f", "L3"\n\t"                     \
+    "movl	%" #f ", " L3 "\n\t"                 \
     /* L2 = e>>>11 */                                \
-    "rorx	$11, %"#e", "L2"\n\t"                \
+    "rorx	$11, %" #e ", " L2 "\n\t"            \
     /* h += w_k */                                   \
-    "addl	("#i")*4("WK"), %"#h"\n\t"           \
+    "addl	(" #i ")*4(" WK "), %" #h "\n\t"     \
 
 #define RND_STEP_RORX_0_2(a, b, c, d, e, f, g, h, i) \
     /* L2 = (e>>>6) ^ (e>>>11) */                    \
-    "xorl	"L1", "L2"\n\t"                      \
+    "xorl	" L1 ", " L2 "\n\t"                  \
     /* L3 = f ^ g */                                 \
-    "xorl	%"#g", "L3"\n\t"                     \
+    "xorl	%" #g ", " L3 "\n\t"                 \
     /* L1 = e>>>25 */                                \
-    "rorx	$25, %"#e", "L1"\n\t"                \
+    "rorx	$25, %" #e ", " L1 "\n\t"            \
 
 #define RND_STEP_RORX_0_3(a, b, c, d, e, f, g, h, i) \
     /* L3 = (f ^ g) & e */                           \
-    "andl	%"#e", "L3"\n\t"                     \
+    "andl	%" #e ", " L3 "\n\t"                 \
     /* L1 = Sigma1(e) */                             \
-    "xorl	"L2", "L1"\n\t"                      \
+    "xorl	" L2 ", " L1 "\n\t"                  \
     /* L2 = a>>>13 */                                \
-    "rorx	$13, %"#a", "L2"\n\t"                \
+    "rorx	$13, %" #a ", " L2 "\n\t"            \
 
 #define RND_STEP_RORX_0_4(a, b, c, d, e, f, g, h, i) \
     /* h += Sigma1(e) */                             \
-    "addl	"L1", %"#h"\n\t"                     \
+    "addl	" L1 ", %" #h "\n\t"                 \
     /* L1 = a>>>2 */                                 \
-    "rorx	$2, %"#a", "L1"\n\t"                 \
+    "rorx	$2, %" #a ", " L1 "\n\t"             \
     /* L3 = Ch(e,f,g) */                             \
-    "xorl	%"#g", "L3"\n\t"                     \
+    "xorl	%" #g ", " L3 "\n\t"                 \
 
 #define RND_STEP_RORX_0_5(a, b, c, d, e, f, g, h, i) \
     /* L2 = (a>>>2) ^ (a>>>13) */                    \
-    "xorl	"L1", "L2"\n\t"                      \
+    "xorl	" L1 ", " L2 "\n\t"                  \
     /* L1 = a>>>22 */                                \
-    "rorx	$22, %"#a", "L1"\n\t"                \
+    "rorx	$22, %" #a ", " L1 "\n\t"            \
     /* h += Ch(e,f,g) */                             \
-    "addl	"L3", %"#h"\n\t"                     \
+    "addl	" L3 ", %" #h "\n\t"                 \
 
 #define RND_STEP_RORX_0_6(a, b, c, d, e, f, g, h, i) \
     /* L1 = Sigma0(a) */                             \
-    "xorl	"L2", "L1"\n\t"                      \
+    "xorl	" L2 ", " L1 "\n\t"                  \
     /* L3 = b */                                     \
-    "movl	%"#b", "L3"\n\t"                     \
+    "movl	%" #b ", " L3 "\n\t"                 \
     /* d += h + w_k + Sigma1(e) + Ch(e,f,g) */       \
-    "addl	%"#h", %"#d"\n\t"                    \
+    "addl	%" #h ", %" #d "\n\t"                \
 
 #define RND_STEP_RORX_0_7(a, b, c, d, e, f, g, h, i) \
     /* L3 = a ^ b */                                 \
-    "xorl	%"#a", "L3"\n\t"                     \
+    "xorl	%" #a ", " L3 "\n\t"                 \
     /* h += Sigma0(a) */                             \
-    "addl	"L1", %"#h"\n\t"                     \
+    "addl	" L1 ", %" #h "\n\t"                 \
     /* L4 = (a ^ b) & (b ^ c) */                     \
-    "andl	"L3", "L4"\n\t"                      \
+    "andl	" L3 ", " L4 "\n\t"                  \
 
 #define RND_STEP_RORX_0_8(a, b, c, d, e, f, g, h, i) \
     /* L4 = Maj(a,b,c) */                            \
-    "xorl	%"#b", "L4"\n\t"                     \
+    "xorl	%" #b ", " L4 "\n\t"                 \
     /* L1 = d>>>6 (= e>>>6 next RND) */              \
-    "rorx	$6, %"#d", "L1"\n\t"                 \
+    "rorx	$6, %" #d ", " L1 "\n\t"             \
     /* h += Maj(a,b,c) */                            \
-    "addl	"L4", %"#h"\n\t"                     \
+    "addl	" L4 ", %" #h "\n\t"                 \
 
 #define RND_STEP_RORX_1_1(a, b, c, d, e, f, g, h, i) \
     /* L4 = f */                                     \
-    "movl	%"#f", "L4"\n\t"                     \
+    "movl	%" #f ", " L4 "\n\t"                 \
     /* L2 = e>>>11 */                                \
-    "rorx	$11, %"#e", "L2"\n\t"                \
+    "rorx	$11, %" #e ", " L2 "\n\t"            \
     /* h += w_k */                                   \
-    "addl	("#i")*4("WK"), %"#h"\n\t"           \
+    "addl	(" #i ")*4(" WK "), %" #h "\n\t"     \
 
 #define RND_STEP_RORX_1_2(a, b, c, d, e, f, g, h, i) \
     /* L2 = (e>>>6) ^ (e>>>11) */                    \
-    "xorl	"L1", "L2"\n\t"                      \
+    "xorl	" L1 ", " L2 "\n\t"                  \
     /* L4 = f ^ g */                                 \
-    "xorl	%"#g", "L4"\n\t"                     \
+    "xorl	%" #g ", " L4 "\n\t"                 \
     /* L1 = e>>>25 */                                \
-    "rorx	$25, %"#e", "L1"\n\t"                \
+    "rorx	$25, %" #e ", " L1 "\n\t"            \
 
 #define RND_STEP_RORX_1_3(a, b, c, d, e, f, g, h, i) \
     /* L4 = (f ^ g) & e */                           \
-    "andl	%"#e", "L4"\n\t"                     \
+    "andl	%" #e ", " L4 "\n\t"                 \
     /* L1 = Sigma1(e) */                             \
-    "xorl	"L2", "L1"\n\t"                      \
+    "xorl	" L2 ", " L1 "\n\t"                  \
     /* L2 = a>>>13 */                                \
-    "rorx	$13, %"#a", "L2"\n\t"                \
+    "rorx	$13, %" #a ", " L2 "\n\t"            \
 
 #define RND_STEP_RORX_1_4(a, b, c, d, e, f, g, h, i) \
     /* h += Sigma1(e) */                             \
-    "addl	"L1", %"#h"\n\t"                     \
+    "addl	" L1 ", %" #h "\n\t"                 \
     /* L1 = a>>>2 */                                 \
-    "rorx	$2, %"#a", "L1"\n\t"                 \
+    "rorx	$2, %" #a ", " L1 "\n\t"             \
     /* L4 = Ch(e,f,g) */                             \
-    "xorl	%"#g", "L4"\n\t"                     \
+    "xorl	%" #g ", " L4 "\n\t"                 \
 
 #define RND_STEP_RORX_1_5(a, b, c, d, e, f, g, h, i) \
     /* L2 = (a>>>2) ^ (a>>>13) */                    \
-    "xorl	"L1", "L2"\n\t"                      \
+    "xorl	" L1 ", " L2 "\n\t"                  \
     /* L1 = a>>>22 */                                \
-    "rorx	$22, %"#a", "L1"\n\t"                \
+    "rorx	$22, %" #a ", " L1 "\n\t"            \
     /* h += Ch(e,f,g) */                             \
-    "addl	"L4", %"#h"\n\t"                     \
+    "addl	" L4 ", %" #h "\n\t"                 \
 
 #define RND_STEP_RORX_1_6(a, b, c, d, e, f, g, h, i) \
     /* L1 = Sigma0(a) */                             \
-    "xorl	"L2", "L1"\n\t"                      \
+    "xorl	" L2 ", " L1 "\n\t"                  \
     /* L4 = b */                                     \
-    "movl	%"#b", "L4"\n\t"                     \
+    "movl	%" #b ", " L4 "\n\t"                 \
     /* d += h + w_k + Sigma1(e) + Ch(e,f,g) */       \
-    "addl	%"#h", %"#d"\n\t"                    \
+    "addl	%" #h ", %" #d "\n\t"                \
 
 #define RND_STEP_RORX_1_7(a, b, c, d, e, f, g, h, i) \
     /* L4 = a ^ b */                                 \
-    "xorl	%"#a", "L4"\n\t"                     \
+    "xorl	%" #a ", " L4 "\n\t"                 \
     /* h += Sigma0(a) */                             \
-    "addl	"L1", %"#h"\n\t"                     \
+    "addl	" L1 ", %" #h "\n\t"                 \
     /* L3 = (a ^ b) & (b ^ c) */                     \
-    "andl	"L4", "L3"\n\t"                      \
+    "andl	" L4 ", " L3 "\n\t"                  \
 
 #define RND_STEP_RORX_1_8(a, b, c, d, e, f, g, h, i) \
     /* L3 = Maj(a,b,c) */                            \
-    "xorl	%"#b", "L3"\n\t"                     \
+    "xorl	%" #b ", " L3 "\n\t"                 \
     /* L1 = d>>>6 (= e>>>6 next RND) */              \
-    "rorx	$6, %"#d", "L1"\n\t"                 \
+    "rorx	$6, %" #d ", " L1 "\n\t"             \
     /* h += Maj(a,b,c) */                            \
-    "addl	"L3", %"#h"\n\t"                     \
+    "addl	" L3 ", %" #h "\n\t"                 \
 
 #define _RND_RORX_X_0(a, b, c, d, e, f, g, h, i)     \
     /* L1 = e>>>6 */                                 \
-    "rorx	$6, %"#e", "L1"\n\t"                 \
+    "rorx	$6, %" #e ", " L1 "\n\t"             \
     /* L2 = e>>>11 */                                \
-    "rorx	$11, %"#e", "L2"\n\t"                \
+    "rorx	$11, %" #e ", " L2 "\n\t"            \
     /* Prev RND: h += Maj(a,b,c) */                  \
-    "addl	"L3", %"#a"\n\t"                     \
+    "addl	" L3 ", %" #a "\n\t"                 \
     /* h += w_k */                                   \
-    "addl	("#i")*4("WK"), %"#h"\n\t"           \
+    "addl	(" #i ")*4(" WK "), %" #h "\n\t"     \
     /* L3 = f */                                     \
-    "movl	%"#f", "L3"\n\t"                     \
+    "movl	%" #f ", " L3 "\n\t"                 \
     /* L2 = (e>>>6) ^ (e>>>11) */                    \
-    "xorl	"L1", "L2"\n\t"                      \
+    "xorl	" L1 ", " L2 "\n\t"                  \
     /* L3 = f ^ g */                                 \
-    "xorl	%"#g", "L3"\n\t"                     \
+    "xorl	%" #g ", " L3 "\n\t"                 \
     /* L1 = e>>>25 */                                \
-    "rorx	$25, %"#e", "L1"\n\t"                \
+    "rorx	$25, %" #e ", " L1 "\n\t"            \
     /* L1 = Sigma1(e) */                             \
-    "xorl	"L2", "L1"\n\t"                      \
+    "xorl	" L2 ", " L1 "\n\t"                  \
     /* L3 = (f ^ g) & e */                           \
-    "andl	%"#e", "L3"\n\t"                     \
+    "andl	%" #e ", " L3 "\n\t"                 \
     /* h += Sigma1(e) */                             \
-    "addl	"L1", %"#h"\n\t"                     \
+    "addl	" L1 ", %" #h "\n\t"                 \
     /* L1 = a>>>2 */                                 \
-    "rorx	$2, %"#a", "L1"\n\t"                 \
+    "rorx	$2, %" #a ", " L1 "\n\t"             \
     /* L2 = a>>>13 */                                \
-    "rorx	$13, %"#a", "L2"\n\t"                \
+    "rorx	$13, %" #a ", " L2 "\n\t"            \
     /* L3 = Ch(e,f,g) */                             \
-    "xorl	%"#g", "L3"\n\t"                     \
+    "xorl	%" #g ", " L3 "\n\t"                 \
     /* L2 = (a>>>2) ^ (a>>>13) */                    \
-    "xorl	"L1", "L2"\n\t"                      \
+    "xorl	" L1 ", " L2 "\n\t"                  \
     /* L1 = a>>>22 */                                \
-    "rorx	$22, %"#a", "L1"\n\t"                \
+    "rorx	$22, %" #a ", " L1 "\n\t"            \
     /* h += Ch(e,f,g) */                             \
-    "addl	"L3", %"#h"\n\t"                     \
+    "addl	" L3 ", %" #h "\n\t"                 \
     /* L1 = Sigma0(a) */                             \
-    "xorl	"L2", "L1"\n\t"                      \
+    "xorl	" L2 ", " L1 "\n\t"                  \
     /* L3 = b */                                     \
-    "movl	%"#b", "L3"\n\t"                     \
+    "movl	%" #b ", " L3 "\n\t"                 \
     /* d += h + w_k + Sigma1(e) + Ch(e,f,g) */       \
-    "addl	%"#h", %"#d"\n\t"                    \
+    "addl	%" #h ", %" #d "\n\t"                \
     /* L3 = a ^ b */                                 \
-    "xorl	%"#a", "L3"\n\t"                     \
+    "xorl	%" #a ", " L3 "\n\t"                 \
     /* L4 = (a ^ b) & (b ^ c) */                     \
-    "andl	"L3", "L4"\n\t"                      \
+    "andl	" L3 ", " L4 "\n\t"                  \
     /* h += Sigma0(a) */                             \
-    "addl	"L1", %"#h"\n\t"                     \
+    "addl	" L1 ", %" #h "\n\t"                 \
     /* L4 = Maj(a,b,c) */                            \
-    "xorl	%"#b", "L4"\n\t"                     \
+    "xorl	%" #b ", " L4 "\n\t"                 \
 
 #define _RND_RORX_X_1(a, b, c, d, e, f, g, h, i)     \
     /* L1 = e>>>6 */                                 \
-    "rorx	$6, %"#e", "L1"\n\t"                 \
+    "rorx	$6, %" #e ", " L1 "\n\t"             \
     /* L2 = e>>>11 */                                \
-    "rorx	$11, %"#e", "L2"\n\t"                \
+    "rorx	$11, %" #e ", " L2 "\n\t"            \
     /* Prev RND: h += Maj(a,b,c) */                  \
-    "addl	"L4", %"#a"\n\t"                     \
+    "addl	" L4 ", %" #a "\n\t"                 \
     /* h += w_k */                                   \
-    "addl	("#i")*4("WK"), %"#h"\n\t"           \
+    "addl	(" #i ")*4(" WK "), %" #h "\n\t"     \
     /* L4 = f */                                     \
-    "movl	%"#f", "L4"\n\t"                     \
+    "movl	%" #f ", " L4 "\n\t"                 \
     /* L2 = (e>>>6) ^ (e>>>11) */                    \
-    "xorl	"L1", "L2"\n\t"                      \
+    "xorl	" L1 ", " L2 "\n\t"                  \
     /* L4 = f ^ g */                                 \
-    "xorl	%"#g", "L4"\n\t"                     \
+    "xorl	%" #g ", " L4 "\n\t"                 \
     /* L1 = e>>>25 */                                \
-    "rorx	$25, %"#e", "L1"\n\t"                \
+    "rorx	$25, %" #e ", " L1 "\n\t"            \
     /* L1 = Sigma1(e) */                             \
-    "xorl	"L2", "L1"\n\t"                      \
+    "xorl	" L2 ", " L1 "\n\t"                  \
     /* L4 = (f ^ g) & e */                           \
-    "andl	%"#e", "L4"\n\t"                     \
+    "andl	%" #e ", " L4 "\n\t"                 \
     /* h += Sigma1(e) */                             \
-    "addl	"L1", %"#h"\n\t"                     \
+    "addl	" L1 ", %" #h "\n\t"                 \
     /* L1 = a>>>2 */                                 \
-    "rorx	$2, %"#a", "L1"\n\t"                 \
+    "rorx	$2, %" #a ", " L1 "\n\t"             \
     /* L2 = a>>>13 */                                \
-    "rorx	$13, %"#a", "L2"\n\t"                \
+    "rorx	$13, %" #a ", " L2 "\n\t"            \
     /* L4 = Ch(e,f,g) */                             \
-    "xorl	%"#g", "L4"\n\t"                     \
+    "xorl	%" #g ", " L4 "\n\t"                 \
     /* L2 = (a>>>2) ^ (a>>>13) */                    \
-    "xorl	"L1", "L2"\n\t"                      \
+    "xorl	" L1 ", " L2 "\n\t"                  \
     /* L1 = a>>>22 */                                \
-    "rorx	$22, %"#a", "L1"\n\t"                \
+    "rorx	$22, %" #a ", " L1 "\n\t"            \
     /* h += Ch(e,f,g) */                             \
-    "addl	"L4", %"#h"\n\t"                     \
+    "addl	" L4 ", %" #h "\n\t"                 \
     /* L1 = Sigma0(a) */                             \
-    "xorl	"L2", "L1"\n\t"                      \
+    "xorl	" L2 ", " L1 "\n\t"                  \
     /* L4 = b */                                     \
-    "movl	%"#b", "L4"\n\t"                     \
+    "movl	%" #b ", " L4 "\n\t"                 \
     /* d += h + w_k + Sigma1(e) + Ch(e,f,g) */       \
-    "addl	%"#h", %"#d"\n\t"                    \
+    "addl	%" #h ", %" #d "\n\t"                \
     /* L4 = a ^ b */                                 \
-    "xorl	%"#a", "L4"\n\t"                     \
+    "xorl	%" #a ", " L4 "\n\t"                 \
     /* L2 = (a ^ b) & (b ^ c) */                     \
-    "andl	"L4", "L3"\n\t"                      \
+    "andl	" L4 ", " L3 "\n\t"                  \
     /* h += Sigma0(a) */                             \
-    "addl	"L1", %"#h"\n\t"                     \
+    "addl	" L1 ", %" #h "\n\t"                 \
     /* L3 = Maj(a,b,c) */                            \
-    "xorl	%"#b", "L3"\n\t"                     \
+    "xorl	%" #b ", " L3 "\n\t"                 \
 
 
 #define RND_RORX_X_0(a,b,c,d,e,f,g,h,i) \
@@ -1117,247 +1138,247 @@ static int InitSha256(wc_Sha256* sha256)
 
 #define RND_STEP_0_1(a,b,c,d,e,f,g,h,i)                               \
     /* L1 = e>>>14 */                                                 \
-    "rorl	$14, "L1"\n\t"                                        \
+    "rorl	$14, " L1 "\n\t"                                      \
 
 #define RND_STEP_0_2(a,b,c,d,e,f,g,h,i)                               \
     /* L3 = b */                                                      \
-    "movl	%"#b", "L3"\n\t"                                      \
+    "movl	%" #b ", " L3 "\n\t"                                  \
     /* L2 = f */                                                      \
-    "movl	%"#f", "L2"\n\t"                                      \
+    "movl	%" #f ", " L2 "\n\t"                                  \
     /* h += w_k */                                                    \
-    "addl	("#i")*4("WK"), %"#h"\n\t"                            \
+    "addl	(" #i ")*4(" WK "), %" #h "\n\t"                      \
     /* L2 = f ^ g */                                                  \
-    "xorl	%"#g", "L2"\n\t"                                      \
+    "xorl	%" #g ", " L2 "\n\t"                                  \
 
 #define RND_STEP_0_3(a,b,c,d,e,f,g,h,i)                               \
     /* L1 = (e>>>14) ^ e */                                           \
-    "xorl	%"#e", "L1"\n\t"                                      \
+    "xorl	%" #e ", " L1 "\n\t"                                  \
     /* L2 = (f ^ g) & e */                                            \
-    "andl	%"#e", "L2"\n\t"                                      \
-
+    "andl	%" #e ", " L2 "\n\t"                                  \
+ 
 #define RND_STEP_0_4(a,b,c,d,e,f,g,h,i)                               \
     /* L1 = ((e>>>14) ^ e) >>> 5 */                                   \
-    "rorl	$5, "L1"\n\t"                                         \
+    "rorl	$5, " L1 "\n\t"                                       \
     /* L2 = Ch(e,f,g) */                                              \
-    "xorl	%"#g", "L2"\n\t"                                      \
+    "xorl	%" #g ", " L2 "\n\t"                                  \
     /* L1 = (((e>>>14) ^ e) >>> 5) ^ e */                             \
-    "xorl	%"#e", "L1"\n\t"                                      \
+    "xorl	%" #e ", " L1 "\n\t"                                  \
     /* h += Ch(e,f,g) */                                              \
-    "addl	"L2", %"#h"\n\t"                                      \
+    "addl	" L2 ", %" #h "\n\t"                                  \
 
 #define RND_STEP_0_5(a,b,c,d,e,f,g,h,i)                               \
     /* L1 = ((((e>>>14) ^ e) >>> 5) ^ e) >>> 6 */                     \
-    "rorl	$6, "L1"\n\t"                                         \
+    "rorl	$6, " L1 "\n\t"                                       \
     /* L3 = a ^ b (= b ^ c of next RND) */                            \
-    "xorl	%"#a", "L3"\n\t"                                      \
+    "xorl	%" #a ", " L3 "\n\t"                                  \
     /* h = h + w_k + Sigma1(e) */                                     \
-    "addl	"L1", %"#h"\n\t"                                      \
+    "addl	" L1 ", %" #h "\n\t"                                  \
     /* L2 = a */                                                      \
-    "movl	%"#a", "L2"\n\t"                                      \
+    "movl	%" #a ", " L2 "\n\t"                                  \
 
 #define RND_STEP_0_6(a,b,c,d,e,f,g,h,i)                               \
     /* L3 = (a ^ b) & (b ^ c) */                                      \
-    "andl	"L3", "L4"\n\t"                                       \
+    "andl	" L3 ", " L4 "\n\t"                                   \
     /* L2 = a>>>9 */                                                  \
-    "rorl	$9, "L2"\n\t"                                         \
+    "rorl	$9, " L2 "\n\t"                                       \
     /* L2 = (a>>>9) ^ a */                                            \
-    "xorl	%"#a", "L2"\n\t"                                      \
+    "xorl	%" #a ", " L2 "\n\t"                                  \
     /* L1 = Maj(a,b,c) */                                             \
-    "xorl	%"#b", "L4"\n\t"                                      \
+    "xorl	%" #b ", " L4 "\n\t"                                  \
 
 #define RND_STEP_0_7(a,b,c,d,e,f,g,h,i)                               \
     /* L2 = ((a>>>9) ^ a) >>> 11 */                                   \
-    "rorl	$11, "L2"\n\t"                                        \
+    "rorl	$11, " L2 "\n\t"                                      \
     /* d += h + w_k + Sigma1(e) + Ch(e,f,g) */                        \
-    "addl	%"#h", %"#d"\n\t"                                     \
+    "addl	%" #h ", %" #d "\n\t"                                 \
     /* L2 = (((a>>>9) ^ a) >>> 11) ^ a */                             \
-    "xorl	%"#a", "L2"\n\t"                                      \
+    "xorl	%" #a ", " L2 "\n\t"                                  \
     /* h = h + w_k + Sigma1(e) + Ch(e,f,g) + Maj(a,b,c) */            \
-    "addl	"L4", %"#h"\n\t"                                      \
+    "addl	" L4 ", %" #h "\n\t"                                  \
 
 #define RND_STEP_0_8(a,b,c,d,e,f,g,h,i)                               \
     /* L2 = ((((a>>>9) ^ a) >>> 11) ^ a) >>> 2 */                     \
-    "rorl	$2, "L2"\n\t"                                         \
+    "rorl	$2, " L2 "\n\t"                                       \
     /* L1 = d (e of next RND) */                                      \
-    "movl	%"#d", "L1"\n\t"                                      \
+    "movl	%" #d ", " L1 "\n\t"                                  \
     /* h = h + w_k + Sigma1(e) Sigma0(a) + Ch(e,f,g) + Maj(a,b,c) */  \
-    "addl	"L2", %"#h"\n\t"                                      \
+    "addl	" L2 ", %" #h "\n\t"                                  \
 
 #define RND_STEP_1_1(a,b,c,d,e,f,g,h,i)                               \
     /* L1 = e>>>14 */                                                 \
-    "rorl	$14, "L1"\n\t"                                        \
-
+    "rorl	$14, " L1 "\n\t"                                      \
+ 
 #define RND_STEP_1_2(a,b,c,d,e,f,g,h,i)                               \
     /* L3 = b */                                                      \
-    "movl	%"#b", "L4"\n\t"                                      \
+    "movl	%" #b ", " L4 "\n\t"                                  \
     /* L2 = f */                                                      \
-    "movl	%"#f", "L2"\n\t"                                      \
+    "movl	%" #f ", " L2 "\n\t"                                  \
     /* h += w_k */                                                    \
-    "addl	("#i")*4("WK"), %"#h"\n\t"                            \
+    "addl	(" #i ")*4(" WK "), %" #h "\n\t"                      \
     /* L2 = f ^ g */                                                  \
-    "xorl	%"#g", "L2"\n\t"                                      \
-
+    "xorl	%" #g ", " L2 "\n\t"                                  \
+ 
 #define RND_STEP_1_3(a,b,c,d,e,f,g,h,i)                               \
     /* L1 = (e>>>14) ^ e */                                           \
-    "xorl	%"#e", "L1"\n\t"                                      \
+    "xorl	%" #e ", " L1 "\n\t"                                  \
     /* L2 = (f ^ g) & e */                                            \
-    "andl	%"#e", "L2"\n\t"                                      \
-
+    "andl	%" #e ", " L2 "\n\t"                                  \
+ 
 #define RND_STEP_1_4(a,b,c,d,e,f,g,h,i)                               \
     /* L1 = ((e>>>14) ^ e) >>> 5 */                                   \
-    "rorl	$5, "L1"\n\t"                                         \
+    "rorl	$5, " L1 "\n\t"                                       \
     /* L2 = Ch(e,f,g) */                                              \
-    "xorl	%"#g", "L2"\n\t"                                      \
+    "xorl	%" #g ", " L2 "\n\t"                                  \
     /* L1 = (((e>>>14) ^ e) >>> 5) ^ e */                             \
-    "xorl	%"#e", "L1"\n\t"                                      \
+    "xorl	%" #e ", " L1 "\n\t"                                  \
     /* h += Ch(e,f,g) */                                              \
-    "addl	"L2", %"#h"\n\t"                                      \
+    "addl	" L2 ", %" #h "\n\t"                                  \
 
 #define RND_STEP_1_5(a,b,c,d,e,f,g,h,i)                               \
     /* L1 = ((((e>>>14) ^ e) >>> 5) ^ e) >>> 6 */                     \
-    "rorl	$6, "L1"\n\t"                                         \
+    "rorl	$6, " L1 "\n\t"                                       \
     /* L4 = a ^ b (= b ^ c of next RND) */                            \
-    "xorl	%"#a", "L4"\n\t"                                      \
+    "xorl	%" #a ", " L4 "\n\t"                                  \
     /* h = h + w_k + Sigma1(e) */                                     \
-    "addl	"L1", %"#h"\n\t"                                      \
+    "addl	" L1 ", %" #h "\n\t"                                  \
     /* L2 = a */                                                      \
-    "movl	%"#a", "L2"\n\t"                                      \
+    "movl	%" #a ", " L2 "\n\t"                                  \
 
 #define RND_STEP_1_6(a,b,c,d,e,f,g,h,i)                               \
     /* L3 = (a ^ b) & (b ^ c)  */                                     \
-    "andl	"L4", "L3"\n\t"                                       \
+    "andl	" L4 ", " L3 "\n\t"                                   \
     /* L2 = a>>>9 */                                                  \
-    "rorl	$9, "L2"\n\t"                                         \
+    "rorl	$9, " L2 "\n\t"                                       \
     /* L2 = (a>>>9) ^ a */                                            \
-    "xorl	%"#a", "L2"\n\t"                                      \
+    "xorl	%" #a ", " L2 "\n\t"                                  \
     /* L1 = Maj(a,b,c) */                                             \
-    "xorl	%"#b", "L3"\n\t"                                      \
+    "xorl	%" #b ", " L3 "\n\t"                                  \
 
 #define RND_STEP_1_7(a,b,c,d,e,f,g,h,i)                               \
     /* L2 = ((a>>>9) ^ a) >>> 11 */                                   \
-    "rorl	$11, "L2"\n\t"                                        \
+    "rorl	$11, " L2 "\n\t"                                      \
     /* d += h + w_k + Sigma1(e) + Ch(e,f,g) */                        \
-    "addl	%"#h", %"#d"\n\t"                                     \
+    "addl	%" #h ", %" #d "\n\t"                                 \
     /* L2 = (((a>>>9) ^ a) >>> 11) ^ a */                             \
-    "xorl	%"#a", "L2"\n\t"                                      \
+    "xorl	%" #a ", " L2 "\n\t"                                  \
     /* h = h + w_k + Sigma1(e) + Ch(e,f,g) + Maj(a,b,c) */            \
-    "addl	"L3", %"#h"\n\t"                                      \
+    "addl	" L3 ", %" #h "\n\t"                                  \
 
 #define RND_STEP_1_8(a,b,c,d,e,f,g,h,i)                               \
     /* L2 = ((((a>>>9) ^ a) >>> 11) ^ a) >>> 2 */                     \
-    "rorl	$2, "L2"\n\t"                                         \
+    "rorl	$2, " L2 "\n\t"                                       \
     /* L1 = d (e of next RND) */                                      \
-    "movl	%"#d", "L1"\n\t"                                      \
+    "movl	%" #d ", " L1 "\n\t"                                  \
     /* h = h + w_k + Sigma1(e) Sigma0(a) + Ch(e,f,g) + Maj(a,b,c) */  \
-    "addl	"L2", %"#h"\n\t"                                      \
+    "addl	" L2 ", %" #h "\n\t"                                  \
 
 #define _RND_ALL_0(a,b,c,d,e,f,g,h,i)                                 \
     /* h += w_k */                                                    \
-    "addl	("#i")*4("WK"), %"#h"\n\t"                            \
+    "addl	(" #i ")*4(" WK "), %" #h "\n\t"                      \
     /* L2 = f */                                                      \
-    "movl	%"#f", "L2"\n\t"                                      \
+    "movl	%" #f ", " L2 "\n\t"                                  \
     /* L3 = b */                                                      \
-    "movl	%"#b", "L3"\n\t"                                      \
+    "movl	%" #b ", " L3 "\n\t"                                  \
     /* L2 = f ^ g */                                                  \
-    "xorl	%"#g", "L2"\n\t"                                      \
+    "xorl	%" #g ", " L2 "\n\t"                                  \
     /* L1 = e>>>14 */                                                 \
-    "rorl	$14, "L1"\n\t"                                        \
+    "rorl	$14, " L1 "\n\t"                                      \
     /* L2 = (f ^ g) & e */                                            \
-    "andl	%"#e", "L2"\n\t"                                      \
+    "andl	%" #e ", " L2 "\n\t"                                  \
     /* L1 = (e>>>14) ^ e */                                           \
-    "xorl	%"#e", "L1"\n\t"                                      \
+    "xorl	%" #e ", " L1 "\n\t"                                  \
     /* L2 = Ch(e,f,g) */                                              \
-    "xorl	%"#g", "L2"\n\t"                                      \
+    "xorl	%" #g ", " L2 "\n\t"                                  \
     /* L1 = ((e>>>14) ^ e) >>> 5 */                                   \
-    "rorl	$5, "L1"\n\t"                                         \
+    "rorl	$5, " L1 "\n\t"                                       \
     /* h += Ch(e,f,g) */                                              \
-    "addl	"L2", %"#h"\n\t"                                      \
+    "addl	" L2 ", %" #h "\n\t"                                  \
     /* L1 = (((e>>>14) ^ e) >>> 5) ^ e */                             \
-    "xorl	%"#e", "L1"\n\t"                                      \
+    "xorl	%" #e ", " L1 "\n\t"                                  \
     /* L3 = a ^ b */                                                  \
-    "xorl	%"#a", "L3"\n\t"                                      \
+    "xorl	%" #a ", " L3 "\n\t"                                  \
     /* L1 = ((((e>>>14) ^ e) >>> 5) ^ e) >>> 6 */                     \
-    "rorl	$6, "L1"\n\t"                                         \
+    "rorl	$6, " L1 "\n\t"                                       \
     /* L2 = a */                                                      \
-    "movl	%"#a", "L2"\n\t"                                      \
+    "movl	%" #a ", " L2 "\n\t"                                  \
     /* h = h + w_k + Sigma1(e) */                                     \
-    "addl	"L1", %"#h"\n\t"                                      \
+    "addl	" L1 ", %" #h "\n\t"                                  \
     /* L2 = a>>>9 */                                                  \
-    "rorl	$9, "L2"\n\t"                                         \
+    "rorl	$9, " L2 "\n\t"                                       \
     /* L3 = (a ^ b) & (b ^ c) */                                      \
-    "andl	"L3", "L4"\n\t"                                       \
+    "andl	" L3 ", " L4 "\n\t"                                   \
     /* L2 = (a>>>9) ^ a */                                            \
-    "xorl	%"#a", "L2"\n\t"                                      \
+    "xorl	%" #a ", " L2 "\n\t"                                  \
     /* L1 = Maj(a,b,c) */                                             \
-    "xorl	%"#b", "L4"\n\t"                                      \
+    "xorl	%" #b ", " L4 "\n\t"                                  \
     /* L2 = ((a>>>9) ^ a) >>> 11 */                                   \
-    "rorl	$11, "L2"\n\t"                                        \
+    "rorl	$11, " L2 "\n\t"                                      \
     /* d += h + w_k + Sigma1(e) + Ch(e,f,g) */                        \
-    "addl	%"#h", %"#d"\n\t"                                     \
+    "addl	%" #h ", %" #d "\n\t"                                 \
     /* L2 = (((a>>>9) ^ a) >>> 11) ^ a */                             \
-    "xorl	%"#a", "L2"\n\t"                                      \
+    "xorl	%" #a ", " L2 "\n\t"                                  \
     /* h = h + w_k + Sigma1(e) + Ch(e,f,g) + Maj(a,b,c) */            \
-    "addl	"L4", %"#h"\n\t"                                      \
+    "addl	" L4 ", %" #h "\n\t"                                  \
     /* L2 = ((((a>>>9) ^ a) >>> 11) ^ a) >>> 2 */                     \
-    "rorl	$2, "L2"\n\t"                                         \
+    "rorl	$2, " L2 "\n\t"                                       \
     /* L1 = d (e of next RND) */                                      \
-    "movl	%"#d", "L1"\n\t"                                      \
+    "movl	%" #d ", " L1 "\n\t"                                  \
     /* h = h + w_k + Sigma1(e) Sigma0(a) + Ch(e,f,g) + Maj(a,b,c) */  \
-    "addl	"L2", %"#h"\n\t"                                      \
+    "addl	" L2 ", %" #h "\n\t"                                  \
 
 #define _RND_ALL_1(a,b,c,d,e,f,g,h,i)                                 \
     /* h += w_k */                                                    \
-    "addl	("#i")*4("WK"), %"#h"\n\t"                            \
+    "addl	(" #i ")*4(" WK "), %" #h "\n\t"                      \
     /* L2 = f */                                                      \
-    "movl	%"#f", "L2"\n\t"                                      \
+    "movl	%" #f ", " L2 "\n\t"                                  \
     /* L3 = b */                                                      \
-    "movl	%"#b", "L4"\n\t"                                      \
+    "movl	%" #b ", " L4 "\n\t"                                  \
     /* L2 = f ^ g */                                                  \
-    "xorl	%"#g", "L2"\n\t"                                      \
+    "xorl	%" #g ", " L2 "\n\t"                                  \
     /* L1 = e>>>14 */                                                 \
-    "rorl	$14, "L1"\n\t"                                        \
+    "rorl	$14, " L1 "\n\t"                                      \
     /* L2 = (f ^ g) & e */                                            \
-    "andl	%"#e", "L2"\n\t"                                      \
+    "andl	%" #e ", " L2 "\n\t"                                  \
     /* L1 = (e>>>14) ^ e */                                           \
-    "xorl	%"#e", "L1"\n\t"                                      \
+    "xorl	%" #e ", " L1 "\n\t"                                  \
     /* L2 = Ch(e,f,g) */                                              \
-    "xorl	%"#g", "L2"\n\t"                                      \
+    "xorl	%" #g ", " L2 "\n\t"                                  \
     /* L1 = ((e>>>14) ^ e) >>> 5 */                                   \
-    "rorl	$5, "L1"\n\t"                                         \
+    "rorl	$5, " L1 "\n\t"                                       \
     /* h += Ch(e,f,g) */                                              \
-    "addl	"L2", %"#h"\n\t"                                      \
+    "addl	" L2 ", %" #h "\n\t"                                  \
     /* L1 = (((e>>>14) ^ e) >>> 5) ^ e */                             \
-    "xorl	%"#e", "L1"\n\t"                                      \
+    "xorl	%" #e ", " L1 "\n\t"                                  \
     /* L3 = a ^ b */                                                  \
-    "xorl	%"#a", "L4"\n\t"                                      \
+    "xorl	%" #a ", " L4 "\n\t"                                  \
     /* L1 = ((((e>>>14) ^ e) >>> 5) ^ e) >>> 6 */                     \
-    "rorl	$6, "L1"\n\t"                                         \
+    "rorl	$6, " L1 "\n\t"                                       \
     /* L2 = a */                                                      \
-    "movl	%"#a", "L2"\n\t"                                      \
+    "movl	%" #a ", " L2 "\n\t"                                  \
     /* h = h + w_k + Sigma1(e) */                                     \
-    "addl	"L1", %"#h"\n\t"                                      \
+    "addl	" L1 ", %" #h "\n\t"                                  \
     /* L2 = a>>>9 */                                                  \
-    "rorl	$9, "L2"\n\t"                                         \
+    "rorl	$9, " L2 "\n\t"                                       \
     /* L3 = (a ^ b) & (b ^ c)  */                                     \
-    "andl	"L4", "L3"\n\t"                                       \
+    "andl	" L4 ", " L3 "\n\t"                                   \
     /* L2 = (a>>>9) ^ a */                                            \
-    "xorl	%"#a", "L2"\n\t"                                      \
+    "xorl	%" #a", " L2 "\n\t"                                   \
     /* L1 = Maj(a,b,c) */                                             \
-    "xorl	%"#b", "L3"\n\t"                                      \
+    "xorl	%" #b ", " L3 "\n\t"                                  \
     /* L2 = ((a>>>9) ^ a) >>> 11 */                                   \
-    "rorl	$11, "L2"\n\t"                                        \
+    "rorl	$11, " L2 "\n\t"                                      \
     /* d += h + w_k + Sigma1(e) + Ch(e,f,g) */                        \
-    "addl	%"#h", %"#d"\n\t"                                     \
+    "addl	%" #h ", %" #d "\n\t"                                 \
     /* L2 = (((a>>>9) ^ a) >>> 11) ^ a */                             \
-    "xorl	%"#a", "L2"\n\t"                                      \
+    "xorl	%" #a ", " L2 "\n\t"                                  \
     /* h = h + w_k + Sigma1(e) + Ch(e,f,g) + Maj(a,b,c) */            \
-    "addl	"L3", %"#h"\n\t"                                      \
+    "addl	" L3 ", %" #h "\n\t"                                  \
     /* L2 = ((((a>>>9) ^ a) >>> 11) ^ a) >>> 2 */                     \
-    "rorl	$2, "L2"\n\t"                                         \
+    "rorl	$2, " L2 "\n\t"                                       \
     /* L1 = d (e of next RND) */                                      \
-    "movl	%"#d", "L1"\n\t"                                      \
+    "movl	%" #d ", " L1 "\n\t"                                  \
     /* h = h + w_k + Sigma1(e) Sigma0(a) + Ch(e,f,g) + Maj(a,b,c) */  \
-    "addl	"L2", %"#h"\n\t"                                      \
+    "addl	" L2 ", %" #h "\n\t"                                  \
 
 
 #define RND_ALL_0(a, b, c, d, e, f, g, h, i) \
@@ -1376,43 +1397,43 @@ static int InitSha256(wc_Sha256* sha256)
 #if defined(HAVE_INTEL_AVX1) /* inline Assember for Intel AVX1 instructions */
 
 #define _VPALIGNR(op1, op2, op3, op4)                    \
-    "vpalignr	$"#op4", %"#op3", %"#op2", %"#op1"\n\t"
+    "vpalignr	$" #op4", %" #op3", %" #op2", %" #op1"\n\t"
 #define VPALIGNR(op1, op2, op3, op4)                     \
         _VPALIGNR(op1, op2, op3, op4)
 #define _VPADDD(op1, op2, op3)                           \
-    "vpaddd	%"#op3", %"#op2", %"#op1"\n\t"
+    "vpaddd	%" #op3", %" #op2", %" #op1"\n\t"
 #define VPADDD(op1, op2, op3)                            \
        _VPADDD(op1, op2, op3)
 #define _VPSRLD(op1, op2, op3)                           \
-    "vpsrld	$"#op3", %"#op2", %"#op1"\n\t"
+    "vpsrld	$" #op3", %" #op2", %" #op1"\n\t"
 #define VPSRLD(op1, op2, op3)        \
        _VPSRLD(op1, op2, op3)
 #define _VPSRLQ(op1, op2, op3)                           \
-    "vpsrlq	$"#op3", %"#op2", %"#op1"\n\t"
+    "vpsrlq	$" #op3", %" #op2", %" #op1"\n\t"
 #define VPSRLQ(op1,op2,op3)        \
        _VPSRLQ(op1,op2,op3)
 #define _VPSLLD(op1,op2,op3)                             \
-    "vpslld	$"#op3", %"#op2", %"#op1"\n\t"
+    "vpslld	$" #op3", %" #op2", %" #op1"\n\t"
 #define VPSLLD(op1,op2,op3)        \
        _VPSLLD(op1,op2,op3)
 #define _VPOR(op1,op2,op3)                               \
-    "vpor	%"#op3", %"#op2", %"#op1"\n\t"
+    "vpor	%" #op3", %" #op2", %" #op1"\n\t"
 #define VPOR(op1,op2,op3)          \
        _VPOR(op1,op2,op3)
 #define _VPXOR(op1,op2,op3)                              \
-    "vpxor	%"#op3", %"#op2", %"#op1"\n\t"
+    "vpxor	%" #op3", %" #op2", %" #op1"\n\t"
 #define VPXOR(op1,op2,op3)         \
        _VPXOR(op1,op2,op3)
 #define _VPSHUFD(op1,op2,op3)                            \
-    "vpshufd	$"#op3", %"#op2", %"#op1"\n\t"
+    "vpshufd	$" #op3", %" #op2", %" #op1"\n\t"
 #define VPSHUFD(op1,op2,op3)       \
        _VPSHUFD(op1,op2,op3)
 #define _VPSHUFB(op1,op2,op3)                            \
-    "vpshufb	%"#op3", %"#op2", %"#op1"\n\t"
+    "vpshufb	%" #op3", %" #op2", %" #op1"\n\t"
 #define VPSHUFB(op1,op2,op3)       \
        _VPSHUFB(op1,op2,op3)
 #define _VPSLLDQ(op1,op2,op3)                            \
-    "vpslldq	$"#op3", %"#op2", %"#op1"\n\t"
+    "vpslldq	$" #op3", %" #op2", %" #op1"\n\t"
 #define VPSLLDQ(op1,op2,op3)       \
        _VPSLLDQ(op1,op2,op3)
 
@@ -1554,12 +1575,12 @@ static int InitSha256(wc_Sha256* sha256)
 
 #define _W_K_from_buff(X0, X1, X2, X3, BYTE_FLIP_MASK) \
     "# X0, X1, X2, X3 = W[0..15]\n\t"                  \
-    "vmovdqu	  (%%rax), %"#X0"\n\t"                 \
-    "vmovdqu	16(%%rax), %"#X1"\n\t"                 \
+    "vmovdqu	  (%%rax), %" #X0 "\n\t"               \
+    "vmovdqu	16(%%rax), %" #X1 "\n\t"               \
     VPSHUFB(X0, X0, BYTE_FLIP_MASK)                    \
     VPSHUFB(X1, X1, BYTE_FLIP_MASK)                    \
-    "vmovdqu	32(%%rax), %"#X2"\n\t"                 \
-    "vmovdqu	48(%%rax), %"#X3"\n\t"                 \
+    "vmovdqu	32(%%rax), %" #X2 "\n\t"               \
+    "vmovdqu	48(%%rax), %" #X3 "\n\t"               \
     VPSHUFB(X2, X2, BYTE_FLIP_MASK)                    \
     VPSHUFB(X3, X3, BYTE_FLIP_MASK)
 
@@ -1568,14 +1589,14 @@ static int InitSha256(wc_Sha256* sha256)
 
 
 #define _SET_W_K_XFER_4(i) \
-    "vpaddd	("#i"*4)+ 0+%[K], %%xmm0, %%xmm4\n\t"  \
-    "vpaddd	("#i"*4)+16+%[K], %%xmm1, %%xmm5\n\t"  \
-    "vmovdqu	%%xmm4,   ("WK")\n\t"                  \
-    "vmovdqu	%%xmm5, 16("WK")\n\t"                  \
-    "vpaddd	("#i"*4)+32+%[K], %%xmm2, %%xmm6\n\t"  \
-    "vpaddd	("#i"*4)+48+%[K], %%xmm3, %%xmm7\n\t"  \
-    "vmovdqu	%%xmm6, 32("WK")\n\t"                  \
-    "vmovdqu	%%xmm7, 48("WK")\n\t"
+    "vpaddd	(" #i "*4)+ 0+%[K], %%xmm0, %%xmm4\n\t"  \
+    "vpaddd	(" #i "*4)+16+%[K], %%xmm1, %%xmm5\n\t"  \
+    "vmovdqu	%%xmm4,   (" WK ")\n\t"                  \
+    "vmovdqu	%%xmm5, 16(" WK ")\n\t"                  \
+    "vpaddd	(" #i "*4)+32+%[K], %%xmm2, %%xmm6\n\t"  \
+    "vpaddd	(" #i "*4)+48+%[K], %%xmm3, %%xmm7\n\t"  \
+    "vmovdqu	%%xmm6, 32(" WK ")\n\t"                  \
+    "vmovdqu	%%xmm7, 48(" WK ")\n\t"
 
 #define SET_W_K_XFER_4(i) \
        _SET_W_K_XFER_4(i)
@@ -1588,10 +1609,10 @@ static const ALIGN32 word64 mSHUF_DC00[] =
 static const ALIGN32 word64 mBYTE_FLIP_MASK[] =
     { 0x0405060700010203, 0x0c0d0e0f08090a0b };
 
-#define _Init_Masks(mask1, mask2, mask3)     \
-    "vmovdqa	%[FLIP], %"#mask1"\n\t"      \
-    "vmovdqa	%[SHUF00BA], %"#mask2"\n\t"  \
-    "vmovdqa	%[SHUFDC00], %"#mask3"\n\t"
+#define _Init_Masks(mask1, mask2, mask3)       \
+    "vmovdqa	%[FLIP], %" #mask1 "\n\t"      \
+    "vmovdqa	%[SHUF00BA], %" #mask2 "\n\t"  \
+    "vmovdqa	%[SHUFDC00], %" #mask3 "\n\t"
 
 #define Init_Masks(BYTE_FLIP_MASK, SHUF_00BA, SHUF_DC00) \
        _Init_Masks(BYTE_FLIP_MASK, SHUF_00BA, SHUF_DC00)
@@ -1626,9 +1647,9 @@ SHA256_NOINLINE static int Transform_Sha256_AVX1(wc_Sha256* sha256)
 
     W_K_from_buff(X0, X1, X2, X3, BYTE_FLIP_MASK)
 
-        "movl	%%r9d, "L4"\n\t"
-        "movl	%%r12d, "L1"\n\t"
-        "xorl	%%r10d, "L4"\n\t"
+        "movl	%%r9d, " L4 "\n\t"
+        "movl	%%r12d, " L1 "\n\t"
+        "xorl	%%r10d, " L4 "\n\t"
 
     SET_W_K_XFER_4(0)
     MsgSched(X0, X1, X2, X3, S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7,  0)
@@ -1686,9 +1707,9 @@ SHA256_NOINLINE static int Transform_Sha256_AVX1_Len(wc_Sha256* sha256,
 
     W_K_from_buff(X0, X1, X2, X3, BYTE_FLIP_MASK)
 
-        "movl	%%r9d, "L4"\n\t"
-        "movl	%%r12d, "L1"\n\t"
-        "xorl	%%r10d, "L4"\n\t"
+        "movl	%%r9d, " L4 "\n\t"
+        "movl	%%r12d, " L1 "\n\t"
+        "xorl	%%r10d, " L4 "\n\t"
 
     SET_W_K_XFER_4(0)
     MsgSched(X0, X1, X2, X3, S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7,  0)
@@ -1755,9 +1776,9 @@ SHA256_NOINLINE static int Transform_Sha256_AVX1_RORX(wc_Sha256* sha256)
     LOAD_DIGEST()
 
     SET_W_K_XFER_4(0)
-        "movl	%%r9d, "L4"\n\t"
-        "rorx	$6, %%r12d, "L1"\n\t"
-        "xorl	%%r10d, "L4"\n\t"
+        "movl	%%r9d, " L4 "\n\t"
+        "rorx	$6, %%r12d, " L1 "\n\t"
+        "xorl	%%r10d, " L4 "\n\t"
     MsgSched_RORX(X0, X1, X2, X3, S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7,  0)
     MsgSched_RORX(X1, X2, X3, X0, S_4, S_5, S_6, S_7, S_0, S_1, S_2, S_3,  4)
     MsgSched_RORX(X2, X3, X0, X1, S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7,  8)
@@ -1776,13 +1797,13 @@ SHA256_NOINLINE static int Transform_Sha256_AVX1_RORX(wc_Sha256* sha256)
     MsgSched_RORX(X3, X0, X1, X2, S_4, S_5, S_6, S_7, S_0, S_1, S_2, S_3, 12)
 
     SET_W_K_XFER_4(48)
-        "xorl	"L3", "L3"\n\t"
+        "xorl	" L3 ", " L3 "\n\t"
     RND_RORX_X4(S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7,  0)
     RND_RORX_X4(S_4, S_5, S_6, S_7, S_0, S_1, S_2, S_3,  4)
     RND_RORX_X4(S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7,  8)
     RND_RORX_X4(S_4, S_5, S_6, S_7, S_0, S_1, S_2, S_3, 12)
         /* Prev RND: h += Maj(a,b,c) */
-        "addl	"L3", %%r8d\n\t"
+        "addl	" L3 ", %%r8d\n\t"
 
     STORE_ADD_DIGEST()
 
@@ -1817,9 +1838,9 @@ SHA256_NOINLINE static int Transform_Sha256_AVX1_RORX_Len(wc_Sha256* sha256,
     W_K_from_buff(X0, X1, X2, X3, BYTE_FLIP_MASK)
 
     SET_W_K_XFER_4(0)
-        "movl	%%r9d, "L4"\n\t"
-        "rorx	$6, %%r12d, "L1"\n\t"
-        "xorl	%%r10d, "L4"\n\t"
+        "movl	%%r9d, " L4 "\n\t"
+        "rorx	$6, %%r12d, " L1 "\n\t"
+        "xorl	%%r10d, " L4 "\n\t"
     MsgSched_RORX(X0, X1, X2, X3, S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7,  0)
     MsgSched_RORX(X1, X2, X3, X0, S_4, S_5, S_6, S_7, S_0, S_1, S_2, S_3,  4)
     MsgSched_RORX(X2, X3, X0, X1, S_4, S_5, S_6, S_7, S_0, S_1, S_2, S_3,  8)
@@ -1838,14 +1859,14 @@ SHA256_NOINLINE static int Transform_Sha256_AVX1_RORX_Len(wc_Sha256* sha256,
     MsgSched_RORX(X3, X0, X1, X2, S_4, S_5, S_6, S_7, S_0, S_1, S_2, S_3, 12)
 
     SET_W_K_XFER_4(48)
-        "xorl	"L3", "L3"\n\t"
-        "xorl	"L2", "L2"\n\t"
+        "xorl	" L3 ", " L3 "\n\t"
+        "xorl	" L2 ", " L2 "\n\t"
     RND_RORX_X4(S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7,  0)
     RND_RORX_X4(S_4, S_5, S_6, S_7, S_0, S_1, S_2, S_3,  4)
     RND_RORX_X4(S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7,  8)
     RND_RORX_X4(S_4, S_5, S_6, S_7, S_0, S_1, S_2, S_3, 12)
         /* Prev RND: h += Maj(a,b,c) */
-        "addl	"L3", %%r8d\n\t"
+        "addl	" L3 ", %%r8d\n\t"
         "movq	120(%[sha256]), %%rax\n\t"
 
     ADD_DIGEST()
@@ -2027,43 +2048,43 @@ SHA256_NOINLINE static int Transform_Sha256_AVX1_RORX_Len(wc_Sha256* sha256,
 #endif /* HAVE_INTEL_RORX */
 
 #define _VINSERTI128(op1,op2,op3,op4) \
-    "vinserti128	$"#op4", %"#op3", %"#op2", %"#op1"\n\t"
+    "vinserti128	$" #op4 ", %" #op3 ", %" #op2 ", %" #op1 "\n\t"
 #define VINSERTI128(op1,op2,op3,op4)  \
        _VINSERTI128(op1,op2,op3,op4)
 
 
-#define _LOAD_W_K_LOW(BYTE_FLIP_MASK, reg) \
-    "# X0, X1, X2, X3 = W[0..15]\n\t"      \
-    "vmovdqu	  (%%"#reg"), %%xmm0\n\t"  \
-    "vmovdqu	16(%%"#reg"), %%xmm1\n\t"  \
-    VPSHUFB(X0, X0, BYTE_FLIP_MASK)        \
-    VPSHUFB(X1, X1, BYTE_FLIP_MASK)        \
-    "vmovdqu	32(%%"#reg"), %%xmm2\n\t"  \
-    "vmovdqu	48(%%"#reg"), %%xmm3\n\t"  \
-    VPSHUFB(X2, X2, BYTE_FLIP_MASK)        \
+#define _LOAD_W_K_LOW(BYTE_FLIP_MASK, reg)   \
+    "# X0, X1, X2, X3 = W[0..15]\n\t"        \
+    "vmovdqu	  (%%" #reg "), %%xmm0\n\t"  \
+    "vmovdqu	16(%%" #reg "), %%xmm1\n\t"  \
+    VPSHUFB(X0, X0, BYTE_FLIP_MASK)          \
+    VPSHUFB(X1, X1, BYTE_FLIP_MASK)          \
+    "vmovdqu	32(%%" #reg "), %%xmm2\n\t"  \
+    "vmovdqu	48(%%" #reg "), %%xmm3\n\t"  \
+    VPSHUFB(X2, X2, BYTE_FLIP_MASK)          \
     VPSHUFB(X3, X3, BYTE_FLIP_MASK)
 
 #define LOAD_W_K_LOW(BYTE_FLIP_MASK, reg) \
        _LOAD_W_K_LOW(BYTE_FLIP_MASK, reg)
 
 
-#define _LOAD_W_K(BYTE_FLIP_Y_MASK, reg)    \
-    "# X0, X1, X2, X3 = W[0..15]\n\t"       \
-    "vmovdqu	   (%%"#reg"), %%xmm0\n\t"  \
-    "vmovdqu	 16(%%"#reg"), %%xmm1\n\t"  \
-    "vmovdqu	 64(%%"#reg"), %%xmm4\n\t"  \
-    "vmovdqu	 80(%%"#reg"), %%xmm5\n\t"  \
-    VINSERTI128(Y0, Y0, XTMP0, 1)           \
-    VINSERTI128(Y1, Y1, XTMP1, 1)           \
-    VPSHUFB(Y0, Y0, BYTE_FLIP_Y_MASK)       \
-    VPSHUFB(Y1, Y1, BYTE_FLIP_Y_MASK)       \
-    "vmovdqu	 32(%%"#reg"), %%xmm2\n\t"  \
-    "vmovdqu	 48(%%"#reg"), %%xmm3\n\t"  \
-    "vmovdqu	 96(%%"#reg"), %%xmm6\n\t"  \
-    "vmovdqu	112(%%"#reg"), %%xmm7\n\t"  \
-    VINSERTI128(Y2, Y2, XTMP2, 1)           \
-    VINSERTI128(Y3, Y3, XTMP3, 1)           \
-    VPSHUFB(Y2, Y2, BYTE_FLIP_Y_MASK)       \
+#define _LOAD_W_K(BYTE_FLIP_Y_MASK, reg)      \
+    "# X0, X1, X2, X3 = W[0..15]\n\t"         \
+    "vmovdqu	   (%%" #reg "), %%xmm0\n\t"  \
+    "vmovdqu	 16(%%" #reg "), %%xmm1\n\t"  \
+    "vmovdqu	 64(%%" #reg "), %%xmm4\n\t"  \
+    "vmovdqu	 80(%%" #reg "), %%xmm5\n\t"  \
+    VINSERTI128(Y0, Y0, XTMP0, 1)             \
+    VINSERTI128(Y1, Y1, XTMP1, 1)             \
+    VPSHUFB(Y0, Y0, BYTE_FLIP_Y_MASK)         \
+    VPSHUFB(Y1, Y1, BYTE_FLIP_Y_MASK)         \
+    "vmovdqu	 32(%%" #reg "), %%xmm2\n\t"  \
+    "vmovdqu	 48(%%" #reg "), %%xmm3\n\t"  \
+    "vmovdqu	 96(%%" #reg "), %%xmm6\n\t"  \
+    "vmovdqu	112(%%" #reg "), %%xmm7\n\t"  \
+    VINSERTI128(Y2, Y2, XTMP2, 1)             \
+    VINSERTI128(Y3, Y3, XTMP3, 1)             \
+    VPSHUFB(Y2, Y2, BYTE_FLIP_Y_MASK)         \
     VPSHUFB(Y3, Y3, BYTE_FLIP_Y_MASK)
 
 #define LOAD_W_K(BYTE_FLIP_Y_MASK, reg) \
@@ -2071,14 +2092,14 @@ SHA256_NOINLINE static int Transform_Sha256_AVX1_RORX_Len(wc_Sha256* sha256,
 
 
 #define _SET_W_Y_4(i)  \
-    "vpaddd	("#i"*8)+ 0+%[K], %%ymm0, %%ymm4\n\t" \
-    "vpaddd	("#i"*8)+32+%[K], %%ymm1, %%ymm5\n\t" \
-    "vmovdqu	%%ymm4, ("#i"*8)+ 0("WK")\n\t"        \
-    "vmovdqu	%%ymm5, ("#i"*8)+32("WK")\n\t"        \
-    "vpaddd	("#i"*8)+64+%[K], %%ymm2, %%ymm4\n\t" \
-    "vpaddd	("#i"*8)+96+%[K], %%ymm3, %%ymm5\n\t" \
-    "vmovdqu	%%ymm4, ("#i"*8)+64("WK")\n\t"        \
-    "vmovdqu	%%ymm5, ("#i"*8)+96("WK")\n\t"
+    "vpaddd	(" #i "*8)+ 0+%[K], %%ymm0, %%ymm4\n\t" \
+    "vpaddd	(" #i "*8)+32+%[K], %%ymm1, %%ymm5\n\t" \
+    "vmovdqu	%%ymm4, (" #i "*8)+ 0(" WK ")\n\t"      \
+    "vmovdqu	%%ymm5, (" #i "*8)+32(" WK ")\n\t"      \
+    "vpaddd	(" #i "*8)+64+%[K], %%ymm2, %%ymm4\n\t" \
+    "vpaddd	(" #i "*8)+96+%[K], %%ymm3, %%ymm5\n\t" \
+    "vmovdqu	%%ymm4, (" #i "*8)+64(" WK ")\n\t"      \
+    "vmovdqu	%%ymm5, (" #i "*8)+96(" WK ")\n\t"
 
 #define SET_W_Y_4(i) \
        _SET_W_Y_4(i)
@@ -2095,9 +2116,9 @@ static const ALIGN32 word64 mBYTE_FLIP_Y_MASK[] =
       0x0405060700010203, 0x0c0d0e0f08090a0b };
 
 #define _INIT_MASKS_Y(BYTE_FLIP_MASK, SHUF_00BA, SHUF_DC00) \
-    "vmovdqa	%[FLIP], %"#BYTE_FLIP_MASK"\n\t"            \
-    "vmovdqa	%[SHUF00BA], %"#SHUF_00BA"\n\t"             \
-    "vmovdqa	%[SHUFDC00], %"#SHUF_DC00"\n\t"
+    "vmovdqa	%[FLIP], %" #BYTE_FLIP_MASK "\n\t"          \
+    "vmovdqa	%[SHUF00BA], %" #SHUF_00BA "\n\t"           \
+    "vmovdqa	%[SHUFDC00], %" #SHUF_DC00 "\n\t"
 
 #define INIT_MASKS_Y(BYTE_FLIP_MASK, SHUF_00BA, SHUF_DC00) \
        _INIT_MASKS_Y(BYTE_FLIP_MASK, SHUF_00BA, SHUF_DC00)
@@ -2149,9 +2170,9 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2(wc_Sha256* sha256)
 
     LOAD_W_K_LOW(BYTE_FLIP_MASK, rax)
 
-        "movl	%%r9d, "L4"\n\t"
-        "movl	%%r12d, "L1"\n\t"
-        "xorl	%%r10d, "L4"\n\t"
+        "movl	%%r9d, " L4 "\n\t"
+        "movl	%%r12d, " L1 "\n\t"
+        "xorl	%%r10d, " L4 "\n\t"
 
     SET_W_Y_4(0)
     MsgSched_Y(Y0, Y1, Y2, Y3, S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7,  0)
@@ -2218,9 +2239,9 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2_Len(wc_Sha256* sha256,
 
     LOAD_W_K(BYTE_FLIP_Y_MASK, rax)
 
-        "movl	%%r9d, "L4"\n\t"
-        "movl	%%r12d, "L1"\n\t"
-        "xorl	%%r10d, "L4"\n\t"
+        "movl	%%r9d, " L4 "\n\t"
+        "movl	%%r12d, " L1 "\n\t"
+        "xorl	%%r10d, " L4 "\n\t"
 
     SET_W_Y_4(0)
     MsgSched_Y(Y0, Y1, Y2, Y3, S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7,  0)
@@ -2249,9 +2270,9 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2_Len(wc_Sha256* sha256,
     ADD_DIGEST()
     STORE_DIGEST()
 
-        "movl	%%r9d, "L4"\n\t"
-        "movl	%%r12d, "L1"\n\t"
-        "xorl	%%r10d, "L4"\n\t"
+        "movl	%%r9d, " L4 "\n\t"
+        "movl	%%r12d, " L1 "\n\t"
+        "xorl	%%r10d, " L4 "\n\t"
 
     RND_ALL_4(S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7,   4)
     RND_ALL_4(S_4, S_5, S_6, S_7, S_0, S_1, S_2, S_3,  12)
@@ -2309,9 +2330,9 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2_RORX(wc_Sha256* sha256)
 
     LOAD_DIGEST()
 
-        "movl	%%r9d, "L4"\n\t"
-        "rorx	$6, %%r12d, "L1"\n\t"
-        "xorl	%%r10d, "L4"\n\t"
+        "movl	%%r9d, " L4 "\n\t"
+        "rorx	$6, %%r12d, " L1 "\n\t"
+        "xorl	%%r10d, " L4 "\n\t"
 
     SET_W_Y_4(0)
     MsgSched_Y_RORX(Y0, Y1, Y2, Y3, S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7,  0)
@@ -2332,14 +2353,14 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2_RORX(wc_Sha256* sha256)
     MsgSched_Y_RORX(Y3, Y0, Y1, Y2, S_4, S_5, S_6, S_7, S_0, S_1, S_2, S_3, 88)
 
     SET_W_Y_4(48)
-        "xorl	"L3", "L3"\n\t"
-        "xorl	"L2", "L2"\n\t"
+        "xorl	" L3 ", " L3 "\n\t"
+        "xorl	" L2 ", " L2 "\n\t"
     RND_RORX_X4(S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7,  96)
     RND_RORX_X4(S_4, S_5, S_6, S_7, S_0, S_1, S_2, S_3, 104)
     RND_RORX_X4(S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7, 112)
     RND_RORX_X4(S_4, S_5, S_6, S_7, S_0, S_1, S_2, S_3, 120)
         /* Prev RND: h += Maj(a,b,c) */
-        "addl	"L3", %%r8d\n\t"
+        "addl	" L3 ", %%r8d\n\t"
 
     STORE_ADD_DIGEST()
 
@@ -2382,9 +2403,9 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2_RORX_Len(wc_Sha256* sha256,
 
     LOAD_W_K(BYTE_FLIP_Y_MASK, rax)
 
-        "movl	%%r9d, "L4"\n\t"
-        "rorx	$6, %%r12d, "L1"\n\t"
-        "xorl	%%r10d, "L4"\n\t"
+        "movl	%%r9d, " L4 "\n\t"
+        "rorx	$6, %%r12d, " L1 "\n\t"
+        "xorl	%%r10d, " L4 "\n\t"
 
     SET_W_Y_4(0)
     MsgSched_Y_RORX(Y0, Y1, Y2, Y3, S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7,  0)
@@ -2405,22 +2426,22 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2_RORX_Len(wc_Sha256* sha256,
     MsgSched_Y_RORX(Y3, Y0, Y1, Y2, S_4, S_5, S_6, S_7, S_0, S_1, S_2, S_3, 88)
 
     SET_W_Y_4(48)
-        "xorl	"L3", "L3"\n\t"
-        "xorl	"L2", "L2"\n\t"
+        "xorl	" L3 ", " L3 "\n\t"
+        "xorl	" L2 ", " L2 "\n\t"
     RND_RORX_X4(S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7,  96)
     RND_RORX_X4(S_4, S_5, S_6, S_7, S_0, S_1, S_2, S_3, 104)
     RND_RORX_X4(S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7, 112)
     RND_RORX_X4(S_4, S_5, S_6, S_7, S_0, S_1, S_2, S_3, 120)
         /* Prev RND: h += Maj(a,b,c) */
-        "addl	"L3", %%r8d\n\t"
-        "xorl	"L2", "L2"\n\t"
+        "addl	" L3 ", %%r8d\n\t"
+        "xorl	" L2 ", " L2 "\n\t"
 
     ADD_DIGEST()
     STORE_DIGEST()
 
-        "movl	%%r9d, "L4"\n\t"
-        "xorl	"L3", "L3"\n\t"
-        "xorl	%%r10d, "L4"\n\t"
+        "movl	%%r9d, " L4 "\n\t"
+        "xorl	" L3 ", " L3 "\n\t"
+        "xorl	%%r10d, " L4 "\n\t"
 
     RND_RORX_X4(S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7,   4)
     RND_RORX_X4(S_4, S_5, S_6, S_7, S_0, S_1, S_2, S_3,  12)
@@ -2439,7 +2460,7 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2_RORX_Len(wc_Sha256* sha256,
     RND_RORX_X4(S_0, S_1, S_2, S_3, S_4, S_5, S_6, S_7, 116)
     RND_RORX_X4(S_4, S_5, S_6, S_7, S_0, S_1, S_2, S_3, 124)
         /* Prev RND: h += Maj(a,b,c) */
-        "addl	"L3", %%r8d\n\t"
+        "addl	" L3 ", %%r8d\n\t"
         "movq	120(%[sha256]), %%rax\n\t"
 
     ADD_DIGEST()

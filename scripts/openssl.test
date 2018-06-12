@@ -21,6 +21,9 @@ wolf_suites_total=0
 counter=0
 testing_summary="OpenSSL Interop Testing Summary:\nVersion\tTested\t#Found\t#Tested\n"
 versionName="Invalid"
+if [ "$OPENSSL" = "" ]; then
+    OPENSSL=openssl
+fi
 
 version_name() {
     case $version in "0")
@@ -73,7 +76,7 @@ else
 fi
 
 echo -e "\nTesting existence of openssl command...\n"
-command -v openssl >/dev/null 2>&1 || { echo >&2 "Requires openssl command, but it's not installed.  Ending."; exit 0; }
+command -v $OPENSSL >/dev/null 2>&1 || { echo >&2 "Requires openssl command, but it's not installed.  Ending."; exit 0; }
 
 
 echo -e "\nTesting for _build directory as part of distcheck, different paths"
@@ -92,7 +95,7 @@ found_free_port=0
 while [ "$counter" -lt 20 ]; do
     echo -e "\nTrying to start openssl server on port $openssl_port...\n"
 
-    openssl s_server -accept $openssl_port -cert ./certs/server-cert.pem -key ./certs/server-key.pem  -quiet -CAfile ./certs/client-ca.pem -www  -dhparam ./certs/dh2048.pem -dcert ./certs/server-ecc.pem -dkey ./certs/ecc-key.pem -verify 10 -verify_return_error -psk 1a2b3c4d -cipher "ALL:eNULL" &
+    $OPENSSL s_server -accept $openssl_port -cert ./certs/server-cert.pem -key ./certs/server-key.pem  -quiet -CAfile ./certs/client-ca.pem -www  -dhparam ./certs/dh2048.pem -dcert ./certs/server-ecc.pem -dkey ./certs/ecc-key.pem -verify 10 -verify_return_error -psk 1a2b3c4d -cipher "ALL:eNULL" &
     server_pid=$!
     # wait to see if s_server successfully starts before continuing
     sleep 0.1
@@ -127,7 +130,7 @@ case $wolf_ciphers in
     while [ "$counter" -lt 20 ]; do
         echo -e "\nTrying to start ECDH-RSA openssl server on port $ecdh_port...\n"
 
-        openssl s_server -accept $ecdh_port -cert ./certs/server-ecc-rsa.pem -key ./certs/ecc-key.pem  -quiet -CAfile ./certs/client-ca.pem -www -dhparam ./certs/dh2048.pem -verify 10 -verify_return_error -cipher "ALL:eNULL" &
+        $OPENSSL s_server -accept $ecdh_port -cert ./certs/server-ecc-rsa.pem -key ./certs/ecc-key.pem  -quiet -CAfile ./certs/client-ca.pem -www -dhparam ./certs/dh2048.pem -verify 10 -verify_return_error -cipher "ALL:eNULL" &
         ecdh_server_pid=$!
         # wait to see if s_server successfully starts before continuing
         sleep 0.1
@@ -193,11 +196,11 @@ do
     echo -e "version = $version"
     # get openssl ciphers depending on version
     case $version in "0")
-        openssl_ciphers=`openssl ciphers "SSLv3"`
+        openssl_ciphers=`$OPENSSL ciphers "SSLv3"`
 
         # double check that can actually do a sslv3 connection using
         # client-cert.pem to send but any file with EOF works
-        openssl s_client -ssl3 -no_ign_eof -host localhost -port $openssl_port < ./certs/client-cert.pem
+        $OPENSSL s_client -ssl3 -no_ign_eof -host localhost -port $openssl_port < ./certs/client-cert.pem
         sslv3_sup=$?
 
         if [ $sslv3_sup != 0 ]
@@ -208,7 +211,7 @@ do
         fi
         ;;
     "1")
-        openssl_ciphers=`openssl ciphers "TLSv1"`
+        openssl_ciphers=`$OPENSSL ciphers "TLSv1"`
         tlsv1_sup=$?
         if [ $tlsv1_sup != 0 ]
         then
@@ -218,7 +221,7 @@ do
         fi
         ;;
     "2")
-        openssl_ciphers=`openssl ciphers "TLSv1.1"`
+        openssl_ciphers=`$OPENSSL ciphers "TLSv1.1"`
         tlsv1_1_sup=$?
         if [ $tlsv1_1_sup != 0 ]
         then
@@ -228,7 +231,7 @@ do
         fi
         ;;
     "3")
-        openssl_ciphers=`openssl ciphers "TLSv1.2"`
+        openssl_ciphers=`$OPENSSL ciphers "TLSv1.2"`
         tlsv1_2_sup=$?
         if [ $tlsv1_2_sup != 0 ]
         then
@@ -238,7 +241,7 @@ do
         fi
         ;;
     "4") #test all suites
-        openssl_ciphers=`openssl ciphers "ALL"`
+        openssl_ciphers=`$OPENSSL ciphers "ALL"`
         all_sup=$?
         if [ $all_sup != 0 ]
         then

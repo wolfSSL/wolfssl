@@ -62,9 +62,12 @@
     #include <wolfssl/wolfcrypt/async.h>
 #endif
 
+#if !defined(NO_OLD_SHA_NAMES)
+    #define SHA             WC_SHA
+#endif
+
 #ifndef NO_OLD_WC_NAMES
     #define Sha             wc_Sha
-    #define SHA             WC_SHA
     #define SHA_BLOCK_SIZE  WC_SHA_BLOCK_SIZE
     #define SHA_DIGEST_SIZE WC_SHA_DIGEST_SIZE
     #define SHA_PAD_SIZE    WC_SHA_PAD_SIZE
@@ -120,6 +123,7 @@ typedef struct wc_Sha {
 WOLFSSL_API int wc_InitSha(wc_Sha*);
 WOLFSSL_API int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId);
 WOLFSSL_API int wc_ShaUpdate(wc_Sha*, const byte*, word32);
+WOLFSSL_API int wc_ShaFinalRaw(wc_Sha*, byte*);
 WOLFSSL_API int wc_ShaFinal(wc_Sha*, byte*);
 WOLFSSL_API void wc_ShaFree(wc_Sha*);
 

@@ -72,7 +72,8 @@ enum CertType {
     ECC_PUBLICKEY_TYPE,
     TRUSTED_PEER_TYPE,
     EDDSA_PRIVATEKEY_TYPE,
-    ED25519_TYPE
+    ED25519_TYPE,
+    PKCS12_TYPE
 };
 
 
@@ -99,11 +100,15 @@ enum Ctc_Encoding {
     CTC_PRINTABLE  = 0x13  /* printable */
 };
 
+#ifndef WC_CTC_MAX_ALT_SIZE
+    #define WC_CTC_MAX_ALT_SIZE 16384
+#endif
+
 enum Ctc_Misc {
     CTC_COUNTRY_SIZE  =     2,
     CTC_NAME_SIZE     =    64,
     CTC_DATE_SIZE     =    32,
-    CTC_MAX_ALT_SIZE  = 16384,   /* may be huge */
+    CTC_MAX_ALT_SIZE  = WC_CTC_MAX_ALT_SIZE, /* may be huge, default: 16384 */
     CTC_SERIAL_SIZE   =    16,
 #ifdef WOLFSSL_CERT_EXT
     /* AKID could contains: hash + (Option) AuthCertIssuer,AuthCertSerialNum

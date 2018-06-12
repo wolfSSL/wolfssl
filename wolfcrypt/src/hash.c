@@ -48,14 +48,26 @@ enum Hash_Sum  {
 };
 #endif /* !NO_ASN */
 
+#ifdef HAVE_SELFTEST
+enum {
+    /* CAVP selftest includes these in hmac.h instead of sha3.h,
+       copied here for that build */
+    WC_SHA3_224_BLOCK_SIZE = 144,
+    WC_SHA3_256_BLOCK_SIZE = 136,
+    WC_SHA3_384_BLOCK_SIZE = 104,
+    WC_SHA3_512_BLOCK_SIZE = 72,
+};
+#endif
+
 
 /* function converts int hash type to enum */
 enum wc_HashType wc_HashTypeConvert(int hashType)
 {
     /* Default to hash type none as error */
     enum wc_HashType eHashType = WC_HASH_TYPE_NONE;
-#ifdef HAVE_FIPS
-    /* original FIPSv1 requires a mapping for unique hash type to wc_HashType */
+#if defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
+    /* original FIPSv1  and CAVP selftest require a mapping for unique hash
+       type to wc_HashType */
     switch (hashType) {
     #ifndef NO_MD5
         case WC_MD5:
@@ -182,7 +194,7 @@ enum wc_HashType wc_OidGetHash(int oid)
         #endif
             break;
         case SHA224h:
-        #if defined(WOLFSSL_SHA224)
+        #ifdef WOLFSSL_SHA224
             hash_type = WC_HASH_TYPE_SHA224;
         #endif
             break;
@@ -247,7 +259,7 @@ int wc_HashGetDigestSize(enum wc_HashType hash_type)
         #endif
             break;
         case WC_HASH_TYPE_SHA384:
-        #if defined(WOLFSSL_SHA512) && defined(WOLFSSL_SHA384)
+        #ifdef WOLFSSL_SHA384
             dig_size = WC_SHA384_DIGEST_SIZE;
         #endif
             break;

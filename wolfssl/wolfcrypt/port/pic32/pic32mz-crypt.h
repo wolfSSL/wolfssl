@@ -196,6 +196,8 @@ int wc_Pic32DesCrypt(word32 *key, int keyLen, word32 *iv, int ivLen,
 #endif
 
 #ifdef WOLFSSL_PIC32MZ_HASH
+#define WOLFSSL_NO_HASH_RAW
+
 int wc_Pic32Hash(const byte* in, int inLen, word32* out, int outLen, int algo);
 int wc_Pic32HashCopy(hashUpdCache* src, hashUpdCache* dst);
 #endif

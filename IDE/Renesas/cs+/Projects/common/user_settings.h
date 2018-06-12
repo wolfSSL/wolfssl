@@ -44,3 +44,5 @@
 #define HAVE_CURVE25519
 #define CURVE25519_SMALL
 #define HAVE_ED25519
+
+/* #define NO_WOLFSSL_STUB */
