@@ -1329,6 +1329,7 @@ static int wc_PKCS7_RsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
     if (wc_RsaPublicKeyDecode(pkcs7->publicKey, &scratch, key,
                               pkcs7->publicKeySz) < 0) {
         WOLFSSL_MSG("ASN RSA key decode error");
+        wc_FreeRsaKey(key);
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(key,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -1404,6 +1405,7 @@ static int wc_PKCS7_EcdsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
     if (wc_EccPublicKeyDecode(pkcs7->publicKey, &idx, key,
                                                       pkcs7->publicKeySz) < 0) {
         WOLFSSL_MSG("ASN ECDSA key decode error");
+        wc_ecc_free(key);
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(digest, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(key,    NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -3755,6 +3757,7 @@ static int wc_PKCS7_DecodeKtri(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
     }
     if (ret != 0) {
         WOLFSSL_MSG("Failed to decode RSA private key");
+        wc_FreeRsaKey(privKey);
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(encryptedKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         XFREE(privKey, NULL, DYNAMIC_TYPE_TMP_BUFFER);
