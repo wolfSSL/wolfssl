@@ -354,7 +354,7 @@ static void* client_thread(void* args)
     int haveShownPeerInfo = 0;
 
     /* set up client */
-    cli_ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+    cli_ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
     if (cli_ctx == NULL) err_sys("error creating ctx");
 
 #ifndef NO_CERTS
@@ -480,7 +480,7 @@ static void* server_thread(void* args)
     WOLFSSL* srv_ssl;
 
     /* set up server */
-    srv_ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method());
+    srv_ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
     if (srv_ctx == NULL) err_sys("error creating server ctx");
 
 #ifndef NO_CERTS

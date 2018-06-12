@@ -84,6 +84,7 @@ EXTRA_DIST+= wolfssl64.sln
 EXTRA_DIST+= valgrind-error.sh
 EXTRA_DIST+= gencertbuf.pl
 EXTRA_DIST+= README.md
+EXTRA_DIST+= ChangeLog.md
 EXTRA_DIST+= LICENSING
 EXTRA_DIST+= INSTALL
 EXTRA_DIST+= IPP
@@ -94,10 +95,6 @@ include wrapper/include.am
 include cyassl/include.am
 include wolfssl/include.am
 include certs/include.am
-include certs/1024/include.am
-include certs/crl/include.am
-include certs/external/include.am
-include certs/ocsp/include.am
 include doc/include.am
 include swig/include.am
 
@@ -207,7 +204,4 @@ merge-clean:
 	@find ./ | $(GREP) \.OTHER | xargs rm -f
 	@find ./ | $(GREP) \.BASE | xargs rm -f
 	@find ./ | $(GREP) \~$$ | xargs rm -f
-
-dist-hook:
-	cp $(distdir)/wolfssl/options.h.in $(distdir)/wolfssl/options.h
 

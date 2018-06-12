@@ -20,7 +20,7 @@
  */
 
 /*!
-    \file wolfssl/wolfcrypt/pksc7.h
+    \file wolfssl/wolfcrypt/pkcs7.h
 */
 
 #ifndef WOLF_CRYPT_PKCS7_H
@@ -133,6 +133,7 @@ typedef struct PKCS7 {
     int encryptOID;               /* key encryption algorithm OID         */
     int keyWrapOID;               /* key wrap algorithm OID               */
     int keyAgreeOID;              /* key agreement algorithm OID          */
+    int devId;                    /* device ID for HW based private key   */
     byte issuerHash[KEYID_SIZE];  /* hash of all alt Names                */
     byte issuerSn[MAX_SN_SZ];     /* singleCert's serial number           */
     byte publicKey[MAX_RSA_INT_SZ + MAX_RSA_E_SZ ];/*MAX RSA key size (m + e)*/

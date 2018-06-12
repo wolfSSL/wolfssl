@@ -485,7 +485,7 @@ void fp_mul_comba(fp_int *A, fp_int *B, fp_int *C)
 
    for (ix = 0; ix < pa; ix++) {
       /* get offsets into the two bignums */
-      ty = MIN(ix, B->used-1);
+      ty = MIN(ix, (B->used > 0 ? B->used - 1 : 0));
       tx = ix - ty;
 
       /* setup temp aliases */

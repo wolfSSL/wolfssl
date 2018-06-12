@@ -220,11 +220,19 @@
 #endif
 
 
+#ifndef WOLFSSL_NO_TLS12
 #define SERVER_DEFAULT_VERSION 3
+#else
+#define SERVER_DEFAULT_VERSION 4
+#endif
 #define SERVER_DTLS_DEFAULT_VERSION (-2)
 #define SERVER_INVALID_VERSION (-99)
 #define SERVER_DOWNGRADE_VERSION (-98)
+#ifndef WOLFSSL_NO_TLS12
 #define CLIENT_DEFAULT_VERSION 3
+#else
+#define CLIENT_DEFAULT_VERSION 4
+#endif
 #define CLIENT_DTLS_DEFAULT_VERSION (-2)
 #define CLIENT_INVALID_VERSION (-99)
 #define CLIENT_DOWNGRADE_VERSION (-98)
@@ -639,7 +647,7 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
     if (addr == NULL)
         err_sys("invalid argument to build_addr, addr is NULL");
 
-    memset(addr, 0, sizeof(SOCKADDR_IN_T));
+    XMEMSET(addr, 0, sizeof(SOCKADDR_IN_T));
 
 #ifndef TEST_IPV6
     /* peer could be in human readable form */
@@ -692,7 +700,7 @@ static INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
             int    ret;
             char   strPort[80];
 
-            memset(&hints, 0, sizeof(hints));
+            XMEMSET(&hints, 0, sizeof(hints));
 
             hints.ai_family   = AF_INET_V;
             if (udp) {
@@ -1422,7 +1430,7 @@ static INLINE int myDateCb(int preverify, WOLFSSL_X509_STORE_CTX* store)
 
 #ifdef HAVE_EXT_CACHE
 
-static INLINE WOLFSSL_SESSION* mySessGetCb(WOLFSSL* ssl, unsigned char* id, 
+static INLINE WOLFSSL_SESSION* mySessGetCb(WOLFSSL* ssl, unsigned char* id,
     int id_len, int* copy)
 {
     (void)ssl;
@@ -1852,14 +1860,14 @@ static INLINE void SetupAtomicUser(WOLFSSL_CTX* ctx, WOLFSSL* ssl)
     encCtx = (AtomicEncCtx*)malloc(sizeof(AtomicEncCtx));
     if (encCtx == NULL)
         err_sys("AtomicEncCtx malloc failed");
-    memset(encCtx, 0, sizeof(AtomicEncCtx));
+    XMEMSET(encCtx, 0, sizeof(AtomicEncCtx));
 
     decCtx = (AtomicDecCtx*)malloc(sizeof(AtomicDecCtx));
     if (decCtx == NULL) {
         free(encCtx);
         err_sys("AtomicDecCtx malloc failed");
     }
-    memset(decCtx, 0, sizeof(AtomicDecCtx));
+    XMEMSET(decCtx, 0, sizeof(AtomicDecCtx));
 
     wolfSSL_CTX_SetMacEncryptCb(ctx, myMacEncryptCb);
     wolfSSL_SetMacEncryptCtx(ssl, encCtx);

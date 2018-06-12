@@ -10,6 +10,8 @@ commit-tests.sh - our commit tests, must pass before a commit is accepted, use
 fips-check.sh - checks if current wolfSSL version works against FIPS wolfCrypt
                 comment out last line to leave working directory
 
+async-check.sh - internal script for validating wolfSSL Async using the simulator.
+
 gencertbuf.pl - creates certs_test.h, our certs / keys C array for easy non
                 filesystem testing
 

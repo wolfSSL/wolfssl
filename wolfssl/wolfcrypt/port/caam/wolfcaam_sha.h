@@ -28,6 +28,8 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
+#define WOLFSSL_NO_HASH_RAW
+
 #ifndef WC_CAAM_CTXLEN
 /* last 8 bytes of context is for length */
 #define WC_CAAM_CTXLEN 8

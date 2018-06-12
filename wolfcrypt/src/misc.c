@@ -199,13 +199,22 @@ STATIC INLINE void xorbuf(void* buf, const void* mask, word32 count)
 STATIC INLINE void ForceZero(const void* mem, word32 len)
 {
     volatile byte* z = (volatile byte*)mem;
+
 #if defined(WOLFSSL_X86_64_BUILD) && defined(WORD64_AVAILABLE)
     volatile word64* w;
+    #ifndef WOLFSSL_UNALIGNED_64BIT_ACCESS
+        word32 l = (sizeof(word64) - ((size_t)z & (sizeof(word64)-1))) &
+                                                             (sizeof(word64)-1);
 
+        if (len < l) l = len;
+        len -= l;
+        while (l--) *z++ = 0;
+    #endif
     for (w = (volatile word64*)z; len >= sizeof(*w); len -= sizeof(*w))
         *w++ = 0;
     z = (volatile byte*)w;
 #endif
+
     while (len--) *z++ = 0;
 }
 
@@ -292,7 +301,7 @@ STATIC INLINE void ato16(const byte* c, word16* wc_u16)
 /* convert opaque to 32 bit integer */
 STATIC INLINE void ato32(const byte* c, word32* wc_u32)
 {
-    *wc_u32 = (c[0] << 24) | (c[1] << 16) | (c[2] << 8) | c[3];
+    *wc_u32 = ((word32)c[0] << 24) | (c[1] << 16) | (c[2] << 8) | c[3];
 }
 
 
@@ -301,6 +310,48 @@ STATIC INLINE word32 btoi(byte b)
     return (word32)(b - 0x30);
 }
 
+
+/* Constant time - mask set when a > b. */
+STATIC INLINE byte ctMaskGT(int a, int b)
+{
+    return (((word32)a - b - 1) >> 31) - 1;
+}
+
+/* Constant time - mask set when a >= b. */
+STATIC INLINE byte ctMaskGTE(int a, int b)
+{
+    return (((word32)a - b    ) >> 31) - 1;
+}
+
+/* Constant time - mask set when a < b. */
+STATIC INLINE byte ctMaskLT(int a, int b)
+{
+    return (((word32)b - a - 1) >> 31) - 1;
+}
+
+/* Constant time - mask set when a <= b. */
+STATIC INLINE byte ctMaskLTE(int a, int b)
+{
+    return (((word32)b - a    ) >> 31) - 1;
+}
+
+/* Constant time - mask set when a == b. */
+STATIC INLINE byte ctMaskEq(int a, int b)
+{
+    return 0 - (a == b);
+}
+
+/* Constant time - select b when mask is set and a otherwise. */
+STATIC INLINE byte ctMaskSel(byte m, byte a, byte b)
+{
+    return (a & ~m) | (b & m);
+}
+
+/* Constant time - bit set when a <= b. */
+STATIC INLINE byte ctSetLTE(int a, int b)
+{
+    return ((word32)a - b - 1) >> 31;
+}
 
 
 #undef STATIC

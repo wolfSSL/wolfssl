@@ -182,7 +182,9 @@ static void ShowVersions(void)
     #endif
     printf("2:");
 #endif /* NO_OLD_TLS */
+#ifndef WOLFSSL_NO_TLS12
     printf("3:");
+#endif
 #ifdef WOLFSSL_TLS13
     printf("4:");
 #endif
@@ -658,7 +660,11 @@ static void ClientWrite(WOLFSSL* ssl, char* msg, int msgSz)
             }
         #endif
         }
-    } while (err == WC_PENDING_E);
+    } while (err == WOLFSSL_ERROR_WANT_WRITE
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        || err == WC_PENDING_E
+    #endif
+    );
     if (ret != msgSz) {
         printf("SSL_write msg error %d, %s\n", err,
                                         wolfSSL_ERR_error_string(err, buffer));
@@ -874,7 +880,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int    err           = 0;
     int    scr           = 0;    /* allow secure renegotiation */
     int    forceScr      = 0;    /* force client initiaed scr */
+#ifndef WOLFSSL_NO_CLIENT_AUTH
     int    useClientCert = 1;
+#else
+    int    useClientCert = 0;
+#endif
     int    fewerPackets  = 0;
     int    atomicUser    = 0;
 #ifdef HAVE_PK_CALLBACKS
@@ -919,9 +929,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int onlyKeyShare = 0;
 #ifdef WOLFSSL_TLS13
     int noPskDheKe = 0;
-#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
     int postHandAuth = 0;
-#endif
 #endif
     int updateKeysIVs = 0;
 #ifdef WOLFSSL_EARLY_DATA
@@ -1485,9 +1493,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif /* !NO_OLD_TLS */
 
 #ifndef NO_TLS
+    #ifndef WOLFSSL_NO_TLS12
         case 3:
             method = wolfTLSv1_2_client_method_ex;
             break;
+    #endif
 
     #ifdef WOLFSSL_TLS13
         case 4:
@@ -1507,9 +1517,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             break;
         #endif
 
+    #ifndef WOLFSSL_NO_TLS12
         case -2:
             method = wolfDTLSv1_2_client_method_ex;
             break;
+    #endif
 #endif
 
         default:
@@ -2075,7 +2087,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         wolfSSL_check_domain_name(ssl, domain);
 #ifndef WOLFSSL_CALLBACKS
     if (nonBlocking) {
-        wolfSSL_set_using_nonblock(ssl, 1);
+#ifdef WOLFSSL_DTLS
+        if (doDTLS) {
+            wolfSSL_dtls_set_using_nonblock(ssl, 1);
+        }
+#endif
         tcp_set_nonblocking(&sockfd);
         ret = NonBlockingSSL_Connect(ssl);
     }
@@ -2239,8 +2255,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     ClientRead(ssl, reply, sizeof(reply)-1, 1);
 
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-    if (postHandAuth)
+#if defined(WOLFSSL_TLS13)
+    if (updateKeysIVs || postHandAuth)
         ClientWrite(ssl, msg, msgSz);
 #endif
     if (sendGET) {  /* get html */
@@ -2328,7 +2344,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
 #ifndef WOLFSSL_CALLBACKS
         if (nonBlocking) {
-            wolfSSL_set_using_nonblock(sslResume, 1);
+#ifdef WOLFSSL_DTLS
+            if (doDTLS) {
+                wolfSSL_dtls_set_using_nonblock(ssl, 1);
+            }
+#endif
             tcp_set_nonblocking(&sockfd);
             ret = NonBlockingSSL_Connect(sslResume);
         }

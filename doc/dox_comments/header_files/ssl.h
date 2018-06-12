@@ -1571,65 +1571,6 @@ WOLFSSL_API const char* wolfSSL_get_cipher_name(WOLFSSL* ssl);
 */
 WOLFSSL_API int  wolfSSL_get_fd(const WOLFSSL*);
 /*!
-    \ingroup Setup
-
-    \brief This function informs the WOLFSSL object that the underlying
-     I/O is non-blocking. After an application creates a WOLFSSL object,
-     if it will be used with a non-blocking socket, call 
-    wolfSSL_set_using_nonblock() on it. This lets the WOLFSSL object know
-     that receiving EWOULDBLOCK means that the recvfrom call would 
-    block rather than that it timed out.
-    
-    \return none No return.
-    
-    \param ssl pointer to the SSL session, created with wolfSSL_new().
-    \param nonblock value used to set non-blocking flag on WOLFSSL object. 
-    Use 1 to specify non-blocking, otherwise 0.
-    
-    _Example_
-    \code
-    WOLFSSL* ssl = 0;
-    ...
-    wolfSSL_set_using_nonblock(ssl, 1);
-    \endcode
-    
-    \sa wolfSSL_get_using_nonblock
-    \sa wolfSSL_dtls_got_timeout
-    \sa wolfSSL_dtls_get_current_timeout
-*/
-WOLFSSL_API void wolfSSL_set_using_nonblock(WOLFSSL*, int);
-/*!
-    \ingroup IO
-
-    \brief This function allows the application to determine if wolfSSL is 
-    using non-blocking I/O.  If wolfSSL is using non-blocking I/O, this 
-    function will return 1, otherwise 0. After an application creates a 
-    WOLFSSL object, if it will be used with a non-blocking socket, call 
-    wolfSSL_set_using_nonblock() on it. This lets the WOLFSSL object know 
-    that receiving EWOULDBLOCK means that the recvfrom call would block 
-    rather than that it timed out.
-    
-    \return 0 underlying I/O is blocking.
-    \return 1 underlying I/O is non-blocking.
-    
-    \param ssl pointer to the SSL session, created with wolfSSL_new().
-    
-    _Example_
-    \code
-    int ret = 0;
-    WOLFSSL* ssl = 0;
-    ...
-    ret = wolfSSL_get_using_nonblock(ssl);
-    if (ret == 1) {
-    	// underlying I/O is non-blocking
-    }
-    ...
-    \endcode
-    
-    \sa wolfSSL_set_session
-*/
-WOLFSSL_API int  wolfSSL_get_using_nonblock(WOLFSSL*);
-/*!
     \ingroup IO
 
     \brief This function writes sz bytes from the buffer, data, to the SSL 
@@ -2996,6 +2937,64 @@ WOLFSSL_API int  wolfSSL_CTX_set_cipher_list(WOLFSSL_CTX*, const char*);
     \sa wolfSSL_new
 */
 WOLFSSL_API int  wolfSSL_set_cipher_list(WOLFSSL*, const char*);
+/*!
+    \brief This function informs the WOLFSSL DTLS object that the underlying
+     UDP I/O is non-blocking. After an application creates a WOLFSSL object,
+     if it will be used with a non-blocking UDP socket, call 
+    wolfSSL_dtls_set_using_nonblock() on it. This lets the WOLFSSL object know
+     that receiving EWOULDBLOCK means that the recvfrom call would 
+    block rather than that it timed out.
+    
+    \return none No return.
+    
+    \param ssl pointer to the DTLS session, created with wolfSSL_new().
+    \param nonblock value used to set non-blocking flag on WOLFSSL object. 
+    Use 1 to specify non-blocking, otherwise 0.
+    
+    _Example_
+    \code
+    WOLFSSL* ssl = 0;
+    ...
+    wolfSSL_dtls_set_using_nonblock(ssl, 1);
+    \endcode
+    
+    \sa wolfSSL_dtls_get_using_nonblock
+    \sa wolfSSL_dtls_got_timeout
+    \sa wolfSSL_dtls_get_current_timeout
+*/
+WOLFSSL_API void wolfSSL_dtls_set_using_nonblock(WOLFSSL*, int);
+/*!
+    \brief This function allows the application to determine if wolfSSL is 
+    using non-blocking I/O with UDP. If wolfSSL is using non-blocking I/O, this 
+    function will return 1, otherwise 0. After an application creates a 
+    WOLFSSL object, if it will be used with a non-blocking UDP socket, call 
+    wolfSSL_dtls_set_using_nonblock() on it. This lets the WOLFSSL object know 
+    that receiving EWOULDBLOCK means that the recvfrom call would block 
+    rather than that it timed out. This function is only meaningful to DTLS 
+    sessions.
+    
+    \return 0 underlying I/O is blocking.
+    \return 1 underlying I/O is non-blocking.
+    
+    \param ssl pointer to the DTLS session, created with wolfSSL_new().
+    
+    _Example_
+    \code
+    int ret = 0;
+    WOLFSSL* ssl = 0;
+    ...
+    ret = wolfSSL_dtls_get_using_nonblock(ssl);
+    if (ret == 1) {
+    	// underlying I/O is non-blocking
+    }
+    ...
+    \endcode
+    
+    \sa wolfSSL_dtls_set_using_nonblock
+    \sa wolfSSL_dtls_got_timeout
+    \sa wolfSSL_dtls_set_using_nonblock
+*/
+WOLFSSL_API int  wolfSSL_dtls_get_using_nonblock(WOLFSSL*);
 /*!
     \brief This function returns the current timeout value in seconds for 
     the WOLFSSL object. When using non-blocking sockets, something in the user 
@@ -5600,7 +5599,7 @@ WOLFSSL_API int wolfSSL_X509_version(WOLFSSL_X509*);
     \sa XFSEEK
 */
     WOLFSSL_API WOLFSSL_X509*
-        wolfSSL_X509_d2i_fp(WOLFSSL_X509** x509, FILE* file);
+        wolfSSL_X509_d2i_fp(WOLFSSL_X509** x509, XFILE file);
 /*!
     \ingroup CertsKeys
 

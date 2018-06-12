@@ -312,7 +312,7 @@ static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
                 err_sys_ex(runWithErrors, "SSL_read failed");
             }
         }
-    } while (err == WC_PENDING_E);
+    } while (err == WC_PENDING_E || err == WOLFSSL_ERROR_WANT_READ);
     if (ret > 0) {
         input[ret] = 0; /* null terminate message */
         printf("Client message: %s\n", input);
@@ -405,6 +405,9 @@ static void Usage(void)
     printf("-n          Use NTRU key (needed for NTRU suites)\n");
 #endif
     printf("-B <num>    Benchmark throughput using <num> bytes and print stats\n");
+#ifdef HAVE_CRL
+    printf("-V          Disable CRL\n");
+#endif
 #ifdef WOLFSSL_TRUST_PEER_CERT
     printf("-E <file>   Path to load trusted peer cert\n");
 #endif
@@ -462,7 +465,14 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     char   input[80];
     int    ch;
     int    version = SERVER_DEFAULT_VERSION;
+#ifndef WOLFSSL_NO_CLIENT_AUTH
     int    doCliCertCheck = 1;
+#else
+    int    doCliCertCheck = 0;
+#endif
+#ifdef HAVE_CRL
+    int    disableCRL = 0;
+#endif
     int    useAnyAddr = 0;
     word16 port = wolfSSLPort;
     int    usePsk = 0;
@@ -533,9 +543,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     int noPskDheKe = 0;
 #endif
     int updateKeysIVs = 0;
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     int postHandAuth = 0;
-#endif
 #ifdef WOLFSSL_EARLY_DATA
     int earlyData = 0;
 #endif
@@ -588,6 +596,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     (void)crlFlags;
     (void)readySignal;
     (void)updateKeysIVs;
+    (void)postHandAuth;
     (void)mcastID;
     (void)useX25519;
 
@@ -601,7 +610,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
     /* Not Used: h, m, z, F, M, T, V, W, X */
     while ((ch = mygetopt(argc, argv, "?"
                 "abc:defgijk:l:nop:q:rstuv:wxy"
-                "A:B:C:D:E:GH:IJKL:NO:PQR:S:TUYZ:"
+                "A:B:C:D:E:GH:IJKL:NO:PQR:S:TUVYZ:"
                 "03:")) != -1) {
         switch (ch) {
             case '?' :
@@ -614,6 +623,12 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
             case 'd' :
                 doCliCertCheck = 0;
+                break;
+
+            case 'V' :
+                #ifdef HAVE_CRL
+                    disableCRL = 1;
+                #endif
                 break;
 
             case 'b' :
@@ -951,9 +966,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #endif /* !NO_OLD_TLS */
 
 #ifndef NO_TLS
+    #ifndef WOLFSSL_NO_TLS12
         case 3:
             method = wolfTLSv1_2_server_method_ex;
             break;
+    #endif
 
     #ifdef WOLFSSL_TLS13
         case 4:
@@ -973,9 +990,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             break;
     #endif
 
+    #ifndef WOLFSSL_NO_TLS12
         case -2:
             method = wolfDTLSv1_2_server_method_ex;
             break;
+    #endif
 #endif
 
         default:
@@ -1286,6 +1305,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
         wolfSSL_SetHsDoneCb(ssl, myHsDoneCb, NULL);
 #endif
 #ifdef HAVE_CRL
+    if (!disableCRL) {
 #ifdef HAVE_CRL_MONITOR
         crlFlags = CYASSL_CRL_MONITOR | CYASSL_CRL_START_MON;
 #endif
@@ -1296,6 +1316,7 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             err_sys_ex(runWithErrors, "unable to load CRL");
         if (CyaSSL_SetCRL_Cb(ssl, CRL_CallBack) != WOLFSSL_SUCCESS)
             err_sys_ex(runWithErrors, "unable to set CRL callback url");
+    }
 #endif
 #ifdef HAVE_OCSP
         if (useOcsp) {
@@ -1426,7 +1447,11 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 
 #ifndef CYASSL_CALLBACKS
         if (nonBlocking) {
-            CyaSSL_set_using_nonblock(ssl, 1);
+#ifdef WOLFSSL_DTLS
+            if (doDTLS) {
+                wolfSSL_dtls_set_using_nonblock(ssl, 1);
+            }
+#endif
             tcp_set_nonblocking(&clientfd);
         }
 #endif
@@ -1562,18 +1587,20 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
         if (postHandAuth) {
-            SSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER |
-                                    ((usePskPlus)? WOLFSSL_VERIFY_FAIL_EXCEPT_PSK :
-                                    WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT),0);
+            SSL_set_verify(ssl, WOLFSSL_VERIFY_PEER |
+                                ((usePskPlus) ? WOLFSSL_VERIFY_FAIL_EXCEPT_PSK :
+                                WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT), 0);
             if (SSL_CTX_load_verify_locations(ctx, verifyCert, 0)
-                                                               != WOLFSSL_SUCCESS) {
-                err_sys_ex(runWithErrors, "can't load ca file, Please run from wolfSSL home dir");
+                                                           != WOLFSSL_SUCCESS) {
+                err_sys_ex(runWithErrors, "can't load ca file, Please run from "
+                                          "wolfSSL home dir");
             }
             #ifdef WOLFSSL_TRUST_PEER_CERT
             if (trustCert) {
-                if ((ret = wolfSSL_CTX_trust_peer_cert(ctx, trustCert,
-                                            WOLFSSL_FILETYPE_PEM)) != WOLFSSL_SUCCESS) {
-                    err_sys_ex(runWithErrors, "can't load trusted peer cert file");
+                if ((ret = wolfSSL_trust_peer_cert(ssl, trustCert,
+                                    WOLFSSL_FILETYPE_PEM)) != WOLFSSL_SUCCESS) {
+                    err_sys_ex(runWithErrors, "can't load trusted peer cert "
+                                              "file");
                 }
             }
             #endif /* WOLFSSL_TRUST_PEER_CERT */
@@ -1611,11 +1638,9 @@ THREAD_RETURN CYASSL_THREAD server_test(void* args)
             }
             ServerWrite(ssl, write_msg, write_msg_sz);
 
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-            if (postHandAuth) {
-                ServerWrite(ssl, write_msg, write_msg_sz);
+#ifdef WOLFSSL_TLS13
+            if (updateKeysIVs || postHandAuth)
                 ServerRead(ssl, input, sizeof(input)-1);
-            }
 #endif
         }
         else {
