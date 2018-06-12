@@ -43,7 +43,7 @@ function generate_test_cert {
 	openssl req -text -noout -in $1.csr
 
 	echo "step 4 create cert"
-	openssl x509 -req -days 1000 -in $1.csr -signkey ../server-key.pem \
+	openssl x509 -req -days 1000 -sha256 -in $1.csr -signkey ../server-key.pem \
 	             -out $1.pem -extensions req_ext -extfile $1.conf
 	rm $1.conf
 	rm $1.csr
