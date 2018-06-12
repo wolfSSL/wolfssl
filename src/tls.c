@@ -5270,34 +5270,38 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL* ssl, byte* input,
                 continue;
 
             /* No upgrade allowed. */
-            if (ssl->version.minor > minor)
+            if (minor > ssl->version.minor)
                     continue;
             /* Check downgrade. */
-            if (ssl->version.minor < minor) {
+            if (minor < ssl->version.minor) {
                 if (!ssl->options.downgrade)
                     continue;
 
                 if (minor < ssl->options.minDowngrade)
                     continue;
 
-                /* Downgrade the version. */
-                ssl->version.minor = minor;
+                if (newMinor == 0 && minor > ssl->options.oldMinor) {
+                    /* Downgrade the version. */
+                    ssl->version.minor = minor;
+                }
             }
 
             if (minor >= TLSv1_3_MINOR) {
-                ssl->options.tls1_3 = 1;
-                TLSX_Push(&ssl->extensions, TLSX_SUPPORTED_VERSIONS, ssl,
-                          ssl->heap);
+                if (!ssl->options.tls1_3) {
+                    ssl->options.tls1_3 = 1;
+                    TLSX_Push(&ssl->extensions, TLSX_SUPPORTED_VERSIONS, ssl,
+                              ssl->heap);
 #ifndef WOLFSSL_TLS13_DRAFT_18
-                TLSX_SetResponse(ssl, TLSX_SUPPORTED_VERSIONS);
+                    TLSX_SetResponse(ssl, TLSX_SUPPORTED_VERSIONS);
 #endif
-                newMinor = minor;
+                }
+                if (minor > newMinor) {
+                    ssl->version.minor = minor;
+                    newMinor = minor;
+                }
             }
-            else if (ssl->options.oldMinor < minor)
+            else if (minor > ssl->options.oldMinor)
                 ssl->options.oldMinor = minor;
-
-            if (newMinor != 0 && ssl->options.oldMinor != 0)
-                break;
         }
     }
 #ifndef WOLFSSL_TLS13_DRAFT_18

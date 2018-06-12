@@ -3972,31 +3972,9 @@ int DoTls13ClientHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         /* Check that the negotiated ciphersuite matches protocol version. */
         if (IsAtLeastTLSv1_3(ssl->version)) {
             if (ssl->options.cipherSuite0 != TLS13_BYTE) {
-#ifndef WOLFSSL_NO_TLS12
-                TLSX* ext;
-
-                if (!ssl->options.downgrade) {
-                    WOLFSSL_MSG("Negotiated ciphersuite from lesser version "
-                                "than TLS v1.3");
-                    return VERSION_ERROR;
-                }
-
-                WOLFSSL_MSG("Downgrading protocol due to cipher suite");
-
-                if (pv.minor < ssl->options.minDowngrade)
-                    return VERSION_ERROR;
-                ssl->version.minor = ssl->options.oldMinor;
-
-                /* Downgrade from TLS v1.3 */
-                ssl->options.tls1_3 = 0;
-                ext = TLSX_Find(ssl->extensions, TLSX_SUPPORTED_VERSIONS);
-                if (ext != NULL)
-                    ext->resp = 0;
-#else
                 WOLFSSL_MSG("Negotiated ciphersuite from lesser version than "
                             "TLS v1.3");
                 return VERSION_ERROR;
-#endif
             }
         }
         /* VerifyServerSuite handles when version is less than 1.3 */
