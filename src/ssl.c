@@ -3366,7 +3366,7 @@ void wolfSSL_EVP_init(void)
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM)
 
-void wolfSSL_ERR_print_errors_fp(FILE* fp, int err)
+void wolfSSL_ERR_print_errors_fp(XFILE fp, int err)
 {
     char data[WOLFSSL_MAX_ERROR_SZ + 1];
 
@@ -3376,7 +3376,7 @@ void wolfSSL_ERR_print_errors_fp(FILE* fp, int err)
 }
 
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
-void wolfSSL_ERR_dump_errors_fp(FILE* fp)
+void wolfSSL_ERR_dump_errors_fp(XFILE fp)
 {
     wc_ERR_print_errors_fp(fp);
 }
@@ -13400,7 +13400,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     }
 
 
-    /* WOLFSSL_SUCCESS on ok */
+    /* WOLFSSL_SUCCESS on ok, WOLFSSL_FAILURE on failure */
     int wolfSSL_EVP_DigestUpdate(WOLFSSL_EVP_MD_CTX* ctx, const void* data,
                                 size_t sz)
     {
@@ -13450,7 +13450,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 break;
 #endif /* WOLFSSL_SHA512 */
             default:
-                return BAD_FUNC_ARG;
+                return WOLFSSL_FAILURE;
         }
 
         return WOLFSSL_SUCCESS;
@@ -13506,7 +13506,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
                 break;
 #endif /* WOLFSSL_SHA512 */
             default:
-                return BAD_FUNC_ARG;
+                return WOLFSSL_FAILURE;
         }
 
         return WOLFSSL_SUCCESS;
@@ -22526,7 +22526,7 @@ char *wolfSSL_BN_bn2hex(const WOLFSSL_BIGNUM *bn)
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
-int wolfSSL_BN_print_fp(FILE *fp, const WOLFSSL_BIGNUM *bn)
+int wolfSSL_BN_print_fp(XFILE fp, const WOLFSSL_BIGNUM *bn)
 {
 #if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(DEBUG_WOLFSSL)
     char *buf;
@@ -28705,7 +28705,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     }
 
 #if defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
-    WOLFSSL_API WOLFSSL_X509_CRL* wolfSSL_PEM_read_X509_CRL(FILE *fp, WOLFSSL_X509_CRL **crl,
+    WOLFSSL_API WOLFSSL_X509_CRL* wolfSSL_PEM_read_X509_CRL(XFILE fp, WOLFSSL_X509_CRL **crl,
                                                     pem_password_cb *cb, void *u)
     {
 #if defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM)

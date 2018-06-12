@@ -146,7 +146,7 @@ static const byte tls13Downgrade[7] = {
 
 #ifndef NO_OLD_TLS
 static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
-                    int content, int verify);
+                    int padSz, int content, int verify);
 
 #endif
 
@@ -8276,7 +8276,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             }
             c24to32(input + args->idx, &listSz);
             args->idx += OPAQUE24_LEN;
-            if (listSz > MAX_RECORD_SIZE) {
+            if (listSz > MAX_CERTIFICATE_SZ) {
                 ERROR_OUT(BUFFER_ERROR, exit_ppc);
             }
             if ((args->idx - args->begin) + listSz != totalSz) {
@@ -11860,173 +11860,6 @@ static int SanityCheckCipherText(WOLFSSL* ssl, word32 encryptSz)
     return 0;
 }
 
-#ifndef NO_OLD_TLS
-
-static INLINE void Md5Rounds(int rounds, const byte* data, int sz)
-{
-    wc_Md5 md5;
-    int i;
-
-    wc_InitMd5(&md5);   /* no error check on purpose, dummy round */
-
-    for (i = 0; i < rounds; i++)
-        wc_Md5Update(&md5, data, sz);
-    wc_Md5Free(&md5); /* in case needed to release resources */
-}
-
-
-
-/* do a dummy sha round */
-static INLINE void ShaRounds(int rounds, const byte* data, int sz)
-{
-    wc_Sha sha;
-    int i;
-
-    wc_InitSha(&sha);  /* no error check on purpose, dummy round */
-
-    for (i = 0; i < rounds; i++)
-        wc_ShaUpdate(&sha, data, sz);
-    wc_ShaFree(&sha); /* in case needed to release resources */
-}
-#endif
-
-#ifndef WOLFSSL_NO_TLS12
-
-#ifndef NO_SHA256
-
-static INLINE void Sha256Rounds(int rounds, const byte* data, int sz)
-{
-    wc_Sha256 sha256;
-    int i;
-
-    wc_InitSha256(&sha256);  /* no error check on purpose, dummy round */
-
-    for (i = 0; i < rounds; i++) {
-        wc_Sha256Update(&sha256, data, sz);
-        /* no error check on purpose, dummy round */
-    }
-    wc_Sha256Free(&sha256); /* in case needed to release resources */
-}
-
-#endif
-
-
-#ifdef WOLFSSL_SHA384
-
-static INLINE void Sha384Rounds(int rounds, const byte* data, int sz)
-{
-    wc_Sha384 sha384;
-    int i;
-
-    wc_InitSha384(&sha384);  /* no error check on purpose, dummy round */
-
-    for (i = 0; i < rounds; i++) {
-        wc_Sha384Update(&sha384, data, sz);
-        /* no error check on purpose, dummy round */
-    }
-    wc_Sha384Free(&sha384); /* in case needed to release resources */
-}
-
-#endif
-
-
-#ifdef WOLFSSL_SHA512
-
-static INLINE void Sha512Rounds(int rounds, const byte* data, int sz)
-{
-    wc_Sha512 sha512;
-    int i;
-
-    wc_InitSha512(&sha512);  /* no error check on purpose, dummy round */
-
-    for (i = 0; i < rounds; i++) {
-        wc_Sha512Update(&sha512, data, sz);
-        /* no error check on purpose, dummy round */
-    }
-    wc_Sha512Free(&sha512); /* in case needed to release resources */
-}
-
-#endif
-
-#ifdef WOLFSSL_RIPEMD
-
-static INLINE void RmdRounds(int rounds, const byte* data, int sz)
-{
-    RipeMd ripemd;
-    int i;
-
-    (void)wc_InitRipeMd(&ripemd);
-
-    for (i = 0; i < rounds; i++)
-        (void)wc_RipeMdUpdate(&ripemd, data, sz);
-}
-
-#endif
-
-
-/* Do dummy rounds */
-static INLINE void DoRounds(int type, int rounds, const byte* data, int sz)
-{
-    (void)rounds;
-    (void)data;
-    (void)sz;
-
-    switch (type) {
-        case no_mac :
-            break;
-
-#ifndef NO_OLD_TLS
-#ifndef NO_MD5
-        case md5_mac :
-            Md5Rounds(rounds, data, sz);
-            break;
-#endif
-
-#ifndef NO_SHA
-        case sha_mac :
-            ShaRounds(rounds, data, sz);
-            break;
-#endif
-#endif
-
-#ifndef NO_SHA256
-        case sha256_mac :
-            Sha256Rounds(rounds, data, sz);
-            break;
-#endif
-
-#ifdef WOLFSSL_SHA384
-        case sha384_mac :
-            Sha384Rounds(rounds, data, sz);
-            break;
-#endif
-
-#ifdef WOLFSSL_SHA512
-        case sha512_mac :
-            Sha512Rounds(rounds, data, sz);
-            break;
-#endif
-
-#ifdef WOLFSSL_RIPEMD
-        case rmd_mac :
-            RmdRounds(rounds, data, sz);
-            break;
-#endif
-
-        default:
-            WOLFSSL_MSG("Bad round type");
-            break;
-    }
-}
-
-
-/* do number of compression rounds on dummy data */
-static INLINE void CompressRounds(WOLFSSL* ssl, int rounds, const byte* dummy)
-{
-    if (rounds)
-        DoRounds(ssl->specs.mac_algorithm, rounds, dummy, COMPRESS_LOWER);
-}
-
 
 /* check all length bytes for the pad value, return 0 on success */
 static int PadCheck(const byte* a, byte pad, int length)
@@ -12042,80 +11875,126 @@ static int PadCheck(const byte* a, byte pad, int length)
 }
 
 
-/* get compression extra rounds */
-static INLINE int GetRounds(int pLen, int padLen, int t)
+/* Mask the padding bytes with the expected values.
+ * Constant time implementation - does maximum pad size possible.
+ *
+ * data   Message data.
+ * sz     Size of the message including MAC and padding and padding length.
+ * macSz  Size of the MAC.
+ * returns 0 on success, otherwise failure.
+ */
+static byte MaskPadding(const byte* data, int sz, int macSz)
 {
-    int  roundL1 = 1;  /* round up flags */
-    int  roundL2 = 1;
+    int i;
+    int checkSz = sz - 1;
+    byte paddingSz = data[sz - 1];
+    byte mask;
+    byte good = ctMaskGT(paddingSz, sz - 1 - macSz);
 
-    int L1 = COMPRESS_CONSTANT + pLen - t;
-    int L2 = COMPRESS_CONSTANT + pLen - padLen - 1 - t;
+    if (checkSz > TLS_MAX_PAD_SZ)
+        checkSz = TLS_MAX_PAD_SZ;
 
-    L1 -= COMPRESS_UPPER;
-    L2 -= COMPRESS_UPPER;
+    for (i = 0; i < checkSz; i++) {
+        mask = ctMaskLTE(i, paddingSz);
+        good |= mask & (data[sz - 1 - i] ^ paddingSz);
+    }
 
-    if ( (L1 % COMPRESS_LOWER) == 0)
-        roundL1 = 0;
-    if ( (L2 % COMPRESS_LOWER) == 0)
-        roundL2 = 0;
-
-    L1 /= COMPRESS_LOWER;
-    L2 /= COMPRESS_LOWER;
-
-    L1 += roundL1;
-    L2 += roundL2;
-
-    return L1 - L2;
+    return good;
 }
 
+/* Mask the MAC in the message with the MAC calculated.
+ * Constant time implementation - starts looking for MAC where maximum padding
+ * size has it.
+ *
+ * data    Message data.
+ * sz      Size of the message including MAC and padding and padding length.
+ * macSz   Size of the MAC data.
+ * expMac  Expected MAC value.
+ * returns 0 on success, otherwise failure.
+ */
+static byte MaskMac(const byte* data, int sz, int macSz, byte* expMac)
+{
+    int i, j;
+    unsigned char mac[WC_MAX_DIGEST_SIZE];
+    int scanStart = sz - 1 - TLS_MAX_PAD_SZ - macSz;
+    int macEnd = sz - 1 - data[sz - 1];
+    int macStart = macEnd - macSz;
+    int r = 0;
+    unsigned char started, notEnded;
+    unsigned char good = 0;
+
+    if (scanStart < 0)
+        scanStart = 0;
+
+    /* Div on Intel has different speeds depending on value.
+     * Use a bitwise AND or mod a specific value (converted to mul). */
+    if ((macSz & (macSz - 1)) == 0)
+        r = (macSz - (scanStart - macStart)) & (macSz - 1);
+#ifndef NO_SHA
+    else if (macSz == WC_SHA_DIGEST_SIZE)
+        r = (macSz - (scanStart - macStart)) % WC_SHA_DIGEST_SIZE;
+#endif
+#ifdef WOLFSSL_SHA384
+    else if (macSz == WC_SHA384_DIGEST_SIZE)
+        r = (macSz - (scanStart - macStart)) % WC_SHA384_DIGEST_SIZE;
+#endif
+
+    XMEMSET(mac, 0, macSz);
+    for (i = scanStart; i < sz; i += macSz) {
+        for (j = 0; j < macSz && j + i < sz; j++) {
+            started = ctMaskGTE(i + j, macStart);
+            notEnded = ctMaskLT(i + j, macEnd);
+            mac[j] |= started & notEnded & data[i + j];
+        }
+    }
+
+    if ((macSz & (macSz - 1)) == 0) {
+        for (i = 0; i < macSz; i++)
+            good |= expMac[i] ^ mac[(i + r) & (macSz - 1)];
+    }
+#ifndef NO_SHA
+    else if (macSz == WC_SHA_DIGEST_SIZE) {
+        for (i = 0; i < macSz; i++)
+            good |= expMac[i] ^ mac[(i + r) % WC_SHA_DIGEST_SIZE];
+    }
+#endif
+#ifdef WOLFSSL_SHA384
+    else if (macSz == WC_SHA384_DIGEST_SIZE) {
+        for (i = 0; i < macSz; i++)
+            good |= expMac[i] ^ mac[(i + r) % WC_SHA384_DIGEST_SIZE];
+    }
+#endif
+
+    return good;
+}
 
 /* timing resistant pad/verify check, return 0 on success */
-static int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int t,
-                           int pLen, int content)
+int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int macSz,
+                    int pLen, int content)
 {
     byte verify[WC_MAX_DIGEST_SIZE];
-    byte dmy[sizeof(WOLFSSL) >= MAX_PAD_SIZE ? 1 : MAX_PAD_SIZE] = {0};
-    byte* dummy = sizeof(dmy) < MAX_PAD_SIZE ? (byte*) ssl : dmy;
+    byte good;
     int  ret = 0;
 
-    (void)dmy;
+    good = MaskPadding(input, pLen, macSz);
+    ret = ssl->hmac(ssl, verify, input, pLen - macSz - padLen - 1, padLen,
+                                                                    content, 1);
+    good |= MaskMac(input, pLen, ssl->specs.hash_size, verify);
 
-    if ( (t + padLen + 1) > pLen) {
-        WOLFSSL_MSG("Plain Len not long enough for pad/mac");
-        PadCheck(dummy, (byte)padLen, MAX_PAD_SIZE);
-        ssl->hmac(ssl, verify, input, pLen - t, content, 1); /* still compare */
-        ConstantCompare(verify, input + pLen - t, t);
+    /* Non-zero on failure. */
+    good = ~good;
+    good &= good >> 4;
+    good &= good >> 2;
+    good &= good >> 1;
+    /* Make ret negative on masking failure. */
+    ret -= 1 - good;
 
-        return VERIFY_MAC_ERROR;
-    }
-
-    if (PadCheck(input + pLen - (padLen + 1), (byte)padLen, padLen + 1) != 0) {
-        WOLFSSL_MSG("PadCheck failed");
-        PadCheck(dummy, (byte)padLen, MAX_PAD_SIZE - padLen - 1);
-        ssl->hmac(ssl, verify, input, pLen - t, content, 1); /* still compare */
-        ConstantCompare(verify, input + pLen - t, t);
-
-        return VERIFY_MAC_ERROR;
-    }
-
-    PadCheck(dummy, (byte)padLen, MAX_PAD_SIZE - padLen - 1);
-    ret = ssl->hmac(ssl, verify, input, pLen - padLen - 1 - t, content, 1);
-
-    CompressRounds(ssl, GetRounds(pLen, padLen, t), dummy);
-
-    if (ConstantCompare(verify, input + (pLen - padLen - 1 - t), t) != 0) {
-        WOLFSSL_MSG("Verify MAC compare failed");
-        return VERIFY_MAC_ERROR;
-    }
-
-    /* treat any faulure as verify MAC error */
+    /* Treat any faulure as verify MAC error. */
     if (ret != 0)
         ret = VERIFY_MAC_ERROR;
 
     return ret;
 }
-
-#endif /* WOLFSSL_NO_TLS12 */
 
 
 int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
@@ -12368,8 +12247,8 @@ static INLINE int VerifyMac(WOLFSSL* ssl, const byte* input, word32 msgSz,
                 badPadLen = 1;
             }
             PadCheck(dummy, (byte)pad, MAX_PAD_SIZE);  /* timing only */
-            ret = ssl->hmac(ssl, verify, input, msgSz - digestSz - pad - 1,
-                            content, 1);
+            ret = ssl->hmac(ssl, verify, input, msgSz - digestSz - pad - 1, pad,
+                                                                    content, 1);
             if (ConstantCompare(verify, input + msgSz - digestSz - pad - 1,
                                 digestSz) != 0)
                 return VERIFY_MAC_ERROR;
@@ -12378,7 +12257,7 @@ static INLINE int VerifyMac(WOLFSSL* ssl, const byte* input, word32 msgSz,
         }
     }
     else if (ssl->specs.cipher_type == stream) {
-        ret = ssl->hmac(ssl, verify, input, msgSz - digestSz, content, 1);
+        ret = ssl->hmac(ssl, verify, input, msgSz - digestSz, -1, content, 1);
         if (ConstantCompare(verify, input + msgSz - digestSz, digestSz) != 0){
             return VERIFY_MAC_ERROR;
         }
@@ -13118,7 +12997,7 @@ int SendChangeCipher(WOLFSSL* ssl)
 
 #ifndef NO_OLD_TLS
 static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
-                 int content, int verify)
+                    int padLen, int content, int verify)
 {
     byte   result[WC_MAX_DIGEST_SIZE];
     word32 digestSz = ssl->specs.hash_size;            /* actual sizes */
@@ -13132,6 +13011,8 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
     byte seq[SEQ_SZ];
     byte conLen[ENUM_LEN + LENGTH_SZ];     /* content & length */
     const byte* macSecret = wolfSSL_GetMacSecret(ssl, verify);
+
+    (void)padLen;
 
 #ifdef HAVE_FUZZER
     if (ssl->fuzzerCb)
@@ -13609,8 +13490,8 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                     ERROR_OUT(MEMORY_E, exit_buildmsg);
             #endif
 
-                ret = ssl->hmac(ssl, hmac, output + args->headerSz + args->ivSz, inSz,
-                                                                       type, 0);
+                ret = ssl->hmac(ssl, hmac, output + args->headerSz + args->ivSz,
+                                                             inSz, -1, type, 0);
                 XMEMCPY(output + args->idx, hmac, args->digestSz);
 
             #ifdef WOLFSSL_SMALL_STACK
@@ -13619,8 +13500,8 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             }
             else
         #endif
-                ret = ssl->hmac(ssl, output + args->idx, output + args->headerSz + args->ivSz,
-                                                                inSz, type, 0);
+                ret = ssl->hmac(ssl, output + args->idx, output +
+                                args->headerSz + args->ivSz, inSz, -1, type, 0);
             #ifdef WOLFSSL_DTLS
                 if (ssl->options.dtls)
                     DtlsSEQIncrement(ssl, CUR_ORDER);
@@ -16868,36 +16749,6 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
         XMEMCPY(ssl->arrays->serverRandom, input + i, RAN_LEN);
         i += RAN_LEN;
 
-        if (!ssl->options.resuming) {
-#ifdef WOLFSSL_TLS13
-            if (IsAtLeastTLSv1_3(ssl->ctx->method->version)) {
-                /* TLS v1.3 capable client not allowed to downgrade when
-                 * connecting to TLS v1.3 capable server unless cipher suite
-                 * demands it.
-                 */
-                if (XMEMCMP(input + i - (TLS13_DOWNGRADE_SZ + 1),
-                                     tls13Downgrade, TLS13_DOWNGRADE_SZ) == 0 &&
-                             (*(input + i - 1) == 0 || *(input + i - 1) == 1)) {
-                    SendAlert(ssl, alert_fatal, illegal_parameter);
-                    return VERSION_ERROR;
-                }
-            }
-            else
-#endif
-            if (ssl->ctx->method->version.major == SSLv3_MAJOR &&
-                             ssl->ctx->method->version.minor == TLSv1_2_MINOR) {
-                /* TLS v1.2 capable client not allowed to downgrade when
-                 * connecting to TLS v1.2 capable server.
-                 */
-                if (XMEMCMP(input + i - (TLS13_DOWNGRADE_SZ + 1),
-                            tls13Downgrade, TLS13_DOWNGRADE_SZ) == 0 &&
-                                                        *(input + i - 1) == 0) {
-                    SendAlert(ssl, alert_fatal, illegal_parameter);
-                    return VERSION_ERROR;
-                }
-            }
-        }
-
         /* session id */
         ssl->arrays->sessionIDSz = input[i++];
 
@@ -17066,7 +16917,37 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
     {
         int ret;
 
-        if (ssl->options.resuming) {
+        if (!ssl->options.resuming) {
+            byte* down = ssl->arrays->serverRandom + RAN_LEN -
+                                                         TLS13_DOWNGRADE_SZ - 1;
+            byte  vers = ssl->arrays->serverRandom[RAN_LEN - 1];
+    #ifdef WOLFSSL_TLS13
+            if (IsAtLeastTLSv1_3(ssl->ctx->method->version)) {
+                /* TLS v1.3 capable client not allowed to downgrade when
+                 * connecting to TLS v1.3 capable server unless cipher suite
+                 * demands it.
+                 */
+                if (XMEMCMP(down, tls13Downgrade, TLS13_DOWNGRADE_SZ) == 0 &&
+                                                     (vers == 0 || vers == 1)) {
+                    SendAlert(ssl, alert_fatal, illegal_parameter);
+                    return VERSION_ERROR;
+                }
+            }
+            else
+    #endif
+            if (ssl->ctx->method->version.major == SSLv3_MAJOR &&
+                             ssl->ctx->method->version.minor == TLSv1_2_MINOR) {
+                /* TLS v1.2 capable client not allowed to downgrade when
+                 * connecting to TLS v1.2 capable server.
+                 */
+                if (XMEMCMP(down, tls13Downgrade, TLS13_DOWNGRADE_SZ) == 0 &&
+                                                                    vers == 0) {
+                    SendAlert(ssl, alert_fatal, illegal_parameter);
+                    return VERSION_ERROR;
+                }
+            }
+        }
+        else {
             if (DSH_CheckSessionId(ssl)) {
                 if (SetCipherSpecs(ssl) == 0) {
 
@@ -17097,11 +16978,11 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
                 ssl->options.resuming = 0; /* server denied resumption try */
             }
         }
-        #ifdef WOLFSSL_DTLS
-            if (ssl->options.dtls) {
-                DtlsMsgPoolReset(ssl);
-            }
-        #endif
+    #ifdef WOLFSSL_DTLS
+        if (ssl->options.dtls) {
+            DtlsMsgPoolReset(ssl);
+        }
+    #endif
 
         return SetCipherSpecs(ssl);
     }
@@ -23461,7 +23342,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                              args->output, args->sigSz,
                                              HashAlgoToType(args->hashAlgo));
                             if (ret != 0)
-                                return ret;
+                                goto exit_dcv;
                         }
                         else
                     #endif

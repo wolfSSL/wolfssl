@@ -703,15 +703,17 @@ int SuiteTest(void)
 #endif
 #ifndef NO_PSK
     #ifndef WOLFSSL_NO_TLS12
-    /* add psk cipher suites */
-    strcpy(argv0[1], "tests/test-psk.conf");
-    printf("starting psk cipher suite tests\n");
-    test_harness(&args);
-    if (args.return_code != 0) {
-        printf("error from script %d\n", args.return_code);
-        args.return_code = EXIT_FAILURE;
-        goto exit;
-    }
+        #if !defined(NO_RSA) || defined(HAVE_ECC)
+        /* add psk cipher suites */
+        strcpy(argv0[1], "tests/test-psk.conf");
+        printf("starting psk cipher suite tests\n");
+        test_harness(&args);
+        if (args.return_code != 0) {
+            printf("error from script %d\n", args.return_code);
+            args.return_code = EXIT_FAILURE;
+            goto exit;
+        }
+        #endif
     #endif
     #ifdef WOLFSSL_TLS13
     /* add psk extra suites */

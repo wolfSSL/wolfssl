@@ -778,6 +778,27 @@ static int InitSha256(wc_Sha256* sha256)
         return XTRANSFORM(sha256);
     }
 
+    int wc_Sha256FinalRaw(wc_Sha256* sha256, byte* hash)
+    {
+    #ifdef LITTLE_ENDIAN_ORDER
+        word32 digest[WC_SHA256_DIGEST_SIZE / sizeof(word32)];
+    #endif
+
+        if (sha256 == NULL || hash == NULL) {
+            return BAD_FUNC_ARG;
+        }
+
+    #ifdef LITTLE_ENDIAN_ORDER
+        ByteReverseWords((word32*)digest, (word32*)sha256->digest,
+                                                         WC_SHA256_DIGEST_SIZE);
+        XMEMCPY(hash, digest, WC_SHA256_DIGEST_SIZE);
+    #else
+        XMEMCPY(hash, sha256->digest, WC_SHA256_DIGEST_SIZE);
+    #endif
+
+        return 0;
+    }
+
     int wc_Sha256Final(wc_Sha256* sha256, byte* hash)
     {
         int ret;

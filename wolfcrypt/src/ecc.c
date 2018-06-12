@@ -3310,17 +3310,17 @@ static int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
     if (err == 0)
         err = mp_read_unsigned_bin(k, (byte*)buf, size);
 
-    /* quick sanity check to make sure we're not dealing with a 0 key */
-    if (err == MP_OKAY) {
-        if (mp_iszero(k) == MP_YES)
-          err = MP_ZERO_E;
-    }
-
     /* the key should be smaller than the order of base point */
     if (err == MP_OKAY) {
         if (mp_cmp(k, order) != MP_LT) {
             err = mp_mod(k, order, k);
         }
+    }
+
+    /* quick sanity check to make sure we're not dealing with a 0 key */
+    if (err == MP_OKAY) {
+        if (mp_iszero(k) == MP_YES)
+          err = MP_ZERO_E;
     }
 
     ForceZero(buf, ECC_MAXSIZE);
@@ -4095,12 +4095,32 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
 
        /* don't use async for key, since we don't support async return here */
        if ((err = wc_ecc_init_ex(&pubkey, key->heap, INVALID_DEVID)) == MP_OKAY) {
+           mp_int b;
+
+           if (err == MP_OKAY) {
+               err = mp_init(&b);
+           }
+
        #ifdef WOLFSSL_CUSTOM_CURVES
            /* if custom curve, apply params to pubkey */
-           if (key->idx == ECC_CUSTOM_IDX) {
+           if (err == MP_OKAY && key->idx == ECC_CUSTOM_IDX) {
                err = wc_ecc_set_custom_curve(&pubkey, key->dp);
            }
        #endif
+
+           if (err == MP_OKAY) {
+               /* Generate blinding value - non-zero value. */
+               do {
+                   if (++loop_check > 64) {
+                        err = RNG_FAILURE_E;
+                        break;
+                   }
+
+                   err = wc_ecc_gen_k(rng, key->dp->size, &b, curve->order);
+               }
+               while (err == MP_ZERO_E);
+               loop_check = 0;
+           }
 
            for (; err == MP_OKAY;) {
                if (++loop_check > 64) {
@@ -4108,7 +4128,7 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                     break;
                }
                err = wc_ecc_make_key_ex(rng, key->dp->size, &pubkey,
-                                                              key->dp->id);
+                                                                   key->dp->id);
                if (err != MP_OKAY) break;
 
                /* find r = x1 mod n */
@@ -4124,30 +4144,50 @@ int wc_ecc_sign_hash_ex(const byte* in, word32 inlen, WC_RNG* rng,
                    mp_forcezero(&pubkey.k);
                }
                else {
-                   /* find s = (e + xr)/k */
+                   /* find s = (e + xr)/k
+                             = b.(e/k.b + x.r/k.b) */
+
+                   /* k = k.b */
+                   err = mp_mulmod(&pubkey.k, &b, curve->order, &pubkey.k);
+                   if (err != MP_OKAY) break;
+
+                   /* k = 1/k.b */
                    err = mp_invmod(&pubkey.k, curve->order, &pubkey.k);
                    if (err != MP_OKAY) break;
 
-                   /* s = xr */
+                   /* s = x.r */
                    err = mp_mulmod(&key->k, r, curve->order, s);
                    if (err != MP_OKAY) break;
 
-                   /* s = e +  xr */
+                   /* s = x.r/k.b */
+                   err = mp_mulmod(&pubkey.k, s, curve->order, s);
+                   if (err != MP_OKAY) break;
+
+                   /* e = e/k.b */
+                   err = mp_mulmod(&pubkey.k, e, curve->order, e);
+                   if (err != MP_OKAY) break;
+
+                   /* s = e/k.b + x.r/k.b
+                        = (e + x.r)/k.b */
                    err = mp_add(e, s, s);
                    if (err != MP_OKAY) break;
 
-                   /* s = e +  xr */
-                   err = mp_mod(s, curve->order, s);
+                   /* s = b.(e + x.r)/k.b
+                        = (e + x.r)/k */
+                   err = mp_mulmod(s, &b, curve->order, s);
                    if (err != MP_OKAY) break;
 
                    /* s = (e + xr)/k */
-                   err = mp_mulmod(s, &pubkey.k, curve->order, s);
+                   err = mp_mod(s, curve->order, s);
+                   if (err != MP_OKAY) break;
 
                    if (mp_iszero(s) == MP_NO)
                        break;
                 }
            }
            wc_ecc_free(&pubkey);
+           mp_clear(&b);
+           mp_free(&b);
        }
    }
 

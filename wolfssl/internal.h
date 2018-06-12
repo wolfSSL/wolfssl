@@ -1095,10 +1095,6 @@ enum Misc {
     PAD_MD5        = 48,       /* pad length for finished */
     PAD_SHA        = 40,       /* pad length for finished */
     MAX_PAD_SIZE   = 256,      /* maximum length of padding */
-    COMPRESS_DUMMY_SIZE = 64,  /* compression dummy round size */
-    COMPRESS_CONSTANT   = 13,  /* compression calc constant */
-    COMPRESS_UPPER      = 55,  /* compression calc numerator */
-    COMPRESS_LOWER      = 64,  /* compression calc denominator */
 
     LENGTH_SZ      =  2,       /* length field for HMAC, data only */
     VERSION_SZ     =  2,       /* length of proctocol version */
@@ -1181,6 +1177,7 @@ enum Misc {
                           OPAQUE8_LEN + WC_MAX_DIGEST_SIZE,
     MAX_REQUEST_SZ      = 256, /* Maximum cert req len (no auth yet */
     SESSION_FLUSH_COUNT = 256, /* Flush session cache unless user turns off */
+    TLS_MAX_PAD_SZ      = 255, /* Max padding in TLS */
 
 #if defined(HAVE_FIPS) && \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
@@ -1557,6 +1554,8 @@ WOLFSSL_LOCAL int DoTls13ServerHello(WOLFSSL* ssl, const byte* input,
                                      word32* inOutIdx, word32 helloSz,
                                      byte* extMsgType);
 #endif
+int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int t,
+                    int pLen, int content);
 
 
 enum {
@@ -2860,7 +2859,7 @@ WOLFSSL_SESSION* GetSession(WOLFSSL*, byte*, byte);
 WOLFSSL_LOCAL
 int          SetSession(WOLFSSL*, WOLFSSL_SESSION*);
 
-typedef int (*hmacfp) (WOLFSSL*, byte*, const byte*, word32, int, int);
+typedef int (*hmacfp) (WOLFSSL*, byte*, const byte*, word32, int, int, int);
 
 #ifndef NO_CLIENT_CACHE
     WOLFSSL_SESSION* GetSessionClient(WOLFSSL*, const byte*, int);
@@ -3949,7 +3948,7 @@ WOLFSSL_LOCAL  int GrowInputBuffer(WOLFSSL* ssl, int size, int usedLength);
 #ifndef NO_TLS
     WOLFSSL_LOCAL int  MakeTlsMasterSecret(WOLFSSL*);
     WOLFSSL_LOCAL int  TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in,
-                               word32 sz, int content, int verify);
+                                word32 sz, int padSz, int content, int verify);
 #endif
 
 #ifndef NO_WOLFSSL_CLIENT

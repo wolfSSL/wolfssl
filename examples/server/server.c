@@ -281,46 +281,6 @@ int ServerEchoData(SSL* ssl, int clientfd, int echoData, int block,
     return EXIT_SUCCESS;
 }
 
-#ifdef WOLFSSL_TLS13
-static void NonBlockingServerRead(WOLFSSL* ssl, char* input, int inputLen)
-{
-    int ret, err;
-    char buffer[WOLFSSL_MAX_ERROR_SZ];
-
-    /* Read data */
-    do {
-        err = 0; /* reset error */
-        ret = SSL_read(ssl, input, inputLen);
-        if (ret < 0) {
-            err = SSL_get_error(ssl, 0);
-
-        #ifdef WOLFSSL_ASYNC_CRYPT
-            if (err == WC_PENDING_E) {
-                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
-                if (ret < 0) break;
-            }
-            else
-        #endif
-        #ifdef WOLFSSL_DTLS
-            if (wolfSSL_dtls(ssl) && err == DECRYPT_ERROR) {
-                printf("Dropped client's message due to a bad MAC\n");
-            }
-            else
-        #endif
-            if (err != WOLFSSL_ERROR_WANT_READ) {
-                printf("SSL_read input error %d, %s\n", err,
-                                                 ERR_error_string(err, buffer));
-                err_sys_ex(runWithErrors, "SSL_read failed");
-            }
-        }
-    } while (err == WC_PENDING_E || err == WOLFSSL_ERROR_WANT_READ);
-    if (ret > 0) {
-        input[ret] = 0; /* null terminate message */
-        printf("Client message: %s\n", input);
-    }
-}
-#endif
-
 static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
 {
     int ret, err;
@@ -352,7 +312,7 @@ static void ServerRead(WOLFSSL* ssl, char* input, int inputLen)
                 err_sys_ex(runWithErrors, "SSL_read failed");
             }
         }
-    } while (err == WC_PENDING_E);
+    } while (err == WC_PENDING_E || err == WOLFSSL_ERROR_WANT_READ);
     if (ret > 0) {
         input[ret] = 0; /* null terminate message */
         printf("Client message: %s\n", input);
@@ -1627,7 +1587,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
     #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
         if (postHandAuth) {
-            SSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER |
+            SSL_set_verify(ssl, WOLFSSL_VERIFY_PEER |
                                 ((usePskPlus) ? WOLFSSL_VERIFY_FAIL_EXCEPT_PSK :
                                 WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT), 0);
             if (SSL_CTX_load_verify_locations(ctx, verifyCert, 0)
@@ -1637,7 +1597,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             }
             #ifdef WOLFSSL_TRUST_PEER_CERT
             if (trustCert) {
-                if ((ret = wolfSSL_CTX_trust_peer_cert(ctx, trustCert,
+                if ((ret = wolfSSL_trust_peer_cert(ssl, trustCert,
                                     WOLFSSL_FILETYPE_PEM)) != WOLFSSL_SUCCESS) {
                     err_sys_ex(runWithErrors, "can't load trusted peer cert "
                                               "file");
@@ -1679,13 +1639,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             ServerWrite(ssl, write_msg, write_msg_sz);
 
 #ifdef WOLFSSL_TLS13
-            if (updateKeysIVs || postHandAuth) {
-                ServerWrite(ssl, write_msg, write_msg_sz);
-                if (nonBlocking)
-                    NonBlockingServerRead(ssl, input, sizeof(input)-1);
-                else
-                    ServerRead(ssl, input, sizeof(input)-1);
-            }
+            if (updateKeysIVs || postHandAuth)
+                ServerRead(ssl, input, sizeof(input)-1);
 #endif
         }
         else {
