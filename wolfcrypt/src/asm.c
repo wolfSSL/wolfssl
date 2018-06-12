@@ -81,17 +81,27 @@ static word32 cpuid_check = 0 ;
 static word32 cpuid_flags = 0 ;
 
 static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit) {
-    int got_intel_cpu=0;
+    int got_intel_cpu = 0;
+    int got_amd_cpu = 0;
     unsigned int reg[5];
 
     reg[4] = '\0' ;
     cpuid(reg, 0, 0);
-    if(memcmp((char *)&(reg[EBX]), "Genu", 4) == 0 &&
-                memcmp((char *)&(reg[EDX]), "ineI", 4) == 0 &&
-                memcmp((char *)&(reg[ECX]), "ntel", 4) == 0) {
+
+    /* check for intel cpu */
+    if( memcmp((char *)&(reg[EBX]), "Genu", 4) == 0 &&
+        memcmp((char *)&(reg[EDX]), "ineI", 4) == 0 &&
+        memcmp((char *)&(reg[ECX]), "ntel", 4) == 0) {
         got_intel_cpu = 1;
     }
-    if (got_intel_cpu) {
+
+    /* check for AMD cpu */
+    if( memcmp((char *)&(reg[EBX]), "Auth", 4) == 0 &&
+        memcmp((char *)&(reg[EDX]), "enti", 4) == 0 &&
+        memcmp((char *)&(reg[ECX]), "cAMD", 4) == 0) {
+        got_amd_cpu = 1;
+    }
+    if (got_intel_cpu || got_amd_cpu) {
         cpuid(reg, leaf, sub);
         return((reg[num]>>bit)&0x1) ;
     }
