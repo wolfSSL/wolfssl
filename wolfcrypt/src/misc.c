@@ -311,6 +311,48 @@ STATIC INLINE word32 btoi(byte b)
 }
 
 
+/* Constant time - mask set when a > b. */
+STATIC INLINE byte ctMaskGT(int a, int b)
+{
+    return (((word32)a - b - 1) >> 31) - 1;
+}
+
+/* Constant time - mask set when a >= b. */
+STATIC INLINE byte ctMaskGTE(int a, int b)
+{
+    return (((word32)a - b    ) >> 31) - 1;
+}
+
+/* Constant time - mask set when a < b. */
+STATIC INLINE byte ctMaskLT(int a, int b)
+{
+    return (((word32)b - a - 1) >> 31) - 1;
+}
+
+/* Constant time - mask set when a <= b. */
+STATIC INLINE byte ctMaskLTE(int a, int b)
+{
+    return (((word32)b - a    ) >> 31) - 1;
+}
+
+/* Constant time - mask set when a == b. */
+STATIC INLINE byte ctMaskEq(int a, int b)
+{
+    return 0 - (a == b);
+}
+
+/* Constant time - select b when mask is set and a otherwise. */
+STATIC INLINE byte ctMaskSel(byte m, byte a, byte b)
+{
+    return (a & ~m) | (b & m);
+}
+
+/* Constant time - bit set when a <= b. */
+STATIC INLINE byte ctSetLTE(int a, int b)
+{
+    return ((word32)a - b - 1) >> 31;
+}
+
 
 #undef STATIC
 

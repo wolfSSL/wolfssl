@@ -33,6 +33,8 @@
     #define WOLFSSL_MAX_HASH_SIZE  64
 #endif
 
+#define WOLFSSL_NO_HASH_RAW
+
 typedef struct {
     byte   *msg;
     word32 used;

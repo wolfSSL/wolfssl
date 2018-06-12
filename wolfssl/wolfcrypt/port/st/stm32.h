@@ -24,6 +24,8 @@
 
 #ifdef STM32_HASH
 
+#define WOLFSSL_NO_HASH_RAW
+
 /* Generic STM32 Hashing Function */
 /* Supports CubeMX HAL or Standard Peripheral Library */
 
