@@ -404,7 +404,6 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_CTX_set_info_callback wolfSSL_CTX_set_info_callback
 #define SSL_CTX_set_alpn_protos   wolfSSL_CTX_set_alpn_protos
 #define ERR_peek_error wolfSSL_ERR_peek_error
-#define ERR_peek_last_error wolfSSL_ERR_peek_last_error
 #define ERR_peek_last_error_line  wolfSSL_ERR_peek_last_error_line
 #define ERR_peek_errors_fp         wolfSSL_ERR_peek_errors_fp
 #define ERR_GET_REASON wolfSSL_ERR_GET_REASON
@@ -785,7 +784,6 @@ typedef STACK_OF(WOLFSSL_ASN1_OBJECT) GENERAL_NAMES;
 
 #define SSL_CTX_flush_sessions           wolfSSL_flush_sessions
 #define SSL_CTX_add_session              wolfSSL_CTX_add_session
-#define SSL_get_SSL_CTX                  wolfSSL_get_SSL_CTX
 #define SSL_version                      wolfSSL_version
 #define SSL_get_state                    wolfSSL_get_state
 #define SSL_state_string_long            wolfSSL_state_string_long
@@ -956,9 +954,12 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define SSL_CTX_add_client_CA             wolfSSL_CTX_add_client_CA
 #define SSL_CTX_set_srp_password          wolfSSL_CTX_set_srp_password
 #define SSL_CTX_set_srp_username          wolfSSL_CTX_set_srp_username
-#define OPENSSL_add_all_algorithms_noconf wolfSSL_OPENSSL_add_all_alogrithms_noconf
+#define OpenSSL_add_all_algorithms_noconf wolfSSL_OpenSSL_add_all_alogrithms_noconf
 #define i2c_ASN1_INTEGER                  wolfSSL_i2c_ASN1_INTEGER
 #define X509_NAME_ENTRY_get_object        wolfSSL_X509_NAME_ENTRY_get_object
+#define SSL_get_SSL_CTX                   wolfSSL_get_SSL_CTX
+#define ERR_peek_last_error               wolfSSL_ERR_peek_last_error
+#define X509_get_version                  wolfSSL_X509_get_version
 
 
 #define ERR_NUM_ERRORS                  16

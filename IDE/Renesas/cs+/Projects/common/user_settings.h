@@ -84,7 +84,7 @@
 
 #if defined(TIME_OVERRIDES) && defined(HAVE_TM_TYPE) && defined(HAVE_TIME_T_TYPE)
    /* #include "time_mng.h" */
-    typedef unsigned long Time_t
+    typedef unsigned long Time_t;
     #define time_t Time_t
     #define WOLFSSL_GMTIME
     #define XGMTIME gmtime
