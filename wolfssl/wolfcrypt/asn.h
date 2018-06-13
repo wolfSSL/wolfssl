@@ -439,6 +439,7 @@ typedef struct DNS_entry   DNS_entry;
 struct DNS_entry {
     DNS_entry* next;   /* next on DNS list */
     int        type;   /* i.e. ASN_DNS_TYPE */
+    int        len;    /* actual DNS len */
     char*      name;   /* actual DNS name */
 };
 

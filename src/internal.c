@@ -7651,6 +7651,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
    return 1 on success */
 int MatchDomainName(const char* pattern, int len, const char* str)
 {
+    int ret = 0;
     char p, s;
 
     if (pattern == NULL || str == NULL || len <= 0)
@@ -7659,7 +7660,7 @@ int MatchDomainName(const char* pattern, int len, const char* str)
     while (len > 0) {
 
         p = (char)XTOLOWER((unsigned char)*pattern++);
-        if (p == 0)
+        if (p == '\0')
             break;
 
         if (p == '*') {
@@ -7683,11 +7684,18 @@ int MatchDomainName(const char* pattern, int len, const char* str)
                 return 0;
         }
 
-        if (len > 0)
+
+        if (len > 0) {
+            str++;
             len--;
+        }
     }
 
-    return *str == '\0';
+    if (*str == '\0' && len == 0) {
+        ret = 1; /* success */
+    }
+
+    return ret;
 }
 
 
@@ -7705,7 +7713,7 @@ int CheckAltNames(DecodedCert* dCert, char* domain)
     while (altName) {
         WOLFSSL_MSG("\tindividual AltName check");
 
-        if (MatchDomainName(altName->name,(int)XSTRLEN(altName->name), domain)){
+        if (MatchDomainName(altName->name, altName->len, domain)){
             match = 1;
             break;
         }
@@ -7742,8 +7750,7 @@ static int CheckForAltNames(DecodedCert* dCert, char* domain, int* checkCN)
     while (altName) {
         WOLFSSL_MSG("\tindividual AltName check");
 
-        if (MatchDomainName(altName->name, (int)XSTRLEN(altName->name),
-                            domain)) {
+        if (MatchDomainName(altName->name, altName->len, domain)) {
             match = 1;
             *checkCN = 0;
             break;
@@ -7953,7 +7960,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         while (cur != NULL) {
             if (cur->type == ASN_RFC822_TYPE) {
                 DNS_entry* dnsEntry;
-                int strLen = (int)XSTRLEN(cur->name);
+                int strLen = cur->len;
 
                 dnsEntry = (DNS_entry*)XMALLOC(sizeof(DNS_entry), x509->heap,
                                         DYNAMIC_TYPE_ALTNAME);
@@ -7970,7 +7977,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
                     XFREE(dnsEntry, x509->heap, DYNAMIC_TYPE_ALTNAME);
                     return MEMORY_E;
                 }
-
+                dnsEntry->len = strLen;
                 XMEMCPY(dnsEntry->name, cur->name, strLen);
                 dnsEntry->name[strLen] = '\0';
 
