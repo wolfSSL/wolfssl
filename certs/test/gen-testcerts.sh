@@ -71,6 +71,12 @@ function generate_test_cert {
 }
 
 
+# Generate Good CN=localhost, Alt=None
+generate_test_cert server-goodcn localhost "" 1
+
+# Generate Good CN=www.nomatch.com, Alt=localhost
+generate_test_cert server-goodalt www.nomatch.com localhost 1
+
 # Generate Good CN=*localhost, Alt=None
 generate_test_cert server-goodcnwild *localhost "" 1
 

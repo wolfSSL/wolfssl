@@ -20,9 +20,12 @@ EXTRA_DIST += \
 
 EXTRA_DIST += \
          certs/test/gen-testcerts.sh \
+         certs/test/server-goodcn.pem \
+         certs/test/server-goodcn.der \
+         certs/test/server-goodalt.pem \
+         certs/test/server-goodalt.der \
          certs/test/server-goodcnwild.pem \
          certs/test/server-goodcnwild.der \
-         certs/test/server-goodcnwild.csr \
          certs/test/server-goodaltwild.pem \
          certs/test/server-goodaltwild.der \
          certs/test/server-badcnnull.pem \
@@ -33,9 +36,10 @@ EXTRA_DIST += \
          certs/test/server-badaltnull.der \
          certs/test/server-badaltname.der \
          certs/test/server-badaltname.pem \
+         certs/crl/server-goodaltCrl.pem \
+         certs/crl/server-goodcnCrl.pem \
          certs/crl/server-goodaltwildCrl.pem \
          certs/crl/server-goodcnwildCrl.pem
-
 
 EXTRA_DIST += \
 		 certs/test/crit-cert.pem \
