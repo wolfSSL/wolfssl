@@ -2347,7 +2347,6 @@ WOLFSSL_API int wolfSSL_set_SessionTicket_cb(WOLFSSL*,
                                                   CallbackSessionTicket, void*);
 #endif /* NO_WOLFSSL_CLIENT */
 
-#ifndef NO_WOLFSSL_SERVER
 
 #define WOLFSSL_TICKET_NAME_SZ 16
 #define WOLFSSL_TICKET_IV_SZ   16
@@ -2359,6 +2358,8 @@ enum TicketEncRet {
     WOLFSSL_TICKET_RET_REJECT,       /* don't use ticket, but not fatal */
     WOLFSSL_TICKET_RET_CREATE        /* existing ticket ok and create new one */
 };
+
+#ifndef NO_WOLFSSL_SERVER
 
 typedef int (*SessionTicketEncCb)(WOLFSSL*,
                                  unsigned char key_name[WOLFSSL_TICKET_NAME_SZ],

@@ -465,8 +465,12 @@ static void test_wolfSSL_Method_Allocators(void)
         TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_server_method);
         TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_client_method);
     #endif
-    TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_1_server_method);
-    TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_1_client_method);
+    #ifndef NO_WOLFSSL_SERVER
+        TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_1_server_method);
+    #endif
+    #ifndef NO_WOLFSSL_CLIENT
+        TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_1_client_method);
+    #endif
 #endif
 #ifndef WOLFSSL_NO_TLS12
     #ifndef NO_WOLFSSL_SERVER
@@ -1181,7 +1185,7 @@ static int test_export(WOLFSSL* inSsl, byte* buf, word32 sz, void* userCtx)
 }
 #endif
 
-#ifndef NO_WOLFSSL_SERVER
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
 static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 {
     SOCKET_T sockfd = 0;
@@ -1339,7 +1343,6 @@ done:
     return 0;
 #endif
 }
-#endif /* !NO_WOLFSSL_SERVER */
 
 typedef int (*cbType)(WOLFSSL_CTX *ctx, WOLFSSL *ssl);
 
@@ -1488,6 +1491,7 @@ done2:
 
     return;
 }
+#endif /* !NO_WOLFSSL_CLIENT && !NO_WOLFSSL_SERVER */
 
 /* SNI / ALPN / session export helper functions */
 #if defined(HAVE_SNI) || defined(HAVE_ALPN) || defined(WOLFSSL_SESSION_EXPORT)
@@ -1742,7 +1746,7 @@ static void run_wolfssl_client(void* args)
           defined(WOLFSSL_SESSION_EXPORT) */
 #endif /* io tests dependencies */
 
-
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
 static void test_wolfSSL_read_write(void)
 {
 #ifdef HAVE_IO_TESTS_DEPENDENCIES
@@ -1803,6 +1807,7 @@ static void test_wolfSSL_read_write(void)
 
 #endif
 }
+#endif /* !NO_WOLFSSL_CLIENT && !NO_WOLFSSL_SERVER */
 
 
 #if defined(HAVE_IO_TESTS_DEPENDENCIES) && defined(WOLFSSL_DTLS) && \
@@ -2972,10 +2977,18 @@ static void test_wolfSSL_PKCS8(void)
     /* Note that wolfSSL_Init() or wolfCrypt_Init() has been called before these
      * function calls */
 
-#ifndef WOLFSSL_NO_TLS12
-    AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+#ifndef NO_WOLFSSL_CLIENT
+    #ifndef WOLFSSL_NO_TLS12
+        AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
+    #else
+        AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    #endif
 #else
-    AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method()));
+    #ifndef WOLFSSL_NO_TLS12
+        AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method()));
+    #else
+        AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method()));
+    #endif
 #endif
     wolfSSL_CTX_set_default_passwd_cb(ctx, &PKCS8TestCallBack);
     wolfSSL_CTX_set_default_passwd_cb_userdata(ctx, (void*)&flag);
@@ -3115,11 +3128,19 @@ static int test_wolfSSL_UseOCSPStapling(void)
         WOLFSSL*        ssl;
 
         wolfSSL_Init();
+#ifndef NO_WOLFSSL_CLIENT
     #ifndef WOLFSSL_NO_TLS12
         ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
     #else
         ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
     #endif
+#else
+    #ifndef WOLFSSL_NO_TLS12
+        ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method());
+    #else
+        ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
+    #endif
+#endif
         ssl = wolfSSL_new(ctx);
         printf(testingFmt, "wolfSSL_UseOCSPStapling()");
 
@@ -3159,11 +3180,19 @@ static int test_wolfSSL_UseOCSPStaplingV2 (void)
         WOLFSSL*            ssl;
 
         wolfSSL_Init();
+#ifndef NO_WOLFSSL_CLIENT
     #ifndef WOLFSSL_NO_TLS12
         ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
     #else
         ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
     #endif
+#else
+    #ifndef WOLFSSL_NO_TLS12
+        ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method());
+    #else
+        ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
+    #endif
+#endif
         ssl = wolfSSL_new(ctx);
         printf(testingFmt, "wolfSSL_UseOCSPStaplingV2()");
 
@@ -16161,6 +16190,7 @@ static void test_wolfSSL_CTX_add_extra_chain_cert(void)
 }
 
 
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
 static void test_wolfSSL_ERR_peek_last_error_line(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
@@ -16264,6 +16294,7 @@ static void test_wolfSSL_ERR_peek_last_error_line(void)
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
              !defined(NO_FILESYSTEM) && !defined(DEBUG_WOLFSSL) */
 }
+#endif
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
        !defined(NO_FILESYSTEM) && !defined(NO_RSA)
@@ -16742,7 +16773,8 @@ static void test_wolfSSL_msgCb(void)
 {
   #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
      !defined(NO_FILESYSTEM) && defined(DEBUG_WOLFSSL) && \
-     defined(HAVE_IO_TESTS_DEPENDENCIES)
+     defined(HAVE_IO_TESTS_DEPENDENCIES) && !defined(NO_WOLFSSL_CLIENT) && \
+     !defined(NO_WOLFSSL_SERVER)
 
     tcp_ready ready;
     func_args client_args;
@@ -18999,7 +19031,7 @@ static void test_wc_ecc_get_curve_id_from_params(void)
 #endif /* NO_CERTS */
 
 #ifdef WOLFSSL_TLS13
-#ifdef WOLFSSL_SEND_HRR_COOKIE
+#if defined(WOLFSSL_SEND_HRR_COOKIE) && !defined(NO_WOLFSSL_SERVER)
 static byte fixedKey[WC_SHA384_DIGEST_SIZE] = { 0, };
 #endif
 #ifdef WOLFSSL_EARLY_DATA
@@ -19011,18 +19043,26 @@ static int test_tls13_apis(void)
 {
     int          ret = 0;
 #ifndef WOLFSSL_NO_TLS12
+#ifndef NO_WOLFSSL_CLIENT
     WOLFSSL_CTX* clientTls12Ctx;
     WOLFSSL*     clientTls12Ssl;
+#endif
+#ifndef NO_WOLFSSL_SERVER
     WOLFSSL_CTX* serverTls12Ctx;
     WOLFSSL*     serverTls12Ssl;
 #endif
+#endif
+#ifndef NO_WOLFSSL_CLIENT
     WOLFSSL_CTX* clientCtx;
     WOLFSSL*     clientSsl;
+#endif
+#ifndef NO_WOLFSSL_SERVER
     WOLFSSL_CTX* serverCtx;
     WOLFSSL*     serverSsl;
 #ifndef NO_CERTS
     const char*  ourCert = svrCertFile;
     const char*  ourKey  = svrKeyFile;
+#endif
 #endif
 #ifdef WOLFSSL_EARLY_DATA
     int          outSz;
@@ -19031,8 +19071,11 @@ static int test_tls13_apis(void)
     int          numGroups = 1;
 
 #ifndef WOLFSSL_NO_TLS12
+#ifndef NO_WOLFSSL_CLIENT
     clientTls12Ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
     clientTls12Ssl = wolfSSL_new(clientTls12Ctx);
+#endif
+#ifndef NO_WOLFSSL_SERVER
     serverTls12Ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method());
 #ifndef NO_CERTS
     wolfSSL_CTX_use_certificate_chain_file(serverTls12Ctx, ourCert);
@@ -19040,19 +19083,27 @@ static int test_tls13_apis(void)
 #endif
     serverTls12Ssl = wolfSSL_new(serverTls12Ctx);
 #endif
+#endif
 
+#ifndef NO_WOLFSSL_CLIENT
     clientCtx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
     clientSsl = wolfSSL_new(clientCtx);
+#endif
+#ifndef NO_WOLFSSL_SERVER
     serverCtx = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
 #ifndef NO_CERTS
     wolfSSL_CTX_use_certificate_chain_file(serverCtx, ourCert);
     wolfSSL_CTX_use_PrivateKey_file(serverCtx, ourKey, WOLFSSL_FILETYPE_PEM);
 #endif
     serverSsl = wolfSSL_new(serverCtx);
+#endif
 
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     AssertIntEQ(wolfSSL_send_hrr_cookie(NULL, NULL, 0), BAD_FUNC_ARG);
+#ifndef NO_WOLFSSL_CLIENT
     AssertIntEQ(wolfSSL_send_hrr_cookie(clientSsl, NULL, 0), SIDE_ERROR);
+#endif
+#ifndef NO_WOLFSSL_SERVER
 #ifndef WOLFSSL_NO_TLS12
     AssertIntEQ(wolfSSL_send_hrr_cookie(serverTls12Ssl, NULL, 0), BAD_FUNC_ARG);
 #endif
@@ -19061,29 +19112,39 @@ static int test_tls13_apis(void)
     AssertIntEQ(wolfSSL_send_hrr_cookie(serverSsl, fixedKey, sizeof(fixedKey)),
                 WOLFSSL_SUCCESS);
 #endif
+#endif
 
 #ifdef HAVE_ECC
     AssertIntEQ(wolfSSL_UseKeyShare(NULL, WOLFSSL_ECC_SECP256R1), BAD_FUNC_ARG);
+#ifndef NO_WOLFSSL_SERVER
     AssertIntEQ(wolfSSL_UseKeyShare(serverSsl, WOLFSSL_ECC_SECP256R1),
                 WOLFSSL_SUCCESS);
+#endif
+#ifndef NO_WOLFSSL_CLIENT
 #ifndef WOLFSSL_NO_TLS12
     AssertIntEQ(wolfSSL_UseKeyShare(clientTls12Ssl, WOLFSSL_ECC_SECP256R1),
                 WOLFSSL_SUCCESS);
 #endif
     AssertIntEQ(wolfSSL_UseKeyShare(clientSsl, WOLFSSL_ECC_SECP256R1),
                 WOLFSSL_SUCCESS);
+#endif
 #elif defined(HAVE_CURVE25519)
     AssertIntEQ(wolfSSL_UseKeyShare(NULL, WOLFSSL_ECC_X25519), BAD_FUNC_ARG);
+#ifndef NO_WOLFSSL_SERVER
     AssertIntEQ(wolfSSL_UseKeyShare(serverSsl, WOLFSSL_ECC_X25519),
                 WOLFSSL_SUCCESS);
+#endif
+#ifndef NO_WOLFSSL_CLIENT
 #ifndef WOLFSSL_NO_TLS12
     AssertIntEQ(wolfSSL_UseKeyShare(clientTls12Ssl, WOLFSSL_ECC_X25519),
                 WOLFSSL_SUCCESS);
 #endif
     AssertIntEQ(wolfSSL_UseKeyShare(clientSsl, WOLFSSL_ECC_X25519),
                 WOLFSSL_SUCCESS);
+#endif
 #else
     AssertIntEQ(wolfSSL_UseKeyShare(NULL, WOLFSSL_ECC_SECP256R1), BAD_FUNC_ARG);
+#ifndef NO_WOLFSSL_CLIENT
 #ifndef WOLFSSL_NO_TLS12
     AssertIntEQ(wolfSSL_UseKeyShare(clientTls12Ssl, WOLFSSL_ECC_SECP256R1),
                 NOT_COMPILED_IN);
@@ -19091,87 +19152,131 @@ static int test_tls13_apis(void)
     AssertIntEQ(wolfSSL_UseKeyShare(clientSsl, WOLFSSL_ECC_SECP256R1),
                 NOT_COMPILED_IN);
 #endif
+#endif
 
     AssertIntEQ(wolfSSL_NoKeyShares(NULL), BAD_FUNC_ARG);
+#ifndef NO_WOLFSSL_SERVER
     AssertIntEQ(wolfSSL_NoKeyShares(serverSsl), SIDE_ERROR);
+#endif
+#ifndef NO_WOLFSSL_CLIENT
 #ifndef WOLFSSL_NO_TLS12
     AssertIntEQ(wolfSSL_NoKeyShares(clientTls12Ssl), WOLFSSL_SUCCESS);
 #endif
     AssertIntEQ(wolfSSL_NoKeyShares(clientSsl), WOLFSSL_SUCCESS);
+#endif
 
     AssertIntEQ(wolfSSL_CTX_no_ticket_TLSv13(NULL), BAD_FUNC_ARG);
+#ifndef NO_WOLFSSL_CLIENT
     AssertIntEQ(wolfSSL_CTX_no_ticket_TLSv13(clientCtx), SIDE_ERROR);
+#endif
+#ifndef NO_WOLFSSL_SERVER
 #ifndef WOLFSSL_NO_TLS12
     AssertIntEQ(wolfSSL_CTX_no_ticket_TLSv13(serverTls12Ctx), BAD_FUNC_ARG);
 #endif
     AssertIntEQ(wolfSSL_CTX_no_ticket_TLSv13(serverCtx), 0);
+#endif
 
     AssertIntEQ(wolfSSL_no_ticket_TLSv13(NULL), BAD_FUNC_ARG);
+#ifndef NO_WOLFSSL_CLIENT
     AssertIntEQ(wolfSSL_no_ticket_TLSv13(clientSsl), SIDE_ERROR);
+#endif
+#ifndef NO_WOLFSSL_SERVER
 #ifndef WOLFSSL_NO_TLS12
     AssertIntEQ(wolfSSL_no_ticket_TLSv13(serverTls12Ssl), BAD_FUNC_ARG);
 #endif
     AssertIntEQ(wolfSSL_no_ticket_TLSv13(serverSsl), 0);
+#endif
 
     AssertIntEQ(wolfSSL_CTX_no_dhe_psk(NULL), BAD_FUNC_ARG);
+#ifndef NO_WOLFSSL_CLIENT
 #ifndef WOLFSSL_NO_TLS12
     AssertIntEQ(wolfSSL_CTX_no_dhe_psk(clientTls12Ctx), BAD_FUNC_ARG);
 #endif
-    AssertIntEQ(wolfSSL_CTX_no_dhe_psk(serverCtx), 0);
     AssertIntEQ(wolfSSL_CTX_no_dhe_psk(clientCtx), 0);
+#endif
+#ifndef NO_WOLFSSL_SERVER
+    AssertIntEQ(wolfSSL_CTX_no_dhe_psk(serverCtx), 0);
+#endif
 
     AssertIntEQ(wolfSSL_no_dhe_psk(NULL), BAD_FUNC_ARG);
+#ifndef NO_WOLFSSL_CLIENT
 #ifndef WOLFSSL_NO_TLS12
     AssertIntEQ(wolfSSL_no_dhe_psk(clientTls12Ssl), BAD_FUNC_ARG);
 #endif
-    AssertIntEQ(wolfSSL_no_dhe_psk(serverSsl), 0);
     AssertIntEQ(wolfSSL_no_dhe_psk(clientSsl), 0);
+#endif
+#ifndef NO_WOLFSSL_SERVER
+    AssertIntEQ(wolfSSL_no_dhe_psk(serverSsl), 0);
+#endif
 
     AssertIntEQ(wolfSSL_update_keys(NULL), BAD_FUNC_ARG);
+#ifndef NO_WOLFSSL_CLIENT
 #ifndef WOLFSSL_NO_TLS12
     AssertIntEQ(wolfSSL_update_keys(clientTls12Ssl), BAD_FUNC_ARG);
 #endif
-    AssertIntEQ(wolfSSL_update_keys(serverSsl), BUILD_MSG_ERROR);
     AssertIntEQ(wolfSSL_update_keys(clientSsl), BUILD_MSG_ERROR);
+#endif
+#ifndef NO_WOLFSSL_SERVER
+    AssertIntEQ(wolfSSL_update_keys(serverSsl), BUILD_MSG_ERROR);
+#endif
 
 #if !defined(NO_CERTS) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
     AssertIntEQ(wolfSSL_CTX_allow_post_handshake_auth(NULL), BAD_FUNC_ARG);
+#ifndef NO_WOLFSSL_SERVER
     AssertIntEQ(wolfSSL_CTX_allow_post_handshake_auth(serverCtx), SIDE_ERROR);
+#endif
+#ifndef NO_WOLFSSL_CLIENT
 #ifndef WOLFSSL_NO_TLS12
     AssertIntEQ(wolfSSL_CTX_allow_post_handshake_auth(clientTls12Ctx),
                 BAD_FUNC_ARG);
 #endif
     AssertIntEQ(wolfSSL_CTX_allow_post_handshake_auth(clientCtx), 0);
+#endif
 
     AssertIntEQ(wolfSSL_allow_post_handshake_auth(NULL), BAD_FUNC_ARG);
+#ifndef NO_WOLFSSL_SERVER
     AssertIntEQ(wolfSSL_allow_post_handshake_auth(serverSsl), SIDE_ERROR);
+#endif
+#ifndef NO_WOLFSSL_CLIENT
 #ifndef WOLFSSL_NO_TLS12
     AssertIntEQ(wolfSSL_allow_post_handshake_auth(clientTls12Ssl),
                 BAD_FUNC_ARG);
 #endif
     AssertIntEQ(wolfSSL_allow_post_handshake_auth(clientSsl), 0);
+#endif
 
     AssertIntEQ(wolfSSL_request_certificate(NULL), BAD_FUNC_ARG);
+#ifndef NO_WOLFSSL_CLIENT
     AssertIntEQ(wolfSSL_request_certificate(clientSsl), SIDE_ERROR);
+#endif
+#ifndef NO_WOLFSSL_SERVER
 #ifndef WOLFSSL_NO_TLS12
     AssertIntEQ(wolfSSL_request_certificate(serverTls12Ssl),
                 BAD_FUNC_ARG);
 #endif
     AssertIntEQ(wolfSSL_request_certificate(serverSsl), NOT_READY_ERROR);
 #endif
+#endif
 
 #ifndef WOLFSSL_NO_SERVER_GROUPS_EXT
     AssertIntEQ(wolfSSL_preferred_group(NULL), BAD_FUNC_ARG);
+#ifndef NO_WOLFSSL_SERVER
     AssertIntEQ(wolfSSL_preferred_group(serverSsl), SIDE_ERROR);
+#endif
+#ifndef NO_WOLFSSL_CLIENT
 #ifndef WOLFSSL_NO_TLS12
     AssertIntEQ(wolfSSL_preferred_group(clientTls12Ssl), BAD_FUNC_ARG);
 #endif
     AssertIntEQ(wolfSSL_preferred_group(clientSsl), NOT_READY_ERROR);
 #endif
+#endif
 
     AssertIntEQ(wolfSSL_CTX_set_groups(NULL, NULL, 0), BAD_FUNC_ARG);
+#ifndef NO_WOLFSSL_CLIENT
     AssertIntEQ(wolfSSL_CTX_set_groups(clientCtx, NULL, 0), BAD_FUNC_ARG);
+#endif
     AssertIntEQ(wolfSSL_CTX_set_groups(NULL, groups, numGroups), BAD_FUNC_ARG);
+#ifndef NO_WOLFSSL_CLIENT
 #ifndef WOLFSSL_NO_TLS12
     AssertIntEQ(wolfSSL_CTX_set_groups(clientTls12Ctx, groups, numGroups),
                 BAD_FUNC_ARG);
@@ -19181,12 +19286,18 @@ static int test_tls13_apis(void)
                 BAD_FUNC_ARG);
     AssertIntEQ(wolfSSL_CTX_set_groups(clientCtx, groups, numGroups),
                 WOLFSSL_SUCCESS);
+#endif
+#ifndef NO_WOLFSSL_SERVER
     AssertIntEQ(wolfSSL_CTX_set_groups(serverCtx, groups, numGroups),
                 WOLFSSL_SUCCESS);
+#endif
 
     AssertIntEQ(wolfSSL_set_groups(NULL, NULL, 0), BAD_FUNC_ARG);
+#ifndef NO_WOLFSSL_CLIENT
     AssertIntEQ(wolfSSL_set_groups(clientSsl, NULL, 0), BAD_FUNC_ARG);
+#endif
     AssertIntEQ(wolfSSL_set_groups(NULL, groups, numGroups), BAD_FUNC_ARG);
+#ifndef NO_WOLFSSL_CLIENT
 #ifndef WOLFSSL_NO_TLS12
     AssertIntEQ(wolfSSL_set_groups(clientTls12Ssl, groups, numGroups),
                 BAD_FUNC_ARG);
@@ -19195,27 +19306,39 @@ static int test_tls13_apis(void)
                                    WOLFSSL_MAX_GROUP_COUNT + 1), BAD_FUNC_ARG);
     AssertIntEQ(wolfSSL_set_groups(clientSsl, groups, numGroups),
                 WOLFSSL_SUCCESS);
+#endif
+#ifndef NO_WOLFSSL_SERVER
     AssertIntEQ(wolfSSL_set_groups(serverSsl, groups, numGroups),
                 WOLFSSL_SUCCESS);
+#endif
 
 #ifdef WOLFSSL_EARLY_DATA
     AssertIntEQ(wolfSSL_CTX_set_max_early_data(NULL, 0), BAD_FUNC_ARG);
+#ifndef NO_WOLFSSL_CLIENT
     AssertIntEQ(wolfSSL_CTX_set_max_early_data(clientCtx, 0), SIDE_ERROR);
+#endif
+#ifndef NO_WOLFSSL_SERVER
 #ifndef WOLFSSL_NO_TLS12
     AssertIntEQ(wolfSSL_CTX_set_max_early_data(serverTls12Ctx, 0),
                 BAD_FUNC_ARG);
 #endif
     AssertIntEQ(wolfSSL_CTX_set_max_early_data(serverCtx, 0), 0);
+#endif
 
     AssertIntEQ(wolfSSL_set_max_early_data(NULL, 0), BAD_FUNC_ARG);
+#ifndef NO_WOLFSSL_CLIENT
     AssertIntEQ(wolfSSL_set_max_early_data(clientSsl, 0), SIDE_ERROR);
+#endif
+#ifndef NO_WOLFSSL_SERVER
 #ifndef WOLFSSL_NO_TLS12
     AssertIntEQ(wolfSSL_set_max_early_data(serverTls12Ssl, 0), BAD_FUNC_ARG);
 #endif
     AssertIntEQ(wolfSSL_set_max_early_data(serverSsl, 0), 0);
+#endif
 
     AssertIntEQ(wolfSSL_write_early_data(NULL, earlyData, sizeof(earlyData),
                                          &outSz), BAD_FUNC_ARG);
+#ifndef NO_WOLFSSL_CLIENT
     AssertIntEQ(wolfSSL_write_early_data(clientSsl, NULL, sizeof(earlyData),
                                          &outSz), BAD_FUNC_ARG);
     AssertIntEQ(wolfSSL_write_early_data(clientSsl, earlyData, -1, &outSz),
@@ -19223,9 +19346,13 @@ static int test_tls13_apis(void)
     AssertIntEQ(wolfSSL_write_early_data(clientSsl, earlyData,
                                          sizeof(earlyData), NULL),
                 BAD_FUNC_ARG);
+#endif
+#ifndef NO_WOLFSSL_SERVER
     AssertIntEQ(wolfSSL_write_early_data(serverSsl, earlyData,
                                          sizeof(earlyData), &outSz),
                 SIDE_ERROR);
+#endif
+#ifndef NO_WOLFSSL_CLIENT
 #ifndef WOLFSSL_NO_TLS12
     AssertIntEQ(wolfSSL_write_early_data(clientTls12Ssl, earlyData,
                                          sizeof(earlyData), &outSz),
@@ -19234,10 +19361,12 @@ static int test_tls13_apis(void)
     AssertIntEQ(wolfSSL_write_early_data(clientSsl, earlyData,
                                          sizeof(earlyData), &outSz),
                 WOLFSSL_FATAL_ERROR);
+#endif
 
     AssertIntEQ(wolfSSL_read_early_data(NULL, earlyDataBuffer,
                                         sizeof(earlyDataBuffer), &outSz),
                 BAD_FUNC_ARG);
+#ifndef NO_WOLFSSL_SERVER
     AssertIntEQ(wolfSSL_read_early_data(serverSsl, NULL,
                                         sizeof(earlyDataBuffer), &outSz),
                 BAD_FUNC_ARG);
@@ -19246,9 +19375,13 @@ static int test_tls13_apis(void)
     AssertIntEQ(wolfSSL_read_early_data(serverSsl, earlyDataBuffer,
                                         sizeof(earlyDataBuffer), NULL),
                 BAD_FUNC_ARG);
+#endif
+#ifndef NO_WOLFSSL_CLIENT
     AssertIntEQ(wolfSSL_read_early_data(clientSsl, earlyDataBuffer,
                                         sizeof(earlyDataBuffer), &outSz),
                 SIDE_ERROR);
+#endif
+#ifndef NO_WOLFSSL_SERVER
 #ifndef WOLFSSL_NO_TLS12
     AssertIntEQ(wolfSSL_read_early_data(serverTls12Ssl, earlyDataBuffer,
                                         sizeof(earlyDataBuffer), &outSz),
@@ -19258,17 +19391,26 @@ static int test_tls13_apis(void)
                                         sizeof(earlyDataBuffer), &outSz),
                 WOLFSSL_FATAL_ERROR);
 #endif
+#endif
 
+#ifndef NO_WOLFSSL_SERVER
     wolfSSL_free(serverSsl);
     wolfSSL_CTX_free(serverCtx);
+#endif
+#ifndef NO_WOLFSSL_CLIENT
     wolfSSL_free(clientSsl);
     wolfSSL_CTX_free(clientCtx);
+#endif
 
 #ifndef WOLFSSL_NO_TLS12
+#ifndef NO_WOLFSSL_SERVER
     wolfSSL_free(serverTls12Ssl);
     wolfSSL_CTX_free(serverTls12Ctx);
+#endif
+#ifndef NO_WOLFSSL_CLIENT
     wolfSSL_free(clientTls12Ssl);
     wolfSSL_CTX_free(clientTls12Ctx);
+#endif
 #endif
 
     return ret;
@@ -19352,7 +19494,11 @@ static void test_DhCallbacks(void)
 
     printf(testingFmt, "test_DhCallbacks");
 
+#ifndef NO_WOLFSSL_CLIENT
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+#else
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+#endif
     wolfSSL_CTX_SetDhAgreeCb(ctx, &my_DhCallback);
 
     /* load client ca cert */
@@ -19709,7 +19855,9 @@ void ApiTest(void)
     test_client_wolfSSL_new();
     test_wolfSSL_SetTmpDH_file();
     test_wolfSSL_SetTmpDH_buffer();
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     test_wolfSSL_read_write();
+#endif
     test_wolfSSL_dtls_export();
     AssertIntEQ(test_wolfSSL_SetMinVersion(), WOLFSSL_SUCCESS);
     AssertIntEQ(test_wolfSSL_CTX_SetMinVersion(), WOLFSSL_SUCCESS);
@@ -19750,7 +19898,9 @@ void ApiTest(void)
     test_wolfSSL_EVP_PKEY_new_mac_key();
     test_wolfSSL_EVP_MD_hmac_signing();
     test_wolfSSL_CTX_add_extra_chain_cert();
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     test_wolfSSL_ERR_peek_last_error_line();
+#endif
     test_wolfSSL_set_options();
     test_wolfSSL_X509_STORE_CTX();
     test_wolfSSL_msgCb();
