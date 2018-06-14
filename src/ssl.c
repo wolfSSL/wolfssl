@@ -26569,6 +26569,7 @@ int wolfSSL_EC_POINT_get_affine_coordinates_GFp(const WOLFSSL_EC_GROUP *group,
     return WOLFSSL_SUCCESS;
 }
 
+#ifndef WOLFSSL_ATECC508A
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
@@ -26633,6 +26634,7 @@ int wolfSSL_EC_POINT_mul(const WOLFSSL_EC_GROUP *group, WOLFSSL_EC_POINT *r,
 
     return ret;
 }
+#endif
 
 void wolfSSL_EC_POINT_clear_free(WOLFSSL_EC_POINT *p)
 {
