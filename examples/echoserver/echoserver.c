@@ -497,6 +497,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
 
         args.argc = argc;
         args.argv = argv;
+        args.return_code = 0;
 
         CyaSSL_Init();
 #if defined(DEBUG_CYASSL) && !defined(CYASSL_MDK_SHELL)

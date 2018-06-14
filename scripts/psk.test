@@ -62,6 +62,14 @@ do_trap() {
 trap do_trap INT TERM
 
 [ ! -x ./examples/client/client ] && echo -e "\n\nClient doesn't exist" && exit 1
+./examples/client/client -? 2>&1 | grep -- 'Client not compiled in!'
+if [ $? -eq 0 ]; then
+    exit 0
+fi
+./examples/server/server -? 2>&1 | grep -- 'Server not compiled in!'
+if [ $? -eq 0 ]; then
+    exit 0
+fi
 
 # Usual psk server / psk client. This use case is tested in
 # tests/unit.test and is used here for just checking if PSK is enabled

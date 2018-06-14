@@ -2633,6 +2633,7 @@ exit:
 
         args.argc = argc;
         args.argv = argv;
+        args.return_code = 0;
 
 #if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_MDK_SHELL) && !defined(STACK_TRAP)
         wolfSSL_Debugging_ON();
@@ -2646,6 +2647,8 @@ exit:
 #else
         client_test(&args);
 #endif
+#else
+        printf("Client not compiled in!\n");
 #endif
         wolfSSL_Cleanup();
 
