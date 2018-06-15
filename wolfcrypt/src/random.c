@@ -1502,6 +1502,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #elif defined(WOLFSSL_NUCLEUS)
 #include "nucleus.h"
 #include "kernel/plus_common.h"
+
+#warning "potential for not enough entropy, currently being used for testing"
 int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 {
     int i;
