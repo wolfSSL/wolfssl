@@ -14048,7 +14048,7 @@ static int test_wc_ecc_mulmod (void)
 {
     int         ret = 0;
 
-#if defined(HAVE_ECC)
+#if defined(HAVE_ECC) && !defined(WOLFSSL_ATECC508A)
     ecc_key     key1, key2, key3;
     WC_RNG      rng;
 
@@ -14115,7 +14115,7 @@ static int test_wc_ecc_mulmod (void)
     wc_ecc_free(&key3);
 
 
-#endif
+#endif /* HAVE_ECC && !WOLFSSL_ATECC508A */
     return ret;
 
 

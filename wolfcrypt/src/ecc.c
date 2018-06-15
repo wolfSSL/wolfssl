@@ -3291,6 +3291,8 @@ static int wc_ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
         wc_ecc_curve_free(curve);
     }
 
+#else
+    (void)curveIn;
 #endif /* WOLFSSL_ATECC508A */
 
     /* change key state if public part is cached */
@@ -3367,7 +3369,7 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
    /* populate key->pubkey */
    err = mp_read_unsigned_bin(key->pubkey.x, key->pubkey_raw,
                               ECC_MAX_CRYPTO_HW_SIZE);
-   if (err = MP_OKAY)
+   if (err == MP_OKAY)
        err = mp_read_unsigned_bin(key->pubkey.y,
                                   key->pubkey_raw + ECC_MAX_CRYPTO_HW_SIZE,
                                   ECC_MAX_CRYPTO_HW_SIZE);
@@ -3580,7 +3582,7 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
     if (key->devId != INVALID_DEVID) /* use hardware */
 #endif
     {
-        int keysize = key->dp->size;
+        word32 keysize = (word32)key->dp->size;
 
         /* Check args */
         if (keysize > ECC_MAX_CRYPTO_HW_SIZE || inlen != keysize ||
@@ -3625,6 +3627,7 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
         err = wc_ecc_sign_hash_ex(in, inlen, rng, key, r, s);
     }
 #endif
+    (void)rng;
 
     return err;
 }
@@ -4088,7 +4091,7 @@ int wc_ecc_free(ecc_key* key)
     return 0;
 }
 
-#ifndef WOLFSSL_SP_MATH
+#if !defined(WOLFSSL_SP_MATH) && !defined(WOLFSSL_ATECC508A)
 #ifdef ECC_SHAMIR
 
 /** Computes kA*A + kB*B = C using Shamir's Trick
@@ -4313,7 +4316,7 @@ int ecc_mul2add(ecc_point* A, mp_int* kA,
 }
 
 #endif /* ECC_SHAMIR */
-#endif
+#endif /* !WOLFSSL_SP_MATH && !WOLFSSL_ATECC508A */
 
 
 #ifdef HAVE_ECC_VERIFY
@@ -4502,7 +4505,8 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
     err = atcatls_verify(hash, sigRS, key->pubkey_raw, (bool*)res);
     if (err != ATCA_SUCCESS) {
        return BAD_COND_E;
-   }
+    }
+    (void)hashlen;
 
 #else
 
@@ -4735,12 +4739,12 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 #endif /* HAVE_ECC_VERIFY */
 
 #ifdef HAVE_ECC_KEY_IMPORT
-#ifndef WOLFSSL_ATECC508A
 /* import point from der */
 int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
                             ecc_point* point)
 {
     int err = 0;
+#ifndef WOLFSSL_ATECC508A
     int compressed = 0;
     int keysize;
     byte pointType;
@@ -4871,9 +4875,16 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
         mp_clear(point->z);
     }
 
+#else
+    err = NOT_COMPILED_IN;
+    (void)in;
+    (void)inLen;
+    (void)curve_idx;
+    (void)point;
+#endif /* !WOLFSSL_ATECC508A */
+
     return err;
 }
-#endif /* !WOLFSSL_ATECC508A */
 #endif /* HAVE_ECC_KEY_IMPORT */
 
 #ifdef HAVE_ECC_KEY_EXPORT
@@ -5906,6 +5917,8 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
 #ifdef WOLFSSL_ATECC508A
     /* TODO: Implement equiv call to ATECC508A */
     err = BAD_COND_E;
+    (void)d;
+    (void)encType;
 
 #else
 
