@@ -13287,6 +13287,7 @@ int openssl_pkey0_test(void)
 
         show("decrypted msg", plain, outlen);
 
+        ret = 0; /* made it to this point without error then set success */
 openssl_pkey0_test_done:
 
         wolfSSL_RSA_free(prvRsa);
@@ -13299,8 +13300,7 @@ openssl_pkey0_test_done:
         XFREE(pubTmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif /* NO_RSA */
 
-        return 0;
-
+        return ret;
 }
 
 
