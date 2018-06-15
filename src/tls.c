@@ -852,7 +852,8 @@ int wolfSSL_SetTlsHmacInner(WOLFSSL* ssl, byte* inner, word32 sz, int content,
 }
 
 
-#if !defined(WOLFSSL_NO_HASH_RAW) && !defined(HAVE_FIPS)
+#if !defined(WOLFSSL_NO_HASH_RAW) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
 
 /* Update the hash in the HMAC.
  *
@@ -1163,7 +1164,8 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
 
 #endif
 
-#if defined(WOLFSSL_NO_HASH_RAW) || defined(HAVE_FIPS) || defined(HAVE_BLAKE2)
+#if defined(WOLFSSL_NO_HASH_RAW) || defined(HAVE_FIPS) || \
+    defined(HAVE_SELFTEST) || defined(HAVE_BLAKE2)
 
 /* Calculate the HMAC of the header + message data.
  * Constant time implementation using normal hashing operations.
@@ -1314,7 +1316,8 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     if (ret == 0) {
         /* Constant time verification required. */
         if (verify && padSz >= 0) {
-#if !defined(WOLFSSL_NO_HASH_RAW) && !defined(HAVE_FIPS)
+#if !defined(WOLFSSL_NO_HASH_RAW) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
     #ifdef HAVE_BLAKE2
             if (wolfSSL_GetHmacType(ssl) == WC_HASH_TYPE_BLAKE2B) {
                 ret = Hmac_UpdateFinal(&hmac, digest, in, sz +
