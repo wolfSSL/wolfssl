@@ -15613,8 +15613,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
                 if (wolfSSL_RSA_LoadDer_ex(key->rsa,
                             (const unsigned char*)key->pkey.ptr, key->pkey_sz,
                             WOLFSSL_RSA_LOAD_PUBLIC) != SSL_SUCCESS) {
-                    XFREE(key, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                     wolfSSL_RSA_free(key->rsa);
+                    XFREE(key, x509->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                     return NULL;
                 }
             }
