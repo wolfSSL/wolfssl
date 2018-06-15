@@ -28654,8 +28654,10 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             return NULL;
 
         i = 0;
-        if (wc_PemGetHeaderFooter(CERT_TYPE, NULL, &footer) != 0)
+        if (wc_PemGetHeaderFooter(CERT_TYPE, NULL, &footer) != 0) {
+            XFREE(pem, 0, DYNAMIC_TYPE_PEM);
             return NULL;
+        }
 
         /* TODO: Inefficient
          * reading in one byte at a time until see "END CERTIFICATE"
