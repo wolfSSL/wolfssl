@@ -39,7 +39,7 @@
 
 #if !defined(WOLFSSL_USER_IO)
     /* Micrium uses NetSock I/O callbacks in wolfio.c */
-    #if !defined(USE_WOLFSSL_IO) && !defined(MICRIUM)
+    #if !defined(USE_WOLFSSL_IO) && !defined(MICRIUM) && !defined(CONTIKI)
         #define USE_WOLFSSL_IO
     #endif
 #endif
@@ -122,7 +122,7 @@
         #elif defined(EBSNET)
             #include "rtipapi.h"  /* errno */
             #include "socket.h"
-        #elif !defined(DEVKITPRO) && !defined(WOLFSSL_PICOTCP)
+        #elif !defined(DEVKITPRO) && !defined(WOLFSSL_PICOTCP) && !defined(WOLFSSL_CONTIKI)
             #include <sys/socket.h>
             #include <arpa/inet.h>
             #include <netinet/in.h>

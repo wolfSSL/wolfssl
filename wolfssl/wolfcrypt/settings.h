@@ -224,6 +224,13 @@
     #define NO_FILESYSTEM
 #endif
 
+#if defined(WOLFSSL_CONTIKI)
+    #define NO_WRITEV
+    #define SINGLE_THREADED
+    #define WOLFSSL_USER_IO
+    #define NO_FILESYSTEM
+#endif
+
 #if defined(WOLFSSL_IAR_ARM) || defined(WOLFSSL_ROWLEY_ARM)
     #define NO_MAIN_DRIVER
     #define SINGLE_THREADED

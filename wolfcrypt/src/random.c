@@ -1938,7 +1938,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
       defined(WOLFSSL_uITRON4)  || defined(WOLFSSL_uTKERNEL2) || \
       defined(WOLFSSL_LPC43xx)  || defined(WOLFSSL_STM32F2xx) || \
       defined(MBED)             || defined(WOLFSSL_EMBOS) || \
-      defined(WOLFSSL_GENSEED_FORTEST) || defined(WOLFSSL_CHIBIOS)
+      defined(WOLFSSL_GENSEED_FORTEST) || defined(WOLFSSL_CHIBIOS) || \
+      defined(WOLFSSL_CONTIKI)
 
     /* these platforms do not have a default random seed and
        you'll need to implement your own wc_GenerateSeed or define via
@@ -2038,6 +2039,5 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 #endif
 
 /* End wc_GenerateSeed */
-
 #endif /* WC_NO_RNG */
 #endif /* HAVE_FIPS */
