@@ -27649,10 +27649,6 @@ int wolfSSL_PEM_write_RSA_PUBKEY(FILE *fp, WOLFSSL_RSA *x)
 
 #endif /* NO_FILESYSTEM */
 
-#endif /* !NO_RSA */
-#endif /* OPENSSL_EXTRA */
-
-#if !defined(NO_RSA) && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
 WOLFSSL_RSA *wolfSSL_d2i_RSAPublicKey(WOLFSSL_RSA **r, const unsigned char **pp, long len)
 {
     WOLFSSL_RSA *rsa = NULL;
@@ -27708,6 +27704,10 @@ int wolfSSL_i2d_RSAPublicKey(WOLFSSL_RSA *rsa, const unsigned char **pp)
 }
 #endif /* #if !defined(HAVE_FAST_RSA) */
 
+#endif /* !NO_RSA */
+#endif /* OPENSSL_EXTRA */
+
+#if !defined(NO_RSA) && (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
 /* return WOLFSSL_SUCCESS if success, WOLFSSL_FATAL_ERROR if error */
 int wolfSSL_RSA_LoadDer(WOLFSSL_RSA* rsa, const unsigned char* derBuf, int derSz)
 {

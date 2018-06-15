@@ -3039,7 +3039,7 @@ static void test_wolfSSL_URI(void)
 {
 #if !defined(NO_CERTS) && !defined(NO_RSA) && !defined(NO_FILESYSTEM) \
     && (defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || \
-    defined(OPENSSL_EXTRA)  || defined(OPENSSL_EXTRA_X509_SMALL))
+    defined(OPENSSL_EXTRA))
     WOLFSSL_X509* x509;
     const char uri[] = "./certs/client-uri-cert.pem";
     const char badUri[] = "./certs/client-relative-uri.pem";
