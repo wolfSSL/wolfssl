@@ -12242,6 +12242,11 @@ static INLINE int VerifyMac(WOLFSSL* ssl, const byte* input, word32 msgSz,
         padByte = 1;
 
         if (ssl->options.tls) {
+            /* Sanity check for underflow, TimingPadVerify performs hash on size
+             * (msgSz - ivExtra) - digestSz - pad - 1 */
+            if (digestSz + pad + 1 > (msgSz - ivExtra)) {
+                return BUFFER_E;
+            }
             ret = TimingPadVerify(ssl, input, pad, digestSz, msgSz - ivExtra,
                                   content);
             if (ret != 0)
