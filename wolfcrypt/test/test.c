@@ -43,7 +43,7 @@
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/types.h>
 
-#ifdef WOLFSSL_TEST_CERT
+#if defined(WOLFSSL_TEST_CERT) || defined(ASN_BER_TO_DER)
     #include <wolfssl/wolfcrypt/asn.h>
 #else
     #include <wolfssl/wolfcrypt/asn_public.h>
