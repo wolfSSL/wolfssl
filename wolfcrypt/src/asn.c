@@ -10886,7 +10886,8 @@ static int SignCert(int requestSz, int sType, byte* buffer, word32 buffSz,
     sigSz = MakeSignature(certSignCtx, buffer, requestSz, certSignCtx->sig,
         MAX_ENCODED_SIG_SZ, rsaKey, eccKey, ed25519Key, rng, sType, heap);
     if (sigSz == WC_PENDING_E) {
-        XFREE(certSignCtx->sig, heap, DYNAMIC_TYPE_TMP_BUFFER);
+        /* Not free'ing certSignCtx->sig here because it could still be in use
+         * with async operations. */
         return sigSz;
     }
 
