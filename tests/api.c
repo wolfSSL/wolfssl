@@ -14651,23 +14651,25 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
     /* RSA certs and keys. */
     #if defined(USE_CERT_BUFFERS_1024)
         /* Allocate buffer space. */
-        rsaCert = (byte*)XMALLOC(ONEK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        AssertNotNull(rsaCert =
+                (byte*)XMALLOC(ONEK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER));
         /* Init buffer. */
         rsaCertSz = (word32)sizeof_client_cert_der_1024;
         XMEMCPY(rsaCert, client_cert_der_1024, rsaCertSz);
-        rsaPrivKey = (byte*)XMALLOC(ONEK_BUF, HEAP_HINT,
-                                DYNAMIC_TYPE_TMP_BUFFER);
+        AssertNotNull(rsaPrivKey = (byte*)XMALLOC(ONEK_BUF, HEAP_HINT,
+                                DYNAMIC_TYPE_TMP_BUFFER));
         rsaPrivKeySz = (word32)sizeof_client_key_der_1024;
         XMEMCPY(rsaPrivKey, client_key_der_1024, rsaPrivKeySz);
 
     #elif defined(USE_CERT_BUFFERS_2048)
         /* Allocate buffer */
-        rsaCert = (byte*)XMALLOC(TWOK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        AssertNotNull(rsaCert =
+                (byte*)XMALLOC(TWOK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER));
         /* Init buffer. */
         rsaCertSz = (word32)sizeof_client_cert_der_2048;
         XMEMCPY(rsaCert, client_cert_der_2048, rsaCertSz);
-        rsaPrivKey = (byte*)XMALLOC(TWOK_BUF, HEAP_HINT,
-                                DYNAMIC_TYPE_TMP_BUFFER);
+        AssertNotNull(rsaPrivKey = (byte*)XMALLOC(TWOK_BUF, HEAP_HINT,
+                                DYNAMIC_TYPE_TMP_BUFFER));
         rsaPrivKeySz = (word32)sizeof_client_key_der_2048;
         XMEMCPY(rsaPrivKey, client_key_der_2048, rsaPrivKeySz);
 
@@ -14676,13 +14678,14 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
         certFile = fopen(rsaClientCert, "rb");
         AssertNotNull(certFile);
         rsaCertSz = (word32)FOURK_BUF;
-        rsaCert = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        AssertNotNull(rsaCert =
+                (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER));
         rsaCertSz = (word32)fread(rsaCert, 1, rsaCertSz, certFile);
         fclose(certFile);
         keyFile = fopen(rsaClientKey, "rb");
         AssertNotNull(keyFile);
-        rsaPrivKey = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
-                                DYNAMIC_TYPE_TMP_BUFFER);
+        AssertNotNull(rsaPrivKey = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+                                DYNAMIC_TYPE_TMP_BUFFER));
         rsaPrivKeySz = (word32)FOURK_BUF;
         rsaPrivKeySz = (word32)fread(rsaPrivKey, 1, rsaPrivKeySz, keyFile);
         fclose(keyFile);
@@ -14694,26 +14697,28 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
     !defined(NO_SHA256) || !defined(NO_SHA512)))
 
     #ifdef USE_CERT_BUFFERS_256
-        eccCert = (byte*)XMALLOC(TWOK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        AssertNotNull(eccCert =
+                (byte*)XMALLOC(TWOK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER));
         /* Init buffer. */
-       eccCertSz = (word32)sizeof_cliecc_cert_der_256;
+        eccCertSz = (word32)sizeof_cliecc_cert_der_256;
         XMEMCPY(eccCert, cliecc_cert_der_256, eccCertSz);
-        eccPrivKey = (byte*)XMALLOC(TWOK_BUF, HEAP_HINT,
-                                DYNAMIC_TYPE_TMP_BUFFER);
+        AssertNotNull(eccPrivKey = (byte*)XMALLOC(TWOK_BUF, HEAP_HINT,
+                                DYNAMIC_TYPE_TMP_BUFFER));
         eccPrivKeySz = (word32)sizeof_ecc_clikey_der_256;
         XMEMCPY(eccPrivKey, ecc_clikey_der_256, eccPrivKeySz);
     #else /* File system. */
         certFile = fopen(eccClientCert, "rb");
         AssertNotNull(certFile);
         eccCertSz = (word32)FOURK_BUF;
-        eccCert = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        AssertNotNull(eccCert =
+                (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER));
         eccCertSz = (word32)fread(eccCert, 1, eccCertSz, certFile);
         fclose(certFile);
         keyFile = fopen(eccClientKey, "rb");
         AssertNotNull(keyFile);
         eccPrivKeySz = (word32)FOURK_BUF;
-        eccPrivKey = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
-                                DYNAMIC_TYPE_TMP_BUFFER);
+        AssertNotNull(eccPrivKey = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+                                DYNAMIC_TYPE_TMP_BUFFER));
         eccPrivKeySz = (word32)fread(eccPrivKey, 1, eccPrivKeySz, keyFile);
         fclose(keyFile);
     #endif /* USE_CERT_BUFFERS_256 */
@@ -18654,14 +18659,16 @@ static void test_wolfSSL_ASN1_TIME_to_generalizedtime(void){
     printf(testingFmt, "wolfSSL_ASN1_TIME_to_generalizedtime()");
 
     /* UTC Time test */
-    t = (WOLFSSL_ASN1_TIME*)XMALLOC(sizeof(WOLFSSL_ASN1_TIME), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    AssertNotNull(t = (WOLFSSL_ASN1_TIME*)XMALLOC(sizeof(WOLFSSL_ASN1_TIME),
+                NULL, DYNAMIC_TYPE_TMP_BUFFER));
     XMEMSET(t->data, 0, ASN_GENERALIZED_TIME_SIZE);
-    out = (WOLFSSL_ASN1_TIME*)XMALLOC(sizeof(WOLFSSL_ASN1_TIME), NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    AssertNotNull(out = (WOLFSSL_ASN1_TIME*)XMALLOC(sizeof(WOLFSSL_ASN1_TIME),
+                NULL, DYNAMIC_TYPE_TMP_BUFFER));
     t->data[0] = ASN_UTC_TIME;
     t->data[1] = ASN_UTC_TIME_SIZE;
     XMEMCPY(t->data + 2,"050727123456Z",ASN_UTC_TIME_SIZE);
 
-    gtime = wolfSSL_ASN1_TIME_to_generalizedtime(t, &out);
+    AssertNotNull(gtime = wolfSSL_ASN1_TIME_to_generalizedtime(t, &out));
     AssertIntEQ(gtime->data[0], ASN_GENERALIZED_TIME);
     AssertIntEQ(gtime->data[1], ASN_GENERALIZED_TIME_SIZE);
     AssertStrEQ((char*)gtime->data + 2, "20050727123456Z");
@@ -18673,7 +18680,7 @@ static void test_wolfSSL_ASN1_TIME_to_generalizedtime(void){
     t->data[0] = ASN_GENERALIZED_TIME;
     t->data[1] = ASN_GENERALIZED_TIME_SIZE;
     XMEMCPY(t->data + 2,"20050727123456Z",ASN_GENERALIZED_TIME_SIZE);
-    gtime = wolfSSL_ASN1_TIME_to_generalizedtime(t, &out);
+    AssertNotNull(gtime = wolfSSL_ASN1_TIME_to_generalizedtime(t, &out));
     AssertIntEQ(gtime->data[0], ASN_GENERALIZED_TIME);
     AssertIntEQ(gtime->data[1], ASN_GENERALIZED_TIME_SIZE);
     AssertStrEQ((char*)gtime->data + 2, "20050727123456Z");
@@ -19757,7 +19764,8 @@ static void test_wolfSSL_i2c_ASN1_INTEGER()
     a->intData[2] = 40;
     ret = wolfSSL_i2c_ASN1_INTEGER(a, NULL);
     AssertIntEQ(ret, 1);
-    pp = (unsigned char*)XMALLOC(ret + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    AssertNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER));
     tpp = pp;
     XMEMSET(pp, 0, ret + 1);
     wolfSSL_i2c_ASN1_INTEGER(a, &pp); 
@@ -19771,7 +19779,8 @@ static void test_wolfSSL_i2c_ASN1_INTEGER()
     a->intData[2] = 128;
     ret = wolfSSL_i2c_ASN1_INTEGER(a, NULL);
     AssertIntEQ(ret, 2);
-    pp = (unsigned char*)XMALLOC(ret + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    AssertNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER));
     tpp = pp;
     XMEMSET(pp, 0, ret + 1);
     wolfSSL_i2c_ASN1_INTEGER(a, &pp); 
@@ -19787,7 +19796,8 @@ static void test_wolfSSL_i2c_ASN1_INTEGER()
     a->negative = 1;
     ret = wolfSSL_i2c_ASN1_INTEGER(a, NULL);
     AssertIntEQ(ret, 1);
-    pp = (unsigned char*)XMALLOC(ret + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    AssertNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER));
     tpp = pp;
     XMEMSET(pp, 0, ret + 1);
     wolfSSL_i2c_ASN1_INTEGER(a, &pp); 
@@ -19802,7 +19812,8 @@ static void test_wolfSSL_i2c_ASN1_INTEGER()
     a->negative = 1;
     ret = wolfSSL_i2c_ASN1_INTEGER(a, NULL);
     AssertIntEQ(ret, 1);
-    pp = (unsigned char*)XMALLOC(ret + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    AssertNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
+                DYNAMIC_TYPE_TMP_BUFFER));
     tpp = pp;
     XMEMSET(pp, 0, ret + 1);
     wolfSSL_i2c_ASN1_INTEGER(a, &pp); 
@@ -19817,7 +19828,8 @@ static void test_wolfSSL_i2c_ASN1_INTEGER()
     a->negative = 1;
     ret = wolfSSL_i2c_ASN1_INTEGER(a, NULL);
     AssertIntEQ(ret, 2);
-    pp = (unsigned char*)XMALLOC(ret + 1, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    AssertNotNull(pp = (unsigned char*)XMALLOC(ret + 1, NULL,
+            DYNAMIC_TYPE_TMP_BUFFER));
     tpp = pp;
     XMEMSET(pp, 0, ret + 1);
     wolfSSL_i2c_ASN1_INTEGER(a, &pp); 
