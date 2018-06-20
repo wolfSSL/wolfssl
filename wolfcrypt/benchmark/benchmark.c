@@ -456,13 +456,14 @@ static const bench_alg bench_other_opt[] = {
     #define SHOW_INTEL_CYCLES(b, n, s)     b[XSTRLEN(b)] = '\n'
 #endif
 
-/* let's use buffers, we have them */
-#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
-    #define USE_CERT_BUFFERS_2048
+/* determine benchmark buffer to use (if NO_FILESYSTEM) */
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
+    !defined(USE_CERT_BUFFERS_3072)
+    #define USE_CERT_BUFFERS_2048 /* default to 2048 */
 #endif
 
-#if defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048) \
-                                   || !defined(NO_DH)
+#if defined(USE_CERT_BUFFERS_1024) || defined(USE_CERT_BUFFERS_2048) || \
+    defined(USE_CERT_BUFFERS_3072) || !defined(NO_DH)
     /* include test cert and key buffers for use with NO_FILESYSTEM */
     #include <wolfssl/certs_test.h>
 #endif
@@ -3680,7 +3681,8 @@ void bench_rsaKeyGen(int doAsync)
 }
 #endif /* WOLFSSL_KEY_GEN */
 
-#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
+    !defined(USE_CERT_BUFFERS_3072)
     #if defined(WOLFSSL_MDK_SHELL)
         static char *certRSAname = "certs/rsa2048.der";
         /* set by shell command */
@@ -3692,7 +3694,7 @@ void bench_rsaKeyGen(int doAsync)
     #endif
 #endif
 
-#define RSA_BUF_SIZE 256  /* for up to 2048 bit */
+#define RSA_BUF_SIZE 384  /* for up to 3072 bit */
 
 void bench_rsa(int doAsync)
 {
@@ -3717,6 +3719,11 @@ void bench_rsa(int doAsync)
 #elif defined(USE_CERT_BUFFERS_2048)
     tmp = rsa_key_der_2048;
     bytes = (size_t)sizeof_rsa_key_der_2048;
+    rsaKeySz = 2048;
+#elif defined(USE_CERT_BUFFERS_3072)
+    tmp = rsa_key_der_3072;
+    bytes = (size_t)sizeof_rsa_key_der_3072;
+    rsaKeySz = 3072;
 #else
     #error "need a cert buffer size"
 #endif /* USE_CERT_BUFFERS */
@@ -3883,7 +3890,8 @@ exit_rsa_verify:
 
 #ifndef NO_DH
 
-#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048)
+#if !defined(USE_CERT_BUFFERS_1024) && !defined(USE_CERT_BUFFERS_2048) && \
+    !defined(USE_CERT_BUFFERS_3072)
     #if defined(WOLFSSL_MDK_SHELL)
         static char *certDHname = "certs/dh2048.der";
         /* set by shell command */
@@ -3897,7 +3905,7 @@ exit_rsa_verify:
     #endif
 #endif
 
-#define BENCH_DH_KEY_SIZE  256 /* for 2048 bit */
+#define BENCH_DH_KEY_SIZE  384 /* for 3072 bit */
 #define BENCH_DH_PRIV_SIZE (BENCH_DH_KEY_SIZE/8)
 
 void bench_dh(int doAsync)
@@ -3907,7 +3915,7 @@ void bench_dh(int doAsync)
     const byte* tmp = NULL;
     double start = 0.0f;
     DhKey  dhKey[BENCH_MAX_PENDING];
-    int    dhKeySz = 2048; /* used in printf */
+    int    dhKeySz = BENCH_DH_KEY_SIZE * 8; /* used in printf */
 #ifndef NO_ASN
     size_t bytes;
     word32 idx;
@@ -3936,6 +3944,11 @@ void bench_dh(int doAsync)
 #elif defined(USE_CERT_BUFFERS_2048)
     tmp = dh_key_der_2048;
     bytes = (size_t)sizeof_dh_key_der_2048;
+    dhKeySz = 2048;
+#elif defined(USE_CERT_BUFFERS_3072)
+    tmp = dh_key_der_3072;
+    bytes = (size_t)sizeof_dh_key_der_3072;
+    dhKeySz = 3072;
 #else
     #error "need to define a cert buffer size"
 #endif /* USE_CERT_BUFFERS */
