@@ -11991,7 +11991,7 @@ int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int macSz,
     int  ret = 0;
 
     good = MaskPadding(input, pLen, macSz);
-    /* 4th argument has potential to underflow, all ssl->hmac functions need to
+    /* 4th argument has potential to underflow, ssl->hmac function should
      * either increment the size by (macSz + padLen + 1) before use or check on
      * the size to make sure is valid. */
     ret = ssl->hmac(ssl, verify, input, pLen - macSz - padLen - 1, padLen,
@@ -13032,7 +13032,7 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
     (void)padLen;
 
 #ifdef HAVE_FUZZER
-    if (ssl->fuzzerCb && (int)sz > 0)
+    if (ssl->fuzzerCb)
         ssl->fuzzerCb(ssl, in, sz, FUZZ_HMAC, ssl->fuzzerCtx);
 #endif
 
