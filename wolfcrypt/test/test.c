@@ -1502,6 +1502,8 @@ int md5_test(void)
         if (ret != 0)
             ERROR_OUT(-1605 - i, exit);
 
+        wc_Md5Free(&md5Copy);
+
         if (XMEMCMP(hash, test_md5[i].output, WC_MD5_DIGEST_SIZE) != 0)
             ERROR_OUT(-1606 - i, exit);
 
@@ -1696,6 +1698,7 @@ int sha_test(void)
         ret = wc_ShaFinal(&sha, hash);
         if (ret != 0)
             ERROR_OUT(-1805 - i, exit);
+        wc_ShaFree(&shaCopy);
 
         if (XMEMCMP(hash, test_sha[i].output, WC_SHA_DIGEST_SIZE) != 0)
             ERROR_OUT(-1806 - i, exit);
@@ -1937,6 +1940,7 @@ int sha224_test(void)
         ret = wc_Sha224Final(&sha, hash);
         if (ret != 0)
             ERROR_OUT(-2105 - i, exit);
+        wc_Sha224Free(&shaCopy);
 
         if (XMEMCMP(hash, test_sha[i].output, WC_SHA224_DIGEST_SIZE) != 0)
             ERROR_OUT(-2106 - i, exit);
@@ -2013,6 +2017,7 @@ int sha256_test(void)
         ret = wc_Sha256Final(&sha, hash);
         if (ret != 0)
             ERROR_OUT(-2205 - i, exit);
+        wc_Sha256Free(&shaCopy);
 
         if (XMEMCMP(hash, test_sha[i].output, WC_SHA256_DIGEST_SIZE) != 0)
             ERROR_OUT(-2206 - i, exit);
@@ -2123,6 +2128,7 @@ int sha512_test(void)
         ret = wc_Sha512Final(&sha, hash);
         if (ret != 0)
             ERROR_OUT(-2305 - i, exit);
+        wc_Sha512Free(&shaCopy);
 
         if (XMEMCMP(hash, test_sha[i].output, WC_SHA512_DIGEST_SIZE) != 0)
             ERROR_OUT(-2306 - i, exit);
@@ -2229,6 +2235,7 @@ int sha384_test(void)
         ret = wc_Sha384Final(&sha, hash);
         if (ret != 0)
             ERROR_OUT(-2405 - i, exit);
+        wc_Sha384Free(&shaCopy);
 
         if (XMEMCMP(hash, test_sha[i].output, WC_SHA384_DIGEST_SIZE) != 0)
             ERROR_OUT(-2406 - i, exit);
@@ -3290,6 +3297,10 @@ int hmac_sha256_test(void)
 #if defined(HAVE_FIPS) || defined(HAVE_CAVIUM)
         if (i == 1)
             continue; /* cavium can't handle short keys, fips not allowed */
+#endif
+#if defined(HAVE_INTEL_QA) || defined(HAVE_CAVIUM)
+        if (i == 3)
+            continue; /* QuickAssist can't handle empty HMAC */
 #endif
 
         if (wc_HmacInit(&hmac, HEAP_HINT, devId) != 0)
@@ -14177,6 +14188,9 @@ static int ecc_test_vector_item(const eccVector* vector)
 done:
     wc_ecc_free(&userA);
 
+#if !defined(NO_ASN) && !defined(HAVE_SELFTEST)
+    FREE_VAR(sigRaw, HEAP_HINT);
+#endif
     FREE_VAR(sig, HEAP_HINT);
 
     return ret;
