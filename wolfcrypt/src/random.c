@@ -1499,7 +1499,25 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         return 0;
     }
+#elif defined(WOLFSSL_NUCLEUS)
+#include "nucleus.h"
+#include "kernel/plus_common.h"
 
+#warning "potential for not enough entropy, currently being used for testing"
+int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+{
+    int i;
+    srand(NU_Get_Time_Stamp());
+
+    for (i = 0; i < sz; i++ ) {
+        output[i] = rand() % 256;
+        if ((i % 8) == 7) {
+            srand(NU_Get_Time_Stamp());
+        }
+    }
+
+    return 0;
+}
 #elif defined(WOLFSSL_VXWORKS)
 
     #include <randomNumGen.h>

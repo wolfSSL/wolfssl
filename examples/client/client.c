@@ -660,7 +660,11 @@ static void ClientWrite(WOLFSSL* ssl, char* msg, int msgSz)
             }
         #endif
         }
-    } while (err == WC_PENDING_E);
+    } while (err == WOLFSSL_ERROR_WANT_WRITE
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        || err == WC_PENDING_E
+    #endif
+    );
     if (ret != msgSz) {
         printf("SSL_write msg error %d, %s\n", err,
                                         wolfSSL_ERR_error_string(err, buffer));
@@ -925,9 +929,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int onlyKeyShare = 0;
 #ifdef WOLFSSL_TLS13
     int noPskDheKe = 0;
-#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
     int postHandAuth = 0;
-#endif
 #endif
     int updateKeysIVs = 0;
 #ifdef WOLFSSL_EARLY_DATA
@@ -2253,8 +2255,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     ClientRead(ssl, reply, sizeof(reply)-1, 1);
 
-#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-    if (postHandAuth)
+#if defined(WOLFSSL_TLS13)
+    if (updateKeysIVs || postHandAuth)
         ClientWrite(ssl, msg, msgSz);
 #endif
     if (sendGET) {  /* get html */
@@ -2631,6 +2633,7 @@ exit:
 
         args.argc = argc;
         args.argv = argv;
+        args.return_code = 0;
 
 #if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_MDK_SHELL) && !defined(STACK_TRAP)
         wolfSSL_Debugging_ON();
@@ -2644,6 +2647,8 @@ exit:
 #else
         client_test(&args);
 #endif
+#else
+        printf("Client not compiled in!\n");
 #endif
         wolfSSL_Cleanup();
 

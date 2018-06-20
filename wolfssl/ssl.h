@@ -1227,9 +1227,9 @@ enum {
 /* wolfSSL extension, provide last error from SSL_get_error
    since not using thread storage error queue */
 #include <stdio.h>
-WOLFSSL_API void  wolfSSL_ERR_print_errors_fp(FILE*, int err);
+WOLFSSL_API void  wolfSSL_ERR_print_errors_fp(XFILE, int err);
 #if defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
-WOLFSSL_API void wolfSSL_ERR_dump_errors_fp(FILE* fp);
+WOLFSSL_API void wolfSSL_ERR_dump_errors_fp(XFILE fp);
 #endif
 #endif
 
@@ -1540,7 +1540,7 @@ WOLFSSL_API void wolfSSL_X509_CRL_free(WOLFSSL_X509_CRL *crl);
 #ifndef NO_FILESYSTEM
     #ifndef NO_STDIO_FILESYSTEM
     WOLFSSL_API WOLFSSL_X509*
-        wolfSSL_X509_d2i_fp(WOLFSSL_X509** x509, FILE* file);
+        wolfSSL_X509_d2i_fp(WOLFSSL_X509** x509, XFILE file);
     #endif
 WOLFSSL_API WOLFSSL_X509*
     wolfSSL_X509_load_certificate_file(const char* fname, int format);
@@ -2347,7 +2347,6 @@ WOLFSSL_API int wolfSSL_set_SessionTicket_cb(WOLFSSL*,
                                                   CallbackSessionTicket, void*);
 #endif /* NO_WOLFSSL_CLIENT */
 
-#ifndef NO_WOLFSSL_SERVER
 
 #define WOLFSSL_TICKET_NAME_SZ 16
 #define WOLFSSL_TICKET_IV_SZ   16
@@ -2359,6 +2358,8 @@ enum TicketEncRet {
     WOLFSSL_TICKET_RET_REJECT,       /* don't use ticket, but not fatal */
     WOLFSSL_TICKET_RET_CREATE        /* existing ticket ok and create new one */
 };
+
+#ifndef NO_WOLFSSL_SERVER
 
 typedef int (*SessionTicketEncCb)(WOLFSSL*,
                                  unsigned char key_name[WOLFSSL_TICKET_NAME_SZ],
@@ -2571,7 +2572,7 @@ WOLFSSL_API WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509(WOLFSSL_BIO *bp, WOLFSSL_X50
 WOLFSSL_API WOLFSSL_X509 *wolfSSL_PEM_read_bio_X509_AUX
         (WOLFSSL_BIO *bp, WOLFSSL_X509 **x, pem_password_cb *cb, void *u);
 #ifndef NO_FILESYSTEM
-WOLFSSL_API WOLFSSL_X509_CRL *wolfSSL_PEM_read_X509_CRL(FILE *fp, WOLFSSL_X509_CRL **x,
+WOLFSSL_API WOLFSSL_X509_CRL *wolfSSL_PEM_read_X509_CRL(XFILE fp, WOLFSSL_X509_CRL **x,
                                                     pem_password_cb *cb, void *u);
 #endif
 

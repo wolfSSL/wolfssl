@@ -1,163 +1,182 @@
-*** Resources ***
+# wolfSSL Release x.x.x
 
-    wolfSSL website:    https://www.wolfssl.com/
-    wolfSSL wiki:       https://github.com/wolfSSL/wolfssl/wiki
-    wolfSSL manual:     https://wolfssl.com/wolfSSL/Docs-wolfssl-manual-toc.html
+* Added AES performance enhancements on AMD processors with build option `./configure --enable-intelasm`
 
-    FIPS FAQ:           https://www.wolfssl.com/wolfSSL/fips.html
+# wolfSSL Release 3.15.0 (06/05/2018)
 
-    wolfSSL API:        https://wolfssl.com/wolfSSL/Docs-wolfssl-manual-17-wolfssl-api-reference.html
-    wolfCrypt API:      https://wolfssl.com/wolfSSL/Docs-wolfssl-manual-18-wolfcrypt-api-reference.html
+Release 3.15.0 of wolfSSL embedded TLS has bug fixes and new features including:
 
-    TLS 1.3             https://www.wolfssl.com/docs/tls13/
+* Support for TLS 1.3 Draft versions 23, 26 and 28.
+* Add FIPS SGX support!
+* Single Precision assembly code added for ARM and 64-bit ARM to enhance performance.
+* Improved performance for Single Precision maths on 32-bit.
+* Improved downgrade support for the TLS 1.3 handshake.
+* Improved TLS 1.3 support from interoperability testing.
+* Added option to allow TLS 1.2 to be compiled out to reduce size and enhance security.
+* Added option to support Ed25519 in TLS 1.2 and 1.3.
+* Update wolfSSL_HMAC_Final() so the length parameter is optional.
+* Various fixes for Coverity static analysis reports.
+* Add define to use internal struct timeval (USE_WOLF_TIMEVAL_T).
+* Switch LowResTimer() to call XTIME instead of time(0) for better portability.
+* Expanded OpenSSL compatibility layer with a bevy of new functions.
+* Added Renesas CS+ project files.
+* Align DH support with NIST SP 800-56A, add wc_DhSetKey_ex() for q parameter.
+* Add build option for CAVP self test build (--enable-selftest).
+* Expose mp_toradix() when WOLFSSL_PUBLIC_MP is defined.
+* Example certificate expiration dates and generation script updated.
+* Additional optimizations to trim out unused strings depending on build options.
+* Fix for DN tag strings to have “=” when returning the string value to users.
+* Fix for wolfSSL_ERR_get_error_line_data return value if no more errors are in the queue.
+* Fix for AES-CBC IV value with PIC32 hardware acceleration.
+* Fix for wolfSSL_X509_print with ECC certificates.
+* Fix for strict checking on URI absolute vs relative path.
+* Added crypto device framework to handle PK RSA/ECC operations using callbacks, which adds new build option `./configure --enable-cryptodev` or `WOLF_CRYPTO_DEV`.
+* Added devId support to ECC and PKCS7 for hardware based private key.
+* Fixes in PKCS7 for handling possible memory leak in some error cases.
+* Added test for invalid cert common name when set with `wolfSSL_check_domain_name`.
+* Refactor of the cipher suite names to use single array, which contains internal name, IANA name and cipher suite bytes.
+* Added new function `wolfSSL_get_cipher_name_from_suite` for getting IANA cipher suite name using bytes.
+* Fixes for fsanitize reports.
+* Fix for openssl compatibility function `wolfSSL_RSA_verify` to check returned size.
+* Fixes and improvements for FreeRTOS AWS.
+* Fixes for building openssl compatibility with FreeRTOS.
+* Fix and new test for handling match on domain name that may have a null terminator inside.
+* Cleanup of the socket close code used for examples, CRL/OCSP and BIO to use single macro `CloseSocket`.
+* Refactor of the TLSX code to support returning error codes.
+* Added new signature wrapper functions `wc_SignatureVerifyHash` and `wc_SignatureGenerateHash` to allow direct use of hash.
+* Improvement to GCC-ARM IDE example.
+* Enhancements and cleanups for the ASN date/time code including new API's `wc_GetDateInfo`, `wc_GetCertDates` and `wc_GetDateAsCalendarTime`.
+* Fixes to resolve issues with C99 compliance. Added build option `WOLF_C99` to force C99.
+* Added a new `--enable-opensslall` option to enable all openssl compatibility features.
+* Added new `--enable-webclient` option for enabling a few HTTP API's.
+* Added new `wc_OidGetHash` API for getting the hash type from a hash OID.
+* Moved `wolfSSL_CertPemToDer`, `wolfSSL_KeyPemToDer`, `wolfSSL_PubKeyPemToDer` to asn.c and renamed to `wc_`. Added backwards compatibility macro for old function names.
+* Added new `WC_MAX_SYM_KEY_SIZE` macro for helping determine max key size.
+* Added `--enable-enckeys` or (`WOLFSSL_ENCRYPTED_KEYS`) to enable support for encrypted PEM private keys using password callback without having to use opensslextra.
+* Added ForceZero on the password buffer after done using it.
+* Refactor unique hash types to use same internal values (ex WC_MD5 == WC_HASH_TYPE_MD5).
+* Refactor the Sha3 types to use `wc_` naming, while retaining old names for compatibility.
+* Improvements to `wc_PBKDF1` to support more hash types and the non-standard extra data option.
+* Fix TLS 1.3 with ECC disabled and CURVE25519 enabled.
+* Added new define `NO_DEV_URANDOM` to disable the use of `/dev/urandom`.
+* Added `WC_RNG_BLOCKING` to indicate block w/sleep(0) is okay.
+* Fix for `HAVE_EXT_CACHE` callbacks not being available without `OPENSSL_EXTRA` defined.
+* Fix for ECC max bits `MAX_ECC_BITS` not always calculating correctly due to macro order.
+* Added support for building and using PKCS7 without RSA (assuming ECC is enabled).
+* Fixes and additions for Cavium Nitrox V to support ECC, AES-GCM and HMAC (SHA-224 and SHA3).
+* Enabled ECC, AES-GCM and SHA-512/384 by default in (Linux and Windows)
+* Added `./configure --enable-base16` and `WOLFSSL_BASE16` configuration option to enable Base16 API's.
+* Improvements to ATECC508A support for building without `WOLFSSL_ATMEL` defined.
+* Refactor IO callback function names to use `_CTX_` to eliminate confusion about the first parameter.
+* Added support for not loading a private key for server or client when `HAVE_PK_CALLBACK` is defined and the private PK callback is set.
+* Added new ECC API `wc_ecc_sig_size_calc` to return max signature size for a key size.
+* Cleanup ECC point import/export code and added new API `wc_ecc_import_unsigned`.
+* Fixes for handling OCSP with non-blocking.
+* Added new PK (Primary Key) callbacks for the VerifyRsaSign. The new callbacks API's are `wolfSSL_CTX_SetRsaVerifySignCb` and `wolfSSL_CTX_SetRsaPssVerifySignCb`.
+* Added new ECC API `wc_ecc_rs_raw_to_sig` to take raw unsigned R and S and encodes them into ECDSA signature format.
+* Added support for `WOLFSSL_STM32F1`.
+* Cleanup of the ASN X509 header/footer and XSTRNCPY logic.
+* Add copyright notice to autoconf files. (Thanks Brian Aker!)
+* Updated the M4 files for autotools. (Thanks Brian Aker!)
+* Add support for the cipher suite TLS_DH_anon_WITH_AES256_GCM_SHA384 with test cases. (Thanks Thivya Ashok!)
+* Add the TLS alert message unknown_psk_identity (115) from RFC 4279, section 2. (Thanks Thivya Ashok!)
+* Fix the case when using TCP with timeouts with TLS. wolfSSL shall be agnostic to network socket behavior for TLS. (DTLS is another matter.) The functions `wolfSSL_set_using_nonblock()` and `wolfSSL_get_using_nonblock()` are deprecated.
+* Hush the AR warning when building the static library with autotools.
+* Hush the “-pthread” warning when building in some environments.
+* Added a dist-hook target to the Makefile to reset the default options.h file.
+* Removed the need for the darwin-clang.m4 file with the updates provided by Brian A.
+* Renamed the AES assembly file so GCC on the Mac will build it using the preprocessor.
+* Add a disable option (--disable-optflags) to turn off the default optimization flags so user may supply their own custom flags.
+* Correctly touch the dummy fips.h header.
 
-*** Description ***
-
-The wolfSSL embedded SSL library (formerly CyaSSL) is a lightweight SSL/TLS
-library written in ANSI C and targeted for embedded, RTOS, and
-resource-constrained environments - primarily because of its small size, speed,
-and feature set.  It is commonly used in standard operating environments as well
-because of its royalty-free pricing and excellent cross platform support.  wolfSSL
-supports industry standards up to the current TLS 1.3 and DTLS 1.3 levels, is up
-to 20 times smaller than OpenSSL, and offers progressive ciphers such as ChaCha20,
-Curve25519, NTRU, and Blake2b.  User benchmarking and feedback reports
-dramatically better performance when using wolfSSL over OpenSSL.
-
-wolfSSL is powered by the wolfCrypt library. A version of the wolfCrypt
-cryptography library has been FIPS 140-2 validated (Certificate #2425). For
-additional information, visit the wolfCrypt FIPS FAQ
-(https://www.wolfssl.com/license/fips/) or contact fips@wolfssl.com
-
-*** Why choose wolfSSL? ***
-
-There are many reasons to choose wolfSSL as your embedded SSL solution. Some of
-the top reasons include size (typical footprint sizes range from 20-100 kB),
-support for the newest standards (SSL 3.0, TLS 1.0, TLS 1.1, TLS 1.2, TLS 1.3,
-DTLS 1.0, and DTLS 1.2), current and progressive cipher support (including stream
-ciphers), multi-platform, royalty free, and an OpenSSL compatibility API to ease
-porting into existing applications which have previously used the OpenSSL package.
-For a complete feature list, see https://www.wolfssl.com/docs/wolfssl-manual/ch4/
-
-*** Notes, Please read ***
-
-Note 1)
-wolfSSL as of 3.6.6 no longer enables SSLv3 by default.  wolfSSL also no
-longer supports static key cipher suites with PSK, RSA, or ECDH.  This means
-if you plan to use TLS cipher suites you must enable DH (DH is on by default),
-or enable ECC (ECC is on by default), or you must enable static
-key cipher suites with
-    WOLFSSL_STATIC_DH
-    WOLFSSL_STATIC_RSA
-    or
-    WOLFSSL_STATIC_PSK
-
-though static key cipher suites are deprecated and will be removed from future
-versions of TLS.  They also lower your security by removing PFS.  Since current
-NTRU suites available do not use ephemeral keys, WOLFSSL_STATIC_RSA needs to be
-used in order to build with NTRU suites.
-
-When compiling ssl.c, wolfSSL will now issue a compiler error if no cipher suites
-are available.  You can remove this error by defining WOLFSSL_ALLOW_NO_SUITES
-in the event that you desire that, i.e., you're not using TLS cipher suites.
-
-Note 2)
-wolfSSL takes a different approach to certificate verification than OpenSSL
-does.  The default policy for the client is to verify the server, this means
-that if you don't load CAs to verify the server you'll get a connect error,
-no signer error to confirm failure (-188).
-If you want to mimic OpenSSL behavior of having SSL_connect succeed even if
-verifying the server fails and reducing security you can do this by calling:
-
-wolfSSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, 0);
-
-before calling wolfSSL_new();  Though it's not recommended.
-
-*** end Notes ***
+If you have questions on any of this, then email us at info@wolfssl.com.
+See INSTALL file for build instructions.
+More info can be found on-line at http://wolfssl.com/wolfSSL/Docs.html
 
 
-********* wolfSSL Release 3.14.0 (3/02/2018)
+# wolfSSL Release 3.14.0 (03/02/2018)
 
 Release 3.14.0 of wolfSSL embedded TLS has bug fixes and new features including:
 
-- TLS 1.3 draft 22 and 23 support added
-- Additional unit tests for; SHA3, AES-CMAC, Ed25519, ECC, RSA-PSS, AES-GCM
-- Many additions to the OpenSSL compatibility layer were made in this release. Some of these being enhancements to PKCS12, WOLFSSL_X509 use, WOLFSSL_EVP_PKEY, and WOLFSSL_BIO operations
-- AVX1 and AVX2 performance improvements with ChaCha20 and Poly1305
-- Added i.MX CAAM driver support with Integrity OS support
-- Improvements to logging with debugging, including exposing more API calls and adding options to reduce debugging code size
-- Fix for signature type detection with PKCS7 RSA SignedData
-- Public key call back functions added for DH Agree
-- RSA-PSS API added for operating on non inline buffers (separate input and output buffers)
-- API added for importing and exporting raw DSA parameters
-- Updated DSA key generation to be FIPS 186-4 compliant
-- Fix for wolfSSL_check_private_key when comparing ECC keys
-- Support for AES Cipher Feedback(CFB) mode added
-- Updated RSA key generation to be FIPS 186-4 compliant
-- Update added for the ARM CMSIS software pack
-- WOLFSSL_IGNORE_FILE_WARN macro added for avoiding build warnings when not working with autotools
-- Performance improvements for AES-GCM with AVX1 and AVX2
-- Fix for possible memory leak on error case with wc_RsaKeyToDer function
-- Make wc_PKCS7_PadData function available
-- Updates made to building SGX on Linux
-- STM32 hashing algorithm improvements including clock/power optimizations and auto detection of if SHA2 is supported
-- Update static memory feature for FREERTOS use
-- Reverse the order that certificates are compared during PKCS12 parse to account for case where multiple certificates have the same matching private key
-- Update NGINX port to version 1.13.8
-- Support for HMAC-SHA3 added
-- Added stricter ASN checks to enforce RFC 5280 rules. Thanks to the report from Professor Zhenhua Duan, Professor Cong Tian, and Ph.D candidate Chu Chen from Institute of Computing Theory and Technology (ICTT) of Xidian University.
-- Option to have ecc_mul2add function public facing
-- Getter function wc_PKCS7_GetAttributeValue added for PKCS7 attributes
-- Macros NO_AES_128, NO_AES_192, NO_AES_256 added for AES key size selection at compile time
-- Support for writing multiple organizations units (OU) and domain components (DC) with CSR and certificate creation
-- Support for indefinite length BER encodings in PKCS7
-- Added API for additional validation of prime q in a public DH key
-- Added support for RSA encrypt and decrypt without padding
+* TLS 1.3 draft 22 and 23 support added
+* Additional unit tests for; SHA3, AES-CMAC, Ed25519, ECC, RSA-PSS, AES-GCM
+* Many additions to the OpenSSL compatibility layer were made in this release. Some of these being enhancements to PKCS12, WOLFSSL_X509 use, WOLFSSL_EVP_PKEY, and WOLFSSL_BIO operations
+* AVX1 and AVX2 performance improvements with ChaCha20 and Poly1305
+* Added i.MX CAAM driver support with Integrity OS support
+* Improvements to logging with debugging, including exposing more API calls and adding options to reduce debugging code size
+* Fix for signature type detection with PKCS7 RSA SignedData
+* Public key call back functions added for DH Agree
+* RSA-PSS API added for operating on non inline buffers (separate input and output buffers)
+* API added for importing and exporting raw DSA parameters
+* Updated DSA key generation to be FIPS 186-4 compliant
+* Fix for wolfSSL_check_private_key when comparing ECC keys
+* Support for AES Cipher Feedback(CFB) mode added
+* Updated RSA key generation to be FIPS 186-4 compliant
+* Update added for the ARM CMSIS software pack
+* WOLFSSL_IGNORE_FILE_WARN macro added for avoiding build warnings when not working with autotools
+* Performance improvements for AES-GCM with AVX1 and AVX2
+* Fix for possible memory leak on error case with wc_RsaKeyToDer function
+* Make wc_PKCS7_PadData function available
+* Updates made to building SGX on Linux
+* STM32 hashing algorithm improvements including clock/power optimizations and auto detection of if SHA2 is supported
+* Update static memory feature for FREERTOS use
+* Reverse the order that certificates are compared during PKCS12 parse to account for case where multiple certificates have the same matching private key
+* Update NGINX port to version 1.13.8
+* Support for HMAC-SHA3 added
+* Added stricter ASN checks to enforce RFC 5280 rules. Thanks to the report from Professor Zhenhua Duan, Professor Cong Tian, and Ph.D candidate Chu Chen from Institute of Computing Theory and Technology (ICTT) of Xidian University.
+* Option to have ecc_mul2add function public facing
+* Getter function wc_PKCS7_GetAttributeValue added for PKCS7 attributes
+* Macros NO_AES_128, NO_AES_192, NO_AES_256 added for AES key size selection at compile time
+* Support for writing multiple organizations units (OU) and domain components (DC) with CSR and certificate creation
+* Support for indefinite length BER encodings in PKCS7
+* Added API for additional validation of prime q in a public DH key
+* Added support for RSA encrypt and decrypt without padding
 
 
 See INSTALL file for build instructions.
 More info can be found on-line at http://wolfssl.com/wolfSSL/Docs.html
 
 
-********* wolfSSL (Formerly CyaSSL) Release 3.13.0 (12/21/2017)
+# wolfSSL (Formerly CyaSSL) Release 3.13.0 (12/21/2017)
 
 wolfSSL 3.13.0 includes bug fixes and new features, including support for
 TLS 1.3 Draft 21, performance and footprint optimizations, build fixes,
 updated examples and project files, and one vulnerability fix. The full list
 of changes and additions in this release include:
 
-- Fixes for TLS 1.3, support for Draft 21
-- TLS 1.0 disabled by default, addition of “--enable-tlsv10” configure option
-- New option to reduce SHA-256 code size at expense of performance
+* Fixes for TLS 1.3, support for Draft 21
+* TLS 1.0 disabled by default, addition of “--enable-tlsv10” configure option
+* New option to reduce SHA-256 code size at expense of performance
   (USE_SLOW_SHA256)
-- New option for memory reduced build (--enable-lowresource)
-- AES-GCM performance improvements on AVX1 (IvyBridge) and AVX2
-- SHA-256 and SHA-512 performance improvements using AVX1/2 ASM
-- SHA-3 size and performance optimizations
-- Fixes for Intel AVX2 builds on Mac/OSX
-- Intel assembly for Curve25519, and Ed25519 performance optimizations
-- New option to force 32-bit mode with “--enable-32bit”
-- New option to disable all inline assembly with “--disable-asm”
-- Ability to override maximum signature algorithms using WOLFSSL_MAX_SIGALGO
-- Fixes for handling of unsupported TLS extensions.
-- Fixes for compiling AES-GCM code with GCC 4.8.*
-- Allow adjusting static I/O buffer size with WOLFMEM_IO_SZ
-- Fixes for building without a filesystem
-- Removes 3DES and SHA1 dependencies from PKCS#7
-- Adds ability to disable PKCS#7 EncryptedData type (NO_PKCS7_ENCRYPTED_DATA)
-- Add ability to get client-side SNI
-- Expanded OpenSSL compatibility layer
-- Fix for logging file names with OpenSSL compatibility layer enabled, with
+* New option for memory reduced build (--enable-lowresource)
+* AES-GCM performance improvements on AVX1 (IvyBridge) and AVX2
+* SHA-256 and SHA-512 performance improvements using AVX1/2 ASM
+* SHA-3 size and performance optimizations
+* Fixes for Intel AVX2 builds on Mac/OSX
+* Intel assembly for Curve25519, and Ed25519 performance optimizations
+* New option to force 32-bit mode with “--enable-32bit”
+* New option to disable all inline assembly with “--disable-asm”
+* Ability to override maximum signature algorithms using WOLFSSL_MAX_SIGALGO
+* Fixes for handling of unsupported TLS extensions.
+* Fixes for compiling AES-GCM code with GCC 4.8.*
+* Allow adjusting static I/O buffer size with WOLFMEM_IO_SZ
+* Fixes for building without a filesystem
+* Removes 3DES and SHA1 dependencies from PKCS#7
+* Adds ability to disable PKCS#7 EncryptedData type (NO_PKCS7_ENCRYPTED_DATA)
+* Add ability to get client-side SNI
+* Expanded OpenSSL compatibility layer
+* Fix for logging file names with OpenSSL compatibility layer enabled, with
   WOLFSSL_MAX_ERROR_SZ user-overridable
-- Adds static memory support to the wolfSSL example client
-- Fixes for sniffer to use TLS 1.2 client method
-- Adds option to wolfCrypt benchmark to benchmark individual algorithms
-- Adds option to wolfCrypt benchmark to display benchmarks in powers
+* Adds static memory support to the wolfSSL example client
+* Fixes for sniffer to use TLS 1.2 client method
+* Adds option to wolfCrypt benchmark to benchmark individual algorithms
+* Adds option to wolfCrypt benchmark to display benchmarks in powers
   of 10 (-base10)
-- Updated Visual Studio for ARM builds (for ECC supported curves and SHA-384)
-- Updated Texas Instruments TI-RTOS build
-- Updated STM32 CubeMX build with fixes for SHA
-- Updated IAR EWARM project files
-- Updated Apple Xcode projects with the addition of a benchmark example project
+* Updated Visual Studio for ARM builds (for ECC supported curves and SHA-384)
+* Updated Texas Instruments TI-RTOS build
+* Updated STM32 CubeMX build with fixes for SHA
+* Updated IAR EWARM project files
+* Updated Apple Xcode projects with the addition of a benchmark example project
 
 This release of wolfSSL fixes 1 security vulnerability.
 
@@ -170,68 +189,68 @@ who have explicitly enabled static RSA cipher suites with WOLFSSL_STATIC_RSA
 and use those suites on a host are affected.  More information will be
 available on our website at:
 
-    https://wolfssl.com/wolfSSL/security/vulnerabilities.php
+https://wolfssl.com/wolfSSL/security/vulnerabilities.php
 
 See INSTALL file for build instructions.
 More info can be found on-line at http://wolfssl.com/wolfSSL/Docs.html
 
 
-********* wolfSSL (Formerly CyaSSL) Release 3.12.2 (10/23/2017)
+# wolfSSL (Formerly CyaSSL) Release 3.12.2 (10/23/2017)
 
-Release 3.12.2 of wolfSSL has bug fixes and new features including:
+## Release 3.12.2 of wolfSSL has bug fixes and new features including:
 
 This release includes many performance improvements with Intel ASM (AVX/AVX2) and AES-NI. New single precision math option to speedup RSA, DH and ECC. Embedded hardware support has been expanded for STM32, PIC32MZ and ATECC508A. AES now supports XTS mode for disk encryption. Certificate improvements for setting serial number, key usage and extended key usage. Refactor of SSL_ and hash types to allow openssl coexistence. Improvements for TLS 1.3. Fixes for OCSP stapling to allow disable and WOLFSSL specific user context for callbacks. Fixes for openssl and MySQL compatibility. Updated Micrium port. Fixes for asynchronous modes.
 
-- Added TLS extension for Supported Point Formats (ec_point_formats)
-- Fix to not send OCSP stapling extensions in client_hello when not enabled
-- Added new API's for disabling OCSP stapling
-- Add check for SIZEOF_LONG with sun and LP64
-- Fixes for various TLS 1.3 disable options (RSA, ECC and ED/Curve 25519).
-- Fix to disallow upgrading to TLS v1.3
-- Fixes for wolfSSL_EVP_CipherFinal() when message size is a round multiple of a block size.
-- Add HMAC benchmark and expanded AES key size benchmarks
-- Added simple GCC ARM Makefile example
-- Add tests for 3072-bit RSA and DH.
-- Fixed DRAFT_18 define and fixed downgrading with TLS v1.3
-- Fixes to allow custom serial number during certificate generation
-- Add method to get WOLFSSL_CTX certificate manager
-- Improvement to `wolfSSL_SetOCSP_Cb` to allow context per WOLFSSL object
-- Alternate certificate chain support `WOLFSSL_ALT_CERT_CHAINS`. Enables checking cert against multiple CA's. 
-- Added new `--disable-oldnames` option to allow for using openssl along-side wolfssl headers (without OPENSSL_EXTRA).
-- Refactor SSL_ and hashing types to use wolf specific prefix (WOLFSSL and WC_) to allow openssl coexistence.
-- Fixes for HAVE_INTEL_MULX
-- Cleanup include paths for MySQL cmake build
-- Added configure option for building library for wolfSSH (--enable-wolfssh)
-- Openssl compatibility layer improvements
-- Expanded API unit tests
-- Fixes for STM32 crypto hardware acceleration
-- Added AES XTS mode (--enable-xts)
-- Added ASN Extended Key Usage Support (see wc_SetExtKeyUsage).
-- Math updates and added TFM_MIPS speedup.
-- Fix for creation of the KeyUsage BitString
-- Fix for 8k keys with MySQL compatibility
-- Fixes for ATECC508A.
-- Fixes for PIC32MZ hashing.
-- Fixes and improvements to asynchronous modes for Intel QuickAssist and Cavium Nitrox V.
-- Update HASH_DRBG Reseed mechanism and add test case
-- Rename the file io.h/io.c to wolfio.h/wolfio.c
-- Cleanup the wolfIO_Send function.
-- OpenSSL Compatibility Additions and Fixes
-- Improvements to Visual Studio DLL project/solution.
-- Added function to generate public ECC key from private key
-- Added async blocking support for sniffer tool.
-- Added wolfCrypt hash tests for empty string and large data.
-- Added ability to use of wolf implementation of `strtok` using `USE_WOLF_STRTOK`.
-- Updated Micrium uC/OS-III Port
-- Updated root certs for OCSP scripts
-- New Single Precision math option for RSA, DH and ECC (off by default). See `--enable-sp`.
-- Speedups for AES GCM with AESNI (--enable-aesni)
-- Speedups for SHA2, ChaCha20/Poly1035 using AVX/AVX2
+* Added TLS extension for Supported Point Formats (ec_point_formats)
+* Fix to not send OCSP stapling extensions in client_hello when not enabled
+* Added new API's for disabling OCSP stapling
+* Add check for SIZEOF_LONG with sun and LP64
+* Fixes for various TLS 1.3 disable options (RSA, ECC and ED/Curve 25519).
+* Fix to disallow upgrading to TLS v1.3
+* Fixes for wolfSSL_EVP_CipherFinal() when message size is a round multiple of a block size.
+* Add HMAC benchmark and expanded AES key size benchmarks
+* Added simple GCC ARM Makefile example
+* Add tests for 3072-bit RSA and DH.
+* Fixed DRAFT_18 define and fixed downgrading with TLS v1.3
+* Fixes to allow custom serial number during certificate generation
+* Add method to get WOLFSSL_CTX certificate manager
+* Improvement to `wolfSSL_SetOCSP_Cb` to allow context per WOLFSSL object
+* Alternate certificate chain support `WOLFSSL_ALT_CERT_CHAINS`. Enables checking cert against multiple CA's. 
+* Added new `--disable-oldnames` option to allow for using openssl along-side wolfssl headers (without OPENSSL_EXTRA).
+* Refactor SSL_ and hashing types to use wolf specific prefix (WOLFSSL and WC_) to allow openssl coexistence.
+* Fixes for HAVE_INTEL_MULX
+* Cleanup include paths for MySQL cmake build
+* Added configure option for building library for wolfSSH (--enable-wolfssh)
+* Openssl compatibility layer improvements
+* Expanded API unit tests
+* Fixes for STM32 crypto hardware acceleration
+* Added AES XTS mode (--enable-xts)
+* Added ASN Extended Key Usage Support (see wc_SetExtKeyUsage).
+* Math updates and added TFM_MIPS speedup.
+* Fix for creation of the KeyUsage BitString
+* Fix for 8k keys with MySQL compatibility
+* Fixes for ATECC508A.
+* Fixes for PIC32MZ hashing.
+* Fixes and improvements to asynchronous modes for Intel QuickAssist and Cavium Nitrox V.
+* Update HASH_DRBG Reseed mechanism and add test case
+* Rename the file io.h/io.c to wolfio.h/wolfio.c
+* Cleanup the wolfIO_Send function.
+* OpenSSL Compatibility Additions and Fixes
+* Improvements to Visual Studio DLL project/solution.
+* Added function to generate public ECC key from private key
+* Added async blocking support for sniffer tool.
+* Added wolfCrypt hash tests for empty string and large data.
+* Added ability to use of wolf implementation of `strtok` using `USE_WOLF_STRTOK`.
+* Updated Micrium uC/OS-III Port
+* Updated root certs for OCSP scripts
+* New Single Precision math option for RSA, DH and ECC (off by default). See `--enable-sp`.
+* Speedups for AES GCM with AESNI (--enable-aesni)
+* Speedups for SHA2, ChaCha20/Poly1035 using AVX/AVX2
 
 
-********* wolfSSL (Formerly CyaSSL) Release 3.12.0 (8/04/2017)
+# wolfSSL (Formerly CyaSSL) Release 3.12.0 (8/04/2017)
 
-Release 3.12.0 of wolfSSL has bug fixes and new features including:
+## Release 3.12.0 of wolfSSL has bug fixes and new features including:
 
 - TLS 1.3 with Nginx! TLS 1.3 with ARMv8! TLS 1.3 with Async Crypto! (--enable-tls13)
 - TLS 1.3 0RTT feature added
@@ -286,9 +305,9 @@ See INSTALL file for build instructions.
 More info can be found on-line at http://wolfssl.com/wolfSSL/Docs.html
 
 
-********* wolfSSL (Formerly CyaSSL) Release 3.11.1 (5/11/2017)
+# wolfSSL (Formerly CyaSSL) Release 3.11.1 (5/11/2017)
 
-Release 3.11.1 of wolfSSL is a TLS 1.3 BETA release, which includes:
+## Release 3.11.1 of wolfSSL is a TLS 1.3 BETA release, which includes:
 
 - TLS 1.3 client and server support for TLS 1.3 with Draft 18 support
 
@@ -300,9 +319,9 @@ See INSTALL file for build instructions.
 More info can be found on-line at http://wolfssl.com/wolfSSL/Docs.html
 
 
-********* wolfSSL (Formerly CyaSSL) Release 3.11.0 (5/04/2017)
+# wolfSSL (Formerly CyaSSL) Release 3.11.0 (5/04/2017)
 
-Release 3.11.0 of wolfSSL has bug fixes and new features including:
+## Release 3.11.0 of wolfSSL has bug fixes and new features including:
 
 - Code updates for warnings reported by Coverity scans
 - Testing and warning fixes for FreeBSD on PowerPC
@@ -316,7 +335,7 @@ Release 3.11.0 of wolfSSL has bug fixes and new features including:
 - Added support for HAproxy load balancer
 - Added option to allow SHA1 with TLS 1.2 for IIS compatibility (WOLFSSL_ALLOW_TLS_SHA1)
 - Added Curve25519 51-bit Implementation, increasing performance on systems that have 128 bit types
-- Fix to not send session ID on server side if session cache is off unless we're echoing
+- Fix to not send session ID on server side if session cache is off unless we're echoing 
 session ID as part of session tickets
 - Fixes for ensuring all default ciphers are setup correctly (see PR #830)
 - Added NXP Hexiwear example in `IDE/HEXIWEAR`.
@@ -324,7 +343,7 @@ session ID as part of session tickets
 - Fixes for TLS elliptic curve selection on private key import.
 - Fixes for RNG with Intel rdrand and rdseed speedups.
 - Improved performance with Intel rdrand to use full 64-bit output
-- Added new --enable-intelrand option to indicate use of RDRAND preference for RNG source
+- Added new --enable-intelrand option to indicate use of RDRAND preference for RNG source 
 - Removed RNG ARC4 support
 - Added ECC helpers to get size and id from curve name.
 - Added ECC Cofactor DH (ECC-CDH) support
@@ -346,7 +365,6 @@ session ID as part of session tickets
 - Added a sanity check for minimum authentication tag size with AES-GCM. Thanks to Yueh-Hsun Lin and Peng Li at KNOX Security at Samsung Research America for suggesting this.
 - Added a sanity check that subject key identifier is marked as non-critical and a check that no policy OIDS appear more than once in the cert policies extension. Thanks to the report from Professor Zhenhua Duan, Professor Cong Tian, and Ph.D candidate Chu Chen from Institute of Computing Theory and Technology (ICTT) of Xidian University, China. Profs. Zhenhua Duan and Cong Tian are supervisors of Ph.D candidate Chu Chen.
 
-
 This release of wolfSSL fixes 5 low and 1 medium level security vulnerability.
 
 3 Low level fixes reported by Yueh-Hsun Lin and Peng Li from KNOX Security, Samsung Research America.
@@ -355,6 +373,7 @@ This release of wolfSSL fixes 5 low and 1 medium level security vulnerability.
 - Fix for a double free case when adding CA cert into X509_store.
 
 Low level fix for memory management with static memory feature enabled. By default static memory is disabled. Thanks to GitHub user hajjihraf for reporting this.
+
 
 Low level fix for out of bounds write in the function wolfSSL_X509_NAME_get_text_by_NID. This function is not used by TLS or crypto operations but could result in a buffer out of bounds write by one if called explicitly in an application. Discovered by Aleksandar Nikolic of Cisco Talos. http://talosintelligence.com/vulnerability-reports/
 
@@ -365,9 +384,9 @@ See INSTALL file for build instructions.
 More info can be found on-line at http://wolfssl.com/wolfSSL/Docs.html
 
 
-********* wolfSSL (Formerly CyaSSL) Release 3.10.2 (2/10/2017)
+# wolfSSL (Formerly CyaSSL) Release 3.10.2 (2/10/2017)
 
-Release 3.10.2 of wolfSSL has bug fixes and new features including:
+## Release 3.10.2 of wolfSSL has bug fixes and new features including:
 
 - Poly1305 Windows macros fix. Thanks to GitHub user Jay Satiro
 - Compatibility layer expanded with multiple functions added
@@ -399,9 +418,10 @@ Low level fix for potential cache attack on RSA operations. If using wolfSSL RSA
 See INSTALL file for build instructions.
 More info can be found on-line at http://wolfssl.com/wolfSSL/Docs.html
 
-********* wolfSSL (Formerly CyaSSL) Release 3.10.0 (12/21/2016)
 
-Release 3.10.0 of wolfSSL has bug fixes and new features including:
+# wolfSSL (Formerly CyaSSL) Release 3.10.0 (12/21/2016)
+
+## Release 3.10.0 of wolfSSL has bug fixes and new features including:
 
 - Added support for SHA224
 - Added scrypt feature
@@ -436,9 +456,10 @@ https://wolfssl.com/wolfSSL/security/vulnerabilities.php
 See INSTALL file for build instructions.
 More info can be found on-line at http://wolfssl.com/wolfSSL/Docs.html
 
-********* wolfSSL (Formerly CyaSSL) Release 3.9.10 (9/23/2016)
 
-Release 3.9.10 of wolfSSL has bug fixes and new features including:
+# wolfSSL (Formerly CyaSSL) Release 3.9.10 (9/23/2016)
+
+## Release 3.9.10 of wolfSSL has bug fixes and new features including:
 
 - Default configure option changes:
   1. DES3 disabled by default
@@ -470,14 +491,15 @@ need to update if they utilize AES, RSA private keys, or ECC private keys.
 Thanks to Gorka Irazoqui Apecechea and Xiaofei Guo from Intel Corporation for
 the report.  More information will be available on our site:
 
-    https://wolfssl.com/wolfSSL/security/vulnerabilities.php
+https://wolfssl.com/wolfSSL/security/vulnerabilities.php
 
 See INSTALL file for build instructions.
-More info can be found on-line at http://wolfssl.com/wolfSSL/Docs.html
+More info can be found on-line at https://wolfssl.com/wolfSSL/Docs.html
 
-********* wolfSSL (Formerly CyaSSL) Release 3.9.8 (7/29/2016)
 
-Release 3.9.8 of wolfSSL has bug fixes and new features including:
+# wolfSSL (Formerly CyaSSL) Release 3.9.8 (7/29/2016)
+
+##Release 3.9.8 of wolfSSL has bug fixes and new features including:
 
 - Add support for custom ECC curves.
 - Add cipher suite ECDHE-ECDSA-AES128-CCM.
@@ -519,9 +541,9 @@ Release 3.9.8 of wolfSSL has bug fixes and new features including:
 See INSTALL file for build instructions.
 More info can be found on-line at //http://wolfssl.com/wolfSSL/Docs.html
 
- ********* wolfSSL (Formerly CyaSSL) Release 3.9.6 (6/14/2016)
+# wolfSSL (Formerly CyaSSL) Release 3.9.6 (6/14/2016)
 
-Release 3.9.6 of wolfSSL has bug fixes and new features including:
+##Release 3.9.6 of wolfSSL has bug fixes and new features including:
 
 - Add staticmemory feature
 - Add public wc_GetTime API with base64encode feature
@@ -556,14 +578,13 @@ Release 3.9.6 of wolfSSL has bug fixes and new features including:
 recommend updating to the latest
 - (1) Code changes for ECC fix can be found at pull requests #411, #416, and #428
 - (2) Builds using RSA with using normal math and not RSA_LOW_MEM should update
-- Tag 3.9.6w is for a Windows example echoserver fix
 
 See INSTALL file for build instructions.
 More info can be found on-line at //http://wolfssl.com/wolfSSL/Docs.html
 
- ********* wolfSSL (Formerly CyaSSL) Release 3.9.0 (3/18/2016)
+# wolfSSL (Formerly CyaSSL) Release 3.9.0 (03/18/2016)
 
-Release 3.9.0 of wolfSSL has bug fixes and new features including:
+##Release 3.9.0 of wolfSSL has bug fixes and new features including:
 
 - Add new leantls configuration
 - Add RSA OAEP padding at wolfCrypt level
@@ -596,9 +617,9 @@ sized hash fix
 See INSTALL file for build instructions.
 More info can be found on-line at //http://wolfssl.com/yaSSL/Docs.html
 
- ********* wolfSSL (Formerly CyaSSL) Release 3.8.0 (12/30/2015)
+# wolfSSL (Formerly CyaSSL) Release 3.8.0 (12/30/2015)
 
-Release 3.8.0 of wolfSSL has bug fixes and new features including:
+##Release 3.8.0 of wolfSSL has bug fixes and new features including:
 
 - Example client/server with VxWorks
 - AESNI use with AES-GCM
@@ -619,9 +640,9 @@ recommend updating to the latest
 See INSTALL file for build instructions.
 More info can be found on-line at //http://wolfssl.com/yaSSL/Docs.html
 
- ********* wolfSSL (Formerly CyaSSL) Release 3.7.0 (10/26/2015)
+# wolfSSL (Formerly CyaSSL) Release 3.7.0 (10/26/2015)
 
-Release 3.7.0 of wolfSSL has bug fixes and new features including:
+##Release 3.7.0 of wolfSSL has bug fixes and new features including:
 
 - ALPN extension support added for HTTP2 connections with --enable-alpn
 - Change of example/client/client max fragment flag -L -> -F
@@ -650,33 +671,33 @@ recommend updating to the latest
 See INSTALL file for build instructions.
 More info can be found on-line at //http://wolfssl.com/yaSSL/Docs.html
 
- ********* wolfSSL (Formerly CyaSSL) Release 3.6.8 (09/17/2015)
+#wolfSSL (Formerly CyaSSL) Release 3.6.8 (09/17/2015)
 
-Release 3.6.8 of wolfSSL fixes two high severity vulnerabilities.  It also
-includes bug fixes and new features including:
+##Release 3.6.8 of wolfSSL fixes two high severity vulnerabilities.
+##It also includes bug fixes and new features including:
 
 - Two High level security fixes, all users SHOULD update.
   a) If using wolfSSL for DTLS on the server side of a publicly accessible
      machine you MUST update.
   b) If using wolfSSL for TLS on the server side with private RSA keys allowing
-     ephemeral key exchange without low memory optimizations you MUST update and
+     ephemeral key exchange without low memory optimziations you MUST update and
      regenerate the private RSA keys.
 
      Please see https://www.wolfssl.com/wolfSSL/Blog/Blog.html for more details
 
 - No filesystem build fixes for various configurations
 - Certificate generation now supports several extensions including KeyUsage,
-    SKID, AKID, and Certificate Policies
+    SKID, AKID, and Ceritifcate Policies
 - CRLs can be loaded from buffers as well as files now
-- SHA-512 Certificate Signing generation
+- SHA-512 Ceritifcate Signing generation
 - Fixes for sniffer reassembly processing
 
 See INSTALL file for build instructions.
 More info can be found on-line at //http://wolfssl.com/yaSSL/Docs.html
 
- ********* wolfSSL (Formerly CyaSSL) Release 3.6.6 (08/20/2015)
+#wolfSSL (Formerly CyaSSL) Release 3.6.6 (08/20/2015)
 
-Release 3.6.6 of wolfSSL has bug fixes and new features including:
+##Release 3.6.6 of wolfSSL has bug fixes and new features including:
 
 - OpenSSH  compatibility with --enable-openssh
 - stunnel  compatibility with --enable-stunnel
@@ -692,22 +713,23 @@ Release 3.6.6 of wolfSSL has bug fixes and new features including:
   size is smaller than the total message size, no user action required.
 - DTLS duplicate message fixes
 - Visual Studio project files now support DLL and static builds for 32/64bit.
-- Support for new Freescale I/O
+- Support for new Freesacle I/O
 - FreeRTOS FIPS support
 
 - No high level security fixes that requires an update though we always
   recommend updating to the latest
 
 See INSTALL file for build instructions.
-More information can be found on-line at //http://wolfssl.com/yaSSL/Docs.html
+More info can be found on-line at //http://wolfssl.com/yaSSL/Docs.html
 
- **************** wolfSSL (Formerly CyaSSL) Release 3.6.0 (06/19/2015)
 
-Release 3.6.0 of wolfSSL has bug fixes and new features including:
+#wolfSSL (Formerly CyaSSL) Release 3.6.0 (06/19/2015)
+
+##Release 3.6.0 of wolfSSL has bug fixes and new features including:
 
 - Max Strength build that only allows TLSv1.2, AEAD ciphers, and PFS (Perfect
    Forward Secrecy).  With --enable-maxstrength
-- Server side session ticket support, the example server and echoserver use the
+- Server side session ticket support, the example server and echosever use the
    example callback myTicketEncCb(), see wolfSSL_CTX_set_TicketEncCb()
 - FIPS version submitted for iOS.
 - TI Crypto Hardware Acceleration
@@ -723,8 +745,8 @@ Release 3.6.0 of wolfSSL has bug fixes and new features including:
 - ECC make key crash fix on RNG failure, ECC users must update.
 - Improvements to usage of time code.
 - Improvements to VS solution files.
-- GNU Binutils 2.24 (and late 2.23) ld has problems with some debug builds,
-  to fix an ld error add C_EXTRA_FLAGS="-fdebug-types-section -g1".
+- GNU Binutils 2.24 ld has problems with some debug builds, to fix an ld error
+  add -fdebug-types-section to C_EXTRA_FLAGS
 
 - No high level security fixes that requires an update though we always
   recommend updating to the latest (except note 14, ecc RNG failure)
@@ -733,9 +755,22 @@ See INSTALL file for build instructions.
 More info can be found on-line at //http://wolfssl.com/yaSSL/Docs.html
 
 
- *****************wolfSSL (Formerly CyaSSL) Release 3.4.6 (03/30/2015)
+#wolfSSL (Formerly CyaSSL) Release 3.4.8 (04/06/2015)
 
-Release 3.4.6 of wolfSSL has bug fixes and new features including:
+##Release 3.4.8 of wolfSSL has bug fixes and new features including:
+
+- FIPS version submitted for iOS.
+- Max Strength build that only allows TLSv1.2, AEAD ciphers, and PFS.
+- Improvements to usage of time code.
+- Improvements to VS solution files.
+
+See INSTALL file for build instructions.
+More info can be found on-line at //http://wolfssl.com/yaSSL/Docs.html
+
+
+#wolfSSL (Formerly CyaSSL) Release 3.4.6 (03/30/2015)
+
+##Release 3.4.6 of wolfSSL has bug fixes and new features including:
 
 - Intel Assembly Speedups using instructions rdrand, rdseed, aesni, avx1/2,
   rorx, mulx, adox, adcx .  They can be enabled with --enable-intelasm.
@@ -771,9 +806,9 @@ See INSTALL file for build instructions.
 More info can be found on-line at //http://wolfssl.com/yaSSL/Docs.html
 
 
- *****************wolfSSL (Formerly CyaSSL) Release 3.4.0 (02/23/2015)
+#wolfSSL (Formerly CyaSSL) Release 3.4.0 (02/23/2015)
 
-Release 3.4.0 wolfSSL has bug fixes and new features including:
+## Release 3.4.0 wolfSSL has bug fixes and new features including:
 
 - wolfSSL API and wolfCrypt API, you can still include the cyassl and ctaocrypt
   headers which will enable the compatibility APIs for the foreseeable future
@@ -797,14 +832,14 @@ Release 3.4.0 wolfSSL has bug fixes and new features including:
   recommend updating to the latest
 
 
- ***********CyaSSL Release 3.3.0 (12/05/2014)
+# CyaSSL Release 3.3.0 (12/05/2014)
 
 - Countermeasuers for Handshake message duplicates, CHANGE CIPHER without
   FINISHED, and fast forward attempts.  Thanks to Karthikeyan Bhargavan from
   the Prosecco team at INRIA Paris-Rocquencourt for the report.
 - FIPS version submitted
 - Removes SSLv2 Client Hello processing, can be enabled with OLD_HELLO_ALLOWED
-- User can set minimum downgrade version with CyaSSL_SetMinVersion()
+- User can set mimimum downgrade version with CyaSSL_SetMinVersion()
 - Small stack improvements at TLS/SSL layer
 - TLS Master Secret generation and Key Expansion are now exposed
 - Adds client side Secure Renegotiation, * not recommended *
@@ -824,9 +859,9 @@ http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
 and comments about the new features please check the manual.
 
 
-***********CyaSSL Release 3.2.0 (09/10/2014)
+# CyaSSL Release 3.2.0 (09/10/2014)
 
-Release 3.2.0 CyaSSL has bug fixes and new features including:
+#### Release 3.2.0 CyaSSL has bug fixes and new features including:
 
 - ChaCha20 and Poly1305 crypto and suites
 - Small stack improvements for OCSP, CRL, TLS, DTLS
@@ -849,9 +884,9 @@ http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
 and comments about the new features please check the manual.
 
 
-************ CyaSSL Release 3.1.0 (07/14/2014)
+# CyaSSL Release 3.1.0 (07/14/2014)
 
-Release 3.1.0 CyaSSL has bug fixes and new features including:
+#### Release 3.1.0 CyaSSL has bug fixes and new features including:
 
 - Fix for older versions of icc without 128-bit type
 - Intel ASM syntax for AES-NI
@@ -867,13 +902,13 @@ Release 3.1.0 CyaSSL has bug fixes and new features including:
 - Updated example certificates
 
 The CyaSSL manual is available at:
-http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
 and comments about the new features please check the manual.
 
 
-************ CyaSSL Release 3.0.2 (05/30/2014)
+# CyaSSL Release 3.0.2 (05/30/2014)
 
-Release 3.0.2 CyaSSL has bug fixes and new features including:
+#### Release 3.0.2 CyaSSL has bug fixes and new features including:
 
 - Added the following cipher suites:
   * TLS_PSK_WITH_AES_128_GCM_SHA256
@@ -893,13 +928,13 @@ Release 3.0.2 CyaSSL has bug fixes and new features including:
 - Updated the Hash DRBG and provided a configure option to enable.
 
 The CyaSSL manual is available at:
-http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
 and comments about the new features please check the manual.
 
 
-************ CyaSSL Release 3.0.0 (04/29/2014)
+# CyaSSL Release 3.0.0 (04/29/2014)
 
-Release 3.0.0 CyaSSL has bug fixes and new features including:
+#### Release 3.0.0 CyaSSL has bug fixes and new features including:
 
 - FIPS release candidate
 - X.509 improvements that address items reported by Suman Jana with security
@@ -909,13 +944,13 @@ Release 3.0.0 CyaSSL has bug fixes and new features including:
 - Updated AES-CCM-8 cipher suites to use approved suite numbers.
 
 The CyaSSL manual is available at:
-http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions
 and comments about the new features please check the manual.
 
 
-************ CyaSSL Release 2.9.4 (04/09/2014)
+# CyaSSL Release 2.9.4 (04/09/2014)
 
-Release 2.9.4 CyaSSL has bug fixes and new features including:
+#### Release 2.9.4 CyaSSL has bug fixes and new features including:
 
 - Security fixes that address items reported by Ivan Fratric of the Google
   Security Team
@@ -931,13 +966,13 @@ Release 2.9.4 CyaSSL has bug fixes and new features including:
   handling and reduce memory fragmentation on I/O large sizes
 
 The CyaSSL manual is available at:
-http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 
-************ CyaSSL Release 2.9.0 (02/07/2014)
+# CyaSSL Release 2.9.0 (02/07/2014)
 
-Release 2.9.0 CyaSSL has bug fixes and new features including:
+#### Release 2.9.0 CyaSSL has bug fixes and new features including:
 - Freescale Kinetis RNGB support
 - Freescale Kinetis mmCAU support
 - TLS Hello extensions
@@ -973,9 +1008,9 @@ User Guide":
 http://cache.freescale.com/files/32bit/doc/user_guide/CAUAPIUG.pdf
 
 
-*****************CyaSSL Release 2.8.0 (8/30/2013)
+# CyaSSL Release 2.8.0 (8/30/2013)
 
-Release 2.8.0 CyaSSL has bug fixes and new features including:
+#### Release 2.8.0 CyaSSL has bug fixes and new features including:
 - AES-GCM and AES-CCM use AES-NI
 - NetX default IO callback handlers
 - IPv6 fixes for DTLS Hello Cookies
@@ -989,13 +1024,13 @@ Release 2.8.0 CyaSSL has bug fixes and new features including:
 
 
 The CyaSSL manual is available at:
-http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 
-*****************CyaSSL Release 2.7.0 (6/17/2013)
+# CyaSSL Release 2.7.0 (6/17/2013)
 
-Release 2.7.0 CyaSSL has bug fixes and new features including:
+#### Release 2.7.0 CyaSSL has bug fixes and new features including:
 - SNI support for client and server
 - KEIL MDK-ARM projects
 - Wildcard check to domain name match, and Subject altnames are checked too
@@ -1015,21 +1050,23 @@ Release 2.7.0 CyaSSL has bug fixes and new features including:
 
 When compiling with Mingw, libtool may give the following warning due to
 path conversion errors:
-
+ 
+```
 libtool: link: Could not determine host file name corresponding to **
 libtool: link: Continuing, but uninstalled executables may not work.
+```
 
 If so, examples and testsuite will have problems when run, showing an
 error while loading shared libraries. To resolve, please run "make install".
 
 The CyaSSL manual is available at:
-http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 
-************** CyaSSL Release 2.6.0 (04/15/2013)
+# CyaSSL Release 2.6.0 (04/15/2013)
 
-Release 2.6.0 CyaSSL has bug fixes and new features including:
+#### Release 2.6.0 CyaSSL has bug fixes and new features including:
 - DTLS 1.2 support including AEAD ciphers
 - SHA-3 finalist Blake2 support, it's fast and uses little resources
 - SHA-384 cipher suites including ECC ones
@@ -1059,7 +1096,7 @@ Release 2.6.0 CyaSSL has bug fixes and new features including:
       3) C_EXTRA_FLAGS=-DTFM_NO_ASM , turn off assembly use
       4) use clang, it just seems to work
       5) play around with no PIC options to force all registers being open,
-         e.g, --without-pic
+         e.g., --without-pic
       6) if static lib is still a problem try removing fPIE
 - Many new ./configure switches for option enable/disable for example
     * rsa
@@ -1078,14 +1115,14 @@ Release 2.6.0 CyaSSL has bug fixes and new features including:
   automake to 1.11 and autoconf to 2.63
 
 The CyaSSL manual is available at:
-http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 
 
-************** CyaSSL Release 2.5.0 (02/04/2013)
+# CyaSSL Release 2.5.0 (02/04/2013)
 
-Release 2.5.0 CyaSSL has bug fixes and new features including:
+#### Release 2.5.0 CyaSSL has bug fixes and new features including:
 - Fix for TLS CBC padding timing attack identified by Nadhem Alfardan and
   Kenny Paterson: http://www.isg.rhul.ac.uk/tls/
 - Microchip PIC32 (MIPS16, MIPS32) support
@@ -1126,14 +1163,14 @@ STM32F2 Standard Peripheral Library can be found in the following document:
 http://www.st.com/internet/com/TECHNICAL_RESOURCES/TECHNICAL_LITERATURE/USER_MANUAL/DM00023896.pdf
 
 The CyaSSL manual is available at:
-http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 
 
-*************** CyaSSL Release 2.4.6 (12/20/2012)
+# CyaSSL Release 2.4.6 (12/20/2012)
 
-Release 2.4.6 CyaSSL has bug fixes and a few new features including:
+#### Release 2.4.6 CyaSSL has bug fixes and a few new features including:
 - ECC into main version
 - Lean PSK build (reduced code size, RAM usage, and stack usage)
 - FreeBSD CRL monitor support
@@ -1154,26 +1191,26 @@ K70 Sub-Family Reference Manual:
 http://cache.freescale.com/files/microcontrollers/doc/ref_manual/K70P256M150SF3RM.pdf
 
 The CyaSSL manual is available at:
-http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 
-*************** CyaSSL Release 2.4.0 (10/10/2012)
+# CyaSSL Release 2.4.0 (10/10/2012)
 
-Release 2.4.0 CyaSSL has bug fixes and a few new features including:
+#### Release 2.4.0 CyaSSL has bug fixes and a few new features including:
 - DTLS reliability
 - Reduced memory usage after handshake
 - Updated build process
 
 The CyaSSL manual is available at:
-http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 
 
-*************** CyaSSL Release 2.3.0 (8/10/2012)
+# CyaSSL Release 2.3.0 (8/10/2012)
 
-Release 2.3.0 CyaSSL has bug fixes and a few new features including:
+#### Release 2.3.0 CyaSSL has bug fixes and a few new features including:
 - AES-GCM crypto and cipher suites
 - make test cipher suite checks
 - Subject AltName processing
@@ -1185,14 +1222,14 @@ Release 2.3.0 CyaSSL has bug fixes and a few new features including:
 - DTLS Cookie support, reliability coming soon
 
 The CyaSSL manual is available at:
-http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 
 
-***************CyaSSL Release 2.2.0 (5/18/2012)
+# CyaSSL Release 2.2.0 (5/18/2012)
 
-Release 2.2.0 CyaSSL has bug fixes and a few new features including:
+#### Release 2.2.0 CyaSSL has bug fixes and a few new features including:
 - Initial CRL support (--enable-crl)
 - Initial OCSP support (--enable-ocsp)
 - Add static ECDH suites
@@ -1204,14 +1241,14 @@ Release 2.2.0 CyaSSL has bug fixes and a few new features including:
 
 
 The CyaSSL manual is available at:
-http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 
 
-***************CyaSSL Release 2.0.8 (2/24/2012)
+# CyaSSL Release 2.0.8 (2/24/2012)
 
-Release 2.0.8 CyaSSL has bug fixes and a few new features including:
+#### Release 2.0.8 CyaSSL has bug fixes and a few new features including:
 - A fix for malicious certificates pointed out by Remi Gacogne (thanks)
   resulting in NULL pointer use.
 - Respond to renegotiation attempt with no_renegoatation alert
@@ -1221,14 +1258,14 @@ Release 2.0.8 CyaSSL has bug fixes and a few new features including:
 
 
 The CyaSSL manual is available at:
-http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 
 
-************* CyaSSL Release 2.0.6 (1/27/2012)
+# CyaSSL Release 2.0.6 (1/27/2012)
 
-Release 2.0.6 CyaSSL has bug fixes and a few new features including:
+#### Release 2.0.6 CyaSSL has bug fixes and a few new features including:
 - Fixes for CA basis constraint check
 - CTX reference counting
 - Initial unit test additions
@@ -1240,14 +1277,14 @@ Release 2.0.6 CyaSSL has bug fixes and a few new features including:
 - Export Base64_Encode for general use
 
 The CyaSSL manual is available at:
-http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 
 
-************* CyaSSL Release 2.0.2 (12/05/2011)
+# CyaSSL Release 2.0.2 (12/05/2011)
 
-Release 2.0.2 CyaSSL has bug fixes and a few new features including:
+#### Release 2.0.2 CyaSSL has bug fixes and a few new features including:
 - CTaoCrypt Runtime library detection settings when directly using the crypto
   library
 - Default certificate generation now uses SHAwRSA and adds SHA256wRSA generation
@@ -1257,14 +1294,14 @@ Release 2.0.2 CyaSSL has bug fixes and a few new features including:
 - Microchip pic32 support
 
 The CyaSSL manual is available at:
-http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
 
 
-************* CyaSSL Release 2.0.0rc3 (9/28/2011)
+# CyaSSL Release 2.0.0rc3 (9/28/2011)
 
-Release 2.0.0rc3 for CyaSSL has bug fixes and a few new features including:
+#### Release 2.0.0rc3 for CyaSSL has bug fixes and a few new features including:
 - updated autoconf support
 - better make install and uninstall  (uses system directories)
 - make test / make check
@@ -1281,12 +1318,12 @@ changes are required.
 Special Thanks to Brian Aker for his autoconf, install, and header patches.
 
 The CyaSSL manual is available at:
-http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
-************CyaSSL Release 2.0.0rc2 (6/6/2011)
+# CyaSSL Release 2.0.0rc2 (6/6/2011)
 
-Release 2.0.0rc2 for CyaSSL has bug fixes and a few new features including:
+#### Release 2.0.0rc2 for CyaSSL has bug fixes and a few new features including:
 - bug fixes (Alerts, DTLS with DHE)
 - FreeRTOS support
 - lwIP support
@@ -1297,15 +1334,15 @@ Release 2.0.0rc2 for CyaSSL has bug fixes and a few new features including:
 - and more.
 
 This is the 2nd and perhaps final release candidate for version 2.
-Please send any comments or questions to support@wolfssl.com.
+Please send any comments or questions to support@yassl.com.
 
 The CyaSSL manual is available at:
-http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
-***********CyaSSL Release 2.0.0rc1 (5/2/2011)
+# CyaSSL Release 2.0.0rc1 (5/2/2011)
 
-Release 2.0.0rc1 for CyaSSL has many new features including:
+#### Release 2.0.0rc1 for CyaSSL has many new features including:
 - bug fixes
 - SHA-256 cipher suites 
 - Root Certificate Verification (instead of needing all certs in the chain) 
@@ -1330,13 +1367,13 @@ Release 2.0.0rc1 for CyaSSL has many new features including:
 
 Because of all the new features and the multiple OS, compiler, feature-set
 options that CyaSSL allows, there may be some configuration fixes needed.
-Please send any comments or questions to support@wolfssl.com.
+Please send any comments or questions to support@yassl.com.
 
 The CyaSSL manual is available at:
-http://www.wolfssl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
+http://www.yassl.com/documentation/CyaSSL-Manual.pdf.  For build instructions 
 and comments about the new features please check the manual.
 
-****************** CyaSSL Release 1.9.0 (3/2/2011)
+# CyaSSL Release 1.9.0 (3/2/2011)
 
 Release 1.9.0 for CyaSSL adds bug fixes, improved TLSv1.2 through testing and
 better hash/sig algo ids, --enable-webServer for the yaSSL embedded web server,
@@ -1346,9 +1383,9 @@ more.
 The CyaSSL manual offering is included in the doc/ directory.  For build
 instructions and comments about the new features please check the manual.
 
-Please send any comments or questions to support@wolfssl.com.
+Please send any comments or questions to support@yassl.com.
 
-****************** CyaSSL Release 1.8.0 (12/23/2010)
+# CyaSSL Release 1.8.0 (12/23/2010)
 
 Release 1.8.0 for CyaSSL adds bug fixes, x509 v3 CA signed certificate
 generation, a C standard library abstraction layer, lower memory use, increased
@@ -1358,12 +1395,12 @@ suites when used in conjunction with an NTRU license and library.
 The initial CyaSSL manual offering is included in the doc/ directory.  For
 build instructions and comments about the new features please check the manual.
 
-Please send any comments or questions to support@wolfssl.com.
+Please send any comments or questions to support@yassl.com.
 
 Happy Holidays.
  
 
-********************* CyaSSL Release 1.6.5 (9/9/2010)
+# CyaSSL Release 1.6.5 (9/9/2010)
 
 Release 1.6.5 for CyaSSL adds bug fixes and x509 v3 self signed certificate
 generation.
@@ -1376,7 +1413,7 @@ To enable certificate generation support add this option to ./configure
 An example is included in ctaocrypt/test/test.c and documentation is provided
 in doc/CyaSSL_Extensions_Reference.pdf item 11.
 
-********************** CyaSSL Release 1.6.0 (8/27/2010)
+# CyaSSL Release 1.6.0 (8/27/2010)
 
 Release 1.6.0 for CyaSSL adds bug fixes, RIPEMD-160, SHA-512, and RSA key
 generation.
@@ -1399,7 +1436,7 @@ off by default.  To turn key generation on add the define CYASSL_KEY_GEN to
 CyaSSL.
 
 
-*************   CyaSSL Release 1.5.6 (7/28/2010)
+# CyaSSL Release 1.5.6 (7/28/2010)
 
 Release 1.5.6 for CyaSSL adds bug fixes, compatibility for our JSSE provider,
 and a fix for GCC builds on some systems.
@@ -1411,7 +1448,7 @@ To add AES-NI support add this option to ./configure
 
 You'll need GCC 4.4.3 or later to make use of the assembly.
 
-**************  CyaSSL Release 1.5.4 (7/7/2010)
+# CyaSSL Release 1.5.4 (7/7/2010)
 
 Release 1.5.4 for CyaSSL adds bug fixes, support for AES-NI, SHA1 speed 
 improvements from loop unrolling, and support for the Mongoose Web Server.
@@ -1423,7 +1460,7 @@ To add AES-NI support add this option to ./configure
 
 You'll need GCC 4.4.3 or later to make use of the assembly.
 
-***************  CyaSSL Release 1.5.0 (5/11/2010)
+# CyaSSL Release 1.5.0 (5/11/2010)
 
 Release 1.5.0 for CyaSSL adds bug fixes, GoAhead WebServer support, sniffer
 support, and initial swig interface support.
@@ -1442,79 +1479,87 @@ WinPcap on windows.
 
 A swig interface file is now located in the swig directory for using Python,
 Java, Perl, and others with CyaSSL.  This is initial support and experimental,
-please send questions or comments to support@wolfssl.com.
+please send questions or comments to support@yassl.com.
 
 When doing load testing with CyaSSL, on the echoserver example say, the client
 machine may run out of tcp ephemeral ports, they will end up in the TIME_WAIT
 queue, and can't be reused by default.  There are generally two ways to fix
-this.  1) Reduce the length sockets remain on the TIME_WAIT queue or 2) Allow
-items on the TIME_WAIT queue to be reused.
+this. 
+
+1. Reduce the length sockets remain on the TIME_WAIT queue OR
+2. Allow items on the TIME_WAIT queue to be reused.
 
 
 To reduce the TIME_WAIT length in OS X to 3 seconds (3000 milliseconds)
 
-sudo sysctl -w net.inet.tcp.msl=3000
+`sudo sysctl -w net.inet.tcp.msl=3000`
 
 In Linux
 
-sudo sysctl -w net.ipv4.tcp_tw_reuse=1
+`sudo sysctl -w net.ipv4.tcp_tw_reuse=1`
 
 allows reuse of sockets in TIME_WAIT
 
-sudo sysctl -w net.ipv4.tcp_tw_recycle=1
+`sudo sysctl -w net.ipv4.tcp_tw_recycle=1`
 
 works but seems to remove sockets from  TIME_WAIT entirely?
 
-sudo sysctl -w net.ipv4.tcp_fin_timeout=1
+`sudo sysctl -w net.ipv4.tcp_fin_timeout=1`
 
 doen't control TIME_WAIT, it controls FIN_WAIT(2) contrary to some posts
 
 
-******************** CyaSSL Release 1.4.0 (2/18/2010)
+# CyaSSL Release 1.4.0 (2/18/2010)
 
 Release 1.3.0 for CyaSSL adds bug fixes, better multi TLS/SSL version support
 through SSLv23_server_method(), and improved documentation in the doc/ folder.
 
 For general build instructions doc/Building_CyaSSL.pdf.
 
-******************** CyaSSL Release 1.3.0 (1/21/2010)
+# CyaSSL Release 1.3.0 (1/21/2010)
 
 Release 1.3.0 for CyaSSL adds bug fixes, a potential security problem fix,
 better porting support, removal of assert()s, and a complete THREADX port.
 
 For general build instructions see rc1 below.
 
-******************** CyaSSL Release 1.2.0 (11/2/2009)
+# CyaSSL Release 1.2.0 (11/2/2009)
 
 Release 1.2.0 for CyaSSL adds bug fixes and session negotiation if first use is
 read or write.
 
 For general build instructions see rc1 below.
 
-******************** CyaSSL Release 1.1.0 (9/2/2009)
+# CyaSSL Release 1.1.0 (9/2/2009)
 
 Release 1.1.0 for CyaSSL adds bug fixes, a check against malicious session
 cache use, support for lighttpd, and TLS 1.2.
 
 To get TLS 1.2 support please use the client and server functions:
 
+```c
 SSL_METHOD *TLSv1_2_server_method(void);
 SSL_METHOD *TLSv1_2_client_method(void);
+```
 
 CyaSSL was tested against lighttpd 1.4.23.  To build CyaSSL for use with 
 lighttpd use the following commands from the CyaSSL install dir <CyaSSLDir>:
 
+```
 ./configure --disable-shared --enable-opensslExtra --enable-fastmath --without-zlib
 
 make
 make openssl-links
+```
 
 Then to build lighttpd with CyaSSL use the following commands from the
 lighttpd install dir:
 
+```
 ./configure --with-openssl --with-openssl-includes=<CyaSSLDir>/include --with-openssl-libs=<CyaSSLDir>/lib LDFLAGS=-lm
 
 make
+```
 
 On some systems you may get a linker error about a duplicate symbol for
 MD5_Init or other MD5 calls.  This seems to be caused by the lighttpd src file
@@ -1523,41 +1568,44 @@ When liblightcomp is linked with the SSL_LIBs the linker may complain about
 the duplicate symbol.  This can be fixed by editing the lighttpd src file md5.c
 and adding this line to the beginning of the file:
 
-#if 0
+\#if 0
 
 and this line to the end of the file
 
-#endif
+\#endif
 
 Then from the lighttpd src dir do a:
 
+```
 make clean
 make
-
+```
 
 If you get link errors about undefined symbols more than likely the actual
 OpenSSL libraries are found by the linker before the CyaSSL openssl-links that
 point to the CyaSSL library, causing the linker confusion.  This can be fixed
 by editing the Makefile in the lighttpd src directory and changing the line:
 
-SSL_LIB = -lssl -lcrypto
+`SSL_LIB = -lssl -lcrypto`
 
 to
 
-SSL_LIB = -lcyassl
+`SSL_LIB = -lcyassl`
 
 Then from the lighttpd src dir do a:
 
+```
 make clean
 make
+```
 
 This should remove any confusion the linker may be having with missing symbols.
 
-For any questions or concerns please contact support@wolfssl.com .
+For any questions or concerns please contact support@yassl.com .
 
 For general build instructions see rc1 below.
 
-******************CyaSSL Release 1.0.6 (8/03/2009)
+# CyaSSL Release 1.0.6 (8/03/2009)
 
 Release 1.0.6 for CyaSSL adds bug fixes, an improved session cache, and faster
 math with a huge code option.
@@ -1574,7 +1622,7 @@ the benchmark utility to compare public key operations.
 
 For general build instructions see rc1 below.
 
-******************CyaSSL Release 1.0.3 (5/10/2009)
+# CyaSSL Release 1.0.3 (5/10/2009)
 
 Release 1.0.3 for CyaSSL adds bug fixes and add increased support for OpenSSL
 compatibility when building other applications.
@@ -1585,7 +1633,7 @@ aren't fully implemented at this time but will be for the next release.
 
 For general build instructions see rc1 below.
 
-******************CyaSSL Release 1.0.2 (4/3/2009)
+# CyaSSL Release 1.0.2 (4/3/2009)
 
 Release 1.0.2 for CyaSSL adds bug fixes for a couple I/O issues.  Some systems
 will send a SIGPIPE on socket recv() at any time and this should be handled by
@@ -1598,7 +1646,7 @@ aren't fully implemented at this time but will be for the next release.
 
 For general build instructions see rc1 below.
 
-*****************CyaSSL Release Candidate 3 rc3-1.0.0 (2/25/2009)
+## CyaSSL Release Candidate 3 rc3-1.0.0 (2/25/2009)
 
 
 Release Candidate 3 for CyaSSL 1.0.0 adds bug fixes and adds a project file for
@@ -1609,36 +1657,42 @@ lost when cyassl i/o was re-implemented but is now fixed.
 
 For general build instructions see rc1 below.
 
-*****************CyaSSL Release Candidate 2 rc2-1.0.0 (1/21/2009)
+## CyaSSL Release Candidate 2 rc2-1.0.0 (1/21/2009)
 
 
 Release Candidate 2 for CyaSSL 1.0.0 adds bug fixes and adds two new stream
 ciphers along with their respective cipher suites.  CyaSSL adds support for
 HC-128 and RABBIT stream ciphers.  The new suites are:
 
+```
 TLS_RSA_WITH_HC_128_SHA
 TLS_RSA_WITH_RABBIT_SHA
+```
 
 And the corresponding cipher names are
 
+```
 HC128-SHA
 RABBIT-SHA
+```
 
 CyaSSL also adds support for building with devkitPro for PPC by changing the
 library proper to use libogc.  The examples haven't been changed yet but if
 there's interest they can be.  Here's an example ./configure to build CyaSSL
 for devkitPro:
 
+```
 ./configure --disable-shared CC=/pathTo/devkitpro/devkitPPC/bin/powerpc-gekko-gcc --host=ppc --without-zlib --enable-singleThreaded RANLIB=/pathTo/devkitpro/devkitPPC/bin/powerpc-gekko-ranlib CFLAGS="-DDEVKITPRO -DGEKKO"
+```
 
 For linking purposes you'll need
 
-LDFLAGS="-g -mrvl -mcpu=750 -meabi -mhard-float -Wl,-Map,$(notdir $@).map"
+`LDFLAGS="-g -mrvl -mcpu=750 -meabi -mhard-float -Wl,-Map,$(notdir $@).map"`
 
 For general build instructions see rc1 below.
 
 
-********************CyaSSL Release Candidate 1 rc1-1.0.0 (12/17/2008)
+## CyaSSL Release Candidate 1 rc1-1.0.0 (12/17/2008)
 
 
 Release Candidate 1 for CyaSSL 1.0.0 contains major internal changes.  Several
@@ -1649,40 +1703,40 @@ Many thanks to Thierry Fournier for providing these ideas and most of the work.
 Because of these changes, this release is only a candidate since some problems
 are probably inevitable on some platform with some I/O use.  Please report any
 problems and we'll try to resolve them as soon as possible.  You can contact us
-at support@wolfssl.com or todd@wolfssl.com.
+at support@yassl.com or todd@yassl.com.
 
 Using TomsFastMath by passing --enable-fastmath to ./configure now uses assembly
 on some platforms.  This is new so please report any problems as every compiler,
 mode, OS combination hasn't been tested.  On ia32 all of the registers need to
 be available so be sure to pass these options to CFLAGS:
 
-CFLAGS="-O3 -fomit-frame-pointer"
+`CFLAGS="-O3 -fomit-frame-pointer"`
 
 OS X will also need -mdynamic-no-pic added to CFLAGS
 
 Also if you're building in shared mode for ia32 you'll need to pass options to
 LDFLAGS as well on OS X:
 
-LDFLAGS=-Wl,-read_only_relocs,warning
+`LDFLAGS=-Wl,-read_only_relocs,warning`
 
 This gives warnings for some symbols but seems to work.
 
 
---To build on Linux, Solaris, *BSD, Mac OS X, or Cygwin:
+#### To build on Linux, Solaris, *BSD, Mac OS X, or Cygwin:
 
     ./configure
     make
 
     from the ./testsuite/ directory run ./testsuite 
 
-to make a debug build:
+#### To make a debug build:
 
     ./configure --enable-debug --disable-shared
     make
 
 
 
---To build on Win32
+#### To build on Win32
 
 Choose (Re)Build All from the project workspace
 
@@ -1692,7 +1746,7 @@ Run the testsuite program
 
 
 
-*************************CyaSSL version 0.9.9 (7/25/2008) 
+# CyaSSL version 0.9.9 (7/25/2008) 
 
 This release of CyaSSL adds bug fixes, Pre-Shared Keys, over-rideable memory
 handling, and optionally TomsFastMath.  Thanks to Moisés Guimarães for the
@@ -1707,12 +1761,12 @@ always seems to be faster.  On x86-64 machines with GCC the normal math library
 may outperform the fast one when using CFLAGS=-m64 because TomsFastMath can't
 yet use -m64 because of GCCs inability to do 128bit division.
 
-     **** UPDATE GCC 4.2.1 can now do 128bit division ***
+     *** UPDATE GCC 4.2.1 can now do 128bit division ***
 
 See notes below (0.2.0) for complete build instructions.
 
 
-****************CyaSSL version 0.9.8 (5/7/2008) 
+# CyaSSL version 0.9.8 (5/7/2008) 
 
 This release of CyaSSL adds bug fixes, client side Diffie-Hellman, and better
 socket handling.
@@ -1720,7 +1774,7 @@ socket handling.
 See notes below (0.2.0) for complete build instructions.
 
 
-****************CyaSSL version 0.9.6 (1/31/2008) 
+# CyaSSL version 0.9.6 (1/31/2008) 
 
 This release of CyaSSL adds bug fixes, increased session management, and a fix
 for gnutls.
@@ -1728,7 +1782,7 @@ for gnutls.
 See notes below (0.2.0) for complete build instructions.
 
 
-****************CyaSSL version 0.9.0 (10/15/2007) 
+# CyaSSL version 0.9.0 (10/15/2007) 
 
 This release of CyaSSL adds bug fixes, MSVC 2005 support, GCC 4.2 support, 
 IPV6 support and test, and new test certificates.
@@ -1736,7 +1790,7 @@ IPV6 support and test, and new test certificates.
 See notes below (0.2.0) for complete build instructions.
 
 
-****************CyaSSL version 0.8.0 (1/10/2007) 
+# CyaSSL version 0.8.0 (1/10/2007) 
 
 This release of CyaSSL adds increased socket support, for non-blocking writes,
 connects, and interrupted system calls.
@@ -1744,7 +1798,7 @@ connects, and interrupted system calls.
 See notes below (0.2.0) for complete build instructions.
 
 
-****************CyaSSL version 0.6.3 (10/30/2006) 
+# CyaSSL version 0.6.3 (10/30/2006) 
 
 This release of CyaSSL adds debug logging to stderr to aid in the debugging of
 CyaSSL on systems that may not provide the best support.
@@ -1762,7 +1816,7 @@ To turn logging back off call CyaSSL_Debugging_OFF()
 See notes below (0.2.0) for complete build instructions.
 
 
-*****************CyaSSL version 0.6.2 (10/29/2006) 
+# CyaSSL version 0.6.2 (10/29/2006) 
 
 This release of CyaSSL adds TLS 1.1.
 
@@ -1774,7 +1828,7 @@ CyaSSL_check_domain_name() to prevent man in the middle attacks.
 
 See notes below (0.2.0) for build instructions.
 
-*****************CyaSSL version 0.6.0 (10/25/2006) 
+# CyaSSL version 0.6.0 (10/25/2006) 
 
 This release of CyaSSL adds more SSL functions, better autoconf, nonblocking
 I/O for accept, connect, and read.  There is now an --enable-small configure
@@ -1784,7 +1838,7 @@ for the defines.  Note that TLS requires HMAC and AES requires TLS.
 See notes below (0.2.0) for build instructions.
 
 
-*****************CyaSSL version 0.5.5 (09/27/2006) 
+# CyaSSL version 0.5.5 (09/27/2006) 
 
 This mini release of CyaSSL adds better input processing through buffered input
 and big message support.  Added SSL_pending() and some sanity checks on user
@@ -1793,28 +1847,28 @@ settings.
 See notes below (0.2.0) for build instructions.
 
 
-*****************CyaSSL version 0.5.0 (03/27/2006) 
+# CyaSSL version 0.5.0 (03/27/2006) 
 
 This release of CyaSSL adds AES support and minor bug fixes. 
 
 See notes below (0.2.0) for build instructions.
 
 
-*****************CyaSSL version 0.4.0 (03/15/2006)
+# CyaSSL version 0.4.0 (03/15/2006)
 
 This release of CyaSSL adds TLSv1 client/server support and libtool. 
 
 See notes below for build instructions.
 
 
-*****************CyaSSL version 0.3.0 (02/26/2006)
+# CyaSSL version 0.3.0 (02/26/2006)
 
 This release of CyaSSL adds SSLv3 server support and session resumption. 
 
 See notes below for build instructions.
 
 
-*****************CyaSSL version 0.2.0 (02/19/2006)
+# CyaSSL version 0.2.0 (02/19/2006)
 
 
 This is the first release of CyaSSL and its crypt brother, CTaoCrypt.  CyaSSL
@@ -1830,21 +1884,21 @@ The first release of CyaSSL supports normal client RSA mode SSLv3 connections
 with support for SHA-1 and MD5 digests.  Ciphers include 3DES and RC4.
 
 
---To build on Linux, Solaris, *BSD, Mac OS X, or Cygwin:
+#### To build on Linux, Solaris, *BSD, Mac OS X, or Cygwin:
 
     ./configure
     make
 
     from the ./testsuite/ directory run ./testsuite 
 
-to make a debug build:
+#### to make a debug build:
 
     ./configure --enable-debug --disable-shared
     make
 
 
 
---To build on Win32
+#### To build on Win32
 
 Choose (Re)Build All from the project workspace
 
@@ -1857,4 +1911,3 @@ compatibility functions.
 
 
 Please send questions or comments to todd@wolfssl.com
-

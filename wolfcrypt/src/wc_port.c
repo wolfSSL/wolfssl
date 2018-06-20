@@ -64,6 +64,10 @@
     #include <wolfssl/wolfcrypt/port/caam/wolfcaam.h>
 #endif
 
+#ifdef WOLF_CRYPTO_DEV
+    #include <wolfssl/wolfcrypt/cryptodev.h>
+#endif
+
 #ifdef _MSC_VER
     /* 4996 warning to use MS extensions e.g., strcpy_s instead of strncpy */
     #pragma warning(disable: 4996)
@@ -81,6 +85,10 @@ int wolfCrypt_Init(void)
 
     if (initRefCount == 0) {
         WOLFSSL_ENTER("wolfCrypt_Init");
+
+    #ifdef WOLF_CRYPTO_DEV
+        wc_CryptoDev_Init();
+    #endif
 
     #ifdef WOLFSSL_ASYNC_CRYPT
         ret = wolfAsync_HardwareStart();
@@ -212,7 +220,8 @@ int wolfCrypt_Cleanup(void)
     return ret;
 }
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+#if !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR) && \
+	!defined(WOLFSSL_NUCLEUS)
 
 /* File Handling Helpers */
 /* returns 0 if file found, -1 if no files or negative error */

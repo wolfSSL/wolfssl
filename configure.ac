@@ -6,53 +6,46 @@
 #
 #
 AC_COPYRIGHT([Copyright (C) 2006-2018 wolfSSL Inc.])
-AC_INIT([wolfssl],[3.14.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[http://www.wolfssl.com])
-
+AC_PREREQ([2.63])
+AC_INIT([wolfssl],[3.15.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
 AC_CONFIG_AUX_DIR([build-aux])
 
 # The following sets CFLAGS and CXXFLAGS to empty if unset on command line.
-# We do not want the default "-g -O2" that AC_PROG_CC AC_PROG_CXX sets
-# automatically.
+# We do not want the default "-g -O2" that AC_PROG_CC sets automatically.
 : ${CFLAGS=""}
-: ${CXXFLAGS=""}
 
 # Test ar for the "U" option. Should be checked before the libtool macros.
 xxx_ar_flags=$((ar --help) 2>&1)
 AS_CASE([$xxx_ar_flags],[*'use actual timestamps and uids/gids'*],[: ${AR_FLAGS="Ucru"}])
 
+AC_PROG_CC
+AM_PROG_CC_C_O
 AC_CANONICAL_HOST
-AC_CANONICAL_BUILD
-
-AM_INIT_AUTOMAKE([1.11 -Wall -Werror -Wno-portability foreign tar-ustar subdir-objects no-define color-tests])
-AC_PREREQ([2.63])
-
-AC_ARG_PROGRAM
-AC_DEFUN([PROTECT_AC_USE_SYSTEM_EXTENSIONS],
-         [AX_SAVE_FLAGS
-          AC_LANG_PUSH([C])
-          AC_USE_SYSTEM_EXTENSIONS
-          AC_LANG_POP([C])
-          AX_RESTORE_FLAGS
-          ])
-#PROTECT_AC_USE_SYSTEM_EXTENSIONS
-
 AC_CONFIG_MACRO_DIR([m4])
 
-AC_CONFIG_HEADERS([config.h:config.in])dnl Keep filename to 8.3 for MS-DOS.
+AM_INIT_AUTOMAKE([1.11 -Wall -Werror -Wno-portability foreign tar-ustar subdir-objects no-define color-tests])
+m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
+
+AC_ARG_PROGRAM
+
+AC_CONFIG_HEADERS([config.h:config.in])
+
+LT_PREREQ([2.2])
+LT_INIT([disable-static win32-dll])
 
 #shared library versioning
-WOLFSSL_LIBRARY_VERSION=16:0:0
-#                       | | |
-#                +------+ | +---+
-#                |        |     |
-#               current:revision:age
-#                |        |     |
-#                |        |     +- increment if interfaces have been added
-#                |        |        set to zero if interfaces have been removed
-#                |        |        or changed
-#                |        +- increment if source code has changed
-#                |           set to zero if current is incremented
-#                +- increment if interfaces have been added, removed or changed
+WOLFSSL_LIBRARY_VERSION=17:0:0
+#                        | | |
+#                 +------+ | +---+
+#                 |        |     |
+#                current:revision:age
+#                 |        |     |
+#                 |        |     +- increment if interfaces have been added
+#                 |        |        set to zero if interfaces have been removed
+#                 |        |        or changed
+#                 |        +- increment if source code has changed
+#                 |           set to zero if current is incremented
+#                 +- increment if interfaces have been added, removed or changed
 AC_SUBST([WOLFSSL_LIBRARY_VERSION])
 
 # capture user C_EXTRA_FLAGS from ./configure line, CFLAGS may hold -g -O2 even
@@ -60,57 +53,29 @@ AC_SUBST([WOLFSSL_LIBRARY_VERSION])
 USER_C_EXTRA_FLAGS="$C_EXTRA_FLAGS"
 USER_CFLAGS="$CFLAGS"
 
-LT_PREREQ([2.2])
-LT_INIT([disable-static],[win32-dll])
-LT_LANG([C++])
-LT_LANG([C])
-
 gl_VISIBILITY
 AS_IF([ test -n "$CFLAG_VISIBILITY" ], [
        AM_CPPFLAGS="$AM_CPPFLAGS $CFLAG_VISIBILITY"
        CPPFLAGS="$CPPFLAGS $CFLAG_VISIBILITY"
        ])
 
-m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 
 # Moved these size of and type checks before the library checks.
 # The library checks add the library to subsequent test compiles
 # and in some rare cases, the networking check causes these sizeof
 # checks to fail.
-AC_CHECK_SIZEOF(long long, 8)
-AC_CHECK_SIZEOF(long, 4)
-AC_CHECK_TYPES(__uint128_t)
-AC_CHECK_FUNCS([gethostbyname])
-AC_CHECK_FUNCS([getaddrinfo])
-AC_CHECK_FUNCS([gettimeofday])
-AC_CHECK_FUNCS([gmtime_r])
-AC_CHECK_FUNCS([inet_ntoa])
-AC_CHECK_FUNCS([memset])
-AC_CHECK_FUNCS([socket])
-AC_CHECK_HEADERS([arpa/inet.h])
-AC_CHECK_HEADERS([fcntl.h])
-AC_CHECK_HEADERS([limits.h])
-AC_CHECK_HEADERS([netdb.h])
-AC_CHECK_HEADERS([netinet/in.h])
-AC_CHECK_HEADERS([stddef.h])
-AC_CHECK_HEADERS([sys/ioctl.h])
-AC_CHECK_HEADERS([sys/socket.h])
-AC_CHECK_HEADERS([sys/time.h])
-AC_CHECK_HEADERS([errno.h])
-AC_CHECK_LIB(network,socket)
+AC_CHECK_SIZEOF([long long])
+AC_CHECK_SIZEOF([long])
+AC_CHECK_TYPES([__uint128_t])
+AC_CHECK_FUNCS([gethostbyname getaddrinfo gettimeofday gmtime_r inet_ntoa memset socket])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stddef.h sys/ioctl.h sys/socket.h sys/time.h errno.h])
+AC_CHECK_LIB([network],[socket])
 AC_C_BIGENDIAN
-# mktime check takes forever on some systems, if time supported it would be
-# highly unusual for mktime to be missing
-#AC_FUNC_MKTIME
 
-AC_PROG_CC
-AC_PROG_CC_C_O
-AC_PROG_CXX
 AC_PROG_INSTALL
 AC_TYPE_SIZE_T
 AC_TYPE_UINT8_T
 AM_PROG_AS
-AM_PROG_CC_C_O
 LT_LIB_M
 
 OPTIMIZE_CFLAGS="-Os -fomit-frame-pointer"
@@ -120,20 +85,15 @@ DEBUG_CFLAGS="-g -DDEBUG -DDEBUG_WOLFSSL"
 LIB_ADD=
 LIB_STATIC_ADD=
 
-thread_ls_on=no
 # Thread local storage
-AX_TLS([
-        [AM_CFLAGS="$AM_CFLAGS -DHAVE_THREAD_LS"]
-        [thread_ls_on=yes]
-       ] , [:])
-
+AX_TLS([thread_ls_on=yes],[thread_ls_on=no])
+AS_IF([test "x$thread_ls_on" = "xyes"],[AM_CFLAGS="$AM_CFLAGS -DHAVE_THREAD_LS"])
 
 # DEBUG
 AX_DEBUG
 AS_IF([test "$ax_enable_debug" = "yes"],
       [AM_CFLAGS="$DEBUG_CFLAGS $AM_CFLAGS"],
       [AM_CFLAGS="$AM_CFLAGS -DNDEBUG"])
-
 
 
 # Distro build feature subset (Debian, Ubuntu, etc.)
@@ -280,7 +240,7 @@ AS_IF([ test "x$ENABLED_SINGLETHREADED" = "xno" ],[
                    ],[
                       ENABLED_SINGLETHREADED=yes
                       ])
-       ])
+      ])
 
 AS_IF([ test "x$ENABLED_SINGLETHREADED" = "xyes" ],[ AM_CFLAGS="-DSINGLE_THREADED $AM_CFLAGS" ])
 
@@ -923,7 +883,7 @@ AC_ARG_ENABLE([armasm],
     )
 if test "$ENABLED_ARMASM" = "yes" && test "$ENABLED_ASM" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM -DWOLFSSL_NO_HASH_RAW"
     #Check if mcpu and mfpu values already set if not use default
     case $CPPFLAGS in
     *mcpu* | *mfpu*)
@@ -3885,6 +3845,20 @@ else
 fi
 
 
+# Support for crypto device hardware
+AC_ARG_ENABLE([cryptodev],
+    [AS_HELP_STRING([--enable-cryptodev],[Enable crypto hardware support (default: disabled)])],
+    [ ENABLED_CRYPTODEV=$enableval ],
+    [ ENABLED_CRYPTODEV=no ]
+    )
+
+if test "$ENABLED_CRYPTODEV" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_DEV"
+fi
+AM_CONDITIONAL([BUILD_CRYPTODEV], [test "x$ENABLED_CRYPTODEV" = "xyes"])
+
+
 # Session Export
 AC_ARG_ENABLE([sessionexport],
     [AS_HELP_STRING([--enable-sessionexport],[Enable export and import of sessions (default: disabled)])],
@@ -4211,7 +4185,6 @@ fi
 OPTION_FLAGS="$USER_CFLAGS $USER_C_EXTRA_FLAGS $CPPFLAGS $AM_CFLAGS"
 
 
-
 CREATE_HEX_VERSION
 AC_SUBST([AM_CPPFLAGS])
 AC_SUBST([AM_CFLAGS])
@@ -4222,17 +4195,7 @@ AC_SUBST([LIB_STATIC_ADD])
 
 # FINAL
 AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
-AC_CONFIG_FILES([Makefile])
-AC_CONFIG_FILES([wolfssl/version.h])
-AC_CONFIG_FILES([wolfssl/options.h])
-#have options.h and version.h for autoconf fips tag and build
-#if test "x$ENABLED_FIPS" = "xyes"
-#then
-#    AC_CONFIG_FILES([cyassl/version.h])
-#    AC_CONFIG_FILES([cyassl/options.h])
-#fi
-AC_CONFIG_FILES([support/wolfssl.pc])
-AC_CONFIG_FILES([rpm/spec])
+AC_CONFIG_FILES([Makefile wolfssl/version.h wolfssl/options.h cyassl/options.h support/wolfssl.pc rpm/spec])
 
 AX_CREATE_GENERIC_CONFIG
 AX_AM_JOBSERVER([yes])

@@ -111,18 +111,28 @@ do_test() {
 
 trap do_trap INT TERM
 
-do_test
+./examples/client/client -? 2>&1 | grep -- 'Client not compiled in!'
+if [ $? -ne 0 ]; then
+    ./examples/server/server -? 2>&1 | grep -- 'Server not compiled in!'
+    if [ $? -ne 0 ]; then
+        RUN_TEST="Y"
+    fi
+fi
 
-# Check the client for the extended master secret disable option. If
-# present we need to run the test twice.
-options_check=`./examples/client/client -?`
-case "$options_check" in
-*$ems_string*)
-    echo -e "\nRepeating resume test without extended master secret..."
-    do_test -n ;;
-*)
-    ;;
-esac
+if [ "$RUN_TEST" = "Y" ]; then
+    do_test
+
+    # Check the client for the extended master secret disable option. If
+    # present we need to run the test twice.
+    options_check=`./examples/client/client -?`
+    case "$options_check" in
+    *$ems_string*)
+        echo -e "\nRepeating resume test without extended master secret..."
+        do_test -n ;;
+    *)
+        ;;
+    esac
+fi
 
 echo -e "\nSuccess!\n"
 

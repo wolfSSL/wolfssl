@@ -102,7 +102,7 @@
           (defined(LP64) || defined(_LP64))
         /* LP64 with GNU GCC compiler is reserved for when long int is 64 bits
          * and int uses 32 bits. When using Solaris Studio sparc and __sparc are
-         * avialable for 32 bit detection but __sparc64__ could be missed. This
+         * available for 32 bit detection but __sparc64__ could be missed. This
          * uses LP64 for checking 64 bit CPU arch. */
 	    typedef word64 wolfssl_word;
         #define WC_64BIT_CPU
@@ -201,7 +201,7 @@
 	/* idea to add global alloc override by Moises Guimaraes  */
 	/* default to libc stuff */
 	/* XREALLOC is used once in normal math lib, not in fast math lib */
-	/* XFREE on some embeded systems doesn't like free(0) so test  */
+	/* XFREE on some embedded systems doesn't like free(0) so test  */
 	#if defined(HAVE_IO_POOL)
 		WOLFSSL_API void* XMALLOC(size_t n, void* heap, int type);
 		WOLFSSL_API void* XREALLOC(void *p, size_t n, void* heap, int type);
@@ -496,6 +496,17 @@
 	    MIN_STACK_BUFFER = 8
 	};
 
+
+    /* Algorithm Types */
+    enum wc_AlgoType {
+        WC_ALGO_TYPE_NONE = 0,
+        WC_ALGO_TYPE_HASH = 1,
+        WC_ALGO_TYPE_CIPHER = 2,
+        WC_ALGO_TYPE_PK = 3,
+
+        WC_ALGO_TYPE_MAX = WC_ALGO_TYPE_PK
+    };
+
     /* hash types */
     enum wc_HashType {
         WC_HASH_TYPE_NONE = 0,
@@ -518,7 +529,7 @@
     };
 
     /* cipher types */
-    enum CipherTypes {
+    enum wc_CipherType {
         WC_CIPHER_NONE = 0,
         WC_CIPHER_AES = 1,
         WC_CIPHER_AES_CBC = 2,
@@ -530,8 +541,23 @@
         WC_CIPHER_DES = 8,
         WC_CIPHER_CHACHA = 9,
         WC_CIPHER_HC128 = 10,
+        WC_CIPHER_IDEA = 11,
 
         WC_CIPHER_MAX = WC_CIPHER_HC128
+    };
+
+    /* PK=public key (asymmetric) based algorithms */
+    enum wc_PkType {
+        WC_PK_TYPE_NONE = 0,
+        WC_PK_TYPE_RSA = 1,
+        WC_PK_TYPE_DH = 2,
+        WC_PK_TYPE_ECDH = 3,
+        WC_PK_TYPE_ECDSA_SIGN = 4,
+        WC_PK_TYPE_ECDSA_VERIFY = 5,
+        WC_PK_TYPE_ED25519 = 6,
+        WC_PK_TYPE_CURVE25519 = 7,
+
+        WC_PK_TYPE_MAX = WC_PK_TYPE_CURVE25519
     };
 
 

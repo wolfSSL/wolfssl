@@ -7,20 +7,29 @@
 DIR=${PWD##*/}
 
 if [ "$DIR" = "ARDUINO" ]; then
-    cp ../../src/*.c ../../
-    cp ../../wolfcrypt/src/*.c ../../
-    echo "/* stub header file for Arduino compatibility */" >> ../../wolfssl.h
+	rm -rf wolfSSL
+	mkdir wolfSSL
+
+    cp ../../src/*.c ./wolfSSL
+    cp ../../wolfcrypt/src/*.c ./wolfSSL
+
+    mkdir wolfSSL/wolfssl
+    cp ../../wolfssl/*.h ./wolfSSL/wolfssl
+    mkdir wolfSSL/wolfssl/wolfcrypt
+    cp ../../wolfssl/wolfcrypt/*.h ./wolfSSL/wolfssl/wolfcrypt
+
+    # support misc.c as include in wolfcrypt/src
+    mkdir ./wolfSSL/wolfcrypt
+    mkdir ./wolfSSL/wolfcrypt/src
+    cp ../../wolfcrypt/src/misc.c ./wolfSSL/wolfcrypt/src
+
+    # put bio and evp as includes
+    mv ./wolfSSL/bio.c ./wolfSSL/wolfssl
+	mv ./wolfSSL/evp.c ./wolfSSL/wolfssl
+
+    echo "/* Generated wolfSSL header file for Arduino */" >> ./wolfSSL/wolfssl.h
+    echo "#include <wolfssl/wolfcrypt/settings.h>" >> ./wolfSSL/wolfssl.h
+    echo "#include <wolfssl/ssl.h>" >> ./wolfSSL/wolfssl.h
 else
     echo "ERROR: You must be in the IDE/ARDUINO directory to run this script"
 fi
-
-#UPDATED: 19 Apr 2017 to remove bio.c and evp.c from the root directory since
-#         they are included inline and should not be compiled directly
-
-ARDUINO_DIR=${PWD}
-cd ../../
-rm bio.c
-rm evp.c
-cd $ARDUINO_DIR
-# end script in the origin directory for any future functionality that may be added.
-#End UPDATE: 19 Apr 2017

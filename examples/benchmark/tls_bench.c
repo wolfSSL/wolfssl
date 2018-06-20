@@ -68,6 +68,7 @@ bench_tls(args);
 #define TEST_PACKET_SIZE 1024
 #define SHOW_VERBOSE 0 /* Default output is tab delimited format */
 
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
 static int argShowPeerInfo = 0; /* Show more info about wolfSSL configuration */
 
 static const char* kTestStr =
@@ -864,6 +865,7 @@ int bench_tls(void* args)
     /* Return reporting a success */
     return (((func_args*)args)->return_code = 0);
 }
+#endif /* !NO_WOLFSSL_CLIENT && !NO_WOLFSSL_SERVER */
 
 #ifndef NO_MAIN_DRIVER
 
@@ -873,8 +875,11 @@ int main(int argc, char** argv)
 
     args.argc = argc;
     args.argv = argv;
+    args.return_code = 0;
 
+#if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     bench_tls(&args);
+#endif
 
     return(args.return_code);
 }
