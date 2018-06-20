@@ -11330,15 +11330,20 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     long wolfSSL_CTX_set_options(WOLFSSL_CTX* ctx, long opt)
     {
-        WOLFSSL ssl;
+        WOLFSSL* ssl;
         WOLFSSL_ENTER("SSL_CTX_set_options");
-
         if (ctx == NULL)
             return BAD_FUNC_ARG;
 
-        XMEMSET(&ssl, 0, sizeof(ssl));
-        ssl.options.mask = ctx->mask;
-        ctx->mask = wolfSSL_set_options(&ssl, opt);
+        ssl = (WOLFSSL*)XMALLOC(sizeof(WOLFSSL), ctx->heap, DYNAMIC_TYPE_SSL);
+        if (ssl == NULL)
+            return MEMORY_E;
+
+        XMEMSET(ssl, 0, sizeof(WOLFSSL));
+        ssl->options.mask = ctx->mask;
+        ctx->mask = wolfSSL_set_options(ssl, opt);
+
+        XFREE(ssl, ctx->heap, DYNAMIC_TYPE_SSL);
 
         return ctx->mask;
     }
