@@ -1300,7 +1300,10 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
         return BAD_FUNC_ARG;
 
 #ifdef HAVE_FUZZER
-    if (ssl->fuzzerCb)
+    /* sz argument has potential to underflow, all ssl->hmac functions need to
+     * either increment the size by (macSz + padLen + 1) before use or check on
+     * the size to make sure is valid when sz is effected by IO */
+    if (ssl->fuzzerCb && (int)sz > 0)
         ssl->fuzzerCb(ssl, in, sz, FUZZ_HMAC, ssl->fuzzerCtx);
 #endif
 
