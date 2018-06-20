@@ -33,8 +33,9 @@
     extern "C" {
 #endif
 
-/* detect C99 */
-#if !defined(WOLF_C99) && defined(__STDC_VERSION__)
+/* Detect if compiler supports C99. "NO_WOLF_C99" can be defined in
+ * user_settings.h to disable checking for C99 support. */
+#if !defined(WOLF_C99) && defined(__STDC_VERSION__) && !defined(NO_WOLF_C99)
     #if __STDC_VERSION__ >= 199901L
         #define WOLF_C99
     #endif
