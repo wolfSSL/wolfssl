@@ -692,30 +692,25 @@ char* wolfSSL_get_cipher_list_ex(WOLFSSL* ssl, int priority)
 int wolfSSL_get_ciphers(char* buf, int len)
 {
     const CipherSuiteInfo* ciphers = GetCipherNames();
-    int  totalInc = 0;
-    int  step     = 0;
-    char delim    = ':';
-    int  size     = GetCipherNamesSize();
-    int  i;
+    int ciphersSz = GetCipherNamesSize();
+    int i;
+    int cipherNameSz;
 
     if (buf == NULL || len <= 0)
         return BAD_FUNC_ARG;
 
     /* Add each member to the buffer delimited by a : */
-    for (i = 0; i < size; i++) {
-        step = (int)(XSTRLEN(ciphers[i].name) + 1);  /* delimiter */
-        totalInc += step;
+    for (i = 0; i < ciphersSz; i++) {
+        cipherNameSz = (int)XSTRLEN(ciphers[i].name);
+        if (cipherNameSz + 1 < len) {
+            XSTRNCPY(buf, ciphers[i].name, len);
+            buf += cipherNameSz;
 
-        /* Check to make sure buf is large enough and will not overflow */
-        if (totalInc < len) {
-            size_t cipherLen = XSTRLEN(ciphers[i].name);
-            XSTRNCPY(buf, ciphers[i].name, cipherLen);
-            buf += cipherLen;
+            if (i < ciphersSz - 1)
+                *buf++ = ':';
+            *buf = 0;
 
-            if (i < size - 1)
-                *buf++ = delim;
-            else
-                *buf++ = '\0';
+            len -= cipherNameSz + 1;
         }
         else
             return BUFFER_E;
