@@ -4238,7 +4238,7 @@ echo "#endif" >> $OPTION_FILE
 echo "" >> $OPTION_FILE
 
 for option in $OPTION_FLAGS; do
-    defonly=`echo $option | sed 's/-D//'`
+    defonly=`echo $option | sed 's/^-D//'`
     if test "$defonly" != "$option"
     then
         noequalsign=`echo $defonly | sed 's/=/ /'`
