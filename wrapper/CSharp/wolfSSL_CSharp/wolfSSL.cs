@@ -169,7 +169,7 @@ namespace wolfSSL.CSharp {
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate int CallbackIORecv_delegate(IntPtr ssl, IntPtr buf, int sz, IntPtr ctx);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private extern static int wolfSSL_SetIORecv(IntPtr ctx, CallbackIORecv_delegate recv);
+        private extern static int wolfSSL_CTX_SetIORecv(IntPtr ctx, CallbackIORecv_delegate recv);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wolfSSL_SetIOReadCtx(IntPtr ssl, IntPtr rctx);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -178,7 +178,7 @@ namespace wolfSSL.CSharp {
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate int CallbackIOSend_delegate(IntPtr ssl, IntPtr buf, int sz, IntPtr ctx);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
-        private extern static int wolfSSL_SetIOSend(IntPtr ctx, CallbackIOSend_delegate send);
+        private extern static int wolfSSL_CTX_SetIOSend(IntPtr ctx, CallbackIOSend_delegate send);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
         private extern static int wolfSSL_SetIOWriteCtx(IntPtr ssl, IntPtr wctx);
         [DllImport(wolfssl_dll, CallingConvention = CallingConvention.Cdecl)]
@@ -825,7 +825,7 @@ namespace wolfSSL.CSharp {
                 /* keep new function alive */
                 handles.set_receive(GCHandle.Alloc(func));
 
-                wolfSSL_SetIORecv(handles.get_ctx(), func);
+                wolfSSL_CTX_SetIORecv(handles.get_ctx(), func);
             }
             catch (Exception e)
             {
@@ -856,7 +856,7 @@ namespace wolfSSL.CSharp {
                 /* keep new function alive */
                 handles.set_send(GCHandle.Alloc(func));
 
-                wolfSSL_SetIOSend(handles.get_ctx(), func);
+                wolfSSL_CTX_SetIOSend(handles.get_ctx(), func);
             }
             catch (Exception e)
             {
@@ -883,11 +883,11 @@ namespace wolfSSL.CSharp {
 
                 CallbackIORecv_delegate recv = new CallbackIORecv_delegate(wolfssl.wolfSSLCbIORecv);
                 io.set_receive(GCHandle.Alloc(recv));
-                wolfSSL_SetIORecv(ctx, recv);
+                wolfSSL_CTX_SetIORecv(ctx, recv);
 
                 CallbackIOSend_delegate send = new CallbackIOSend_delegate(wolfssl.wolfSSLCbIOSend);
                 io.set_send(GCHandle.Alloc(send));
-                wolfSSL_SetIOSend(ctx, send);
+                wolfSSL_CTX_SetIOSend(ctx, send);
 
                 /* keep memory pinned */
                 return GCHandle.ToIntPtr(GCHandle.Alloc(io, GCHandleType.Pinned));
@@ -918,11 +918,11 @@ namespace wolfSSL.CSharp {
 
                 CallbackIORecv_delegate recv = new CallbackIORecv_delegate(wolfssl.wolfSSL_dtlsCbIORecv);
                 io.set_receive(GCHandle.Alloc(recv));
-                wolfSSL_SetIORecv(ctx, recv);
+                wolfSSL_CTX_SetIORecv(ctx, recv);
 
                 CallbackIOSend_delegate send = new CallbackIOSend_delegate(wolfssl.wolfSSL_dtlsCbIOSend);
                 io.set_send(GCHandle.Alloc(send));
-                wolfSSL_SetIOSend(ctx, send);
+                wolfSSL_CTX_SetIOSend(ctx, send);
 
                 /* keep memory pinned */
                 return GCHandle.ToIntPtr(GCHandle.Alloc(io, GCHandleType.Pinned));
