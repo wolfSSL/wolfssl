@@ -2866,6 +2866,8 @@ int DoTls13ServerHello(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
     {
         /* Get extension length and length check. */
+        if ((i - begin) + OPAQUE16_LEN > helloSz)
+            return BUFFER_ERROR;
         ato16(&input[i], &totalExtSz);
         i += OPAQUE16_LEN;
         if ((i - begin) + totalExtSz > helloSz)
