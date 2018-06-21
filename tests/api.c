@@ -14464,6 +14464,7 @@ static void test_wc_PKCS7_EncodeSignedData (void)
     pkcs7.encryptOID = RSAk;
     pkcs7.hashOID = SHAh;
     pkcs7.rng = &rng;
+    pkcs7.devId = INVALID_DEVID;
 
     AssertIntGT(wc_PKCS7_EncodeSignedData(&pkcs7, output, outputSz), 0);
 
