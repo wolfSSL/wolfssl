@@ -13370,11 +13370,11 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
         {
             /* catch mistaken sizeOnly parameter */
             if (!sizeOnly && (output == NULL || input == NULL) ) {
-                return BAD_FUNC_ARG;
+                ERROR_OUT(BAD_FUNC_ARG, exit_buildmsg);
             }
             if (sizeOnly && (output || input) ) {
                 WOLFSSL_MSG("BuildMessage w/sizeOnly doesn't need input/output");
-                return BAD_FUNC_ARG;
+                ERROR_OUT(BAD_FUNC_ARG, exit_buildmsg);
             }
 
             ssl->options.buildMsgState = BUILD_MSG_SIZE;
@@ -13564,6 +13564,9 @@ exit_buildmsg:
 
     /* Final cleanup */
     FreeBuildMsgArgs(ssl, args);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ssl->async.freeArgs = NULL;
+#endif
 
     return ret;
 #endif /* !WOLFSSL_NO_TLS12 */

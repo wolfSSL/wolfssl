@@ -9634,7 +9634,7 @@ static int rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, byte* tmp)
     ret = 0;
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
 #endif
         if (ret >= 0) {
             ret = wc_MakeSelfCert(myCert, der, FOURK_BUF, key, rng);
@@ -17946,8 +17946,13 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
     testSz = sizeof(testVectors) / sizeof(pkcs7EnvelopedVector);
 
     for (i = 0; i < testSz; i++) {
-
-        ret = wc_PKCS7_Init(&pkcs7, HEAP_HINT, devId);
+        ret = wc_PKCS7_Init(&pkcs7, HEAP_HINT,
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            INVALID_DEVID /* async PKCS7 is not supported */
+        #else
+            devId
+        #endif
+        );
         if (ret != 0)
             return -9214;
 
@@ -18494,6 +18499,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
     for (i = 0; i < testSz; i++) {
 
         pkcs7.heap = HEAP_HINT;
+        pkcs7.devId = INVALID_DEVID;
         ret = wc_PKCS7_InitWithCert(&pkcs7, testVectors[i].cert,
                                     (word32)testVectors[i].certSz);
 
