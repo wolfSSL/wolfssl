@@ -1300,8 +1300,16 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
         return BAD_FUNC_ARG;
 
 #ifdef HAVE_FUZZER
-    if (ssl->fuzzerCb)
-        ssl->fuzzerCb(ssl, in, sz, FUZZ_HMAC, ssl->fuzzerCtx);
+    /* Fuzz "in" buffer with sz to be used in HMAC algorithm */
+    if (ssl->fuzzerCb) {
+        if (verify && padSz >= 0) {
+            ssl->fuzzerCb(ssl, in, sz + ssl->specs.hash_size + padSz + 1,
+                FUZZ_HMAC, ssl->fuzzerCtx);
+        }
+        else {
+            ssl->fuzzerCb(ssl, in, sz, FUZZ_HMAC, ssl->fuzzerCtx);
+        }
+    }
 #endif
 
     wolfSSL_SetTlsHmacInner(ssl, myInner, sz, content, verify);

@@ -7508,13 +7508,17 @@ static int wc_EncryptedInfoParse(EncryptedInfo* info,
 
         if (start == NULL)
             return BUFFER_E;
-        if (start >= bufferEnd)
-            return BUFFER_E;
 
         /* skip dec-info and ": " */
         start += XSTRLEN(kDecInfoHeader);
-        if (start[0] == ':')
+        if (start >= bufferEnd)
+            return BUFFER_E;
+
+        if (start[0] == ':') {
             start++;
+            if (start >= bufferEnd)
+                return BUFFER_E;
+        }
         if (start[0] == ' ')
             start++;
 

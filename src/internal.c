@@ -11991,6 +11991,9 @@ int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int macSz,
     int  ret = 0;
 
     good = MaskPadding(input, pLen, macSz);
+    /* 4th argument has potential to underflow, ssl->hmac function should
+     * either increment the size by (macSz + padLen + 1) before use or check on
+     * the size to make sure is valid. */
     ret = ssl->hmac(ssl, verify, input, pLen - macSz - padLen - 1, padLen,
                                                                     content, 1);
     good |= MaskMac(input, pLen, ssl->specs.hash_size, verify);
