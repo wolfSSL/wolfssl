@@ -1,6 +1,25 @@
-# wolfSSL Release x.x.x
+# wolfSSL Release 3.15.3 (6/20/2018)
 
-* Added AES performance enhancements on AMD processors with build option `./configure --enable-intelasm`
+Release 3.15.3 of wolfSSL embedded TLS has bug fixes and new features including:
+
+* ECDSA blinding added for hardening against side channel attacks
+* Fix for compatibility layer build with no server and no client defined
+* Use of optimized Intel assembly instructions on compatible AMD processor
+* wolfCrypt Nucleus port additions
+* Fix added for MatchDomainName and additional tests added
+* Fixes for building with ‘WOLFSSL_ATECC508A’ defined
+* Fix for verifying a PKCS7 file in BER format with indefinite size
+
+
+This release of wolfSSL fixes 2 security vulnerability fixes.
+
+Medium level fix for PRIME + PROBE attack combined with a variant of Lucky 13. Constant time hardening was done to avoid potential cache-based side channel attacks when verifying the MAC on a TLS packet. CBC cipher suites are susceptible on systems where an attacker could gain access and run a parallel program for inspecting caching. Only wolfSSL users that are using TLS/DTLS CBC cipher suites need to update. Users that have only AEAD and stream cipher suites set, or have built with WOLFSSL_MAX_STRENGTH (--enable-maxstrength), are not vulnerable. Thanks to Eyal Ronen, Kenny Paterson, and Adi Shamir for the report.
+
+Medium level fix for a ECDSA side channel attack. wolfSSL is one of over a dozen vendors mentioned in the recent Technical Advisory “ROHNP” by author Ryan Keegan. Only wolfSSL users with long term ECDSA private keys using our fastmath or normal math libraries on systems where attackers can get access to the machine using the ECDSA key need to update.  An attacker gaining access to the system could mount a memory cache side channel attack that could recover the key within a few thousand signatures. wolfSSL users that are not using ECDSA private keys, that are using the single precision math library, or that are using ECDSA offloading do not need to update. (blog with more information https://www.wolfssl.com/wolfssh-and-rohnp/)
+
+
+See INSTALL file for build instructions.
+More info can be found on-line at http://wolfssl.com/wolfSSL/Docs.html
 
 # wolfSSL Release 3.15.0 (06/05/2018)
 

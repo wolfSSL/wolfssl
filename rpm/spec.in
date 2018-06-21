@@ -59,7 +59,7 @@ mkdir -p $RPM_BUILD_ROOT/
 
 %files
 %defattr(-,root,root,-)
-%doc AUTHORS ChangeLog COPYING NEWS README
+%doc AUTHORS ChangeLog.md COPYING README
 %{_docdir}/wolfssl/taoCert.txt
 %{_docdir}/wolfssl/example/echoserver.c
 %{_docdir}/wolfssl/example/server.c
@@ -73,12 +73,12 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_docdir}/wolfssl/README.txt
 %{_libdir}/libwolfssl.la
 %{_libdir}/libwolfssl.so
-%{_libdir}/libwolfssl.so.17
-%{_libdir}/libwolfssl.so.17.0.0
+%{_libdir}/libwolfssl.so.18
+%{_libdir}/libwolfssl.so.18.0.0
 
 %files devel
 %defattr(-,root,root,-)
-%doc AUTHORS ChangeLog COPYING NEWS README
+%doc AUTHORS ChangeLog.md COPYING README
 %{_bindir}/wolfssl-config
 %{_includedir}/cyassl/callbacks.h
 %{_includedir}/cyassl/certs_test.h
@@ -190,6 +190,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/compress.h
 %{_includedir}/wolfssl/wolfcrypt/cpuid.h
 %{_includedir}/wolfssl/wolfcrypt/curve25519.h
+%{_includedir}/wolfssl/wolfcrypt/cryptodev.h
 %{_includedir}/wolfssl/wolfcrypt/des3.h
 %{_includedir}/wolfssl/wolfcrypt/dh.h
 %{_includedir}/wolfssl/wolfcrypt/dsa.h
@@ -197,7 +198,6 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/ed25519.h
 %{_includedir}/wolfssl/wolfcrypt/error-crypt.h
 %{_includedir}/wolfssl/wolfcrypt/fe_operations.h
-%{_includedir}/wolfssl/wolfcrypt/fips.h
 %{_includedir}/wolfssl/wolfcrypt/fips_test.h
 %{_includedir}/wolfssl/wolfcrypt/ge_operations.h
 %{_includedir}/wolfssl/wolfcrypt/hash.h
@@ -287,6 +287,8 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_libdir}/pkgconfig/wolfssl.pc
 
 %changelog
+* Wed Jun 20 2018 Jacob Barthelmeh <jacob@wolfssl.com>
+- Remove NEWS, update ChangeLog to ChangeLog.md, remove wolfssl/wolfcrypt/fips.h, add wolfssl/wolfcrypt/cryptodev.h
 * Thu May 31 2018 John Safranek <john@wolfssl.com>
 - Update the version number on the library SO file.
 * Fri Mar 02 2018 Jacob Barthelmeh <jacob@wolfssl.com>
