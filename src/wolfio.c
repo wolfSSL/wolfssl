@@ -1185,33 +1185,33 @@ int wolfIO_HttpBuildRequest(const char* reqType, const char* domainName,
     if (maxLen > (word32)bufSize)
         return 0;
 
-    XSTRNCPY((char*)buf, reqType, reqTypeLen);
-    buf += reqTypeLen;
-    XSTRNCPY((char*)buf, blankStr, blankStrLen+1);
-    buf += blankStrLen;
-    XSTRNCPY((char*)buf, path, pathLen);
-    buf += pathLen;
-    XSTRNCPY((char*)buf, http11Str, http11StrLen+1);
-    buf += http11StrLen;
+    XSTRNCPY((char*)buf, reqType, bufSize);
+    buf += reqTypeLen; bufSize -= reqTypeLen;
+    XSTRNCPY((char*)buf, blankStr, bufSize);
+    buf += blankStrLen; bufSize -= blankStrLen;
+    XSTRNCPY((char*)buf, path, bufSize);
+    buf += pathLen; bufSize -= pathLen;
+    XSTRNCPY((char*)buf, http11Str, bufSize);
+    buf += http11StrLen; bufSize -= http11StrLen;
     if (domainNameLen > 0) {
-        XSTRNCPY((char*)buf, hostStr, hostStrLen+1);
-        buf += hostStrLen;
-        XSTRNCPY((char*)buf, domainName, domainNameLen);
-        buf += domainNameLen;
+        XSTRNCPY((char*)buf, hostStr, bufSize);
+        buf += hostStrLen; bufSize -= hostStrLen;
+        XSTRNCPY((char*)buf, domainName, bufSize);
+        buf += domainNameLen; bufSize -= domainNameLen;
     }
     if (reqSz > 0 && reqSzStrLen > 0) {
-        XSTRNCPY((char*)buf, contentLenStr, contentLenStrLen+1);
-        buf += contentLenStrLen;
-        XSTRNCPY((char*)buf, reqSzStr, reqSzStrLen);
-        buf += reqSzStrLen;
+        XSTRNCPY((char*)buf, contentLenStr, bufSize);
+        buf += contentLenStrLen; bufSize -= contentLenStrLen;
+        XSTRNCPY((char*)buf, reqSzStr, bufSize);
+        buf += reqSzStrLen; bufSize -= reqSzStrLen;
     }
     if (contentTypeLen > 0) {
-        XSTRNCPY((char*)buf, contentTypeStr, contentTypeStrLen+1);
-        buf += contentTypeStrLen;
-        XSTRNCPY((char*)buf, contentType, contentTypeLen);
-        buf += contentTypeLen;
+        XSTRNCPY((char*)buf, contentTypeStr, bufSize);
+        buf += contentTypeStrLen; bufSize -= contentTypeStrLen;
+        XSTRNCPY((char*)buf, contentType, bufSize);
+        buf += contentTypeLen; bufSize -= contentTypeLen;
     }
-    XSTRNCPY((char*)buf, doubleCrLfStr, doubleCrLfStrLen+1);
+    XSTRNCPY((char*)buf, doubleCrLfStr, bufSize);
     buf += doubleCrLfStrLen;
 
 #ifdef WOLFIO_DEBUG

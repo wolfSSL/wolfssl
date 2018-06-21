@@ -10733,8 +10733,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             ssl->arrays->server_hint[0] = 0;
         else {
             XSTRNCPY(ssl->arrays->server_hint, hint,
-                                            sizeof(ssl->arrays->server_hint));
-            ssl->arrays->server_hint[MAX_PSK_ID_LEN] = '\0'; /* null term */
+                                            sizeof(ssl->arrays->server_hint)-1);
+            ssl->arrays->server_hint[sizeof(ssl->arrays->server_hint)-1] = '\0';
         }
         return WOLFSSL_SUCCESS;
     }
@@ -16513,7 +16513,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
                         tmp[sizeof(tmp) - 1] = '\0';
                         if (mp_leading_bit(&rsa.n)) {
                             lbit = 1;
-                            XSTRNCAT(tmp, "00", sizeof("00"));
+                            XSTRNCAT(tmp, "00", 3);
                         }
 
                         rawLen = mp_unsigned_bin_size(&rsa.n);
@@ -25714,7 +25714,7 @@ static int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
         return WOLFSSL_FAILURE;
     }
     XSTRNCPY((char*)*cipherInfo, info->name, cipherInfoSz);
-    XSTRNCAT((char*)*cipherInfo, ",", 1);
+    XSTRNCAT((char*)*cipherInfo, ",", 2);
 
     idx = (word32)XSTRLEN((char*)*cipherInfo);
     cipherInfoSz -= idx;

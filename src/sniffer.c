@@ -252,7 +252,8 @@ static const char* const msgTable[] =
 /* *nix version uses table above */
 static void GetError(int idx, char* str)
 {
-    XSTRNCPY(str, msgTable[idx - 1], MAX_ERROR_LEN);
+    XSTRNCPY(str, msgTable[idx - 1], MAX_ERROR_LEN-1);
+    str[MAX_ERROR_LEN-1] = '\0';
 }
 
 
