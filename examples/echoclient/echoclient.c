@@ -334,6 +334,7 @@ void echoclient_test(void* args)
 
         args.argc = argc;
         args.argv = argv;
+        args.return_code = 0;
 
         CyaSSL_Init();
 #if defined(DEBUG_CYASSL) && !defined(WOLFSSL_MDK_SHELL)

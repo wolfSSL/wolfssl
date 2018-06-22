@@ -1753,6 +1753,7 @@ exit:
         args.argc = argc;
         args.argv = argv;
         args.signal = &ready;
+        args.return_code = 0;
         InitTcpReady(&ready);
 
 #if defined(DEBUG_WOLFSSL) && !defined(WOLFSSL_MDK_SHELL)

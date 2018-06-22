@@ -43,7 +43,7 @@
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfssl/wolfcrypt/types.h>
 
-#ifdef WOLFSSL_TEST_CERT
+#if defined(WOLFSSL_TEST_CERT) || defined(ASN_BER_TO_DER)
     #include <wolfssl/wolfcrypt/asn.h>
 #else
     #include <wolfssl/wolfcrypt/asn_public.h>
@@ -13189,8 +13189,8 @@ int openssl_test(void)
 
 int openSSL_evpMD_test(void)
 {
+    int ret = 0;
 #if !defined(NO_SHA256) && !defined(NO_SHA)
-    int ret ;
     WOLFSSL_EVP_MD_CTX* ctx;
     WOLFSSL_EVP_MD_CTX* ctx2;
 
@@ -13199,45 +13199,56 @@ int openSSL_evpMD_test(void)
 
     ret = EVP_DigestInit(ctx, EVP_sha256());
     if (ret != SSL_SUCCESS) {
-        return -7600;
+        ret = -7600;
+        goto openSSL_evpMD_test_done;
     }
 
     ret = EVP_MD_CTX_copy(ctx2, ctx);
     if (ret != SSL_SUCCESS) {
-        return -7601;
+        ret = -7601;
+        goto openSSL_evpMD_test_done;
     }
 
     if (EVP_MD_type(EVP_sha256()) != EVP_MD_CTX_type(ctx2)) {
-        return -7602;
+        ret = -7602;
+        goto openSSL_evpMD_test_done;
     }
 
     ret = EVP_DigestInit(ctx, EVP_sha1());
     if (ret != SSL_SUCCESS) {
-        return -7603;
+        ret = -7603;
+        goto openSSL_evpMD_test_done;
     }
 
     if (EVP_MD_type(EVP_sha256()) != EVP_MD_CTX_type(ctx2)) {
-        return -7604;
+        ret = -7604;
+        goto openSSL_evpMD_test_done;
     }
 
     ret = EVP_MD_CTX_copy_ex(ctx2, ctx);
     if (ret != SSL_SUCCESS) {
-        return -7605;
+        ret = -7605;
+        goto openSSL_evpMD_test_done;
     }
 
     if (EVP_MD_type(EVP_sha256()) == EVP_MD_CTX_type(ctx2)) {
-        return -7606;
+        ret = -7606;
+        goto openSSL_evpMD_test_done;
     }
 
     if (EVP_MD_type(EVP_sha1()) != EVP_MD_CTX_type(ctx2)) {
-        return -7607;
+        ret = -7607;
+        goto openSSL_evpMD_test_done;
     }
 
+    ret = 0; /* got to success state without jumping to end with a fail */
+
+openSSL_evpMD_test_done:
     EVP_MD_CTX_destroy(ctx);
     EVP_MD_CTX_destroy(ctx2);
 #endif /* NO_SHA256 */
 
-    return 0;
+    return ret;
 }
 
 #ifdef DEBUG_SIGN
@@ -13258,19 +13269,19 @@ static void show(const char *title, const char *p, unsigned int s) {
 #define ERR_BASE_PKEY -5000
 int openssl_pkey0_test(void)
 {
+    int ret = 0;
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA) && !defined(NO_SHA)
     byte*   prvTmp;
     byte*   pubTmp;
     int prvBytes;
     int pubBytes;
-    RSA *prvRsa;
-    RSA *pubRsa;
-    EVP_PKEY *prvPkey;
-    EVP_PKEY *pubPkey;
-    EVP_PKEY_CTX *enc;
-    EVP_PKEY_CTX *dec;
+    RSA *prvRsa = NULL;
+    RSA *pubRsa = NULL;
+    EVP_PKEY *prvPkey = NULL;
+    EVP_PKEY *pubPkey = NULL;
+    EVP_PKEY_CTX *enc = NULL;
+    EVP_PKEY_CTX *dec = NULL;
 
-    int    ret;
     byte   in[] = "Everyone gets Friday off.";
     byte   out[256];
     size_t outlen;
@@ -13287,8 +13298,10 @@ int openssl_pkey0_test(void)
     if (prvTmp == NULL)
         return ERR_BASE_PKEY-1;
     pubTmp = (byte*)XMALLOC(FOURK_BUFF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (pubTmp == NULL)
+    if (pubTmp == NULL) {
+        XFREE(prvTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return ERR_BASE_PKEY-2;
+    }
 
 #ifdef USE_CERT_BUFFERS_1024
     XMEMCPY(prvTmp, client_key_der_1024, sizeof_client_key_der_1024);
@@ -13303,41 +13316,46 @@ int openssl_pkey0_test(void)
 #else
     keyFile = fopen(cliKey, "rb");
     if (!keyFile) {
+        XFREE(prvTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(pubTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         err_sys("can't open ./certs/client-key.der, "
                 "Please run from wolfSSL home dir", ERR_BASE_PKEY-3);
-        XFREE(prvTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return ERR_BASE_PKEY-3;
     }
     prvBytes = (int)fread(prvTmp, 1, (int)FOURK_BUFF, keyFile);
     fclose(keyFile);
     keypubFile = fopen(cliKeypub, "rb");
     if (!keypubFile) {
+        XFREE(prvTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(pubTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         err_sys("can't open ./certs/client-cert.der, "
                 "Please run from wolfSSL home dir", -4);
-        XFREE(pubTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return ERR_BASE_PKEY-4;
     }
     pubBytes = (int)fread(pubTmp, 1, (int)FOURK_BUFF, keypubFile);
     fclose(keypubFile);
-    #endif /* USE_CERT_BUFFERS */
+#endif /* USE_CERT_BUFFERS */
 
         prvRsa = wolfSSL_RSA_new();
         pubRsa = wolfSSL_RSA_new();
         if((prvRsa == NULL) || (pubRsa == NULL)){
-          printf("error with RSA_new\n");
-          return ERR_BASE_PKEY-10;
+            printf("error with RSA_new\n");
+            ret = ERR_BASE_PKEY-10;
+            goto openssl_pkey0_test_done;
         }
 
         ret = wolfSSL_RSA_LoadDer_ex(prvRsa, prvTmp, prvBytes, WOLFSSL_RSA_LOAD_PRIVATE);
         if(ret != SSL_SUCCESS){
-          printf("error with RSA_LoadDer_ex\n");
-          return ERR_BASE_PKEY-11;
+            printf("error with RSA_LoadDer_ex\n");
+            ret = ERR_BASE_PKEY-11;
+            goto openssl_pkey0_test_done;
         }
 
         ret = wolfSSL_RSA_LoadDer_ex(pubRsa, pubTmp, pubBytes, WOLFSSL_RSA_LOAD_PUBLIC);
         if(ret != SSL_SUCCESS){
-          printf("error with RSA_LoadDer_ex\n");
-          return ERR_BASE_PKEY-12;
+            printf("error with RSA_LoadDer_ex\n");
+            ret = ERR_BASE_PKEY-12;
+            goto openssl_pkey0_test_done;
         }
         keySz = (size_t)RSA_size(pubRsa);
 
@@ -13345,37 +13363,43 @@ int openssl_pkey0_test(void)
         pubPkey = wolfSSL_PKEY_new();
         if((prvPkey == NULL) || (pubPkey == NULL)){
             printf("error with PKEY_new\n");
-            return ERR_BASE_PKEY-13;
+            ret = ERR_BASE_PKEY-13;
+            goto openssl_pkey0_test_done;
         }
         ret  = wolfSSL_EVP_PKEY_set1_RSA(prvPkey, prvRsa);
         ret += wolfSSL_EVP_PKEY_set1_RSA(pubPkey, pubRsa);
         if(ret != 2){
             printf("error with PKEY_set1_RSA\n");
-            return ERR_BASE_PKEY-14;
+            ret = ERR_BASE_PKEY-14;
+            goto openssl_pkey0_test_done;
         }
 
         dec = EVP_PKEY_CTX_new(prvPkey, NULL);
         enc = EVP_PKEY_CTX_new(pubPkey, NULL);
         if((dec == NULL)||(enc==NULL)){
             printf("error with EVP_PKEY_CTX_new\n");
-            return ERR_BASE_PKEY-15;
+            ret = ERR_BASE_PKEY-15;
+            goto openssl_pkey0_test_done;
         }
 
         ret = EVP_PKEY_decrypt_init(dec);
         if (ret != 1) {
             printf("error with decrypt init\n");
-            return ERR_BASE_PKEY-16;
+            ret = ERR_BASE_PKEY-16;
+            goto openssl_pkey0_test_done;
         }
         ret = EVP_PKEY_encrypt_init(enc);
         if (ret != 1) {
             printf("error with encrypt init\n");
-            return ERR_BASE_PKEY-17;
+            ret = ERR_BASE_PKEY-17;
+            goto openssl_pkey0_test_done;
         }
         XMEMSET(out, 0, sizeof(out));
         ret = EVP_PKEY_encrypt(enc, out, &outlen, in, sizeof(in));
         if (ret != 1) {
             printf("error encrypting msg\n");
-            return ERR_BASE_PKEY-18;
+            ret = ERR_BASE_PKEY-18;
+            goto openssl_pkey0_test_done;
         }
 
         show("encrypted msg", out, outlen);
@@ -13384,7 +13408,8 @@ int openssl_pkey0_test(void)
         ret = EVP_PKEY_decrypt(dec, plain, &outlen, out, keySz);
         if (ret != 1) {
             printf("error decrypting msg\n");
-            return ERR_BASE_PKEY-19;
+            ret = ERR_BASE_PKEY-19;
+            goto openssl_pkey0_test_done;
         }
         show("decrypted msg", plain, outlen);
 
@@ -13392,28 +13417,33 @@ int openssl_pkey0_test(void)
         ret = EVP_PKEY_decrypt_init(dec);
         if (ret != 1) {
             printf("error with decrypt init\n");
-            return ERR_BASE_PKEY-30;
+            ret = ERR_BASE_PKEY-30;
+            goto openssl_pkey0_test_done;
         }
         ret = EVP_PKEY_encrypt_init(enc);
         if (ret != 1) {
             printf("error with encrypt init\n");
-            return ERR_BASE_PKEY-31;
+            ret = ERR_BASE_PKEY-31;
+            goto openssl_pkey0_test_done;
         }
 
         if (EVP_PKEY_CTX_set_rsa_padding(dec, RSA_PKCS1_PADDING) <= 0) {
-              printf("first set rsa padding error\n");
-              return ERR_BASE_PKEY-32;
+            printf("first set rsa padding error\n");
+            ret = ERR_BASE_PKEY-32;
+            goto openssl_pkey0_test_done;
         }
 
 #ifndef HAVE_FIPS
         if (EVP_PKEY_CTX_set_rsa_padding(dec, RSA_PKCS1_OAEP_PADDING) <= 0){
             printf("second set rsa padding error\n");
-            return ERR_BASE_PKEY-33;
+            ret = ERR_BASE_PKEY-33;
+            goto openssl_pkey0_test_done;
         }
 
         if (EVP_PKEY_CTX_set_rsa_padding(enc, RSA_PKCS1_OAEP_PADDING) <= 0) {
             printf("third set rsa padding error\n");
-            return ERR_BASE_PKEY-34;
+            ret = ERR_BASE_PKEY-34;
+            goto openssl_pkey0_test_done;
         }
 #endif
 
@@ -13421,7 +13451,8 @@ int openssl_pkey0_test(void)
         ret = EVP_PKEY_encrypt(enc, out, &outlen, in, sizeof(in));
         if (ret != 1) {
             printf("error encrypting msg\n");
-            return ERR_BASE_PKEY-35;
+            ret = ERR_BASE_PKEY-35;
+            goto openssl_pkey0_test_done;
         }
 
         show("encrypted msg", out, outlen);
@@ -13430,10 +13461,14 @@ int openssl_pkey0_test(void)
         ret = EVP_PKEY_decrypt(dec, plain, &outlen, out, keySz);
         if (ret != 1) {
             printf("error decrypting msg\n");
-            return ERR_BASE_PKEY-36;
+            ret = ERR_BASE_PKEY-36;
+            goto openssl_pkey0_test_done;
         }
 
         show("decrypted msg", plain, outlen);
+
+        ret = 0; /* made it to this point without error then set success */
+openssl_pkey0_test_done:
 
         wolfSSL_RSA_free(prvRsa);
         wolfSSL_RSA_free(pubRsa);
@@ -13445,8 +13480,7 @@ int openssl_pkey0_test(void)
         XFREE(pubTmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 #endif /* NO_RSA */
 
-        return 0;
-
+        return ret;
 }
 
 
@@ -13647,9 +13681,10 @@ int openssl_evpSig_test()
 #else
     keyFile = fopen(cliKey, "rb");
     if (!keyFile) {
+        XFREE(pubTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(prvTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         err_sys("can't open ./certs/client-key.der, "
                 "Please run from wolfSSL home dir", -40);
-        XFREE(prvTmp, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
         return ERR_BASE_EVPSIG-3;
     }
     prvBytes = (int)fread(prvTmp, 1, (int)FOURK_BUFF, keyFile);

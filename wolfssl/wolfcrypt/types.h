@@ -332,7 +332,7 @@
         #elif defined(USE_WINDOWS_API) || defined(FREERTOS_TCP_WINSIM)
 	        #define XSTRNCASECMP(s1,s2,n) _strnicmp((s1),(s2),(n))
         #else
-            #if (defined(HAVE_STRINGS_H) || defined(WOLF_C99)) && \
+            #if defined(HAVE_STRINGS_H) && defined(WOLF_C99) && \
                 !defined(WOLFSSL_SGX)
                 #include <strings.h>
             #endif

@@ -1864,7 +1864,6 @@ int wc_PKCS7_VerifySignedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz)
         pkcs7->der = (byte*)XMALLOC(len, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         if (pkcs7->der == NULL)
             return MEMORY_E;
-        len = 0;
         ret = wc_BerToDer(pkiMsg, pkiMsgSz, pkcs7->der, &len);
         if (ret < 0)
             return ret;
@@ -5048,6 +5047,7 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
     /* go back and check the version now that attribs have been processed */
     if ((haveAttribs == 0 && version != 0) ||
         (haveAttribs == 1 && version != 2) ) {
+        XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         WOLFSSL_MSG("Wrong PKCS#7 EncryptedData version");
         return ASN_VERSION_E;
     }

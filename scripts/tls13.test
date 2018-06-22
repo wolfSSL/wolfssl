@@ -70,6 +70,14 @@ do_trap() {
 trap do_trap INT TERM
 
 [ ! -x ./examples/client/client ] && echo -e "\n\nClient doesn't exist" && exit 1
+./examples/client/client -? 2>&1 | grep -- 'Client not compiled in!'
+if [ $? -eq 0 ]; then
+    exit 0
+fi
+./examples/server/server -? 2>&1 | grep -- 'Server not compiled in!'
+if [ $? -eq 0 ]; then
+    exit 0
+fi
 
 # Usual TLS v1.3 server / TLS v1.3 client.
 echo -e "\n\nTLS v1.3 server with TLS v1.3 client"

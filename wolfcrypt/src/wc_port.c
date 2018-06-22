@@ -220,7 +220,8 @@ int wolfCrypt_Cleanup(void)
     return ret;
 }
 
-#if !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR)
+#if !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR) && \
+	!defined(WOLFSSL_NUCLEUS)
 
 /* File Handling Helpers */
 /* returns 0 if file found, -1 if no files or negative error */

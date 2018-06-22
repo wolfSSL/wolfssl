@@ -7,7 +7,7 @@
 #
 AC_COPYRIGHT([Copyright (C) 2006-2018 wolfSSL Inc.])
 AC_PREREQ([2.63])
-AC_INIT([wolfssl],[3.15.0],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
+AC_INIT([wolfssl],[3.15.3],[https://github.com/wolfssl/wolfssl/issues],[wolfssl],[https://www.wolfssl.com])
 AC_CONFIG_AUX_DIR([build-aux])
 
 # The following sets CFLAGS and CXXFLAGS to empty if unset on command line.
@@ -34,7 +34,7 @@ LT_PREREQ([2.2])
 LT_INIT([disable-static win32-dll])
 
 #shared library versioning
-WOLFSSL_LIBRARY_VERSION=17:0:0
+WOLFSSL_LIBRARY_VERSION=18:0:0
 #                        | | |
 #                 +------+ | +---+
 #                 |        |     |
@@ -883,7 +883,7 @@ AC_ARG_ENABLE([armasm],
     )
 if test "$ENABLED_ARMASM" = "yes" && test "$ENABLED_ASM" = "yes"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ARMASM -DWOLFSSL_NO_HASH_RAW"
     #Check if mcpu and mfpu values already set if not use default
     case $CPPFLAGS in
     *mcpu* | *mfpu*)

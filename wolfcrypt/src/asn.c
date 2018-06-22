@@ -4203,9 +4203,10 @@ static int GetName(DecodedCert* cert, int nameType)
                             XFREE(emailName, cert->heap, DYNAMIC_TYPE_ALTNAME);
                             return MEMORY_E;
                         }
+                        emailName->len = adv;
                         XMEMCPY(emailName->name,
                                               &cert->source[cert->srcIdx], adv);
-                        emailName->name[adv] = 0;
+                        emailName->name[adv] = '\0';
 
                         emailName->next = cert->altEmailNames;
                         cert->altEmailNames = emailName;
@@ -5547,7 +5548,7 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                     DNS_entry* name = cert->altNames;
                     while (name != NULL) {
                         if (MatchBaseName(ASN_DNS_TYPE,
-                                          name->name, (int)XSTRLEN(name->name),
+                                          name->name, name->len,
                                           base->name, base->nameSz)) {
                             return 0;
                         }
@@ -5560,7 +5561,7 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
                     DNS_entry* name = cert->altEmailNames;
                     while (name != NULL) {
                         if (MatchBaseName(ASN_RFC822_TYPE,
-                                          name->name, (int)XSTRLEN(name->name),
+                                          name->name, name->len,
                                           base->name, base->nameSz)) {
                             return 0;
                         }
@@ -5604,7 +5605,7 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
 
                     while (name != NULL) {
                         matchDns = MatchBaseName(ASN_DNS_TYPE,
-                                          name->name, (int)XSTRLEN(name->name),
+                                          name->name, name->len,
                                           base->name, base->nameSz);
                         name = name->next;
                     }
@@ -5619,7 +5620,7 @@ static int ConfirmNameConstraints(Signer* signer, DecodedCert* cert)
 
                     while (name != NULL) {
                         matchEmail = MatchBaseName(ASN_DNS_TYPE,
-                                          name->name, (int)XSTRLEN(name->name),
+                                          name->name, name->len,
                                           base->name, base->nameSz);
                         name = name->next;
                     }
@@ -5700,7 +5701,7 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
                 XFREE(dnsEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
                 return MEMORY_E;
             }
-
+            dnsEntry->len = strLen;
             XMEMCPY(dnsEntry->name, &input[idx], strLen);
             dnsEntry->name[strLen] = '\0';
 
@@ -5737,7 +5738,7 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
                 XFREE(emailEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
                 return MEMORY_E;
             }
-
+            emailEntry->len = strLen;
             XMEMCPY(emailEntry->name, &input[idx], strLen);
             emailEntry->name[strLen] = '\0';
 
@@ -5808,7 +5809,7 @@ static int DecodeAltNames(byte* input, int sz, DecodedCert* cert)
                 XFREE(uriEntry, cert->heap, DYNAMIC_TYPE_ALTNAME);
                 return MEMORY_E;
             }
-
+            uriEntry->len = strLen;
             XMEMCPY(uriEntry->name, &input[idx], strLen);
             uriEntry->name[strLen] = '\0';
 
@@ -7507,13 +7508,17 @@ static int wc_EncryptedInfoParse(EncryptedInfo* info,
 
         if (start == NULL)
             return BUFFER_E;
-        if (start >= bufferEnd)
-            return BUFFER_E;
 
         /* skip dec-info and ": " */
         start += XSTRLEN(kDecInfoHeader);
-        if (start[0] == ':')
+        if (start >= bufferEnd)
+            return BUFFER_E;
+
+        if (start[0] == ':') {
             start++;
+            if (start >= bufferEnd)
+                return BUFFER_E;
+        }
         if (start[0] == ' ')
             start++;
 
@@ -10884,8 +10889,11 @@ static int SignCert(int requestSz, int sType, byte* buffer, word32 buffSz,
 
     sigSz = MakeSignature(certSignCtx, buffer, requestSz, certSignCtx->sig,
         MAX_ENCODED_SIG_SZ, rsaKey, eccKey, ed25519Key, rng, sType, heap);
-    if (sigSz == WC_PENDING_E)
+    if (sigSz == WC_PENDING_E) {
+        /* Not free'ing certSignCtx->sig here because it could still be in use
+         * with async operations. */
         return sigSz;
+    }
 
     if (sigSz >= 0) {
         if (requestSz + MAX_SEQ_SZ * 2 + sigSz > (int)buffSz)

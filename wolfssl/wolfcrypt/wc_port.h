@@ -33,8 +33,10 @@
     extern "C" {
 #endif
 
-/* detect C99 */
-#if !defined(WOLF_C99) && defined(__STDC_VERSION__) && !defined(WOLFSSL_ARDUINO)
+/* Detect if compiler supports C99. "NO_WOLF_C99" can be defined in
+ * user_settings.h to disable checking for C99 support. */
+#if !defined(WOLF_C99) && defined(__STDC_VERSION__) && \
+    !defined(WOLFSSL_ARDUINO) && !defined(NO_WOLF_C99)
     #if __STDC_VERSION__ >= 199901L
         #define WOLF_C99
     #endif
@@ -291,7 +293,8 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XBADFILE   NULL
     #define XFGETS     fgets
 
-    #if !defined(USE_WINDOWS_API) && !defined(NO_WOLFSSL_DIR)
+    #if !defined(USE_WINDOWS_API) && !defined(NO_WOLFSSL_DIR)\
+        && !defined(WOLFSSL_NUCLEUS)
         #include <dirent.h>
         #include <unistd.h>
         #include <sys/stat.h>
@@ -305,7 +308,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
         #define MAX_PATH 256
     #endif
 
-#if !defined(NO_WOLFSSL_DIR)
+#if !defined(NO_WOLFSSL_DIR) && !defined(WOLFSSL_NUCLEUS)
     typedef struct ReadDirCtx {
     #ifdef USE_WINDOWS_API
         WIN32_FIND_DATAA FindFileData;

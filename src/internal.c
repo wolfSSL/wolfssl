@@ -136,6 +136,7 @@ enum processReply {
 
 
 #ifndef WOLFSSL_NO_TLS12
+#if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
 
 /* Server random bytes for TLS v1.3 described downgrade protection mechanism. */
 static const byte tls13Downgrade[7] = {
@@ -143,6 +144,7 @@ static const byte tls13Downgrade[7] = {
 };
 #define TLS13_DOWNGRADE_SZ  sizeof(tls13Downgrade)
 
+#endif /* !NO_WOLFSSL_SERVER || !NO_WOLFSSL_CLIENT */
 
 #ifndef NO_OLD_TLS
 static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
@@ -2735,7 +2737,7 @@ static INLINE void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsType)
 #endif /* !NO_WOLFSSL_SERVER || !NO_CERTS */
 
 #ifndef WOLFSSL_NO_TLS12
-
+#if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
 #if !defined(NO_DH) || defined(HAVE_ECC) || \
                                        (!defined(NO_RSA) && defined(WC_RSA_PSS))
 
@@ -2766,11 +2768,9 @@ static enum wc_HashType HashAlgoToType(int hashAlgo)
 
     return WC_HASH_TYPE_NONE;
 }
-
 #endif /* !NO_DH || HAVE_ECC || (!NO_RSA && WC_RSA_PSS) */
-
-#endif
-
+#endif /* !NO_WOLFSSL_SERVER || !NO_WOLFSSL_CLIENT */
+#endif /* !WOLFSSL_NO_TLS12 */
 
 #ifndef NO_CERTS
 
@@ -2862,6 +2862,7 @@ void FreeX509(WOLFSSL_X509* x509)
 }
 
 
+#if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
 /* Encode the signature algorithm into buffer.
  *
  * hashalgo  The hash algorithm.
@@ -2934,10 +2935,12 @@ static void SetDigest(WOLFSSL* ssl, int hashAlgo)
     } /* switch */
 }
 #endif /* !WOLFSSL_NO_TLS12 && !WOLFSSL_NO_CLIENT_AUTH */
+#endif /* !NO_WOLFSSL_SERVER || !NO_WOLFSSL_CLIENT */
 #endif /* !NO_CERTS */
 
 #ifndef NO_RSA
 #ifndef WOLFSSL_NO_TLS12
+#if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
 static int TypeHash(int hashAlgo)
 {
     switch (hashAlgo) {
@@ -2961,6 +2964,7 @@ static int TypeHash(int hashAlgo)
 
     return 0;
 }
+#endif /* !NO_WOLFSSL_SERVER && !NO_WOLFSSL_CLIENT */
 #endif /* !WOLFSSL_NO_TLS12 */
 
 #if defined(WC_RSA_PSS)
@@ -7078,6 +7082,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 
 #endif /* WOLFSSL_NO_TLS12 */
 
+#if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
     /* cipher requirements */
     enum {
         REQUIRES_RSA,
@@ -7633,6 +7638,8 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
         return 0;
     }
 
+#endif /* !NO_WOLFSSL_SERVER && !NO_WOLFSSL_CLIENT */
+
 
 #ifndef NO_CERTS
 
@@ -7644,6 +7651,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
    return 1 on success */
 int MatchDomainName(const char* pattern, int len, const char* str)
 {
+    int ret = 0;
     char p, s;
 
     if (pattern == NULL || str == NULL || len <= 0)
@@ -7652,7 +7660,7 @@ int MatchDomainName(const char* pattern, int len, const char* str)
     while (len > 0) {
 
         p = (char)XTOLOWER((unsigned char)*pattern++);
-        if (p == 0)
+        if (p == '\0')
             break;
 
         if (p == '*') {
@@ -7676,11 +7684,18 @@ int MatchDomainName(const char* pattern, int len, const char* str)
                 return 0;
         }
 
-        if (len > 0)
+
+        if (len > 0) {
+            str++;
             len--;
+        }
     }
 
-    return *str == '\0';
+    if (*str == '\0' && len == 0) {
+        ret = 1; /* success */
+    }
+
+    return ret;
 }
 
 
@@ -7698,7 +7713,7 @@ int CheckAltNames(DecodedCert* dCert, char* domain)
     while (altName) {
         WOLFSSL_MSG("\tindividual AltName check");
 
-        if (MatchDomainName(altName->name,(int)XSTRLEN(altName->name), domain)){
+        if (MatchDomainName(altName->name, altName->len, domain)){
             match = 1;
             break;
         }
@@ -7735,8 +7750,7 @@ static int CheckForAltNames(DecodedCert* dCert, char* domain, int* checkCN)
     while (altName) {
         WOLFSSL_MSG("\tindividual AltName check");
 
-        if (MatchDomainName(altName->name, (int)XSTRLEN(altName->name),
-                            domain)) {
+        if (MatchDomainName(altName->name, altName->len, domain)) {
             match = 1;
             *checkCN = 0;
             break;
@@ -7946,7 +7960,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         while (cur != NULL) {
             if (cur->type == ASN_RFC822_TYPE) {
                 DNS_entry* dnsEntry;
-                int strLen = (int)XSTRLEN(cur->name);
+                int strLen = cur->len;
 
                 dnsEntry = (DNS_entry*)XMALLOC(sizeof(DNS_entry), x509->heap,
                                         DYNAMIC_TYPE_ALTNAME);
@@ -7963,7 +7977,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
                     XFREE(dnsEntry, x509->heap, DYNAMIC_TYPE_ALTNAME);
                     return MEMORY_E;
                 }
-
+                dnsEntry->len = strLen;
                 XMEMCPY(dnsEntry->name, cur->name, strLen);
                 dnsEntry->name[strLen] = '\0';
 
@@ -11977,6 +11991,9 @@ int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int macSz,
     int  ret = 0;
 
     good = MaskPadding(input, pLen, macSz);
+    /* 4th argument has potential to underflow, ssl->hmac function should
+     * either increment the size by (macSz + padLen + 1) before use or check on
+     * the size to make sure is valid. */
     ret = ssl->hmac(ssl, verify, input, pLen - macSz - padLen - 1, padLen,
                                                                     content, 1);
     good |= MaskMac(input, pLen, ssl->specs.hash_size, verify);
@@ -16267,6 +16284,152 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
 
 #endif /* WOLFSSL_CALLBACKS */
 
+#if !defined(NO_CERTS) && (defined(WOLFSSL_TLS13) || \
+                                                    !defined(NO_WOLFSSL_CLIENT))
+
+/* Decode the private key - RSA, ECC, or Ed25519 - and creates a key object.
+ * The signature type is set as well.
+ * The maximum length of a signature is returned.
+ *
+ * ssl     The SSL/TLS object.
+ * length  The length of a signature.
+ * returns 0 on success, otherwise failure.
+ */
+int DecodePrivateKey(WOLFSSL *ssl, word16* length)
+{
+    int      ret = BAD_FUNC_ARG;
+    int      keySz;
+    word32   idx;
+
+    /* make sure private key exists */
+    if (ssl->buffers.key == NULL || ssl->buffers.key->buffer == NULL) {
+        WOLFSSL_MSG("Private key missing!");
+        ERROR_OUT(NO_PRIVATE_KEY, exit_dpk);
+    }
+
+#ifndef NO_RSA
+    ssl->hsType = DYNAMIC_TYPE_RSA;
+    ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
+    if (ret != 0) {
+        goto exit_dpk;
+    }
+
+    WOLFSSL_MSG("Trying RSA private key");
+
+    /* Set start of data to beginning of buffer. */
+    idx = 0;
+    /* Decode the key assuming it is an RSA private key. */
+    ret = wc_RsaPrivateKeyDecode(ssl->buffers.key->buffer, &idx,
+                (RsaKey*)ssl->hsKey, ssl->buffers.key->length);
+    if (ret == 0) {
+        WOLFSSL_MSG("Using RSA private key");
+
+        /* It worked so check it meets minimum key size requirements. */
+        keySz = wc_RsaEncryptSize((RsaKey*)ssl->hsKey);
+        if (keySz < 0) { /* check if keySz has error case */
+            ERROR_OUT(keySz, exit_dpk);
+        }
+
+        if (keySz < ssl->options.minRsaKeySz) {
+            WOLFSSL_MSG("RSA key size too small");
+            ERROR_OUT(RSA_KEY_SIZE_E, exit_dpk);
+        }
+
+        /* Return the maximum signature length. */
+        *length = (word16)keySz;
+
+        goto exit_dpk;
+    }
+#endif /* !NO_RSA */
+
+#ifdef HAVE_ECC
+#ifndef NO_RSA
+    FreeKey(ssl, ssl->hsType, (void**)&ssl->hsKey);
+#endif /* !NO_RSA */
+
+    ssl->hsType = DYNAMIC_TYPE_ECC;
+    ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
+    if (ret != 0) {
+        goto exit_dpk;
+    }
+
+#ifndef NO_RSA
+    WOLFSSL_MSG("Trying ECC private key, RSA didn't work");
+#else
+    WOLFSSL_MSG("Trying ECC private key");
+#endif
+
+    /* Set start of data to beginning of buffer. */
+    idx = 0;
+    /* Decode the key assuming it is an ECC private key. */
+    ret = wc_EccPrivateKeyDecode(ssl->buffers.key->buffer, &idx,
+                                 (ecc_key*)ssl->hsKey,
+                                 ssl->buffers.key->length);
+    if (ret == 0) {
+        WOLFSSL_MSG("Using ECC private key");
+
+        /* Check it meets the minimum ECC key size requirements. */
+        keySz = wc_ecc_size((ecc_key*)ssl->hsKey);
+        if (keySz < ssl->options.minEccKeySz) {
+            WOLFSSL_MSG("ECC key size too small");
+            ERROR_OUT(ECC_KEY_SIZE_E, exit_dpk);
+        }
+
+        /* Return the maximum signature length. */
+        *length = (word16)wc_ecc_sig_size((ecc_key*)ssl->hsKey);
+
+        goto exit_dpk;
+    }
+#endif
+#ifdef HAVE_ED25519
+    #if !defined(NO_RSA) || defined(HAVE_ECC)
+        FreeKey(ssl, ssl->hsType, (void**)&ssl->hsKey);
+    #endif
+
+    ssl->hsType = DYNAMIC_TYPE_ED25519;
+    ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
+    if (ret != 0) {
+        goto exit_dpk;
+    }
+
+    #ifdef HAVE_ECC
+        WOLFSSL_MSG("Trying ED25519 private key, ECC didn't work");
+    #elif !defined(NO_RSA)
+        WOLFSSL_MSG("Trying ED25519 private key, RSA didn't work");
+    #else
+        WOLFSSL_MSG("Trying ED25519 private key");
+    #endif
+
+    /* Set start of data to beginning of buffer. */
+    idx = 0;
+    /* Decode the key assuming it is an ED25519 private key. */
+    ret = wc_Ed25519PrivateKeyDecode(ssl->buffers.key->buffer, &idx,
+                                     (ed25519_key*)ssl->hsKey,
+                                     ssl->buffers.key->length);
+    if (ret == 0) {
+        WOLFSSL_MSG("Using ED25519 private key");
+
+        /* Check it meets the minimum ECC key size requirements. */
+        if (ED25519_KEY_SIZE < ssl->options.minEccKeySz) {
+            WOLFSSL_MSG("ED25519 key size too small");
+            ERROR_OUT(ECC_KEY_SIZE_E, exit_dpk);
+        }
+
+        /* Return the maximum signature length. */
+        *length = ED25519_SIG_SIZE;
+
+        goto exit_dpk;
+    }
+#endif /* HAVE_ED25519 */
+
+    (void)idx;
+    (void)keySz;
+    (void)length;
+exit_dpk:
+    return ret;
+}
+
+#endif /* WOLFSSL_TLS13 || !NO_WOLFSSL_CLIENT */
 
 /* client only parts */
 #ifndef NO_WOLFSSL_CLIENT
@@ -19633,148 +19796,6 @@ exit_scke:
         return sigSz;
     }
 #endif /* HAVE_PK_CALLBACKS */
-
-/* Decode the private key - RSA, ECC, or Ed25519 - and creates a key object.
- * The signature type is set as well.
- * The maximum length of a signature is returned.
- *
- * ssl     The SSL/TLS object.
- * length  The length of a signature.
- * returns 0 on success, otherwise failure.
- */
-int DecodePrivateKey(WOLFSSL *ssl, word16* length)
-{
-    int      ret = BAD_FUNC_ARG;
-    int      keySz;
-    word32   idx;
-
-    /* make sure private key exists */
-    if (ssl->buffers.key == NULL || ssl->buffers.key->buffer == NULL) {
-        WOLFSSL_MSG("Private key missing!");
-        ERROR_OUT(NO_PRIVATE_KEY, exit_dpk);
-    }
-
-#ifndef NO_RSA
-    ssl->hsType = DYNAMIC_TYPE_RSA;
-    ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
-    if (ret != 0) {
-        goto exit_dpk;
-    }
-
-    WOLFSSL_MSG("Trying RSA private key");
-
-    /* Set start of data to beginning of buffer. */
-    idx = 0;
-    /* Decode the key assuming it is an RSA private key. */
-    ret = wc_RsaPrivateKeyDecode(ssl->buffers.key->buffer, &idx,
-                (RsaKey*)ssl->hsKey, ssl->buffers.key->length);
-    if (ret == 0) {
-        WOLFSSL_MSG("Using RSA private key");
-
-        /* It worked so check it meets minimum key size requirements. */
-        keySz = wc_RsaEncryptSize((RsaKey*)ssl->hsKey);
-        if (keySz < 0) { /* check if keySz has error case */
-            ERROR_OUT(keySz, exit_dpk);
-        }
-
-        if (keySz < ssl->options.minRsaKeySz) {
-            WOLFSSL_MSG("RSA key size too small");
-            ERROR_OUT(RSA_KEY_SIZE_E, exit_dpk);
-        }
-
-        /* Return the maximum signature length. */
-        *length = (word16)keySz;
-
-        goto exit_dpk;
-    }
-#endif /* !NO_RSA */
-
-#ifdef HAVE_ECC
-#ifndef NO_RSA
-    FreeKey(ssl, ssl->hsType, (void**)&ssl->hsKey);
-#endif /* !NO_RSA */
-
-    ssl->hsType = DYNAMIC_TYPE_ECC;
-    ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
-    if (ret != 0) {
-        goto exit_dpk;
-    }
-
-#ifndef NO_RSA
-    WOLFSSL_MSG("Trying ECC private key, RSA didn't work");
-#else
-    WOLFSSL_MSG("Trying ECC private key");
-#endif
-
-    /* Set start of data to beginning of buffer. */
-    idx = 0;
-    /* Decode the key assuming it is an ECC private key. */
-    ret = wc_EccPrivateKeyDecode(ssl->buffers.key->buffer, &idx,
-                                 (ecc_key*)ssl->hsKey,
-                                 ssl->buffers.key->length);
-    if (ret == 0) {
-        WOLFSSL_MSG("Using ECC private key");
-
-        /* Check it meets the minimum ECC key size requirements. */
-        keySz = wc_ecc_size((ecc_key*)ssl->hsKey);
-        if (keySz < ssl->options.minEccKeySz) {
-            WOLFSSL_MSG("ECC key size too small");
-            ERROR_OUT(ECC_KEY_SIZE_E, exit_dpk);
-        }
-
-        /* Return the maximum signature length. */
-        *length = (word16)wc_ecc_sig_size((ecc_key*)ssl->hsKey);
-
-        goto exit_dpk;
-    }
-#endif
-#ifdef HAVE_ED25519
-    #if !defined(NO_RSA) || defined(HAVE_ECC)
-        FreeKey(ssl, ssl->hsType, (void**)&ssl->hsKey);
-    #endif
-
-    ssl->hsType = DYNAMIC_TYPE_ED25519;
-    ret = AllocKey(ssl, ssl->hsType, &ssl->hsKey);
-    if (ret != 0) {
-        goto exit_dpk;
-    }
-
-    #ifdef HAVE_ECC
-        WOLFSSL_MSG("Trying ED25519 private key, ECC didn't work");
-    #elif !defined(NO_RSA)
-        WOLFSSL_MSG("Trying ED25519 private key, RSA didn't work");
-    #else
-        WOLFSSL_MSG("Trying ED25519 private key");
-    #endif
-
-    /* Set start of data to beginning of buffer. */
-    idx = 0;
-    /* Decode the key assuming it is an ED25519 private key. */
-    ret = wc_Ed25519PrivateKeyDecode(ssl->buffers.key->buffer, &idx,
-                                     (ed25519_key*)ssl->hsKey,
-                                     ssl->buffers.key->length);
-    if (ret == 0) {
-        WOLFSSL_MSG("Using ED25519 private key");
-
-        /* Check it meets the minimum ECC key size requirements. */
-        if (ED25519_KEY_SIZE < ssl->options.minEccKeySz) {
-            WOLFSSL_MSG("ED25519 key size too small");
-            ERROR_OUT(ECC_KEY_SIZE_E, exit_dpk);
-        }
-
-        /* Return the maximum signature length. */
-        *length = ED25519_SIG_SIZE;
-
-        goto exit_dpk;
-    }
-#endif /* HAVE_ED25519 */
-
-    (void)idx;
-    (void)keySz;
-    (void)length;
-exit_dpk:
-    return ret;
-}
 
 #ifndef WOLFSSL_NO_TLS12
 

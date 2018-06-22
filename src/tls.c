@@ -852,7 +852,8 @@ int wolfSSL_SetTlsHmacInner(WOLFSSL* ssl, byte* inner, word32 sz, int content,
 }
 
 
-#if !defined(WOLFSSL_NO_HASH_RAW) && !defined(HAVE_FIPS)
+#if !defined(WOLFSSL_NO_HASH_RAW) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
 
 /* Update the hash in the HMAC.
  *
@@ -1163,7 +1164,8 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
 
 #endif
 
-#if defined(WOLFSSL_NO_HASH_RAW) || defined(HAVE_FIPS) || defined(HAVE_BLAKE2)
+#if defined(WOLFSSL_NO_HASH_RAW) || defined(HAVE_FIPS) || \
+    defined(HAVE_SELFTEST) || defined(HAVE_BLAKE2)
 
 /* Calculate the HMAC of the header + message data.
  * Constant time implementation using normal hashing operations.
@@ -1298,8 +1300,16 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
         return BAD_FUNC_ARG;
 
 #ifdef HAVE_FUZZER
-    if (ssl->fuzzerCb)
-        ssl->fuzzerCb(ssl, in, sz, FUZZ_HMAC, ssl->fuzzerCtx);
+    /* Fuzz "in" buffer with sz to be used in HMAC algorithm */
+    if (ssl->fuzzerCb) {
+        if (verify && padSz >= 0) {
+            ssl->fuzzerCb(ssl, in, sz + ssl->specs.hash_size + padSz + 1,
+                FUZZ_HMAC, ssl->fuzzerCtx);
+        }
+        else {
+            ssl->fuzzerCb(ssl, in, sz, FUZZ_HMAC, ssl->fuzzerCtx);
+        }
+    }
 #endif
 
     wolfSSL_SetTlsHmacInner(ssl, myInner, sz, content, verify);
@@ -1314,7 +1324,8 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
     if (ret == 0) {
         /* Constant time verification required. */
         if (verify && padSz >= 0) {
-#if !defined(WOLFSSL_NO_HASH_RAW) && !defined(HAVE_FIPS)
+#if !defined(WOLFSSL_NO_HASH_RAW) && !defined(HAVE_FIPS) && \
+    !defined(HAVE_SELFTEST)
     #ifdef HAVE_BLAKE2
             if (wolfSSL_GetHmacType(ssl) == WC_HASH_TYPE_BLAKE2B) {
                 ret = Hmac_UpdateFinal(&hmac, digest, in, sz +
@@ -3484,7 +3495,7 @@ static int TLSX_PointFormat_Append(PointFormat* list, byte format, void* heap)
     return ret;
 }
 
-#ifndef NO_WOLFSSL_CLIENT
+#if defined(WOLFSSL_TLS13) || !defined(NO_WOLFSSL_CLIENT)
 
 static void TLSX_SupportedCurve_ValidateRequest(WOLFSSL* ssl, byte* semaphore)
 {
@@ -3515,6 +3526,7 @@ static void TLSX_PointFormat_ValidateRequest(WOLFSSL* ssl, byte* semaphore)
 }
 
 #endif
+
 #ifndef NO_WOLFSSL_SERVER
 
 static void TLSX_PointFormat_ValidateResponse(WOLFSSL* ssl, byte* semaphore)
@@ -3706,6 +3718,9 @@ int TLSX_SupportedCurve_CheckPriority(WOLFSSL* ssl)
     return 0;
 }
 
+#endif
+
+#if defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)
 /* Return the preferred group.
  *
  * ssl             SSL/TLS object.
@@ -4351,7 +4366,7 @@ int TLSX_AddEmptyRenegotiationInfo(TLSX** extensions, void* heap)
 
 #ifdef HAVE_SESSION_TICKET
 
-#ifndef NO_WOLFSSL_CLIENT
+#if defined(WOLFSSL_TLS13) || !defined(NO_WOLFSSL_CLIENT)
 static void TLSX_SessionTicket_ValidateRequest(WOLFSSL* ssl)
 {
     TLSX*          extension = TLSX_Find(ssl->extensions, TLSX_SESSION_TICKET);
@@ -4366,7 +4381,7 @@ static void TLSX_SessionTicket_ValidateRequest(WOLFSSL* ssl)
         }
     }
 }
-#endif /* NO_WOLFSSL_CLIENT */
+#endif /* WLFSSL_TLS13 || !NO_WOLFSSL_CLIENT */
 
 
 static word16 TLSX_SessionTicket_GetSize(SessionTicket* ticket, int isRequest)
@@ -9115,7 +9130,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 }
 
 
-#ifndef NO_WOLFSSL_CLIENT
+#if defined(WOLFSSL_TLS13) || !defined(NO_WOLFSSL_CLIENT)
 
 /** Tells the buffered size of extensions to be sent into the client hello. */
 int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word16* pLength)
@@ -9320,7 +9335,7 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word16* pOffset)
     return ret;
 }
 
-#endif /* NO_WOLFSSL_CLIENT */
+#endif /* WOLFSSL_TLS13 || !NO_WOLFSSL_CLIENT */
 
 #ifndef NO_WOLFSSL_SERVER
 
