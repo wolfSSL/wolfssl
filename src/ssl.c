@@ -30955,14 +30955,6 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
         wolfSSL_OBJ_nid2obj_ex(name->cnEntry.nid, &name->cnEntry.object);
         return &name->cnEntry;
-
-        /* additionall cases to check for go here */
-
-        WOLFSSL_MSG("Entry not found or implemented");
-        (void)name;
-        (void)loc;
-
-        return NULL;
     }
 
     #ifndef NO_WOLFSSL_STUB
@@ -34242,7 +34234,7 @@ int wolfSSL_i2c_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER *a, unsigned char **pp)
 }
 #endif /* !NO_ASN */
 
-#ifndef NO_CERT
+#ifndef NO_CERTS
 int wolfSSL_X509_CA_num(WOLFSSL_X509_STORE* store)
 {
     int i = 0;
@@ -34272,7 +34264,7 @@ int wolfSSL_X509_CA_num(WOLFSSL_X509_STORE* store)
 
     return cnt_ret;
 }
-#endif /* !NO_CERT */
+#endif /* !NO_CERTS */
 
 long wolfSSL_X509_get_version(const WOLFSSL_X509 *x509){
     int version = 0;

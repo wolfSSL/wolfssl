@@ -3099,6 +3099,7 @@ static void test_wolfSSL_X509_NAME_get_entry(void)
         ne = X509_NAME_get_entry(name, idx);
         AssertNotNull(ne);
         AssertNotNull(object = X509_NAME_ENTRY_get_object(ne));
+        wolfSSL_FreeX509(x509);
     }
 
     printf(resultFmt, passed);
@@ -3284,7 +3285,41 @@ static void test_wolfSSL_PKCS12(void)
     X509_free(cert);
     BIO_free(bio);
     PKCS12_free(pkcs12);
+    sk_X509_free(ca); /* TEST d2i_PKCS12_fp */
+
+    /* test order of parsing */
+    f = fopen(file, "rb");
+
+    AssertNotNull(pkcs12 = d2i_PKCS12_fp(f, NULL));
+    fclose(f);
+
+    /* check verify MAC fail case */
+    ret = PKCS12_parse(pkcs12, "bad", &pkey, &cert, NULL);
+    AssertIntEQ(ret, 0);
+    AssertNull(pkey);
+    AssertNull(cert);
+
+    /* check parse with no extra certs kept */
+    ret = PKCS12_parse(pkcs12, "wolfSSL test", &pkey, &cert, NULL);
+    AssertIntEQ(ret, 1);
+    AssertNotNull(pkey);
+    AssertNotNull(cert);
+
+    wolfSSL_EVP_PKEY_free(pkey);
+    wolfSSL_X509_free(cert);
+
+    /* check parse with extra certs kept */
+    ret = PKCS12_parse(pkcs12, "wolfSSL test", &pkey, &cert, &ca);
+    AssertIntEQ(ret, 1);
+    AssertNotNull(pkey);
+    AssertNotNull(cert);
+    AssertNotNull(ca);
+
+    wolfSSL_EVP_PKEY_free(pkey);
+    wolfSSL_X509_free(cert);
     sk_X509_free(ca);
+
+    PKCS12_free(pkcs12);
 #endif /* HAVE_ECC */
 
     (void)x509;
@@ -19087,12 +19122,14 @@ static void test_wolfSSL_RSA_DER(void)
 
     RSA *rsa;
     int i;
+    const unsigned char *buff;
 
-    struct
+    struct tbl_s
     {
         const unsigned char *der;
         int sz;
     } tbl[] = {
+
 #ifdef USE_CERT_BUFFERS_1024
         {client_key_der_1024, sizeof_client_key_der_1024},
         {server_key_der_1024, sizeof_server_key_der_1024},
@@ -19100,6 +19137,17 @@ static void test_wolfSSL_RSA_DER(void)
 #ifdef USE_CERT_BUFFERS_2048
         {client_key_der_2048, sizeof_client_key_der_2048},
         {server_key_der_2048, sizeof_server_key_der_2048},
+#endif
+        {NULL, 0}
+    };
+
+    /* Public Key DER */
+    struct tbl_s pub[] = {
+#ifdef USE_CERT_BUFFERS_1024
+        {client_keypub_der_1024, sizeof_client_keypub_der_1024},
+#endif
+#ifdef USE_CERT_BUFFERS_2048
+        {client_keypub_der_2048, sizeof_client_keypub_der_2048},
 #endif
         {NULL, 0}
     };
@@ -19118,6 +19166,19 @@ static void test_wolfSSL_RSA_DER(void)
         AssertNotNull(rsa);
         RSA_free(rsa);
     }
+
+    for (i = 0; pub[i].der != NULL; i++)
+    {
+        AssertNotNull(d2i_RSAPublicKey(&rsa, &pub[i].der, pub[i].sz));
+        AssertNotNull(rsa);
+        buff = NULL;
+        AssertIntEQ(i2d_RSAPublicKey(rsa, &buff), pub[i].sz);
+        AssertNotNull(buff);
+        AssertIntEQ(0, memcmp((void *)buff, (void *)pub[i].der, pub[i].sz));
+        free((void *)buff);
+        RSA_free(rsa);
+    }
+
     printf(resultFmt, passed);
 
 #endif
@@ -19753,7 +19814,8 @@ static void test_wolfSSL_ASN1_TIME_to_generalizedtime(void){
 }
 
 static void test_wolfSSL_X509_CA_num(void){
-#if defined(OPENSSL_EXTRA) && !defined(NO_CERT) && !defined(NO_FILESYSTEM)
+#if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_FILESYSTEM) && \
+    defined(HAVE_ECC) && !defined(NO_RSA)
     WOLFSSL_X509_STORE *store;
     WOLFSSL_X509 *x509_1, *x509_2;
     int ca_num = 0;
@@ -19797,7 +19859,7 @@ static void test_wolfSSL_X509_check_ca(void){
 }
 
 static void test_wolfSSL_X509_get_version(void){
-#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM)
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
     WOLFSSL_X509 *x509;
 
     printf(testingFmt, "wolfSSL_X509_get_version()");
@@ -21048,7 +21110,7 @@ static void test_wolfSSL_PEM_read_X509(void)
 
 static void test_wolfSSL_X509_NAME_ENTRY_get_object()
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM)
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
     X509 *x509 = NULL;
     X509_NAME* name = NULL;
     int idx = 0; 
@@ -21206,6 +21268,85 @@ static int test_ForceZero(void)
     return 0;
 }
 
+static void test_wolfSSL_X509_print()
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && \
+   !defined(NO_RSA) && !defined(HAVE_FAST_RSA)
+    X509 *x509;
+    BIO *bio;
+
+    printf(testingFmt, "wolfSSL_X509_print");
+    x509 = wolfSSL_X509_load_certificate_file(svrCertFile, WOLFSSL_FILETYPE_PEM);
+    AssertNotNull(x509);
+
+    AssertNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
+    AssertIntEQ(X509_print(bio, x509),SSL_SUCCESS);
+
+    BIO_free(bio);
+    X509_free(x509);
+    printf(resultFmt, passed);
+#endif
+}
+
+static void test_wolfSSL_RSA_verify()
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(HAVE_FAST_RSA) && \
+    !defined(NO_FILESYSTEM) && defined(HAVE_CRL)
+    FILE *fp;
+    RSA *pKey, *pubKey;
+    X509 *cert;
+    const char *text = "Hello wolfSSL !";
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    unsigned char signature[2048/8];
+    unsigned int signatureLength;
+    byte *buf;
+    BIO *bio;
+    SHA256_CTX c;
+    EVP_PKEY *evpPkey, *evpPubkey;
+    size_t sz;
+
+    printf(testingFmt, "wolfSSL_RSA_verify");
+
+    /* generate hash */
+    SHA256_Init(&c);
+    SHA256_Update(&c, text, strlen(text));
+    SHA256_Final(hash, &c);
+
+    /* read privete key file */ 
+    fp = XFOPEN(svrKeyFile, "r");
+    XFSEEK(fp, 0, XSEEK_END);
+    sz = XFTELL(fp);
+    XREWIND(fp);
+    AssertNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
+    AssertIntEQ(XFREAD(buf, 1, sz, fp), sz);
+    XFCLOSE(fp); 
+
+    /* read private key and sign hash data */
+    AssertNotNull(bio = BIO_new_mem_buf(buf, (int)sz));
+    AssertNotNull(evpPkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL));
+    AssertNotNull(pKey = EVP_PKEY_get1_RSA(evpPkey));
+    AssertIntEQ(RSA_sign(NID_sha256, hash, SHA256_DIGEST_LENGTH, 
+                            signature, &signatureLength, pKey), SSL_SUCCESS);
+
+    /* read public key and verify signed data */
+    fp = XFOPEN(svrCertFile,"r");
+    cert = PEM_read_X509(fp, 0, 0, 0 );
+    XFCLOSE(fp);
+    evpPubkey = X509_get_pubkey(cert);
+    pubKey = EVP_PKEY_get1_RSA(evpPubkey);
+    AssertIntEQ(RSA_verify(NID_sha256, hash, SHA256_DIGEST_LENGTH, signature, 
+                                signatureLength, pubKey), SSL_SUCCESS);
+
+    RSA_free(pKey);
+    EVP_PKEY_free(evpPkey);
+    RSA_free(pubKey);
+    EVP_PKEY_free(evpPubkey);
+    X509_free(cert);
+    BIO_free(bio);
+    XFREE(buf, NULL, DYNAMIC_TYPE_FILE);
+    printf(resultFmt, passed);
+#endif
+}
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -21353,6 +21494,8 @@ void ApiTest(void)
 
     test_wolfSSL_X509_CA_num();
     test_wolfSSL_X509_get_version();
+    test_wolfSSL_X509_print();
+    test_wolfSSL_RSA_verify();
     /* test the no op functions for compatibility */
     test_no_op_functions();
 
@@ -21509,7 +21652,7 @@ void ApiTest(void)
     AssertIntEQ(test_wc_SignatureGetSize_rsa(), 0);
 
 #ifdef OPENSSL_EXTRA
-    /*wolfSSS_EVP_get_cipherbynid test*/
+    /*wolfSSL_EVP_get_cipherbynid test*/
     test_wolfSSL_EVP_get_cipherbynid();
     test_wolfSSL_EC();
     test_wolfSSL_ECDSA_SIG();
