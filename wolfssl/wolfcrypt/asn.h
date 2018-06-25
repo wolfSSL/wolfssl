@@ -736,6 +736,9 @@ struct Signer {
         byte    subjectKeyIdHash[SIGNER_DIGEST_SIZE];
                                      /* sha hash of names in certificate */
     #endif
+#ifdef WOLFSSL_SIGNER_DER_CERT
+    DerBuffer* derCert;
+#endif
     Signer* next;
 };
 
@@ -928,6 +931,13 @@ enum Ocsp_Sums {
     OCSP_NONCE_OID = 118
 };
 
+#ifdef OPENSSL_EXTRA
+enum Ocsp_Verify_Error {
+    OCSP_VERIFY_ERROR_NONE = 0,
+    OCSP_BAD_ISSUER = 1
+};
+#endif
+
 
 typedef struct OcspRequest  OcspRequest;
 typedef struct OcspResponse OcspResponse;
@@ -981,6 +991,10 @@ struct OcspResponse {
 
     byte*   source;          /* pointer to source buffer, not owned */
     word32  maxIdx;          /* max offset based on init size */
+
+#ifdef OPENSSL_EXTRA
+    int     verifyError;
+#endif
 };
 
 

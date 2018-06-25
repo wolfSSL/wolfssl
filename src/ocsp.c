@@ -604,6 +604,11 @@ int wolfSSL_OCSP_basic_verify(WOLFSSL_OCSP_BASICRESP *bs,
     if (flags & OCSP_NOVERIFY)
         return WOLFSSL_SUCCESS;
 
+#ifdef OPENSSL_EXTRA
+    if (bs->verifyError != OCSP_VERIFY_ERROR_NONE)
+        return WOLFSSL_FAILURE;
+#endif
+
     InitDecodedCert(&cert, bs->cert, bs->certSz, NULL);
     if (ParseCertRelative(&cert, CERT_TYPE, VERIFY, st->cm) < 0)
         ret = WOLFSSL_FAILURE;

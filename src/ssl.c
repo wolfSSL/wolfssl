@@ -3972,7 +3972,7 @@ int AddTrustedPeer(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int verify)
 int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
 {
     int         ret;
-    Signer*     signer = 0;
+    Signer*     signer = NULL;
     word32      row;
     byte*       subjectHash;
 #ifdef WOLFSSL_SMALL_STACK
@@ -4060,56 +4060,62 @@ int AddCA(WOLFSSL_CERT_MANAGER* cm, DerBuffer** pDer, int type, int verify)
         signer = MakeSigner(cm->heap);
         if (!signer)
             ret = MEMORY_ERROR;
+    }
+    if (ret == 0 && signer != NULL) {
+    #ifdef WOLFSSL_SIGNER_DER_CERT
+        ret = AllocDer(&signer->derCert, der->length, der->type, NULL);
+    }
+    if (ret == 0 && signer != NULL) {
+        XMEMCPY(signer->derCert->buffer, der->buffer, der->length);
+    #endif
+        signer->keyOID         = cert->keyOID;
+        if (cert->pubKeyStored) {
+            signer->publicKey      = cert->publicKey;
+            signer->pubKeySize     = cert->pubKeySize;
+        }
+        if (cert->subjectCNStored) {
+            signer->nameLen        = cert->subjectCNLen;
+            signer->name           = cert->subjectCN;
+        }
+        signer->pathLength     = cert->pathLength;
+        signer->pathLengthSet  = cert->pathLengthSet;
+    #ifndef IGNORE_NAME_CONSTRAINTS
+        signer->permittedNames = cert->permittedNames;
+        signer->excludedNames  = cert->excludedNames;
+    #endif
+    #ifndef NO_SKID
+        XMEMCPY(signer->subjectKeyIdHash, cert->extSubjKeyId,
+                SIGNER_DIGEST_SIZE);
+    #endif
+        XMEMCPY(signer->subjectNameHash, cert->subjectHash,
+                SIGNER_DIGEST_SIZE);
+        signer->keyUsage = cert->extKeyUsageSet ? cert->extKeyUsage
+                                                : 0xFFFF;
+        signer->next    = NULL; /* If Key Usage not set, all uses valid. */
+        cert->publicKey = 0;    /* in case lock fails don't free here.   */
+        cert->subjectCN = 0;
+    #ifndef IGNORE_NAME_CONSTRAINTS
+        cert->permittedNames = NULL;
+        cert->excludedNames = NULL;
+    #endif
+
+    #ifndef NO_SKID
+        row = HashSigner(signer->subjectKeyIdHash);
+    #else
+        row = HashSigner(signer->subjectNameHash);
+    #endif
+
+        if (wc_LockMutex(&cm->caLock) == 0) {
+            signer->next = cm->caTable[row];
+            cm->caTable[row] = signer;   /* takes ownership */
+            wc_UnLockMutex(&cm->caLock);
+            if (cm->caCacheCallback)
+                cm->caCacheCallback(der->buffer, (int)der->length, type);
+        }
         else {
-            signer->keyOID         = cert->keyOID;
-            if (cert->pubKeyStored) {
-                signer->publicKey      = cert->publicKey;
-                signer->pubKeySize     = cert->pubKeySize;
-            }
-            if (cert->subjectCNStored) {
-                signer->nameLen        = cert->subjectCNLen;
-                signer->name           = cert->subjectCN;
-            }
-            signer->pathLength     = cert->pathLength;
-            signer->pathLengthSet  = cert->pathLengthSet;
-        #ifndef IGNORE_NAME_CONSTRAINTS
-            signer->permittedNames = cert->permittedNames;
-            signer->excludedNames  = cert->excludedNames;
-        #endif
-        #ifndef NO_SKID
-            XMEMCPY(signer->subjectKeyIdHash, cert->extSubjKeyId,
-                    SIGNER_DIGEST_SIZE);
-        #endif
-            XMEMCPY(signer->subjectNameHash, cert->subjectHash,
-                    SIGNER_DIGEST_SIZE);
-            signer->keyUsage = cert->extKeyUsageSet ? cert->extKeyUsage
-                                                    : 0xFFFF;
-            signer->next    = NULL; /* If Key Usage not set, all uses valid. */
-            cert->publicKey = 0;    /* in case lock fails don't free here.   */
-            cert->subjectCN = 0;
-        #ifndef IGNORE_NAME_CONSTRAINTS
-            cert->permittedNames = NULL;
-            cert->excludedNames = NULL;
-        #endif
-
-        #ifndef NO_SKID
-            row = HashSigner(signer->subjectKeyIdHash);
-        #else
-            row = HashSigner(signer->subjectNameHash);
-        #endif
-
-            if (wc_LockMutex(&cm->caLock) == 0) {
-                signer->next = cm->caTable[row];
-                cm->caTable[row] = signer;   /* takes ownership */
-                wc_UnLockMutex(&cm->caLock);
-                if (cm->caCacheCallback)
-                    cm->caCacheCallback(der->buffer, (int)der->length, type);
-            }
-            else {
-                WOLFSSL_MSG("\tCA Mutex Lock failed");
-                ret = BAD_MUTEX_E;
-                FreeSigner(signer, cm->heap);
-            }
+            WOLFSSL_MSG("\tCA Mutex Lock failed");
+            ret = BAD_MUTEX_E;
+            FreeSigner(signer, cm->heap);
         }
     }
 
@@ -32352,7 +32358,18 @@ int wolfSSL_X509_STORE_CTX_get1_issuer(WOLFSSL_X509 **issuer,
 
     /* Create an empty certificate as CA doesn't have a certificate. */
     XMEMSET(*issuer, 0, sizeof(WOLFSSL_X509));
-    /* TODO: store the full certificate and dup when required. */
+    (*issuer)->dynamicMemory = 1;
+#ifdef WOLFSSL_SIGNER_DER_CERT
+    if (AllocDer(&(*issuer)->derCert, ca->derCert->length, ca->derCert->type,
+                                                                   NULL) == 0) {
+        XMEMCPY((*issuer)->derCert->buffer, ca->derCert->buffer,
+                                                           ca->derCert->length);
+    }
+    else {
+        XFREE(*issuer, 0, DYNAMIC_TYPE_OPENSSL);
+        return WOLFSSL_FAILURE;
+    }
+#endif
 
     /* Result is ignored when passed to wolfSSL_OCSP_cert_to_id(). */
 
@@ -32373,17 +32390,23 @@ void wolfSSL_X509_email_free(WOLF_STACK_OF(WOLFSSL_STRING) *sk)
 
 WOLF_STACK_OF(WOLFSSL_STRING) *wolfSSL_X509_get1_ocsp(WOLFSSL_X509 *x)
 {
-    WOLFSSL_STACK *list = NULL;
+    WOLFSSL_STACK* list = NULL;
+    char*          url;
 
     if (x->authInfoSz == 0)
         return NULL;
 
-    list = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK), NULL,
-                                   DYNAMIC_TYPE_OPENSSL);
+    list = (WOLFSSL_STACK*)XMALLOC(sizeof(WOLFSSL_STACK) + x->authInfoSz + 1,
+                                   NULL, DYNAMIC_TYPE_OPENSSL);
     if (list == NULL)
         return NULL;
 
-    list->data.string = (char*)x->authInfo;
+    url = (char*)list;
+    url += sizeof(WOLFSSL_STACK);
+    XMEMCPY(url, x->authInfo, x->authInfoSz);
+    url[x->authInfoSz] = '\0';
+
+    list->data.string = url;
     list->next = NULL;
 
     return list;
