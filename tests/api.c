@@ -8650,19 +8650,28 @@ static int test_wc_AesGcmEncryptDecrypt (void)
                     sizeof(vector), iv, sizeof(iv)/sizeof(byte),
                     resultT, sizeof(resultT) - 5, a, sizeof(a));
         }
+
         if (gcmE == BAD_FUNC_ARG) {
-            gcmE = wc_AesGcmEncrypt(&aes, enc, vector, sizeof(vector), longIV,
-                            sizeof(longIV)/sizeof(byte), resultT, sizeof(resultT),
-                            a, sizeof(a));
+            gcmE = 0;
+        } else {
+            gcmE = WOLFSSL_FATAL_ERROR;
         }
-        #ifdef HAVE_FIPS
-            if (gcmE == BAD_FUNC_ARG) {
-                gcmE = 0;
-            } else {
-                gcmE = WOLFSSL_FATAL_ERROR;
-            }
-        #endif
-    } /* END wc_AesGcmEncrypt */
+    }
+
+    /* This case is now considered good. Long IVs are now allowed.
+     * Except for the original FIPS release, it still has an upper
+     * bound on the IV length. */
+#if !defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
+    if (gcmE == 0) {
+        gcmE = wc_AesGcmEncrypt(&aes, enc, vector, sizeof(vector), longIV,
+                        sizeof(longIV)/sizeof(byte), resultT, sizeof(resultT),
+                        a, sizeof(a));
+    }
+#else
+    (void)longIV;
+#endif /* Old FIPS */
+    /* END wc_AesGcmEncrypt */
 
     printf(resultFmt, gcmE == 0 ? passed : failed);
     if (gcmE != 0) {
@@ -10541,8 +10550,6 @@ static int test_wc_RsaEncryptSize (void)
 #if !defined(NO_RSA) && defined(WOLFSSL_KEY_GEN)
     RsaKey  key;
     WC_RNG  rng;
-    int     enc128 = 128;
-    int     enc512 = 512;
 
     ret = wc_InitRsaKey(&key, NULL);
 
@@ -10556,7 +10563,7 @@ static int test_wc_RsaEncryptSize (void)
         if (ret == 0) {
             ret = wc_RsaEncryptSize(&key);
         }
-        if (ret == enc128) {
+        if (ret == 128) {
             ret = 0;
         } else {
             ret = WOLFSSL_FATAL_ERROR;
@@ -10569,11 +10576,11 @@ static int test_wc_RsaEncryptSize (void)
     }
 
     if (ret == 0) {
-        ret = MAKE_RSA_KEY(&key, FOURK_BUF, WC_RSA_EXPONENT, &rng);
+        ret = MAKE_RSA_KEY(&key, 2048, WC_RSA_EXPONENT, &rng);
         if (ret == 0) {
             ret = wc_RsaEncryptSize(&key);
         }
-        if (ret == enc512) {
+        if (ret == 256) {
             ret = 0;
         } else {
             ret = WOLFSSL_FATAL_ERROR;
@@ -14048,7 +14055,8 @@ static int test_wc_ecc_mulmod (void)
 {
     int         ret = 0;
 
-#if defined(HAVE_ECC) && !defined(WOLFSSL_ATECC508A)
+#if defined(HAVE_ECC) && \
+    !(defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_VALIDATE_ECC_IMPORT))
     ecc_key     key1, key2, key3;
     WC_RNG      rng;
 

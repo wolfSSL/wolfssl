@@ -24660,8 +24660,11 @@ int wolfSSL_HMAC_CTX_copy(WOLFSSL_HMAC_CTX* des, WOLFSSL_HMAC_CTX* src)
         return WOLFSSL_SUCCESS;
 }
 
-#ifdef HAVE_FIPS
-int _InitHmac(Hmac* hmac, int type, void* heap)
+
+#if defined(HAVE_FIPS) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
+
+static int _HMAC_Init(Hmac* hmac, int type, void* heap)
 {
     int ret = 0;
 
@@ -24707,6 +24710,21 @@ int _InitHmac(Hmac* hmac, int type, void* heap)
             break;
     #endif /* HAVE_BLAKE2 */
 
+    #ifdef WOLFSSL_SHA3
+        case WC_SHA3_224:
+            ret = wc_InitSha3_224(&hmac->hash.sha3, heap, INVALID_DEVID);
+            break;
+        case WC_SHA3_256:
+            ret = wc_InitSha3_256(&hmac->hash.sha3, heap, INVALID_DEVID);
+            break;
+        case WC_SHA3_384:
+            ret = wc_InitSha3_384(&hmac->hash.sha3, heap, INVALID_DEVID);
+            break;
+        case WC_SHA3_512:
+            ret = wc_InitSha3_512(&hmac->hash.sha3, heap, INVALID_DEVID);
+            break;
+    #endif
+
         default:
             ret = BAD_FUNC_ARG;
             break;
@@ -24716,7 +24734,10 @@ int _InitHmac(Hmac* hmac, int type, void* heap)
 
     return ret;
 }
-#endif /* HAVE_FIPS */
+
+#else
+    #define _HMAC_Init _InitHmac
+#endif
 
 
 int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
@@ -24814,7 +24835,7 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
                                        WC_HMAC_BLOCK_SIZE);
             XMEMCPY((byte *)&ctx->hmac.opad, (byte *)&ctx->save_opad,
                                        WC_HMAC_BLOCK_SIZE);
-            if ((hmac_error = _InitHmac(&ctx->hmac, ctx->hmac.macType, heap))
+            if ((hmac_error = _HMAC_Init(&ctx->hmac, ctx->hmac.macType, heap))
                     !=0) {
                return hmac_error;
             }

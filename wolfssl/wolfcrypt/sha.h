@@ -31,7 +31,13 @@
 
 #ifndef NO_SHA
 
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && \
+    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+    #include <wolfssl/wolfcrypt/fips.h>
+#endif /* HAVE_FIPS_VERSION >= 2 */
+
+#if defined(HAVE_FIPS) && \
+	(!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
 #define wc_Sha             Sha
 #define WC_SHA             SHA
 #define WC_SHA_BLOCK_SIZE  SHA_BLOCK_SIZE
@@ -50,7 +56,9 @@
     extern "C" {
 #endif
 
-#ifndef HAVE_FIPS /* avoid redefining structs */
+/* avoid redefinition of structs */
+#if !defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 
 #ifdef WOLFSSL_MICROCHIP_PIC32MZ
     #include <wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h>

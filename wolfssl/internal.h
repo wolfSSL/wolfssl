@@ -1179,7 +1179,8 @@ enum Misc {
     SESSION_FLUSH_COUNT = 256, /* Flush session cache unless user turns off */
     TLS_MAX_PAD_SZ      = 255, /* Max padding in TLS */
 
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
     MAX_SYM_KEY_SIZE    = AES_256_KEY_SIZE,
 #else
     MAX_SYM_KEY_SIZE    = WC_MAX_SYM_KEY_SIZE,

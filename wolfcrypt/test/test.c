@@ -3644,10 +3644,10 @@ int hmac_sha3_test(void)
 
     const char* key[4] =
     {
+        "Jefe",
+
         "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
         "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b",
-
-        "Jefe",
 
         "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa"
         "\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa\xaa",
@@ -3666,9 +3666,9 @@ int hmac_sha3_test(void)
 
     const char* input[4] =
     {
-        "Hi There",
-
         "what do ya want for nothing?",
+
+        "Hi There",
 
         "\xdd\xdd\xdd\xdd\xdd\xdd\xdd\xdd\xdd\xdd"
         "\xdd\xdd\xdd\xdd\xdd\xdd\xdd\xdd\xdd\xdd"
@@ -3692,23 +3692,6 @@ int hmac_sha3_test(void)
 
     const char* output[16] =
     {
-        /* key = 0b..., input = Hi There */
-            /* HMAC-SHA3-224 */
-            "\x3b\x16\x54\x6b\xbc\x7b\xe2\x70\x6a\x03\x1d\xca\xfd\x56\x37\x3d"
-            "\x98\x84\x36\x76\x41\xd8\xc5\x9a\xf3\xc8\x60\xf7",
-            /* HMAC-SHA3-256 */
-            "\xba\x85\x19\x23\x10\xdf\xfa\x96\xe2\xa3\xa4\x0e\x69\x77\x43\x51"
-            "\x14\x0b\xb7\x18\x5e\x12\x02\xcd\xcc\x91\x75\x89\xf9\x5e\x16\xbb",
-            /* HMAC-SHA3-384 */
-            "\x68\xd2\xdc\xf7\xfd\x4d\xdd\x0a\x22\x40\xc8\xa4\x37\x30\x5f\x61"
-            "\xfb\x73\x34\xcf\xb5\xd0\x22\x6e\x1b\xc2\x7d\xc1\x0a\x2e\x72\x3a"
-            "\x20\xd3\x70\xb4\x77\x43\x13\x0e\x26\xac\x7e\x3d\x53\x28\x86\xbd",
-            /* HMAC-SHA3-512 */
-            "\xeb\x3f\xbd\x4b\x2e\xaa\xb8\xf5\xc5\x04\xbd\x3a\x41\x46\x5a\xac"
-            "\xec\x15\x77\x0a\x7c\xab\xac\x53\x1e\x48\x2f\x86\x0b\x5e\xc7\xba"
-            "\x47\xcc\xb2\xc6\xf2\xaf\xce\x8f\x88\xd2\x2b\x6d\xc6\x13\x80\xf2"
-            "\x3a\x66\x8f\xd3\x88\x8b\xb8\x05\x37\xc0\xa0\xb8\x64\x07\x68\x9e",
-
         /* key = jefe, input = what do ya want for nothing? */
             /* HMAC-SHA3-224 */
             "\x7f\xdb\x8d\xd8\x8b\xd2\xf6\x0d\x1b\x79\x86\x34\xad\x38\x68\x11"
@@ -3725,6 +3708,23 @@ int hmac_sha3_test(void)
             "\x84\x53\x7c\xdb\x89\xaf\xb3\xbf\x56\x65\xe4\xc5\xe7\x09\x35\x0b"
             "\x28\x7b\xae\xc9\x21\xfd\x7c\xa0\xee\x7a\x0c\x31\xd0\x22\xa9\x5e"
             "\x1f\xc9\x2b\xa9\xd7\x7d\xf8\x83\x96\x02\x75\xbe\xb4\xe6\x20\x24",
+
+        /* key = 0b..., input = Hi There */
+            /* HMAC-SHA3-224 */
+            "\x3b\x16\x54\x6b\xbc\x7b\xe2\x70\x6a\x03\x1d\xca\xfd\x56\x37\x3d"
+            "\x98\x84\x36\x76\x41\xd8\xc5\x9a\xf3\xc8\x60\xf7",
+            /* HMAC-SHA3-256 */
+            "\xba\x85\x19\x23\x10\xdf\xfa\x96\xe2\xa3\xa4\x0e\x69\x77\x43\x51"
+            "\x14\x0b\xb7\x18\x5e\x12\x02\xcd\xcc\x91\x75\x89\xf9\x5e\x16\xbb",
+            /* HMAC-SHA3-384 */
+            "\x68\xd2\xdc\xf7\xfd\x4d\xdd\x0a\x22\x40\xc8\xa4\x37\x30\x5f\x61"
+            "\xfb\x73\x34\xcf\xb5\xd0\x22\x6e\x1b\xc2\x7d\xc1\x0a\x2e\x72\x3a"
+            "\x20\xd3\x70\xb4\x77\x43\x13\x0e\x26\xac\x7e\x3d\x53\x28\x86\xbd",
+            /* HMAC-SHA3-512 */
+            "\xeb\x3f\xbd\x4b\x2e\xaa\xb8\xf5\xc5\x04\xbd\x3a\x41\x46\x5a\xac"
+            "\xec\x15\x77\x0a\x7c\xab\xac\x53\x1e\x48\x2f\x86\x0b\x5e\xc7\xba"
+            "\x47\xcc\xb2\xc6\xf2\xaf\xce\x8f\x88\xd2\x2b\x6d\xc6\x13\x80\xf2"
+            "\x3a\x66\x8f\xd3\x88\x8b\xb8\x05\x37\xc0\xa0\xb8\x64\x07\x68\x9e",
 
         /* key = aa..., output = dd... */
             /* HMAC-SHA3-224 */
@@ -3762,11 +3762,16 @@ int hmac_sha3_test(void)
 
     };
 
-    int i, iMax = sizeof(input) / sizeof(input[0]),
+    int i = 0, iMax = sizeof(input) / sizeof(input[0]),
         j, jMax = sizeof(hashType) / sizeof(hashType[0]),
         ret;
 
-    for (i = 0; i < iMax; i++) {
+#ifdef HAVE_FIPS
+    /* FIPS requires a minimum length for HMAC keys, and "Jefe" is too
+     * short. Skip it in FIPS builds. */
+    i = 1;
+#endif
+    for (; i < iMax; i++) {
         for (j = 0; j < jMax; j++) {
             if (wc_HmacInit(&hmac, HEAP_HINT, devId) != 0)
                 return -3900;
@@ -6912,6 +6917,67 @@ int aesgcm_test(void)
         return -5732;
 #endif /* HAVE_AES_DECRYPT */
 #endif /* WOLFSSL_AES_256 */
+
+#if !defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
+    /* Test encrypt with internally generated IV */
+#ifndef WC_NO_RNG
+    {
+        WC_RNG rng;
+        byte randIV[12];
+
+        result = wc_InitRng(&rng);
+        if (result != 0)
+            return -8208;
+
+        XMEMSET(randIV, 0, sizeof(randIV));
+        XMEMSET(resultT, 0, sizeof(resultT));
+        XMEMSET(resultC, 0, sizeof(resultC));
+        XMEMSET(resultP, 0, sizeof(resultP));
+
+        wc_AesGcmSetKey(&enc, k1, sizeof(k1));
+        result = wc_AesGcmSetIV(&enc, sizeof(randIV), NULL, 0, &rng);
+        if (result != 0)
+            return -8213;
+
+        result = wc_AesGcmEncrypt_ex(&enc,
+                        resultC, p, sizeof(p),
+                        randIV, sizeof(randIV),
+                        resultT, sizeof(resultT),
+                        a, sizeof(a));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+        if (result != 0)
+            return -8209;
+
+        /* Check the IV has been set. */
+        {
+            word32 i, ivSum = 0;
+
+            for (i = 0; i < sizeof(randIV); i++)
+                ivSum += randIV[i];
+            if (ivSum == 0)
+                return -8210;
+        }
+
+        result = wc_AesGcmDecrypt(&enc,
+                          resultP, resultC, sizeof(resultC),
+                          randIV, sizeof(randIV),
+                          resultT, sizeof(resultT),
+                          a, sizeof(a));
+#if defined(WOLFSSL_ASYNC_CRYPT)
+        result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+        if (result != 0)
+            return -8211;
+        if (XMEMCMP(p, resultP, sizeof(resultP)))
+            return -8212;
+        wc_FreeRng(&rng);
+    }
+#endif /* WC_NO_RNG */
+#endif
+
     wc_AesFree(&enc);
 
     return 0;
@@ -6943,6 +7009,10 @@ int gmac_test(void)
         0xaa, 0x10, 0xf1, 0x6d, 0x22, 0x7d, 0xc4, 0x1b
     };
 
+#if !defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
+	/* FIPS builds only allow 16-byte auth tags. */
+	/* This sample uses a 15-byte auth tag. */
     const byte k2[] =
     {
         0x40, 0xf7, 0xec, 0xb2, 0x52, 0x6d, 0xaa, 0xd4,
@@ -6963,6 +7033,7 @@ int gmac_test(void)
         0xc6, 0x81, 0x79, 0x8e, 0x3d, 0xda, 0xb0, 0x9f,
         0x8d, 0x83, 0xb0, 0xbb, 0x14, 0xb6, 0x91
     };
+#endif
 
     byte tag[16];
 
@@ -6973,11 +7044,55 @@ int gmac_test(void)
     if (XMEMCMP(t1, tag, sizeof(t1)) != 0)
         return -5800;
 
+#if !defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
     XMEMSET(tag, 0, sizeof(tag));
     wc_GmacSetKey(&gmac, k2, sizeof(k2));
     wc_GmacUpdate(&gmac, iv2, sizeof(iv2), a2, sizeof(a2), tag, sizeof(t2));
     if (XMEMCMP(t2, tag, sizeof(t2)) != 0)
         return -5801;
+
+#ifndef WC_NO_RNG
+    {
+        const byte badT[] =
+        {
+            0xde, 0xad, 0xbe, 0xef, 0x17, 0x2e, 0xd0, 0x43,
+            0xaa, 0x10, 0xf1, 0x6d, 0x22, 0x7d, 0xc4, 0x1b
+        };
+
+        WC_RNG rng;
+        byte iv[12];
+
+        #ifndef HAVE_FIPS
+            if (wc_InitRng_ex(&rng, HEAP_HINT, devId) != 0)
+                return -8214;
+        #else
+            if (wc_InitRng(&rng) != 0)
+                return -8214;
+        #endif
+
+        if (wc_GmacVerify(k1, sizeof(k1), iv1, sizeof(iv1), a1, sizeof(a1),
+                    t1, sizeof(t1)) != 0)
+            return -8215;
+        if (wc_GmacVerify(k1, sizeof(k1), iv1, sizeof(iv1), a1, sizeof(a1),
+                    badT, sizeof(badT)) != AES_GCM_AUTH_E)
+            return -8216;
+        if (wc_GmacVerify(k2, sizeof(k2), iv2, sizeof(iv2), a2, sizeof(a2),
+                    t2, sizeof(t2)) != 0)
+            return -8217;
+
+        XMEMSET(tag, 0, sizeof(tag));
+        XMEMSET(iv, 0, sizeof(iv));
+        if (wc_Gmac(k1, sizeof(k1), iv, sizeof(iv), a1, sizeof(a1),
+                    tag, sizeof(tag), &rng) != 0)
+            return -8218;
+        if (wc_GmacVerify(k1, sizeof(k1), iv, sizeof(iv), a1, sizeof(a1),
+                    tag, sizeof(tag)) != 0)
+            return -8219;
+        wc_FreeRng(&rng);
+    }
+#endif /* WC_NO_RNG */
+#endif /* HAVE_FIPS */
 
     return 0;
 }
@@ -7031,6 +7146,7 @@ int aesccm_test(void)
     byte t2[sizeof(t)];
     byte p2[sizeof(p)];
     byte c2[sizeof(c)];
+    byte iv2[sizeof(iv)];
 
     int result;
 
@@ -7072,6 +7188,26 @@ int aesccm_test(void)
     XMEMSET(c2, 0, sizeof(c2));
     if (XMEMCMP(p2, c2, sizeof(p2)))
         return -5907;
+
+    XMEMSET(&enc, 0, sizeof(Aes)); /* clear context */
+    XMEMSET(t2, 0, sizeof(t2));
+    XMEMSET(c2, 0, sizeof(c2));
+    XMEMSET(p2, 0, sizeof(p2));
+    XMEMSET(iv2, 0, sizeof(iv2));
+
+    if (wc_AesCcmSetKey(&enc, k, sizeof(k)) != 0)
+        return -8220;
+    if (wc_AesCcmSetNonce(&enc, iv, sizeof(iv)) != 0)
+        return -8221;
+    if (wc_AesCcmEncrypt_ex(&enc, c2, p, sizeof(c2), iv2, sizeof(iv2),
+                            t2, sizeof(t2), a, sizeof(a)) != 0)
+        return -8222;
+    if (XMEMCMP(iv, iv2, sizeof(iv2)))
+        return -8223;
+    if (XMEMCMP(c, c2, sizeof(c2)))
+        return -8224;
+    if (XMEMCMP(t, t2, sizeof(t2)))
+        return -8225;
 
     return 0;
 }
@@ -9162,8 +9298,8 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
                 ERROR_OUT(-6819, exit_rsa_pss);
             plainSz = ret;
 
-            ret = wc_RsaPSS_CheckPadding(digest, digestSz, plain, plainSz,
-                                         hash[j]);
+            ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz,
+                                         hash[j], -1, wc_RsaEncryptSize(key)*8);
             if (ret != 0)
                 ERROR_OUT(-6820, exit_rsa_pss);
 
@@ -9231,7 +9367,7 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
     #endif
         if (ret >= 0) {
             ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, sig, plainSz,
-                hash[0], 0);
+                hash[0], 0, 0);
         }
     } while (ret == WC_PENDING_E);
     if (ret != 0)
@@ -9254,7 +9390,7 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
     plainSz = ret;
 
     ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz, hash[0],
-                                    0);
+                                    0, 0);
     if (ret != 0)
         ERROR_OUT(-6826, exit_rsa_pss);
 
@@ -9314,11 +9450,11 @@ static int rsa_pss_test(WC_RNG* rng, RsaKey* key)
         ERROR_OUT(-6830, exit_rsa_pss);
 
     ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz, hash[0],
-                                    -2);
+                                    -2, 0);
     if (ret != PSS_SALTLEN_E)
         ERROR_OUT(-6831, exit_rsa_pss);
     ret = wc_RsaPSS_CheckPadding_ex(digest, digestSz, plain, plainSz, hash[0],
-                                    digestSz + 1);
+                                    digestSz + 1, 0);
     if (ret != PSS_SALTLEN_E)
         ERROR_OUT(-6832, exit_rsa_pss);
 
@@ -9623,7 +9759,7 @@ static int rsa_certgen_test(RsaKey* key, RsaKey* keypub, WC_RNG* rng, byte* tmp)
     ret = 0;
     do {
 #if defined(WOLFSSL_ASYNC_CRYPT)
-        ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
+        ret = wc_AsyncWait(ret, &key->asyncDev, WC_ASYNC_FLAG_CALL_AGAIN);
 #endif
         if (ret >= 0) {
             ret = wc_MakeSelfCert(myCert, der, FOURK_BUF, key, rng);
@@ -10056,6 +10192,15 @@ static int rsa_keygen_test(WC_RNG* rng)
         ERROR_OUT(-6963, exit_rsa);
     }
 
+    /* If not using old FIPS, or not using FAST or USER RSA... */
+    #if !defined(HAVE_FAST_RSA) && !defined(HAVE_USER_RSA) && \
+        (!defined(HAVE_FIPS) || \
+         (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)))
+    ret = wc_CheckRsaKey(&genKey);
+    if (ret != 0) {
+        ERROR_OUT(-8228, exit_rsa);
+    }
+    #endif
     der = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
         ERROR_OUT(-6964, exit_rsa);
@@ -11150,8 +11295,43 @@ static int dh_fips_generate_test(WC_RNG *rng)
     }
 
     ret = wc_DhCheckPubKey_ex(&key, pub, pubSz, q, sizeof(q));
-    if (ret != 0)
-        ret = -7088;
+    if (ret != 0) {
+        ERROR_OUT(-7088, exit_gen_test);
+    }
+
+    ret = wc_DhCheckKeyPair(&key, pub, pubSz, priv, privSz);
+    if (ret != 0) {
+        ERROR_OUT(-8229, exit_gen_test);
+    }
+
+    /* Taint the public key so the check fails. */
+    pub[0]++;
+    ret = wc_DhCheckKeyPair(&key, pub, pubSz, priv, privSz);
+    if (ret != MP_CMP_E) {
+        ERROR_OUT(-8230, exit_gen_test);
+    }
+
+#ifdef WOLFSSL_KEY_GEN
+
+    ret = wc_DhGenerateParams(rng, 2048, &key);
+    if (ret != 0) {
+        ERROR_OUT(-8226, exit_gen_test);
+    }
+
+    privSz = sizeof(priv);
+    pubSz = sizeof(pub);
+
+    ret = wc_DhGenerateKeyPair(&key, rng, priv, &privSz, pub, &pubSz);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    ret = wc_AsyncWait(ret, &key.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (ret != 0) {
+        ERROR_OUT(-8227, exit_gen_test);
+    }
+
+#endif /* WOLFSSL_KEY_GEN */
+
+    ret = 0;
 
 exit_gen_test:
     wc_FreeDhKey(&key);
@@ -14491,8 +14671,8 @@ done:
 static int ecc_test_make_pub(WC_RNG* rng)
 {
     ecc_key key;
-    unsigned char* exportBuf;
-    unsigned char* tmp;
+    unsigned char* exportBuf = NULL;
+    unsigned char* tmp = NULL;
     unsigned char msg[] = "test wolfSSL ECC public gen";
     word32 x, tmpSz;
     int ret = 0;
@@ -14506,6 +14686,8 @@ static int ecc_test_make_pub(WC_RNG* rng)
 #ifndef USE_CERT_BUFFERS_256
     FILE* file;
 #endif
+
+    wc_ecc_init(&key);
 
     tmp = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL) {
@@ -14529,8 +14711,6 @@ static int ecc_test_make_pub(WC_RNG* rng)
     tmpSz = (word32)fread(tmp, 1, FOURK_BUF, file);
     fclose(file);
 #endif /* USE_CERT_BUFFERS_256 */
-
-    wc_ecc_init(&key);
 
     /* import private only then test with */
     ret = wc_ecc_import_private_key(tmp, tmpSz, NULL, 0, NULL);

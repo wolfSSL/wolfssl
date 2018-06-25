@@ -33,7 +33,13 @@
 
 #ifndef NO_SHA256
 
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && \
+    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+    #include <wolfssl/wolfcrypt/fips.h>
+#endif /* HAVE_FIPS_VERSION >= 2 */
+
+#if defined(HAVE_FIPS) && \
+	(!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
     #define wc_Sha256             Sha256
     #define WC_SHA256             SHA256
     #define WC_SHA256_BLOCK_SIZE  SHA256_BLOCK_SIZE
@@ -61,7 +67,9 @@
     extern "C" {
 #endif
 
-#ifndef HAVE_FIPS /* avoid redefinition of structs */
+/* avoid redefinition of structs */
+#if !defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 
 #ifdef WOLFSSL_MICROCHIP_PIC32MZ
     #include <wolfssl/wolfcrypt/port/pic32/pic32mz-crypt.h>
@@ -151,7 +159,9 @@ WOLFSSL_API void wc_Sha256SizeSet(wc_Sha256*, word32);
 #endif
 
 #ifdef WOLFSSL_SHA224
-#ifndef HAVE_FIPS /* avoid redefinition of structs */
+/* avoid redefinition of structs */
+#if !defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 
 #ifndef NO_OLD_WC_NAMES
     #define Sha224             wc_Sha224

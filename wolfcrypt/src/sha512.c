@@ -27,6 +27,19 @@
 #include <wolfssl/wolfcrypt/settings.h>
 
 #ifdef WOLFSSL_SHA512
+
+#if defined(HAVE_FIPS) && \
+	defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+
+    #ifdef USE_WINDOWS_API
+        #pragma code_seg(".fipsA$k")
+        #pragma const_seg(".fipsB$k")
+    #endif
+#endif
+
 #include <wolfssl/wolfcrypt/sha512.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
@@ -37,7 +50,9 @@
 #endif
 
 /* fips wrapper calls, user can call direct */
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
+
     int wc_InitSha512(wc_Sha512* sha)
     {
         if (sha == NULL) {
@@ -115,7 +130,7 @@
         }
     #endif /* WOLFSSL_SHA384 || HAVE_AESGCM */
 
-#else /* else build without using fips */
+#else /* else build without fips, or for FIPS v2 */
 
 #include <wolfssl/wolfcrypt/logging.h>
 

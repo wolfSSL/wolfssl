@@ -415,6 +415,49 @@ int wc_FreeRsaKey(RsaKey* key)
 }
 
 
+/* Check the pair-wise consistency of the RSA key.
+ * From NIST SP 800-56B, section 6.4.1.1.
+ * Verify that k = (k^e)^d, for some k: 1 < k < n-1. */
+int wc_CheckRsaKey(RsaKey* key)
+{
+    mp_int k, tmp;
+    int ret = 0;
+
+    if (mp_init_multi(&k, &tmp, NULL, NULL, NULL, NULL) != MP_OKAY)
+        ret = MP_INIT_E;
+
+    if (ret == 0) {
+        if (key == NULL)
+            ret = BAD_FUNC_ARG;
+    }
+
+    if (ret == 0) {
+        if (mp_set_int(&k, 0x2342) != MP_OKAY)
+            ret = MP_READ_E;
+    }
+
+    if (ret == 0) {
+        if (mp_exptmod(&k, &key->e, &key->n, &tmp) != MP_OKAY)
+            ret = MP_EXPTMOD_E;
+    }
+
+    if (ret == 0) {
+        if (mp_exptmod(&tmp, &key->d, &key->n, &tmp) != MP_OKAY)
+            ret = MP_EXPTMOD_E;
+    }
+
+    if (ret == 0) {
+        if (mp_cmp(&k, &tmp) != MP_EQ)
+            ret = RSA_KEY_PAIR_E;
+    }
+
+    mp_forcezero(&tmp);
+    mp_clear(&tmp);
+    mp_clear(&k);
+    return ret;
+}
+
+
 #if !defined(WC_NO_RSA_OAEP) || defined(WC_RSA_PSS)
 /* Uses MGF1 standard as a mask generation function
    hType: hash type used
@@ -760,11 +803,17 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
     if (hLen < 0)
         return hLen;
 
-    if (saltLen == -1)
+    if (saltLen == -1) {
         saltLen = hLen;
+        #ifdef WOLFSSL_SHA512
+            /* See FIPS 186-4 section 5.5 item (e). */
+            if (bits == 1024 && hLen == WC_SHA512_DIGEST_SIZE)
+                saltLen = RSA_PSS_SALT_MAX_SZ;
+        #endif
+    }
     else if (saltLen > hLen || saltLen < -1)
         return PSS_SALTLEN_E;
-    if ((int)pkcsBlockLen - hLen - 1 < saltLen + 2)
+    if ((int)pkcsBlockLen - hLen < saltLen + 2)
         return PSS_SALTLEN_E;
 
     s = m = pkcsBlock;
@@ -1027,11 +1076,17 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
     if (hLen < 0)
         return hLen;
 
-    if (saltLen == -1)
+    if (saltLen == -1) {
         saltLen = hLen;
+        #ifdef WOLFSSL_SHA512
+            /* See FIPS 186-4 section 5.5 item (e). */
+            if (bits == 1024 && hLen == WC_SHA512_DIGEST_SIZE)
+                saltLen = RSA_PSS_SALT_MAX_SZ;
+        #endif
+    }
     else if (saltLen > hLen || saltLen < -1)
         return PSS_SALTLEN_E;
-    if ((int)pkcsBlockLen - hLen - 1 < saltLen + 2)
+    if ((int)pkcsBlockLen - hLen < saltLen + 2)
         return PSS_SALTLEN_E;
 
     if (pkcsBlock[pkcsBlockLen - 1] != RSA_PSS_PAD_TERM) {
@@ -1067,11 +1122,8 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
 
     XFREE(tmp, heap, DYNAMIC_TYPE_RSA_BUFFER);
 
-    i = pkcsBlockLen - (RSA_PSS_PAD_SZ + saltLen + 2 * hLen + 1);
-    XMEMSET(pkcsBlock + i, 0, RSA_PSS_PAD_SZ);
-
-    *output = pkcsBlock + i;
-    return RSA_PSS_PAD_SZ + saltLen + 2 * hLen;
+    *output = pkcsBlock + pkcsBlockLen - (hLen + saltLen + 1);
+    return saltLen + hLen;
 }
 #endif
 
@@ -2172,7 +2224,7 @@ int wc_RsaPSS_Verify_ex(byte* in, word32 inLen, byte* out, word32 outLen,
 int wc_RsaPSS_CheckPadding(const byte* in, word32 inSz, byte* sig,
                            word32 sigSz, enum wc_HashType hashType)
 {
-    return wc_RsaPSS_CheckPadding_ex(in, inSz, sig, sigSz, hashType, inSz);
+    return wc_RsaPSS_CheckPadding_ex(in, inSz, sig, sigSz, hashType, inSz, 0);
 }
 
 /* Checks the PSS data to ensure that the signature matches.
@@ -2190,33 +2242,46 @@ int wc_RsaPSS_CheckPadding(const byte* in, word32 inSz, byte* sig,
  */
 int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, byte* sig,
                               word32 sigSz, enum wc_HashType hashType,
-                              int saltLen)
+                              int saltLen, int bits)
 {
     int ret = 0;
+    byte sigCheck[WC_MAX_DIGEST_SIZE*2 + RSA_PSS_PAD_SZ];
+
+    (void)bits;
 
     if (in == NULL || sig == NULL ||
                       inSz != (word32)wc_HashGetDigestSize(hashType))
         ret = BAD_FUNC_ARG;
 
     if (ret == 0) {
-        if (saltLen == -1)
+        if (saltLen == -1) {
             saltLen = inSz;
+            #ifdef WOLFSSL_SHA512
+                /* See FIPS 186-4 section 5.5 item (e). */
+                if (bits == 1024 && inSz == WC_SHA512_DIGEST_SIZE)
+                    saltLen = RSA_PSS_SALT_MAX_SZ;
+            #endif
+        }
         else if (saltLen < -1 || (word32)saltLen > inSz)
             ret = PSS_SALTLEN_E;
     }
-    /* Sig = 8 * 0x00 | Space for Message Hash | Salt | Exp Hash */
+
+    /* Sig = Salt | Exp Hash */
     if (ret == 0) {
-        if (sigSz != RSA_PSS_PAD_SZ + inSz + (word32)saltLen + inSz)
+        if (sigSz != inSz + saltLen)
             ret = BAD_PADDING_E;
     }
+
     /* Exp Hash = HASH(8 * 0x00 | Message Hash | Salt) */
     if (ret == 0) {
-        XMEMCPY(sig + RSA_PSS_PAD_SZ, in, inSz);
-        ret = wc_Hash(hashType, sig, RSA_PSS_PAD_SZ + inSz + saltLen, sig,
-                      inSz);
+        XMEMSET(sigCheck, 0, RSA_PSS_PAD_SZ);
+        XMEMCPY(sigCheck + RSA_PSS_PAD_SZ, in, inSz);
+        XMEMCPY(sigCheck + RSA_PSS_PAD_SZ + inSz, sig, saltLen);
+        ret = wc_Hash(hashType, sigCheck, RSA_PSS_PAD_SZ + inSz + saltLen,
+                      sigCheck, inSz);
     }
     if (ret == 0) {
-        if (XMEMCMP(sig, sig + RSA_PSS_PAD_SZ + inSz + saltLen, inSz) != 0) {
+        if (XMEMCMP(sigCheck, sig + saltLen, inSz) != 0) {
             WOLFSSL_MSG("RsaPSS_CheckPadding: Padding Error");
             ret = BAD_PADDING_E;
         }
@@ -2224,6 +2289,99 @@ int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, byte* sig,
 
     return ret;
 }
+
+
+/* Verify the message signed with RSA-PSS.
+ * The input buffer is reused for the ouput buffer.
+ * Salt length is equal to hash length.
+ *
+ * in     Buffer holding encrypted data.
+ * inLen  Length of data in buffer.
+ * out    Pointer to address containing the PSS data.
+ * digest Hash of the data that is being verified.
+ * digestLen Length of hash.
+ * hash   Hash algorithm.
+ * mgf    Mask generation function.
+ * key    Public RSA key.
+ * returns the length of the PSS data on success and negative indicates failure.
+ */
+int wc_RsaPSS_VerifyCheckInline(byte* in, word32 inLen, byte** out,
+                           const byte* digest, word32 digestLen,
+                           enum wc_HashType hash, int mgf, RsaKey* key)
+{
+    int ret = 0, verify, saltLen, hLen, bits = 0;
+
+    hLen = wc_HashGetDigestSize(hash);
+    if (hLen < 0)
+        return hLen;
+    if ((word32)hLen != digestLen)
+        return BAD_FUNC_ARG;
+
+    saltLen = hLen;
+    #ifdef WOLFSSL_SHA512
+        /* See FIPS 186-4 section 5.5 item (e). */
+        bits = mp_count_bits(&key->n);
+        if (bits == 1024 && hLen == WC_SHA512_DIGEST_SIZE)
+            saltLen = RSA_PSS_SALT_MAX_SZ;
+    #endif
+
+    verify = wc_RsaPSS_VerifyInline_ex(in, inLen, out, hash, mgf, saltLen, key);
+    if (verify > 0)
+        ret = wc_RsaPSS_CheckPadding_ex(digest, digestLen, *out, verify,
+                                        hash, saltLen, bits);
+    if (ret == 0)
+        ret = verify;
+
+    return ret;
+}
+
+
+/* Verify the message signed with RSA-PSS.
+ * Salt length is equal to hash length.
+ *
+ * in     Buffer holding encrypted data.
+ * inLen  Length of data in buffer.
+ * out    Pointer to address containing the PSS data.
+ * outLen Length of the output.
+ * digest Hash of the data that is being verified.
+ * digestLen Length of hash.
+ * hash   Hash algorithm.
+ * mgf    Mask generation function.
+ * key    Public RSA key.
+ * returns the length of the PSS data on success and negative indicates failure.
+ */
+int wc_RsaPSS_VerifyCheck(byte* in, word32 inLen, byte* out, word32 outLen,
+                          const byte* digest, word32 digestLen,
+                          enum wc_HashType hash, int mgf,
+                          RsaKey* key)
+{
+    int ret = 0, verify, saltLen, hLen, bits = 0;
+
+    hLen = wc_HashGetDigestSize(hash);
+    if (hLen < 0)
+        return hLen;
+    if ((word32)hLen != digestLen)
+        return BAD_FUNC_ARG;
+
+    saltLen = hLen;
+    #ifdef WOLFSSL_SHA512
+        /* See FIPS 186-4 section 5.5 item (e). */
+        bits = mp_count_bits(&key->n);
+        if (bits == 1024 && hLen == WC_SHA512_DIGEST_SIZE)
+            saltLen = RSA_PSS_SALT_MAX_SZ;
+    #endif
+
+    verify = wc_RsaPSS_Verify_ex(in, inLen, out, outLen, hash,
+                                 mgf, saltLen, key);
+    if (verify > 0)
+        ret = wc_RsaPSS_CheckPadding_ex(digest, digestLen, out, verify,
+                                        hash, saltLen, bits);
+    if (ret == 0)
+        ret = verify;
+
+    return ret;
+}
+
 #endif
 
 int wc_RsaSSL_Sign(const byte* in, word32 inLen, byte* out, word32 outLen,
@@ -2593,7 +2751,7 @@ int wc_CheckProbablePrime(const byte* pRaw, word32 pRawSz,
 int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 {
     mp_int p, q, tmp1, tmp2, tmp3;
-    int err, i, failCount, primeSz, isPrime;
+    int err, i, failCount, primeSz, isPrime = 0;
     byte* buf = NULL;
 
     if (key == NULL || rng == NULL)
@@ -2768,7 +2926,11 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
     mp_clear(&p);
     mp_clear(&q);
 
-    if (err != MP_OKAY) {
+    /* Perform the pair-wise consistency test on the new key. */
+    if (err == 0)
+        err = wc_CheckRsaKey(key);
+
+    if (err != 0) {
         wc_FreeRsaKey(key);
         return err;
     }

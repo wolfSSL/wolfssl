@@ -28,11 +28,25 @@
 
 #if !defined(NO_SHA)
 
+#if defined(HAVE_FIPS) && \
+	defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+
+    /* set NO_WRAPPERS before headers, use direct internal f()s not wrappers */
+    #define FIPS_NO_WRAPPERS
+
+    #ifdef USE_WINDOWS_API
+        #pragma code_seg(".fipsA$j")
+        #pragma const_seg(".fipsB$j")
+    #endif
+#endif
+
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 /* fips wrapper calls, user can call direct */
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && \
+    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
+
     int wc_InitSha(wc_Sha* sha)
     {
         if (sha == NULL) {
@@ -71,7 +85,7 @@
         /* Not supported in FIPS */
     }
 
-#else /* else build without fips */
+#else /* else build without fips, or for FIPS v2 */
 
 
 #if defined(WOLFSSL_TI_HASH)

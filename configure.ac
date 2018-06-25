@@ -1908,7 +1908,8 @@ fi
 AS_IF([test "x$ENABLED_CMAC" = "xyes"],
       [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CMAC -DWOLFSSL_AES_DIRECT"])
 
-AM_CONDITIONAL([BUILD_CMAC], [test "x$ENABLED_CMAC" = "xyes"])
+#AM_CONDITIONAL([BUILD_CMAC], [test "x$ENABLED_CMAC" = "xyes"])
+#moved to FIPS section
 
 
 # AES-XTS
@@ -2019,17 +2020,33 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS"
     # Add the FIPS flag.
     AS_IF([test "x$FIPS_VERSION" = "xv2"],
-          [AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS_VERSION=2 -DWOLFSSL_KEY_GEN"
+          [AM_CFLAGS="$AM_CFLAGS -DHAVE_FIPS_VERSION=2 -DWOLFSSL_KEY_GEN -DWOLFSSL_SHA224 -DWOLFSSL_AES_DIRECT -DHAVE_AES_ECB -DHAVE_ECC_CDH -DWC_RSA_NO_PADDING -DWOLFSSL_VALIDATE_FFC_IMPORT -DHAVE_FFDHE_Q"
            ENABLED_KEYGEN="yes"
+           ENABLED_SHA224="yes"
+           AS_IF([test "x$ENABLED_AESCCM" != "xyes"],
+                 [ENABLED_AESCCM="yes"
+                  AM_CFLAGS="$AM_CFLAGS -DHAVE_AESCCM"])
            AS_IF([test "x$ENABLED_RSAPSS" != "xyes"],
-			     [ENABLED_RSAPSS="yes"
-				  AM_CFLAGS="$AM_CFLAGS -DWC_RSA_PSS"])
+                 [ENABLED_RSAPSS="yes"
+                  AM_CFLAGS="$AM_CFLAGS -DWC_RSA_PSS"])
            AS_IF([test "x$ENABLED_ECC" != "xyes"],
-			     [ENABLED_ECC="yes"
-				  AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256"
+                 [ENABLED_ECC="yes"
+                  AM_CFLAGS="$AM_CFLAGS -DHAVE_ECC -DTFM_ECC256 -DWOLFSSL_VALIDATE_ECC_IMPORT"
                   AS_IF([test "x$ENABLED_ECC_SHAMIR" = "xyes"],
-                        [AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"])])
-		  ])
+                        [AM_CFLAGS="$AM_CFLAGS -DECC_SHAMIR"])],
+                 [AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_VALIDATE_ECC_IMPORT"])
+           AS_IF([test "x$ENABLED_AESCTR" != "xyes"],
+                 [ENABLED_AESCTR="yes"
+                  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AES_COUNTER"])
+           AS_IF([test "x$ENABLED_CMAC" != "xyes"],
+                 [ENABLED_CMAC="yes"
+                  AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CMAC"])
+           AS_IF([test "x$ENABLED_HKDF" != "xyes"],
+                 [ENABLED_HKDF="yes"
+                  AM_CFLAGS="$AM_CFLAGS -DHAVE_HKDF"])
+           AS_IF([test "x$ENABLED_INTELASM" = "xyes"],
+                 [AM_CFLAGS="$AM_CFLAGS -DFORCE_FAILURE_RDSEED"])
+          ])
 else
     if test "x$ENABLED_FORTRESS" = "xyes"
     then
@@ -2039,6 +2056,7 @@ fi
 
 AM_CONDITIONAL([BUILD_FIPS], [test "x$ENABLED_FIPS" = "xyes"])
 AM_CONDITIONAL([BUILD_FIPS_V2], [test "x$FIPS_VERSION" = "xv2"])
+AM_CONDITIONAL([BUILD_CMAC], [test "x$ENABLED_CMAC" = "xyes"])
 
 # SELFTEST
 AC_ARG_ENABLE([selftest],
@@ -2059,7 +2077,7 @@ AM_CONDITIONAL([BUILD_SELFTEST], [test "x$ENABLED_SELFTEST" = "xyes"])
 SHA224_DEFAULT=no
 if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"
 then
-    if test "x$ENABLED_FIPS" = "xno"
+    if test "x$ENABLED_FIPS" = "xno" || test "x$FIPS_VERSION" = "xv2"
     then
         SHA224_DEFAULT=yes
     fi
@@ -2084,7 +2102,7 @@ AM_CONDITIONAL([BUILD_SHA224], [test "x$ENABLED_SHA224" = "xyes"])
 SHA3_DEFAULT=no
 if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"
 then
-    if test "x$ENABLED_FIPS" = "xno"
+    if test "x$ENABLED_FIPS" = "xno" || test "x$FIPS_VERSION" = "xv2"
     then
         SHA3_DEFAULT=yes
     fi

@@ -30,7 +30,13 @@
 
 #ifndef NO_DES3
 
-#ifdef HAVE_FIPS
+#if defined(HAVE_FIPS) && \
+    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+    #include <wolfssl/wolfcrypt/fips.h>
+#endif /* HAVE_FIPS_VERSION >= 2 */
+
+#if defined(HAVE_FIPS) && \
+	(!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
 /* included for fips @wc_fips */
 #include <cyassl/ctaocrypt/des3.h>
 #endif
@@ -47,7 +53,9 @@ enum {
 };
 
 
-#ifndef HAVE_FIPS /* to avoid redefinition of macros */
+/* avoid redefinition of structs */
+#if !defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>

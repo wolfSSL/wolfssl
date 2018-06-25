@@ -4,6 +4,7 @@
 
 include IDE/XCODE/include.am
 include IDE/WIN/include.am
+include IDE/WIN10/include.am
 include IDE/WIN-SGX/include.am
 include IDE/LINUX-SGX/include.am
 include IDE/WORKBENCH/include.am

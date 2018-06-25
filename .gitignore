@@ -40,9 +40,10 @@ wolfssl-config
 cyassl.sublime*
 fips.h
 fips.c
-fipsv2.c
 fips_test.c
 fips
+wolfcrypt_first.c
+wolfcrypt_last.c
 selftest.c
 src/async.c
 wolfssl/async.h
@@ -223,6 +224,11 @@ wrapper/CSharp/x64/
 # Visual Studio Code Workspace Files
 *.vscode
 *.userprefs
+*.exe
+*.dll
+.vs
+Backup
+UpgradeLog.htm
 
 IDE/INTIME-RTOS/Debug_*
 IDE/VS-ARM/.vs

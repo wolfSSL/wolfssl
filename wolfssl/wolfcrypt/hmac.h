@@ -30,17 +30,26 @@
 
 #include <wolfssl/wolfcrypt/hash.h>
 
-#ifdef HAVE_FIPS
-/* for fips */
+#if defined(HAVE_FIPS) && \
+	(!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
+/* for fips @wc_fips */
     #include <cyassl/ctaocrypt/hmac.h>
     #define WC_HMAC_BLOCK_SIZE HMAC_BLOCK_SIZE
 #endif
 
 
+#if defined(HAVE_FIPS) && \
+	defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+	#include <wolfssl/wolfcrypt/fips.h>
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
-#ifndef HAVE_FIPS
+
+/* avoid redefinition of structs */
+#if !defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>

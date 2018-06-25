@@ -200,6 +200,7 @@ typedef byte   ecc_oid_t;
 #endif
 
 /* ECC set type defined a GF(p) curve */
+#ifndef USE_WINDOWS_API
 typedef struct ecc_set_type {
     int size;             /* The size of the curve in octets */
     int id;               /* id of this curve */
@@ -215,6 +216,31 @@ typedef struct ecc_set_type {
     word32      oidSum;    /* sum of encoded OID bytes */
     int         cofactor;
 } ecc_set_type;
+#else
+/* MSC does something different with the pointers to the arrays than GCC,
+ * and it causes the FIPS checksum to fail. In the case of windows builds,
+ * store everything as arrays instead of pointers to strings. */
+
+#define MAX_ECC_NAME 16
+#define MAX_ECC_STRING ((MAX_ECC_BYTES * 2) + 1)
+    /* The values are stored as text strings. */
+
+typedef struct ecc_set_type {
+    int size;             /* The size of the curve in octets */
+    int id;               /* id of this curve */
+    const char name[MAX_ECC_NAME];     /* name of this curve */
+    const char prime[MAX_ECC_STRING];    /* prime that defines the field, curve is in (hex) */
+    const char Af[MAX_ECC_STRING];       /* fields A param (hex) */
+    const char Bf[MAX_ECC_STRING];       /* fields B param (hex) */
+    const char order[MAX_ECC_STRING];    /* order of the curve (hex) */
+    const char Gx[MAX_ECC_STRING];       /* x coordinate of the base point on curve (hex) */
+    const char Gy[MAX_ECC_STRING];       /* y coordinate of the base point on curve (hex) */
+    const ecc_oid_t oid[10];
+    word32      oidSz;
+    word32      oidSum;    /* sum of encoded OID bytes */
+    int         cofactor;
+} ecc_set_type;
+#endif
 
 
 #ifdef ALT_ECC_SIZE

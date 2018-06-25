@@ -30,6 +30,11 @@
 
 #ifndef NO_DH
 
+#if defined(HAVE_FIPS) && \
+    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+    #include <wolfssl/wolfcrypt/fips.h>
+#endif /* HAVE_FIPS_VERSION >= 2 */
+
 #include <wolfssl/wolfcrypt/integer.h>
 #include <wolfssl/wolfcrypt/random.h>
 
@@ -41,6 +46,10 @@
     #include <wolfssl/wolfcrypt/async.h>
 #endif
 typedef struct DhParams {
+    #ifdef HAVE_FFDHE_Q
+    const byte* q;
+    word32      q_len;
+    #endif /* HAVE_FFDHE_Q */
     const byte* p;
     word32      p_len;
     const byte* g;
@@ -75,7 +84,7 @@ WOLFSSL_API const DhParams* wc_Dh_ffdhe8192_Get(void);
 
 WOLFSSL_API int wc_InitDhKey(DhKey* key);
 WOLFSSL_API int wc_InitDhKey_ex(DhKey* key, void* heap, int devId);
-WOLFSSL_API void wc_FreeDhKey(DhKey* key);
+WOLFSSL_API int wc_FreeDhKey(DhKey* key);
 
 WOLFSSL_API int wc_DhGenerateKeyPair(DhKey* key, WC_RNG* rng, byte* priv,
                                  word32* privSz, byte* pub, word32* pubSz);
@@ -94,6 +103,15 @@ WOLFSSL_API int wc_DhParamsLoad(const byte* input, word32 inSz, byte* p,
 WOLFSSL_API int wc_DhCheckPubKey(DhKey* key, const byte* pub, word32 pubSz);
 WOLFSSL_API int wc_DhCheckPubKey_ex(DhKey* key, const byte* pub, word32 pubSz,
                             const byte* prime, word32 primeSz);
+WOLFSSL_API int wc_DhCheckPrivKey(DhKey* key, const byte* priv, word32 pubSz);
+WOLFSSL_API int wc_DhCheckPrivKey_ex(DhKey* key, const byte* priv, word32 pubSz,
+                            const byte* prime, word32 primeSz);
+WOLFSSL_API int wc_DhCheckKeyPair(DhKey* key, const byte* pub, word32 pubSz,
+                        const byte* priv, word32 privSz);
+WOLFSSL_API int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh);
+WOLFSSL_API int wc_DhExportParamsRaw(DhKey* dh, byte* p, word32* pSz,
+                       byte* q, word32* qSz, byte* g, word32* gSz);
+
 
 #ifdef __cplusplus
     } /* extern "C" */
