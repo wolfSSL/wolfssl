@@ -1192,6 +1192,8 @@ enum Misc {
     AES_128_KEY_SIZE    = 16,
 #endif
 
+    MAX_IV_SZ           = AES_BLOCK_SIZE,
+
     AEAD_SEQ_OFFSET     = 4,   /* Auth Data: Sequence number */
     AEAD_TYPE_OFFSET    = 8,   /* Auth Data: Type            */
     AEAD_VMAJ_OFFSET    = 9,   /* Auth Data: Major Version   */

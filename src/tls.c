@@ -260,16 +260,15 @@ static int doPRF(byte* digest, word32 digLen, const byte* secret,word32 secLen,
 #ifdef WOLFSSL_SMALL_STACK
     byte* md5_half;
     byte* sha_half;
-    byte* labelSeed;
     byte* md5_result;
     byte* sha_result;
 #else
     byte  md5_half[MAX_PRF_HALF];     /* half is real size */
     byte  sha_half[MAX_PRF_HALF];     /* half is real size */
-    byte  labelSeed[MAX_PRF_LABSEED]; /* labLen + seedLen is real size */
     byte  md5_result[MAX_PRF_DIG];    /* digLen is real size */
     byte  sha_result[MAX_PRF_DIG];    /* digLen is real size */
 #endif
+    DECLARE_VAR(labelSeed, byte, MAX_PRF_LABSEED, heap);
 
     if (half > MAX_PRF_HALF)
         return BUFFER_E;
@@ -281,17 +280,16 @@ static int doPRF(byte* digest, word32 digLen, const byte* secret,word32 secLen,
 #ifdef WOLFSSL_SMALL_STACK
     md5_half   = (byte*)XMALLOC(MAX_PRF_HALF,    heap, DYNAMIC_TYPE_DIGEST);
     sha_half   = (byte*)XMALLOC(MAX_PRF_HALF,    heap, DYNAMIC_TYPE_DIGEST);
-    labelSeed  = (byte*)XMALLOC(MAX_PRF_LABSEED, heap, DYNAMIC_TYPE_SEED);
     md5_result = (byte*)XMALLOC(MAX_PRF_DIG,     heap, DYNAMIC_TYPE_DIGEST);
     sha_result = (byte*)XMALLOC(MAX_PRF_DIG,     heap, DYNAMIC_TYPE_DIGEST);
 
-    if (md5_half == NULL || sha_half == NULL || labelSeed == NULL ||
-                                     md5_result == NULL || sha_result == NULL) {
+    if (md5_half == NULL || sha_half == NULL || md5_result == NULL ||
+                                                           sha_result == NULL) {
         if (md5_half)   XFREE(md5_half,   heap, DYNAMIC_TYPE_DIGEST);
         if (sha_half)   XFREE(sha_half,   heap, DYNAMIC_TYPE_DIGEST);
-        if (labelSeed)  XFREE(labelSeed,  heap, DYNAMIC_TYPE_SEED);
         if (md5_result) XFREE(md5_result, heap, DYNAMIC_TYPE_DIGEST);
         if (sha_result) XFREE(sha_result, heap, DYNAMIC_TYPE_DIGEST);
+        FREE_VAR(labelSeed, heap);
 
         return MEMORY_E;
     }
@@ -317,10 +315,11 @@ static int doPRF(byte* digest, word32 digLen, const byte* secret,word32 secLen,
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(md5_half,   heap, DYNAMIC_TYPE_DIGEST);
     XFREE(sha_half,   heap, DYNAMIC_TYPE_DIGEST);
-    XFREE(labelSeed,  heap, DYNAMIC_TYPE_SEED);
     XFREE(md5_result, heap, DYNAMIC_TYPE_DIGEST);
     XFREE(sha_result, heap, DYNAMIC_TYPE_DIGEST);
 #endif
+
+    FREE_VAR(labelSeed, heap);
 
     return ret;
 }
@@ -339,20 +338,10 @@ static int PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
     int ret = 0;
 
     if (useAtLeastSha256) {
-#ifdef WOLFSSL_SMALL_STACK
-        byte* labelSeed;
-#else
-        byte labelSeed[MAX_PRF_LABSEED]; /* labLen + seedLen is real size */
-#endif
+        DECLARE_VAR(labelSeed, byte, MAX_PRF_LABSEED, heap);
 
         if (labLen + seedLen > MAX_PRF_LABSEED)
             return BUFFER_E;
-
-#ifdef WOLFSSL_SMALL_STACK
-        labelSeed = (byte*)XMALLOC(MAX_PRF_LABSEED, heap, DYNAMIC_TYPE_SEED);
-        if (labelSeed == NULL)
-           return MEMORY_E;
-#endif
 
         XMEMCPY(labelSeed, label, labLen);
         XMEMCPY(labelSeed + labLen, seed, seedLen);
@@ -364,9 +353,7 @@ static int PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         ret = p_hash(digest, digLen, secret, secLen, labelSeed,
                      labLen + seedLen, hash_type, heap, devId);
 
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(labelSeed, heap, DYNAMIC_TYPE_SEED);
-#endif
+        FREE_VAR(labelSeed, heap);
     }
 #ifndef NO_OLD_TLS
     else {
@@ -528,13 +515,18 @@ static int _DeriveTlsKeys(byte* key_dig, word32 key_dig_len,
                          int tls1_2, int hash_type,
                          void* heap, int devId)
 {
-    byte  seed[SEED_LEN];
+    int ret;
+    DECLARE_VAR(seed, byte, SEED_LEN, heap);
 
     XMEMCPY(seed,           sr, RAN_LEN);
     XMEMCPY(seed + RAN_LEN, cr, RAN_LEN);
 
-    return PRF(key_dig, key_dig_len, ms, msLen, key_label, KEY_LABEL_SZ,
+    ret = PRF(key_dig, key_dig_len, ms, msLen, key_label, KEY_LABEL_SZ,
                seed, SEED_LEN, tls1_2, hash_type, heap, devId);
+
+    FREE_VAR(seed, heap);
+
+    return ret;
 }
 
 /* External facing wrapper so user can call as well, 0 on success */

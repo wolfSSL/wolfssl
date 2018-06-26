@@ -13286,7 +13286,7 @@ typedef struct BuildMsgArgs {
     word32 headerSz;
     word16 size;
     word32 ivSz;      /* TLSv1.1  IV */
-    byte   iv[AES_BLOCK_SIZE]; /* max size */
+    byte*  iv;
 } BuildMsgArgs;
 
 static void FreeBuildMsgArgs(WOLFSSL* ssl, void* pArgs)
@@ -13296,7 +13296,10 @@ static void FreeBuildMsgArgs(WOLFSSL* ssl, void* pArgs)
     (void)ssl;
     (void)args;
 
-    /* no allocations in BuildMessage */
+    if (args->iv) {
+        XFREE(args->iv, ssl->heap, DYNAMIC_TYPE_SALT);
+        args->iv = NULL;
+    }
 }
 #endif
 
@@ -13367,11 +13370,11 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
         {
             /* catch mistaken sizeOnly parameter */
             if (!sizeOnly && (output == NULL || input == NULL) ) {
-                return BAD_FUNC_ARG;
+                ERROR_OUT(BAD_FUNC_ARG, exit_buildmsg);
             }
             if (sizeOnly && (output || input) ) {
                 WOLFSSL_MSG("BuildMessage w/sizeOnly doesn't need input/output");
-                return BAD_FUNC_ARG;
+                ERROR_OUT(BAD_FUNC_ARG, exit_buildmsg);
             }
 
             ssl->options.buildMsgState = BUILD_MSG_SIZE;
@@ -13400,7 +13403,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                     args->ivSz = blockSz;
                     args->sz  += args->ivSz;
 
-                    if (args->ivSz > (word32)sizeof(args->iv))
+                    if (args->ivSz > MAX_IV_SZ)
                         ERROR_OUT(BUFFER_E, exit_buildmsg);
                 }
                 args->sz += 1;       /* pad byte */
@@ -13431,6 +13434,10 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             }
 
             if (args->ivSz > 0) {
+                args->iv = (byte*)XMALLOC(args->ivSz, ssl->heap, DYNAMIC_TYPE_SALT);
+                if (args->iv == NULL)
+                    ERROR_OUT(MEMORY_E, exit_buildmsg);
+
                 ret = wc_RNG_GenerateBlock(ssl->rng, args->iv, args->ivSz);
                 if (ret != 0)
                     goto exit_buildmsg;
@@ -13448,9 +13455,9 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             AddRecordHeader(output, args->size, (byte)type, ssl);
 
             /* write to output */
-            if (args->ivSz) {
+            if (args->ivSz > 0) {
                 XMEMCPY(output + args->idx, args->iv,
-                                        min(args->ivSz, sizeof(args->iv)));
+                                        min(args->ivSz, MAX_IV_SZ));
                 args->idx += args->ivSz;
             }
             XMEMCPY(output + args->idx, input, inSz);
@@ -13557,6 +13564,9 @@ exit_buildmsg:
 
     /* Final cleanup */
     FreeBuildMsgArgs(ssl, args);
+#ifdef WOLFSSL_ASYNC_CRYPT
+    ssl->async.freeArgs = NULL;
+#endif
 
     return ret;
 #endif /* !WOLFSSL_NO_TLS12 */

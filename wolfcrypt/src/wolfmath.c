@@ -99,43 +99,52 @@ int get_rand_digit(WC_RNG* rng, mp_digit* d)
 #ifdef WC_RSA_BLINDING
 int mp_rand(mp_int* a, int digits, WC_RNG* rng)
 {
-    int ret;
-    mp_digit d;
+    int ret = 0;
+    DECLARE_VAR(d, mp_digit, 1, rng->heap);
 
-    if (rng == NULL)
-        return MISSING_RNG_E;
+    if (rng == NULL) {
+        ret = MISSING_RNG_E; goto exit;
+    }
 
-    if (a == NULL)
-        return BAD_FUNC_ARG;
+    if (a == NULL
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        || d == NULL
+    #endif
+    ) {
+        ret = BAD_FUNC_ARG; goto exit;
+    }
 
     mp_zero(a);
     if (digits <= 0) {
-        return MP_OKAY;
+        ret = MP_OKAY; goto exit;
     }
 
     /* first place a random non-zero digit */
     do {
-        ret = get_rand_digit(rng, &d);
+        ret = get_rand_digit(rng, d);
         if (ret != 0) {
-            return ret;
+            goto exit;
         }
-    } while (d == 0);
+    } while (*d == 0);
 
-    if ((ret = mp_add_d(a, d, a)) != MP_OKAY) {
-        return ret;
+    if ((ret = mp_add_d(a, *d, a)) != MP_OKAY) {
+        goto exit;
     }
 
     while (--digits > 0) {
         if ((ret = mp_lshd(a, 1)) != MP_OKAY) {
-            return ret;
+            goto exit;
         }
-        if ((ret = get_rand_digit(rng, &d)) != 0) {
-            return ret;
+        if ((ret = get_rand_digit(rng, d)) != 0) {
+            goto exit;
         }
-        if ((ret = mp_add_d(a, d, a)) != MP_OKAY) {
-            return ret;
+        if ((ret = mp_add_d(a, *d, a)) != MP_OKAY) {
+            goto exit;
         }
     }
+
+exit:
+    FREE_VAR(d, rng->heap);
 
     return ret;
 }

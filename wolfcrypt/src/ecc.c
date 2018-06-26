@@ -3287,17 +3287,7 @@ int wc_ecc_point_is_at_infinity(ecc_point* p)
 static int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
 {
     int err;
-#ifdef WOLFSSL_SMALL_STACK
-    byte* buf;
-#else
-    byte  buf[ECC_MAXSIZE_GEN];
-#endif
-
-#ifdef WOLFSSL_SMALL_STACK
-    buf = (byte*)XMALLOC(ECC_MAXSIZE_GEN, NULL, DYNAMIC_TYPE_ECC_BUFFER);
-    if (buf == NULL)
-        return MEMORY_E;
-#endif
+    DECLARE_VAR(buf, byte, ECC_MAXSIZE_GEN, rng->heap);
 
     /*generate 8 extra bytes to mitigate bias from the modulo operation below*/
     /*see section A.1.2 in 'Suite B Implementor's Guide to FIPS 186-3 (ECDSA)'*/
@@ -3324,9 +3314,7 @@ static int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
     }
 
     ForceZero(buf, ECC_MAXSIZE);
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(buf, NULL, DYNAMIC_TYPE_ECC_BUFFER);
-#endif
+    FREE_VAR(buf, rng->heap);
 
     return err;
 }
