@@ -1418,7 +1418,7 @@ static const byte Td4[256] =
 
 
 /* load 4 Te Tables into cache by cache line stride */
-static INLINE word32 PreFetchTe(void)
+static WC_INLINE word32 PreFetchTe(void)
 {
     word32 x = 0;
     int i,j;
@@ -1624,7 +1624,7 @@ static void wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 #if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)
 
 /* load 4 Td Tables into cache by cache line stride */
-static INLINE word32 PreFetchTd(void)
+static WC_INLINE word32 PreFetchTd(void)
 {
     word32 x = 0;
     int i,j;
@@ -1639,7 +1639,7 @@ static INLINE word32 PreFetchTd(void)
 }
 
 /* load Td Table4 into cache by cache line stride */
-static INLINE word32 PreFetchTd4(void)
+static WC_INLINE word32 PreFetchTd4(void)
 {
     word32 x = 0;
     int i;
@@ -3297,7 +3297,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
     #ifdef NEED_AES_CTR_SOFT
         /* Increment AES counter */
-        static INLINE void IncrementAesCounter(byte* inOutCtr)
+        static WC_INLINE void IncrementAesCounter(byte* inOutCtr)
         {
             /* in network byte order so start at end and work back */
             int i;
@@ -3384,7 +3384,7 @@ enum {
 };
 
 #if (defined(HAVE_AESGCM) && !defined(WC_NO_RNG)) || defined(HAVE_AESCCM)
-static INLINE void IncCtr(byte* ctr, word32 ctrSz)
+static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 {
     int i;
     for (i = ctrSz-1; i >= 0; i--) {
@@ -3406,7 +3406,7 @@ static INLINE void IncCtr(byte* ctr, word32 ctrSz)
 #endif
 
 #if !defined(FREESCALE_LTC_AES_GCM)
-static INLINE void IncrementGcmCounter(byte* inOutCtr)
+static WC_INLINE void IncrementGcmCounter(byte* inOutCtr)
 {
     int i;
 
@@ -3420,7 +3420,7 @@ static INLINE void IncrementGcmCounter(byte* inOutCtr)
 
 #if defined(GCM_SMALL) || defined(GCM_TABLE)
 
-static INLINE void FlattenSzInBits(byte* buf, word32 sz)
+static WC_INLINE void FlattenSzInBits(byte* buf, word32 sz)
 {
     /* Multiply the sz by 8 */
     word32 szHi = (sz >> (8*sizeof(sz) - 3));
@@ -3438,7 +3438,7 @@ static INLINE void FlattenSzInBits(byte* buf, word32 sz)
 }
 
 
-static INLINE void RIGHTSHIFTX(byte* x)
+static WC_INLINE void RIGHTSHIFTX(byte* x)
 {
     int i;
     int carryOut = 0;
@@ -8292,7 +8292,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #else
 #if defined(STM32_CRYPTO) && (defined(WOLFSSL_STM32F4) || \
                               defined(WOLFSSL_STM32F7))
-static INLINE int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in,
+static WC_INLINE int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in,
                                          word32 sz, const byte* iv, word32 ivSz,
                                          byte* authTag, word32 authTagSz,
                                          const byte* authIn, word32 authInSz)
@@ -9269,7 +9269,7 @@ static void roll_auth(Aes* aes, const byte* in, word32 inSz, byte* out)
 }
 
 
-static INLINE void AesCcmCtrInc(byte* B, word32 lenSz)
+static WC_INLINE void AesCcmCtrInc(byte* B, word32 lenSz)
 {
     word32 i;
 
@@ -9742,7 +9742,7 @@ int wc_AesCfbDecrypt(Aes* aes, byte* out, const byte* in, word32 sz)
 #ifdef HAVE_AES_KEYWRAP
 
 /* Initialize key wrap counter with value */
-static INLINE void InitKeyWrapCounter(byte* inOutCtr, word32 value)
+static WC_INLINE void InitKeyWrapCounter(byte* inOutCtr, word32 value)
 {
     int i;
     word32 bytes;
@@ -9755,7 +9755,7 @@ static INLINE void InitKeyWrapCounter(byte* inOutCtr, word32 value)
 }
 
 /* Increment key wrap counter */
-static INLINE void IncrementKeyWrapCounter(byte* inOutCtr)
+static WC_INLINE void IncrementKeyWrapCounter(byte* inOutCtr)
 {
     int i;
 
@@ -9767,7 +9767,7 @@ static INLINE void IncrementKeyWrapCounter(byte* inOutCtr)
 }
 
 /* Decrement key wrap counter */
-static INLINE void DecrementKeyWrapCounter(byte* inOutCtr)
+static WC_INLINE void DecrementKeyWrapCounter(byte* inOutCtr)
 {
     int i;
 

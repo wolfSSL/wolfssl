@@ -2906,7 +2906,7 @@ int wc_ecc_get_curve_id_from_params(int fieldSize,
 
 
 #ifdef WOLFSSL_ASYNC_CRYPT
-static INLINE int wc_ecc_alloc_mpint(ecc_key* key, mp_int** mp)
+static WC_INLINE int wc_ecc_alloc_mpint(ecc_key* key, mp_int** mp)
 {
    if (key == NULL || mp == NULL)
       return BAD_FUNC_ARG;
@@ -2919,7 +2919,7 @@ static INLINE int wc_ecc_alloc_mpint(ecc_key* key, mp_int** mp)
    }
    return 0;
 }
-static INLINE void wc_ecc_free_mpint(ecc_key* key, mp_int** mp)
+static WC_INLINE void wc_ecc_free_mpint(ecc_key* key, mp_int** mp)
 {
    if (key && mp && *mp) {
       mp_clear(*mp);
@@ -3333,7 +3333,7 @@ static int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
 #endif
 #endif /* !WOLFSSL_ATECC508A */
 
-static INLINE void wc_ecc_reset(ecc_key* key)
+static WC_INLINE void wc_ecc_reset(ecc_key* key)
 {
     /* make sure required key variables are reset */
     key->state = ECC_STATE_NONE;
@@ -8742,7 +8742,7 @@ int wc_ecc_set_custom_curve(ecc_key* key, const ecc_set_type* dp)
 
 #ifdef HAVE_X963_KDF
 
-static INLINE void IncrementX963KdfCounter(byte* inOutCtr)
+static WC_INLINE void IncrementX963KdfCounter(byte* inOutCtr)
 {
     int i;
 

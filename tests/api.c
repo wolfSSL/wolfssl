@@ -2930,7 +2930,7 @@ static void test_wolfSSL_PKCS12(void)
         !defined(NO_DES3) && !defined(NO_FILESYSTEM) && \
         !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA)
 /* for PKCS8 test case */
-static INLINE int PKCS8TestCallBack(char* passwd, int sz, int rw, void* userdata)
+static WC_INLINE int PKCS8TestCallBack(char* passwd, int sz, int rw, void* userdata)
 {
     int flag = 0;
 

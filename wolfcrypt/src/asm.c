@@ -108,7 +108,7 @@ static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit) {
     return 0 ;
 }
 
-INLINE static int set_cpuid_flags(void) {
+WC_INLINE static int set_cpuid_flags(void) {
     if(cpuid_check == 0) {
         if(cpuid_flag(7, 0, EBX, 8)){  cpuid_flags |= CPUID_BMI2 ; }
         if(cpuid_flag(7, 0, EBX,19)){  cpuid_flags |= CPUID_ADX  ; }

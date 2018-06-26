@@ -128,27 +128,31 @@
 	#define WOLFSSL_MAX_16BIT 0xffffU
 
 	/* use inlining if compiler allows */
-	#ifndef INLINE
+	#ifndef WC_INLINE
 	#ifndef NO_INLINE
 	    #ifdef _MSC_VER
-	        #define INLINE __inline
+	        #define WC_INLINE __inline
 	    #elif defined(__GNUC__)
                #ifdef WOLFSSL_VXWORKS
-                   #define INLINE __inline__
+                   #define WC_INLINE __inline__
                #else
-                   #define INLINE inline
+                   #define WC_INLINE inline
                #endif
 	    #elif defined(__IAR_SYSTEMS_ICC__)
-	        #define INLINE inline
+	        #define WC_INLINE inline
 	    #elif defined(THREADX)
-	        #define INLINE _Inline
+	        #define WC_INLINE _Inline
 	    #else
-	        #define INLINE
+	        #define WC_INLINE
 	    #endif
 	#else
-	    #define INLINE
+	    #define WC_INLINE
 	#endif
 	#endif
+
+    #if defined(HAVE_FIPS) || defined(HAVE_SELFTEST)
+        #define INLINE WC_INLINE
+    #endif
 
 
     /* set up rotate style */

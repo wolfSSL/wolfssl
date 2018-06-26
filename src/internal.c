@@ -117,8 +117,8 @@ WOLFSSL_CALLBACKS needs LARGE_STATIC_BUFFERS, please add LARGE_STATIC_BUFFERS
 #endif /* !WOLFSSL_NO_TLS12 */
 
 #ifdef WOLFSSL_DTLS
-    static INLINE int DtlsCheckWindow(WOLFSSL* ssl);
-    static INLINE int DtlsUpdateWindow(WOLFSSL* ssl);
+    static WC_INLINE int DtlsCheckWindow(WOLFSSL* ssl);
+    static WC_INLINE int DtlsUpdateWindow(WOLFSSL* ssl);
 #endif
 
 
@@ -185,7 +185,7 @@ int IsAtLeastTLSv1_3(const ProtocolVersion pv)
     return (pv.major == SSLv3_MAJOR && pv.minor >= TLSv1_3_MINOR);
 }
 
-static INLINE int IsEncryptionOn(WOLFSSL* ssl, int isSend)
+static WC_INLINE int IsEncryptionOn(WOLFSSL* ssl, int isSend)
 {
     (void)isSend;
 
@@ -201,7 +201,7 @@ static INLINE int IsEncryptionOn(WOLFSSL* ssl, int isSend)
 
 /* If SCTP is not enabled returns the state of the dtls option.
  * If SCTP is enabled returns dtls && !sctp. */
-static INLINE int IsDtlsNotSctpMode(WOLFSSL* ssl)
+static WC_INLINE int IsDtlsNotSctpMode(WOLFSSL* ssl)
 {
     int result = ssl->options.dtls;
 
@@ -2707,7 +2707,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
  * hashalgo  The hash algorithm.
  * hsType    The signature type.
  */
-static INLINE void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsType)
+static WC_INLINE void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsType)
 {
     switch (input[0]) {
         case NEW_SA_MAJOR:
@@ -2869,7 +2869,7 @@ void FreeX509(WOLFSSL_X509* x509)
  * hsType   The signature type.
  * output    The buffer to encode into.
  */
-static INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
+static WC_INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
 {
     switch (hsType) {
 #ifdef HAVE_ECC
@@ -5310,7 +5310,7 @@ void FreeSSL(WOLFSSL* ssl, void* heap)
 #if !defined(NO_OLD_TLS) || defined(WOLFSSL_DTLS) || \
     ((defined(HAVE_CHACHA) || defined(HAVE_AESCCM) || defined(HAVE_AESGCM)) \
      && defined(HAVE_AEAD))
-static INLINE void GetSEQIncrement(WOLFSSL* ssl, int verify, word32 seq[2])
+static WC_INLINE void GetSEQIncrement(WOLFSSL* ssl, int verify, word32 seq[2])
 {
     if (verify) {
         seq[0] = ssl->keys.peer_sequence_number_hi;
@@ -5332,7 +5332,7 @@ static INLINE void GetSEQIncrement(WOLFSSL* ssl, int verify, word32 seq[2])
 
 
 #ifdef WOLFSSL_DTLS
-static INLINE void DtlsGetSEQ(WOLFSSL* ssl, int order, word32 seq[2])
+static WC_INLINE void DtlsGetSEQ(WOLFSSL* ssl, int order, word32 seq[2])
 {
     if (order == PREV_ORDER) {
         /* Previous epoch case */
@@ -5376,7 +5376,7 @@ static INLINE void DtlsGetSEQ(WOLFSSL* ssl, int order, word32 seq[2])
     }
 }
 
-static INLINE void DtlsSEQIncrement(WOLFSSL* ssl, int order)
+static WC_INLINE void DtlsSEQIncrement(WOLFSSL* ssl, int order)
 {
     word32 seq;
 
@@ -5405,7 +5405,7 @@ static INLINE void DtlsSEQIncrement(WOLFSSL* ssl, int order)
 #endif /* WOLFSSL_DTLS */
 
 
-static INLINE void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
+static WC_INLINE void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
 {
     word32 seq[2] = {0, 0};
 
@@ -6593,7 +6593,7 @@ int SendBuffered(WOLFSSL* ssl)
 
 
 /* Grow the output buffer */
-static INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
+static WC_INLINE int GrowOutputBuffer(WOLFSSL* ssl, int size)
 {
     byte* tmp;
 #if WOLFSSL_GENERAL_ALIGNMENT > 0
@@ -10551,7 +10551,7 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
 #ifdef WOLFSSL_DTLS
 
-static INLINE int DtlsCheckWindow(WOLFSSL* ssl)
+static WC_INLINE int DtlsCheckWindow(WOLFSSL* ssl)
 {
     word32* window;
     word16 cur_hi, next_hi;
@@ -10652,7 +10652,7 @@ static INLINE int DtlsCheckWindow(WOLFSSL* ssl)
 
 
 #ifdef WOLFSSL_MULTICAST
-static INLINE word32 UpdateHighwaterMark(word32 cur, word32 first,
+static WC_INLINE word32 UpdateHighwaterMark(word32 cur, word32 first,
                                          word32 second, word32 max)
 {
     word32 newCur = 0;
@@ -10669,7 +10669,7 @@ static INLINE word32 UpdateHighwaterMark(word32 cur, word32 first,
 #endif /* WOLFSSL_MULTICAST */
 
 
-static INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
+static WC_INLINE int DtlsUpdateWindow(WOLFSSL* ssl)
 {
     word32* window;
     word32* next_lo;
@@ -10934,7 +10934,7 @@ static int DoDtlsHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #ifndef WOLFSSL_NO_TLS12
 
 #ifdef HAVE_AEAD
-static INLINE void AeadIncrementExpIV(WOLFSSL* ssl)
+static WC_INLINE void AeadIncrementExpIV(WOLFSSL* ssl)
 {
     int i;
     for (i = AEAD_MAX_EXP_SZ-1; i >= 0; i--) {
@@ -11290,7 +11290,7 @@ static int ChachaAEADDecrypt(WOLFSSL* ssl, byte* plain, const byte* input,
 #endif /* HAVE_AEAD */
 
 
-static INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
+static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
     word16 sz, int asyncOkay)
 {
     int ret = 0;
@@ -11467,7 +11467,7 @@ static INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
     return ret;
 }
 
-static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz,
+static WC_INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz,
     int asyncOkay)
 {
     int ret = 0;
@@ -11559,7 +11559,7 @@ static INLINE int Encrypt(WOLFSSL* ssl, byte* out, const byte* input, word16 sz,
     return ret;
 }
 
-static INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
+static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
                            word16 sz)
 {
     int ret = 0;
@@ -11716,7 +11716,7 @@ static INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
     return ret;
 }
 
-static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
+static WC_INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
                            word16 sz)
 {
     int ret = 0;
@@ -11826,7 +11826,7 @@ static INLINE int Decrypt(WOLFSSL* ssl, byte* plain, const byte* input,
  * ssl  The SSL/TLS object.
  * returns 1 if the cipher in use has an explicit IV and 0 otherwise.
  */
-static INLINE int CipherHasExpIV(WOLFSSL *ssl)
+static WC_INLINE int CipherHasExpIV(WOLFSSL *ssl)
 {
 #ifdef WOLFSSL_TLS13
     if (ssl->options.tls1_3)
@@ -12221,7 +12221,7 @@ static int GetInputData(WOLFSSL *ssl, word32 size)
 }
 
 
-static INLINE int VerifyMac(WOLFSSL* ssl, const byte* input, word32 msgSz,
+static WC_INLINE int VerifyMac(WOLFSSL* ssl, const byte* input, word32 msgSz,
                             int content, word32* padSz)
 {
 #ifndef WOLFSSL_NO_TLS12
@@ -16730,7 +16730,7 @@ exit_dpk:
     }
 
 
-    static INLINE int DSH_CheckSessionId(WOLFSSL* ssl)
+    static WC_INLINE int DSH_CheckSessionId(WOLFSSL* ssl)
     {
         int ret = 0;
 

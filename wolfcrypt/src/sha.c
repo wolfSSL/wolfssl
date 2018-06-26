@@ -267,7 +267,7 @@
 /* Software implementation */
 #ifdef USE_SHA_SOFTWARE_IMPL
 
-static INLINE void AddLength(wc_Sha* sha, word32 len)
+static WC_INLINE void AddLength(wc_Sha* sha, word32 len)
 {
     word32 tmp = sha->loLen;
     if ((sha->loLen += len) < tmp)

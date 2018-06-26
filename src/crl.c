@@ -771,7 +771,7 @@ static void* DoMonitor(void* arg)
 
 
 #ifndef max
-    static INLINE int max(int a, int b)
+    static WC_INLINE int max(int a, int b)
     {
         return a > b ? a : b;
     }

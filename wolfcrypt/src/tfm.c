@@ -431,7 +431,7 @@ void fp_mul_2d(fp_int *a, int b, fp_int *c)
 /* generic PxQ multiplier */
 #if defined(HAVE_INTEL_MULX)
 
-INLINE static void fp_mul_comba_mulx(fp_int *A, fp_int *B, fp_int *C)
+WC_INLINE static void fp_mul_comba_mulx(fp_int *A, fp_int *B, fp_int *C)
 
 {
    int       ix, iy, iz, pa;
@@ -1696,7 +1696,7 @@ void fp_montgomery_calc_normalization(fp_int *a, fp_int *b)
 #endif
 
 #ifdef HAVE_INTEL_MULX
-static INLINE void innermul8_mulx(fp_digit *c_mulx, fp_digit *cy_mulx, fp_digit *tmpm, fp_digit mu)
+static WC_INLINE void innermul8_mulx(fp_digit *c_mulx, fp_digit *cy_mulx, fp_digit *tmpm, fp_digit mu)
 {
     fp_digit cy = *cy_mulx ;
     INNERMUL8_MULX ;

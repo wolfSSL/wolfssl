@@ -106,9 +106,9 @@
     #endif
 
 #ifdef WOLFSSL_DEBUG_MEMORY
-    STATIC INLINE void* TrackMalloc(size_t sz, const char* func, unsigned int line)
+    STATIC WC_INLINE void* TrackMalloc(size_t sz, const char* func, unsigned int line)
 #else
-    STATIC INLINE void* TrackMalloc(size_t sz)
+    STATIC WC_INLINE void* TrackMalloc(size_t sz)
 #endif
     {
         memoryTrack* mt;
@@ -140,9 +140,9 @@
 
 
 #ifdef WOLFSSL_DEBUG_MEMORY
-    STATIC INLINE void TrackFree(void* ptr, const char* func, unsigned int line)
+    STATIC WC_INLINE void TrackFree(void* ptr, const char* func, unsigned int line)
 #else
-    STATIC INLINE void TrackFree(void* ptr)
+    STATIC WC_INLINE void TrackFree(void* ptr)
 #endif
     {
         memoryTrack* mt;
@@ -168,9 +168,9 @@
 
 
 #ifdef WOLFSSL_DEBUG_MEMORY
-    STATIC INLINE void* TrackRealloc(void* ptr, size_t sz, const char* func, unsigned int line)
+    STATIC WC_INLINE void* TrackRealloc(void* ptr, size_t sz, const char* func, unsigned int line)
 #else
-    STATIC INLINE void* TrackRealloc(void* ptr, size_t sz)
+    STATIC WC_INLINE void* TrackRealloc(void* ptr, size_t sz)
 #endif
     {
     #ifdef WOLFSSL_DEBUG_MEMORY
@@ -203,7 +203,7 @@
     }
 
 #ifdef WOLFSSL_TRACK_MEMORY
-    STATIC INLINE int InitMemoryTracker(void)
+    STATIC WC_INLINE int InitMemoryTracker(void)
     {
         int ret = wolfSSL_SetAllocators(TrackMalloc, TrackFree, TrackRealloc);
         if (ret < 0) {
@@ -222,7 +222,7 @@
         return ret;
     }
 
-    STATIC INLINE void ShowMemoryTracker(void)
+    STATIC WC_INLINE void ShowMemoryTracker(void)
     {
     #ifdef DO_MEM_STATS
         printf("total   Allocs   = %9lu\n",

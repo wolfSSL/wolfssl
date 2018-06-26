@@ -413,7 +413,7 @@ static const bench_alg bench_other_opt[] = {
 
 #if defined(__GNUC__) && defined(__x86_64__) && !defined(NO_ASM) && !defined(WOLFSSL_SGX)
     #define HAVE_GET_CYCLES
-    static INLINE word64 get_intel_cycles(void);
+    static WC_INLINE word64 get_intel_cycles(void);
     static THREAD_LS_T word64 total_cycles;
     #define INIT_CYCLE_COUNTER
     #define BEGIN_INTEL_CYCLES total_cycles = get_intel_cycles();
@@ -592,7 +592,7 @@ static THREAD_LS_T int devId = INVALID_DEVID;
         return (*ret >= 0) ? 1 : 0;
     }
 
-    static INLINE int bench_async_poll(int* pending)
+    static WC_INLINE int bench_async_poll(int* pending)
     {
         int ret, asyncDone = 0;
 
@@ -620,7 +620,7 @@ static THREAD_LS_T int devId = INVALID_DEVID;
     #define BENCH_ASYNC_GET_NAME(doAsync) ""
     #define BENCH_ASYNC_GET_DEV(obj)      NULL
 
-    static INLINE int bench_async_check(int* ret, void* asyncDev,
+    static WC_INLINE int bench_async_check(int* ret, void* asyncDev,
         int callAgain, int* times, int limit, int* pending)
     {
         (void)ret;
@@ -633,7 +633,7 @@ static THREAD_LS_T int devId = INVALID_DEVID;
         return 1;
     }
 
-    static INLINE int bench_async_handle(int* ret, void* asyncDev,
+    static WC_INLINE int bench_async_handle(int* ret, void* asyncDev,
         int callAgain, int* times, int* pending)
     {
         (void)asyncDev;
@@ -831,7 +831,7 @@ static THREAD_LS_T byte* bench_iv = NULL;
     }
 #endif /* WOLFSSL_ASYNC_CRYPT && !WC_NO_ASYNC_THREADING */
 
-static INLINE void bench_stats_init(void)
+static WC_INLINE void bench_stats_init(void)
 {
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
     bench_stats_head = NULL;
@@ -840,14 +840,14 @@ static INLINE void bench_stats_init(void)
     INIT_CYCLE_COUNTER
 }
 
-static INLINE void bench_stats_start(int* count, double* start)
+static WC_INLINE void bench_stats_start(int* count, double* start)
 {
     *count = 0;
     *start = current_time(1);
     BEGIN_INTEL_CYCLES
 }
 
-static INLINE int bench_stats_sym_check(double start)
+static WC_INLINE int bench_stats_sym_check(double start)
 {
     return ((current_time(0) - start) < BENCH_MIN_RUNTIME_SEC);
 }
@@ -952,7 +952,7 @@ static void bench_stats_asym_finish(const char* algo, int strength,
 }
 #endif /* BENCH_ASYM */
 
-static INLINE void bench_stats_free(void)
+static WC_INLINE void bench_stats_free(void)
 {
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
     bench_stats_t* stat;
@@ -4821,7 +4821,7 @@ exit_ed_verify:
 
 #if defined(HAVE_GET_CYCLES)
 
-static INLINE word64 get_intel_cycles(void)
+static WC_INLINE word64 get_intel_cycles(void)
 {
     unsigned int lo_c, hi_c;
     __asm__ __volatile__ (

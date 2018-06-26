@@ -4021,7 +4021,7 @@ static int32_t sp_2048_cmp_32(sp_digit* a, sp_digit* b)
  * r  Remainder from the division.
  * returns MP_OKAY indicating success.
  */
-static INLINE int sp_2048_div_32(sp_digit* a, sp_digit* d, sp_digit* m,
+static WC_INLINE int sp_2048_div_32(sp_digit* a, sp_digit* d, sp_digit* m,
         sp_digit* r)
 {
     sp_digit t1[64], t2[33];
@@ -4057,7 +4057,7 @@ static INLINE int sp_2048_div_32(sp_digit* a, sp_digit* d, sp_digit* m,
  * m  A single precision number that is the modulus to reduce with.
  * returns MP_OKAY indicating success.
  */
-static INLINE int sp_2048_mod_32(sp_digit* r, sp_digit* a, sp_digit* m)
+static WC_INLINE int sp_2048_mod_32(sp_digit* r, sp_digit* a, sp_digit* m)
 {
     return sp_2048_div_32(a, m, NULL, r);
 }
@@ -6565,7 +6565,7 @@ static int32_t sp_2048_cmp_64(sp_digit* a, sp_digit* b)
  * r  Remainder from the division.
  * returns MP_OKAY indicating success.
  */
-static INLINE int sp_2048_div_64(sp_digit* a, sp_digit* d, sp_digit* m,
+static WC_INLINE int sp_2048_div_64(sp_digit* a, sp_digit* d, sp_digit* m,
         sp_digit* r)
 {
     sp_digit t1[128], t2[65];
@@ -6601,7 +6601,7 @@ static INLINE int sp_2048_div_64(sp_digit* a, sp_digit* d, sp_digit* m,
  * m  A single precision number that is the modulus to reduce with.
  * returns MP_OKAY indicating success.
  */
-static INLINE int sp_2048_mod_64(sp_digit* r, sp_digit* a, sp_digit* m)
+static WC_INLINE int sp_2048_mod_64(sp_digit* r, sp_digit* a, sp_digit* m)
 {
     return sp_2048_div_64(a, m, NULL, r);
 }
@@ -6615,7 +6615,7 @@ static INLINE int sp_2048_mod_64(sp_digit* r, sp_digit* a, sp_digit* m)
  * r  Remainder from the division.
  * returns MP_OKAY indicating success.
  */
-static INLINE int sp_2048_div_64_cond(sp_digit* a, sp_digit* d, sp_digit* m,
+static WC_INLINE int sp_2048_div_64_cond(sp_digit* a, sp_digit* d, sp_digit* m,
         sp_digit* r)
 {
     sp_digit t1[128], t2[65];
@@ -6652,7 +6652,7 @@ static INLINE int sp_2048_div_64_cond(sp_digit* a, sp_digit* d, sp_digit* m,
  * m  A single precision number that is the modulus to reduce with.
  * returns MP_OKAY indicating success.
  */
-static INLINE int sp_2048_mod_64_cond(sp_digit* r, sp_digit* a, sp_digit* m)
+static WC_INLINE int sp_2048_mod_64_cond(sp_digit* r, sp_digit* a, sp_digit* m)
 {
     return sp_2048_div_64_cond(a, m, NULL, r);
 }
@@ -12468,7 +12468,7 @@ static int32_t sp_3072_cmp_48(sp_digit* a, sp_digit* b)
  * r  Remainder from the division.
  * returns MP_OKAY indicating success.
  */
-static INLINE int sp_3072_div_48(sp_digit* a, sp_digit* d, sp_digit* m,
+static WC_INLINE int sp_3072_div_48(sp_digit* a, sp_digit* d, sp_digit* m,
         sp_digit* r)
 {
     sp_digit t1[96], t2[49];
@@ -12504,7 +12504,7 @@ static INLINE int sp_3072_div_48(sp_digit* a, sp_digit* d, sp_digit* m,
  * m  A single precision number that is the modulus to reduce with.
  * returns MP_OKAY indicating success.
  */
-static INLINE int sp_3072_mod_48(sp_digit* r, sp_digit* a, sp_digit* m)
+static WC_INLINE int sp_3072_mod_48(sp_digit* r, sp_digit* a, sp_digit* m)
 {
     return sp_3072_div_48(a, m, NULL, r);
 }
@@ -15969,7 +15969,7 @@ static int32_t sp_3072_cmp_96(sp_digit* a, sp_digit* b)
  * r  Remainder from the division.
  * returns MP_OKAY indicating success.
  */
-static INLINE int sp_3072_div_96(sp_digit* a, sp_digit* d, sp_digit* m,
+static WC_INLINE int sp_3072_div_96(sp_digit* a, sp_digit* d, sp_digit* m,
         sp_digit* r)
 {
     sp_digit t1[192], t2[97];
@@ -16005,7 +16005,7 @@ static INLINE int sp_3072_div_96(sp_digit* a, sp_digit* d, sp_digit* m,
  * m  A single precision number that is the modulus to reduce with.
  * returns MP_OKAY indicating success.
  */
-static INLINE int sp_3072_mod_96(sp_digit* r, sp_digit* a, sp_digit* m)
+static WC_INLINE int sp_3072_mod_96(sp_digit* r, sp_digit* a, sp_digit* m)
 {
     return sp_3072_div_96(a, m, NULL, r);
 }
@@ -16019,7 +16019,7 @@ static INLINE int sp_3072_mod_96(sp_digit* r, sp_digit* a, sp_digit* m)
  * r  Remainder from the division.
  * returns MP_OKAY indicating success.
  */
-static INLINE int sp_3072_div_96_cond(sp_digit* a, sp_digit* d, sp_digit* m,
+static WC_INLINE int sp_3072_div_96_cond(sp_digit* a, sp_digit* d, sp_digit* m,
         sp_digit* r)
 {
     sp_digit t1[192], t2[97];
@@ -16056,7 +16056,7 @@ static INLINE int sp_3072_div_96_cond(sp_digit* a, sp_digit* d, sp_digit* m,
  * m  A single precision number that is the modulus to reduce with.
  * returns MP_OKAY indicating success.
  */
-static INLINE int sp_3072_mod_96_cond(sp_digit* r, sp_digit* a, sp_digit* m)
+static WC_INLINE int sp_3072_mod_96_cond(sp_digit* r, sp_digit* a, sp_digit* m)
 {
     return sp_3072_div_96_cond(a, m, NULL, r);
 }
@@ -23226,7 +23226,7 @@ static void sp_256_mask_8(sp_digit* r, sp_digit* a, sp_digit m)
  * r  Remainder from the division.
  * returns MP_OKAY indicating success.
  */
-static INLINE int sp_256_div_8(sp_digit* a, sp_digit* d, sp_digit* m,
+static WC_INLINE int sp_256_div_8(sp_digit* a, sp_digit* d, sp_digit* m,
         sp_digit* r)
 {
     sp_digit t1[16], t2[9];
@@ -23262,7 +23262,7 @@ static INLINE int sp_256_div_8(sp_digit* a, sp_digit* d, sp_digit* m,
  * m  A single precision number that is the modulus to reduce with.
  * returns MP_OKAY indicating success.
  */
-static INLINE int sp_256_mod_8(sp_digit* r, sp_digit* a, sp_digit* m)
+static WC_INLINE int sp_256_mod_8(sp_digit* r, sp_digit* a, sp_digit* m)
 {
     return sp_256_div_8(a, m, NULL, r);
 }

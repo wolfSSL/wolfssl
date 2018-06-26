@@ -2617,7 +2617,7 @@ static IppsBigNumState* GetRsaInt(RsaKey* key, int idx)
 
 
 /* Release Tmp RSA resources */
-static INLINE void FreeTmpRsas(byte** tmps, void* heap)
+static WC_INLINE void FreeTmpRsas(byte** tmps, void* heap)
 {
     int i;
 
