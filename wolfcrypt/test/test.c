@@ -6921,7 +6921,7 @@ int aesgcm_test(void)
 #if !defined(HAVE_FIPS) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
     /* Test encrypt with internally generated IV */
-#ifndef WC_NO_RNG
+#if !(defined(WC_NO_RNG) || defined(HAVE_SELFTEST))
     {
         WC_RNG rng;
         byte randIV[12];
@@ -6975,7 +6975,7 @@ int aesgcm_test(void)
             return -8212;
         wc_FreeRng(&rng);
     }
-#endif /* WC_NO_RNG */
+#endif /* WC_NO_RNG HAVE_SELFTEST */
 #endif
 
     wc_AesFree(&enc);
@@ -7052,7 +7052,7 @@ int gmac_test(void)
     if (XMEMCMP(t2, tag, sizeof(t2)) != 0)
         return -5801;
 
-#ifndef WC_NO_RNG
+#if !(defined(WC_NO_RNG) || defined(HAVE_SELFTEST))
     {
         const byte badT[] =
         {
@@ -7091,7 +7091,7 @@ int gmac_test(void)
             return -8219;
         wc_FreeRng(&rng);
     }
-#endif /* WC_NO_RNG */
+#endif /* WC_NO_RNG HAVE_SELFTEST */
 #endif /* HAVE_FIPS */
 
     return 0;
@@ -11299,6 +11299,7 @@ static int dh_fips_generate_test(WC_RNG *rng)
         ERROR_OUT(-7088, exit_gen_test);
     }
 
+#ifndef HAVE_SELFTEST
     ret = wc_DhCheckKeyPair(&key, pub, pubSz, priv, privSz);
     if (ret != 0) {
         ERROR_OUT(-8229, exit_gen_test);
@@ -11310,6 +11311,7 @@ static int dh_fips_generate_test(WC_RNG *rng)
     if (ret != MP_CMP_E) {
         ERROR_OUT(-8230, exit_gen_test);
     }
+#endif /* HAVE_SELFTEST */
 
 #ifdef WOLFSSL_KEY_GEN
 
