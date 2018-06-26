@@ -29,7 +29,7 @@ if [ $RESULT = 0 ]; then
     # client test against the server
     ./examples/client/client -X -C -h $server -p 443 -A $ca -g -o -N
     GR_RESULT=$?
-    [ $GL_RESULT -ne 0 ] && echo -e "\n\nClient connection failed"
+    [ $GR_RESULT -ne 0 ] && echo -e "\n\nClient connection failed"
 else
     GR_RESULT=1
 fi
