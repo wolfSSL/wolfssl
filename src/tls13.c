@@ -5995,9 +5995,6 @@ static int SendTls13Finished(WOLFSSL* ssl)
 
     ssl->buffers.outputBuffer.length += sendSz;
 
-    if ((ret = SendBuffered(ssl)) != 0)
-        return ret;
-
     if (ssl->options.side == WOLFSSL_SERVER_END) {
         /* Can send application data now. */
         if ((ret = DeriveMasterSecret(ssl)) != 0)
@@ -6037,6 +6034,8 @@ static int SendTls13Finished(WOLFSSL* ssl)
 
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
         ret = DeriveResumptionSecret(ssl, ssl->session.masterSecret);
+        if (ret != 0)
+            return ret;
 #endif
     }
 
@@ -6052,6 +6051,9 @@ static int SendTls13Finished(WOLFSSL* ssl)
         ssl->options.serverState = SERVER_FINISHED_COMPLETE;
     }
 #endif
+
+    if ((ret = SendBuffered(ssl)) != 0)
+        return ret;
 
     WOLFSSL_LEAVE("SendTls13Finished", ret);
     WOLFSSL_END(WC_FUNC_FINISHED_SEND);
@@ -7470,6 +7472,12 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
                 ssl->options.sentChangeCipher = 1;
             }
         #endif
+
+            ssl->options.connectState = FIRST_REPLY_SECOND;
+            WOLFSSL_MSG("connect state: FIRST_REPLY_SECOND");
+            FALL_THROUGH;
+
+        case FIRST_REPLY_SECOND:
         #ifndef NO_CERTS
             if (!ssl->options.resuming && ssl->options.sendVerify) {
                 ssl->error = SendTls13Certificate(ssl);
@@ -7481,12 +7489,11 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             }
         #endif
 
-            ssl->options.connectState = FIRST_REPLY_SECOND;
-            WOLFSSL_MSG("connect state: FIRST_REPLY_SECOND");
+            ssl->options.connectState = FIRST_REPLY_THIRD;
+            WOLFSSL_MSG("connect state: FIRST_REPLY_THIRD");
             FALL_THROUGH;
 
-        case FIRST_REPLY_SECOND:
-
+        case FIRST_REPLY_THIRD:
         #ifndef NO_CERTS
             if (!ssl->options.resuming && ssl->options.sendVerify) {
                 ssl->error = SendTls13CertificateVerify(ssl);
@@ -7498,11 +7505,11 @@ int wolfSSL_connect_TLSv13(WOLFSSL* ssl)
             }
         #endif
 
-            ssl->options.connectState = FIRST_REPLY_THIRD;
-            WOLFSSL_MSG("connect state: FIRST_REPLY_THIRD");
+            ssl->options.connectState = FIRST_REPLY_FOURTH;
+            WOLFSSL_MSG("connect state: FIRST_REPLY_FOURTH");
             FALL_THROUGH;
 
-        case FIRST_REPLY_THIRD:
+        case FIRST_REPLY_FOURTH:
             if ((ssl->error = SendTls13Finished(ssl)) != 0) {
                 WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
@@ -7989,7 +7996,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 
     switch (ssl->options.acceptState) {
 
-        case ACCEPT_BEGIN :
+        case TLS13_ACCEPT_BEGIN :
             /* get client_hello */
             while (ssl->options.clientState < CLIENT_HELLO_COMPLETE) {
                 if ((ssl->error = ProcessReply(ssl)) < 0) {
@@ -7998,11 +8005,11 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                 }
             }
 
-            ssl->options.acceptState = ACCEPT_CLIENT_HELLO_DONE;
+            ssl->options.acceptState = TLS13_ACCEPT_CLIENT_HELLO_DONE;
             WOLFSSL_MSG("accept state ACCEPT_CLIENT_HELLO_DONE");
             FALL_THROUGH;
 
-        case ACCEPT_CLIENT_HELLO_DONE :
+        case TLS13_ACCEPT_CLIENT_HELLO_DONE :
 #ifdef WOLFSSL_TLS13_DRAFT_18
             if (ssl->options.serverState ==
                                           SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
@@ -8011,6 +8018,12 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                     return WOLFSSL_FATAL_ERROR;
                 }
             }
+
+            ssl->options.acceptState = TLS13_ACCEPT_FIRST_REPLY_DONE;
+            WOLFSSL_MSG("accept state ACCEPT_FIRST_REPLY_DONE");
+            FALL_THROUGH;
+
+        case TLS13_ACCEPT_HELLO_RETRY_REQUEST_DONE :
 #else
             if (ssl->options.serverState ==
                                           SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
@@ -8019,20 +8032,29 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
+            }
+            
+            ssl->options.acceptState = TLS13_ACCEPT_HELLO_RETRY_REQUEST_DONE;
+            WOLFSSL_MSG("accept state ACCEPT_HELLO_RETRY_REQUEST_DONE");
+            FALL_THROUGH;
+
+        case TLS13_ACCEPT_HELLO_RETRY_REQUEST_DONE :
     #ifdef WOLFSSL_TLS13_MIDDLEBOX_COMPAT
+            if (ssl->options.serverState ==
+                                          SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
                 if ((ssl->error = SendChangeCipher(ssl)) != 0) {
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
                 ssl->options.sentChangeCipher = 1;
-    #endif
             }
-#endif
-            ssl->options.acceptState = ACCEPT_HELLO_RETRY_REQUEST_DONE;
-            WOLFSSL_MSG("accept state ACCEPT_HELLO_RETRY_REQUEST_DONE");
+    #endif
+            ssl->options.acceptState = TLS13_ACCEPT_FIRST_REPLY_DONE;
+            WOLFSSL_MSG("accept state ACCEPT_FIRST_REPLY_DONE");
             FALL_THROUGH;
+#endif
 
-        case ACCEPT_HELLO_RETRY_REQUEST_DONE :
+        case TLS13_ACCEPT_FIRST_REPLY_DONE :
             if (ssl->options.serverState ==
                                           SERVER_HELLO_RETRY_REQUEST_COMPLETE) {
                 ssl->options.clientState = NULL_STATE;
@@ -8043,15 +8065,21 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                     }
                 }
             }
-            ssl->options.acceptState = ACCEPT_FIRST_REPLY_DONE;
-            WOLFSSL_MSG("accept state ACCEPT_FIRST_REPLY_DONE");
+
+            ssl->options.acceptState = TLS13_ACCEPT_SECOND_REPLY_DONE;
+            WOLFSSL_MSG("accept state ACCEPT_SECOND_REPLY_DONE");
             FALL_THROUGH;
 
-        case ACCEPT_FIRST_REPLY_DONE :
+        case TLS13_ACCEPT_SECOND_REPLY_DONE :
             if ((ssl->error = SendTls13ServerHello(ssl, server_hello)) != 0) {
                 WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
             }
+            ssl->options.acceptState = TLS13_SERVER_HELLO_SENT;
+            WOLFSSL_MSG("accept state SERVER_HELLO_SENT");
+            FALL_THROUGH;
+
+        case TLS13_SERVER_HELLO_SENT :
     #if !defined(WOLFSSL_TLS13_DRAFT_18) && \
                                          defined(WOLFSSL_TLS13_MIDDLEBOX_COMPAT)
             if (!ssl->options.sentChangeCipher) {
@@ -8062,27 +8090,27 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                 ssl->options.sentChangeCipher = 1;
             }
     #endif
+            
+            ssl->options.acceptState = TLS13_ACCEPT_THIRD_REPLY_DONE;
+            WOLFSSL_MSG("accept state ACCEPT_THIRD_REPLY_DONE");
+            FALL_THROUGH;
 
+        case TLS13_ACCEPT_THIRD_REPLY_DONE :
             if (!ssl->options.noPskDheKe) {
                 ssl->error = TLSX_KeyShare_DeriveSecret(ssl);
                 if (ssl->error != 0)
                     return WOLFSSL_FATAL_ERROR;
             }
 
-            ssl->options.acceptState = SERVER_HELLO_SENT;
-            WOLFSSL_MSG("accept state SERVER_HELLO_SENT");
-            FALL_THROUGH;
-
-        case SERVER_HELLO_SENT :
             if ((ssl->error = SendTls13EncryptedExtensions(ssl)) != 0) {
                 WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
             }
-            ssl->options.acceptState = SERVER_EXTENSIONS_SENT;
+            ssl->options.acceptState = TLS13_SERVER_EXTENSIONS_SENT;
             WOLFSSL_MSG("accept state SERVER_EXTENSIONS_SENT");
             FALL_THROUGH;
 
-        case SERVER_EXTENSIONS_SENT :
+        case TLS13_SERVER_EXTENSIONS_SENT :
 #ifndef NO_CERTS
             if (!ssl->options.resuming) {
                 if (ssl->options.verifyPeer) {
@@ -8094,12 +8122,11 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                 }
             }
 #endif
-            ssl->options.acceptState = CERT_REQ_SENT;
+            ssl->options.acceptState = TLS13_CERT_REQ_SENT;
             WOLFSSL_MSG("accept state CERT_REQ_SENT");
             FALL_THROUGH;
 
-        case CERT_REQ_SENT :
-            ssl->options.acceptState = KEY_EXCHANGE_SENT;
+        case TLS13_CERT_REQ_SENT :
 #ifndef NO_CERTS
             if (!ssl->options.resuming && ssl->options.sendVerify) {
                 if ((ssl->error = SendTls13Certificate(ssl)) != 0) {
@@ -8108,11 +8135,11 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                 }
             }
 #endif
-            ssl->options.acceptState = CERT_SENT;
+            ssl->options.acceptState = TLS13_CERT_SENT;
             WOLFSSL_MSG("accept state CERT_SENT");
             FALL_THROUGH;
 
-        case CERT_SENT :
+        case TLS13_CERT_SENT :
 #ifndef NO_CERTS
             if (!ssl->options.resuming && ssl->options.sendVerify) {
                 if ((ssl->error = SendTls13CertificateVerify(ssl)) != 0) {
@@ -8121,18 +8148,18 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                 }
             }
 #endif
-            ssl->options.acceptState = CERT_STATUS_SENT;
-            WOLFSSL_MSG("accept state CERT_STATUS_SENT");
+            ssl->options.acceptState = TLS13_CERT_VERIFY_SENT;
+            WOLFSSL_MSG("accept state CERT_VERIFY_SENT");
             FALL_THROUGH;
 
-        case CERT_VERIFY_SENT :
+        case TLS13_CERT_VERIFY_SENT :
             if ((ssl->error = SendTls13Finished(ssl)) != 0) {
                 WOLFSSL_ERROR(ssl->error);
                 return WOLFSSL_FATAL_ERROR;
             }
 
-            ssl->options.acceptState = ACCEPT_FINISHED_DONE;
-            WOLFSSL_MSG("accept state ACCEPT_FINISHED_DONE");
+            ssl->options.acceptState = TLS13_ACCEPT_FINISHED_SENT;
+            WOLFSSL_MSG("accept state ACCEPT_FINISHED_SENT");
 #ifdef WOLFSSL_EARLY_DATA
             if (ssl->earlyData != no_early_data) {
                 ssl->options.handShakeState = SERVER_FINISHED_COMPLETE;
@@ -8141,7 +8168,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
 #endif
             FALL_THROUGH;
 
-        case ACCEPT_FINISHED_DONE :
+        case TLS13_ACCEPT_FINISHED_SENT :
 #ifdef HAVE_SESSION_TICKET
     #ifdef WOLFSSL_TLS13_TICKET_BEFORE_FINISHED
             if (!ssl->options.resuming && !ssl->options.verifyPeer &&
@@ -8153,22 +8180,22 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
             }
     #endif
 #endif /* HAVE_SESSION_TICKET */
-            ssl->options.acceptState = TICKET_SENT;
+            ssl->options.acceptState = TLS13_PRE_TICKET_SENT;
             WOLFSSL_MSG("accept state  TICKET_SENT");
             FALL_THROUGH;
 
-        case TICKET_SENT:
+        case TLS13_PRE_TICKET_SENT :
             while (ssl->options.clientState < CLIENT_FINISHED_COMPLETE)
                 if ( (ssl->error = ProcessReply(ssl)) < 0) {
                     WOLFSSL_ERROR(ssl->error);
                     return WOLFSSL_FATAL_ERROR;
                 }
 
-            ssl->options.acceptState = ACCEPT_SECOND_REPLY_DONE;
-            WOLFSSL_MSG("accept state ACCEPT_SECOND_REPLY_DONE");
+            ssl->options.acceptState = TLS13_ACCEPT_FINISHED_DONE;
+            WOLFSSL_MSG("accept state ACCEPT_FINISHED_DONE");
             FALL_THROUGH;
 
-        case ACCEPT_SECOND_REPLY_DONE :
+        case TLS13_ACCEPT_FINISHED_DONE :
 #ifdef HAVE_SESSION_TICKET
     #ifdef WOLFSSL_TLS13_TICKET_BEFORE_FINISHED
             if (!ssl->options.verifyPeer) {
@@ -8183,11 +8210,11 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                 }
             }
 #endif /* HAVE_SESSION_TICKET */
-            ssl->options.acceptState = ACCEPT_THIRD_REPLY_DONE;
-            WOLFSSL_MSG("accept state ACCEPT_THIRD_REPLY_DONE");
+            ssl->options.acceptState = TLS13_TICKET_SENT;
+            WOLFSSL_MSG("accept state TICKET_SENT");
             FALL_THROUGH;
 
-        case ACCEPT_THIRD_REPLY_DONE:
+        case TLS13_TICKET_SENT :
 #ifndef NO_HANDSHAKE_DONE_CB
             if (ssl->hsDoneCb) {
                 int cbret = ssl->hsDoneCb(ssl, ssl->hsDoneCtx);
