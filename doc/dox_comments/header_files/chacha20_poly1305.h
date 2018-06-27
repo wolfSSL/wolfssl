@@ -54,6 +54,7 @@ int wc_ChaCha20Poly1305_Encrypt(
                 const byte* inPlaintext, const word32 inPlaintextLen,
                 byte* outCiphertext,
                 byte outAuthTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE]);
+
 /*!
     \ingroup ChaCha20Poly1305    
     

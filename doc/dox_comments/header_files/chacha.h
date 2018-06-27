@@ -31,6 +31,7 @@
     \sa wc_Chacha_Process
 */
 WOLFSSL_API int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter);
+
 /*!
     \ingroup ChaCha
     
@@ -65,6 +66,7 @@ WOLFSSL_API int wc_Chacha_SetIV(ChaCha* ctx, const byte* inIv, word32 counter);
 */
 WOLFSSL_API int wc_Chacha_Process(ChaCha* ctx, byte* cipher, const byte* plain,
                               word32 msglen);
+
 /*!
     \ingroup ChaCha
     

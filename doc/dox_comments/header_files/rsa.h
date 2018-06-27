@@ -483,7 +483,7 @@ WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
     \sa wc_MakeRsaKey
     \sa wc_InitRng
 */
-    WOLFSSL_API int wc_RsaKeyToDer(RsaKey*, byte* output, word32 inLen);
+WOLFSSL_API int wc_RsaKeyToDer(RsaKey*, byte* output, word32 inLen);
 
 /*!
     \ingroup RSA
@@ -719,7 +719,7 @@ WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
     \sa wc_RsaKeyToPublicDer
     \sa wc_RsaInitKey
 */
-    WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey*, byte* output, word32 inLen);
+WOLFSSL_API int wc_RsaKeyToPublicDer(RsaKey*, byte* output, word32 inLen);
 
 /*!
     \ingroup RSA
@@ -790,4 +790,4 @@ WOLFSSL_API int  wc_RsaFlattenPublicKey(RsaKey*, byte*, word32*, byte*,
     
     \sa none
 */
-    WOLFSSL_API int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng);
+WOLFSSL_API int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng);

@@ -36,6 +36,7 @@
     \sa wc_RabbitSetKey
 */
 WOLFSSL_API int wc_RabbitProcess(Rabbit*, byte*, const byte*, word32);
+
 /*!
     \ingroup Rabbit
     

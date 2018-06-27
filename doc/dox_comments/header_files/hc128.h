@@ -37,6 +37,7 @@
     \sa wc_Hc128_SetKey
 */
 WOLFSSL_API int wc_Hc128_Process(HC128*, byte*, const byte*, word32);
+
 /*!
     \ingroup HC128
     

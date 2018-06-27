@@ -23,6 +23,7 @@
     \sa wc_Hash
 */
 WOLFSSL_API int wc_HashGetOID(enum wc_HashType hash_type);
+
 /*!
     \ingroup wolfCrypt
     
@@ -50,6 +51,7 @@ WOLFSSL_API int wc_HashGetOID(enum wc_HashType hash_type);
     \sa wc_Hash
 */
 WOLFSSL_API int wc_HashGetDigestSize(enum wc_HashType hash_type);
+
 /*!
     \ingroup wolfCrypt
     
@@ -82,6 +84,7 @@ WOLFSSL_API int wc_HashGetDigestSize(enum wc_HashType hash_type);
 WOLFSSL_API int wc_Hash(enum wc_HashType hash_type,
     const byte* data, word32 data_len,
     byte* hash, word32 hash_len);
+
 /*!
     \ingroup MD5
     
@@ -114,6 +117,7 @@ WOLFSSL_API int wc_Hash(enum wc_HashType hash_type,
     \sa wc_InitMd5
 */
 WOLFSSL_API int wc_Md5Hash(const byte* data, word32 len, byte* hash);
+
 /*!
     \ingroup SHA
     
@@ -138,6 +142,7 @@ WOLFSSL_API int wc_Md5Hash(const byte* data, word32 len, byte* hash);
     \sa wc_InitSha
 */
 WOLFSSL_API int wc_ShaHash(const byte*, word32, byte*);
+
 /*!
     \ingroup SHA
     
@@ -162,6 +167,7 @@ WOLFSSL_API int wc_ShaHash(const byte*, word32, byte*);
     \sa wc_InitSha256
 */
 WOLFSSL_API int wc_Sha256Hash(const byte*, word32, byte*);
+
 /*!
     \ingroup SHA
     
@@ -184,7 +190,8 @@ WOLFSSL_API int wc_Sha256Hash(const byte*, word32, byte*);
     \sa wc_Sha224Update
     \sa wc_Sha224Final
 */
-        WOLFSSL_API int wc_Sha224Hash(const byte*, word32, byte*);
+WOLFSSL_API int wc_Sha224Hash(const byte*, word32, byte*);
+
 /*!
     \ingroup SHA
     
@@ -209,6 +216,7 @@ WOLFSSL_API int wc_Sha256Hash(const byte*, word32, byte*);
     \sa wc_InitSha512
 */
 WOLFSSL_API int wc_Sha512Hash(const byte*, word32, byte*);
+
 /*!
     \ingroup SHA
     
@@ -232,4 +240,4 @@ WOLFSSL_API int wc_Sha512Hash(const byte*, word32, byte*);
     \sa wc_Sha384Final
     \sa wc_InitSha384
 */
-        WOLFSSL_API int wc_Sha384Hash(const byte*, word32, byte*);
+WOLFSSL_API int wc_Sha384Hash(const byte*, word32, byte*);

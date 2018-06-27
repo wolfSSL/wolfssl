@@ -30,6 +30,7 @@
 */
 WOLFSSL_API int  wc_AesSetKey(Aes* aes, const byte* key, word32 len,
                               const byte* iv, int dir);
+
 /*!
     \ingroup AES
     \brief This function sets the initialization vector for a 
@@ -58,6 +59,7 @@ WOLFSSL_API int  wc_AesSetKey(Aes* aes, const byte* key, word32 len,
     \sa wc_AesSetKey
 */
 WOLFSSL_API int  wc_AesSetIV(Aes* aes, const byte* iv);
+
 /*!
     \ingroup AES
     \brief Encrypts a plaintext message from the input buffer in, and places 
@@ -100,6 +102,7 @@ WOLFSSL_API int  wc_AesSetIV(Aes* aes, const byte* iv);
 */
 WOLFSSL_API int  wc_AesCbcEncrypt(Aes* aes, byte* out,
                                   const byte* in, word32 sz);
+
 /*!
     \ingroup AES 
     \brief Decrypts a cipher from the input buffer in, and places the 
@@ -142,6 +145,7 @@ WOLFSSL_API int  wc_AesCbcEncrypt(Aes* aes, byte* out,
 */
 WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
                                   const byte* in, word32 sz);
+
 /*!
     \ingroup AES
     \brief Encrypts/Decrypts a message from the input buffer in, and places 
@@ -184,8 +188,9 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     
     \sa wc_AesSetKey
 */
- WOLFSSL_API int wc_AesCtrEncrypt(Aes* aes, byte* out,
+WOLFSSL_API int wc_AesCtrEncrypt(Aes* aes, byte* out,
                                    const byte* in, word32 sz);
+
 /*!
     \ingroup AES
     \brief This function is a one-block encrypt of the input block, in, into 
@@ -214,7 +219,8 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     \sa wc_AesDecryptDirect
     \sa wc_AesSetKeyDirect
 */
- WOLFSSL_API void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
+WOLFSSL_API void wc_AesEncryptDirect(Aes* aes, byte* out, const byte* in);
+
 /*!
     \ingroup AES
     \brief This function is a one-block decrypt of the input block, in, into 
@@ -247,7 +253,8 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     \sa wc_AesEncryptDirect
     \sa wc_AesSetKeyDirect
  */
- WOLFSSL_API void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
+WOLFSSL_API void wc_AesDecryptDirect(Aes* aes, byte* out, const byte* in);
+
 /*!
     \ingroup AES
     \brief This function is used to set the AES keys for CTR mode with AES. 
@@ -286,8 +293,9 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     \sa wc_AesDecryptDirect
     \sa wc_AesSetKey
 */
- WOLFSSL_API int  wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
+WOLFSSL_API int  wc_AesSetKeyDirect(Aes* aes, const byte* key, word32 len,
                                 const byte* iv, int dir);
+
 /*!
     \ingroup AES
     \brief This function is used to set the key for AES GCM 
@@ -315,7 +323,8 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     \sa wc_AesGcmEncrypt
     \sa wc_AesGcmDecrypt
 */
- WOLFSSL_API int  wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len);
+WOLFSSL_API int  wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len);
+
 /*!
     \ingroup AES
     \brief This function encrypts the input message, held in the buffer in, 
@@ -359,11 +368,12 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     \sa wc_AesGcmSetKey
     \sa wc_AesGcmDecrypt
 */
- WOLFSSL_API int  wc_AesGcmEncrypt(Aes* aes, byte* out,
+WOLFSSL_API int  wc_AesGcmEncrypt(Aes* aes, byte* out,
                                    const byte* in, word32 sz,
                                    const byte* iv, word32 ivSz,
                                    byte* authTag, word32 authTagSz,
                                    const byte* authIn, word32 authInSz);
+
 /*!
     \ingroup AES
     \brief This function decrypts the input cipher text, held in the buffer 
@@ -407,11 +417,12 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     \sa wc_AesGcmSetKey
     \sa wc_AesGcmEncrypt
 */
- WOLFSSL_API int  wc_AesGcmDecrypt(Aes* aes, byte* out,
+WOLFSSL_API int  wc_AesGcmDecrypt(Aes* aes, byte* out,
                                    const byte* in, word32 sz,
                                    const byte* iv, word32 ivSz,
                                    const byte* authTag, word32 authTagSz,
                                    const byte* authIn, word32 authInSz);
+
 /*!
     \ingroup AES
     \brief This function initializes and sets the key for a GMAC object 
@@ -433,7 +444,8 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     
     \sa wc_GmacUpdate
 */
- WOLFSSL_API int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len);
+WOLFSSL_API int wc_GmacSetKey(Gmac* gmac, const byte* key, word32 len);
+
 /*!
     \ingroup AES
     \brief This function generates the Gmac hash of the authIn input and 
@@ -468,9 +480,10 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     
     \sa wc_GmacSetKey
 */
- WOLFSSL_API int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
+WOLFSSL_API int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
                                const byte* authIn, word32 authInSz,
                                byte* authTag, word32 authTagSz);
+
 /*!
     \ingroup AES
     \brief This function sets the key for an AES object using CCM 
@@ -494,7 +507,8 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     \sa wc_AesCcmEncrypt
     \sa wc_AesCcmDecrypt
 */
- WOLFSSL_API int  wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz);
+WOLFSSL_API int  wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz);
+
 /*!
     \ingroup AES
     
@@ -538,11 +552,12 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     \sa wc_AesCcmSetKey
     \sa wc_AesCcmDecrypt
 */
- WOLFSSL_API int  wc_AesCcmEncrypt(Aes* aes, byte* out,
+WOLFSSL_API int  wc_AesCcmEncrypt(Aes* aes, byte* out,
                                    const byte* in, word32 inSz,
                                    const byte* nonce, word32 nonceSz,
                                    byte* authTag, word32 authTagSz,
                                    const byte* authIn, word32 authInSz);
+
 /*!
     \ingroup AES
     
@@ -592,11 +607,12 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
     \sa wc_AesCcmSetKey
     \sa wc_AesCcmEncrypt
 */
- WOLFSSL_API int  wc_AesCcmDecrypt(Aes* aes, byte* out,
+WOLFSSL_API int  wc_AesCcmDecrypt(Aes* aes, byte* out,
                                    const byte* in, word32 inSz,
                                    const byte* nonce, word32 nonceSz,
                                    const byte* authTag, word32 authTagSz,
                                    const byte* authIn, word32 authInSz);
+
 /*!
     \ingroup AES
 
@@ -631,6 +647,7 @@ WOLFSSL_API int  wc_AesCbcDecrypt(Aes* aes, byte* out,
 */
 WOLFSSL_API int wc_AesXtsSetKey(XtsAes* aes, const byte* key,
          word32 len, int dir, void* heap, int devId);
+
 /*!
     \ingroup AES
 
@@ -669,6 +686,7 @@ WOLFSSL_API int wc_AesXtsSetKey(XtsAes* aes, const byte* key,
 */
 WOLFSSL_API int wc_AesXtsEncryptSector(XtsAes* aes, byte* out,
          const byte* in, word32 sz, word64 sector);
+
 /*!
     \ingroup AES
 
@@ -707,6 +725,7 @@ WOLFSSL_API int wc_AesXtsEncryptSector(XtsAes* aes, byte* out,
 */
 WOLFSSL_API int wc_AesXtsDecryptSector(XtsAes* aes, byte* out,
          const byte* in, word32 sz, word64 sector);
+
 /*!
     \ingroup AES
 
@@ -746,6 +765,7 @@ WOLFSSL_API int wc_AesXtsDecryptSector(XtsAes* aes, byte* out,
 */
 WOLFSSL_API int wc_AesXtsEncrypt(XtsAes* aes, byte* out,
          const byte* in, word32 sz, const byte* i, word32 iSz);
+
 /*!
     \ingroup AES
 
@@ -784,6 +804,7 @@ WOLFSSL_API int wc_AesXtsEncrypt(XtsAes* aes, byte* out,
 */
 WOLFSSL_API int wc_AesXtsDecrypt(XtsAes* aes, byte* out,
         const byte* in, word32 sz, const byte* i, word32 iSz);
+
 /*!
     \ingroup AES
 
@@ -835,5 +856,5 @@ WOLFSSL_API int wc_AesXtsFree(XtsAes* aes);
     \sa wc_AesSetKey
     \sa wc_AesSetIV
 */
-WOLFSSL_API int  wc_AesInit(Aes* aes, void* heap, int devId);
+WOLFSSL_API int  wc_AesInit(Aes*, void*, int);
 
