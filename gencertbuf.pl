@@ -73,12 +73,19 @@ my @fileList_2048 = (
         [ "./certs/server-cert.der", "server_cert_der_2048" ]
         );
 
+my @fileList_3072 = (
+        [ "./certs/dh3072.der", "dh_key_der_3072" ],
+        [ "./certs/dsa3072.der", "dsa_key_der_3072" ],
+        [ "./certs/rsa3072.der", "rsa_key_der_3072" ],
+        );
+
 # ----------------------------------------------------------------------------
 
 my $num_ecc = @fileList_ecc;
 my $num_ed = @fileList_ed;
 my $num_1024 = @fileList_1024;
 my $num_2048 = @fileList_2048;
+my $num_3072 = @fileList_3072;
 
 # open our output file, "+>" creates and/or truncates
 open OUT_FILE, "+>", $outputFile  or die $!;
@@ -104,6 +111,7 @@ for (my $i = 0; $i < $num_1024; $i++) {
 }
 print OUT_FILE "#endif /* USE_CERT_BUFFERS_1024 */\n\n";
 
+
 # convert and print 2048-bit certs/keys
 print OUT_FILE "#ifdef USE_CERT_BUFFERS_2048\n\n";
 for (my $i = 0; $i < $num_2048; $i++) {
@@ -122,7 +130,26 @@ for (my $i = 0; $i < $num_2048; $i++) {
 
 print OUT_FILE "#endif /* USE_CERT_BUFFERS_2048 */\n\n";
 
-# convert and print ECC cert/keys
+
+# convert and print 3072-bit certs/keys
+print OUT_FILE "#ifdef USE_CERT_BUFFERS_3072\n\n";
+for (my $i = 0; $i < $num_3072; $i++) {
+
+    my $fname = $fileList_3072[$i][0];
+    my $sname = $fileList_3072[$i][1];
+
+    print OUT_FILE "/* $fname, 3072-bit */\n";
+    print OUT_FILE "static const unsigned char $sname\[] =\n";
+    print OUT_FILE "{\n";
+    file_to_hex($fname);
+    print OUT_FILE "};\n";
+    print OUT_FILE "static const int sizeof_$sname = sizeof($sname);\n\n";
+}
+
+print OUT_FILE "#endif /* USE_CERT_BUFFERS_3072 */\n\n";
+
+
+# convert and print 256-bit cert/keys
 print OUT_FILE "#if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)\n\n";
 for (my $i = 0; $i < $num_ecc; $i++) {
 
