@@ -3,7 +3,7 @@
 ls ./dox_comments/header_files/ |
 while read h_file; do
     grep -P -h -z -o 'WOLFSSL_API(\n|\s|[^;])*;' ./dox_comments/header_files/$h_file |
-    tr '\n' ' ' | 
+    tr '\n' ' ' |
     sed 's/\\n//g' |
     sed 's/ \+/ /g' |
     sed 's/\x00/\n/g' > dox_api.txt
@@ -13,11 +13,11 @@ while read h_file; do
         echo "Checking: $h_file_path"
         grep -P -h -z -o 'WOLFSSL_API(\n|\s|[^;])*;' "$h_file_path" |
         sed 's/#.*/ /g' |
-        tr '\n' ' ' | 
+        tr '\n' ' ' |
         sed 's/\\n//g' |
         sed 's/ \+/ /g' |
         sed 's/\x00/\n/g' > wolf_api.txt
-        
+
         api_count="$(wc -l < dox_api.txt)"
         match_count="$(grep -Ff dox_api.txt wolf_api.txt | wc -l)"
         if [ "$api_count" != "$match_count" ]; then
@@ -36,7 +36,7 @@ while read h_file; do
         fi
     done || exit 1
     echo 'Next...\n'
-    
+
 done || exit 1
 
 rm dox_api.txt

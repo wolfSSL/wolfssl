@@ -28,6 +28,6 @@ function initMenu(relPath,searchEnabled,serverSide,searchPage,search) {
 
   $('#main-nav').append(makeTree(menudata,relPath));
   $('#main-nav').children(':first').addClass('sm sm-dox').attr('id','main-menu');
-  
+
   $('#main-menu').smartmenus();
 }

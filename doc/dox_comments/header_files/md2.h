@@ -1,13 +1,13 @@
 /*!
     \ingroup MD2
-    
-    \brief This function initializes md2. This is automatically 
+
+    \brief This function initializes md2. This is automatically
     called by wc_Md2Hash.
-    
+
     \return 0 Returned upon successfully initializing
-    
+
     \param md2 pointer to the md2 structure to use for encryption
-    
+
     _Example_
     \code
     md2 md2[1];
@@ -19,7 +19,7 @@
        wc_Md2Final(md2, hash);
     }
     \endcode
-    
+
     \sa wc_Md2Hash
     \sa wc_Md2Update
     \sa wc_Md2Final
@@ -28,12 +28,12 @@ WOLFSSL_API void wc_InitMd2(Md2*);
 
 /*!
     \ingroup MD2
-    
-    \brief Can be called to continually hash the provided byte 
+
+    \brief Can be called to continually hash the provided byte
     array of length len.
-    
+
     \return 0 Returned upon successfully adding the data to the digest.
-    
+
     \param md2 pointer to the md2 structure to use for encryption
     \param data the data to be hashed
     \param len length of data to be hashed
@@ -52,7 +52,7 @@ WOLFSSL_API void wc_InitMd2(Md2*);
        wc_Md2Final(md2, hash);
     }
     \endcode
-    
+
     \sa wc_Md2Hash
     \sa wc_Md2Final
     \sa wc_InitMd2
@@ -61,9 +61,9 @@ WOLFSSL_API void wc_Md2Update(Md2*, const byte*, word32);
 
 /*!
     \ingroup MD2
-    
+
     \brief Finalizes hashing of data. Result is placed into hash.
-    
+
     \return 0 Returned upon successfully finalizing.
 
     \param md2 pointer to the md2 structure to use for encryption
@@ -83,7 +83,7 @@ WOLFSSL_API void wc_Md2Update(Md2*, const byte*, word32);
        wc_Md2Final(md2, hash);
     }
     \endcode
-    
+
     \sa wc_Md2Hash
     \sa wc_Md2Final
     \sa wc_InitMd2
@@ -92,14 +92,14 @@ WOLFSSL_API void wc_Md2Final(Md2*, byte*);
 
 /*!
     \ingroup MD2
-    
-    \brief Convenience function, handles all the hashing and places 
+
+    \brief Convenience function, handles all the hashing and places
     the result into hash.
-    
+
     \return 0 Returned upon successfully hashing the data.
-    \return Memory_E memory error, unable to allocate memory. This is only 
+    \return Memory_E memory error, unable to allocate memory. This is only
     possible with the small stack option enabled.
-    
+
     \param data the data to hash
     \param len the length of data
     \param hash Byte array to hold hash value.
@@ -108,7 +108,7 @@ WOLFSSL_API void wc_Md2Final(Md2*, byte*);
     \code
     none
     \endcode
-    
+
     \sa wc_Md2Hash
     \sa wc_Md2Final
     \sa wc_InitMd2

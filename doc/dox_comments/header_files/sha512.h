@@ -1,13 +1,13 @@
 /*!
     \ingroup SHA
-    
-    \brief This function initializes SHA512. This is automatically called 
+
+    \brief This function initializes SHA512. This is automatically called
     by wc_Sha512Hash.
-    
+
     \return 0 Returned upon successfully initializing
-    
+
     \param sha512 pointer to the sha512 structure to use for encryption
-    
+
     _Example_
     \code
     Sha512 sha512[1];
@@ -19,7 +19,7 @@
        wc_Sha512Final(sha512, hash);
     }
     \endcode
-    
+
     \sa wc_Sha512Hash
     \sa wc_Sha512Update
     \sa wc_Sha512Final
@@ -28,16 +28,16 @@ WOLFSSL_API int wc_InitSha512(wc_Sha512*);
 
 /*!
     \ingroup SHA
-    
-    \brief Can be called to continually hash the provided byte array 
+
+    \brief Can be called to continually hash the provided byte array
     of length len.
-    
+
     \return 0 Returned upon successfully adding the data to the digest.
-    
+
     \param sha512 pointer to the sha512 structure to use for encryption
     \param data the data to be hashed
     \param len length of data to be hashed
-    
+
     _Example_
     \code
     Sha512 sha512[1];
@@ -51,8 +51,8 @@ WOLFSSL_API int wc_InitSha512(wc_Sha512*);
        wc_Sha512Update(sha512, data, len);
        wc_Sha512Final(sha512, hash);
     }
-    \endcode 
-    
+    \endcode
+
     \sa wc_Sha512Hash
     \sa wc_Sha512Final
     \sa wc_InitSha512
@@ -61,14 +61,14 @@ WOLFSSL_API int wc_Sha512Update(wc_Sha512*, const byte*, word32);
 
 /*!
     \ingroup SHA
-    
+
     \brief Finalizes hashing of data. Result is placed into hash.
-    
+
     \return 0 Returned upon successfully finalizing the hash.
-    
+
     \param sha512 pointer to the sha512 structure to use for encryption
     \param hash Byte array to hold hash value.
-    
+
     _Example_
     \code
     Sha512 sha512[1];
@@ -83,7 +83,7 @@ WOLFSSL_API int wc_Sha512Update(wc_Sha512*, const byte*, word32);
        wc_Sha512Final(sha512, hash);
     }
     \endcode
-    
+
     \sa wc_Sha512Hash
     \sa wc_Sha512Final
     \sa wc_InitSha512
@@ -92,14 +92,14 @@ WOLFSSL_API int wc_Sha512Final(wc_Sha512*, byte*);
 
 /*!
     \ingroup SHA
-    
-    \brief This function initializes SHA384. This is automatically called 
+
+    \brief This function initializes SHA384. This is automatically called
     by wc_Sha384Hash.
-    
+
     \return 0 Returned upon successfully initializing
-    
+
     \param sha384 pointer to the sha384 structure to use for encryption
-    
+
     _Example_
     \code
     Sha384 sha384[1];
@@ -111,7 +111,7 @@ WOLFSSL_API int wc_Sha512Final(wc_Sha512*, byte*);
        wc_Sha384Final(sha384, hash);
     }
     \endcode
-    
+
     \sa wc_Sha384Hash
     \sa wc_Sha384Update
     \sa wc_Sha384Final
@@ -120,12 +120,12 @@ WOLFSSL_API int wc_InitSha384(wc_Sha384*);
 
 /*!
     \ingroup SHA
-    
-    \brief Can be called to continually hash the provided byte array 
+
+    \brief Can be called to continually hash the provided byte array
     of length len.
-    
+
     \return 0 Returned upon successfully adding the data to the digest.
-    
+
     \param sha384 pointer to the sha384 structure to use for encryption
     \param data the data to be hashed
     \param len length of data to be hashed
@@ -144,7 +144,7 @@ WOLFSSL_API int wc_InitSha384(wc_Sha384*);
        wc_Sha384Final(sha384, hash);
     }
     \endcode
-    
+
     \sa wc_Sha384Hash
     \sa wc_Sha384Final
     \sa wc_InitSha384
@@ -153,14 +153,14 @@ WOLFSSL_API int wc_Sha384Update(wc_Sha384*, const byte*, word32);
 
 /*!
     \ingroup SHA
-    
+
     \brief Finalizes hashing of data. Result is placed into hash.
-    
+
     \return 0 Returned upon successfully finalizing.
-    
+
     \param sha384 pointer to the sha384 structure to use for encryption
     \param hash Byte array to hold hash value.
-    
+
     _Example_
     \code
     Sha384 sha384[1];
@@ -175,7 +175,7 @@ WOLFSSL_API int wc_Sha384Update(wc_Sha384*, const byte*, word32);
        wc_Sha384Final(sha384, hash);
     }
     \endcode
-    
+
     \sa wc_Sha384Hash
     \sa wc_Sha384Final
     \sa wc_InitSha384
