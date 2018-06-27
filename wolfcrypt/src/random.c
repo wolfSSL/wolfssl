@@ -330,7 +330,7 @@ int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* entropy, word32 entropySz)
     return Hash_DRBG_Reseed(rng->drbg, entropy, entropySz);
 }
 
-static INLINE void array_add_one(byte* data, word32 dataSz)
+static WC_INLINE void array_add_one(byte* data, word32 dataSz)
 {
     int i;
 
@@ -411,7 +411,7 @@ static int Hash_gen(DRBG* drbg, byte* out, word32 outSz, const byte* V)
     return (ret == 0) ? DRBG_SUCCESS : DRBG_FAILURE;
 }
 
-static INLINE void array_add(byte* d, word32 dLen, const byte* s, word32 sLen)
+static WC_INLINE void array_add(byte* d, word32 dLen, const byte* s, word32 sLen)
 {
     word16 carry = 0;
 
@@ -1084,7 +1084,7 @@ int wc_FreeNetRandom(void)
 #ifndef USE_WINDOWS_API
 
     /* return 0 on success */
-    static INLINE int IntelRDseed64(word64* seed)
+    static WC_INLINE int IntelRDseed64(word64* seed)
     {
         unsigned char ok;
 
@@ -1097,7 +1097,7 @@ int wc_FreeNetRandom(void)
      * It does allow for Intel intrinsic functions. */
 
     /* return 0 on success */
-    static INLINE int IntelRDseed64(word64* seed)
+    static WC_INLINE int IntelRDseed64(word64* seed)
     {
         int ok;
 
@@ -1108,7 +1108,7 @@ int wc_FreeNetRandom(void)
 #endif /* USE_WINDOWS_API */
 
 /* return 0 on success */
-static INLINE int IntelRDseed64_r(word64* rnd)
+static WC_INLINE int IntelRDseed64_r(word64* rnd)
 {
     int i;
     for (i = 0; i < INTELRD_RETRY; i++) {
@@ -1156,7 +1156,7 @@ static int wc_GenerateSeed_IntelRD(OS_Seed* os, byte* output, word32 sz)
 #ifndef USE_WINDOWS_API
 
 /* return 0 on success */
-static INLINE int IntelRDrand64(word64 *rnd)
+static WC_INLINE int IntelRDrand64(word64 *rnd)
 {
     unsigned char ok;
 
@@ -1170,7 +1170,7 @@ static INLINE int IntelRDrand64(word64 *rnd)
      * It does allow for Intel intrinsic functions. */
 
 /* return 0 on success */
-static INLINE int IntelRDrand64(word64 *rnd)
+static WC_INLINE int IntelRDrand64(word64 *rnd)
 {
     int ok;
 
@@ -1182,7 +1182,7 @@ static INLINE int IntelRDrand64(word64 *rnd)
 #endif /* USE_WINDOWS_API */
 
 /* return 0 on success */
-static INLINE int IntelRDrand64_r(word64 *rnd)
+static WC_INLINE int IntelRDrand64_r(word64 *rnd)
 {
     int i;
     for (i = 0; i < INTELRD_RETRY; i++) {

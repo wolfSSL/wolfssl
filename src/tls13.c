@@ -1494,7 +1494,7 @@ static void AddTls13FragHeaders(byte* output, word32 fragSz, word32 fragOffset,
  * verifyOrder  Which set of sequence numbers to use.
  * out          The buffer to write into.
  */
-static INLINE void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
+static WC_INLINE void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
 {
     word32 seq[2] = {0, 0};
 
@@ -1524,7 +1524,7 @@ static INLINE void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
  * iv     The derived IV.
  * order  The side on which the message is to be or was sent.
  */
-static INLINE void BuildTls13Nonce(WOLFSSL* ssl, byte* nonce, const byte* iv,
+static WC_INLINE void BuildTls13Nonce(WOLFSSL* ssl, byte* nonce, const byte* iv,
                                    int order)
 {
     int  i;
@@ -4480,7 +4480,7 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
  * hsType   The signature type.
  * output    The buffer to encode into.
  */
-static INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
+static WC_INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
 {
     switch (hsType) {
 #ifdef HAVE_ECC
@@ -4514,7 +4514,7 @@ static INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
  * hashalgo  The hash algorithm.
  * hsType   The signature type.
  */
-static INLINE void DecodeSigAlg(byte* input, byte* hashAlgo, byte* hsType)
+static WC_INLINE void DecodeSigAlg(byte* input, byte* hashAlgo, byte* hsType)
 {
     switch (input[0]) {
         case NEW_SA_MAJOR:
@@ -4546,7 +4546,7 @@ static INLINE void DecodeSigAlg(byte* input, byte* hashAlgo, byte* hsType)
  * hash  The buffer to write the hash to.
  * returns the length of the hash.
  */
-static INLINE int GetMsgHash(WOLFSSL* ssl, byte* hash)
+static WC_INLINE int GetMsgHash(WOLFSSL* ssl, byte* hash)
 {
     int ret = 0;
     switch (ssl->specs.mac_algorithm) {

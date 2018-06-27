@@ -64,7 +64,7 @@ Possible IO enable options:
 /* Translates return codes returned from
  * send() and recv() if need be.
  */
-static INLINE int TranslateReturnCode(int old, int sd)
+static WC_INLINE int TranslateReturnCode(int old, int sd)
 {
     (void)sd;
 
@@ -88,7 +88,7 @@ static INLINE int TranslateReturnCode(int old, int sd)
     return old;
 }
 
-static INLINE int wolfSSL_LastError(void)
+static WC_INLINE int wolfSSL_LastError(void)
 {
 #ifdef USE_WINDOWS_API
     return WSAGetLastError();

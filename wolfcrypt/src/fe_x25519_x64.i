@@ -242,7 +242,7 @@ void fe_copy(fe r, const fe a)
  * b  A field element.
  * c  If 1 then swap and if 0 then don't swap.
  */
-static INLINE void fe_cswap_int(fe a, fe b, int c)
+static WC_INLINE void fe_cswap_int(fe a, fe b, int c)
 {
     __asm__ __volatile__ (
         "movslq	%[c], %%rax\n\t"
@@ -284,7 +284,7 @@ void fe_cswap(fe a, fe b, int c)
  * a  A field element.
  * b  A field element.
  */
-static INLINE void fe_sub_int(fe r, const fe a, const fe b)
+static WC_INLINE void fe_sub_int(fe r, const fe a, const fe b)
 {
     __asm__ __volatile__ (
         "movq	$0x7fffffffffffffff, %%rcx\n\t"
@@ -328,7 +328,7 @@ void fe_sub(fe r, const fe a, const fe b)
  * a  A field element.
  * b  A field element.
  */
-static INLINE void fe_add_int(fe r, const fe a, const fe b)
+static WC_INLINE void fe_add_int(fe r, const fe a, const fe b)
 {
     __asm__ __volatile__ (
         "movq	0(%[a]), %%rax\n\t"
@@ -378,7 +378,7 @@ void fe_mul(fe r, const fe a, const fe b)
 }
 
 #ifdef HAVE_INTEL_AVX2
-static INLINE void fe_mul_avx2(fe r, const fe a, const fe b)
+static WC_INLINE void fe_mul_avx2(fe r, const fe a, const fe b)
 {
     __asm__ __volatile__ (
         "#  A[0] * B[0]\n\t"
@@ -506,7 +506,7 @@ static INLINE void fe_mul_avx2(fe r, const fe a, const fe b)
 }
 #endif /* HAVE_INTEL_AVX2 */
 
-static INLINE void fe_mul_x64(fe r, const fe a, const fe b)
+static WC_INLINE void fe_mul_x64(fe r, const fe a, const fe b)
 {
     __asm__ __volatile__ (
         "#  A[0] * B[0]\n\t"
@@ -670,7 +670,7 @@ void fe_sq(fe r, const fe a)
 }
 
 #ifdef HAVE_INTEL_AVX2
-static INLINE void fe_sq_avx2(fe r, const fe a)
+static WC_INLINE void fe_sq_avx2(fe r, const fe a)
 {
     __asm__ __volatile__ (
         "# A[0] * A[1]\n\t"
@@ -774,7 +774,7 @@ static INLINE void fe_sq_avx2(fe r, const fe a)
 }
 #endif /* HAVE_INTEL_AVX2 */
 
-static INLINE void fe_sq_x64(fe r, const fe a)
+static WC_INLINE void fe_sq_x64(fe r, const fe a)
 {
     __asm__ __volatile__ (
         "#  A[0] * A[1]\n\t"
@@ -905,7 +905,7 @@ static INLINE void fe_sq_x64(fe r, const fe a)
  * a  A field element.
  * b  A field element.
  */
-static INLINE void fe_mul121666_int(fe r, fe a)
+static WC_INLINE void fe_mul121666_int(fe r, fe a)
 {
     __asm__ __volatile__ (
         "movq	$0x7fffffffffffffff, %%rcx\n\t"
@@ -1249,7 +1249,7 @@ void fe_sq2(fe r, const fe a)
 }
 
 #ifdef HAVE_INTEL_AVX2
-static INLINE void fe_sq2_avx2(fe r, const fe a)
+static WC_INLINE void fe_sq2_avx2(fe r, const fe a)
 {
     __asm__ __volatile__ (
         "# A[0] * A[1]\n\t"
@@ -1364,7 +1364,7 @@ static INLINE void fe_sq2_avx2(fe r, const fe a)
 }
 #endif /* HAVE_INTEL_AVX2 */
 
-static INLINE void fe_sq2_x64(fe r, const fe a)
+static WC_INLINE void fe_sq2_x64(fe r, const fe a)
 {
     __asm__ __volatile__ (
         "#  A[0] * A[1]\n\t"

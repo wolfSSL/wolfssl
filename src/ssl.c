@@ -905,7 +905,7 @@ int wolfSSL_mcast_get_max_peers(void)
 }
 
 #ifdef WOLFSSL_DTLS
-static INLINE word32 UpdateHighwaterMark(word32 cur, word32 first,
+static WC_INLINE word32 UpdateHighwaterMark(word32 cur, word32 first,
                                          word32 second, word32 max)
 {
     word32 newCur = 0;
@@ -3610,7 +3610,7 @@ int wolfSSL_SetVersion(WOLFSSL* ssl, int version)
 #if !defined(NO_CERTS) || !defined(NO_SESSION_CACHE)
 
 /* Make a work from the front of random hash */
-static INLINE word32 MakeWordFromHash(const byte* hashID)
+static WC_INLINE word32 MakeWordFromHash(const byte* hashID)
 {
     return ((word32)hashID[0] << 24) | (hashID[1] << 16) |
         (hashID[2] <<  8) | hashID[3];
@@ -3622,7 +3622,7 @@ static INLINE word32 MakeWordFromHash(const byte* hashID)
 #ifndef NO_CERTS
 
 /* hash is the SHA digest of name, just use first 32 bits as hash */
-static INLINE word32 HashSigner(const byte* hash)
+static WC_INLINE word32 HashSigner(const byte* hash)
 {
     return MakeWordFromHash(hash) % CA_TABLE_SIZE;
 }
@@ -3668,7 +3668,7 @@ int AlreadySigner(WOLFSSL_CERT_MANAGER* cm, byte* hash)
 
 #ifdef WOLFSSL_TRUST_PEER_CERT
 /* hash is the SHA digest of name, just use first 32 bits as hash */
-static INLINE word32 TrustedPeerHashSigner(const byte* hash)
+static WC_INLINE word32 TrustedPeerHashSigner(const byte* hash)
 {
     return MakeWordFromHash(hash) % TP_TABLE_SIZE;
 }
@@ -5032,7 +5032,7 @@ static int ProcessChainBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 }
 
 
-static INLINE WOLFSSL_METHOD* cm_pick_method(void)
+static WC_INLINE WOLFSSL_METHOD* cm_pick_method(void)
 {
     #ifndef NO_WOLFSSL_CLIENT
         #if defined(WOLFSSL_ALLOW_SSLV3) && !defined(NO_OLD_TLS)
@@ -7827,7 +7827,7 @@ typedef struct {
 
 
 /* Return memory needed to persist this signer, have lock */
-static INLINE int GetSignerMemory(Signer* signer)
+static WC_INLINE int GetSignerMemory(Signer* signer)
 {
     int sz = sizeof(signer->pubKeySize) + sizeof(signer->keyOID)
            + sizeof(signer->nameLen)    + sizeof(signer->subjectNameHash);
@@ -7845,7 +7845,7 @@ static INLINE int GetSignerMemory(Signer* signer)
 
 
 /* Return memory needed to persist this row, have lock */
-static INLINE int GetCertCacheRowMemory(Signer* row)
+static WC_INLINE int GetCertCacheRowMemory(Signer* row)
 {
     int sz = 0;
 
@@ -7859,7 +7859,7 @@ static INLINE int GetCertCacheRowMemory(Signer* row)
 
 
 /* get the size of persist cert cache, have lock */
-static INLINE int GetCertCacheMemSize(WOLFSSL_CERT_MANAGER* cm)
+static WC_INLINE int GetCertCacheMemSize(WOLFSSL_CERT_MANAGER* cm)
 {
     int sz;
     int i;
@@ -7874,7 +7874,7 @@ static INLINE int GetCertCacheMemSize(WOLFSSL_CERT_MANAGER* cm)
 
 
 /* Store cert cache header columns with number of items per list, have lock */
-static INLINE void SetCertHeaderColumns(WOLFSSL_CERT_MANAGER* cm, int* columns)
+static WC_INLINE void SetCertHeaderColumns(WOLFSSL_CERT_MANAGER* cm, int* columns)
 {
     int     i;
     Signer* row;
@@ -7894,7 +7894,7 @@ static INLINE void SetCertHeaderColumns(WOLFSSL_CERT_MANAGER* cm, int* columns)
 
 /* Restore whole cert row from memory, have lock, return bytes consumed,
    < 0 on error, have lock */
-static INLINE int RestoreCertRow(WOLFSSL_CERT_MANAGER* cm, byte* current,
+static WC_INLINE int RestoreCertRow(WOLFSSL_CERT_MANAGER* cm, byte* current,
                                  int row, int listSz, const byte* end)
 {
     int idx = 0;
@@ -7986,7 +7986,7 @@ static INLINE int RestoreCertRow(WOLFSSL_CERT_MANAGER* cm, byte* current,
 
 
 /* Store whole cert row into memory, have lock, return bytes added */
-static INLINE int StoreCertRow(WOLFSSL_CERT_MANAGER* cm, byte* current, int row)
+static WC_INLINE int StoreCertRow(WOLFSSL_CERT_MANAGER* cm, byte* current, int row)
 {
     int     added  = 0;
     Signer* list   = cm->caTable[row];
@@ -8023,7 +8023,7 @@ static INLINE int StoreCertRow(WOLFSSL_CERT_MANAGER* cm, byte* current, int row)
 
 
 /* Persist cert cache to memory, have lock */
-static INLINE int DoMemSaveCertCache(WOLFSSL_CERT_MANAGER* cm,
+static WC_INLINE int DoMemSaveCertCache(WOLFSSL_CERT_MANAGER* cm,
                                      void* mem, int sz)
 {
     int realSz;
@@ -8521,7 +8521,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
     /* If SCTP is not enabled returns the state of the dtls option.
      * If SCTP is enabled returns dtls && !sctp. */
-    static INLINE int IsDtlsNotSctpMode(WOLFSSL* ssl)
+    static WC_INLINE int IsDtlsNotSctpMode(WOLFSSL* ssl)
     {
         int result = ssl->options.dtls;
 
@@ -9259,7 +9259,7 @@ int wolfSSL_Cleanup(void)
 
 
 /* some session IDs aren't random after all, let's make them random */
-static INLINE word32 HashSession(const byte* sessionID, word32 len, int* error)
+static WC_INLINE word32 HashSession(const byte* sessionID, word32 len, int* error)
 {
     byte digest[WC_MAX_DIGEST_SIZE];
 
@@ -9403,7 +9403,7 @@ WOLFSSL_SESSION* GetSessionClient(WOLFSSL* ssl, const byte* id, int len)
  * masterSecret         The master secret from the cached session.
  * restoreSessionCerts  Restoring session certificates is required.
  */
-static INLINE void RestoreSession(WOLFSSL* ssl, WOLFSSL_SESSION* session,
+static WC_INLINE void RestoreSession(WOLFSSL* ssl, WOLFSSL_SESSION* session,
         byte* masterSecret, byte restoreSessionCerts)
 {
     (void)ssl;
@@ -20723,7 +20723,7 @@ int wolfSSL_ASN1_UTCTIME_print(WOLFSSL_BIO* bio, const WOLFSSL_ASN1_UTCTIME* a)
  * n  The number of the month as a two characters (1 based).
  * returns the month as a string.
  */
-static INLINE const char* MonthStr(const char* n)
+static WC_INLINE const char* MonthStr(const char* n)
 {
     static const char monthStr[12][4] = {
             "Jan", "Feb", "Mar", "Apr", "May", "Jun",

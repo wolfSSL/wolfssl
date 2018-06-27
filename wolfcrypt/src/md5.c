@@ -234,7 +234,7 @@
 
 #ifndef HAVE_MD5_CUST_API
 
-static INLINE void AddLength(wc_Md5* md5, word32 len)
+static WC_INLINE void AddLength(wc_Md5* md5, word32 len)
 {
     word32 tmp = md5->loLen;
     if ((md5->loLen += len) < tmp) {

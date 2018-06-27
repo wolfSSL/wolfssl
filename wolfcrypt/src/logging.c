@@ -101,7 +101,7 @@ static const char* wc_func_name[WC_FUNC_COUNT] = {
 #include <sys/time.h>
 
 /* WARNING: This function is not portable. */
-static INLINE double current_time(int reset)
+static WC_INLINE double current_time(int reset)
 {
     struct timeval tv;
     gettimeofday(&tv, 0);

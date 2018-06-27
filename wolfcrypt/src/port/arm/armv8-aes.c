@@ -115,7 +115,7 @@ enum {
     CTR_SZ   = 4
 };
 
-static INLINE void IncrementGcmCounter(byte* inOutCtr)
+static WC_INLINE void IncrementGcmCounter(byte* inOutCtr)
 {
     int i;
 
@@ -127,7 +127,7 @@ static INLINE void IncrementGcmCounter(byte* inOutCtr)
 }
 
 
-static INLINE void FlattenSzInBits(byte* buf, word32 sz)
+static WC_INLINE void FlattenSzInBits(byte* buf, word32 sz)
 {
     /* Multiply the sz by 8 */
     word32 szHi = (sz >> (8*sizeof(sz) - 3));
@@ -886,7 +886,7 @@ void wc_AesFree(Aes* aes)
 #ifdef WOLFSSL_AES_COUNTER
 
         /* Increment AES counter */
-        static INLINE void IncrementAesCounter(byte* inOutCtr)
+        static WC_INLINE void IncrementAesCounter(byte* inOutCtr)
         {
             int i;
 
@@ -3530,7 +3530,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #ifdef WOLFSSL_AES_COUNTER
 
         /* Increment AES counter */
-        static INLINE void IncrementAesCounter(byte* inOutCtr)
+        static WC_INLINE void IncrementAesCounter(byte* inOutCtr)
         {
             int i;
 
@@ -4444,7 +4444,7 @@ static void roll_auth(Aes* aes, const byte* in, word32 inSz, byte* out)
 }
 
 
-static INLINE void AesCcmCtrInc(byte* B, word32 lenSz)
+static WC_INLINE void AesCcmCtrInc(byte* B, word32 lenSz)
 {
     word32 i;
 

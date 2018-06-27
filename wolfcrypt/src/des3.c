@@ -1300,7 +1300,7 @@
         0x00001040,0x00040040,0x10000000,0x10041000}
     };
 
-    static INLINE void IPERM(word32* left, word32* right)
+    static WC_INLINE void IPERM(word32* left, word32* right)
     {
         word32 work;
 
@@ -1326,7 +1326,7 @@
         *right ^= work;
     }
 
-    static INLINE void FPERM(word32* left, word32* right)
+    static WC_INLINE void FPERM(word32* left, word32* right)
     {
         word32 work;
 

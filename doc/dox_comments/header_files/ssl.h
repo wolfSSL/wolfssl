@@ -4607,7 +4607,7 @@ WOLFSSL_API void  wolfSSL_ERR_print_errors_fp(FILE*, int err);
     \code
     WOLFSSL_CTX* ctx = WOLFSSL_CTX_new( protocol def );
     …
-    static INLINE unsigned int my_psk_client_cb(WOLFSSL* ssl, const char* hint,
+    static WC_INLINE unsigned int my_psk_client_cb(WOLFSSL* ssl, const char* hint,
     char* identity, unsigned int id_max_len, unsigned char* key,
     Unsigned int key_max_len){
     …
