@@ -25,10 +25,7 @@
     \sa wc_FreeNetRandom
 */
 WOLFSSL_API int  wc_InitNetRandom(const char*, wnr_hmac_key, int);
-<<<<<<< HEAD
 
-=======
->>>>>>> d60b16c5b8c19cc61db4a5c3f5e085a7a158cd28
 /*!
     \ingroup Random
     
@@ -51,10 +48,7 @@ WOLFSSL_API int  wc_InitNetRandom(const char*, wnr_hmac_key, int);
     \sa wc_InitNetRandom
 */
 WOLFSSL_API int  wc_FreeNetRandom(void);
-<<<<<<< HEAD
 
-=======
->>>>>>> d60b16c5b8c19cc61db4a5c3f5e085a7a158cd28
 /*!
     \ingroup Random
     
