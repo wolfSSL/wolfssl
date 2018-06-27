@@ -676,21 +676,22 @@ int wolfIO_Send(SOCKET_T sd, char *buf, int sz, int wrFlags)
         return ret;
     }
 
-    #ifdef _MSC_VER
-        /* 4204: non-constant aggregate initializer (nfds = sockfd + 1) */
-        #pragma warning(disable: 4204)
-    #endif
     int wolfIO_Select(SOCKET_T sockfd, int to_sec)
     {
-        fd_set fds;
-        SOCKET_T nfds = sockfd + 1;
+        fd_set rfds, wfds;
+        int nfds = 0;
         struct timeval timeout = { (to_sec > 0) ? to_sec : 0, 0};
         int ret;
 
-        FD_ZERO(&fds);
-        FD_SET(sockfd, &fds);
+    #ifndef USE_WINDOWS_API
+        nfds = (int)sockfd + 1;
+    #endif
 
-        ret = select(nfds, &fds, &fds, NULL, &timeout);
+        FD_ZERO(&rfds);
+        FD_SET(sockfd, &rfds);
+        wfds = rfds;
+
+        ret = select(nfds, &rfds, &wfds, NULL, &timeout);
         if (ret == 0) {
         #ifdef DEBUG_HTTP
             printf("Timeout: %d\n", ret);
@@ -698,8 +699,11 @@ int wolfIO_Send(SOCKET_T sd, char *buf, int sz, int wrFlags)
             return HTTP_TIMEOUT;
         }
         else if (ret > 0) {
-            if (FD_ISSET(sockfd, &fds))
-                return 0;
+            if (FD_ISSET(sockfd, &wfds)) {
+                if (!FD_ISSET(sockfd, &rfds)) {
+                    return 0;
+                }
+            }
         }
         return SOCKET_ERROR_E;
     }
