@@ -17868,6 +17868,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX* ctx)
             }
         }
 
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
         /* add CA used to verify top of chain to the list */
         if (c->count > 0) {
             WOLFSSL_X509* x509 = wolfSSL_get_chain_X509(c, c->count - 1);
@@ -17891,6 +17892,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX* ctx)
                 }
             }
         }
+#endif
 
     }
 #endif /* SESSION_CERTS */
@@ -32230,9 +32232,11 @@ int wolfSSL_set_ocsp_url(WOLFSSL* ssl, char* url)
     ssl->url = url;
     return WOLFSSL_SUCCESS;
 }
-#endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY */
+#endif /* OCSP */
+#endif /* OPENSSL_ALL / WOLFSSL_NGINX  / WOLFSSL_HAPROXY */
 
-#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
+    defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
 int wolfSSL_CTX_get_extra_chain_certs(WOLFSSL_CTX* ctx, WOLF_STACK_OF(X509)** chain)
 {
     word32         idx;
@@ -32451,8 +32455,9 @@ char* wolfSSL_sk_WOLFSSL_STRING_value(WOLF_STACK_OF(WOLFSSL_STRING)* strings,
         return NULL;
     return strings->data.string;
 }
-#endif /* HAVE_OCSP */
+#endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY || OPENSSL_EXTRA || OPENSSL_ALL */
 
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 #ifdef HAVE_ALPN
 void wolfSSL_get0_alpn_selected(const WOLFSSL *ssl, const unsigned char **data,
                                 unsigned int *len)
