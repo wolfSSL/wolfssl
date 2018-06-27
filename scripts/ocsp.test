@@ -3,18 +3,53 @@
 # ocsp-stapling.test
 
 server=www.globalsign.com
-ca=certs/external/ca-globalsign-root-r1.pem
+ca=certs/external/ca-globalsign-root.pem
 
 [ ! -x ./examples/client/client ] && echo -e "\n\nClient doesn't exist" && exit 1
 
 # is our desired server there?
 ./scripts/ping.test $server 2
 RESULT=$?
-[ $RESULT -ne 0 ] && exit 0
+if [ $RESULT = 0 ]; then
+    # client test against the server
+    ./examples/client/client -X -C -h $server -p 443 -A $ca -g -o -N
+    GL_RESULT=$?
+    [ $GL_RESULT -ne 0 ] && echo -e "\n\nClient connection failed"
+else
+    GL_RESULT=1
+fi
 
-# client test against the server
-./examples/client/client -X -C -h $server -p 443 -A $ca -g -o -N
+server=www.google.com
+ca=certs/external/ca-google-root.pem
+
+# is our desired server there?
+./scripts/ping.test $server 2
 RESULT=$?
-[ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
+if [ $RESULT = 0 ]; then
+    # client test against the server
+    ./examples/client/client -X -C -h $server -p 443 -A $ca -g -o -N
+    GR_RESULT=$?
+    [ $GR_RESULT -ne 0 ] && echo -e "\n\nClient connection failed"
+else
+    GR_RESULT=1
+fi
 
-exit 0
+if test -n "$WOLFSSL_OCSP_TEST"; then
+    # check that both passed
+    if [ $GL_RESULT = 0 ] && [ $GR_RESULT = 0 ]; then
+        echo "\n\nBoth OCSP connection to globalsign and google passed"
+        exit 0
+    else
+        echo "\n\nBoth OCSP connection to globalsign and google failed"
+        exit 1
+    fi
+else
+    # if environment variable is not set then just need one to pass
+    if [ $GL_RESULT -ne 0 ] && [ $GR_RESULT -ne 0 ]; then
+        echo "\n\nBoth OCSP connection to globalsign and google failed"
+        exit 1
+    else
+        echo "\n\nWOLFSSL_OCSP_TEST NOT set, and 1 of the tests passed"
+        exit 0
+    fi
+fi
