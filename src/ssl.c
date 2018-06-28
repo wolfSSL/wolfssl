@@ -11327,23 +11327,15 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return ctx->mask;
     }
 
-
+    static long wolf_set_options(long old_op, long op);
     long wolfSSL_CTX_set_options(WOLFSSL_CTX* ctx, long opt)
     {
-        WOLFSSL* ssl;
         WOLFSSL_ENTER("SSL_CTX_set_options");
+
         if (ctx == NULL)
             return BAD_FUNC_ARG;
 
-        ssl = (WOLFSSL*)XMALLOC(sizeof(WOLFSSL), ctx->heap, DYNAMIC_TYPE_SSL);
-        if (ssl == NULL)
-            return MEMORY_E;
-
-        XMEMSET(ssl, 0, sizeof(WOLFSSL));
-        ssl->options.mask = ctx->mask;
-        ctx->mask = wolfSSL_set_options(ssl, opt);
-
-        XFREE(ssl, ctx->heap, DYNAMIC_TYPE_SSL);
+        ctx->mask = wolf_set_options(ctx->mask, opt);
 
         return ctx->mask;
     }
@@ -19385,19 +19377,9 @@ int wolfSSL_PEM_def_callback(char* name, int num, int w, void* key)
 }
 #endif
 
-long wolfSSL_set_options(WOLFSSL* ssl, long op)
+static long wolf_set_options(long old_op, long op)
 {
-    word16 haveRSA = 1;
-    word16 havePSK = 0;
-    int    keySz   = 0;
-
-    WOLFSSL_ENTER("wolfSSL_set_options");
-
-    if (ssl == NULL) {
-        return 0;
-    }
-
-    /* if SSL_OP_ALL then turn all bug workarounds one */
+    /* if SSL_OP_ALL then turn all bug workarounds on */
     if ((op & SSL_OP_ALL) == SSL_OP_ALL) {
         WOLFSSL_MSG("\tSSL_OP_ALL");
 
@@ -19414,64 +19396,97 @@ long wolfSSL_set_options(WOLFSSL* ssl, long op)
         op |= SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS;
     }
 
-    ssl->options.mask |= op;
-
     /* by default cookie exchange is on with DTLS */
-    if ((ssl->options.mask & SSL_OP_COOKIE_EXCHANGE) == SSL_OP_COOKIE_EXCHANGE) {
+    if ((op & SSL_OP_COOKIE_EXCHANGE) == SSL_OP_COOKIE_EXCHANGE) {
         WOLFSSL_MSG("\tSSL_OP_COOKIE_EXCHANGE : on by default");
     }
 
-    if ((ssl->options.mask & WOLFSSL_OP_NO_SSLv2) == WOLFSSL_OP_NO_SSLv2) {
+    if ((op & WOLFSSL_OP_NO_SSLv2) == WOLFSSL_OP_NO_SSLv2) {
         WOLFSSL_MSG("\tWOLFSSL_OP_NO_SSLv2 : wolfSSL does not support SSLv2");
     }
 
-    if ((ssl->options.mask & SSL_OP_NO_TLSv1_3) == SSL_OP_NO_TLSv1_3) {
+    if ((op & SSL_OP_NO_TLSv1_3) == SSL_OP_NO_TLSv1_3) {
         WOLFSSL_MSG("\tSSL_OP_NO_TLSv1_3");
-        if (ssl->version.minor == TLSv1_3_MINOR)
-            ssl->version.minor = TLSv1_2_MINOR;
     }
 
-    if ((ssl->options.mask & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
+    if ((op & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
         WOLFSSL_MSG("\tSSL_OP_NO_TLSv1_2");
-        if (ssl->version.minor == TLSv1_2_MINOR)
-            ssl->version.minor = TLSv1_1_MINOR;
     }
 
-    if ((ssl->options.mask & SSL_OP_NO_TLSv1_1) == SSL_OP_NO_TLSv1_1) {
+    if ((op & SSL_OP_NO_TLSv1_1) == SSL_OP_NO_TLSv1_1) {
         WOLFSSL_MSG("\tSSL_OP_NO_TLSv1_1");
-        if (ssl->version.minor == TLSv1_1_MINOR)
-            ssl->version.minor = TLSv1_MINOR;
     }
 
-    if ((ssl->options.mask & SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1) {
+    if ((op & SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1) {
         WOLFSSL_MSG("\tSSL_OP_NO_TLSv1");
-        if (ssl->version.minor == TLSv1_MINOR)
-            ssl->version.minor = SSLv3_MINOR;
     }
 
-    if ((ssl->options.mask & SSL_OP_NO_SSLv3) == SSL_OP_NO_SSLv3) {
+    if ((op & SSL_OP_NO_SSLv3) == SSL_OP_NO_SSLv3) {
         WOLFSSL_MSG("\tSSL_OP_NO_SSLv3");
     }
 
-    if ((ssl->options.mask & SSL_OP_NO_COMPRESSION) == SSL_OP_NO_COMPRESSION) {
+    if ((op & SSL_OP_NO_COMPRESSION) == SSL_OP_NO_COMPRESSION) {
     #ifdef HAVE_LIBZ
         WOLFSSL_MSG("SSL_OP_NO_COMPRESSION");
-        ssl->options.usingCompression = 0;
     #else
         WOLFSSL_MSG("SSL_OP_NO_COMPRESSION: compression not compiled in");
     #endif
     }
 
+    return old_op | op;
+}
+
+long wolfSSL_set_options(WOLFSSL* ssl, long op)
+{
+    word16 haveRSA = 1;
+    word16 havePSK = 0;
+    int    keySz   = 0;
+
+    WOLFSSL_ENTER("wolfSSL_set_options");
+
+    if (ssl == NULL) {
+        return 0;
+    }
+
+    ssl->options.mask = wolf_set_options(ssl->options.mask, op);
+
+    if ((ssl->options.mask & SSL_OP_NO_TLSv1_3) == SSL_OP_NO_TLSv1_3) {
+        if (ssl->version.minor == TLSv1_3_MINOR)
+            ssl->version.minor = TLSv1_2_MINOR;
+    }
+
+    if ((ssl->options.mask & SSL_OP_NO_TLSv1_2) == SSL_OP_NO_TLSv1_2) {
+        if (ssl->version.minor == TLSv1_2_MINOR)
+            ssl->version.minor = TLSv1_1_MINOR;
+    }
+
+    if ((ssl->options.mask & SSL_OP_NO_TLSv1_1) == SSL_OP_NO_TLSv1_1) {
+        if (ssl->version.minor == TLSv1_1_MINOR)
+            ssl->version.minor = TLSv1_MINOR;
+    }
+
+    if ((ssl->options.mask & SSL_OP_NO_TLSv1) == SSL_OP_NO_TLSv1) {
+        if (ssl->version.minor == TLSv1_MINOR)
+            ssl->version.minor = SSLv3_MINOR;
+    }
+
+    if ((ssl->options.mask & SSL_OP_NO_COMPRESSION) == SSL_OP_NO_COMPRESSION) {
+    #ifdef HAVE_LIBZ
+        ssl->options.usingCompression = 0;
+    #endif
+    }
+
     /* in the case of a version change the cipher suites should be reset */
-    #ifndef NO_PSK
-        havePSK = ssl->options.havePSK;
-    #endif
-    #ifdef NO_RSA
-        haveRSA = 0;
-    #endif
-    #ifndef NO_CERTS
-        keySz = ssl->buffers.keySz;
-    #endif
+#ifndef NO_PSK
+    havePSK = ssl->options.havePSK;
+#endif
+#ifdef NO_RSA
+    haveRSA = 0;
+#endif
+#ifndef NO_CERTS
+    keySz = ssl->buffers.keySz;
+#endif
+
     InitSuites(ssl->suites, ssl->version, keySz, haveRSA, havePSK,
                        ssl->options.haveDH, ssl->options.haveNTRU,
                        ssl->options.haveECDSAsig, ssl->options.haveECC,
