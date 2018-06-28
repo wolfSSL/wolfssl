@@ -7037,6 +7037,9 @@ Signer* MakeSigner(void* heap)
     #endif /* IGNORE_NAME_CONSTRAINTS */
         signer->pathLengthSet = 0;
         signer->pathLength = 0;
+    #ifdef WOLFSSL_SIGNER_DER_CERT
+        signer->derCert    = NULL;
+    #endif
         signer->next       = NULL;
     }
     (void)heap;
@@ -7055,6 +7058,9 @@ void FreeSigner(Signer* signer, void* heap)
         FreeNameSubtrees(signer->permittedNames, heap);
     if (signer->excludedNames)
         FreeNameSubtrees(signer->excludedNames, heap);
+#endif
+#ifdef WOLFSSL_SIGNER_DER_CERT
+    FreeDer(&signer->derCert);
 #endif
     XFREE(signer, heap, DYNAMIC_TYPE_SIGNER);
 
@@ -12946,9 +12952,12 @@ static int DecodeBasicOcspResponse(byte* source, word32* ioIndex,
             }
             else {
                 WOLFSSL_MSG("\tOCSP Responder key usage check failed");
-
+    #ifdef OPENSSL_EXTRA
+                resp->verifyError = OCSP_BAD_ISSUER;
+    #else
                 FreeDecodedCert(&cert);
                 return BAD_OCSP_RESPONDER;
+    #endif
             }
         }
 #endif
