@@ -95,16 +95,15 @@ enum ASN_Tags {
     CRL_EXTENSIONS        = 0xa0,
     ASN_EXTENSIONS        = 0xa3,
     ASN_LONG_LENGTH       = 0x80,
-    ASN_INDEF_LENGTH      = 0x80
+    ASN_INDEF_LENGTH      = 0x80,
+
+    /* ASN_Flags - Bitmask */
+    ASN_CONSTRUCTED       = 0x20,
+    ASN_CONTEXT_SPECIFIC  = 0x80,
 };
 
 #define ASN_UTC_TIME_SIZE 14
 #define ASN_GENERALIZED_TIME_SIZE 16
-
-enum ASN_Flags {
-    ASN_CONSTRUCTED       = 0x20,
-    ASN_CONTEXT_SPECIFIC  = 0x80
-};
 
 enum DN_Tags {
     ASN_COMMON_NAME   = 0x03,   /* CN */
