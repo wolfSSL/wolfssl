@@ -270,7 +270,7 @@ int wc_HashGetDigestSize(enum wc_HashType hash_type)
             break;
         case WC_HASH_TYPE_MD5_SHA: /* Old TLS Specific */
         #if !defined(NO_MD5) && !defined(NO_SHA)
-            dig_size = WC_MD5_DIGEST_SIZE + WC_SHA_DIGEST_SIZE;
+            dig_size = (int)WC_MD5_DIGEST_SIZE + (int)WC_SHA_DIGEST_SIZE;
         #endif
             break;
 
@@ -354,7 +354,7 @@ int wc_HashGetBlockSize(enum wc_HashType hash_type)
             break;
         case WC_HASH_TYPE_MD5_SHA: /* Old TLS Specific */
         #if !defined(NO_MD5) && !defined(NO_SHA)
-            block_size = WC_MD5_BLOCK_SIZE + WC_SHA_BLOCK_SIZE;
+            block_size = (int)WC_MD5_BLOCK_SIZE + (int)WC_SHA_BLOCK_SIZE;
         #endif
             break;
 

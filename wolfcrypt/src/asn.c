@@ -8624,8 +8624,9 @@ int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen)
 */
 int wc_InitCert(Cert* cert)
 {
+#ifdef WOLFSSL_MULTI_ATTRIB
     int i;
-
+#endif
     if (cert == NULL) {
         return BAD_FUNC_ARG;
     }
@@ -8671,7 +8672,6 @@ int wc_InitCert(Cert* cert)
     cert->heap = (void*)WOLFSSL_HEAP_TEST;
 #endif
 
-    (void)i;
     return 0;
 }
 
@@ -8680,7 +8680,7 @@ int wc_InitCert(Cert* cert)
 typedef struct DerCert {
     byte size[MAX_LENGTH_SZ];          /* length encoded */
     byte version[MAX_VERSION_SZ];      /* version encoded */
-    byte serial[CTC_SERIAL_SIZE + MAX_LENGTH_SZ]; /* serial number encoded */
+    byte serial[(int)CTC_SERIAL_SIZE + (int)MAX_LENGTH_SZ]; /* serial number encoded */
     byte sigAlgo[MAX_ALGO_SZ];         /* signature algo encoded */
     byte issuer[ASN_NAME_MAX];         /* issuer  encoded */
     byte subject[ASN_NAME_MAX];        /* subject encoded */

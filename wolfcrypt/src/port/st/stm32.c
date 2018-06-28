@@ -41,6 +41,10 @@
 
 #ifdef STM32_HASH
 
+#ifdef WOLFSSL_STM32L4
+    #define HASH_STR_NBW HASH_STR_NBLW
+#endif
+
 /* User can override STM32_HASH_CLOCK_ENABLE and STM32_HASH_CLOCK_DISABLE */
 #ifndef STM32_HASH_CLOCK_ENABLE
     static WC_INLINE void wc_Stm32_Hash_Clock_Enable(STM32_HASH_Context* stmCtx)

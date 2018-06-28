@@ -281,6 +281,10 @@
 #if defined(STM32_CRYPTO)
      /* STM32F2/F4 hardware AES support for CBC, CTR modes */
 
+    #ifdef WOLFSSL_STM32L4
+        #define CRYP AES
+    #endif
+
     /* CRYPT_AES_GCM starts the IV with 2 */
     #define STM32_GCM_IV_START 2
 
@@ -296,9 +300,11 @@
             case 10: /* 128-bit key */
                 hcryp.Init.KeySize = CRYP_KEYSIZE_128B;
                 break;
+	#ifdef CRYP_KEYSIZE_192B
             case 12: /* 192-bit key */
                 hcryp.Init.KeySize = CRYP_KEYSIZE_192B;
                 break;
+	#endif
             case 14: /* 256-bit key */
                 hcryp.Init.KeySize = CRYP_KEYSIZE_256B;
                 break;
@@ -413,9 +419,11 @@
             case 10: /* 128-bit key */
                 hcryp.Init.KeySize = CRYP_KEYSIZE_128B;
                 break;
+	#ifdef CRYP_KEYSIZE_192B
             case 12: /* 192-bit key */
                 hcryp.Init.KeySize = CRYP_KEYSIZE_192B;
                 break;
+	#endif
             case 14: /* 256-bit key */
                 hcryp.Init.KeySize = CRYP_KEYSIZE_256B;
                 break;
@@ -2364,9 +2372,11 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             case 10: /* 128-bit key */
                 hcryp.Init.KeySize = CRYP_KEYSIZE_128B;
                 break;
+	#ifdef CRYP_KEYSIZE_192B
             case 12: /* 192-bit key */
                 hcryp.Init.KeySize = CRYP_KEYSIZE_192B;
                 break;
+	#endif
             case 14: /* 256-bit key */
                 hcryp.Init.KeySize = CRYP_KEYSIZE_256B;
                 break;
@@ -2411,9 +2421,11 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             case 10: /* 128-bit key */
                 hcryp.Init.KeySize = CRYP_KEYSIZE_128B;
                 break;
+	#ifdef CRYP_KEYSIZE_192B
             case 12: /* 192-bit key */
                 hcryp.Init.KeySize = CRYP_KEYSIZE_192B;
                 break;
+	#endif
             case 14: /* 256-bit key */
                 hcryp.Init.KeySize = CRYP_KEYSIZE_256B;
                 break;
@@ -3120,9 +3132,11 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
                 case 10: /* 128-bit key */
                     hcryp.Init.KeySize = CRYP_KEYSIZE_128B;
                     break;
+	#ifdef CRYP_KEYSIZE_192B
                 case 12: /* 192-bit key */
                     hcryp.Init.KeySize = CRYP_KEYSIZE_192B;
                     break;
+	#endif
                 case 14: /* 256-bit key */
                     hcryp.Init.KeySize = CRYP_KEYSIZE_256B;
                     break;
@@ -3373,16 +3387,6 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
  * block counter during the encryption.
  */
 
-enum {
-    GCM_NONCE_MAX_SZ = 16, /* wolfCrypt's maximum nonce size allowed. */
-    GCM_NONCE_MID_SZ = 12, /* The usual default nonce size for AES-GCM. */
-    GCM_NONCE_MIN_SZ = 8,  /* wolfCrypt's minimum nonce size allowed. */
-    CCM_NONCE_MIN_SZ = 7,
-    CCM_NONCE_MAX_SZ = 13,
-    CTR_SZ   = 4,
-    AES_IV_FIXED_SZ = 4
-};
-
 #if (defined(HAVE_AESGCM) && !defined(WC_NO_RNG)) || defined(HAVE_AESCCM)
 static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 {
@@ -3404,6 +3408,7 @@ static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
     #error "nRF51 doesn't currently support AES-GCM mode"
 
 #endif
+
 
 #if !defined(FREESCALE_LTC_AES_GCM)
 static WC_INLINE void IncrementGcmCounter(byte* inOutCtr)
@@ -8291,7 +8296,9 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 }
 #else
 #if defined(STM32_CRYPTO) && (defined(WOLFSSL_STM32F4) || \
-                              defined(WOLFSSL_STM32F7))
+                              defined(WOLFSSL_STM32F7) || \
+                              defined(WOLFSSL_STM32L4))
+
 static WC_INLINE int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in,
                                          word32 sz, const byte* iv, word32 ivSz,
                                          byte* authTag, word32 authTagSz,
@@ -8340,10 +8347,12 @@ static WC_INLINE int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in,
         case 16: /* 128-bit key */
             hcryp.Init.KeySize = CRYP_KEYSIZE_128B;
             break;
+#ifdef CRYP_KEYSIZE_192B
         case 24: /* 192-bit key */
             hcryp.Init.KeySize = CRYP_KEYSIZE_192B;
             break;
-        case 32: /* 256-bit key */
+#endif
+    	case 32: /* 256-bit key */
             hcryp.Init.KeySize = CRYP_KEYSIZE_256B;
             break;
         default:
@@ -8356,12 +8365,40 @@ static WC_INLINE int wc_AesGcmEncrypt_STM32(Aes* aes, byte* out, const byte* in,
     hcryp.Init.Header = authInPadded;
     hcryp.Init.HeaderSize = authInSz;
 
+#ifdef WOLFSSL_STM32L4
+    /* Set the CRYP parameters */
+    hcryp.Init.ChainingMode  = CRYP_CHAINMODE_AES_GCM_GMAC;
+    hcryp.Init.OperatingMode = CRYP_ALGOMODE_ENCRYPT;
+    hcryp.Init.GCMCMACPhase  = CRYP_INIT_PHASE;
     HAL_CRYP_Init(&hcryp);
+
+    /* GCM init phase */
+    status = HAL_CRYPEx_AES_Auth(&hcryp, NULL, 0, NULL, STM32_HAL_TIMEOUT);
+    if (status == HAL_OK) {
+        /* GCM header phase */
+        hcryp.Init.GCMCMACPhase  = CRYP_HEADER_PHASE;
+        status = HAL_CRYPEx_AES_Auth(&hcryp, NULL, 0, NULL, STM32_HAL_TIMEOUT);
+        if (status == HAL_OK) {
+            /* GCM payload phase */
+            hcryp.Init.GCMCMACPhase  = CRYP_PAYLOAD_PHASE;
+            status = HAL_CRYPEx_AES_Auth(&hcryp, (byte*)in, sz, out, STM32_HAL_TIMEOUT);
+            if (status == HAL_OK) {
+                /* GCM final phase */
+                hcryp.Init.GCMCMACPhase  = CRYP_FINAL_PHASE;
+                status = HAL_CRYPEx_AES_Auth(&hcryp, NULL, sz, tag, STM32_HAL_TIMEOUT);
+            }
+        }
+    }
+#else
+    HAL_CRYP_Init(&hcryp);
+
     status = HAL_CRYPEx_AESGCM_Encrypt(&hcryp, (byte*)in, sz,
-                                    out, STM32_HAL_TIMEOUT);
+                                       out, STM32_HAL_TIMEOUT);
     /* Compute the authTag */
-    if (status == HAL_OK)
+    if (status == HAL_OK) {
         status = HAL_CRYPEx_AESGCM_Finish(&hcryp, sz, tag, STM32_HAL_TIMEOUT);
+    }
+#endif
 
     if (status != HAL_OK)
         ret = AES_GCM_AUTH_E;
@@ -8499,7 +8536,8 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
 #if defined(STM32_CRYPTO) && (defined(WOLFSSL_STM32F4) || \
-                                                       defined(WOLFSSL_STM32F7))
+                              defined(WOLFSSL_STM32F7) || \
+                              defined(WOLFSSL_STM32L4))
 
     /* additional argument checks - STM32 HW only supports 12 byte IV */
     if (ivSz != GCM_NONCE_MID_SZ) {
@@ -8618,7 +8656,9 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
     return (status == kStatus_Success) ? 0 : AES_GCM_AUTH_E;
 }
-#elif defined(STM32_CRYPTO) && (defined(WOLFSSL_STM32F4) || defined(WOLFSSL_STM32F7))
+#elif defined(STM32_CRYPTO) && (defined(WOLFSSL_STM32F4) || \
+                                defined(WOLFSSL_STM32F7) || \
+                                defined(WOLFSSL_STM32L4))
 int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
                    const byte* iv, word32 ivSz,
                    const byte* authTag, word32 authTagSz,
@@ -8697,9 +8737,11 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         case 16: /* 128-bit key */
             hcryp.Init.KeySize = CRYP_KEYSIZE_128B;
             break;
+#ifdef CRYP_KEYSIZE_192B
         case 24: /* 192-bit key */
             hcryp.Init.KeySize = CRYP_KEYSIZE_192B;
             break;
+#endif
         case 32: /* 256-bit key */
             hcryp.Init.KeySize = CRYP_KEYSIZE_256B;
             break;
@@ -8713,14 +8755,43 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     hcryp.Init.Header = authInPadded;
     hcryp.Init.HeaderSize = authInSz;
 
+#ifdef WOLFSSL_STM32L4
+    /* Set the CRYP parameters */
+    hcryp.Init.ChainingMode  = CRYP_CHAINMODE_AES_GCM_GMAC;
+    hcryp.Init.OperatingMode = CRYP_ALGOMODE_DECRYPT;
+    hcryp.Init.GCMCMACPhase  = CRYP_INIT_PHASE;
+    HAL_CRYP_Init(&hcryp);
+
+    /* GCM init phase */
+    status = HAL_CRYPEx_AES_Auth(&hcryp, NULL, 0, NULL, STM32_HAL_TIMEOUT);
+    if (status == HAL_OK) {
+        /* GCM header phase */
+        hcryp.Init.GCMCMACPhase  = CRYP_HEADER_PHASE;
+        status = HAL_CRYPEx_AES_Auth(&hcryp, NULL, 0, NULL, STM32_HAL_TIMEOUT);
+        if (status == HAL_OK) {
+            /* GCM payload phase */
+            hcryp.Init.GCMCMACPhase  = CRYP_PAYLOAD_PHASE;
+            status = HAL_CRYPEx_AES_Auth(&hcryp, (byte*)inPadded, sz, inPadded,
+                STM32_HAL_TIMEOUT);
+            if (status == HAL_OK) {
+                /* GCM final phase */
+                hcryp.Init.GCMCMACPhase  = CRYP_FINAL_PHASE;
+                status = HAL_CRYPEx_AES_Auth(&hcryp, NULL, sz, tag,
+                    STM32_HAL_TIMEOUT);
+            }
+        }
+    }
+#else
     HAL_CRYP_Init(&hcryp);
     /* Use inPadded for output buffer instead of
     * out so that we don't overflow our size. */
     status = HAL_CRYPEx_AESGCM_Decrypt(&hcryp, (byte*)inPadded,
                                     sz, inPadded, STM32_HAL_TIMEOUT);
     /* Compute the authTag */
-    if (status == HAL_OK)
+    if (status == HAL_OK) {
         status = HAL_CRYPEx_AESGCM_Finish(&hcryp, sz, tag, STM32_HAL_TIMEOUT);
+    }
+#endif
 
     if (status != HAL_OK)
         ret = AES_GCM_AUTH_E;
