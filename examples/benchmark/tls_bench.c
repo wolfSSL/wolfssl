@@ -59,9 +59,17 @@ bench_tls(args);
 #include <unistd.h>
 #include <sys/time.h>
 
+#if 0
+#define NON_BLOCKING
+#endif
+
 /* Defaults for configuration parameters */
 #define THREAD_PAIRS    1 /* Thread pairs of server/client */
-#define MEM_BUFFER_SZ   (1024*16) /* Must be large enough to handle max packet size */
+#ifndef NON_BLOCKING
+    #define MEM_BUFFER_SZ   (1024 * 16) /* Must be large enough to handle max packet size */
+#else
+    #define MEM_BUFFER_SZ   256
+#endif
 #define MIN_DHKEY_BITS  1024
 #define RUNTIME_SEC     1
 #define TEST_SIZE_BYTES (1024 * 1024)
@@ -230,11 +238,16 @@ static int ServerSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 
     pthread_mutex_lock(&info->to_client.mutex);
 
+#ifndef NON_BLOCKING
     /* check for overflow */
     if (info->to_client.write_idx + sz > MEM_BUFFER_SZ) {
         pthread_mutex_unlock(&info->to_client.mutex);
         return -1;
     }
+#else
+    if (info->to_client.write_idx + sz > MEM_BUFFER_SZ)
+        sz = MEM_BUFFER_SZ - info->to_client.write_idx;
+#endif
 
     memcpy(&info->to_client.buf[info->to_client.write_idx], buf, sz);
     info->to_client.write_idx += sz;
@@ -245,6 +258,10 @@ static int ServerSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 
     (void)ssl;
 
+#ifdef NON_BLOCKING
+    if (sz == 0)
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
+#endif
     return sz;
 }
 
@@ -256,8 +273,13 @@ static int ServerRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 
     pthread_mutex_lock(&info->to_server.mutex);
 
+#ifndef NON_BLOCKING
     while (info->to_server.write_idx - info->to_server.read_idx < sz && !info->to_client.done)
         pthread_cond_wait(&info->to_server.cond, &info->to_server.mutex);
+#else
+    if (info->to_server.write_idx - info->to_server.read_idx < sz)
+        sz = info->to_server.write_idx - info->to_server.read_idx;
+#endif
 
     memcpy(buf, &info->to_server.buf[info->to_server.read_idx], sz);
     info->to_server.read_idx += sz;
@@ -276,6 +298,10 @@ static int ServerRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 
     (void)ssl;
 
+#ifdef NON_BLOCKING
+    if (sz == 0)
+        return WOLFSSL_CBIO_ERR_WANT_READ;
+#endif
     return sz;
 }
 
@@ -287,11 +313,16 @@ static int ClientSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 
     pthread_mutex_lock(&info->to_server.mutex);
 
+#ifndef NON_BLOCKING
     /* check for overflow */
     if (info->to_client.write_idx + sz > MEM_BUFFER_SZ) {
         pthread_mutex_unlock(&info->to_server.mutex);
         return -1;
     }
+#else
+    if (info->to_server.write_idx + sz > MEM_BUFFER_SZ)
+        sz = MEM_BUFFER_SZ - info->to_server.write_idx;
+#endif
 
     memcpy(&info->to_server.buf[info->to_server.write_idx], buf, sz);
     info->to_server.write_idx += sz;
@@ -302,6 +333,10 @@ static int ClientSend(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 
     (void)ssl;
 
+#ifdef NON_BLOCKING
+    if (sz == 0)
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
+#endif
     return sz;
 }
 
@@ -313,8 +348,13 @@ static int ClientRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 
     pthread_mutex_lock(&info->to_client.mutex);
 
+#ifndef NON_BLOCKING
     while (info->to_client.write_idx - info->to_client.read_idx < sz)
         pthread_cond_wait(&info->to_client.cond, &info->to_client.mutex);
+#else
+    if (info->to_client.write_idx - info->to_client.read_idx < sz)
+        sz = info->to_client.write_idx - info->to_client.read_idx;
+#endif
 
     memcpy(buf, &info->to_client.buf[info->to_client.read_idx], sz);
     info->to_client.read_idx += sz;
@@ -330,6 +370,10 @@ static int ClientRecv(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 
     (void)ssl;
 
+#ifdef NON_BLOCKING
+    if (sz == 0)
+        return WOLFSSL_CBIO_ERR_WANT_READ;
+#endif
     return sz;
 }
 
@@ -350,12 +394,20 @@ static void* client_thread(void* args)
     unsigned char *writeBuf;
     double start;
     int ret, bufSize;
-    WOLFSSL_CTX* cli_ctx;
+    WOLFSSL_CTX* cli_ctx = NULL;
     WOLFSSL* cli_ssl;
     int haveShownPeerInfo = 0;
+    int tls13 = XSTRNCMP(info->cipher, "TLS13", 5) == 0;
 
     /* set up client */
-    cli_ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+#ifdef WOLFSSL_TLS13
+    if (tls13)
+        cli_ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
+#endif
+#ifndef WOLFSSL_NO_TLS12
+    if (!tls13)
+        cli_ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+#endif
     if (cli_ctx == NULL) err_sys("error creating ctx");
 
 #ifndef NO_CERTS
@@ -393,6 +445,9 @@ static void* client_thread(void* args)
     }
 
     while (!info->shutdown) {
+    #ifdef NON_BLOCKING
+        int err;
+    #endif
         cli_ssl = wolfSSL_new(cli_ctx);
         if (cli_ssl == NULL) err_sys("error creating client object");
 
@@ -401,7 +456,16 @@ static void* client_thread(void* args)
 
         /* perform connect */
         start = gettime_secs(1);
+    #ifndef NON_BLOCKING
         ret = wolfSSL_connect(cli_ssl);
+    #else
+        do
+        {
+            ret = wolfSSL_connect(cli_ssl);
+            err = wolfSSL_get_error(cli_ssl, ret);
+        }
+        while (err == WOLFSSL_ERROR_WANT_READ || err == WOLFSSL_ERROR_WANT_WRITE);
+    #endif
         start = gettime_secs(0) - start;
         if (ret != WOLFSSL_SUCCESS) {
             if (info->shutdown)
@@ -428,7 +492,16 @@ static void* client_thread(void* args)
             /* write test message to server */
             while (info->client_stats.rxTotal < info->numBytes) {
                 start = gettime_secs(1);
+            #ifndef NON_BLOCKING
                 ret = wolfSSL_write(cli_ssl, writeBuf, info->packetSize);
+            #else
+                do
+                {
+                    ret = wolfSSL_write(cli_ssl, writeBuf, info->packetSize);
+                    err = wolfSSL_get_error(cli_ssl, ret);
+                }
+                while (err == WOLFSSL_ERROR_WANT_WRITE);
+            #endif
                 info->client_stats.txTime += gettime_secs(0) - start;
                 if (ret > 0) {
                     info->client_stats.txTotal += ret;
@@ -436,7 +509,16 @@ static void* client_thread(void* args)
 
                 /* read echo of message */
                 start = gettime_secs(1);
+            #ifndef NON_BLOCKING
                 ret = wolfSSL_read(cli_ssl, buf, bufSize-1);
+            #else
+                do
+                {
+                    ret = wolfSSL_read(cli_ssl, buf, bufSize-1);
+                    err = wolfSSL_get_error(cli_ssl, ret);
+                }
+                while (err == WOLFSSL_ERROR_WANT_READ);
+            #endif
                 info->client_stats.rxTime += gettime_secs(0) - start;
                 if (ret > 0) {
                     info->client_stats.rxTotal += ret;
@@ -477,11 +559,19 @@ static void* server_thread(void* args)
     unsigned char *buf;
     double start;
     int ret, len = 0, bufSize;
-    WOLFSSL_CTX* srv_ctx;
+    WOLFSSL_CTX* srv_ctx = NULL;
     WOLFSSL* srv_ssl;
+    int tls13 = XSTRNCMP(info->cipher, "TLS13", 5) == 0;
 
     /* set up server */
-    srv_ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
+#ifdef WOLFSSL_TLS13
+    if (tls13)
+        srv_ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
+#endif
+#ifndef WOLFSSL_NO_TLS12
+    if (!tls13)
+        srv_ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method());
+#endif
     if (srv_ctx == NULL) err_sys("error creating server ctx");
 
 #ifndef NO_CERTS
@@ -521,6 +611,9 @@ static void* server_thread(void* args)
 #endif
 
     while (!info->shutdown) {
+    #ifdef NON_BLOCKING
+        int err;
+    #endif
         srv_ssl = wolfSSL_new(srv_ctx);
         if (srv_ssl == NULL) err_sys("error creating server object");
 
@@ -529,7 +622,16 @@ static void* server_thread(void* args)
 
         /* accept tls connection without tcp sockets */
         start = gettime_secs(1);
+    #ifndef NON_BLOCKING
         ret = wolfSSL_accept(srv_ssl);
+    #else
+        do
+        {
+            ret = wolfSSL_accept(srv_ssl);
+            err = wolfSSL_get_error(srv_ssl, ret);
+        }
+        while (err == WOLFSSL_ERROR_WANT_READ || err == WOLFSSL_ERROR_WANT_WRITE);
+    #endif
         start = gettime_secs(0) - start;
         if (ret != WOLFSSL_SUCCESS) {
             if (info->shutdown)
@@ -553,7 +655,16 @@ static void* server_thread(void* args)
                 /* read msg post handshake from client */
                 memset(buf, 0, bufSize);
                 start = gettime_secs(1);
+            #ifndef NON_BLOCKING
                 ret = wolfSSL_read(srv_ssl, buf, bufSize-1);
+            #else
+                do
+                {
+                    ret = wolfSSL_read(srv_ssl, buf, bufSize-1);
+                    err = wolfSSL_get_error(srv_ssl, ret);
+                }
+                while (err == WOLFSSL_ERROR_WANT_READ);
+            #endif
                 info->server_stats.rxTime += gettime_secs(0) - start;
                 if (ret > 0) {
                     info->server_stats.rxTotal += ret;
@@ -562,7 +673,16 @@ static void* server_thread(void* args)
 
                 /* write message back to client */
                 start = gettime_secs(1);
+            #ifndef NON_BLOCKING
                 ret = wolfSSL_write(srv_ssl, buf, len);
+            #else
+                do
+                {
+                    ret = wolfSSL_write(srv_ssl, buf, len);
+                    err = wolfSSL_get_error(srv_ssl, ret);
+                }
+                while (err == WOLFSSL_ERROR_WANT_WRITE);
+            #endif
                 info->server_stats.txTime += gettime_secs(0) - start;
                 if (ret > 0) {
                     info->server_stats.txTotal += ret;
@@ -608,7 +728,7 @@ static void print_stats(stats_t* wcStat, const char* desc, const char* cipher, i
                "\tConnect Avg : %9.3f ms\n";
     }
     else {
-        formatStr = "%s\t%s\t%d\t%9d\t%9.3f\t%9.3f\t%9.3f\t%9.3f\t%9.3f\t%9.3f\n";
+        formatStr = "%-6s  %-33s  %11d  %9d  %9.3f  %9.3f  %9.3f  %9.3f  %17.3f  %15.3f\n";
     }
 
     printf(formatStr,
@@ -847,7 +967,9 @@ int bench_tls(void* args)
             printf("Totals for %d Threads\n", argThreadPairs);
         }
         else {
-            printf("Side\tCipher\tTotal Bytes\tNum Conns\tRx ms\tTx ms\tRx MB/s\tTx MB/s\tConnect Total ms\tConnect Avg ms\n");
+            printf("%-6s  %-33s  %11s  %9s  %9s  %9s  %9s  %9s  %17s  %15s\n",
+                "Side", "Cipher", "Total Bytes", "Num Conns", "Rx ms", "Tx ms",
+                "Rx MB/s", "Tx MB/s", "Connect Total ms", "Connect Avg ms");
             print_stats(&srv_comb, "Server", theadInfo[0].cipher, 0);
             print_stats(&cli_comb, "Client", theadInfo[0].cipher, 0);
         }
