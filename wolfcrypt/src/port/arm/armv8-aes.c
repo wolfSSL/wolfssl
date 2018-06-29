@@ -110,10 +110,6 @@ static const byte rcon[] = {
 
 
 #ifdef HAVE_AESGCM
-enum {
-    NONCE_SZ = 12,
-    CTR_SZ   = 4
-};
 
 static WC_INLINE void IncrementGcmCounter(byte* inOutCtr)
 {
@@ -1555,7 +1551,7 @@ static int Aes128GcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte* keyPt; /* pointer to handle pointer advencment */
 
     XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
-    if (ivSz == NONCE_SZ) {
+    if (ivSz == GCM_NONCE_MID_SZ) {
         XMEMCPY(initialCounter, iv, ivSz);
         initialCounter[AES_BLOCK_SIZE - 1] = 1;
     }
@@ -1873,7 +1869,7 @@ static int Aes192GcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte* keyPt; /* pointer to handle pointer advencment */
 
     XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
-    if (ivSz == NONCE_SZ) {
+    if (ivSz == GCM_NONCE_MID_SZ) {
         XMEMCPY(initialCounter, iv, ivSz);
         initialCounter[AES_BLOCK_SIZE - 1] = 1;
     }
@@ -2206,7 +2202,7 @@ static int Aes256GcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     byte* keyPt; /* pointer to handle pointer advencment */
 
     XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
-    if (ivSz == NONCE_SZ) {
+    if (ivSz == GCM_NONCE_MID_SZ) {
         XMEMCPY(initialCounter, iv, ivSz);
         initialCounter[AES_BLOCK_SIZE - 1] = 1;
     }
@@ -2631,7 +2627,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
     XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
-    if (ivSz == NONCE_SZ) {
+    if (ivSz == GCM_NONCE_MID_SZ) {
         XMEMCPY(initialCounter, iv, ivSz);
         initialCounter[AES_BLOCK_SIZE - 1] = 1;
     }
@@ -4233,7 +4229,7 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
     XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
-    if (ivSz == NONCE_SZ) {
+    if (ivSz == GCM_NONCE_MID_SZ) {
         XMEMCPY(initialCounter, iv, ivSz);
         initialCounter[AES_BLOCK_SIZE - 1] = 1;
     }
@@ -4312,7 +4308,7 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
     }
 
     XMEMSET(initialCounter, 0, AES_BLOCK_SIZE);
-    if (ivSz == NONCE_SZ) {
+    if (ivSz == GCM_NONCE_MID_SZ) {
         XMEMCPY(initialCounter, iv, ivSz);
         initialCounter[AES_BLOCK_SIZE - 1] = 1;
     }
