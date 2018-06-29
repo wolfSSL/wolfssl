@@ -198,6 +198,7 @@ mkdir -p $RPM_BUILD_ROOT/
 %{_includedir}/wolfssl/wolfcrypt/ed25519.h
 %{_includedir}/wolfssl/wolfcrypt/error-crypt.h
 %{_includedir}/wolfssl/wolfcrypt/fe_operations.h
+%{_includedir}/wolfssl/wolfcrypt/fips.h
 %{_includedir}/wolfssl/wolfcrypt/fips_test.h
 %{_includedir}/wolfssl/wolfcrypt/ge_operations.h
 %{_includedir}/wolfssl/wolfcrypt/hash.h
@@ -307,7 +308,7 @@ mkdir -p $RPM_BUILD_ROOT/
 - Added header for pkcs12
 * Fri Sep 23 2016 John Safranek <john@wolfssl.com>
 - Add the dtls-sctp example sources
-* Mon Jun 14 2016 Jacob Barthelmeh <jacob@wolfssl.com>
+* Tue Jun 14 2016 Jacob Barthelmeh <jacob@wolfssl.com>
 - Change location for mem_track.h header
 - Added header for cmac.h
 * Thu Mar 17 2016 Jacob Barthelmeh <jacob@wolfssl.com>
@@ -319,5 +320,5 @@ mkdir -p $RPM_BUILD_ROOT/
 - Added recent new wolfcrypt headers for curve25519
 * Fri Jan 09 2015 John Safranek <john@wolfssl.com>
 - Update for cyassl->wolfssl name change
-* Fri Oct 20 2012 Brian Aker <brian@tangent.org>
+* Sat Oct 20 2012 Brian Aker <brian@tangent.org>
 - Initial package
