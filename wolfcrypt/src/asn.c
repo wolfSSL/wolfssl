@@ -6649,6 +6649,17 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     cert->extAuthKeyIdCrit = critical;
                 #endif
+                #ifndef WOLFSSL_ALLOW_CRIT_SKID
+                    /* This check is added due to RFC 5280 section 4.2.1.1
+                     * stating that conforming CA's must mark this extension
+                     * as non-critical. When parsing extensions check that
+                     * certificate was made in compliance with this. */
+                    if (critical) {
+                        WOLFSSL_MSG("Critical Auth Key ID is not allowed");
+                        WOLFSSL_MSG("Use macro WOLFSSL_ALLOW_CRIT_SKID if wanted");
+                        return ASN_CRIT_EXT_E;
+                    }
+                #endif
                 if (DecodeAuthKeyId(&input[idx], length, cert) < 0)
                     return ASN_PARSE_E;
                 break;
