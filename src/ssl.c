@@ -22184,8 +22184,10 @@ int wolfSSL_BN_hex2bn(WOLFSSL_BIGNUM** bn, const char* str)
 
         if (*bn == NULL)
             WOLFSSL_MSG("BN new failed");
-        else if (wolfSSL_BN_bin2bn(decoded, decSz, *bn) == NULL)
+        else if (wolfSSL_BN_bin2bn(decoded, decSz, *bn) == NULL) {
             WOLFSSL_MSG("Bad bin2bn error");
+            wolfSSL_BN_free(*bn); /* Free new BN */
+        }
         else
             ret = WOLFSSL_SUCCESS;
     }
