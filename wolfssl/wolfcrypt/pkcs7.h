@@ -142,7 +142,7 @@ typedef struct PKCS7 {
     byte publicKey[MAX_RSA_INT_SZ + MAX_RSA_E_SZ]; /* MAX RSA key size (m + e)*/
     word32 certSz[MAX_PKCS7_CERTS];
     
-     /* flags - up to 32-bits */
+     /* flags - up to 16-bits */
     word16 isDynamic:1;
 
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
