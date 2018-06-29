@@ -95,10 +95,13 @@ typedef struct PKCS7DecodedAttrib {
 } PKCS7DecodedAttrib;
 
 
+/* Public Structure Warning:
+ * Existing members must not be changed to maintain backwards compatibility! 
+ */
 typedef struct PKCS7 {
     WC_RNG* rng;
     PKCS7Attrib* signedAttribs;
-    byte* content;                /* inner content, not owner             */
+    byte*  content;               /* inner content, not owner             */
     byte*  singleCert;            /* recipient cert, DER, not owner       */
     byte*  issuer;                /* issuer name of singleCert            */
     byte*  privateKey;            /* private key, DER, not owner          */
@@ -136,11 +139,17 @@ typedef struct PKCS7 {
     int devId;                    /* device ID for HW based private key   */
     byte issuerHash[KEYID_SIZE];  /* hash of all alt Names                */
     byte issuerSn[MAX_SN_SZ];     /* singleCert's serial number           */
-    byte publicKey[MAX_RSA_INT_SZ + MAX_RSA_E_SZ ];/*MAX RSA key size (m + e)*/
+    byte publicKey[MAX_RSA_INT_SZ + MAX_RSA_E_SZ]; /* MAX RSA key size (m + e)*/
     word32 certSz[MAX_PKCS7_CERTS];
+    
+     /* flags - up to 32-bits */
+    word16 isDynamic:1;
+
+    /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 } PKCS7;
 
 
+WOLFSSL_API PKCS7* wc_PKCS7_New(void* heap, int devId);
 WOLFSSL_API int  wc_PKCS7_Init(PKCS7* pkcs7, void* heap, int devId);
 WOLFSSL_API int  wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz);
 WOLFSSL_API void wc_PKCS7_Free(PKCS7* pkcs7);

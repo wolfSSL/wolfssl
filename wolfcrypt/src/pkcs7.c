@@ -228,6 +228,17 @@ static int wc_PKCS7_GetOIDKeySize(int oid)
 }
 
 
+PKCS7* wc_PKCS7_New(void* heap, int devId)
+{
+    PKCS7* pkcs7 = (PKCS7*)XMALLOC(sizeof(PKCS7), heap, DYNAMIC_TYPE_PKCS7);
+    if (pkcs7) {
+        XMEMSET(pkcs7, 0, sizeof(PKCS7));
+        wc_PKCS7_Init(pkcs7, heap, devId);
+        pkcs7->isDynamic = 1;
+    }
+    return pkcs7;
+}
+
 /* This is to initialize a PKCS7 structure. It sets all values to 0 and can be
  * used to set the heap hint.
  *
@@ -246,7 +257,11 @@ int wc_PKCS7_Init(PKCS7* pkcs7, void* heap, int devId)
     }
 
     XMEMSET(pkcs7, 0, sizeof(PKCS7));
+#ifdef WOLFSSL_HEAP_TEST
+    pkcs7->heap = (void*)WOLFSSL_HEAP_TEST;
+#else
     pkcs7->heap = heap;
+#endif
     pkcs7->devId = devId;
 
     return 0;
@@ -254,34 +269,30 @@ int wc_PKCS7_Init(PKCS7* pkcs7, void* heap, int devId)
 
 
 /* init PKCS7 struct with recipient cert, decode into DecodedCert
- * NOTE: keeps previously set pkcs7 memory heap hint */
+ * NOTE: keeps previously set pkcs7 heap hint, devId and isDynamic */
 int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz)
 {
     int ret = 0;
     void* heap;
     int devId;
+    word16 isDynamic;
 
     if (pkcs7 == NULL || (cert == NULL && certSz != 0)) {
         return BAD_FUNC_ARG;
     }
 
-#ifdef WOLFSSL_HEAP_TEST
-    heap = (void*)WOLFSSL_HEAP_TEST;
-#else
     heap = pkcs7->heap;
-#endif
     devId = pkcs7->devId;
-
-    XMEMSET(pkcs7, 0, sizeof(PKCS7));
-    pkcs7->heap = heap;
-    pkcs7->devId = devId;
+    isDynamic = pkcs7->isDynamic;
+    wc_PKCS7_Init(pkcs7, heap, devId);
+    pkcs7->isDynamic = isDynamic;
 
     if (cert != NULL && certSz > 0) {
 #ifdef WOLFSSL_SMALL_STACK
         DecodedCert* dCert;
 
-        dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
-                                                       DYNAMIC_TYPE_PKCS7);
+        dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), pkcs7->heap,
+                                                       DYNAMIC_TYPE_DCERT);
         if (dCert == NULL)
             return MEMORY_E;
 #else
@@ -297,7 +308,7 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz)
         if (ret < 0) {
             FreeDecodedCert(dCert);
 #ifdef WOLFSSL_SMALL_STACK
-            XFREE(dCert, NULL, DYNAMIC_TYPE_PKCS7);
+            XFREE(dCert, NULL, DYNAMIC_TYPE_DCERT);
 #endif
             return ret;
         }
@@ -313,7 +324,7 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz)
         FreeDecodedCert(dCert);
 
 #ifdef WOLFSSL_SMALL_STACK
-        XFREE(dCert, NULL, DYNAMIC_TYPE_PKCS7);
+        XFREE(dCert, NULL, DYNAMIC_TYPE_DCERT);
 #endif
     }
 
@@ -359,6 +370,11 @@ void wc_PKCS7_Free(PKCS7* pkcs7)
     if (pkcs7->der != NULL)
         XFREE(pkcs7->der, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
 #endif
+
+    if (pkcs7->isDynamic) {
+        pkcs7->isDynamic = 0;
+        XFREE(pkcs7, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    }
 }
 
 
