@@ -6437,9 +6437,9 @@ static int DecodeKeyUsage(byte* input, int sz, DecodedCert* cert)
 static int DecodeExtKeyUsage(byte* input, int sz, DecodedCert* cert)
 {
     word32 idx = 0, oid;
-    int length;
+    int length, ret;
 
-    WOLFSSL_ENTER("DecodeExtKeyUsage");
+    WOLFSSL_MSG("DecodeExtKeyUsage");
 
     if (GetSequence(input, &idx, &length, sz) < 0) {
         WOLFSSL_MSG("\tfail: should be a SEQUENCE");
@@ -6452,8 +6452,11 @@ static int DecodeExtKeyUsage(byte* input, int sz, DecodedCert* cert)
 #endif
 
     while (idx < (word32)sz) {
-        if (GetObjectId(input, &idx, &oid, oidCertKeyUseType, sz) < 0)
-            return ASN_PARSE_E;
+        ret = GetObjectId(input, &idx, &oid, oidCertKeyUseType, sz);
+        if (ret == ASN_UNKNOWN_OID_E)
+            continue;
+        else if (ret < 0)
+            return ret;
 
         switch (oid) {
             case EKU_ANY_OID:
