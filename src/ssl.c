@@ -22231,6 +22231,7 @@ int wolfSSL_BN_hex2bn(WOLFSSL_BIGNUM** bn, const char* str)
 #else
     byte    decoded[1024];
 #endif
+    int     weOwn = 0;
 
     WOLFSSL_MSG("wolfSSL_BN_hex2bn");
 
@@ -22247,13 +22248,21 @@ int wolfSSL_BN_hex2bn(WOLFSSL_BIGNUM** bn, const char* str)
     else if (bn == NULL)
         ret = decSz;
     else {
-        if (*bn == NULL)
+        if (*bn == NULL) {
             *bn = wolfSSL_BN_new();
+            if (*bn != NULL) {
+                weOwn = 1;
+            }
+        }
 
         if (*bn == NULL)
             WOLFSSL_MSG("BN new failed");
-        else if (wolfSSL_BN_bin2bn(decoded, decSz, *bn) == NULL)
+        else if (wolfSSL_BN_bin2bn(decoded, decSz, *bn) == NULL) {
             WOLFSSL_MSG("Bad bin2bn error");
+            if (weOwn == 1) {
+                wolfSSL_BN_free(*bn); /* Free new BN */
+            }
+        }
         else
             ret = WOLFSSL_SUCCESS;
     }
