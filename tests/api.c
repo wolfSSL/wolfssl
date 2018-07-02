@@ -3263,7 +3263,7 @@ static void test_wolfSSL_mcast(void)
  |  Wolfcrypt
  *----------------------------------------------------------------------------*/
 
-/* 
+/*
  * Unit test for the wc_InitBlake2b()
  */
 static int test_wc_InitBlake2b (void)
@@ -7609,7 +7609,7 @@ static int test_wc_Des3_SetKey (void)
     return ret;
 
 } /* END test_wc_Des3_SetKey */
- 
+
 
 /*
  * Test function for wc_Des3_CbcEncrypt and wc_Des3_CbcDecrypt
@@ -7856,7 +7856,7 @@ static int test_wc_Chacha_SetKey (void)
 static int test_wc_Poly1305SetKey(void)
 {
     int ret = 0;
-    
+
 #ifdef HAVE_POLY1305
     Poly1305      ctx;
     const byte  key[] =
@@ -7868,8 +7868,8 @@ static int test_wc_Poly1305SetKey(void)
     };
 
     printf(testingFmt, "wc_Poly1305_SetKey()");
-    
-    ret = wc_Poly1305SetKey(&ctx, key, (word32)(sizeof(key)/sizeof(byte))); 
+
+    ret = wc_Poly1305SetKey(&ctx, key, (word32)(sizeof(key)/sizeof(byte)));
     /* Test bad args. */
     if (ret == 0) {
         ret = wc_Poly1305SetKey(NULL, key, (word32)(sizeof(key)/sizeof(byte)));
@@ -7887,7 +7887,7 @@ static int test_wc_Poly1305SetKey(void)
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
-    
+
 #endif
     return ret;
 } /* END test_wc_Poly1305_SetKey() */
@@ -10112,7 +10112,7 @@ static int test_wc_RsaKeyToDer (void)
  *  Testing wc_RsaKeyToPublicDer()
  */
 static int test_wc_RsaKeyToPublicDer (void)
-{ 
+{
     int         ret = 0;
 #if !defined(NO_RSA) && !defined(HAVE_FAST_RSA) && defined(WOLFSSL_KEY_GEN) &&\
      (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
@@ -14186,6 +14186,25 @@ static int test_wc_ecc_is_valid_idx (void)
 
 
 /*
+ * Testing wc_PKCS7_New()
+ */
+static void test_wc_PKCS7_New (void)
+{
+#if defined(HAVE_PKCS7)
+    PKCS7*      pkcs7;
+    void*       heap = NULL;
+
+    printf(testingFmt, "wc_PKCS7_New()");
+
+    pkcs7 = wc_PKCS7_New(heap, devId);
+    AssertNotNull(pkcs7);
+
+    printf(resultFmt, passed);
+    wc_PKCS7_Free(pkcs7);
+#endif
+} /* END test-wc_PKCS7_New */
+
+/*
  * Testing wc_PKCS7_Init()
  */
 static void test_wc_PKCS7_Init (void)
@@ -14259,6 +14278,7 @@ static void test_wc_PKCS7_InitWithCert (void)
 #endif
     printf(testingFmt, "wc_PKCS7_InitWithCert()");
     /* If initialization is not successful, it's free'd in init func. */
+    pkcs7.isDynamic = 0;
     AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, (byte*)cert, (word32)certSz), 0);
 
     wc_PKCS7_Free(&pkcs7);
@@ -14355,6 +14375,8 @@ static void test_wc_PKCS7_EncodeData (void)
 #endif
 
     XMEMSET(output, 0, sizeof(output));
+
+    AssertIntEQ(wc_PKCS7_Init(&pkcs7, HEAP_HINT, INVALID_DEVID), 0);
 
     AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, (byte*)cert, certSz), 0);
 
@@ -14461,6 +14483,8 @@ static void test_wc_PKCS7_EncodeSignedData (void)
     XMEMSET(output, 0, outputSz);
     AssertIntEQ(wc_InitRng(&rng), 0);
 
+    AssertIntEQ(wc_PKCS7_Init(&pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+
     AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, cert, certSz), 0);
 
     printf(testingFmt, "wc_PKCS7_EncodeSignedData()");
@@ -14472,7 +14496,6 @@ static void test_wc_PKCS7_EncodeSignedData (void)
     pkcs7.encryptOID = RSAk;
     pkcs7.hashOID = SHAh;
     pkcs7.rng = &rng;
-    pkcs7.devId = INVALID_DEVID;
 
     AssertIntGT(wc_PKCS7_EncodeSignedData(&pkcs7, output, outputSz), 0);
 
@@ -14575,6 +14598,8 @@ static void test_wc_PKCS7_VerifySignedData(void)
 
     XMEMSET(output, 0, outputSz);
     AssertIntEQ(wc_InitRng(&rng), 0);
+
+    AssertIntEQ(wc_PKCS7_Init(&pkcs7, HEAP_HINT, INVALID_DEVID), 0);
 
     AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, cert, certSz), 0);
 
@@ -15038,43 +15063,43 @@ static void test_wc_PKCS7_EncodeEncryptedData (void)
 
 /* Testing wc_SignatureGetSize() for signature type ECC */
 static int test_wc_SignatureGetSize_ecc(void)
-{    
-    int ret = 0; 
+{
+    int ret = 0;
     #if defined(HAVE_ECC) && !defined(NO_ECC256)
         enum wc_SignatureType sig_type;
         word32 key_len;
 
         /* Initialize ECC Key */
-        ecc_key ecc; 
+        ecc_key ecc;
         const char* qx =
             "fa2737fb93488d19caef11ae7faf6b7f4bcd67b286e3fc54e8a65c2b74aeccb0";
-        const char* qy = 
+        const char* qy =
             "d4ccd6dae698208aa8c3a6f39e45510d03be09b2f124bfc067856c324f9b4d09";
-        const char* d = 
+        const char* d =
             "be34baa8d040a3b991f9075b56ba292f755b90e4b6dc10dad36715c33cfdac25";
-    
+
         ret = wc_ecc_init(&ecc);
         if (ret == 0) {
             ret = wc_ecc_import_raw(&ecc, qx, qy, d, "SECP256R1");
         }
         printf(testingFmt, "wc_SigntureGetSize_ecc()");
-        if (ret == 0) { 
+        if (ret == 0) {
             /* Input for signature type ECC */
             sig_type = WC_SIGNATURE_TYPE_ECC;
             key_len = sizeof(ecc_key);
             ret = wc_SignatureGetSize(sig_type, &ecc, key_len);
-            
-            /* Test bad args */ 
+
+            /* Test bad args */
             if (ret > 0) {
                 sig_type = (enum wc_SignatureType) 100;
                 ret = wc_SignatureGetSize(sig_type, &ecc, key_len);
                 if (ret == BAD_FUNC_ARG) {
                     sig_type = WC_SIGNATURE_TYPE_ECC;
                     ret = wc_SignatureGetSize(sig_type, NULL, key_len);
-                }  
+                }
                 if (ret >= 0) {
                     key_len = (word32) 0;
-                    ret = wc_SignatureGetSize(sig_type, &ecc, key_len); 
+                    ret = wc_SignatureGetSize(sig_type, &ecc, key_len);
                 }
                 if (ret == BAD_FUNC_ARG) {
                     ret = SIG_TYPE_E;
@@ -15102,7 +15127,7 @@ static int test_wc_SignatureGetSize_ecc(void)
 /* Testing wc_SignatureGetSize() for signature type rsa */
 static int test_wc_SignatureGetSize_rsa(void)
 {
-    int ret = 0; 
+    int ret = 0;
     #ifndef NO_RSA
         enum wc_SignatureType sig_type;
         word32 key_len;
@@ -15112,7 +15137,7 @@ static int test_wc_SignatureGetSize_rsa(void)
         RsaKey rsa_key;
         byte* tmp = NULL;
         size_t bytes;
-     
+
         #ifdef USE_CERT_BUFFERS_1024
             bytes = (size_t)sizeof_client_key_der_1024;
             if (bytes < (size_t)sizeof_client_key_der_1024)
@@ -15128,10 +15153,10 @@ static int test_wc_SignatureGetSize_rsa(void)
         tmp = (byte*)XMALLOC(bytes, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         if (tmp != NULL) {
             #ifdef USE_CERT_BUFFERS_1024
-                XMEMCPY(tmp, client_key_der_1024, 
+                XMEMCPY(tmp, client_key_der_1024,
                     (size_t)sizeof_client_key_der_1024);
             #elif defined(USE_CERT_BUFFERS_2048)
-                XMEMCPY(tmp, client_key_der_2048, 
+                XMEMCPY(tmp, client_key_der_2048,
                     (size_t)sizeof_client_key_der_2048);
             #elif !defined(NO_FILESYSTEM)
                 file = fopen(clientKey, "rb");
@@ -15148,7 +15173,7 @@ static int test_wc_SignatureGetSize_rsa(void)
             if (ret == 0) {
                 ret = wc_InitRsaKey_ex(&rsa_key, HEAP_HINT, devId);
                 if (ret == 0) {
-                    ret = wc_RsaPrivateKeyDecode(tmp, &idx, &rsa_key, 
+                    ret = wc_RsaPrivateKeyDecode(tmp, &idx, &rsa_key,
                         (word32)bytes);
                 }
             }
@@ -15162,7 +15187,7 @@ static int test_wc_SignatureGetSize_rsa(void)
             sig_type = WC_SIGNATURE_TYPE_RSA;
             key_len = sizeof(RsaKey);
             ret = wc_SignatureGetSize(sig_type, &rsa_key, key_len);
-            
+
             /* Test bad args */
             if (ret > 0) {
                 sig_type = (enum wc_SignatureType) 100;
@@ -15173,7 +15198,7 @@ static int test_wc_SignatureGetSize_rsa(void)
                 }
             #ifndef HAVE_USER_RSA
                 if (ret == BAD_FUNC_ARG) {
-            #else        
+            #else
                 if (ret == 0) {
             #endif
                     key_len = (word32)0;
@@ -15191,21 +15216,21 @@ static int test_wc_SignatureGetSize_rsa(void)
     #else
         ret = SIG_TYPE_E;
     #endif
-            
+
     if (ret == SIG_TYPE_E) {
         ret = 0;
     }else {
         ret = WOLFSSL_FATAL_ERROR;
     }
- 
+
    printf(resultFmt, ret == 0 ? passed : failed);
    return ret;
 }/* END test_wc_SignatureGetSize_rsa(void) */
-  
+
 /*----------------------------------------------------------------------------*
  | hash.h Tests
  *----------------------------------------------------------------------------*/
-  
+
 static int test_wc_HashInit(void)
 {
     int ret = 0, i;  /* 0 indicates tests passed, 1 indicates failure */
@@ -15604,7 +15629,7 @@ static void test_wolfSSL_ASN1_GENERALIZEDTIME_free(){
 
     XMEMSET(nullstr, 0, 32);
     asn1_gtime = (WOLFSSL_ASN1_GENERALIZEDTIME*)XMALLOC(
-                    sizeof(WOLFSSL_ASN1_GENERALIZEDTIME), NULL, 
+                    sizeof(WOLFSSL_ASN1_GENERALIZEDTIME), NULL,
                     DYNAMIC_TYPE_TMP_BUFFER);
     XMEMCPY(asn1_gtime->data,"20180504123500Z",ASN_GENERALIZED_TIME_SIZE);
     wolfSSL_ASN1_GENERALIZEDTIME_free(asn1_gtime);
@@ -18374,14 +18399,14 @@ static void test_wolfSSL_SHA(void)
             "\x23\xB0\x03\x61\xA3\x96\x17\x7A\x9C\xB4\x10\xFF\x61\xF2\x00"
             "\x15\xAD";
         unsigned char out[WC_SHA256_DIGEST_SIZE];
-     
+
         XMEMSET(out, 0, WC_SHA256_DIGEST_SIZE);
         AssertNotNull(SHA256(in, XSTRLEN((char*)in), out));
         AssertIntEQ(XMEMCMP(out, expected, WC_SHA256_DIGEST_SIZE), 0);
     }
     #endif
 
-    #if defined(WOLFSSL_SHA384) && defined(WOLFSSL_SHA512) 
+    #if defined(WOLFSSL_SHA384) && defined(WOLFSSL_SHA512)
     {
         const unsigned char in[] = "abc";
         unsigned char expected[] = "\xcb\x00\x75\x3f\x45\xa3\x5e\x8b\xb5\xa0\x3d\x69\x9a\xc6\x50"
@@ -18590,9 +18615,9 @@ static void test_wolfSSL_ASN1_STRING_print_ex(void){
     unsigned long flags;
     int p_len;
     unsigned char rbuf[255];
-    
+
     printf(testingFmt, "wolfSSL_ASN1_STRING_print_ex()");
-    
+
     /* setup */
     XMEMSET(rbuf, 0, 255);
     bio = BIO_new(BIO_s_mem());
@@ -19777,7 +19802,7 @@ static void test_wolfSSL_i2c_ASN1_INTEGER()
                 DYNAMIC_TYPE_TMP_BUFFER));
     tpp = pp;
     XMEMSET(pp, 0, ret + 1);
-    wolfSSL_i2c_ASN1_INTEGER(a, &pp); 
+    wolfSSL_i2c_ASN1_INTEGER(a, &pp);
     pp--;
     AssertIntEQ(*pp, 40);
     XFREE(tpp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -19792,7 +19817,7 @@ static void test_wolfSSL_i2c_ASN1_INTEGER()
                 DYNAMIC_TYPE_TMP_BUFFER));
     tpp = pp;
     XMEMSET(pp, 0, ret + 1);
-    wolfSSL_i2c_ASN1_INTEGER(a, &pp); 
+    wolfSSL_i2c_ASN1_INTEGER(a, &pp);
     pp--;
     AssertIntEQ(*(pp--), 128);
     AssertIntEQ(*pp, 0);
@@ -19809,7 +19834,7 @@ static void test_wolfSSL_i2c_ASN1_INTEGER()
                 DYNAMIC_TYPE_TMP_BUFFER));
     tpp = pp;
     XMEMSET(pp, 0, ret + 1);
-    wolfSSL_i2c_ASN1_INTEGER(a, &pp); 
+    wolfSSL_i2c_ASN1_INTEGER(a, &pp);
     pp--;
     AssertIntEQ(*pp, 216);
     XFREE(tpp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -19825,7 +19850,7 @@ static void test_wolfSSL_i2c_ASN1_INTEGER()
                 DYNAMIC_TYPE_TMP_BUFFER));
     tpp = pp;
     XMEMSET(pp, 0, ret + 1);
-    wolfSSL_i2c_ASN1_INTEGER(a, &pp); 
+    wolfSSL_i2c_ASN1_INTEGER(a, &pp);
     pp--;
     AssertIntEQ(*pp, 128);
     XFREE(tpp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -19841,13 +19866,13 @@ static void test_wolfSSL_i2c_ASN1_INTEGER()
             DYNAMIC_TYPE_TMP_BUFFER));
     tpp = pp;
     XMEMSET(pp, 0, ret + 1);
-    wolfSSL_i2c_ASN1_INTEGER(a, &pp); 
+    wolfSSL_i2c_ASN1_INTEGER(a, &pp);
     pp--;
     AssertIntEQ(*(pp--), 56);
     AssertIntEQ(*pp, 255);
 
     XFREE(tpp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    wolfSSL_ASN1_INTEGER_free(a); 
+    wolfSSL_ASN1_INTEGER_free(a);
 
     printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA */
@@ -20176,6 +20201,7 @@ void ApiTest(void)
     AssertIntEQ(test_wc_ecc_mulmod(), 0);
     AssertIntEQ(test_wc_ecc_is_valid_idx(), 0);
 
+    test_wc_PKCS7_New();
     test_wc_PKCS7_Init();
     test_wc_PKCS7_InitWithCert();
     test_wc_PKCS7_EncodeData();
@@ -20183,7 +20209,7 @@ void ApiTest(void)
     test_wc_PKCS7_VerifySignedData();
     test_wc_PKCS7_EncodeDecodeEnvelopedData();
     test_wc_PKCS7_EncodeEncryptedData();
-     
+
     printf(" End API Tests\n");
 
 }
