@@ -95,3 +95,9 @@ generate_test_cert server-badaltnull www.nomatch.com DER:30:0d:82:0b:6c:6f:63:61
 
 # Generate Bad Alt Name CN=www.nomatch.com, Alt=www.nomatch.com
 generate_test_cert server-badaltname www.nomatch.com www.nomatch.com
+
+# Generate Good Alt Name CN=localhost, Alt=localhost
+generate_test_cert server-localhost localhost localhost
+
+# Generate Bad Alt Name CN=localhost, Alt=garbage
+generate_test_cert server-garbage localhost garbage

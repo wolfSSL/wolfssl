@@ -9158,6 +9158,29 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 }
 
                 if (!ssl->options.verifyNone && ssl->buffers.domainName.buffer) {
+                #ifndef WOLFSSL_ALLOW_NO_CN_IN_SAN
+                    /* Per RFC 5280 section 4.2.1.6, "Whenever such identities
+                     * are to be bound into a certificate, the subject
+                     * alternative name extension MUST be used." */
+                    if (args->dCert->altNames) {
+                        if (CheckAltNames(args->dCert,
+                                (char*)ssl->buffers.domainName.buffer) == 0 ) {
+                            WOLFSSL_MSG("DomainName match on alt names failed");
+                            /* try to get peer key still */
+                            ret = DOMAIN_NAME_MISMATCH;
+                        }
+                    }
+                    else {
+                        if (MatchDomainName(
+                                 args->dCert->subjectCN,
+                                 args->dCert->subjectCNLen,
+                                 (char*)ssl->buffers.domainName.buffer) == 0) {
+                            WOLFSSL_MSG("DomainName match on common name failed");
+                            ret = DOMAIN_NAME_MISMATCH;
+                        }
+                    }
+                #else /* WOLFSSL_ALL_NO_CN_IN_SAN */
+                    /* Old behavior. */
                     if (MatchDomainName(args->dCert->subjectCN,
                                 args->dCert->subjectCNLen,
                                 (char*)ssl->buffers.domainName.buffer) == 0) {
@@ -9170,6 +9193,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             ret = DOMAIN_NAME_MISMATCH;
                         }
                     }
+                #endif /* WOLFSSL_ALL_NO_CN_IN_SAN */
                 }
 
                 /* decode peer key */
