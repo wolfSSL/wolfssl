@@ -14376,6 +14376,8 @@ static void test_wc_PKCS7_EncodeData (void)
 
     XMEMSET(output, 0, sizeof(output));
 
+    AssertIntEQ(wc_PKCS7_Init(&pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+
     AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, (byte*)cert, certSz), 0);
 
     printf(testingFmt, "wc_PKCS7_EncodeData()");
@@ -14481,6 +14483,8 @@ static void test_wc_PKCS7_EncodeSignedData (void)
     XMEMSET(output, 0, outputSz);
     AssertIntEQ(wc_InitRng(&rng), 0);
 
+    AssertIntEQ(wc_PKCS7_Init(&pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+
     AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, cert, certSz), 0);
 
     printf(testingFmt, "wc_PKCS7_EncodeSignedData()");
@@ -14492,7 +14496,6 @@ static void test_wc_PKCS7_EncodeSignedData (void)
     pkcs7.encryptOID = RSAk;
     pkcs7.hashOID = SHAh;
     pkcs7.rng = &rng;
-    pkcs7.devId = INVALID_DEVID;
 
     AssertIntGT(wc_PKCS7_EncodeSignedData(&pkcs7, output, outputSz), 0);
 
@@ -14595,6 +14598,8 @@ static void test_wc_PKCS7_VerifySignedData(void)
 
     XMEMSET(output, 0, outputSz);
     AssertIntEQ(wc_InitRng(&rng), 0);
+
+    AssertIntEQ(wc_PKCS7_Init(&pkcs7, HEAP_HINT, INVALID_DEVID), 0);
 
     AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, cert, certSz), 0);
 
