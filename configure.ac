@@ -180,6 +180,7 @@ then
     enable_haproxy=yes
     enable_stunnel=yes
     enable_nginx=yes
+    enable_asio=yes
     enable_pwdbased=yes
     enable_aeskeywrap=yes
     enable_x963kdf=yes
@@ -428,6 +429,7 @@ AM_CONDITIONAL([BUILD_RNG], [test "x$ENABLED_RNG" = "xyes"])
 # signal (--enable-signal)
 # lighty (--enable-lighty) HAVE_LIGHTY
 # stunnel (--enable-stunnel) HAVE_STUNNEL
+# asio (--enable-asio) WOLFSSL_ASIO
 # HAVE_POCO_LIB
 # WOLFSSL_MYSQL_COMPATIBLE
 # web server (--enable-webserver) HAVE_WEBSERVER
@@ -2992,6 +2994,30 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_EXT_CACHE -DHAVE_EX_DATA"
 fi
 
+# Asio Support
+AC_ARG_ENABLE([asio],
+    [AS_HELP_STRING([--enable-asio],[Enable asio (default: disabled)])],
+    [ ENABLED_ASIO=$enableval ],
+    [ ENABLED_ASIO=no ]
+    )
+if test "$ENABLED_ASIO" = "yes"
+then
+    # Requires opensslall make sure on
+    if test "x$ENABLED_OPENSSLALL" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
+    then
+        ENABLED_OPENSSLALL="yes"
+        AM_CFLAGS="-DOPENSSL_ALL $AM_CFLAGS"
+    fi
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASIO -DWOLFSSL_KEY_GEN"
+
+    # Requires OCSP make sure on
+    if test "x$ENABLED_OCSP" = "xno"
+    then
+        ENABLED_OCSP="yes"
+        AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
+        AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
+    fi
+fi
 
 # stunnel Support
 AC_ARG_ENABLE([stunnel],
@@ -3139,9 +3165,9 @@ AC_ARG_ENABLE([pwdbased],
 
 if test "$ENABLED_PWDBASED" = "no"
 then
-    if test "$ENABLED_OPENSSLEXTRA" = "yes" || test "$ENABLED_WEBSERVER" = "yes" || test "$ENABLED_ENCKEYS" = "yes"
+    if test "$ENABLED_OPENSSLEXTRA" = "yes" || test "$ENABLED_OPENSSLALL" = "yes" || test "$ENABLED_WEBSERVER" = "yes" || test "$ENABLED_ENCKEYS" = "yes"
     then
-        # opensslextra, webserver and enckeys needs pwdbased
+        # opensslextra, opensslall, webserver, and enckeys needs pwdbased
         ENABLED_PWDBASED=yes
     else
         AM_CFLAGS="$AM_CFLAGS -DNO_PWDBASED"
@@ -4409,6 +4435,7 @@ echo "   * LIGHTY:                     $ENABLED_LIGHTY"
 echo "   * HAPROXY:                    $ENABLED_HAPROXY"
 echo "   * STUNNEL:                    $ENABLED_STUNNEL"
 echo "   * NGINX:                      $ENABLED_NGINX"
+echo "   * ASIO:                       $ENABLED_ASIO"
 echo "   * SIGNAL:                     $ENABLED_SIGNAL"
 echo "   * ERROR_STRINGS:              $ENABLED_ERROR_STRINGS"
 echo "   * DTLS:                       $ENABLED_DTLS"

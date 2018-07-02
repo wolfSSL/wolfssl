@@ -525,6 +525,8 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define d2i_PKCS12_bio   wolfSSL_d2i_PKCS12_bio
 #define d2i_PKCS12_fp   wolfSSL_d2i_PKCS12_fp
 #define d2i_RSAPublicKey wolfSSL_d2i_RSAPublicKey
+#define d2i_RSAPrivateKey wolfSSL_d2i_RSAPrivateKey
+#define i2d_RSAPrivateKey wolfSSL_i2d_RSAPrivateKey
 #define i2d_RSAPublicKey wolfSSL_i2d_RSAPublicKey
 #define d2i_X509_CRL wolfSSL_d2i_X509_CRL
 #define d2i_X509_CRL_fp wolfSSL_d2i_X509_CRL_fp
@@ -631,6 +633,39 @@ enum {
 #define sk_SSL_COMP_zero                  wolfSSL_sk_SSL_COMP_zero
 #define sk_SSL_CIPHER_value               wolfSSL_sk_SSL_CIPHER_value
 #endif /* OPENSSL_ALL || WOLFSSL_HAPROXY */
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
+#include <wolfssl/openssl/pem.h>
+
+typedef STACK_OF(WOLFSSL_ASN1_OBJECT) GENERAL_NAMES;
+#define SSL_CTRL_CHAIN       88
+#define BIO_CTRL_WPENDING    13
+#define GEN_IPADD            7
+#define ERR_LIB_SSL          20
+#define SSL_R_SHORT_READ     10
+#define ERR_R_PEM_LIB        9
+#define V_ASN1_IA5STRING     22
+#define SSL_CTRL_MODE        33       
+
+#define SSL_CTX_clear_chain_certs(ctx)   SSL_CTX_set0_chain(ctx,NULL)
+#define d2i_RSAPrivateKey_bio            wolfSSL_d2i_RSAPrivateKey_bio
+#define SSL_CTX_use_RSAPrivateKey        wolfSSL_CTX_use_RSAPrivateKey
+#define d2i_PrivateKey_bio               wolfSSL_d2i_PrivateKey_bio
+#define ASN1_IA5STRING                   WOLFSSL_ASN1_STRING
+#define ASN1_OCTET_STRING                WOLFSSL_ASN1_STRING
+#define BIO_new_bio_pair                 wolfSSL_BIO_new_bio_pair
+#define SSL_get_verify_callback          wolfSSL_get_verify_callback
+#define GENERAL_NAMES_free(GENERAL_NAMES)NULL
+
+#define SSL_set_mode(ssl,op) wolfSSL_ctrl((ssl),SSL_CTRL_MODE,(op),NULL)
+#define BIO_wpending(b)      wolfSSL_BIO_ctrl(b,BIO_CTRL_WPENDING,0,NULL)
+#define SSL_CTX_use_certificate_ASN1 wolfSSL_CTX_use_certificate_ASN1
+#define SSL_CTX_set0_chain(ctx,sk) \
+        wolfSSL_CTX_ctrl(ctx,SSL_CTRL_CHAIN,0,(char *)(sk))
+#define SSL_CTX_get_app_data(ctx)        wolfSSL_CTX_get_ex_data(ctx,0)
+#define SSL_CTX_set_app_data(ctx,arg)    wolfSSL_CTX_set_ex_data(ctx,0, \
+                                                              (char *)(arg))
+#endif /* OPENSSL_ALL || WOLFSSL_ASIO */
 
 #define SSL_CTX_set_tmp_dh wolfSSL_CTX_set_tmp_dh
 
@@ -789,7 +824,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 
 #define PSK_MAX_PSK_LEN                      256
 #define PSK_MAX_IDENTITY_LEN                 128
-#define ERR_remove_thread_state WOLFSSL_ERR_remove_thread_state
+#define ERR_remove_thread_state wolfSSL_ERR_remove_thread_state
 #define SSL_CTX_clear_options wolfSSL_CTX_clear_options
 
 
@@ -929,6 +964,5 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
-
 
 #endif /* wolfSSL_openssl_h__ */

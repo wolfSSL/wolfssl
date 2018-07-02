@@ -24672,11 +24672,8 @@ int wolfSSL_HMAC_CTX_copy(WOLFSSL_HMAC_CTX* des, WOLFSSL_HMAC_CTX* src)
         return WOLFSSL_SUCCESS;
 }
 
-
-#if defined(HAVE_FIPS) && \
-    (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
-
-static int _HMAC_Init(Hmac* hmac, int type, void* heap)
+#ifdef HAVE_FIPS
+int _InitHmac(Hmac* hmac, int type, void* heap)
 {
     int ret = 0;
 
@@ -24722,21 +24719,6 @@ static int _HMAC_Init(Hmac* hmac, int type, void* heap)
             break;
     #endif /* HAVE_BLAKE2 */
 
-    #ifdef WOLFSSL_SHA3
-        case WC_SHA3_224:
-            ret = wc_InitSha3_224(&hmac->hash.sha3, heap, INVALID_DEVID);
-            break;
-        case WC_SHA3_256:
-            ret = wc_InitSha3_256(&hmac->hash.sha3, heap, INVALID_DEVID);
-            break;
-        case WC_SHA3_384:
-            ret = wc_InitSha3_384(&hmac->hash.sha3, heap, INVALID_DEVID);
-            break;
-        case WC_SHA3_512:
-            ret = wc_InitSha3_512(&hmac->hash.sha3, heap, INVALID_DEVID);
-            break;
-    #endif
-
         default:
             ret = BAD_FUNC_ARG;
             break;
@@ -24746,10 +24728,7 @@ static int _HMAC_Init(Hmac* hmac, int type, void* heap)
 
     return ret;
 }
-
-#else
-    #define _HMAC_Init _InitHmac
-#endif
+#endif /* HAVE_FIPS */
 
 
 int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
@@ -24847,7 +24826,7 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
                                        WC_HMAC_BLOCK_SIZE);
             XMEMCPY((byte *)&ctx->hmac.opad, (byte *)&ctx->save_opad,
                                        WC_HMAC_BLOCK_SIZE);
-            if ((hmac_error = _HMAC_Init(&ctx->hmac, ctx->hmac.macType, heap))
+            if ((hmac_error = _InitHmac(&ctx->hmac, ctx->hmac.macType, heap))
                     !=0) {
                return hmac_error;
             }
@@ -27708,7 +27687,74 @@ WOLFSSL_RSA *wolfSSL_d2i_RSAPublicKey(WOLFSSL_RSA **r, const unsigned char **pp,
     return rsa;
 }
 
-#if !defined(HAVE_FAST_RSA)
+WOLFSSL_RSA *wolfSSL_d2i_RSAPrivateKey(WOLFSSL_RSA **r, const unsigned char **derBuf, long derSz)
+{
+    WOLFSSL_ENTER("d2i_RSAPrivateKey");
+    
+    WOLFSSL_RSA *rsa = NULL;
+
+    if(derBuf == NULL){
+        WOLFSSL_MSG("Bad argument");
+        return NULL;
+    }
+    if((rsa = wolfSSL_RSA_new()) == NULL){
+        WOLFSSL_MSG("RSA_new failed");
+        return NULL;
+    }
+
+    if(wolfSSL_RSA_LoadDer_ex(rsa, *derBuf, (int)derSz, WOLFSSL_RSA_LOAD_PRIVATE)
+                                                     != WOLFSSL_SUCCESS){
+        WOLFSSL_MSG("RSA_LoadDer failed");
+        return NULL;
+    }
+    if(r != NULL)
+        *r = rsa;
+    return rsa;
+}
+
+#if !defined(NO_RSA) && !defined(HAVE_FAST_RSA)
+int wolfSSL_i2d_RSAPrivateKey(WOLFSSL_RSA *rsa, const unsigned char **pp)
+{
+    WOLFSSL_ENTER("i2d_RSAPrivateKey");
+
+    byte* der = NULL;
+    int derMax;
+    int ret;
+
+    if((rsa == NULL) || (pp == NULL)) {
+        WOLFSSL_MSG("Bad Function Arguments");
+        return BAD_FUNC_ARG;
+    }
+
+    if((ret = SetRsaInternal(rsa)) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("SetRsaInternal Failed");
+        return ret;
+    }
+
+    /* 5 > size of n, d, p, q, d%(p-1), d(q-1), 1/q%p, e + ASN.1 additional
+     *  informations
+     */
+    derMax = 5 * wolfSSL_RSA_size(rsa) + AES_BLOCK_SIZE;
+
+    der = (byte*)XMALLOC(derMax, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL) {
+        WOLFSSL_MSG("Malloc failed");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* RSA key to DER */
+    if((ret = wc_RsaKeyToDer((RsaKey *)rsa->internal, der, derMax)) < 0) {
+        WOLFSSL_MSG("RsaKeyToDer failed");
+        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        der = NULL;
+        return ret;
+    }
+
+    *pp = der;
+    return ret; /* returns size of der if successful */
+}
+
+
 int wolfSSL_i2d_RSAPublicKey(WOLFSSL_RSA *rsa, const unsigned char **pp)
 {
     byte *der;
@@ -30871,10 +30917,231 @@ int wolfSSL_get_state(const WOLFSSL* ssl)
 }
 #endif /* HAVE_LIGHTY || HAVE_STUNNEL || WOLFSSL_MYSQL_COMPATIBLE */
 
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
+VerifyCallback wolfSSL_get_verify_callback(WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_get_verify_callback");
+    if(ssl) {
+        return ssl->verifyCallback;
+    }
+    return NULL;
+}
+
+int wolfSSL_BIO_new_bio_pair(WOLFSSL_BIO **bio1_p, size_t writebuf1,
+                     WOLFSSL_BIO **bio2_p, size_t writebuf2)
+{
+    WOLFSSL_BIO *bio1 = NULL, *bio2 = NULL;
+    int ret = 1;
+
+    if (bio1_p == NULL || bio2_p == NULL) {
+        WOLFSSL_MSG("Bad Function Argument");
+        return BAD_FUNC_ARG;
+    }
+
+    if((bio1 = wolfSSL_BIO_new(wolfSSL_BIO_s_bio())) == NULL) {
+        WOLFSSL_MSG("Bio allocation failed");
+        ret = WOLFSSL_FAILURE;
+    }
+    if(ret){
+        if((bio2 = wolfSSL_BIO_new(wolfSSL_BIO_s_bio())) == NULL) {
+            WOLFSSL_MSG("Bio allocation failed");
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+    if(ret && writebuf1){
+        if(!(ret = wolfSSL_BIO_set_write_buf_size(bio1, writebuf1))) {
+            WOLFSSL_MSG("BIO_set_write_buf failed");
+        }
+    }
+    if(ret && writebuf2){
+        if(!(ret = wolfSSL_BIO_set_write_buf_size(bio2, writebuf2))){
+            WOLFSSL_MSG("BIO_set_write_buf failed");
+        }
+    }
+    if(ret){
+        if((ret = wolfSSL_BIO_make_bio_pair(bio1, bio2))) {
+            *bio1_p = bio1;
+            *bio2_p = bio2;
+        }
+    }
+    if(!ret) {
+        wolfSSL_BIO_free(bio1);
+        bio1 = NULL;
+        wolfSSL_BIO_free(bio2);
+        bio2 = NULL;
+    }
+    return ret;
+}
+
+
+#if !defined(NO_RSA)
+WOLFSSL_RSA* wolfSSL_d2i_RSAPrivateKey_bio(WOLFSSL_BIO *bio, WOLFSSL_RSA **out)
+{
+    const unsigned char* mem;
+    long memSz;
+    WOLFSSL_RSA* key = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_d2i_RSAPrivateKey_bio()");
+
+    if (bio == NULL) {
+        WOLFSSL_MSG("Bad Function Argument");
+        return NULL;
+    }
+    (void)out;
+
+    memSz = wolfSSL_BIO_pending(bio);
+    if (memSz <= 0) {
+        WOLFSSL_MSG("wolfSSL_BIO_pending failure");
+        return NULL;
+    }
+
+    mem = (unsigned char*)XMALLOC(memSz, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (mem == NULL) {
+        WOLFSSL_MSG("Malloc failure");
+        return NULL;
+    }
+
+    if (wolfSSL_BIO_read(bio, (unsigned char*)mem, (int)memSz) == memSz) {
+        key = wolfSSL_d2i_RSAPrivateKey(NULL, &mem, memSz);   
+        if (out != NULL && key != NULL) {
+            *out = key;
+        }
+    }
+
+    XFREE((unsigned char*)mem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    return key;
+}
+#endif
+
+
+int wolfSSL_CTX_use_certificate_ASN1(WOLFSSL_CTX *ctx, int derSz, const unsigned char *der)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_ASN1");
+    if (der != NULL && ctx != NULL) {
+        if(wolfSSL_CTX_use_certificate_buffer(ctx, der, derSz, 
+                                      WOLFSSL_FILETYPE_ASN1) == WOLFSSL_SUCCESS)
+            return WOLFSSL_SUCCESS;
+    }
+    return WOLFSSL_FAILURE;
+}
+
+
+#if !defined(NO_RSA) && !defined(HAVE_FAST_RSA)
+int wolfSSL_CTX_use_RSAPrivateKey(WOLFSSL_CTX* ctx, WOLFSSL_RSA* rsa)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_use_RSAPrivateKey");
+
+    int ret;
+    int derSize;
+    const unsigned char* derBuf = NULL;
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    WOLFSSL_BIO* bio = NULL;
+
+    if (ctx == NULL || rsa == NULL) {
+        WOLFSSL_MSG("one or more inputs were NULL");
+        return BAD_FUNC_ARG;
+    }
+
+    if((bio = BIO_new(BIO_s_mem())) == NULL){
+        WOLFSSL_MSG("Set bio Failed");
+        return WOLFSSL_FAILURE;
+    }
+
+    pkey = wolfSSL_PKEY_new_ex(bio->heap);
+    pkey->type   = EVP_PKEY_RSA;
+    pkey->rsa    = rsa;
+    pkey->ownRsa = 0;
+
+    /* convert RSA internal to der */
+    if((derSize = wolfSSL_i2d_RSAPrivateKey(rsa, &derBuf)) <= 0) {
+        WOLFSSL_MSG("wolfSSL_i2d_RSAPrivateKey failed");
+        XFREE((unsigned char*)derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        wolfSSL_EVP_PKEY_free(pkey);
+        wolfSSL_BIO_free(bio);
+        return WOLFSSL_FAILURE;
+    }
+
+    pkey->pkey.ptr = (char*)XMALLOC(derSize, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (pkey->pkey.ptr == NULL) {
+        WOLFSSL_MSG("pkey malloc failed");
+        XFREE((unsigned char*)derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        wolfSSL_EVP_PKEY_free(pkey);
+        wolfSSL_BIO_free(bio);
+        return WOLFSSL_FAILURE;
+    }
+
+    pkey->pkey_sz = derSize;
+    XMEMCPY(pkey->pkey.ptr, derBuf, derSize);
+
+    /*adds the private key rsa to ctx.*/
+    ret = wolfSSL_CTX_use_PrivateKey(ctx, pkey);
+
+    wolfSSL_BIO_free(bio);
+    wolfSSL_EVP_PKEY_free(pkey);
+    XFREE((unsigned char*)derBuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret;
+}
+#endif /* NO_RSA && !HAVE_FAST_RSA */
+
+
+WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey_bio(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY** out)
+{
+    const unsigned char* mem;
+    long memSz;
+    WOLFSSL_EVP_PKEY* key = NULL;
+    int type;
+    int algoID = 0;
+
+    WOLFSSL_ENTER("wolfSSL_d2i_PrivateKey_bio()");
+    if (bio == NULL) {
+        return NULL;
+    }
+    (void)out;
+
+    memSz = wolfSSL_BIO_pending(bio);
+    if (memSz <= 0) {
+        WOLFSSL_MSG("wolfSSL_BIO_pending failure");
+        return NULL;
+    }
+    mem = (unsigned char*)XMALLOC(memSz, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (mem == NULL) {
+        WOLFSSL_MSG("Malloc failure");
+        return NULL;
+    }
+    const unsigned char* memptr = mem;
+
+    if (wolfSSL_BIO_read(bio, (unsigned char*)mem, (int)memSz) == memSz) {
+        /* Determines key type */
+        if ((wc_GetKeyOID((unsigned char*)mem, memSz, NULL, NULL, &algoID, NULL)) < 0) {
+            XFREE((unsigned char*)memptr, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            return NULL;
+        }
+
+        if (algoID == ECDSAk) {
+            type = EVP_PKEY_EC;
+        } else if (algoID == RSAk) {
+            type = EVP_PKEY_RSA;
+        } else {
+            WOLFSSL_MSG("Error determining correct key type");
+            XFREE((unsigned char*)memptr, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            return NULL;
+        }
+
+        key = wolfSSL_d2i_PrivateKey(type, &key, &mem, memSz);
+        if (out != NULL && key != NULL) {
+            *out = key;
+        }
+    }
+    XFREE((unsigned char*)memptr, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    return key;
+}
+#endif /* OPENSSL_ALL || WOLFSSL_ASIO */
+
 
 /* stunnel compatibility functions*/
-#if defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX))
-void WOLFSSL_ERR_remove_thread_state(void* pid)
+#if (defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX)))\
+        || (defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO))
+void wolfSSL_ERR_remove_thread_state(void* pid)
 {
     (void) pid;
     return;
