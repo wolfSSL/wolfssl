@@ -17840,6 +17840,8 @@ void wolfSSL_PKCS12_PBE_add(void)
 
 WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX* ctx)
 {
+    WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_get_chain");
+
     if (ctx == NULL) {
         return NULL;
     }
@@ -17858,6 +17860,7 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX* ctx)
 
         XMEMSET(sk, 0, sizeof(WOLFSSL_STACK));
         ctx->chain = sk;
+
         for (i = 0; i < c->count && i < MAX_CHAIN_DEPTH; i++) {
             WOLFSSL_X509* x509 = wolfSSL_get_chain_X509(c, i);
 
@@ -17870,9 +17873,41 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX* ctx)
             if (wolfSSL_sk_X509_push(sk, x509) != SSL_SUCCESS) {
                 WOLFSSL_MSG("Unable to load x509 into stack");
                 wolfSSL_sk_X509_free(sk);
+                wolfSSL_X509_free(x509);
                 return NULL;
             }
         }
+
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
+        /* add CA used to verify top of chain to the list */
+        if (c->count > 0) {
+            WOLFSSL_X509* x509 = wolfSSL_get_chain_X509(c, c->count - 1);
+            if (x509 != NULL) {
+                WOLFSSL_X509* issuer = NULL;
+                if (wolfSSL_X509_STORE_CTX_get1_issuer(&issuer, ctx, x509)
+                        == WOLFSSL_SUCCESS) {
+                    /* check that the certificate being looked up is not self
+                     * signed and that a issuer was found */
+                    if (issuer != NULL && wolfSSL_X509_NAME_cmp(&x509->issuer,
+                                &x509->subject) != 0) {
+                        if (wolfSSL_sk_X509_push(sk, issuer) != SSL_SUCCESS) {
+                            WOLFSSL_MSG("Unable to load CA x509 into stack");
+                            wolfSSL_sk_X509_free(sk);
+                            wolfSSL_X509_free(issuer);
+                            return NULL;
+                        }
+                    }
+                    else {
+                        WOLFSSL_MSG("Certificate is self signed");
+                    }
+                }
+                else {
+                    WOLFSSL_MSG("Could not find CA for certificate");
+                }
+            }
+        }
+#endif
+
     }
 #endif /* SESSION_CERTS */
 
@@ -32233,9 +32268,11 @@ int wolfSSL_set_ocsp_url(WOLFSSL* ssl, char* url)
     ssl->url = url;
     return WOLFSSL_SUCCESS;
 }
-#endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY */
+#endif /* OCSP */
+#endif /* OPENSSL_ALL / WOLFSSL_NGINX  / WOLFSSL_HAPROXY */
 
-#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
+    defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
 int wolfSSL_CTX_get_extra_chain_certs(WOLFSSL_CTX* ctx, WOLF_STACK_OF(X509)** chain)
 {
     word32         idx;
@@ -32471,8 +32508,9 @@ char* wolfSSL_sk_WOLFSSL_STRING_value(WOLF_STACK_OF(WOLFSSL_STRING)* strings,
         return NULL;
     return strings->data.string;
 }
-#endif /* HAVE_OCSP */
+#endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY || OPENSSL_EXTRA || OPENSSL_ALL */
 
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 #ifdef HAVE_ALPN
 void wolfSSL_get0_alpn_selected(const WOLFSSL *ssl, const unsigned char **data,
                                 unsigned int *len)

@@ -8739,6 +8739,15 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             store->userCtx = ssl->verifyCbCtx;
                             store->certs = args->certs;
                             store->totalCerts = args->totalCerts;
+
+                        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+                            if (ssl->ctx->x509_store_pt != NULL) {
+                                store->store = ssl->ctx->x509_store_pt;
+                            }
+                            else {
+                                store->store = &ssl->ctx->x509_store;
+                            }
+                        #endif
                         #if !defined(NO_CERTS)
                             InitX509(x509, 1, ssl->heap);
                             #if defined(KEEP_PEER_CERT) || \
@@ -8822,6 +8831,15 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         store->userCtx = ssl->verifyCbCtx;
                         store->certs = args->certs;
                         store->totalCerts = args->totalCerts;
+
+                    #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+                        if (ssl->ctx->x509_store_pt != NULL) {
+                            store->store = ssl->ctx->x509_store_pt;
+                        }
+                        else {
+                            store->store = &ssl->ctx->x509_store;
+                        }
+                    #endif
                     #if !defined(NO_CERTS)
                         InitX509(x509, 1, ssl->heap);
                         #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
@@ -9411,6 +9429,15 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         store->userCtx = ssl->verifyCbCtx;
                         store->certs = args->certs;
                         store->totalCerts = args->totalCerts;
+
+                    #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+                        if (ssl->ctx->x509_store_pt != NULL) {
+                            store->store = ssl->ctx->x509_store_pt;
+                        }
+                        else {
+                            store->store = &ssl->ctx->x509_store;
+                        }
+                    #endif
                     #ifdef KEEP_PEER_CERT
                         if (ssl->peerCert.subject.sz > 0)
                             store->current_cert = &ssl->peerCert;
@@ -9464,6 +9491,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     store->userCtx = ssl->verifyCbCtx;
                     store->certs = args->certs;
                     store->totalCerts = args->totalCerts;
+
+                    if (ssl->ctx->x509_store_pt != NULL) {
+                        store->store = ssl->ctx->x509_store_pt;
+                    }
+                    else {
+                        store->store = &ssl->ctx->x509_store;
+                    }
                 #ifdef KEEP_PEER_CERT
                     if (ssl->peerCert.subject.sz > 0)
                         store->current_cert = &ssl->peerCert;
