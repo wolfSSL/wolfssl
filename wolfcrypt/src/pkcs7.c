@@ -233,8 +233,13 @@ PKCS7* wc_PKCS7_New(void* heap, int devId)
     PKCS7* pkcs7 = (PKCS7*)XMALLOC(sizeof(PKCS7), heap, DYNAMIC_TYPE_PKCS7);
     if (pkcs7) {
         XMEMSET(pkcs7, 0, sizeof(PKCS7));
-        wc_PKCS7_Init(pkcs7, heap, devId);
-        pkcs7->isDynamic = 1;
+        if (wc_PKCS7_Init(pkcs7, heap, devId) == 0) {
+            pkcs7->isDynamic = 1;
+        }
+        else {
+            XFREE(pkcs7, heap, DYNAMIC_TYPE_PKCS7);
+            pkcs7 = NULL;
+        }
     }
     return pkcs7;
 }
@@ -284,7 +289,9 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz)
     heap = pkcs7->heap;
     devId = pkcs7->devId;
     isDynamic = pkcs7->isDynamic;
-    wc_PKCS7_Init(pkcs7, heap, devId);
+    ret = wc_PKCS7_Init(pkcs7, heap, devId);
+    if (ret != 0)
+        return ret;
     pkcs7->isDynamic = isDynamic;
 
     if (cert != NULL && certSz > 0) {

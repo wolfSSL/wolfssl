@@ -14278,6 +14278,7 @@ static void test_wc_PKCS7_InitWithCert (void)
 #endif
     printf(testingFmt, "wc_PKCS7_InitWithCert()");
     /* If initialization is not successful, it's free'd in init func. */
+    pkcs7.isDynamic = 0;
     AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, (byte*)cert, (word32)certSz), 0);
 
     wc_PKCS7_Free(&pkcs7);
