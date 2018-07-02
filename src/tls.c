@@ -2651,6 +2651,17 @@ static word16 TLSX_CSR_GetSize(CertificateStatusRequest* csr, byte isRequest)
         }
     }
 #endif
+#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER)
+    if (!isRequest && csr->ssl->options.tls1_3) {
+        if (csr->response.buffer == NULL) {
+            OcspRequest* request = &csr->request.ocsp;
+            int ret = CreateOcspResponse(csr->ssl, &request, &csr->response);
+            if (ret < 0)
+                return ret;
+        }
+        return OPAQUE8_LEN + OPAQUE24_LEN + csr->response.length;
+    }
+#endif
 
     return size;
 }
@@ -2691,6 +2702,17 @@ static word16 TLSX_CSR_Write(CertificateStatusRequest* csr, byte* output,
         return offset;
     }
 #endif
+#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER)
+    if (!isRequest && csr->ssl->options.tls1_3) {
+        word16 offset = 0;
+        output[offset++] = csr->status_type;
+        c32to24(csr->response.length, output + offset);
+        offset += OPAQUE24_LEN;
+        XMEMCPY(output + offset, csr->response.buffer, csr->response.length);
+        offset += csr->response.length;
+        return offset;
+    }
+#endif
 
     return 0;
 }
@@ -2719,8 +2741,8 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
             /* enable extension at ssl level */
             ret = TLSX_UseCertificateStatusRequest(&ssl->extensions,
-                                     csr->status_type, csr->options, ssl->heap,
-                                     ssl->devId);
+                                     csr->status_type, csr->options, ssl,
+                                     ssl->heap, ssl->devId);
             if (ret != WOLFSSL_SUCCESS)
                 return ret;
 
@@ -2743,7 +2765,34 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
         ssl->status_request = 1;
 
-        return length ? BUFFER_ERROR : 0; /* extension_data MUST be empty. */
+    #ifdef WOLFSSL_TLS13
+        if (ssl->options.tls1_3) {
+            word32       resp_length;
+            word32       offset = 0;
+            ret = 0;
+            if (OPAQUE8_LEN + OPAQUE24_LEN > length)
+                ret = BUFFER_ERROR;
+            if (ret == 0 && input[offset++] != WOLFSSL_CSR_OCSP)
+                ret = BAD_CERTIFICATE_STATUS_ERROR;
+            if (ret == 0) {
+                c24to32(input + offset, &resp_length);
+                offset += OPAQUE24_LEN;
+                if (offset + resp_length != length)
+                    ret = BUFFER_ERROR;
+            }
+            if (ret == 0) {
+                csr->response.buffer = input + offset;
+                csr->response.length = resp_length;
+            }
+
+            return ret;
+        }
+        else
+    #endif
+        {
+            /* extension_data MUST be empty. */
+            return length ? BUFFER_ERROR : 0;
+        }
 #endif
     }
     else {
@@ -2796,13 +2845,12 @@ static int TLSX_CSR_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
         /* accept the first good status_type and return */
         ret = TLSX_UseCertificateStatusRequest(&ssl->extensions, status_type,
-                                                      0, ssl->heap, ssl->devId);
+                                                 0, ssl, ssl->heap, ssl->devId);
         if (ret != WOLFSSL_SUCCESS)
             return ret; /* throw error */
 
         TLSX_SetResponse(ssl, TLSX_STATUS_REQUEST);
         ssl->status_request = status_type;
-
 #endif
     }
 
@@ -2880,7 +2928,8 @@ int TLSX_CSR_ForceRequest(WOLFSSL* ssl)
 }
 
 int TLSX_UseCertificateStatusRequest(TLSX** extensions, byte status_type,
-                                           byte options, void* heap, int devId)
+                                         byte options, WOLFSSL* ssl, void* heap,
+                                                                      int devId)
 {
     CertificateStatusRequest* csr = NULL;
     int ret = 0;
@@ -2897,6 +2946,7 @@ int TLSX_UseCertificateStatusRequest(TLSX** extensions, byte status_type,
 
     csr->status_type = status_type;
     csr->options     = options;
+    csr->ssl         = ssl;
 
     switch (csr->status_type) {
         case WOLFSSL_CSR_OCSP:
@@ -3082,7 +3132,8 @@ static int TLSX_CSR2_Parse(WOLFSSL* ssl, byte* input, word16 length,
             /* enable extension at ssl level */
             for (; csr2; csr2 = csr2->next) {
                 ret = TLSX_UseCertificateStatusRequestV2(&ssl->extensions,
-                       csr2->status_type, csr2->options, ssl->heap, ssl->devId);
+                                    csr2->status_type, csr2->options, ssl->heap,
+                                                                    ssl->devId);
                 if (ret != WOLFSSL_SUCCESS)
                     return ret;
 
@@ -9184,9 +9235,9 @@ int TLSX_GetRequestSize(WOLFSSL* ssl, byte msgType, word16* pLength)
     else if (msgType == certificate_request) {
         XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
-        TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
         /* TODO: TLSX_SIGNED_CERTIFICATE_TIMESTAMP,
          *       TLSX_CERTIFICATE_AUTHORITIES, OID_FILTERS
+         *       TLSX_STATUS_REQUEST
          */
     }
     #endif
@@ -9281,9 +9332,9 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word16* pOffset)
     else if (msgType == certificate_request) {
         XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SIGNATURE_ALGORITHMS));
-        TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
         /* TODO: TLSX_SIGNED_CERTIFICATE_TIMESTAMP,
          *       TLSX_CERTIFICATE_AUTHORITIES, TLSX_OID_FILTERS
+         *       TLSX_STATUS_REQUEST
          */
     }
     #endif
@@ -9329,7 +9380,7 @@ int TLSX_WriteRequest(WOLFSSL* ssl, byte* output, byte msgType, word16* pOffset)
 
 #endif /* WOLFSSL_TLS13 || !NO_WOLFSSL_CLIENT */
 
-#ifndef NO_WOLFSSL_SERVER
+#if defined(WOLFSSL_TLS13) || !defined(NO_WOLFSSL_SERVER)
 
 /** Tells the buffered size of extensions to be sent into the server hello. */
 int TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, word16* pLength)
@@ -9339,58 +9390,69 @@ int TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, word16* pLength)
     byte semaphore[SEMAPHORE_SIZE] = {0};
 
     switch (msgType) {
+#ifndef NO_WOLFSSL_SERVER
         case server_hello:
             PF_VALIDATE_RESPONSE(ssl, semaphore);
-#ifdef WOLFSSL_TLS13
+    #ifdef WOLFSSL_TLS13
                 if (ssl->options.tls1_3) {
                     XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
-#ifndef WOLFSSL_TLS13_DRAFT_18
+        #ifndef WOLFSSL_TLS13_DRAFT_18
                     TURN_OFF(semaphore,
                                      TLSX_ToSemaphore(TLSX_SUPPORTED_VERSIONS));
-#endif
+        #endif
                     if (!ssl->options.noPskDheKe)
                         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
-    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+        #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
                     TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
-    #endif
+        #endif
                 }
                 else {
                     TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
-    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+        #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
                     TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
-    #endif
+        #endif
                 }
-#endif
+    #endif
             break;
-#ifdef WOLFSSL_TLS13
+
+    #ifdef WOLFSSL_TLS13
         case hello_retry_request:
             XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
-#ifndef WOLFSSL_TLS13_DRAFT_18
+        #ifndef WOLFSSL_TLS13_DRAFT_18
                 TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SUPPORTED_VERSIONS));
-#endif
+        #endif
             if (!ssl->options.noPskDheKe)
                 TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
             TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_COOKIE));
             break;
-#endif
-#ifdef WOLFSSL_TLS13
+    #endif
+
+    #ifdef WOLFSSL_TLS13
         case encrypted_extensions:
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_EC_POINT_FORMATS));
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SUPPORTED_VERSIONS));
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SESSION_TICKET));
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
-    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+        #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
             TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
-    #endif
+        #endif
+        #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+            TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
+        #endif
             break;
-    #ifdef WOLFSSL_EARLY_DATA
+
+        #ifdef WOLFSSL_EARLY_DATA
         case session_ticket:
             if (ssl->options.tls1_3) {
                 XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
                 TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_EARLY_DATA));
             }
             break;
+        #endif
     #endif
+#endif
+
+#ifdef WOLFSSL_TLS13
     #ifndef NO_CERT
         case certificate:
             XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
@@ -9440,51 +9502,70 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
         byte semaphore[SEMAPHORE_SIZE] = {0};
 
         switch (msgType) {
+#ifndef NO_WOLFSSL_SERVER
             case server_hello:
                 PF_VALIDATE_RESPONSE(ssl, semaphore);
-#ifdef WOLFSSL_TLS13
+    #ifdef WOLFSSL_TLS13
                 if (ssl->options.tls1_3) {
                     XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
-#ifndef WOLFSSL_TLS13_DRAFT_18
+        #ifndef WOLFSSL_TLS13_DRAFT_18
                     TURN_OFF(semaphore,
                                      TLSX_ToSemaphore(TLSX_SUPPORTED_VERSIONS));
-#endif
+        #endif
                     if (!ssl->options.noPskDheKe)
                         TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
-    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+        #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
                     TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
-    #endif
+        #endif
                 }
                 else {
                     TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
-    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+        #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
                     TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
-    #endif
+        #endif
                 }
-#endif
+    #endif
                 break;
-#ifdef WOLFSSL_TLS13
+
+    #ifdef WOLFSSL_TLS13
             case hello_retry_request:
                 XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
-#ifndef WOLFSSL_TLS13_DRAFT_18
+        #ifndef WOLFSSL_TLS13_DRAFT_18
                 TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_SUPPORTED_VERSIONS));
-#endif
+        #endif
                 if (!ssl->options.noPskDheKe)
                     TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
                 /* Cookie is written below as last extension. */
                 break;
-#endif
-#ifdef WOLFSSL_TLS13
+    #endif
+
+    #ifdef WOLFSSL_TLS13
             case encrypted_extensions:
                 TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_EC_POINT_FORMATS));
                 TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SUPPORTED_VERSIONS));
                 TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_SESSION_TICKET));
                 TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_KEY_SHARE));
-    #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
+        #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
                 TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_PRE_SHARED_KEY));
-    #endif
+        #endif
+        #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+                TURN_ON(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
+        #endif
                 break;
-    #ifndef NO_CERTS
+
+        #ifdef WOLFSSL_EARLY_DATA
+            case session_ticket:
+                if (ssl->options.tls1_3) {
+                    XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
+                    TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_EARLY_DATA));
+                }
+                break;
+        #endif
+    #endif
+#endif
+
+    #ifdef WOLFSSL_TLS13
+        #ifndef NO_CERTS
             case certificate:
                 XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
                 TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_STATUS_REQUEST));
@@ -9492,16 +9573,8 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
                  *       TLSX_SERVER_CERTIFICATE_TYPE
                  */
                 break;
+        #endif
     #endif
-    #ifdef WOLFSSL_EARLY_DATA
-            case session_ticket:
-                if (ssl->options.tls1_3) {
-                    XMEMSET(semaphore, 0xff, SEMAPHORE_SIZE);
-                    TURN_OFF(semaphore, TLSX_ToSemaphore(TLSX_EARLY_DATA));
-                }
-                break;
-    #endif
-#endif
         }
 
         offset += OPAQUE16_LEN; /* extensions length */
@@ -9537,7 +9610,7 @@ int TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, word16* pOffset
     return ret;
 }
 
-#endif /* NO_WOLFSSL_SERVER */
+#endif /* WOLFSSL_TLS13 || !NO_WOLFSSL_SERVER */
 
 /** Parses a buffer of TLS extensions. */
 int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,

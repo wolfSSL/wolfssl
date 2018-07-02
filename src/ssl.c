@@ -1913,7 +1913,7 @@ int wolfSSL_UseOCSPStapling(WOLFSSL* ssl, byte status_type, byte options)
         return BAD_FUNC_ARG;
 
     return TLSX_UseCertificateStatusRequest(&ssl->extensions, status_type,
-                                                options, ssl->heap, ssl->devId);
+                                          options, NULL, ssl->heap, ssl->devId);
 }
 
 
@@ -1924,7 +1924,7 @@ int wolfSSL_CTX_UseOCSPStapling(WOLFSSL_CTX* ctx, byte status_type,
         return BAD_FUNC_ARG;
 
     return TLSX_UseCertificateStatusRequest(&ctx->extensions, status_type,
-                                                options, ctx->heap, ctx->devId);
+                                          options, NULL, ctx->heap, ctx->devId);
 }
 
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST */
@@ -1941,8 +1941,8 @@ int wolfSSL_UseOCSPStaplingV2(WOLFSSL* ssl, byte status_type, byte options)
 }
 
 
-int wolfSSL_CTX_UseOCSPStaplingV2(WOLFSSL_CTX* ctx,
-                                                 byte status_type, byte options)
+int wolfSSL_CTX_UseOCSPStaplingV2(WOLFSSL_CTX* ctx, byte status_type,
+                                                                   byte options)
 {
     if (ctx == NULL || ctx->method->side != WOLFSSL_CLIENT_END)
         return BAD_FUNC_ARG;
@@ -19597,8 +19597,8 @@ long wolfSSL_set_tlsext_status_type(WOLFSSL *s, int type)
 
     if (type == TLSEXT_STATUSTYPE_ocsp){
         int r = 0;
-        r = TLSX_UseCertificateStatusRequest(&s->extensions, type,
-                                                     0, s->heap, s->devId);
+        r = TLSX_UseCertificateStatusRequest(&s->extensions, type, 0, s,
+                                                             s->heap, s->devId);
         return (long)r;
     } else {
         WOLFSSL_MSG(

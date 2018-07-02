@@ -1990,7 +1990,8 @@ WOLFSSL_LOCAL int   TLSX_WriteRequest(WOLFSSL* ssl, byte* output,
                                        byte msgType, word16* pOffset);
 #endif
 
-#ifndef NO_WOLFSSL_SERVER
+#if defined(WOLFSSL_TLS13) || !defined(NO_WOLFSSL_SERVER)
+/* TLS 1.3 Certificate messages have extensions. */
 WOLFSSL_LOCAL int   TLSX_GetResponseSize(WOLFSSL* ssl, byte msgType, 
                                           word16* pLength);
 WOLFSSL_LOCAL int   TLSX_WriteResponse(WOLFSSL *ssl, byte* output, byte msgType, 
@@ -2083,13 +2084,17 @@ WOLFSSL_LOCAL int TLSX_UseTruncatedHMAC(TLSX** extensions, void* heap);
 typedef struct {
     byte status_type;
     byte options;
+    WOLFSSL* ssl;
     union {
         OcspRequest ocsp;
     } request;
+#if defined(WOLFSSL_TLS13) && !defined(NO_WOLFSSL_SERVER)
+    buffer response;
+#endif
 } CertificateStatusRequest;
 
 WOLFSSL_LOCAL int   TLSX_UseCertificateStatusRequest(TLSX** extensions,
-                                    byte status_type, byte options, void* heap, int devId);
+           byte status_type, byte options, WOLFSSL* ssl, void* heap, int devId);
 #ifndef NO_CERTS
 WOLFSSL_LOCAL int   TLSX_CSR_InitRequest(TLSX* extensions, DecodedCert* cert,
                                                                     void* heap);
@@ -2113,7 +2118,7 @@ typedef struct CSRIv2 {
 } CertificateStatusRequestItemV2;
 
 WOLFSSL_LOCAL int   TLSX_UseCertificateStatusRequestV2(TLSX** extensions,
-                                    byte status_type, byte options, void* heap, int devId);
+                         byte status_type, byte options, void* heap, int devId);
 #ifndef NO_CERTS
 WOLFSSL_LOCAL int   TLSX_CSR2_InitRequests(TLSX* extensions, DecodedCert* cert,
                                                        byte isPeer, void* heap);
@@ -2936,6 +2941,7 @@ typedef struct Buffers {
                  /* chain after self, in DER, with leading size for each cert */
 #ifdef WOLFSSL_TLS13
     int             certChainCnt;
+    DerBuffer*      certExts;
 #endif
 #endif
 #ifdef WOLFSSL_SEND_HRR_COOKIE
@@ -3849,6 +3855,10 @@ WOLFSSL_LOCAL int SendTls13ServerHello(WOLFSSL*, byte);
 #endif
 WOLFSSL_LOCAL int SendCertificate(WOLFSSL*);
 WOLFSSL_LOCAL int SendCertificateRequest(WOLFSSL*);
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
+ || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+WOLFSSL_LOCAL int CreateOcspResponse(WOLFSSL*, OcspRequest**, buffer*);
+#endif
 WOLFSSL_LOCAL int SendCertificateStatus(WOLFSSL*);
 WOLFSSL_LOCAL int SendServerKeyExchange(WOLFSSL*);
 WOLFSSL_LOCAL int SendBuffered(WOLFSSL*);

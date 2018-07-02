@@ -8,6 +8,10 @@ server=login.live.com
 ca=certs/external/baltimore-cybertrust-root.pem
 
 [ ! -x ./examples/client/client ] && echo -e "\n\nClient doesn't exist" && exit 1
+./examples/client/client -? 2>&1 | grep -- 'Client not compiled in!'
+if [ $? -eq 0 ]; then
+    exit 0
+fi
 
 # is our desired server there? - login.live.com doesn't answers PING
 #./scripts/ping.test $server 2
@@ -16,6 +20,14 @@ ca=certs/external/baltimore-cybertrust-root.pem
 ./examples/client/client -X -C -h $server -p 443 -A $ca -g -W 1
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
+
+
+# Test with example server
+
+./examples/server/server -? 2>&1 | grep -- 'Server not compiled in!'
+if [ $? -eq 0 ]; then
+    exit 0
+fi
 
 # setup ocsp responder
 ./certs/ocsp/ocspd-intermediate1-ca-issued-certs.sh &
@@ -35,5 +47,23 @@ sleep 1
 ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1
 RESULT=$?
 [ $RESULT -ne 1 ] && echo -e "\n\nClient connection suceeded $RESULT" && exit 1
+
+
+./examples/client/client -v 4 2>&1 | grep -- 'Bad SSL version'
+if [ $? -ne 0 ]; then
+    # client test against our own server - GOOD CERT
+    ./examples/server/server -c certs/ocsp/server1-cert.pem -k certs/ocsp/server1-key.pem -v 4 &
+    sleep 1
+    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 -F 1
+    RESULT=$?
+    [ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
+
+    # client test against our own server - REVOKED CERT
+    ./examples/server/server -c certs/ocsp/server2-cert.pem -k certs/ocsp/server2-key.pem -v 4 &
+    sleep 1
+    ./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 -v 4 -F 1
+    RESULT=$?
+    [ $RESULT -ne 1 ] && echo -e "\n\nClient connection suceeded $RESULT" && exit 1
+fi
 
 exit 0
