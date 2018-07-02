@@ -231,10 +231,10 @@ static int HKDF_Expand_Label(byte* okm, word32 okmLen,
     byte   data[MAX_HKDF_LABEL_SZ];
 
     /* Output length. */
-    data[idx++] = okmLen >> 8;
-    data[idx++] = okmLen;
+    data[idx++] = (byte)(okmLen >> 8);
+    data[idx++] = (byte)okmLen;
     /* Length of protocol | label. */
-    data[idx++] = protocolLen + labelLen;
+    data[idx++] = (byte)(protocolLen + labelLen);
     /* Protocol */
     XMEMCPY(&data[idx], protocol, protocolLen);
     idx += protocolLen;
@@ -242,7 +242,7 @@ static int HKDF_Expand_Label(byte* okm, word32 okmLen,
     XMEMCPY(&data[idx], label, labelLen);
     idx += labelLen;
     /* Length of hash of messages */
-    data[idx++] = infoLen;
+    data[idx++] = (byte)infoLen;
     /* Hash of messages */
     XMEMCPY(&data[idx], info, infoLen);
     idx += infoLen;
@@ -2115,7 +2115,7 @@ int BuildTls13Message(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
         case BUILD_MSG_ENCRYPT:
         {
             /* The real record content type goes at the end of the data. */
-            output[args->idx++] = type;
+            output[args->idx++] = (byte)type;
 
         #ifdef ATOMIC_USER
             if (ssl->ctx->MacEncryptCb) {
@@ -4410,7 +4410,7 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
     ext->resp = 0;
 
     i = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
-    reqSz = OPAQUE8_LEN + reqCtxLen;
+    reqSz = (word16)(OPAQUE8_LEN + reqCtxLen);
     ret = TLSX_GetRequestSize(ssl, certificate_request, &reqSz);
     if (ret != 0)
         return ret;
@@ -4431,7 +4431,7 @@ static int SendTls13CertificateRequest(WOLFSSL* ssl, byte* reqCtx,
     AddTls13Headers(output, reqSz, certificate_request, ssl);
 
     /* Certificate request context. */
-    output[i++] = reqCtxLen;
+    output[i++] = (byte)reqCtxLen;
     if (reqCtxLen != 0) {
         XMEMCPY(output + i, reqCtx, reqCtxLen);
         i += reqCtxLen;
@@ -4625,7 +4625,7 @@ static int CreateSigData(WOLFSSL* ssl, byte* sigData, word16* sigDataSz,
     if (ret < 0)
         return ret;
 
-    *sigDataSz = idx + ret;
+    *sigDataSz = (word16)(idx + ret);
     ret = 0;
 
     return ret;
@@ -5257,7 +5257,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     args->sigDataSz, ssl->suites->hashAlgo);
                 if (ret < 0)
                     goto exit_scv;
-                args->sigDataSz = ret;
+                args->sigDataSz = (word16)ret;
                 ret = 0;
             }
         #endif /* HAVE_ECC */
@@ -5290,7 +5290,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     NULL, NULL
             #endif
                 );
-                args->length = sig->length;
+                args->length = (word16)sig->length;
             }
         #endif /* HAVE_ECC */
         #ifdef HAVE_ED25519
@@ -5322,7 +5322,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     NULL
                 #endif
                 );
-                args->length = args->sigLen;
+                args->length = (word16)args->sigLen;
             }
         #endif /* !NO_RSA */
 
@@ -5649,7 +5649,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                     args->sigDataSz, args->hashAlgo);
                 if (ret < 0)
                     goto exit_dcv;
-                args->sigDataSz = ret;
+                args->sigDataSz = (word16)ret;
                 ret = 0;
             }
         #endif
@@ -7887,8 +7887,8 @@ int wolfSSL_CTX_set_groups(WOLFSSL_CTX* ctx, int* groups, int count)
         return BAD_FUNC_ARG;
 
     for (i = 0; i < count; i++)
-        ctx->group[i] = groups[i];
-    ctx->numGroups = count;
+        ctx->group[i] = (word16)groups[i];
+    ctx->numGroups = (byte)count;
 
     return WOLFSSL_SUCCESS;
 }
@@ -7911,8 +7911,8 @@ int wolfSSL_set_groups(WOLFSSL* ssl, int* groups, int count)
         return BAD_FUNC_ARG;
 
     for (i = 0; i < count; i++)
-        ssl->group[i] = groups[i];
-    ssl->numGroups = count;
+        ssl->group[i] = (word16)groups[i];
+    ssl->numGroups = (byte)count;
 
     return WOLFSSL_SUCCESS;
 }
