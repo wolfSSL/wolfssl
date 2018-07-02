@@ -229,6 +229,27 @@
     #define SINGLE_THREADED
     #define WOLFSSL_USER_IO
     #define NO_FILESYSTEM
+
+    static inline void* XREALLOC(void *p, size_t n, void* heap, int type)
+    {
+        (void)heap;
+        (void)type;
+        return realloc(p,n);
+    }
+
+    static inline void *XMALLOC(size_t n, void* heap, int type)
+    {
+        (void)heap;
+        (void)type;
+        return malloc(n);
+    }
+
+    static inline void XFREE(void *p, void* heap, int type)
+    {
+        (void)heap;
+        (void)type;
+        free(p);
+    }
 #endif
 
 #if defined(WOLFSSL_IAR_ARM) || defined(WOLFSSL_ROWLEY_ARM)
@@ -514,6 +535,9 @@
         #define WOLFSSL_NRF51
         #define WOLFSSL_USER_IO
         #define NO_SESSION_CACHE
+#endif
+
+#ifdef WOLFSSL_CONTIKI
 #endif
 
 /* Micrium will use Visual Studio for compilation but not the Win32 API */
