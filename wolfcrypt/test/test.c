@@ -1305,7 +1305,7 @@ int asn_test(void)
     int length;
     const byte* datePart;
 #ifndef NO_ASN_TIME
-    struct tm time;
+    struct tm timearg;
     #ifdef WORD64_AVAILABLE
         word64 now;
     #else
@@ -1334,7 +1334,7 @@ int asn_test(void)
         return -1404;
     }
 
-    ret = wc_GetDateAsCalendarTime(datePart, length, format, &time);
+    ret = wc_GetDateAsCalendarTime(datePart, length, format, &timearg);
     if (ret != 0)
         return -1405;
 #endif /* !NO_ASN_TIME */
@@ -2834,7 +2834,7 @@ int hash_test(void)
     if (hashType != WC_HASH_TYPE_NONE)
         return -3071;
 #endif
-    
+
     ret = wc_HashGetOID(WC_HASH_TYPE_MD5_SHA);
 #ifndef NO_MD5
     if (ret == HASH_TYPE_E || ret == BAD_FUNC_ARG)

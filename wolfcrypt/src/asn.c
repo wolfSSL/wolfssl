@@ -4743,11 +4743,11 @@ int wc_GetDateInfo(const byte* certDate, int certDateSz, const byte** date,
 
 #ifndef NO_ASN_TIME
 int wc_GetDateAsCalendarTime(const byte* date, int length, byte format,
-    struct tm* time)
+    struct tm* timearg)
 {
     int idx = 0;
     (void)length;
-    if (!ExtractDate(date, format, time, &idx))
+    if (!ExtractDate(date, format, timearg, &idx))
         return ASN_TIME_E;
     return 0;
 }
