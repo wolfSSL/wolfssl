@@ -12640,8 +12640,8 @@ int ProcessReply(WOLFSSL* ssl)
                 ssl->keys.decryptedCur = 1;
 #ifdef WOLFSSL_TLS13
                 if (ssl->options.tls1_3) {
-                    word16 i = ssl->buffers.inputBuffer.length -
-                               ssl->keys.padSz;
+                    word16 i = (word16)(ssl->buffers.inputBuffer.length -
+                                        ssl->keys.padSz);
                     /* Remove padding from end of plain text. */
                     for (--i; i > ssl->buffers.inputBuffer.idx; i--) {
                         if (ssl->buffers.inputBuffer.buffer[i] != 0)
@@ -20478,7 +20478,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 /* TLS v1.3 capable server downgraded. */
                 XMEMCPY(output + idx + RAN_LEN - (TLS13_DOWNGRADE_SZ + 1),
                         tls13Downgrade, TLS13_DOWNGRADE_SZ);
-                output[idx + RAN_LEN - 1] = IsAtLeastTLSv1_2(ssl);
+                output[idx + RAN_LEN - 1] = (byte)IsAtLeastTLSv1_2(ssl);
             }
             else
 #endif
