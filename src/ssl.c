@@ -17874,21 +17874,25 @@ WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(WOLFSSL_X509_STORE_CTX* ctx)
             WOLFSSL_X509* x509 = wolfSSL_get_chain_X509(c, c->count - 1);
             if (x509 != NULL) {
                 WOLFSSL_X509* issuer = NULL;
-                wolfSSL_X509_STORE_CTX_get1_issuer(&issuer, ctx, x509);
-
-                /* check that the certificate being looked up is not self signed
-                 * and that a issuer was found */
-                if (issuer != NULL && wolfSSL_X509_NAME_cmp(&x509->issuer,
-                            &x509->subject) != 0) {
-                    if (wolfSSL_sk_X509_push(sk, issuer) != SSL_SUCCESS) {
-                        WOLFSSL_MSG("Unable to load CA x509 into stack");
-                        wolfSSL_sk_X509_free(sk);
-                        wolfSSL_X509_free(issuer);
-                        return NULL;
+                if (wolfSSL_X509_STORE_CTX_get1_issuer(&issuer, ctx, x509)
+                        == WOLFSSL_SUCCESS) {
+                    /* check that the certificate being looked up is not self
+                     * signed and that a issuer was found */
+                    if (issuer != NULL && wolfSSL_X509_NAME_cmp(&x509->issuer,
+                                &x509->subject) != 0) {
+                        if (wolfSSL_sk_X509_push(sk, issuer) != SSL_SUCCESS) {
+                            WOLFSSL_MSG("Unable to load CA x509 into stack");
+                            wolfSSL_sk_X509_free(sk);
+                            wolfSSL_X509_free(issuer);
+                            return NULL;
+                        }
+                    }
+                    else {
+                        WOLFSSL_MSG("Certificate is self signed");
                     }
                 }
                 else {
-                    WOLFSSL_MSG("could not find CA for cert or is self signed");
+                    WOLFSSL_MSG("Could not find CA for certificate");
                 }
             }
         }
