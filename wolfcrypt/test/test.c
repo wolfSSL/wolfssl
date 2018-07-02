@@ -11325,6 +11325,10 @@ static int dh_fips_generate_test(WC_RNG *rng)
 #endif /* HAVE_SELFTEST */
 
 #ifdef WOLFSSL_KEY_GEN
+    wc_FreeDhKey(&key);
+    ret = wc_InitDhKey_ex(&key, HEAP_HINT, devId);
+    if (ret != 0)
+        return -8231;
 
     ret = wc_DhGenerateParams(rng, 2048, &key);
     if (ret != 0) {
