@@ -21,7 +21,7 @@
 
 #if !defined(WOLFSSL_BIO_INCLUDED)
     #ifndef WOLFSSL_IGNORE_FILE_WARN
-        #warning bio.c does not need to be compiled seperatly from ssl.c
+        #warning bio.c does not need to be compiled separately from ssl.c
     #endif
 #else
 
@@ -580,8 +580,8 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
                 const byte* c;
                 int   cSz;
                 cSz = wolfSSL_BIO_pending(bio);
-                if (cSz < 0) {
-                    ret = cSz;
+                if (cSz <= 0) {
+                    ret = (cSz == 0) ? WOLFSSL_BIO_ERROR : cSz;
                     break;
                 }
 
@@ -612,8 +612,8 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
                 char* c;
                 int   cSz;
                 cSz = wolfSSL_BIO_nread0(bio, &c);
-                if (cSz < 0) {
-                    ret = cSz;
+                if (cSz <= 0) {
+                    ret = (cSz == 0) ? WOLFSSL_BIO_ERROR : cSz;
                     break;
                 }
 
