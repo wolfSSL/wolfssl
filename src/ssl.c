@@ -28736,6 +28736,9 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                 return NULL;
             if (XFSEEK(bp->file, i, SEEK_SET) != 0)
                 return NULL;
+            /* check calculated length */
+            if (l - i < 0)
+                return NULL;
 #else
             WOLFSSL_MSG("Unable to read file with NO_FILESYSTEM defined");
             return NULL;
@@ -28744,9 +28747,6 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         else
             return NULL;
 
-        /* check calculated length */
-        if (l - i < 0)
-            return NULL;
         pem = (unsigned char*)XMALLOC(l - i, 0, DYNAMIC_TYPE_PEM);
         if (pem == NULL)
             return NULL;

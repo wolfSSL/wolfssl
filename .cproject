@@ -14,59 +14,25 @@
 					</externalSetting>
 				</externalSettings>
 				<extensions>
+					<extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
+					<extension id="org.eclipse.cdt.core.GNU_ELF" point="org.eclipse.cdt.core.BinaryParser"/>
 					<extension id="org.eclipse.cdt.core.GmakeErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.CWDLocator" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.GASErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
-					<extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
-					<extension id="org.eclipse.cdt.core.GNU_ELF" point="org.eclipse.cdt.core.BinaryParser"/>
 				</extensions>
 			</storageModule>
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-				<configuration artifactExtension="a" artifactName="${ProjName}" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.staticLib" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.staticLib" cleanCommand="rm -rf" description="Debug build" errorParsers="org.eclipse.cdt.core.CWDLocator;org.eclipse.cdt.core.GmakeErrorParser;org.eclipse.cdt.core.GCCErrorParser;org.eclipse.cdt.core.GLDErrorParser;org.eclipse.cdt.core.GASErrorParser" id="com.crt.advproject.config.lib.debug.1488646311" name="Debug" parent="com.crt.advproject.config.lib.debug" postannouncebuildStep="Performing post-build steps" postbuildStep="arm-none-eabi-size &quot;lib${BuildArtifactFileName}&quot; ; # arm-none-eabi-objdump -h -S &quot;lib${BuildArtifactFileName}&quot; &gt;&quot;${BuildArtifactFileBaseName}.lss&quot;">
+				<configuration artifactExtension="a" artifactName="${ProjName}" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.staticLib" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.staticLib" cleanCommand="rm -rf" description="Debug build" errorParsers="org.eclipse.cdt.core.CWDLocator;org.eclipse.cdt.core.GmakeErrorParser;org.eclipse.cdt.core.GCCErrorParser;org.eclipse.cdt.core.GLDErrorParser;org.eclipse.cdt.core.GASErrorParser" id="com.crt.advproject.config.lib.debug.1488646311" name="Debug" parent="com.crt.advproject.config.lib.debug.1488646311" postannouncebuildStep="Performing post-build steps" postbuildStep="arm-none-eabi-size &quot;lib${BuildArtifactFileName}&quot; ; # arm-none-eabi-objdump -h -S &quot;lib${BuildArtifactFileName}&quot; &gt;&quot;${BuildArtifactFileBaseName}.lss&quot;">
 					<folderInfo id="com.crt.advproject.config.lib.debug.1488646311." name="/" resourcePath="">
-						<toolChain id="com.crt.advproject.toolchain.lib.debug.1447659825" name="NXP MCU Tools" superClass="com.crt.advproject.toolchain.lib.debug">
-							<targetPlatform binaryParser="org.eclipse.cdt.core.ELF;org.eclipse.cdt.core.GNU_ELF" id="com.crt.advproject.platform.lib.debug.1439843825" name="ARM-based MCU (Debug)" superClass="com.crt.advproject.platform.lib.debug"/>
-							<builder buildPath="${workspace_loc:/lib_wolfssl}/Debug" id="com.crt.advproject.builder.lib.debug.2117662219" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" superClass="com.crt.advproject.builder.lib.debug"/>
-							<tool id="com.crt.advproject.cpp.lib.debug.915465581" name="MCU C++ Compiler" superClass="com.crt.advproject.cpp.lib.debug"/>
-							<tool id="com.crt.advproject.gcc.lib.debug.1124293510" name="MCU C Compiler" superClass="com.crt.advproject.gcc.lib.debug">
-								<option id="com.crt.advproject.gcc.arch.1619558061" name="Architecture" superClass="com.crt.advproject.gcc.arch" value="com.crt.advproject.gcc.target.cm3" valueType="enumerated"/>
-								<option id="com.crt.advproject.gcc.thumb.1295094535" name="Thumb mode" superClass="com.crt.advproject.gcc.thumb" value="true" valueType="boolean"/>
-								<option id="gnu.c.compiler.option.preprocessor.def.symbols.1815262015" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
-									<listOptionValue builtIn="false" value="__REDLIB__"/>
-									<listOptionValue builtIn="false" value="DEBUG"/>
-									<listOptionValue builtIn="false" value="__CODE_RED"/>
-									<listOptionValue builtIn="false" value="WOLFSSL_USER_SETTINGS"/>
-									<listOptionValue builtIn="false" value="CORE_M3"/>
-								</option>
-								<option id="gnu.c.compiler.option.misc.other.879694681" name="Other flags" superClass="gnu.c.compiler.option.misc.other" value="-c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections" valueType="string"/>
-								<option id="gnu.c.compiler.option.include.paths.830741839" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" valueType="includePath">
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/wolfssl}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/wolfssl/IDE/LPCXPRESSO/lib_wolfssl}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lpc_chip_18xx/inc}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lpc_board_nxp_lpcxpresso_1837/inc}&quot;"/>
-								</option>
-								<inputType id="com.crt.advproject.compiler.input.8186130" superClass="com.crt.advproject.compiler.input"/>
-							</tool>
-							<tool id="com.crt.advproject.gas.lib.debug.1058960898" name="MCU Assembler" superClass="com.crt.advproject.gas.lib.debug">
-								<option id="com.crt.advproject.gas.arch.1605272069" name="Architecture" superClass="com.crt.advproject.gas.arch" value="com.crt.advproject.gas.target.cm3" valueType="enumerated"/>
-								<option id="com.crt.advproject.gas.thumb.451376463" name="Thumb mode" superClass="com.crt.advproject.gas.thumb" value="true" valueType="boolean"/>
-								<option id="gnu.both.asm.option.flags.crt.1769879802" name="Assembler flags" superClass="gnu.both.asm.option.flags.crt" value="-c -x assembler-with-cpp -D__REDLIB__ -DDEBUG -D__CODE_RED" valueType="string"/>
-								<option id="gnu.both.asm.option.include.paths.852974162" name="Include paths (-I)" superClass="gnu.both.asm.option.include.paths" valueType="includePath">
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/wolfssl}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/wolfssl/IDE/LPCXPRESSO/lib_wolfssl}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lpc_chip_18xx/inc}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lpc_board_nxp_lpcxpresso_1837/inc}&quot;"/>
-								</option>
-								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.899299031" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
-								<inputType id="com.crt.advproject.assembler.input.93840004" name="Additional Assembly Source Files" superClass="com.crt.advproject.assembler.input"/>
-							</tool>
-							<tool id="com.crt.advproject.ar.lib.debug.1978241722" name="MCU Archiver" superClass="com.crt.advproject.ar.lib.debug"/>
+						<toolChain id="com.crt.advproject.toolchain.lib.debug.1447659825" name="NXP MCU Tools">
+							<targetPlatform binaryParser="org.eclipse.cdt.core.ELF;org.eclipse.cdt.core.GNU_ELF" id="com.crt.advproject.platform.lib.debug.1439843825" name="ARM-based MCU (Debug)"/>
+							<builder buildPath="${workspace_loc:/lib_wolfssl}/Debug" id="com.crt.advproject.builder.lib.debug.2117662219" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder"/>
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="src/bio.c|wolfcrypt/src/evp.c|wolfcrypt/src/misc.c|IDE/LPCXPRESSO/wolf_example|tirtos|testsuite|tests|swig|support|sslSniffer|scripts|rpm|mqx|mplabx|mcapi|m4|IDE/WORKBENCH|IDE/WIN|IDE/ROWLEY-CROSSWORKS-ARM|IDE/MYSQL|IDE/MDK-ARM|IDE/MDK5-ARM|IDE/LPCXPRESSO/wolf_demo|IDE/LPCXPRESSO/lpc_chip_18xx|IDE/LPCXPRESSO/lpc_board_nxp_lpcxpresso_1837|IDE/iOS|IDE/IAR-EWARM|examples|Debug|certs|build-aux|Backup|autom4te.cache|wolfcrypt/src/aes_asm.s|wolfcrypt/src/aes_asm.asm|wolfcrypt/user-crypto" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="wolfcrypt/src/evp.c|wolfcrypt/src/misc.c|IDE/LPCXPRESSO/wolf_example|tirtos|testsuite|tests|swig|support|sslSniffer|scripts|rpm|mqx|mplabx|mcapi|m4|IDE/WORKBENCH|IDE/WIN|IDE/ROWLEY-CROSSWORKS-ARM|IDE/MYSQL|IDE/MDK-ARM|IDE/MDK5-ARM|IDE/LPCXPRESSO/wolf_demo|IDE/LPCXPRESSO/lpc_chip_18xx|IDE/LPCXPRESSO/lpc_board_nxp_lpcxpresso_1837|IDE/iOS|IDE/IAR-EWARM|examples|Debug|certs|build-aux|Backup|autom4te.cache|wolfcrypt/src/aes_asm.s|wolfcrypt/src/aes_asm.asm|wolfcrypt/user-crypto" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -100,55 +66,21 @@
 					</externalSetting>
 				</externalSettings>
 				<extensions>
+					<extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
+					<extension id="org.eclipse.cdt.core.GNU_ELF" point="org.eclipse.cdt.core.BinaryParser"/>
 					<extension id="org.eclipse.cdt.core.GmakeErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.CWDLocator" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.GASErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
 					<extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
-					<extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
-					<extension id="org.eclipse.cdt.core.GNU_ELF" point="org.eclipse.cdt.core.BinaryParser"/>
 				</extensions>
 			</storageModule>
 			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-				<configuration artifactExtension="a" artifactName="${ProjName}" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.staticLib" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.staticLib" cleanCommand="rm -rf" description="Release build" errorParsers="org.eclipse.cdt.core.CWDLocator;org.eclipse.cdt.core.GmakeErrorParser;org.eclipse.cdt.core.GCCErrorParser;org.eclipse.cdt.core.GLDErrorParser;org.eclipse.cdt.core.GASErrorParser" id="com.crt.advproject.config.lib.release.1867429683" name="Release" parent="com.crt.advproject.config.lib.release" postannouncebuildStep="Performing post-build steps" postbuildStep="arm-none-eabi-size &quot;lib${BuildArtifactFileName}&quot; ; # arm-none-eabi-objdump -h -S &quot;lib${BuildArtifactFileName}&quot; &gt;&quot;${BuildArtifactFileBaseName}.lss&quot;">
+				<configuration artifactExtension="a" artifactName="${ProjName}" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.staticLib" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.staticLib" cleanCommand="rm -rf" description="Release build" errorParsers="org.eclipse.cdt.core.CWDLocator;org.eclipse.cdt.core.GmakeErrorParser;org.eclipse.cdt.core.GCCErrorParser;org.eclipse.cdt.core.GLDErrorParser;org.eclipse.cdt.core.GASErrorParser" id="com.crt.advproject.config.lib.release.1867429683" name="Release" parent="com.crt.advproject.config.lib.release.1867429683" postannouncebuildStep="Performing post-build steps" postbuildStep="arm-none-eabi-size &quot;lib${BuildArtifactFileName}&quot; ; # arm-none-eabi-objdump -h -S &quot;lib${BuildArtifactFileName}&quot; &gt;&quot;${BuildArtifactFileBaseName}.lss&quot;">
 					<folderInfo id="com.crt.advproject.config.lib.release.1867429683." name="/" resourcePath="">
-						<toolChain id="com.crt.advproject.toolchain.lib.release.380660388" name="NXP MCU Tools" superClass="com.crt.advproject.toolchain.lib.release">
-							<targetPlatform binaryParser="org.eclipse.cdt.core.ELF;org.eclipse.cdt.core.GNU_ELF" id="com.crt.advproject.platform.lib.release.1920417960" name="ARM-based MCU (Debug)" superClass="com.crt.advproject.platform.lib.release"/>
-							<builder buildPath="${workspace_loc:/lib_wolfssl}/Release" id="com.crt.advproject.builder.lib.release.1957065966" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" superClass="com.crt.advproject.builder.lib.release"/>
-							<tool id="com.crt.advproject.cpp.lib.release.991239198" name="MCU C++ Compiler" superClass="com.crt.advproject.cpp.lib.release"/>
-							<tool id="com.crt.advproject.gcc.lib.release.1950313830" name="MCU C Compiler" superClass="com.crt.advproject.gcc.lib.release">
-								<option id="com.crt.advproject.gcc.arch.971195452" name="Architecture" superClass="com.crt.advproject.gcc.arch" value="com.crt.advproject.gcc.target.cm3" valueType="enumerated"/>
-								<option id="com.crt.advproject.gcc.thumb.167176352" name="Thumb mode" superClass="com.crt.advproject.gcc.thumb" value="true" valueType="boolean"/>
-								<option id="gnu.c.compiler.option.preprocessor.def.symbols.223126135" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
-									<listOptionValue builtIn="false" value="__REDLIB__"/>
-									<listOptionValue builtIn="false" value="NDEBUG"/>
-									<listOptionValue builtIn="false" value="__CODE_RED"/>
-									<listOptionValue builtIn="false" value="WOLFSSL_USER_SETTINGS"/>
-									<listOptionValue builtIn="false" value="CORE_M3"/>
-								</option>
-								<option id="gnu.c.compiler.option.misc.other.637535653" name="Other flags" superClass="gnu.c.compiler.option.misc.other" value="-c -fmessage-length=0 -fno-builtin -ffunction-sections -fdata-sections" valueType="string"/>
-								<option id="gnu.c.compiler.option.include.paths.74265565" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" valueType="includePath">
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/wolfssl}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/freertos}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/lib_wolfssl}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/wolfssl}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/IDE/LPCXPRESSO/lib_wolfssl}&quot;"/>
-								</option>
-								<inputType id="com.crt.advproject.compiler.input.1144243950" superClass="com.crt.advproject.compiler.input"/>
-							</tool>
-							<tool id="com.crt.advproject.gas.lib.release.364778201" name="MCU Assembler" superClass="com.crt.advproject.gas.lib.release">
-								<option id="com.crt.advproject.gas.arch.95085806" name="Architecture" superClass="com.crt.advproject.gas.arch" value="com.crt.advproject.gas.target.cm3" valueType="enumerated"/>
-								<option id="com.crt.advproject.gas.thumb.220186241" name="Thumb mode" superClass="com.crt.advproject.gas.thumb" value="true" valueType="boolean"/>
-								<option id="gnu.both.asm.option.flags.crt.2139190035" name="Assembler flags" superClass="gnu.both.asm.option.flags.crt" value="-c -x assembler-with-cpp -D__REDLIB__ -DNDEBUG -D__CODE_RED" valueType="string"/>
-								<option id="gnu.both.asm.option.include.paths.1581663756" name="Include paths (-I)" superClass="gnu.both.asm.option.include.paths" valueType="includePath">
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/wolfssl}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/IDE/LPCXPRESSO/lib_wolfssl/}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/wolfssl}&quot;"/>
-								</option>
-								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.1598169582" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
-								<inputType id="com.crt.advproject.assembler.input.842191937" name="Additional Assembly Source Files" superClass="com.crt.advproject.assembler.input"/>
-							</tool>
-							<tool id="com.crt.advproject.ar.lib.release.962348675" name="MCU Archiver" superClass="com.crt.advproject.ar.lib.release"/>
+						<toolChain id="com.crt.advproject.toolchain.lib.release.380660388" name="NXP MCU Tools">
+							<targetPlatform binaryParser="org.eclipse.cdt.core.ELF;org.eclipse.cdt.core.GNU_ELF" id="com.crt.advproject.platform.lib.release.1920417960" name="ARM-based MCU (Debug)"/>
+							<builder buildPath="${workspace_loc:/lib_wolfssl}/Release" id="com.crt.advproject.builder.lib.release.1957065966" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder"/>
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
@@ -160,7 +92,7 @@
 		</cconfiguration>
 	</storageModule>
 	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
-		<project id="lib_wolfssl.com.crt.advproject.projecttype.lib.158532356" name="Static Library" projectType="com.crt.advproject.projecttype.lib"/>
+		<project id="lib_wolfssl.com.crt.advproject.projecttype.lib.158532356" name="Static Library"/>
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
 	<storageModule moduleId="com.crt.config">
