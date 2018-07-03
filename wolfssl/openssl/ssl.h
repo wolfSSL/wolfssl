@@ -879,7 +879,8 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define ERR_LIB_X509            10
 
 #if defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
-    defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_ALL)
+    defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_ALL) || \
+    defined(HAVE_LIGHTY)
 
 #include <wolfssl/error-ssl.h>
 
@@ -953,7 +954,8 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define SSL_is_server                     wolfSSL_is_server
 #define SSL_CTX_set1_curves_list          wolfSSL_CTX_set1_curves_list
 
-#endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY */
+#endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY || WOLFSSL_MYSQL_COMPATIBLE || 
+          OPENSSL_ALL || HAVE_LIGHTY */
 
 #define X509_STORE_CTX_set_time           wolfSSL_X509_STORE_CTX_set_time
 #define SSL_CTX_add_client_CA             wolfSSL_CTX_add_client_CA

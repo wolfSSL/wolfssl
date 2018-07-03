@@ -153,7 +153,7 @@ typedef struct EncryptedInfo {
     char     name[NAME_SZ];    /* cipher name, such as "DES-CBC" */
     byte     iv[IV_SZ];        /* salt or encrypted IV */
 
-    byte     set:1;            /* if encryption set */
+    int      set:1;            /* if encryption set */
 } EncryptedInfo;
 
 

@@ -8739,6 +8739,15 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             store->userCtx = ssl->verifyCbCtx;
                             store->certs = args->certs;
                             store->totalCerts = args->totalCerts;
+
+                        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+                            if (ssl->ctx->x509_store_pt != NULL) {
+                                store->store = ssl->ctx->x509_store_pt;
+                            }
+                            else {
+                                store->store = &ssl->ctx->x509_store;
+                            }
+                        #endif
                         #if !defined(NO_CERTS)
                             InitX509(x509, 1, ssl->heap);
                             #if defined(KEEP_PEER_CERT) || \
@@ -8822,6 +8831,15 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         store->userCtx = ssl->verifyCbCtx;
                         store->certs = args->certs;
                         store->totalCerts = args->totalCerts;
+
+                    #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+                        if (ssl->ctx->x509_store_pt != NULL) {
+                            store->store = ssl->ctx->x509_store_pt;
+                        }
+                        else {
+                            store->store = &ssl->ctx->x509_store;
+                        }
+                    #endif
                     #if !defined(NO_CERTS)
                         InitX509(x509, 1, ssl->heap);
                         #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
@@ -9411,6 +9429,15 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         store->userCtx = ssl->verifyCbCtx;
                         store->certs = args->certs;
                         store->totalCerts = args->totalCerts;
+
+                    #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+                        if (ssl->ctx->x509_store_pt != NULL) {
+                            store->store = ssl->ctx->x509_store_pt;
+                        }
+                        else {
+                            store->store = &ssl->ctx->x509_store;
+                        }
+                    #endif
                     #ifdef KEEP_PEER_CERT
                         if (ssl->peerCert.subject.sz > 0)
                             store->current_cert = &ssl->peerCert;
@@ -9464,6 +9491,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     store->userCtx = ssl->verifyCbCtx;
                     store->certs = args->certs;
                     store->totalCerts = args->totalCerts;
+
+                    if (ssl->ctx->x509_store_pt != NULL) {
+                        store->store = ssl->ctx->x509_store_pt;
+                    }
+                    else {
+                        store->store = &ssl->ctx->x509_store;
+                    }
                 #ifdef KEEP_PEER_CERT
                     if (ssl->peerCert.subject.sz > 0)
                         store->current_cert = &ssl->peerCert;
@@ -12640,8 +12674,8 @@ int ProcessReply(WOLFSSL* ssl)
                 ssl->keys.decryptedCur = 1;
 #ifdef WOLFSSL_TLS13
                 if (ssl->options.tls1_3) {
-                    word16 i = ssl->buffers.inputBuffer.length -
-                               ssl->keys.padSz;
+                    word16 i = (word16)(ssl->buffers.inputBuffer.length -
+                                        ssl->keys.padSz);
                     /* Remove padding from end of plain text. */
                     for (--i; i > ssl->buffers.inputBuffer.idx; i--) {
                         if (ssl->buffers.inputBuffer.buffer[i] != 0)
@@ -20478,7 +20512,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 /* TLS v1.3 capable server downgraded. */
                 XMEMCPY(output + idx + RAN_LEN - (TLS13_DOWNGRADE_SZ + 1),
                         tls13Downgrade, TLS13_DOWNGRADE_SZ);
-                output[idx + RAN_LEN - 1] = IsAtLeastTLSv1_2(ssl);
+                output[idx + RAN_LEN - 1] = (byte)IsAtLeastTLSv1_2(ssl);
             }
             else
 #endif

@@ -1305,7 +1305,7 @@ int asn_test(void)
     int length;
     const byte* datePart;
 #ifndef NO_ASN_TIME
-    struct tm time;
+    struct tm timearg;
     #ifdef WORD64_AVAILABLE
         word64 now;
     #else
@@ -1334,7 +1334,7 @@ int asn_test(void)
         return -1404;
     }
 
-    ret = wc_GetDateAsCalendarTime(datePart, length, format, &time);
+    ret = wc_GetDateAsCalendarTime(datePart, length, format, &timearg);
     if (ret != 0)
         return -1405;
 #endif /* !NO_ASN_TIME */
@@ -2834,7 +2834,7 @@ int hash_test(void)
     if (hashType != WC_HASH_TYPE_NONE)
         return -3071;
 #endif
-    
+
     ret = wc_HashGetOID(WC_HASH_TYPE_MD5_SHA);
 #ifndef NO_MD5
     if (ret == HASH_TYPE_E || ret == BAD_FUNC_ARG)
@@ -11325,6 +11325,10 @@ static int dh_fips_generate_test(WC_RNG *rng)
 #endif /* HAVE_SELFTEST */
 
 #ifdef WOLFSSL_KEY_GEN
+    wc_FreeDhKey(&key);
+    ret = wc_InitDhKey_ex(&key, HEAP_HINT, devId);
+    if (ret != 0)
+        return -8231;
 
     ret = wc_DhGenerateParams(rng, 2048, &key);
     if (ret != 0) {
@@ -18050,7 +18054,7 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
 
     byte   enveloped[2048];
     byte   decoded[2048];
-    PKCS7  pkcs7;
+    PKCS7* pkcs7;
 #ifdef PKCS7_OUTPUT_TEST_BUNDLES
     FILE*  pkcs7File;
 #endif
@@ -18128,64 +18132,75 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
     testSz = sizeof(testVectors) / sizeof(pkcs7EnvelopedVector);
 
     for (i = 0; i < testSz; i++) {
-        ret = wc_PKCS7_Init(&pkcs7, HEAP_HINT,
+        pkcs7 = wc_PKCS7_New(HEAP_HINT,
         #ifdef WOLFSSL_ASYNC_CRYPT
             INVALID_DEVID /* async PKCS7 is not supported */
         #else
             devId
         #endif
         );
-        if (ret != 0)
+        if (pkcs7 == NULL)
             return -9214;
 
-        ret = wc_PKCS7_InitWithCert(&pkcs7, testVectors[i].cert,
+        ret = wc_PKCS7_InitWithCert(pkcs7, testVectors[i].cert,
                                     (word32)testVectors[i].certSz);
-        if (ret != 0)
+        if (ret != 0) {
+            wc_PKCS7_Free(pkcs7);
             return -9215;
+        }
 
-        pkcs7.content      = (byte*)testVectors[i].content;
-        pkcs7.contentSz    = testVectors[i].contentSz;
-        pkcs7.contentOID   = testVectors[i].contentOID;
-        pkcs7.encryptOID   = testVectors[i].encryptOID;
-        pkcs7.keyWrapOID   = testVectors[i].keyWrapOID;
-        pkcs7.keyAgreeOID  = testVectors[i].keyAgreeOID;
-        pkcs7.privateKey   = testVectors[i].privateKey;
-        pkcs7.privateKeySz = testVectors[i].privateKeySz;
-        pkcs7.ukm          = testVectors[i].optionalUkm;
-        pkcs7.ukmSz        = testVectors[i].optionalUkmSz;
+        pkcs7->content      = (byte*)testVectors[i].content;
+        pkcs7->contentSz    = testVectors[i].contentSz;
+        pkcs7->contentOID   = testVectors[i].contentOID;
+        pkcs7->encryptOID   = testVectors[i].encryptOID;
+        pkcs7->keyWrapOID   = testVectors[i].keyWrapOID;
+        pkcs7->keyAgreeOID  = testVectors[i].keyAgreeOID;
+        pkcs7->privateKey   = testVectors[i].privateKey;
+        pkcs7->privateKeySz = testVectors[i].privateKeySz;
+        pkcs7->ukm          = testVectors[i].optionalUkm;
+        pkcs7->ukmSz        = testVectors[i].optionalUkmSz;
 
         /* encode envelopedData */
-        envelopedSz = wc_PKCS7_EncodeEnvelopedData(&pkcs7, enveloped,
+        envelopedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, enveloped,
                                                    sizeof(enveloped));
         if (envelopedSz <= 0) {
             printf("DEBUG: i = %d, envelopedSz = %d\n", i, envelopedSz);
+            wc_PKCS7_Free(pkcs7);
             return -9216;
         }
 
         /* decode envelopedData */
-        decodedSz = wc_PKCS7_DecodeEnvelopedData(&pkcs7, enveloped, envelopedSz,
+        decodedSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, enveloped, envelopedSz,
                                                  decoded, sizeof(decoded));
-        if (decodedSz <= 0)
+        if (decodedSz <= 0) {
+            wc_PKCS7_Free(pkcs7);
             return -9217;
+        }
 
         /* test decode result */
-        if (XMEMCMP(decoded, data, sizeof(data)) != 0)
+        if (XMEMCMP(decoded, data, sizeof(data)) != 0){
+            wc_PKCS7_Free(pkcs7);
             return -9218;
+        }
 
 #ifdef PKCS7_OUTPUT_TEST_BUNDLES
         /* output pkcs7 envelopedData for external testing */
         pkcs7File = fopen(testVectors[i].outFileName, "wb");
-        if (!pkcs7File)
+        if (!pkcs7File) {
+            wc_PKCS7_Free(pkcs7);
             return -9219;
+        }
 
         ret = (int)fwrite(enveloped, 1, envelopedSz, pkcs7File);
         fclose(pkcs7File);
         if (ret != envelopedSz) {
+            wc_PKCS7_Free(pkcs7);
             return -9220;
         }
 #endif /* PKCS7_OUTPUT_TEST_BUNDLES */
 
-        wc_PKCS7_Free(&pkcs7);
+        wc_PKCS7_Free(pkcs7);
+        pkcs7 = NULL;
     }
 
 #if !defined(HAVE_ECC) || defined(NO_AES)
@@ -18313,7 +18328,7 @@ int pkcs7encrypted_test(void)
     int ret = 0;
     int i, testSz;
     int encryptedSz, decodedSz, attribIdx;
-    PKCS7 pkcs7;
+    PKCS7* pkcs7;
     byte  encrypted[2048];
     byte  decoded[2048];
 #ifdef PKCS7_OUTPUT_TEST_BUNDLES
@@ -18437,55 +18452,65 @@ int pkcs7encrypted_test(void)
     testSz = sizeof(testVectors) / sizeof(pkcs7EncryptedVector);
 
     for (i = 0; i < testSz; i++) {
-        ret = wc_PKCS7_Init(&pkcs7, HEAP_HINT, devId);
-        if (ret != 0)
+        pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+        if (pkcs7 == NULL)
             return -9400;
 
-        pkcs7.content              = (byte*)testVectors[i].content;
-        pkcs7.contentSz            = testVectors[i].contentSz;
-        pkcs7.contentOID           = testVectors[i].contentOID;
-        pkcs7.encryptOID           = testVectors[i].encryptOID;
-        pkcs7.encryptionKey        = testVectors[i].encryptionKey;
-        pkcs7.encryptionKeySz      = testVectors[i].encryptionKeySz;
-        pkcs7.unprotectedAttribs   = testVectors[i].attribs;
-        pkcs7.unprotectedAttribsSz = testVectors[i].attribsSz;
+        pkcs7->content              = (byte*)testVectors[i].content;
+        pkcs7->contentSz            = testVectors[i].contentSz;
+        pkcs7->contentOID           = testVectors[i].contentOID;
+        pkcs7->encryptOID           = testVectors[i].encryptOID;
+        pkcs7->encryptionKey        = testVectors[i].encryptionKey;
+        pkcs7->encryptionKeySz      = testVectors[i].encryptionKeySz;
+        pkcs7->unprotectedAttribs   = testVectors[i].attribs;
+        pkcs7->unprotectedAttribsSz = testVectors[i].attribsSz;
 
         /* encode encryptedData */
-        encryptedSz = wc_PKCS7_EncodeEncryptedData(&pkcs7, encrypted,
+        encryptedSz = wc_PKCS7_EncodeEncryptedData(pkcs7, encrypted,
                                                    sizeof(encrypted));
-        if (encryptedSz <= 0)
+        if (encryptedSz <= 0) {
+            wc_PKCS7_Free(pkcs7);
             return -9401;
+        }
 
         /* decode encryptedData */
-        decodedSz = wc_PKCS7_DecodeEncryptedData(&pkcs7, encrypted, encryptedSz,
+        decodedSz = wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted, encryptedSz,
                                                  decoded, sizeof(decoded));
-        if (decodedSz <= 0)
+        if (decodedSz <= 0){
+            wc_PKCS7_Free(pkcs7);
             return -9402;
+        }
 
         /* test decode result */
-        if (XMEMCMP(decoded, data, sizeof(data)) != 0)
+        if (XMEMCMP(decoded, data, sizeof(data)) != 0) {
+            wc_PKCS7_Free(pkcs7);
             return -9403;
+        }
 
         /* verify decoded unprotected attributes */
-        if (pkcs7.decodedAttrib != NULL) {
-            decodedAttrib = pkcs7.decodedAttrib;
+        if (pkcs7->decodedAttrib != NULL) {
+            decodedAttrib = pkcs7->decodedAttrib;
             attribIdx = 1;
 
             while (decodedAttrib != NULL) {
 
                 /* expected attribute, stored list is reversed */
-                expectedAttrib = &(pkcs7.unprotectedAttribs
-                        [pkcs7.unprotectedAttribsSz - attribIdx]);
+                expectedAttrib = &(pkcs7->unprotectedAttribs
+                        [pkcs7->unprotectedAttribsSz - attribIdx]);
 
                 /* verify oid */
                 if (XMEMCMP(decodedAttrib->oid, expectedAttrib->oid,
-                            decodedAttrib->oidSz) != 0)
+                            decodedAttrib->oidSz) != 0) {
+                    wc_PKCS7_Free(pkcs7);
                     return -9404;
+                }
 
                 /* verify value */
                 if (XMEMCMP(decodedAttrib->value, expectedAttrib->value,
-                            decodedAttrib->valueSz) != 0)
+                            decodedAttrib->valueSz) != 0) {
+                    wc_PKCS7_Free(pkcs7);
                     return -9405;
+                }
 
                 decodedAttrib = decodedAttrib->next;
                 attribIdx++;
@@ -18495,8 +18520,10 @@ int pkcs7encrypted_test(void)
 #ifdef PKCS7_OUTPUT_TEST_BUNDLES
         /* output pkcs7 envelopedData for external testing */
         pkcs7File = fopen(testVectors[i].outFileName, "wb");
-        if (!pkcs7File)
+        if (!pkcs7File) {
+            wc_PKCS7_Free(pkcs7);
             return -9406;
+        }
 
         ret = (int)fwrite(encrypted, encryptedSz, 1, pkcs7File);
         fclose(pkcs7File);
@@ -18505,7 +18532,7 @@ int pkcs7encrypted_test(void)
             ret = 0;
 #endif
 
-        wc_PKCS7_Free(&pkcs7);
+        wc_PKCS7_Free(pkcs7);
     }
 
     return ret;
@@ -18539,7 +18566,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
     byte*  out;
     word32 outSz;
     WC_RNG rng;
-    PKCS7  pkcs7;
+    PKCS7* pkcs7;
 #ifdef PKCS7_OUTPUT_TEST_BUNDLES
     FILE*  file;
 #endif
@@ -18679,26 +18706,30 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
     }
 
     for (i = 0; i < testSz; i++) {
+        pkcs7 = wc_PKCS7_New(HEAP_HINT, INVALID_DEVID);
+        if (pkcs7 == NULL)
+            return -9410;
 
-        pkcs7.heap = HEAP_HINT;
-        pkcs7.devId = INVALID_DEVID;
-        ret = wc_PKCS7_InitWithCert(&pkcs7, testVectors[i].cert,
+        pkcs7->heap = HEAP_HINT;
+        pkcs7->devId = INVALID_DEVID;
+        ret = wc_PKCS7_InitWithCert(pkcs7, testVectors[i].cert,
                                     (word32)testVectors[i].certSz);
 
         if (ret != 0) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+            wc_PKCS7_Free(pkcs7);
             return -9410;
         }
 
-        pkcs7.rng             = &rng;
-        pkcs7.content         = (byte*)testVectors[i].content;
-        pkcs7.contentSz       = testVectors[i].contentSz;
-        pkcs7.hashOID         = testVectors[i].hashOID;
-        pkcs7.encryptOID      = testVectors[i].encryptOID;
-        pkcs7.privateKey      = testVectors[i].privateKey;
-        pkcs7.privateKeySz    = testVectors[i].privateKeySz;
-        pkcs7.signedAttribs   = testVectors[i].signedAttribs;
-        pkcs7.signedAttribsSz = testVectors[i].signedAttribsSz;
+        pkcs7->rng             = &rng;
+        pkcs7->content         = (byte*)testVectors[i].content;
+        pkcs7->contentSz       = testVectors[i].contentSz;
+        pkcs7->hashOID         = testVectors[i].hashOID;
+        pkcs7->encryptOID      = testVectors[i].encryptOID;
+        pkcs7->privateKey      = testVectors[i].privateKey;
+        pkcs7->privateKeySz    = testVectors[i].privateKeySz;
+        pkcs7->signedAttribs   = testVectors[i].signedAttribs;
+        pkcs7->signedAttribsSz = testVectors[i].signedAttribsSz;
 
         /* generate senderNonce */
         {
@@ -18708,7 +18739,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
             ret = wc_RNG_GenerateBlock(&rng, &senderNonce[2], PKCS7_NONCE_SZ);
             if (ret != 0) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(&pkcs7);
+                wc_PKCS7_Free(pkcs7);
                 return -9411;
             }
         }
@@ -18731,20 +18762,20 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
             ret = wc_InitSha_ex(&sha, HEAP_HINT, devId);
             if (ret != 0) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(&pkcs7);
+                wc_PKCS7_Free(pkcs7);
                 return -9412;
             }
-            wc_ShaUpdate(&sha, pkcs7.publicKey, pkcs7.publicKeySz);
+            wc_ShaUpdate(&sha, pkcs7->publicKey, pkcs7->publicKeySz);
             wc_ShaFinal(&sha, digest);
             wc_ShaFree(&sha);
         #else
             ret = wc_InitSha256_ex(&sha, HEAP_HINT, devId);
             if (ret != 0) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(&pkcs7);
+                wc_PKCS7_Free(pkcs7);
                 return -9413;
             }
-            wc_Sha256Update(&sha, pkcs7.publicKey, pkcs7.publicKeySz);
+            wc_Sha256Update(&sha, pkcs7->publicKey, pkcs7->publicKeySz);
             wc_Sha256Final(&sha, digest);
             wc_Sha256Free(&sha);
         #endif
@@ -18754,10 +18785,10 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
             }
         }
 
-        encodedSz = wc_PKCS7_EncodeSignedData(&pkcs7, out, outSz);
+        encodedSz = wc_PKCS7_EncodeSignedData(pkcs7, out, outSz);
         if (encodedSz < 0) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            wc_PKCS7_Free(&pkcs7);
+            wc_PKCS7_Free(pkcs7);
             return -9414;
         }
 
@@ -18766,34 +18797,37 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
         file = fopen(testVectors[i].outFileName, "wb");
         if (!file) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            wc_PKCS7_Free(&pkcs7);
+            wc_PKCS7_Free(pkcs7);
             return -9415;
         }
         ret = (int)fwrite(out, 1, encodedSz, file);
         fclose(file);
         if (ret != (int)encodedSz) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            wc_PKCS7_Free(&pkcs7);
+            wc_PKCS7_Free(pkcs7);
             return -9416;
         }
     #endif /* PKCS7_OUTPUT_TEST_BUNDLES */
 
-        wc_PKCS7_Free(&pkcs7);
-        wc_PKCS7_InitWithCert(&pkcs7, NULL, 0);
+        wc_PKCS7_Free(pkcs7);
 
-        ret = wc_PKCS7_VerifySignedData(&pkcs7, out, outSz);
+        pkcs7 = wc_PKCS7_New(HEAP_HINT, INVALID_DEVID);
+        if (pkcs7 == NULL)
+            return -9410;
+        wc_PKCS7_InitWithCert(pkcs7, NULL, 0);
+
+        ret = wc_PKCS7_VerifySignedData(pkcs7, out, outSz);
         if (ret < 0) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            wc_PKCS7_Free(&pkcs7);
+            wc_PKCS7_Free(pkcs7);
             return -9417;
         }
 
-        if (pkcs7.singleCert == NULL || pkcs7.singleCertSz == 0) {
+        if (pkcs7->singleCert == NULL || pkcs7->singleCertSz == 0) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            wc_PKCS7_Free(&pkcs7);
+            wc_PKCS7_Free(pkcs7);
             return -9418;
         }
-
 
         {
             /* check getting signed attributes */
@@ -18807,25 +18841,25 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
             int bufSz = 0;
 
             if (testVectors[i].signedAttribs != NULL &&
-                    wc_PKCS7_GetAttributeValue(&pkcs7, oidPt, oidSz,
+                    wc_PKCS7_GetAttributeValue(pkcs7, oidPt, oidSz,
                     NULL, (word32*)&bufSz) != LENGTH_ONLY_E) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(&pkcs7);
+                wc_PKCS7_Free(pkcs7);
                 return -9419;
             }
 
             if (bufSz > (int)sizeof(buf)) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(&pkcs7);
+                wc_PKCS7_Free(pkcs7);
                 return -9420;
             }
 
-            bufSz = wc_PKCS7_GetAttributeValue(&pkcs7, oidPt, oidSz,
+            bufSz = wc_PKCS7_GetAttributeValue(pkcs7, oidPt, oidSz,
                     buf, (word32*)&bufSz);
             if ((testVectors[i].signedAttribs != NULL && bufSz < 0) ||
                 (testVectors[i].signedAttribs == NULL && bufSz > 0)) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-                wc_PKCS7_Free(&pkcs7);
+                wc_PKCS7_Free(pkcs7);
                 return -9421;
             }
         }
@@ -18834,14 +18868,14 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
         file = fopen("./pkcs7cert.der", "wb");
         if (!file) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-            wc_PKCS7_Free(&pkcs7);
+            wc_PKCS7_Free(pkcs7);
             return -9422;
         }
-        ret = (int)fwrite(pkcs7.singleCert, 1, pkcs7.singleCertSz, file);
+        ret = (int)fwrite(pkcs7->singleCert, 1, pkcs7->singleCertSz, file);
         fclose(file);
     #endif /* PKCS7_OUTPUT_TEST_BUNDLES */
 
-        wc_PKCS7_Free(&pkcs7);
+        wc_PKCS7_Free(pkcs7);
     }
 
     XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);

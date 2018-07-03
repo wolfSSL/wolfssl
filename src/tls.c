@@ -5211,7 +5211,7 @@ static int TLSX_SupportedVersions_Write(void* data, byte* output,
 #endif
 
             *(output++) = pv.major;
-            *(output++) = pv.minor - i;
+            *(output++) = (byte)(pv.minor - i);
         }
 
         *pSz += (word16)(OPAQUE8_LEN + cnt * OPAQUE16_LEN);
@@ -6225,10 +6225,10 @@ static word16 TLSX_KeyShare_Write(KeyShareEntry* list, byte* output,
 
         c16toa(current->group, &output[i]);
         i += KE_GROUP_LEN;
-        c16toa(current->pubKeyLen, &output[i]);
+        c16toa((word16)(current->pubKeyLen), &output[i]);
         i += OPAQUE16_LEN;
         XMEMCPY(&output[i], current->pubKey, current->pubKeyLen);
-        i += current->pubKeyLen;
+        i += (word16)current->pubKeyLen;
     }
     /* Write the length of the list if required. */
     if (isRequest)
@@ -6766,7 +6766,7 @@ static int TLSX_KeyShare_New(KeyShareEntry** list, int group, void *heap,
         return MEMORY_E;
 
     XMEMSET(kse, 0, sizeof(*kse));
-    kse->group = group;
+    kse->group = (word16)group;
 
     /* Add it to the back and maintain the links. */
     while (*list != NULL)
