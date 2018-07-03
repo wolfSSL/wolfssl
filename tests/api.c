@@ -3119,7 +3119,7 @@ static void test_wolfSSL_PKCS12(void)
     char order[] = "./certs/ecc-rsa-server.p12";
     char pass[] = "a password";
     WOLFSSL_X509_NAME* subject;
-    FILE *f;
+    XFILE f;
     int  bytes, ret;
     WOLFSSL_BIO      *bio;
     WOLFSSL_EVP_PKEY *pkey;
@@ -3132,10 +3132,10 @@ static void test_wolfSSL_PKCS12(void)
 
     printf(testingFmt, "wolfSSL_PKCS12()");
 
-    f = fopen(file, "rb");
-    AssertNotNull(f);
-    bytes = (int)fread(buffer, 1, sizeof(buffer), f);
-    fclose(f);
+    f = XFOPEN(file, "rb");
+    AssertTrue((f != XBADFILE));
+    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    XFCLOSE(f);
 
     bio = BIO_new_mem_buf((void*)buffer, bytes);
     AssertNotNull(bio);
@@ -3241,10 +3241,10 @@ static void test_wolfSSL_PKCS12(void)
 
 #ifdef HAVE_ECC
     /* test order of parsing */
-    f = fopen(order, "rb");
-    AssertNotNull(f);
-    bytes = (int)fread(buffer, 1, sizeof(buffer), f);
-    fclose(f);
+    f = XFOPEN(order, "rb");
+    AssertTrue(f != XBADFILE);
+    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    XFCLOSE(f);
 
     AssertNotNull(bio = BIO_new_mem_buf((void*)buffer, bytes));
     AssertNotNull(pkcs12 = d2i_PKCS12_bio(bio, NULL));
@@ -3288,10 +3288,10 @@ static void test_wolfSSL_PKCS12(void)
     sk_X509_free(ca); /* TEST d2i_PKCS12_fp */
 
     /* test order of parsing */
-    f = fopen(file, "rb");
-
+    f = XFOPEN(file, "rb");
+    AssertTrue(f != XBADFILE);
     AssertNotNull(pkcs12 = d2i_PKCS12_fp(f, NULL));
-    fclose(f);
+    XFCLOSE(f);
 
     /* check verify MAC fail case */
     ret = PKCS12_parse(pkcs12, "bad", &pkey, &cert, NULL);
@@ -3367,17 +3367,17 @@ static void test_wolfSSL_PKCS8(void)
     byte buffer[FOURK_BUF];
     byte der[FOURK_BUF];
     char file[] = "./certs/server-keyPkcs8Enc.pem";
-    FILE *f;
+    XFILE f;
     int  flag = 1;
     int  bytes;
     WOLFSSL_CTX* ctx;
 
     printf(testingFmt, "wolfSSL_PKCS8()");
 
-    f = fopen(file, "rb");
-    AssertNotNull(f);
-    bytes = (int)fread(buffer, 1, sizeof(buffer), f);
-    fclose(f);
+    f = XFOPEN(file, "rb");
+    AssertTrue((f != XBADFILE));
+    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    XFCLOSE(f);
 
 #ifndef NO_WOLFSSL_CLIENT
     #ifndef WOLFSSL_NO_TLS12
@@ -11510,12 +11510,12 @@ static int test_wc_DsaSignVerify (void)
 #else
     byte    tmp[TWOK_BUF];
     XMEMSET(tmp, 0, sizeof(tmp));
-    FILE* fp = fopen("./certs/dsa2048.der", "rb");
-    if (!fp) {
+    XFILE fp = XFOPEN("./certs/dsa2048.der", "rb");
+    if (fp == XBADFILE) {
         return WOLFSSL_BAD_FILE;
     }
-    bytes = (word32) fread(tmp, 1, sizeof(tmp), fp);
-    fclose(fp);
+    bytes = (word32) XFREAD(tmp, 1, sizeof(tmp), fp);
+    XFCLOSE(fp);
 #endif /* END USE_CERT_BUFFERS_1024 */
 
     ret = wc_InitSha(&sha);
@@ -11634,12 +11634,13 @@ static int test_wc_DsaPublicPrivateKeyDecode (void)
 #else
     byte    tmp[TWOK_BUF];
     XMEMSET(tmp, 0, sizeof(tmp));
-    FILE* fp = fopen("./certs/dsa2048.der", "rb");
-    if (!fp) {
+    XFILE fp = XFOPEN("./certs/dsa2048.der", "rb");
+    if (fp == XBADFILE)
+    {
         return WOLFSSL_BAD_FILE;
     }
-    bytes = (word32) fread(tmp, 1, sizeof(tmp), fp);
-    fclose(fp);
+    bytes = (word32) XFREAD(tmp, 1, sizeof(tmp), fp);
+    XFCLOSE(fp);
 #endif /* END USE_CERT_BUFFERS_1024 */
 
     ret = wc_InitDsaKey(&key);
@@ -11809,12 +11810,12 @@ static int test_wc_DsaKeyToDer (void)
     byte    der[TWOK_BUF];
     XMEMSET(tmp, 0, sizeof(tmp));
     XMEMSET(der, 0, sizeof(der));
-    FILE* fp = fopen("./certs/dsa2048.der", "rb");
-    if (!fp) {
+    XFILE fp = XFOPEN("./certs/dsa2048.der", "rb");
+    if (fp == XBADFILE) {
         return WOLFSSL_BAD_FILE;
     }
-    bytes = (word32) fread(tmp, 1, sizeof(tmp), fp);
-    fclose(fp);
+    bytes = (word32) XFREAD(tmp, 1, sizeof(tmp), fp);
+    XFCLOSE(fp);
 #endif /* END USE_CERT_BUFFERS_1024 */
 
     ret = wc_InitRng(&rng);
@@ -14645,14 +14646,13 @@ static void test_wc_PKCS7_InitWithCert (void)
         XMEMCPY(cert, client_cert_der_1024, sizeof_client_cert_der_1024);
     #else
         unsigned char   cert[ONEK_BUF];
-        FILE*           fp;
+        XFILE           fp;
         int             certSz;
-        fp = fopen("./certs/1024/client-cert.der", "rb");
+        fp = XFOPEN("./certs/1024/client-cert.der", "rb");
+        AssertTrue(fp != XBADFILE);
 
-        AssertNotNull(fp);
-
-        certSz = fread(cert, 1, sizeof_client_cert_der_1024, fp);
-        fclose(fp);
+        certSz = XFREAD(cert, 1, sizeof_client_cert_der_1024, fp);
+        XFCLOSE(fp);
     #endif
 #elif defined(HAVE_ECC)
     #if defined(USE_CERT_BUFFERS_256)
@@ -14662,14 +14662,14 @@ static void test_wc_PKCS7_InitWithCert (void)
         XMEMCPY(cert, cliecc_cert_der_256, sizeof_cliecc_cert_der_256);
     #else
         unsigned char   cert[ONEK_BUF];
-        FILE*           fp;
+        XFILE           fp;
         int             certSz;
-        fp = fopen("./certs/client-ecc-cert.der", "rb");
+        fp = XFOPEN("./certs/client-ecc-cert.der", "rb");
 
-        AssertNotNull(fp);
+        AssertTrue(fp != XBADFILE);
 
-        certSz = fread(cert, 1, sizeof_cliecc_cert_der_256, fp);
-        fclose(fp);
+        certSz = XFREAD(cert, 1, sizeof_cliecc_cert_der_256, fp);
+        XCLOSE(fp);
     #endif
 #else
         #error PKCS7 requires ECC or RSA
@@ -14730,19 +14730,19 @@ static void test_wc_PKCS7_EncodeData (void)
     #else
         unsigned char   cert[ONEK_BUF];
         unsigned char   key[ONEK_BUF];
-        FILE*           fp;
+        XFILE           fp;
         int             certSz;
         int             keySz;
 
-        fp = fopen("./certs/1024/client-cert.der", "rb");
-        AssertNotNull(fp);
-        certSz = fread(cert, 1, sizeof_client_cert_der_1024, fp);
-        fclose(fp);
+        fp = XFOPEN("./certs/1024/client-cert.der", "rb");
+        AssertTrue(fp != XBADFILE);
+        certSz = XFREAD(cert, 1, sizeof_client_cert_der_1024, fp);
+        XFCLOSE(fp);
 
-        fp = fopen("./certs/1024/client-key.der", "rb");
-        AssertNotNull(fp);
-        keySz = fread(key, 1, sizeof_client_key_der_1024, fp);
-        fclose(fp);
+        fp = XOPEN("./certs/1024/client-key.der", "rb");
+        AssertTrue(fp != XBADFILE);
+        keySz = XFREAD(key, 1, sizeof_client_key_der_1024, fp);
+        XFCLOSE(fp);
     #endif
 #elif defined(HAVE_ECC)
     #if defined(USE_CERT_BUFFERS_256)
@@ -14757,18 +14757,18 @@ static void test_wc_PKCS7_EncodeData (void)
     #else
         unsigned char   cert[ONEK_BUF];
         unsigned char   key[ONEK_BUF];
-        FILE*           fp;
+        XFILE           fp;
         int             certSz, keySz;
 
-        fp = fopen("./certs/client-ecc-cert.der", "rb");
-        AssertNotNull(fp);
-        certSz = fread(cert, 1, sizeof_cliecc_cert_der_256, fp);
-        fclose(fp);
+        fp = XFOPEN("./certs/client-ecc-cert.der", "rb");
+        AssertTrue(fp != XBADFILE);
+        certSz = XFREAD(cert, 1, sizeof_cliecc_cert_der_256, fp);
+        XFCLOSE(fp);
 
-        fp = fopen("./certs/client-ecc-key.der", "rb");
-        AssertNotNull(fp);
-        keySz = fread(key, 1, sizeof_ecc_clikey_der_256, fp);
-        fclose(fp);
+        fp = XFOPEN("./certs/client-ecc-key.der", "rb");
+        AssertTrue(fp != XBADFILE);
+        keySz = XFREAD(key, 1, sizeof_ecc_clikey_der_256, fp);
+        XFCLOSE(fp);
     #endif
 #endif
 
@@ -14836,19 +14836,19 @@ static void test_wc_PKCS7_EncodeSignedData(void)
     #else
         unsigned char   cert[ONEK_BUF];
         unsigned char   key[ONEK_BUF];
-        FILE*           fp;
+        XFILE           fp;
         int             certSz;
         int             keySz;
 
-        fp = fopen("./certs/1024/client-cert.der", "rb");
-        AssertNotNull(fp);
-        certSz = fread(cert, 1, sizeof_client_cert_der_1024, fp);
-        fclose(fp);
+        fp = XOPEN("./certs/1024/client-cert.der", "rb");
+        AssertTrue(fp != XBADFILE);
+        certSz = XFREAD(cert, 1, sizeof_client_cert_der_1024, fp);
+        XFCLOSE(fp);
 
-        fp = fopen("./certs/1024/client-key.der", "rb");
-        AssertNotNull(fp);
-        keySz = fread(key, 1, sizeof_client_key_der_1024, fp);
-        fclose(fp);
+        fp = XFOPEN("./certs/1024/client-key.der", "rb");
+        AssertTrue(fp != XBADFILE);
+        keySz = XFREAD(key, 1, sizeof_client_key_der_1024, fp);
+        XFCLOSE(fp);
     #endif
 #elif defined(HAVE_ECC)
     #if defined(USE_CERT_BUFFERS_256)
@@ -14863,18 +14863,18 @@ static void test_wc_PKCS7_EncodeSignedData(void)
     #else
         unsigned char   cert[ONEK_BUF];
         unsigned char   key[ONEK_BUF];
-        FILE*           fp;
+        XFILE           fp;
         int             certSz, keySz;
 
-        fp = fopen("./certs/client-ecc-cert.der", "rb");
-        AssertNotNull(fp);
-        certSz = fread(cert, 1, sizeof_cliecc_cert_der_256, fp);
-        fclose(fp);
+        fp = XOPEN("./certs/client-ecc-cert.der", "rb");
+        AssertTrue(fp != XBADFILE);
+        certSz = XFREAD(cert, 1, sizeof_cliecc_cert_der_256, fp);
+        XFCLOSE(fp);
 
-        fp = fopen("./certs/client-ecc-key.der", "rb");
-        AssertNotNull(fp);
-        keySz = fread(key, 1, sizeof_ecc_clikey_der_256, fp);
-        fclose(fp);
+        fp = XFOPEN("./certs/client-ecc-key.der", "rb");
+        AssertTrue(fp != XBADFILE);
+        keySz = XFREAD(key, 1, sizeof_ecc_clikey_der_256, fp);
+        XFCLOSE(fp);
     #endif
 #endif
 
@@ -14958,19 +14958,19 @@ static void test_wc_PKCS7_EncodeSignedData_ex(void)
     #else
         unsigned char   cert[ONEK_BUF];
         unsigned char   key[ONEK_BUF];
-        FILE*           fp;
+        XFILE           fp;
         int             certSz;
         int             keySz;
 
-        fp = fopen("./certs/1024/client-cert.der", "rb");
-        AssertNotNull(fp);
-        certSz = fread(cert, 1, sizeof_client_cert_der_1024, fp);
-        fclose(fp);
+        fp = XFOPEN("./certs/1024/client-cert.der", "rb");
+        AssertTrue((fp != XBADFILE));
+        certSz = XFREAD(cert, 1, sizeof_client_cert_der_1024, fp);
+        XFCLOSE(fp);
 
-        fp = fopen("./certs/1024/client-key.der", "rb");
-        AssertNotNull(fp);
-        keySz = fread(key, 1, sizeof_client_key_der_1024, fp);
-        fclose(fp);
+        fp = XFOPEN("./certs/1024/client-key.der", "rb");
+        AssertTrue(fp != XBADFILE);
+        keySz = XFREAD(key, 1, sizeof_client_key_der_1024, fp);
+        XFCLOSE(fp);
     #endif
 #elif defined(HAVE_ECC)
     #if defined(USE_CERT_BUFFERS_256)
@@ -14985,18 +14985,18 @@ static void test_wc_PKCS7_EncodeSignedData_ex(void)
     #else
         unsigned char   cert[ONEK_BUF];
         unsigned char   key[ONEK_BUF];
-        FILE*           fp;
+        XFILE           fp;
         int             certSz, keySz;
 
-        fp = fopen("./certs/client-ecc-cert.der", "rb");
-        AssertNotNull(fp);
-        certSz = fread(cert, 1, sizeof_cliecc_cert_der_256, fp);
-        fclose(fp);
+        fp = XFOPEN("./certs/client-ecc-cert.der", "rb");
+        AssertTrue(fp != BUDFILE);
+        certSz = XFREAD(cert, 1, sizeof_cliecc_cert_der_256, fp);
+        XFCLOSE(fp);
 
-        fp = fopen("./certs/client-ecc-key.der", "rb");
-        AssertNotNull(fp);
-        keySz = fread(key, 1, sizeof_ecc_clikey_der_256, fp);
-        fclose(fp);
+        fp = XFOPEN("./certs/client-ecc-key.der", "rb");
+        AssertTrue(fp != XBADFILE);
+        keySz = XFREAD(key, 1, sizeof_ecc_clikey_der_256, fp);
+        XFCLOSE(fp);
     #endif
 #endif
 
@@ -15267,8 +15267,8 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
     byte    decoded[sizeof(input)/sizeof(char)];
     int     decodedSz = 0;
 #ifndef NO_FILESYSTEM
-    FILE* certFile;
-    FILE* keyFile;
+    XFILE certFile;
+    XFILE keyFile;
 #endif
 
 #if !defined(NO_RSA) && (!defined(NO_AES) || (!defined(NO_SHA) ||\
@@ -15300,20 +15300,20 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
 
     #else
         /* File system. */
-        certFile = fopen(rsaClientCert, "rb");
-        AssertNotNull(certFile);
+        certFile = XFOPEN(rsaClientCert, "rb");
+        AssertTrue(certFile != XBADFILE);
         rsaCertSz = (word32)FOURK_BUF;
         AssertNotNull(rsaCert =
                 (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER));
-        rsaCertSz = (word32)fread(rsaCert, 1, rsaCertSz, certFile);
-        fclose(certFile);
-        keyFile = fopen(rsaClientKey, "rb");
-        AssertNotNull(keyFile);
+        rsaCertSz = (word32)XFREAD(rsaCert, 1, rsaCertSz, certFile);
+        XFCLOSE(certFile);
+        keyFile = XFOPEN(rsaClientKey, "rb");
+        AssertTrue(keyFile != XBADFILE);
         AssertNotNull(rsaPrivKey = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
                                 DYNAMIC_TYPE_TMP_BUFFER));
         rsaPrivKeySz = (word32)FOURK_BUF;
-        rsaPrivKeySz = (word32)fread(rsaPrivKey, 1, rsaPrivKeySz, keyFile);
-        fclose(keyFile);
+        rsaPrivKeySz = (word32)XFREAD(rsaPrivKey, 1, rsaPrivKeySz, keyFile);
+        XFCLOSE(keyFile);
     #endif /* USE_CERT_BUFFERS */
 #endif /* NO_RSA */
 
@@ -15332,20 +15332,20 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
         eccPrivKeySz = (word32)sizeof_ecc_clikey_der_256;
         XMEMCPY(eccPrivKey, ecc_clikey_der_256, eccPrivKeySz);
     #else /* File system. */
-        certFile = fopen(eccClientCert, "rb");
-        AssertNotNull(certFile);
+        certFile = XFOPEN(eccClientCert, "rb");
+        AssertTrue(certFile != XBADFILE);
         eccCertSz = (word32)FOURK_BUF;
         AssertNotNull(eccCert =
                 (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER));
-        eccCertSz = (word32)fread(eccCert, 1, eccCertSz, certFile);
-        fclose(certFile);
-        keyFile = fopen(eccClientKey, "rb");
-        AssertNotNull(keyFile);
+        eccCertSz = (word32)XFREAD(eccCert, 1, eccCertSz, certFile);
+        XFCLOSE(certFile);
+        keyFile = XFOPEN(eccClientKey, "rb");
+        AssertTrue(keyFile != XBADFILE);
         eccPrivKeySz = (word32)FOURK_BUF;
         AssertNotNull(eccPrivKey = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
                                 DYNAMIC_TYPE_TMP_BUFFER));
-        eccPrivKeySz = (word32)fread(eccPrivKey, 1, eccPrivKeySz, keyFile);
-        fclose(keyFile);
+        eccPrivKeySz = (word32)XFREAD(eccPrivKey, 1, eccPrivKeySz, keyFile);
+        XFCLOSE(keyFile);
     #endif /* USE_CERT_BUFFERS_256 */
 #endif /* END HAVE_ECC */
 
@@ -15750,10 +15750,10 @@ static int test_wc_SignatureGetSize_rsa(void)
                 XMEMCPY(tmp, client_key_der_2048,
                     (size_t)sizeof_client_key_der_2048);
             #elif !defined(NO_FILESYSTEM)
-                file = fopen(clientKey, "rb");
-                if (file != NULL) {
-                    bytes = fread(tmp, 1, FOURK_BUF, file);
-                    fclose(file);
+                file = XFOPEN(clientKey, "rb");
+                if (file != XBADFILE) {
+                    bytes = XFREAD(tmp, 1, FOURK_BUF, file);
+                    XFCLOSE(file);
                 }
                 else {
                     ret = WOLFSSL_FATAL_ERROR;
@@ -15891,7 +15891,7 @@ static void test_wolfSSL_X509_NAME(void)
     const unsigned char* c;
     unsigned char buf[4096];
     int bytes;
-    FILE* f;
+    XFILE f;
     const X509_NAME* a;
     const X509_NAME* b;
     int sz;
@@ -15906,10 +15906,10 @@ static void test_wolfSSL_X509_NAME(void)
     AssertNotNull(a = X509_NAME_new());
     X509_NAME_free((X509_NAME*)a);
 
-    f = fopen(file, "rb");
-    AssertNotNull(f);
-    bytes = (int)fread(buf, 1, sizeof(buf), f);
-    fclose(f);
+    f = XFOPEN(file, "rb");
+    AssertTrue(f != XBADFILE);
+    bytes = (int)XFREAD(buf, 1, sizeof(buf), f);
+    XFCLOSE(f);
 
     c = buf;
     AssertNotNull(x509 = wolfSSL_X509_load_certificate_buffer(c, bytes,
@@ -16605,7 +16605,8 @@ static void test_wolfSSL_PEM_PrivateKey(void)
         AssertNotNull(ctx = SSL_CTX_new(TLSv1_3_server_method()));
     #endif
 
-        AssertNotNull(f = XFOPEN("./certs/ecc-key.der", "rb"));
+        f = XFOPEN("./certs/ecc-key.der", "rb");
+        AssertTrue((f != XBADFILE));
         bytes = XFREAD(buf, 1, sizeof(buf), f);
         XFCLOSE(f);
 
@@ -16711,7 +16712,7 @@ static void test_wolfSSL_tmp_dh(void)
        !defined(NO_DH)
     byte buffer[5300];
     char file[] = "./certs/dsaparams.pem";
-    FILE *f;
+    XFILE f;
     int  bytes;
     DSA* dsa;
     DH*  dh;
@@ -16726,10 +16727,10 @@ static void test_wolfSSL_tmp_dh(void)
     AssertTrue(SSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, WOLFSSL_FILETYPE_PEM));
     AssertNotNull(ssl = SSL_new(ctx));
 
-    f = fopen(file, "rb");
-    AssertNotNull(f);
-    bytes = (int)fread(buffer, 1, sizeof(buffer), f);
-    fclose(f);
+    f = XFOPEN(file, "rb");
+    AssertTrue((f != XBADFILE));
+    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    XFCLOSE(f);
 
     bio = BIO_new_mem_buf((void*)buffer, bytes);
     AssertNotNull(bio);
@@ -17551,7 +17552,8 @@ static void test_wolfSSL_X509_STORE(void)
     AssertIntEQ(X509_STORE_add_cert(store, x509), SSL_SUCCESS);
     X509_free(x509);
 
-    AssertNotNull(fp = XFOPEN(crl_pem, "rb"));
+    fp = XFOPEN(crl_pem, "rb");
+    AssertTrue((fp != XBADFILE));
     AssertNotNull(crl = (X509_CRL *)PEM_read_X509_CRL(fp, (X509_CRL **)NULL, NULL, NULL));
     XFCLOSE(fp);
     AssertIntEQ(X509_STORE_add_crl(store, crl), SSL_SUCCESS);
@@ -17874,7 +17876,7 @@ static void test_wolfSSL_PEM_read_bio(void)
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
        !defined(NO_FILESYSTEM) && !defined(NO_RSA)
     byte buff[5300];
-    FILE *f;
+    XFILE f;
     int  bytes;
     X509* x509;
     BIO*  bio = NULL;
@@ -17882,9 +17884,10 @@ static void test_wolfSSL_PEM_read_bio(void)
 
     printf(testingFmt, "wolfSSL_PEM_read_bio()");
 
-    AssertNotNull(f = fopen(cliCertFile, "rb"));
-    bytes = (int)fread(buff, 1, sizeof(buff), f);
-    fclose(f);
+    f = XFOPEN(cliCertFile, "rb");
+    AssertTrue((f != XBADFILE));
+    bytes = (int)XFREAD(buff, 1, sizeof(buff), f);
+    XFCLOSE(f);
 
     AssertNull(x509 = PEM_read_bio_X509_AUX(bio, NULL, NULL, NULL));
     AssertNotNull(bio = BIO_new_mem_buf((void*)buff, bytes));
@@ -18065,6 +18068,7 @@ static void test_wolfSSL_BIO(void)
         AssertIntEQ((int)BIO_set_mem_eof_return(NULL, -1),   0);
 
         f1 = XFOPEN(svrCertFile, "rwb");
+        AssertTrue((f1 != XBADFILE));
         AssertIntEQ((int)BIO_set_fp(f_bio1, f1, BIO_CLOSE), WOLFSSL_SUCCESS);
         AssertIntEQ(BIO_write_filename(f_bio2, testFile),
                 WOLFSSL_SUCCESS);
@@ -18269,12 +18273,14 @@ static void test_wolfSSL_X509(void)
     BIO_free(bio);
 
     /** d2i_X509_fp test **/
-    AssertNotNull(fp = XFOPEN(der, "rb"));
+    fp = XFOPEN(der, "rb");
+    AssertTrue((fp != XBADFILE));
     AssertNotNull(x509 = (X509 *)d2i_X509_fp(fp, (X509 **)NULL));
     AssertNotNull(x509);
     X509_free(x509);
     XFCLOSE(fp);
-    AssertNotNull(fp = XFOPEN(der, "rb"));
+    fp = XFOPEN(der, "rb");
+    AssertTrue((fp != XBADFILE));
     AssertNotNull((X509 *)d2i_X509_fp(fp, (X509 **)&x509));
     AssertNotNull(x509);
     X509_free(x509);
@@ -18359,16 +18365,17 @@ static void test_wolfSSL_PKCS8_Compat(void)
     #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && defined(HAVE_ECC)
     PKCS8_PRIV_KEY_INFO* pt;
     BIO* bio;
-    FILE* f;
+    XFILE f;
     int bytes;
     char buffer[512];
 
     printf(testingFmt, "wolfSSL_pkcs8()");
 
     /* file from wolfssl/certs/ directory */
-    AssertNotNull(f = fopen("./certs/ecc-keyPkcs8.pem", "rb"));
-    AssertIntGT((bytes = (int)fread(buffer, 1, sizeof(buffer), f)), 0);
-    fclose(f);
+    f = XFOPEN("./certs/ecc-keyPkcs8.pem", "rb");
+    AssertTrue(f != XBADFILE);
+    AssertIntGT((bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f)), 0);
+    XFCLOSE(f);
     AssertNotNull(bio = BIO_new_mem_buf((void*)buffer, bytes));
     AssertNotNull(pt = d2i_PKCS8_PRIV_KEY_INFO_bio(bio, NULL));
     BIO_free(bio);
@@ -18639,6 +18646,7 @@ static void test_wolfSSL_BIO_gets(void)
         AssertIntLE(BIO_gets(f_bio, buffer, bufferSz), 0);
 
         f = XFOPEN(svrCertFile, "rb");
+        AssertTrue((f != XBADFILE));
         AssertIntEQ((int)BIO_set_fp(f_bio, f, BIO_CLOSE), SSL_SUCCESS);
         AssertIntGT(BIO_gets(f_bio, buffer, bufferSz), 0);
 
@@ -19014,7 +19022,8 @@ static void test_wolfSSL_sk_GENERAL_NAME(void)
 
     printf(testingFmt, "wolfSSL_sk_GENERAL_NAME()");
 
-    AssertNotNull(f = XFOPEN(cliCertDerFile, "rb"));
+    f = XFOPEN(cliCertDerFile, "rb");
+    AssertTrue((f != XBADFILE));
     AssertIntGT((bytes = (int)XFREAD(buf, 1, sizeof(buf), f)), 0);
     XFCLOSE(f);
 
@@ -19946,15 +19955,15 @@ static void test_wc_GetPkcs8TraditionalOffset(void)
     int length, derSz;
     word32 inOutIdx;
     const char* path = "./certs/server-keyPkcs8.der";
-    FILE* file;
+    XFILE file;
     byte der[2048];
 
     printf(testingFmt, "wc_GetPkcs8TraditionalOffset");
 
-    file = fopen(path, "rb");
-    AssertNotNull(file);
-    derSz = (int)fread(der, 1, sizeof(der), file);
-    fclose(file);
+    file = XFOPEN(path, "rb");
+    AssertTrue(file != XBADFILE);
+    derSz = (int)XFREAD(der, 1, sizeof(der), file);
+    XFCLOSE(file);
 
     /* valid case */
     inOutIdx = 0;
@@ -21060,12 +21069,14 @@ static void test_wolfSSL_X509_CRL(void)
 
     for (i = 0; pem[i][0] != '\0'; i++)
     {
-        AssertNotNull(fp = XFOPEN(pem[i], "rb"));
+        fp = XFOPEN(pem[i], "rb");
+        AssertTrue((fp != XBADFILE));
         AssertNotNull(crl = (X509_CRL *)PEM_read_X509_CRL(fp, (X509_CRL **)NULL, NULL, NULL));
         AssertNotNull(crl);
         X509_CRL_free(crl);
         XFCLOSE(fp);
-        AssertNotNull(fp = XFOPEN(pem[i], "rb"));
+        fp = XFOPEN(pem[i], "rb");
+        AssertTrue((fp != XBADFILE));
         AssertNotNull((X509_CRL *)PEM_read_X509_CRL(fp, (X509_CRL **)&crl, NULL, NULL));
         AssertNotNull(crl);
         X509_CRL_free(crl);
@@ -21074,12 +21085,14 @@ static void test_wolfSSL_X509_CRL(void)
 
 #ifdef HAVE_TEST_d2i_X509_CRL_fp
     for(i = 0; der[i][0] != '\0'; i++){
-        AssertNotNull(fp = XFOPEN(der[i], "rb"));
+        fp = XFOPEN(der[i], "rb");
+        AssertTrue((fp != XBADFILE));
         AssertNotNull(crl = (X509_CRL *)d2i_X509_CRL_fp((fp, X509_CRL **)NULL));
         AssertNotNull(crl);
         X509_CRL_free(crl);
         XFCLOSE(fp);
-        AssertNotNull(fp = XFOPEN(der[i], "rb"));
+        fp = XFOPEN(der[i], "rb");
+        AssertTrue((fp != XBADFILE));
         AssertNotNull((X509_CRL *)d2i_X509_CRL_fp(fp, (X509_CRL **)&crl));
         AssertNotNull(crl);
         X509_CRL_free(crl);
@@ -21099,7 +21112,8 @@ static void test_wolfSSL_PEM_read_X509(void)
     XFILE fp;
 
     printf(testingFmt, "wolfSSL_PEM_read_X509");
-    AssertNotNull(fp = XFOPEN(svrCertFile, "rb"));
+    fp = XFOPEN(svrCertFile, "rb");
+    AssertTrue((fp != XBADFILE));
     AssertNotNull(x509 = (X509 *)PEM_read_X509(fp, (X509 **)NULL, NULL, NULL));
     X509_free(x509);
     XFCLOSE(fp);
@@ -21292,7 +21306,7 @@ static void test_wolfSSL_RSA_verify()
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(HAVE_FAST_RSA) && \
     !defined(NO_FILESYSTEM) && defined(HAVE_CRL)
-    FILE *fp;
+    XFILE fp;
     RSA *pKey, *pubKey;
     X509 *cert;
     const char *text = "Hello wolfSSL !";
@@ -21314,6 +21328,7 @@ static void test_wolfSSL_RSA_verify()
 
     /* read privete key file */ 
     fp = XFOPEN(svrKeyFile, "r");
+    AssertTrue((fp != XBADFILE));
     XFSEEK(fp, 0, XSEEK_END);
     sz = XFTELL(fp);
     XREWIND(fp);
@@ -21330,6 +21345,7 @@ static void test_wolfSSL_RSA_verify()
 
     /* read public key and verify signed data */
     fp = XFOPEN(svrCertFile,"r");
+    AssertTrue((fp != XBADFILE));
     cert = PEM_read_X509(fp, 0, 0, 0 );
     XFCLOSE(fp);
     evpPubkey = X509_get_pubkey(cert);

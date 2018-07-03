@@ -564,7 +564,7 @@ extern void uITRON4_free(void *p) ;
     #include "tm/tmonitor.h"
 
     /* static char* gets(char *buff); */
-    static char* fgets(char *buff, int sz, FILE *fp) {
+    static char* fgets(char *buff, int sz, XFILE fp) {
         char * p = buff;
         *p = '\0';
         while (1) {

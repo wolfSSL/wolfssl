@@ -1068,7 +1068,8 @@ long wolfSSL_BIO_set_fp(WOLFSSL_BIO *bio, XFILE fp, int c)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_set_fp");
 
-    if (bio == NULL || fp == NULL) {
+    if (bio == NULL || fp == XBADFILE)
+    {
         WOLFSSL_LEAVE("wolfSSL_BIO_set_fp", BAD_FUNC_ARG);
         return WOLFSSL_FAILURE;
     }

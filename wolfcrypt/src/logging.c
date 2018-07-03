@@ -732,30 +732,33 @@ void wc_ERR_print_errors_fp(XFILE fp)
 {
     WOLFSSL_ENTER("wc_ERR_print_errors_fp");
 
-    if (wc_LockMutex(&debug_mutex) != 0) {
-        WOLFSSL_MSG("Lock debug mutex failed");
-    }
-    else {
-        /* free all nodes from error queue and print them to file */
+        if (wc_LockMutex(&debug_mutex) != 0)
         {
-            struct wc_error_queue* current;
-            struct wc_error_queue* next;
+            WOLFSSL_MSG("Lock debug mutex failed");
+        }
+        else
+        {
+            /* free all nodes from error queue and print them to file */
+            {
+                struct wc_error_queue *current;
+                struct wc_error_queue *next;
 
-            current = (struct wc_error_queue*)wc_errors;
-            while (current != NULL) {
-                next = current->next;
-                fprintf(fp, "%s\n", current->error);
-                XFREE(current, current->heap, DYNAMIC_TYPE_LOG);
-                current = next;
+                current = (struct wc_error_queue *)wc_errors;
+                while (current != NULL)
+                {
+                    next = current->next;
+                    fprintf(fp, "%s\n", current->error);
+                    XFREE(current, current->heap, DYNAMIC_TYPE_LOG);
+                    current = next;
+                }
+
+                /* set global pointers to match having been freed */
+                wc_errors = NULL;
+                wc_last_node = NULL;
             }
 
-            /* set global pointers to match having been freed */
-            wc_errors    = NULL;
-            wc_last_node = NULL;
+            wc_UnLockMutex(&debug_mutex);
         }
-
-        wc_UnLockMutex(&debug_mutex);
-    }
 }
 #endif /* !defined(NO_FILESYSTEM) && !defined(NO_STDIO_FILESYSTEM) */
 
