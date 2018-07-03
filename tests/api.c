@@ -19180,6 +19180,7 @@ static void test_wolfSSL_RSA_DER(void)
     {
         AssertNotNull(d2i_RSAPublicKey(&rsa, &pub[i].der, pub[i].sz));
         AssertNotNull(rsa);
+        AssertIntEQ(i2d_RSAPublicKey(rsa, NULL), pub[i].sz);
         buff = NULL;
         AssertIntEQ(i2d_RSAPublicKey(rsa, &buff), pub[i].sz);
         AssertNotNull(buff);
