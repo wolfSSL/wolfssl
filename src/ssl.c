@@ -30908,6 +30908,60 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         return &ne->object;
     }
 
+    static WOLFSSL_X509_NAME *get_nameByLoc( WOLFSSL_X509_NAME *name, int loc)
+    {
+        if ((loc < 0) || (loc >= name->fullName.entryCount))
+            return NULL;
+
+        switch (loc)
+        {
+        case 0: 
+            name->cnEntry.value->length = name->fullName.cnLen;
+            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.cnIdx];
+            break;
+        case 1:
+            name->cnEntry.value->length = name->fullName.cLen;
+            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.cIdx];
+            break;
+        case 2:
+            name->cnEntry.value->length = name->fullName.lLen;
+            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.lIdx];
+            break;
+        case 3:
+            name->cnEntry.value->length = name->fullName.stLen;
+            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.stIdx];
+            break;
+        case 4:
+            name->cnEntry.value->length = name->fullName.oLen;
+            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.oIdx];
+            break;
+        case 5:
+            name->cnEntry.value->length = name->fullName.ouLen;
+            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.ouIdx];
+            break;
+        case 6:
+            name->cnEntry.value->length = name->fullName.emailLen;
+            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.emailIdx];
+            break;
+        case 7:
+            name->cnEntry.value->length = name->fullName.snLen;
+            name->cnEntry.value->data = &name->fullName.fullName[name->fullName.snIdx];
+            break;
+        case 8:
+            name->cnEntry.value->length = name->fullName.uidLen;
+            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.uidIdx];
+            break;
+        case 9:
+            name->cnEntry.value->length = name->fullName.serialLen;
+            name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.serialIdx];
+            break;
+        default:
+            return NULL;
+        }
+        name->cnEntry.value->type   = CTC_UTF8;
+        return name;
+    }
+
 
     WOLFSSL_X509_NAME_ENTRY *wolfSSL_X509_NAME_get_entry(
                                              WOLFSSL_X509_NAME *name, int loc)
@@ -30951,6 +31005,11 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             name->cnEntry.data.type   = CTC_UTF8;
             name->cnEntry.nid         = ASN_COMMON_NAME;
             name->cnEntry.set         = 1;
+        }
+        
+        if((loc >= 0) && (loc < name->fullName.entryCount)){
+            if(get_nameByLoc(name, loc) == NULL)
+                return NULL;
         }
 
         wolfSSL_OBJ_nid2obj_ex(name->cnEntry.nid, &name->cnEntry.object);
