@@ -3373,6 +3373,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     #endif /* NEED_AES_CTR_SOFT */
 
 #endif /* WOLFSSL_AES_COUNTER */
+#endif /* !WOLFSSL_ARMASM */
 
 
 /*
@@ -3409,6 +3410,9 @@ static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 
 #endif
 
+#ifdef WOLFSSL_ARMASM
+    /* implementation is located in wolfcrypt/src/port/arm/armv8-aes.c */
+#else /* software + AESNI implementation */
 
 #if !defined(FREESCALE_LTC_AES_GCM)
 static WC_INLINE void IncrementGcmCounter(byte* inOutCtr)
@@ -9021,8 +9025,11 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #endif
 #endif /* HAVE_AES_DECRYPT || HAVE_AESGCM_DECRYPT */
 #endif /* (WOLFSSL_XILINX_CRYPT) */
+#endif /* end of block for AESGCM implementation selection */
 
 
+/* Common to all, abstract functions that build off of lower level AESGCM
+ * functions */
 #ifndef WC_NO_RNG
 
 int wc_AesGcmSetExtIV(Aes* aes, const byte* iv, word32 ivSz)
@@ -9199,10 +9206,16 @@ WOLFSSL_API int wc_GmacUpdate(Gmac* gmac, const byte* iv, word32 ivSz,
 
 int wc_AesCcmSetKey(Aes* aes, const byte* key, word32 keySz)
 {
+    if (!((keySz == 16) || (keySz == 24) || (keySz == 32)))
+        return BAD_FUNC_ARG;
+
     return wc_AesSetKey(aes, key, keySz, NULL, AES_ENCRYPTION);
 }
 
-#if defined(HAVE_COLDFIRE_SEC)
+#ifdef WOLFSSL_ARMASM
+    /* implementation located in wolfcrypt/src/port/arm/armv8-aes.c */
+
+#elif defined(HAVE_COLDFIRE_SEC)
     #error "Coldfire SEC doesn't currently support AES-CCM mode"
 
 #elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES)
@@ -9508,7 +9521,9 @@ int  wc_AesCcmDecrypt(Aes* aes, byte* out, const byte* in, word32 inSz,
 }
 
 #endif /* HAVE_AES_DECRYPT */
+#endif /* software AES CCM */
 
+/* abstract functions that call lower level AESCCM functions */
 #ifndef WC_NO_RNG
 
 int wc_AesCcmSetNonce(Aes* aes, const byte* nonce, word32 nonceSz)
@@ -9572,7 +9587,6 @@ int wc_AesCcmEncrypt_ex(Aes* aes, byte* out, const byte* in, word32 sz,
 }
 
 #endif /* WC_NO_RNG */
-#endif /* software AES CCM */
 
 #endif /* HAVE_AESCCM */
 
@@ -9641,7 +9655,6 @@ int wc_AesGetKeySize(Aes* aes, word32* keySize)
     return ret;
 }
 
-#endif /* !WOLFSSL_ARMASM */
 #endif /* !WOLFSSL_TI_CRYPT */
 
 #ifdef HAVE_AES_ECB
