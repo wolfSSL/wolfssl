@@ -17690,6 +17690,9 @@ static void msg_cb(int write_p, int version, int content_type,
    !defined(NO_FILESYSTEM) && defined(DEBUG_WOLFSSL) && \
    defined(HAVE_IO_TESTS_DEPENDENCIES)
 #ifndef SINGLE_THREADED
+#if defined(SESSION_CERTS)
+#include "wolfssl/internal.h"
+#endif
 static int msgCb(SSL_CTX *ctx, SSL *ssl)
 {
     (void) ctx;
