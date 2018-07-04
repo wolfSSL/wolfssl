@@ -25513,6 +25513,11 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* key,
 
 
     pkey = wolfSSL_PKEY_new_ex(bio->heap);
+    if (pkey == NULL) {
+        WOLFSSL_MSG("wolfSSL_PKEY_new_ex failed");
+        return SSL_FAILURE;
+    }
+
     pkey->type   = EVP_PKEY_RSA;
     pkey->rsa    = key;
     pkey->ownRsa = 0;
