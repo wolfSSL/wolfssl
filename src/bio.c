@@ -580,8 +580,8 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
                 const byte* c;
                 int   cSz;
                 cSz = wolfSSL_BIO_pending(bio);
-                if (cSz <= 0) {
-                    ret = (cSz == 0) ? WOLFSSL_BIO_ERROR : cSz;
+                if (cSz == 0) {
+                    ret = WOLFSSL_BIO_ERROR;
                     break;
                 }
 
@@ -604,7 +604,7 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
                 }
 
                 ret = wolfSSL_BIO_MEMORY_read(bio, (void*)buf, cSz);
-                /* ret is read after the switch statment */
+                /* ret is read after the switch statement */
                 break;
             }
         case WOLFSSL_BIO_BIO:
@@ -612,8 +612,8 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
                 char* c;
                 int   cSz;
                 cSz = wolfSSL_BIO_nread0(bio, &c);
-                if (cSz <= 0) {
-                    ret = (cSz == 0) ? WOLFSSL_BIO_ERROR : cSz;
+                if (cSz == 0) {
+                    ret = WOLFSSL_BIO_ERROR;
                     break;
                 }
 
