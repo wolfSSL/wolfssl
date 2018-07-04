@@ -6734,6 +6734,11 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
         case BASIC_CA_OID:
             if (x509->basicConstSet) {
                 obj = wolfSSL_ASN1_OBJECT_new();
+                if (obj == NULL) {
+                    WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                    wolfSSL_sk_ASN1_OBJECT_free(sk);
+                    return NULL;
+                }
                 if (c != NULL) {
                     *c = x509->basicConstCrit;
                 }
@@ -6763,6 +6768,11 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                     dns = x509->altNames;
                     while (dns != NULL) {
                         obj = wolfSSL_ASN1_OBJECT_new();
+                        if (obj == NULL) {
+                            WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                            wolfSSL_sk_ASN1_OBJECT_free(sk);
+                            return NULL;
+                        }
                         obj->type = dns->type;
                         obj->grp  = oidCertExtType;
                         obj->obj  = (byte*)dns->name;
@@ -6795,6 +6805,11 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                     *c = x509->CRLdistCrit;
                 }
                 obj = wolfSSL_ASN1_OBJECT_new();
+                if (obj == NULL) {
+                    WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                    wolfSSL_sk_ASN1_OBJECT_free(sk);
+                    return NULL;
+                }
                 obj->type  = CRL_DIST_OID;
                 obj->grp   = oidCertExtType;
                 obj->obj   = x509->CRLInfo;
@@ -6811,6 +6826,11 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                     *c = x509->authInfoCrit;
                 }
                 obj = wolfSSL_ASN1_OBJECT_new();
+                if (obj == NULL) {
+                    WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                    wolfSSL_sk_ASN1_OBJECT_free(sk);
+                    return NULL;
+                }
                 obj->type  = AUTH_INFO_OID;
                 obj->grp   = oidCertExtType;
                 obj->obj   = x509->authInfo;
@@ -6827,6 +6847,11 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                     *c = x509->authKeyIdCrit;
                 }
                 obj = wolfSSL_ASN1_OBJECT_new();
+                if (obj == NULL) {
+                    WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                    wolfSSL_sk_ASN1_OBJECT_free(sk);
+                    return NULL;
+                }
                 obj->type  = AUTH_KEY_OID;
                 obj->grp   = oidCertExtType;
                 obj->obj   = x509->authKeyId;
@@ -6843,6 +6868,11 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                     *c = x509->subjKeyIdCrit;
                 }
                 obj = wolfSSL_ASN1_OBJECT_new();
+                if (obj == NULL) {
+                    WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                    wolfSSL_sk_ASN1_OBJECT_free(sk);
+                    return NULL;
+                }
                 obj->type  = SUBJ_KEY_OID;
                 obj->grp   = oidCertExtType;
                 obj->obj   = x509->subjKeyId;
@@ -6870,6 +6900,11 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
 
                     for (i = 0; i < x509->certPoliciesNb - 1; i++) {
                         obj = wolfSSL_ASN1_OBJECT_new();
+                        if (obj == NULL) {
+                            WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                            wolfSSL_sk_ASN1_OBJECT_free(sk);
+                            return NULL;
+                        }
                         obj->type  = CERT_POLICY_OID;
                         obj->grp   = oidCertExtType;
                         obj->obj   = (byte*)(x509->certPolicies[i]);
@@ -6883,6 +6918,11 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                         }
                     }
                     obj = wolfSSL_ASN1_OBJECT_new();
+                    if (obj == NULL) {
+                        WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                        wolfSSL_sk_ASN1_OBJECT_free(sk);
+                        return NULL;
+                    }
                     obj->type  = CERT_POLICY_OID;
                     obj->grp   = oidCertExtType;
                     obj->obj   = (byte*)(x509->certPolicies[i]);
@@ -6899,6 +6939,11 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                         *c = x509->certPolicyCrit;
                     }
                     obj = wolfSSL_ASN1_OBJECT_new();
+                    if (obj == NULL) {
+                        WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                        wolfSSL_sk_ASN1_OBJECT_free(sk);
+                        return NULL;
+                    }
                     obj->type  = CERT_POLICY_OID;
                     obj->grp   = oidCertExtType;
                 }
@@ -6917,6 +6962,11 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                     *c = x509->keyUsageCrit;
                 }
                 obj = wolfSSL_ASN1_OBJECT_new();
+                if (obj == NULL) {
+                    WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                    wolfSSL_sk_ASN1_OBJECT_free(sk);
+                    return NULL;
+                }
                 obj->type  = KEY_USAGE_OID;
                 obj->grp   = oidCertExtType;
                 obj->obj   = (byte*)&(x509->keyUsage);
@@ -6942,6 +6992,11 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                     }
                 }
                 obj = wolfSSL_ASN1_OBJECT_new();
+                if (obj == NULL) {
+                    WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                    wolfSSL_sk_ASN1_OBJECT_free(sk);
+                    return NULL;
+                }
                 obj->type  = EXT_KEY_USAGE_OID;
                 obj->grp   = oidCertExtType;
                 obj->obj   = x509->extKeyUsageSrc;
