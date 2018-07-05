@@ -5348,16 +5348,40 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
             #ifndef NO_RSA
                 case RSAk:
                 {
-                    ret = wc_RsaSSL_VerifyInline(sigCtx->plain, sigSz,
-                                                &sigCtx->out, sigCtx->key.rsa);
+                #ifdef HAVE_PK_CALLBACKS
+                    if (sigCtx->pkCbRsa) {
+                        ret = sigCtx->pkCbRsa(
+                                sigCtx->plain, sigSz, &sigCtx->out,
+                                key, keySz,
+                                sigCtx->pkCtx);
+                    }
+                    else
+                #endif /* HAVE_PK_CALLBACKS */
+                    {
+                        ret = wc_RsaSSL_VerifyInline(sigCtx->plain, sigSz,
+                                                 &sigCtx->out, sigCtx->key.rsa);
+                    }
                     break;
                 }
             #endif /* !NO_RSA */
             #ifdef HAVE_ECC
                 case ECDSAk:
                 {
-                    ret = wc_ecc_verify_hash(sig, sigSz, sigCtx->digest,
-                        sigCtx->digestSz, &sigCtx->verify, sigCtx->key.ecc);
+                #ifdef HAVE_PK_CALLBACKS
+                    if (sigCtx->pkCbEcc) {
+                        ret = sigCtx->pkCbEcc(
+                                sig, sigSz,
+                                sigCtx->digest, sigCtx->digestSz,
+                                key, keySz, &sigCtx->verify,
+                                sigCtx->pkCtx);
+                    }
+                    else
+                #endif /* HAVE_PK_CALLBACKS */
+                    {
+                        ret = wc_ecc_verify_hash(sig, sigSz, sigCtx->digest,
+                                            sigCtx->digestSz, &sigCtx->verify,
+                                            sigCtx->key.ecc);
+                    }
                     break;
                 }
             #endif /* HAVE_ECC */

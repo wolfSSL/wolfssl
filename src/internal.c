@@ -8162,6 +8162,112 @@ static int ProcessCSR(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 #endif
 
 
+
+#ifdef HAVE_PK_CALLBACKS
+
+    typedef struct wolfPkCbInfo {
+        WOLFSSL* ssl;
+    #ifdef HAVE_ECC
+        struct {
+            CallbackEccVerify pk;
+            void* ctx;
+        } ecc;
+    #endif
+    #ifndef NO_RSA
+        struct {
+            CallbackRsaVerify pk;
+            void* ctx;
+        } rsa;
+    #endif
+    } wolfPkCbInfo;
+
+#ifdef HAVE_ECC
+    static int SigPkCbEccVerify(const unsigned char* sig, unsigned int sigSz,
+       const unsigned char* hash, unsigned int hashSz,
+       const unsigned char* keyDer, unsigned int keySz,
+       int* result, void* ctx)
+    {
+        int ret = NOT_COMPILED_IN;
+        wolfPkCbInfo* info = (wolfPkCbInfo*)ctx;
+
+        if (info && info->ecc.pk) {
+            ret = info->ecc.pk(info->ssl, sig, sigSz, hash, hashSz,
+                keyDer, keySz, result, info->ecc.ctx);
+        }
+        return ret;
+    }
+#endif
+#ifndef NO_RSA
+    static int SigPkCbRsaVerify(unsigned char* sig, unsigned int sigSz,
+       unsigned char** out, const unsigned char* keyDer, unsigned int keySz,
+       void* ctx)
+    {
+        int ret = NOT_COMPILED_IN;
+        wolfPkCbInfo* info = (wolfPkCbInfo*)ctx;
+
+        if (info && info->rsa.pk) {
+            ret = info->rsa.pk(info->ssl, sig, sigSz, out, keyDer, keySz,
+                info->rsa.ctx);
+        }
+        return ret;
+    }
+#endif
+
+int InitSigPkCb(const WOLFSSL* ssl, SignatureCtx* sigCtx)
+{
+    wolfPkCbInfo* info;
+    int setupPk = 0;
+
+    if (ssl == NULL || sigCtx == NULL)
+        return BAD_FUNC_ARG;
+
+    /* only setup the verify callback if a PK is set */
+#ifdef HAVE_ECC
+    if (ssl->ctx->EccVerifyCb)
+        setupPk = 1;
+#endif
+#ifndef NO_RSA
+    if (ssl->ctx->RsaVerifyCb)
+        setupPk = 1;
+#endif
+
+    if (setupPk) {
+        info = (wolfPkCbInfo*)XMALLOC(sizeof(wolfPkCbInfo), ssl->heap,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (info == NULL) {
+            return MEMORY_E;
+        }
+
+        XMEMSET(info, 0, sizeof(wolfPkCbInfo));
+        sigCtx->pkCtx = info;
+    #ifdef HAVE_ECC
+        info->ecc.pk = ssl->ctx->EccVerifyCb;
+        info->ecc.ctx = ssl->EccVerifyCtx;
+        sigCtx->pkCbEcc = SigPkCbEccVerify;
+    #endif
+    #ifndef NO_RSA
+        info->rsa.pk = ssl->ctx->RsaVerifyCb;
+        info->rsa.ctx = ssl->RsaVerifyCtx;
+        sigCtx->pkCbRsa = SigPkCbRsaVerify;
+    #endif
+    }
+
+    return 0;
+}
+
+void FreeSigPkCb(const WOLFSSL* ssl, SignatureCtx* sigCtx)
+{
+    if (ssl == NULL || sigCtx == NULL)
+        return;
+
+    if (sigCtx->pkCtx) {
+        XFREE(sigCtx->pkCtx, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        sigCtx->pkCtx = NULL;
+    }
+}
+#endif /* HAVE_PK_CALLBACKS */
+
+
 typedef struct ProcPeerCertArgs {
     buffer*      certs;
 #ifdef WOLFSSL_TLS13
@@ -8213,6 +8319,9 @@ static void FreeProcPeerCertArgs(WOLFSSL* ssl, void* pArgs)
 #endif
     if (args->dCert) {
         if (args->dCertInit) {
+        #ifdef HAVE_PK_CALLBACKS
+            FreeSigPkCb(ssl, &args->dCert->sigCtx);
+        #endif
             FreeDecodedCert(args->dCert);
             args->dCertInit = 0;
         }
@@ -8479,6 +8588,11 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         args->dCert->sigCtx.asyncCtx = ssl;
                     #endif
                         args->dCertInit = 1;
+                    #ifdef HAVE_PK_CALLBACKS
+                        ret = InitSigPkCb(ssl, &args->dCert->sigCtx);
+                        if (ret != 0)
+                            goto exit_ppc;
+                    #endif
                     }
 
                     ret = ParseCertRelative(args->dCert, CERT_TYPE, 0,
@@ -8512,6 +8626,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         /* no trusted peer cert */
                         WOLFSSL_MSG("No matching trusted peer cert. "
                             "Checking CAs");
+                    #ifdef HAVE_PK_CALLBACKS
+                        FreeSigPkCb(ssl, &args->dCert->sigCtx);
+                    #endif
                         FreeDecodedCert(args->dCert);
                         args->dCertInit = 0;
                     #ifdef OPENSSL_EXTRA
@@ -8522,6 +8639,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         haveTrustPeer = 1;
                     } else {
                         WOLFSSL_MSG("Trusted peer cert did not match!");
+                    #ifdef HAVE_PK_CALLBACKS
+                        FreeSigPkCb(ssl, &args->dCert->sigCtx);
+                    #endif
                         FreeDecodedCert(args->dCert);
                         args->dCertInit = 0;
                     #ifdef OPENSSL_EXTRA
@@ -8546,6 +8666,11 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         args->dCert->sigCtx.asyncCtx = ssl;
                     #endif
                         args->dCertInit = 1;
+                    #ifdef HAVE_PK_CALLBACKS
+                        ret = InitSigPkCb(ssl, &args->dCert->sigCtx);
+                        if (ret != 0)
+                            goto exit_ppc;
+                    #endif
                     }
 
                     ret = ParseCertRelative(args->dCert, CERT_TYPE, 0,
@@ -8568,6 +8693,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif
                     if (!AlreadySigner(ssl->ctx->cm, subjectHash))
                         args->untrustedDepth = 1;
+                #ifdef HAVE_PK_CALLBACKS
+                    FreeSigPkCb(ssl, &args->dCert->sigCtx);
+                #endif
                     FreeDecodedCert(args->dCert);
                     args->dCertInit = 0;
                 }
@@ -8593,6 +8721,11 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         args->dCert->sigCtx.asyncCtx = ssl;
                     #endif
                         args->dCertInit = 1;
+                    #ifdef HAVE_PK_CALLBACKS
+                        ret = InitSigPkCb(ssl, &args->dCert->sigCtx);
+                        if (ret != 0)
+                            goto exit_ppc;
+                    #endif
                     }
 
                     /* check if returning from non-blocking OCSP */
@@ -8974,6 +9107,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         ret = 0; /* reset error */
                     }
 
+                #ifdef HAVE_PK_CALLBACKS
+                    FreeSigPkCb(ssl, &args->dCert->sigCtx);
+                #endif
                     FreeDecodedCert(args->dCert);
                     args->dCertInit = 0;
                     args->count--;
@@ -9007,6 +9143,11 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     args->dCert->sigCtx.asyncCtx = ssl;
                 #endif
                     args->dCertInit = 1;
+                #ifdef HAVE_PK_CALLBACKS
+                    ret = InitSigPkCb(ssl, &args->dCert->sigCtx);
+                    if (ret != 0)
+                        goto exit_ppc;
+                #endif
                 }
 
             #ifdef WOLFSSL_TRUST_PEER_CERT
@@ -9466,6 +9607,9 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         break;
                 }
 
+            #ifdef HAVE_PK_CALLBACKS
+                FreeSigPkCb(ssl, &args->dCert->sigCtx);
+            #endif
                 FreeDecodedCert(args->dCert);
                 args->dCertInit = 0;
 
