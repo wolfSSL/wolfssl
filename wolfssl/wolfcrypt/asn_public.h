@@ -50,8 +50,6 @@
     #define WC_RNG_TYPE_DEFINED
 #endif
 
-struct WOLFSSL_CTX;
-
 
 /* Certificate file Type */
 enum CertType {
