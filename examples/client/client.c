@@ -1972,12 +1972,6 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 err_sys("unable to use curve secp256r1");
             }
             #endif
-            #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
-            if (wolfSSL_UseKeyShare(ssl, WOLFSSL_ECC_SECP384R1)
-                                                           != WOLFSSL_SUCCESS) {
-                err_sys("unable to use curve secp384r1");
-            }
-            #endif
         #endif
         }
         if (onlyKeyShare == 0 || onlyKeyShare == 1) {

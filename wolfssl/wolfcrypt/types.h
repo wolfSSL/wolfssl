@@ -228,6 +228,20 @@
 	    extern void *XMALLOC(size_t n, void* heap, int type);
 	    extern void *XREALLOC(void *p, size_t n, void* heap, int type);
 	    extern void XFREE(void *p, void* heap, int type);
+    #elif defined(WOLFSSL_MEMORY_TRACKING)
+        #define XMALLOC(n, h, t)        xmalloc(n, h, t, __FILE__, __LINE__)
+        #define XREALLOC(p, n, h, t)    xrealloc(p, n, h, t, __FILE__, __LINE__)
+        #define XFREE(p, h, t)          xfree(p, h, t, __FILE__, __LINE__)
+
+        /* prototypes for user heap override functions */
+        #include <stddef.h>  /* for size_t */
+        #include <stdlib.h>
+        extern void *xmalloc(size_t n, void* heap, int type, const char* func,
+              unsigned int line);
+        extern void *xrealloc(void *p, size_t n, void* heap, int type,
+              const char* func, unsigned int line);
+        extern void xfree(void *p, void* heap, int type, const char* func,
+              unsigned int line);
     #elif defined(XMALLOC_OVERRIDE)
         /* override the XMALLOC, XFREE and XREALLOC macros */
 	#elif defined(NO_WOLFSSL_MEMORY)

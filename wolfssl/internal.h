@@ -3278,8 +3278,6 @@ typedef struct Arrays {
     byte            sessionID[ID_LEN];
     byte            sessionIDSz;
 #ifdef WOLFSSL_TLS13
-    byte            clientSecret[SECRET_LEN];
-    byte            serverSecret[SECRET_LEN];
     byte            secret[SECRET_LEN];
 #endif
     byte            masterSecret[SECRET_LEN];
@@ -3572,6 +3570,10 @@ struct WOLFSSL {
     WOLFSSL_CTX*    ctx;
     Suites*         suites;             /* only need during handshake */
     Arrays*         arrays;
+#ifdef WOLFSSL_TLS13
+    byte            clientSecret[SECRET_LEN];
+    byte            serverSecret[SECRET_LEN];
+#endif
     HS_Hashes*      hsHashes;
     void*           IOCB_ReadCtx;
     void*           IOCB_WriteCtx;

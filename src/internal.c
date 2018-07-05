@@ -5072,6 +5072,13 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     /* clear keys struct after session */
     ForceZero(&ssl->keys, sizeof(Keys));
 
+#ifdef WOLFSSL_TLS13
+    if (ssl->options.tls1_3) {
+        ForceZero(&ssl->clientSecret, sizeof(ssl->clientSecret));
+        ForceZero(&ssl->serverSecret, sizeof(ssl->serverSecret));
+    }
+#endif
+
 #ifndef NO_DH
     if (ssl->buffers.serverDH_Priv.buffer) {
         ForceZero(ssl->buffers.serverDH_Priv.buffer,
@@ -5274,22 +5281,34 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     if (ssl->buffers.inputBuffer.dynamicFlag)
         ShrinkInputBuffer(ssl, NO_FORCED_FREE);
 
-    /* suites */
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+    if (!ssl->options.tls1_3)
+#endif
+    {
+        /* suites */
 #ifdef SINGLE_THREADED
         if (ssl->suites != ssl->ctx->suites)
 #endif
             XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
-    ssl->suites = NULL;
+        ssl->suites = NULL;
 
-    /* hsHashes */
-    FreeHandshakeHashes(ssl);
+        /* hsHashes */
+        FreeHandshakeHashes(ssl);
+    }
 
     /* RNG */
     if (ssl->options.tls1_1 == 0
 #ifndef WOLFSSL_AEAD_ONLY
         || ssl->specs.cipher_type == stream
 #endif
-        ) {
+#if defined(WOLFSSL_TLS13)
+    #if !defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+                                                          || ssl->options.tls1_3
+    #elif !defined(HAVE_SESSION_TICKET)
+             || (ssl->options.tls1_3 && ssl->options.side == WOLFSSL_SERVER_END)
+    #endif
+#endif
+                                                                             ) {
         if (ssl->options.weOwnRng) {
             wc_FreeRng(ssl->rng);
             XFREE(ssl->rng, ssl->heap, DYNAMIC_TYPE_RNG);
@@ -5308,23 +5327,39 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     }
 #endif
 
-    /* arrays */
-    if (ssl->options.saveArrays == 0)
-        FreeArrays(ssl, 1);
-
-#ifndef NO_RSA
-    /* peerRsaKey */
-    FreeKey(ssl, DYNAMIC_TYPE_RSA, (void**)&ssl->peerRsaKey);
-    ssl->peerRsaKeyPresent = 0;
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH) && \
+                                                    defined(HAVE_SESSION_TICKET)
+    if (!ssl->options.tls1_3)
 #endif
+        /* arrays */
+        if (ssl->options.saveArrays == 0)
+            FreeArrays(ssl, 1);
+
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+    if (!ssl->options.tls1_3 || ssl->options.side == WOLFSSL_CLIENT_END)
+#endif
+    {
+#ifndef NO_RSA
+        /* peerRsaKey */
+        FreeKey(ssl, DYNAMIC_TYPE_RSA, (void**)&ssl->peerRsaKey);
+        ssl->peerRsaKeyPresent = 0;
+#endif
+#ifdef HAVE_ECC
+        FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->peerEccDsaKey);
+        ssl->peerEccDsaKeyPresent = 0;
+#endif /* HAVE_ECC */
+#ifdef HAVE_ED25519
+        FreeKey(ssl, DYNAMIC_TYPE_ED25519, (void**)&ssl->peerEd25519Key);
+        ssl->peerEd25519KeyPresent = 0;
+#endif /* HAVE_ED25519 */
+    }
 
 #ifdef HAVE_ECC
     FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->peerEccKey);
     ssl->peerEccKeyPresent = 0;
-    FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->peerEccDsaKey);
-    ssl->peerEccDsaKeyPresent = 0;
-#endif
-#if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
+#ifdef HAVE_CURVE25519
+    if (ssl->ecdhCurveOID != ECC_X25519_OID)
+#endif /* HAVE_CURVE25519 */
     {
         int dtype;
     #ifdef HAVE_ECC
@@ -5346,7 +5381,9 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 #ifdef HAVE_CURVE25519
     FreeKey(ssl, DYNAMIC_TYPE_CURVE25519, (void**)&ssl->peerX25519Key);
     ssl->peerX25519KeyPresent = 0;
-#endif
+#endif /* HAVE_CURVE25519 */
+#endif /* HAVE_ECC */
+
 #ifndef NO_DH
     if (ssl->buffers.serverDH_Priv.buffer) {
         ForceZero(ssl->buffers.serverDH_Priv.buffer,
@@ -5364,10 +5401,15 @@ void FreeHandshakeResources(WOLFSSL* ssl)
         ssl->buffers.serverDH_P.buffer = NULL;
     }
 #endif /* !NO_DH */
+
 #ifndef NO_CERTS
     wolfSSL_UnloadCertsKeys(ssl);
 #endif
 #ifdef HAVE_PK_CALLBACKS
+#if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+    if (!ssl->options.tls1_3 || ssl->options.side == WOLFSSL_CLIENT_END)
+#endif
+    {
     #ifdef HAVE_ECC
         XFREE(ssl->buffers.peerEccDsaKey.buffer, ssl->heap, DYNAMIC_TYPE_ECC);
         ssl->buffers.peerEccDsaKey.buffer = NULL;
@@ -5381,6 +5423,7 @@ void FreeHandshakeResources(WOLFSSL* ssl)
                                                           DYNAMIC_TYPE_ED25519);
         ssl->buffers.peerEd25519Key.buffer = NULL;
     #endif
+    }
 #endif /* HAVE_PK_CALLBACKS */
 
 #ifdef HAVE_QSH
@@ -5394,6 +5437,13 @@ void FreeHandshakeResources(WOLFSSL* ssl)
         ssl->session.isDynamic = 0;
         ssl->session.ticketLen = 0;
     }
+#endif
+
+#if defined(HAVE_TLS_EXTENSIONS) && !defined(HAVE_SNI) && \
+                    !defined(HAVE_ALPN) && !defined(WOLFSSL_POST_HANDSHAKE_AUTH)
+    /* Some extensions need to be kept for post-handshake querying. */
+    TLSX_FreeAll(ssl->extensions, ssl->heap);
+    ssl->extensions = NULL;
 #endif
 
 #ifdef WOLFSSL_STATIC_MEMORY
@@ -15396,7 +15446,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return "Certificate context does not match request or not empty";
 
     case BAD_KEY_SHARE_DATA:
-        return "The Key Share data contains group that was in Client Hello";
+        return "The Key Share data contains group that wasn't in Client Hello";
 
     case MISSING_HANDSHAKE_DATA:
         return "The handshake message is missing required data";
@@ -18240,6 +18290,11 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                                 args->sigSz = (word16)ret;
                                 ret = 0;
                             }
+
+                            /* peerRsaKey */
+                            FreeKey(ssl, DYNAMIC_TYPE_RSA,
+                                                      (void**)&ssl->peerRsaKey);
+                            ssl->peerRsaKeyPresent = 0;
                             break;
                         }
                     #endif /* !NO_RSA */
@@ -20454,7 +20509,14 @@ int SetTicket(WOLFSSL* ssl, const byte* ticket, word32 length)
         /* Create a fake sessionID based on the ticket, this will
          * supercede the existing session cache info. */
         ssl->options.haveSessionId = 1;
-        XMEMCPY(ssl->arrays->sessionID,
+#ifdef WOLFSSL_TLS13
+        if (ssl->options.tls1_3) {
+            XMEMCPY(ssl->session.sessionID,
+                                 ssl->session.ticket + length - ID_LEN, ID_LEN);
+        }
+        else
+#endif
+            XMEMCPY(ssl->arrays->sessionID,
                                  ssl->session.ticket + length - ID_LEN, ID_LEN);
     }
 

@@ -9655,7 +9655,7 @@ WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
         return NULL;
 #endif
 
-    if (ssl->arrays)
+    if (!ssl->options.tls1_3 && ssl->arrays != NULL)
         id = ssl->arrays->sessionID;
     else
         id = ssl->session.sessionID;
@@ -9932,8 +9932,17 @@ int AddSession(WOLFSSL* ssl)
     {
         /* Use the session object in the cache for external cache if required.
          */
-        row = HashSession(ssl->arrays->sessionID, ID_LEN, &error) %
-                SESSION_ROWS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+        if (ssl->options.tls1_3) {
+            row = HashSession(ssl->session.sessionID, ID_LEN, &error) %
+                    SESSION_ROWS;
+        }
+        else
+#endif
+        {
+            row = HashSession(ssl->arrays->sessionID, ID_LEN, &error) %
+                    SESSION_ROWS;
+        }
         if (error != 0) {
             WOLFSSL_MSG("Hash session failed");
 #ifdef HAVE_SESSION_TICKET
@@ -9961,8 +9970,17 @@ int AddSession(WOLFSSL* ssl)
     else
         XMEMCPY(session->masterSecret, ssl->session.masterSecret, SECRET_LEN);
     session->haveEMS = ssl->options.haveEMS;
-    XMEMCPY(session->sessionID, ssl->arrays->sessionID, ID_LEN);
-    session->sessionIDSz = ssl->arrays->sessionIDSz;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+    if (ssl->options.tls1_3) {
+        XMEMCPY(session->sessionID, ssl->session.sessionID, ID_LEN);
+        session->sessionIDSz = ID_LEN;
+    }
+    else
+#endif
+    {
+        XMEMCPY(session->sessionID, ssl->arrays->sessionID, ID_LEN);
+        session->sessionIDSz = ssl->arrays->sessionIDSz;
+    }
 
 #ifdef OPENSSL_EXTRA
     /* If using compatibilty layer then check for and copy over session context
