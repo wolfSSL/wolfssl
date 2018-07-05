@@ -4466,7 +4466,6 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
         pkcs7->der = (byte*)XMALLOC(len, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         if (pkcs7->der == NULL)
             return MEMORY_E;
-        len = 0;
         ret = wc_BerToDer(pkiMsg, pkiMsgSz, pkcs7->der, &len);
         if (ret < 0)
             return ret;
