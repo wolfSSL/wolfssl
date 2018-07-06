@@ -2945,10 +2945,60 @@ int fp_isprime(fp_int *a)
   return fp_isprime_ex(a, 8);
 }
 
+
+int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
+{
+    int ret = FP_YES;
+
+    if (a == NULL || result == NULL || rng == NULL)
+        return FP_VAL;
+
+    /* do trial division */
+    if (ret == FP_YES) {
+        fp_digit d;
+        int r;
+
+        for (r = 0; r < FP_PRIME_SIZE; r++) {
+            if (fp_mod_d(a, primes[r], &d) == MP_OKAY) {
+                if (d == 0)
+                    ret = FP_NO;
+            }
+            else
+                return FP_VAL;
+        }
+    }
+
+    /* now do a miller rabin with up to t random numbers, this should
+     * give a (1/4)^t chance of a false prime. */
+    if (ret == FP_YES) {
+        byte scratch[16];
+        fp_int b;
+
+        fp_init(&b);
+        while (t > 0) {
+            wc_RNG_GenerateBlock(rng, scratch, sizeof(scratch));
+            fp_read_unsigned_bin(&b, scratch, sizeof(scratch));
+            fp_prime_miller_rabin(a, &b, &ret);
+            if (ret == FP_NO)
+                break;
+            fp_zero(&b);
+            t--;
+        }
+        fp_clear(&b);
+    }
+
+    *result = ret;
+    return FP_OKAY;
+}
+
+
 int fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap)
 {
     static const int USE_BBS = 1;
     int   err, type;
+    int   isPrime = FP_YES;
+        /* Assume the candidate is probably prime and then test until
+         * it is proven composite. */
     byte* buf;
 
     /* get type */
@@ -2991,7 +3041,10 @@ int fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap)
         fp_read_unsigned_bin(N, buf, len);
 
         /* test */
-    } while (fp_isprime(N) == FP_NO);
+        /* Running Miller-Rabin up to 40 times gives us a 2^{-80} chance
+         * of a candidate being a false positive. */
+        mp_prime_is_prime_ex(N, 40, &isPrime, rng);
+    } while (isPrime == FP_NO);
 
     XMEMSET(buf, 0, len);
     XFREE(buf, heap, DYNAMIC_TYPE_TMP_BUFFER);
