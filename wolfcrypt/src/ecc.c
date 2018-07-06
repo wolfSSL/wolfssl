@@ -1353,7 +1353,7 @@ static int wc_ecc_curve_load(const ecc_set_type* dp, ecc_curve_spec** pCurve,
     curve->dp = dp; /* set dp info */
 
     /* determine items to load */
-    load_items = (~curve->load_mask & load_mask);
+    load_items = (~(word32)curve->load_mask & load_mask);
     curve->load_mask |= load_items;
 
     /* load items */

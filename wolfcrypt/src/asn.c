@@ -8660,7 +8660,7 @@ int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen)
 int wc_InitCert(Cert* cert)
 {
 #ifdef WOLFSSL_MULTI_ATTRIB
-    int i;
+    int i = 0;
 #endif
     if (cert == NULL) {
         return BAD_FUNC_ARG;
