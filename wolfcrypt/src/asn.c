@@ -9049,18 +9049,6 @@ static int CopyValidity(byte* output, Cert* cert)
 #endif
 
 
-/* for systems where mktime() doesn't normalize fully */
-static void RebuildTime(time_t* in, struct tm* out)
-{
-    #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
-        out = localtime_r(in, out);
-    #else
-        (void)in;
-        (void)out;
-    #endif
-}
-
-
 /* Set Date validity from now until now + daysValid
  * return size in bytes written to output, 0 on error */
 static int SetValidity(byte* output, int daysValid)
@@ -9072,11 +9060,11 @@ static int SetValidity(byte* output, int daysValid)
     int afterSz;
     int seqSz;
 
-    time_t     ticks;
-    time_t     normalTime;
-    struct tm* now;
+    time_t now;
+    time_t then;
     struct tm* tmpTime = NULL;
-    struct tm  local;
+    struct tm* expandedTime;
+    struct tm localTime;
 
 #if defined(NEED_TMP_TIME)
     /* for use with gmtime_r */
@@ -9086,46 +9074,45 @@ static int SetValidity(byte* output, int daysValid)
     (void)tmpTime;
 #endif
 
-    ticks = XTIME(0);
-    now   = XGMTIME(&ticks, tmpTime);
+    now = XTIME(0);
 
-    if (now == NULL) {
+    /* before now */
+    before[0] = ASN_GENERALIZED_TIME;
+    beforeSz = SetLength(ASN_GEN_TIME_SZ, before + 1) + 1;  /* gen tag */
+
+    /* subtract 1 day of seconds for more compliance */
+    then = now - 86400;
+    expandedTime = XGMTIME(&then, tmpTime);
+    if (expandedTime == NULL) {
         WOLFSSL_MSG("XGMTIME failed");
         return 0;   /* error */
     }
-
-    /* before now */
-    local = *now;
-    before[0] = ASN_GENERALIZED_TIME;
-    beforeSz  = SetLength(ASN_GEN_TIME_SZ, before + 1) + 1;  /* gen tag */
-
-    /* subtract 1 day for more compliance */
-    local.tm_mday -= 1;
-    normalTime = mktime(&local);
-    RebuildTime(&normalTime, &local);
+    localTime = *expandedTime;
 
     /* adjust */
-    local.tm_year += 1900;
-    local.tm_mon  +=    1;
+    localTime.tm_year += 1900;
+    localTime.tm_mon +=    1;
 
-    SetTime(&local, before + beforeSz);
+    SetTime(&localTime, before + beforeSz);
     beforeSz += ASN_GEN_TIME_SZ;
 
-    /* after now + daysValid */
-    local = *now;
     after[0] = ASN_GENERALIZED_TIME;
     afterSz  = SetLength(ASN_GEN_TIME_SZ, after + 1) + 1;  /* gen tag */
 
-    /* add daysValid */
-    local.tm_mday += daysValid;
-    normalTime = mktime(&local);
-    RebuildTime(&normalTime, &local);
+    /* add daysValid of seconds */
+    then = now + (daysValid * 3600);
+    expandedTime = XGMTIME(&then, tmpTime);
+    if (expandedTime == NULL) {
+        WOLFSSL_MSG("XGMTIME failed");
+        return 0;   /* error */
+    }
+    localTime = *expandedTime;
 
     /* adjust */
-    local.tm_year += 1900;
-    local.tm_mon  +=    1;
+    localTime.tm_year += 1900;
+    localTime.tm_mon  +=    1;
 
-    SetTime(&local, after + afterSz);
+    SetTime(&localTime, after + afterSz);
     afterSz += ASN_GEN_TIME_SZ;
 
     /* headers and output */
