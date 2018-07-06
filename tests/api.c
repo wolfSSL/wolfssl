@@ -17714,12 +17714,13 @@ static void test_wolfSSL_BIO_gets(void)
     AssertNotNull(bio = BIO_new_mem_buf((void*)emp, sizeof(emp)));
     AssertIntEQ(BIO_gets(bio, buffer, bufferSz), 1); /* just terminator */
     AssertStrEQ(emp, buffer);
+    AssertIntEQ(BIO_gets(bio, buffer, bufferSz), 0); /* Nothing to read */
 
     /* check error cases */
     BIO_free(bio);
     AssertIntEQ(BIO_gets(NULL, NULL, 0), SSL_FAILURE);
     AssertNotNull(bio = BIO_new(BIO_s_mem()));
-    AssertIntEQ(BIO_gets(bio, buffer, 2), -1); /* nothing to read */
+    AssertIntEQ(BIO_gets(bio, buffer, 2), 0); /* nothing to read */
 
 #if !defined(NO_FILESYSTEM)
     {
@@ -17743,6 +17744,7 @@ static void test_wolfSSL_BIO_gets(void)
     XMEMCPY(msg, "\nhello wolfSSL\n security plus\t---...**adf\na...b.c",
             sizeof(msg));
     AssertNotNull(bio = BIO_new(BIO_s_bio()));
+    AssertIntEQ(BIO_gets(bio, buffer, 2), 0); /* nothing to read */
     AssertNotNull(bio2 = BIO_new(BIO_s_bio()));
 
     AssertIntEQ(BIO_set_write_buf_size(bio, 10),           SSL_SUCCESS);
@@ -17760,6 +17762,14 @@ static void test_wolfSSL_BIO_gets(void)
 
     BIO_free(bio);
     BIO_free(bio2);
+
+    /* check reading an empty string */
+    AssertNotNull(bio = BIO_new(BIO_s_bio()));
+    AssertIntEQ(BIO_set_write_buf_size(bio, sizeof(emp)), SSL_SUCCESS);
+    AssertIntEQ(BIO_gets(bio, buffer, bufferSz), 0); /* Nothing to read */
+    AssertStrEQ(emp, buffer);
+
+    BIO_free(bio);
 
     printf(resultFmt, passed);
     #endif

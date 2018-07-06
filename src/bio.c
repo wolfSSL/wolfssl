@@ -580,8 +580,9 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
                 const byte* c;
                 int   cSz;
                 cSz = wolfSSL_BIO_pending(bio);
-                if (cSz == 0) {
-                    ret = WOLFSSL_BIO_ERROR;
+                if (cSz <= 0) {
+                    ret = (ret == 0) ? 0 /* Nothing read */ : cSz /* error */;
+                    buf[0] = '\0';
                     break;
                 }
 
@@ -613,7 +614,8 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
                 int   cSz;
                 cSz = wolfSSL_BIO_nread0(bio, &c);
                 if (cSz == 0) {
-                    ret = WOLFSSL_BIO_ERROR;
+                    ret = 0; /* Nothing to read */
+                    buf[0] = '\0';
                     break;
                 }
 
