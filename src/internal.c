@@ -9592,12 +9592,14 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     store->certs = args->certs;
                     store->totalCerts = args->totalCerts;
 
+                #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
                     if (ssl->ctx->x509_store_pt != NULL) {
                         store->store = ssl->ctx->x509_store_pt;
                     }
                     else {
                         store->store = &ssl->ctx->x509_store;
                     }
+                #endif
                 #ifdef KEEP_PEER_CERT
                     if (ssl->peerCert.subject.sz > 0)
                         store->current_cert = &ssl->peerCert;
