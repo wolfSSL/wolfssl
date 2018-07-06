@@ -1531,7 +1531,6 @@ WOLFSSL_LOCAL int  DecodePrivateKey(WOLFSSL *ssl, word16* length);
 WOLFSSL_LOCAL int GetPrivateKeySigSize(WOLFSSL* ssl);
 #ifndef NO_ASN
     WOLFSSL_LOCAL int  InitSigPkCb(WOLFSSL* ssl, SignatureCtx* sigCtx);
-    WOLFSSL_LOCAL void FreeSigPkCb(WOLFSSL* ssl, SignatureCtx* sigCtx);
 #endif
 #endif
 WOLFSSL_LOCAL void FreeKeyExchange(WOLFSSL* ssl);

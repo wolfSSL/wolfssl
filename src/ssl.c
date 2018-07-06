@@ -6689,9 +6689,6 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 #endif
 
     if (ParseCertRelative(&der, CERT_TYPE, NO_VERIFY, NULL) != 0) {
-    #ifdef HAVE_PK_CALLBACKS
-        FreeSigPkCb((WOLFSSL*)ssl, &der.sigCtx);
-    #endif
         FreeDecodedCert(&der);
         return WOLFSSL_FAILURE;
     }
@@ -6699,9 +6696,6 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
     size = ssl->buffers.key->length;
     buff = ssl->buffers.key->buffer;
     ret  = wc_CheckPrivateKey(buff, size, &der);
-#ifdef HAVE_PK_CALLBACKS
-    FreeSigPkCb((WOLFSSL*)ssl, &der.sigCtx);
-#endif
     FreeDecodedCert(&der);
     return ret;
 }
