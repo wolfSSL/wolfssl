@@ -5353,7 +5353,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                         ret = sigCtx->pkCbRsa(
                                 sigCtx->plain, sigSz, &sigCtx->out,
                                 key, keySz,
-                                sigCtx->pkCtx);
+                                sigCtx->pkCtxRsa);
                     }
                     else
                 #endif /* HAVE_PK_CALLBACKS */
@@ -5373,7 +5373,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
                                 sig, sigSz,
                                 sigCtx->digest, sigCtx->digestSz,
                                 key, keySz, &sigCtx->verify,
-                                sigCtx->pkCtx);
+                                sigCtx->pkCtxEcc);
                     }
                     else
                 #endif /* HAVE_PK_CALLBACKS */

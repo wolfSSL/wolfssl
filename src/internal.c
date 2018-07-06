@@ -8165,105 +8165,107 @@ static int ProcessCSR(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
 #ifdef HAVE_PK_CALLBACKS
 
-    typedef struct wolfPkCbInfo {
-        WOLFSSL* ssl;
-    #ifdef HAVE_ECC
-        struct {
-            CallbackEccVerify pk;
-            void* ctx;
-        } ecc;
-    #endif
-    #ifndef NO_RSA
-        struct {
-            CallbackRsaVerify pk;
-            void* ctx;
-        } rsa;
-    #endif
-    } wolfPkCbInfo;
-
 #ifdef HAVE_ECC
+    typedef struct wolfPkCbEccInfo {
+        WOLFSSL* ssl;
+        CallbackEccVerify pk;
+        void* ctx;
+    } wolfPkCbEccInfo;
     static int SigPkCbEccVerify(const unsigned char* sig, unsigned int sigSz,
        const unsigned char* hash, unsigned int hashSz,
        const unsigned char* keyDer, unsigned int keySz,
        int* result, void* ctx)
     {
         int ret = NOT_COMPILED_IN;
-        wolfPkCbInfo* info = (wolfPkCbInfo*)ctx;
+        wolfPkCbEccInfo* info = (wolfPkCbEccInfo*)ctx;
 
-        if (info && info->ecc.pk) {
-            ret = info->ecc.pk(info->ssl, sig, sigSz, hash, hashSz,
-                keyDer, keySz, result, info->ecc.ctx);
+        if (info && info->pk) {
+            ret = info->pk(info->ssl, sig, sigSz, hash, hashSz,
+                keyDer, keySz, result, info->ctx);
         }
         return ret;
     }
 #endif
 #ifndef NO_RSA
+    typedef struct wolfPkCbRsaInfo {
+        WOLFSSL* ssl;
+        CallbackRsaVerify pk;
+        void* ctx;
+    } wolfPkCbRsaInfo;
     static int SigPkCbRsaVerify(unsigned char* sig, unsigned int sigSz,
        unsigned char** out, const unsigned char* keyDer, unsigned int keySz,
        void* ctx)
     {
         int ret = NOT_COMPILED_IN;
-        wolfPkCbInfo* info = (wolfPkCbInfo*)ctx;
+        wolfPkCbRsaInfo* info = (wolfPkCbRsaInfo*)ctx;
 
-        if (info && info->rsa.pk) {
-            ret = info->rsa.pk(info->ssl, sig, sigSz, out, keyDer, keySz,
-                info->rsa.ctx);
+        if (info && info->pk) {
+            ret = info->pk(info->ssl, sig, sigSz, out, keyDer, keySz,
+                info->ctx);
         }
         return ret;
     }
 #endif
 
-int InitSigPkCb(const WOLFSSL* ssl, SignatureCtx* sigCtx)
+int InitSigPkCb(WOLFSSL* ssl, SignatureCtx* sigCtx)
 {
-    wolfPkCbInfo* info;
-    int setupPk = 0;
-
     if (ssl == NULL || sigCtx == NULL)
         return BAD_FUNC_ARG;
 
     /* only setup the verify callback if a PK is set */
 #ifdef HAVE_ECC
-    if (ssl->ctx->EccVerifyCb)
-        setupPk = 1;
-#endif
-#ifndef NO_RSA
-    if (ssl->ctx->RsaVerifyCb)
-        setupPk = 1;
-#endif
-
-    if (setupPk) {
-        info = (wolfPkCbInfo*)XMALLOC(sizeof(wolfPkCbInfo), ssl->heap,
-            DYNAMIC_TYPE_TMP_BUFFER);
+    if (ssl->ctx->EccVerifyCb) {
+        wolfPkCbEccInfo* info = (wolfPkCbEccInfo*)XMALLOC(
+            sizeof(wolfPkCbEccInfo), ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (info == NULL) {
             return MEMORY_E;
         }
-
-        XMEMSET(info, 0, sizeof(wolfPkCbInfo));
-        sigCtx->pkCtx = info;
-    #ifdef HAVE_ECC
-        info->ecc.pk = ssl->ctx->EccVerifyCb;
-        info->ecc.ctx = ssl->EccVerifyCtx;
+        XMEMSET(info, 0, sizeof(wolfPkCbEccInfo));
+        info->ssl = ssl;
+        info->pk = ssl->ctx->EccVerifyCb;
+        info->ctx = ssl->EccVerifyCtx;
         sigCtx->pkCbEcc = SigPkCbEccVerify;
-    #endif
-    #ifndef NO_RSA
-        info->rsa.pk = ssl->ctx->RsaVerifyCb;
-        info->rsa.ctx = ssl->RsaVerifyCtx;
-        sigCtx->pkCbRsa = SigPkCbRsaVerify;
-    #endif
+        sigCtx->pkCtxEcc = info;
     }
+#endif
+#ifndef NO_RSA
+    /* only setup the verify callback if a PK is set */
+    if (ssl->ctx->RsaVerifyCb) {
+        wolfPkCbRsaInfo* info = (wolfPkCbRsaInfo*)XMALLOC(
+            sizeof(wolfPkCbRsaInfo), ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (info == NULL) {
+            FreeSigPkCb(ssl, sigCtx);
+            return MEMORY_E;
+        }
+        XMEMSET(info, 0, sizeof(wolfPkCbRsaInfo));
+        info->ssl = ssl;
+        info->pk = ssl->ctx->RsaVerifyCb;
+        info->ctx = ssl->RsaVerifyCtx;
+        sigCtx->pkCbRsa = SigPkCbRsaVerify;
+        sigCtx->pkCtxRsa = info;
+    }
+#endif
 
     return 0;
 }
 
-void FreeSigPkCb(const WOLFSSL* ssl, SignatureCtx* sigCtx)
+void FreeSigPkCb(WOLFSSL* ssl, SignatureCtx* sigCtx)
 {
     if (ssl == NULL || sigCtx == NULL)
         return;
 
-    if (sigCtx->pkCtx) {
-        XFREE(sigCtx->pkCtx, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        sigCtx->pkCtx = NULL;
+#ifdef HAVE_ECC
+    if (sigCtx->pkCtxEcc) {
+        XFREE(sigCtx->pkCtxEcc, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        sigCtx->pkCtxEcc = NULL;
     }
+#endif
+#ifndef NO_RSA
+    if (sigCtx->pkCtxRsa) {
+        XFREE(sigCtx->pkCtxRsa, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        sigCtx->pkCtxRsa = NULL;
+    }
+#endif
 }
 #endif /* HAVE_PK_CALLBACKS */
 

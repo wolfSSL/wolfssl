@@ -543,12 +543,13 @@ struct SignatureCtx {
 #endif
 
 #ifdef HAVE_PK_CALLBACKS
-    void* pkCtx;
 #ifdef HAVE_ECC
     wc_CallbackEccVerify pkCbEcc;
+    void* pkCtxEcc;
 #endif
 #ifndef NO_RSA
     wc_CallbackRsaVerify pkCbRsa;
+    void* pkCtxRsa;
 #endif
 #endif /* HAVE_PK_CALLBACKS */
 };
