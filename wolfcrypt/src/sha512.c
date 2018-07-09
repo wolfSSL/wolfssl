@@ -538,11 +538,13 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
 
     if (sha512->buffLen > 0) {
         word32 add = min(len, WC_SHA512_BLOCK_SIZE - sha512->buffLen);
-        XMEMCPY(&local[sha512->buffLen], data, add);
+        if (add > 0) {
+            XMEMCPY(&local[sha512->buffLen], data, add);
 
-        sha512->buffLen += add;
-        data            += add;
-        len             -= add;
+            sha512->buffLen += add;
+            data            += add;
+            len             -= add;
+        }
 
         if (sha512->buffLen == WC_SHA512_BLOCK_SIZE) {
     #if defined(LITTLE_ENDIAN_ORDER)
