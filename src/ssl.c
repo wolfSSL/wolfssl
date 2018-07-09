@@ -18619,7 +18619,7 @@ char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* t, char* buf, int len)
 WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
                                     int offset_day, long offset_sec)
 {
-    const int sec_per_day = 24*60*60;
+    const time_t sec_per_day = 24*60*60;
     struct tm* ts = NULL;
     struct tm* tmpTime = NULL;
     time_t t_adj = 0;
