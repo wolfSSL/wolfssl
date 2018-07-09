@@ -6680,6 +6680,14 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
     size = ssl->buffers.certificate->length;
     buff = ssl->buffers.certificate->buffer;
     InitDecodedCert(&der, buff, size, ssl->heap);
+#ifdef HAVE_PK_CALLBACKS
+    ret = InitSigPkCb((WOLFSSL*)ssl, &der.sigCtx);
+    if (ret != 0) {
+        FreeDecodedCert(&der);
+        return ret;
+    }
+#endif
+
     if (ParseCertRelative(&der, CERT_TYPE, NO_VERIFY, NULL) != 0) {
         FreeDecodedCert(&der);
         return WOLFSSL_FAILURE;
