@@ -423,6 +423,40 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
                                           struct mn_sockaddr_in* mnSockAddrIn);
 #endif /* defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP) */
 
+#ifdef UIP
+#define SSL_DATABUF_LEN 1460
+
+struct uip_wolfssl_ctx {
+    union socket_connector {
+        struct tcp_socket tcp;
+        struct udp_socket udp;
+    } conn;
+    WOLFSSL_CTX *ctx;
+    WOLFSSL *ssl;
+    uint8_t input_databuf[SSL_DATABUF_LEN];
+    uint8_t output_databuf[SSL_DATABUF_LEN];
+    uint8_t ssl_recv_buffer[SSL_DATABUF_LEN];
+    int ssl_rb_len;
+    int ssl_rb_off;
+    struct process *process;
+    tcp_socket_data_callback_t input_callback;
+    tcp_socket_event_callback_t event_callback;
+    int closing;
+    uip_ipaddr_t peer_addr;
+    uint16_t peer_port;
+};
+
+typedef struct uip_wolfssl_ctx uip_wolfssl_ctx;
+
+    WOLFSSL_LOCAL int uIPSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+    WOLFSSL_LOCAL int uIPReceive(WOLFSSL* ssl, char* buf, int sz,
+                                     void* ctx);
+    WOLFSSL_LOCAL int uIPReceiveFrom(WOLFSSL* ssl, char* buf, int sz,
+                                         void* ctx);
+    WOLFSSL_LOCAL int uIPSendTo(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+
+#endif
+
 #ifdef WOLFSSL_DTLS
     typedef int (*CallbackGenCookie)(WOLFSSL* ssl, unsigned char* buf, int sz,
                                      void* ctx);

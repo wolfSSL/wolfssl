@@ -225,10 +225,18 @@
 #endif
 
 #if defined(WOLFSSL_CONTIKI)
+    #include <contiki.h>
+    #define UIP
     #define NO_WRITEV
     #define SINGLE_THREADED
     #define WOLFSSL_USER_IO
     #define NO_FILESYSTEM
+    #define CUSTOM_RAND_TYPE uint16_t
+    #define CUSTOM_RAND_GENERATE random_rand
+    static inline unsigned int LowResTimer(void)
+    {
+        return clock_seconds();
+    }
 
     static inline void* XREALLOC(void *p, size_t n, void* heap, int type)
     {

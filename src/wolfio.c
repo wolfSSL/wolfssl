@@ -2068,4 +2068,83 @@ void wolfSSL_SetIO_Mynewt(WOLFSSL* ssl, struct mn_socket* mnSocket, struct mn_so
 
 #endif /* defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP) */
 
+#ifdef UIP
+#include <uip.h>
+
+#define SOCKLEN_UIP sizeof(struct sockaddr_uip)
+
+/* uIP TCP/IP port, using the native tcp/udp socket api.
+ * TCP and UDP are currently supported with the callbacks below.
+ *
+ */
+/* The uIP tcp send callback
+ * return : bytes sent, or error
+ */
+int uIPSend(WOLFSSL* ssl, char* buf, int sz, void* _ctx)
+{
+    uip_wolfssl_ctx *ctx = (struct uip_wolfssl_ctx *)_ctx;
+    int ret;
+    (void)ssl;
+    ret = tcp_socket_send(&ctx->conn.tcp, (unsigned char *)buf, sz);
+    if (ret <= 0)
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
+    return ret;
+}
+
+int uIPSendTo(WOLFSSL* ssl, char* buf, int sz, void* _ctx)
+{
+    uip_wolfssl_ctx *ctx = (struct uip_wolfssl_ctx *)_ctx;
+    int ret = 0;
+    (void)ssl;
+    ret = udp_socket_sendto(&ctx->conn.udp, (unsigned char *)buf, sz, &ctx->peer_addr, ctx->peer_port );
+    if (ret <= 0)
+        return WOLFSSL_CBIO_ERR_WANT_WRITE;
+    return ret;
+}
+
+/* The uIP uTCP/IP receive callback
+ *  return : nb bytes read, or error
+ */
+int uIPReceive(WOLFSSL *ssl, char *buf, int sz, void *_ctx)
+{
+    uip_wolfssl_ctx *ctx = (uip_wolfssl_ctx *)_ctx;
+    (void)ssl;
+    if (ctx->ssl_rb_len > 0) {
+        if (sz > ctx->ssl_rb_len - ctx->ssl_rb_off)
+            sz = ctx->ssl_rb_len - ctx->ssl_rb_off;
+        memcpy(buf, ctx->ssl_recv_buffer + ctx->ssl_rb_off, sz);
+        ctx->ssl_rb_off += sz;
+        if (ctx->ssl_rb_off >= ctx->ssl_rb_len) {
+            ctx->ssl_rb_len = 0;
+            ctx->ssl_rb_off = 0;
+        }
+        return sz;
+    } else {
+        return WOLFSSL_CBIO_ERR_WANT_READ;
+    }
+}
+
+/* uIP DTLS Generate Cookie callback
+ *  return : number of bytes copied into buf, or error
+ */
+int uIPGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *_ctx)
+{
+    uip_wolfssl_ctx *ctx = (uip_wolfssl_ctx *)ctx;
+    byte token[32];
+    byte digest[WC_SHA_DIGEST_SIZE];
+    int  ret = 0;
+    XMEMSET(token, 0, sizeof(token));
+    XMEMCPY(token, &ctx->peer_addr, sizeof(uip_ipaddr_t));
+    XMEMCPY(token + sizeof(uip_ipaddr_t), &ctx->peer_port, sizeof(word16));
+    ret = wc_ShaHash(token, sizeof(uip_ipaddr_t) + sizeof(word16), digest);
+    if (ret != 0)
+        return ret;
+    if (sz > WC_SHA_DIGEST_SIZE)
+        sz = WC_SHA_DIGEST_SIZE;
+    XMEMCPY(buf, digest, sz);
+    return sz;
+}
+
+#endif /* UIP */
+
 #endif /* WOLFCRYPT_ONLY */
