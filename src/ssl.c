@@ -24919,7 +24919,7 @@ int wolfSSL_HMAC_Init(WOLFSSL_HMAC_CTX* ctx, const void* key, int keylen,
                                        WC_HMAC_BLOCK_SIZE);
             XMEMCPY((byte *)&ctx->hmac.opad, (byte *)&ctx->save_opad,
                                        WC_HMAC_BLOCK_SIZE);
-            if ((hmac_error = _InitHmac(&ctx->hmac, ctx->hmac.macType, heap))
+            if ((hmac_error = _HMAC_Init(&ctx->hmac, ctx->hmac.macType, heap))
                     !=0) {
                return hmac_error;
             }
@@ -27823,6 +27823,7 @@ int wolfSSL_i2d_RSAPrivateKey(WOLFSSL_RSA *rsa, unsigned char **pp)
     byte* der = NULL;
     int derMax;
     int ret;
+    int i;
 
     WOLFSSL_ENTER("i2d_RSAPrivateKey");
 
@@ -27857,7 +27858,7 @@ int wolfSSL_i2d_RSAPrivateKey(WOLFSSL_RSA *rsa, unsigned char **pp)
     }
 
     //ret is the size of the der buffer
-    for(int i = 0; i < ret; i++) {
+    for(i = 0; i < ret; i++) {
         *(*pp + i) = *(der + i);
     }
     *pp += ret;
