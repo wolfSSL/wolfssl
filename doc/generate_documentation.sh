@@ -36,7 +36,7 @@ fi
 
 for var in $@
 do
-    case $var in 
+    case $var in
     -install)
         INSTALL_DOX=true
         ;;

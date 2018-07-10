@@ -1,15 +1,15 @@
 /*!
     \ingroup wolfCrypt
-    
+
     \brief This function will return the OID for the wc_HashType provided.
-    
+
     \return OID returns value greater than 0
     \return HASH_TYPE_E hash type not supported.
     \return BAD_FUNC_ARG one of the provided arguments is incorrect.
-    
-    \param hash_type A hash type from the “enum  wc_HashType” such 
+
+    \param hash_type A hash type from the “enum  wc_HashType” such
     as “WC_HASH_TYPE_SHA256”.
-    
+
     _Example_
     \code
     enum wc_HashType hash_type = WC_HASH_TYPE_SHA256;
@@ -18,7 +18,7 @@
     	// Success
     }
     \endcode
-    
+
     \sa wc_HashGetDigestSize
     \sa wc_Hash
 */
@@ -26,19 +26,19 @@ WOLFSSL_API int wc_HashGetOID(enum wc_HashType hash_type);
 
 /*!
     \ingroup wolfCrypt
-    
-    \brief This function returns the size of the digest (output) for a 
-    hash_type. The returns size is used to make sure the output buffer 
+
+    \brief This function returns the size of the digest (output) for a
+    hash_type. The returns size is used to make sure the output buffer
     provided to wc_Hash is large enough.
-    
-    \return Success A positive return value indicates the digest size 
+
+    \return Success A positive return value indicates the digest size
     for the hash.
-    \return Error Returns HASH_TYPE_E if hash_type is not supported. 
+    \return Error Returns HASH_TYPE_E if hash_type is not supported.
     \return Failure Returns BAD_FUNC_ARG if an invalid hash_type was used.
-    
-    \param hash_type A hash type from the “enum  wc_HashType” such as 
+
+    \param hash_type A hash type from the “enum  wc_HashType” such as
     “WC_HASH_TYPE_SHA256”.
-    
+
     _Example_
     \code
     int hash_len = wc_HashGetDigestSize(hash_type);
@@ -47,26 +47,26 @@ WOLFSSL_API int wc_HashGetOID(enum wc_HashType hash_type);
     return BAD_FUNC_ARG;
     }
     \endcode
-    
+
     \sa wc_Hash
 */
 WOLFSSL_API int wc_HashGetDigestSize(enum wc_HashType hash_type);
 
 /*!
     \ingroup wolfCrypt
-    
-    \brief This function performs a hash on the provided data buffer 
+
+    \brief This function performs a hash on the provided data buffer
     and returns it in the hash buffer provided.
-    
+
     \return 0 Success, else error (such as BAD_FUNC_ARG or BUFFER_E).
-    
-    \param hash_type A hash type from the “enum  wc_HashType” 
+
+    \param hash_type A hash type from the “enum  wc_HashType”
     such as “WC_HASH_TYPE_SHA256”.
     \param data Pointer to buffer containing the data to hash.
     \param data_len Length of the data buffer.
     \param hash Pointer to buffer used to output the final hash to.
     \param hash_len Length of the hash buffer.
-    
+
     _Example_
     \code
     enum wc_HashType hash_type = WC_HASH_TYPE_SHA256;
@@ -78,7 +78,7 @@ WOLFSSL_API int wc_HashGetDigestSize(enum wc_HashType hash_type);
         }
     }
     \endcode
-    
+
     \sa wc_HashGetDigestSize
 */
 WOLFSSL_API int wc_Hash(enum wc_HashType hash_type,
@@ -87,14 +87,14 @@ WOLFSSL_API int wc_Hash(enum wc_HashType hash_type,
 
 /*!
     \ingroup MD5
-    
-    \brief Convenience function, handles all the hashing and places the 
+
+    \brief Convenience function, handles all the hashing and places the
     result into hash.
-    
+
     \return 0 Returned upon successfully hashing the data.
-    \return Memory_E memory error, unable to allocate memory. This is only 
+    \return Memory_E memory error, unable to allocate memory. This is only
     possible with the small stack option enabled.
-    
+
     \param data the data to hash
     \param len the length of data
     \param hash Byte array to hold hash value.
@@ -105,13 +105,13 @@ WOLFSSL_API int wc_Hash(enum wc_HashType hash_type,
     word32 data_len;
     byte* hash;
     int ret;
-    ... 
+    ...
     ret = wc_Md5Hash(data, data_len, hash);
     if (ret != 0) {
          // Md5 Hash Failure Case.
     }
     \endcode
-    
+
     \sa wc_Md5Hash
     \sa wc_Md5Final
     \sa wc_InitMd5
@@ -120,23 +120,23 @@ WOLFSSL_API int wc_Md5Hash(const byte* data, word32 len, byte* hash);
 
 /*!
     \ingroup SHA
-    
-    \brief Convenience function, handles all the hashing and places the 
+
+    \brief Convenience function, handles all the hashing and places the
     result into hash.
-    
+
     \return 0 Returned upon successfully ….
-    \return Memory_E memory error, unable to allocate memory. This is only 
+    \return Memory_E memory error, unable to allocate memory. This is only
     possible with the small stack option enabled.
-    
+
     \param data the data to hash
     \param len the length of data
     \param hash Byte array to hold hash value.
-    
+
     _Example_
     \code
     none
     \endcode
-    
+
     \sa wc_ShaHash
     \sa wc_ShaFinal
     \sa wc_InitSha
@@ -145,23 +145,23 @@ WOLFSSL_API int wc_ShaHash(const byte*, word32, byte*);
 
 /*!
     \ingroup SHA
-    
-    \brief Convenience function, handles all the hashing and places the 
+
+    \brief Convenience function, handles all the hashing and places the
     result into hash.
-    
+
     \return 0 Returned upon successfully …
-    \return Memory_E memory error, unable to allocate memory. This is only 
+    \return Memory_E memory error, unable to allocate memory. This is only
     possible with the small stack option enabled.
-    
+
     \param data the data to hash
     \param len the length of data
     \param hash Byte array to hold hash value.
-    
+
     _Example_
     \code
     none
     \endcode
-    
+
     \sa wc_Sha256Hash
     \sa wc_Sha256Final
     \sa wc_InitSha256
@@ -170,22 +170,22 @@ WOLFSSL_API int wc_Sha256Hash(const byte*, word32, byte*);
 
 /*!
     \ingroup SHA
-    
-    \brief Convenience function, handles all the hashing and places the 
+
+    \brief Convenience function, handles all the hashing and places the
     result into hash.
-    
+
     \return 0 Success
     \return <0 Error
-    
+
     \param data the data to hash
     \param len the length of data
     \param hash Byte array to hold hash value.
-    
+
     _Example_
     \code
     none
     \endcode
-    
+
     \sa wc_InitSha224
     \sa wc_Sha224Update
     \sa wc_Sha224Final
@@ -194,14 +194,14 @@ WOLFSSL_API int wc_Sha224Hash(const byte*, word32, byte*);
 
 /*!
     \ingroup SHA
-    
-    \brief Convenience function, handles all the hashing and places the 
+
+    \brief Convenience function, handles all the hashing and places the
     result into hash.
-    
+
     \return 0 Returned upon successfully hashing the inputted data
-    \return Memory_E memory error, unable to allocate memory. This is only 
+    \return Memory_E memory error, unable to allocate memory. This is only
     possible with the small stack option enabled.
-    
+
     \param data the data to hash
     \param len the length of data
     \param hash Byte array to hold hash value.
@@ -210,7 +210,7 @@ WOLFSSL_API int wc_Sha224Hash(const byte*, word32, byte*);
     \code
     none
     \endcode
-    
+
     \sa wc_Sha512Hash
     \sa wc_Sha512Final
     \sa wc_InitSha512
@@ -219,18 +219,18 @@ WOLFSSL_API int wc_Sha512Hash(const byte*, word32, byte*);
 
 /*!
     \ingroup SHA
-    
-    \brief Convenience function, handles all the hashing and places the 
+
+    \brief Convenience function, handles all the hashing and places the
     result into hash.
-    
+
     \return 0 Returned upon successfully hashing the data
-    \return Memory_E memory error, unable to allocate memory. This is only 
+    \return Memory_E memory error, unable to allocate memory. This is only
     possible with the small stack option enabled.
 
     \param data the data to hash
     \param len the length of data
     \param hash Byte array to hold hash value.
-    
+
     _Example_
     \code
     none

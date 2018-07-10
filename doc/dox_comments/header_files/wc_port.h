@@ -1,13 +1,13 @@
 /*!
     \ingroup wolfCrypt
-    
+
     \brief Used to initialize resources used by wolfCrypt.
-    
+
     \return 0 upon success.
     \return <0 upon failure of init resources.
-    
+
     \param none No parameters.
-    
+
     _Example_
     \code
     ...
@@ -15,21 +15,21 @@
         WOLFSSL_MSG("Error with wolfCrypt_Init call");
     }
     \endcode
-    
+
     \sa wolfCrypt_Cleanup
 */
 WOLFSSL_API int wolfCrypt_Init(void);
 
 /*!
     \ingroup wolfCrypt
-    
+
     \brief Used to clean up resources used by wolfCrypt.
-    
+
     \return 0 upon success.
     \return <0 upon failure of cleaning up resources.
-    
+
     \param none No parameters.
-    
+
     _Example_
     \code
     ...
@@ -37,7 +37,7 @@ WOLFSSL_API int wolfCrypt_Init(void);
         WOLFSSL_MSG("Error with wolfCrypt_Cleanup call");
     }
     \endcode
-    
+
     \sa wolfCrypt_Init
 */
 WOLFSSL_API int wolfCrypt_Cleanup(void);

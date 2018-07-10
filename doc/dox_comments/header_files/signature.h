@@ -1,17 +1,17 @@
 /*!
     \ingroup Signature
-    
+
     \brief This function returns the maximum size of the resulting signature.
-    
-    \return Returns SIG_TYPE_E if sig_type is not supported. Returns 
-    BAD_FUNC_ARG if sig_type was invalid. A positive return value indicates 
+
+    \return Returns SIG_TYPE_E if sig_type is not supported. Returns
+    BAD_FUNC_ARG if sig_type was invalid. A positive return value indicates
     the maximum size of a signature.
-    
-    \param sig_type A signature type enum value such as 
+
+    \param sig_type A signature type enum value such as
     WC_SIGNATURE_TYPE_ECC or WC_SIGNATURE_TYPE_RSA.
     \param key Pointer to a key structure such as ecc_key or RsaKey.
     \param key_len Size of the key structure.
-    
+
     _Example_
     \code
     // Get signature length
@@ -24,7 +24,7 @@
     	// Success
     }
     \endcode
-    
+
     \sa wc_HashGetDigestSize
     \sa wc_SignatureGenerate
     \sa wc_SignatureVerify
@@ -34,18 +34,18 @@ WOLFSSL_API int wc_SignatureGetSize(enum wc_SignatureType sig_type,
 
 /*!
     \ingroup Signature
-    
-    \brief This function validates a signature by hashing the data and 
+
+    \brief This function validates a signature by hashing the data and
     using the resulting hash and key to verify the signature.
-    
+
     \return 0 Success
     \return SIG_TYPE_E -231, signature type not enabled/ available
     \return BAD_FUNC_ARG -173, bad function argument provided
     \return BUFFER_E -132, output buffer too small or input too large.
-    
-    \param hash_type A hash type from the “enum  wc_HashType” such as 
+
+    \param hash_type A hash type from the “enum  wc_HashType” such as
     “WC_HASH_TYPE_SHA256”.
-    \param sig_type A signature type enum value such as 
+    \param sig_type A signature type enum value such as
     WC_SIGNATURE_TYPE_ECC or WC_SIGNATURE_TYPE_RSA.
     \param data Pointer to buffer containing the data to hash.
     \param data_len Length of the data buffer.
@@ -53,7 +53,7 @@ WOLFSSL_API int wc_SignatureGetSize(enum wc_SignatureType sig_type,
     \param sig_len Length of the signature output buffer.
     \param key Pointer to a key structure such as ecc_key or RsaKey.
     \param key_len Size of the key structure.
-    
+
     _Example_
     \code
     int ret;
@@ -68,11 +68,11 @@ WOLFSSL_API int wc_SignatureGetSize(enum wc_SignatureType sig_type,
     fileBuf, fileLen,
     sigBuf, sigLen,
     &eccKey, sizeof(eccKey));
-    printf("Signature Verification: %s 
+    printf("Signature Verification: %s
     (%d)\n", (ret == 0) ? "Pass" : "Fail", ret);
     wc_ecc_free(&eccKey);
     \endcode
-    
+
     \sa wc_SignatureGetSize
     \sa wc_SignatureGenerate
 */
@@ -84,18 +84,18 @@ WOLFSSL_API int wc_SignatureVerify(
 
 /*!
     \ingroup Signature
-    
-    \brief This function generates a signature from the data using a 
+
+    \brief This function generates a signature from the data using a
     key. It first creates a hash of the data then signs the hash using the key.
 
     \return 0 Success
     \return SIG_TYPE_E -231, signature type not enabled/ available
     \return BAD_FUNC_ARG -173, bad function argument provided
     \return BUFFER_E -132, output buffer too small or input too large.
-    
-    \param hash_type A hash type from the “enum  wc_HashType” 
+
+    \param hash_type A hash type from the “enum  wc_HashType”
     such as “WC_HASH_TYPE_SHA256”.
-    \param sig_type A signature type enum value such as 
+    \param sig_type A signature type enum value such as
     WC_SIGNATURE_TYPE_ECC or WC_SIGNATURE_TYPE_RSA.
     \param data Pointer to buffer containing the data to hash.
     \param data_len Length of the data buffer.
@@ -104,13 +104,13 @@ WOLFSSL_API int wc_SignatureVerify(
     \param key Pointer to a key structure such as ecc_key or RsaKey.
     \param key_len Size of the key structure.
     \param rng Pointer to an initialized RNG structure.
-    
+
     _Example_
     \code
     int ret;
     WC_RNG rng;
     ecc_key eccKey;
-    
+
     wc_InitRng(&rng);
     wc_ecc_init(&eccKey);
 
@@ -128,14 +128,14 @@ WOLFSSL_API int wc_SignatureVerify(
         sigBuf, &sigLen,
         &eccKey, sizeof(eccKey),
         &rng);
-    printf("Signature Generation: %s 
+    printf("Signature Generation: %s
     (%d)\n", (ret == 0) ? "Pass" : "Fail", ret);
 
     free(sigBuf);
     wc_ecc_free(&eccKey);
     wc_FreeRng(&rng);
     \endcode
-    
+
     \sa wc_SignatureGetSize
     \sa wc_SignatureVerify
 */
