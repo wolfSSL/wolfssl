@@ -18017,7 +18017,8 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
     EVP_PKEY* pkey  = NULL;
     RSA*  rsa  = NULL;
     WOLFSSL_CTX* ctx;
-    const unsigned char* buffer = NULL;
+    unsigned char buffer[4096];
+    unsigned char* bufPtr;
 
     printf(testingFmt, "wolfSSL_d2i_PrivateKeys_bio()");
 
@@ -18037,14 +18038,14 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
         XFSEEK(file, 0, XSEEK_END);
         sz = XFTELL(file);
         XREWIND(file);
-        AssertNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
+        AssertNotNull(buf = (byte*)XMALLOC(sz, HEAP_HINT, DYNAMIC_TYPE_FILE));
         AssertIntEQ(XFREAD(buf, 1, sz, file), sz);
         XFCLOSE(file);
 
         /* Test using BIO new mem and loading DER private key */
         AssertNotNull(bio = BIO_new_mem_buf(buf, (int)sz));
         AssertNotNull((pkey = d2i_PrivateKey_bio(bio, NULL)));
-        XFREE(buf, NULL, DYNAMIC_TYPE_FILE);
+        XFREE(buf, HEAP_HINT, DYNAMIC_TYPE_FILE);
         BIO_free(bio);
         bio = NULL;
         EVP_PKEY_free(pkey);
@@ -18065,14 +18066,14 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
         XFSEEK(file, 0, XSEEK_END);
         sz = XFTELL(file);
         XREWIND(file);
-        AssertNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
+        AssertNotNull(buf = (byte*)XMALLOC(sz, HEAP_HINT, DYNAMIC_TYPE_FILE));
         AssertIntEQ(XFREAD(buf, 1, sz, file), sz);
         XFCLOSE(file);
 
         /* Test using BIO new mem and loading DER private key */
         AssertNotNull(bio = BIO_new_mem_buf(buf, (int)sz));
         AssertNotNull((pkey = d2i_PrivateKey_bio(bio, NULL)));
-        XFREE(buf, NULL, DYNAMIC_TYPE_FILE);
+        XFREE(buf, HEAP_HINT, DYNAMIC_TYPE_FILE);
         BIO_free(bio);
         bio = NULL;
         EVP_PKEY_free(pkey);
@@ -18098,11 +18099,11 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
     AssertIntEQ(SSL_CTX_use_RSAPrivateKey(ctx, rsa), WOLFSSL_SUCCESS);
 
     /*i2d RSAprivate key tests */
+    bufPtr = buffer;
     AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(NULL, NULL), BAD_FUNC_ARG);
-    AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(rsa, &buffer), 
+    AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(rsa, &bufPtr), 
                                            sizeof_client_key_der_2048);
     RSA_free(rsa);
-    XFREE((unsigned char*)buffer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
     SSL_CTX_free(ctx);
     ctx = NULL;
