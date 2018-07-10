@@ -492,6 +492,24 @@ enum SignatureState {
     SIG_STATE_CHECK,
 };
 
+
+#ifdef HAVE_PK_CALLBACKS
+#ifdef HAVE_ECC
+    typedef int (*wc_CallbackEccVerify)(
+           const unsigned char* sig, unsigned int sigSz,
+           const unsigned char* hash, unsigned int hashSz,
+           const unsigned char* keyDer, unsigned int keySz,
+           int* result, void* ctx);
+#endif
+#ifndef NO_RSA
+    typedef int (*wc_CallbackRsaVerify)(
+           unsigned char* sig, unsigned int sigSz,
+           unsigned char** out,
+           const unsigned char* keyDer, unsigned int keySz,
+           void* ctx);
+#endif
+#endif /* HAVE_PK_CALLBACKS */
+
 struct SignatureCtx {
     void* heap;
     byte* digest;
@@ -523,6 +541,17 @@ struct SignatureCtx {
     WC_ASYNC_DEV* asyncDev;
     void* asyncCtx;
 #endif
+
+#ifdef HAVE_PK_CALLBACKS
+#ifdef HAVE_ECC
+    wc_CallbackEccVerify pkCbEcc;
+    void* pkCtxEcc;
+#endif
+#ifndef NO_RSA
+    wc_CallbackRsaVerify pkCbRsa;
+    void* pkCtxRsa;
+#endif
+#endif /* HAVE_PK_CALLBACKS */
 };
 
 enum CertSignState {

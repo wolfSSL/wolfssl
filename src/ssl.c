@@ -1913,7 +1913,7 @@ int wolfSSL_UseOCSPStapling(WOLFSSL* ssl, byte status_type, byte options)
         return BAD_FUNC_ARG;
 
     return TLSX_UseCertificateStatusRequest(&ssl->extensions, status_type,
-                                                options, ssl->heap, ssl->devId);
+                                          options, NULL, ssl->heap, ssl->devId);
 }
 
 
@@ -1924,7 +1924,7 @@ int wolfSSL_CTX_UseOCSPStapling(WOLFSSL_CTX* ctx, byte status_type,
         return BAD_FUNC_ARG;
 
     return TLSX_UseCertificateStatusRequest(&ctx->extensions, status_type,
-                                                options, ctx->heap, ctx->devId);
+                                          options, NULL, ctx->heap, ctx->devId);
 }
 
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST */
@@ -1941,8 +1941,8 @@ int wolfSSL_UseOCSPStaplingV2(WOLFSSL* ssl, byte status_type, byte options)
 }
 
 
-int wolfSSL_CTX_UseOCSPStaplingV2(WOLFSSL_CTX* ctx,
-                                                 byte status_type, byte options)
+int wolfSSL_CTX_UseOCSPStaplingV2(WOLFSSL_CTX* ctx, byte status_type,
+                                                                   byte options)
 {
     if (ctx == NULL || ctx->method->side != WOLFSSL_CLIENT_END)
         return BAD_FUNC_ARG;
@@ -6680,6 +6680,14 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
     size = ssl->buffers.certificate->length;
     buff = ssl->buffers.certificate->buffer;
     InitDecodedCert(&der, buff, size, ssl->heap);
+#ifdef HAVE_PK_CALLBACKS
+    ret = InitSigPkCb((WOLFSSL*)ssl, &der.sigCtx);
+    if (ret != 0) {
+        FreeDecodedCert(&der);
+        return ret;
+    }
+#endif
+
     if (ParseCertRelative(&der, CERT_TYPE, NO_VERIFY, NULL) != 0) {
         FreeDecodedCert(&der);
         return WOLFSSL_FAILURE;
@@ -19659,8 +19667,8 @@ long wolfSSL_set_tlsext_status_type(WOLFSSL *s, int type)
 
     if (type == TLSEXT_STATUSTYPE_ocsp){
         int r = 0;
-        r = TLSX_UseCertificateStatusRequest(&s->extensions, type,
-                                                     0, s->heap, s->devId);
+        r = TLSX_UseCertificateStatusRequest(&s->extensions, type, 0, s,
+                                                             s->heap, s->devId);
         return (long)r;
     } else {
         WOLFSSL_MSG(

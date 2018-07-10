@@ -45,6 +45,7 @@ fips
 wolfcrypt_first.c
 wolfcrypt_last.c
 selftest.c
+fipsv2.c
 src/async.c
 wolfssl/async.h
 wolfcrypt/src/async.c

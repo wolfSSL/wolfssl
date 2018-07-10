@@ -1857,6 +1857,8 @@ enum KDF_MacAlgorithm {
 
 
 /* Public Key Callback support */
+#ifdef HAVE_PK_CALLBACKS
+#ifdef HAVE_ECC
 typedef int (*CallbackEccSign)(WOLFSSL* ssl,
        const unsigned char* in, unsigned int inSz,
        unsigned char* out, unsigned int* outSz,
@@ -1883,6 +1885,7 @@ typedef int (*CallbackEccSharedSecret)(WOLFSSL* ssl, struct ecc_key* otherKey,
 WOLFSSL_API void  wolfSSL_CTX_SetEccSharedSecretCb(WOLFSSL_CTX*, CallbackEccSharedSecret);
 WOLFSSL_API void  wolfSSL_SetEccSharedSecretCtx(WOLFSSL* ssl, void *ctx);
 WOLFSSL_API void* wolfSSL_GetEccSharedSecretCtx(WOLFSSL* ssl);
+#endif
 
 #ifndef NO_DH
 /* Public DH Key Callback support */
@@ -1897,6 +1900,7 @@ WOLFSSL_API void  wolfSSL_SetDhAgreeCtx(WOLFSSL* ssl, void *ctx);
 WOLFSSL_API void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl);
 #endif /* !NO_DH */
 
+#ifdef HAVE_ED25519
 struct ed25519_key;
 typedef int (*CallbackEd25519Sign)(WOLFSSL* ssl,
        const unsigned char* in, unsigned int inSz,
@@ -1917,7 +1921,9 @@ WOLFSSL_API void  wolfSSL_CTX_SetEd25519VerifyCb(WOLFSSL_CTX*,
                                                  CallbackEd25519Verify);
 WOLFSSL_API void  wolfSSL_SetEd25519VerifyCtx(WOLFSSL* ssl, void *ctx);
 WOLFSSL_API void* wolfSSL_GetEd25519VerifyCtx(WOLFSSL* ssl);
+#endif
 
+#ifdef HAVE_CURVE25519
 struct curve25519_key;
 typedef int (*CallbackX25519SharedSecret)(WOLFSSL* ssl,
         struct curve25519_key* otherKey,
@@ -1929,7 +1935,9 @@ WOLFSSL_API void  wolfSSL_CTX_SetX25519SharedSecretCb(WOLFSSL_CTX*,
         CallbackX25519SharedSecret);
 WOLFSSL_API void  wolfSSL_SetX25519SharedSecretCtx(WOLFSSL* ssl, void *ctx);
 WOLFSSL_API void* wolfSSL_GetX25519SharedSecretCtx(WOLFSSL* ssl);
+#endif
 
+#ifndef NO_RSA
 typedef int (*CallbackRsaSign)(WOLFSSL* ssl,
        const unsigned char* in, unsigned int inSz,
        unsigned char* out, unsigned int* outSz,
@@ -1993,7 +2001,8 @@ typedef int (*CallbackRsaDec)(WOLFSSL* ssl,
 WOLFSSL_API void  wolfSSL_CTX_SetRsaDecCb(WOLFSSL_CTX*, CallbackRsaDec);
 WOLFSSL_API void  wolfSSL_SetRsaDecCtx(WOLFSSL* ssl, void *ctx);
 WOLFSSL_API void* wolfSSL_GetRsaDecCtx(WOLFSSL* ssl);
-
+#endif
+#endif /* HAVE_PK_CALLBACKS */
 
 #ifndef NO_CERTS
     WOLFSSL_API void wolfSSL_CTX_SetCACb(WOLFSSL_CTX*, CallbackCACache);
