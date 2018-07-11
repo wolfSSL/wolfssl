@@ -22566,7 +22566,7 @@ int wolfSSL_BN_is_prime_ex(const WOLFSSL_BIGNUM *bn, int nbchecks,
     if (rng) {
         if (mp_prime_is_prime_ex((mp_int*)bn->internal,
                                  nbchecks, &res, rng) != MP_OKAY) {
-            WOLFSSL_MSG("mp_prime_is_prime error");
+            WOLFSSL_MSG("mp_prime_is_prime_ex error");
             res = MP_NO;
         }
     }
@@ -22579,7 +22579,7 @@ int wolfSSL_BN_is_prime_ex(const WOLFSSL_BIGNUM *bn, int nbchecks,
 #endif
 
     if (res != MP_YES) {
-        WOLFSSL_MSG("mp_prime_is_prime not prime");
+        WOLFSSL_MSG("mp_prime_is_prime_ex not prime");
         return WOLFSSL_FAILURE;
     }
 

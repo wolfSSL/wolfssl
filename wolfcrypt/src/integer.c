@@ -4529,9 +4529,11 @@ int mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap)
         }
 
         /* test */
-        /* Running Miller-Rabin up to 40 times gives us a 2^{-80} chance
-         * of a candidate being a false positive. */
-        if ((err = mp_prime_is_prime_ex(N, 40, &res, rng)) != MP_OKAY) {
+        /* Running Miller-Rabin up to 3 times gives us a 2^{-80} chance
+         * of a 1024-bit candidate being a false positive, when it is our
+         * prime candidate. (Note 4.49 of Handbook of Applied Cryptography.)
+         * Using 8 because we've always used 8. */
+        if ((err = mp_prime_is_prime_ex(N, 8, &res, rng)) != MP_OKAY) {
             XFREE(buf, heap, DYNAMIC_TYPE_RSA);
             return err;
         }
