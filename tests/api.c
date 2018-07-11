@@ -18499,9 +18499,32 @@ static void test_wolfSSL_HMAC(void)
 
 static void test_wolfSSL_OBJ(void)
 {
-    #if defined(OPENSSL_EXTRA) && !defined(NO_SHA256)
-    ASN1_OBJECT* obj = NULL;
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256)
+    ASN1_OBJECT *obj = NULL;
     char buf[50];
+
+    XFILE fp;
+    X509 *x509 = NULL;
+    X509_NAME *x509Name;
+    X509_NAME_ENTRY *x509NameEntry;
+    ASN1_OBJECT *asn1Name;
+    int numNames;
+    BIO *bio = NULL;
+    int nid;
+    int i, j;
+    const char *f[] = {
+        "./certs/ca-cert.der",
+        "./certs/ca-ecc-cert.der",
+        "./certs/ca-ecc384-cert.der",
+        NULL};
+#ifndef NO_DES3
+    PKCS12 *p12;
+    int boolRet;
+    EVP_PKEY *pkey = NULL;
+    const char *p12_f[] = {
+        "./certs/test-servercert.p12",
+        NULL};
+#endif /* !NO_DES3 */
 
     printf(testingFmt, "wolfSSL_OBJ()");
 
@@ -18518,10 +18541,45 @@ static void test_wolfSSL_OBJ(void)
     AssertIntGT(OBJ_obj2txt(buf, (int)sizeof(buf), obj, 0), 0);
     ASN1_OBJECT_free(obj);
 
-    printf(resultFmt, passed);
-    #endif
-}
+    for (i = 0; f[i] != NULL; i++)
+    {
+        AssertTrue((fp = XFOPEN(f[i], "r")) != XBADFILE);
+        AssertNotNull(x509 = d2i_X509_fp(fp, NULL));
+        AssertNotNull(x509Name = X509_get_issuer_name(x509));
+        AssertIntNE((numNames = X509_NAME_entry_count(x509Name)), 0);
+        AssertTrue((bio = BIO_new(BIO_s_mem())) != NULL);
+        for (j = 0; j < numNames; j++)
+        {
+            AssertNotNull(x509NameEntry = X509_NAME_get_entry(x509Name, j));
+            AssertNotNull(asn1Name = X509_NAME_ENTRY_get_object(x509NameEntry));
+            AssertTrue((nid = OBJ_obj2nid(asn1Name)) > 0);
+            printf("nid=%d\n", nid);
+        }
+    }
 
+#ifndef NO_DES3
+    for (i = 0; p12_f[i] != NULL; i++)
+    {
+        AssertTrue((fp = XFOPEN(p12_f[i], "r")) != XBADFILE);
+        AssertNotNull(p12 = d2i_PKCS12_fp(fp, NULL));
+        AssertTrue((boolRet = PKCS12_parse(p12, "wolfSSL test", &pkey, &x509, NULL)) > 0);
+        AssertNotNull((x509Name = X509_get_issuer_name(x509)) != NULL);
+        AssertIntNE((numNames = X509_NAME_entry_count(x509Name)), 0);
+        AssertTrue((bio = BIO_new(BIO_s_mem())) != NULL);
+
+        for (j = 0; j < numNames; j++)
+        {
+            AssertNotNull(x509NameEntry = X509_NAME_get_entry(x509Name, j));
+            AssertNotNull(asn1Name = X509_NAME_ENTRY_get_object(x509NameEntry));
+            AssertTrue((nid = OBJ_obj2nid(asn1Name)) > 0);
+            printf("nid=%d\n", nid);
+        }
+    }
+#endif /* !NO_DES3 */
+
+    printf(resultFmt, passed);
+#endif
+}
 
 static void test_wolfSSL_X509_NAME_ENTRY(void)
 {

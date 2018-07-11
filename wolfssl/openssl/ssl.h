@@ -854,7 +854,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define NID_stateOrProvinceName    0x08   /* ST */
 #define NID_organizationName       0x0a   /* O  */
 #define NID_organizationalUnitName 0x0b   /* OU */
-
+#define NID_emailAddress 0x30   /* emailAddress */
 
 #define SSL_CTX_set_msg_callback        wolfSSL_CTX_set_msg_callback
 #define SSL_set_msg_callback            wolfSSL_set_msg_callback

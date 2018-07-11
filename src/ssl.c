@@ -30198,17 +30198,12 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         objSz     += oidSz;
         obj->objSz = objSz;
 
-        if(arg_obj == NULL) { /* Dynamic NAME_ENTRY */
-            obj->obj = (byte*)XMALLOC(obj->objSz, NULL, DYNAMIC_TYPE_ASN1);
-            if ((obj->obj == NULL) && arg_obj == NULL) {
-                wolfSSL_ASN1_OBJECT_free(obj);
-                return NULL;
-            }
-            XMEMCPY(obj->obj, objBuf, obj->objSz);
-        } else {/* static NAME_ENTR is for just type and grp */
-            obj->obj = NULL; 
-            obj->type = id;
+        obj->obj = (byte*)XMALLOC(obj->objSz, NULL, DYNAMIC_TYPE_ASN1);
+        if ((obj->obj == NULL) && arg_obj == NULL) {
+            wolfSSL_ASN1_OBJECT_free(obj);
+            return NULL;
         }
+        XMEMCPY(obj->obj, objBuf, obj->objSz);
 
         (void)type;
 
@@ -30554,24 +30549,14 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         return NULL;
     }
 
-    int wolfSSL_OBJ_sn2nid(const char *sn) {
-        int i;
-        WOLFSSL_ENTER("wolfSSL_OBJ_osn2nid");
-
-        /* Nginx uses this OpenSSL string. */
-        if (XSTRNCMP(sn, "prime256v1", 10) == 0)
-            sn = "SECP256R1";
-        if (XSTRNCMP(sn, "secp384r1", 10) == 0)
-            sn = "SECP384R1";
-        /* find based on name and return NID */
-        for (i = 0; i < ecc_sets[i].size; i++) {
-            if (XSTRNCMP(sn, ecc_sets[i].name, ECC_MAXNAME) == 0) {
-                return ecc_sets[i].id;
-            }
-        }
-        return -1;
-    }
 #endif /* HAVE_ECC */
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    int wolfSSL_OBJ_sn2nid(const char *sn) {
+
+        WOLFSSL_ENTER("wolfSSL_OBJ_sn2nid");
+        return OBJ_sn2nid(sn);
+    }
+#endif
 
     /* Gets the NID value that corresponds with the ASN1 object.
      *
@@ -30589,6 +30574,8 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         if (o == NULL) {
             return -1;
         }
+        if (o->nid > 0)
+            return o->nid;
         if ((id = GetObjectId(o->obj, &idx, &oid, o->grp, o->objSz)) < 0) {
             WOLFSSL_MSG("Issue getting OID of object");
             return -1;
@@ -30910,6 +30897,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         WOLFSSL_ENTER("wolfSSL_X509_NAME_ENTRY_get_object");
         if (ne == NULL) return NULL;
         wolfSSL_OBJ_nid2obj_ex(ne->nid, &ne->object);
+        ne->object.nid = ne->nid;
         return &ne->object;
     }
 
@@ -30927,38 +30915,47 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         case 1:
             name->cnEntry.value->length = name->fullName.cLen;
             name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.cIdx];
+            name->cnEntry.nid           = name->fullName.cNid;
             break;
         case 2:
             name->cnEntry.value->length = name->fullName.lLen;
             name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.lIdx];
+            name->cnEntry.nid           = name->fullName.lNid;
             break;
         case 3:
             name->cnEntry.value->length = name->fullName.stLen;
             name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.stIdx];
+            name->cnEntry.nid           = name->fullName.stNid;
             break;
         case 4:
             name->cnEntry.value->length = name->fullName.oLen;
             name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.oIdx];
+            name->cnEntry.nid           = name->fullName.oNid;
             break;
         case 5:
             name->cnEntry.value->length = name->fullName.ouLen;
             name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.ouIdx];
+            name->cnEntry.nid           = name->fullName.ouNid;
             break;
         case 6:
             name->cnEntry.value->length = name->fullName.emailLen;
             name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.emailIdx];
+            name->cnEntry.nid           = name->fullName.emailNid;
             break;
         case 7:
             name->cnEntry.value->length = name->fullName.snLen;
             name->cnEntry.value->data = &name->fullName.fullName[name->fullName.snIdx];
+            name->cnEntry.nid           = name->fullName.snNid;
             break;
         case 8:
             name->cnEntry.value->length = name->fullName.uidLen;
             name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.uidIdx];
+            name->cnEntry.nid           = name->fullName.uidNid;
             break;
         case 9:
             name->cnEntry.value->length = name->fullName.serialLen;
             name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.serialIdx];
+            name->cnEntry.nid           = name->fullName.serialNid;
             break;
         default:
             return NULL;
@@ -30984,6 +30981,11 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         if (loc < 0 || loc > maxLoc) {
             WOLFSSL_MSG("Bad argument");
             return NULL;
+        }
+
+        if ((loc >= 0) && (loc < name->fullName.entryCount)){
+            if (get_nameByLoc(name, loc) != NULL)
+                return &name->cnEntry;
         }
 
         /* DC component */
@@ -31012,12 +31014,6 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             name->cnEntry.set         = 1;
         }
         
-        if((loc >= 0) && (loc < name->fullName.entryCount)){
-            if(get_nameByLoc(name, loc) == NULL)
-                return NULL;
-        }
-
-        wolfSSL_OBJ_nid2obj_ex(name->cnEntry.nid, &name->cnEntry.object);
         return &name->cnEntry;
     }
 

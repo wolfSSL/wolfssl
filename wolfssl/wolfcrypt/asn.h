@@ -480,16 +480,22 @@ struct DecodedName {
     int     entryCount;
     int     cnIdx;
     int     cnLen;
+    int     cnNid;
     int     snIdx;
     int     snLen;
+    int     snNid;
     int     cIdx;
     int     cLen;
+    int     cNid;
     int     lIdx;
     int     lLen;
+    int     lNid;
     int     stIdx;
     int     stLen;
+    int     stNid;
     int     oIdx;
     int     oLen;
+    int     oNid;
     int     ouIdx;
     int     ouLen;
 #ifdef WOLFSSL_CERT_EXT
@@ -500,12 +506,16 @@ struct DecodedName {
     int     jsIdx;
     int     jsLen;
 #endif
+    int     ouNid;
     int     emailIdx;
     int     emailLen;
+    int     emailNid;
     int     uidIdx;
     int     uidLen;
+    int     uidNid;
     int     serialIdx;
     int     serialLen;
+    int     serialNid;
     int     dcIdx[DOMAIN_COMPONENT_MAX];
     int     dcLen[DOMAIN_COMPONENT_MAX];
     int     dcNum;
@@ -898,6 +908,7 @@ WOLFSSL_LOCAL int GetTimeString(byte* date, int format, char* buf, int len);
 WOLFSSL_LOCAL int ExtractDate(const unsigned char* date, unsigned char format,
                                                  wolfssl_tm* certTime, int* idx);
 WOLFSSL_LOCAL int ValidateDate(const byte* date, byte format, int dateType);
+WOLFSSL_LOCAL int OBJ_sn2nid(const char *sn);
 
 /* ASN.1 helper functions */
 #ifdef WOLFSSL_CERT_GEN
