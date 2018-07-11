@@ -4263,15 +4263,16 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
     #endif
         byte*  chainBuffer = staticBuffer;
         int    dynamicBuffer = 0;
-        word32 bufferSz = sizeof(staticBuffer);
+        word32 bufferSz;
         long   consumed = info->consumed;
         word32 idx = 0;
         int    gotOne = 0;
 
-        if ( (sz - consumed) > (int)bufferSz) {
+        /* Calculate max possible size, including max headers */
+        bufferSz = (word32)(sz - consumed) + (CERT_HEADER_SZ * MAX_CHAIN_DEPTH);
+        if (bufferSz > sizeof(staticBuffer)) {
             WOLFSSL_MSG("Growing Tmp Chain Buffer");
-            bufferSz = (word32)(sz - consumed);
-                       /* will shrink to actual size */
+            /* will shrink to actual size */
             chainBuffer = (byte*)XMALLOC(bufferSz, heap, DYNAMIC_TYPE_FILE);
             if (chainBuffer == NULL) {
                 return MEMORY_E;
@@ -4301,7 +4302,7 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
                     if (GetSequence(buff + consumed, &inOutIdx, &length, remain) < 0) {
                         ret = ASN_NO_PEM_HEADER;
                     }
-                    length += inOutIdx; /* include leading squence */
+                    length += inOutIdx; /* include leading sequence */
                 }
                 info->consumed = length;
                 if (ret == 0) {
@@ -4316,7 +4317,7 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
 #ifdef WOLFSSL_TLS13
                 cnt++;
 #endif
-                if ((idx + part->length) > bufferSz) {
+                if ((idx + part->length + CERT_HEADER_SZ) > bufferSz) {
                     WOLFSSL_MSG("   Cert Chain bigger than buffer");
                     ret = BUFFER_E;
                 }
@@ -4446,7 +4447,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             if (GetSequence(buff, &inOutIdx, &length, (word32)sz) < 0) {
                 ret = ASN_PARSE_E;
             }
-            length += inOutIdx; /* include leading squence */
+            length += inOutIdx; /* include leading sequence */
         }
 
         info->consumed = length;
@@ -4465,6 +4466,10 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
     /* process user chain */
     if (ret >= 0) {
+        /* First certificate in chain is loaded into ssl->buffers.certificate.
+         * Remainder are loaded into ssl->buffers.certChain.
+         * Chain should have server cert first, then intermediates, then root.
+         */
         if (userChain) {
             ret = ProcessUserChain(ctx, buff, sz, format, type, ssl, used, info);
         }
