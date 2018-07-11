@@ -28484,6 +28484,9 @@ int wolfSSL_i2d_RSAPublicKey(WOLFSSL_RSA *rsa, const unsigned char **pp)
     }
     if((pp != NULL) && (ret >= 0))
         *pp = der;
+    else
+        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+
     return ret;
 }
 #endif /* #if !defined(HAVE_FAST_RSA) */
