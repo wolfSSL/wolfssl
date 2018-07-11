@@ -2760,7 +2760,7 @@ int mp_mod_d(fp_int *a, fp_digit b, fp_digit *c)
 static void fp_gcd(fp_int *a, fp_int *b, fp_int *c);
 static void fp_lcm(fp_int *a, fp_int *b, fp_int *c);
 static int  fp_isprime_ex(fp_int *a, int t);
-static int  fp_isprime(fp_int *a);
+/* static int  fp_isprime(fp_int *a); */
 static int  fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap);
 
 int mp_gcd(fp_int *a, fp_int *b, fp_int *c)
@@ -2780,7 +2780,7 @@ int mp_lcm(fp_int *a, fp_int *b, fp_int *c)
 int mp_prime_is_prime(mp_int* a, int t, int* result)
 {
     (void)t;
-    *result = fp_isprime(a);
+    *result = fp_isprime_ex(a, t);
     return MP_OKAY;
 }
 
@@ -2940,15 +2940,91 @@ int fp_isprime_ex(fp_int *a, int t)
    return FP_YES;
 }
 
+#if 0
+/* Removed in favor of fp_isprime_ex(). */
 int fp_isprime(fp_int *a)
 {
   return fp_isprime_ex(a, 8);
 }
+#endif
+
+int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
+{
+    int ret = FP_YES;
+
+    if (a == NULL || result == NULL || rng == NULL)
+        return FP_VAL;
+
+    /* do trial division */
+    if (ret == FP_YES) {
+        fp_digit d;
+        int r;
+
+        for (r = 0; r < FP_PRIME_SIZE; r++) {
+            if (fp_mod_d(a, primes[r], &d) == MP_OKAY) {
+                if (d == 0)
+                    ret = FP_NO;
+            }
+            else
+                return FP_VAL;
+        }
+    }
+
+    /* now do a miller rabin with up to t random numbers, this should
+     * give a (1/4)^t chance of a false prime. */
+    if (ret == FP_YES) {
+        fp_int b, c;
+        /* FP_MAX_BITS is 2 times the modulus size. The modulus size is
+         * 2 times the prime size. */
+        word32 baseSz;
+        #ifndef WOLFSSL_SMALL_STACK
+            byte base[FP_MAX_BITS/32];
+        #else
+            byte* base;
+        #endif
+
+        baseSz = fp_count_bits(a);
+        baseSz = (baseSz / 8) + (baseSz % 8) ? 1 : 0;
+
+        #ifdef WOLFSSL_SMALL_STACK
+            base = (byte*)XMALLOC(baseSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (base == NULL)
+                return FP_MEM;
+        #endif
+
+        fp_init(&b);
+        fp_init(&c);
+        fp_sub_d(a, 2, &c);
+        while (t > 0) {
+            wc_RNG_GenerateBlock(rng, base, baseSz);
+            fp_read_unsigned_bin(&b, base, baseSz);
+            if (fp_cmp_d(&b, 2) != FP_GT || fp_cmp(&b, &c) != FP_LT)
+                continue;
+            fp_prime_miller_rabin(a, &b, &ret);
+            if (ret == FP_NO)
+                break;
+            fp_zero(&b);
+            t--;
+        }
+        fp_clear(&b);
+        fp_clear(&c);
+        #ifdef WOLFSSL_SMALL_STACK
+            XFREE(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        #endif
+    }
+
+    *result = ret;
+    return FP_OKAY;
+}
+
 
 int fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap)
 {
     static const int USE_BBS = 1;
     int   err, type;
+    int   isPrime = FP_YES;
+        /* Assume the candidate is probably prime and then test until
+         * it is proven composite. */
     byte* buf;
 
     /* get type */
@@ -2991,7 +3067,10 @@ int fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap)
         fp_read_unsigned_bin(N, buf, len);
 
         /* test */
-    } while (fp_isprime(N) == FP_NO);
+        /* Running Miller-Rabin up to 40 times gives us a 2^{-80} chance
+         * of a candidate being a false positive. */
+        mp_prime_is_prime_ex(N, 40, &isPrime, rng);
+    } while (isPrime == FP_NO);
 
     XMEMSET(buf, 0, len);
     XFREE(buf, heap, DYNAMIC_TYPE_TMP_BUFFER);

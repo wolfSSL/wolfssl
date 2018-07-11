@@ -4529,7 +4529,9 @@ int mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap)
         }
 
         /* test */
-        if ((err = mp_prime_is_prime(N, 8, &res)) != MP_OKAY) {
+        /* Running Miller-Rabin up to 40 times gives us a 2^{-80} chance
+         * of a candidate being a false positive. */
+        if ((err = mp_prime_is_prime_ex(N, 40, &res, rng)) != MP_OKAY) {
             XFREE(buf, heap, DYNAMIC_TYPE_RSA);
             return err;
         }
@@ -4598,6 +4600,97 @@ int mp_prime_is_prime (mp_int * a, int t, int *result)
   /* passed the test */
   *result = MP_YES;
 LBL_B:mp_clear (&b);
+  return err;
+}
+
+
+/*
+ * Sets result to 1 if probably prime, 0 otherwise
+ */
+int mp_prime_is_prime_ex (mp_int * a, int t, int *result, WC_RNG *rng)
+{
+  mp_int  b, c;
+  int     ix, err, res;
+  byte*   base = NULL;
+  word32  baseSz = 0;
+
+  /* default to no */
+  *result = MP_NO;
+
+  /* valid value of t? */
+  if (t <= 0 || t > PRIME_SIZE) {
+    return MP_VAL;
+  }
+
+  /* is the input equal to one of the primes in the table? */
+  for (ix = 0; ix < PRIME_SIZE; ix++) {
+      if (mp_cmp_d(a, ltm_prime_tab[ix]) == MP_EQ) {
+         *result = MP_YES;
+         return MP_OKAY;
+      }
+  }
+
+  /* first perform trial division */
+  if ((err = mp_prime_is_divisible (a, &res)) != MP_OKAY) {
+    return err;
+  }
+
+  /* return if it was trivially divisible */
+  if (res == MP_YES) {
+    return MP_OKAY;
+  }
+
+  /* now perform the miller-rabin rounds */
+  if ((err = mp_init (&b)) != MP_OKAY) {
+    return err;
+  }
+  if ((err = mp_init (&c)) != MP_OKAY) {
+      mp_clear(&b);
+    return err;
+  }
+
+  baseSz = mp_count_bits(a);
+  baseSz = (baseSz / 8) + (baseSz % 8) ? 1 : 0;
+
+  base = (byte*)XMALLOC(baseSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+  if (base == NULL) {
+      err = MP_MEM;
+      goto LBL_B;
+  }
+
+  if ((err = mp_copy(a, 2, &c)) != MP_OKAY) {
+      goto LBL_B;
+  }
+
+ /* now do a miller rabin with up to t random numbers, this should
+  * give a (1/4)^t chance of a false prime. */
+  for (ix = 0; ix < t; ix++) {
+    /* Set a test candidate. */
+    if ((err = wc_RNG_GenerateBlock(rng, base, baseSz)) != 0) {
+        goto LBL_B;
+    }
+
+    if ((err = mp_read_unsigned_bin(&b, base, baseSz)) != MP_OKAY) {
+        goto LBL_B;
+    }
+
+    if (mp_cmp_d(&b, 2) != MP_GT || mp_cmp(&b, &c) != MP_LT)
+        continue;
+
+    if ((err = mp_prime_miller_rabin (a, &b, &res)) != MP_OKAY) {
+      goto LBL_B;
+    }
+
+    if (res == MP_NO) {
+      goto LBL_B;
+    }
+  }
+
+  /* passed the test */
+  *result = MP_YES;
+LBL_B:mp_clear (&b);
+      mp_clear (&c);
+      XFREE(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
   return err;
 }
 

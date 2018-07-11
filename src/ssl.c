@@ -22526,7 +22526,14 @@ int wolfSSL_BN_add(WOLFSSL_BIGNUM *r, WOLFSSL_BIGNUM *a, WOLFSSL_BIGNUM *b)
 int wolfSSL_BN_is_prime_ex(const WOLFSSL_BIGNUM *bn, int nbchecks,
                            WOLFSSL_BN_CTX *ctx, WOLFSSL_BN_GENCB *cb)
 {
-    int res;
+    WC_RNG*        rng    = NULL;
+#ifdef WOLFSSL_SMALL_STACK
+    WC_RNG*        tmpRNG = NULL;
+#else
+    WC_RNG         tmpRNG[1];
+#endif
+    int            initTmpRng = 0;
+    int            res = MP_NO;
 
     (void)ctx;
     (void)cb;
@@ -22538,10 +22545,38 @@ int wolfSSL_BN_is_prime_ex(const WOLFSSL_BIGNUM *bn, int nbchecks,
         return WOLFSSL_FATAL_ERROR;
     }
 
-    if (mp_prime_is_prime((mp_int*)bn->internal, nbchecks, &res) != MP_OKAY) {
-        WOLFSSL_MSG("mp_prime_is_prime error");
-        return WOLFSSL_FATAL_ERROR;
+#ifdef WOLFSSL_SMALL_STACK
+    tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
+    if (tmpRNG == NULL)
+        return WOLFSSL_FAILURE;
+#endif
+    if (wc_InitRng(tmpRNG) == 0) {
+        rng = tmpRNG;
+        initTmpRng = 1;
     }
+    else {
+        WOLFSSL_MSG("Bad RNG Init, trying global");
+        if (initGlobalRNG == 0) {
+            WOLFSSL_MSG("Global RNG no Init");
+        }
+        else
+            rng = &globalRNG;
+    }
+
+    if (rng) {
+        if (mp_prime_is_prime_ex((mp_int*)bn->internal,
+                                 nbchecks, &res, rng) != MP_OKAY) {
+            WOLFSSL_MSG("mp_prime_is_prime error");
+            res = MP_NO;
+        }
+    }
+
+    if (initTmpRng)
+        wc_FreeRng(tmpRNG);
+#ifdef WOLFSSL_SMALL_STACK
+    tmpRNG = (WC_RNG*)XMALLOC(sizeof(WC_RNG), NULL, DYNAMIC_TYPE_RNG);
+    XFREE(tmpRNG, NULL, DYNAMIC_TYPE_RNG);
+#endif
 
     if (res != MP_YES) {
         WOLFSSL_MSG("mp_prime_is_prime not prime");
