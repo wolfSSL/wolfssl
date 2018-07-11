@@ -226,7 +226,8 @@
 
 #if defined(WOLFSSL_CONTIKI)
     #include <contiki.h>
-    #define UIP
+    #define WOLFSSL_UIP
+    #define NO_WOLFSSL_MEMORY
     #define NO_WRITEV
     #define SINGLE_THREADED
     #define WOLFSSL_USER_IO
@@ -236,27 +237,6 @@
     static inline unsigned int LowResTimer(void)
     {
         return clock_seconds();
-    }
-
-    static inline void* XREALLOC(void *p, size_t n, void* heap, int type)
-    {
-        (void)heap;
-        (void)type;
-        return realloc(p,n);
-    }
-
-    static inline void *XMALLOC(size_t n, void* heap, int type)
-    {
-        (void)heap;
-        (void)type;
-        return malloc(n);
-    }
-
-    static inline void XFREE(void *p, void* heap, int type)
-    {
-        (void)heap;
-        (void)type;
-        free(p);
     }
 #endif
 

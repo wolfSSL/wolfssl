@@ -423,7 +423,7 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
                                           struct mn_sockaddr_in* mnSockAddrIn);
 #endif /* defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP) */
 
-#ifdef UIP
+#ifdef WOLFSSL_UIP
 #define SSL_DATABUF_LEN 1460
 
 struct uip_wolfssl_ctx {

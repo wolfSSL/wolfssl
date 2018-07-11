@@ -2068,7 +2068,7 @@ void wolfSSL_SetIO_Mynewt(WOLFSSL* ssl, struct mn_socket* mnSocket, struct mn_so
 
 #endif /* defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP) */
 
-#ifdef UIP
+#ifdef WOLFSSL_UIP
 #include <uip.h>
 
 #define SOCKLEN_UIP sizeof(struct sockaddr_uip)
@@ -2112,7 +2112,7 @@ int uIPReceive(WOLFSSL *ssl, char *buf, int sz, void *_ctx)
     if (ctx->ssl_rb_len > 0) {
         if (sz > ctx->ssl_rb_len - ctx->ssl_rb_off)
             sz = ctx->ssl_rb_len - ctx->ssl_rb_off;
-        memcpy(buf, ctx->ssl_recv_buffer + ctx->ssl_rb_off, sz);
+        XMEMCPY(buf, ctx->ssl_recv_buffer + ctx->ssl_rb_off, sz);
         ctx->ssl_rb_off += sz;
         if (ctx->ssl_rb_off >= ctx->ssl_rb_len) {
             ctx->ssl_rb_len = 0;
@@ -2145,6 +2145,6 @@ int uIPGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *_ctx)
     return sz;
 }
 
-#endif /* UIP */
+#endif /* WOLFSSL_UIP */
 
 #endif /* WOLFCRYPT_ONLY */

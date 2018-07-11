@@ -1410,7 +1410,7 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
                 #error Micrium port does not support DTLS session export yet
             #endif
         #endif
-    #elif defined UIP
+    #elif defined WOLFSSL_UIP
         ctx->CBIORecv = uIPReceive;
         ctx->CBIOSend = uIPSend;
         #ifdef WOLFSSL_DTLS
