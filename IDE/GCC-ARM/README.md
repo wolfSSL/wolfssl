@@ -43,6 +43,28 @@ make clean && make
   70368	    464	     36	  70868	  114d4	./Build/WolfSSLClient.elf
 ```
 
+### Building with configure
+
+The configure script in the main project directory can perform a cross-compile
+build with the the gcc-arm-none-eabi tools. Assuming the tools are installed in
+your executable path:
+
+```
+$ ./configure CFLAGS="-march=armv8-a \
+    --specs=nosys.specs -DHAVE_PK_CALLBACKS \
+    -DWOLFSSL_USER_IO -DNO_WRITEV" \
+    --host=arm-non-eabi --disable-filesystem \
+    --enable-fastmath --disable-shared \
+    CC=arm-none-eabi-gcc AR=arm-none-eabi-ar \
+    STRIP=arm-none-eabi-strip RANLIB=arm-none-eabi-ranlib \
+    --prefix=/path/to/build/wolfssl-arm
+$ make
+$ make install
+```
+
+If you are building for a 32-bit architecture, add `-DTIME_T_NOT_LONG` to the
+list of CFLAGS.
+
 ## Performace Tuning Options
 
 These settings are located in `Header/user_settings.h`.
