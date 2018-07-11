@@ -4524,7 +4524,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         ssl->dtls_expected_rx = MAX_MTU;
     #endif
     ssl->dtls_timeout_init              = DTLS_TIMEOUT_INIT;
-    ssl->dtls_timeout_max               = DTLS_TIMEOUT_MAX;
+    ssl->dtls_timeout_max               = WOLFSSL_DTLS_TIMEOUT_MAX;
     ssl->dtls_timeout                   = ssl->dtls_timeout_init;
     ssl->buffers.dtlsCtx.rfd            = -1;
     ssl->buffers.dtlsCtx.wfd            = -1;

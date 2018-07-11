@@ -224,6 +224,17 @@
     #endif
 #endif
 
+#ifdef WOLFSSL_DTLS
+    #ifndef WOLFSSL_DTLS_POST_HNDSHK_TIMEOUT
+        #define WOLFSSL_DTLS_POST_HNDSHK_TIMEOUT 0 /* default max timeout for
+                                                    * DTLS post handshake */
+    #endif
+    #ifndef WOLFSSL_DTLS_TIMEOUT_MAX
+        #define WOLFSSL_DTLS_TIMEOUT_MAX 64 /* default max timeout for DTLS
+                                             * receive */
+    #endif
+#endif
+
 
 
 #ifdef DEVKITPRO
