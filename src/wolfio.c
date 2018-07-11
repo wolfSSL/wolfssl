@@ -291,7 +291,7 @@ int EmbedReceiveFrom(WOLFSSL *ssl, char *buf, int sz, void *ctx)
     WOLFSSL_ENTER("EmbedReceiveFrom()");
 
     if (ssl->options.handShakeDone)
-        dtls_timeout = 0;
+        dtls_timeout = WOLFSSL_DTLS_POST_HNDSHK_TIMEOUT;
 
     if (!wolfSSL_get_using_nonblock(ssl)) {
         #ifdef USE_WINDOWS_API
