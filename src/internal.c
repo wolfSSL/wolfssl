@@ -14663,8 +14663,12 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         WOLFSSL_MSG("output buffer was full, trying to send again");
         if ( (ssl->error = SendBuffered(ssl)) < 0) {
             WOLFSSL_ERROR(ssl->error);
-            if (ssl->error == SOCKET_ERROR_E && ssl->options.connReset)
-                return 0;     /* peer reset */
+            if (ssl->error == SOCKET_ERROR_E && (ssl->options.connReset ||
+                                                 ssl->options.isClosed)) {
+                ssl->error = SOCKET_PEER_CLOSED_E;
+                WOLFSSL_ERROR(ssl->error);
+                return 0;  /* peer reset or closed */
+            }
             return ssl->error;
         }
         else {
@@ -14746,15 +14750,19 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 
         ssl->buffers.outputBuffer.length += sendSz;
 
-        if ( (ret = SendBuffered(ssl)) < 0) {
-            WOLFSSL_ERROR(ret);
+        if ( (ssl->error = SendBuffered(ssl)) < 0) {
+            WOLFSSL_ERROR(ssl->error);
             /* store for next call if WANT_WRITE or user embedSend() that
                doesn't present like WANT_WRITE */
             ssl->buffers.plainSz  = len;
             ssl->buffers.prevSent = sent;
-            if (ret == SOCKET_ERROR_E && ssl->options.connReset)
-                return 0;  /* peer reset */
-            return ssl->error = ret;
+            if (ssl->error == SOCKET_ERROR_E && (ssl->options.connReset ||
+                                                 ssl->options.isClosed)) {
+                ssl->error = SOCKET_PEER_CLOSED_E;
+                WOLFSSL_ERROR(ssl->error);
+                return 0;  /* peer reset or closed */
+            }
+            return ssl->error;
         }
 
         sent += len;
