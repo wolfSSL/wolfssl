@@ -18068,9 +18068,11 @@ static void test_wolfSSL_RSA(void)
     AssertIntEQ(RSA_size(rsa), 256);
     RSA_free(rsa);
 
+#if !defined(USE_FAST_MATH) || (FP_MAX_BITS >= (3072*2))
     AssertNotNull(rsa = RSA_generate_key(3072, 17, NULL, NULL));
     AssertIntEQ(RSA_size(rsa), 384);
     RSA_free(rsa);
+#endif
 
     /* remove for now with odd key size until adjusting rsa key size check with
        wc_MakeRsaKey()
