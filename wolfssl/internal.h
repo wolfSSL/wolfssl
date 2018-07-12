@@ -3940,7 +3940,6 @@ WOLFSSL_LOCAL int wolfSSL_GetMaxRecordSize(WOLFSSL* ssl, int maxFragment);
     #endif /* !NO_RSA */
 
     #ifdef HAVE_ECC
-        WOLFSSL_LOCAL int EccMakeKey(WOLFSSL* ssl, ecc_key* key, ecc_key* peer);
         WOLFSSL_LOCAL int EccSign(WOLFSSL* ssl, const byte* in, word32 inSz,
             byte* out, word32* outSz, ecc_key* key, DerBuffer* keyBufInfo);
         WOLFSSL_LOCAL int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz,
