@@ -6529,12 +6529,7 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     ret = EccSharedSecret(ssl, keyShareEntry->key, ssl->peerEccKey,
         keyShareEntry->ke, &keyShareEntry->keLen,
         ssl->arrays->preMasterSecret, &ssl->arrays->preMasterSz,
-        ssl->options.side,
-    #ifdef HAVE_PK_CALLBACKS
-        ssl->EccSharedSecretCtx
-    #else
-        NULL
-    #endif
+        ssl->options.side
     );
 #endif
 

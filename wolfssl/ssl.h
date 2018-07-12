@@ -1842,6 +1842,15 @@ enum KDF_MacAlgorithm {
 /* Public Key Callback support */
 #ifdef HAVE_PK_CALLBACKS
 #ifdef HAVE_ECC
+
+struct ecc_key;
+
+typedef int (*CallbackEccKeyGen)(WOLFSSL* ssl, struct ecc_key* key, 
+    unsigned int keySz, int ecc_curve, void* ctx);
+WOLFSSL_API void  wolfSSL_CTX_SetEccKeyGenCb(WOLFSSL_CTX*, CallbackEccKeyGen);
+WOLFSSL_API void  wolfSSL_SetEccKeyGenCtx(WOLFSSL* ssl, void *ctx);
+WOLFSSL_API void* wolfSSL_GetEccKeyGenCtx(WOLFSSL* ssl);
+
 typedef int (*CallbackEccSign)(WOLFSSL* ssl,
        const unsigned char* in, unsigned int inSz,
        unsigned char* out, unsigned int* outSz,
@@ -1860,7 +1869,6 @@ WOLFSSL_API void  wolfSSL_CTX_SetEccVerifyCb(WOLFSSL_CTX*, CallbackEccVerify);
 WOLFSSL_API void  wolfSSL_SetEccVerifyCtx(WOLFSSL* ssl, void *ctx);
 WOLFSSL_API void* wolfSSL_GetEccVerifyCtx(WOLFSSL* ssl);
 
-struct ecc_key;
 typedef int (*CallbackEccSharedSecret)(WOLFSSL* ssl, struct ecc_key* otherKey,
         unsigned char* pubKeyDer, unsigned int* pubKeySz,
         unsigned char* out, unsigned int* outlen,
@@ -1908,6 +1916,13 @@ WOLFSSL_API void* wolfSSL_GetEd25519VerifyCtx(WOLFSSL* ssl);
 
 #ifdef HAVE_CURVE25519
 struct curve25519_key;
+
+typedef int (*CallbackX25519KeyGen)(WOLFSSL* ssl, struct curve25519_key* key, 
+    unsigned int keySz, void* ctx);
+WOLFSSL_API void  wolfSSL_CTX_SetX25519KeyGenCb(WOLFSSL_CTX*, CallbackX25519KeyGen);
+WOLFSSL_API void  wolfSSL_SetX25519KeyGenCtx(WOLFSSL* ssl, void *ctx);
+WOLFSSL_API void* wolfSSL_GetX25519KeyGenCtx(WOLFSSL* ssl);
+
 typedef int (*CallbackX25519SharedSecret)(WOLFSSL* ssl,
         struct curve25519_key* otherKey,
         unsigned char* pubKeyDer, unsigned int* pubKeySz,

@@ -1922,6 +1922,27 @@ typedef struct PkCbInfo {
 
 #ifdef HAVE_ECC
 
+static WC_INLINE int myEccKeyGen(WOLFSSL* ssl, ecc_key* key, word32 keySz, 
+    int ecc_curve, void* ctx)
+{
+    int       ret;
+    WC_RNG    rng;
+    PkCbInfo* cbInfo = (PkCbInfo*)ctx;
+
+    (void)ssl;
+    (void)cbInfo;
+
+    ret = wc_InitRng(&rng);
+    if (ret != 0)
+        return ret;
+
+    ret = wc_ecc_make_key_ex(&rng, keySz, key, ecc_curve);
+
+    wc_FreeRng(&rng);
+
+    return ret;
+}
+
 static WC_INLINE int myEccSign(WOLFSSL* ssl, const byte* in, word32 inSz,
         byte* out, word32* outSz, const byte* key, word32 keySz, void* ctx)
 {
@@ -2113,6 +2134,27 @@ static WC_INLINE int myEd25519Verify(WOLFSSL* ssl, const byte* sig, word32 sigSz
 #endif /* HAVE_ED25519 */
 
 #ifdef HAVE_CURVE25519
+static WC_INLINE int myX25519KeyGen(WOLFSSL* ssl, curve25519_key* key, 
+    unsigned int keySz, void* ctx)
+{
+    int       ret;
+    WC_RNG    rng;
+    PkCbInfo* cbInfo = (PkCbInfo*)ctx;
+
+    (void)ssl;
+    (void)cbInfo;
+
+    ret = wc_InitRng(&rng);
+    if (ret != 0)
+        return ret;
+
+    ret = wc_curve25519_make_key(&rng, keySz, key);
+
+    wc_FreeRng(&rng);
+
+    return ret;
+}
+
 static WC_INLINE int myX25519SharedSecret(WOLFSSL* ssl, curve25519_key* otherKey,
         unsigned char* pubKeyDer, unsigned int* pubKeySz,
         unsigned char* out, unsigned int* outlen,
@@ -2543,6 +2585,7 @@ static WC_INLINE void SetupPkCallbacks(WOLFSSL_CTX* ctx)
     (void)ctx;
 
     #ifdef HAVE_ECC
+        wolfSSL_CTX_SetEccKeyGenCb(ctx, myEccKeyGen);
         wolfSSL_CTX_SetEccSignCb(ctx, myEccSign);
         wolfSSL_CTX_SetEccVerifyCb(ctx, myEccVerify);
         wolfSSL_CTX_SetEccSharedSecretCb(ctx, myEccSharedSecret);
@@ -2555,6 +2598,7 @@ static WC_INLINE void SetupPkCallbacks(WOLFSSL_CTX* ctx)
         wolfSSL_CTX_SetEd25519VerifyCb(ctx, myEd25519Verify);
     #endif
     #ifdef HAVE_CURVE25519
+        wolfSSL_CTX_SetX25519KeyGenCb(ctx, myX25519KeyGen);
         wolfSSL_CTX_SetX25519SharedSecretCb(ctx, myX25519SharedSecret);
     #endif
     #ifndef NO_RSA
@@ -2574,6 +2618,7 @@ static WC_INLINE void SetupPkCallbacks(WOLFSSL_CTX* ctx)
 static WC_INLINE void SetupPkCallbackContexts(WOLFSSL* ssl, void* myCtx)
 {
     #ifdef HAVE_ECC
+        wolfSSL_SetEccKeyGenCtx(ssl, myCtx);
         wolfSSL_SetEccSignCtx(ssl, myCtx);
         wolfSSL_SetEccVerifyCtx(ssl, myCtx);
         wolfSSL_SetEccSharedSecretCtx(ssl, myCtx);
@@ -2586,6 +2631,7 @@ static WC_INLINE void SetupPkCallbackContexts(WOLFSSL* ssl, void* myCtx)
         wolfSSL_SetEd25519VerifyCtx(ssl, myCtx);
     #endif
     #ifdef HAVE_CURVE25519
+        wolfSSL_SetX25519KeyGenCtx(ssl, myCtx);
         wolfSSL_SetX25519SharedSecretCtx(ssl, myCtx);
     #endif
     #ifndef NO_RSA
