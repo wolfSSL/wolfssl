@@ -1900,7 +1900,7 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
     /* loop until p is prime */
     if (ret == 0) {
         do {
-            if (mp_prime_is_prime(&dh->p, 8, &primeCheck) != MP_OKAY)
+            if (mp_prime_is_prime_ex(&dh->p, 8, &primeCheck, rng) != MP_OKAY)
                 ret = PRIME_GEN_E;
 
             if (primeCheck != MP_YES) {

@@ -337,7 +337,7 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
 
     /* loop until p is prime */
     while (check_prime == MP_NO) {
-        err = mp_prime_is_prime(&dsa->p, 8, &check_prime);
+        err = mp_prime_is_prime_ex(&dsa->p, 8, &check_prime, rng);
         if (err != MP_OKAY) {
             mp_clear(&dsa->q);
             mp_clear(&dsa->p);
