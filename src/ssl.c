@@ -25591,6 +25591,7 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* key,
         derBuf = (byte*)XMALLOC(derMax, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (derBuf == NULL) {
             WOLFSSL_MSG("malloc failed");
+            wolfSSL_EVP_PKEY_free(pkey);
             return SSL_FAILURE;
         }
 
@@ -25599,6 +25600,7 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* key,
         if (derSz < 0) {
             WOLFSSL_MSG("wc_RsaKeyToDer failed");
             XFREE(derBuf, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            wolfSSL_EVP_PKEY_free(pkey);
             return SSL_FAILURE;
         }
 
@@ -25607,6 +25609,7 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* key,
         if (pkey->pkey.ptr == NULL) {
             WOLFSSL_MSG("key malloc failed");
             XFREE(derBuf, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            wolfSSL_EVP_PKEY_free(pkey);
             return SSL_FAILURE;
         }
         pkey->pkey_sz = derSz;
@@ -28796,9 +28799,12 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                 return NULL;
             if (XFSEEK(bp->file, i, SEEK_SET) != 0)
                 return NULL;
+
             /* check calculated length */
             if (l - i < 0)
                 return NULL;
+
+            l -= i;
 #else
             WOLFSSL_MSG("Unable to read file with NO_FILESYSTEM defined");
             return NULL;
@@ -28807,7 +28813,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         else
             return NULL;
 
-        pem = (unsigned char*)XMALLOC(l - i, 0, DYNAMIC_TYPE_PEM);
+        pem = (unsigned char*)XMALLOC(l, 0, DYNAMIC_TYPE_PEM);
         if (pem == NULL)
             return NULL;
 
