@@ -4660,7 +4660,7 @@ int mp_prime_is_prime_ex (mp_int * a, int t, int *result, WC_RNG *rng)
       goto LBL_B;
   }
 
-  if ((err = mp_copy(a, 2, &c)) != MP_OKAY) {
+  if ((err = mp_sub_d(a, 2, &c)) != MP_OKAY) {
       goto LBL_B;
   }
 
