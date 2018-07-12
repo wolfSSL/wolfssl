@@ -1129,8 +1129,8 @@ static int Hmac_UpdateFinal_CT(Hmac* hmac, byte* digest, const byte* in,
                 b = in[k - WOLFSSL_TLS_HMAC_INNER_SZ];
 
             b = ctMaskSel(atEoc, b, 0x80);
-            b &= ~(word32)pastEoc;
-            b &= ~(word32)isOutBlock | isEocBlock;
+            b &= (unsigned char)~(word32)pastEoc;
+            b &= ((unsigned char)~(word32)isOutBlock) | isEocBlock;
 
             if (j >= blockSz - 8) {
                 b = ctMaskSel(isOutBlock, b, lenBytes[j - (blockSz - 8)]);
