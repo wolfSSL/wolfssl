@@ -143,8 +143,10 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define TLSv1_method        wolfTLSv1_method
 #define TLSv1_server_method wolfTLSv1_server_method
 #define TLSv1_client_method wolfTLSv1_client_method
+#define TLSv1_1_method        wolfTLSv1_1_method
 #define TLSv1_1_server_method wolfTLSv1_1_server_method
 #define TLSv1_1_client_method wolfTLSv1_1_client_method
+#define TLSv1_2_method        wolfTLSv1_2_method
 #define TLSv1_2_server_method wolfTLSv1_2_server_method
 #define TLSv1_2_client_method wolfTLSv1_2_client_method
 
@@ -765,7 +767,8 @@ typedef STACK_OF(WOLFSSL_ASN1_OBJECT) GENERAL_NAMES;
 #define X509_CHECK_FLAG_NO_WILDCARDS WOLFSSL_NO_WILDCARDS
 
 #define SSL3_RANDOM_SIZE                 32 /* same as RAN_LEN in internal.h */
-#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(OPENSSL_EXTRA)
+#if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(OPENSSL_EXTRA) \
+                                                         || defined(OPENSSL_ALL)
 #include <wolfssl/openssl/asn1.h>
 
 #define SSL2_VERSION                     0x0002

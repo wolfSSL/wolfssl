@@ -3009,6 +3009,12 @@ then
         AM_CFLAGS="-DOPENSSL_ALL $AM_CFLAGS"
     fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASIO -DWOLFSSL_KEY_GEN"
+    AM_CFLAGS="$AM_CFLAGS -DSSL_TXT_TLSV1_2 -DSSL_TXT_TLSV1_1"
+    AM_CFLAGS="$AM_CFLAGS -DOPENSSL_NO_SSL2 -DOPENSSL_NO_SSL3"
+    if test "$ENABLED_TLSV10" = "yes"
+    then
+        AM_CFLAGS="$AM_CFLAGS -DSSL_TXT_TLSV1"
+    fi
 
     # Requires OCSP make sure on
     if test "x$ENABLED_OCSP" = "xno"
