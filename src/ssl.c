@@ -158,7 +158,7 @@ int wolfSSL_dtls_set_export(WOLFSSL* ssl, wc_dtls_export func)
 /* This function allows for directly serializing a session rather than using
  * callbacks. It has less overhead by removing a temporary buffer and gives
  * control over when the session gets serialized. When using callbacks the
- * session is always serialized immediatly after the handshake is finished.
+ * session is always serialized immediately after the handshake is finished.
  *
  * buf is the argument to contain the serialized session
  * sz  is the size of the buffer passed in
@@ -442,7 +442,7 @@ void FreeWriteDup(WOLFSSL* ssl)
  * duplicate existing ssl members into dup needed for writing
  *
  * dup write only WOLFSSL
- * ssl exisiting WOLFSSL
+ * ssl existing WOLFSSL
  *
  * 0 on success
 */
@@ -493,7 +493,7 @@ static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
  * turn exisitng object into read only.  Allows concurrent access from two
  * different threads.
  *
- * ssl exisiting WOLFSSL object
+ * ssl existing WOLFSSL object
  *
  * return dup'd WOLFSSL object on success
 */
@@ -2610,7 +2610,7 @@ int wolfSSL_get_error(WOLFSSL* ssl, int ret)
 }
 
 
-/* retrive alert history, WOLFSSL_SUCCESS on ok */
+/* retrieve alert history, WOLFSSL_SUCCESS on ok */
 int wolfSSL_get_alert_history(WOLFSSL* ssl, WOLFSSL_ALERT_HISTORY *h)
 {
     if (ssl && h) {
@@ -3219,7 +3219,7 @@ const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbyname(const char *name)
  *
  * id  cipher NID
  *
- * retrun WOLFSSL_EVP_CIPHER
+ * return WOLFSSL_EVP_CIPHER
 */
 const WOLFSSL_EVP_CIPHER *wolfSSL_EVP_get_cipherbynid(int id)
 {
@@ -5085,7 +5085,7 @@ static int ProcessChainBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             WOLFSSL_MSG("Trying a CRL");
             if (PemToDer(buff + used, sz - used, CRL_TYPE, &der, NULL, &info,
                                                                    NULL) == 0) {
-                WOLFSSL_MSG("   Proccessed a CRL");
+                WOLFSSL_MSG("   Processed a CRL");
                 wolfSSL_CertManagerLoadCRLBuffer(ctx->cm, der->buffer,
                                                 der->length, WOLFSSL_FILETYPE_ASN1);
                 FreeDer(&der);
@@ -6808,7 +6808,7 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 
 /* Looks for the extension matching the passed in nid
  *
- * c   : if not null then is set to status value -2 if multiple occurances
+ * c   : if not null then is set to status value -2 if multiple occurrences
  *       of the extension are found, -1 if not found, 0 if found and not
  *       critical, and 1 if found and critical.
  * nid : Extension OID to be found.
@@ -9985,7 +9985,7 @@ int AddSession(WOLFSSL* ssl)
     }
 
 #ifdef OPENSSL_EXTRA
-    /* If using compatibilty layer then check for and copy over session context
+    /* If using compatibility layer then check for and copy over session context
      * id. */
     if (ssl->sessionCtxSz > 0 && ssl->sessionCtxSz < ID_LEN) {
         XMEMCPY(session->sessionCtx, ssl->sessionCtx, ssl->sessionCtxSz);
@@ -14393,7 +14393,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
 
     /* Similar to wolfSSL_ERR_get_error_line but takes in a flags argument for
-     * more flexability.
+     * more flexibility.
      *
      * file  output pointer to file where error happened
      * line  output to line number of error
@@ -17336,7 +17336,7 @@ WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_base64(void)
 
 /* Set the flag for the bio.
  *
- * bio   the structre to set the flag in
+ * bio   the structure to set the flag in
  * flags the flag to use
  */
 void wolfSSL_BIO_set_flags(WOLFSSL_BIO* bio, int flags)
@@ -18610,7 +18610,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_PKEY_new_ex(void* heap)
 #endif
         if (ret != 0){
             wolfSSL_EVP_PKEY_free(pkey);
-            WOLFSSL_MSG("memory falure");
+            WOLFSSL_MSG("memory failure");
             return NULL;
         }
     }
@@ -18767,7 +18767,7 @@ WOLFSSL_ASN1_INTEGER* wolfSSL_X509_get_serialNumber(WOLFSSL_X509* x509)
 
     /* Make sure there is space for the data, ASN.1 type and length. */
     if (x509->serialSz > (WOLFSSL_ASN1_INTEGER_MAX - 2)) {
-        /* dynamicly create data buffer, +2 for type and length */
+        /* dynamically create data buffer, +2 for type and length */
         a->data = (unsigned char*)XMALLOC(x509->serialSz + 2, NULL,
                 DYNAMIC_TYPE_OPENSSL);
         if (a->data == NULL) {
@@ -19002,7 +19002,7 @@ void wolfSSL_X509_STORE_CTX_set_error(WOLFSSL_X509_STORE_CTX* ctx, int er)
  * WOLFSSL objects that have been created by the WOLFSSL_CTX structure passed
  * in.
  *
- * ctx WOLFSSL_CTX structre to set callback function in
+ * ctx WOLFSSL_CTX structure to set callback function in
  * f   callback function to use
  */
 void wolfSSL_CTX_set_info_callback(WOLFSSL_CTX* ctx,
@@ -21670,7 +21670,7 @@ const char* wolfSSL_RAND_file_name(char* fname, unsigned long len)
  *
  * fname name of file to write to
  *
- * Returns the number of bytes writen
+ * Returns the number of bytes written
  */
 int wolfSSL_RAND_write_file(const char* fname)
 {
@@ -24977,7 +24977,7 @@ int wolfSSL_HMAC_Init_ex(WOLFSSL_HMAC_CTX* ctx, const void* key,
 /* Deep copy of information from src to des structure
  *
  * des destination to copy information to
- * src structure to get infromation from
+ * src structure to get information from
  *
  * Returns SSL_SUCCESS on success and SSL_FAILURE on error
  */
@@ -25865,7 +25865,7 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* key,
         byte* derBuf;
 
         /* 5 > size of n, d, p, q, d%(p-1), d(q-1), 1/q%p, e + ASN.1 additional
-         *  informations
+         *  information
          */
         derMax = 5 * wolfSSL_RSA_size(key) + AES_BLOCK_SIZE;
 
@@ -26018,7 +26018,7 @@ int wolfSSL_PEM_write_mem_RSAPrivateKey(RSA* rsa, const EVP_CIPHER* cipher,
     }
 
     /* 5 > size of n, d, p, q, d%(p-1), d(q-1), 1/q%p, e + ASN.1 additional
-     *  informations
+     *  information
      */
     der_max_len = 5 * wolfSSL_RSA_size(rsa) + AES_BLOCK_SIZE;
 
@@ -27514,7 +27514,7 @@ int wolfSSL_PEM_write_mem_ECPrivateKey(WOLFSSL_EC_KEY* ecc,
         }
     }
 
-    /* 4 > size of pub, priv + ASN.1 additional informations
+    /* 4 > size of pub, priv + ASN.1 additional information
      */
     der_max_len = 4 * wc_ecc_size((ecc_key*)ecc->internal) + AES_BLOCK_SIZE;
 
@@ -27707,7 +27707,7 @@ int wolfSSL_PEM_write_mem_DSAPrivateKey(WOLFSSL_DSA* dsa,
         }
     }
 
-    /* 4 > size of pub, priv, p, q, g + ASN.1 additional informations
+    /* 4 > size of pub, priv, p, q, g + ASN.1 additional information
      */
     der_max_len = 4 * wolfSSL_BN_num_bytes(dsa->g) + AES_BLOCK_SIZE;
 
@@ -27896,7 +27896,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_PEM_read_bio_PrivateKey(WOLFSSL_BIO* bio,
         }
     }
     else if (bio->type == WOLFSSL_BIO_FILE) {
-        int sz  = 100; /* read from file by 100 byte chuncks */
+        int sz  = 100; /* read from file by 100 byte chunks */
         int idx = 0;
         char* tmp = (char*)XMALLOC(sz, bio->heap, DYNAMIC_TYPE_OPENSSL);
 
@@ -29169,7 +29169,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
      * In the case that the sizes are equal a the value of memcmp between the
      * two names is returned.
      *
-     * x First name for comparision
+     * x First name for comparison
      * y Second name to compare with x
      */
     int wolfSSL_X509_NAME_cmp(const WOLFSSL_X509_NAME* x,
@@ -29370,7 +29370,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         /* AUX info is; trusted/rejected uses, friendly name, private key id,
          * and potentially a stack of "other" info. wolfSSL does not store
          * friendly name or private key id yet in WOLFSSL_X509 for human
-         * readibility and does not support extra trusted/rejected uses for
+         * readability and does not support extra trusted/rejected uses for
          * root CA. */
         return wolfSSL_PEM_read_bio_X509(bp, x, cb, u);
     }
@@ -30857,7 +30857,7 @@ void* wolfSSL_get_app_data(const WOLFSSL *ssl)
  * ssl WOLFSSL struct to set app data in
  * arg data to be stored
  *
- * Returns SSL_SUCCESS on sucess and SSL_FAILURE on failure
+ * Returns SSL_SUCCESS on success and SSL_FAILURE on failure
  */
 int wolfSSL_set_app_data(WOLFSSL *ssl, void* arg) {
     WOLFSSL_ENTER("wolfSSL_set_app_data");
@@ -31378,7 +31378,7 @@ int wolfSSL_PEM_write_bio_X509(WOLFSSL_BIO *bio, WOLFSSL_X509 *cert)
 
 
 #if defined(OPENSSL_EXTRA) && !defined(NO_DH)
-/* Intialize ctx->dh with dh's params. Return WOLFSSL_SUCCESS on ok */
+/* Initialize ctx->dh with dh's params. Return WOLFSSL_SUCCESS on ok */
 long wolfSSL_CTX_set_tmp_dh(WOLFSSL_CTX* ctx, WOLFSSL_DH* dh)
 {
     int pSz, gSz;

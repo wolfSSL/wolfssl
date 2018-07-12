@@ -21,7 +21,7 @@
 
 #if !defined(WOLFSSL_EVP_INCLUDED)
     #ifndef WOLFSSL_IGNORE_FILE_WARN
-        #warning evp.c does not need to be compiled seperatly from ssl.c
+        #warning evp.c does not need to be compiled separately from ssl.c
     #endif
 #else
 
@@ -924,7 +924,7 @@ WOLFSSL_API int wolfSSL_EVP_SignUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *data
     return wolfSSL_EVP_DigestUpdate(ctx, data, len);
 }
 
-/* macro gaurd because currently only used with RSA */
+/* macro guard because currently only used with RSA */
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
 /* Helper function for getting the NID value from md
  *

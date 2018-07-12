@@ -492,7 +492,7 @@
 /* Callbacks */
 
 /*
- * Empty commment denotes not listed in CyaSSL Manual
+ * Empty comment denotes not listed in CyaSSL Manual
  * (soon to be wolfSSL Manual)
  */
 
@@ -566,7 +566,7 @@
 /* OCSP and CRL */
 
 /*
- * Empty commment denotes not listed in CyaSSL Manual
+ * Empty comment denotes not listed in CyaSSL Manual
  * (soon to be wolfSSL Manual)
  */
 

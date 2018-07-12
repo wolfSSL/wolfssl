@@ -4423,7 +4423,7 @@ WOLFSSL_API WOLFSSL_STACK* wolfSSL_X509_STORE_CTX_get_chain(
     is WOLFSSL_CRL_CHECK.
 
     \return SSL_SUCCESS If no errors were encountered when setting the flag.
-    \return <0 a negative vlaue will be returned upon failure.
+    \return <0 a negative value will be returned upon failure.
 
     \param str certificate store to set flag in.
     \param flag flag for behavior.
@@ -4831,7 +4831,7 @@ WOLFSSL_API void wolfSSL_CTX_set_psk_client_callback(WOLFSSL_CTX*,
     WOLFSSL* ssl;
     unsigned int cb(WOLFSSL*, const char*, char*) // Header of function*
     {
-    	// Funciton body
+    	// Function body
     }
     …
     cb = wc_psk_client_callback;
@@ -4930,7 +4930,7 @@ WOLFSSL_API const char* wolfSSL_get_psk_identity(const WOLFSSL*);
     …
     ret = wolfSSL_CTX_use_psk_identity_hint(ctx, hint);
     if(ret == SSL_SUCCESS){
-    	// Function was succesfull.
+    	// Function was successful.
 	return ret;
     } else {
     	// Failure case.
@@ -5117,7 +5117,7 @@ WOLFSSL_API WOLFSSL_METHOD *wolfSSLv23_server_method(void);
 
     \brief This is used to get the internal error state of the WOLFSSL structure.
 
-    \return wolfssl_error returns ssl error state, usualy a negative
+    \return wolfssl_error returns ssl error state, usually a negative
     \return BAD_FUNC_ARG if ssl is NULL.
 
     \return ssl WOLFSSL structure to get state from.
@@ -5329,7 +5329,7 @@ WOLFSSL_API const char* wolfSSL_lib_version(void);
     \brief This function returns the current library version in hexadecimal
     notation.
 
-    \return LILBWOLFSSL_VERSION_HEX returns the hexidecimal version defined in
+    \return LILBWOLFSSL_VERSION_HEX returns the hexadecimal version defined in
      wolfssl/version.h.
 
     \param none No parameters.
@@ -6339,7 +6339,7 @@ WOLFSSL_API int  wolfSSL_CTX_SetTmpDH_buffer(WOLFSSL_CTX*, const unsigned char* 
     a subroutine is passed a NULL argument.
     \return SSL_BAD_FILE returned if the certificate file is unable to open or
     if the a set of checks on the file fail from wolfSSL_SetTmpDH_file_wrapper.
-    \return SSL_BAD_FILETYPE returned if teh format is not PEM or ASN.1 from
+    \return SSL_BAD_FILETYPE returned if the format is not PEM or ASN.1 from
     wolfSSL_SetTmpDH_buffer_wrapper().
     \return DH_KEY_SIZE_E returned if the DH parameter's key size is less than
     the value of the minDhKeySz member of the WOLFSSL_CTX struct.
@@ -8581,7 +8581,7 @@ WOLFSSL_API int wolfSSL_CertManagerUnload_trust_peers(WOLFSSL_CERT_MANAGER* cm);
     \brief Specifies the certificate to verify with the Certificate Manager
     context.  The format can be SSL_FILETYPE_PEM or SSL_FILETYPE_ASN1.
 
-    \return SSL_SUCCESS If successfull.
+    \return SSL_SUCCESS If successful.
     \return ASN_SIG_CONFIRM_E will be returned if the signature could not be
     verified.
     \return ASN_SIG_OID_E will be returned if the signature type is not

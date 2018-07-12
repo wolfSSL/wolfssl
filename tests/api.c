@@ -1878,7 +1878,7 @@ static void run_wolfssl_client(void* args)
 static void test_wolfSSL_read_write(void)
 {
 #ifdef HAVE_IO_TESTS_DEPENDENCIES
-    /* The unit testing for read and write shall happen simutaneously, since
+    /* The unit testing for read and write shall happen simultaneously, since
      * one can't do anything with one without the other. (Except for a failure
      * test case.) This function will call all the others that will set up,
      * execute, and report their test findings.
@@ -2220,7 +2220,7 @@ static void verify_SNI_ABSENT_on_server(WOLFSSL* ssl)
 static void verify_SNI_no_matching(WOLFSSL* ssl)
 {
     byte type = WOLFSSL_SNI_HOST_NAME;
-    char* request = (char*) &type; /* to be overwriten */
+    char* request = (char*) &type; /* to be overwritten */
 
     AssertIntEQ(WOLFSSL_SNI_NO_MATCH, wolfSSL_SNI_Status(ssl, type));
     AssertNotNull(request);
@@ -2268,15 +2268,15 @@ static void test_wolfSSL_UseSNI_connection(void)
         {0, 0, use_SNI_at_ssl, verify_SNI_real_matching},
         {0, 0, use_SNI_at_ssl, verify_SNI_real_matching},
 
-        /* default missmatch behavior */
+        /* default mismatch behavior */
         {0, 0, different_SNI_at_ssl, verify_FATAL_ERROR_on_client},
         {0, 0, use_SNI_at_ssl,       verify_UNKNOWN_SNI_on_server},
 
-        /* continue on missmatch */
+        /* continue on mismatch */
         {0, 0, different_SNI_at_ssl,         0},
         {0, 0, use_SNI_WITH_CONTINUE_at_ssl, verify_SNI_no_matching},
 
-        /* fake answer on missmatch */
+        /* fake answer on mismatch */
         {0, 0, different_SNI_at_ssl,            0},
         {0, 0, use_SNI_WITH_FAKE_ANSWER_at_ssl, verify_SNI_fake_matching},
 
@@ -2292,11 +2292,11 @@ static void test_wolfSSL_UseSNI_connection(void)
         {0, 0, 0,                        verify_FATAL_ERROR_on_client},
         {0, 0, use_MANDATORY_SNI_at_ssl, verify_SNI_ABSENT_on_server},
 
-        /* sni abort - success when overwriten */
+        /* sni abort - success when overwritten */
         {0, 0, 0, 0},
         {0, use_MANDATORY_SNI_at_ctx, use_SNI_at_ssl, verify_SNI_no_matching},
 
-        /* sni abort - success when allowing missmatches */
+        /* sni abort - success when allowing mismatches */
         {0, 0, different_SNI_at_ssl, 0},
         {0, use_PSEUDO_MANDATORY_SNI_at_ctx, 0, verify_SNI_fake_matching},
     };
@@ -2374,7 +2374,7 @@ static void test_wolfSSL_SNI_GetFromBuffer(void)
 
     byte buffer5[] = { /* SSL v2.0 client hello */
         0x00, 0x2b, 0x01, 0x03, 0x01, 0x00, 0x09, 0x00, 0x00,
-        /* dummy bytes bellow, just to pass size check */
+        /* dummy bytes below, just to pass size check */
         0xb6, 0x03, 0x03, 0x83, 0xa3, 0xe6, 0xdc, 0x16, 0xa1, 0x43, 0xe9, 0x45,
         0x15, 0xbd, 0x64, 0xa9, 0xb6, 0x07, 0xb4, 0x50, 0xc6, 0xdd, 0xff, 0xc2,
         0xd3, 0x0d, 0x4f, 0x36, 0xb4, 0x41, 0x51, 0x61, 0xc1, 0xa5, 0x9e, 0x00,
@@ -2688,7 +2688,7 @@ static void test_wolfSSL_UseALPN_connection(void)
         {0, 0, 0, 0},
         {0, 0, use_ALPN_all, 0},
 
-        /* success case missmatch behavior but option 'continue' set */
+        /* success case mismatch behavior but option 'continue' set */
         {0, 0, use_ALPN_all_continue, verify_ALPN_not_matching_continue},
         {0, 0, use_ALPN_unknown_continue, 0},
 
@@ -2696,12 +2696,12 @@ static void test_wolfSSL_UseALPN_connection(void)
         {0, 0, use_ALPN_all, 0},
         {0, 0, use_ALPN_one, verify_ALPN_client_list},
 
-        /* missmatch behavior with same list
+        /* mismatch behavior with same list
          * the first and only this one must be taken */
         {0, 0, use_ALPN_all, 0},
         {0, 0, use_ALPN_all, verify_ALPN_not_matching_spdy3},
 
-        /* default missmatch behavior */
+        /* default mismatch behavior */
         {0, 0, use_ALPN_all, 0},
         {0, 0, use_ALPN_unknown, verify_ALPN_FATAL_ERROR_on_client},
     };
@@ -3285,8 +3285,8 @@ static int test_wolfSSL_UseOCSPStapling(void)
 } /*END test_wolfSSL_UseOCSPStapling */
 
 
-/* Testing OCSP stapling version 2, wolfSSL_UseOCSPStaplingV2 funciton. OCSP
- * stapling eliminates the need ot contact the CA and lowers cert revocation
+/* Testing OCSP stapling version 2, wolfSSL_UseOCSPStaplingV2 function. OCSP
+ * stapling eliminates the need to contact the CA and lowers cert revocation
  * check.
  * PRE: HAVE_CERTIFICATE_STATUS_REQUEST_V2 and HAVE_OCSP defined.
  */
@@ -6099,7 +6099,7 @@ static int test_wc_Md5HmacSetKey (void)
     {
         "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b",
 #ifndef HAVE_FIPS
-        "Jefe", /* smaller than minumum FIPS key size */
+        "Jefe", /* smaller than minimum FIPS key size */
 #endif
         "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
     };
@@ -6183,7 +6183,7 @@ static int test_wc_ShaHmacSetKey (void)
         "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
                                                                 "\x0b\x0b\x0b",
 #ifndef HAVE_FIPS
-        "Jefe", /* smaller than minumum FIPS key size */
+        "Jefe", /* smaller than minimum FIPS key size */
 #endif
         "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
                                                                 "\xAA\xAA\xAA"
@@ -6267,7 +6267,7 @@ static int test_wc_Sha224HmacSetKey (void)
         "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
                                                                 "\x0b\x0b\x0b",
 #ifndef HAVE_FIPS
-        "Jefe", /* smaller than minumum FIPS key size */
+        "Jefe", /* smaller than minimum FIPS key size */
 #endif
         "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
                                                                 "\xAA\xAA\xAA"
@@ -6351,7 +6351,7 @@ static int test_wc_Sha256HmacSetKey (void)
         "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
                                                                 "\x0b\x0b\x0b",
 #ifndef HAVE_FIPS
-        "Jefe", /* smaller than minumum FIPS key size */
+        "Jefe", /* smaller than minimum FIPS key size */
 #endif
         "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
                                                                 "\xAA\xAA\xAA"
@@ -6435,7 +6435,7 @@ static int test_wc_Sha384HmacSetKey (void)
         "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
                                                                 "\x0b\x0b\x0b",
 #ifndef HAVE_FIPS
-        "Jefe", /* smaller than minumum FIPS key size */
+        "Jefe", /* smaller than minimum FIPS key size */
 #endif
         "\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA\xAA"
                                                                 "\xAA\xAA\xAA"
@@ -9043,7 +9043,7 @@ static int test_wc_GmacUpdate (void)
     byte    tagOut2[24];
     byte    tagOut3[32];
 
-    /* Init stack varaibles. */
+    /* Init stack variables. */
     XMEMSET(tagOut, 0, sizeof(tagOut));
     XMEMSET(tagOut2, 0, sizeof(tagOut2));
     XMEMSET(tagOut3, 0, sizeof(tagOut3));
@@ -12741,7 +12741,7 @@ static int test_wc_ecc_signVerify_hash (void)
         ret = wc_ecc_sign_hash(digest, digestlen, sig, &siglen, &rng, &key);
     }
 
-    /* Checkk bad args. */
+    /* Check bad args. */
     if (ret == 0) {
         signH = wc_ecc_sign_hash(NULL, digestlen, sig, &siglen, &rng, &key);
         if (signH == ECC_BAD_ARG_E) {
@@ -15622,7 +15622,7 @@ static void test_wolfSSL_X509_NAME(void)
 
     printf(testingFmt, "wolfSSL_X509_NAME()");
 
-    /* test compile of depricated function, returns 0 */
+    /* test compile of deprecated function, returns 0 */
     AssertIntEQ(CRYPTO_thread_id(), 0);
 
     AssertNotNull(a = X509_NAME_new());
@@ -16063,7 +16063,7 @@ static void test_wolfSSL_private_keys(void)
                 (unsigned char*)client_key_der_2048,
                 sizeof_client_key_der_2048), WOLFSSL_SUCCESS);
 #ifndef HAVE_USER_RSA
-    /* Should missmatch now that a different private key loaded */
+    /* Should mismatch now that a different private key loaded */
     AssertIntNE(wolfSSL_check_private_key(ssl), WOLFSSL_SUCCESS);
 #endif
 
@@ -17364,7 +17364,7 @@ static void test_wolfSSL_set_options(void)
              !defined(NO_FILESYSTEM) && !defined(NO_RSA) */
 }
 
-/* Testing  wolfSSL_set_tlsext_status_type funciton.
+/* Testing  wolfSSL_set_tlsext_status_type function.
  * PRE: OPENSSL and HAVE_CERTIFICATE_STATUS_REQUEST defined.
  */
 static void test_wolfSSL_set_tlsext_status_type(void){
@@ -17478,7 +17478,7 @@ static void test_wolfSSL_BIO(void)
 
     /* new pair */
     AssertIntEQ(BIO_make_bio_pair(bio1, bio3), WOLFSSL_FAILURE);
-    BIO_free(bio2); /* free bio2 and automaticly remove from pair */
+    BIO_free(bio2); /* free bio2 and automatically remove from pair */
     AssertIntEQ(BIO_make_bio_pair(bio1, bio3), WOLFSSL_SUCCESS);
     AssertIntEQ((int)BIO_ctrl_pending(bio3), 0);
     AssertIntEQ(BIO_nread(bio3, &bufPt, 10), WOLFSSL_BIO_ERROR);
@@ -18546,7 +18546,7 @@ static void test_wolfSSL_sk_GENERAL_NAME(void)
     for (i = 0; i < sk_GENERAL_NAME_num(sk); i++) {
         GENERAL_NAME* gn = sk_GENERAL_NAME_value(sk, i);
         if (gn == NULL) {
-            printf("massive falure\n");
+            printf("massive failure\n");
             return -1;
         }
 
@@ -19604,7 +19604,7 @@ static void test_wc_ecc_get_curve_id_from_params(void)
 
 
 /*----------------------------------------------------------------------------*
- | Certficate Failure Checks
+ | Certificate Failure Checks
  *----------------------------------------------------------------------------*/
 #ifndef NO_CERTS
     /* Use the Cert Manager(CM) API to generate the error ASN_SIG_CONFIRM_E */

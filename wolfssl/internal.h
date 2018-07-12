@@ -1435,7 +1435,7 @@ enum Misc {
 #endif /* WOLFSSL_MIN_RSA_BITS */
 #if (WOLFSSL_MIN_RSA_BITS % 8)
     /* This is to account for the example case of a min size of 2050 bits but
-       still allows 2049 bit key. So we need the measurment to be in bytes. */
+       still allows 2049 bit key. So we need the measurement to be in bytes. */
     #error RSA minimum bit size must be a multiple of 8
 #endif
 #define MIN_RSAKEY_SZ (WOLFSSL_MIN_RSA_BITS / 8)
@@ -2387,7 +2387,7 @@ typedef struct PreSharedKey {
     byte                 cipherSuite0;            /* Cipher Suite       */
     byte                 cipherSuite;             /* Cipher Suite       */
     word32               binderLen;               /* Length of HMAC     */
-    byte                 binder[WC_MAX_DIGEST_SIZE]; /* HMAC of hanshake   */
+    byte                 binder[WC_MAX_DIGEST_SIZE]; /* HMAC of handshake   */
     byte                 hmac;                    /* HMAC algorithm     */
     byte                 resumption:1;            /* Resumption PSK     */
     byte                 chosen:1;                /* Server's choice    */
@@ -2611,7 +2611,7 @@ struct WOLFSSL_CTX {
 #if defined(WOLFSSL_MULTICAST) && defined(WOLFSSL_DTLS)
     CallbackMcastHighwater mcastHwCb; /* Sequence number highwater callback */
     word32      mcastFirstSeq;    /* first trigger level */
-    word32      mcastSecondSeq;   /* second tigger level */
+    word32      mcastSecondSeq;   /* second trigger level */
     word32      mcastMaxSeq;      /* max level */
 #endif
 #ifdef HAVE_OCSP
@@ -3303,7 +3303,7 @@ typedef struct Arrays {
 
 struct WOLFSSL_STACK {
     unsigned long num; /* number of nodes in stack
-                        * (saftey measure for freeing and shortcut for count) */
+                        * (safety measure for freeing and shortcut for count) */
     union {
         WOLFSSL_X509*        x509;
         WOLFSSL_X509_NAME*   name;
@@ -3458,7 +3458,7 @@ typedef struct DtlsMsg {
     DtlsFrag*       fragList;
     word32          fragSz;    /* Length of fragments received */
     word32          seq;       /* Handshake sequence number    */
-    word32          sz;        /* Length of whole mesage       */
+    word32          sz;        /* Length of whole message       */
     byte            type;
 } DtlsMsg;
 

@@ -1943,7 +1943,7 @@ void InitSuites(Suites* suites, ProtocolVersion pv, int keySz, word16 haveRSA,
     if (pv.major == DTLS_MAJOR) {
         dtls   = 1;
         tls    = 1;
-        /* May be dead assignments dependant upon configuration */
+        /* May be dead assignments dependent upon configuration */
         (void) dtls;
         (void) tls;
         tls1_2 = pv.minor <= DTLSv1_2_MINOR;
@@ -4932,7 +4932,7 @@ int AllocKey(WOLFSSL* ssl, int type, void** pKey)
         return NOT_COMPILED_IN;
     }
 
-    /* Allocate memeory for key */
+    /* Allocate memory for key */
     *pKey = XMALLOC(sz, ssl->heap, type);
     if (*pKey == NULL) {
         return MEMORY_E;
@@ -5722,7 +5722,7 @@ int DtlsMsgSet(DtlsMsg* msg, word32 seq, const byte* data, byte type,
             c32to24(msg->sz, msg->msg - DTLS_HANDSHAKE_FRAG_SZ);
         }
 
-        /* if no mesage data, just return */
+        /* if no message data, just return */
         if (fragSz == 0)
             return 0;
 
@@ -7857,7 +7857,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 
 
 /* Match names with wildcards, each wildcard can represent a single name
-   component or fragment but not mulitple names, i.e.,
+   component or fragment but not multiple names, i.e.,
    *.z.com matches y.z.com but not x.y.z.com
 
    return 1 on success */
@@ -8440,7 +8440,7 @@ int InitSigPkCb(WOLFSSL* ssl, SignatureCtx* sigCtx)
 typedef struct ProcPeerCertArgs {
     buffer*      certs;
 #ifdef WOLFSSL_TLS13
-    buffer*      exts; /* extentions */
+    buffer*      exts; /* extensions */
 #endif
     DecodedCert* dCert;
     word32 idx;
@@ -9827,7 +9827,7 @@ exit_ppc:
 
 #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
     if (ret == WC_PENDING_E || ret == OCSP_WANT_READ) {
-        /* Mark message as not recevied so it can process again */
+        /* Mark message as not received so it can process again */
         ssl->msgsReceived.got_certificate = 0;
 
         return ret;
@@ -11026,7 +11026,7 @@ static int DtlsMsgDrain(WOLFSSL* ssl)
 
     /* While there is an item in the store list, and it is the expected
      * message, and it is complete, and there hasn't been an error in the
-     * last messge... */
+     * last message... */
     while (item != NULL &&
             ssl->keys.dtls_expected_peer_handshake_number == item->seq &&
             item->fragSz == item->sz &&
@@ -11233,11 +11233,11 @@ static int Poly1305TagOld(WOLFSSL* ssl, byte* additional, const byte* out,
 
 
 /* When the flag oldPoly is not set this follows RFC7905. When oldPoly is set
- * the implmentation follows an older draft for creating the nonce and MAC.
+ * the implementation follows an older draft for creating the nonce and MAC.
  * The flag oldPoly gets set automaticlly depending on what cipher suite was
  * negotiated in the handshake. This is able to be done because the IDs for the
  * cipher suites was updated in RFC7905 giving unique values for the older
- * draft in comparision to the more recent RFC.
+ * draft in comparison to the more recent RFC.
  *
  * ssl   WOLFSSL structure to get cipher and TLS state from
  * out   output buffer to hold encrypted data
@@ -11384,11 +11384,11 @@ static int  ChachaAEADEncrypt(WOLFSSL* ssl, byte* out, const byte* input,
 
 
 /* When the flag oldPoly is not set this follows RFC7905. When oldPoly is set
- * the implmentation follows an older draft for creating the nonce and MAC.
+ * the implementation follows an older draft for creating the nonce and MAC.
  * The flag oldPoly gets set automaticlly depending on what cipher suite was
  * negotiated in the handshake. This is able to be done because the IDs for the
  * cipher suites was updated in RFC7905 giving unique values for the older
- * draft in comparision to the more recent RFC.
+ * draft in comparison to the more recent RFC.
  *
  * ssl   WOLFSSL structure to get cipher and TLS state from
  * plain output buffer to hold decrypted data
@@ -14879,7 +14879,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 
         /* only one message per attempt */
         if (ssl->options.partialWrite == 1) {
-            WOLFSSL_MSG("Paritial Write on, only sending one record");
+            WOLFSSL_MSG("Partial Write on, only sending one record");
             break;
         }
     }
@@ -15273,7 +15273,7 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
         return "record layer length error";
 
     case PEER_KEY_ERROR:
-        return "cant decode peer key";
+        return "can't decode peer key";
 
     case ZERO_RETURN:
     case WOLFSSL_ERROR_ZERO_RETURN:
@@ -16123,7 +16123,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
 
     if (next[0] == 0 || XSTRNCMP(next, "ALL", 3) == 0 ||
                         XSTRNCMP(next, "DEFAULT", 7) == 0)
-        return 1; /* wolfSSL defualt */
+        return 1; /* wolfSSL default */
 
     do {
         char*  current = next;
@@ -18569,7 +18569,7 @@ exit_dske:
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* Handle async operation */
     if (ret == WC_PENDING_E) {
-        /* Mark message as not recevied so it can process again */
+        /* Mark message as not received so it can process again */
         ssl->msgsReceived.got_server_key_exchange = 0;
 
         return ret;
@@ -19446,7 +19446,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     /* length is used for public key size */
                     args->length = MAX_ENCRYPT_SZ;
 
-                    /* Create shared ECC key leaving room at the begining
+                    /* Create shared ECC key leaving room at the beginning
                        of buffer for size of shared key. */
                     ssl->arrays->preMasterSz = ENCRYPT_LEN - OPAQUE16_LEN;
 
@@ -19797,7 +19797,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     *args->output = (byte)args->length;
                     args->encSz += args->length + OPAQUE8_LEN;
 
-                    /* Create pre master secret is the concatination of
+                    /* Create pre master secret is the concatenation of
                        eccSize + eccSharedKey + pskSize + pskKey */
                     c16toa((word16)ssl->arrays->preMasterSz, pms);
                     ssl->arrays->preMasterSz += OPAQUE16_LEN;
@@ -20663,7 +20663,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             return ret;
     #ifdef HAVE_SESSION_TICKET
         if (ssl->options.useTicket) {
-            /* echo session id sz can be 0,32 or bogus len inbetween */
+            /* echo session id sz can be 0,32 or bogus len in between */
             sessIdSz = ssl->arrays->sessionIDSz;
             if (sessIdSz > ID_LEN) {
                 WOLFSSL_MSG("Bad bogus session id len");
@@ -20680,7 +20680,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 #endif
 
-        /* is the session cahce off at build or runtime */
+        /* is the session cache off at build or runtime */
 #ifdef NO_SESSION_CACHE
         cacheOff = 1;
 #else
@@ -20801,7 +20801,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             c16toa(0, output + idx);
             /*idx += HELLO_EXT_SZ_SZ;*/
             /* idx is not used after this point. uncomment the line above
-             * if adding any more extentions in the future. */
+             * if adding any more extensions in the future. */
         }
 #endif
 #endif
@@ -21248,7 +21248,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             goto exit_sske;
                         }
 
-                        /* get ouput buffer */
+                        /* get output buffer */
                         args->output = ssl->buffers.outputBuffer.buffer +
                                        ssl->buffers.outputBuffer.length;
 
@@ -21307,7 +21307,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             goto exit_sske;
                         }
 
-                        /* get ouput buffer */
+                        /* get output buffer */
                         args->output = ssl->buffers.outputBuffer.buffer +
                                        ssl->buffers.outputBuffer.length;
 
@@ -21625,7 +21625,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             goto exit_sske;
                         }
 
-                        /* get ouput buffer */
+                        /* get output buffer */
                         args->output = ssl->buffers.outputBuffer.buffer +
                                        ssl->buffers.outputBuffer.length;
 
@@ -21861,7 +21861,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             goto exit_sske;
                         }
 
-                        /* get ouput buffer */
+                        /* get output buffer */
                         args->output = ssl->buffers.outputBuffer.buffer +
                                        ssl->buffers.outputBuffer.length;
 
@@ -23716,7 +23716,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #ifdef WOLFSSL_ASYNC_CRYPT
         /* Handle async operation */
         if (ret == WC_PENDING_E) {
-            /* Mark message as not recevied so it can process again */
+            /* Mark message as not received so it can process again */
             ssl->msgsReceived.got_certificate_verify = 0;
 
             return ret;
@@ -25256,7 +25256,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #ifdef WOLFSSL_ASYNC_CRYPT
         /* Handle async operation */
         if (ret == WC_PENDING_E) {
-            /* Mark message as not recevied so it can process again */
+            /* Mark message as not received so it can process again */
             ssl->msgsReceived.got_client_key_exchange = 0;
 
             return ret;

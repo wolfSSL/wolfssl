@@ -8352,7 +8352,7 @@ int memory_test(void)
     }
 
     if (ret != wolfSSL_StaticBufferSz(buffer, ret, WOLFMEM_GENERAL)) {
-        return -6510; /* retrun value changed when using suggested value */
+        return -6510; /* return value changed when using suggested value */
     }
 
     ret = wolfSSL_MemoryPaddingSz();
@@ -8375,7 +8375,7 @@ int memory_test(void)
         return -6514; /* memory not aligned */
     }
 
-    /* check for passing bad or unknown argments to functions */
+    /* check for passing bad or unknown arguments to functions */
     if (wolfSSL_StaticBufferSz(NULL, 1, WOLFMEM_GENERAL) > 0) {
         return -6515;
     }
@@ -17200,7 +17200,7 @@ int curve25519_test(void)
     if (XMEMCMP(ss, sharedB, y))
         return -8814;
 
-    /* test swaping roles of keys and generating same shared key */
+    /* test swapping roles of keys and generating same shared key */
     XMEMSET(sharedB, 0, sizeof(sharedB));
     y = sizeof(sharedB);
     if (wc_curve25519_shared_secret(&userB, &userA, sharedB, &y) != 0)

@@ -142,7 +142,7 @@
 #define CAAM_IRSR0       CAAM_BASE + 0x100C
 #define CAAM_IRJAR0      CAAM_BASE + 0x101C
 
-/* Ouput Job Ring Registers */
+/* Output Job Ring Registers */
 #define CAAM_ORBAR0      CAAM_BASE + 0x1024
 #define CAAM_ORSR0       CAAM_BASE + 0x102C
 #define CAAM_ORJAR0      CAAM_BASE + 0x103C
@@ -180,7 +180,7 @@ static unsigned int wc_rng_start[] = {
     CAAM_OP | CAAM_CLASS1 | CAAM_RNG | 0x00000004, /* Instantiate RNG handle 0 with TRNG */
     CAAM_JUMP | 0x02000001,  /* wait for Class1 RNG and jump to next cmd */
     CAAM_LOAD | 0x00880004,  /* Load to clear written register */
-    0x00000001, /* reset done interupt */
+    0x00000001, /* reset done interrupt */
     CAAM_OP | CAAM_CLASS1 | CAAM_RNG | 0x00001000   /* Generate secure keys */
 };
 

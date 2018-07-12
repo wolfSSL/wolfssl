@@ -842,11 +842,11 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define NID_policy_constraints        150
 #define NID_inhibit_any_policy        168 /* 2.5.29.54 */
 #define NID_tlsfeature                92  /* id-pe 24 */
-#define NID_commonName 0x03 /* matchs ASN_COMMON_NAME in asn.h */
+#define NID_commonName 0x03 /* matches ASN_COMMON_NAME in asn.h */
 #define NID_domainComponent 0x19
-                            /* matchs ASN_DOMAIN_COMPONENT in asn.h */
+                            /* matches ASN_DOMAIN_COMPONENT in asn.h */
 
- /* matchs ASN_..._NAME in asn.h */
+ /* matches ASN_..._NAME in asn.h */
 #define NID_surname      0x04,   /* SN */
 #define NID_serialNumber 0x05,   /* serialNumber */
 #define NID_countryName  0x06,   /* C  */

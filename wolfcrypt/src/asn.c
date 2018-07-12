@@ -2321,7 +2321,7 @@ int wc_CreatePKCS8Key(byte* out, word32* outSz, byte* key, word32 keySz,
  * return 1 (true) on match
  * return 0 or negative value on failure/error
  *
- * key   : buffer holding DER fromat key
+ * key   : buffer holding DER format key
  * keySz : size of key buffer
  * der   : a initialized and parsed DecodedCert holding a certificate */
 int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
@@ -2448,7 +2448,7 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
                                             der->pubKeySize, key_pair);
                 }
 
-                /* public and private extracted successfuly now check if is
+                /* public and private extracted successfully now check if is
                  * a pair and also do sanity checks on key. wc_ecc_check_key
                  * checks that private * base generator equals pubkey */
                 if (ret == 0) {
@@ -5563,7 +5563,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
 
         #ifdef WOLFSSL_ASYNC_CRYPT
             if (sigCtx->devId != INVALID_DEVID && sigCtx->asyncDev && sigCtx->asyncCtx) {
-                /* make sure event is intialized */
+                /* make sure event is initialized */
                 WOLF_EVENT* event = &sigCtx->asyncDev->event;
                 ret = wolfAsync_EventInit(event, WOLF_EVENT_TYPE_ASYNC_WOLFSSL,
                     sigCtx->asyncCtx, WC_ASYNC_FLAG_CALL_AGAIN);
@@ -6754,7 +6754,7 @@ int DecodePolicyOID(char *out, word32 outSz, byte *in, word32 inSz)
                  * NOT appear more than once in a certificate policies
                  * extension". This is a sanity check for duplicates.
                  * extCertPolicies should only have OID values, additional
-                 * qualifiers need to be stored in a seperate array. */
+                 * qualifiers need to be stored in a separate array. */
                 for (i = 0; i < cert->extCertPoliciesNb; i++) {
                     if (XMEMCMP(cert->extCertPolicies[i],
                             cert->extCertPolicies[cert->extCertPoliciesNb],
@@ -9109,7 +9109,7 @@ static int SetEccPublicKey(byte* output, ecc_key* key, int with_header)
 /* returns the size of buffer used, the public ECC key in DER format is stored
    in output buffer
    with_AlgCurve is a flag for when to include a header that has the Algorithm
-   and Curve infromation */
+   and Curve information */
 int wc_EccPublicKeyToDer(ecc_key* key, byte* output, word32 inLen,
                                                               int with_AlgCurve)
 {

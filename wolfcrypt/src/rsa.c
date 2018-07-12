@@ -2262,7 +2262,7 @@ int wc_RsaSSL_Verify(const byte* in, word32 inLen, byte* out, word32 outLen,
 
 #ifdef WC_RSA_PSS
 /* Verify the message signed with RSA-PSS.
- * The input buffer is reused for the ouput buffer.
+ * The input buffer is reused for the output buffer.
  * Salt length is equal to hash length.
  *
  * in     Buffer holding encrypted data.
@@ -2280,7 +2280,7 @@ int wc_RsaPSS_VerifyInline(byte* in, word32 inLen, byte** out,
 }
 
 /* Verify the message signed with RSA-PSS.
- * The input buffer is reused for the ouput buffer.
+ * The input buffer is reused for the output buffer.
  *
  * in       Buffer holding encrypted data.
  * inLen    Length of data in buffer.
@@ -2431,7 +2431,7 @@ int wc_RsaPSS_CheckPadding_ex(const byte* in, word32 inSz, byte* sig,
 
 
 /* Verify the message signed with RSA-PSS.
- * The input buffer is reused for the ouput buffer.
+ * The input buffer is reused for the output buffer.
  * Salt length is equal to hash length.
  *
  * in     Buffer holding encrypted data.

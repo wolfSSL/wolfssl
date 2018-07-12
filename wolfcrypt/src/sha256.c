@@ -195,7 +195,7 @@ static int InitSha256(wc_Sha256* sha256)
 
     #if defined(HAVE_INTEL_AVX1)|| defined(HAVE_INTEL_AVX2)
         #if defined(HAVE_INTEL_RORX
-             #define RND with rorx instuction
+             #define RND with rorx instruction
         #else
             #define RND
         #endif

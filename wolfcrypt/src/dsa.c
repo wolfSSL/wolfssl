@@ -261,7 +261,7 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
         return MEMORY_E;
     }
 
-    /* make a random string that will be multplied against q */
+    /* make a random string that will be multiplied against q */
     err = wc_RNG_GenerateBlock(rng, buf, msize - qsize);
     if (err != MP_OKAY) {
         XFREE(buf, dsa->heap, DYNAMIC_TYPE_TMP_BUFFER);

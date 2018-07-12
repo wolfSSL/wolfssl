@@ -323,7 +323,7 @@ void WOLFSSL_LEAVE(const char* msg, int ret)
 
 /*
  * When using OPENSSL_EXTRA or DEBUG_WOLFSSL_VERBOSE macro then WOLFSSL_ERROR is
- * mapped to new funtion WOLFSSL_ERROR_LINE which gets the line # and function
+ * mapped to new function WOLFSSL_ERROR_LINE which gets the line # and function
  * name where WOLFSSL_ERROR is called at.
  */
 #if defined(DEBUG_WOLFSSL) || defined(OPENSSL_ALL) || \
@@ -442,7 +442,7 @@ int wc_LoggingCleanup(void)
  * line  : line number that error happened at
  *
  * Returns a negative value in error case, on success returns the nodes error
- * value which is positve (absolute value)
+ * value which is positive (absolute value)
  */
 int wc_PeekErrorNode(int idx, const char **file, const char **reason,
         int *line)
@@ -500,7 +500,7 @@ int wc_PeekErrorNode(int idx, const char **file, const char **reason,
  *
  * file   pointer to file that error was in. Can be NULL to return no file.
  * reason error string giving reason for error. Can be NULL to return no reason.
- * line   retrun line number of where error happened.
+ * line   return line number of where error happened.
  *
  * returns the error value on success and BAD_MUTEX_E or BAD_STATE_E on failure
  */

@@ -218,7 +218,7 @@ struct WOLFSSL_ASN1_OBJECT {
     int    type; /* oid */
     int    grp;  /* type of OID, i.e. oidCertPolicyType */
     unsigned int  objSz;
-    unsigned char dynamic; /* if 1 then obj was dynamiclly created, 0 otherwise */
+    unsigned char dynamic; /* if 1 then obj was dynamically created, 0 otherwise */
     struct d { /* derefrenced */
         WOLFSSL_ASN1_STRING  ia5_internal;
         WOLFSSL_ASN1_STRING* ia5; /* points to ia5_internal */
@@ -1079,7 +1079,7 @@ enum {
 };
 
 #ifdef OPENSSL_EXTRA
-/* seperated out from other enums because of size */
+/* separated out from other enums because of size */
 enum {
     SSL_OP_MICROSOFT_SESS_ID_BUG                  = 0x00000001,
     SSL_OP_NETSCAPE_CHALLENGE_BUG                 = 0x00000002,
@@ -1774,7 +1774,7 @@ WOLFSSL_API int wolfSSL_GetMaxOutputSize(WOLFSSL*);
 WOLFSSL_API int wolfSSL_GetVersion(WOLFSSL* ssl);
 WOLFSSL_API int wolfSSL_SetVersion(WOLFSSL* ssl, int version);
 
-/* moved to asn.c, old names kept for backwards compatability */
+/* moved to asn.c, old names kept for backwards compatibility */
 #define wolfSSL_KeyPemToDer    wc_KeyPemToDer
 #define wolfSSL_CertPemToDer   wc_CertPemToDer
 #define wolfSSL_PemPubKeyToDer wc_PemPubKeyToDer

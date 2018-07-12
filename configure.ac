@@ -2523,7 +2523,7 @@ AM_CONDITIONAL([BUILD_USER_CRYPTO], [test "x$ENABLED_USER_CRYPTO" = "xyes"])
 
 if test "$ENABLED_USER_CRYPTO" = "yes" && test "$ENABLED_FIPS" = "yes"
 then
-    AC_MSG_ERROR([cannot enable user crypto and fips, user crypto posibility of using code in fips boundary.])
+    AC_MSG_ERROR([cannot enable user crypto and fips, user crypto possibility of using code in fips boundary.])
 fi
 
 
@@ -3837,7 +3837,7 @@ if test "$ENABLED_FAST_RSA" = "yes"; then
         esac
 
         if test "$fastRSA_found" = "yes"; then
-            # was succesfull so add tested LDFLAGS to AM_ flags
+            # was successful so add tested LDFLAGS to AM_ flags
             AM_LDFLAGS="${AM_LDFLAGS} ${LDFLAGS}"
             AM_CPPFLAGS="${AM_CPPFLAGS} ${CPPFLAGS}"
             IPPHEADERS="${srcdir}/IPP/include/*.h"

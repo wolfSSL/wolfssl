@@ -412,7 +412,7 @@
         /* enable crypto processor */
         CRYP_Cmd(ENABLE);
 
-        /* wait until decrypt key has been intialized */
+        /* wait until decrypt key has been initialized */
         while (CRYP_GetFlagStatus(CRYP_FLAG_BUSY) != RESET) {}
 
         /* set direction and mode */
@@ -9970,7 +9970,7 @@ static int _AesXtsHelper(Aes* aes, byte* out, const byte* in, word32 sz, int dir
         word32 j;
         byte carry = 0;
 
-        /* multiply by shift left and propogate carry */
+        /* multiply by shift left and propagate carry */
         for (j = 0; j < AES_BLOCK_SIZE && outSz > 0; j++, outSz--) {
             byte tmpC;
 
@@ -10060,7 +10060,7 @@ int wc_AesXtsEncrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     #endif
             xorbuf(out, tmp, AES_BLOCK_SIZE);
 
-            /* multiply by shift left and propogate carry */
+            /* multiply by shift left and propagate carry */
             for (j = 0; j < AES_BLOCK_SIZE; j++) {
                 byte tmpC;
 
@@ -10174,7 +10174,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
     #endif
             xorbuf(out, tmp, AES_BLOCK_SIZE);
 
-            /* multiply by shift left and propogate carry */
+            /* multiply by shift left and propagate carry */
             for (j = 0; j < AES_BLOCK_SIZE; j++) {
                 byte tmpC;
 
@@ -10198,7 +10198,7 @@ int wc_AesXtsDecrypt(XtsAes* xaes, byte* out, const byte* in, word32 sz,
             byte buf[AES_BLOCK_SIZE];
             byte tmp2[AES_BLOCK_SIZE];
 
-            /* multiply by shift left and propogate carry */
+            /* multiply by shift left and propagate carry */
             for (j = 0; j < AES_BLOCK_SIZE; j++) {
                 byte tmpC;
 

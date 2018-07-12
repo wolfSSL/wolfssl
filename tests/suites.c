@@ -527,7 +527,7 @@ static void test_harness(void* vargs)
                 break;
             default:
                 /* Anything from cursor until end of line that isn't the above
-                 * is data for a paramter. Just up until the next newline in
+                 * is data for a parameter. Just up until the next newline in
                  * the Args list. */
                 if (cliMode)
                     cliArgs[cliArgsSz++] = XSTRSEP(&cursor, "\n");

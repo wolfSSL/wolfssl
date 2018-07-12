@@ -112,7 +112,7 @@ enum wolfSSL_ErrorCodes {
     GEN_COOKIE_E                 = -377,   /* Generate Cookie Error */
     NO_PEER_VERIFY               = -378,   /* Need peer cert verify Error */
     FWRITE_ERROR                 = -379,   /* fwrite problem */
-    CACHE_MATCH_ERROR            = -380,   /* chache hdr match error */
+    CACHE_MATCH_ERROR            = -380,   /* cache hdr match error */
     UNKNOWN_SNI_HOST_NAME_E      = -381,   /* Unrecognized host name Error */
     UNKNOWN_MAX_FRAG_LEN_E       = -382,   /* Unrecognized max frag len Error */
     KEYUSE_SIGNATURE_E           = -383,   /* KeyUse digSignature error */
@@ -177,7 +177,7 @@ enum wolfSSL_ErrorCodes {
     /* end negotiation parameter errors only 10 for now */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
-    /* no error stings go down here, add above negotiation errors !!!! */
+    /* no error strings go down here, add above negotiation errors !!!! */
 };
 
 

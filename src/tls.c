@@ -3460,7 +3460,7 @@ static int TLSX_SupportedCurve_Append(SupportedCurve* list, word16 name,
 
     while (list) {
         if (list->name == name) {
-            ret = 0; /* curve alreay in use */
+            ret = 0; /* curve already in use */
             break;
         }
 
@@ -7136,7 +7136,7 @@ static int TLSX_KeyShare_SetSupported(WOLFSSL* ssl)
     if (ret != 0)
         return ret;
 
-    /* Set extension to be in reponse. */
+    /* Set extension to be in response. */
     extension = TLSX_Find(ssl->extensions, TLSX_KEY_SHARE);
     extension->resp = 1;
 #else
@@ -8947,7 +8947,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
     WOLFSSL_MSG("Adding supported QSH Schemes");
 #endif
 
-    /* server will add extension depending on whats parsed from client */
+    /* server will add extension depending on what's parsed from client */
     if (!isServer) {
 #ifdef HAVE_QSH
         /* test if user has set a specific scheme already */

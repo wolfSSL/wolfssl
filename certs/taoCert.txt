@@ -106,7 +106,7 @@ to use PKCS#12 instead use -v1 witch a 12 algo like
 openssl pkcs8 -nocrypt -in server-keyPkcs8.pem -out server-key.pem
 
 
-*** DH paramters ***
+*** DH parameters ***
 
 openssl dhparam 2048 > dh2048.param
 

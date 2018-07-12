@@ -1445,7 +1445,7 @@
 
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_3DES)
         if (des->asyncDev.marker == WOLFSSL_ASYNC_MARKER_3DES) {
-            /* key_raw holds orignal key copy */
+            /* key_raw holds original key copy */
             des->key_raw = key;
             des->iv_raw = iv;
 

@@ -173,7 +173,7 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
     }
 
     while (bio != NULL && ret >= 0) {
-        /* formating data */
+        /* formatting data */
         if (bio->type == WOLFSSL_BIO_BASE64 && ret > 0 && sz > 0) {
             ret = wolfSSL_BIO_BASE64_read(bio, buf, sz);
         }
@@ -203,7 +203,7 @@ int wolfSSL_BIO_read(WOLFSSL_BIO* bio, void* buf, int len)
         }
 
         if (ret > 0) {
-            sz = ret; /* adjust size for formating */
+            sz = ret; /* adjust size for formatting */
         }
 
         /* previous WOLFSSL_BIO in list working towards head of list */
@@ -409,7 +409,7 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
     WOLFSSL_ENTER("wolfSSL_BIO_write");
 
     while (bio != NULL && ret >= 0) {
-        /* check for formating */
+        /* check for formatting */
         if (bio && bio->type == WOLFSSL_BIO_BASE64) {
 #if defined(WOLFSSL_BASE64_ENCODE)
             word32 sz = 0;
@@ -446,7 +446,7 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
                     ret = SSL_FATAL_ERROR;
                 }
                 /* since frmt already existed then data should point to knew
-                   formated buffer */
+                   formatted buffer */
                 data = frmt;
                 len  = frmtSz;
                 frmtSz = sz;
@@ -454,7 +454,7 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
 #endif /* defined(WOLFSSL_BASE64_ENCODE) */
 
             if (ret >= 0) {
-                /* change so that data is formated buffer */
+                /* change so that data is formatted buffer */
                 ret = wolfSSL_BIO_BASE64_write(bio, data, (word32)len,
                         (byte*)frmt, &frmtSz);
                 data = frmt;
@@ -733,7 +733,7 @@ size_t wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *bio)
     if (bio->type == WOLFSSL_BIO_BIO && bio->pair != NULL) {
         WOLFSSL_BIO* pair = bio->pair;
         if (pair->wrIdx > 0 && pair->wrIdx <= pair->rdIdx) {
-            /* in wrap around state where begining of buffer is being
+            /* in wrap around state where beginning of buffer is being
              * overwritten */
             return pair->wrSz - pair->rdIdx + pair->wrIdx;
         }
@@ -817,7 +817,7 @@ int wolfSSL_BIO_set_write_buf_size(WOLFSSL_BIO *bio, long size)
 }
 
 
-/* Joins two BIO_BIO types. The write of b1 goes to the read of b2 and vise
+/* Joins two BIO_BIO types. The write of b1 goes to the read of b2 and vice
  * versa. Creating something similar to a two way pipe.
  * Reading and writing between the two BIOs is not thread safe, they are
  * expected to be used by the same thread. */
@@ -984,7 +984,7 @@ int wolfSSL_BIO_nwrite(WOLFSSL_BIO *bio, char **buf, int num)
             sz = bio->wrSz - bio->wrIdx;
 
             if (sz <= 0) {
-                /* either an error has occured with write index or it is at the
+                /* either an error has occurred with write index or it is at the
                  * end of the write buffer. */
                 if (bio->rdIdx == 0) {
                     /* no more room, nothing has been read */
@@ -1136,7 +1136,7 @@ int wolfSSL_BIO_seek(WOLFSSL_BIO *bio, int ofs)
           return -1;
       }
 
-      /* offset ofs from begining of file */
+      /* offset ofs from beginning of file */
       if (bio->type == WOLFSSL_BIO_FILE &&
               XFSEEK(bio->file, ofs, SEEK_SET) < 0) {
           return -1;

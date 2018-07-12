@@ -31,7 +31,7 @@
 #endif
 
 
-enum { /* CALLBACK CONTSTANTS */
+enum { /* CALLBACK CONSTANTS */
     MAX_PACKETNAME_SZ     =  24,
     MAX_CIPHERNAME_SZ     =  24,
     MAX_TIMEOUT_NAME_SZ   =  24,

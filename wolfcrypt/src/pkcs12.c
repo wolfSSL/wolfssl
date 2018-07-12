@@ -98,7 +98,7 @@ typedef struct MacData {
     word32 oid;
     word32 digestSz;
     word32 saltSz;
-    int itt; /* number of itterations when creating HMAC key */
+    int itt; /* number of iterations when creating HMAC key */
 } MacData;
 
 
@@ -592,7 +592,7 @@ static int wc_PKCS12_verify(WC_PKCS12* pkcs12, byte* data, word32 dataSz,
 
 
 /* Convert DER format stored in der buffer to WC_PKCS12 struct
- * Puts the raw contents of Content Info into structure without completly
+ * Puts the raw contents of Content Info into structure without completely
  * parsing or decoding.
  * der    : pointer to der buffer holding PKCS12
  * derSz  : size of der buffer
@@ -1304,7 +1304,7 @@ static int wc_PKCS12_create_key_bag(WC_PKCS12* pkcs12, WC_RNG* rng,
     XFREE(tmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
     totalSz += length;
 
-    /* set begining sequence */
+    /* set beginning sequence */
     tmpSz = SetSequence(totalSz, out);
     XMEMMOVE(out + tmpSz, out + MAX_SEQ_SZ, totalSz);
 

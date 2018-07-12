@@ -298,7 +298,7 @@ typedef struct NamedKey {
 typedef struct SnifferServer {
     SSL_CTX*       ctx;                          /* SSL context */
     char           address[MAX_SERVER_ADDRESS];  /* passed in server address */
-    word32         server;                       /* netowrk order address */
+    word32         server;                       /* network order address */
     int            port;                         /* server port */
 #ifdef HAVE_SNI
     NamedKey*      namedKeys;                    /* mapping of names and keys */
@@ -328,7 +328,7 @@ typedef struct Flags {
 } Flags;
 
 
-/* Out of Order FIN caputre */
+/* Out of Order FIN capture */
 typedef struct FinCaputre {
     word32 cliFinSeq;               /* client relative sequence FIN  0 is no */
     word32 srvFinSeq;               /* server relative sequence FIN, 0 is no */
@@ -1106,7 +1106,7 @@ static word32 SessionHash(IpInfo* ipInfo, TcpInfo* tcpInfo)
 }
 
 
-/* Get Exisiting SnifferSession from IP and Port */
+/* Get Existing SnifferSession from IP and Port */
 static SnifferSession* GetSnifferSession(IpInfo* ipInfo, TcpInfo* tcpInfo)
 {
     SnifferSession* session;

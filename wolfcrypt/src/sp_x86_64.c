@@ -51,7 +51,7 @@
 #ifdef WOLFSSL_SP_X86_64_ASM
 #if defined(WOLFSSL_HAVE_SP_RSA) || defined(WOLFSSL_HAVE_SP_DH)
 #ifndef WOLFSSL_SP_NO_2048
-/* Read big endian unsigned byte aray into r.
+/* Read big endian unsigned byte array into r.
  *
  * r  A single precision integer.
  * a  Byte array.
@@ -149,7 +149,7 @@ static void sp_2048_from_mp(sp_digit* r, int max, mp_int* a)
 #endif
 }
 
-/* Write r as big endian to byte aray.
+/* Write r as big endian to byte array.
  * Fixed length number of bytes written: 256
  *
  * r  A single precision integer.
@@ -6101,7 +6101,7 @@ SP_NOINLINE static sp_digit sp_2048_sub_in_place_16(sp_digit* a,
  * Given m must be 2048 bits, just need to subtract.
  *
  * r  A single precision number.
- * m  A signle precision number.
+ * m  A single precision number.
  */
 static void sp_2048_mont_norm_16(sp_digit* r, sp_digit* m)
 {
@@ -7426,7 +7426,7 @@ static int sp_2048_mod_exp_avx2_16(sp_digit* r, sp_digit* a, sp_digit* e,
  * Given m must be 2048 bits, just need to subtract.
  *
  * r  A single precision number.
- * m  A signle precision number.
+ * m  A single precision number.
  */
 static void sp_2048_mont_norm_32(sp_digit* r, sp_digit* m)
 {
@@ -9929,7 +9929,7 @@ static int sp_2048_to_mp(sp_digit* a, mp_int* r)
  * exp   Exponent. MP integer.
  * mod   Modulus. MP integer.
  * res   Result. MP integer.
- * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * returns 0 on success, MP_READ_E if there are too many bytes in an array
  * and MEMORY_E if memory allocation fails.
  */
 int sp_ModExp_2048(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
@@ -9978,7 +9978,7 @@ int sp_ModExp_2048(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
  * out      Buffer to hold big-endian bytes of exponentiation result.
  *          Must be at least 256 bytes long.
  * outLen   Length, in bytes, of exponentiation result.
- * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * returns 0 on success, MP_READ_E if there are too many bytes in an array
  * and MEMORY_E if memory allocation fails.
  */
 int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
@@ -10028,7 +10028,7 @@ int sp_DhExp_2048(mp_int* base, const byte* exp, word32 expLen,
 #endif /* WOLFSSL_SP_NO_2048 */
 
 #ifndef WOLFSSL_SP_NO_3072
-/* Read big endian unsigned byte aray into r.
+/* Read big endian unsigned byte array into r.
  *
  * r  A single precision integer.
  * a  Byte array.
@@ -10126,7 +10126,7 @@ static void sp_3072_from_mp(sp_digit* r, int max, mp_int* a)
 #endif
 }
 
-/* Write r as big endian to byte aray.
+/* Write r as big endian to byte array.
  * Fixed length number of bytes written: 384
  *
  * r  A single precision integer.
@@ -22348,7 +22348,7 @@ SP_NOINLINE static sp_digit sp_3072_sub_in_place_24(sp_digit* a,
  * Given m must be 3072 bits, just need to subtract.
  *
  * r  A single precision number.
- * m  A signle precision number.
+ * m  A single precision number.
  */
 static void sp_3072_mont_norm_24(sp_digit* r, sp_digit* m)
 {
@@ -24033,7 +24033,7 @@ static int sp_3072_mod_exp_avx2_24(sp_digit* r, sp_digit* a, sp_digit* e,
  * Given m must be 3072 bits, just need to subtract.
  *
  * r  A single precision number.
- * m  A signle precision number.
+ * m  A single precision number.
  */
 static void sp_3072_mont_norm_48(sp_digit* r, sp_digit* m)
 {
@@ -27256,7 +27256,7 @@ static int sp_3072_to_mp(sp_digit* a, mp_int* r)
  * exp   Exponent. MP integer.
  * mod   Modulus. MP integer.
  * res   Result. MP integer.
- * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * returns 0 on success, MP_READ_E if there are too many bytes in an array
  * and MEMORY_E if memory allocation fails.
  */
 int sp_ModExp_3072(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
@@ -27305,7 +27305,7 @@ int sp_ModExp_3072(mp_int* base, mp_int* exp, mp_int* mod, mp_int* res)
  * out      Buffer to hold big-endian bytes of exponentiation result.
  *          Must be at least 384 bytes long.
  * outLen   Length, in bytes, of exponentiation result.
- * returs 0 on success, MP_READ_E if there are too many bytes in an array
+ * returns 0 on success, MP_READ_E if there are too many bytes in an array
  * and MEMORY_E if memory allocation fails.
  */
 int sp_DhExp_3072(mp_int* base, const byte* exp, word32 expLen,
@@ -28833,7 +28833,7 @@ static int sp_256_cmp_equal_4(const sp_digit* a, const sp_digit* b)
 /* Add two Montgomery form projective points.
  *
  * r  Result of addition.
- * p  Frist point to add.
+ * p  First point to add.
  * q  Second point to add.
  * t  Temporary ordinate data.
  */
@@ -28990,7 +28990,7 @@ static void sp_256_proj_point_dbl_n_store_4(sp_point* r, sp_point* p,
  *
  * ra  Result of addition.
  * rs  Result of subtraction.
- * p   Frist point to add.
+ * p   First point to add.
  * q   Second point to add.
  * t   Temporary ordinate data.
  */
@@ -29843,7 +29843,7 @@ static void sp_256_proj_point_dbl_n_avx2_4(sp_point* r, sp_point* p, int n,
 /* Add two Montgomery form projective points.
  *
  * r  Result of addition.
- * p  Frist point to add.
+ * p  First point to add.
  * q  Second point to add.
  * t  Temporary ordinate data.
  */
@@ -30000,7 +30000,7 @@ static void sp_256_proj_point_dbl_n_store_avx2_4(sp_point* r, sp_point* p,
  *
  * ra  Result of addition.
  * rs  Result of subtraction.
- * p   Frist point to add.
+ * p   First point to add.
  * q   Second point to add.
  * t   Temporary ordinate data.
  */
@@ -30204,7 +30204,7 @@ typedef struct sp_table_entry {
  * Only the first point can be the same pointer as the result point.
  *
  * r  Result of addition.
- * p  Frist point to add.
+ * p  First point to add.
  * q  Second point to add.
  * t  Temporary ordinate data.
  */
@@ -30597,7 +30597,7 @@ static int sp_256_ecc_mulmod_4(sp_point* r, sp_point* g, sp_digit* k,
  * Only the first point can be the same pointer as the result point.
  *
  * r  Result of addition.
- * p  Frist point to add.
+ * p  First point to add.
  * q  Second point to add.
  * t  Temporary ordinate data.
  */
@@ -44423,7 +44423,7 @@ static void sp_256_add_one_4(sp_digit* a)
     );
 }
 
-/* Read big endian unsigned byte aray into r.
+/* Read big endian unsigned byte array into r.
  *
  * r  A single precision integer.
  * a  Byte array.
@@ -44570,7 +44570,7 @@ int sp_ecc_make_key_256(WC_RNG* rng, mp_int* priv, ecc_point* pub, void* heap)
 }
 
 #ifdef HAVE_ECC_DHE
-/* Write r as big endian to byte aray.
+/* Write r as big endian to byte array.
  * Fixed length number of bytes written: 32
  *
  * r  A single precision integer.

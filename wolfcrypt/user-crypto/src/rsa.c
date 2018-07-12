@@ -70,7 +70,7 @@ enum {
     RSA_MIN_SIZE = 512,
     RSA_MAX_SIZE = 4096, /* max allowed in IPP library */
 
-    RSA_MIN_PAD_SZ   = 11      /* seperator + 0 + pad value + 8 pads */
+    RSA_MIN_PAD_SZ   = 11      /* separator + 0 + pad value + 8 pads */
 };
 
 
@@ -528,7 +528,7 @@ int SetRsaInternal(WOLFSSL_RSA* rsa)
    existing API signing scheme
     input : the msg to be signed
     inputLen : length of input msg
-    pkcsBlock : the outputed padded msg
+    pkcsBlock : the outputted padded msg
     pkcsBlockLen : length of outptued padded msg buffer
     padValue : the padded value after first 00 , is either 01 or 02
     rng : random number generator structure
@@ -736,7 +736,7 @@ int wc_FreeRsaKey(RsaKey* key)
     }
 
     if (key->pPrv != NULL) {
-        /* write over senstive information */
+        /* write over sensitive information */
         ForceZero(key->pPrv, key->prvSz);
         XFREE(key->pPrv, NULL, DYNAMIC_TYPE_USER_CRYPTO);
         key->pPrv = NULL;

@@ -78,7 +78,7 @@ echo 'package="'$P'"' >>$F
 echo 'version="'$V'"' >>$F
 echo 'libs="'$L'"' >>$F
 echo ' ' >>$F
-# in the order of occurence a standard automake Makefile
+# in the order of occurrence a standard automake Makefile
 echo 'prefix="'$prefix'"' >>$F
 echo 'exec_prefix="'$exec_prefix'"' >>$F
 echo 'bindir="'$bindir'"' >>$F

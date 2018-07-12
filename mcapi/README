@@ -47,7 +47,7 @@ Included Project Files
 
 4. wolfCrypt MCAPI Test App (wolfcrypt_mcapi.X)
 
-    This project tests the Microchip crytpo API layer. The Microchip crypto
+    This project tests the Microchip crypto API layer. The Microchip crypto
     layer is located under the <wolfssl_root>/mcapi directory.
 
 5. zlib library (zlib.X)

@@ -135,7 +135,7 @@ static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 le
             "LD1 {v24.4s-v27.4s}, [%[k]], #64    \n"
             "LD1 {v28.4s-v31.4s}, [%[k]], #64    \n"
 
-            /* begining of SHA256 block operation */
+            /* beginning of SHA256 block operation */
             "1:\n"
             /* Round 1 */
             "MOV v4.16b, v0.16b        \n"
@@ -266,7 +266,7 @@ static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 le
             "#check if more blocks should be done\n"
             "CBZ w8, 2f \n"
 
-            "#load in message and schedual updates \n"
+            "#load in message and schedule updates \n"
             "LD1 {v0.2d-v3.2d}, [%[dataIn]], #64   \n"
             "MOV v14.16b, v12.16b \n"
             "MOV v15.16b, v13.16b \n"
@@ -298,7 +298,7 @@ static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 le
         }
     }
 
-    /* account for possiblity of not used if len = 0 */
+    /* account for possibility of not used if len = 0 */
     (void)add;
     (void)numBlocks;
 
@@ -498,7 +498,7 @@ static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
             sizeof(word32));
 
     __asm__ volatile (
-        "#load in message and schedual updates \n"
+        "#load in message and schedule updates \n"
         "LD1 {v4.2d-v7.2d}, %[buffer]        \n"
         "MOV v0.16b, v4.16b \n"
         "MOV v1.16b, v5.16b \n"
@@ -694,7 +694,7 @@ static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 le
             "VMOV.32 q14, q12 \n" /* store digest for add at the end */
             "VMOV.32 q15, q13 \n"
 
-            /* begining of SHA256 block operation */
+            /* beginning of SHA256 block operation */
             "1:\n"
 
             /* Round 1 */
@@ -838,7 +838,7 @@ static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 le
             "CMP r8, #0 \n"
             "BEQ 2f \n"
 
-            "#load in message and schedual updates \n"
+            "#load in message and schedule updates \n"
             "VLD1.32 {q0}, [%[dataIn]]!   \n"
             "VLD1.32 {q1}, [%[dataIn]]!   \n"
             "VLD1.32 {q2}, [%[dataIn]]!   \n"
@@ -874,7 +874,7 @@ static WC_INLINE int Sha256Update(wc_Sha256* sha256, const byte* data, word32 le
         }
     }
 
-    /* account for possiblity of not used if len = 0 */
+    /* account for possibility of not used if len = 0 */
     (void)add;
     (void)numBlocks;
 
@@ -916,7 +916,7 @@ static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
         "VMOV.32 q14, q12 \n" /* store digest for add at the end */
         "VMOV.32 q15, q13 \n"
 
-        /* begining of SHA256 block operation */
+        /* beginning of SHA256 block operation */
         /* Round 1 */
         "VLD1.32 {q5}, [%[k]]!    \n"
         "VMOV.32 q4, q0           \n"
@@ -1116,7 +1116,7 @@ static WC_INLINE int Sha256Final(wc_Sha256* sha256, byte* hash)
         "VMOV.32 q14, q12 \n" /* store digest for add at the end */
         "VMOV.32 q15, q13 \n"
 
-        /* begining of SHA256 block operation */
+        /* beginning of SHA256 block operation */
         /* Round 1 */
         "VLD1.32 {q5}, [%[k]]!    \n"
         "VMOV.32 q4, q0           \n"

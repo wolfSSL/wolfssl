@@ -10,7 +10,7 @@
     \return WOLFSSL_CBIO_ERR_ISR returned with a “Socket interrupted” message
     if the last error was SOCKET_EINTR.
     \return WOLFSSL_CBIO_ERR_WANT_READ returned with a “Connection refused”
-    messag if the last error was SOCKET_ECONNREFUSED.
+    message if the last error was SOCKET_ECONNREFUSED.
     \return WOLFSSL_CBIO_ERR_CONN_CLOSE returned with a “Connection aborted”
     message if the last error was SOCKET_ECONNABORTED.
     \return WOLFSSL_CBIO_ERR_GENERAL returned with a “General error” message
@@ -137,7 +137,7 @@ WOLFSSL_API int EmbedReceiveFrom(WOLFSSL* ssl, char* buf, int sz, void*);
     \param buf a char pointer representing the buffer.
     \param sz the size of the buffer.
     \param ctx a void pointer to the user registered context. The default case
-    is a WOLFSSL_DTLS_CTX sructure.
+    is a WOLFSSL_DTLS_CTX structure.
 
     _Example_
     \code
@@ -361,7 +361,7 @@ WOLFSSL_API void* wolfSSL_GetIOReadCtx( WOLFSSL* ssl);
     ...
     ioWrite = wolfSSL_GetIOWriteCtx(ssl);
     if(ioWrite == NULL){
-    	// The funciton returned NULL.
+    	// The function returned NULL.
     }
     \endcode
 
