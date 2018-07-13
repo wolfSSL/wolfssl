@@ -721,6 +721,25 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
 #endif
 }
 
+
+static int test_wolfSSL_CTX_use_certificate_chain_file_format(void)
+{
+    int ret = 0;
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA)
+    const char* server_chain_der = "./certs/server-cert-chain.der";
+    WOLFSSL_CTX* ctx;
+
+    ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+    AssertNotNull(ctx);
+
+    AssertIntEQ(wolfSSL_CTX_use_certificate_chain_file_format(ctx,
+        server_chain_der, WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    wolfSSL_CTX_free(ctx);
+#endif
+    return ret;
+}
+
 static void test_wolfSSL_CTX_SetTmpDH_file(void)
 {
 #if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_DH) && \
@@ -19906,6 +19925,7 @@ void ApiTest(void)
     AssertIntEQ(test_wolfSSL_CTX_use_certificate_buffer(), WOLFSSL_SUCCESS);
     test_wolfSSL_CTX_use_PrivateKey_file();
     test_wolfSSL_CTX_load_verify_locations();
+    test_wolfSSL_CTX_use_certificate_chain_file_format();
     test_wolfSSL_CTX_trust_peer_cert();
     test_wolfSSL_CTX_SetTmpDH_file();
     test_wolfSSL_CTX_SetTmpDH_buffer();
