@@ -1117,7 +1117,7 @@ int wolfSSL_BIO_write_filename(WOLFSSL_BIO *bio, char *name)
         }
 
         bio->file = XFOPEN(name, "w");
-        if (bio->file == NULL) {
+        if (bio->file == XBADFILE) {
             return WOLFSSL_FAILURE;
         }
         bio->close = BIO_CLOSE;

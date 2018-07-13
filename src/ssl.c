@@ -33177,11 +33177,13 @@ int wolfSSL_SSL_CTX_remove_session(WOLFSSL_CTX *ctx, WOLFSSL_SESSION *s)
 BIO *wolfSSL_SSL_get_rbio(const WOLFSSL *s)
 {
     WOLFSSL_ENTER("wolfSSL_SSL_get_rbio");
-    (void)s;
     /* Nginx sets the buffer size if the read BIO is different to write BIO.
      * The setting buffer size doesn't do anything so return NULL for both.
      */
-    return NULL;
+    if (s == NULL)
+        return NULL;
+
+    return s->biord;
 }
 BIO *wolfSSL_SSL_get_wbio(const WOLFSSL *s)
 {
@@ -33190,7 +33192,10 @@ BIO *wolfSSL_SSL_get_wbio(const WOLFSSL *s)
     /* Nginx sets the buffer size if the read BIO is different to write BIO.
      * The setting buffer size doesn't do anything so return NULL for both.
      */
-    return NULL;
+    if (s == NULL)
+        return NULL;
+
+    return s->biowr;
 }
 
 int wolfSSL_SSL_do_handshake(WOLFSSL *s)
