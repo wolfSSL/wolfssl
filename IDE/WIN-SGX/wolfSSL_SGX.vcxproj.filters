@@ -54,5 +54,17 @@
     <ClCompile Include="..\..\wolfcrypt\src\random.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\wolfcrypt\src\coding.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\wolfcrypt\src\wc_encrypt.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\wolfcrypt\src\wolfmath.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\wolfcrypt\src\wc_port.c">
+      <Filter>Source Files\Resource Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

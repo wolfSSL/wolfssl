@@ -1253,7 +1253,6 @@ extern void uITRON4_free(void *p) ;
             #define NO_DES3
             #define NO_SHA
             #define NO_MD5
-            #define NO_ASN
         #else
             #define TFM_TIMING_RESISTANT
             #define NO_WOLFSSL_DIR
