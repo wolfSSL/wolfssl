@@ -36,6 +36,10 @@
 WOLFSSL_API const char*   wolfSSLeay_version(int type);
 WOLFSSL_API unsigned long wolfSSLeay(void);
 
+#ifdef OPENSSL_EXTRA
+WOLFSSL_API void wolfSSL_OPENSSL_free(void*);
+WOLFSSL_API void *wolfSSL_OPENSSL_malloc(size_t a);
+#endif
 
 #define CRYPTO_THREADID void
 
@@ -49,6 +53,9 @@ WOLFSSL_API unsigned long wolfSSLeay(void);
 
 /* this function was used to set the default malloc, free, and realloc */
 #define CRYPTO_malloc_init() /* CRYPTO_malloc_init is not needed */
+
+#define OPENSSL_free wolfSSL_OPENSSL_free
+#define OPENSSL_malloc wolfSSL_OPENSSL_malloc
 
 #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
     defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
