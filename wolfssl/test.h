@@ -1918,6 +1918,16 @@ static WC_INLINE int wolfSSL_PrintStats(WOLFSSL_MEM_STATS* stats)
 
 typedef struct PkCbInfo {
     const char* ourKey;
+#ifdef TEST_PK_PRIVKEY
+    union {
+    #ifdef HAVE_ECC
+        ecc_key ecc;
+    #endif
+    #ifdef HAVE_CURVE25519
+        curve25519_key curve;
+    #endif
+    } keyGen;
+#endif
 } PkCbInfo;
 
 #ifdef HAVE_ECC
@@ -1928,6 +1938,12 @@ static WC_INLINE int myEccKeyGen(WOLFSSL* ssl, ecc_key* key, word32 keySz,
     int       ret;
     WC_RNG    rng;
     PkCbInfo* cbInfo = (PkCbInfo*)ctx;
+    ecc_key*  new_key = key;
+#ifdef TEST_PK_PRIVKEY
+    byte qx[MAX_ECC_BYTES], qy[MAX_ECC_BYTES];
+    word32 qxLen = sizeof(qx), qyLen = sizeof(qy);
+    new_key = &cbInfo->keyGen.ecc;
+#endif
 
     (void)ssl;
     (void)cbInfo;
@@ -1936,7 +1952,24 @@ static WC_INLINE int myEccKeyGen(WOLFSSL* ssl, ecc_key* key, word32 keySz,
     if (ret != 0)
         return ret;
 
-    ret = wc_ecc_make_key_ex(&rng, keySz, key, ecc_curve);
+    ret = wc_ecc_init(new_key);
+    if (ret == 0) {
+        /* create new key */
+        ret = wc_ecc_make_key_ex(&rng, keySz, new_key, ecc_curve);
+
+    #ifdef TEST_PK_PRIVKEY
+        if (ret == 0) {
+            /* extract public portion from new key into `key` arg */
+            ret = wc_ecc_export_public_raw(new_key, qx, &qxLen, qy, &qyLen);
+            if (ret == 0) {
+                /* load public portion only into key */
+                ret = wc_ecc_import_unsigned(key, qx, qy, NULL, ecc_curve);
+            }
+            (void)qxLen;
+            (void)qyLen;
+        }
+    #endif
+    }
 
     wc_FreeRng(&rng);
 
@@ -2048,7 +2081,11 @@ static WC_INLINE int myEccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
 
     /* for server: import public key */
     else if (side == WOLFSSL_SERVER_END) {
+    #ifdef TEST_PK_PRIVKEY
+        privKey = &cbInfo->keyGen.ecc;
+    #else
         privKey = otherKey;
+    #endif
         pubKey = &tmpKey;
 
         ret = wc_ecc_import_x963_ex(pubKeyDer, *pubKeySz, pubKey,
@@ -2068,6 +2105,12 @@ static WC_INLINE int myEccSharedSecret(WOLFSSL* ssl, ecc_key* otherKey,
         }
     #endif
     }
+
+#ifdef TEST_PK_PRIVKEY
+    if (side == WOLFSSL_SERVER_END) {
+        wc_ecc_free(&cbInfo->keyGen.ecc);
+    }
+#endif
 
     wc_ecc_free(&tmpKey);
 
