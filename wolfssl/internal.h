@@ -1032,6 +1032,38 @@ enum {
 #endif /* WOLFSSL_MAX_MTU */
 
 
+/* set minimum DH key size allowed */
+#ifndef WOLFSSL_MIN_DHKEY_BITS
+    #ifdef WOLFSSL_MAX_STRENGTH
+        #define WOLFSSL_MIN_DHKEY_BITS 2048
+    #else
+        #define WOLFSSL_MIN_DHKEY_BITS 1024
+    #endif
+#endif
+#if (WOLFSSL_MIN_DHKEY_BITS % 8)
+    #error DH minimum bit size must be multiple of 8
+#endif
+#if (WOLFSSL_MIN_DHKEY_BITS > 16000)
+    #error DH minimum bit size must not be greater than 16000
+#endif
+#define MIN_DHKEY_SZ (WOLFSSL_MIN_DHKEY_BITS / 8)
+/* set maximum DH key size allowed */
+#ifndef WOLFSSL_MAX_DHKEY_BITS
+    #ifdef WOLFSSL_MAX_STRENGTH
+        #define WOLFSSL_MAX_DHKEY_BITS 3072
+    #else
+        #define WOLFSSL_MAX_DHKEY_BITS 2048
+    #endif
+#endif
+#if (WOLFSSL_MAX_DHKEY_BITS % 8)
+    #error DH maximum bit size must be multiple of 8
+#endif
+#if (WOLFSSL_MAX_DHKEY_BITS > 16000)
+    #error DH maximum bit size must not be greater than 16000
+#endif
+#define MAX_DHKEY_SZ (WOLFSSL_MAX_DHKEY_BITS / 8)
+
+
 
 enum Misc {
     CIPHER_BYTE = 0x00,            /* Default ciphers */
@@ -1089,7 +1121,8 @@ enum Misc {
     MAX_COMP_EXTRA  = 1024,     /* max compression extra */
     MAX_MTU         = WOLFSSL_MAX_MTU,     /* max expected MTU */
     MAX_UDP_SIZE    = 8192 - 100, /* was MAX_MTU - 100 */
-    MAX_DH_SZ       = 1036,     /* 4096 p, pub, g + 2 byte size for each */
+    MAX_DH_SZ       = (MAX_DHKEY_SZ * 2) + 12,
+                                /* 4096 p, pub, g + 2 byte size for each */
     MAX_STR_VERSION = 8,        /* string rep of protocol version */
 
     PAD_MD5        = 48,       /* pad length for finished */
@@ -1103,7 +1136,8 @@ enum Misc {
     VERIFY_HEADER  =  2,       /* always use 2 bytes      */
     EXTS_SZ        =  2,       /* always use 2 bytes      */
     EXT_ID_SZ      =  2,       /* always use 2 bytes      */
-    MAX_DH_SIZE    = 513,      /* 4096 bit plus possible leading 0 */
+    MAX_DH_SIZE    = MAX_DHKEY_SZ+1,
+                               /* Max size plus possible leading 0 */
     NAMED_DH_MASK  = 0x100,    /* Named group mask for DH parameters  */
     SESSION_HINT_SZ = 4,       /* session timeout hint */
     SESSION_ADD_SZ = 4,        /* session age add */
@@ -1151,9 +1185,9 @@ enum Misc {
     DTLS_POOL_SZ             = 255,/* allowed number of list items in TX pool */
     DTLS_EXPORT_PRO          = 165,/* wolfSSL protocol for serialized session */
     DTLS_EXPORT_VERSION      = 4,  /* wolfSSL version for serialized session */
-    DTLS_EXPORT_OPT_SZ       = 58, /* amount of bytes used from Options */
+    DTLS_EXPORT_OPT_SZ       = 60, /* amount of bytes used from Options */
     DTLS_EXPORT_VERSION_3    = 3,  /* wolfSSL version before TLS 1.3 addition */
-    DTLS_EXPORT_OPT_SZ_3     = 57, /* amount of bytes used from Options */
+    DTLS_EXPORT_OPT_SZ_3     = 59, /* amount of bytes used from Options */
     DTLS_EXPORT_KEY_SZ       = 325 + (DTLS_SEQ_SZ * 2),
                                    /* max amount of bytes used from Keys */
     DTLS_EXPORT_MIN_KEY_SZ   = 78 + (DTLS_SEQ_SZ * 2),
@@ -1351,23 +1385,6 @@ enum Misc {
     #error RSA minimum bit size must be a multiple of 8
 #endif
 #define MIN_RSAKEY_SZ (WOLFSSL_MIN_RSA_BITS / 8)
-
-/* set minimum DH key size allowed */
-#ifndef WOLFSSL_MIN_DHKEY_BITS
-    #ifdef WOLFSSL_MAX_STRENGTH
-        #define WOLFSSL_MIN_DHKEY_BITS 2048
-    #else
-        #define WOLFSSL_MIN_DHKEY_BITS 1024
-    #endif
-#endif
-#if (WOLFSSL_MIN_DHKEY_BITS % 8)
-    #error DH minimum bit size must be multiple of 8
-#endif
-#if (WOLFSSL_MIN_DHKEY_BITS > 16000)
-    #error DH minimum bit size must not be greater than 16000
-#endif
-#define MIN_DHKEY_SZ (WOLFSSL_MIN_DHKEY_BITS / 8)
-
 
 #ifdef SESSION_INDEX
 /* Shift values for making a session index */
@@ -2438,6 +2455,7 @@ struct WOLFSSL_CTX {
 #endif
 #ifndef NO_DH
     word16      minDhKeySz;       /* minimum DH key size */
+    word16      maxDhKeySz;       /* maximum DH key size */
 #endif
 #ifndef NO_RSA
     short       minRsaKeySz;      /* minimum RSA key size */
@@ -3137,6 +3155,7 @@ typedef struct Options {
 #endif
 #ifndef NO_DH
     word16          minDhKeySz;         /* minimum DH key size */
+    word16          maxDhKeySz;         /* minimum DH key size */
     word16          dhKeySz;            /* actual DH key size */
 #endif
 #ifndef NO_RSA

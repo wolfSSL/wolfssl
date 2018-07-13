@@ -754,8 +754,10 @@ static int dtls_export_new(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     exp[idx++] = options->downgrade;
 #ifndef NO_DH
     c16toa(options->minDhKeySz, exp + idx); idx += OPAQUE16_LEN;
+    c16toa(options->maxDhKeySz, exp + idx); idx += OPAQUE16_LEN;
     c16toa(options->dhKeySz, exp + idx);    idx += OPAQUE16_LEN;
 #else
+    c16toa(zero, exp + idx); idx += OPAQUE16_LEN;
     c16toa(zero, exp + idx); idx += OPAQUE16_LEN;
     c16toa(zero, exp + idx); idx += OPAQUE16_LEN;
 #endif
@@ -917,8 +919,10 @@ static int dtls_export_load(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     options->downgrade  = exp[idx++];
 #ifndef NO_DH
     ato16(exp + idx, &(options->minDhKeySz)); idx += OPAQUE16_LEN;
+    ato16(exp + idx, &(options->maxDhKeySz)); idx += OPAQUE16_LEN;
     ato16(exp + idx, &(options->dhKeySz));    idx += OPAQUE16_LEN;
 #else
+    idx += OPAQUE16_LEN;
     idx += OPAQUE16_LEN;
     idx += OPAQUE16_LEN;
 #endif
@@ -1367,6 +1371,7 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 
 #ifndef NO_DH
     ctx->minDhKeySz  = MIN_DHKEY_SZ;
+    ctx->maxDhKeySz  = MAX_DHKEY_SZ;
 #endif
 #ifndef NO_RSA
     ctx->minRsaKeySz = MIN_RSAKEY_SZ;
@@ -4163,6 +4168,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
 #ifndef NO_DH
     ssl->options.minDhKeySz = ctx->minDhKeySz;
+    ssl->options.maxDhKeySz = ctx->maxDhKeySz;
 #endif
 #ifndef NO_RSA
     ssl->options.minRsaKeySz = ctx->minRsaKeySz;
@@ -17602,6 +17608,11 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                         SendAlert(ssl, alert_fatal, handshake_failure);
                         ERROR_OUT(DH_KEY_SIZE_E, exit_dske);
                     }
+                    if (length > ssl->options.maxDhKeySz) {
+                        WOLFSSL_MSG("Server using a DH key that is too big");
+                        SendAlert(ssl, alert_fatal, handshake_failure);
+                        ERROR_OUT(DH_KEY_SIZE_E, exit_dske);
+                    }
 
                     ssl->buffers.serverDH_P.buffer =
                         (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
@@ -17792,6 +17803,11 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
 
                     if (length < ssl->options.minDhKeySz) {
                         WOLFSSL_MSG("Server using a DH key that is too small");
+                        SendAlert(ssl, alert_fatal, handshake_failure);
+                        ERROR_OUT(DH_KEY_SIZE_E, exit_dske);
+                    }
+                    if (length > ssl->options.maxDhKeySz) {
+                        WOLFSSL_MSG("Server using a DH key that is too big");
                         SendAlert(ssl, alert_fatal, handshake_failure);
                         ERROR_OUT(DH_KEY_SIZE_E, exit_dske);
                     }
