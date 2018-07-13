@@ -725,7 +725,7 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
 static int test_wolfSSL_CTX_use_certificate_chain_file_format(void)
 {
     int ret = 0;
-#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && !defined(NO_RSA)
     const char* server_chain_der = "./certs/server-cert-chain.der";
     WOLFSSL_CTX* ctx;
 
