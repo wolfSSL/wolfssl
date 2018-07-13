@@ -5319,10 +5319,9 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     args->verify + HASH_SIG_SIZE + VERIFY_HEADER,
                     &sig->length, (ecc_key*)ssl->hsKey,
             #ifdef HAVE_PK_CALLBACKS
-                    ssl->buffers.key,
-                    ssl->EccSignCtx
+                    ssl->buffers.key
             #else
-                    NULL, NULL
+                    NULL
             #endif
                 );
                 args->length = (word16)sig->length;
@@ -5334,10 +5333,9 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     args->verify + HASH_SIG_SIZE + VERIFY_HEADER,
                     &sig->length, (ed25519_key*)ssl->hsKey,
             #ifdef HAVE_PK_CALLBACKS
-                    ssl->buffers.key,
-                    ssl->Ed25519SignCtx
+                    ssl->buffers.key
             #else
-                    NULL, NULL
+                    NULL
             #endif
                 );
                 args->length = sig->length;
@@ -5350,12 +5348,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     args->verify + HASH_SIG_SIZE + VERIFY_HEADER, &args->sigLen,
                     args->sigAlgo, ssl->suites->hashAlgo,
                     (RsaKey*)ssl->hsKey,
-                    ssl->buffers.key,
-                #ifdef HAVE_PK_CALLBACKS
-                    ssl->RsaSignCtx
-                #else
-                    NULL
-                #endif
+                    ssl->buffers.key
                 );
                 args->length = (word16)args->sigLen;
             }
@@ -5393,12 +5386,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 ret = VerifyRsaSign(ssl, args->verifySig, args->sigLen,
                     sig->buffer, sig->length, args->sigAlgo,
                     ssl->suites->hashAlgo, (RsaKey*)ssl->hsKey,
-                    ssl->buffers.key,
-                #ifdef HAVE_PK_CALLBACKS
-                    ssl->RsaSignCtx
-                #else
-                    NULL
-                #endif
+                    ssl->buffers.key
                 );
             }
         #endif /* !NO_RSA */
@@ -5718,10 +5706,9 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                 ret = RsaVerify(ssl, sig->buffer, sig->length, &args->output,
                     args->sigAlgo, args->hashAlgo, ssl->peerRsaKey,
                 #ifdef HAVE_PK_CALLBACKS
-                    &ssl->buffers.peerRsaKey,
-                    ssl->RsaVerifyCtx
+                    &ssl->buffers.peerRsaKey
                 #else
-                    NULL, NULL
+                    NULL
                 #endif
                 );
                 if (ret >= 0) {
@@ -5738,10 +5725,9 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                     args->sigData, args->sigDataSz,
                     ssl->peerEccDsaKey,
                 #ifdef HAVE_PK_CALLBACKS
-                    &ssl->buffers.peerEccDsaKey,
-                    ssl->EccVerifyCtx
+                    &ssl->buffers.peerEccDsaKey
                 #else
-                    NULL, NULL
+                    NULL
                 #endif
                 );
             }
@@ -5754,10 +5740,9 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
                     args->sigData, args->sigDataSz,
                     ssl->peerEd25519Key,
                 #ifdef HAVE_PK_CALLBACKS
-                    &ssl->buffers.peerEd25519Key,
-                    ssl->Ed25519VerifyCtx
+                    &ssl->buffers.peerEd25519Key
                 #else
-                    NULL, NULL
+                    NULL
                 #endif
                 );
             }
@@ -8068,7 +8053,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                     return WOLFSSL_FATAL_ERROR;
                 }
             }
-            
+
             ssl->options.acceptState = TLS13_ACCEPT_HELLO_RETRY_REQUEST_DONE;
             WOLFSSL_MSG("accept state ACCEPT_HELLO_RETRY_REQUEST_DONE");
             FALL_THROUGH;
@@ -8125,7 +8110,7 @@ int wolfSSL_accept_TLSv13(WOLFSSL* ssl)
                 ssl->options.sentChangeCipher = 1;
             }
     #endif
-            
+
             ssl->options.acceptState = TLS13_ACCEPT_THIRD_REPLY_DONE;
             WOLFSSL_MSG("accept state ACCEPT_THIRD_REPLY_DONE");
             FALL_THROUGH;

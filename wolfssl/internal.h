@@ -2546,9 +2546,10 @@ struct WOLFSSL_CTX {
 #endif
 #ifdef HAVE_PK_CALLBACKS
     #ifdef HAVE_ECC
+        CallbackEccKeyGen EccKeyGenCb;  /* User EccKeyGen Callback Handler */
         CallbackEccSign   EccSignCb;    /* User EccSign   Callback handler */
         CallbackEccVerify EccVerifyCb;  /* User EccVerify Callback handler */
-        CallbackEccSharedSecret EccSharedSecretCb;     /* User EccVerify Callback handler */
+        CallbackEccSharedSecret EccSharedSecretCb; /* User EccVerify Callback handler */
         #ifdef HAVE_ED25519
             /* User Ed25519Sign   Callback handler */
             CallbackEd25519Sign   Ed25519SignCb;
@@ -2556,7 +2557,9 @@ struct WOLFSSL_CTX {
             CallbackEd25519Verify Ed25519VerifyCb;
         #endif
         #ifdef HAVE_CURVE25519
-            /* User EccSharedSecret Callback handler */
+            /* User X25519 KeyGen Callback Handler */
+            CallbackX25519KeyGen X25519KeyGenCb;
+            /* User X25519 SharedSecret Callback handler */
             CallbackX25519SharedSecret X25519SharedSecretCb;
         #endif
     #endif /* HAVE_ECC */
@@ -3712,15 +3715,17 @@ struct WOLFSSL {
 #endif
 #ifdef HAVE_PK_CALLBACKS
     #ifdef HAVE_ECC
-        void* EccSignCtx;     /* Ecc Sign   Callback Context */
-        void* EccVerifyCtx;   /* Ecc Verify Callback Context */
-        void* EccSharedSecretCtx; /* Ecc Pms Callback Context */
+        void* EccKeyGenCtx;              /* EccKeyGen  Callback Context */
+        void* EccSignCtx;                /* Ecc Sign   Callback Context */
+        void* EccVerifyCtx;              /* Ecc Verify Callback Context */
+        void* EccSharedSecretCtx;        /* Ecc Pms    Callback Context */
         #ifdef HAVE_ED25519
-            void* Ed25519SignCtx;     /* ED25519 Sign   Callback Context */
-            void* Ed25519VerifyCtx;   /* ED25519 Verify Callback Context */
+            void* Ed25519SignCtx;        /* ED25519 Sign   Callback Context */
+            void* Ed25519VerifyCtx;      /* ED25519 Verify Callback Context */
         #endif
         #ifdef HAVE_CURVE25519
-            void* X25519SharedSecretCtx; /* X25519 Pms Callback Context */
+            void* X25519KeyGenCtx;       /* X25519 KeyGen Callback Context */
+            void* X25519SharedSecretCtx; /* X25519 Pms    Callback Context */
         #endif
     #endif /* HAVE_ECC */
     #ifndef NO_DH
@@ -3915,44 +3920,41 @@ WOLFSSL_LOCAL int wolfSSL_GetMaxRecordSize(WOLFSSL* ssl, int maxFragment);
     #ifndef NO_RSA
         #ifdef WC_RSA_PSS
             WOLFSSL_LOCAL int CheckRsaPssPadding(const byte* plain, word32 plainSz,
-                                                 byte* out, word32 sigSz,
-                                                 enum wc_HashType hashType);
-            WOLFSSL_LOCAL int ConvertHashPss(int hashAlgo, enum wc_HashType* hashType, int* mgf);
+                byte* out, word32 sigSz, enum wc_HashType hashType);
+            WOLFSSL_LOCAL int ConvertHashPss(int hashAlgo, 
+                enum wc_HashType* hashType, int* mgf);
         #endif
         WOLFSSL_LOCAL int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig,
             word32 sigSz, const byte* plain, word32 plainSz, int sigAlgo,
-            int hashAlgo, RsaKey* key, DerBuffer* keyBufInfo, void* ctx);
+            int hashAlgo, RsaKey* key, DerBuffer* keyBufInfo);
         WOLFSSL_LOCAL int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz,
             byte* out, word32* outSz, int sigAlgo, int hashAlgo, RsaKey* key,
-            DerBuffer* keyBufInfo, void* ctx);
+            DerBuffer* keyBufInfo);
         WOLFSSL_LOCAL int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz,
             byte** out, int sigAlgo, int hashAlgo, RsaKey* key,
-            buffer* keyBufInfo, void* ctx);
+            buffer* keyBufInfo);
         WOLFSSL_LOCAL int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out,
-            word32* outSz, RsaKey* key, DerBuffer* keyBufInfo, void* ctx);
+            word32* outSz, RsaKey* key, DerBuffer* keyBufInfo);
         WOLFSSL_LOCAL int RsaEnc(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
-            word32* outSz, RsaKey* key, buffer* keyBufInfo, void* ctx);
+            word32* outSz, RsaKey* key, buffer* keyBufInfo);
     #endif /* !NO_RSA */
 
     #ifdef HAVE_ECC
         WOLFSSL_LOCAL int EccSign(WOLFSSL* ssl, const byte* in, word32 inSz,
-            byte* out, word32* outSz, ecc_key* key, DerBuffer* keyBufInfo,
-            void* ctx);
+            byte* out, word32* outSz, ecc_key* key, DerBuffer* keyBufInfo);
         WOLFSSL_LOCAL int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz,
-            const byte* out, word32 outSz, ecc_key* key, buffer* keyBufInfo,
-            void* ctx);
+            const byte* out, word32 outSz, ecc_key* key, buffer* keyBufInfo);
         WOLFSSL_LOCAL int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key,
             ecc_key* pub_key, byte* pubKeyDer, word32* pubKeySz, byte* out,
-            word32* outlen, int side, void* ctx);
+            word32* outlen, int side);
     #endif /* HAVE_ECC */
     #ifdef HAVE_ED25519
         WOLFSSL_LOCAL int Ed25519CheckPubKey(WOLFSSL* ssl);
         WOLFSSL_LOCAL int Ed25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz,
-            byte* out, word32* outSz, ed25519_key* key, DerBuffer* keyBufInfo,
-            void* ctx);
+            byte* out, word32* outSz, ed25519_key* key, DerBuffer* keyBufInfo);
         WOLFSSL_LOCAL int Ed25519Verify(WOLFSSL* ssl, const byte* in,
             word32 inSz, const byte* msg, word32 msgSz, ed25519_key* key,
-            buffer* keyBufInfo, void* ctx);
+            buffer* keyBufInfo);
     #endif /* HAVE_ED25519 */
 
 
