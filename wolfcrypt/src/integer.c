@@ -4320,7 +4320,7 @@ int mp_mod_d (mp_int * a, mp_digit b, mp_digit * c)
 
 #endif /* WOLFSSL_KEY_GEN || HAVE_COMP_KEY || HAVE_ECC || DEBUG_WOLFSSL */
 
-#ifdef WOLFSSL_KEY_GEN
+#if defined(WOLFSSL_KEY_GEN) || !defined(NO_DH) || !defined(NO_DSA) || !defined(NO_RSA)
 
 const mp_digit ltm_prime_tab[PRIME_SIZE] = {
   0x0002, 0x0003, 0x0005, 0x0007, 0x000B, 0x000D, 0x0011, 0x0013,
@@ -4476,75 +4476,6 @@ static int mp_prime_is_divisible (mp_int * a, int *result)
   return MP_OKAY;
 }
 
-static const int USE_BBS = 1;
-
-int mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap)
-{
-    int   err, res, type;
-    byte* buf;
-
-    if (N == NULL || rng == NULL)
-        return MP_VAL;
-
-    /* get type */
-    if (len < 0) {
-        type = USE_BBS;
-        len = -len;
-    } else {
-        type = 0;
-    }
-
-    /* allow sizes between 2 and 512 bytes for a prime size */
-    if (len < 2 || len > 512) {
-        return MP_VAL;
-    }
-
-    /* allocate buffer to work with */
-    buf = (byte*)XMALLOC(len, heap, DYNAMIC_TYPE_RSA);
-    if (buf == NULL) {
-        return MP_MEM;
-    }
-    XMEMSET(buf, 0, len);
-
-    do {
-#ifdef SHOW_GEN
-        printf(".");
-        fflush(stdout);
-#endif
-        /* generate value */
-        err = wc_RNG_GenerateBlock(rng, buf, len);
-        if (err != 0) {
-            XFREE(buf, heap, DYNAMIC_TYPE_RSA);
-            return err;
-        }
-
-        /* munge bits */
-        buf[0]     |= 0x80 | 0x40;
-        buf[len-1] |= 0x01 | ((type & USE_BBS) ? 0x02 : 0x00);
-
-        /* load value */
-        if ((err = mp_read_unsigned_bin(N, buf, len)) != MP_OKAY) {
-            XFREE(buf, heap, DYNAMIC_TYPE_RSA);
-            return err;
-        }
-
-        /* test */
-        /* Running Miller-Rabin up to 3 times gives us a 2^{-80} chance
-         * of a 1024-bit candidate being a false positive, when it is our
-         * prime candidate. (Note 4.49 of Handbook of Applied Cryptography.)
-         * Using 8 because we've always used 8. */
-        if ((err = mp_prime_is_prime_ex(N, 8, &res, rng)) != MP_OKAY) {
-            XFREE(buf, heap, DYNAMIC_TYPE_RSA);
-            return err;
-        }
-    } while (res == MP_NO);
-
-    XMEMSET(buf, 0, len);
-    XFREE(buf, heap, DYNAMIC_TYPE_RSA);
-
-    return MP_OKAY;
-}
-
 /*
  * Sets result to 1 if probably prime, 0 otherwise
  */
@@ -4694,6 +4625,79 @@ LBL_B:mp_clear (&b);
       mp_clear (&c);
       XFREE(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
   return err;
+}
+
+#endif /* WOLFSSL_KEY_GEN NO_DH NO_DSA NO_RSA */
+
+#ifdef WOLFSSL_KEY_GEN
+
+static const int USE_BBS = 1;
+
+int mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap)
+{
+    int   err, res, type;
+    byte* buf;
+
+    if (N == NULL || rng == NULL)
+        return MP_VAL;
+
+    /* get type */
+    if (len < 0) {
+        type = USE_BBS;
+        len = -len;
+    } else {
+        type = 0;
+    }
+
+    /* allow sizes between 2 and 512 bytes for a prime size */
+    if (len < 2 || len > 512) {
+        return MP_VAL;
+    }
+
+    /* allocate buffer to work with */
+    buf = (byte*)XMALLOC(len, heap, DYNAMIC_TYPE_RSA);
+    if (buf == NULL) {
+        return MP_MEM;
+    }
+    XMEMSET(buf, 0, len);
+
+    do {
+#ifdef SHOW_GEN
+        printf(".");
+        fflush(stdout);
+#endif
+        /* generate value */
+        err = wc_RNG_GenerateBlock(rng, buf, len);
+        if (err != 0) {
+            XFREE(buf, heap, DYNAMIC_TYPE_RSA);
+            return err;
+        }
+
+        /* munge bits */
+        buf[0]     |= 0x80 | 0x40;
+        buf[len-1] |= 0x01 | ((type & USE_BBS) ? 0x02 : 0x00);
+
+        /* load value */
+        if ((err = mp_read_unsigned_bin(N, buf, len)) != MP_OKAY) {
+            XFREE(buf, heap, DYNAMIC_TYPE_RSA);
+            return err;
+        }
+
+        /* test */
+        /* Running Miller-Rabin up to 3 times gives us a 2^{-80} chance
+         * of a 1024-bit candidate being a false positive, when it is our
+         * prime candidate. (Note 4.49 of Handbook of Applied Cryptography.)
+         * Using 8 because we've always used 8. */
+        if ((err = mp_prime_is_prime_ex(N, 8, &res, rng)) != MP_OKAY) {
+            XFREE(buf, heap, DYNAMIC_TYPE_RSA);
+            return err;
+        }
+    } while (res == MP_NO);
+
+    XMEMSET(buf, 0, len);
+    XFREE(buf, heap, DYNAMIC_TYPE_RSA);
+
+    return MP_OKAY;
 }
 
 

@@ -1728,8 +1728,9 @@ int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
 }
 
 
-int wc_DhSetKey_ex(DhKey* key, const byte* p, word32 pSz, const byte* g,
-                   word32 gSz, const byte* q, word32 qSz)
+static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
+                   word32 gSz, const byte* q, word32 qSz, int trusted,
+                   WC_RNG* rng)
 {
     int ret = 0;
     mp_int* keyP = NULL;
@@ -1766,6 +1767,18 @@ int wc_DhSetKey_ex(DhKey* key, const byte* p, word32 pSz, const byte* g,
         else
             keyP = &key->p;
     }
+
+    if (ret == 0 && !trusted) {
+        int isPrime = 0;
+        if (rng != NULL)
+            ret = mp_prime_is_prime_ex(keyP, 8, &isPrime, rng);
+        else
+            ret = mp_prime_is_prime(keyP, 8, &isPrime);
+
+        if (ret == 0 && isPrime == 0)
+            ret = DH_CHECK_PUB_E;
+    }
+
     if (ret == 0 && mp_init(&key->g) != MP_OKAY)
         ret = MP_INIT_E;
     if (ret == 0) {
@@ -1799,11 +1812,26 @@ int wc_DhSetKey_ex(DhKey* key, const byte* p, word32 pSz, const byte* g,
 }
 
 
+int wc_DhSetCheckKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
+                   word32 gSz, const byte* q, word32 qSz, int trusted,
+                   WC_RNG* rng)
+{
+    return _DhSetKey(key, p, pSz, g, gSz, q, qSz, trusted, rng);
+}
+
+
+int wc_DhSetKey_ex(DhKey* key, const byte* p, word32 pSz, const byte* g,
+                   word32 gSz, const byte* q, word32 qSz)
+{
+    return _DhSetKey(key, p, pSz, g, gSz, q, qSz, 1, NULL);
+}
+
+
 /* not in asn anymore since no actual asn types used */
 int wc_DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
                 word32 gSz)
 {
-    return wc_DhSetKey_ex(key, p, pSz, g, gSz, NULL, 0);
+    return _DhSetKey(key, p, pSz, g, gSz, NULL, 0, 1, NULL);
 }
 
 

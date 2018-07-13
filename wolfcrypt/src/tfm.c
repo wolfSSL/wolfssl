@@ -2607,7 +2607,8 @@ int mp_montgomery_calc_normalization(mp_int *a, mp_int *b)
 
 #if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
     defined(WOLFSSL_DEBUG_MATH) || defined(DEBUG_WOLFSSL) || \
-    defined(WOLFSSL_PUBLIC_MP)
+    defined(WOLFSSL_PUBLIC_MP) || !defined(NO_DH) || !defined(NO_DSA) || \
+    !defined(NO_RSA)
 
 #ifdef WOLFSSL_KEY_GEN
 /* swap the elements of two integers, for cases where you can't simply swap the
@@ -2755,26 +2756,11 @@ int mp_mod_d(fp_int *a, fp_digit b, fp_digit *c)
 
 #endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(WOLFSSL_DEBUG_MATH) */
 
-#ifdef WOLFSSL_KEY_GEN
 
-static void fp_gcd(fp_int *a, fp_int *b, fp_int *c);
-static void fp_lcm(fp_int *a, fp_int *b, fp_int *c);
+#if !defined(NO_DH) || !defined(NO_DSA) || !defined(NO_RSA) || defined(WOLFSSL_KEY_GEN)
+
 static int  fp_isprime_ex(fp_int *a, int t);
 /* static int  fp_isprime(fp_int *a); */
-static int  fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap);
-
-int mp_gcd(fp_int *a, fp_int *b, fp_int *c)
-{
-    fp_gcd(a, b, c);
-    return MP_OKAY;
-}
-
-
-int mp_lcm(fp_int *a, fp_int *b, fp_int *c)
-{
-    fp_lcm(a, b, c);
-    return MP_OKAY;
-}
 
 
 int mp_prime_is_prime(mp_int* a, int t, int* result)
@@ -2784,28 +2770,6 @@ int mp_prime_is_prime(mp_int* a, int t, int* result)
     return MP_OKAY;
 }
 
-int mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap)
-{
-    int err;
-
-    err = fp_randprime(N, len, rng, heap);
-    switch(err) {
-        case FP_VAL:
-            return MP_VAL;
-        case FP_MEM:
-            return MP_MEM;
-        default:
-            break;
-    }
-
-    return MP_OKAY;
-}
-
-int mp_exch (mp_int * a, mp_int * b)
-{
-    fp_exch(a, b);
-    return MP_OKAY;
-}
 
 /* Miller-Rabin test of "a" to the base of "b" as described in
  * HAC pp. 139 Algorithm 4.24
@@ -2920,6 +2884,12 @@ int fp_isprime_ex(fp_int *a, int t)
      return FP_NO;
    }
 
+   for (r = 0; r < FP_PRIME_SIZE; r++) {
+       if (fp_cmp_d(a, primes[r]) == FP_EQ) {
+           return FP_YES;
+       }
+   }
+
    /* do trial division */
    for (r = 0; r < FP_PRIME_SIZE; r++) {
        res = fp_mod_d(a, primes[r], &d);
@@ -2959,6 +2929,13 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
     if (ret == FP_YES) {
         fp_digit d;
         int r;
+
+        for (r = 0; r < FP_PRIME_SIZE; r++) {
+            if (fp_cmp_d(a, primes[r]) == FP_EQ) {
+                *result = FP_YES;
+                return FP_OKAY;
+            }
+        }
 
         for (r = 0; r < FP_PRIME_SIZE; r++) {
             if (fp_mod_d(a, primes[r], &d) == MP_OKAY) {
@@ -3016,6 +2993,52 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
     *result = ret;
     return FP_OKAY;
 }
+
+#endif /* NO_RSA NO_DSA NO_DH WOLFSSL_KEY_GEN */
+
+
+#ifdef WOLFSSL_KEY_GEN
+
+static void fp_gcd(fp_int *a, fp_int *b, fp_int *c);
+static void fp_lcm(fp_int *a, fp_int *b, fp_int *c);
+static int  fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap);
+
+int mp_gcd(fp_int *a, fp_int *b, fp_int *c)
+{
+    fp_gcd(a, b, c);
+    return MP_OKAY;
+}
+
+
+int mp_lcm(fp_int *a, fp_int *b, fp_int *c)
+{
+    fp_lcm(a, b, c);
+    return MP_OKAY;
+}
+
+int mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap)
+{
+    int err;
+
+    err = fp_randprime(N, len, rng, heap);
+    switch(err) {
+        case FP_VAL:
+            return MP_VAL;
+        case FP_MEM:
+            return MP_MEM;
+        default:
+            break;
+    }
+
+    return MP_OKAY;
+}
+
+int mp_exch (mp_int * a, mp_int * b)
+{
+    fp_exch(a, b);
+    return MP_OKAY;
+}
+
 
 
 int fp_randprime(fp_int* N, int len, WC_RNG* rng, void* heap)
