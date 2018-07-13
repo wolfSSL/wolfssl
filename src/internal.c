@@ -12169,7 +12169,7 @@ int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int macSz,
     good |= MaskMac(input, pLen, ssl->specs.hash_size, verify);
 
     /* Non-zero on failure. */
-    good = ~good;
+    good = (byte)~(word32)good;
     good &= good >> 4;
     good &= good >> 2;
     good &= good >> 1;

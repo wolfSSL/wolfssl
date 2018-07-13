@@ -383,8 +383,13 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XGMTIME(c, t)   gmtime((c))
 
 #elif defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
+    #ifdef FREESCALE_MQX_4_0
+        #include <time.h>
+        extern time_t mqx_time(time_t* timer);
+    #else
+        #define HAVE_GMTIME_R
+    #endif
     #define XTIME(t1)       mqx_time((t1))
-    #define HAVE_GMTIME_R
 
 #elif defined(FREESCALE_KSDK_BM) || defined(FREESCALE_FREE_RTOS) || defined(FREESCALE_KSDK_FREERTOS)
     #include <time.h>

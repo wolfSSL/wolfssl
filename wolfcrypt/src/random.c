@@ -1423,7 +1423,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
          */
         int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         {
-            int i;
+            word32 i;
 
             /* turn on RNGA module */
             #if defined(SIM_SCGC3_RNGA_MASK)
