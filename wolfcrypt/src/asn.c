@@ -10114,7 +10114,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     /* SKID */
     if (cert->skidSz) {
         /* check the provided SKID size */
-        if (cert->skidSz > (int)sizeof(der->skid))
+        if (cert->skidSz > (int)min(CTC_MAX_SKID_SIZE, sizeof(der->skid)))
             return SKID_E;
 
         /* Note: different skid buffers sizes for der (MAX_KID_SZ) and
@@ -10132,7 +10132,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     /* AKID */
     if (cert->akidSz) {
         /* check the provided AKID size */
-        if (cert->akidSz > (int)sizeof(der->akid))
+        if (cert->akidSz > (int)min(CTC_MAX_AKID_SIZE, sizeof(der->akid)))
             return AKID_E;
 
         der->akidSz = SetAKID(der->akid, sizeof(der->akid),
@@ -10665,7 +10665,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
     /* SKID */
     if (cert->skidSz) {
         /* check the provided SKID size */
-        if (cert->skidSz > (int)sizeof(der->skid))
+        if (cert->skidSz > (int)min(CTC_MAX_SKID_SIZE, sizeof(der->skid)))
             return SKID_E;
 
         der->skidSz = SetSKID(der->skid, sizeof(der->skid),

@@ -6742,6 +6742,11 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
         case BASIC_CA_OID:
             if (x509->basicConstSet) {
                 obj = wolfSSL_ASN1_OBJECT_new();
+                if (obj == NULL) {
+                    WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                    wolfSSL_sk_ASN1_OBJECT_free(sk);
+                    return NULL;
+                }
                 if (c != NULL) {
                     *c = x509->basicConstCrit;
                 }
@@ -6771,6 +6776,11 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                     dns = x509->altNames;
                     while (dns != NULL) {
                         obj = wolfSSL_ASN1_OBJECT_new();
+                        if (obj == NULL) {
+                            WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                            wolfSSL_sk_ASN1_OBJECT_free(sk);
+                            return NULL;
+                        }
                         obj->type = dns->type;
                         obj->grp  = oidCertExtType;
                         obj->obj  = (byte*)dns->name;
@@ -6803,6 +6813,11 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                     *c = x509->CRLdistCrit;
                 }
                 obj = wolfSSL_ASN1_OBJECT_new();
+                if (obj == NULL) {
+                    WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                    wolfSSL_sk_ASN1_OBJECT_free(sk);
+                    return NULL;
+                }
                 obj->type  = CRL_DIST_OID;
                 obj->grp   = oidCertExtType;
                 obj->obj   = x509->CRLInfo;
@@ -6819,6 +6834,11 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                     *c = x509->authInfoCrit;
                 }
                 obj = wolfSSL_ASN1_OBJECT_new();
+                if (obj == NULL) {
+                    WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                    wolfSSL_sk_ASN1_OBJECT_free(sk);
+                    return NULL;
+                }
                 obj->type  = AUTH_INFO_OID;
                 obj->grp   = oidCertExtType;
                 obj->obj   = x509->authInfo;
@@ -6835,6 +6855,11 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                     *c = x509->authKeyIdCrit;
                 }
                 obj = wolfSSL_ASN1_OBJECT_new();
+                if (obj == NULL) {
+                    WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                    wolfSSL_sk_ASN1_OBJECT_free(sk);
+                    return NULL;
+                }
                 obj->type  = AUTH_KEY_OID;
                 obj->grp   = oidCertExtType;
                 obj->obj   = x509->authKeyId;
@@ -6851,6 +6876,11 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                     *c = x509->subjKeyIdCrit;
                 }
                 obj = wolfSSL_ASN1_OBJECT_new();
+                if (obj == NULL) {
+                    WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                    wolfSSL_sk_ASN1_OBJECT_free(sk);
+                    return NULL;
+                }
                 obj->type  = SUBJ_KEY_OID;
                 obj->grp   = oidCertExtType;
                 obj->obj   = x509->subjKeyId;
@@ -6878,6 +6908,11 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
 
                     for (i = 0; i < x509->certPoliciesNb - 1; i++) {
                         obj = wolfSSL_ASN1_OBJECT_new();
+                        if (obj == NULL) {
+                            WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                            wolfSSL_sk_ASN1_OBJECT_free(sk);
+                            return NULL;
+                        }
                         obj->type  = CERT_POLICY_OID;
                         obj->grp   = oidCertExtType;
                         obj->obj   = (byte*)(x509->certPolicies[i]);
@@ -6891,6 +6926,11 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                         }
                     }
                     obj = wolfSSL_ASN1_OBJECT_new();
+                    if (obj == NULL) {
+                        WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                        wolfSSL_sk_ASN1_OBJECT_free(sk);
+                        return NULL;
+                    }
                     obj->type  = CERT_POLICY_OID;
                     obj->grp   = oidCertExtType;
                     obj->obj   = (byte*)(x509->certPolicies[i]);
@@ -6907,6 +6947,11 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                         *c = x509->certPolicyCrit;
                     }
                     obj = wolfSSL_ASN1_OBJECT_new();
+                    if (obj == NULL) {
+                        WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                        wolfSSL_sk_ASN1_OBJECT_free(sk);
+                        return NULL;
+                    }
                     obj->type  = CERT_POLICY_OID;
                     obj->grp   = oidCertExtType;
                 }
@@ -6925,6 +6970,11 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                     *c = x509->keyUsageCrit;
                 }
                 obj = wolfSSL_ASN1_OBJECT_new();
+                if (obj == NULL) {
+                    WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                    wolfSSL_sk_ASN1_OBJECT_free(sk);
+                    return NULL;
+                }
                 obj->type  = KEY_USAGE_OID;
                 obj->grp   = oidCertExtType;
                 obj->obj   = (byte*)&(x509->keyUsage);
@@ -6950,6 +7000,11 @@ void* wolfSSL_X509_get_ext_d2i(const WOLFSSL_X509* x509,
                     }
                 }
                 obj = wolfSSL_ASN1_OBJECT_new();
+                if (obj == NULL) {
+                    WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
+                    wolfSSL_sk_ASN1_OBJECT_free(sk);
+                    return NULL;
+                }
                 obj->type  = EXT_KEY_USAGE_OID;
                 obj->grp   = oidCertExtType;
                 obj->obj   = x509->extKeyUsageSrc;
@@ -18572,7 +18627,7 @@ char* wolfSSL_ASN1_TIME_to_string(WOLFSSL_ASN1_TIME* t, char* buf, int len)
 WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
                                     int offset_day, long offset_sec)
 {
-    const int sec_per_day = 24*60*60;
+    const time_t sec_per_day = 24*60*60;
     struct tm* ts = NULL;
     struct tm* tmpTime = NULL;
     time_t t_adj = 0;
@@ -25521,6 +25576,11 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* key,
 
 
     pkey = wolfSSL_PKEY_new_ex(bio->heap);
+    if (pkey == NULL) {
+        WOLFSSL_MSG("wolfSSL_PKEY_new_ex failed");
+        return SSL_FAILURE;
+    }
+
     pkey->type   = EVP_PKEY_RSA;
     pkey->rsa    = key;
     pkey->ownRsa = 0;
@@ -25539,6 +25599,7 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* key,
         derBuf = (byte*)XMALLOC(derMax, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
         if (derBuf == NULL) {
             WOLFSSL_MSG("malloc failed");
+            wolfSSL_EVP_PKEY_free(pkey);
             return SSL_FAILURE;
         }
 
@@ -25547,6 +25608,7 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* key,
         if (derSz < 0) {
             WOLFSSL_MSG("wc_RsaKeyToDer failed");
             XFREE(derBuf, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            wolfSSL_EVP_PKEY_free(pkey);
             return SSL_FAILURE;
         }
 
@@ -25555,6 +25617,7 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* key,
         if (pkey->pkey.ptr == NULL) {
             WOLFSSL_MSG("key malloc failed");
             XFREE(derBuf, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            wolfSSL_EVP_PKEY_free(pkey);
             return SSL_FAILURE;
         }
         pkey->pkey_sz = derSz;
@@ -28744,6 +28807,12 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                 return NULL;
             if (XFSEEK(bp->file, i, SEEK_SET) != 0)
                 return NULL;
+
+            /* check calculated length */
+            if (l - i < 0)
+                return NULL;
+
+            l -= i;
 #else
             WOLFSSL_MSG("Unable to read file with NO_FILESYSTEM defined");
             return NULL;
@@ -28752,10 +28821,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         else
             return NULL;
 
-        /* check calculated length */
-        if (l - i < 0)
-            return NULL;
-        pem = (unsigned char*)XMALLOC(l - i, 0, DYNAMIC_TYPE_PEM);
+        pem = (unsigned char*)XMALLOC(l, 0, DYNAMIC_TYPE_PEM);
         if (pem == NULL)
             return NULL;
 
