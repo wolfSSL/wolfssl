@@ -18514,8 +18514,10 @@ static void test_wolfSSL_OBJ(void)
     int i, j;
     const char *f[] = {
         "./certs/ca-cert.der",
+        #ifdef HAVE_ECC
         "./certs/ca-ecc-cert.der",
         "./certs/ca-ecc384-cert.der",
+        #endif
         NULL};
 #ifndef NO_DES3
     PKCS12 *p12;
@@ -18543,6 +18545,7 @@ static void test_wolfSSL_OBJ(void)
 
     for (i = 0; f[i] != NULL; i++)
     {
+        printf("file=%s\n", f[i]);
         AssertTrue((fp = XFOPEN(f[i], "r")) != XBADFILE);
         AssertNotNull(x509 = d2i_X509_fp(fp, NULL));
         AssertNotNull(x509Name = X509_get_issuer_name(x509));
