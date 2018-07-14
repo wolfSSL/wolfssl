@@ -14669,7 +14669,7 @@ static void test_wc_PKCS7_InitWithCert (void)
         AssertTrue(fp != XBADFILE);
 
         certSz = XFREAD(cert, 1, sizeof_cliecc_cert_der_256, fp);
-        XCLOSE(fp);
+        XFCLOSE(fp);
     #endif
 #else
         #error PKCS7 requires ECC or RSA
@@ -14739,7 +14739,7 @@ static void test_wc_PKCS7_EncodeData (void)
         certSz = XFREAD(cert, 1, sizeof_client_cert_der_1024, fp);
         XFCLOSE(fp);
 
-        fp = XOPEN("./certs/1024/client-key.der", "rb");
+        fp = XFOPEN("./certs/1024/client-key.der", "rb");
         AssertTrue(fp != XBADFILE);
         keySz = XFREAD(key, 1, sizeof_client_key_der_1024, fp);
         XFCLOSE(fp);
@@ -14840,7 +14840,7 @@ static void test_wc_PKCS7_EncodeSignedData(void)
         int             certSz;
         int             keySz;
 
-        fp = XOPEN("./certs/1024/client-cert.der", "rb");
+        fp = XFOPEN("./certs/1024/client-cert.der", "rb");
         AssertTrue(fp != XBADFILE);
         certSz = XFREAD(cert, 1, sizeof_client_cert_der_1024, fp);
         XFCLOSE(fp);
