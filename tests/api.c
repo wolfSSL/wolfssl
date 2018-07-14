@@ -18513,20 +18513,23 @@ static void test_wolfSSL_OBJ(void)
     int nid;
     int i, j;
     const char *f[] = {
+        #ifndef NO_RSA
         "./certs/ca-cert.der",
+        #endif
         #ifdef HAVE_ECC
         "./certs/ca-ecc-cert.der",
         "./certs/ca-ecc384-cert.der",
         #endif
         NULL};
-#ifndef NO_DES3
+
     PKCS12 *p12;
     int boolRet;
     EVP_PKEY *pkey = NULL;
     const char *p12_f[] = {
+        #if !defined(NO_DES3) && !defined(NO_RSA)
         "./certs/test-servercert.p12",
+        #endif
         NULL};
-#endif /* !NO_DES3 */
 
     printf(testingFmt, "wolfSSL_OBJ()");
 
@@ -18560,7 +18563,6 @@ static void test_wolfSSL_OBJ(void)
         }
     }
 
-#ifndef NO_DES3
     for (i = 0; p12_f[i] != NULL; i++)
     {
         AssertTrue((fp = XFOPEN(p12_f[i], "r")) != XBADFILE);
@@ -18578,7 +18580,6 @@ static void test_wolfSSL_OBJ(void)
             printf("nid=%d\n", nid);
         }
     }
-#endif /* !NO_DES3 */
 
     printf(resultFmt, passed);
 #endif
