@@ -30199,7 +30199,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         obj->objSz = objSz;
 
         obj->obj = (byte*)XMALLOC(obj->objSz, NULL, DYNAMIC_TYPE_ASN1);
-        if ((obj->obj == NULL) && arg_obj == NULL) {
+        if (obj->obj == NULL) {
             wolfSSL_ASN1_OBJECT_free(obj);
             return NULL;
         }
