@@ -2564,7 +2564,8 @@ int mp_set_bit(mp_int *a, mp_digit b)
     return fp_set_bit(a, b);
 }
 
-#if defined(WOLFSSL_KEY_GEN) || defined (HAVE_ECC)
+#if defined(WOLFSSL_KEY_GEN) || defined (HAVE_ECC) || !defined(NO_DH) || \
+    !defined(NO_DSA) || !defined(NO_RSA)
 
 /* c = a * a (mod b) */
 int fp_sqrmod(fp_int *a, fp_int *b, fp_int *c)

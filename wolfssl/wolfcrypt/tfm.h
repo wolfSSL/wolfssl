@@ -723,7 +723,8 @@ MP_API int mp_radix_size (mp_int * a, int radix, int *size);
     MP_API int mp_set(fp_int *a, fp_digit b);
 #endif
 
-#if defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN)
+#if defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN) || !defined(NO_RSA) || \
+    !defined(NO_DSA) || !defined(NO_DH)
     MP_API int mp_sqrmod(mp_int* a, mp_int* b, mp_int* c);
     MP_API int mp_montgomery_calc_normalization(mp_int *a, mp_int *b);
 #endif
