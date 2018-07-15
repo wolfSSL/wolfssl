@@ -1049,11 +1049,7 @@ enum {
 #define MIN_DHKEY_SZ (WOLFSSL_MIN_DHKEY_BITS / 8)
 /* set maximum DH key size allowed */
 #ifndef WOLFSSL_MAX_DHKEY_BITS
-    #ifdef WOLFSSL_MAX_STRENGTH
-        #define WOLFSSL_MAX_DHKEY_BITS 3072
-    #else
-        #define WOLFSSL_MAX_DHKEY_BITS 2048
-    #endif
+    #define WOLFSSL_MAX_DHKEY_BITS 4096
 #endif
 #if (WOLFSSL_MAX_DHKEY_BITS % 8)
     #error DH maximum bit size must be multiple of 8
