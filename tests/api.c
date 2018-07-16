@@ -18726,7 +18726,7 @@ static void test_wolfSSL_BIO_gets(void)
     XMEMCPY(msg, "\nhello wolfSSL\n security plus\t---...**adf\na...b.c",
             sizeof(msg));
     AssertNotNull(bio = BIO_new(BIO_s_bio()));
-    AssertIntEQ(BIO_gets(bio, buffer, 2), 0); /* nothing to read */
+    AssertIntEQ(BIO_gets(bio, bio_buffer, 2), 0); /* nothing to read */
     AssertNotNull(bio2 = BIO_new(BIO_s_bio()));
 
     AssertIntEQ(BIO_set_write_buf_size(bio, 10),           SSL_SUCCESS);
@@ -18748,8 +18748,8 @@ static void test_wolfSSL_BIO_gets(void)
     /* check reading an empty string */
     AssertNotNull(bio = BIO_new(BIO_s_bio()));
     AssertIntEQ(BIO_set_write_buf_size(bio, sizeof(emp)), SSL_SUCCESS);
-    AssertIntEQ(BIO_gets(bio, buffer, bufferSz), 0); /* Nothing to read */
-    AssertStrEQ(emp, buffer);
+    AssertIntEQ(BIO_gets(bio, bio_buffer, bufferSz), 0); /* Nothing to read */
+    AssertStrEQ(emp, bio_buffer);
 
     BIO_free(bio);
 

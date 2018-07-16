@@ -11168,7 +11168,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     int wolfSSL_OpenSSL_add_all_algorithms_noconf(void)
     {
-        WOLFSSL_ENTER("wolfSSL_OPENSSL_add_all_algorithms_noconf");
+        WOLFSSL_ENTER("wolfSSL_OpenSSL_add_all_algorithms_noconf");
 
         if  (wolfSSL_add_all_algorithms() == WOLFSSL_FATAL_ERROR)
             return WOLFSSL_FATAL_ERROR;

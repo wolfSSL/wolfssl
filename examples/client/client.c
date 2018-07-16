@@ -1046,7 +1046,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #if (defined(HAVE_ECC) && !defined(ALT_ECC_SIZE)) \
         || defined(SESSION_CERTS)
         /* big enough to handle most cases including session certs */
-        byte memory[370000];
+        byte memory[320000];
     #else
         byte memory[80000];
     #endif

@@ -826,11 +826,6 @@ WOLFSSL_API WOLFSSL_BIO* wolfSSL_BIO_new_mem_buf(void* buf, int len);
 WOLFSSL_API long wolfSSL_BIO_set_ssl(WOLFSSL_BIO*, WOLFSSL*, int flag);
 WOLFSSL_API long wolfSSL_BIO_set_fd(WOLFSSL_BIO* b, int fd, int flag);
 WOLFSSL_API void wolfSSL_set_bio(WOLFSSL*, WOLFSSL_BIO* rd, WOLFSSL_BIO* wr);
-WOLFSSL_API int  wolfSSL_add_all_algorithms(void);
-
-#ifdef OPENSSL_EXTRA
-WOLFSSL_API int  wolfSSL_OpenSSL_add_all_algorithms_noconf(void);
-#endif
 
 #ifndef NO_FILESYSTEM
 WOLFSSL_API WOLFSSL_BIO_METHOD *wolfSSL_BIO_s_file(void);

@@ -954,7 +954,6 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define SSL_CTX_add_client_CA             wolfSSL_CTX_add_client_CA
 #define SSL_CTX_set_srp_password          wolfSSL_CTX_set_srp_password
 #define SSL_CTX_set_srp_username          wolfSSL_CTX_set_srp_username
-#define OpenSSL_add_all_algorithms_noconf wolfSSL_OpenSSL_add_all_alogrithms_noconf
 #define i2c_ASN1_INTEGER                  wolfSSL_i2c_ASN1_INTEGER
 #define X509_NAME_ENTRY_get_object        wolfSSL_X509_NAME_ENTRY_get_object
 #define SSL_get_SSL_CTX                   wolfSSL_get_SSL_CTX
