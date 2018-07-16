@@ -707,35 +707,38 @@ int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type, byte* out)
 #endif /* !NO_SHA */
 
 #if defined(WOLFSSL_SHA224)
-int wc_Sha224Hash(const byte* data, word32 len, byte* hash)
-{
-    int ret = 0;
-#ifdef WOLFSSL_SMALL_STACK
-    wc_Sha224* sha224;
-#else
-    wc_Sha224 sha224[1];
-#endif
+    int wc_Sha224Hash(const byte* data, word32 len, byte* hash)
+    {
+        int ret = 0;
+    #ifdef WOLFSSL_SMALL_STACK
+        wc_Sha224* sha224;
+    #else
+        wc_Sha224 sha224[1];
+    #endif
 
-#ifdef WOLFSSL_SMALL_STACK
-    sha224 = (wc_Sha224*)XMALLOC(sizeof(wc_Sha224), NULL,
-        DYNAMIC_TYPE_TMP_BUFFER);
-    if (sha224 == NULL)
-        return MEMORY_E;
-#endif
+    #ifdef WOLFSSL_SMALL_STACK
+        sha224 = (wc_Sha224*)XMALLOC(sizeof(wc_Sha224), NULL,
+            DYNAMIC_TYPE_TMP_BUFFER);
+        if (sha224 == NULL)
+            return MEMORY_E;
+    #endif
 
-    if ((ret = wc_InitSha224(sha224)) != 0) {
-        WOLFSSL_MSG("InitSha224 failed");
-    }
-    else if ((ret = wc_Sha224Update(sha224, data, len)) != 0) {
-        WOLFSSL_MSG("Sha224Update failed");
-    }
-    else if ((ret = wc_Sha224Final(sha224, hash)) != 0) {
-        WOLFSSL_MSG("Sha224Final failed");
-    }
+        if ((ret = wc_InitSha224(sha224)) != 0) {
+            WOLFSSL_MSG("InitSha224 failed");
+        }
+        else {
+            if ((ret = wc_Sha224Update(sha224, data, len)) != 0) {
+                WOLFSSL_MSG("Sha224Update failed");
+            }
+            else if ((ret = wc_Sha224Final(sha224, hash)) != 0) {
+                WOLFSSL_MSG("Sha224Final failed");
+            }
+            wc_Sha224Free(sha224);
+        }
 
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(sha224, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(sha224, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    #endif
 
     return ret;
 }
@@ -761,12 +764,16 @@ int wc_Sha224Hash(const byte* data, word32 len, byte* hash)
         if ((ret = wc_InitSha256(sha256)) != 0) {
             WOLFSSL_MSG("InitSha256 failed");
         }
-        else if ((ret = wc_Sha256Update(sha256, data, len)) != 0) {
-            WOLFSSL_MSG("Sha256Update failed");
+        else {
+            if ((ret = wc_Sha256Update(sha256, data, len)) != 0) {
+                WOLFSSL_MSG("Sha256Update failed");
+            }
+            else if ((ret = wc_Sha256Final(sha256, hash)) != 0) {
+                WOLFSSL_MSG("Sha256Final failed");
+            }
+            wc_Sha256Free(sha256);
         }
-        else if ((ret = wc_Sha256Final(sha256, hash)) != 0) {
-            WOLFSSL_MSG("Sha256Final failed");
-        }
+
 
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(sha256, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -799,11 +806,14 @@ int wc_Sha224Hash(const byte* data, word32 len, byte* hash)
         if ((ret = wc_InitSha512(sha512)) != 0) {
             WOLFSSL_MSG("InitSha512 failed");
         }
-        else if ((ret = wc_Sha512Update(sha512, data, len)) != 0) {
-            WOLFSSL_MSG("Sha512Update failed");
-        }
-        else if ((ret = wc_Sha512Final(sha512, hash)) != 0) {
-            WOLFSSL_MSG("Sha512Final failed");
+        else {
+            if ((ret = wc_Sha512Update(sha512, data, len)) != 0) {
+                WOLFSSL_MSG("Sha512Update failed");
+            }
+            else if ((ret = wc_Sha512Final(sha512, hash)) != 0) {
+                WOLFSSL_MSG("Sha512Final failed");
+            }
+            wc_Sha512Free(sha512);
         }
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -833,11 +843,14 @@ int wc_Sha224Hash(const byte* data, word32 len, byte* hash)
             if ((ret = wc_InitSha384(sha384)) != 0) {
                 WOLFSSL_MSG("InitSha384 failed");
             }
-            else if ((ret = wc_Sha384Update(sha384, data, len)) != 0) {
-                WOLFSSL_MSG("Sha384Update failed");
-            }
-            else if ((ret = wc_Sha384Final(sha384, hash)) != 0) {
-                WOLFSSL_MSG("Sha384Final failed");
+            else {
+                if ((ret = wc_Sha384Update(sha384, data, len)) != 0) {
+                    WOLFSSL_MSG("Sha384Update failed");
+                }
+                else if ((ret = wc_Sha384Final(sha384, hash)) != 0) {
+                    WOLFSSL_MSG("Sha384Final failed");
+                }
+                wc_Sha384Free(sha384);
             }
 
         #ifdef WOLFSSL_SMALL_STACK
