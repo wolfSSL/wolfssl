@@ -14989,7 +14989,7 @@ static void test_wc_PKCS7_EncodeSignedData_ex(void)
         int             certSz, keySz;
 
         fp = XFOPEN("./certs/client-ecc-cert.der", "rb");
-        AssertTrue(fp != BUDFILE);
+        AssertTrue(fp != BADFILE);
         certSz = XFREAD(cert, 1, sizeof_cliecc_cert_der_256, fp);
         XFCLOSE(fp);
 
