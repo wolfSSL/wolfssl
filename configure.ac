@@ -1805,6 +1805,10 @@ AC_ARG_ENABLE([des3],
     [ ENABLED_DES3=no ]
     )
 
+if test "$ENABLED_OPENSSH" = "yes"
+then
+	ENABLED_DES3="yes"
+fi
 
 # IDEA
 AC_ARG_ENABLE([idea],
