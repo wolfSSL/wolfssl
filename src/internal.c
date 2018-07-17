@@ -13720,10 +13720,6 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
         #endif
                 ret = ssl->hmac(ssl, output + args->idx, output +
                                 args->headerSz + args->ivSz, inSz, -1, type, 0);
-            #ifdef WOLFSSL_DTLS
-                if (ssl->options.dtls)
-                    DtlsSEQIncrement(ssl, CUR_ORDER);
-            #endif
             }
             if (ret != 0)
                 goto exit_buildmsg;
@@ -13751,6 +13747,11 @@ exit_buildmsg:
 
     /* make sure build message state is reset */
     ssl->options.buildMsgState = BUILD_MSG_BEGIN;
+
+    #ifdef WOLFSSL_DTLS
+        if (ret == 0 && ssl->options.dtls)
+            DtlsSEQIncrement(ssl, CUR_ORDER);
+    #endif
 
     /* return sz on success */
     if (ret == 0)
