@@ -633,6 +633,22 @@ int sp_add(sp_int* a, sp_int* b, sp_int* r)
 }
 #endif
 
+#ifndef NO_RSA
+/* Set a number into the big number.
+ *
+ * a  SP integer.
+ * b  Value to set.
+ * returns MP_OKAY always.
+ */
+int sp_set_int(sp_int* a, unsigned long b)
+{
+    a->used = 1;
+    a->dp[0] = b;
+
+    return MP_OKAY;
+}
+#endif
+
 #if !defined(USE_FAST_MATH)
 /* Returns the run time settings.
  *

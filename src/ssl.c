@@ -23650,6 +23650,7 @@ static int SetRsaExternal(WOLFSSL_RSA* rsa)
             return WOLFSSL_FATAL_ERROR;
         }
 
+    #ifndef RSA_LOW_MEM
         if (SetIndividualExternal(&rsa->dmp1, &key->dP) != WOLFSSL_SUCCESS) {
             WOLFSSL_MSG("rsa dP key error");
             return WOLFSSL_FATAL_ERROR;
@@ -23664,6 +23665,7 @@ static int SetRsaExternal(WOLFSSL_RSA* rsa)
             WOLFSSL_MSG("rsa u key error");
             return WOLFSSL_FATAL_ERROR;
         }
+    #endif /* !RSA_LOW_MEM */
     }
     rsa->exSet = 1;
 
@@ -23722,6 +23724,7 @@ static int SetRsaInternal(WOLFSSL_RSA* rsa)
         return WOLFSSL_FATAL_ERROR;
     }
 
+#ifndef RSA_LOW_MEM
     if (rsa->dmp1 != NULL &&
         SetIndividualInternal(rsa->dmp1, &key->dP) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("rsa dP key error");
@@ -23739,6 +23742,7 @@ static int SetRsaInternal(WOLFSSL_RSA* rsa)
         WOLFSSL_MSG("rsa u key error");
         return WOLFSSL_FATAL_ERROR;
     }
+#endif /* !RSA_LOW_MEM */
 
     rsa->inSet = 1;
 
