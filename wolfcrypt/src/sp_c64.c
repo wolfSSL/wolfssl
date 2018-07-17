@@ -2480,7 +2480,8 @@ static int sp_2048_mod_exp_36(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
 }
 #endif /* SP_RSA_PRIVATE_EXP_D || WOLFSSL_HAVE_SP_DH */
 
-#if defined(WOLFSSL_HAVE_SP_RSA) && !defined(SP_RSA_PRIVATE_EXP_D)
+#if defined(WOLFSSL_HAVE_SP_RSA) && !defined(SP_RSA_PRIVATE_EXP_D) && \
+                                    !defined(RSA_LOW_MEM)
 /* AND m into each word of a and store in r.
  *
  * r  A single precision integer.
@@ -2734,7 +2735,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
     mp_int* pm, mp_int* qm, mp_int* dpm, mp_int* dqm, mp_int* qim, mp_int* mm,
     byte* out, word32* outLen)
 {
-#ifdef SP_RSA_PRIVATE_EXP_D
+#if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     sp_digit* a;
     sp_digit* d = NULL;
@@ -2944,7 +2945,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
 
     return err;
 #endif /* WOLFSSL_SP_SMALL || defined(WOLFSSL_SMALL_STACK) */
-#endif /* SP_RSA_PRIVATE_EXP_D */
+#endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
 }
 
 #endif /* WOLFSSL_HAVE_SP_RSA */
@@ -5861,7 +5862,8 @@ static int sp_3072_mod_exp_54(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
 }
 #endif /* SP_RSA_PRIVATE_EXP_D || WOLFSSL_HAVE_SP_DH */
 
-#if defined(WOLFSSL_HAVE_SP_RSA) && !defined(SP_RSA_PRIVATE_EXP_D)
+#if defined(WOLFSSL_HAVE_SP_RSA) && !defined(SP_RSA_PRIVATE_EXP_D) && \
+                                    !defined(RSA_LOW_MEM)
 /* AND m into each word of a and store in r.
  *
  * r  A single precision integer.
@@ -6116,7 +6118,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
     mp_int* pm, mp_int* qm, mp_int* dpm, mp_int* dqm, mp_int* qim, mp_int* mm,
     byte* out, word32* outLen)
 {
-#ifdef SP_RSA_PRIVATE_EXP_D
+#if defined(SP_RSA_PRIVATE_EXP_D) || defined(RSA_LOW_MEM)
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     sp_digit* a;
     sp_digit* d = NULL;
@@ -6326,7 +6328,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
 
     return err;
 #endif /* WOLFSSL_SP_SMALL || defined(WOLFSSL_SMALL_STACK) */
-#endif /* SP_RSA_PRIVATE_EXP_D */
+#endif /* SP_RSA_PRIVATE_EXP_D || RSA_LOW_MEM */
 }
 
 #endif /* WOLFSSL_HAVE_SP_RSA */
