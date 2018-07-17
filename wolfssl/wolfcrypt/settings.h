@@ -1267,7 +1267,6 @@ extern void uITRON4_free(void *p) ;
         #else
             #define TFM_TIMING_RESISTANT
             #define NO_WOLFSSL_DIR
-            #define NO_FILESYSTEM
             #define NO_WRITEV
             #define NO_MAIN_DRIVER
             #define WOLFSSL_LOG_PRINTF
@@ -1275,9 +1274,6 @@ extern void uITRON4_free(void *p) ;
         #endif
     #else
         #define HAVE_ECC
-        #define ECC_TIMING_RESISTANT
-        #define TFM_TIMING_RESISTANT
-        #define NO_FILESYSTEM
         #define NO_WRITEV
         #define NO_MAIN_DRIVER
         #define USER_TICKS
@@ -1287,6 +1283,10 @@ extern void uITRON4_free(void *p) ;
     #if !defined(HAVE_FIPS) && !defined(NO_RSA)
         #define WC_RSA_BLINDING
     #endif
+	
+    #define NO_FILESYSTEM
+    #define ECC_TIMING_RESISTANT
+    #define TFM_TIMING_RESISTANT
     #define SINGLE_THREADED
     #define NO_ASN_TIME /* can not use headers such as windows.h */
     #define HAVE_AESGCM
