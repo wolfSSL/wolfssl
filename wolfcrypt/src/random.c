@@ -217,6 +217,9 @@ typedef struct DRBG {
     int devId;
 #endif
     byte   matchCount;
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    wc_Sha256 sha256;
+#endif
 } DRBG;
 
 
@@ -233,7 +236,11 @@ static int Hash_df(DRBG* drbg, byte* out, word32 outSz, byte type,
     int i;
     int len;
     word32 bits = (outSz * 8); /* reverse byte order */
-    wc_Sha256 sha;
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    wc_Sha256* sha = &drbg->sha256;
+#else
+    wc_Sha256 sha[1];
+#endif
     DECLARE_VAR(digest, byte, WC_SHA256_DIGEST_SIZE, drbg->heap);
 
     (void)drbg;
@@ -249,34 +256,38 @@ static int Hash_df(DRBG* drbg, byte* out, word32 outSz, byte type,
         + ((outSz % OUTPUT_BLOCK_LEN) ? 1 : 0);
 
     for (i = 0, ctr = 1; i < len; i++, ctr++) {
+#ifndef WOLFSSL_SMALL_STACK_CACHE
     #ifdef WOLFSSL_ASYNC_CRYPT
-        ret = wc_InitSha256_ex(&sha, drbg->heap, drbg->devId);
+        ret = wc_InitSha256_ex(sha, drbg->heap, drbg->devId);
     #else
-        ret = wc_InitSha256(&sha);
+        ret = wc_InitSha256(sha);
     #endif
         if (ret != 0)
             break;
 
         if (ret == 0)
-            ret = wc_Sha256Update(&sha, &ctr, sizeof(ctr));
+#endif
+            ret = wc_Sha256Update(sha, &ctr, sizeof(ctr));
         if (ret == 0)
-            ret = wc_Sha256Update(&sha, (byte*)&bits, sizeof(bits));
+            ret = wc_Sha256Update(sha, (byte*)&bits, sizeof(bits));
 
         if (ret == 0) {
             /* churning V is the only string that doesn't have the type added */
             if (type != drbgInitV)
-                ret = wc_Sha256Update(&sha, &type, sizeof(type));
+                ret = wc_Sha256Update(sha, &type, sizeof(type));
         }
         if (ret == 0)
-            ret = wc_Sha256Update(&sha, inA, inASz);
+            ret = wc_Sha256Update(sha, inA, inASz);
         if (ret == 0) {
             if (inB != NULL && inBSz > 0)
-                ret = wc_Sha256Update(&sha, inB, inBSz);
+                ret = wc_Sha256Update(sha, inB, inBSz);
         }
         if (ret == 0)
-            ret = wc_Sha256Final(&sha, digest);
+            ret = wc_Sha256Final(sha, digest);
 
-        wc_Sha256Free(&sha);
+#ifndef WOLFSSL_SMALL_STACK_CACHE
+        wc_Sha256Free(sha);
+#endif
         if (ret == 0) {
             if (outSz > OUTPUT_BLOCK_LEN) {
                 XMEMCPY(out, digest, OUTPUT_BLOCK_LEN);
@@ -349,7 +360,11 @@ static int Hash_gen(DRBG* drbg, byte* out, word32 outSz, const byte* V)
     int i;
     int len;
     word32 checkBlock;
-    wc_Sha256 sha;
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    wc_Sha256* sha = &drbg->sha256;
+#else
+    wc_Sha256 sha[1];
+#endif
     DECLARE_VAR(digest, byte, WC_SHA256_DIGEST_SIZE, drbg->heap);
 
     /* Special case: outSz is 0 and out is NULL. wc_Generate a block to save for
@@ -361,16 +376,20 @@ static int Hash_gen(DRBG* drbg, byte* out, word32 outSz, const byte* V)
 
     XMEMCPY(data, V, sizeof(data));
     for (i = 0; i < len; i++) {
+#ifndef WOLFSSL_SMALL_STACK_CACHE
     #ifdef WOLFSSL_ASYNC_CRYPT
-        ret = wc_InitSha256_ex(&sha, drbg->heap, drbg->devId);
+        ret = wc_InitSha256_ex(sha, drbg->heap, drbg->devId);
     #else
-        ret = wc_InitSha256(&sha);
+        ret = wc_InitSha256(sha);
     #endif
         if (ret == 0)
-            ret = wc_Sha256Update(&sha, data, sizeof(data));
+#endif
+            ret = wc_Sha256Update(sha, data, sizeof(data));
         if (ret == 0)
-            ret = wc_Sha256Final(&sha, digest);
-        wc_Sha256Free(&sha);
+            ret = wc_Sha256Final(sha, digest);
+#ifndef WOLFSSL_SMALL_STACK_CACHE
+        wc_Sha256Free(sha);
+#endif
 
         if (ret == 0) {
             XMEMCPY(&checkBlock, digest, sizeof(word32));
@@ -437,7 +456,11 @@ static WC_INLINE void array_add(byte* d, word32 dLen, const byte* s, word32 sLen
 static int Hash_DRBG_Generate(DRBG* drbg, byte* out, word32 outSz)
 {
     int ret;
-    wc_Sha256 sha;
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    wc_Sha256* sha = &drbg->sha256;
+#else
+    wc_Sha256 sha[1];
+#endif
     byte type;
     word32 reseedCtr;
 
@@ -450,19 +473,23 @@ static int Hash_DRBG_Generate(DRBG* drbg, byte* out, word32 outSz)
 
         ret = Hash_gen(drbg, out, outSz, drbg->V);
         if (ret == DRBG_SUCCESS) {
+#ifndef WOLFSSL_SMALL_STACK_CACHE
         #ifdef WOLFSSL_ASYNC_CRYPT
-            ret = wc_InitSha256_ex(&sha, drbg->heap, drbg->devId);
+            ret = wc_InitSha256_ex(sha, drbg->heap, drbg->devId);
         #else
-            ret = wc_InitSha256(&sha);
+            ret = wc_InitSha256(sha);
         #endif
             if (ret == 0)
-                ret = wc_Sha256Update(&sha, &type, sizeof(type));
+#endif
+                ret = wc_Sha256Update(sha, &type, sizeof(type));
             if (ret == 0)
-                ret = wc_Sha256Update(&sha, drbg->V, sizeof(drbg->V));
+                ret = wc_Sha256Update(sha, drbg->V, sizeof(drbg->V));
             if (ret == 0)
-                ret = wc_Sha256Final(&sha, digest);
+                ret = wc_Sha256Final(sha, digest);
 
-            wc_Sha256Free(&sha);
+#ifndef WOLFSSL_SMALL_STACK_CACHE
+            wc_Sha256Free(sha);
+#endif
 
             if (ret == 0) {
                 array_add(drbg->V, sizeof(drbg->V), digest, WC_SHA256_DIGEST_SIZE);
@@ -499,6 +526,16 @@ static int Hash_DRBG_Instantiate(DRBG* drbg, const byte* seed, word32 seedSz,
     (void)devId;
 #endif
 
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    #ifdef WOLFSSL_ASYNC_CRYPT
+        ret = wc_InitSha256_ex(&drbg->sha256, drbg->heap, drbg->devId);
+    #else
+        ret = wc_InitSha256(&drbg->sha256);
+    #endif
+    if (ret != 0)
+        return ret;
+#endif
+
     if (Hash_df(drbg, drbg->V, sizeof(drbg->V), drbgInitV, seed, seedSz,
                                               nonce, nonceSz) == DRBG_SUCCESS &&
         Hash_df(drbg, drbg->C, sizeof(drbg->C), drbgInitC, drbg->V,
@@ -519,6 +556,10 @@ static int Hash_DRBG_Uninstantiate(DRBG* drbg)
     word32 i;
     int    compareSum = 0;
     byte*  compareDrbg = (byte*)drbg;
+
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    wc_Sha256Free(&drbg->sha256);
+#endif
 
     ForceZero(drbg, sizeof(DRBG));
 

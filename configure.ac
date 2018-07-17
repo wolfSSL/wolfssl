@@ -2763,6 +2763,18 @@ fi
 
 
 
+# Small Stack - Cache on object
+AC_ARG_ENABLE([smallstackcache],
+    [AS_HELP_STRING([--enable-smallstackcache],[Enable Small Stack Usage Caching (default: disabled)])],
+    [ ENABLED_SMALL_STACK_CACHE=$enableval ],
+    [ ENABLED_SMALL_STACK_CACHE=no ]
+    )
+
+if test "x$ENABLED_SMALL_STACK_CACHE" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SMALL_STACK_CACHE"
+fi
+
 # Small Stack
 AC_ARG_ENABLE([smallstack],
     [AS_HELP_STRING([--enable-smallstack],[Enable Small Stack Usage (default: disabled)])],
@@ -2770,6 +2782,10 @@ AC_ARG_ENABLE([smallstack],
     [ ENABLED_SMALL_STACK=no ]
     )
 
+if test "x$ENABLED_SMALL_STACK_CACHE" = "xyes"
+then
+    ENABLED_SMALL_STACK=yes
+fi
 if test "x$ENABLED_SMALL_STACK" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SMALL_STACK"

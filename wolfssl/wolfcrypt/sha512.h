@@ -116,6 +116,9 @@ typedef struct wc_Sha512 {
 #ifdef WOLFSSL_ASYNC_CRYPT
     WC_ASYNC_DEV asyncDev;
 #endif /* WOLFSSL_ASYNC_CRYPT */
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    word64* W;
+#endif
 } wc_Sha512;
 #endif
 
