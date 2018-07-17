@@ -44,6 +44,14 @@ void main(void)
 
     do
     {
+        /* Used for testing, must have a delay so no data is missed while serial is initializing */
+        #ifdef WOLFSSL_FRDM_K64_JENKINS
+            if(test_num == 2){
+                break;
+            }
+            delay_us(1000000);
+        #endif
+
         printf("\nBenchmark Test %d:\n", test_num);
         benchmark_test(&args);
         printf("Benchmark Test %d: Return code %d\n", test_num, args.return_code);

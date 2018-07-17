@@ -13,12 +13,11 @@ This is a sample test application. It runs "wolfcrypt_test" suite suite repeated
 
 # Prerequisits
 
-You will need to install the "Freescale Kinetis CPU Support Package" in the 
-Rowley Package Manager under Tools -> Pacakge Manager.
++You will need to install the "Freescale Kinetis CPU Support Package" and "ARM CPU Support Package" in the Rowley Package Manager under Tools -> Pacakge Manager.
 
 # Harware Support
 
-All hardware functions are defined in `kinetis_hw.c` and are currently setup for a Freescale Kinetis K64 Coretx-M4 microcontroller. This file can be customized to work with other Kinetis microcontrollers by editing the top part of the file. Testing for this project was done with the Freescale Kinetis `MK64FN1M0xxx12` using the `TWR-K64F120M`.
+All hardware functions are defined in `kinetis_hw.c` and are currently setup for a Freescale Kinetis K64 Coretx-M4 microcontroller. This file can be customized to work with other Kinetis microcontrollers by editing the top part of the file. Testing for this project was done with the Freescale Kinetis `MK64FN1M0xxx12` using the `TWR-K64F120M`.  To build for the `TWR-K64F120M` or `FRDM-K64F`, define `WOLFSSL_FRDM_K64` in the Preprocessor Definitions section of CrossStudio, or define it in "user_settings.h".
 
 To create support for a new ARM microcontroller the functions in `hw.h` will need to be implemented.
 
