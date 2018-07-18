@@ -127,6 +127,7 @@ int BioReceive(WOLFSSL* ssl, char* buf, int sz, void* ctx)
 
     switch (ssl->biord->type) {
         case WOLFSSL_BIO_MEMORY:
+        case WOLFSSL_BIO_BIO:
             if (wolfSSL_BIO_ctrl_pending(ssl->biord) == 0) {
                return WOLFSSL_CBIO_ERR_WANT_READ;
             }
@@ -167,6 +168,7 @@ int BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx)
 
     switch (ssl->biowr->type) {
         case WOLFSSL_BIO_MEMORY:
+        case WOLFSSL_BIO_BIO:
             sent = wolfSSL_BIO_write(ssl->biowr, buf, sz);
             if (sent < 0) {
                 return WOLFSSL_CBIO_ERR_GENERAL;
