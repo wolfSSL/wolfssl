@@ -8114,8 +8114,6 @@ int wc_CertPemToDer(const unsigned char* pem, int pemSz,
 #endif /* WOLFSSL_PEM_TO_DER || WOLFSSL_DER_TO_PEM */
 
 
-#ifndef NO_FILESYSTEM
-
 #ifdef WOLFSSL_PEM_TO_DER
 #if defined(WOLFSSL_CERT_EXT) || defined(WOLFSSL_PUB_PEM_TO_DER)
 /* Return bytes written to buff or < 0 for error */
@@ -8152,6 +8150,8 @@ int wc_PubKeyPemToDer(const unsigned char* pem, int pemSz,
 }
 #endif /* WOLFSSL_CERT_EXT || WOLFSSL_PUB_PEM_TO_DER */
 #endif /* WOLFSSL_PEM_TO_DER */
+
+#ifndef NO_FILESYSTEM
 
 #ifdef WOLFSSL_CERT_GEN
 /* load pem cert from file into der buffer, return der size or error */
