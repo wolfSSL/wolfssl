@@ -6202,6 +6202,10 @@ WOLFSSL_API int  wolfSSL_SetTmpDH_buffer(WOLFSSL*, const unsigned char* b, long 
     \return SIDE_ERROR if the side member of the Options structure found
     in the WOLFSSL struct is not the server side.
     \return SSL_BAD_FILETYPE returns if the certificate fails a set of checks.
+    \return DH_KEY_SIZE_E returned if the DH parameter's key size is less than
+    the value of the minDhKeySz member in the WOLFSSL struct.
+    \return DH_KEY_SIZE_E returned if the DH parameter's key size is greater
+    than the value of the maxDhKeySz member in the WOLFSSL struct.
     \return BAD_FUNC_ARG returns if an argument value is NULL that is not
     permitted such as, the WOLFSSL structure.
 
@@ -6236,8 +6240,10 @@ WOLFSSL_API int  wolfSSL_SetTmpDH_file(WOLFSSL*, const char* f, int format);
     \return SSL_SUCCESS returned if the function and all subroutines
     return without error.
     \return BAD_FUNC_ARG returned if the CTX, p or g parameters are NULL.
-    \return DH_KEY_SIZE_E returned if the minDhKeySz member of the
-    WOLFSSL_CTX	struct is not the correct size.
+    \return DH_KEY_SIZE_E returned if the DH parameter's key size is less than
+    the value of the minDhKeySz member of the WOLFSSL_CTX struct.
+    \return DH_KEY_SIZE_E returned if the DH parameter's key size is greater
+    than the value of the maxDhKeySz member of the WOLFSSL_CTX struct.
     \return MEMORY_E returned if the allocation of memory failed in this
     function or a subroutine.
 
@@ -6335,8 +6341,10 @@ WOLFSSL_API int  wolfSSL_CTX_SetTmpDH_buffer(WOLFSSL_CTX*, const unsigned char* 
     if the a set of checks on the file fail from wolfSSL_SetTmpDH_file_wrapper.
     \return SSL_BAD_FILETYPE returned if teh format is not PEM or ASN.1 from
     wolfSSL_SetTmpDH_buffer_wrapper().
-    \return DH_KEY_SIZE_E returned from wolfSSL_SetTmpDH() if the ctx
-    minDhKeySz member exceeds maximum size allowed for DH.
+    \return DH_KEY_SIZE_E returned if the DH parameter's key size is less than
+    the value of the minDhKeySz member of the WOLFSSL_CTX struct.
+    \return DH_KEY_SIZE_E returned if the DH parameter's key size is greater
+    than the value of the maxDhKeySz member of the WOLFSSL_CTX struct.
     \return SIDE_ERROR returned in wolfSSL_SetTmpDH() if the side is not the
     server end.
     \return SSL_NO_PEM_HEADER returned from PemToDer if there is no PEM header.
@@ -6396,7 +6404,8 @@ WOLFSSL_API int  wolfSSL_CTX_SetTmpDH_file(WOLFSSL_CTX*, const char* f,
     \endcode
 
     \sa wolfSSL_SetMinDhKey_Sz
-    \sa CTX_SetMinDhKey_Sz
+    \sa wolfSSL_CTX_SetMaxDhKey_Sz
+    \sa wolfSSL_SetMaxDhKey_Sz
     \sa wolfSSL_GetDhKey_Sz
     \sa wolfSSL_CTX_SetTMpDH_file
 */
@@ -6425,9 +6434,67 @@ WOLFSSL_API int wolfSSL_CTX_SetMinDhKey_Sz(WOLFSSL_CTX*, unsigned short);
     }
     \endcode
 
+    \sa wolfSSL_CTX_SetMinDhKey_Sz
     \sa wolfSSL_GetDhKey_Sz
 */
 WOLFSSL_API int wolfSSL_SetMinDhKey_Sz(WOLFSSL*, unsigned short);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief This function sets the maximum size of the Diffie Hellman key size
+    by accessing the maxDhKeySz member in the WOLFSSL_CTX structure.
+
+    \return SSL_SUCCESS returned if the function completes successfully.
+    \return BAD_FUNC_ARG returned if the WOLFSSL_CTX struct is NULL or if
+    the keySz is greater than 16,000 or not divisible by 8.
+
+    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param keySz a word16 type used to set the maximum DH key size. The
+    WOLFSSL_CTX struct holds this information in the maxDhKeySz member.
+
+    _Example_
+    \code
+    public static int CTX_SetMaxDhKey_Sz(IntPtr ctx, short maxDhKey){
+    …
+    return wolfSSL_CTX_SetMaxDhKey_Sz(local_ctx, maxDhKey);
+    \endcode
+
+    \sa wolfSSL_SetMinDhKey_Sz
+    \sa wolfSSL_CTX_SetMinDhKey_Sz
+    \sa wolfSSL_SetMaxDhKey_Sz
+    \sa wolfSSL_GetDhKey_Sz
+    \sa wolfSSL_CTX_SetTMpDH_file
+*/
+WOLFSSL_API int wolfSSL_CTX_SetMaxDhKey_Sz(WOLFSSL_CTX*, unsigned short);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief Sets the maximum size for a Diffie-Hellman key in the WOLFSSL
+    structure in bytes.
+
+    \return SSL_SUCCESS the maximum size was successfully set.
+    \return BAD_FUNC_ARG the WOLFSSL structure was NULL or the keySz parameter
+    was greater than the allowable size or not divisible by 8.
+
+    \param ssl a pointer to a WOLFSSL structure, created using wolfSSL_new().
+    \param keySz a word16 type representing the bit size of the maximum DH key.
+
+    _Example_
+    \code
+    WOLFSSL* ssl = wolfSSL_new(ctx);
+    word16 keySz;
+    ...
+    if(wolfSSL_SetMaxDhKey(ssl, keySz) != SSL_SUCCESS){
+	    // Failed to set.
+    }
+    \endcode
+
+    \sa wolfSSL_CTX_SetMaxDhKey_Sz
+    \sa wolfSSL_GetDhKey_Sz
+*/
+WOLFSSL_API int wolfSSL_SetMaxDhKey_Sz(WOLFSSL*, unsigned short);
 
 /*!
     \ingroup CertsKeys

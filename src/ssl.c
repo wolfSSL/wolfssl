@@ -1461,6 +1461,8 @@ int wolfSSL_SetTmpDH(WOLFSSL* ssl, const unsigned char* p, int pSz,
 
     if (pSz < ssl->options.minDhKeySz)
         return DH_KEY_SIZE_E;
+    if (pSz > ssl->options.maxDhKeySz)
+        return DH_KEY_SIZE_E;
 
     if (ssl->options.side != WOLFSSL_SERVER_END)
         return SIDE_ERROR;
@@ -1522,6 +1524,8 @@ int wolfSSL_CTX_SetTmpDH(WOLFSSL_CTX* ctx, const unsigned char* p, int pSz,
 
     if (pSz < ctx->minDhKeySz)
         return DH_KEY_SIZE_E;
+    if (pSz > ctx->maxDhKeySz)
+        return DH_KEY_SIZE_E;
 
     XFREE(ctx->serverDH_P.buffer, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
     XFREE(ctx->serverDH_G.buffer, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
@@ -1565,6 +1569,26 @@ int wolfSSL_SetMinDhKey_Sz(WOLFSSL* ssl, word16 keySz)
         return BAD_FUNC_ARG;
 
     ssl->options.minDhKeySz = keySz / 8;
+    return WOLFSSL_SUCCESS;
+}
+
+
+int wolfSSL_CTX_SetMaxDhKey_Sz(WOLFSSL_CTX* ctx, word16 keySz)
+{
+    if (ctx == NULL || keySz > 16000 || keySz % 8 != 0)
+        return BAD_FUNC_ARG;
+
+    ctx->maxDhKeySz = keySz / 8;
+    return WOLFSSL_SUCCESS;
+}
+
+
+int wolfSSL_SetMaxDhKey_Sz(WOLFSSL* ssl, word16 keySz)
+{
+    if (ssl == NULL || keySz > 16000 || keySz % 8 != 0)
+        return BAD_FUNC_ARG;
+
+    ssl->options.maxDhKeySz = keySz / 8;
     return WOLFSSL_SUCCESS;
 }
 
