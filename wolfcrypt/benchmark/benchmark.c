@@ -4764,6 +4764,8 @@ exit_ed_verify:
 
 #elif defined FREERTOS
 
+    #include "task.h"
+
     double current_time(int reset)
     {
         portTickType tickCount;
