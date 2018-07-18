@@ -7056,29 +7056,9 @@ static int BuildSHA(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 {
     int ret = 0;
-#ifdef WOLFSSL_SHA384
-#ifdef WOLFSSL_SMALL_STACK
-    wc_Sha384* sha384;
-#else
-    wc_Sha384 sha384[1];
-#endif /* WOLFSSL_SMALL_STACK */
-#endif /* WOLFSSL_SHA384 */
 
     if (ssl == NULL)
         return BAD_FUNC_ARG;
-
-#ifdef WOLFSSL_SHA384
-#ifdef WOLFSSL_SMALL_STACK
-    sha384 = (wc_Sha384*)XMALLOC(sizeof(wc_Sha384), ssl->heap, DYNAMIC_TYPE_HASHCTX);
-    if (sha384 == NULL)
-        return MEMORY_E;
-#endif /* WOLFSSL_SMALL_STACK */
-#endif /* WOLFSSL_SHA384 */
-
-    /* store current states, building requires get_digest which resets state */
-#ifdef WOLFSSL_SHA384
-    sha384[0] = ssl->hsHashes->hashSha384;
-#endif
 
 #ifndef NO_TLS
     if (ssl->options.tls) {
@@ -7092,19 +7072,6 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             ret = BuildSHA(ssl, hashes, sender);
         }
     }
-#endif
-
-    /* restore */
-    if (IsAtLeastTLSv1_2(ssl)) {
-    #ifdef WOLFSSL_SHA384
-        ssl->hsHashes->hashSha384 = sha384[0];
-    #endif
-    }
-
-#ifdef WOLFSSL_SHA384
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(sha384, ssl->heap, DYNAMIC_TYPE_HASHCTX);
-#endif
 #endif
 
     return ret;
