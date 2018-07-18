@@ -374,6 +374,10 @@ static int InitSha512(wc_Sha512* sha512)
         if (ret != 0)
             return ret;
 
+    #ifdef WOLFSSL_SMALL_STACK_CACHE
+        sha512->W = NULL;
+    #endif
+
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
         ret = wolfAsync_DevCtxInit(&sha512->asyncDev,
                             WOLFSSL_ASYNC_MARKER_SHA512, sha512->heap, devId);
@@ -466,7 +470,16 @@ static int _Transform_Sha512(wc_Sha512* sha512)
     word32 j;
     word64 T[8];
 
-#ifdef WOLFSSL_SMALL_STACK
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    word64* W = sha512->W;
+    if (W == NULL) {
+        W = (word64*) XMALLOC(sizeof(word64) * 16, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        if (W == NULL)
+            return MEMORY_E;
+        sha512->W = W;
+    }
+#elif defined(WOLFSSL_SMALL_STACK)
     word64* W;
     W = (word64*) XMALLOC(sizeof(word64) * 16, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (W == NULL)
@@ -511,7 +524,7 @@ static int _Transform_Sha512(wc_Sha512* sha512)
     ForceZero(W, sizeof(word64) * 16);
     ForceZero(T, sizeof(T));
 
-#ifdef WOLFSSL_SMALL_STACK
+#if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
     XFREE(W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
@@ -538,11 +551,13 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
 
     if (sha512->buffLen > 0) {
         word32 add = min(len, WC_SHA512_BLOCK_SIZE - sha512->buffLen);
-        XMEMCPY(&local[sha512->buffLen], data, add);
+        if (add > 0) {
+            XMEMCPY(&local[sha512->buffLen], data, add);
 
-        sha512->buffLen += add;
-        data            += add;
-        len             -= add;
+            sha512->buffLen += add;
+            data            += add;
+            len             -= add;
+        }
 
         if (sha512->buffLen == WC_SHA512_BLOCK_SIZE) {
     #if defined(LITTLE_ENDIAN_ORDER)
@@ -767,6 +782,13 @@ void wc_Sha512Free(wc_Sha512* sha512)
 {
     if (sha512 == NULL)
         return;
+
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    if (sha512->W != NULL) {
+        XFREE(sha512->W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        sha512->W = NULL;
+    }
+#endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA512)
     wolfAsync_DevCtxFree(&sha512->asyncDev, WOLFSSL_ASYNC_MARKER_SHA512);
@@ -2699,6 +2721,10 @@ int wc_InitSha384_ex(wc_Sha384* sha384, void* heap, int devId)
     if (ret != 0)
         return ret;
 
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    sha384->W = NULL;
+#endif
+
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA384)
     ret = wolfAsync_DevCtxInit(&sha384->asyncDev, WOLFSSL_ASYNC_MARKER_SHA384,
                                                            sha384->heap, devId);
@@ -2721,6 +2747,13 @@ void wc_Sha384Free(wc_Sha384* sha384)
     if (sha384 == NULL)
         return;
 
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    if (sha384->W != NULL) {
+        XFREE(sha384->W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        sha384->W = NULL;
+    }
+#endif
+
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA384)
     wolfAsync_DevCtxFree(&sha384->asyncDev, WOLFSSL_ASYNC_MARKER_SHA384);
 #endif /* WOLFSSL_ASYNC_CRYPT */
@@ -2742,6 +2775,7 @@ int wc_Sha512GetHash(wc_Sha512* sha512, byte* hash)
     ret = wc_Sha512Copy(sha512, &tmpSha512);
     if (ret == 0) {
         ret = wc_Sha512Final(&tmpSha512, hash);
+        wc_Sha512Free(&tmpSha512);
     }
     return ret;
 }
@@ -2754,6 +2788,9 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
         return BAD_FUNC_ARG;
 
     XMEMCPY(dst, src, sizeof(wc_Sha512));
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    dst->W = NULL;
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
@@ -2774,6 +2811,7 @@ int wc_Sha384GetHash(wc_Sha384* sha384, byte* hash)
     ret = wc_Sha384Copy(sha384, &tmpSha384);
     if (ret == 0) {
         ret = wc_Sha384Final(&tmpSha384, hash);
+        wc_Sha384Free(&tmpSha384);
     }
     return ret;
 }
@@ -2785,6 +2823,9 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
         return BAD_FUNC_ARG;
 
     XMEMCPY(dst, src, sizeof(wc_Sha384));
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    dst->W = NULL;
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);

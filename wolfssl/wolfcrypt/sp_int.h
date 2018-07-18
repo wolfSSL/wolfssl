@@ -133,6 +133,7 @@ MP_API void sp_zero(sp_int* a);
 MP_API int sp_add_d(sp_int* a, sp_int_digit d, sp_int* r);
 MP_API int sp_lshd(sp_int* a, int s);
 MP_API int sp_add(sp_int* a, sp_int* b, sp_int* r);
+MP_API int sp_set_int(sp_int* a, unsigned long b);
 
 typedef sp_int mp_int;
 typedef sp_digit mp_digit;
@@ -180,6 +181,7 @@ typedef sp_digit mp_digit;
 #define mp_lshd                 sp_lshd
 #define mp_add                  sp_add
 #define mp_isodd                sp_isodd
+#define mp_set_int              sp_set_int
 
 #define MP_INT_DEFINED
 

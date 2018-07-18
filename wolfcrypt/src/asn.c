@@ -746,6 +746,25 @@ int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx, word32 maxIdx)
     return 0;
 }
 
+#ifdef RSA_LOW_MEM
+#if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
+static int SkipInt(const byte* input, word32* inOutIdx, word32 maxIdx)
+{
+    word32 idx = *inOutIdx;
+    int    ret;
+    int    length;
+
+    ret = GetASNInt(input, &idx, &length, maxIdx);
+    if (ret != 0)
+        return ret;
+
+    *inOutIdx = idx + length;
+
+    return 0;
+}
+#endif
+#endif
+
 static int CheckBitString(const byte* input, word32* inOutIdx, int* len,
                           word32 maxIdx, int zeroBits, byte* unusedBits)
 {
@@ -2092,10 +2111,16 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
         GetInt(&key->e,  input, inOutIdx, inSz) < 0 ||
         GetInt(&key->d,  input, inOutIdx, inSz) < 0 ||
         GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->q,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->dP, input, inOutIdx, inSz) < 0 ||
+        GetInt(&key->q,  input, inOutIdx, inSz) < 0)   return ASN_RSA_KEY_E;
+#ifndef RSA_LOW_MEM
+    if (GetInt(&key->dP, input, inOutIdx, inSz) < 0 ||
         GetInt(&key->dQ, input, inOutIdx, inSz) < 0 ||
         GetInt(&key->u,  input, inOutIdx, inSz) < 0 )  return ASN_RSA_KEY_E;
+#else
+    if (SkipInt(input, inOutIdx, inSz) < 0 ||
+        SkipInt(input, inOutIdx, inSz) < 0 ||
+        SkipInt(input, inOutIdx, inSz) < 0 )  return ASN_RSA_KEY_E;
+#endif
 
 #ifdef WOLFSSL_XILINX_CRYPT
     if (wc_InitRsaHw(key) != 0) {
@@ -2310,20 +2335,45 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
     #if !defined(NO_RSA)
     /* test if RSA key */
     if (der->keyOID == RSAk) {
-        RsaKey a, b;
+    #ifdef WOLFSSL_SMALL_STACK
+        RsaKey* a = NULL;
+        RsaKey* b = NULL;
+    #else
+        RsaKey a[1], b[1];
+    #endif
         word32 keyIdx = 0;
 
-        if ((ret = wc_InitRsaKey(&a, NULL)) < 0)
-            return ret;
-        if ((ret = wc_InitRsaKey(&b, NULL)) < 0) {
-            wc_FreeRsaKey(&a);
+    #ifdef WOLFSSL_SMALL_STACK
+        a = XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_RSA);
+        if (a == NULL)
+            return MEMORY_E;
+        b = XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_RSA);
+        if (b == NULL) {
+            XFREE(a, NULL, DYNAMIC_TYPE_RSA);
+            return MEMORY_E;
+        }
+    #endif
+
+        if ((ret = wc_InitRsaKey(a, NULL)) < 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+            XFREE(b, NULL, DYNAMIC_TYPE_RSA);
+            XFREE(a, NULL, DYNAMIC_TYPE_RSA);
+    #endif
             return ret;
         }
-        if ((ret = wc_RsaPrivateKeyDecode(key, &keyIdx, &a, keySz)) == 0) {
+        if ((ret = wc_InitRsaKey(b, NULL)) < 0) {
+            wc_FreeRsaKey(a);
+    #ifdef WOLFSSL_SMALL_STACK
+            XFREE(b, NULL, DYNAMIC_TYPE_RSA);
+            XFREE(a, NULL, DYNAMIC_TYPE_RSA);
+    #endif
+            return ret;
+        }
+        if ((ret = wc_RsaPrivateKeyDecode(key, &keyIdx, a, keySz)) == 0) {
             WOLFSSL_MSG("Checking RSA key pair");
             keyIdx = 0; /* reset to 0 for parsing public key */
 
-            if ((ret = wc_RsaPublicKeyDecode(der->publicKey, &keyIdx, &b,
+            if ((ret = wc_RsaPublicKeyDecode(der->publicKey, &keyIdx, b,
                                                        der->pubKeySize)) == 0) {
                 /* limit for user RSA crypto because of RsaKey
                  * dereference. */
@@ -2333,8 +2383,8 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
             #else
                 /* both keys extracted successfully now check n and e
                  * values are the same. This is dereferencing RsaKey */
-                if (mp_cmp(&(a.n), &(b.n)) != MP_EQ ||
-                    mp_cmp(&(a.e), &(b.e)) != MP_EQ) {
+                if (mp_cmp(&(a->n), &(b->n)) != MP_EQ ||
+                    mp_cmp(&(a->e), &(b->e)) != MP_EQ) {
                     ret = MP_CMP_E;
                 }
                 else
@@ -2342,73 +2392,119 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
             #endif
             }
         }
-        wc_FreeRsaKey(&b);
-        wc_FreeRsaKey(&a);
+        wc_FreeRsaKey(b);
+        wc_FreeRsaKey(a);
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(b, NULL, DYNAMIC_TYPE_RSA);
+        XFREE(a, NULL, DYNAMIC_TYPE_RSA);
+    #endif
     }
     else
     #endif /* NO_RSA */
 
     #ifdef HAVE_ECC
     if (der->keyOID == ECDSAk) {
-        ecc_key key_pair;
-        byte    privDer[MAX_ECC_BYTES];
-        word32  privSz = MAX_ECC_BYTES;
-        word32  keyIdx = 0;
+    #ifdef WOLFSSL_SMALL_STACK
+        ecc_key* key_pair = NULL;
+        byte*    privDer;
+    #else
+        ecc_key  key_pair[1];
+        byte     privDer[MAX_ECC_BYTES];
+    #endif
+        word32   privSz = MAX_ECC_BYTES;
+        word32   keyIdx = 0;
 
-        if ((ret = wc_ecc_init(&key_pair)) < 0)
+    #ifdef WOLFSSL_SMALL_STACK
+        key_pair = XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_ECC);
+        if (key_pair == NULL)
+            return MEMORY_E;
+        privDer = XMALLOC(MAX_ECC_BYTES, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if (privDer == NULL) {
+            XFREE(key_pair, NULL, DYNAMIC_TYPE_ECC);
+            return MEMORY_E;
+        }
+    #endif
+
+        if ((ret = wc_ecc_init(key_pair)) < 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+            XFREE(privDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(key_pair, NULL, DYNAMIC_TYPE_ECC);
+    #endif
             return ret;
+        }
 
-        if ((ret = wc_EccPrivateKeyDecode(key, &keyIdx, &key_pair,
+        if ((ret = wc_EccPrivateKeyDecode(key, &keyIdx, key_pair,
                                                                  keySz)) == 0) {
             WOLFSSL_MSG("Checking ECC key pair");
 
-            if ((ret = wc_ecc_export_private_only(&key_pair, privDer, &privSz))
+            if ((ret = wc_ecc_export_private_only(key_pair, privDer, &privSz))
                                                                          == 0) {
-                wc_ecc_free(&key_pair);
-                ret = wc_ecc_init(&key_pair);
+                wc_ecc_free(key_pair);
+                ret = wc_ecc_init(key_pair);
                 if (ret == 0) {
                     ret = wc_ecc_import_private_key((const byte*)privDer,
                                             privSz, (const byte*)der->publicKey,
-                                            der->pubKeySize, &key_pair);
+                                            der->pubKeySize, key_pair);
                 }
 
                 /* public and private extracted successfuly now check if is
                  * a pair and also do sanity checks on key. wc_ecc_check_key
                  * checks that private * base generator equals pubkey */
                 if (ret == 0) {
-                    if ((ret = wc_ecc_check_key(&key_pair)) == 0) {
+                    if ((ret = wc_ecc_check_key(key_pair)) == 0) {
                         ret = 1;
                     }
                 }
                 ForceZero(privDer, privSz);
             }
         }
-        wc_ecc_free(&key_pair);
+        wc_ecc_free(key_pair);
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(privDer, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(key_pair, NULL, DYNAMIC_TYPE_ECC);
+    #endif
     }
     else
     #endif /* HAVE_ECC */
 
     #ifdef HAVE_ED25519
     if (der->keyOID == ED25519k) {
-        word32  keyIdx = 0;
-        ed25519_key key_pair;
+    #ifdef WOLFSSL_SMALL_STACK
+        ed25519_key* key_pair = NULL;
+    #else
+        ed25519_key  key_pair[1];
+    #endif
+        word32       keyIdx = 0;
 
-        if ((ret = wc_ed25519_init(&key_pair)) < 0)
+    #ifdef WOLFSSL_SMALL_STACK
+        key_pair = XMALLOC(sizeof(ed25519_key), NULL, DYNAMIC_TYPE_ED25519);
+        if (key_pair == NULL)
+            return MEMORY_E;
+    #endif
+
+        if ((ret = wc_ed25519_init(key_pair)) < 0) {
+    #ifdef WOLFSSL_SMALL_STACK
+            XFREE(key_pair, NULL, DYNAMIC_TYPE_ED25519);
+    #endif
             return ret;
-        if ((ret = wc_Ed25519PrivateKeyDecode(key, &keyIdx, &key_pair,
+        }
+        if ((ret = wc_Ed25519PrivateKeyDecode(key, &keyIdx, key_pair,
                                                                  keySz)) == 0) {
             WOLFSSL_MSG("Checking ED25519 key pair");
             keyIdx = 0;
             if ((ret = wc_ed25519_import_public(der->publicKey, der->pubKeySize,
-                                                             &key_pair)) == 0) {
+                                                              key_pair)) == 0) {
                 /* public and private extracted successfuly no check if is
                  * a pair and also do sanity checks on key. wc_ecc_check_key
                  * checks that private * base generator equals pubkey */
-                if ((ret = wc_ed25519_check_key(&key_pair)) == 0)
+                if ((ret = wc_ed25519_check_key(key_pair)) == 0)
                     ret = 1;
             }
         }
-        wc_ed25519_free(&key_pair);
+        wc_ed25519_free(key_pair);
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(key_pair, NULL, DYNAMIC_TYPE_ED25519);
+    #endif
     }
     else
     #endif
@@ -8660,7 +8756,7 @@ int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen)
 int wc_InitCert(Cert* cert)
 {
 #ifdef WOLFSSL_MULTI_ATTRIB
-    int i;
+    int i = 0;
 #endif
     if (cert == NULL) {
         return BAD_FUNC_ARG;
@@ -10114,7 +10210,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     /* SKID */
     if (cert->skidSz) {
         /* check the provided SKID size */
-        if (cert->skidSz > (int)sizeof(der->skid))
+        if (cert->skidSz > (int)min(CTC_MAX_SKID_SIZE, sizeof(der->skid)))
             return SKID_E;
 
         /* Note: different skid buffers sizes for der (MAX_KID_SZ) and
@@ -10132,7 +10228,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     /* AKID */
     if (cert->akidSz) {
         /* check the provided AKID size */
-        if (cert->akidSz > (int)sizeof(der->akid))
+        if (cert->akidSz > (int)min(CTC_MAX_AKID_SIZE, sizeof(der->akid)))
             return AKID_E;
 
         der->akidSz = SetAKID(der->akid, sizeof(der->akid),
@@ -10665,7 +10761,7 @@ static int EncodeCertReq(Cert* cert, DerCert* der, RsaKey* rsaKey,
     /* SKID */
     if (cert->skidSz) {
         /* check the provided SKID size */
-        if (cert->skidSz > (int)sizeof(der->skid))
+        if (cert->skidSz > (int)min(CTC_MAX_SKID_SIZE, sizeof(der->skid)))
             return SKID_E;
 
         der->skidSz = SetSKID(der->skid, sizeof(der->skid),

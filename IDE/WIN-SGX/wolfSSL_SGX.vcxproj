@@ -301,6 +301,7 @@
   <ItemGroup>
     <ClCompile Include="..\..\wolfcrypt\src\aes.c" />
     <ClCompile Include="..\..\wolfcrypt\src\asn.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\coding.c" />
     <ClCompile Include="..\..\wolfcrypt\src\hash.c" />
     <ClCompile Include="..\..\wolfcrypt\src\hmac.c">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\..;$(SGXSDKInstallPath)include;$(SGXSDKInstallPath)include\tlibc;$(SGXSDKInstallPath)include\stlport;$(SolutionDir)wolfssl-3.9.6;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -314,6 +315,9 @@
     <ClCompile Include="..\..\wolfcrypt\src\rsa.c" />
     <ClCompile Include="..\..\wolfcrypt\src\sha256.c" />
     <ClCompile Include="..\..\wolfcrypt\src\tfm.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_encrypt.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wc_port.c" />
+    <ClCompile Include="..\..\wolfcrypt\src\wolfmath.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -754,8 +754,10 @@ static int dtls_export_new(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     exp[idx++] = options->downgrade;
 #ifndef NO_DH
     c16toa(options->minDhKeySz, exp + idx); idx += OPAQUE16_LEN;
+    c16toa(options->maxDhKeySz, exp + idx); idx += OPAQUE16_LEN;
     c16toa(options->dhKeySz, exp + idx);    idx += OPAQUE16_LEN;
 #else
+    c16toa(zero, exp + idx); idx += OPAQUE16_LEN;
     c16toa(zero, exp + idx); idx += OPAQUE16_LEN;
     c16toa(zero, exp + idx); idx += OPAQUE16_LEN;
 #endif
@@ -917,8 +919,10 @@ static int dtls_export_load(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     options->downgrade  = exp[idx++];
 #ifndef NO_DH
     ato16(exp + idx, &(options->minDhKeySz)); idx += OPAQUE16_LEN;
+    ato16(exp + idx, &(options->maxDhKeySz)); idx += OPAQUE16_LEN;
     ato16(exp + idx, &(options->dhKeySz));    idx += OPAQUE16_LEN;
 #else
+    idx += OPAQUE16_LEN;
     idx += OPAQUE16_LEN;
     idx += OPAQUE16_LEN;
 #endif
@@ -1367,6 +1371,7 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 
 #ifndef NO_DH
     ctx->minDhKeySz  = MIN_DHKEY_SZ;
+    ctx->maxDhKeySz  = MAX_DHKEY_SZ;
 #endif
 #ifndef NO_RSA
     ctx->minRsaKeySz = MIN_RSAKEY_SZ;
@@ -3002,7 +3007,7 @@ int ConvertHashPss(int hashAlgo, enum wc_HashType* hashType, int* mgf)
 
 int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
             word32* outSz, int sigAlgo, int hashAlgo, RsaKey* key,
-            DerBuffer* keyBufInfo, void* ctx)
+            DerBuffer* keyBufInfo)
 {
     int ret;
 #ifdef HAVE_PK_CALLBACKS
@@ -3017,7 +3022,6 @@ int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
 
     (void)ssl;
     (void)keyBufInfo;
-    (void)ctx;
     (void)sigAlgo;
     (void)hashAlgo;
 
@@ -3041,6 +3045,7 @@ int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
 
     #if defined(HAVE_PK_CALLBACKS)
         if (ssl->ctx->RsaPssSignCb) {
+            void* ctx = wolfSSL_GetRsaPssSignCtx(ssl);
             ret = ssl->ctx->RsaPssSignCb(ssl, in, inSz, out, outSz,
                                          TypeHash(hashAlgo), mgf,
                                          keyBuf, keySz, ctx);
@@ -3056,6 +3061,7 @@ int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
 #endif
 #if defined(HAVE_PK_CALLBACKS)
     if (ssl->ctx->RsaSignCb) {
+        void* ctx = wolfSSL_GetRsaSignCtx(ssl);
         ret = ssl->ctx->RsaSignCb(ssl, in, inSz, out, outSz, keyBuf, keySz,
                                                                           ctx);
     }
@@ -3082,7 +3088,7 @@ int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
 }
 
 int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, int sigAlgo,
-              int hashAlgo, RsaKey* key, buffer* keyBufInfo, void* ctx)
+              int hashAlgo, RsaKey* key, buffer* keyBufInfo)
 {
     int ret;
 #ifdef HAVE_PK_CALLBACKS
@@ -3097,7 +3103,6 @@ int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, int sigAlgo,
 
     (void)ssl;
     (void)keyBufInfo;
-    (void)ctx;
     (void)sigAlgo;
     (void)hashAlgo;
 
@@ -3120,6 +3125,7 @@ int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, int sigAlgo,
             return ret;
 #ifdef HAVE_PK_CALLBACKS
         if (ssl->ctx->RsaPssVerifyCb) {
+            void* ctx = wolfSSL_GetRsaPssVerifyCtx(ssl);
             ret = ssl->ctx->RsaPssVerifyCb(ssl, in, inSz, out,
                                            TypeHash(hashAlgo), mgf,
                                            keyBuf, keySz, ctx);
@@ -3132,6 +3138,7 @@ int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, int sigAlgo,
 #endif
 #ifdef HAVE_PK_CALLBACKS
     if (ssl->ctx->RsaVerifyCb) {
+        void* ctx = wolfSSL_GetRsaVerifyCtx(ssl);
         ret = ssl->ctx->RsaVerifyCb(ssl, in, inSz, out, keyBuf, keySz, ctx);
     }
     else
@@ -3156,7 +3163,7 @@ int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, int sigAlgo,
 /* This function is used to check the sign result */
 int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
     const byte* plain, word32 plainSz, int sigAlgo, int hashAlgo, RsaKey* key,
-    DerBuffer* keyBufInfo, void* ctx)
+    DerBuffer* keyBufInfo)
 {
     byte* out = NULL;  /* inline result */
     int   ret;
@@ -3172,7 +3179,6 @@ int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
 
     (void)ssl;
     (void)keyBufInfo;
-    (void)ctx;
     (void)sigAlgo;
     (void)hashAlgo;
 
@@ -3211,6 +3217,7 @@ int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
             /* If HSM hardware is checking the signature result you can
                 optionally skip the sign check and return 0 */
             /* The ctx here is the RsaSignCtx set using wolfSSL_SetRsaSignCtx */
+            void* ctx = wolfSSL_GetRsaPssSignCtx(ssl);
             ret = ssl->ctx->RsaPssSignCheckCb(ssl, verifySig, sigSz, &out,
                                            TypeHash(hashAlgo), mgf,
                                            keyBuf, keySz, ctx);
@@ -3238,6 +3245,7 @@ int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
             /* If HSM hardware is checking the signature result you can
                 optionally skip the sign check and return 0 */
             /* The ctx here is the RsaSignCtx set using wolfSSL_SetRsaSignCtx */
+            void* ctx = wolfSSL_GetRsaSignCtx(ssl);
             ret = ssl->ctx->RsaSignCheckCb(ssl, verifySig, sigSz, &out,
                 keyBuf, keySz, ctx);
         }
@@ -3273,7 +3281,7 @@ int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig, word32 sigSz,
 #ifndef WOLFSSL_NO_TLS12
 
 int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
-    RsaKey* key, DerBuffer* keyBufInfo, void* ctx)
+    RsaKey* key, DerBuffer* keyBufInfo)
 {
     int ret;
 #ifdef HAVE_PK_CALLBACKS
@@ -3288,7 +3296,6 @@ int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
 
     (void)ssl;
     (void)keyBufInfo;
-    (void)ctx;
 
     WOLFSSL_ENTER("RsaDec");
 
@@ -3301,8 +3308,8 @@ int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
 
 #ifdef HAVE_PK_CALLBACKS
     if (ssl->ctx->RsaDecCb) {
-            ret = ssl->ctx->RsaDecCb(ssl, in, inSz, out, keyBuf, keySz,
-                                                                    ctx);
+        void* ctx = wolfSSL_GetRsaDecCtx(ssl);
+        ret = ssl->ctx->RsaDecCb(ssl, in, inSz, out, keyBuf, keySz, ctx);
     }
     else
 #endif /* HAVE_PK_CALLBACKS */
@@ -3334,7 +3341,7 @@ int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out, word32* outSz,
 }
 
 int RsaEnc(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out, word32* outSz,
-    RsaKey* key, buffer* keyBufInfo, void* ctx)
+    RsaKey* key, buffer* keyBufInfo)
 {
     int ret;
 #ifdef HAVE_PK_CALLBACKS
@@ -3349,7 +3356,6 @@ int RsaEnc(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out, word32* outSz,
 
     (void)ssl;
     (void)keyBufInfo;
-    (void)ctx;
 
     WOLFSSL_ENTER("RsaEnc");
 
@@ -3362,8 +3368,8 @@ int RsaEnc(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out, word32* outSz,
 
 #ifdef HAVE_PK_CALLBACKS
     if (ssl->ctx->RsaEncCb) {
-            ret = ssl->ctx->RsaEncCb(ssl, in, inSz, out, outSz, keyBuf, keySz,
-                                                                        ctx);
+        void* ctx = wolfSSL_GetRsaEncCtx(ssl);
+        ret = ssl->ctx->RsaEncCb(ssl, in, inSz, out, outSz, keyBuf, keySz, ctx);
     }
     else
 #endif /* HAVE_PK_CALLBACKS */
@@ -3396,7 +3402,7 @@ int RsaEnc(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out, word32* outSz,
 #ifdef HAVE_ECC
 
 int EccSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
-    word32* outSz, ecc_key* key, DerBuffer* keyBufInfo, void* ctx)
+    word32* outSz, ecc_key* key, DerBuffer* keyBufInfo)
 {
     int ret;
 #ifdef HAVE_PK_CALLBACKS
@@ -3411,7 +3417,6 @@ int EccSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
 
     (void)ssl;
     (void)keyBufInfo;
-    (void)ctx;
 
     WOLFSSL_ENTER("EccSign");
 
@@ -3424,6 +3429,7 @@ int EccSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
 
 #if defined(HAVE_PK_CALLBACKS)
     if (ssl->ctx->EccSignCb) {
+        void* ctx = wolfSSL_GetEccSignCtx(ssl);
         ret = ssl->ctx->EccSignCb(ssl, in, inSz, out, outSz, keyBuf,
             keySz, ctx);
     }
@@ -3446,7 +3452,7 @@ int EccSign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
 }
 
 int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* out,
-    word32 outSz, ecc_key* key, buffer* keyBufInfo, void* ctx)
+    word32 outSz, ecc_key* key, buffer* keyBufInfo)
 {
     int ret;
 #ifdef HAVE_PK_CALLBACKS
@@ -3461,7 +3467,6 @@ int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* out,
 
     (void)ssl;
     (void)keyBufInfo;
-    (void)ctx;
 
     WOLFSSL_ENTER("EccVerify");
 
@@ -3474,6 +3479,7 @@ int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* out,
 
 #ifdef HAVE_PK_CALLBACKS
     if (ssl->ctx->EccVerifyCb) {
+        void* ctx = wolfSSL_GetEccVerifyCtx(ssl);
         ret = ssl->ctx->EccVerifyCb(ssl, in, inSz, out, outSz, keyBuf, keySz,
             &ssl->eccVerifyRes, ctx);
     }
@@ -3555,7 +3561,7 @@ int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* out,
 
 int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key, ecc_key* pub_key,
         byte* pubKeyDer, word32* pubKeySz, byte* out, word32* outlen,
-        int side, void* ctx)
+        int side)
 {
     int ret;
 #ifdef HAVE_PK_CALLBACKS
@@ -3569,7 +3575,6 @@ int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key, ecc_key* pub_key,
     (void)pubKeyDer;
     (void)pubKeySz;
     (void)side;
-    (void)ctx;
 
     WOLFSSL_ENTER("EccSharedSecret");
 
@@ -3593,6 +3598,7 @@ int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key, ecc_key* pub_key,
 
 #ifdef HAVE_PK_CALLBACKS
     if (ssl->ctx->EccSharedSecretCb) {
+        void* ctx = wolfSSL_GetEccSharedSecretCtx(ssl);
         ret = ssl->ctx->EccSharedSecretCb(ssl, otherKey, pubKeyDer,
             pubKeySz, out, outlen, side, ctx);
     }
@@ -3618,6 +3624,7 @@ int EccMakeKey(WOLFSSL* ssl, ecc_key* key, ecc_key* peer)
 {
     int ret = 0;
     int keySz = 0;
+    int ecc_curve = ECC_CURVE_DEF;
 
     WOLFSSL_ENTER("EccMakeKey");
 
@@ -3628,6 +3635,7 @@ int EccMakeKey(WOLFSSL* ssl, ecc_key* key, ecc_key* peer)
         return ret;
 #endif
 
+    /* get key size */
     if (peer == NULL) {
         keySz = ssl->eccTempKeySz;
     }
@@ -3635,14 +3643,25 @@ int EccMakeKey(WOLFSSL* ssl, ecc_key* key, ecc_key* peer)
         keySz = peer->dp->size;
     }
 
+    /* get curve type */
     if (ssl->ecdhCurveOID > 0) {
-        ret = wc_ecc_make_key_ex(ssl->rng, keySz, key,
-                 wc_ecc_get_oid(ssl->ecdhCurveOID, NULL, NULL));
+        ecc_curve = wc_ecc_get_oid(ssl->ecdhCurveOID, NULL, NULL);
     }
-    else {
-        ret = wc_ecc_make_key(ssl->rng, keySz, key);
-        if (ret == 0)
-            ssl->ecdhCurveOID = key->dp->oidSum;
+
+#ifdef HAVE_PK_CALLBACKS
+    if (ssl->ctx->EccKeyGenCb) {
+        void* ctx = wolfSSL_GetEccKeyGenCtx(ssl);
+        ret = ssl->ctx->EccKeyGenCb(ssl, key, keySz, ecc_curve, ctx);
+    }
+    else
+#endif
+    {
+        ret = wc_ecc_make_key_ex(ssl->rng, keySz, key, ecc_curve);
+    }
+
+    /* make sure the curve is set for TLS */
+    if (ret == 0 && key->dp) {
+        ssl->ecdhCurveOID = key->dp->oidSum;
     }
 
     /* Handle async pending response */
@@ -3709,8 +3728,7 @@ int Ed25519CheckPubKey(WOLFSSL* ssl)
  * returns 0 on success, otherwise the value is an error.
  */
 int Ed25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
-                word32* outSz, ed25519_key* key, DerBuffer* keyBufInfo,
-                void* ctx)
+                word32* outSz, ed25519_key* key, DerBuffer* keyBufInfo)
 {
     int ret;
 #ifdef HAVE_PK_CALLBACKS
@@ -3725,7 +3743,6 @@ int Ed25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
 
     (void)ssl;
     (void)keyBufInfo;
-    (void)ctx;
 
     WOLFSSL_ENTER("Ed25519Sign");
 
@@ -3738,6 +3755,7 @@ int Ed25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
 
 #if defined(HAVE_PK_CALLBACKS)
     if (ssl->ctx->Ed25519SignCb) {
+        void* ctx = wolfSSL_GetEd25519SignCtx(ssl);
         ret = ssl->ctx->Ed25519SignCb(ssl, in, inSz, out, outSz, keyBuf,
             keySz, ctx);
     }
@@ -3772,7 +3790,7 @@ int Ed25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
  * returns 0 on success, otherwise the value is an error.
  */
 int Ed25519Verify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* msg,
-                  word32 msgSz, ed25519_key* key, buffer* keyBufInfo, void* ctx)
+                  word32 msgSz, ed25519_key* key, buffer* keyBufInfo)
 {
     int ret;
 #ifdef HAVE_PK_CALLBACKS
@@ -3787,7 +3805,6 @@ int Ed25519Verify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* msg,
 
     (void)ssl;
     (void)keyBufInfo;
-    (void)ctx;
 
     WOLFSSL_ENTER("Ed25519Verify");
 
@@ -3800,6 +3817,7 @@ int Ed25519Verify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* msg,
 
 #ifdef HAVE_PK_CALLBACKS
     if (ssl->ctx->Ed25519VerifyCb) {
+        void* ctx = wolfSSL_GetEd25519VerifyCtx(ssl);
         ret = ssl->ctx->Ed25519VerifyCb(ssl, in, inSz, msg, msgSz, keyBuf,
                                         keySz, &ssl->eccVerifyRes, ctx);
     }
@@ -3869,7 +3887,7 @@ int Ed25519Verify(WOLFSSL* ssl, const byte* in, word32 inSz, const byte* msg,
 
 static int X25519SharedSecret(WOLFSSL* ssl, curve25519_key* priv_key,
         curve25519_key* pub_key, byte* pubKeyDer, word32* pubKeySz,
-        byte* out, word32* outlen, int side, void* ctx)
+        byte* out, word32* outlen, int side)
 {
     int ret;
 
@@ -3877,7 +3895,6 @@ static int X25519SharedSecret(WOLFSSL* ssl, curve25519_key* priv_key,
     (void)pubKeyDer;
     (void)pubKeySz;
     (void)side;
-    (void)ctx;
 
     WOLFSSL_ENTER("X25519SharedSecret");
 
@@ -3894,6 +3911,7 @@ static int X25519SharedSecret(WOLFSSL* ssl, curve25519_key* priv_key,
 
         ret = X25519GetKey(ssl, &otherKey);
         if (ret == 0) {
+            void* ctx = wolfSSL_GetX25519SharedSecretCtx(ssl);
             ret = ssl->ctx->X25519SharedSecretCb(ssl, otherKey, pubKeyDer,
                 pubKeySz, out, outlen, side, ctx);
         }
@@ -3933,9 +3951,20 @@ static int X25519MakeKey(WOLFSSL* ssl, curve25519_key* key,
         return ret;
 #endif
 
-    ret = wc_curve25519_make_key(ssl->rng, CURVE25519_KEYSIZE, key);
-    if (ret == 0)
+#ifdef HAVE_PK_CALLBACKS
+    if (ssl->ctx->X25519KeyGenCb) {
+        void* ctx = wolfSSL_GetX25519KeyGenCtx(ssl);
+        ret = ssl->ctx->X25519KeyGenCb(ssl, key, CURVE25519_KEYSIZE, ctx);
+    }
+    else
+#endif
+    {
+        ret = wc_curve25519_make_key(ssl->rng, CURVE25519_KEYSIZE, key);
+    }
+
+    if (ret == 0) {
         ssl->ecdhCurveOID = ECC_X25519_OID;
+    }
 
     /* Handle async pending response */
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -4163,6 +4192,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
 #ifndef NO_DH
     ssl->options.minDhKeySz = ctx->minDhKeySz;
+    ssl->options.maxDhKeySz = ctx->maxDhKeySz;
 #endif
 #ifndef NO_RSA
     ssl->options.minRsaKeySz = ctx->minRsaKeySz;
@@ -7026,29 +7056,9 @@ static int BuildSHA(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 {
     int ret = 0;
-#ifdef WOLFSSL_SHA384
-#ifdef WOLFSSL_SMALL_STACK
-    wc_Sha384* sha384;
-#else
-    wc_Sha384 sha384[1];
-#endif /* WOLFSSL_SMALL_STACK */
-#endif /* WOLFSSL_SHA384 */
 
     if (ssl == NULL)
         return BAD_FUNC_ARG;
-
-#ifdef WOLFSSL_SHA384
-#ifdef WOLFSSL_SMALL_STACK
-    sha384 = (wc_Sha384*)XMALLOC(sizeof(wc_Sha384), ssl->heap, DYNAMIC_TYPE_HASHCTX);
-    if (sha384 == NULL)
-        return MEMORY_E;
-#endif /* WOLFSSL_SMALL_STACK */
-#endif /* WOLFSSL_SHA384 */
-
-    /* store current states, building requires get_digest which resets state */
-#ifdef WOLFSSL_SHA384
-    sha384[0] = ssl->hsHashes->hashSha384;
-#endif
 
 #ifndef NO_TLS
     if (ssl->options.tls) {
@@ -7062,19 +7072,6 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             ret = BuildSHA(ssl, hashes, sender);
         }
     }
-#endif
-
-    /* restore */
-    if (IsAtLeastTLSv1_2(ssl)) {
-    #ifdef WOLFSSL_SHA384
-        ssl->hsHashes->hashSha384 = sha384[0];
-    #endif
-    }
-
-#ifdef WOLFSSL_SHA384
-#ifdef WOLFSSL_SMALL_STACK
-    XFREE(sha384, ssl->heap, DYNAMIC_TYPE_HASHCTX);
-#endif
 #endif
 
     return ret;
@@ -12169,7 +12166,7 @@ int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int macSz,
     good |= MaskMac(input, pLen, ssl->specs.hash_size, verify);
 
     /* Non-zero on failure. */
-    good = ~good;
+    good = (byte)~(word32)good;
     good &= good >> 4;
     good &= good >> 2;
     good &= good >> 1;
@@ -13696,10 +13693,6 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
         #endif
                 ret = ssl->hmac(ssl, output + args->idx, output +
                                 args->headerSz + args->ivSz, inSz, -1, type, 0);
-            #ifdef WOLFSSL_DTLS
-                if (ssl->options.dtls)
-                    DtlsSEQIncrement(ssl, CUR_ORDER);
-            #endif
             }
             if (ret != 0)
                 goto exit_buildmsg;
@@ -13727,6 +13720,11 @@ exit_buildmsg:
 
     /* make sure build message state is reset */
     ssl->options.buildMsgState = BUILD_MSG_BEGIN;
+
+    #ifdef WOLFSSL_DTLS
+        if (ret == 0 && ssl->options.dtls)
+            DtlsSEQIncrement(ssl, CUR_ORDER);
+    #endif
 
     /* return sz on success */
     if (ret == 0)
@@ -14687,8 +14685,12 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         WOLFSSL_MSG("output buffer was full, trying to send again");
         if ( (ssl->error = SendBuffered(ssl)) < 0) {
             WOLFSSL_ERROR(ssl->error);
-            if (ssl->error == SOCKET_ERROR_E && ssl->options.connReset)
-                return 0;     /* peer reset */
+            if (ssl->error == SOCKET_ERROR_E && (ssl->options.connReset ||
+                                                 ssl->options.isClosed)) {
+                ssl->error = SOCKET_PEER_CLOSED_E;
+                WOLFSSL_ERROR(ssl->error);
+                return 0;  /* peer reset or closed */
+            }
             return ssl->error;
         }
         else {
@@ -14770,15 +14772,19 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
 
         ssl->buffers.outputBuffer.length += sendSz;
 
-        if ( (ret = SendBuffered(ssl)) < 0) {
-            WOLFSSL_ERROR(ret);
+        if ( (ssl->error = SendBuffered(ssl)) < 0) {
+            WOLFSSL_ERROR(ssl->error);
             /* store for next call if WANT_WRITE or user embedSend() that
                doesn't present like WANT_WRITE */
             ssl->buffers.plainSz  = len;
             ssl->buffers.prevSent = sent;
-            if (ret == SOCKET_ERROR_E && ssl->options.connReset)
-                return 0;  /* peer reset */
-            return ssl->error = ret;
+            if (ssl->error == SOCKET_ERROR_E && (ssl->options.connReset ||
+                                                 ssl->options.isClosed)) {
+                ssl->error = SOCKET_PEER_CLOSED_E;
+                WOLFSSL_ERROR(ssl->error);
+                return 0;  /* peer reset or closed */
+            }
+            return ssl->error;
         }
 
         sent += len;
@@ -16150,7 +16156,7 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
         byte hashAlgo = 0, sigAlgo = 0;
 
         DecodeSigAlg(&hashSigAlgo[i], &hashAlgo, &sigAlgo);
-    #ifdef HAVE_ECC
+    #ifdef HAVE_ED25519
         if (ssl->pkCurveOID == ECC_ED25519_OID && sigAlgo != ed25519_sa_algo)
             continue;
 
@@ -17594,6 +17600,11 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                         SendAlert(ssl, alert_fatal, handshake_failure);
                         ERROR_OUT(DH_KEY_SIZE_E, exit_dske);
                     }
+                    if (length > ssl->options.maxDhKeySz) {
+                        WOLFSSL_MSG("Server using a DH key that is too big");
+                        SendAlert(ssl, alert_fatal, handshake_failure);
+                        ERROR_OUT(DH_KEY_SIZE_E, exit_dske);
+                    }
 
                     ssl->buffers.serverDH_P.buffer =
                         (byte*)XMALLOC(length, ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
@@ -17784,6 +17795,11 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
 
                     if (length < ssl->options.minDhKeySz) {
                         WOLFSSL_MSG("Server using a DH key that is too small");
+                        SendAlert(ssl, alert_fatal, handshake_failure);
+                        ERROR_OUT(DH_KEY_SIZE_E, exit_dske);
+                    }
+                    if (length > ssl->options.maxDhKeySz) {
+                        WOLFSSL_MSG("Server using a DH key that is too big");
                         SendAlert(ssl, alert_fatal, handshake_failure);
                         ERROR_OUT(DH_KEY_SIZE_E, exit_dske);
                     }
@@ -18183,10 +18199,9 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                                 args->sigAlgo, args->hashAlgo,
                                 ssl->peerRsaKey,
                             #ifdef HAVE_PK_CALLBACKS
-                                &ssl->buffers.peerRsaKey,
-                                ssl->RsaVerifyCtx
+                                &ssl->buffers.peerRsaKey
                             #else
-                                NULL, NULL
+                                NULL
                             #endif
                             );
 
@@ -18206,10 +18221,9 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                                 ssl->buffers.digest.length,
                                 ssl->peerEccDsaKey,
                             #ifdef HAVE_PK_CALLBACKS
-                                &ssl->buffers.peerEccDsaKey,
-                                ssl->EccVerifyCtx
+                                &ssl->buffers.peerEccDsaKey
                             #else
-                                NULL, NULL
+                                NULL
                             #endif
                             );
 
@@ -18225,10 +18239,9 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                                 ssl->buffers.sig.length,
                                 ssl->peerEd25519Key,
                             #ifdef HAVE_PK_CALLBACKS
-                                &ssl->buffers.peerEd25519Key,
-                                ssl->Ed25519VerifyCtx
+                                &ssl->buffers.peerEd25519Key
                             #else
-                                NULL, NULL
+                                NULL
                             #endif
                             );
 
@@ -19398,10 +19411,9 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         args->encSecret, &args->encSz,
                         ssl->peerRsaKey,
                     #if defined(HAVE_PK_CALLBACKS)
-                        &ssl->buffers.peerRsaKey,
-                        ssl->RsaEncCtx
+                        &ssl->buffers.peerRsaKey
                     #else
-                        NULL, NULL
+                        NULL
                     #endif
                     );
 
@@ -19448,12 +19460,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                             args->output + OPAQUE8_LEN, &args->length,
                             ssl->arrays->preMasterSecret + OPAQUE16_LEN,
                             &ssl->arrays->preMasterSz,
-                            WOLFSSL_CLIENT_END,
-                        #ifdef HAVE_PK_CALLBACKS
-                            ssl->EccSharedSecretCtx
-                        #else
-                            NULL
-                        #endif
+                            WOLFSSL_CLIENT_END
                         );
                         break;
                     }
@@ -19463,12 +19470,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         args->output + OPAQUE8_LEN, &args->length,
                         ssl->arrays->preMasterSecret + OPAQUE16_LEN,
                         &ssl->arrays->preMasterSz,
-                        WOLFSSL_CLIENT_END,
-                    #ifdef HAVE_PK_CALLBACKS
-                        ssl->EccSharedSecretCtx
-                    #else
-                        NULL
-                    #endif
+                        WOLFSSL_CLIENT_END
                     );
                     break;
                 }
@@ -19513,12 +19515,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                             args->encSecret + OPAQUE8_LEN, &args->encSz,
                             ssl->arrays->preMasterSecret,
                             &ssl->arrays->preMasterSz,
-                            WOLFSSL_CLIENT_END,
-                        #ifdef HAVE_PK_CALLBACKS
-                            ssl->EccSharedSecretCtx
-                        #else
-                            NULL
-                        #endif
+                            WOLFSSL_CLIENT_END
                         );
                         break;
                     }
@@ -19532,12 +19529,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         args->encSecret + OPAQUE8_LEN, &args->encSz,
                         ssl->arrays->preMasterSecret,
                         &ssl->arrays->preMasterSz,
-                        WOLFSSL_CLIENT_END,
-                    #ifdef HAVE_PK_CALLBACKS
-                        ssl->EccSharedSecretCtx
-                    #else
-                        NULL
-                    #endif
+                        WOLFSSL_CLIENT_END
                     );
                 #endif
 
@@ -20131,10 +20123,9 @@ int SendCertificateVerify(WOLFSSL* ssl)
                     ssl->buffers.sig.buffer, &ssl->buffers.sig.length,
                     key,
             #ifdef HAVE_PK_CALLBACKS
-                    ssl->buffers.key,
-                    ssl->EccSignCtx
+                    ssl->buffers.key
             #else
-                    NULL, NULL
+                    NULL
             #endif
                 );
             }
@@ -20148,10 +20139,9 @@ int SendCertificateVerify(WOLFSSL* ssl)
                     ssl->buffers.sig.buffer, &ssl->buffers.sig.length,
                     key,
             #ifdef HAVE_PK_CALLBACKS
-                    ssl->buffers.key,
-                    ssl->Ed25519SignCtx
+                    ssl->buffers.key
             #else
-                    NULL, NULL
+                    NULL
             #endif
                 );
             }
@@ -20167,12 +20157,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
                     ssl->buffers.sig.buffer, ssl->buffers.sig.length,
                     args->verify + args->extraSz + VERIFY_HEADER, &args->sigSz,
                     args->sigAlgo, ssl->suites->hashAlgo, key,
-                    ssl->buffers.key,
-                #ifdef HAVE_PK_CALLBACKS
-                    ssl->RsaSignCtx
-                #else
-                    NULL
-                #endif
+                    ssl->buffers.key
                 );
             }
         #endif /* !NO_RSA */
@@ -20229,12 +20214,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
                     args->verifySig, args->sigSz,
                     ssl->buffers.sig.buffer, ssl->buffers.sig.length,
                     args->sigAlgo, ssl->suites->hashAlgo, key,
-                    ssl->buffers.key,
-                #ifdef HAVE_PK_CALLBACKS
-                    ssl->RsaSignCtx
-                #else
-                    NULL
-                #endif
+                    ssl->buffers.key
                 );
             }
         #endif /* !NO_RSA */
@@ -21867,12 +21847,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     &args->sigSz,
                                     ssl->suites->sigAlgo, ssl->suites->hashAlgo,
                                     key,
-                                    ssl->buffers.key,
-                            #ifdef HAVE_PK_CALLBACKS
-                                    ssl->RsaSignCtx
-                            #else
-                                    NULL
-                            #endif
+                                    ssl->buffers.key
                                 );
                                 break;
                             }
@@ -21888,10 +21863,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     &args->sigSz,
                                     key,
                             #ifdef HAVE_PK_CALLBACKS
-                                    ssl->buffers.key,
-                                    ssl->EccSignCtx
+                                    ssl->buffers.key
                             #else
-                                    NULL, NULL
+                                    NULL
                             #endif
                                 );
                                 break;
@@ -21907,10 +21881,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     &args->sigSz,
                                     key,
                             #ifdef HAVE_PK_CALLBACKS
-                                    ssl->buffers.key,
-                                    ssl->Ed25519SignCtx
+                                    ssl->buffers.key
                             #else
-                                    NULL, NULL
+                                    NULL
                             #endif
                                 );
                                 break;
@@ -21945,12 +21918,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     &args->sigSz,
                                     ssl->suites->sigAlgo, ssl->suites->hashAlgo,
                                     key,
-                                    ssl->buffers.key,
-                                #ifdef HAVE_PK_CALLBACKS
-                                    ssl->RsaSignCtx
-                                #else
-                                    NULL
-                                #endif
+                                    ssl->buffers.key
                                 );
                                 break;
                             }
@@ -22030,12 +21998,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     ssl->buffers.sig.buffer,
                                     ssl->buffers.sig.length,
                                     ssl->suites->sigAlgo, ssl->suites->hashAlgo,
-                                    key, ssl->buffers.key,
-                                #ifdef HAVE_PK_CALLBACKS
-                                    ssl->RsaSignCtx
-                                #else
-                                    NULL
-                                #endif
+                                    key, ssl->buffers.key
                                 );
                                 break;
                             }
@@ -22097,12 +22060,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                     ssl->buffers.sig.buffer,
                                     ssl->buffers.sig.length,
                                     ssl->suites->sigAlgo, ssl->suites->hashAlgo,
-                                    key, ssl->buffers.key,
-                                #ifdef HAVE_PK_CALLBACKS
-                                    ssl->RsaSignCtx
-                                #else
-                                    NULL
-                                #endif
+                                    key, ssl->buffers.key
                                 );
                                 break;
                             }
@@ -23385,10 +23343,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         args->sigAlgo, args->hashAlgo,
                         ssl->peerRsaKey,
                     #ifdef HAVE_PK_CALLBACKS
-                        &ssl->buffers.peerRsaKey,
-                        ssl->RsaVerifyCtx
+                        &ssl->buffers.peerRsaKey
                     #else
-                        NULL, NULL
+                        NULL
                     #endif
                     );
                     if (ret >= 0) {
@@ -23411,10 +23368,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         ssl->buffers.digest.buffer, ssl->buffers.digest.length,
                         ssl->peerEccDsaKey,
                     #ifdef HAVE_PK_CALLBACKS
-                        &ssl->buffers.peerEccDsaKey,
-                        ssl->EccVerifyCtx
+                        &ssl->buffers.peerEccDsaKey
                     #else
-                        NULL, NULL
+                        NULL
                     #endif
                     );
                 }
@@ -23428,10 +23384,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         ssl->hsHashes->messages, ssl->hsHashes->prevLen,
                         ssl->peerEd25519Key,
                     #ifdef HAVE_PK_CALLBACKS
-                        &ssl->buffers.peerEd25519Key,
-                        ssl->Ed25519VerifyCtx
+                        &ssl->buffers.peerEd25519Key
                     #else
-                        NULL, NULL
+                        NULL
                     #endif
                     );
                 }
@@ -24682,10 +24637,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             &args->sigSz,
                             key,
                         #ifdef HAVE_PK_CALLBACKS
-                            ssl->buffers.key,
-                            ssl->RsaDecCtx
+                            ssl->buffers.key
                         #else
-                            NULL, NULL
+                            NULL
                         #endif
                         );
 
@@ -24731,12 +24685,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 input + args->idx, &args->length,
                                 ssl->arrays->preMasterSecret,
                                 &ssl->arrays->preMasterSz,
-                                WOLFSSL_SERVER_END,
-                            #ifdef HAVE_PK_CALLBACKS
-                                ssl->EccSharedSecretCtx
-                            #else
-                                NULL
-                            #endif
+                                WOLFSSL_SERVER_END
                             );
                             break;
                         }
@@ -24752,12 +24701,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             input + args->idx, &args->length,
                             ssl->arrays->preMasterSecret,
                             &ssl->arrays->preMasterSz,
-                            WOLFSSL_SERVER_END,
-                        #ifdef HAVE_PK_CALLBACKS
-                            ssl->EccSharedSecretCtx
-                        #else
-                            NULL
-                        #endif
+                            WOLFSSL_SERVER_END
                         );
                     #endif
                         break;
@@ -24800,12 +24744,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 input + args->idx, &args->length,
                                 ssl->arrays->preMasterSecret + OPAQUE16_LEN,
                                 &args->sigSz,
-                                WOLFSSL_SERVER_END,
-                            #ifdef HAVE_PK_CALLBACKS
-                                ssl->EccSharedSecretCtx
-                            #else
-                                NULL
-                            #endif
+                                WOLFSSL_SERVER_END
                             );
                             break;
                         }
@@ -24816,12 +24755,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             input + args->idx, &args->length,
                             ssl->arrays->preMasterSecret + OPAQUE16_LEN,
                             &args->sigSz,
-                            WOLFSSL_SERVER_END,
-                        #ifdef HAVE_PK_CALLBACKS
-                            ssl->EccSharedSecretCtx
-                        #else
-                            NULL
-                        #endif
+                            WOLFSSL_SERVER_END
                         );
                         break;
                     }

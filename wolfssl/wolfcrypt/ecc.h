@@ -135,6 +135,9 @@ enum {
     ECC_POINT_COMP_EVEN = 0x02,
     ECC_POINT_COMP_ODD = 0x03,
     ECC_POINT_UNCOMP = 0x04,
+
+    /* Shamir's dual add constants */
+    SHAMIR_PRECOMP_SZ = 16,
 };
 
 /* Curve Types */
@@ -301,6 +304,11 @@ typedef struct alt_fp_int {
 } alt_fp_int;
 #endif /* ALT_ECC_SIZE */
 
+#ifndef WC_ECCKEY_TYPE_DEFINED
+    typedef struct ecc_key ecc_key;
+    #define WC_ECCKEY_TYPE_DEFINED
+#endif
+
 
 /* A point on an ECC curve, stored in Jacbobian format such that (x,y,z) =>
    (x/z^2, y/z^3, 1) when interpreted as affine */
@@ -314,6 +322,9 @@ typedef struct {
     mp_int* y;        /* The y coordinate */
     mp_int* z;        /* The z coordinate */
     alt_fp_int xyz[3];
+#endif
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    ecc_key* key;
 #endif
 } ecc_point;
 
@@ -360,12 +371,16 @@ struct ecc_key {
         CertSignCtx certSignCtx; /* context info for cert sign (MakeSignature) */
     #endif
 #endif /* WOLFSSL_ASYNC_CRYPT */
-};
-
-#ifndef WC_ECCKEY_TYPE_DEFINED
-    typedef struct ecc_key ecc_key;
-    #define WC_ECCKEY_TYPE_DEFINED
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    mp_int* t1;
+    mp_int* t2;
+#ifdef ALT_ECC_SIZE
+    mp_int* x;
+    mp_int* y;
+    mp_int* z;
 #endif
+#endif
+};
 
 
 /* ECC predefined curve sets  */

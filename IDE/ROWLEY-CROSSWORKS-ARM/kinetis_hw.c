@@ -33,6 +33,7 @@
 // $(TargetsDir) location:
 // On Mac OS/X: Users/USERNAME/Library/Rowley Associates Limited/CrossWorks for ARM/packages/targets/
 // On Windows: C:/Users/USERNAME/Application Data/Local/Rowley Associates Limited/CrossWorks for ARM/packages/targets/
+// On Linux: home/USERNAME/.rowley_associates_limited/CrossWorks for ARM/v4/packages/targets/
 
 // Located in $(TargetsDir)/Kinetis/CMSIS/
 #ifdef FREESCALE_KSDK_BM
@@ -67,17 +68,29 @@
     #define UART_TX_PORT    PORTA                       /* UART TX Port */
     #define UART_TX_PIN     2U                          /* UART TX Pin */
     #define UART_TX_MUX     kPORT_MuxAlt2               /* Kinetis UART pin mux */
+#elif defined (WOLFSSL_FRDM_K64)
+    #define UART_PORT       UART0                       /* UART Port */
+    #define UART_TX_PORT    PORTB                       /* UART TX Port */
+    #define UART_TX_PIN     17U                         /* UART TX Pin */
+    #define UART_TX_MUX     0x3                         /* Kinetis UART pin mux */
 #else
     #define UART_PORT       UART4                       /* UART Port */
     #define UART_TX_PORT    PORTE                       /* UART TX Port */
     #define UART_TX_PIN     24U                         /* UART TX Pin */
     #define UART_TX_MUX     0x3                         /* Kinetis UART pin mux */
 #endif
-#define UART_BAUD       115200                          /* UART Baud Rate */
+#define UART_BAUD_RATE      115200                      /* UART Baud Rate */
+
+#ifdef WOLFSSL_FRDM_K64
+    #define UART_BAUD       UART_BAUD_RATE*8
+#else
+    #define UART_BAUD       UART_BAUD_RATE
+#endif
 
 /* Note: You will also need to update the UART clock gate in hw_uart_init (SIM_SCGC1_UART5_MASK) */
 /* Note: TWR-K60 is UART3, PTC17 */
 /* Note: FRDM-K64 is UART4, PTE24 */
+/* Note: FRDM-K64 is UART4, PTE24 or UART0 PTB17 for OpenOCD  (SIM_SCGC4_UART0_MASK)*/
 /* Note: TWR-K64 is UART5, PTE8 */
 /* Note: FRDM-K82F is LPUART0 A2, LPUART4 PTC15 */
 
@@ -130,6 +143,13 @@ static void hw_gpio_init(void)
         | SIM_SCGC5_PORTE_MASK
 #endif
    );
+
+#if 0 /* Debug clock */
+    /* ClockOut on PTC3 */
+    PORTC->PCR[3] = PORT_PCR_MUX(0x05); /* Alt 5 */
+    SIM_SOPT2 |= SIM_SOPT2_CLKOUTSEL(0); /* FlexBus CLKOUT */
+#endif
+
 #endif
 }
 
@@ -143,10 +163,14 @@ static void hw_uart_init(void)
     CLOCK_SetLpuartClock(1); /* MCGPLLCLK */
     DbgConsole_Init((uint32_t)UART_PORT, UART_BAUD, DEBUG_CONSOLE_DEVICE_TYPE_LPUART, SYS_CLK_HZ);
 #else
-    /* Enable UART core clock */
-    /* Note: Remember to update me if UART_PORT changes */
-    SIM->SCGC1 |= SIM_SCGC1_UART4_MASK;
-
+    #ifdef WOLFSSL_FRDM_K64
+        /* Enable UART core clock ONLY for FRDM-K64F */
+        SIM->SCGC4 |= SIM_SCGC4_UART0_MASK;
+    #else
+        /* Enable UART core clock */
+        /* Note: Remember to update me if UART_PORT changes */
+        SIM->SCGC1 |= SIM_SCGC1_UART4_MASK;
+    #endif
     /* Configure UART TX pin */
     UART_TX_PORT->PCR[UART_TX_PIN] = PORT_PCR_MUX(UART_TX_MUX);
 

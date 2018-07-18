@@ -1807,6 +1807,10 @@ AC_ARG_ENABLE([des3],
     [ ENABLED_DES3=no ]
     )
 
+if test "$ENABLED_OPENSSH" = "yes"
+then
+    ENABLED_DES3="yes"
+fi
 
 # IDEA
 AC_ARG_ENABLE([idea],
@@ -2761,6 +2765,18 @@ fi
 
 
 
+# Small Stack - Cache on object
+AC_ARG_ENABLE([smallstackcache],
+    [AS_HELP_STRING([--enable-smallstackcache],[Enable Small Stack Usage Caching (default: disabled)])],
+    [ ENABLED_SMALL_STACK_CACHE=$enableval ],
+    [ ENABLED_SMALL_STACK_CACHE=no ]
+    )
+
+if test "x$ENABLED_SMALL_STACK_CACHE" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SMALL_STACK_CACHE"
+fi
+
 # Small Stack
 AC_ARG_ENABLE([smallstack],
     [AS_HELP_STRING([--enable-smallstack],[Enable Small Stack Usage (default: disabled)])],
@@ -2768,6 +2784,10 @@ AC_ARG_ENABLE([smallstack],
     [ ENABLED_SMALL_STACK=no ]
     )
 
+if test "x$ENABLED_SMALL_STACK_CACHE" = "xyes"
+then
+    ENABLED_SMALL_STACK=yes
+fi
 if test "x$ENABLED_SMALL_STACK" = "xyes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SMALL_STACK"
@@ -4298,9 +4318,9 @@ for option in $OPTION_FLAGS; do
             continue
         fi
 
-        # allow user to igonore system options
+        # allow user to ignore system options
         ignoresys=no
-        if [[[ $noequalsign == _* ]]] ;
+        if test "$noequalsign = _*"
         then
             ignoresys=yes
             echo "#ifndef WOLFSSL_OPTIONS_IGNORE_SYS" >> $OPTION_FILE

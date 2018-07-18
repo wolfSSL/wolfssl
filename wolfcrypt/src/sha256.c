@@ -454,6 +454,10 @@ static int InitSha256(wc_Sha256* sha256)
         if (ret != 0)
             return ret;
 
+    #ifdef WOLFSSL_SMALL_STACK_CACHE
+        sha256->W = NULL;
+    #endif
+
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA256)
         ret = wolfAsync_DevCtxInit(&sha256->asyncDev,
                             WOLFSSL_ASYNC_MARKER_SHA256, sha256->heap, devId);
@@ -518,11 +522,19 @@ static int InitSha256(wc_Sha256* sha256)
         word32 S[8], t0, t1;
         int i;
 
-    #ifdef WOLFSSL_SMALL_STACK
+    #ifdef WOLFSSL_SMALL_STACK_CACHE
+        word32* W = sha256->W;
+        if (W == NULL) {
+            W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE, NULL,
+                                                              DYNAMIC_TYPE_RNG);
+            if (W == NULL)
+                return MEMORY_E;
+            sha256->W = W;
+        }
+    #elif defined(WOLFSSL_SMALL_STACK)
         word32* W;
-
         W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE, NULL,
-            DYNAMIC_TYPE_TMP_BUFFER);
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
         if (W == NULL)
             return MEMORY_E;
     #else
@@ -560,10 +572,9 @@ static int InitSha256(wc_Sha256* sha256)
             sha256->digest[i] += S[i];
         }
 
-    #ifdef WOLFSSL_SMALL_STACK
+    #if defined(WOLFSSL_SMALL_STACK) && !defined(WOLFSSL_SMALL_STACK_CACHE)
         XFREE(W, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
-
         return 0;
     }
 #endif
@@ -2611,6 +2622,10 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2_RORX_Len(wc_Sha256* sha256,
         if (ret != 0)
             return ret;
 
+    #ifdef WOLFSSL_SMALL_STACK_CACHE
+        sha224->W = NULL;
+    #endif
+
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA224)
         ret = wolfAsync_DevCtxInit(&sha224->asyncDev,
                             WOLFSSL_ASYNC_MARKER_SHA224, sha224->heap, devId);
@@ -2682,6 +2697,13 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2_RORX_Len(wc_Sha256* sha256,
         if (sha224 == NULL)
             return;
 
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    if (sha224->W != NULL) {
+        XFREE(sha224->W, NULL, DYNAMIC_TYPE_RNG);
+        sha224->W = NULL;
+    }
+#endif
+
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA224)
         wolfAsync_DevCtxFree(&sha224->asyncDev, WOLFSSL_ASYNC_MARKER_SHA224);
     #endif /* WOLFSSL_ASYNC_CRYPT */
@@ -2698,6 +2720,13 @@ void wc_Sha256Free(wc_Sha256* sha256)
 {
     if (sha256 == NULL)
         return;
+
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    if (sha256->W != NULL) {
+        XFREE(sha256->W, NULL, DYNAMIC_TYPE_RNG);
+        sha256->W = NULL;
+    }
+#endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA256)
     wolfAsync_DevCtxFree(&sha256->asyncDev, WOLFSSL_ASYNC_MARKER_SHA256);
@@ -2721,6 +2750,7 @@ void wc_Sha256Free(wc_Sha256* sha256)
         ret = wc_Sha224Copy(sha224, &tmpSha224);
         if (ret == 0) {
             ret = wc_Sha224Final(&tmpSha224, hash);
+            wc_Sha224Free(&tmpSha224);
         }
         return ret;
     }
@@ -2732,6 +2762,9 @@ void wc_Sha256Free(wc_Sha256* sha256)
             return BAD_FUNC_ARG;
 
         XMEMCPY(dst, src, sizeof(wc_Sha224));
+    #ifdef WOLFSSL_SMALL_STACK_CACHE
+        dst->W = NULL;
+    #endif
 
     #ifdef WOLFSSL_ASYNC_CRYPT
         ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);
@@ -2752,6 +2785,7 @@ int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)
     ret = wc_Sha256Copy(sha256, &tmpSha256);
     if (ret == 0) {
         ret = wc_Sha256Final(&tmpSha256, hash);
+        wc_Sha256Free(&tmpSha256);
     }
     return ret;
 }
@@ -2763,6 +2797,9 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
         return BAD_FUNC_ARG;
 
     XMEMCPY(dst, src, sizeof(wc_Sha256));
+#ifdef WOLFSSL_SMALL_STACK_CACHE
+    dst->W = NULL;
+#endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
     ret = wolfAsync_DevCopy(&src->asyncDev, &dst->asyncDev);

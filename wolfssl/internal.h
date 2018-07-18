@@ -1032,6 +1032,34 @@ enum {
 #endif /* WOLFSSL_MAX_MTU */
 
 
+/* set minimum DH key size allowed */
+#ifndef WOLFSSL_MIN_DHKEY_BITS
+    #ifdef WOLFSSL_MAX_STRENGTH
+        #define WOLFSSL_MIN_DHKEY_BITS 2048
+    #else
+        #define WOLFSSL_MIN_DHKEY_BITS 1024
+    #endif
+#endif
+#if (WOLFSSL_MIN_DHKEY_BITS % 8)
+    #error DH minimum bit size must be multiple of 8
+#endif
+#if (WOLFSSL_MIN_DHKEY_BITS > 16000)
+    #error DH minimum bit size must not be greater than 16000
+#endif
+#define MIN_DHKEY_SZ (WOLFSSL_MIN_DHKEY_BITS / 8)
+/* set maximum DH key size allowed */
+#ifndef WOLFSSL_MAX_DHKEY_BITS
+    #define WOLFSSL_MAX_DHKEY_BITS 4096
+#endif
+#if (WOLFSSL_MAX_DHKEY_BITS % 8)
+    #error DH maximum bit size must be multiple of 8
+#endif
+#if (WOLFSSL_MAX_DHKEY_BITS > 16000)
+    #error DH maximum bit size must not be greater than 16000
+#endif
+#define MAX_DHKEY_SZ (WOLFSSL_MAX_DHKEY_BITS / 8)
+
+
 
 enum Misc {
     CIPHER_BYTE = 0x00,            /* Default ciphers */
@@ -1089,7 +1117,8 @@ enum Misc {
     MAX_COMP_EXTRA  = 1024,     /* max compression extra */
     MAX_MTU         = WOLFSSL_MAX_MTU,     /* max expected MTU */
     MAX_UDP_SIZE    = 8192 - 100, /* was MAX_MTU - 100 */
-    MAX_DH_SZ       = 1036,     /* 4096 p, pub, g + 2 byte size for each */
+    MAX_DH_SZ       = (MAX_DHKEY_SZ * 2) + 12,
+                                /* 4096 p, pub, g + 2 byte size for each */
     MAX_STR_VERSION = 8,        /* string rep of protocol version */
 
     PAD_MD5        = 48,       /* pad length for finished */
@@ -1103,7 +1132,8 @@ enum Misc {
     VERIFY_HEADER  =  2,       /* always use 2 bytes      */
     EXTS_SZ        =  2,       /* always use 2 bytes      */
     EXT_ID_SZ      =  2,       /* always use 2 bytes      */
-    MAX_DH_SIZE    = 513,      /* 4096 bit plus possible leading 0 */
+    MAX_DH_SIZE    = MAX_DHKEY_SZ+1,
+                               /* Max size plus possible leading 0 */
     NAMED_DH_MASK  = 0x100,    /* Named group mask for DH parameters  */
     SESSION_HINT_SZ = 4,       /* session timeout hint */
     SESSION_ADD_SZ = 4,        /* session age add */
@@ -1151,9 +1181,9 @@ enum Misc {
     DTLS_POOL_SZ             = 255,/* allowed number of list items in TX pool */
     DTLS_EXPORT_PRO          = 165,/* wolfSSL protocol for serialized session */
     DTLS_EXPORT_VERSION      = 4,  /* wolfSSL version for serialized session */
-    DTLS_EXPORT_OPT_SZ       = 58, /* amount of bytes used from Options */
+    DTLS_EXPORT_OPT_SZ       = 60, /* amount of bytes used from Options */
     DTLS_EXPORT_VERSION_3    = 3,  /* wolfSSL version before TLS 1.3 addition */
-    DTLS_EXPORT_OPT_SZ_3     = 57, /* amount of bytes used from Options */
+    DTLS_EXPORT_OPT_SZ_3     = 59, /* amount of bytes used from Options */
     DTLS_EXPORT_KEY_SZ       = 325 + (DTLS_SEQ_SZ * 2),
                                    /* max amount of bytes used from Keys */
     DTLS_EXPORT_MIN_KEY_SZ   = 78 + (DTLS_SEQ_SZ * 2),
@@ -1351,23 +1381,6 @@ enum Misc {
     #error RSA minimum bit size must be a multiple of 8
 #endif
 #define MIN_RSAKEY_SZ (WOLFSSL_MIN_RSA_BITS / 8)
-
-/* set minimum DH key size allowed */
-#ifndef WOLFSSL_MIN_DHKEY_BITS
-    #ifdef WOLFSSL_MAX_STRENGTH
-        #define WOLFSSL_MIN_DHKEY_BITS 2048
-    #else
-        #define WOLFSSL_MIN_DHKEY_BITS 1024
-    #endif
-#endif
-#if (WOLFSSL_MIN_DHKEY_BITS % 8)
-    #error DH minimum bit size must be multiple of 8
-#endif
-#if (WOLFSSL_MIN_DHKEY_BITS > 16000)
-    #error DH minimum bit size must not be greater than 16000
-#endif
-#define MIN_DHKEY_SZ (WOLFSSL_MIN_DHKEY_BITS / 8)
-
 
 #ifdef SESSION_INDEX
 /* Shift values for making a session index */
@@ -2438,6 +2451,7 @@ struct WOLFSSL_CTX {
 #endif
 #ifndef NO_DH
     word16      minDhKeySz;       /* minimum DH key size */
+    word16      maxDhKeySz;       /* maximum DH key size */
 #endif
 #ifndef NO_RSA
     short       minRsaKeySz;      /* minimum RSA key size */
@@ -2546,9 +2560,10 @@ struct WOLFSSL_CTX {
 #endif
 #ifdef HAVE_PK_CALLBACKS
     #ifdef HAVE_ECC
+        CallbackEccKeyGen EccKeyGenCb;  /* User EccKeyGen Callback Handler */
         CallbackEccSign   EccSignCb;    /* User EccSign   Callback handler */
         CallbackEccVerify EccVerifyCb;  /* User EccVerify Callback handler */
-        CallbackEccSharedSecret EccSharedSecretCb;     /* User EccVerify Callback handler */
+        CallbackEccSharedSecret EccSharedSecretCb; /* User EccVerify Callback handler */
         #ifdef HAVE_ED25519
             /* User Ed25519Sign   Callback handler */
             CallbackEd25519Sign   Ed25519SignCb;
@@ -2556,7 +2571,9 @@ struct WOLFSSL_CTX {
             CallbackEd25519Verify Ed25519VerifyCb;
         #endif
         #ifdef HAVE_CURVE25519
-            /* User EccSharedSecret Callback handler */
+            /* User X25519 KeyGen Callback Handler */
+            CallbackX25519KeyGen X25519KeyGenCb;
+            /* User X25519 SharedSecret Callback handler */
             CallbackX25519SharedSecret X25519SharedSecretCb;
         #endif
     #endif /* HAVE_ECC */
@@ -3137,6 +3154,7 @@ typedef struct Options {
 #endif
 #ifndef NO_DH
     word16          minDhKeySz;         /* minimum DH key size */
+    word16          maxDhKeySz;         /* minimum DH key size */
     word16          dhKeySz;            /* actual DH key size */
 #endif
 #ifndef NO_RSA
@@ -3712,15 +3730,17 @@ struct WOLFSSL {
 #endif
 #ifdef HAVE_PK_CALLBACKS
     #ifdef HAVE_ECC
-        void* EccSignCtx;     /* Ecc Sign   Callback Context */
-        void* EccVerifyCtx;   /* Ecc Verify Callback Context */
-        void* EccSharedSecretCtx; /* Ecc Pms Callback Context */
+        void* EccKeyGenCtx;              /* EccKeyGen  Callback Context */
+        void* EccSignCtx;                /* Ecc Sign   Callback Context */
+        void* EccVerifyCtx;              /* Ecc Verify Callback Context */
+        void* EccSharedSecretCtx;        /* Ecc Pms    Callback Context */
         #ifdef HAVE_ED25519
-            void* Ed25519SignCtx;     /* ED25519 Sign   Callback Context */
-            void* Ed25519VerifyCtx;   /* ED25519 Verify Callback Context */
+            void* Ed25519SignCtx;        /* ED25519 Sign   Callback Context */
+            void* Ed25519VerifyCtx;      /* ED25519 Verify Callback Context */
         #endif
         #ifdef HAVE_CURVE25519
-            void* X25519SharedSecretCtx; /* X25519 Pms Callback Context */
+            void* X25519KeyGenCtx;       /* X25519 KeyGen Callback Context */
+            void* X25519SharedSecretCtx; /* X25519 Pms    Callback Context */
         #endif
     #endif /* HAVE_ECC */
     #ifndef NO_DH
@@ -3915,44 +3935,41 @@ WOLFSSL_LOCAL int wolfSSL_GetMaxRecordSize(WOLFSSL* ssl, int maxFragment);
     #ifndef NO_RSA
         #ifdef WC_RSA_PSS
             WOLFSSL_LOCAL int CheckRsaPssPadding(const byte* plain, word32 plainSz,
-                                                 byte* out, word32 sigSz,
-                                                 enum wc_HashType hashType);
-            WOLFSSL_LOCAL int ConvertHashPss(int hashAlgo, enum wc_HashType* hashType, int* mgf);
+                byte* out, word32 sigSz, enum wc_HashType hashType);
+            WOLFSSL_LOCAL int ConvertHashPss(int hashAlgo, 
+                enum wc_HashType* hashType, int* mgf);
         #endif
         WOLFSSL_LOCAL int VerifyRsaSign(WOLFSSL* ssl, byte* verifySig,
             word32 sigSz, const byte* plain, word32 plainSz, int sigAlgo,
-            int hashAlgo, RsaKey* key, DerBuffer* keyBufInfo, void* ctx);
+            int hashAlgo, RsaKey* key, DerBuffer* keyBufInfo);
         WOLFSSL_LOCAL int RsaSign(WOLFSSL* ssl, const byte* in, word32 inSz,
             byte* out, word32* outSz, int sigAlgo, int hashAlgo, RsaKey* key,
-            DerBuffer* keyBufInfo, void* ctx);
+            DerBuffer* keyBufInfo);
         WOLFSSL_LOCAL int RsaVerify(WOLFSSL* ssl, byte* in, word32 inSz,
             byte** out, int sigAlgo, int hashAlgo, RsaKey* key,
-            buffer* keyBufInfo, void* ctx);
+            buffer* keyBufInfo);
         WOLFSSL_LOCAL int RsaDec(WOLFSSL* ssl, byte* in, word32 inSz, byte** out,
-            word32* outSz, RsaKey* key, DerBuffer* keyBufInfo, void* ctx);
+            word32* outSz, RsaKey* key, DerBuffer* keyBufInfo);
         WOLFSSL_LOCAL int RsaEnc(WOLFSSL* ssl, const byte* in, word32 inSz, byte* out,
-            word32* outSz, RsaKey* key, buffer* keyBufInfo, void* ctx);
+            word32* outSz, RsaKey* key, buffer* keyBufInfo);
     #endif /* !NO_RSA */
 
     #ifdef HAVE_ECC
         WOLFSSL_LOCAL int EccSign(WOLFSSL* ssl, const byte* in, word32 inSz,
-            byte* out, word32* outSz, ecc_key* key, DerBuffer* keyBufInfo,
-            void* ctx);
+            byte* out, word32* outSz, ecc_key* key, DerBuffer* keyBufInfo);
         WOLFSSL_LOCAL int EccVerify(WOLFSSL* ssl, const byte* in, word32 inSz,
-            const byte* out, word32 outSz, ecc_key* key, buffer* keyBufInfo,
-            void* ctx);
+            const byte* out, word32 outSz, ecc_key* key, buffer* keyBufInfo);
         WOLFSSL_LOCAL int EccSharedSecret(WOLFSSL* ssl, ecc_key* priv_key,
             ecc_key* pub_key, byte* pubKeyDer, word32* pubKeySz, byte* out,
-            word32* outlen, int side, void* ctx);
+            word32* outlen, int side);
     #endif /* HAVE_ECC */
     #ifdef HAVE_ED25519
         WOLFSSL_LOCAL int Ed25519CheckPubKey(WOLFSSL* ssl);
         WOLFSSL_LOCAL int Ed25519Sign(WOLFSSL* ssl, const byte* in, word32 inSz,
-            byte* out, word32* outSz, ed25519_key* key, DerBuffer* keyBufInfo,
-            void* ctx);
+            byte* out, word32* outSz, ed25519_key* key, DerBuffer* keyBufInfo);
         WOLFSSL_LOCAL int Ed25519Verify(WOLFSSL* ssl, const byte* in,
             word32 inSz, const byte* msg, word32 msgSz, ed25519_key* key,
-            buffer* keyBufInfo, void* ctx);
+            buffer* keyBufInfo);
     #endif /* HAVE_ED25519 */
 
 

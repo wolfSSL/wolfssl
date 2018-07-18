@@ -76,6 +76,9 @@
 /* Uncomment next line if building wolfSSL for LSR */
 /* #define WOLFSSL_LSR */
 
+/* Uncomment next line if building for Freescale Classic MQX version 4.0 */
+/* #define FREESCALE_MQX_4_0 */
+
 /* Uncomment next line if building for Freescale Classic MQX/RTCS/MFS */
 /* #define FREESCALE_MQX */
 
@@ -85,7 +88,8 @@
 /* Uncomment next line if building for Freescale KSDK Bare Metal */
 /* #define FREESCALE_KSDK_BM */
 
-/* Uncomment next line if building for Freescale KSDK FreeRTOS (old name FREESCALE_FREE_RTOS) */
+/* Uncomment next line if building for Freescale KSDK FreeRTOS, */
+/* (old name FREESCALE_FREE_RTOS) */
 /* #define FREESCALE_KSDK_FREERTOS */
 
 /* Uncomment next line if using STM32F2 */
@@ -709,6 +713,11 @@ extern void uITRON4_free(void *p) ;
     #define TFM_TIMING_RESISTANT
 #endif
 
+#ifdef FREESCALE_MQX_4_0
+    /* use normal Freescale MQX port, but with minor changes for 4.0 */
+    #define FREESCALE_MQX
+#endif
+
 #ifdef FREESCALE_MQX
     #define FREESCALE_COMMON
     #include "mqx.h"
@@ -725,10 +734,12 @@ extern void uITRON4_free(void *p) ;
         #include "mutex.h"
     #endif
 
-    #define XMALLOC_OVERRIDE
-    #define XMALLOC(s, h, t)    (void *)_mem_alloc_system((s))
-    #define XFREE(p, h, t)      {void* xp = (p); if ((xp)) _mem_free((xp));}
-    /* Note: MQX has no realloc, using fastmath above */
+    #if !defined(XMALLOC_OVERRIDE) && !defined(XMALLOC_USER)
+        #define XMALLOC_OVERRIDE
+        #define XMALLOC(s, h, t)    (void *)_mem_alloc_system((s))
+        #define XFREE(p, h, t)      {void* xp = (p); if ((xp)) _mem_free((xp));}
+        /* Note: MQX has no realloc, using fastmath above */
+    #endif
 #endif
 
 #ifdef FREESCALE_KSDK_MQX
@@ -1256,7 +1267,6 @@ extern void uITRON4_free(void *p) ;
         #else
             #define TFM_TIMING_RESISTANT
             #define NO_WOLFSSL_DIR
-            #define NO_FILESYSTEM
             #define NO_WRITEV
             #define NO_MAIN_DRIVER
             #define WOLFSSL_LOG_PRINTF
@@ -1264,9 +1274,6 @@ extern void uITRON4_free(void *p) ;
         #endif
     #else
         #define HAVE_ECC
-        #define ECC_TIMING_RESISTANT
-        #define TFM_TIMING_RESISTANT
-        #define NO_FILESYSTEM
         #define NO_WRITEV
         #define NO_MAIN_DRIVER
         #define USER_TICKS
@@ -1276,6 +1283,10 @@ extern void uITRON4_free(void *p) ;
     #if !defined(HAVE_FIPS) && !defined(NO_RSA)
         #define WC_RSA_BLINDING
     #endif
+	
+    #define NO_FILESYSTEM
+    #define ECC_TIMING_RESISTANT
+    #define TFM_TIMING_RESISTANT
     #define SINGLE_THREADED
     #define NO_ASN_TIME /* can not use headers such as windows.h */
     #define HAVE_AESGCM

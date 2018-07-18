@@ -162,7 +162,7 @@ static int NonBlockingSSL_Connect(WOLFSSL* ssl)
 
 static void ShowCiphers(void)
 {
-    char ciphers[4096];
+    static char ciphers[4096];
 
     int ret = wolfSSL_get_ciphers(ciphers, (int)sizeof(ciphers));
 
@@ -313,7 +313,12 @@ static int ClientBenchmarkConnections(WOLFSSL_CTX* ctx, char* host, word16 port,
             }
 
     #ifdef WOLFSSL_TLS13
-            if (version >= 4 && resumeSession && !benchResume) {
+        #ifndef NO_SESSION_CACHE
+            if (version >= 4 && resumeSession && !benchResume)
+        #else
+            if (version >= 4 && resumeSession)
+        #endif
+            {
                 if (wolfSSL_write(ssl, msg, sizeof(msg)-1) <= 0)
                     err_sys("SSL_write failed");
 
