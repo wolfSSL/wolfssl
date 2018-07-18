@@ -62,11 +62,17 @@ typedef struct t_atcert {
 extern t_atcert atcert;
 
 
+typedef int (*atmel_ecc_allocator_cb)(void);
+typedef void (*atmel_ecc_deallocator_cb)(void);
+
+
 /* Amtel port functions */
 void atmel_init(void);
 void atmel_finish(void);
 int atmel_get_random_number(uint32_t count, uint8_t* rand_out);
 long atmel_get_curr_time_and_date(long* tm);
+
+int atmel_set_ecc_slot_allocator(atmel_ecc_allocator_cb alloc, atmel_ecc_deallocator_cb dealloc);
 
 int atmel_ecc_alloc(void);
 void atmel_ecc_free(int slot);

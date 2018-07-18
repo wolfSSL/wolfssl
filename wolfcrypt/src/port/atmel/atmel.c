@@ -46,8 +46,25 @@ static bool mAtcaInitDone = 0;
 
 #ifdef WOLFSSL_ATECC508A
 
+#ifndef ATECC_SLOT_I2C_ENC
+    #define ATECC_SLOT_I2C_ENC 0x04 /* Slot holding symmetric encryption key */
+#endif
+
+
+/**
+ * \brief User-supplied ECC slot allocator.
+ *
+ * User code can supply a custom ECC slot allocator by calling
+ * \a atmel_set_ecc_slot_allocator().
+ */
+
+static atmel_ecc_allocator_cb gSlotAlloc;
+static atmel_ecc_allocator_cb gSlotDealloc;
+
 /* List of available key slots */
 static int mSlotList[ATECC_MAX_SLOT+1];
+
+
 
 /**
  * \brief Structure to contain certificate information.
@@ -126,11 +143,51 @@ long atmel_get_curr_time_and_date(long* tm)
 
 #ifdef WOLFSSL_ATECC508A
 
+/**
+ * \brief Set custom ECC slot allocator & deallocator.
+ *
+ * Allocator shall return the 0-based number of an Atmel slot which
+ * is available for use by WolfSSL library for ECC.  Deallocator shall
+ * make the allocated slot passed to it available for allocation again.
+ * No check is performed on the value returned by the allocator.
+ *
+ * Allocator and deallocator may be set to the default by passing NULL for
+ * both function pointers.
+ *
+ * Allocator and deallocator must be set at the same time (both pointers must
+ * be set or NULL).
+ *
+ * \param allocator Pointer to function to allocate ECC slots.
+ * \param deallocator Pointer to function to deallocate ECC slot.
+ *
+ * \retval 0 Success.
+ * \retval nonzero Exactly one pointer is NULL.
+ */
+int atmel_set_ecc_slot_allocator(atmel_ecc_allocator_cb alloc,
+                                 atmel_ecc_deallocator_cb dealloc)
+{
+    /* Ensure both pointers are either NULL or not NULL */
+    if ((allocator == NULL) || (deallocator == NULL)) {
+        return -1;
+    }
+
+    gSlotAlloc   = alloc;
+    gSlotDealloc = dealloc;
+    return 0;
+}
+
+
 /* Function to allocate new slot number */
 int atmel_ecc_alloc(void)
 {
-    int i, slot = -1;
-    for (i=0; i <= ATECC_MAX_SLOT; i++) {
+    int slot = ATECC_INVALID_SLOT;
+
+    if (gSlotAlloc != NULL) {
+        slot = gSlotAlloc();
+    }
+    else {
+        int i;
+        for (i=0; i <= ATECC_MAX_SLOT; i++) {
         /* Find free slot */
         if (mSlotList[i] == ATECC_INVALID_SLOT) {
             mSlotList[i] = i;
@@ -145,17 +202,25 @@ int atmel_ecc_alloc(void)
 /* Function to return slot number to avail list */
 void atmel_ecc_free(int slot)
 {
-    if (slot >= 0 && slot <= ATECC_MAX_SLOT) {
-        /* Mark slot of free */
-        mSlotList[slot] = ATECC_INVALID_SLOT;
+    if (gSlotDealloc) {
+        gSlotDealloc(slot);
+    }
+    else {
+        if (slot >= 0 && slot <= ATECC_MAX_SLOT) {
+            /* Mark slot of free */
+            mSlotList[slot] = ATECC_INVALID_SLOT;
+        }
     }
 }
 
 
 /**
  * \brief Give enc key to read pms.
+ *
+ * This function must be implemented by the user to return the host's shared
+ * symmetric key.
  */
-static int atmel_set_enc_key(uint8_t* enckey, int16_t keysize)
+static int atmel_get_host_enc_key(uint8_t* enckey, int16_t keysize)
 {
     if (enckey == NULL || keysize != ATECC_KEY_SIZE) {
         return -1;
@@ -175,14 +240,17 @@ static int atmel_init_enc_key(void)
 	uint8_t ret = 0;
 	uint8_t read_key[ATECC_KEY_SIZE] = { 0 };
 
+    /* Write default key to I2C encryption key slot */
 	XMEMSET(read_key, 0xFF, sizeof(read_key));
-	ret = atcab_write_bytes_slot(TLS_SLOT_ENC_PARENT, 0, read_key, sizeof(read_key));
+    ret = atcab_write_bytes_zone(ATCA_ZONE_DATA, ATECC_SLOT_I2C_ENC, 0,
+        read_key, sizeof(read_key));
 	if (ret != ATCA_SUCCESS) {
 		WOLFSSL_MSG("Failed to write key");
 		return -1;
 	}
 
-	ret = atcatlsfn_set_get_enckey(atmel_set_enc_key);
+    /* Set callback to retrieve host I2C encryption key. */
+    ret = atcatlsfn_set_get_enckey(atmel_get_host_enc_key);
 	if (ret != ATCA_SUCCESS) {
 		WOLFSSL_MSG("Failed to set enckey");
 		return -1;
@@ -213,10 +281,11 @@ void atmel_init(void)
         /* Init the free slot list */
         for (i=0; i<=ATECC_MAX_SLOT; i++) {
             if (i == 0 || i == 2 || i == 7) {
-                /* ECC Slots (mark avail) */
+                /* ECC Slots (mark available) */
                 mSlotList[i] = ATECC_INVALID_SLOT;
             }
             else {
+                /* Mark unavailable */
                 mSlotList[i] = i;
             }
         }
@@ -225,9 +294,9 @@ void atmel_init(void)
         atcatls_init(&cfg_ateccx08a_i2c_default);
 
         /* Init the I2C pipe encryption key. */
-        /* Value is generated/stored during pair for the ATECC508A and stored
-            on micro flash */
-        /* For this example its a fixed value */
+        /* Value is generated/stored during pair for the ATECC508A and also
+         * stored on the host */
+        /* For this example it's a fixed value */
 		if (atmel_init_enc_key() != ATCA_SUCCESS) {
 			WOLFSSL_MSG("Failed to initialize transport key");
 		}
