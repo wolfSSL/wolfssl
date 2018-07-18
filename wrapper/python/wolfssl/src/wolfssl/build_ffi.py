@@ -32,7 +32,7 @@ ffi.set_source(
     #include <wolfssl/options.h>
     #include <wolfssl/ssl.h>
 
-    void wolfSSL_Free(void *ptr, void* heap, int type);
+    void wolfSSL_Free(void *ptr);
     """,
     include_dirs=["/usr/local/include"],
     library_dirs=["/usr/local/lib"],
@@ -44,7 +44,7 @@ ffi.cdef(
     typedef unsigned char byte;
     typedef unsigned int  word32;
 
-    void  wolfSSL_Free(void*, void*, int);
+    void  wolfSSL_Free(void*);
 
     void* wolfSSLv23_server_method(void);
     void* wolfSSLv23_client_method(void);
