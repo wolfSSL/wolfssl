@@ -270,6 +270,7 @@ int  aes256_test(void);
 int  cmac_test(void);
 int  poly1305_test(void);
 int  aesgcm_test(void);
+int  aesgcm_default_test(void);
 int  gmac_test(void);
 int  aesccm_test(void);
 int  aeskeywrap_test(void);
@@ -751,10 +752,19 @@ initDefaultName();
         printf( "AES256   test passed!\n");
 #endif
 #ifdef HAVE_AESGCM
+    #ifndef WOLFSSL_AFALG
     if ( (ret = aesgcm_test()) != 0)
         return err_sys("AES-GCM  test failed!\n", ret);
     else
-        printf( "AES-GCM  test passed!\n");
+    #endif
+    {
+	if ((ret = aesgcm_default_test()) != 0) {
+        	return err_sys("AES-GCM  test failed!\n", ret);
+	}
+	else {
+        	printf( "AES-GCM  test passed!\n");
+	}
+    }
 #endif
 
 #if defined(HAVE_AESCCM) && defined(WOLFSSL_AES_128)
@@ -2045,8 +2055,9 @@ int sha256_test(void)
     for (i = 0; i < times; ++i) {
         ret = wc_Sha256Update(&sha, (byte*)test_sha[i].input,
             (word32)test_sha[i].inLen);
-        if (ret != 0)
+        if (ret != 0) {
             ERROR_OUT(-2202 - i, exit);
+	}
         ret = wc_Sha256GetHash(&sha, hashcopy);
         if (ret != 0)
             ERROR_OUT(-2203 - i, exit);
@@ -6542,6 +6553,173 @@ int aes256_test(void)
 
 
 #ifdef HAVE_AESGCM
+
+static int aesgcm_default_test_helper(byte* key, int keySz, byte* iv, int ivSz,
+		byte* plain, int plainSz, byte* cipher, int cipherSz,
+		byte* aad, int aadSz, byte* tag, int tagSz)
+{
+Aes enc;
+Aes dec;
+
+    byte resultT[AES_BLOCK_SIZE];
+    byte resultP[AES_BLOCK_SIZE * 3];
+    byte resultC[AES_BLOCK_SIZE * 3];
+    int  result;
+
+    XMEMSET(resultT, 0, sizeof(resultT));
+    XMEMSET(resultC, 0, sizeof(resultC));
+    XMEMSET(resultP, 0, sizeof(resultP));
+
+    if (wc_AesInit(&enc, HEAP_HINT, devId) != 0) {
+        return -5700;
+    }
+
+    result = wc_AesGcmSetKey(&enc, key, keySz);
+    if (result != 0)
+        return -4701;
+
+    /* AES-GCM encrypt and decrypt both use AES encrypt internally */
+    result = wc_AesGcmEncrypt(&enc, resultC, plain, plainSz, iv, ivSz,
+                                        resultT, tagSz, aad, aadSz);
+
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    result = wc_AsyncWait(result, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (result != 0)
+        return -4702;
+    if (XMEMCMP(cipher, resultC, cipherSz))
+        return -4703;
+    if (XMEMCMP(tag, resultT, tagSz))
+        return -4704;
+
+    wc_AesFree(&enc);
+
+#ifdef HAVE_AES_DECRYPT
+    result = wc_AesGcmSetKey(&dec, key, keySz);
+    if (result != 0)
+        return -4705;
+
+    result = wc_AesGcmDecrypt(&dec, resultP, resultC, cipherSz,
+                      iv, ivSz, resultT, tagSz, aad, aadSz);
+#if defined(WOLFSSL_ASYNC_CRYPT)
+    result = wc_AsyncWait(result, &dec.asyncDev, WC_ASYNC_FLAG_NONE);
+#endif
+    if (result != 0)
+        return -4706;
+    if (XMEMCMP(plain, resultP, plainSz))
+        return -4707;
+
+    wc_AesFree(&dec);
+#endif /* HAVE_AES_DECRYPT */
+
+    return 0;
+}
+
+
+/* tests that only use 12 byte IV and 16 or less byte AAD
+ * test vectors are from NIST SP 800-38D
+ * https://csrc.nist.gov/Projects/Cryptographic-Algorithm-Validation-Program/CAVP-TESTING-BLOCK-CIPHER-MODES*/
+int aesgcm_default_test(void)
+{
+byte key1[] = {
+0x29, 0x8e, 0xfa, 0x1c, 0xcf, 0x29, 0xcf, 0x62,
+0xae, 0x68, 0x24, 0xbf, 0xc1, 0x95, 0x57, 0xfc 
+};
+
+byte iv1[] = {
+0x6f, 0x58, 0xa9, 0x3f, 0xe1, 0xd2, 0x07, 0xfa,
+0xe4, 0xed, 0x2f, 0x6d
+};
+
+byte plain1[] = {
+0xcc, 0x38, 0xbc, 0xcd, 0x6b, 0xc5, 0x36, 0xad,
+0x91, 0x9b, 0x13, 0x95, 0xf5, 0xd6, 0x38, 0x01,
+0xf9, 0x9f, 0x80, 0x68, 0xd6, 0x5c, 0xa5, 0xac,
+0x63, 0x87, 0x2d, 0xaf, 0x16, 0xb9, 0x39, 0x01
+};
+
+byte aad1[] = {
+0x02, 0x1f, 0xaf, 0xd2, 0x38, 0x46, 0x39, 0x73,
+0xff, 0xe8, 0x02, 0x56, 0xe5, 0xb1, 0xc6, 0xb1
+};	
+
+byte cipher1[] = {
+0xdf, 0xce, 0x4e, 0x9c, 0xd2, 0x91, 0x10, 0x3d,
+0x7f, 0xe4, 0xe6, 0x33, 0x51, 0xd9, 0xe7, 0x9d,
+0x3d, 0xfd, 0x39, 0x1e, 0x32, 0x67, 0x10, 0x46,
+0x58, 0x21, 0x2d, 0xa9, 0x65, 0x21, 0xb7, 0xdb
+};
+
+byte tag1[] = {
+0x54, 0x24, 0x65, 0xef, 0x59, 0x93, 0x16, 0xf7,
+0x3a, 0x7a, 0x56, 0x05, 0x09, 0xa2, 0xd9, 0xf2
+};
+
+
+byte key2[] = {
+0x01, 0x6d, 0xbb, 0x38, 0xda, 0xa7, 0x6d, 0xfe,
+0x7d, 0xa3, 0x84, 0xeb, 0xf1, 0x24, 0x03, 0x64
+};
+
+byte iv2[] = {
+0x07, 0x93, 0xef, 0x3a, 0xda, 0x78, 0x2f, 0x78,
+0xc9, 0x8a, 0xff, 0xe3
+};
+
+byte plain2[] = {
+0x4b, 0x34, 0xa9, 0xec, 0x57, 0x63, 0x52, 0x4b,
+0x19, 0x1d, 0x56, 0x16, 0xc5, 0x47, 0xf6, 0xb7
+};
+
+byte cipher2[] = {
+0x60, 0x9a, 0xa3, 0xf4, 0x54, 0x1b, 0xc0, 0xfe,
+0x99, 0x31, 0xda, 0xad, 0x2e, 0xe1, 0x5d, 0x0c
+};
+
+byte tag2[] = {
+0x33, 0xaf, 0xec, 0x59, 0xc4, 0x5b, 0xaf, 0x68,
+0x9a, 0x5e, 0x1b, 0x13, 0xae, 0x42, 0x36, 0x19
+};
+
+byte key3[] = {
+0xb0, 0x1e, 0x45, 0xcc, 0x30, 0x88, 0xaa, 0xba,
+0x9f, 0xa4, 0x3d, 0x81, 0xd4, 0x81, 0x82, 0x3f
+};
+
+byte iv3[] = {
+0x5a, 0x2c, 0x4a, 0x66, 0x46, 0x87, 0x13, 0x45,
+0x6a, 0x4b, 0xd5, 0xe1
+};
+
+byte tag3[] = {
+0x01, 0x42, 0x80, 0xf9, 0x44, 0xf5, 0x3c, 0x68,
+0x11, 0x64, 0xb2, 0xff
+};
+
+int ret;
+	ret = aesgcm_default_test_helper(key1, sizeof(key1), iv1, sizeof(iv1),
+		plain1, sizeof(plain1), cipher1, sizeof(cipher1),
+		aad1, sizeof(aad1), tag1, sizeof(tag1));
+	if (ret != 0) {
+		return ret;
+	}
+
+	ret = aesgcm_default_test_helper(key2, sizeof(key2), iv2, sizeof(iv2),
+		plain2, sizeof(plain2), cipher2, sizeof(cipher2),
+		NULL, 0, tag2, sizeof(tag2));
+	if (ret != 0) {
+		return ret;
+	}
+	ret = aesgcm_default_test_helper(key3, sizeof(key3), iv3, sizeof(iv3),
+		NULL, 0, NULL, 0,
+		NULL, 0, tag3, sizeof(tag3));
+	if (ret != 0) {
+		return ret;
+	}
+
+	return 0;
+}
+
 int aesgcm_test(void)
 {
     Aes enc;

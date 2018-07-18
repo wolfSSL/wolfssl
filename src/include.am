@@ -148,6 +148,10 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/sha256.c
 endif
 endif
 
+if BUILD_AFALG
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/af_alg/afalg_hash.c
+endif
+
 if BUILD_WOLFEVENT
 src_libwolfssl_la_SOURCES += wolfcrypt/src/wolfevent.c
 endif
@@ -192,6 +196,9 @@ if BUILD_AES
 src_libwolfssl_la_SOURCES += wolfcrypt/src/aes.c
 if BUILD_ARMASM
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/arm/armv8-aes.c
+endif
+if BUILD_AFALG
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/af_alg/afalg_aes.c
 endif
 endif
 endif
@@ -373,6 +380,10 @@ endif
 
 if BUILD_IDEA
 src_libwolfssl_la_SOURCES += wolfcrypt/src/idea.c
+endif
+
+if BUILD_AFALG
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/af_alg/wc_afalg.c
 endif
 
 if !BUILD_CRYPTONLY

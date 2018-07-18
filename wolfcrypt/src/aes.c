@@ -726,6 +726,9 @@
             wc_AesEncryptDirect(aes, outBlock, inBlock);
             return 0;
         }
+
+#elif defined(WOLFSSL_AFALG)
+
 #else
 
     /* using wolfCrypt software AES implementation */
@@ -1936,6 +1939,9 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 #elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES)
       /* implemented in wolfcrypt/src/port/caam/caam_aes.c */
 
+#elif defined(WOLFSSL_AFALG)
+    /* implemented in wolfcrypt/src/port/af_alg/afalg_aes.c */
+
 #else
     static int wc_AesSetKeyLocal(Aes* aes, const byte* userKey, word32 keylen,
                 const byte* iv, int dir)
@@ -2252,6 +2258,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
     #elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES)
         /* implemented in wolfcrypt/src/port/caam/caam_aes.c */
+
+    #elif defined(WOLFSSL_AFALG)
+        /* implemented in wolfcrypt/src/port/af_alg/afalg_aes.c */
 
     #else
         /* Allow direct access to one block encrypt */
@@ -2775,6 +2784,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES)
       /* implemented in wolfcrypt/src/port/caam/caam_aes.c */
 
+#elif defined(WOLFSSL_AFALG)
+    /* implemented in wolfcrypt/src/port/af_alg/afalg_aes.c */
+
 #else
 
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
@@ -3096,6 +3108,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     #elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES)
         /* implemented in wolfcrypt/src/port/caam/caam_aes.c */
 
+    #elif defined(WOLFSSL_AFALG)
+        /* implemented in wolfcrypt/src/port/af_alg/afalg_aes.c */
+
     #else
 
         /* Use software based AES counter */
@@ -3205,6 +3220,10 @@ static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 
 #ifdef WOLFSSL_ARMASM
     /* implementation is located in wolfcrypt/src/port/arm/armv8-aes.c */
+
+#elif defined(WOLFSSL_AFALG)
+    /* implemented in wolfcrypt/src/port/afalg/afalg_aes.c */
+
 #else /* software + AESNI implementation */
 
 #if !defined(FREESCALE_LTC_AES_GCM)
@@ -8932,6 +8951,7 @@ int wc_Gmac(const byte* key, word32 keySz, byte* iv, word32 ivSz,
     if (ret == 0)
         ret = wc_AesGcmEncrypt_ex(&aes, NULL, NULL, 0, iv, ivSz,
                                   authTag, authTagSz, authIn, authInSz);
+    wc_AesFree(&aes);
     ForceZero(&aes, sizeof(aes));
 
     return ret;
@@ -8956,6 +8976,7 @@ int wc_GmacVerify(const byte* key, word32 keySz,
     if (ret == 0)
         ret = wc_AesGcmDecrypt(&aes, NULL, NULL, 0, iv, ivSz,
                                   authTag, authTagSz, authIn, authInSz);
+    wc_AesFree(&aes);
     ForceZero(&aes, sizeof(aes));
 
     return ret;
@@ -9390,6 +9411,11 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
     (void)devId;
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
+#ifdef WOLFSSL_AFALG
+    aes->alFd = -1;
+    aes->rdFd = -1;
+#endif
+
     return ret;
 }
 
@@ -9402,6 +9428,14 @@ void wc_AesFree(Aes* aes)
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
     wolfAsync_DevCtxFree(&aes->asyncDev, WOLFSSL_ASYNC_MARKER_AES);
 #endif /* WOLFSSL_ASYNC_CRYPT */
+#ifdef WOLFSSL_AFALG
+    if (aes->rdFd > 0) { /* negative is error case */
+        close(aes->rdFd);
+    }
+    if (aes->alFd > 0) {
+        close(aes->alFd);
+    }
+#endif /* WOLFSSL_AFALG */
 }
 
 
@@ -9442,6 +9476,10 @@ int wc_AesGetKeySize(Aes* aes, word32* keySize)
 #ifdef HAVE_AES_ECB
 #if defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_AES)
     /* implemented in wolfcrypt/src/port/caam/caam_aes.c */
+
+#elif defined(WOLFSSL_AFALG)
+    /* implemented in wolfcrypt/src/port/af_alg/afalg_aes.c */
+
 #else
 
 /* software implementation */

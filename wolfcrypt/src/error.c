@@ -482,6 +482,9 @@ const char* wc_GetErrorString(int error)
     case DH_CHECK_PRIV_E:
         return "DH Check Private Key failure";
 
+    case WC_AFALG_SOCK_E:
+  	return "AF_ALG socket error";
+
     default:
         return "unknown error number";
 

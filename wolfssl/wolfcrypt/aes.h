@@ -68,6 +68,11 @@
 #include "xsecure_aes.h"
 #endif
 
+#ifdef WOLFSSL_AFALG
+/* included for struct msghdr */
+#include <sys/socket.h>
+#endif
+
 #if defined(HAVE_AESGCM) && !defined(WC_NO_RNG)
     #include <wolfssl/wolfcrypt/random.h>
 #endif
@@ -150,6 +155,12 @@ typedef struct Aes {
     XCsuDma     dma;
     word32      key_init[8];
     word32      kup;
+#endif
+#ifdef WOLFSSL_AFALG
+    int alFd; /* server socket to bind to */
+    int rdFd; /* socket to read from */
+    struct msghdr msg;
+    int dir;  /* flag for encrpyt or decrypt */
 #endif
     void*  heap; /* memory hint to use */
 } Aes;
