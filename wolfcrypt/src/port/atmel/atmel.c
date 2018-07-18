@@ -1,6 +1,6 @@
 ﻿/* atmel.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2018 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -176,7 +176,7 @@ static int atmel_init_enc_key(void)
 	uint8_t read_key[ATECC_KEY_SIZE] = { 0 };
 
 	XMEMSET(read_key, 0xFF, sizeof(read_key));
-	ret = atcab_write_bytes_slot(0x04, 0, read_key, sizeof(read_key));
+	ret = atcab_write_bytes_slot(TLS_SLOT_ENC_PARENT, 0, read_key, sizeof(read_key));
 	if (ret != ATCA_SUCCESS) {
 		WOLFSSL_MSG("Failed to write key");
 		return -1;
@@ -235,7 +235,7 @@ void atmel_init(void)
         /* show revision information */
         atmel_show_rev_info();
 
-        /* Configure the ECC508 for use with TLS API funcitons */
+        /* Configure the ECC508 for use with TLS API functions */
     #if 0
         atcatls_device_provision();
     #else
@@ -246,5 +246,255 @@ void atmel_init(void)
         mAtcaInitDone = 1;
     }
 }
+
+void atmel_finish(void)
+{
+    if (mAtcaInitDone) {
+        atcatls_finish();
+        mAtcaInitDone = 0;
+    }
+}
+
+
+/* Reference PK Callbacks */
+#ifdef HAVE_PK_CALLBACKS
+
+int atcatls_create_key_cb(WOLFSSL* ssl, ecc_key* key, word32 keySz,
+    int ecc_curve, void* ctx)
+{
+    int ret;
+    uint8_t peerKey[ATECC_PUBKEY_SIZE];
+    uint8_t* qx = &peerKey[0];
+    uint8_t* qy = &peerKey[ATECC_PUBKEY_SIZE/2];
+
+    (void)ssl;
+    (void)ctx;
+
+    /* only supports P-256 */
+    if (ecc_curve != ECC_SECP256R1 && keySz != ATECC_PUBKEY_SIZE/2) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* generate new ephemeral key on device */
+    ret = atcatls_create_key(TLS_SLOT_ECDHE_PRIV, peerKey);
+    if (ret != ATCA_SUCCESS) {
+        ret = WC_HW_E; goto exit;
+    }
+
+    /* load generated ECC508A public key into key, used by wolfSSL */
+    ret = wc_ecc_import_unsigned(key, qx, qy, NULL, ECC_SECP256R1);
+
+exit:
+
+#ifdef WOLFSSL_ATECC508A_DEBUG
+    if (ret != 0) {
+        printf("atcatls_create_key_cb: ret %d\n", ret);
+    }
+#endif
+
+    return ret;
+}
+
+int atcatls_create_pms_cb(WOLFSSL* ssl, ecc_key* otherKey,
+        unsigned char* pubKeyDer, unsigned int* pubKeySz,
+        unsigned char* out, unsigned int* outlen,
+        int side, void* ctx)
+{
+    int ret;
+    ecc_key tmpKey;
+    uint8_t  peerKeyBuf[ATECC_PUBKEY_SIZE];
+    uint8_t* peerKey = peerKeyBuf;
+    uint8_t* qx = &peerKey[0];
+    uint8_t* qy = &peerKey[ATECC_PUBKEY_SIZE/2];
+    word32 qxLen = ATECC_PUBKEY_SIZE/2, qyLen = ATECC_PUBKEY_SIZE/2;
+
+    if (pubKeyDer == NULL || pubKeySz == NULL || out == NULL || outlen == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    (void)ssl;
+    (void)ctx;
+    (void)otherKey;
+
+    ret = wc_ecc_init(&tmpKey);
+    if (ret != 0) {
+        return ret;
+    }
+
+    XMEMSET(peerKey, 0, ATECC_PUBKEY_SIZE);
+
+    /* for client: create and export public key */
+    if (side == WOLFSSL_CLIENT_END) {
+        /* generate new ephemeral key on device */
+        ret = atcatls_create_key(TLS_SLOT_ECDHE_PRIV, peerKey);
+        if (ret != ATCA_SUCCESS) {
+            ret = WC_HW_E; goto exit;
+        }
+
+        /* convert raw unsigned public key to X.963 format for TLS */
+        ret = wc_ecc_import_unsigned(&tmpKey, qx, qy, NULL, ECC_SECP256R1);
+        if (ret == 0) {
+            ret = wc_ecc_export_x963(&tmpKey, pubKeyDer, pubKeySz);
+        }
+    }
+
+    /* for server: import public key */
+    else if (side == WOLFSSL_SERVER_END) {
+        /* import peer's key and export as raw unsigned for hardware */
+        ret = wc_ecc_import_x963_ex(pubKeyDer, *pubKeySz, &tmpKey, ECC_SECP256R1);
+        if (ret == 0) {
+            ret = wc_ecc_export_public_raw(&tmpKey, qx, &qxLen, qy, &qyLen);
+        }
+        (void)qxLen;
+        (void)qyLen;
+    }
+    else {
+        ret = BAD_FUNC_ARG;
+    }
+
+    if (ret != 0) {
+        goto exit;
+    }
+
+#if 1
+    ret = atcatls_ecdh(TLS_SLOT_ECDHE_PRIV, peerKey, out);
+#else
+    /* other syntax for encrypted ECDH using key in another slot */
+    ret = atcatls_ecdh_enc(TLS_SLOT_ECDHE_PRIV, TLS_SLOT_FEATURE_PRIV,
+        peerKey, out);
+#endif
+    if (ret != ATCA_SUCCESS) {
+        ret = WC_HW_E;
+    }
+    *outlen = ATECC_SIG_SIZE;
+
+exit:
+    wc_ecc_free(&tmpKey);
+
+#ifdef WOLFSSL_ATECC508A_DEBUG
+    if (ret != 0) {
+        printf("atcatls_create_pms_cb: ret %d\n", ret);
+    }
+#endif
+
+    return ret;
+}
+
+
+/**
+ * \brief Sign received digest so far for private key to be proved.
+ */
+int atcatls_sign_certificate_cb(WOLFSSL* ssl, const byte* in, word32 inSz,
+    byte* out, word32* outSz, const byte* key, word32 keySz, void* ctx)
+{
+    int ret;
+    byte sigRs[ATECC_SIG_SIZE*2];
+
+    (void)ssl;
+    (void)inSz;
+    (void)key;
+    (void)keySz;
+    (void)ctx;
+
+    if (in == NULL || out == NULL || outSz == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    ret = atcatls_sign(TLS_SLOT_AUTH_PRIV, in, sigRs);
+    if (ret != ATCA_SUCCESS) {
+        ret = WC_HW_E; goto exit;
+    }
+
+    /* Encode with ECDSA signature */
+    ret = wc_ecc_rs_raw_to_sig(
+        &sigRs[0], ATECC_SIG_SIZE,
+        &sigRs[ATECC_SIG_SIZE], ATECC_SIG_SIZE,
+        out, outSz);
+    if (ret != 0) {
+        goto exit;
+    }
+
+exit:
+
+#ifdef WOLFSSL_ATECC508A_DEBUG
+    if (ret != 0) {
+        printf("atcatls_sign_certificate_cb: ret %d\n", ret);
+    }
+#endif
+
+    return ret;
+}
+
+/**
+ * \brief Verify signature received from peers to prove peer's private key.
+ */
+int atcatls_verify_signature_cb(WOLFSSL* ssl, const byte* sig, word32 sigSz,
+    const byte* hash, word32 hashSz, const byte* key, word32 keySz, int* result,
+    void* ctx)
+{
+    int ret;
+    ecc_key tmpKey;
+    word32 idx = 0;
+    uint8_t peerKey[ATECC_PUBKEY_SIZE];
+    uint8_t* qx = &peerKey[0];
+    uint8_t* qy = &peerKey[ATECC_PUBKEY_SIZE/2];
+    word32 qxLen = ATECC_PUBKEY_SIZE/2, qyLen = ATECC_PUBKEY_SIZE/2;
+    byte sigRs[ATECC_SIG_SIZE*2];
+    word32 rSz = ATECC_SIG_SIZE;
+    word32 sSz = ATECC_SIG_SIZE;
+
+    (void)sigSz;
+    (void)hashSz;
+    (void)ctx;
+
+    if (ssl == NULL || key == NULL || sig == NULL || hash == NULL || result == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* import public key and export public as unsigned bin for hardware */
+    ret = wc_ecc_init(&tmpKey);
+    if (ret == 0) {
+        ret = wc_EccPublicKeyDecode(key, &idx, &tmpKey, keySz);
+        if (ret == 0) {
+            ret = wc_ecc_export_public_raw(&tmpKey, qx, &qxLen, qy, &qyLen);
+        }
+        wc_ecc_free(&tmpKey);
+
+        (void)qxLen;
+        (void)qyLen;
+    }
+    if (ret != 0) {
+        goto exit;
+    }
+
+    /* decode the ECDSA signature */
+    ret = wc_ecc_sig_to_rs(sig, sigSz,
+        &sigRs[0], &rSz,
+        &sigRs[ATECC_SIG_SIZE], &sSz);
+    if (ret != 0) {
+        goto exit;
+    }
+    (void)rSz;
+    (void)sSz;
+
+    ret = atcatls_verify(hash, sigRs, peerKey, (bool*)result);
+    if (ret != ATCA_SUCCESS || !*result) {
+        ret = WC_HW_E; goto exit;
+    }
+
+    ret = 0; /* success */
+
+exit:
+
+#ifdef WOLFSSL_ATECC508A_DEBUG
+    if (ret != 0) {
+        printf("atcatls_verify_signature_cb: ret %d\n", ret);
+    }
+#endif
+
+    return ret;
+}
+
+#endif /* HAVE_PK_CALLBACKS */
 
 #endif /* WOLFSSL_ATMEL || WOLFSSL_ATECC508A */
