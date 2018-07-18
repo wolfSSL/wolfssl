@@ -1008,6 +1008,9 @@ extern void uITRON4_free(void *p) ;
     #ifndef NO_STM32_RNG
         #undef  STM32_RNG
         #define STM32_RNG
+        #ifdef WOLFSSL_STM32F427_RNG
+            #include "stm32f427xx.h"
+        #endif
     #endif
     #ifndef NO_STM32_CRYPTO
         #undef  STM32_CRYPTO
