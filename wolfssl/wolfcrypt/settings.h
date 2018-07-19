@@ -454,7 +454,7 @@
     #define NO_WRITEV
     #define NO_WOLFSSL_DIR
 
-    #ifndef USER_TIME
+    #if !defined(NO_ASN_TIME) && !defined(USER_TIME)
         #error User must define XTIME, see manual
     #endif
 
