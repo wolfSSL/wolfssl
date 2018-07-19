@@ -19780,7 +19780,7 @@ WOLFSSL_API int wolfSSL_sk_SSL_COMP_zero(WOLFSSL_STACK* st)
 {
     (void)st;
     WOLFSSL_STUB("wolfSSL_sk_SSL_COMP_zero");
-    //wolfSSL_set_options(ssl, SSL_OP_NO_COMPRESSION);
+    /* wolfSSL_set_options(ssl, SSL_OP_NO_COMPRESSION); */
     return WOLFSSL_FAILURE;
 }
 #endif
@@ -24878,7 +24878,6 @@ int wolfSSL_HMAC_CTX_copy(WOLFSSL_HMAC_CTX* des, WOLFSSL_HMAC_CTX* src)
         return WOLFSSL_SUCCESS;
 }
 
-
 #if defined(HAVE_FIPS) && \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
 
@@ -27903,6 +27902,7 @@ WOLFSSL_RSA *wolfSSL_d2i_RSAPublicKey(WOLFSSL_RSA **r, const unsigned char **pp,
     WOLFSSL_RSA *rsa = NULL;
 
     WOLFSSL_ENTER("d2i_RSAPublicKey");
+
     if(pp == NULL){
         WOLFSSL_MSG("Bad argument");
         return NULL;
@@ -27915,6 +27915,8 @@ WOLFSSL_RSA *wolfSSL_d2i_RSAPublicKey(WOLFSSL_RSA **r, const unsigned char **pp,
     if(wolfSSL_RSA_LoadDer_ex(rsa, *pp, (int)len, WOLFSSL_RSA_LOAD_PUBLIC)
                                                      != WOLFSSL_SUCCESS){
         WOLFSSL_MSG("RSA_LoadDer failed");
+        wolfSSL_RSA_free(rsa);
+        rsa = NULL;
         return NULL;
     }
     if(r != NULL)
@@ -27922,7 +27924,94 @@ WOLFSSL_RSA *wolfSSL_d2i_RSAPublicKey(WOLFSSL_RSA **r, const unsigned char **pp,
     return rsa;
 }
 
+/* Converts an rsa private key from der format to an rsa structure.
+Returns pointer to the rsa structure on succcess and NULL if error. */
+WOLFSSL_RSA *wolfSSL_d2i_RSAPrivateKey(WOLFSSL_RSA **r, 
+                                       const unsigned char **derBuf, long derSz)
+{
+    WOLFSSL_RSA *rsa = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_d2i_RSAPrivateKey");
+
+    /* check for bad functions arguments */
+    if (derBuf == NULL) {
+        WOLFSSL_MSG("Bad argument");
+        return NULL;
+    }
+    if ((rsa = wolfSSL_RSA_new()) == NULL) {
+        WOLFSSL_MSG("RSA_new failed");
+        return NULL;
+    }
+
+    if (wolfSSL_RSA_LoadDer_ex(rsa, *derBuf, (int)derSz, 
+                                 WOLFSSL_RSA_LOAD_PRIVATE) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("RSA_LoadDer failed");
+        wolfSSL_RSA_free(rsa);
+        rsa = NULL;
+        return NULL;
+    }
+    if(r != NULL)
+        *r = rsa;
+
+    return rsa;
+}
+
 #if !defined(HAVE_FAST_RSA)
+#if defined(WOLFSSL_KEY_GEN)
+
+/* Converts an internal rsa structure to der format.
+Returns size of der on success and WOLFSSL_FAILURE if error */
+int wolfSSL_i2d_RSAPrivateKey(WOLFSSL_RSA *rsa, unsigned char **pp)
+{
+    byte* der = NULL;
+    int derMax;
+    int ret;
+    int i;
+
+    WOLFSSL_ENTER("wolfSSL_i2d_RSAPrivateKey");
+
+    /* check for bad functions arguments */
+    if ((rsa == NULL) || (pp == NULL)) {
+        WOLFSSL_MSG("Bad Function Arguments");
+        return BAD_FUNC_ARG;
+    }
+
+    if ((ret = SetRsaInternal(rsa)) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("SetRsaInternal() Failed");
+        return ret;
+    }
+
+    /* 5 > size of n, d, p, q, d%(p-1), d(q-1), 1/q%p, e + ASN.1 additional
+     *  informations
+     */
+    derMax = 5 * wolfSSL_RSA_size(rsa) + AES_BLOCK_SIZE;
+
+    der = (byte*)XMALLOC(derMax, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL) {
+        WOLFSSL_MSG("Malloc failed");
+        return WOLFSSL_FAILURE;
+    }
+
+    /* RSA key to DER */
+    if ((ret = wc_RsaKeyToDer((RsaKey *)rsa->internal, der, derMax)) < 0) {
+        WOLFSSL_MSG("wc_RsaKeyToDer() failed");
+        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        der = NULL;
+        return ret;
+    }
+
+    /* ret is the size of the der buffer */
+    for (i = 0; i < ret; i++) {
+        *(*pp + i) = *(der + i);
+    }
+    *pp += ret;
+
+    XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+    return ret; /* returns size of der if successful */
+}
+#endif /* WOLFSSL_KEY_GEN */
+
+
 int wolfSSL_i2d_RSAPublicKey(WOLFSSL_RSA *rsa, const unsigned char **pp)
 {
     byte *der;
@@ -27930,19 +28019,19 @@ int wolfSSL_i2d_RSAPublicKey(WOLFSSL_RSA *rsa, const unsigned char **pp)
     int ret;
 
     WOLFSSL_ENTER("i2d_RSAPublicKey");
-    if((rsa == NULL) || (pp == NULL))
+    if ((rsa == NULL) || (pp == NULL))
         return WOLFSSL_FATAL_ERROR;
-    if((ret = SetRsaInternal(rsa)) != WOLFSSL_SUCCESS) {
+    if ((ret = SetRsaInternal(rsa)) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("SetRsaInternal Failed");
         return ret;
     }
-    if((derLen = RsaPublicKeyDerSize((RsaKey *)rsa->internal, 1)) < 0)
+    if ((derLen = RsaPublicKeyDerSize((RsaKey *)rsa->internal, 1)) < 0)
         return WOLFSSL_FATAL_ERROR;
     der = (byte*)XMALLOC(derLen, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (der == NULL) {
         return WOLFSSL_FATAL_ERROR;
     }
-    if((ret = wc_RsaKeyToPublicDer((RsaKey *)rsa->internal, der, derLen)) < 0){
+    if ((ret = wc_RsaKeyToPublicDer((RsaKey *)rsa->internal, der, derLen)) < 0){
         WOLFSSL_MSG("RsaKeyToPublicDer failed");
         XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
@@ -28765,7 +28854,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* name, unsigned char** out)
     {
         CertName cName;
-        unsigned char buf[256]; //ASN_MAX_NAME
+        unsigned char buf[256]; /* ASN_MAX_NAME */
         int sz;
 
         if (out == NULL || name == NULL) {
@@ -31066,6 +31155,384 @@ int wolfSSL_get_state(const WOLFSSL* ssl)
     return ssl->options.handShakeState;
 }
 #endif /* HAVE_LIGHTY || HAVE_STUNNEL || WOLFSSL_MYSQL_COMPATIBLE */
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
+
+/* Returns the verifyCallback from the ssl structure if successful.
+Returns NULL otherwise. */
+VerifyCallback wolfSSL_get_verify_callback(WOLFSSL* ssl)
+{
+    WOLFSSL_ENTER("wolfSSL_get_verify_callback()");
+    if (ssl) {
+        return ssl->verifyCallback;
+    }
+    return NULL;
+}
+
+/* Creates a new bio pair.
+Returns WOLFSSL_SUCCESS if no error, WOLFSSL_FAILURE otherwise.*/
+int wolfSSL_BIO_new_bio_pair(WOLFSSL_BIO **bio1_p, size_t writebuf1,
+                                         WOLFSSL_BIO **bio2_p, size_t writebuf2)
+{
+    WOLFSSL_BIO *bio1 = NULL, *bio2 = NULL;
+    int ret = 1;
+
+    WOLFSSL_ENTER("wolfSSL_BIO_new_bio_pair()");
+
+    if (bio1_p == NULL || bio2_p == NULL) {
+        WOLFSSL_MSG("Bad Function Argument");
+        return BAD_FUNC_ARG;
+    }
+
+    /* set up the new bio structures and write buf sizes */
+    if ((bio1 = wolfSSL_BIO_new(wolfSSL_BIO_s_bio())) == NULL) {
+        WOLFSSL_MSG("Bio allocation failed");
+        ret = WOLFSSL_FAILURE;
+    }
+    if (ret) {
+        if ((bio2 = wolfSSL_BIO_new(wolfSSL_BIO_s_bio())) == NULL) {
+            WOLFSSL_MSG("Bio allocation failed");
+            ret = WOLFSSL_FAILURE;
+        }
+    }
+    if (ret && writebuf1) {
+        if (!(ret = wolfSSL_BIO_set_write_buf_size(bio1, writebuf1))) {
+            WOLFSSL_MSG("wolfSSL_BIO_set_write_buf() failure");
+        }
+    }
+    if (ret && writebuf2) {
+        if (!(ret = wolfSSL_BIO_set_write_buf_size(bio2, writebuf2))) {
+            WOLFSSL_MSG("wolfSSL_BIO_set_write_buf() failure");
+        }
+    }
+
+    if (ret) {
+        if ((ret = wolfSSL_BIO_make_bio_pair(bio1, bio2))) {
+            *bio1_p = bio1;
+            *bio2_p = bio2;
+        }
+    }
+    if (!ret) {
+        wolfSSL_BIO_free(bio1);
+        bio1 = NULL;
+        wolfSSL_BIO_free(bio2);
+        bio2 = NULL;
+    }
+    return ret;
+}
+
+
+#if !defined(NO_RSA)
+/* Converts an rsa key from a bio buffer into an internal rsa structure.
+Returns a pointer to the new WOLFSSL_RSA structure. */
+WOLFSSL_RSA* wolfSSL_d2i_RSAPrivateKey_bio(WOLFSSL_BIO *bio, WOLFSSL_RSA **out)
+{
+    const unsigned char* bioMem = NULL;
+    int bioMemSz = 0;
+    WOLFSSL_RSA* key = NULL;
+    unsigned char maxKeyBuf[4096];
+    unsigned char* bufPtr = NULL;
+    unsigned char* extraBioMem = NULL;
+    int extraBioMemSz = 0;
+    int derLength = 0;
+    int j = 0, i = 0;
+
+    WOLFSSL_ENTER("wolfSSL_d2i_RSAPrivateKey_bio()");
+
+    if (bio == NULL) {
+        WOLFSSL_MSG("Bad Function Argument");
+        return NULL;
+    }
+    (void)out;
+
+    bioMemSz = wolfSSL_BIO_pending(bio);
+    if (bioMemSz <= 0) {
+        WOLFSSL_MSG("wolfSSL_BIO_pending() failure");
+        return NULL;
+    }
+
+    bioMem = (unsigned char*)XMALLOC(bioMemSz, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (bioMem == NULL) {
+        WOLFSSL_MSG("Malloc failure");
+        return NULL;
+    }
+
+    bufPtr = maxKeyBuf;
+    if (wolfSSL_BIO_read(bio, (unsigned char*)bioMem, (int)bioMemSz) == bioMemSz) {
+        if ((key = wolfSSL_d2i_RSAPrivateKey(NULL, &bioMem, bioMemSz)) == NULL) {
+            XFREE((unsigned char*)bioMem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            return NULL;
+        }
+
+        /* This function is used to get the total length of the rsa key. */
+        derLength = wolfSSL_i2d_RSAPrivateKey(key, &bufPtr);
+
+        /* Write extra data back into bio object if necessary. */
+        extraBioMemSz = (bioMemSz - derLength);
+        if (extraBioMemSz > 0) {
+            extraBioMem = XMALLOC(extraBioMemSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (extraBioMem == NULL) {
+                WOLFSSL_MSG("Malloc failure");;
+                XFREE((unsigned char*)extraBioMem, bio->heap, 
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE((unsigned char*)bioMem, bio->heap, 
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                return NULL;
+            }
+
+            for (i = derLength; i < bioMemSz; i++) {
+                *(extraBioMem + j) = *(bioMem + i);
+                j++;
+            }
+
+            wolfSSL_BIO_write(bio, extraBioMem, extraBioMemSz);
+            if (wolfSSL_BIO_pending(bio) <= 0) {
+                WOLFSSL_MSG("Failed to write memory to bio");
+                XFREE((unsigned char*)extraBioMem, bio->heap, 
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE((unsigned char*)bioMem, bio->heap, 
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                return NULL;
+            }
+            XFREE((unsigned char*)extraBioMem, bio->heap, 
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        }
+
+        if (out != NULL && key != NULL) {
+            *out = key;
+        }
+    }
+    XFREE((unsigned char*)bioMem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    return key;
+}
+#endif
+
+
+/* Adds the ASN1 certificate to the user ctx.
+Returns WOLFSSL_SUCCESS if no error, returns WOLFSSL_FAILURE otherwise.*/
+int wolfSSL_CTX_use_certificate_ASN1(WOLFSSL_CTX *ctx, int derSz, 
+                                                       const unsigned char *der)
+{
+    WOLFSSL_ENTER("wolfSSL_CTX_use_certificate_ASN1()");
+    if (der != NULL && ctx != NULL) {
+        if (wolfSSL_CTX_use_certificate_buffer(ctx, der, derSz, 
+                                      WOLFSSL_FILETYPE_ASN1) == WOLFSSL_SUCCESS) {
+            return WOLFSSL_SUCCESS;
+        }
+
+    }
+    return WOLFSSL_FAILURE;
+}
+
+
+#if !defined(NO_RSA) && !defined(HAVE_FAST_RSA)
+/* Adds the rsa private key to the user ctx.
+Returns WOLFSSL_SUCCESS if no error, returns WOLFSSL_FAILURE otherwise.*/
+int wolfSSL_CTX_use_RSAPrivateKey(WOLFSSL_CTX* ctx, WOLFSSL_RSA* rsa)
+{
+    int ret;
+    int derSize;
+    unsigned char maxDerBuf[4096];
+    unsigned char* key = NULL;
+
+    WOLFSSL_ENTER("wolfSSL_CTX_use_RSAPrivateKey()");
+
+    if (ctx == NULL || rsa == NULL) {
+        WOLFSSL_MSG("one or more inputs were NULL");
+        return BAD_FUNC_ARG;
+    }
+    key = maxDerBuf;
+    /* convert RSA struct to der encoded buffer and get the size */
+    if ((derSize = wolfSSL_i2d_RSAPrivateKey(rsa, &key)) <= 0) {
+        WOLFSSL_MSG("wolfSSL_i2d_RSAPrivateKey() failure");
+        return WOLFSSL_FAILURE;
+    }
+    ret = wolfSSL_CTX_use_PrivateKey_buffer(ctx, (const unsigned char*)maxDerBuf, 
+                                                    derSize, SSL_FILETYPE_ASN1);
+    if (ret != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("wolfSSL_CTX_USE_PrivateKey_buffer() failure");
+        return WOLFSSL_FAILURE;
+    }
+    return ret;
+}
+#endif /* NO_RSA && !HAVE_FAST_RSA */
+
+
+/* Converts EVP_PKEY data from a bio buffer to a WOLFSSL_EVP_PKEY structure.
+Returns pointer to private EVP_PKEY struct upon success, NULL if there
+is a failure.*/
+WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey_bio(WOLFSSL_BIO* bio,
+                                                         WOLFSSL_EVP_PKEY** out)
+{
+    unsigned char* mem = NULL;
+    int memSz = 0;
+    WOLFSSL_EVP_PKEY* key = NULL;
+    int i = 0, j = 0;
+    unsigned char* extraBioMem = NULL;
+    int extraBioMemSz = 0;
+    int derLength = 0;
+
+    WOLFSSL_ENTER("wolfSSL_d2i_PrivateKey_bio()");
+
+    if (bio == NULL) {
+        return NULL;
+    }
+    (void)out;
+
+    memSz = wolfSSL_BIO_pending(bio);
+    if (memSz <= 0) {
+        WOLFSSL_MSG("wolfSSL_BIO_pending() failure");
+        return NULL;
+    }
+
+    mem = (unsigned char*)XMALLOC(memSz, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (mem == NULL) {
+        WOLFSSL_MSG("Malloc failure");
+        return NULL;
+    }
+
+    if (wolfSSL_BIO_read(bio, (unsigned char*)mem, memSz) == memSz) {
+        /* Determines key type and returns the new private EVP_PKEY object */
+        if ((key = wolfSSL_d2i_PrivateKey_EVP(NULL, &mem, (long)memSz)) == NULL) {
+            WOLFSSL_MSG("wolfSSL_d2i_PrivateKey_EVP() failure");
+            XFREE(mem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            return NULL;
+        }
+
+        /* Write extra data back into bio object if necessary. */
+        derLength = key->pkey_sz;
+        extraBioMemSz = (memSz - derLength);
+        if (extraBioMemSz > 0) {
+            extraBioMem = XMALLOC(extraBioMemSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (extraBioMem == NULL) {
+                WOLFSSL_MSG("Malloc failure");
+                XFREE((unsigned char*)extraBioMem, bio->heap,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(mem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                return NULL;
+            }
+
+            for (i = derLength; i < memSz; i++) {
+                *(extraBioMem + j) = *(mem + i);
+                j++;
+            }
+
+            wolfSSL_BIO_write(bio, extraBioMem, extraBioMemSz);
+            if (wolfSSL_BIO_pending(bio) <= 0) {
+                WOLFSSL_MSG("Failed to write memory to bio");
+                XFREE((unsigned char*)extraBioMem, bio->heap,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(mem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+                return NULL;
+            }
+            XFREE((unsigned char*)extraBioMem, bio->heap,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+        }
+
+        if (out != NULL && key != NULL) {
+            *out = key;
+        }
+    }
+    XFREE(mem, bio->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    return key;
+}
+
+
+/* Converts a DER encoded private key to a WOLFSSL_EVP_PKEY structure.
+ * returns a pointer to a new WOLFSSL_EVP_PKEY structure on success and NULL
+ * on fail */
+WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey_EVP(WOLFSSL_EVP_PKEY** out,
+                                                  unsigned char** in, long inSz)
+{
+    WOLFSSL_EVP_PKEY* pkey = NULL;
+    const unsigned char* mem;
+    long memSz = inSz;
+
+    WOLFSSL_ENTER("wolfSSL_d2i_PrivateKey_EVP()");
+
+    if (in == NULL || inSz < 0) {
+        WOLFSSL_MSG("Bad argument");
+        return NULL;
+    }
+    mem = *in;
+
+    #if !defined(NO_RSA)
+    {
+        RsaKey rsa;
+        word32 keyIdx = 0;
+
+        /* test if RSA key */
+        if (wc_InitRsaKey(&rsa, NULL) == 0 &&
+            wc_RsaPrivateKeyDecode(mem, &keyIdx, &rsa, (word32)memSz) == 0) {
+            wc_FreeRsaKey(&rsa);
+            pkey = wolfSSL_PKEY_new();
+            if (pkey != NULL) {
+                pkey->pkey_sz = keyIdx;
+                pkey->pkey.ptr = (char*)XMALLOC(memSz, NULL,
+                        DYNAMIC_TYPE_PRIVATE_KEY);
+                if (pkey->pkey.ptr == NULL) {
+                    wolfSSL_EVP_PKEY_free(pkey);
+                    return NULL;
+                }
+                XMEMCPY(pkey->pkey.ptr, mem, keyIdx);
+                pkey->type = EVP_PKEY_RSA;
+                if (out != NULL) {
+                    *out = pkey;
+                }
+
+                pkey->ownRsa = 1;
+                pkey->rsa = wolfSSL_RSA_new();
+                if (pkey->rsa == NULL) {
+                    wolfSSL_EVP_PKEY_free(pkey);
+                    return NULL;
+                }
+
+                if (wolfSSL_RSA_LoadDer_ex(pkey->rsa,
+                            (const unsigned char*)pkey->pkey.ptr,
+                            pkey->pkey_sz, WOLFSSL_RSA_LOAD_PRIVATE) != 1) {
+                    wolfSSL_EVP_PKEY_free(pkey);
+                    return NULL;
+                }
+
+                return pkey;
+            }
+        }
+        wc_FreeRsaKey(&rsa);
+    }
+    #endif /* NO_RSA */
+
+    #ifdef HAVE_ECC
+    {
+        word32  keyIdx = 0;
+        ecc_key ecc;
+
+        /* test if ecc key */
+        if (wc_ecc_init(&ecc) == 0 &&
+            wc_EccPrivateKeyDecode(mem, &keyIdx, &ecc, (word32)memSz) == 0) {
+            wc_ecc_free(&ecc);
+            pkey = wolfSSL_PKEY_new();
+            if (pkey != NULL) {
+                pkey->pkey_sz = keyIdx;
+                pkey->pkey.ptr = (char*)XMALLOC(keyIdx, NULL,
+                        DYNAMIC_TYPE_PRIVATE_KEY);
+                if (pkey->pkey.ptr == NULL) {
+                    wolfSSL_EVP_PKEY_free(pkey);
+                    return NULL;
+                }
+                XMEMCPY(pkey->pkey.ptr, mem, keyIdx);
+                pkey->type = EVP_PKEY_EC;
+                if (out != NULL) {
+                    *out = pkey;
+                }
+                return pkey;
+            }
+        }
+        wc_ecc_free(&ecc);
+    }
+    #endif /* HAVE_ECC */
+    return pkey;
+}
+#endif /* OPENSSL_ALL || WOLFSSL_ASIO */
 
 
 /* stunnel compatibility functions*/

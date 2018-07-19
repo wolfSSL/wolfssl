@@ -283,7 +283,7 @@
     #include <wolfssl/wolfcrypt/curve25519.h>
 #endif
 
-#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL))
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || defined(OPENSSL_ALL))
     #include <wolfssl/openssl/ssl.h>
     #ifndef NO_ASN
     /* for ASN_COMMON_NAME DN_tags enum */
@@ -553,6 +553,29 @@ static void test_wolfSSL_CTX_use_certificate_file(void)
     wolfSSL_CTX_free(ctx);
 #endif
 }
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
+static int test_wolfSSL_CTX_use_certificate_ASN1(void)
+{
+#if !defined(NO_CERTS) && !defined(NO_WOLFSSL_SERVER) && !defined(NO_ASN)
+    WOLFSSL_CTX*            ctx;
+    int                     ret;
+
+    printf(testingFmt, "wolfSSL_CTX_use_certificate_ASN1()");
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+
+    ret = SSL_CTX_use_certificate_ASN1(ctx, sizeof_server_cert_der_2048,
+                server_cert_der_2048);
+
+    printf(resultFmt, ret == WOLFSSL_SUCCESS ? passed : failed);
+    wolfSSL_CTX_free(ctx);
+
+    return ret;
+#else
+    return WOLFSSL_SUCCESS;
+#endif
+}
+#endif /* OPENSSL_ALL || WOLFSSL_ASIO */
 
 /*  Test function for wolfSSL_CTX_use_certificate_buffer. Load cert into
  *  context using buffer.
@@ -17238,6 +17261,19 @@ static void test_wolfSSL_BIO(void)
     BIO_free(bio1);
     BIO_free(bio3);
 
+    #if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
+    {
+        BIO* bioA = NULL;
+        BIO* bioB = NULL;
+        AssertIntEQ(BIO_new_bio_pair(NULL, 256, NULL, 256), BAD_FUNC_ARG);
+        AssertIntEQ(BIO_new_bio_pair(&bioA, 256, &bioB, 256), WOLFSSL_SUCCESS);
+        BIO_free(bioA);
+        bioA = NULL;
+        BIO_free(bioB);
+        bioB = NULL;
+    }
+    #endif /* OPENSSL_ALL || WOLFSSL_ASIO */
+
     /* BIOs with file pointers */
     #if !defined(NO_FILESYSTEM)
     {
@@ -18084,6 +18120,111 @@ static void test_wolfSSL_d2i_PUBKEY(void)
     #endif
 }
 
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
+static void test_wolfSSL_d2i_PrivateKeys_bio(void)
+{
+    BIO*      bio = NULL;
+    EVP_PKEY* pkey  = NULL;
+    RSA*  rsa  = NULL;
+    WOLFSSL_CTX* ctx;
+    unsigned char buffer[4096];
+    unsigned char* bufPtr;
+
+    printf(testingFmt, "wolfSSL_d2i_PrivateKeys_bio()");
+
+    /* test creating new EVP_PKEY with bad arg */
+    AssertNull((pkey = d2i_PrivateKey_bio(NULL, NULL)));
+
+    /* test loading RSA key using BIO */
+#if !defined(NO_RSA) && !defined(NO_FILESYSTEM)
+    {
+        XFILE file;
+        const char* fname = "./certs/server-key.der";
+        size_t sz;
+        byte* buf;
+
+        file = XFOPEN(fname, "rb");
+        AssertTrue((file != XBADFILE));
+        XFSEEK(file, 0, XSEEK_END);
+        sz = XFTELL(file);
+        XREWIND(file);
+        AssertNotNull(buf = (byte*)XMALLOC(sz, HEAP_HINT, DYNAMIC_TYPE_FILE));
+        AssertIntEQ(XFREAD(buf, 1, sz, file), sz);
+        XFCLOSE(file);
+
+        /* Test using BIO new mem and loading DER private key */
+        AssertNotNull(bio = BIO_new_mem_buf(buf, (int)sz));
+        AssertNotNull((pkey = d2i_PrivateKey_bio(bio, NULL)));
+        XFREE(buf, HEAP_HINT, DYNAMIC_TYPE_FILE);
+        BIO_free(bio);
+        bio = NULL;
+        EVP_PKEY_free(pkey);
+        pkey  = NULL;
+    }
+#endif
+
+    /* test loading ECC key using BIO */
+#if defined(HAVE_ECC) && !defined(NO_FILESYSTEM)
+    {
+        XFILE file;
+        const char* fname = "./certs/ecc-key.der";
+        size_t sz;
+        byte* buf;
+
+        file = XFOPEN(fname, "rb");
+        AssertTrue((file != XBADFILE));
+        XFSEEK(file, 0, XSEEK_END);
+        sz = XFTELL(file);
+        XREWIND(file);
+        AssertNotNull(buf = (byte*)XMALLOC(sz, HEAP_HINT, DYNAMIC_TYPE_FILE));
+        AssertIntEQ(XFREAD(buf, 1, sz, file), sz);
+        XFCLOSE(file);
+
+        /* Test using BIO new mem and loading DER private key */
+        AssertNotNull(bio = BIO_new_mem_buf(buf, (int)sz));
+        AssertNotNull((pkey = d2i_PrivateKey_bio(bio, NULL)));
+        XFREE(buf, HEAP_HINT, DYNAMIC_TYPE_FILE);
+        BIO_free(bio);
+        bio = NULL;
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+    }
+#endif
+
+    AssertNotNull(bio = BIO_new(BIO_s_mem()));
+    AssertNotNull(ctx = SSL_CTX_new(wolfSSLv23_server_method()));
+
+    /* Tests bad parameters */
+    AssertNull(d2i_RSAPrivateKey_bio(NULL, NULL));
+
+    /* RSA not set yet, expecting to fail*/
+    AssertIntEQ(SSL_CTX_use_RSAPrivateKey(ctx, rsa), BAD_FUNC_ARG);
+
+#if defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+    /* set RSA using bio*/
+    AssertIntGT(BIO_write(bio, client_key_der_2048,
+                sizeof_client_key_der_2048), 0);
+    AssertNotNull(rsa = d2i_RSAPrivateKey_bio(bio, NULL));
+
+    AssertIntEQ(SSL_CTX_use_RSAPrivateKey(ctx, rsa), WOLFSSL_SUCCESS);
+
+    /*i2d RSAprivate key tests */
+    bufPtr = buffer;
+    AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(NULL, NULL), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(rsa, &bufPtr), 
+                                           sizeof_client_key_der_2048);
+    RSA_free(rsa);
+#endif
+    SSL_CTX_free(ctx);
+    ctx = NULL;
+    BIO_free(bio);
+    bio = NULL;
+    (void)rsa;
+    printf(resultFmt, passed);
+}
+#endif /* OPENSSL_ALL || WOLFSSL_ASIO */
+
+
 static void test_wolfSSL_sk_GENERAL_NAME(void)
 {
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_CERTS) && \
@@ -18227,6 +18368,12 @@ static void test_wolfSSL_RSA_DER(void)
     for (i = 0; tbl[i].der != NULL; i++)
     {
         AssertNotNull(d2i_RSAPublicKey(&rsa, &tbl[i].der, tbl[i].sz));
+        AssertNotNull(rsa);
+        RSA_free(rsa);
+    }
+    for (i = 0; tbl[i].der != NULL; i++)
+    {
+        AssertNotNull(d2i_RSAPrivateKey(&rsa, &tbl[i].der, tbl[i].sz));
         AssertNotNull(rsa);
         RSA_free(rsa);
     }
@@ -20112,6 +20259,11 @@ void ApiTest(void)
     test_wolfSSL_ASN1_TIME_to_generalizedtime();
     test_wolfSSL_i2c_ASN1_INTEGER();
     test_wolfSSL_X509_check_ca();
+
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
+    AssertIntEQ(test_wolfSSL_CTX_use_certificate_ASN1(), WOLFSSL_SUCCESS);
+    test_wolfSSL_d2i_PrivateKeys_bio();
+#endif /* OPENSSL_ALL || WOLFSSL_ASIO */
 
     /* test the no op functions for compatibility */
     test_no_op_functions();
