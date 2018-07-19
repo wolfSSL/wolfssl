@@ -1580,9 +1580,8 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     #endif /* FREESCALE_K70_RNGA */
 
 #elif defined(STM32_RNG)
-    /*
-     * wc_Generate a RNG seed using the hardware random number generator
-     * on the STM32F2/F4/F7. */
+     /* Generate a RNG seed using the hardware random number generator
+      * on the STM32F2/F4/F7. */
 
     #ifdef WOLFSSL_STM32_CUBEMX
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
@@ -1605,7 +1604,42 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         return 0;
     }
+    #elif defined(WOLFSSL_STM32F427_RNG)
+
+    /* Generate a RNG seed using the hardware RNG on the STM32F427
+     * directly, following steps outlined in STM32F4 Reference
+     * Manual (Chapter 24) for STM32F4xx family. */
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int i;
+        (void)os;
+
+        /* enable RNG interrupt, set IE bit in RNG->CR register */
+        RNG->CR |= RNG_CR_IE;
+
+        /* enable RNG, set RNGEN bit in RNG->CR. Activates RNG,
+         * RNG_LFSR, and error detector */
+        RNG->CR |= RNG_CR_RNGEN;
+
+        /* verify no errors, make sure SEIS and CEIS bits are 0
+         * in RNG->SR register */
+        if (RNG->SR & (RNG_SR_SECS | RNG_SR_CECS))
+            return RNG_FAILURE_E;
+
+        for (i = 0; i < (int)sz; i++) {
+            /* wait until RNG number is ready */
+            while ((RNG->SR & RNG_SR_DRDY) == 0) { }
+
+            /* get value */
+            output[i] = RNG->DR;
+        }
+
+        return 0;
+    }
+
     #else
+
+    /* Generate a RNG seed using the STM32 Standard Peripheral Library */
     int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
     {
         int i;
