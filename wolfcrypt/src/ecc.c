@@ -6039,7 +6039,7 @@ static int ecc_check_privkey_gen_helper(ecc_key* key)
     err = BAD_COND_E;
 
 #else
-    ALLOC_CURVE_SPECS(curve, 2);
+    ALLOC_CURVE_SPECS(2);
 
     /* load curve info */
     err = wc_ecc_curve_load(key->dp, &curve,

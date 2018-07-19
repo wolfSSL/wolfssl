@@ -161,7 +161,7 @@ linuxv2)
   CRYPT_VERSION=$LINUXV2_CRYPT_VERSION
   CRYPT_INC_PATH=wolfssl/wolfcrypt
   CRYPT_SRC_PATH=wolfcrypt/src
-  WC_MODS+=( cmac dh )
+  WC_MODS+=( cmac dh ecc )
   FIPS_SRCS+=( wolfcrypt_first.c wolfcrypt_last.c )
   FIPS_INCS=( fips.h )
   FIPS_OPTION=v2
