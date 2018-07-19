@@ -84,6 +84,9 @@
 #ifdef HAVE_OCSP
     #include <wolfssl/ocsp.h>
 #endif
+#ifdef WOLFSSL_SHA384
+    #include <wolfssl/wolfcrypt/sha512.h>
+#endif
 #ifdef WOLFSSL_SHA512
     #include <wolfssl/wolfcrypt/sha512.h>
 #endif

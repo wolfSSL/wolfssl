@@ -619,12 +619,12 @@ static int RsaMGF(int type, byte* seed, word32 seedSz, byte* out,
             ret = RsaMGF1(WC_HASH_TYPE_SHA256, seed, seedSz, out, outSz, heap);
             break;
     #endif
-    #ifdef WOLFSSL_SHA512
     #ifdef WOLFSSL_SHA384
         case WC_MGF1SHA384:
             ret = RsaMGF1(WC_HASH_TYPE_SHA384, seed, seedSz, out, outSz, heap);
             break;
     #endif
+    #ifdef WOLFSSL_SHA512
         case WC_MGF1SHA512:
             ret = RsaMGF1(WC_HASH_TYPE_SHA512, seed, seedSz, out, outSz, heap);
             break;

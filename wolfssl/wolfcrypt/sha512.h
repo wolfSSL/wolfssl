@@ -29,7 +29,7 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
-#ifdef WOLFSSL_SHA512
+#if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
 
 #if defined(HAVE_FIPS) && \
     defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
@@ -38,11 +38,13 @@
 
 #if defined(HAVE_FIPS) && \
 	(!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
-    #define wc_Sha512             Sha512
-    #define WC_SHA512             SHA512
-    #define WC_SHA512_BLOCK_SIZE  SHA512_BLOCK_SIZE
-    #define WC_SHA512_DIGEST_SIZE SHA512_DIGEST_SIZE
-    #define WC_SHA512_PAD_SIZE    SHA512_PAD_SIZE
+    #ifdef WOLFSSL_SHA512
+        #define wc_Sha512             Sha512
+        #define WC_SHA512             SHA512
+        #define WC_SHA512_BLOCK_SIZE  SHA512_BLOCK_SIZE
+        #define WC_SHA512_DIGEST_SIZE SHA512_DIGEST_SIZE
+        #define WC_SHA512_PAD_SIZE    SHA512_PAD_SIZE
+    #endif /* WOLFSSL_SHA512 */
     #ifdef WOLFSSL_SHA384
         #define wc_Sha384             Sha384
         #define WC_SHA384             SHA384
@@ -79,6 +81,8 @@
     #define SHA512_NOINLINE
 #endif
 
+#ifdef WOLFSSL_SHA512
+
 #if !defined(NO_OLD_SHA_NAMES)
     #define SHA512             WC_SHA512
 #endif
@@ -90,9 +94,13 @@
     #define SHA512_PAD_SIZE    WC_SHA512_PAD_SIZE
 #endif
 
+#endif /* WOLFSSL_SHA512 */
+
 /* in bytes */
 enum {
+#ifdef WOLFSSL_SHA512
     WC_SHA512              =   WC_HASH_TYPE_SHA512,
+#endif
     WC_SHA512_BLOCK_SIZE   = 128,
     WC_SHA512_DIGEST_SIZE  =  64,
     WC_SHA512_PAD_SIZE     = 112
@@ -124,6 +132,8 @@ typedef struct wc_Sha512 {
 
 #endif /* HAVE_FIPS */
 
+#ifdef WOLFSSL_SHA512
+
 WOLFSSL_API int wc_InitSha512(wc_Sha512*);
 WOLFSSL_API int wc_InitSha512_ex(wc_Sha512*, void*, int);
 WOLFSSL_API int wc_Sha512Update(wc_Sha512*, const byte*, word32);
@@ -133,6 +143,8 @@ WOLFSSL_API void wc_Sha512Free(wc_Sha512*);
 
 WOLFSSL_API int wc_Sha512GetHash(wc_Sha512*, byte*);
 WOLFSSL_API int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst);
+
+#endif /* WOLFSSL_SHA512 */
 
 #if defined(WOLFSSL_SHA384)
 
@@ -179,6 +191,6 @@ WOLFSSL_API int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst);
     } /* extern "C" */
 #endif
 
-#endif /* WOLFSSL_SHA512 */
+#endif /* WOLFSSL_SHA512 || WOLFSSL_SHA384 */
 #endif /* WOLF_CRYPT_SHA512_H */
 

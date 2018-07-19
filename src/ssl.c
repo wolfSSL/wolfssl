@@ -88,7 +88,7 @@
     #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL)
         #include <wolfssl/openssl/ocsp.h>
     #endif /* WITH_STUNNEL */
-    #ifdef WOLFSSL_SHA512
+    #if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
         #include <wolfssl/wolfcrypt/sha512.h>
     #endif
     #if defined(WOLFCRYPT_HAVE_SRP) && !defined(NO_SHA256) \
@@ -13706,13 +13706,13 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
             mdlen = WC_SHA256_DIGEST_SIZE;
         } else
 #endif
-#ifdef WOLFSSL_SHA512
 #ifdef WOLFSSL_SHA384
         if (XSTRNCMP(evp_md, "SHA384", 6) == 0) {
             type = WC_SHA384;
             mdlen = WC_SHA384_DIGEST_SIZE;
         } else
 #endif
+#ifdef WOLFSSL_SHA512
         if (XSTRNCMP(evp_md, "SHA512", 6) == 0) {
             type = WC_SHA512;
             mdlen = WC_SHA512_DIGEST_SIZE;
@@ -24830,13 +24830,13 @@ int wolfSSL_HMAC_CTX_copy(WOLFSSL_HMAC_CTX* des, WOLFSSL_HMAC_CTX* src)
             break;
     #endif /* !NO_SHA256 */
 
-    #ifdef WOLFSSL_SHA512
     #ifdef WOLFSSL_SHA384
         case WC_SHA384:
             XMEMCPY(&des->hmac.hash.sha384, &src->hmac.hash.sha384,
                     sizeof(wc_Sha384));
             break;
     #endif /* WOLFSSL_SHA384 */
+    #ifdef WOLFSSL_SHA512
         case WC_SHA512:
             XMEMCPY(&des->hmac.hash.sha512, &src->hmac.hash.sha512,
                     sizeof(wc_Sha512));
@@ -24911,12 +24911,12 @@ static int _HMAC_Init(Hmac* hmac, int type, void* heap)
             break;
     #endif /* !NO_SHA256 */
 
-    #ifdef WOLFSSL_SHA512
     #ifdef WOLFSSL_SHA384
         case WC_SHA384:
             ret = wc_InitSha384(&hmac->hash.sha384);
             break;
     #endif /* WOLFSSL_SHA384 */
+    #ifdef WOLFSSL_SHA512
         case WC_SHA512:
             ret = wc_InitSha512(&hmac->hash.sha512);
             break;
@@ -29721,7 +29721,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     }
 #endif /* ! NO_SHA256 */
 
-#if defined(WOLFSSL_SHA384) && defined(WOLFSSL_SHA512)
+#ifdef WOLFSSL_SHA384
      /* One shot SHA384 hash of message.
       *
       * d  message to hash
@@ -29766,7 +29766,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
              return (unsigned char*)dig;
          }
      }
-#endif /* defined(WOLFSSL_SHA384) && defined(WOLFSSL_SHA512)  */
+#endif /* WOLFSSL_SHA384  */
 
 
 #if defined(WOLFSSL_SHA512)
