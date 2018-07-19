@@ -17259,6 +17259,8 @@ static void test_wolfSSL_X509_STORE_CTX(void)
     X509_STORE_CTX_set_error(NULL, -5);
 
     X509_STORE_CTX_free(ctx);
+    X509_STORE_free(str);
+    X509_free(x509);
 
     AssertNotNull(ctx = X509_STORE_CTX_new());
     X509_STORE_CTX_set_verify_cb(ctx, (void *)verify_cb);
@@ -18273,6 +18275,8 @@ static void test_wolfSSL_X509(void)
 
 
     X509_STORE_CTX_free(ctx);
+    X509_STORE_free(store);
+    X509_free(x509);
     BIO_free(bio);
 
     /** d2i_X509_fp test **/
@@ -18499,7 +18503,7 @@ static void test_wolfSSL_HMAC(void)
 
 static void test_wolfSSL_OBJ(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256)
+#if defined(OPENSSL_EXTRA) && !defined(NO_SHA256) && !defined(NO_ASN)
     ASN1_OBJECT *obj = NULL;
     char buf[50];
 
@@ -18560,7 +18564,7 @@ static void test_wolfSSL_OBJ(void)
             AssertNotNull(asn1Name = X509_NAME_ENTRY_get_object(x509NameEntry));
             AssertTrue((nid = OBJ_obj2nid(asn1Name)) > 0);
             printf("nid=%d\n", nid);
-            ASN1_OBJECT_free(asn1Name);
+            //ASN1_OBJECT_free(asn1Name);
         }
         BIO_free(bio);
         X509_free(x509);
@@ -18582,7 +18586,7 @@ static void test_wolfSSL_OBJ(void)
             AssertNotNull(asn1Name = X509_NAME_ENTRY_get_object(x509NameEntry));
             AssertTrue((nid = OBJ_obj2nid(asn1Name)) > 0);
             printf("nid=%d\n", nid);
-            ASN1_OBJECT_free(asn1Name);
+            //ASN1_OBJECT_free(asn1Name);
         }
         BIO_free(bio);
         X509_free(x509);
