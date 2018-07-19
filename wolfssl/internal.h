@@ -159,7 +159,7 @@
     /* do nothing */
 #elif defined(INTIME_RTOS)
     #include <rt.h>
-#elif defined(WOLFSSL_NUCLEUS)
+#elif defined(WOLFSSL_NUCLEUS_1_2)
     /* do nothing */
 #else
     #ifndef SINGLE_THREADED

@@ -80,7 +80,7 @@
     #elif defined(WOLFSSL_VXWORKS)
         #include <sockLib.h>
         #include <errno.h>
-    #elif defined(WOLFSSL_NUCLEUS)
+    #elif defined(WOLFSSL_NUCLEUS_1_2)
         #include <externs.h>
         #include <errno.h>
     #elif defined(WOLFSSL_ATMEL)
@@ -201,7 +201,7 @@
     #define SOCKET_EPIPE        FREERTOS_SOCKET_ERROR
     #define SOCKET_ECONNREFUSED FREERTOS_SOCKET_ERROR
     #define SOCKET_ECONNABORTED FREERTOS_SOCKET_ERROR
-#elif defined(WOLFSSL_NUCLEUS)
+#elif defined(WOLFSSL_NUCLEUS_1_2)
     #define SOCKET_EWOULDBLOCK  NU_WOULD_BLOCK
     #define SOCKET_EAGAIN       NU_WOULD_BLOCK
     #define SOCKET_ECONNRESET   NU_NOT_CONNECTED
@@ -255,7 +255,7 @@
 #elif defined(WOLFSSL_VXWORKS)
     #define SEND_FUNCTION send
     #define RECV_FUNCTION recv
-#elif defined(WOLFSSL_NUCLEUS)
+#elif defined(WOLFSSL_NUCLEUS_1_2)
     #define SEND_FUNCTION NU_Send
     #define RECV_FUNCTION NU_Recv
 #else

@@ -162,8 +162,8 @@
 /* Uncomment next line if building for using XILINX */
 /* #define WOLFSSL_XILINX */
 
-/* Uncomment next line if building for Nucleus */
-/* #define WOLFSSL_NUCLEUS */
+/* Uncomment next line if building for Nucleus 1.2 */
+/* #define WOLFSSL_NUCLEUS_1_2 */
 
 #include <wolfssl/wolfcrypt/visibility.h>
 
@@ -450,7 +450,13 @@
     #include "wolfssl_chibios.h"
 #endif
 
-#ifdef WOLFSSL_NUCLEUS
+#ifdef WOLFSSL_PB
+    /* PB is using older 1.2 version of Nucleus */
+    #undef WOLFSSL_NUCLEUS
+    #define WOLFSSL_NUCLEUS_1_2
+#endif
+
+#ifdef WOLFSSL_NUCLEUS_1_2
     #define NO_WRITEV
     #define NO_WOLFSSL_DIR
 

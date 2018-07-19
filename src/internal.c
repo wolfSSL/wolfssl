@@ -6067,7 +6067,7 @@ ProtocolVersion MakeDTLSv1_2(void)
         return (word32)(uTaskerSystemTick / TICK_RESOLUTION);
     }
 
-#elif defined(WOLFSSL_NUCLEUS)
+#elif defined(WOLFSSL_NUCLEUS_1_2)
 
     #define NU_TICKS_PER_SECOND 100
 

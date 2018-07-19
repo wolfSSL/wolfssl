@@ -221,7 +221,7 @@ int wolfCrypt_Cleanup(void)
 }
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR) && \
-	!defined(WOLFSSL_NUCLEUS)
+	!defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
 
 /* File Handling Helpers */
 /* returns 0 if file found, -1 if no files or negative error */
@@ -1255,7 +1255,7 @@ int wolfSSL_CryptHwMutexUnLock(void) {
         return ret;
     }
 
-#elif defined(WOLFSSL_NUCLEUS)
+#elif defined(WOLFSSL_NUCLEUS_1_2)
 
     int wc_InitMutex(wolfSSL_Mutex* m)
     {
@@ -1526,7 +1526,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
 #endif
 
 /* custom memory wrappers */
-#ifdef WOLFSSL_NUCLEUS
+#ifdef WOLFSSL_NUCLEUS_1_2
 
     /* system memory pool */
     extern NU_MEMORY_POOL System_Memory;
@@ -1583,7 +1583,7 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
             NU_Deallocate_Memory(ptr);
     }
 
-#endif /* WOLFSSL_NUCLEUS */
+#endif /* WOLFSSL_NUCLEUS_1_2 */
 
 #if defined(WOLFSSL_TI_CRYPT) || defined(WOLFSSL_TI_HASH)
     #include <wolfcrypt/src/port/ti/ti-ccm.c>  /* initialize and Mutex for TI Crypt Engine */

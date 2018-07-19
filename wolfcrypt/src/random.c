@@ -143,6 +143,7 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #elif defined(WOLFSSL_EMBOS)
 #elif defined(MICRIUM)
 #elif defined(WOLFSSL_NUCLEUS)
+#elif defined(WOLFSSL_PB)
 #else
     /* include headers that may be needed to get good seed */
     #include <fcntl.h>
