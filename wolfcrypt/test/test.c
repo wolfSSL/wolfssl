@@ -123,9 +123,12 @@
     #include <wolfssl/wolfcrypt/cryptodev.h>
 #endif
 
+#ifndef NO_INLINE
 #define WOLFSSL_MISC_INCLUDED
 #include <wolfcrypt/src/misc.c>
-
+#else
+#include <wolfssl/wolfcrypt/misc.h>
+#endif
 
 /* only for stack size check */
 #ifdef HAVE_STACK_SIZE
@@ -17515,6 +17518,7 @@ int ed25519_test(void)
                                    0 /*sizeof(msg1)*/,
                                    sizeof(msg4)
     };
+#ifndef NO_ASN
     static byte privateEd25519[] = {
         0x30,0x2e,0x02,0x01,0x00,0x30,0x05,0x06,
         0x03,0x2b,0x65,0x70,0x04,0x22,0x04,0x20,
@@ -17544,9 +17548,10 @@ int ed25519_test(void)
         0xda,0xa6,0x23,0x25,0xaf,0x02,0x1a,0x68,
         0xf7,0x07,0x51,0x1a
     };
+
     word32 idx;
     ed25519_key key3;
-
+#endif /* NO_ASN */
 #endif /* HAVE_ED25519_SIGN && HAVE_ED25519_KEY_EXPORT && HAVE_ED25519_KEY_IMPORT */
 
     /* create ed25519 keys */
@@ -17560,7 +17565,9 @@ int ed25519_test(void)
 
     wc_ed25519_init(&key);
     wc_ed25519_init(&key2);
+#ifndef NO_ASN
     wc_ed25519_init(&key3);
+#endif
     wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key);
     wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key2);
 
@@ -17629,6 +17636,7 @@ int ed25519_test(void)
 #endif /* HAVE_ED25519_VERIFY */
     }
 
+#ifndef NO_ASN
     /* Try ASN.1 encoded private-only key and public key. */
     idx = 0;
     if (wc_Ed25519PrivateKeyDecode(privateEd25519, &idx, &key3,
@@ -17672,6 +17680,7 @@ int ed25519_test(void)
         return -7234 - i;
 
     wc_ed25519_free(&key3);
+#endif /* NO_ASN */
 #endif /* HAVE_ED25519_SIGN && HAVE_ED25519_KEY_EXPORT && HAVE_ED25519_KEY_IMPORT */
 
     /* clean up keys when done */
