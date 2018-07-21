@@ -14989,7 +14989,7 @@ static void test_wc_PKCS7_EncodeSignedData_ex(void)
         int             certSz, keySz;
 
         fp = XFOPEN("./certs/client-ecc-cert.der", "rb");
-        AssertTrue(fp != BADFILE);
+        AssertTrue(fp != XBADFILE);
         certSz = XFREAD(cert, 1, sizeof_cliecc_cert_der_256, fp);
         XFCLOSE(fp);
 
@@ -18552,29 +18552,28 @@ static void test_wolfSSL_OBJ(void)
 
     for (i = 0; f[i] != NULL; i++)
     {
-        printf("file=%s\n", f[i]);
         AssertTrue((fp = XFOPEN(f[i], "r")) != XBADFILE);
         AssertNotNull(x509 = d2i_X509_fp(fp, NULL));
+        XFCLOSE(fp);
         AssertNotNull(x509Name = X509_get_issuer_name(x509));
         AssertIntNE((numNames = X509_NAME_entry_count(x509Name)), 0);
         AssertTrue((bio = BIO_new(BIO_s_mem())) != NULL);
         for (j = 0; j < numNames; j++)
         {
-            AssertNotNull(x509NameEntry = X509_NAME_get_entry(x509Name, j));
+            AssertNotNull(x509NameEntry = X509_NAME_get_entry(x509Name, j));          
             AssertNotNull(asn1Name = X509_NAME_ENTRY_get_object(x509NameEntry));
             AssertTrue((nid = OBJ_obj2nid(asn1Name)) > 0);
-            printf("nid=%d\n", nid);
-            //ASN1_OBJECT_free(asn1Name);
         }
         BIO_free(bio);
         X509_free(x509);
-        XFCLOSE(fp);
+        ASN1_OBJECT_free(asn1Name);
     }
 
     for (i = 0; p12_f[i] != NULL; i++)
     {
         AssertTrue((fp = XFOPEN(p12_f[i], "r")) != XBADFILE);
         AssertNotNull(p12 = d2i_PKCS12_fp(fp, NULL));
+        XFCLOSE(fp);
         AssertTrue((boolRet = PKCS12_parse(p12, "wolfSSL test", &pkey, &x509, NULL)) > 0);
         AssertNotNull((x509Name = X509_get_issuer_name(x509)) != NULL);
         AssertIntNE((numNames = X509_NAME_entry_count(x509Name)), 0);
@@ -18585,12 +18584,10 @@ static void test_wolfSSL_OBJ(void)
             AssertNotNull(x509NameEntry = X509_NAME_get_entry(x509Name, j));
             AssertNotNull(asn1Name = X509_NAME_ENTRY_get_object(x509NameEntry));
             AssertTrue((nid = OBJ_obj2nid(asn1Name)) > 0);
-            printf("nid=%d\n", nid);
-            //ASN1_OBJECT_free(asn1Name);
         }
         BIO_free(bio);
         X509_free(x509);
-        XFCLOSE(fp);
+        ASN1_OBJECT_free(asn1Name);
     }
 
     printf(resultFmt, passed);
@@ -19262,7 +19259,7 @@ static void test_wolfSSL_RSA_DER(void)
         AssertIntEQ(i2d_RSAPublicKey(rsa, &buff), pub[i].sz);
         AssertNotNull(buff);
         AssertIntEQ(0, memcmp((void *)buff, (void *)pub[i].der, pub[i].sz));
-        free((void *)buff);
+        XFREE((void *)buff, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         RSA_free(rsa);
     }
 

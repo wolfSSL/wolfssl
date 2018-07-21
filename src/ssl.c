@@ -15499,14 +15499,14 @@ void wolfSSL_ASN1_OBJECT_free(WOLFSSL_ASN1_OBJECT* obj)
         return;
     }
 
-    if (obj->dynamic == 1) {
-        if (obj->obj != NULL) {
-            WOLFSSL_MSG("Freeing ASN1 OBJECT data");
-            XFREE(obj->obj, obj->heap, DYNAMIC_TYPE_ASN1);
-        }
+    if ((obj->obj != NULL) && ((obj->dynamic & WOLFSSL_ASN1_DYNAMIC_DATA) != 0)) {
+        WOLFSSL_MSG("Freeing ASN1 data");
+        XFREE(obj->obj, obj->heap, DYNAMIC_TYPE_ASN1);
     }
-
-    XFREE(obj, NULL, DYNAMIC_TYPE_ASN1);
+    if ((obj->dynamic & WOLFSSL_ASN1_DYNAMIC) != 0) {
+        WOLFSSL_MSG("Freeing ASN1 OBJECT");
+        XFREE(obj, NULL, DYNAMIC_TYPE_ASN1);
+    } 
 }
 
 
@@ -28473,7 +28473,8 @@ int wolfSSL_i2d_RSAPublicKey(WOLFSSL_RSA *rsa, const unsigned char **pp)
     }
     if ((ret = wc_RsaKeyToPublicDer((RsaKey *)rsa->internal, der, derLen)) < 0){
         WOLFSSL_MSG("RsaKeyToPublicDer failed");
-        XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        if(der != NULL)
+            XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
     if((pp != NULL) && (ret >= 0))
@@ -30180,10 +30181,13 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                 WOLFSSL_MSG("Issue creating WOLFSSL_ASN1_OBJECT struct");
                 return NULL;
             }
+            obj->dynamic = WOLFSSL_ASN1_DYNAMIC;
+        } else {
+            obj->dynamic = 0;
         }
         obj->type    = id;
         obj->grp     = type;
-        obj->dynamic = 1;
+
         XMEMCPY(obj->sName, (char*)sName, XSTRLEN((char*)sName));
 
         objBuf[0] = ASN_OBJECT_ID; objSz++;
@@ -30191,11 +30195,14 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         XMEMCPY(objBuf + objSz, oid, oidSz);
         objSz     += oidSz;
         obj->objSz = objSz;
-
-        obj->obj = (byte*)XMALLOC(obj->objSz, NULL, DYNAMIC_TYPE_ASN1);
-        if (obj->obj == NULL) {
-            wolfSSL_ASN1_OBJECT_free(obj);
-            return NULL;
+        if(((obj->dynamic & WOLFSSL_ASN1_DYNAMIC) != 0) ||
+          (((obj->dynamic & WOLFSSL_ASN1_DYNAMIC) == 0) && (obj->obj == NULL))) {
+            obj->obj = (byte*)XMALLOC(obj->objSz, NULL, DYNAMIC_TYPE_ASN1);
+            if (obj->obj == NULL) {
+                wolfSSL_ASN1_OBJECT_free(obj);
+                return NULL;
+            }
+            obj->dynamic |= WOLFSSL_ASN1_DYNAMIC_DATA ;
         }
         XMEMCPY(obj->obj, objBuf, obj->objSz);
 
