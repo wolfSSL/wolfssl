@@ -104,7 +104,7 @@ ASN Options:
     #include <wolfssl/wolfcrypt/rsa.h>
 #endif
 
-#ifdef OPENSSL_EXTRA
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA_X509_SMALL)
     #include <wolfssl/openssl/ssl.h> /* for OBJ_sn2nid */
 #endif
 
@@ -4090,10 +4090,10 @@ WOLFSSL_LOCAL int OBJ_sn2nid(const char *sn)
         {WOLFSSL_COMMON_NAME, NID_commonName},
         {WOLFSSL_COUNTRY_NAME, NID_countryName},
         {WOLFSSL_LOCALITY_NAME, NID_localityName},
-        {"/ST", NID_stateOrProvinceName},
+        {WOLFSSL_STATE_NAME, NID_stateOrProvinceName},
         {WOLFSSL_ORG_NAME, NID_organizationName},
         {WOLFSSL_ORGUNIT_NAME, NID_organizationalUnitName},
-        {"/emailAddress", NID_emailAddress},
+        {WOLFSSL_EMAIL_ADDR, NID_emailAddress},
         {NULL, -1}};
 
     int i;

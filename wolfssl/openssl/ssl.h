@@ -587,6 +587,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 /* NIDs */
 enum {
+    NID_undef  = 0,
     NID_des    = 66,
     NID_des3   = 67,
     NID_sha256 = 672,

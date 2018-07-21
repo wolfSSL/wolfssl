@@ -137,6 +137,7 @@ enum DN_Tags {
 #define WOLFSSL_BUS_CAT          "/businessCategory="
 #define WOLFSSL_JOI_C            "/jurisdictionC="
 #define WOLFSSL_JOI_ST           "/jurisdictionST="
+#define WOLFSSL_EMAIL_ADDR "/emailAddress="
 
 enum ECC_TYPES {
     ECC_PREFIX_0 = 160,

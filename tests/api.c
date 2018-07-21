@@ -18565,8 +18565,9 @@ static void test_wolfSSL_OBJ(void)
             AssertTrue((nid = OBJ_obj2nid(asn1Name)) > 0);
         }
         BIO_free(bio);
-        X509_free(x509);
         ASN1_OBJECT_free(asn1Name);
+        X509_free(x509);
+
     }
 
     for (i = 0; p12_f[i] != NULL; i++)
@@ -18586,8 +18587,8 @@ static void test_wolfSSL_OBJ(void)
             AssertTrue((nid = OBJ_obj2nid(asn1Name)) > 0);
         }
         BIO_free(bio);
-        X509_free(x509);
         ASN1_OBJECT_free(asn1Name);
+        X509_free(x509);
     }
 
     printf(resultFmt, passed);

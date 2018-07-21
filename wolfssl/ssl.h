@@ -1177,8 +1177,6 @@ enum {
     BIO_CLOSE   = 1,
     BIO_NOCLOSE = 0,
 
-    NID_undef = 0,
-
     X509_FILETYPE_PEM = 8,
     X509_LU_X509      = 9,
     X509_LU_CRL       = 12,

@@ -30203,6 +30203,8 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                 return NULL;
             }
             obj->dynamic |= WOLFSSL_ASN1_DYNAMIC_DATA ;
+        } else {
+            obj->dynamic &= ~WOLFSSL_ASN1_DYNAMIC_DATA ;
         }
         XMEMCPY(obj->obj, objBuf, obj->objSz);
 
