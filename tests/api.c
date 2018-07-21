@@ -18511,7 +18511,7 @@ static void test_wolfSSL_OBJ(void)
     X509 *x509 = NULL;
     X509_NAME *x509Name;
     X509_NAME_ENTRY *x509NameEntry;
-    ASN1_OBJECT *asn1Name;
+    ASN1_OBJECT *asn1Name = NULL;
     int numNames;
     BIO *bio = NULL;
     int nid;
