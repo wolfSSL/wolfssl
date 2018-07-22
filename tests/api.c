@@ -18576,10 +18576,11 @@ static void test_wolfSSL_OBJ(void)
         AssertNotNull(p12 = d2i_PKCS12_fp(fp, NULL));
         XFCLOSE(fp);
         AssertTrue((boolRet = PKCS12_parse(p12, "wolfSSL test", &pkey, &x509, NULL)) > 0);
+        wc_PKCS12_free(p12);
+        EVP_PKEY_free(pkey);
         AssertNotNull((x509Name = X509_get_issuer_name(x509)) != NULL);
         AssertIntNE((numNames = X509_NAME_entry_count(x509Name)), 0);
         AssertTrue((bio = BIO_new(BIO_s_mem())) != NULL);
-
         for (j = 0; j < numNames; j++)
         {
             AssertNotNull(x509NameEntry = X509_NAME_get_entry(x509Name, j));
