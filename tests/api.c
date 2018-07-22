@@ -17259,8 +17259,10 @@ static void test_wolfSSL_X509_STORE_CTX(void)
     X509_STORE_CTX_set_error(NULL, -5);
 
     X509_STORE_CTX_free(ctx);
+    #ifdef WOLFSSL_KEEP_STORE_CERTS
     X509_STORE_free(str);
     X509_free(x509);
+    #endif
 
     AssertNotNull(ctx = X509_STORE_CTX_new());
     X509_STORE_CTX_set_verify_cb(ctx, (void *)verify_cb);
@@ -18275,8 +18277,10 @@ static void test_wolfSSL_X509(void)
 
 
     X509_STORE_CTX_free(ctx);
+    #ifdef WOLFSSL_KEEP_STORE_CERTS
     X509_STORE_free(store);
     X509_free(x509);
+    #endif
     BIO_free(bio);
 
     /** d2i_X509_fp test **/
