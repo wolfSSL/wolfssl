@@ -15489,6 +15489,7 @@ WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_new(void)
 
     XMEMSET(obj, 0, sizeof(WOLFSSL_ASN1_OBJECT));
     obj->d.ia5 = &(obj->d.ia5_internal);
+    obj->dynamic |= WOLFSSL_ASN1_DYNAMIC;
     return obj;
 }
 
