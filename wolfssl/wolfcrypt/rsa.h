@@ -114,7 +114,7 @@ enum {
 /* RSA */
 struct RsaKey {
     mp_int n, e, d, p, q;
-#if defined(WOLFSSL_KEY_GEN) || !defined(RSA_LOW_MEM)
+#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
     mp_int dP, dQ, u;
 #endif
     void* heap;                               /* for user memory overrides */

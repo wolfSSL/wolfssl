@@ -5078,10 +5078,10 @@ int wc_ecc_verify_hash(const byte* sig, word32 siglen, const byte* hash,
     r = r_lcl;
     s = s_lcl;
 #else
-    r = XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_ECC);
+    r = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_ECC);
     if (r == NULL)
         return MEMORY_E;
-    s = XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_ECC);
+    s = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_ECC);
     if (s == NULL) {
         XFREE(r, key->heap, DYNAMIC_TYPE_ECC);
         return MEMORY_E;

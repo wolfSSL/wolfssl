@@ -746,7 +746,7 @@ int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx, word32 maxIdx)
     return 0;
 }
 
-#ifdef RSA_LOW_MEM
+#if !defined(WOLFSSL_KEY_GEN) && !defined(OPENSSL_EXTRA) && defined(RSA_LOW_MEM)
 #if !defined(NO_RSA) && !defined(HAVE_USER_RSA)
 static int SkipInt(const byte* input, word32* inOutIdx, word32 maxIdx)
 {
@@ -2112,7 +2112,7 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
         GetInt(&key->d,  input, inOutIdx, inSz) < 0 ||
         GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
         GetInt(&key->q,  input, inOutIdx, inSz) < 0)   return ASN_RSA_KEY_E;
-#ifndef RSA_LOW_MEM
+#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
     if (GetInt(&key->dP, input, inOutIdx, inSz) < 0 ||
         GetInt(&key->dQ, input, inOutIdx, inSz) < 0 ||
         GetInt(&key->u,  input, inOutIdx, inSz) < 0 )  return ASN_RSA_KEY_E;
@@ -2344,10 +2344,10 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
         word32 keyIdx = 0;
 
     #ifdef WOLFSSL_SMALL_STACK
-        a = XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_RSA);
+        a = (RsaKey*)XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_RSA);
         if (a == NULL)
             return MEMORY_E;
-        b = XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_RSA);
+        b = (RsaKey*)XMALLOC(sizeof(RsaKey), NULL, DYNAMIC_TYPE_RSA);
         if (b == NULL) {
             XFREE(a, NULL, DYNAMIC_TYPE_RSA);
             return MEMORY_E;
@@ -2415,10 +2415,10 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
         word32   keyIdx = 0;
 
     #ifdef WOLFSSL_SMALL_STACK
-        key_pair = XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_ECC);
+        key_pair = (ecc_key*)XMALLOC(sizeof(ecc_key), NULL, DYNAMIC_TYPE_ECC);
         if (key_pair == NULL)
             return MEMORY_E;
-        privDer = XMALLOC(MAX_ECC_BYTES, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        privDer = (byte*)XMALLOC(MAX_ECC_BYTES, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         if (privDer == NULL) {
             XFREE(key_pair, NULL, DYNAMIC_TYPE_ECC);
             return MEMORY_E;
@@ -2477,7 +2477,8 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
         word32       keyIdx = 0;
 
     #ifdef WOLFSSL_SMALL_STACK
-        key_pair = XMALLOC(sizeof(ed25519_key), NULL, DYNAMIC_TYPE_ED25519);
+        key_pair = (ed25519_key*)XMALLOC(sizeof(ed25519_key), NULL,
+                                                          DYNAMIC_TYPE_ED25519);
         if (key_pair == NULL)
             return MEMORY_E;
     #endif

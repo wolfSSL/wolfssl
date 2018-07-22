@@ -276,7 +276,7 @@ int wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId)
     if (ret != MP_OKAY)
         return ret;
 
-#ifdef RSA_LOW_MEM
+#if !defined(WOLFSSL_KEY_GEN) && !defined(OPENSSL_EXTRA) && defined(RSA_LOW_MEM)
     ret = mp_init_multi(&key->d, &key->p, &key->q, NULL, NULL, NULL);
 #else
     ret = mp_init_multi(&key->d, &key->p, &key->q, &key->dP, &key->dQ, &key->u);
@@ -391,7 +391,7 @@ int wc_FreeRsaKey(RsaKey* key)
 #endif
 
     if (key->type == RSA_PRIVATE) {
-#ifndef RSA_LOW_MEM
+#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
         mp_forcezero(&key->u);
         mp_forcezero(&key->dQ);
         mp_forcezero(&key->dP);
@@ -401,7 +401,7 @@ int wc_FreeRsaKey(RsaKey* key)
         mp_forcezero(&key->d);
     }
     /* private part */
-#ifndef RSA_LOW_MEM
+#if defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA) || !defined(RSA_LOW_MEM)
     mp_clear(&key->u);
     mp_clear(&key->dQ);
     mp_clear(&key->dP);
@@ -1422,11 +1422,11 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
     (void)rng;
 
 #ifdef WOLFSSL_SMALL_STACK
-    tmp = XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_RSA);
+    tmp = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_RSA);
     if (tmp == NULL)
         return MEMORY_E;
 #ifdef WC_RSA_BLINDING
-    rnd = XMALLOC(sizeof(mp_int) * 2, key->heap, DYNAMIC_TYPE_RSA);
+    rnd = (mp_int*)XMALLOC(sizeof(mp_int) * 2, key->heap, DYNAMIC_TYPE_RSA);
     if (rnd == NULL) {
         XFREE(tmp, key->heap, DYNAMIC_TYPE_RSA);
         return MEMORY_E;
@@ -1811,7 +1811,7 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
 #endif
 
 #ifdef WOLFSSL_SMALL_STACK
-        c = XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_RSA);
+        c = (mp_int*)XMALLOC(sizeof(mp_int), key->heap, DYNAMIC_TYPE_RSA);
         if (c == NULL)
             ret = MEMORY_E;
 #endif
