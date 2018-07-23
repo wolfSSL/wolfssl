@@ -576,7 +576,9 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
                     void* heap, int devId)
 {
     int ret = RNG_FAILURE_E;
+#ifdef HAVE_HASHDRBG
     word32 entropySz = ENTROPY_SZ;
+#endif
 
     (void)nonce;
     (void)nonceSz;

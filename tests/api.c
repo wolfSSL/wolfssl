@@ -218,7 +218,6 @@
     #include <wolfssl/wolfcrypt/blake2.h>
 #endif
 
-
 #ifndef NO_RSA
     #include <wolfssl/wolfcrypt/rsa.h>
     #include <wolfssl/wolfcrypt/hash.h>
@@ -20136,6 +20135,41 @@ static void test_wolfSSL_i2c_ASN1_INTEGER()
     printf(resultFmt, passed);
 #endif /* OPENSSL_EXTRA */
 }
+
+#ifndef NO_INLINE
+#define WOLFSSL_MISC_INCLUDED
+#include <wolfcrypt/src/misc.c>
+#else
+#include <wolfssl/wolfcrypt/misc.h>
+#endif
+
+static int test_ForceZero(void)
+{
+    unsigned char data[32];
+    unsigned int i, j, len;
+
+    /* Test ForceZero */
+    for (i = 0; i < sizeof(data); i++) {
+        for (len = 1; len < sizeof(data) - i; len++) {
+            for (j = 0; j < sizeof(data); j++)
+                data[j] = j + 1;
+
+            ForceZero(data + i, len);
+
+            for (j = 0; j < sizeof(data); j++) {
+                if (j < i || j >= i + len) {
+                    if (data[j] == 0x00)
+                        return -10200;
+                }
+                else if (data[j] != 0x00)
+                    return -10201;
+            }
+        }
+    }
+
+    return 0;
+}
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -20476,6 +20510,8 @@ void ApiTest(void)
     test_wc_PKCS7_VerifySignedData();
     test_wc_PKCS7_EncodeDecodeEnvelopedData();
     test_wc_PKCS7_EncodeEncryptedData();
+
+    AssertIntEQ(test_ForceZero(), 0);
 
     printf(" End API Tests\n");
 
