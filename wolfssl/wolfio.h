@@ -30,10 +30,13 @@
     extern "C" {
 #endif
 
-/* OCSP and CRL_IO require HTTP client */
-#if defined(HAVE_OCSP) || defined(HAVE_CRL_IO)
-    #ifndef HAVE_HTTP_CLIENT
-        #define HAVE_HTTP_CLIENT
+/* Micrium uses NetSock I/O callbacks in wolfio.c */
+#if !defined(WOLFSSL_USER_IO)
+    /* OCSP and CRL_IO require HTTP client */
+    #if defined(HAVE_OCSP) || defined(HAVE_CRL_IO)
+        #ifndef HAVE_HTTP_CLIENT
+            #define HAVE_HTTP_CLIENT
+        #endif
     #endif
 #endif
 
