@@ -4319,10 +4319,9 @@ for option in $OPTION_FLAGS; do
         fi
 
         # allow user to ignore system options
-        ignoresys=no
-        if test "$noequalsign = _*"
+        ignoresys=$(echo "$noequalsign" | grep '^_.*')
+        if test -n "$ignoresys"
         then
-            ignoresys=yes
             echo "#ifndef WOLFSSL_OPTIONS_IGNORE_SYS" >> $OPTION_FILE
         fi
 
@@ -4330,7 +4329,7 @@ for option in $OPTION_FLAGS; do
         echo "#undef  $noarg" >> $OPTION_FILE
         echo "#define $noequalsign" >> $OPTION_FILE
 
-        if test "$ignoresys" = "yes"
+        if test -n "$ignoresys"
         then
             echo "#endif" >> $OPTION_FILE
         fi
