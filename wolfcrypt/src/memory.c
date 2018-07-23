@@ -46,9 +46,9 @@
 
 
 /* Set these to default values initially. */
-static wolfSSL_Malloc_cb  malloc_function = 0;
-static wolfSSL_Free_cb    free_function = 0;
-static wolfSSL_Realloc_cb realloc_function = 0;
+static wolfSSL_Malloc_cb  malloc_function = NULL;
+static wolfSSL_Free_cb    free_function = NULL;
+static wolfSSL_Realloc_cb realloc_function = NULL;
 
 int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  mf,
                           wolfSSL_Free_cb    ff,
@@ -72,6 +72,16 @@ int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  mf,
         res = BAD_FUNC_ARG;
 
     return res;
+}
+
+int wolfSSL_ResetAllocators(void)
+{
+    /* allow nulls to be set for callbacks to restore defaults */
+    malloc_function = NULL;
+    free_function = NULL;
+    realloc_function = NULL;
+
+    return 0;
 }
 
 int wolfSSL_GetAllocators(wolfSSL_Malloc_cb*  mf,

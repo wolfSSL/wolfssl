@@ -237,6 +237,12 @@
                                        (unsigned long)ourMemStats.currentBytes);
     #endif
     }
+
+    STATIC WC_INLINE int CleanupMemoryTracker(void)
+    {
+        /* restore default allocators */
+        return wolfSSL_ResetAllocators();
+    }
 #endif
 
 #endif /* USE_WOLFSSL_MEMORY */
