@@ -17698,7 +17698,7 @@ static void test_wolfSSL_HMAC(void)
     AssertNotNull(HMAC(EVP_sha224(), key, (int)sizeof(key), NULL, 0, hash, &len));
     AssertIntEQ(len, (int)WC_SHA224_DIGEST_SIZE);
 #endif
-#if defined(OPENSSL_EXTRA) && (defined(WOLFSSL_SHA384) && defined(WOLFSSL_SHA512))
+#if defined(OPENSSL_EXTRA) && defined(WOLFSSL_SHA384)
     len = 0;
     AssertNotNull(HMAC(EVP_sha384(), key, (int)sizeof(key), NULL, 0, hash, &len));
     AssertIntEQ(len, (int)WC_SHA384_DIGEST_SIZE);
@@ -18561,7 +18561,6 @@ static void test_wolfSSL_HMAC_CTX(void)
 
     #endif /* !NO_SHA256 */
 
-    #ifdef WOLFSSL_SHA512
     #ifdef WOLFSSL_SHA384
     AssertIntEQ((digestSz = test_HMAC_CTX_helper(EVP_sha384(), digest)), 48);
     AssertIntEQ(XMEMCMP("\x9E\xCB\x07\x0C\x11\x76\x3F\x23\xC3\x25\x0E\xC4\xB7"
@@ -18570,6 +18569,7 @@ static void test_wolfSSL_HMAC_CTX(void)
                           "\xCD\xFB\xC2\xCC\x9F\x2B\xC5\x41\xAB",
                           digest, digestSz), 0);
     #endif /* WOLFSSL_SHA384 */
+    #ifdef WOLFSSL_SHA512
     AssertIntEQ((digestSz = test_HMAC_CTX_helper(EVP_sha512(), digest)), 64);
     AssertIntEQ(XMEMCMP("\xD4\x21\x0C\x8B\x60\x6F\xF4\xBF\x07\x2F\x26\xCC\xAD"
                           "\xBC\x06\x0B\x34\x78\x8B\x4F\xD6\xC0\x42\xF1\x33\x10"
@@ -18665,7 +18665,7 @@ static void test_wolfSSL_SHA(void)
     }
     #endif
 
-    #if defined(WOLFSSL_SHA384) && defined(WOLFSSL_SHA512)
+    #if defined(WOLFSSL_SHA384)
     {
         const unsigned char in[] = "abc";
         unsigned char expected[] = "\xcb\x00\x75\x3f\x45\xa3\x5e\x8b\xb5\xa0\x3d\x69\x9a\xc6\x50"

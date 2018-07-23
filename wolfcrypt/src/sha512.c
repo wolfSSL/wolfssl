@@ -26,7 +26,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#ifdef WOLFSSL_SHA512
+#if defined(WOLFSSL_SHA512) || defined(WOLFSSL_SHA384)
 
 #if defined(HAVE_FIPS) && \
 	defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
@@ -53,44 +53,47 @@
 #if defined(HAVE_FIPS) && \
     (!defined(HAVE_FIPS_VERSION) || (HAVE_FIPS_VERSION < 2))
 
-    int wc_InitSha512(wc_Sha512* sha)
-    {
-        if (sha == NULL) {
-            return BAD_FUNC_ARG;
-        }
+    #ifdef WOLFSSL_SHA512
 
-        return InitSha512_fips(sha);
-    }
-    int wc_InitSha512_ex(wc_Sha512* sha, void* heap, int devId)
-    {
-        (void)heap;
-        (void)devId;
-        if (sha == NULL) {
-            return BAD_FUNC_ARG;
-        }
-        return InitSha512_fips(sha);
-    }
-    int wc_Sha512Update(wc_Sha512* sha, const byte* data, word32 len)
-    {
-        if (sha == NULL || (data == NULL && len > 0)) {
-            return BAD_FUNC_ARG;
-        }
+        int wc_InitSha512(wc_Sha512* sha)
+        {
+            if (sha == NULL) {
+                return BAD_FUNC_ARG;
+            }
 
-        return Sha512Update_fips(sha, data, len);
-    }
-    int wc_Sha512Final(wc_Sha512* sha, byte* out)
-    {
-        if (sha == NULL || out == NULL) {
-            return BAD_FUNC_ARG;
+            return InitSha512_fips(sha);
         }
+        int wc_InitSha512_ex(wc_Sha512* sha, void* heap, int devId)
+        {
+            (void)heap;
+            (void)devId;
+            if (sha == NULL) {
+                return BAD_FUNC_ARG;
+            }
+            return InitSha512_fips(sha);
+        }
+        int wc_Sha512Update(wc_Sha512* sha, const byte* data, word32 len)
+        {
+            if (sha == NULL || (data == NULL && len > 0)) {
+                return BAD_FUNC_ARG;
+            }
 
-        return Sha512Final_fips(sha, out);
-    }
-    void wc_Sha512Free(wc_Sha512* sha)
-    {
-        (void)sha;
-        /* Not supported in FIPS */
-    }
+            return Sha512Update_fips(sha, data, len);
+        }
+        int wc_Sha512Final(wc_Sha512* sha, byte* out)
+        {
+            if (sha == NULL || out == NULL) {
+                return BAD_FUNC_ARG;
+            }
+
+            return Sha512Final_fips(sha, out);
+        }
+        void wc_Sha512Free(wc_Sha512* sha)
+        {
+            (void)sha;
+            /* Not supported in FIPS */
+        }
+    #endif
 
     #if defined(WOLFSSL_SHA384) || defined(HAVE_AESGCM)
         int wc_InitSha384(wc_Sha384* sha)
@@ -186,6 +189,8 @@
     /* functions defined in wolfcrypt/src/port/caam/caam_sha.c */
 #else
 
+#ifdef WOLFSSL_SHA512
+
 static int InitSha512(wc_Sha512* sha512)
 {
     if (sha512 == NULL)
@@ -207,9 +212,12 @@ static int InitSha512(wc_Sha512* sha512)
     return 0;
 }
 
+#endif /* WOLFSSL_SHA512 */
 
 /* Hardware Acceleration */
 #if defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
+
+#ifdef WOLFSSL_SHA512
 
     /*****
     Intel AVX1/AVX2 Macro Control Structure
@@ -358,8 +366,12 @@ static int InitSha512(wc_Sha512* sha512)
         return ret;
     }
 
+#endif /* WOLFSSL_SHA512 */
+
 #else
     #define Transform_Sha512(sha512) _Transform_Sha512(sha512)
+
+    #ifdef WOLFSSL_SHA512
 
     int wc_InitSha512_ex(wc_Sha512* sha512, void* heap, int devId)
     {
@@ -387,6 +399,8 @@ static int InitSha512(wc_Sha512* sha512)
 
         return ret;
     }
+
+    #endif /* WOLFSSL_SHA512 */
 
 #endif /* Hardware Acceleration */
 
@@ -640,6 +654,8 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
     return ret;
 }
 
+#ifdef WOLFSSL_SHA512
+
 int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
 {
     if (sha512 == NULL || (data == NULL && len > 0)) {
@@ -656,6 +672,9 @@ int wc_Sha512Update(wc_Sha512* sha512, const byte* data, word32 len)
 
     return Sha512Update(sha512, data, len);
 }
+
+#endif /* WOLFSSL_SHA512 */
+
 #endif /* WOLFSSL_IMX6_CAAM */
 
 static WC_INLINE int Sha512Final(wc_Sha512* sha512)
@@ -724,6 +743,8 @@ static WC_INLINE int Sha512Final(wc_Sha512* sha512)
 
     return 0;
 }
+
+#ifdef WOLFSSL_SHA512
 
 int wc_Sha512FinalRaw(wc_Sha512* sha512, byte* hash)
 {
@@ -2595,6 +2616,7 @@ static int Transform_Sha512_AVX2_RORX_Len(wc_Sha512* sha512, word32 len)
 #endif /* HAVE_INTEL_RORX */
 #endif /* HAVE_INTEL_AVX2 */
 
+#endif /* WOLFSSL_SHA512 */
 
 
 /* -------------------------------------------------------------------------- */
@@ -2763,6 +2785,7 @@ void wc_Sha384Free(wc_Sha384* sha384)
 
 #endif /* HAVE_FIPS */
 
+#ifdef WOLFSSL_SHA512
 
 int wc_Sha512GetHash(wc_Sha512* sha512, byte* hash)
 {
@@ -2799,7 +2822,10 @@ int wc_Sha512Copy(wc_Sha512* src, wc_Sha512* dst)
     return ret;
 }
 
+#endif /* WOLFSSL_SHA512 */
+
 #ifdef WOLFSSL_SHA384
+
 int wc_Sha384GetHash(wc_Sha384* sha384, byte* hash)
 {
     int ret;
@@ -2833,6 +2859,7 @@ int wc_Sha384Copy(wc_Sha384* src, wc_Sha384* dst)
 
     return ret;
 }
+
 #endif /* WOLFSSL_SHA384 */
 
-#endif /* WOLFSSL_SHA512 */
+#endif /* WOLFSSL_SHA512 || WOLFSSL_SHA384 */

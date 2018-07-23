@@ -1081,14 +1081,40 @@ fi
 if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_FORTRESS" = "yes"
 then
     ENABLED_SHA512="yes"
+    ENABLED_SHA384="yes"
 fi
 
 if test "$ENABLED_SHA512" = "yes" && test "$ENABLED_32BIT" = "no"
 then
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA512 -DWOLFSSL_SHA384"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA512"
 fi
 
 AM_CONDITIONAL([BUILD_SHA512], [test "x$ENABLED_SHA512" = "xyes"])
+
+# SHA384
+AC_ARG_ENABLE([sha384],
+    [AS_HELP_STRING([--enable-sha384],[Enable wolfSSL SHA-384 support (default: enabled)])],
+    [ ENABLED_SHA384=$enableval ],
+    [ ENABLED_SHA384=yes ]
+    )
+
+# options that don't require sha512
+if test "$ENABLED_LEANPSK" = "yes" || test "$ENABLED_LEANTLS" = "yes"
+then
+    ENABLED_SHA384=no
+fi
+
+# options that require sha384
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_FORTRESS" = "yes"
+then
+    ENABLED_SHA384="yes"
+fi
+if test "$ENABLED_SHA384" = "yes" && test "$ENABLED_32BIT" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_SHA384"
+fi
+
+AM_CONDITIONAL([BUILD_SHA512], [test "x$ENABLED_SHA384" = "xyes"])
 
 
 # SESSION CERTS
@@ -4420,6 +4446,7 @@ echo "   * MD5:                        $ENABLED_MD5"
 echo "   * RIPEMD:                     $ENABLED_RIPEMD"
 echo "   * SHA:                        $ENABLED_SHA"
 echo "   * SHA-224:                    $ENABLED_SHA224"
+echo "   * SHA-384:                    $ENABLED_SHA384"
 echo "   * SHA-512:                    $ENABLED_SHA512"
 echo "   * SHA3:                       $ENABLED_SHA3"
 echo "   * BLAKE2:                     $ENABLED_BLAKE2"

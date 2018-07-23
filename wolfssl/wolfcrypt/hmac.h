@@ -119,10 +119,10 @@ typedef union {
 #ifndef NO_SHA256
     wc_Sha256 sha256;
 #endif
-#ifdef WOLFSSL_SHA512
 #ifdef WOLFSSL_SHA384
     wc_Sha384 sha384;
 #endif
+#ifdef WOLFSSL_SHA512
     wc_Sha512 sha512;
 #endif
 #ifdef HAVE_BLAKE2
