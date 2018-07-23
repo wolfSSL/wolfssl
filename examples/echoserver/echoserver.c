@@ -112,7 +112,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     doPSK = 1;
 #endif
 
-#if defined(NO_RSA) && !defined(HAVE_ECC)
+#if defined(NO_RSA) && !defined(HAVE_ECC) && !defined(HAVE_ED25519)
     doPSK = 1;
 #endif
 
@@ -180,6 +180,17 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                     "Please run from wolfSSL home dir");
 
         if (CyaSSL_CTX_use_PrivateKey_file(ctx, eccKeyFile, WOLFSSL_FILETYPE_PEM)
+                != WOLFSSL_SUCCESS)
+            err_sys("can't load server key file, "
+                    "Please run from wolfSSL home dir");
+    #elif defined(HAVE_ED25519) && !defined(CYASSL_SNIFFER)
+        /* ed25519 */
+        if (CyaSSL_CTX_use_certificate_chain_file(ctx, edCertFile)
+                != WOLFSSL_SUCCESS)
+            err_sys("can't load server cert file, "
+                    "Please run from wolfSSL home dir");
+
+        if (CyaSSL_CTX_use_PrivateKey_file(ctx, edKeyFile, WOLFSSL_FILETYPE_PEM)
                 != WOLFSSL_SUCCESS)
             err_sys("can't load server key file, "
                     "Please run from wolfSSL home dir");

@@ -1420,14 +1420,19 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 
 #ifdef HAVE_NTRU
     if (method->side == WOLFSSL_CLIENT_END)
-        ctx->haveNTRU = 1;           /* always on cliet side */
+        ctx->haveNTRU = 1;           /* always on client side */
                                      /* server can turn on by loading key */
 #endif
 #ifdef HAVE_ECC
     if (method->side == WOLFSSL_CLIENT_END) {
-        ctx->haveECDSAsig  = 1;        /* always on cliet side */
+        ctx->haveECDSAsig  = 1;        /* always on client side */
         ctx->haveECC  = 1;             /* server turns on with ECC key cert */
         ctx->haveStaticECC = 1;        /* server can turn on by loading key */
+    }
+#elif defined(HAVE_ED25519)
+    if (method->side == WOLFSSL_CLIENT_END) {
+        ctx->haveECDSAsig  = 1;        /* always on client side */
+        ctx->haveECC  = 1;             /* server turns on with ECC key cert */
     }
 #endif
 
@@ -1739,6 +1744,7 @@ void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, int haveRSAsig,
 
 #if defined(HAVE_ECC) || defined(HAVE_ED25519)
     if (haveECDSAsig) {
+    #ifdef HAVE_ECC
         #ifdef WOLFSSL_SHA512
             suites->hashSigAlgo[idx++] = sha512_mac;
             suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
@@ -1756,6 +1762,7 @@ void InitSuitesHashSigAlgo(Suites* suites, int haveECDSAsig, int haveRSAsig,
             suites->hashSigAlgo[idx++] = sha_mac;
             suites->hashSigAlgo[idx++] = ecc_dsa_sa_algo;
         #endif
+    #endif
         #ifdef HAVE_ED25519
             suites->hashSigAlgo[idx++] = ED25519_SA_MAJOR;
             suites->hashSigAlgo[idx++] = ED25519_SA_MINOR;
@@ -2743,7 +2750,7 @@ static WC_INLINE void DecodeSigAlg(const byte* input, byte* hashAlgo, byte* hsTy
 
 #ifndef WOLFSSL_NO_TLS12
 #if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
-#if !defined(NO_DH) || defined(HAVE_ECC) || \
+#if !defined(NO_DH) || defined(HAVE_ECC) || defined(HAVE_CURVE25519) || \
                                        (!defined(NO_RSA) && defined(WC_RSA_PSS))
 
 static enum wc_HashType HashAlgoToType(int hashAlgo)
@@ -4157,8 +4164,10 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 
 #ifdef HAVE_ECC
     ssl->eccTempKeySz = ctx->eccTempKeySz;
-    ssl->pkCurveOID = ctx->pkCurveOID;
     ssl->ecdhCurveOID = ctx->ecdhCurveOID;
+#endif
+#if defined(HAVE_ECC) || defined(HAVE_ED25519)
+    ssl->pkCurveOID = ctx->pkCurveOID;
 #endif
 
 #ifdef OPENSSL_EXTRA
@@ -4910,6 +4919,8 @@ static int ReuseKey(WOLFSSL* ssl, int type, void* pKey)
 {
     int ret = 0;
 
+    (void)ssl;
+
     switch (type) {
     #ifndef NO_RSA
         case DYNAMIC_TYPE_RSA:
@@ -5061,23 +5072,30 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     ssl->peerEccKeyPresent = 0;
     FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->peerEccDsaKey);
     ssl->peerEccDsaKeyPresent = 0;
-#ifdef HAVE_CURVE25519
-    if (!ssl->peerX25519KeyPresent &&
-            ssl->eccTempKeyPresent != DYNAMIC_TYPE_CURVE25519)
-#endif /* HAVE_CURVE25519 */
+#endif
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
     {
-        FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->eccTempKey);
+        int dtype;
+    #ifdef HAVE_ECC
+        dtype = DYNAMIC_TYPE_ECC;
+    #endif
+    #ifdef HAVE_CURVE25519
+    #ifdef HAVE_ECC
+        if (ssl->peerX25519KeyPresent ||
+                              ssl->eccTempKeyPresent == DYNAMIC_TYPE_CURVE25519)
+    #endif /* HAVE_ECC */
+         {
+            dtype = DYNAMIC_TYPE_CURVE25519;
+         }
+    #endif /* HAVE_CURVE25519 */
+        FreeKey(ssl, dtype, (void**)&ssl->eccTempKey);
         ssl->eccTempKeyPresent = 0;
     }
+#endif /* HAVE_ECC || HAVE_CURVE25519 */
 #ifdef HAVE_CURVE25519
-    else {
-        FreeKey(ssl, DYNAMIC_TYPE_CURVE25519, (void**)&ssl->eccTempKey);
-        ssl->eccTempKeyPresent = 0;
-    }
     FreeKey(ssl, DYNAMIC_TYPE_CURVE25519, (void**)&ssl->peerX25519Key);
     ssl->peerX25519KeyPresent = 0;
 #endif
-#endif /* HAVE_ECC */
 #ifdef HAVE_ED25519
     FreeKey(ssl, DYNAMIC_TYPE_ED25519, (void**)&ssl->peerEd25519Key);
     ssl->peerEd25519KeyPresent = 0;
@@ -5236,22 +5254,30 @@ void FreeHandshakeResources(WOLFSSL* ssl)
     ssl->peerEccKeyPresent = 0;
     FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->peerEccDsaKey);
     ssl->peerEccDsaKeyPresent = 0;
-#ifdef HAVE_CURVE25519
-    if (ssl->ecdhCurveOID != ECC_X25519_OID)
-#endif /* HAVE_CURVE25519 */
+#endif
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
     {
-        FreeKey(ssl, DYNAMIC_TYPE_ECC, (void**)&ssl->eccTempKey);
+        int dtype;
+    #ifdef HAVE_ECC
+        dtype = DYNAMIC_TYPE_ECC;
+    #endif
+    #ifdef HAVE_CURVE25519
+    #ifdef HAVE_ECC
+        if (ssl->peerX25519KeyPresent ||
+                              ssl->eccTempKeyPresent == DYNAMIC_TYPE_CURVE25519)
+    #endif /* HAVE_ECC */
+         {
+            dtype = DYNAMIC_TYPE_CURVE25519;
+         }
+    #endif /* HAVE_CURVE25519 */
+        FreeKey(ssl, dtype, (void**)&ssl->eccTempKey);
         ssl->eccTempKeyPresent = 0;
     }
+#endif /* HAVE_ECC || HAVE_CURVE25519 */
 #ifdef HAVE_CURVE25519
-    else {
-        FreeKey(ssl, DYNAMIC_TYPE_CURVE25519, (void**)&ssl->eccTempKey);
-        ssl->eccTempKeyPresent = 0;
-    }
     FreeKey(ssl, DYNAMIC_TYPE_CURVE25519, (void**)&ssl->peerX25519Key);
     ssl->peerX25519KeyPresent = 0;
-#endif /* HAVE_CURVE25519 */
-#endif /* HAVE_ECC */
+#endif
 #ifndef NO_DH
     if (ssl->buffers.serverDH_Priv.buffer) {
         ForceZero(ssl->buffers.serverDH_Priv.buffer,
@@ -8069,7 +8095,7 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
         }
     #endif /* WOLFSSL_CERT_EXT */
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || defined(HAVE_ED25519)
     x509->pkCurveOID = dCert->pkCurveOID;
 #endif /* HAVE_ECC */
 
@@ -16063,7 +16089,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
             #ifdef HAVE_QSH
                     (XSTRSTR(name, "QSH"))    ? QSH_BYTE :
             #endif
-            #ifdef HAVE_ECC
+            #if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
                     (XSTRSTR(name, "EC"))     ? ECC_BYTE :
             #endif
             #ifdef HAVE_AESCCM
@@ -16081,7 +16107,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
                 }
                 else
             #endif
-            #ifdef HAVE_ECC
+            #if defined(HAVE_ECC) || defined(HAVE_ED25519)
                 if ((haveECDSAsig == 0) && XSTRSTR(name, "ECDSA"))
                     haveECDSAsig = 1;
                 else
@@ -17392,7 +17418,7 @@ exit_dpk:
 #endif /* !NO_CERTS */
 
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
 
     static int CheckCurveId(int tlsCurveId)
     {
@@ -17469,12 +17495,12 @@ exit_dpk:
 /* Persistable DoServerKeyExchange arguments */
 typedef struct DskeArgs {
     byte*  output; /* not allocated */
-#if !defined(NO_DH) || defined(HAVE_ECC)
+#if !defined(NO_DH) || defined(HAVE_ECC) || defined(HAVE_ED25519)
     byte*  verifySig;
 #endif
     word32 idx;
     word32 begin;
-#if !defined(NO_DH) || defined(HAVE_ECC)
+#if !defined(NO_DH) || defined(HAVE_ECC) || defined(HAVE_ED25519)
     word16 verifySigSz;
 #endif
     word16 sigSz;
@@ -17489,7 +17515,7 @@ static void FreeDskeArgs(WOLFSSL* ssl, void* pArgs)
     (void)ssl;
     (void)args;
 
-#if !defined(NO_DH) || defined(HAVE_ECC)
+#if !defined(NO_DH) || defined(HAVE_ECC) || defined(HAVE_ED25519)
     if (args->verifySig) {
         XFREE(args->verifySig, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
         args->verifySig = NULL;
@@ -17675,11 +17701,14 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     break;
                 }
             #endif /* !NO_DH */
-            #ifdef HAVE_ECC
+            #if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
                 case ecc_diffie_hellman_kea:
                 {
                     byte b;
-                    int curveId, curveOid;
+                #ifdef HAVE_ECC
+                    int curveId;
+                #endif
+                    int curveOid;
                     word16 length;
 
                     if ((args->idx - args->begin) + ENUM_LEN + OPAQUE16_LEN +
@@ -17704,7 +17733,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                         ERROR_OUT(BUFFER_ERROR, exit_dske);
                     }
 
-             #ifdef HAVE_CURVE25519
+                #ifdef HAVE_CURVE25519
                     if (ssl->ecdhCurveOID == ECC_X25519_OID) {
                         if (ssl->peerX25519Key == NULL) {
                             ret = AllocKey(ssl, DYNAMIC_TYPE_CURVE25519,
@@ -17712,7 +17741,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                             if (ret != 0) {
                                 goto exit_dske;
                             }
-                        } else if (ssl->peerEccKeyPresent) {
+                        } else if (ssl->peerX25519KeyPresent) {
                             ret = ReuseKey(ssl, DYNAMIC_TYPE_CURVE25519,
                                            ssl->peerX25519Key);
                             ssl->peerX25519KeyPresent = 0;
@@ -17731,7 +17760,8 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                         ssl->peerX25519KeyPresent = 1;
                         break;
                     }
-             #endif
+                #endif
+                #ifdef HAVE_ECC
                     if (ssl->peerEccKey == NULL) {
                         ret = AllocKey(ssl, DYNAMIC_TYPE_ECC,
                                        (void**)&ssl->peerEccKey);
@@ -17755,8 +17785,9 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     args->idx += length;
                     ssl->peerEccKeyPresent = 1;
                     break;
+                #endif
                 }
-            #endif /* HAVE_ECC */
+            #endif /* HAVE_ECC || HAVE_CURVE25519 */
             #if !defined(NO_DH) && !defined(NO_PSK)
                 case dhe_psk_kea:
                 {
@@ -17873,7 +17904,8 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     break;
                 }
             #endif /* !NO_DH || !NO_PSK */
-            #if defined(HAVE_ECC) && !defined(NO_PSK)
+            #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
+                                                                !defined(NO_PSK)
                 case ecdhe_psk_kea:
                 {
                     byte b;
@@ -17975,7 +18007,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     ssl->peerEccKeyPresent = 1;
                     break;
                 }
-            #endif /* HAVE_ECC || !NO_PSK */
+            #endif /* (HAVE_ECC || HAVE_CURVE25519) && !NO_PSK */
                 default:
                     ret = BAD_KEA_TYPE_E;
             } /* switch(ssl->specs.kea) */
@@ -18005,7 +18037,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                 case diffie_hellman_kea:
                 case ecc_diffie_hellman_kea:
                 {
-            #if defined(NO_DH) && !defined(HAVE_ECC)
+            #if defined(NO_DH) && !defined(HAVE_ECC) && !defined(HAVE_ED25519)
                     ERROR_OUT(NOT_COMPILED_IN, exit_dske);
             #else
                     enum wc_HashType hashType;
@@ -18136,7 +18168,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                         ret = ALGO_ID_E;
                     } /* switch (args->sigAlgo) */
 
-            #endif /* NO_DH && !HAVE_ECC */
+            #endif /* NO_DH && !HAVE_ECC && !HAVE_ED25519 */
                     break;
                 }
                 default:
@@ -18168,7 +18200,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                 case diffie_hellman_kea:
                 case ecc_diffie_hellman_kea:
                 {
-            #if defined(NO_DH) && !defined(HAVE_ECC)
+            #if defined(NO_DH) && !defined(HAVE_ECC) && !defined(HAVE_ED25519)
                     ERROR_OUT(NOT_COMPILED_IN, exit_dske);
             #else
                     if (ssl->options.usingAnon_cipher) {
@@ -18227,6 +18259,10 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                             #endif
                             );
 
+                            /* peerEccDsaKey */
+                            FreeKey(ssl, DYNAMIC_TYPE_ECC,
+                                                   (void**)&ssl->peerEccDsaKey);
+                            ssl->peerEccDsaKeyPresent = 0;
                             break;
                         }
                     #endif /* HAVE_ECC */
@@ -18245,6 +18281,10 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                             #endif
                             );
 
+                            /* peerEccDsaKey */
+                            FreeKey(ssl, DYNAMIC_TYPE_ED25519,
+                                                  (void**)&ssl->peerEd25519Key);
+                            ssl->peerEd25519KeyPresent = 0;
                             break;
                         }
                     #endif /* HAVE_ED25519 */
@@ -18252,7 +18292,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     default:
                         ret = ALGO_ID_E;
                     } /* switch (sigAlgo) */
-            #endif /* NO_DH && !HAVE_ECC */
+            #endif /* NO_DH && !HAVE_ECC && !HAVE_ED25519 */
                     break;
                 }
                 default:
@@ -18284,7 +18324,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                 case diffie_hellman_kea:
                 case ecc_diffie_hellman_kea:
                 {
-            #if defined(NO_DH) && !defined(HAVE_ECC)
+            #if defined(NO_DH) && !defined(HAVE_ECC) && !defined(HAVE_ED25519)
                     ERROR_OUT(NOT_COMPILED_IN, exit_dske);
             #else
                     if (ssl->options.usingAnon_cipher) {
@@ -18365,7 +18405,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                         default:
                             ret = ALGO_ID_E;
                     } /* switch (sigAlgo) */
-            #endif /* NO_DH && !HAVE_ECC */
+            #endif /* NO_DH && !HAVE_ECC && !HAVE_ED25519 */
                     break;
                 }
                 default:
@@ -18949,7 +18989,8 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     }
                     break;
             #endif /* !NO_DH && !NO_PSK */
-            #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && !defined(NO_PSK)
+            #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
+                                                                !defined(NO_PSK)
                 case ecdhe_psk_kea:
                     /* sanity check that PSK client callback has been set */
                     if (ssl->options.client_psk_cb == NULL) {
@@ -19256,7 +19297,8 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     break;
                 }
             #endif /* !NO_DH && !NO_PSK */
-            #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && !defined(NO_PSK)
+            #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
+                                                                !defined(NO_PSK)
                 case ecdhe_psk_kea:
                 {
                     word32 esSz = 0;
@@ -19326,7 +19368,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
 
                     break;
                 }
-            #endif /* HAVE_ECC && !NO_PSK */
+            #endif /* (HAVE_ECC || HAVE_CURVE25519) && !NO_PSK */
             #ifdef HAVE_NTRU
                 case ntru_kea:
                 {
@@ -19450,7 +19492,8 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     break;
                 }
             #endif /* !NO_DH && !NO_PSK */
-            #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && !defined(NO_PSK)
+            #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
+                                                                !defined(NO_PSK)
                 case ecdhe_psk_kea:
                 {
                 #ifdef HAVE_CURVE25519
@@ -19462,6 +19505,11 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                             &ssl->arrays->preMasterSz,
                             WOLFSSL_CLIENT_END
                         );
+                        if (ret == 0 && !ssl->specs.static_ecdh) {
+                            FreeKey(ssl, DYNAMIC_TYPE_CURVE25519,
+                                                   (void**)&ssl->peerX25519Key);
+                            ssl->peerX25519KeyPresent = 0;
+                        }
                         break;
                     }
                 #endif
@@ -19517,6 +19565,11 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                             &ssl->arrays->preMasterSz,
                             WOLFSSL_CLIENT_END
                         );
+                        if (ret == 0) {
+                            FreeKey(ssl, DYNAMIC_TYPE_CURVE25519,
+                                                   (void**)&ssl->peerX25519Key);
+                            ssl->peerX25519KeyPresent = 0;
+                        }
                         break;
                     }
                 #endif
@@ -19601,7 +19654,8 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     break;
                 }
             #endif /* !NO_DH && !NO_PSK */
-            #if defined(HAVE_ECC) && !defined(NO_PSK)
+            #if defined(HAVE_ECC) && !defined(HAVE_CURVE25519) && \
+                                                                !defined(NO_PSK)
                 case ecdhe_psk_kea:
                 {
                     byte* pms = ssl->arrays->preMasterSecret;
@@ -19631,14 +19685,14 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     ssl->arrays->psk_keySz = 0; /* No further need */
                     break;
                 }
-            #endif /* HAVE_ECC && !NO_PSK */
+            #endif /* (HAVE_ECC && !HAVE_CURVE25519) && !NO_PSK */
             #ifdef HAVE_NTRU
                 case ntru_kea:
                 {
                     break;
                 }
             #endif /* HAVE_NTRU */
-            #ifdef HAVE_ECC
+            #if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
                 case ecc_diffie_hellman_kea:
                 {
                     /* place size of public key in buffer */
@@ -19646,7 +19700,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     args->encSz += OPAQUE8_LEN;
                     break;
                 }
-            #endif /* HAVE_ECC */
+            #endif /* HAVE_ECC || HAVE_CURVE25519 */
 
                 default:
                     ret = BAD_KEA_TYPE_E;
@@ -20186,7 +20240,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
                         ssl->buffers.sig.buffer, ssl->buffers.sig.length);
             }
         #endif /* HAVE_ECC */
-        #ifdef HAVE_ECC
+        #ifdef HAVE_ED25519
             if (ssl->hsType == DYNAMIC_TYPE_ED25519) {
                 args->length = (word16)ssl->buffers.sig.length;
                 /* prepend hdr */
@@ -20194,7 +20248,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
                 XMEMCPY(args->verify + args->extraSz + VERIFY_HEADER,
                         ssl->buffers.sig.buffer, ssl->buffers.sig.length);
             }
-        #endif /* HAVE_ECC */
+        #endif /* HAVE_ED25519 */
         #ifndef NO_RSA
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
                 RsaKey* key = (RsaKey*)ssl->hsKey;
@@ -20655,7 +20709,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     }
 
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC)
 
     static byte SetCurveId(ecc_key* key)
     {
@@ -20665,7 +20719,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
 
         switch(key->dp->oidSum) {
-        #if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
+    #if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
             case ECC_SECP160R1_OID:
                 return WOLFSSL_ECC_SECP160R1;
@@ -20714,10 +20768,6 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         #endif /* HAVE_ECC_BRAINPOOL */
     #endif
     #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
-        #ifdef HAVE_CURVE25519
-            case ECC_X25519_OID:
-                return WOLFSSL_ECC_X25519;
-        #endif
         #ifndef NO_ECC_SECP
             case ECC_SECP384R1_OID:
                 return WOLFSSL_ECC_SECP384R1;
@@ -20744,14 +20794,15 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
     }
 
-#endif /* HAVE_ECC */
+#endif /* HAVE_ECC || HAVE_CURVE25519 */
 
     typedef struct SskeArgs {
         byte*  output; /* not allocated */
-    #if defined(HAVE_ECC) || (!defined(NO_DH) && !defined(NO_RSA))
+    #if defined(HAVE_ECC) || defined(HAVE_ED25519) || \
+                                           (!defined(NO_DH) && !defined(NO_RSA))
         byte*  sigDataBuf;
     #endif
-    #if defined(HAVE_ECC)
+    #if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
         byte*  exportBuf;
     #endif
     #ifndef NO_RSA
@@ -20761,10 +20812,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         word32 tmpSigSz;
         word32 length;
         word32 sigSz;
-    #if defined(HAVE_ECC) || (!defined(NO_DH) && !defined(NO_RSA))
+    #if defined(HAVE_ECC) || defined(HAVE_ED25519) || \
+                                           (!defined(NO_DH) && !defined(NO_RSA))
         word32 sigDataSz;
     #endif
-    #if defined(HAVE_ECC)
+    #if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
         word32 exportSz;
     #endif
     #ifdef HAVE_QSH
@@ -20779,13 +20831,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         (void)ssl;
 
-    #if defined(HAVE_ECC)
+    #if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
         if (args->exportBuf) {
             XFREE(args->exportBuf, ssl->heap, DYNAMIC_TYPE_DER);
             args->exportBuf = NULL;
         }
     #endif
-    #if defined(HAVE_ECC) || (!defined(NO_DH) && !defined(NO_RSA))
+    #if defined(HAVE_ECC) || defined(HAVE_ED25519) || \
+                                           (!defined(NO_DH) && !defined(NO_RSA))
         if (args->sigDataBuf) {
             XFREE(args->sigDataBuf, ssl->heap, DYNAMIC_TYPE_SIGNATURE);
             args->sigDataBuf = NULL;
@@ -20847,14 +20900,15 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 /* Do some checks / debug msgs */
                 switch(ssl->specs.kea)
                 {
-                #if defined(HAVE_ECC) && !defined(NO_PSK)
+                #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
+                                                                !defined(NO_PSK)
                     case ecdhe_psk_kea:
                     {
                         WOLFSSL_MSG("Using ephemeral ECDH PSK");
                         break;
                     }
-                #endif /* HAVE_ECC && !NO_PSK */
-                #ifdef HAVE_ECC
+                #endif /* (HAVE_ECC || CURVE25519) && !NO_PSK */
+                #if defined(HAVE_ECC)
                     case ecc_diffie_hellman_kea:
                     {
                         if (ssl->specs.static_ecdh) {
@@ -20938,10 +20992,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         break;
                     }
                 #endif /* !NO_DH && (!NO_PSK || !NO_RSA) */
-                #if defined(HAVE_ECC) && !defined(NO_PSK)
+                #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
+                                                                !defined(NO_PSK)
                     case ecdhe_psk_kea:
                         /* Fall through to create temp ECC key */
-                #endif /* HAVE_ECC && !NO_PSK */
+                #endif /* (HAVE_ECC || CURVE25519) && !NO_PSK */
                 #if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
                     case ecc_diffie_hellman_kea:
                     {
@@ -21006,7 +21061,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
             case TLS_ASYNC_BUILD:
             {
-            #if (!defined(NO_DH) && !defined(NO_RSA)) || defined(HAVE_ECC)
+            #if (!defined(NO_DH) && !defined(NO_RSA)) || (defined(HAVE_ECC) || \
+                                                       defined(HAVE_CURVE25519))
                 word32 preSigSz, preSigIdx;
             #endif
 
@@ -21150,7 +21206,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         break;
                     }
                 #endif /* !defined(NO_DH) && !defined(NO_PSK) */
-                #if defined(HAVE_ECC) && !defined(NO_PSK)
+                #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
+                                                                !defined(NO_PSK)
                     case ecdhe_psk_kea:
                     {
                         word32 hintLen;
@@ -21227,16 +21284,18 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         else
                     #endif
                         {
+                    #ifdef HAVE_ECC
                             args->output[args->idx++] =
                                                     SetCurveId(ssl->eccTempKey);
+                    #endif
                         }
                         args->output[args->idx++] = (byte)args->exportSz;
                         XMEMCPY(args->output + args->idx, args->exportBuf,
                                                                 args->exportSz);
                         break;
                     }
-                #endif /* HAVE_ECC && !NO_PSK */
-                #ifdef HAVE_ECC
+                #endif /* (HAVE_ECC || HAVE_CURVE25519) && !NO_PSK */
+                #if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
                     case ecc_diffie_hellman_kea:
                     {
                         enum wc_HashType hashType;
@@ -21264,11 +21323,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         else
                     #endif
                         {
+                    #ifdef HAVE_ECC
                             if (wc_ecc_export_x963(ssl->eccTempKey,
                                        args->exportBuf, &args->exportSz) != 0) {
                                 ERROR_OUT(ECC_EXPORT_ERROR, exit_sske);
                             }
-                       }
+                     #endif
+                        }
                         args->length += args->exportSz;
 
                         preSigSz  = args->length;
@@ -21324,6 +21385,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 break;
                             }
                         #endif /* !NO_RSA */
+                        #ifdef HAVE_ECC
                             case ecc_dsa_sa_algo:
                             {
                                 word32 i = 0;
@@ -21354,6 +21416,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 }
                                 break;
                             }
+                        #endif
                         #ifdef HAVE_ED25519
                             case ed25519_sa_algo:
                             {
@@ -21433,8 +21496,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         else
                     #endif
                         {
+                    #ifdef HAVE_ECC
                             args->output[args->idx++] =
                                                     SetCurveId(ssl->eccTempKey);
+                    #endif
                         }
                         args->output[args->idx++] = (byte)args->exportSz;
                         XMEMCPY(args->output + args->idx, args->exportBuf, args->exportSz);
@@ -21565,7 +21630,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         } /* switch(ssl->specs.sig_algo) */
                         break;
                     }
-                #endif /* HAVE_ECC */
+                #endif /* HAVE_ECC || HAVE_CURVE25519 */
                 #if !defined(NO_DH) && !defined(NO_RSA)
                     case diffie_hellman_kea:
                     {
@@ -21820,13 +21885,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         break;
                     }
                 #endif /* !defined(NO_DH) && !defined(NO_PSK) */
-                #if defined(HAVE_ECC) && !defined(NO_PSK)
+                #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
+                                                                !defined(NO_PSK)
                     case ecdhe_psk_kea:
                     {
                         break;
                     }
-                #endif /* HAVE_ECC && !NO_PSK */
-                #ifdef HAVE_ECC
+                #endif /* (HAVE_ECC || HAVE_CURVE25519) && !NO_PSK */
+                #if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
                     case ecc_diffie_hellman_kea:
                     {
                         /* Sign hash to create signature */
@@ -21852,6 +21918,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 break;
                             }
                         #endif /* !NO_RSA */
+                        #ifdef HAVE_ECC
                             case ecc_dsa_sa_algo:
                             {
                                 ecc_key* key = (ecc_key*)ssl->hsKey;
@@ -21870,6 +21937,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 );
                                 break;
                             }
+                        #endif /* HAVE_ECC */
                         #ifdef HAVE_ED25519
                             case ed25519_sa_algo:
                             {
@@ -21892,7 +21960,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         } /* switch(ssl->specs.sig_algo) */
                         break;
                     }
-                #endif /* HAVE_ECC */
+                #endif /* HAVE_ECC || HAVE_CURVE25519 */
                 #if !defined(NO_DH) && !defined(NO_RSA)
                     case diffie_hellman_kea:
                     {
@@ -21958,14 +22026,15 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         break;
                     }
                 #endif /* !defined(NO_DH) && !defined(NO_PSK) */
-                #if defined(HAVE_ECC) && !defined(NO_PSK)
+                #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
+                                                                !defined(NO_PSK)
                     case ecdhe_psk_kea:
                     {
                         /* Nothing to do in this sub-state */
                         break;
                     }
-                #endif /* HAVE_ECC && !NO_PSK */
-                #ifdef HAVE_ECC
+                #endif /* (HAVE_ECC || HAVE_CURVE25519) && !NO_PSK */
+                #if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
                     case ecc_diffie_hellman_kea:
                     {
                         switch(ssl->suites->sigAlgo)
@@ -22022,7 +22091,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         } /* switch(ssl->specs.sig_algo) */
                         break;
                     }
-                #endif /* HAVE_ECC */
+                #endif /* HAVE_ECC || HAVE_CURVE25519 */
                 #if !defined(NO_DH) && !defined(NO_RSA)
                     case diffie_hellman_kea:
                     {
@@ -22106,7 +22175,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 }
             #endif
 
-            #if defined(HAVE_ECC)
+            #if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
                 if (ssl->specs.kea == ecdhe_psk_kea ||
                     ssl->specs.kea == ecc_diffie_hellman_kea) {
                     /* Check output to make sure it was set */
@@ -22118,7 +22187,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         ERROR_OUT(BUFFER_ERROR, exit_sske);
                     }
                 }
-            #endif /* HAVE_ECC */
+            #endif /* HAVE_ECC || HAVE_CURVE25519 */
 
             #ifdef WOLFSSL_DTLS
                 if (IsDtlsNotSctpMode(ssl)) {
@@ -22290,7 +22359,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             }
         }
 
-#if defined(HAVE_SUPPORTED_CURVES) && defined(HAVE_ECC)
+#if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
+                                                  defined(HAVE_SUPPORTED_CURVES)
         if (!TLSX_ValidateSupportedCurves(ssl, first, second)) {
             WOLFSSL_MSG("Don't have matching curves");
             return 0;
@@ -24069,12 +24139,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         break;
                     }
                 #endif /* HAVE_NTRU */
-                #ifdef HAVE_ECC
+                #if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
                     case ecc_diffie_hellman_kea:
                     {
                         break;
                     }
-                #endif /* HAVE_ECC */
+                #endif /* HAVE_ECC || HAVE_CURVE25519 */
                 #ifndef NO_DH
                     case diffie_hellman_kea:
                     {
@@ -24092,7 +24162,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         break;
                     }
                 #endif /* !NO_DH && !NO_PSK */
-                #if defined(HAVE_ECC) && !defined(NO_PSK)
+                #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
+                                                                !defined(NO_PSK)
                     case ecdhe_psk_kea:
                     {
                         /* sanity check that PSK server callback has been set */
@@ -24102,7 +24173,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         }
                         break;
                     }
-                #endif /* HAVE_ECC && !NO_PSK */
+                #endif /* (HAVE_ECC || HAVE_CURVE25519) && !NO_PSK */
                     default:
                         WOLFSSL_MSG("Bad kea type");
                         ret = BAD_KEA_TYPE_E;
@@ -24491,7 +24562,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         break;
                     }
                 #endif /* !NO_DH && !NO_PSK */
-                #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && !defined(NO_PSK)
+                #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
+                                                                !defined(NO_PSK)
                     case ecdhe_psk_kea:
                     {
                         word16 clientSz;
@@ -24733,7 +24805,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         break;
                     }
                 #endif /* !NO_DH && !NO_PSK */
-                #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && !defined(NO_PSK)
+                #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
+                                                                !defined(NO_PSK)
                     case ecdhe_psk_kea:
                     {
                     #ifdef HAVE_CURVE25519
@@ -24746,6 +24819,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 &args->sigSz,
                                 WOLFSSL_SERVER_END
                             );
+                            if (ret == 0) {
+                                FreeKey(ssl, DYNAMIC_TYPE_CURVE25519,
+                                                   (void**)&ssl->peerX25519Key);
+                                ssl->peerX25519KeyPresent = 0;
+                            }
                             break;
                         }
                     #endif
@@ -24834,14 +24912,14 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         break;
                     }
                 #endif /* HAVE_NTRU */
-                #ifdef HAVE_ECC
+                #if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
                     case ecc_diffie_hellman_kea:
                     {
                         /* skip past the imported peer key */
                         args->idx += args->length;
                         break;
                     }
-                #endif /* HAVE_ECC */
+                #endif /* HAVE_ECC || HAVE_CURVE25519 */
                 #ifndef NO_DH
                     case diffie_hellman_kea:
                     {
@@ -24881,7 +24959,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         break;
                     }
                 #endif /* !NO_DH && !NO_PSK */
-                #if defined(HAVE_ECC) && !defined(NO_PSK)
+                #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
+                                                                !defined(NO_PSK)
                     case ecdhe_psk_kea:
                     {
                         byte* pms = ssl->arrays->preMasterSecret;
@@ -24914,7 +24993,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                       ssl->arrays->psk_keySz + OPAQUE16_LEN;
                         break;
                     }
-                #endif /* HAVE_ECC && !NO_PSK */
+                #endif /* (HAVE_ECC || HAVE_CURVE25519) && !NO_PSK */
                     default:
                         ret = BAD_KEA_TYPE_E;
                 } /* switch (ssl->specs.kea) */

@@ -978,9 +978,15 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     ((func_args*)args)->return_code = -1; /* error state */
 
 #ifdef NO_RSA
-    verifyCert = (char*)caEccCertFile;
-    ourCert    = (char*)cliEccCertFile;
-    ourKey     = (char*)cliEccKeyFile;
+    #ifdef HAVE_ECC
+        verifyCert = (char*)caEccCertFile;
+        ourCert    = (char*)cliEccCertFile;
+        ourKey     = (char*)cliEccKeyFile;
+    #elif defined(HAVE_ED25519)
+        verifyCert = (char*)caEdCertFile;
+        ourCert    = (char*)cliEdCertFile;
+        ourKey     = (char*)cliEdKeyFile;
+    #endif
 #endif
     (void)resumeSz;
     (void)session;
@@ -1586,7 +1592,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 #endif
 
-#if defined(NO_RSA) && !defined(HAVE_ECC)
+#if defined(NO_RSA) && !defined(HAVE_ECC) && !defined(HAVE_ED25519)
     if (!usePsk) {
         usePsk = 1;
     }
