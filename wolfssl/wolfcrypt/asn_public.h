@@ -508,9 +508,52 @@ WOLFSSL_API int wc_ParseCertPIV(wc_CertPIV* cert, const byte* buf, word32 totalS
 #endif /* WOLFSSL_CERT_PIV */
 
 
+/* Certificate info functions must be enabled (saves code space) */
+#ifdef WOLFSSL_CERT_INFO
+
+typedef struct {
+    void* decodedCert; /* internal DecodedCert allocated from heap */
+    void* heap;
+    DerBuffer* der;
+} wc_CertInfo;
+
+
+WOLFSSL_API int wc_CertInfo_Init(wc_CertInfo* info, void* heap);
+WOLFSSL_API int wc_CertInfo_LoadDer(wc_CertInfo* info,
+    const byte* der, word32 derSz);
+WOLFSSL_API int wc_CertInfo_LoadPem(wc_CertInfo* info,
+    const byte* pem, word32 pemSz);
+WOLFSSL_API int wc_CertInfo_GetPublicKey(wc_CertInfo* info, word32* keyOID,
+    word32* pkCurveOID, byte** pPubKey, word32* pPubKeySz);
+WOLFSSL_API int wc_CertInfo_GetSubjectRaw(wc_CertInfo* info, byte** pSubject,
+    int* pSubjectSz);
+WOLFSSL_API int wc_CertInfo_GetAuthKeyId(wc_CertInfo* info,```
+    byte** pAuthKeyId, word32* pAuthKeyIdSz);
+WOLFSSL_API int wc_CertInfo_GetAltNames(wc_CertInfo* info, byte** pAltNames,
+    word32* pAltNamesSz);
+WOLFSSL_API int wc_CertInfo_GetDates(wc_CertInfo* info, byte** beforeDate,
+    int* beforeDateLen, byte** afterDate, int* afterDateLen);
+WOLFSSL_API int wc_CertInfo_GetCommonName(wc_CertInfo* info,
+    char** pCommonName, int* pCommonNameSz, char* pCommonNameEnc);
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)
+WOLFSSL_API int wc_CertInfo_SetSubjectBuffer(Cert* cert, wc_CertInfo* info);
+WOLFSSL_API int wc_CertInfo_SetSubjectBufferRaw(Cert* cert, wc_CertInfo* info);
+WOLFSSL_API int wc_CertInfo_SetIssuerBuffer(Cert* cert, wc_CertInfo* info);
+WOLFSSL_API int wc_CertInfo_SetIssuerBufferRaw(Cert* cert, wc_CertInfo* info);
+#ifdef WOLFSSL_ALT_NAMES
+WOLFSSL_API int wc_CertInfo_SetAltNamesBuffer(Cert* cert, wc_CertInfo* info);
+WOLFSSL_API int wc_CertInfo_SetDatesBuffer(Cert* cert, wc_CertInfo* info);
+#endif /* WOLFSSL_ALT_NAMES */
+WOLFSSL_API int wc_CertInfo_Set_AuthKeyIdFromCert(Cert* cert,
+    wc_CertInfo* info);
+#endif /* WOLFSSL_CERT_GEN && WOLFSSL_CERT_EXT */
+WOLFSSL_API int wc_CertInfo_Free(wc_CertInfo* info);
+#endif /* WOLFSSL_CERT_INFO */
+
+
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif
 
 #endif /* WOLF_CRYPT_ASN_PUBLIC_H */
-

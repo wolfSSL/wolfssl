@@ -6959,7 +6959,7 @@ static int DecodeAuthKeyId(const byte* input, int sz, DecodedCert* cert)
         return ASN_PARSE_E;
     }
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_CERT_INFO)
     cert->extAuthKeyIdSrc = &input[idx];
     cert->extAuthKeyIdSz = length;
 #endif /* OPENSSL_EXTRA */
@@ -6988,7 +6988,7 @@ static int DecodeSubjKeyId(const byte* input, int sz, DecodedCert* cert)
     if (ret < 0)
         return ret;
 
-    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_CERT_INFO)
         cert->extSubjKeyIdSrc = &input[idx];
         cert->extSubjKeyIdSz = length;
     #endif /* OPENSSL_EXTRA */
@@ -7034,7 +7034,7 @@ static int DecodeExtKeyUsage(const byte* input, int sz, DecodedCert* cert)
         return ASN_PARSE_E;
     }
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+#if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_CERT_INFO)
     cert->extExtKeyUsageSrc = input + idx;
     cert->extExtKeyUsageSz = length;
 #endif
@@ -7070,7 +7070,7 @@ static int DecodeExtKeyUsage(const byte* input, int sz, DecodedCert* cert)
                 break;
         }
 
-    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL) || defined(WOLFSSL_CERT_INFO)
         cert->extExtKeyUsageCount++;
     #endif
     }
@@ -12421,6 +12421,29 @@ int wc_SetSubjectKeyId(Cert *cert, const char* file)
 
 #endif /* !NO_FILESYSTEM && !NO_ASN_CRYPT */
 
+static int SetAuthKeyIdFromDcert(Cert* cert, DecodedCert* decoded)
+{
+    int ret = 0;
+
+    /* Subject Key Id not found !! */
+    if (decoded->extSubjKeyIdSet == 0) {
+        ret = ASN_NO_SKID;
+    }
+
+    /* SKID invalid size */
+    else if (sizeof(cert->akid) < sizeof(decoded->extSubjKeyId)) {
+        ret = MEMORY_E;
+    }
+
+    else {
+        /* Put the SKID of CA to AKID of certificate */
+        XMEMCPY(cert->akid, decoded->extSubjKeyId, KEYID_SIZE);
+        cert->akidSz = KEYID_SIZE;
+    }
+
+    return ret;
+}
+
 /* Set AKID from certificate contains in buffer (DER encoded) */
 int wc_SetAuthKeyIdFromCert(Cert *cert, const byte *der, int derSz)
 {
@@ -12445,42 +12468,16 @@ int wc_SetAuthKeyIdFromCert(Cert *cert, const byte *der, int derSz)
     /* decode certificate and get SKID that will be AKID of current cert */
     InitDecodedCert(decoded, der, derSz, NULL);
     ret = ParseCert(decoded, CERT_TYPE, NO_VERIFY, 0);
-    if (ret != 0) {
-        FreeDecodedCert(decoded);
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(decoded, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-        return ret;
+    if (ret == 0) {
+        ret = SetAuthKeyIdFromDcert(cert, decoded);
     }
-
-    /* Subject Key Id not found !! */
-    if (decoded->extSubjKeyIdSet == 0) {
-        FreeDecodedCert(decoded);
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(decoded, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-        return ASN_NO_SKID;
-    }
-
-    /* SKID invalid size */
-    if (sizeof(cert->akid) < sizeof(decoded->extSubjKeyId)) {
-        FreeDecodedCert(decoded);
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(decoded, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        #endif
-        return MEMORY_E;
-    }
-
-    /* Put the SKID of CA to AKID of certificate */
-    XMEMCPY(cert->akid, decoded->extSubjKeyId, KEYID_SIZE);
-    cert->akidSz = KEYID_SIZE;
 
     FreeDecodedCert(decoded);
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(decoded, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
     #endif
 
-    return 0;
+    return ret;
 }
 
 
@@ -12667,33 +12664,11 @@ int wc_SetExtKeyUsageOID(Cert *cert, const char *in, word32 sz, byte idx,
 
 #ifdef WOLFSSL_ALT_NAMES
 
-/* Set Alt Names from der cert, return 0 on success */
-static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz)
+static int SetAltNamesFromDcert(Cert* cert, DecodedCert* decoded)
 {
-    int ret;
-#ifdef WOLFSSL_SMALL_STACK
-    DecodedCert* decoded;
-#else
-    DecodedCert decoded[1];
-#endif
+    int ret = 0;
 
-    if (derSz < 0)
-        return derSz;
-
-#ifdef WOLFSSL_SMALL_STACK
-    decoded = (DecodedCert*)XMALLOC(sizeof(DecodedCert), cert->heap,
-                                                       DYNAMIC_TYPE_TMP_BUFFER);
-    if (decoded == NULL)
-        return MEMORY_E;
-#endif
-
-    InitDecodedCert(decoded, der, derSz, NULL);
-    ret = ParseCertRelative(decoded, CA_TYPE, NO_VERIFY, 0);
-
-    if (ret < 0) {
-        WOLFSSL_MSG("ParseCertRelative error");
-    }
-    else if (decoded->extensions) {
+    if (decoded->extensions) {
         byte   b;
         int    length;
         word32 maxExtensionsIdx;
@@ -12753,6 +12728,39 @@ static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz)
         }
     }
 
+    return ret;
+}
+
+/* Set Alt Names from der cert, return 0 on success */
+static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz)
+{
+    int ret;
+#ifdef WOLFSSL_SMALL_STACK
+    DecodedCert* decoded;
+#else
+    DecodedCert decoded[1];
+#endif
+
+    if (derSz < 0)
+        return derSz;
+
+#ifdef WOLFSSL_SMALL_STACK
+    decoded = (DecodedCert*)XMALLOC(sizeof(DecodedCert), cert->heap,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (decoded == NULL)
+        return MEMORY_E;
+#endif
+
+    InitDecodedCert(decoded, der, derSz, NULL);
+    ret = ParseCertRelative(decoded, CA_TYPE, NO_VERIFY, 0);
+
+    if (ret < 0) {
+        WOLFSSL_MSG("ParseCertRelative error");
+    }
+    else {
+        ret = SetAltNamesFromDcert(cert, decoded);
+    }
+
     FreeDecodedCert(decoded);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(decoded, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
@@ -12761,6 +12769,29 @@ static int SetAltNamesFromCert(Cert* cert, const byte* der, int derSz)
     return ret < 0 ? ret : 0;
 }
 
+static int SetDatesFromDcert(Cert* cert, DecodedCert* decoded)
+{
+    int ret = 0;
+
+    if (decoded->beforeDate == NULL || decoded->afterDate == NULL) {
+        WOLFSSL_MSG("Couldn't extract dates");
+        ret = -1;
+    }
+    else if (decoded->beforeDateLen > MAX_DATE_SIZE ||
+                                        decoded->afterDateLen > MAX_DATE_SIZE) {
+        WOLFSSL_MSG("Bad date size");
+        ret = -1;
+    }
+    else {
+        XMEMCPY(cert->beforeDate, decoded->beforeDate, decoded->beforeDateLen);
+        XMEMCPY(cert->afterDate,  decoded->afterDate,  decoded->afterDateLen);
+
+        cert->beforeDateSz = decoded->beforeDateLen;
+        cert->afterDateSz  = decoded->afterDateLen;
+    }
+
+    return ret;
+}
 
 /* Set Dates from der cert, return 0 on success */
 static int SetDatesFromCert(Cert* cert, const byte* der, int derSz)
@@ -12789,21 +12820,8 @@ static int SetDatesFromCert(Cert* cert, const byte* der, int derSz)
     if (ret < 0) {
         WOLFSSL_MSG("ParseCertRelative error");
     }
-    else if (decoded->beforeDate == NULL || decoded->afterDate == NULL) {
-        WOLFSSL_MSG("Couldn't extract dates");
-        ret = -1;
-    }
-    else if (decoded->beforeDateLen > MAX_DATE_SIZE ||
-                                        decoded->afterDateLen > MAX_DATE_SIZE) {
-        WOLFSSL_MSG("Bad date size");
-        ret = -1;
-    }
     else {
-        XMEMCPY(cert->beforeDate, decoded->beforeDate, decoded->beforeDateLen);
-        XMEMCPY(cert->afterDate,  decoded->afterDate,  decoded->afterDateLen);
-
-        cert->beforeDateSz = decoded->beforeDateLen;
-        cert->afterDateSz  = decoded->afterDateLen;
+        ret = SetDatesFromDcert(cert, decoded);
     }
 
     FreeDecodedCert(decoded);
@@ -12817,10 +12835,101 @@ static int SetDatesFromCert(Cert* cert, const byte* der, int derSz)
 
 #endif /* WOLFSSL_ALT_NAMES */
 
+static void SetNameFromDcert(CertName* cn, DecodedCert* decoded)
+{
+    int sz;
+
+    if (decoded->subjectCN) {
+        sz = (decoded->subjectCNLen < CTC_NAME_SIZE) ? decoded->subjectCNLen
+                                                     : CTC_NAME_SIZE - 1;
+        XSTRNCPY(cn->commonName, decoded->subjectCN, CTC_NAME_SIZE);
+        cn->commonName[sz] = '\0';
+        cn->commonNameEnc = decoded->subjectCNEnc;
+    }
+    if (decoded->subjectC) {
+        sz = (decoded->subjectCLen < CTC_NAME_SIZE) ? decoded->subjectCLen
+                                                    : CTC_NAME_SIZE - 1;
+        XSTRNCPY(cn->country, decoded->subjectC, CTC_NAME_SIZE);
+        cn->country[sz] = '\0';
+        cn->countryEnc = decoded->subjectCEnc;
+    }
+    if (decoded->subjectST) {
+        sz = (decoded->subjectSTLen < CTC_NAME_SIZE) ? decoded->subjectSTLen
+                                                     : CTC_NAME_SIZE - 1;
+        XSTRNCPY(cn->state, decoded->subjectST, CTC_NAME_SIZE);
+        cn->state[sz] = '\0';
+        cn->stateEnc = decoded->subjectSTEnc;
+    }
+    if (decoded->subjectL) {
+        sz = (decoded->subjectLLen < CTC_NAME_SIZE) ? decoded->subjectLLen
+                                                    : CTC_NAME_SIZE - 1;
+        XSTRNCPY(cn->locality, decoded->subjectL, CTC_NAME_SIZE);
+        cn->locality[sz] = '\0';
+        cn->localityEnc = decoded->subjectLEnc;
+    }
+    if (decoded->subjectO) {
+        sz = (decoded->subjectOLen < CTC_NAME_SIZE) ? decoded->subjectOLen
+                                                    : CTC_NAME_SIZE - 1;
+        XSTRNCPY(cn->org, decoded->subjectO, CTC_NAME_SIZE);
+        cn->org[sz] = '\0';
+        cn->orgEnc = decoded->subjectOEnc;
+    }
+    if (decoded->subjectOU) {
+        sz = (decoded->subjectOULen < CTC_NAME_SIZE) ? decoded->subjectOULen
+                                                     : CTC_NAME_SIZE - 1;
+        XSTRNCPY(cn->unit, decoded->subjectOU, CTC_NAME_SIZE);
+        cn->unit[sz] = '\0';
+        cn->unitEnc = decoded->subjectOUEnc;
+    }
+    if (decoded->subjectSN) {
+        sz = (decoded->subjectSNLen < CTC_NAME_SIZE) ? decoded->subjectSNLen
+                                                     : CTC_NAME_SIZE - 1;
+        XSTRNCPY(cn->sur, decoded->subjectSN, CTC_NAME_SIZE);
+        cn->sur[sz] = '\0';
+        cn->surEnc = decoded->subjectSNEnc;
+    }
+    if (decoded->subjectSND) {
+        sz = (decoded->subjectSNDLen < CTC_NAME_SIZE) ? decoded->subjectSNDLen
+                                                     : CTC_NAME_SIZE - 1;
+        XSTRNCPY(cn->serialDev, decoded->subjectSND, CTC_NAME_SIZE);
+        cn->serialDev[sz] = '\0';
+        cn->serialDevEnc = decoded->subjectSNDEnc;
+    }
+#ifdef WOLFSSL_CERT_EXT
+    if (decoded->subjectBC) {
+        sz = (decoded->subjectBCLen < CTC_NAME_SIZE) ? decoded->subjectBCLen
+                                                     : CTC_NAME_SIZE - 1;
+        XSTRNCPY(cn->busCat, decoded->subjectBC, CTC_NAME_SIZE);
+        cn->busCat[sz] = '\0';
+        cn->busCatEnc = decoded->subjectBCEnc;
+    }
+    if (decoded->subjectJC) {
+        sz = (decoded->subjectJCLen < CTC_NAME_SIZE) ? decoded->subjectJCLen
+                                                     : CTC_NAME_SIZE - 1;
+        XSTRNCPY(cn->joiC, decoded->subjectJC, CTC_NAME_SIZE);
+        cn->joiC[sz] = '\0';
+        cn->joiCEnc = decoded->subjectJCEnc;
+    }
+    if (decoded->subjectJS) {
+        sz = (decoded->subjectJSLen < CTC_NAME_SIZE) ? decoded->subjectJSLen
+                                                     : CTC_NAME_SIZE - 1;
+        XSTRNCPY(cn->joiSt, decoded->subjectJS, CTC_NAME_SIZE);
+        cn->joiSt[sz] = '\0';
+        cn->joiStEnc = decoded->subjectJSEnc;
+    }
+#endif
+    if (decoded->subjectEmail) {
+        sz = (decoded->subjectEmailLen < CTC_NAME_SIZE)
+           ?  decoded->subjectEmailLen : CTC_NAME_SIZE - 1;
+        XSTRNCPY(cn->email, decoded->subjectEmail, CTC_NAME_SIZE);
+        cn->email[sz] = '\0';
+    }
+}
+
 /* Set cn name from der buffer, return 0 on success */
 static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
 {
-    int ret, sz;
+    int ret;
 #ifdef WOLFSSL_SMALL_STACK
     DecodedCert* decoded;
 #else
@@ -12844,91 +12953,7 @@ static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
         WOLFSSL_MSG("ParseCertRelative error");
     }
     else {
-        if (decoded->subjectCN) {
-            sz = (decoded->subjectCNLen < CTC_NAME_SIZE) ? decoded->subjectCNLen
-                                                         : CTC_NAME_SIZE - 1;
-            XSTRNCPY(cn->commonName, decoded->subjectCN, CTC_NAME_SIZE);
-            cn->commonName[sz] = '\0';
-            cn->commonNameEnc = decoded->subjectCNEnc;
-        }
-        if (decoded->subjectC) {
-            sz = (decoded->subjectCLen < CTC_NAME_SIZE) ? decoded->subjectCLen
-                                                        : CTC_NAME_SIZE - 1;
-            XSTRNCPY(cn->country, decoded->subjectC, CTC_NAME_SIZE);
-            cn->country[sz] = '\0';
-            cn->countryEnc = decoded->subjectCEnc;
-        }
-        if (decoded->subjectST) {
-            sz = (decoded->subjectSTLen < CTC_NAME_SIZE) ? decoded->subjectSTLen
-                                                         : CTC_NAME_SIZE - 1;
-            XSTRNCPY(cn->state, decoded->subjectST, CTC_NAME_SIZE);
-            cn->state[sz] = '\0';
-            cn->stateEnc = decoded->subjectSTEnc;
-        }
-        if (decoded->subjectL) {
-            sz = (decoded->subjectLLen < CTC_NAME_SIZE) ? decoded->subjectLLen
-                                                        : CTC_NAME_SIZE - 1;
-            XSTRNCPY(cn->locality, decoded->subjectL, CTC_NAME_SIZE);
-            cn->locality[sz] = '\0';
-            cn->localityEnc = decoded->subjectLEnc;
-        }
-        if (decoded->subjectO) {
-            sz = (decoded->subjectOLen < CTC_NAME_SIZE) ? decoded->subjectOLen
-                                                        : CTC_NAME_SIZE - 1;
-            XSTRNCPY(cn->org, decoded->subjectO, CTC_NAME_SIZE);
-            cn->org[sz] = '\0';
-            cn->orgEnc = decoded->subjectOEnc;
-        }
-        if (decoded->subjectOU) {
-            sz = (decoded->subjectOULen < CTC_NAME_SIZE) ? decoded->subjectOULen
-                                                         : CTC_NAME_SIZE - 1;
-            XSTRNCPY(cn->unit, decoded->subjectOU, CTC_NAME_SIZE);
-            cn->unit[sz] = '\0';
-            cn->unitEnc = decoded->subjectOUEnc;
-        }
-        if (decoded->subjectSN) {
-            sz = (decoded->subjectSNLen < CTC_NAME_SIZE) ? decoded->subjectSNLen
-                                                         : CTC_NAME_SIZE - 1;
-            XSTRNCPY(cn->sur, decoded->subjectSN, CTC_NAME_SIZE);
-            cn->sur[sz] = '\0';
-            cn->surEnc = decoded->subjectSNEnc;
-        }
-        if (decoded->subjectSND) {
-            sz = (decoded->subjectSNDLen < CTC_NAME_SIZE) ? decoded->subjectSNDLen
-                                                         : CTC_NAME_SIZE - 1;
-            XSTRNCPY(cn->serialDev, decoded->subjectSND, CTC_NAME_SIZE);
-            cn->serialDev[sz] = '\0';
-            cn->serialDevEnc = decoded->subjectSNDEnc;
-        }
-    #ifdef WOLFSSL_CERT_EXT
-        if (decoded->subjectBC) {
-            sz = (decoded->subjectBCLen < CTC_NAME_SIZE) ? decoded->subjectBCLen
-                                                         : CTC_NAME_SIZE - 1;
-            XSTRNCPY(cn->busCat, decoded->subjectBC, CTC_NAME_SIZE);
-            cn->busCat[sz] = '\0';
-            cn->busCatEnc = decoded->subjectBCEnc;
-        }
-        if (decoded->subjectJC) {
-            sz = (decoded->subjectJCLen < CTC_NAME_SIZE) ? decoded->subjectJCLen
-                                                         : CTC_NAME_SIZE - 1;
-            XSTRNCPY(cn->joiC, decoded->subjectJC, CTC_NAME_SIZE);
-            cn->joiC[sz] = '\0';
-            cn->joiCEnc = decoded->subjectJCEnc;
-        }
-        if (decoded->subjectJS) {
-            sz = (decoded->subjectJSLen < CTC_NAME_SIZE) ? decoded->subjectJSLen
-                                                         : CTC_NAME_SIZE - 1;
-            XSTRNCPY(cn->joiSt, decoded->subjectJS, CTC_NAME_SIZE);
-            cn->joiSt[sz] = '\0';
-            cn->joiStEnc = decoded->subjectJSEnc;
-        }
-    #endif
-        if (decoded->subjectEmail) {
-            sz = (decoded->subjectEmailLen < CTC_NAME_SIZE)
-               ?  decoded->subjectEmailLen : CTC_NAME_SIZE - 1;
-            XSTRNCPY(cn->email, decoded->subjectEmail, CTC_NAME_SIZE);
-            cn->email[sz] = '\0';
-        }
+        SetNameFromDcert(cn, decoded);
     }
 
     FreeDecodedCert(decoded);
@@ -15109,6 +15134,361 @@ int wc_ParseCertPIV(wc_CertPIV* piv, const byte* buf, word32 totalSz)
 }
 
 #endif /* WOLFSSL_CERT_PIV */
+
+
+
+#ifdef WOLFSSL_CERT_INFO
+
+int wc_CertInfo_Init(wc_CertInfo* info, void* heap)
+{
+    if (info == NULL)
+        return BAD_FUNC_ARG;
+
+    XMEMSET(info, 0, sizeof(wc_CertInfo));
+    info->heap = heap;
+
+    /* Allocate DecodedCert struct and Zero */
+    info->decodedCert = (void*)XMALLOC(sizeof(DecodedCert), info->heap,
+        DYNAMIC_TYPE_DCERT);
+    if (info->decodedCert == NULL) {
+        return MEMORY_E;
+    }
+    XMEMSET(info->decodedCert, 0, sizeof(DecodedCert));
+
+    return 0;
+}
+
+int wc_CertInfo_LoadDer(wc_CertInfo* info, const byte* der, word32 derSz)
+{
+    DecodedCert* dcert;
+
+    if (info == NULL)
+        return BAD_FUNC_ARG;
+
+    dcert = (DecodedCert*)info->decodedCert;
+    InitDecodedCert(dcert, der, derSz, info->heap);
+
+    return ParseCertRelative(dcert, CERT_TYPE, 0, NULL);
+}
+
+int wc_CertInfo_LoadPem(wc_CertInfo* info, const byte* pem, word32 pemSz)
+{
+    int ret;
+
+    if (info == NULL)
+        ret = BAD_FUNC_ARG;
+
+    else {
+#ifdef WOLFSSL_PEM_TO_DER
+        ret = PemToDer(pem, pemSz, CERT_TYPE, &info->der, info->heap, NULL, NULL);
+        if (ret == 0) {
+            ret = wc_CertInfo_LoadDer(info, info->der->buffer, info->der->length);
+        }
+#else
+        ret = NOT_COMPILED_IN;
+#endif
+    }
+
+    return ret;
+}
+
+int wc_CertInfo_GetPublicKey(wc_CertInfo* info, word32* keyOID,
+    word32* pkCurveOID, byte** pPubKey, word32* pPubKeySz)
+{
+    DecodedCert* dcert;
+
+    if ((info == NULL) || (info->decodedCert == NULL))
+        return BAD_FUNC_ARG;
+
+    dcert = (DecodedCert*)info->decodedCert;
+    if (keyOID)
+        *keyOID = dcert->keyOID;
+#if defined(HAVE_ECC) || defined(HAVE_ED25519)
+    if (pkCurveOID)
+        *pkCurveOID = dcert->pkCurveOID;
+#else
+    (void)pkCurveOID;
+#endif
+    if (pPubKey)
+        *pPubKey = (byte*)dcert->publicKey;
+    if (pPubKeySz)
+        *pPubKeySz = dcert->pubKeySize;
+
+    return 0;
+}
+
+int wc_CertInfo_GetSubjectRaw(wc_CertInfo* info, byte** pSubject,
+    int* pSubjectSz)
+{
+#ifndef IGNORE_NAME_CONSTRAINT
+    DecodedCert* dcert;
+#endif
+
+    if ((info == NULL) || (info->decodedCert == NULL))
+        return BAD_FUNC_ARG;
+
+#ifndef IGNORE_NAME_CONSTRAINT
+    dcert = (DecodedCert*)info->decodedCert;
+
+    if (pSubject)
+        *pSubject = (byte*)dcert->subjectRaw;
+    if (pSubjectSz)
+        *pSubjectSz = dcert->subjectRawLen;
+#else
+    (void)pSubject;
+    (void)pSubjectSz;
+#endif
+
+    return 0;
+}
+
+int wc_CertInfo_GetAuthKeyId(wc_CertInfo* info, byte** pAuthKeyId,
+        word32* pAuthKeyIdSz)
+{
+    DecodedCert* dcert;
+
+    if ((info == NULL) || (info->decodedCert == NULL))
+        return BAD_FUNC_ARG;
+
+    dcert = (DecodedCert*)info->decodedCert;
+
+    if (pAuthKeyId)
+        *pAuthKeyId = dcert->extAuthKeyId;
+
+    if (pAuthKeyIdSz)
+        *pAuthKeyIdSz = sizeof(dcert->extAuthKeyId);
+
+    return 0;
+}
+
+int wc_CertInfo_GetAltNames(wc_CertInfo* info, byte** pAltNames,
+        word32* pAltNamesSz)
+{
+    DecodedCert* dcert;
+
+    if ((info == NULL) || (info->decodedCert == NULL))
+        return BAD_FUNC_ARG;
+
+    dcert = (DecodedCert*)info->decodedCert;
+
+    if (pAltNames)
+        *pAltNames = (byte*)dcert->altNames;
+
+    if (pAltNamesSz)
+        *pAltNamesSz = sizeof(&dcert->altNames);
+
+    return 0;
+}
+
+int wc_CertInfo_GetDates(wc_CertInfo* info, byte** beforeDate,
+        int* beforeDateLen, byte** afterDate, int* afterDateLen)
+{
+    DecodedCert* dcert;
+
+    if ((info == NULL) || (info->decodedCert == NULL))
+        return BAD_FUNC_ARG;
+
+    dcert = (DecodedCert*)info->decodedCert;
+
+    if (beforeDate)
+        *beforeDate = (byte*)dcert->beforeDate;
+
+    if (beforeDateLen)
+        *beforeDateLen = dcert->beforeDateLen;
+
+    if (afterDate)
+        *afterDate = (byte*)dcert->afterDate;
+
+    if (afterDateLen)
+        *afterDateLen = dcert->afterDateLen;
+
+    return 0;
+}
+
+int wc_CertInfo_GetCommonName(wc_CertInfo* info, char** pCommonName,
+        int* pCommonNameSz, char* pCommonNameEnc)
+{
+    DecodedCert* dcert;
+
+    if ((info == NULL) || (info->decodedCert == NULL))
+        return BAD_FUNC_ARG;
+
+    dcert = (DecodedCert*)info->decodedCert;
+
+    if (pCommonName)
+        *pCommonName = dcert->subjectCN;
+
+    if (pCommonNameSz)
+        *pCommonNameSz = dcert->subjectCNLen;
+
+    if (pCommonNameEnc)
+        *pCommonNameEnc = dcert->subjectCNEnc;
+
+    return 0;
+}
+
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)
+int wc_CertInfo_SetSubjectBuffer(Cert* cert, wc_CertInfo* info)
+{
+    int ret = 0;
+    DecodedCert* dcert;
+
+    if ((cert == NULL) || (info == NULL) || (info->decodedCert == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        dcert = (DecodedCert*)info->decodedCert;
+
+        SetNameFromDcert(&cert->subject, dcert);
+    }
+
+    return ret;
+}
+
+int wc_CertInfo_SetSubjectBufferRaw(Cert* cert, wc_CertInfo* info)
+{
+    int ret = 0;
+    DecodedCert* dcert;
+
+    if ((cert == NULL) || (info == NULL) || (info->decodedCert == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        dcert = (DecodedCert*)info->decodedCert;
+
+#ifndef IGNORE_NAME_CONSTRAINT
+        if ((dcert->subjectRaw) &&
+            (dcert->subjectRawLen <= (int)sizeof(CertName))) {
+            XMEMCPY(cert->sbjRaw, dcert->subjectRaw, dcert->subjectRawLen);
+        }
+#else
+        /* Fields are not accessible */
+        ret = NOT_COMPILED_IN;
+        WOLFSSL_MSG("IGNORE_NAME_CONSTRAINT excludes raw subject");
+#endif
+    }
+
+    return ret;
+}
+
+int wc_CertInfo_SetIssuerBuffer(Cert* cert, wc_CertInfo* info)
+{
+    int ret = 0;
+    DecodedCert* dcert;
+
+    if ((cert == NULL) || (info == NULL) || (info->decodedCert == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        dcert = (DecodedCert*)info->decodedCert;
+
+        cert->selfSigned = 0;
+        SetNameFromDcert(&cert->issuer, dcert);
+    }
+
+    return ret;
+}
+
+int wc_CertInfo_SetIssuerBufferRaw(Cert* cert, wc_CertInfo* info)
+{
+    int ret = 0;
+    DecodedCert* dcert;
+
+    if ((cert == NULL) || (info == NULL) || (info->decodedCert == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        dcert = (DecodedCert*)info->decodedCert;
+
+#if defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT)
+        if ((dcert->issuerRaw) &&
+            (dcert->issuerRawLen <= (int)sizeof(CertName))) {
+            XMEMCPY(cert->issRaw, dcert->issuerRaw, dcert->issuerRawLen);
+        }
+#else
+        /* Fields are not accessible */
+        ret = NOT_COMPILED_IN;
+        WOLFSSL_MSG("HAVE_PKCS7 or WOLFSSL_CERT_EXT includes raw issuer");
+#endif
+    }
+
+    return ret;
+}
+
+#ifdef WOLFSSL_ALT_NAMES
+int wc_CertInfo_SetAltNamesBuffer(Cert* cert, wc_CertInfo* info)
+{
+    int ret;
+    DecodedCert* dcert;
+
+    if ((cert == NULL) || (info == NULL) || (info->decodedCert == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        dcert = (DecodedCert*)info->decodedCert;
+
+        ret = SetAltNamesFromDcert(cert, dcert);
+    }
+
+    return ret;
+}
+
+int wc_CertInfo_SetDatesBuffer(Cert* cert, wc_CertInfo* info)
+{
+    int ret;
+    DecodedCert* dcert;
+
+    if ((cert == NULL) || (info == NULL) || (info->decodedCert == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        dcert = (DecodedCert*)info->decodedCert;
+
+        ret = SetDatesFromDcert(cert, dcert);
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_ALT_NAMES */
+
+int wc_CertInfo_Set_AuthKeyIdFromCert(Cert* cert, wc_CertInfo* info)
+{
+    int ret;
+    DecodedCert* dcert;
+
+    if ((cert == NULL) || (info == NULL) || (info->decodedCert == NULL)) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        dcert = (DecodedCert*)info->decodedCert;
+
+        ret = SetAuthKeyIdFromDcert(cert, dcert);
+    }
+
+    return ret;
+}
+#endif /* WOLFSSL_CERT_GEN && WOLFSSL_CERT_EXT */
+
+int wc_CertInfo_Free(wc_CertInfo* info)
+{
+    if (info == NULL)
+        return BAD_FUNC_ARG;
+
+    if (info->decodedCert) {
+        FreeDecodedCert((DecodedCert*)info->decodedCert);
+
+        if (info->der) {
+            FreeDer(&info->der);
+        }
+
+        XFREE(info->decodedCert, info->heap, DYNAMIC_TYPE_DCERT);
+        info->decodedCert = NULL;
+    }
+
+    return 0;
+}
+
+#endif /* WOLFSSL_CERT_INFO */
 
 
 #undef ERROR_OUT

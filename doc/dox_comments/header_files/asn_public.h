@@ -1597,3 +1597,595 @@ WOLFSSL_API word32 wc_EncodeSignature(byte* out, const byte* digest,
     \sa none
 */
 WOLFSSL_API int wc_GetCTC_HashOID(int type);
+
+/*!
+    \ingroup ASN
+
+    \brief This function initializes the certificate information structure to
+    prepare for calling wc_CertInfo_LoadDer or wc_CertInfo_LoadPem.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG Returned if invalid pointer is passed in as argument.
+    \return MEMORY_E Returned if memory could not be allocated.
+
+    \param info pointer to an uninitialized certificate information structure.
+    \param heap pointer to
+
+    _Example_
+    \code
+    wc_CertInfo info;
+    if (wc_CertInfo_Init(&info, NULL) == 0) {
+        // Continue with routine
+
+        wc_CertInfo_Free(&info);
+    }
+    \endcode
+
+    \sa wc_CertInfo_LoadDer
+    \sa wc_CertInfo_LoadPem
+    \sa wc_CertInfo_Free
+*/
+WOLFSSL_API int wc_CertInfo_Init(wc_CertInfo* info, void* heap);
+
+/*!
+    \ingroup ASN
+
+    \brief This function initializes and parses the DER into the decoded
+    structure.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG Returned if invalid pointer is passed in as argument.
+
+    \param info pointer to an uninitialized certificate information structure.
+    \param der pointer to DER buffer.
+    \param derSz length of DER in buffer.
+
+    _Example_
+    \code
+    wc_CertInfo info;
+    byte* der;    // initialize der with certificate
+    word32 derSz;
+
+    if (wc_CertInfo_Init(&info, NULL) == 0) {
+        if (wc_CertInfo_LoadDer(&info, der, derSz) == 0) {
+            // Continue with routine
+
+        }
+
+        wc_CertInfo_Free(&info);
+    }
+    \endcode
+
+    \sa wc_CertInfo_Init
+*/
+WOLFSSL_API int wc_CertInfo_LoadDer(wc_CertInfo* info,
+    const byte* der, word32 derSz);
+
+/*!
+    \ingroup ASN
+
+    \brief This function initializes and parses the PEM into the decoded
+    structure.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG Returned if invalid pointer is passed in as argument.
+
+    \param info pointer to an uninitialized certificate information structure.
+    \param pem pointer to DER buffer.
+    \param pemSz length of DER in buffer.
+
+    _Example_
+    \code
+    wc_CertInfo info;
+    byte* pem;     // initialize PEM with certificate
+    word32 pemSz;
+
+    if (wc_CertInfo_Init(&info, NULL) == 0) {
+        if (wc_CertInfo_LoadPem(&info, pem, pemSz) == 0) {
+            // Continue with routine
+
+        }
+
+        wc_CertInfo_Free(&info);
+    }
+    \endcode
+
+    \sa wc_CertInfo_Init
+*/
+WOLFSSL_API int wc_CertInfo_LoadPem(wc_CertInfo* info,
+    const byte* pem, word32 pemSz);
+
+/*!
+    \ingroup ASN
+
+    \brief This function gets the public key stored in the decoded structure.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG Returned if invalid pointer is passed in as argument.
+
+    \param info pointer to an uninitialized certificate information structure.
+    \param keyOID pointer to key OID.
+    \param pkCurveOID pointer to the key curve OID.
+    \param pPubKey pointer-pointer to the public key buffer.
+    \param pPubKeySz pointer to the size of the public key.
+
+    _Example_
+    \code
+    wc_CertInfo info;
+    byte* pem;     // initialize PEM with certificate
+    word32 pemSz;
+    word32 keyOID, kCurveOID, pubKeySz;
+    byte* pPubKey;
+
+    if (wc_CertInfo_Init(&info, NULL) == 0) {
+        if (wc_CertInfo_LoadPem(&info, pem, pemSz) == 0) {
+            if (wc_CertInfo_GetPublicKey(&info, &keyOID,
+                &kCurveOID, &pPubKey, &pubKeySz) == 0) {
+                // Continue with routine
+            }
+        }
+
+        wc_CertInfo_Free(&info);
+    }
+    \endcode
+
+    \sa wc_CertInfo_Init
+*/
+WOLFSSL_API int wc_CertInfo_GetPublicKey(wc_CertInfo* info, word32* keyOID,
+    word32* pkCurveOID, byte** pPubKey, word32* pPubKeySz);
+
+/*!
+    \ingroup ASN
+
+    \brief This function gets the raw subject stored in the decoded structure.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG Returned if invalid pointer is passed in as argument.
+
+    \param info pointer to an uninitialized certificate information structure.
+    \param pSubject pointer-pointer to the subject buffer.
+    \param pSubjectSz pointer to the size of the subject.
+
+    _Example_
+    \code
+    wc_CertInfo info;
+    byte* pem;     // initialize PEM with certificate
+    word32 pemSz;
+    byte *pSubject;
+    int subjectSz;
+
+    if (wc_CertInfo_Init(&info, NULL) == 0) {
+        if (wc_CertInfo_LoadPem(&info, pem, pemSz) == 0) {
+            if (wc_CertInfo_GetSubjectRaw(&info, &pSubject, &subjectSz) == 0) {
+                // Continue with routine
+            }
+        }
+
+        wc_CertInfo_Free(&info);
+    }
+    \endcode
+
+    \sa wc_CertInfo_Init
+*/
+WOLFSSL_API int wc_CertInfo_GetSubjectRaw(wc_CertInfo* info, byte** pSubject,
+    int* pSubjectSz);
+
+/*!
+    \ingroup ASN
+
+    \brief This function gets the auth key ID stored in the decoded structure.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG Returned if invalid pointer is passed in as argument.
+
+    \param info pointer to an uninitialized certificate information structure.
+    \param pAuthKeyId pointer-pointer to the auth key ID buffer.
+    \param pAuthKeyIdSz pointer to the size of the auth key ID.
+
+    _Example_
+    \code
+    wc_CertInfo info;
+    byte* pem;     // initialize PEM with certificate
+    word32 pemSz;
+    byte *pAuthKeyId;
+    word32 authKeyIdSz;
+
+    if (wc_CertInfo_Init(&info, NULL) == 0) {
+        if (wc_CertInfo_LoadPem(&info, pem, pemSz) == 0) {
+            if (wc_CertInfo_GetAuthKeyId(&info, &pAuthKeyId,
+                    &authKeyIdSz) == 0) {
+                // Continue with routine
+            }
+        }
+
+        wc_CertInfo_Free(&info);
+    }
+    \endcode
+
+    \sa wc_CertInfo_Init
+*/
+WOLFSSL_API int wc_CertInfo_GetAuthKeyId(wc_CertInfo* info,
+    byte** pAuthKeyId, word32* pAuthKeyIdSz);
+
+/*!
+    \ingroup ASN
+
+    \brief This function gets the alternative names stored in the decoded
+    structure.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG Returned if invalid pointer is passed in as argument.
+
+    \param info pointer to an uninitialized certificate information structure.
+    \param pAltNames pointer-pointer to the alt names buffer.
+    \param pAltNamesSz pointer to the size of the alt names.
+
+    _Example_
+    \code
+    wc_CertInfo info;
+    byte* pem;     // initialize PEM with certificate
+    word32 pemSz;
+    byte *pAltNames;
+    word32 altNamesSz;
+
+    if (wc_CertInfo_Init(&info, NULL) == 0) {
+        if (wc_CertInfo_LoadPem(&info, pem, pemSz) == 0) {
+            if (wc_CertInfo_GetAltNames(&info, &pAltNames,
+                    &altNamesSz) == 0) {
+                // Continue with routine
+            }
+        }
+
+        wc_CertInfo_Free(&info);
+    }
+    \endcode
+
+    \sa wc_CertInfo_Init
+*/
+WOLFSSL_API int wc_CertInfo_GetAltNames(wc_CertInfo* info, byte** pAltNames,
+    word32* pAltNamesSz);
+
+/*!
+    \ingroup ASN
+
+    \brief This function gets the cert dates stored in the decoded structure.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG Returned if invalid pointer is passed in as argument.
+
+    \param info pointer to an uninitialized certificate information structure.
+    \param beforeDate pointer-pointer to the before-date buffer.
+    \param beforeDateLen pointer to the size of the before-date.
+    \param afterDate pointer-pointer to the after-date buffer.
+    \param afterDateLen pointer to the size of the after-date.
+
+    _Example_
+    \code
+    wc_CertInfo info;
+    byte* pem;     // initialize PEM with certificate
+    word32 pemSz;
+    byte *beforeDate, *afterDate;
+    int beforeDateLen, afterDateLen;
+
+    if (wc_CertInfo_Init(&info, NULL) == 0) {
+        if (wc_CertInfo_LoadPem(&info, pem, pemSz) == 0) {
+            if (wc_CertInfo_GetDates(&info, &beforeDate, &beforeDateLen,
+                    &afterDate, &afterDateLen) == 0) {
+                // Continue with routine
+            }
+        }
+
+        wc_CertInfo_Free(&info);
+    }
+    \endcode
+
+    \sa wc_CertInfo_Init
+*/
+WOLFSSL_API int wc_CertInfo_GetDates(wc_CertInfo* info, byte** beforeDate,
+    int* beforeDateLen, byte** afterDate, int* afterDateLen);
+
+/*!
+    \ingroup ASN
+
+    \brief This function gets the common name stored in the decoded structure.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG Returned if invalid pointer is passed in as argument.
+
+    \param info pointer to an uninitialized certificate information structure.
+    \param pCommonName pointer-pointer to the common name buffer.
+    \param pCommonNameSz pointer to the size of the common name.
+    \param pCommonNameEnc pointer to the encoding method used.
+
+    _Example_
+    \code
+    wc_CertInfo info;
+    byte* pem;     // initialize PEM with certificate
+    word32 pemSz;
+    char *pCommonName, commonNameEnc;
+    int commonNameSz;
+
+    if (wc_CertInfo_Init(&info, NULL) == 0) {
+        if (wc_CertInfo_LoadPem(&info, pem, pemSz) == 0) {
+            if (wc_CertInfo_GetCommonName(&info, &pCommonName, &CommonNameSz,
+                    &CommonNameEnc) == 0) {
+                // Continue with routine
+            }
+        }
+
+        wc_CertInfo_Free(&info);
+    }
+    \endcode
+
+    \sa wc_CertInfo_Init
+*/
+WOLFSSL_API int wc_CertInfo_GetCommonName(wc_CertInfo* info,
+    char** pCommonName, int* pCommonNameSz, char* pCommonNameEnc);
+
+/*!
+    \ingroup ASN
+
+    \brief This function sets the subject buffer stored in the decoded
+    structure.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG Returned if invalid pointer is passed in as argument.
+
+    \param cert pointer to the certificate structure.
+    \param info pointer to an uninitialized certificate information structure.
+
+    _Example_
+    \code
+    wc_CertInfo info;
+    byte* pem;     // initialize PEM with certificate
+    word32 pemSz;
+    Cert cert; // Initialized certificate structure
+
+    if (wc_CertInfo_Init(&info, NULL) == 0) {
+        if (wc_CertInfo_LoadPem(&info, pem, pemSz) == 0) {
+            if (wc_CertInfo_SetSubjectBuffer(&cert, &info) == 0) {
+                // Continue with routine
+            }
+        }
+
+        wc_CertInfo_Free(&info);
+    }
+    \endcode
+
+    \sa wc_CertInfo_Init
+*/
+WOLFSSL_API int wc_CertInfo_SetSubjectBuffer(Cert* cert, wc_CertInfo* info);
+
+/*!
+    \ingroup ASN
+
+    \brief This function sets the raw subject buffer stored in the decoded
+    structure.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG Returned if invalid pointer is passed in as argument.
+
+    \param cert pointer to the certificate structure.
+    \param info pointer to an uninitialized certificate information structure.
+
+    _Example_
+    \code
+    wc_CertInfo info;
+    byte* pem;     // initialize PEM with certificate
+    word32 pemSz;
+    Cert cert; // Initialized certificate structure
+
+    if (wc_CertInfo_Init(&info, NULL) == 0) {
+        if (wc_CertInfo_LoadPem(&info, pem, pemSz) == 0) {
+            if (wc_CertInfo_SetSubjectBufferRaw(&cert, &info) == 0) {
+                // Continue with routine
+            }
+        }
+
+        wc_CertInfo_Free(&info);
+    }
+    \endcode
+
+    \sa wc_CertInfo_Init
+*/
+WOLFSSL_API int wc_CertInfo_SetSubjectBufferRaw(Cert* cert, wc_CertInfo* info);
+
+/*!
+    \ingroup ASN
+
+    \brief This function sets the issuer buffer stored in the decoded
+    structure.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG Returned if invalid pointer is passed in as argument.
+
+    \param cert pointer to the certificate structure.
+    \param info pointer to an uninitialized certificate information structure.
+
+    _Example_
+    \code
+    wc_CertInfo info;
+    byte* pem;     // initialize PEM with certificate
+    word32 pemSz;
+    Cert cert; // Initialized certificate structure
+
+    if (wc_CertInfo_Init(&info, NULL) == 0) {
+        if (wc_CertInfo_LoadPem(&info, pem, pemSz) == 0) {
+            if (wc_CertInfo_SetIssuerBuffer(&cert, &info) == 0) {
+                // Continue with routine
+            }
+        }
+
+        wc_CertInfo_Free(&info);
+    }
+    \endcode
+
+    \sa wc_CertInfo_Init
+*/
+WOLFSSL_API int wc_CertInfo_SetIssuerBuffer(Cert* cert, wc_CertInfo* info);
+
+/*!
+    \ingroup ASN
+
+    \brief This function sets the raw issuer buffer stored in the decoded
+    structure.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG Returned if invalid pointer is passed in as argument.
+
+    \param cert pointer to the certificate structure.
+    \param info pointer to an uninitialized certificate information structure.
+
+    _Example_
+    \code
+    wc_CertInfo info;
+    byte* pem;     // initialize PEM with certificate
+    word32 pemSz;
+    Cert cert; // Initialized certificate structure
+
+    if (wc_CertInfo_Init(&info, NULL) == 0) {
+        if (wc_CertInfo_LoadPem(&info, pem, pemSz) == 0) {
+            if (wc_CertInfo_SetIssuerBufferRaw(&cert, &info) == 0) {
+                // Continue with routine
+            }
+        }
+
+        wc_CertInfo_Free(&info);
+    }
+    \endcode
+
+    \sa wc_CertInfo_Init
+*/
+WOLFSSL_API int wc_CertInfo_SetIssuerBufferRaw(Cert* cert, wc_CertInfo* info);
+
+/*!
+    \ingroup ASN
+
+    \brief This function sets the alternative names buffer stored in the decoded
+    structure.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG Returned if invalid pointer is passed in as argument.
+
+    \param cert pointer to the certificate structure.
+    \param info pointer to an uninitialized certificate information structure.
+
+    _Example_
+    \code
+    wc_CertInfo info;
+    byte* pem;     // initialize PEM with certificate
+    word32 pemSz;
+    Cert cert; // Initialized certificate structure
+
+    if (wc_CertInfo_Init(&info, NULL) == 0) {
+        if (wc_CertInfo_LoadPem(&info, pem, pemSz) == 0) {
+            if (wc_CertInfo_SetAltNamesBuffer(&cert, &info) == 0) {
+                // Continue with routine
+            }
+        }
+
+        wc_CertInfo_Free(&info);
+    }
+    \endcode
+
+    \sa wc_CertInfo_Init
+*/
+WOLFSSL_API int wc_CertInfo_SetAltNamesBuffer(Cert* cert, wc_CertInfo* info);
+
+/*!
+    \ingroup ASN
+
+    \brief This function sets the certificate dates buffer stored in the decoded
+    structure.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG Returned if invalid pointer is passed in as argument.
+
+    \param cert pointer to the certificate structure.
+    \param info pointer to an uninitialized certificate information structure.
+
+    _Example_
+    \code
+    wc_CertInfo info;
+    byte* pem;     // initialize PEM with certificate
+    word32 pemSz;
+    Cert cert; // Initialized certificate structure
+
+    if (wc_CertInfo_Init(&info, NULL) == 0) {
+        if (wc_CertInfo_LoadPem(&info, pem, pemSz) == 0) {
+            if (wc_CertInfo_SetDatesBuffer(&cert, &info) == 0) {
+                // Continue with routine
+            }
+        }
+
+        wc_CertInfo_Free(&info);
+    }
+    \endcode
+
+    \sa wc_CertInfo_Init
+*/
+WOLFSSL_API int wc_CertInfo_SetDatesBuffer(Cert* cert, wc_CertInfo* info);
+
+/*!
+    \ingroup ASN
+
+    \brief This function sets the certificate authorization ID stored in the
+    decoded structure.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG Returned if invalid pointer is passed in as argument.
+
+    \param cert pointer to the certificate structure.
+    \param info pointer to an uninitialized certificate information structure.
+
+    _Example_
+    \code
+    wc_CertInfo info;
+    byte* pem;     // initialize PEM with certificate
+    word32 pemSz;
+    Cert cert; // Initialized certificate structure
+
+    if (wc_CertInfo_Init(&info, NULL) == 0) {
+        if (wc_CertInfo_LoadPem(&info, pem, pemSz) == 0) {
+            if (wc_CertInfo_Set_AuthKeyIdFromCert(&cert, &info) == 0) {
+                // Continue with routine
+            }
+        }
+
+        wc_CertInfo_Free(&info);
+    }
+    \endcode
+
+    \sa wc_CertInfo_Init
+*/
+WOLFSSL_API int wc_CertInfo_Set_AuthKeyIdFromCert(Cert* cert,
+    wc_CertInfo* info);
+
+/*!
+    \ingroup ASN
+
+    \brief This function cleans up memory and resources used by the certificate
+    information structure.
+
+    \return 0 on success.
+    \return BAD_FUNC_ARG Returned if invalid pointer is passed in as argument.
+
+    \param info pointer to an uninitialized certificate information structure.
+
+    _Example_
+    \code
+    wc_CertInfo info;
+    byte* pem;     // initialize PEM with certificate
+    word32 pemSz;
+    Cert cert; // Initialized certificate structure
+
+    if (wc_CertInfo_Init(&info, NULL) == 0) {
+
+        wc_CertInfo_Free(&info);
+    }
+    \endcode
+
+    \sa wc_CertInfo_Init
+*/
+WOLFSSL_API int wc_CertInfo_Free(wc_CertInfo* info);
+

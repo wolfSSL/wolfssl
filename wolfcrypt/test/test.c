@@ -346,6 +346,10 @@ int cert_test(void);
 #if defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_TEST_CERT)
 int  certext_test(void);
 #endif
+#if defined(WOLFSSL_CERT_INFO) && defined(WOLFSSL_TEST_CERT) && \
+    defined(WOLFSSL_CERT_EXT)
+int certinfo_test(void);
+#endif
 #ifdef HAVE_IDEA
 int idea_test(void);
 #endif
@@ -931,6 +935,14 @@ initDefaultName();
         return err_sys("CERT EXT test failed!\n", ret);
     else
         printf( "CERT EXT test passed!\n");
+#endif
+
+#if defined(WOLFSSL_CERT_INFO) && defined(WOLFSSL_TEST_CERT) && \
+    defined(WOLFSSL_CERT_EXT)
+    if ( (ret = certinfo_test()) != 0)
+        return err_sys("CERT INFO test failed!\n", ret);
+    else
+        printf( "CERT INFO test passed!\n");
 #endif
 
 #ifdef HAVE_CURVE25519
@@ -9023,6 +9035,232 @@ int certext_test(void)
     return 0;
 }
 #endif /* WOLFSSL_CERT_EXT && WOLFSSL_TEST_CERT */
+
+#if defined(WOLFSSL_CERT_INFO) && defined(WOLFSSL_TEST_CERT) && \
+    defined(WOLFSSL_CERT_EXT)
+int certinfo_test(void)
+{
+    int ret;
+    wc_CertInfo info;
+    FILE        *file;
+    byte* der;
+    word32 derSz;
+
+    ret = wc_CertInfo_Init(NULL, NULL);
+    if(ret != BAD_FUNC_ARG)
+        return ret;
+
+    /* Test with DER */
+    ret = wc_CertInfo_Init(&info, NULL);
+    if(ret != 0)
+        return ret;
+
+    derSz = FOURK_BUF;
+    der = XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    if (der == NULL)
+        return -1;
+
+    /* load cert.der */
+    file = fopen(certDerFile, "rb");
+    if (file != NULL) {
+        derSz = fread(der, 1, FOURK_BUF, file);
+        fclose(file);
+    }
+
+    ret = wc_CertInfo_LoadDer(NULL, der, derSz);
+    if(ret != BAD_FUNC_ARG)
+        return ret;
+
+    ret = wc_CertInfo_LoadDer(&info, der, derSz);
+    if(ret != 0)
+        return ret;
+
+    ret = wc_CertInfo_Free(&info);
+    if(ret != 0)
+        return ret;
+
+    /* Test with PEM */
+    ret = wc_CertInfo_Init(&info, NULL);
+    if(ret != 0)
+        return ret;
+
+    /* load cert.pem */
+    file = fopen(certPemFile, "rb");
+    if (file != NULL) {
+        derSz = fread(der, 1, FOURK_BUF, file);
+        fclose(file);
+    }
+
+    ret = wc_CertInfo_LoadPem(NULL, der, derSz);
+    if(ret != BAD_FUNC_ARG)
+        return ret;
+
+    ret = wc_CertInfo_LoadPem(&info, der, derSz);
+    if(ret != 0)
+        return ret;
+
+    {
+        word32 keyOID, kCurveOID, pubKeySz;
+        byte* pPubKey;
+
+        ret = wc_CertInfo_GetPublicKey(&info, &keyOID,
+                &kCurveOID, &pPubKey, &pubKeySz);
+        if(ret != 0)
+            return ret;
+
+        ret = wc_CertInfo_GetPublicKey(NULL, &keyOID,
+                &kCurveOID, &pPubKey, &pubKeySz);
+        if(ret != BAD_FUNC_ARG)
+            return ret;
+    }
+
+    {
+        byte *pSubject;
+        int subjectSz;
+
+        ret = wc_CertInfo_GetSubjectRaw(&info, &pSubject, &subjectSz);
+        if(ret != 0)
+            return ret;
+
+        ret = wc_CertInfo_GetSubjectRaw(NULL, &pSubject, &subjectSz);
+        if(ret != BAD_FUNC_ARG)
+            return ret;
+    }
+
+    {
+        byte *pAuthKeyId;
+        word32 authKeyIdSz;
+
+        ret = wc_CertInfo_GetAuthKeyId(&info, &pAuthKeyId, &authKeyIdSz);
+        if(ret != 0)
+            return ret;
+
+        ret = wc_CertInfo_GetAuthKeyId(NULL, &pAuthKeyId, &authKeyIdSz);
+        if(ret != BAD_FUNC_ARG)
+            return ret;
+    }
+
+    {
+        byte *pAltNames;
+        word32 altNamesSz;
+
+        ret = wc_CertInfo_GetAltNames(&info, &pAltNames, &altNamesSz);
+        if(ret != 0)
+            return ret;
+
+        ret = wc_CertInfo_GetAltNames(NULL, &pAltNames, &altNamesSz);
+        if(ret != BAD_FUNC_ARG)
+            return ret;
+    }
+
+    {
+        byte *beforeDate, *afterDate;
+        int beforeDateLen, afterDateLen;
+
+        ret = wc_CertInfo_GetDates(&info, &beforeDate, &beforeDateLen,
+                &afterDate, &afterDateLen);
+        if(ret != 0)
+            return ret;
+
+        ret = wc_CertInfo_GetDates(NULL, &beforeDate, &beforeDateLen,
+                &afterDate, &afterDateLen);
+        if(ret != BAD_FUNC_ARG)
+            return ret;
+    }
+
+    {
+        char *pCommonName, commonNameEnc;
+        int commonNameSz;
+
+        ret = wc_CertInfo_GetCommonName(&info, &pCommonName, &commonNameSz,
+                &commonNameEnc);
+        if(ret != 0)
+            return ret;
+
+        ret = wc_CertInfo_GetCommonName(NULL, &pCommonName, &commonNameSz,
+                &commonNameEnc);
+        if(ret != BAD_FUNC_ARG)
+            return ret;
+    }
+
+#if defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)
+   {
+        Cert cert;
+
+        ret = wc_CertInfo_SetSubjectBuffer(&cert, &info);
+        if(ret != 0)
+            return ret;
+
+        ret = wc_CertInfo_SetSubjectBuffer(NULL, &info);
+        if(ret != BAD_FUNC_ARG)
+            return ret;
+
+        ret = wc_CertInfo_SetSubjectBufferRaw(&cert, &info);
+        if(ret != 0)
+            return ret;
+
+        ret = wc_CertInfo_SetSubjectBufferRaw(NULL, &info);
+        if(ret != BAD_FUNC_ARG)
+            return ret;
+
+        ret = wc_CertInfo_SetIssuerBuffer(&cert, &info);
+        if(ret != 0)
+            return ret;
+
+        ret = wc_CertInfo_SetIssuerBuffer(NULL, &info);
+        if(ret != BAD_FUNC_ARG)
+            return ret;
+
+        ret = wc_CertInfo_SetIssuerBufferRaw(&cert, &info);
+        if(ret != 0)
+            return ret;
+
+        ret = wc_CertInfo_SetIssuerBufferRaw(NULL, &info);
+        if(ret != BAD_FUNC_ARG)
+            return ret;
+
+#ifdef WOLFSSL_ALT_NAMES
+        ret = wc_CertInfo_SetAltNamesBuffer(&cert, &info);
+        if(ret != 0)
+            return ret;
+
+        ret = wc_CertInfo_SetAltNamesBuffer(NULL, &info);
+        if(ret != BAD_FUNC_ARG)
+            return ret;
+
+        ret = wc_CertInfo_SetDatesBuffer(&cert, &info);
+        if(ret != 0)
+            return ret;
+
+        ret = wc_CertInfo_SetDatesBuffer(NULL, &info);
+        if(ret != BAD_FUNC_ARG)
+            return ret;
+#endif
+
+        ret = wc_CertInfo_Set_AuthKeyIdFromCert(&cert, &info);
+        if(ret != 0)
+            return ret;
+
+        ret = wc_CertInfo_Set_AuthKeyIdFromCert(NULL, &info);
+        if(ret != BAD_FUNC_ARG)
+            return ret;
+}
+#endif
+
+    ret = wc_CertInfo_Free(&info);
+    if(ret != 0)
+        return ret;
+
+    ret = wc_CertInfo_Free(NULL);
+    if(ret != BAD_FUNC_ARG)
+        return ret;
+
+    XFREE(der, HEAP_HINT ,DYNAMIC_TYPE_TMP_BUFFER);
+
+    return 0;
+}
+#endif /* defined(WOLFSSL_CERT_INFO) && defined(WOLFSSL_TEST_CERT) &&
+          defined(WOLFSSL_CERT_EXT) */
 
 #if !defined(NO_ASN) && !defined(WOLFSSL_RSA_PUBLIC_ONLY)
 static int rsa_flatten_test(RsaKey* key)

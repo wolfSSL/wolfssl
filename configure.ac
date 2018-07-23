@@ -143,6 +143,7 @@ then
     enable_certgen=yes
     enable_certreq=yes
     enable_certext=yes
+    enable_certinfo=yes
     enable_sep=yes
     enable_hkdf=yes
     enable_dsa=yes
@@ -1339,6 +1340,19 @@ AC_ARG_ENABLE([certext],
 if test "$ENABLED_CERTEXT" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EXT"
+fi
+
+
+# CERT INFORMATION API
+AC_ARG_ENABLE([certinfo],
+    [AS_HELP_STRING([--enable-certinfo],[Enable cert information API (default: disabled)])],
+    [ ENABLED_CERTINFO=$enableval ],
+    [ ENABLED_CERTINFO=no ]
+    )
+
+if test "$ENABLED_CERTINFO" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_INFO"
 fi
 
 
@@ -4773,6 +4787,7 @@ echo "   * keygen:                     $ENABLED_KEYGEN"
 echo "   * certgen:                    $ENABLED_CERTGEN"
 echo "   * certreq:                    $ENABLED_CERTREQ"
 echo "   * certext:                    $ENABLED_CERTEXT"
+echo "   * certinfo:                   $ENABLED_CERTINFO"
 echo "   * HC-128:                     $ENABLED_HC128"
 echo "   * RABBIT:                     $ENABLED_RABBIT"
 echo "   * CHACHA:                     $ENABLED_CHACHA"
