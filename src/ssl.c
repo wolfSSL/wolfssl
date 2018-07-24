@@ -27976,9 +27976,11 @@ int wolfSSL_i2d_RSAPrivateKey(WOLFSSL_RSA *rsa, unsigned char **pp)
         return BAD_FUNC_ARG;
     }
 
-    if ((ret = SetRsaInternal(rsa)) != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("SetRsaInternal() Failed");
-        return ret;
+    if (rsa->inSet == 0) {
+        if ((ret = SetRsaInternal(rsa)) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("SetRsaInternal() Failed");
+            return ret;
+        }
     }
 
     /* 5 > size of n, d, p, q, d%(p-1), d(q-1), 1/q%p, e + ASN.1 additional
