@@ -7103,10 +7103,10 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 
 #ifndef WOLFSSL_NO_TLS12
 
+#ifdef HAVE_CHACHA
         if (first == CHACHA_BYTE) {
 
         switch (second) {
-
         case TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 :
             if (requirement == REQUIRES_RSA)
                 return 1;
@@ -7160,13 +7160,14 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             break;
             }
         }
+#endif /* HAVE_CHACHA */
 
         /* ECC extensions */
         if (first == ECC_BYTE) {
 
         switch (second) {
-
-#ifndef NO_RSA
+#ifdef HAVE_ECC
+    #ifndef NO_RSA
         case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA :
             if (requirement == REQUIRES_RSA)
                 return 1;
@@ -7179,7 +7180,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 
-#ifndef NO_DES3
+    #ifndef NO_DES3
         case TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA :
             if (requirement == REQUIRES_RSA)
                 return 1;
@@ -7191,9 +7192,9 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_RSA_SIG)
                 return 1;
             break;
-#endif
+    #endif /* !NO_DES3 */
 
-#ifndef NO_RC4
+    #ifndef NO_RC4
         case TLS_ECDHE_RSA_WITH_RC4_128_SHA :
             if (requirement == REQUIRES_RSA)
                 return 1;
@@ -7205,10 +7206,10 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_RSA_SIG)
                 return 1;
             break;
-#endif
-#endif /* NO_RSA */
+    #endif /* !NO_RC4 */
+    #endif /* NO_RSA */
 
-#ifndef NO_DES3
+    #ifndef NO_DES3
         case TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA :
             if (requirement == REQUIRES_ECC)
                 return 1;
@@ -7218,8 +7219,8 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             break;
-#endif
-#ifndef NO_RC4
+    #endif /* !NO_DES3  */
+    #ifndef NO_RC4
         case TLS_ECDHE_ECDSA_WITH_RC4_128_SHA :
             if (requirement == REQUIRES_ECC)
                 return 1;
@@ -7229,8 +7230,8 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             break;
-#endif
-#ifndef NO_RSA
+    #endif /* !NO_RC4 */
+    #ifndef NO_RSA
         case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA :
             if (requirement == REQUIRES_RSA)
                 return 1;
@@ -7242,7 +7243,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_RSA_SIG)
                 return 1;
             break;
-#endif
+    #endif /* !NO_RSA */
 
         case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA :
             if (requirement == REQUIRES_ECC)
@@ -7283,8 +7284,10 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             break;
+#endif /* HAVE_ECC */
 
 #ifndef NO_RSA
+    #ifdef HAVE_ECC
         case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 :
             if (requirement == REQUIRES_RSA)
                 return 1;
@@ -7308,7 +7311,8 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_RSA_SIG)
                 return 1;
             break;
-
+    #endif /* HAVE_ECC */
+    #ifdef HAVE_AESCCM
         case TLS_RSA_WITH_AES_128_CCM_8 :
         case TLS_RSA_WITH_AES_256_CCM_8 :
             if (requirement == REQUIRES_RSA)
@@ -7316,6 +7320,8 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_RSA_SIG)
                 return 1;
             break;
+    #endif /* HAVE_AESCCM */
+    #ifdef HAVE_ECC
 
         case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 :
         case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384 :
@@ -7330,8 +7336,10 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             break;
-#endif
+    #endif /* HAVE_ECC */
+#endif /* !NO_RSA */
 
+#ifdef HAVE_ECC
         case TLS_ECDHE_ECDSA_WITH_AES_128_CCM :
         case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8 :
         case TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8 :
@@ -7352,7 +7360,9 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_ECC_STATIC)
                 return 1;
             break;
+#endif /* HAVE_ECC */
 
+#ifndef NO_PSK
         case TLS_PSK_WITH_AES_128_CCM:
         case TLS_PSK_WITH_AES_256_CCM:
         case TLS_PSK_WITH_AES_128_CCM_8:
@@ -7368,7 +7378,8 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_DHE)
                 return 1;
             break;
-
+#endif /* !NO_PSK */
+#ifdef HAVE_ECC
         case TLS_ECDHE_ECDSA_WITH_NULL_SHA :
             if (requirement == REQUIRES_ECC)
                 return 1;
@@ -7383,7 +7394,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_PSK)
                 return 1;
             break;
-
+#endif /* HAVE_ECC */
         default:
             WOLFSSL_MSG("Unsupported cipher suite, CipherRequires ECC");
             return 0;
@@ -7419,6 +7430,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
         switch (second) {
 
 #ifndef NO_RSA
+    #ifndef NO_RC4
         case SSL_RSA_WITH_RC4_128_SHA :
             if (requirement == REQUIRES_RSA)
                 return 1;
@@ -7428,16 +7440,19 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_RSA)
                 return 1;
             break;
+    #endif /* NO_RC4 */
 
         case SSL_RSA_WITH_3DES_EDE_CBC_SHA :
             if (requirement == REQUIRES_RSA)
                 return 1;
             break;
 
+    #ifdef HAVE_NTRU
         case TLS_NTRU_RSA_WITH_RC4_128_SHA :
             if (requirement == REQUIRES_NTRU)
                 return 1;
             break;
+    #endif /* HAVE_NTRU */
 
         case TLS_RSA_WITH_AES_128_CBC_SHA :
             if (requirement == REQUIRES_RSA)
@@ -7449,20 +7464,24 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 
+    #ifdef HAVE_NTRU
         case TLS_NTRU_RSA_WITH_3DES_EDE_CBC_SHA :
             if (requirement == REQUIRES_NTRU)
                 return 1;
             break;
+    #endif /* HAVE_NTRU */
 
         case TLS_RSA_WITH_AES_256_CBC_SHA :
             if (requirement == REQUIRES_RSA)
                 return 1;
             break;
 
+    #ifdef HAVE_NTRU
         case TLS_NTRU_RSA_WITH_AES_128_CBC_SHA :
             if (requirement == REQUIRES_NTRU)
                 return 1;
             break;
+    #endif /* HAVE_NTRU */
 
         case TLS_RSA_WITH_AES_256_CBC_SHA256 :
             if (requirement == REQUIRES_RSA)
@@ -7475,17 +7494,22 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 
+    #ifdef HAVE_NTRU
         case TLS_NTRU_RSA_WITH_AES_256_CBC_SHA :
             if (requirement == REQUIRES_NTRU)
                 return 1;
             break;
+    #endif /* HAVE_NTRU */
 
+    #ifdef HAVE_IDEA
         case SSL_RSA_WITH_IDEA_CBC_SHA :
             if (requirement == REQUIRES_RSA)
                 return 1;
             break;
-#endif
+    #endif /* HAVE_IDEA */
+#endif /* !NO_RSA */
 
+#ifndef NO_PSK
         case TLS_PSK_WITH_AES_128_GCM_SHA256 :
         case TLS_PSK_WITH_AES_256_GCM_SHA384 :
         case TLS_PSK_WITH_AES_128_CBC_SHA256 :
@@ -7510,6 +7534,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_PSK)
                 return 1;
             break;
+#endif /* NO_PSK */
 
 #ifndef NO_RSA
         case TLS_DHE_RSA_WITH_AES_128_CBC_SHA256 :
@@ -7540,6 +7565,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 
+#ifndef NO_HC128
         case TLS_RSA_WITH_HC_128_MD5 :
             if (requirement == REQUIRES_RSA)
                 return 1;
@@ -7554,17 +7580,22 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_RSA)
                 return 1;
             break;
+#endif /* NO_HC128 */
 
+#ifdef HAVE_BLAKE2
         case TLS_RSA_WITH_AES_128_CBC_B2B256:
         case TLS_RSA_WITH_AES_256_CBC_B2B256:
             if (requirement == REQUIRES_RSA)
                 return 1;
             break;
+#endif /* HAVE_BLAKE2 */
 
+#ifndef NO_RABBIT
         case TLS_RSA_WITH_RABBIT_SHA :
             if (requirement == REQUIRES_RSA)
                 return 1;
             break;
+#endif /* !NO_RABBIT */
 
         case TLS_RSA_WITH_AES_128_GCM_SHA256 :
         case TLS_RSA_WITH_AES_256_GCM_SHA384 :
@@ -7580,6 +7611,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                 return 1;
             break;
 
+#ifdef HAVE_CAMELLIA
         case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA :
         case TLS_RSA_WITH_CAMELLIA_256_CBC_SHA :
         case TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256 :
@@ -7599,6 +7631,7 @@ static int BuildFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
             if (requirement == REQUIRES_DHE)
                 return 1;
             break;
+#endif /* HAVE_CAMELLIA */
 
         case TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA:
             if (requirement == REQUIRES_RSA)
