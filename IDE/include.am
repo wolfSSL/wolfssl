@@ -9,6 +9,7 @@ include IDE/WIN-SGX/include.am
 include IDE/LINUX-SGX/include.am
 include IDE/WORKBENCH/include.am
 include IDE/ROWLEY-CROSSWORKS-ARM/include.am
+include IDE/TRUESTUDIO/include.am
 include IDE/ARDUINO/include.am
 include IDE/INTIME-RTOS/include.am
 include IDE/OPENSTM32/include.am
