@@ -2707,6 +2707,10 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2_RORX_Len(wc_Sha256* sha256,
     #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA224)
         wolfAsync_DevCtxFree(&sha224->asyncDev, WOLFSSL_ASYNC_MARKER_SHA224);
     #endif /* WOLFSSL_ASYNC_CRYPT */
+
+    #ifdef WOLFSSL_PIC32MZ_HASH
+        wc_Sha256Pic32Free(sha224);
+    #endif
     }
 #endif /* WOLFSSL_SHA224 */
 
@@ -2731,6 +2735,10 @@ void wc_Sha256Free(wc_Sha256* sha256)
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA256)
     wolfAsync_DevCtxFree(&sha256->asyncDev, WOLFSSL_ASYNC_MARKER_SHA256);
 #endif /* WOLFSSL_ASYNC_CRYPT */
+
+#ifdef WOLFSSL_PIC32MZ_HASH
+    wc_Sha256Pic32Free(sha256);
+#endif
 }
 
 #endif /* !WOLFSSL_TI_HASH */
