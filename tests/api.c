@@ -9406,10 +9406,7 @@ static int test_wc_Arc4SetKey (void)
     int ret = 0;
 #ifndef NO_RC4
     Arc4 arc;
-    const char* key[] =
-    {
-        "\x01\x23\x45\x67\x89\xab\xcd\xef"
-    };
+    const char* key = "\x01\x23\x45\x67\x89\xab\xcd\xef";
     int keyLen = 8;
 
     printf(testingFmt, "wc_Arch4SetKey()");
@@ -9444,9 +9441,9 @@ static int test_wc_Arc4Process (void)
     int ret = 0;
 #ifndef NO_RC4
     Arc4 enc, dec;
-    const char* key[] = {"\x01\x23\x45\x67\x89\xab\xcd\xef"};
+    const char* key = "\x01\x23\x45\x67\x89\xab\xcd\xef";
     int keyLen = 8;
-    const char* input[] = {"\x01\x23\x45\x67\x89\xab\xcd\xef"};
+    const char* input = "\x01\x23\x45\x67\x89\xab\xcd\xef";
     byte cipher[8];
     byte plain[8];
 
