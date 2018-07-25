@@ -2764,6 +2764,7 @@ int hash_test(void)
         ret = wc_HashFinal(&hash, typesBad[i], out);
         if (ret != BAD_FUNC_ARG)
             return -2927 - i;
+        wc_HashFree(&hash, typesBad[i]);
     }
 
     /* Try valid hash algorithms. */
@@ -2783,6 +2784,7 @@ int hash_test(void)
         ret = wc_HashFinal(&hash, typesGood[i], out);
         if (ret != exp_ret)
             return -2957 - i;
+        wc_HashFree(&hash, typesGood[i]);
 
         digestSz = wc_HashGetDigestSize(typesGood[i]);
         if (exp_ret < 0 && digestSz != exp_ret)

@@ -134,7 +134,7 @@ WOLFSSL_API int wc_HashUpdate(wc_HashAlg* hash, enum wc_HashType type,
     const byte* data, word32 dataSz);
 WOLFSSL_API int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type,
     byte* out);
-
+WOLFSSL_API int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type);
 
 #ifndef NO_MD5
 #include <wolfssl/wolfcrypt/md5.h>

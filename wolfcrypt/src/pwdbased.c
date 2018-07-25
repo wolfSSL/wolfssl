@@ -142,6 +142,8 @@ int wc_PBKDF1_ex(byte* key, int keyLen, byte* iv, int ivLen,
         }
     }
 
+    wc_HashFree(hash, hashT);
+
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(hash, heap, DYNAMIC_TYPE_HASHCTX);
 #endif
@@ -307,6 +309,8 @@ static int DoPKCS12Hash(int hashType, byte* buffer, word32 totalLen,
         if (ret == 0)
             ret = wc_HashFinal(hash, hashT, Ai);
     }
+
+    wc_HashFree(hash, hashT);
 
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(hash, NULL, DYNAMIC_TYPE_HASHCTX);
