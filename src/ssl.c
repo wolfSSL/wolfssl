@@ -45,7 +45,8 @@
 
 #ifndef WOLFSSL_ALLOW_NO_SUITES
     #if defined(NO_DH) && !defined(HAVE_ECC) && !defined(WOLFSSL_STATIC_RSA) \
-                  && !defined(WOLFSSL_STATIC_DH) && !defined(WOLFSSL_STATIC_PSK)
+                && !defined(WOLFSSL_STATIC_DH) && !defined(WOLFSSL_STATIC_PSK) \
+                && !defined(HAVE_ED25519)
         #error "No cipher suites defined because DH disabled, ECC disabled, and no static suites defined. Please see top of README"
     #endif
 #endif
@@ -4762,7 +4763,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         #endif
 
         #ifdef WOLFSSL_SMALL_STACK
-            key = (ed25519_key*)XMALLOC(sizeof(ecc_key), heap,
+            key = (ed25519_key*)XMALLOC(sizeof(ed25519_key), heap,
                                                           DYNAMIC_TYPE_ED25519);
             if (key == NULL)
                 return MEMORY_E;
@@ -4876,7 +4877,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 break;
         }
 
-    #ifdef HAVE_ECC
+    #if defined(HAVE_ECC) || defined(HAVE_ED25519)
         if (ssl) {
             ssl->pkCurveOID = cert->pkCurveOID;
         #ifndef WC_STRICT_SIG
@@ -29940,7 +29941,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         #endif
             case ECDSAk:
                 ctx->haveECC = 1;
-            #ifdef HAVE_ECC
+            #if defined(HAVE_ECC) || defined(HAVE_ED25519)
                 ctx->pkCurveOID = x->pkCurveOID;
             #endif
                 break;
@@ -31272,7 +31273,8 @@ WOLFSSL_RSA* wolfSSL_d2i_RSAPrivateKey_bio(WOLFSSL_BIO *bio, WOLFSSL_RSA **out)
         /* Write extra data back into bio object if necessary. */
         extraBioMemSz = (bioMemSz - derLength);
         if (extraBioMemSz > 0) {
-            extraBioMem = XMALLOC(extraBioMemSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            extraBioMem = (unsigned char *)XMALLOC(extraBioMemSz, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
             if (extraBioMem == NULL) {
                 WOLFSSL_MSG("Malloc failure");;
                 XFREE((unsigned char*)extraBioMem, bio->heap, 
@@ -31405,7 +31407,8 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey_bio(WOLFSSL_BIO* bio,
         derLength = key->pkey_sz;
         extraBioMemSz = (memSz - derLength);
         if (extraBioMemSz > 0) {
-            extraBioMem = XMALLOC(extraBioMemSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            extraBioMem = (unsigned char *)XMALLOC(extraBioMemSz, NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
             if (extraBioMem == NULL) {
                 WOLFSSL_MSG("Malloc failure");
                 XFREE((unsigned char*)extraBioMem, bio->heap,

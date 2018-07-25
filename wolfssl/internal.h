@@ -69,15 +69,6 @@
 #ifndef NO_RC4
     #include <wolfssl/wolfcrypt/arc4.h>
 #endif
-#ifdef HAVE_ECC
-    #include <wolfssl/wolfcrypt/ecc.h>
-#endif
-#ifdef HAVE_ED25519
-    #include <wolfssl/wolfcrypt/ed25519.h>
-#endif
-#ifdef HAVE_CURVE25519
-    #include <wolfssl/wolfcrypt/curve25519.h>
-#endif
 #ifndef NO_SHA256
     #include <wolfssl/wolfcrypt/sha256.h>
 #endif
@@ -107,6 +98,12 @@
 #endif
 #ifndef NO_DH
     #include <wolfssl/wolfcrypt/dh.h>
+#endif
+#ifdef HAVE_ED25519
+    #include <wolfssl/wolfcrypt/ed25519.h>
+#endif
+#ifdef HAVE_CURVE25519
+    #include <wolfssl/wolfcrypt/curve25519.h>
 #endif
 
 #include <wolfssl/wolfcrypt/wc_encrypt.h>
@@ -493,7 +490,7 @@
         #endif
     #endif
 
-    #if defined(HAVE_ECC) && !defined(NO_TLS)
+    #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && !defined(NO_TLS)
         #if !defined(NO_AES)
             #if !defined(NO_SHA)
                 #if !defined(NO_RSA)
@@ -503,7 +500,7 @@
                     #ifdef WOLFSSL_AES_256
                         #define BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
                     #endif
-                    #if defined(WOLFSSL_STATIC_DH)
+                    #if defined(WOLFSSL_STATIC_DH) && defined(HAVE_ECC)
                         #ifdef WOLFSSL_AES_128
                             #define BUILD_TLS_ECDH_RSA_WITH_AES_128_CBC_SHA
                         #endif
@@ -513,14 +510,17 @@
                     #endif
                 #endif
 
-                #ifdef WOLFSSL_AES_128
-                    #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
-                #endif
-                #ifdef WOLFSSL_AES_256
-                    #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
+                #if defined(HAVE_ECC) || (defined(HAVE_CURVE25519) && \
+                                                          defined(HAVE_ED25519))
+                    #ifdef WOLFSSL_AES_128
+                        #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
+                    #endif
+                    #ifdef WOLFSSL_AES_256
+                        #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
+                    #endif
                 #endif
 
-                #if defined(WOLFSSL_STATIC_DH)
+                #if defined(WOLFSSL_STATIC_DH) && defined(HAVE_ECC)
                     #ifdef WOLFSSL_AES_128
                         #define BUILD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA
                     #endif
@@ -532,12 +532,15 @@
             #if !defined(NO_SHA256) && defined(WOLFSSL_AES_128)
                 #if !defined(NO_RSA)
                     #define BUILD_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
-                    #if defined(WOLFSSL_STATIC_DH)
+                    #if defined(WOLFSSL_STATIC_DH) && defined(HAVE_ECC)
                         #define BUILD_TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256
                     #endif
                 #endif
-                #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
-                #if defined(WOLFSSL_STATIC_DH)
+                #if defined(HAVE_ECC) || (defined(HAVE_CURVE25519) && \
+                                                          defined(HAVE_ED25519))
+                    #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
+                #endif
+                #if defined(WOLFSSL_STATIC_DH) && defined(HAVE_ECC)
                     #define BUILD_TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256
                 #endif
             #endif
@@ -545,25 +548,28 @@
             #if defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256)
                 #if !defined(NO_RSA)
                     #define BUILD_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
-                    #if defined(WOLFSSL_STATIC_DH)
+                    #if defined(WOLFSSL_STATIC_DH) && defined(HAVE_ECC)
                         #define BUILD_TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384
                     #endif
                 #endif
-                #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384
-                #if defined(WOLFSSL_STATIC_DH)
+                #if defined(HAVE_ECC) || (defined(HAVE_CURVE25519) && \
+                                                          defined(HAVE_ED25519))
+                    #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384
+                #endif
+                #if defined(WOLFSSL_STATIC_DH) && defined(HAVE_ECC)
                     #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384
                 #endif
             #endif
 
             #if defined (HAVE_AESGCM)
                 #if !defined(NO_RSA)
-                    #if defined(WOLFSSL_STATIC_DH)
+                    #if defined(WOLFSSL_STATIC_DH) && defined(HAVE_ECC)
                         #ifdef WOLFSSL_AES_128
                             #define BUILD_TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256
                         #endif
                     #endif
                     #if defined(WOLFSSL_SHA384)
-                        #if defined(WOLFSSL_STATIC_DH)
+                        #if defined(WOLFSSL_STATIC_DH) && defined(HAVE_ECC)
                             #ifdef WOLFSSL_AES_256
                                 #define BUILD_TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384
                             #endif
@@ -571,12 +577,14 @@
                     #endif
                 #endif
 
-                #if defined(WOLFSSL_STATIC_DH) && defined(WOLFSSL_AES_128)
+                #if defined(WOLFSSL_STATIC_DH) && defined(WOLFSSL_AES_128) && \
+                                                               defined(HAVE_ECC)
                     #define BUILD_TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256
                 #endif
 
                 #if defined(WOLFSSL_SHA384)
-                    #if defined(WOLFSSL_STATIC_DH) && defined(WOLFSSL_AES_256)
+                    #if defined(WOLFSSL_STATIC_DH) && \
+                                   defined(WOLFSSL_AES_256) && defined(HAVE_ECC)
                         #define BUILD_TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384
                     #endif
                 #endif
@@ -586,13 +594,16 @@
             #if !defined(NO_SHA)
                 #if !defined(NO_RSA)
                     #define BUILD_TLS_ECDHE_RSA_WITH_RC4_128_SHA
-                    #if defined(WOLFSSL_STATIC_DH)
+                    #if defined(WOLFSSL_STATIC_DH) && defined(HAVE_ECC)
                         #define BUILD_TLS_ECDH_RSA_WITH_RC4_128_SHA
                     #endif
                 #endif
 
-                #define BUILD_TLS_ECDHE_ECDSA_WITH_RC4_128_SHA
-                #if defined(WOLFSSL_STATIC_DH)
+                #if defined(HAVE_ECC) || (defined(HAVE_CURVE25519) && \
+                                                          defined(HAVE_ED25519))
+                    #define BUILD_TLS_ECDHE_ECDSA_WITH_RC4_128_SHA
+                #endif
+                #if defined(WOLFSSL_STATIC_DH) && defined(HAVE_ECC)
                     #define BUILD_TLS_ECDH_ECDSA_WITH_RC4_128_SHA
                 #endif
             #endif
@@ -601,20 +612,26 @@
             #ifndef NO_SHA
                 #if !defined(NO_RSA)
                     #define BUILD_TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
-                    #if defined(WOLFSSL_STATIC_DH)
+                    #if defined(WOLFSSL_STATIC_DH) && defined(HAVE_ECC)
                         #define BUILD_TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA
                     #endif
                 #endif
 
-                #define BUILD_TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA
-                #if defined(WOLFSSL_STATIC_DH)
+                #if defined(HAVE_ECC) || (defined(HAVE_CURVE25519) && \
+                                                          defined(HAVE_ED25519))
+                    #define BUILD_TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA
+                #endif
+                #if defined(WOLFSSL_STATIC_DH) && defined(HAVE_ECC)
                     #define BUILD_TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA
                 #endif
             #endif /* NO_SHA */
         #endif
         #if defined(HAVE_NULL_CIPHER)
             #if !defined(NO_SHA)
-                #define BUILD_TLS_ECDHE_ECDSA_WITH_NULL_SHA
+                #if defined(HAVE_ECC) || (defined(HAVE_CURVE25519) && \
+                                                          defined(HAVE_ED25519))
+                    #define BUILD_TLS_ECDHE_ECDSA_WITH_NULL_SHA
+                #endif
             #endif
             #if !defined(NO_PSK) && !defined(NO_SHA256)
                 #define BUILD_TLS_ECDHE_PSK_WITH_NULL_SHA256
@@ -627,11 +644,12 @@
     #endif
     #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && !defined(NO_SHA256)
         #if !defined(NO_OLD_POLY1305)
-        #ifdef HAVE_ECC
+        #if defined(HAVE_ECC) || (defined(HAVE_CURVE25519) && \
+                                                          defined(HAVE_ED25519))
             #define BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256
-            #ifndef NO_RSA
-                #define BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256
-            #endif
+        #endif
+        #ifndef NO_RSA
+            #define BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256
         #endif
         #if !defined(NO_DH) && !defined(NO_RSA)
             #define BUILD_TLS_DHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256
@@ -639,7 +657,7 @@
         #endif /* NO_OLD_POLY1305 */
         #if !defined(NO_PSK)
             #define BUILD_TLS_PSK_WITH_CHACHA20_POLY1305_SHA256
-            #ifdef HAVE_ECC
+            #if defined(HAVE_ECC) || defined(HAVE_ED25519)
                 #define BUILD_TLS_ECDHE_PSK_WITH_CHACHA20_POLY1305_SHA256
             #endif
             #ifndef NO_DH
@@ -682,35 +700,48 @@
     #endif
 #endif
 
-#if defined(HAVE_ECC) && !defined(NO_TLS) && !defined(NO_AES)
+#if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && !defined(NO_TLS) && \
+                                                                !defined(NO_AES)
     #ifdef HAVE_AESGCM
         #if !defined(NO_SHA256) && defined(WOLFSSL_AES_128)
-            #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+            #if defined(HAVE_ECC) || (defined(HAVE_CURVE25519) && \
+                                                          defined(HAVE_ED25519))
+                #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+            #endif
             #ifndef NO_RSA
                 #define BUILD_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
             #endif
         #endif
         #if defined(WOLFSSL_SHA384) && defined(WOLFSSL_AES_256)
-            #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+            #if defined(HAVE_ECC) || (defined(HAVE_CURVE25519) && \
+                                                          defined(HAVE_ED25519))
+                #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+            #endif
             #ifndef NO_RSA
                 #define BUILD_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
             #endif
         #endif
     #endif
     #if defined(HAVE_AESCCM) && !defined(NO_SHA256)
-        #ifdef WOLFSSL_AES_128
-            #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM
-            #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
-        #endif
-        #ifdef WOLFSSL_AES_256
-            #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8
+        #if defined(HAVE_ECC) || (defined(HAVE_CURVE25519) && \
+                                                          defined(HAVE_ED25519))
+            #ifdef WOLFSSL_AES_128
+                #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM
+                #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
+            #endif
+            #ifdef WOLFSSL_AES_256
+                #define BUILD_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8
+            #endif
         #endif
     #endif
 #endif
 
 #if defined(HAVE_CHACHA) && defined(HAVE_POLY1305) && !defined(NO_SHA256)
-    #ifdef HAVE_ECC
-        #define BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+    #if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
+        #if defined(HAVE_ECC) || (defined(HAVE_CURVE25519) && \
+                                                          defined(HAVE_ED25519))
+            #define BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+        #endif
         #ifndef NO_RSA
             #define BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
         #endif
@@ -2490,6 +2521,8 @@ struct WOLFSSL_CTX {
 #endif
 #ifdef HAVE_ECC
     word16          eccTempKeySz;       /* in octets 20 - 66 */
+#endif
+#if defined(HAVE_ECC) || defined(HAVE_ED25519)
     word32          pkCurveOID;         /* curve Ecc_Sum */
 #endif
 #if defined(HAVE_SESSION_TICKET) || !defined(NO_PSK)
@@ -3282,7 +3315,7 @@ struct WOLFSSL_X509 {
     buffer           pubKey;
     int              pubKeyOID;
     DNS_entry*       altNamesNext;                   /* hint for retrieval */
-    #ifdef HAVE_ECC
+    #if defined(HAVE_ECC) || defined(HAVE_ED25519)
         word32       pkCurveOID;
     #endif /* HAVE_ECC */
     #ifndef NO_CERTS
@@ -3606,9 +3639,11 @@ struct WOLFSSL {
 #ifdef HAVE_ECC
     ecc_key*        peerEccKey;              /* peer's  ECDHE key */
     ecc_key*        peerEccDsaKey;           /* peer's  ECDSA key */
-    word32          pkCurveOID;              /* curve Ecc_Sum     */
     word16          eccTempKeySz;            /* in octets 20 - 66 */
     byte            peerEccDsaKeyPresent;
+#endif
+#if defined(HAVE_ECC) || defined(HAVE_ED25519)
+    word32          pkCurveOID;              /* curve Ecc_Sum     */
 #endif
 #ifdef HAVE_ED25519
     ed25519_key*    peerEd25519Key;
