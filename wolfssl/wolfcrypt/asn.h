@@ -113,8 +113,9 @@ enum DN_Tags {
     ASN_LOCALITY_NAME = 0x07,   /* L  */
     ASN_STATE_NAME    = 0x08,   /* ST */
     ASN_ORG_NAME      = 0x0a,   /* O  */
-    ASN_ORGUNIT_NAME  = 0x0b,    /* OU */
-    ASN_EMAIL_NAME    = 0x98,    /* not oid number there is 97 in 2.5.4.0-97 */
+    ASN_ORGUNIT_NAME  = 0x0b,   /* OU */
+    ASN_BUS_CAT       = 0x0f,   /* businessCategory */
+    ASN_EMAIL_NAME    = 0x98,   /* not oid number there is 97 in 2.5.4.0-97 */
 
     /* pilot attribute types
      * OID values of 0.9.2342.19200300.100.1.* */
@@ -132,6 +133,7 @@ enum DN_Tags {
 #define WOLFSSL_ORG_NAME         "/O="
 #define WOLFSSL_ORGUNIT_NAME     "/OU="
 #define WOLFSSL_DOMAIN_COMPONENT "/DC="
+#define WOLFSSL_BUS_CAT          "/businessCategory="
 
 enum ECC_TYPES {
     ECC_PREFIX_0 = 160,
@@ -462,6 +464,8 @@ struct DecodedName {
     int     cnLen;
     int     snIdx;
     int     snLen;
+    int     bcIdx;
+    int     bcLen;
     int     cIdx;
     int     cLen;
     int     lIdx;
@@ -918,7 +922,7 @@ WOLFSSL_LOCAL void FreeDer(DerBuffer** der);
 #ifdef WOLFSSL_CERT_GEN
 
 enum cert_enums {
-    NAME_ENTRIES    =  8,
+    NAME_ENTRIES    =  9,
     JOINT_LEN       =  2,
     EMAIL_JOINT_LEN =  9,
     PILOT_JOINT_LEN =  10,

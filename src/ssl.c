@@ -15683,6 +15683,10 @@ int wolfSSL_X509_NAME_get_text_by_NID(WOLFSSL_X509_NAME* name,
             text = name->fullName.fullName + name->fullName.dcIdx[0];
             textSz = name->fullName.dcLen[0];
             break;
+        case ASN_BUS_CAT:
+            text = name->fullName.fullName + name->fullName.bcIdx;
+            textSz = name->fullName.bcLen;
+            break;
         default:
             WOLFSSL_MSG("Entry type not found");
             return SSL_FATAL_ERROR;
@@ -28780,6 +28784,8 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         cName->unitEnc = CTC_UTF8;
         cName->commonName[0] = '\0';
         cName->commonNameEnc = CTC_UTF8;
+        cName->busCat[0] = '\0';
+        cName->busCatEnc = CTC_UTF8;
         cName->email[0] = '\0';
 
 
@@ -28830,6 +28836,14 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         WOLFSSL_MSG("Copy Common Name");
         if (CopyX509NameEntry(cName->commonName, CTC_NAME_SIZE,
                     dn->fullName + dn->cnIdx, dn->cnLen)
+                    != SSL_SUCCESS) {
+            return BUFFER_E;
+        }
+
+        /* ASN_BUS_CAT */
+        WOLFSSL_MSG("Copy Business Category");
+        if (CopyX509NameEntry(cName->busCat, CTC_NAME_SIZE,
+                    dn->fullName + dn->bcIdx, dn->bcLen)
                     != SSL_SUCCESS) {
             return BUFFER_E;
         }

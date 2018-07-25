@@ -8341,12 +8341,13 @@ static void initDefaultName(void)
 #else
 static const CertName certDefaultName = {
     "US",               CTC_PRINTABLE,  /* country */
-    "Orgeon",           CTC_UTF8,       /* state */
+    "Oregon",           CTC_UTF8,       /* state */
     "Portland",         CTC_UTF8,       /* locality */
     "Test",             CTC_UTF8,       /* sur */
     "wolfSSL",          CTC_UTF8,       /* org */
     "Development",      CTC_UTF8,       /* unit */
     "www.wolfssl.com",  CTC_UTF8,       /* commonName */
+    "Private Organization", CTC_UTF8,   /* businessCategory */
     "info@wolfssl.com"                  /* email */
 };
 #endif /* WOLFSSL_MULTI_ATTRIB */

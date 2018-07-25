@@ -4223,6 +4223,13 @@ static int GetName(DecodedCert* cert, int nameType)
                     dName->snLen = strLen;
                 #endif /* OPENSSL_EXTRA */
             }
+            else if (id == ASN_BUS_CAT) {
+                copy = WOLFSSL_BUS_CAT;
+            #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+                dName->bcIdx = cert->srcIdx;
+                dName->bcLen = strLen;
+            #endif /* OPENSSL_EXTRA */
+            }
             if (copy && !tooBig) {
                 XMEMCPY(&full[idx], copy, XSTRLEN(copy));
                 idx += (word32)XSTRLEN(copy);
@@ -9281,6 +9288,9 @@ static const char* GetOneName(CertName* name, int idx)
        return name->commonName;
 
     case 7:
+        return name->busCat;
+
+    case 8:
        return name->email;
 
     default:
@@ -9313,6 +9323,9 @@ static char GetNameType(CertName* name, int idx)
 
     case 6:
        return name->commonNameEnc;
+
+    case 7:
+        return name->busCatEnc;
 
     default:
        return 0;
