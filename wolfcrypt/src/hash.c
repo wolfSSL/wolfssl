@@ -658,12 +658,17 @@ int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type, byte* out)
             return MEMORY_E;
     #endif
 
-        ret = wc_InitMd5(md5);
-        if (ret == 0) {
-            ret = wc_Md5Update(md5, data, len);
-            if (ret == 0) {
-                ret = wc_Md5Final(md5, hash);
+        if ((ret = wc_InitMd5(md5)) != 0) {
+            WOLFSSL_MSG("InitMd5 failed");
+        }
+        else {
+            if ((ret = wc_Md5Update(md5, data, len)) != 0) {
+                WOLFSSL_MSG("Md5Update failed");
             }
+            else if ((ret = wc_Md5Final(md5, hash)) != 0) {
+                WOLFSSL_MSG("Md5Final failed");
+            }
+            wc_Md5Free(md5);
         }
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -691,11 +696,16 @@ int wc_HashFinal(wc_HashAlg* hash, enum wc_HashType type, byte* out)
     #endif
 
         if ((ret = wc_InitSha(sha)) != 0) {
-            WOLFSSL_MSG("wc_InitSha failed");
+            WOLFSSL_MSG("InitSha failed");
         }
         else {
-            wc_ShaUpdate(sha, data, len);
-            wc_ShaFinal(sha, hash);
+            if ((ret = wc_ShaUpdate(sha, data, len)) != 0) {
+                WOLFSSL_MSG("ShaUpdate failed");
+            }
+            else if ((ret = wc_ShaFinal(sha, hash)) != 0) {
+                WOLFSSL_MSG("ShaFinal failed");
+            }
+            wc_ShaFree(sha);
         }
 
     #ifdef WOLFSSL_SMALL_STACK

@@ -20148,6 +20148,9 @@ static int test_ForceZero(void)
     unsigned char data[32];
     unsigned int i, j, len;
 
+    /* Test case with 0 length */
+    ForceZero(data, 0);
+
     /* Test ForceZero */
     for (i = 0; i < sizeof(data); i++) {
         for (len = 1; len < sizeof(data) - i; len++) {
