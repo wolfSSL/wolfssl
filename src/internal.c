@@ -6097,6 +6097,16 @@ ProtocolVersion MakeDTLSv1_2(void)
         return (word32)(uTaskerSystemTick / TICK_RESOLUTION);
     }
 
+#elif defined(WOLFSSL_NUCLEUS_1_2)
+
+    #define NU_TICKS_PER_SECOND 100
+
+    word32 LowResTimer(void)
+    {
+        /* returns number of 10ms ticks, so 100 ticks/sec */
+        return NU_Retrieve_Clock() / NU_TICKS_PER_SECOND;
+    }
+
 #else
     /* Posix style time */
     #ifndef USER_TIME

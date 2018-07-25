@@ -97,6 +97,11 @@
 #elif defined(INTIME_RTOS)
     #include <rt.h>
     #include <io.h>
+#elif defined(WOLFSSL_NUCLEUS_1_2)
+    /* NU_DEBUG needed struct access in nucleus_realloc */
+    #define NU_DEBUG
+    #include "plus/nucleus.h"
+    #include "nucleus.h"
 #else
     #ifndef SINGLE_THREADED
         #define WOLFSSL_PTHREADS
@@ -168,6 +173,8 @@
         typedef mutex_t * wolfSSL_Mutex;
     #elif defined(INTIME_RTOS)
         typedef RTHANDLE wolfSSL_Mutex;
+    #elif defined(WOLFSSL_NUCLEUS_1_2)
+        typedef NU_SEMAPHORE wolfSSL_Mutex;
     #else
         #error Need a mutex type in multithreaded mode
     #endif /* USE_WINDOWS_API */
@@ -273,6 +280,18 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSEEK_END  FS_SEEK_END
     #define XBADFILE   NULL
     #define XFGETS(b,s,f) -2 /* Not ported yet */
+#elif defined(WOLFSSL_NUCLEUS_1_2)
+    #include "fal/inc/fal.h"
+    #define XFILE      FILE*
+    #define XFOPEN     fopen
+    #define XFSEEK     fseek
+    #define XFTELL     ftell
+    #define XREWIND    rewind
+    #define XFREAD     fread
+    #define XFWRITE    fwrite
+    #define XFCLOSE    fclose
+    #define XSEEK_END  PSEEK_END
+    #define XBADFILE   NULL
 #else
     /* stdio, default case */
     #include <stdio.h>
@@ -294,7 +313,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XFGETS     fgets
 
     #if !defined(USE_WINDOWS_API) && !defined(NO_WOLFSSL_DIR)\
-        && !defined(WOLFSSL_NUCLEUS)
+        && !defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
         #include <dirent.h>
         #include <unistd.h>
         #include <sys/stat.h>
@@ -308,7 +327,8 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
         #define MAX_PATH 256
     #endif
 
-#if !defined(NO_WOLFSSL_DIR) && !defined(WOLFSSL_NUCLEUS)
+#if !defined(NO_WOLFSSL_DIR) && !defined(WOLFSSL_NUCLEUS) && \
+    !defined(WOLFSSL_NUCLEUS_1_2)
     typedef struct ReadDirCtx {
     #ifdef USE_WINDOWS_API
         WIN32_FIND_DATAA FindFileData;

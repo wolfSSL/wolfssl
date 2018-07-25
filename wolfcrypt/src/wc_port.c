@@ -221,7 +221,7 @@ int wolfCrypt_Cleanup(void)
 }
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR) && \
-	!defined(WOLFSSL_NUCLEUS)
+	!defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
 
 /* File Handling Helpers */
 /* returns 0 if file found, -1 if no files or negative error */
@@ -1255,6 +1255,44 @@ int wolfSSL_CryptHwMutexUnLock(void) {
         return ret;
     }
 
+#elif defined(WOLFSSL_NUCLEUS_1_2)
+
+    int wc_InitMutex(wolfSSL_Mutex* m)
+    {
+        /* Call the Nucleus function to create the semaphore */
+        if (NU_Create_Semaphore(m, "WOLFSSL_MTX", 1,
+                                NU_PRIORITY) == NU_SUCCESS) {
+            return 0;
+        }
+
+        return BAD_MUTEX_E;
+    }
+
+    int wc_FreeMutex(wolfSSL_Mutex* m)
+    {
+        if (NU_Delete_Semaphore(m) == NU_SUCCESS)
+            return 0;
+
+        return BAD_MUTEX_E;
+    }
+
+    int wc_LockMutex(wolfSSL_Mutex* m)
+    {
+        /* passing suspend task option */
+        if (NU_Obtain_Semaphore(m, NU_SUSPEND) == NU_SUCCESS)
+            return 0;
+
+        return BAD_MUTEX_E;
+    }
+
+    int wc_UnLockMutex(wolfSSL_Mutex* m)
+    {
+        if (NU_Release_Semaphore(m) == NU_SUCCESS)
+            return 0;
+
+        return BAD_MUTEX_E;
+    }
+
 #else
     #warning No mutex handling defined
 
@@ -1486,6 +1524,66 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
     return NULL;
 }
 #endif
+
+/* custom memory wrappers */
+#ifdef WOLFSSL_NUCLEUS_1_2
+
+    /* system memory pool */
+    extern NU_MEMORY_POOL System_Memory;
+
+    void* nucleus_malloc(unsigned long size, void* heap, int type)
+    {
+        STATUS status;
+        void*  stack_ptr;
+
+        status = NU_Allocate_Memory(&System_Memory, &stack_ptr, size,
+                                    NU_NO_SUSPEND);
+        if (status == NU_SUCCESS) {
+            return 0;
+        } else {
+            return stack_ptr;
+        }
+    }
+
+    void* nucleus_realloc(void* ptr, unsigned long size, void* heap, int type)
+    {
+        STATUS     status;
+        DM_HEADER* old_header;
+        word32     old_size, copy_size;
+        void*      new_mem;
+
+        /* if ptr is NULL, behave like malloc */
+        new_mem = nucleus_malloc(size, NULL, 0);
+        if (new_mem == 0 || ptr == 0) {
+            return new_mem;
+        }
+
+        /* calculate old memory block size */
+        /* mem pointers stored in block headers (ref dm_defs.h) */
+        old_header = (DM_HEADER*) ((byte*)ptr - DM_OVERHEAD);
+        old_size   = (byte*)old_header->dm_next_memory - (byte*)ptr;
+
+        /* copy old to new */
+        if (old_size < size) {
+            copy_size = old_size;
+        } else {
+            copy_size = size;
+        }
+        XMEMCPY(new_mem, ptr, copy_size);
+
+        /* free old */
+        nucleus_free(ptr, NULL, 0);
+
+        return new_mem;
+    }
+
+    void nucleus_free(void* ptr, void* heap, int type)
+    {
+        if (ptr != NULL)
+            NU_Deallocate_Memory(ptr);
+    }
+
+#endif /* WOLFSSL_NUCLEUS_1_2 */
 
 #if defined(WOLFSSL_TI_CRYPT) || defined(WOLFSSL_TI_HASH)
     #include <wolfcrypt/src/port/ti/ti-ccm.c>  /* initialize and Mutex for TI Crypt Engine */

@@ -71,6 +71,11 @@ extern "C" {
 /* C++ compilers don't like assigning void * to mp_digit * */
 #define  OPT_CAST(x)  (x *)
 
+#elif defined(_SH3)
+
+/* SuperH SH3 compiler doesn't like assigning voi* to mp_digit* */
+#define  OPT_CAST(x)  (x *)
+
 #else
 
 /* C on the other hand doesn't care */
