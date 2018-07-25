@@ -2754,6 +2754,7 @@ int wolfSSL_UseClientSuites(WOLFSSL* ssl)
 
 const byte* wolfSSL_GetMacSecret(WOLFSSL* ssl, int verify)
 {
+#ifndef WOLFSSL_AEAD_ONLY
     if (ssl == NULL)
         return NULL;
 
@@ -2762,6 +2763,12 @@ const byte* wolfSSL_GetMacSecret(WOLFSSL* ssl, int verify)
         return ssl->keys.client_write_MAC_secret;
     else
         return ssl->keys.server_write_MAC_secret;
+#else
+    (void)ssl;
+    (void)verify;
+
+    return NULL;
+#endif
 }
 
 

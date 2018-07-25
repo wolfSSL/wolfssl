@@ -6378,13 +6378,14 @@ int aes_test(void)
 #endif
 
 
+#if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_COUNTER)
     wc_AesFree(&enc);
-#ifdef HAVE_AES_DECRYPT
+    (void)cipher;
+#if defined(HAVE_AES_DECRYPT) || defined(WOLFSSL_AES_COUNTER)
     wc_AesFree(&dec);
     (void)plain;
 #endif
-
-    (void)cipher;
+#endif
 
     return ret;
 }

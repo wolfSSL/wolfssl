@@ -845,6 +845,7 @@ int wolfSSL_SetTlsHmacInner(WOLFSSL* ssl, byte* inner, word32 sz, int content,
 }
 
 
+#ifndef WOLFSSL_AEAD_ONLY
 #if !defined(WOLFSSL_NO_HASH_RAW) && !defined(HAVE_FIPS) && \
     !defined(HAVE_SELFTEST)
 
@@ -1306,6 +1307,7 @@ int TLS_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz, int padSz,
 
     return ret;
 }
+#endif /* WOLFSSL_AEAD_ONLY */
 
 #endif /* !WOLFSSL_NO_TLS12 */
 
