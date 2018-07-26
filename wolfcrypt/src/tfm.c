@@ -2962,7 +2962,7 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
         #endif
 
         baseSz = fp_count_bits(a);
-        baseSz = (baseSz / 8) + (baseSz % 8) ? 1 : 0;
+        baseSz = (baseSz / 8) + ((baseSz % 8) ? 1 : 0);
 
         #ifdef WOLFSSL_SMALL_STACK
             base = (byte*)XMALLOC(baseSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);

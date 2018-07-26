@@ -19108,11 +19108,12 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         goto exit_scke;
                     }
 
-                    ret = wc_DhSetKey(ssl->buffers.serverDH_Key,
+                    ret = wc_DhSetCheckKey(ssl->buffers.serverDH_Key,
                         ssl->buffers.serverDH_P.buffer,
                         ssl->buffers.serverDH_P.length,
                         ssl->buffers.serverDH_G.buffer,
-                        ssl->buffers.serverDH_G.length);
+                        ssl->buffers.serverDH_G.length,
+                        NULL, 0, 0, ssl->rng);
                     if (ret != 0) {
                         goto exit_scke;
                     }
@@ -19203,11 +19204,12 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         goto exit_scke;
                     }
 
-                    ret = wc_DhSetKey(ssl->buffers.serverDH_Key,
+                    ret = wc_DhSetCheckKey(ssl->buffers.serverDH_Key,
                         ssl->buffers.serverDH_P.buffer,
                         ssl->buffers.serverDH_P.length,
                         ssl->buffers.serverDH_G.buffer,
-                        ssl->buffers.serverDH_G.length);
+                        ssl->buffers.serverDH_G.length,
+                        NULL, 0, 0, ssl->rng);
                     if (ret != 0) {
                         goto exit_scke;
                     }
@@ -20917,11 +20919,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             goto exit_sske;
                         }
 
-                        ret = wc_DhSetKey(ssl->buffers.serverDH_Key,
+                        ret = wc_DhSetCheckKey(ssl->buffers.serverDH_Key,
                             ssl->buffers.serverDH_P.buffer,
                             ssl->buffers.serverDH_P.length,
                             ssl->buffers.serverDH_G.buffer,
-                            ssl->buffers.serverDH_G.length);
+                            ssl->buffers.serverDH_G.length,
+                            NULL, 0, 1, ssl->rng);
                         if (ret != 0) {
                             goto exit_sske;
                         }
@@ -24447,11 +24450,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             goto exit_dcke;
                         }
 
-                        ret = wc_DhSetKey(ssl->buffers.serverDH_Key,
+                        ret = wc_DhSetCheckKey(ssl->buffers.serverDH_Key,
                             ssl->buffers.serverDH_P.buffer,
                             ssl->buffers.serverDH_P.length,
                             ssl->buffers.serverDH_G.buffer,
-                            ssl->buffers.serverDH_G.length);
+                            ssl->buffers.serverDH_G.length,
+                            NULL, 0, 1, ssl->rng);
 
                         /* set the max agree result size */
                         ssl->arrays->preMasterSz = ENCRYPT_LEN;
@@ -24503,11 +24507,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             goto exit_dcke;
                         }
 
-                        ret = wc_DhSetKey(ssl->buffers.serverDH_Key,
+                        ret = wc_DhSetCheckKey(ssl->buffers.serverDH_Key,
                             ssl->buffers.serverDH_P.buffer,
                             ssl->buffers.serverDH_P.length,
                             ssl->buffers.serverDH_G.buffer,
-                            ssl->buffers.serverDH_G.length);
+                            ssl->buffers.serverDH_G.length,
+                            NULL, 0, 1, ssl->rng);
 
                         break;
                     }
