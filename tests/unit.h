@@ -29,7 +29,7 @@
 #ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
 #define XABORT()
 #else
-#define XABORT() abort
+#define XABORT() abort()
 #endif
 
 #define Fail(description, result) do {                                         \
