@@ -421,7 +421,7 @@ err_sys(const char* msg)
     if (msg)
 #endif
     {
-        XEXIT((THREAD_RETURN)EXIT_FAILURE);
+        XEXIT_T(EXIT_FAILURE);
     }
 }
 

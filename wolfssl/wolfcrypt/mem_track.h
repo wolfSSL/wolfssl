@@ -95,7 +95,7 @@
     typedef struct memoryTrack {
         union {
             memHint hint;
-            byte    alignit[sizeof(memHint) + (16-1 & ~(16-1))]; /* make sure we have strong alignment */
+            byte    alignit[sizeof(memHint) + ((16-1) & ~(16-1))]; /* make sure we have strong alignment */
         } u;
     } memoryTrack;
 
@@ -263,6 +263,7 @@
         (void)line;
 #endif
 #endif
+        (void)sz;
 
         free(mt);
     }
