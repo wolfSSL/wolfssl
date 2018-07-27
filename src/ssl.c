@@ -15756,7 +15756,11 @@ const char* wolfSSL_CIPHER_get_name(const WOLFSSL_CIPHER* cipher)
         return NULL;
     }
 
-    return wolfSSL_get_cipher_name_iana(cipher->ssl);
+    #ifndef WOLFSSL_CIPHER_INTERNALNAME
+        return wolfSSL_get_cipher_name_iana(cipher->ssl);
+    #else
+        return wolfSSL_get_cipher_name_internal(cipher->ssl);
+    #endif
 }
 
 const char* wolfSSL_SESSION_CIPHER_get_name(WOLFSSL_SESSION* session)
@@ -15766,7 +15770,11 @@ const char* wolfSSL_SESSION_CIPHER_get_name(WOLFSSL_SESSION* session)
     }
 
 #ifdef SESSION_CERTS
-    return GetCipherNameIana(session->cipherSuite0, session->cipherSuite);
+    #ifndef WOLFSSL_CIPHER_INTERNALNAME
+         return GetCipherNameIana(session->cipherSuite0, session->cipherSuite);
+    #else
+       if return GetCipherNameInternal(ession->cipherSuite0, session->cipherSuite);
+    #endif
 #else
     return NULL;
 #endif
