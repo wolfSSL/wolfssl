@@ -19108,7 +19108,8 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         goto exit_scke;
                     }
 
-#if !defined(HAVE_FIPS) && !defined(WOLFSSL_OLD_PRIME_CHECK)
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_OLD_PRIME_CHECK)
                     ret = wc_DhSetCheckKey(ssl->buffers.serverDH_Key,
                         ssl->buffers.serverDH_P.buffer,
                         ssl->buffers.serverDH_P.length,
@@ -19212,7 +19213,8 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         goto exit_scke;
                     }
 
-#if !defined(HAVE_FIPS) && !defined(WOLFSSL_OLD_PRIME_CHECK)
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_OLD_PRIME_CHECK)
                     ret = wc_DhSetCheckKey(ssl->buffers.serverDH_Key,
                         ssl->buffers.serverDH_P.buffer,
                         ssl->buffers.serverDH_P.length,
@@ -20935,7 +20937,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             goto exit_sske;
                         }
 
-#if !defined(HAVE_FIPS) && !defined(WOLFSSL_OLD_PRIME_CHECK)
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_OLD_PRIME_CHECK)
                         ret = wc_DhSetCheckKey(ssl->buffers.serverDH_Key,
                             ssl->buffers.serverDH_P.buffer,
                             ssl->buffers.serverDH_P.length,
@@ -24474,7 +24477,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             goto exit_dcke;
                         }
 
-#if !defined(HAVE_FIPS) && !defined(WOLFSSL_OLD_PRIME_CHECK)
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_OLD_PRIME_CHECK)
                         ret = wc_DhSetCheckKey(ssl->buffers.serverDH_Key,
                             ssl->buffers.serverDH_P.buffer,
                             ssl->buffers.serverDH_P.length,
@@ -24539,7 +24543,8 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             goto exit_dcke;
                         }
 
-#if !defined(HAVE_FIPS) && !defined(WOLFSSL_OLD_PRIME_CHECK)
+#if !defined(HAVE_FIPS) && !defined(HAVE_SELFTEST) && \
+    !defined(WOLFSSL_OLD_PRIME_CHECK)
                         ret = wc_DhSetCheckKey(ssl->buffers.serverDH_Key,
                             ssl->buffers.serverDH_P.buffer,
                             ssl->buffers.serverDH_P.length,
