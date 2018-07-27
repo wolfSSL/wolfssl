@@ -909,7 +909,11 @@ static THREAD_LS_T int devId = INVALID_DEVID;
 
 #else
     #define BENCH_MAX_PENDING             (1)
+#ifdef WOLFSSL_STSAFEA100
+    #define BENCH_ASYNC_GET_NAME(doAsync) (doAsync) ? "HW" : "SW"
+#else
     #define BENCH_ASYNC_GET_NAME(doAsync) ""
+#endif
     #define BENCH_ASYNC_GET_DEV(obj)      NULL
 
     static WC_INLINE int bench_async_check(int* ret, void* asyncDev,
@@ -2100,6 +2104,11 @@ int benchmark_init(void)
     return ret;
 }
 
+void benchmark_set_devid(int argDevId)
+{
+    devId = argDevId;
+}
+
 int benchmark_free(void)
 {
     int ret;
@@ -2182,7 +2191,7 @@ int benchmark_test(void *args)
     XFREE(g_threadData, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 }
 #else
-    benchmarks_do(NULL);
+    benchmarks_do(args);
 #endif
 
     printf("Benchmark complete\n");
@@ -5703,6 +5712,9 @@ exit_ecdsa_sign:
     }
 
 #ifdef HAVE_ECC_VERIFY
+    /* Using genKey2 for signature verification */
+    XMEMSET(&genKey[0], 0, sizeof(genKey));
+    XMEMCPY(&genKey[0],&genKey2[0], sizeof(genKey));
 
     /* ECC Verify */
     bench_stats_start(&count, &start);

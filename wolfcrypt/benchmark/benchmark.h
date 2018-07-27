@@ -39,6 +39,8 @@ int benchmark_test(void *args);
 int  benchmark_init(void);
 int  benchmark_free(void);
 void benchmark_configure(int block_size);
+void benchmark_set_devid(int argDevId);
+
 
 void bench_des(int);
 void bench_idea(void);

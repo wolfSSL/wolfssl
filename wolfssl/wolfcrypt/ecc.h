@@ -67,6 +67,11 @@
 #endif
 
 
+#ifdef WOLFSSL_STSAFEA100    
+    #include <wolfssl/wolfcrypt/port/st/stsafe.h>
+#endif /* WOLFSSL_STSAFEA100 */
+
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -155,7 +160,7 @@ enum {
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
     ECC_MAX_CRYPTO_HW_SIZE = ATECC_KEY_SIZE, /* from port/atmel/atmel.h */
     ECC_MAX_CRYPTO_HW_PUBKEY_SIZE = (ATECC_KEY_SIZE*2),
-#elif defined(PLUTON_CRYPTO_ECC)
+#elif defined(PLUTON_CRYPTO_ECC) || defined(WOLFSSL_STSAFEA100)
     ECC_MAX_CRYPTO_HW_SIZE = 32,
 #elif defined(WOLFSSL_SILABS_SE_ACCEL)
     ECC_MAX_CRYPTO_HW_SIZE = 32,
@@ -427,10 +432,12 @@ struct ecc_key {
     int    partNum; /* partition number*/
 #endif
 #if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A)
-    int  slot;        /* Key Slot Number (-1 unknown) */
     byte pubkey_raw[ECC_MAX_CRYPTO_HW_PUBKEY_SIZE];
 #endif
-#if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB)
+#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC608A) || defined(WOLFSSL_STSAFEA100)
+    int  slot;          /* Key Slot Number (ATECC -1=unknown, STSAFE 0 or 1) */
+#endif
+#if defined(PLUTON_CRYPTO_ECC) || defined(WOLF_CRYPTO_CB) || defined(WOLFSSL_STSAFEA100)
     int devId;
 #endif
 #ifdef WOLFSSL_SILABS_SE_ACCEL
