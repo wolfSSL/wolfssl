@@ -1051,7 +1051,6 @@ static int test_wolfSSL_SetMinVersion(void)
         const int versions[]  =  { WOLFSSL_TLSV1_3 };
     #endif
 
-    AssertTrue(wolfSSL_Init());
     #ifndef WOLFSSL_NO_TLS12
         ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
     #else
@@ -1071,7 +1070,6 @@ static int test_wolfSSL_SetMinVersion(void)
 
     wolfSSL_free(ssl);
     wolfSSL_CTX_free(ctx);
-    AssertTrue(wolfSSL_Cleanup());
 #endif
     return failFlag;
 
@@ -3100,9 +3098,6 @@ static void test_wolfSSL_PKCS8(void)
     bytes = (int)fread(buffer, 1, sizeof(buffer), f);
     fclose(f);
 
-    /* Note that wolfSSL_Init() or wolfCrypt_Init() has been called before these
-     * function calls */
-
 #ifndef NO_WOLFSSL_CLIENT
     #ifndef WOLFSSL_NO_TLS12
         AssertNotNull(ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method()));
@@ -3210,7 +3205,6 @@ static int test_wolfSSL_CTX_SetMinVersion(void)
 
     failFlag = WOLFSSL_SUCCESS;
 
-    AssertTrue(wolfSSL_Init());
 #ifndef WOLFSSL_NO_TLS12
     ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
 #else
@@ -3228,7 +3222,6 @@ static int test_wolfSSL_CTX_SetMinVersion(void)
     printf(resultFmt, failFlag == WOLFSSL_SUCCESS ? passed : failed);
 
     wolfSSL_CTX_free(ctx);
-    AssertTrue(wolfSSL_Cleanup());
 #endif
     return failFlag;
 
@@ -3253,7 +3246,6 @@ static int test_wolfSSL_UseOCSPStapling(void)
         WOLFSSL_CTX*    ctx;
         WOLFSSL*        ssl;
 
-        wolfSSL_Init();
 #ifndef NO_WOLFSSL_CLIENT
     #ifndef WOLFSSL_NO_TLS12
         ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
@@ -3279,12 +3271,7 @@ static int test_wolfSSL_UseOCSPStapling(void)
         wolfSSL_free(ssl);
         wolfSSL_CTX_free(ctx);
 
-        if(ret != WOLFSSL_SUCCESS){
-            wolfSSL_Cleanup();
-            return WOLFSSL_FAILURE;
-        }
-
-        return wolfSSL_Cleanup();
+        return ret;
     #else
         return WOLFSSL_SUCCESS;
     #endif
@@ -3305,7 +3292,6 @@ static int test_wolfSSL_UseOCSPStaplingV2 (void)
         WOLFSSL_CTX*        ctx;
         WOLFSSL*            ssl;
 
-        wolfSSL_Init();
 #ifndef NO_WOLFSSL_CLIENT
     #ifndef WOLFSSL_NO_TLS12
         ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
@@ -3330,12 +3316,7 @@ static int test_wolfSSL_UseOCSPStaplingV2 (void)
         wolfSSL_free(ssl);
         wolfSSL_CTX_free(ctx);
 
-        if (ret != WOLFSSL_SUCCESS){
-            wolfSSL_Cleanup();
-            return WOLFSSL_FAILURE;
-        }
-
-        return wolfSSL_Cleanup();
+        return ret;
     #else
         return WOLFSSL_SUCCESS;
     #endif
@@ -18941,7 +18922,6 @@ static void test_wolfSSL_OPENSSL_add_all_algorithms(void){
     printf(testingFmt, "wolfSSL_OPENSSL_add_all_algorithms()");
 
     AssertIntEQ(wolfSSL_OPENSSL_add_all_algorithms_noconf(),WOLFSSL_SUCCESS);
-    wolfSSL_Cleanup();
 
     printf(resultFmt, passed);
 #endif
@@ -20393,8 +20373,6 @@ void ApiTest(void)
     /* test the no op functions for compatibility */
     test_no_op_functions();
 
-    AssertIntEQ(test_wolfSSL_Cleanup(), WOLFSSL_SUCCESS);
-
     /* wolfCrypt ASN tests */
     test_wc_GetPkcs8TraditionalOffset();
 
@@ -20603,6 +20581,8 @@ void ApiTest(void)
     test_wc_PKCS7_EncodeEncryptedData();
 
     AssertIntEQ(test_ForceZero(), 0);
+
+    AssertIntEQ(test_wolfSSL_Cleanup(), WOLFSSL_SUCCESS);
 
     printf(" End API Tests\n");
 
