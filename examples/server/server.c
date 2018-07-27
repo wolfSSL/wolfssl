@@ -1512,8 +1512,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             printf("SSL_accept error %d, %s\n", err,
                                                 ERR_error_string(err, buffer));
             /* cleanup */
-            SSL_free(ssl);
-            SSL_CTX_free(ctx);
+            SSL_free(ssl); ssl = NULL;
+            SSL_CTX_free(ctx); ctx = NULL;
             CloseSocket(clientfd);
             CloseSocket(sockfd);
 
@@ -1679,7 +1679,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         fprintf(stderr, "total connection frees    = %d\n\n", ssl_stats.totalFr);
 
 #endif
-        SSL_free(ssl);
+        SSL_free(ssl); ssl = NULL;
 
         CloseSocket(clientfd);
 
@@ -1704,7 +1704,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
 
     CloseSocket(sockfd);
-    SSL_CTX_free(ctx);
+    SSL_CTX_free(ctx); ctx = NULL;
 
     ((func_args*)args)->return_code = 0;
 

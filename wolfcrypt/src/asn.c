@@ -5304,6 +5304,8 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
     switch (sigCtx->state) {
         case SIG_STATE_BEGIN:
         {
+            sigCtx->keyOID = keyOID; /* must set early for cleanup */
+
             sigCtx->digest = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, sigCtx->heap,
                                                     DYNAMIC_TYPE_DIGEST);
             if (sigCtx->digest == NULL) {
@@ -5328,8 +5330,6 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
 
         case SIG_STATE_KEY:
         {
-            sigCtx->keyOID = keyOID;
-
             switch (keyOID) {
             #ifndef NO_RSA
                 case RSAk:

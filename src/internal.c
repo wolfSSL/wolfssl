@@ -1502,18 +1502,24 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 #endif /* HAVE_WOLF_EVENT */
 
     XFREE(ctx->method, ctx->heap, DYNAMIC_TYPE_METHOD);
-    if (ctx->suites)
+    ctx->method = NULL;
+    if (ctx->suites) {
         XFREE(ctx->suites, ctx->heap, DYNAMIC_TYPE_SUITES);
+        ctx->suites = NULL;
+    }
 
 #ifndef NO_DH
     XFREE(ctx->serverDH_G.buffer, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    ctx->serverDH_G.buffer = NULL;
     XFREE(ctx->serverDH_P.buffer, ctx->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+    ctx->serverDH_P.buffer = NULL;
 #endif /* !NO_DH */
 
 #ifdef SINGLE_THREADED
     if (ctx->rng) {
         wc_FreeRng(ctx->rng);
         XFREE(ctx->rng, ctx->heap, DYNAMIC_TYPE_RNG);
+        ctx->rng = NULL;
     }
 #endif /* SINGLE_THREADED */
 
@@ -1524,10 +1530,12 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
         if (ctx->ourCert && ctx->ownOurCert) {
             FreeX509(ctx->ourCert);
             XFREE(ctx->ourCert, ctx->heap, DYNAMIC_TYPE_X509);
+            ctx->ourCert = NULL;
         }
     #endif /* KEEP_OUR_CERT */
     FreeDer(&ctx->certChain);
     wolfSSL_CertManagerFree(ctx->cm);
+    ctx->cm = NULL;
     #ifdef OPENSSL_EXTRA
 	/* ctx->cm was free'd so cm of x509 store should now be NULL */
         if (ctx->x509_store_pt != NULL) {
@@ -1568,6 +1576,7 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
         if (ctx->chainOcspRequest[i]) {
             FreeOcspRequest(ctx->chainOcspRequest[i]);
             XFREE(ctx->chainOcspRequest[i], ctx->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+            ctx->chainOcspRequest[i] = NULL;
         }
     }
 #endif /* HAVE_CERTIFICATE_STATUS_REQUEST_V2 */
@@ -1575,8 +1584,10 @@ void SSL_CtxResourceFree(WOLFSSL_CTX* ctx)
 
 #endif /* HAVE_TLS_EXTENSIONS */
 #ifdef OPENSSL_EXTRA
-    if(ctx->alpn_cli_protos)
+    if(ctx->alpn_cli_protos) {
         XFREE((void *)ctx->alpn_cli_protos, NULL, DYNAMIC_TYPE_OPENSSL);
+        ctx->alpn_cli_protos = NULL;
+    }
 #endif
 #ifdef WOLFSSL_STATIC_MEMORY
     if (ctx->heap != NULL) {

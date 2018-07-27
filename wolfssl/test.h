@@ -2802,8 +2802,8 @@ static WC_INLINE const char* mymktemp(char *tempfn, int len, int num)
         byte key[CHACHA20_POLY1305_AEAD_KEYSIZE]; /* cipher key */
     } key_ctx;
 
-    static key_ctx myKey_ctx;
-    static WC_RNG myKey_rng;
+    static THREAD_LS_T key_ctx myKey_ctx;
+    static THREAD_LS_T WC_RNG myKey_rng;
 
     static WC_INLINE int TicketInit(void)
     {
