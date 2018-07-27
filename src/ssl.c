@@ -16765,10 +16765,16 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
             }
 
             sigSz = (int)x509->sig.length;
-            sig = (unsigned char*)XMALLOC(sigSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-            if (sig == NULL || sigSz <= 0) {
+            if (sigSz <= 0) {
+                /* Don't both allocating memory, if sigSz invalid, abort! */
                 return WOLFSSL_FAILURE;
             }
+
+            sig = (unsigned char*)XMALLOC(sigSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+            if (sig == NULL) {
+                return WOLFSSL_FAILURE;
+            }
+
             if (wolfSSL_X509_get_signature(x509, sig, &sigSz) <= 0) {
                 XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
                 return WOLFSSL_FAILURE;
