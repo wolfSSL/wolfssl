@@ -247,3 +247,4 @@ wolfcrypt/src/port/intel/qat_test
 
 # Arduino Generated Files
 /IDE/ARDUINO/wolfSSL
+scripts/memtest.txt

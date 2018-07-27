@@ -1019,7 +1019,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         switch (ch) {
             case '?' :
                 Usage();
-                exit(EXIT_SUCCESS);
+                XEXIT_T(EXIT_SUCCESS);
 
             case 'g' :
                 sendGET = 1;
@@ -1031,7 +1031,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
             case 'e' :
                 ShowCiphers();
-                exit(EXIT_SUCCESS);
+                XEXIT_T(EXIT_SUCCESS);
 
             case 'D' :
                 overrideDateErrors = 1;
@@ -1114,13 +1114,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 version = atoi(myoptarg);
                 if (version < 0 || version > 4) {
                     Usage();
-                    exit(MY_EX_USAGE);
+                    XEXIT_T(MY_EX_USAGE);
                 }
                 break;
 
             case 'V' :
                 ShowVersions();
-                exit(EXIT_SUCCESS);
+                XEXIT_T(EXIT_SUCCESS);
 
             case 'l' :
                 cipherList = myoptarg;
@@ -1137,7 +1137,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 }
                 else {
                     Usage();
-                    exit(MY_EX_USAGE);
+                    XEXIT_T(MY_EX_USAGE);
                 }
                 break;
 
@@ -1158,7 +1158,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     minDhKeyBits = atoi(myoptarg);
                     if (minDhKeyBits <= 0 || minDhKeyBits > 16000) {
                         Usage();
-                        exit(MY_EX_USAGE);
+                        XEXIT_T(MY_EX_USAGE);
                     }
                 #endif
                 break;
@@ -1167,7 +1167,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 benchmark = atoi(myoptarg);
                 if (benchmark < 0 || benchmark > 1000000) {
                     Usage();
-                    exit(MY_EX_USAGE);
+                    XEXIT_T(MY_EX_USAGE);
                 }
                 break;
 
@@ -1181,7 +1181,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 }
                 if (throughput <= 0 || block <= 0) {
                     Usage();
-                    exit(MY_EX_USAGE);
+                    XEXIT_T(MY_EX_USAGE);
                 }
                 break;
 
@@ -1228,7 +1228,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     if (maxFragment < WOLFSSL_MFL_2_9 ||
                                                maxFragment > WOLFSSL_MFL_2_13) {
                         Usage();
-                        exit(MY_EX_USAGE);
+                        XEXIT_T(MY_EX_USAGE);
                     }
                 #endif
                 break;
@@ -1281,7 +1281,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                         alpn_opt = WOLFSSL_ALPN_FAILED_ON_MISMATCH;
                     else {
                         Usage();
-                        exit(MY_EX_USAGE);
+                        XEXIT_T(MY_EX_USAGE);
                     }
 
                     alpnList += 2;
@@ -1295,7 +1295,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
                 if (XSTRNCMP(starttlsProt, "smtp", 4) != 0) {
                     Usage();
-                    exit(MY_EX_USAGE);
+                    XEXIT_T(MY_EX_USAGE);
                 }
 
                 break;
@@ -1371,7 +1371,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
             default:
                 Usage();
-                exit(MY_EX_USAGE);
+                XEXIT_T(MY_EX_USAGE);
         }
     }
 
@@ -1457,7 +1457,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             printf("external test can't be run in this mode");
 
             ((func_args*)args)->return_code = 0;
-            exit(EXIT_SUCCESS);
+            XEXIT_T(EXIT_SUCCESS);
         }
     }
 
@@ -1849,7 +1849,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                                        benchmark, resumeSession, useX25519,
                                        helloRetry, onlyKeyShare, version);
         wolfSSL_CTX_free(ctx);
-        exit(EXIT_SUCCESS);
+        XEXIT_T(EXIT_SUCCESS);
     }
 
     if(throughput) {
@@ -1857,7 +1857,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             ClientBenchmarkThroughput(ctx, host, port, dtlsUDP, dtlsSCTP,
                                       block, throughput, useX25519);
         wolfSSL_CTX_free(ctx);
-        exit(EXIT_SUCCESS);
+        XEXIT_T(EXIT_SUCCESS);
     }
 
     #if defined(WOLFSSL_MDK_ARM)

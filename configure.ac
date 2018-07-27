@@ -4009,6 +4009,19 @@ then
 fi
 
 
+# Memory Tests
+AC_ARG_ENABLE([memtest],
+    [AS_HELP_STRING([--enable-memtest],[Memory testing option, for internal use (default: disabled)])],
+    [ ENABLED_MEMTEST=$enableval ],
+    [ ENABLED_MEMTEST=no ]
+    )
+
+if test "x$ENABLED_MEMTEST" != "xno"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY -DWOLFSSL_FORCE_MALLOC_FAIL_TEST"
+fi
+
+
 # Default optimization CFLAGS enable
 AC_ARG_ENABLE([optflags],
     [AS_HELP_STRING([--enable-optflags],[Enable default optimization CFLAGS for the compiler (default: enabled)])],

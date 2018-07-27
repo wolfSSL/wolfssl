@@ -1349,6 +1349,10 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     port = wolfSSLPort;
 #endif
 
+    /* do it here to detect failure */
+    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, 0, 0, 0, 0, 1);
+    CloseSocket(sockfd);
+
     wolfSSL_CTX_set_verify(ctx,
                           WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
 
@@ -1382,8 +1386,6 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     }
 
     ssl = wolfSSL_new(ctx);
-    tcp_accept(&sockfd, &clientfd, (func_args*)args, port, 0, 0, 0, 0, 1);
-    CloseSocket(sockfd);
 
     if (wolfSSL_set_fd(ssl, clientfd) != WOLFSSL_SUCCESS) {
         /*err_sys("SSL_set_fd failed");*/
@@ -1506,6 +1508,10 @@ static void test_client_nofail(void* args, void *cb)
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
+    /* Do connect here so server detects failures */
+    tcp_connect(&sockfd, wolfSSLIP, ((func_args*)args)->signal->port,
+                0, 0, NULL);
+
     if (wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0) != WOLFSSL_SUCCESS)
     {
         /* err_sys("can't load ca file, Please run from wolfSSL home dir");*/
@@ -1532,8 +1538,6 @@ static void test_client_nofail(void* args, void *cb)
     }
 
     ssl = wolfSSL_new(ctx);
-    tcp_connect(&sockfd, wolfSSLIP, ((func_args*)args)->signal->port,
-                0, 0, ssl);
     if (wolfSSL_set_fd(ssl, sockfd) != WOLFSSL_SUCCESS) {
         /*err_sys("SSL_set_fd failed");*/
         goto done2;

@@ -395,14 +395,14 @@ static int execute_test_case(int svr_argc, char** svr_argv,
     if ((cliArgs.return_code != 0 && testShouldFail == 0) ||
         (cliArgs.return_code == 0 && testShouldFail != 0)) {
         printf("client_test failed\n");
-        exit(EXIT_FAILURE);
+        XEXIT(EXIT_FAILURE);
     }
 
     join_thread(serverThread);
     if ((svrArgs.return_code != 0 && testShouldFail == 0) ||
         (svrArgs.return_code == 0 && testShouldFail != 0)) {
         printf("server_test failed\n");
-        exit(EXIT_FAILURE);
+        XEXIT(EXIT_FAILURE);
     }
 
 #ifdef WOLFSSL_TIRTOS
@@ -619,7 +619,8 @@ int SuiteTest(void)
     cipherSuiteCtx = wolfSSL_CTX_new(wolfSSLv23_client_method());
     if (cipherSuiteCtx == NULL) {
         printf("can't get cipher suite ctx\n");
-        exit(EXIT_FAILURE);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
     }
 
     /* load in static memory buffer if enabled */
@@ -662,7 +663,8 @@ int SuiteTest(void)
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
     }
     #ifdef HAVE_ECC
     /* add TLSv13 ECC extra suites */
@@ -671,7 +673,8 @@ int SuiteTest(void)
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
     }
     #endif
     #ifndef WOLFSSL_NO_TLS12
@@ -681,7 +684,8 @@ int SuiteTest(void)
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
     }
     #endif
 #endif
@@ -692,7 +696,8 @@ int SuiteTest(void)
     test_harness(&args);
     if (args.return_code != 0) {
         printf("error from script %d\n", args.return_code);
-        exit(EXIT_FAILURE);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
     }
 #endif
 #ifdef WOLFSSL_DTLS

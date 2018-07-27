@@ -44,6 +44,18 @@
     #include <stdio.h>
 #endif
 
+#ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
+    static int gMemFailCountSeed;
+    static int gMemFailCount;
+    void wolfSSL_SetMemFailCount(int memFailCount)
+    {
+        if (gMemFailCountSeed == 0) {
+            gMemFailCountSeed = memFailCount;
+            gMemFailCount = memFailCount;
+        }
+    }
+#endif
+
 
 /* Set these to default values initially. */
 static wolfSSL_Malloc_cb  malloc_function = NULL;
@@ -122,6 +134,24 @@ void* wolfSSL_Malloc(size_t size)
         if (res == NULL)
             puts("wolfSSL_malloc failed");
     #endif
+
+#ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
+    if (res && --gMemFailCount == 0) {
+        printf("\n---FORCED MEM FAIL TEST---\n");
+        if (free_function) {
+        #ifdef WOLFSSL_DEBUG_MEMORY
+            free_function(res, func, line);
+        #else
+            free_function(res);
+        #endif
+        }
+        else {
+            free(res); /* clear */
+        }
+        gMemFailCount = gMemFailCountSeed; /* reset */
+        return NULL;
+    }
+#endif
 
     return res;
 }
