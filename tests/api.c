@@ -18123,8 +18123,12 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
     EVP_PKEY* pkey  = NULL;
     RSA*  rsa  = NULL;
     WOLFSSL_CTX* ctx;
+    
+#if defined(WOLFSSL_KEY_GEN)
     unsigned char buffer[4096];
     unsigned char* bufPtr;
+    bufPtr = buffer;
+#endif
 
     printf(testingFmt, "wolfSSL_d2i_PrivateKeys_bio()");
 
@@ -18196,7 +18200,7 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
     /* RSA not set yet, expecting to fail*/
     AssertIntEQ(SSL_CTX_use_RSAPrivateKey(ctx, rsa), BAD_FUNC_ARG);
 
-#if defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)
+#if defined(USE_CERT_BUFFERS_2048) && !defined(NO_RSA)  && defined(WOLFSSL_KEY_GEN)
     /* set RSA using bio*/
     AssertIntGT(BIO_write(bio, client_key_der_2048,
                 sizeof_client_key_der_2048), 0);
@@ -18205,7 +18209,6 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
     AssertIntEQ(SSL_CTX_use_RSAPrivateKey(ctx, rsa), WOLFSSL_SUCCESS);
 
     /*i2d RSAprivate key tests */
-    bufPtr = buffer;
     AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(NULL, NULL), BAD_FUNC_ARG);
     AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(rsa, &bufPtr), 
                                            sizeof_client_key_der_2048);

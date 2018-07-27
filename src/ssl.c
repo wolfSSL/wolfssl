@@ -27958,12 +27958,11 @@ WOLFSSL_RSA *wolfSSL_d2i_RSAPrivateKey(WOLFSSL_RSA **r,
 }
 
 #if !defined(HAVE_FAST_RSA)
-#if defined(WOLFSSL_KEY_GEN)
-
 /* Converts an internal rsa structure to der format.
 Returns size of der on success and WOLFSSL_FAILURE if error */
 int wolfSSL_i2d_RSAPrivateKey(WOLFSSL_RSA *rsa, unsigned char **pp)
 {
+#if defined(WOLFSSL_KEY_GEN)
     byte* der = NULL;
     int derMax;
     int ret;
@@ -28011,8 +28010,13 @@ int wolfSSL_i2d_RSAPrivateKey(WOLFSSL_RSA *rsa, unsigned char **pp)
 
     XFREE(der, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return ret; /* returns size of der if successful */
-}
+#else
+    (void)rsa;
+    (void)pp;
+    WOLFSSL_MSG("Error, WOLFSSL_KEY_GEN not defined");
+    return WOLFSSL_FAILURE;
 #endif /* WOLFSSL_KEY_GEN */
+}
 
 
 int wolfSSL_i2d_RSAPublicKey(WOLFSSL_RSA *rsa, const unsigned char **pp)
