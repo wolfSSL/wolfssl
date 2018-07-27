@@ -6428,6 +6428,10 @@ WOLFSSL_PKCS8_PRIV_KEY_INFO* wolfSSL_d2i_PKCS8_PKEY_bio(WOLFSSL_BIO* bio,
     }
 
     pkcs8 = wolfSSL_PKEY_new();
+    if (pkcs8 == NULL) {
+        return NULL;
+    }
+
     pkcs8->pkey.ptr = (char*)XMALLOC(keySz, NULL, DYNAMIC_TYPE_PUBLIC_KEY);
     if (pkcs8->pkey.ptr == NULL) {
         wolfSSL_EVP_PKEY_free(pkcs8);
