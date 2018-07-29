@@ -580,6 +580,11 @@ int wc_AddErrorNode(int error, int line, char* buf, char* file)
             if (wc_errors != NULL) {
                 /* check for unexpected case before over writing wc_errors */
                 WOLFSSL_MSG("ERROR in adding new node to logging queue!!\n");
+                /* In the event both wc_last_node and wc_errors are NULL, err
+                 * goes unassigned to external wc_errors, wc_last_node. Free
+                 * err in this instance since wc_ClearErrorNodes will not
+                 */
+                XFREE(err, wc_error_heap, DYNAMIC_TYPE_LOG);
             }
             else {
                 wc_errors    = err;
