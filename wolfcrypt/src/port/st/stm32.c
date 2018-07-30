@@ -1,6 +1,6 @@
 /* stm32.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2018 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -38,6 +38,11 @@
     #define WOLFSSL_MISC_INCLUDED
     #include <wolfcrypt/src/misc.c>
 #endif
+
+#ifndef NO_AES
+    #include <wolfssl/wolfcrypt/aes.h>
+#endif
+
 
 #ifdef STM32_HASH
 
@@ -253,3 +258,105 @@ int wc_Stm32_Hash_Final(STM32_HASH_Context* stmCtx, word32 algo,
 }
 
 #endif /* STM32_HASH */
+
+
+#ifdef STM32_CRYPTO
+
+#ifndef NO_AES
+#if defined(WOLFSSL_AES_DIRECT) || defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
+#ifdef WOLFSSL_STM32_CUBEMX
+int wc_Stm32_Aes_Init(Aes* aes, CRYP_HandleTypeDef* hcryp)
+{
+    int ret;
+    word32 keySize;
+
+    ret = wc_AesGetKeySize(aes, &keySize);
+    if (ret != 0)
+        return ret;
+
+    XMEMSET(hcryp, 0, sizeof(CRYP_HandleTypeDef));
+    switch (keySize) {
+        case 16: /* 128-bit key */
+            hcryp->Init.KeySize = CRYP_KEYSIZE_128B;
+            break;
+    #ifdef CRYP_KEYSIZE_192B
+        case 24: /* 192-bit key */
+            hcryp->Init.KeySize = CRYP_KEYSIZE_192B;
+            break;
+    #endif
+        case 32: /* 256-bit key */
+            hcryp->Init.KeySize = CRYP_KEYSIZE_256B;
+            break;
+        default:
+            break;
+    }
+    hcryp->Instance = CRYP;
+    hcryp->Init.DataType = CRYP_DATATYPE_8B;
+    hcryp->Init.pKey = (uint8_t*)aes->key;
+
+    return 0;
+}
+
+#else /* STD_PERI_LIB */
+
+int wc_Stm32_Aes_Init(Aes* aes, CRYP_InitTypeDef* cryptInit,
+    CRYP_KeyInitTypeDef* keyInit)
+{
+    int ret;
+    word32 keySize;
+    word32* aes_key;
+
+    ret = wc_AesGetKeySize(aes, &keySize);
+    if (ret != 0)
+        return ret;
+
+    aes_key = aes->key;
+
+    /* crypto structure initialization */
+    CRYP_KeyStructInit(keyInit);
+    CRYP_StructInit(cryptInit);
+
+    /* load key into correct registers */
+    switch (keySize) {
+        case 16: /* 128-bit key */
+            cryptInit->CRYP_KeySize = CRYP_KeySize_128b;
+            keyInit->CRYP_Key2Left  = aes_key[0];
+            keyInit->CRYP_Key2Right = aes_key[1];
+            keyInit->CRYP_Key3Left  = aes_key[2];
+            keyInit->CRYP_Key3Right = aes_key[3];
+            break;
+
+        case 24: /* 192-bit key */
+            cryptInit->CRYP_KeySize = CRYP_KeySize_192b;
+            keyInit->CRYP_Key1Left  = aes_key[0];
+            keyInit->CRYP_Key1Right = aes_key[1];
+            keyInit->CRYP_Key2Left  = aes_key[2];
+            keyInit->CRYP_Key2Right = aes_key[3];
+            keyInit->CRYP_Key3Left  = aes_key[4];
+            keyInit->CRYP_Key3Right = aes_key[5];
+            break;
+
+        case 32: /* 256-bit key */
+            cryptInit->CRYP_KeySize = CRYP_KeySize_256b;
+            keyInit->CRYP_Key0Left  = aes_key[0];
+            keyInit->CRYP_Key0Right = aes_key[1];
+            keyInit->CRYP_Key1Left  = aes_key[2];
+            keyInit->CRYP_Key1Right = aes_key[3];
+            keyInit->CRYP_Key2Left  = aes_key[4];
+            keyInit->CRYP_Key2Right = aes_key[5];
+            keyInit->CRYP_Key3Left  = aes_key[6];
+            keyInit->CRYP_Key3Right = aes_key[7];
+            break;
+
+        default:
+            break;
+    }
+    cryptInit->CRYP_DataType = CRYP_DataType_8b;
+
+    return 0;
+}
+#endif /* WOLFSSL_STM32_CUBEMX */
+#endif /* WOLFSSL_AES_DIRECT || HAVE_AESGCM || HAVE_AESCCM */
+#endif /* !NO_AES */
+
+#endif /* STM32_CRYPTO */

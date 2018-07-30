@@ -434,7 +434,8 @@ int wolfcrypt_test(void* args)
 {
     int ret;
 
-    ((func_args*)args)->return_code = -1; /* error state */
+    if (args)
+        ((func_args*)args)->return_code = -1; /* error state */
 
 #ifdef WOLFSSL_STATIC_MEMORY
     if (wc_LoadStaticMemory(&HEAP_HINT, gTestMemory, sizeof(gTestMemory),
@@ -1003,7 +1004,8 @@ initDefaultName();
     wc_ecc_fp_free();
 #endif
 
-    ((func_args*)args)->return_code = ret;
+    if (args)
+        ((func_args*)args)->return_code = ret;
 
     EXIT_TEST(ret);
 }
@@ -6801,7 +6803,7 @@ int aesgcm_test(void)
     }
 #endif
 
-    /* Variable authenticed data length test */
+    /* Variable authenticated data length test */
     for (alen=0; alen<(int)sizeof(p); alen++) {
          /* AES-GCM encrypt and decrypt both use AES encrypt internally */
          result = wc_AesGcmEncrypt(&enc, resultC, p, sizeof(p), iv1,
@@ -16623,8 +16625,12 @@ int ecc_test_buffers(void) {
     int verify = 0;
     word32 x;
 
-    XMEMSET(&cliKey, 0, sizeof(ecc_key));
-    XMEMSET(&servKey, 0, sizeof(ecc_key));
+    ret = wc_ecc_init_ex(&cliKey, HEAP_HINT, devId);
+    if (ret != 0)
+        return -8721;
+    ret = wc_ecc_init_ex(&servKey, HEAP_HINT, devId);
+    if (ret != 0)
+        return -8722;
 
     bytes = (size_t)sizeof_ecc_clikey_der_256;
     /* place client key into ecc_key struct cliKey */

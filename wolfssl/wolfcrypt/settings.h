@@ -98,6 +98,9 @@
 /* Uncomment next line if using STM32F4 */
 /* #define WOLFSSL_STM32F4 */
 
+/* Uncomment next line if using STM32FL */
+/* #define WOLFSSL_STM32FL */
+
 /* Uncomment next line if using STM32F7 */
 /* #define WOLFSSL_STM32F7 */
 
@@ -1053,6 +1056,10 @@ extern void uITRON4_free(void *p) ;
     #ifndef NO_STM32_CRYPTO
         #undef  STM32_CRYPTO
         #define STM32_CRYPTO
+
+        #ifdef WOLFSSL_STM32L4
+            #define NO_AES_192 /* hardware does not support 192-bit */
+        #endif
     #endif
     #ifndef NO_STM32_HASH
         #undef  STM32_HASH
@@ -1109,7 +1116,7 @@ extern void uITRON4_free(void *p) ;
             #include "stm32f1xx.h"
         #endif
     #endif /* WOLFSSL_STM32_CUBEMX */
-#endif /* WOLFSSL_STM32F2 || WOLFSSL_STM32F4 || WOLFSSL_STM32F7 */
+#endif /* WOLFSSL_STM32F2 || WOLFSSL_STM32F4 || WOLFSSL_STM32L4 || WOLFSSL_STM32F7 */
 
 #ifdef MICRIUM
     #include <stdlib.h>

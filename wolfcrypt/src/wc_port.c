@@ -50,6 +50,10 @@
     #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
 #endif
 
+#if defined(WOLFSSL_STSAFEA100)
+    #include <wolfssl/wolfcrypt/port/st/stsafe.h>
+#endif
+
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     #include <wolfssl/openssl/evp.h>
 #endif
@@ -139,6 +143,10 @@ int wolfCrypt_Init(void)
 
     #if defined(WOLFSSL_ATMEL) || defined(WOLFSSL_ATECC508A)
         atmel_init();
+    #endif
+
+    #if defined(WOLFSSL_STSAFEA100)
+        stsafe_interface_init();
     #endif
 
     #ifdef WOLFSSL_ARMASM
