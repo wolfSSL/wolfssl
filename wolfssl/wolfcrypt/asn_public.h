@@ -98,13 +98,16 @@ enum Ctc_Encoding {
     CTC_PRINTABLE  = 0x13  /* printable */
 };
 
+#ifndef WC_CTC_NAME_SIZE
+    #define WC_CTC_NAME_SIZE 64
+#endif
 #ifndef WC_CTC_MAX_ALT_SIZE
     #define WC_CTC_MAX_ALT_SIZE 16384
 #endif
 
 enum Ctc_Misc {
     CTC_COUNTRY_SIZE  =     2,
-    CTC_NAME_SIZE     =    64,
+    CTC_NAME_SIZE     = WC_CTC_NAME_SIZE,
     CTC_DATE_SIZE     =    32,
     CTC_MAX_ALT_SIZE  = WC_CTC_MAX_ALT_SIZE, /* may be huge, default: 16384 */
     CTC_SERIAL_SIZE   =    16,

@@ -138,8 +138,12 @@ enum ECC_TYPES {
     ECC_PREFIX_1 = 161
 };
 
+#ifndef WC_ASN_NAME_MAX
+    #define WC_ASN_NAME_MAX 256
+#endif
+
 enum Misc_ASN {
-    ASN_NAME_MAX        = 256,
+    ASN_NAME_MAX        = WC_ASN_NAME_MAX,
     MAX_SALT_SIZE       =  64,     /* MAX PKCS Salt length */
     MAX_IV_SIZE         =  64,     /* MAX PKCS Iv length */
     ASN_BOOL_SIZE       =   2,     /* including type */
