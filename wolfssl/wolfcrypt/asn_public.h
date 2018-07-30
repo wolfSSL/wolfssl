@@ -361,6 +361,9 @@ WOLFSSL_API int wc_GetDateAsCalendarTime(const byte* date, int length,
 
 #endif
 
+WOLFSSL_API  int wc_AllocDer(DerBuffer** pDer, word32 length, int type, void* heap);
+WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
+
 #ifdef WOLFSSL_PEM_TO_DER
     WOLFSSL_API int wc_PemToDer(const unsigned char* buff, long longSz, int type,
               DerBuffer** pDer, void* heap, EncryptedInfo* info, int* eccKey);

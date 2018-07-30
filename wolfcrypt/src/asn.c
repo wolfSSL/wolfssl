@@ -7411,6 +7411,15 @@ void FreeDer(DerBuffer** pDer)
     }
 }
 
+int wc_AllocDer(DerBuffer** pDer, word32 length, int type, void* heap)
+{
+    return AllocDer(pDer, length, type, heap);
+}
+void wc_FreeDer(DerBuffer** pDer)
+{
+    FreeDer(pDer);
+}
+
 
 #if defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM)
 
