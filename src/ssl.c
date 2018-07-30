@@ -14630,6 +14630,7 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
 /* user externally called free X509, if dynamic go ahead with free, otherwise
  * don't */
+#ifndef WOLFSSL_X509_STORE_CERTS
 static void ExternalFreeX509(WOLFSSL_X509* x509)
 {
     WOLFSSL_ENTER("ExternalFreeX509");
@@ -14642,12 +14643,17 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
         }
     }
 }
+#endif
 
 /* Frees an external WOLFSSL_X509 structure */
 void wolfSSL_X509_free(WOLFSSL_X509* x509)
 {
     WOLFSSL_ENTER("wolfSSL_FreeX509");
+#ifndef WOLFSSL_X509_STORE_CERTS
     ExternalFreeX509(x509);
+#else
+  (void) x509;
+#endif
 }
 
 
