@@ -436,6 +436,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XGMTIME(c, t)   gmtime((c))
 
 #elif defined(WOLFSSL_ATMEL)
+    extern long atmel_get_curr_time_and_date(long* tm);
     #define XTIME(t1)       atmel_get_curr_time_and_date((t1))
     #define WOLFSSL_GMTIME
     #define USE_WOLF_TM

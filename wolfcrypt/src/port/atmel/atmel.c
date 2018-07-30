@@ -104,15 +104,16 @@ int atmel_get_random_block(unsigned char* output, unsigned int sz)
 	return atmel_get_random_number((uint32_t)sz, (uint8_t*)output);
 }
 
-#ifdef WOLFSSL_ATMEL
+#ifdef WOLFSSL_ATMEL_TIME
 extern struct rtc_module *_rtc_instance[RTC_INST_NUM];
 #endif
 long atmel_get_curr_time_and_date(long* tm)
 {
     (void)tm;
 
-#ifdef WOLFSSL_ATMEL
+#ifdef WOLFSSL_ATMEL_TIME
 	/* Get current time */
+
     //struct rtc_calendar_time rtcTime;
 	//rtc_calendar_get_time(_rtc_instance[0], &rtcTime);
 
@@ -250,7 +251,9 @@ void atmel_init(void)
 void atmel_finish(void)
 {
     if (mAtcaInitDone) {
+#ifdef WOLFSSL_ATECC508A
         atcatls_finish();
+#endif
         mAtcaInitDone = 0;
     }
 }
