@@ -19340,7 +19340,7 @@ int berder_test(void)
 {
     int ret;
     int i;
-    word32 len, l;
+    word32 len = 0, l;
     byte out[32];
     static const byte good1_in[] = { 0x30, 0x80, 0x00, 0x00 };
     static const byte good1_out[] = { 0x30, 0x00 };

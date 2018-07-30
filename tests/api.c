@@ -15541,6 +15541,80 @@ static void test_wolfSSL_DES(void)
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_DES3) */
 }
 
+static void test_wc_PemToDer(void)
+{
+#if !defined(NO_CERTS) && defined(WOLFSSL_PEM_TO_DER)
+    int ret;
+    DerBuffer* pDer = NULL;
+    const char* ca_cert = "./certs/server-cert.pem";
+    byte* cert_buf = NULL;
+    size_t cert_sz = 0;
+    int eccKey = 0;
+    EncryptedInfo info;
+
+    printf(testingFmt, "wc_PemToDer()");
+
+    memset(&info, 0, sizeof(info));
+
+    ret = load_file(ca_cert, &cert_buf, &cert_sz);
+    if (ret == 0) {
+        ret = wc_PemToDer(cert_buf, cert_sz, CERT_TYPE,
+            &pDer, NULL, &info, &eccKey);
+        AssertIntEQ(ret, 0);
+
+        wc_FreeDer(&pDer);
+    }
+
+    if (cert_buf)
+        free(cert_buf);
+#endif
+}
+
+static void test_wc_AllocDer(void)
+{
+#if !defined(NO_CERTS)
+    int ret;
+    DerBuffer* pDer = NULL;
+    word32 testSize = 1024;
+
+    printf(testingFmt, "wc_AllocDer()");
+
+    ret = wc_AllocDer(&pDer, testSize, CERT_TYPE, HEAP_HINT);
+    AssertIntEQ(ret, 0);
+    AssertNotNull(pDer);
+    wc_FreeDer(&pDer);
+#endif
+}
+
+static void test_wc_CertPemToDer(void)
+{
+#if !defined(NO_CERTS) && defined(WOLFSSL_PEM_TO_DER)
+    int ret;
+    const char* ca_cert = "./certs/ca-cert.pem";
+    byte* cert_buf = NULL;
+    size_t cert_sz = 0, cert_dersz = 0;
+    byte* cert_der = NULL;
+
+    printf(testingFmt, "wc_CertPemToDer()");
+
+    ret = load_file(ca_cert, &cert_buf, &cert_sz);
+    if (ret == 0) {
+        cert_dersz = cert_sz; /* DER will be smaller than PEM */
+        cert_der = (byte*)malloc(cert_dersz);
+        if (cert_der) {
+            ret = wc_CertPemToDer(cert_buf, (int)cert_sz,
+                cert_der, (int)cert_dersz, CERT_TYPE);
+            AssertIntGE(ret, 0);
+        }
+    }
+
+    if (cert_der)
+        free(cert_der);
+    if (cert_buf)
+        free(cert_buf);
+#endif
+}
+
 
 static void test_wolfSSL_certs(void)
 {
@@ -18216,7 +18290,7 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
     /*i2d RSAprivate key tests */
     bufPtr = buffer;
     AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(NULL, NULL), BAD_FUNC_ARG);
-    AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(rsa, &bufPtr), 
+    AssertIntEQ(wolfSSL_i2d_RSAPrivateKey(rsa, &bufPtr),
                                            sizeof_client_key_der_2048);
     RSA_free(rsa);
 #endif
@@ -20227,6 +20301,10 @@ void ApiTest(void)
     test_wolfSSL_PKCS8();
     test_wolfSSL_PKCS5();
     test_wolfSSL_URI();
+
+    test_wc_PemToDer();
+    test_wc_AllocDer();
+    test_wc_CertPemToDer();
 
     /*OCSP Stapling. */
     AssertIntEQ(test_wolfSSL_UseOCSPStapling(), WOLFSSL_SUCCESS);
