@@ -169,6 +169,9 @@
 /* Uncomment next line if building for Nucleus 1.2 */
 /* #define WOLFSSL_NUCLEUS_1_2 */
 
+/* Uncomment next line if building for using Apache mynewt */
+/* #define WOLFSSL_APACHE_MYNEWT */
+
 #include <wolfssl/wolfcrypt/visibility.h>
 
 #ifdef WOLFSSL_USER_SETTINGS
@@ -1238,6 +1241,41 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_NOSHA3_512
     #endif
 #endif /*(WOLFSSL_XILINX_CRYPT)*/
+
+#if defined(WOLFSSL_APACHE_MYNEWT)
+    #include "os/os_malloc.h"
+    #if !defined(WOLFSSL_LWIP)
+        #include <mn_socket/mn_socket.h>
+    #endif
+
+    #if !defined(SIZEOF_LONG)
+        #define SIZEOF_LONG 4
+    #endif
+    #if !defined(SIZEOF_LONG_LONG)
+        #define SIZEOF_LONG_LONG 8
+    #endif
+    #if (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+        #define BIG_ENDIAN_ORDER
+    #else
+        #undef  BIG_ENDIAN_ORDER
+        #define LITTLE_ENDIAN_ORDER
+    #endif
+    #define NO_WRITEV
+    #define WOLFSSL_USER_IO
+    #define SINGLE_THREADED
+    #define NO_DEV_RANDOM
+    #define NO_DH
+    #define NO_WOLFSSL_DIR
+    #define NO_ERROR_STRINGS
+    #define HAVE_ECC
+    #define NO_SESSION_CACHE
+    #define NO_ERROR_STRINGS
+    #define XMALLOC_USER
+    #define XMALLOC(sz, heap, type)     os_malloc(sz)
+    #define XREALLOC(p, sz, heap, type) os_realloc(p, sz)
+    #define XFREE(p, heap, type)        os_free(p)
+
+#endif /*(WOLFSSL_APACHE_MYNEWT)*/
 
 #ifdef WOLFSSL_IMX6
     #ifndef SIZEOF_LONG_LONG

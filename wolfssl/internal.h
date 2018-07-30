@@ -161,6 +161,11 @@
     #include <rt.h>
 #elif defined(WOLFSSL_NUCLEUS_1_2)
     /* do nothing */
+#elif defined(WOLFSSL_APACHE_MYNEWT)
+    #if !defined(WOLFSSL_LWIP)
+        void mynewt_ctx_clear(void *ctx);
+        void* mynewt_ctx_new();
+    #endif
 #else
     #ifndef SINGLE_THREADED
         #define WOLFSSL_PTHREADS
@@ -3426,7 +3431,6 @@ typedef struct DtlsMsg {
 
 #endif
 
-
 /* Handshake messages received from peer (plus change cipher */
 typedef struct MsgsReceived {
     word16 got_hello_request:1;
@@ -3763,6 +3767,9 @@ struct WOLFSSL {
 #ifdef HAVE_NETX
     NetX_Ctx        nxCtx;             /* NetX IO Context */
 #endif
+#if defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP)
+    void*           mnCtx;             /* mynewt mn_socket IO Context */
+#endif /* defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP) */
 #ifdef SESSION_INDEX
     int sessionIndex;                  /* Session's location in the cache. */
 #endif

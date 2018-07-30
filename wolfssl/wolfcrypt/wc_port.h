@@ -102,6 +102,8 @@
     #define NU_DEBUG
     #include "plus/nucleus.h"
     #include "nucleus.h"
+#elif defined(WOLFSSL_APACHE_MYNEWT)
+    /* do nothing */
 #else
     #ifndef SINGLE_THREADED
         #define WOLFSSL_PTHREADS
@@ -292,6 +294,20 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XFCLOSE    fclose
     #define XSEEK_END  PSEEK_END
     #define XBADFILE   NULL
+#elif defined(WOLFSSL_APACHE_MYNEWT)
+    #include <fs/fs.h>
+    #define XFILE  struct fs_file*
+
+    #define XFOPEN     mynewt_fopen
+    #define XFSEEK     mynewt_fseek
+    #define XFTELL     mynewt_ftell
+    #define XREWIND    mynewt_rewind
+    #define XFREAD     mynewt_fread
+    #define XFWRITE    mynewt_fwrite
+    #define XFCLOSE    mynewt_fclose
+    #define XSEEK_END  2
+    #define XBADFILE   NULL
+    #define XFGETS(b,s,f) -2 /* Not ported yet */
 #else
     /* stdio, default case */
     #include <stdio.h>
@@ -437,6 +453,12 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XTIME(t1)       windows_time((t1))
     #define WOLFSSL_GMTIME
 
+#elif defined(WOLFSSL_APACHE_MYNEWT)
+    #include "os/os_time.h"
+    #define XTIME(t1)       mynewt_time((t1))
+    #define WOLFSSL_GMTIME
+    #define USE_WOLF_TM
+    #define USE_WOLF_TIME_T
 #else
     /* default */
     /* uses complete <time.h> facility */

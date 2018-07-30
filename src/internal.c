@@ -1416,6 +1416,9 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 #ifdef HAVE_NETX
     ctx->CBIORecv = NetX_Receive;
     ctx->CBIOSend = NetX_Send;
+#elif defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP)
+    ctx->CBIORecv = Mynewt_Receive;
+    ctx->CBIOSend = Mynewt_Send;
 #endif
 
 #ifdef HAVE_NTRU
@@ -4540,6 +4543,13 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #ifdef HAVE_NETX
     ssl->IOCB_ReadCtx  = &ssl->nxCtx;  /* default NetX IO ctx, same for read */
     ssl->IOCB_WriteCtx = &ssl->nxCtx;  /* and write */
+#elif defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP)
+    ssl->mnCtx = mynewt_ctx_new();
+    if(!ssl->mnCtx) {
+        return MEMORY_E;
+    }
+    ssl->IOCB_ReadCtx  = ssl->mnCtx;  /* default Mynewt IO ctx, same for read */
+    ssl->IOCB_WriteCtx = ssl->mnCtx;  /* and write */
 #endif
 
     /* initialize states */
@@ -5125,6 +5135,12 @@ void SSL_ResourceFree(WOLFSSL* ssl)
     }
 #endif
 #endif /* HAVE_TLS_EXTENSIONS */
+#if defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP)
+    if (ssl->mnCtx) {
+        mynewt_ctx_clear(ssl->mnCtx);
+        ssl->mnCtx = NULL;
+    }
+#endif
 #ifdef HAVE_NETX
     if (ssl->nxCtx.nxPacket)
         nx_packet_release(ssl->nxCtx.nxPacket);
@@ -6131,6 +6147,17 @@ ProtocolVersion MakeDTLSv1_2(void)
     {
         /* returns number of 10ms ticks, so 100 ticks/sec */
         return NU_Retrieve_Clock() / NU_TICKS_PER_SECOND;
+    }
+#elif defined(WOLFSSL_APACHE_MYNEWT)
+
+    #include "os/os_time.h"
+    word32 LowResTimer(void)
+    {
+        word32 now;
+        struct os_timeval tv;
+        os_gettimeofday(&tv, NULL);
+        now = (word32)tv.tv_sec;
+        return now;
     }
 
 #else
