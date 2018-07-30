@@ -250,9 +250,15 @@
 #endif
 
 #ifdef WOLFSSL_MICROCHIP_PIC32MZ
-    #define WOLFSSL_PIC32MZ_CRYPT
-    #define WOLFSSL_PIC32MZ_RNG
-    #define WOLFSSL_PIC32MZ_HASH
+    #ifndef NO_PIC32MZ_CRYPT
+        #define WOLFSSL_PIC32MZ_CRYPT
+    #endif
+    #ifndef NO_PIC32MZ_RNG
+        #define WOLFSSL_PIC32MZ_RNG
+    #endif
+    #ifndef NO_PIC32MZ_HASH
+        #define WOLFSSL_PIC32MZ_HASH
+    #endif
 #endif
 
 #ifdef MICROCHIP_TCPIP_V5

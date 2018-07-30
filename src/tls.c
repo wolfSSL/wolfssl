@@ -936,66 +936,21 @@ static int Hmac_HashFinalRaw(Hmac* hmac, unsigned char* hash)
 static int Hmac_OuterHash(Hmac* hmac, unsigned char* mac)
 {
     int ret = BAD_FUNC_ARG;
+    wc_HashAlg hash;
+    enum wc_HashType hashType = (enum wc_HashType)hmac->macType;
+    int digestSz = wc_HashGetDigestSize(hashType);
+    int blockSz = wc_HashGetBlockSize(hashType);
 
-    switch (hmac->macType) {
-    #ifndef NO_SHA
-        case WC_SHA:
-            ret = wc_InitSha(&hmac->hash.sha);
-            if (ret == 0)
-                ret = wc_ShaUpdate(&hmac->hash.sha, (byte*)hmac->opad,
-                                                             WC_SHA_BLOCK_SIZE);
-            if (ret == 0)
-                ret = wc_ShaUpdate(&hmac->hash.sha, (byte*)hmac->innerHash,
-                                                            WC_SHA_DIGEST_SIZE);
-            if (ret == 0)
-                ret = wc_ShaFinal(&hmac->hash.sha, mac);
-            break;
-    #endif /* !NO_SHA */
-
-    #ifndef NO_SHA256
-        case WC_SHA256:
-            ret = wc_InitSha256(&hmac->hash.sha256);
-            if (ret == 0)
-                ret = wc_Sha256Update(&hmac->hash.sha256, (byte*)hmac->opad,
-                                                          WC_SHA256_BLOCK_SIZE);
-            if (ret == 0)
-                ret = wc_Sha256Update(&hmac->hash.sha256,
-                                                         (byte*)hmac->innerHash,
-                                                         WC_SHA256_DIGEST_SIZE);
-            if (ret == 0)
-                ret = wc_Sha256Final(&hmac->hash.sha256, mac);
-            break;
-    #endif /* !NO_SHA256 */
-
-    #ifdef WOLFSSL_SHA384
-        case WC_SHA384:
-            ret = wc_InitSha384(&hmac->hash.sha384);
-            if (ret == 0)
-                ret = wc_Sha384Update(&hmac->hash.sha384, (byte*)hmac->opad,
-                                                          WC_SHA384_BLOCK_SIZE);
-            if (ret == 0)
-                ret = wc_Sha384Update(&hmac->hash.sha384,
-                                                         (byte*)hmac->innerHash,
-                                                         WC_SHA384_DIGEST_SIZE);
-            if (ret == 0)
-                ret = wc_Sha384Final(&hmac->hash.sha384, mac);
-            break;
-    #endif /* WOLFSSL_SHA384 */
-
-    #ifdef WOLFSSL_SHA512
-        case WC_SHA512:
-            ret = wc_InitSha512(&hmac->hash.sha512);
-            if (ret == 0)
-                ret = wc_Sha512Update(&hmac->hash.sha512,(byte*)hmac->opad,
-                                                          WC_SHA512_BLOCK_SIZE);
-            if (ret == 0)
-                ret = wc_Sha512Update(&hmac->hash.sha512,
-                                                         (byte*)hmac->innerHash,
-                                                         WC_SHA512_DIGEST_SIZE);
-            if (ret == 0)
-                ret = wc_Sha512Final(&hmac->hash.sha512, mac);
-            break;
-    #endif /* WOLFSSL_SHA512 */
+    ret = wc_HashInit(&hash, hashType);
+    if (ret == 0) {
+        ret = wc_HashUpdate(&hash, hashType, (byte*)hmac->opad,
+            blockSz);
+        if (ret == 0)
+            ret = wc_HashUpdate(&hash, hashType, (byte*)hmac->innerHash,
+                digestSz);
+        if (ret == 0)
+            ret = wc_HashFinal(&hash, hashType, mac);
+        wc_HashFree(&hash, hashType);
     }
 
     return ret;
@@ -10198,7 +10153,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
         return method;
     }
     #endif /* WOLFSSL_ALLOW_TLSV10 */
-    
+
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
     /* Gets a WOLFSL_METHOD type that is not set as client or server
      *

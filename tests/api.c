@@ -5277,6 +5277,7 @@ static int test_wc_Sha3_224_Final (void)
             ret = WOLFSSL_FATAL_ERROR;
         }
     }
+    wc_Sha3_224_Free(&sha3);
     printf(resultFmt, ret == 0 ? passed : failed);
 
     if (ret == 0) {
@@ -5370,7 +5371,9 @@ static int test_wc_Sha3_256_Final (void)
             ret = WOLFSSL_FATAL_ERROR;
         }
     }
+    wc_Sha3_256_Free(&sha3);
     printf(resultFmt, ret == 0 ? passed : failed);
+
     if (ret == 0) {
         printf(testingFmt, "wc_Sha3_256_GetHash()");
 
@@ -5461,7 +5464,9 @@ static int test_wc_Sha3_384_Final (void)
             ret = WOLFSSL_FATAL_ERROR;
         }
     }
+    wc_Sha3_384_Free(&sha3);
     printf(resultFmt, ret == 0 ? passed : failed);
+
     if (ret == 0) {
         printf(testingFmt, "wc_Sha3_384_GetHash()");
 
@@ -5554,7 +5559,9 @@ static int test_wc_Sha3_512_Final (void)
             ret = WOLFSSL_FATAL_ERROR;
         }
     }
+    wc_Sha3_512_Free(&sha3);
     printf(resultFmt, ret == 0 ? passed : failed);
+
     if (ret == 0) {
         printf(testingFmt, "wc_Sha3_512_GetHash()");
 
@@ -15387,6 +15394,8 @@ static int test_wc_HashInit(void)
             ret = 1;
             break;
         }
+        wc_HashFree(&hash, enumArray[i]);
+
         /* check for null ptr */
         if (wc_HashInit(NULL, enumArray[i]) != BAD_FUNC_ARG) {
             ret = 1;
@@ -20144,6 +20153,9 @@ static int test_ForceZero(void)
 {
     unsigned char data[32];
     unsigned int i, j, len;
+
+    /* Test case with 0 length */
+    ForceZero(data, 0);
 
     /* Test ForceZero */
     for (i = 0; i < sizeof(data); i++) {

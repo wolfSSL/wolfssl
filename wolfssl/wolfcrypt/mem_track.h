@@ -123,7 +123,7 @@
         mt->u.hint.thisSize   = sz;
         mt->u.hint.thisMemory = (byte*)mt + sizeof(memoryTrack);
 
-#ifdef WOLFSSL_DEBUG_MEMORY
+#ifdef WOLFSSL_DEBUG_MEMORY_PRINT
         printf("Alloc: %p -> %u at %s:%d\n", mt->u.hint.thisMemory, (word32)sz, func, line);
 #endif
 
@@ -159,7 +159,7 @@
         ourMemStats.totalDeallocs++;
 #endif
 
-#ifdef WOLFSSL_DEBUG_MEMORY
+#ifdef WOLFSSL_DEBUG_MEMORY_PRINT
         printf("Free: %p -> %u at %s:%d\n", ptr, (word32)mt->u.hint.thisSize, func, line);
 #endif
 
