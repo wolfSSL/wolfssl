@@ -16766,7 +16766,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
 
             sigSz = (int)x509->sig.length;
             if (sigSz <= 0) {
-                /* Don't both allocating memory, if sigSz invalid, abort! */
+                /* if sigSz invalid return here to avoid overhead of malloc */
                 return WOLFSSL_FAILURE;
             }
 
