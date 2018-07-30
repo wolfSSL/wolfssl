@@ -31545,8 +31545,9 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PrivateKey_EVP(WOLFSSL_EVP_PKEY** out,
 
 
 /* stunnel compatibility functions*/
-#if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) \
-                          || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)))
+#if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || \
+                             defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY) || \
+                             defined(WOLFSSL_HAPROXY)))
 void wolfSSL_ERR_remove_thread_state(void* pid)
 {
     (void) pid;

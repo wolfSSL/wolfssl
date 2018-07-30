@@ -2558,7 +2558,9 @@ struct WOLFSSL_CTX {
     CallbackALPNSelect alpnSelect;
     void*              alpnSelectArg;
 #endif
-#if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY)))
+#if defined(OPENSSL_ALL) || (defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || \
+                             defined(WOLFSSL_NGINX) || defined(HAVE_LIGHTY) || \
+                             defined(WOLFSSL_HAPROXY)))
     CallbackSniRecv sniRecvCb;
     void*           sniRecvCbArg;
 #endif

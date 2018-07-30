@@ -1529,6 +1529,11 @@ AC_ARG_ENABLE([sslv3],
     [ ENABLED_SSLV3=no]
     )
 
+if test "x$ENABLED_HAPROXY" = "xyes"
+then
+    ENABLED_SSLV3="yes"
+fi
+
 if test "$ENABLED_SSLV3" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_SSLV3"
