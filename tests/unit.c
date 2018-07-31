@@ -49,6 +49,15 @@ int unit_test(int argc, char** argv)
 
     (void)argc;
     (void)argv;
+
+#ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
+    if (argc > 1) {
+        word32 memFailCount = atoi(argv[1]);
+        printf("\n--- SET RNG MALLOC FAIL AT %d---\n", memFailCount);
+        wolfSSL_SetMemFailCount(memFailCount);
+    }
+#endif
+
     printf("starting unit tests...\n");
 
 #if defined(DEBUG_WOLFSSL) && !defined(HAVE_VALGRIND)

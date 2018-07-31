@@ -90,6 +90,17 @@ int wolfCrypt_Init(void)
     if (initRefCount == 0) {
         WOLFSSL_ENTER("wolfCrypt_Init");
 
+    #ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
+        {
+            word32 rngMallocFail;
+            time_t seed = time(NULL);
+            srand((word32)seed);
+            rngMallocFail = rand() % 2000; /* max 2000 */
+            printf("\n--- RNG MALLOC FAIL AT %d---\n", rngMallocFail);
+            wolfSSL_SetMemFailCount(rngMallocFail);
+        }
+    #endif
+
     #ifdef WOLF_CRYPTO_DEV
         wc_CryptoDev_Init();
     #endif

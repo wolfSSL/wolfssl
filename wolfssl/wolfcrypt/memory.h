@@ -36,6 +36,10 @@
     extern "C" {
 #endif
 
+#ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
+    WOLFSSL_API void wolfSSL_SetMemFailCount(int memFailCount);
+#endif
+
 #ifdef WOLFSSL_STATIC_MEMORY
     #ifdef WOLFSSL_DEBUG_MEMORY
         typedef void *(*wolfSSL_Malloc_cb)(size_t size, void* heap, int type, const char* func, unsigned int line);

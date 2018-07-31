@@ -778,6 +778,7 @@ static void ShowCiphers(void)
 
 int bench_tls(void* args)
 {
+    int ret = 0;
     info_t *theadInfo, *info;
     int i, doShutdown;
     char *cipher, *next_cipher, ciphers[4096];
@@ -793,7 +794,8 @@ int bench_tls(void* args)
     int argThreadPairs = THREAD_PAIRS;
     int argShowVerbose = SHOW_VERBOSE;
 
-    ((func_args*)args)->return_code = -1; /* error state */
+    if (args)
+        ((func_args*)args)->return_code = -1; /* error state */
 
     /* Initialize wolfSSL */
     wolfSSL_Init();
@@ -803,7 +805,7 @@ int bench_tls(void* args)
         switch (ch) {
             case '?' :
                 Usage();
-                exit(EXIT_SUCCESS);
+                XEXIT(EXIT_SUCCESS);
 
             case 'b' :
                 argTestSizeBytes = atoi(myoptarg);
@@ -817,7 +819,7 @@ int bench_tls(void* args)
 
             case 'e' :
                 ShowCiphers();
-                exit(EXIT_SUCCESS);
+                XEXIT(EXIT_SUCCESS);
 
             case 'i' :
                 argShowPeerInfo = 1;
@@ -845,7 +847,7 @@ int bench_tls(void* args)
 
             default:
                 Usage();
-                exit(MY_EX_USAGE);
+                XEXIT(MY_EX_USAGE);
         }
     }
 
@@ -985,7 +987,10 @@ int bench_tls(void* args)
     free(theadInfo);
 
     /* Return reporting a success */
-    return (((func_args*)args)->return_code = 0);
+    if (args)
+        ((func_args*)args)->return_code = ret;
+
+    return ret;
 }
 #endif /* !NO_WOLFSSL_CLIENT && !NO_WOLFSSL_SERVER */
 
