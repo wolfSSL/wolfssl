@@ -280,7 +280,7 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
             if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
                 return BAD_PATH_ERROR;
             }
-            XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ);
+            XSTRNCPY(ctx->name, path, pathLen + 1);
             ctx->name[pathLen] = '\\';
             XSTRNCPY(ctx->name + pathLen + 1,
                      ctx->FindFileData.cFileName,
@@ -304,7 +304,7 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
             ret = BAD_PATH_ERROR;
             break;
         }
-        XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ);
+        XSTRNCPY(ctx->name, path, pathLen + 1);
         ctx->name[pathLen] = '/';
         XSTRNCPY(ctx->name + pathLen + 1,
                  ctx->entry->d_name, MAX_FILENAME_SZ - pathLen - 1);
@@ -350,7 +350,7 @@ int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
             if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
                 return BAD_PATH_ERROR;
             }
-            XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ);
+            XSTRNCPY(ctx->name, path, pathLen + 1);
             ctx->name[pathLen] = '\\';
             XSTRNCPY(ctx->name + pathLen + 1,
                      ctx->FindFileData.cFileName,
@@ -368,7 +368,7 @@ int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
             ret = BAD_PATH_ERROR;
             break;
         }
-        XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ);
+        XSTRNCPY(ctx->name, path, pathLen + 1);
         ctx->name[pathLen] = '/';
         XSTRNCPY(ctx->name + pathLen + 1,
                  ctx->entry->d_name, MAX_FILENAME_SZ - pathLen - 1);
