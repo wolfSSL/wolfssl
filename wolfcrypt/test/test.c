@@ -19585,20 +19585,6 @@ int memcb_test(void)
     XFREE(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     b = NULL;
 
-    /* Parameter Validation testing. */
-    if (wolfSSL_SetAllocators(NULL, (wolfSSL_Free_cb)&my_Free_cb,
-            (wolfSSL_Realloc_cb)&my_Realloc_cb) != BAD_FUNC_ARG) {
-        ERROR_OUT(-10002, exit_memcb);
-    }
-    if (wolfSSL_SetAllocators((wolfSSL_Malloc_cb)&my_Malloc_cb, NULL,
-            (wolfSSL_Realloc_cb)&my_Realloc_cb) != BAD_FUNC_ARG) {
-        ERROR_OUT(-10003, exit_memcb);
-    }
-    if (wolfSSL_SetAllocators((wolfSSL_Malloc_cb)&my_Malloc_cb,
-            (wolfSSL_Free_cb)&my_Free_cb, NULL) != BAD_FUNC_ARG) {
-        ERROR_OUT(-10004, exit_memcb);
-    }
-
     /* Use API. */
     if (wolfSSL_SetAllocators((wolfSSL_Malloc_cb)&my_Malloc_cb,
         (wolfSSL_Free_cb)&my_Free_cb, (wolfSSL_Realloc_cb)my_Realloc_cb) != 0) {

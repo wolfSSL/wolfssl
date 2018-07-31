@@ -81,7 +81,6 @@
 WOLFSSL_API int wolfSSL_SetAllocators(wolfSSL_Malloc_cb,
                                       wolfSSL_Free_cb,
                                       wolfSSL_Realloc_cb);
-WOLFSSL_API int wolfSSL_ResetAllocators(void);
 WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb*,
                                       wolfSSL_Free_cb*,
                                       wolfSSL_Realloc_cb*);
