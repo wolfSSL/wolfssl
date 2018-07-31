@@ -14630,7 +14630,6 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
 
 /* user externally called free X509, if dynamic go ahead with free, otherwise
  * don't */
-#ifndef WOLFSSL_X509_STORE_CERTS
 static void ExternalFreeX509(WOLFSSL_X509* x509)
 {
     WOLFSSL_ENTER("ExternalFreeX509");
@@ -14643,17 +14642,12 @@ static void ExternalFreeX509(WOLFSSL_X509* x509)
         }
     }
 }
-#endif
 
 /* Frees an external WOLFSSL_X509 structure */
 void wolfSSL_X509_free(WOLFSSL_X509* x509)
 {
     WOLFSSL_ENTER("wolfSSL_FreeX509");
-#ifndef WOLFSSL_X509_STORE_CERTS
     ExternalFreeX509(x509);
-#else
-  (void) x509;
-#endif
 }
 
 
@@ -15406,9 +15400,11 @@ WOLFSSL_X509* wolfSSL_get_certificate(WOLFSSL* ssl)
                 WOLFSSL_MSG("Certificate buffer not set!");
                 return NULL;
             }
+            #ifndef WOLFSSL_X509_STORE_CERTS
             ssl->ourCert = wolfSSL_X509_d2i(NULL,
                                               ssl->buffers.certificate->buffer,
                                               ssl->buffers.certificate->length);
+            #endif
         }
         return ssl->ourCert;
     }
@@ -15419,9 +15415,11 @@ WOLFSSL_X509* wolfSSL_get_certificate(WOLFSSL* ssl)
                     WOLFSSL_MSG("Ctx Certificate buffer not set!");
                     return NULL;
                 }
+                #ifndef WOLFSSL_X509_STORE_CERTS
                 ssl->ctx->ourCert = wolfSSL_X509_d2i(NULL,
                                                ssl->ctx->certificate->buffer,
                                                ssl->ctx->certificate->length);
+                #endif
                 ssl->ctx->ownOurCert = 1;
             }
             return ssl->ctx->ourCert;
@@ -18479,7 +18477,17 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
     WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_init");
     if (ctx != NULL) {
         ctx->store = store;
-        ctx->current_cert = x509;
+        #ifndef WOLFSSL_X509_STORE_CERTS
+        ctx->current_cert = x509;        
+        #else
+        if(x509 != NULL){
+            ctx->current_cert = wolfSSL_X509_d2i(NULL, x509->derCert->buffer,x509->derCert->length);
+            if(ctx->current_cert == NULL)
+                return WOLFSSL_FATAL_ERROR;
+        } else 
+            ctx->current_cert = NULL;
+        #endif
+
         ctx->chain  = sk;
         ctx->domain = NULL;
 #ifdef HAVE_EX_DATA
@@ -30527,7 +30535,15 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             FreeX509(ctx->ourCert);
             XFREE(ctx->ourCert, ctx->heap, DYNAMIC_TYPE_X509);
         }
+        #ifndef WOLFSSL_X509_STORE_CERTS
         ctx->ourCert = x;
+        #else
+        ctx->ourCert = wolfSSL_X509_d2i(NULL, x->derCert->buffer,x->derCert->length);
+        if(ctx->ourCert == NULL){
+            return 0;
+        }
+        #endif
+
         ctx->ownOurCert = 0;
 #endif
 
