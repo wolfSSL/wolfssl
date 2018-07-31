@@ -8309,6 +8309,8 @@ static void initDefaultName(void)
     certDefaultName.unitEnc = CTC_UTF8;
     XMEMCPY(certDefaultName.commonName, "www.wolfssl.com", sizeof("www.wolfssl.com"));
     certDefaultName.commonNameEnc = CTC_UTF8;
+    XMEMCPY(certDefaultName.busCat, "Private Organization", sizeof("Private Organization"));
+    certDefaultName.busCatEnc = CTC_UTF8;
     XMEMCPY(certDefaultName.email, "info@wolfssl.com", sizeof("info@wolfssl.com"));
 
 #ifdef WOLFSSL_TEST_CERT

@@ -6922,6 +6922,7 @@ int ParseCert(DecodedCert* cert, int type, int verify, void* cm)
     return ret;
 }
 
+
 /* from SSL proper, for locking can't do find here anymore */
 #ifdef __cplusplus
     extern "C" {
@@ -11088,6 +11089,17 @@ int wc_MakeSelfCert(Cert* cert, byte* buffer, word32 buffSz,
 
 #ifdef WOLFSSL_CERT_EXT
 
+/* Get raw subject from cert, which may contain OIDs not parsed by Decode. */
+int wc_GetSubjectRaw(byte *subjectRaw, Cert *cert)
+{
+    int rc = 0;
+    if ((subjectRaw != NULL) && (cert != NULL)) {
+        subjectRaw = cert->sbjRaw;
+        rc = 0;
+    }
+    return rc;
+}
+
 /* Set KID from public key */
 static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
                                  byte *ntruKey, word16 ntruKeySz,
@@ -11804,6 +11816,13 @@ static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
             cn->sur[sz] = '\0';
             cn->surEnc = decoded->subjectSNEnc;
         }
+        if (decoded->subjectBC) {
+            sz = (decoded->subjectBCLen < CTC_NAME_SIZE) ? decoded->subjectBCLen
+                                                         : CTC_NAME_SIZE - 1;
+            XSTRNCPY(cn->busCat, decoded->subjectBC, CTC_NAME_SIZE);
+            cn->busCat[sz] = '\0';
+            cn->busCatEnc = decoded->subjectBCEnc;
+        }
         if (decoded->subjectEmail) {
             sz = (decoded->subjectEmailLen < CTC_NAME_SIZE)
                ?  decoded->subjectEmailLen : CTC_NAME_SIZE - 1;
@@ -11821,6 +11840,55 @@ static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
     return ret < 0 ? ret : 0;
 }
 
+/* Set raw subject from der buffer, return 0 on success */
+static int SetSubjectRawFromCert(byte* sbjRaw, const byte* der, int derSz)
+{
+    int ret;
+#ifdef WOLFSSL_SMALL_STACK
+    DecodedCert* decoded;
+#else
+    DecodedCert decoded[1];
+#endif
+
+    if (derSz < 0) {
+        return derSz;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    decoded = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (decoded == NULL) {
+        return MEMORY_E;
+    }
+#endif
+
+    InitDecodedCert(decoded, (byte*)der, derSz, NULL);
+    ret = ParseCertRelative(decoded, CA_TYPE, NO_VERIFY, 0);
+
+    if (ret < 0) {
+        WOLFSSL_MSG("ParseCertRelative error");
+    }
+#ifndef IGNORE_NAME_CONSTRAINT
+    else {
+        if ((decoded->subjectRaw) &&
+            (decoded->subjectRawLen <= (int)sizeof(CertName))) {
+            XMEMCPY(sbjRaw, decoded->subjectRaw, decoded->subjectRawLen);
+        }
+    }
+#else
+    /* Fields are not accessible */
+    ret = -1;
+    WOLFSSL_MSG("IGNORE_NAME_CONSTRAINT excludes raw subject");
+#endif
+
+    FreeDecodedCert(decoded);
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(decoded, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret < 0 ? ret : 0;
+}
 
 #ifndef NO_FILESYSTEM
 
@@ -11862,7 +11930,6 @@ int wc_SetSubject(Cert* cert, const char* subjectFile)
     return ret;
 }
 
-
 #ifdef WOLFSSL_ALT_NAMES
 
 /* Set alt names from file in PEM */
@@ -11894,13 +11961,17 @@ int wc_SetIssuerBuffer(Cert* cert, const byte* der, int derSz)
     return SetNameFromCert(&cert->issuer, der, derSz);
 }
 
-
 /* Set cert subject from DER buffer */
 int wc_SetSubjectBuffer(Cert* cert, const byte* der, int derSz)
 {
     return SetNameFromCert(&cert->subject, der, derSz);
 }
 
+/* Set cert raw subject from DER buffer */
+int wc_SetSubjectRaw(Cert* cert, const byte* der, int derSz)
+{
+    return SetSubjectRawFromCert(cert->sbjRaw, der, derSz);
+}
 
 #ifdef WOLFSSL_ALT_NAMES
 

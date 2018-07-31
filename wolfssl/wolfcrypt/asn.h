@@ -678,6 +678,9 @@ struct DecodedCert {
     char*   subjectOU;
     int     subjectOULen;
     char    subjectOUEnc;
+    char*   subjectBC;
+    int     subjectBCLen;
+    char    subjectBCEnc;
     char*   subjectEmail;
     int     subjectEmailLen;
 #endif /* WOLFSSL_CERT_GEN */

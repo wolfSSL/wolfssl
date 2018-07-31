@@ -216,9 +216,11 @@ typedef struct Cert {
     int      serialSz;                  /* serial size */
     int      sigType;                   /* signature algo type */
     CertName issuer;                    /* issuer info */
+    byte     issRaw[sizeof(CertName)];  /* raw subject info */
     int      daysValid;                 /* validity days */
     int      selfSigned;                /* self signed flag */
     CertName subject;                   /* subject info */
+    byte     sbjRaw[sizeof(CertName)];  /* raw subject info */
     int      isCA;                      /* is this going to be a CA */
     /* internal use only */
     int      bodySz;                    /* pre sign total size */
@@ -283,8 +285,10 @@ WOLFSSL_API int wc_SignCert(int requestSz, int sigType, byte* derBuffer,
                              word32 derSz, RsaKey*, ecc_key*, WC_RNG*);
 WOLFSSL_API int wc_MakeSelfCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
                              WC_RNG*);
+WOLFSSL_API int wc_GetSubjectRaw(byte *subjectRaw, Cert *cert);
 WOLFSSL_API int wc_SetIssuer(Cert*, const char*);
 WOLFSSL_API int wc_SetSubject(Cert*, const char*);
+WOLFSSL_API int wc_SetSubjectRaw(Cert*, const byte* der, int derSz);
 #ifdef WOLFSSL_ALT_NAMES
     WOLFSSL_API int wc_SetAltNames(Cert*, const char*);
 #endif
