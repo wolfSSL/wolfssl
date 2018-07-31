@@ -48,6 +48,12 @@
 #endif
 #endif
 
+#ifndef WC_NO_RNG
+    #include <wolfssl/wolfcrypt/random.h>
+#endif
+#ifdef STM32_CRYPTO
+    #include <wolfssl/wolfcrypt/port/st/stm32.h>
+#endif
 
 #ifdef WOLFSSL_AESNI
 
