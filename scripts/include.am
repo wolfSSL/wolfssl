@@ -75,3 +75,5 @@ EXTRA_DIST +=  scripts/testsuite.pcap \
 
 # leave openssl.test as extra until non bash works
 EXTRA_DIST +=  scripts/openssl.test
+
+EXTRA_DIST +=  scripts/dertoc.pl
