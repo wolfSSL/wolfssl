@@ -34,15 +34,31 @@
     #define WOLFSSL_MALLOC_CHECK
 #endif
 
+
+/*
+Possible memory options:
+ * NO_WOLFSSL_MEMORY:               Disables wolf memory callback support. When not defined settings.h defines USE_WOLFSSL_MEMORY.
+ * WOLFSSL_STATIC_MEMORY:           Turns on the use of static memory buffers and functions.
+                                        This allows for using static memory instead of dynamic.
+ * WOLFSSL_STATIC_ALIGN:            Define defaults to 16 to indicate static memory alignment.
+ * HAVE_IO_POOL:                    Enables use of static thread safe memory pool for input/output buffers.
+ * XMALLOC_OVERRIDE:                Allows override of the XMALLOC, XFREE and XREALLOC macros.
+ * XMALLOC_USER:                    Allows custom XMALLOC, XFREE and XREALLOC functions to be defined.
+ * WOLFSSL_NO_MALLOC:               Disables the fall-back case to use STDIO malloc/free when no callbacks are set.
+ * WOLFSSL_TRACK_MEMORY:            Enables memory tracking for total stats and list of allocated memory.
+ * WOLFSSL_DEBUG_MEMORY:            Enables extra function and line number args for memory callbacks.
+ * WOLFSSL_DEBUG_MEMORY_PRINT:      Enables printing of each malloc/free.
+ * WOLFSSL_MALLOC_CHECK:            Reports malloc or alignment failure using WOLFSSL_STATIC_ALIGN
+ * WOLFSSL_FORCE_MALLOC_FAIL_TEST:  Used for internal testing to induce random malloc failures.
+ * WOLFSSL_HEAP_TEST:               Used for internal testing of heap hint
+ */
+
+
 #ifdef USE_WOLFSSL_MEMORY
 
 #include <wolfssl/wolfcrypt/memory.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
-
-#if defined(WOLFSSL_MALLOC_CHECK) || defined(WOLFSSL_TRACK_MEMORY_FULL)
-    #include <stdio.h>
-#endif
 
 #ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
     static int gMemFailCountSeed;
@@ -130,10 +146,19 @@ void* wolfSSL_Malloc(size_t size)
     #endif
     }
 
-    #ifdef WOLFSSL_MALLOC_CHECK
-        if (res == NULL)
-            puts("wolfSSL_malloc failed");
-    #endif
+#ifdef WOLFSSL_DEBUG_MEMORY
+#ifdef WOLFSSL_DEBUG_MEMORY_PRINT
+    printf("Alloc: %p -> %u at %s:%d\n", res, (word32)size, func, line);
+#else
+    (void)func;
+    (void)line;
+#endif
+#endif
+
+#ifdef WOLFSSL_MALLOC_CHECK
+    if (res == NULL)
+        WOLFSSL_MSG("wolfSSL_malloc failed");
+#endif
 
 #ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
     if (res && --gMemFailCount == 0) {
@@ -162,6 +187,15 @@ void wolfSSL_Free(void *ptr, const char* func, unsigned int line)
 void wolfSSL_Free(void *ptr)
 #endif
 {
+#ifdef WOLFSSL_DEBUG_MEMORY
+#ifdef WOLFSSL_DEBUG_MEMORY_PRINT
+    printf("Free: %p at %s:%d\n", ptr, func, line);
+#else
+    (void)func;
+    (void)line;
+#endif
+#endif
+
     if (free_function) {
     #ifdef WOLFSSL_DEBUG_MEMORY
         free_function(ptr, func, line);
