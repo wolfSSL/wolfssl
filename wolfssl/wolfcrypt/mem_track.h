@@ -308,9 +308,19 @@
     }
 
 #ifdef WOLFSSL_TRACK_MEMORY
+    static wolfSSL_Malloc_cb mfDefault = NULL;
+    static wolfSSL_Free_cb ffDefault = NULL;
+    static wolfSSL_Realloc_cb rfDefault = NULL;
+
     STATIC WC_INLINE int InitMemoryTracker(void)
     {
-        int ret = wolfSSL_SetAllocators(TrackMalloc, TrackFree, TrackRealloc);
+        int ret;
+
+        ret = wolfSSL_GetAllocators(&mfDefault, &ffDefault, &rfDefault);
+        if (ret < 0) {
+            printf("wolfSSL GetAllocators failed to get the defaults\n");
+        }
+        ret = wolfSSL_SetAllocators(TrackMalloc, TrackFree, TrackRealloc);
         if (ret < 0) {
             printf("wolfSSL SetAllocators failed for track memory\n");
             return ret;
@@ -380,7 +390,7 @@
     STATIC WC_INLINE int CleanupMemoryTracker(void)
     {
         /* restore default allocators */
-        return wolfSSL_ResetAllocators();
+        return wolfSSL_SetAllocators(mfDefault, ffDefault, rfDefault);
     }
 #endif
 

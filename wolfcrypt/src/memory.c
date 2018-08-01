@@ -66,33 +66,9 @@ int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  mf,
                           wolfSSL_Free_cb    ff,
                           wolfSSL_Realloc_cb rf)
 {
-    int res = 0;
-
-    if (mf)
-        malloc_function = mf;
-    else
-        res = BAD_FUNC_ARG;
-
-    if (ff)
-        free_function = ff;
-    else
-        res = BAD_FUNC_ARG;
-
-    if (rf)
-        realloc_function = rf;
-    else
-        res = BAD_FUNC_ARG;
-
-    return res;
-}
-
-int wolfSSL_ResetAllocators(void)
-{
-    /* allow nulls to be set for callbacks to restore defaults */
-    malloc_function = NULL;
-    free_function = NULL;
-    realloc_function = NULL;
-
+    malloc_function = mf;
+    free_function = ff;
+    realloc_function = rf;
     return 0;
 }
 
