@@ -4625,6 +4625,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     /* copy over application session context ID */
     ssl->sessionCtxSz = ctx->sessionCtxSz;
     XMEMCPY(ssl->sessionCtx, ctx->sessionCtx, ctx->sessionCtxSz);
+    ssl->cbioFlag = ctx->cbioFlag;
 #endif
 
     InitCiphers(ssl);
