@@ -1,8 +1,16 @@
-#!/bin/sh
+#!/bin/bash
+
+#set an invalid default PID so we don't cleanup a process unexpectedly
+OSSL_INT1_PID="INVALID"
 
 # ocsp-stapling.test
+cleanup(){
+    # "jobs" is not portable for posix. Must use bash interpreter!
+    for i in `jobs -p`; do pkill -TERM -P $i; done
+    kill $OSSL_INT1_PID
+}
+trap cleanup INT TERM EXIT
 
-trap 'for i in `jobs -p`; do pkill -TERM -P $i; done' EXIT
 
 server=login.live.com
 ca=certs/external/baltimore-cybertrust-root.pem
@@ -30,8 +38,21 @@ if [ $? -eq 0 ]; then
 fi
 
 # setup ocsp responder
-./certs/ocsp/ocspd-intermediate1-ca-issued-certs.sh &
+# OLD: ./certs/ocsp/ocspd-intermediate1-ca-issued-certs.sh &
+# NEW: openssl isn't being cleaned up, invoke directly in script for cleanup
+# purposes!
+openssl ocsp -port 22221 -nmin 1                                \
+    -index   certs/ocsp/index-intermediate1-ca-issued-certs.txt \
+    -rsigner certs/ocsp/ocsp-responder-cert.pem                 \
+    -rkey    certs/ocsp/ocsp-responder-key.pem                  \
+    -CA      certs/ocsp/intermediate1-ca-cert.pem               \
+    $@                                                          \
+    &
+
+OSSL_INT1_PID=$!
+
 sleep 1
+# "jobs" is not portable for posix. Must use bash interpreter!
 [ $(jobs -r | wc -l) -ne 1 ] && echo -e "\n\nSetup ocsp responder failed, skipping" && exit 0
 
 # client test against our own server - GOOD CERT
