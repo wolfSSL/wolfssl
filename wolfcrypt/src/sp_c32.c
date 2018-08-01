@@ -2083,7 +2083,7 @@ static int sp_2048_mod_exp_45(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
             n |= e[i--] << (9 - c);
             c += 23;
         }
-        y = n >> 27;
+        y = (n >> 27) & 0x1f;
         n <<= 5;
         c -= 5;
         XMEMCPY(rt, t[y], sizeof(rt));
@@ -3016,7 +3016,7 @@ static int sp_2048_mod_exp_90(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
             n |= e[i--] << (9 - c);
             c += 23;
         }
-        y = n >> 27;
+        y = (n >> 27) & 0x1f;
         n <<= 5;
         c -= 5;
         XMEMCPY(rt, t[y], sizeof(rt));
