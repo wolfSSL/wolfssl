@@ -1684,6 +1684,16 @@ extern void uITRON4_free(void *p) ;
     #define WOLFSSL_IPV6
 #endif
 
+#if defined(WOLFSSL_USER_IO)
+    #if !defined(USE_WOLFSSL_IO)
+        #if !defined(CloseSocket)
+            #define CloseSocket(a)
+        #endif
+    #endif
+    #if !defined(StartTCP)
+        #define StartTCP()
+    #endif
+#endif
 
 /* Place any other flags or defines here */
 
