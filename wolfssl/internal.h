@@ -2409,6 +2409,14 @@ enum KeyUpdateRequest {
 #endif /* WOLFSSL_TLS13 */
 
 
+#ifdef OPENSSL_EXTRA
+enum SetCBIO {
+    WOLFSSL_CBIO_NONE = 0,
+    WOLFSSL_CBIO_RECV = 0x1,
+    WOLFSSL_CBIO_SEND = 0x2, 
+};
+#endif
+
 /* wolfSSL context type */
 struct WOLFSSL_CTX {
     WOLFSSL_METHOD* method;
@@ -2502,6 +2510,7 @@ struct WOLFSSL_CTX {
     const unsigned char *alpn_cli_protos;/* ALPN client protocol list */
     unsigned int         alpn_cli_protos_len;
     byte              sessionCtxSz;
+    byte              cbioFlag;  /* WOLFSSL_CBIO_RECV/SEND: CBIORecv/Send is set */
     CallbackInfoState* CBIS;      /* used to get info about SSL state */
 #endif
     CallbackIORecv CBIORecv;
@@ -2644,7 +2653,6 @@ struct WOLFSSL_CTX {
         byte* srp_password;
 #endif
 };
-
 
 WOLFSSL_LOCAL
 WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap);
@@ -3536,6 +3544,9 @@ struct WOLFSSL {
     WriteDup*       dupWrite;           /* valid pointer indicates ON */
              /* side that decrements dupCount to zero frees overall structure */
     byte            dupSide;            /* write side or read side */
+#endif
+#ifdef OPENSSL_EXTRA
+    byte              cbioFlag;  /* WOLFSSL_CBIO_RECV/SEND: CBIORecv/Send is set */
 #endif
     CallbackIORecv  CBIORecv;
     CallbackIOSend  CBIOSend;
