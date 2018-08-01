@@ -590,6 +590,11 @@ int wc_AddErrorNode(int error, int line, char* buf, char* file)
             if (wc_errors != NULL) {
                 /* check for unexpected case before over writing wc_errors */
                 WOLFSSL_MSG("ERROR in adding new node to logging queue!!\n");
+                /* In the event both wc_last_node and wc_errors are NULL, err
+                 * goes unassigned to external wc_errors, wc_last_node. Free
+                 * err in this instance since wc_ClearErrorNodes will not
+                 */
+                XFREE(err, wc_error_heap, DYNAMIC_TYPE_LOG);
             }
             else {
                 wc_errors    = err;
@@ -651,7 +656,9 @@ void wc_RemoveErrorNode(int idx)
  */
 void wc_ClearErrorNodes(void)
 {
-#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_NGINX)
+#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_NGINX) || \
+    defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+
     if (wc_LockMutex(&debug_mutex) != 0) {
         WOLFSSL_MSG("Lock debug mutex failed");
         return;
