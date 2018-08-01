@@ -692,30 +692,25 @@ char* wolfSSL_get_cipher_list_ex(WOLFSSL* ssl, int priority)
 int wolfSSL_get_ciphers(char* buf, int len)
 {
     const CipherSuiteInfo* ciphers = GetCipherNames();
-    int  totalInc = 0;
-    int  step     = 0;
-    char delim    = ':';
-    int  size     = GetCipherNamesSize();
-    int  i;
+    int ciphersSz = GetCipherNamesSize();
+    int i;
+    int cipherNameSz;
 
     if (buf == NULL || len <= 0)
         return BAD_FUNC_ARG;
 
     /* Add each member to the buffer delimited by a : */
-    for (i = 0; i < size; i++) {
-        step = (int)(XSTRLEN(ciphers[i].name) + 1);  /* delimiter */
-        totalInc += step;
+    for (i = 0; i < ciphersSz; i++) {
+        cipherNameSz = (int)XSTRLEN(ciphers[i].name);
+        if (cipherNameSz + 1 < len) {
+            XSTRNCPY(buf, ciphers[i].name, len);
+            buf += cipherNameSz;
 
-        /* Check to make sure buf is large enough and will not overflow */
-        if (totalInc < len) {
-            size_t cipherLen = XSTRLEN(ciphers[i].name);
-            XSTRNCPY(buf, ciphers[i].name, cipherLen);
-            buf += cipherLen;
+            if (i < ciphersSz - 1)
+                *buf++ = ':';
+            *buf = 0;
 
-            if (i < size - 1)
-                *buf++ = delim;
-            else
-                *buf++ = '\0';
+            len -= cipherNameSz + 1;
         }
         else
             return BUFFER_E;
@@ -10738,8 +10733,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             ssl->arrays->server_hint[0] = 0;
         else {
             XSTRNCPY(ssl->arrays->server_hint, hint,
-                                            sizeof(ssl->arrays->server_hint));
-            ssl->arrays->server_hint[MAX_PSK_ID_LEN] = '\0'; /* null term */
+                                            sizeof(ssl->arrays->server_hint)-1);
+            ssl->arrays->server_hint[sizeof(ssl->arrays->server_hint)-1] = '\0';
         }
         return WOLFSSL_SUCCESS;
     }
@@ -16518,7 +16513,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
                         tmp[sizeof(tmp) - 1] = '\0';
                         if (mp_leading_bit(&rsa.n)) {
                             lbit = 1;
-                            XSTRNCAT(tmp, "00", sizeof("00"));
+                            XSTRNCAT(tmp, "00", 3);
                         }
 
                         rawLen = mp_unsigned_bin_size(&rsa.n);
@@ -25719,7 +25714,7 @@ static int EncryptDerKey(byte *der, int *derSz, const EVP_CIPHER* cipher,
         return WOLFSSL_FAILURE;
     }
     XSTRNCPY((char*)*cipherInfo, info->name, cipherInfoSz);
-    XSTRNCAT((char*)*cipherInfo, ",", 1);
+    XSTRNCAT((char*)*cipherInfo, ",", 2);
 
     idx = (word32)XSTRLEN((char*)*cipherInfo);
     cipherInfoSz -= idx;
