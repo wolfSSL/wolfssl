@@ -585,17 +585,8 @@ static WC_INLINE void showPeer(WOLFSSL* ssl)
 #endif
 #ifdef KEEP_PEER_CERT
     WOLFSSL_X509* peer = wolfSSL_get_peer_certificate(ssl);
-    if (peer) {
-        WOLFSSL_X509* peerCert = peer;
-        int peerCertSz;
-        const byte* peerCertBuf = wolfSSL_X509_get_der(peerCert, &peerCertSz);
-        Cert forgedCert;
-        wc_InitCert(&forgedCert);
-        wc_SetSubjectBuffer(&forgedCert, peerCertBuf, peerCertSz);
-
+    if (peer)
         ShowX509(peer, "peer's cert info:");
-
-    }
     else
         printf("peer has no cert!\n");
     wolfSSL_FreeX509(peer);
