@@ -18517,14 +18517,14 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
 void wolfSSL_X509_STORE_CTX_free(WOLFSSL_X509_STORE_CTX* ctx)
 {
     if (ctx != NULL) {
-        #ifndef WOLFSSL_KEEP_STORE_CERTS
         if (ctx->store != NULL)
             wolfSSL_X509_STORE_free(ctx->store);
+        #ifndef WOLFSSL_KEEP_STORE_CERTS
         if (ctx->current_cert != NULL)
             wolfSSL_FreeX509(ctx->current_cert);
+        #endif
         if (ctx->chain != NULL)
             wolfSSL_sk_X509_free(ctx->chain);
-        #endif
 #ifdef OPENSSL_EXTRA
         if (ctx->param != NULL){
             XFREE(ctx->param,NULL,DYNAMIC_TYPE_OPENSSL);
