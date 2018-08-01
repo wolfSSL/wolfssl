@@ -202,6 +202,10 @@ typedef struct CertName {
     char commonNameEnc;
     char busCat[CTC_NAME_SIZE];
     char busCatEnc;
+    char joiC[CTC_NAME_SIZE];
+    char joiCEnc;
+    char joiSt[CTC_NAME_SIZE];
+    char joiStEnc;
     char email[CTC_NAME_SIZE];  /* !!!! email has to be last !!!! */
 #ifdef WOLFSSL_MULTI_ATTRIB
     NameAttrib name[CTC_MAX_ATTRIB];

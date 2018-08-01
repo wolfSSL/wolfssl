@@ -134,6 +134,8 @@ enum DN_Tags {
 #define WOLFSSL_ORGUNIT_NAME     "/OU="
 #define WOLFSSL_DOMAIN_COMPONENT "/DC="
 #define WOLFSSL_BUS_CAT          "/businessCategory="
+#define WOLFSSL_JOI_C            "/jurisdictionC="
+#define WOLFSSL_JOI_ST           "/jurisdictionST="
 
 enum ECC_TYPES {
     ECC_PREFIX_0 = 160,
@@ -476,6 +478,10 @@ struct DecodedName {
     int     oLen;
     int     ouIdx;
     int     ouLen;
+    int     jcIdx;
+    int     jcLen;
+    int     jsIdx;
+    int     jsLen;
     int     emailIdx;
     int     emailLen;
     int     uidIdx;
@@ -681,6 +687,12 @@ struct DecodedCert {
     char*   subjectBC;
     int     subjectBCLen;
     char    subjectBCEnc;
+    char*   subjectJC;
+    int     subjectJCLen;
+    char    subjectJCEnc;
+    char*   subjectJS;
+    int     subjectJSLen;
+    char    subjectJSEnc;
     char*   subjectEmail;
     int     subjectEmailLen;
 #endif /* WOLFSSL_CERT_GEN */

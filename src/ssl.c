@@ -28786,6 +28786,10 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         cName->commonNameEnc = CTC_UTF8;
         cName->busCat[0] = '\0';
         cName->busCatEnc = CTC_UTF8;
+        cName->joiC[0] = '\0';
+        cName->joiCEnc = CTC_PRINTABLE;
+        cName->joiSt[0] = '\0';
+        cName->joiStEnc = CTC_PRINTABLE;
         cName->email[0] = '\0';
 
 
@@ -28844,6 +28848,22 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         WOLFSSL_MSG("Copy Business Category");
         if (CopyX509NameEntry(cName->busCat, CTC_NAME_SIZE,
                     dn->fullName + dn->bcIdx, dn->bcLen)
+                    != SSL_SUCCESS) {
+            return BUFFER_E;
+        }
+
+        /* JoI Country */
+        WOLFSSL_MSG("Copy Jurisdiction of Incorporation Country");
+        if (CopyX509NameEntry(cName->joiC, CTC_NAME_SIZE,
+                    dn->fullName + dn->jcIdx, dn->jcLen)
+                    != SSL_SUCCESS) {
+            return BUFFER_E;
+        }
+
+        /* JoI State */
+        WOLFSSL_MSG("Copy Jurisdiction of Incorporation State");
+        if (CopyX509NameEntry(cName->joiSt, CTC_NAME_SIZE,
+                    dn->fullName + dn->jsIdx, dn->jsLen)
                     != SSL_SUCCESS) {
             return BUFFER_E;
         }

@@ -8350,6 +8350,8 @@ static const CertName certDefaultName = {
     "Development",      CTC_UTF8,       /* unit */
     "www.wolfssl.com",  CTC_UTF8,       /* commonName */
     "Private Organization", CTC_UTF8,   /* businessCategory */
+    "US",               CTC_PRINTABLE,  /* jurisdiction country */
+    "Oregon",           CTC_PRINTABLE,  /* jurisdiction state */
     "info@wolfssl.com"                  /* email */
 };
 #endif /* WOLFSSL_MULTI_ATTRIB */

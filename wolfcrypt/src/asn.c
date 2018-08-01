@@ -4225,12 +4225,86 @@ static int GetName(DecodedCert* cert, int nameType)
             }
             else if (id == ASN_BUS_CAT) {
                 copy = WOLFSSL_BUS_CAT;
+            #ifdef WOLFSSL_CERT_GEN
+                if (nameType == SUBJECT) {
+                    cert->subjectBC = (char*)&cert->source[cert->srcIdx];
+                    cert->subjectBCLen = strLen;
+                    cert->subjectBCEnc = b;
+                }
+            #endif /* WOLFSSL_CERT_GEN */
             #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                 dName->bcIdx = cert->srcIdx;
                 dName->bcLen = strLen;
             #endif /* OPENSSL_EXTRA */
             }
             if (copy && !tooBig) {
+                XMEMCPY(&full[idx], copy, XSTRLEN(copy));
+                idx += (word32)XSTRLEN(copy);
+            #ifdef WOLFSSL_WPAS
+                full[idx] = '=';
+                idx++;
+            #endif
+                XMEMCPY(&full[idx], &cert->source[cert->srcIdx], strLen);
+                idx += strLen;
+            }
+
+            cert->srcIdx += strLen;
+        }
+        else if ((0 == memcmp(&cert->source[cert->srcIdx],
+                    "\x2b\x06\x01\x04\x01\x82\x37\x3c\x02\x01", 10)) &&
+                 ((cert->source[cert->srcIdx + 10] == 0x3) ||
+                  (cert->source[cert->srcIdx + 10] == 0x2)))
+        {
+            int strLen;
+            byte id;
+            const char* copy = NULL;
+
+            cert->srcIdx += 10;
+            id = cert->source[cert->srcIdx++];
+            b = cert->source[cert->srcIdx++]; /* encoding */
+
+            if (GetLength(cert->source, &cert->srcIdx, &strLen,
+                          cert->maxIdx) < 0)
+                return ASN_PARSE_E;
+
+            if ((strLen + strlen(WOLFSSL_JOI_ST)) > (ASN_NAME_MAX - idx)) {
+                WOLFSSL_MSG("ASN Name too big, skipping");
+                tooBig = TRUE;
+            }
+
+            /* Check for jurisdiction of incorporation country name */
+            if (id == 0x3) {
+                copy = WOLFSSL_JOI_C;
+                #ifdef WOLFSSL_CERT_GEN
+                    if (nameType == SUBJECT) {
+                        cert->subjectJC = (char*)&cert->source[cert->srcIdx];
+                        cert->subjectJCLen = strLen;
+                        cert->subjectJCEnc = b;
+                    }
+                #endif /* WOLFSSL_CERT_GEN */
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+                    dName->jcIdx = cert->srcIdx;
+                    dName->jcLen = strLen;
+                #endif /* OPENSSL_EXTRA */
+            }
+
+            /* Check for jurisdiction of incorporation state name */
+            else if (id == 0x2) {
+                copy = WOLFSSL_JOI_ST;
+                #ifdef WOLFSSL_CERT_GEN
+                    if (nameType == SUBJECT) {
+                        cert->subjectJS = (char*)&cert->source[cert->srcIdx];
+                        cert->subjectJSLen = strLen;
+                        cert->subjectJSEnc = b;
+                    }
+                #endif /* WOLFSSL_CERT_GEN */
+                #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
+                    dName->jsIdx = cert->srcIdx;
+                    dName->jsLen = strLen;
+                #endif /* OPENSSL_EXTRA */
+            }
+
+            if ((copy != NULL) && (tooBig != 1)) {
                 XMEMCPY(&full[idx], copy, XSTRLEN(copy));
                 idx += (word32)XSTRLEN(copy);
             #ifdef WOLFSSL_WPAS
@@ -11822,6 +11896,20 @@ static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
             XSTRNCPY(cn->busCat, decoded->subjectBC, CTC_NAME_SIZE);
             cn->busCat[sz] = '\0';
             cn->busCatEnc = decoded->subjectBCEnc;
+        }
+        if (decoded->subjectJC) {
+            sz = (decoded->subjectJCLen < CTC_NAME_SIZE) ? decoded->subjectJCLen
+                                                         : CTC_NAME_SIZE - 1;
+            XSTRNCPY(cn->joiC, decoded->subjectJC, CTC_NAME_SIZE);
+            cn->joiC[sz] = '\0';
+            cn->joiCEnc = decoded->subjectJCEnc;
+        }
+        if (decoded->subjectJS) {
+            sz = (decoded->subjectJSLen < CTC_NAME_SIZE) ? decoded->subjectJSLen
+                                                         : CTC_NAME_SIZE - 1;
+            XSTRNCPY(cn->joiSt, decoded->subjectJS, CTC_NAME_SIZE);
+            cn->joiSt[sz] = '\0';
+            cn->joiStEnc = decoded->subjectJSEnc;
         }
         if (decoded->subjectEmail) {
             sz = (decoded->subjectEmailLen < CTC_NAME_SIZE)
