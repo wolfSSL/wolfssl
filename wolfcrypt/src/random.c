@@ -314,6 +314,8 @@ static int Hash_DRBG_Reseed(DRBG* drbg, const byte* entropy, word32 entropySz)
 {
     byte seed[DRBG_SEED_LEN];
 
+    XMEMSET(seed, 0, DRBG_SEED_LEN);
+
     if (Hash_df(drbg, seed, sizeof(seed), drbgReseed, drbg->V, sizeof(drbg->V),
                                           entropy, entropySz) != DRBG_SUCCESS) {
         return DRBG_FAILURE;
