@@ -20,9 +20,11 @@ ca=certs/external/baltimore-cybertrust-root.pem
 #./scripts/ping.test $server 2
 
 # client test against the server
-./examples/client/client -X -C -h $server -p 443 -A $ca -g -W 1
-RESULT=$?
-[ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
+# external test case was never running, disable for now but retain case in event
+# we wish to re-activate in the future.
+#./examples/client/client -X -C -h $server -p 443 -A $ca -g -W 1
+#RESULT=$?
+#[ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
 
 # setup ocsp responder
 # OLD: ./certs/ocsp/ocspd-intermediate1-ca-issued-certs-with-ca-as-responder.sh &
