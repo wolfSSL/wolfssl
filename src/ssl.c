@@ -11116,10 +11116,12 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         ssl->biowr = wr;
 
         /* set SSL to use BIO callbacks instead */
-        if (rd != NULL && rd->type != WOLFSSL_BIO_SOCKET) {
+        if (((ssl->cbioFlag & WOLFSSL_CBIO_RECV) == 0) &&
+            (rd != NULL && rd->type != WOLFSSL_BIO_SOCKET)) {
             ssl->CBIORecv = BioReceive;
         }
-        if (wr != NULL && wr->type != WOLFSSL_BIO_SOCKET) {
+        if (((ssl->cbioFlag & WOLFSSL_CBIO_SEND) == 0) &&
+            (wr != NULL && wr->type != WOLFSSL_BIO_SOCKET)) {
             ssl->CBIOSend = BioSend;
         }
     }

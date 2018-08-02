@@ -1382,6 +1382,7 @@ int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap)
 #endif
 #ifdef OPENSSL_EXTRA
     ctx->verifyDepth = MAX_CHAIN_DEPTH;
+    ctx->cbioFlag = WOLFSSL_CBIO_NONE;
 #endif
 
 #ifndef WOLFSSL_USER_IO
@@ -4645,6 +4646,7 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     /* copy over application session context ID */
     ssl->sessionCtxSz = ctx->sessionCtxSz;
     XMEMCPY(ssl->sessionCtx, ctx->sessionCtx, ctx->sessionCtxSz);
+    ssl->cbioFlag = ctx->cbioFlag;
 #endif
 
     InitCiphers(ssl);
