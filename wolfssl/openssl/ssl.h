@@ -649,7 +649,7 @@ typedef STACK_OF(WOLFSSL_ASN1_OBJECT) GENERAL_NAMES;
 #define GENERAL_NAMES_free(GENERAL_NAMES)NULL
 
 #define SSL_set_mode(ssl,op) wolfSSL_ctrl((ssl),SSL_CTRL_MODE,(op),NULL)
-#define BIO_wpending(b)      wolfSSL_BIO_ctrl(b,BIO_CTRL_WPENDING,0,NULL)
+
 #define SSL_CTX_use_certificate_ASN1 wolfSSL_CTX_use_certificate_ASN1
 #define SSL_CTX_set0_chain(ctx,sk) \
         wolfSSL_CTX_ctrl(ctx,SSL_CTRL_CHAIN,0,(char *)(sk))
@@ -663,6 +663,7 @@ typedef STACK_OF(WOLFSSL_ASN1_OBJECT) GENERAL_NAMES;
 #define BIO_new_file        wolfSSL_BIO_new_file
 #define BIO_ctrl            wolfSSL_BIO_ctrl
 #define BIO_ctrl_pending    wolfSSL_BIO_ctrl_pending
+#define BIO_wpending        wolfSSL_BIO_wpending
 #define BIO_get_mem_ptr     wolfSSL_BIO_get_mem_ptr
 #define BIO_int_ctrl        wolfSSL_BIO_int_ctrl
 #define BIO_reset           wolfSSL_BIO_reset

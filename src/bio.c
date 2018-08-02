@@ -499,7 +499,6 @@ int wolfSSL_BIO_write(WOLFSSL_BIO* bio, const void* data, int len)
 }
 
 
-/*** TBD ***/
 WOLFSSL_API long wolfSSL_BIO_ctrl(WOLFSSL_BIO *bio, int cmd, long larg, void *parg)
 {
     (void)bio;
@@ -507,8 +506,8 @@ WOLFSSL_API long wolfSSL_BIO_ctrl(WOLFSSL_BIO *bio, int cmd, long larg, void *pa
     (void)larg;
     (void)parg;
 
-    WOLFSSL_ENTER("BIO_ctrl");
-    return 1;
+    WOLFSSL_STUB("BIO_ctrl");
+    return 0;
 }
 
 
@@ -688,6 +687,31 @@ WOLFSSL_BIO* wolfSSL_BIO_next(WOLFSSL_BIO* bio)
     return bio->next;
 }
 
+/* BIO_wpending returns the number of bytes pending to be written. */
+size_t wolfSSL_BIO_wpending(const WOLFSSL_BIO *bio)
+{
+    WOLFSSL_ENTER("BIO_wpending");
+
+    if (bio == NULL)
+        return 0;
+
+    if (bio->ssl != NULL) {
+        return (long)wolfSSL_pending(bio->ssl);
+    }
+
+    if (bio->type == WOLFSSL_BIO_MEMORY) {
+        return bio->wrSz;
+    }
+
+    /* type BIO_BIO then check paired buffer */
+    if (bio->type == WOLFSSL_BIO_BIO && bio->pair != NULL) {
+        WOLFSSL_BIO* pair = bio->pair;
+        return pair->wrIdx;
+    }
+
+    return 0;
+
+}
 
 /* Return the number of pending bytes in read and write buffers */
 size_t wolfSSL_BIO_ctrl_pending(WOLFSSL_BIO *bio)
@@ -741,14 +765,13 @@ long wolfSSL_BIO_get_mem_ptr(WOLFSSL_BIO *bio, WOLFSSL_BUF_MEM **ptr)
     return SSL_SUCCESS;
 }
 
-/*** TBD ***/
 WOLFSSL_API long wolfSSL_BIO_int_ctrl(WOLFSSL_BIO *bp, int cmd, long larg, int iarg)
 {
     (void) bp;
     (void) cmd;
     (void) larg;
     (void) iarg;
-    WOLFSSL_ENTER("BIO_int_ctrl");
+    WOLFSSL_STUB("BIO_int_ctrl");
     return 0;
 }
 
