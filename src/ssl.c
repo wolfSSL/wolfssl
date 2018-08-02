@@ -14555,7 +14555,7 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
             if (newX509 != NULL) {
                 InitX509(newX509, 1, NULL);
                 if (CopyDecodedToX509(newX509, cert) != 0) {
-                    XFREE(newX509, NULL, DYNAMIC_TYPE_X509);
+                    wolfSSL_X509_free(newX509);
                     newX509 = NULL;
                 }
             }
@@ -15189,7 +15189,7 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_buffer(
                 if (x509 != NULL) {
                     InitX509(x509, 1, NULL);
                     if (CopyDecodedToX509(x509, cert) != 0) {
-                        XFREE(x509, NULL, DYNAMIC_TYPE_X509);
+                        wolfSSL_X509_free(x509);
                         x509 = NULL;
                     }
                 }
@@ -28372,7 +28372,7 @@ WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN* chain, int idx)
 
                     if ((ret = CopyDecodedToX509(x509, cert)) != 0) {
                         WOLFSSL_MSG("Failed to copy decoded");
-                        XFREE(x509, NULL, DYNAMIC_TYPE_X509);
+                        wolfSSL_X509_free(x509);
                         x509 = NULL;
                     }
                 }
