@@ -1,15 +1,14 @@
 #!/bin/bash
-
-#set an invalid default PID so we don't cleanup a process unexpectedly
-OSSL_INT1_PID="INVALID"
-
 # ocsp-stapling.test
-cleanup(){
-    # "jobs" is not portable for posix. Must use bash interpreter!
-    for i in `jobs -p`; do pkill -TERM -P $i; done
-    kill $OSSL_INT1_PID
+
+cleanup()
+{
+    for i in $(jobs -pr)
+    do
+        kill -s HUP "$i"
+    done
 }
-trap cleanup INT TERM EXIT
+trap cleanup EXIT INT TERM HUP
 
 server=login.live.com
 ca=certs/external/baltimore-cybertrust-root.pem
@@ -37,7 +36,6 @@ openssl ocsp -port 22221 -nmin 1                                \
     -CA      certs/ocsp/intermediate1-ca-cert.pem               \
     $@                                                          \
     &
-OSSL_INT1_PID=$!
 
 sleep 1
 # "jobs" is not portable for posix. Must use bash interpreter!
