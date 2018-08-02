@@ -3105,7 +3105,7 @@ typedef struct Options {
 #ifdef HAVE_EXT_CACHE
     word16            internalCacheOff:1;
 #endif
-    word16            side:1;             /* client or server end */
+    word16            side:2;             /* client, server or neither end */
     word16            verifyPeer:1;
     word16            verifyNone:1;
     word16            failNoCert:1;

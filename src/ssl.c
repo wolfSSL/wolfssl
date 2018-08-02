@@ -248,7 +248,7 @@ WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap)
 {
     WOLFSSL_CTX* ctx = NULL;
 
-    WOLFSSL_ENTER("WOLFSSL_CTX_new_ex");
+    WOLFSSL_ENTER("wolfSSL_CTX_new_ex");
 
     if (initRefCount == 0) {
         /* user no longer forced to call Init themselves */
@@ -8739,12 +8739,16 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         if (ssl == NULL)
             return BAD_FUNC_ARG;
 
-        #ifdef OPENSSL_EXTRA
-            if (ssl->CBIS != NULL) {
-                ssl->CBIS(ssl, SSL_ST_CONNECT, SSL_SUCCESS);
-                ssl->cbmode = SSL_CB_WRITE;
-            }
-        #endif
+    #ifdef OPENSSL_EXTRA
+        if (ssl->options.side == WOLFSSL_NEITHER_END) {
+            ssl->options.side = WOLFSSL_CLIENT_END;
+        }
+
+        if (ssl->CBIS != NULL) {
+            ssl->CBIS(ssl, SSL_ST_CONNECT, SSL_SUCCESS);
+            ssl->cbmode = SSL_CB_WRITE;
+        }
+    #endif
         if (ssl->options.side != WOLFSSL_CLIENT_END) {
             WOLFSSL_ERROR(ssl->error = SIDE_ERROR);
             return WOLFSSL_FATAL_ERROR;
@@ -9124,6 +9128,12 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
             haveMcast = ssl->options.haveMcast;
         #endif
         (void)haveMcast;
+
+    #ifdef OPENSSL_EXTRA
+        if (ssl->options.side == WOLFSSL_NEITHER_END) {
+            ssl->options.side = WOLFSSL_SERVER_END;
+        }
+    #endif
 
         if (ssl->options.side != WOLFSSL_SERVER_END) {
             WOLFSSL_ERROR(ssl->error = SIDE_ERROR);
@@ -15444,17 +15454,17 @@ void wolfSSL_set_connect_state(WOLFSSL* ssl)
 
 int wolfSSL_get_shutdown(const WOLFSSL* ssl)
 {
-    int shutdown = 0;
+    int isShutdown = 0;
 
     WOLFSSL_ENTER("wolfSSL_get_shutdown");
 
     if (ssl) {
         /* in OpenSSL, WOLFSSL_SENT_SHUTDOWN = 1, when closeNotifySent   *
          * WOLFSSL_RECEIVED_SHUTDOWN = 2, from close notify or fatal err */
-        shutdown = ((ssl->options.closeNotify||ssl->options.connReset) << 1)
+        isShutdown = ((ssl->options.closeNotify||ssl->options.connReset) << 1)
                     | (ssl->options.sentNotify);
     }
-    return shutdown;
+    return isShutdown;
 }
 
 
