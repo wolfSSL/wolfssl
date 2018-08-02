@@ -1,16 +1,15 @@
 #!/bin/bash
 
-#set an invalid default PID so we don't cleanup a process unexpectedly
-OSSL_INT1_PID="INVALID"
-
 # ocsp-stapling.test
-cleanup(){
-    # "jobs" is not portable for posix. Must use bash interpreter!
-    for i in `jobs -p`; do pkill -TERM -P $i; done
-    kill $OSSL_INT1_PID
-}
-trap cleanup INT TERM EXIT
 
+cleanup()
+{
+    for i in $(jobs -pr)
+    do
+        kill -s HUP "$i"
+    done
+}
+trap cleanup EXIT INT TERM HUP
 
 server=login.live.com
 ca=certs/external/baltimore-cybertrust-root.pem
@@ -25,11 +24,9 @@ fi
 #./scripts/ping.test $server 2
 
 # client test against the server
-# external test case was never running, disable for now but retain case in event
-# we wish to re-activate in the future.
-#./examples/client/client -X -C -h $server -p 443 -A $ca -g -W 1
-#RESULT=$?
-#[ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
+./examples/client/client -C -h $server -p 443 -A $ca -g -W 1
+RESULT=$?
+[ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
 
 
 # Test with example server
@@ -48,10 +45,7 @@ openssl ocsp -port 22221 -nmin 1                                \
     -rsigner certs/ocsp/ocsp-responder-cert.pem                 \
     -rkey    certs/ocsp/ocsp-responder-key.pem                  \
     -CA      certs/ocsp/intermediate1-ca-cert.pem               \
-    $@                                                          \
-    &
-
-OSSL_INT1_PID=$!
+    "$@" &
 
 sleep 1
 # "jobs" is not portable for posix. Must use bash interpreter!

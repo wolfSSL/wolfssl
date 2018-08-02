@@ -1454,7 +1454,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         #endif
 
         if (done) {
-            printf("external test can't be run in this mode");
+            printf("external test can't be run in this mode\n");
 
             ((func_args*)args)->return_code = 0;
             XEXIT_T(EXIT_SUCCESS);
