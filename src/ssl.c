@@ -14553,7 +14553,6 @@ WOLFSSL_X509* wolfSSL_X509_d2i(WOLFSSL_X509** x509, const byte* in, int len)
             newX509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), NULL,
                                              DYNAMIC_TYPE_X509);
             if (newX509 != NULL) {
-                XMEMSET(newX509, 0, sizeof(WOLFSSL_X509));
                 InitX509(newX509, 1, NULL);
                 if (CopyDecodedToX509(newX509, cert) != 0) {
                     wolfSSL_X509_free(newX509);
@@ -15188,7 +15187,6 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_buffer(
                 x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), NULL,
                                                              DYNAMIC_TYPE_X509);
                 if (x509 != NULL) {
-                    XMEMSET(x509, 0, sizeof(WOLFSSL_X509));
                     InitX509(x509, 1, NULL);
                     if (CopyDecodedToX509(x509, cert) != 0) {
                         wolfSSL_X509_free(x509);
@@ -28370,7 +28368,6 @@ WOLFSSL_X509* wolfSSL_get_chain_X509(WOLFSSL_X509_CHAIN* chain, int idx)
                     WOLFSSL_MSG("Failed alloc X509");
                 }
                 else {
-                    XMEMSET(x509, 0, sizeof(WOLFSSL_X509));
                     InitX509(x509, 1, NULL);
 
                     if ((ret = CopyDecodedToX509(x509, cert)) != 0) {
