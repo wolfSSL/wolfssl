@@ -466,8 +466,6 @@ struct DecodedName {
     int     cnLen;
     int     snIdx;
     int     snLen;
-    int     bcIdx;
-    int     bcLen;
     int     cIdx;
     int     cLen;
     int     lIdx;
@@ -478,10 +476,14 @@ struct DecodedName {
     int     oLen;
     int     ouIdx;
     int     ouLen;
+#ifdef WOLFSSL_CERT_EXT
+    int     bcIdx;
+    int     bcLen;
     int     jcIdx;
     int     jcLen;
     int     jsIdx;
     int     jsLen;
+#endif
     int     emailIdx;
     int     emailLen;
     int     uidIdx;
@@ -684,6 +686,7 @@ struct DecodedCert {
     char*   subjectOU;
     int     subjectOULen;
     char    subjectOUEnc;
+#ifdef WOLFSSL_CERT_EXT
     char*   subjectBC;
     int     subjectBCLen;
     char    subjectBCEnc;
@@ -693,6 +696,7 @@ struct DecodedCert {
     char*   subjectJS;
     int     subjectJSLen;
     char    subjectJSEnc;
+#endif
     char*   subjectEmail;
     int     subjectEmailLen;
 #endif /* WOLFSSL_CERT_GEN */
@@ -937,7 +941,11 @@ WOLFSSL_LOCAL void FreeDer(DerBuffer** der);
 #ifdef WOLFSSL_CERT_GEN
 
 enum cert_enums {
+#ifdef WOLFSSL_CERT_EXT
     NAME_ENTRIES    =  9,
+#else
+    NAME_ENTRIES    =  8,
+#endif
     JOINT_LEN       =  2,
     EMAIL_JOINT_LEN =  9,
     PILOT_JOINT_LEN =  10,

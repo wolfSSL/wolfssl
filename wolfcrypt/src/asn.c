@@ -4223,6 +4223,7 @@ static int GetName(DecodedCert* cert, int nameType)
                     dName->snLen = strLen;
                 #endif /* OPENSSL_EXTRA */
             }
+        #ifdef WOLFSSL_CERT_EXT
             else if (id == ASN_BUS_CAT) {
                 copy = WOLFSSL_BUS_CAT;
             #ifdef WOLFSSL_CERT_GEN
@@ -4237,6 +4238,7 @@ static int GetName(DecodedCert* cert, int nameType)
                 dName->bcLen = strLen;
             #endif /* OPENSSL_EXTRA */
             }
+        #endif /* WOLFSSL_CERT_EXT */
             if (copy && !tooBig) {
                 XMEMCPY(&full[idx], copy, XSTRLEN(copy));
                 idx += (word32)XSTRLEN(copy);
@@ -4250,6 +4252,7 @@ static int GetName(DecodedCert* cert, int nameType)
 
             cert->srcIdx += strLen;
         }
+    #ifdef WOLFSSL_CERT_EXT
         else if ((0 == memcmp(&cert->source[cert->srcIdx],
                     "\x2b\x06\x01\x04\x01\x82\x37\x3c\x02\x01", 10)) &&
                  ((cert->source[cert->srcIdx + 10] == 0x3) ||
@@ -4317,6 +4320,7 @@ static int GetName(DecodedCert* cert, int nameType)
 
             cert->srcIdx += strLen;
         }
+    #endif /* WOLFSSL_CERT_EXT */
         else {
             /* skip */
             byte email = FALSE;
@@ -9362,10 +9366,14 @@ static const char* GetOneName(CertName* name, int idx)
     case 6:
        return name->commonName;
 
+#ifdef WOLFSSL_CERT_EXT
     case 7:
         return name->busCat;
 
     case 8:
+#else
+    case 7:
+#endif
        return name->email;
 
     default:
@@ -9399,9 +9407,10 @@ static char GetNameType(CertName* name, int idx)
     case 6:
        return name->commonNameEnc;
 
+#ifdef WOLFSSL_CERT_EXT
     case 7:
         return name->busCatEnc;
-
+#endif
     default:
        return 0;
     }
@@ -11164,11 +11173,11 @@ int wc_MakeSelfCert(Cert* cert, byte* buffer, word32 buffSz,
 #ifdef WOLFSSL_CERT_EXT
 
 /* Get raw subject from cert, which may contain OIDs not parsed by Decode. */
-int wc_GetSubjectRaw(byte *subjectRaw, Cert *cert)
+int wc_GetSubjectRaw(byte **subjectRaw, Cert *cert)
 {
     int rc = 0;
     if ((subjectRaw != NULL) && (cert != NULL)) {
-        subjectRaw = cert->sbjRaw;
+        *subjectRaw = cert->sbjRaw;
         rc = 0;
     }
     return rc;
@@ -11890,6 +11899,7 @@ static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
             cn->sur[sz] = '\0';
             cn->surEnc = decoded->subjectSNEnc;
         }
+    #ifdef WOLFSSL_CERT_EXT
         if (decoded->subjectBC) {
             sz = (decoded->subjectBCLen < CTC_NAME_SIZE) ? decoded->subjectBCLen
                                                          : CTC_NAME_SIZE - 1;
@@ -11911,6 +11921,7 @@ static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
             cn->joiSt[sz] = '\0';
             cn->joiStEnc = decoded->subjectJSEnc;
         }
+    #endif
         if (decoded->subjectEmail) {
             sz = (decoded->subjectEmailLen < CTC_NAME_SIZE)
                ?  decoded->subjectEmailLen : CTC_NAME_SIZE - 1;
