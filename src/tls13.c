@@ -5699,8 +5699,7 @@ static int DoTls13CertificateVerify(WOLFSSL* ssl, byte* input,
         case TLS_ASYNC_DO:
         {
         #ifndef NO_RSA
-            if (args->sigAlgo == rsa_sa_algo ||
-                                             args->sigAlgo == rsa_pss_sa_algo) {
+            if (ssl->peerRsaKey != NULL && ssl->peerRsaKeyPresent != 0) {
                 WOLFSSL_MSG("Doing RSA peer cert verify");
 
                 ret = RsaVerify(ssl, sig->buffer, sig->length, &args->output,
