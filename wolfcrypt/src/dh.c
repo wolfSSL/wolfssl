@@ -765,7 +765,7 @@ static const byte dh_ffdhe8192_p[] = {
 };
 static const byte dh_ffdhe8192_g[] = { 0x02 };
 #ifdef HAVE_FFDHE_Q
-static const byte dh_ffdhe8192_g[] = {
+static const byte dh_ffdhe8192_q[] = {
     0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
     0xD6, 0xFC, 0x2A, 0x2C, 0x51, 0x5D, 0xA5, 0x4D,
     0x57, 0xEE, 0x2B, 0x10, 0x13, 0x9E, 0x9E, 0x78,
@@ -1925,8 +1925,9 @@ int wc_DhAgree(DhKey* key, byte* agree, word32* agreeSz, const byte* priv,
 }
 
 
-int wc_DhSetKey_ex(DhKey* key, const byte* p, word32 pSz, const byte* g,
-                   word32 gSz, const byte* q, word32 qSz)
+static int _DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
+                   word32 gSz, const byte* q, word32 qSz, int trusted,
+                   WC_RNG* rng)
 {
     int ret = 0;
     mp_int* keyP = NULL;
@@ -1963,6 +1964,18 @@ int wc_DhSetKey_ex(DhKey* key, const byte* p, word32 pSz, const byte* g,
         else
             keyP = &key->p;
     }
+
+    if (ret == 0 && !trusted) {
+        int isPrime = 0;
+        if (rng != NULL)
+            ret = mp_prime_is_prime_ex(keyP, 8, &isPrime, rng);
+        else
+            ret = mp_prime_is_prime(keyP, 8, &isPrime);
+
+        if (ret == 0 && isPrime == 0)
+            ret = DH_CHECK_PUB_E;
+    }
+
     if (ret == 0 && mp_init(&key->g) != MP_OKAY)
         ret = MP_INIT_E;
     if (ret == 0) {
@@ -1996,11 +2009,26 @@ int wc_DhSetKey_ex(DhKey* key, const byte* p, word32 pSz, const byte* g,
 }
 
 
+int wc_DhSetCheckKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
+                   word32 gSz, const byte* q, word32 qSz, int trusted,
+                   WC_RNG* rng)
+{
+    return _DhSetKey(key, p, pSz, g, gSz, q, qSz, trusted, rng);
+}
+
+
+int wc_DhSetKey_ex(DhKey* key, const byte* p, word32 pSz, const byte* g,
+                   word32 gSz, const byte* q, word32 qSz)
+{
+    return _DhSetKey(key, p, pSz, g, gSz, q, qSz, 1, NULL);
+}
+
+
 /* not in asn anymore since no actual asn types used */
 int wc_DhSetKey(DhKey* key, const byte* p, word32 pSz, const byte* g,
                 word32 gSz)
 {
-    return wc_DhSetKey_ex(key, p, pSz, g, gSz, NULL, 0);
+    return _DhSetKey(key, p, pSz, g, gSz, NULL, 0, 1, NULL);
 }
 
 
@@ -2097,7 +2125,7 @@ int wc_DhGenerateParams(WC_RNG *rng, int modSz, DhKey *dh)
     /* loop until p is prime */
     if (ret == 0) {
         do {
-            if (mp_prime_is_prime(&dh->p, 8, &primeCheck) != MP_OKAY)
+            if (mp_prime_is_prime_ex(&dh->p, 8, &primeCheck, rng) != MP_OKAY)
                 ret = PRIME_GEN_E;
 
             if (primeCheck != MP_YES) {

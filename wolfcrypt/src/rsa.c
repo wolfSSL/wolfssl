@@ -2769,8 +2769,8 @@ static WC_INLINE int RsaSizeCheck(int size)
 }
 
 
-static int wc_CheckProbablePrime_ex(mp_int* p, mp_int* q, mp_int* e, int nlen,
-                                    int* isPrime)
+static int _CheckProbablePrime(mp_int* p, mp_int* q, mp_int* e, int nlen,
+                                    int* isPrime, WC_RNG* rng)
 {
     int ret;
     mp_int tmp1, tmp2;
@@ -2811,10 +2811,17 @@ static int wc_CheckProbablePrime_ex(mp_int* p, mp_int* q, mp_int* e, int nlen,
     ret = mp_cmp_d(&tmp2, 1);
     if (ret != MP_EQ) goto exit; /* e divides p-1 */
 
-    /* 4.5.1,5.6.1 - Check primality of p with 8 iterations */
-    ret = mp_prime_is_prime(prime, 8, isPrime);
-        /* Performs some divides by a table of primes, and then does M-R,
-         * it sets isPrime as a side-effect. */
+    /* 4.5.1,5.6.1 - Check primality of p with 8 rounds of M-R.
+     * mp_prime_is_prime_ex() performs test divisons against the first 256
+     * prime numbers. After that it performs 8 rounds of M-R using random
+     * bases between 2 and n-2.
+     * mp_prime_is_prime() performs the same test divisions and then does
+     * M-R with the first 8 primes. Both functions set isPrime as a
+     * side-effect. */
+    if (rng != NULL)
+        ret = mp_prime_is_prime_ex(prime, 8, isPrime, rng);
+    else
+        ret = mp_prime_is_prime(prime, 8, isPrime);
     if (ret != MP_OKAY) goto notOkay;
 
 exit:
@@ -2826,11 +2833,10 @@ notOkay:
 }
 
 
-
-int wc_CheckProbablePrime(const byte* pRaw, word32 pRawSz,
+int wc_CheckProbablePrime_ex(const byte* pRaw, word32 pRawSz,
                           const byte* qRaw, word32 qRawSz,
                           const byte* eRaw, word32 eRawSz,
-                          int nlen, int* isPrime)
+                          int nlen, int* isPrime, WC_RNG* rng)
 {
     mp_int p, q, e;
     mp_int* Q = NULL;
@@ -2863,7 +2869,7 @@ int wc_CheckProbablePrime(const byte* pRaw, word32 pRawSz,
         ret = mp_read_unsigned_bin(&e, eRaw, eRawSz);
 
     if (ret == MP_OKAY)
-        ret = wc_CheckProbablePrime_ex(&p, Q, &e, nlen, isPrime);
+        ret = _CheckProbablePrime(&p, Q, &e, nlen, isPrime, rng);
 
     ret = (ret == MP_OKAY) ? 0 : PRIME_GEN_E;
 
@@ -2872,6 +2878,16 @@ int wc_CheckProbablePrime(const byte* pRaw, word32 pRawSz,
     mp_clear(&e);
 
     return ret;
+}
+
+
+int wc_CheckProbablePrime(const byte* pRaw, word32 pRawSz,
+                          const byte* qRaw, word32 qRawSz,
+                          const byte* eRaw, word32 eRawSz,
+                          int nlen, int* isPrime)
+{
+    return wc_CheckProbablePrime_ex(pRaw, pRawSz, qRaw, qRawSz,
+                          eRaw, eRawSz, nlen, isPrime, NULL);
 }
 
 
@@ -2950,7 +2966,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
             }
 
             if (err == MP_OKAY)
-                err = wc_CheckProbablePrime_ex(&p, NULL, &tmp3, size, &isPrime);
+                err = _CheckProbablePrime(&p, NULL, &tmp3, size, &isPrime, rng);
 
 #ifdef WOLFSSL_FIPS
             i++;
@@ -2986,7 +3002,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
             }
 
             if (err == MP_OKAY)
-                err = wc_CheckProbablePrime_ex(&p, &q, &tmp3, size, &isPrime);
+                err = _CheckProbablePrime(&p, &q, &tmp3, size, &isPrime, rng);
 
 #ifdef WOLFSSL_FIPS
             i++;

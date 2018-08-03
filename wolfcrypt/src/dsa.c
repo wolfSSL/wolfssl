@@ -337,7 +337,7 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
 
     /* loop until p is prime */
     while (check_prime == MP_NO) {
-        err = mp_prime_is_prime(&dsa->p, 8, &check_prime);
+        err = mp_prime_is_prime_ex(&dsa->p, 8, &check_prime, rng);
         if (err != MP_OKAY) {
             mp_clear(&dsa->q);
             mp_clear(&dsa->p);
@@ -426,21 +426,8 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
 #endif /* WOLFSSL_KEY_GEN */
 
 
-/* Import raw DSA parameters into DsaKey structure for use with wc_MakeDsaKey(),
- * input parameters (p,q,g) should be represented as ASCII hex values.
- *
- * dsa  - pointer to initialized DsaKey structure
- * p    - DSA (p) parameter, ASCII hex string
- * pSz  - length of p
- * q    - DSA (q) parameter, ASCII hex string
- * qSz  - length of q
- * g    - DSA (g) parameter, ASCII hex string
- * gSz  - length of g
- *
- * returns 0 on success, negative upon failure
- */
-int wc_DsaImportParamsRaw(DsaKey* dsa, const char* p, const char* q,
-                          const char* g)
+static int _DsaImportParamsRaw(DsaKey* dsa, const char* p, const char* q,
+                          const char* g, int trusted, WC_RNG* rng)
 {
     int err;
     word32 pSz, qSz;
@@ -450,6 +437,18 @@ int wc_DsaImportParamsRaw(DsaKey* dsa, const char* p, const char* q,
 
     /* read p */
     err = mp_read_radix(&dsa->p, p, MP_RADIX_HEX);
+    if (err == MP_OKAY && !trusted) {
+        int isPrime = 1;
+        if (rng == NULL)
+            err = mp_prime_is_prime(&dsa->p, 8, &isPrime);
+        else
+            err = mp_prime_is_prime_ex(&dsa->p, 8, &isPrime, rng);
+
+        if (err == MP_OKAY) {
+            if (!isPrime)
+                err = DH_CHECK_PUB_E;
+        }
+    }
 
     /* read q */
     if (err == MP_OKAY)
@@ -475,6 +474,49 @@ int wc_DsaImportParamsRaw(DsaKey* dsa, const char* p, const char* q,
     }
 
     return err;
+}
+
+
+/* Import raw DSA parameters into DsaKey structure for use with wc_MakeDsaKey(),
+ * input parameters (p,q,g) should be represented as ASCII hex values.
+ *
+ * dsa  - pointer to initialized DsaKey structure
+ * p    - DSA (p) parameter, ASCII hex string
+ * pSz  - length of p
+ * q    - DSA (q) parameter, ASCII hex string
+ * qSz  - length of q
+ * g    - DSA (g) parameter, ASCII hex string
+ * gSz  - length of g
+ *
+ * returns 0 on success, negative upon failure
+ */
+int wc_DsaImportParamsRaw(DsaKey* dsa, const char* p, const char* q,
+                          const char* g)
+{
+    return _DsaImportParamsRaw(dsa, p, q, g, 1, NULL);
+}
+
+
+/* Import raw DSA parameters into DsaKey structure for use with wc_MakeDsaKey(),
+ * input parameters (p,q,g) should be represented as ASCII hex values. Check
+ * that the p value is probably prime.
+ *
+ * dsa  - pointer to initialized DsaKey structure
+ * p    - DSA (p) parameter, ASCII hex string
+ * pSz  - length of p
+ * q    - DSA (q) parameter, ASCII hex string
+ * qSz  - length of q
+ * g    - DSA (g) parameter, ASCII hex string
+ * gSz  - length of g
+ * trusted - trust that p is OK
+ * rng  - random number generator for the prime test
+ *
+ * returns 0 on success, negative upon failure
+ */
+int wc_DsaImportParamsRawCheck(DsaKey* dsa, const char* p, const char* q,
+                          const char* g, int trusted, WC_RNG* rng)
+{
+    return _DsaImportParamsRaw(dsa, p, q, g, trusted, rng);
 }
 
 
