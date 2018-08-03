@@ -1417,6 +1417,7 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
      * store->certs[i]:     A `WOLFSSL_BUFFER_INFO` with plain DER for each cert
      * store->store:        WOLFSSL_X509_STORE with CA cert chain
      * store->store->cm:    WOLFSSL_CERT_MANAGER
+     * store->ex_data:      The WOLFSSL object pointer
      */
 
     printf("In verification callback, error = %d, %s\n", store->error,

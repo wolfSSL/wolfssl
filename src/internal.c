@@ -7921,6 +7921,8 @@ static void AddSessionCertToChain(WOLFSSL_X509_CHAIN* chain,
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS) || \
     defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 /* Copy parts X509 needs from Decoded cert, 0 on success */
+/* The same DecodedCert cannot be copied to WOLFSSL_X509 twice otherwise the
+ * altNames pointers could be free'd by second x509 still active by first */
 int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 {
     int ret = 0;
@@ -8464,6 +8466,7 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         store->userCtx = ssl->verifyCbCtx;
         store->certs = args->certs;
         store->totalCerts = args->totalCerts;
+        store->ex_data = ssl;
 
     #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
         if (ssl->ctx->x509_store_pt != NULL) {
@@ -8474,13 +8477,15 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         }
     #endif
     #ifdef OPENSSL_EXTRA
-        InitX509(x509, 1, ssl->heap);
-        if (CopyDecodedToX509(x509, args->dCert) == 0) {
-            store->current_cert = x509;
+        if (args->certIdx == 0) {
+            store->current_cert = &ssl->peerCert; /* use existing X509 */
         }
-    #endif
-    #if defined(HAVE_EX_DATA) || defined(HAVE_FORTRESS)
-        store->ex_data = ssl;
+        else {
+            InitX509(x509, 0, ssl->heap);
+            if (CopyDecodedToX509(x509, args->dCert) == 0) {
+                store->current_cert = x509;
+            }
+        }
     #endif
     #ifdef SESSION_CERTS
         store->sesChain = &ssl->session.chain;
@@ -8491,12 +8496,21 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
             ret = 0;
         }
     #ifdef OPENSSL_EXTRA
-        FreeX509(x509);
+        if (args->certIdx > 0)
+            FreeX509(x509);
     #endif
     #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
         wolfSSL_sk_X509_free(store->chain);
         store->chain = NULL;
     #endif
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(domain, ssl->heap, DYNAMIC_TYPE_STRING);
+        #ifdef OPENSSL_EXTRA
+        XFREE(x509, ssl->heap, DYNAMIC_TYPE_X509);
+        #endif
+        XFREE(store, ssl->heap, DYNAMIC_TYPE_X509_STORE);
+    #endif
+
     #ifdef SESSION_CERTS
         if (store->discardSessionCerts) {
             WOLFSSL_MSG("Verify callback requested discard sess certs");
@@ -8506,13 +8520,6 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         #endif
         }
     #endif /* SESSION_CERTS */
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(domain, ssl->heap, DYNAMIC_TYPE_STRING);
-        #ifdef OPENSSL_EXTRA
-        XFREE(x509, ssl->heap, DYNAMIC_TYPE_X509);
-        #endif
-        XFREE(store, ssl->heap, DYNAMIC_TYPE_X509_STORE);
-    #endif
     }
 
     if (ret != 0) {
@@ -9010,7 +9017,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                    switch */
                                 break;
                         } /* switch (dCert->keyOID) */
-                    } /* !ssl->options.verifyNone */
+                    } /* if (!ssl->options.verifyNone) */
 
                     if (ret == 0 && args->dCert->isCA == 0) {
                         WOLFSSL_MSG("Chain cert is not a CA, not adding as one");

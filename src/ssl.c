@@ -14439,6 +14439,9 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     WOLFSSL_X509* wolfSSL_get_peer_certificate(WOLFSSL* ssl)
     {
         WOLFSSL_ENTER("SSL_get_peer_certificate");
+        if (ssl == NULL)
+            return NULL;
+
         if (ssl->peerCert.issuer.sz)
             return &ssl->peerCert;
 #ifdef SESSION_CERTS
