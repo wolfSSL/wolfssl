@@ -8335,7 +8335,6 @@ typedef struct ProcPeerCertArgs {
     buffer*      exts; /* extentions */
 #endif
     DecodedCert* dCert;
-    char*  domain;
     word32 idx;
     word32 begin;
     int    totalCerts; /* number of certs in certs buffer */
@@ -8358,16 +8357,184 @@ typedef struct ProcPeerCertArgs {
 #endif
 } ProcPeerCertArgs;
 
+/* WOLFSSL_ALWAYS_VERIFY_CB: Use verify callback for success or failure cases */
+/* WOLFSSL_VERIFY_CB_ALL_CERTS: Issue callback for all intermediate certificates */
+
+/* Callback is issued for certificate presented in TLS Certificate (11) packet.
+ * The intermediates are done first then peer leaf cert last. Use the
+ * store->error_depth member to determine index (0=peer, >1 intermediates)
+ */
+
+static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
+{
+    int verify_ok = 0, alertWhy = 0, use_cb = 0;
+
+    /* Determine return code and alert reason */
+    if (ret != 0) {
+        alertWhy = bad_certificate;
+        if (ret == ASN_AFTER_DATE_E ||
+            ret == ASN_BEFORE_DATE_E) {
+            alertWhy = certificate_expired;
+        }
+    }
+    else {
+        verify_ok = 1;
+    }
+
+    /* Determine if verify callback should be used */
+    if (ret != 0) {
+        if (!ssl->options.verifyNone) {
+            use_cb = 1; /* always report errors */
+        }
+    }
+#ifdef WOLFSSL_ALWAYS_VERIFY_CB
+    /* use verify callback for success on peer leaf cert (not just failure) */
+    if (args->certIdx == 0 && ret == 0) {
+        use_cb = 1;
+    }
+#endif
+#ifdef WOLFSSL_VERIFY_CB_ALL_CERTS
+    /* only perform verify callback if not peer leaf cert at index 0 */
+    if (args->certIdx > 0) {
+        use_cb = 1;
+    }
+#endif
+
+    /* if verify callback has been set */
+    if (use_cb && ssl->verifyCallback) {
+    #ifdef WOLFSSL_SMALL_STACK
+        WOLFSSL_X509_STORE_CTX* store;
+        #ifdef OPENSSL_EXTRA
+        WOLFSSL_X509* x509;
+        #endif
+        char* domain = NULL;
+    #else
+        WOLFSSL_X509_STORE_CTX store[1];
+        #ifdef OPENSSL_EXTRA
+        WOLFSSL_X509           x509[1];
+        #endif
+        char domain[ASN_NAME_MAX];
+    #endif
+
+    #ifdef WOLFSSL_SMALL_STACK
+        store = (WOLFSSL_X509_STORE_CTX*)XMALLOC(
+            sizeof(WOLFSSL_X509_STORE_CTX), ssl->heap, DYNAMIC_TYPE_X509_STORE);
+        if (store == NULL) {
+            return MEMORY_E;
+        }
+        #ifdef OPENSSL_EXTRA
+        x509 = (WOLFSSL_X509*)XMALLOC(sizeof(WOLFSSL_X509), ssl->heap,
+            DYNAMIC_TYPE_X509);
+        if (x509 == NULL) {
+            XFREE(store, ssl->heap, DYNAMIC_TYPE_X509);
+            return MEMORY_E;
+        }
+        #endif
+        domain = (char*)XMALLOC(ASN_NAME_MAX, ssl->heap, DYNAMIC_TYPE_STRING);
+        if (domain == NULL) {
+            XFREE(store, ssl->heap, DYNAMIC_TYPE_X509);
+            #ifdef OPENSSL_EXTRA
+            XFREE(x509, ssl->heap, DYNAMIC_TYPE_X509);
+            #endif
+            return MEMORY_E;
+        }
+    #endif /* WOLFSSL_SMALL_STACK */
+
+        XMEMSET(store, 0, sizeof(WOLFSSL_X509_STORE_CTX));
+    #ifdef OPENSSL_EXTRA
+        XMEMSET(x509, 0, sizeof(WOLFSSL_X509));
+    #endif
+        domain[0] = '\0';
+
+        /* build subject CN as string to return in store */
+        if (args->dCert && args->dCert->subjectCN) {
+            int subjectCNLen = args->dCert->subjectCNLen;
+            if (subjectCNLen > ASN_NAME_MAX-1)
+                subjectCNLen = ASN_NAME_MAX-1;
+            if (subjectCNLen > 0) {
+                XMEMCPY(domain, args->dCert->subjectCN, subjectCNLen);
+                domain[subjectCNLen] = '\0';
+            }
+        }
+
+        store->error = ret;
+        store->error_depth = args->certIdx;
+        store->discardSessionCerts = 0;
+        store->domain = domain;
+        store->userCtx = ssl->verifyCbCtx;
+        store->certs = args->certs;
+        store->totalCerts = args->totalCerts;
+
+    #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
+        if (ssl->ctx->x509_store_pt != NULL) {
+            store->store = ssl->ctx->x509_store_pt;
+        }
+        else {
+            store->store = &ssl->ctx->x509_store;
+        }
+    #endif
+    #ifdef OPENSSL_EXTRA
+        InitX509(x509, 1, ssl->heap);
+        if (CopyDecodedToX509(x509, args->dCert) == 0) {
+            store->current_cert = x509;
+        }
+    #endif
+    #if defined(HAVE_EX_DATA) || defined(HAVE_FORTRESS)
+        store->ex_data = ssl;
+    #endif
+    #ifdef SESSION_CERTS
+        store->sesChain = &ssl->session.chain;
+    #endif
+        /* non-zero return code indicates failure override */
+        if (ssl->verifyCallback(verify_ok, store)) {
+            WOLFSSL_MSG("Verify callback overriding error!");
+            ret = 0;
+        }
+    #ifdef OPENSSL_EXTRA
+        FreeX509(x509);
+    #endif
+    #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
+        wolfSSL_sk_X509_free(store->chain);
+        store->chain = NULL;
+    #endif
+    #ifdef SESSION_CERTS
+        if (store->discardSessionCerts) {
+            WOLFSSL_MSG("Verify callback requested discard sess certs");
+            ssl->session.chain.count = 0;
+        #ifdef WOLFSSL_ALT_CERT_CHAINS
+            ssl->session.altChain.count = 0;
+        #endif
+        }
+    #endif /* SESSION_CERTS */
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(domain, ssl->heap, DYNAMIC_TYPE_STRING);
+        #ifdef OPENSSL_EXTRA
+        XFREE(x509, ssl->heap, DYNAMIC_TYPE_X509);
+        #endif
+        XFREE(store, ssl->heap, DYNAMIC_TYPE_X509_STORE);
+    #endif
+    }
+
+    if (ret != 0) {
+        if (!ssl->options.verifyNone) {
+            /* handle failure */
+            SendAlert(ssl, alert_fatal, alertWhy); /* try to send */
+            ssl->options.isClosed = 1;
+        }
+
+        /* Report SSL error */
+        ssl->error = ret;
+    }
+
+    return ret;
+}
+
 static void FreeProcPeerCertArgs(WOLFSSL* ssl, void* pArgs)
 {
     ProcPeerCertArgs* args = (ProcPeerCertArgs*)pArgs;
 
     (void)ssl;
 
-    if (args->domain) {
-        XFREE(args->domain, ssl->heap, DYNAMIC_TYPE_STRING);
-        args->domain = NULL;
-    }
     if (args->certs) {
         XFREE(args->certs, ssl->heap, DYNAMIC_TYPE_DER);
         args->certs = NULL;
@@ -8745,6 +8912,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 #endif
                     if (!AlreadySigner(ssl->ctx->cm, subjectHash))
                         args->untrustedDepth = 1;
+
                     FreeDecodedCert(args->dCert);
                     args->dCertInit = 0;
                 }
@@ -8842,7 +9010,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                    switch */
                                 break;
                         } /* switch (dCert->keyOID) */
-                    } /* if (!ssl->options.verifyNone) */
+                    } /* !ssl->options.verifyNone */
 
                     if (ret == 0 && args->dCert->isCA == 0) {
                         WOLFSSL_MSG("Chain cert is not a CA, not adding as one");
@@ -8862,7 +9030,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                     #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
                         if (args->certIdx > args->untrustedDepth)
-                            args->untrustedDepth = (char) args->certIdx + 1;
+                            args->untrustedDepth = (char)args->certIdx + 1;
                     #endif
 
                         /* already verified above */
@@ -8965,192 +9133,10 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
             #endif /* HAVE_OCSP || HAVE_CRL */
 
-            #if defined(WOLFSSL_VERIFY_CB_ALL_CERTS)
-                    if (ret != 0) {
-                        if (!ssl->options.verifyNone) {
-                            int why = bad_certificate;
+                    /* Do verify callback */
+                    ret = DoVerifyCallback(ssl, ret, args);
 
-                        if (ret == ASN_AFTER_DATE_E || ret ==
-                                ASN_BEFORE_DATE_E) {
-                            why = certificate_expired;
-                        }
-                        if (ssl->verifyCallback) {
-                            int ok;
-
-                        #ifdef WOLFSSL_SMALL_STACK
-                            WOLFSSL_X509_STORE_CTX* store;
-                            WOLFSSL_X509* x509 = (WOLFSSL_X509*)XMALLOC(
-                                sizeof(WOLFSSL_X509), ssl->heap,
-                                DYNAMIC_TYPE_X509);
-                            if (x509 == NULL) {
-                                ERROR_OUT(MEMORY_E, exit_ppc);
-                            }
-                            store = (WOLFSSL_X509_STORE_CTX*)XMALLOC(
-                                    sizeof(WOLFSSL_X509_STORE_CTX), ssl->heap,
-                                                    DYNAMIC_TYPE_X509_STORE);
-                            if (store == NULL) {
-                                wolfSSL_X509_free(x509);
-                                ERROR_OUT(MEMORY_E, exit_ppc);
-                            }
-                        #else
-                            WOLFSSL_X509_STORE_CTX  store[1];
-                            WOLFSSL_X509 x509[1];
-                        #endif
-
-                            XMEMSET(store, 0, sizeof(WOLFSSL_X509_STORE_CTX));
-
-                            store->error = ret;
-                            store->error_depth = args->certIdx;
-                            store->discardSessionCerts = 0;
-                            store->domain = args->domain;
-                            store->userCtx = ssl->verifyCbCtx;
-                            store->certs = args->certs;
-                            store->totalCerts = args->totalCerts;
-
-                        #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-                            if (ssl->ctx->x509_store_pt != NULL) {
-                                store->store = ssl->ctx->x509_store_pt;
-                            }
-                            else {
-                                store->store = &ssl->ctx->x509_store;
-                            }
-                        #endif
-                        #if !defined(NO_CERTS)
-                            InitX509(x509, 1, ssl->heap);
-                            #if defined(KEEP_PEER_CERT) || \
-                                defined(SESSION_CERTS)
-                            if (CopyDecodedToX509(x509, args->dCert) == 0) {
-                                store->current_cert = x509;
-                            }
-                            #endif
-                        #endif
-                        #if defined(HAVE_EX_DATA) || defined(HAVE_FORTRESS)
-                            store->ex_data = ssl;
-                        #endif
-                        #ifdef SESSION_CERTS
-                            store->sesChain = &(ssl->session.chain);
-                        #endif
-                            ok = ssl->verifyCallback(0, store);
-                            if (ok) {
-                                WOLFSSL_MSG("Verify callback overriding error!");
-                                ret = 0;
-                            }
-                        #ifndef NO_CERTS
-                            FreeX509(x509);
-                        #endif
-                        #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
-                            wolfSSL_sk_X509_free(store->chain);
-                            store->chain = NULL;
-                        #endif
-                        #ifdef SESSION_CERTS
-                            if (store->discardSessionCerts) {
-                                WOLFSSL_MSG("Verify callback requested discard sess certs");
-                                ssl->session.chain.count = 0;
-                            #ifdef WOLFSSL_ALT_CERT_CHAINS
-                                ssl->session.altChain.count = 0;
-                            #endif
-                            }
-                        #endif /* SESSION_CERTS */
-                        #ifdef WOLFSSL_SMALL_STACK
-                            XFREE(x509, ssl->heap, DYNAMIC_TYPE_X509);
-                            XFREE(store, ssl->heap, DYNAMIC_TYPE_X509_STORE);
-                        #endif
-                        }
-                        if (ret != 0) {
-                            SendAlert(ssl, alert_fatal, why);   /* try to send */
-                            ssl->options.isClosed = 1;
-                        }
-                    }
-
-                    ssl->error = ret;
-                }
-            #ifdef WOLFSSL_ALWAYS_VERIFY_CB
-                else {
-                    if (ssl->verifyCallback) {
-                        int ok;
-
-                    #ifdef WOLFSSL_SMALL_STACK
-                        WOLFSSL_X509_STORE_CTX* store;
-                        WOLFSSL_X509* x509 = (WOLFSSL_X509*)XMALLOC(
-                                sizeof(WOLFSSL_X509), ssl->heap,
-                                DYNAMIC_TYPE_X509);
-                        if (x509 == NULL) {
-                            ERROR_OUT(MEMORY_E, exit_ppc);
-                        }
-                        store = (WOLFSSL_X509_STORE_CTX*)XMALLOC(
-                                    sizeof(WOLFSSL_X509_STORE_CTX), ssl->heap,
-                                                    DYNAMIC_TYPE_X509_STORE);
-                        if (store == NULL) {
-                            wolfSSL_X509_free(x509);
-                            ERROR_OUT(MEMORY_E, exit_ppc);
-                        }
-                    #else
-                        WOLFSSL_X509_STORE_CTX  store[1];
-                        WOLFSSL_X509            x509[1];
-                    #endif
-
-                        XMEMSET(store, 0, sizeof(WOLFSSL_X509_STORE_CTX));
-
-                        store->error = ret;
-                        store->error_depth = args->certIdx;
-                        store->discardSessionCerts = 0;
-                        store->domain = args->domain;
-                        store->userCtx = ssl->verifyCbCtx;
-                        store->certs = args->certs;
-                        store->totalCerts = args->totalCerts;
-
-                    #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-                        if (ssl->ctx->x509_store_pt != NULL) {
-                            store->store = ssl->ctx->x509_store_pt;
-                        }
-                        else {
-                            store->store = &ssl->ctx->x509_store;
-                        }
-                    #endif
-                    #if !defined(NO_CERTS)
-                        InitX509(x509, 1, ssl->heap);
-                        #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
-                        if (CopyDecodedToX509(x509, args->dCert) == 0) {
-                            store->current_cert = x509;
-                        }
-                        #endif
-                    #endif
-                    #ifdef SESSION_CERTS
-                        store->sesChain = &(ssl->session.chain);
-                    #endif
-                        store->ex_data = ssl;
-
-                        ok = ssl->verifyCallback(1, store);
-                        if (!ok) {
-                            WOLFSSL_MSG("Verify callback overriding valid certificate!");
-                            ret = -1;
-                            ssl->options.isClosed = 1;
-                        }
-                    #ifndef NO_CERTS
-                        FreeX509(x509);
-                    #endif
-                    #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
-                        wolfSSL_sk_X509_free(store->chain);
-                        store->chain = NULL;
-                    #endif
-                    #ifdef SESSION_CERTS
-                        if (store->discardSessionCerts) {
-                            WOLFSSL_MSG("Verify callback requested discard sess certs");
-                            ssl->session.chain.count = 0;
-                        #ifdef WOLFSSL_ALT_CERT_CHAINS
-                            ssl->session.altChain.count = 0;
-                        #endif
-                        }
-                    #endif /* SESSION_CERTS */
-                    #ifdef WOLFSSL_SMALL_STACK
-                        XFREE(store, ssl->heap, DYNAMIC_TYPE_X509_STORE);
-                        XFREE(x509, ssl->heap, DYNAMIC_TYPE_X509);
-                    #endif
-                    }
-                }
-            #endif /* WOLFSSL_ALWAYS_VERIFY_CB */
-        #endif /* WOLFSSL_VERIFY_CB_ALL_CERTS */
-
+                    /* Handle error codes */
                     if (ret != 0 && args->lastErr == 0) {
                         args->lastErr = ret;   /* save error from last time */
                         ret = 0; /* reset error */
@@ -9445,23 +9431,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
                 ssl->options.havePeerCert = 1;
 
-                args->domain = (char*)XMALLOC(ASN_NAME_MAX, ssl->heap,
-                                                    DYNAMIC_TYPE_STRING);
-                if (args->domain == NULL) {
-                    ERROR_OUT(MEMORY_E, exit_ppc);
-                }
-
-                /* store for callback use */
-                if (args->dCert->subjectCN &&
-                                    args->dCert->subjectCNLen < ASN_NAME_MAX) {
-                    XMEMCPY(args->domain, args->dCert->subjectCN,
-                        args->dCert->subjectCNLen);
-                    args->domain[args->dCert->subjectCNLen] = '\0';
-                }
-                else {
-                    args->domain[0] = '\0';
-                }
-
                 if (!ssl->options.verifyNone && ssl->buffers.domainName.buffer) {
                 #ifndef WOLFSSL_ALLOW_NO_CN_IN_SAN
                     /* Per RFC 5280 section 4.2.1.6, "Whenever such identities
@@ -9677,14 +9646,7 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                         break;
                 }
 
-                FreeDecodedCert(args->dCert);
-                args->dCertInit = 0;
-
-                /* release since we don't need it anymore */
-                if (args->dCert) {
-                    XFREE(args->dCert, ssl->heap, DYNAMIC_TYPE_DCERT);
-                    args->dCert = NULL;
-                }
+                /* args->dCert free'd in function cleanup after callback */
             } /* if (count > 0) */
 
             /* Check for error */
@@ -9699,19 +9661,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
 
         case TLS_ASYNC_FINALIZE:
         {
-        #ifdef WOLFSSL_SMALL_STACK
-            WOLFSSL_X509_STORE_CTX* store = (WOLFSSL_X509_STORE_CTX*)XMALLOC(
-                                    sizeof(WOLFSSL_X509_STORE_CTX), ssl->heap,
-                                                    DYNAMIC_TYPE_X509_STORE);
-            if (store == NULL) {
-                ERROR_OUT(MEMORY_E, exit_ppc);
-            }
-        #else
-            WOLFSSL_X509_STORE_CTX  store[1];
-        #endif
-
-            XMEMSET(store, 0, sizeof(WOLFSSL_X509_STORE_CTX));
-
             /* load last error */
             if (args->lastErr != 0 && ret == 0) {
                 ret = args->lastErr;
@@ -9723,127 +9672,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 ret = MAX_CHAIN_ERROR;
             }
         #endif
-            if (ret != 0) {
-                if (!ssl->options.verifyNone) {
-                    int why = bad_certificate;
 
-                    if (ret == ASN_AFTER_DATE_E || ret == ASN_BEFORE_DATE_E) {
-                        why = certificate_expired;
-                    }
-                    if (ssl->verifyCallback) {
-                        int ok;
-
-                        store->error = ret;
-                        store->error_depth = args->certIdx;
-                        store->discardSessionCerts = 0;
-                        store->domain = args->domain;
-                        store->userCtx = ssl->verifyCbCtx;
-                        store->certs = args->certs;
-                        store->totalCerts = args->totalCerts;
-
-                    #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-                        if (ssl->ctx->x509_store_pt != NULL) {
-                            store->store = ssl->ctx->x509_store_pt;
-                        }
-                        else {
-                            store->store = &ssl->ctx->x509_store;
-                        }
-                    #endif
-                    #ifdef KEEP_PEER_CERT
-                        if (ssl->peerCert.subject.sz > 0)
-                            store->current_cert = &ssl->peerCert;
-                        else
-                            store->current_cert = NULL;
-                    #else
-                        store->current_cert = NULL;
-                    #endif /* KEEP_PEER_CERT */
-                    #if defined(HAVE_EX_DATA) || defined(HAVE_FORTRESS)
-                        store->ex_data = ssl;
-                    #endif
-                    #ifdef SESSION_CERTS
-                        store->sesChain = &(ssl->session.chain);
-                    #endif
-                        ok = ssl->verifyCallback(0, store);
-                        if (ok) {
-                            WOLFSSL_MSG("Verify callback overriding error!");
-                            ret = 0;
-                        }
-                    #ifdef SESSION_CERTS
-                        if (store->discardSessionCerts) {
-                            WOLFSSL_MSG("Verify callback requested discard sess certs");
-                            ssl->session.chain.count = 0;
-                        #ifdef WOLFSSL_ALT_CERT_CHAINS
-                            ssl->session.altChain.count = 0;
-                        #endif
-                        }
-                    #endif /* SESSION_CERTS */
-                    }
-                    if (ret != 0) {
-                        SendAlert(ssl, alert_fatal, why);   /* try to send */
-                        ssl->options.isClosed = 1;
-                    }
-                }
-
-                ssl->error = ret;
-            }
-        #ifdef WOLFSSL_ALWAYS_VERIFY_CB
-            else {
-                if (ssl->verifyCallback) {
-                    int ok;
-
-                    store->error = ret;
-                #ifdef WOLFSSL_WPAS
-                    store->error_depth = 0;
-                #else
-                    store->error_depth = args->certIdx;
-                #endif
-                    store->discardSessionCerts = 0;
-                    store->domain = args->domain;
-                    store->userCtx = ssl->verifyCbCtx;
-                    store->certs = args->certs;
-                    store->totalCerts = args->totalCerts;
-
-                #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
-                    if (ssl->ctx->x509_store_pt != NULL) {
-                        store->store = ssl->ctx->x509_store_pt;
-                    }
-                    else {
-                        store->store = &ssl->ctx->x509_store;
-                    }
-                #endif
-                #ifdef KEEP_PEER_CERT
-                    if (ssl->peerCert.subject.sz > 0)
-                        store->current_cert = &ssl->peerCert;
-                    else
-                        store->current_cert = NULL;
-                #endif
-                    store->ex_data = ssl;
-                #ifdef SESSION_CERTS
-                    store->sesChain = &(ssl->session.chain);
-                #endif
-
-                    ok = ssl->verifyCallback(1, store);
-                    if (!ok) {
-                        WOLFSSL_MSG("Verify callback overriding valid certificate!");
-                        ret = -1;
-                        SendAlert(ssl, alert_fatal, bad_certificate);
-                        ssl->options.isClosed = 1;
-                    }
-                #ifdef SESSION_CERTS
-                    if (store->discardSessionCerts) {
-                        WOLFSSL_MSG("Verify callback requested discard sess certs");
-                        ssl->session.chain.count = 0;
-                    #ifdef WOLFSSL_ALT_CERT_CHAINS
-                        ssl->session.altChain.count = 0;
-                    #endif
-                    }
-                #endif /* SESSION_CERTS */
-                }
-            }
-        #endif /* WOLFSSL_ALWAYS_VERIFY_CB */
+            /* Do verify callback */
+            ret = DoVerifyCallback(ssl, ret, args);
 
             if (ssl->options.verifyNone &&
-                                      (ret == CRL_MISSING || ret == CRL_CERT_REVOKED)) {
+                              (ret == CRL_MISSING || ret == CRL_CERT_REVOKED)) {
                 WOLFSSL_MSG("Ignoring CRL problem based on verify setting");
                 ret = ssl->error = 0;
             }
@@ -9856,13 +9690,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 args->idx += ssl->keys.padSz;
             }
 
-        #if defined(SESSION_CERTS) && defined(OPENSSL_EXTRA)
-            wolfSSL_sk_X509_free(store->chain);
-            store->chain = NULL;
-        #endif
-        #ifdef WOLFSSL_SMALL_STACK
-            XFREE(store, ssl->heap, DYNAMIC_TYPE_X509_STORE);
-        #endif
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_END;
         } /* case TLS_ASYNC_FINALIZE */

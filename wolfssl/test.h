@@ -1408,6 +1408,17 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
 #endif
     (void)preverify;
 
+    /* Verify Callback Arguments:
+     * preverify:           1=Verify Okay, 0=Failure
+     * store->current_cert: Current WOLFSSL_X509 object (only with OPENSSL_EXTRA)
+     * store->error_depth:  Current Index
+     * store->domain:       Subject CN as string (null term)
+     * store->totalCerts:   Number of certs presented by peer
+     * store->certs[i]:     A `WOLFSSL_BUFFER_INFO` with plain DER for each cert
+     * store->store:        WOLFSSL_X509_STORE with CA cert chain
+     * store->store->cm:    WOLFSSL_CERT_MANAGER
+     */
+
     printf("In verification callback, error = %d, %s\n", store->error,
                                  wolfSSL_ERR_error_string(store->error, buffer));
 #ifdef OPENSSL_EXTRA
@@ -1436,9 +1447,11 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
     #endif
 #endif
 
-    printf("\tSubject's domain name is %s\n", store->domain);
+    printf("\tSubject's domain name at %d is %s\n", store->error_depth, store->domain);
 
-    printf("\tAllowing to continue anyway (shouldn't do this, EVER!!!)\n");
+    printf("\tAllowing to continue anyway (shouldn't do this)\n");
+
+    /* A non-zero return code indicates failure override */
     return 1;
 }
 
