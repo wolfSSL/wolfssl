@@ -11939,6 +11939,7 @@ static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
     return ret < 0 ? ret : 0;
 }
 
+#ifdef WOLFSSL_CERT_EXT
 /* Set raw subject from der buffer, return 0 on success */
 static int SetSubjectRawFromCert(byte* sbjRaw, const byte* der, int derSz)
 {
@@ -11988,6 +11989,7 @@ static int SetSubjectRawFromCert(byte* sbjRaw, const byte* der, int derSz)
 
     return ret < 0 ? ret : 0;
 }
+#endif
 
 #ifndef NO_FILESYSTEM
 
@@ -12065,12 +12067,13 @@ int wc_SetSubjectBuffer(Cert* cert, const byte* der, int derSz)
 {
     return SetNameFromCert(&cert->subject, der, derSz);
 }
-
+#ifdef WOLFSSL_CERT_EXT
 /* Set cert raw subject from DER buffer */
 int wc_SetSubjectRaw(Cert* cert, const byte* der, int derSz)
 {
     return SetSubjectRawFromCert(cert->sbjRaw, der, derSz);
 }
+#endif
 
 #ifdef WOLFSSL_ALT_NAMES
 
