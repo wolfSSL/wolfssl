@@ -2578,8 +2578,8 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2_RORX_Len(wc_Sha256* sha256,
 #elif defined(WOLFSSL_IMX6_CAAM) && !defined(NO_IMX6_CAAM_HASH)
     /* functions defined in wolfcrypt/src/port/caam/caam_sha256.c */
 
-//#elif defined(WOLFSSL_AFALG_HASH)
-//    /* implemented in wolfcrypt/src/port/af_alg/afalg_hash.c */
+#elif defined(WOLFSSL_AFALG_HASH)
+    #error SHA224 currently not supported with AF_ALG enabled
 
 #else
 

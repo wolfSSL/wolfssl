@@ -840,7 +840,6 @@ int wc_HashFree(wc_HashAlg* hash, enum wc_HashType type)
             }
             wc_Sha256Free(sha256);
         }
-	wc_Sha256Free(sha256);
 
 
     #ifdef WOLFSSL_SMALL_STACK

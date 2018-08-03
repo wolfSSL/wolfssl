@@ -64,6 +64,7 @@ int wc_InitSha256_ex(wc_Sha256* sha, void* heap, int devId)
 
     sha->rdFd = wc_Afalg_CreateRead(sha->alFd, WC_TYPE_HASH, WC_NAME_SHA256);
     if (sha->rdFd < 0) {
+        close(sha->alFd);
         return WC_AFALG_SOCK_E;
     }
 
