@@ -176,10 +176,20 @@ int wc_Sha256Copy(wc_Sha256* src, wc_Sha256* dst)
     }
 
     XMEMCPY(dst, src, sizeof(wc_Sha256));
+
+#ifdef WOLFSSL_AFALG_HASH_KEEP
+    dst->msg = (byte*)XMALLOC(src->len, dst->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (dst->msg == NULL) {
+        return MEMORY_E;
+    }
+    XMEMCPY(dst->msg, src->msg, src->len);
+#endif
+
     dst->rdFd = accept(src->rdFd, NULL, 0);
     dst->alFd = accept(src->alFd, NULL, 0);
 
     if (dst->rdFd == -1 || dst->alFd == -1) {
+        wc_Sha256Free(dst);
         return -1;
     }
 

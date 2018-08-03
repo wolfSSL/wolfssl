@@ -2750,9 +2750,11 @@ void wc_Sha256Free(wc_Sha256* sha256)
 #if defined(WOLFSSL_AFALG_HASH)
     if (sha256->alFd > 0) {
         close(sha256->alFd);
+        sha256->alFd = -1; /* avoid possible double close on socket */
     }
     if (sha256->rdFd > 0) {
         close(sha256->rdFd);
+        sha256->rdFd = -1; /* avoid possible double close on socket */
     }
 
     #if defined(WOLFSSL_AFALG_HASH_KEEP)
