@@ -142,6 +142,10 @@ enum ECC_TYPES {
     ECC_PREFIX_1 = 161
 };
 
+#define ASN_JOI_PREFIX "\x2b\x06\x01\x04\x01\x82\x37\x3c\x02\x01"
+#define ASN_JOI_C      0x3
+#define ASN_JOI_ST     0x2
+
 enum Misc_ASN {
     ASN_NAME_MAX        = 256,
     MAX_SALT_SIZE       =  64,     /* MAX PKCS Salt length */

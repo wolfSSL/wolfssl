@@ -388,8 +388,10 @@ static void myFipsCb(int ok, int err, const char* hash)
 #ifdef WOLFSSL_STATIC_MEMORY
     #ifdef BENCH_EMBEDDED
         static byte gTestMemory[10000];
-    #elif defined(USE_FAST_MATH) && !defined(ALT_ECC_SIZE)
+    #elif defined(WOLFSSL_CERT_EXT)
         static byte gTestMemory[140000];
+    #elif defined(USE_FAST_MATH) && !defined(ALT_ECC_SIZE)
+        static byte gTestMemory[130000];
     #else
         static byte gTestMemory[80000];
     #endif

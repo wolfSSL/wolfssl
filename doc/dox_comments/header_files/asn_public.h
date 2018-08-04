@@ -400,7 +400,35 @@ WOLFSSL_API int  wc_SetSubject(Cert*, const char*);
     \sa wc_InitCert
     \sa wc_SetSubject
 */
-WOLFSSL_API int  wc_SetSubjectRaw(Cert*, const byte* der, int derSz);
+WOLFSSL_API int  wc_SetSubjectRaw(Cert* cert, const byte* der, int derSz);
+
+/*!
+    \ingroup ASN
+
+    \brief This function gets the raw subject from the certificate structure.
+
+    \return 0 Returned on successfully getting the subject from the certificate
+    \return BAD_FUNC_ARG Returned if there is an error processing the
+    certificate extension
+
+    \param subjectRaw pointer-pointer to the raw subject upon successful return
+    \param cert pointer to the cert from which to get the raw subject
+
+    _Example_
+    \code
+    Cert myCert;
+    byte *subjRaw;
+    // initialize myCert
+
+    if(wc_GetSubjectRaw(&subjRaw, &myCert) != 0) {
+        // error setting subject
+    }
+    \endcode
+
+    \sa wc_InitCert
+    \sa wc_SetSubjectRaw
+*/
+WOLFSSL_API int  wc_GetSubjectRaw(byte **subjectRaw, Cert *cert);
 
 /*!
     \ingroup ASN

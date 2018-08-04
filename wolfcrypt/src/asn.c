@@ -4253,10 +4253,10 @@ static int GetName(DecodedCert* cert, int nameType)
             cert->srcIdx += strLen;
         }
     #ifdef WOLFSSL_CERT_EXT
-        else if ((0 == memcmp(&cert->source[cert->srcIdx],
-                    "\x2b\x06\x01\x04\x01\x82\x37\x3c\x02\x01", 10)) &&
-                 ((cert->source[cert->srcIdx + 10] == 0x3) ||
-                  (cert->source[cert->srcIdx + 10] == 0x2)))
+        else if ((0 == XMEMCMP(&cert->source[cert->srcIdx], ASN_JOI_PREFIX,
+                               sizeof(ASN_JOI_PREFIX))) &&
+                 ((cert->source[cert->srcIdx + 10] == ASN_JOI_C) ||
+                  (cert->source[cert->srcIdx + 10] == ASN_JOI_ST)))
         {
             int strLen;
             byte id;
@@ -4276,7 +4276,7 @@ static int GetName(DecodedCert* cert, int nameType)
             }
 
             /* Check for jurisdiction of incorporation country name */
-            if (id == 0x3) {
+            if (id == ASN_JOI_C) {
                 copy = WOLFSSL_JOI_C;
                 #ifdef WOLFSSL_CERT_GEN
                     if (nameType == SUBJECT) {
@@ -4292,7 +4292,7 @@ static int GetName(DecodedCert* cert, int nameType)
             }
 
             /* Check for jurisdiction of incorporation state name */
-            else if (id == 0x2) {
+            else if (id == ASN_JOI_ST) {
                 copy = WOLFSSL_JOI_ST;
                 #ifdef WOLFSSL_CERT_GEN
                     if (nameType == SUBJECT) {
@@ -11172,10 +11172,11 @@ int wc_MakeSelfCert(Cert* cert, byte* buffer, word32 buffSz,
 
 #ifdef WOLFSSL_CERT_EXT
 
-/* Get raw subject from cert, which may contain OIDs not parsed by Decode. */
+/* Get raw subject from cert, which may contain OIDs not parsed by Decode.
+   The raw subject pointer will only be valid while "cert" is valid. */
 int wc_GetSubjectRaw(byte **subjectRaw, Cert *cert)
 {
-    int rc = 0;
+    int rc = BAD_FUNC_ARG;
     if ((subjectRaw != NULL) && (cert != NULL)) {
         *subjectRaw = cert->sbjRaw;
         rc = 0;
@@ -11950,8 +11951,8 @@ static int SetSubjectRawFromCert(byte* sbjRaw, const byte* der, int derSz)
     DecodedCert decoded[1];
 #endif
 
-    if (derSz < 0) {
-        return derSz;
+    if ((derSz < 0) || (sbjRaw == NULL)) {
+        return BAD_FUNC_ARG;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -11976,9 +11977,11 @@ static int SetSubjectRawFromCert(byte* sbjRaw, const byte* der, int derSz)
         }
     }
 #else
-    /* Fields are not accessible */
-    ret = -1;
-    WOLFSSL_MSG("IGNORE_NAME_CONSTRAINT excludes raw subject");
+    else {
+        /* Fields are not accessible */
+        ret = -1;
+        WOLFSSL_MSG("IGNORE_NAME_CONSTRAINT excludes raw subject");
+    }
 #endif
 
     FreeDecodedCert(decoded);
@@ -12071,7 +12074,15 @@ int wc_SetSubjectBuffer(Cert* cert, const byte* der, int derSz)
 /* Set cert raw subject from DER buffer */
 int wc_SetSubjectRaw(Cert* cert, const byte* der, int derSz)
 {
-    return SetSubjectRawFromCert(cert->sbjRaw, der, derSz);
+    int ret;
+
+    if (cert == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        ret = SetSubjectRawFromCert(cert->sbjRaw, der, derSz);
+    }
+    return ret;
 }
 #endif
 
