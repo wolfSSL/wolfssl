@@ -66,8 +66,9 @@ static int TLSX_KeyShare_IsSupported(int namedGroup);
 #if (!defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TLS13) && \
         !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)) || \
     (defined(WOLFSSL_TLS13) && !defined(HAVE_ECC) && \
-        defined(HAVE_SUPPORTED_CURVES)) || \
-    (defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES))
+        !defined(HAVE_CURVE25519) && defined(HAVE_SUPPORTED_CURVES)) || \
+    ((defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
+        defined(HAVE_SUPPORTED_CURVES))
 static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions);
 #endif
 
@@ -935,66 +936,21 @@ static int Hmac_HashFinalRaw(Hmac* hmac, unsigned char* hash)
 static int Hmac_OuterHash(Hmac* hmac, unsigned char* mac)
 {
     int ret = BAD_FUNC_ARG;
+    wc_HashAlg hash;
+    enum wc_HashType hashType = (enum wc_HashType)hmac->macType;
+    int digestSz = wc_HashGetDigestSize(hashType);
+    int blockSz = wc_HashGetBlockSize(hashType);
 
-    switch (hmac->macType) {
-    #ifndef NO_SHA
-        case WC_SHA:
-            ret = wc_InitSha(&hmac->hash.sha);
-            if (ret == 0)
-                ret = wc_ShaUpdate(&hmac->hash.sha, (byte*)hmac->opad,
-                                                             WC_SHA_BLOCK_SIZE);
-            if (ret == 0)
-                ret = wc_ShaUpdate(&hmac->hash.sha, (byte*)hmac->innerHash,
-                                                            WC_SHA_DIGEST_SIZE);
-            if (ret == 0)
-                ret = wc_ShaFinal(&hmac->hash.sha, mac);
-            break;
-    #endif /* !NO_SHA */
-
-    #ifndef NO_SHA256
-        case WC_SHA256:
-            ret = wc_InitSha256(&hmac->hash.sha256);
-            if (ret == 0)
-                ret = wc_Sha256Update(&hmac->hash.sha256, (byte*)hmac->opad,
-                                                          WC_SHA256_BLOCK_SIZE);
-            if (ret == 0)
-                ret = wc_Sha256Update(&hmac->hash.sha256,
-                                                         (byte*)hmac->innerHash,
-                                                         WC_SHA256_DIGEST_SIZE);
-            if (ret == 0)
-                ret = wc_Sha256Final(&hmac->hash.sha256, mac);
-            break;
-    #endif /* !NO_SHA256 */
-
-    #ifdef WOLFSSL_SHA384
-        case WC_SHA384:
-            ret = wc_InitSha384(&hmac->hash.sha384);
-            if (ret == 0)
-                ret = wc_Sha384Update(&hmac->hash.sha384, (byte*)hmac->opad,
-                                                          WC_SHA384_BLOCK_SIZE);
-            if (ret == 0)
-                ret = wc_Sha384Update(&hmac->hash.sha384,
-                                                         (byte*)hmac->innerHash,
-                                                         WC_SHA384_DIGEST_SIZE);
-            if (ret == 0)
-                ret = wc_Sha384Final(&hmac->hash.sha384, mac);
-            break;
-    #endif /* WOLFSSL_SHA384 */
-
-    #ifdef WOLFSSL_SHA512
-        case WC_SHA512:
-            ret = wc_InitSha512(&hmac->hash.sha512);
-            if (ret == 0)
-                ret = wc_Sha512Update(&hmac->hash.sha512,(byte*)hmac->opad,
-                                                          WC_SHA512_BLOCK_SIZE);
-            if (ret == 0)
-                ret = wc_Sha512Update(&hmac->hash.sha512,
-                                                         (byte*)hmac->innerHash,
-                                                         WC_SHA512_DIGEST_SIZE);
-            if (ret == 0)
-                ret = wc_Sha512Final(&hmac->hash.sha512, mac);
-            break;
-    #endif /* WOLFSSL_SHA512 */
+    ret = wc_HashInit(&hash, hashType);
+    if (ret == 0) {
+        ret = wc_HashUpdate(&hash, hashType, (byte*)hmac->opad,
+            blockSz);
+        if (ret == 0)
+            ret = wc_HashUpdate(&hash, hashType, (byte*)hmac->innerHash,
+                digestSz);
+        if (ret == 0)
+            ret = wc_HashFinal(&hash, hashType, mac);
+        wc_HashFree(&hash, hashType);
     }
 
     return ret;
@@ -3431,7 +3387,7 @@ int TLSX_UseCertificateStatusRequestV2(TLSX** extensions, byte status_type,
 
 #ifdef HAVE_SUPPORTED_CURVES
 
-#if !defined(HAVE_ECC) && !defined(WOLFSSL_TLS13)
+#if !defined(HAVE_ECC) && !defined(HAVE_CURVE25519) && !defined(WOLFSSL_TLS13)
 #error Elliptic Curves Extension requires Elliptic Curve Cryptography. \
        Use --enable-ecc in the configure script or define HAVE_ECC.
 #endif
@@ -3815,7 +3771,7 @@ static int TLSX_PointFormat_Parse(WOLFSSL* ssl, byte* input, word16 length,
     return 0;
 }
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) || defined(HAVE_CURVE25519)
 int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
     TLSX*          extension = (first == ECC_BYTE || first == CHACHA_BYTE)
                              ? TLSX_Find(ssl->extensions, TLSX_SUPPORTED_GROUPS)
@@ -3849,6 +3805,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
 
         /* find supported curve */
         switch (curve->name) {
+#ifdef HAVE_ECC
     #if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
         #ifndef NO_ECC_SECP
             case WOLFSSL_ECC_SECP160R1:
@@ -3904,6 +3861,8 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                 octets = 32;
                 break;
         #endif /* !NO_ECC_SECP */
+    #endif /* !NO_ECC256 || HAVE_ALL_CURVES */
+#endif
         #ifdef HAVE_CURVE25519
             case WOLFSSL_ECC_X25519:
                 oid = ECC_X25519_OID;
@@ -3915,6 +3874,8 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                 octets = 32;
                 break;
         #endif /* HAVE_CURVE25519 */
+#ifdef HAVE_ECC
+    #if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
         #ifdef HAVE_ECC_KOBLITZ
             case WOLFSSL_ECC_SECP256K1:
                 pkOid = oid = ECC_SECP256K1_OID;
@@ -3958,9 +3919,11 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
                 break;
         #endif /* !NO_ECC_SECP */
     #endif
+#endif
             default: continue; /* unsupported curve */
         }
 
+    #ifdef HAVE_ECC
         /* Set default Oid */
         if (defOid == 0 && ssl->eccTempKeySz <= octets && defSz > octets) {
             defOid = oid;
@@ -3973,6 +3936,19 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
             nextOid = oid;
             nextSz  = octets;
         }
+    #else
+        if (defOid == 0 && defSz > octets) {
+            defOid = oid;
+            defSz = octets;
+        }
+
+        if (currOid == 0)
+            currOid = oid;
+        if (nextOid == 0 || nextSz > octets) {
+            nextOid = oid;
+            nextSz  = octets;
+        }
+    #endif
 
         if (first == ECC_BYTE) {
             switch (second) {
@@ -4084,7 +4060,12 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
     }
 
     /* Choose the default if it is at the required strength. */
-    if (ssl->ecdhCurveOID == 0 && defSz == ssl->eccTempKeySz) {
+#ifdef HAVE_ECC
+    if (ssl->ecdhCurveOID == 0 && defSz == ssl->eccTempKeySz)
+#else
+    if (ssl->ecdhCurveOID == 0)
+#endif
+    {
         key = 1;
         ssl->ecdhCurveOID = defOid;
     }
@@ -8742,9 +8723,12 @@ static byte* TLSX_QSHKeyFind_Pub(QSHKey* qsh, word16* pubLen, word16 name)
 }
 #endif /* HAVE_QSH */
 
-#if (!defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TLS13) && !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)) || \
-    (defined(WOLFSSL_TLS13) && !defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)) || \
-    (defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES))
+#if (!defined(NO_WOLFSSL_SERVER) && defined(WOLFSSL_TLS13) && \
+        !defined(WOLFSSL_NO_SERVER_GROUPS_EXT)) || \
+    (defined(WOLFSSL_TLS13) && !defined(HAVE_ECC) && \
+        !defined(HAVE_CURVE25519) && defined(HAVE_SUPPORTED_CURVES)) || \
+    ((defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
+        defined(HAVE_SUPPORTED_CURVES))
 
 static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
 {
@@ -9006,7 +8990,8 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
         }
 #endif
 
-#if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
+#if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
+                                                  defined(HAVE_SUPPORTED_CURVES)
         if (!ssl->options.userCurves && !ssl->ctx->userCurves) {
             if (TLSX_Find(ssl->ctx->extensions,
                                                TLSX_SUPPORTED_GROUPS) == NULL) {
@@ -9035,7 +9020,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                     return ret;
             }
         }
-#endif /* HAVE_ECC && HAVE_SUPPORTED_CURVES */
+#endif /* (HAVE_ECC || HAVE_CURVE25519) && HAVE_SUPPORTED_CURVES */
     } /* is not server */
 
     WOLFSSL_MSG("Adding signature algorithms extension");
@@ -9053,7 +9038,8 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 return ret;
             }
 
-    #if !defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
+    #if !defined(HAVE_ECC) && !defined(HAVE_CURVE25519) && \
+                                                  defined(HAVE_SUPPORTED_CURVES)
         if (TLSX_Find(ssl->ctx->extensions, TLSX_SUPPORTED_GROUPS) == NULL) {
             /* Put in DH groups for TLS 1.3 only. */
             ret = TLSX_PopulateSupportedGroups(ssl, &ssl->extensions);
@@ -9061,7 +9047,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
                 return ret;
             ret = 0;
         }
-    #endif /* !HAVE_ECC && HAVE_SUPPORTED_CURVES */
+    #endif /* !HAVE_ECC && !HAVE_CURVE25519 && HAVE_SUPPORTED_CURVES */
 
         #if !defined(WOLFSSL_TLS13_DRAFT_18) && !defined(WOLFSSL_TLS13_DRAFT_22)
             if (ssl->certHashSigAlgoSz > 0) {
@@ -9085,7 +9071,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
         #if defined(HAVE_ECC) && (!defined(NO_ECC256) || \
                               defined(HAVE_ALL_CURVES)) && !defined(NO_ECC_SECP)
                     namedGroup = WOLFSSL_ECC_SECP256R1;
-        #elif defined(HAVE_ECC) && defined(HAVE_CURVE25519)
+        #elif defined(HAVE_CURVE25519)
                     namedGroup = WOLFSSL_ECC_X25519;
         #elif defined(HAVE_ECC) && (!defined(NO_ECC384) || \
                               defined(HAVE_ALL_CURVES)) && !defined(NO_ECC_SECP)
@@ -9179,7 +9165,7 @@ int TLSX_PopulateExtensions(WOLFSSL* ssl, byte isServer)
 
                 /* Pre-shared key modes: mandatory extension for resumption. */
                 modes = 1 << PSK_KE;
-            #if !defined(NO_DH) || defined(HAVE_ECC)
+            #if !defined(NO_DH) || defined(HAVE_ECC) || defined(HAVE_CURVE25519)
                 if (!ssl->options.noPskDheKe)
                     modes |= 1 << PSK_DHE_KE;
             #endif
@@ -10167,7 +10153,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
         return method;
     }
     #endif /* WOLFSSL_ALLOW_TLSV10 */
-    
+
     #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
     /* Gets a WOLFSL_METHOD type that is not set as client or server
      *

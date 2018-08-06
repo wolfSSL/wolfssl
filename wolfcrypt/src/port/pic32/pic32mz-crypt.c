@@ -505,6 +505,7 @@ static int wc_Pic32HashUpdate(hashUpdCache* cache, byte* stdBuf, int stdBufLen,
         XMEMCPY(newBuf, cache->buf, cache->updLen);
         if (isNewBuf && cache->buf != stdBuf) {
             XFREE(cache->buf, heap, DYNAMIC_TYPE_HASH_TMP);
+            cache->buf = NULL;
         }
     }
     XMEMCPY(newBuf + cache->updLen, data, len);
@@ -572,6 +573,7 @@ static int wc_Pic32HashFinal(hashUpdCache* cache, byte* stdBuf,
 
         if (cache->buf && cache->buf != stdBuf && !cache->isCopy) {
             XFREE(cache->buf, heap, DYNAMIC_TYPE_HASH_TMP);
+            cache->buf = NULL;
         }
     }
 
@@ -581,20 +583,27 @@ static int wc_Pic32HashFinal(hashUpdCache* cache, byte* stdBuf,
     return ret;
 }
 
+static int wc_Pic32HashFree(hashUpdCache* cache, void* heap)
+{
+    if (cache && cache->buf && !cache->isCopy) {
+        XFREE(cache->buf, heap, DYNAMIC_TYPE_HASH_TMP);
+        cache->buf = NULL;
+    }
+}
+
 /* API's for compatability with Harmony wrappers - not used */
 #ifndef NO_MD5
-    int wc_InitMd5_ex(Md5* md5, void* heap, int devId)
+    int wc_InitMd5_ex(wc_Md5* md5, void* heap, int devId)
     {
         if (md5 == NULL)
             return BAD_FUNC_ARG;
 
-        XMEMSET(md5, 0, sizeof(Md5));
+        XMEMSET(md5, 0, sizeof(wc_Md5));
         md5->heap = heap;
         (void)devId;
         return 0;
     }
-
-    int wc_Md5Update(Md5* md5, const byte* data, word32 len)
+    int wc_Md5Update(wc_Md5* md5, const byte* data, word32 len)
     {
         if (md5 == NULL || (data == NULL && len > 0))
             return BAD_FUNC_ARG;
@@ -602,8 +611,7 @@ static int wc_Pic32HashFinal(hashUpdCache* cache, byte* stdBuf,
             sizeof(md5->buffer), md5->digest, MD5_DIGEST_SIZE,
             data, len, PIC32_ALGO_MD5, md5->heap);
     }
-
-    int wc_Md5Final(Md5* md5, byte* hash)
+    int wc_Md5Final(wc_Md5* md5, byte* hash)
     {
         int ret;
 
@@ -618,8 +626,7 @@ static int wc_Pic32HashFinal(hashUpdCache* cache, byte* stdBuf,
 
         return ret;
     }
-
-    void wc_Md5SizeSet(Md5* md5, word32 len)
+    void wc_Md5SizeSet(wc_Md5* md5, word32 len)
     {
         if (md5) {
         #ifdef WOLFSSL_PIC32MZ_LARGE_HASH
@@ -629,20 +636,25 @@ static int wc_Pic32HashFinal(hashUpdCache* cache, byte* stdBuf,
         #endif
         }
     }
+    void wc_Md5Pic32Free(wc_Md5* md5)
+    {
+        if (md5) {
+            wc_Pic32HashFree(&md5->cache, md5->heap);
+        }
+    }
 #endif /* !NO_MD5 */
 #ifndef NO_SHA
-    int wc_InitSha_ex(Sha* sha, void* heap, int devId)
+    int wc_InitSha_ex(wc_Sha* sha, void* heap, int devId)
     {
         if (sha == NULL)
             return BAD_FUNC_ARG;
 
-        XMEMSET(sha, 0, sizeof(Sha));
+        XMEMSET(sha, 0, sizeof(wc_Sha));
         sha->heap = heap;
         (void)devId;
         return 0;
     }
-
-    int wc_ShaUpdate(Sha* sha, const byte* data, word32 len)
+    int wc_ShaUpdate(wc_Sha* sha, const byte* data, word32 len)
     {
         if (sha == NULL || (data == NULL && len > 0))
             return BAD_FUNC_ARG;
@@ -650,8 +662,7 @@ static int wc_Pic32HashFinal(hashUpdCache* cache, byte* stdBuf,
             sizeof(sha->buffer), sha->digest, SHA_DIGEST_SIZE,
             data, len, PIC32_ALGO_SHA1, sha->heap);
     }
-
-    int wc_ShaFinal(Sha* sha, byte* hash)
+    int wc_ShaFinal(wc_Sha* sha, byte* hash)
     {
         int ret;
 
@@ -666,7 +677,7 @@ static int wc_Pic32HashFinal(hashUpdCache* cache, byte* stdBuf,
 
         return ret;
     }
-    void wc_ShaSizeSet(Sha* sha, word32 len)
+    void wc_ShaSizeSet(wc_Sha* sha, word32 len)
     {
         if (sha) {
         #ifdef WOLFSSL_PIC32MZ_LARGE_HASH
@@ -676,20 +687,25 @@ static int wc_Pic32HashFinal(hashUpdCache* cache, byte* stdBuf,
         #endif
         }
     }
+    void wc_ShaPic32Free(wc_Sha* sha)
+    {
+        if (sha) {
+            wc_Pic32HashFree(&sha->cache, sha->heap);
+        }
+    }
 #endif /* !NO_SHA */
 #ifndef NO_SHA256
-    int wc_InitSha256_ex(Sha256* sha256, void* heap, int devId)
+    int wc_InitSha256_ex(wc_Sha256* sha256, void* heap, int devId)
     {
         if (sha256 == NULL)
             return BAD_FUNC_ARG;
 
-        XMEMSET(sha256, 0, sizeof(Sha256));
+        XMEMSET(sha256, 0, sizeof(wc_Sha256));
         sha256->heap = heap;
         (void)devId;
         return 0;
     }
-
-    int wc_Sha256Update(Sha256* sha256, const byte* data, word32 len)
+    int wc_Sha256Update(wc_Sha256* sha256, const byte* data, word32 len)
     {
         if (sha256 == NULL || (data == NULL && len > 0))
             return BAD_FUNC_ARG;
@@ -697,8 +713,7 @@ static int wc_Pic32HashFinal(hashUpdCache* cache, byte* stdBuf,
             sizeof(sha256->buffer), sha256->digest, SHA256_DIGEST_SIZE,
             data, len, PIC32_ALGO_SHA256, sha256->heap);
     }
-
-    int wc_Sha256Final(Sha256* sha256, byte* hash)
+    int wc_Sha256Final(wc_Sha256* sha256, byte* hash)
     {
         int ret;
 
@@ -713,8 +728,7 @@ static int wc_Pic32HashFinal(hashUpdCache* cache, byte* stdBuf,
 
         return ret;
     }
-
-    void wc_Sha256SizeSet(Sha256* sha256, word32 len)
+    void wc_Sha256SizeSet(wc_Sha256* sha256, word32 len)
     {
         if (sha256) {
         #ifdef WOLFSSL_PIC32MZ_LARGE_HASH
@@ -724,8 +738,14 @@ static int wc_Pic32HashFinal(hashUpdCache* cache, byte* stdBuf,
         #endif
         }
     }
+    void wc_Sha256Pic32Free(wc_Sha256* sha256)
+    {
+        if (sha256) {
+            wc_Pic32HashFree(&sha256->cache, sha256->heap);
+        }
+    }
 #endif /* !NO_SHA256 */
-#endif
+#endif /* WOLFSSL_PIC32MZ_HASH */
 
 
 #ifdef WOLFSSL_PIC32MZ_CRYPT

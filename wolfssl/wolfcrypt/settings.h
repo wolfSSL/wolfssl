@@ -98,6 +98,9 @@
 /* Uncomment next line if using STM32F4 */
 /* #define WOLFSSL_STM32F4 */
 
+/* Uncomment next line if using STM32FL */
+/* #define WOLFSSL_STM32FL */
+
 /* Uncomment next line if using STM32F7 */
 /* #define WOLFSSL_STM32F7 */
 
@@ -165,6 +168,12 @@
 
 /* Uncomment next line if building for using XILINX */
 /* #define WOLFSSL_XILINX */
+
+/* Uncomment next line if building for Nucleus 1.2 */
+/* #define WOLFSSL_NUCLEUS_1_2 */
+
+/* Uncomment next line if building for using Apache mynewt */
+/* #define WOLFSSL_APACHE_MYNEWT */
 
 #include <wolfssl/wolfcrypt/visibility.h>
 
@@ -244,9 +253,15 @@
 #endif
 
 #ifdef WOLFSSL_MICROCHIP_PIC32MZ
-    #define WOLFSSL_PIC32MZ_CRYPT
-    #define WOLFSSL_PIC32MZ_RNG
-    #define WOLFSSL_PIC32MZ_HASH
+    #ifndef NO_PIC32MZ_CRYPT
+        #define WOLFSSL_PIC32MZ_CRYPT
+    #endif
+    #ifndef NO_PIC32MZ_RNG
+        #define WOLFSSL_PIC32MZ_RNG
+    #endif
+    #ifndef NO_PIC32MZ_HASH
+        #define WOLFSSL_PIC32MZ_HASH
+    #endif
 #endif
 
 #ifdef MICROCHIP_TCPIP_V5
@@ -449,6 +464,32 @@
 #ifdef WOLFSSL_CHIBIOS
     /* ChibiOS definitions. This file is distributed with chibiOS. */
     #include "wolfssl_chibios.h"
+#endif
+
+#ifdef WOLFSSL_PB
+    /* PB is using older 1.2 version of Nucleus */
+    #undef WOLFSSL_NUCLEUS
+    #define WOLFSSL_NUCLEUS_1_2
+#endif
+
+#ifdef WOLFSSL_NUCLEUS_1_2
+    #define NO_WRITEV
+    #define NO_WOLFSSL_DIR
+
+    #if !defined(NO_ASN_TIME) && !defined(USER_TIME)
+        #error User must define XTIME, see manual
+    #endif
+
+    #if !defined(XMALLOC_OVERRIDE) && !defined(XMALLOC_USER)
+        extern void* nucleus_malloc(unsigned long size, void* heap, int type);
+        extern void* nucleus_realloc(void* ptr, unsigned long size, void* heap,
+                                     int type);
+        extern void  nucleus_free(void* ptr, void* heap, int type);
+
+        #define XMALLOC(s, h, type)  nucleus_malloc
+        #define XREALLOC(p, n, h, t) nucleus_realloc
+        #define XFREE(p, h, type)    nucleus_free
+    #endif
 #endif
 
 #ifdef WOLFSSL_NRF5x
@@ -1015,6 +1056,10 @@ extern void uITRON4_free(void *p) ;
     #ifndef NO_STM32_CRYPTO
         #undef  STM32_CRYPTO
         #define STM32_CRYPTO
+
+        #ifdef WOLFSSL_STM32L4
+            #define NO_AES_192 /* hardware does not support 192-bit */
+        #endif
     #endif
     #ifndef NO_STM32_HASH
         #undef  STM32_HASH
@@ -1071,7 +1116,7 @@ extern void uITRON4_free(void *p) ;
             #include "stm32f1xx.h"
         #endif
     #endif /* WOLFSSL_STM32_CUBEMX */
-#endif /* WOLFSSL_STM32F2 || WOLFSSL_STM32F4 || WOLFSSL_STM32F7 */
+#endif /* WOLFSSL_STM32F2 || WOLFSSL_STM32F4 || WOLFSSL_STM32L4 || WOLFSSL_STM32F7 */
 
 #ifdef MICRIUM
     #include <stdlib.h>
@@ -1209,6 +1254,41 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_NOSHA3_512
     #endif
 #endif /*(WOLFSSL_XILINX_CRYPT)*/
+
+#if defined(WOLFSSL_APACHE_MYNEWT)
+    #include "os/os_malloc.h"
+    #if !defined(WOLFSSL_LWIP)
+        #include <mn_socket/mn_socket.h>
+    #endif
+
+    #if !defined(SIZEOF_LONG)
+        #define SIZEOF_LONG 4
+    #endif
+    #if !defined(SIZEOF_LONG_LONG)
+        #define SIZEOF_LONG_LONG 8
+    #endif
+    #if (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+        #define BIG_ENDIAN_ORDER
+    #else
+        #undef  BIG_ENDIAN_ORDER
+        #define LITTLE_ENDIAN_ORDER
+    #endif
+    #define NO_WRITEV
+    #define WOLFSSL_USER_IO
+    #define SINGLE_THREADED
+    #define NO_DEV_RANDOM
+    #define NO_DH
+    #define NO_WOLFSSL_DIR
+    #define NO_ERROR_STRINGS
+    #define HAVE_ECC
+    #define NO_SESSION_CACHE
+    #define NO_ERROR_STRINGS
+    #define XMALLOC_USER
+    #define XMALLOC(sz, heap, type)     os_malloc(sz)
+    #define XREALLOC(p, sz, heap, type) os_realloc(p, sz)
+    #define XFREE(p, heap, type)        os_free(p)
+
+#endif /*(WOLFSSL_APACHE_MYNEWT)*/
 
 #ifdef WOLFSSL_IMX6
     #ifndef SIZEOF_LONG_LONG

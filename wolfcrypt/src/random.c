@@ -142,6 +142,8 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #elif defined(WOLFSSL_ROWLEY_ARM)
 #elif defined(WOLFSSL_EMBOS)
 #elif defined(MICRIUM)
+#elif defined(WOLFSSL_NUCLEUS)
+#elif defined(WOLFSSL_PB)
 #else
     /* include headers that may be needed to get good seed */
     #include <fcntl.h>
@@ -311,6 +313,8 @@ static int Hash_df(DRBG* drbg, byte* out, word32 outSz, byte type,
 static int Hash_DRBG_Reseed(DRBG* drbg, const byte* entropy, word32 entropySz)
 {
     byte seed[DRBG_SEED_LEN];
+
+    XMEMSET(seed, 0, DRBG_SEED_LEN);
 
     if (Hash_df(drbg, seed, sizeof(seed), drbgReseed, drbg->V, sizeof(drbg->V),
                                           entropy, entropySz) != DRBG_SUCCESS) {
@@ -1690,6 +1694,20 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
         return 0;
     }
+
+#elif defined(WOLFSSL_PB)
+
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        word32 i;
+        for (i = 0; i < sz; i++)
+            output[i] = UTL_Rand();
+
+        (void)os;
+
+        return 0;
+    }
+
 #elif defined(WOLFSSL_NUCLEUS)
 #include "nucleus.h"
 #include "kernel/plus_common.h"
@@ -1889,6 +1907,25 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         }
 
         return ret;
+    }
+
+#elif defined(WOLFSSL_APACHE_MYNEWT)
+
+    #include <stdlib.h>
+    #include "os/os_time.h"
+    int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
+    {
+        int i;
+        srand(os_time_get());
+
+        for (i = 0; i < sz; i++ ) {
+            output[i] = rand() % 256;
+            if ((i % 8) == 7) {
+                srand(os_time_get());
+            }
+        }
+
+        return 0;
     }
 
 #elif defined(CUSTOM_RAND_GENERATE_BLOCK)

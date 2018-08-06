@@ -4649,24 +4649,23 @@ int GetTimeString(byte* date, int format, char* buf, int len)
     /* place month in buffer */
     buf[0] = '\0';
     switch(t.tm_mon) {
-        case 0:  XSTRNCAT(buf, "Jan ", 4); break;
-        case 1:  XSTRNCAT(buf, "Feb ", 4); break;
-        case 2:  XSTRNCAT(buf, "Mar ", 4); break;
-        case 3:  XSTRNCAT(buf, "Apr ", 4); break;
-        case 4:  XSTRNCAT(buf, "May ", 4); break;
-        case 5:  XSTRNCAT(buf, "Jun ", 4); break;
-        case 6:  XSTRNCAT(buf, "Jul ", 4); break;
-        case 7:  XSTRNCAT(buf, "Aug ", 4); break;
-        case 8:  XSTRNCAT(buf, "Sep ", 4); break;
-        case 9:  XSTRNCAT(buf, "Oct ", 4); break;
-        case 10: XSTRNCAT(buf, "Nov ", 4); break;
-        case 11: XSTRNCAT(buf, "Dec ", 4); break;
+        case 0:  XSTRNCAT(buf, "Jan ", 5); break;
+        case 1:  XSTRNCAT(buf, "Feb ", 5); break;
+        case 2:  XSTRNCAT(buf, "Mar ", 5); break;
+        case 3:  XSTRNCAT(buf, "Apr ", 5); break;
+        case 4:  XSTRNCAT(buf, "May ", 5); break;
+        case 5:  XSTRNCAT(buf, "Jun ", 5); break;
+        case 6:  XSTRNCAT(buf, "Jul ", 5); break;
+        case 7:  XSTRNCAT(buf, "Aug ", 5); break;
+        case 8:  XSTRNCAT(buf, "Sep ", 5); break;
+        case 9:  XSTRNCAT(buf, "Oct ", 5); break;
+        case 10: XSTRNCAT(buf, "Nov ", 5); break;
+        case 11: XSTRNCAT(buf, "Dec ", 5); break;
         default:
             return 0;
 
     }
     idx = 4; /* use idx now for char buffer */
-    buf[idx] = ' ';
 
     XSNPRINTF(buf + idx, len - idx, "%2d %02d:%02d:%02d %d GMT",
               t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec, t.tm_year + 1900);
@@ -5389,6 +5388,8 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
     switch (sigCtx->state) {
         case SIG_STATE_BEGIN:
         {
+            sigCtx->keyOID = keyOID; /* must set early for cleanup */
+
             sigCtx->digest = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, sigCtx->heap,
                                                     DYNAMIC_TYPE_DIGEST);
             if (sigCtx->digest == NULL) {
@@ -5413,8 +5414,6 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
 
         case SIG_STATE_KEY:
         {
-            sigCtx->keyOID = keyOID;
-
             switch (keyOID) {
             #ifndef NO_RSA
                 case RSAk:
@@ -7497,6 +7496,15 @@ void FreeDer(DerBuffer** pDer)
     }
 }
 
+int wc_AllocDer(DerBuffer** pDer, word32 length, int type, void* heap)
+{
+    return AllocDer(pDer, length, type, heap);
+}
+void wc_FreeDer(DerBuffer** pDer)
+{
+    FreeDer(pDer);
+}
+
 
 #if defined(WOLFSSL_PEM_TO_DER) || defined(WOLFSSL_DER_TO_PEM)
 
@@ -7802,19 +7810,23 @@ static int wc_EncryptedInfoParse(EncryptedInfo* info,
 #endif /* WOLFSSL_PEM_TO_DER */
 
 #ifdef WOLFSSL_DER_TO_PEM
-static int wc_EncryptedInfoAppend(char* dest, char* cipherInfo)
+static int wc_EncryptedInfoAppend(char* dest, int destSz, char* cipherInfo)
 {
     if (cipherInfo != NULL) {
-        size_t cipherInfoStrLen = XSTRLEN(cipherInfo);
+        int cipherInfoStrLen = (int)XSTRLEN((char*)cipherInfo);
+
         if (cipherInfoStrLen > HEADER_ENCRYPTED_KEY_SIZE - (9+14+10+3))
             cipherInfoStrLen = HEADER_ENCRYPTED_KEY_SIZE - (9+14+10+3);
 
-        XSTRNCAT(dest, kProcTypeHeader, 9);
-        XSTRNCAT(dest, ": 4,ENCRYPTED\n", 14);
-        XSTRNCAT(dest, kDecInfoHeader, 8);
-        XSTRNCAT(dest, ": ", 2);
-        XSTRNCAT(dest, cipherInfo, cipherInfoStrLen);
-        XSTRNCAT(dest, "\n\n", 3);
+        if (destSz - (int)XSTRLEN(dest) >= cipherInfoStrLen + (9+14+8+2+2+1)) {
+            /* strncat's src length needs to include the NULL */
+            XSTRNCAT(dest, kProcTypeHeader, 10);
+            XSTRNCAT(dest, ": 4,ENCRYPTED\n", 15);
+            XSTRNCAT(dest, kDecInfoHeader, 9);
+            XSTRNCAT(dest, ": ", 3);
+            XSTRNCAT(dest, cipherInfo, destSz - (int)XSTRLEN(dest) - 1);
+            XSTRNCAT(dest, "\n\n", 4);
+        }
     }
     return 0;
 }
@@ -7871,20 +7883,18 @@ int wc_DerToPemEx(const byte* der, word32 derSz, byte* output, word32 outSz,
     }
 #endif
 
-    /* null term and leave room for newline */
-    header[--headerLen] = '\0'; header[--headerLen] = '\0';
-    footer[--footerLen] = '\0'; footer[--footerLen] = '\0';
-
     /* build header and footer based on type */
-    XSTRNCPY(header, headerStr, headerLen);
-    XSTRNCPY(footer, footerStr, footerLen);
+    XSTRNCPY(header, headerStr, headerLen - 1);
+    header[headerLen - 1] = 0;
+    XSTRNCPY(footer, footerStr, footerLen - 1);
+    footer[footerLen - 1] = 0;
 
     /* add new line to end */
     XSTRNCAT(header, "\n", 2);
     XSTRNCAT(footer, "\n", 2);
 
 #ifdef WOLFSSL_ENCRYPTED_KEYS
-    err = wc_EncryptedInfoAppend(header, (char*)cipher_info);
+    err = wc_EncryptedInfoAppend(header, headerLen, (char*)cipher_info);
     if (err != 0) {
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(header, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -9755,8 +9765,7 @@ static int EncodePolicyOID(byte *out, word32 *outSz, const char *in, void* heap)
     if (str == NULL)
         return MEMORY_E;
 
-    XSTRNCPY(str, in, len);
-    str[len] = '\0';
+    XSTRNCPY(str, in, len+1);
 
     nb_val = 0;
 
@@ -11539,8 +11548,7 @@ int wc_SetKeyUsage(Cert *cert, const char *value)
     if (str == NULL)
         return MEMORY_E;
 
-    XSTRNCPY(str, value, len);
-    str[len] = '\0';
+    XSTRNCPY(str, value, len+1);
 
     /* parse value, and set corresponding Key Usage value */
     if ((token = XSTRTOK(str, ",", &ptr)) == NULL) {
@@ -11599,8 +11607,7 @@ int wc_SetExtKeyUsage(Cert *cert, const char *value)
     if (str == NULL)
         return MEMORY_E;
 
-    XSTRNCPY(str, value, len);
-    str[len] = '\0';
+    XSTRNCPY(str, value, len+1);
 
     /* parse value, and set corresponding Key Usage value */
     if ((token = XSTRTOK(str, ",", &ptr)) == NULL) {

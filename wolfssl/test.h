@@ -272,6 +272,11 @@
 #define cliEccCertFile "certs/client-ecc-cert.pem"
 #define caEccCertFile  "certs/ca-ecc-cert/pem"
 #define crlPemDir      "certs/crl"
+#define edCertFile     "certs/ed25519/server-ed25519.pem"
+#define edKeyFile      "certs/ed25519/server-ed25519-priv.pem"
+#define cliEdCertFile  "certs/ed25519/client-ed25519.pem"
+#define cliEdKeyFile   "certs/ed25519/client-ed25519-priv.pem"
+#define caEdCertFile   "certs/ed25519/ca-ed25519.pem"
 #ifdef HAVE_WNR
     /* Whitewood netRandom default config file */
     #define wnrConfig  "wnr-example.conf"
@@ -293,6 +298,11 @@
 #define cliEccCertFile "./certs/client-ecc-cert.pem"
 #define caEccCertFile  "./certs/ca-ecc-cert.pem"
 #define crlPemDir      "./certs/crl"
+#define edCertFile     "./certs/ed25519/server-ed25519.pem"
+#define edKeyFile      "./certs/ed25519/server-ed25519-priv.pem"
+#define cliEdCertFile  "./certs/ed25519/client-ed25519.pem"
+#define cliEdKeyFile   "./certs/ed25519/client-ed25519-priv.pem"
+#define caEdCertFile   "./certs/ed25519/root-ed25519.pem"
 #ifdef HAVE_WNR
     /* Whitewood netRandom default config file */
     #define wnrConfig  "./wnr-example.conf"
@@ -373,7 +383,31 @@ void join_thread(THREAD_TYPE);
 static const word16      wolfSSLPort = 11111;
 
 
-static WC_INLINE WC_NORETURN void err_sys(const char* msg)
+
+#ifndef MY_EX_USAGE
+#define MY_EX_USAGE 2
+#endif
+
+#ifndef EXIT_FAILURE
+#define EXIT_FAILURE 1
+#endif
+
+#ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
+    #define XEXIT(rc)   return rc
+    #define XEXIT_T(rc) return (THREAD_RETURN)rc
+#else
+    #define XEXIT(rc)   exit((int)(rc))
+    #define XEXIT_T(rc) exit((int)(rc))
+#endif
+
+
+static WC_INLINE 
+#ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
+THREAD_RETURN
+#else
+WC_NORETURN void 
+#endif
+err_sys(const char* msg)
 {
     printf("wolfSSL error: %s\n", msg);
 
@@ -387,12 +421,10 @@ static WC_INLINE WC_NORETURN void err_sys(const char* msg)
     if (msg)
 #endif
     {
-        exit(EXIT_FAILURE);
+        XEXIT_T(EXIT_FAILURE);
     }
 }
 
-
-#define MY_EX_USAGE 2
 
 extern int   myoptind;
 extern char* myoptarg;
@@ -2770,8 +2802,8 @@ static WC_INLINE const char* mymktemp(char *tempfn, int len, int num)
         byte key[CHACHA20_POLY1305_AEAD_KEYSIZE]; /* cipher key */
     } key_ctx;
 
-    static key_ctx myKey_ctx;
-    static WC_RNG myKey_rng;
+    static THREAD_LS_T key_ctx myKey_ctx;
+    static THREAD_LS_T WC_RNG myKey_rng;
 
     static WC_INLINE int TicketInit(void)
     {

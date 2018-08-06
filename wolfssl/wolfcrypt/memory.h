@@ -36,6 +36,10 @@
     extern "C" {
 #endif
 
+#ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
+    WOLFSSL_API void wolfSSL_SetMemFailCount(int memFailCount);
+#endif
+
 #ifdef WOLFSSL_STATIC_MEMORY
     #ifdef WOLFSSL_DEBUG_MEMORY
         typedef void *(*wolfSSL_Malloc_cb)(size_t size, void* heap, int type, const char* func, unsigned int line);
@@ -77,7 +81,6 @@
 WOLFSSL_API int wolfSSL_SetAllocators(wolfSSL_Malloc_cb,
                                       wolfSSL_Free_cb,
                                       wolfSSL_Realloc_cb);
-WOLFSSL_API int wolfSSL_ResetAllocators(void);
 WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb*,
                                       wolfSSL_Free_cb*,
                                       wolfSSL_Realloc_cb*);

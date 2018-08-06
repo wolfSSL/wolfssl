@@ -175,6 +175,15 @@
     #include "fsl_debug_console.h"
     #undef printf
     #define printf PRINTF
+#elif defined(WOLFSSL_APACHE_MYNEWT)
+    #include <assert.h>
+    #include <string.h>
+    #include "sysinit/sysinit.h"
+    #include "os/os.h"
+    #ifdef ARCH_sim
+    #include "mcu/mcu_sim.h"
+    #endif
+    #include "os/os_time.h"
 #else
     #include <stdio.h>
 #endif
@@ -197,6 +206,11 @@
     void BSP_Ser_Printf (CPU_CHAR* format, ...);
     #undef printf
     #define printf BSP_Ser_Printf
+#elif defined(WOLFSSL_PB)
+    #include <stdarg.h>
+    int wolfssl_pb_print(const char*, ...);
+    #undef printf
+    #define printf wolfssl_pb_print
 #endif
 
 #include "wolfcrypt/test/test.h"
@@ -327,6 +341,9 @@ int memory_test(void);
 #ifdef HAVE_VALGRIND
 int mp_test(void);
 #endif
+#ifdef WOLFSSL_PUBLIC_MP
+int prime_test(void);
+#endif
 #ifdef ASN_BER_TO_DER
 int berder_test(void);
 #endif
@@ -397,6 +414,23 @@ static void myFipsCb(int ok, int err, const char* hash)
     #endif
 #endif
 
+#ifdef WOLFSSL_PB
+int wolfssl_pb_print(const char* msg, ...)
+{
+    int ret;
+    va_list args;
+    char tmpBuf[80];
+
+    va_start(args, msg);
+    ret = vsprint(tmpBuf, msg, args);
+    va_end(args);
+
+    fnDumpStringToSystemLog(tmpBuf);
+
+    return ret;
+}
+#endif /* WOLFSSL_PB */
+
 #ifdef HAVE_STACK_SIZE
 THREAD_RETURN WOLFSSL_THREAD wolfcrypt_test(void* args)
 #else
@@ -405,7 +439,8 @@ int wolfcrypt_test(void* args)
 {
     int ret;
 
-    ((func_args*)args)->return_code = -1; /* error state */
+    if (args)
+        ((func_args*)args)->return_code = -1; /* error state */
 
 #ifdef WOLFSSL_STATIC_MEMORY
     if (wc_LoadStaticMemory(&HEAP_HINT, gTestMemory, sizeof(gTestMemory),
@@ -925,6 +960,13 @@ initDefaultName();
         printf( "mp       test passed!\n");
 #endif
 
+#ifdef WOLFSSL_PUBLIC_MP
+    if ( (ret = prime_test()) != 0)
+        return err_sys("prime    test failed!\n", ret);
+    else
+        printf( "prime    test passed!\n");
+#endif
+
 #if defined(ASN_BER_TO_DER) && \
     (defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
      defined(OPENSSL_EXTRA_X509_SMALL))
@@ -974,7 +1016,8 @@ initDefaultName();
     wc_ecc_fp_free();
 #endif
 
-    ((func_args*)args)->return_code = ret;
+    if (args)
+        ((func_args*)args)->return_code = ret;
 
     EXIT_TEST(ret);
 }
@@ -987,6 +1030,22 @@ initDefaultName();
     {
         int ret;
         func_args args;
+
+#ifdef WOLFSSL_APACHE_MYNEWT
+        #ifdef ARCH_sim
+        mcu_sim_parse_args(argc, argv);
+        #endif
+        sysinit();
+
+        /* set dummy wallclock time. */
+        struct os_timeval utctime;
+        struct os_timezone tz;
+        utctime.tv_sec = 1521725159; /* dummy time: 2018-03-22T13:25:59+00:00 */
+        utctime.tv_usec = 0;
+        tz.tz_minuteswest = 0;
+        tz.tz_dsttime = 0;
+        os_settimeofday(&utctime, &tz);
+#endif
 
 #ifdef HAVE_WNR
         if (wc_InitNetRandom(wnrConfigFile, NULL, 5000) != 0) {
@@ -2744,6 +2803,7 @@ int hash_test(void)
         ret = wc_HashFinal(&hash, typesBad[i], out);
         if (ret != BAD_FUNC_ARG)
             return -2927 - i;
+        wc_HashFree(&hash, typesBad[i]);
     }
 
     /* Try valid hash algorithms. */
@@ -2763,6 +2823,7 @@ int hash_test(void)
         ret = wc_HashFinal(&hash, typesGood[i], out);
         if (ret != exp_ret)
             return -2957 - i;
+        wc_HashFree(&hash, typesGood[i]);
 
         digestSz = wc_HashGetDigestSize(typesGood[i]);
         if (exp_ret < 0 && digestSz != exp_ret)
@@ -6754,7 +6815,7 @@ int aesgcm_test(void)
     }
 #endif
 
-    /* Variable authenticed data length test */
+    /* Variable authenticated data length test */
     for (alen=0; alen<(int)sizeof(p); alen++) {
          /* AES-GCM encrypt and decrypt both use AES encrypt internally */
          result = wc_AesGcmEncrypt(&enc, resultC, p, sizeof(p), iv1,
@@ -16585,8 +16646,12 @@ int ecc_test_buffers(void) {
     int verify = 0;
     word32 x;
 
-    XMEMSET(&cliKey, 0, sizeof(ecc_key));
-    XMEMSET(&servKey, 0, sizeof(ecc_key));
+    ret = wc_ecc_init_ex(&cliKey, HEAP_HINT, devId);
+    if (ret != 0)
+        return -8721;
+    ret = wc_ecc_init_ex(&servKey, HEAP_HINT, devId);
+    if (ret != 0)
+        return -8722;
 
     bytes = (size_t)sizeof_ecc_clikey_der_256;
     /* place client key into ecc_key struct cliKey */
@@ -19287,6 +19352,189 @@ done:
 }
 #endif
 
+
+#ifdef WOLFSSL_PUBLIC_MP
+
+typedef struct pairs_t {
+    const unsigned char* coeff;
+    int coeffSz;
+    int exp;
+} pairs_t;
+
+
+/*
+n =p1p2p3, where pi = ki(p1−1)+1 with (k2,k3) = (173,293)
+p1 = 2^192 * 0x000000000000e24fd4f6d6363200bf2323ec46285cac1d3a
+   + 2^0   * 0x0b2488b0c29d96c5e67f8bec15b54b189ae5636efe89b45b
+*/
+
+static const unsigned char c192a[] =
+{
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xe2, 0x4f,
+    0xd4, 0xf6, 0xd6, 0x36, 0x32, 0x00, 0xbf, 0x23,
+    0x23, 0xec, 0x46, 0x28, 0x5c, 0xac, 0x1d, 0x3a
+};
+static const unsigned char c0a[] =
+{
+    0x0b, 0x24, 0x88, 0xb0, 0xc2, 0x9d, 0x96, 0xc5,
+    0xe6, 0x7f, 0x8b, 0xec, 0x15, 0xb5, 0x4b, 0x18,
+    0x9a, 0xe5, 0x63, 0x6e, 0xfe, 0x89, 0xb4, 0x5b
+};
+
+static const pairs_t ecPairsA[] =
+{
+    {c192a, sizeof(c192a), 192},
+    {c0a, sizeof(c0a), 0}
+};
+
+static const int kA[] = {173, 293};
+
+static const unsigned char controlPrime[] = {
+    0xe1, 0x76, 0x45, 0x80, 0x59, 0xb6, 0xd3, 0x49,
+    0xdf, 0x0a, 0xef, 0x12, 0xd6, 0x0f, 0xf0, 0xb7,
+    0xcb, 0x2a, 0x37, 0xbf, 0xa7, 0xf8, 0xb5, 0x4d,
+    0xf5, 0x31, 0x35, 0xad, 0xe4, 0xa3, 0x94, 0xa1,
+    0xdb, 0xf1, 0x96, 0xad, 0xb5, 0x05, 0x64, 0x85,
+    0x83, 0xfc, 0x1b, 0x5b, 0x29, 0xaa, 0xbe, 0xf8,
+    0x26, 0x3f, 0x76, 0x7e, 0xad, 0x1c, 0xf0, 0xcb,
+    0xd7, 0x26, 0xb4, 0x1b, 0x05, 0x8e, 0x56, 0x86,
+    0x7e, 0x08, 0x62, 0x21, 0xc1, 0x86, 0xd6, 0x47,
+    0x79, 0x3e, 0xb7, 0x5d, 0xa4, 0xc6, 0x3a, 0xd7,
+    0xb1, 0x74, 0x20, 0xf6, 0x50, 0x97, 0x41, 0x04,
+    0x53, 0xed, 0x3f, 0x26, 0xd6, 0x6f, 0x91, 0xfa,
+    0x68, 0x26, 0xec, 0x2a, 0xdc, 0x9a, 0xf1, 0xe7,
+    0xdc, 0xfb, 0x73, 0xf0, 0x79, 0x43, 0x1b, 0x21,
+    0xa3, 0x59, 0x04, 0x63, 0x52, 0x07, 0xc9, 0xd7,
+    0xe6, 0xd1, 0x1b, 0x5d, 0x5e, 0x96, 0xfa, 0x53
+};
+
+
+static int GenerateNextP(mp_int* p1, mp_int* p2, int k)
+{
+    int ret;
+
+    ret = mp_sub_d(p1, 1, p2);
+    if (ret == 0)
+        ret = mp_mul_d(p2, k, p2);
+    if (ret == 0)
+        ret = mp_add_d(p2, 1, p2);
+
+    return ret;
+}
+
+
+static int GenerateP(mp_int* p1, mp_int* p2, mp_int* p3,
+                const pairs_t* ecPairs, int ecPairsSz,
+                const int* k)
+{
+    mp_int x,y;
+    int ret, i;
+
+    ret = mp_init(&x);
+    if (ret == 0) {
+        ret = mp_init(&y);
+        if (ret != 0) {
+            mp_clear(&x);
+            return MP_MEM;
+        }
+    }
+    for (i = 0; ret == 0 && i < ecPairsSz; i++) {
+        ret = mp_read_unsigned_bin(&x, ecPairs[i].coeff, ecPairs[i].coeffSz);
+        /* p1 = 2^exp */
+        if (ret == 0)
+            ret = mp_2expt(&y, ecPairs[i].exp);
+        /* p1 = p1 * m */
+        if (ret == 0)
+            ret = mp_mul(&x, &y, &x);
+        /* p1 +=  */
+        if (ret == 0)
+            ret = mp_add(p1, &x, p1);
+        mp_zero(&x);
+        mp_zero(&y);
+    }
+    mp_clear(&x);
+    mp_clear(&y);
+
+    if (ret == 0)
+        ret = GenerateNextP(p1, p2, k[0]);
+    if (ret == 0)
+        ret = GenerateNextP(p1, p3, k[1]);
+
+    return ret;
+}
+
+int prime_test(void)
+{
+    mp_int n, p1, p2, p3;
+    int ret, isPrime = 0;
+    WC_RNG rng;
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0)
+        ret = mp_init_multi(&n, &p1, &p2, &p3, NULL, NULL);
+    if (ret == 0)
+        ret = GenerateP(&p1, &p2, &p3,
+                ecPairsA, sizeof(ecPairsA) / sizeof(ecPairsA[0]), kA);
+    if (ret == 0)
+        ret = mp_mul(&p1, &p2, &n);
+    if (ret == 0)
+        ret = mp_mul(&n, &p3, &n);
+    if (ret != 0)
+        return -9650;
+
+    /* Check the old prime test using the number that false positives.
+     * This test result should indicate as not prime. */
+    ret = mp_prime_is_prime(&n, 40, &isPrime);
+    if (ret != 0)
+        return -9651;
+    if (isPrime)
+        return -9652;
+
+    /* This test result should fail. It should indicate the value as prime. */
+    ret = mp_prime_is_prime(&n, 8, &isPrime);
+    if (ret != 0)
+        return -9653;
+    if (!isPrime)
+        return -9654;
+
+    /* This test result should indicate the value as not prime. */
+    ret = mp_prime_is_prime_ex(&n, 8, &isPrime, &rng);
+    if (ret != 0)
+        return -9655;
+    if (isPrime)
+        return -9656;
+
+    ret = mp_read_unsigned_bin(&n, controlPrime, sizeof(controlPrime));
+    if (ret != 0)
+        return -9657;
+
+    /* This test result should indicate the value as prime. */
+    ret = mp_prime_is_prime_ex(&n, 8, &isPrime, &rng);
+    if (ret != 0)
+        return -9658;
+    if (!isPrime)
+        return -9659;
+
+    /* This test result should indicate the value as prime. */
+    isPrime = -1;
+    ret = mp_prime_is_prime(&n, 8, &isPrime);
+    if (ret != 0)
+        return -9660;
+    if (!isPrime)
+        return -9661;
+
+    mp_clear(&p3);
+    mp_clear(&p2);
+    mp_clear(&p1);
+    mp_clear(&n);
+    wc_FreeRng(&rng);
+
+    return 0;
+}
+
+#endif /* WOLFSSL_PUBLIC_MP */
+
+
 #if defined(ASN_BER_TO_DER) && \
     (defined(WOLFSSL_TEST_CERT) || defined(OPENSSL_EXTRA) || \
      defined(OPENSSL_EXTRA_X509_SMALL))
@@ -19302,7 +19550,7 @@ int berder_test(void)
 {
     int ret;
     int i;
-    word32 len, l;
+    word32 len = 0, l;
     byte out[32];
     static const byte good1_in[] = { 0x30, 0x80, 0x00, 0x00 };
     static const byte good1_out[] = { 0x30, 0x00 };
@@ -19540,20 +19788,6 @@ int memcb_test(void)
     }
     XFREE(b, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     b = NULL;
-
-    /* Parameter Validation testing. */
-    if (wolfSSL_SetAllocators(NULL, (wolfSSL_Free_cb)&my_Free_cb,
-            (wolfSSL_Realloc_cb)&my_Realloc_cb) != BAD_FUNC_ARG) {
-        ERROR_OUT(-10002, exit_memcb);
-    }
-    if (wolfSSL_SetAllocators((wolfSSL_Malloc_cb)&my_Malloc_cb, NULL,
-            (wolfSSL_Realloc_cb)&my_Realloc_cb) != BAD_FUNC_ARG) {
-        ERROR_OUT(-10003, exit_memcb);
-    }
-    if (wolfSSL_SetAllocators((wolfSSL_Malloc_cb)&my_Malloc_cb,
-            (wolfSSL_Free_cb)&my_Free_cb, NULL) != BAD_FUNC_ARG) {
-        ERROR_OUT(-10004, exit_memcb);
-    }
 
     /* Use API. */
     if (wolfSSL_SetAllocators((wolfSSL_Malloc_cb)&my_Malloc_cb,

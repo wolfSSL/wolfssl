@@ -1529,6 +1529,11 @@ AC_ARG_ENABLE([sslv3],
     [ ENABLED_SSLV3=no]
     )
 
+if test "x$ENABLED_HAPROXY" = "xyes"
+then
+    ENABLED_SSLV3="yes"
+fi
+
 if test "$ENABLED_SSLV3" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_SSLV3"
@@ -2660,7 +2665,7 @@ AC_ARG_ENABLE([supportedcurves],
 
 if test "x$ENABLED_SUPPORTED_CURVES" = "xyes"
 then
-    AS_IF([test "x$ENABLED_ECC" = "xno"],
+    AS_IF([test "x$ENABLED_ECC" = "xno" && test "x$ENABLED_CURVE25519" = "xno"],
           [ENABLED_SUPPORTED_CURVES=no],
           [AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SUPPORTED_CURVES"])
 fi
@@ -2714,7 +2719,7 @@ then
     ENABLED_ALPN=yes
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_ALPN"
     # Check the ECC supported curves prereq
-    AS_IF([test "x$ENABLED_ECC" = "xyes"],
+    AS_IF([test "x$ENABLED_ECC" = "xyes" || test "x$ENABLED_CURVE25519" = "xyes"],
           [ENABLED_SUPPORTED_CURVES=yes
            AM_CFLAGS="$AM_CFLAGS -DHAVE_SUPPORTED_CURVES"])
 fi
@@ -3055,6 +3060,7 @@ then
         AM_CFLAGS="-DOPENSSL_ALL $AM_CFLAGS"
     fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ASIO -DASIO_USE_WOLFSSL -DWOLFSSL_KEY_GEN"
+    AM_CFLAGS="$AM_CFLAGS -DBOOST_ASIO_USE_WOLFSSL"
     AM_CFLAGS="$AM_CFLAGS -DSSL_TXT_TLSV1_2 -DSSL_TXT_TLSV1_1"
     AM_CFLAGS="$AM_CFLAGS -DOPENSSL_NO_SSL2 -DOPENSSL_NO_SSL3"
     if test "$ENABLED_TLSV10" = "yes"
@@ -3132,7 +3138,7 @@ then
         AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC"
 
         # Check the ECC supported curves prereq
-        AS_IF([test "x$ENABLED_ECC" = "xyes"],
+        AS_IF([test "x$ENABLED_ECC" = "xyes" || test "x$ENABLED_CURVE25519" = "xyes"],
               [ENABLED_SUPPORTED_CURVES=yes
                AM_CFLAGS="$AM_CFLAGS -DHAVE_SUPPORTED_CURVES"])
     fi
@@ -4001,6 +4007,19 @@ if test "x$ENABLED_OLDNAMES" = "xno" && test "x$ENABLED_OPENSSLCOEXIST" = "xno"
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_OLD_RNGNAME -DNO_OLD_WC_NAMES -DNO_OLD_SSL_NAMES"
     AM_CFLAGS="$AM_CFLAGS -DNO_OLD_SHA_NAMES"
+fi
+
+
+# Memory Tests
+AC_ARG_ENABLE([memtest],
+    [AS_HELP_STRING([--enable-memtest],[Memory testing option, for internal use (default: disabled)])],
+    [ ENABLED_MEMTEST=$enableval ],
+    [ ENABLED_MEMTEST=no ]
+    )
+
+if test "x$ENABLED_MEMTEST" != "xno"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_TRACK_MEMORY -DWOLFSSL_DEBUG_MEMORY -DWOLFSSL_FORCE_MALLOC_FAIL_TEST"
 fi
 
 

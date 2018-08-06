@@ -723,15 +723,19 @@ MP_API int mp_radix_size (mp_int * a, int radix, int *size);
     MP_API int mp_set(fp_int *a, fp_digit b);
 #endif
 
-#if defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN)
+#if defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN) || !defined(NO_RSA) || \
+    !defined(NO_DSA) || !defined(NO_DH)
     MP_API int mp_sqrmod(mp_int* a, mp_int* b, mp_int* c);
     MP_API int mp_montgomery_calc_normalization(mp_int *a, mp_int *b);
 #endif
 
+#if !defined(NO_DH) || !defined(NO_DSA) || !defined(NO_RSA) || defined(WOLFSSL_KEY_GEN)
+MP_API int  mp_prime_is_prime(mp_int* a, int t, int* result);
+MP_API int  mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng);
+#endif /* NO_DH NO_DSA NO_RSA WOLFSSL_KEY_GEN */
 #ifdef WOLFSSL_KEY_GEN
 MP_API int  mp_gcd(fp_int *a, fp_int *b, fp_int *c);
 MP_API int  mp_lcm(fp_int *a, fp_int *b, fp_int *c);
-MP_API int  mp_prime_is_prime(mp_int* a, int t, int* result);
 MP_API int  mp_rand_prime(mp_int* N, int len, WC_RNG* rng, void* heap);
 MP_API int  mp_exch(mp_int *a, mp_int *b);
 #endif /* WOLFSSL_KEY_GEN */

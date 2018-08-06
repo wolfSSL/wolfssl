@@ -287,6 +287,14 @@ static WC_INLINE void AddLength(wc_Sha* sha, word32 len)
     #define f3(x,y,z) (((x)&(y))|((z)&((x)|(y))))
     #define f4(x,y,z) ((x)^(y)^(z))
 
+    #ifdef WOLFSSL_NUCLEUS_1_2
+        /* nucleus.h also defines R1-R4 */
+        #undef R1
+        #undef R2
+        #undef R3
+        #undef R4
+    #endif
+
     /* (R0+R1), R2, R3, R4 are the different operations used in SHA1 */
     #define R0(v,w,x,y,z,i) (z)+= f1((w),(x),(y)) + blk0((i)) + 0x5A827999+ \
         rotlFixed((v),5); (w) = rotlFixed((w),30);
@@ -545,6 +553,10 @@ void wc_ShaFree(wc_Sha* sha)
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_SHA)
     wolfAsync_DevCtxFree(&sha->asyncDev, WOLFSSL_ASYNC_MARKER_SHA);
 #endif /* WOLFSSL_ASYNC_CRYPT */
+
+#ifdef WOLFSSL_PIC32MZ_HASH
+    wc_ShaPic32Free(sha);
+#endif
 }
 
 #endif /* !WOLFSSL_TI_HASH */

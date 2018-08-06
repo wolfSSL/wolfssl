@@ -112,7 +112,7 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
     doPSK = 1;
 #endif
 
-#if defined(NO_RSA) && !defined(HAVE_ECC)
+#if defined(NO_RSA) && !defined(HAVE_ECC) && !defined(HAVE_ED25519)
     doPSK = 1;
 #endif
 
@@ -180,6 +180,17 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                     "Please run from wolfSSL home dir");
 
         if (CyaSSL_CTX_use_PrivateKey_file(ctx, eccKeyFile, WOLFSSL_FILETYPE_PEM)
+                != WOLFSSL_SUCCESS)
+            err_sys("can't load server key file, "
+                    "Please run from wolfSSL home dir");
+    #elif defined(HAVE_ED25519) && !defined(CYASSL_SNIFFER)
+        /* ed25519 */
+        if (CyaSSL_CTX_use_certificate_chain_file(ctx, edCertFile)
+                != WOLFSSL_SUCCESS)
+            err_sys("can't load server cert file, "
+                    "Please run from wolfSSL home dir");
+
+        if (CyaSSL_CTX_use_PrivateKey_file(ctx, edKeyFile, WOLFSSL_FILETYPE_PEM)
                 != WOLFSSL_SUCCESS)
             err_sys("can't load server key file, "
                     "Please run from wolfSSL home dir");
@@ -368,22 +379,18 @@ THREAD_RETURN CYASSL_THREAD echoserver_test(void* args)
                 break;
             }
 #endif
-            if ( strncmp(command, "GET", 3) == 0) {
-                char type[]   = "HTTP/1.0 200 ok\r\nContent-type:"
-                                " text/html\r\n\r\n";
-                char header[] = "<html><body BGCOLOR=\"#ffffff\">\n<pre>\n";
-                char body[]   = "greetings from wolfSSL\n";
-                char footer[] = "</body></html>\r\n\r\n";
+            if (strncmp(command, "GET", 3) == 0) {
+                const char resp[] =
+                    "HTTP/1.0 200 ok\r\nContent-type: text/html\r\n\r\n"
+                    "<html><body BGCOLOR=\"#ffffff\"><pre>\r\n"
+                    "greetings from wolfSSL\r\n</body></html>\r\n\r\n";
 
-                strncpy(command, type, sizeof(type));
-                echoSz = sizeof(type) - 1;
-
-                strncpy(&command[echoSz], header, sizeof(header));
-                echoSz += (int)sizeof(header) - 1;
-                strncpy(&command[echoSz], body, sizeof(body));
-                echoSz += (int)sizeof(body) - 1;
-                strncpy(&command[echoSz], footer, sizeof(footer));
-                echoSz += (int)sizeof(footer);
+                echoSz = (int)strlen(resp) + 1;
+                if (echoSz > (int)sizeof(command)) {
+                    /* Internal error. */
+                    err_sys("HTTP response greater than buffer.");
+                }
+                strncpy(command, resp, sizeof(command));
 
                 do {
                     err = 0; /* reset error */

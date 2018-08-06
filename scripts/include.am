@@ -13,6 +13,7 @@ if BUILD_EXAMPLE_SERVERS
 dist_noinst_SCRIPTS+= scripts/resume.test
 
 EXTRA_DIST+= scripts/benchmark.test
+EXTRA_DIST+= scripts/memtest.sh
 
 if BUILD_CRL
 # make revoked test rely on completion of resume test
@@ -74,3 +75,5 @@ EXTRA_DIST +=  scripts/testsuite.pcap \
 
 # leave openssl.test as extra until non bash works
 EXTRA_DIST +=  scripts/openssl.test
+
+EXTRA_DIST +=  scripts/dertoc.pl

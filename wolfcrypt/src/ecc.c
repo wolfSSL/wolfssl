@@ -3915,7 +3915,7 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
         }
     #endif
     }
-#endif /* WOLFSSL_ASYNC_CRYPT */
+#endif /* WOLFSSL_ASYNC_CRYPT && WC_ASYNC_ENABLE_ECC */
 
 #ifdef WOLFSSL_ATECC508A
    key->type = ECC_PRIVATEKEY;
@@ -3942,11 +3942,12 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
     }
     else
 #endif
-#endif
+#endif /* WOLFSSL_HAVE_SP_ECC */
+
+   { /* software key gen */
 #ifdef WOLFSSL_SP_MATH
         err = WC_KEY_SIZE_E;
 #else
-    {
         ALLOC_CURVE_SPECS(ECC_CURVE_FIELD_COUNT);
 
         /* setup the key variables */
@@ -3978,8 +3979,8 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
     #ifndef WOLFSSL_ATECC508A
         FREE_CURVE_SPECS();
     #endif
+#endif /* WOLFSSL_SP_MATH */
     }
-#endif
 
 #endif /* WOLFSSL_ATECC508A */
 
@@ -5168,6 +5169,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
                     word32 hashlen, int* res, ecc_key* key)
 {
    int           err;
+   word32        keySz;
 #ifdef WOLFSSL_ATECC508A
    byte sigRS[ATECC_KEY_SIZE*2];
 #elif !defined(WOLFSSL_SP_MATH)
@@ -5205,6 +5207,8 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
       return ECC_BAD_ARG_E;
    }
 
+   keySz = key->dp->size;
+
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC) && \
        defined(WOLFSSL_ASYNC_CRYPT_TEST)
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
@@ -5227,7 +5231,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
     if (err != MP_OKAY) {
         return err;
     }
-    err = mp_to_unsigned_bin(s, &sigRS[ATECC_KEY_SIZE]);
+    err = mp_to_unsigned_bin(s, &sigRS[keySz]);
     if (err != MP_OKAY) {
         return err;
     }
@@ -5330,8 +5334,6 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
       if (NitroxEccIsCurveSupported(key))
    #endif
       {
-          word32 keySz = key->dp->size;
-
           err = wc_mp_to_bigint_sz(e, &e->raw, keySz);
           if (err == MP_OKAY)
               err = wc_mp_to_bigint_sz(key->pubkey.x, &key->pubkey.x->raw, keySz);
@@ -5438,7 +5440,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 #else
 #ifndef ECC_SHAMIR
     {
-        mp_digit      mp = 0;
+        mp_digit mp = 0;
 
         /* compute u1*mG + u2*mQ = mG */
         if (err == MP_OKAY) {
@@ -5464,7 +5466,7 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
             err = ecc_map(mG, curve->prime, mp);
     }
 #else
-       /* use Shamir's trick to compute u1*mG + u2*mQ using half the doubles */
+        /* use Shamir's trick to compute u1*mG + u2*mQ using half the doubles */
         if (err == MP_OKAY) {
             err = ecc_mul2add(mG, u1, mQ, u2, mG, curve->Af, curve->prime,
                                                                     key->heap);
@@ -5507,6 +5509,9 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
 
 #endif /* WOLFSSL_SP_MATH */
 #endif /* WOLFSSL_ATECC508A */
+
+   (void)keySz;
+   (void)hashlen;
 
    return err;
 }
@@ -9539,36 +9544,24 @@ int wc_X963_KDF(enum wc_HashType type, const byte* secret, word32 secretSz,
 
         ret = wc_HashUpdate(hash, type, secret, secretSz);
         if (ret != 0) {
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(hash, NULL, DYNAMIC_TYPE_HASHES);
-#endif
-            return ret;
+            break;
         }
 
         ret = wc_HashUpdate(hash, type, counter, sizeof(counter));
         if (ret != 0) {
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(hash, NULL, DYNAMIC_TYPE_HASHES);
-#endif
-            return ret;
+            break;
         }
 
         if (sinfo) {
             ret = wc_HashUpdate(hash, type, sinfo, sinfoSz);
             if (ret != 0) {
-#ifdef WOLFSSL_SMALL_STACK
-                XFREE(hash, NULL, DYNAMIC_TYPE_HASHES);
-#endif
-                return ret;
+                break;
             }
         }
 
         ret = wc_HashFinal(hash, type, tmp);
         if (ret != 0) {
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(hash, NULL, DYNAMIC_TYPE_HASHES);
-#endif
-            return ret;
+            break;
         }
 
         copySz = min(remaining, digestSz);
@@ -9578,11 +9571,13 @@ int wc_X963_KDF(enum wc_HashType type, const byte* secret, word32 secretSz,
         outIdx += copySz;
     }
 
+    wc_HashFree(hash, type);
+
 #ifdef WOLFSSL_SMALL_STACK
      XFREE(hash, NULL, DYNAMIC_TYPE_HASHES);
 #endif
 
-    return 0;
+    return ret;
 }
 #endif /* HAVE_X963_KDF */
 

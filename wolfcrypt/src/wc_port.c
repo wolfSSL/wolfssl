@@ -50,6 +50,10 @@
     #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
 #endif
 
+#if defined(WOLFSSL_STSAFEA100)
+    #include <wolfssl/wolfcrypt/port/st/stsafe.h>
+#endif
+
 #if defined(OPENSSL_EXTRA) || defined(HAVE_WEBSERVER)
     #include <wolfssl/openssl/evp.h>
 #endif
@@ -85,6 +89,17 @@ int wolfCrypt_Init(void)
 
     if (initRefCount == 0) {
         WOLFSSL_ENTER("wolfCrypt_Init");
+
+    #ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
+        {
+            word32 rngMallocFail;
+            time_t seed = time(NULL);
+            srand((word32)seed);
+            rngMallocFail = rand() % 2000; /* max 2000 */
+            printf("\n--- RNG MALLOC FAIL AT %d---\n", rngMallocFail);
+            wolfSSL_SetMemFailCount(rngMallocFail);
+        }
+    #endif
 
     #ifdef WOLF_CRYPTO_DEV
         wc_CryptoDev_Init();
@@ -139,6 +154,10 @@ int wolfCrypt_Init(void)
 
     #if defined(WOLFSSL_ATMEL) || defined(WOLFSSL_ATECC508A)
         atmel_init();
+    #endif
+
+    #if defined(WOLFSSL_STSAFEA100)
+        stsafe_interface_init();
     #endif
 
     #ifdef WOLFSSL_ARMASM
@@ -221,13 +240,15 @@ int wolfCrypt_Cleanup(void)
 }
 
 #if !defined(NO_FILESYSTEM) && !defined(NO_WOLFSSL_DIR) && \
-	!defined(WOLFSSL_NUCLEUS)
+	!defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
 
 /* File Handling Helpers */
 /* returns 0 if file found, -1 if no files or negative error */
 int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
 {
     int ret = -1; /* default to no files found */
+    int pathLen = 0;
+    int dnameLen = 0;
 
     if (name)
         *name = NULL;
@@ -237,10 +258,14 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
     }
 
     XMEMSET(ctx->name, 0, MAX_FILENAME_SZ);
+    pathLen = (int)XSTRLEN(path);
 
 #ifdef USE_WINDOWS_API
-    XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ - 4);
-    XSTRNCAT(ctx->name, "\\*", 3);
+    if (pathLen > MAX_FILENAME_SZ - 3)
+        return BAD_PATH_ERROR;
+
+    XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ - 3);
+    XSTRNCPY(ctx->name + pathLen, "\\*", MAX_FILENAME_SZ - pathLen);
 
     ctx->hFind = FindFirstFileA(ctx->name, &ctx->FindFileData);
     if (ctx->hFind == INVALID_HANDLE_VALUE) {
@@ -250,9 +275,16 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
 
     do {
         if (ctx->FindFileData.dwFileAttributes != FILE_ATTRIBUTE_DIRECTORY) {
-            XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ/2 - 3);
-            XSTRNCAT(ctx->name, "\\", 2);
-            XSTRNCAT(ctx->name, ctx->FindFileData.cFileName, MAX_FILENAME_SZ/2);
+            dnameLen = (int)XSTRLEN(ctx->FindFileData.cFileName);
+
+            if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
+                return BAD_PATH_ERROR;
+            }
+            XSTRNCPY(ctx->name, path, pathLen + 1);
+            ctx->name[pathLen] = '\\';
+            XSTRNCPY(ctx->name + pathLen + 1,
+                     ctx->FindFileData.cFileName,
+                     MAX_FILENAME_SZ - pathLen - 1);
             if (name)
                 *name = ctx->name;
             return 0;
@@ -266,9 +298,16 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
     }
 
     while ((ctx->entry = readdir(ctx->dir)) != NULL) {
-        XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ/2 - 2);
-        XSTRNCAT(ctx->name, "/", 1);
-        XSTRNCAT(ctx->name, ctx->entry->d_name, MAX_FILENAME_SZ/2);
+        dnameLen = (int)XSTRLEN(ctx->entry->d_name);
+
+        if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
+            ret = BAD_PATH_ERROR;
+            break;
+        }
+        XSTRNCPY(ctx->name, path, pathLen + 1);
+        ctx->name[pathLen] = '/';
+        XSTRNCPY(ctx->name + pathLen + 1,
+                 ctx->entry->d_name, MAX_FILENAME_SZ - pathLen - 1);
 
         if (stat(ctx->name, &ctx->s) != 0) {
             WOLFSSL_MSG("stat on name failed");
@@ -290,6 +329,8 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
 int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
 {
     int ret = -1; /* default to no file found */
+    int pathLen = 0;
+    int dnameLen = 0;
 
     if (name)
         *name = NULL;
@@ -299,13 +340,21 @@ int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
     }
 
     XMEMSET(ctx->name, 0, MAX_FILENAME_SZ);
+    pathLen = (int)XSTRLEN(path);
 
 #ifdef USE_WINDOWS_API
     while (FindNextFileA(ctx->hFind, &ctx->FindFileData)) {
         if (ctx->FindFileData.dwFileAttributes != FILE_ATTRIBUTE_DIRECTORY) {
-            XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ/2 - 3);
-            XSTRNCAT(ctx->name, "\\", 2);
-            XSTRNCAT(ctx->name, ctx->FindFileData.cFileName, MAX_FILENAME_SZ/2);
+            dnameLen = (int)XSTRLEN(ctx->FindFileData.cFileName);
+
+            if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
+                return BAD_PATH_ERROR;
+            }
+            XSTRNCPY(ctx->name, path, pathLen + 1);
+            ctx->name[pathLen] = '\\';
+            XSTRNCPY(ctx->name + pathLen + 1,
+                     ctx->FindFileData.cFileName,
+                     MAX_FILENAME_SZ - pathLen - 1);
             if (name)
                 *name = ctx->name;
             return 0;
@@ -313,9 +362,16 @@ int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
     }
 #else
     while ((ctx->entry = readdir(ctx->dir)) != NULL) {
-        XSTRNCPY(ctx->name, path, MAX_FILENAME_SZ/2 - 2);
-        XSTRNCAT(ctx->name, "/", 1);
-        XSTRNCAT(ctx->name, ctx->entry->d_name, MAX_FILENAME_SZ/2);
+        dnameLen = (int)XSTRLEN(ctx->entry->d_name);
+
+        if (pathLen + dnameLen + 2 > MAX_FILENAME_SZ) {
+            ret = BAD_PATH_ERROR;
+            break;
+        }
+        XSTRNCPY(ctx->name, path, pathLen + 1);
+        ctx->name[pathLen] = '/';
+        XSTRNCPY(ctx->name + pathLen + 1,
+                 ctx->entry->d_name, MAX_FILENAME_SZ - pathLen - 1);
 
         if (stat(ctx->name, &ctx->s) != 0) {
             WOLFSSL_MSG("stat on name failed");
@@ -1255,6 +1311,44 @@ int wolfSSL_CryptHwMutexUnLock(void) {
         return ret;
     }
 
+#elif defined(WOLFSSL_NUCLEUS_1_2)
+
+    int wc_InitMutex(wolfSSL_Mutex* m)
+    {
+        /* Call the Nucleus function to create the semaphore */
+        if (NU_Create_Semaphore(m, "WOLFSSL_MTX", 1,
+                                NU_PRIORITY) == NU_SUCCESS) {
+            return 0;
+        }
+
+        return BAD_MUTEX_E;
+    }
+
+    int wc_FreeMutex(wolfSSL_Mutex* m)
+    {
+        if (NU_Delete_Semaphore(m) == NU_SUCCESS)
+            return 0;
+
+        return BAD_MUTEX_E;
+    }
+
+    int wc_LockMutex(wolfSSL_Mutex* m)
+    {
+        /* passing suspend task option */
+        if (NU_Obtain_Semaphore(m, NU_SUSPEND) == NU_SUCCESS)
+            return 0;
+
+        return BAD_MUTEX_E;
+    }
+
+    int wc_UnLockMutex(wolfSSL_Mutex* m)
+    {
+        if (NU_Release_Semaphore(m) == NU_SUCCESS)
+            return 0;
+
+        return BAD_MUTEX_E;
+    }
+
 #else
     #warning No mutex handling defined
 
@@ -1285,6 +1379,22 @@ time_t windows_time(time_t* timer)
     return *timer;
 }
 #endif /*  _WIN32_WCE */
+
+#if defined(WOLFSSL_APACHE_MYNEWT)
+#include "os/os_time.h"
+
+time_t mynewt_time(time_t* timer)
+{
+    time_t now;
+    struct os_timeval tv;
+    os_gettimeofday(&tv, NULL);
+    now = (time_t)tv.tv_sec;
+    if(timer != NULL) {
+        *timer = now;
+    }
+    return now;
+}
+#endif /* WOLFSSL_APACHE_MYNEWT */
 
 #if defined(WOLFSSL_GMTIME)
 struct tm* gmtime(const time_t* timer)
@@ -1486,6 +1596,66 @@ char* mystrnstr(const char* s1, const char* s2, unsigned int n)
     return NULL;
 }
 #endif
+
+/* custom memory wrappers */
+#ifdef WOLFSSL_NUCLEUS_1_2
+
+    /* system memory pool */
+    extern NU_MEMORY_POOL System_Memory;
+
+    void* nucleus_malloc(unsigned long size, void* heap, int type)
+    {
+        STATUS status;
+        void*  stack_ptr;
+
+        status = NU_Allocate_Memory(&System_Memory, &stack_ptr, size,
+                                    NU_NO_SUSPEND);
+        if (status == NU_SUCCESS) {
+            return 0;
+        } else {
+            return stack_ptr;
+        }
+    }
+
+    void* nucleus_realloc(void* ptr, unsigned long size, void* heap, int type)
+    {
+        STATUS     status;
+        DM_HEADER* old_header;
+        word32     old_size, copy_size;
+        void*      new_mem;
+
+        /* if ptr is NULL, behave like malloc */
+        new_mem = nucleus_malloc(size, NULL, 0);
+        if (new_mem == 0 || ptr == 0) {
+            return new_mem;
+        }
+
+        /* calculate old memory block size */
+        /* mem pointers stored in block headers (ref dm_defs.h) */
+        old_header = (DM_HEADER*) ((byte*)ptr - DM_OVERHEAD);
+        old_size   = (byte*)old_header->dm_next_memory - (byte*)ptr;
+
+        /* copy old to new */
+        if (old_size < size) {
+            copy_size = old_size;
+        } else {
+            copy_size = size;
+        }
+        XMEMCPY(new_mem, ptr, copy_size);
+
+        /* free old */
+        nucleus_free(ptr, NULL, 0);
+
+        return new_mem;
+    }
+
+    void nucleus_free(void* ptr, void* heap, int type)
+    {
+        if (ptr != NULL)
+            NU_Deallocate_Memory(ptr);
+    }
+
+#endif /* WOLFSSL_NUCLEUS_1_2 */
 
 #if defined(WOLFSSL_TI_CRYPT) || defined(WOLFSSL_TI_HASH)
     #include <wolfcrypt/src/port/ti/ti-ccm.c>  /* initialize and Mutex for TI Crypt Engine */

@@ -897,16 +897,14 @@ static int wc_PKCS7_BuildDigestInfo(PKCS7* pkcs7, byte* flatSignedAttribs,
 
         ret = wc_HashUpdate(&esd->hash, esd->hashType,
                             attribSet, attribSetSz);
-        if (ret < 0)
-            return ret;
+        if (ret == 0)
+            ret = wc_HashUpdate(&esd->hash, esd->hashType,
+                                flatSignedAttribs, flatSignedAttribsSz);
+        if (ret == 0)
+            ret = wc_HashFinal(&esd->hash, esd->hashType,
+                               esd->contentAttribsDigest);
+        wc_HashFree(&esd->hash, esd->hashType);
 
-        ret = wc_HashUpdate(&esd->hash, esd->hashType,
-                            flatSignedAttribs, flatSignedAttribsSz);
-        if (ret < 0)
-            return ret;
-
-        ret = wc_HashFinal(&esd->hash, esd->hashType,
-                           esd->contentAttribsDigest);
         if (ret < 0)
             return ret;
 
@@ -1089,33 +1087,26 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     }
     hashSz = ret;
 
-    ret = wc_HashInit(&esd->hash, esd->hashType);
-    if (ret != 0) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        return ret;
-    }
-
     if (pkcs7->contentSz != 0)
     {
-        ret = wc_HashUpdate(&esd->hash, esd->hashType,
-                            pkcs7->content, pkcs7->contentSz);
-        if (ret < 0) {
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        return ret;
+        ret = wc_HashInit(&esd->hash, esd->hashType);
+        if (ret == 0) {
+            ret = wc_HashUpdate(&esd->hash, esd->hashType,
+                                pkcs7->content, pkcs7->contentSz);
+            if (ret == 0) {
+                esd->contentDigest[0] = ASN_OCTET_STRING;
+                esd->contentDigest[1] = (byte)hashSz;
+                ret = wc_HashFinal(&esd->hash, esd->hashType,
+                                   &esd->contentDigest[2]);
+            }
+            wc_HashFree(&esd->hash, esd->hashType);
         }
-        esd->contentDigest[0] = ASN_OCTET_STRING;
-        esd->contentDigest[1] = (byte)hashSz;
-        ret = wc_HashFinal(&esd->hash, esd->hashType,
-                           &esd->contentDigest[2]);
+
         if (ret < 0) {
 #ifdef WOLFSSL_SMALL_STACK
             XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-        return ret;
+            return ret;
         }
     }
 
@@ -1492,9 +1483,25 @@ static int wc_PKCS7_BuildSignedDataDigest(PKCS7* pkcs7, byte* signedAttrib,
     wc_HashAlg hash;
     enum wc_HashType hashType;
 
+    /* check arguments */
     if (pkcs7 == NULL || pkcs7Digest == NULL ||
         pkcs7DigestSz == NULL || plainDigest == NULL) {
         return BAD_FUNC_ARG;
+    }
+
+    hashType = wc_OidGetHash(pkcs7->hashOID);
+    ret = wc_HashGetDigestSize(hashType);
+    if (ret < 0)
+        return ret;
+    hashSz = ret;
+
+    if (signedAttribSz > 0) {
+        if (signedAttrib == NULL)
+            return BAD_FUNC_ARG;
+    }
+    else {
+        if (pkcs7->content == NULL)
+            return BAD_FUNC_ARG;
     }
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -1508,15 +1515,6 @@ static int wc_PKCS7_BuildSignedDataDigest(PKCS7* pkcs7, byte* signedAttrib,
     XMEMSET(digest,      0, WC_MAX_DIGEST_SIZE);
     XMEMSET(digestInfo,  0, MAX_PKCS7_DIGEST_SZ);
 
-    hashType = wc_OidGetHash(pkcs7->hashOID);
-    ret = wc_HashGetDigestSize(hashType);
-    if (ret < 0) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        return ret;
-    }
-    hashSz = ret;
 
     /* calculate digest */
     ret = wc_HashInit(&hash, hashType);
@@ -1528,63 +1526,27 @@ static int wc_PKCS7_BuildSignedDataDigest(PKCS7* pkcs7, byte* signedAttrib,
     }
 
     if (signedAttribSz > 0) {
-
-        if (signedAttrib == NULL) {
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-            return BAD_FUNC_ARG;
-        }
-
         attribSetSz = SetSet(signedAttribSz, attribSet);
+
+        /* calculate digest */
         ret = wc_HashUpdate(&hash, hashType, attribSet, attribSetSz);
-        if (ret < 0) {
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-            return ret;
-        }
-
-        ret = wc_HashUpdate(&hash, hashType, signedAttrib, signedAttribSz);
-        if (ret < 0) {
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-            return ret;
-        }
-
-        ret = wc_HashFinal(&hash, hashType, digest);
-        if (ret < 0) {
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-            return ret;
-        }
-
+        if (ret == 0)
+            ret = wc_HashUpdate(&hash, hashType, signedAttrib, signedAttribSz);
+        if (ret == 0)
+            ret = wc_HashFinal(&hash, hashType, digest);
     } else {
-
-        if (pkcs7->content == NULL) {
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-            return BAD_FUNC_ARG;
-        }
-
         ret = wc_HashUpdate(&hash, hashType, pkcs7->content, pkcs7->contentSz);
-        if (ret < 0) {
-#ifdef WOLFSSL_SMALL_STACK
-            XFREE(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-            return ret;
-        }
+        if (ret == 0)
+            ret = wc_HashFinal(&hash, hashType, digest);
+    }
 
-        ret = wc_HashFinal(&hash, hashType, digest);
-        if (ret < 0) {
+    wc_HashFree(&hash, hashType);
+
+    if (ret < 0) {
 #ifdef WOLFSSL_SMALL_STACK
-            XFREE(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(digestInfo, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-            return ret;
-        }
+        return ret;
     }
 
     /* Set algoID, with NULL attributes */

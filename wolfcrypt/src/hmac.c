@@ -296,6 +296,11 @@ int wc_HmacSetKey(Hmac* hmac, int type, const byte* key, word32 length)
         return BAD_FUNC_ARG;
     }
 
+    /* if set key has already been run then make sure and free existing */
+    if (hmac->macType != 0) {
+        wc_HmacFree(hmac);
+    }
+
     hmac->innerHashKeyed = 0;
     hmac->macType = (byte)type;
 

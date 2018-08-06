@@ -117,6 +117,11 @@ static WC_INLINE double current_time(int reset)
 static wolfSSL_Logging_cb log_function = NULL;
 static int loggingEnabled = 0;
 
+#if defined(WOLFSSL_APACHE_MYNEWT)
+#include "log/log.h"
+static struct log mynewt_log;
+#endif /* WOLFSSL_APACHE_MYNEWT */
+
 #endif /* DEBUG_WOLFSSL */
 
 
@@ -137,6 +142,9 @@ int wolfSSL_Debugging_ON(void)
 {
 #ifdef DEBUG_WOLFSSL
     loggingEnabled = 1;
+#if defined(WOLFSSL_APACHE_MYNEWT)
+    log_register("wolfcrypt", &mynewt_log, &log_console_handler, NULL, LOG_SYSLEVEL);
+#endif /* WOLFSSL_APACHE_MYNEWT */
     return 0;
 #else
     return NOT_COMPILED_IN;
@@ -237,6 +245,8 @@ static void wolfssl_log(const int logLevel, const char *const logMessage)
 #elif defined(MQX_USE_IO_OLD)
         fprintf(_mqxio_stderr, "%s\n", logMessage);
 
+#elif defined(WOLFSSL_APACHE_MYNEWT)
+        LOG_DEBUG(&mynewt_log, LOG_MODULE_DEFAULT, "%s\n", logMessage);
 #else
         fprintf(stderr, "%s\n", logMessage);
 #endif
@@ -580,6 +590,11 @@ int wc_AddErrorNode(int error, int line, char* buf, char* file)
             if (wc_errors != NULL) {
                 /* check for unexpected case before over writing wc_errors */
                 WOLFSSL_MSG("ERROR in adding new node to logging queue!!\n");
+                /* In the event both wc_last_node and wc_errors are NULL, err
+                 * goes unassigned to external wc_errors, wc_last_node. Free
+                 * err in this instance since wc_ClearErrorNodes will not
+                 */
+                XFREE(err, wc_error_heap, DYNAMIC_TYPE_LOG);
             }
             else {
                 wc_errors    = err;
@@ -641,7 +656,9 @@ void wc_RemoveErrorNode(int idx)
  */
 void wc_ClearErrorNodes(void)
 {
-#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_NGINX)
+#if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_NGINX) || \
+    defined(OPENSSL_EXTRA) || defined(DEBUG_WOLFSSL_VERBOSE)
+
     if (wc_LockMutex(&debug_mutex) != 0) {
         WOLFSSL_MSG("Lock debug mutex failed");
         return;

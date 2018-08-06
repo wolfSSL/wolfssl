@@ -576,9 +576,15 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     ((func_args*)args)->return_code = -1; /* error state */
 
 #ifdef NO_RSA
-    verifyCert = (char*)cliEccCertFile;
-    ourCert    = (char*)eccCertFile;
-    ourKey     = (char*)eccKeyFile;
+    #ifdef HAVE_ECC
+        verifyCert = (char*)cliEccCertFile;
+        ourCert    = (char*)eccCertFile;
+        ourKey     = (char*)eccKeyFile;
+    #elif defined(HAVE_ED25519)
+        verifyCert = (char*)cliEdCertFile;
+        ourCert    = (char*)edCertFile;
+        ourKey     = (char*)edKeyFile;
+    #endif
 #endif
 
     (void)needDH;
@@ -615,7 +621,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         switch (ch) {
             case '?' :
                 Usage();
-                exit(EXIT_SUCCESS);
+                XEXIT_T(EXIT_SUCCESS);
 
             case 'x' :
                 runWithErrors = 1;
@@ -695,7 +701,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 version = atoi(myoptarg);
                 if (version < 0 || version > 4) {
                     Usage();
-                    exit(MY_EX_USAGE);
+                    XEXIT_T(MY_EX_USAGE);
                 }
                 break;
 
@@ -714,7 +720,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 }
                 else {
                     Usage();
-                    exit(MY_EX_USAGE);
+                    XEXIT_T(MY_EX_USAGE);
                 }
                 break;
 
@@ -741,7 +747,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                     minDhKeyBits = atoi(myoptarg);
                     if (minDhKeyBits <= 0 || minDhKeyBits > 16000) {
                         Usage();
-                        exit(MY_EX_USAGE);
+                        XEXIT_T(MY_EX_USAGE);
                     }
                 #endif
                 break;
@@ -790,7 +796,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                         alpn_opt = WOLFSSL_ALPN_FAILED_ON_MISMATCH;
                     else {
                         Usage();
-                        exit(MY_EX_USAGE);
+                        XEXIT_T(MY_EX_USAGE);
                     }
 
                     alpnList += 2;
@@ -806,7 +812,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 loops = atoi(myoptarg);
                 if (loops <= 0) {
                     Usage();
-                    exit(MY_EX_USAGE);
+                    XEXIT_T(MY_EX_USAGE);
                 }
                 break;
 
@@ -824,7 +830,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 }
                 if (throughput <= 0 || block <= 0) {
                     Usage();
-                    exit(MY_EX_USAGE);
+                    XEXIT_T(MY_EX_USAGE);
                 }
                 break;
 
@@ -911,7 +917,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
             default:
                 Usage();
-                exit(MY_EX_USAGE);
+                XEXIT_T(MY_EX_USAGE);
         }
     }
 
@@ -1050,7 +1056,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     }
 #endif
 
-#if defined(NO_RSA) && !defined(HAVE_ECC)
+#if defined(NO_RSA) && !defined(HAVE_ECC) && !defined(HAVE_ED25519)
     if (!usePsk) {
         usePsk = 1;
     }
@@ -1506,8 +1512,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             printf("SSL_accept error %d, %s\n", err,
                                                 ERR_error_string(err, buffer));
             /* cleanup */
-            SSL_free(ssl);
-            SSL_CTX_free(ctx);
+            SSL_free(ssl); ssl = NULL;
+            SSL_CTX_free(ctx); ctx = NULL;
             CloseSocket(clientfd);
             CloseSocket(sockfd);
 
@@ -1673,7 +1679,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         fprintf(stderr, "total connection frees    = %d\n\n", ssl_stats.totalFr);
 
 #endif
-        SSL_free(ssl);
+        SSL_free(ssl); ssl = NULL;
 
         CloseSocket(clientfd);
 
@@ -1698,7 +1704,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
 
     CloseSocket(sockfd);
-    SSL_CTX_free(ctx);
+    SSL_CTX_free(ctx); ctx = NULL;
 
     ((func_args*)args)->return_code = 0;
 
