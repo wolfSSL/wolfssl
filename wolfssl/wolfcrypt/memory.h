@@ -101,7 +101,7 @@ WOLFSSL_API int wolfSSL_GetAllocators(wolfSSL_Malloc_cb*,
         #ifndef SESSION_CERTS
             /* default size of chunks of memory to separate into */
             #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,3456,4544,16128
-        #elif WOLFSSL_CERT_EXT
+        #elif defined (WOLFSSL_CERT_EXT)
             /* certificate extensions requires 24k for the SSL struct */
             #define WOLFMEM_BUCKETS 64,128,256,512,1024,2432,3456,4544,24576
         #else
