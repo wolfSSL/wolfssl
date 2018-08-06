@@ -14050,8 +14050,10 @@ int CreateOcspResponse(WOLFSSL* ssl, OcspRequest** ocspRequest,
                                                                    der->length);
         }
 
-        if (request != NULL)
+        if (request != NULL && ret != 0) {
             XFREE(request, ssl->heap, DYNAMIC_TYPE_OCSP_REQUEST);
+            request = NULL;
+        }
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(cert, ssl->heap, DYNAMIC_TYPE_DCERT);
     #endif

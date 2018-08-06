@@ -50,6 +50,11 @@
 
 #define DEFAULT_TIMEOUT_SEC 2
 
+#define OCSP_STAPLING 1
+#define OCSP_STAPLINGV2 2
+#define OCSP_STAPLINGV2_MULTI 3
+#define OCSP_STAPLING_OPT_MAX OCSP_STAPLINGV2_MULTI
+
 /* Note on using port 0: the client standalone example doesn't utilize the
  * port 0 port sharing; that is used by (1) the server in external control
  * test mode and (2) the testsuite which uses this code and sets up the correct
@@ -787,7 +792,7 @@ static void Usage(void)
 #endif
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
-    printf("-W          Use OCSP Stapling\n");
+    printf("-W <num>    Use OCSP Stapling (1 v1, 2 v2, 3 v2 multi)\n");
 #endif
 #ifdef ATOMIC_USER
     printf("-U          Atomic User Record Layer Callbacks\n");
@@ -1249,6 +1254,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
                  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
                     statusRequest = atoi(myoptarg);
+                    if (statusRequest > OCSP_STAPLING_OPT_MAX) {
+                        Usage();
+                        XEXIT_T(MY_EX_USAGE);
+                    }
                 #endif
                 break;
 
@@ -1454,7 +1463,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         #endif
 
         if (done) {
-            printf("external test can't be run in this mode");
+            printf("external test can't be run in this mode\n");
 
             ((func_args*)args)->return_code = 0;
             XEXIT_T(EXIT_SUCCESS);
@@ -1986,33 +1995,32 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
        wolfSSL_UseALPN(ssl, alpnList, (word32)XSTRLEN(alpnList), alpn_opt);
     }
 #endif
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+
+#if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+    defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
     if (statusRequest) {
+        if (version == 4 &&
+            (statusRequest == OCSP_STAPLINGV2 || \
+             statusRequest == OCSP_STAPLINGV2_MULTI)) {
+            err_sys("Cannot use OCSP Stapling V2 with TLSv1.3");
+        }
+
         if (wolfSSL_CTX_EnableOCSPStapling(ctx) != WOLFSSL_SUCCESS)
             err_sys("can't enable OCSP Stapling Certificate Manager");
 
         switch (statusRequest) {
-            case WOLFSSL_CSR_OCSP:
+        #ifdef HAVE_CERTIFICATE_STATUS_REQUEST
+            case OCSP_STAPLING:
                 if (wolfSSL_UseOCSPStapling(ssl, WOLFSSL_CSR_OCSP,
                                WOLFSSL_CSR_OCSP_USE_NONCE) != WOLFSSL_SUCCESS) {
                     wolfSSL_free(ssl); ssl = NULL;
                     wolfSSL_CTX_free(ctx); ctx = NULL;
                     err_sys("UseCertificateStatusRequest failed");
                 }
-
             break;
-        }
-
-        wolfSSL_CTX_EnableOCSP(ctx, 0);
-    }
-#endif
-#ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
-    if (statusRequest) {
-        if (wolfSSL_CTX_EnableOCSPStapling(ctx) != WOLFSSL_SUCCESS)
-            err_sys("can't enable OCSP Stapling Certificate Manager");
-
-        switch (statusRequest) {
-            case WOLFSSL_CSR2_OCSP:
+        #endif
+        #ifdef HAVE_CERTIFICATE_STATUS_REQUEST_V2
+            case OCSP_STAPLINGV2:
                 if (wolfSSL_UseOCSPStaplingV2(ssl,
                     WOLFSSL_CSR2_OCSP, WOLFSSL_CSR2_OCSP_USE_NONCE)
                                                            != WOLFSSL_SUCCESS) {
@@ -2021,7 +2029,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     err_sys("UseCertificateStatusRequest failed");
                 }
             break;
-            case WOLFSSL_CSR2_OCSP_MULTI:
+            case OCSP_STAPLINGV2_MULTI:
                 if (wolfSSL_UseOCSPStaplingV2(ssl,
                     WOLFSSL_CSR2_OCSP_MULTI, 0)
                                                            != WOLFSSL_SUCCESS) {
@@ -2030,7 +2038,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     err_sys("UseCertificateStatusRequest failed");
                 }
             break;
-
+        #endif
+            default:
+                err_sys("Invalid OCSP Stapling option");
         }
 
         wolfSSL_CTX_EnableOCSP(ctx, 0);

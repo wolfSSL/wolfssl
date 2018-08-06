@@ -1,8 +1,15 @@
-#!/bin/sh
+#!/bin/bash
 
 # ocsp-stapling.test
 
-trap 'for i in `jobs -p`; do pkill -TERM -P $i; done' EXIT
+cleanup()
+{
+    for i in $(jobs -pr)
+    do
+        kill -s HUP "$i"
+    done
+}
+trap cleanup EXIT INT TERM HUP
 
 server=login.live.com
 ca=certs/external/baltimore-cybertrust-root.pem
@@ -17,7 +24,7 @@ fi
 #./scripts/ping.test $server 2
 
 # client test against the server
-./examples/client/client -X -C -h $server -p 443 -A $ca -g -W 1
+./examples/client/client -C -h $server -p 443 -A $ca -g -W 1
 RESULT=$?
 [ $RESULT -ne 0 ] && echo -e "\n\nClient connection failed" && exit 1
 
@@ -30,8 +37,18 @@ if [ $? -eq 0 ]; then
 fi
 
 # setup ocsp responder
-./certs/ocsp/ocspd-intermediate1-ca-issued-certs.sh &
+# OLD: ./certs/ocsp/ocspd-intermediate1-ca-issued-certs.sh &
+# NEW: openssl isn't being cleaned up, invoke directly in script for cleanup
+# purposes!
+openssl ocsp -port 22221 -nmin 1                                \
+    -index   certs/ocsp/index-intermediate1-ca-issued-certs.txt \
+    -rsigner certs/ocsp/ocsp-responder-cert.pem                 \
+    -rkey    certs/ocsp/ocsp-responder-key.pem                  \
+    -CA      certs/ocsp/intermediate1-ca-cert.pem               \
+    "$@" &
+
 sleep 1
+# "jobs" is not portable for posix. Must use bash interpreter!
 [ $(jobs -r | wc -l) -ne 1 ] && echo -e "\n\nSetup ocsp responder failed, skipping" && exit 0
 
 # client test against our own server - GOOD CERT
