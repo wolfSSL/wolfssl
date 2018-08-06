@@ -8390,13 +8390,13 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         }
     }
 #ifdef WOLFSSL_ALWAYS_VERIFY_CB
-    /* use verify callback for success on peer leaf cert (not just failure) */
-    if (args->certIdx == 0 && ret == 0) {
+    /* always use verify callback on peer leaf cert */
+    if (args->certIdx == 0) {
         use_cb = 1;
     }
 #endif
 #ifdef WOLFSSL_VERIFY_CB_ALL_CERTS
-    /* only perform verify callback if not peer leaf cert at index 0 */
+    /* perform verify callback on other intermediate certs (not just peer) */
     if (args->certIdx > 0) {
         use_cb = 1;
     }
