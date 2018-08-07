@@ -859,7 +859,7 @@ int wc_RNG_HealthTest_ex(int reseed, const byte* nonce, word32 nonceSz,
     }
 
 #ifdef WOLFSSL_SMALL_STACK
-    drbg = (struct DRBG*)XMALLOC(sizeof(DRBG), NULL, DYNAMIC_TYPE_RNG);
+    drbg = (DRBG*)XMALLOC(sizeof(DRBG), NULL, DYNAMIC_TYPE_RNG);
     if (drbg == NULL) {
         return MEMORY_E;
     }
