@@ -4915,7 +4915,8 @@ int mp_read_radix (mp_int * a, const char *str, int radix)
 
 #if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
     defined(WOLFSSL_DEBUG_MATH) || defined(DEBUG_WOLFSSL) || \
-    defined(WOLFSSL_PUBLIC_MP)
+    defined(WOLFSSL_PUBLIC_MP) || \
+    (defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT))
 
 /* returns size of ASCII representation */
 int mp_radix_size (mp_int *a, int radix, int *size)

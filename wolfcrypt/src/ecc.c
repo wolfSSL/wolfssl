@@ -6399,143 +6399,124 @@ int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key)
 #endif /* HAVE_ECC_KEY_IMPORT */
 
 #ifdef HAVE_ECC_KEY_EXPORT
-/* export ecc private key only raw, outLen is in/out size
-   return MP_OKAY on success */
-int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen)
+
+/* export an mp_int as unsigned char or hex string
+ * encType is ECC_TYPE_UNSIGNED_BIN or ECC_TYPE_HEX_STR
+ * return MP_OKAY on success */
+int wc_ecc_export_int(mp_int* mp, byte* buf, word32* len, word32 keySz,
+    int encType)
 {
-    word32 numlen;
+    int err;
 
-    if (key == NULL || out == NULL || outLen == NULL) {
-        return BAD_FUNC_ARG;
-    }
-
-    if (wc_ecc_is_valid_idx(key->idx) == 0) {
-        return ECC_BAD_ARG_E;
-    }
-    numlen = key->dp->size;
-
-    if (*outLen < numlen) {
-        *outLen = numlen;
+    /* check buffer size */
+    if (*len < keySz) {
+        *len = keySz;
         return BUFFER_E;
     }
-    *outLen = numlen;
-    XMEMSET(out, 0, *outLen);
 
-#ifdef WOLFSSL_ATECC508A
-   /* TODO: Implement equiv call to ATECC508A */
-   return BAD_COND_E;
+    *len = keySz;
+    XMEMSET(buf, 0, *len);
 
-#else
-
-    return mp_to_unsigned_bin(&key->k, out + (numlen -
-                                           mp_unsigned_bin_size(&key->k)));
-#endif /* WOLFSSL_ATECC508A */
-}
-
-
-/* export ecc key to component form, d is optional if only exporting public
- * return MP_OKAY on success */
-static int wc_ecc_export_raw(ecc_key* key, byte* qx, word32* qxLen,
-                             byte* qy, word32* qyLen, byte* d, word32* dLen)
-{
-    int  err;
-    byte exportPriv = 0;
-    word32 numLen;
-
-    if (key == NULL || qx == NULL || qxLen == NULL || qy == NULL ||
-        qyLen == NULL) {
-        return BAD_FUNC_ARG;
+    if (encType == ECC_TYPE_HEX_STR) {
+        err = mp_tohex(mp, (char*)buf);
+    }
+    else {
+        err = mp_to_unsigned_bin(mp, buf + (keySz - mp_unsigned_bin_size(mp)));
     }
 
-    if (key->type == ECC_PRIVATEKEY_ONLY) {
-        return ECC_PRIVATEONLY_E;
+    return err;
+}
+
+/* export ecc key to component form, d is optional if only exporting public
+ * encType is ECC_TYPE_UNSIGNED_BIN or ECC_TYPE_HEX_STR
+ * return MP_OKAY on success */
+int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
+                 byte* qy, word32* qyLen, byte* d, word32* dLen, int encType)
+{
+    int err = 0;
+    word32 keySz;
+
+    if (key == NULL) {
+        return BAD_FUNC_ARG;
     }
 
     if (wc_ecc_is_valid_idx(key->idx) == 0) {
         return ECC_BAD_ARG_E;
     }
-    numLen = key->dp->size;
+    keySz = key->dp->size;
 
+    /* private key, d */
     if (d != NULL) {
         if (dLen == NULL || key->type != ECC_PRIVATEKEY)
             return BAD_FUNC_ARG;
-        exportPriv = 1;
-    }
-
-    /* check public buffer sizes */
-    if ((*qxLen < numLen) || (*qyLen < numLen)) {
-        *qxLen = numLen;
-        *qyLen = numLen;
-        return BUFFER_E;
-    }
-
-    *qxLen = numLen;
-    *qyLen = numLen;
-
-    XMEMSET(qx, 0, *qxLen);
-    XMEMSET(qy, 0, *qyLen);
-
-    /* private d component */
-    if (exportPriv == 1) {
-
-        /* check private buffer size */
-        if (*dLen < numLen) {
-            *dLen = numLen;
-            return BUFFER_E;
-        }
-
-        *dLen = numLen;
-        XMEMSET(d, 0, *dLen);
 
     #ifdef WOLFSSL_ATECC508A
-       /* TODO: Implement equiv call to ATECC508A */
-       return BAD_COND_E;
-
+        /* Hardware cannot export private portion */
+        return BAD_COND_E;
     #else
-
-        /* private key, d */
-        err = mp_to_unsigned_bin(&key->k, d +
-                            (numLen - mp_unsigned_bin_size(&key->k)));
+        err = wc_ecc_export_int(&key->k, d, dLen, keySz, encType);
         if (err != MP_OKAY)
             return err;
-    #endif /* WOLFSSL_ATECC508A */
+    #endif
     }
 
     /* public x component */
-    err = mp_to_unsigned_bin(key->pubkey.x, qx +
-                            (numLen - mp_unsigned_bin_size(key->pubkey.x)));
-    if (err != MP_OKAY)
-        return err;
+    if (qx != NULL) {
+        if (qxLen == NULL || key->type == ECC_PRIVATEKEY_ONLY)
+            return BAD_FUNC_ARG;
+
+        err = wc_ecc_export_int(key->pubkey.x, qx, qxLen, keySz, encType);
+        if (err != MP_OKAY)
+            return err;
+    }
 
     /* public y component */
-    err = mp_to_unsigned_bin(key->pubkey.y, qy +
-                            (numLen - mp_unsigned_bin_size(key->pubkey.y)));
-    if (err != MP_OKAY)
-        return err;
+    if (qy != NULL) {
+        if (qyLen == NULL || key->type == ECC_PRIVATEKEY_ONLY)
+            return BAD_FUNC_ARG;
 
-    return 0;
+        err = wc_ecc_export_int(key->pubkey.y, qy, qyLen, keySz, encType);
+        if (err != MP_OKAY)
+            return err;
+    }
+
+    return err;
 }
 
 
-/* export public key to raw elements including public (Qx,Qy)
+/* export ecc private key only raw, outLen is in/out size as unsigned bin
+   return MP_OKAY on success */
+int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen)
+{
+    if (out == NULL || outLen == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    return wc_ecc_export_ex(key, NULL, NULL, NULL, NULL, out, outLen,
+        ECC_TYPE_UNSIGNED_BIN);
+}
+
+/* export public key to raw elements including public (Qx,Qy) as unsigned bin
  * return MP_OKAY on success, negative on error */
 int wc_ecc_export_public_raw(ecc_key* key, byte* qx, word32* qxLen,
                              byte* qy, word32* qyLen)
 {
-    return wc_ecc_export_raw(key, qx, qxLen, qy, qyLen, NULL, NULL);
+    if (qx == NULL || qxLen == NULL || qy == NULL || qyLen == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    return wc_ecc_export_ex(key, qx, qxLen, qy, qyLen, NULL, NULL,
+        ECC_TYPE_UNSIGNED_BIN);
 }
 
-
-/* export ecc key to raw elements including public (Qx,Qy) and private (d)
+/* export ecc key to raw elements including public (Qx,Qy) and
+ *   private (d) as unsigned bin
  * return MP_OKAY on success, negative on error */
 int wc_ecc_export_private_raw(ecc_key* key, byte* qx, word32* qxLen,
                               byte* qy, word32* qyLen, byte* d, word32* dLen)
 {
-    /* sanitize d and dLen, other args are checked later */
-    if (d == NULL || dLen == NULL)
-        return BAD_FUNC_ARG;
-
-    return wc_ecc_export_raw(key, qx, qxLen, qy, qyLen, d, dLen);
+    return wc_ecc_export_ex(key, qx, qxLen, qy, qyLen, d, dLen,
+        ECC_TYPE_UNSIGNED_BIN);
 }
 
 #endif /* HAVE_ECC_KEY_EXPORT */

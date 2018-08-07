@@ -12883,7 +12883,7 @@ static int test_wc_ecc_export_x963 (void)
 {
     int     ret = 0;
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
     ecc_key key;
     WC_RNG  rng;
     byte    out[ECC_ASN963_MAX_BUF_SZ];
@@ -12945,7 +12945,7 @@ static int test_wc_ecc_export_x963_ex (void)
 {
     int     ret = 0;
 
-#if defined(HAVE_ECC)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
     ecc_key key;
     WC_RNG  rng;
     byte    out[ECC_ASN963_MAX_BUF_SZ];
@@ -13043,7 +13043,8 @@ static int test_wc_ecc_import_x963 (void)
 {
     int     ret = 0;
 
-#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
+    defined(HAVE_ECC_KEY_EXPORT)
     ecc_key pubKey, key;
     WC_RNG  rng;
     byte    x963[ECC_ASN963_MAX_BUF_SZ];
@@ -13106,7 +13107,8 @@ static int ecc_import_private_key (void)
 {
     int     ret = 0;
 
-#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
+    defined(HAVE_ECC_KEY_EXPORT)
     ecc_key key, keyImp;
     WC_RNG  rng;
     byte    privKey[ECC_PRIV_KEY_BUF]; /* Raw private key.*/
@@ -13784,7 +13786,7 @@ static int test_wc_ecc_pointFns (void)
 {
     int         ret = 0;
 
-#if defined(HAVE_ECC)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
     ecc_key     key;
     WC_RNG      rng;
     ecc_point*  point = NULL;
@@ -18217,7 +18219,7 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
     EVP_PKEY* pkey  = NULL;
     RSA*  rsa  = NULL;
     WOLFSSL_CTX* ctx;
-    
+
 #if defined(WOLFSSL_KEY_GEN)
     unsigned char buffer[4096];
     unsigned char* bufPtr;

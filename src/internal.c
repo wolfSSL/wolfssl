@@ -19347,7 +19347,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         break;
                     }
                 #endif
-                #ifdef HAVE_ECC
+                #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
                 #ifdef HAVE_PK_CALLBACKS
                     /* if callback then use it for shared secret */
                     if (ssl->ctx->EccSharedSecretCb != NULL) {
@@ -21272,7 +21272,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                         else
                     #endif
                         {
-                    #ifdef HAVE_ECC
+                    #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
                             if (wc_ecc_export_x963(ssl->eccTempKey,
                                        args->exportBuf, &args->exportSz) != 0) {
                                 ERROR_OUT(ECC_EXPORT_ERROR, exit_sske);
