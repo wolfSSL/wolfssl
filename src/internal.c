@@ -14789,31 +14789,6 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         }
     }
 
-    /* last time system socket output buffer was full, try again to send */
-    if (ssl->buffers.outputBuffer.length > 0) {
-        WOLFSSL_MSG("output buffer was full, trying to send again");
-        if ( (ssl->error = SendBuffered(ssl)) < 0) {
-            WOLFSSL_ERROR(ssl->error);
-            if (ssl->error == SOCKET_ERROR_E && (ssl->options.connReset ||
-                                                 ssl->options.isClosed)) {
-                ssl->error = SOCKET_PEER_CLOSED_E;
-                WOLFSSL_ERROR(ssl->error);
-                return 0;  /* peer reset or closed */
-            }
-            return ssl->error;
-        }
-        else {
-            /* advance sent to previous sent + plain size just sent */
-            sent = ssl->buffers.prevSent + ssl->buffers.plainSz;
-            WOLFSSL_MSG("sent write buffered data");
-
-            if (sent > sz) {
-                WOLFSSL_MSG("error: write() after WANT_WRITE with short size");
-                return ssl->error = BAD_FUNC_ARG;
-            }
-        }
-    }
-
 #ifdef WOLFSSL_DTLS
     if (ssl->options.dtls) {
         dtlsExtra = DTLS_RECORD_EXTRA;
