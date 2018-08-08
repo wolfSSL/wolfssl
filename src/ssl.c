@@ -4508,10 +4508,11 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
 
     /* process user chain */
     if (ret >= 0) {
-        /* First certificate in chain is loaded into ssl->buffers.certificate.
-         * Remainder are loaded into ssl->buffers.certChain.
-         * Chain should have server cert first, then intermediates, then root.
-         */
+        /* Chain should have server cert first, then intermediates, then root.
+         * First certificate in chain is processed below after ProcessUserChain
+         *   and is loaded into ssl->buffers.certificate.
+         * Remainder are processed using ProcessUserChain and are loaded into
+         *   ssl->buffers.certChain. */
         if (userChain) {
             ret = ProcessUserChain(ctx, buff, sz, format, type, ssl, used, info);
         }
@@ -31477,9 +31478,9 @@ WOLFSSL_RSA* wolfSSL_d2i_RSAPrivateKey_bio(WOLFSSL_BIO *bio, WOLFSSL_RSA **out)
                                                        DYNAMIC_TYPE_TMP_BUFFER);
             if (extraBioMem == NULL) {
                 WOLFSSL_MSG("Malloc failure");;
-                XFREE((unsigned char*)extraBioMem, bio->heap, 
+                XFREE((unsigned char*)extraBioMem, bio->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE((unsigned char*)bioMem, bio->heap, 
+                XFREE((unsigned char*)bioMem, bio->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
                 return NULL;
             }
@@ -31492,13 +31493,13 @@ WOLFSSL_RSA* wolfSSL_d2i_RSAPrivateKey_bio(WOLFSSL_BIO *bio, WOLFSSL_RSA **out)
             wolfSSL_BIO_write(bio, extraBioMem, extraBioMemSz);
             if (wolfSSL_BIO_pending(bio) <= 0) {
                 WOLFSSL_MSG("Failed to write memory to bio");
-                XFREE((unsigned char*)extraBioMem, bio->heap, 
+                XFREE((unsigned char*)extraBioMem, bio->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
-                XFREE((unsigned char*)bioMem, bio->heap, 
+                XFREE((unsigned char*)bioMem, bio->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
                 return NULL;
             }
-            XFREE((unsigned char*)extraBioMem, bio->heap, 
+            XFREE((unsigned char*)extraBioMem, bio->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
         }
 

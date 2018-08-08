@@ -8096,15 +8096,9 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     consumedEnd = footerEnd + XSTRLEN(footer);
 
     if (consumedEnd < bufferEnd) {  /* handle no end of line on last line */
-        /* eat end of line */
-        if (consumedEnd[0] == '\n')
+        /* eat new line characters */
+        while (consumedEnd < bufferEnd && consumedEnd[0] == '\n') {
             consumedEnd++;
-        else if ((consumedEnd + 1 < bufferEnd) && consumedEnd[1] == '\n')
-            consumedEnd += 2;
-        else {
-            if (info)
-                info->consumed = (long)(consumedEnd+2 - (char*)buff);
-            return BUFFER_E;
         }
     }
 
