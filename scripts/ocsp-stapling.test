@@ -157,6 +157,18 @@ if [ $? -eq 0 ]; then
     exit 0
 fi
 
+# check if supported key size is large enough to handle 4096 bit RSA
+size=`./examples/client/client -? | grep "Max key"`
+size=`echo ${size//[^0-9]/}`
+if [ ! -z "$size" ]; then
+    printf 'check on max key size of %d ...' $size
+    if [ $size -lt 4096 ]; then
+        printf '%s\n' "4096 bit RSA keys not supported"
+        exit 0
+    fi
+    printf 'OK\n'
+fi
+
 # create a port 0 port to use with openssl ocsp responder
 ./examples/server/server -R $ready_file -p $resume_port &
 wait_for_readyFile $ready_file
