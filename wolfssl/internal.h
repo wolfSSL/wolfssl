@@ -1158,7 +1158,7 @@ enum Misc {
     MAX_COMP_EXTRA  = 1024,     /* max compression extra */
     MAX_MTU         = WOLFSSL_MAX_MTU,     /* max expected MTU */
     MAX_UDP_SIZE    = 8192 - 100, /* was MAX_MTU - 100 */
-    MAX_DH_SZ       = (MAX_DHKEY_SZ * 2) + 12,
+    MAX_DH_SZ       = (MAX_DHKEY_SZ * 3) + 12, /* DH_P, DH_G and DH_Pub */
                                 /* 4096 p, pub, g + 2 byte size for each */
     MAX_STR_VERSION = 8,        /* string rep of protocol version */
 

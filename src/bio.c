@@ -306,7 +306,7 @@ static int wolfSSL_BIO_BIO_write(WOLFSSL_BIO* bio, const void* data,
 
     WOLFSSL_ENTER("wolfSSL_BIO_BIO_write");
 
-    /*adding in sanity checks for static analysis tools */
+    /* adding in sanity checks for static analysis tools */
     if (bio == NULL || data == NULL) {
         return BAD_FUNC_ARG;
     }
