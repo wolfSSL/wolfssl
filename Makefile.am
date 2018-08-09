@@ -59,12 +59,14 @@ CLEANFILES+= cert.der \
              pkcs7signedData_RSA_SHA_noattr.der \
              pkcs7signedData_RSA_SHA224.der \
              pkcs7signedData_RSA_SHA256.der \
+             pkcs7signedData_RSA_SHA256_custom_contentType.der \
              pkcs7signedData_RSA_SHA384.der \
              pkcs7signedData_RSA_SHA512.der \
              pkcs7signedData_ECDSA_SHA.der \
              pkcs7signedData_ECDSA_SHA_noattr.der \
              pkcs7signedData_ECDSA_SHA224.der \
              pkcs7signedData_ECDSA_SHA256.der \
+             pkcs7signedData_ECDSA_SHA256_custom_contentType.der \
              pkcs7signedData_ECDSA_SHA384.der \
              pkcs7signedData_ECDSA_SHA512.der
 

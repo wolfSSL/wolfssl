@@ -1938,7 +1938,7 @@ int DecodeObjectId(const byte* in, word32 inSz, word16* out, word32* outSz)
  *         ASN_PARSE_E when length is invalid.
  *         Otherwise, 0 to indicate success.
  */
-static int GetASNObjectId(const byte* input, word32* inOutIdx, int* len,
+int GetASNObjectId(const byte* input, word32* inOutIdx, int* len,
                           word32 maxIdx)
 {
     word32 idx = *inOutIdx;

@@ -276,7 +276,7 @@ enum Misc_ASN {
     #endif
                                    /* Max total extensions, id + len + others */
 #endif
-#if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA)
+#if defined(WOLFSSL_CERT_EXT) || defined(OPENSSL_EXTRA) || defined(HAVE_PKCS7)
     MAX_OID_SZ          = 32,      /* Max DER length of OID*/
     MAX_OID_STRING_SZ   = 64,      /* Max string length representation of OID*/
 #endif
@@ -285,7 +285,8 @@ enum Misc_ASN {
     MAX_KEYUSAGE_SZ     = 18,      /* Max encoded Key Usage length */
     MAX_EXTKEYUSAGE_SZ  = 12 + (6 * (8 + 2)) +
                           CTC_MAX_EKU_OID_SZ, /* Max encoded ExtKeyUsage
-                        (SEQ/LEN + OBJID + OCTSTR/LEN + SEQ + (6 * (SEQ + OID))) */
+                          (SEQ/LEN + OBJID + OCTSTR/LEN + SEQ +
+                          (6 * (SEQ + OID))) */
     MAX_CERTPOL_NB      = CTC_MAX_CERTPOL_NB,/* Max number of Cert Policy */
     MAX_CERTPOL_SZ      = CTC_MAX_CERTPOL_SZ,
 #endif
@@ -303,8 +304,8 @@ enum Misc_ASN {
 #endif
     TRAILING_ZERO       = 1,       /* Used for size of zero pad */
     MIN_VERSION_SZ      = 3,       /* Min bytes needed for GetMyVersion */
-#if defined(OPENSSL_ALL)  || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || \
-    defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
+#if defined(OPENSSL_ALL)  || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
     MAX_TIME_STRING_SZ  = 25,      /* Max length of formatted time string */
 #endif
 
@@ -1012,6 +1013,8 @@ WOLFSSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
     WOLFSSL_LOCAL int DecodeObjectId(const byte* in, word32 inSz,
         word16* out, word32* outSz);
 #endif
+WOLFSSL_LOCAL int GetASNObjectId(const byte* input, word32* inOutIdx, int* len,
+                                 word32 maxIdx);
 WOLFSSL_LOCAL int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
                               word32 oidType, word32 maxIdx);
 WOLFSSL_LOCAL int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,

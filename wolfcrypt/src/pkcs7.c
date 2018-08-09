@@ -383,6 +383,8 @@ void wc_PKCS7_Free(PKCS7* pkcs7)
         pkcs7->isDynamic = 0;
         XFREE(pkcs7, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     }
+
+    pkcs7->contentTypeSz = 0;
 }
 
 
@@ -1030,19 +1032,22 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     const byte* hashBuf, word32 hashSz, byte* output, word32* outputSz,
     byte* output2, word32* output2Sz)
 {
-    const byte outerOid[] =
-            { ASN_OBJECT_ID, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01,
-                             0x07, 0x02 };
+    /* id-signedData (1.2.840.113549.1.7.2) */
+    static const byte outerOid[] =
+        { ASN_OBJECT_ID, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01,
+                         0x07, 0x02 };
+
+    /* default id-data OID (1.2.840.113549.1.7.1), user can override */
     const byte innerOid[] =
-            { ASN_OBJECT_ID, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01,
+            { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
                              0x07, 0x01 };
 
+    /* contentType OID (1.2.840.113549.1.9.3) */
     const byte contentTypeOid[] =
             { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xF7, 0x0d, 0x01,
                              0x09, 0x03 };
-    const byte contentType[] =
-            { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
-                             0x07, 0x01 };
+
+    /* messageDigest OID (1.2.840.113549.1.9.4) */
     const byte messageDigestOid[] =
             { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
                              0x09, 0x04 };
@@ -1053,7 +1058,6 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     int digEncAlgoId, digEncAlgoType;
     byte* flatSignedAttribs = NULL;
     word32 flatSignedAttribsSz = 0;
-    word32 innerOidSz = sizeof(innerOid);
     word32 outerOidSz = sizeof(outerOid);
 
     if (pkcs7 == NULL || pkcs7->contentSz == 0 ||
@@ -1065,6 +1069,20 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     }
 
     /* verify the hash size matches */
+#ifdef WOLFSSL_SMALL_STACK
+    esd = (ESD*)XMALLOC(sizeof(ESD), pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (esd == NULL)
+        return MEMORY_E;
+#endif
+
+    XMEMSET(esd, 0, sizeof(ESD));
+
+    /* use default DATA contentType if not set by user */
+    if (pkcs7->contentTypeSz == 0) {
+        XMEMCPY(pkcs7->contentType, innerOid, sizeof(innerOid));
+        pkcs7->contentTypeSz = sizeof(innerOid);
+    }
+
     esd->hashType = wc_OidGetHash(pkcs7->hashOID);
     if (wc_HashGetDigestSize(esd->hashType) != (int)hashSz) {
         WOLFSSL_MSG("hashSz did not match hashOID");
@@ -1080,8 +1098,8 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     esd->innerContSeqSz = SetExplicit(0, esd->innerOctetsSz + pkcs7->contentSz,
                                 esd->innerContSeq);
     esd->contentInfoSeqSz = SetSequence(pkcs7->contentSz + esd->innerOctetsSz +
-                                    innerOidSz + esd->innerContSeqSz,
-                                    esd->contentInfoSeq);
+                                     pkcs7->contentTypeSz + esd->innerContSeqSz,
+                                     esd->contentInfoSeq);
 
     esd->issuerSnSz = SetSerialNumber(pkcs7->issuerSn, pkcs7->issuerSnSz,
                                      esd->issuerSn, MAX_SN_SZ);
@@ -1111,7 +1129,7 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
         /* build up signed attributes */
         ret = wc_PKCS7_BuildSignedAttributes(pkcs7, esd,
                                     contentTypeOid, sizeof(contentTypeOid),
-                                    contentType, sizeof(contentType),
+                                    pkcs7->contentType, pkcs7->contentTypeSz,
                                     messageDigestOid, sizeof(messageDigestOid));
         if (ret < 0) {
             return MEMORY_E;
@@ -1205,8 +1223,8 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     idx += esd->singleDigAlgoIdSz;
     XMEMCPY(output + idx, esd->contentInfoSeq, esd->contentInfoSeqSz);
     idx += esd->contentInfoSeqSz;
-    XMEMCPY(output + idx, innerOid, innerOidSz);
-    idx += innerOidSz;
+    XMEMCPY(output + idx, pkcs7->contentType, pkcs7->contentTypeSz);
+    idx += pkcs7->contentTypeSz;
     XMEMCPY(output + idx, esd->innerContSeq, esd->innerContSeqSz);
     idx += esd->innerContSeqSz;
     XMEMCPY(output + idx, esd->innerOctets, esd->innerOctetsSz);
@@ -1928,13 +1946,14 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
     word32 hashSz, byte* pkiMsg, word32 pkiMsgSz,
     byte* pkiMsg2, word32 pkiMsg2Sz)
 {
-    word32 idx, contentType, hashOID, sigOID, totalSz;
+    word32 idx, outerContentType, hashOID, sigOID, contentTypeSz, totalSz;
     int length, version, ret;
     byte* content = NULL;
     byte* contentDynamic = NULL;
     byte* sig = NULL;
     byte* cert = NULL;
     byte* signedAttrib = NULL;
+    byte* contentType = NULL;
     int contentSz = 0, sigSz = 0, certSz = 0, signedAttribSz = 0;
     word32 localIdx, start;
     byte degenerate;
@@ -1984,10 +2003,10 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
     }
 
     /* Get the contentInfo contentType */
-    if (wc_GetContentType(pkiMsg, &idx, &contentType, pkiMsgSz) < 0)
+    if (wc_GetContentType(pkiMsg, &idx, &outerContentType, pkiMsgSz) < 0)
         return ASN_PARSE_E;
 
-    if (contentType != SIGNED_DATA) {
+    if (outerContentType != SIGNED_DATA) {
         WOLFSSL_MSG("PKCS#7 input not of type SignedData");
         return PKCS7_OID_E;
     }
@@ -2028,12 +2047,16 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
         return ASN_PARSE_E;
 
     /* Get the inner ContentInfo contentType */
-    if (wc_GetContentType(pkiMsg, &idx, &contentType, pkiMsgSz) < 0)
-        return ASN_PARSE_E;
+    {
+        word32 localIdx = idx;
 
-    if (contentType != DATA) {
-        WOLFSSL_MSG("PKCS#7 inner input not of type Data");
-        return PKCS7_OID_E;
+        if (GetASNObjectId(pkiMsg, &idx, &length, pkiMsgSz) != 0)
+            return ASN_PARSE_E;
+
+        contentType = pkiMsg + localIdx;
+        contentTypeSz = length + (idx - localIdx);
+
+        idx += length;
     }
 
     /* Check for content info, it could be omitted when degenerate */
@@ -2239,6 +2262,10 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
     /* set content and size after init of PKCS7 structure */
     pkcs7->content   = content;
     pkcs7->contentSz = contentSz;
+
+    /* set contentType and size after init of PKCS7 structure */
+    if (wc_PKCS7_SetContentType(pkcs7, contentType, contentTypeSz) < 0)
+        return ASN_PARSE_E;
 
     /* Get the implicit[1] set of crls */
     if (pkiMsg2[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1)) {
@@ -3529,6 +3556,30 @@ static int wc_PKCS7_GenerateIV(PKCS7* pkcs7, WC_RNG* rng, byte* iv, word32 ivSz)
     }
 
     return ret;
+}
+
+
+/* Set custom contentType, currently supported with SignedData type
+ *
+ * pkcs7       - pointer to initialized PKCS7 structure
+ * contentType - pointer to array with ASN.1 encoded OID value
+ * sz          - length of contentType array, octets
+ *
+ * return 0 on success, negative upon error */
+int wc_PKCS7_SetContentType(PKCS7* pkcs7, byte* contentType, word32 sz)
+{
+    if (pkcs7 == NULL || contentType == NULL || sz == 0)
+        return BAD_FUNC_ARG;
+
+    if (sz > MAX_OID_SZ) {
+        WOLFSSL_MSG("input array too large, bounded by MAX_OID_SZ");
+        return BAD_FUNC_ARG;
+    }
+
+    XMEMCPY(pkcs7->contentType, contentType, sz);
+    pkcs7->contentTypeSz = sz;
+
+    return 0;
 }
 
 

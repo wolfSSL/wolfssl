@@ -19298,6 +19298,8 @@ typedef struct {
     PKCS7Attrib* signedAttribs;
     word32       signedAttribsSz;
     const char*  outFileName;
+    byte*        contentType;
+    word32       contentTypeSz;
 } pkcs7SignedVector;
 
 
@@ -19348,6 +19350,11 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
                                        sizeof(senderNonce) }
     };
 
+    /* for testing custom contentType, FirmwarePkgData */
+    byte customContentType[] = { 0x06, 0x0B, 0x2A, 0x86,
+                                 0x48, 0x86, 0xF7, 0x0D,
+                                 0x01, 0x09, 0x10, 0x01, 0x10 };
+
     const pkcs7SignedVector testVectors[] =
     {
 #ifndef NO_RSA
@@ -19355,36 +19362,42 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
         /* RSA with SHA */
         {data, (word32)sizeof(data), SHAh, RSAk, rsaPrivKey, rsaPrivKeySz,
          rsaCert, rsaCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
-         "pkcs7signedData_RSA_SHA.der"},
+         "pkcs7signedData_RSA_SHA.der", NULL, 0},
 
         /* RSA with SHA, no signed attributes */
         {data, (word32)sizeof(data), SHAh, RSAk, rsaPrivKey, rsaPrivKeySz,
          rsaCert, rsaCertSz, NULL, 0,
-         "pkcs7signedData_RSA_SHA_noattr.der"},
+         "pkcs7signedData_RSA_SHA_noattr.der", NULL, 0},
     #endif
     #ifdef WOLFSSL_SHA224
         /* RSA with SHA224 */
         {data, (word32)sizeof(data), SHA224h, RSAk, rsaPrivKey, rsaPrivKeySz,
          rsaCert, rsaCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
-         "pkcs7signedData_RSA_SHA224.der"},
+         "pkcs7signedData_RSA_SHA224.der", NULL, 0},
     #endif
     #ifndef NO_SHA256
         /* RSA with SHA256 */
         {data, (word32)sizeof(data), SHA256h, RSAk, rsaPrivKey, rsaPrivKeySz,
          rsaCert, rsaCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
-         "pkcs7signedData_RSA_SHA256.der"},
+         "pkcs7signedData_RSA_SHA256.der", NULL, 0},
+
+        /* RSA with SHA256 and custom contentType */
+        {data, (word32)sizeof(data), SHA256h, RSAk, rsaPrivKey, rsaPrivKeySz,
+         rsaCert, rsaCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
+         "pkcs7signedData_RSA_SHA256_custom_contentType.der", customContentType,
+         sizeof(customContentType)},
     #endif
     #if defined(WOLFSSL_SHA384)
         /* RSA with SHA384 */
         {data, (word32)sizeof(data), SHA384h, RSAk, rsaPrivKey, rsaPrivKeySz,
          rsaCert, rsaCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
-         "pkcs7signedData_RSA_SHA384.der"},
+         "pkcs7signedData_RSA_SHA384.der", NULL, 0},
     #endif
     #if defined(WOLFSSL_SHA512)
         /* RSA with SHA512 */
         {data, (word32)sizeof(data), SHA512h, RSAk, rsaPrivKey, rsaPrivKeySz,
          rsaCert, rsaCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
-         "pkcs7signedData_RSA_SHA512.der"},
+         "pkcs7signedData_RSA_SHA512.der", NULL, 0},
     #endif
 #endif /* NO_RSA */
 
@@ -19393,36 +19406,42 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
         /* ECDSA with SHA */
         {data, (word32)sizeof(data), SHAh, ECDSAk, eccPrivKey, eccPrivKeySz,
          eccCert, eccCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
-         "pkcs7signedData_ECDSA_SHA.der"},
+         "pkcs7signedData_ECDSA_SHA.der", NULL, 0},
 
         /* ECDSA with SHA, no signed attributes */
         {data, (word32)sizeof(data), SHAh, ECDSAk, eccPrivKey, eccPrivKeySz,
          eccCert, eccCertSz, NULL, 0,
-         "pkcs7signedData_ECDSA_SHA_noattr.der"},
+         "pkcs7signedData_ECDSA_SHA_noattr.der", NULL, 0},
     #endif
     #ifdef WOLFSSL_SHA224
         /* ECDSA with SHA224 */
         {data, (word32)sizeof(data), SHA224h, ECDSAk, eccPrivKey, eccPrivKeySz,
          eccCert, eccCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
-         "pkcs7signedData_ECDSA_SHA224.der"},
+         "pkcs7signedData_ECDSA_SHA224.der", NULL, 0},
     #endif
     #ifndef NO_SHA256
         /* ECDSA with SHA256 */
         {data, (word32)sizeof(data), SHA256h, ECDSAk, eccPrivKey, eccPrivKeySz,
          eccCert, eccCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
-         "pkcs7signedData_ECDSA_SHA256.der"},
+         "pkcs7signedData_ECDSA_SHA256.der", NULL, 0},
+
+        /* ECDSA with SHA256 and custom contentType */
+        {data, (word32)sizeof(data), SHA256h, ECDSAk, eccPrivKey, eccPrivKeySz,
+         eccCert, eccCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
+         "pkcs7signedData_ECDSA_SHA256_custom_contentType.der",
+         customContentType, sizeof(customContentType)},
     #endif
     #ifdef WOLFSSL_SHA384
         /* ECDSA with SHA384 */
         {data, (word32)sizeof(data), SHA384h, ECDSAk, eccPrivKey, eccPrivKeySz,
          eccCert, eccCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
-         "pkcs7signedData_ECDSA_SHA384.der"},
+         "pkcs7signedData_ECDSA_SHA384.der", NULL, 0},
     #endif
     #ifdef WOLFSSL_SHA512
         /* ECDSA with SHA512 */
         {data, (word32)sizeof(data), SHA512h, ECDSAk, eccPrivKey, eccPrivKeySz,
          eccCert, eccCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
-         "pkcs7signedData_ECDSA_SHA512.der"},
+         "pkcs7signedData_ECDSA_SHA512.der", NULL, 0},
     #endif
 #endif /* HAVE_ECC */
     };
@@ -19476,6 +19495,17 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
         pkcs7->signedAttribs   = testVectors[i].signedAttribs;
         pkcs7->signedAttribsSz = testVectors[i].signedAttribsSz;
 
+        /* optional custom contentType, default is DATA */
+        if (testVectors[i].contentType != NULL) {
+            ret = wc_PKCS7_SetContentType(pkcs7, testVectors[i].contentType,
+                                          testVectors[i].contentTypeSz);
+            if (ret != 0) {
+                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                wc_PKCS7_Free(pkcs7);
+                return -9411;
+            }
+        }
+
         /* generate senderNonce */
         {
             senderNonce[0] = 0x04;
@@ -19485,7 +19515,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
             if (ret != 0) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9411;
+                return -9412;
             }
         }
 
@@ -19508,7 +19538,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
             if (ret != 0) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9412;
+                return -9413;
             }
             wc_ShaUpdate(&sha, pkcs7->publicKey, pkcs7->publicKeySz);
             wc_ShaFinal(&sha, digest);
@@ -19518,7 +19548,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
             if (ret != 0) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9413;
+                return -9414;
             }
             wc_Sha256Update(&sha, pkcs7->publicKey, pkcs7->publicKeySz);
             wc_Sha256Final(&sha, digest);
@@ -19534,7 +19564,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
         if (encodedSz < 0) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(pkcs7);
-            return -9414;
+            return -9415;
         }
 
     #ifdef PKCS7_OUTPUT_TEST_BUNDLES
@@ -19543,14 +19573,14 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
         if (!file) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(pkcs7);
-            return -9415;
+            return -9416;
         }
         ret = (int)fwrite(out, 1, encodedSz, file);
         fclose(file);
         if (ret != (int)encodedSz) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(pkcs7);
-            return -9416;
+            return -9417;
         }
     #endif /* PKCS7_OUTPUT_TEST_BUNDLES */
 
@@ -19558,20 +19588,31 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
 
         pkcs7 = wc_PKCS7_New(HEAP_HINT, INVALID_DEVID);
         if (pkcs7 == NULL)
-            return -9410;
+            return -9418;
         wc_PKCS7_InitWithCert(pkcs7, NULL, 0);
 
         ret = wc_PKCS7_VerifySignedData(pkcs7, out, outSz);
         if (ret < 0) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(pkcs7);
-            return -9417;
+            return -9419;
         }
+
+        /* verify contentType extracted successfully for custom content types */
+        if (testVectors[i].contentTypeSz > 0) {
+            if (pkcs7->contentTypeSz != testVectors[i].contentTypeSz) {
+                return -9420;
+            } else if (XMEMCMP(pkcs7->contentType, testVectors[i].contentType,
+                       pkcs7->contentTypeSz) != 0) {
+                return -9421;
+            }
+        }
+
 
         if (pkcs7->singleCert == NULL || pkcs7->singleCertSz == 0) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(pkcs7);
-            return -9418;
+            return -9422;
         }
 
         {
@@ -19590,13 +19631,13 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
                     NULL, (word32*)&bufSz) != LENGTH_ONLY_E) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9419;
+                return -9423;
             }
 
             if (bufSz > (int)sizeof(buf)) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9420;
+                return -9424;
             }
 
             bufSz = wc_PKCS7_GetAttributeValue(pkcs7, oidPt, oidSz,
@@ -19605,7 +19646,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
                 (testVectors[i].signedAttribs == NULL && bufSz > 0)) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9421;
+                return -9425;
             }
         }
 
@@ -19614,7 +19655,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
         if (!file) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(pkcs7);
-            return -9422;
+            return -9426;
         }
         ret = (int)fwrite(pkcs7->singleCert, 1, pkcs7->singleCertSz, file);
         fclose(file);
