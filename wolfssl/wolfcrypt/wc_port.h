@@ -463,7 +463,7 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     /* default */
     /* uses complete <time.h> facility */
     #include <time.h>
-    #if defined(HAVE_SYS_TIME_H) || defined(WOLF_C99)
+    #if defined(HAVE_SYS_TIME_H)
         #include <sys/time.h>
     #endif
 
