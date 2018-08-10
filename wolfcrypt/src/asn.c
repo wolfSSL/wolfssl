@@ -13550,7 +13550,7 @@ int InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce,
         req->serialSz = cert->serialSz;
 
         if (cert->extAuthInfoSz != 0 && cert->extAuthInfo != NULL) {
-            req->url = (byte*)XMALLOC(cert->extAuthInfoSz, req->heap,
+            req->url = (byte*)XMALLOC(cert->extAuthInfoSz + 1, req->heap,
                                                      DYNAMIC_TYPE_OCSP_REQUEST);
             if (req->url == NULL) {
                 XFREE(req->serial, req->heap, DYNAMIC_TYPE_OCSP);
@@ -13559,6 +13559,7 @@ int InitOcspRequest(OcspRequest* req, DecodedCert* cert, byte useNonce,
 
             XMEMCPY(req->url, cert->extAuthInfo, cert->extAuthInfoSz);
             req->urlSz = cert->extAuthInfoSz;
+            req->url[req->urlSz] = 0;
         }
     }
 
