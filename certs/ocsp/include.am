@@ -12,6 +12,7 @@ EXTRA_DIST += \
         certs/ocsp/index-intermediate3-ca-issued-certs.txt \
         certs/ocsp/index-intermediate3-ca-issued-certs.txt.attr \
         certs/ocsp/openssl.cnf \
+        certs/ocsp/renewcerts-for-test.sh \
         certs/ocsp/intermediate1-ca-key.pem \
         certs/ocsp/intermediate1-ca-cert.pem \
         certs/ocsp/intermediate2-ca-key.pem \
