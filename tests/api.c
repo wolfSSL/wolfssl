@@ -19167,6 +19167,7 @@ static void test_wc_GetPkcs8TraditionalOffset(void)
 static void test_wc_SetSubjectRaw(void)
 {
 #if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(WOLFSSL_CERT_EXT)
+    char joiCertFile[] = "./certs/test/cert-ext-joi.pem";
     WOLFSSL_X509* x509;
     int peerCertSz;
     const byte* peerCertBuf;
@@ -19174,7 +19175,7 @@ static void test_wc_SetSubjectRaw(void)
 
     printf(testingFmt, "test_wc_SetSubjectRaw()");
 
-    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(cliCertFile, WOLFSSL_FILETYPE_PEM));
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(joiCertFile, WOLFSSL_FILETYPE_PEM));
 
     AssertNotNull(peerCertBuf = wolfSSL_X509_get_der(x509, &peerCertSz));
 

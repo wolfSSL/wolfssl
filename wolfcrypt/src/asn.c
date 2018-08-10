@@ -4254,9 +4254,11 @@ static int GetName(DecodedCert* cert, int nameType)
         }
     #ifdef WOLFSSL_CERT_EXT
         else if ((0 == XMEMCMP(&cert->source[cert->srcIdx], ASN_JOI_PREFIX,
-                               sizeof(ASN_JOI_PREFIX))) &&
-                 ((cert->source[cert->srcIdx + 10] == ASN_JOI_C) ||
-                  (cert->source[cert->srcIdx + 10] == ASN_JOI_ST)))
+                               XSTRLEN(ASN_JOI_PREFIX))) &&
+                 ((cert->source[cert->srcIdx + XSTRLEN(ASN_JOI_PREFIX)] ==
+                         ASN_JOI_C) ||
+                  (cert->source[cert->srcIdx + XSTRLEN(ASN_JOI_PREFIX)] ==
+                          ASN_JOI_ST)))
         {
             int strLen;
             byte id;

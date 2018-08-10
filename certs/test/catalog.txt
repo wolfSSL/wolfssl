@@ -10,3 +10,5 @@ dh1024.pem, dh1024.der:
 digsigku.pem:
   ECC certificate with a KeyUsage extension without the digitalSignature bit
   set.
+cert-ext-joi.pem:
+  Simple certificate that includes OIDs for JurisdictionOfIncorporation

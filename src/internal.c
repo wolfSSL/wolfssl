@@ -7964,8 +7964,8 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
     x509->subject.x509 = x509;
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
-    XMEMCPY(x509->subject.raw, dCert->subjectRaw, dCert->subjectRawLen);
-    x509->subject.rawLen = dCert->subjectRawLen;
+    x509->subject.rawLen = min(dCert->subjectRawLen, sizeof(x509->subject.raw));
+    XMEMCPY(x509->subject.raw, dCert->subjectRaw, x509->subject.rawLen);
 #endif
 
     XMEMCPY(x509->serial, dCert->serial, EXTERNAL_SERIAL_SIZE);
