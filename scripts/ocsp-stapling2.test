@@ -180,6 +180,7 @@ else
     create_new_cnf $RPORTSELECTED1 $RPORTSELECTED2 $RPORTSELECTED3 \
                    $RPORTSELECTED4
 fi
+sleep 1
 
 # setup ocsp responders
 # OLD: ./certs/ocsp/ocspd-root-ca-and-intermediate-cas.sh &

@@ -139,7 +139,7 @@ else
     ./examples/client/client -p $RPORTSELECTED
     create_new_cnf $RPORTSELECTED
 fi
-
+sleep 1
 
 # is our desired server there? - login.live.com doesn't answers PING
 #./scripts/ping.test $server 2
