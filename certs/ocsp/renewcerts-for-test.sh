@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # $1 cert, $2 name, $3 ca, $4 extensions, $5 serial
-function update_cert() {
+update_cert(){
 
     openssl req           \
         -new              \
