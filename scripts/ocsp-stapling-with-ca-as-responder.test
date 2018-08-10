@@ -5,6 +5,7 @@ WORKSPACE=`pwd`
 CERT_DIR="./certs/ocsp"
 resume_port=0
 ready_file=`pwd`/wolf_ocsp_s1_readyF$$
+ready_file2=`pwd`/wolf_ocsp_s1_readyF2$$
 printf '%s\n' "ready file:  $ready_file"
 
 test_cnf="ocsp_s_w_ca_a_r.cnf"
@@ -36,6 +37,32 @@ restore_originals() {
     mv bak-server3-cert.pem server3-cert.pem
     mv bak-server4-cert.pem server4-cert.pem
     mv bak-server5-cert.pem server5-cert.pem
+}
+
+wait_for_readyFile(){
+
+    counter=0
+
+    while [ ! -s $1 -a "$counter" -lt 20 ]; do
+        echo -e "waiting for ready file..."
+        sleep 0.1
+        counter=$((counter+ 1))
+    done
+
+    if test -e $1; then
+        echo -e "found ready file, starting client..."
+    else
+        echo -e "NO ready file ending test..."
+        exit 1
+    fi
+
+}
+
+remove_single_rF(){
+    if test -e $1; then
+        printf '%s\n' "removing ready file: $1"
+        rm $1
+    fi
 }
 
 #create a configure file for cert generation with the port 0 solution
@@ -100,6 +127,10 @@ remove_ready_file() {
         printf '%s\n' "removing ready file"
         rm $ready_file
     fi
+    if test -e $ready_file2; then
+        printf '%s\n' "removing ready file: $ready_file2"
+        rm $ready_file2
+    fi
 }
 
 
@@ -122,7 +153,7 @@ ca=certs/external/baltimore-cybertrust-root.pem
 
 # create a port 0 port to use with openssl ocsp responder
 ./examples/server/server -R $ready_file -p $resume_port &
-sleep 1
+wait_for_readyFile $ready_file
 if [ ! -f $ready_file ]; then
     printf '%s\n' "Failed to create ready file: \"$ready_file\""
     exit 1
@@ -163,18 +194,27 @@ sleep 1
 
 printf '%s\n\n' "------------- TEST CASE 1 SHOULD PASS ------------------------"
 # client test against our own server - GOOD CERT
-./examples/server/server -c certs/ocsp/server1-cert.pem -k certs/ocsp/server1-key.pem &
-sleep 1
-./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1
+./examples/server/server -c certs/ocsp/server1-cert.pem \
+                         -k certs/ocsp/server1-key.pem -R $ready_file2 \
+                         -p $resume_port &
+wait_for_readyFile $ready_file2
+CLI_PORT=`cat $ready_file2`
+./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 \
+                         -p $CLI_PORT
 RESULT=$?
 [ $RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection failed" && exit 1
 printf '%s\n\n' "Test PASSED!"
 
 printf '%s\n\n' "------------- TEST CASE 2 SHOULD REVOKE ----------------------"
 # client test against our own server - REVOKED CERT
-./examples/server/server -c certs/ocsp/server2-cert.pem -k certs/ocsp/server2-key.pem &
-sleep 1
-./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1
+remove_single_rF $ready_file2
+./examples/server/server -c certs/ocsp/server2-cert.pem \
+                         -k certs/ocsp/server2-key.pem -R $ready_file2 \
+                         -p $resume_port &
+wait_for_readyFile $ready_file2
+CLI_PORT=`cat $ready_file2`
+./examples/client/client -C -A certs/ocsp/root-ca-cert.pem -W 1 \
+                         -p $CLI_PORT
 RESULT=$?
 [ $RESULT -ne 1 ] && printf '\n\n%s\n' "Client connection suceeded $RESULT" && exit 1
 printf '%s\n\n' "Test successfully REVOKED!"
