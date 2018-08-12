@@ -203,6 +203,14 @@ typedef struct CertName {
     char unitEnc;
     char commonName[CTC_NAME_SIZE];
     char commonNameEnc;
+#ifdef WOLFSSL_CERT_EXT
+    char busCat[CTC_NAME_SIZE];
+    char busCatEnc;
+    char joiC[CTC_NAME_SIZE];
+    char joiCEnc;
+    char joiSt[CTC_NAME_SIZE];
+    char joiStEnc;
+#endif
     char email[CTC_NAME_SIZE];  /* !!!! email has to be last !!!! */
 #ifdef WOLFSSL_MULTI_ATTRIB
     NameAttrib name[CTC_MAX_ATTRIB];
@@ -246,6 +254,8 @@ typedef struct Cert {
 #endif
     char    certPolicies[CTC_MAX_CERTPOL_NB][CTC_MAX_CERTPOL_SZ];
     word16  certPoliciesNb;              /* Number of Cert Policy */
+    byte     issRaw[sizeof(CertName)];   /* raw issuer info */
+    byte     sbjRaw[sizeof(CertName)];   /* raw subject info */
 #endif
 #ifdef WOLFSSL_CERT_REQ
     char     challengePw[CTC_NAME_SIZE];
@@ -286,6 +296,7 @@ WOLFSSL_API int wc_MakeSelfCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
                              WC_RNG*);
 WOLFSSL_API int wc_SetIssuer(Cert*, const char*);
 WOLFSSL_API int wc_SetSubject(Cert*, const char*);
+WOLFSSL_API int wc_SetSubjectRaw(Cert*, const byte* der, int derSz);
 #ifdef WOLFSSL_ALT_NAMES
     WOLFSSL_API int wc_SetAltNames(Cert*, const char*);
 #endif
@@ -311,6 +322,7 @@ WOLFSSL_API int wc_SetSubjectKeyIdFromPublicKey_ex(Cert *cert, int keyType,
 WOLFSSL_API int wc_SetSubjectKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey,
                                                 ecc_key *eckey);
 WOLFSSL_API int wc_SetSubjectKeyId(Cert *cert, const char* file);
+WOLFSSL_API int wc_GetSubjectRaw(byte **subjectRaw, Cert *cert);
 
 #ifdef HAVE_NTRU
 WOLFSSL_API int wc_SetSubjectKeyIdFromNtruPublicKey(Cert *cert, byte *ntruKey,

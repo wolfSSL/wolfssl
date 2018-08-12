@@ -113,8 +113,9 @@ enum DN_Tags {
     ASN_LOCALITY_NAME = 0x07,   /* L  */
     ASN_STATE_NAME    = 0x08,   /* ST */
     ASN_ORG_NAME      = 0x0a,   /* O  */
-    ASN_ORGUNIT_NAME  = 0x0b,    /* OU */
-    ASN_EMAIL_NAME    = 0x98,    /* not oid number there is 97 in 2.5.4.0-97 */
+    ASN_ORGUNIT_NAME  = 0x0b,   /* OU */
+    ASN_BUS_CAT       = 0x0f,   /* businessCategory */
+    ASN_EMAIL_NAME    = 0x98,   /* not oid number there is 97 in 2.5.4.0-97 */
 
     /* pilot attribute types
      * OID values of 0.9.2342.19200300.100.1.* */
@@ -132,11 +133,18 @@ enum DN_Tags {
 #define WOLFSSL_ORG_NAME         "/O="
 #define WOLFSSL_ORGUNIT_NAME     "/OU="
 #define WOLFSSL_DOMAIN_COMPONENT "/DC="
+#define WOLFSSL_BUS_CAT          "/businessCategory="
+#define WOLFSSL_JOI_C            "/jurisdictionC="
+#define WOLFSSL_JOI_ST           "/jurisdictionST="
 
 enum ECC_TYPES {
     ECC_PREFIX_0 = 160,
     ECC_PREFIX_1 = 161
 };
+
+#define ASN_JOI_PREFIX "\x2b\x06\x01\x04\x01\x82\x37\x3c\x02\x01"
+#define ASN_JOI_C      0x3
+#define ASN_JOI_ST     0x2
 
 #ifndef WC_ASN_NAME_MAX
     #define WC_ASN_NAME_MAX 256
@@ -476,6 +484,14 @@ struct DecodedName {
     int     oLen;
     int     ouIdx;
     int     ouLen;
+#ifdef WOLFSSL_CERT_EXT
+    int     bcIdx;
+    int     bcLen;
+    int     jcIdx;
+    int     jcLen;
+    int     jsIdx;
+    int     jsLen;
+#endif
     int     emailIdx;
     int     emailLen;
     int     uidIdx;
@@ -678,6 +694,17 @@ struct DecodedCert {
     char*   subjectOU;
     int     subjectOULen;
     char    subjectOUEnc;
+#ifdef WOLFSSL_CERT_EXT
+    char*   subjectBC;
+    int     subjectBCLen;
+    char    subjectBCEnc;
+    char*   subjectJC;
+    int     subjectJCLen;
+    char    subjectJCEnc;
+    char*   subjectJS;
+    int     subjectJSLen;
+    char    subjectJSEnc;
+#endif
     char*   subjectEmail;
     int     subjectEmailLen;
 #endif /* WOLFSSL_CERT_GEN */
@@ -922,7 +949,11 @@ WOLFSSL_LOCAL void FreeDer(DerBuffer** der);
 #ifdef WOLFSSL_CERT_GEN
 
 enum cert_enums {
+#ifdef WOLFSSL_CERT_EXT
+    NAME_ENTRIES    =  9,
+#else
     NAME_ENTRIES    =  8,
+#endif
     JOINT_LEN       =  2,
     EMAIL_JOINT_LEN =  9,
     PILOT_JOINT_LEN =  10,

@@ -15760,6 +15760,12 @@ int wolfSSL_X509_NAME_get_text_by_NID(WOLFSSL_X509_NAME* name,
             text = name->fullName.fullName + name->fullName.dcIdx[0];
             textSz = name->fullName.dcLen[0];
             break;
+    #ifdef WOLFSSL_CERT_EXT
+        case ASN_BUS_CAT:
+            text = name->fullName.fullName + name->fullName.bcIdx;
+            textSz = name->fullName.bcLen;
+            break;
+    #endif
         default:
             WOLFSSL_MSG("Entry type not found");
             return SSL_FATAL_ERROR;
@@ -28924,6 +28930,14 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         cName->unitEnc = CTC_UTF8;
         cName->commonName[0] = '\0';
         cName->commonNameEnc = CTC_UTF8;
+    #ifdef WOLFSSL_CERT_EXT
+        cName->busCat[0] = '\0';
+        cName->busCatEnc = CTC_UTF8;
+        cName->joiC[0] = '\0';
+        cName->joiCEnc = CTC_PRINTABLE;
+        cName->joiSt[0] = '\0';
+        cName->joiStEnc = CTC_PRINTABLE;
+    #endif
         cName->email[0] = '\0';
 
 
@@ -28977,6 +28991,32 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                     != SSL_SUCCESS) {
             return BUFFER_E;
         }
+
+    #ifdef WOLFSSL_CERT_EXT
+        /* ASN_BUS_CAT */
+        WOLFSSL_MSG("Copy Business Category");
+        if (CopyX509NameEntry(cName->busCat, CTC_NAME_SIZE,
+                    dn->fullName + dn->bcIdx, dn->bcLen)
+                    != SSL_SUCCESS) {
+            return BUFFER_E;
+        }
+
+        /* JoI Country */
+        WOLFSSL_MSG("Copy Jurisdiction of Incorporation Country");
+        if (CopyX509NameEntry(cName->joiC, CTC_NAME_SIZE,
+                    dn->fullName + dn->jcIdx, dn->jcLen)
+                    != SSL_SUCCESS) {
+            return BUFFER_E;
+        }
+
+        /* JoI State */
+        WOLFSSL_MSG("Copy Jurisdiction of Incorporation State");
+        if (CopyX509NameEntry(cName->joiSt, CTC_NAME_SIZE,
+                    dn->fullName + dn->jsIdx, dn->jsLen)
+                    != SSL_SUCCESS) {
+            return BUFFER_E;
+        }
+    #endif
 
         WOLFSSL_MSG("Copy Email");
         if (CopyX509NameEntry(cName->email, CTC_NAME_SIZE,

@@ -405,6 +405,8 @@ static void myFipsCb(int ok, int err, const char* hash)
 #ifdef WOLFSSL_STATIC_MEMORY
     #ifdef BENCH_EMBEDDED
         static byte gTestMemory[10000];
+    #elif defined(WOLFSSL_CERT_EXT)
+        static byte gTestMemory[140000];
     #elif defined(USE_FAST_MATH) && !defined(ALT_ECC_SIZE)
         static byte gTestMemory[130000];
     #else
@@ -8358,7 +8360,7 @@ static void initDefaultName(void)
 {
     XMEMCPY(certDefaultName.country, "US", sizeof("US"));
     certDefaultName.countryEnc = CTC_PRINTABLE;
-    XMEMCPY(certDefaultName.state, "Orgeon", sizeof("Orgeon"));
+    XMEMCPY(certDefaultName.state, "Oregon", sizeof("Oregon"));
     certDefaultName.stateEnc = CTC_UTF8;
     XMEMCPY(certDefaultName.locality, "Portland", sizeof("Portland"));
     certDefaultName.localityEnc = CTC_UTF8;
@@ -8370,6 +8372,10 @@ static void initDefaultName(void)
     certDefaultName.unitEnc = CTC_UTF8;
     XMEMCPY(certDefaultName.commonName, "www.wolfssl.com", sizeof("www.wolfssl.com"));
     certDefaultName.commonNameEnc = CTC_UTF8;
+#ifdef WOLFSSL_CERT_EXT
+    XMEMCPY(certDefaultName.busCat, "Private Organization", sizeof("Private Organization"));
+    certDefaultName.busCatEnc = CTC_UTF8;
+#endif
     XMEMCPY(certDefaultName.email, "info@wolfssl.com", sizeof("info@wolfssl.com"));
 
 #ifdef WOLFSSL_TEST_CERT
@@ -8402,12 +8408,17 @@ static void initDefaultName(void)
 #else
 static const CertName certDefaultName = {
     "US",               CTC_PRINTABLE,  /* country */
-    "Orgeon",           CTC_UTF8,       /* state */
+    "Oregon",           CTC_UTF8,       /* state */
     "Portland",         CTC_UTF8,       /* locality */
     "Test",             CTC_UTF8,       /* sur */
     "wolfSSL",          CTC_UTF8,       /* org */
     "Development",      CTC_UTF8,       /* unit */
     "www.wolfssl.com",  CTC_UTF8,       /* commonName */
+#ifdef WOLFSSL_CERT_EXT
+    "Private Organization", CTC_UTF8,   /* businessCategory */
+    "US",               CTC_PRINTABLE,  /* jurisdiction country */
+    "Oregon",           CTC_PRINTABLE,  /* jurisdiction state */
+#endif
     "info@wolfssl.com"                  /* email */
 };
 #endif /* WOLFSSL_MULTI_ATTRIB */
