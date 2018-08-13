@@ -1184,6 +1184,58 @@ static WC_INLINE unsigned int my_psk_server_cb(WOLFSSL* ssl, const char* identit
     }
 }
 
+
+static WC_INLINE unsigned int my_psk_client_tls13_cb(WOLFSSL* ssl,
+        const char* hint, char* identity, unsigned int id_max_len,
+        unsigned char* key, unsigned int key_max_len, const char** ciphersuite)
+{
+    int i;
+    int b = 0x01;
+
+    (void)ssl;
+    (void)hint;
+    (void)key_max_len;
+
+    /* see internal.h MAX_PSK_ID_LEN for PSK identity limit */
+    strncpy(identity, kIdentityStr, id_max_len);
+
+    for (i = 0; i < 32; i++, b += 0x22) {
+        if (b >= 0x100)
+            b = 0x01;
+        key[i] = b;
+    }
+
+    *ciphersuite = "TLS13-AES128-GCM-SHA256";
+
+    return 32;   /* length of key in octets or 0 for error */
+}
+
+
+static WC_INLINE unsigned int my_psk_server_tls13_cb(WOLFSSL* ssl,
+        const char* identity, unsigned char* key, unsigned int key_max_len,
+        const char** ciphersuite)
+{
+    int i;
+    int b = 0x01;
+
+    (void)ssl;
+    (void)key_max_len;
+
+    /* see internal.h MAX_PSK_ID_LEN for PSK identity limit */
+    if (strncmp(identity, kIdentityStr, strlen(kIdentityStr)) != 0)
+        return 0;
+
+    for (i = 0; i < 32; i++, b += 0x22) {
+        if (b >= 0x100)
+            b = 0x01;
+        key[i] = b;
+    }
+
+    *ciphersuite = "TLS13-AES128-GCM-SHA256";
+
+    return 32;   /* length of key in octets or 0 for error */
+}
+
 #endif /* NO_PSK */
 
 

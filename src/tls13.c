@@ -2359,18 +2359,32 @@ static int SetupPskKey(WOLFSSL* ssl, PreSharedKey* psk)
 #endif
 #ifndef NO_PSK
     if (!psk->resumption) {
+        const char* cipherName = NULL;
+        byte cipherSuite0 = TLS13_BYTE, cipherSuite = WOLFSSL_DEF_PSK_CIPHER;
+
         /* Get the pre-shared key. */
-        ssl->arrays->psk_keySz = ssl->options.client_psk_cb(ssl,
-                (char *)psk->identity, ssl->arrays->client_identity,
-                MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
+        if (ssl->options.client_psk_tls13_cb != NULL) {
+            ssl->arrays->psk_keySz = ssl->options.client_psk_tls13_cb(ssl,
+                    (char *)psk->identity, ssl->arrays->client_identity,
+                    MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN,
+                    &cipherName);
+            if (GetCipherSuiteFromName(cipherName, &cipherSuite0,
+                                                           &cipherSuite) != 0) {
+                return PSK_KEY_ERROR;
+            }
+        }
+        else {
+            ssl->arrays->psk_keySz = ssl->options.client_psk_cb(ssl,
+                    (char *)psk->identity, ssl->arrays->client_identity,
+                    MAX_PSK_ID_LEN, ssl->arrays->psk_key, MAX_PSK_KEY_LEN);
+        }
         if (ssl->arrays->psk_keySz == 0 ||
-                                 ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
+                                     ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN) {
             return PSK_KEY_ERROR;
         }
-        /* TODO: Callback should be able to specify ciphersuite. */
 
-        if (psk->cipherSuite0 != TLS13_BYTE ||
-            psk->cipherSuite  != WOLFSSL_DEF_PSK_CIPHER) {
+        if (psk->cipherSuite0 != cipherSuite0 ||
+                                              psk->cipherSuite != cipherSuite) {
             return PSK_KEY_ERROR;
         }
     }
@@ -2534,7 +2548,9 @@ int SendTls13ClientHello(WOLFSSL* ssl)
         return ret;
 #ifdef WOLFSSL_EARLY_DATA
     #ifndef NO_PSK
-        if (!ssl->options.resuming && ssl->options.client_psk_cb == NULL)
+        if (!ssl->options.resuming &&
+                                     ssl->options.client_psk_tls13_cb == NULL &&
+                                     ssl->options.client_psk_cb == NULL)
     #else
         if (!ssl->options.resuming)
     #endif
@@ -3263,6 +3279,11 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
     int           pskCnt = 0;
     TLSX*         extEarlyData;
 #endif
+#ifndef NO_PSK
+    const char*   cipherName = NULL;
+    byte          cipherSuite0 = TLS13_BYTE;
+    byte          cipherSuite  = WOLFSSL_DEF_PSK_CIPHER;
+#endif
 
     WOLFSSL_ENTER("DoPreSharedKeys");
 
@@ -3371,16 +3392,22 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
         else
     #endif
     #ifndef NO_PSK
-        if (ssl->options.server_psk_cb != NULL &&
-            (ssl->arrays->psk_keySz = ssl->options.server_psk_cb(ssl,
+        if ((ssl->options.server_psk_tls13_cb != NULL &&
+             (ssl->arrays->psk_keySz = ssl->options.server_psk_tls13_cb(ssl,
                              ssl->arrays->client_identity, ssl->arrays->psk_key,
-                             MAX_PSK_KEY_LEN)) != 0) {
+                             MAX_PSK_KEY_LEN, &cipherName)) != 0 && 
+             GetCipherSuiteFromName(cipherName, &cipherSuite0,
+                                                          &cipherSuite) == 0) ||
+            (ssl->options.server_psk_cb != NULL &&
+             (ssl->arrays->psk_keySz = ssl->options.server_psk_cb(ssl,
+                             ssl->arrays->client_identity, ssl->arrays->psk_key,
+                             MAX_PSK_KEY_LEN)) != 0)) {
             if (ssl->arrays->psk_keySz > MAX_PSK_KEY_LEN)
                 return PSK_KEY_ERROR;
-            /* TODO: Callback should be able to specify ciphersuite. */
 
-            suite[0] = TLS13_BYTE;
-            suite[1] = WOLFSSL_DEF_PSK_CIPHER;
+            /* Check whether PSK ciphersuite is in SSL. */
+            suite[0] = cipherSuite0;
+            suite[1] = cipherSuite;
             if (!FindSuite(ssl, suite)) {
                 current = current->next;
                 continue;
@@ -3393,9 +3420,9 @@ static int DoPreSharedKeys(WOLFSSL* ssl, const byte* input, word32 helloSz,
             if (current->ticketAge != ssl->session.ticketAdd)
                 return PSK_KEY_ERROR;
 
-            /* Check whether PSK ciphersuite is in SSL. */
-            ssl->options.cipherSuite0 = TLS13_BYTE;
-            ssl->options.cipherSuite  = WOLFSSL_DEF_PSK_CIPHER;
+            /* Set PSK ciphersuite into SSL. */
+            ssl->options.cipherSuite0 = cipherSuite0;
+            ssl->options.cipherSuite  = cipherSuite;
             ret = SetCipherSpecs(ssl);
             if (ret != 0)
                 return ret;
@@ -7935,6 +7962,85 @@ int wolfSSL_set_groups(WOLFSSL* ssl, int* groups, int count)
 
     return WOLFSSL_SUCCESS;
 }
+
+#ifndef NO_PSK
+void wolfSSL_CTX_set_psk_client_tls13_callback(WOLFSSL_CTX* ctx,
+                                               wc_psk_client_tls13_callback cb)
+{
+    WOLFSSL_ENTER("SSL_CTX_set_psk_client_tls13_callback");
+
+    if (ctx == NULL)
+        return;
+
+    ctx->havePSK = 1;
+    ctx->client_psk_tls13_cb = cb;
+}
+
+
+void wolfSSL_set_psk_client_tls13_callback(WOLFSSL* ssl,
+                                           wc_psk_client_tls13_callback cb)
+{
+    byte haveRSA = 1;
+    int  keySz   = 0;
+
+    WOLFSSL_ENTER("SSL_set_psk_client_tls13_callback");
+
+    if (ssl == NULL)
+        return;
+
+    ssl->options.havePSK = 1;
+    ssl->options.client_psk_tls13_cb = cb;
+
+    #ifdef NO_RSA
+        haveRSA = 0;
+    #endif
+    #ifndef NO_CERTS
+        keySz = ssl->buffers.keySz;
+    #endif
+    InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
+               ssl->options.haveDH, ssl->options.haveNTRU,
+               ssl->options.haveECDSAsig, ssl->options.haveECC,
+               ssl->options.haveStaticECC, ssl->options.side);
+}
+
+
+void wolfSSL_CTX_set_psk_server_tls13_callback(WOLFSSL_CTX* ctx,
+                                               wc_psk_server_tls13_callback cb)
+{
+    WOLFSSL_ENTER("SSL_CTX_set_psk_server_tls13_callback");
+    if (ctx == NULL)
+        return;
+    ctx->havePSK = 1;
+    ctx->server_psk_tls13_cb = cb;
+}
+
+
+void wolfSSL_set_psk_server_tls13_callback(WOLFSSL* ssl,
+                                           wc_psk_server_tls13_callback cb)
+{
+    byte haveRSA = 1;
+    int  keySz   = 0;
+
+    WOLFSSL_ENTER("SSL_set_psk_server_tls13_callback");
+    if (ssl == NULL)
+        return;
+
+    ssl->options.havePSK = 1;
+    ssl->options.server_psk_tls13_cb = cb;
+
+    #ifdef NO_RSA
+        haveRSA = 0;
+    #endif
+    #ifndef NO_CERTS
+        keySz = ssl->buffers.keySz;
+    #endif
+    InitSuites(ssl->suites, ssl->version, keySz, haveRSA, TRUE,
+               ssl->options.haveDH, ssl->options.haveNTRU,
+               ssl->options.haveECDSAsig, ssl->options.haveECC,
+               ssl->options.haveStaticECC, ssl->options.side);
+}
+#endif
+
 
 #ifndef NO_WOLFSSL_SERVER
 /* The server accepting a connection from a client.

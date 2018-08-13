@@ -4205,6 +4205,10 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->options.havePSK   = ctx->havePSK;
     ssl->options.client_psk_cb = ctx->client_psk_cb;
     ssl->options.server_psk_cb = ctx->server_psk_cb;
+#ifdef WOLFSSL_TLS13
+    ssl->options.client_psk_tls13_cb = ctx->client_psk_tls13_cb;
+    ssl->options.server_psk_tls13_cb = ctx->server_psk_tls13_cb;
+#endif
 #endif /* NO_PSK */
 #ifdef WOLFSSL_EARLY_DATA
     if (ssl->options.side == WOLFSSL_SERVER_END)
@@ -15935,6 +15939,24 @@ const char* wolfSSL_get_cipher_name_iana(WOLFSSL* ssl)
     return GetCipherNameIana(ssl->options.cipherSuite0, ssl->options.cipherSuite);
 }
 
+int GetCipherSuiteFromName(const char* name, byte* cipherSuite0,
+                           byte* cipherSuite)
+{
+    int           ret = BAD_FUNC_ARG;
+    int           i;
+    unsigned long len = (unsigned long)XSTRLEN(name);
+
+    for (i = 0; i < GetCipherNamesSize(); i++) {
+        if (XSTRNCMP(name, cipher_names[i].name, len) == 0) {
+            *cipherSuite0 = cipher_names[i].cipherSuite0;
+            *cipherSuite  = cipher_names[i].cipherSuite;
+            ret = 0;
+            break;
+        }
+    }
+
+    return ret;
+}
 
 /**
 Set the enabled cipher suites.
@@ -16021,8 +16043,12 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
                  * suites don't necessarily have RSA in the name. */
             #ifdef WOLFSSL_TLS13
                 if (XSTRSTR(name, "TLS13")) {
+                #ifndef NO_RSA
                     haveRSAsig = 1;
+                #endif
+                #if defined(HAVE_ECC) || defined(HAVE_ED25519)
                     haveECDSAsig = 1;
+                #endif
                 }
                 else
             #endif

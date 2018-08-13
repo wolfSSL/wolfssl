@@ -751,7 +751,11 @@ static int test_wolfSSL_CTX_use_certificate_chain_file_format(void)
     const char* server_chain_der = "./certs/server-cert-chain.der";
     WOLFSSL_CTX* ctx;
 
+#ifndef NO_WOLFSSL_CLIENT
     ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+#else
+    ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method());
+#endif
     AssertNotNull(ctx);
 
     AssertIntEQ(wolfSSL_CTX_use_certificate_chain_file_format(ctx,
@@ -981,7 +985,7 @@ static void test_wolfSSL_SetTmpDH_buffer(void)
 
 static void test_wolfSSL_SetMinMaxDhKey_Sz(void)
 {
-#if !defined(NO_CERTS) && !defined(NO_DH) && !defined(NO_WOLFSSL_CLIENT)
+#if !defined(NO_CERTS) && !defined(NO_DH) && !defined(NO_WOLFSSL_SERVER)
     WOLFSSL_CTX *ctx, *ctx2;
     WOLFSSL *ssl, *ssl2;
 
