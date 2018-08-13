@@ -2891,7 +2891,8 @@ int wc_CheckProbablePrime(const byte* pRaw, word32 pRawSz,
                           eRaw, eRawSz, nlen, isPrime, NULL);
 }
 
-#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS) && (HAVE_FIPS_VERSION >= 2))
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS) && \
+        defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 /* Make an RSA key for size bits, with e specified, 65537 is a good e */
 int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 {

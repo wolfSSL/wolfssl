@@ -70,6 +70,11 @@
     extern "C" {
 #endif
 
+enum {
+    RSA_MIN_SIZE = 512,
+    RSA_MAX_SIZE = 4096,
+};
+
 /* avoid redefinition of structs */
 #if !defined(HAVE_FIPS) || \
     (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
@@ -93,9 +98,6 @@ enum {
 
     RSA_BLOCK_TYPE_1 = 1,
     RSA_BLOCK_TYPE_2 = 2,
-
-    RSA_MIN_SIZE = 512,
-    RSA_MAX_SIZE = 4096,
 
     RSA_MIN_PAD_SZ   = 11,     /* separator + 0 + pad value + 8 pads */
 
