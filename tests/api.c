@@ -8697,7 +8697,9 @@ static int test_wc_AesGcmSetKey (void)
 static int test_wc_AesGcmEncryptDecrypt (void)
 {
     int     ret = 0;
-#if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_256)
+    /* WOLFSSL_AFALG requires 12 byte IV */
+#if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_256) && \
+    !defined(WOLFSSL_AFALG)
 
     Aes     aes;
     byte    key32[] =

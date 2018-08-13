@@ -1733,6 +1733,7 @@ static void bench_aesgcm_internal(int doAsync, const byte* key, word32 keySz,
 {
     int    ret = 0, i, count = 0, times, pending = 0;
     Aes    enc[BENCH_MAX_PENDING];
+    Aes    dec[BENCH_MAX_PENDING];
     double start;
 
     DECLARE_VAR(bench_additional, byte, AES_AUTH_ADD_SZ, HEAP_HINT);
@@ -1789,7 +1790,21 @@ exit_aes_gcm:
     bench_stats_sym_finish(encLabel, doAsync, count, bench_size, start, ret);
 
 #ifdef HAVE_AES_DECRYPT
-    /* GCM uses same routine in backend for both encrypt and decrypt */
+    /* init keys */
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        if ((ret = wc_AesInit(&dec[i], HEAP_HINT,
+                        doAsync ? devId : INVALID_DEVID)) != 0) {
+            printf("AesInit failed, ret = %d\n", ret);
+            goto exit;
+        }
+
+        ret = wc_AesGcmSetKey(&dec[i], key, keySz);
+        if (ret != 0) {
+            printf("AesGcmSetKey failed, ret = %d\n", ret);
+            goto exit;
+        }
+    }
+
     bench_stats_start(&count, &start);
     do {
         for (times = 0; times < numBlocks || pending > 0; ) {
@@ -1797,12 +1812,12 @@ exit_aes_gcm:
 
             /* while free pending slots in queue, submit ops */
             for (i = 0; i < BENCH_MAX_PENDING; i++) {
-                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&enc[i]), 0, &times, numBlocks, &pending)) {
-                    ret = wc_AesGcmDecrypt(&enc[i], bench_plain,
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&dec[i]), 0, &times, numBlocks, &pending)) {
+                    ret = wc_AesGcmDecrypt(&dec[i], bench_plain,
                         bench_cipher, BENCH_SIZE,
                         iv, ivSz, bench_tag, AES_AUTH_TAG_SZ,
                         bench_additional, aesAuthAddSz);
-                    if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&enc[i]), 0, &times, &pending)) {
+                    if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&dec[i]), 0, &times, &pending)) {
                         goto exit_aes_gcm_dec;
                     }
                 }
@@ -1812,6 +1827,10 @@ exit_aes_gcm:
     } while (bench_stats_sym_check(start));
 exit_aes_gcm_dec:
     bench_stats_sym_finish(decLabel, doAsync, count, bench_size, start, ret);
+
+    for (i = 0; i < BENCH_MAX_PENDING; i++) {
+        wc_AesFree(&dec[i]);
+    }
 #endif /* HAVE_AES_DECRYPT */
 
     (void)decLabel;

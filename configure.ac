@@ -977,6 +977,22 @@ fi
 AM_CONDITIONAL([BUILD_AESNI], [test "x$ENABLED_AESNI" = "xyes"])
 
 
+# Linux af_alg 
+AC_ARG_ENABLE([afalg],
+    [AS_HELP_STRING([--enable-afalg],[Enable Linux af_alg use for crypto (default: disabled)])],
+    [ ENABLED_AFALG=$enableval ],
+    [ ENABLED_AFALG=no ]
+    )
+
+if test "$ENABLED_AFALG" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AFALG"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AFALG_HASH"
+fi
+
+AM_CONDITIONAL([BUILD_AFALG], [test "x$ENABLED_AFALG" = "xyes"])
+
+
 # Camellia
 AC_ARG_ENABLE([camellia],
     [AS_HELP_STRING([--enable-camellia],[Enable wolfSSL Camellia support (default: disabled)])],
@@ -2114,7 +2130,7 @@ AM_CONDITIONAL([BUILD_SELFTEST], [test "x$ENABLED_SELFTEST" = "xyes"])
 SHA224_DEFAULT=no
 if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"
 then
-    if test "x$ENABLED_FIPS" = "xno" || test "x$FIPS_VERSION" = "xv2"
+    if test "x$ENABLED_AFALG" = "xno" && ( test "x$ENABLED_FIPS" = "xno" || test "x$FIPS_VERSION" = "xv2" )
     then
         SHA224_DEFAULT=yes
     fi
@@ -3277,6 +3293,12 @@ then
     then
         AC_MSG_ERROR([please disable ecc if disabling asn.])
     fi
+
+    if test "$ENABLED_AFALG" = "yes"
+    then
+        # for TLS connections the intermediate hash needs to store buffer
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AFALG_HASH_KEEP"
+    fi
 fi
 
 
@@ -4212,6 +4234,10 @@ AS_IF([test "x$ENABLED_SCTP" = "xyes"],
 AS_IF([test "x$ENABLED_MCAST" = "xyes"],
       [AM_CFLAGS="-DWOLFSSL_MULTICAST $AM_CFLAGS"])
 
+# WOLFSSL_AFALG does not support SHA224 yet
+AS_IF([(test "x$ENABLED_AFALG" = "xyes") && (test "x$ENABLED_SHA224" = "xyes")],
+      [AC_MSG_ERROR([--enable-sha224 with --enable-afalg not yet supported])])
+
 # SCTP and Multicast require DTLS
 AS_IF([(test "x$ENABLED_DTLS" = "xno") && \
         (test "x$ENABLED_SCTP" = "xyes" || test "x$ENABLED_MCAST" = "xyes")],
@@ -4565,6 +4591,7 @@ echo "   * Write duplicate:            $ENABLED_WRITEDUP"
 echo "   * Intel Quick Assist:         $ENABLED_INTEL_QA"
 echo "   * Xilinx Hardware Acc.:       $ENABLED_XILINX"
 echo "   * Inline Code:                $ENABLED_INLINE"
+echo "   * Linux AF_ALG:               $ENABLED_AFALG"
 echo ""
 echo "---"
 
