@@ -20,10 +20,12 @@
  */
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #include <wolfcrypt/benchmark/benchmark.h>
 #include <stdio.h>
 
+#ifndef NO_CRYPT_BENCHMARK
 typedef struct func_args {
     int    argc;
     char** argv;
@@ -31,17 +33,22 @@ typedef struct func_args {
 } func_args;
 
 static func_args args = { 0 } ;
-
+#endif
 
 int main(void)
 {
+    int ret;
+#ifndef NO_CRYPT_BENCHMARK
 	wolfCrypt_Init();
 
 	printf("\nBenchmark Test\n");
 	benchmark_test(&args);
-	printf("Benchmark Test: Return code %d\n", args.return_code);
+    ret = args.return_code;
+	printf("Benchmark Test: Return code %d\n", ret);
 
 	wolfCrypt_Cleanup();
-
-	return 0;
+#else
+    ret = NOT_COMPILED_IN;
+#endif
+	return ret;
 }

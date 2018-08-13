@@ -5,50 +5,8 @@ CMD_ECHO =
 BUILD_DIR = ./Build
 
 # Toolchain location and prefix
+#TOOLCHAIN = 
 TOOLCHAIN = /opt/gcc-arm-none-eabi/bin/arm-none-eabi-
-
-INC = -I./Header \
-	  -I./Source \
-	  -I../..
-
-# Memory Map
-SRC_LD = -T./linker.ld
-
-# Defines
-DEF = -DWOLFSSL_USER_SETTINGS
-
-# Compiler and linker flags
-ARCHFLAGS = -mcpu=cortex-m0 -mthumb -mabi=aapcs
-DBGFLAGS = -ggdb
-ASFLAGS = $(ARCHFLAGS)
-
-# CC: Place functions and data into separate sections to allow dead code removal
-# by the linker (-f*-sections). Enable link time optimization (-flto)
-CFLAGS = $(ARCHFLAGS) -std=gnu99 -Wall -Wno-cpp \
-		 -ffunction-sections -fdata-sections \
-		 -Os -flto $(DBGFLAGS)
-
-# LD: Remove unused sections
-LDFLAGS = $(ARCHFLAGS) -Wl,--gc-sections
-
-# LD: Link with newlib-nano implementation
-LDFLAGS += --specs=nano.specs --specs=nosys.specs
-
-# LD: generate map
-LDFLAGS += -Wl,-Map=$(BUILD_DIR)/$(BIN).map $(DBGFLAGS)
-
-# LD: Entry point
-LDFLAGS += -Wl,-ereset_handler
-
-# Math lib (for DH)
-LIBS = -lm
-
-SRC_C += ./Source/armtarget.c
-SRC_C += $(wildcard ../../src/*.c ../../wolfcrypt/src/*.c ../../wolfcrypt/benchmark/*.c ../../wolfcrypt/test/*.c)
-FILENAMES_C = $(notdir $(SRC_C))
-FILENAMES_C := $(filter-out evp.c, $(FILENAMES_C))
-OBJS_C = $(addprefix $(BUILD_DIR)/, $(FILENAMES_C:.c=.o))
-vpath %.c $(dir $(SRC_C))
 
 # Tools selection
 CC = $(TOOLCHAIN)gcc
@@ -59,6 +17,147 @@ NM = $(TOOLCHAIN)nm
 OBJCOPY = $(TOOLCHAIN)objcopy
 OBJDUMP = $(TOOLCHAIN)objdump
 SIZE = $(TOOLCHAIN)size
+
+# Includes
+INC = -I./Header \
+	  -I./Source \
+	  -I../..
+
+# Defines
+DEF = -DWOLFSSL_USER_SETTINGS
+
+# Architecture
+ARCHFLAGS = -mcpu=cortex-m0 -mthumb -mabi=aapcs -DUSE_WOLF_ARM_STARTUP
+#ARCHFLAGS = -mcpu=cortex-r5 -mthumb -mabi=aapcs
+#ARCHFLAGS = -mcpu=cortex-a53 -mthumb -mabi=aapcs
+
+# Compiler and linker flags
+ASFLAGS = $(ARCHFLAGS)
+CFLAGS = $(ARCHFLAGS) -std=gnu99 -Wall -Wno-cpp
+LDFLAGS = $(ARCHFLAGS)
+
+# LD: Link with nosys
+LDFLAGS += --specs=nosys.specs
+
+# LD: Link with nano or rdimon implementation for standard library
+LDFLAGS += --specs=nano.specs
+#LDFLAGS += --specs=rdimon.specs
+
+# LD: generate map
+LDFLAGS += -Wl,-Map=$(BUILD_DIR)/$(BIN).map
+
+# LD: Entry point
+LDFLAGS += -Wl,-ereset_handler
+
+# Math lib (for DH)
+LIBS = -lm
+
+# Memory Map
+SRC_LD = -T./linker.ld
+
+# Optimization level and place functions / data into separate sections to allow dead code removal
+CFLAGS += -Os -ffunction-sections -fdata-sections -fno-builtin
+# Remove unused sections and link time optimizations
+LDFLAGS += -Wl,--gc-sections -flto
+
+# Debugging
+#DBGFLAGS = -ggdb -g3
+CFLAGS += $(DBGFLAGS)
+LDFLAGS += $(DBGFLAGS)
+
+
+# FILES
+
+# Port and Test/Benchmark
+SRC_C += ./Source/wolf_main.c
+SRC_C += ./Source/armtarget.c
+SRC_C += ../../wolfcrypt/test/test.c
+SRC_C += ../../wolfcrypt/benchmark/benchmark.c
+
+# WOLFSSL TLS FILES
+SRC_C += ../../src/crl.c
+SRC_C += ../../src/internal.c
+SRC_C += ../../src/keys.c
+SRC_C += ../../src/ocsp.c
+SRC_C += ../../src/sniffer.c
+SRC_C += ../../src/ssl.c
+SRC_C += ../../src/tls.c
+SRC_C += ../../src/tls13.c
+SRC_C += ../../src/wolfio.c
+
+# wolfCrypt Core (FIPS)
+SRC_C += ../../wolfcrypt/src/wolfcrypt_first.c
+SRC_C += ../../wolfcrypt/src/aes.c
+SRC_C += ../../wolfcrypt/src/cmac.c
+SRC_C += ../../wolfcrypt/src/des3.c
+SRC_C += ../../wolfcrypt/src/dh.c
+SRC_C += ../../wolfcrypt/src/ecc.c
+SRC_C += ../../wolfcrypt/src/hmac.c
+SRC_C += ../../wolfcrypt/src/random.c
+SRC_C += ../../wolfcrypt/src/rsa.c
+SRC_C += ../../wolfcrypt/src/sha.c
+SRC_C += ../../wolfcrypt/src/sha256.c
+SRC_C += ../../wolfcrypt/src/sha512.c
+SRC_C += ../../wolfcrypt/src/sha3.c
+SRC_C += ../../wolfcrypt/src/fips.c
+SRC_C += ../../wolfcrypt/src/fips_test.c
+SRC_C += ../../wolfcrypt/src/wolfcrypt_last.c
+
+# wolfCrypt Additional
+SRC_C += ../../wolfcrypt/src/asn.c
+SRC_C += ../../wolfcrypt/src/chacha.c
+SRC_C += ../../wolfcrypt/src/cmac.c
+SRC_C += ../../wolfcrypt/src/coding.c
+SRC_C += ../../wolfcrypt/src/compress.c
+SRC_C += ../../wolfcrypt/src/cpuid.c
+SRC_C += ../../wolfcrypt/src/cryptodev.c
+SRC_C += ../../wolfcrypt/src/curve25519.c
+SRC_C += ../../wolfcrypt/src/ed25519.c
+SRC_C += ../../wolfcrypt/src/error.c
+SRC_C += ../../wolfcrypt/src/fe_low_mem.c
+SRC_C += ../../wolfcrypt/src/fe_operations.c
+SRC_C += ../../wolfcrypt/src/ge_low_mem.c
+SRC_C += ../../wolfcrypt/src/ge_operations.c
+SRC_C += ../../wolfcrypt/src/hash.c
+SRC_C += ../../wolfcrypt/src/integer.c
+SRC_C += ../../wolfcrypt/src/logging.c
+SRC_C += ../../wolfcrypt/src/md5.c
+SRC_C += ../../wolfcrypt/src/memory.c
+SRC_C += ../../wolfcrypt/src/misc.c
+SRC_C += ../../wolfcrypt/src/pkcs12.c
+SRC_C += ../../wolfcrypt/src/pkcs7.c
+SRC_C += ../../wolfcrypt/src/poly1305.c
+SRC_C += ../../wolfcrypt/src/pwdbased.c
+SRC_C += ../../wolfcrypt/src/signature.c
+SRC_C += ../../wolfcrypt/src/srp.c
+SRC_C += ../../wolfcrypt/src/sp_arm32.c
+SRC_C += ../../wolfcrypt/src/sp_arm64.c
+SRC_C += ../../wolfcrypt/src/sp_c32.c
+SRC_C += ../../wolfcrypt/src/sp_int.c
+SRC_C += ../../wolfcrypt/src/tfm.c
+SRC_C += ../../wolfcrypt/src/wc_encrypt.c
+SRC_C += ../../wolfcrypt/src/wc_port.c
+SRC_C += ../../wolfcrypt/src/wolfevent.c
+SRC_C += ../../wolfcrypt/src/wolfmath.c
+
+# wolfCrypt non-standard algorithms (disabled by default)
+SRC_C += ../../wolfcrypt/src/arc4.c
+SRC_C += ../../wolfcrypt/src/blake2b.c
+SRC_C += ../../wolfcrypt/src/camellia.c
+SRC_C += ../../wolfcrypt/src/dsa.c
+SRC_C += ../../wolfcrypt/src/hc128.c
+SRC_C += ../../wolfcrypt/src/idea.c
+SRC_C += ../../wolfcrypt/src/md2.c
+SRC_C += ../../wolfcrypt/src/md4.c
+SRC_C += ../../wolfcrypt/src/rabbit.c
+SRC_C += ../../wolfcrypt/src/ripemd.c
+
+
+FILENAMES_C = $(notdir $(SRC_C))
+FILENAMES_C := $(filter-out evp.c, $(FILENAMES_C))
+OBJS_C = $(addprefix $(BUILD_DIR)/, $(FILENAMES_C:.c=.o))
+vpath %.c $(dir $(SRC_C))
+
 
 build_hex: $(BUILD_DIR) $(BUILD_DIR)/$(BIN).hex
 	@echo ""
@@ -90,6 +189,9 @@ $(BUILD_DIR)/$(BIN).elf: $(OBJS_ASM) $(OBJS_C)
 	@echo "Generating name list: $(BIN).sym"
 	$(CMD_ECHO) $(NM) -n $@ > $(BUILD_DIR)/$(BIN).sym
 
+	@echo "Showing final size:"
+	$(CMD_ECHO) ls -la $@
+
 	@echo "Generating disassembly: $(BIN).disasm"
 	$(CMD_ECHO) $(OBJDUMP) -S $@ > $(BUILD_DIR)/$(BIN).disasm
 
@@ -99,6 +201,9 @@ $(BUILD_DIR)/$(BIN).a: $(OBJS_ASM) $(OBJS_C)
 
 	@echo "Generating name list: $(BIN).sym"
 	$(CMD_ECHO) $(NM) -n $@ > $(BUILD_DIR)/$(BIN).sym
+
+	@echo "Showing final size:"
+	$(CMD_ECHO) ls -la $@
 
 	@echo "Generating disassembly: $(BIN).disasm"
 	$(CMD_ECHO) $(OBJDUMP) -S $@ > $(BUILD_DIR)/$(BIN).disasm

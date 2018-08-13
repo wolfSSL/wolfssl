@@ -22,9 +22,11 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/wolfcrypt/logging.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfcrypt/test/test.h>
 #include <stdio.h>
 
+#ifndef NO_CRYPT_TEST
 typedef struct func_args {
     int    argc;
     char** argv;
@@ -32,16 +34,22 @@ typedef struct func_args {
 } func_args;
 
 static func_args args = { 0 } ;
+#endif
 
 int main(void)
 {
+    int ret;
+#ifndef NO_CRYPT_TEST
 	wolfCrypt_Init();
 
 	printf("\nCrypt Test\n");
 	wolfcrypt_test(&args);
-	printf("Crypt Test: Return code %d\n", args.return_code);
+    ret = args.return_code;
+	printf("Crypt Test: Return code %d\n", ret);
 
 	wolfCrypt_Cleanup();
-
-	return 0;
+#else
+    ret = NOT_COMPILED_IN;
+#endif
+	return ret;
 }

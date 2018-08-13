@@ -21,6 +21,10 @@
 
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
+
+#ifndef WOLFCRYPT_ONLY
+
 #include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/logging.h>
 #include <stdio.h>
@@ -182,17 +186,22 @@ fail:
 
     return -1;
 }
+#endif
 
 
 int main(void)
 {
     int ret;
 
+#ifndef WOLFCRYPT_ONLY
     wolfSSL_Init();
 
     ret = tls_client();
 
     wolfSSL_Cleanup();
+#else
+    ret = NOT_COMPILED_IN;
+#endif
 
 	return ret;
 }
