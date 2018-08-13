@@ -178,7 +178,7 @@ int wc_GenerateSeed(OS_Seed* os, byte* seed, word32 sz);
     WOLFSSL_API int  wc_FreeNetRandom(void);
 #endif /* HAVE_WNR */
 
-
+#ifndef WC_NO_RNG
 WOLFSSL_API int  wc_InitRng(WC_RNG*);
 WOLFSSL_API int  wc_InitRng_ex(WC_RNG* rng, void* heap, int devId);
 WOLFSSL_API int  wc_InitRngNonce(WC_RNG* rng, byte* nonce, word32 nonceSz);
@@ -187,6 +187,16 @@ WOLFSSL_API int  wc_InitRngNonce_ex(WC_RNG* rng, byte* nonce, word32 nonceSz,
 WOLFSSL_API int  wc_RNG_GenerateBlock(WC_RNG*, byte*, word32 sz);
 WOLFSSL_API int  wc_RNG_GenerateByte(WC_RNG*, byte*);
 WOLFSSL_API int  wc_FreeRng(WC_RNG*);
+#else
+#define wc_InitRng(rng) NOT_COMPILED_IN
+#define wc_InitRng_ex(rng, h, d) NOT_COMPILED_IN
+#define wc_InitRngNonce(rng, n, s) NOT_COMPILED_IN
+#define wc_InitRngNonce_ex(rng, n, s, h, d) NOT_COMPILED_IN
+#define wc_RNG_GenerateBlock(rng, b, s) NOT_COMPILED_IN
+#define wc_RNG_GenerateByte(rng, b) NOT_COMPILED_IN
+#define wc_FreeRng(rng) NOT_COMPILED_IN
+#endif
+
 
 
 #ifdef HAVE_HASHDRBG

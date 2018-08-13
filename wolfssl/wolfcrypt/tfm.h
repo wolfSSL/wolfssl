@@ -732,7 +732,7 @@ MP_API int mp_radix_size (mp_int * a, int radix, int *size);
 #if !defined(NO_DH) || !defined(NO_DSA) || !defined(NO_RSA) || defined(WOLFSSL_KEY_GEN)
 MP_API int  mp_prime_is_prime(mp_int* a, int t, int* result);
 MP_API int  mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng);
-#endif /* NO_DH NO_DSA NO_RSA WOLFSSL_KEY_GEN */
+#endif /* !NO_DH || !NO_DSA || !NO_RSA || WOLFSSL_KEY_GEN */
 #ifdef WOLFSSL_KEY_GEN
 MP_API int  mp_gcd(fp_int *a, fp_int *b, fp_int *c);
 MP_API int  mp_lcm(fp_int *a, fp_int *b, fp_int *c);

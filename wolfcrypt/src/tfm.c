@@ -2947,6 +2947,7 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
         }
     }
 
+#ifndef WC_NO_RNG
     /* now do a miller rabin with up to t random numbers, this should
      * give a (1/4)^t chance of a false prime. */
     if (ret == FP_YES) {
@@ -2989,12 +2990,14 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
             XFREE(base, NULL, DYNAMIC_TYPE_TMP_BUFFER);
         #endif
     }
+#else
+    (void)t;
+#endif /* !WC_NO_RNG */
 
     *result = ret;
     return FP_OKAY;
 }
-
-#endif /* NO_RSA NO_DSA NO_DH WOLFSSL_KEY_GEN */
+#endif /* !NO_RSA || !NO_DSA || !NO_DH || WOLFSSL_KEY_GEN */
 
 
 #ifdef WOLFSSL_KEY_GEN

@@ -954,6 +954,7 @@ int wc_FreeDhKey(DhKey* key)
 }
 
 
+#ifndef WC_NO_RNG
 /* if defined to not use floating point values do not compile in */
 #ifndef WOLFSSL_DH_CONST
     static word32 DiscreteLogWorkFactor(word32 n)
@@ -1142,11 +1143,12 @@ static int GeneratePrivateDh186(DhKey* key, WC_RNG* rng, byte* priv,
     return err;
 }
 #endif /* WOLFSSL_NO_DH186 */
-
+#endif /* !WC_NO_RNG */
 
 static int GeneratePrivateDh(DhKey* key, WC_RNG* rng, byte* priv,
                              word32* privSz)
 {
+#ifndef WC_NO_RNG
     int ret = 0;
     word32 sz = 0;
 
@@ -1198,6 +1200,13 @@ static int GeneratePrivateDh(DhKey* key, WC_RNG* rng, byte* priv,
     }
 
     return ret;
+#else
+    (void)key;
+    (void)rng;
+    (void)priv;
+    (void)privSz;
+    return NOT_COMPILED_IN;
+#endif /* WC_NO_RNG */
 }
 
 

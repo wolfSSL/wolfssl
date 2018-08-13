@@ -91,6 +91,7 @@ mp_digit get_digit(mp_int* a, int n)
     return (n >= a->used || n < 0) ? 0 : a->dp[n];
 }
 
+#ifndef WC_NO_RNG
 int get_rand_digit(WC_RNG* rng, mp_digit* d)
 {
     return wc_RNG_GenerateBlock(rng, (byte*)d, sizeof(mp_digit));
@@ -149,6 +150,7 @@ exit:
     return ret;
 }
 #endif /* WC_RSA_BLINDING */
+#endif
 
 /* export an mp_int as unsigned char or hex string
  * encType is WC_TYPE_UNSIGNED_BIN or WC_TYPE_HEX_STR
