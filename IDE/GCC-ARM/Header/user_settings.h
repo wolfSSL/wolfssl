@@ -1,6 +1,6 @@
 /* user_settings.h
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2018 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -54,12 +54,47 @@ extern "C" {
 #undef  SIZEOF_LONG_LONG
 #define SIZEOF_LONG_LONG 8
 
-#ifdef USE_FAST_MATH
+#undef USE_FAST_MATH
+#if 1
+    #define USE_FAST_MATH
+
     #undef  TFM_TIMING_RESISTANT
     #define TFM_TIMING_RESISTANT
 
-    /* Optimizations (on M0 UMULL is not supported, need another assembly solution) */
+    /* Optimizations */
     //#define TFM_ARM
+#endif
+
+/* Wolf Single Precision Math */
+#undef WOLFSSL_SP
+#if 0
+    #define WOLFSSL_SP
+    #define WOLFSSL_SP_SMALL
+    #define WOLFSSL_HAVE_SP_RSA
+    #define WOLFSSL_HAVE_SP_DH
+    #define WOLFSSL_HAVE_SP_ECC
+    #define WOLFSSL_SP_CACHE_RESISTANT
+    //#define WOLFSSL_SP_MATH
+
+    /* 64 or 32 bit version */
+    //#define WOLFSSL_SP_ARM32_ASM
+    //#define WOLFSSL_SP_ARM64_ASM
+#endif
+
+/* ------------------------------------------------------------------------- */
+/* FIPS - Requires eval or license from wolfSSL */
+/* ------------------------------------------------------------------------- */
+#undef  HAVE_FIPS
+#if 0
+    #define HAVE_FIPS
+
+    #undef  HAVE_FIPS_VERSION
+    #define HAVE_FIPS_VERSION 2
+
+    #ifdef SINGLE_THREADED
+        #undef  NO_THREAD_LS
+        #define NO_THREAD_LS
+    #endif
 #endif
 
 
@@ -92,24 +127,31 @@ extern "C" {
     #if 0
         #define WC_RSA_PSS
     #endif
+
+    #if 0
+        #define WC_RSA_NO_PADDING
+    #endif
 #else
     #define NO_RSA
 #endif
 
 /* ECC */
+#undef HAVE_ECC
 #if 1
-    #undef  HAVE_ECC
     #define HAVE_ECC
 
     /* Manually define enabled curves */
     #undef  ECC_USER_CURVES
     #define ECC_USER_CURVES
 
-    //#define HAVE_ECC192
-    //#define HAVE_ECC224
-    #undef NO_ECC256
-    //#define HAVE_ECC384
-    //#define HAVE_ECC521
+    #ifdef ECC_USER_CURVES
+        /* Manual Curve Selection */
+        //#define HAVE_ECC192
+        //#define HAVE_ECC224
+        #undef NO_ECC256
+        //#define HAVE_ECC384
+        //#define HAVE_ECC521
+    #endif
 
     /* Fixed point cache (speeds repeated operations against same private key) */
     #undef  FP_ECC
@@ -131,23 +173,62 @@ extern "C" {
     #undef  ECC_TIMING_RESISTANT
     #define ECC_TIMING_RESISTANT
 
+    /* Enable cofactor support */
+    #ifdef HAVE_FIPS
+        #undef  HAVE_ECC_CDH
+        #define HAVE_ECC_CDH
+    #endif
+
+    /* Validate import */
+    #ifdef HAVE_FIPS
+        #undef  WOLFSSL_VALIDATE_ECC_IMPORT
+        #define WOLFSSL_VALIDATE_ECC_IMPORT
+    #endif
+
+    /* Compressed Key Support */
+    #undef  HAVE_COMP_KEY
+    //#define HAVE_COMP_KEY
+
     /* Use alternate ECC size for ECC math */
     #ifdef USE_FAST_MATH
         #ifdef NO_RSA
-            /* if not using RSA set FP_MAX_BITS to 256*2 */
+            /* Custom fastmath size if not using RSA */
+            /* MAX = ROUND32(ECC BITS 256) + SIZE_OF_MP_DIGIT(32) */
             #undef  FP_MAX_BITS
-            #define FP_MAX_BITS     512
+            #define FP_MAX_BITS     (256 + 32)
         #else
             #undef  ALT_ECC_SIZE
             #define ALT_ECC_SIZE
         #endif
 
+        /* Speedups specific to curve */
         #ifndef NO_ECC256
             #undef  TFM_ECC256
             #define TFM_ECC256
         #endif
     #endif
 #endif
+
+/* DH */
+#undef  NO_DH
+#if 1
+    /* Use table for DH instead of -lm (math) lib dependency */
+    #if 0
+        #define WOLFSSL_DH_CONST
+        #define HAVE_FFDHE_2048
+        #define HAVE_FFDHE_4096
+        //#define HAVE_FFDHE_6144
+        //#define HAVE_FFDHE_8192
+    #endif
+
+    #ifdef HAVE_FIPS
+        #define WOLFSSL_VALIDATE_FFC_IMPORT
+        #define HAVE_FFDHE_Q
+    #endif
+#else
+    #define NO_DH
+#endif
+
 
 /* AES */
 #undef NO_AES
@@ -158,14 +239,30 @@ extern "C" {
 	#undef  HAVE_AESGCM
     #define HAVE_AESGCM
 
-    #undef  HAVE_AESCCM
-    #define HAVE_AESCCM
-
     /* GCM Method: GCM_SMALL, GCM_WORD32 or GCM_TABLE */
-    #undef  GCM_SMALL
     #define GCM_SMALL
+
+    #undef  WOLFSSL_AES_DIRECT
+    //#define WOLFSSL_AES_DIRECT
+
+    #undef  HAVE_AES_ECB
+    //#define HAVE_AES_ECB
+
+    #undef  WOLFSSL_AES_COUNTER
+    //#define WOLFSSL_AES_COUNTER
+
+    #undef  HAVE_AESCCM
+    //#define HAVE_AESCCM
 #else
     #define NO_AES
+#endif
+
+
+/* DES3 */
+#undef NO_DES3
+#if 0
+#else
+    #define NO_DES3
 #endif
 
 /* ChaCha20 / Poly1305 */
@@ -210,7 +307,12 @@ extern "C" {
 #undef NO_SHA256
 #if 1
     /* not unrolled - ~2k smaller and ~25% slower */
-    #define USE_SLOW_SHA256
+    //#define USE_SLOW_SHA256
+
+    /* Sha224 */
+    #if 0
+        #define WOLFSSL_SHA224
+    #endif
 #else
     #define NO_SHA256
 #endif
@@ -227,28 +329,33 @@ extern "C" {
     #endif
 
     /* over twice as small, but 50% slower */
-    #define USE_SLOW_SHA512
+    //#define USE_SLOW_SHA512
+#endif
+
+/* Sha3 */
+#undef WOLFSSL_SHA3
+#if 0
+    #define WOLFSSL_SHA3
 #endif
 
 /* MD5 */
 #undef  NO_MD5
-#if 1
-
-#else
-	#define NO_MD5
-#endif
-
-#undef  WOLFSSL_SHA3
 #if 0
-    #define WOLFSSL_SHA3
+
 #else
+    #define NO_MD5
 #endif
 
 /* HKDF */
 #undef HAVE_HKDF
 #if 0
-	#define HAVE_HKDF
-#else
+    #define HAVE_HKDF
+#endif
+
+/* CMAC */
+#undef WOLFSSL_CMAC
+#if 0
+    #define WOLFSSL_CMAC
 #endif
 
 
@@ -273,27 +380,67 @@ extern "C" {
 /* Debugging */
 /* ------------------------------------------------------------------------- */
 
-#undef  DEBUG_WOLFSSL
-//#define DEBUG_WOLFSSL
-
-/* Use this to measure / print heap usage */
+#undef DEBUG_WOLFSSL
+#undef NO_ERROR_STRINGS
 #if 0
-	#undef  USE_WOLFSSL_MEMORY
-	#define USE_WOLFSSL_MEMORY
-
-	#undef  WOLFSSL_TRACK_MEMORY
-	//#define WOLFSSL_TRACK_MEMORY
-
-	#undef  WOLFSSL_DEBUG_MEMORY
-	//#define WOLFSSL_DEBUG_MEMORY
+    #define DEBUG_WOLFSSL
 #else
-    #undef  NO_WOLFSSL_MEMORY
-    #define NO_WOLFSSL_MEMORY
+    #if 0
+        #define NO_ERROR_STRINGS
+    #endif
 #endif
 
-#ifndef DEBUG_WOLFSSL
-    #undef  NO_ERROR_STRINGS
-    #define NO_ERROR_STRINGS
+
+/* ------------------------------------------------------------------------- */
+/* Memory */
+/* ------------------------------------------------------------------------- */
+
+/* Override Memory API's */
+#if 0
+    #undef  XMALLOC_OVERRIDE
+    #define XMALLOC_OVERRIDE
+
+    /* prototypes for user heap override functions */
+    /* Note: Realloc only required for normal math */
+    #include <stddef.h>  /* for size_t */
+    extern void *myMalloc(size_t n, void* heap, int type);
+    extern void myFree(void *p, void* heap, int type);
+    extern void *myRealloc(void *p, size_t n, void* heap, int type);
+
+    #define XMALLOC(n, h, t)     myMalloc(n, h, t)
+    #define XFREE(p, h, t)       myFree(p, h, t)
+    #define XREALLOC(p, n, h, t) myRealloc(p, n, h, t)
+#endif
+
+#if 0
+    /* Static memory requires fast math */
+    #define WOLFSSL_STATIC_MEMORY
+
+    /* Disable fallback malloc/free */
+    #define WOLFSSL_NO_MALLOC
+    #if 1
+        #define WOLFSSL_MALLOC_CHECK /* trap malloc failure */
+    #endif
+#endif
+
+/* Memory callbacks */
+#if 0
+    #undef  USE_WOLFSSL_MEMORY
+    #define USE_WOLFSSL_MEMORY
+
+    /* Use this to measure / print heap usage */
+    #if 1
+        #undef  WOLFSSL_TRACK_MEMORY
+        #define WOLFSSL_TRACK_MEMORY
+
+        #undef  WOLFSSL_DEBUG_MEMORY
+        #define WOLFSSL_DEBUG_MEMORY
+    #endif
+#else
+    #ifndef WOLFSSL_STATIC_MEMORY
+        #define NO_WOLFSSL_MEMORY
+        /* Otherwise we will use stdlib malloc, free and realloc */
+    #endif
 #endif
 
 
@@ -304,6 +451,7 @@ extern "C" {
 /* Override Current Time */
 /* Allows custom "custom_time()" function to be used for benchmark */
 #define WOLFSSL_USER_CURRTIME
+#define WOLFSSL_GMTIME
 #define USER_TICKS
 extern unsigned long my_time(unsigned long* timer);
 #define XTIME my_time
@@ -312,16 +460,16 @@ extern unsigned long my_time(unsigned long* timer);
 /* ------------------------------------------------------------------------- */
 /* RNG */
 /* ------------------------------------------------------------------------- */
+
+/* Seed Source */
 /* Size of returned HW RNG value */
 #define CUSTOM_RAND_TYPE      unsigned int
-
-/* Seed source */
-extern unsigned int custom_rand_generate(void);
+extern unsigned int my_rng_seed_gen(void);
 #undef  CUSTOM_RAND_GENERATE
-#define CUSTOM_RAND_GENERATE  custom_rand_generate
+#define CUSTOM_RAND_GENERATE  my_rng_seed_gen
 
 /* Choose RNG method */
-#if 0
+#if 1
     /* Use built-in P-RNG (SHA256 based) with HW RNG */
     /* P-RNG + HW RNG (P-RNG is ~8K) */
     #undef  HAVE_HASHDRBG
@@ -331,18 +479,65 @@ extern unsigned int custom_rand_generate(void);
     #define WC_NO_HASHDRBG
 
     /* Bypass P-RNG and use only HW RNG */
-    extern int custom_rand_generate_block(unsigned char* output, unsigned int sz);
+    extern int my_rng_gen_block(unsigned char* output, unsigned int sz);
     #undef  CUSTOM_RAND_GENERATE_BLOCK
-    #define CUSTOM_RAND_GENERATE_BLOCK  custom_rand_generate_block
+    #define CUSTOM_RAND_GENERATE_BLOCK  my_rng_gen_block
 #endif
+
+
+/* ------------------------------------------------------------------------- */
+/* Custom Standard Lib */
+/* ------------------------------------------------------------------------- */
+/* Allows override of all standard library functions */
+#undef STRING_USER
+#if 0
+    #define STRING_USER
+
+    #include <string.h>
+
+    #undef  USE_WOLF_STRSEP
+    #define USE_WOLF_STRSEP
+    #define XSTRSEP(s1,d)     wc_strsep((s1),(d))
+
+    #undef  USE_WOLF_STRTOK
+    #define USE_WOLF_STRTOK
+    #define XSTRTOK(s1,d,ptr) wc_strtok((s1),(d),(ptr))
+
+    #define XSTRNSTR(s1,s2,n) mystrnstr((s1),(s2),(n))
+
+    #define XMEMCPY(d,s,l)    memcpy((d),(s),(l))
+    #define XMEMSET(b,c,l)    memset((b),(c),(l))
+    #define XMEMCMP(s1,s2,n)  memcmp((s1),(s2),(n))
+    #define XMEMMOVE(d,s,l)   memmove((d),(s),(l))
+
+    #define XSTRLEN(s1)       strlen((s1))
+    #define XSTRNCPY(s1,s2,n) strncpy((s1),(s2),(n))
+    #define XSTRSTR(s1,s2)    strstr((s1),(s2))
+
+    #define XSTRNCMP(s1,s2,n)     strncmp((s1),(s2),(n))
+    #define XSTRNCAT(s1,s2,n)     strncat((s1),(s2),(n))
+    #define XSTRNCASECMP(s1,s2,n) strncasecmp((s1),(s2),(n))
+
+    #define XSNPRINTF snprintf
+#endif
+
 
 
 /* ------------------------------------------------------------------------- */
 /* Enable Features */
 /* ------------------------------------------------------------------------- */
+#undef WOLFSSL_TLS13
 #if 0
-    #undef WOLFSSL_TLS13
     #define WOLFSSL_TLS13
+#endif
+
+#undef WOLFSSL_KEY_GEN
+#if 0
+    #define WOLFSSL_KEY_GEN
+#endif
+
+#if defined(HAVE_FIPS) && !defined(WOLFSSL_KEY_GEN)
+    #define WOLFSSL_OLD_PRIME_CHECK
 #endif
 
 #undef  KEEP_PEER_CERT
@@ -406,12 +601,6 @@ extern unsigned int custom_rand_generate(void);
 
 #undef  NO_DSA
 #define NO_DSA
-
-#undef  NO_DH
-#define NO_DH
-
-#undef  NO_DES3
-#define NO_DES3
 
 #undef  NO_RC4
 #define NO_RC4

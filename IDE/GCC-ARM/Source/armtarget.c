@@ -1,6 +1,6 @@
 /* armtarget.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2018 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -29,13 +29,9 @@
 #include <stdarg.h>
 #include <string.h>
 
-/* Test to determine if ARM Cortex M */
-#if defined(__arm__) && defined(__ARM_ARCH) && (__ARM_ARCH == 6 || __ARM_ARCH == 7)
-    #define CORTEX_M_SERIES
-#endif
 
+#ifdef USE_WOLF_ARM_STARTUP
 
-#ifdef CORTEX_M_SERIES
 /* Memory initialization */
 extern uint32_t __data_load_start__[];
 extern uint32_t __data_start__[];
@@ -63,12 +59,12 @@ void meminit32(uint32_t* start, uint32_t* end)
         *start++ = 0;
     }
 }
-#endif /* CORTEX_M_SERIES */
+#endif /* USE_WOLF_ARM_STARTUP */
 
 /* Entry Point */
 void reset_handler(void)
 {
-#ifdef CORTEX_M_SERIES
+#ifdef USE_WOLF_ARM_STARTUP
     /* Init sections */
     memcpy32(__data_load_start__, __data_start__, __data_end__);
     meminit32(__bss_start__, __bss_end__);
@@ -76,7 +72,7 @@ void reset_handler(void)
     /* Init heap */
     __heap_start__[0] = 0;
     __heap_start__[1] = ((uint32_t)__heap_end__ - (uint32_t)__heap_start__);
-#endif /* CORTEX_M_SERIES */
+#endif /* USE_WOLF_ARM_STARTUP */
 
     /* Start main */
     extern int main(void);
@@ -86,7 +82,7 @@ void reset_handler(void)
     while(1);
 }
 
-#ifdef CORTEX_M_SERIES
+#ifdef USE_WOLF_ARM_STARTUP
 // Vector Exception/Interrupt Handlers
 static void Default_Handler(void)
 {
@@ -186,7 +182,7 @@ void HardFault_Handler(void)
     );
 }
 
-// Vectors
+/* Vectors Table */
 typedef void (*vector_entry)(void);
 const vector_entry vectors[] __attribute__ ((section(".vectors"),used)) =
 {
@@ -211,71 +207,4 @@ const vector_entry vectors[] __attribute__ ((section(".vectors"),used)) =
 
     /* remainder go below */
 };
-#endif /* CORTEX_M_SERIES */
-
-
-/* TIME CODE */
-/* TODO: Implement real RTC */
-static int gTimeMs;
-static int hw_get_time_sec(void)
-{
-	return ++gTimeMs;
-}
-
-unsigned long my_time(unsigned long* timer)
-{
-    (void)timer;
-    return hw_get_time_sec();
-}
-
-unsigned int LowResTimer(void)
-{
-    return hw_get_time_sec();
-}
-
-double current_time(int reset)
-{
-    double time;
-	int timeMs = gTimeMs;
-    (void)reset;
-    time = (timeMs / 1000); // sec
-    time += (double)(timeMs % 1000) / 1000; // ms
-    return time;
-}
-
-
-/* RNG CODE */
-/* TODO: Implement real RNG */
-static int gCounter;
-int hw_rand(void)
-{
-    return ++gCounter;
-}
-
-unsigned int custom_rand_generate(void)
-{
-    return hw_rand();
-}
-
-int custom_rand_generate_block(unsigned char* output, unsigned int sz)
-{
-    uint32_t i = 0;
-
-    while (i < sz)
-    {
-        /* If not aligned or there is odd/remainder */
-        if( (i + sizeof(CUSTOM_RAND_TYPE)) > sz ||
-            ((uint32_t)&output[i] % sizeof(CUSTOM_RAND_TYPE)) != 0
-        ) {
-            /* Single byte at a time */
-            output[i++] = (unsigned char)custom_rand_generate();
-        }
-        else {
-            /* Use native 8, 16, 32 or 64 copy instruction */
-            *((CUSTOM_RAND_TYPE*)&output[i]) = custom_rand_generate();
-            i += sizeof(CUSTOM_RAND_TYPE);
-        }
-    }
-
-    return 0;
-}
+#endif /* USE_WOLF_ARM_STARTUP */
