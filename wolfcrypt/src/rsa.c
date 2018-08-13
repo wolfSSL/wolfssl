@@ -200,8 +200,6 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* a, word32* aSz, byte* b,
     #include <wolfcrypt/src/misc.c>
 #endif
 
-#define ERROR_OUT(x) { ret = (x); goto done;}
-
 
 enum {
     RSA_STATE_NONE = 0,
@@ -1513,7 +1511,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
                 if (ret == 0 && mp_exptmod(tmp, &key->dP, &key->p,
                                                                tmpa) != MP_OKAY)
                     ret = MP_EXPTMOD_E;
-    
+
                 /* tmpb = tmp^dQ mod q */
                 if (ret == 0 && mp_exptmod(tmp, &key->dQ, &key->q,
                                                                tmpb) != MP_OKAY)
@@ -2616,6 +2614,9 @@ int wc_RsaFlattenPublicKey(RsaKey* key, byte* e, word32* eSz, byte* n,
 }
 
 
+#endif /* HAVE_FIPS */
+
+
 static int RsaGetValue(mp_int* in, byte* out, word32* outSz)
 {
     word32 sz;
@@ -2890,7 +2891,8 @@ int wc_CheckProbablePrime(const byte* pRaw, word32 pRawSz,
                           eRaw, eRawSz, nlen, isPrime, NULL);
 }
 
-
+#if !defined(HAVE_FIPS) || (defined(HAVE_FIPS) && \
+        defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
 /* Make an RSA key for size bits, with e specified, 65537 is a good e */
 int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 {
@@ -3087,6 +3089,7 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 
     return 0;
 }
+#endif /* !FIPS || FIPS_VER >= 2 */
 #endif /* WOLFSSL_KEY_GEN */
 
 
@@ -3105,7 +3108,4 @@ int wc_RsaSetRNG(RsaKey* key, WC_RNG* rng)
 #endif /* WC_RSA_BLINDING */
 
 
-#undef ERROR_OUT
-
-#endif /* HAVE_FIPS */
 #endif /* NO_RSA */
