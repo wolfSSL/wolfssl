@@ -77,6 +77,10 @@ enum Pkcs7_Misc {
                             MAX_SEQ_SZ + MAX_ALGO_SZ + 1 + MAX_ENCRYPTED_KEY_SZ
 };
 
+enum Pkcs7_SignerIdentifier_Types {
+    SID_ISSUER_AND_SERIAL_NUMBER = 0,
+    SID_SUBJECT_KEY_IDENTIFIER   = 1
+};
 
 typedef struct PKCS7Attrib {
     const byte* oid;
@@ -150,6 +154,11 @@ typedef struct PKCS7 {
     byte contentType[MAX_OID_SZ]; /* custom contentType byte array */
     word32 contentTypeSz;         /* size of contentType, bytes */
 
+    int sidType;                  /* SignerIdentifier type to use, of type
+                                     Pkcs7_SignerIdentifier_Types, default to
+                                     SID_ISSUER_AND_SERIAL_NUMBER */
+    byte issuerSubjKeyId[KEYID_SIZE];  /* SubjectKeyIdentifier of singleCert */
+
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 } PKCS7;
 
@@ -180,6 +189,7 @@ WOLFSSL_API int  wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
                                           word32 pkiMsgSz, byte* output,
                                           word32 outputSz);
 
+WOLFSSL_API int wc_PKCS7_SetSignerIdentifierType(PKCS7* pkcs7, int type);
 WOLFSSL_API int wc_PKCS7_SetContentType(PKCS7* pkcs7, byte* contentType,
                                         word32 sz);
 WOLFSSL_API int wc_PKCS7_GetPadSize(word32 inputSz, word32 blockSz);

@@ -327,6 +327,11 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz)
         pkcs7->issuerSz = dCert->issuerRawLen;
         XMEMCPY(pkcs7->issuerSn, dCert->serial, dCert->serialSz);
         pkcs7->issuerSnSz = dCert->serialSz;
+        XMEMCPY(pkcs7->issuerSubjKeyId, dCert->extSubjKeyId, KEYID_SIZE);
+
+        /* default to IssuerAndSerialNumber for SignerIdentifier */
+        pkcs7->sidType = SID_ISSUER_AND_SERIAL_NUMBER;
+
         FreeDecodedCert(dCert);
 
 #ifdef WOLFSSL_SMALL_STACK
@@ -537,9 +542,13 @@ typedef struct ESD {
                 byte signerInfoSet[MAX_SET_SZ];
                     byte signerInfoSeq[MAX_SEQ_SZ];
                         byte signerVersion[MAX_VERSION_SZ];
+                        /* issuerAndSerialNumber ...*/
                         byte issuerSnSeq[MAX_SEQ_SZ];
                             byte issuerName[MAX_SEQ_SZ];
                             byte issuerSn[MAX_SN_SZ];
+                        /* OR subjectKeyIdentifier */
+                        byte issuerSKIDSeq[MAX_SEQ_SZ];
+                            byte issuerSKID[MAX_OCTET_STR_SZ];
                         byte signerDigAlgoId[MAX_ALGO_SZ];
                         byte digEncAlgoId[MAX_ALGO_SZ];
                         byte signedAttribSet[MAX_SET_SZ];
@@ -549,8 +558,8 @@ typedef struct ESD {
     word32 outerSeqSz, outerContentSz, innerSeqSz, versionSz, digAlgoIdSetSz,
            singleDigAlgoIdSz, certsSetSz;
     word32 signerInfoSetSz, signerInfoSeqSz, signerVersionSz,
-           issuerSnSeqSz, issuerNameSz, issuerSnSz,
-           signerDigAlgoIdSz, digEncAlgoIdSz, signerDigestSz;
+           issuerSnSeqSz, issuerNameSz, issuerSnSz, issuerSKIDSz,
+           issuerSKIDSeqSz, signerDigAlgoIdSz, digEncAlgoIdSz, signerDigestSz;
     word32 encContentDigestSz, signedAttribsSz, signedAttribsCount,
            signedAttribSetSz;
 } ESD;
@@ -1058,6 +1067,7 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     int digEncAlgoId, digEncAlgoType;
     byte* flatSignedAttribs = NULL;
     word32 flatSignedAttribsSz = 0;
+    word32 innerOidSz = sizeof(innerOid);
     word32 outerOidSz = sizeof(outerOid);
 
     if (pkcs7 == NULL || pkcs7->contentSz == 0 ||
@@ -1101,14 +1111,34 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
                                      pkcs7->contentTypeSz + esd->innerContSeqSz,
                                      esd->contentInfoSeq);
 
-    esd->issuerSnSz = SetSerialNumber(pkcs7->issuerSn, pkcs7->issuerSnSz,
-                                     esd->issuerSn, MAX_SN_SZ);
-    signerInfoSz += esd->issuerSnSz;
-    esd->issuerNameSz = SetSequence(pkcs7->issuerSz, esd->issuerName);
-    signerInfoSz += esd->issuerNameSz + pkcs7->issuerSz;
-    esd->issuerSnSeqSz = SetSequence(signerInfoSz, esd->issuerSnSeq);
-    signerInfoSz += esd->issuerSnSeqSz;
-    esd->signerVersionSz = SetMyVersion(1, esd->signerVersion, 0);
+    /* SignerIdentifier */
+    if (pkcs7->sidType == SID_ISSUER_AND_SERIAL_NUMBER) {
+        /* IssuerAndSerialNumber */
+        esd->issuerSnSz = SetSerialNumber(pkcs7->issuerSn, pkcs7->issuerSnSz,
+                                         esd->issuerSn, MAX_SN_SZ);
+        signerInfoSz += esd->issuerSnSz;
+        esd->issuerNameSz = SetSequence(pkcs7->issuerSz, esd->issuerName);
+        signerInfoSz += esd->issuerNameSz + pkcs7->issuerSz;
+        esd->issuerSnSeqSz = SetSequence(signerInfoSz, esd->issuerSnSeq);
+        signerInfoSz += esd->issuerSnSeqSz;
+
+        /* version MUST be 1 */
+        esd->signerVersionSz = SetMyVersion(1, esd->signerVersion, 0);
+
+    } else if (pkcs7->sidType == SID_SUBJECT_KEY_IDENTIFIER) {
+        /* SubjectKeyIdentifier */
+        esd->issuerSKIDSz = SetOctetString(KEYID_SIZE, esd->issuerSKID);
+        esd->issuerSKIDSeqSz = SetExplicit(0, esd->issuerSKIDSz + KEYID_SIZE,
+                                           esd->issuerSKIDSeq);
+        signerInfoSz += (esd->issuerSKIDSz + esd->issuerSKIDSeqSz +
+                         KEYID_SIZE);
+
+        /* version MUST be 3 */
+        esd->signerVersionSz = SetMyVersion(3, esd->signerVersion, 0);
+    } else {
+        return SKID_E;
+    }
+
     signerInfoSz += esd->signerVersionSz;
     esd->signerDigAlgoIdSz = SetAlgoID(pkcs7->hashOID, esd->signerDigAlgoId,
                                       oidHashType, 0);
@@ -1250,14 +1280,28 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     idx += esd->signerInfoSeqSz;
     XMEMCPY(output2 + idx, esd->signerVersion, esd->signerVersionSz);
     idx += esd->signerVersionSz;
-    XMEMCPY(output2 + idx, esd->issuerSnSeq, esd->issuerSnSeqSz);
-    idx += esd->issuerSnSeqSz;
-    XMEMCPY(output2 + idx, esd->issuerName, esd->issuerNameSz);
-    idx += esd->issuerNameSz;
-    XMEMCPY(output2 + idx, pkcs7->issuer, pkcs7->issuerSz);
-    idx += pkcs7->issuerSz;
-    XMEMCPY(output2 + idx, esd->issuerSn, esd->issuerSnSz);
-    idx += esd->issuerSnSz;
+    /* SignerIdentifier */
+    if (pkcs7->sidType == SID_ISSUER_AND_SERIAL_NUMBER) {
+        /* IssuerAndSerialNumber */
+        XMEMCPY(output2 + idx, esd->issuerSnSeq, esd->issuerSnSeqSz);
+        idx += esd->issuerSnSeqSz;
+        XMEMCPY(output2 + idx, esd->issuerName, esd->issuerNameSz);
+        idx += esd->issuerNameSz;
+        XMEMCPY(output2 + idx, pkcs7->issuer, pkcs7->issuerSz);
+        idx += pkcs7->issuerSz;
+        XMEMCPY(output2 + idx, esd->issuerSn, esd->issuerSnSz);
+        idx += esd->issuerSnSz;
+    } else if (pkcs7->sidType == SID_SUBJECT_KEY_IDENTIFIER) {
+        /* SubjectKeyIdentifier */
+        XMEMCPY(output2 + idx, esd->issuerSKIDSeq, esd->issuerSKIDSeqSz);
+        idx += esd->issuerSKIDSeqSz;
+        XMEMCPY(output2 + idx, esd->issuerSKID, esd->issuerSKIDSz);
+        idx += esd->issuerSKIDSz;
+        XMEMCPY(output2 + idx, pkcs7->issuerSubjKeyId, KEYID_SIZE);
+        idx += KEYID_SIZE;
+    } else {
+        return SKID_E;
+    }
     XMEMCPY(output2 + idx, esd->signerDigAlgoId, esd->signerDigAlgoIdSz);
     idx += esd->signerDigAlgoIdSz;
 
@@ -2048,7 +2092,7 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
     /* Get the inner ContentInfo contentType */
     {
-        word32 localIdx = idx;
+        localIdx = idx;
 
         if (GetASNObjectId(pkiMsg, &idx, &length, pkiMsgSz) != 0)
             return ASN_PARSE_E;
@@ -2299,10 +2343,43 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
         if (GetMyVersion(pkiMsg2, &idx, &version, pkiMsg2Sz) < 0)
             return ASN_PARSE_E;
 
-        if (version != 1) {
-            WOLFSSL_MSG("PKCS#7 signerInfo needs to be of version 1");
+        if (version == 1) {
+            /* Get the sequence of IssuerAndSerialNumber */
+            if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+                return ASN_PARSE_E;
+
+            /* Skip it */
+            idx += length;
+
+        } else if (version == 3) {
+            /* Get the sequence of SubjectKeyIdentifier */
+            if (pkiMsg[idx++] != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) {
+                ret = ASN_PARSE_E;
+            }
+
+            if (ret == 0 && GetLength(pkiMsg, &idx, &length, pkiMsgSz) <= 0) {
+                ret = ASN_PARSE_E;
+            }
+
+            if (ret == 0 && pkiMsg[idx++] != ASN_OCTET_STRING)
+                ret = ASN_PARSE_E;
+
+            if (ret == 0 && GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+                ret = ASN_PARSE_E;
+
+            /* Skip it */
+            idx += length;
+
+        } else {
+            WOLFSSL_MSG("PKCS#7 signerInfo version must be 1 or 3");
             return ASN_VERSION_E;
         }
+
+    /* Get the sequence of digestAlgorithm */
+    if (GetAlgoId(pkiMsg2, &idx, &hashOID, oidHashType, pkiMsg2Sz) < 0) {
+        return ASN_PARSE_E;
+    }
+    pkcs7->hashOID = (int)hashOID;
 
         /* Get the sequence of IssuerAndSerialNumber */
         if (GetSequence(pkiMsg2, &idx, &length, pkiMsg2Sz) < 0)
@@ -3556,6 +3633,30 @@ static int wc_PKCS7_GenerateIV(PKCS7* pkcs7, WC_RNG* rng, byte* iv, word32 ivSz)
     }
 
     return ret;
+}
+
+
+/* Set SignerIdentifier type to be used in SignedData encoding. Is either
+ * IssuerAndSerialNumber or SubjectKeyIdentifier. SignedData encoding
+ * defaults to using IssuerAndSerialNumber unless set with this function.
+ *
+ * pkcs7 - pointer to initialized PKCS7 structure
+ * type  - either SID_ISSUER_AND_SERIAL_NUMBER or SID_SUBJECT_KEY_IDENTIFIER
+ *
+ * return 0 on success, negative upon error */
+int wc_PKCS7_SetSignerIdentifierType(PKCS7* pkcs7, int type)
+{
+    if (pkcs7 == NULL)
+        return BAD_FUNC_ARG;
+
+    if (type != SID_ISSUER_AND_SERIAL_NUMBER &&
+        type != SID_SUBJECT_KEY_IDENTIFIER) {
+        return BAD_FUNC_ARG;
+    }
+
+    pkcs7->sidType = type;
+
+    return 0;
 }
 
 
