@@ -171,7 +171,11 @@ int wc_export_int(mp_int* mp, byte* buf, word32* len, word32 keySz,
     XMEMSET(buf, 0, *len);
 
     if (encType == WC_TYPE_HEX_STR) {
+    #ifdef WC_MP_TO_RADIX
         err = mp_tohex(mp, (char*)buf);
+    #else
+        err = NOT_COMPILED_IN;
+    #endif
     }
     else {
         err = mp_to_unsigned_bin(mp, buf + (keySz - mp_unsigned_bin_size(mp)));

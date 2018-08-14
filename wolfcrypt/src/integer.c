@@ -4913,10 +4913,7 @@ int mp_read_radix (mp_int * a, const char *str, int radix)
 }
 #endif /* !defined(NO_DSA) || defined(HAVE_ECC) */
 
-#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
-    defined(WOLFSSL_DEBUG_MATH) || defined(DEBUG_WOLFSSL) || \
-    defined(WOLFSSL_PUBLIC_MP) || \
-    (defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT))
+#ifdef WC_MP_TO_RADIX
 
 /* returns size of ASCII representation */
 int mp_radix_size (mp_int *a, int radix, int *size)
@@ -5056,7 +5053,7 @@ void mp_dump(const char* desc, mp_int* a, byte verbose)
 }
 #endif /* WOLFSSL_DEBUG_MATH */
 
-#endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(WOLFSSL_DEBUG_MATH) */
+#endif /* WC_MP_TO_RADIX */
 
 #endif /* WOLFSSL_SP_MATH */
 
