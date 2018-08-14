@@ -2696,12 +2696,12 @@ static int Pkcs8Pad(byte* buf, int sz, int blockSz)
     int i, padSz;
 
     /* calculate pad size */
-    padSz = (sz % blockSz);
+    padSz = blockSz - (sz & (blockSz - 1));
 
     /* pad with padSz value */
     if (buf) {
         for (i = 0; i < padSz; i++) {
-            buf[sz+i] = padSz;
+            buf[sz+i] = (byte)(padSz & 0xFF);
         }
     }
 
