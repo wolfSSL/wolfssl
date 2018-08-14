@@ -10076,7 +10076,7 @@ static int test_RsaDecryptBoundsCheck(void)
 static int test_wc_SetKeyUsage (void)
 {
     int     ret = 0;
-#if !defined(NO_RSA) && defined(WOLFSSL_CERT_EXT) && !defined(HAVE_FIPS)
+#if !defined(NO_RSA) && defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN) && !defined(HAVE_FIPS)
     Cert    myCert;
 
     ret = wc_InitCert(&myCert);
