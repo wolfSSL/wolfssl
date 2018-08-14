@@ -7556,6 +7556,15 @@ const char* const END_PUB_KEY          = "-----END PUBLIC KEY-----";
 #endif
 
 
+static WC_INLINE char* SkipEndOfLineChars(char* line, const char* endOfLine)
+{
+    /* eat end of line characters */
+    while (line < endOfLine &&
+              (line[0] == '\r' || line[0] == '\n')) {
+        line++;
+    }
+    return line;
+}
 
 int wc_PemGetHeaderFooter(int type, const char** header, const char** footer)
 {
@@ -7794,11 +7803,8 @@ static int wc_EncryptedInfoParse(EncryptedInfo* info,
         else
             return BUFFER_E;
 
-        /* eat blank line */
-        while (newline < bufferEnd &&
-                (*newline == '\r' || *newline == '\n')) {
-            newline++;
-        }
+        /* eat end of line characters */
+        newline = SkipEndOfLineChars(newline, bufferEnd);
 
         /* return new headerEnd */
         if (pBuffer)
@@ -8051,19 +8057,8 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
 
     headerEnd += XSTRLEN(header);
 
-    if ((headerEnd + 1) >= bufferEnd)
-        return BUFFER_E;
-
-    /* eat end of line */
-    if (headerEnd[0] == '\n')
-        headerEnd++;
-    else if (headerEnd[1] == '\n')
-        headerEnd += 2;
-    else {
-        if (info)
-            info->consumed = (long)(headerEnd+2 - (char*)buff);
-        return BUFFER_E;
-    }
+    /* eat end of line characters */
+    headerEnd = SkipEndOfLineChars(headerEnd, bufferEnd);
 
     if (type == PRIVATEKEY_TYPE) {
         if (eccKey) {
@@ -8096,16 +8091,8 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
     consumedEnd = footerEnd + XSTRLEN(footer);
 
     if (consumedEnd < bufferEnd) {  /* handle no end of line on last line */
-        /* eat end of line */
-        if (consumedEnd[0] == '\n')
-            consumedEnd++;
-        else if ((consumedEnd + 1 < bufferEnd) && consumedEnd[1] == '\n')
-            consumedEnd += 2;
-        else {
-            if (info)
-                info->consumed = (long)(consumedEnd+2 - (char*)buff);
-            return BUFFER_E;
-        }
+        /* eat end of line characters */
+        consumedEnd = SkipEndOfLineChars(consumedEnd, bufferEnd);
     }
 
     if (info)
