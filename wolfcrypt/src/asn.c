@@ -869,6 +869,7 @@ int wc_BerToDer(const byte* ber, word32 berSz, byte* der, word32* derSz)
     if (ber == NULL || derSz == NULL)
         return BAD_FUNC_ARG;
 
+    sz = 0;
     outSz = *derSz;
 
     for (i = 0, j = 0; i < berSz; ) {
