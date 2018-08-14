@@ -127,10 +127,6 @@ enum {
     ECC_MAX_CRYPTO_HW_SIZE = 32,
 #endif
 
-    /* point encoding type */
-    ECC_TYPE_HEX_STR = 1,
-    ECC_TYPE_UNSIGNED_BIN = 2,
-
     /* point compression type */
     ECC_POINT_COMP_EVEN = 0x02,
     ECC_POINT_COMP_ODD = 0x03,
@@ -559,9 +555,6 @@ int wc_ecc_import_unsigned(ecc_key* key, byte* qx, byte* qy,
 #endif /* HAVE_ECC_KEY_IMPORT */
 
 #ifdef HAVE_ECC_KEY_EXPORT
-WOLFSSL_API
-int wc_ecc_export_int(mp_int* mp, byte* buf, word32* len, word32 keySz,
-                      int encType);
 WOLFSSL_API 
 int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
                      byte* qy, word32* qyLen, byte* d, word32* dLen, 

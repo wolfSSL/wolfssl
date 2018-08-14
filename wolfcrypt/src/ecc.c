@@ -6400,35 +6400,8 @@ int wc_ecc_import_x963(const byte* in, word32 inLen, ecc_key* key)
 
 #ifdef HAVE_ECC_KEY_EXPORT
 
-/* export an mp_int as unsigned char or hex string
- * encType is ECC_TYPE_UNSIGNED_BIN or ECC_TYPE_HEX_STR
- * return MP_OKAY on success */
-int wc_ecc_export_int(mp_int* mp, byte* buf, word32* len, word32 keySz,
-    int encType)
-{
-    int err;
-
-    /* check buffer size */
-    if (*len < keySz) {
-        *len = keySz;
-        return BUFFER_E;
-    }
-
-    *len = keySz;
-    XMEMSET(buf, 0, *len);
-
-    if (encType == ECC_TYPE_HEX_STR) {
-        err = mp_tohex(mp, (char*)buf);
-    }
-    else {
-        err = mp_to_unsigned_bin(mp, buf + (keySz - mp_unsigned_bin_size(mp)));
-    }
-
-    return err;
-}
-
 /* export ecc key to component form, d is optional if only exporting public
- * encType is ECC_TYPE_UNSIGNED_BIN or ECC_TYPE_HEX_STR
+ * encType is WC_TYPE_UNSIGNED_BIN or WC_TYPE_HEX_STR
  * return MP_OKAY on success */
 int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
                  byte* qy, word32* qyLen, byte* d, word32* dLen, int encType)
@@ -6454,7 +6427,7 @@ int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
         /* Hardware cannot export private portion */
         return BAD_COND_E;
     #else
-        err = wc_ecc_export_int(&key->k, d, dLen, keySz, encType);
+        err = wc_export_int(&key->k, d, dLen, keySz, encType);
         if (err != MP_OKAY)
             return err;
     #endif
@@ -6465,7 +6438,7 @@ int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
         if (qxLen == NULL || key->type == ECC_PRIVATEKEY_ONLY)
             return BAD_FUNC_ARG;
 
-        err = wc_ecc_export_int(key->pubkey.x, qx, qxLen, keySz, encType);
+        err = wc_export_int(key->pubkey.x, qx, qxLen, keySz, encType);
         if (err != MP_OKAY)
             return err;
     }
@@ -6475,7 +6448,7 @@ int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
         if (qyLen == NULL || key->type == ECC_PRIVATEKEY_ONLY)
             return BAD_FUNC_ARG;
 
-        err = wc_ecc_export_int(key->pubkey.y, qy, qyLen, keySz, encType);
+        err = wc_export_int(key->pubkey.y, qy, qyLen, keySz, encType);
         if (err != MP_OKAY)
             return err;
     }
@@ -6493,7 +6466,7 @@ int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen)
     }
 
     return wc_ecc_export_ex(key, NULL, NULL, NULL, NULL, out, outLen,
-        ECC_TYPE_UNSIGNED_BIN);
+        WC_TYPE_UNSIGNED_BIN);
 }
 
 /* export public key to raw elements including public (Qx,Qy) as unsigned bin
@@ -6506,7 +6479,7 @@ int wc_ecc_export_public_raw(ecc_key* key, byte* qx, word32* qxLen,
     }
 
     return wc_ecc_export_ex(key, qx, qxLen, qy, qyLen, NULL, NULL,
-        ECC_TYPE_UNSIGNED_BIN);
+        WC_TYPE_UNSIGNED_BIN);
 }
 
 /* export ecc key to raw elements including public (Qx,Qy) and
@@ -6516,7 +6489,7 @@ int wc_ecc_export_private_raw(ecc_key* key, byte* qx, word32* qxLen,
                               byte* qy, word32* qyLen, byte* d, word32* dLen)
 {
     return wc_ecc_export_ex(key, qx, qxLen, qy, qyLen, d, dLen,
-        ECC_TYPE_UNSIGNED_BIN);
+        WC_TYPE_UNSIGNED_BIN);
 }
 
 #endif /* HAVE_ECC_KEY_EXPORT */
@@ -6834,7 +6807,7 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
 
     /* read Qx */
     if (err == MP_OKAY) {
-        if (encType == ECC_TYPE_HEX_STR)
+        if (encType == WC_TYPE_HEX_STR)
             err = mp_read_radix(key->pubkey.x, qx, MP_RADIX_HEX);
         else
             err = mp_read_unsigned_bin(key->pubkey.x, (const byte*)qx,
@@ -6843,7 +6816,7 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
 
     /* read Qy */
     if (err == MP_OKAY) {
-        if (encType == ECC_TYPE_HEX_STR)
+        if (encType == WC_TYPE_HEX_STR)
             err = mp_read_radix(key->pubkey.y, qy, MP_RADIX_HEX);
         else
             err = mp_read_unsigned_bin(key->pubkey.y, (const byte*)qy,
@@ -6859,7 +6832,7 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
         if (d != NULL) {
             key->type = ECC_PRIVATEKEY;
 
-            if (encType == ECC_TYPE_HEX_STR)
+            if (encType == WC_TYPE_HEX_STR)
                 err = mp_read_radix(&key->k, d, MP_RADIX_HEX);
             else
                 err = mp_read_unsigned_bin(&key->k, (const byte*)d,
@@ -6900,7 +6873,7 @@ int wc_ecc_import_raw_ex(ecc_key* key, const char* qx, const char* qy,
                    const char* d, int curve_id)
 {
     return wc_ecc_import_raw_private(key, qx, qy, d, curve_id,
-        ECC_TYPE_HEX_STR);
+        WC_TYPE_HEX_STR);
 
 }
 
@@ -6909,7 +6882,7 @@ int wc_ecc_import_unsigned(ecc_key* key, byte* qx, byte* qy,
                    byte* d, int curve_id)
 {
     return wc_ecc_import_raw_private(key, (const char*)qx, (const char*)qy,
-        (const char*)d, curve_id, ECC_TYPE_UNSIGNED_BIN);
+        (const char*)d, curve_id, WC_TYPE_UNSIGNED_BIN);
 }
 
 /**
@@ -6945,7 +6918,7 @@ int wc_ecc_import_raw(ecc_key* key, const char* qx, const char* qy,
         err = ASN_PARSE_E;
     } else {
         return wc_ecc_import_raw_private(key, qx, qy, d, ecc_sets[x].id,
-            ECC_TYPE_HEX_STR);
+            WC_TYPE_HEX_STR);
     }
 
     return err;
