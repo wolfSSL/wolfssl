@@ -8602,6 +8602,12 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
             WOLFSSL_MSG("Verify callback overriding error!");
             ret = 0;
         }
+        else {
+            /* induce error if one not present */
+            if (ret == 0) {
+                ret = VERIFY_CERT_ERROR;
+            }
+        }
     #ifdef OPENSSL_EXTRA
         if (args->certIdx > 0)
             FreeX509(x509);
