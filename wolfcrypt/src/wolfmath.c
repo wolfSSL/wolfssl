@@ -150,6 +150,40 @@ exit:
 }
 #endif /* WC_RSA_BLINDING */
 
+/* export an mp_int as unsigned char or hex string
+ * encType is WC_TYPE_UNSIGNED_BIN or WC_TYPE_HEX_STR
+ * return MP_OKAY on success */
+int wc_export_int(mp_int* mp, byte* buf, word32* len, word32 keySz,
+    int encType)
+{
+    int err;
+
+    if (mp == NULL)
+        return BAD_FUNC_ARG;
+
+    /* check buffer size */
+    if (*len < keySz) {
+        *len = keySz;
+        return BUFFER_E;
+    }
+
+    *len = keySz;
+    XMEMSET(buf, 0, *len);
+
+    if (encType == WC_TYPE_HEX_STR) {
+    #ifdef WC_MP_TO_RADIX
+        err = mp_tohex(mp, (char*)buf);
+    #else
+        err = NOT_COMPILED_IN;
+    #endif
+    }
+    else {
+        err = mp_to_unsigned_bin(mp, buf + (keySz - mp_unsigned_bin_size(mp)));
+    }
+
+    return err;
+}
+
 
 #ifdef HAVE_WOLF_BIGINT
 void wc_bigint_init(WC_BIGINT* a)

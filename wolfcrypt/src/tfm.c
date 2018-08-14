@@ -2606,9 +2606,7 @@ int mp_montgomery_calc_normalization(mp_int *a, mp_int *b)
 #endif /* WOLFSSL_KEYGEN || HAVE_ECC */
 
 
-#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
-    defined(WOLFSSL_DEBUG_MATH) || defined(DEBUG_WOLFSSL) || \
-    defined(WOLFSSL_PUBLIC_MP) || !defined(NO_DH) || !defined(NO_DSA) || \
+#if defined(WC_MP_TO_RADIX) || !defined(NO_DH) || !defined(NO_DSA) || \
     !defined(NO_RSA)
 
 #ifdef WOLFSSL_KEY_GEN
@@ -2755,10 +2753,11 @@ int mp_mod_d(fp_int *a, fp_digit b, fp_digit *c)
    return fp_mod_d(a, b, c);
 }
 
-#endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(WOLFSSL_DEBUG_MATH) */
+#endif /* WC_MP_TO_RADIX || !NO_DH || !NO_DSA || !NO_RSA */
 
 
-#if !defined(NO_DH) || !defined(NO_DSA) || !defined(NO_RSA) || defined(WOLFSSL_KEY_GEN)
+#if !defined(NO_DH) || !defined(NO_DSA) || !defined(NO_RSA) || \
+    defined(WOLFSSL_KEY_GEN)
 
 static int  fp_isprime_ex(fp_int *a, int t);
 /* static int  fp_isprime(fp_int *a); */
@@ -3368,9 +3367,7 @@ int mp_set(fp_int *a, fp_digit b)
 }
 #endif
 
-#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || \
-    defined(WOLFSSL_DEBUG_MATH) || defined(DEBUG_WOLFSSL) || \
-    defined(WOLFSSL_PUBLIC_MP)
+#ifdef WC_MP_TO_RADIX
 
 /* returns size of ASCII representation */
 int mp_radix_size (mp_int *a, int radix, int *size)
@@ -3504,7 +3501,7 @@ void mp_dump(const char* desc, mp_int* a, byte verbose)
 }
 #endif /* WOLFSSL_DEBUG_MATH */
 
-#endif /* defined(WOLFSSL_KEY_GEN) || defined(HAVE_COMP_KEY) || defined(WOLFSSL_DEBUG_MATH) */
+#endif /* WC_MP_TO_RADIX */
 
 
 int mp_abs(mp_int* a, mp_int* b)

@@ -816,7 +816,7 @@ static int CheckBitString(const byte* input, word32* inOutIdx, int* len,
 /* RSA (with CertGen or KeyGen) OR ECC OR ED25519 (with CertGen or KeyGen) */
 #if (!defined(NO_RSA) && !defined(HAVE_USER_RSA) && \
         (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA))) || \
-     defined(HAVE_ECC) || \
+    (defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)) || \
     (defined(HAVE_ED25519) && \
         (defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_KEY_GEN) || defined(OPENSSL_EXTRA)))
 
@@ -2403,7 +2403,7 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
     else
     #endif /* NO_RSA */
 
-    #ifdef HAVE_ECC
+    #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
     if (der->keyOID == ECDSAk) {
     #ifdef WOLFSSL_SMALL_STACK
         ecc_key* key_pair = NULL;
@@ -5100,7 +5100,7 @@ WOLFSSL_LOCAL word32 SetExplicit(byte number, word32 len, byte* output)
 }
 
 
-#if defined(HAVE_ECC)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
 
 static int SetCurve(ecc_key* key, byte* output)
 {
@@ -5139,7 +5139,7 @@ static int SetCurve(ecc_key* key, byte* output)
     return idx;
 }
 
-#endif /* HAVE_ECC */
+#endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT */
 
 
 #ifdef HAVE_ECC
@@ -8959,7 +8959,7 @@ static word32 SetUTF8String(word32 len, byte* output)
 
 #endif /*WOLFSSL_CERT_GEN */
 
-#if defined(HAVE_ECC)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
 
 /* Write a public ECC key to output */
 static int SetEccPublicKey(byte* output, ecc_key* key, int with_header)
@@ -12494,7 +12494,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     return 0;
 }
 
-
+#if defined(HAVE_ECC_KEY_EXPORT)
 /* build DER formatted ECC key, include optional public key if requested,
  * return length on success, negative on error */
 static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 inLen,
@@ -12697,6 +12697,7 @@ int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output, word32* outLen)
     return ret;
 }
 
+#endif /* HAVE_ECC_KEY_EXPORT */
 #endif  /* HAVE_ECC */
 
 
