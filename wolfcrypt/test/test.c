@@ -3459,7 +3459,7 @@ int hmac_blake2b_test(void)
             continue; /* cavium can't handle short keys, fips not allowed */
 #endif
 
-    #if defined(HAVE_CAVIUM) && !defined(HAVE_CAVIUM_V)
+    #if !defined(HAVE_CAVIUM_V)
         /* Blake2 only supported on Cavium Nitrox III */
         if (wc_HmacInit(&hmac, HEAP_HINT, devId) != 0)
             return -3600;
