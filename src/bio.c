@@ -696,7 +696,8 @@ size_t wolfSSL_BIO_wpending(const WOLFSSL_BIO *bio)
         return 0;
 
     if (bio->ssl != NULL) {
-        return (long)wolfSSL_pending(bio->ssl);
+        /* not supported case */
+        return 0;
     }
 
     if (bio->type == WOLFSSL_BIO_MEMORY) {
@@ -710,7 +711,6 @@ size_t wolfSSL_BIO_wpending(const WOLFSSL_BIO *bio)
     }
 
     return 0;
-
 }
 
 /* Return the number of pending bytes in read and write buffers */
