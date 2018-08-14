@@ -1207,10 +1207,6 @@ AC_ARG_ENABLE([certext],
 
 if test "$ENABLED_CERTEXT" = "yes"
 then
-    if test "$ENABLED_CERTGEN" = "no"
-    then
-        AC_MSG_ERROR([cannot enable certext without enabling certgen.])
-    fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_CERT_EXT"
 fi
 

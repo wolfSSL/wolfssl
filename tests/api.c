@@ -10076,7 +10076,7 @@ static int test_RsaDecryptBoundsCheck(void)
 static int test_wc_SetKeyUsage (void)
 {
     int     ret = 0;
-#if !defined(NO_RSA) && defined(WOLFSSL_CERT_EXT) && !defined(HAVE_FIPS)
+#if !defined(NO_RSA) && defined(WOLFSSL_CERT_EXT) && defined(WOLFSSL_CERT_GEN) && !defined(HAVE_FIPS)
     Cert    myCert;
 
     ret = wc_InitCert(&myCert);
@@ -18217,7 +18217,7 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
     EVP_PKEY* pkey  = NULL;
     RSA*  rsa  = NULL;
     WOLFSSL_CTX* ctx;
-    
+
 #if defined(WOLFSSL_KEY_GEN)
     unsigned char buffer[4096];
     unsigned char* bufPtr;

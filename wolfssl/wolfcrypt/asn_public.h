@@ -158,8 +158,7 @@ typedef struct EncryptedInfo {
 } EncryptedInfo;
 
 
-#ifdef WOLFSSL_CERT_GEN
-
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
 #ifdef WOLFSSL_EKU_OID
     #ifndef CTC_MAX_EKU_NB
         #define CTC_MAX_EKU_NB 1
@@ -171,7 +170,9 @@ typedef struct EncryptedInfo {
     #undef CTC_MAX_EKU_OID_SZ
     #define CTC_MAX_EKU_OID_SZ 0
 #endif
+#endif /* WOLFSSL_CERT_GEN || WOLFSSL_CERT_EXT */
 
+#ifdef WOLFSSL_CERT_GEN
 
 #ifdef WOLFSSL_MULTI_ATTRIB
 #ifndef CTC_MAX_ATTRIB
