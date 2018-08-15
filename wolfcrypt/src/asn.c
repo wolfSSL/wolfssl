@@ -3245,12 +3245,17 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     sz = SetLength(inputSz, out + inOutIdx);
     inOutIdx += sz; totalSz += sz;
 
-    /* adjust size to pad */
-    sz = Pkcs8Pad(out + inOutIdx, inputSz, blockSz);
+    /* get pad size and verify buffer room */
+    sz = Pkcs8Pad(NULL, inputSz, blockSz);
     if (sz + inOutIdx > *outSz)
         return BUFFER_E;
 
+    /* copy input to output buffer and pad end */
     XMEMCPY(out + inOutIdx, input, inputSz);
+    sz = Pkcs8Pad(out + inOutIdx, inputSz, blockSz);
+    totalSz += sz;
+
+    /* encrypt */
     if ((ret = wc_CryptKey(password, passwordSz, salt, saltSz, itt, id,
                    out + inOutIdx, sz, version, cbcIv, 1)) < 0) {
 
@@ -3265,7 +3270,6 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     XFREE(cbcIv,   heap, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-    totalSz += sz;
 
     return totalSz;
 }
