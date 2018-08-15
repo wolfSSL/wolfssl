@@ -19298,6 +19298,7 @@ typedef struct {
     PKCS7Attrib* signedAttribs;
     word32       signedAttribsSz;
     const char*  outFileName;
+    int          contentOID;
     byte*        contentType;
     word32       contentTypeSz;
     int          sidType;
@@ -19363,48 +19364,54 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
         /* RSA with SHA */
         {data, (word32)sizeof(data), SHAh, RSAk, rsaPrivKey, rsaPrivKeySz,
          rsaCert, rsaCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
-         "pkcs7signedData_RSA_SHA.der", NULL, 0, 0},
+         "pkcs7signedData_RSA_SHA.der", 0, NULL, 0, 0},
 
         /* RSA with SHA, no signed attributes */
         {data, (word32)sizeof(data), SHAh, RSAk, rsaPrivKey, rsaPrivKeySz,
          rsaCert, rsaCertSz, NULL, 0,
-         "pkcs7signedData_RSA_SHA_noattr.der", NULL, 0, 0},
+         "pkcs7signedData_RSA_SHA_noattr.der", 0, NULL, 0, 0},
     #endif
     #ifdef WOLFSSL_SHA224
         /* RSA with SHA224 */
         {data, (word32)sizeof(data), SHA224h, RSAk, rsaPrivKey, rsaPrivKeySz,
          rsaCert, rsaCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
-         "pkcs7signedData_RSA_SHA224.der", NULL, 0, 0},
+         "pkcs7signedData_RSA_SHA224.der", 0, NULL, 0, 0},
     #endif
     #ifndef NO_SHA256
         /* RSA with SHA256 */
         {data, (word32)sizeof(data), SHA256h, RSAk, rsaPrivKey, rsaPrivKeySz,
          rsaCert, rsaCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
-         "pkcs7signedData_RSA_SHA256.der", NULL, 0, 0},
+         "pkcs7signedData_RSA_SHA256.der", 0, NULL, 0, 0},
 
         /* RSA with SHA256 and SubjectKeyIdentifier in SignerIdentifier */
         {data, (word32)sizeof(data), SHA256h, RSAk, rsaPrivKey, rsaPrivKeySz,
          rsaCert, rsaCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
-         "pkcs7signedData_RSA_SHA256_SKID.der", NULL, 0,
+         "pkcs7signedData_RSA_SHA256_SKID.der", 0, NULL, 0,
          SID_SUBJECT_KEY_IDENTIFIER},
 
         /* RSA with SHA256 and custom contentType */
         {data, (word32)sizeof(data), SHA256h, RSAk, rsaPrivKey, rsaPrivKeySz,
          rsaCert, rsaCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
-         "pkcs7signedData_RSA_SHA256_custom_contentType.der", customContentType,
-         sizeof(customContentType), 0},
+         "pkcs7signedData_RSA_SHA256_custom_contentType.der", 0,
+         customContentType, sizeof(customContentType), 0},
+
+        /* RSA with SHA256 and FirmwarePkgData contentType */
+        {data, (word32)sizeof(data), SHA256h, RSAk, rsaPrivKey, rsaPrivKeySz,
+         rsaCert, rsaCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
+         "pkcs7signedData_RSA_SHA256_firmwarePkgData.der",
+         FIRMWARE_PKG_DATA, NULL, 0, 0},
     #endif
     #if defined(WOLFSSL_SHA384)
         /* RSA with SHA384 */
         {data, (word32)sizeof(data), SHA384h, RSAk, rsaPrivKey, rsaPrivKeySz,
          rsaCert, rsaCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
-         "pkcs7signedData_RSA_SHA384.der", NULL, 0, 0},
+         "pkcs7signedData_RSA_SHA384.der", 0, NULL, 0, 0},
     #endif
     #if defined(WOLFSSL_SHA512)
         /* RSA with SHA512 */
         {data, (word32)sizeof(data), SHA512h, RSAk, rsaPrivKey, rsaPrivKeySz,
          rsaCert, rsaCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
-         "pkcs7signedData_RSA_SHA512.der", NULL, 0, 0},
+         "pkcs7signedData_RSA_SHA512.der", 0, NULL, 0, 0},
     #endif
 #endif /* NO_RSA */
 
@@ -19413,48 +19420,54 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
         /* ECDSA with SHA */
         {data, (word32)sizeof(data), SHAh, ECDSAk, eccPrivKey, eccPrivKeySz,
          eccCert, eccCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
-         "pkcs7signedData_ECDSA_SHA.der", NULL, 0, 0},
+         "pkcs7signedData_ECDSA_SHA.der", 0, NULL, 0, 0},
 
         /* ECDSA with SHA, no signed attributes */
         {data, (word32)sizeof(data), SHAh, ECDSAk, eccPrivKey, eccPrivKeySz,
          eccCert, eccCertSz, NULL, 0,
-         "pkcs7signedData_ECDSA_SHA_noattr.der", NULL, 0, 0},
+         "pkcs7signedData_ECDSA_SHA_noattr.der", 0, NULL, 0, 0},
     #endif
     #ifdef WOLFSSL_SHA224
         /* ECDSA with SHA224 */
         {data, (word32)sizeof(data), SHA224h, ECDSAk, eccPrivKey, eccPrivKeySz,
          eccCert, eccCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
-         "pkcs7signedData_ECDSA_SHA224.der", NULL, 0, 0},
+         "pkcs7signedData_ECDSA_SHA224.der", 0, NULL, 0, 0},
     #endif
     #ifndef NO_SHA256
         /* ECDSA with SHA256 */
         {data, (word32)sizeof(data), SHA256h, ECDSAk, eccPrivKey, eccPrivKeySz,
          eccCert, eccCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
-         "pkcs7signedData_ECDSA_SHA256.der", NULL, 0, 0},
+         "pkcs7signedData_ECDSA_SHA256.der", 0, NULL, 0, 0},
 
         /* ECDSA with SHA256 and SubjectKeyIdentifier in SigherIdentifier */
         {data, (word32)sizeof(data), SHA256h, ECDSAk, eccPrivKey, eccPrivKeySz,
          eccCert, eccCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
-         "pkcs7signedData_ECDSA_SHA256_SKID.der", NULL, 0,
+         "pkcs7signedData_ECDSA_SHA256_SKID.der", 0, NULL, 0,
          SID_SUBJECT_KEY_IDENTIFIER},
 
         /* ECDSA with SHA256 and custom contentType */
         {data, (word32)sizeof(data), SHA256h, ECDSAk, eccPrivKey, eccPrivKeySz,
          eccCert, eccCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
-         "pkcs7signedData_ECDSA_SHA256_custom_contentType.der",
+         "pkcs7signedData_ECDSA_SHA256_custom_contentType.der", 0,
          customContentType, sizeof(customContentType), 0},
+
+        /* ECDSA with SHA256 and FirmwarePkgData contentType */
+        {data, (word32)sizeof(data), SHA256h, ECDSAk, eccPrivKey, eccPrivKeySz,
+         eccCert, eccCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
+         "pkcs7signedData_ECDSA_SHA256_firmwarePkgData.der",
+         FIRMWARE_PKG_DATA, NULL, 0, 0},
     #endif
     #ifdef WOLFSSL_SHA384
         /* ECDSA with SHA384 */
         {data, (word32)sizeof(data), SHA384h, ECDSAk, eccPrivKey, eccPrivKeySz,
          eccCert, eccCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
-         "pkcs7signedData_ECDSA_SHA384.der", NULL, 0, 0},
+         "pkcs7signedData_ECDSA_SHA384.der", 0, NULL, 0, 0},
     #endif
     #ifdef WOLFSSL_SHA512
         /* ECDSA with SHA512 */
         {data, (word32)sizeof(data), SHA512h, ECDSAk, eccPrivKey, eccPrivKeySz,
          eccCert, eccCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
-         "pkcs7signedData_ECDSA_SHA512.der", NULL, 0, 0},
+         "pkcs7signedData_ECDSA_SHA512.der", 0, NULL, 0, 0},
     #endif
 #endif /* HAVE_ECC */
     };
@@ -19503,12 +19516,14 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
         pkcs7->contentSz       = testVectors[i].contentSz;
         pkcs7->hashOID         = testVectors[i].hashOID;
         pkcs7->encryptOID      = testVectors[i].encryptOID;
+        pkcs7->contentOID      = testVectors[i].contentOID;
         pkcs7->privateKey      = testVectors[i].privateKey;
         pkcs7->privateKeySz    = testVectors[i].privateKeySz;
         pkcs7->signedAttribs   = testVectors[i].signedAttribs;
         pkcs7->signedAttribsSz = testVectors[i].signedAttribsSz;
 
-        /* optional custom contentType, default is DATA */
+        /* optional custom contentType, default is DATA,
+           overrides contentOID if set */
         if (testVectors[i].contentType != NULL) {
             ret = wc_PKCS7_SetContentType(pkcs7, testVectors[i].contentType,
                                           testVectors[i].contentTypeSz);

@@ -1966,7 +1966,7 @@ int GetASNObjectId(const byte* input, word32* inOutIdx, int* len,
  * output      Buffer to write into.
  * returns the number of bytes added to the buffer.
  */
-static int SetObjectId(int len, byte* output)
+int SetObjectId(int len, byte* output)
 {
     int idx = 0;
 

@@ -1015,6 +1015,7 @@ WOLFSSL_LOCAL int GetInt(mp_int* mpi, const byte* input, word32* inOutIdx,
 #endif
 WOLFSSL_LOCAL int GetASNObjectId(const byte* input, word32* inOutIdx, int* len,
                                  word32 maxIdx);
+WOLFSSL_LOCAL int SetObjectId(int len, byte* output);
 WOLFSSL_LOCAL int GetObjectId(const byte* input, word32* inOutIdx, word32* oid,
                               word32 oidType, word32 maxIdx);
 WOLFSSL_LOCAL int GetAlgoId(const byte* input, word32* inOutIdx, word32* oid,

@@ -58,7 +58,7 @@ typedef enum {
 
 /* placed ASN.1 contentType OID into *output, return idx on success,
  * 0 upon failure */
-static int wc_SetContentType(int pkcs7TypeOID, byte* output)
+static int wc_SetContentType(int pkcs7TypeOID, byte* output, word32 outputSz)
 {
     /* PKCS#7 content types, RFC 2315, section 14 */
     const byte pkcs7[]              = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
@@ -73,14 +73,16 @@ static int wc_SetContentType(int pkcs7TypeOID, byte* output)
                                                0x0D, 0x01, 0x07, 0x04 };
     const byte digestedData[]       = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
                                                0x0D, 0x01, 0x07, 0x05 };
-
 #ifndef NO_PKCS7_ENCRYPTED_DATA
     const byte encryptedData[]      = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
                                                0x0D, 0x01, 0x07, 0x06 };
 #endif
+    /* FirmwarePkgData (1.2.840.113549.1.9.16.1.16), from RFC 4108 */
+    const byte firmwarePkgData[]    = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
+                                        0x0D, 0x01, 0x09, 0x10, 0x01, 0x10 };
 
-    int idSz;
-    int typeSz = 0, idx = 0;
+    int idSz, idx = 0;
+    word32 typeSz = 0;
     const byte* typeName = 0;
     byte ID_Length[MAX_LENGTH_SZ];
 
@@ -121,11 +123,18 @@ static int wc_SetContentType(int pkcs7TypeOID, byte* output)
             typeName = encryptedData;
             break;
 #endif
+        case FIRMWARE_PKG_DATA:
+            typeSz = sizeof(firmwarePkgData);
+            typeName = firmwarePkgData;
+            break;
 
         default:
             WOLFSSL_MSG("Unknown PKCS#7 Type");
             return 0;
     };
+
+    if (outputSz < (MAX_LENGTH_SZ + 1 + typeSz))
+        return BAD_FUNC_ARG;
 
     idSz  = SetLength(typeSz, ID_Length);
     output[idx++] = ASN_OBJECT_ID;
@@ -1046,11 +1055,6 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
         { ASN_OBJECT_ID, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01,
                          0x07, 0x02 };
 
-    /* default id-data OID (1.2.840.113549.1.7.1), user can override */
-    const byte innerOid[] =
-            { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
-                             0x07, 0x01 };
-
     /* contentType OID (1.2.840.113549.1.9.3) */
     const byte contentTypeOid[] =
             { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xF7, 0x0d, 0x01,
@@ -1087,10 +1091,21 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
 
     XMEMSET(esd, 0, sizeof(ESD));
 
-    /* use default DATA contentType if not set by user */
+    /* set content type based on contentOID, unless user has set custom one
+       with wc_PKCS7_SetContentType() */
     if (pkcs7->contentTypeSz == 0) {
-        XMEMCPY(pkcs7->contentType, innerOid, sizeof(innerOid));
-        pkcs7->contentTypeSz = sizeof(innerOid);
+
+        /* default to DATA content type if user has not set */
+        if (pkcs7->contentOID == 0) {
+            pkcs7->contentOID = DATA;
+        }
+
+        ret = wc_SetContentType(pkcs7->contentOID, pkcs7->contentType,
+                                sizeof(pkcs7->contentType));
+        if (ret < 0)
+            return ret;
+
+        pkcs7->contentTypeSz = ret;
     }
 
     esd->hashType = wc_OidGetHash(pkcs7->hashOID);
@@ -3784,7 +3799,12 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         return blockSz;
 
     /* outer content type */
-    outerContentTypeSz = wc_SetContentType(ENVELOPED_DATA, outerContentType);
+    ret = wc_SetContentType(ENVELOPED_DATA, outerContentType,
+                            sizeof(outerContentType));
+    if (ret < 0)
+        return ret;
+
+    outerContentTypeSz = ret;
 
     /* version, defined as 0 in RFC 2315 */
 #ifdef HAVE_ECC
@@ -3877,13 +3897,15 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     }
 
     /* EncryptedContentInfo */
-    contentTypeSz = wc_SetContentType(pkcs7->contentOID, contentType);
-    if (contentTypeSz == 0) {
+    ret = wc_SetContentType(pkcs7->contentOID, contentType,
+                            sizeof(contentType));
+    if (ret < 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-        return BAD_FUNC_ARG;
+        return ret;
     }
+    contentTypeSz = ret;
 
     /* allocate encrypted content buffer and PKCS#7 padding */
     padSz = wc_PKCS7_GetPadSize(pkcs7->contentSz, blockSz);
@@ -5081,7 +5103,12 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         return BAD_FUNC_ARG;
 
     /* outer content type */
-    outerContentTypeSz = wc_SetContentType(ENCRYPTED_DATA, outerContentType);
+    ret = wc_SetContentType(ENCRYPTED_DATA, outerContentType,
+                            sizeof(outerContentType));
+    if (ret < 0)
+        return ret;
+
+    outerContentTypeSz = ret;
 
     /* version, 2 if unprotectedAttrs present, 0 if absent */
     if (pkcs7->unprotectedAttribsSz > 0) {
@@ -5091,9 +5118,12 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     }
 
     /* EncryptedContentInfo */
-    contentTypeSz = wc_SetContentType(pkcs7->contentOID, contentType);
-    if (contentTypeSz == 0)
-        return BAD_FUNC_ARG;
+    contentTypeSz = wc_SetContentType(pkcs7->contentOID, contentType,
+                                      sizeof(contentType));
+    if (ret < 0)
+        return ret;
+
+    contentTypeSz = ret;
 
     /* allocate encrypted content buffer, do PKCS#7 padding */
     blockSz = wc_PKCS7_GetOIDBlockSize(pkcs7->encryptOID);
