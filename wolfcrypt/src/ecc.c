@@ -3677,6 +3677,7 @@ int wc_ecc_point_is_at_infinity(ecc_point* p)
 /* generate random and ensure its greater than 0 and less than order */
 static int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
 {
+#ifndef WC_NO_RNG
     int err;
     DECLARE_VAR(buf, byte, ECC_MAXSIZE_GEN, rng->heap);
 
@@ -3708,8 +3709,15 @@ static int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
     FREE_VAR(buf, rng->heap);
 
     return err;
+#else
+    (void)rng;
+    (void)size;
+    (void)k;
+    (void)order;
+    return NOT_COMPILED_IN;
+#endif /* !WC_NO_RNG */
 }
-#endif
+#endif /* WOLFSSL_SP_MATH */
 #endif /* !WOLFSSL_ATECC508A */
 
 static WC_INLINE void wc_ecc_reset(ecc_key* key)

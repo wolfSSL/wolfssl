@@ -645,6 +645,7 @@ static int RsaMGF(int type, byte* seed, word32 seedSz, byte* out,
 
 
 /* Padding */
+#ifndef WC_NO_RNG
 #ifndef WC_NO_RSA_OAEP
 static int RsaPad_OAEP(const byte* input, word32 inputLen, byte* pkcsBlock,
         word32 pkcsBlockLen, byte padValue, WC_RNG* rng,
@@ -896,7 +897,7 @@ static int RsaPad_PSS(const byte* input, word32 inputLen, byte* pkcsBlock,
 
     return 0;
 }
-#endif
+#endif /* WC_RSA_PSS */
 
 static int RsaPad(const byte* input, word32 inputLen, byte* pkcsBlock,
                            word32 pkcsBlockLen, byte padValue, WC_RNG* rng)
@@ -946,6 +947,7 @@ static int RsaPad(const byte* input, word32 inputLen, byte* pkcsBlock,
 
     return 0;
 }
+#endif /* !WC_NO_RNG */
 
 /* helper function to direct which padding is used */
 static int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
@@ -955,6 +957,7 @@ static int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
 {
     int ret;
 
+#ifndef WC_NO_RNG
     switch (padType)
     {
         case WC_RSA_PKCSV15_PAD:
@@ -1000,8 +1003,18 @@ static int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
             WOLFSSL_MSG("Unknown RSA Pad Type");
             ret = RSA_PAD_E;
     }
+#else
+    ret = NOT_COMPILED_IN;
+#endif
 
     /* silence warning if not used with padding scheme */
+    (void)input;
+    (void)inputLen;
+    (void)pkcsBlock;
+    (void)pkcsBlockLen;
+    (void)padValue;
+    (void)rng;
+    (void)padType;
     (void)hType;
     (void)mgf;
     (void)optLabel;
@@ -1455,7 +1468,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
         case RSA_PRIVATE_DECRYPT:
         case RSA_PRIVATE_ENCRYPT:
         {
-        #ifdef WC_RSA_BLINDING
+        #if defined(WC_RSA_BLINDING) && !defined(WC_NO_RNG)
             /* blind */
             ret = mp_rand(rnd, get_digit_count(&key->n), rng);
 
@@ -1470,7 +1483,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
             /* tmp = tmp*rnd mod n */
             if (ret == 0 && mp_mulmod(tmp, rnd, &key->n, tmp) != MP_OKAY)
                 ret = MP_MULMOD_E;
-        #endif /* WC_RSA_BLINDING */
+        #endif /* WC_RSA_BLINDING && !WC_NO_RNG */
 
         #ifdef RSA_LOW_MEM      /* half as much memory but twice as slow */
             if (ret == 0 && mp_exptmod(tmp, &key->d, &key->n, tmp) != MP_OKAY)
@@ -2896,6 +2909,7 @@ int wc_CheckProbablePrime(const byte* pRaw, word32 pRawSz,
 /* Make an RSA key for size bits, with e specified, 65537 is a good e */
 int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 {
+#ifndef WC_NO_RNG
     mp_int p, q, tmp1, tmp2, tmp3;
     int err, i, failCount, primeSz, isPrime = 0;
     byte* buf = NULL;
@@ -3086,8 +3100,10 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
         return BAD_STATE_E;
     }
 #endif
-
     return 0;
+#else
+    return NOT_COMPILED_IN;
+#endif
 }
 #endif /* !FIPS || FIPS_VER >= 2 */
 #endif /* WOLFSSL_KEY_GEN */
