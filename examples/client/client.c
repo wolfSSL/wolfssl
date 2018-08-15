@@ -718,8 +718,28 @@ static void ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead)
 
 static void Usage(void)
 {
-    printf("client "    LIBWOLFSSL_VERSION_STRING
+    printf("wolfSSL client "    LIBWOLFSSL_VERSION_STRING
            " NOTE: All files relative to wolfSSL home dir\n");
+
+    /* print out so that scripts can know what the max supported key size is */
+    printf("Max RSA key size in bits for build is set at : ");
+#ifdef NO_RSA
+    printf("RSA not supported\n");
+#elif defined(WOLFSSL_SP_MATH) /* case of SP math only */
+    #ifndef WOLFSSL_SP_NO_3072
+        printf("3072\n");
+    #elif !defined(WOLFSSL_SP_NO_2048)
+        printf("2048\n");
+    #else
+        printf("0\n");
+    #endif
+#elif defined(USE_FAST_MATH)
+    printf("%d\n", FP_MAX_BITS/2);
+#else
+    /* normal math has unlimited max size */
+    printf("INFINITE\n");
+#endif
+
     printf("-?          Help, print this usage\n");
     printf("-h <host>   Host to connect to, default %s\n", wolfSSLIP);
     printf("-p <num>    Port to connect on, not 0, default %d\n", wolfSSLPort);

@@ -167,6 +167,18 @@ trap cleanup EXIT INT TERM HUP
 
 [ ! -x ./examples/client/client ] && echo -e "\n\nClient doesn't exist" && exit 1
 
+# check if supported key size is large enough to handle 4096 bit RSA
+size=`./examples/client/client -? | grep "Max key"`
+size=`echo ${size//[^0-9]/}`
+if [ ! -z "$size" ]; then
+    printf 'check on max key size of %d ...' $size
+    if [ $size -lt 4096 ]; then
+        printf '%s\n' "4096 bit RSA keys not supported"
+        exit 0
+    fi
+    printf 'OK\n'
+fi
+
 #get four unique ports
 # 1:
 ./examples/server/server -R $ready_file1 -p $resume_port &
