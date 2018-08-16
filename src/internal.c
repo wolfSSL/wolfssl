@@ -9146,7 +9146,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     /* Handle error codes */
                     if (ret != 0 && args->lastErr == 0) {
                         args->lastErr = ret;   /* save error from last time */
-                        ret = 0; /* reset error */
+                        /* if chain fails to verify abort further processing */
+                        goto exit_ppc;
                     }
 
                     FreeDecodedCert(args->dCert);
