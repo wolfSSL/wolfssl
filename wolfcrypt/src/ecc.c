@@ -6428,7 +6428,10 @@ int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
 
     /* private key, d */
     if (d != NULL) {
-        if (dLen == NULL || key->type != ECC_PRIVATEKEY)
+        if (dLen == NULL)
+            return BAD_FUNC_ARG;
+
+        if (!(key->type == ECC_PRIVATEKEY || key->type == ECC_PRIVATEKEY_ONLY))
             return BAD_FUNC_ARG;
 
     #ifdef WOLFSSL_ATECC508A
