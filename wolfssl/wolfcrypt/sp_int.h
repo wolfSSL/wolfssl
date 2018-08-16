@@ -94,7 +94,7 @@
     #else
         #define SP_INT_DIGITS        ((256 + SP_WORD_SIZE) / SP_WORD_SIZE)
     #endif
-#elif !defined(WOLFSSL_SP_NO_3072)
+#elif defined(WOLFSSL_SP_NO_3072)
     #define SP_INT_DIGITS        ((2048 + SP_WORD_SIZE) / SP_WORD_SIZE)
 #else
     #define SP_INT_DIGITS        ((3072 + SP_WORD_SIZE) / SP_WORD_SIZE)
@@ -134,6 +134,7 @@ MP_API int sp_add_d(sp_int* a, sp_int_digit d, sp_int* r);
 MP_API int sp_lshd(sp_int* a, int s);
 MP_API int sp_add(sp_int* a, sp_int* b, sp_int* r);
 MP_API int sp_set_int(sp_int* a, unsigned long b);
+MP_API int sp_tohex(sp_int* a, char* str);
 
 typedef sp_int mp_int;
 typedef sp_digit mp_digit;
@@ -182,6 +183,7 @@ typedef sp_digit mp_digit;
 #define mp_add                  sp_add
 #define mp_isodd                sp_isodd
 #define mp_set_int              sp_set_int
+#define mp_tohex                sp_tohex
 
 #define MP_INT_DEFINED
 
