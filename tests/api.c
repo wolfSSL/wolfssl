@@ -20659,6 +20659,7 @@ void ApiTest(void)
     AssertIntEQ(test_ForceZero(), 0);
 
     AssertIntEQ(test_wolfSSL_Cleanup(), WOLFSSL_SUCCESS);
+    wolfSSL_Cleanup();
 
     printf(" End API Tests\n");
 
