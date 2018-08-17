@@ -10784,6 +10784,16 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         else
             return ProcessBuffer(ctx, in, sz, format, CA_TYPE, NULL,NULL,0);
     }
+    int wolfSSL_CTX_load_verify_chain_buffer_format(WOLFSSL_CTX* ctx,
+                                       const unsigned char* in,
+                                       long sz, int format)
+    {
+        WOLFSSL_ENTER("wolfSSL_CTX_load_verify_buffer");
+        if (format == WOLFSSL_FILETYPE_PEM)
+            return ProcessChainBuffer(ctx, in, sz, format, CA_TYPE, NULL);
+        else
+            return ProcessBuffer(ctx, in, sz, format, CA_TYPE, NULL,NULL,1);
+    }
 
 
 #ifdef WOLFSSL_TRUST_PEER_CERT
