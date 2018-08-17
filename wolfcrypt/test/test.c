@@ -19213,7 +19213,7 @@ int pkcs7encrypted_test(void)
     for (i = 0; i < testSz; i++) {
         pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
         if (pkcs7 == NULL)
-            return -9400;
+            return -9407;
 
         pkcs7->content              = (byte*)testVectors[i].content;
         pkcs7->contentSz            = testVectors[i].contentSz;
@@ -19351,7 +19351,7 @@ int pkcs7compressed_test(void)
                                                    sizeof(compressed));
         if (compressedSz <= 0) {
             wc_PKCS7_Free(pkcs7);
-            return -9401;
+            return -9408;
         }
 
         /* decode compressedData */
@@ -19360,22 +19360,26 @@ int pkcs7compressed_test(void)
                                                   sizeof(decoded));
         if (decodedSz <= 0){
             wc_PKCS7_Free(pkcs7);
-            return -9402;
+            return -9409;
         }
 
         /* test decode result */
         if (XMEMCMP(decoded, testVectors[i].content,
                     testVectors[i].contentSz) != 0) {
             wc_PKCS7_Free(pkcs7);
-            return -9403;
+            return -9410;
         }
+
+        /* make sure content type is the same */
+        if (testVectors[i].contentOID != pkcs7->contentOID)
+            return -9411;
 
 #ifdef PKCS7_OUTPUT_TEST_BUNDLES
         /* output pkcs7 compressedData for external testing */
         pkcs7File = fopen(testVectors[i].outFileName, "wb");
         if (!pkcs7File) {
             wc_PKCS7_Free(pkcs7);
-            return -9406;
+            return -9412;
         }
 
         ret = (int)fwrite(compressed, compressedSz, 1, pkcs7File);
@@ -19585,12 +19589,12 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
     outSz = FOURK_BUF;
     out = (byte*)XMALLOC(outSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (out == NULL)
-        return -9407;
+        return -9413;
 
     ret = wc_PKCS7_PadData((byte*)data, sizeof(data), out, outSz, 16);
     if (ret < 0) {
         XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -9408;
+        return -9414;
     }
 
 #ifndef HAVE_FIPS
@@ -19600,13 +19604,13 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
 #endif
     if (ret != 0) {
         XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -9409;
+        return -9415;
     }
 
     for (i = 0; i < testSz; i++) {
         pkcs7 = wc_PKCS7_New(HEAP_HINT, INVALID_DEVID);
         if (pkcs7 == NULL)
-            return -9410;
+            return -9416;
 
         pkcs7->heap = HEAP_HINT;
         pkcs7->devId = INVALID_DEVID;
@@ -19616,7 +19620,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
         if (ret != 0) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(pkcs7);
-            return -9410;
+            return -9417;
         }
 
         pkcs7->rng             = &rng;
@@ -19638,7 +19642,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
             if (ret != 0) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9411;
+                return -9418;
             }
         }
 
@@ -19650,7 +19654,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
             if (ret != 0) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9412;
+                return -9419;
             }
         }
 
@@ -19663,7 +19667,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
             if (ret != 0) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9413;
+                return -9420;
             }
         }
 
@@ -19686,7 +19690,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
             if (ret != 0) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9414;
+                return -9421;
             }
             wc_ShaUpdate(&sha, pkcs7->publicKey, pkcs7->publicKeySz);
             wc_ShaFinal(&sha, digest);
@@ -19696,7 +19700,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
             if (ret != 0) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9415;
+                return -9422;
             }
             wc_Sha256Update(&sha, pkcs7->publicKey, pkcs7->publicKeySz);
             wc_Sha256Final(&sha, digest);
@@ -19712,7 +19716,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
         if (encodedSz < 0) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(pkcs7);
-            return -9416;
+            return -9423;
         }
 
     #ifdef PKCS7_OUTPUT_TEST_BUNDLES
@@ -19721,14 +19725,14 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
         if (!file) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(pkcs7);
-            return -9417;
+            return -9424;
         }
         ret = (int)fwrite(out, 1, encodedSz, file);
         fclose(file);
         if (ret != (int)encodedSz) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(pkcs7);
-            return -9418;
+            return -9425;
         }
     #endif /* PKCS7_OUTPUT_TEST_BUNDLES */
 
@@ -19736,23 +19740,23 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
 
         pkcs7 = wc_PKCS7_New(HEAP_HINT, INVALID_DEVID);
         if (pkcs7 == NULL)
-            return -9419;
+            return -9426;
         wc_PKCS7_InitWithCert(pkcs7, NULL, 0);
 
         ret = wc_PKCS7_VerifySignedData(pkcs7, out, outSz);
         if (ret < 0) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(pkcs7);
-            return -9420;
+            return -9427;
         }
 
         /* verify contentType extracted successfully for custom content types */
         if (testVectors[i].contentTypeSz > 0) {
             if (pkcs7->contentTypeSz != testVectors[i].contentTypeSz) {
-                return -9421;
+                return -9428;
             } else if (XMEMCMP(pkcs7->contentType, testVectors[i].contentType,
                        pkcs7->contentTypeSz) != 0) {
-                return -9422;
+                return -9429;
             }
         }
 
@@ -19760,7 +19764,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
         if (pkcs7->singleCert == NULL || pkcs7->singleCertSz == 0) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(pkcs7);
-            return -9423;
+            return -9430;
         }
 
         {
@@ -19779,13 +19783,13 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
                     NULL, (word32*)&bufSz) != LENGTH_ONLY_E) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9424;
+                return -9431;
             }
 
             if (bufSz > (int)sizeof(buf)) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9425;
+                return -9432;
             }
 
             bufSz = wc_PKCS7_GetAttributeValue(pkcs7, oidPt, oidSz,
@@ -19794,7 +19798,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
                 (testVectors[i].signedAttribs == NULL && bufSz > 0)) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9426;
+                return -9433;
             }
         }
 
@@ -19803,7 +19807,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
         if (!file) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(pkcs7);
-            return -9427;
+            return -9434;
         }
         ret = (int)fwrite(pkcs7->singleCert, 1, pkcs7->singleCertSz, file);
         fclose(file);
