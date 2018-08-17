@@ -8649,6 +8649,7 @@ static int test_wc_AesCbcEncryptDecrypt (void)
         if (ret == 0) {
             /* Re init for decrypt and set flag. */
             cbcE = 0;
+            wc_AesFree(&aes);
             ret = wc_AesSetKey(&aes, key32, AES_BLOCK_SIZE * 2,
                                                     iv, AES_DECRYPTION);
         }
@@ -8939,7 +8940,7 @@ static int test_wc_AesGcmEncryptDecrypt (void)
     int     ret = 0;
     /* WOLFSSL_AFALG requires 12 byte IV */
 #if !defined(NO_AES) && defined(HAVE_AESGCM) && defined(WOLFSSL_AES_256) && \
-    !defined(WOLFSSL_AFALG)
+    !defined(WOLFSSL_AFALG) && !defined(WOLFSSL_DEVCRYPTO_AES)
 
     Aes     aes;
     byte    key32[] =

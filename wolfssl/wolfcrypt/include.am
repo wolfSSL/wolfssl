@@ -81,6 +81,10 @@ noinst_HEADERS+= \
                          wolfssl/wolfcrypt/port/af_alg/afalg_hash.h \
                          wolfssl/wolfcrypt/port/af_alg/wc_afalg.h
 
+if BUILD_DEVCRYPTO
+nobase_include_HEADERS+= wolfssl/wolfcrypt/port/devcrypto/wc_devcrypto.h
+endif
+
 if BUILD_ASYNCCRYPT
 nobase_include_HEADERS+= wolfssl/wolfcrypt/async.h
 endif

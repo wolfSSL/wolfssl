@@ -1023,6 +1023,49 @@ fi
 AM_CONDITIONAL([BUILD_AFALG], [test "x$ENABLED_AFALG" = "xyes"])
 
 
+# Support for Linux dev/crypto calls
+AC_ARG_ENABLE([devcrypto],
+    [AS_HELP_STRING([--enable-devcrypto],[Enable Linux dev crypto calls: all | aes (all aes support) | hash (all hash algos) | cbc (aes-cbc only) (default: disabled)])],
+    [ ENABLED_DEVCRYPTO=$enableval ],
+    [ ENABLED_DEVCRYPTO=no ]
+    )
+
+if test "$ENABLED_DEVCRYPTO" = "yes" || test "$ENABLED_DEVCRYPTO" = "all"
+then
+    #enable all devcrypto supported algorithms
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEVCRYPTO"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEVCRYPTO_CBC"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEVCRYPTO_AES"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEVCRYPTO_HASH"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_HASH_RAW"
+    ENABLED_DEVCRYPTO=yes
+fi
+if test "$ENABLED_DEVCRYPTO" = "aes"
+then
+    #enable only AES-CBC algorithm support
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEVCRYPTO"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEVCRYPTO_AES"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEVCRYPTO_CBC"
+    ENABLED_DEVCRYPTO=yes
+fi
+if test "$ENABLED_DEVCRYPTO" = "cbc"
+then
+    #enable only AES-CBC algorithm support
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEVCRYPTO"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEVCRYPTO_CBC"
+    ENABLED_DEVCRYPTO=yes
+fi
+if test "$ENABLED_DEVCRYPTO" = "hash"
+then
+    #enable only hash algorithm support
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEVCRYPTO"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEVCRYPTO_HASH"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_NO_HASH_RAW"
+    ENABLED_DEVCRYPTO=yes
+fi
+AM_CONDITIONAL([BUILD_DEVCRYPTO], [test "x$ENABLED_DEVCRYPTO" = "xyes"])
+
+
 # Camellia
 AC_ARG_ENABLE([camellia],
     [AS_HELP_STRING([--enable-camellia],[Enable wolfSSL Camellia support (default: disabled)])],
@@ -2182,7 +2225,7 @@ AM_CONDITIONAL([BUILD_SELFTEST], [test "x$ENABLED_SELFTEST" = "xyes"])
 SHA224_DEFAULT=no
 if test "$host_cpu" = "x86_64" || test "$host_cpu" = "aarch64"
 then
-    if test "x$ENABLED_AFALG" = "xno" && ( test "x$ENABLED_FIPS" = "xno" || test "x$FIPS_VERSION" = "xv2" )
+    if test "x$ENABLED_AFALG" = "xno" && test "x$ENABLED_DEVCRYPTO" = "xno" && ( test "x$ENABLED_FIPS" = "xno" || test "x$FIPS_VERSION" = "xv2" )
     then
         SHA224_DEFAULT=yes
     fi
@@ -3364,6 +3407,12 @@ then
         # for TLS connections the intermediate hash needs to store buffer
         AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_AFALG_HASH_KEEP"
     fi
+
+    if test "$ENABLED_DEVCRYPTO" = "yes"
+    then
+        # for TLS connections the intermediate hash needs to store buffer
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_DEVCRYPTO_HASH_KEEP"
+    fi
 fi
 
 
@@ -4303,6 +4352,10 @@ AS_IF([test "x$ENABLED_MCAST" = "xyes"],
 AS_IF([(test "x$ENABLED_AFALG" = "xyes") && (test "x$ENABLED_SHA224" = "xyes")],
       [AC_MSG_ERROR([--enable-sha224 with --enable-afalg not yet supported])])
 
+# WOLFSSL_DEVCRYPTO does not support SHA224 yet
+AS_IF([(test "x$ENABLED_DEVCRYPTO" = "xyes") && (test "x$ENABLED_SHA224" = "xyes")],
+      [AC_MSG_ERROR([--enable-sha224 with --enable-devcrypto not yet supported])])
+
 # SCTP and Multicast require DTLS
 AS_IF([(test "x$ENABLED_DTLS" = "xno") && \
         (test "x$ENABLED_SCTP" = "xyes" || test "x$ENABLED_MCAST" = "xyes")],
@@ -4659,6 +4712,7 @@ echo "   * Intel Quick Assist:         $ENABLED_INTEL_QA"
 echo "   * Xilinx Hardware Acc.:       $ENABLED_XILINX"
 echo "   * Inline Code:                $ENABLED_INLINE"
 echo "   * Linux AF_ALG:               $ENABLED_AFALG"
+echo "   * Linux cryptodev:            $ENABLED_DEVCRYPTO"
 echo ""
 echo "---"
 
