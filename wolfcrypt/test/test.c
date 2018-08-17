@@ -19329,7 +19329,10 @@ int pkcs7compressed_test(void)
 
     const pkcs7CompressedVector testVectors[] =
     {
-        {data, (word32)sizeof(data), DATA, "pkcs7compressedData_zlib.der"},
+        {data, (word32)sizeof(data), DATA,
+            "pkcs7compressedData_data_zlib.der"},
+        {data, (word32)sizeof(data), FIRMWARE_PKG_DATA,
+            "pkcs7compressedData_firmwarePkgData_zlib.der"},
     };
 
     testSz = sizeof(testVectors) / sizeof(pkcs7CompressedVector);
