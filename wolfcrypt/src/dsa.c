@@ -249,7 +249,6 @@ int wc_MakeDsaParameters(WC_RNG *rng, int modulus_size, DsaKey *dsa)
             break;
         default:
             return BAD_FUNC_ARG;
-            break;
     }
 
     /* modulus size in bytes */
