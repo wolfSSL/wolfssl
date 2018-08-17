@@ -38,6 +38,9 @@
 #ifdef HAVE_ECC
     #include <wolfssl/wolfcrypt/ecc.h>
 #endif
+#ifdef HAVE_LIBZ
+    #include <wolfssl/wolfcrypt/compress.h>
+#endif
 #ifdef NO_INLINE
     #include <wolfssl/wolfcrypt/misc.h>
 #else
@@ -77,9 +80,14 @@ static int wc_SetContentType(int pkcs7TypeOID, byte* output, word32 outputSz)
     const byte encryptedData[]      = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
                                                0x0D, 0x01, 0x07, 0x06 };
 #endif
-    /* FirmwarePkgData (1.2.840.113549.1.9.16.1.16), from RFC 4108 */
-    const byte firmwarePkgData[]    = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
-                                        0x0D, 0x01, 0x09, 0x10, 0x01, 0x10 };
+    /* FirmwarePkgData (1.2.840.113549.1.9.16.1.16), RFC 4108 */
+    const byte firmwarePkgData[]    = { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
+                                        0x01, 0x09, 0x10, 0x01, 0x10 };
+#ifdef HAVE_LIBZ
+    /* id-ct-compressedData (1.2.840.113549.1.9.16.1.9), RFC 3274 */
+    const byte compressedData[]     = { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
+                                        0x01, 0x09, 0x10, 0x01, 0x09 };
+#endif
 
     int idSz, idx = 0;
     word32 typeSz = 0;
@@ -121,6 +129,12 @@ static int wc_SetContentType(int pkcs7TypeOID, byte* output, word32 outputSz)
         case ENCRYPTED_DATA:
             typeSz = sizeof(encryptedData);
             typeName = encryptedData;
+            break;
+#endif
+#ifdef HAVE_LIBZ
+        case COMPRESSED_DATA:
+            typeSz = sizeof(compressedData);
+            typeName = compressedData;
             break;
 #endif
         case FIRMWARE_PKG_DATA:
@@ -5080,7 +5094,7 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     int encContentOctetSz, encContentSeqSz, contentTypeSz;
     int contentEncAlgoSz, ivOctetStringSz;
     byte encContentSeq[MAX_SEQ_SZ];
-    byte contentType[MAX_ALGO_SZ];
+    byte contentType[MAX_OID_SZ];
     byte contentEncAlgo[MAX_ALGO_SZ];
     byte tmpIv[MAX_CONTENT_IV_SIZE];
     byte ivOctetString[MAX_OCTET_STR_SZ];
@@ -5118,8 +5132,8 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     }
 
     /* EncryptedContentInfo */
-    contentTypeSz = wc_SetContentType(pkcs7->contentOID, contentType,
-                                      sizeof(contentType));
+    ret = wc_SetContentType(pkcs7->contentOID, contentType,
+                            sizeof(contentType));
     if (ret < 0)
         return ret;
 
@@ -5356,6 +5370,7 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
     if (pkiMsg == NULL || pkiMsgSz == 0 ||
         output == NULL || outputSz == 0)
         return BAD_FUNC_ARG;
+
     /* read past ContentInfo, verify type is encrypted-data */
     if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
         return ASN_PARSE_E;
@@ -5472,6 +5487,259 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
 }
 
 #endif /* NO_PKCS7_ENCRYPTED_DATA */
+
+#ifdef HAVE_LIBZ
+
+/* build PKCS#7 compressedData content type, return encrypted size */
+int wc_PKCS7_EncodeCompressedData(PKCS7* pkcs7, byte* output, word32 outputSz)
+{
+    byte contentInfoSeq[MAX_SEQ_SZ];
+    byte contentInfoTypeOid[MAX_OID_SZ];
+    byte contentInfoContentSeq[MAX_SEQ_SZ]; /* EXPLICIT [0] */
+    byte compressedDataSeq[MAX_SEQ_SZ];
+    byte cmsVersion[MAX_VERSION_SZ];
+    byte compressAlgId[MAX_ALGO_SZ];
+    byte encapContentInfoSeq[MAX_SEQ_SZ];
+    byte contentTypeOid[MAX_OID_SZ];
+    byte contentSeq[MAX_SEQ_SZ];            /* EXPLICIT [0] */
+    byte contentOctetStr[MAX_OCTET_STR_SZ];
+
+    int ret;
+    word32 totalSz, idx;
+    word32 contentInfoSeqSz, contentInfoContentSeqSz, contentInfoTypeOidSz;
+    word32 compressedDataSeqSz, cmsVersionSz, compressAlgIdSz;
+    word32 encapContentInfoSeqSz, contentTypeOidSz, contentSeqSz;
+    word32 contentOctetStrSz;
+
+    byte* compressed;
+    word32 compressedSz;
+
+    if (pkcs7 == NULL || pkcs7->content == NULL || pkcs7->contentSz == 0 ||
+        output == NULL || outputSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* allocate space for compressed content. The libz code says the compressed
+     * buffer should be srcSz + 0.1% + 12. */
+    compressedSz = (pkcs7->contentSz + (word32)(pkcs7->contentSz * 0.001) + 12);
+    compressed = (byte*)XMALLOC(compressedSz, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    if (compressed == NULL) {
+        WOLFSSL_MSG("Error allocating memory for CMS compressed content");
+        return MEMORY_E;
+    }
+
+    /* compress content */
+    ret = wc_Compress(compressed, compressedSz, pkcs7->content,
+                      pkcs7->contentSz, 0);
+    if (ret < 0) {
+        XFREE(compressed, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        return ret;
+    }
+    compressedSz = (word32)ret;
+
+    /* eContent OCTET STRING, working backwards */
+    contentOctetStrSz = SetOctetString(compressedSz, contentOctetStr);
+    totalSz = contentOctetStrSz + compressedSz;
+
+    /* EXPLICIT [0] eContentType */
+    contentSeqSz = SetExplicit(0, totalSz, contentSeq);
+    totalSz += contentSeqSz;
+
+    /* eContentType OBJECT IDENTIFIER */
+    ret = wc_SetContentType(pkcs7->contentOID, contentTypeOid,
+                            sizeof(contentTypeOid));
+    if (ret < 0) {
+        XFREE(compressed, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        return ret;
+    }
+
+    contentTypeOidSz = ret;
+    totalSz += contentTypeOidSz;
+
+    /* EncapsulatedContentInfo SEQUENCE */
+    encapContentInfoSeqSz = SetSequence(totalSz, encapContentInfoSeq);
+    totalSz += encapContentInfoSeqSz;
+
+    /* compressionAlgorithm AlgorithmIdentifier */
+    /* Only supports zlib for compression currently:
+     * id-alg-zlibCompress (1.2.840.113549.1.9.16.3.8) */
+    compressAlgIdSz = SetAlgoID(ZLIBc, compressAlgId, oidCompressType, 0);
+    totalSz += compressAlgIdSz;
+
+    /* version */
+    cmsVersionSz = SetMyVersion(0, cmsVersion, 0);
+    totalSz += cmsVersionSz;
+
+    /* CompressedData SEQUENCE */
+    compressedDataSeqSz = SetSequence(totalSz, compressedDataSeq);
+    totalSz += compressedDataSeqSz;
+
+    /* ContentInfo content EXPLICIT SEQUENCE */
+    contentInfoContentSeqSz = SetExplicit(0, totalSz, contentInfoContentSeq);
+    totalSz += contentInfoContentSeqSz;
+
+    /* ContentInfo ContentType (compressedData) */
+    ret = wc_SetContentType(COMPRESSED_DATA, contentInfoTypeOid,
+                            sizeof(contentInfoTypeOid));
+    if (ret < 0) {
+        XFREE(compressed, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        return ret;
+    }
+
+    contentInfoTypeOidSz = ret;
+    totalSz += contentInfoTypeOidSz;
+
+    /* ContentInfo SEQUENCE */
+    contentInfoSeqSz = SetSequence(totalSz, contentInfoSeq);
+    totalSz += contentInfoSeqSz;
+
+    if (outputSz < totalSz) {
+        XFREE(compressed, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        return BUFFER_E;
+    }
+
+    idx = 0;
+    XMEMCPY(output + idx, contentInfoSeq, contentInfoSeqSz);
+    idx += contentInfoSeqSz;
+    XMEMCPY(output + idx, contentInfoTypeOid, contentInfoTypeOidSz);
+    idx += contentInfoTypeOidSz;
+    XMEMCPY(output + idx, contentInfoContentSeq, contentInfoContentSeqSz);
+    idx += contentInfoContentSeqSz;
+    XMEMCPY(output + idx, compressedDataSeq, compressedDataSeqSz);
+    idx += compressedDataSeqSz;
+    XMEMCPY(output + idx, cmsVersion, cmsVersionSz);
+    idx += cmsVersionSz;
+    XMEMCPY(output + idx, compressAlgId, compressAlgIdSz);
+    idx += compressAlgIdSz;
+    XMEMCPY(output + idx, encapContentInfoSeq, encapContentInfoSeqSz);
+    idx += encapContentInfoSeqSz;
+    XMEMCPY(output + idx, contentTypeOid, contentTypeOidSz);
+    idx += contentTypeOidSz;
+    XMEMCPY(output + idx, contentSeq, contentSeqSz);
+    idx += contentSeqSz;
+    XMEMCPY(output + idx, contentOctetStr, contentOctetStrSz);
+    idx += contentOctetStrSz;
+    XMEMCPY(output + idx, compressed, compressedSz);
+    idx += compressedSz;
+
+    XFREE(compressed, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+
+    return idx;
+}
+
+/* unwrap and decompress PKCS#7/CMS compressedData object,
+ * returned decoded size */
+int wc_PKCS7_DecodeCompressedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
+                                  byte* output, word32 outputSz)
+{
+    int length, version, ret;
+    word32 idx = 0, algOID, contentType;
+
+    byte* decompressed;
+    word32 decompressedSz;
+
+    if (pkcs7 == NULL || pkiMsg == NULL || pkiMsgSz == 0 ||
+        output == NULL || outputSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* get ContentInfo SEQUENCE */
+    if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    /* get ContentInfo contentType */
+    if (wc_GetContentType(pkiMsg, &idx, &contentType, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    if (contentType != COMPRESSED_DATA) {
+        printf("ContentInfo not of type CompressedData");
+        return ASN_PARSE_E;
+    }
+
+    /* get ContentInfo content EXPLICIT SEQUENCE */
+    if (pkiMsg[idx++] != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+        return ASN_PARSE_E;
+
+    if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    /* get CompressedData SEQUENCE */
+    if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    /* get version */
+    if (GetMyVersion(pkiMsg, &idx, &version, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    if (version != 0) {
+        WOLFSSL_MSG("CMS CompressedData version MUST be 0, but is not");
+        return ASN_PARSE_E;
+    }
+
+    /* get CompressionAlgorithmIdentifier */
+    if (GetAlgoId(pkiMsg, &idx, &algOID, oidIgnoreType, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    /* Only supports zlib for compression currently:
+     * id-alg-zlibCompress (1.2.840.113549.1.9.16.3.8) */
+    if (algOID != ZLIBc) {
+        WOLFSSL_MSG("CMS CompressedData only supports zlib algorithm");
+        return ASN_PARSE_E;
+    }
+
+    /* get EncapsulatedContentInfo SEQUENCE */
+    if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    /* get ContentType OID */
+    if (wc_GetContentType(pkiMsg, &idx, &contentType, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    pkcs7->contentOID = contentType;
+
+    /* get eContent EXPLICIT SEQUENCE */
+    if (pkiMsg[idx++] != (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0))
+        return ASN_PARSE_E;
+
+    if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    /* get content OCTET STRING */
+    if (pkiMsg[idx++] != ASN_OCTET_STRING)
+        return ASN_PARSE_E;
+
+    if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    /* allocate space for decompressed data */
+    decompressed = (byte*)XMALLOC(length, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    if (decompressed == NULL) {
+        WOLFSSL_MSG("Error allocating memory for CMS decompression buffer");
+        return MEMORY_E;
+    }
+
+    /* decompress content */
+    ret = wc_DeCompress(decompressed, length, &pkiMsg[idx], length);
+    if (ret < 0) {
+        XFREE(decompressed, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        return ret;
+    }
+    decompressedSz = (word32)ret;
+
+    /* get content */
+    if (outputSz < decompressedSz) {
+        WOLFSSL_MSG("CMS output buffer too small to hold decompressed data");
+        XFREE(decompressed, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        return BUFFER_E;
+    }
+
+    XMEMCPY(output, decompressed, decompressedSz);
+    XFREE(decompressed, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+
+    return decompressedSz;
+}
+
+#endif /* HAVE_LIBZ */
 
 #else  /* HAVE_PKCS7 */
 

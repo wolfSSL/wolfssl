@@ -39,10 +39,12 @@ CLEANFILES+= cert.der \
              othercert.der \
              othercert.pem \
              pkcs7cert.der \
+             pkcs7compressedData_zlib.der \
              pkcs7encryptedDataAES128CBC.der \
              pkcs7encryptedDataAES192CBC.der \
              pkcs7encryptedDataAES256CBC_attribs.der \
              pkcs7encryptedDataAES256CBC.der \
+             pkcs7encryptedDataAES256CBC_firmwarePkgData.der \
              pkcs7encryptedDataAES256CBC_multi_attribs.der \
              pkcs7encryptedDataDES3.der \
              pkcs7encryptedDataDES.der \

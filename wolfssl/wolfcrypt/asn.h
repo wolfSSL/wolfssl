@@ -332,6 +332,7 @@ enum Oid_Types {
     oidCmsKeyAgreeType  = 13,
     oidPBEType          = 14,
     oidHmacType         = 15,
+    oidCompressType     = 16,
     oidIgnoreType
 };
 
@@ -486,6 +487,12 @@ enum ExtKeyUsage_Sum { /* From RFC 5280 */
     EKU_TIMESTAMP_OID   = 78,  /* 1.3.6.1.5.5.7.3.8, id-kp-timeStamping    */
     EKU_OCSP_SIGN_OID   = 79   /* 1.3.6.1.5.5.7.3.9, id-kp-OCSPSigning     */
 };
+
+#ifdef HAVE_LIBZ
+enum CompressAlg_Sum {
+    ZLIBc = 679  /* 1.2.840.113549.1.9.16.3.8, id-alg-zlibCompress */
+};
+#endif
 
 
 enum VerifyType {

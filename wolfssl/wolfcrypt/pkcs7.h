@@ -60,6 +60,9 @@ enum PKCS7_TYPES {
     SIGNED_AND_ENVELOPED_DATA = 654,  /* 1.2.840.113549.1.7.4 */
     DIGESTED_DATA             = 655,  /* 1.2.840.113549.1.7.5 */
     ENCRYPTED_DATA            = 656,  /* 1.2.840.113549.1.7.6 */
+#ifdef HAVE_LIBZ
+    COMPRESSED_DATA           = 678,  /* 1.2.840.113549.1.9.16.1.9,  RFC 3274 */
+#endif
     FIRMWARE_PKG_DATA         = 685   /* 1.2.840.113549.1.9.16.1.16, RFC 4108 */
 };
 
@@ -204,6 +207,14 @@ WOLFSSL_API int  wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* pkiMsg,
                                           word32 pkiMsgSz, byte* output,
                                           word32 outputSz);
 #endif /* NO_PKCS7_ENCRYPTED_DATA */
+
+#ifdef HAVE_LIBZ
+WOLFSSL_API int wc_PKCS7_EncodeCompressedData(PKCS7* pkcs7, byte* output,
+                                              word32 outputSz);
+WOLFSSL_API int wc_PKCS7_DecodeCompressedData(PKCS7* pkcs7, byte* pkiMsg,
+                                              word32 pkiMsgSz, byte* output,
+                                              word32 outputSz);
+#endif /* HAVE_LIBZ */
 
 #ifdef __cplusplus
     } /* extern "C" */

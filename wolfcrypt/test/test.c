@@ -326,6 +326,9 @@ int scrypt_test(void);
     #ifndef NO_PKCS7_ENCRYPTED_DATA
         int pkcs7encrypted_test(void);
     #endif
+    #ifdef HAVE_LIBZ
+        int pkcs7compressed_test(void);
+    #endif
 #endif
 #if !defined(NO_ASN_TIME) && !defined(NO_RSA) && defined(WOLFSSL_TEST_CERT)
 int cert_test(void);
@@ -949,20 +952,26 @@ initDefaultName();
 
 #ifdef HAVE_PKCS7
     if ( (ret = pkcs7enveloped_test()) != 0)
-        return err_sys("PKCS7enveloped test failed!\n", ret);
+        return err_sys("PKCS7enveloped  test failed!\n", ret);
     else
-        printf( "PKCS7enveloped test passed!\n");
+        printf( "PKCS7enveloped  test passed!\n");
 
     if ( (ret = pkcs7signed_test()) != 0)
-        return err_sys("PKCS7signed    test failed!\n", ret);
+        return err_sys("PKCS7signed     test failed!\n", ret);
     else
-        printf( "PKCS7signed    test passed!\n");
+        printf( "PKCS7signed     test passed!\n");
 
     #ifndef NO_PKCS7_ENCRYPTED_DATA
         if ( (ret = pkcs7encrypted_test()) != 0)
-            return err_sys("PKCS7encrypted test failed!\n", ret);
+            return err_sys("PKCS7encrypted  test failed!\n", ret);
         else
-            printf( "PKCS7encrypted test passed!\n");
+            printf( "PKCS7encrypted  test passed!\n");
+    #endif
+    #ifdef HAVE_LIBZ
+        if ( (ret = pkcs7compressed_test()) != 0)
+            return err_sys("PKCS7compressed test failed!\n", ret);
+        else
+            printf( "PKCS7compressed test passed!\n");
     #endif
 #endif
 
@@ -19190,6 +19199,11 @@ int pkcs7encrypted_test(void)
          sizeof(aes256Key), multiAttribs,
          (sizeof(multiAttribs)/sizeof(PKCS7Attrib)),
          "pkcs7encryptedDataAES256CBC_multi_attribs.der"},
+
+        /* test with contentType set to FirmwarePkgData */
+        {data, (word32)sizeof(data), FIRMWARE_PKG_DATA, AES256CBCb, aes256Key,
+         sizeof(aes256Key), NULL, 0,
+         "pkcs7encryptedDataAES256CBC_firmwarePkgData.der"},
     #endif
 #endif /* NO_AES */
     };
@@ -19284,6 +19298,97 @@ int pkcs7encrypted_test(void)
 }
 
 #endif /* NO_PKCS7_ENCRYPTED_DATA */
+
+
+#ifdef HAVE_LIBZ
+
+typedef struct {
+    const byte*  content;
+    word32       contentSz;
+    int          contentOID;
+    const char*  outFileName;
+} pkcs7CompressedVector;
+
+
+int pkcs7compressed_test(void)
+{
+    int ret = 0;
+    int i, testSz;
+    int compressedSz, decodedSz;
+    PKCS7* pkcs7;
+    byte  compressed[2048];
+    byte  decoded[2048];
+#ifdef PKCS7_OUTPUT_TEST_BUNDLES
+    FILE* pkcs7File;
+#endif
+
+    const byte data[] = { /* Hello World */
+        0x48,0x65,0x6c,0x6c,0x6f,0x20,0x57,0x6f,
+        0x72,0x6c,0x64
+    };
+
+    const pkcs7CompressedVector testVectors[] =
+    {
+        {data, (word32)sizeof(data), DATA, "pkcs7compressedData_zlib.der"},
+    };
+
+    testSz = sizeof(testVectors) / sizeof(pkcs7CompressedVector);
+
+    for (i = 0; i < testSz; i++) {
+        pkcs7 = wc_PKCS7_New(HEAP_HINT, devId);
+        if (pkcs7 == NULL)
+            return -9400;
+
+        pkcs7->content              = (byte*)testVectors[i].content;
+        pkcs7->contentSz            = testVectors[i].contentSz;
+        pkcs7->contentOID           = testVectors[i].contentOID;
+
+        /* encode compressedData */
+        compressedSz = wc_PKCS7_EncodeCompressedData(pkcs7, compressed,
+                                                   sizeof(compressed));
+        if (compressedSz <= 0) {
+            wc_PKCS7_Free(pkcs7);
+            return -9401;
+        }
+
+        /* decode compressedData */
+        decodedSz = wc_PKCS7_DecodeCompressedData(pkcs7, compressed,
+                                                  compressedSz, decoded,
+                                                  sizeof(decoded));
+        if (decodedSz <= 0){
+            wc_PKCS7_Free(pkcs7);
+            return -9402;
+        }
+
+        /* test decode result */
+        if (XMEMCMP(decoded, testVectors[i].content,
+                    testVectors[i].contentSz) != 0) {
+            wc_PKCS7_Free(pkcs7);
+            return -9403;
+        }
+
+#ifdef PKCS7_OUTPUT_TEST_BUNDLES
+        /* output pkcs7 compressedData for external testing */
+        pkcs7File = fopen(testVectors[i].outFileName, "wb");
+        if (!pkcs7File) {
+            wc_PKCS7_Free(pkcs7);
+            return -9406;
+        }
+
+        ret = (int)fwrite(compressed, compressedSz, 1, pkcs7File);
+        fclose(pkcs7File);
+
+        if (ret > 0)
+            ret = 0;
+#endif
+
+        wc_PKCS7_Free(pkcs7);
+    }
+
+    return ret;
+} /* pkcs7compressed_test() */
+
+#endif /* HAVE_LIBZ */
 
 
 typedef struct {
