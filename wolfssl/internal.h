@@ -1730,6 +1730,13 @@ WOLFSSL_LOCAL int  SetCipherList(WOLFSSL_CTX*, Suites*, const char* list);
                           unsigned int, unsigned char*, unsigned int);
     typedef unsigned int (*wc_psk_server_callback)(WOLFSSL*, const char*,
                           unsigned char*, unsigned int);
+#ifdef WOLFSSL_TLS13
+    typedef unsigned int (*wc_psk_client_tls13_callback)(WOLFSSL*, const char*,
+                          char*, unsigned int, unsigned char*, unsigned int,
+                          const char**);
+    typedef unsigned int (*wc_psk_server_tls13_callback)(WOLFSSL*, const char*,
+                          unsigned char*, unsigned int, const char**);
+#endif
 #endif /* PSK_TYPES_DEFINED */
 #if defined(WOLFSSL_DTLS) && defined(WOLFSSL_SESSION_EXPORT) && \
    !defined(WOLFSSL_DTLS_EXPORT_TYPES)
@@ -2557,6 +2564,10 @@ struct WOLFSSL_CTX {
     byte        havePSK;                /* psk key set by user */
     wc_psk_client_callback client_psk_cb;  /* client callback */
     wc_psk_server_callback server_psk_cb;  /* server callback */
+#ifdef WOLFSSL_TLS13
+    wc_psk_client_tls13_callback client_psk_tls13_cb;  /* client callback */
+    wc_psk_server_tls13_callback server_psk_tls13_cb;  /* server callback */
+#endif
     char        server_hint[MAX_PSK_ID_LEN + NULL_TERM_LEN];
 #endif /* HAVE_SESSION_TICKET || !NO_PSK */
 #ifdef WOLFSSL_TLS13
@@ -3108,6 +3119,10 @@ typedef struct Options {
 #ifndef NO_PSK
     wc_psk_client_callback client_psk_cb;
     wc_psk_server_callback server_psk_cb;
+#ifdef WOLFSSL_TLS13
+    wc_psk_client_tls13_callback client_psk_tls13_cb;  /* client callback */
+    wc_psk_server_tls13_callback server_psk_tls13_cb;  /* server callback */
+#endif
 #endif /* NO_PSK */
 #ifdef OPENSSL_EXTRA
     unsigned long     mask; /* store SSL_OP_ flags */
@@ -4151,6 +4166,8 @@ WOLFSSL_LOCAL const char* GetCipherNameInternal(const byte cipherSuite0, const b
 WOLFSSL_LOCAL const char* GetCipherNameIana(const byte cipherSuite0, const byte cipherSuite);
 WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_internal(WOLFSSL* ssl);
 WOLFSSL_LOCAL const char* wolfSSL_get_cipher_name_iana(WOLFSSL* ssl);
+WOLFSSL_LOCAL int GetCipherSuiteFromName(const char* name, byte* cipherSuite0,
+                                         byte* cipherSuite);
 
 enum encrypt_side {
     ENCRYPT_SIDE_ONLY = 1,

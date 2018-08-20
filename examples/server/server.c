@@ -1135,6 +1135,9 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     if (usePsk || usePskPlus) {
 #ifndef NO_PSK
         SSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
+    #ifdef WOLFSSL_TLS13
+        wolfSSL_CTX_set_psk_server_tls13_callback(ctx, my_psk_server_tls13_cb);
+    #endif
 
         if (sendPskIdentityHint == 1)
             SSL_CTX_use_psk_identity_hint(ctx, "cyassl server");

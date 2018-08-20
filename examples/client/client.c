@@ -1637,6 +1637,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     if (usePsk) {
 #ifndef NO_PSK
         wolfSSL_CTX_set_psk_client_callback(ctx, my_psk_client_cb);
+    #ifdef WOLFSSL_TLS13
+        wolfSSL_CTX_set_psk_client_tls13_callback(ctx, my_psk_client_tls13_cb);
+    #endif
         if (cipherList == NULL) {
             const char *defaultCipherList;
         #if defined(HAVE_AESGCM) && !defined(NO_DH)
