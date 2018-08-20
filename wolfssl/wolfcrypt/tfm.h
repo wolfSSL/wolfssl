@@ -279,6 +279,12 @@
 #define FP_DIGIT_MAX FP_MASK
 #define FP_SIZE    (FP_MAX_SIZE/DIGIT_BIT)
 
+#define FP_MAX_PRIME_SIZE (FP_MAX_BITS/(2*CHAR_BIT))
+/* In terms of FP_MAX_BITS, it is double the size possible for a number
+ * to allow for multiplication, divide that 2 out. Also divide by CHAR_BIT
+ * to convert from bits to bytes. (Note, FP_PRIME_SIZE is the number of
+ * values in the canned prime number list.) */
+
 /* signs */
 #define FP_ZPOS     0
 #define FP_NEG      1

@@ -2952,19 +2952,22 @@ int mp_prime_is_prime_ex(mp_int* a, int t, int* result, WC_RNG* rng)
      * give a (1/4)^t chance of a false prime. */
     if (ret == FP_YES) {
         fp_int b, c;
-        /* FP_MAX_BITS is 2 times the modulus size. The modulus size is
-         * 2 times the prime size. */
         word32 baseSz;
         #ifndef WOLFSSL_SMALL_STACK
-            byte base[FP_MAX_BITS/32];
+            byte base[FP_MAX_PRIME_SIZE];
         #else
             byte* base;
         #endif
 
         baseSz = fp_count_bits(a);
+        /* The base size is the number of bits / 8. One is added if the number
+         * of bits isn't an even 8. */
         baseSz = (baseSz / 8) + ((baseSz % 8) ? 1 : 0);
 
-        #ifdef WOLFSSL_SMALL_STACK
+        #ifndef WOLFSSL_SMALL_STACK
+            if (baseSz > sizeof(base))
+                return FP_MEM;
+        #else
             base = (byte*)XMALLOC(baseSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
             if (base == NULL)
                 return FP_MEM;
