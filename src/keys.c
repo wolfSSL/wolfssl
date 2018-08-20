@@ -3291,6 +3291,9 @@ static int CleanPreMaster(WOLFSSL* ssl)
     for (i = 0; i < sz; i++)
         ssl->arrays->preMasterSecret[i] = 0;
 
+    XFREE(ssl->arrays->preMasterSecret, ssl->heap, DYNAMIC_TYPE_SECRET);
+    ssl->arrays->preMasterSecret = NULL;
+
     return 0;
 }
 

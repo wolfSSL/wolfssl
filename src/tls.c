@@ -6383,7 +6383,7 @@ static int TLSX_KeyShare_ProcessDh(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
 #ifdef WOLFSSL_ASYNC_CRYPT
     /* TODO: Make this function non-blocking */
     if (ret == WC_PENDING_E) {
-        ret = wc_AsyncWait(ret, dhKey.asyncDev, WC_ASYNC_FLAG_NONE);
+        ret = wc_AsyncWait(ret, dhKey->asyncDev, WC_ASYNC_FLAG_NONE);
     }
 #endif
     /* RFC 8446 Section 7.4.1:
@@ -6397,7 +6397,7 @@ static int TLSX_KeyShare_ProcessDh(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         ssl->arrays->preMasterSz = params->p_len;
     }
 
-    wc_FreeDhKey(&dhKey);
+    wc_FreeDhKey(dhKey);
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(dhKey, ssl->heap, DYNAMIC_TYPE_DH);
 #endif

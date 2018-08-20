@@ -272,7 +272,7 @@
 #define cliEccCertFile "certs/client-ecc-cert.pem"
 #define caEccCertFile  "certs/ca-ecc-cert/pem"
 #define crlPemDir      "certs/crl"
-#define edCertFile     "certs/ed25519/server-ed25519.pem"
+#define edCertFile     "certs/ed25519/server-ed25519-cert.pem"
 #define edKeyFile      "certs/ed25519/server-ed25519-priv.pem"
 #define cliEdCertFile  "certs/ed25519/client-ed25519.pem"
 #define cliEdKeyFile   "certs/ed25519/client-ed25519-priv.pem"

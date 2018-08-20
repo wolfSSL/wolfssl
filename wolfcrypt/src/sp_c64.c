@@ -7926,7 +7926,7 @@ static int sp_256_ecc_mulmod_5(sp_point* r, sp_point* g, sp_digit* k,
 
     (void)heap;
 
-    td = (sp_point*)XMALLOC(sizeof(sp_point) * 3, heap, DYNAMIC_TYPE_TMP_ECC);
+    td = (sp_point*)XMALLOC(sizeof(sp_point) * 3, heap, DYNAMIC_TYPE_ECC);
     if (td == NULL)
         err = MEMORY_E;
     tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 5 * 5, heap,
@@ -7986,11 +7986,11 @@ static int sp_256_ecc_mulmod_5(sp_point* r, sp_point* g, sp_digit* k,
 
     if (tmp != NULL) {
         XMEMSET(tmp, 0, sizeof(sp_digit) * 2 * 5 * 5);
-        XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_ECC);
+        XFREE(tmp, NULL, DYNAMIC_TYPE_ECC);
     }
     if (td != NULL) {
         XMEMSET(td, 0, sizeof(sp_point) * 3);
-        XFREE(td, NULL, DYNAMIC_TYPE_TMP_ECC);
+        XFREE(td, NULL, DYNAMIC_TYPE_ECC);
     }
 
     return err;

@@ -167,7 +167,13 @@ enum Misc_ASN {
     MIN_DATE_SIZE       =  13,
     MAX_DATE_SIZE       =  32,
     ASN_GEN_TIME_SZ     =  15,     /* 7 numbers * 2 + Zulu tag */
+#ifndef NO_RSA
     MAX_ENCODED_SIG_SZ  = 512,
+#elif defined(HAVE_ECC)
+    MAX_ENCODED_SIG_SZ  = 140,
+#else
+    MAX_ENCODED_SIG_SZ  =  64,
+#endif
     MAX_SIG_SZ          = 256,
     MAX_ALGO_SZ         =  20,
     MAX_SHORT_SZ        =   6,     /* asn int + byte len + 4 byte length */

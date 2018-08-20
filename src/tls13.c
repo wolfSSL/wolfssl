@@ -5293,9 +5293,9 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
         #ifndef NO_RSA
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
                 /* build encoded signature buffer */
-                sig->length = MAX_ENCODED_SIG_SZ;
+                sig->length = WC_MAX_DIGEST_SIZE;
                 sig->buffer = (byte*)XMALLOC(sig->length, ssl->heap,
-                                                    DYNAMIC_TYPE_SIGNATURE);
+                                                        DYNAMIC_TYPE_SIGNATURE);
                 if (sig->buffer == NULL) {
                     ERROR_OUT(MEMORY_E, exit_scv);
                 }
@@ -7095,6 +7095,17 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     case server_hello:
         WOLFSSL_MSG("processing server hello");
         ret = DoTls13ServerHello(ssl, input, inOutIdx, size, &type);
+    #if !defined(WOLFSSL_NO_CLIENT_AUTH) && defined(HAVE_ED25519) && \
+                                                !defined(NO_ED25519_CLIENT_AUTH)
+        if (ssl->options.resuming || !IsAtLeastTLSv1_2(ssl) ||
+                                               IsAtLeastTLSv1_3(ssl->version)) {
+            ssl->options.cacheMessages = 0;
+            if (ssl->hsHashes->messages != NULL) {
+                XFREE(ssl->hsHashes->messages, ssl->heap, DYNAMIC_TYPE_HASHES);
+                ssl->hsHashes->messages = NULL;
+            }
+        }
+    #endif
         break;
 
     case encrypted_extensions:
@@ -7168,6 +7179,9 @@ int DoTls13HandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     if (ret == 0 && type != client_hello && type != session_ticket &&
                                                            type != key_update) {
         ret = HashInput(ssl, input + inIdx, size);
+    }
+    if (ret == 0 && ssl->buffers.inputBuffer.dynamicFlag) {
+        ShrinkInputBuffer(ssl, NO_FORCED_FREE);
     }
 
     if (ret == BUFFER_ERROR || ret == MISSING_HANDSHAKE_DATA)

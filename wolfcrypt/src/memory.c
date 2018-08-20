@@ -71,6 +71,10 @@ Possible memory options:
         }
     }
 #endif
+#if defined(WOLFSSL_MALLOC_CHECK) || defined(WOLFSSL_TRACK_MEMORY_FULL) || \
+                                                     defined(WOLFSSL_MEMORY_LOG)
+    #include <stdio.h>
+#endif
 
 
 /* Set these to default values initially. */
@@ -992,9 +996,9 @@ void XFREE(void *p, void* heap, int type)
 
 #endif /* HAVE_IO_POOL */
 
-#ifdef WOLFSSL_MEMORY_TRACKING
+#ifdef WOLFSSL_MEMORY_LOG
 void *xmalloc(size_t n, void* heap, int type, const char* func,
-              unsigned int line)
+              const char* file, unsigned int line)
 {
     void*   p;
     word32* p32;
@@ -1007,23 +1011,25 @@ void *xmalloc(size_t n, void* heap, int type, const char* func,
     p32[0] = n;
     p = (void*)(p32 + 4);
 
-    fprintf(stderr, "Alloc: %p -> %u (%d) at %s:%d\n", p, (word32)n, type, func,
-            line);
+    fprintf(stderr, "Alloc: %p -> %u (%d) at %s:%s:%d\n", p, (word32)n, type,
+                                                              func, file, line);
 
     (void)heap;
 
     return p;
 }
 void *xrealloc(void *p, size_t n, void* heap, int type, const char* func,
-               unsigned int line)
+               const char* file, unsigned int line)
 {
     void*   newp = NULL;
     word32* p32;
     word32* oldp32 = NULL;
+    word32  oldLen;
 
     if (p != NULL) {
         oldp32 = (word32*)p;
         oldp32 -= 4;
+        oldLen = oldp32[0];
     }
 
     if (realloc_function)
@@ -1035,11 +1041,11 @@ void *xrealloc(void *p, size_t n, void* heap, int type, const char* func,
         p32[0] = n;
         newp = (void*)(p32 + 4);
 
-        fprintf(stderr, "Alloc: %p -> %u (%d) at %s:%d\n", newp, (word32)n,
-                type, func, line);
+        fprintf(stderr, "Alloc: %p -> %u (%d) at %s:%s:%d\n", newp, (word32)n,
+                                                        type, func, file, line);
         if (p != NULL) {
-            fprintf(stderr, "Free: %p -> %u (%d) at %s:%d\n", p, oldp32[0],
-                    type, func, line);
+            fprintf(stderr, "Free: %p -> %u (%d) at %s:%s:%d\n", p, oldLen,
+                                                        type, func, file, line);
         }
     }
 
@@ -1047,15 +1053,16 @@ void *xrealloc(void *p, size_t n, void* heap, int type, const char* func,
 
     return newp;
 }
-void xfree(void *p, void* heap, int type, const char* func, unsigned int line)
+void xfree(void *p, void* heap, int type, const char* func, const char* file,
+           unsigned int line)
 {
     word32* p32 = (word32*)p;
 
     if (p != NULL) {
         p32 -= 4;
 
-        fprintf(stderr, "Free: %p -> %u (%d) at %s:%d\n", p, p32[0], type, func,
-                line);
+        fprintf(stderr, "Free: %p -> %u (%d) at %s:%s:%d\n", p, p32[0], type,
+                                                              func, file, line);
 
         if (free_function)
             free_function(p32);
@@ -1065,5 +1072,5 @@ void xfree(void *p, void* heap, int type, const char* func, unsigned int line)
 
     (void)heap;
 }
-#endif /* WOLFSSL_MEMORY_TRACKING */
+#endif /* WOLFSSL_MEMORY_LOG */
 
