@@ -2142,7 +2142,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
     if (ssl->version.major == 3 && ssl->version.minor >= 1) {
 #ifndef NO_TLS
         ssl->options.tls = 1;
-    #ifndef WOLFSSL_NO_TLS12
+    #if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_AEAD_ONLY)
         ssl->hmac = TLS_hmac;
     #endif
         if (ssl->version.minor >= 2) {
@@ -2153,7 +2153,7 @@ int SetCipherSpecs(WOLFSSL* ssl)
 #endif
     }
 
-#ifdef WOLFSSL_DTLS
+#if defined(WOLFSSL_DTLS) && !defined(WOLFSSL_AEAD_ONLY)
     if (ssl->options.dtls)
         ssl->hmac = TLS_hmac;
 #endif
@@ -3022,15 +3022,19 @@ int SetKeysSide(WOLFSSL* ssl, enum encrypt_side side)
             clientCopy = 1;
 
         if (clientCopy) {
+    #ifndef WOLFSSL_AEAD_ONLY
             XMEMCPY(ssl->keys.client_write_MAC_secret,
                     keys->client_write_MAC_secret, WC_MAX_DIGEST_SIZE);
+    #endif
             XMEMCPY(ssl->keys.client_write_key,
                     keys->client_write_key, AES_256_KEY_SIZE);
             XMEMCPY(ssl->keys.client_write_IV,
                     keys->client_write_IV, MAX_WRITE_IV_SZ);
         } else {
+    #ifndef WOLFSSL_AEAD_ONLY
             XMEMCPY(ssl->keys.server_write_MAC_secret,
                     keys->server_write_MAC_secret, WC_MAX_DIGEST_SIZE);
+    #endif
             XMEMCPY(ssl->keys.server_write_key,
                     keys->server_write_key, AES_256_KEY_SIZE);
             XMEMCPY(ssl->keys.server_write_IV,
@@ -3099,8 +3103,10 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side)
         /* Use the same keys for encrypt and decrypt. */
         if (ssl->specs.cipher_type != aead) {
             sz = ssl->specs.hash_size;
+    #ifndef WOLFSSL_AEAD_ONLY
             XMEMCPY(keys->client_write_MAC_secret,&keyData[i], sz);
             XMEMCPY(keys->server_write_MAC_secret,&keyData[i], sz);
+    #endif
             i += sz;
         }
         sz = ssl->specs.key_size;
@@ -3126,11 +3132,15 @@ int StoreKeys(WOLFSSL* ssl, const byte* keyData, int side)
     if (ssl->specs.cipher_type != aead) {
         sz = ssl->specs.hash_size;
         if (side & PROVISION_CLIENT) {
+    #ifndef WOLFSSL_AEAD_ONLY
             XMEMCPY(keys->client_write_MAC_secret,&keyData[i], sz);
+    #endif
             i += sz;
         }
         if (side & PROVISION_SERVER) {
+    #ifndef WOLFSSL_AEAD_ONLY
             XMEMCPY(keys->server_write_MAC_secret,&keyData[i], sz);
+    #endif
             i += sz;
         }
     }

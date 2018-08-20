@@ -863,7 +863,7 @@ int wc_BerToDer(const byte* ber, word32 berSz, byte* der, word32* derSz)
     int depth = 0;
     byte type;
     word32 cnt, sz;
-    word32 outSz;
+    word32 outSz = 0;
     byte lenBytes[4];
 
     if (ber == NULL || derSz == NULL)

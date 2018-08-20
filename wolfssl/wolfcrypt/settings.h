@@ -1532,10 +1532,6 @@ extern void uITRON4_free(void *p) ;
     #ifndef NO_AES_CBC
         #undef  HAVE_AES_CBC
         #define HAVE_AES_CBC
-    #else
-        #ifndef WOLFCRYPT_ONLY
-            #error "AES CBC is required for TLS and can only be disabled for WOLFCRYPT_ONLY builds"
-        #endif
     #endif
     #ifdef WOLFSSL_AES_XTS
         /* AES-XTS makes calls to AES direct functions */
@@ -1549,6 +1545,12 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_AES_DIRECT
         #endif
     #endif
+#endif
+
+#if (defined(WOLFSSL_TLS13) && defined(WOLFSSL_NO_TLS12)) || \
+    (defined(NO_AES_CBC) && defined(NO_DES3) && defined(NO_RC4) && \
+     !defined(HAVE_IDEA) && !defined(HAVE_NULL_CIPHER) && !defined(HAVE_HC128))
+    #define WOLFSSL_AEAD_ONLY
 #endif
 
 /* if desktop type system and fastmath increase default max bits */

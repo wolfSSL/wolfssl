@@ -792,6 +792,20 @@ AM_CONDITIONAL([BUILD_SNIFFER],   [ test "x$ENABLED_SNIFFER"   = "xyes" ])
 AM_CONDITIONAL([BUILD_SNIFFTEST], [ test "x$ENABLED_SNIFFTEST" = "xyes" ])
 
 
+# AES-CBC
+AC_ARG_ENABLE([aescbc],
+    [AS_HELP_STRING([--enable-aescbc],[Enable wolfSSL AES-CBC support (default: enabled)])],
+    [ ENABLED_AESCBC=$enableval ],
+    [ ENABLED_AESCBC=yes ]
+    )
+
+if test "$ENABLED_AESCBC" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_AES_CBC"
+fi
+
+# leanpsk and leantls don't need gcm
+
 # AES-GCM
 AC_ARG_ENABLE([aesgcm],
     [AS_HELP_STRING([--enable-aesgcm],[Enable wolfSSL AES-GCM support (default: enabled)])],
@@ -4477,6 +4491,7 @@ echo "   * snifftest:                  $ENABLED_SNIFFTEST"
 echo "   * ARC4:                       $ENABLED_ARC4"
 echo "   * AES:                        $ENABLED_AES"
 echo "   * AES-NI:                     $ENABLED_AESNI"
+echo "   * AES-CBC:                    $ENABLED_AESCBC"
 echo "   * AES-GCM:                    $ENABLED_AESGCM"
 echo "   * AES-CCM:                    $ENABLED_AESCCM"
 echo "   * AES-CTR:                    $ENABLED_AESCTR"

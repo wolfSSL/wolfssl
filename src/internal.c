@@ -146,7 +146,7 @@ static const byte tls13Downgrade[7] = {
 
 #endif /* !NO_WOLFSSL_SERVER || !NO_WOLFSSL_CLIENT */
 
-#ifndef NO_OLD_TLS
+#if !defined(NO_OLD_TLS) && !defined(WOLFSSL_AEAD_ONLY)
 static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
                     int padSz, int content, int verify);
 
@@ -537,8 +537,13 @@ static int ExportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     exp[idx++] = 0; /* no truncated hmac */
 #endif
     exp[idx++] = sz;
+#ifndef WOLFSSL_AEAD_ONLY
     XMEMCPY(exp + idx, keys->client_write_MAC_secret, sz); idx += sz;
     XMEMCPY(exp + idx, keys->server_write_MAC_secret, sz); idx += sz;
+#else
+    XMEMSET(exp + idx, 0, sz); idx += sz;
+    XMEMSET(exp + idx, 0, sz); idx += sz;
+#endif
 
     sz         = ssl->specs.key_size;
     exp[idx++] = sz;
@@ -695,11 +700,18 @@ static int ImportKeyState(WOLFSSL* ssl, byte* exp, word32 len, byte ver)
     idx++; /* no truncated hmac */
 #endif
     sz = exp[idx++];
+#ifndef WOLFSSL_AEAD_ONLY
     if (sz > sizeof(keys->client_write_MAC_secret) || sz + idx > len) {
         return BUFFER_E;
     }
     XMEMCPY(keys->client_write_MAC_secret, exp + idx, sz); idx += sz;
     XMEMCPY(keys->server_write_MAC_secret, exp + idx, sz); idx += sz;
+#else
+    if (sz + idx > len) {
+        return BUFFER_E;
+    }
+    idx += sz; idx += sz;
+#endif
 
     sz = exp[idx++];
     if (sz > sizeof(keys->client_write_key) || sz + idx > len) {
@@ -4135,8 +4147,10 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     if (!ssl || !ctx)
         return BAD_FUNC_ARG;
 
+#ifndef SINGLE_THREADED
     if (ssl->suites == NULL && !writeDup)
         return BAD_FUNC_ARG;
+#endif
 
     newSSL = ssl->ctx == NULL; /* Assign after null check */
 
@@ -4285,8 +4299,13 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         }
 #endif /* NO_PSK */
 
-        if (ctx->suites)
+        if (ctx->suites) {
+#ifndef SINGLE_THREADED
             *ssl->suites = *ctx->suites;
+#else
+            ssl->suites = ctx->suites;
+#endif
+        }
         else
             XMEMSET(ssl->suites, 0, sizeof(Suites));
 
@@ -4591,11 +4610,13 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     ssl->buffers.dtlsCtx.wfd            = -1;
 #endif
 
+#ifndef WOLFSSL_AEAD_ONLY
     #ifndef NO_OLD_TLS
         ssl->hmac = SSL_hmac; /* default to SSLv3 */
     #elif !defined(WOLFSSL_NO_TLS12)
         ssl->hmac = TLS_hmac;
     #endif
+#endif
 
 
     ssl->cipher.ssl = ssl;
@@ -4670,12 +4691,17 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
         }
         XMEMSET(ssl->arrays->preMasterSecret, 0, ENCRYPT_LEN);
 
-        /* suites */
-        ssl->suites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
-                                   DYNAMIC_TYPE_SUITES);
-        if (ssl->suites == NULL) {
-            WOLFSSL_MSG("Suites Memory error");
-            return MEMORY_E;
+#ifdef SINGLE_THREADED
+        if (ctx->suites == NULL)
+#endif
+        {
+            /* suites */
+            ssl->suites = (Suites*)XMALLOC(sizeof(Suites), ssl->heap,
+                                       DYNAMIC_TYPE_SUITES);
+            if (ssl->suites == NULL) {
+                WOLFSSL_MSG("Suites Memory error");
+                return MEMORY_E;
+            }
         }
     }
 
@@ -5032,7 +5058,10 @@ void SSL_ResourceFree(WOLFSSL* ssl)
         wc_FreeRng(ssl->rng);
         XFREE(ssl->rng, ssl->heap, DYNAMIC_TYPE_RNG);
     }
-    XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
+#ifdef SINGLE_THREADED
+    if (ssl->suites != ssl->ctx->suites)
+#endif
+        XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
     FreeHandshakeHashes(ssl);
     XFREE(ssl->buffers.domainName.buffer, ssl->heap, DYNAMIC_TYPE_DOMAIN);
 
@@ -5242,14 +5271,21 @@ void FreeHandshakeResources(WOLFSSL* ssl)
         ShrinkInputBuffer(ssl, NO_FORCED_FREE);
 
     /* suites */
-    XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
+#ifdef SINGLE_THREADED
+        if (ssl->suites != ssl->ctx->suites)
+#endif
+            XFREE(ssl->suites, ssl->heap, DYNAMIC_TYPE_SUITES);
     ssl->suites = NULL;
 
     /* hsHashes */
     FreeHandshakeHashes(ssl);
 
     /* RNG */
-    if (ssl->specs.cipher_type == stream || ssl->options.tls1_1 == 0) {
+    if (ssl->options.tls1_1 == 0
+#ifndef WOLFSSL_AEAD_ONLY
+        || ssl->specs.cipher_type == stream
+#endif
+        ) {
         if (ssl->options.weOwnRng) {
             wc_FreeRng(ssl->rng);
             XFREE(ssl->rng, ssl->heap, DYNAMIC_TYPE_RNG);
@@ -11441,7 +11477,7 @@ static WC_INLINE int EncryptDo(WOLFSSL* ssl, byte* out, const byte* input,
             break;
     #endif
 
-    #ifdef BUILD_AES
+    #if defined(BUILD_AES) && defined(HAVE_AES_CBC)
         case wolfssl_aes:
         #ifdef WOLFSSL_ASYNC_CRYPT
             /* initialize event */
@@ -11705,7 +11741,7 @@ static WC_INLINE int DecryptDo(WOLFSSL* ssl, byte* plain, const byte* input,
             break;
     #endif
 
-    #ifdef BUILD_AES
+    #if defined(BUILD_AES) && defined(HAVE_AES_CBC)
         case wolfssl_aes:
         #ifdef WOLFSSL_ASYNC_CRYPT
             /* initialize event */
@@ -11956,6 +11992,7 @@ static int SanityCheckCipherText(WOLFSSL* ssl, word32 encryptSz)
     word32 minLength = ssl->specs.hash_size; /* covers stream */
 #endif
 
+#ifndef WOLFSSL_AEAD_ONLY
     if (ssl->specs.cipher_type == block) {
         if (encryptSz % ssl->specs.block_size) {
             WOLFSSL_MSG("Block ciphertext not block size");
@@ -11970,7 +12007,9 @@ static int SanityCheckCipherText(WOLFSSL* ssl, word32 encryptSz)
         if (ssl->options.tls1_1)
             minLength += ssl->specs.block_size;  /* explicit IV */
     }
-    else if (ssl->specs.cipher_type == aead) {
+    else
+#endif
+    if (ssl->specs.cipher_type == aead) {
         minLength = ssl->specs.aead_mac_size;    /* authTag size */
         if (CipherHasExpIV(ssl))
             minLength += AESGCM_EXP_IV_SZ;       /* explicit IV  */
@@ -11985,6 +12024,7 @@ static int SanityCheckCipherText(WOLFSSL* ssl, word32 encryptSz)
 }
 
 
+#ifndef WOLFSSL_AEAD_ONLY
 /* check all length bytes for the pad value, return 0 on success */
 static int PadCheck(const byte* a, byte pad, int length)
 {
@@ -12122,6 +12162,7 @@ int TimingPadVerify(WOLFSSL* ssl, const byte* input, int padLen, int macSz,
 
     return ret;
 }
+#endif
 
 
 int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
@@ -12146,11 +12187,14 @@ int DoApplicationData(WOLFSSL* ssl, byte* input, word32* inOutIdx)
         return OUT_OF_ORDER_E;
     }
 
+#ifndef WOLFSSL_AEAD_ONLY
     if (ssl->specs.cipher_type == block) {
         if (ssl->options.tls1_1)
             ivExtra = ssl->specs.block_size;
     }
-    else if (ssl->specs.cipher_type == aead) {
+    else
+#endif
+    if (ssl->specs.cipher_type == aead) {
         if (CipherHasExpIV(ssl))
             ivExtra = AESGCM_EXP_IV_SZ;
     }
@@ -12334,7 +12378,7 @@ static int GetInputData(WOLFSSL *ssl, word32 size)
 static WC_INLINE int VerifyMac(WOLFSSL* ssl, const byte* input, word32 msgSz,
                             int content, word32* padSz)
 {
-#ifndef WOLFSSL_NO_TLS12
+#if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_AEAD_ONLY)
     int    ivExtra = 0;
     int    ret;
     word32 pad     = 0;
@@ -12391,17 +12435,16 @@ static WC_INLINE int VerifyMac(WOLFSSL* ssl, const byte* input, word32 msgSz,
         if (ret != 0)
             return VERIFY_MAC_ERROR;
     }
-
-#endif /* WOLFSSL_NO_TLS12 */
+#endif /* !WOLFSSL_NO_TLS12 && !WOLFSSL_AEAD_ONLY */
 
     if (ssl->specs.cipher_type == aead) {
         *padSz = ssl->specs.aead_mac_size;
     }
-#ifndef WOLFSSL_NO_TLS12
+#if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_AEAD_ONLY)
     else {
         *padSz = digestSz + pad + padByte;
     }
-#endif /* WOLFSSL_NO_TLS12 */
+#endif /* !WOLFSSL_NO_TLS12 && !WOLFSSL_AEAD_ONLY */
 
     (void)input;
     (void)msgSz;
@@ -12662,14 +12705,16 @@ int ProcessReply(WOLFSSL* ssl)
             #endif
 
                 if (ret >= 0) {
-                #ifndef WOLFSSL_NO_TLS12
+            #ifndef WOLFSSL_NO_TLS12
                     /* handle success */
+                #ifndef WOLFSSL_AEAD_ONLY
                     if (ssl->options.tls1_1 && ssl->specs.cipher_type == block)
                         ssl->buffers.inputBuffer.idx += ssl->specs.block_size;
+                #endif
                         /* go past TLSv1.1 IV */
                     if (CipherHasExpIV(ssl))
                         ssl->buffers.inputBuffer.idx += AESGCM_EXP_IV_SZ;
-                #endif
+            #endif
                 }
                 else {
                     WOLFSSL_MSG("Decrypt failed");
@@ -13122,7 +13167,7 @@ int SendChangeCipher(WOLFSSL* ssl)
 }
 
 
-#ifndef NO_OLD_TLS
+#if !defined(NO_OLD_TLS) && !defined(WOLFSSL_AEAD_ONLY)
 static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
                     int padLen, int content, int verify)
 {
@@ -13237,7 +13282,7 @@ static int SSL_hmac(WOLFSSL* ssl, byte* digest, const byte* in, word32 sz,
     }
     return 0;
 }
-#endif /* NO_OLD_TLS */
+#endif /* !NO_OLD_TLS && !WOLFSSL_AEAD_ONLY */
 
 
 #ifndef NO_CERTS
@@ -13507,6 +13552,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             }
         #endif
 
+        #ifndef WOLFSSL_AEAD_ONLY
             if (ssl->specs.cipher_type == block) {
                 word32 blockSz = ssl->specs.block_size;
                 if (ssl->options.tls1_1) {
@@ -13524,6 +13570,7 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
                     args->pad = blockSz - args->pad;
                 args->sz += args->pad;
             }
+        #endif /* WOLFSSL_AEAD_ONLY */
 
         #ifdef HAVE_AEAD
             if (ssl->specs.cipher_type == aead) {
@@ -13578,19 +13625,20 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
         FALL_THROUGH;
         case BUILD_MSG_HASH:
         {
-            word32 i;
-
             if (type == handshake && hashOutput) {
                 ret = HashOutput(ssl, output, args->headerSz + inSz, args->ivSz);
                 if (ret != 0)
                     goto exit_buildmsg;
             }
+        #ifndef WOLFSSL_AEAD_ONLY
             if (ssl->specs.cipher_type == block) {
                 word32 tmpIdx = args->idx + args->digestSz;
+                word32 i;
 
                 for (i = 0; i <= args->pad; i++)
                     output[tmpIdx++] = (byte)args->pad; /* pad byte gets pad value */
             }
+        #endif
 
             ssl->options.buildMsgState = BUILD_MSG_VERIFY_MAC;
         }
@@ -13608,35 +13656,41 @@ int BuildMessage(WOLFSSL* ssl, byte* output, int outSz, const byte* input,
             }
         #endif
 
+        #ifndef WOLFSSL_AEAD_ONLY
             if (ssl->specs.cipher_type != aead) {
-        #ifdef HAVE_TRUNCATED_HMAC
-            if (ssl->truncated_hmac && ssl->specs.hash_size > args->digestSz) {
-            #ifdef WOLFSSL_SMALL_STACK
-                byte* hmac = NULL;
-            #else
-                byte  hmac[WC_MAX_DIGEST_SIZE];
-            #endif
+            #ifdef HAVE_TRUNCATED_HMAC
+                if (ssl->truncated_hmac &&
+                                        ssl->specs.hash_size > args->digestSz) {
+                #ifdef WOLFSSL_SMALL_STACK
+                    byte* hmac = NULL;
+                #else
+                    byte  hmac[WC_MAX_DIGEST_SIZE];
+                #endif
 
-            #ifdef WOLFSSL_SMALL_STACK
-                hmac = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, ssl->heap,
-                                                       DYNAMIC_TYPE_DIGEST);
-                if (hmac == NULL)
-                    ERROR_OUT(MEMORY_E, exit_buildmsg);
-            #endif
+                #ifdef WOLFSSL_SMALL_STACK
+                    hmac = (byte*)XMALLOC(WC_MAX_DIGEST_SIZE, ssl->heap,
+                                                           DYNAMIC_TYPE_DIGEST);
+                    if (hmac == NULL)
+                        ERROR_OUT(MEMORY_E, exit_buildmsg);
+                #endif
 
-                ret = ssl->hmac(ssl, hmac, output + args->headerSz + args->ivSz,
-                                                             inSz, -1, type, 0);
-                XMEMCPY(output + args->idx, hmac, args->digestSz);
+                    ret = ssl->hmac(ssl, hmac,
+                                     output + args->headerSz + args->ivSz, inSz,
+                                     -1, type, 0);
+                    XMEMCPY(output + args->idx, hmac, args->digestSz);
 
-            #ifdef WOLFSSL_SMALL_STACK
-                XFREE(hmac, ssl->heap, DYNAMIC_TYPE_DIGEST);
+                #ifdef WOLFSSL_SMALL_STACK
+                    XFREE(hmac, ssl->heap, DYNAMIC_TYPE_DIGEST);
+                #endif
+                }
+                else
             #endif
-            }
-            else
-        #endif
-                ret = ssl->hmac(ssl, output + args->idx, output +
+                {
+                    ret = ssl->hmac(ssl, output + args->idx, output +
                                 args->headerSz + args->ivSz, inSz, -1, type, 0);
+                }
             }
+        #endif /* WOLFSSL_AEAD_ONLY */
             if (ret != 0)
                 goto exit_buildmsg;
 

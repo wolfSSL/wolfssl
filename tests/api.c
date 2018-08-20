@@ -18721,8 +18721,8 @@ static void test_wolfSSL_msg_callback(void)
     AssertIntEQ(SSL_set_msg_callback(ssl, &sslMsgCb), SSL_SUCCESS);
     AssertIntEQ(SSL_set_msg_callback(NULL, &sslMsgCb), SSL_FAILURE);
 
-    SSL_CTX_free(ctx);
     SSL_free(ssl);
+    SSL_CTX_free(ctx);
 
     printf(resultFmt, passed);
 #endif
