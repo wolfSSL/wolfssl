@@ -5232,7 +5232,6 @@ static int TLSX_SupportedVersions_Write(void* data, byte* output,
         *(output++) = (byte)(cnt * OPAQUE16_LEN);
         for (i = 0; i < cnt; i++) {
 #ifdef WOLFSSL_TLS13_DRAFT
-            /* TODO: [TLS13] Remove code when TLS v1.3 becomes an RFC. */
             if (pv.minor - i == TLSv1_3_MINOR) {
                 /* The TLS draft major number. */
                 *(output++) = TLS_DRAFT_MAJOR;
@@ -5308,7 +5307,6 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL* ssl, byte* input,
             minor = input[i + OPAQUE8_LEN];
 
 #ifdef WOLFSSL_TLS13_DRAFT
-            /* TODO: [TLS13] Remove code when TLS v1.3 becomes an RFC. */
             if (major == TLS_DRAFT_MAJOR && minor == TLS_DRAFT_MINOR) {
                 major = SSLv3_MAJOR;
                 minor = TLSv1_3_MINOR;
@@ -5363,7 +5361,6 @@ static int TLSX_SupportedVersions_Parse(WOLFSSL* ssl, byte* input,
         minor = input[OPAQUE8_LEN];
 
     #ifdef WOLFSSL_TLS13_DRAFT
-        /* TODO: [TLS13] Remove code when TLS v1.3 becomes an RFC. */
         if (major == TLS_DRAFT_MAJOR && minor == TLS_DRAFT_MINOR) {
             major = SSLv3_MAJOR;
             minor = TLSv1_3_MINOR;
