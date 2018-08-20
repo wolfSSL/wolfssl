@@ -5363,7 +5363,7 @@ static int sp_3072_mod_exp_68(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
             n |= e[i--] << (9 - c);
             c += 23;
         }
-        y = n >> 27;
+        y = (n >> 27) & 0x1f;
         n <<= 5;
         c -= 5;
         XMEMCPY(rt, t[y], sizeof(rt));
@@ -6387,7 +6387,7 @@ static int sp_3072_mod_exp_136(sp_digit* r, sp_digit* a, sp_digit* e, int bits,
             n |= e[i--] << (9 - c);
             c += 23;
         }
-        y = n >> 27;
+        y = (n >> 27) & 0x1f;
         n <<= 5;
         c -= 5;
         XMEMCPY(rt, t[y], sizeof(rt));
@@ -8708,7 +8708,7 @@ static int sp_256_ecc_mulmod_10(sp_point* r, sp_point* g, sp_digit* k,
     if (td == NULL)
         err = MEMORY_E;
     tmp = (sp_digit*)XMALLOC(sizeof(sp_digit) * 2 * 10 * 5, heap,
-                             DYNAMIC_TYPE_ECC);
+                                                              DYNAMIC_TYPE_ECC);
     if (tmp == NULL)
         err = MEMORY_E;
 

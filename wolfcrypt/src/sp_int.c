@@ -649,6 +649,47 @@ int sp_set_int(sp_int* a, unsigned long b)
 }
 #endif
 
+#ifdef WC_MP_TO_RADIX
+/* Hex string characters. */
+static const char sp_hex_char[16] = {
+    '0', '1', '2', '3', '4', '5', '6', '7',
+    '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
+};
+
+/* Put the hex string version, big-endian, of a in str.
+ *
+ * a    SP integer.
+ * str  Hex string is stored here.
+ * returns MP_OKAY always.
+ */
+int sp_tohex(sp_int* a, char* str)
+{
+    int i, j;
+
+    /* quick out if its zero */
+    if (sp_iszero(a) == MP_YES) {
+        *str++ = '0';
+        *str = '\0';
+        return MP_OKAY;
+    }
+
+    i = a->used - 1;
+    for (j = SP_WORD_SIZE - 4; j >= 0; j -= 4) {
+        if (((a->dp[i] >> j) & 0xf) != 0)
+            break;
+    }
+    for (; j >= 0; j -= 4)
+        *(str++) = sp_hex_char[(a->dp[i] >> j) & 0xf];
+    for (--i; i >= 0; i--) {
+        for (j = SP_WORD_SIZE - 4; j >= 0; j -= 4)
+            *(str++) = sp_hex_char[(a->dp[i] >> j) & 0xf];
+    }
+    *str = '\0';
+
+    return MP_OKAY;
+}
+#endif
+
 #if !defined(USE_FAST_MATH)
 /* Returns the run time settings.
  *
