@@ -44,6 +44,11 @@
 
 #ifndef NO_WOLFSSL_CLIENT
 
+#ifdef USE_FAST_MATH
+    /* included to inspect the size of FP_MAX_BITS */
+    #include <wolfssl/wolfcrypt/tfm.h>
+#endif
+
 #ifdef WOLFSSL_ASYNC_CRYPT
     static int devId = INVALID_DEVID;
 #endif
