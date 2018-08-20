@@ -1416,6 +1416,7 @@ static void AddTls13RecordHeader(byte* output, word32 length, byte type,
 #ifdef WOLFSSL_TLS13_DRAFT_18
     rl->pvMinor = TLSv1_MINOR;
 #else
+    /* NOTE: May be TLSv1_MINOR when sending first ClientHello. */
     rl->pvMinor = TLSv1_2_MINOR;
 #endif
     c16toa((word16)length, rl->length);
@@ -3704,12 +3705,12 @@ static int RestartHandshakeHashWithCookie(WOLFSSL* ssl, Cookie* cookie)
     c16toa(OPAQUE16_LEN, hrr + hrrIdx);
     hrrIdx += 2;
     /* TODO: [TLS13] Change to ssl->version.major and minor once final. */
-    #ifdef WOLFSSL_TLS13_FINAL
-        hrr[hrrIdx++] = ssl->version.major;
-        hrr[hrrIdx++] = ssl->version.minor;
-    #else
+    #ifdef WOLFSSL_TLS13_DRAFT
         hrr[hrrIdx++] = TLS_DRAFT_MAJOR;
         hrr[hrrIdx++] = TLS_DRAFT_MINOR;
+    #else
+        hrr[hrrIdx++] = ssl->version.major;
+        hrr[hrrIdx++] = ssl->version.minor;
     #endif
 #endif
     /* Mandatory Cookie Extension */

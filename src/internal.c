@@ -16813,7 +16813,7 @@ exit_dpk:
     int CheckVersion(WOLFSSL *ssl, ProtocolVersion pv)
     {
 #ifdef WOLFSSL_TLS13
-    #ifndef WOLFSSL_TLS13_FINAL
+    #ifdef WOLFSSL_TLS13_DRAFT
         /* TODO: [TLS13] Remove this.
          * Translate the draft TLS v1.3 version to final version.
          */
