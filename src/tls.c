@@ -6385,6 +6385,16 @@ static int TLSX_KeyShare_ProcessDh(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
         ret = wc_AsyncWait(ret, dhKey.asyncDev, WC_ASYNC_FLAG_NONE);
     }
 #endif
+    /* RFC 8446 Section 7.4.1:
+     *     ... left-padded with zeros up to the size of the prime. ...
+     */
+    if (params->p_len > ssl->arrays->preMasterSz) {
+        word32 diff = params->p_len - ssl->arrays->preMasterSz;
+        XMEMMOVE(ssl->arrays->preMasterSecret + diff,
+                        ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz);
+        XMEMSET(ssl->arrays->preMasterSecret, 0, diff);
+        ssl->arrays->preMasterSz = params->p_len;
+    }
 
     wc_FreeDhKey(dhKey);
 #ifdef WOLFSSL_SMALL_STACK
