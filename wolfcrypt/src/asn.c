@@ -7000,13 +7000,15 @@ static int DecodeCertExtensions(DecodedCert* cert)
                 break;
 
             default:
+            #ifndef WOLFSSL_NO_ASN_STRICT
                 /* While it is a failure to not support critical extensions,
                  * still parse the certificate ignoring the unsupported
                  * extension to allow caller to accept it with the verify
                  * callback. */
                 if (critical)
                     criticalFail = 1;
-                break;
+            #endif
+            break;
         }
         idx += length;
     }
