@@ -752,9 +752,9 @@ static int test_wolfSSL_CTX_use_certificate_chain_file_format(void)
     WOLFSSL_CTX* ctx;
 
 #ifndef NO_WOLFSSL_CLIENT
-    ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+    ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
 #else
-    ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method());
+    ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
 #endif
     AssertNotNull(ctx);
 
@@ -11977,7 +11977,7 @@ static int test_wc_ed25519_sign_msg (void)
     word32          msglen = sizeof(msg);
     word32          siglen = sizeof(sig);
     word32          badSigLen = sizeof(sig) - 1;
-    int             stat = 0; /*1 = Verify success.*/
+    int             verify_ok = 0; /*1 = Verify success.*/
 
     /* Initialize stack variables. */
     XMEMSET(sig, 0, siglen);
@@ -12025,8 +12025,8 @@ static int test_wc_ed25519_sign_msg (void)
 
         if (ret == 0) {
 
-            ret = wc_ed25519_verify_msg(sig, siglen, msg, msglen, &stat, &key);
-            if (ret == 0  && stat == 1) {
+            ret = wc_ed25519_verify_msg(sig, siglen, msg, msglen, &verify_ok, &key);
+            if (ret == 0  && verify_ok == 1) {
                 ret = 0;
             } else if (ret == 0) {
                 ret = SSL_FATAL_ERROR;
@@ -12034,11 +12034,11 @@ static int test_wc_ed25519_sign_msg (void)
 
             /* Test bad args. */
             if (ret == 0) {
-                ret = wc_ed25519_verify_msg(NULL, siglen, msg, msglen, &stat,
+                ret = wc_ed25519_verify_msg(NULL, siglen, msg, msglen, &verify_ok,
                                                                         &key);
                 if (ret == BAD_FUNC_ARG) {
                     ret = wc_ed25519_verify_msg(sig, siglen, NULL, msglen,
-                                                                &stat, &key);
+                                                                &verify_ok, &key);
                 }
                 if (ret == BAD_FUNC_ARG) {
                     ret = wc_ed25519_verify_msg(sig, siglen, msg, msglen,
@@ -12046,11 +12046,11 @@ static int test_wc_ed25519_sign_msg (void)
                 }
                 if (ret == BAD_FUNC_ARG) {
                     ret = wc_ed25519_verify_msg(sig, siglen, msg, msglen,
-                                                                &stat, NULL);
+                                                                &verify_ok, NULL);
                 }
                 if (ret == BAD_FUNC_ARG) {
                     ret = wc_ed25519_verify_msg(sig, badSigLen, msg, msglen,
-                                                                &stat, &key);
+                                                                &verify_ok, &key);
                 }
                 if (ret == BAD_FUNC_ARG) {
                     ret = 0;
@@ -14060,7 +14060,7 @@ static int test_wc_ecc_verify_hash_ex (void)
     int             keySz = KEY32;
     int             sig = WOLFSSL_FATAL_ERROR;
     int             ver = WOLFSSL_FATAL_ERROR;
-    int             stat = 0;
+    int             verify_ok = 0;
 
     /* Initialize r and s. */
     ret = mp_init_multi(&r, &s, NULL, NULL, NULL, NULL);
@@ -14078,25 +14078,25 @@ static int test_wc_ecc_verify_hash_ex (void)
     if (ret == 0) {
         ret = wc_ecc_sign_hash_ex(hash, hashlen, &rng, &key, &r, &s);
         if (ret == 0) {
-            /* stat should be 1. */
-            ret = wc_ecc_verify_hash_ex(&r, &s, hash, hashlen, &stat, &key);
-            if (stat != 1 && ret == 0) {
+            /* verify_ok should be 1. */
+            ret = wc_ecc_verify_hash_ex(&r, &s, hash, hashlen, &verify_ok, &key);
+            if (verify_ok != 1 && ret == 0) {
                 ret = WOLFSSL_FATAL_ERROR;
             }
         }
         if (ret == 0) {
-            /* stat should be 0 */
+            /* verify_ok should be 0 */
             ret = wc_ecc_verify_hash_ex(&r, &s, iHash, iHashLen,
-                                                    &stat, &key);
-            if (stat != 0 && ret == 0) {
+                                                    &verify_ok, &key);
+            if (verify_ok != 0 && ret == 0) {
                 ret = WOLFSSL_FATAL_ERROR;
             }
         }
         if (ret == 0) {
-            /* stat should be 0. */
+            /* verify_ok should be 0. */
             ret = wc_ecc_verify_hash_ex(&r, &s, shortHash, shortHashLen,
-                                                            &stat, &key);
-            if (stat != 0 && ret == 0) {
+                                                            &verify_ok, &key);
+            if (verify_ok != 0 && ret == 0) {
                 ret = WOLFSSL_FATAL_ERROR;
             }
         }
@@ -14130,15 +14130,15 @@ static int test_wc_ecc_verify_hash_ex (void)
     printf(testingFmt, "wc_ecc_verify_hash_ex()");
     /* Test bad args. */
     if (ret == 0) {
-        if (wc_ecc_verify_hash_ex(NULL, &s, shortHash, shortHashLen, &stat, &key)
+        if (wc_ecc_verify_hash_ex(NULL, &s, shortHash, shortHashLen, &verify_ok, &key)
                                                             == ECC_BAD_ARG_E) {
             ver = 0;
         }
         if (ver == 0 && wc_ecc_verify_hash_ex(&r, NULL, shortHash, shortHashLen,
-                                                &stat, &key) != ECC_BAD_ARG_E) {
+                                                &verify_ok, &key) != ECC_BAD_ARG_E) {
             ver = WOLFSSL_FATAL_ERROR;
         }
-        if (ver == 0 && wc_ecc_verify_hash_ex(&r, &s, NULL, shortHashLen, &stat,
+        if (ver == 0 && wc_ecc_verify_hash_ex(&r, &s, NULL, shortHashLen, &verify_ok,
                                                        &key) != ECC_BAD_ARG_E) {
             ver = WOLFSSL_FATAL_ERROR;
         }
@@ -14147,7 +14147,7 @@ static int test_wc_ecc_verify_hash_ex (void)
             ver = WOLFSSL_FATAL_ERROR;
         }
         if (ver == 0 && wc_ecc_verify_hash_ex(&r, &s, shortHash, shortHashLen,
-                                                &stat, NULL) != ECC_BAD_ARG_E) {
+                                                &verify_ok, NULL) != ECC_BAD_ARG_E) {
             ver = WOLFSSL_FATAL_ERROR;
         }
     }

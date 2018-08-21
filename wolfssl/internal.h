@@ -249,6 +249,11 @@
 
 #ifndef WOLFSSL_MAX_STRENGTH
 
+#ifdef WOLFSSL_AEAD_ONLY
+    /* AES CBC ciphers are not allowed in AEAD only mode */
+    #undef HAVE_AES_CBC
+#endif
+
 #ifndef WOLFSSL_AEAD_ONLY
     #if !defined(NO_RSA) && !defined(NO_RC4)
         #if defined(WOLFSSL_STATIC_RSA)
@@ -282,7 +287,7 @@
             #define BUILD_SSL_RSA_WITH_IDEA_CBC_SHA
         #endif
     #endif
-#endif
+#endif /* !WOLFSSL_AEAD_ONLY */
 
     #if !defined(NO_RSA) && !defined(NO_AES) && !defined(NO_TLS)
         #if !defined(NO_SHA) && defined(HAVE_AES_CBC)
