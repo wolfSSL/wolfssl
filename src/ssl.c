@@ -15544,8 +15544,7 @@ const char* wolfSSL_get_version(WOLFSSL* ssl)
                 return "TLSv1.2";
         #ifdef WOLFSSL_TLS13
             case TLSv1_3_MINOR :
-            /* TODO: [TLS13] Remove draft versions. */
-            #ifndef WOLFSSL_TLS13_FINAL
+            #ifdef WOLFSSL_TLS13_DRAFT
                 #ifdef WOLFSSL_TLS13_DRAFT_18
                     return "TLSv1.3 (Draft 18)";
                 #elif defined(WOLFSSL_TLS13_DRAFT_22)

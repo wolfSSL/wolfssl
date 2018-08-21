@@ -266,7 +266,7 @@ AC_ARG_ENABLE([tls13-draft18],
     )
 if test "$ENABLED_TLS13_DRAFT18" = "yes"
 then
-  AM_CFLAGS="-DWOLFSSL_TLS13_DRAFT_18 $AM_CFLAGS"
+  AM_CFLAGS="-DWOLFSSL_TLS13_DRAFT -DWOLFSSL_TLS13_DRAFT_18 $AM_CFLAGS"
 fi
 
 
@@ -278,7 +278,7 @@ AC_ARG_ENABLE([tls13-draft22],
     )
 if test "$ENABLED_TLS13_DRAFT22" = "yes"
 then
-  AM_CFLAGS="-DWOLFSSL_TLS13_DRAFT_22 $AM_CFLAGS"
+  AM_CFLAGS="-DWOLFSSL_TLS13_DRAFT -DWOLFSSL_TLS13_DRAFT_22 $AM_CFLAGS"
 fi
 
 
@@ -290,7 +290,7 @@ AC_ARG_ENABLE([tls13-draft23],
     )
 if test "$ENABLED_TLS13_DRAFT23" = "yes"
 then
-  AM_CFLAGS="-DWOLFSSL_TLS13_DRAFT_23 $AM_CFLAGS"
+  AM_CFLAGS="-DWOLFSSL_TLS13_DRAFT -DWOLFSSL_TLS13_DRAFT_23 $AM_CFLAGS"
 fi
 
 
@@ -302,7 +302,19 @@ AC_ARG_ENABLE([tls13-draft26],
     )
 if test "$ENABLED_TLS13_DRAFT26" = "yes"
 then
-  AM_CFLAGS="-DWOLFSSL_TLS13_DRAFT_26 $AM_CFLAGS"
+  AM_CFLAGS="-DWOLFSSL_TLS13_DRAFT -DWOLFSSL_TLS13_DRAFT_26 $AM_CFLAGS"
+fi
+
+
+# TLS v1.3 Draft 28
+AC_ARG_ENABLE([tls13-draft28],
+    [AS_HELP_STRING([--enable-tls13-draft28],[Enable wolfSSL TLS v1.3 Draft 28 (default: disabled)])],
+    [ ENABLED_TLS13_DRAFT28=$enableval ],
+    [ ENABLED_TLS13_DRAFT28=no ]
+    )
+if test "$ENABLED_TLS13_DRAFT28" = "yes"
+then
+  AM_CFLAGS="-DWOLFSSL_TLS13_DRAFT $AM_CFLAGS"
 fi
 
 
@@ -313,7 +325,7 @@ AC_ARG_ENABLE([tls13],
     [ ENABLED_TLS13=no ]
     )
 
-if test "$ENABLED_TLS13_DRAFT18" = "yes" || test "$ENABLED_TLS13_DRAFT22" = "yes" || test "$ENABLED_TLS13_DRAFT23" = "yes" || test "$ENABLED_TLS13_DRAFT26" = "yes"
+if test "$ENABLED_TLS13_DRAFT18" = "yes" || test "$ENABLED_TLS13_DRAFT22" = "yes" || test "$ENABLED_TLS13_DRAFT23" = "yes" || test "$ENABLED_TLS13_DRAFT26" = "yes" || test "$ENABLED_TLS13_DRAFT28" = "yes"
 then
     ENABLED_TLS13="yes"
 fi
@@ -4572,6 +4584,7 @@ echo "   * TLS v1.3 Draft 18:          $ENABLED_TLS13_DRAFT18"
 echo "   * TLS v1.3 Draft 22:          $ENABLED_TLS13_DRAFT22"
 echo "   * TLS v1.3 Draft 23:          $ENABLED_TLS13_DRAFT23"
 echo "   * TLS v1.3 Draft 26:          $ENABLED_TLS13_DRAFT26"
+echo "   * TLS v1.3 Draft 28:          $ENABLED_TLS13_DRAFT28"
 echo "   * Post-handshake Auth:        $ENABLED_TLS13_POST_AUTH"
 echo "   * Early Data:                 $ENABLED_TLS13_EARLY_DATA"
 echo "   * Send State in HRR Cookie:   $ENABLED_SEND_HRR_COOKIE"

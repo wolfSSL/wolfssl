@@ -1416,6 +1416,7 @@ static void AddTls13RecordHeader(byte* output, word32 length, byte type,
 #ifdef WOLFSSL_TLS13_DRAFT_18
     rl->pvMinor = TLSv1_MINOR;
 #else
+    /* NOTE: May be TLSv1_MINOR when sending first ClientHello. */
     rl->pvMinor = TLSv1_2_MINOR;
 #endif
     c16toa((word16)length, rl->length);
@@ -3665,13 +3666,6 @@ static int RestartHandshakeHashWithCookie(WOLFSSL* ssl, Cookie* cookie)
 
     idx += hashSz;
     hrrIdx = HANDSHAKE_HEADER_SZ;
-    /* TODO: [TLS13] Replace existing code with code in comment.
-     * Use the TLS v1.3 draft version for now.
-     *
-     * Change to:
-     * hrr[hrrIdx++] = ssl->version.major;
-     * hrr[hrrIdx++] = ssl->version.minor;
-     */
     /* The negotiated protocol version. */
     hrr[hrrIdx++] = TLS_DRAFT_MAJOR;
     hrr[hrrIdx++] = TLS_DRAFT_MINOR;
@@ -3730,13 +3724,12 @@ static int RestartHandshakeHashWithCookie(WOLFSSL* ssl, Cookie* cookie)
     hrrIdx += 2;
     c16toa(OPAQUE16_LEN, hrr + hrrIdx);
     hrrIdx += 2;
-    /* TODO: [TLS13] Change to ssl->version.major and minor once final. */
-    #ifdef WOLFSSL_TLS13_FINAL
-        hrr[hrrIdx++] = ssl->version.major;
-        hrr[hrrIdx++] = ssl->version.minor;
-    #else
+    #ifdef WOLFSSL_TLS13_DRAFT
         hrr[hrrIdx++] = TLS_DRAFT_MAJOR;
         hrr[hrrIdx++] = TLS_DRAFT_MINOR;
+    #else
+        hrr[hrrIdx++] = ssl->version.major;
+        hrr[hrrIdx++] = ssl->version.minor;
     #endif
 #endif
     /* Mandatory Cookie Extension */
@@ -4074,13 +4067,6 @@ int SendTls13HelloRetryRequest(WOLFSSL* ssl)
     /* Add record and hanshake headers. */
     AddTls13Headers(output, length, hello_retry_request, ssl);
 
-    /* TODO: [TLS13] Replace existing code with code in comment.
-     * Use the TLS v1.3 draft version for now.
-     *
-     * Change to:
-     * output[idx++] = ssl->version.major;
-     * output[idx++] = ssl->version.minor;
-     */
     /* The negotiated protocol version. */
     output[idx++] = TLS_DRAFT_MAJOR;
     output[idx++] = TLS_DRAFT_MINOR;
@@ -4171,13 +4157,6 @@ int SendTls13ServerHello(WOLFSSL* ssl, byte extMsgType)
     AddTls13Headers(output, length, server_hello, ssl);
 
 #ifdef WOLFSSL_TLS13_DRAFT_18
-    /* TODO: [TLS13] Replace existing code with code in comment.
-     * Use the TLS v1.3 draft version for now.
-     *
-     * Change to:
-     * output[idx++] = ssl->version.major;
-     * output[idx++] = ssl->version.minor;
-     */
     /* The negotiated protocol version. */
     output[idx++] = TLS_DRAFT_MAJOR;
     output[idx++] = TLS_DRAFT_MINOR;

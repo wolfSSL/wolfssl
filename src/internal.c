@@ -16959,17 +16959,12 @@ exit_dpk:
      */
     int CheckVersion(WOLFSSL *ssl, ProtocolVersion pv)
     {
-#ifdef WOLFSSL_TLS13
-    #ifndef WOLFSSL_TLS13_FINAL
-        /* TODO: [TLS13] Remove this.
-         * Translate the draft TLS v1.3 version to final version.
-         */
+    #ifdef WOLFSSL_TLS13_DRAFT
         if (pv.major == TLS_DRAFT_MAJOR) {
             pv.major = SSLv3_MAJOR;
             pv.minor = TLSv1_3_MINOR;
         }
     #endif
-#endif
 
         #ifdef OPENSSL_EXTRA
         if (ssl->CBIS != NULL) {
