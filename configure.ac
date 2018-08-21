@@ -657,7 +657,7 @@ AC_ARG_ENABLE([lowresource],
 if test "$ENABLED_LOWRESOURCE" = "yes"
 then
     # low memory / flash flags
-    AM_CFLAGS="$AM_CFLAGS -DNO_SESSION_CACHE -DRSA_LOW_MEM -DGCM_SMALL -DCURVE25519_SMALL -DED25519_SMALL"
+    AM_CFLAGS="$AM_CFLAGS -DNO_SESSION_CACHE -DRSA_LOW_MEM -DALT_ECC_SIZE -DGCM_SMALL -DCURVE25519_SMALL -DED25519_SMALL"
 
     # low flash flags
     AM_CFLAGS="$AM_CFLAGS -DUSE_SLOW_SHA -DUSE_SLOW_SHA256 -DUSE_SLOW_SHA512"
@@ -1619,6 +1619,19 @@ then
         AC_MSG_ERROR([trackmemory requires using wolfSSL memory (--enable-memory).])
     fi
 fi
+
+# MEMORY usage logging
+AC_ARG_ENABLE([memorylog],
+    [AS_HELP_STRING([--enable-memorylog],[Enable dynamic memory logging (default: disabled)])],
+    [ ENABLED_MEMORYLOG=$enableval ],
+    [ ENABLED_MEMORYLOG=no ]
+    )
+
+if test "$ENABLED_MEMORYLOG" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MEMORY_LOG"
+fi
+
 
 
 # RSA

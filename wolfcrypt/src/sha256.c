@@ -531,7 +531,7 @@ static int InitSha256(wc_Sha256* sha256)
         word32* W = sha256->W;
         if (W == NULL) {
             W = (word32*)XMALLOC(sizeof(word32) * WC_SHA256_BLOCK_SIZE, NULL,
-                                                              DYNAMIC_TYPE_RNG);
+                                                           DYNAMIC_TYPE_DIGEST);
             if (W == NULL)
                 return MEMORY_E;
             sha256->W = W;
@@ -2708,7 +2708,7 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2_RORX_Len(wc_Sha256* sha256,
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     if (sha224->W != NULL) {
-        XFREE(sha224->W, NULL, DYNAMIC_TYPE_RNG);
+        XFREE(sha224->W, NULL, DYNAMIC_TYPE_DIGEST);
         sha224->W = NULL;
     }
 #endif
@@ -2736,7 +2736,7 @@ void wc_Sha256Free(wc_Sha256* sha256)
 
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     if (sha256->W != NULL) {
-        XFREE(sha256->W, NULL, DYNAMIC_TYPE_RNG);
+        XFREE(sha256->W, NULL, DYNAMIC_TYPE_DIGEST);
         sha256->W = NULL;
     }
 #endif

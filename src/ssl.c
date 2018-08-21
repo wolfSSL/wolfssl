@@ -9655,7 +9655,7 @@ WOLFSSL_SESSION* GetSession(WOLFSSL* ssl, byte* masterSecret,
         return NULL;
 #endif
 
-    if (ssl->arrays)
+    if (!ssl->options.tls1_3 && ssl->arrays != NULL)
         id = ssl->arrays->sessionID;
     else
         id = ssl->session.sessionID;
@@ -9932,8 +9932,17 @@ int AddSession(WOLFSSL* ssl)
     {
         /* Use the session object in the cache for external cache if required.
          */
-        row = HashSession(ssl->arrays->sessionID, ID_LEN, &error) %
-                SESSION_ROWS;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+        if (ssl->options.tls1_3) {
+            row = HashSession(ssl->session.sessionID, ID_LEN, &error) %
+                    SESSION_ROWS;
+        }
+        else
+#endif
+        {
+            row = HashSession(ssl->arrays->sessionID, ID_LEN, &error) %
+                    SESSION_ROWS;
+        }
         if (error != 0) {
             WOLFSSL_MSG("Hash session failed");
 #ifdef HAVE_SESSION_TICKET
@@ -9961,8 +9970,17 @@ int AddSession(WOLFSSL* ssl)
     else
         XMEMCPY(session->masterSecret, ssl->session.masterSecret, SECRET_LEN);
     session->haveEMS = ssl->options.haveEMS;
-    XMEMCPY(session->sessionID, ssl->arrays->sessionID, ID_LEN);
-    session->sessionIDSz = ssl->arrays->sessionIDSz;
+#if defined(WOLFSSL_TLS13) && defined(HAVE_SESSION_TICKET)
+    if (ssl->options.tls1_3) {
+        XMEMCPY(session->sessionID, ssl->session.sessionID, ID_LEN);
+        session->sessionIDSz = ID_LEN;
+    }
+    else
+#endif
+    {
+        XMEMCPY(session->sessionID, ssl->arrays->sessionID, ID_LEN);
+        session->sessionIDSz = ssl->arrays->sessionIDSz;
+    }
 
 #ifdef OPENSSL_EXTRA
     /* If using compatibilty layer then check for and copy over session context
@@ -26114,6 +26132,30 @@ int wolfSSL_PEM_write_RSAPrivateKey(FILE *fp, WOLFSSL_RSA *rsa,
 
 #ifdef HAVE_ECC
 
+#ifdef ALT_ECC_SIZE
+static int SetIndividualInternalEcc(WOLFSSL_BIGNUM* bn, mp_int* mpi)
+{
+    WOLFSSL_MSG("Entering SetIndividualInternal");
+
+    if (bn == NULL || bn->internal == NULL) {
+        WOLFSSL_MSG("bn NULL error");
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    if (mpi == NULL) {
+        WOLFSSL_MSG("mpi NULL error");
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    if (mp_copy((mp_int*)bn->internal, mpi) != MP_OKAY) {
+        WOLFSSL_MSG("mp_copy error");
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    return WOLFSSL_SUCCESS;
+}
+#endif /* ALT_ECC_SIZE */
+
 /* EC_POINT Openssl -> WolfSSL */
 static int SetECPointInternal(WOLFSSL_EC_POINT *p)
 {
@@ -26127,6 +26169,7 @@ static int SetECPointInternal(WOLFSSL_EC_POINT *p)
 
     point = (ecc_point*)p->internal;
 
+#ifndef ALT_ECC_SIZE
     if (p->X != NULL && SetIndividualInternal(p->X, point->x) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("ecc point X error");
         return WOLFSSL_FATAL_ERROR;
@@ -26141,6 +26184,22 @@ static int SetECPointInternal(WOLFSSL_EC_POINT *p)
         WOLFSSL_MSG("ecc point Z error");
         return WOLFSSL_FATAL_ERROR;
     }
+#else
+    if (p->X != NULL && SetIndividualInternalEcc(p->X, point->x) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("ecc point X error");
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    if (p->Y != NULL && SetIndividualInternalEcc(p->Y, point->y) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("ecc point Y error");
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    if (p->Z != NULL && SetIndividualInternalEcc(p->Z, point->z) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("ecc point Z error");
+        return WOLFSSL_FATAL_ERROR;
+    }
+#endif
 
     p->inSet = 1;
 
