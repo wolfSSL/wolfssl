@@ -8539,7 +8539,7 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         domain[0] = '\0';
 
         /* build subject CN as string to return in store */
-        if (args->dCert && args->dCert->subjectCN) {
+        if (args->dCertInit && args->dCert && args->dCert->subjectCN) {
             int subjectCNLen = args->dCert->subjectCNLen;
             if (subjectCNLen > ASN_NAME_MAX-1)
                 subjectCNLen = ASN_NAME_MAX-1;
