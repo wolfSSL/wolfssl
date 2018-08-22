@@ -6966,7 +6966,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     if (err == MP_OKAY) {
         d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 64 * 5, NULL,
-                               DYNAMIC_TYPE_TMP_BUFFER);
+                                                              DYNAMIC_TYPE_RSA);
         if (d == NULL)
             err = MEMORY_E;
     }
@@ -7050,7 +7050,7 @@ int sp_RsaPublic_2048(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     if (d != NULL)
-        XFREE(d, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(d, NULL, DYNAMIC_TYPE_RSA);
 #endif
 
     return err;
@@ -7108,7 +7108,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     if (err == MP_OKAY) {
         t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 32 * 11, NULL,
-                               DYNAMIC_TYPE_TMP_BUFFER);
+                                                              DYNAMIC_TYPE_RSA);
         if (t == NULL)
             err = MEMORY_E;
     }
@@ -7168,7 +7168,7 @@ int sp_RsaPrivate_2048(const byte* in, word32 inLen, mp_int* dm,
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     if (t != NULL) {
         XMEMSET(t, 0, sizeof(sp_digit) * 32 * 11);
-        XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(t, NULL, DYNAMIC_TYPE_RSA);
     }
 #else
     XMEMSET(tmpad, 0, sizeof(tmpad));
@@ -16369,7 +16369,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     if (err == MP_OKAY) {
         d = (sp_digit*)XMALLOC(sizeof(sp_digit) * 96 * 5, NULL,
-                               DYNAMIC_TYPE_TMP_BUFFER);
+                                                              DYNAMIC_TYPE_RSA);
         if (d == NULL)
             err = MEMORY_E;
     }
@@ -16453,7 +16453,7 @@ int sp_RsaPublic_3072(const byte* in, word32 inLen, mp_int* em, mp_int* mm,
 
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     if (d != NULL)
-        XFREE(d, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(d, NULL, DYNAMIC_TYPE_RSA);
 #endif
 
     return err;
@@ -16511,7 +16511,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     if (err == MP_OKAY) {
         t = (sp_digit*)XMALLOC(sizeof(sp_digit) * 48 * 11, NULL,
-                               DYNAMIC_TYPE_TMP_BUFFER);
+                                                              DYNAMIC_TYPE_RSA);
         if (t == NULL)
             err = MEMORY_E;
     }
@@ -16571,7 +16571,7 @@ int sp_RsaPrivate_3072(const byte* in, word32 inLen, mp_int* dm,
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
     if (t != NULL) {
         XMEMSET(t, 0, sizeof(sp_digit) * 48 * 11);
-        XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(t, NULL, DYNAMIC_TYPE_RSA);
     }
 #else
     XMEMSET(tmpad, 0, sizeof(tmpad));

@@ -296,7 +296,7 @@ typedef struct ecc_set_type {
  * fp_digit array will be shorter. */
 typedef struct alt_fp_int {
     int used, sign, size;
-    fp_digit dp[FP_SIZE_ECC];
+    mp_digit dp[FP_SIZE_ECC];
 } alt_fp_int;
 #endif /* ALT_ECC_SIZE */
 
