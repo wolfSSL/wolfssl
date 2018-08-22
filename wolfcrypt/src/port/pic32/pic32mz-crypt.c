@@ -611,7 +611,7 @@ static int wc_Pic32HashFinal(hashUpdCache* cache, byte* stdBuf,
     return ret;
 }
 
-static int wc_Pic32HashFree(hashUpdCache* cache, void* heap)
+static void wc_Pic32HashFree(hashUpdCache* cache, void* heap)
 {
     if (cache && cache->buf && !cache->isCopy) {
         XFREE(cache->buf, heap, DYNAMIC_TYPE_HASH_TMP);
