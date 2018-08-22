@@ -174,6 +174,7 @@ WOLFSSL_API int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,
     PKCS7 pkcs7;
     int ret;
 
+    byte data[] = {}; // initialize with data to sign
     byte derBuff[] = { }; // initialize with DER-encoded certificate
     byte pkcs7Buff[FOURK_BUF];
 
@@ -183,12 +184,16 @@ WOLFSSL_API int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,
     pkcs7.privateKeySz = keySz;
     pkcs7.content = data;
     pkcs7.contentSz = dataSz;
+    pkcs7.hashOID = SHAh;
+    pkcs7.rng = &rng;
     ... etc.
 
     ret = wc_PKCS7_EncodeSignedData(&pkcs7, pkcs7Buff, sizeof(pkcs7Buff));
     if ( ret != 0 ) {
     	// error encoding into output buffer
     }
+
+    wc_PKCS7_Free(&pkcs7);
     \endcode
 
     \sa wc_PKCS7_InitWithCert
@@ -196,6 +201,107 @@ WOLFSSL_API int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,
 */
 WOLFSSL_API int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
                                        byte* output, word32 outputSz);
+
+/*!
+    \ingroup PKCS7
+
+    \brief This function builds the PKCS7 signed data content type, encoding
+    the PKCS7 structure into a header and footer buffer containing a parsable PKCS7
+    signed data packet. This does not include the content. 
+    A hash must be computed and provided for the data 
+
+    \return 0=Success
+    \return BAD_FUNC_ARG Returned if the PKCS7 structure is missing one or
+    more required elements to generate a signed data packet
+    \return MEMORY_E Returned if there is an error allocating memory
+    \return PUBLIC_KEY_E Returned if there is an error parsing the public key
+    \return RSA_BUFFER_E Returned if buffer error, output too small or input
+    too large
+    \return BUFFER_E Returned if the given buffer is not large enough to hold
+    the encoded certificate
+    \return MP_INIT_E may be returned if there is an error generating
+    the signature
+    \return MP_READ_E may be returned if there is an error generating
+    the signature
+    \return MP_CMP_E may be returned if there is an error generating
+    the signature
+    \return MP_INVMOD_E may be returned if there is an error generating
+    the signature
+    \return MP_EXPTMOD_E may be returned if there is an error generating
+    the signature
+    \return MP_MOD_E may be returned if there is an error generating
+    the signature
+    \return MP_MUL_E may be returned if there is an error generating
+    the signature
+    \return MP_ADD_E may be returned if there is an error generating
+    the signature
+    \return MP_MULMOD_E may be returned if there is an error generating
+    the signature
+    \return MP_TO_E may be returned if there is an error generating
+    the signature
+    \return MP_MEM may be returned if there is an error generating the signature
+
+    \param pkcs7 pointer to the PKCS7 structure to encode
+    \param hashBuf pointer to computed hash for the content data
+    \param hashSz size of the digest
+    \param outputHead pointer to the buffer in which to store the
+    encoded certificate header
+    \param outputHeadSz pointer populated with size of output header buffer 
+    and returns actual size
+    \param outputFoot pointer to the buffer in which to store the
+    encoded certificate footer
+    \param outputFootSz pointer populated with size of output footer buffer 
+    and returns actual size
+
+    _Example_
+    \code
+    PKCS7 pkcs7;
+    int ret;
+    byte derBuff[] = { }; // initialize with DER-encoded certificate
+    byte data[] = {}; // initialize with data to sign
+    byte pkcs7HeadBuff[FOURK_BUF/2];
+    byte pkcs7FootBuff[FOURK_BUF/2];
+    word32 pkcs7HeadSz = (word32)sizeof(pkcs7HeadBuff);
+    word32 pkcs7FootSz = (word32)sizeof(pkcs7HeadBuff);
+    enum wc_HashType hashType = WC_HASH_TYPE_SHA;
+    byte   hashBuf[WC_MAX_DIGEST_SIZE];
+    word32 hashSz = wc_HashGetDigestSize(hashType);
+
+    wc_PKCS7_InitWithCert(&pkcs7, derBuff, sizeof(derBuff));
+    // update message and data to encode
+    pkcs7.privateKey = key;
+    pkcs7.privateKeySz = keySz;
+    pkcs7.content = NULL;
+    pkcs7.contentSz = dataSz;
+    pkcs7.hashOID = SHAh;
+    pkcs7.rng = &rng;
+    ... etc.
+
+    // calculate hash for content
+    ret = wc_HashInit(&hash, hashType);
+    if (ret == 0) {
+        ret = wc_HashUpdate(&hash, hashType, data, sizeof(data));
+        if (ret == 0) {
+            ret = wc_HashFinal(&hash, hashType, hashBuf);
+        }
+        wc_HashFree(&hash, hashType);
+    }
+
+    ret = wc_PKCS7_EncodeSignedData_ex(&pkcs7, hashBuf, hashSz, pkcs7HeadBuff, 
+        &pkcs7HeadSz, pkcs7FootBuff, &pkcs7FootSz);
+    if ( ret != 0 ) {
+        // error encoding into output buffer
+    }
+
+    wc_PKCS7_Free(&pkcs7);
+    \endcode
+
+    \sa wc_PKCS7_InitWithCert
+    \sa wc_PKCS7_VerifySignedData_ex
+*/
+WOLFSSL_API int wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf, 
+    word32 hashSz, byte* outputHead, word32* outputHeadSz, byte* outputFoot, 
+    word32* outputFootSz);
 
 /*!
     \ingroup PKCS7
@@ -250,11 +356,9 @@ WOLFSSL_API int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
     \code
     PKCS7 pkcs7;
     int ret;
+    byte pkcs7Buff[] = {}; // the PKCS7 signature
 
-    byte derBuff[] = { }; // initialize with DER-encoded certificate
-    byte pkcs7Buff[FOURK_BUF];
-
-    wc_PKCS7_InitWithCert(&pkcs7, derBuff, sizeof(derBuff));
+    wc_PKCS7_InitWithCert(&pkcs7, NULL, 0);
     // update message and data to encode
     pkcs7.privateKey = key;
     pkcs7.privateKeySz = keySz;
@@ -262,10 +366,12 @@ WOLFSSL_API int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
     pkcs7.contentSz = dataSz;
     ... etc.
 
-    ret = wc_PKCS7_EncodeSignedData(&pkcs7, pkcs7Buff, sizeof(pkcs7Buff));
+    ret = wc_PKCS7_VerifySignedData(&pkcs7, pkcs7Buff, sizeof(pkcs7Buff));
     if ( ret != 0 ) {
     	// error encoding into output buffer
     }
+
+    wc_PKCS7_Free(&pkcs7);
     \endcode
 
     \sa wc_PKCS7_InitWithCert
@@ -273,6 +379,107 @@ WOLFSSL_API int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
 */
 WOLFSSL_API int  wc_PKCS7_VerifySignedData(PKCS7* pkcs7,
                                        byte* pkiMsg, word32 pkiMsgSz);
+
+
+/*!
+    \ingroup PKCS7
+
+    \brief This function takes in a transmitted PKCS7 signed data message as 
+    hash/header/footer, then extracts the certificate list and certificate 
+    revocation list, and then verifies the signature. It stores the extracted 
+    content in the given PKCS7 structure.
+
+    \return 0 Returned on successfully extracting the information
+    from the message
+    \return BAD_FUNC_ARG Returned if one of the input parameters is invalid
+    \return ASN_PARSE_E Returned if there is an error parsing from the
+    given pkiMsg
+    \return PKCS7_OID_E Returned if the given pkiMsg is not a signed data type
+    \return ASN_VERSION_E Returned if the PKCS7 signer info is not version 1
+    \return MEMORY_E Returned if there is an error allocating memory
+    \return PUBLIC_KEY_E Returned if there is an error parsing the public key
+    \return RSA_BUFFER_E Returned if buffer error, output too small or
+    input too large
+    \return BUFFER_E Returned if the given buffer is not large enough to
+    hold the encoded certificate
+    \return MP_INIT_E may be returned if there is an error generating
+    the signature
+    \return MP_READ_E may be returned if there is an error generating
+    the signature
+    \return MP_CMP_E may be returned if there is an error generating
+    the signature
+    \return MP_INVMOD_E may be returned if there is an error generating
+    the signature
+    \return MP_EXPTMOD_E may be returned if there is an error generating
+    the signature
+    \return MP_MOD_E may be returned if there is an error generating
+    the signature
+    \return MP_MUL_E may be returned if there is an error generating
+    the signature
+    \return MP_ADD_E may be returned if there is an error generating
+    the signature
+    \return MP_MULMOD_E may be returned if there is an error generating
+    the signature
+    \return MP_TO_E may be returned if there is an error generating
+    the signature
+    \return MP_MEM may be returned if there is an error generating the signature
+
+    \param pkcs7 pointer to the PKCS7 structure in which to store the parsed
+    certificates
+    \param hashBuf pointer to computed hash for the content data
+    \param hashSz size of the digest
+    \param pkiMsgHead pointer to the buffer containing the signed message header 
+    to verify and decode
+    \param pkiMsgHeadSz size of the signed message header
+    \param pkiMsgFoot pointer to the buffer containing the signed message footer 
+    to verify and decode
+    \param pkiMsgFootSz size of the signed message footer
+
+    _Example_
+    \code
+    PKCS7 pkcs7;
+    int ret;
+    byte data[] = {}; // initialize with data to sign
+    byte pkcs7HeadBuff[] = {}; // initialize with PKCS7 header
+    byte pkcs7FootBuff[] = {}; // initialize with PKCS7 footer
+    enum wc_HashType hashType = WC_HASH_TYPE_SHA;
+    byte   hashBuf[WC_MAX_DIGEST_SIZE];
+    word32 hashSz = wc_HashGetDigestSize(hashType);
+
+    wc_PKCS7_InitWithCert(&pkcs7, NULL, 0);
+    // update message and data to encode
+    pkcs7.privateKey = key;
+    pkcs7.privateKeySz = keySz;
+    pkcs7.content = NULL;
+    pkcs7.contentSz = dataSz;
+    pkcs7.rng = &rng;
+    ... etc.
+
+    // calculate hash for content
+    ret = wc_HashInit(&hash, hashType);
+    if (ret == 0) {
+        ret = wc_HashUpdate(&hash, hashType, data, sizeof(data));
+        if (ret == 0) {
+            ret = wc_HashFinal(&hash, hashType, hashBuf);
+        }
+        wc_HashFree(&hash, hashType);
+    }
+
+    ret = wc_PKCS7_VerifySignedData_ex(&pkcs7, hashBuf, hashSz, pkcs7HeadBuff, 
+        sizeof(pkcs7HeadBuff), pkcs7FootBuff, sizeof(pkcs7FootBuff));
+    if ( ret != 0 ) {
+        // error encoding into output buffer
+    }
+
+    wc_PKCS7_Free(&pkcs7);
+    \endcode
+
+    \sa wc_PKCS7_InitWithCert
+    \sa wc_PKCS7_EncodeSignedData_ex
+*/
+WOLFSSL_API int wc_PKCS7_VerifySignedData_ex(PKCS7* pkcs7, const byte* hashBuf, 
+    word32 hashSz, byte* pkiMsgHead, word32 pkiMsgHeadSz, byte* pkiMsgFoot, 
+    word32 pkiMsgFootSz);
 
 /*!
     \ingroup PKCS7

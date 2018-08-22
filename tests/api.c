@@ -14525,7 +14525,7 @@ static void test_wc_PKCS7_EncodeData (void)
 /*
  * Testing wc_PKCS7_EncodeSignedData()
  */
-static void test_wc_PKCS7_EncodeSignedData (void)
+static void test_wc_PKCS7_EncodeSignedData(void)
 {
 #if defined(HAVE_PKCS7)
     PKCS7       pkcs7;
@@ -14628,6 +14628,8 @@ static void test_wc_PKCS7_EncodeSignedData (void)
     AssertIntEQ(wc_PKCS7_EncodeSignedData(&pkcs7, NULL, outputSz), BAD_FUNC_ARG);
     AssertIntEQ(wc_PKCS7_EncodeSignedData(&pkcs7, badOut,
                                 badOutSz), BAD_FUNC_ARG);
+    pkcs7.hashOID = 0; /* bad hashOID */
+    AssertIntEQ(wc_PKCS7_EncodeSignedData(&pkcs7, output, outputSz), BAD_FUNC_ARG);
 
     printf(resultFmt, passed);
 
@@ -14636,6 +14638,197 @@ static void test_wc_PKCS7_EncodeSignedData (void)
 
 #endif
 } /* END test_wc_PKCS7_EncodeSignedData */
+
+/*
+ * Testing wc_PKCS7_EncodeSignedData_ex() and wc_PKCS7_VerifySignedData_ex()
+ */
+static void test_wc_PKCS7_EncodeSignedData_ex(void)
+{
+#if defined(HAVE_PKCS7)
+    int         ret, i;
+    PKCS7       pkcs7;
+    WC_RNG      rng;
+    byte        outputHead[FOURK_BUF/2];
+    byte        outputFoot[FOURK_BUF/2];
+    word32      outputHeadSz = (word32)sizeof(outputHead);
+    word32      outputFootSz = (word32)sizeof(outputFoot);
+    byte        data[FOURK_BUF];
+    wc_HashAlg  hash;
+    enum wc_HashType hashType = WC_HASH_TYPE_SHA;
+    byte        hashBuf[WC_MAX_DIGEST_SIZE];
+    word32      hashSz = wc_HashGetDigestSize(hashType);
+
+#ifndef NO_RSA
+    #if defined(USE_CERT_BUFFERS_2048)
+        byte        key[sizeof_client_key_der_2048];
+        byte        cert[sizeof_client_cert_der_2048];
+        word32      keySz = (word32)sizeof(key);
+        word32      certSz = (word32)sizeof(cert);
+        XMEMSET(key, 0, keySz);
+        XMEMSET(cert, 0, certSz);
+        XMEMCPY(key, client_key_der_2048, keySz);
+        XMEMCPY(cert, client_cert_der_2048, certSz);
+    #elif defined(USE_CERT_BUFFERS_1024)
+        byte        key[sizeof_client_key_der_1024];
+        byte        cert[sizeof_client_cert_der_1024];
+        word32      keySz = (word32)sizeof(key);
+        word32      certSz = (word32)sizeof(cert);
+        XMEMSET(key, 0, keySz);
+        XMEMSET(cert, 0, certSz);
+        XMEMCPY(key, client_key_der_1024, keySz);
+        XMEMCPY(cert, client_cert_der_1024, certSz);
+    #else
+        unsigned char   cert[ONEK_BUF];
+        unsigned char   key[ONEK_BUF];
+        FILE*           fp;
+        int             certSz;
+        int             keySz;
+
+        fp = fopen("./certs/1024/client-cert.der", "rb");
+        AssertNotNull(fp);
+        certSz = fread(cert, 1, sizeof_client_cert_der_1024, fp);
+        fclose(fp);
+
+        fp = fopen("./certs/1024/client-key.der", "rb");
+        AssertNotNull(fp);
+        keySz = fread(key, 1, sizeof_client_key_der_1024, fp);
+        fclose(fp);
+    #endif
+#elif defined(HAVE_ECC)
+    #if defined(USE_CERT_BUFFERS_256)
+        unsigned char    cert[sizeof_cliecc_cert_der_256];
+        unsigned char    key[sizeof_ecc_clikey_der_256];
+        int              certSz = (int)sizeof(cert);
+        int              keySz = (int)sizeof(key);
+        XMEMSET(cert, 0, certSz);
+        XMEMSET(key, 0, keySz);
+        XMEMCPY(cert, cliecc_cert_der_256, sizeof_cliecc_cert_der_256);
+        XMEMCPY(key, ecc_clikey_der_256, sizeof_ecc_clikey_der_256);
+    #else
+        unsigned char   cert[ONEK_BUF];
+        unsigned char   key[ONEK_BUF];
+        FILE*           fp;
+        int             certSz, keySz;
+
+        fp = fopen("./certs/client-ecc-cert.der", "rb");
+        AssertNotNull(fp);
+        certSz = fread(cert, 1, sizeof_cliecc_cert_der_256, fp);
+        fclose(fp);
+
+        fp = fopen("./certs/client-ecc-key.der", "rb");
+        AssertNotNull(fp);
+        keySz = fread(key, 1, sizeof_ecc_clikey_der_256, fp);
+        fclose(fp);
+    #endif
+#endif
+
+    /* initialize large data with sequence */
+    for (i=0; i<(int)sizeof(data); i++)
+        data[i] = i & 0xff;
+
+    XMEMSET(outputHead, 0, outputHeadSz);
+    XMEMSET(outputFoot, 0, outputFootSz);
+    AssertIntEQ(wc_InitRng(&rng), 0);
+
+    AssertIntEQ(wc_PKCS7_Init(&pkcs7, HEAP_HINT, INVALID_DEVID), 0);
+
+    AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, cert, certSz), 0);
+
+    printf(testingFmt, "wc_PKCS7_EncodeSignedData()");
+
+    pkcs7.content = NULL; /* not used for ex */
+    pkcs7.contentSz = (word32)sizeof(data);
+    pkcs7.privateKey = key;
+    pkcs7.privateKeySz = (word32)sizeof(key);
+    pkcs7.encryptOID = RSAk;
+    pkcs7.hashOID = SHAh;
+    pkcs7.rng = &rng;
+
+    /* calculate hash for content */
+    ret = wc_HashInit(&hash, hashType);
+    if (ret == 0) {
+        ret = wc_HashUpdate(&hash, hashType, data, sizeof(data));
+        if (ret == 0) {
+            ret = wc_HashFinal(&hash, hashType, hashBuf);
+        }
+        wc_HashFree(&hash, hashType);
+    }
+    AssertIntEQ(ret, 0);
+
+    /* Perform PKCS7 sign using hash directly */
+    AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(&pkcs7, hashBuf, hashSz,
+        outputHead, &outputHeadSz, outputFoot, &outputFootSz), 0);
+    AssertIntGT(outputHeadSz, 0);
+    AssertIntGT(outputFootSz, 0);
+
+    wc_PKCS7_Free(&pkcs7);
+    AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, NULL, 0), 0);
+
+    /* required parameter even on verify when using _ex */
+    pkcs7.contentSz = (word32)sizeof(data);
+    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(&pkcs7, hashBuf, hashSz,
+        outputHead, outputHeadSz, outputFoot, outputFootSz), 0);
+
+    wc_PKCS7_Free(&pkcs7);
+
+    /* assembly complete PKCS7 sign and use normal verify */
+    {
+        byte* output = (byte*)XMALLOC(outputHeadSz + sizeof(data) + outputFootSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        word32 outputSz = 0;
+        AssertNotNull(output);
+        XMEMCPY(&output[outputSz], outputHead, outputHeadSz);
+        outputSz += outputHeadSz;
+        XMEMCPY(&output[outputSz], data, sizeof(data));
+        outputSz += sizeof(data);
+        XMEMCPY(&output[outputSz], outputFoot, outputFootSz);
+        outputSz += outputFootSz;
+
+        AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, NULL, 0), 0);
+        AssertIntEQ(wc_PKCS7_VerifySignedData(&pkcs7, output, outputSz), 0);
+        XFREE(output, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    }
+
+    /* Pass in bad args. */
+    AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(NULL, hashBuf, hashSz, outputHead,
+        &outputHeadSz, outputFoot, &outputFootSz), BAD_FUNC_ARG);
+    AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(&pkcs7, NULL, hashSz, outputHead,
+        &outputHeadSz, outputFoot, &outputFootSz), BAD_FUNC_ARG);
+    AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(&pkcs7, hashBuf, 0, outputHead,
+        &outputHeadSz, outputFoot, &outputFootSz), BAD_FUNC_ARG);
+    AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(&pkcs7, hashBuf, hashSz, NULL,
+        &outputHeadSz, outputFoot, &outputFootSz), BAD_FUNC_ARG);
+    AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(&pkcs7, hashBuf, hashSz,
+        outputHead, NULL, outputFoot, &outputFootSz), BAD_FUNC_ARG);
+    AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(&pkcs7, hashBuf, hashSz,
+        outputHead, &outputHeadSz, NULL, &outputFootSz), BAD_FUNC_ARG);
+    AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(&pkcs7, hashBuf, hashSz,
+        outputHead, &outputHeadSz, outputFoot, NULL), BAD_FUNC_ARG);
+    pkcs7.hashOID = 0; /* bad hashOID */
+    AssertIntEQ(wc_PKCS7_EncodeSignedData_ex(&pkcs7, hashBuf, hashSz,
+        outputHead, &outputHeadSz, outputFoot, &outputFootSz), BAD_FUNC_ARG);
+
+    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(NULL, hashBuf, hashSz, outputHead,
+        outputHeadSz, outputFoot, outputFootSz), BAD_FUNC_ARG);
+    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(&pkcs7, NULL, hashSz, outputHead,
+        outputHeadSz, outputFoot, outputFootSz), ASN_PARSE_E);
+    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(&pkcs7, hashBuf, 0, outputHead,
+        outputHeadSz, outputFoot, outputFootSz), ASN_PARSE_E);
+    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(&pkcs7, hashBuf, hashSz, NULL,
+        outputHeadSz, outputFoot, outputFootSz), BAD_FUNC_ARG);
+    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(&pkcs7, hashBuf, hashSz,
+        outputHead, 0, outputFoot, outputFootSz), BAD_FUNC_ARG);
+    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(&pkcs7, hashBuf, hashSz,
+        outputHead, outputHeadSz, NULL, outputFootSz), ASN_PARSE_E);
+    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(&pkcs7, hashBuf, hashSz,
+        outputHead, outputHeadSz, outputFoot, 0), ASN_PARSE_E);
+
+    printf(resultFmt, passed);
+
+    wc_PKCS7_Free(&pkcs7);
+    wc_FreeRng(&rng);
+
+#endif
+} /* END test_wc_PKCS7_EncodeSignedData_ex */
 
 
 /*
@@ -20656,6 +20849,7 @@ void ApiTest(void)
     test_wc_PKCS7_InitWithCert();
     test_wc_PKCS7_EncodeData();
     test_wc_PKCS7_EncodeSignedData();
+    test_wc_PKCS7_EncodeSignedData_ex();
     test_wc_PKCS7_VerifySignedData();
     test_wc_PKCS7_EncodeDecodeEnvelopedData();
     test_wc_PKCS7_EncodeEncryptedData();
