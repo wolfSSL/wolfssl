@@ -1064,11 +1064,6 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     const byte* hashBuf, word32 hashSz, byte* output, word32* outputSz,
     byte* output2, word32* output2Sz)
 {
-    /* id-signedData (1.2.840.113549.1.7.2) */
-    static const byte outerOid[] =
-        { ASN_OBJECT_ID, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01,
-                         0x07, 0x02 };
-
     /* contentType OID (1.2.840.113549.1.9.3) */
     const byte contentTypeOid[] =
             { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xF7, 0x0d, 0x01,
@@ -1085,8 +1080,9 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     int digEncAlgoId, digEncAlgoType;
     byte* flatSignedAttribs = NULL;
     word32 flatSignedAttribsSz = 0;
-    word32 innerOidSz = sizeof(innerOid);
-    word32 outerOidSz = sizeof(outerOid);
+
+    byte signedDataOid[MAX_OID_SZ];
+    word32 signedDataOidSz;
 
     if (pkcs7 == NULL || pkcs7->contentSz == 0 ||
         pkcs7->encryptOID == 0 || pkcs7->hashOID == 0 || pkcs7->rng == 0 ||
@@ -1116,11 +1112,24 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
 
         ret = wc_SetContentType(pkcs7->contentOID, pkcs7->contentType,
                                 sizeof(pkcs7->contentType));
-        if (ret < 0)
+        if (ret < 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
             return ret;
-
+        }
         pkcs7->contentTypeSz = ret;
     }
+
+    /* set signedData outer content type */
+    ret = wc_SetContentType(SIGNED_DATA, signedDataOid, sizeof(signedDataOid));
+    if (ret < 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(esd, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        return ret;
+    }
+    signedDataOidSz = ret;
 
     esd->hashType = wc_OidGetHash(pkcs7->hashOID);
     if (wc_HashGetDigestSize(esd->hashType) != (int)hashSz) {
@@ -1238,14 +1247,14 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     esd->versionSz = SetMyVersion(1, esd->version, 0);
 
     totalSz = esd->versionSz + esd->singleDigAlgoIdSz + esd->digAlgoIdSetSz +
-              esd->contentInfoSeqSz + innerOidSz + esd->innerContSeqSz +
-              esd->innerOctetsSz + pkcs7->contentSz;
+              esd->contentInfoSeqSz + pkcs7->contentTypeSz +
+              esd->innerContSeqSz + esd->innerOctetsSz + pkcs7->contentSz;
     total2Sz = esd->certsSetSz + pkcs7->singleCertSz + signerInfoSz;
 
     esd->innerSeqSz = SetSequence(totalSz + total2Sz, esd->innerSeq);
     totalSz += esd->innerSeqSz;
     esd->outerContentSz = SetExplicit(0, totalSz + total2Sz, esd->outerContent);
-    totalSz += esd->outerContentSz + outerOidSz;
+    totalSz += esd->outerContentSz + signedDataOidSz;
     esd->outerSeqSz = SetSequence(totalSz + total2Sz, esd->outerSeq);
     totalSz += esd->outerSeqSz;
 
@@ -1268,8 +1277,8 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     idx = 0;
     XMEMCPY(output + idx, esd->outerSeq, esd->outerSeqSz);
     idx += esd->outerSeqSz;
-    XMEMCPY(output + idx, outerOid, outerOidSz);
-    idx += outerOidSz;
+    XMEMCPY(output + idx, signedDataOid, signedDataOidSz);
+    idx += signedDataOidSz;
     XMEMCPY(output + idx, esd->outerContent, esd->outerContentSz);
     idx += esd->outerContentSz;
     XMEMCPY(output + idx, esd->innerSeq, esd->innerSeqSz);
