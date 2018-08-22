@@ -199,6 +199,7 @@ static WC_INLINE int IsEncryptionOn(WOLFSSL* ssl, int isSend)
 }
 
 
+#if defined(WOLFSSL_DTLS) || !defined(WOLFSSL_NO_TLS12)
 /* If SCTP is not enabled returns the state of the dtls option.
  * If SCTP is enabled returns dtls && !sctp. */
 static WC_INLINE int IsDtlsNotSctpMode(WOLFSSL* ssl)
@@ -213,6 +214,7 @@ static WC_INLINE int IsDtlsNotSctpMode(WOLFSSL* ssl)
 
     return result;
 }
+#endif /* DTLS || !WOLFSSL_NO_TLS12 */
 
 
 #ifdef HAVE_QSH
@@ -2902,6 +2904,7 @@ void FreeX509(WOLFSSL_X509* x509)
 
 
 #if !defined(NO_WOLFSSL_SERVER) || !defined(NO_WOLFSSL_CLIENT)
+#if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_NO_CLIENT_AUTH)
 /* Encode the signature algorithm into buffer.
  *
  * hashalgo  The hash algorithm.
@@ -2943,7 +2946,6 @@ static WC_INLINE void EncodeSigAlg(byte hashAlgo, byte hsType, byte* output)
     (void)output;
 }
 
-#if !defined(WOLFSSL_NO_TLS12) && !defined(WOLFSSL_NO_CLIENT_AUTH)
 static void SetDigest(WOLFSSL* ssl, int hashAlgo)
 {
     switch (hashAlgo) {
@@ -5485,6 +5487,8 @@ void FreeSSL(WOLFSSL* ssl, void* heap)
 #if !defined(NO_OLD_TLS) || defined(WOLFSSL_DTLS) || \
     ((defined(HAVE_CHACHA) || defined(HAVE_AESCCM) || defined(HAVE_AESGCM)) \
      && defined(HAVE_AEAD))
+
+#if defined(WOLFSSL_DTLS) || !defined(WOLFSSL_NO_TLS12)
 static WC_INLINE void GetSEQIncrement(WOLFSSL* ssl, int verify, word32 seq[2])
 {
     if (verify) {
@@ -5504,6 +5508,7 @@ static WC_INLINE void GetSEQIncrement(WOLFSSL* ssl, int verify, word32 seq[2])
         }
     }
 }
+#endif /* WOLFSSL_DTLS || !WOLFSSL_NO_TLS12 */
 
 
 #ifdef WOLFSSL_DTLS
@@ -5579,7 +5584,7 @@ static WC_INLINE void DtlsSEQIncrement(WOLFSSL* ssl, int order)
 }
 #endif /* WOLFSSL_DTLS */
 
-
+#if defined(WOLFSSL_DTLS) || !defined(WOLFSSL_NO_TLS12)
 static WC_INLINE void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
 {
     word32 seq[2] = {0, 0};
@@ -5596,7 +5601,9 @@ static WC_INLINE void WriteSEQ(WOLFSSL* ssl, int verifyOrder, byte* out)
     c32toa(seq[0], out);
     c32toa(seq[1], out + OPAQUE32_LEN);
 }
-#endif
+#endif /* WOLFSSL_DTLS || !WOLFSSL_NO_TLS12 */
+#endif /* !NO_OLD_TLS || WOLFSSL_DTLS ||
+        *     ((HAVE_CHACHA || HAVE_AESCCM || HAVE_AESGCM) && HAVE_AEAD) */
 
 #ifdef WOLFSSL_DTLS
 
