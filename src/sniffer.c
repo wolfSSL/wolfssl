@@ -1166,7 +1166,7 @@ static int LoadKeyFile(byte** keyBuf, word32* keyBufSz,
 
     file = XFOPEN(keyFile, "rb");
     if (file == XBADFILE) return -1;
-    XFSEEK(file, 0, XSEEK_END);
+    if(XFSEEK(file, 0, XSEEK_END) != 0) return -1;
     fileSz = XFTELL(file);
     XREWIND(file);
 

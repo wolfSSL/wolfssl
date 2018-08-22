@@ -15974,7 +15974,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
 
         file = XFOPEN(fname, "rb");
         AssertTrue((file != XBADFILE));
-        XFSEEK(file, 0, XSEEK_END);
+        AssertTrue(XFSEEK(file, 0, XSEEK_END) == 0);
         sz = XFTELL(file);
         XREWIND(file);
         AssertNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
@@ -16004,7 +16004,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
 
         file = XFOPEN(fname, "rb");
         AssertTrue((file != XBADFILE));
-        XFSEEK(file, 0, XSEEK_END);
+        AssertTrue(XFSEEK(file, 0, XSEEK_END) == 0);
         sz = XFTELL(file);
         XREWIND(file);
         AssertNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
@@ -18245,7 +18245,7 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
 
         file = XFOPEN(fname, "rb");
         AssertTrue((file != XBADFILE));
-        XFSEEK(file, 0, XSEEK_END);
+        AssertTrue(XFSEEK(file, 0, XSEEK_END) == 0);
         sz = XFTELL(file);
         XREWIND(file);
         AssertNotNull(buf = (byte*)XMALLOC(sz, HEAP_HINT, DYNAMIC_TYPE_FILE));
@@ -18273,7 +18273,7 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
 
         file = XFOPEN(fname, "rb");
         AssertTrue((file != XBADFILE));
-        XFSEEK(file, 0, XSEEK_END);
+        AssertTrue(XFSEEK(file, 0, XSEEK_END) == 0);
         sz = XFTELL(file);
         XREWIND(file);
         AssertNotNull(buf = (byte*)XMALLOC(sz, HEAP_HINT, DYNAMIC_TYPE_FILE));
