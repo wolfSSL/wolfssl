@@ -4861,6 +4861,92 @@ int GetTimeString(byte* date, int format, char* buf, int len)
 #endif /* OPENSSL_ALL || WOLFSSL_MYSQL_COMPATIBLE || WOLFSSL_NGINX || WOLFSSL_HAPROXY */
 
 
+#if !defined(NO_ASN_TIME) && defined(HAVE_PKCS7)
+
+/* set current time string, either UTC or GeneralizedTime */
+int GetAsnTimeString(byte* buf, word32 len)
+{
+    time_t currTime;
+    struct tm* ts      = NULL;
+    struct tm* tmpTime = NULL;
+#if defined(NEED_TMP_TIME)
+    struct tm tmpTimeStorage;
+    tmpTime = &tmpTimeStorage;
+#else
+    (void)tmpTime;
+#endif
+    byte* data_ptr  = buf;
+    word32 data_len = 0;
+    int year, mon, day, hour, min, sec;
+
+    WOLFSSL_ENTER("SetAsnTimeString");
+
+    if (buf == NULL || len == 0)
+        return BAD_FUNC_ARG;
+
+    currTime = XTIME(0);
+    ts = (struct tm *)XGMTIME(&currTime, tmpTime);
+    if (ts == NULL){
+        WOLFSSL_MSG("failed to get time data.");
+        return ASN_TIME_E;
+    }
+
+    /* Note ASN_UTC_TIME_SIZE and ASN_GENERALIZED_TIME_SIZE include space for
+     * the null terminator. ASN encoded values leave off the terminator. */
+
+    if (ts->tm_year >= 50 && ts->tm_year < 150){
+        /* UTC Time */
+        char utc_str[ASN_UTC_TIME_SIZE];
+        data_len = ASN_UTC_TIME_SIZE -1 + 2;
+
+        if (len < data_len)
+            return BUFFER_E;
+
+        if (ts->tm_year >= 50 && ts->tm_year < 100){
+            year = ts->tm_year;
+        } else if (ts->tm_year >= 100 && ts->tm_year < 150){
+            year = ts->tm_year - 100;
+        }
+        mon  = ts->tm_mon + 1;
+        day  = ts->tm_mday;
+        hour = ts->tm_hour;
+        min  = ts->tm_min;
+        sec  = ts->tm_sec;
+        XSNPRINTF((char *)utc_str, ASN_UTC_TIME_SIZE,
+                  "%02d%02d%02d%02d%02d%02dZ", year, mon, day, hour, min, sec);
+        *data_ptr = (byte) ASN_UTC_TIME; data_ptr++;
+        /* -1 below excludes null terminator */
+        *data_ptr = (byte) ASN_UTC_TIME_SIZE - 1; data_ptr++;
+        XMEMCPY(data_ptr,(byte *)utc_str, ASN_UTC_TIME_SIZE - 1);
+
+    } else {
+        /* GeneralizedTime */
+        char gt_str[ASN_GENERALIZED_TIME_SIZE];
+        data_len = ASN_GENERALIZED_TIME_SIZE + 1;
+
+        if (len < data_len)
+            return BUFFER_E;
+
+        year = ts->tm_year + 1900;
+        mon  = ts->tm_mon + 1;
+        day  = ts->tm_mday;
+        hour = ts->tm_hour;
+        min  = ts->tm_min;
+        sec  = ts->tm_sec;
+        XSNPRINTF((char *)gt_str, ASN_GENERALIZED_TIME_SIZE,
+                  "%4d%02d%02d%02d%02d%02dZ", year, mon, day, hour, min, sec);
+        *data_ptr = (byte) ASN_GENERALIZED_TIME; data_ptr++;
+        /* -1 below excludes null terminator */
+        *data_ptr = (byte) ASN_GENERALIZED_TIME_SIZE - 1; data_ptr++;
+        XMEMCPY(data_ptr,(byte *)gt_str, ASN_GENERALIZED_TIME_SIZE - 1);
+    }
+
+    return data_len;
+}
+
+#endif /* !NO_ASN_TIME && HAVE_PKCS7 */
+
+
 #if defined(USE_WOLF_VALIDDATE)
 
 /* to the second */

@@ -305,7 +305,8 @@ enum Misc_ASN {
     TRAILING_ZERO       = 1,       /* Used for size of zero pad */
     MIN_VERSION_SZ      = 3,       /* Min bytes needed for GetMyVersion */
 #if defined(OPENSSL_ALL)  || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
-    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || defined(OPENSSL_EXTRA)
+    defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
+    defined(OPENSSL_EXTRA) || defined(HAVE_PKCS7)
     MAX_TIME_STRING_SZ  = 25,      /* Max length of formatted time string */
 #endif
 
@@ -989,6 +990,9 @@ typedef struct tm wolfssl_tm;
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(OPENSSL_EXTRA) || \
     defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)
 WOLFSSL_LOCAL int GetTimeString(byte* date, int format, char* buf, int len);
+#endif
+#if !defined(NO_ASN_TIME) && defined(HAVE_PKCS7)
+WOLFSSL_LOCAL int GetAsnTimeString(byte* buf, word32 len);
 #endif
 WOLFSSL_LOCAL int ExtractDate(const unsigned char* date, unsigned char format,
                                                  wolfssl_tm* certTime, int* idx);
