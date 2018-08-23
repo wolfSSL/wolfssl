@@ -79,9 +79,9 @@ enum Pkcs7_Misc {
 
 
 typedef struct PKCS7Attrib {
-    byte* oid;
+    const byte* oid;
     word32 oidSz;
-    byte* value;
+    const byte* value;
     word32 valueSz;
 } PKCS7Attrib;
 
@@ -160,8 +160,14 @@ WOLFSSL_API int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,
                                        word32 outputSz);
 WOLFSSL_API int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
                                        byte* output, word32 outputSz);
+WOLFSSL_API int  wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf, 
+    word32 hashSz, byte* outputHead, word32* outputHeadSz, byte* outputFoot, 
+    word32* outputFootSz);
 WOLFSSL_API int  wc_PKCS7_VerifySignedData(PKCS7* pkcs7,
                                        byte* pkiMsg, word32 pkiMsgSz);
+WOLFSSL_API int  wc_PKCS7_VerifySignedData_ex(PKCS7* pkcs7, const byte* hashBuf, 
+    word32 hashSz, byte* pkiMsgHead, word32 pkiMsgHeadSz, byte* pkiMsgFoot, 
+    word32 pkiMsgFootSz);
 WOLFSSL_API int  wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
                                           byte* output, word32 outputSz);
 WOLFSSL_API int  wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
