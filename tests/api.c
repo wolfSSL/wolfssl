@@ -19111,6 +19111,53 @@ static void test_wolfSSL_X509_check_ca(void){
 #endif
 }
 
+static void test_wolfSSL_DES_ncbc(void){
+#if defined(OPENSSL_EXTRA) && !defined(NO_DES3)
+    const_DES_cblock myDes;
+    DES_cblock iv = {1};
+    DES_key_schedule key = {0};
+    unsigned char msg[] = "hello wolfssl";
+    unsigned char out[DES_BLOCK_SIZE * 2] = {0};
+    unsigned char pln[DES_BLOCK_SIZE * 2] = {0};
+
+    unsigned char exp[]  = {0x31, 0x98, 0x2F, 0x3A, 0x55, 0xBF, 0xD8, 0xC4};
+    unsigned char exp2[] = {0xC7, 0x45, 0x8B, 0x28, 0x10, 0x53, 0xE0, 0x58};
+
+    printf(testingFmt, "wolfSSL_DES_ncbc()");
+
+    /* partial block test */
+    DES_set_key(&key, &myDes);
+    DES_ncbc_encrypt(msg, out, 3, &myDes, &iv, DES_ENCRYPT);
+    AssertIntEQ(XMEMCMP(exp, out, DES_BLOCK_SIZE), 0);
+    AssertIntEQ(XMEMCMP(exp, iv, DES_BLOCK_SIZE), 0);
+
+    DES_set_key(&key, &myDes);
+    XMEMSET((byte*)&iv, 0, DES_BLOCK_SIZE);
+    *((byte*)&iv) = 1;
+    DES_ncbc_encrypt(out, pln, 3, &myDes, &iv, DES_DECRYPT);
+    AssertIntEQ(XMEMCMP(msg, pln, 3), 0);
+    AssertIntEQ(XMEMCMP(exp, iv, DES_BLOCK_SIZE), 0);
+
+    /* full block test */
+    DES_set_key(&key, &myDes);
+    XMEMSET(pln, 0, DES_BLOCK_SIZE);
+    XMEMSET((byte*)&iv, 0, DES_BLOCK_SIZE);
+    *((byte*)&iv) = 1;
+    DES_ncbc_encrypt(msg, out, 8, &myDes, &iv, DES_ENCRYPT);
+    AssertIntEQ(XMEMCMP(exp2, out, DES_BLOCK_SIZE), 0);
+    AssertIntEQ(XMEMCMP(exp2, iv, DES_BLOCK_SIZE), 0);
+
+    DES_set_key(&key, &myDes);
+    XMEMSET((byte*)&iv, 0, DES_BLOCK_SIZE);
+    *((byte*)&iv) = 1;
+    DES_ncbc_encrypt(out, pln, 8, &myDes, &iv, DES_DECRYPT);
+    AssertIntEQ(XMEMCMP(msg, pln, 8), 0);
+    AssertIntEQ(XMEMCMP(exp2, iv, DES_BLOCK_SIZE), 0);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 static void test_no_op_functions(void)
 {
     #if defined(OPENSSL_EXTRA)
@@ -20442,6 +20489,7 @@ void ApiTest(void)
     test_wolfSSL_ASN1_TIME_to_generalizedtime();
     test_wolfSSL_i2c_ASN1_INTEGER();
     test_wolfSSL_X509_check_ca();
+    test_wolfSSL_DES_ncbc();
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_ASIO)
     AssertIntEQ(test_wolfSSL_CTX_use_certificate_ASN1(), WOLFSSL_SUCCESS);
