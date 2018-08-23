@@ -75,7 +75,7 @@ static int Pic32GetBlockSize(int algo)
     return 0;
 }
 
-static int Pic32Crypto(const byte* in, int inLen, word32* out, int outLen,
+static int Pic32Crypto(const byte* pIn, int inLen, word32* pOut, int outLen,
     int dir, int algo, int cryptoalgo,
 
     /* For DES/AES only */
@@ -92,6 +92,9 @@ static int Pic32Crypto(const byte* in, int inLen, word32* out, int outLen,
     word32* dst;
     word32 padRemain;
     int timeout = 0xFFFFFF;
+    word32* in = (word32*)pIn;
+    word32* out = pOut;
+    int isDynamic = 0;
 
     /* check args */
     if (in == NULL || inLen <= 0 || out == NULL || blockSize == 0) {
@@ -100,7 +103,21 @@ static int Pic32Crypto(const byte* in, int inLen, word32* out, int outLen,
 
     /* check pointer alignment - must be word aligned */
     if (((size_t)in % sizeof(word32)) || ((size_t)out % sizeof(word32))) {
-        return BUFFER_E; /* buffer is not aligned */
+        /* dynamically allocate aligned pointers */
+        isDynamic = 1;
+        in = (word32*)XMALLOC(inLen, NULL, DYNAMIC_TYPE_AES_BUFFER);
+        if (in == NULL)
+            return MEMORY_E;
+        if ((word32*)pIn == pOut) /* inline */
+            out = (word32*)in;
+        else {
+            out = (word32*)XMALLOC(outLen, NULL, DYNAMIC_TYPE_AES_BUFFER);
+            if (out == NULL) {
+                XFREE(in, NULL, DYNAMIC_TYPE_AES_BUFFER);
+                return MEMORY_E;
+            }
+        }
+        XMEMCPY(in, pIn, inLen);
     }
 
     /* get uncached address */
@@ -173,7 +190,7 @@ static int Pic32Crypto(const byte* in, int inLen, word32* out, int outLen,
     bd_p->SRCADDR = (unsigned int)KVA_TO_PA(in);
     if (key) {
         /* cipher */
-        if (in != (byte*)out)
+        if (in != out)
             XMEMSET(out_p, 0, outLen); /* clear output buffer */
         bd_p->DSTADDR = (unsigned int)KVA_TO_PA(out);
     }
@@ -234,6 +251,17 @@ static int Pic32Crypto(const byte* in, int inLen, word32* out, int outLen,
     #else
         XMEMCPY(out, out_p, outLen);
     #endif
+    }
+
+    /* handle unaligned */
+    if (isDynamic) {
+        /* return result */
+        XMEMCPY(pOut, out, outLen);
+
+        /* free dynamic buffers */
+        XFREE(in, NULL, DYNAMIC_TYPE_AES_BUFFER);
+        if ((word32*)pIn != pOut)
+            XFREE(out, NULL, DYNAMIC_TYPE_AES_BUFFER);
     }
 
     return ret;
@@ -583,7 +611,7 @@ static int wc_Pic32HashFinal(hashUpdCache* cache, byte* stdBuf,
     return ret;
 }
 
-static int wc_Pic32HashFree(hashUpdCache* cache, void* heap)
+static void wc_Pic32HashFree(hashUpdCache* cache, void* heap)
 {
     if (cache && cache->buf && !cache->isCopy) {
         XFREE(cache->buf, heap, DYNAMIC_TYPE_HASH_TMP);
