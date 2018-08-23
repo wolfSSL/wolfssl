@@ -8715,6 +8715,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
         }
     #endif
 
+    #if defined(WOLFSSL_DTLS) || !defined(WOLFSSL_NO_TLS12)
     /* If SCTP is not enabled returns the state of the dtls option.
      * If SCTP is enabled returns dtls && !sctp. */
     static WC_INLINE int IsDtlsNotSctpMode(WOLFSSL* ssl)
@@ -8729,6 +8730,7 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
         return result;
     }
+    #endif /* WOLFSSL_DTLS || !WOLFSSL_NO_TLS12 */
 
 
     /* please see note at top of README if you get an error from connect */
