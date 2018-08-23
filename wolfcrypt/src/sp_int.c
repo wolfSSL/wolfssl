@@ -541,7 +541,7 @@ int sp_mod(sp_int* a, sp_int* m, sp_int* r)
  */
 void sp_zero(sp_int* a)
 {
-    XMEMSET(a->dp, 0, a->size);
+    XMEMSET(a->dp, 0, a->size * sizeof(*a->dp));
     a->used = 0;
 }
 

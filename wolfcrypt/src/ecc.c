@@ -1499,10 +1499,10 @@ int wc_ecc_set_curve(ecc_key* key, int keysize, int curve_id)
 
 
 #ifdef ALT_ECC_SIZE
-static void alt_fp_init(fp_int* a)
+static void alt_fp_init(mp_int* a)
 {
     a->size = FP_SIZE_ECC;
-    fp_zero(a);
+    mp_zero(a);
 }
 #endif /* ALT_ECC_SIZE */
 

@@ -103,9 +103,9 @@
 #define sp_isodd(a) (a->used != 0 && (a->dp[0] & 1))
 
 typedef struct sp_int {
-    sp_int_digit dp[SP_INT_DIGITS];
-    int size;
     int used;
+    int size;
+    sp_int_digit dp[SP_INT_DIGITS];
 } sp_int;
 
 
