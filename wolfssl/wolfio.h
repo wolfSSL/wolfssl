@@ -222,21 +222,6 @@
 #endif /* USE_WINDOWS_API */
 
 
-#ifdef USE_WINDOWS_API
-    #define CloseSocket(s) closesocket(s)
-    #define StartTCP() { WSADATA wsd; WSAStartup(0x0002, &wsd); }
-#elif defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
-    extern int closesocket(int);
-    #define CloseSocket(s) closesocket(s)
-    #define StartTCP()
-#else
-    #define CloseSocket(s) close(s)
-    #define StartTCP()
-    #ifdef FREERTOS_TCP_WINSIM
-        extern int close(int);
-    #endif
-#endif
-
 
 
 #ifdef DEVKITPRO
@@ -317,6 +302,28 @@ WOLFSSL_API  int wolfIO_Send(SOCKET_T sd, char *buf, int sz, int wrFlags);
 WOLFSSL_API  int wolfIO_Recv(SOCKET_T sd, char *buf, int sz, int rdFlags);
 
 #endif /* USE_WOLFSSL_IO || HAVE_HTTP_CLIENT */
+
+
+#ifdef USE_WINDOWS_API
+    #ifndef CloseSocket
+        #define CloseSocket(s) closesocket(s)
+    #endif
+    #define StartTCP() { WSADATA wsd; WSAStartup(0x0002, &wsd); }
+#elif defined(WOLFSSL_MDK_ARM) || defined(WOLFSSL_KEIL_TCP_NET)
+    #ifndef CloseSocket
+        extern int closesocket(int);
+        #define CloseSocket(s) closesocket(s)
+    #endif
+    #define StartTCP()
+#else
+    #ifndef CloseSocket
+        #define CloseSocket(s) close(s)
+    #endif
+    #define StartTCP()
+    #ifdef FREERTOS_TCP_WINSIM
+        extern int close(int);
+    #endif
+#endif
 
 
 WOLFSSL_API int BioSend(WOLFSSL* ssl, char *buf, int sz, void *ctx);
