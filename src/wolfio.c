@@ -2068,4 +2068,99 @@ void wolfSSL_SetIO_Mynewt(WOLFSSL* ssl, struct mn_socket* mnSocket, struct mn_so
 
 #endif /* defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP) */
 
+#ifdef WOLFSSL_UIP
+#include <uip.h>
+#include <stdio.h>
+
+/* uIP TCP/IP port, using the native tcp/udp socket api.
+ * TCP and UDP are currently supported with the callbacks below.
+ *
+ */
+/* The uIP tcp send callback
+ * return : bytes sent, or error
+ */
+int uIPSend(WOLFSSL* ssl, char* buf, int sz, void* _ctx)
+{
+    uip_wolfssl_ctx *ctx = (struct uip_wolfssl_ctx *)_ctx;
+    int ret;
+    unsigned int max_sendlen;
+    int total_written = 0;
+    (void)ssl;
+    do {
+        unsigned int bytes_left = sz - total_written;
+        max_sendlen = tcp_socket_max_sendlen(&ctx->conn.tcp);
+        if (bytes_left > max_sendlen) {
+            printf("Send limited by buffer\r\n");
+            bytes_left = max_sendlen;
+        }
+        if (bytes_left == 0) {
+            printf("Buffer full!\r\n");
+            break;
+        }
+        ret = tcp_socket_send(&ctx->conn.tcp, (unsigned char *)buf + total_written, bytes_left);
+        if (ret <= 0)
+            break;
+        total_written += ret;
+    } while(total_written < sz);
+    return total_written;
+}
+
+int uIPSendTo(WOLFSSL* ssl, char* buf, int sz, void* _ctx)
+{
+    uip_wolfssl_ctx *ctx = (struct uip_wolfssl_ctx *)_ctx;
+    int ret = 0;
+    (void)ssl;
+    ret = udp_socket_sendto(&ctx->conn.udp, (unsigned char *)buf, sz, &ctx->peer_addr, ctx->peer_port );
+    if (ret <= 0)
+        return 0;
+    return ret;
+}
+
+/* The uIP uTCP/IP receive callback
+ *  return : nb bytes read, or error
+ */
+int uIPReceive(WOLFSSL *ssl, char *buf, int sz, void *_ctx)
+{
+    uip_wolfssl_ctx *ctx = (uip_wolfssl_ctx *)_ctx;
+    if (!ctx || !ctx->ssl_rx_databuf)
+        return -1;
+    (void)ssl;
+    if (ctx->ssl_rb_len > 0) {
+        if (sz > ctx->ssl_rb_len - ctx->ssl_rb_off)
+            sz = ctx->ssl_rb_len - ctx->ssl_rb_off;
+        XMEMCPY(buf, ctx->ssl_rx_databuf + ctx->ssl_rb_off, sz);
+        ctx->ssl_rb_off += sz;
+        if (ctx->ssl_rb_off >= ctx->ssl_rb_len) {
+            ctx->ssl_rb_len = 0;
+            ctx->ssl_rb_off = 0;
+        }
+        return sz;
+    } else {
+        return WOLFSSL_CBIO_ERR_WANT_READ;
+    }
+}
+
+/* uIP DTLS Generate Cookie callback
+ *  return : number of bytes copied into buf, or error
+ */
+int uIPGenerateCookie(WOLFSSL* ssl, byte *buf, int sz, void *_ctx)
+{
+    uip_wolfssl_ctx *ctx = (uip_wolfssl_ctx *)ctx;
+    byte token[32];
+    byte digest[WC_SHA_DIGEST_SIZE];
+    int  ret = 0;
+    XMEMSET(token, 0, sizeof(token));
+    XMEMCPY(token, &ctx->peer_addr, sizeof(uip_ipaddr_t));
+    XMEMCPY(token + sizeof(uip_ipaddr_t), &ctx->peer_port, sizeof(word16));
+    ret = wc_ShaHash(token, sizeof(uip_ipaddr_t) + sizeof(word16), digest);
+    if (ret != 0)
+        return ret;
+    if (sz > WC_SHA_DIGEST_SIZE)
+        sz = WC_SHA_DIGEST_SIZE;
+    XMEMCPY(buf, digest, sz);
+    return sz;
+}
+
+#endif /* WOLFSSL_UIP */
+
 #endif /* WOLFCRYPT_ONLY */

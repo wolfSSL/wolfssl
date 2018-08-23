@@ -39,7 +39,7 @@
 
 #if !defined(WOLFSSL_USER_IO)
     /* Micrium uses NetSock I/O callbacks in wolfio.c */
-    #if !defined(USE_WOLFSSL_IO) && !defined(MICRIUM)
+    #if !defined(USE_WOLFSSL_IO) && !defined(MICRIUM) && !defined(WOLFSSL_CONTIKI)
         #define USE_WOLFSSL_IO
     #endif
 #endif
@@ -122,7 +122,7 @@
         #elif defined(EBSNET)
             #include "rtipapi.h"  /* errno */
             #include "socket.h"
-        #elif !defined(DEVKITPRO) && !defined(WOLFSSL_PICOTCP)
+        #elif !defined(DEVKITPRO) && !defined(WOLFSSL_PICOTCP) && !defined(WOLFSSL_CONTIKI)
             #include <sys/socket.h>
             #include <arpa/inet.h>
             #include <netinet/in.h>
@@ -422,6 +422,39 @@ WOLFSSL_API void wolfSSL_SetIOWriteFlags(WOLFSSL* ssl, int flags);
     WOLFSSL_API void wolfSSL_SetIO_Mynewt(WOLFSSL* ssl, struct mn_socket* mnSocket,
                                           struct mn_sockaddr_in* mnSockAddrIn);
 #endif /* defined(WOLFSSL_APACHE_MYNEWT) && !defined(WOLFSSL_LWIP) */
+
+#ifdef WOLFSSL_UIP
+
+    struct uip_wolfssl_ctx {
+        union socket_connector {
+            struct tcp_socket tcp;
+            struct udp_socket udp;
+        } conn;
+        WOLFSSL_CTX *ctx;
+        WOLFSSL *ssl;
+        uint8_t *input_databuf;
+        uint8_t *output_databuf;
+        uint8_t *ssl_rx_databuf;
+        int ssl_rb_len;
+        int ssl_rb_off;
+        struct process *process;
+        tcp_socket_data_callback_t input_callback;
+        tcp_socket_event_callback_t event_callback;
+        int closing;
+        uip_ipaddr_t peer_addr;
+        uint16_t peer_port;
+    };
+
+    typedef struct uip_wolfssl_ctx uip_wolfssl_ctx;
+
+    WOLFSSL_LOCAL int uIPSend(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+    WOLFSSL_LOCAL int uIPReceive(WOLFSSL* ssl, char* buf, int sz,
+                                     void* ctx);
+    WOLFSSL_LOCAL int uIPReceiveFrom(WOLFSSL* ssl, char* buf, int sz,
+                                         void* ctx);
+    WOLFSSL_LOCAL int uIPSendTo(WOLFSSL* ssl, char* buf, int sz, void* ctx);
+
+#endif
 
 #ifdef WOLFSSL_DTLS
     typedef int (*CallbackGenCookie)(WOLFSSL* ssl, unsigned char* buf, int sz,

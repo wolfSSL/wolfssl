@@ -224,6 +224,22 @@
     #define NO_FILESYSTEM
 #endif
 
+#if defined(WOLFSSL_CONTIKI)
+    #include <contiki.h>
+    #define WOLFSSL_UIP
+    #define NO_WOLFSSL_MEMORY
+    #define NO_WRITEV
+    #define SINGLE_THREADED
+    #define WOLFSSL_USER_IO
+    #define NO_FILESYSTEM
+    #define CUSTOM_RAND_TYPE uint16_t
+    #define CUSTOM_RAND_GENERATE random_rand
+    static inline unsigned int LowResTimer(void)
+    {
+        return clock_seconds();
+    }
+#endif
+
 #if defined(WOLFSSL_IAR_ARM) || defined(WOLFSSL_ROWLEY_ARM)
     #define NO_MAIN_DRIVER
     #define SINGLE_THREADED
