@@ -1619,9 +1619,9 @@ extern void uITRON4_free(void *p) ;
     #define HAVE_WOLF_EVENT
 
     #ifdef WOLFSSL_ASYNC_CRYPT_TEST
-        #define WC_ASYNC_DEV_SIZE 320+24
+        #define WC_ASYNC_DEV_SIZE 328+24
     #else
-        #define WC_ASYNC_DEV_SIZE 320
+        #define WC_ASYNC_DEV_SIZE 328
     #endif
 
     #if !defined(HAVE_CAVIUM) && !defined(HAVE_INTEL_QA) && \

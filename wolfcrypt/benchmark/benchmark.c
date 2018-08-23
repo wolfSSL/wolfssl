@@ -756,71 +756,71 @@ static THREAD_LS_T byte* bench_iv = NULL;
         const char* algo, int strength, const char* desc, int doAsync,
         double perfsec, int ret)
     {
-        bench_stats_t* stat;
+        bench_stats_t* bstat;
 
         /* protect bench_stats_head and bench_stats_tail access */
         pthread_mutex_lock(&bench_lock);
 
         /* locate existing in list */
-        for (stat = bench_stats_head; stat != NULL; stat = stat->next) {
+        for (bstat = bench_stats_head; bstat != NULL; bstat = bstat->next) {
             /* match based on algo, strength and desc */
-            if (stat->algo == algo && stat->strength == strength && stat->desc == desc && stat->doAsync == doAsync) {
+            if (bstat->algo == algo && bstat->strength == strength && bstat->desc == desc && bstat->doAsync == doAsync) {
                 break;
             }
         }
 
-        if (stat == NULL) {
+        if (bstat == NULL) {
             /* allocate new and put on list */
-            stat = (bench_stats_t*)XMALLOC(sizeof(bench_stats_t), NULL, DYNAMIC_TYPE_INFO);
-            if (stat) {
-                XMEMSET(stat, 0, sizeof(bench_stats_t));
+            bstat = (bench_stats_t*)XMALLOC(sizeof(bench_stats_t), NULL, DYNAMIC_TYPE_INFO);
+            if (bstat) {
+                XMEMSET(bstat, 0, sizeof(bench_stats_t));
 
                 /* add to list */
-                stat->next = NULL;
+                bstat->next = NULL;
                 if (bench_stats_tail == NULL)  {
-                    bench_stats_head = stat;
+                    bench_stats_head = bstat;
                 }
                 else {
-                    bench_stats_tail->next = stat;
-                    stat->prev = bench_stats_tail;
+                    bench_stats_tail->next = bstat;
+                    bstat->prev = bench_stats_tail;
                 }
-                bench_stats_tail = stat; /* add to the end either way */
+                bench_stats_tail = bstat; /* add to the end either way */
             }
         }
 
-        if (stat) {
+        if (bstat) {
             int isLast = 0;
-            stat->type = type;
-            stat->algo = algo;
-            stat->strength = strength;
-            stat->desc = desc;
-            stat->doAsync = doAsync;
-            stat->perfsec += perfsec;
-            stat->finishCount++;
-            if (stat->lastRet > ret)
-                stat->lastRet = ret; /* track last error */
+            bstat->type = type;
+            bstat->algo = algo;
+            bstat->strength = strength;
+            bstat->desc = desc;
+            bstat->doAsync = doAsync;
+            bstat->perfsec += perfsec;
+            bstat->finishCount++;
+            if (bstat->lastRet > ret)
+                bstat->lastRet = ret; /* track last error */
 
-            if (stat->finishCount == g_threadCount) {
+            if (bstat->finishCount == g_threadCount) {
                 isLast = 1;
             }
 
             pthread_mutex_unlock(&bench_lock);
 
             /* wait until remaining are complete */
-            while (stat->finishCount < g_threadCount) {
+            while (bstat->finishCount < g_threadCount) {
                 wc_AsyncThreadYield();
             }
 
             /* print final stat */
             if (isLast) {
-                if (stat->type == BENCH_STAT_SYM) {
-                    printf("%-12s%s %8.3f MB/s\n", stat->desc,
-                        BENCH_ASYNC_GET_NAME(stat->doAsync), stat->perfsec);
+                if (bstat->type == BENCH_STAT_SYM) {
+                    printf("%-12s%s %8.3f MB/s\n", bstat->desc,
+                        BENCH_ASYNC_GET_NAME(bstat->doAsync), bstat->perfsec);
                 }
                 else {
                     printf("%-5s %4d %-9s %s %.3f ops/sec\n",
-                        stat->algo, stat->strength, stat->desc,
-                        BENCH_ASYNC_GET_NAME(stat->doAsync), stat->perfsec);
+                        bstat->algo, bstat->strength, bstat->desc,
+                        BENCH_ASYNC_GET_NAME(bstat->doAsync), bstat->perfsec);
                 }
             }
         }
@@ -828,7 +828,7 @@ static THREAD_LS_T byte* bench_iv = NULL;
             pthread_mutex_unlock(&bench_lock);
         }
 
-        return stat;
+        return bstat;
     }
 #endif /* WOLFSSL_ASYNC_CRYPT && !WC_NO_ASYNC_THREADING */
 
@@ -956,11 +956,11 @@ static void bench_stats_asym_finish(const char* algo, int strength,
 static WC_INLINE void bench_stats_free(void)
 {
 #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_NO_ASYNC_THREADING)
-    bench_stats_t* stat;
-    for (stat = bench_stats_head; stat != NULL; ) {
-        bench_stats_t* next = stat->next;
-        XFREE(stat, NULL, DYNAMIC_TYPE_INFO);
-        stat = next;
+    bench_stats_t* bstat;
+    for (bstat = bench_stats_head; bstat != NULL; ) {
+        bench_stats_t* next = bstat->next;
+        XFREE(bstat, NULL, DYNAMIC_TYPE_INFO);
+        bstat = next;
     }
     bench_stats_head = NULL;
     bench_stats_tail = NULL;
