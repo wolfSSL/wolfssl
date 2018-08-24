@@ -52,7 +52,15 @@ typedef struct handShakeInfo_st {
 } HandShakeInfo;
 
 
-typedef struct timeval Timeval;
+#ifdef HAVE_SYS_TIME_H
+    typedef struct timeval Timeval;
+#else /* HAVE_SYS_TIME_H */
+    /* Define the Timeval explicitly. */
+    typedef struct {
+        long tv_sec;  /* Seconds. */
+        long tv_usec; /* Microseconds. */
+    } Timeval;
+#endif /* HAVE_SYS_TIME_H */
 
 
 typedef struct packetInfo_st {
