@@ -309,7 +309,7 @@ int SSL_STSAFE_SetupPkCallbacks(WOLFSSL_CTX* ctx)
     wolfSSL_CTX_SetEccSignCb(ctx, SSL_STSAFE_SignCertificateCb);
     wolfSSL_CTX_SetEccVerifyCb(ctx, SSL_STSAFE_VerifyPeerCertCb);
     wolfSSL_CTX_SetEccSharedSecretCb(ctx, SSL_STSAFE_SharedSecretCb);
-    wolfSSL_CTX_SetDevId(ctx, 0);
+    wolfSSL_CTX_SetDevId(ctx, 0); /* enables wolfCrypt `wc_ecc_*` ST-Safe use */
     return 0;
 }
 
