@@ -9857,6 +9857,14 @@ static int DoCertificate(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     WOLFSSL_START(WC_FUNC_CERTIFICATE_DO);
     WOLFSSL_ENTER("DoCertificate");
 
+#ifdef SESSION_CERTS
+    /* Reset the session cert chain count in case the session resume failed. */
+    ssl->session.chain.count = 0;
+    #ifdef WOLFSSL_ALT_CERT_CHAINS
+        ssl->session.altChain.count = 0;
+    #endif
+#endif /* SESSION_CERTS */
+
     ret = ProcessPeerCerts(ssl, input, inOutIdx, size);
 
 #ifdef OPENSSL_EXTRA
