@@ -3047,7 +3047,7 @@ int wolfSSL_CertManagerUnloadCAs(WOLFSSL_CERT_MANAGER* cm)
     if (wc_LockMutex(&cm->caLock) != 0)
         return BAD_MUTEX_E;
 
-    FreeSignerTable(cm->caTable, CA_TABLE_SIZE, NULL);
+    FreeSignerTable(cm->caTable, CA_TABLE_SIZE, cm->heap);
 
     wc_UnLockMutex(&cm->caLock);
 
@@ -3067,7 +3067,7 @@ int wolfSSL_CertManagerUnload_trust_peers(WOLFSSL_CERT_MANAGER* cm)
     if (wc_LockMutex(&cm->tpLock) != 0)
         return BAD_MUTEX_E;
 
-    FreeTrustedPeerTable(cm->tpTable, TP_TABLE_SIZE, NULL);
+    FreeTrustedPeerTable(cm->tpTable, TP_TABLE_SIZE, cm->heap);
 
     wc_UnLockMutex(&cm->tpLock);
 
