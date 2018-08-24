@@ -92,7 +92,7 @@ int atmel_get_random_number(uint32_t count, uint8_t* rand_out)
 		XMEMCPY(&rand_out[i], rng_buffer, copy_count);
 		i += copy_count;
 	}
-    atcab_printbin_label((const uint8_t*)"\r\nRandom Number", rand_out, count);
+    atcab_printbin_label((const char*)"\r\nRandom Number", rand_out, count);
 #else
     // TODO: Use on-board TRNG
 #endif
@@ -156,7 +156,7 @@ void atmel_ecc_free(int slot)
 /**
  * \brief Give enc key to read pms.
  */
-static int atmel_set_enc_key(uint8_t* enckey, int16_t keysize)
+static ATCA_STATUS atmel_get_enc_key(uint8_t* enckey, int16_t keysize)
 {
     if (enckey == NULL || keysize != ATECC_KEY_SIZE) {
         return -1;
@@ -177,13 +177,13 @@ static int atmel_init_enc_key(void)
 	uint8_t read_key[ATECC_KEY_SIZE] = { 0 };
 
 	XMEMSET(read_key, 0xFF, sizeof(read_key));
-	ret = atcab_write_bytes_slot(TLS_SLOT_ENC_PARENT, 0, read_key, sizeof(read_key));
+    ret = atcatls_set_enckey(read_key, TLS_SLOT_ENC_PARENT, 0);
 	if (ret != ATCA_SUCCESS) {
 		WOLFSSL_MSG("Failed to write key");
 		return -1;
 	}
 
-	ret = atcatlsfn_set_get_enckey(atmel_set_enc_key);
+	ret = atcatlsfn_set_get_enckey(atmel_get_enc_key);
 	if (ret != ATCA_SUCCESS) {
 		WOLFSSL_MSG("Failed to set enckey");
 		return -1;
