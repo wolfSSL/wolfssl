@@ -26,7 +26,6 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/ssl.h>
-#include <wolfssl/wolfcrypt/ecc.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
 #ifdef WOLFSSL_ATECC508A
@@ -71,6 +70,7 @@ long atmel_get_curr_time_and_date(long* tm);
 int atmel_ecc_alloc(void);
 void atmel_ecc_free(int slot);
 
+#include <wolfssl/wolfcrypt/ecc.h>
 
 #ifdef HAVE_PK_CALLBACKS
     int atcatls_create_key_cb(WOLFSSL* ssl, ecc_key* key, word32 keySz,
