@@ -14066,7 +14066,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         Des myDes;
         byte lastblock[DES_BLOCK_SIZE];
         int  lb_sz;
-        long  blk;
+        long idx = length;
+        long blk;
 
         WOLFSSL_ENTER("DES_ncbc_encrypt");
 
@@ -14074,23 +14075,33 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         wc_Des_SetKey(&myDes, (const byte*)schedule, (const byte*)ivec, !enc);
         lb_sz = length%DES_BLOCK_SIZE;
         blk   = length/DES_BLOCK_SIZE;
+        idx  -= sizeof(DES_cblock);
+        if (lb_sz) {
+            idx += DES_BLOCK_SIZE - lb_sz;
+        }
         if (enc){
-            wc_Des_CbcEncrypt(&myDes, output, input, (word32)blk*DES_BLOCK_SIZE);
-            if(lb_sz){
+            wc_Des_CbcEncrypt(&myDes, output, input,
+                    (word32)blk * DES_BLOCK_SIZE);
+            if (lb_sz){
                 XMEMSET(lastblock, 0, DES_BLOCK_SIZE);
                 XMEMCPY(lastblock, input+length-lb_sz, lb_sz);
-                wc_Des_CbcEncrypt(&myDes, output+blk*DES_BLOCK_SIZE,
+                wc_Des_CbcEncrypt(&myDes, output + blk * DES_BLOCK_SIZE,
                     lastblock, (word32)DES_BLOCK_SIZE);
             }
+            XMEMCPY(ivec, output + idx, sizeof(DES_cblock));
         } else {
-            wc_Des_CbcDecrypt(&myDes, output, input, (word32)blk*DES_BLOCK_SIZE);
-            if(lb_sz){
-                wc_Des_CbcDecrypt(&myDes, lastblock, input+length-lb_sz, (word32)DES_BLOCK_SIZE);
+            WOLFSSL_DES_cblock tmp;
+            XMEMCPY(tmp, input + idx, sizeof(DES_cblock));
+            wc_Des_CbcDecrypt(&myDes, output, input,
+                    (word32)blk * DES_BLOCK_SIZE);
+            if (lb_sz){
+                wc_Des_CbcDecrypt(&myDes, lastblock, input + length - lb_sz,
+                        (word32)DES_BLOCK_SIZE);
                 XMEMCPY(output+length-lb_sz, lastblock, lb_sz);
             }
+            XMEMCPY(ivec, tmp, sizeof(WOLFSSL_DES_cblock));
         }
 
-        XMEMCPY(ivec, output + length - sizeof(DES_cblock), sizeof(DES_cblock));
     }
 
 #endif /* NO_DES3 */
