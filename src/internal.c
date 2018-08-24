@@ -20019,7 +20019,9 @@ exit_scke:
 #endif
 
     /* No further need for PMS */
-    ForceZero(ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz);
+    if (ssl->arrays->preMasterSecret != NULL) {
+        ForceZero(ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz);
+    }
     ssl->arrays->preMasterSz = 0;
 
     /* Final cleanup */
@@ -25264,7 +25266,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #endif /* WOLFSSL_ASYNC_CRYPT */
 
         /* Cleanup PMS */
-        ForceZero(ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz);
+        if (ssl->arrays->preMasterSecret != NULL) {
+            ForceZero(ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz);
+        }
         ssl->arrays->preMasterSz = 0;
 
         /* Final cleanup */
