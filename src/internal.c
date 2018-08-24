@@ -16354,7 +16354,7 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
             char* packetName = info->packetNames[info->numberPackets];
             XSTRNCPY(packetName, name, MAX_PACKETNAME_SZ);
             packetName[MAX_PACKETNAME_SZ] = '\0';
-            info->numberPackets++
+            info->numberPackets++;
         }
     #endif
         (void)ssl;

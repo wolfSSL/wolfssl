@@ -120,7 +120,7 @@ static int NonBlockingSSL_Accept(SSL* ssl)
 #ifndef WOLFSSL_CALLBACKS
     int ret = SSL_accept(ssl);
 #else
-    int ret = SSL_accept_ex(ssl, srvHandShakeCB, srvTimeoutCB, srvTo);
+    int ret = wolfSSL_accept_ex(ssl, srvHandShakeCB, srvTimeoutCB, srvTo);
 #endif
     int error = SSL_get_error(ssl, 0);
     SOCKET_T sockfd = (SOCKET_T)SSL_get_fd(ssl);
@@ -163,7 +163,7 @@ static int NonBlockingSSL_Accept(SSL* ssl)
             #ifndef WOLFSSL_CALLBACKS
                 ret = SSL_accept(ssl);
             #else
-                ret = SSL_accept_ex(ssl,
+                ret = wolfSSL_accept_ex(ssl,
                                     srvHandShakeCB, srvTimeoutCB, srvTo);
             #endif
             error = SSL_get_error(ssl, 0);

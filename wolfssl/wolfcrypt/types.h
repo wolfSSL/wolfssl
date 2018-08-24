@@ -315,7 +315,8 @@
     #endif
 
     #if !defined(USE_WOLF_STRTOK) && \
-            (defined(__MINGW32__) || defined(WOLFSSL_TIRTOS) || defined(WOLF_C99))
+            ((defined(__MINGW32__) && !defined(__MINGW64_VERSION_MAJOR)) || \
+             defined(WOLFSSL_TIRTOS) || defined(WOLF_C99))
         #define USE_WOLF_STRTOK
     #endif
     #if !defined(USE_WOLF_STRSEP) && (defined(WOLF_C99))
