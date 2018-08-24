@@ -1272,7 +1272,7 @@ extern void uITRON4_free(void *p) ;
     #define HAVE_AESGCM
 #endif
 
-#if defined(WOLFSSL_XILINX_CRYPT)
+#if defined(WOLFSSL_XILINX_CRYPT) || defined(WOLFSSL_AFALG_XILINX)
     #if defined(WOLFSSL_ARMASM)
         #error can not use both ARMv8 instructions and XILINX hardened crypto
     #endif
@@ -1284,6 +1284,10 @@ extern void uITRON4_free(void *p) ;
         #define WOLFSSL_NOSHA3_224
         #define WOLFSSL_NOSHA3_256
         #define WOLFSSL_NOSHA3_512
+    #endif
+    #ifdef WOLFSSL_AFALG_XILINX_AES
+        #undef  WOLFSSL_AES_DIRECT
+        #define WOLFSSL_AES_DIRECT
     #endif
 #endif /*(WOLFSSL_XILINX_CRYPT)*/
 

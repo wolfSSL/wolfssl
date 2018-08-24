@@ -68,9 +68,9 @@
 #include "xsecure_aes.h"
 #endif
 
-#ifdef WOLFSSL_AFALG
+#if defined(WOLFSSL_AFALG) || defined(WOLFSSL_AFALG_XILINX_AES)
 /* included for struct msghdr */
-#include <sys/socket.h>
+#include <wolfssl/wolfcrypt/port/af_alg/wc_afalg.h>
 #endif
 
 #if defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC)
@@ -172,11 +172,15 @@ typedef struct Aes {
     word32      key_init[8];
     word32      kup;
 #endif
-#ifdef WOLFSSL_AFALG
+#if defined(WOLFSSL_AFALG) || defined(WOLFSSL_AFALG_XILINX_AES)
     int alFd; /* server socket to bind to */
     int rdFd; /* socket to read from */
     struct msghdr msg;
     int dir;  /* flag for encrpyt or decrypt */
+#ifdef WOLFSSL_AFALG_XILINX_AES
+    word32 msgBuf[CMSG_SPACE(4) + CMSG_SPACE(sizeof(struct af_alg_iv) +
+                  GCM_NONCE_MID_SZ)];
+#endif
 #endif
 #if defined(WOLFSSL_DEVCRYPTO) && \
     (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
@@ -257,6 +261,9 @@ WOLFSSL_API int wc_AesEcbDecrypt(Aes* aes, byte* out,
 #ifdef HAVE_AESGCM
 #ifdef WOLFSSL_XILINX_CRYPT
  WOLFSSL_API int  wc_AesGcmSetKey_ex(Aes* aes, const byte* key, word32 len,
+         word32 kup);
+#elif defined(WOLFSSL_AFALG_XILINX_AES)
+ WOLFSSL_LOCAL int  wc_AesGcmSetKey_ex(Aes* aes, const byte* key, word32 len,
          word32 kup);
 #endif
  WOLFSSL_API int  wc_AesGcmSetKey(Aes* aes, const byte* key, word32 len);

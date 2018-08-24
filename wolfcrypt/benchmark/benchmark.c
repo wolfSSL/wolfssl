@@ -1125,8 +1125,13 @@ static void* benchmarks_do(void* args)
     if (bench_buf_size % 16)
         bench_buf_size += 16 - (bench_buf_size % 16);
 
-    bench_plain = (byte*)XMALLOC((size_t)bench_buf_size, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
-    bench_cipher = (byte*)XMALLOC((size_t)bench_buf_size, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+#ifdef WOLFSSL_AFALG_XILINX_AES
+    bench_plain = (byte*)aligned_alloc(64, (size_t)bench_buf_size + 16);
+    bench_cipher = (byte*)aligned_alloc(64, (size_t)bench_buf_size + 16);
+#else
+    bench_plain = (byte*)XMALLOC((size_t)bench_buf_size + 16, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+    bench_cipher = (byte*)XMALLOC((size_t)bench_buf_size + 16, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
+#endif
     if (bench_plain == NULL || bench_cipher == NULL) {
         XFREE(bench_plain, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
         XFREE(bench_cipher, HEAP_HINT, DYNAMIC_TYPE_WOLF_BIGINT);
@@ -1993,11 +1998,11 @@ exit:
 
 void bench_aesgcm(int doAsync)
 {
-#ifdef WOLFSSL_AES_128
+#if defined(WOLFSSL_AES_128) && !defined(WOLFSSL_AFALG_XILINX_AES)
     bench_aesgcm_internal(doAsync, bench_key, 16, bench_iv, 12,
                           "AES-128-GCM-enc", "AES-128-GCM-dec");
 #endif
-#ifdef WOLFSSL_AES_192
+#if defined(WOLFSSL_AES_192) && !defined(WOLFSSL_AFALG_XILINX_AES)
     bench_aesgcm_internal(doAsync, bench_key, 24, bench_iv, 12,
                           "AES-192-GCM-enc", "AES-192-GCM-dec");
 #endif

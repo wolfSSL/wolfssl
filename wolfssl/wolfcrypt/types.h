@@ -640,8 +640,10 @@
     #define INVALID_DEVID    -2
 
 
-    /* AESNI requires alignment and ARMASM gains some performance from it */
-    #if defined(WOLFSSL_AESNI) || defined(WOLFSSL_ARMASM) || defined(USE_INTEL_SPEEDUP)
+    /* AESNI requires alignment and ARMASM gains some performance from it
+     * Xilinx RSA operations require alignment */
+    #if defined(WOLFSSL_AESNI) || defined(WOLFSSL_ARMASM) || \
+        defined(USE_INTEL_SPEEDUP) || defined(WOLFSSL_AFALG_XILINX)
         #if !defined(ALIGN16)
             #if defined(__GNUC__)
                 #define ALIGN16 __attribute__ ( (aligned (16)))
@@ -664,19 +666,19 @@
             #else
                 #define ALIGN32
             #endif
-        #endif
+        #endif /* !ALIGN32 */
 
-        #if !defined(ALIGN32)
+        #if !defined(ALIGN64)
             #if defined(__GNUC__)
-                #define ALIGN32 __attribute__ ( (aligned (32)))
+                #define ALIGN64 __attribute__ ( (aligned (64)))
             #elif defined(_MSC_VER)
                 /* disable align warning, we want alignment ! */
                 #pragma warning(disable: 4324)
-                #define ALIGN32 __declspec (align (32))
+                #define ALIGN64 __declspec (align (64))
             #else
-                #define ALIGN32
+                #define ALIGN64
             #endif
-        #endif /* !ALIGN32 */
+        #endif /* !ALIGN64 */
 
         #if defined(__GNUC__)
             #define ALIGN128 __attribute__ ( (aligned (128)))
@@ -704,6 +706,9 @@
         #endif
         #ifndef ALIGN32
             #define ALIGN32
+        #endif
+        #ifndef ALIGN64
+            #define ALIGN64
         #endif
         #ifndef ALIGN128
             #define ALIGN128
