@@ -2670,7 +2670,8 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 
     ssl->buffers.outputBuffer.length += sendSz;
 
-    ret = SendBuffered(ssl);
+    if (ssl->earlyData == no_early_data)
+        ret = SendBuffered(ssl);
 
     WOLFSSL_LEAVE("SendTls13ClientHello", ret);
     WOLFSSL_END(WC_FUNC_CLIENT_HELLO_SEND);
