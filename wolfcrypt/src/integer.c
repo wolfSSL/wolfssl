@@ -321,6 +321,17 @@ int mp_to_unsigned_bin (mp_int * a, unsigned char *b)
   return res;
 }
 
+int mp_to_unsigned_bin_len(mp_int * a, unsigned char *b, int c)
+{
+    int i, len;
+
+    len = mp_unsigned_bin_size(a);
+
+    /* pad front w/ zeros to match length */
+    for (i = 0; i < c - len; i++)
+        b[i] = 0x00;
+    return mp_to_unsigned_bin(a, b + i);
+}
 
 /* creates "a" then copies b into it */
 int mp_init_copy (mp_int * a, mp_int * b)

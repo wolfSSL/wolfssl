@@ -1125,10 +1125,8 @@ static int RsaUnPad_OAEP(byte *pkcsBlock, unsigned int pkcsBlockLen,
     ret += pkcsBlock[idx++] ^ 0x01; /* separator value is 0x01 */
     ret += pkcsBlock[0]     ^ 0x00; /* Y, the first value, should be 0 */
 
-    if (ret != 0) {
-        WOLFSSL_MSG("RsaUnPad_OAEP: Padding Error");
-        return BAD_PADDING_E;
-    }
+    /* Return 0 data length on error. */
+    idx = ctMaskSelInt(ctMaskEq(ret, 0), idx, pkcsBlockLen);
 
     /* adjust pointer to correct location in array and return size of M */
     *output = (byte*)(pkcsBlock + idx);
@@ -1217,48 +1215,60 @@ static int RsaUnPad_PSS(byte *pkcsBlock, unsigned int pkcsBlockLen,
 /* UnPad plaintext, set start to *output, return length of plaintext,
  * < 0 on error */
 static int RsaUnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
-                                               byte **output, byte padValue)
+                    byte **output, byte padValue)
 {
-    word32 maxOutputLen = (pkcsBlockLen > 10) ? (pkcsBlockLen - 10) : 0;
-    word32 invalid = 0;
-    word32 i = 1;
-    word32 outputLen;
+    int    ret;
+    word32 i;
+    byte   invalid = 0;
 
     if (output == NULL || pkcsBlockLen == 0) {
         return BAD_FUNC_ARG;
     }
 
-    if (pkcsBlock[0] != 0x0) { /* skip past zero */
-        invalid = 1;
-    }
-    pkcsBlock++; pkcsBlockLen--;
-
-    /* Require block type padValue */
-    invalid = (pkcsBlock[0] != padValue) || invalid;
-
-    /* verify the padding until we find the separator */
     if (padValue == RSA_BLOCK_TYPE_1) {
-        while (i<pkcsBlockLen && pkcsBlock[i++] == 0xFF) {/* Null body */}
+        /* First byte must be 0x00 and Second byte, block type, 0x01 */
+        if (pkcsBlock[0] != 0 || pkcsBlock[1] != RSA_BLOCK_TYPE_1) {
+            WOLFSSL_MSG("RsaUnPad error, invalid formatting");
+            return RSA_PAD_E;
+        }
+
+        /* check the padding until we find the separator */
+        for (i = 2; i < pkcsBlockLen && pkcsBlock[i++] == 0xFF; ) { }
+
+        /* Minimum of 11 bytes of pre-message data and must have separator. */
+        if (i < RSA_MIN_PAD_SZ || pkcsBlock[i-1] != 0) {
+            WOLFSSL_MSG("RsaUnPad error, bad formatting");
+            return RSA_PAD_E;
+        }
+
+        *output = (byte *)(pkcsBlock + i);
+        ret = pkcsBlockLen - i;
     }
     else {
-        while (i<pkcsBlockLen && pkcsBlock[i++]) {/* Null body */}
+        word32 j;
+        byte   pastSep = 0;
+
+        /* Decrypted with private key - unpad must be constant time. */
+        for (i = 0, j = 2; j < pkcsBlockLen; j++) {
+           /* Update i if not passed the separator and at separator. */
+           i |= (~pastSep) & ctMaskEq(pkcsBlock[j], 0x00) & (j + 1);
+           pastSep |= ctMaskEq(pkcsBlock[j], 0x00);
+        }
+
+        /* Minimum of 11 bytes of pre-message data - including leading 0x00. */
+        invalid |= ctMaskLT(i, RSA_MIN_PAD_SZ);
+        /* Must have seen separator. */
+        invalid |= ~pastSep;
+        /* First byte must be 0x00. */
+        invalid |= ctMaskNotEq(pkcsBlock[0], 0x00);
+        /* Check against expected block type: padValue */
+        invalid |= ctMaskNotEq(pkcsBlock[1], padValue);
+
+        *output = (byte *)(pkcsBlock + i);
+        ret = ((int)~invalid) & (pkcsBlockLen - i);
     }
 
-    if (!(i==pkcsBlockLen || pkcsBlock[i-1]==0)) {
-        WOLFSSL_MSG("RsaUnPad error, bad formatting");
-        return RSA_PAD_E;
-    }
-
-    outputLen = pkcsBlockLen - i;
-    invalid = (outputLen > maxOutputLen) || invalid;
-
-    if (invalid) {
-        WOLFSSL_MSG("RsaUnPad error, invalid formatting");
-        return RSA_PAD_E;
-    }
-
-    *output = (byte *)(pkcsBlock + i);
-    return outputLen;
+    return ret;
 }
 
 /* helper function to direct unpadding
@@ -1474,7 +1484,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
 #endif
 #endif
     int    ret = 0;
-    word32 keyLen = 0, len;
+    word32 keyLen = 0;
 #endif
 
 #ifdef WOLFSSL_HAVE_SP_RSA
@@ -1559,6 +1569,7 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
     }
 #endif
 
+#ifndef TEST_UNPAD_CONSTANT_TIME
     if (ret == 0 && mp_read_unsigned_bin(tmp, (byte*)in, inLen) != MP_OKAY)
         ret = MP_READ_E;
 
@@ -1688,20 +1699,17 @@ static int wc_RsaFunctionSync(const byte* in, word32 inLen, byte* out,
             ret = RSA_BUFFER_E;
     }
     if (ret == 0) {
-        len = mp_unsigned_bin_size(tmp);
-
-        /* pad front w/ zeros to match key length */
-        while (len < keyLen) {
-            *out++ = 0x00;
-            len++;
-        }
-
         *outLen = keyLen;
-
-        /* convert */
-        if (mp_to_unsigned_bin(tmp, out) != MP_OKAY)
+        if (mp_to_unsigned_bin_len(tmp, out, keyLen) != MP_OKAY)
              ret = MP_TO_E;
     }
+#else
+    (void)type;
+    (void)key;
+    (void)keyLen;
+    XMEMCPY(out, in, inLen);
+    *outLen = inLen;
+#endif
 
     mp_clear(tmp);
 #ifdef WOLFSSL_SMALL_STACK
@@ -1913,6 +1921,7 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
     }
 #endif
 
+#ifndef TEST_UNPAD_CONSTANT_TIME
 #ifndef NO_RSA_BOUNDS_CHECK
     if (type == RSA_PRIVATE_DECRYPT &&
         key->state == RSA_STATE_DECRYPT_EXPTMOD) {
@@ -1961,6 +1970,7 @@ int wc_RsaFunction(const byte* in, word32 inLen, byte* out,
             return ret;
     }
 #endif /* NO_RSA_BOUNDS_CHECK */
+#endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA &&
@@ -2184,7 +2194,8 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
 
         /* if not doing this inline then allocate a buffer for it */
         if (outPtr == NULL) {
-            key->data = (byte*)XMALLOC(inLen, key->heap, DYNAMIC_TYPE_WOLF_BIGINT);
+            key->data = (byte*)XMALLOC(inLen, key->heap,
+                                                      DYNAMIC_TYPE_WOLF_BIGINT);
             key->dataIsAlloc = 1;
             if (key->data == NULL) {
                 ret = MEMORY_E;
@@ -2201,7 +2212,7 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
 
     case RSA_STATE_DECRYPT_EXPTMOD:
         ret = wc_RsaFunction(key->data, inLen, key->data, &key->dataLen,
-            rsa_type, key, rng);
+                                                            rsa_type, key, rng);
 
         if (ret >= 0 || ret == WC_PENDING_E) {
             key->state = RSA_STATE_DECRYPT_UNPAD;
@@ -2218,20 +2229,29 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
         ret = wc_RsaUnPad_ex(key->data, key->dataLen, &pad, pad_value, pad_type,
                              hash, mgf, label, labelSz, saltLen,
                              mp_count_bits(&key->n), key->heap);
-        if (ret > 0 && ret <= (int)outLen && pad != NULL) {
+        if (rsa_type == RSA_PUBLIC_DECRYPT && ret > (int)outLen)
+            ret = RSA_BUFFER_E;
+        else if (ret >= 0 && pad != NULL) {
+            char c;
+
             /* only copy output if not inline */
             if (outPtr == NULL) {
-                XMEMCPY(out, pad, ret);
+                word32 i, j;
+                int start = (int)((size_t)pad - (size_t)key->data);
+
+                for (i = 0, j = 0; j < key->dataLen; j++) {
+                    out[i] = key->data[j];
+                    c  = ctMaskGTE(j, start);
+                    c &= ctMaskLT(i, outLen);
+                    /* 0 - no add, -1 add */
+                    i += -c;
+                }
             }
-            else {
+            else
                 *outPtr = pad;
-            }
-        }
-        else if (ret >= 0) {
-            ret = RSA_BUFFER_E;
-        }
-        if (ret < 0) {
-            break;
+
+            ret = ctMaskSelInt(ctMaskLTE(ret, outLen), ret, RSA_BUFFER_E);
+            ret = ctMaskSelInt(ctMaskNotEq(ret, 0), ret, RSA_BUFFER_E);
         }
 
         key->state = RSA_STATE_DECRYPT_RES;
@@ -2243,12 +2263,14 @@ static int RsaPrivateDecryptEx(byte* in, word32 inLen, byte* out,
             defined(HAVE_CAVIUM)
         if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA &&
                                                    pad_type != WC_RSA_PSS_PAD) {
-            /* convert result */
-            byte* dataLen = (byte*)&key->dataLen;
-            ret = (dataLen[0] << 8) | (dataLen[1]);
+            if (ret > 0) {
+                /* convert result */
+                byte* dataLen = (byte*)&key->dataLen;
+                ret = (dataLen[0] << 8) | (dataLen[1]);
 
-            if (outPtr)
-                *outPtr = in;
+                if (outPtr)
+                    *outPtr = in;
+            }
         }
     #endif
         break;

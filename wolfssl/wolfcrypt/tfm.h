@@ -606,6 +606,7 @@ int fp_leading_bit(fp_int *a);
 int fp_unsigned_bin_size(fp_int *a);
 void fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c);
 int fp_to_unsigned_bin(fp_int *a, unsigned char *b);
+int fp_to_unsigned_bin_len(fp_int *a, unsigned char *b, int c);
 int fp_to_unsigned_bin_at_pos(int x, fp_int *t, unsigned char *b);
 
 /*int fp_signed_bin_size(fp_int *a);*/
@@ -729,6 +730,7 @@ MP_API int  mp_unsigned_bin_size(mp_int * a);
 MP_API int  mp_read_unsigned_bin (mp_int * a, const unsigned char *b, int c);
 MP_API int  mp_to_unsigned_bin_at_pos(int x, mp_int *t, unsigned char *b);
 MP_API int  mp_to_unsigned_bin (mp_int * a, unsigned char *b);
+MP_API int  mp_to_unsigned_bin_len(mp_int * a, unsigned char *b, int c);
 
 MP_API int  mp_sub_d(fp_int *a, fp_digit b, fp_int *c);
 MP_API int  mp_copy(fp_int* a, fp_int* b);
