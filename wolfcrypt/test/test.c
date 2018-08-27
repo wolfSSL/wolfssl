@@ -19973,8 +19973,9 @@ int memcb_test(void)
     b = NULL;
 
     /* Use API. */
-    if (wolfSSL_SetAllocators((wolfSSL_Malloc_cb)&my_Malloc_cb,
-        (wolfSSL_Free_cb)&my_Free_cb, (wolfSSL_Realloc_cb)my_Realloc_cb) != 0) {
+    if (wolfSSL_SetAllocators((wolfSSL_Malloc_cb)(void*)&my_Malloc_cb,
+                              (wolfSSL_Free_cb)(void*)&my_Free_cb,
+                              (wolfSSL_Realloc_cb)(void*)&my_Realloc_cb) != 0) {
         ERROR_OUT(-10005, exit_memcb);
     }
 
