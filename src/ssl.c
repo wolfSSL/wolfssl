@@ -4297,7 +4297,7 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
 #endif
 
     /* we may have a user cert chain, try to consume */
-    if (type == CERT_TYPE && info->consumed < sz) {
+    if ((type == CERT_TYPE || type == CA_TYPE) && info->consumed < sz) {
     #ifdef WOLFSSL_SMALL_STACK
         byte   staticBuffer[1];                 /* force heap usage */
     #else
@@ -4393,6 +4393,17 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
         /* only retain actual size used */
         ret = 0;
         if (idx > 0) {
+
+            if (type == CA_TYPE) {
+                if (ctx == NULL) {
+                    WOLFSSL_MSG("Need context for CA load");
+                    FreeDer(&der);
+                    return BAD_FUNC_ARG;
+                }
+                /* verify CA unless user set to no verify */
+                return AddCA(ctx->cm, &der, WOLFSSL_USER_CA, !ctx->verifyNone);
+            }
+            else {
             if (ssl) {
                 if (ssl->buffers.weOwnCertChain) {
                     FreeDer(&ssl->buffers.certChain);
@@ -4414,6 +4425,7 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
 #ifdef WOLFSSL_TLS13
                 ctx->certChainCnt = cnt;
 #endif
+            }
             }
         }
 
