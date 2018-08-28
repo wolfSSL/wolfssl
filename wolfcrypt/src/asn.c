@@ -9493,8 +9493,15 @@ static byte GetNameId(int idx)
     case 6:
        return ASN_COMMON_NAME;
 
+#ifdef WOLFSSL_CERT_EXT
     case 7:
-       return ASN_EMAIL_NAME;
+        return ASN_BUS_CAT;
+
+    case 8:
+#else
+    case 7:
+#endif
+        return ASN_EMAIL_NAME;
 
     default:
        return 0;
@@ -10316,7 +10323,27 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     }
 
     /* subject name */
-    der->subjectSz = SetName(der->subject, sizeof(der->subject), &cert->subject);
+    if (strnlen((const char*)cert->sbjRaw, sizeof(CertName)) > 0) {
+        /* Use the raw subject */
+        int idx;
+
+        der->subjectSz = min(sizeof(der->subject),
+                strnlen((const char*)cert->sbjRaw, sizeof(CertName)));
+        /* header */
+        idx = SetSequence(der->subjectSz, der->subject);
+        if (der->subjectSz + idx > (int)sizeof(der->subject)) {
+            return SUBJECT_E;
+        }
+
+        XMEMCPY((char*)der->subject + idx, (const char*)cert->sbjRaw, der->subjectSz);
+        der->subjectSz += idx;
+    }
+    else
+    {
+        /* Use the name structure */
+        der->subjectSz = SetName(der->subject, sizeof(der->subject),
+                &cert->subject);
+    }
     if (der->subjectSz <= 0)
         return SUBJECT_E;
 
