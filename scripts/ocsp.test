@@ -8,6 +8,13 @@ ca=certs/external/ca-globalsign-root.pem
 [ ! -x ./examples/client/client ] && printf '\n\n%s\n' "Client doesn't exist" \
                                   && exit 1
 
+./examples/client/client -v 3 2>&1 | grep -- 'Bad SSL version'
+if [ $? -eq 0 ]; then
+    echo "TLS 1.2 or lower required"
+    echo "Skipped"
+    exit 0
+fi
+
 # is our desired server there?
 ./scripts/ping.test $server 2
 RESULT=$?

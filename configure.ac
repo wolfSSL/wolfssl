@@ -2794,6 +2794,10 @@ then
     AM_CFLAGS="-DWOLFSSL_EARLY_DATA $AM_CFLAGS"
 fi
 
+if test "$ENABLED_TLSV12" = "no" && test "$ENABLED_TLS13" = "yes" && test "x$ENABLED_SESSION_TICKET" = "xno"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_SESSION_CACHE"
+fi
 
 # PKCS7
 AC_ARG_ENABLE([pkcs7],
