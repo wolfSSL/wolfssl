@@ -10324,12 +10324,12 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 
     /* subject name */
 #ifdef WOLFSSL_CERT_EXT
-    if (strnlen((const char*)cert->sbjRaw, sizeof(CertName)) > 0) {
+    if (XSTRLEN((const char*)cert->sbjRaw) > 0) {
         /* Use the raw subject */
         int idx;
 
         der->subjectSz = min(sizeof(der->subject),
-                (word32)strnlen((const char*)cert->sbjRaw, sizeof(CertName)));
+                (word32)XSTRLEN((const char*)cert->sbjRaw));
         /* header */
         idx = SetSequence(der->subjectSz, der->subject);
         if (der->subjectSz + idx > (int)sizeof(der->subject)) {
@@ -10352,12 +10352,12 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 
     /* issuer name */
 #ifdef WOLFSSL_CERT_EXT
-    if (strnlen((const char*)cert->issRaw, sizeof(CertName)) > 0) {
+    if (XSTRLEN((const char*)cert->issRaw) > 0) {
         /* Use the raw issuer */
         int idx;
 
         der->issuerSz = min(sizeof(der->issuer),
-                (word32)strnlen((const char*)cert->issRaw, sizeof(CertName)));
+                (word32)XSTRLEN((const char*)cert->issRaw));
         /* header */
         idx = SetSequence(der->issuerSz, der->issuer);
         if (der->issuerSz + idx > (int)sizeof(der->issuer)) {
