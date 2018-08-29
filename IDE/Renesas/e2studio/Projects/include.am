@@ -1,0 +1,14 @@
+# vim:ft=automake
+# included from Top Level Makefile.am
+# All paths should be given relative to the root
+
+EXTRA_DIST+= IDE/Renesas/e2studio/README
+EXTRA_DIST+= IDE/Renesas/e2studio/wolfssl/.cproject
+EXTRA_DIST+= IDE/Renesas/e2studio/wolfssl/.project
+EXTRA_DIST+= IDE/Renesas/e2studio/test/.cproject
+EXTRA_DIST+= IDE/Renesas/e2studio/test/.project
+EXTRA_DIST+= IDE/Renesas/e2studio/test/src/test_main.c
+EXTRA_DIST+= IDE/Renesas/e2studio/common/wolfssl_dummy.c
+EXTRA_DIST+= IDE/Renesas/e2studio/common/strings.h
+EXTRA_DIST+= IDE/Renesas/e2studio/common/uninstd.h
+EXTRA_DIST+= IDE/Renesas/e2studio/common/user_settings.h
