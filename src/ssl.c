@@ -10391,8 +10391,8 @@ int wolfSSL_check_domain_name(WOLFSSL* ssl, const char* dn)
             ssl->buffers.domainName.length + 1, ssl->heap, DYNAMIC_TYPE_DOMAIN);
 
     if (ssl->buffers.domainName.buffer) {
-        char* domainName = (char*)ssl->buffers.domainName.buffer;
-        XSTRNCPY(domainName, dn, ssl->buffers.domainName.length);
+        unsigned char* domainName = ssl->buffers.domainName.buffer;
+        XMEMCPY(domainName, dn, ssl->buffers.domainName.length);
         domainName[ssl->buffers.domainName.length] = '\0';
         return WOLFSSL_SUCCESS;
     }
