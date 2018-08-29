@@ -70,4 +70,4 @@ ATECC508A HW accelerated implementation:
 `EC-DSA   verify time     208.400 milliseconds, avg over 5 iterations`
 
 
-For details see our [wolfSSL Atmel ATECC508A](wolfhttps://wolfssl.com/wolfSSL/wolfssl-atmel.html) page.
+For details see our [wolfSSL Atmel ATECC508A](https://wolfssl.com/wolfSSL/wolfssl-atmel.html) page.
