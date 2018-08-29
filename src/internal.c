@@ -6539,7 +6539,8 @@ static void AddRecordHeader(byte* output, word32 length, byte type, WOLFSSL* ssl
 }
 
 
-#if !defined(WOLFSSL_NO_TLS12) || defined(HAVE_SESSION_TICKET)
+#if !defined(WOLFSSL_NO_TLS12) || (defined(HAVE_SESSION_TICKET) && \
+                                                    !defined(NO_WOLFSSL_SERVER))
 /* add handshake header for message */
 static void AddHandShakeHeader(byte* output, word32 length,
                                word32 fragOffset, word32 fragLength,
@@ -6586,7 +6587,7 @@ static void AddHeaders(byte* output, word32 length, byte type, WOLFSSL* ssl)
     AddRecordHeader(output, length + lengthAdj, handshake, ssl);
     AddHandShakeHeader(output + outputAdj, length, 0, length, type, ssl);
 }
-#endif /* !WOLFSSL_NO_TLS12 || HAVE_SESSION_TICKET */
+#endif /* !WOLFSSL_NO_TLS12 || (HAVE_SESSION_TICKET && !NO_WOLFSSL_SERVER) */
 
 
 #ifndef WOLFSSL_NO_TLS12

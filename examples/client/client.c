@@ -721,6 +721,56 @@ static void ClientRead(WOLFSSL* ssl, char* reply, int replyLen, int mustRead)
     }
 }
 
+#ifdef WOLFSSL_EARLY_DATA
+static void EarlyData(WOLFSSL_CTX* ctx, WOLFSSL* ssl, char* msg, int msgSz,
+                      char* buffer)
+{
+    int err;
+    int ret;
+
+    do {
+        err = 0; /* reset error */
+        ret = wolfSSL_write_early_data(ssl, msg, msgSz, &msgSz);
+        if (ret <= 0) {
+            err = wolfSSL_get_error(ssl, 0);
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (err == WC_PENDING_E) {
+                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+                if (ret < 0) break;
+            }
+        #endif
+        }
+    } while (err == WC_PENDING_E);
+    if (ret != msgSz) {
+        printf("SSL_write_early_data msg error %d, %s\n", err,
+                                         wolfSSL_ERR_error_string(err, buffer));
+        wolfSSL_free(ssl); ssl = NULL;
+        wolfSSL_CTX_free(ctx); ctx = NULL;
+        err_sys("SSL_write_early_data failed");
+    }
+    do {
+        err = 0; /* reset error */
+        ret = wolfSSL_write_early_data(ssl, msg, msgSz, &msgSz);
+        if (ret <= 0) {
+            err = wolfSSL_get_error(ssl, 0);
+        #ifdef WOLFSSL_ASYNC_CRYPT
+            if (err == WC_PENDING_E) {
+                ret = wolfSSL_AsyncPoll(ssl, WOLF_POLL_FLAG_CHECK_HW);
+                if (ret < 0) break;
+            }
+        #endif
+        }
+    } while (err == WC_PENDING_E);
+    if (ret != msgSz) {
+        printf("SSL_write_early_data msg error %d, %s\n", err,
+                                         wolfSSL_ERR_error_string(err, buffer));
+        wolfSSL_free(ssl); ssl = NULL;
+        wolfSSL_CTX_free(ctx); ctx = NULL;
+        err_sys("SSL_write_early_data failed");
+    }
+}
+#endif
+
 static void Usage(void)
 {
     printf("wolfSSL client "    LIBWOLFSSL_VERSION_STRING
@@ -2139,6 +2189,16 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         ret = NonBlockingSSL_Connect(ssl);
     }
     else {
+#ifdef WOLFSSL_EARLY_DATA
+    #ifndef HAVE_SESSION_TICKET
+        if (!usePsk) {
+        }
+        else
+    #endif
+        if (earlyData) {
+            EarlyData(ctx, ssl, msg, msgSz, buffer);
+        }
+#endif
         do {
             err = 0; /* reset error */
             ret = wolfSSL_connect(ssl);
@@ -2403,50 +2463,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             else
         #endif
             if (earlyData) {
-                do {
-                    err = 0; /* reset error */
-                    ret = wolfSSL_write_early_data(sslResume, msg, msgSz,
-                                                                        &msgSz);
-                    if (ret <= 0) {
-                        err = wolfSSL_get_error(sslResume, 0);
-                    #ifdef WOLFSSL_ASYNC_CRYPT
-                        if (err == WC_PENDING_E) {
-                            ret = wolfSSL_AsyncPoll(sslResume,
-                                                       WOLF_POLL_FLAG_CHECK_HW);
-                            if (ret < 0) break;
-                        }
-                    #endif
-                    }
-                } while (err == WC_PENDING_E);
-                if (ret != msgSz) {
-                    printf("SSL_write_early_data msg error %d, %s\n", err,
-                                         wolfSSL_ERR_error_string(err, buffer));
-                    wolfSSL_free(sslResume); sslResume = NULL;
-                    wolfSSL_CTX_free(ctx); ctx = NULL;
-                    err_sys("SSL_write_early_data failed");
-                }
-                do {
-                    err = 0; /* reset error */
-                    ret = wolfSSL_write_early_data(sslResume, msg, msgSz,
-                                                                        &msgSz);
-                    if (ret <= 0) {
-                        err = wolfSSL_get_error(sslResume, 0);
-                    #ifdef WOLFSSL_ASYNC_CRYPT
-                        if (err == WC_PENDING_E) {
-                            ret = wolfSSL_AsyncPoll(sslResume,
-                                                       WOLF_POLL_FLAG_CHECK_HW);
-                            if (ret < 0) break;
-                        }
-                    #endif
-                    }
-                } while (err == WC_PENDING_E);
-                if (ret != msgSz) {
-                    printf("SSL_write_early_data msg error %d, %s\n", err,
-                                         wolfSSL_ERR_error_string(err, buffer));
-                    wolfSSL_free(sslResume); sslResume = NULL;
-                    wolfSSL_CTX_free(ctx); ctx = NULL;
-                    err_sys("SSL_write_early_data failed");
-                }
+                EarlyData(ctx, sslResume, msg, msgSz, buffer);
             }
     #endif
             do {

@@ -1,6 +1,15 @@
 #!/bin/bash
 # ocsp-stapling.test
 
+
+./examples/client/client -v 3 2>&1 | grep -- 'Bad SSL version'
+if [ $? -eq 0 ]; then
+    echo "TLS 1.2 or lower required"
+    echo "Skipped"
+    exit 0
+fi
+
+
 WORKSPACE=`pwd`
 CERT_DIR="certs/ocsp"
 
