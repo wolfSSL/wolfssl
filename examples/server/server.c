@@ -416,7 +416,7 @@ static void Usage(void)
 #endif
     printf("-g          Return basic HTML web page\n");
     printf("-C <num>    The number of connections to accept, default: 1\n");
-    printf("-H <arg>    Internal tests [defCipherList, exitWithRet]\n");
+    printf("-H <arg>    Internal tests [defCipherList, exitWithRet, verifyFail]\n");
 #ifdef WOLFSSL_TLS13
     printf("-U          Update keys and IVs before sending\n");
     printf("-K          Key Exchange for PSK not using (EC)DHE\n");
@@ -714,9 +714,13 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                     printf("Using default cipher list for testing\n");
                     useDefCipherList = 1;
                 }
-                else if (XSTRNCMP(myoptarg, "exitWithRet", 7) == 0) {
+                else if (XSTRNCMP(myoptarg, "exitWithRet", 11) == 0) {
                     printf("Skip exit() for testing\n");
                     exitWithRet = 1;
+                }
+                else if (XSTRNCMP(myoptarg, "verifyFail", 10) == 0) {
+                    printf("Verify should fail\n");
+                    myVerifyFail = 1;
                 }
                 else {
                     Usage();
