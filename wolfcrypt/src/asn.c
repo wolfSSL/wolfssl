@@ -10329,14 +10329,15 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
         int idx;
 
         der->subjectSz = min(sizeof(der->subject),
-                strnlen((const char*)cert->sbjRaw, sizeof(CertName)));
+                (word32)strnlen((const char*)cert->sbjRaw, sizeof(CertName)));
         /* header */
         idx = SetSequence(der->subjectSz, der->subject);
         if (der->subjectSz + idx > (int)sizeof(der->subject)) {
             return SUBJECT_E;
         }
 
-        XMEMCPY((char*)der->subject + idx, (const char*)cert->sbjRaw, der->subjectSz);
+        XMEMCPY((char*)der->subject + idx, (const char*)cert->sbjRaw,
+                der->subjectSz);
         der->subjectSz += idx;
     }
     else
@@ -10356,22 +10357,23 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
         int idx;
 
         der->issuerSz = min(sizeof(der->issuer),
-                strnlen((const char*)cert->issRaw, sizeof(CertName)));
+                (word32)strnlen((const char*)cert->issRaw, sizeof(CertName)));
         /* header */
         idx = SetSequence(der->issuerSz, der->issuer);
         if (der->issuerSz + idx > (int)sizeof(der->issuer)) {
             return ISSUER_E;
         }
 
-        XMEMCPY((char*)der->issuer + idx, (const char*)cert->issRaw, der->issuerSz);
+        XMEMCPY((char*)der->issuer + idx, (const char*)cert->issRaw,
+                der->issuerSz);
         der->issuerSz += idx;
     }
     else
 #endif
     {
         /* Use the name structure */
-        der->issuerSz = SetName(der->issuer, sizeof(der->issuer), cert->selfSigned ?
-                 &cert->subject : &cert->issuer);
+        der->issuerSz = SetName(der->issuer, sizeof(der->issuer),
+                cert->selfSigned ? &cert->subject : &cert->issuer);
     }
     if (der->issuerSz <= 0)
         return ISSUER_E;
