@@ -4109,7 +4109,7 @@ static int GetName(DecodedCert* cert, int nameType)
     length += cert->srcIdx;
     idx = 0;
 
-#ifdef HAVE_PKCS7
+#if defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT)
     /* store pointer to raw issuer */
     if (nameType == ISSUER) {
         cert->issuerRaw = &cert->source[cert->srcIdx];
