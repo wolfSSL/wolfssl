@@ -28685,8 +28685,7 @@ SP_NOINLINE static void sp_256_div2_4(sp_digit* r, sp_digit* a, sp_digit* m)
  */
 static void sp_256_proj_point_dbl_4(sp_point* r, sp_point* p, sp_digit* t)
 {
-    sp_point *rp[2];
-    sp_point tp;
+    sp_point* rp[2];
     sp_digit* t1 = t;
     sp_digit* t2 = t + 2*4;
     sp_digit* x;
@@ -28696,7 +28695,8 @@ static void sp_256_proj_point_dbl_4(sp_point* r, sp_point* p, sp_digit* t)
 
     /* When infinity don't double point passed in - constant time. */
     rp[0] = r;
-    rp[1] = &tp;
+    rp[1] = (sp_point*)t;
+    XMEMSET(rp[1], 0, sizeof(sp_point));
     x = rp[p->infinity]->x;
     y = rp[p->infinity]->y;
     z = rp[p->infinity]->z;
@@ -28760,8 +28760,7 @@ static void sp_256_proj_point_dbl_4(sp_point* r, sp_point* p, sp_digit* t)
 static void sp_256_proj_point_dbl_n_4(sp_point* r, sp_point* p, int n,
         sp_digit* t)
 {
-    sp_point *rp[2];
-    sp_point tp;
+    sp_point* rp[2];
     sp_digit* w = t;
     sp_digit* a = t + 2*4;
     sp_digit* b = t + 4*4;
@@ -28773,7 +28772,8 @@ static void sp_256_proj_point_dbl_n_4(sp_point* r, sp_point* p, int n,
     int i;
 
     rp[0] = r;
-    rp[1] = &tp;
+    rp[1] = (sp_point*)t;
+    XMEMSET(rp[1], 0, sizeof(sp_point));
     x = rp[p->infinity]->x;
     y = rp[p->infinity]->y;
     z = rp[p->infinity]->z;
@@ -28844,9 +28844,8 @@ static int sp_256_cmp_equal_4(const sp_digit* a, const sp_digit* b)
 static void sp_256_proj_point_add_4(sp_point* r, sp_point* p, sp_point* q,
         sp_digit* t)
 {
-    sp_point *ap[2];
-    sp_point *rp[2];
-    sp_point tp;
+    sp_point* ap[2];
+    sp_point* rp[2];
     sp_digit* t1 = t;
     sp_digit* t2 = t + 2*4;
     sp_digit* t3 = t + 4*4;
@@ -28873,8 +28872,8 @@ static void sp_256_proj_point_add_4(sp_point* r, sp_point* p, sp_point* q,
     }
     else {
         rp[0] = r;
-        rp[1] = &tp;
-        XMEMSET(&tp, 0, sizeof(tp));
+        rp[1] = (sp_point*)t;
+        XMEMSET(rp[1], 0, sizeof(sp_point));
         x = rp[p->infinity | q->infinity]->x;
         y = rp[p->infinity | q->infinity]->y;
         z = rp[p->infinity | q->infinity]->z;
@@ -29707,8 +29706,7 @@ static void sp_256_map_avx2_4(sp_point* r, sp_point* p, sp_digit* t)
  */
 static void sp_256_proj_point_dbl_avx2_4(sp_point* r, sp_point* p, sp_digit* t)
 {
-    sp_point *rp[2];
-    sp_point tp;
+    sp_point* rp[2];
     sp_digit* t1 = t;
     sp_digit* t2 = t + 2*4;
     sp_digit* x;
@@ -29718,7 +29716,8 @@ static void sp_256_proj_point_dbl_avx2_4(sp_point* r, sp_point* p, sp_digit* t)
 
     /* When infinity don't double point passed in - constant time. */
     rp[0] = r;
-    rp[1] = &tp;
+    rp[1] = (sp_point*)t;
+    XMEMSET(rp[1], 0, sizeof(sp_point));
     x = rp[p->infinity]->x;
     y = rp[p->infinity]->y;
     z = rp[p->infinity]->z;
@@ -29782,8 +29781,7 @@ static void sp_256_proj_point_dbl_avx2_4(sp_point* r, sp_point* p, sp_digit* t)
 static void sp_256_proj_point_dbl_n_avx2_4(sp_point* r, sp_point* p, int n,
         sp_digit* t)
 {
-    sp_point *rp[2];
-    sp_point tp;
+    sp_point* rp[2];
     sp_digit* w = t;
     sp_digit* a = t + 2*4;
     sp_digit* b = t + 4*4;
@@ -29795,7 +29793,8 @@ static void sp_256_proj_point_dbl_n_avx2_4(sp_point* r, sp_point* p, int n,
     int i;
 
     rp[0] = r;
-    rp[1] = &tp;
+    rp[1] = (sp_point*)t;
+    XMEMSET(rp[1], 0, sizeof(sp_point));
     x = rp[p->infinity]->x;
     y = rp[p->infinity]->y;
     z = rp[p->infinity]->z;
@@ -29854,9 +29853,8 @@ static void sp_256_proj_point_dbl_n_avx2_4(sp_point* r, sp_point* p, int n,
 static void sp_256_proj_point_add_avx2_4(sp_point* r, sp_point* p, sp_point* q,
         sp_digit* t)
 {
-    sp_point *ap[2];
-    sp_point *rp[2];
-    sp_point tp;
+    sp_point* ap[2];
+    sp_point* rp[2];
     sp_digit* t1 = t;
     sp_digit* t2 = t + 2*4;
     sp_digit* t3 = t + 4*4;
@@ -29883,8 +29881,8 @@ static void sp_256_proj_point_add_avx2_4(sp_point* r, sp_point* p, sp_point* q,
     }
     else {
         rp[0] = r;
-        rp[1] = &tp;
-        XMEMSET(&tp, 0, sizeof(tp));
+        rp[1] = (sp_point*)t;
+        XMEMSET(rp[1], 0, sizeof(sp_point));
         x = rp[p->infinity | q->infinity]->x;
         y = rp[p->infinity | q->infinity]->y;
         z = rp[p->infinity | q->infinity]->z;
@@ -30215,9 +30213,8 @@ typedef struct sp_table_entry {
 static void sp_256_proj_point_add_qz1_4(sp_point* r, sp_point* p,
         sp_point* q, sp_digit* t)
 {
-    sp_point *ap[2];
-    sp_point *rp[2];
-    sp_point tp;
+    sp_point* ap[2];
+    sp_point* rp[2];
     sp_digit* t1 = t;
     sp_digit* t2 = t + 2*4;
     sp_digit* t3 = t + 4*4;
@@ -30237,8 +30234,8 @@ static void sp_256_proj_point_add_qz1_4(sp_point* r, sp_point* p,
     }
     else {
         rp[0] = r;
-        rp[1] = &tp;
-        XMEMSET(&tp, 0, sizeof(tp));
+        rp[1] = (sp_point*)t;
+        XMEMSET(rp[1], 0, sizeof(sp_point));
         x = rp[p->infinity | q->infinity]->x;
         y = rp[p->infinity | q->infinity]->y;
         z = rp[p->infinity | q->infinity]->z;
@@ -30608,9 +30605,8 @@ static int sp_256_ecc_mulmod_4(sp_point* r, sp_point* g, sp_digit* k,
 static void sp_256_proj_point_add_qz1_avx2_4(sp_point* r, sp_point* p,
         sp_point* q, sp_digit* t)
 {
-    sp_point *ap[2];
-    sp_point *rp[2];
-    sp_point tp;
+    sp_point* ap[2];
+    sp_point* rp[2];
     sp_digit* t1 = t;
     sp_digit* t2 = t + 2*4;
     sp_digit* t3 = t + 4*4;
@@ -30630,8 +30626,8 @@ static void sp_256_proj_point_add_qz1_avx2_4(sp_point* r, sp_point* p,
     }
     else {
         rp[0] = r;
-        rp[1] = &tp;
-        XMEMSET(&tp, 0, sizeof(tp));
+        rp[1] = (sp_point*)t;
+        XMEMSET(rp[1], 0, sizeof(sp_point));
         x = rp[p->infinity | q->infinity]->x;
         y = rp[p->infinity | q->infinity]->y;
         z = rp[p->infinity | q->infinity]->z;
