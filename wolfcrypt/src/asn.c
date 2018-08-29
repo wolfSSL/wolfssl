@@ -10350,8 +10350,29 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
         return SUBJECT_E;
 
     /* issuer name */
-    der->issuerSz = SetName(der->issuer, sizeof(der->issuer), cert->selfSigned ?
-             &cert->subject : &cert->issuer);
+#ifdef WOLFSSL_CERT_EXT
+    if (strnlen((const char*)cert->issRaw, sizeof(CertName)) > 0) {
+        /* Use the raw issuer */
+        int idx;
+
+        der->issuerSz = min(sizeof(der->issuer),
+                strnlen((const char*)cert->issRaw, sizeof(CertName)));
+        /* header */
+        idx = SetSequence(der->issuerSz, der->issuer);
+        if (der->issuerSz + idx > (int)sizeof(der->issuer)) {
+            return ISSUER_E;
+        }
+
+        XMEMCPY((char*)der->issuer + idx, (const char*)cert->issRaw, der->issuerSz);
+        der->issuerSz += idx;
+    }
+    else
+#endif
+    {
+        /* Use the name structure */
+        der->issuerSz = SetName(der->issuer, sizeof(der->issuer), cert->selfSigned ?
+                 &cert->subject : &cert->issuer);
+    }
     if (der->issuerSz <= 0)
         return ISSUER_E;
 
