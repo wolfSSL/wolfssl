@@ -10323,6 +10323,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
     }
 
     /* subject name */
+#ifdef WOLFSSL_CERT_EXT
     if (strnlen((const char*)cert->sbjRaw, sizeof(CertName)) > 0) {
         /* Use the raw subject */
         int idx;
@@ -10339,6 +10340,7 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
         der->subjectSz += idx;
     }
     else
+#endif
     {
         /* Use the name structure */
         der->subjectSz = SetName(der->subject, sizeof(der->subject),
@@ -12067,7 +12069,59 @@ static int SetSubjectRawFromCert(byte* sbjRaw, const byte* der, int derSz)
 
     return ret < 0 ? ret : 0;
 }
+
+/* Set raw issuer from der buffer, return 0 on success */
+static int SetIssuerRawFromCert(byte* issuerRaw, const byte* der, int derSz)
+{
+    int ret;
+#ifdef WOLFSSL_SMALL_STACK
+    DecodedCert* decoded;
+#else
+    DecodedCert decoded[1];
 #endif
+
+    if ((derSz < 0) || (issuerRaw == NULL)) {
+        return BAD_FUNC_ARG;
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    decoded = (DecodedCert*)XMALLOC(sizeof(DecodedCert), NULL,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
+    if (decoded == NULL) {
+        return MEMORY_E;
+    }
+#endif
+
+    InitDecodedCert(decoded, (byte*)der, derSz, NULL);
+    ret = ParseCertRelative(decoded, CA_TYPE, NO_VERIFY, 0);
+
+    if (ret < 0) {
+        WOLFSSL_MSG("ParseCertRelative error");
+    }
+#ifndef IGNORE_NAME_CONSTRAINT
+    else {
+        if ((decoded->issuerRaw) &&
+            (decoded->issuerRawLen <= (int)sizeof(CertName))) {
+            XMEMCPY(issuerRaw, decoded->issuerRaw, decoded->issuerRawLen);
+        }
+    }
+#else
+    else {
+        /* Fields are not accessible */
+        ret = -1;
+        WOLFSSL_MSG("IGNORE_NAME_CONSTRAINT excludes raw issuer");
+    }
+#endif
+
+    FreeDecodedCert(decoded);
+
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(decoded, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+
+    return ret < 0 ? ret : 0;
+}
+#endif /* WOLFSSL_CERT_EXT */
 
 #ifndef NO_FILESYSTEM
 
@@ -12156,6 +12210,20 @@ int wc_SetSubjectRaw(Cert* cert, const byte* der, int derSz)
     }
     else {
         ret = SetSubjectRawFromCert(cert->sbjRaw, der, derSz);
+    }
+    return ret;
+}
+
+/* Set cert raw issuer from DER buffer */
+int wc_SetIssuerRaw(Cert* cert, const byte* der, int derSz)
+{
+    int ret;
+
+    if (cert == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
+    else {
+        ret = SetIssuerRawFromCert(cert->sbjRaw, der, derSz);
     }
     return ret;
 }

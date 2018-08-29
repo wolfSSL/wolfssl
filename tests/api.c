@@ -19454,6 +19454,32 @@ static void test_wc_GetSubjectRaw(void)
 #endif
 }
 
+static void test_wc_SetIssuerRaw(void)
+{
+#if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && \
+    defined(WOLFSSL_CERT_EXT) && defined(OPENSSL_EXTRA)
+    char joiCertFile[] = "./certs/test/cert-ext-joi.pem";
+    WOLFSSL_X509* x509;
+    int peerCertSz;
+    const byte* peerCertBuf;
+    Cert forgedCert;
+
+    printf(testingFmt, "test_wc_SetIssuerRaw()");
+
+    AssertNotNull(x509 = wolfSSL_X509_load_certificate_file(joiCertFile, WOLFSSL_FILETYPE_PEM));
+
+    AssertNotNull(peerCertBuf = wolfSSL_X509_get_der(x509, &peerCertSz));
+
+    AssertIntEQ(0, wc_InitCert(&forgedCert));
+
+    AssertIntEQ(0, wc_SetIssuerRaw(&forgedCert, peerCertBuf, peerCertSz));
+
+    wolfSSL_FreeX509(x509);
+
+    printf(resultFmt, passed);
+#endif
+}
+
 /*----------------------------------------------------------------------------*
  | wolfCrypt ECC
  *----------------------------------------------------------------------------*/
@@ -20696,6 +20722,7 @@ void ApiTest(void)
     test_wc_GetPkcs8TraditionalOffset();
     test_wc_SetSubjectRaw();
     test_wc_GetSubjectRaw();
+    test_wc_SetIssuerRaw();
 
     /* wolfCrypt ECC tests */
     test_wc_ecc_get_curve_size_from_name();

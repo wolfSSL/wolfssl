@@ -297,7 +297,6 @@ WOLFSSL_API int wc_MakeSelfCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
                              WC_RNG*);
 WOLFSSL_API int wc_SetIssuer(Cert*, const char*);
 WOLFSSL_API int wc_SetSubject(Cert*, const char*);
-WOLFSSL_API int wc_SetSubjectRaw(Cert*, const byte* der, int derSz);
 #ifdef WOLFSSL_ALT_NAMES
     WOLFSSL_API int wc_SetAltNames(Cert*, const char*);
 #endif
@@ -324,6 +323,8 @@ WOLFSSL_API int wc_SetSubjectKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey,
                                                 ecc_key *eckey);
 WOLFSSL_API int wc_SetSubjectKeyId(Cert *cert, const char* file);
 WOLFSSL_API int wc_GetSubjectRaw(byte **subjectRaw, Cert *cert);
+WOLFSSL_API int wc_SetSubjectRaw(Cert* cert, const byte* der, int derSz);
+WOLFSSL_API int wc_SetIssuerRaw(Cert* cert, const byte* der, int derSz);
 
 #ifdef HAVE_NTRU
 WOLFSSL_API int wc_SetSubjectKeyIdFromNtruPublicKey(Cert *cert, byte *ntruKey,
