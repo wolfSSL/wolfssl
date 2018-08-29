@@ -4170,6 +4170,10 @@ static int sp_2048_mod_exp_32(sp_digit* r, sp_digit* a, sp_digit* e,
 
             sp_2048_mont_mul_32(r, r, t[y], m, mp);
         }
+        y = e[0] & ((1 << c) - 1);
+        for (; c > 0; c--)
+            sp_2048_mont_sqr_32(r, r, m, mp);
+        sp_2048_mont_mul_32(r, r, t[y], m, mp);
 
         XMEMSET(&r[32], 0, sizeof(sp_digit) * 32);
         sp_2048_mont_reduce_32(r, m, mp);
@@ -4310,11 +4314,9 @@ static int sp_2048_mod_exp_32(sp_digit* r, sp_digit* a, sp_digit* e,
 
             sp_2048_mont_mul_32(r, r, t[y], m, mp);
         }
-        y = e[0] & 0xf;
-        sp_2048_mont_sqr_32(r, r, m, mp);
-        sp_2048_mont_sqr_32(r, r, m, mp);
-        sp_2048_mont_sqr_32(r, r, m, mp);
-        sp_2048_mont_sqr_32(r, r, m, mp);
+        y = e[0] & ((1 << c) - 1);
+        for (; c > 0; c--)
+            sp_2048_mont_sqr_32(r, r, m, mp);
         sp_2048_mont_mul_32(r, r, t[y], m, mp);
 
         XMEMSET(&r[32], 0, sizeof(sp_digit) * 32);
@@ -4335,6 +4337,7 @@ static int sp_2048_mod_exp_32(sp_digit* r, sp_digit* a, sp_digit* e,
 
 #endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA */
 
+#ifdef WOLFSSL_HAVE_SP_DH
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 2048 bits, just need to subtract.
  *
@@ -4349,6 +4352,7 @@ static void sp_2048_mont_norm_64(sp_digit* r, sp_digit* m)
     sp_2048_sub_in_place_64(r, m);
 }
 
+#endif /* WOLFSSL_HAVE_SP_DH */
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
@@ -6766,6 +6770,10 @@ static int sp_2048_mod_exp_64(sp_digit* r, sp_digit* a, sp_digit* e,
 
             sp_2048_mont_mul_64(r, r, t[y], m, mp);
         }
+        y = e[0] & ((1 << c) - 1);
+        for (; c > 0; c--)
+            sp_2048_mont_sqr_64(r, r, m, mp);
+        sp_2048_mont_mul_64(r, r, t[y], m, mp);
 
         XMEMSET(&r[64], 0, sizeof(sp_digit) * 64);
         sp_2048_mont_reduce_64(r, m, mp);
@@ -6906,10 +6914,9 @@ static int sp_2048_mod_exp_64(sp_digit* r, sp_digit* a, sp_digit* e,
 
             sp_2048_mont_mul_64(r, r, t[y], m, mp);
         }
-        y = e[0] & 0x7;
-        sp_2048_mont_sqr_64(r, r, m, mp);
-        sp_2048_mont_sqr_64(r, r, m, mp);
-        sp_2048_mont_sqr_64(r, r, m, mp);
+        y = e[0] & ((1 << c) - 1);
+        for (; c > 0; c--)
+            sp_2048_mont_sqr_64(r, r, m, mp);
         sp_2048_mont_mul_64(r, r, t[y], m, mp);
 
         XMEMSET(&r[64], 0, sizeof(sp_digit) * 64);
@@ -12617,6 +12624,10 @@ static int sp_3072_mod_exp_48(sp_digit* r, sp_digit* a, sp_digit* e,
 
             sp_3072_mont_mul_48(r, r, t[y], m, mp);
         }
+        y = e[0] & ((1 << c) - 1);
+        for (; c > 0; c--)
+            sp_3072_mont_sqr_48(r, r, m, mp);
+        sp_3072_mont_mul_48(r, r, t[y], m, mp);
 
         XMEMSET(&r[48], 0, sizeof(sp_digit) * 48);
         sp_3072_mont_reduce_48(r, m, mp);
@@ -12757,8 +12768,9 @@ static int sp_3072_mod_exp_48(sp_digit* r, sp_digit* a, sp_digit* e,
 
             sp_3072_mont_mul_48(r, r, t[y], m, mp);
         }
-        y = e[0] & 0x1;
-        sp_3072_mont_sqr_48(r, r, m, mp);
+        y = e[0] & ((1 << c) - 1);
+        for (; c > 0; c--)
+            sp_3072_mont_sqr_48(r, r, m, mp);
         sp_3072_mont_mul_48(r, r, t[y], m, mp);
 
         XMEMSET(&r[48], 0, sizeof(sp_digit) * 48);
@@ -12779,6 +12791,7 @@ static int sp_3072_mod_exp_48(sp_digit* r, sp_digit* a, sp_digit* e,
 
 #endif /* !SP_RSA_PRIVATE_EXP_D && WOLFSSL_HAVE_SP_RSA */
 
+#ifdef WOLFSSL_HAVE_SP_DH
 /* r = 2^n mod m where n is the number of bits to reduce by.
  * Given m must be 3072 bits, just need to subtract.
  *
@@ -12793,6 +12806,7 @@ static void sp_3072_mont_norm_96(sp_digit* r, sp_digit* m)
     sp_3072_sub_in_place_96(r, m);
 }
 
+#endif /* WOLFSSL_HAVE_SP_DH */
 /* Conditionally subtract b from a using the mask m.
  * m is -1 to subtract and 0 when not copying.
  *
@@ -16170,6 +16184,10 @@ static int sp_3072_mod_exp_96(sp_digit* r, sp_digit* a, sp_digit* e,
 
             sp_3072_mont_mul_96(r, r, t[y], m, mp);
         }
+        y = e[0] & ((1 << c) - 1);
+        for (; c > 0; c--)
+            sp_3072_mont_sqr_96(r, r, m, mp);
+        sp_3072_mont_mul_96(r, r, t[y], m, mp);
 
         XMEMSET(&r[96], 0, sizeof(sp_digit) * 96);
         sp_3072_mont_reduce_96(r, m, mp);
@@ -16310,9 +16328,9 @@ static int sp_3072_mod_exp_96(sp_digit* r, sp_digit* a, sp_digit* e,
 
             sp_3072_mont_mul_96(r, r, t[y], m, mp);
         }
-        y = e[0] & 0x3;
-        sp_3072_mont_sqr_96(r, r, m, mp);
-        sp_3072_mont_sqr_96(r, r, m, mp);
+        y = e[0] & ((1 << c) - 1);
+        for (; c > 0; c--)
+            sp_3072_mont_sqr_96(r, r, m, mp);
         sp_3072_mont_mul_96(r, r, t[y], m, mp);
 
         XMEMSET(&r[96], 0, sizeof(sp_digit) * 96);
@@ -23984,7 +24002,7 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
                     mp_int* rm, mp_int* sm, void* heap)
 {
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
-    sp_digit* d;
+    sp_digit* d = NULL;
 #else
     sp_digit ed[2*8];
     sp_digit xd[2*8];

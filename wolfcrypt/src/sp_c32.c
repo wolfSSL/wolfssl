@@ -11888,7 +11888,7 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
                     mp_int* rm, mp_int* sm, void* heap)
 {
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
-    sp_digit* d;
+    sp_digit* d = NULL;
 #else
     sp_digit ed[2*10];
     sp_digit xd[2*10];
