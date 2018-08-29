@@ -158,7 +158,7 @@ if [ $? -eq 0 ]; then
 fi
 
 # check if supported key size is large enough to handle 4096 bit RSA
-size=`./examples/client/client -? | grep "Max key"`
+size=`./examples/client/client -? | grep "Max RSA key"`
 size=`echo ${size//[^0-9]/}`
 if [ ! -z "$size" ]; then
     printf 'check on max key size of %d ...' $size
