@@ -1645,6 +1645,19 @@ then
 fi
 
 
+# STACK usage logging
+AC_ARG_ENABLE([stacklog],
+    [AS_HELP_STRING([--enable-stacklog],[Enable stack logging (default: disabled)])],
+    [ ENABLED_STACKLOG=$enableval ],
+    [ ENABLED_STACKLOG=no ]
+    )
+
+if test "$ENABLED_STACKLOG" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STACK_LOG -finstrument-functions"
+fi
+
+
 
 # RSA
 AC_ARG_ENABLE([rsa],

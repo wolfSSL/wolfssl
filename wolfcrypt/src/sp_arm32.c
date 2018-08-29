@@ -19166,8 +19166,7 @@ static void sp_256_div2_8(sp_digit* r, sp_digit* a, sp_digit* m)
  */
 static void sp_256_proj_point_dbl_8(sp_point* r, sp_point* p, sp_digit* t)
 {
-    sp_point *rp[2];
-    sp_point tp;
+    sp_point* rp[2];
     sp_digit* t1 = t;
     sp_digit* t2 = t + 2*8;
     sp_digit* x;
@@ -19177,7 +19176,8 @@ static void sp_256_proj_point_dbl_8(sp_point* r, sp_point* p, sp_digit* t)
 
     /* When infinity don't double point passed in - constant time. */
     rp[0] = r;
-    rp[1] = &tp;
+    rp[1] = (sp_point*)t;
+    XMEMSET(rp[1], 0, sizeof(sp_point));
     x = rp[p->infinity]->x;
     y = rp[p->infinity]->y;
     z = rp[p->infinity]->z;
@@ -19352,9 +19352,8 @@ static int sp_256_cmp_equal_8(const sp_digit* a, const sp_digit* b)
 static void sp_256_proj_point_add_8(sp_point* r, sp_point* p, sp_point* q,
         sp_digit* t)
 {
-    sp_point *ap[2];
-    sp_point *rp[2];
-    sp_point tp;
+    sp_point* ap[2];
+    sp_point* rp[2];
     sp_digit* t1 = t;
     sp_digit* t2 = t + 2*8;
     sp_digit* t3 = t + 4*8;
@@ -19381,8 +19380,8 @@ static void sp_256_proj_point_add_8(sp_point* r, sp_point* p, sp_point* q,
     }
     else {
         rp[0] = r;
-        rp[1] = &tp;
-        XMEMSET(&tp, 0, sizeof(tp));
+        rp[1] = (sp_point*)t;
+        XMEMSET(rp[1], 0, sizeof(sp_point));
         x = rp[p->infinity | q->infinity]->x;
         y = rp[p->infinity | q->infinity]->y;
         z = rp[p->infinity | q->infinity]->z;
@@ -19577,8 +19576,7 @@ typedef struct sp_table_entry {
 static void sp_256_proj_point_dbl_n_8(sp_point* r, sp_point* p, int n,
         sp_digit* t)
 {
-    sp_point *rp[2];
-    sp_point tp;
+    sp_point* rp[2];
     sp_digit* w = t;
     sp_digit* a = t + 2*8;
     sp_digit* b = t + 4*8;
@@ -19590,7 +19588,8 @@ static void sp_256_proj_point_dbl_n_8(sp_point* r, sp_point* p, int n,
     int i;
 
     rp[0] = r;
-    rp[1] = &tp;
+    rp[1] = (sp_point*)t;
+    XMEMSET(rp[1], 0, sizeof(sp_point));
     x = rp[p->infinity]->x;
     y = rp[p->infinity]->y;
     z = rp[p->infinity]->z;
@@ -19652,9 +19651,8 @@ static void sp_256_proj_point_dbl_n_8(sp_point* r, sp_point* p, int n,
 static void sp_256_proj_point_add_qz1_8(sp_point* r, sp_point* p,
         sp_point* q, sp_digit* t)
 {
-    sp_point *ap[2];
-    sp_point *rp[2];
-    sp_point tp;
+    sp_point* ap[2];
+    sp_point* rp[2];
     sp_digit* t1 = t;
     sp_digit* t2 = t + 2*8;
     sp_digit* t3 = t + 4*8;
@@ -19674,8 +19672,8 @@ static void sp_256_proj_point_add_qz1_8(sp_point* r, sp_point* p,
     }
     else {
         rp[0] = r;
-        rp[1] = &tp;
-        XMEMSET(&tp, 0, sizeof(tp));
+        rp[1] = (sp_point*)t;
+        XMEMSET(rp[1], 0, sizeof(sp_point));
         x = rp[p->infinity | q->infinity]->x;
         y = rp[p->infinity | q->infinity]->y;
         z = rp[p->infinity | q->infinity]->z;
@@ -23984,7 +23982,7 @@ int sp_ecc_sign_256(const byte* hash, word32 hashLen, WC_RNG* rng, mp_int* priv,
                     mp_int* rm, mp_int* sm, void* heap)
 {
 #if defined(WOLFSSL_SP_SMALL) || defined(WOLFSSL_SMALL_STACK)
-    sp_digit* d;
+    sp_digit* d = NULL;
 #else
     sp_digit ed[2*8];
     sp_digit xd[2*8];

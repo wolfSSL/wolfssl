@@ -8678,6 +8678,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     (void)sizeof(args_test);
 #elif defined(WOLFSSL_NONBLOCK_OCSP)
     ProcPeerCertArgs* args = ssl->nonblockarg;
+#elif defined(WOLFSSL_SMALL_STACK)
+    ProcPeerCertArgs* args = NULL;
 #else
     ProcPeerCertArgs  args[1];
 #endif
@@ -8706,6 +8708,12 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
         }
     }
     if (ssl->nonblockarg == NULL) /* new args */
+#elif defined(WOLFSSL_SMALL_STACK)
+    args = (ProcPeerCertArgs*)XMALLOC(
+        sizeof(ProcPeerCertArgs), ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
+    if (args == NULL) {
+        ERROR_OUT(MEMORY_E, exit_ppc);
+    }
 #endif
     {
         /* Reset state */
@@ -9836,9 +9844,12 @@ exit_ppc:
 
     FreeProcPeerCertArgs(ssl, args);
 
-#if !defined(WOLFSSL_ASYNC_CRYPT) && defined(WOLFSSL_NONBLOCK_OCSP)
+#if defined(WOLFSSL_ASYNC_CRYPT)
+#elif defined(WOLFSSL_NONBLOCK_OCSP)
     XFREE(args, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
     ssl->nonblockarg = NULL;
+#elif defined(WOLFSSL_SMALL_STACK)
+    XFREE(args, ssl->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
 
     FreeKeyExchange(ssl);

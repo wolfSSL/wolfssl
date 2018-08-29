@@ -1074,3 +1074,22 @@ void xfree(void *p, void* heap, int type, const char* func, const char* file,
 }
 #endif /* WOLFSSL_MEMORY_LOG */
 
+#ifdef WOLFSSL_STACK_LOG
+/* Note: this code only works with GCC using -finstrument-functions. */
+void __attribute__((no_instrument_function))
+     __cyg_profile_func_enter(void *func,  void *caller)
+{
+    register void* sp asm("sp");
+    fprintf(stderr, "ENTER: %016lx %p\n", (size_t)func, sp);
+    (void)caller;
+}
+
+void __attribute__((no_instrument_function))
+     __cyg_profile_func_exit(void *func, void *caller)
+{
+    register void* sp asm("sp");
+    fprintf(stderr, "EXIT: %016lx %p\n", (size_t)func, sp);
+    (void)caller;
+}
+#endif
+
