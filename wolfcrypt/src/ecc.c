@@ -6296,6 +6296,11 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
     /* adjust to skip first byte */
     inLen -= 1;
     in += 1;
+    
+    #ifdef WOLFSSL_ATECC508A
+    /* populate key->pubkey_raw */
+    XMEMCPY(key->pubkey_raw, (byte*)in, sizeof(key->pubkey_raw));
+    #endif
 
     if (err == MP_OKAY) {
     #ifdef HAVE_COMP_KEY
