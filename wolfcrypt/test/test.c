@@ -11679,7 +11679,7 @@ int dh_test(void)
 {
     int    ret;
     word32 bytes;
-    word32 idx = 0, privSz, pubSz, privSz2, pubSz2, agreeSz, agreeSz2;
+    word32 idx = 0, privSz, pubSz, privSz2, pubSz2;
     byte   tmp[1024];
     byte   priv[256];
     byte   pub[256];
@@ -11687,6 +11687,8 @@ int dh_test(void)
     byte   pub2[256];
     byte   agree[256];
     byte   agree2[256];
+    word32 agreeSz = (word32)sizeof(agree);
+    word32 agreeSz2 = (word32)sizeof(agree2);
     DhKey  key;
     DhKey  key2;
     WC_RNG rng;
