@@ -1297,6 +1297,14 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 break;
 
             case 'S' :
+                if (XSTRNCMP(myoptarg, "check", 5) == 0) {
+                #ifdef HAVE_SNI
+                    printf("SNI is: ON\n");
+                #else
+                    printf("SNI is: OFF\n");
+                #endif
+                    XEXIT_T(EXIT_SUCCESS);
+                }
                 #ifdef HAVE_SNI
                     sniHostName = myoptarg;
                 #endif
