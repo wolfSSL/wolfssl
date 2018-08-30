@@ -8620,14 +8620,6 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         wolfSSL_sk_X509_free(store->chain);
         store->chain = NULL;
     #endif
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(domain, ssl->heap, DYNAMIC_TYPE_STRING);
-        #ifdef OPENSSL_EXTRA
-        XFREE(x509, ssl->heap, DYNAMIC_TYPE_X509);
-        #endif
-        XFREE(store, ssl->heap, DYNAMIC_TYPE_X509_STORE);
-    #endif
-
     #ifdef SESSION_CERTS
         if (store->discardSessionCerts) {
             WOLFSSL_MSG("Verify callback requested discard sess certs");
@@ -8637,6 +8629,13 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         #endif
         }
     #endif /* SESSION_CERTS */
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(domain, ssl->heap, DYNAMIC_TYPE_STRING);
+        #ifdef OPENSSL_EXTRA
+        XFREE(x509, ssl->heap, DYNAMIC_TYPE_X509);
+        #endif
+        XFREE(store, ssl->heap, DYNAMIC_TYPE_X509_STORE);
+    #endif
     }
 
     if (ret != 0) {

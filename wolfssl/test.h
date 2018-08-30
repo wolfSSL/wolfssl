@@ -1471,6 +1471,8 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
      * store->store:        WOLFSSL_X509_STORE with CA cert chain
      * store->store->cm:    WOLFSSL_CERT_MANAGER
      * store->ex_data:      The WOLFSSL object pointer
+     * store->discardSessionCerts: When set to non-zero value session certs 
+        will be discarded (only with SESSION_CERTS)
      */
 
     printf("In verification callback, error = %d, %s\n", store->error,
