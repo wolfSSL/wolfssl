@@ -27,6 +27,12 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
+/*
+ * WOLFSSL_SMALL_CERT_VERIFY:
+ *     Verify the certificate signature without using DecodedCert. Doubles up
+ *     on some code but allows smaller dynamic memory usage.
+ */
+
 #ifndef WOLFCRYPT_ONLY
 
 #include <wolfssl/internal.h>
@@ -8896,11 +8902,13 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             args->certIdx = 0;
 
             args->dCertInit = 0;
+#ifndef WOLFSSL_SMALL_CERT_VERIFY
             args->dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), ssl->heap,
                                                        DYNAMIC_TYPE_DCERT);
             if (args->dCert == NULL) {
                 ERROR_OUT(MEMORY_E, exit_ppc);
             }
+#endif
 
             /* Advance state and proceed */
             ssl->options.asyncState = TLS_ASYNC_BUILD;
@@ -8919,6 +8927,17 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     cert = &args->certs[args->certIdx];
 
                     if (!args->dCertInit) {
+#ifdef WOLFSSL_SMALL_CERT_VERIFY
+                        if (args->dCert == NULL) {
+                            args->dCert = (DecodedCert*)XMALLOC(
+                                                 sizeof(DecodedCert), ssl->heap,
+                                                 DYNAMIC_TYPE_DCERT);
+                            if (args->dCert == NULL) {
+                                ERROR_OUT(MEMORY_E, exit_ppc);
+                            }
+                        }
+#endif
+
                         InitDecodedCert(args->dCert,
                             cert->buffer, cert->length, ssl->heap);
                         args->dCert->sigCtx.devId = ssl->devId; /* setup async dev */
@@ -8991,6 +9010,17 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     cert = &args->certs[args->certIdx];
 
                     if (!args->dCertInit) {
+#ifdef WOLFSSL_SMALL_CERT_VERIFY
+                        if (args->dCert == NULL) {
+                            args->dCert = (DecodedCert*)XMALLOC(
+                                                 sizeof(DecodedCert), ssl->heap,
+                                                 DYNAMIC_TYPE_DCERT);
+                            if (args->dCert == NULL) {
+                                ERROR_OUT(MEMORY_E, exit_ppc);
+                            }
+                        }
+#endif
+
                         InitDecodedCert(args->dCert,
                             cert->buffer, cert->length, ssl->heap);
                         args->dCert->sigCtx.devId = ssl->devId;
@@ -9043,7 +9073,34 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     args->certIdx = args->count - 1;
                     cert = &args->certs[args->certIdx];
 
+#ifdef WOLFSSL_SMALL_CERT_VERIFY
+                    if (!ssl->options.verifyNone) {
+                        if (args->dCert != NULL) {
+                            if (args->dCertInit) {
+                                FreeDecodedCert(args->dCert);
+                                args->dCertInit = 0;
+                            }
+                            XFREE(args->dCert, ssl->heap, DYNAMIC_TYPE_DCERT);
+                            args->dCert = NULL;
+                        }
+                        ret = CheckCertSignature(cert->buffer, cert->length,
+                                                       ssl->heap, ssl->ctx->cm);
+                        if (ret != 0)
+                            goto exit_ppc;
+                    }
+#endif
                     if (!args->dCertInit) {
+#ifdef WOLFSSL_SMALL_CERT_VERIFY
+                        if (args->dCert == NULL) {
+                            args->dCert = (DecodedCert*)XMALLOC(
+                                                 sizeof(DecodedCert), ssl->heap,
+                                                 DYNAMIC_TYPE_DCERT);
+                            if (args->dCert == NULL) {
+                                ERROR_OUT(MEMORY_E, exit_ppc);
+                            }
+                        }
+#endif
+
                         InitDecodedCert(args->dCert,
                             cert->buffer, cert->length, ssl->heap);
                         args->dCert->sigCtx.devId = ssl->devId; /* setup async dev */
@@ -9064,8 +9121,14 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     {
                 #endif
 
+#ifndef WOLFSSL_SMALL_CERT_VERIFY
                     ret = ParseCertRelative(args->dCert, CERT_TYPE,
                                     !ssl->options.verifyNone, ssl->ctx->cm);
+#else
+                    ret = ParseCertRelative(args->dCert, CERT_TYPE,
+                             !ssl->options.verifyNone ? VERIFY_NAME : NO_VERIFY,
+                             ssl->ctx->cm);
+#endif
                 #ifdef WOLFSSL_ASYNC_CRYPT
                     if (ret == WC_PENDING_E) {
                         ret = wolfSSL_AsyncPush(ssl,
@@ -9280,7 +9343,31 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                 args->certIdx = 0;
                 cert = &args->certs[args->certIdx];
 
+#ifdef WOLFSSL_SMALL_CERT_VERIFY
+                if (!ssl->options.verifyNone) {
+                    if (args->dCert != NULL) {
+                        if (args->dCertInit) {
+                            FreeDecodedCert(args->dCert);
+                            args->dCertInit = 0;
+                        }
+                        XFREE(args->dCert, ssl->heap, DYNAMIC_TYPE_DCERT);
+                        args->dCert = NULL;
+                    }
+                    ret = CheckCertSignature(cert->buffer, cert->length,
+                                                       ssl->heap, ssl->ctx->cm);
+                    if (ret != 0)
+                        goto exit_ppc;
+                }
+#endif
                 if (!args->dCertInit) {
+                    if (args->dCert == NULL) {
+                        args->dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert),
+                                                 ssl->heap, DYNAMIC_TYPE_DCERT);
+                        if (args->dCert == NULL) {
+                            ERROR_OUT(MEMORY_E, exit_ppc);
+                        }
+                    }
+
                     InitDecodedCert(args->dCert,
                         cert->buffer, cert->length, ssl->heap);
                     args->dCert->sigCtx.devId = ssl->devId; /* setup async dev */
@@ -9300,8 +9387,14 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             #endif
                 {
                     /* only parse if not already present in dCert from above */
+#ifndef WOLFSSL_SMALL_CERT_VERIFY
                     ret = ParseCertRelative(args->dCert, CERT_TYPE,
                                     !ssl->options.verifyNone, ssl->ctx->cm);
+#else
+                    ret = ParseCertRelative(args->dCert, CERT_TYPE,
+                             !ssl->options.verifyNone ? VERIFY_NAME : NO_VERIFY,
+                             ssl->ctx->cm);
+#endif
                 #ifdef WOLFSSL_ASYNC_CRYPT
                     if (ret == WC_PENDING_E) {
                         ret = wolfSSL_AsyncPush(ssl,
@@ -20149,7 +20242,7 @@ int SendCertificateVerify(WOLFSSL* ssl)
                 return 0;  /* sent blank cert, can't verify */
             }
 
-            args->sendSz = MAX_CERT_VERIFY_SZ;
+            args->sendSz = MAX_CERT_VERIFY_SZ + MAX_MSG_EXTRA;
             if (IsEncryptionOn(ssl, 1)) {
                 args->sendSz += MAX_MSG_EXTRA;
             }

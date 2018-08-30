@@ -46,6 +46,9 @@ ASN Options:
     disable checking of OCSP subject hash with issuer hash.
  * WOLFSSL_ALT_CERT_CHAINS: Allows matching multiple CA's to validate
     chain based on issuer and public key (includes signature confirmation)
+ * WOLFSSL_SMALL_CERT_VERIFY: Verify the certificate signature without using
+    DecodedCert. Doubles up on some code but allows smaller dynamic memory
+    usage.
 */
 
 #ifndef NO_ASN
@@ -4098,11 +4101,7 @@ static int GetName(DecodedCert* cert, int nameType)
     if (GetSequence(cert->source, &cert->srcIdx, &length, cert->maxIdx) < 0)
         return ASN_PARSE_E;
 
-#ifdef NO_SHA
-    ret = wc_Sha256Hash(&cert->source[idx], length + cert->srcIdx - idx, hash);
-#else
-    ret = wc_ShaHash(&cert->source[idx], length + cert->srcIdx - idx, hash);
-#endif
+    ret = CalcHashId(&cert->source[idx], length + cert->srcIdx - idx, hash);
     if (ret != 0)
         return ret;
 
@@ -6369,13 +6368,8 @@ static int DecodeAuthKeyId(byte* input, int sz, DecodedCert* cert)
     if (length == KEYID_SIZE) {
         XMEMCPY(cert->extAuthKeyId, input + idx, length);
     }
-    else {
-    #ifdef NO_SHA
-        ret = wc_Sha256Hash(input + idx, length, cert->extAuthKeyId);
-    #else
-        ret = wc_ShaHash(input + idx, length, cert->extAuthKeyId);
-    #endif
-    }
+    else
+        ret = CalcHashId(input + idx, length, cert->extAuthKeyId);
 
     return ret;
 }
@@ -6400,16 +6394,11 @@ static int DecodeSubjKeyId(byte* input, int sz, DecodedCert* cert)
         cert->extSubjKeyIdSz = length;
     #endif /* OPENSSL_EXTRA */
 
-    if (length == SIGNER_DIGEST_SIZE) {
+    if (length == KEYID_SIZE) {
         XMEMCPY(cert->extSubjKeyId, input + idx, length);
     }
-    else {
-    #ifdef NO_SHA
-        ret = wc_Sha256Hash(input + idx, length, cert->extSubjKeyId);
-    #else
-        ret = wc_ShaHash(input + idx, length, cert->extSubjKeyId);
-    #endif
-    }
+    else
+        ret = CalcHashId(input + idx, length, cert->extSubjKeyId);
 
     return ret;
 }
@@ -7107,6 +7096,268 @@ static Signer* GetCABySubjectAndPubKey(DecodedCert* cert, void* cm)
 }
 #endif
 
+#ifdef WOLFSSL_SMALL_CERT_VERIFY
+/* Only quick step through the certificate to find fields that are then used
+ * in certificate signature verification.
+ * Must use the signature OID from the signed part of the certificate.
+ *
+ * This is only for minimizing dynamic memory usage during TLS certificate
+ * chain processing.
+ * Doesn't support:
+ *   OCSP Only: alt lookup using subject and pub key w/o sig check
+ */
+int CheckCertSignature(byte* cert, word32 certSz, void* heap, void* cm)
+{
+#ifndef WOLFSSL_SMALL_STACK
+    SignatureCtx  sigCtx[1];
+#else
+    SignatureCtx* sigCtx;
+#endif
+    byte          hash[KEYID_SIZE];
+    Signer*       ca = NULL;
+    word32        idx = 0;
+    int           len;
+    word32        tbsCertIdx;
+    word32        sigIndex;
+    word32        signatureOID;
+    word32        oid;
+    word32        issuerIdx;
+    word32        issuerSz;
+#ifndef NO_SKID
+    int           extLen;
+    word32        extIdx;
+    word32        extEndIdx;
+    int           extAuthKeyIdSet = 0;
+#endif
+    int           ret = 0;
+
+#ifdef WOLFSSL_SMALL_STACK
+    sigCtx = XMALLOC(sizeof(*sigCtx), heap, DYNAMIC_TYPE_SIGNATURE);
+    if (sigCtx == NULL)
+        return MEMORY_E;
+#endif
+    InitSignatureCtx(sigCtx, heap, INVALID_DEVID);
+
+    /* Certificate SEQUENCE */
+    if (GetSequence(cert, &idx, &len, certSz) < 0)
+        ret = ASN_PARSE_E;
+    if (ret == 0) {
+        tbsCertIdx = idx;
+
+        /* TBSCertificate SEQUENCE */
+        if (GetSequence(cert, &idx, &len, certSz) < 0)
+            ret = ASN_PARSE_E;
+    }
+    if (ret == 0) {
+        sigIndex = len + idx;
+
+        if ((idx + 1) > certSz)
+            ret = BUFFER_E;
+    }
+    if (ret == 0) {
+        /* version - optional */
+        if (cert[idx] == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED)) {
+            idx++;
+            if (GetLength(cert, &idx, &len, certSz) < 0)
+                ret = ASN_PARSE_E;
+            idx += len;
+        }
+    }
+
+    if (ret == 0) {
+        /* serialNumber */
+        if (GetASNHeader(cert, ASN_INTEGER, &idx, &len, certSz) < 0)
+            ret = ASN_PARSE_E;
+    }
+    if (ret == 0) {
+        idx += len;
+
+        /* signature */
+        if (GetAlgoId(cert, &idx, &signatureOID, oidSigType, certSz) < 0)
+            ret = ASN_PARSE_E;
+    }
+
+    if (ret == 0) {
+        issuerIdx = idx;
+        /* issuer */
+        if (GetSequence(cert, &idx, &len, certSz) < 0)
+            ret = ASN_PARSE_E;
+    }
+    if (ret == 0) {
+        issuerSz = len + idx - issuerIdx;
+    }
+#ifndef NO_SKID
+    if (ret == 0) {
+        idx += len;
+
+        /* validity */
+        if (GetSequence(cert, &idx, &len, certSz) < 0)
+            ret = ASN_PARSE_E;
+    }
+    if (ret == 0) {
+        idx += len;
+
+        /* subject */
+        if (GetSequence(cert, &idx, &len, certSz) < 0)
+            ret = ASN_PARSE_E;
+    }
+    if (ret == 0) {
+        idx += len;
+
+        /* subjectPublicKeyInfo */
+        if (GetSequence(cert, &idx, &len, certSz) < 0)
+            ret = ASN_PARSE_E;
+    }
+    if (ret == 0) {
+        idx += len;
+
+        if ((idx + 1) > certSz)
+            ret = BUFFER_E;
+    }
+    if (ret == 0) {
+        /* issuerUniqueID - optional */
+        if (cert[idx] == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 1)) {
+            idx++;
+            if (GetLength(cert, &idx, &len, certSz) < 0)
+                ret = ASN_PARSE_E;
+            idx += len;
+        }
+    }
+    if (ret == 0) {
+        if ((idx + 1) > certSz)
+            ret = BUFFER_E;
+    }
+    if (ret == 0) {
+        /* subjectUniqueID - optional */
+        if (cert[idx] == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 2)) {
+            idx++;
+            if (GetLength(cert, &idx, &len, certSz) < 0)
+                ret = ASN_PARSE_E;
+            idx += len;
+        }
+    }
+
+    if (ret == 0) {
+        if ((idx + 1) > certSz)
+            ret = BUFFER_E;
+    }
+    /* extensions - optional */
+    if (ret == 0 && cert[idx] == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 3)) {
+        idx++;
+        if (GetLength(cert, &idx, &extLen, certSz) < 0)
+            ret = ASN_PARSE_E;
+        if (ret == 0) {
+            if (GetSequence(cert, &idx, &extLen, certSz) < 0)
+                ret = ASN_PARSE_E;
+        }
+        if (ret == 0) {
+            extEndIdx = idx + extLen;
+
+            /* Check each extension for the ones we want. */
+            while (ret == 0 && idx < extEndIdx) {
+                if (GetSequence(cert, &idx, &len, certSz) < 0)
+                    ret = ASN_PARSE_E;
+                if (ret == 0) {
+                    extIdx = idx;
+                    if (GetObjectId(cert, &extIdx, &oid, oidCertExtType,
+                                                                  certSz) < 0) {
+                        ret = ASN_PARSE_E;
+                    }
+                }
+                if (ret == 0) {
+                    if (cert[extIdx] == ASN_BOOLEAN) {
+                        if (GetBoolean(cert, &extIdx, certSz) < 0)
+                            ret = ASN_PARSE_E;
+                    }
+                }
+                if (ret == 0) {
+                    if (GetOctetString(cert, &extIdx, &extLen, certSz) < 0)
+                        ret = ASN_PARSE_E;
+                }
+
+                if (ret == 0) {
+                    switch (oid) {
+                    case AUTH_KEY_OID:
+                        extAuthKeyIdSet = 1;
+                        if (GetSequence(cert, &extIdx, &extLen, certSz) < 0)
+                            ret = ASN_PARSE_E;
+
+                        if (ret == 0 &&
+                                 cert[extIdx++] == (ASN_CONTEXT_SPECIFIC | 0)) {
+                            if (GetLength(cert, &extIdx, &extLen, certSz) <= 0)
+                                ret = ASN_PARSE_E;
+                            if (ret == 0) {
+                                if (extLen == KEYID_SIZE)
+                                    XMEMCPY(hash, cert + extIdx, extLen);
+                                else {
+                                    ret = CalcHashId(cert + extIdx, extLen,
+                                                                          hash);
+                                }
+                            }
+                        }
+                        break;
+
+                    default:
+                        break;
+                    }
+                }
+                idx += len;
+            }
+        }
+    }
+
+    if (ret == 0) {
+        if (extAuthKeyIdSet)
+            ca = GetCA(cm, hash);
+        if (ca == NULL) {
+            ret = CalcHashId(cert + issuerIdx, issuerSz, hash);
+            if (ret == 0)
+                ca = GetCAByName(cm, hash);
+        }
+    }
+#else
+    if (ret == 0) {
+        ret = CalcHashId(cert + issuerIdx, issuerSz, hash);
+        if (ret == 0)
+            ca = GetCA(cm, hash);
+    }
+#endif /* !NO_SKID */
+    if (ca == NULL)
+        ret = ASN_NO_SIGNER_E;
+
+    if (ret == 0) {
+        idx = sigIndex;
+        /* signatureAlgorithm */
+        if (GetAlgoId(cert, &idx, &oid, oidSigType, certSz) < 0)
+            ret = ASN_PARSE_E;
+    }
+    if (ret == 0) {
+        if (oid != signatureOID)
+            ret = ASN_SIG_OID_E;
+    }
+    if (ret == 0) {
+        /* signatureValue */
+        if (CheckBitString(cert, &idx, &len, certSz, 1, NULL) < 0)
+            ret = ASN_PARSE_E;
+    }
+
+    if (ret == 0) {
+        ret = ConfirmSignature(sigCtx, cert + tbsCertIdx, sigIndex - tbsCertIdx,
+                               ca->publicKey, ca->pubKeySize, ca->keyOID,
+                               cert + idx, len, signatureOID);
+        if (ret != WC_PENDING_E) {
+            WOLFSSL_MSG("Confirm signature failed");
+        }
+    }
+
+#ifdef WOLFSSL_SMALL_STACK
+    if (sigCtx != NULL)
+        XFREE(sigCtx, heap, DYNAMIC_TYPE_SIGNATURE);
+#endif
+    return ret;
+}
+#endif
+
 int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 {
     int    ret = 0;
@@ -7166,13 +7417,8 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
     #ifndef NO_SKID
         if (cert->extSubjKeyIdSet == 0 && cert->publicKey != NULL &&
                                                         cert->pubKeySize > 0) {
-        #ifdef NO_SHA
-            ret = wc_Sha256Hash(cert->publicKey, cert->pubKeySize,
+            ret = CalcHashId(cert->publicKey, cert->pubKeySize,
                                                             cert->extSubjKeyId);
-        #else
-            ret = wc_ShaHash(cert->publicKey, cert->pubKeySize,
-                                                            cert->extSubjKeyId);
-        #endif /* NO_SHA */
             if (ret != 0)
                 return ret;
         }
@@ -7231,16 +7477,11 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                 }
 
         #ifdef HAVE_OCSP
-                /* Need the CA's public key hash for OCSP */
-            #ifdef NO_SHA
-                ret = wc_Sha256Hash(cert->ca->publicKey, cert->ca->pubKeySize,
+            /* Need the CA's public key hash for OCSP */
+            ret = CalcHashId(cert->ca->publicKey, cert->ca->pubKeySize,
                                                            cert->issuerKeyHash);
-            #else
-                ret = wc_ShaHash(cert->ca->publicKey, cert->ca->pubKeySize,
-                                                           cert->issuerKeyHash);
-            #endif /* NO_SHA */
-                if (ret != 0)
-                    return ret;
+            if (ret != 0)
+                return ret;
         #endif /* HAVE_OCSP */
             }
         }
@@ -7261,15 +7502,18 @@ int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
                     }
                     return ret;
                 }
-            #ifndef IGNORE_NAME_CONSTRAINTS
+            }
+        #ifndef IGNORE_NAME_CONSTRAINTS
+            if (verify == VERIFY || verify == VERIFY_OCSP ||
+                                                        verify == VERIFY_NAME) {
                 /* check that this cert's name is permitted by the signer's
                  * name constraints */
                 if (!ConfirmNameConstraints(cert->ca, cert)) {
                     WOLFSSL_MSG("Confirm name constraint failed");
                     return ASN_NAME_INVALID_E;
                 }
-            #endif /* IGNORE_NAME_CONSTRAINTS */
             }
+        #endif /* IGNORE_NAME_CONSTRAINTS */
         }
         else {
             /* no signer */
@@ -11289,29 +11533,16 @@ static int SetKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey,
     }
 
     /* Compute SKID by hashing public key */
-#ifdef NO_SHA
     if (kid_type == SKID_TYPE) {
-        ret = wc_Sha256Hash(buffer, bufferSz, cert->skid);
-        cert->skidSz = WC_SHA256_DIGEST_SIZE;
+        ret = CalcHashId(buffer, bufferSz, cert->skid);
+        cert->skidSz = KEYID_SIZE;
     }
     else if (kid_type == AKID_TYPE) {
-        ret = wc_Sha256Hash(buffer, bufferSz, cert->akid);
-        cert->akidSz = WC_SHA256_DIGEST_SIZE;
+        ret = CalcHashId(buffer, bufferSz, cert->akid);
+        cert->akidSz = KEYID_SIZE;
     }
     else
         ret = BAD_FUNC_ARG;
-#else /* NO_SHA */
-    if (kid_type == SKID_TYPE) {
-        ret = wc_ShaHash(buffer, bufferSz, cert->skid);
-        cert->skidSz = WC_SHA_DIGEST_SIZE;
-    }
-    else if (kid_type == AKID_TYPE) {
-        ret = wc_ShaHash(buffer, bufferSz, cert->akid);
-        cert->akidSz = WC_SHA_DIGEST_SIZE;
-    }
-    else
-        ret = BAD_FUNC_ARG;
-#endif /* NO_SHA */
 
     XFREE(buffer, cert->heap, DYNAMIC_TYPE_TMP_BUFFER);
     return ret;
@@ -13737,11 +13968,7 @@ WOLFSSL_LOCAL int GetNameHash(const byte* source, word32* idx, byte* hash,
     if (GetSequence(source, idx, &length, maxIdx) < 0)
         return ASN_PARSE_E;
 
-#ifdef NO_SHA
-    ret = wc_Sha256Hash(source + dummy, length + *idx - dummy, hash);
-#else
-    ret = wc_ShaHash(source + dummy, length + *idx - dummy, hash);
-#endif
+    ret = CalcHashId(source + dummy, length + *idx - dummy, hash);
 
     *idx += length;
 
