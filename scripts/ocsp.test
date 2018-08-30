@@ -1,23 +1,39 @@
 #!/bin/sh
 
-# ocsp-stapling.test
+# ocsp.test
 
 server=www.globalsign.com
 ca=certs/external/ca-globalsign-root.pem
 
 [ ! -x ./examples/client/client ] && printf '\n\n%s\n' "Client doesn't exist" \
                                   && exit 1
+# Global Sign now requires server name indication extension to work, check
+# enabled prior to testing
+OUTPUT=$(eval "./examples/client/client -S check")
+if [ "$OUTPUT" = "SNI is: ON" ]; then
+    printf '\n\n%s\n\n' "SNI is on, proceed with globalsign test"
 
-# is our desired server there?
-./scripts/ping.test $server 2
-RESULT=$?
-if [ $RESULT -eq 0 ]; then
-    # client test against the server
-    ./examples/client/client -X -C -h $server -p 443 -A $ca -g -o -N
-    GL_RESULT=$?
-    [ $GL_RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection failed"
+    # is our desired server there?
+    ./scripts/ping.test $server 2
+    RESULT=$?
+    if [ $RESULT -ne 0 ]; then
+        GL_UNREACHABLE=1
+    fi
+
+    # Can we connect to that server?
+    ./examples/client/client -h $server -p 443 -d -g -v d -S $server
+    RESULT=$?
+    if [ $RESULT -eq 0 ]; then
+        # client test against the server using OCSP
+        ./examples/client/client -X -C -h $server -p 443 -A $ca -g -o -N -v d -S $server
+        GL_RESULT=$?
+        [ $GL_RESULT -ne 0 ] && printf '\n\n%s\n' "Client connection failed"
+    else
+        GL_RESULT=1
+    fi
 else
-    GL_RESULT=1
+    printf '\n\n%s\n\n' "SNI disabled, skipping globalsign test"
+    GL_RESULT=0
 fi
 
 server=www.google.com
@@ -41,6 +57,9 @@ if test -n "$WOLFSSL_OCSP_TEST"; then
         printf '\n\n%s\n' "Both OCSP connection to globalsign and google passed"
         printf '%s\n' "Test Passed!"
         exit 0
+    elif [ $GL_UNREACHABLE -eq 1 ]; then
+        printf '%s\n' "Global Sign is currently unreachable. Logging it but if"
+        printf '%s\n' "this continues to occur should be investigated"
     else
         # Unlike other environment variables the intent of WOLFSSL_OCSP_TEST
         # is to indicate a requirement for both tests to pass. If variable is
