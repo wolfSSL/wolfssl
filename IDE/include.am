@@ -17,5 +17,7 @@ include IDE/VS-ARM/include.am
 include IDE/GCC-ARM/include.am
 include IDE/CSBENCH/include.am
 include IDE/mynewt/include.am
+include IDE/Renesas/cs+/include.am
+include IDE/Renesas/e2studio/include.am
 
-EXTRA_DIST+= IDE/IAR-EWARM IDE/MDK-ARM IDE/MDK5-ARM IDE/MYSQL IDE/LPCXPRESSO IDE/HEXIWEAR
+EXTRA_DIST+= IDE/IAR-EWARM IDE/MDK-ARM IDE/MDK5-ARM IDE/MYSQL IDE/LPCXPRESSO IDE/HEXIWEAR IDE/Renesas/cs+/Projects IDE/Renesas/e2studio/Projects
