@@ -745,7 +745,9 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
 
 static void test_wolfSSL_CTX_load_verify_chain_buffer_format(void)
 {
-#if !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && defined(OPENSSL_EXTRA)
+#if !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && \
+    defined(USE_CERT_BUFFERS_2048) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_CERT_GEN)
 
     WOLFSSL_CTX* ctx;
 
