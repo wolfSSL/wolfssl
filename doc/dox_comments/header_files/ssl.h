@@ -6938,8 +6938,8 @@ WOLFSSL_API int wolfSSL_CTX_load_verify_buffer(WOLFSSL_CTX*,
     byte certBuff[...];
     ...
 
-    ret = wolfSSL_CTX_load_verify_chain_buffer_format(ctx, certBuff,
-                                                      sz, SSL_FILETYPE_PEM);
+    ret = wolfSSL_CTX_load_verify_chain_buffer_format(ctx,
+                         certBuff, sz, WOLFSSL_FILETYPE_ASN1);
     if (ret != SSL_SUCCESS) {
         // error loading CA certs from buffer
     }
