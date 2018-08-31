@@ -247,10 +247,10 @@ int wolfCrypt_Cleanup(void)
 	!defined(WOLFSSL_NUCLEUS) && !defined(WOLFSSL_NUCLEUS_1_2)
 
 /* File Handling Helpers */
-/* returns 0 if file found, -1 if no files or negative error */
+/* returns 0 if file found, WC_READDIR_NOFILE if no files or negative error */
 int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
 {
-    int ret = -1; /* default to no files found */
+    int ret = WC_READDIR_NOFILE; /* default to no files found */
     int pathLen = 0;
     int dnameLen = 0;
 
@@ -329,10 +329,10 @@ int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name)
     return ret;
 }
 
-/* returns 0 if file found, -1 if no more files */
+/* returns 0 if file found, WC_READDIR_NOFILE if no more files */
 int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name)
 {
-    int ret = -1; /* default to no file found */
+    int ret = WC_READDIR_NOFILE; /* default to no file found */
     int pathLen = 0;
     int dnameLen = 0;
 

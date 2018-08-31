@@ -896,8 +896,8 @@ WOLFSSL_API int wolfSSL_CTX_use_PrivateKey_file(WOLFSSL_CTX*, const char*, int);
     as NULL if not needed.  If path is specified and NO_WOLFSSL_DIR was not
     defined when building the library, wolfSSL will load all CA certificates
     located in the given directory. This function will attempt to load all
-    files in the directory and locate any files with the PEM header
-    “-----BEGIN CERTIFICATE-----”. Please see the examples for proper usage.
+    files in the directory. This function expects PEM formatted CERT_TYPE 
+    file with header “-----BEGIN CERTIFICATE-----”.
 
     \return SSL_SUCCESS up success.
     \return SSL_FAILURE will be returned if ctx is NULL, or if both file and
@@ -923,13 +923,14 @@ WOLFSSL_API int wolfSSL_CTX_use_PrivateKey_file(WOLFSSL_CTX*, const char*, int);
     int ret = 0;
     WOLFSSL_CTX* ctx;
     ...
-    ret = wolfSSL_CTX_load_verify_locations(ctx, “./ca-cert.pem”, 0);
-    if (ret != SSL_SUCCESS) {
+    ret = wolfSSL_CTX_load_verify_locations(ctx, “./ca-cert.pem”, NULL);
+    if (ret != WOLFSSL_SUCCESS) {
     	// error loading CA certs
     }
     ...
     \endcode
 
+    \sa wolfSSL_CTX_load_verify_locations_ex
     \sa wolfSSL_CTX_load_verify_buffer
     \sa wolfSSL_CTX_use_certificate_file
     \sa wolfSSL_CTX_use_PrivateKey_file
@@ -941,6 +942,71 @@ WOLFSSL_API int wolfSSL_CTX_use_PrivateKey_file(WOLFSSL_CTX*, const char*, int);
 */
 WOLFSSL_API int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX*, const char*,
                                                 const char*);
+
+/*!
+    \ingroup CertsKeys
+
+    \brief This function loads PEM-formatted CA certificate files into the SSL
+    context (WOLFSSL_CTX).  These certificates will be treated as trusted root
+    certificates and used to verify certs received from peers during the SSL
+    handshake. The root certificate file, provided by the file argument, may
+    be a single certificate or a file containing multiple certificates.
+    If multiple CA certs are included in the same file, wolfSSL will load them
+    in the same order they are presented in the file.  The path argument is
+    a pointer to the name of a directory that contains certificates of
+    trusted root CAs. If the value of file is not NULL, path may be specified
+    as NULL if not needed.  If path is specified and NO_WOLFSSL_DIR was not
+    defined when building the library, wolfSSL will load all CA certificates
+    located in the given directory. This function will attempt to load all
+    files in the directory based on flags specified. This function expects PEM 
+    formatted CERT_TYPE files with header “-----BEGIN CERTIFICATE-----”.
+
+    \return SSL_SUCCESS up success.
+    \return SSL_FAILURE will be returned if ctx is NULL, or if both file and
+    path are NULL.
+    \return SSL_BAD_FILETYPE will be returned if the file is the wrong format.
+    \return SSL_BAD_FILE will be returned if the file doesn’t exist, can’t be
+    read, or is corrupted.
+    \return MEMORY_E will be returned if an out of memory condition occurs.
+    \return ASN_INPUT_E will be returned if Base16 decoding fails on the file.
+    \return BUFFER_E will be returned if a chain buffer is bigger than the
+    receiving buffer.
+    \return BAD_PATH_ERROR will be returned if opendir() fails when trying
+    to open path.
+
+    \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
+    \param file pointer to name of the file containing PEM-formatted CA
+    certificates.
+    \param path pointer to the name of a directory to load PEM-formatted
+    certificates from.
+    \param flags possible mask values are: WOLFSSL_LOAD_FLAG_IGNORE_ERR, 
+    WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY and WOLFSSL_LOAD_FLAG_PEM_CA_ONLY
+
+    _Example_
+    \code
+    int ret = 0;
+    WOLFSSL_CTX* ctx;
+    ...
+    ret = wolfSSL_CTX_load_verify_locations_ex(ctx, NUULL, “./certs/external", 
+        WOLFSSL_LOAD_FLAG_PEM_CA_ONLY);
+    if (ret != WOLFSSL_SUCCESS) {
+        // error loading CA certs
+    }
+    ...
+    \endcode
+
+    \sa wolfSSL_CTX_load_verify_locations
+    \sa wolfSSL_CTX_load_verify_buffer
+    \sa wolfSSL_CTX_use_certificate_file
+    \sa wolfSSL_CTX_use_PrivateKey_file
+    \sa wolfSSL_CTX_use_NTRUPrivateKey_file
+    \sa wolfSSL_CTX_use_certificate_chain_file
+    \sa wolfSSL_use_certificate_file
+    \sa wolfSSL_use_PrivateKey_file
+    \sa wolfSSL_use_certificate_chain_file
+*/
+WOLFSSL_API int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX*, const char*,
+                                                const char*, unsigned int flags);
 
 /*!
     \ingroup Setup
