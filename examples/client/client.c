@@ -38,9 +38,6 @@
 #endif
 
 #include <wolfssl/test.h>
-#define USE_CERT_BUFFERS_2048
-#include <wolfssl/certs_test.h>
-
 #include <examples/client/client.h>
 #include <wolfssl/error-ssl.h>
 
@@ -1775,15 +1772,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 
     if (!usePsk && !useAnon && !useVerifyCb) {
     #if !defined(NO_FILESYSTEM)
-        if ((ret = wolfSSL_CTX_load_verify_chain_buffer_format(ctx,
-                                                      ca_cert_der_2048,
-                                                      sizeof_ca_cert_der_2048,
-                                                      WOLFSSL_FILETYPE_ASN1))
-                                                      != WOLFSSL_SUCCESS) {
-
-            printf("load_verify_chain_buffer_format returned: %d\n", ret);
+        if (wolfSSL_CTX_load_verify_locations(ctx, verifyCert,0)
+                                                           != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx); ctx = NULL;
-            err_sys("Can't load ca chain buffer");
+            err_sys("can't load ca file, Please run from wolfSSL home dir");
         }
     #else
         load_buffer(ctx, verifyCert, WOLFSSL_CA);
