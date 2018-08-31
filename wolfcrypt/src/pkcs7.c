@@ -296,16 +296,28 @@ int wc_PKCS7_Init(PKCS7* pkcs7, void* heap, int devId)
 }
 
 
-/* init PKCS7 struct with recipient cert, decode into DecodedCert
+/* Certificate structure holding der pointer, size, and pointer to next
+ * Pkcs7Cert struct. Used when creating SignedData types with multiple
+ * certificates. */
+typedef struct Pkcs7Cert {
+    byte*  der;
+    word32 derSz;
+    Pkcs7Cert* next;
+} Pkcs7Cert;
+
+
+/* Init PKCS7 struct with recipient cert, decode into DecodedCert
  * NOTE: keeps previously set pkcs7 heap hint, devId and isDynamic */
-int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz)
+int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* derCert, word32 derCertSz)
 {
     int ret = 0;
     void* heap;
     int devId;
     word16 isDynamic;
+    Pkcs7Cert* cert;
+    Pkcs7Cert* lastCert;
 
-    if (pkcs7 == NULL || (cert == NULL && certSz != 0)) {
+    if (pkcs7 == NULL || (derCert == NULL && derCertSz != 0)) {
         return BAD_FUNC_ARG;
     }
 
@@ -317,7 +329,7 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz)
         return ret;
     pkcs7->isDynamic = isDynamic;
 
-    if (cert != NULL && certSz > 0) {
+    if (derCert != NULL && derCertSz > 0) {
 #ifdef WOLFSSL_SMALL_STACK
         DecodedCert* dCert;
 
@@ -329,10 +341,29 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz)
         DecodedCert dCert[1];
 #endif
 
-        pkcs7->singleCert = cert;
-        pkcs7->singleCertSz = certSz;
-        InitDecodedCert(dCert, cert, certSz, pkcs7->heap);
+        pkcs7->singleCert = derCert;
+        pkcs7->singleCertSz = derCertSz;
 
+        /* create new Pkcs7Cert for recipient, freed during cleanup */
+        cert = (Pkcs7Cert*)XMALLOC(sizeof(Pkcs7Cert), pkcs7->heap,
+                                   DYNAMIC_TYPE_PKCS7);
+        XMEMSET(cert, 0, sizeof(Pkcs7Cert));
+        cert->der = derCert;
+        cert->derSz = derCertSz;
+        cert->next = NULL;
+
+        /* add recipient to cert list */
+        if (pkcs7->certList == NULL) {
+            pkcs7->certList = cert;
+        } else {
+           lastCert = pkcs7->certList;
+           while (lastCert->next != NULL) {
+               lastCert = lastCert->next;
+           }
+           lastCert->next = cert;
+        }
+
+        InitDecodedCert(dCert, derCert, derCertSz, pkcs7->heap);
         ret = ParseCert(dCert, CA_TYPE, NO_VERIFY, 0);
         if (ret < 0) {
             FreeDecodedCert(dCert);
@@ -366,6 +397,45 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz)
 }
 
 
+/* Adds one DER-formatted certificate to the internal PKCS7/CMS certificate
+ * list, to be added as part of the certificates CertificateSet. Currently
+ * used in SignedData content type.
+ *
+ * Must be called after wc_PKCS7_Init() or wc_PKCS7_InitWithCert().
+ *
+ * Does not represent the recipient/signer certificate, only certificates that
+ * are part of the certificate chain used to build and verify signer
+ * certificates.
+ *
+ * This API does not currently validate certificates.
+ *
+ * Returns 0 on success, negative upon error */
+int wc_PKCS7_AddCertificate(PKCS7* pkcs7, byte* derCert, word32 derCertSz)
+{
+    Pkcs7Cert* cert;
+
+    if (pkcs7 == NULL || derCert == NULL || derCertSz == 0)
+        return BAD_FUNC_ARG;
+
+    cert = (Pkcs7Cert*)XMALLOC(sizeof(Pkcs7Cert), pkcs7->heap,
+                               DYNAMIC_TYPE_PKCS7);
+    if (cert == NULL)
+        return MEMORY_E;
+
+    cert->der = derCert;
+    cert->derSz = derCertSz;
+
+    if (pkcs7->certList == NULL) {
+        pkcs7->certList = cert;
+    } else {
+        cert->next = pkcs7->certList;
+        pkcs7->certList = cert;
+    }
+
+    return 0;
+}
+
+
 /* free linked list of PKCS7DecodedAttrib structs */
 static void wc_PKCS7_FreeDecodedAttrib(PKCS7DecodedAttrib* attrib, void* heap)
 {
@@ -389,6 +459,29 @@ static void wc_PKCS7_FreeDecodedAttrib(PKCS7DecodedAttrib* attrib, void* heap)
     }
 
     (void)heap;
+}
+
+
+/* free all members of Pkcs7Cert linked list */
+static int wc_PKCS7_FreeCertSet(PKCS7* pkcs7)
+{
+    Pkcs7Cert* curr = NULL;
+    Pkcs7Cert* next = NULL;
+
+    if (pkcs7 == NULL)
+        return BAD_FUNC_ARG;
+
+    curr = pkcs7->certList;
+    pkcs7->certList = NULL;
+
+    while (curr != NULL) {
+        next = curr->next;
+        curr->next = NULL;
+        XFREE(curr, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        curr = next;
+    }
+
+    return 0;
 }
 
 
@@ -1099,6 +1192,7 @@ static int wc_PKCS7_SignedDataBuildSignature(PKCS7* pkcs7,
     return ret;
 }
 
+
 /* build PKCS#7 signedData content type */
 static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     const byte* hashBuf, word32 hashSz, byte* output, word32* outputSz,
@@ -1119,6 +1213,9 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
             { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
                              0x09, 0x05};
 
+    Pkcs7Cert* certPtr = NULL;
+    word32 certSetSz = 0;
+
     word32 signerInfoSz = 0;
     word32 totalSz, total2Sz;
     int idx = 0, ret = 0;
@@ -1131,7 +1228,6 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
 
     if (pkcs7 == NULL || pkcs7->contentSz == 0 ||
         pkcs7->encryptOID == 0 || pkcs7->hashOID == 0 || pkcs7->rng == 0 ||
-        pkcs7->singleCert == NULL || pkcs7->singleCertSz == 0 ||
         output == NULL || outputSz == NULL || *outputSz == 0 || hashSz == 0 ||
         hashBuf == NULL) {
         return BAD_FUNC_ARG;
@@ -1279,8 +1375,16 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     esd->signerInfoSetSz = SetSet(signerInfoSz, esd->signerInfoSet);
     signerInfoSz += esd->signerInfoSetSz;
 
-    esd->certsSetSz = SetImplicit(ASN_SET, 0, pkcs7->singleCertSz,
-                                                                 esd->certsSet);
+    /* certificates [0] IMPLICIT CertificateSet */
+    /* get total certificates size */
+    certPtr = pkcs7->certList;
+    while (certPtr != NULL) {
+        certSetSz += certPtr->derSz;
+        certPtr = certPtr->next;
+    }
+    certPtr = NULL;
+
+    esd->certsSetSz = SetImplicit(ASN_SET, 0, certSetSz, esd->certsSet);
 
     esd->singleDigAlgoIdSz = SetAlgoID(pkcs7->hashOID, esd->singleDigAlgoId,
                                       oidHashType, 0);
@@ -1292,7 +1396,7 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
     totalSz = esd->versionSz + esd->singleDigAlgoIdSz + esd->digAlgoIdSetSz +
               esd->contentInfoSeqSz + pkcs7->contentTypeSz +
               esd->innerContSeqSz + esd->innerOctetsSz + pkcs7->contentSz;
-    total2Sz = esd->certsSetSz + pkcs7->singleCertSz + signerInfoSz;
+    total2Sz = esd->certsSetSz + certSetSz + signerInfoSz;
 
     esd->innerSeqSz = SetSequence(totalSz + total2Sz, esd->innerSeq);
     totalSz += esd->innerSeqSz;
@@ -1351,10 +1455,20 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
         idx += pkcs7->contentSz;
         output2 = output;
     }
+
+    /* certificates */
     XMEMCPY(output2 + idx, esd->certsSet, esd->certsSetSz);
     idx += esd->certsSetSz;
-    XMEMCPY(output2 + idx, pkcs7->singleCert, pkcs7->singleCertSz);
-    idx += pkcs7->singleCertSz;
+    certPtr = pkcs7->certList;
+    while (certPtr != NULL) {
+        XMEMCPY(output2 + idx, certPtr->der, certPtr->derSz);
+        idx += certPtr->derSz;
+        certPtr = certPtr->next;
+    }
+    ret = wc_PKCS7_FreeCertSet(pkcs7);
+    if (ret != 0)
+        return ret;
+
     XMEMCPY(output2 + idx, esd->signerInfoSet, esd->signerInfoSetSz);
     idx += esd->signerInfoSetSz;
     XMEMCPY(output2 + idx, esd->signerInfoSeq, esd->signerInfoSeqSz);
@@ -1517,14 +1631,17 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 static int wc_PKCS7_RsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
                               byte* hash, word32 hashSz)
 {
-    int ret = 0;
-    word32 scratch = 0;
+    int ret = 0, i;
+    word32 scratch = 0, verified = 0;
 #ifdef WOLFSSL_SMALL_STACK
     byte* digest;
     RsaKey* key;
+    DecodedCert* dCert;
 #else
     byte digest[MAX_PKCS7_DIGEST_SZ];
     RsaKey key[1];
+    DecodedCert stack_dCert;
+    DecodedCert* dCert = &stack_dCert;
 #endif
 
     if (pkcs7 == NULL || sig == NULL || hash == NULL) {
@@ -1534,7 +1651,6 @@ static int wc_PKCS7_RsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
 #ifdef WOLFSSL_SMALL_STACK
     digest = (byte*)XMALLOC(MAX_PKCS7_DIGEST_SZ, pkcs7->heap,
                             DYNAMIC_TYPE_TMP_BUFFER);
-
     if (digest == NULL)
         return MEMORY_E;
 
@@ -1543,35 +1659,67 @@ static int wc_PKCS7_RsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
         XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
     }
+
+    dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), pkcs7->heap,
+                                  DYNAMIC_TYPE_DCERT);
+    if (dCert == NULL) {
+        XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(key, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
 #endif
 
     XMEMSET(digest, 0, MAX_PKCS7_DIGEST_SZ);
 
-    ret = wc_InitRsaKey_ex(key, pkcs7->heap, pkcs7->devId);
-    if (ret != 0) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(key,    pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        return ret;
-    }
+    /* loop over certs received in certificates set, try to find one
+     * that will validate signature */
+    for (i = 0; i < MAX_PKCS7_CERTS; i++) {
 
-    if (wc_RsaPublicKeyDecode(pkcs7->publicKey, &scratch, key,
-                              pkcs7->publicKeySz) < 0) {
-        WOLFSSL_MSG("ASN RSA key decode error");
+        verified = 0;
+        scratch  = 0;
+
+        if (pkcs7->certSz[i] == 0)
+            continue;
+
+        ret = wc_InitRsaKey_ex(key, pkcs7->heap, pkcs7->devId);
+        if (ret != 0) {
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(key,    pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+            return ret;
+        }
+
+        InitDecodedCert(dCert, pkcs7->cert[i], pkcs7->certSz[i], pkcs7->heap);
+        /* not verifying, only using this to extract public key */
+        ret = ParseCert(dCert, CA_TYPE, NO_VERIFY, 0);
+        if (ret < 0) {
+            WOLFSSL_MSG("ASN RSA cert parse error");
+            FreeDecodedCert(dCert);
+            wc_FreeRsaKey(key);
+            continue;
+        }
+
+        if (wc_RsaPublicKeyDecode(dCert->publicKey, &scratch, key,
+                                  dCert->pubKeySize) < 0) {
+            WOLFSSL_MSG("ASN RSA key decode error");
+            FreeDecodedCert(dCert);
+            wc_FreeRsaKey(key);
+            continue;
+        }
+
+        ret = wc_RsaSSL_Verify(sig, sigSz, digest, MAX_PKCS7_DIGEST_SZ, key);
+        FreeDecodedCert(dCert);
         wc_FreeRsaKey(key);
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(key,    pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        return PUBLIC_KEY_E;
+
+        if (((int)hashSz == ret) && (XMEMCMP(digest, hash, ret) == 0)) {
+            /* found signer that successfully verified signature */
+            verified = 1;
+            break;
+        }
     }
 
-    ret = wc_RsaSSL_Verify(sig, sigSz, digest, MAX_PKCS7_DIGEST_SZ, key);
-
-    wc_FreeRsaKey(key);
-
-    if (((int)hashSz != ret) || (XMEMCMP(digest, hash, ret) != 0)) {
+    if (verified == 0) {
         ret = SIG_VERIFY_E;
     }
 
@@ -1592,14 +1740,18 @@ static int wc_PKCS7_RsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
 static int wc_PKCS7_EcdsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
                                 byte* hash, word32 hashSz)
 {
-    int ret = 0;
+    int ret = 0, i;
     int res = 0;
+    int verified = 0;
 #ifdef WOLFSSL_SMALL_STACK
     byte* digest;
     ecc_key* key;
+    DecodedCert* dCert;
 #else
     byte digest[MAX_PKCS7_DIGEST_SZ];
     ecc_key key[1];
+    DecodedCert stack_dCert;
+    DecodedCert* dCert = &stack_dCert;
 #endif
     word32 idx = 0;
 
@@ -1609,7 +1761,6 @@ static int wc_PKCS7_EcdsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
 #ifdef WOLFSSL_SMALL_STACK
     digest = (byte*)XMALLOC(MAX_PKCS7_DIGEST_SZ, pkcs7->heap,
                             DYNAMIC_TYPE_TMP_BUFFER);
-
     if (digest == NULL)
         return MEMORY_E;
 
@@ -1618,35 +1769,67 @@ static int wc_PKCS7_EcdsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
         XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
         return MEMORY_E;
     }
+
+    dCert = (DecodedCert*)XMALLOC(sizeof(DecodedCert), pkcs7->heap,
+                                  DYNAMIC_TYPE_DCERT);
+    if (dCert == NULL) {
+        XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(key,    pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        return MEMORY_E;
+    }
 #endif
 
     XMEMSET(digest, 0, MAX_PKCS7_DIGEST_SZ);
 
-    ret = wc_ecc_init_ex(key, pkcs7->heap, pkcs7->devId);
-    if (ret != 0) {
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(key,    pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        return ret;
-    }
+    /* loop over certs received in certificates set, try to find one
+     * that will validate signature */
+    for (i = 0; i < MAX_PKCS7_CERTS; i++) {
 
-    if (wc_EccPublicKeyDecode(pkcs7->publicKey, &idx, key,
-                                                      pkcs7->publicKeySz) < 0) {
-        WOLFSSL_MSG("ASN ECDSA key decode error");
+        verified = 0;
+
+        if (pkcs7->certSz[i] == 0)
+            continue;
+
+        ret = wc_ecc_init_ex(key, pkcs7->heap, pkcs7->devId);
+        if (ret != 0) {
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+            XFREE(key,    pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+            return ret;
+        }
+
+        InitDecodedCert(dCert, pkcs7->cert[i], pkcs7->certSz[i], pkcs7->heap);
+        /* not verifying, only using this to extract public key */
+        ret = ParseCert(dCert, CA_TYPE, NO_VERIFY, 0);
+        if (ret < 0) {
+            WOLFSSL_MSG("ASN ECC cert parse error");
+            FreeDecodedCert(dCert);
+            wc_ecc_free(key);
+            continue;
+        }
+
+        if (wc_EccPublicKeyDecode(pkcs7->publicKey, &idx, key,
+                                  pkcs7->publicKeySz) < 0) {
+            WOLFSSL_MSG("ASN ECC key decode error");
+            FreeDecodedCert(dCert);
+            wc_ecc_free(key);
+            continue;
+        }
+
+        ret = wc_ecc_verify_hash(sig, sigSz, hash, hashSz, &res, key);
+
+        FreeDecodedCert(dCert);
         wc_ecc_free(key);
-#ifdef WOLFSSL_SMALL_STACK
-        XFREE(digest, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(key,    pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
-#endif
-        return PUBLIC_KEY_E;
+
+        if (ret == 0 && res == 1) {
+            /* found signer that successfully verified signature */
+            verified = 1;
+            break;
+        }
     }
 
-    ret = wc_ecc_verify_hash(sig, sigSz, hash, hashSz, &res, key);
-
-    wc_ecc_free(key);
-
-    if (ret == 0 && res != 1) {
+    if (verified == 0) {
         ret = SIG_VERIFY_E;
     }
 

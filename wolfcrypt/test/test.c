@@ -8501,11 +8501,19 @@ byte GetEntropy(ENTROPY_CMD cmd, byte* out)
         #ifdef WOLFSSL_CERT_EXT
             static const char* clientKeyPub  = CERT_ROOT "client-keyPub.der";
         #endif
-        #ifdef WOLFSSL_CERT_GEN
+        #if defined(WOLFSSL_CERT_GEN) || defined(HAVE_PKCS7)
             static const char* rsaCaKeyFile  = CERT_ROOT "ca-key.der";
+            #ifdef WOLFSSL_CERT_GEN
             static const char* rsaCaCertFile = CERT_ROOT "ca-cert.pem";
-            #ifdef WOLFSSL_ALT_NAMES
+            #endif
+            #if defined(WOLFSSL_ALT_NAMES) || defined(HAVE_PKCS7)
             static const char* rsaCaCertDerFile = CERT_ROOT "ca-cert.der";
+            #endif
+            #ifdef HAVE_PKCS7
+                static const char* rsaServerCertDerFile =
+                                               CERT_ROOT "server-cert.der";
+                static const char* rsaServerKeyDerFile =
+                                               CERT_ROOT "server-key.der";
             #endif
         #endif
     #endif /* !NO_RSA */
@@ -18647,21 +18655,37 @@ exit:
 /* Loads certs and keys for use with PKCS7 tests, from either files
  * or buffers.
  *
- * rsaCert      - output buffer for RSA cert
- * rsaCertSz    - IN/OUT size of output buffer, size of RSA cert
- * rsaPrivKey   - output buffer for RSA private key
- * rsaPrivKeySz - IN/OUT size of output buffer, size of RSA key
- * eccCert      - output buffer for ECC cert
- * eccCertSz    - IN/OUT size of output buffer, size of ECC cert
- * eccPrivKey   - output buffer for ECC private key
- * eccPrivKeySz - IN/OUT size of output buffer, size of ECC private key
+ * rsaClientCertBuf      - output buffer for RSA client cert
+ * rsaClientCertBufSz    - IN/OUT size of output buffer, size of RSA client cert
+ * rsaClientPrivKeyBuf   - output buffer for RSA client private key
+ * rsaClientPrivKeyBufSz - IN/OUT size of output buffer, size of RSA client key
+ *
+ * rsaServerCertBuf      - output buffer for RSA server cert
+ * rsaServerCertBufSz    - IN/OUT size of output buffer, size of RSA server cert
+ * rsaServerPrivKeyBuf   - output buffer for RSA server private key
+ * rsaServerPrivKeyBufSz - IN/OUT size of output buffer, size of RSA server key
+ *
+ * rsaCaCertBuf          - output buffer for RSA CA cert
+ * rsaCaCertBufSz        - IN/OUT size of output buffer, size of RSA ca cert
+ * rsaCaPrivKeyBuf       - output buffer for RSA CA private key
+ * rsaCaPrivKeyBufSz     - IN/OUT size of output buffer, size of RSA CA key
+ *
+ * eccClientCertBuf      - output buffer for ECC cert
+ * eccClientCertBufSz    - IN/OUT size of output buffer, size of ECC cert
+ * eccClientPrivKeyBuf   - output buffer for ECC private key
+ * eccClientPrivKeyBufSz - IN/OUT size of output buffer, size of ECC private key
  *
  * Returns 0 on success, negative on error
  */
-static int pkcs7_load_certs_keys(byte* rsaCert, word32* rsaCertSz,
-                                 byte* rsaPrivKey,  word32* rsaPrivKeySz,
-                                 byte* eccCert, word32* eccCertSz,
-                                 byte* eccPrivKey,  word32* eccPrivKeySz)
+static int pkcs7_load_certs_keys(
+                       byte* rsaClientCertBuf,    word32* rsaClientCertBufSz,
+                       byte* rsaClientPrivKeyBuf, word32* rsaClientPrivKeyBufSz,
+                       byte* rsaServerCertBuf,    word32* rsaServerCertBufSz,
+                       byte* rsaServerPrivKeyBuf, word32* rsaServerPrivKeyBufSz,
+                       byte* rsaCaCertBuf,        word32* rsaCaCertBufSz,
+                       byte* rsaCaPrivKeyBuf,     word32* rsaCaPrivKeyBufSz,
+                       byte* eccClientCertBuf,    word32* eccClientCertBufSz,
+                       byte* eccClientPrivKeyBuf, word32* eccClientPrivKeyBufSz)
 {
 #ifndef NO_FILESYSTEM
     FILE*  certFile;
@@ -18669,14 +18693,14 @@ static int pkcs7_load_certs_keys(byte* rsaCert, word32* rsaCertSz,
 #endif
 
 #ifndef NO_RSA
-    if (rsaCert == NULL || rsaCertSz == NULL ||
-        rsaPrivKey == NULL || rsaPrivKeySz == NULL)
+    if (rsaClientCertBuf == NULL || rsaClientCertBufSz == NULL ||
+        rsaClientPrivKeyBuf == NULL || rsaClientPrivKeyBufSz == NULL)
         return BAD_FUNC_ARG;
 #endif
 
 #ifdef HAVE_ECC
-    if (eccCert == NULL || eccCertSz == NULL ||
-        eccPrivKey == NULL || eccPrivKeySz == NULL)
+    if (eccClientCertBuf == NULL || eccClientCertBufSz == NULL ||
+        eccClientPrivKeyBuf == NULL || eccClientPrivKeyBufSz == NULL)
         return BAD_FUNC_ARG;
 #endif
 
@@ -18684,45 +18708,159 @@ static int pkcs7_load_certs_keys(byte* rsaCert, word32* rsaCertSz,
 #ifndef NO_RSA
 
 #ifdef USE_CERT_BUFFERS_1024
-    if (*rsaCertSz < (word32)sizeof_client_cert_der_1024)
+    if (*rsaClientCertBufSz < (word32)sizeof_client_cert_der_1024)
         return -9204;
 
-    XMEMCPY(rsaCert, client_cert_der_1024, sizeof_client_cert_der_1024);
-    *rsaCertSz = sizeof_client_cert_der_1024;
-#elif defined(USE_CERT_BUFFERS_2048)
-    if (*rsaCertSz < (word32)sizeof_client_cert_der_2048)
-        return -9205;
+    XMEMCPY(rsaClientCertBuf, client_cert_der_1024,
+            sizeof_client_cert_der_1024);
+    *rsaClientCertBufSz = sizeof_client_cert_der_1024;
 
-    XMEMCPY(rsaCert, client_cert_der_2048, sizeof_client_cert_der_2048);
-    *rsaCertSz = sizeof_client_cert_der_2048;
+    if (rsaServerCertBuf != NULL) {
+        if (*rsaServerCertBufSz < (word32)sizeof_server_cert_der_1024)
+            return -9205;
+
+        XMEMCPY(rsaServerCertBuf, server_cert_der_1024,
+                sizeof_server_cert_der_1024);
+        *rsaServerCertBufSz = sizeof_server_cert_der_1024;
+    }
+
+    if (rsaCaCertBuf != NULL) {
+        if (*rsaCaCertBufSz < (word32)sizeof_ca_cert_der_1024)
+            return -9206;
+
+        XMEMCPY(rsaCaCertBuf, ca_cert_der_1024, sizeof_ca_cert_der_1024);
+        *rsaCaCertBufSz = sizeof_ca_cert_der_1024;
+    }
+#elif defined(USE_CERT_BUFFERS_2048)
+    if (*rsaClientCertBufSz < (word32)sizeof_client_cert_der_2048)
+        return -9207;
+
+    XMEMCPY(rsaClientCertBuf, client_cert_der_2048,
+            sizeof_client_cert_der_2048);
+    *rsaClientCertBufSz = sizeof_client_cert_der_2048;
+
+    if (rsaServerCertBuf != NULL) {
+        if (*rsaServerCertBufSz < (word32)sizeof_server_cert_der_2048)
+            return -9208;
+
+        XMEMCPY(rsaServerCertBuf, server_cert_der_2048,
+                sizeof_server_cert_der_2048);
+        *rsaServerCertBufSz = sizeof_server_cert_der_2048;
+    }
+
+    if (rsaCaCertBuf != NULL) {
+        if (*rsaCaCertBufSz < (word32)sizeof_ca_cert_der_2048)
+            return -9209;
+
+        XMEMCPY(rsaCaCertBuf, ca_cert_der_2048, sizeof_ca_cert_der_2048);
+        *rsaCaCertBufSz = sizeof_ca_cert_der_2048;
+    }
 #else
     certFile = fopen(clientCert, "rb");
     if (!certFile)
-        return -9206;
+        return -9210;
 
-    *rsaCertSz = (word32)fread(rsaCert, 1, *rsaCertSz, certFile);
+    *rsaClientCertBufSz = (word32)fread(rsaClientCertBuf, 1,
+                                        *rsaClientCertBufSz, certFile);
     fclose(certFile);
+
+    if (rsaServerCertBuf != NULL) {
+        certFile = fopen(rsaServerCertDerFile, "rb");
+        if (!certFile)
+            return -9211;
+
+        *rsaServerCertBufSz = (word32)fread(rsaServerCertBuf, 1,
+                                            *rsaServerCertBufSz, certFile);
+        fclose(certFile);
+    }
+
+    if (rsaCaCertBuf != NULL) {
+        certFile = fopen(rsaCaCertDerFile, "rb");
+        if (!certFile)
+            return -9212;
+
+        *rsaCaCertBufSz = (word32)fread(rsaCaCertBuf, 1, *rsaCaCertBufSz,
+                                        certFile);
+        fclose(certFile);
+    }
 #endif
 
 #ifdef USE_CERT_BUFFERS_1024
-    if (*rsaPrivKeySz < (word32)sizeof_client_key_der_1024)
-        return -9207;
+    if (*rsaClientPrivKeyBufSz < (word32)sizeof_client_key_der_1024)
+        return -9213;
 
-    XMEMCPY(rsaPrivKey, client_key_der_1024, sizeof_client_key_der_1024);
-    *rsaPrivKeySz = sizeof_client_key_der_1024;
+    XMEMCPY(rsaClientPrivKeyBuf, client_key_der_1024,
+            sizeof_client_key_der_1024);
+    *rsaClientPrivKeyBufSz = sizeof_client_key_der_1024;
+
+    if (rsaServerPrivKeyBuf != NULL) {
+        if (*rsaServerPrivKeyBufSz < (word32)sizeof_server_key_der_1024)
+            return -9214;
+
+        XMEMCPY(rsaServerPrivKeyBuf, server_key_der_1024,
+                sizeof_server_key_der_1024);
+        *rsaServerPrivKeyBufSz = sizeof_server_key_der_1024;
+    }
+
+    if (rsaCaPrivKeyBuf != NULL) {
+        if (*rsaCaPrivKeyBufSz < (word32)sizeof_ca_key_der_1024)
+            return -9215;
+
+        XMEMCPY(rsaCaPrivKeyBuf, ca_key_der_1024, sizeof_ca_key_der_1024);
+        *rsaCaPrivKeyBufSz = sizeof_ca_key_der_1024;
+    }
 #elif defined(USE_CERT_BUFFERS_2048)
-    if (*rsaPrivKeySz < (word32)sizeof_client_key_der_2048)
-        return -9208;
+    if (*rsaClientPrivKeyBufSz < (word32)sizeof_client_key_der_2048)
+        return -9216;
 
-    XMEMCPY(rsaPrivKey, client_key_der_2048, sizeof_client_key_der_2048);
-    *rsaPrivKeySz = sizeof_client_key_der_2048;
+    XMEMCPY(rsaClientPrivKeyBuf, client_key_der_2048,
+            sizeof_client_key_der_2048);
+    *rsaClientPrivKeyBufSz = sizeof_client_key_der_2048;
+
+    if (rsaServerPrivKeyBuf != NULL) {
+        if (*rsaServerPrivKeyBufSz < (word32)sizeof_server_key_der_2048)
+            return -9217;
+
+        XMEMCPY(rsaServerPrivKeyBuf, server_key_der_2048,
+                sizeof_server_key_der_2048);
+        *rsaServerPrivKeyBufSz = sizeof_server_key_der_2048;
+    }
+
+    if (rsaCaPrivKeyBuf != NULL) {
+        if (*rsaCaPrivKeyBufSz < (word32)sizeof_ca_key_der_2048)
+            return -9218;
+
+        XMEMCPY(rsaCaPrivKeyBuf, ca_key_der_2048, sizeof_ca_key_der_2048);
+        *rsaCaPrivKeyBufSz = sizeof_ca_key_der_2048;
+    }
 #else
     keyFile = fopen(clientKey, "rb");
     if (!keyFile)
-        return -9209;
+        return -9219;
 
-    *rsaPrivKeySz = (word32)fread(rsaPrivKey, 1, *rsaPrivKeySz, keyFile);
+    *rsaClientPrivKeyBufSz = (word32)fread(rsaClientPrivKeyBuf, 1,
+                                           *rsaClientPrivKeyBufSz, keyFile);
     fclose(keyFile);
+
+    if (rsaServerPrivKeyBuf != NULL) {
+        keyFile = fopen(rsaServerKeyDerFile, "rb");
+        if (!keyFile)
+            return -9220;
+
+        *rsaServerPrivKeyBufSz = (word32)fread(rsaServerPrivKeyBuf, 1,
+                                               *rsaServerPrivKeyBufSz, keyFile);
+        fclose(keyFile);
+    }
+
+    if (rsaCaPrivKeyBuf != NULL) {
+        keyFile = fopen(rsaCaKeyFile, "rb");
+        if (!keyFile)
+            return -9221;
+
+        *rsaCaPrivKeyBufSz = (word32)fread(rsaCaPrivKeyBuf, 1,
+                                           *rsaCaPrivKeyBufSz, keyFile);
+        fclose(keyFile);
+    }
 #endif /* USE_CERT_BUFFERS */
 
 #endif /* NO_RSA */
@@ -18731,47 +18869,57 @@ static int pkcs7_load_certs_keys(byte* rsaCert, word32* rsaCertSz,
 #ifdef HAVE_ECC
 
 #ifdef USE_CERT_BUFFERS_256
-    if (*eccCertSz < (word32)sizeof_cliecc_cert_der_256)
+    if (*eccClientCertBufSz < (word32)sizeof_cliecc_cert_der_256)
         return -9210;
 
-    XMEMCPY(eccCert, cliecc_cert_der_256, sizeof_cliecc_cert_der_256);
-    *eccCertSz = sizeof_cliecc_cert_der_256;
+    XMEMCPY(eccClientCertBuf, cliecc_cert_der_256, sizeof_cliecc_cert_der_256);
+    *eccClientCertBufSz = sizeof_cliecc_cert_der_256;
 #else
     certFile = fopen(eccClientCert, "rb");
     if (!certFile)
         return -9211;
 
-    *eccCertSz = (word32)fread(eccCert, 1, *eccCertSz, certFile);
+    *eccClientCertBufSz = (word32)fread(eccClientCertBuf, 1,
+                                        *eccClientCertBufSz, certFile);
     fclose(certFile);
 #endif /* USE_CERT_BUFFERS_256 */
 
 #ifdef USE_CERT_BUFFERS_256
-    if (*eccPrivKeySz < (word32)sizeof_ecc_clikey_der_256)
+    if (*eccClientPrivKeyBufSz < (word32)sizeof_ecc_clikey_der_256)
         return -9212;
 
-    XMEMCPY(eccPrivKey, ecc_clikey_der_256, sizeof_ecc_clikey_der_256);
-    *eccPrivKeySz = sizeof_ecc_clikey_der_256;
+    XMEMCPY(eccClientPrivKeyBuf, ecc_clikey_der_256, sizeof_ecc_clikey_der_256);
+    *eccClientPrivKeyBufSz = sizeof_ecc_clikey_der_256;
 #else
     keyFile = fopen(eccClientKey, "rb");
     if (!keyFile)
         return -9213;
 
-    *eccPrivKeySz = (word32)fread(eccPrivKey, 1, *eccPrivKeySz, keyFile);
+    *eccClientPrivKeyBufSz = (word32)fread(eccClientPrivKeyBuf, 1,
+                                           *eccClientPrivKeyBufSz, keyFile);
     fclose(keyFile);
 #endif /* USE_CERT_BUFFERS_256 */
 #endif /* HAVE_ECC */
 
 #ifdef NO_RSA
-    (void)rsaCert;
-    (void)rsaCertSz;
-    (void)rsaPrivKey;
-    (void)rsaPrivKeySz;
+    (void)rsaClientCertBuf;
+    (void)rsaClientCertBufSz;
+    (void)rsaClientPrivKeyBuf;
+    (void)rsaClientPrivKeyBufSz;
+    (void)rsaServerCertBuf;
+    (void)rsaServerCertBufSz;
+    (void)rsaServerPrivKeyBuf;
+    (void)rsaServerPrivKeyBufSz;
+    (void)rsaCaCertBuf;
+    (void)rsaCaCertBufSz;
+    (void)rsaCaPrivKeyBuf;
+    (void)rsaCaPrivKeyBufSz;
 #endif
 #ifndef HAVE_ECC
-    (void)eccCert;
-    (void)eccCertSz;
-    (void)eccPrivKey;
-    (void)eccPrivKeySz;
+    (void)eccClientCertBuf;
+    (void)eccClientCertBufSz;
+    (void)eccClientPrivKeyBuf;
+    (void)eccClientPrivKeyBufSz;
 #endif
 #ifndef NO_FILESYSTEM
     (void)certFile;
@@ -19030,7 +19178,8 @@ int pkcs7enveloped_test(void)
 #endif /* HAVE_ECC */
 
     ret = pkcs7_load_certs_keys(rsaCert, &rsaCertSz, rsaPrivKey,
-                                &rsaPrivKeySz, eccCert, &eccCertSz,
+                                &rsaPrivKeySz, NULL, NULL, NULL, NULL,
+                                NULL, NULL, NULL, NULL, eccCert, &eccCertSz,
                                 eccPrivKey, &eccPrivKeySz);
     if (ret < 0) {
     #ifndef NO_RSA
@@ -19407,6 +19556,8 @@ typedef struct {
     word32       privateKeySz;
     byte*        cert;
     size_t       certSz;
+    byte*        caCert;
+    size_t       caCertSz;
     PKCS7Attrib* signedAttribs;
     word32       signedAttribsSz;
     const char*  outFileName;
@@ -19417,10 +19568,15 @@ typedef struct {
 } pkcs7SignedVector;
 
 
-static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
-                                   byte* rsaPrivKey, word32 rsaPrivKeySz,
-                                   byte* eccCert, word32 eccCertSz,
-                                   byte* eccPrivKey, word32 eccPrivKeySz)
+static int pkcs7signed_run_vectors(
+                        byte* rsaClientCertBuf, word32 rsaClientCertBufSz,
+                        byte* rsaClientPrivKeyBuf, word32 rsaClientPrivKeyBufSz,
+                        byte* rsaServerCertBuf, word32 rsaServerCertBufSz,
+                        byte* rsaServerPrivKeyBuf, word32 rsaServerPrivKeyBufSz,
+                        byte* rsaCaCertBuf, word32 rsaCaCertBufSz,
+                        byte* rsaCaPrivKeyBuf, word32 rsaCaPrivKeyBufSz,
+                        byte* eccClientCertBuf, word32 eccClientCertBufSz,
+                        byte* eccClientPrivKeyBuf, word32 eccClientPrivKeyBufSz)
 {
     int ret, testSz, i;
     int encodedSz;
@@ -19474,55 +19630,71 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
 #ifndef NO_RSA
     #ifndef NO_SHA
         /* RSA with SHA */
-        {data, (word32)sizeof(data), SHAh, RSAk, rsaPrivKey, rsaPrivKeySz,
-         rsaCert, rsaCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
+        {data, (word32)sizeof(data), SHAh, RSAk, rsaClientPrivKeyBuf,
+         rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
+         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_RSA_SHA.der", 0, NULL, 0, 0},
 
         /* RSA with SHA, no signed attributes */
-        {data, (word32)sizeof(data), SHAh, RSAk, rsaPrivKey, rsaPrivKeySz,
-         rsaCert, rsaCertSz, NULL, 0,
+        {data, (word32)sizeof(data), SHAh, RSAk, rsaClientPrivKeyBuf,
+         rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz,
+         NULL, 0, NULL, 0,
          "pkcs7signedData_RSA_SHA_noattr.der", 0, NULL, 0, 0},
     #endif
     #ifdef WOLFSSL_SHA224
         /* RSA with SHA224 */
-        {data, (word32)sizeof(data), SHA224h, RSAk, rsaPrivKey, rsaPrivKeySz,
-         rsaCert, rsaCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
+        {data, (word32)sizeof(data), SHA224h, RSAk, rsaClientPrivKeyBuf,
+         rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
+         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_RSA_SHA224.der", 0, NULL, 0, 0},
     #endif
     #ifndef NO_SHA256
         /* RSA with SHA256 */
-        {data, (word32)sizeof(data), SHA256h, RSAk, rsaPrivKey, rsaPrivKeySz,
-         rsaCert, rsaCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
+        {data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
+         rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
+         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_RSA_SHA256.der", 0, NULL, 0, 0},
 
         /* RSA with SHA256 and SubjectKeyIdentifier in SignerIdentifier */
-        {data, (word32)sizeof(data), SHA256h, RSAk, rsaPrivKey, rsaPrivKeySz,
-         rsaCert, rsaCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
+        {data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
+         rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
+         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_RSA_SHA256_SKID.der", 0, NULL, 0,
          SID_SUBJECT_KEY_IDENTIFIER},
 
         /* RSA with SHA256 and custom contentType */
-        {data, (word32)sizeof(data), SHA256h, RSAk, rsaPrivKey, rsaPrivKeySz,
-         rsaCert, rsaCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
+        {data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
+         rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
+         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_RSA_SHA256_custom_contentType.der", 0,
          customContentType, sizeof(customContentType), 0},
 
         /* RSA with SHA256 and FirmwarePkgData contentType */
-        {data, (word32)sizeof(data), SHA256h, RSAk, rsaPrivKey, rsaPrivKeySz,
-         rsaCert, rsaCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
+        {data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
+         rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
+         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_RSA_SHA256_firmwarePkgData.der",
          FIRMWARE_PKG_DATA, NULL, 0, 0},
+
+        /* RSA with SHA256 using server cert and ca cert */
+        {data, (word32)sizeof(data), SHA256h, RSAk, rsaServerPrivKeyBuf,
+         rsaServerPrivKeyBufSz, rsaServerCertBuf, rsaServerCertBufSz,
+         rsaCaCertBuf, rsaCaCertBufSz,
+         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
+         "pkcs7signedData_RSA_SHA256_with_ca_cert.der", 0, NULL, 0, 0},
     #endif
     #if defined(WOLFSSL_SHA384)
         /* RSA with SHA384 */
-        {data, (word32)sizeof(data), SHA384h, RSAk, rsaPrivKey, rsaPrivKeySz,
-         rsaCert, rsaCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
+        {data, (word32)sizeof(data), SHA384h, RSAk, rsaClientPrivKeyBuf,
+         rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
+         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_RSA_SHA384.der", 0, NULL, 0, 0},
     #endif
     #if defined(WOLFSSL_SHA512)
         /* RSA with SHA512 */
-        {data, (word32)sizeof(data), SHA512h, RSAk, rsaPrivKey, rsaPrivKeySz,
-         rsaCert, rsaCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
+        {data, (word32)sizeof(data), SHA512h, RSAk, rsaClientPrivKeyBuf,
+         rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
+         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_RSA_SHA512.der", 0, NULL, 0, 0},
     #endif
 #endif /* NO_RSA */
@@ -19530,55 +19702,64 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
 #ifdef HAVE_ECC
     #ifndef NO_SHA
         /* ECDSA with SHA */
-        {data, (word32)sizeof(data), SHAh, ECDSAk, eccPrivKey, eccPrivKeySz,
-         eccCert, eccCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
+        {data, (word32)sizeof(data), SHAh, ECDSAk, eccClientPrivKeyBuf,
+         eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
+         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_ECDSA_SHA.der", 0, NULL, 0, 0},
 
         /* ECDSA with SHA, no signed attributes */
-        {data, (word32)sizeof(data), SHAh, ECDSAk, eccPrivKey, eccPrivKeySz,
-         eccCert, eccCertSz, NULL, 0,
+        {data, (word32)sizeof(data), SHAh, ECDSAk, eccClientPrivKeyBuf,
+         eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz,
+         NULL, 0, NULL, 0,
          "pkcs7signedData_ECDSA_SHA_noattr.der", 0, NULL, 0, 0},
     #endif
     #ifdef WOLFSSL_SHA224
         /* ECDSA with SHA224 */
-        {data, (word32)sizeof(data), SHA224h, ECDSAk, eccPrivKey, eccPrivKeySz,
-         eccCert, eccCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
+        {data, (word32)sizeof(data), SHA224h, ECDSAk, eccClientPrivKeyBuf,
+         eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
+         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_ECDSA_SHA224.der", 0, NULL, 0, 0},
     #endif
     #ifndef NO_SHA256
         /* ECDSA with SHA256 */
-        {data, (word32)sizeof(data), SHA256h, ECDSAk, eccPrivKey, eccPrivKeySz,
-         eccCert, eccCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
+        {data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
+         eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
+         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_ECDSA_SHA256.der", 0, NULL, 0, 0},
 
         /* ECDSA with SHA256 and SubjectKeyIdentifier in SigherIdentifier */
-        {data, (word32)sizeof(data), SHA256h, ECDSAk, eccPrivKey, eccPrivKeySz,
-         eccCert, eccCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
+        {data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
+         eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
+         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_ECDSA_SHA256_SKID.der", 0, NULL, 0,
          SID_SUBJECT_KEY_IDENTIFIER},
 
         /* ECDSA with SHA256 and custom contentType */
-        {data, (word32)sizeof(data), SHA256h, ECDSAk, eccPrivKey, eccPrivKeySz,
-         eccCert, eccCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
+        {data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
+         eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
+         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_ECDSA_SHA256_custom_contentType.der", 0,
          customContentType, sizeof(customContentType), 0},
 
         /* ECDSA with SHA256 and FirmwarePkgData contentType */
-        {data, (word32)sizeof(data), SHA256h, ECDSAk, eccPrivKey, eccPrivKeySz,
-         eccCert, eccCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
+        {data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
+         eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
+         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_ECDSA_SHA256_firmwarePkgData.der",
          FIRMWARE_PKG_DATA, NULL, 0, 0},
     #endif
     #ifdef WOLFSSL_SHA384
         /* ECDSA with SHA384 */
-        {data, (word32)sizeof(data), SHA384h, ECDSAk, eccPrivKey, eccPrivKeySz,
-         eccCert, eccCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
+        {data, (word32)sizeof(data), SHA384h, ECDSAk, eccClientPrivKeyBuf,
+         eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
+         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_ECDSA_SHA384.der", 0, NULL, 0, 0},
     #endif
     #ifdef WOLFSSL_SHA512
         /* ECDSA with SHA512 */
-        {data, (word32)sizeof(data), SHA512h, ECDSAk, eccPrivKey, eccPrivKeySz,
-         eccCert, eccCertSz, attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
+        {data, (word32)sizeof(data), SHA512h, ECDSAk, eccClientPrivKeyBuf,
+         eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
+         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedData_ECDSA_SHA512.der", 0, NULL, 0, 0},
     #endif
 #endif /* HAVE_ECC */
@@ -19623,6 +19804,17 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
             return -9417;
         }
 
+        /* load CA certificate, if present */
+        if (testVectors[i].caCert != NULL) {
+            ret = wc_PKCS7_AddCertificate(pkcs7, testVectors[i].caCert,
+                                          (word32)testVectors[i].caCertSz);
+            if (ret != 0) {
+                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                wc_PKCS7_Free(pkcs7);
+                return -9418;
+            }
+        }
+
         pkcs7->rng             = &rng;
         pkcs7->content         = (byte*)testVectors[i].content;
         pkcs7->contentSz       = testVectors[i].contentSz;
@@ -19642,7 +19834,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
             if (ret != 0) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9418;
+                return -9419;
             }
         }
 
@@ -19654,7 +19846,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
             if (ret != 0) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9419;
+                return -9420;
             }
         }
 
@@ -19667,7 +19859,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
             if (ret != 0) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9420;
+                return -9421;
             }
         }
 
@@ -19690,7 +19882,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
             if (ret != 0) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9421;
+                return -9422;
             }
             wc_ShaUpdate(&sha, pkcs7->publicKey, pkcs7->publicKeySz);
             wc_ShaFinal(&sha, digest);
@@ -19700,7 +19892,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
             if (ret != 0) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9422;
+                return -9423;
             }
             wc_Sha256Update(&sha, pkcs7->publicKey, pkcs7->publicKeySz);
             wc_Sha256Final(&sha, digest);
@@ -19716,7 +19908,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
         if (encodedSz < 0) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(pkcs7);
-            return -9423;
+            return -9424;
         }
 
     #ifdef PKCS7_OUTPUT_TEST_BUNDLES
@@ -19725,14 +19917,14 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
         if (!file) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(pkcs7);
-            return -9424;
+            return -9425;
         }
         ret = (int)fwrite(out, 1, encodedSz, file);
         fclose(file);
         if (ret != (int)encodedSz) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(pkcs7);
-            return -9425;
+            return -9426;
         }
     #endif /* PKCS7_OUTPUT_TEST_BUNDLES */
 
@@ -19740,23 +19932,23 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
 
         pkcs7 = wc_PKCS7_New(HEAP_HINT, INVALID_DEVID);
         if (pkcs7 == NULL)
-            return -9426;
+            return -9427;
         wc_PKCS7_InitWithCert(pkcs7, NULL, 0);
 
         ret = wc_PKCS7_VerifySignedData(pkcs7, out, outSz);
         if (ret < 0) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(pkcs7);
-            return -9427;
+            return -9428;
         }
 
         /* verify contentType extracted successfully for custom content types */
         if (testVectors[i].contentTypeSz > 0) {
             if (pkcs7->contentTypeSz != testVectors[i].contentTypeSz) {
-                return -9428;
+                return -9429;
             } else if (XMEMCMP(pkcs7->contentType, testVectors[i].contentType,
                        pkcs7->contentTypeSz) != 0) {
-                return -9429;
+                return -9430;
             }
         }
 
@@ -19764,7 +19956,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
         if (pkcs7->singleCert == NULL || pkcs7->singleCertSz == 0) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(pkcs7);
-            return -9430;
+            return -9431;
         }
 
         {
@@ -19774,7 +19966,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
         #else
             byte buf[(WC_SHA256_DIGEST_SIZE + 1) * 2 + 1];
         #endif
-            byte* oidPt = transIdOid + 2; /* skip object id tag and size */
+            byte* oidPt = transIdOid + 2;  /* skip object id tag and size */
             int oidSz = (int)sizeof(transIdOid) - 2;
             int bufSz = 0;
 
@@ -19783,13 +19975,13 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
                     NULL, (word32*)&bufSz) != LENGTH_ONLY_E) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9431;
+                return -9432;
             }
 
             if (bufSz > (int)sizeof(buf)) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9432;
+                return -9433;
             }
 
             bufSz = wc_PKCS7_GetAttributeValue(pkcs7, oidPt, oidSz,
@@ -19798,7 +19990,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
                 (testVectors[i].signedAttribs == NULL && bufSz > 0)) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9433;
+                return -9434;
             }
         }
 
@@ -19807,7 +19999,7 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
         if (!file) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(pkcs7);
-            return -9434;
+            return -9435;
         }
         ret = (int)fwrite(pkcs7->singleCert, 1, pkcs7->singleCertSz, file);
         fclose(file);
@@ -19829,12 +20021,28 @@ static int pkcs7signed_run_vectors(byte* rsaCert, word32 rsaCertSz,
     (void)eccPrivKeySz;
 #endif
 #ifdef NO_RSA
-    (void)rsaCert;
-    (void)rsaCertSz;
-    (void)rsaPrivKey;
-    (void)rsaPrivKeySz;
+    (void)rsaClientCertBuf;
+    (void)rsaClientCertBufSz;
+    (void)rsaClientPrivKeyBuf;
+    (void)rsaClientPrivKeyBufSz;
+    (void)rsaServerCertBuf;
+    (void)rsaServerCertBufSz;
+    (void)rsaServerPrivKeyBuf;
+    (void)rsaServerPrivKeyBufSz;
+    (void)rsaCaCertBuf;
+    (void)rsaCaCertBufSz;
+    (void)rsaCaPrivKeyBuf;
+    (void)rsaCaPrivKeyBufSz;
 #endif
 
+    (void)rsaServerCertBuf;
+    (void)rsaServerCertBufSz;
+    (void)rsaServerPrivKeyBuf;
+    (void)rsaServerPrivKeyBufSz;
+    (void)rsaCaCertBuf;
+    (void)rsaCaCertBufSz;
+    (void)rsaCaPrivKeyBuf;
+    (void)rsaCaPrivKeyBufSz;
     return ret;
 }
 
@@ -19843,73 +20051,130 @@ int pkcs7signed_test(void)
 {
     int ret = 0;
 
-    byte* rsaCert    = NULL;
-    byte* eccCert    = NULL;
-    byte* rsaPrivKey = NULL;
-    byte* eccPrivKey = NULL;
+    byte* rsaClientCertBuf    = NULL;
+    byte* rsaServerCertBuf    = NULL;
+    byte* rsaCaCertBuf        = NULL;
+    byte* eccClientCertBuf    = NULL;
+    byte* rsaClientPrivKeyBuf = NULL;
+    byte* rsaServerPrivKeyBuf = NULL;
+    byte* rsaCaPrivKeyBuf     = NULL;
+    byte* eccClientPrivKeyBuf = NULL;
 
-    word32 rsaCertSz    = 0;
-    word32 eccCertSz    = 0;
-    word32 rsaPrivKeySz = 0;
-    word32 eccPrivKeySz = 0;
+    word32 rsaClientCertBufSz    = 0;
+    word32 rsaServerCertBufSz    = 0;
+    word32 rsaCaCertBufSz        = 0;
+    word32 eccClientCertBufSz    = 0;
+    word32 rsaClientPrivKeyBufSz = 0;
+    word32 rsaServerPrivKeyBufSz = 0;
+    word32 rsaCaPrivKeyBufSz     = 0;
+    word32 eccClientPrivKeyBufSz = 0;
 
 #ifndef NO_RSA
     /* read client RSA cert and key in DER format */
-    rsaCert = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (rsaCert == NULL)
+    rsaClientCertBuf = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+                                      DYNAMIC_TYPE_TMP_BUFFER);
+    if (rsaClientCertBuf == NULL)
         return -9500;
 
-    rsaPrivKey = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (rsaPrivKey == NULL) {
-        XFREE(rsaCert, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    rsaClientPrivKeyBuf = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+                                         DYNAMIC_TYPE_TMP_BUFFER);
+    if (rsaClientPrivKeyBuf == NULL) {
+        XFREE(rsaClientCertBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return -9501;
     }
 
-    rsaCertSz = FOURK_BUF;
-    rsaPrivKeySz = FOURK_BUF;
+    rsaClientCertBufSz = FOURK_BUF;
+    rsaClientPrivKeyBufSz = FOURK_BUF;
+
+    /* read server RSA cert and key in DER format */
+    rsaServerCertBuf = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+                                      DYNAMIC_TYPE_TMP_BUFFER);
+    if (rsaServerCertBuf == NULL)
+        return -9502;
+
+    rsaServerPrivKeyBuf = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+                                         DYNAMIC_TYPE_TMP_BUFFER);
+    if (rsaServerPrivKeyBuf == NULL) {
+        XFREE(rsaServerCertBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return -9503;
+    }
+
+    rsaServerCertBufSz = FOURK_BUF;
+    rsaServerPrivKeyBufSz = FOURK_BUF;
+
+    /* read CA RSA cert and key in DER format, for use with server cert */
+    rsaCaCertBuf = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+                                  DYNAMIC_TYPE_TMP_BUFFER);
+    if (rsaCaCertBuf == NULL)
+        return -9504;
+
+    rsaCaPrivKeyBuf = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+                                     DYNAMIC_TYPE_TMP_BUFFER);
+    if (rsaCaPrivKeyBuf == NULL) {
+        XFREE(rsaCaCertBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return -9505;
+    }
+
+    rsaCaCertBufSz = FOURK_BUF;
+    rsaCaPrivKeyBufSz = FOURK_BUF;
 #endif /* NO_RSA */
 
 #ifdef HAVE_ECC
     /* read client ECC cert and key in DER format */
-    eccCert = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (eccCert == NULL) {
-        XFREE(rsaCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(rsaPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -9502;
+    eccClientCertBuf = (byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+                                      DYNAMIC_TYPE_TMP_BUFFER);
+    if (eccClientCertBuf == NULL) {
+        XFREE(rsaClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(rsaClientPrivKeyBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return -9506;
     }
 
-    eccPrivKey =(byte*)XMALLOC(FOURK_BUF, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    if (eccPrivKey == NULL) {
-        XFREE(rsaCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(rsaPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(eccCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -9503;
+    eccClientPrivKeyBuf =(byte*)XMALLOC(FOURK_BUF, HEAP_HINT,
+                                        DYNAMIC_TYPE_TMP_BUFFER);
+    if (eccClientPrivKeyBuf == NULL) {
+        XFREE(rsaClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(rsaClientPrivKeyBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(eccClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        return -9507;
     }
 
-    eccCertSz = FOURK_BUF;
-    eccPrivKeySz = FOURK_BUF;
+    eccClientCertBufSz = FOURK_BUF;
+    eccClientPrivKeyBufSz = FOURK_BUF;
 #endif /* HAVE_ECC */
 
-    ret = pkcs7_load_certs_keys(rsaCert, &rsaCertSz, rsaPrivKey,
-                                &rsaPrivKeySz, eccCert, &eccCertSz,
-                                eccPrivKey, &eccPrivKeySz);
+    ret = pkcs7_load_certs_keys(rsaClientCertBuf, &rsaClientCertBufSz,
+                                rsaClientPrivKeyBuf, &rsaClientPrivKeyBufSz,
+                                rsaServerCertBuf, &rsaServerCertBufSz,
+                                rsaServerPrivKeyBuf, &rsaServerPrivKeyBufSz,
+                                rsaCaCertBuf, &rsaCaCertBufSz,
+                                rsaCaPrivKeyBuf, &rsaCaPrivKeyBufSz,
+                                eccClientCertBuf, &eccClientCertBufSz,
+                                eccClientPrivKeyBuf, &eccClientPrivKeyBufSz);
     if (ret < 0) {
-        XFREE(rsaCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(rsaPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(eccCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        XFREE(eccPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(rsaClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(rsaClientPrivKeyBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(eccClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(eccClientPrivKeyBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
         return ret;
     }
 
-    ret = pkcs7signed_run_vectors(rsaCert, (word32)rsaCertSz,
-                                  rsaPrivKey, (word32)rsaPrivKeySz,
-                                  eccCert, (word32)eccCertSz,
-                                  eccPrivKey, (word32)eccPrivKeySz);
+    ret = pkcs7signed_run_vectors(rsaClientCertBuf, (word32)rsaClientCertBufSz,
+                            rsaClientPrivKeyBuf, (word32)rsaClientPrivKeyBufSz,
+                            rsaServerCertBuf, (word32)rsaServerCertBufSz,
+                            rsaServerPrivKeyBuf, (word32)rsaServerPrivKeyBufSz,
+                            rsaCaCertBuf, (word32)rsaCaCertBufSz,
+                            rsaCaPrivKeyBuf, (word32)rsaCaPrivKeyBufSz,
+                            eccClientCertBuf, (word32)eccClientCertBufSz,
+                            eccClientPrivKeyBuf, (word32)eccClientPrivKeyBufSz);
 
-    XFREE(rsaCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(rsaPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(eccCert,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-    XFREE(eccPrivKey, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(rsaClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(rsaClientPrivKeyBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(rsaServerCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(rsaServerPrivKeyBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(rsaCaCertBuf,        HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(rsaCaPrivKeyBuf,     HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(eccClientCertBuf,    HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+    XFREE(eccClientPrivKeyBuf, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }

@@ -102,6 +102,7 @@ typedef struct PKCS7DecodedAttrib {
     word32 valueSz;
 } PKCS7DecodedAttrib;
 
+typedef struct Pkcs7Cert Pkcs7Cert;
 
 /* Public Structure Warning:
  * Existing members must not be changed to maintain backwards compatibility! 
@@ -161,7 +162,8 @@ typedef struct PKCS7 {
     int sidType;                  /* SignerIdentifier type to use, of type
                                      Pkcs7_SignerIdentifier_Types, default to
                                      SID_ISSUER_AND_SERIAL_NUMBER */
-    byte issuerSubjKeyId[KEYID_SIZE];  /* SubjectKeyIdentifier of singleCert */
+    byte issuerSubjKeyId[KEYID_SIZE];  /* SubjectKeyIdentifier of singleCert  */
+    Pkcs7Cert* certList;          /* certificates list for SignedData set */
 
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 } PKCS7;
@@ -169,7 +171,8 @@ typedef struct PKCS7 {
 
 WOLFSSL_API PKCS7* wc_PKCS7_New(void* heap, int devId);
 WOLFSSL_API int  wc_PKCS7_Init(PKCS7* pkcs7, void* heap, int devId);
-WOLFSSL_API int  wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* cert, word32 certSz);
+WOLFSSL_API int  wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* der, word32 derSz);
+WOLFSSL_API int  wc_PKCS7_AddCertificate(PKCS7* pkcs7, byte* der, word32 derSz);
 WOLFSSL_API void wc_PKCS7_Free(PKCS7* pkcs7);
 
 WOLFSSL_API int wc_PKCS7_GetAttributeValue(PKCS7* pkcs7, const byte* oid,
