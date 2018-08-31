@@ -306,6 +306,29 @@ typedef struct Pkcs7Cert {
 } Pkcs7Cert;
 
 
+/* free all members of Pkcs7Cert linked list */
+static void wc_PKCS7_FreeCertSet(PKCS7* pkcs7)
+{
+    Pkcs7Cert* curr = NULL;
+    Pkcs7Cert* next = NULL;
+
+    if (pkcs7 == NULL)
+        return;
+
+    curr = pkcs7->certList;
+    pkcs7->certList = NULL;
+
+    while (curr != NULL) {
+        next = curr->next;
+        curr->next = NULL;
+        XFREE(curr, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        curr = next;
+    }
+
+    return;
+}
+
+
 /* Init PKCS7 struct with recipient cert, decode into DecodedCert
  * NOTE: keeps previously set pkcs7 heap hint, devId and isDynamic */
 int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* derCert, word32 derCertSz)
@@ -351,6 +374,9 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* derCert, word32 derCertSz)
         cert->der = derCert;
         cert->derSz = derCertSz;
         cert->next = NULL;
+
+        /* free existing cert list if existing */
+        wc_PKCS7_FreeCertSet(pkcs7);
 
         /* add recipient to cert list */
         if (pkcs7->certList == NULL) {
@@ -462,29 +488,6 @@ static void wc_PKCS7_FreeDecodedAttrib(PKCS7DecodedAttrib* attrib, void* heap)
 }
 
 
-/* free all members of Pkcs7Cert linked list */
-static int wc_PKCS7_FreeCertSet(PKCS7* pkcs7)
-{
-    Pkcs7Cert* curr = NULL;
-    Pkcs7Cert* next = NULL;
-
-    if (pkcs7 == NULL)
-        return BAD_FUNC_ARG;
-
-    curr = pkcs7->certList;
-    pkcs7->certList = NULL;
-
-    while (curr != NULL) {
-        next = curr->next;
-        curr->next = NULL;
-        XFREE(curr, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-        curr = next;
-    }
-
-    return 0;
-}
-
-
 /* releases any memory allocated by a PKCS7 initializer */
 void wc_PKCS7_Free(PKCS7* pkcs7)
 {
@@ -492,6 +495,7 @@ void wc_PKCS7_Free(PKCS7* pkcs7)
         return;
 
     wc_PKCS7_FreeDecodedAttrib(pkcs7->decodedAttrib, pkcs7->heap);
+    wc_PKCS7_FreeCertSet(pkcs7);
 
 #ifdef ASN_BER_TO_DER
     if (pkcs7->der != NULL)
@@ -500,12 +504,12 @@ void wc_PKCS7_Free(PKCS7* pkcs7)
     if (pkcs7->contentDynamic != NULL)
         XFREE(pkcs7->contentDynamic, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
 
+    pkcs7->contentTypeSz = 0;
+
     if (pkcs7->isDynamic) {
         pkcs7->isDynamic = 0;
         XFREE(pkcs7, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     }
-
-    pkcs7->contentTypeSz = 0;
 }
 
 
@@ -845,21 +849,21 @@ static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd,
                     const byte* contentType, word32 contentTypeSz,
                     const byte* contentTypeOid, word32 contentTypeOidSz,
                     const byte* messageDigestOid, word32 messageDigestOidSz,
-                    const byte* signingTimeOid, word32 signingTimeOidSz)
+                    const byte* signingTimeOid, word32 signingTimeOidSz,
+                    byte* signingTime, word32 signingTimeSz)
 {
-    int hashSz;
+    int hashSz, timeSz;
 
 #ifdef NO_ASN_TIME
     PKCS7Attrib cannedAttribs[2];
 #else
     PKCS7Attrib cannedAttribs[3];
-    byte signingTime[MAX_TIME_STRING_SZ];
-    int signingTimeSz;
 #endif
     word32 cannedAttribsCount;
 
     if (pkcs7 == NULL || esd == NULL || contentType == NULL ||
-        messageDigestOid == NULL) {
+        contentTypeOid == NULL || messageDigestOid == NULL ||
+        signingTimeOid == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -868,9 +872,12 @@ static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd,
         return hashSz;
 
 #ifndef NO_ASN_TIME
-    signingTimeSz = GetAsnTimeString(signingTime, sizeof(signingTime));
-    if (signingTimeSz < 0)
-        return signingTimeSz;
+    if (signingTime == NULL || signingTimeSz == 0)
+        return BAD_FUNC_ARG;
+
+    timeSz = GetAsnTimeString(signingTime, signingTimeSz);
+    if (timeSz < 0)
+        return timeSz;
 #endif
 
     cannedAttribsCount = sizeof(cannedAttribs)/sizeof(PKCS7Attrib);
@@ -886,8 +893,8 @@ static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd,
 #ifndef NO_ASN_TIME
     cannedAttribs[2].oid     = signingTimeOid;
     cannedAttribs[2].oidSz   = signingTimeOidSz;
-    cannedAttribs[2].value   = (byte*)signingTime;
-    cannedAttribs[2].valueSz = signingTimeSz;
+    cannedAttribs[2].value   = signingTime;
+    cannedAttribs[2].valueSz = timeSz;
 #endif
 
     esd->signedAttribsCount += cannedAttribsCount;
@@ -1103,9 +1110,9 @@ static int wc_PKCS7_SignedDataBuildSignature(PKCS7* pkcs7,
                                              word32 flatSignedAttribsSz,
                                              ESD* esd)
 {
-    int ret;
+    int ret = 0;
 #ifdef HAVE_ECC
-    int hashSz;
+    int hashSz = 0;
 #endif
     word32 digestInfoSz = MAX_PKCS7_DIGEST_SZ;
 #ifdef WOLFSSL_SMALL_STACK
@@ -1124,6 +1131,7 @@ static int wc_PKCS7_SignedDataBuildSignature(PKCS7* pkcs7,
         return MEMORY_E;
     }
 #endif
+    XMEMSET(digestInfo, 0, digestInfoSz);
 
     ret = wc_PKCS7_BuildDigestInfo(pkcs7, flatSignedAttribs,
                                    flatSignedAttribsSz, esd, digestInfo,
@@ -1210,6 +1218,8 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
 
     byte signedDataOid[MAX_OID_SZ];
     word32 signedDataOidSz;
+
+    byte signingTime[MAX_TIME_STRING_SZ];
 
     if (pkcs7 == NULL || pkcs7->contentSz == 0 ||
         pkcs7->encryptOID == 0 || pkcs7->hashOID == 0 || pkcs7->rng == 0 ||
@@ -1325,9 +1335,10 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
                                      pkcs7->contentTypeSz,
                                      contentTypeOid, sizeof(contentTypeOid),
                                      messageDigestOid, sizeof(messageDigestOid),
-                                     signingTimeOid, sizeof(signingTimeOid));
+                                     signingTimeOid, sizeof(signingTimeOid),
+                                     signingTime, sizeof(signingTime));
         if (ret < 0) {
-            return MEMORY_E;
+            return ret;
         }
 
         flatSignedAttribs = (byte*)XMALLOC(esd->signedAttribsSz, pkcs7->heap,
@@ -1453,9 +1464,7 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
         idx += certPtr->derSz;
         certPtr = certPtr->next;
     }
-    ret = wc_PKCS7_FreeCertSet(pkcs7);
-    if (ret != 0)
-        return ret;
+    wc_PKCS7_FreeCertSet(pkcs7);
 
     XMEMCPY(output2 + idx, esd->signerInfoSet, esd->signerInfoSetSz);
     idx += esd->signerInfoSetSz;
@@ -1697,13 +1706,16 @@ static int wc_PKCS7_RsaVerify(PKCS7* pkcs7, byte* sig, int sigSz,
         }
 
         ret = wc_RsaSSL_Verify(sig, sigSz, digest, MAX_PKCS7_DIGEST_SZ, key);
+
         FreeDecodedCert(dCert);
         wc_FreeRsaKey(key);
 
-        if (((int)hashSz == ret) && (XMEMCMP(digest, hash, ret) == 0)) {
-            /* found signer that successfully verified signature */
-            verified = 1;
-            break;
+        if ((ret > 0) && (hashSz == (word32)ret)) {
+            if (XMEMCMP(digest, hash, hashSz) == 0) {
+                /* found signer that successfully verified signature */
+                verified = 1;
+                break;
+            }
         }
     }
 
@@ -1851,7 +1863,7 @@ static int wc_PKCS7_BuildSignedDataDigest(PKCS7* pkcs7, byte* signedAttrib,
                                       const byte* hashBuf, word32 hashBufSz)
 {
     int ret = 0, digIdx = 0;
-    word32 attribSetSz, hashSz;
+    word32 attribSetSz = 0, hashSz = 0;
     byte attribSet[MAX_SET_SZ];
     byte digest[WC_MAX_DIGEST_SIZE];
     byte digestInfoSeq[MAX_SEQ_SZ];
@@ -1982,9 +1994,9 @@ static int wc_PKCS7_BuildSignedDataDigest(PKCS7* pkcs7, byte* signedAttrib,
  *
  * return 0 on success, negative on error */
 static int wc_PKCS7_SignedDataVerifySignature(PKCS7* pkcs7, byte* sig,
-                                              word32 sigSz, byte* signedAttrib,
-                                              word32 signedAttribSz,
-                                              const byte* hashBuf, word32 hashSz)
+                                             word32 sigSz, byte* signedAttrib,
+                                             word32 signedAttribSz,
+                                             const byte* hashBuf, word32 hashSz)
 {
     int ret = 0;
     word32 plainDigestSz = 0, pkcs7DigestSz;
@@ -1998,15 +2010,17 @@ static int wc_PKCS7_SignedDataVerifySignature(PKCS7* pkcs7, byte* sig,
     if (pkcs7 == NULL)
         return BAD_FUNC_ARG;
 
+    /* build hash to verify against */
+    pkcs7DigestSz = MAX_PKCS7_DIGEST_SZ;
 #ifdef WOLFSSL_SMALL_STACK
-    pkcs7Digest = (byte*)XMALLOC(MAX_PKCS7_DIGEST_SZ, pkcs7->heap,
+    pkcs7Digest = (byte*)XMALLOC(pkcs7DigestSz, pkcs7->heap,
                                  DYNAMIC_TYPE_TMP_BUFFER);
     if (pkcs7Digest == NULL)
         return MEMORY_E;
 #endif
 
-    /* build hash to verify against */
-    pkcs7DigestSz = MAX_PKCS7_DIGEST_SZ;
+    XMEMSET(pkcs7Digest, 0, pkcs7DigestSz);
+
     ret = wc_PKCS7_BuildSignedDataDigest(pkcs7, signedAttrib,
                                          signedAttribSz, pkcs7Digest,
                                          &pkcs7DigestSz, &plainDigest,

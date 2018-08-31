@@ -4894,17 +4894,17 @@ int GetAsnTimeString(byte* buf, word32 len)
     /* Note ASN_UTC_TIME_SIZE and ASN_GENERALIZED_TIME_SIZE include space for
      * the null terminator. ASN encoded values leave off the terminator. */
 
-    if (ts->tm_year >= 50 && ts->tm_year < 150){
+    if (ts->tm_year >= 50 && ts->tm_year < 150) {
         /* UTC Time */
         char utc_str[ASN_UTC_TIME_SIZE];
-        data_len = ASN_UTC_TIME_SIZE -1 + 2;
+        data_len = ASN_UTC_TIME_SIZE - 1 + 2;
 
         if (len < data_len)
             return BUFFER_E;
 
-        if (ts->tm_year >= 50 && ts->tm_year < 100){
+        if (ts->tm_year >= 50 && ts->tm_year < 100) {
             year = ts->tm_year;
-        } else if (ts->tm_year >= 100 && ts->tm_year < 150){
+        } else if (ts->tm_year >= 100 && ts->tm_year < 150) {
             year = ts->tm_year - 100;
         }
         mon  = ts->tm_mon + 1;
@@ -4922,7 +4922,7 @@ int GetAsnTimeString(byte* buf, word32 len)
     } else {
         /* GeneralizedTime */
         char gt_str[ASN_GENERALIZED_TIME_SIZE];
-        data_len = ASN_GENERALIZED_TIME_SIZE + 1;
+        data_len = ASN_GENERALIZED_TIME_SIZE - 1 + 2;
 
         if (len < data_len)
             return BUFFER_E;

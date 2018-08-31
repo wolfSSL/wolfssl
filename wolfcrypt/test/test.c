@@ -19772,6 +19772,8 @@ static int pkcs7signed_run_vectors(
     if (out == NULL)
         return -9413;
 
+    XMEMSET(out, 0, outSz);
+
     ret = wc_PKCS7_PadData((byte*)data, sizeof(data), out, outSz, 16);
     if (ret < 0) {
         XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
