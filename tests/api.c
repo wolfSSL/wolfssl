@@ -743,6 +743,24 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
 #endif
 }
 
+static void test_wolfSSL_CTX_load_verify_chain_buffer_format(void)
+{
+#if !defined(NO_CERTS) && !defined(NO_WOLFSSL_CLIENT) && \
+    defined(USE_CERT_BUFFERS_2048) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_CERT_GEN)
+
+    WOLFSSL_CTX* ctx;
+
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+
+    AssertTrue(WOLFSSL_SUCCESS ==
+        wolfSSL_CTX_load_verify_chain_buffer_format(ctx, ca_cert_chain_der,
+                                                  sizeof_ca_cert_chain_der,
+                                                  WOLFSSL_FILETYPE_ASN1));
+
+    wolfSSL_CTX_free(ctx);
+#endif
+}
 
 static int test_wolfSSL_CTX_use_certificate_chain_file_format(void)
 {
@@ -20572,6 +20590,7 @@ void ApiTest(void)
     AssertIntEQ(test_wolfSSL_CTX_use_certificate_buffer(), WOLFSSL_SUCCESS);
     test_wolfSSL_CTX_use_PrivateKey_file();
     test_wolfSSL_CTX_load_verify_locations();
+    test_wolfSSL_CTX_load_verify_chain_buffer_format();
     test_wolfSSL_CTX_use_certificate_chain_file_format();
     test_wolfSSL_CTX_trust_peer_cert();
     test_wolfSSL_CTX_SetTmpDH_file();

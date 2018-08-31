@@ -38,7 +38,6 @@
 #endif
 
 #include <wolfssl/test.h>
-
 #include <examples/client/client.h>
 #include <wolfssl/error-ssl.h>
 
