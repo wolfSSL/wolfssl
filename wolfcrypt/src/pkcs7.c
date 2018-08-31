@@ -842,26 +842,11 @@ static int wc_PKCS7_EcdsaSign(PKCS7* pkcs7, byte* in, word32 inSz, ESD* esd)
  *
  * return 0 on success, negative on error */
 static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd,
-                    const byte* contentTypeOid, word32 contentTypeOidSz,
                     const byte* contentType, word32 contentTypeSz,
+                    const byte* contentTypeOid, word32 contentTypeOidSz,
                     const byte* messageDigestOid, word32 messageDigestOidSz,
                     const byte* signingTimeOid, word32 signingTimeOidSz)
 {
-    /* contentType OID (1.2.840.113549.1.9.3) */
-    byte contentTypeOid[] =
-            { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xF7, 0x0d, 0x01,
-                             0x09, 0x03 };
-
-    /* messageDigest OID (1.2.840.113549.1.9.4) */
-    byte messageDigestOid[] =
-            { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
-                             0x09, 0x04 };
-
-    /* signingTime OID () */
-    byte signingTimeOid[] =
-            { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01,
-                             0x09, 0x05};
-
     int hashSz;
 
 #ifdef NO_ASN_TIME
@@ -891,16 +876,16 @@ static int wc_PKCS7_BuildSignedAttributes(PKCS7* pkcs7, ESD* esd,
     cannedAttribsCount = sizeof(cannedAttribs)/sizeof(PKCS7Attrib);
 
     cannedAttribs[0].oid     = contentTypeOid;
-    cannedAttribs[0].oidSz   = sizeof(contentTypeOid);
+    cannedAttribs[0].oidSz   = contentTypeOidSz;
     cannedAttribs[0].value   = contentType;
     cannedAttribs[0].valueSz = contentTypeSz;
     cannedAttribs[1].oid     = messageDigestOid;
-    cannedAttribs[1].oidSz   = sizeof(messageDigestOid);
+    cannedAttribs[1].oidSz   = messageDigestOidSz;
     cannedAttribs[1].value   = esd->contentDigest;
     cannedAttribs[1].valueSz = hashSz + 2;  /* ASN.1 heading */
 #ifndef NO_ASN_TIME
     cannedAttribs[2].oid     = signingTimeOid;
-    cannedAttribs[2].oidSz   = sizeof(signingTimeOid);
+    cannedAttribs[2].oidSz   = signingTimeOidSz;
     cannedAttribs[2].value   = (byte*)signingTime;
     cannedAttribs[2].valueSz = signingTimeSz;
 #endif
@@ -1337,7 +1322,10 @@ static int PKCS7_EncodeSigned(PKCS7* pkcs7, ESD* esd,
 
         /* build up signed attributes */
         ret = wc_PKCS7_BuildSignedAttributes(pkcs7, esd, pkcs7->contentType,
-                                             pkcs7->contentTypeSz);
+                                     pkcs7->contentTypeSz,
+                                     contentTypeOid, sizeof(contentTypeOid),
+                                     messageDigestOid, sizeof(messageDigestOid),
+                                     signingTimeOid, sizeof(signingTimeOid));
         if (ret < 0) {
             return MEMORY_E;
         }
@@ -2356,13 +2344,13 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
 
     /* Get the inner ContentInfo contentType */
     {
-        localIdx = idx;
+        word32 tmpIdx = idx;
 
         if (GetASNObjectId(pkiMsg, &idx, &length, pkiMsgSz) != 0)
             return ASN_PARSE_E;
 
-        contentType = pkiMsg + localIdx;
-        contentTypeSz = length + (idx - localIdx);
+        contentType = pkiMsg + tmpIdx;
+        contentTypeSz = length + (idx - tmpIdx);
 
         idx += length;
     }
