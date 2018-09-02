@@ -12246,7 +12246,7 @@ int wc_SetIssuerRaw(Cert* cert, const byte* der, int derSz)
         ret = BAD_FUNC_ARG;
     }
     else {
-        ret = SetIssuerRawFromCert(cert->sbjRaw, der, derSz);
+        ret = SetIssuerRawFromCert(cert->issRaw, der, derSz);
     }
     return ret;
 }
