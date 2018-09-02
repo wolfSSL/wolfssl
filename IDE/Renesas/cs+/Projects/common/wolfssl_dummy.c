@@ -24,37 +24,45 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+
+#include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/types.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <stdio.h>
 
-//typedef unsigned long time_t;
+#define WOLFSSL_SUCCESS 1
 
 #define YEAR 2018
 #define MON  5
 
 static int tick = 0;
 
-#include <ctype.h>
-int strncasecmp(const char *s1, const char *s2, unsigned int sz)
+time_t time(time_t *t)
 {
-    for( ; sz>0; sz--)
-        if(toupper(*s1++) != toupper(*s2++))
-	    return 1;
-    return 0;
-}
-
-unsigned long user_time(void){ 
     return ((YEAR-1970)*365+30*MON)*24*60*60 + tick++;
 }
 
-char* getenv(const char *env)
+#include <ctype.h>
+int strncasecmp(const char *s1, const char * s2, unsigned int sz)
 {
-    if (XSTRNCMP(env, "RANDFILE", 9) == 0)
-        return WOLFSSL_GETENV_RANDFILE;
-    else if (XSTRNCMP(env, "HOME", 5) == 0)
-        return WOLFSSL_GETENV_HOME;
-    else return 0;
+    for( ; sz>0; sz--, s1++, s2++){
+        if(toupper(*s1) < toupper(*s2)){
+	    return -1;
+	}
+	if(toupper(*s1) > toupper(*s2)){
+	    return 1;
+<<<<<<< HEAD
+    return 0;
+=======
+	}
+    }
+    return 0;	
+>>>>>>> Refactor cs+ project
+}
+    
+void abort(void) 
+{
+    while(1);
 }
 
-void abort(void){ while(1); }
+
