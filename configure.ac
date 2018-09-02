@@ -2794,6 +2794,13 @@ AC_ARG_ENABLE([earlydata],
     [ ENABLED_TLS13_EARLY_DATA=$enableval ],
     [ ENABLED_TLS13_EARLY_DATA=no ]
     )
+
+if test "$ENABLED_TLS13_EARLY_DATA" = "group"
+then
+    ENABLED_TLS13_EARLY_DATA="yes"
+    # Group EarlyData with ClientHello
+    AM_CFLAGS="-DWOLFSSL_EARLY_DATA_GROUP $AM_CFLAGS"
+fi
 if test "$ENABLED_TLS13_EARLY_DATA" = "yes"
 then
     if test "x$ENABLED_TLS13" = "xno"
@@ -2811,6 +2818,7 @@ if test "$ENABLED_TLSV12" = "no" && test "$ENABLED_TLS13" = "yes" && test "x$ENA
 then
     AM_CFLAGS="$AM_CFLAGS -DNO_SESSION_CACHE"
 fi
+
 
 # PKCS7
 AC_ARG_ENABLE([pkcs7],

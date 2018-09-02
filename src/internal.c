@@ -14764,7 +14764,9 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
             WOLFSSL_MSG("handshake complete, trying to send early data");
             return BUILD_MSG_ERROR;
         }
+    #ifdef WOLFSSL_EARLY_DATA_GROUP
         groupMsgs = 1;
+    #endif
     }
     else
 #endif

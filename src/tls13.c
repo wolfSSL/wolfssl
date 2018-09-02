@@ -42,6 +42,8 @@
  *    and key generation input and output.
  * WOLFSSL_EARLY_DATA
  *    Allow 0-RTT Handshake using Early Data extensions and handshake message
+ * WOLFSSL_EARLY_DATA_GROUP
+ *    Group EarlyData message with ClientHello when sending
  * WOLFSSL_NO_SERVER_GROUPS_EXT
  *    Do not send the server's groups in an extension when the server's top
  *    preference is not in client's list.
@@ -2670,7 +2672,7 @@ int SendTls13ClientHello(WOLFSSL* ssl)
 
     ssl->buffers.outputBuffer.length += sendSz;
 
-#ifdef WOLFSSL_EARLY_DATA
+#ifdef WOLFSSL_EARLY_DATA_GROUP
     if (ssl->earlyData == no_early_data)
 #endif
         ret = SendBuffered(ssl);
