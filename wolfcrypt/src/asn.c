@@ -7106,7 +7106,7 @@ static Signer* GetCABySubjectAndPubKey(DecodedCert* cert, void* cm)
  * Doesn't support:
  *   OCSP Only: alt lookup using subject and pub key w/o sig check
  */
-int CheckCertSignature(byte* cert, word32 certSz, void* heap, void* cm)
+int CheckCertSignature(const byte* cert, word32 certSz, void* heap, void* cm)
 {
 #ifndef WOLFSSL_SMALL_STACK
     SignatureCtx  sigCtx[1];
@@ -7130,6 +7130,10 @@ int CheckCertSignature(byte* cert, word32 certSz, void* heap, void* cm)
     int           extAuthKeyIdSet = 0;
 #endif
     int           ret = 0;
+
+    if (cert == NULL) {
+        return BAD_FUNC_ARG;
+    }
 
 #ifdef WOLFSSL_SMALL_STACK
     sigCtx = XMALLOC(sizeof(*sigCtx), heap, DYNAMIC_TYPE_SIGNATURE);
