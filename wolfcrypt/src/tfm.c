@@ -762,9 +762,8 @@ void fp_div_2d(fp_int *a, int b, fp_int *c, fp_int *d)
     return;
   }
 
-  /* get the remainder */
-  if (d != NULL) {
-    /* NOTE: d must not be the same pointer as a or b */
+  /* get the remainder before a is changed in calculating c */
+  if (a == c && d != NULL) {
     fp_mod_2d (a, b, d);
   }
 
@@ -781,6 +780,12 @@ void fp_div_2d(fp_int *a, int b, fp_int *c, fp_int *d)
   if (D != 0) {
     fp_rshb(c, D);
   }
+
+  /* get the remainder if a is not changed in calculating c */
+  if (a != c && d != NULL) {
+    fp_mod_2d (a, b, d);
+  }
+
   fp_clamp (c);
 }
 
