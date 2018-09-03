@@ -28510,7 +28510,7 @@ int wolfSSL_i2d_RSAPublicKey(WOLFSSL_RSA *rsa, const unsigned char **pp)
     int ret;
 
     WOLFSSL_ENTER("i2d_RSAPublicKey");
-    if ((rsa == NULL) || (pp == NULL))
+    if (rsa == NULL)
         return WOLFSSL_FATAL_ERROR;
     if ((ret = SetRsaInternal(rsa)) != WOLFSSL_SUCCESS) {
         WOLFSSL_MSG("SetRsaInternal Failed");
@@ -29590,10 +29590,10 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             WOLFSSL_LEAVE("wolfSSL_PEM_read_X509", BAD_FUNC_ARG);
             return NULL;
         }
-        /* Read in CRL from file */
+        /* Read cert from file */
         i = XFTELL(fp);
         if (i < 0) {
-            WOLFSSL_LEAVE("wolfSSL_PEM_read_X509_CRL", BAD_FUNC_ARG);
+            WOLFSSL_LEAVE("wolfSSL_PEM_read_X509", BAD_FUNC_ARG);
             return NULL;
         }
 
@@ -29613,10 +29613,6 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
         if((int)XFREAD((char *)pem, 1, pemSz, fp) != pemSz)
             goto err_exit;
-        if((PemToDer(pem, pemSz, CRL_TYPE, &der, NULL, NULL, NULL)) < 0)
-            goto err_exit;
-        XFREE(pem, 0, DYNAMIC_TYPE_PEM);
-        pem = NULL;
 
         switch(type){
         case CERT_TYPE:
