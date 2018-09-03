@@ -18990,9 +18990,9 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
     WOLFSSL_CTX* ctx;
 
 #if defined(WOLFSSL_KEY_GEN)
-    unsigned char buffer[4096];
+    unsigned char buff[4096];
     unsigned char* bufPtr;
-    bufPtr = buffer;
+    bufPtr = buff;
 #endif
 
     printf(testingFmt, "wolfSSL_d2i_PrivateKeys_bio()");
