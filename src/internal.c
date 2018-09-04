@@ -14739,6 +14739,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
         sendSz,
         ret,
         dtlsExtra = 0;
+    int groupMsgs = 0;
 
     if (ssl->error == WANT_WRITE
     #ifdef WOLFSSL_ASYNC_CRYPT
@@ -14763,6 +14764,9 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
             WOLFSSL_MSG("handshake complete, trying to send early data");
             return BUILD_MSG_ERROR;
         }
+    #ifdef WOLFSSL_EARLY_DATA_GROUP
+        groupMsgs = 1;
+    #endif
     }
     else
 #endif
@@ -14781,7 +14785,7 @@ int SendData(WOLFSSL* ssl, const void* data, int sz)
     }
 
     /* last time system socket output buffer was full, try again to send */
-    if (ssl->buffers.outputBuffer.length > 0) {
+    if (!groupMsgs && ssl->buffers.outputBuffer.length > 0) {
         WOLFSSL_MSG("output buffer was full, trying to send again");
         if ( (ssl->error = SendBuffered(ssl)) < 0) {
             WOLFSSL_ERROR(ssl->error);
