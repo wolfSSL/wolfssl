@@ -887,7 +887,7 @@ static void Usage(void)
 #ifdef HAVE_WNR
     printf("-q <file>   Whitewood config file,      default %s\n", wnrConfig);
 #endif
-    printf("-H <arg>    Internal tests [defCipherList, exitWithRet]\n");
+    printf("-H <arg>    Internal tests [defCipherList, exitWithRet, verifyFail]\n");
 #ifdef WOLFSSL_TLS13
     printf("-J          Use HelloRetryRequest to choose group for KE\n");
     printf("-K          Key Exchange for PSK not using (EC)DHE\n");
@@ -1211,9 +1211,13 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                     printf("Using default cipher list for testing\n");
                     useDefCipherList = 1;
                 }
-                else if (XSTRNCMP(myoptarg, "exitWithRet", 7) == 0) {
+                else if (XSTRNCMP(myoptarg, "exitWithRet", 11) == 0) {
                     printf("Skip exit() for testing\n");
                     exitWithRet = 1;
+                }
+                else if (XSTRNCMP(myoptarg, "verifyFail", 10) == 0) {
+                    printf("Verify should fail\n");
+                    myVerifyFail = 1;
                 }
                 else {
                     Usage();
@@ -1821,9 +1825,9 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #endif
     }
 
-    if (!usePsk && !useAnon && !useVerifyCb) {
+    if (!usePsk && !useAnon && (!useVerifyCb || myVerifyFail)) {
     #if !defined(NO_FILESYSTEM)
-        if (wolfSSL_CTX_load_verify_locations(ctx, verifyCert,0)
+        if (wolfSSL_CTX_load_verify_locations(ctx, verifyCert, 0)
                                                            != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx); ctx = NULL;
             err_sys("can't load ca file, Please run from wolfSSL home dir");

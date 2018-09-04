@@ -8454,9 +8454,7 @@ typedef struct ProcPeerCertArgs {
     word32 begin;
     int    totalCerts; /* number of certs in certs buffer */
     int    count;
-    int    dCertInit;
     int    certIdx;
-    int    fatal;
     int    lastErr;
 #ifdef WOLFSSL_ALT_CERT_CHAINS
     int    lastCaErr;
@@ -8464,11 +8462,14 @@ typedef struct ProcPeerCertArgs {
 #ifdef WOLFSSL_TLS13
     byte   ctxSz;
 #endif
-#ifdef WOLFSSL_TRUST_PEER_CERT
-    byte haveTrustPeer; /* was cert verified by loaded trusted peer cert */
-#endif
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
     char   untrustedDepth;
+#endif
+    word16 fatal:1;
+    word16 verifyErr:1;
+    word16 dCertInit:1;
+#ifdef WOLFSSL_TRUST_PEER_CERT
+    word16 haveTrustPeer:1; /* was cert verified by loaded trusted peer cert */
 #endif
 } ProcPeerCertArgs;
 
@@ -8608,6 +8609,15 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
             WOLFSSL_MSG("Verify callback overriding error!");
             ret = 0;
         }
+        else {
+            /* induce error if one not present */
+            if (ret == 0) {
+                ret = VERIFY_CERT_ERROR;
+            }
+
+            /* mark as verify error */
+            args->verifyErr = 1;
+        }
     #ifdef OPENSSL_EXTRA
         if (args->certIdx > 0)
             FreeX509(x509);
@@ -8616,14 +8626,6 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         wolfSSL_sk_X509_free(store->chain);
         store->chain = NULL;
     #endif
-    #ifdef WOLFSSL_SMALL_STACK
-        XFREE(domain, ssl->heap, DYNAMIC_TYPE_STRING);
-        #ifdef OPENSSL_EXTRA
-        XFREE(x509, ssl->heap, DYNAMIC_TYPE_X509);
-        #endif
-        XFREE(store, ssl->heap, DYNAMIC_TYPE_X509_STORE);
-    #endif
-
     #ifdef SESSION_CERTS
         if (store->discardSessionCerts) {
             WOLFSSL_MSG("Verify callback requested discard sess certs");
@@ -8633,6 +8635,13 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
         #endif
         }
     #endif /* SESSION_CERTS */
+    #ifdef WOLFSSL_SMALL_STACK
+        XFREE(domain, ssl->heap, DYNAMIC_TYPE_STRING);
+        #ifdef OPENSSL_EXTRA
+        XFREE(x509, ssl->heap, DYNAMIC_TYPE_X509);
+        #endif
+        XFREE(store, ssl->heap, DYNAMIC_TYPE_X509_STORE);
+    #endif
     }
 
     if (ret != 0) {
@@ -9231,7 +9240,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             ssl->options.usingAltCertChain = 1;
 
                             /* clear last CA fail since CA cert was validated */
-                            args->lastCaErr = 0;
+                            if (!args->verifyErr)
+                                args->lastCaErr = 0;
 
                         #ifdef SESSION_CERTS
                             AddSessionCertToChain(&ssl->session.altChain,
@@ -9242,16 +9252,6 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     }
                     else if (ret != 0) {
                         WOLFSSL_MSG("Failed to verify CA from chain");
-                    #ifdef WOLFSSL_ALT_CERT_CHAINS
-                        if (args->lastCaErr == 0) {
-                            /* store CA error and proceed to next cert */
-                            args->lastCaErr = ret;
-                            ret = 0;
-                        }
-                        else {
-                            args->lastErr = args->lastCaErr;
-                        }
-                    #endif
                     #ifdef OPENSSL_EXTRA
                         ssl->peerVerifyRet = X509_V_ERR_INVALID_CA;
                     #endif
@@ -9322,6 +9322,16 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     ret = DoVerifyCallback(ssl, ret, args);
 
                     /* Handle error codes */
+                #ifdef WOLFSSL_ALT_CERT_CHAINS
+                    if (args->lastCaErr == 0) {
+                        /* capture CA error and proceed to next cert */
+                        args->lastCaErr = ret;
+                        ret = 0;
+                    }
+                    else {
+                        args->lastErr = args->lastCaErr;
+                    }
+                #endif
                     if (ret != 0 && args->lastErr == 0) {
                         args->lastErr = ret;   /* save error from last time */
                         ret = 0; /* reset error */
@@ -9424,7 +9434,22 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                             cert->buffer, cert->length);
                     }
                 #endif /* SESSION_CERTS && WOLFSSL_ALT_CERT_CHAINS */
-                    args->fatal = 0;
+
+                    /* check if fatal error */
+                    if (args->verifyErr) {
+                        args->fatal = 1;
+                        if (ret == 0) {
+                            ret = args->lastErr;
+                        }
+                    #ifdef WOLFSSL_ALT_CERT_CHAINS
+                        if (ret == 0) {
+                            ret = args->lastCaErr;
+                        }
+                    #endif
+                    }
+                    else {
+                        args->fatal = 0;
+                    }
                 }
                 else if (ret == ASN_PARSE_E || ret == BUFFER_E) {
                     WOLFSSL_MSG("Got Peer cert ASN PARSE or BUFFER ERROR");
@@ -9442,7 +9467,8 @@ int ProcessPeerCerts(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                     if (ssl->verifyCallback) {
                         WOLFSSL_MSG(
                             "\tCallback override available, will continue");
-                        args->fatal = 0;
+                        /* check if fatal error */
+                        args->fatal = (args->verifyErr) ? 1 : 0;
                     }
                     else {
                         WOLFSSL_MSG("\tNo callback override available, fatal");
