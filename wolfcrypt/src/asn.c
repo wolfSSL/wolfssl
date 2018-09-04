@@ -9466,7 +9466,9 @@ static char GetNameType(CertName* name, int idx)
 #else
     case 7:
 #endif
-
+        /* FALL THROUGH */
+        /* The last index, email name, does not have encoding type.
+           The empty case here is to keep track of it for future reference. */
     default:
        return 0;
     }
