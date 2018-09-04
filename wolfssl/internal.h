@@ -1336,7 +1336,15 @@ enum Misc {
     MIN_RSA_SHA512_PSS_BITS = 512 * 2 + 8 * 8, /* Min key size */
     MIN_RSA_SHA384_PSS_BITS = 384 * 2 + 8 * 8, /* Min key size */
 
-    MAX_CERT_VERIFY_SZ = 1024, /* max   */
+#ifndef NO_RSA
+    MAX_CERT_VERIFY_SZ = 4096 / 8, /* max RSA - default 4096-bits */
+#elif defined(HAVE_ECC)
+    MAX_CERT_VERIFY_SZ = ECC_MAX_SIG_SIZE, /* max ECC  */
+#elif defined(HAVE_ED25519)
+    MAX_CERT_VERIFY_SZ = ED25519_SIG_SIZE, /* max Ed25519  */
+#else
+    MAX_CERT_VERIFY_SZ = 1024, /* max default  */
+#endif
     CLIENT_HELLO_FIRST =  35,  /* Protocol + RAN_LEN + sizeof(id_len) */
     MAX_SUITE_NAME     =  48,  /* maximum length of cipher suite string */
 

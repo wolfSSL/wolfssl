@@ -420,7 +420,8 @@ enum VerifyType {
     NO_VERIFY   = 0,
     VERIFY      = 1,
     VERIFY_CRL  = 2,
-    VERIFY_OCSP = 3
+    VERIFY_OCSP = 3,
+    VERIFY_NAME = 4
 };
 
 #ifdef WOLFSSL_CERT_EXT
@@ -838,6 +839,14 @@ struct TrustedPeerCert {
     #define WOLFSSL_ASN_API WOLFSSL_LOCAL
 #endif
 
+
+#ifdef NO_SHA
+    #define CalcHashId(data, len, hash)    wc_Sha256Hash(data, len, hash)
+#else
+    #define CalcHashId(data, len, hash)    wc_ShaHash(data, len, hash)
+#endif
+
+
 WOLFSSL_ASN_API int wc_BerToDer(const byte* ber, word32 berSz, byte* der,
                                 word32* derSz);
 
@@ -850,6 +859,7 @@ WOLFSSL_ASN_API void FreeDecodedCert(DecodedCert*);
 WOLFSSL_ASN_API int  ParseCert(DecodedCert*, int type, int verify, void* cm);
 
 WOLFSSL_LOCAL int DecodePolicyOID(char *o, word32 oSz, byte *in, word32 inSz);
+WOLFSSL_API int CheckCertSignature(const byte*,word32,void*,void* cm);
 WOLFSSL_LOCAL int ParseCertRelative(DecodedCert*,int type,int verify,void* cm);
 WOLFSSL_LOCAL int DecodeToKey(DecodedCert*, int verify);
 

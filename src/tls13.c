@@ -5201,7 +5201,7 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                 return 0;  /* sent blank cert, can't verify */
             }
 
-            args->sendSz = MAX_CERT_VERIFY_SZ;
+            args->sendSz = MAX_CERT_VERIFY_SZ + MAX_MSG_EXTRA;
             /* Always encrypted.  */
             args->sendSz += MAX_MSG_EXTRA;
 
