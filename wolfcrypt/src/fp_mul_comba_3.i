@@ -22,7 +22,7 @@
 
 
 #ifdef TFM_MUL3
-void fp_mul_comba3(fp_int *A, fp_int *B, fp_int *C)
+int fp_mul_comba3(fp_int *A, fp_int *B, fp_int *C)
 {
    fp_digit c0, c1, c2, at[6];
 
@@ -55,5 +55,7 @@ void fp_mul_comba3(fp_int *A, fp_int *B, fp_int *C)
    C->sign = A->sign ^ B->sign;
    fp_clamp(C);
    COMBA_FINI;
+
+   return FP_OKAY;
 }
 #endif

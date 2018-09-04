@@ -467,10 +467,10 @@ void fp_add(fp_int *a, fp_int *b, fp_int *c);
 void fp_sub(fp_int *a, fp_int *b, fp_int *c);
 
 /* c = a * b */
-void fp_mul(fp_int *a, fp_int *b, fp_int *c);
+int fp_mul(fp_int *a, fp_int *b, fp_int *c);
 
 /* b = a*a  */
-void fp_sqr(fp_int *a, fp_int *b);
+int fp_sqr(fp_int *a, fp_int *b);
 
 /* a/b => cb + d == a */
 int fp_div(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
@@ -485,7 +485,7 @@ int fp_cmp_d(fp_int *a, fp_digit b);
 void fp_add_d(fp_int *a, fp_digit b, fp_int *c);
 
 /* c = a - b */
-void fp_sub_d(fp_int *a, fp_digit b, fp_int *c);
+int fp_sub_d(fp_int *a, fp_digit b, fp_int *c);
 
 /* c = a * b */
 void fp_mul_d(fp_int *a, fp_digit b, fp_int *c);
@@ -519,10 +519,10 @@ int fp_sqrmod(fp_int *a, fp_int *b, fp_int *c);
 int fp_invmod(fp_int *a, fp_int *b, fp_int *c);
 
 /* c = (a, b) */
-/*void fp_gcd(fp_int *a, fp_int *b, fp_int *c);*/
+/*int fp_gcd(fp_int *a, fp_int *b, fp_int *c);*/
 
 /* c = [a, b] */
-/*void fp_lcm(fp_int *a, fp_int *b, fp_int *c);*/
+/*int fp_lcm(fp_int *a, fp_int *b, fp_int *c);*/
 
 /* setups the montgomery reduction */
 int fp_montgomery_setup(fp_int *a, fp_digit *mp);
@@ -533,7 +533,7 @@ int fp_montgomery_setup(fp_int *a, fp_digit *mp);
 void fp_montgomery_calc_normalization(fp_int *a, fp_int *b);
 
 /* computes x/R == x (mod N) via Montgomery Reduction */
-void fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp);
+int fp_montgomery_reduce(fp_int *a, fp_int *m, fp_digit mp);
 
 /* d = a**b (mod c) */
 int fp_exptmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
@@ -547,7 +547,7 @@ int fp_exptmod(fp_int *a, fp_int *b, fp_int *c, fp_int *d);
 /* 256 trial divisions + 8 Miller-Rabins, returns FP_YES if probable prime  */
 /*int fp_isprime(fp_int *a);*/
 /* extended version of fp_isprime, do 't' Miller-Rabins instead of only 8 */
-/*int fp_isprime_ex(fp_int *a, int t);*/
+/*int fp_isprime_ex(fp_int *a, int t, int* result);*/
 
 /* Primality generation flags */
 /*#define TFM_PRIME_BBS      0x0001 */ /* BBS style prime */
@@ -568,7 +568,7 @@ int fp_leading_bit(fp_int *a);
 
 int fp_unsigned_bin_size(fp_int *a);
 void fp_read_unsigned_bin(fp_int *a, const unsigned char *b, int c);
-void fp_to_unsigned_bin(fp_int *a, unsigned char *b);
+int fp_to_unsigned_bin(fp_int *a, unsigned char *b);
 int fp_to_unsigned_bin_at_pos(int x, fp_int *t, unsigned char *b);
 
 /*int fp_signed_bin_size(fp_int *a);*/
@@ -585,39 +585,39 @@ void s_fp_add(fp_int *a, fp_int *b, fp_int *c);
 void s_fp_sub(fp_int *a, fp_int *b, fp_int *c);
 void fp_reverse(unsigned char *s, int len);
 
-void fp_mul_comba(fp_int *a, fp_int *b, fp_int *c);
+int  fp_mul_comba(fp_int *a, fp_int *b, fp_int *c);
 
-void fp_mul_comba_small(fp_int *a, fp_int *b, fp_int *c);
-void fp_mul_comba3(fp_int *a, fp_int *b, fp_int *c);
-void fp_mul_comba4(fp_int *a, fp_int *b, fp_int *c);
-void fp_mul_comba6(fp_int *a, fp_int *b, fp_int *c);
-void fp_mul_comba7(fp_int *a, fp_int *b, fp_int *c);
-void fp_mul_comba8(fp_int *a, fp_int *b, fp_int *c);
-void fp_mul_comba9(fp_int *a, fp_int *b, fp_int *c);
-void fp_mul_comba12(fp_int *a, fp_int *b, fp_int *c);
-void fp_mul_comba17(fp_int *a, fp_int *b, fp_int *c);
-void fp_mul_comba20(fp_int *a, fp_int *b, fp_int *c);
-void fp_mul_comba24(fp_int *a, fp_int *b, fp_int *c);
-void fp_mul_comba28(fp_int *a, fp_int *b, fp_int *c);
-void fp_mul_comba32(fp_int *a, fp_int *b, fp_int *c);
-void fp_mul_comba48(fp_int *a, fp_int *b, fp_int *c);
-void fp_mul_comba64(fp_int *a, fp_int *b, fp_int *c);
-void fp_sqr_comba(fp_int *a, fp_int *b);
-void fp_sqr_comba_small(fp_int *a, fp_int *b);
-void fp_sqr_comba3(fp_int *a, fp_int *b);
-void fp_sqr_comba4(fp_int *a, fp_int *b);
-void fp_sqr_comba6(fp_int *a, fp_int *b);
-void fp_sqr_comba7(fp_int *a, fp_int *b);
-void fp_sqr_comba8(fp_int *a, fp_int *b);
-void fp_sqr_comba9(fp_int *a, fp_int *b);
-void fp_sqr_comba12(fp_int *a, fp_int *b);
-void fp_sqr_comba17(fp_int *a, fp_int *b);
-void fp_sqr_comba20(fp_int *a, fp_int *b);
-void fp_sqr_comba24(fp_int *a, fp_int *b);
-void fp_sqr_comba28(fp_int *a, fp_int *b);
-void fp_sqr_comba32(fp_int *a, fp_int *b);
-void fp_sqr_comba48(fp_int *a, fp_int *b);
-void fp_sqr_comba64(fp_int *a, fp_int *b);
+int  fp_mul_comba_small(fp_int *a, fp_int *b, fp_int *c);
+int  fp_mul_comba3(fp_int *a, fp_int *b, fp_int *c);
+int  fp_mul_comba4(fp_int *a, fp_int *b, fp_int *c);
+int  fp_mul_comba6(fp_int *a, fp_int *b, fp_int *c);
+int  fp_mul_comba7(fp_int *a, fp_int *b, fp_int *c);
+int  fp_mul_comba8(fp_int *a, fp_int *b, fp_int *c);
+int  fp_mul_comba9(fp_int *a, fp_int *b, fp_int *c);
+int  fp_mul_comba12(fp_int *a, fp_int *b, fp_int *c);
+int  fp_mul_comba17(fp_int *a, fp_int *b, fp_int *c);
+int  fp_mul_comba20(fp_int *a, fp_int *b, fp_int *c);
+int  fp_mul_comba24(fp_int *a, fp_int *b, fp_int *c);
+int  fp_mul_comba28(fp_int *a, fp_int *b, fp_int *c);
+int  fp_mul_comba32(fp_int *a, fp_int *b, fp_int *c);
+int  fp_mul_comba48(fp_int *a, fp_int *b, fp_int *c);
+int  fp_mul_comba64(fp_int *a, fp_int *b, fp_int *c);
+int  fp_sqr_comba(fp_int *a, fp_int *b);
+int  fp_sqr_comba_small(fp_int *a, fp_int *b);
+int  fp_sqr_comba3(fp_int *a, fp_int *b);
+int  fp_sqr_comba4(fp_int *a, fp_int *b);
+int  fp_sqr_comba6(fp_int *a, fp_int *b);
+int  fp_sqr_comba7(fp_int *a, fp_int *b);
+int  fp_sqr_comba8(fp_int *a, fp_int *b);
+int  fp_sqr_comba9(fp_int *a, fp_int *b);
+int  fp_sqr_comba12(fp_int *a, fp_int *b);
+int  fp_sqr_comba17(fp_int *a, fp_int *b);
+int  fp_sqr_comba20(fp_int *a, fp_int *b);
+int  fp_sqr_comba24(fp_int *a, fp_int *b);
+int  fp_sqr_comba28(fp_int *a, fp_int *b);
+int  fp_sqr_comba32(fp_int *a, fp_int *b);
+int  fp_sqr_comba48(fp_int *a, fp_int *b);
+int  fp_sqr_comba64(fp_int *a, fp_int *b);
 
 
 /**
