@@ -224,9 +224,11 @@ static int GetOcspStatus(WOLFSSL_OCSP* ocsp, OcspRequest* request,
     }
     else if (*status) {
 #ifndef NO_ASN_TIME
-        if (ValidateDate((*status)->thisDate, (*status)->thisDateFormat, BEFORE)
+        if (XVALIDATE_DATE((*status)->thisDate,
+                                             (*status)->thisDateFormat, BEFORE)
         &&  ((*status)->nextDate[0] != 0)
-        &&  ValidateDate((*status)->nextDate, (*status)->nextDateFormat, AFTER))
+        &&  XVALIDATE_DATE((*status)->nextDate,
+                                             (*status)->nextDateFormat, AFTER))
 #endif
         {
             ret = xstat2err((*status)->status);
