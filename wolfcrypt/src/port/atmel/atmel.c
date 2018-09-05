@@ -177,7 +177,7 @@ static int atmel_init_enc_key(void)
 	uint8_t read_key[ATECC_KEY_SIZE] = { 0 };
 
 	XMEMSET(read_key, 0xFF, sizeof(read_key));
-	ret = atcab_write_bytes_slot(TLS_SLOT_ENC_PARENT, 0, read_key, sizeof(read_key));
+    ret = atcab_write_bytes_zone(ATCA_ZONE_DATA, TLS_SLOT_ENC_PARENT, 0, read_key, sizeof(read_key));
 	if (ret != ATCA_SUCCESS) {
 		WOLFSSL_MSG("Failed to write key");
 		return -1;
