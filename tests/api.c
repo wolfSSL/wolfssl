@@ -16106,7 +16106,7 @@ static void test_wolfSSL_certs(void)
 }
 
 
-static void test_wolfSSL_ASN1_TIME_print()
+static void test_wolfSSL_ASN1_TIME_print(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && !defined(NO_RSA) \
         && (defined(WOLFSSL_MYSQL_COMPATIBLE) || defined(WOLFSSL_NGINX) || \
@@ -16142,7 +16142,8 @@ static void test_wolfSSL_ASN1_TIME_print()
 }
 
 
-static void test_wolfSSL_ASN1_GENERALIZEDTIME_free(){
+static void test_wolfSSL_ASN1_GENERALIZEDTIME_free(void)
+{
     #if defined(OPENSSL_EXTRA)
     WOLFSSL_ASN1_GENERALIZEDTIME* asn1_gtime;
     unsigned char nullstr[32];
@@ -20520,7 +20521,7 @@ static void test_DhCallbacks(void)
 #ifdef HAVE_HASHDRBG
 
 #ifdef TEST_RESEED_INTERVAL
-static int test_wc_RNG_GenerateBlock_Reseed()
+static int test_wc_RNG_GenerateBlock_Reseed(void)
 {
     int i, ret;
     WC_RNG rng;
@@ -20543,7 +20544,7 @@ static int test_wc_RNG_GenerateBlock_Reseed()
 }
 #endif /* TEST_RESEED_INTERVAL */
 
-static int test_wc_RNG_GenerateBlock()
+static int test_wc_RNG_GenerateBlock(void)
 {
     int i, ret;
     WC_RNG rng;
@@ -20626,7 +20627,7 @@ static void test_wolfSSL_X509_CRL(void)
         return;
 }
 
-static void test_wolfSSL_i2c_ASN1_INTEGER()
+static void test_wolfSSL_i2c_ASN1_INTEGER(void)
 {
 #ifdef OPENSSL_EXTRA
     ASN1_INTEGER *a;

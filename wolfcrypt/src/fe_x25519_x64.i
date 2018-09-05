@@ -60,7 +60,7 @@ static int intelFlags;
 
 #endif
 
-void fe_init()
+void fe_init(void)
 {
 #ifdef HAVE_INTEL_AVX2
     if (cpuFlagsSet)

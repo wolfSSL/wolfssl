@@ -535,7 +535,7 @@ int sha512_test(void)
 #endif
 
 #ifdef WOLFSSL_SHA384
-int sha384_test()
+int sha384_test(void)
 {
     wc_Sha384 sha;
     byte      hash[WC_SHA384_DIGEST_SIZE];

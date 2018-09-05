@@ -2157,7 +2157,7 @@ void bench_aesccm(void)
 
 
 #ifdef HAVE_POLY1305
-void bench_poly1305()
+void bench_poly1305(void)
 {
     Poly1305 enc;
     byte     mac[16];
