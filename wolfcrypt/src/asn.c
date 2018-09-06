@@ -9709,7 +9709,14 @@ static char GetNameType(CertName* name, int idx)
 #ifdef WOLFSSL_CERT_EXT
     case 7:
         return name->busCatEnc;
+
+    case 8:
+#else
+    case 7:
 #endif
+        /* FALL THROUGH */
+        /* The last index, email name, does not have encoding type.
+           The empty case here is to keep track of it for future reference. */
     default:
        return 0;
     }
@@ -9741,8 +9748,15 @@ static byte GetNameId(int idx)
     case 6:
        return ASN_COMMON_NAME;
 
+#ifdef WOLFSSL_CERT_EXT
     case 7:
-       return ASN_EMAIL_NAME;
+        return ASN_BUS_CAT;
+
+    case 8:
+#else
+    case 7:
+#endif
+        return ASN_EMAIL_NAME;
 
     default:
        return 0;
