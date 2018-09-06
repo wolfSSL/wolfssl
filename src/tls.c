@@ -6578,6 +6578,7 @@ static int TLSX_KeyShare_ProcessEcc(WOLFSSL* ssl, KeyShareEntry* keyShareEntry)
     );
 #endif
 
+    wc_ecc_free(ssl->peerEccKey);
     XFREE(ssl->peerEccKey, ssl->heap, DYNAMIC_TYPE_ECC);
     ssl->peerEccKey = NULL;
     wc_ecc_free((ecc_key*)(keyShareEntry->key));

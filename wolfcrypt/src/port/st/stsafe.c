@@ -58,6 +58,41 @@ int SSL_STSAFE_LoadDeviceCertificate(byte** pRawCertificate,
 }
 
 #ifdef HAVE_PK_CALLBACKS
+
+/**
+ * \brief Key Gen Callback (used by TLS server)
+ */
+int SSL_STSAFE_CreateKeyCb(WOLFSSL* ssl, ecc_key* key, word32 keySz,
+    int ecc_curve, void* ctx)
+{
+    int err;
+    byte pubKeyRaw[STSAFE_MAX_PUBKEY_RAW_LEN];
+    StSafeA_KeySlotNumber slot;
+    StSafeA_CurveId curve_id;
+
+    (void)ssl;
+    (void)ctx;
+
+#ifdef USE_STSAFE_VERBOSE
+    WOLFSSL_MSG("CreateKeyCb: STSAFE");
+#endif
+
+    /* get curve */
+    curve_id = stsafe_get_ecc_curve_id(ecc_curve);
+
+    /* generate new ephemeral key on device */
+    err = stsafe_interface_create_key(&slot, curve_id, (uint8_t*)&pubKeyRaw[0]);
+    if (err != 0) {
+        return err;
+    }
+
+    /* load generated public key into key, used by wolfSSL */
+    err = wc_ecc_import_unsigned(key, &pubKeyRaw[0], &pubKeyRaw[keySz],
+        NULL, ecc_curve);
+
+    return err;
+}
+
 /**
  * \brief Verify Peer Cert Callback.
  */
@@ -267,6 +302,27 @@ int SSL_STSAFE_SharedSecretCb(WOLFSSL* ssl, ecc_key* otherKey,
 
     return err;
 }
+
+int SSL_STSAFE_SetupPkCallbacks(WOLFSSL_CTX* ctx)
+{
+    wolfSSL_CTX_SetEccKeyGenCb(ctx, SSL_STSAFE_CreateKeyCb);
+    wolfSSL_CTX_SetEccSignCb(ctx, SSL_STSAFE_SignCertificateCb);
+    wolfSSL_CTX_SetEccVerifyCb(ctx, SSL_STSAFE_VerifyPeerCertCb);
+    wolfSSL_CTX_SetEccSharedSecretCb(ctx, SSL_STSAFE_SharedSecretCb);
+    wolfSSL_CTX_SetDevId(ctx, 0); /* enables wolfCrypt `wc_ecc_*` ST-Safe use */
+    return 0;
+}
+
+int SSL_STSAFE_SetupPkCallbackCtx(WOLFSSL* ssl, void* user_ctx)
+{
+    wolfSSL_SetEccKeyGenCtx(ssl, user_ctx);
+    wolfSSL_SetEccSharedSecretCtx(ssl, user_ctx);
+    wolfSSL_SetEccSignCtx(ssl, user_ctx);
+    wolfSSL_SetEccVerifyCtx(ssl, user_ctx);
+    return 0;
+}
+
+
 #endif /* HAVE_PK_CALLBACKS */
 
 #endif /* WOLFSSL_STSAFEA100 */

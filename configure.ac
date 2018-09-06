@@ -669,7 +669,7 @@ AC_ARG_ENABLE([lowresource],
 if test "$ENABLED_LOWRESOURCE" = "yes"
 then
     # low memory / flash flags
-    AM_CFLAGS="$AM_CFLAGS -DNO_SESSION_CACHE -DRSA_LOW_MEM -DALT_ECC_SIZE -DGCM_SMALL -DCURVE25519_SMALL -DED25519_SMALL"
+    AM_CFLAGS="$AM_CFLAGS -DNO_SESSION_CACHE -DRSA_LOW_MEM -DALT_ECC_SIZE -DGCM_SMALL -DCURVE25519_SMALL -DED25519_SMALL -DWOLFSSL_SMALL_CERT_VERIFY"
 
     # low flash flags
     AM_CFLAGS="$AM_CFLAGS -DUSE_SLOW_SHA -DUSE_SLOW_SHA256 -DUSE_SLOW_SHA512"
@@ -1642,6 +1642,19 @@ AC_ARG_ENABLE([memorylog],
 if test "$ENABLED_MEMORYLOG" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_MEMORY_LOG"
+fi
+
+
+# STACK usage logging
+AC_ARG_ENABLE([stacklog],
+    [AS_HELP_STRING([--enable-stacklog],[Enable stack logging (default: disabled)])],
+    [ ENABLED_STACKLOG=$enableval ],
+    [ ENABLED_STACKLOG=no ]
+    )
+
+if test "$ENABLED_STACKLOG" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_STACK_LOG -finstrument-functions"
 fi
 
 
@@ -2781,6 +2794,13 @@ AC_ARG_ENABLE([earlydata],
     [ ENABLED_TLS13_EARLY_DATA=$enableval ],
     [ ENABLED_TLS13_EARLY_DATA=no ]
     )
+
+if test "$ENABLED_TLS13_EARLY_DATA" = "group"
+then
+    ENABLED_TLS13_EARLY_DATA="yes"
+    # Group EarlyData with ClientHello
+    AM_CFLAGS="-DWOLFSSL_EARLY_DATA_GROUP $AM_CFLAGS"
+fi
 if test "$ENABLED_TLS13_EARLY_DATA" = "yes"
 then
     if test "x$ENABLED_TLS13" = "xno"
@@ -2792,6 +2812,11 @@ then
         AC_MSG_ERROR([cannot enable earlydata without enabling session tickets and/or PSK.])
     fi
     AM_CFLAGS="-DWOLFSSL_EARLY_DATA $AM_CFLAGS"
+fi
+
+if test "$ENABLED_TLSV12" = "no" && test "$ENABLED_TLS13" = "yes" && test "x$ENABLED_SESSION_TICKET" = "xno"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_SESSION_CACHE"
 fi
 
 

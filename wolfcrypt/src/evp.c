@@ -929,10 +929,10 @@ WOLFSSL_API int wolfSSL_EVP_SignUpdate(WOLFSSL_EVP_MD_CTX *ctx, const void *data
 /* Helper function for getting the NID value from md
  *
  * returns the NID value associated with md on success */
-static int md2nid(int md)
+static int md2nid(const unsigned char md)
 {
     const char * d;
-    d = (const char *)wolfSSL_EVP_get_md((const unsigned char)md);
+    d = (const char *)wolfSSL_EVP_get_md(md);
     if (XSTRNCMP(d, "SHA", 3) == 0) {
         if (XSTRLEN(d) > 3) {
             if (XSTRNCMP(d, "SHA256", 6) == 0) {

@@ -119,6 +119,11 @@ if [ $? -ne 0 ]; then
     fi
 fi
 
+./examples/client/client -? 2>&1 | grep -- 'Resume session'
+if [ $? -ne 0 ]; then
+    RUN_TEST="Y"
+fi
+
 if [ "$RUN_TEST" = "Y" ]; then
     do_test
 

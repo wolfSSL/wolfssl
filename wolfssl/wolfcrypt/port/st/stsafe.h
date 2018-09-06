@@ -45,6 +45,8 @@ WOLFSSL_API int SSL_STSAFE_LoadDeviceCertificate(byte** pRawCertificate,
     word32* pRawCertificateLen);
 
 #ifdef HAVE_PK_CALLBACKS
+WOLFSSL_API int SSL_STSAFE_CreateKeyCb(WOLFSSL* ssl, ecc_key* key, word32 keySz,
+    int ecc_curve, void* ctx);
 WOLFSSL_API int SSL_STSAFE_VerifyPeerCertCb(WOLFSSL* ssl,
    const unsigned char* sig, unsigned int sigSz,
    const unsigned char* hash, unsigned int hashSz,
@@ -59,6 +61,10 @@ WOLFSSL_API int SSL_STSAFE_SharedSecretCb(WOLFSSL* ssl,
     unsigned char* pubKeyDer, unsigned int* pubKeySz,
     unsigned char* out, unsigned int* outlen,
     int side, void* ctx);
+
+/* Helper API's for setting up callbacks */
+WOLFSSL_API int SSL_STSAFE_SetupPkCallbacks(WOLFSSL_CTX* ctx);
+WOLFSSL_API int SSL_STSAFE_SetupPkCallbackCtx(WOLFSSL* ssl, void* user_ctx);
 #endif
 
 #endif /* WOLFSSL_STSAFEA100 */

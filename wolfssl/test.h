@@ -1452,6 +1452,7 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
     #endif /* !NO_FILESYSTEM || (NO_FILESYSTEM && FORCE_BUFFER_TEST) */
 #endif /* !NO_CERTS */
 
+static int myVerifyFail = 0;
 static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
 {
     char buffer[WOLFSSL_MAX_ERROR_SZ];
@@ -1470,6 +1471,8 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
      * store->store:        WOLFSSL_X509_STORE with CA cert chain
      * store->store->cm:    WOLFSSL_CERT_MANAGER
      * store->ex_data:      The WOLFSSL object pointer
+     * store->discardSessionCerts: When set to non-zero value session certs 
+        will be discarded (only with SESSION_CERTS)
      */
 
     printf("In verification callback, error = %d, %s\n", store->error,
@@ -1505,6 +1508,9 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
     printf("\tAllowing to continue anyway (shouldn't do this)\n");
 
     /* A non-zero return code indicates failure override */
+    if (myVerifyFail)
+        return 0; /* test failure case */
+
     return 1;
 }
 

@@ -1620,6 +1620,9 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
         int i;
         (void)os;
 
+        /* enable RNG peripheral clock */
+        RCC->AHB2ENR |= RCC_AHB2ENR_RNGEN;
+
         /* enable RNG interrupt, set IE bit in RNG->CR register */
         RNG->CR |= RNG_CR_IE;
 
