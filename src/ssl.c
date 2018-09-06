@@ -5800,9 +5800,9 @@ int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
         if (fileRet != WC_READDIR_NOFILE) {
             ret = fileRet;
         }
-        else if (file == NULL && (successCount == 0 || failCount > 0)) {
-            /* report failure if no files were loaded or there were failures */
-            /* pass on existing error code if exists */
+        /* report failure if no files were loaded or there were failures */
+        else if (successCount == 0 || failCount > 0) {
+            /* use existing error code if exists */
             if (ret == WOLFSSL_SUCCESS)
                 ret = WOLFSSL_FAILURE;
         }
