@@ -153,20 +153,24 @@ void atmel_ecc_free(int slot)
 }
 
 
-/**
- * \brief Give enc key to read pms.
- */
-static ATCA_STATUS atmel_get_enc_key(uint8_t* enckey, int16_t keysize)
-{
-    if (enckey == NULL || keysize != ATECC_KEY_SIZE) {
-        return -1;
+/* The macros ATCA_TLS_GET_ENC_KEY can be set to override the default
+   encryption key with your own at build-time */
+#ifndef ATCA_TLS_GET_ENC_KEY
+    #define ATCA_TLS_GET_ENC_KEY atmel_get_enc_key
+    /**
+     * \brief Give enc key to read pms.
+     */
+    static ATCA_STATUS atmel_get_enc_key(uint8_t* enckey, int16_t keysize)
+    {
+        if (enckey == NULL || keysize != ATECC_KEY_SIZE) {
+            return -1;
+        }
+
+        XMEMSET(enckey, 0xFF, keysize); // use default values
+
+        return ATCA_SUCCESS;
     }
-
-    XMEMSET(enckey, 0xFF, keysize); // use default values
-
-    return SSL_SUCCESS;
-}
-
+#endif
 
 /**
  * \brief Write enc key before.
@@ -174,16 +178,17 @@ static ATCA_STATUS atmel_get_enc_key(uint8_t* enckey, int16_t keysize)
 static int atmel_init_enc_key(void)
 {
 	uint8_t ret = 0;
-	uint8_t read_key[ATECC_KEY_SIZE] = { 0 };
+	uint8_t read_key[ATECC_KEY_SIZE];
 
-	XMEMSET(read_key, 0xFF, sizeof(read_key));
+    ATCA_TLS_GET_ENC_KEY(read_key, sizeof(read_key));
+
     ret = atcatls_set_enckey(read_key, TLS_SLOT_ENC_PARENT, 0);
 	if (ret != ATCA_SUCCESS) {
 		WOLFSSL_MSG("Failed to write key");
 		return -1;
 	}
 
-	ret = atcatlsfn_set_get_enckey(atmel_get_enc_key);
+	ret = atcatlsfn_set_get_enckey(ATCA_TLS_GET_ENC_KEY);
 	if (ret != ATCA_SUCCESS) {
 		WOLFSSL_MSG("Failed to set enckey");
 		return -1;
