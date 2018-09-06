@@ -32,7 +32,15 @@
 #include <wolfssl/ssl.h>
 #include <wolfssl/internal.h>
 
+#ifdef NO_INLINE
+    #include <wolfssl/wolfcrypt/misc.h>
+#else
+    #define WOLFSSL_MISC_INCLUDED
+    #include <wolfcrypt/src/misc.c>
+#endif
+
 #ifdef WOLFSSL_ATMEL
+/* remap name conflicts */
 #define Aes Aes_Remap
 #define Gmac Gmac_Remap
 #include "asf.h"
@@ -46,7 +54,9 @@ static bool mAtcaInitDone = 0;
 
 #ifdef WOLFSSL_ATECC508A
 
-/* List of available key slots */
+/* Free slot handling */
+static atmel_slot_alloc_cb mSlotAlloc;
+static atmel_slot_dealloc_cb mSlotDealloc;
 static int mSlotList[ATECC_MAX_SLOT+1];
 
 /**
@@ -60,9 +70,6 @@ t_atcert atcert = {
 	.end_user = { 0 },
 	.end_user_pubkey = { 0 }
 };
-
-static int atmel_init_enc_key(void);
-
 #endif /* WOLFSSL_ATECC508A */
 
 
@@ -94,7 +101,7 @@ int atmel_get_random_number(uint32_t count, uint8_t* rand_out)
 	}
     atcab_printbin_label((const char*)"\r\nRandom Number", rand_out, count);
 #else
-    // TODO: Use on-board TRNG
+    /* TODO: Use on-board TRNG */
 #endif
 	return ret;
 }
@@ -104,50 +111,88 @@ int atmel_get_random_block(unsigned char* output, unsigned int sz)
 	return atmel_get_random_number((uint32_t)sz, (uint8_t*)output);
 }
 
-#ifdef WOLFSSL_ATMEL_TIME
-extern struct rtc_module *_rtc_instance[RTC_INST_NUM];
+#if defined(WOLFSSL_ATMEL) && defined(WOLFSSL_ATMEL_TIME)
+    extern struct rtc_module *_rtc_instance[RTC_INST_NUM];
 #endif
 long atmel_get_curr_time_and_date(long* tm)
 {
-    (void)tm;
-
-#ifdef WOLFSSL_ATMEL_TIME
+    long rt = 0;
+#if defined(WOLFSSL_ATMEL) && defined(WOLFSSL_ATMEL_TIME)
 	/* Get current time */
+    struct rtc_calendar_time rtcTime;
+    const int monthDay[] = {0,31,59,90,120,151,181,212,243,273,304,334};
+    int month, year, yearLeap;
 
-    //struct rtc_calendar_time rtcTime;
-	//rtc_calendar_get_time(_rtc_instance[0], &rtcTime);
+	rtc_calendar_get_time(_rtc_instance[0], &rtcTime);
 
     /* Convert rtc_calendar_time to seconds since UTC */
-#endif
-
-    return 0;
+    month = rtcTime.month % 12;
+    year =  rtcTime.year + rtcTime.month / 12;
+    if (month < 0) {
+        month += 12;
+        year--;
+    }
+    yearLeap = (month > 1) ? year + 1 : year;
+    rt = rtcTime.second
+        + 60 * (rtcTime.minute
+            + 60 * (rtcTime.hour
+            + 24 * (monthDay[month] + rtcTime.day - 1
+                + 365 * (year - 70)
+                + (yearLeap - 69) / 4
+                - (yearLeap - 1) / 100
+                + (yearLeap + 299) / 400
+                )
+            )
+        );
+#endif /* WOLFSSL_ATMEL_TIME */
+    (void)tm;
+    return rt;
 }
 
 
 
 #ifdef WOLFSSL_ATECC508A
 
+/* Function to set the slot allocator and deallocator */
+int atmel_set_slot_allocator(atmel_slot_alloc_cb alloc,
+                             atmel_slot_dealloc_cb dealloc)
+{
+    mSlotAlloc = alloc;
+    mSlotDealloc = dealloc;
+    return 0;
+}
+
 /* Function to allocate new slot number */
 int atmel_ecc_alloc(void)
 {
-    int i, slot = -1;
-    for (i=0; i <= ATECC_MAX_SLOT; i++) {
-        /* Find free slot */
-        if (mSlotList[i] == ATECC_INVALID_SLOT) {
-            mSlotList[i] = i;
-            slot = i;
-            break;
+    int slot = ATECC_INVALID_SLOT;
+
+    if (mSlotAlloc) {
+        slot = mSlotAlloc();
+    }
+    else {
+        int i;
+        for (i=0; i <= ATECC_MAX_SLOT; i++) {
+            /* Find free slot */
+            if (mSlotList[i] == ATECC_INVALID_SLOT) {
+                mSlotList[i] = i;
+                slot = i;
+                break;
+            }
         }
     }
     return slot;
 }
 
 
-/* Function to return slot number to avail list */
+/* Function to return slot number to available list */
 void atmel_ecc_free(int slot)
 {
-    if (slot >= 0 && slot <= ATECC_MAX_SLOT) {
-        /* Mark slot of free */
+    if (mSlotDealloc) {
+        mSlotDealloc(slot);
+    }
+    else if (slot >= 0 && slot <= ATECC_MAX_SLOT) {
+        /* Mark slot free */
         mSlotList[slot] = ATECC_INVALID_SLOT;
     }
 }
@@ -158,15 +203,15 @@ void atmel_ecc_free(int slot)
 #ifndef ATCA_TLS_GET_ENC_KEY
     #define ATCA_TLS_GET_ENC_KEY atmel_get_enc_key
     /**
-     * \brief Give enc key to read pms.
+     * \brief Callback function for getting the current encryption key
      */
     static ATCA_STATUS atmel_get_enc_key(uint8_t* enckey, int16_t keysize)
     {
         if (enckey == NULL || keysize != ATECC_KEY_SIZE) {
-            return -1;
+            return ATCA_BAD_PARAM;
         }
 
-        XMEMSET(enckey, 0xFF, keysize); // use default values
+        XMEMSET(enckey, 0xFF, keysize); /* use default value */
 
         return ATCA_SUCCESS;
     }
@@ -180,9 +225,10 @@ static int atmel_init_enc_key(void)
 	uint8_t ret = 0;
 	uint8_t read_key[ATECC_KEY_SIZE];
 
+    /* get encryption key */
     ATCA_TLS_GET_ENC_KEY(read_key, sizeof(read_key));
-
     ret = atcatls_set_enckey(read_key, TLS_SLOT_ENC_PARENT, 0);
+    ForceZero(read_key, sizeof(read_key));
 	if (ret != ATCA_SUCCESS) {
 		WOLFSSL_MSG("Failed to write key");
 		return -1;
@@ -190,7 +236,7 @@ static int atmel_init_enc_key(void)
 
 	ret = atcatlsfn_set_get_enckey(ATCA_TLS_GET_ENC_KEY);
 	if (ret != ATCA_SUCCESS) {
-		WOLFSSL_MSG("Failed to set enckey");
+		WOLFSSL_MSG("Failed to set enckey cb");
 		return -1;
 	}
 
@@ -199,7 +245,7 @@ static int atmel_init_enc_key(void)
 
 static void atmel_show_rev_info(void)
 {
-#if 0
+#ifdef WOLFSSL_ATECC508A_DEBUG
     uint32_t revision = 0;
     atcab_info((uint8_t*)&revision);
     printf("ATECC508A Revision: %x\n", (unsigned int)revision);
