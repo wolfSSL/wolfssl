@@ -104,4 +104,4 @@ int fp_mul_comba7(fp_int *A, fp_int *B, fp_int *C)
 #endif
    return FP_OKAY;
 }
-#ennif
+#endif
