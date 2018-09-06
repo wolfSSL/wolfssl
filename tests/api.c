@@ -248,6 +248,10 @@
     #include <wolfssl/wolfcrypt/asn.h>
 #endif
 
+#ifdef WOLFSSL_SMALL_CERT_VERIFY
+    #include <wolfssl/wolfcrypt/asn.h>
+#endif
+
 #if defined(WOLFSSL_SHA3) || defined(HAVE_PKCS7) || !defined(NO_RSA)
     static int  devId = INVALID_DEVID;
 #endif
@@ -19454,6 +19458,77 @@ static void test_wc_GetSubjectRaw(void)
 #endif
 }
 
+static void test_CheckCertSignature(void)
+{
+#if !defined(NO_CERTS) && defined(WOLFSSL_SMALL_CERT_VERIFY)
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+#if !defined(NO_FILESYSTEM)
+    FILE* fp;
+    byte  cert[4096];
+    int   certSz;
+#endif
+
+    AssertIntEQ(BAD_FUNC_ARG, CheckCertSignature(NULL, 0, NULL, NULL));
+    AssertNotNull(cm = wolfSSL_CertManagerNew_ex(NULL));
+    AssertIntEQ(BAD_FUNC_ARG, CheckCertSignature(NULL, 0, NULL, cm));
+
+#ifndef NO_RSA
+#ifdef USE_CERT_BUFFERS_1024
+    AssertIntEQ(ASN_NO_SIGNER_E, CheckCertSignature(server_cert_der_1024,
+                sizeof_server_cert_der_1024, NULL, cm));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CertManagerLoadCABuffer(cm,
+                ca_cert_der_1024, sizeof_ca_cert_der_1024,
+                WOLFSSL_FILETYPE_ASN1));
+    AssertIntEQ(0, CheckCertSignature(server_cert_der_1024,
+                sizeof_server_cert_der_1024, NULL, cm));
+#elif defined(USE_CERT_BUFFERS_2048)
+    AssertIntEQ(ASN_NO_SIGNER_E, CheckCertSignature(server_cert_der_2048,
+                sizeof_server_cert_der_2048, NULL, cm));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CertManagerLoadCABuffer(cm,
+                ca_cert_der_2048, sizeof_ca_cert_der_2048,
+                WOLFSSL_FILETYPE_ASN1));
+    AssertIntEQ(0, CheckCertSignature(server_cert_der_2048,
+                sizeof_server_cert_der_2048, NULL, cm));
+#endif
+#endif
+
+#if defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
+    AssertIntEQ(ASN_NO_SIGNER_E, CheckCertSignature(serv_ecc_der_256,
+                sizeof_serv_ecc_der_256, NULL, cm));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CertManagerLoadCABuffer(cm,
+                ca_ecc_cert_der_256, sizeof_ca_ecc_cert_der_256,
+                WOLFSSL_FILETYPE_ASN1));
+    AssertIntEQ(0, CheckCertSignature(serv_ecc_der_256, sizeof_serv_ecc_der_256,
+                NULL, cm));
+#endif
+
+#if !defined(NO_FILESYSTEM)
+    wolfSSL_CertManagerFree(cm);
+    AssertNotNull(cm = wolfSSL_CertManagerNew_ex(NULL));
+#ifndef NO_RSA
+    AssertNotNull(fp = XFOPEN("./certs/server-cert.der", "rb"));
+    AssertIntGT((certSz = (int)XFREAD(cert, 1, sizeof(cert), fp)), 0);
+    XFCLOSE(fp);
+    AssertIntEQ(ASN_NO_SIGNER_E, CheckCertSignature(cert, certSz, NULL, cm));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CertManagerLoadCA(cm,
+                "./certs/ca-cert.pem", NULL));
+    AssertIntEQ(0, CheckCertSignature(cert, certSz, NULL, cm));
+#endif
+#ifdef HAVE_ECC
+    AssertNotNull(fp = XFOPEN("./certs/server-ecc.der", "rb"));
+    AssertIntGT((certSz = (int)XFREAD(cert, 1, sizeof(cert), fp)), 0);
+    XFCLOSE(fp);
+    AssertIntEQ(ASN_NO_SIGNER_E, CheckCertSignature(cert, certSz, NULL, cm));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CertManagerLoadCA(cm,
+                "./certs/ca-ecc-cert.pem", NULL));
+    AssertIntEQ(0, CheckCertSignature(cert, certSz, NULL, cm));
+#endif
+#endif
+
+    wolfSSL_CertManagerFree(cm);
+#endif
+}
+
 /*----------------------------------------------------------------------------*
  | wolfCrypt ECC
  *----------------------------------------------------------------------------*/
@@ -20696,6 +20771,7 @@ void ApiTest(void)
     test_wc_GetPkcs8TraditionalOffset();
     test_wc_SetSubjectRaw();
     test_wc_GetSubjectRaw();
+    test_CheckCertSignature();
 
     /* wolfCrypt ECC tests */
     test_wc_ecc_get_curve_size_from_name();

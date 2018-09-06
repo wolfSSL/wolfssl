@@ -99,11 +99,13 @@ int sp_init_multi(sp_int* a, sp_int* b, sp_int* c, sp_int* d, sp_int* e,
  */
 void sp_clear(sp_int* a)
 {
-    int i;
+    if (a != NULL) {
+        int i;
 
-    for (i=0; i<a->used; i++)
-        a->dp[i] = 0;
-    a->used = 0;
+        for (i=0; i<a->used; i++)
+            a->dp[i] = 0;
+        a->used = 0;
+    }
 }
 
 /* Calculate the number of 8-bit values required to represent the big number.
