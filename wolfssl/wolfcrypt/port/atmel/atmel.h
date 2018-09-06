@@ -48,7 +48,7 @@
 struct WOLFSSL;
 struct WOLFSSL_X509_STORE_CTX;
 
-// Cert Structure
+/* Cert Structure */
 typedef struct t_atcert {
 	uint32_t signer_ca_size;
 	uint8_t signer_ca[512];
@@ -60,15 +60,19 @@ typedef struct t_atcert {
 
 extern t_atcert atcert;
 
-
 /* Amtel port functions */
 void atmel_init(void);
 void atmel_finish(void);
-int atmel_get_random_number(uint32_t count, uint8_t* rand_out);
+int  atmel_get_random_number(uint32_t count, uint8_t* rand_out);
 long atmel_get_curr_time_and_date(long* tm);
 
-int atmel_ecc_alloc(void);
+int  atmel_ecc_alloc(void);
 void atmel_ecc_free(int slot);
+
+typedef int  (*atmel_slot_alloc_cb)(void);
+typedef void (*atmel_slot_dealloc_cb)(int);
+int atmel_set_slot_allocator(atmel_slot_alloc_cb alloc, 
+    atmel_slot_dealloc_cb dealloc);
 
 #include <wolfssl/wolfcrypt/ecc.h>
 
