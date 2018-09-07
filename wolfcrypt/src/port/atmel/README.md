@@ -1,17 +1,36 @@
-# Atmel ATECC508A Port
+# Microchip/Atmel ATECC508A/ATECC608A Support
 
-* Adds wolfCrypt support for ECC Hardware acceleration using the ATECC508A 
-	* The new defines added for this port are: `WOLFSSL_ATMEL` and `WOLFSSL_ATECC508A`.
-* Adds new PK callback for Pre Master Secret.
+Support for ATECC508A using these methods:
+* TLS: Using the PK callbacks and reference ATECC508A callbacks. See Coding section below. Requires options `HAVE_PK_CALLBACKS` and `WOLFSSL_ATECC_PKCB or WOLFSSL_ATECC508A`
+* wolfCrypt: Native wc_ecc_* API's using the `./configure CFLAGS="-DWOLFSSL_ATECC508A"` or `#define WOLFSSL_ATECC508A`.
+
+## Dependency
+
+Requires the Microchip CryptoAuthLib. The examples in `wolfcrypt/src/port/atmel/atmel.c` make calls to the `atcatls_*` API's.
 
 
 ## Building
 
-`./configure --enable-pkcallbacks CFLAGS="-DWOLFSSL_ATECC508A"`
+### Build Options
+
+* `HAVE_PK_CALLBACKS`: Option for enabling wolfSSL's PK callback support for TLS.
+* `WOLFSSL_ATECC508A`: Enables support for initializing the CryptoAuthLib and setting up the encryption key used for the I2C communication.
+* `WOLFSSL_ATECC_PKCB`: Enables support for the reference PK callbacks without init.
+* `WOLFSSL_ATMEL`: Enables ASF hooks seeding random data using the `atmel_get_random_number` function.
+* `WOLFSSL_ATMEL_TIME`: Enables the built-in `atmel_get_curr_time_and_date` function get getting time from ASF RTC. 
+* `ATECC_GET_ENC_KEY`: Macro to define your own function for getting the encryption key.
+* `ATECC_SLOT_I2C_ENC`: Macro for the default encryption key slot. Can also get via the slot callback with `ATMEL_SLOT_ENCKEY`.
+* `ATECC_MAX_SLOT`: Macro for the maximum dynamically allocated slots.
+
+### Build Command Examples
+
+`./configure --enable-pkcallbacks CFLAGS="-DWOLFSSL_ATECC_PKCB"`
+`#define HAVE_PK_CALLBACKS`
+`#define WOLFSSL_ATECC_PKCB`
 
 or 
 
-`#define HAVE_PK_CALLBACKS`
+`./configure CFLAGS="-DWOLFSSL_ATECC508A"`
 `#define WOLFSSL_ATECC508A`
 
 
@@ -31,7 +50,7 @@ wolfSSL_CTX_SetEccSharedSecretCb(ctx, atcatls_create_pms_cb);
 The reference ATECC508A PK callback functions are located in the `wolfcrypt/src/port/atmel/atmel.c` file.
 
 
-Adding a custom contex to the callbacks:
+Adding a custom context to the callbacks:
 
 ```
 /* Setup PK Callbacks context */
@@ -49,7 +68,7 @@ wolfSSL_SetEccSharedSecretCtx(ssl, myOwnCtx);
 
 TLS Establishment Times:
 
-* Hardware accelerated ATECC508A: 2.342 seconds avgerage
+* Hardware accelerated ATECC508A: 2.342 seconds average
 * Software only: 13.422 seconds average
 
 The TLS connection establishment time is 5.73 times faster with the ATECC508A.
