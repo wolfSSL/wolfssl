@@ -808,7 +808,7 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
     /* Test loading CA certificates using a path */
     #ifdef NO_RSA
     AssertIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, load_certs_path,
-        WOLFSSL_LOAD_FLAG_PEM_CA_ONLY), WOLFSSL_FAILURE);
+        WOLFSSL_LOAD_FLAG_PEM_CA_ONLY), ASN_UNKNOWN_OID_E);
     #else
     AssertIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, load_certs_path,
         WOLFSSL_LOAD_FLAG_PEM_CA_ONLY), WOLFSSL_SUCCESS);
@@ -821,7 +821,7 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
     /* Test loading expired CA certificates */
     #ifdef NO_RSA
     AssertIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, load_certs_path,
-        WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY | WOLFSSL_LOAD_FLAG_PEM_CA_ONLY), WOLFSSL_FAILURE);
+        WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY | WOLFSSL_LOAD_FLAG_PEM_CA_ONLY), ASN_UNKNOWN_OID_E);
     #else
     AssertIntNE(wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, load_expired_path,
         WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY | WOLFSSL_LOAD_FLAG_PEM_CA_ONLY),
