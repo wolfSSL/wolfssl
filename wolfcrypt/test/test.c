@@ -13894,7 +13894,7 @@ openssl_pkey1_test_done:
 
 #define ERR_BASE_EVPSIG -5100
 
-int openssl_evpSig_test()
+int openssl_evpSig_test(void)
 {
 #if !defined(NO_RSA) && !defined(NO_SHA) && !defined(HAVE_USER_RSA)
   	byte*   prvTmp;

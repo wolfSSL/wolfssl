@@ -15744,7 +15744,7 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
 /* returns a pointer to a new WOLFSSL_X509 structure on success and NULL on
  * fail
  */
-WOLFSSL_X509* wolfSSL_X509_new()
+WOLFSSL_X509* wolfSSL_X509_new(void)
 {
     WOLFSSL_X509* x509;
 
@@ -16208,7 +16208,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
      *
      * returns a pointer to the new structure created on success or NULL if fail
      */
-    WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_new()
+    WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_new(void)
     {
         WOLFSSL_ASN1_STRING* asn1;
 
@@ -18631,7 +18631,7 @@ int wolfSSL_X509_CRL_verify(WOLFSSL_X509_CRL* crl, WOLFSSL_EVP_PKEY* key)
 /* Subset of OPENSSL_EXTRA for PKEY operations PKEY free is needed by the
  * subset of X509 API */
 
-WOLFSSL_EVP_PKEY* wolfSSL_PKEY_new(){
+WOLFSSL_EVP_PKEY* wolfSSL_PKEY_new(void){
     return wolfSSL_PKEY_new_ex(NULL);
 }
 
@@ -22004,7 +22004,7 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
 }
 
 
-int wolfSSL_RAND_poll()
+int wolfSSL_RAND_poll(void)
 {
     byte  entropy[16];
     int  ret = 0;
@@ -28994,7 +28994,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
      *
      * returns NULL on failure, otherwise returns a new structure.
      */
-    WOLFSSL_X509_NAME* wolfSSL_X509_NAME_new()
+    WOLFSSL_X509_NAME* wolfSSL_X509_NAME_new(void)
     {
         WOLFSSL_X509_NAME* name;
 

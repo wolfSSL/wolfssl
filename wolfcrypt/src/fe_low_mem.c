@@ -60,7 +60,7 @@ void lm_copy(byte* x, const byte* a)
     !defined(FREESCALE_LTC_ECC)
     /* to be Complementary to fe_low_mem.c */
 #else
-void fe_init()
+void fe_init(void)
 {
 }
 #endif
