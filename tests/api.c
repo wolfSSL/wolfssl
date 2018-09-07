@@ -697,32 +697,39 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
 #ifdef PERSIST_CERT_CACHE
     int cacheSz;
 #endif
+#if !defined(NO_WOLFSSL_DIR) && !defined(WOLFSSL_TIRTOS)
+    const char* load_certs_path = "./certs/external";
+    const char* load_no_certs_path = "./examples";
+#endif
 
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
 
-    /* invalid context */
-    AssertFalse(wolfSSL_CTX_load_verify_locations(NULL, caCertFile, 0));
+    /* invalid arguments */
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations(NULL, caCertFile, NULL), WOLFSSL_FAILURE);
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, NULL, NULL), WOLFSSL_FAILURE);
 
     /* invalid ca file */
-    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_load_verify_locations(ctx, NULL,      0));
-    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_load_verify_locations(ctx, bogusFile, 0));
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, bogusFile, NULL), WOLFSSL_BAD_FILE);
 
 
-#ifndef WOLFSSL_TIRTOS
+#if !defined(NO_WOLFSSL_DIR) && !defined(WOLFSSL_TIRTOS)
     /* invalid path */
-    /* not working... investigate! */
-    /* AssertFalse(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, bogusFile)); */
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, NULL, bogusFile), BAD_PATH_ERROR);
 #endif
 
     /* load ca cert */
-    AssertTrue(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0));
+#ifdef NO_RSA
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, NULL), ASN_UNKNOWN_OID_E);
+#else
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, NULL), WOLFSSL_SUCCESS);
+#endif
 
 #ifdef PERSIST_CERT_CACHE
     /* Get cert cache size */
     cacheSz = wolfSSL_CTX_get_cert_cache_memsize(ctx);
 #endif
     /* Test unloading CA's */
-    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_UnloadCAs(ctx));
+    AssertIntEQ(wolfSSL_CTX_UnloadCAs(ctx), WOLFSSL_SUCCESS);
 
 #ifdef PERSIST_CERT_CACHE
     /* Verify no certs (result is less than cacheSz) */
@@ -730,21 +737,141 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
 #endif
 
     /* load ca cert again */
-    AssertTrue(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0));
+#ifdef NO_RSA
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, NULL), ASN_UNKNOWN_OID_E);
+#else
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations(ctx, caCertFile, NULL), WOLFSSL_SUCCESS);
+#endif
 
     /* Test getting CERT_MANAGER */
     AssertNotNull(cm = wolfSSL_CTX_GetCertManager(ctx));
 
     /* Test unloading CA's using CM */
-    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CertManagerUnloadCAs(cm));
+    AssertIntEQ(wolfSSL_CertManagerUnloadCAs(cm), WOLFSSL_SUCCESS);
 
 #ifdef PERSIST_CERT_CACHE
     /* Verify no certs (result is less than cacheSz) */
     AssertIntGT(cacheSz, wolfSSL_CTX_get_cert_cache_memsize(ctx));
 #endif
 
+#if !defined(NO_WOLFSSL_DIR) && !defined(WOLFSSL_TIRTOS)
+    /* Test loading CA certificates using a path */
+    #ifdef NO_RSA
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, load_certs_path,
+        WOLFSSL_LOAD_FLAG_PEM_CA_ONLY), ASN_UNKNOWN_OID_E);
+    #else
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, load_certs_path,
+        WOLFSSL_LOAD_FLAG_PEM_CA_ONLY), WOLFSSL_SUCCESS);
+    #endif
+
+    /* Test loading path with no files */
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, load_no_certs_path,
+        WOLFSSL_LOAD_FLAG_PEM_CA_ONLY), WOLFSSL_FAILURE);
+
+    /* Test loading expired CA certificates */
+    #ifdef NO_RSA
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, load_certs_path,
+        WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY | WOLFSSL_LOAD_FLAG_PEM_CA_ONLY), ASN_UNKNOWN_OID_E);
+    #else
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, load_certs_path,
+        WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY | WOLFSSL_LOAD_FLAG_PEM_CA_ONLY), WOLFSSL_SUCCESS);
+    #endif
+
+    /* Test loading CA certificates and ignoring all errors */
+    #ifdef NO_RSA
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, load_certs_path,
+        WOLFSSL_LOAD_FLAG_IGNORE_ERR), WOLFSSL_FAILURE);
+    #else
+    AssertIntEQ(wolfSSL_CTX_load_verify_locations_ex(ctx, NULL, load_certs_path,
+        WOLFSSL_LOAD_FLAG_IGNORE_ERR), WOLFSSL_SUCCESS);
+    #endif
+#endif
+
     wolfSSL_CTX_free(ctx);
 #endif
+}
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+static int test_cm_load_ca_buffer(const byte* cert_buf, size_t cert_sz, int file_type)
+{
+    int ret;
+    WOLFSSL_CERT_MANAGER* cm = NULL;
+
+    cm = wolfSSL_CertManagerNew();
+    if (cm == NULL) {
+        printf("test_cm_load_ca failed\n");
+        return -1;
+    }
+
+    ret = wolfSSL_CertManagerLoadCABuffer(cm, cert_buf, cert_sz, file_type);
+
+    wolfSSL_CertManagerFree(cm);
+
+    return ret;
+}
+
+static int test_cm_load_ca_file(const char* ca_cert_file)
+{
+    int ret = 0;
+    byte* cert_buf = NULL;
+    size_t cert_sz = 0;
+#if defined(WOLFSSL_PEM_TO_DER)
+    DerBuffer* pDer = NULL;
+#endif
+
+    ret = load_file(ca_cert_file, &cert_buf, &cert_sz);
+    if (ret == 0) {
+        /* normal test */
+        ret = test_cm_load_ca_buffer(cert_buf, cert_sz, WOLFSSL_FILETYPE_PEM);
+
+        if (ret == 0) {
+            /* test including null terminator in length */
+            ret = test_cm_load_ca_buffer(cert_buf, cert_sz+1, WOLFSSL_FILETYPE_PEM);
+        }
+
+    #if defined(WOLFSSL_PEM_TO_DER)
+        if (ret == 0) {
+            /* test loading DER */
+            ret = wc_PemToDer(cert_buf, cert_sz, CA_TYPE, &pDer, NULL, NULL, NULL);
+            if (ret == 0) {
+                ret = test_cm_load_ca_buffer(pDer->buffer, pDer->length,
+                    WOLFSSL_FILETYPE_ASN1);
+
+                wc_FreeDer(&pDer);
+            }
+        }
+    #endif
+
+        free(cert_buf);
+    }
+    return ret;
+}
+#endif /* !NO_FILESYSTEM && !NO_CERTS */
+
+static int test_wolfSSL_CertManagerLoadCABuffer(void)
+{
+    int ret = 0;
+
+#if !defined(NO_FILESYSTEM) && !defined(NO_CERTS)
+    const char* ca_cert = "./certs/ca-cert.pem";
+    const char* ca_expired_cert = "./certs/test/expired-ca.pem";
+
+    ret = test_cm_load_ca_file(ca_cert);
+    #ifdef NO_RSA
+    AssertIntEQ(ret, ASN_UNKNOWN_OID_E);
+    #else
+    AssertIntEQ(ret, WOLFSSL_SUCCESS);
+    #endif
+
+    ret = test_cm_load_ca_file(ca_expired_cert);
+    #ifdef NO_RSA
+    AssertIntEQ(ret, ASN_UNKNOWN_OID_E);
+    #else
+    AssertIntEQ(ret, ASN_AFTER_DATE_E);
+    #endif
+#endif
+
+    return ret;
 }
 
 
@@ -16222,13 +16349,14 @@ static void test_wolfSSL_PEM_PrivateKey(void)
 
 #if !defined(NO_RSA) && (defined(WOLFSSL_KEY_GEN) || defined(WOLFSSL_CERT_GEN))
     {
+        #define BIO_PEM_TEST_CHAR 'a'
         EVP_PKEY* pkey2 = NULL;
         unsigned char extra[10];
         int i;
 
         printf(testingFmt, "wolfSSL_PEM_PrivateKey()");
 
-        XMEMSET(extra, 0, sizeof(extra));
+        XMEMSET(extra, BIO_PEM_TEST_CHAR, sizeof(extra));
 
         AssertNotNull(bio = wolfSSL_BIO_new(wolfSSL_BIO_s_mem()));
         AssertIntEQ(BIO_set_write_buf_size(bio, 4096), SSL_FAILURE);
@@ -16245,14 +16373,14 @@ static void test_wolfSSL_PEM_PrivateKey(void)
         /* test creating new EVP_PKEY with good args */
         AssertNotNull((pkey2 = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL)));
         if (pkey && pkey->pkey.ptr && pkey2 && pkey2->pkey.ptr)
-            AssertIntEQ((int)XMEMCMP(pkey->pkey.ptr, pkey2->pkey.ptr, pkey->pkey_sz),0);
+            AssertIntEQ((int)XMEMCMP(pkey->pkey.ptr, pkey2->pkey.ptr, pkey->pkey_sz), 0);
 
         /* test of reuse of EVP_PKEY */
         AssertNull(PEM_read_bio_PrivateKey(bio, &pkey, NULL, NULL));
         AssertIntEQ(BIO_pending(bio), 0);
         AssertIntEQ(PEM_write_bio_PrivateKey(bio, pkey, NULL, NULL, 0, NULL, NULL),
                 SSL_SUCCESS);
-        AssertIntEQ(BIO_write(bio, extra, 10), 10); /*add 10 extra bytes after PEM*/
+        AssertIntEQ(BIO_write(bio, extra, 10), 10); /* add 10 extra bytes after PEM */
         AssertNotNull(PEM_read_bio_PrivateKey(bio, &pkey, NULL, NULL));
         AssertNotNull(pkey);
         if (pkey && pkey->pkey.ptr && pkey2 && pkey2->pkey.ptr) {
@@ -16261,7 +16389,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
         AssertIntEQ(BIO_pending(bio), 10); /* check 10 extra bytes still there */
         AssertIntEQ(BIO_read(bio, extra, 10), 10);
         for (i = 0; i < 10; i++) {
-            AssertIntEQ(extra[i], 0);
+            AssertIntEQ(extra[i], BIO_PEM_TEST_CHAR);
         }
 
         BIO_free(bio);
@@ -20647,6 +20775,7 @@ void ApiTest(void)
     AssertIntEQ(test_wolfSSL_CTX_use_certificate_buffer(), WOLFSSL_SUCCESS);
     test_wolfSSL_CTX_use_PrivateKey_file();
     test_wolfSSL_CTX_load_verify_locations();
+    test_wolfSSL_CertManagerLoadCABuffer();
     test_wolfSSL_CTX_use_certificate_chain_file_format();
     test_wolfSSL_CTX_trust_peer_cert();
     test_wolfSSL_CTX_SetTmpDH_file();

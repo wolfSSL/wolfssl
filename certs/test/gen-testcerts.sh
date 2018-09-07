@@ -1,12 +1,38 @@
 #!/bin/sh
 
-# Args: 1=FileName, 2=CN, 3=AltName
+# Args: 1=FileName, 2=CN, 3=AltName, 4=CA
 function build_test_cert_conf {
-	echo "[ req ]" 										>  $1.conf
+	echo "# Generated openssl conf" 					 > $1.conf
+	echo "" 											>> $1.conf
+	echo "[ ca ]" 										>> $1.conf
+	echo "default_ca = CA_default"						>> $1.conf
+	echo "[ CA_default ]"								>> $1.conf
+	echo "certificate     = ../ca-cert.pem"				>> $1.conf
+	echo "database        = ./index.txt"				>> $1.conf
+	echo "new_certs_dir   = ./certs"					>> $1.conf
+	echo "private_key     = ./private/cakey.pem"		>> $1.conf
+	echo "serial          = ./serial"					>> $1.conf
+	echo "default_md      = sha256"						>> $1.conf
+	echo "default_days    = 1000"						>> $1.conf
+	echo "policy          = default_ca_policy"			>> $1.conf
+	echo "" 											>> $1.conf
+	echo "[ default_ca_policy ]"						>> $1.conf
+	echo "commonName              = supplied"			>> $1.conf
+	echo "stateOrProvinceName     = supplied"			>> $1.conf
+	echo "countryName             = supplied"			>> $1.conf
+	echo "emailAddress            = supplied"			>> $1.conf
+	echo "organizationName        = optional"			>> $1.conf
+	echo "organizationalUnitName  = optional"			>> $1.conf
+	echo "" 											>> $1.conf
+	echo "[ req ]" 										>> $1.conf
 	echo "prompt = no"									>> $1.conf
 	echo "default_bits        = 2048" 					>> $1.conf
 	echo "distinguished_name  = req_distinguished_name" >> $1.conf
 	echo "req_extensions      = req_ext" 				>> $1.conf
+	if [ -n "$4" ]; then
+		echo "basicConstraints=CA:true,pathlen:0"       >> $1.conf
+		echo "" 										>> $1.conf
+	fi
 	echo "" 											>> $1.conf
 	echo "[ req_distinguished_name ]" 					>> $1.conf
 	echo "C = US" 										>> $1.conf
@@ -70,6 +96,40 @@ function generate_test_cert {
 	openssl x509 -inform pem -in $1.pem -outform der -out $1.der
 }
 
+function generate_expired_certs {
+	rm $1.der
+	rm $1.pem
+
+	mkdir -p certs
+	touch ./index.txt
+	echo 1000 > ./serial
+
+	echo "step 1 create configuration"
+	build_test_cert_conf $1 www.wolfssl.com 0 $3
+
+	echo "step 2 create csr"
+	openssl req -new -sha256 -out $1.csr -key $2 -config $1.conf
+
+	echo "step 3 check csr"
+	openssl req -text -noout -in $1.csr
+
+	echo "step 4 create cert"
+	openssl ca -selfsign -config $1.conf -keyfile $2 -in $1.csr -out $1.pem \
+		-startdate 201807310000Z -enddate 201808300000Z -batch
+	rm $1.conf
+	rm $1.csr
+
+	echo "step 5 add cert text information to pem"
+	openssl x509 -inform pem -in $1.pem -text > tmp.pem
+	mv tmp.pem $1.pem
+
+	echo "step 7 make binary der version"
+	openssl x509 -inform pem -in $1.pem -outform der -out $1.der
+
+	rm -rf certs
+	rm ./index.txt*
+	rm ./serial*
+}
 
 # Generate Good CN=localhost, Alt=None
 generate_test_cert server-goodcn localhost "" 1
@@ -101,3 +161,8 @@ generate_test_cert server-localhost localhost localhost
 
 # Generate Bad Alt Name CN=localhost, Alt=garbage
 generate_test_cert server-garbage localhost garbage
+
+
+# Generate Expired Certificates
+generate_expired_certs expired-ca ../ca-key.pem 1
+generate_expired_certs expired-cert ../server-key.pem

@@ -504,6 +504,13 @@ WOLFSSL_API int wolfSSL_is_static_memory(WOLFSSL* ssl,
 
 WOLFSSL_API int wolfSSL_CTX_use_certificate_file(WOLFSSL_CTX*, const char*, int);
 WOLFSSL_API int wolfSSL_CTX_use_PrivateKey_file(WOLFSSL_CTX*, const char*, int);
+
+#define WOLFSSL_LOAD_FLAG_NONE          0x00000000
+#define WOLFSSL_LOAD_FLAG_IGNORE_ERR    0x00000001
+#define WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY 0x00000002
+#define WOLFSSL_LOAD_FLAG_PEM_CA_ONLY   0x00000004
+WOLFSSL_API int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX*, const char*,
+                                                const char*, unsigned int);
 WOLFSSL_API int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX*, const char*,
                                                 const char*);
 #ifdef WOLFSSL_TRUST_PEER_CERT
