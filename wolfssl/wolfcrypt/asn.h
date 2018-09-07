@@ -673,7 +673,7 @@ struct DecodedCert {
     int     beforeDateLen;
     byte*   afterDate;
     int     afterDateLen;
-#ifdef HAVE_PKCS7
+#if defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT)
     byte*   issuerRaw;               /* pointer to issuer inside source */
     int     issuerRawLen;
 #endif
