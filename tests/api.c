@@ -437,6 +437,52 @@ static int test_wolfCrypt_Init(void)
 } /* END test_wolfCrypt_Init */
 
 /*----------------------------------------------------------------------------*
+ | Platform dependent function test
+ *----------------------------------------------------------------------------*/
+
+static int test_fileAccess()
+{
+    #ifdef WOLFSSL_TEST_PLATFORMDEPEND
+
+    const char *fname[] = {
+    svrCertFile, svrKeyFile, caCertFile, eccCertFile, eccKeyFile, eccRsaCertFile, 
+    cliCertFile, cliCertDerFile, cliKeyFile, ntruCertFile, ntruKeyFile, dhParamFile,
+    cliEccKeyFile, cliEccCertFile, caEccCertFile, edCertFile, edKeyFile,
+    cliEdCertFile, cliEdKeyFile, caEdCertFile, 
+    NULL
+    };
+
+    const char derfile[] = "./certs/server-cert.der";
+    XFILE f;
+    size_t sz;
+    byte *buff;
+    int i;
+
+    printf(testingFmt, "test_fileAccessr()");
+    
+    AssertTrue(XFOPEN("badfilename", "rb") == XBADFILE);
+
+    for(i=0; fname[i] != NULL ; i++){
+        AssertTrue((f = XFOPEN(fname[i], "rb")) != XBADFILE);
+        XFCLOSE(f);
+    }
+    
+    AssertTrue((f = XFOPEN(derfile, "rb")) != XBADFILE);
+    AssertTrue(XFSEEK(f, 0, XSEEK_END) == 0);
+    sz = (size_t) XFTELL(f);
+    XREWIND(f);
+    AssertTrue(sz == sizeof_server_cert_der_2048);
+    AssertTrue((buff = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE)) != NULL) ;
+    AssertTrue(XFREAD(buff, 1, sz, f) == sz);
+    XMEMCMP(server_cert_der_2048, buff, sz);
+
+    printf(resultFmt, passed);
+#endif
+
+    return WOLFSSL_SUCCESS;
+}
+
+/*----------------------------------------------------------------------------*
  | Method Allocators
  *----------------------------------------------------------------------------*/
 
@@ -20321,6 +20367,10 @@ static int test_ForceZero(void)
 
 void ApiTest(void)
 {
+
+    printf("\n-----------------Porting tests------------------\n");   
+    AssertTrue(test_fileAccess());
+    
     printf(" Begin API Tests\n");
     AssertIntEQ(test_wolfSSL_Init(), WOLFSSL_SUCCESS);
     /* wolfcrypt initialization tests */
