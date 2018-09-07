@@ -1,4 +1,4 @@
-/* atecc508.h
+/* atmel.h
  *
  * Copyright (C) 2006-2018 wolfSSL Inc.
  *
@@ -25,10 +25,9 @@
 #include <stdint.h>
 
 #include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/ssl.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 
-#ifdef WOLFSSL_ATECC508A
+#if defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC_PKCB)
     #undef  SHA_BLOCK_SIZE
     #define SHA_BLOCK_SIZE  SHA_BLOCK_SIZE_REMAP
     #include <cryptoauthlib.h>
@@ -42,11 +41,18 @@
 #define ATECC_KEY_SIZE      (32)
 #define ATECC_PUBKEY_SIZE   (ATECC_KEY_SIZE*2) /* X and Y */
 #define ATECC_SIG_SIZE      (ATECC_KEY_SIZE*2) /* R and S */
+#ifndef ATECC_MAX_SLOT
 #define ATECC_MAX_SLOT      (0x7) /* Only use 0-7 */
+#endif
 #define ATECC_INVALID_SLOT  (-1)
 
+/* ATECC_KEY_SIZE required for ecc.h */
+#include <wolfssl/wolfcrypt/ecc.h>
+
 struct WOLFSSL;
+struct WOLFSSL_CTX;
 struct WOLFSSL_X509_STORE_CTX;
+struct ecc_key;
 
 /* Cert Structure */
 typedef struct t_atcert {
@@ -66,28 +72,41 @@ void atmel_finish(void);
 int  atmel_get_random_number(uint32_t count, uint8_t* rand_out);
 long atmel_get_curr_time_and_date(long* tm);
 
-int  atmel_ecc_alloc(void);
+#ifdef WOLFSSL_ATECC508A
+
+enum atmelSlotType {
+    ATMEL_SLOT_ANY,
+    ATMEL_SLOT_ENCKEY,
+    ATMEL_SLOT_DEVICE,
+    ATMEL_SLOT_ECDHE,
+    ATMEL_SLOT_ECDHEPUB,
+};
+
+int  atmel_ecc_alloc(int slotType);
 void atmel_ecc_free(int slot);
 
-typedef int  (*atmel_slot_alloc_cb)(void);
+typedef int  (*atmel_slot_alloc_cb)(int);
 typedef void (*atmel_slot_dealloc_cb)(int);
 int atmel_set_slot_allocator(atmel_slot_alloc_cb alloc, 
     atmel_slot_dealloc_cb dealloc);
 
-#include <wolfssl/wolfcrypt/ecc.h>
+#endif /* WOLFSSL_ATECC508A */
 
 #ifdef HAVE_PK_CALLBACKS
-    int atcatls_create_key_cb(WOLFSSL* ssl, ecc_key* key, word32 keySz,
+    int atcatls_create_key_cb(struct WOLFSSL* ssl, struct ecc_key* key, word32 keySz,
         int ecc_curve, void* ctx);
-    int atcatls_create_pms_cb(WOLFSSL* ssl, ecc_key* otherKey,
+    int atcatls_create_pms_cb(struct WOLFSSL* ssl, struct ecc_key* otherKey,
         unsigned char* pubKeyDer, unsigned int* pubKeySz,
         unsigned char* out, unsigned int* outlen,
         int side, void* ctx);
-    int atcatls_sign_certificate_cb(WOLFSSL* ssl, const byte* in, word32 inSz,
+    int atcatls_sign_certificate_cb(struct WOLFSSL* ssl, const byte* in, word32 inSz,
         byte* out, word32* outSz, const byte* key, word32 keySz, void* ctx);
-    int atcatls_verify_signature_cb(WOLFSSL* ssl, const byte* sig, word32 sigSz,
+    int atcatls_verify_signature_cb(struct WOLFSSL* ssl, const byte* sig, word32 sigSz,
         const byte* hash, word32 hashSz, const byte* key, word32 keySz, int* result,
         void* ctx);
+
+    int atcatls_set_callbacks(struct WOLFSSL_CTX* ctx);
+    int atcatls_set_callback_ctx(struct WOLFSSL* ssl, void* user_ctx);
 #endif
 
 #endif /* _ATECC508_H_ */

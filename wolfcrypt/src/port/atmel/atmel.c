@@ -25,7 +25,7 @@
 
 #include <wolfssl/wolfcrypt/settings.h>
 
-#if defined(WOLFSSL_ATMEL) || defined(WOLFSSL_ATECC508A)
+#if defined(WOLFSSL_ATMEL) || defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_ATECC_PKCB)
 
 #include <wolfssl/wolfcrypt/memory.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
@@ -50,7 +50,7 @@
 
 #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
 
-static bool mAtcaInitDone = 0;
+static int mAtcaInitDone = 0;
 
 #ifdef WOLFSSL_ATECC508A
 
@@ -58,6 +58,10 @@ static bool mAtcaInitDone = 0;
 static atmel_slot_alloc_cb mSlotAlloc;
 static atmel_slot_dealloc_cb mSlotDealloc;
 static int mSlotList[ATECC_MAX_SLOT+1];
+
+#ifndef ATECC_SLOT_I2C_ENC
+    #define ATECC_SLOT_I2C_ENC 0x04 /* Slot holding symmetric encryption key */
+#endif
 
 /**
  * \brief Structure to contain certificate information.
@@ -112,12 +116,12 @@ int atmel_get_random_block(unsigned char* output, unsigned int sz)
 }
 
 #if defined(WOLFSSL_ATMEL) && defined(WOLFSSL_ATMEL_TIME)
-    extern struct rtc_module *_rtc_instance[RTC_INST_NUM];
-#endif
+extern struct rtc_module *_rtc_instance[RTC_INST_NUM];
+
 long atmel_get_curr_time_and_date(long* tm)
 {
     long rt = 0;
-#if defined(WOLFSSL_ATMEL) && defined(WOLFSSL_ATMEL_TIME)
+
 	/* Get current time */
     struct rtc_calendar_time rtcTime;
     const int monthDay[] = {0,31,59,90,120,151,181,212,243,273,304,334};
@@ -144,11 +148,11 @@ long atmel_get_curr_time_and_date(long* tm)
                 )
             )
         );
-#endif /* WOLFSSL_ATMEL_TIME */
+
     (void)tm;
     return rt;
 }
-
+#endif
 
 
 #ifdef WOLFSSL_ATECC508A
@@ -163,15 +167,20 @@ int atmel_set_slot_allocator(atmel_slot_alloc_cb alloc,
 }
 
 /* Function to allocate new slot number */
-int atmel_ecc_alloc(void)
+int atmel_ecc_alloc(int slotType)
 {
     int slot = ATECC_INVALID_SLOT;
 
     if (mSlotAlloc) {
-        slot = mSlotAlloc();
+        slot = mSlotAlloc(slotType);
     }
     else {
         int i;
+
+        if (slotType == ATMEL_SLOT_ENCKEY) {
+            return ATECC_SLOT_I2C_ENC;
+        }
+
         for (i=0; i <= ATECC_MAX_SLOT; i++) {
             /* Find free slot */
             if (mSlotList[i] == ATECC_INVALID_SLOT) {
@@ -198,10 +207,11 @@ void atmel_ecc_free(int slot)
 }
 
 
-/* The macros ATCA_TLS_GET_ENC_KEY can be set to override the default
+/* The macros ATECC_GET_ENC_KEY can be set to override the default
    encryption key with your own at build-time */
-#ifndef ATCA_TLS_GET_ENC_KEY
-    #define ATCA_TLS_GET_ENC_KEY atmel_get_enc_key
+#ifndef ATECC_GET_ENC_KEY
+    #define ATECC_GET_ENC_KEY atmel_get_enc_key
+
     /**
      * \brief Callback function for getting the current encryption key
      */
@@ -224,17 +234,22 @@ static int atmel_init_enc_key(void)
 {
 	uint8_t ret = 0;
 	uint8_t read_key[ATECC_KEY_SIZE];
+    int slot = atmel_ecc_alloc(ATMEL_SLOT_ENCKEY);
+
+    /* check for encryption key slot */
+    if (slot == ATECC_INVALID_SLOT)
+        return -1;
 
     /* get encryption key */
-    ATCA_TLS_GET_ENC_KEY(read_key, sizeof(read_key));
-    ret = atcatls_set_enckey(read_key, TLS_SLOT_ENC_PARENT, 0);
+    ATECC_GET_ENC_KEY(read_key, sizeof(read_key));
+    ret = atcatls_set_enckey(read_key, slot, 0);
     ForceZero(read_key, sizeof(read_key));
 	if (ret != ATCA_SUCCESS) {
 		WOLFSSL_MSG("Failed to write key");
 		return -1;
 	}
 
-	ret = atcatlsfn_set_get_enckey(ATCA_TLS_GET_ENC_KEY);
+	ret = atcatlsfn_set_get_enckey(ATECC_GET_ENC_KEY);
 	if (ret != ATCA_SUCCESS) {
 		WOLFSSL_MSG("Failed to set enckey cb");
 		return -1;
@@ -549,6 +564,25 @@ exit:
     return ret;
 }
 
+int atcatls_set_callbacks(WOLFSSL_CTX* ctx)
+{
+    wolfSSL_CTX_SetEccKeyGenCb(ctx, atcatls_create_key_cb);
+    wolfSSL_CTX_SetEccVerifyCb(ctx, atcatls_verify_signature_cb);
+    wolfSSL_CTX_SetEccSignCb(ctx, atcatls_sign_certificate_cb);
+    wolfSSL_CTX_SetEccSharedSecretCb(ctx, atcatls_create_pms_cb);
+    return 0;
+}
+
+int atcatls_set_callback_ctx(WOLFSSL* ssl, void* user_ctx)
+{
+    wolfSSL_SetEccKeyGenCtx(ssl, user_ctx);
+    wolfSSL_SetEccVerifyCtx(ssl, user_ctx);
+    wolfSSL_SetEccSignCtx(ssl, user_ctx);
+    wolfSSL_SetEccSharedSecretCtx(ssl, user_ctx);
+    return 0;
+}
+
+
 #endif /* HAVE_PK_CALLBACKS */
 
-#endif /* WOLFSSL_ATMEL || WOLFSSL_ATECC508A */
+#endif /* WOLFSSL_ATMEL || WOLFSSL_ATECC508A || WOLFSSL_ATECC_PKCB */
