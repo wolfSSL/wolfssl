@@ -32,11 +32,14 @@
 #define XABORT() abort()
 #endif
 
+
+static int unit_PassThrough = 0;
+
 #define Fail(description, result) do {                                         \
     printf("\nERROR - %s line %d failed with:", __FILE__, __LINE__);           \
     printf("\n    expected: "); printf description;                            \
     printf("\n    result:   "); printf result; printf("\n\n");                 \
-    XABORT();                                                                  \
+    if(unit_PassThrough == 0)XABORT();                                                                  \
 } while(0)
 
 #define Assert(test, description, result) if (!(test)) Fail(description, result)
