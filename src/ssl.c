@@ -3016,8 +3016,9 @@ void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm)
             if (cm->ocsp)
                 FreeOCSP(cm->ocsp, 1);
             XFREE(cm->ocspOverrideURL, cm->heap, DYNAMIC_TYPE_URL);
-        #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
-         || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+        #if !defined(NO_WOLFSSL_SERVER) && \
+            (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+             defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
             if (cm->ocsp_stapling)
                 FreeOCSP(cm->ocsp_stapling, 1);
         #endif
@@ -5404,6 +5405,7 @@ int wolfSSL_CertManagerEnableOCSPStapling(WOLFSSL_CERT_MANAGER* cm)
 
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    #ifndef NO_WOLFSSL_SERVER
     if (cm->ocsp_stapling == NULL) {
         cm->ocsp_stapling = (WOLFSSL_OCSP*)XMALLOC(sizeof(WOLFSSL_OCSP),
                                                cm->heap, DYNAMIC_TYPE_OCSP);
@@ -5417,13 +5419,14 @@ int wolfSSL_CertManagerEnableOCSPStapling(WOLFSSL_CERT_MANAGER* cm)
             return WOLFSSL_FAILURE;
         }
     }
-    cm->ocspStaplingEnabled = 1;
 
     #ifndef WOLFSSL_USER_IO
         cm->ocspIOCb = EmbedOcspLookup;
         cm->ocspRespFreeCb = EmbedOcspRespFree;
         cm->ocspIOCtx = cm->heap;
     #endif /* WOLFSSL_USER_IO */
+    #endif /* NO_WOLFSSL_SERVER */
+    cm->ocspStaplingEnabled = 1;
 #else
     ret = NOT_COMPILED_IN;
 #endif
