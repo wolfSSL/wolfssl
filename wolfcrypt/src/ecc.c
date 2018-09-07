@@ -6314,7 +6314,7 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
     /* For SECP256R1 only save raw public key for hardware */
     if (curve_id == ECC_SECP256R1 && !compressed &&
                                             inLen <= sizeof(key->pubkey_raw)) {
-        XMEMCPY(key->pubkey_raw, (byte*)in, sizeof(key->pubkey_raw));
+        XMEMCPY(key->pubkey_raw, (byte*)in, inLen);
     }
 #endif
 
