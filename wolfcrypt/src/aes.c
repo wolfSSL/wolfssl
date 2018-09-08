@@ -1849,7 +1849,7 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
     int wc_AesSetKey(Aes* aes, const byte* userKey, word32 keylen, const byte* iv,
                   int dir)
     {
-        if (!((keylen == 16) || (keylen == 24) || (keylen == 32)))
+        if (aes == NULL || !((keylen == 16) || (keylen == 24) || (keylen == 32)))
             return BAD_FUNC_ARG;
 
         aes->rounds = keylen/4 + 6;
@@ -2651,6 +2651,12 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
         status = LTC_AES_EncryptCbc(LTC_BASE, in, out, blocks * AES_BLOCK_SIZE,
             iv, enc_key, keySize);
+
+        /* store iv for next call */
+        if (status == kStatus_Success) {
+            XMEMCPY(iv, out + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+        }
+
         return (status == kStatus_Success) ? 0 : -1;
     }
 
@@ -2661,6 +2667,7 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
         status_t status;
         byte* iv, *dec_key;
         word32 blocks = (sz / AES_BLOCK_SIZE);
+        byte temp_block[AES_BLOCK_SIZE];
 
         iv      = (byte*)aes->reg;
         dec_key = (byte*)aes->key;
@@ -2670,8 +2677,17 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
             return status;
         }
 
+        /* get IV for next call */
+        XMEMCPY(temp_block, in + sz - AES_BLOCK_SIZE, AES_BLOCK_SIZE);
+
         status = LTC_AES_DecryptCbc(LTC_BASE, in, out, blocks * AES_BLOCK_SIZE,
             iv, dec_key, keySize, kLTC_EncryptKey);
+
+        /* store IV for next call */
+        if (status == kStatus_Success) {
+            XMEMCPY(iv, temp_block, AES_BLOCK_SIZE);
+        }
+
         return (status == kStatus_Success) ? 0 : -1;
     }
     #endif /* HAVE_AES_DECRYPT */
@@ -8433,6 +8449,8 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 #endif
 
 
+
+/* AES GCM Decrypt */
 #if defined(HAVE_AES_DECRYPT) || defined(HAVE_AESGCM_DECRYPT)
 #ifdef FREESCALE_LTC_AES_GCM
 int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
