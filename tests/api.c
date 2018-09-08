@@ -442,7 +442,9 @@ static int test_wolfCrypt_Init(void)
 
 static int test_fileAccess()
 {
-    #ifdef WOLFSSL_TEST_PLATFORMDEPEND
+    if(unit_PassThrough == 1)XABORT(); /* do nothing. use the flag at least once. */
+
+    #if defined(WOLFSSL_TEST_PLATFORMDEPEND) && !defined(NO_FILESYSTEM)
 
     const char *fname[] = {
     svrCertFile, svrKeyFile, caCertFile, eccCertFile, eccKeyFile, eccRsaCertFile, 
