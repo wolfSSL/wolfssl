@@ -33,14 +33,20 @@
 #endif
 
 
-static int unit_PassThrough = 0;
-
+#ifndef WOLFSSL_PASSTHRU_ERR
 #define Fail(description, result) do {                                         \
     printf("\nERROR - %s line %d failed with:", __FILE__, __LINE__);           \
     printf("\n    expected: "); printf description;                            \
     printf("\n    result:   "); printf result; printf("\n\n");                 \
-    if(unit_PassThrough == 0)XABORT();                                                                  \
+    XABORT();                                                                  \
 } while(0)
+#else
+#define Fail(description, result) do {                               \
+    printf("\nERROR - %s line %d failed with:", __FILE__, __LINE__); \
+    printf("\n    expected: ");printf description;                   \
+    printf("\n    result:   "); printf result; printf("\n\n");       \
+} while (0)
+#endif
 
 #define Assert(test, description, result) if (!(test)) Fail(description, result)
 
