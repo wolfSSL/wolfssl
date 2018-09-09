@@ -53,8 +53,10 @@ EXTRA_DIST += \
          certs/test/dh1024.pem \
          certs/test/dh512.der \
          certs/test/dh512.pem \
-         certs/test/digsigku.pem \
-         certs/test/expired-ca.pem \
-         certs/test/expired-ca.der \
-         certs/test/expired-cert.pem \
-         certs/test/expired-cert.der
+         certs/test/digsigku.pem
+
+EXTRA_DIST += \
+         certs/test/expired/expired-ca.pem \
+         certs/test/expired/expired-ca.der \
+         certs/test/expired/expired-cert.pem \
+         certs/test/expired/expired-cert.der

@@ -164,5 +164,5 @@ generate_test_cert server-garbage localhost garbage
 
 
 # Generate Expired Certificates
-generate_expired_certs expired-ca ../ca-key.pem 1
-generate_expired_certs expired-cert ../server-key.pem
+generate_expired_certs expired/expired-ca ../ca-key.pem 1
+generate_expired_certs expired/expired-cert ../server-key.pem
