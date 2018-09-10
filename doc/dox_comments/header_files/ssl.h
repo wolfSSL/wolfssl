@@ -6973,6 +6973,60 @@ WOLFSSL_API int wolfSSL_CTX_load_verify_buffer(WOLFSSL_CTX*,
 /*!
     \ingroup CertsKeys
 
+    \brief This function loads a CA certificate chain buffer into the WOLFSSL
+    Context. It behaves like the non-buffered version, only differing in
+    its ability to be called with a buffer as input instead of a file.
+    The buffer is provided by the in argument of size sz. format specifies
+    the format type of the buffer; SSL_FILETYPE_ASN1 or SSL_FILETYPE_PEM.
+    More than one CA certificate may be loaded per buffer as long as the
+    format is in PEM.  Please see the examples for proper usage.
+
+    \return SSL_SUCCESS upon success
+    \return SSL_BAD_FILETYPE will be returned if the file is the wrong format.
+    \return SSL_BAD_FILE will be returned if the file doesn’t exist,
+    can’t be read, or is corrupted.
+    \return MEMORY_E will be returned if an out of memory condition occurs.
+    \return ASN_INPUT_E will be returned if Base16 decoding fails on the file.
+    \return BUFFER_E will be returned if a chain buffer is bigger than
+    the receiving buffer.
+
+    \param ctx pointer to the SSL context, created with wolfSSL_CTX_new().
+    \param in pointer to the CA certificate buffer.
+    \param sz size of the input CA certificate buffer, in.
+    \param format format of the buffer certificate, either SSL_FILETYPE_ASN1
+    or SSL_FILETYPE_PEM.
+
+    _Example_
+    \code
+    int ret = 0;
+    int sz = 0;
+    WOLFSSL_CTX* ctx;
+    byte certBuff[...];
+    ...
+
+    ret = wolfSSL_CTX_load_verify_chain_buffer_format(ctx,
+                         certBuff, sz, WOLFSSL_FILETYPE_ASN1);
+    if (ret != SSL_SUCCESS) {
+        // error loading CA certs from buffer
+    }
+    ...
+    \endcode
+
+    \sa wolfSSL_CTX_load_verify_locations
+    \sa wolfSSL_CTX_use_certificate_buffer
+    \sa wolfSSL_CTX_use_PrivateKey_buffer
+    \sa wolfSSL_CTX_use_NTRUPrivateKey_file
+    \sa wolfSSL_CTX_use_certificate_chain_buffer
+    \sa wolfSSL_use_certificate_buffer
+    \sa wolfSSL_use_PrivateKey_buffer
+    \sa wolfSSL_use_certificate_chain_buffer
+*/
+WOLFSSL_API int wolfSSL_CTX_load_verify_chain_buffer_format(WOLFSSL_CTX*,
+                                               const unsigned char*, long, int);
+
+/*!
+    \ingroup CertsKeys
+
     \brief This function loads a certificate buffer into the WOLFSSL Context.
     It behaves like the non-buffered version, only differing in its ability
     to be called with a buffer as input instead of a file.  The buffer is

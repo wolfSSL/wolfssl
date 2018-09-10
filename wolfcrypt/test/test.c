@@ -8555,6 +8555,8 @@ static void initDefaultName(void)
     certDefaultName.unitEnc = CTC_UTF8;
     XMEMCPY(certDefaultName.commonName, "www.wolfssl.com", sizeof("www.wolfssl.com"));
     certDefaultName.commonNameEnc = CTC_UTF8;
+    XMEMCPY(certDefaultName.serialDev, "wolfSSL12345", sizeof("wolfSSL12345"));
+    certDefaultName.serialDevEnc = CTC_PRINTABLE;
 #ifdef WOLFSSL_CERT_EXT
     XMEMCPY(certDefaultName.busCat, "Private Organization", sizeof("Private Organization"));
     certDefaultName.busCatEnc = CTC_UTF8;
@@ -8597,6 +8599,7 @@ static const CertName certDefaultName = {
     "wolfSSL",          CTC_UTF8,       /* org */
     "Development",      CTC_UTF8,       /* unit */
     "www.wolfssl.com",  CTC_UTF8,       /* commonName */
+    "wolfSSL12345",     CTC_PRINTABLE,  /* serial number of device */
 #ifdef WOLFSSL_CERT_EXT
     "Private Organization", CTC_UTF8,   /* businessCategory */
     "US",               CTC_PRINTABLE,  /* jurisdiction country */
