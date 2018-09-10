@@ -1565,7 +1565,8 @@ extern void uITRON4_free(void *p) ;
 
 #if (defined(WOLFSSL_TLS13) && defined(WOLFSSL_NO_TLS12)) || \
     (!defined(HAVE_AES_CBC) && defined(NO_DES3) && defined(NO_RC4) && \
-     !defined(HAVE_IDEA) && !defined(HAVE_NULL_CIPHER) && !defined(HAVE_HC128))
+     !defined(HAVE_CAMELLIA) && !defined(HAVE_IDEA) && \
+     !defined(HAVE_NULL_CIPHER) && !defined(HAVE_HC128))
     #define WOLFSSL_AEAD_ONLY
 #endif
 
