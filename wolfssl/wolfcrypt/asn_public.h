@@ -204,6 +204,8 @@ typedef struct CertName {
     char unitEnc;
     char commonName[CTC_NAME_SIZE];
     char commonNameEnc;
+    char serialDev[CTC_NAME_SIZE];
+    char serialDevEnc;
 #ifdef WOLFSSL_CERT_EXT
     char busCat[CTC_NAME_SIZE];
     char busCatEnc;

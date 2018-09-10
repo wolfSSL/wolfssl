@@ -4304,8 +4304,13 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
     int cnt = 0;
 #endif
 
+    if ((type == CA_TYPE) && (ctx == NULL)) {
+        WOLFSSL_MSG("Need context for CA load");
+        return BAD_FUNC_ARG;
+    }
+
     /* we may have a user cert chain, try to consume */
-    if (type == CERT_TYPE && info->consumed < sz) {
+    if ((type == CERT_TYPE || type == CA_TYPE) && (info->consumed < sz)) {
     #ifdef WOLFSSL_SMALL_STACK
         byte   staticBuffer[1];                 /* force heap usage */
     #else
@@ -4349,7 +4354,8 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 if (format == WOLFSSL_FILETYPE_ASN1) {
                     /* get length of der (read sequence) */
                     word32 inOutIdx = 0;
-                    if (GetSequence(buff + consumed, &inOutIdx, &length, remain) < 0) {
+                    if (GetSequence(buff + consumed, &inOutIdx, &length,
+                            remain) < 0) {
                         ret = ASN_NO_PEM_HEADER;
                     }
                     length += inOutIdx; /* include leading sequence */
@@ -4380,7 +4386,16 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
                     if (used)
                         *used += info->consumed;
                 }
+
+                /* add CA's to certificate manager */
+                if (type == CA_TYPE) {
+                    /* verify CA unless user set to no verify */
+                    ret = AddCA(ctx->cm, &part, WOLFSSL_USER_CA,
+                        !ctx->verifyNone);
+                     gotOne = 0; /* don't exit loop for CA type */
+                }
             }
+
             FreeDer(&part);
 
             if (ret == ASN_NO_PEM_HEADER && gotOne) {
@@ -4407,21 +4422,22 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 }
                 ret = AllocDer(&ssl->buffers.certChain, idx, type, heap);
                 if (ret == 0) {
-                    XMEMCPY(ssl->buffers.certChain->buffer, chainBuffer, idx);
+                    XMEMCPY(ssl->buffers.certChain->buffer, chainBuffer,
+                            idx);
                     ssl->buffers.weOwnCertChain = 1;
                 }
-#ifdef WOLFSSL_TLS13
+            #ifdef WOLFSSL_TLS13
                 ssl->buffers.certChainCnt = cnt;
-#endif
+            #endif
             } else if (ctx) {
                 FreeDer(&ctx->certChain);
                 ret = AllocDer(&ctx->certChain, idx, type, heap);
                 if (ret == 0) {
                     XMEMCPY(ctx->certChain->buffer, chainBuffer, idx);
                 }
-#ifdef WOLFSSL_TLS13
+            #ifdef WOLFSSL_TLS13
                 ctx->certChainCnt = cnt;
-#endif
+            #endif
             }
         }
 
@@ -10854,6 +10870,18 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return ProcessChainBuffer(ctx, in, sz, format, CA_TYPE, NULL);
         else
             return ProcessBuffer(ctx, in, sz, format, CA_TYPE, NULL,NULL,0);
+    }
+
+
+    int wolfSSL_CTX_load_verify_chain_buffer_format(WOLFSSL_CTX* ctx,
+                                       const unsigned char* in,
+                                       long sz, int format)
+    {
+        WOLFSSL_ENTER("wolfSSL_CTX_load_verify_chain_buffer_format");
+        if (format == WOLFSSL_FILETYPE_PEM)
+            return ProcessChainBuffer(ctx, in, sz, format, CA_TYPE, NULL);
+        else
+            return ProcessBuffer(ctx, in, sz, format, CA_TYPE, NULL,NULL,1);
     }
 
 
@@ -29063,9 +29091,13 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         cName->unitEnc = CTC_UTF8;
         cName->commonName[0] = '\0';
         cName->commonNameEnc = CTC_UTF8;
+        cName->serialDev[0] = '\0';
+        cName->serialDevEnc = CTC_PRINTABLE;
     #ifdef WOLFSSL_CERT_EXT
         cName->busCat[0] = '\0';
         cName->busCatEnc = CTC_UTF8;
+        cName->serialDev[0] = '\0';
+        cName->serialDevEnc = CTC_PRINTABLE;
         cName->joiC[0] = '\0';
         cName->joiCEnc = CTC_PRINTABLE;
         cName->joiSt[0] = '\0';
@@ -29121,6 +29153,14 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         WOLFSSL_MSG("Copy Common Name");
         if (CopyX509NameEntry(cName->commonName, CTC_NAME_SIZE,
                     dn->fullName + dn->cnIdx, dn->cnLen)
+                    != SSL_SUCCESS) {
+            return BUFFER_E;
+        }
+
+        /* ASN_SERIAL_NUMBER */
+        WOLFSSL_MSG("Copy Serial Number of Device");
+        if (CopyX509NameEntry(cName->serialDev, CTC_NAME_SIZE,
+                    dn->fullName + dn->serialIdx, dn->serialLen)
                     != SSL_SUCCESS) {
             return BUFFER_E;
         }

@@ -9668,13 +9668,16 @@ static const char* GetOneName(CertName* name, int idx)
     case 6:
        return name->commonName;
 
-#ifdef WOLFSSL_CERT_EXT
     case 7:
-        return name->busCat;
+       return name->serialDev;
 
+#ifdef WOLFSSL_CERT_EXT
     case 8:
+       return name->busCat;
+
+    case 9:
 #else
-    case 7:
+    case 8:
 #endif
        return name->email;
 
@@ -9709,13 +9712,16 @@ static char GetNameType(CertName* name, int idx)
     case 6:
        return name->commonNameEnc;
 
-#ifdef WOLFSSL_CERT_EXT
     case 7:
-        return name->busCatEnc;
+       return name->serialDevEnc;
 
+#ifdef WOLFSSL_CERT_EXT
     case 8:
+       return name->busCatEnc;
+
+    case 9:
 #else
-    case 7:
+    case 8:
 #endif
         /* FALL THROUGH */
         /* The last index, email name, does not have encoding type.
@@ -9751,13 +9757,16 @@ static byte GetNameId(int idx)
     case 6:
        return ASN_COMMON_NAME;
 
-#ifdef WOLFSSL_CERT_EXT
     case 7:
+       return ASN_SERIAL_NUMBER;
+
+#ifdef WOLFSSL_CERT_EXT
+    case 8:
         return ASN_BUS_CAT;
 
-    case 8:
+    case 9:
 #else
-    case 7:
+    case 8:
 #endif
         return ASN_EMAIL_NAME;
 
@@ -12244,6 +12253,13 @@ static int SetNameFromCert(CertName* cn, const byte* der, int derSz)
             XSTRNCPY(cn->sur, decoded->subjectSN, CTC_NAME_SIZE);
             cn->sur[sz] = '\0';
             cn->surEnc = decoded->subjectSNEnc;
+        }
+        if (decoded->subjectSND) {
+            sz = (decoded->subjectSNDLen < CTC_NAME_SIZE) ? decoded->subjectSNDLen
+                                                         : CTC_NAME_SIZE - 1;
+            XSTRNCPY(cn->serialDev, decoded->subjectSND, CTC_NAME_SIZE);
+            cn->serialDev[sz] = '\0';
+            cn->serialDevEnc = decoded->subjectSNDEnc;
         }
     #ifdef WOLFSSL_CERT_EXT
         if (decoded->subjectBC) {
