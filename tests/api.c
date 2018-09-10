@@ -313,6 +313,9 @@
 #ifndef NO_DES3
     #include <wolfssl/openssl/des.h>
 #endif
+#ifdef HAVE_ECC
+    #include <wolfssl/openssl/ecdsa.h>
+#endif
 #endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_EXTRA) && defined(WOLFCRYPT_HAVE_SRP) \
@@ -1293,6 +1296,40 @@ static void test_wolfSSL_EC(void)
 }
 #endif
 
+# if defined(OPENSSL_EXTRA)
+static void test_wolfSSL_ECDSA_SIG(void)
+{
+#ifdef HAVE_ECC
+    WOLFSSL_ECDSA_SIG* sig = NULL;
+    WOLFSSL_ECDSA_SIG* sig2 = NULL;
+    const unsigned char* cp;
+    unsigned char* p;
+    unsigned char outSig[8];
+    unsigned char sigData[8] =
+                             { 0x30, 0x06, 0x02, 0x01, 0x01, 0x02, 0x01, 0x01 };
+
+    AssertNull(wolfSSL_d2i_ECDSA_SIG(NULL, NULL, sizeof(sigData)));
+    cp = sigData;
+    AssertNotNull((sig = wolfSSL_d2i_ECDSA_SIG(NULL, &cp, sizeof(sigData))));
+    AssertIntEQ((cp == sigData + 8), 1);
+    cp = sigData;
+    AssertNull(wolfSSL_d2i_ECDSA_SIG(&sig, NULL, sizeof(sigData)));
+    AssertNotNull((sig2 = wolfSSL_d2i_ECDSA_SIG(&sig, &cp, sizeof(sigData))));
+    AssertIntEQ((sig == sig2), 1);
+    cp = outSig;
+
+    p = outSig;
+    AssertIntEQ(wolfSSL_i2d_ECDSA_SIG(NULL, &p), 0);
+    AssertIntEQ(wolfSSL_i2d_ECDSA_SIG(NULL, NULL), 0);
+    AssertIntEQ(wolfSSL_i2d_ECDSA_SIG(sig, NULL), 8);
+    AssertIntEQ(wolfSSL_i2d_ECDSA_SIG(sig, &p), sizeof(sigData));
+    AssertIntEQ((p == outSig + 8), 1);
+    AssertIntEQ(XMEMCMP(sigData, outSig, 8), 0);
+
+    wolfSSL_ECDSA_SIG_free(sig);
+#endif /* HAVE_ECC */
+}
+#endif /* OPENSSL_EXTRA */
 
 #include <wolfssl/openssl/pem.h>
 /*----------------------------------------------------------------------------*
@@ -16477,9 +16514,9 @@ static void test_wolfSSL_PEM_PrivateKey(void)
 
     printf(resultFmt, passed);
 
-    (void)server_key;
     (void)bio;
     (void)pkey;
+    (void)server_key;
 
 #endif /* OPENSSL_EXTRA && !NO_CERTS && !NO_RSA && USE_CERT_BUFFERS_2048 */
 }
@@ -16510,6 +16547,50 @@ static void test_wolfSSL_PEM_RSAPrivateKey(void)
 
     printf(resultFmt, passed);
     #endif /* defined(OPENSSL_EXTRA) && !defined(NO_CERTS) */
+}
+
+
+static void test_wolfSSL_PEM_PUBKEY(void)
+{
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC)
+    BIO*      bio = NULL;
+    EVP_PKEY* pkey  = NULL;
+
+    /* test creating new EVP_PKEY with bad arg */
+    AssertNull((pkey = PEM_read_bio_PUBKEY(NULL, NULL, NULL, NULL)));
+
+    /* test loading ECC key using BIO */
+#if defined(HAVE_ECC) && !defined(NO_FILESYSTEM)
+    {
+        XFILE file;
+        const char* fname = "./certs/ecc-client-keyPub.pem";
+        size_t sz;
+        byte* buf;
+
+        file = XFOPEN(fname, "rb");
+        AssertTrue((file != XBADFILE));
+        XFSEEK(file, 0, XSEEK_END);
+        sz = XFTELL(file);
+        XREWIND(file);
+        AssertNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
+        if (buf)
+            AssertIntEQ(XFREAD(buf, 1, sz, file), sz);
+        XFCLOSE(file);
+
+        /* Test using BIO new mem and loading PEM private key */
+        AssertNotNull(bio = BIO_new_mem_buf(buf, (int)sz));
+        AssertNotNull((pkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL)));
+        XFREE(buf, NULL, DYNAMIC_TYPE_FILE);
+        BIO_free(bio);
+        bio = NULL;
+        EVP_PKEY_free(pkey);
+        pkey  = NULL;
+    }
+#endif
+
+    (void)bio;
+    (void)pkey;
+#endif
 }
 
 
@@ -16678,6 +16759,13 @@ static void test_wolfSSL_EVP_MD_hmac_signing(void)
     AssertIntEQ(XMEMCMP(testResult, check, sizeof(testResult)), 0);
     AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
 
+    AssertIntEQ(wolfSSL_EVP_DigestVerifyInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
+                                                                 NULL, key), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestVerifyUpdate(&mdCtx, testData,
+                                               (unsigned int)XSTRLEN(testData)),
+                1);
+    AssertIntEQ(wolfSSL_EVP_DigestVerifyFinal(&mdCtx, testResult, checkSz), 1);
+
     wolfSSL_EVP_MD_CTX_init(&mdCtx);
     AssertIntEQ(wolfSSL_EVP_DigestSignInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
                                                                 NULL, key), 1);
@@ -16691,6 +16779,15 @@ static void test_wolfSSL_EVP_MD_hmac_signing(void)
     AssertIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, check, &checkSz), 1);
     AssertIntEQ((int)checkSz,(int)sizeof(testResult));
     AssertIntEQ(XMEMCMP(testResult, check, sizeof(testResult)), 0);
+
+    AssertIntEQ(wolfSSL_EVP_DigestVerifyInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
+                                                                 NULL, key), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestVerifyUpdate(&mdCtx, testData, 4), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestVerifyUpdate(&mdCtx, testData + 4,
+                                           (unsigned int)XSTRLEN(testData) - 4),
+                1);
+    AssertIntEQ(wolfSSL_EVP_DigestVerifyFinal(&mdCtx, testResult, checkSz), 1);
+
     AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
 
     wolfSSL_EVP_PKEY_free(key);
@@ -20855,6 +20952,7 @@ void ApiTest(void)
     test_wolfSSL_private_keys();
     test_wolfSSL_PEM_PrivateKey();
     test_wolfSSL_PEM_RSAPrivateKey();
+    test_wolfSSL_PEM_PUBKEY();
     test_wolfSSL_tmp_dh();
     test_wolfSSL_ctrl();
     test_wolfSSL_EVP_PKEY_new_mac_key();
@@ -21079,6 +21177,7 @@ void ApiTest(void)
     /*wolfSSS_EVP_get_cipherbynid test*/
     test_wolfSSL_EVP_get_cipherbynid();
     test_wolfSSL_EC();
+    test_wolfSSL_ECDSA_SIG();
 #endif
 
 #ifdef HAVE_HASHDRBG
