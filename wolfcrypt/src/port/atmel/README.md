@@ -64,6 +64,8 @@ wolfSSL_SetEccSharedSecretCtx(ssl, myOwnCtx);
 
 ## Benchmarks
 
+Supports ECC SECP256R1 (NIST P-256)
+
 ### TLS
 
 TLS Establishment Times:
@@ -77,16 +79,16 @@ The TLS connection establishment time is 5.73 times faster with the ATECC508A.
 
 Software only implementation (SAMD21 48Mhz Cortex-M0, Fast Math TFM-ASM):
 
-`ECC  256 key generation  3123.000 milliseconds, avg over 5 iterations`
-`EC-DHE   key agreement   3117.000 milliseconds, avg over 5 iterations`
-`EC-DSA   sign   time     1997.000 milliseconds, avg over 5 iterations`
-`EC-DSA   verify time     5057.000 milliseconds, avg over 5 iterations`
+`EC-DHE   key generation  3123.000 milliseconds, avg over 5 iterations, 1.601 ops/sec`
+`EC-DHE   key agreement   3117.000 milliseconds, avg over 5 iterations, 1.604 ops/sec`
+`EC-DSA   sign   time     1997.000 milliseconds, avg over 5 iterations, 2.504 ops/sec`
+`EC-DSA   verify time     5057.000 milliseconds, avg over 5 iterations, 0.988 ops/sec`
 
 ATECC508A HW accelerated implementation:
-`ECC  256 key generation  144.400 milliseconds, avg over 5 iterations`
-`EC-DHE   key agreement   134.200 milliseconds, avg over 5 iterations`
-`EC-DSA   sign   time     293.400 milliseconds, avg over 5 iterations`
-`EC-DSA   verify time     208.400 milliseconds, avg over 5 iterations`
+`EC-DHE   key generation  144.400 milliseconds, avg over 5 iterations, 34.722 ops/sec`
+`EC-DHE   key agreement   134.200 milliseconds, avg over 5 iterations, 37.313 ops/sec`
+`EC-DSA   sign   time     293.400 milliseconds, avg over 5 iterations, 17.065 ops/sec`
+`EC-DSA   verify time     208.400 milliseconds, avg over 5 iterations, 24.038 ops/sec`
 
 
 For details see our [wolfSSL Atmel ATECC508A](https://wolfssl.com/wolfSSL/wolfssl-atmel.html) page.
