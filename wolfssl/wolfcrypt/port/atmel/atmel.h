@@ -70,6 +70,7 @@ extern t_atcert atcert;
 void atmel_init(void);
 void atmel_finish(void);
 int  atmel_get_random_number(uint32_t count, uint8_t* rand_out);
+int atmel_get_random_block(unsigned char* output, unsigned int sz);
 long atmel_get_curr_time_and_date(long* tm);
 
 #ifdef WOLFSSL_ATECC508A

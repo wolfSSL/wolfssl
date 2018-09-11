@@ -14266,7 +14266,8 @@ static int test_wc_ecc_pointFns (void)
 {
     int         ret = 0;
 
-#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && \
+    !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A)
     ecc_key     key;
     WC_RNG      rng;
     ecc_point*  point = NULL;
@@ -14440,7 +14441,8 @@ static int test_wc_ecc_shared_secret_ssh (void)
 {
     int         ret = 0;
 
-#if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && \
+    !defined(WC_NO_RNG) && !defined(WOLFSSL_ATECC508A)
     ecc_key     key, key2;
     WC_RNG      rng;
     int         keySz = KEY32;
