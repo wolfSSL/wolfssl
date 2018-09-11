@@ -3520,6 +3520,12 @@ int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
         mp_clear(&key->n);
         return ASN_GETINT_E;
     }
+#ifdef HAVE_WOLF_BIGINT
+    if ((int)nSz > 0 && wc_bigint_from_unsigned_bin(&key->n.raw, n, nSz) != 0) {
+        mp_clear(&key->n);
+        return ASN_GETINT_E;
+    }
+#endif /* HAVE_WOLF_BIGINT */
 
     if (mp_init(&key->e) != MP_OKAY) {
         mp_clear(&key->n);
@@ -3531,6 +3537,13 @@ int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
         mp_clear(&key->e);
         return ASN_GETINT_E;
     }
+#ifdef HAVE_WOLF_BIGINT
+    if ((int)eSz > 0 && wc_bigint_from_unsigned_bin(&key->e.raw, e, eSz) != 0) {
+        mp_clear(&key->n);
+        mp_clear(&key->e);
+        return ASN_GETINT_E;
+    }
+#endif /* HAVE_WOLF_BIGINT */
 
 #ifdef WOLFSSL_XILINX_CRYPT
     if (wc_InitRsaHw(key) != 0) {

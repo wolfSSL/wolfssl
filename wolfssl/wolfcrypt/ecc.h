@@ -134,6 +134,10 @@ enum {
 
     /* Shamir's dual add constants */
     SHAMIR_PRECOMP_SZ = 16,
+
+#ifdef HAVE_PKCS11
+    ECC_MAX_ID_LEN    = 32,
+#endif
 };
 
 /* Curve Types */
@@ -367,6 +371,10 @@ struct ecc_key {
         CertSignCtx certSignCtx; /* context info for cert sign (MakeSignature) */
     #endif
 #endif /* WOLFSSL_ASYNC_CRYPT */
+#ifdef HAVE_PKCS11
+    byte id[ECC_MAX_ID_LEN];
+    int  idLen;
+#endif
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     mp_int* t1;
     mp_int* t2;
@@ -452,6 +460,11 @@ WOLFSSL_API
 int wc_ecc_init(ecc_key* key);
 WOLFSSL_API
 int wc_ecc_init_ex(ecc_key* key, void* heap, int devId);
+#ifdef HAVE_PKCS11
+WOLFSSL_API
+int wc_ecc_init_id(ecc_key* key, unsigned char* id, int len, void* heap,
+                   int devId);
+#endif
 #ifdef WOLFSSL_CUSTOM_CURVES
 WOLFSSL_LOCAL
 void wc_ecc_free_curve(const ecc_set_type* curve, void* heap);

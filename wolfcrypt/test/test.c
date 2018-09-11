@@ -20172,9 +20172,30 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
             /* reset devId */
             info->pk.rsa.key->devId = devIdArg;
         }
+    #ifdef WOLFSSL_KEY_GEN
+        else if (info->pk.type == WC_PK_TYPE_RSA_KEYGEN) {
+            info->pk.rsakg.key->devId = INVALID_DEVID;
+
+            ret = wc_MakeRsaKey(info->pk.rsakg.key, info->pk.rsakg.size,
+                info->pk.rsakg.e, info->pk.rsakg.rng);
+
+            /* reset devId */
+            info->pk.rsakg.key->devId = devIdArg;
+        }
+    #endif
     #endif /* !NO_RSA */
     #ifdef HAVE_ECC
-        if (info->pk.type == WC_PK_TYPE_ECDSA_SIGN) {
+        if (info->pk.type == WC_PK_TYPE_EC_KEYGEN) {
+            /* set devId to invalid, so software is used */
+            info->pk.eckg.key->devId = INVALID_DEVID;
+
+            ret = wc_ecc_make_key_ex(info->pk.eckg.rng, info->pk.eckg.size,
+                info->pk.eckg.key, info->pk.eckg.curveId);
+
+            /* reset devId */
+            info->pk.eckg.key->devId = devIdArg;
+        }
+        else if (info->pk.type == WC_PK_TYPE_ECDSA_SIGN) {
             /* set devId to invalid, so software is used */
             info->pk.eccsign.key->devId = INVALID_DEVID;
 
@@ -20211,7 +20232,53 @@ static int myCryptoDevCb(int devIdArg, wc_CryptoInfo* info, void* ctx)
         }
     #endif /* HAVE_ECC */
     }
+    else if (info->algo_type == WC_ALGO_TYPE_CIPHER) {
+    #if !defined(NO_AES) && defined(HAVE_AESGCM)
+        if (info->cipher.type == WC_CIPHER_AES_GCM) {
 
+            if (info->cipher.enc) {
+                /* set devId to invalid, so software is used */
+                info->cipher.aesgcm_enc.aes->devId = INVALID_DEVID;
+
+                ret = wc_AesGcmEncrypt(
+                    info->cipher.aesgcm_enc.aes,
+                    info->cipher.aesgcm_enc.out,
+                    info->cipher.aesgcm_enc.in,
+                    info->cipher.aesgcm_enc.sz,
+                    info->cipher.aesgcm_enc.iv,
+                    info->cipher.aesgcm_enc.ivSz,
+                    info->cipher.aesgcm_enc.authTag,
+                    info->cipher.aesgcm_enc.authTagSz,
+                    info->cipher.aesgcm_enc.authIn,
+                    info->cipher.aesgcm_enc.authInSz);
+
+                /* reset devId */
+                info->cipher.aesgcm_enc.aes->devId = devIdArg;
+            }
+            else {
+                /* set devId to invalid, so software is used */
+                info->cipher.aesgcm_dec.aes->devId = INVALID_DEVID;
+
+                ret = wc_AesGcmDecrypt(
+                    info->cipher.aesgcm_dec.aes,
+                    info->cipher.aesgcm_dec.out,
+                    info->cipher.aesgcm_dec.in,
+                    info->cipher.aesgcm_dec.sz,
+                    info->cipher.aesgcm_dec.iv,
+                    info->cipher.aesgcm_dec.ivSz,
+                    info->cipher.aesgcm_dec.authTag,
+                    info->cipher.aesgcm_dec.authTagSz,
+                    info->cipher.aesgcm_dec.authIn,
+                    info->cipher.aesgcm_dec.authInSz);
+
+                /* reset devId */
+                info->cipher.aesgcm_dec.aes->devId = devIdArg;
+            }
+        }
+    #endif /* !NO_AES && HAVE_AESGCM */
+    }
+
+    (void)devIdArg;
     (void)myCtx;
 
     return ret;
@@ -20236,6 +20303,10 @@ int cryptodev_test(void)
 #ifdef HAVE_ECC
     if (ret == 0)
         ret = ecc_test();
+#endif
+#if !defined(NO_AES) && defined(HAVE_AESGCM)
+    if (ret == 0)
+        ret = aesgcm_test();
 #endif
 
     /* reset devId */

@@ -3541,6 +3541,21 @@ AC_ARG_WITH([libz],
 AM_CONDITIONAL([BUILD_LIBZ], [test "x$ENABLED_LIBZ" = "xyes"])
 
 
+# PKCS#11
+AC_ARG_ENABLE([pkcs11],
+    [AS_HELP_STRING([--enable-pkcs11],[Enable pkcs11 access (default: disabled)])],
+    [ ENABLED_PKCS11=$enableval ],
+    [ ENABLED_PKCS11=no ]
+    )
+
+if test "x$ENABLED_PKCS11" = "xyes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_PKCS11 -DHAVE_WOLF_BIGINT"
+    LIBS="$LIBS -ldl"
+fi
+AM_CONDITIONAL([BUILD_PKCS11], [test "x$ENABLED_PKCS11" = "xyes"])
+
+
 # cavium
 trycaviumdir=""
 AC_ARG_WITH([cavium],
@@ -4090,6 +4105,10 @@ AC_ARG_ENABLE([cryptodev],
     [ ENABLED_CRYPTODEV=no ]
     )
 
+if test "x$ENABLED_PKCS11" = "xyes"
+then
+    ENABLED_CRYPTODEV=yes
+fi
 if test "$ENABLED_CRYPTODEV" = "yes"
 then
     AM_CFLAGS="$AM_CFLAGS -DWOLF_CRYPTO_DEV"
@@ -4704,6 +4723,7 @@ echo "   * User Crypto:                $ENABLED_USER_CRYPTO"
 echo "   * Fast RSA:                   $ENABLED_FAST_RSA"
 echo "   * Single Precision:           $ENABLED_SP"
 echo "   * Async Crypto:               $ENABLED_ASYNCCRYPT"
+echo "   * PKCS#11:                    $ENABLED_PKCS11"
 echo "   * Cavium:                     $ENABLED_CAVIUM"
 echo "   * ARM ASM:                    $ENABLED_ARMASM"
 echo "   * AES Key Wrap:               $ENABLED_AESKEYWRAP"
