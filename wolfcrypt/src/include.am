@@ -52,7 +52,6 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/arm/armv8-aes.c \
               wolfcrypt/src/port/arm/armv8-sha256.c \
               wolfcrypt/src/port/nxp/ksdk_port.c \
-              wolfcrypt/src/port/atmel/atmel.c \
               wolfcrypt/src/port/atmel/README.md \
               wolfcrypt/src/port/xilinx/xil-sha3.c \
               wolfcrypt/src/port/xilinx/xil-aesgcm.c \
@@ -95,4 +94,8 @@ src_libwolfssl_la_SOURCES += wolfcrypt/src/port/intel/quickassist.c
 src_libwolfssl_la_SOURCES += wolfcrypt/src/port/intel/quickassist_mem.c
 
 EXTRA_DIST += wolfcrypt/src/port/intel/README.md
+endif
+
+if BUILD_CRYPTOAUTHLIB
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/atmel/atmel.c
 endif
