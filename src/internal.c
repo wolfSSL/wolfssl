@@ -1698,7 +1698,7 @@ void InitCiphers(WOLFSSL* ssl)
     ssl->encrypt.chacha = NULL;
     ssl->decrypt.chacha = NULL;
 #endif
-#ifdef HAVE_POLY1305
+#if defined(HAVE_POLY1305) && defined(HAVE_ONE_TIME_AUTH)
     ssl->auth.poly1305 = NULL;
 #endif
     ssl->encrypt.setup = 0;
@@ -1757,7 +1757,7 @@ void FreeCiphers(WOLFSSL* ssl)
     XFREE(ssl->encrypt.chacha, ssl->heap, DYNAMIC_TYPE_CIPHER);
     XFREE(ssl->decrypt.chacha, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
-#ifdef HAVE_POLY1305
+#if defined(HAVE_POLY1305) && defined(HAVE_ONE_TIME_AUTH)
     XFREE(ssl->auth.poly1305, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
 #ifdef HAVE_IDEA
@@ -8081,6 +8081,10 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX)
     x509->subject.rawLen = min(dCert->subjectRawLen, sizeof(x509->subject.raw));
     XMEMCPY(x509->subject.raw, dCert->subjectRaw, x509->subject.rawLen);
+#ifdef WOLFSSL_CERT_EXT
+    x509->issuer.rawLen = min(dCert->issuerRawLen, sizeof(x509->issuer.raw));
+    XMEMCPY(x509->issuer.raw, dCert->issuerRaw, x509->issuer.rawLen);
+#endif
 #endif
 
     XMEMCPY(x509->serial, dCert->serial, EXTERNAL_SERIAL_SIZE);

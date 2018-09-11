@@ -673,7 +673,7 @@ struct DecodedCert {
     int     beforeDateLen;
     byte*   afterDate;
     int     afterDateLen;
-#ifdef HAVE_PKCS7
+#if defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT)
     byte*   issuerRaw;               /* pointer to issuer inside source */
     int     issuerRawLen;
 #endif
@@ -701,6 +701,9 @@ struct DecodedCert {
     char*   subjectOU;
     int     subjectOULen;
     char    subjectOUEnc;
+    char*   subjectSND;
+    int     subjectSNDLen;
+    char    subjectSNDEnc;
 #ifdef WOLFSSL_CERT_EXT
     char*   subjectBC;
     int     subjectBCLen;
@@ -966,9 +969,9 @@ WOLFSSL_LOCAL void FreeDer(DerBuffer** der);
 
 enum cert_enums {
 #ifdef WOLFSSL_CERT_EXT
-    NAME_ENTRIES    =  9,
+    NAME_ENTRIES    =  10,
 #else
-    NAME_ENTRIES    =  8,
+    NAME_ENTRIES    =  9,
 #endif
     JOINT_LEN       =  2,
     EMAIL_JOINT_LEN =  9,

@@ -154,7 +154,7 @@ typedef struct EncryptedInfo {
     char     name[NAME_SZ];    /* cipher name, such as "DES-CBC" */
     byte     iv[IV_SZ];        /* salt or encrypted IV */
 
-    int      set:1;            /* if encryption set */
+    word16   set:1;            /* if encryption set */
 } EncryptedInfo;
 
 
@@ -204,6 +204,8 @@ typedef struct CertName {
     char unitEnc;
     char commonName[CTC_NAME_SIZE];
     char commonNameEnc;
+    char serialDev[CTC_NAME_SIZE];
+    char serialDevEnc;
 #ifdef WOLFSSL_CERT_EXT
     char busCat[CTC_NAME_SIZE];
     char busCatEnc;
@@ -297,7 +299,6 @@ WOLFSSL_API int wc_MakeSelfCert(Cert*, byte* derBuffer, word32 derSz, RsaKey*,
                              WC_RNG*);
 WOLFSSL_API int wc_SetIssuer(Cert*, const char*);
 WOLFSSL_API int wc_SetSubject(Cert*, const char*);
-WOLFSSL_API int wc_SetSubjectRaw(Cert*, const byte* der, int derSz);
 #ifdef WOLFSSL_ALT_NAMES
     WOLFSSL_API int wc_SetAltNames(Cert*, const char*);
 #endif
@@ -324,6 +325,8 @@ WOLFSSL_API int wc_SetSubjectKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey,
                                                 ecc_key *eckey);
 WOLFSSL_API int wc_SetSubjectKeyId(Cert *cert, const char* file);
 WOLFSSL_API int wc_GetSubjectRaw(byte **subjectRaw, Cert *cert);
+WOLFSSL_API int wc_SetSubjectRaw(Cert* cert, const byte* der, int derSz);
+WOLFSSL_API int wc_SetIssuerRaw(Cert* cert, const byte* der, int derSz);
 
 #ifdef HAVE_NTRU
 WOLFSSL_API int wc_SetSubjectKeyIdFromNtruPublicKey(Cert *cert, byte *ntruKey,

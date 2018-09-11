@@ -3016,8 +3016,9 @@ void wolfSSL_CertManagerFree(WOLFSSL_CERT_MANAGER* cm)
             if (cm->ocsp)
                 FreeOCSP(cm->ocsp, 1);
             XFREE(cm->ocspOverrideURL, cm->heap, DYNAMIC_TYPE_URL);
-        #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
-         || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+        #if !defined(NO_WOLFSSL_SERVER) && \
+            (defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+             defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2))
             if (cm->ocsp_stapling)
                 FreeOCSP(cm->ocsp_stapling, 1);
         #endif
@@ -4303,8 +4304,13 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
     int cnt = 0;
 #endif
 
+    if ((type == CA_TYPE) && (ctx == NULL)) {
+        WOLFSSL_MSG("Need context for CA load");
+        return BAD_FUNC_ARG;
+    }
+
     /* we may have a user cert chain, try to consume */
-    if (type == CERT_TYPE && info->consumed < sz) {
+    if ((type == CERT_TYPE || type == CA_TYPE) && (info->consumed < sz)) {
     #ifdef WOLFSSL_SMALL_STACK
         byte   staticBuffer[1];                 /* force heap usage */
     #else
@@ -4348,7 +4354,8 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 if (format == WOLFSSL_FILETYPE_ASN1) {
                     /* get length of der (read sequence) */
                     word32 inOutIdx = 0;
-                    if (GetSequence(buff + consumed, &inOutIdx, &length, remain) < 0) {
+                    if (GetSequence(buff + consumed, &inOutIdx, &length,
+                            remain) < 0) {
                         ret = ASN_NO_PEM_HEADER;
                     }
                     length += inOutIdx; /* include leading sequence */
@@ -4379,7 +4386,16 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
                     if (used)
                         *used += info->consumed;
                 }
+
+                /* add CA's to certificate manager */
+                if (type == CA_TYPE) {
+                    /* verify CA unless user set to no verify */
+                    ret = AddCA(ctx->cm, &part, WOLFSSL_USER_CA,
+                        !ctx->verifyNone);
+                     gotOne = 0; /* don't exit loop for CA type */
+                }
             }
+
             FreeDer(&part);
 
             if (ret == ASN_NO_PEM_HEADER && gotOne) {
@@ -4406,21 +4422,22 @@ static int ProcessUserChain(WOLFSSL_CTX* ctx, const unsigned char* buff,
                 }
                 ret = AllocDer(&ssl->buffers.certChain, idx, type, heap);
                 if (ret == 0) {
-                    XMEMCPY(ssl->buffers.certChain->buffer, chainBuffer, idx);
+                    XMEMCPY(ssl->buffers.certChain->buffer, chainBuffer,
+                            idx);
                     ssl->buffers.weOwnCertChain = 1;
                 }
-#ifdef WOLFSSL_TLS13
+            #ifdef WOLFSSL_TLS13
                 ssl->buffers.certChainCnt = cnt;
-#endif
+            #endif
             } else if (ctx) {
                 FreeDer(&ctx->certChain);
                 ret = AllocDer(&ctx->certChain, idx, type, heap);
                 if (ret == 0) {
                     XMEMCPY(ctx->certChain->buffer, chainBuffer, idx);
                 }
-#ifdef WOLFSSL_TLS13
+            #ifdef WOLFSSL_TLS13
                 ctx->certChainCnt = cnt;
-#endif
+            #endif
             }
         }
 
@@ -5085,7 +5102,7 @@ static int ProcessChainBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             WOLFSSL_MSG("Trying a CRL");
             if (PemToDer(buff + used, sz - used, CRL_TYPE, &der, NULL, &info,
                                                                    NULL) == 0) {
-                WOLFSSL_MSG("   Proccessed a CRL");
+                WOLFSSL_MSG("   Processed a CRL");
                 wolfSSL_CertManagerLoadCRLBuffer(ctx->cm, der->buffer,
                                                 der->length, WOLFSSL_FILETYPE_ASN1);
                 FreeDer(&der);
@@ -5095,26 +5112,26 @@ static int ProcessChainBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
         }
 #endif
 #endif
-        if (ret < 0)
-        {
-            if(consumed > 0) { /* Made progress in file */
+        if (ret < 0) {
+            if (consumed > 0) { /* Made progress in file */
                 WOLFSSL_ERROR(ret);
                 WOLFSSL_MSG("CA Parse failed, with progress in file.");
                 WOLFSSL_MSG("Search for other certs in file");
-            } else {
+            }
+            else {
                 WOLFSSL_MSG("CA Parse failed, no progress in file.");
                 WOLFSSL_MSG("Do not continue search for other certs in file");
                 break;
             }
-        } else {
+        }
+        else {
             WOLFSSL_MSG("   Processed a CA");
             gotOne = 1;
         }
         used += consumed;
     }
 
-    if(gotOne)
-    {
+    if (gotOne) {
         WOLFSSL_MSG("Processed at least one valid CA. Other stuff OK");
         return WOLFSSL_SUCCESS;
     }
@@ -5404,6 +5421,7 @@ int wolfSSL_CertManagerEnableOCSPStapling(WOLFSSL_CERT_MANAGER* cm)
 
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    #ifndef NO_WOLFSSL_SERVER
     if (cm->ocsp_stapling == NULL) {
         cm->ocsp_stapling = (WOLFSSL_OCSP*)XMALLOC(sizeof(WOLFSSL_OCSP),
                                                cm->heap, DYNAMIC_TYPE_OCSP);
@@ -5417,13 +5435,14 @@ int wolfSSL_CertManagerEnableOCSPStapling(WOLFSSL_CERT_MANAGER* cm)
             return WOLFSSL_FAILURE;
         }
     }
-    cm->ocspStaplingEnabled = 1;
 
     #ifndef WOLFSSL_USER_IO
         cm->ocspIOCb = EmbedOcspLookup;
         cm->ocspRespFreeCb = EmbedOcspRespFree;
         cm->ocspIOCtx = cm->heap;
     #endif /* WOLFSSL_USER_IO */
+    #endif /* NO_WOLFSSL_SERVER */
+    cm->ocspStaplingEnabled = 1;
 #else
     ret = NOT_COMPILED_IN;
 #endif
@@ -5733,17 +5752,18 @@ int ProcessFile(WOLFSSL_CTX* ctx, const char* fname, int format, int type,
     return ret;
 }
 
-
 /* loads file then loads each file in path, no c_rehash */
-int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
-                                     const char* path)
+int wolfSSL_CTX_load_verify_locations_ex(WOLFSSL_CTX* ctx, const char* file,
+                                     const char* path, word32 flags)
 {
     int ret = WOLFSSL_SUCCESS;
 #ifndef NO_WOLFSSL_DIR
     int fileRet;
+    int successCount = 0;
+    int failCount = 0;
 #endif
 
-    WOLFSSL_ENTER("wolfSSL_CTX_load_verify_locations");
+    WOLFSSL_MSG("wolfSSL_CTX_load_verify_locations_ex");
 
     if (ctx == NULL || (file == NULL && path == NULL) )
         return WOLFSSL_FAILURE;
@@ -5767,17 +5787,46 @@ int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
         /* try to load each regular file in path */
         fileRet = wc_ReadDirFirst(readCtx, path, &name);
         while (fileRet == 0 && name) {
+            WOLFSSL_MSG(name); /* log file name */
             ret = ProcessFile(ctx, name, WOLFSSL_FILETYPE_PEM, CA_TYPE,
                                                           NULL, 0, NULL);
-            if (ret != WOLFSSL_SUCCESS)
-                break;
+            if (ret != WOLFSSL_SUCCESS) {
+                /* handle flags for ignoring errors, skipping expired certs or
+                   by PEM certificate header error */
+                if ( (flags & WOLFSSL_LOAD_FLAG_IGNORE_ERR) ||
+                    ((flags & WOLFSSL_LOAD_FLAG_DATE_ERR_OKAY) &&
+                       (ret == ASN_BEFORE_DATE_E || ret == ASN_AFTER_DATE_E)) ||
+                    ((flags & WOLFSSL_LOAD_FLAG_PEM_CA_ONLY) &&
+                       (ret == ASN_NO_PEM_HEADER))) {
+                    /* Do not fail here if a certificate fails to load,
+                       continue to next file */
+                    ret = WOLFSSL_SUCCESS;
+                }
+                else {
+                    WOLFSSL_ERROR(ret);
+                    WOLFSSL_MSG("Load CA file failed, continuing");
+                    failCount++;
+                }
+            }
+            else {
+                successCount++;
+            }
             fileRet = wc_ReadDirNext(readCtx, path, &name);
         }
         wc_ReadDirClose(readCtx);
 
         /* pass directory read failure to response code */
-        if (ret == WOLFSSL_SUCCESS && fileRet != -1) {
+        if (fileRet != WC_READDIR_NOFILE) {
             ret = fileRet;
+        }
+        /* report failure if no files were loaded or there were failures */
+        else if (successCount == 0 || failCount > 0) {
+            /* use existing error code if exists */
+            if (ret == WOLFSSL_SUCCESS)
+                ret = WOLFSSL_FAILURE;
+        }
+        else {
+            ret = WOLFSSL_SUCCESS;
         }
 
     #ifdef WOLFSSL_SMALL_STACK
@@ -5785,10 +5834,21 @@ int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
     #endif
 #else
         ret = NOT_COMPILED_IN;
+        (void)flags;
 #endif
     }
 
     return ret;
+}
+
+#ifndef WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS
+#define WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS WOLFSSL_LOAD_FLAG_NONE
+#endif
+int wolfSSL_CTX_load_verify_locations(WOLFSSL_CTX* ctx, const char* file,
+                                     const char* path)
+{
+    return wolfSSL_CTX_load_verify_locations_ex(ctx, file, path,
+        WOLFSSL_LOAD_VERIFY_DEFAULT_FLAGS);
 }
 
 
@@ -10813,6 +10873,18 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     }
 
 
+    int wolfSSL_CTX_load_verify_chain_buffer_format(WOLFSSL_CTX* ctx,
+                                       const unsigned char* in,
+                                       long sz, int format)
+    {
+        WOLFSSL_ENTER("wolfSSL_CTX_load_verify_chain_buffer_format");
+        if (format == WOLFSSL_FILETYPE_PEM)
+            return ProcessChainBuffer(ctx, in, sz, format, CA_TYPE, NULL);
+        else
+            return ProcessBuffer(ctx, in, sz, format, CA_TYPE, NULL,NULL,1);
+    }
+
+
 #ifdef WOLFSSL_TRUST_PEER_CERT
     int wolfSSL_CTX_trust_peer_buffer(WOLFSSL_CTX* ctx,
                                        const unsigned char* in,
@@ -15700,7 +15772,7 @@ const char* wolfSSL_get_curve_name(WOLFSSL* ssl)
 /* returns a pointer to a new WOLFSSL_X509 structure on success and NULL on
  * fail
  */
-WOLFSSL_X509* wolfSSL_X509_new()
+WOLFSSL_X509* wolfSSL_X509_new(void)
 {
     WOLFSSL_X509* x509;
 
@@ -16164,7 +16236,7 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
      *
      * returns a pointer to the new structure created on success or NULL if fail
      */
-    WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_new()
+    WOLFSSL_ASN1_STRING* wolfSSL_ASN1_STRING_new(void)
     {
         WOLFSSL_ASN1_STRING* asn1;
 
@@ -18587,7 +18659,7 @@ int wolfSSL_X509_CRL_verify(WOLFSSL_X509_CRL* crl, WOLFSSL_EVP_PKEY* key)
 /* Subset of OPENSSL_EXTRA for PKEY operations PKEY free is needed by the
  * subset of X509 API */
 
-WOLFSSL_EVP_PKEY* wolfSSL_PKEY_new(){
+WOLFSSL_EVP_PKEY* wolfSSL_PKEY_new(void){
     return wolfSSL_PKEY_new_ex(NULL);
 }
 
@@ -21960,7 +22032,7 @@ int wolfSSL_RAND_bytes(unsigned char* buf, int num)
 }
 
 
-int wolfSSL_RAND_poll()
+int wolfSSL_RAND_poll(void)
 {
     byte  entropy[16];
     int  ret = 0;
@@ -28950,7 +29022,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
      *
      * returns NULL on failure, otherwise returns a new structure.
      */
-    WOLFSSL_X509_NAME* wolfSSL_X509_NAME_new()
+    WOLFSSL_X509_NAME* wolfSSL_X509_NAME_new(void)
     {
         WOLFSSL_X509_NAME* name;
 
@@ -29019,9 +29091,13 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         cName->unitEnc = CTC_UTF8;
         cName->commonName[0] = '\0';
         cName->commonNameEnc = CTC_UTF8;
+        cName->serialDev[0] = '\0';
+        cName->serialDevEnc = CTC_PRINTABLE;
     #ifdef WOLFSSL_CERT_EXT
         cName->busCat[0] = '\0';
         cName->busCatEnc = CTC_UTF8;
+        cName->serialDev[0] = '\0';
+        cName->serialDevEnc = CTC_PRINTABLE;
         cName->joiC[0] = '\0';
         cName->joiCEnc = CTC_PRINTABLE;
         cName->joiSt[0] = '\0';
@@ -29077,6 +29153,14 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         WOLFSSL_MSG("Copy Common Name");
         if (CopyX509NameEntry(cName->commonName, CTC_NAME_SIZE,
                     dn->fullName + dn->cnIdx, dn->cnLen)
+                    != SSL_SUCCESS) {
+            return BUFFER_E;
+        }
+
+        /* ASN_SERIAL_NUMBER */
+        WOLFSSL_MSG("Copy Serial Number of Device");
+        if (CopyX509NameEntry(cName->serialDev, CTC_NAME_SIZE,
+                    dn->fullName + dn->serialIdx, dn->serialLen)
                     != SSL_SUCCESS) {
             return BUFFER_E;
         }

@@ -21,8 +21,8 @@ EXTRA_DIST += \
 
 EXTRA_DIST += \
          certs/test/gen-testcerts.sh \
-		 certs/test/server-garbage.der \
-		 certs/test/server-garbage.pem \
+         certs/test/server-garbage.der \
+         certs/test/server-garbage.pem \
          certs/test/server-goodcn.pem \
          certs/test/server-goodcn.der \
          certs/test/server-goodalt.pem \
@@ -39,21 +39,24 @@ EXTRA_DIST += \
          certs/test/server-badaltnull.der \
          certs/test/server-badaltname.der \
          certs/test/server-badaltname.pem \
-		 certs/test/server-localhost.der \
-		 certs/test/server-localhost.pem \
+         certs/test/server-localhost.der \
+         certs/test/server-localhost.pem \
          certs/crl/server-goodaltCrl.pem \
          certs/crl/server-goodcnCrl.pem \
          certs/crl/server-goodaltwildCrl.pem \
          certs/crl/server-goodcnwildCrl.pem
 
 EXTRA_DIST += \
-		 certs/test/crit-cert.pem \
-		 certs/test/crit-key.pem \
-		 certs/test/dh1024.der \
-		 certs/test/dh1024.pem \
-		 certs/test/dh512.der \
-		 certs/test/dh512.pem \
-		 certs/test/digsigku.pem \
-		 certs/test/expired-ca.pem \
-		 certs/test/expired-cert.pem \
-		 certs/test/expired-key.pem
+         certs/test/crit-cert.pem \
+         certs/test/crit-key.pem \
+         certs/test/dh1024.der \
+         certs/test/dh1024.pem \
+         certs/test/dh512.der \
+         certs/test/dh512.pem \
+         certs/test/digsigku.pem
+
+EXTRA_DIST += \
+         certs/test/expired/expired-ca.pem \
+         certs/test/expired/expired-ca.der \
+         certs/test/expired/expired-cert.pem \
+         certs/test/expired/expired-cert.der

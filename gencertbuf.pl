@@ -69,6 +69,7 @@ my @fileList_2048 = (
         [ "./certs/rsa2048.der", "rsa_key_der_2048" ],
         [ "./certs/ca-key.der", "ca_key_der_2048" ],
         [ "./certs/ca-cert.der", "ca_cert_der_2048" ],
+        [ "./certs/ca-cert-chain.der", "ca_cert_chain_der" ],
         [ "./certs/server-key.der", "server_key_der_2048" ],
         [ "./certs/server-cert.der", "server_cert_der_2048" ]
         );

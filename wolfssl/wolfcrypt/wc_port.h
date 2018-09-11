@@ -357,6 +357,8 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
         char name[MAX_FILENAME_SZ];
     } ReadDirCtx;
 
+    #define WC_READDIR_NOFILE -1
+
     WOLFSSL_API int wc_ReadDirFirst(ReadDirCtx* ctx, const char* path, char** name);
     WOLFSSL_API int wc_ReadDirNext(ReadDirCtx* ctx, const char* path, char** name);
     WOLFSSL_API void wc_ReadDirClose(ReadDirCtx* ctx);

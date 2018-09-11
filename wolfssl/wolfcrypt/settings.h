@@ -502,9 +502,9 @@
                                      int type);
         extern void  nucleus_free(void* ptr, void* heap, int type);
 
-        #define XMALLOC(s, h, type)  nucleus_malloc
-        #define XREALLOC(p, n, h, t) nucleus_realloc
-        #define XFREE(p, h, type)    nucleus_free
+        #define XMALLOC(s, h, type)  nucleus_malloc((s), (h), (type))
+        #define XREALLOC(p, n, h, t) nucleus_realloc((p), (n), (h), (t))
+        #define XFREE(p, h, type)    nucleus_free((p), (h), (type))
     #endif
 #endif
 
@@ -1565,7 +1565,8 @@ extern void uITRON4_free(void *p) ;
 
 #if (defined(WOLFSSL_TLS13) && defined(WOLFSSL_NO_TLS12)) || \
     (!defined(HAVE_AES_CBC) && defined(NO_DES3) && defined(NO_RC4) && \
-     !defined(HAVE_IDEA) && !defined(HAVE_NULL_CIPHER) && !defined(HAVE_HC128))
+     !defined(HAVE_CAMELLIA) && !defined(HAVE_IDEA) && \
+     !defined(HAVE_NULL_CIPHER) && !defined(HAVE_HC128))
     #define WOLFSSL_AEAD_ONLY
 #endif
 
