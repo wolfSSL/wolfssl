@@ -502,9 +502,9 @@
                                      int type);
         extern void  nucleus_free(void* ptr, void* heap, int type);
 
-        #define XMALLOC(s, h, type)  nucleus_malloc
-        #define XREALLOC(p, n, h, t) nucleus_realloc
-        #define XFREE(p, h, type)    nucleus_free
+        #define XMALLOC(s, h, type)  nucleus_malloc((s), (h), (type))
+        #define XREALLOC(p, n, h, t) nucleus_realloc((p), (n), (h), (t))
+        #define XFREE(p, h, type)    nucleus_free((p), (h), (type))
     #endif
 #endif
 
