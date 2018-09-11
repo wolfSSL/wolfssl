@@ -4264,6 +4264,13 @@ static int GetName(DecodedCert* cert, int nameType)
             }
             else if (id == ASN_SERIAL_NUMBER) {
                 copy = WOLFSSL_SERIAL_NUMBER;
+                #ifdef WOLFSSL_CERT_GEN
+                    if (nameType == SUBJECT) {
+                        cert->subjectSND = (char*)&cert->source[cert->srcIdx];
+                        cert->subjectSNDLen = strLen;
+                        cert->subjectSNDEnc = b;
+                    }
+                #endif /* WOLFSSL_CERT_GEN */
                 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
                     dName->snIdx = cert->srcIdx;
                     dName->snLen = strLen;
