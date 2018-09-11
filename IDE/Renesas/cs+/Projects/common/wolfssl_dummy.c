@@ -51,13 +51,9 @@ int strncasecmp(const char *s1, const char * s2, unsigned int sz)
 	}
 	if(toupper(*s1) > toupper(*s2)){
 	    return 1;
-<<<<<<< HEAD
-    return 0;
-=======
 	}
     }
     return 0;	
->>>>>>> Refactor cs+ project
 }
     
 void abort(void) 

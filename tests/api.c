@@ -749,7 +749,9 @@ static void test_wolfSSL_CTX_load_verify_locations(void)
 #if !defined(NO_WOLFSSL_DIR) && !defined(WOLFSSL_TIRTOS)
     const char* load_certs_path = "./certs/external";
     const char* load_no_certs_path = "./examples";
+#ifndef NO_RSA
     const char* load_expired_path = "./certs/test/expired";
+#endif
 #endif
 
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
