@@ -788,6 +788,20 @@ fi
 AM_CONDITIONAL([BUILD_PKCALLBACKS],   [ test "x$ENABLED_PKCALLBACKS" = "xyes" ])
 
 
+AC_ARG_ENABLE([cryptoauthlib],
+    [AS_HELP_STRING([--enable-cryptoauthlib],[Enable CryptoAuthLib (default: disabled)])],
+    [ ENABLED_CRYPTOAUTHLIB=$enableval ],
+    [ ENABLED_CRYPTOAUTHLIB=no ]
+    )
+
+if test "$ENABLED_CRYPTOAUTHLIB" = "yes"
+then
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ATECC508A"
+fi
+
+AM_CONDITIONAL([BUILD_CRYPTOAUTHLIB],   [ test "x$ENABLED_CRYPTOAUTHLIB" = "xyes" ])
+
+
 # sniffer doesn't work in maxstrength mode
 if test "$ENABLED_SNIFFER" = "yes" && test "$ENABLED_MAXSTRENGTH" = "yes"
 then
