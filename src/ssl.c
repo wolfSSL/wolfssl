@@ -6286,7 +6286,7 @@ static int wolfSSL_SetTmpDH_file_wrapper(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
     file = XFOPEN(fname, "rb");
     if (file == XBADFILE) return WOLFSSL_BAD_FILE;
     if(XFSEEK(file, 0, XSEEK_END) != 0)
-        return WOLFSSL_BAD_FILE;;
+        return WOLFSSL_BAD_FILE;
     sz = XFTELL(file);
     XREWIND(file);
 
@@ -21522,7 +21522,7 @@ int wolfSSL_cmp_peer_cert_to_file(WOLFSSL* ssl, const char *fname)
             return WOLFSSL_BAD_FILE;
 
         if(XFSEEK(file, 0, XSEEK_END) != 0)
-            return WOLFSSL_BAD_FILE;;
+            return WOLFSSL_BAD_FILE;
         sz = XFTELL(file);
         XREWIND(file);
 
@@ -31556,7 +31556,7 @@ WOLFSSL_RSA* wolfSSL_d2i_RSAPrivateKey_bio(WOLFSSL_BIO *bio, WOLFSSL_RSA **out)
             extraBioMem = (unsigned char *)XMALLOC(extraBioMemSz, NULL,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
             if (extraBioMem == NULL) {
-                WOLFSSL_MSG("Malloc failure");;
+                WOLFSSL_MSG("Malloc failure");
                 XFREE((unsigned char*)extraBioMem, bio->heap,
                                                        DYNAMIC_TYPE_TMP_BUFFER);
                 XFREE((unsigned char*)bioMem, bio->heap,

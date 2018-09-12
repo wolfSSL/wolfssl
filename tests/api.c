@@ -7843,7 +7843,7 @@ static int test_wc_Des3_CbcEncryptDecrypt (void)
             ret = wc_Des3_CbcEncrypt(&des, cipher, NULL, sizeof(vector));
         }
         if (ret != BAD_FUNC_ARG) {
-            ret = WOLFSSL_FATAL_ERROR;;
+            ret = WOLFSSL_FATAL_ERROR;
         } else {
             ret = 0;
         }

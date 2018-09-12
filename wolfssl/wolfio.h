@@ -308,7 +308,7 @@
 /* IO API's */
 #ifdef HAVE_IO_TIMEOUT
     WOLFSSL_API  int wolfIO_SetBlockingMode(SOCKET_T sockfd, int non_blocking);
-    WOLFSSL_API void wolfIO_SetTimeout(int to_sec);;
+    WOLFSSL_API void wolfIO_SetTimeout(int to_sec);
     WOLFSSL_API  int wolfIO_Select(SOCKET_T sockfd, int to_sec);
 #endif
 WOLFSSL_API  int wolfIO_TcpConnect(SOCKET_T* sockfd, const char* ip,
