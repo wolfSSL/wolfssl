@@ -126,6 +126,7 @@ typedef union {
     #endif
 } WOLFSSL_Hasher;
 
+typedef struct WOLFSSL_EVP_PKEY_CTX WOLFSSL_EVP_PKEY_CTX;
 
 typedef struct WOLFSSL_EVP_MD_CTX {
     union {
@@ -133,6 +134,7 @@ typedef struct WOLFSSL_EVP_MD_CTX {
         Hmac hmac;
     } hash;
     unsigned char macType;
+    WOLFSSL_EVP_PKEY_CTX *pctx;
 } WOLFSSL_EVP_MD_CTX;
 
 
@@ -219,11 +221,11 @@ typedef struct WOLFSSL_EVP_CIPHER_CTX {
     int  lastUsed;
 } WOLFSSL_EVP_CIPHER_CTX;
 
-typedef struct  WOLFSSL_EVP_PKEY_CTX {
+struct  WOLFSSL_EVP_PKEY_CTX {
     WOLFSSL_EVP_PKEY *pkey;
     int op; /* operation */
     int padding;
-} WOLFSSL_EVP_PKEY_CTX;
+};
 
 typedef int WOLFSSL_ENGINE  ;
 typedef WOLFSSL_ENGINE ENGINE;

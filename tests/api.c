@@ -16796,6 +16796,148 @@ static void test_wolfSSL_EVP_MD_hmac_signing(void)
 }
 
 
+static void test_wolfSSL_EVP_MD_rsa_signing(void)
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
+    WOLFSSL_EVP_PKEY* privKey;
+    WOLFSSL_EVP_PKEY* pubKey;
+    const char testData[] = "Hi There";
+    WOLFSSL_EVP_MD_CTX mdCtx;
+    size_t checkSz = -1;
+    int sz = 2048 / 8;
+    const unsigned char* cp;
+    unsigned char* p;
+    unsigned char check[2048/8];
+
+    printf(testingFmt, "wolfSSL_EVP_MD_rsa_signing()");
+
+    cp = client_key_der_2048;
+    AssertNotNull((privKey = wolfSSL_d2i_PrivateKey(EVP_PKEY_RSA, NULL, &cp,
+                                                  sizeof_client_key_der_2048)));
+    p = (unsigned char *)client_keypub_der_2048;
+    AssertNotNull((pubKey = wolfSSL_d2i_PUBKEY(NULL, &p,
+                                               sizeof_client_keypub_der_2048)));
+
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    AssertIntEQ(wolfSSL_EVP_DigestSignInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
+                                                             NULL, privKey), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestSignUpdate(&mdCtx, testData,
+                                          (unsigned int)XSTRLEN(testData)), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, NULL, &checkSz), 1);
+    AssertIntEQ((int)checkSz, sz);
+    AssertIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, check, &checkSz), 1);
+    AssertIntEQ((int)checkSz,sz);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    AssertIntEQ(wolfSSL_EVP_DigestVerifyInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
+                                                              NULL, pubKey), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestVerifyUpdate(&mdCtx, testData,
+                                               (unsigned int)XSTRLEN(testData)),
+                1);
+    AssertIntEQ(wolfSSL_EVP_DigestVerifyFinal(&mdCtx, check, checkSz), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    AssertIntEQ(wolfSSL_EVP_DigestSignInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
+                                                             NULL, privKey), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestSignUpdate(&mdCtx, testData, 4), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, NULL, &checkSz), 1);
+    AssertIntEQ((int)checkSz, sz);
+    AssertIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, check, &checkSz), 1);
+    AssertIntEQ((int)checkSz, sz);
+    AssertIntEQ(wolfSSL_EVP_DigestSignUpdate(&mdCtx, testData + 4,
+                                      (unsigned int)XSTRLEN(testData) - 4), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, check, &checkSz), 1);
+    AssertIntEQ((int)checkSz, sz);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    AssertIntEQ(wolfSSL_EVP_DigestVerifyInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
+                                                              NULL, pubKey), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestVerifyUpdate(&mdCtx, testData, 4), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestVerifyUpdate(&mdCtx, testData + 4,
+                                           (unsigned int)XSTRLEN(testData) - 4),
+                1);
+    AssertIntEQ(wolfSSL_EVP_DigestVerifyFinal(&mdCtx, check, checkSz), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+    wolfSSL_EVP_PKEY_free(pubKey);
+    wolfSSL_EVP_PKEY_free(privKey);
+
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA */
+}
+
+
+static void test_wolfSSL_EVP_MD_ecc_signing(void)
+{
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ECC) && defined(USE_CERT_BUFFERS_256)
+    WOLFSSL_EVP_PKEY* privKey;
+    WOLFSSL_EVP_PKEY* pubKey;
+    const char testData[] = "Hi There";
+    WOLFSSL_EVP_MD_CTX mdCtx;
+    size_t checkSz = -1;
+    const unsigned char* cp;
+    unsigned char* p;
+    unsigned char check[2048/8];
+
+    printf(testingFmt, "wolfSSL_EVP_MD_ecc_signing()");
+
+    cp = ecc_clikey_der_256;
+    AssertNotNull((privKey = wolfSSL_d2i_PrivateKey(EVP_PKEY_EC, NULL, &cp,
+                                                   sizeof_ecc_clikey_der_256)));
+    p = (unsigned char *)ecc_clikeypub_der_256;
+    AssertNotNull((pubKey = wolfSSL_d2i_PUBKEY(NULL, &p,
+                                                sizeof_ecc_clikeypub_der_256)));
+
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    AssertIntEQ(wolfSSL_EVP_DigestSignInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
+                                                             NULL, privKey), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestSignUpdate(&mdCtx, testData,
+                                          (unsigned int)XSTRLEN(testData)), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, NULL, &checkSz), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, check, &checkSz), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    AssertIntEQ(wolfSSL_EVP_DigestVerifyInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
+                                                              NULL, pubKey), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestVerifyUpdate(&mdCtx, testData,
+                                               (unsigned int)XSTRLEN(testData)),
+                1);
+    AssertIntEQ(wolfSSL_EVP_DigestVerifyFinal(&mdCtx, check, checkSz), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    AssertIntEQ(wolfSSL_EVP_DigestSignInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
+                                                             NULL, privKey), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestSignUpdate(&mdCtx, testData, 4), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, NULL, &checkSz), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, check, &checkSz), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestSignUpdate(&mdCtx, testData + 4,
+                                      (unsigned int)XSTRLEN(testData) - 4), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestSignFinal(&mdCtx, check, &checkSz), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+    wolfSSL_EVP_MD_CTX_init(&mdCtx);
+    AssertIntEQ(wolfSSL_EVP_DigestVerifyInit(&mdCtx, NULL, wolfSSL_EVP_sha256(),
+                                                              NULL, pubKey), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestVerifyUpdate(&mdCtx, testData, 4), 1);
+    AssertIntEQ(wolfSSL_EVP_DigestVerifyUpdate(&mdCtx, testData + 4,
+                                           (unsigned int)XSTRLEN(testData) - 4),
+                1);
+    AssertIntEQ(wolfSSL_EVP_DigestVerifyFinal(&mdCtx, check, checkSz), 1);
+    AssertIntEQ(wolfSSL_EVP_MD_CTX_cleanup(&mdCtx), 1);
+
+    wolfSSL_EVP_PKEY_free(pubKey);
+    wolfSSL_EVP_PKEY_free(privKey);
+
+    printf(resultFmt, passed);
+#endif /* OPENSSL_EXTRA */
+}
+
+
 static void test_wolfSSL_CTX_add_extra_chain_cert(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
@@ -20957,6 +21099,8 @@ void ApiTest(void)
     test_wolfSSL_ctrl();
     test_wolfSSL_EVP_PKEY_new_mac_key();
     test_wolfSSL_EVP_MD_hmac_signing();
+    test_wolfSSL_EVP_MD_rsa_signing();
+    test_wolfSSL_EVP_MD_ecc_signing();
     test_wolfSSL_CTX_add_extra_chain_cert();
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     test_wolfSSL_ERR_peek_last_error_line();

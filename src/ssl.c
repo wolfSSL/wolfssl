@@ -6657,6 +6657,21 @@ WOLFSSL_EVP_PKEY* wolfSSL_d2i_PUBKEY(WOLFSSL_EVP_PKEY** out, unsigned char** in,
                 if (out != NULL) {
                     *out = pkey;
                 }
+
+                pkey->ownEcc = 1;
+                pkey->ecc = wolfSSL_EC_KEY_new();
+                if (pkey->ecc == NULL) {
+                    wolfSSL_EVP_PKEY_free(pkey);
+                    return NULL;
+                }
+
+                if (wolfSSL_EC_KEY_LoadDer_ex(pkey->ecc,
+                            (const unsigned char*)pkey->pkey.ptr,
+                            pkey->pkey_sz, WOLFSSL_EC_KEY_LOAD_PUBLIC) != 1) {
+                    wolfSSL_EVP_PKEY_free(pkey);
+                    return NULL;
+                }
+
                 return pkey;
             }
         }
@@ -12769,6 +12784,11 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         if ((out == NULL) || (in == NULL)) return WOLFSSL_FAILURE;
         WOLFSSL_ENTER("EVP_CIPHER_MD_CTX_copy_ex");
         XMEMCPY(out, in, sizeof(WOLFSSL_EVP_MD_CTX));
+        if (in->pctx != NULL) {
+            out->pctx = wolfSSL_EVP_PKEY_CTX_new(in->pctx->pkey, NULL);
+            if (out->pctx == NULL)
+                return WOLFSSL_FAILURE;
+        }
         return WOLFSSL_SUCCESS;
     }
 
@@ -12952,6 +12972,8 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
     int wolfSSL_EVP_MD_CTX_cleanup(WOLFSSL_EVP_MD_CTX* ctx)
     {
         WOLFSSL_ENTER("EVP_MD_CTX_cleanup");
+        if (ctx->pctx != NULL)
+            wolfSSL_EVP_PKEY_CTX_free(ctx->pctx);
         ForceZero(ctx, sizeof(*ctx));
         ctx->macType = 0xFF;
         return 1;
@@ -28518,8 +28540,15 @@ int wolfSSL_DSA_LoadDer(WOLFSSL_DSA* dsa, const unsigned char* derBuf, int derSz
 
 #ifdef HAVE_ECC
 /* return WOLFSSL_SUCCESS if success, WOLFSSL_FATAL_ERROR if error */
-int wolfSSL_EC_KEY_LoadDer(WOLFSSL_EC_KEY* key,
-                           const unsigned char* derBuf,  int derSz)
+int wolfSSL_EC_KEY_LoadDer(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
+                           int derSz)
+{
+    return wolfSSL_EC_KEY_LoadDer_ex(key, derBuf, derSz,
+                                     WOLFSSL_EC_KEY_LOAD_PRIVATE);
+}
+
+int wolfSSL_EC_KEY_LoadDer_ex(WOLFSSL_EC_KEY* key, const unsigned char* derBuf,
+                              int derSz, int opt)
 {
     word32 idx = 0;
     int    ret;
@@ -28531,9 +28560,21 @@ int wolfSSL_EC_KEY_LoadDer(WOLFSSL_EC_KEY* key,
         return WOLFSSL_FATAL_ERROR;
     }
 
-    ret = wc_EccPrivateKeyDecode(derBuf, &idx, (ecc_key*)key->internal, derSz);
+    if (opt == WOLFSSL_EC_KEY_LOAD_PRIVATE) {
+        ret = wc_EccPrivateKeyDecode(derBuf, &idx, (ecc_key*)key->internal,
+                                     derSz);
+    }
+    else {
+        ret = wc_EccPublicKeyDecode(derBuf, &idx, (ecc_key*)key->internal,
+                                    derSz);
+    }
     if (ret < 0) {
-        WOLFSSL_MSG("wc_EccPrivateKeyDecode failed");
+        if (opt == WOLFSSL_RSA_LOAD_PRIVATE) {
+            WOLFSSL_MSG("wc_EccPrivateKeyDecode failed");
+        }
+        else {
+            WOLFSSL_MSG("wc_EccPublicKeyDecode failed");
+        }
         return WOLFSSL_FATAL_ERROR;
     }
 
