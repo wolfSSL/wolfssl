@@ -1022,15 +1022,7 @@ extern void uITRON4_free(void *p) ;
                     #define HAVE_ECC224
                     #undef  NO_ECC256
                     #define HAVE_ECC384
-                #endif
-
-                /* enable features */
-                #undef  HAVE_CURVE25519
-                #define HAVE_CURVE25519
-                #undef  HAVE_ED25519
-                #define HAVE_ED25519
-                #undef  WOLFSSL_SHA512
-                #define WOLFSSL_SHA512
+                #endif          
             #endif
         #endif
     #endif
