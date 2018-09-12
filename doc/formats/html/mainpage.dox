@@ -14,8 +14,8 @@
     <br>
 
     \subsection website Useful Links
-    https://www.wolfssl.com/wolfSSL/Home.html - Main website<br>
-    https://www.wolfssl.com/wolfSSL/Docs-wolfssl-manual-17-wolfssl-api-reference.html - %wolfSSL Manual<br>
-    https://www.wolfssl.com/docs/wolfssl-manual/ch18/ - wolfCrypt Manual<br>
+    https://www.wolfssl.com/ - Main website<br>
+    https://www.wolfssl.com/docs/wolfssl-manual/ - %wolfSSL Manual<br>
+    https://www.wolfssl.com/docs/wolfssl-manual/ch10/ - wolfCrypt Usage Reference<br>
     https://github.com/wolfssl/wolfssl.git - Git repository
 */
