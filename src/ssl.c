@@ -27491,11 +27491,19 @@ int wolfSSL_i2d_ECDSA_SIG(const WOLFSSL_ECDSA_SIG *sig, unsigned char **pp)
     if (sig == NULL)
         return 0;
 
-    len = 2 + 2 + mp_leading_bit((mp_int*)sig->r->internal) +
-                  mp_unsigned_bin_size((mp_int*)sig->r->internal) +
-              2 + mp_leading_bit((mp_int*)sig->s->internal) +
-                  mp_unsigned_bin_size((mp_int*)sig->s->internal);
-    if (pp != NULL) {
+    /* ASN.1: SEQ + INT + INT
+     *   ASN.1 Integer must be a positive value - prepend zero if number has
+     *   top bit set.
+     */
+    len = 2 + mp_leading_bit((mp_int*)sig->r->internal) +
+              mp_unsigned_bin_size((mp_int*)sig->r->internal) +
+          2 + mp_leading_bit((mp_int*)sig->s->internal) +
+              mp_unsigned_bin_size((mp_int*)sig->s->internal);
+    /* Two bytes required for length if ASN.1 SEQ data greater than 127 bytes
+     * and less than 256 bytes.
+     */
+    len = 1 + ((len > 127) ? 2 : 1) + len;
+    if (pp != NULL && *pp != NULL) {
         if (StoreECC_DSA_Sig(*pp, &len, (mp_int*)sig->r->internal,
                                         (mp_int*)sig->s->internal) != MP_OKAY) {
             len = 0;
@@ -28230,13 +28238,17 @@ int wolfSSL_EVP_PKEY_type(int type)
 
 int wolfSSL_EVP_PKEY_id(const EVP_PKEY *pkey)
 {
-    return pkey->type;
+    if (pkey != NULL)
+        return pkey->type;
+    return 0;
 }
 
 
 int wolfSSL_EVP_PKEY_base_id(const EVP_PKEY *pkey)
 {
-    return EVP_PKEY_type(pkey->type);
+    if (pkey == NULL)
+        return NID_undef;
+    return wolfSSL_EVP_PKEY_type(pkey->type);
 }
 
 

@@ -16798,7 +16798,8 @@ static void test_wolfSSL_EVP_MD_hmac_signing(void)
 
 static void test_wolfSSL_EVP_MD_rsa_signing(void)
 {
-#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && defined(USE_CERT_BUFFERS_2048)
+#if defined(OPENSSL_EXTRA) && !defined(NO_RSA) && !defined(HAVE_USER_RSA) && \
+                                                  defined(USE_CERT_BUFFERS_2048)
     WOLFSSL_EVP_PKEY* privKey;
     WOLFSSL_EVP_PKEY* pubKey;
     const char testData[] = "Hi There";
@@ -16866,7 +16867,7 @@ static void test_wolfSSL_EVP_MD_rsa_signing(void)
     wolfSSL_EVP_PKEY_free(privKey);
 
     printf(resultFmt, passed);
-#endif /* OPENSSL_EXTRA */
+#endif
 }
 
 
@@ -16934,7 +16935,7 @@ static void test_wolfSSL_EVP_MD_ecc_signing(void)
     wolfSSL_EVP_PKEY_free(privKey);
 
     printf(resultFmt, passed);
-#endif /* OPENSSL_EXTRA */
+#endif
 }
 
 

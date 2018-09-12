@@ -1391,7 +1391,8 @@ int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sig,
         case EVP_PKEY_RSA: {
             unsigned int sigSz;
             int          nid = md2nid(ctx->macType);
-            if (nid < 0) break;
+            if (nid < 0)
+                break;
             ret = wolfSSL_RSA_sign(nid, digest, hashLen, sig, &sigSz,
                                    ctx->pctx->pkey->rsa);
             if (ret >= 0)
