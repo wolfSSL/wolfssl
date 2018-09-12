@@ -992,7 +992,7 @@ typedef struct tm wolfssl_tm;
 WOLFSSL_LOCAL int GetTimeString(byte* date, int format, char* buf, int len);
 #endif
 #if !defined(NO_ASN_TIME) && defined(HAVE_PKCS7)
-WOLFSSL_LOCAL int GetAsnTimeString(byte* buf, word32 len);
+WOLFSSL_LOCAL int GetAsnTimeString(void* currTime, byte* buf, word32 len);
 #endif
 WOLFSSL_LOCAL int ExtractDate(const unsigned char* date, unsigned char format,
                                                  wolfssl_tm* certTime, int* idx);

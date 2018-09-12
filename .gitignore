@@ -115,6 +115,7 @@ pkcs7signedData_ECDSA_SHA384.der
 pkcs7signedData_ECDSA_SHA512.der
 pkcs7envelopedDataDES3.der
 pkcs7envelopedDataAES128CBC.der
+pkcs7envelopedDataAES128CBC_KEKRI.der
 pkcs7envelopedDataAES192CBC.der
 pkcs7envelopedDataAES256CBC.der
 diff

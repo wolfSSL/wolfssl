@@ -4863,10 +4863,12 @@ int GetTimeString(byte* date, int format, char* buf, int len)
 
 #if !defined(NO_ASN_TIME) && defined(HAVE_PKCS7)
 
-/* set current time string, either UTC or GeneralizedTime */
-int GetAsnTimeString(byte* buf, word32 len)
+/* Set current time string, either UTC or GeneralizedTime.
+ * (void*) tm should be a pointer to time_t, output is placed in buf.
+ *
+ * Return time string length placed in buf on success, negative on error */
+int GetAsnTimeString(void* currTime, byte* buf, word32 len)
 {
-    time_t currTime;
     struct tm* ts      = NULL;
     struct tm* tmpTime = NULL;
 #if defined(NEED_TMP_TIME)
@@ -4884,8 +4886,7 @@ int GetAsnTimeString(byte* buf, word32 len)
     if (buf == NULL || len == 0)
         return BAD_FUNC_ARG;
 
-    currTime = XTIME(0);
-    ts = (struct tm *)XGMTIME(&currTime, tmpTime);
+    ts = (struct tm *)XGMTIME(currTime, tmpTime);
     if (ts == NULL){
         WOLFSSL_MSG("failed to get time data.");
         return ASN_TIME_E;
