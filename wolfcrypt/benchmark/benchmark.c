@@ -953,7 +953,8 @@ static void bench_stats_asym_finish(const char* algo, int strength,
 
     /* format and print to terminal */
     if (csv_format == 1) {
-        if (csv_header_count == 0) {
+        /* only print out header once */
+        if (csv_header_count == 1) {
             printf("\nAsymmetric Ciphers:\n\n");
             printf("Algorithm,avg ms,ops/sec,\n");
             csv_header_count++;
@@ -5021,6 +5022,7 @@ int main(int argc, char** argv)
 #endif
         else if (string_matches(argv[1], "-csv")) {
             csv_format = 1;
+            csv_header_count = 1;
         }
         else if (argv[1][0] == '-') {
             optMatched = 0;
