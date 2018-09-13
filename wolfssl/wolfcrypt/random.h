@@ -66,8 +66,8 @@
 #endif
 
 /* make sure Hash DRBG is enabled, unless WC_NO_HASHDRBG is defined
-    or CUSTOM_RAND_GENERATE_BLOCK is defined*/
-#if !defined(WC_NO_HASHDRBG) || !defined(CUSTOM_RAND_GENERATE_BLOCK)
+    or CUSTOM_RAND_GENERATE_BLOCK is defined */
+#if !defined(WC_NO_HASHDRBG) && !defined(CUSTOM_RAND_GENERATE_BLOCK)
     #undef  HAVE_HASHDRBG
     #define HAVE_HASHDRBG
     #ifndef WC_RESEED_INTERVAL
@@ -106,7 +106,7 @@
     #include <wolfssl/wolfcrypt/sha256.h>
 #elif defined(HAVE_WNR)
      /* allow whitewood as direct RNG source using wc_GenerateSeed directly */
-#else
+#elif !defined(WC_NO_RNG)
     #error No RNG source defined!
 #endif
 
