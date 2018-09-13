@@ -32,7 +32,6 @@
 #define XABORT() abort()
 #endif
 
-
 #ifndef WOLFSSL_PASSTHRU_ERR
 #define Fail(description, result) do {                                         \
     printf("\nERROR - %s line %d failed with:", __FILE__, __LINE__);           \
