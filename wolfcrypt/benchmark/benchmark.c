@@ -422,6 +422,9 @@ static const bench_alg bench_other_opt[] = {
     #define SHOW_INTEL_CYCLES(b, n, s) \
         XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), " Cycles per byte = %6.2f\n", \
             count == 0 ? 0 : (float)total_cycles / ((word64)count*s))
+    #define SHOW_INTEL_CYCLES_CSV(b, n, s) \
+        XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), "%.2f,\n", \
+            count == 0 ? 0 : (float)total_cycles / ((word64)count*s))
 #elif defined(LINUX_CYCLE_COUNT)
     #include <linux/perf_event.h>
     #include <sys/syscall.h>
@@ -448,12 +451,16 @@ static const bench_alg bench_other_opt[] = {
     #define SHOW_INTEL_CYCLES(b, n, s) \
         XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), " Cycles per byte = %6.2f\n", \
             (float)total_cycles / (count*s))
+    #define SHOW_INTEL_CYCLES_CSV(b, n, s) \
+        XSNPRINTF(b + XSTRLEN(b), n - XSTRLEN(b), "%.2f,\n", \
+            (float)total_cycles / (count*s))
 
 #else
     #define INIT_CYCLE_COUNTER
     #define BEGIN_INTEL_CYCLES
     #define END_INTEL_CYCLES
     #define SHOW_INTEL_CYCLES(b, n, s)     b[XSTRLEN(b)] = '\n'
+    #define SHOW_INTEL_CYCLES_CSV(b, n, s)     b[XSTRLEN(b)] = '\n'
 #endif
 
 /* determine benchmark buffer to use (if NO_FILESYSTEM) */
@@ -695,6 +702,10 @@ static int digest_stream = 1;
 static int rsa_sign_verify = 0;
 #endif
 
+/* Don't print out in CSV format by default */
+static int csv_format = 0;
+static int csv_header_count = 0;
+
 /* for compatibility */
 #define BENCH_SIZE bench_size
 
@@ -902,10 +913,16 @@ static void bench_stats_sym_finish(const char* desc, int doAsync, int count,
         persec = (1 / total) * blocks;
     }
 
-    XSNPRINTF(msg, sizeof(msg), "%-16s%s %5.0f %s took %5.3f seconds, %8.3f %s/s",
+    /* format and print to terminal */
+    if (csv_format == 1) {
+        XSNPRINTF(msg, sizeof(msg), "%s,%.3f,", desc, persec);
+        SHOW_INTEL_CYCLES_CSV(msg, sizeof(msg), countSz);
+    } else {
+        XSNPRINTF(msg, sizeof(msg), "%-16s%s %5.0f %s took %5.3f seconds, %8.3f %s/s",
         desc, BENCH_ASYNC_GET_NAME(doAsync), blocks, blockType, total,
         persec, blockType);
-    SHOW_INTEL_CYCLES(msg, sizeof(msg), countSz);
+        SHOW_INTEL_CYCLES(msg, sizeof(msg), countSz);
+    }
     printf("%s", msg);
 
     /* show errors */
@@ -934,9 +951,20 @@ static void bench_stats_asym_finish(const char* algo, int strength,
     opsSec = count / total;    /* ops second */
     milliEach = each * 1000;   /* milliseconds */
 
-    printf("%-6s %5d %-9s %s %6d ops took %5.3f sec, avg %5.3f ms,"
+    /* format and print to terminal */
+    if (csv_format == 1) {
+        /* only print out header once */
+        if (csv_header_count == 1) {
+            printf("\nAsymmetric Ciphers:\n\n");
+            printf("Algorithm,avg ms,ops/sec,\n");
+            csv_header_count++;
+        }
+        printf("%s %d %s,%.3f,%.3f,\n", algo, strength, desc, milliEach, opsSec);
+    } else {
+        printf("%-6s %5d %-9s %s %6d ops took %5.3f sec, avg %5.3f ms,"
         " %.3f ops/sec\n", algo, strength, desc, BENCH_ASYNC_GET_NAME(doAsync),
         count, total, milliEach, opsSec);
+    }
 
     /* show errors */
     if (ret < 0) {
@@ -1477,8 +1505,16 @@ int benchmark_init(void)
     wolfSSL_Debugging_ON();
 #endif
 
-    printf("wolfCrypt Benchmark (block bytes %d, min %.1f sec each)\n",
+    if (csv_format == 1) {
+        printf("wolfCrypt Benchmark (block bytes %d, min %.1f sec each)\n",
         BENCH_SIZE, BENCH_MIN_RUNTIME_SEC);
+        printf("This format allows you to easily copy the output to a csv file.");
+        printf("\n\nSymmetric Ciphers:\n\n");
+        printf("Algorithm,MB/s,Cycles per byte,\n");
+    } else {
+        printf("wolfCrypt Benchmark (block bytes %d, min %.1f sec each)\n",
+        BENCH_SIZE, BENCH_MIN_RUNTIME_SEC);
+    }
 
 #ifdef HAVE_WNR
     ret = wc_InitNetRandom(wnrConfigFile, NULL, 5000);
@@ -4910,6 +4946,7 @@ static void Usage(void)
 
     printf("benchmark\n");
     printf("-?          Help, print this usage\n");
+    printf("-csv        Print terminal output in csv format\n");
     printf("-base10     Display bytes as power of 10 (eg 1 kB = 1000 Bytes)\n");
 #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
     printf("-no_aad     No additional authentication data passed.\n");
@@ -4983,6 +5020,10 @@ int main(int argc, char** argv)
         else if (string_matches(argv[1], "-rsa_sign"))
             rsa_sign_verify = 1;
 #endif
+        else if (string_matches(argv[1], "-csv")) {
+            csv_format = 1;
+            csv_header_count = 1;
+        }
         else if (argv[1][0] == '-') {
             optMatched = 0;
 #ifndef WOLFSSL_BENCHMARK_ALL
