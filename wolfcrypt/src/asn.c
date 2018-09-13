@@ -12920,7 +12920,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     }
 
     /* key header */
-    ret = CheckBitString(input, inOutIdx, NULL, inSz, 1, NULL);
+    ret = CheckBitString(input, inOutIdx, &length, inSz, 1, NULL);
     if (ret != 0)
         return ret;
 
@@ -12929,6 +12929,8 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                                                             curve_id) != 0) {
         return ASN_ECC_KEY_E;
     }
+
+    *inOutIdx += length;
 
     return 0;
 }

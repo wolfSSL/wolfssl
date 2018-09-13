@@ -126,6 +126,7 @@ typedef union {
     #endif
 } WOLFSSL_Hasher;
 
+typedef struct WOLFSSL_EVP_PKEY_CTX WOLFSSL_EVP_PKEY_CTX;
 
 typedef struct WOLFSSL_EVP_MD_CTX {
     union {
@@ -133,6 +134,7 @@ typedef struct WOLFSSL_EVP_MD_CTX {
         Hmac hmac;
     } hash;
     unsigned char macType;
+    WOLFSSL_EVP_PKEY_CTX *pctx;
 } WOLFSSL_EVP_MD_CTX;
 
 
@@ -219,11 +221,11 @@ typedef struct WOLFSSL_EVP_CIPHER_CTX {
     int  lastUsed;
 } WOLFSSL_EVP_CIPHER_CTX;
 
-typedef struct  WOLFSSL_EVP_PKEY_CTX {
+struct  WOLFSSL_EVP_PKEY_CTX {
     WOLFSSL_EVP_PKEY *pkey;
     int op; /* operation */
     int padding;
-} WOLFSSL_EVP_PKEY_CTX;
+};
 
 typedef int WOLFSSL_ENGINE  ;
 typedef WOLFSSL_ENGINE ENGINE;
@@ -268,6 +270,18 @@ WOLFSSL_API int wolfSSL_EVP_DigestSignUpdate(WOLFSSL_EVP_MD_CTX *ctx,
                                              const void *d, unsigned int cnt);
 WOLFSSL_API int wolfSSL_EVP_DigestSignFinal(WOLFSSL_EVP_MD_CTX *ctx,
                                             unsigned char *sig, size_t *siglen);
+
+WOLFSSL_API int wolfSSL_EVP_DigestVerifyInit(WOLFSSL_EVP_MD_CTX *ctx,
+                                             WOLFSSL_EVP_PKEY_CTX **pctx,
+                                             const WOLFSSL_EVP_MD *type,
+                                             WOLFSSL_ENGINE *e,
+                                             WOLFSSL_EVP_PKEY *pkey);
+WOLFSSL_API int wolfSSL_EVP_DigestVerifyUpdate(WOLFSSL_EVP_MD_CTX *ctx,
+                                               const void *d, size_t cnt);
+WOLFSSL_API int wolfSSL_EVP_DigestVerifyFinal(WOLFSSL_EVP_MD_CTX *ctx,
+                                              const unsigned char *sig,
+                                              size_t siglen);
+
 
 WOLFSSL_API int wolfSSL_EVP_BytesToKey(const WOLFSSL_EVP_CIPHER*,
                               const WOLFSSL_EVP_MD*, const unsigned char*,
@@ -364,6 +378,7 @@ WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_EVP_PKEY_new(void);
 WOLFSSL_API void wolfSSL_EVP_PKEY_free(WOLFSSL_EVP_PKEY*);
 WOLFSSL_API int wolfSSL_EVP_PKEY_size(WOLFSSL_EVP_PKEY *pkey);
 WOLFSSL_API int wolfSSL_EVP_PKEY_type(int type);
+WOLFSSL_API int wolfSSL_EVP_PKEY_id(const EVP_PKEY *pkey);
 WOLFSSL_API int wolfSSL_EVP_PKEY_base_id(const EVP_PKEY *pkey);
 WOLFSSL_API int wolfSSL_EVP_SignFinal(WOLFSSL_EVP_MD_CTX *ctx, unsigned char *sigret,
                   unsigned int *siglen, WOLFSSL_EVP_PKEY *pkey);
@@ -479,15 +494,18 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_MD_CTX_type    wolfSSL_EVP_MD_CTX_type
 #define EVP_MD_type        wolfSSL_EVP_MD_type
 
-#define EVP_DigestInit     wolfSSL_EVP_DigestInit
-#define EVP_DigestInit_ex  wolfSSL_EVP_DigestInit_ex
-#define EVP_DigestUpdate   wolfSSL_EVP_DigestUpdate
-#define EVP_DigestFinal    wolfSSL_EVP_DigestFinal
-#define EVP_DigestFinal_ex wolfSSL_EVP_DigestFinal_ex
-#define EVP_DigestSignInit   wolfSSL_EVP_DigestSignInit
-#define EVP_DigestSignUpdate wolfSSL_EVP_DigestSignUpdate
-#define EVP_DigestSignFinal  wolfSSL_EVP_DigestSignFinal
-#define EVP_BytesToKey     wolfSSL_EVP_BytesToKey
+#define EVP_DigestInit         wolfSSL_EVP_DigestInit
+#define EVP_DigestInit_ex      wolfSSL_EVP_DigestInit_ex
+#define EVP_DigestUpdate       wolfSSL_EVP_DigestUpdate
+#define EVP_DigestFinal        wolfSSL_EVP_DigestFinal
+#define EVP_DigestFinal_ex     wolfSSL_EVP_DigestFinal_ex
+#define EVP_DigestSignInit     wolfSSL_EVP_DigestSignInit
+#define EVP_DigestSignUpdate   wolfSSL_EVP_DigestSignUpdate
+#define EVP_DigestSignFinal    wolfSSL_EVP_DigestSignFinal
+#define EVP_DigestVerifyInit   wolfSSL_EVP_DigestVerifyInit
+#define EVP_DigestVerifyUpdate wolfSSL_EVP_DigestVerifyUpdate
+#define EVP_DigestVerifyFinal  wolfSSL_EVP_DigestVerifyFinal
+#define EVP_BytesToKey         wolfSSL_EVP_BytesToKey
 
 #define EVP_get_cipherbyname wolfSSL_EVP_get_cipherbyname
 #define EVP_get_digestbyname wolfSSL_EVP_get_digestbyname
@@ -549,6 +567,7 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_PKEY_size       wolfSSL_EVP_PKEY_size
 #define EVP_PKEY_type       wolfSSL_EVP_PKEY_type
 #define EVP_PKEY_base_id    wolfSSL_EVP_PKEY_base_id
+#define EVP_PKEY_id         wolfSSL_EVP_PKEY_id
 #define EVP_SignFinal       wolfSSL_EVP_SignFinal
 #define EVP_SignInit        wolfSSL_EVP_SignInit
 #define EVP_SignUpdate      wolfSSL_EVP_SignUpdate
