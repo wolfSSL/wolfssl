@@ -1,6 +1,6 @@
 /* wolfssl_dummy.c
  *
- * Copyright (C) 2006-2017 wolfSSL Inc.
+ * Copyright (C) 2006-2018 wolfSSL Inc.
  *
  * This file is part of wolfSSL.
  *
@@ -18,7 +18,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
- 
+
 typedef unsigned long time_t;
 
 #define YEAR 2018
@@ -37,5 +37,5 @@ int strncasecmp(const char *s1, const char * s2, unsigned int sz)
     for( ; sz>0; sz--)
         if(toupper(s1++) != toupper(s2++))
 	    return 1;
-    return 0;	
+    return 0;
 }

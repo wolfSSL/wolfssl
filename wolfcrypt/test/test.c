@@ -6802,6 +6802,7 @@ int aesgcm_test(void)
     /* FIPS, QAT and STM32F2/4 HW Crypto only support 12-byte IV */
 #if !defined(HAVE_FIPS) && \
         !defined(STM32_CRYPTO) && !defined(WOLFSSL_PIC32MZ_CRYPT) && \
+        !defined(FREESCALE_LTC) && !defined(FREESCALE_MMCAU) && \
         !defined(WOLFSSL_XILINX_CRYPT)
 
     #define ENABLE_NON_12BYTE_IV_TEST
@@ -10559,12 +10560,12 @@ int rsa_test(void)
 
 #ifdef USE_CERT_BUFFERS_1024
     bytes = (size_t)sizeof_client_key_der_1024;
-	if (bytes < (size_t)sizeof_client_cert_der_1024)
-		bytes = (size_t)sizeof_client_cert_der_1024;
+    if (bytes < (size_t)sizeof_client_cert_der_1024)
+        bytes = (size_t)sizeof_client_cert_der_1024;
 #elif defined(USE_CERT_BUFFERS_2048)
     bytes = (size_t)sizeof_client_key_der_2048;
-	if (bytes < (size_t)sizeof_client_cert_der_2048)
-		bytes = (size_t)sizeof_client_cert_der_2048;
+    if (bytes < (size_t)sizeof_client_cert_der_2048)
+        bytes = (size_t)sizeof_client_cert_der_2048;
 #else
 	bytes = FOURK_BUF;
 #endif
@@ -11682,7 +11683,7 @@ int dh_test(void)
 {
     int    ret;
     word32 bytes;
-    word32 idx = 0, privSz, pubSz, privSz2, pubSz2, agreeSz, agreeSz2;
+    word32 idx = 0, privSz, pubSz, privSz2, pubSz2;
     byte   tmp[1024];
     byte   priv[256];
     byte   pub[256];
@@ -11690,6 +11691,8 @@ int dh_test(void)
     byte   pub2[256];
     byte   agree[256];
     byte   agree2[256];
+    word32 agreeSz = (word32)sizeof(agree);
+    word32 agreeSz2 = (word32)sizeof(agree2);
     DhKey  key;
     DhKey  key2;
     WC_RNG rng;

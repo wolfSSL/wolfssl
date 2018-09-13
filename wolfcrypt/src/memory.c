@@ -60,6 +60,10 @@ Possible memory options:
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/logging.h>
 
+#if defined(WOLFSSL_DEBUG_MEMORY) && defined(WOLFSSL_DEBUG_MEMORY_PRINT)
+#include <stdio.h>
+#endif
+
 #ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
     static int gMemFailCountSeed;
     static int gMemFailCount;

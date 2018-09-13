@@ -608,8 +608,7 @@ static WC_INLINE int Sha512Update(wc_Sha512* sha512, const byte* data, word32 le
     }
     else
 #endif
-#if !defined(LITTLE_ENDIAN_ORDER) || defined(FREESCALE_MMCAU_SHA) || \
-                            defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
+#if !defined(LITTLE_ENDIAN_ORDER) || defined(HAVE_INTEL_AVX1) || defined(HAVE_INTEL_AVX2)
     {
         word32 blocksLen = len & ~(WC_SHA512_BLOCK_SIZE-1);
 
@@ -1035,7 +1034,7 @@ static word64 mBYTE_FLIP_MASK[] =  { 0x0001020304050607, 0x08090a0b0c0d0e0f };
     "addq	" L1 ", "#h"\n\t"                    \
     /* L2 = a */                                     \
     "movq	"#a", " L2 "\n\t"                    \
- 
+
 #define RND_1_8(a,b,c,d,e,f,g,h,i)                   \
     /* L3 = (a ^ b) & (b ^ c) */                     \
     "andq	" L4 ", " L3 "\n\t"                  \

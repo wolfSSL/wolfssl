@@ -1698,7 +1698,7 @@ void InitCiphers(WOLFSSL* ssl)
     ssl->encrypt.chacha = NULL;
     ssl->decrypt.chacha = NULL;
 #endif
-#ifdef HAVE_POLY1305
+#if defined(HAVE_POLY1305) && defined(HAVE_ONE_TIME_AUTH)
     ssl->auth.poly1305 = NULL;
 #endif
     ssl->encrypt.setup = 0;
@@ -1757,7 +1757,7 @@ void FreeCiphers(WOLFSSL* ssl)
     XFREE(ssl->encrypt.chacha, ssl->heap, DYNAMIC_TYPE_CIPHER);
     XFREE(ssl->decrypt.chacha, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
-#ifdef HAVE_POLY1305
+#if defined(HAVE_POLY1305) && defined(HAVE_ONE_TIME_AUTH)
     XFREE(ssl->auth.poly1305, ssl->heap, DYNAMIC_TYPE_CIPHER);
 #endif
 #ifdef HAVE_IDEA

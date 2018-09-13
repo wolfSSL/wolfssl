@@ -681,7 +681,7 @@ struct DecodedCert {
     byte*   subjectRaw;               /* pointer to subject inside source */
     int     subjectRawLen;
 #endif
-#ifdef WOLFSSL_CERT_GEN
+#if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
     /* easy access to subject info for other sign */
     char*   subjectSN;
     int     subjectSNLen;
@@ -733,7 +733,7 @@ struct DecodedCert {
 #ifdef WOLFSSL_CERT_EXT
     char    extCertPolicies[MAX_CERTPOL_NB][MAX_CERTPOL_SZ];
     int     extCertPoliciesNb;
-#endif /* WOLFSSL_CERT_EXT */
+#endif /* defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT) */
 
     Signer* ca;
     SignatureCtx sigCtx;

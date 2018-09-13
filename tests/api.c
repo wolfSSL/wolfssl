@@ -19569,8 +19569,8 @@ static void test_wc_GetPkcs8TraditionalOffset(void)
 
 static void test_wc_SetSubjectRaw(void)
 {
-#if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && \
-    defined(WOLFSSL_CERT_EXT) && defined(OPENSSL_EXTRA)
+#if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)
     char joiCertFile[] = "./certs/test/cert-ext-joi.pem";
     WOLFSSL_X509* x509;
     int peerCertSz;
@@ -19595,8 +19595,8 @@ static void test_wc_SetSubjectRaw(void)
 
 static void test_wc_GetSubjectRaw(void)
 {
-#if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && \
-    defined(WOLFSSL_CERT_EXT) && defined(OPENSSL_EXTRA)
+#if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)
     Cert cert;
     byte *subjectRaw;
 
@@ -19611,8 +19611,8 @@ static void test_wc_GetSubjectRaw(void)
 
 static void test_wc_SetIssuerRaw(void)
 {
-#if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && \
-    defined(WOLFSSL_CERT_EXT) && defined(OPENSSL_EXTRA)
+#if !defined(NO_ASN) && !defined(NO_FILESYSTEM) && defined(OPENSSL_EXTRA) && \
+    defined(WOLFSSL_CERT_GEN) && defined(WOLFSSL_CERT_EXT)
     char joiCertFile[] = "./certs/test/cert-ext-joi.pem";
     WOLFSSL_X509* x509;
     int peerCertSz;
