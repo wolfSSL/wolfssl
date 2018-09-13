@@ -20611,6 +20611,9 @@ static int test_wc_RNG_GenerateBlock(void)
 
     wc_FreeRng(&rng);
 
+    (void)rng; /* for WC_NO_RNG case */
+    (void)key;
+
     return ret;
 }
 #endif

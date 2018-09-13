@@ -510,6 +510,7 @@ static int ClientBenchmarkThroughput(WOLFSSL_CTX* ctx, char* host, word16 port,
             else {
                 err_sys("wc_InitRng failed");
             }
+            (void)rng; /* for WC_NO_RNG case */
         }
         else {
             err_sys("Client buffer malloc failed");

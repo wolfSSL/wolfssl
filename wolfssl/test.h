@@ -2858,6 +2858,7 @@ static WC_INLINE const char* mymktemp(char *tempfn, int len, int num)
     tempfn[len] = '\0';
 
     wc_FreeRng(&rng);
+    (void)rng; /* for WC_NO_RNG case */
 
     return tempfn;
 }
@@ -2973,6 +2974,7 @@ static WC_INLINE word16 GetRandomPort(void)
         port |= 0xC000; /* Make sure its in the 49152 - 65535 range */
         wc_FreeRng(&rng);
     }
+    (void)rng; /* for WC_NO_RNG case */
     return port;
 }
 
