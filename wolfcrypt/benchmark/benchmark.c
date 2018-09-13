@@ -460,6 +460,7 @@ static const bench_alg bench_other_opt[] = {
     #define BEGIN_INTEL_CYCLES
     #define END_INTEL_CYCLES
     #define SHOW_INTEL_CYCLES(b, n, s)     b[XSTRLEN(b)] = '\n'
+    #define SHOW_INTEL_CYCLES_CSV(b, n, s)     b[XSTRLEN(b)] = '\n'
 #endif
 
 /* determine benchmark buffer to use (if NO_FILESYSTEM) */
