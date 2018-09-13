@@ -654,7 +654,8 @@ OcspResponse* wolfSSL_d2i_OCSP_RESPONSE_bio(WOLFSSL_BIO* bio,
         i = XFTELL(bio->file);
         if (i < 0)
             return NULL;
-        XFSEEK(bio->file, 0, SEEK_END);
+        if(XFSEEK(bio->file, 0, SEEK_END) != 0)
+            return NULL;
         l = XFTELL(bio->file);
         if (l < 0)
             return NULL;

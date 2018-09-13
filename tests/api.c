@@ -441,6 +441,52 @@ static int test_wolfCrypt_Init(void)
 } /* END test_wolfCrypt_Init */
 
 /*----------------------------------------------------------------------------*
+ | Platform dependent function test
+ *----------------------------------------------------------------------------*/
+
+static int test_fileAccess()
+{
+    #if defined(WOLFSSL_TEST_PLATFORMDEPEND) && !defined(NO_FILESYSTEM)
+
+    const char *fname[] = {
+    svrCertFile, svrKeyFile, caCertFile, eccCertFile, eccKeyFile, eccRsaCertFile, 
+    cliCertFile, cliCertDerFile, cliKeyFile, ntruCertFile, ntruKeyFile, dhParamFile,
+    cliEccKeyFile, cliEccCertFile, caEccCertFile, edCertFile, edKeyFile,
+    cliEdCertFile, cliEdKeyFile, caEdCertFile, 
+    NULL
+    };
+
+    const char derfile[] = "./certs/server-cert.der";
+    XFILE f;
+    size_t sz;
+    byte *buff;
+    int i;
+
+    printf(testingFmt, "test_fileAccessr()");
+    
+    AssertTrue(XFOPEN("badfilename", "rb") == XBADFILE);
+
+    for(i=0; fname[i] != NULL ; i++){
+        AssertTrue((f = XFOPEN(fname[i], "rb")) != XBADFILE);
+        XFCLOSE(f);
+    }
+    
+    AssertTrue((f = XFOPEN(derfile, "rb")) != XBADFILE);
+    AssertTrue(XFSEEK(f, 0, XSEEK_END) == 0);
+    sz = (size_t) XFTELL(f);
+    XREWIND(f);
+    AssertTrue(sz == sizeof_server_cert_der_2048);
+    AssertTrue((buff = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE)) != NULL) ;
+    AssertTrue(XFREAD(buff, 1, sz, f) == sz);
+    XMEMCMP(server_cert_der_2048, buff, sz);
+
+    printf(resultFmt, passed);
+#endif
+
+    return WOLFSSL_SUCCESS;
+}
+
+/*----------------------------------------------------------------------------*
  | Method Allocators
  *----------------------------------------------------------------------------*/
 
@@ -7950,7 +7996,7 @@ static int test_wc_Des3_CbcEncryptDecrypt (void)
             ret = wc_Des3_CbcEncrypt(&des, cipher, NULL, sizeof(vector));
         }
         if (ret != BAD_FUNC_ARG) {
-            ret = WOLFSSL_FATAL_ERROR;;
+            ret = WOLFSSL_FATAL_ERROR;
         } else {
             ret = 0;
         }
@@ -16321,7 +16367,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
 
         file = XFOPEN(fname, "rb");
         AssertTrue((file != XBADFILE));
-        XFSEEK(file, 0, XSEEK_END);
+        AssertTrue(XFSEEK(file, 0, XSEEK_END) == 0);
         sz = XFTELL(file);
         XREWIND(file);
         AssertNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
@@ -16351,7 +16397,7 @@ static void test_wolfSSL_PEM_PrivateKey(void)
 
         file = XFOPEN(fname, "rb");
         AssertTrue((file != XBADFILE));
-        XFSEEK(file, 0, XSEEK_END);
+        AssertTrue(XFSEEK(file, 0, XSEEK_END) == 0);
         sz = XFTELL(file);
         XREWIND(file);
         AssertNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
@@ -18593,7 +18639,7 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
 
         file = XFOPEN(fname, "rb");
         AssertTrue((file != XBADFILE));
-        XFSEEK(file, 0, XSEEK_END);
+        AssertTrue(XFSEEK(file, 0, XSEEK_END) == 0);
         sz = XFTELL(file);
         XREWIND(file);
         AssertNotNull(buf = (byte*)XMALLOC(sz, HEAP_HINT, DYNAMIC_TYPE_FILE));
@@ -18621,7 +18667,7 @@ static void test_wolfSSL_d2i_PrivateKeys_bio(void)
 
         file = XFOPEN(fname, "rb");
         AssertTrue((file != XBADFILE));
-        XFSEEK(file, 0, XSEEK_END);
+        AssertTrue(XFSEEK(file, 0, XSEEK_END) == 0);
         sz = XFTELL(file);
         XREWIND(file);
         AssertNotNull(buf = (byte*)XMALLOC(sz, HEAP_HINT, DYNAMIC_TYPE_FILE));
@@ -20813,6 +20859,10 @@ static int test_ForceZero(void)
 
 void ApiTest(void)
 {
+
+    printf("\n-----------------Porting tests------------------\n");   
+    AssertTrue(test_fileAccess());
+    
     printf(" Begin API Tests\n");
     AssertIntEQ(test_wolfSSL_Init(), WOLFSSL_SUCCESS);
     /* wolfcrypt initialization tests */

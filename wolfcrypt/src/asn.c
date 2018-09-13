@@ -8667,7 +8667,8 @@ int wc_PemCertToDer(const char* fileName, unsigned char* derBuf, int derSz)
         ret = BUFFER_E;
     }
     else {
-        XFSEEK(file, 0, XSEEK_END);
+        if(XFSEEK(file, 0, XSEEK_END) != 0)
+            ret = BUFFER_E;
         sz = XFTELL(file);
         XREWIND(file);
 
@@ -8740,7 +8741,8 @@ int wc_PemPubKeyToDer(const char* fileName,
         ret = BUFFER_E;
     }
     else {
-        XFSEEK(file, 0, XSEEK_END);
+        if(XFSEEK(file, 0, XSEEK_END) != 0)
+            ret = BUFFER_E;
         sz = XFTELL(file);
         XREWIND(file);
 

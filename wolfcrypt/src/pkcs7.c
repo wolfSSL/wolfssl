@@ -4922,7 +4922,7 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     /* keep track of sizes for outer wrapper layering */
     totalSz = verSz + encContentSeqSz + contentTypeSz + contentEncAlgoSz +
               ivOctetStringSz + blockSz + encContentOctetSz + encryptedOutSz +
-              attribsSz + attribsSetSz;;
+              attribsSz + attribsSetSz;
 
     /* EncryptedData */
     encDataSeqSz = SetSequence(totalSz, encDataSeq);

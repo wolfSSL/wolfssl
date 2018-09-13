@@ -1896,7 +1896,7 @@ void mynewt_ctx_clear(void *ctx) {
 void* mynewt_ctx_new() {
     int rc = 0;
     Mynewt_Ctx *mynewt_ctx = NULL;
-    int mem_buf_count = MYNEWT_VAL(WOLFSSL_MNSOCK_MEM_BUF_COUNT);;
+    int mem_buf_count = MYNEWT_VAL(WOLFSSL_MNSOCK_MEM_BUF_COUNT);
     int mem_buf_size = MYNEWT_VAL(WOLFSSL_MNSOCK_MEM_BUF_SIZE);
     int mempool_bytes = OS_MEMPOOL_BYTES(mem_buf_count, mem_buf_size);
 
