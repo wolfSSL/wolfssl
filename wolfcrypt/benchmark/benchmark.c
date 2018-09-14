@@ -28,6 +28,7 @@
 #endif
 
 #include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/version.h>
 
 /* Macro to disable benchmark */
 #ifndef NO_CRYPT_BENCHMARK
@@ -1556,6 +1557,12 @@ int benchmark_test(void *args)
     int ret;
 
     (void)args;
+
+    printf(
+"------------------------------------------------------------------------------"
+"\n wolfSSL version %s\n"
+"------------------------------------------------------------------------------"
+"\n", LIBWOLFSSL_VERSION_STRING);
 
     ret = benchmark_init();
     if (ret != 0)
