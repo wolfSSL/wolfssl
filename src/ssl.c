@@ -95,7 +95,6 @@
     #if defined(WOLFCRYPT_HAVE_SRP) && !defined(NO_SHA256) \
         && !defined(WC_NO_RNG)
         #include <wolfssl/wolfcrypt/srp.h>
-        #include <wolfssl/wolfcrypt/random.h>
     #endif
 #endif
 
@@ -21811,11 +21810,6 @@ int wolfSSL_RAND_write_file(const char* fname)
     #include <sys/un.h>
 #endif
 
-/* at compile time check for HASH DRBG and throw warning if not found */
-#ifndef HAVE_HASHDRBG
-    #warning HAVE_HASHDRBG is needed for wolfSSL_RAND_egd to seed
-#endif
-
 /* This collects entropy from the path nm and seeds the global PRNG with it.
  * Makes a call to wolfSSL_RAND_Init which is not thread safe.
  *
@@ -21825,7 +21819,8 @@ int wolfSSL_RAND_write_file(const char* fname)
  */
 int wolfSSL_RAND_egd(const char* nm)
 {
-#if defined(USE_WOLFSSL_IO) && !defined(USE_WINDOWS_API) && !defined(HAVE_FIPS)
+#if defined(USE_WOLFSSL_IO) && !defined(USE_WINDOWS_API) && !defined(HAVE_FIPS) && \
+    defined(HAVE_HASHDRBG)
     struct sockaddr_un rem;
     int fd;
     int ret = WOLFSSL_SUCCESS;
@@ -21959,13 +21954,13 @@ int wolfSSL_RAND_egd(const char* nm)
     else {
         return ret;
     }
-#else /* defined(USE_WOLFSSL_IO) && !defined(USE_WINDOWS_API) && !HAVE_FIPS */
+#else
     WOLFSSL_MSG("Type of socket needed is not available");
-    WOLFSSL_MSG("\tor using FIPS mode where RNG API is not available");
+    WOLFSSL_MSG("\tor using mode where DRBG API is not available");
     (void)nm;
 
     return WOLFSSL_FATAL_ERROR;
-#endif /* defined(USE_WOLFSSL_IO) && !defined(USE_WINDOWS_API) */
+#endif /* USE_WOLFSSL_IO && !USE_WINDOWS_API && !HAVE_FIPS && HAVE_HASHDRBG */
 }
 
 #endif /* !FREERTOS_TCP */
