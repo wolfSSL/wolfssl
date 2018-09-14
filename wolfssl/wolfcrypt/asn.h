@@ -139,7 +139,49 @@ enum DN_Tags {
 #define WOLFSSL_JOI_ST           "/jurisdictionST="
 #define WOLFSSL_EMAIL_ADDR "/emailAddress="
 
-enum ECC_TYPES {
+/* NIDs */
+enum
+{
+    NID_undef = 0,
+    NID_des = 66,
+    NID_des3 = 67,
+    NID_sha256 = 672,
+    NID_sha384 = 673,
+    NID_sha512 = 674,
+    NID_hw_name_oid = 73,
+    NID_id_pkix_OCSP_basic = 74,
+    NID_any_policy = 75,
+    NID_anyExtendedKeyUsage = 76,
+    NID_basic_constraints = 133,
+    NID_key_usage = 129,     /* 2.5.29.15 */
+    NID_ext_key_usage = 151, /* 2.5.29.37 */
+    NID_subject_key_identifier = 128,
+    NID_authority_key_identifier = 149,
+    NID_private_key_usage_period = 130, /* 2.5.29.16 */
+    NID_subject_alt_name = 131,
+    NID_issuer_alt_name = 132,
+    NID_info_access = 69,
+    NID_sinfo_access = 79,      /* id-pe 11 */
+    NID_name_constraints = 144, /* 2.5.29.30 */
+    NID_certificate_policies = 146,
+    NID_policy_mappings = 147,
+    NID_policy_constraints = 150,
+    NID_inhibit_any_policy = 168,      /* 2.5.29.54 */
+    NID_tlsfeature = 92,               /* id-pe 24 */
+    NID_commonName = 0x03,             /* matchs ASN_COMMON_NAME in asn.h */
+    NID_surname = 0x04,                /* SN */
+    NID_serialNumber = 0x05,           /* serialNumber */
+    NID_countryName = 0x06,            /* C  */
+    NID_localityName = 0x07,           /* L  */
+    NID_stateOrProvinceName = 0x08,    /* ST */
+    NID_organizationName = 0x0a,       /* O  */
+    NID_organizationalUnitName = 0x0b, /* OU */
+    NID_domainComponent = 0x19,        /* matchs ASN_DOMAIN_COMPONENT in asn.h */
+    NID_emailAddress = 0x30,           /* emailAddress */
+};
+
+enum ECC_TYPES
+{
     ECC_PREFIX_0 = 160,
     ECC_PREFIX_1 = 161
 };
