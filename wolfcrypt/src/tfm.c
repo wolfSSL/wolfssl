@@ -3886,7 +3886,8 @@ int mp_cnt_lsb(fp_int* a)
 
 #endif /* HAVE_ECC */
 
-#if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DSA)
+#if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DSA) || \
+    defined(WOLFSSL_KEY_GEN)
 /* fast math conversion */
 int mp_set(fp_int *a, fp_digit b)
 {
