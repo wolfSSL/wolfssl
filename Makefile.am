@@ -57,6 +57,7 @@ CLEANFILES+= cert.der \
              pkcs7envelopedDataDES3.der \
              pkcs7envelopedDataAES128CBC.der \
              pkcs7envelopedDataAES128CBC_KEKRI.der \
+             pkcs7envelopedDataAES128CBC_PWRI.der \
              pkcs7envelopedDataAES192CBC.der \
              pkcs7envelopedDataAES256CBC.der \
              pkcs7signedData_RSA_SHA.der \

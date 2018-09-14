@@ -377,19 +377,22 @@ enum Key_Sum {
 };
 
 
-#ifndef NO_AES
+#if !defined(NO_AES) || defined(HAVE_PKCS7)
 enum KeyWrap_Sum {
 #ifdef WOLFSSL_AES_128
-    AES128_WRAP = 417,
+    AES128_WRAP  = 417,
 #endif
 #ifdef WOLFSSL_AES_192
-    AES192_WRAP = 437,
+    AES192_WRAP  = 437,
 #endif
 #ifdef WOLFSSL_AES_256
-    AES256_WRAP = 457
+    AES256_WRAP  = 457,
+#endif
+#ifdef HAVE_PKCS7
+    PWRI_KEK_WRAP = 680  /*id-alg-PWRI-KEK, 1.2.840.113549.1.9.16.3.9 */
 #endif
 };
-#endif /* !NO_AES */
+#endif /* !NO_AES || PKCS7 */
 
 enum Key_Agree {
     dhSinglePass_stdDH_sha1kdf_scheme   = 464,
@@ -494,7 +497,6 @@ enum CompressAlg_Sum {
     ZLIBc = 679  /* 1.2.840.113549.1.9.16.3.8, id-alg-zlibCompress */
 };
 #endif
-
 
 enum VerifyType {
     NO_VERIFY   = 0,

@@ -1242,6 +1242,10 @@ static word32 SetBitString16Bit(word16 val, byte* output)
 #ifdef WOLFSSL_AES_256
     static const byte wrapAes256Oid[] = {96, 134, 72, 1, 101, 3, 4, 1, 45};
 #endif
+#ifdef HAVE_PKCS7
+/* From RFC 3211 */
+static const byte wrapPwriKekOid[] = {42, 134, 72, 134, 247, 13, 1, 9, 16, 3,9};
+#endif
 
 /* cmsKeyAgreeType */
 #ifndef NO_SHA
@@ -1739,6 +1743,12 @@ const byte* OidFromId(word32 id, word32 type, word32* oidSz)
                 case AES256_WRAP:
                     oid = wrapAes256Oid;
                     *oidSz = sizeof(wrapAes256Oid);
+                    break;
+            #endif
+            #ifdef HAVE_PKCS7
+                case PWRI_KEK_WRAP:
+                    oid = wrapPwriKekOid;
+                    *oidSz = sizeof(wrapPwriKekOid);
                     break;
             #endif
             }

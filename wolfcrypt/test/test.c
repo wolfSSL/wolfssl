@@ -18954,6 +18954,15 @@ typedef struct {
     byte*        otherAttr;      /* OPTIONAL, other attribute, ASN.1 encoded */
     word32       otherAttrSz;    /* size of otherAttr, bytes */
 
+    /* PWRI specific */
+    char*        password;
+    word32       passwordSz;
+    byte*        salt;
+    word32       saltSz;
+    int          kdfOID;
+    int          hashOID;
+    int          kdfIterations;
+
     const char*  outFileName;
 } pkcs7EnvelopedVector;
 
@@ -18998,6 +19007,14 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
     };
 #endif
 
+#if !defined(NO_PWDBASED)
+    char password[] = "password";
+
+    byte salt[] = {
+        0x12, 0x34, 0x56, 0x78, 0x78, 0x56, 0x34, 0x12
+    };
+#endif
+
     const pkcs7EnvelopedVector testVectors[] =
     {
         /* key transport key encryption technique */
@@ -19005,24 +19022,24 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
     #ifndef NO_DES3
         {data, (word32)sizeof(data), DATA, DES3b, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, 0,
-         NULL, 0, "pkcs7envelopedDataDES3.der"},
+         NULL, 0, NULL, 0, NULL, 0, 0, 0, 0, "pkcs7envelopedDataDES3.der"},
     #endif
 
     #ifndef NO_AES
         #ifdef WOLFSSL_AES_128
         {data, (word32)sizeof(data), DATA, AES128CBCb, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, 0,
-         NULL, 0, "pkcs7envelopedDataAES128CBC.der"},
+         NULL, 0, NULL, 0, NULL, 0, 0, 0, 0, "pkcs7envelopedDataAES128CBC.der"},
         #endif
         #ifdef WOLFSSL_AES_192
         {data, (word32)sizeof(data), DATA, AES192CBCb, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, 0,
-         NULL, 0, "pkcs7envelopedDataAES192CBC.der"},
+         NULL, 0, NULL, 0, NULL, 0, 0, 0, 0, "pkcs7envelopedDataAES192CBC.der"},
         #endif
         #ifdef WOLFSSL_AES_256
         {data, (word32)sizeof(data), DATA, AES256CBCb, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, 0,
-         NULL, 0, "pkcs7envelopedDataAES256CBC.der"},
+         NULL, 0, NULL, 0, NULL, 0, 0, 0, 0, "pkcs7envelopedDataAES256CBC.der"},
         #endif
     #endif /* NO_AES */
 #endif
@@ -19034,6 +19051,7 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         {data, (word32)sizeof(data), DATA, AES128CBCb, AES128_WRAP,
          dhSinglePass_stdDH_sha1kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0,
+         NULL, 0, NULL, 0, 0, 0, 0,
          "pkcs7envelopedDataAES128CBC_ECDH_SHA1KDF.der"},
         #endif
 
@@ -19041,6 +19059,7 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         {data, (word32)sizeof(data), DATA, AES256CBCb, AES256_WRAP,
          dhSinglePass_stdDH_sha256kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0,
+         NULL, 0, NULL, 0, 0, 0, 0,
          "pkcs7envelopedDataAES256CBC_ECDH_SHA256KDF.der"},
         #endif /* NO_SHA256 && WOLFSSL_AES_256 */
 
@@ -19048,13 +19067,14 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         {data, (word32)sizeof(data), DATA, AES256CBCb, AES256_WRAP,
          dhSinglePass_stdDH_sha512kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0,
+         NULL, 0, NULL, 0, 0, 0, 0,
          "pkcs7envelopedDataAES256CBC_ECDH_SHA512KDF.der"},
 
         /* with optional user keying material (ukm) */
         {data, (word32)sizeof(data), DATA, AES256CBCb, AES256_WRAP,
          dhSinglePass_stdDH_sha512kdf_scheme, eccCert, eccCertSz, eccPrivKey,
          eccPrivKeySz, optionalUkm, sizeof(optionalUkm), NULL, 0,
-         NULL, 0, NULL, NULL, 0, NULL, 0,
+         NULL, 0, NULL, NULL, 0, NULL, 0, NULL, 0, NULL, 0, 0, 0, 0,
          "pkcs7envelopedDataAES256CBC_ECDH_SHA512KDF_ukm.der"},
         #endif /* WOLFSSL_SHA512 && WOLFSSL_AES_256 */
     #endif /* NO_AES */
@@ -19066,7 +19086,18 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         {data, (word32)sizeof(data), DATA, AES128CBCb, AES128_WRAP, 0,
          NULL, 0, NULL, 0, NULL, 0, secretKey, sizeof(secretKey),
          secretKeyId, sizeof(secretKeyId), NULL, NULL, 0, NULL, 0,
-         "pkcs7envelopedDataAES128CBC_KEKRI.der"},
+         NULL, 0, NULL, 0, 0, 0, 0, "pkcs7envelopedDataAES128CBC_KEKRI.der"},
+        #endif
+#endif
+
+        /* pwri (PasswordRecipientInfo) recipient types */
+#if !defined(NO_PWDBASED) && !defined(NO_AES)
+        #if !defined(NO_SHA) && defined(WOLFSSL_AES_128)
+        {data, (word32)sizeof(data), DATA, AES128CBCb, 0, 0,
+         NULL, 0, NULL, 0, NULL, 0, NULL, 0,
+         NULL, 0, NULL, NULL, 0, NULL, 0, password, (word32)XSTRLEN(password),
+         salt, sizeof(salt), PBKDF2_OID, WC_SHA, 5,
+         "pkcs7envelopedDataAES128CBC_PWRI.der"},
         #endif
 #endif
     };
@@ -19105,6 +19136,7 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
                     testVectors[i].timePtr, testVectors[i].otherAttrOID,
                     testVectors[i].otherAttrOIDSz, testVectors[i].otherAttr,
                     testVectors[i].otherAttrSz);
+
             if (ret < 0) {
                 wc_PKCS7_Free(pkcs7);
                 return -9216;
@@ -19113,10 +19145,48 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
             /* set key, for decryption */
             ret = wc_PKCS7_SetKey(pkcs7, testVectors[i].secretKey,
                                   testVectors[i].secretKeySz);
+
             if (ret != 0) {
                 wc_PKCS7_Free(pkcs7);
                 return -9217;
             }
+
+        } else if (testVectors[i].password != NULL) {
+            /* PWRI recipient type */
+
+            ret = wc_PKCS7_Init(pkcs7, pkcs7->heap, pkcs7->devId);
+            if (ret != 0) {
+                return -9218;
+            }
+
+            pkcs7->content      = (byte*)testVectors[i].content;
+            pkcs7->contentSz    = testVectors[i].contentSz;
+            pkcs7->contentOID   = testVectors[i].contentOID;
+            pkcs7->encryptOID   = testVectors[i].encryptOID;
+            pkcs7->ukm          = testVectors[i].optionalUkm;
+            pkcs7->ukmSz        = testVectors[i].optionalUkmSz;
+
+            ret = wc_PKCS7_AddRecipient_PWRI(pkcs7,
+                    (byte*)testVectors[i].password,
+                    testVectors[i].passwordSz, testVectors[i].salt,
+                    testVectors[i].saltSz, testVectors[i].kdfOID,
+                    testVectors[i].hashOID, testVectors[i].kdfIterations,
+                    testVectors[i].encryptOID);
+
+            if (ret < 0) {
+                wc_PKCS7_Free(pkcs7);
+                return -9219;
+            }
+
+            /* set password, for decryption */
+            ret = wc_PKCS7_SetPassword(pkcs7, (byte*)testVectors[i].password,
+                    testVectors[i].passwordSz);
+
+            if (ret < 0) {
+                wc_PKCS7_Free(pkcs7);
+                return -9220;
+            }
+
 
         } else {
             /* KTRI or KARI recipient types */
@@ -19125,7 +19195,7 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
                                         (word32)testVectors[i].certSz);
             if (ret != 0) {
                 wc_PKCS7_Free(pkcs7);
-                return -9218;
+                return -9221;
             }
 
             pkcs7->keyWrapOID   = testVectors[i].keyWrapOID;
@@ -19144,24 +19214,22 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         envelopedSz = wc_PKCS7_EncodeEnvelopedData(pkcs7, enveloped,
                                                    sizeof(enveloped));
         if (envelopedSz <= 0) {
-            printf("DEBUG: i = %d, envelopedSz = %d\n", i, envelopedSz);
             wc_PKCS7_Free(pkcs7);
-            return -9219;
+            return -9222;
         }
 
         /* decode envelopedData */
-        printf("CHRIS: Trying to decode: %s\n", testVectors[i].outFileName);
         decodedSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, enveloped, envelopedSz,
                                                  decoded, sizeof(decoded));
         if (decodedSz <= 0) {
             wc_PKCS7_Free(pkcs7);
-            return -9220;
+            return -9223;
         }
 
         /* test decode result */
         if (XMEMCMP(decoded, data, sizeof(data)) != 0){
             wc_PKCS7_Free(pkcs7);
-            return -9221;
+            return -9224;
         }
         (void)decoded;
         (void)decodedSz;
@@ -19171,14 +19239,14 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         pkcs7File = fopen(testVectors[i].outFileName, "wb");
         if (!pkcs7File) {
             wc_PKCS7_Free(pkcs7);
-            return -9222;
+            return -9225;
         }
 
         ret = (int)fwrite(enveloped, 1, envelopedSz, pkcs7File);
         fclose(pkcs7File);
         if (ret != envelopedSz) {
             wc_PKCS7_Free(pkcs7);
-            return -9223;
+            return -9226;
         }
 #endif /* PKCS7_OUTPUT_TEST_BUNDLES */
 
