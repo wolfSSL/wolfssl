@@ -19231,8 +19231,6 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
             wc_PKCS7_Free(pkcs7);
             return -9224;
         }
-        (void)decoded;
-        (void)decodedSz;
 
 #ifdef PKCS7_OUTPUT_TEST_BUNDLES
         /* output pkcs7 envelopedData for external testing */
