@@ -41,7 +41,6 @@ typedef struct func_args {
 } func_args;
 
 void wolfcrypt_test(func_args args);
-void ApiTest(void);
 
 void main(void)
 {

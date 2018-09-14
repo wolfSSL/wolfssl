@@ -30,8 +30,6 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <stdio.h>
 
-#define WOLFSSL_SUCCESS 1
-
 #define YEAR 2018
 #define MON  5
 
@@ -46,12 +44,12 @@ time_t time(time_t *t)
 int strncasecmp(const char *s1, const char * s2, unsigned int sz)
 {
     for( ; sz>0; sz--, s1++, s2++){
-        if(toupper(*s1) < toupper(*s2)){
-	    return -1;
-	}
-	if(toupper(*s1) > toupper(*s2)){
-	    return 1;
-	}
+            if(toupper(*s1) < toupper(*s2)){
+            return -1;
+        }
+        if(toupper(*s1) > toupper(*s2)){
+            return 1;
+        }
     }
     return 0;	
 }
