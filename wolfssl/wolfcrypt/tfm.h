@@ -725,7 +725,8 @@ MP_API int mp_radix_size (mp_int * a, int radix, int *size);
     MP_API int mp_init_copy(fp_int * a, fp_int * b);
 #endif
 
-#if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DSA)
+#if defined(HAVE_ECC) || !defined(NO_RSA) || !defined(NO_DSA) || \
+    defined(WOLFSSL_KEY_GEN)
     MP_API int mp_set(fp_int *a, fp_digit b);
 #endif
 
