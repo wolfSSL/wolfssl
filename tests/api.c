@@ -15741,7 +15741,7 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
 static void test_wc_PKCS7_EncodeEncryptedData (void)
 {
 #if defined(HAVE_PKCS7) && !defined(NO_PKCS7_ENCRYPTED_DATA)
-    PKCS7       pkcs7;
+    PKCS7*      pkcs7;
     byte*       tmpBytePtr = NULL;
     byte        encrypted[TWOK_BUF];
     byte        decoded[TWOK_BUF];
@@ -15808,64 +15808,65 @@ static void test_wc_PKCS7_EncodeEncryptedData (void)
     testSz = sizeof(testVectors) / sizeof(pkcs7EncryptedVector);
 
     for (i = 0; i < testSz; i++) {
-        AssertIntEQ(wc_PKCS7_Init(&pkcs7, HEAP_HINT, devId), 0);
-        pkcs7.content              = (byte*)testVectors[i].content;
-        pkcs7.contentSz            = testVectors[i].contentSz;
-        pkcs7.contentOID           = testVectors[i].contentOID;
-        pkcs7.encryptOID           = testVectors[i].encryptOID;
-        pkcs7.encryptionKey        = testVectors[i].encryptionKey;
-        pkcs7.encryptionKeySz      = testVectors[i].encryptionKeySz;
-        pkcs7.heap                 = HEAP_HINT;
+        AssertNotNull(pkcs7 = wc_PKCS7_New(HEAP_HINT, devId));
+        AssertIntEQ(wc_PKCS7_Init(pkcs7, HEAP_HINT, devId), 0);
+        pkcs7->content              = (byte*)testVectors[i].content;
+        pkcs7->contentSz            = testVectors[i].contentSz;
+        pkcs7->contentOID           = testVectors[i].contentOID;
+        pkcs7->encryptOID           = testVectors[i].encryptOID;
+        pkcs7->encryptionKey        = testVectors[i].encryptionKey;
+        pkcs7->encryptionKeySz      = testVectors[i].encryptionKeySz;
+        pkcs7->heap                 = HEAP_HINT;
 
         /* encode encryptedData */
-        encryptedSz = wc_PKCS7_EncodeEncryptedData(&pkcs7, encrypted,
+        encryptedSz = wc_PKCS7_EncodeEncryptedData(pkcs7, encrypted,
                                                    sizeof(encrypted));
         AssertIntGT(encryptedSz, 0);
 
        /* Decode encryptedData */
-        decodedSz = wc_PKCS7_DecodeEncryptedData(&pkcs7, encrypted, encryptedSz,
+        decodedSz = wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted, encryptedSz,
                                                     decoded, sizeof(decoded));
 
         AssertIntEQ(XMEMCMP(decoded, data, decodedSz), 0);
         /* Keep values for last itr. */
         if (i < testSz - 1) {
-            wc_PKCS7_Free(&pkcs7);
+            wc_PKCS7_Free(pkcs7);
         }
     }
 
     printf(testingFmt, "wc_PKCS7_EncodeEncryptedData()");
     AssertIntEQ(wc_PKCS7_EncodeEncryptedData(NULL, encrypted,
                      sizeof(encrypted)),BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(&pkcs7, NULL,
+    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(pkcs7, NULL,
                      sizeof(encrypted)), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(&pkcs7, encrypted,
+    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(pkcs7, encrypted,
                      0), BAD_FUNC_ARG);
     /* Testing the struct. */
-    tmpBytePtr = pkcs7.content;
-    pkcs7.content = NULL;
-    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(&pkcs7, encrypted,
+    tmpBytePtr = pkcs7->content;
+    pkcs7->content = NULL;
+    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(pkcs7, encrypted,
                              sizeof(encrypted)), BAD_FUNC_ARG);
-    pkcs7.content = tmpBytePtr;
-    tmpWrd32 = pkcs7.contentSz;
-    pkcs7.contentSz = 0;
-    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(&pkcs7, encrypted,
+    pkcs7->content = tmpBytePtr;
+    tmpWrd32 = pkcs7->contentSz;
+    pkcs7->contentSz = 0;
+    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(pkcs7, encrypted,
                              sizeof(encrypted)), BAD_FUNC_ARG);
-    pkcs7.contentSz = tmpWrd32;
-    tmpInt = pkcs7.encryptOID;
-    pkcs7.encryptOID = 0;
-    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(&pkcs7, encrypted,
+    pkcs7->contentSz = tmpWrd32;
+    tmpInt = pkcs7->encryptOID;
+    pkcs7->encryptOID = 0;
+    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(pkcs7, encrypted,
                              sizeof(encrypted)), BAD_FUNC_ARG);
-    pkcs7.encryptOID = tmpInt;
-    tmpBytePtr = pkcs7.encryptionKey;
-    pkcs7.encryptionKey = NULL;
-    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(&pkcs7, encrypted,
+    pkcs7->encryptOID = tmpInt;
+    tmpBytePtr = pkcs7->encryptionKey;
+    pkcs7->encryptionKey = NULL;
+    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(pkcs7, encrypted,
                              sizeof(encrypted)), BAD_FUNC_ARG);
-    pkcs7.encryptionKey = tmpBytePtr;
-    tmpWrd32 = pkcs7.encryptionKeySz;
-    pkcs7.encryptionKeySz = 0;
-    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(&pkcs7, encrypted,
+    pkcs7->encryptionKey = tmpBytePtr;
+    tmpWrd32 = pkcs7->encryptionKeySz;
+    pkcs7->encryptionKeySz = 0;
+    AssertIntEQ(wc_PKCS7_EncodeEncryptedData(pkcs7, encrypted,
                              sizeof(encrypted)), BAD_FUNC_ARG);
-    pkcs7.encryptionKeySz = tmpWrd32;
+    pkcs7->encryptionKeySz = tmpWrd32;
 
     printf(resultFmt, passed);
 
@@ -15873,27 +15874,27 @@ static void test_wc_PKCS7_EncodeEncryptedData (void)
 
     AssertIntEQ(wc_PKCS7_DecodeEncryptedData(NULL, encrypted, encryptedSz,
                 decoded, sizeof(decoded)), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_DecodeEncryptedData(&pkcs7, NULL, encryptedSz,
+    AssertIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, NULL, encryptedSz,
                 decoded, sizeof(decoded)), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_DecodeEncryptedData(&pkcs7, encrypted, 0,
+    AssertIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted, 0,
                 decoded, sizeof(decoded)), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_DecodeEncryptedData(&pkcs7, encrypted, encryptedSz,
+    AssertIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted, encryptedSz,
                 NULL, sizeof(decoded)), BAD_FUNC_ARG);
-    AssertIntEQ(wc_PKCS7_DecodeEncryptedData(&pkcs7, encrypted, encryptedSz,
+    AssertIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted, encryptedSz,
                 decoded, 0), BAD_FUNC_ARG);
     /* Test struct fields */
 
-    tmpBytePtr = pkcs7.encryptionKey;
-    pkcs7.encryptionKey = NULL;
-    AssertIntEQ(wc_PKCS7_DecodeEncryptedData(&pkcs7, encrypted, encryptedSz,
+    tmpBytePtr = pkcs7->encryptionKey;
+    pkcs7->encryptionKey = NULL;
+    AssertIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted, encryptedSz,
                                    decoded, sizeof(decoded)), BAD_FUNC_ARG);
-    pkcs7.encryptionKey = tmpBytePtr;
-    pkcs7.encryptionKeySz = 0;
-    AssertIntEQ(wc_PKCS7_DecodeEncryptedData(&pkcs7, encrypted, encryptedSz,
+    pkcs7->encryptionKey = tmpBytePtr;
+    pkcs7->encryptionKeySz = 0;
+    AssertIntEQ(wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted, encryptedSz,
                                    decoded, sizeof(decoded)), BAD_FUNC_ARG);
 
     printf(resultFmt, passed);
-    wc_PKCS7_Free(&pkcs7);
+    wc_PKCS7_Free(pkcs7);
 #endif
 } /* END test_wc_PKCS7_EncodeEncryptedData() */
 

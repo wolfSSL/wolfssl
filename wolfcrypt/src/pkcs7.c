@@ -300,13 +300,17 @@ PKCS7* wc_PKCS7_New(void* heap, int devId)
  */
 int wc_PKCS7_Init(PKCS7* pkcs7, void* heap, int devId)
 {
+    word16 isDynamic;
+
     WOLFSSL_ENTER("wc_PKCS7_Init");
 
     if (pkcs7 == NULL) {
         return BAD_FUNC_ARG;
     }
 
+    isDynamic = pkcs7->isDynamic;
     XMEMSET(pkcs7, 0, sizeof(PKCS7));
+    pkcs7->isDynamic = isDynamic;
 #ifdef WOLFSSL_HEAP_TEST
     pkcs7->heap = (void*)WOLFSSL_HEAP_TEST;
 #else
@@ -411,7 +415,6 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* derCert, word32 derCertSz)
     int ret = 0;
     void* heap;
     int devId;
-    word16 isDynamic;
     Pkcs7Cert* cert;
     Pkcs7Cert* lastCert;
 
@@ -421,11 +424,9 @@ int wc_PKCS7_InitWithCert(PKCS7* pkcs7, byte* derCert, word32 derCertSz)
 
     heap = pkcs7->heap;
     devId = pkcs7->devId;
-    isDynamic = pkcs7->isDynamic;
     ret = wc_PKCS7_Init(pkcs7, heap, devId);
     if (ret != 0)
         return ret;
-    pkcs7->isDynamic = isDynamic;
 
     if (derCert != NULL && derCertSz > 0) {
 #ifdef WOLFSSL_SMALL_STACK
