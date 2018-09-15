@@ -5891,10 +5891,6 @@ int wolfSSL_CertManagerVerify(WOLFSSL_CERT_MANAGER* cm, const char* fname,
     if (file == XBADFILE) return WOLFSSL_BAD_FILE;
     if(XFSEEK(file, 0, XSEEK_END) != 0)
         return WOLFSSL_BAD_FILE;
-<<<<<<< HEAD
-=======
-
->>>>>>> merge PR #1820 Porting aid
     sz = XFTELL(file);
     XREWIND(file);
 
@@ -15284,10 +15280,6 @@ WOLFSSL_X509* wolfSSL_X509_load_certificate_file(const char* fname, int format)
         XFCLOSE(file);
         return NULL;
     }
-<<<<<<< HEAD
-
-=======
->>>>>>> merge PR #1820 Porting aid
     sz = XFTELL(file);
     XREWIND(file);
 

@@ -104,10 +104,6 @@ ASN Options:
     #include <wolfssl/wolfcrypt/rsa.h>
 #endif
 
-#if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || defined(OPENSSL_EXTRA_X509_SMALL)
-    #include <wolfssl/openssl/ssl.h> /* for OBJ_sn2nid */
-#endif
-
 #ifdef WOLFSSL_DEBUG_ENCODING
     #if defined(FREESCALE_MQX) || defined(FREESCALE_KSDK_MQX)
         #if MQX_USE_IO_OLD
@@ -2692,9 +2688,9 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         return BAD_FUNC_ARG;
     }
 
+    (void)tmpIdx;
     (void)curveOID;
     (void)oidSz;
-    (void)tmpIdx;
     (void)keySz;
     (void)heap;
 
@@ -2937,6 +2933,8 @@ int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
     (void)rng;
 
     return totalSz + sz;
+    
+    (void)rng;
 }
 
 
@@ -3287,6 +3285,8 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     (void)rng;
 
     return totalSz;
+
+    (void)rng;
 }
 
 
