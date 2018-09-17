@@ -8277,6 +8277,8 @@ int random_test(void)
         return ret;
 
     /* Test the seed check function. */
+#if !defined(HAVE_FIPS) || \
+    (defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2))
     {
         word32 i, outputSz;
 
@@ -8303,7 +8305,7 @@ int random_test(void)
         if (ret != 0)
             return -6406;
     }
-
+#endif
     return 0;
 }
 
