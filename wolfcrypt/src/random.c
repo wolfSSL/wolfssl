@@ -225,9 +225,8 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
         /* RDSEED outputs in blocks of 64-bits. */
         #define SEED_BLOCK_SZ sizeof(word64)
     #else
-        /* Setting the default to 2. It is not unreasonable for /dev/random
-         * or /dev/urandom to return two bytes that are the same. */
-        #define SEED_BLOCK_SZ 2
+        /* Setting the default to 4. */
+        #define SEED_BLOCK_SZ 4
     #endif
 #endif
 

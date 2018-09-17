@@ -161,6 +161,8 @@ linuxv2)
   CRYPT_VERSION=$LINUXV2_CRYPT_VERSION
   CRYPT_INC_PATH=wolfssl/wolfcrypt
   CRYPT_SRC_PATH=wolfcrypt/src
+# Replace the WC_MODS list for now. Do not want to copy over random.c yet.
+  WC_MODS=( aes des3 sha sha256 sha512 rsa hmac )
   WC_MODS+=( cmac dh ecc )
   FIPS_SRCS+=( wolfcrypt_first.c wolfcrypt_last.c )
   FIPS_INCS=( fips.h )
