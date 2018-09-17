@@ -8276,6 +8276,34 @@ int random_test(void)
     if ((ret = random_rng_test()) != 0)
         return ret;
 
+    /* Test the seed check function. */
+    {
+        word32 i, outputSz;
+
+        /* Repeat the same byte over and over. Should fail. */
+        outputSz = sizeof(output);
+        XMEMSET(output, 1, outputSz);
+        ret = wc_RNG_TestSeed(output, outputSz);
+        if (ret == 0)
+            return -6404;
+
+        /* Every byte of the entropy scratch is different,
+         * entropy is a single byte that shouldn't match. */
+        outputSz = (sizeof(word32) * 2) + 1;
+        for (i = 0; i < outputSz; i++)
+            output[i] = (byte)i;
+        ret = wc_RNG_TestSeed(output, outputSz);
+        if (ret != 0)
+            return -6405;
+
+        outputSz = sizeof(output);
+        for (i = 0; i < outputSz; i++)
+            output[i] = (byte)i;
+        ret = wc_RNG_TestSeed(output, outputSz);
+        if (ret != 0)
+            return -6406;
+    }
+
     return 0;
 }
 
