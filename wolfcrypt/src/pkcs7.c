@@ -336,6 +336,7 @@ typedef struct Pkcs7Cert {
 typedef struct Pkcs7EncodedRecip {
     byte recip[MAX_RECIP_SZ];
     word32 recipSz;
+    int recipType;
     Pkcs7EncodedRecip* next;
 } Pkcs7EncodedRecip;
 
@@ -3713,6 +3714,7 @@ int wc_PKCS7_AddRecipient_KARI(PKCS7* pkcs7, const byte* cert, word32 certSz,
 
     /* store recipient size */
     recip->recipSz = idx;
+    recip->recipType = PKCS7_KARI;
 
     /* add recipient to recip list */
     if (pkcs7->recipList == NULL) {
@@ -4047,6 +4049,7 @@ int wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert, word32 certSz)
 
     /* store recipient size */
     recip->recipSz = idx;
+    recip->recipType = PKCS7_KTRI;
 
     /* add recipient to recip list */
     if (pkcs7->recipList == NULL) {
@@ -4339,6 +4342,97 @@ int wc_PKCS7_PadData(byte* in, word32 inSz, byte* out, word32 outSz,
     }
 
     return inSz + padSz;
+}
+
+
+/* Encode and add CMS EnvelopedData ORI (OtherRecipientInfo) RecipientInfo
+ * to CMS/PKCS#7 EnvelopedData structure.
+ *
+ * Return 0 on success, negative upon error */
+int wc_PKCS7_AddRecipient_ORI(PKCS7* pkcs7, CallbackOriEncrypt oriEncryptCb)
+{
+    int oriTypeLenSz, blockKeySz, ret;
+    word32 idx, recipSeqSz;
+
+    Pkcs7EncodedRecip* recip = NULL;
+    Pkcs7EncodedRecip* lastRecip = NULL;
+
+    byte recipSeq[MAX_SEQ_SZ];
+    byte oriTypeLen[MAX_LENGTH_SZ];
+
+    byte oriType[MAX_ORI_TYPE_SZ];
+    byte oriValue[MAX_ORI_VALUE_SZ];
+    word32 oriTypeSz = MAX_ORI_TYPE_SZ;
+    word32 oriValueSz = MAX_ORI_VALUE_SZ;
+
+    if (pkcs7 == NULL || oriEncryptCb == NULL) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* allocate memory for RecipientInfo, KEK, encrypted key */
+    recip = (Pkcs7EncodedRecip*)XMALLOC(sizeof(Pkcs7EncodedRecip),
+                                        pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    if (recip == NULL)
+        return MEMORY_E;
+
+    /* get key size for content-encryption key based on algorithm */
+    blockKeySz = wc_PKCS7_GetOIDKeySize(pkcs7->encryptOID);
+    if (blockKeySz < 0) {
+        XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        return blockKeySz;
+    }
+
+    /* generate random content encryption key, if needed */
+    ret = PKCS7_GenerateContentEncryptionKey(pkcs7, blockKeySz);
+    if (ret < 0) {
+        XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        return ret;
+    }
+
+    /* call user callback to encrypt CEK and get oriType and oriValue
+       values back */
+    ret = oriEncryptCb(pkcs7, pkcs7->cek, pkcs7->cekSz, oriType, &oriTypeSz,
+                       oriValue, &oriValueSz, pkcs7->oriEncryptCtx);
+    if (ret != 0) {
+        XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        return ret;
+    }
+
+    oriTypeLenSz = SetLength(oriTypeSz, oriTypeLen);
+
+    recipSeqSz = SetImplicit(ASN_SEQUENCE, 4, 1 + oriTypeLenSz + oriTypeSz +
+                             oriValueSz, recipSeq);
+
+    idx = 0;
+    XMEMCPY(recip->recip + idx, recipSeq, recipSeqSz);
+    idx += recipSeqSz;
+    /* oriType */
+    recip->recip[idx] = ASN_OBJECT_ID;
+    idx += 1;
+    XMEMCPY(recip->recip + idx, oriTypeLen, oriTypeLenSz);
+    idx += oriTypeLenSz;
+    XMEMCPY(recip->recip + idx, oriType, oriTypeSz);
+    idx += oriTypeSz;
+    /* oriValue, input MUST already be ASN.1 encoded */
+    XMEMCPY(recip->recip + idx, oriValue, oriValueSz);
+    idx += oriValueSz;
+
+    /* store recipient size */
+    recip->recipSz = idx;
+    recip->recipType = PKCS7_ORI;
+
+    /* add recipient to recip list */
+    if (pkcs7->recipList == NULL) {
+        pkcs7->recipList = recip;
+    } else {
+        lastRecip = pkcs7->recipList;
+        while (lastRecip->next != NULL) {
+            lastRecip = lastRecip->next;
+        }
+        lastRecip->next = recip;
+    }
+
+    return idx;
 }
 
 
@@ -4780,6 +4874,7 @@ int wc_PKCS7_AddRecipient_PWRI(PKCS7* pkcs7, byte* passwd, word32 pLen,
 
     /* store recipient size */
     recip->recipSz = idx;
+    recip->recipType = PKCS7_PWRI;
 
     /* add recipient to recip list */
     if (pkcs7->recipList == NULL) {
@@ -4984,6 +5079,7 @@ int wc_PKCS7_AddRecipient_KEKRI(PKCS7* pkcs7, int keyWrapOID, byte* kek,
 
     /* store recipient size */
     recip->recipSz = idx;
+    recip->recipType = PKCS7_KEKRI;
 
     /* add recipient to recip list */
     if (pkcs7->recipList == NULL) {
@@ -5757,6 +5853,108 @@ static int wc_PKCS7_KariGetRecipientEncryptedKeys(WC_PKCS7_KARI* kari,
 #endif /* HAVE_ECC */
 
 
+int wc_PKCS7_SetOriEncryptCtx(PKCS7* pkcs7, void* ctx)
+{
+    if (pkcs7 == NULL)
+        return BAD_FUNC_ARG;
+
+    pkcs7->oriEncryptCtx = ctx;
+
+    return 0;
+}
+
+
+int wc_PKCS7_SetOriDecryptCtx(PKCS7* pkcs7, void* ctx)
+{
+
+    if (pkcs7 == NULL)
+        return BAD_FUNC_ARG;
+
+    pkcs7->oriDecryptCtx = ctx;
+
+    return 0;
+}
+
+
+int wc_PKCS7_SetOriDecryptCb(PKCS7* pkcs7, CallbackOriDecrypt cb)
+{
+    if (pkcs7 == NULL)
+        return BAD_FUNC_ARG;
+
+    pkcs7->oriDecryptCb = cb;
+
+    return 0;
+}
+
+
+/* Decrypt ASN.1 OtherRecipientInfo (ori), as defined by:
+ *
+ *   OtherRecipientInfo ::= SEQUENCE {
+ *     oriType OBJECT IDENTIFIER,
+ *     oriValue ANY DEFINED BY oriType }
+ *
+ * pkcs7          - pointer to initialized PKCS7 structure
+ * pkiMsg         - pointer to encoded CMS bundle
+ * pkiMsgSz       - size of pkiMsg, bytes
+ * idx            - [IN/OUT] pointer to index into pkiMsg
+ * decryptedKey   - [OUT] output buf for decrypted content encryption key
+ * decryptedKeySz - [IN/OUT] size of buffer, size of decrypted key
+ * recipFound     - [OUT] 1 if recipient has been found, 0 if not
+ *
+ * Return 0 on success, negative upon error.
+ */
+static int wc_PKCS7_DecryptOri(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
+                               word32* idx, byte* decryptedKey,
+                               word32* decryptedKeySz, int* recipFound)
+{
+    int ret, seqSz, oriOIDSz;
+    word32 oriValueSz, tmpIdx;
+
+    byte* oriValue;
+    byte oriOID[MAX_OID_SZ];
+
+    if (pkcs7->oriDecryptCb == NULL) {
+        WOLFSSL_MSG("You must register an ORI Decrypt callback");
+        return BAD_FUNC_ARG;
+    }
+
+    /* get OtherRecipientInfo sequence length */
+    if (GetLength(pkiMsg, idx, &seqSz, pkiMsgSz) < 0)
+        return ASN_PARSE_E;
+
+    tmpIdx = *idx;
+
+    /* remove and store oriType OBJECT IDENTIFIER */
+    if (GetASNObjectId(pkiMsg, idx, &oriOIDSz, pkiMsgSz) != 0)
+        return ASN_PARSE_E;
+
+    XMEMCPY(oriOID, pkiMsg + *idx, oriOIDSz);
+    *idx += oriOIDSz;
+
+    /* get oriValue, increment idx */
+    oriValue = pkiMsg + *idx;
+    oriValueSz = seqSz - (*idx - tmpIdx);
+    *idx += oriValueSz;
+
+    /* pass oriOID and oriValue to user callback, expect back
+       decryptedKey and size */
+    ret = pkcs7->oriDecryptCb(pkcs7, oriOID, (word32)oriOIDSz, oriValue,
+                              oriValueSz, decryptedKey, decryptedKeySz,
+                              pkcs7->oriDecryptCtx);
+
+    if (ret != 0 || decryptedKey == NULL || *decryptedKeySz == 0) {
+        /* decrypt operation failed */
+        *recipFound = 0;
+        return PKCS7_RECIP_E;
+    }
+
+    /* mark recipFound, since we only support one RecipientInfo for now */
+    *recipFound = 1;
+
+    return 0;
+}
+
+
 /* decode ASN.1 PasswordRecipientInfo (pwri), return 0 on success,
  * < 0 on error */
 static int wc_PKCS7_DecryptPwri(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
@@ -6284,6 +6482,18 @@ static int wc_PKCS7_DecryptRecipientInfos(PKCS7* pkcs7, byte* pkiMsg,
                 ret = wc_PKCS7_DecryptPwri(pkcs7, pkiMsg, pkiMsgSz, idx,
                                            decryptedKey, decryptedKeySz,
                                            recipFound);
+                if (ret != 0)
+                    return ret;
+
+            /* ori is IMPLICIT[4] */
+            } else if (pkiMsg[*idx] == (ASN_CONSTRUCTED |
+                                        ASN_CONTEXT_SPECIFIC | 4)) {
+                (*idx)++;
+
+                /* found ori */
+                ret = wc_PKCS7_DecryptOri(pkcs7, pkiMsg, pkiMsgSz, idx,
+                                          decryptedKey, decryptedKeySz,
+                                          recipFound);
                 if (ret != 0)
                     return ret;
 

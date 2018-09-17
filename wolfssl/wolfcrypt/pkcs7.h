@@ -51,6 +51,13 @@
     #define MAX_PKCS7_CERTS 4
 #endif
 
+#ifndef MAX_ORI_TYPE_SZ
+    #define MAX_ORI_TYPE_SZ  MAX_OID_SZ
+#endif
+#ifndef MAX_ORI_VALUE_SZ
+    #define MAX_ORI_VALUE_SZ 512
+#endif
+
 /* PKCS#7 content types, ref RFC 2315 (Section 14) */
 enum PKCS7_TYPES {
     PKCS7_MSG                 = 650,  /* 1.2.840.113549.1.7   */
@@ -113,6 +120,17 @@ typedef struct PKCS7DecodedAttrib {
 
 typedef struct Pkcs7Cert Pkcs7Cert;
 typedef struct Pkcs7EncodedRecip Pkcs7EncodedRecip;
+typedef struct PKCS7 PKCS7;
+
+/* OtherRecipientInfo decrypt callback prototype */
+typedef int (*CallbackOriDecrypt)(PKCS7* pkcs7, byte* oriType, word32 oriTypeSz,
+                                  byte* oriValue, word32 oriValueSz,
+                                  byte* decryptedKey, word32* decryptedKeySz,
+                                  void* ctx);
+typedef int (*CallbackOriEncrypt)(PKCS7* pkcs7, byte* cek, word32 cekSz,
+                                  byte* oriType, word32* oriTypeSz,
+                                  byte* oriValue, word32* oriValueSz,
+                                  void* ctx);
 
 /* Public Structure Warning:
  * Existing members must not be changed to maintain backwards compatibility! 
@@ -180,6 +198,11 @@ typedef struct PKCS7 {
     byte* pass;                   /* password, for PWRI decryption */
     word32 passSz;                /* size of pass, bytes */
 
+    CallbackOriEncrypt oriEncryptCb;  /* ORI encrypt callback */
+    CallbackOriDecrypt oriDecryptCb;  /* ORI decrypt callback */
+    void* oriEncryptCtx;              /* ORI encrypt user context ptr */
+    void* oriDecryptCtx;              /* ORI decrypt user context ptr */
+
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 } PKCS7;
 
@@ -224,21 +247,28 @@ WOLFSSL_API int  wc_PKCS7_AddRecipient_KARI(PKCS7* pkcs7, const byte* cert,
                                           word32 certSz, int keyWrapOID,
                                           int keyAgreeOID, byte* ukm,
                                           word32 ukmSz);
+
+WOLFSSL_API int  wc_PKCS7_SetKey(PKCS7* pkcs7, byte* key, word32 keySz);
 WOLFSSL_API int  wc_PKCS7_AddRecipient_KEKRI(PKCS7* pkcs7, int keyWrapOID,
                                           byte* kek, word32 kekSz,
                                           byte* keyID, word32 keyIdSz,
                                           void* timePtr, byte* otherOID,
                                           word32 otherOIDSz, byte* other,
                                           word32 otherSz);
+
+WOLFSSL_API int  wc_PKCS7_SetPassword(PKCS7* pkcs7, byte* passwd, word32 pLen);
 WOLFSSL_API int  wc_PKCS7_AddRecipient_PWRI(PKCS7* pkcs7, byte* passwd,
                                           word32 pLen, byte* salt,
                                           word32 saltSz, int kdfOID,
                                           int prfOID, int iterations,
                                           int encryptOID);
+WOLFSSL_API int  wc_PKCS7_SetOriEncryptCtx(PKCS7* pkcs7, void* ctx);
+WOLFSSL_API int  wc_PKCS7_SetOriDecryptCtx(PKCS7* pkcs7, void* ctx);
+WOLFSSL_API int  wc_PKCS7_SetOriDecryptCb(PKCS7* pkcs7, CallbackOriDecrypt cb);
+WOLFSSL_API int  wc_PKCS7_AddRecipient_ORI(PKCS7* pkcs7, CallbackOriEncrypt cb);
+
 WOLFSSL_API int  wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
                                           byte* output, word32 outputSz);
-WOLFSSL_API int  wc_PKCS7_SetKey(PKCS7* pkcs7, byte* key, word32 keySz);
-WOLFSSL_API int  wc_PKCS7_SetPassword(PKCS7* pkcs7, byte* passwd, word32 pLen);
 WOLFSSL_API int  wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
                                           word32 pkiMsgSz, byte* output,
                                           word32 outputSz);

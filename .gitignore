@@ -115,6 +115,7 @@ pkcs7envelopedDataAES128CBC.der
 pkcs7envelopedDataAES128CBC_ECDH_SHA1KDF.der
 pkcs7envelopedDataAES128CBC_KEKRI.der
 pkcs7envelopedDataAES128CBC_PWRI.der
+pkcs7envelopedDataAES128CBC_ORI.der
 pkcs7envelopedDataAES192CBC.der
 pkcs7envelopedDataAES256CBC.der
 pkcs7envelopedDataAES256CBC_ECDH_SHA256KDF.der
