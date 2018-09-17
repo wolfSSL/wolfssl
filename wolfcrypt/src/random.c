@@ -89,13 +89,12 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
         return FreeRng_fips(rng);
     }
 
-    int wc_RNG_HealthTest(int reseed,
-                                        const byte* entropyA, word32 entropyASz,
-                                        const byte* entropyB, word32 entropyBSz,
-                                        byte* output, word32 outputSz)
+    int wc_RNG_HealthTest(int reseed, const byte* seedA, word32 seedASz,
+                                      const byte* seedB, word32 seedBSz,
+                                      byte* output, word32 outputSz)
     {
-        return RNG_HealthTest_fips(reseed, entropyA, entropyASz,
-                              entropyB, entropyBSz, output, outputSz);
+        return RNG_HealthTest_fips(reseed, seedA, seedASz,
+                              seedB, seedBSz, output, outputSz);
    }
 #endif /* HAVE_HASHDRBG */
 
@@ -177,9 +176,69 @@ int wc_RNG_GenerateByte(WC_RNG* rng, byte* b)
 #define OUTPUT_BLOCK_LEN  (WC_SHA256_DIGEST_SIZE)
 #define MAX_REQUEST_LEN   (0x10000)
 #define RESEED_INTERVAL   WC_RESEED_INTERVAL
-#define SECURITY_STRENGTH (2048)
-#define ENTROPY_SZ        (SECURITY_STRENGTH/8)
-#define MAX_ENTROPY_SZ    (ENTROPY_SZ + ENTROPY_SZ/2)
+
+
+/* For FIPS builds, the user should not be adjusting the values. */
+#if defined(HAVE_FIPS) && \
+    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+    #if defined(RNG_SECURITY_STRENGTH) \
+            || defined(ENTROPY_SCALE_FACTOR) \
+            || defined(SEED_BLOCK_SZ)
+
+        #error "Do not change the RNG parameters for FIPS builds."
+    #endif
+#endif
+
+
+/* The security strength for the RNG is the target number of bits of
+ * entropy you are looking for in a seed. */
+#ifndef RNG_SECURITY_STRENGTH
+    #if defined(HAVE_FIPS) && \
+	    defined(HAVE_FIPS_VERSION) && (HAVE_FIPS_VERSION >= 2)
+        /* SHA-256 requires a minimum of 256-bits of entropy. The goal
+         * of 1024 will provide 4 times that. */
+        #define RNG_SECURITY_STRENGTH (1024)
+    #else
+        /* If not using FIPS or using old FIPS, set the number down a bit.
+         * More is better, but more is also slower. */
+        #define RNG_SECURITY_STRENGTH (256)
+    #endif
+#endif
+
+#ifndef ENTROPY_SCALE_FACTOR
+    /* The entropy scale factor should be the whole number inverse of the
+     * minimum bits of entropy per bit of NDRNG output. */
+    #if defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)
+        /* The value of 2 applies to Intel's RDSEED which provides about
+         * 0.5 bits minimum of entropy per bit. */
+        #define ENTROPY_SCALE_FACTOR 2
+    #else
+        /* Setting the default to 1. */
+        #define ENTROPY_SCALE_FACTOR 1
+    #endif
+#endif
+
+#ifndef SEED_BLOCK_SZ
+    /* The seed block size, is the size of the output of the underlying NDRNG.
+     * This value is used for testing the output of the NDRNG. */
+    #if defined(HAVE_INTEL_RDSEED) || defined(HAVE_INTEL_RDRAND)
+        /* RDSEED outputs in blocks of 64-bits. */
+        #define SEED_BLOCK_SZ sizeof(word64)
+    #else
+        /* Setting the default to 2. It is not unreasonable for /dev/random
+         * or /dev/urandom to return two bytes that are the same. */
+        #define SEED_BLOCK_SZ 2
+    #endif
+#endif
+
+#define SEED_SZ        (RNG_SECURITY_STRENGTH*ENTROPY_SCALE_FACTOR/8)
+
+/* The maximum seed size will be the seed size plus a seed block for the
+ * test, and an additional half of the seed size. This additional half
+ * is in case the user does not supply a nonce. A nonce will be obtained
+ * from the NDRNG. */
+#define MAX_SEED_SZ    (SEED_SZ + SEED_SZ/2 + SEED_BLOCK_SZ)
+
 
 /* Internal return codes */
 #define DRBG_SUCCESS      0
@@ -310,19 +369,19 @@ static int Hash_df(DRBG* drbg, byte* out, word32 outSz, byte type,
 }
 
 /* Returns: DRBG_SUCCESS or DRBG_FAILURE */
-static int Hash_DRBG_Reseed(DRBG* drbg, const byte* entropy, word32 entropySz)
+static int Hash_DRBG_Reseed(DRBG* drbg, const byte* seed, word32 seedSz)
 {
-    byte seed[DRBG_SEED_LEN];
+    byte newV[DRBG_SEED_LEN];
 
-    XMEMSET(seed, 0, DRBG_SEED_LEN);
+    XMEMSET(newV, 0, DRBG_SEED_LEN);
 
-    if (Hash_df(drbg, seed, sizeof(seed), drbgReseed, drbg->V, sizeof(drbg->V),
-                                          entropy, entropySz) != DRBG_SUCCESS) {
+    if (Hash_df(drbg, newV, sizeof(newV), drbgReseed,
+                drbg->V, sizeof(drbg->V), seed, seedSz) != DRBG_SUCCESS) {
         return DRBG_FAILURE;
     }
 
-    XMEMCPY(drbg->V, seed, sizeof(drbg->V));
-    ForceZero(seed, sizeof(seed));
+    XMEMCPY(drbg->V, newV, sizeof(drbg->V));
+    ForceZero(newV, sizeof(newV));
 
     if (Hash_df(drbg, drbg->C, sizeof(drbg->C), drbgInitC, drbg->V,
                                     sizeof(drbg->V), NULL, 0) != DRBG_SUCCESS) {
@@ -336,13 +395,13 @@ static int Hash_DRBG_Reseed(DRBG* drbg, const byte* entropy, word32 entropySz)
 }
 
 /* Returns: DRBG_SUCCESS and DRBG_FAILURE or BAD_FUNC_ARG on fail */
-int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* entropy, word32 entropySz)
+int wc_RNG_DRBG_Reseed(WC_RNG* rng, const byte* seed, word32 seedSz)
 {
-    if (rng == NULL || entropy == NULL) {
+    if (rng == NULL || seed == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    return Hash_DRBG_Reseed(rng->drbg, entropy, entropySz);
+    return Hash_DRBG_Reseed(rng->drbg, seed, seedSz);
 }
 
 static WC_INLINE void array_add_one(byte* data, word32 dataSz)
@@ -576,12 +635,35 @@ static int Hash_DRBG_Uninstantiate(DRBG* drbg)
 /* End NIST DRBG Code */
 
 
+int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
+{
+    int ret = DRBG_SUCCESS;
+
+    /* Check the seed for duplicate words. */
+    word32 seedIdx = 0;
+    word32 scratchSz = min(SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ);
+
+    while (seedIdx < seedSz - SEED_BLOCK_SZ) {
+        if (ConstantCompare(seed + seedIdx,
+                            seed + seedIdx + scratchSz,
+                            scratchSz) == 0) {
+
+            ret = DRBG_CONT_FAILURE;
+        }
+        seedIdx += SEED_BLOCK_SZ;
+        scratchSz = min(SEED_BLOCK_SZ, (seedSz - seedIdx));
+    }
+
+    return ret;
+}
+
+
 static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
                     void* heap, int devId)
 {
     int ret = RNG_FAILURE_E;
 #ifdef HAVE_HASHDRBG
-    word32 entropySz = ENTROPY_SZ;
+    word32 seedSz = SEED_SZ + SEED_BLOCK_SZ;
 #endif
 
     (void)nonce;
@@ -634,10 +716,10 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 #else
 #ifdef HAVE_HASHDRBG
     if (nonceSz == 0)
-        entropySz = MAX_ENTROPY_SZ;
+        seedSz = MAX_SEED_SZ;
 
     if (wc_RNG_HealthTestLocal(0) == 0) {
-        DECLARE_VAR(entropy, byte, MAX_ENTROPY_SZ, rng->heap);
+        DECLARE_VAR(seed, byte, MAX_SEED_SZ, rng->heap);
 
         rng->drbg =
                 (struct DRBG*)XMALLOC(sizeof(DRBG), rng->heap,
@@ -645,16 +727,24 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
         if (rng->drbg == NULL) {
             ret = MEMORY_E;
         }
-        else if (wc_GenerateSeed(&rng->seed, entropy, entropySz) == 0 &&
-                 Hash_DRBG_Instantiate(rng->drbg, entropy, entropySz,
-                            nonce, nonceSz, rng->heap, devId) == DRBG_SUCCESS) {
-            ret = Hash_DRBG_Generate(rng->drbg, NULL, 0);
-        }
-        else
-            ret = DRBG_FAILURE;
+        else {
+            ret = wc_GenerateSeed(&rng->seed, seed, seedSz);
+            if (ret != 0)
+                ret = DRBG_FAILURE;
+            else
+                ret = wc_RNG_TestSeed(seed, seedSz);
 
-        ForceZero(entropy, entropySz);
-        FREE_VAR(entropy, rng->heap);
+            if (ret == DRBG_SUCCESS)
+                 ret = Hash_DRBG_Instantiate(rng->drbg,
+                            seed + SEED_BLOCK_SZ, seedSz - SEED_BLOCK_SZ,
+                            nonce, nonceSz, rng->heap, devId);
+
+            if (ret == DRBG_SUCCESS)
+                ret = Hash_DRBG_Generate(rng->drbg, NULL, 0);
+        }
+
+        ForceZero(seed, seedSz);
+        FREE_VAR(seed, rng->heap);
     }
     else
         ret = DRBG_CONT_FAILURE;
@@ -747,20 +837,24 @@ int wc_RNG_GenerateBlock(WC_RNG* rng, byte* output, word32 sz)
     ret = Hash_DRBG_Generate(rng->drbg, output, sz);
     if (ret == DRBG_NEED_RESEED) {
         if (wc_RNG_HealthTestLocal(1) == 0) {
-            byte entropy[ENTROPY_SZ];
+            byte newSeed[SEED_SZ + SEED_BLOCK_SZ];
 
-            if (wc_GenerateSeed(&rng->seed, entropy, ENTROPY_SZ) == 0 &&
-                Hash_DRBG_Reseed(rng->drbg, entropy, ENTROPY_SZ)
-                                                              == DRBG_SUCCESS) {
-
-                ret = Hash_DRBG_Generate(rng->drbg, NULL, 0);
-                if (ret == DRBG_SUCCESS)
-                    ret = Hash_DRBG_Generate(rng->drbg, output, sz);
-            }
-            else
+            ret = wc_GenerateSeed(&rng->seed, newSeed,
+                                  SEED_SZ + SEED_BLOCK_SZ);
+            if (ret != 0)
                 ret = DRBG_FAILURE;
+            else
+                ret = wc_RNG_TestSeed(newSeed, SEED_SZ + SEED_BLOCK_SZ);
 
-            ForceZero(entropy, ENTROPY_SZ);
+            if (ret == DRBG_SUCCESS)
+                ret = Hash_DRBG_Reseed(rng->drbg, newSeed + SEED_BLOCK_SZ,
+                                       SEED_SZ);
+            if (ret == DRBG_SUCCESS)
+                ret = Hash_DRBG_Generate(rng->drbg, NULL, 0);
+            if (ret == DRBG_SUCCESS)
+                ret = Hash_DRBG_Generate(rng->drbg, output, sz);
+
+            ForceZero(newSeed, sizeof(newSeed));
         }
         else
             ret = DRBG_CONT_FAILURE;
@@ -822,21 +916,20 @@ int wc_FreeRng(WC_RNG* rng)
 }
 
 #ifdef HAVE_HASHDRBG
-int wc_RNG_HealthTest(int reseed, const byte* entropyA, word32 entropyASz,
-                                  const byte* entropyB, word32 entropyBSz,
+int wc_RNG_HealthTest(int reseed, const byte* seedA, word32 seedASz,
+                                  const byte* seedB, word32 seedBSz,
                                   byte* output, word32 outputSz)
 {
     return wc_RNG_HealthTest_ex(reseed, NULL, 0,
-                                entropyA, entropyASz,
-                                entropyB, entropyBSz,
+                                seedA, seedASz, seedB, seedBSz,
                                 output, outputSz,
                                 NULL, INVALID_DEVID);
 }
 
 
 int wc_RNG_HealthTest_ex(int reseed, const byte* nonce, word32 nonceSz,
-                                  const byte* entropyA, word32 entropyASz,
-                                  const byte* entropyB, word32 entropyBSz,
+                                  const byte* seedA, word32 seedASz,
+                                  const byte* seedB, word32 seedBSz,
                                   byte* output, word32 outputSz,
                                   void* heap, int devId)
 {
@@ -846,11 +939,11 @@ int wc_RNG_HealthTest_ex(int reseed, const byte* nonce, word32 nonceSz,
     DRBG  drbg_var;
 #endif
 
-    if (entropyA == NULL || output == NULL) {
+    if (seedA == NULL || output == NULL) {
         return BAD_FUNC_ARG;
     }
 
-    if (reseed != 0 && entropyB == NULL) {
+    if (reseed != 0 && seedB == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -867,13 +960,13 @@ int wc_RNG_HealthTest_ex(int reseed, const byte* nonce, word32 nonceSz,
     drbg = &drbg_var;
 #endif
 
-    if (Hash_DRBG_Instantiate(drbg, entropyA, entropyASz, nonce, nonceSz,
+    if (Hash_DRBG_Instantiate(drbg, seedA, seedASz, nonce, nonceSz,
                               heap, devId) != 0) {
         goto exit_rng_ht;
     }
 
     if (reseed) {
-        if (Hash_DRBG_Reseed(drbg, entropyB, entropyBSz) != 0) {
+        if (Hash_DRBG_Reseed(drbg, seedB, seedBSz) != 0) {
             goto exit_rng_ht;
         }
     }
@@ -904,14 +997,14 @@ exit_rng_ht:
 }
 
 
-const byte entropyA[] = {
+const byte seedA[] = {
     0x63, 0x36, 0x33, 0x77, 0xe4, 0x1e, 0x86, 0x46, 0x8d, 0xeb, 0x0a, 0xb4,
     0xa8, 0xed, 0x68, 0x3f, 0x6a, 0x13, 0x4e, 0x47, 0xe0, 0x14, 0xc7, 0x00,
     0x45, 0x4e, 0x81, 0xe9, 0x53, 0x58, 0xa5, 0x69, 0x80, 0x8a, 0xa3, 0x8f,
     0x2a, 0x72, 0xa6, 0x23, 0x59, 0x91, 0x5a, 0x9f, 0x8a, 0x04, 0xca, 0x68
 };
 
-const byte reseedEntropyA[] = {
+const byte reseedSeedA[] = {
     0xe6, 0x2b, 0x8a, 0x8e, 0xe8, 0xf1, 0x41, 0xb6, 0x98, 0x05, 0x66, 0xe3,
     0xbf, 0xe3, 0xc0, 0x49, 0x03, 0xda, 0xd4, 0xac, 0x2c, 0xdf, 0x9f, 0x22,
     0x80, 0x01, 0x0a, 0x67, 0x39, 0xbc, 0x83, 0xd3
@@ -931,7 +1024,7 @@ const byte outputA[] = {
     0xa1, 0x80, 0x18, 0x3a, 0x07, 0xdf, 0xae, 0x17
 };
 
-const byte entropyB[] = {
+const byte seedB[] = {
     0xa6, 0x5a, 0xd0, 0xf3, 0x45, 0xdb, 0x4e, 0x0e, 0xff, 0xe8, 0x75, 0xc3,
     0xa2, 0xe7, 0x1f, 0x42, 0xc7, 0x12, 0x9d, 0x62, 0x0f, 0xf5, 0xc1, 0x19,
     0xa9, 0xef, 0x55, 0xf0, 0x51, 0x85, 0xe0, 0xfb, /* nonce next */
@@ -972,8 +1065,8 @@ static int wc_RNG_HealthTestLocal(int reseed)
 #endif
 
     if (reseed) {
-        ret = wc_RNG_HealthTest(1, entropyA, sizeof(entropyA),
-                                reseedEntropyA, sizeof(reseedEntropyA),
+        ret = wc_RNG_HealthTest(1, seedA, sizeof(seedA),
+                                reseedSeedA, sizeof(reseedSeedA),
                                 check, RNG_HEALTH_TEST_CHECK_SIZE);
         if (ret == 0) {
             if (ConstantCompare(check, outputA,
@@ -982,7 +1075,7 @@ static int wc_RNG_HealthTestLocal(int reseed)
         }
     }
     else {
-        ret = wc_RNG_HealthTest(0, entropyB, sizeof(entropyB),
+        ret = wc_RNG_HealthTest(0, seedB, sizeof(seedB),
                                 NULL, 0,
                                 check, RNG_HEALTH_TEST_CHECK_SIZE);
         if (ret == 0) {
@@ -992,13 +1085,13 @@ static int wc_RNG_HealthTestLocal(int reseed)
         }
 
         /* The previous test cases use a large seed instead of a seed and nonce.
-         * entropyB is actually from a test case with a seed and nonce, and
+         * seedB is actually from a test case with a seed and nonce, and
          * just concatenates them. The pivot point between seed and nonce is
          * byte 32, feed them into the health test separately. */
         if (ret == 0) {
             ret = wc_RNG_HealthTest_ex(0,
-                                    entropyB + 32, sizeof(entropyB) - 32,
-                                    entropyB, 32,
+                                    seedB + 32, sizeof(seedB) - 32,
+                                    seedB, 32,
                                     NULL, 0,
                                     check, RNG_HEALTH_TEST_CHECK_SIZE,
                                     NULL, INVALID_DEVID);
