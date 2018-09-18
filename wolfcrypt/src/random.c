@@ -1442,6 +1442,19 @@ int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 
 int wc_GenerateSeed(OS_Seed* os, byte* output, word32 sz)
 {
+    #ifdef HAVE_INTEL_RDSEED
+        if (IS_INTEL_RDSEED(intel_flags)) {
+             if (!wc_GenerateSeed_IntelRD(NULL, output, sz)) {
+                 /* success, we're done */
+                 return 0;
+             }
+        #ifdef FORCE_FAILURE_RDSEED
+             /* don't fall back to CryptoAPI */
+             return READ_RAN_E;
+        #endif
+        }
+    #endif /* HAVE_INTEL_RDSEED */
+
     if(!CryptAcquireContext(&os->handle, 0, 0, PROV_RSA_FULL,
                             CRYPT_VERIFYCONTEXT))
         return WINCRYPT_E;
