@@ -61,6 +61,8 @@ CLEANFILES+= cert.der \
              pkcs7envelopedDataAES128CBC_ORI.der \
              pkcs7envelopedDataAES192CBC.der \
              pkcs7envelopedDataAES256CBC.der \
+             pkcs7envelopedDataAES256CBC_IANDS.der \
+             pkcs7envelopedDataAES256CBC_SKID.der \
              pkcs7signedData_RSA_SHA.der \
              pkcs7signedData_RSA_SHA_noattr.der \
              pkcs7signedData_RSA_SHA224.der \
