@@ -1122,7 +1122,7 @@ static int Pkcs11GetEccPublicKey(ecc_key* key, Pkcs11Session* session,
         ret = WC_HW_E;
 
     if (ret == 0) {
-        pointSz = template[0].ulValueLen;
+        pointSz = (int)template[0].ulValueLen;
         point = (unsigned char *)XMALLOC(pointSz, NULL, DYNAMIC_TYPE_ECC);
         if (point == NULL)
             ret = MEMORY_E;
@@ -1213,9 +1213,9 @@ static int Pkcs11EC_KeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
         ret = Pkcs11GetEccPublicKey(key, session, pubKey);
 
     if (pubKey != NULL_PTR)
-        ret = session->func->C_DestroyObject(session->handle, pubKey);
+        session->func->C_DestroyObject(session->handle, pubKey);
     if (ret != 0 && privKey != NULL_PTR)
-        ret = session->func->C_DestroyObject(session->handle, privKey);
+        session->func->C_DestroyObject(session->handle, privKey);
 
     return ret;
 }
@@ -1255,7 +1255,7 @@ static int Pkcs11ExtractSecret(Pkcs11Session* session, CK_OBJECT_HANDLE secret,
                                                                    template, 1);
         if (rv != CKR_OK)
             ret = WC_HW_E;
-        *outLen = template[0].ulValueLen;
+        *outLen = (word32)template[0].ulValueLen;
     }
 
     return ret;
@@ -1784,7 +1784,8 @@ static int Pkcs11AesGcmDecrypt(Pkcs11Session* session, wc_CryptoInfo* info)
     }
     if (ret == 0) {
         /* Put authentication tag in as encrypted data. */
-        outLen = len = (len + info->cipher.aesgcm_dec.authTagSz - outLen);
+        outLen = len = (len + info->cipher.aesgcm_dec.authTagSz -
+                                                                (word32)outLen);
         rv = session->func->C_DecryptUpdate(session->handle,
                                    (CK_BYTE_PTR)info->cipher.aesgcm_dec.authTag,
                                    info->cipher.aesgcm_dec.authTagSz,
@@ -1794,7 +1795,7 @@ static int Pkcs11AesGcmDecrypt(Pkcs11Session* session, wc_CryptoInfo* info)
             ret = WC_HW_E;
     }
     if (ret == 0) {
-        outLen = len = (len - outLen);
+        outLen = len = (len - (word32)outLen);
         /* Decrypted data comes out now. */
         rv = session->func->C_DecryptFinal(session->handle,
                                            info->cipher.aesgcm_dec.out,
