@@ -957,9 +957,9 @@ static int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
 {
     int ret;
 
-#ifndef WC_NO_RNG
     switch (padType)
     {
+#ifndef WC_NO_RNG
         case WC_RSA_PKCSV15_PAD:
             /*WOLFSSL_MSG("wolfSSL Using RSA PKCSV15 padding");*/
             ret = RsaPad(input, inputLen, pkcsBlock, pkcsBlockLen,
@@ -981,6 +981,7 @@ static int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
                                                hType, mgf, saltLen, bits, heap);
             break;
     #endif
+#endif /* !WC_NO_RNG */
 
     #ifdef WC_RSA_NO_PADDING
         case WC_RSA_NO_PAD:
@@ -1003,9 +1004,6 @@ static int wc_RsaPad_ex(const byte* input, word32 inputLen, byte* pkcsBlock,
             WOLFSSL_MSG("Unknown RSA Pad Type");
             ret = RSA_PAD_E;
     }
-#else
-    ret = NOT_COMPILED_IN;
-#endif
 
     /* silence warning if not used with padding scheme */
     (void)input;

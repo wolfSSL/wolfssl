@@ -12773,7 +12773,7 @@ static int test_wc_ecc_make_key (void)
 {
     int     ret = 0;
 
-#if defined(HAVE_ECC)
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG)
     WC_RNG rng;
     ecc_key key;
 
@@ -12853,7 +12853,7 @@ static int test_wc_ecc_check_key (void)
 {
     int         ret = 0;
 
-#if defined(HAVE_ECC)
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG)
     WC_RNG      rng;
     ecc_key     key;
 
@@ -12900,7 +12900,7 @@ static int test_wc_ecc_size (void)
 {
     int         ret = 0;
 
-#if defined(HAVE_ECC)
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG)
     WC_RNG      rng;
     ecc_key     key;
 
@@ -12946,7 +12946,7 @@ static int test_wc_ecc_signVerify_hash (void)
 {
     int         ret = 0;
 
-#if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN) && !defined(NO_ASN)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN) && !defined(NO_ASN) && !defined(WC_NO_RNG)
     WC_RNG      rng;
     ecc_key     key;
     int         signH = WOLFSSL_FATAL_ERROR;
@@ -13056,7 +13056,7 @@ static int test_wc_ecc_shared_secret (void)
 {
     int         ret = 0;
 
-#if defined(HAVE_ECC) && defined(HAVE_ECC_DHE)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG)
     ecc_key     key, pubKey;
     WC_RNG      rng;
     int         keySz = KEY16;
@@ -13123,7 +13123,7 @@ static int test_wc_ecc_export_x963 (void)
 {
     int     ret = 0;
 
-#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
     ecc_key key;
     WC_RNG  rng;
     byte    out[ECC_ASN963_MAX_BUF_SZ];
@@ -13185,7 +13185,7 @@ static int test_wc_ecc_export_x963_ex (void)
 {
     int     ret = 0;
 
-#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
     ecc_key key;
     WC_RNG  rng;
     byte    out[ECC_ASN963_MAX_BUF_SZ];
@@ -13284,7 +13284,7 @@ static int test_wc_ecc_import_x963 (void)
     int     ret = 0;
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
-    defined(HAVE_ECC_KEY_EXPORT)
+    defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
     ecc_key pubKey, key;
     WC_RNG  rng;
     byte    x963[ECC_ASN963_MAX_BUF_SZ];
@@ -13348,7 +13348,7 @@ static int ecc_import_private_key (void)
     int     ret = 0;
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_IMPORT) && \
-    defined(HAVE_ECC_KEY_EXPORT)
+    defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
     ecc_key key, keyImp;
     WC_RNG  rng;
     byte    privKey[ECC_PRIV_KEY_BUF]; /* Raw private key.*/
@@ -13419,7 +13419,7 @@ static int test_wc_ecc_export_private_only (void)
 {
     int     ret = 0;
 
-#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
     ecc_key key;
     WC_RNG  rng;
     byte    out[ECC_PRIV_KEY_BUF];
@@ -13616,7 +13616,7 @@ static int test_wc_ecc_sig_size (void)
 {
    int         ret = 0;
 
-#ifdef HAVE_ECC
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG)
     ecc_key     key;
     WC_RNG      rng;
     int         keySz = KEY16;
@@ -13657,7 +13657,7 @@ static int test_wc_ecc_ctx_new (void)
 {
     int         ret = 0;
 
-#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG)
     WC_RNG      rng;
     ecEncCtx*   cli = NULL;
     ecEncCtx*   srv = NULL;
@@ -13708,7 +13708,7 @@ static int test_wc_ecc_ctx_reset (void)
 {
     int         ret = 0;
 
-#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG)
     ecEncCtx*   ctx = NULL;
     WC_RNG      rng;
 
@@ -13757,7 +13757,7 @@ static int test_wc_ecc_ctx_set_peer_salt (void)
 {
     int         ret = 0;
 
-#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG)
     WC_RNG          rng;
     ecEncCtx*       cliCtx      = NULL;
     ecEncCtx*       servCtx     = NULL;
@@ -13829,7 +13829,7 @@ static int test_wc_ecc_ctx_set_info (void)
 {
     int         ret = 0;
 
-#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && !defined(WC_NO_RNG)
     ecEncCtx*   ctx = NULL;
     WC_RNG      rng;
     const char* optInfo = "Optional Test Info.";
@@ -13881,7 +13881,8 @@ static int test_wc_ecc_encryptDecrypt (void)
 {
     int         ret = 0;
 
-#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && defined(WOLFSSL_AES_128)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_ENCRYPT) && defined(WOLFSSL_AES_128) \
+     && !defined(WC_NO_RNG)
     ecc_key     srvKey, cliKey;
     WC_RNG      rng;
     const char* msg   = "EccBlock Size 16";
@@ -14026,7 +14027,7 @@ static int test_wc_ecc_pointFns (void)
 {
     int         ret = 0;
 
-#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && !defined(WC_NO_RNG)
     ecc_key     key;
     WC_RNG      rng;
     ecc_point*  point = NULL;
@@ -14200,7 +14201,7 @@ static int test_wc_ecc_shared_secret_ssh (void)
 {
     int         ret = 0;
 
-#if defined(HAVE_ECC) && defined(HAVE_ECC_DHE)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_DHE) && !defined(WC_NO_RNG)
     ecc_key     key, key2;
     WC_RNG      rng;
     int         keySz = KEY32;
@@ -14282,7 +14283,8 @@ static int test_wc_ecc_verify_hash_ex (void)
 {
     int             ret = 0;
 
-#if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN) && defined(WOLFSSL_PUBLIC_MP)
+#if defined(HAVE_ECC) && defined(HAVE_ECC_SIGN) && defined(WOLFSSL_PUBLIC_MP) \
+     && !defined(WC_NO_RNG)
     ecc_key         key;
     WC_RNG          rng;
     mp_int          r;
@@ -14411,7 +14413,7 @@ static int test_wc_ecc_mulmod (void)
 {
     int         ret = 0;
 
-#if defined(HAVE_ECC) && \
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG) && \
     !(defined(WOLFSSL_ATECC508A) || defined(WOLFSSL_VALIDATE_ECC_IMPORT))
     ecc_key     key1, key2, key3;
     WC_RNG      rng;
@@ -14492,7 +14494,7 @@ static int test_wc_ecc_is_valid_idx (void)
 {
     int         ret = 0;
 
-#if defined(HAVE_ECC)
+#if defined(HAVE_ECC) && !defined(WC_NO_RNG)
     ecc_key     key;
     WC_RNG      rng;
     int         iVal = -2;
@@ -20896,6 +20898,9 @@ static int test_wc_RNG_GenerateBlock(void)
     }
 
     wc_FreeRng(&rng);
+
+    (void)rng; /* for WC_NO_RNG case */
+    (void)key;
 
     return ret;
 }

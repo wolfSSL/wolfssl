@@ -2690,6 +2690,9 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
 
     (void)curveOID;
     (void)oidSz;
+    (void)tmpIdx;
+    (void)keySz;
+    (void)heap;
 
     return 1;
 }
@@ -2926,6 +2929,8 @@ int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
     /* set total size at beginning */
     sz = SetSequence(totalSz, out);
     XMEMMOVE(out + sz, out + MAX_SEQ_SZ, totalSz);
+
+    (void)rng;
 
     return totalSz + sz;
 }
@@ -3274,6 +3279,8 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     XFREE(cbcIv,   heap, DYNAMIC_TYPE_TMP_BUFFER);
     XFREE(saltTmp, heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
+
+    (void)rng;
 
     return totalSz;
 }

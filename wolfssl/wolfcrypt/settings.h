@@ -1743,7 +1743,8 @@ extern void uITRON4_free(void *p) ;
 #ifndef WC_NO_HARDEN
     #if (defined(USE_FAST_MATH) && !defined(TFM_TIMING_RESISTANT)) || \
         (defined(HAVE_ECC) && !defined(ECC_TIMING_RESISTANT)) || \
-        (!defined(NO_RSA) && !defined(WC_RSA_BLINDING) && !defined(HAVE_FIPS))
+        (!defined(NO_RSA) && !defined(WC_RSA_BLINDING) && !defined(HAVE_FIPS) && \
+            !defined(WC_NO_RNG))
 
         #ifndef _MSC_VER
             #warning "For timing resistance / side-channel attack prevention consider using harden options"
