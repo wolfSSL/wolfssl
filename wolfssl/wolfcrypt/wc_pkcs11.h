@@ -1,4 +1,4 @@
-/* wolfpkcs11.h
+/* wc_pkcs11.h
  *
  * Copyright (C) 2006-2017 wolfSSL Inc.
  *
@@ -27,20 +27,7 @@
 #ifdef HAVE_PKCS11
 
 #include <wolfssl/wolfcrypt/cryptodev.h>
-
-#define CK_PTR *
-#define CK_DECLARE_FUNCTION(returnType, name) \
-    returnType name
-#define CK_DECLARE_FUNCTION_POINTER(returnType, name) \
-   returnType (* name)
-#define CK_CALLBACK_FUNCTION(returnType, name) \
-   returnType (* name)
-#ifndef NULL_PTR
-#define NULL_PTR 0
-#endif
-
-
-#include <wolfssl/wolfcrypt/port/pkcs11/pkcs11.h>
+#include <wolfssl/wolfcrypt/pkcs11.h>
 
 typedef struct Pkcs11Dev {
     void*             dlHandle;
