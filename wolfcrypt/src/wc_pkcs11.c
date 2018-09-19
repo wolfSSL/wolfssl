@@ -1361,41 +1361,48 @@ static int Pkcs11ECDH(Pkcs11Session* session, wc_CryptoInfo* info)
  */
 static word32 Pkcs11ECDSASig_Encode(byte* sig, word32 sz)
 {
-    word32 rHigh, sHigh;
+    word32 rHigh, sHigh, seqLen;
     word32 rStart = 0, sStart = 0;
     word32 sigSz;
     word32 i;
 
     /* Find first byte of data in r and s. */
-    while (sig[rStart] == 0x00)
+    while (sig[rStart] == 0x00 && rStart < sz - 1)
         rStart++;
-    while (sig[sz + sStart] == 0x00)
+    while (sig[sz + sStart] == 0x00 && sStart < sz - 1)
         sStart++;
-    /* Check if 0 needs to be prepended to make integer a poisitive number. */
-    rHigh = (sig[rStart] & 0x80) >> 7;
-    sHigh = (sig[sz + sStart] & 0x80) >> 7;
+    /* Check if 0 needs to be prepended to make integer a positive number. */
+    rHigh = sig[rStart] >> 7;
+    sHigh = sig[sz + sStart] >> 7;
     /* Calculate the complete ASN.1 DER encoded size. */
-    sigSz = 2 + 2 + rHigh + (sz - rStart) + 2 + sHigh + (sz - sStart);
+    sigSz = 2 + rHigh + (sz - rStart) + 2 + sHigh + (sz - sStart);
+    if (sigSz >= 128)
+        seqLen = 3;
+    else
+        seqLen = 2;
 
-    /* Move s and r into their final places. */
-    XMEMMOVE(sig + 2 + 2 + rHigh + (sz - rStart) + 2 + sHigh, sig + sz,
-                                                                   sz - sStart);
-    XMEMMOVE(sig + 2 + 2 + rHigh, sig, sz - rStart);
+    /* Move s and then r into their final places. */
+    XMEMMOVE(sig + seqLen + 2 + rHigh + (sz - rStart) + 2 + sHigh,
+                                                sig + sz + sStart, sz - sStart);
+    XMEMMOVE(sig + seqLen + 2 + rHigh, sig + rStart, sz - rStart);
 
     /* Put the ASN.1 DER encoding around data. */
-    sig[0] = ASN_CONSTRUCTED | ASN_SEQUENCE;
-    sig[1] = sigSz - 2;
-    sig[2] = ASN_INTEGER;
-    sig[3] = rHigh + (sz - rStart);
+    i = 0;
+    sig[i++] = ASN_CONSTRUCTED | ASN_SEQUENCE;
+    if (seqLen == 3)
+        sig[i++] = 0x81;
+    sig[i++] = sigSz;
+    sig[i++] = ASN_INTEGER;
+    sig[i++] = rHigh + (sz - rStart);
     if (rHigh)
-        sig[4] = 0x00;
-    i = 2 + 2 + rHigh + (sz - rStart);
-    sig[i + 0] = ASN_INTEGER;
-    sig[i + 1] = sHigh + (sz - sStart);
+        sig[i++] = 0x00;
+    i += sz - rStart;
+    sig[i++] = ASN_INTEGER;
+    sig[i++] = sHigh + (sz - sStart);
     if (sHigh)
-        sig[i + 2] = 0x00;
+        sig[i] = 0x00;
 
-    return sigSz;
+    return seqLen + sigSz;
 }
 
 /**
@@ -1414,18 +1421,26 @@ static int Pkcs11ECDSASig_Decode(const byte* in, word32 inSz, byte* sig,
 {
     int ret = 0;
     word32 i = 0;
-    int len;
+    int len, seqLen = 2;
 
     /* Make sure zeros in place when decoding short integers. */
     XMEMSET(sig, 0, sz * 2);
 
     /* Check min data for: SEQ + INT. */
-    if (inSz < 4)
+    if (inSz < 5)
         ret = ASN_PARSE_E;
     /* Check SEQ */
     if (ret == 0 && in[i++] != (ASN_CONSTRUCTED | ASN_SEQUENCE))
         ret = ASN_PARSE_E;
-    if (ret == 0 && in[i++] != inSz - 2)
+    if (ret == 0 && in[i] >= 0x80) {
+        if (in[i] != 0x81)
+            ret = ASN_PARSE_E;
+        else {
+            i++;
+            seqLen++;
+        }
+    }
+    if (ret == 0 && in[i++] != inSz - seqLen)
         ret = ASN_PARSE_E;
 
     /* Check INT */
@@ -1433,7 +1448,7 @@ static int Pkcs11ECDSASig_Decode(const byte* in, word32 inSz, byte* sig,
         ret = ASN_PARSE_E;
     if (ret == 0 && (len = in[i++]) > sz + 1)
         ret = ASN_PARSE_E;
-    /* Check space for INT */
+    /* Check there is space for INT data */
     if (ret == 0 && i + len > inSz)
         ret = ASN_PARSE_E;
     if (ret == 0) {
@@ -1442,8 +1457,6 @@ static int Pkcs11ECDSASig_Decode(const byte* in, word32 inSz, byte* sig,
             i++;
             len--;
         }
-    }
-    if (ret == 0) {
         /* Copy r into sig. */
         XMEMCPY(sig + sz - len, in + i, len);
         i += len;
@@ -1457,7 +1470,7 @@ static int Pkcs11ECDSASig_Decode(const byte* in, word32 inSz, byte* sig,
         ret = ASN_PARSE_E;
     if (ret == 0 && (len = in[i++]) > sz + 1)
         ret = ASN_PARSE_E;
-    /* Check space for INT */
+    /* Check there is space for INT data */
     if (ret == 0 && i + len > inSz)
         ret = ASN_PARSE_E;
     if (ret == 0) {
@@ -1466,8 +1479,6 @@ static int Pkcs11ECDSASig_Decode(const byte* in, word32 inSz, byte* sig,
             i++;
             len--;
         }
-    }
-    if (ret == 0) {
         /* Copy s into sig. */
         XMEMCPY(sig + sz + sz - len, in + i, len);
     }
