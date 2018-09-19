@@ -98,7 +98,7 @@ int wc_Pkcs11_Initialize(Pkcs11Dev* dev, const char* library)
     }
 
     if (ret == 0) {
-        memset(&args, 0x00, sizeof(args));
+        XMEMSET(&args, 0x00, sizeof(args));
         args.flags = CKF_OS_LOCKING_OK;
         if (dev->func->C_Initialize(&args) != CKR_OK)
             ret = WC_INIT_E;
@@ -365,6 +365,7 @@ static int Pkcs11CreateRsaPrivateKey(CK_OBJECT_HANDLE* privateKey,
         { CKA_COEFFICIENT,      NULL,          0                    },
         { CKA_PUBLIC_EXPONENT,  NULL,          0                    }
     };
+    CK_ULONG        keyTmplCnt = sizeof(keyTemplate) / sizeof(*keyTemplate);
 
     /* Set the modulus and private key data. */
     keyTemplate[ 3].pValue     = rsaKey->n.raw.buf;
@@ -384,7 +385,7 @@ static int Pkcs11CreateRsaPrivateKey(CK_OBJECT_HANDLE* privateKey,
     keyTemplate[10].pValue     = rsaKey->e.raw.buf;
     keyTemplate[10].ulValueLen = rsaKey->e.raw.len;
 
-    rv = session->func->C_CreateObject(session->handle, keyTemplate, 11,
+    rv = session->func->C_CreateObject(session->handle, keyTemplate, keyTmplCnt,
                                                                     privateKey);
     if (rv != CKR_OK)
         ret = WC_HW_E;
@@ -409,8 +410,9 @@ static int Pkcs11EccSetParams(ecc_key* key, CK_ATTRIBUTE* template, int idx)
 
     if (key->dp != NULL && key->dp->oid != NULL) {
         unsigned char* derParams = template[idx].pValue;
+        /* ASN.1 encoding: OBJ + ecc parameters OID */
         template[idx].ulValueLen = key->dp->oidSz + 2;
-        derParams[0] = 0x06;
+        derParams[0] = ASN_OBJECT_ID;
         derParams[1] = key->dp->oidSz;
         XMEMCPY(derParams + 2, key->dp->oid, key->dp->oidSz);
     }
@@ -445,14 +447,15 @@ static int Pkcs11CreateEccPrivateKey(CK_OBJECT_HANDLE* privateKey,
         { CKA_EC_PARAMS, params,        0                    },
         { CKA_VALUE,     NULL,          0                    }
     };
+    CK_ULONG        keyTmplCnt = sizeof(keyTemplate) / sizeof(*keyTemplate);
 
     ret = Pkcs11EccSetParams(private_key, keyTemplate, 3);
     if (ret == 0) {
         keyTemplate[4].pValue     = private_key->k.raw.buf;
         keyTemplate[4].ulValueLen = private_key->k.raw.len;
 
-        rv = session->func->C_CreateObject(session->handle, keyTemplate, 5,
-                                                                    privateKey);
+        rv = session->func->C_CreateObject(session->handle, keyTemplate,
+                                                        keyTmplCnt, privateKey);
         if (rv != CKR_OK)
             ret = WC_HW_E;
     }
@@ -609,10 +612,12 @@ static int Pkcs11FindKeyById(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
         { CKA_KEY_TYPE,        &keyType,  sizeof(keyType)  },
         { CKA_ID,              id,        idLen            },
     };
+    CK_ULONG        keyTmplCnt = sizeof(keyTemplate) / sizeof(*keyTemplate);
 
     WOLFSSL_MSG("PKCS#11: Find Key By Id");
 
-    rv = session->func->C_FindObjectsInit(session->handle, keyTemplate, 3);
+    rv = session->func->C_FindObjectsInit(session->handle, keyTemplate,
+                                                                    keyTmplCnt);
     if (rv != CKR_OK)
         ret = WC_HW_E;
     if (ret == 0) {
@@ -652,20 +657,27 @@ static int Pkcs11RsaPublic(Pkcs11Session* session, wc_CryptoInfo* info)
         { CKA_MODULUS,         NULL,         0                   },
         { CKA_PUBLIC_EXPONENT, NULL,         0                   }
     };
+    CK_ULONG        keyTmplCnt = sizeof(keyTemplate) / sizeof(*keyTemplate);
 
     WOLFSSL_MSG("PKCS#11: RSA Public Key Operation");
 
-    /* Set the modulus and public exponent data. */
-    keyTemplate[3].pValue     = info->pk.rsa.key->n.raw.buf;
-    keyTemplate[3].ulValueLen = info->pk.rsa.key->n.raw.len;
-    keyTemplate[4].pValue     = info->pk.rsa.key->e.raw.buf;
-    keyTemplate[4].ulValueLen = info->pk.rsa.key->e.raw.len;
+    if (ret == 0 && info->pk.rsa.outLen == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
 
-    /* Create an object containing public key data for device to use. */
-    rv = session->func->C_CreateObject(session->handle, keyTemplate, 5,
-            &publicKey);
-    if (rv != CKR_OK)
-        ret = WC_HW_E;
+    if (ret == 0) {
+        /* Set the modulus and public exponent data. */
+        keyTemplate[3].pValue     = info->pk.rsa.key->n.raw.buf;
+        keyTemplate[3].ulValueLen = info->pk.rsa.key->n.raw.len;
+        keyTemplate[4].pValue     = info->pk.rsa.key->e.raw.buf;
+        keyTemplate[4].ulValueLen = info->pk.rsa.key->e.raw.len;
+
+        /* Create an object containing public key data for device to use. */
+        rv = session->func->C_CreateObject(session->handle, keyTemplate,
+                                                        keyTmplCnt, &publicKey);
+        if (rv != CKR_OK)
+            ret = WC_HW_E;
+    }
 
     if (ret == 0) {
         /* Raw RSA encrypt/decrypt operation. */
@@ -716,12 +728,14 @@ static int Pkcs11FindRsaKey(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
         { CKA_KEY_TYPE,        &rsaKeyType, sizeof(rsaKeyType) },
         { CKA_MODULUS,         NULL,        0                  },
     };
+    CK_ULONG        keyTmplCnt = sizeof(keyTemplate) / sizeof(*keyTemplate);
 
     /* Set the modulus. */
     keyTemplate[2].pValue     = rsaKey->n.raw.buf;
     keyTemplate[2].ulValueLen = rsaKey->n.raw.len;
 
-    rv = session->func->C_FindObjectsInit(session->handle, keyTemplate, 3);
+    rv = session->func->C_FindObjectsInit(session->handle, keyTemplate,
+                                                                    keyTmplCnt);
     if (rv != CKR_OK)
         ret = WC_HW_E;
     if (ret == 0) {
@@ -754,15 +768,24 @@ static int Pkcs11RsaPrivate(Pkcs11Session* session, wc_CryptoInfo* info)
 
     WOLFSSL_MSG("PKCS#11: RSA Private Key Operation");
 
-    if ((sessionKey = !mp_iszero(&info->pk.rsa.key->d)))
-        ret = Pkcs11CreateRsaPrivateKey(&privateKey, session, info->pk.rsa.key);
-    else if (info->pk.rsa.key->idLen > 0) {
-        ret = Pkcs11FindKeyById(&privateKey, CKO_PRIVATE_KEY, CKK_RSA, session,
-                                 info->pk.rsa.key->id, info->pk.rsa.key->idLen);
+    if (ret == 0 && info->pk.rsa.outLen == NULL) {
+        ret = BAD_FUNC_ARG;
     }
-    else {
-        ret = Pkcs11FindRsaKey(&privateKey, CKO_PRIVATE_KEY, session,
+
+    if (ret == 0) {
+        if ((sessionKey = !mp_iszero(&info->pk.rsa.key->d))) {
+            ret = Pkcs11CreateRsaPrivateKey(&privateKey, session,
                                                               info->pk.rsa.key);
+        }
+        else if (info->pk.rsa.key->idLen > 0) {
+            ret = Pkcs11FindKeyById(&privateKey, CKO_PRIVATE_KEY, CKK_RSA,
+                                    session, info->pk.rsa.key->id,
+                                    info->pk.rsa.key->idLen);
+        }
+        else {
+            ret = Pkcs11FindRsaKey(&privateKey, CKO_PRIVATE_KEY, session,
+                                                              info->pk.rsa.key);
+        }
     }
 
     if (ret == 0) {
@@ -856,10 +879,11 @@ static int Pkcs11GetRsaPublicKey(RsaKey* key, Pkcs11Session* session,
       {CKA_MODULUS, NULL_PTR, 0},
       {CKA_PUBLIC_EXPONENT, NULL_PTR, 0}
     };
+    CK_ULONG     tmplCnt = sizeof(template) / sizeof(*template);
     CK_RV rv;
 
     rv = session->func->C_GetAttributeValue(session->handle, pubKey, template,
-                                                                             2);
+                                                                       tmplCnt);
     if (rv != CKR_OK)
         ret = WC_HW_E;
 
@@ -880,7 +904,7 @@ static int Pkcs11GetRsaPublicKey(RsaKey* key, Pkcs11Session* session,
         template[1].pValue = exp;
 
         rv = session->func->C_GetAttributeValue(session->handle, pubKey,
-                                                                   template, 2);
+                                                             template, tmplCnt);
         if (rv != CKR_OK)
             ret = WC_HW_E;
     }
@@ -986,9 +1010,9 @@ static int Pkcs11FindEccKey(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
                             Pkcs11Session* session, ecc_key* eccKey)
 {
     int             ret = 0;
+    int             i;
     unsigned char*  ecPoint = NULL;
     word32          len;
-    int             attrCnt = 3;
     CK_RV           rv;
     CK_ULONG        count;
     CK_UTF8CHAR     params[MAX_EC_PARAM_LEN];
@@ -998,23 +1022,28 @@ static int Pkcs11FindEccKey(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
         { CKA_EC_PARAMS,       params,     0                 },
         { CKA_EC_POINT,        NULL,       0                 },
     };
+    CK_ULONG        attrCnt = 3;
 
     ret = Pkcs11EccSetParams(eccKey, keyTemplate, 2);
     if (ret == 0 && keyClass == CKO_PUBLIC_KEY) {
+        /* ASN1 encoded: OCT + uncompressed point */
         len = 3 + 1 + 2 * eccKey->dp->size;
-        ecPoint = XMALLOC(len, NULL, DYNAMIC_TYPE_ECC);
+        ecPoint = (unsigned char*)XMALLOC(len, NULL, DYNAMIC_TYPE_ECC);
         if (ecPoint == NULL)
             ret = MEMORY_E;
     }
     if (ret == 0 && keyClass == CKO_PUBLIC_KEY) {
-        len -= 2;
-        ecPoint[0] = 0x04;
-        ecPoint[1] = len;
-        ret = wc_ecc_export_x963(eccKey, ecPoint + 2, &len);
+        len -= 3;
+        i = 0;
+        ecPoint[i++] = ASN_OCTET_STRING;
+        if (len >= ASN_LONG_LENGTH)
+            ecPoint[i++] = 0x81;
+        ecPoint[i++] = len;
+        ret = wc_ecc_export_x963(eccKey, ecPoint + i, &len);
     }
     if (ret == 0 && keyClass == CKO_PUBLIC_KEY) {
         keyTemplate[3].pValue     = ecPoint;
-        keyTemplate[3].ulValueLen = len + 2;
+        keyTemplate[3].ulValueLen = len + i;
         attrCnt++;
     }
     if (ret == 0) {
@@ -1054,6 +1083,7 @@ static int Pkcs11CreateEccPublicKey(CK_OBJECT_HANDLE* publicKey,
                                     CK_ATTRIBUTE_TYPE operation)
 {
     int             ret = 0;
+    int             i;
     unsigned char*  ecPoint = NULL;
     word32          len;
     CK_RV           rv;
@@ -1065,26 +1095,31 @@ static int Pkcs11CreateEccPublicKey(CK_OBJECT_HANDLE* publicKey,
         { CKA_EC_PARAMS, params,       0                   },
         { CKA_EC_POINT,  NULL,         0                   }
     };
+    CK_ULONG        keyTmplCnt = sizeof(keyTemplate) / sizeof(*keyTemplate);
 
     ret = Pkcs11EccSetParams(public_key, keyTemplate, 3);
     if (ret == 0) {
-        len = 2 + 1 + 2 * public_key->dp->size;
-        ecPoint = XMALLOC(len, NULL, DYNAMIC_TYPE_ECC);
+        /* ASN1 encoded: OCT + uncompressed point */
+        len = 3 + 1 + 2 * public_key->dp->size;
+        ecPoint = (unsigned char*)XMALLOC(len, NULL, DYNAMIC_TYPE_ECC);
         if (ecPoint == NULL)
             ret = MEMORY_E;
     }
     if (ret == 0) {
-        len -= 2;
-        ecPoint[0] = 0x04;
-        ecPoint[1] = len;
-        ret = wc_ecc_export_x963(public_key, ecPoint + 2, &len);
+        len -= 3;
+        i = 0;
+        ecPoint[i++] = ASN_OCTET_STRING;
+        if (len >= ASN_LONG_LENGTH)
+            ecPoint[i++] = 0x81;
+        ecPoint[i++] = len;
+        ret = wc_ecc_export_x963(public_key, ecPoint + i, &len);
     }
     if (ret == 0) {
         keyTemplate[4].pValue     = ecPoint;
-        keyTemplate[4].ulValueLen = len + 2;
+        keyTemplate[4].ulValueLen = len + i;
 
-        rv = session->func->C_CreateObject(session->handle, keyTemplate, 5,
-                                                                     publicKey);
+        rv = session->func->C_CreateObject(session->handle, keyTemplate,
+                                                         keyTmplCnt, publicKey);
         if (rv != CKR_OK)
             ret = WC_HW_E;
     }
@@ -1108,16 +1143,19 @@ static int Pkcs11CreateEccPublicKey(CK_OBJECT_HANDLE* publicKey,
 static int Pkcs11GetEccPublicKey(ecc_key* key, Pkcs11Session* session,
                                  CK_OBJECT_HANDLE pubKey)
 {
-    int ret = 0;
+    int            ret = 0;
+    int            i = 0;
+    int            curveIdx;
     unsigned char* point = NULL;
-    int pointSz;
-    CK_ATTRIBUTE template[] = {
-      {CKA_EC_POINT, NULL_PTR, 0},
+    int            pointSz;
+    CK_RV          rv;
+    CK_ATTRIBUTE   template[] = {
+        { CKA_EC_POINT,  NULL_PTR, 0 },
     };
-    CK_RV rv;
+    CK_ULONG       tmplCnt = sizeof(template) / sizeof(*template);
 
     rv = session->func->C_GetAttributeValue(session->handle, pubKey, template,
-                                                                             1);
+                                                                       tmplCnt);
     if (rv != CKR_OK)
         ret = WC_HW_E;
 
@@ -1131,21 +1169,29 @@ static int Pkcs11GetEccPublicKey(ecc_key* key, Pkcs11Session* session,
         template[0].pValue = point;
 
         rv = session->func->C_GetAttributeValue(session->handle, pubKey,
-                                                                   template, 1);
+                                                             template, tmplCnt);
         if (rv != CKR_OK)
             ret = WC_HW_E;
     }
 
+    /* Make sure the data is big enough for ASN.1: OCT + uncompressed point */
+    if (ret == 0 && pointSz < key->dp->size * 2 + 1 + 2)
+        ret = ASN_PARSE_E;
     /* Step over the OCTET_STRING wrapper. */
-    if (ret == 0 && pointSz < key->dp->size * 2 + 3)
+    if (ret == 0 && point[i++] != ASN_OCTET_STRING)
         ret = ASN_PARSE_E;
-    if (ret == 0 && point[0] != 0x04)
-        ret = ASN_PARSE_E;
-    if (ret == 0 && point[1] != key->dp->size * 2 + 1)
+    if (ret == 0 && point[i] >= ASN_LONG_LENGTH) {
+        if (point[i++] != 0x81)
+            ret = ASN_PARSE_E;
+        else if (pointSz < key->dp->size * 2 + 1 + 3)
+            ret = ASN_PARSE_E;
+    }
+    if (ret == 0 && point[i++] != key->dp->size * 2 + 1)
         ret = ASN_PARSE_E;
 
     if (ret == 0) {
-        ret = wc_ecc_import_point_der(point + 2, pointSz - 2, ECC_CURVE_DEF,
+        curveIdx = wc_ecc_get_curve_idx(key->dp->id);
+        ret = wc_ecc_import_point_der(point + i, pointSz - i, curveIdx,
                                                                   &key->pubkey);
     }
 
@@ -1239,10 +1285,11 @@ static int Pkcs11ExtractSecret(Pkcs11Session* session, CK_OBJECT_HANDLE secret,
     CK_ATTRIBUTE template[] = {
       {CKA_VALUE, NULL_PTR, 0}
     };
+    CK_ULONG     tmplCnt = sizeof(template) / sizeof(*template);
     CK_RV rv;
 
     rv = session->func->C_GetAttributeValue(session->handle, secret, template,
-                                                                             1);
+                                                                       tmplCnt);
     if (rv != CKR_OK)
         ret = WC_HW_E;
     if (ret == 0) {
@@ -1252,7 +1299,7 @@ static int Pkcs11ExtractSecret(Pkcs11Session* session, CK_OBJECT_HANDLE secret,
     if (ret == 0) {
         template[0].pValue = out;
         rv = session->func->C_GetAttributeValue(session->handle, secret,
-                                                                   template, 1);
+                                                             template, tmplCnt);
         if (rv != CKR_OK)
             ret = WC_HW_E;
         *outLen = (word32)template[0].ulValueLen;
@@ -1281,7 +1328,7 @@ static int Pkcs11ECDH(Pkcs11Session* session, wc_CryptoInfo* info)
     CK_ECDH1_DERIVE_PARAMS params;
     CK_OBJECT_HANDLE       privateKey = NULL_PTR;
     CK_OBJECT_HANDLE       secret = CK_INVALID_HANDLE;
-    CK_ULONG               secSz = *info->pk.ecdh.outlen;
+    CK_ULONG               secSz;
     CK_ATTRIBUTE           template[] = {
         { CKA_CLASS,       &secretKeyClass, sizeof(secretKeyClass) },
         { CKA_KEY_TYPE,    &keyType,        sizeof(keyType)        },
@@ -1290,10 +1337,15 @@ static int Pkcs11ECDH(Pkcs11Session* session, wc_CryptoInfo* info)
         { CKA_EXTRACTABLE, &ckTrue,         sizeof(ckTrue)         },
         { CKA_VALUE_LEN,   &secSz,          sizeof(secSz)          }
     };
+    CK_ULONG               tmplCnt = sizeof(template) / sizeof(*template);
 
     ret = Pkcs11MechAvail(session, CKM_ECDH1_DERIVE);
+    if (ret == 0 && info->pk.ecdh.outlen == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
     if (ret == 0) {
         WOLFSSL_MSG("PKCS#11: EC Key Derivation Operation");
+
 
         if ((sessionKey = !mp_iszero(&info->pk.ecdh.private_key->k)))
             ret = Pkcs11CreateEccPrivateKey(&privateKey, session,
@@ -1311,27 +1363,28 @@ static int Pkcs11ECDH(Pkcs11Session* session, wc_CryptoInfo* info)
     if (ret == 0) {
         ret = wc_ecc_export_x963(info->pk.ecdh.public_key, NULL, &pointLen);
         if (ret == LENGTH_ONLY_E) {
-            point = XMALLOC(pointLen, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+            point = (unsigned char*)XMALLOC(pointLen, NULL,
+                                                       DYNAMIC_TYPE_ECC_BUFFER);
             ret = wc_ecc_export_x963(info->pk.ecdh.public_key, point,
                                                                      &pointLen);
         }
     }
 
     if (ret == 0) {
+        secSz = *info->pk.ecdh.outlen;
+
         params.kdf             = CKD_NULL;
         params.pSharedData     = NULL;
         params.ulSharedDataLen = 0;
         params.pPublicData     = point;
         params.ulPublicDataLen = pointLen;
-    }
 
-    if (ret == 0) {
         mech.mechanism      = CKM_ECDH1_DERIVE;
         mech.ulParameterLen = sizeof(params);
         mech.pParameter     = &params;
 
         rv = session->func->C_DeriveKey(session->handle, &mech, privateKey,
-                                                          template, 6, &secret);
+                                                    template, tmplCnt, &secret);
         if (rv != CKR_OK)
             ret = WC_HW_E;
     }
@@ -1376,7 +1429,7 @@ static word32 Pkcs11ECDSASig_Encode(byte* sig, word32 sz)
     sHigh = sig[sz + sStart] >> 7;
     /* Calculate the complete ASN.1 DER encoded size. */
     sigSz = 2 + rHigh + (sz - rStart) + 2 + sHigh + (sz - sStart);
-    if (sigSz >= 128)
+    if (sigSz >= ASN_LONG_LENGTH)
         seqLen = 3;
     else
         seqLen = 2;
@@ -1432,7 +1485,7 @@ static int Pkcs11ECDSASig_Decode(const byte* in, word32 inSz, byte* sig,
     /* Check SEQ */
     if (ret == 0 && in[i++] != (ASN_CONSTRUCTED | ASN_SEQUENCE))
         ret = ASN_PARSE_E;
-    if (ret == 0 && in[i] >= 0x80) {
+    if (ret == 0 && in[i] >= ASN_LONG_LENGTH) {
         if (in[i] != 0x81)
             ret = ASN_PARSE_E;
         else {
@@ -1511,6 +1564,9 @@ static int Pkcs11ECDSA_Sign(Pkcs11Session* session, wc_CryptoInfo* info)
     if (rv != CKR_OK || (mechInfo.flags & CKF_SIGN) == 0)
         ret = NOT_COMPILED_IN;
 
+    if (ret == 0 && info->pk.eccsign.outlen == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
     if (ret == 0) {
         WOLFSSL_MSG("PKCS#11: EC Signing Operation");
 
@@ -1590,6 +1646,10 @@ static int Pkcs11ECDSA_Verify(Pkcs11Session* session, wc_CryptoInfo* info)
                                                                      &mechInfo);
     if (rv != CKR_OK || (mechInfo.flags & CKF_VERIFY) == 0)
         ret = NOT_COMPILED_IN;
+
+    if (ret == 0 && info->pk.eccverify.res == NULL) {
+        ret = BAD_FUNC_ARG;
+    }
 
     if (ret == 0) {
         WOLFSSL_MSG("PKCS#11: EC Verification Operation");
