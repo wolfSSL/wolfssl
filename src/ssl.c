@@ -29572,7 +29572,6 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
         return x509;
     }
-#include "stdio.h"
 
 #if defined(HAVE_CRL) && !defined(NO_FILESYSTEM)
     static void* wolfSSL_PEM_read_X509_ex(XFILE fp, void **x,

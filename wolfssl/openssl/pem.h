@@ -131,7 +131,7 @@ int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key,
 #if !defined(NO_FILESYSTEM)
 WOLFSSL_API
 WOLFSSL_EVP_PKEY *wolfSSL_PEM_read_PUBKEY(XFILE fp, EVP_PKEY **x,
-										  pem_password_cb *cb, void *u);
+                                          pem_password_cb *cb, void *u);
 WOLFSSL_API
 WOLFSSL_X509 *wolfSSL_PEM_read_X509(XFILE fp, WOLFSSL_X509 **x,
                                           pem_password_cb *cb, void *u);

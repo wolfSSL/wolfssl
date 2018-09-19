@@ -2933,8 +2933,6 @@ int UnTraditionalEnc(byte* key, word32 keySz, byte* out, word32* outSz,
     (void)rng;
 
     return totalSz + sz;
-    
-    (void)rng;
 }
 
 
@@ -3285,8 +3283,6 @@ int EncryptContent(byte* input, word32 inputSz, byte* out, word32* outSz,
     (void)rng;
 
     return totalSz;
-
-    (void)rng;
 }
 
 
