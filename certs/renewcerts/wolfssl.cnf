@@ -11,13 +11,6 @@ oid_section = new_oids
 tsa_policy1 = 1.2.3.4.1
 tsa_policy2 = 1.2.3.4.5.6
 tsa_policy3 = 1.2.3.4.5.7
-businessCategory=2.5.4.15
-streetAddress=2.5.4.9
-stateOrProvinceName=2.5.4.8
-countryName=2.5.4.6
-jurisdictionOfIncorporationLocalityName=1.3.6.1.4.1.311.60.2.1.1
-jurisdictionOfIncorporationStateOrProvinceName=1.3.6.1.4.1.311.60.2.1.2
-jurisdictionOfIncorporationCountryName=1.3.6.1.4.1.311.60.2.1.3
 
 ####################################################################
 [ ca ]
