@@ -630,8 +630,6 @@ static int Hash_DRBG_Uninstantiate(DRBG* drbg)
 
     return (compareSum == 0) ? DRBG_SUCCESS : DRBG_FAILURE;
 }
-#endif /* HAVE_HASHDRBG */
-/* End NIST DRBG Code */
 
 
 int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
@@ -655,6 +653,8 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
 
     return ret;
 }
+#endif /* HAVE_HASHDRBG */
+/* End NIST DRBG Code */
 
 
 static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
