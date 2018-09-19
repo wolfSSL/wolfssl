@@ -5821,6 +5821,9 @@ static int aes_cbc_test(void)
     byte key[] = "0123456789abcdef   ";  /* align */
     byte iv[]  = "1234567890abcdef   ";  /* align */
 
+    XMEMSET(cipher, 0, AES_BLOCK_SIZE);
+    XMEMSET(plain, 0, AES_BLOCK_SIZE);
+
     /* Parameter Validation testing. */
     ret = wc_AesCbcEncryptWithKey(cipher, msg, AES_BLOCK_SIZE, key, 17, NULL);
     if (ret != BAD_FUNC_ARG)
@@ -5894,6 +5897,7 @@ int aes_test(void)
         return -5403;
 #endif
 
+    XMEMSET(cipher, 0, AES_BLOCK_SIZE * 4);
     ret = wc_AesCbcEncrypt(&enc, cipher, msg, AES_BLOCK_SIZE);
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
@@ -5901,6 +5905,7 @@ int aes_test(void)
     if (ret != 0)
         return -5404;
 #ifdef HAVE_AES_DECRYPT
+    XMEMSET(plain, 0, AES_BLOCK_SIZE * 4);
     ret = wc_AesCbcDecrypt(&dec, plain, cipher, AES_BLOCK_SIZE);
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &dec.asyncDev, WC_ASYNC_FLAG_NONE);
@@ -6445,6 +6450,7 @@ int aes192_test(void)
         return -5503;
 #endif
 
+    XMEMSET(cipher, 0, AES_BLOCK_SIZE);
     ret = wc_AesCbcEncrypt(&enc, cipher, msg, (int) sizeof(msg));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
@@ -6452,6 +6458,7 @@ int aes192_test(void)
     if (ret != 0)
         return -5504;
 #ifdef HAVE_AES_DECRYPT
+    XMEMSET(plain, 0, AES_BLOCK_SIZE);
     ret = wc_AesCbcDecrypt(&dec, plain, cipher, (int) sizeof(cipher));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &dec.asyncDev, WC_ASYNC_FLAG_NONE);
@@ -6532,6 +6539,7 @@ int aes256_test(void)
         return -5603;
 #endif
 
+    XMEMSET(cipher, 0, AES_BLOCK_SIZE);
     ret = wc_AesCbcEncrypt(&enc, cipher, msg, (int) sizeof(msg));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &enc.asyncDev, WC_ASYNC_FLAG_NONE);
@@ -6539,6 +6547,7 @@ int aes256_test(void)
     if (ret != 0)
         return -5604;
 #ifdef HAVE_AES_DECRYPT
+    XMEMSET(plain, 0, AES_BLOCK_SIZE);
     ret = wc_AesCbcDecrypt(&dec, plain, cipher, (int) sizeof(cipher));
 #if defined(WOLFSSL_ASYNC_CRYPT)
     ret = wc_AsyncWait(ret, &dec.asyncDev, WC_ASYNC_FLAG_NONE);

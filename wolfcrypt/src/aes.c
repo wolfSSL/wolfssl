@@ -9457,6 +9457,9 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
     aes->alFd = -1;
     aes->rdFd = -1;
 #endif
+#if defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC)
+    aes->ctx.cfd = -1;
+#endif
 
     return ret;
 }

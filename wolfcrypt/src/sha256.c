@@ -2767,17 +2767,17 @@ void wc_Sha256Free(wc_Sha256* sha256)
         close(sha256->rdFd);
         sha256->rdFd = -1; /* avoid possible double close on socket */
     }
-
-    #if defined(WOLFSSL_AFALG_HASH_KEEP)
-    if (sha256->msg != NULL) {
-        XFREE(sha256->msg, sha256->heap, DYNAMIC_TYPE_TMP_BUFFER);
-        sha256->msg = NULL;
-    }
-    #endif
 #endif /* WOLFSSL_AFALG_HASH */
 #ifdef WOLFSSL_DEVCRYPTO_HASH
     wc_DevCryptoFree(&sha256->ctx);
 #endif /* WOLFSSL_DEVCRYPTO */
+#if defined(WOLFSSL_AFALG_HASH_KEEP) || \
+    (defined(WOLFSSL_DEVCRYPTO_HASH) && defined(WOLFSSL_DEVCRYPTO_HASH_KEEP))
+    if (sha256->msg != NULL) {
+        XFREE(sha256->msg, sha256->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        sha256->msg = NULL;
+    }
+#endif
 }
 
 #endif /* !WOLFSSL_TI_HASH */

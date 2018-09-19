@@ -174,6 +174,8 @@ int wc_Sha256Final(wc_Sha256* sha, byte* hash)
         return BAD_FUNC_ARG;
     }
 
+    /* help static analysis tools out */
+    XMEMSET(hash, 0, WC_SHA256_DIGEST_SIZE);
 #ifdef WOLFSSL_DEVCRYPTO_HASH_KEEP
     /* keep full message to hash at end instead of incremental updates */
     if ((ret = HashUpdate(sha, CRYPTO_SHA2_256, sha->msg, sha->used)) < 0) {
@@ -205,6 +207,8 @@ int wc_Sha256GetHash(wc_Sha256* sha, byte* hash)
         wc_Sha256Copy(sha, &cpy);
 
         if ((ret = HashUpdate(&cpy, CRYPTO_SHA2_256, cpy.msg, cpy.used)) == 0) {
+            /* help static analysis tools out */
+            XMEMSET(hash, 0, WC_SHA256_DIGEST_SIZE);
             ret = GetDigest(&cpy, CRYPTO_SHA2_256, hash);
         }
         wc_Sha256Free(&cpy);

@@ -283,7 +283,7 @@ static int wc_DevCrypto_AesGcm(Aes* aes, byte* out, byte* in, word32 sz,
                    const byte* authIn, word32 authInSz,
                    int dir)
 {
-    struct crypt_auth_op crt;
+    struct crypt_auth_op crt = {0};
     int ret;
     byte scratch[AES_BLOCK_SIZE];
 
@@ -299,6 +299,7 @@ static int wc_DevCrypto_AesGcm(Aes* aes, byte* out, byte* in, word32 sz,
     if (in == NULL)
         in = scratch;
 
+    XMEMSET(scratch, 0, AES_BLOCK_SIZE);
     if (aes->ctx.cfd == -1) {
         ret = wc_DevCryptoCreate(&aes->ctx, CRYPTO_AES_GCM, (byte*)aes->devKey,
                 aes->keylen);
