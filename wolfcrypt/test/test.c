@@ -326,7 +326,7 @@ int scrypt_test(void);
     #ifndef NO_PKCS7_ENCRYPTED_DATA
         int pkcs7encrypted_test(void);
     #endif
-    #ifdef HAVE_LIBZ
+    #if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
         int pkcs7compressed_test(void);
     #endif
 #endif
@@ -967,7 +967,7 @@ initDefaultName();
         else
             printf( "PKCS7encrypted  test passed!\n");
     #endif
-    #ifdef HAVE_LIBZ
+    #if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
         if ( (ret = pkcs7compressed_test()) != 0)
             return err_sys("PKCS7compressed test failed!\n", ret);
         else
@@ -19750,7 +19750,7 @@ int pkcs7encrypted_test(void)
 #endif /* NO_PKCS7_ENCRYPTED_DATA */
 
 
-#ifdef HAVE_LIBZ
+#if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
 
 typedef struct {
     const byte*  content;

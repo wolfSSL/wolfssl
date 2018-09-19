@@ -86,7 +86,7 @@ static int wc_SetContentType(int pkcs7TypeOID, byte* output, word32 outputSz)
     /* FirmwarePkgData (1.2.840.113549.1.9.16.1.16), RFC 4108 */
     const byte firmwarePkgData[]    = { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
                                         0x01, 0x09, 0x10, 0x01, 0x10 };
-#ifdef HAVE_LIBZ
+#if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
     /* id-ct-compressedData (1.2.840.113549.1.9.16.1.9), RFC 3274 */
     const byte compressedData[]     = { 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D,
                                         0x01, 0x09, 0x10, 0x01, 0x09 };
@@ -141,7 +141,7 @@ static int wc_SetContentType(int pkcs7TypeOID, byte* output, word32 outputSz)
             typeName = encryptedData;
             break;
 #endif
-#ifdef HAVE_LIBZ
+#if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
         case COMPRESSED_DATA:
             typeSz = sizeof(compressedData);
             typeName = compressedData;
@@ -7321,7 +7321,7 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
 
 #endif /* NO_PKCS7_ENCRYPTED_DATA */
 
-#ifdef HAVE_LIBZ
+#if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
 
 /* build PKCS#7 compressedData content type, return encrypted size */
 int wc_PKCS7_EncodeCompressedData(PKCS7* pkcs7, byte* output, word32 outputSz)
@@ -7572,7 +7572,7 @@ int wc_PKCS7_DecodeCompressedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
     return decompressedSz;
 }
 
-#endif /* HAVE_LIBZ */
+#endif /* HAVE_LIBZ && !NO_PKCS7_COMPRESSED_DATA */
 
 #else  /* HAVE_PKCS7 */
 
