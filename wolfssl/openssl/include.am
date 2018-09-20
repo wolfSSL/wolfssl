@@ -41,4 +41,8 @@ nobase_include_HEADERS+= \
                          wolfssl/openssl/ui.h \
                          wolfssl/openssl/x509.h \
                          wolfssl/openssl/x509v3.h \
-                         wolfssl/openssl/rc4.h
+                         wolfssl/openssl/rc4.h \
+                         wolfssl/openssl/pkcs7.h \
+                         wolfssl/openssl/obj_mac.h \
+                         wolfssl/openssl/tls1.h \
+                         wolfssl/openssl/x509_vfy.h
