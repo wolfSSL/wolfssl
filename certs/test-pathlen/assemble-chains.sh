@@ -18,7 +18,7 @@ check_result(){
 echo "Updating server-0-ca.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\nWashington\nSeattle\nwolfSSL Inc.\nEngineering\nServer 0 CA\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-0-ca-req.pem
+echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\nServer 0 CA\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-0-ca-req.pem
 check_result $? "Step 1"
 
 openssl x509 -req -in server-0-ca-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions pathlen_0 -days 1000 -CA ../ca-cert.pem -CAkey ../ca-key.pem -set_serial 100 -sha1 > server-0-ca.pem
@@ -36,7 +36,7 @@ echo "-------------------------------------------------------------------------"
 echo "Updating server-0-cert.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\nWashington\nSeattle\nwolfSSL Inc.\nEngineering\nServer 0\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-0-cert-req.pem
+echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\nServer 0\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-0-cert-req.pem
 check_result $? "Step 1"
 
 openssl x509 -req -in server-0-cert-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions test_pathlen -days 1000 -CA server-0-ca.pem -CAkey ../server-key.pem -set_serial 101 -sha1 > server-0-cert.pem
@@ -54,7 +54,7 @@ echo "-------------------------------------------------------------------------"
 echo "Updating server-1-ca.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\nWashington\nSeattle\nwolfSSL Inc.\nEngineering\nServer 1 CA\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-1-ca-req.pem
+echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\nServer 1 CA\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-1-ca-req.pem
 check_result $? "Step 1"
 
 openssl x509 -req -in server-1-ca-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions pathlen_1 -days 1000 -CA ../ca-cert.pem -CAkey ../ca-key.pem -set_serial 102 -sha1 > server-1-ca.pem
@@ -72,7 +72,7 @@ echo "-------------------------------------------------------------------------"
 echo "Updating server-1-cert.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\nWashington\nSeattle\nwolfSSL Inc.\nEngineering\nServer 1\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-1-cert-req.pem
+echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\nServer 1\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-1-cert-req.pem
 check_result $? "Step 1"
 
 openssl x509 -req -in server-1-cert-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions test_pathlen -days 1000 -CA server-1-ca.pem -CAkey ../server-key.pem -set_serial 105 -sha1 > server-1-cert.pem
@@ -90,7 +90,7 @@ echo "-------------------------------------------------------------------------"
 echo "Updating server-0-1-ca.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\nWashington\nSeattle\nwolfSSL Inc.\nEngineering\nServer 0-1 CA\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-0-1-ca-req.pem
+echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\nServer 0-1 CA\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-0-1-ca-req.pem
 check_result $? "Step 1"
 
 openssl x509 -req -in server-0-1-ca-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions pathlen_1 -days 1000 -CA server-0-ca.pem -CAkey ../server-key.pem -set_serial 110 -sha1 > server-0-1-ca.pem
@@ -108,7 +108,7 @@ echo "-------------------------------------------------------------------------"
 echo "Updating server-0-1-cert.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\nWashington\nSeattle\nwolfSSL Inc.\nEngineering\nServer 0-1\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-0-1-cert-req.pem
+echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\nServer 0-1\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-0-1-cert-req.pem
 check_result $? "Step 1"
 
 openssl x509 -req -in server-0-1-cert-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions test_pathlen -days 1000 -CA server-0-1-ca.pem -CAkey ../server-key.pem -set_serial 111 -sha1 > server-0-1-cert.pem
@@ -126,7 +126,7 @@ echo "-------------------------------------------------------------------------"
 echo "Updating server-1-0-ca.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\nWashington\nSeattle\nwolfSSL Inc.\nEngineering\nServer 1-0 CA\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-1-0-ca-req.pem
+echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\nServer 1-0 CA\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-1-0-ca-req.pem
 check_result $? "Step 1"
 
 openssl x509 -req -in server-1-0-ca-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions pathlen_0 -days 1000 -CA server-1-ca.pem -CAkey ../server-key.pem -set_serial 103 -sha1 > server-1-0-ca.pem
@@ -144,7 +144,7 @@ echo "-------------------------------------------------------------------------"
 echo "Updating server-1-0-cert.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\nWashington\nSeattle\nwolfSSL Inc.\nEngineering\nServer 1-0\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-1-0-cert-req.pem
+echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\nServer 1-0\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-1-0-cert-req.pem
 check_result $? "Step 1"
 
 openssl x509 -req -in server-1-0-cert-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions test_pathlen -days 1000 -CA server-1-0-ca.pem -CAkey ../server-key.pem -set_serial 104 -sha1 > server-1-0-cert.pem
@@ -162,7 +162,7 @@ echo "-------------------------------------------------------------------------"
 echo "Updating server-127-ca.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\nWashington\nSeattle\nwolfSSL Inc.\nEngineering\nServer 127 CA\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-127-ca-req.pem
+echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\nServer 127 CA\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-127-ca-req.pem
 check_result $? "Step 1"
 
 openssl x509 -req -in server-127-ca-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions pathlen_127 -days 1000 -CA ../ca-cert.pem -CAkey ../ca-key.pem -set_serial 106 -sha1 > server-127-ca.pem
@@ -180,7 +180,7 @@ echo "-------------------------------------------------------------------------"
 echo "Updating server-127-cert.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\nWashington\nSeattle\nwolfSSL Inc.\nEngineering\nServer 127\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-127-cert-req.pem
+echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\nServer 127\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-127-cert-req.pem
 check_result $? "Step 1"
 
 openssl x509 -req -in server-127-cert-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions test_pathlen -days 1000 -CA server-127-ca.pem -CAkey ../server-key.pem -set_serial 107 -sha1 > server-127-cert.pem
@@ -198,7 +198,7 @@ echo "-------------------------------------------------------------------------"
 echo "Updating server-128-ca.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\nWashington\nSeattle\nwolfSSL Inc.\nEngineering\nServer 128 CA\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-128-ca-req.pem
+echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\nServer 128 CA\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-128-ca-req.pem
 check_result $? "Step 1"
 
 openssl x509 -req -in server-128-ca-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions pathlen_128 -days 1000 -CA ../ca-cert.pem -CAkey ../ca-key.pem -set_serial 106 -sha1 > server-128-ca.pem
@@ -216,7 +216,7 @@ echo "-------------------------------------------------------------------------"
 echo "Updating server-128-cert.pem"
 echo ""
 #pipe the following arguments to openssl req...
-echo -e "US\nWashington\nSeattle\nwolfSSL Inc.\nEngineering\nServer 128\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-128-cert-req.pem
+echo -e "US\\nWashington\\nSeattle\\nwolfSSL Inc.\\nEngineering\\nServer 128\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ../server-key.pem -config ../renewcerts/wolfssl.cnf -nodes -sha1 > server-128-cert-req.pem
 check_result $? "Step 1"
 
 openssl x509 -req -in server-128-cert-req.pem -extfile ../renewcerts/wolfssl.cnf -extensions test_pathlen -days 1000 -CA server-128-ca.pem -CAkey ../server-key.pem -set_serial 107 -sha1 > server-128-cert.pem

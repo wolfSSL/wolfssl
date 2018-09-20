@@ -74,7 +74,7 @@ run_renewcerts(){
     echo "Updating 2048-bit client-uri-cert.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e "US\nMontana\nBozeman\nwolfSSL_2048\nURI\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key client-key.pem -config ./wolfssl.cnf -nodes -out client-cert.csr
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL_2048\\nURI\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key client-key.pem -config ./wolfssl.cnf -nodes -out client-cert.csr
     check_result $? "Step 1"
 
     openssl x509 -req -in client-cert.csr -days 1000 -extfile wolfssl.cnf -extensions uri -signkey client-key.pem -out client-uri-cert.pem
@@ -92,7 +92,7 @@ run_renewcerts(){
     echo "Updating 2048-bit client-relative-uri.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e "US\nMontana\nBozeman\nwolfSSL_2048\nRELATIVE_URI\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key client-key.pem -config ./wolfssl.cnf -nodes -out client-cert.csr
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL_2048\\nRELATIVE_URI\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key client-key.pem -config ./wolfssl.cnf -nodes -out client-cert.csr
     check_result $? "Step 1"
 
 
@@ -111,7 +111,7 @@ run_renewcerts(){
     echo "Updating 2048-bit client-cert.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e "US\nMontana\nBozeman\nwolfSSL_2048\nProgramming-2048\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key client-key.pem -config ./wolfssl.cnf -nodes -out client-cert.csr
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL_2048\\nProgramming-2048\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key client-key.pem -config ./wolfssl.cnf -nodes -out client-cert.csr
     check_result $? "Step 1"
 
 
@@ -130,7 +130,7 @@ run_renewcerts(){
     echo "Updating 3072-bit client-cert.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e "US\nMontana\nBozeman\nwolfSSL_3072\nProgramming-3072\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -newkey rsa:3072 -keyout client-key-3072.pem -config ./wolfssl.cnf -nodes -out client-cert-3072.csr
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL_3072\\nProgramming-3072\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -newkey rsa:3072 -keyout client-key-3072.pem -config ./wolfssl.cnf -nodes -out client-cert-3072.csr
     check_result $? "Step 1"
 
 
@@ -149,7 +149,7 @@ run_renewcerts(){
     echo "Updating 1024-bit client-cert.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e "US\nMontana\nBozeman\nwolfSSL_1024\nProgramming-1024\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ./1024/client-key.pem -config ./wolfssl.cnf -nodes -out ./1024/client-cert.csr
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL_1024\\nProgramming-1024\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ./1024/client-key.pem -config ./wolfssl.cnf -nodes -out ./1024/client-cert.csr
     check_result $? "Step 1"
 
 
@@ -168,7 +168,7 @@ run_renewcerts(){
     echo "Updating ca-cert.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e  "US\nMontana\nBozeman\nSawtooth\nConsulting\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ca-key.pem -config ./wolfssl.cnf -nodes -out ca-cert.csr
+    echo -e  "US\\nMontana\\nBozeman\\nSawtooth\\nConsulting\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ca-key.pem -config ./wolfssl.cnf -nodes -out ca-cert.csr
     check_result $? "Step 1"
 
     openssl x509 -req -in ca-cert.csr -days 1000 -extfile wolfssl.cnf -extensions wolfssl_opts -signkey ca-key.pem -out ca-cert.pem
@@ -186,7 +186,7 @@ run_renewcerts(){
     echo "Updating ca-ecc-cert.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e  "US\nWashington\nSeattle\nwolfSSL\nDevelopment\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ca-ecc-key.pem -config ./wolfssl.cnf -nodes -out ca-ecc-cert.csr
+    echo -e  "US\\nWashington\\nSeattle\\nwolfSSL\\nDevelopment\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ca-ecc-key.pem -config ./wolfssl.cnf -nodes -out ca-ecc-cert.csr
     check_result $? "Step 1"
 
     openssl x509 -req -in ca-ecc-cert.csr -days 1000 -extfile wolfssl.cnf -extensions ca_ecc_cert -signkey ca-ecc-key.pem -out ca-ecc-cert.pem
@@ -204,7 +204,7 @@ run_renewcerts(){
     echo "Updating ca-ecc384-cert.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e  "US\nWashington\nSeattle\nwolfSSL\nDevelopment\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ca-ecc384-key.pem -config ./wolfssl.cnf -nodes -sha384 -out ca-ecc384-cert.csr
+    echo -e  "US\\nWashington\\nSeattle\\nwolfSSL\\nDevelopment\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ca-ecc384-key.pem -config ./wolfssl.cnf -nodes -sha384 -out ca-ecc384-cert.csr
     check_result $? "Step 1"
 
     openssl x509 -req -in ca-ecc384-cert.csr -days 1000 -extfile wolfssl.cnf -extensions ca_ecc_cert -signkey ca-ecc384-key.pem -sha384 -out ca-ecc384-cert.pem
@@ -222,7 +222,7 @@ run_renewcerts(){
     echo "Updating 1024-bit ca-cert.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e  "US\nMontana\nBozeman\nSawtooth\nConsulting_1024\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ./1024/ca-key.pem -config ./wolfssl.cnf -nodes -sha1 -out ./1024/ca-cert.csr
+    echo -e  "US\\nMontana\\nBozeman\\nSawtooth\\nConsulting_1024\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ./1024/ca-key.pem -config ./wolfssl.cnf -nodes -sha1 -out ./1024/ca-cert.csr
     check_result $? "Step 1"
 
     openssl x509 -req -in ./1024/ca-cert.csr -days 1000 -extfile wolfssl.cnf -extensions wolfssl_opts -signkey ./1024/ca-key.pem -out ./1024/ca-cert.pem
@@ -240,7 +240,7 @@ run_renewcerts(){
     echo "Updating server-cert.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e "US\nMontana\nBozeman\nwolfSSL\nSupport\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key server-key.pem -config ./wolfssl.cnf -nodes > server-req.pem
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL\\nSupport\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key server-key.pem -config ./wolfssl.cnf -nodes > server-req.pem
     check_result $? "Step 1"
 
     openssl x509 -req -in server-req.pem -extfile wolfssl.cnf -extensions wolfssl_opts -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 01 > server-cert.pem
@@ -263,7 +263,7 @@ run_renewcerts(){
     echo "Updating server-revoked-cert.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e "US\nMontana\nBozeman\nwolfSSL_revoked\nSupport_revoked\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key server-revoked-key.pem -config ./wolfssl.cnf -nodes > server-revoked-req.pem
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL_revoked\\nSupport_revoked\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key server-revoked-key.pem -config ./wolfssl.cnf -nodes > server-revoked-req.pem
     check_result $? "Step 1"
 
     openssl x509 -req -in server-revoked-req.pem -extfile wolfssl.cnf -extensions wolfssl_opts -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 02 > server-revoked-cert.pem
@@ -285,7 +285,7 @@ run_renewcerts(){
     echo "Updating server-duplicate-policy.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e "US\nMontana\nBozeman\nwolfSSL\ntesting duplicate policy\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key server-key.pem -config ./wolfssl.cnf -nodes > ./test/server-duplicate-policy-req.pem
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL\\ntesting duplicate policy\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key server-key.pem -config ./wolfssl.cnf -nodes > ./test/server-duplicate-policy-req.pem
     check_result $? "Step 1"
 
     openssl x509 -req -in ./test/server-duplicate-policy-req.pem -extfile wolfssl.cnf -extensions policy_test -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 02 > ./test/server-duplicate-policy.pem
@@ -307,7 +307,7 @@ run_renewcerts(){
     echo "Updating 1024-bit server-cert.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e "US\nMontana\nBozeman\nwolfSSL\nSupport_1024\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ./1024/server-key.pem -config ./wolfssl.cnf -nodes -sha1 > ./1024/server-req.pem
+    echo -e "US\\nMontana\\nBozeman\\nwolfSSL\\nSupport_1024\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ./1024/server-key.pem -config ./wolfssl.cnf -nodes -sha1 > ./1024/server-req.pem
     check_result $? "Step 1"
 
     openssl x509 -req -in ./1024/server-req.pem -extfile wolfssl.cnf -extensions wolfssl_opts -days 1000 -CA ./1024/ca-cert.pem -CAkey ./1024/ca-key.pem -set_serial 01 > ./1024/server-cert.pem
@@ -328,7 +328,7 @@ run_renewcerts(){
     ############################################################
     echo "Updating server-ecc-rsa.pem"
     echo ""
-    echo -e "US\nMontana\nBozeman\nElliptic - RSAsig\nECC-RSAsig\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ecc-key.pem -config ./wolfssl.cnf -nodes > server-ecc-req.pem
+    echo -e "US\\nMontana\\nBozeman\\nElliptic - RSAsig\\nECC-RSAsig\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ecc-key.pem -config ./wolfssl.cnf -nodes > server-ecc-req.pem
     check_result $? "Step 1"
 
     openssl x509 -req -in server-ecc-req.pem -extfile wolfssl.cnf -extensions wolfssl_opts -days 1000 -CA ca-cert.pem -CAkey ca-key.pem -set_serial 01 > server-ecc-rsa.pem
@@ -346,7 +346,7 @@ run_renewcerts(){
     echo "Updating client-ecc-cert.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e "US\nOregon\nSalem\nClient ECC\nFast\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ecc-client-key.pem -config ./wolfssl.cnf -nodes -out client-ecc-cert.csr
+    echo -e "US\\nOregon\\nSalem\\nClient ECC\\nFast\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ecc-client-key.pem -config ./wolfssl.cnf -nodes -out client-ecc-cert.csr
     check_result $? "Step 1"
 
     openssl x509 -req -in client-ecc-cert.csr -days 1000 -extfile wolfssl.cnf -extensions wolfssl_opts -signkey ecc-client-key.pem -out client-ecc-cert.pem
@@ -364,7 +364,7 @@ run_renewcerts(){
     echo "Updating server-ecc.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e "US\nWashington\nSeattle\nEliptic\nECC\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ecc-key.pem -config ./wolfssl.cnf -nodes -out server-ecc.csr
+    echo -e "US\\nWashington\\nSeattle\\nEliptic\\nECC\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ecc-key.pem -config ./wolfssl.cnf -nodes -out server-ecc.csr
     check_result $? "Step 1"
 
     openssl x509 -req -in server-ecc.csr -days 1000 -extfile wolfssl.cnf -extensions server_ecc -CA ca-ecc-cert.pem -CAkey ca-ecc-key.pem -set_serial 03 -out server-ecc.pem
@@ -382,7 +382,7 @@ run_renewcerts(){
     echo "Updating server-ecc-comp.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e "US\nMontana\nBozeman\nElliptic - comp\nServer ECC-comp\nwww.wolfssl.com\ninfo@wolfssl.com\n.\n.\n" | openssl req -new -key ecc-key-comp.pem -config ./wolfssl.cnf -nodes -out server-ecc-comp.csr
+    echo -e "US\\nMontana\\nBozeman\\nElliptic - comp\\nServer ECC-comp\\nwww.wolfssl.com\\ninfo@wolfssl.com\\n.\\n.\\n" | openssl req -new -key ecc-key-comp.pem -config ./wolfssl.cnf -nodes -out server-ecc-comp.csr
     check_result $? "Step 1"
 
     openssl x509 -req -in server-ecc-comp.csr -days 1000 -extfile wolfssl.cnf -extensions wolfssl_opts -signkey ecc-key-comp.pem -out server-ecc-comp.pem
@@ -408,7 +408,7 @@ run_renewcerts(){
     echo "Updating ecc-privOnlyCert.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e ".\n.\n.\nWR\n.\nDE\n.\n.\n.\n" | openssl req -new -key ecc-privOnlyKey.pem -config ./wolfssl.cnf -nodes -out ecc-privOnly.csr
+    echo -e ".\\n.\\n.\\nWR\\n.\\nDE\\n.\\n.\\n.\\n" | openssl req -new -key ecc-privOnlyKey.pem -config ./wolfssl.cnf -nodes -out ecc-privOnly.csr
     check_result $? "Step 1"
 
     openssl x509 -req -in ecc-privOnly.csr -days 1000 -signkey ecc-privOnlyKey.pem -out ecc-privOnlyCert.pem
@@ -422,7 +422,7 @@ run_renewcerts(){
     echo "Updating test/digsigku.pem"
     echo ""
     #pipe the following arguments to openssl req...
-    echo -e "US\nWashington\nSeattle\nFoofarah\nArglebargle\nfoobarbaz\ninfo@worlss.com\n.\n.\n" | openssl req -new -key ecc-key.pem -config ./wolfssl.cnf -nodes -sha1 -out digsigku.csr
+    echo -e "US\\nWashington\\nSeattle\\nFoofarah\\nArglebargle\\nfoobarbaz\\ninfo@worlss.com\\n.\\n.\\n" | openssl req -new -key ecc-key.pem -config ./wolfssl.cnf -nodes -sha1 -out digsigku.csr
     check_result $? "Step 1"
 
     openssl x509 -req -in digsigku.csr -days 1000 -extfile wolfssl.cnf -extensions digsigku -signkey ecc-key.pem -sha1 -set_serial 16393466893990650224 -out digsigku.pem

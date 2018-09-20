@@ -117,7 +117,8 @@ mv tmp caEccCrl.pem
 # caEcc384Crl
 echo "Step 13"
 openssl ca -config ../renewcerts/wolfssl.cnf -revoke ../server-revoked-cert.pem -keyfile ../ca-ecc384-key.pem -cert ../ca-ecc384-cert.pem
-if [ $? -ne 0 ]; then
+RESULT=$?
+if [ $RESULT -ne 0 ]; then
     echo "Already revoked CRL number 02, skipping"
 else
     echo "Revoked CRL 02"
