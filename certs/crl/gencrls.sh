@@ -115,21 +115,15 @@ mv tmp caEccCrl.pem
 #cp caEccCrl.pem ~/wolfssl/certs/crl/caEccCrl.pem
 
 # caEcc384Crl
-echo "Step 13"
-openssl ca -config ../renewcerts/wolfssl.cnf -revoke ../server-revoked-cert.pem -keyfile ../ca-ecc384-key.pem -cert ../ca-ecc384-cert.pem
-RESULT=$?
-if [ $RESULT -ne 0 ]; then
-    echo "Already revoked CRL number 02, skipping"
-else
-    echo "Revoked CRL 02"
-fi
+# server-revoked-cert.pem is already revoked in Step 10
+#openssl ca -config ../renewcerts/wolfssl.cnf -revoke ../server-revoked-cert.pem -keyfile ../ca-ecc384-key.pem -cert ../ca-ecc384-cert.pem
 
-echo "Step 14"
+echo "Step 13"
 openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out caEcc384Crl.pem -keyfile ../ca-ecc384-key.pem -cert ../ca-ecc384-cert.pem
 check_result $?
 
 # metadata
-echo "Step 15"
+echo "Step 14"
 openssl crl -in caEcc384Crl.pem -text > tmp
 check_result $?
 mv tmp caEcc384Crl.pem
@@ -137,12 +131,12 @@ mv tmp caEcc384Crl.pem
 #cp caEcc384Crl.pem ~/wolfssl/certs/crl/caEcc384Crl.pem
 
 # cliCrl
-echo "Step 16"
+echo "Step 15"
 openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out cliCrl.pem -keyfile ../client-key.pem -cert ../client-cert.pem
 check_result $?
 
 # metadata
-echo "Step 17"
+echo "Step 16"
 openssl crl -in cliCrl.pem -text > tmp
 check_result $?
 mv tmp cliCrl.pem
@@ -150,12 +144,12 @@ mv tmp cliCrl.pem
 #cp cliCrl.pem ~/wolfssl/certs/crl/cliCrl.pem
 
 # eccCliCRL
-echo "Step 18"
+echo "Step 17"
 openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out eccCliCRL.pem -keyfile ../ecc-client-key.pem -cert ../client-ecc-cert.pem
 check_result $?
 
 # metadata
-echo "Step 19"
+echo "Step 18"
 openssl crl -in eccCliCRL.pem -text > tmp
 check_result $?
 mv tmp eccCliCRL.pem
@@ -163,12 +157,12 @@ mv tmp eccCliCRL.pem
 #cp eccCliCRL.pem ~/wolfssl/certs/crl/eccCliCRL.pem
 
 # eccSrvCRL
-echo "Step 20"
+echo "Step 19"
 openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 -out eccSrvCRL.pem -keyfile ../ecc-key.pem -cert ../server-ecc.pem
 check_result $?
 
 # metadata
-echo "Step 21"
+echo "Step 20"
 openssl crl -in eccSrvCRL.pem -text > tmp
 check_result $?
 mv tmp eccSrvCRL.pem
@@ -176,12 +170,12 @@ mv tmp eccSrvCRL.pem
 #cp eccSrvCRL.pem ~/wolfssl/certs/crl/eccSrvCRL.pem
 
 # caEccCrl
-echo "Step 22"
+echo "Step 21"
 openssl ca -config ../ecc/wolfssl.cnf -gencrl -crldays 1000 -out caEccCrl.pem -keyfile ../ca-ecc-key.pem -cert ../ca-ecc-cert.pem
 check_result $?
 
 # ca-ecc384-cert
-echo "Step 23"
+echo "Step 22"
 openssl ca -config ../ecc/wolfssl.cnf -gencrl -crldays 1000 -out caEcc384Crl.pem -keyfile ../ca-ecc384-key.pem -cert ../ca-ecc384-cert.pem
 check_result $?
 
