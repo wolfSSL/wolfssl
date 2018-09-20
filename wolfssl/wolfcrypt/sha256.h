@@ -80,7 +80,7 @@
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
-#ifdef WOLFSSL_DEVCRYPTO_HASH
+#if defined(WOLFSSL_DEVCRYPTO) && defined(WOLFSSL_DEVCRYPTO_HASH)
     #include <wolfssl/wolfcrypt/port/devcrypto/wc_devcrypto.h>
 #endif
 

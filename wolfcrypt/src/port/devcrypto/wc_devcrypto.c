@@ -47,7 +47,7 @@ int wc_DevCryptoCreate(WC_CRYPTODEV* ctx, int type, byte* key, word32 keySz)
     XMEMSET(ctx, 0, sizeof(WC_CRYPTODEV));
     switch (type) {
         case CRYPTO_SHA1:
-    case CRYPTO_SHA2_256:
+        case CRYPTO_SHA2_256:
             isHash = 1;
             break;
 
@@ -128,7 +128,7 @@ void wc_SetupCrypt(struct crypt_op* crt, WC_CRYPTODEV* dev,
 }
 
 
-/* setup crypt_op structure for symetric key operations */
+/* setup crypt_op structure for symmetric key operations */
 void wc_SetupCryptSym(struct crypt_op* crt, WC_CRYPTODEV* dev,
         byte* src, word32 srcSz, byte* dst, byte* iv, int flag)
 

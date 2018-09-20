@@ -25,6 +25,8 @@
 
 #include <wolfssl/wolfcrypt/types.h>
 
+#ifdef WOLFSSL_DEVCRYPTO
+
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
@@ -45,6 +47,7 @@ WOLFSSL_LOCAL void wc_SetupCryptAead(struct crypt_auth_op* crt, WC_CRYPTODEV* de
          byte* src, word32 srcSz, byte* dst, byte* iv, word32 ivSz, int flag,
          byte* authIn, word32 authInSz, byte* authTag, word32 authTagSz);
 
+#endif /* WOLFSSL_DEVCRYPTO */
 #endif /* WOLFSSL_DEVCRYPTO_H */
 
 

@@ -61,7 +61,7 @@ static int HashInit(void* ctx, int type, byte* key, word32 keySz)
     WC_CRYPTODEV* cdev;
 
     if ((cdev = GetHashContext(ctx, type)) == NULL) {
-        WOLFSSL_MSG("Unsuported hash type");
+        WOLFSSL_MSG("Unsupported hash type");
         return BAD_FUNC_ARG;
     }
 

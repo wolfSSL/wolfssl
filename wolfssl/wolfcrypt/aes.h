@@ -166,7 +166,8 @@ typedef struct Aes {
     struct msghdr msg;
     int dir;  /* flag for encrpyt or decrypt */
 #endif
-#if defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC)
+#if defined(WOLFSSL_DEVCRYPTO) && \
+    (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
     word32       devKey[AES_MAX_KEY_SIZE/WOLFSSL_BIT_SIZE/sizeof(word32)]; /* raw key */
     WC_CRYPTODEV ctx;
 #endif
