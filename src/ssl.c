@@ -19018,7 +19018,7 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
         XMEMCPY(data_ptr,(byte *)utc_str, ASN_UTC_TIME_SIZE);
     /* GeneralizedTime */
     } else {
-        char gt_str[ASN_GENERALIZED_TIME_LONG];
+        char gt_str[ASN_GENERALIZED_TIME_MAX];
         int gt_year,gt_mon,gt_day,gt_hour,gt_min,gt_sec;
         byte *data_ptr = NULL;
 
@@ -19028,7 +19028,7 @@ WOLFSSL_ASN1_TIME* wolfSSL_ASN1_TIME_adj(WOLFSSL_ASN1_TIME *s, time_t t,
         gt_hour = ts->tm_hour;
         gt_min  = ts->tm_min;
         gt_sec  = ts->tm_sec;
-        XSNPRINTF((char *)gt_str, ASN_GENERALIZED_TIME_LONG,
+        XSNPRINTF((char *)gt_str, ASN_GENERALIZED_TIME_MAX,
                   "%4d%02d%02d%02d%02d%02dZ",
                   gt_year, gt_mon, gt_day, gt_hour, gt_min,gt_sec);
         data_ptr  = s->data;
