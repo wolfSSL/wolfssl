@@ -78,7 +78,7 @@ generate_test_cert() {
     check_result $?
 
     echo "step 3 check csr"
-    openssl req -text -noout -in "$1".csr
+    openssl req -text -noout -in "$1".csr -config "$1".conf
     check_result $?
 
     echo "step 4 create cert"
@@ -99,6 +99,7 @@ generate_test_cert() {
         echo "step 5 generate crl"
         mkdir ../crl/demoCA
         touch ../crl/demoCA/index.txt
+        touch ../crl/demoCA/index.txt.attr
         echo "01" > ../crl/crlnumber
         openssl ca -config ../renewcerts/wolfssl.cnf -gencrl -crldays 1000 \
                    -out crl.revoked -keyfile ../server-key.pem -cert "$1".pem
@@ -108,7 +109,7 @@ generate_test_cert() {
         check_result $?
         mv tmp.pem ../crl/"$1"Crl.pem
         rm crl.revoked
-        rm -rf ../crl/demoCA
+        rm -rf ../crl/demoCA #cleans up index.txt and index.txt.attr
         rm ../crl/crlnumber*
     fi
 
@@ -128,6 +129,7 @@ generate_expired_certs() {
 
     mkdir -p certs
     touch ./index.txt
+    touch ./index.txt.attr
     echo 1000 > ./serial
 
     echo "step 1 create configuration"
@@ -139,7 +141,7 @@ generate_expired_certs() {
     check_result $?
 
     echo "step 3 check csr"
-    openssl req -text -noout -in "$1".csr
+    openssl req -text -noout -in "$1".csr -config "$1".conf
     check_result $?
 
     echo "step 4 create cert"
