@@ -485,6 +485,9 @@ const char* wc_GetErrorString(int error)
     case WC_AFALG_SOCK_E:
   	return "AF_ALG socket error";
 
+    case WC_DEVCRYPTO_E:
+	return "Error with /dev/crypto";
+
     default:
         return "unknown error number";
 

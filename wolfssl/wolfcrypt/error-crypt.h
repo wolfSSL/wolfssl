@@ -214,8 +214,9 @@ enum {
     DH_CHECK_PRIV_E     = -263,  /* DH Check Priv Key error */
 
     WC_AFALG_SOCK_E     = -264,  /* AF_ALG socket error */
+    WC_DEVCRYPTO_E      = -265,  /* /dev/crypto error */
 
-    WC_LAST_E           = -264,  /* Update this to indicate last error */
+    WC_LAST_E           = -265,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes

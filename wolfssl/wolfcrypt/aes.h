@@ -73,6 +73,10 @@
 #include <sys/socket.h>
 #endif
 
+#if defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC)
+#include <wolfssl/wolfcrypt/port/devcrypto/wc_devcrypto.h>
+#endif
+
 #if defined(HAVE_AESGCM) && !defined(WC_NO_RNG)
     #include <wolfssl/wolfcrypt/random.h>
 #endif
@@ -161,6 +165,11 @@ typedef struct Aes {
     int rdFd; /* socket to read from */
     struct msghdr msg;
     int dir;  /* flag for encrpyt or decrypt */
+#endif
+#if defined(WOLFSSL_DEVCRYPTO) && \
+    (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
+    word32       devKey[AES_MAX_KEY_SIZE/WOLFSSL_BIT_SIZE/sizeof(word32)]; /* raw key */
+    WC_CRYPTODEV ctx;
 #endif
     void*  heap; /* memory hint to use */
 } Aes;

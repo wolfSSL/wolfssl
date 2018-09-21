@@ -108,6 +108,11 @@
     #include <wolfcrypt/src/misc.c>
 #endif
 
+#ifdef WOLFSSL_DEVCRYPTO_HASH
+    #include <wolfssl/wolfcrypt/port/devcrypto/wc_devcrypto.h>
+#endif
+
+
 
 #if defined(USE_INTEL_SPEEDUP)
     #define HAVE_INTEL_AVX1
@@ -136,7 +141,7 @@
 
 #if !defined(WOLFSSL_PIC32MZ_HASH) && !defined(STM32_HASH_SHA2) && \
     (!defined(WOLFSSL_IMX6_CAAM) || defined(NO_IMX6_CAAM_HASH)) && \
-    !defined(WOLFSSL_AFALG_HASH)
+    !defined(WOLFSSL_AFALG_HASH) && !defined(WOLFSSL_DEVCRYPTO_HASH)
 static int InitSha256(wc_Sha256* sha256)
 {
     int ret = 0;
@@ -443,6 +448,9 @@ static int InitSha256(wc_Sha256* sha256)
 
 #elif defined(WOLFSSL_AFALG_HASH)
     /* implemented in wolfcrypt/src/port/af_alg/afalg_hash.c */
+
+#elif defined(WOLFSSL_DEVCRYPTO_HASH)
+    /* implemented in wolfcrypt/src/port/devcrypto/devcrypt_hash.c */
 
 #else
     #define NEED_SOFT_SHA256
@@ -2581,6 +2589,9 @@ SHA256_NOINLINE static int Transform_Sha256_AVX2_RORX_Len(wc_Sha256* sha256,
 #elif defined(WOLFSSL_AFALG_HASH)
     #error SHA224 currently not supported with AF_ALG enabled
 
+#elif defined(WOLFSSL_DEVCRYPTO_HASH)
+    /* implemented in wolfcrypt/src/port/devcrypto/devcrypt_hash.c */
+
 #else
 
     #define NEED_SOFT_SHA224
@@ -2756,14 +2767,17 @@ void wc_Sha256Free(wc_Sha256* sha256)
         close(sha256->rdFd);
         sha256->rdFd = -1; /* avoid possible double close on socket */
     }
-
-    #if defined(WOLFSSL_AFALG_HASH_KEEP)
+#endif /* WOLFSSL_AFALG_HASH */
+#ifdef WOLFSSL_DEVCRYPTO_HASH
+    wc_DevCryptoFree(&sha256->ctx);
+#endif /* WOLFSSL_DEVCRYPTO */
+#if defined(WOLFSSL_AFALG_HASH_KEEP) || \
+    (defined(WOLFSSL_DEVCRYPTO_HASH) && defined(WOLFSSL_DEVCRYPTO_HASH_KEEP))
     if (sha256->msg != NULL) {
         XFREE(sha256->msg, sha256->heap, DYNAMIC_TYPE_TMP_BUFFER);
         sha256->msg = NULL;
     }
-    #endif
-#endif /* WOLFSSL_AFALG_HASH */
+#endif
 }
 
 #endif /* !WOLFSSL_TI_HASH */
@@ -2809,6 +2823,10 @@ void wc_Sha256Free(wc_Sha256* sha256)
 
 #ifdef WOLFSSL_AFALG_HASH
     /* implemented in wolfcrypt/src/port/af_alg/afalg_hash.c */
+
+#elif defined(WOLFSSL_DEVCRYPTO_HASH)
+    /* implemented in wolfcrypt/src/port/devcrypto/devcrypt_hash.c */
+
 #else
 
 int wc_Sha256GetHash(wc_Sha256* sha256, byte* hash)

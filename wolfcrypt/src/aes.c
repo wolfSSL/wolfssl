@@ -728,6 +728,8 @@
         }
 
 #elif defined(WOLFSSL_AFALG)
+#elif defined(WOLFSSL_DEVCRYPTO_AES)
+    /* if all AES is enabled with devcrypto then tables are not needed */
 
 #else
 
@@ -1543,7 +1545,8 @@ static void wc_AesEncrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 #endif /* HAVE_AES_CBC || WOLFSSL_AES_DIRECT || HAVE_AESGCM */
 
 #if defined(HAVE_AES_DECRYPT)
-#if defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)
+#if (defined(HAVE_AES_CBC) || defined(WOLFSSL_AES_DIRECT)) && \
+    !defined(WOLFSSL_DEVCRYPTO_CBC)
 
 /* load 4 Td Tables into cache by cache line stride */
 static WC_INLINE word32 PreFetchTd(void)
@@ -1944,6 +1947,9 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 #elif defined(WOLFSSL_AFALG)
     /* implemented in wolfcrypt/src/port/af_alg/afalg_aes.c */
 
+#elif defined(WOLFSSL_DEVCRYPTO_AES)
+    /* implemented in wolfcrypt/src/port/devcrypto/devcrypto_aes.c */
+
 #else
     static int wc_AesSetKeyLocal(Aes* aes, const byte* userKey, word32 keylen,
                 const byte* iv, int dir)
@@ -2170,6 +2176,11 @@ static void wc_AesDecrypt(Aes* aes, const byte* inBlock, byte* outBlock)
 
         ret = wc_AesSetKeyLocal(aes, userKey, keylen, iv, dir);
 
+    #if defined(WOLFSSL_DEVCRYPTO) && \
+        (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
+        aes->ctx.cfd = -1;
+        XMEMCPY(aes->devKey, userKey, keylen);
+    #endif
     #ifdef WOLFSSL_IMX6_CAAM_BLOB
         ForceZero(local, sizeof(local));
     #endif
@@ -2263,6 +2274,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 
     #elif defined(WOLFSSL_AFALG)
         /* implemented in wolfcrypt/src/port/af_alg/afalg_aes.c */
+
+    #elif defined(WOLFSSL_DEVCRYPTO_AES)
+        /* implemented in wolfcrypt/src/port/devcrypt/devcrypto_aes.c */
 
     #else
         /* Allow direct access to one block encrypt */
@@ -2805,6 +2819,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
 #elif defined(WOLFSSL_AFALG)
     /* implemented in wolfcrypt/src/port/af_alg/afalg_aes.c */
 
+#elif defined(WOLFSSL_DEVCRYPTO_CBC)
+    /* implemented in wolfcrypt/src/port/devcrypt/devcrypto_aes.c */
+
 #else
 
     int wc_AesCbcEncrypt(Aes* aes, byte* out, const byte* in, word32 sz)
@@ -3129,6 +3146,9 @@ int wc_AesSetIV(Aes* aes, const byte* iv)
     #elif defined(WOLFSSL_AFALG)
         /* implemented in wolfcrypt/src/port/af_alg/afalg_aes.c */
 
+    #elif defined(WOLFSSL_DEVCRYPTO_AES)
+        /* implemented in wolfcrypt/src/port/devcrypt/devcrypto_aes.c */
+
     #else
 
         /* Use software based AES counter */
@@ -3241,6 +3261,9 @@ static WC_INLINE void IncCtr(byte* ctr, word32 ctrSz)
 
 #elif defined(WOLFSSL_AFALG)
     /* implemented in wolfcrypt/src/port/afalg/afalg_aes.c */
+
+#elif defined(WOLFSSL_DEVCRYPTO_AES)
+    /* implemented in wolfcrypt/src/port/devcrypt/devcrypto_aes.c */
 
 #else /* software + AESNI implementation */
 
@@ -9435,6 +9458,10 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
     aes->alFd = -1;
     aes->rdFd = -1;
 #endif
+#if defined(WOLFSSL_DEVCRYPTO) && \
+   (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
+    aes->ctx.cfd = -1;
+#endif
 
     return ret;
 }
@@ -9456,6 +9483,11 @@ void wc_AesFree(Aes* aes)
         close(aes->alFd);
     }
 #endif /* WOLFSSL_AFALG */
+#if defined(WOLFSSL_DEVCRYPTO) && \
+    (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
+    wc_DevCryptoFree(&aes->ctx);
+    ForceZero((byte*)aes->devKey, AES_MAX_KEY_SIZE/WOLFSSL_BIT_SIZE);
+#endif
 }
 
 
@@ -9499,6 +9531,9 @@ int wc_AesGetKeySize(Aes* aes, word32* keySize)
 
 #elif defined(WOLFSSL_AFALG)
     /* implemented in wolfcrypt/src/port/af_alg/afalg_aes.c */
+
+#elif defined(WOLFSSL_DEVCRYPTO_AES)
+    /* implemented in wolfcrypt/src/port/devcrypt/devcrypto_aes.c */
 
 #else
 
