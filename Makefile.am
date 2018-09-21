@@ -39,6 +39,18 @@ CLEANFILES+= cert.der \
              othercert.der \
              othercert.pem \
              pkcs7cert.der \
+             pkcs7authEnvelopedDataAES128GCM.der \
+             pkcs7authEnvelopedDataAES128GCM_ECDH_SHA1KDF.der \
+             pkcs7authEnvelopedDataAES128GCM_KEKRI.der \
+             pkcs7authEnvelopedDataAES128GCM_ORI.der \
+             pkcs7authEnvelopedDataAES128GCM_PWRI.der \
+             pkcs7authEnvelopedDataAES192GCM.der \
+             pkcs7authEnvelopedDataAES256GCM.der \
+             pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF.der \
+             pkcs7authEnvelopedDataAES256GCM_ECDH_SHA512KDF.der \
+             pkcs7authEnvelopedDataAES256GCM_ECDH_SHA512KDF_ukm.der \
+             pkcs7authEnvelopedDataAES256GCM_IANDS.der \
+             pkcs7authEnvelopedDataAES256GCM_SKID.der \
              pkcs7compressedData_data_zlib.der \
              pkcs7compressedData_firmwarePkgData_zlib.der \
              pkcs7encryptedDataAES128CBC.der \

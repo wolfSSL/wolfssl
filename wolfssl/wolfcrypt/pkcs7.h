@@ -70,7 +70,8 @@ enum PKCS7_TYPES {
 #if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
     COMPRESSED_DATA           = 678,  /* 1.2.840.113549.1.9.16.1.9,  RFC 3274 */
 #endif
-    FIRMWARE_PKG_DATA         = 685   /* 1.2.840.113549.1.9.16.1.16, RFC 4108 */
+    FIRMWARE_PKG_DATA         = 685,  /* 1.2.840.113549.1.9.16.1.16, RFC 4108 */
+    AUTH_ENVELOPED_DATA       = 692   /* 1.2.840.113549.1.9.16.1.23, RFC 5083 */
 };
 
 enum Pkcs7_Misc {
@@ -197,6 +198,7 @@ typedef struct PKCS7 {
     word32 cekSz;                 /* size of cek, bytes */
     byte* pass;                   /* password, for PWRI decryption */
     word32 passSz;                /* size of pass, bytes */
+    int kekEncryptOID;            /* KEK encryption algorithm OID */
 
     CallbackOriEncrypt oriEncryptCb;  /* ORI encrypt callback */
     CallbackOriDecrypt oriDecryptCb;  /* ORI decrypt callback */
@@ -240,7 +242,7 @@ WOLFSSL_API int  wc_PKCS7_VerifySignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
     word32 hashSz, byte* pkiMsgHead, word32 pkiMsgHeadSz, byte* pkiMsgFoot, 
     word32 pkiMsgFootSz);
 
-/* CMS/PKCS#7 EnvelopedData */
+/* EnvelopedData and AuthEnvelopedData RecipientInfo functions */
 WOLFSSL_API int  wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert,
                                           word32 certSz, int options);
 WOLFSSL_API int  wc_PKCS7_AddRecipient_KARI(PKCS7* pkcs7, const byte* cert,
@@ -261,16 +263,24 @@ WOLFSSL_API int  wc_PKCS7_AddRecipient_PWRI(PKCS7* pkcs7, byte* passwd,
                                           word32 pLen, byte* salt,
                                           word32 saltSz, int kdfOID,
                                           int prfOID, int iterations,
-                                          int encryptOID, int options);
+                                          int kekEncryptOID, int options);
 WOLFSSL_API int  wc_PKCS7_SetOriEncryptCtx(PKCS7* pkcs7, void* ctx);
 WOLFSSL_API int  wc_PKCS7_SetOriDecryptCtx(PKCS7* pkcs7, void* ctx);
 WOLFSSL_API int  wc_PKCS7_SetOriDecryptCb(PKCS7* pkcs7, CallbackOriDecrypt cb);
 WOLFSSL_API int  wc_PKCS7_AddRecipient_ORI(PKCS7* pkcs7, CallbackOriEncrypt cb,
                                            int options);
 
+/* CMS/PKCS#7 EnvelopedData */
 WOLFSSL_API int  wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7,
                                           byte* output, word32 outputSz);
 WOLFSSL_API int  wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
+                                          word32 pkiMsgSz, byte* output,
+                                          word32 outputSz);
+
+/* CMS/PKCS#7 AuthEnvelopedData */
+WOLFSSL_API int  wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7,
+                                          byte* output, word32 outputSz);
+WOLFSSL_API int  wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
                                           word32 pkiMsgSz, byte* output,
                                           word32 outputSz);
 

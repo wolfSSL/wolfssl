@@ -353,12 +353,18 @@ enum Hash_Sum  {
 enum Block_Sum {
 #ifdef WOLFSSL_AES_128
     AES128CBCb = 414,
+    AES128GCMb = 418,
+    AES128CCMb = 419,
 #endif
 #ifdef WOLFSSL_AES_192
     AES192CBCb = 434,
+    AES192GCMb = 438,
+    AES192CCMb = 439,
 #endif
 #ifdef WOLFSSL_AES_256
     AES256CBCb = 454,
+    AES256GCMb = 458,
+    AES256CCMb = 459,
 #endif
 #ifndef NO_DES3
     DESb       = 69,

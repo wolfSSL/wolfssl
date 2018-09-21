@@ -75,6 +75,8 @@ static int wc_SetContentType(int pkcs7TypeOID, byte* output, word32 outputSz)
                                                0x0D, 0x01, 0x07, 0x02};
     const byte envelopedData[]      = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
                                                0x0D, 0x01, 0x07, 0x03 };
+    const byte authEnvelopedData[]  = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
+                                        0x0D, 0x01, 0x09, 0x10, 0x01, 0x17};
     const byte signedAndEnveloped[] = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
                                                0x0D, 0x01, 0x07, 0x04 };
     const byte digestedData[]       = { 0x2A, 0x86, 0x48, 0x86, 0xF7,
@@ -123,6 +125,11 @@ static int wc_SetContentType(int pkcs7TypeOID, byte* output, word32 outputSz)
         case ENVELOPED_DATA:
             typeSz = sizeof(envelopedData);
             typeName = envelopedData;
+            break;
+
+        case AUTH_ENVELOPED_DATA:
+            typeSz = sizeof(authEnvelopedData);
+            typeName = authEnvelopedData;
             break;
 
         case SIGNED_AND_ENVELOPED_DATA:
@@ -204,12 +211,18 @@ static int wc_PKCS7_GetOIDBlockSize(int oid)
 #ifndef NO_AES
     #ifdef WOLFSSL_AES_128
         case AES128CBCb:
+        case AES128GCMb:
+        case AES128CCMb:
     #endif
     #ifdef WOLFSSL_AES_192
         case AES192CBCb:
+        case AES192GCMb:
+        case AES192CCMb:
     #endif
     #ifdef WOLFSSL_AES_256
         case AES256CBCb:
+        case AES256GCMb:
+        case AES256CCMb:
     #endif
             blockSz = AES_BLOCK_SIZE;
             break;
@@ -238,18 +251,24 @@ static int wc_PKCS7_GetOIDKeySize(int oid)
 #ifndef NO_AES
     #ifdef WOLFSSL_AES_128
         case AES128CBCb:
+        case AES128GCMb:
+        case AES128CCMb:
         case AES128_WRAP:
             blockKeySz = 16;
             break;
     #endif
     #ifdef WOLFSSL_AES_192
         case AES192CBCb:
+        case AES192GCMb:
+        case AES192CCMb:
         case AES192_WRAP:
             blockKeySz = 24;
             break;
     #endif
     #ifdef WOLFSSL_AES_256
         case AES256CBCb:
+        case AES256GCMb:
+        case AES256CCMb:
         case AES256_WRAP:
             blockKeySz = 32;
             break;
@@ -3805,8 +3824,14 @@ int wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert, word32 certSz,
     encryptedKeySz = MAX_ENCRYPTED_KEY_SZ;
     XMEMSET(encryptedKey, 0, encryptedKeySz);
 
+    /* default to IssuerAndSerialNumber if not set */
+    if (pkcs7->sidType != 0) {
+        sidType = pkcs7->sidType;
+    } else {
+        sidType = CMS_ISSUER_AND_SERIAL_NUMBER;
+    }
+
     /* allow options to override SubjectIdentifier type if set */
-    sidType = pkcs7->sidType;
     if (options & CMS_SKID) {
         sidType = CMS_SKID;
     } else if (options & CMS_ISSUER_AND_SERIAL_NUMBER) {
@@ -3837,7 +3862,7 @@ int wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert, word32 certSz,
         XFREE(decoded,      pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-        return MEMORY_E;
+        return blockKeySz;
     }
 
     /* generate random content encryption key, if needed */
@@ -3850,7 +3875,7 @@ int wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert, word32 certSz,
         XFREE(decoded,      pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-        return MEMORY_E;
+        return ret;
     }
 
     InitDecodedCert(decoded, (byte*)cert, certSz, pkcs7->heap);
@@ -3917,6 +3942,8 @@ int wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert, word32 certSz,
     } else {
         return PKCS7_RECIP_E;
     }
+
+    pkcs7->publicKeyOID = decoded->keyOID;
 
     /* KeyEncryptionAlgorithmIdentifier, only support RSA now */
     if (pkcs7->publicKeyOID != RSAk) {
@@ -4130,8 +4157,9 @@ int wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert, word32 certSz,
 
 /* encrypt content using encryptOID algo */
 static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
-                                   byte* iv, int ivSz, byte* in, int inSz,
-                                   byte* out)
+                                   byte* iv, int ivSz, byte* aad, word32 aadSz,
+                                   byte* authTag, word32 authTagSz, byte* in,
+                                   int inSz, byte* out)
 {
     int ret;
 #ifndef NO_AES
@@ -4174,7 +4202,51 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
                 ret = wc_AesCbcEncrypt(&aes, out, in, inSz);
 
             break;
-#endif
+    #ifdef HAVE_AESGCM
+        #ifdef WOLFSSL_AES_128
+        case AES128GCMb:
+        #endif
+        #ifdef WOLFSSL_AES_192
+        case AES192GCMb:
+        #endif
+        #ifdef WOLFSSL_AES_256
+        case AES256GCMb:
+        #endif
+        #if defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_192) || \
+            defined(WOLFSSL_AES_256)
+            if (authTag == NULL)
+                return BAD_FUNC_ARG;
+
+            ret = wc_AesGcmSetKey(&aes, key, keySz);
+            if (ret == 0)
+                ret = wc_AesGcmEncrypt(&aes, out, in, inSz, iv, ivSz,
+                                       authTag, authTagSz, aad, aadSz);
+            break;
+        #endif
+    #endif /* HAVE_AESGCM */
+    #ifdef HAVE_AESCCM
+        #ifdef WOLFSSL_AES_128
+        case AES128CCMb:
+        #endif
+        #ifdef WOLFSSL_AES_192
+        case AES192CCMb:
+        #endif
+        #ifdef WOLFSSL_AES_256
+        case AES256CCMb:
+        #endif
+        #if defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_192) || \
+            defined(WOLFSSL_AES_256)
+            if (authTag == NULL)
+                return BAD_FUNC_ARG;
+
+            ret = wc_AesCcmSetKey(&aes, key, keySz);
+            if (ret == 0)
+                ret = wc_AesCcmEncrypt(&aes, out, in, inSz, iv, ivSz,
+                                       authTag, authTagSz, aad, aadSz);
+            break;
+        #endif
+    #endif /* HAVE_AESCCM */
+#endif /* NO_AES */
 #ifndef NO_DES3
         case DESb:
             if (keySz != DES_KEYLEN || ivSz != DES_BLOCK_SIZE)
@@ -4201,14 +4273,21 @@ static int wc_PKCS7_EncryptContent(int encryptOID, byte* key, int keySz,
             return ALGO_ID_E;
     };
 
+#if defined(NO_AES) || (!defined(HAVE_AESGCM) && !defined(HAVE_AESCCM))
+    (void)authTag;
+    (void)authTagSz;
+    (void)aad;
+    (void)aadSz;
+#endif
     return ret;
 }
 
 
 /* decrypt content using encryptOID algo */
 static int wc_PKCS7_DecryptContent(int encryptOID, byte* key, int keySz,
-                                   byte* iv, int ivSz, byte* in, int inSz,
-                                   byte* out)
+                                   byte* iv, int ivSz, byte* aad, word32 aadSz,
+                                   byte* authTag, word32 authTagSz, byte* in,
+                                   int inSz, byte* out)
 {
     int ret;
 #ifndef NO_AES
@@ -4251,7 +4330,51 @@ static int wc_PKCS7_DecryptContent(int encryptOID, byte* key, int keySz,
                 ret = wc_AesCbcDecrypt(&aes, out, in, inSz);
 
             break;
-#endif
+    #ifdef HAVE_AESGCM
+        #ifdef WOLFSSL_AES_128
+        case AES128GCMb:
+        #endif
+        #ifdef WOLFSSL_AES_192
+        case AES192GCMb:
+        #endif
+        #ifdef WOLFSSL_AES_256
+        case AES256GCMb:
+        #endif
+        #if defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_192) || \
+            defined(WOLFSSL_AES_256)
+            if (authTag == NULL)
+                return BAD_FUNC_ARG;
+
+            ret = wc_AesGcmSetKey(&aes, key, keySz);
+            if (ret == 0)
+                ret = wc_AesGcmDecrypt(&aes, out, in, inSz, iv, ivSz,
+                                       authTag, authTagSz, aad, aadSz);
+            break;
+        #endif
+    #endif /* HAVE_AESGCM */
+    #ifdef HAVE_AESCCM
+        #ifdef WOLFSSL_AES_128
+        case AES128CCMb:
+        #endif
+        #ifdef WOLFSSL_AES_192
+        case AES192CCMb:
+        #endif
+        #ifdef WOLFSSL_AES_256
+        case AES256CCMb:
+        #endif
+        #if defined(WOLFSSL_AES_128) || defined(WOLFSSL_AES_192) || \
+            defined(WOLFSSL_AES_256)
+            if (authTag == NULL)
+                return BAD_FUNC_ARG;
+
+            ret = wc_AesCcmSetKey(&aes, key, keySz);
+            if (ret == 0)
+                ret = wc_AesCcmDecrypt(&aes, out, in, inSz, iv, ivSz,
+                                       authTag, authTagSz, aad, aadSz);
+            break;
+        #endif
+    #endif /* HAVE_AESCCM */
+#endif /* NO_AES */
 #ifndef NO_DES3
         case DESb:
             if (keySz != DES_KEYLEN || ivSz != DES_BLOCK_SIZE)
@@ -4277,17 +4400,26 @@ static int wc_PKCS7_DecryptContent(int encryptOID, byte* key, int keySz,
             return ALGO_ID_E;
     };
 
+#if defined(NO_AES) || (!defined(HAVE_AESGCM) && !defined(HAVE_AESCCM))
+    (void)authTag;
+    (void)authTagSz;
+    (void)aad;
+    (void)aadSz;
+#endif
+
     return ret;
 }
 
 
-/* generate random IV, place in iv, return 0 on success negative on error */
-static int wc_PKCS7_GenerateIV(PKCS7* pkcs7, WC_RNG* rng, byte* iv, word32 ivSz)
+/* Generate random block, place in out, return 0 on success negative on error.
+ * Used for generation of IV, nonce, etc */
+static int wc_PKCS7_GenerateBlock(PKCS7* pkcs7, WC_RNG* rng, byte* out,
+                                  word32 outSz)
 {
     int ret;
     WC_RNG* rnd = NULL;
 
-    if (iv == NULL || ivSz == 0)
+    if (out == NULL || outSz == 0)
         return BAD_FUNC_ARG;
 
     /* input RNG is optional, init local one if input rng is NULL */
@@ -4306,7 +4438,7 @@ static int wc_PKCS7_GenerateIV(PKCS7* pkcs7, WC_RNG* rng, byte* iv, word32 ivSz)
         rnd = rng;
     }
 
-    ret = wc_RNG_GenerateBlock(rnd, iv, ivSz);
+    ret = wc_RNG_GenerateBlock(rnd, out, outSz);
 
     if (rng == NULL) {
         wc_FreeRng(rnd);
@@ -4589,14 +4721,15 @@ static int wc_PKCS7_PwriKek_KeyWrap(PKCS7* pkcs7, const byte* kek, word32 kekSz,
     if (ret == 0) {
         /* encrypt, normal */
         ret = wc_PKCS7_EncryptContent(algID, (byte*)kek, kekSz, (byte*)iv,
-                                      ivSz, out, outLen, out);
+                                      ivSz, NULL, 0, NULL, 0, out, outLen, out);
     }
 
     if (ret == 0) {
         /* encrypt again, using last ciphertext block as IV */
         lastBlock = out + (((outLen / blockSz) - 1) * blockSz);
         ret = wc_PKCS7_EncryptContent(algID, (byte*)kek, kekSz, lastBlock,
-                                      blockSz, out, outLen, out);
+                                      blockSz, NULL, 0, NULL, 0, out,
+                                      outLen, out);
     }
 
     if (ret == 0) {
@@ -4654,20 +4787,22 @@ static int wc_PKCS7_PwriKek_KeyUnWrap(PKCS7* pkcs7, const byte* kek,
 
     /* decrypt last block */
     ret = wc_PKCS7_DecryptContent(algID, (byte*)kek, kekSz, tmpIv, blockSz,
-                                  lastBlock, blockSz, outTmp + inSz - blockSz);
+                                  NULL, 0, NULL, 0, lastBlock, blockSz,
+                                  outTmp + inSz - blockSz);
 
     if (ret == 0) {
         /* using last decrypted block as IV, decrypt [0 ... n-1] blocks */
         lastBlock = outTmp + inSz - blockSz;
         ret = wc_PKCS7_DecryptContent(algID, (byte*)kek, kekSz, lastBlock,
-                                      blockSz, (byte*)in, inSz - blockSz,
-                                      outTmp);
+                                      blockSz, NULL, 0, NULL, 0, (byte*)in,
+                                      inSz - blockSz, outTmp);
     }
 
     if (ret == 0) {
         /* decrypt using original kek and iv */
         ret = wc_PKCS7_DecryptContent(algID, (byte*)kek, kekSz, (byte*)iv,
-                                      ivSz, outTmp, inSz, outTmp);
+                                      ivSz, NULL, 0, NULL, 0, outTmp, inSz,
+                                      outTmp);
     }
 
     if (ret != 0) {
@@ -4714,7 +4849,7 @@ static int wc_PKCS7_PwriKek_KeyUnWrap(PKCS7* pkcs7, const byte* kek,
  * Return 0 on success, negative upon error */
 int wc_PKCS7_AddRecipient_PWRI(PKCS7* pkcs7, byte* passwd, word32 pLen,
                                byte* salt, word32 saltSz, int kdfOID,
-                               int hashOID, int iterations, int encryptOID,
+                               int hashOID, int iterations, int kekEncryptOID,
                                int options)
 {
     Pkcs7EncodedRecip* recip = NULL;
@@ -4752,7 +4887,8 @@ int wc_PKCS7_AddRecipient_PWRI(PKCS7* pkcs7, byte* passwd, word32 pLen,
     byte* encryptedKey = NULL;
     byte* kek = NULL;
 
-    int blockKeySz = 0, ret = 0;
+    int cekKeySz = 0, kekKeySz = 0, kekBlockSz = 0, ret = 0;
+    int encryptOID;
     word32 idx, totalSz = 0, encryptedKeySz;
 
     if (pkcs7 == NULL || passwd == NULL || pLen == 0 ||
@@ -4760,18 +4896,38 @@ int wc_PKCS7_AddRecipient_PWRI(PKCS7* pkcs7, byte* passwd, word32 pLen,
         return BAD_FUNC_ARG;
     }
 
+    /* allow user to use different KEK encryption algorithm than used for
+     * main content encryption algorithm, if passed in */
+    if (kekEncryptOID != 0) {
+        encryptOID = kekEncryptOID;
+    } else {
+        encryptOID = pkcs7->encryptOID;
+    }
+
     /* get content-encryption key size, based on algorithm */
-    blockKeySz = wc_PKCS7_GetOIDKeySize(encryptOID);
-    if (blockKeySz < 0)
-        return blockKeySz;
+    cekKeySz = wc_PKCS7_GetOIDKeySize(pkcs7->encryptOID);
+    if (cekKeySz < 0)
+        return cekKeySz;
+
+    /* get KEK encryption key size, based on algorithm */
+    if (encryptOID != pkcs7->encryptOID) {
+        kekKeySz = wc_PKCS7_GetOIDKeySize(encryptOID);
+    } else {
+        kekKeySz = cekKeySz;
+    }
+
+    /* get KEK encryption block size */
+    kekBlockSz = wc_PKCS7_GetOIDBlockSize(encryptOID);
+    if (kekBlockSz < 0)
+        return kekBlockSz;
 
     /* generate random CEK */
-    ret = PKCS7_GenerateContentEncryptionKey(pkcs7, blockKeySz);
+    ret = PKCS7_GenerateContentEncryptionKey(pkcs7, cekKeySz);
     if (ret < 0)
         return ret;
 
     /* generate random IV */
-    ret = wc_PKCS7_GenerateIV(pkcs7, NULL, tmpIv, blockKeySz);
+    ret = wc_PKCS7_GenerateBlock(pkcs7, NULL, tmpIv, kekBlockSz);
     if (ret != 0)
         return ret;
 
@@ -4781,7 +4937,7 @@ int wc_PKCS7_AddRecipient_PWRI(PKCS7* pkcs7, byte* passwd, word32 pLen,
     if (recip == NULL)
         return MEMORY_E;
 
-    kek = (byte*)XMALLOC(blockKeySz, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    kek = (byte*)XMALLOC(kekKeySz, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     if (kek == NULL) {
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return MEMORY_E;
@@ -4797,13 +4953,13 @@ int wc_PKCS7_AddRecipient_PWRI(PKCS7* pkcs7, byte* passwd, word32 pLen,
 
     encryptedKeySz = MAX_ENCRYPTED_KEY_SZ;
     XMEMSET(recip, 0, sizeof(Pkcs7EncodedRecip));
-    XMEMSET(kek, 0, blockKeySz);
+    XMEMSET(kek, 0, kekKeySz);
     XMEMSET(encryptedKey, 0, encryptedKeySz);
 
     /* generate KEK: expand password into KEK */
     ret = wc_PKCS7_GenerateKEK_PWRI(pkcs7, passwd, pLen, salt, saltSz,
                                     kdfOID, hashOID, iterations, kek,
-                                    blockKeySz);
+                                    kekKeySz);
     if (ret < 0) {
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(kek, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -4812,9 +4968,9 @@ int wc_PKCS7_AddRecipient_PWRI(PKCS7* pkcs7, byte* passwd, word32 pLen,
     }
 
     /* generate encrypted key: encrypt CEK with KEK */
-    ret = wc_PKCS7_PwriKek_KeyWrap(pkcs7, kek, blockKeySz, pkcs7->cek,
+    ret = wc_PKCS7_PwriKek_KeyWrap(pkcs7, kek, kekKeySz, pkcs7->cek,
                                    pkcs7->cekSz, encryptedKey, &encryptedKeySz,
-                                   tmpIv, blockKeySz, pkcs7->encryptOID);
+                                   tmpIv, kekBlockSz, encryptOID);
     if (ret < 0) {
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(kek, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -4828,13 +4984,13 @@ int wc_PKCS7_AddRecipient_PWRI(PKCS7* pkcs7, byte* passwd, word32 pLen,
     totalSz += (encKeyOctetStrSz + encryptedKeySz);
 
     /* put together IV OCTET STRING */
-    ivOctetStringSz = SetOctetString(blockKeySz, ivOctetString);
-    totalSz += (ivOctetStringSz + blockKeySz);
+    ivOctetStringSz = SetOctetString(kekBlockSz, ivOctetString);
+    totalSz += (ivOctetStringSz + kekBlockSz);
 
     /* set PWRIAlgorithms AlgorithmIdentifier, adding (ivOctetStringSz +
        blockKeySz) for IV OCTET STRING */
-    pwriEncAlgoIdSz = SetAlgoID(pkcs7->encryptOID, pwriEncAlgoId,
-                                oidBlkType, ivOctetStringSz + blockKeySz);
+    pwriEncAlgoIdSz = SetAlgoID(encryptOID, pwriEncAlgoId,
+                                oidBlkType, ivOctetStringSz + kekBlockSz);
     totalSz += pwriEncAlgoIdSz;
 
     /* set KeyEncryptionAlgorithms OID */
@@ -4850,7 +5006,7 @@ int wc_PKCS7_AddRecipient_PWRI(PKCS7* pkcs7, byte* passwd, word32 pLen,
 
     /* KeyEncryptionAlgorithm SEQ */
     keyEncAlgoIdSeqSz = SetSequence(keyEncAlgoIdSz + pwriEncAlgoIdSz +
-                                    ivOctetStringSz + blockKeySz,
+                                    ivOctetStringSz + kekBlockSz,
                                     keyEncAlgoIdSeq);
     totalSz += keyEncAlgoIdSeqSz;
 
@@ -4925,14 +5081,14 @@ int wc_PKCS7_AddRecipient_PWRI(PKCS7* pkcs7, byte* passwd, word32 pLen,
     idx += pwriEncAlgoIdSz;
     XMEMCPY(recip->recip + idx, ivOctetString, ivOctetStringSz);
     idx += ivOctetStringSz;
-    XMEMCPY(recip->recip + idx, tmpIv, blockKeySz);
-    idx += blockKeySz;
+    XMEMCPY(recip->recip + idx, tmpIv, kekBlockSz);
+    idx += kekBlockSz;
     XMEMCPY(recip->recip + idx, encKeyOctetStr, encKeyOctetStrSz);
     idx += encKeyOctetStrSz;
     XMEMCPY(recip->recip + idx, encryptedKey, encryptedKeySz);
     idx += encryptedKeySz;
 
-    ForceZero(kek, blockKeySz);
+    ForceZero(kek, kekBlockSz);
     ForceZero(encryptedKey, encryptedKeySz);
     XFREE(kek, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -5282,7 +5438,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         return ret;
 
     /* generate IV for block cipher */
-    ret = wc_PKCS7_GenerateIV(pkcs7, &rng, tmpIv, blockSz);
+    ret = wc_PKCS7_GenerateBlock(pkcs7, &rng, tmpIv, blockSz);
     wc_FreeRng(&rng);
     if (ret != 0)
         return ret;
@@ -5336,8 +5492,8 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 
     /* encrypt content */
     ret = wc_PKCS7_EncryptContent(pkcs7->encryptOID, pkcs7->cek,
-            pkcs7->cekSz, tmpIv, blockSz, plain, encryptedOutSz,
-            encryptedContent);
+            pkcs7->cekSz, tmpIv, blockSz, NULL, 0, NULL, 0, plain,
+            encryptedOutSz, encryptedContent);
 
     if (ret != 0) {
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -6613,12 +6769,16 @@ static int wc_PKCS7_DecryptRecipientInfos(PKCS7* pkcs7, byte* pkiMsg,
  *
  * return size of RecipientInfo SET on success, negative upon error */
 static int wc_PKCS7_ParseToRecipientInfoSet(PKCS7* pkcs7, byte* pkiMsg,
-                                            word32 pkiMsgSz, word32* idx)
+                                            word32 pkiMsgSz, word32* idx,
+                                            int type)
 {
     int version, length;
     word32 contentType;
 
     if (pkcs7 == NULL || pkiMsg == NULL || pkiMsgSz == 0 || idx == NULL)
+        return BAD_FUNC_ARG;
+
+    if ((type != ENVELOPED_DATA) && (type != AUTH_ENVELOPED_DATA))
         return BAD_FUNC_ARG;
 
     /* read past ContentInfo, verify type is envelopedData */
@@ -6652,8 +6812,13 @@ static int wc_PKCS7_ParseToRecipientInfoSet(PKCS7* pkcs7, byte* pkiMsg,
     if (wc_GetContentType(pkiMsg, idx, &contentType, pkiMsgSz) < 0)
         return ASN_PARSE_E;
 
-    if (contentType != ENVELOPED_DATA) {
+    if (type == ENVELOPED_DATA && contentType != ENVELOPED_DATA) {
         WOLFSSL_MSG("PKCS#7 input not of type EnvelopedData");
+        return PKCS7_OID_E;
+
+    } else if (type == AUTH_ENVELOPED_DATA &&
+               contentType != AUTH_ENVELOPED_DATA) {
+        WOLFSSL_MSG("PKCS#7 input not of type AuthEnvelopedData");
         return PKCS7_OID_E;
     }
 
@@ -6670,14 +6835,22 @@ static int wc_PKCS7_ParseToRecipientInfoSet(PKCS7* pkcs7, byte* pkiMsg,
     if (GetMyVersion(pkiMsg, idx, &version, pkiMsgSz) < 0)
         return ASN_PARSE_E;
 
-    /* TODO :: make this more accurate */
-    if ((pkcs7->publicKeyOID == RSAk && version != 0)
-    #ifdef HAVE_ECC
-            || (pkcs7->publicKeyOID == ECDSAk && version != 2)
-    #endif
-            ) {
-        WOLFSSL_MSG("PKCS#7 envelopedData needs to be of version 0");
-        return ASN_VERSION_E;
+    if (type == ENVELOPED_DATA) {
+        /* TODO :: make this more accurate */
+        if ((pkcs7->publicKeyOID == RSAk && version != 0)
+        #ifdef HAVE_ECC
+                || (pkcs7->publicKeyOID == ECDSAk && version != 2)
+        #endif
+                ) {
+            WOLFSSL_MSG("PKCS#7 envelopedData version incorrect");
+            return ASN_VERSION_E;
+        }
+    } else {
+        /* AuthEnvelopedData version MUST be 0 */
+        if (version != 0) {
+            WOLFSSL_MSG("PKCS#7 AuthEnvelopedData needs to be of version 0");
+            return ASN_VERSION_E;
+        }
     }
 
     /* remove RecipientInfo set, get length of set */
@@ -6735,7 +6908,8 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
         output == NULL || outputSz == 0)
         return BAD_FUNC_ARG;
 
-    length = wc_PKCS7_ParseToRecipientInfoSet(pkcs7, pkiMsg, pkiMsgSz, &idx);
+    length = wc_PKCS7_ParseToRecipientInfoSet(pkcs7, pkiMsg, pkiMsgSz, &idx,
+                                              ENVELOPED_DATA);
     if (length < 0)
         return length;
 
@@ -6877,8 +7051,9 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
 
     /* decrypt encryptedContent */
     ret = wc_PKCS7_DecryptContent(encOID, decryptedKey, blockKeySz,
-                                  tmpIv, expBlockSz, encryptedContent,
-                                  encryptedContentSz, encryptedContent);
+                                  tmpIv, expBlockSz, NULL, 0, NULL, 0,
+                                  encryptedContent, encryptedContentSz,
+                                  encryptedContent);
     if (ret != 0) {
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
 #ifdef WOLFSSL_SMALL_STACK
@@ -6901,6 +7076,508 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
 #endif
 
     return encryptedContentSz - padLen;
+}
+
+
+/* build PKCS#7 authEnvelopedData content type, return enveloped size */
+int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
+                                     word32 outputSz)
+{
+    int ret, idx = 0;
+    int totalSz, encryptedOutSz;
+
+    int contentInfoSeqSz, outerContentTypeSz, outerContentSz;
+    byte contentInfoSeq[MAX_SEQ_SZ];
+    byte outerContentType[MAX_ALGO_SZ];
+    byte outerContent[MAX_SEQ_SZ];
+
+    int envDataSeqSz, verSz;
+    byte envDataSeq[MAX_SEQ_SZ];
+    byte ver[MAX_VERSION_SZ];
+
+    WC_RNG rng;
+    int blockSz, blockKeySz;
+    byte* encryptedContent;
+
+    Pkcs7EncodedRecip* tmpRecip = NULL;
+    int recipSz, recipSetSz;
+    byte recipSet[MAX_SET_SZ];
+
+    int encContentOctetSz, encContentSeqSz, contentTypeSz;
+    int contentEncAlgoSz, nonceOctetStringSz, macOctetStringSz;
+    byte encContentSeq[MAX_SEQ_SZ];
+    byte contentType[MAX_ALGO_SZ];
+    byte contentEncAlgo[MAX_ALGO_SZ];
+    byte nonceOctetString[MAX_OCTET_STR_SZ];
+    byte encContentOctet[MAX_OCTET_STR_SZ];
+    byte macOctetString[MAX_OCTET_STR_SZ];
+
+    byte authTag[AES_BLOCK_SIZE];
+    byte nonce[GCM_NONCE_MID_SZ];   /* GCM nonce is larger than CCM */
+    byte macInt[MAX_VERSION_SZ];
+    word32 nonceSz, macIntSz;
+
+    if (pkcs7 == NULL || pkcs7->content == NULL || pkcs7->contentSz == 0)
+        return BAD_FUNC_ARG;
+
+    if (output == NULL || outputSz == 0)
+        return BAD_FUNC_ARG;
+
+    if (pkcs7->encryptOID != AES128GCMb &&
+        pkcs7->encryptOID != AES192GCMb &&
+        pkcs7->encryptOID != AES256GCMb &&
+        pkcs7->encryptOID != AES128CCMb &&
+        pkcs7->encryptOID != AES192CCMb &&
+        pkcs7->encryptOID != AES256CCMb) {
+        WOLFSSL_MSG("CMS AuthEnvelopedData must use AES-GCM or AES-CCM");
+        return BAD_FUNC_ARG;
+    }
+
+    blockKeySz = wc_PKCS7_GetOIDKeySize(pkcs7->encryptOID);
+    if (blockKeySz < 0)
+        return blockKeySz;
+
+    blockSz = wc_PKCS7_GetOIDBlockSize(pkcs7->encryptOID);
+    if (blockKeySz < 0 || blockSz < 0)
+        return blockSz;
+
+    /* outer content type */
+    ret = wc_SetContentType(AUTH_ENVELOPED_DATA, outerContentType,
+                            sizeof(outerContentType));
+    if (ret < 0)
+        return ret;
+
+    outerContentTypeSz = ret;
+
+    /* version, defined as 0 in RFC 5083 */
+    verSz = SetMyVersion(0, ver, 0);
+
+    /* generate random content encryption key */
+    ret = PKCS7_GenerateContentEncryptionKey(pkcs7, blockKeySz);
+    if (ret != 0) {
+        return ret;
+    }
+
+    /* build RecipientInfo, only if user manually set singleCert and size */
+    if (pkcs7->singleCert != NULL && pkcs7->singleCertSz > 0) {
+        switch (pkcs7->publicKeyOID) {
+        #ifndef NO_RSA
+            case RSAk:
+                ret = wc_PKCS7_AddRecipient_KTRI(pkcs7, pkcs7->singleCert,
+                                                 pkcs7->singleCertSz, 0);
+                break;
+        #endif
+        #ifdef HAVE_ECC
+            case ECDSAk:
+                ret = wc_PKCS7_AddRecipient_KARI(pkcs7, pkcs7->singleCert,
+                                                 pkcs7->singleCertSz,
+                                                 pkcs7->keyWrapOID,
+                                                 pkcs7->keyAgreeOID, pkcs7->ukm,
+                                                 pkcs7->ukmSz, 0);
+                break;
+        #endif
+
+            default:
+                WOLFSSL_MSG("Unsupported RecipientInfo public key type");
+                return BAD_FUNC_ARG;
+        };
+
+        if (ret < 0) {
+            WOLFSSL_MSG("Failed to create RecipientInfo");
+            return ret;
+        }
+    }
+
+    recipSz = wc_PKCS7_GetRecipientListSize(pkcs7);
+    if (recipSz < 0) {
+        return ret;
+
+    } else if (recipSz == 0) {
+        WOLFSSL_MSG("You must add at least one CMS recipient");
+        return PKCS7_RECIP_E;
+    }
+    recipSetSz = SetSet(recipSz, recipSet);
+
+    /* generate random nonce and IV for encryption */
+    if (pkcs7->encryptOID == AES128GCMb ||
+        pkcs7->encryptOID == AES192GCMb ||
+        pkcs7->encryptOID == AES256GCMb) {
+        /* GCM nonce is GCM_NONCE_MID_SZ (12) */
+        nonceSz = GCM_NONCE_MID_SZ;
+    } else {
+        /* CCM nonce is CCM_NONCE_MIN_SZ (7) */
+        nonceSz = CCM_NONCE_MIN_SZ;
+    }
+
+    ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
+    if (ret != 0)
+        return ret;
+
+    ret = wc_PKCS7_GenerateBlock(pkcs7, &rng, nonce, nonceSz);
+    if (ret != 0) {
+        wc_FreeRng(&rng);
+        return ret;
+    }
+
+    /* allocate encrypted content buffer */
+    encryptedOutSz = pkcs7->contentSz;
+
+    encryptedContent = (byte*)XMALLOC(encryptedOutSz, pkcs7->heap,
+                                      DYNAMIC_TYPE_PKCS7);
+    if (encryptedContent == NULL)
+        return MEMORY_E;
+
+    /* encrypt content */
+    ret = wc_PKCS7_EncryptContent(pkcs7->encryptOID, pkcs7->cek,
+            pkcs7->cekSz, nonce, nonceSz, NULL, 0, authTag, sizeof(authTag),
+            pkcs7->content, encryptedOutSz, encryptedContent);
+
+    if (ret != 0) {
+        XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        return ret;
+    }
+
+    /* EncryptedContentInfo */
+    ret = wc_SetContentType(pkcs7->contentOID, contentType,
+                            sizeof(contentType));
+    if (ret < 0)
+        return ret;
+
+    contentTypeSz = ret;
+
+    /* put together nonce OCTET STRING */
+    nonceOctetStringSz = SetOctetString(nonceSz, nonceOctetString);
+
+    /* put together aes-ICVlen INTEGER */
+    macIntSz = SetMyVersion(sizeof(authTag), macInt, 0);
+
+    /* build up our ContentEncryptionAlgorithmIdentifier sequence,
+     * adding (nonceOctetStringSz + blockSz + macIntSz) for nonce OCTET STRING
+     * and tag size */
+    contentEncAlgoSz = SetAlgoID(pkcs7->encryptOID, contentEncAlgo,
+                                 oidBlkType, nonceOctetStringSz + nonceSz +
+                                 macIntSz);
+
+    if (contentEncAlgoSz == 0) {
+        XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        return BAD_FUNC_ARG;
+    }
+
+    encContentOctetSz = SetImplicit(ASN_OCTET_STRING, 0, encryptedOutSz,
+                                    encContentOctet);
+
+    encContentSeqSz = SetSequence(contentTypeSz + contentEncAlgoSz +
+                                  nonceOctetStringSz + nonceSz + macIntSz +
+                                  encContentOctetSz + encryptedOutSz,
+                                  encContentSeq);
+
+    macOctetStringSz = SetOctetString(sizeof(authTag), macOctetString);
+
+    /* keep track of sizes for outer wrapper layering */
+    totalSz = verSz + recipSetSz + recipSz + encContentSeqSz + contentTypeSz +
+              contentEncAlgoSz + nonceOctetStringSz + nonceSz + macIntSz +
+              encContentOctetSz + encryptedOutSz + macOctetStringSz +
+              sizeof(authTag);
+
+    /* EnvelopedData */
+    envDataSeqSz = SetSequence(totalSz, envDataSeq);
+    totalSz += envDataSeqSz;
+
+    /* outer content */
+    outerContentSz = SetExplicit(0, totalSz, outerContent);
+    totalSz += outerContentTypeSz;
+    totalSz += outerContentSz;
+
+    /* ContentInfo */
+    contentInfoSeqSz = SetSequence(totalSz, contentInfoSeq);
+    totalSz += contentInfoSeqSz;
+
+    if (totalSz > (int)outputSz) {
+        WOLFSSL_MSG("Pkcs7_encrypt output buffer too small");
+        XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        return BUFFER_E;
+    }
+
+    XMEMCPY(output + idx, contentInfoSeq, contentInfoSeqSz);
+    idx += contentInfoSeqSz;
+    XMEMCPY(output + idx, outerContentType, outerContentTypeSz);
+    idx += outerContentTypeSz;
+    XMEMCPY(output + idx, outerContent, outerContentSz);
+    idx += outerContentSz;
+    XMEMCPY(output + idx, envDataSeq, envDataSeqSz);
+    idx += envDataSeqSz;
+    XMEMCPY(output + idx, ver, verSz);
+    idx += verSz;
+    XMEMCPY(output + idx, recipSet, recipSetSz);
+    idx += recipSetSz;
+    /* copy in recipients from list */
+    tmpRecip = pkcs7->recipList;
+    while (tmpRecip != NULL) {
+        XMEMCPY(output + idx, tmpRecip->recip, tmpRecip->recipSz);
+        idx += tmpRecip->recipSz;
+        tmpRecip = tmpRecip->next;
+    }
+    wc_PKCS7_FreeEncodedRecipientSet(pkcs7);
+    XMEMCPY(output + idx, encContentSeq, encContentSeqSz);
+    idx += encContentSeqSz;
+    XMEMCPY(output + idx, contentType, contentTypeSz);
+    idx += contentTypeSz;
+    XMEMCPY(output + idx, contentEncAlgo, contentEncAlgoSz);
+    idx += contentEncAlgoSz;
+    XMEMCPY(output + idx, nonceOctetString, nonceOctetStringSz);
+    idx += nonceOctetStringSz;
+    XMEMCPY(output + idx, nonce, nonceSz);
+    idx += nonceSz;
+    XMEMCPY(output + idx, macInt, macIntSz);
+    idx += macIntSz;
+    XMEMCPY(output + idx, encContentOctet, encContentOctetSz);
+    idx += encContentOctetSz;
+    XMEMCPY(output + idx, encryptedContent, encryptedOutSz);
+    idx += encryptedOutSz;
+    XMEMCPY(output + idx, macOctetString, macOctetStringSz);
+    idx += macOctetStringSz;
+    XMEMCPY(output + idx, authTag, sizeof(authTag));
+    idx += sizeof(authTag);
+
+    XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+
+    return idx;
+}
+
+
+/* unwrap and decrypt PKCS#7 AuthEnvelopedData object, return decoded size */
+WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
+                                                 word32 pkiMsgSz, byte* output,
+                                                 word32 outputSz)
+{
+    int recipFound = 0;
+    int ret, length;
+    word32 idx = 0;
+    word32 contentType, encOID;
+    word32 decryptedKeySz;
+
+    int expBlockSz, blockKeySz;
+    byte authTag[AES_BLOCK_SIZE];
+    byte nonce[GCM_NONCE_MID_SZ];       /* GCM nonce is larger than CCM */
+    int nonceSz, authTagSz, macSz;
+
+#ifdef WOLFSSL_SMALL_STACK
+    byte* decryptedKey;
+#else
+    byte  decryptedKey[MAX_ENCRYPTED_KEY_SZ];
+#endif
+    int encryptedContentSz;
+    byte* encryptedContent = NULL;
+    int explicitOctet;
+
+    if (pkcs7 == NULL)
+        return BAD_FUNC_ARG;
+
+    if (pkiMsg == NULL || pkiMsgSz == 0 ||
+        output == NULL || outputSz == 0)
+        return BAD_FUNC_ARG;
+
+    length = wc_PKCS7_ParseToRecipientInfoSet(pkcs7, pkiMsg, pkiMsgSz, &idx,
+                                              AUTH_ENVELOPED_DATA);
+    if (length < 0)
+        return length;
+
+#ifdef WOLFSSL_SMALL_STACK
+    decryptedKey = (byte*)XMALLOC(MAX_ENCRYPTED_KEY_SZ, pkcs7->heap,
+                                                       DYNAMIC_TYPE_PKCS7);
+    if (decryptedKey == NULL)
+        return MEMORY_E;
+#endif
+    decryptedKeySz = MAX_ENCRYPTED_KEY_SZ;
+
+    ret = wc_PKCS7_DecryptRecipientInfos(pkcs7, pkiMsg, pkiMsgSz, &idx,
+                                        decryptedKey, &decryptedKeySz,
+                                        &recipFound);
+    if (ret != 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+#endif
+        return ret;
+    }
+
+    if (recipFound == 0) {
+        WOLFSSL_MSG("No recipient found in envelopedData that matches input");
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+#endif
+        return PKCS7_RECIP_E;
+    }
+
+    /* remove EncryptedContentInfo */
+    if (GetSequence(pkiMsg, &idx, &length, pkiMsgSz) < 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+#endif
+        return ASN_PARSE_E;
+    }
+
+    if (wc_GetContentType(pkiMsg, &idx, &contentType, pkiMsgSz) < 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+#endif
+        return ASN_PARSE_E;
+    }
+
+    if (GetAlgoId(pkiMsg, &idx, &encOID, oidBlkType, pkiMsgSz) < 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+#endif
+        return ASN_PARSE_E;
+    }
+
+    blockKeySz = wc_PKCS7_GetOIDKeySize(encOID);
+    if (blockKeySz < 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+#endif
+        return blockKeySz;
+    }
+
+    expBlockSz = wc_PKCS7_GetOIDBlockSize(encOID);
+    if (expBlockSz < 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+#endif
+        return expBlockSz;
+    }
+
+    /* get nonce, stored in OPTIONAL parameter of AlgoID */
+    if (pkiMsg[idx++] != ASN_OCTET_STRING) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+#endif
+        return ASN_PARSE_E;
+    }
+
+    if (GetLength(pkiMsg, &idx, &nonceSz, pkiMsgSz) < 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+#endif
+        return ASN_PARSE_E;
+    }
+
+    if (nonceSz > (int)sizeof(nonce)) {
+        WOLFSSL_MSG("AuthEnvelopedData nonce too large for buffer");
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+#endif
+        return ASN_PARSE_E;
+    }
+
+    XMEMCPY(nonce, &pkiMsg[idx], nonceSz);
+    idx += nonceSz;
+
+    /* get mac size, also stored in OPTIONAL parameter of AlgoID */
+    if (GetMyVersion(pkiMsg, &idx, &macSz, pkiMsgSz) < 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+#endif
+        return ASN_PARSE_E;
+    }
+
+    explicitOctet = pkiMsg[idx] == (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0);
+
+    /* read encryptedContent, cont[0] */
+    if (pkiMsg[idx] != (ASN_CONTEXT_SPECIFIC | 0) &&
+        pkiMsg[idx] != (ASN_CONTEXT_SPECIFIC | ASN_CONSTRUCTED | 0)) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+#endif
+        return ASN_PARSE_E;
+    }
+    idx++;
+
+    if (GetLength(pkiMsg, &idx, &encryptedContentSz, pkiMsgSz) <= 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+#endif
+        return ASN_PARSE_E;
+    }
+
+    if (explicitOctet) {
+        if (pkiMsg[idx++] != ASN_OCTET_STRING) {
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+#endif
+            return ASN_PARSE_E;
+        }
+
+        if (GetLength(pkiMsg, &idx, &encryptedContentSz, pkiMsgSz) <= 0) {
+#ifdef WOLFSSL_SMALL_STACK
+            XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+#endif
+            return ASN_PARSE_E;
+        }
+    }
+
+    encryptedContent = (byte*)XMALLOC(encryptedContentSz, pkcs7->heap,
+                                                       DYNAMIC_TYPE_PKCS7);
+    if (encryptedContent == NULL) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+#endif
+        return MEMORY_E;
+    }
+
+    XMEMCPY(encryptedContent, &pkiMsg[idx], encryptedContentSz);
+    idx += encryptedContentSz;
+
+    /* get authTag OCTET STRING */
+    if (pkiMsg[idx++] != ASN_OCTET_STRING) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+#endif
+        return ASN_PARSE_E;
+    }
+
+    if (GetLength(pkiMsg, &idx, &authTagSz, pkiMsgSz) < 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+#endif
+        return ASN_PARSE_E;
+    }
+
+    if (authTagSz > (int)sizeof(authTag)) {
+        WOLFSSL_MSG("AuthEnvelopedData authTag too large for buffer");
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+#endif
+        return ASN_PARSE_E;
+    }
+
+    XMEMCPY(authTag, &pkiMsg[idx], authTagSz);
+    idx += authTagSz;
+
+    /* decrypt encryptedContent */
+    ret = wc_PKCS7_DecryptContent(encOID, decryptedKey, blockKeySz,
+                                  nonce, nonceSz, NULL, 0, authTag,
+                                  authTagSz, encryptedContent,
+                                  encryptedContentSz, encryptedContent);
+    if (ret != 0) {
+        XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+#endif
+        return ret;
+    }
+
+    /* copy plaintext to output */
+    XMEMCPY(output, encryptedContent, encryptedContentSz);
+
+    /* free memory, zero out keys */
+    ForceZero(decryptedKey, MAX_ENCRYPTED_KEY_SZ);
+    ForceZero(encryptedContent, encryptedContentSz);
+    XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+#ifdef WOLFSSL_SMALL_STACK
+    XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+#endif
+
+    return encryptedContentSz;
 }
 
 
@@ -7016,7 +7693,7 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     }
 
     /* encrypt content */
-    ret = wc_PKCS7_GenerateIV(pkcs7, NULL, tmpIv, blockSz);
+    ret = wc_PKCS7_GenerateBlock(pkcs7, NULL, tmpIv, blockSz);
     if (ret != 0) {
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -7024,8 +7701,8 @@ int wc_PKCS7_EncodeEncryptedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     }
 
     ret = wc_PKCS7_EncryptContent(pkcs7->encryptOID, pkcs7->encryptionKey,
-            pkcs7->encryptionKeySz, tmpIv, blockSz, plain, encryptedOutSz,
-            encryptedContent);
+            pkcs7->encryptionKeySz, tmpIv, blockSz, NULL, 0, NULL, 0,
+            plain, encryptedOutSz, encryptedContent);
     if (ret != 0) {
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(plain, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -7278,8 +7955,8 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* pkiMsg, word32 pkiMsgSz,
     /* decrypt encryptedContent */
     ret = wc_PKCS7_DecryptContent(encOID, pkcs7->encryptionKey,
                                   pkcs7->encryptionKeySz, tmpIv, expBlockSz,
-                                  encryptedContent, encryptedContentSz,
-                                  encryptedContent);
+                                  NULL, 0, NULL, 0, encryptedContent,
+                                  encryptedContentSz, encryptedContent);
     if (ret != 0) {
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return ret;
