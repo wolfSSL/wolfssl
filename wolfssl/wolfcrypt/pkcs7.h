@@ -58,6 +58,10 @@
     #define MAX_ORI_VALUE_SZ 512
 #endif
 
+#ifndef MAX_SIGNED_ATTRIBS_SZ
+    #define MAX_SIGNED_ATTRIBS_SZ 7
+#endif
+
 /* PKCS#7 content types, ref RFC 2315 (Section 14) */
 enum PKCS7_TYPES {
     PKCS7_MSG                 = 650,  /* 1.2.840.113549.1.7   */
@@ -204,6 +208,9 @@ typedef struct PKCS7 {
     CallbackOriDecrypt oriDecryptCb;  /* ORI decrypt callback */
     void* oriEncryptCtx;              /* ORI encrypt user context ptr */
     void* oriDecryptCtx;              /* ORI decrypt user context ptr */
+
+    PKCS7Attrib* authAttribs;     /* authenticated attribs */
+    word32 authAttribsSz;
 
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 } PKCS7;

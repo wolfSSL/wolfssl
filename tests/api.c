@@ -14854,18 +14854,21 @@ static void test_wc_PKCS7_New (void)
 static void test_wc_PKCS7_Init (void)
 {
 #if defined(HAVE_PKCS7)
-    PKCS7       pkcs7;
+    PKCS7*      pkcs7;
     void*       heap = NULL;
 
     printf(testingFmt, "wc_PKCS7_Init()");
 
-    AssertIntEQ(wc_PKCS7_Init(&pkcs7, heap, devId), 0);
+    pkcs7 = wc_PKCS7_New(heap, devId);
+    AssertNotNull(pkcs7);
+
+    AssertIntEQ(wc_PKCS7_Init(pkcs7, heap, devId), 0);
 
     /* Pass in bad args. */
     AssertIntEQ(wc_PKCS7_Init(NULL, heap, devId), BAD_FUNC_ARG);
 
     printf(resultFmt, passed);
-    wc_PKCS7_Free(&pkcs7);
+    wc_PKCS7_Free(pkcs7);
 #endif
 } /* END test-wc_PKCS7_Init */
 

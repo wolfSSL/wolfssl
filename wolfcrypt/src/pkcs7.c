@@ -176,8 +176,10 @@ static int wc_SetContentType(int pkcs7TypeOID, byte* output, word32 outputSz)
             return 0;
     };
 
-    if (outputSz < (MAX_LENGTH_SZ + 1 + typeSz))
+    if (outputSz < (MAX_LENGTH_SZ + 1 + typeSz)) {
+        WOLFSSL_MSG("CMS content type buffer too small");
         return BAD_FUNC_ARG;
+    }
 
     idSz  = SetLength(typeSz, ID_Length);
     output[idx++] = ASN_OBJECT_ID;
@@ -7117,6 +7119,23 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
     byte macInt[MAX_VERSION_SZ];
     word32 nonceSz, macIntSz;
 
+    byte* flatAuthAttribs = NULL;
+    word32 flatAuthAttribsSz = 0;
+    byte* aadBuffer = NULL;
+    word32 aadBufferSz = 0;
+    byte authAttribSet[MAX_SET_SZ];
+    byte authAttribAadSet[MAX_SET_SZ];
+    EncodedAttrib authAttribs[MAX_SIGNED_ATTRIBS_SZ];
+    word32 authAttribsSz = 0, authAttribsCount = 0;
+    word32 authAttribsSetSz = 0, authAttribsAadSetSz = 0;
+
+    PKCS7Attrib contentTypeAttrib;
+    byte contentTypeValue[MAX_OID_SZ];
+    /* contentType OID (1.2.840.113549.1.9.3) */
+    const byte contentTypeOid[] =
+            { ASN_OBJECT_ID, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xF7, 0x0d, 0x01,
+                             0x09, 0x03 };
+
     if (pkcs7 == NULL || pkcs7->content == NULL || pkcs7->contentSz == 0)
         return BAD_FUNC_ARG;
 
@@ -7219,20 +7238,99 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
         return ret;
     }
 
+    /* build up authenticated attributes (authAttrs) */
+    if (pkcs7->contentOID != DATA) {
+
+        /* if type is not id-data, contentType attribute MUST be added */
+        contentTypeAttrib.oid = contentTypeOid;
+        contentTypeAttrib.oidSz = sizeof(contentTypeOid);
+
+        /* try to set from contentOID first, known types */
+        ret = wc_SetContentType(pkcs7->contentOID, contentTypeValue,
+                                sizeof(contentTypeValue));
+        if (ret > 0) {
+            contentTypeAttrib.value = contentTypeValue;
+            contentTypeAttrib.valueSz = ret;
+
+        } else if (ret <= 0) {
+            /* try to set from custom content type */
+            if (pkcs7->contentType == NULL || pkcs7->contentTypeSz == 0) {
+                WOLFSSL_MSG("CMS pkcs7->contentType must be set if "
+                            "contentOID is not");
+                return BAD_FUNC_ARG;
+            }
+            contentTypeAttrib.value = pkcs7->contentType;
+            contentTypeAttrib.valueSz = pkcs7->contentTypeSz;
+        }
+
+        authAttribsCount += 1;
+        authAttribsSz += EncodeAttributes(authAttribs, 1,
+                                          &contentTypeAttrib, 1);
+
+        /* add in user's signed attributes */
+        if (pkcs7->authAttribsSz > 0) {
+            authAttribsCount += pkcs7->authAttribsSz;
+            authAttribsSz += EncodeAttributes(authAttribs +
+                                     authAttribsCount * sizeof(PKCS7Attrib),
+                                     MAX_SIGNED_ATTRIBS_SZ - authAttribsCount,
+                                     pkcs7->authAttribs,
+                                     pkcs7->authAttribsSz);
+
+        }
+
+        flatAuthAttribs = (byte*)XMALLOC(authAttribsSz, pkcs7->heap,
+                                         DYNAMIC_TYPE_PKCS7);
+        flatAuthAttribsSz = authAttribsSz;
+        if (flatAuthAttribs == NULL) {
+            return MEMORY_E;
+        }
+
+        FlattenAttributes(flatAuthAttribs, authAttribs, authAttribsCount);
+        authAttribsSetSz = SetImplicit(ASN_SET, 1, authAttribsSz,
+                                       authAttribSet);
+
+        /* From RFC5083, "For the purpose of constructing the AAD, the
+         * IMPLICIT [1] tag in the authAttrs field is not used for the
+         * DER encoding: rather a universal SET OF tag is used. */
+        authAttribsAadSetSz = SetSet(authAttribsSz, authAttribAadSet);
+
+        /* allocate temp buffer to hold alternate attrib encoding for aad */
+        aadBuffer = (byte*)XMALLOC(flatAuthAttribsSz + authAttribsAadSetSz,
+                                   pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+        if (aadBuffer == NULL) {
+            XFREE(flatAuthAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            return MEMORY_E;
+        }
+
+        /* build up alternate attrib encoding for aad */
+        aadBufferSz = 0;
+        XMEMCPY(aadBuffer + aadBufferSz, authAttribAadSet, authAttribsAadSetSz);
+        aadBufferSz += authAttribsAadSetSz;
+        XMEMCPY(aadBuffer + aadBufferSz, flatAuthAttribs, flatAuthAttribsSz);
+        aadBufferSz += flatAuthAttribsSz;
+    }
+
     /* allocate encrypted content buffer */
     encryptedOutSz = pkcs7->contentSz;
-
     encryptedContent = (byte*)XMALLOC(encryptedOutSz, pkcs7->heap,
                                       DYNAMIC_TYPE_PKCS7);
-    if (encryptedContent == NULL)
+    if (encryptedContent == NULL) {
+        if (flatAuthAttribs)
+            XFREE(flatAuthAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return MEMORY_E;
+    }
 
     /* encrypt content */
     ret = wc_PKCS7_EncryptContent(pkcs7->encryptOID, pkcs7->cek,
-            pkcs7->cekSz, nonce, nonceSz, NULL, 0, authTag, sizeof(authTag),
-            pkcs7->content, encryptedOutSz, encryptedContent);
+            pkcs7->cekSz, nonce, nonceSz, aadBuffer, aadBufferSz, authTag,
+            sizeof(authTag), pkcs7->content, encryptedOutSz, encryptedContent);
+
+    if (aadBuffer)
+        XFREE(aadBuffer, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     if (ret != 0) {
+        if (flatAuthAttribs)
+            XFREE(flatAuthAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return ret;
     }
@@ -7240,8 +7338,12 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
     /* EncryptedContentInfo */
     ret = wc_SetContentType(pkcs7->contentOID, contentType,
                             sizeof(contentType));
-    if (ret < 0)
+    if (ret < 0) {
+        if (flatAuthAttribs)
+            XFREE(flatAuthAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return ret;
+    }
 
     contentTypeSz = ret;
 
@@ -7259,6 +7361,8 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
                                  macIntSz);
 
     if (contentEncAlgoSz == 0) {
+        if (flatAuthAttribs)
+            XFREE(flatAuthAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return BAD_FUNC_ARG;
     }
@@ -7276,8 +7380,8 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
     /* keep track of sizes for outer wrapper layering */
     totalSz = verSz + recipSetSz + recipSz + encContentSeqSz + contentTypeSz +
               contentEncAlgoSz + nonceOctetStringSz + nonceSz + macIntSz +
-              encContentOctetSz + encryptedOutSz + macOctetStringSz +
-              sizeof(authTag);
+              encContentOctetSz + encryptedOutSz + flatAuthAttribsSz +
+              authAttribsSetSz + macOctetStringSz + sizeof(authTag);
 
     /* EnvelopedData */
     envDataSeqSz = SetSequence(totalSz, envDataSeq);
@@ -7294,6 +7398,8 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
 
     if (totalSz > (int)outputSz) {
         WOLFSSL_MSG("Pkcs7_encrypt output buffer too small");
+        if (flatAuthAttribs)
+            XFREE(flatAuthAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
         return BUFFER_E;
     }
@@ -7334,6 +7440,16 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
     idx += encContentOctetSz;
     XMEMCPY(output + idx, encryptedContent, encryptedOutSz);
     idx += encryptedOutSz;
+
+    /* authenticated attributes */
+    if (flatAuthAttribsSz > 0) {
+        XMEMCPY(output + idx, authAttribSet, authAttribsSetSz);
+        idx += authAttribsSetSz;
+        XMEMCPY(output + idx, flatAuthAttribs, flatAuthAttribsSz);
+        idx += flatAuthAttribsSz;
+        XFREE(flatAuthAttribs, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    }
+
     XMEMCPY(output + idx, macOctetString, macOctetStringSz);
     idx += macOctetStringSz;
     XMEMCPY(output + idx, authTag, sizeof(authTag));
@@ -7369,6 +7485,12 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     int encryptedContentSz;
     byte* encryptedContent = NULL;
     int explicitOctet;
+
+    byte authAttribSetByte = 0;
+    byte* encodedAttribs = NULL;
+    word32 encodedAttribIdx = 0, encodedAttribSz = 0;
+    byte* authAttrib = NULL;
+    int authAttribSz = 0;
 
     if (pkcs7 == NULL)
         return BAD_FUNC_ARG;
@@ -7527,6 +7649,28 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     XMEMCPY(encryptedContent, &pkiMsg[idx], encryptedContentSz);
     idx += encryptedContentSz;
 
+    /* may have IMPLICIT [1] authenticatedAttributes */
+    if (pkiMsg[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 1)) {
+        encodedAttribIdx = idx;
+        encodedAttribs = pkiMsg + idx;
+        idx++;
+
+        if (GetLength(pkiMsg, &idx, &length, pkiMsgSz) < 0)
+            return ASN_PARSE_E;
+
+        /* save pointer and length */
+        authAttrib = &pkiMsg[idx];
+        authAttribSz = length;
+        encodedAttribSz = length + (idx - encodedAttribIdx);
+
+        if (wc_PKCS7_ParseAttribs(pkcs7, authAttrib, authAttribSz) < 0) {
+            WOLFSSL_MSG("Error parsing authenticated attributes");
+            return ASN_PARSE_E;
+        }
+
+        idx += length;
+    }
+
     /* get authTag OCTET STRING */
     if (pkiMsg[idx++] != ASN_OCTET_STRING) {
 #ifdef WOLFSSL_SMALL_STACK
@@ -7553,17 +7697,31 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* pkiMsg,
     XMEMCPY(authTag, &pkiMsg[idx], authTagSz);
     idx += authTagSz;
 
+    if (authAttrib != NULL) {
+        /* temporarily swap authAttribs byte[0] to SET OF instead of
+         * IMPLICIT [1], for aad calculation */
+        authAttribSetByte = encodedAttribs[0];
+
+        encodedAttribs[0] = ASN_SET | ASN_CONSTRUCTED;
+    }
+
     /* decrypt encryptedContent */
     ret = wc_PKCS7_DecryptContent(encOID, decryptedKey, blockKeySz,
-                                  nonce, nonceSz, NULL, 0, authTag,
-                                  authTagSz, encryptedContent,
-                                  encryptedContentSz, encryptedContent);
+                                  nonce, nonceSz, encodedAttribs,
+                                  encodedAttribSz, authTag, authTagSz,
+                                  encryptedContent, encryptedContentSz,
+                                  encryptedContent);
     if (ret != 0) {
         XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(decryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
 #endif
         return ret;
+    }
+
+    if (authAttrib != NULL) {
+        /* restore authAttrib IMPLICIT [1] */
+        encodedAttribs[0] = authAttribSetByte;
     }
 
     /* copy plaintext to output */

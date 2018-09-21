@@ -19640,6 +19640,12 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
          NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0, 0, 0, 0, 0, 0,
          "pkcs7authEnvelopedDataAES256GCM.der"},
 
+        /* test with contentType set to FirmwarePkgData */
+        {data, (word32)sizeof(data), FIRMWARE_PKG_DATA, AES256GCMb, 0, 0,
+         rsaCert, rsaCertSz, rsaPrivKey, rsaPrivKeySz, NULL, 0, NULL, 0, 0, 0,
+         NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0, NULL, 0, 0, 0,
+         0, 0, 0, 0, 0, "pkcs7authEnvelopedDataAES256GCM_firmwarePkgData.der"},
+
         /* explicitly using SKID for SubjectKeyIdentifier */
         {data, (word32)sizeof(data), DATA, AES256GCMb, 0, 0, rsaCert, rsaCertSz,
          rsaPrivKey, rsaPrivKeySz, NULL, 0, NULL, 0, CMS_SKID, 0, NULL, 0,
@@ -19797,7 +19803,6 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
                     testVectors[i].kekEncryptOID, testVectors[i].pwriOptions);
 
             if (ret < 0) {
-                printf("CHRIS: ret = %d\n", ret);
                 wc_PKCS7_Free(pkcs7);
                 return -9219;
             }
