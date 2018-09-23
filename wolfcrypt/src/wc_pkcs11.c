@@ -1,4 +1,4 @@
-/* wc_pkcs11.h
+/* wc_pkcs11.c
  *
  * Copyright (C) 2006-2017 wolfSSL Inc.
  *
@@ -32,8 +32,10 @@
 #include <wolfssl/wolfcrypt/wc_pkcs11.h>
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/asn.h>
-#include <cyassl/ctaocrypt/logging.h>
-
+#include <wolfssl/wolfcrypt/logging.h>
+#ifndef NO_RSA
+    #include <wolfssl/wolfcrypt/rsa.h>
+#endif
 
 #define MAX_EC_PARAM_LEN   16
 
@@ -315,7 +317,7 @@ static int Pkcs11CreateSecretKey(CK_OBJECT_HANDLE* key, Pkcs11Session* session,
         { CKA_KEY_TYPE, &keyType,        sizeof(keyType)        },
         { CKA_ENCRYPT,  &ckTrue,         sizeof(ckTrue)         },
         { CKA_VALUE,    NULL,            0                      },
-        { CKA_ID,       id,              idLen                  }
+        { CKA_ID,       id,              (CK_ULONG)idLen        }
     };
     int              keyTmplCnt = 4;
 
@@ -398,20 +400,20 @@ static int Pkcs11CreateRsaPrivateKey(CK_OBJECT_HANDLE* privateKey,
 /**
  * Set the ECC parameters into the template.
  *
- * @param  key       [in]  ECC key.
- * @param  template  [in]  PKCS#11 template.
- * @param  idx       [in]  Index of template to put parameters into.
+ * @param  key   [in]  ECC key.
+ * @param  tmpl  [in]  PKCS#11 template.
+ * @param  idx   [in]  Index of template to put parameters into.
  * @return NOT_COMPILE_IN when the EC parameters are not known.
  *         0 on success.
  */
-static int Pkcs11EccSetParams(ecc_key* key, CK_ATTRIBUTE* template, int idx)
+static int Pkcs11EccSetParams(ecc_key* key, CK_ATTRIBUTE* tmpl, int idx)
 {
     int ret = 0;
 
     if (key->dp != NULL && key->dp->oid != NULL) {
-        unsigned char* derParams = template[idx].pValue;
+        unsigned char* derParams = tmpl[idx].pValue;
         /* ASN.1 encoding: OBJ + ecc parameters OID */
-        template[idx].ulValueLen = key->dp->oidSz + 2;
+        tmpl[idx].ulValueLen = key->dp->oidSz + 2;
         derParams[0] = ASN_OBJECT_ID;
         derParams[1] = key->dp->oidSz;
         XMEMCPY(derParams + 2, key->dp->oid, key->dp->oidSz);
@@ -610,7 +612,7 @@ static int Pkcs11FindKeyById(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
     CK_ATTRIBUTE    keyTemplate[] = {
         { CKA_CLASS,           &keyClass, sizeof(keyClass) },
         { CKA_KEY_TYPE,        &keyType,  sizeof(keyType)  },
-        { CKA_ID,              id,        idLen            },
+        { CKA_ID,              id,        (CK_ULONG)idLen  }
     };
     CK_ULONG        keyTmplCnt = sizeof(keyTemplate) / sizeof(*keyTemplate);
 
@@ -764,7 +766,7 @@ static int Pkcs11RsaPrivate(Pkcs11Session* session, wc_CryptoInfo* info)
     CK_MECHANISM     mech;
     CK_ULONG         outLen;
     CK_OBJECT_HANDLE privateKey = NULL_PTR;
-    int              sessionKey;
+    int              sessionKey = 0;
 
     WOLFSSL_MSG("PKCS#11: RSA Private Key Operation");
 
@@ -871,40 +873,42 @@ static int Pkcs11Rsa(Pkcs11Session* session, wc_CryptoInfo* info)
 static int Pkcs11GetRsaPublicKey(RsaKey* key, Pkcs11Session* session,
                                  CK_OBJECT_HANDLE pubKey)
 {
-    int ret = 0;
+    int            ret = 0;
     unsigned char* mod = NULL;
     unsigned char* exp = NULL;
-    int modSz, expSz;
-    CK_ATTRIBUTE template[] = {
-      {CKA_MODULUS, NULL_PTR, 0},
-      {CKA_PUBLIC_EXPONENT, NULL_PTR, 0}
+    int            modSz, expSz;
+    CK_ATTRIBUTE   tmpl[] = {
+        { CKA_MODULUS,         NULL_PTR, 0 },
+        { CKA_PUBLIC_EXPONENT, NULL_PTR, 0 }
     };
-    CK_ULONG     tmplCnt = sizeof(template) / sizeof(*template);
+    CK_ULONG       tmplCnt = sizeof(tmpl) / sizeof(*tmpl);
     CK_RV rv;
 
-    rv = session->func->C_GetAttributeValue(session->handle, pubKey, template,
+    rv = session->func->C_GetAttributeValue(session->handle, pubKey, tmpl,
                                                                        tmplCnt);
     if (rv != CKR_OK)
         ret = WC_HW_E;
 
     if (ret == 0) {
-        modSz = template[0].ulValueLen;
-        expSz = template[1].ulValueLen;
-        mod = (unsigned char *)XMALLOC(modSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        modSz = tmpl[0].ulValueLen;
+        expSz = tmpl[1].ulValueLen;
+        mod = (unsigned char *)XMALLOC(modSz, key->heap,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
         if (mod == NULL)
             ret = MEMORY_E;
     }
     if (ret == 0) {
-        exp = (unsigned char *)XMALLOC(expSz, NULL, DYNAMIC_TYPE_TMP_BUFFER);;
+        exp = (unsigned char *)XMALLOC(expSz, key->heap,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
         if (exp == NULL)
             ret = MEMORY_E;
     }
     if (ret == 0) {
-        template[0].pValue = mod;
-        template[1].pValue = exp;
+        tmpl[0].pValue = mod;
+        tmpl[1].pValue = exp;
 
         rv = session->func->C_GetAttributeValue(session->handle, pubKey,
-                                                             template, tmplCnt);
+                                                                 tmpl, tmplCnt);
         if (rv != CKR_OK)
             ret = WC_HW_E;
     }
@@ -912,9 +916,9 @@ static int Pkcs11GetRsaPublicKey(RsaKey* key, Pkcs11Session* session,
         ret = wc_RsaPublicKeyDecodeRaw(mod, modSz, exp, expSz, key);
 
     if (exp != NULL)
-        XFREE(exp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(exp, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
     if (mod != NULL)
-        XFREE(mod, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(mod, key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -937,7 +941,7 @@ static int Pkcs11RsaKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
     CK_OBJECT_HANDLE  pubKey = NULL_PTR, privKey = NULL_PTR;
     CK_MECHANISM      mech;
     static CK_BYTE    pub_exp[] = { 0x01, 0x00, 0x01, 0x00 };
-    CK_ATTRIBUTE      pubKeyTmpl[] = {   
+    CK_ATTRIBUTE      pubKeyTmpl[] = {
         { CKA_MODULUS_BITS,    &bits,    sizeof(bits)    },
         { CKA_ENCRYPT,         &ckTrue,  sizeof(ckTrue)  },
         { CKA_VERIFY,          &ckTrue,  sizeof(ckTrue)  },
@@ -955,7 +959,8 @@ static int Pkcs11RsaKeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
     if (ret == 0) {
         WOLFSSL_MSG("PKCS#11: RSA Key Generation Operation");
 
-        if (info->pk.rsakg.e != 0x10001) {
+        /* Most commonly used public exponent value (array initialized). */
+        if (info->pk.rsakg.e != WC_RSA_EXPONENT) {
             for (i = 0; i < (int)sizeof(pub_exp); i++)
                 pub_exp[i] = (info->pk.rsakg.e >> (8 * i)) & 0xff;
         }
@@ -1028,7 +1033,7 @@ static int Pkcs11FindEccKey(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
     if (ret == 0 && keyClass == CKO_PUBLIC_KEY) {
         /* ASN1 encoded: OCT + uncompressed point */
         len = 3 + 1 + 2 * eccKey->dp->size;
-        ecPoint = (unsigned char*)XMALLOC(len, NULL, DYNAMIC_TYPE_ECC);
+        ecPoint = (unsigned char*)XMALLOC(len, eccKey->heap, DYNAMIC_TYPE_ECC);
         if (ecPoint == NULL)
             ret = MEMORY_E;
     }
@@ -1037,7 +1042,7 @@ static int Pkcs11FindEccKey(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
         i = 0;
         ecPoint[i++] = ASN_OCTET_STRING;
         if (len >= ASN_LONG_LENGTH)
-            ecPoint[i++] = 0x81;
+            ecPoint[i++] = (ASN_LONG_LENGTH | 1);
         ecPoint[i++] = len;
         ret = wc_ecc_export_x963(eccKey, ecPoint + i, &len);
     }
@@ -1060,7 +1065,7 @@ static int Pkcs11FindEccKey(CK_OBJECT_HANDLE* key, CK_OBJECT_CLASS keyClass,
     }
 
     if (ecPoint != NULL)
-        XFREE(ecPoint, NULL, DYNAMIC_TYPE_ECC);
+        XFREE(ecPoint, eccKey->heap, DYNAMIC_TYPE_ECC);
 
     return ret;
 }
@@ -1101,7 +1106,8 @@ static int Pkcs11CreateEccPublicKey(CK_OBJECT_HANDLE* publicKey,
     if (ret == 0) {
         /* ASN1 encoded: OCT + uncompressed point */
         len = 3 + 1 + 2 * public_key->dp->size;
-        ecPoint = (unsigned char*)XMALLOC(len, NULL, DYNAMIC_TYPE_ECC);
+        ecPoint = (unsigned char*)XMALLOC(len, public_key->heap,
+                                                              DYNAMIC_TYPE_ECC);
         if (ecPoint == NULL)
             ret = MEMORY_E;
     }
@@ -1110,7 +1116,7 @@ static int Pkcs11CreateEccPublicKey(CK_OBJECT_HANDLE* publicKey,
         i = 0;
         ecPoint[i++] = ASN_OCTET_STRING;
         if (len >= ASN_LONG_LENGTH)
-            ecPoint[i++] = 0x81;
+            ecPoint[i++] = ASN_LONG_LENGTH | 1;
         ecPoint[i++] = len;
         ret = wc_ecc_export_x963(public_key, ecPoint + i, &len);
     }
@@ -1125,7 +1131,7 @@ static int Pkcs11CreateEccPublicKey(CK_OBJECT_HANDLE* publicKey,
     }
 
     if (ecPoint != NULL)
-        XFREE(ecPoint, NULL, DYNAMIC_TYPE_ECC);
+        XFREE(ecPoint, public_key->heap, DYNAMIC_TYPE_ECC);
 
     return ret;
 }
@@ -1149,27 +1155,27 @@ static int Pkcs11GetEccPublicKey(ecc_key* key, Pkcs11Session* session,
     unsigned char* point = NULL;
     int            pointSz;
     CK_RV          rv;
-    CK_ATTRIBUTE   template[] = {
+    CK_ATTRIBUTE   tmpl[] = {
         { CKA_EC_POINT,  NULL_PTR, 0 },
     };
-    CK_ULONG       tmplCnt = sizeof(template) / sizeof(*template);
+    CK_ULONG       tmplCnt = sizeof(tmpl) / sizeof(*tmpl);
 
-    rv = session->func->C_GetAttributeValue(session->handle, pubKey, template,
+    rv = session->func->C_GetAttributeValue(session->handle, pubKey, tmpl,
                                                                        tmplCnt);
     if (rv != CKR_OK)
         ret = WC_HW_E;
 
     if (ret == 0) {
-        pointSz = (int)template[0].ulValueLen;
-        point = (unsigned char *)XMALLOC(pointSz, NULL, DYNAMIC_TYPE_ECC);
+        pointSz = (int)tmpl[0].ulValueLen;
+        point = (unsigned char *)XMALLOC(pointSz, key->heap, DYNAMIC_TYPE_ECC);
         if (point == NULL)
             ret = MEMORY_E;
     }
     if (ret == 0) {
-        template[0].pValue = point;
+        tmpl[0].pValue = point;
 
         rv = session->func->C_GetAttributeValue(session->handle, pubKey,
-                                                             template, tmplCnt);
+                                                                 tmpl, tmplCnt);
         if (rv != CKR_OK)
             ret = WC_HW_E;
     }
@@ -1181,7 +1187,7 @@ static int Pkcs11GetEccPublicKey(ecc_key* key, Pkcs11Session* session,
     if (ret == 0 && point[i++] != ASN_OCTET_STRING)
         ret = ASN_PARSE_E;
     if (ret == 0 && point[i] >= ASN_LONG_LENGTH) {
-        if (point[i++] != 0x81)
+        if (point[i++] != (ASN_LONG_LENGTH | 1))
             ret = ASN_PARSE_E;
         else if (pointSz < key->dp->size * 2 + 1 + 3)
             ret = ASN_PARSE_E;
@@ -1196,7 +1202,7 @@ static int Pkcs11GetEccPublicKey(ecc_key* key, Pkcs11Session* session,
     }
 
     if (point != NULL)
-        XFREE(point, NULL, DYNAMIC_TYPE_ECC);
+        XFREE(point, key->heap, DYNAMIC_TYPE_ECC);
 
     return ret;
 }
@@ -1218,7 +1224,7 @@ static int Pkcs11EC_KeyGen(Pkcs11Session* session, wc_CryptoInfo* info)
     CK_OBJECT_HANDLE  pubKey = NULL_PTR, privKey = NULL_PTR;
     CK_MECHANISM      mech;
     CK_UTF8CHAR       params[MAX_EC_PARAM_LEN];
-    CK_ATTRIBUTE      pubKeyTmpl[] = {   
+    CK_ATTRIBUTE      pubKeyTmpl[] = {
         { CKA_EC_PARAMS,       params,   0               },
         { CKA_ENCRYPT,         &ckTrue,  sizeof(ckTrue)  },
         { CKA_VERIFY,          &ckTrue,  sizeof(ckTrue)  },
@@ -1282,27 +1288,27 @@ static int Pkcs11ExtractSecret(Pkcs11Session* session, CK_OBJECT_HANDLE secret,
     byte* out, word32* outLen)
 {
     int ret = 0;
-    CK_ATTRIBUTE template[] = {
+    CK_ATTRIBUTE tmpl[] = {
       {CKA_VALUE, NULL_PTR, 0}
     };
-    CK_ULONG     tmplCnt = sizeof(template) / sizeof(*template);
+    CK_ULONG     tmplCnt = sizeof(tmpl) / sizeof(*tmpl);
     CK_RV rv;
 
-    rv = session->func->C_GetAttributeValue(session->handle, secret, template,
+    rv = session->func->C_GetAttributeValue(session->handle, secret, tmpl,
                                                                        tmplCnt);
     if (rv != CKR_OK)
         ret = WC_HW_E;
     if (ret == 0) {
-        if (template[0].ulValueLen > *outLen)
+        if (tmpl[0].ulValueLen > *outLen)
             ret = BUFFER_E;
     }
     if (ret == 0) {
-        template[0].pValue = out;
+        tmpl[0].pValue = out;
         rv = session->func->C_GetAttributeValue(session->handle, secret,
-                                                             template, tmplCnt);
+                                                                 tmpl, tmplCnt);
         if (rv != CKR_OK)
             ret = WC_HW_E;
-        *outLen = (word32)template[0].ulValueLen;
+        *outLen = (word32)tmpl[0].ulValueLen;
     }
 
     return ret;
@@ -1329,7 +1335,7 @@ static int Pkcs11ECDH(Pkcs11Session* session, wc_CryptoInfo* info)
     CK_OBJECT_HANDLE       privateKey = NULL_PTR;
     CK_OBJECT_HANDLE       secret = CK_INVALID_HANDLE;
     CK_ULONG               secSz;
-    CK_ATTRIBUTE           template[] = {
+    CK_ATTRIBUTE           tmpl[] = {
         { CKA_CLASS,       &secretKeyClass, sizeof(secretKeyClass) },
         { CKA_KEY_TYPE,    &keyType,        sizeof(keyType)        },
         { CKA_PRIVATE,     &ckFalse,        sizeof(ckFalse)        },
@@ -1337,7 +1343,7 @@ static int Pkcs11ECDH(Pkcs11Session* session, wc_CryptoInfo* info)
         { CKA_EXTRACTABLE, &ckTrue,         sizeof(ckTrue)         },
         { CKA_VALUE_LEN,   &secSz,          sizeof(secSz)          }
     };
-    CK_ULONG               tmplCnt = sizeof(template) / sizeof(*template);
+    CK_ULONG               tmplCnt = sizeof(tmpl) / sizeof(*tmpl);
 
     ret = Pkcs11MechAvail(session, CKM_ECDH1_DERIVE);
     if (ret == 0 && info->pk.ecdh.outlen == NULL) {
@@ -1363,7 +1369,8 @@ static int Pkcs11ECDH(Pkcs11Session* session, wc_CryptoInfo* info)
     if (ret == 0) {
         ret = wc_ecc_export_x963(info->pk.ecdh.public_key, NULL, &pointLen);
         if (ret == LENGTH_ONLY_E) {
-            point = (unsigned char*)XMALLOC(pointLen, NULL,
+            point = (unsigned char*)XMALLOC(pointLen,
+                                                 info->pk.ecdh.public_key->heap,
                                                        DYNAMIC_TYPE_ECC_BUFFER);
             ret = wc_ecc_export_x963(info->pk.ecdh.public_key, point,
                                                                      &pointLen);
@@ -1384,7 +1391,7 @@ static int Pkcs11ECDH(Pkcs11Session* session, wc_CryptoInfo* info)
         mech.pParameter     = &params;
 
         rv = session->func->C_DeriveKey(session->handle, &mech, privateKey,
-                                                    template, tmplCnt, &secret);
+                                                        tmpl, tmplCnt, &secret);
         if (rv != CKR_OK)
             ret = WC_HW_E;
     }
@@ -1398,7 +1405,7 @@ static int Pkcs11ECDH(Pkcs11Session* session, wc_CryptoInfo* info)
         session->func->C_DestroyObject(session->handle, privateKey);
 
     if (point != NULL)
-        XFREE(point, NULL, DYNAMIC_TYPE_ECC_BUFFER);
+        XFREE(point, info->pk.ecdh.public_key->heap, DYNAMIC_TYPE_ECC_BUFFER);
 
     return ret;
 }
@@ -1416,7 +1423,7 @@ static word32 Pkcs11ECDSASig_Encode(byte* sig, word32 sz)
 {
     word32 rHigh, sHigh, seqLen;
     word32 rStart = 0, sStart = 0;
-    word32 sigSz;
+    word32 sigSz, rSz, rLen, sSz, sLen;
     word32 i;
 
     /* Find first byte of data in r and s. */
@@ -1427,23 +1434,28 @@ static word32 Pkcs11ECDSASig_Encode(byte* sig, word32 sz)
     /* Check if 0 needs to be prepended to make integer a positive number. */
     rHigh = sig[rStart] >> 7;
     sHigh = sig[sz + sStart] >> 7;
+    /* Calculate length of integer to put into ASN.1 encoding. */
+    rLen = sz - rStart;
+    sLen = sz - sStart;
+    /* r and s: INT (2 bytes) + [ 0x00 ] + integer */
+    rSz = 2 + rHigh + rLen;
+    sSz = 2 + sHigh + sLen;
     /* Calculate the complete ASN.1 DER encoded size. */
-    sigSz = 2 + rHigh + (sz - rStart) + 2 + sHigh + (sz - sStart);
+    sigSz = rSz + sSz;
     if (sigSz >= ASN_LONG_LENGTH)
         seqLen = 3;
     else
         seqLen = 2;
 
-    /* Move s and then r into their final places. */
-    XMEMMOVE(sig + seqLen + 2 + rHigh + (sz - rStart) + 2 + sHigh,
-                                                sig + sz + sStart, sz - sStart);
-    XMEMMOVE(sig + seqLen + 2 + rHigh, sig + rStart, sz - rStart);
+    /* Move s and then r integers into their final places. */
+    XMEMMOVE(sig + seqLen + rSz + (sSz - sLen), sig + sz + sStart, sLen);
+    XMEMMOVE(sig + seqLen       + (rSz - rLen), sig      + rStart, rLen);
 
     /* Put the ASN.1 DER encoding around data. */
     i = 0;
     sig[i++] = ASN_CONSTRUCTED | ASN_SEQUENCE;
     if (seqLen == 3)
-        sig[i++] = 0x81;
+        sig[i++] = ASN_LONG_LENGTH | 0x01;
     sig[i++] = sigSz;
     sig[i++] = ASN_INTEGER;
     sig[i++] = rHigh + (sz - rStart);
@@ -1486,7 +1498,7 @@ static int Pkcs11ECDSASig_Decode(const byte* in, word32 inSz, byte* sig,
     if (ret == 0 && in[i++] != (ASN_CONSTRUCTED | ASN_SEQUENCE))
         ret = ASN_PARSE_E;
     if (ret == 0 && in[i] >= ASN_LONG_LENGTH) {
-        if (in[i] != 0x81)
+        if (in[i] != (ASN_LONG_LENGTH | 0x01))
             ret = ASN_PARSE_E;
         else {
             i++;
@@ -1659,7 +1671,8 @@ static int Pkcs11ECDSA_Verify(Pkcs11Session* session, wc_CryptoInfo* info)
     }
 
     if (ret == 0) {
-        sig = XMALLOC(sz * 2, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        sig = XMALLOC(sz * 2, info->pk.eccverify.key->heap,
+                                                       DYNAMIC_TYPE_TMP_BUFFER);
         if (sig == NULL)
             ret = MEMORY_E;
     }
@@ -1680,7 +1693,7 @@ static int Pkcs11ECDSA_Verify(Pkcs11Session* session, wc_CryptoInfo* info)
 
     if (ret == 0) {
         *info->pk.eccverify.res = 0;
-        rv = session->func->C_Verify(session->handle, 
+        rv = session->func->C_Verify(session->handle,
                                      (CK_BYTE_PTR)info->pk.eccverify.hash,
                                      info->pk.eccverify.hashlen,
                                      (CK_BYTE_PTR)sig, sz * 2);
@@ -1696,7 +1709,7 @@ static int Pkcs11ECDSA_Verify(Pkcs11Session* session, wc_CryptoInfo* info)
         session->func->C_DestroyObject(session->handle, publicKey);
 
     if (sig != NULL)
-        XFREE(sig, NULL, DYNAMIC_TYPE_TMP_BUFFER);
+        XFREE(sig, info->pk.eccverify.key->heap, DYNAMIC_TYPE_TMP_BUFFER);
 
     return ret;
 }
@@ -1738,7 +1751,7 @@ static int Pkcs11AesGcmEncrypt(Pkcs11Session* session, wc_CryptoInfo* info)
         ret = Pkcs11CreateSecretKey(&key, session, CKK_AES,
                                     (unsigned char *)aes->key, aes->keylen,
                                     NULL, 0);
- 
+
     }
     else if (ret == 0) {
         ret = Pkcs11FindKeyById(&key, CKO_SECRET_KEY, CKK_AES, session, aes->id,
