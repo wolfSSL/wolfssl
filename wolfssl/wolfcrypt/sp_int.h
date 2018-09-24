@@ -35,6 +35,8 @@
     #define SP_WORD_SIZE 64
 #elif defined(WOLFSSL_SP_ARM32_ASM)
     #define SP_WORD_SIZE 32
+#elif defined(WOLFSSL_SP_ARM_THUMB_ASM)
+    #define SP_WORD_SIZE 32
 #endif
 
 #ifndef SP_WORD_SIZE
