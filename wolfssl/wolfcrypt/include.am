@@ -89,6 +89,11 @@ if BUILD_ASYNCCRYPT
 nobase_include_HEADERS+= wolfssl/wolfcrypt/async.h
 endif
 
+if BUILD_PKCS11
+nobase_include_HEADERS+= wolfssl/wolfcrypt/wc_pkcs11.h
+nobase_include_HEADERS+= wolfssl/wolfcrypt/pkcs11.h
+endif
+
 if BUILD_CAVIUM
 nobase_include_HEADERS+= wolfssl/wolfcrypt/port/cavium/cavium_nitrox.h
 endif

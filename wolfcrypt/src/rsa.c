@@ -298,6 +298,29 @@ int wc_InitRsaKey(RsaKey* key, void* heap)
     return wc_InitRsaKey_ex(key, heap, INVALID_DEVID);
 }
 
+#ifdef HAVE_PKCS11
+int wc_InitRsaKey_Id(RsaKey* key, unsigned char* id, int len, void* heap,
+                     int devId)
+{
+    int ret = 0;
+
+    if (key == NULL)
+        ret = BAD_FUNC_ARG;
+    if (ret == 0 && (len < 0 || len > RSA_MAX_ID_LEN))
+        ret = BUFFER_E;
+
+    if (ret == 0)
+        ret = wc_InitRsaKey_ex(key, heap, devId);
+
+    if (ret == 0 && id != NULL && len != 0) {
+        XMEMCPY(key->id, id, len);
+        key->idLen = len;
+    }
+
+    return ret;
+}
+#endif
+
 
 #ifdef WOLFSSL_XILINX_CRYPT
 #define MAX_E_SIZE 4
@@ -2920,6 +2943,14 @@ int wc_MakeRsaKey(RsaKey* key, int size, long e, WC_RNG* rng)
 
     if (e < 3 || (e & 1) == 0)
         return BAD_FUNC_ARG;
+
+#ifdef WOLF_CRYPTO_DEV
+    if (key->devId != INVALID_DEVID) {
+        int ret = wc_CryptoDev_MakeRsaKey(key, size, e, rng);
+        if (ret != NOT_COMPILED_IN)
+            return ret;
+    }
+#endif
 
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_RSA) {

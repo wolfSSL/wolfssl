@@ -111,6 +111,10 @@ enum {
 #ifdef WC_RSA_PSS
     RSA_PSS_PAD_TERM = 0xBC,
 #endif
+
+#ifdef HAVE_PKCS11
+    RSA_MAX_ID_LEN      = 32,
+#endif
 };
 
 /* RSA */
@@ -141,6 +145,10 @@ struct RsaKey {
     byte*  mod;
     XSecure_Rsa xRsa;
 #endif
+#ifdef HAVE_PKCS11
+    byte id[RSA_MAX_ID_LEN];
+    int  idLen;
+#endif
     byte   dataIsAlloc;
 };
 
@@ -154,6 +162,10 @@ struct RsaKey {
 WOLFSSL_API int  wc_InitRsaKey(RsaKey* key, void* heap);
 WOLFSSL_API int  wc_InitRsaKey_ex(RsaKey* key, void* heap, int devId);
 WOLFSSL_API int  wc_FreeRsaKey(RsaKey* key);
+#ifdef HAVE_PKCS11
+WOLFSSL_API int wc_InitRsaKey_Id(RsaKey* key, unsigned char* id, int len,
+                                 void* heap, int devId);
+#endif
 WOLFSSL_API int  wc_CheckRsaKey(RsaKey* key);
 #ifdef WOLFSSL_XILINX_CRYPT
 WOLFSSL_LOCAL int wc_InitRsaHw(RsaKey* key);

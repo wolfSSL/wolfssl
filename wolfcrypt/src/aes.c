@@ -44,6 +44,10 @@
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/cpuid.h>
 
+#ifdef WOLF_CRYPTO_DEV
+    #include <wolfssl/wolfcrypt/cryptodev.h>
+#endif
+
 
 /* fips wrapper calls, user can call direct */
 #if defined(HAVE_FIPS) && \
@@ -8378,6 +8382,16 @@ int wc_AesGcmEncrypt(Aes* aes, byte* out, const byte* in, word32 sz,
         return BAD_FUNC_ARG;
     }
 
+#ifdef WOLF_CRYPTO_DEV
+    if (aes->devId != INVALID_DEVID) {
+        int ret = wc_CryptoDev_AesGcmEncrypt(aes, out, in, sz, iv, ivSz,
+            authTag, authTagSz, authIn, authInSz);
+        if (ret != NOT_COMPILED_IN)
+            return ret;
+        ret = 0; /* reset error code and try using software */
+    }
+#endif
+
 #if defined(STM32_CRYPTO) && (defined(WOLFSSL_STM32F4) || \
                               defined(WOLFSSL_STM32F7) || \
                               defined(WOLFSSL_STM32L4))
@@ -8768,6 +8782,15 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,
 
         return BAD_FUNC_ARG;
     }
+
+#ifdef WOLF_CRYPTO_DEV
+    if (aes->devId != INVALID_DEVID) {
+        int ret = wc_CryptoDev_AesGcmDecrypt(aes, out, in, sz, iv, ivSz,
+            authTag, authTagSz, authIn, authInSz);
+        if (ret != NOT_COMPILED_IN)
+            return ret;
+    }
+#endif
 
 #if defined(STM32_CRYPTO) && (defined(WOLFSSL_STM32F4) || \
                               defined(WOLFSSL_STM32F7) || \
@@ -9447,11 +9470,14 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
 
     aes->heap = heap;
 
+#ifdef WOLF_CRYPTO_DEV
+    aes->devId = devId;
+#else
+    (void)devId;
+#endif
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_AES)
     ret = wolfAsync_DevCtxInit(&aes->asyncDev, WOLFSSL_ASYNC_MARKER_AES,
                                                         aes->heap, devId);
-#else
-    (void)devId;
 #endif /* WOLFSSL_ASYNC_CRYPT */
 
 #ifdef WOLFSSL_AFALG
@@ -9465,6 +9491,27 @@ int wc_AesInit(Aes* aes, void* heap, int devId)
 
     return ret;
 }
+
+#ifdef HAVE_PKCS11
+int  wc_AesInit_Id(Aes* aes, unsigned char* id, int len, void* heap, int devId)
+{
+    int ret = 0;
+
+    if (aes == NULL)
+        ret = BAD_FUNC_ARG;
+    if (ret == 0 && (len < 0 || len > AES_MAX_ID_LEN))
+        ret = BUFFER_E;
+
+    if (ret == 0)
+        ret  = wc_AesInit(aes, heap, devId);
+    if (ret == 0) {
+        XMEMCPY(aes->id, id, len);
+        aes->idLen = len;
+    }
+
+    return ret;
+}
+#endif
 
 /* Free Aes from use with async hardware */
 void wc_AesFree(Aes* aes)

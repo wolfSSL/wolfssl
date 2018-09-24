@@ -3906,6 +3906,14 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
         return err;
     }
 
+#ifdef WOLF_CRYPTO_DEV
+    if (key->devId != INVALID_DEVID) {
+        err = wc_CryptoDev_MakeEccKey(rng, keysize, key, curve_id);
+        if (err != NOT_COMPILED_IN)
+            return err;
+    }
+#endif
+
 #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
     if (key->asyncDev.marker == WOLFSSL_ASYNC_MARKER_ECC) {
     #ifdef HAVE_CAVIUM
@@ -4129,6 +4137,29 @@ int wc_ecc_init(ecc_key* key)
 {
     return wc_ecc_init_ex(key, NULL, INVALID_DEVID);
 }
+
+#ifdef HAVE_PKCS11
+int wc_ecc_init_id(ecc_key* key, unsigned char* id, int len, void* heap,
+                   int devId)
+{
+    int ret = 0;
+
+    if (key == NULL)
+        ret = BAD_FUNC_ARG;
+    if (ret == 0 && (len < 0 || len > ECC_MAX_ID_LEN))
+        ret = BUFFER_E;
+
+    if (ret == 0)
+        ret = wc_ecc_init_ex(key, heap, devId);
+
+    if (ret == 0 && id != NULL && len != 0) {
+        XMEMCPY(key->id, id, len);
+        key->idLen = len;
+    }
+
+    return ret;
+}
+#endif
 
 int wc_ecc_set_flags(ecc_key* key, word32 flags)
 {
@@ -6541,6 +6572,14 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
 #else
 
     ret = mp_read_unsigned_bin(&key->k, priv, privSz);
+#ifdef HAVE_WOLF_BIGINT
+    if (ret == 0 &&
+                  wc_bigint_from_unsigned_bin(&key->k.raw, priv, privSz) != 0) {
+        mp_clear(&key->k);
+        ret = ASN_GETINT_E;
+    }
+#endif /* HAVE_WOLF_BIGINT */
+
 
 #endif /* WOLFSSL_ATECC508A */
 
