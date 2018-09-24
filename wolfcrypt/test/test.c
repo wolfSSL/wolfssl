@@ -15616,6 +15616,7 @@ static int ecc_test_curve(WC_RNG* rng, int keySize)
     return 0;
 }
 
+#if !defined(NO_ECC256) || defined(HAVE_ALL_CURVES)
 #if !defined(WOLFSSL_ATECC508A) && defined(HAVE_ECC_KEY_IMPORT) && \
      defined(HAVE_ECC_KEY_EXPORT)
 static int ecc_point_test(void)
@@ -16115,6 +16116,7 @@ done:
     wc_ecc_free(&key);
     return ret;
 }
+#endif /* !NO_ECC256 || HAVE_ALL_CURVES */
 
 #ifdef WOLFSSL_CERT_EXT
 static int ecc_decode_test(void)

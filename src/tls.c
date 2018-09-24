@@ -339,7 +339,11 @@ static int PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
     int ret = 0;
 
     if (useAtLeastSha256) {
+    #ifndef WC_ASYNC_NO_HASH
         DECLARE_VAR(labelSeed, byte, MAX_PRF_LABSEED, heap);
+    #else
+        byte labelSeed[MAX_PRF_LABSEED];
+    #endif
 
         if (labLen + seedLen > MAX_PRF_LABSEED)
             return BUFFER_E;
@@ -354,7 +358,9 @@ static int PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         ret = p_hash(digest, digLen, secret, secLen, labelSeed,
                      labLen + seedLen, hash_type, heap, devId);
 
+    #ifndef WC_ASYNC_NO_HASH
         FREE_VAR(labelSeed, heap);
+    #endif
     }
 #ifndef NO_OLD_TLS
     else {
@@ -517,7 +523,11 @@ static int _DeriveTlsKeys(byte* key_dig, word32 key_dig_len,
                          void* heap, int devId)
 {
     int ret;
+#ifndef WC_ASYNC_NO_HASH
     DECLARE_VAR(seed, byte, SEED_LEN, heap);
+#else
+    byte seed[SEED_LEN];
+#endif
 
     XMEMCPY(seed,           sr, RAN_LEN);
     XMEMCPY(seed + RAN_LEN, cr, RAN_LEN);
@@ -525,7 +535,9 @@ static int _DeriveTlsKeys(byte* key_dig, word32 key_dig_len,
     ret = PRF(key_dig, key_dig_len, ms, msLen, key_label, KEY_LABEL_SZ,
                seed, SEED_LEN, tls1_2, hash_type, heap, devId);
 
+#ifndef WC_ASYNC_NO_HASH
     FREE_VAR(seed, heap);
+#endif
 
     return ret;
 }

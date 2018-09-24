@@ -35,7 +35,11 @@
 
 #define MAX_ARGS 40
 #define MAX_COMMAND_SZ 240
-#define MAX_SUITE_SZ 80
+#ifdef WOLFSSL_TLS13
+    #define MAX_SUITE_SZ 200
+#else
+    #define MAX_SUITE_SZ 80
+#endif
 #define NOT_BUILT_IN -123
 #if defined(NO_OLD_TLS) || !defined(WOLFSSL_ALLOW_SSLV3) || \
     !defined(WOLFSSL_ALLOW_TLSV10)
