@@ -62,6 +62,14 @@
     #define MAX_SIGNED_ATTRIBS_SZ 7
 #endif
 
+#ifndef MAX_AUTH_ATTRIBS_SZ
+    #define MAX_AUTH_ATTRIBS_SZ 7
+#endif
+
+#ifndef MAX_UNAUTH_ATTRIBS_SZ
+    #define MAX_UNAUTH_ATTRIBS_SZ 7
+#endif
+
 /* PKCS#7 content types, ref RFC 2315 (Section 14) */
 enum PKCS7_TYPES {
     PKCS7_MSG                 = 650,  /* 1.2.840.113549.1.7   */
@@ -211,6 +219,8 @@ typedef struct PKCS7 {
 
     PKCS7Attrib* authAttribs;     /* authenticated attribs */
     word32 authAttribsSz;
+    PKCS7Attrib* unauthAttribs;   /* unauthenticated attribs */
+    word32 unauthAttribsSz;
 
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 } PKCS7;

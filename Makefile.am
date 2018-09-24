@@ -47,6 +47,10 @@ CLEANFILES+= cert.der \
              pkcs7authEnvelopedDataAES192GCM.der \
              pkcs7authEnvelopedDataAES256GCM.der \
              pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF.der \
+             pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF_authAttribs.der \
+             pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF_bothAttribs.der \
+             pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF_fw_bothAttribs.der \
+             pkcs7authEnvelopedDataAES256GCM_ECDH_SHA256KDF_unauthAttribs.der \
              pkcs7authEnvelopedDataAES256GCM_ECDH_SHA512KDF.der \
              pkcs7authEnvelopedDataAES256GCM_ECDH_SHA512KDF_ukm.der \
              pkcs7authEnvelopedDataAES256GCM_firmwarePkgData.der \
