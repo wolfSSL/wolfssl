@@ -990,6 +990,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     int   doSTARTTLS    = 0;
     char* starttlsProt = NULL;
     int   useVerifyCb = 0;
+    int   useSupCurve = 0;
 
 #ifdef WOLFSSL_TRUST_PEER_CERT
     const char* trustCert  = NULL;
@@ -1088,6 +1089,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)useX25519;
     (void)helloRetry;
     (void)onlyKeyShare;
+    (void)useSupCurve;
 
     StackTrap();
 
@@ -1219,6 +1221,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 else if (XSTRNCMP(myoptarg, "verifyFail", 10) == 0) {
                     printf("Verify should fail\n");
                     myVerifyFail = 1;
+                }
+                else if (XSTRNCMP(myoptarg, "useSupCurve", 11) == 0) {
+                    printf("Test use supported curve\n");
+                    useSupCurve = 1;
                 }
                 else {
                     Usage();
@@ -1440,6 +1446,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             case 't' :
                 #ifdef HAVE_CURVE25519
                     useX25519 = 1;
+                    useSupCurve = 1;
                     #if defined(WOLFSSL_TLS13) && defined(HAVE_ECC)
                         onlyKeyShare = 2;
                     #endif
@@ -1917,22 +1924,34 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             err_sys("DisableExtendedMasterSecret failed");
         }
 #endif
-#if defined(HAVE_CURVE25519) && defined(HAVE_SUPPORTED_CURVES)
+#if defined(HAVE_SUPPORTED_CURVES)
+    #if defined(HAVE_CURVE25519)
     if (useX25519) {
         if (wolfSSL_CTX_UseSupportedCurve(ctx, WOLFSSL_ECC_X25519)
                                                            != WOLFSSL_SUCCESS) {
             err_sys("unable to support X25519");
         }
-        if (wolfSSL_CTX_UseSupportedCurve(ctx, WOLFSSL_ECC_SECP256R1)
-                                                           != WOLFSSL_SUCCESS) {
-            err_sys("unable to support secp256r1");
-        }
+    }
+    #endif /* HAVE_CURVE25519 */
+    #ifdef HAVE_ECC
+    if (useSupCurve) {
+        #if !defined(NO_ECC_SECP) && \
+            (defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES))
         if (wolfSSL_CTX_UseSupportedCurve(ctx, WOLFSSL_ECC_SECP384R1)
                                                            != WOLFSSL_SUCCESS) {
             err_sys("unable to support secp384r1");
         }
+        #endif
+        #if !defined(NO_ECC_SECP) && \
+            (!defined(NO_ECC256) || defined(HAVE_ALL_CURVES))
+        if (wolfSSL_CTX_UseSupportedCurve(ctx, WOLFSSL_ECC_SECP256R1)
+                                                           != WOLFSSL_SUCCESS) {
+            err_sys("unable to support secp256r1");
+        }
+        #endif
     }
-#endif /* HAVE_CURVE25519 && HAVE_SUPPORTED_CURVES */
+    #endif /* HAVE_ECC */
+#endif /* HAVE_SUPPORTED_CURVES */
 
 #ifdef WOLFSSL_TLS13
     if (noPskDheKe)

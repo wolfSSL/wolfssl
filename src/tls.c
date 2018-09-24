@@ -3944,7 +3944,7 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
             defSz = octets;
         }
 
-        if (currOid == 0 && ssl->eccTempKeySz == octets)
+        if (currOid == 0 && ssl->eccTempKeySz <= octets)
             currOid = oid;
         if ((nextOid == 0 || nextSz > octets) && ssl->eccTempKeySz <= octets) {
             nextOid = oid;
@@ -8774,6 +8774,7 @@ static byte* TLSX_QSHKeyFind_Pub(QSHKey* qsh, word16* pubLen, word16 name)
     ((defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
         defined(HAVE_SUPPORTED_CURVES))
 
+/* Populates the default supported groups / curves */
 static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
 {
     int ret = WOLFSSL_SUCCESS;
@@ -8798,7 +8799,87 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
 #endif /* WOLFSSL_TLS13 */
 
 #if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
+        /* list in order by strength, since not all servers choose by strength */
+        #if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
+            #ifndef NO_ECC_SECP
+                ret = TLSX_UseSupportedCurve(extensions,
+                                              WOLFSSL_ECC_SECP521R1, ssl->heap);
+                if (ret != WOLFSSL_SUCCESS) return ret;
+            #endif
+        #endif
+        #if defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)
+            #ifdef HAVE_ECC_BRAINPOOL
+                ret = TLSX_UseSupportedCurve(extensions,
+                                        WOLFSSL_ECC_BRAINPOOLP512R1, ssl->heap);
+                if (ret != WOLFSSL_SUCCESS) return ret;
+            #endif
+        #endif
+        #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
+            #ifndef NO_ECC_SECP
+                ret = TLSX_UseSupportedCurve(extensions,
+                                              WOLFSSL_ECC_SECP384R1, ssl->heap);
+                if (ret != WOLFSSL_SUCCESS) return ret;
+            #endif
+            #ifdef HAVE_ECC_BRAINPOOL
+                ret = TLSX_UseSupportedCurve(extensions,
+                                        WOLFSSL_ECC_BRAINPOOLP384R1, ssl->heap);
+                if (ret != WOLFSSL_SUCCESS) return ret;
+            #endif
+        #endif
+        #if !defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)
+            #ifndef NO_ECC_SECP
+                ret = TLSX_UseSupportedCurve(extensions,
+                                              WOLFSSL_ECC_SECP256R1, ssl->heap);
+                if (ret != WOLFSSL_SUCCESS) return ret;
+            #endif
+            #ifdef HAVE_ECC_KOBLITZ
+                ret = TLSX_UseSupportedCurve(extensions,
+                                              WOLFSSL_ECC_SECP256K1, ssl->heap);
+                if (ret != WOLFSSL_SUCCESS) return ret;
+            #endif
+            #ifdef HAVE_ECC_BRAINPOOL
+                ret = TLSX_UseSupportedCurve(extensions,
+                                        WOLFSSL_ECC_BRAINPOOLP256R1, ssl->heap);
+                if (ret != WOLFSSL_SUCCESS) return ret;
+            #endif
+        #endif
+#endif /* HAVE_ECC && HAVE_SUPPORTED_CURVES */
+
+        #ifndef HAVE_FIPS
+            #if defined(HAVE_CURVE25519)
+                ret = TLSX_UseSupportedCurve(extensions,
+                                                 WOLFSSL_ECC_X25519, ssl->heap);
+                if (ret != WOLFSSL_SUCCESS) return ret;
+            #endif
+        #endif /* HAVE_FIPS */
+
+#if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
+        #if defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)
+            #ifndef NO_ECC_SECP
+                ret = TLSX_UseSupportedCurve(extensions,
+                                              WOLFSSL_ECC_SECP224R1, ssl->heap);
+                if (ret != WOLFSSL_SUCCESS) return ret;
+            #endif
+            #ifdef HAVE_ECC_KOBLITZ
+                ret = TLSX_UseSupportedCurve(extensions,
+                                              WOLFSSL_ECC_SECP224K1, ssl->heap);
+                if (ret != WOLFSSL_SUCCESS) return ret;
+            #endif
+        #endif
+
     #ifndef HAVE_FIPS
+        #if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
+            #ifndef NO_ECC_SECP
+                ret = TLSX_UseSupportedCurve(extensions,
+                                              WOLFSSL_ECC_SECP192R1, ssl->heap);
+                if (ret != WOLFSSL_SUCCESS) return ret;
+            #endif
+            #ifdef HAVE_ECC_KOBLITZ
+                ret = TLSX_UseSupportedCurve(extensions,
+                                              WOLFSSL_ECC_SECP192K1, ssl->heap);
+                if (ret != WOLFSSL_SUCCESS) return ret;
+            #endif
+        #endif
         #if defined(HAVE_ECC160) || defined(HAVE_ALL_CURVES)
             #ifndef NO_ECC_SECP
                 ret = TLSX_UseSupportedCurve(extensions,
@@ -8816,107 +8897,15 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
                 if (ret != WOLFSSL_SUCCESS) return ret;
             #endif
         #endif
-        #if defined(HAVE_ECC192) || defined(HAVE_ALL_CURVES)
-            #ifndef NO_ECC_SECP
-                ret = TLSX_UseSupportedCurve(extensions,
-                                              WOLFSSL_ECC_SECP192R1, ssl->heap);
-                if (ret != WOLFSSL_SUCCESS) return ret;
-            #endif
-            #ifdef HAVE_ECC_KOBLITZ
-                ret = TLSX_UseSupportedCurve(extensions,
-                                              WOLFSSL_ECC_SECP192K1, ssl->heap);
-                if (ret != WOLFSSL_SUCCESS) return ret;
-            #endif
-        #endif
-    #endif
-        #if defined(HAVE_ECC224) || defined(HAVE_ALL_CURVES)
-            #ifndef NO_ECC_SECP
-                ret = TLSX_UseSupportedCurve(extensions,
-                                              WOLFSSL_ECC_SECP224R1, ssl->heap);
-                if (ret != WOLFSSL_SUCCESS) return ret;
-            #endif
-            #ifdef HAVE_ECC_KOBLITZ
-                ret = TLSX_UseSupportedCurve(extensions,
-                                              WOLFSSL_ECC_SECP224K1, ssl->heap);
-                if (ret != WOLFSSL_SUCCESS) return ret;
-            #endif
-        #endif
-        #if !defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)
-            #ifndef NO_ECC_SECP
-                ret = TLSX_UseSupportedCurve(extensions,
-                                              WOLFSSL_ECC_SECP256R1, ssl->heap);
-                if (ret != WOLFSSL_SUCCESS) return ret;
-            #endif
-        #endif
-#endif /* HAVE_ECC && HAVE_SUPPORTED_CURVES */
-
-        #ifndef HAVE_FIPS
-            #if defined(HAVE_CURVE25519)
-                ret = TLSX_UseSupportedCurve(extensions,
-                                                 WOLFSSL_ECC_X25519, ssl->heap);
-                if (ret != WOLFSSL_SUCCESS) return ret;
-            #endif
-        #endif /* HAVE_FIPS */
-
-#if defined(HAVE_ECC) && defined(HAVE_SUPPORTED_CURVES)
-        #if !defined(NO_ECC256)  || defined(HAVE_ALL_CURVES)
-            #ifdef HAVE_ECC_KOBLITZ
-                ret = TLSX_UseSupportedCurve(extensions,
-                                              WOLFSSL_ECC_SECP256K1, ssl->heap);
-                if (ret != WOLFSSL_SUCCESS) return ret;
-            #endif
-            #ifdef HAVE_ECC_BRAINPOOL
-                ret = TLSX_UseSupportedCurve(extensions,
-                                        WOLFSSL_ECC_BRAINPOOLP256R1, ssl->heap);
-                if (ret != WOLFSSL_SUCCESS) return ret;
-            #endif
-        #endif
-        #if defined(HAVE_ECC384) || defined(HAVE_ALL_CURVES)
-            #ifndef NO_ECC_SECP
-                ret = TLSX_UseSupportedCurve(extensions,
-                                              WOLFSSL_ECC_SECP384R1, ssl->heap);
-                if (ret != WOLFSSL_SUCCESS) return ret;
-            #endif
-            #ifdef HAVE_ECC_BRAINPOOL
-                ret = TLSX_UseSupportedCurve(extensions,
-                                        WOLFSSL_ECC_BRAINPOOLP384R1, ssl->heap);
-                if (ret != WOLFSSL_SUCCESS) return ret;
-            #endif
-        #endif
-        #if defined(HAVE_ECC512) || defined(HAVE_ALL_CURVES)
-            #ifdef HAVE_ECC_BRAINPOOL
-                ret = TLSX_UseSupportedCurve(extensions,
-                                        WOLFSSL_ECC_BRAINPOOLP512R1, ssl->heap);
-                if (ret != WOLFSSL_SUCCESS) return ret;
-            #endif
-        #endif
-        #if defined(HAVE_ECC521) || defined(HAVE_ALL_CURVES)
-            #ifndef NO_ECC_SECP
-                ret = TLSX_UseSupportedCurve(extensions,
-                                              WOLFSSL_ECC_SECP521R1, ssl->heap);
-                if (ret != WOLFSSL_SUCCESS) return ret;
-            #endif
-        #endif
+    #endif /* HAVE_FIPS */
 #endif /* HAVE_ECC && HAVE_SUPPORTED_CURVES */
 
     #ifdef WOLFSSL_TLS13
         if (IsAtLeastTLSv1_3(ssl->version)) {
                 /* Add FFDHE supported groups. */
-        #ifdef HAVE_FFDHE_2048
+        #ifdef HAVE_FFDHE_8192
                 ret = TLSX_UseSupportedCurve(extensions,
-                                             WOLFSSL_FFDHE_2048, ssl->heap);
-                if (ret != WOLFSSL_SUCCESS)
-                    return ret;
-        #endif
-        #ifdef HAVE_FFDHE_3072
-                ret = TLSX_UseSupportedCurve(extensions,
-                                             WOLFSSL_FFDHE_3072, ssl->heap);
-                if (ret != WOLFSSL_SUCCESS)
-                    return ret;
-        #endif
-        #ifdef HAVE_FFDHE_4096
-                ret = TLSX_UseSupportedCurve(extensions,
-                                             WOLFSSL_FFDHE_4096, ssl->heap);
+                                             WOLFSSL_FFDHE_8192, ssl->heap);
                 if (ret != WOLFSSL_SUCCESS)
                     return ret;
         #endif
@@ -8926,9 +8915,21 @@ static int TLSX_PopulateSupportedGroups(WOLFSSL* ssl, TLSX** extensions)
                 if (ret != WOLFSSL_SUCCESS)
                     return ret;
         #endif
-        #ifdef HAVE_FFDHE_8192
+        #ifdef HAVE_FFDHE_4096
                 ret = TLSX_UseSupportedCurve(extensions,
-                                             WOLFSSL_FFDHE_8192, ssl->heap);
+                                             WOLFSSL_FFDHE_4096, ssl->heap);
+                if (ret != WOLFSSL_SUCCESS)
+                    return ret;
+        #endif
+        #ifdef HAVE_FFDHE_3072
+                ret = TLSX_UseSupportedCurve(extensions,
+                                             WOLFSSL_FFDHE_3072, ssl->heap);
+                if (ret != WOLFSSL_SUCCESS)
+                    return ret;
+        #endif
+        #ifdef HAVE_FFDHE_2048
+                ret = TLSX_UseSupportedCurve(extensions,
+                                             WOLFSSL_FFDHE_2048, ssl->heap);
                 if (ret != WOLFSSL_SUCCESS)
                     return ret;
         #endif
