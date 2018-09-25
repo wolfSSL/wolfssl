@@ -69,6 +69,10 @@ typedef WOLFSSL_X509       X509_REQ;
 typedef WOLFSSL_X509_NAME  X509_NAME;
 typedef WOLFSSL_X509_CHAIN X509_CHAIN;
 
+#ifdef WOLFSSL_QT
+    typedef struct WOLFSSL_X509_PUBKEY     X509_PUBKEY;
+#endif
+
 
 /* redeclare guard */
 #define WOLFSSL_TYPES_DEFINED
@@ -242,6 +246,12 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_get_keys          wolfSSL_get_keys
 #define SSL_SESSION_get_master_key        wolfSSL_SESSION_get_master_key
 #define SSL_SESSION_get_master_key_length wolfSSL_SESSION_get_master_key_length
+
+#ifdef WOLFSSL_QT
+    #define SSL_MODE_RELEASE_BUFFERS    wolfSSL_SSL_MODE_RELEASE_BUFFERS
+    #define SSL_CTRL_SET_TMP_ECDH       wolfSSL_SSL_CTRL_SET_TMP_ECDH
+#endif
+
 
 #define DSA_dup_DH            wolfSSL_DSA_dup_DH
 
