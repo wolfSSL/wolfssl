@@ -1826,6 +1826,11 @@ else
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS -DNO_BIG_INT"
         ENABLED_ASN=no
+    else
+        if test "$ENABLED_ASN" = "nocrypt"
+        then
+            AM_CFLAGS="$AM_CFLAGS -DNO_ASN_CRYPT"
+        fi
     fi
 fi
 

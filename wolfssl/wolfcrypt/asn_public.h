@@ -479,6 +479,27 @@ WOLFSSL_API int wc_GetTime(void* timePtr, word32 timeSize);
 #endif
 
 
+#ifdef WOLFSSL_CERT_PIV
+
+typedef struct _wc_CertPIV {
+    const byte*  cert;
+    word32       certSz;
+    const byte*  certErrDet;
+    word32       certErrDetSz;
+    const byte*  nonce;
+    word32       nonceSz;
+    const byte*  signedNonce;
+    word32       signedNonceSz;
+
+    /* flags */
+    word16       compression:2;
+    word16       isX509:1;
+} wc_CertPIV;
+
+WOLFSSL_API int wc_ParseCertPIV(wc_CertPIV* cert, const byte* buf, word32 totalSz);
+#endif /* WOLFSSL_CERT_PIV */
+
+
 #ifdef __cplusplus
     } /* extern "C" */
 #endif

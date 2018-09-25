@@ -15414,15 +15414,6 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case NTRU_DECRYPT_ERROR:
         return "NTRU decrypt error";
 
-    case ZLIB_INIT_ERROR:
-        return "zlib init error";
-
-    case ZLIB_COMPRESS_ERROR:
-        return "zlib compress error";
-
-    case ZLIB_DECOMPRESS_ERROR:
-        return "zlib decompress error";
-
     case GETTIME_ERROR:
         return "gettimeofday() error";
 

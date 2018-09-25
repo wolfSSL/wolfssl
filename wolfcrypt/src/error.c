@@ -483,10 +483,19 @@ const char* wc_GetErrorString(int error)
         return "DH Check Private Key failure";
 
     case WC_AFALG_SOCK_E:
-  	return "AF_ALG socket error";
+      	return "AF_ALG socket error";
 
     case WC_DEVCRYPTO_E:
-	return "Error with /dev/crypto";
+        return "Error with /dev/crypto";
+
+    case ZLIB_INIT_ERROR:
+        return "zlib init error";
+
+    case ZLIB_COMPRESS_ERROR:
+        return "zlib compress error";
+
+    case ZLIB_DECOMPRESS_ERROR:
+        return "zlib decompress error";
 
     default:
         return "unknown error number";
