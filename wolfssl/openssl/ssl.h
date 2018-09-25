@@ -65,6 +65,10 @@ typedef WOLFSSL_X509       X509_REQ;
 typedef WOLFSSL_X509_NAME  X509_NAME;
 typedef WOLFSSL_X509_CHAIN X509_CHAIN;
 
+#ifdef WOLFSSL_QT
+    typedef struct WOLFSSL_X509_PUBKEY     X509_PUBKEY;
+#endif
+
 
 /* redeclare guard */
 #define WOLFSSL_TYPES_DEFINED
