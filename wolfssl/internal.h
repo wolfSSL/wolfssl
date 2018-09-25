@@ -3518,6 +3518,11 @@ struct WOLFSSL_X509 {
     WOLFSSL_X509_NAME subject;
 };
 
+#ifdef WOLFSSL_QT
+struct WOLFSSL_X509_PUBKEY {
+    /* temp; may need to implement additional defines for this */
+};
+#endif
 
 /* record layer header for PlainText, Compressed, and CipherText */
 typedef struct RecordLayerHeader {

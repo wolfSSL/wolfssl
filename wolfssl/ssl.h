@@ -313,6 +313,11 @@ struct WOLFSSL_X509_STORE {
 #endif
 };
 
+#ifdef WOLFSSL_QT
+    #define wolfSSL_SSL_MODE_RELEASE_BUFFERS    0x00000010U
+    #define wolfSSL_SSL_CTRL_SET_TMP_ECDH       4
+#endif
+
 #ifdef OPENSSL_EXTRA
 #define WOLFSSL_USE_CHECK_TIME 0x2
 #define WOLFSSL_NO_CHECK_TIME  0x200000
