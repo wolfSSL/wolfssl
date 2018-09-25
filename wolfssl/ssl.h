@@ -212,7 +212,7 @@ struct WOLFSSL_ASN1_STRING {
 #define WOLFSSL_MAX_SNAME 40
 struct WOLFSSL_ASN1_OBJECT {
     void*  heap;
-    unsigned char* obj;
+    const unsigned char* obj;
     /* sName is short name i.e sha256 rather than oid (null terminated) */
     char   sName[WOLFSSL_MAX_SNAME];
     int    type; /* oid */
