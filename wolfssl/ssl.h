@@ -193,6 +193,10 @@ struct WOLFSSL_ASN1_INTEGER {
     unsigned char* data;
     unsigned int   dataMax;   /* max size of data buffer */
     unsigned int   isDynamic:1; /* flag for if data pointer dynamic (1 is yes 0 is no) */
+    
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+    int length;
+#endif
 };
 
 struct WOLFSSL_ASN1_TIME {
@@ -223,11 +227,17 @@ struct WOLFSSL_ASN1_OBJECT {
     unsigned char dynamic; /* if 1 then obj was dynamiclly created, 0 otherwise */
     #define WOLFSSL_ASN1_DYNAMIC 0x1
     #define WOLFSSL_ASN1_DYNAMIC_DATA 0x2
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+    int ca;
+    WOLFSSL_ASN1_INTEGER *pathlen;
+#endif
+
     struct d { /* derefrenced */
         WOLFSSL_ASN1_STRING  ia5_internal;
         WOLFSSL_ASN1_STRING* ia5; /* points to ia5_internal */
         WOLFSSL_ASN1_STRING* dNSName;
         WOLFSSL_ASN1_STRING* iPAddress;
+        WOLFSSL_ASN1_STRING* uniformResourceIdentifier;
     } d;
 };
 

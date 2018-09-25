@@ -182,6 +182,8 @@ enum {
     NID_md2           = 77,
     NID_md5           =  4,
     NID_hmac          = 855,
+    NID_dhKeyAgreement= 28,
+    EVP_PKEY_DH       = NID_dhKeyAgreement,
     EVP_PKEY_HMAC     = NID_hmac
 };
 
