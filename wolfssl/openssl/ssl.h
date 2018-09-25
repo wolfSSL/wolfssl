@@ -238,6 +238,12 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_SESSION_get_master_key        wolfSSL_SESSION_get_master_key
 #define SSL_SESSION_get_master_key_length wolfSSL_SESSION_get_master_key_length
 
+#ifdef WOLFSSL_QT
+    #define SSL_MODE_RELEASE_BUFFERS    wolfSSL_SSL_MODE_RELEASE_BUFFERS
+    #define SSL_CTRL_SET_TMP_ECDH       wolfSSL_SSL_CTRL_SET_TMP_ECDH
+#endif
+
+
 #define DSA_dup_DH            wolfSSL_DSA_dup_DH
 
 #define X509_load_certificate_file wolfSSL_X509_load_certificate_file
