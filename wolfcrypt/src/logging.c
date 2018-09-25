@@ -677,8 +677,9 @@ void wc_ClearErrorNodes(void)
         }
     }
 
-    wc_errors    = NULL;
-    wc_last_node = NULL;
+    wc_errors       = NULL;
+    wc_last_node    = NULL;
+    wc_current_node = NULL;
     wc_UnLockMutex(&debug_mutex);
 #endif /* DEBUG_WOLFSSL || WOLFSSL_NGINX */
 }
