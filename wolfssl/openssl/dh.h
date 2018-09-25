@@ -66,6 +66,10 @@ typedef WOLFSSL_DH DH;
 #define DH_compute_key  wolfSSL_DH_compute_key
 #define get_rfc3526_prime_1536 wolfSSL_DH_1536_prime
 
+#define DH_GENERATOR_2                  2
+#define DH_CHECK_P_NOT_PRIME            0x01
+#define DH_CHECK_P_NOT_SAFE_PRIME       0x02
+#define DH_NOT_SUITABLE_GENERATOR       0x08
 
 #ifdef __cplusplus
     }  /* extern "C" */
