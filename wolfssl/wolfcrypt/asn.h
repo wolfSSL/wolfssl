@@ -104,6 +104,7 @@ enum ASN_Tags {
 
 #define ASN_UTC_TIME_SIZE 14
 #define ASN_GENERALIZED_TIME_SIZE 16
+#define ASN_GENERALIZED_TIME_MAX 68
 
 enum DN_Tags {
     ASN_COMMON_NAME   = 0x03,   /* CN */

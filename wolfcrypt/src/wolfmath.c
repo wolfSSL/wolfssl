@@ -97,7 +97,7 @@ int get_rand_digit(WC_RNG* rng, mp_digit* d)
 int mp_rand(mp_int* a, int digits, WC_RNG* rng)
 {
     int ret = 0;
-    DECLARE_VAR(d, mp_digit, 1, rng->heap);
+    DECLARE_VAR(d, mp_digit, 1, rng ? rng->heap : NULL);
 
     if (rng == NULL) {
         ret = MISSING_RNG_E; goto exit;
@@ -141,7 +141,7 @@ int mp_rand(mp_int* a, int digits, WC_RNG* rng)
     }
 
 exit:
-    FREE_VAR(d, rng->heap);
+    FREE_VAR(d, rng ? rng->heap : NULL);
 
     return ret;
 }

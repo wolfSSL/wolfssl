@@ -3,20 +3,21 @@
 default_ca = CA_default
 
 [ CA_default ]
-# Directory and file locations.
+# Directory and file locations relevant to where the script is executing
 dir               = .
-certs             = $dir/certs
-new_certs_dir     = $dir/certs
-database          = $dir/certs/ecc/index.txt
-serial            = $dir/certs/ecc/serial
+certs             = $dir/../
+new_certs_dir     = $dir/../
+database          = $dir/../ecc/index.txt
+serial            = $dir/../ecc/serial
+# This should come from the system disregard local pathing
 RANDFILE          = $dir/private/.rand
 
 # The root key and root certificate.
-private_key       = $dir/certs/ca-ecc-key.pem
-certificate       = $dir/certs/ca-ecc-cert.pem
+private_key       = $dir/../ca-ecc-key.pem
+certificate       = $dir/../ca-ecc-cert.pem
 
 # For certificate revocation lists.
-crlnumber         = $dir/certs/ecc/crlnumber
+crlnumber         = $dir/../ecc/crlnumber
 crl_extensions    = crl_ext
 default_crl_days  = 1000
 

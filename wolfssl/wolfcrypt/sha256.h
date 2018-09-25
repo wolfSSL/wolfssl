@@ -80,6 +80,9 @@
 #ifdef WOLFSSL_ASYNC_CRYPT
     #include <wolfssl/wolfcrypt/async.h>
 #endif
+#if defined(WOLFSSL_DEVCRYPTO) && defined(WOLFSSL_DEVCRYPTO_HASH)
+    #include <wolfssl/wolfcrypt/port/devcrypto/wc_devcrypto.h>
+#endif
 
 #if defined(_MSC_VER)
     #define SHA256_NOINLINE __declspec(noinline)
@@ -141,6 +144,12 @@ typedef struct wc_Sha256 {
 #endif /* WOLFSSL_ASYNC_CRYPT */
 #ifdef WOLFSSL_SMALL_STACK_CACHE
     word32* W;
+#endif
+#ifdef WOLFSSL_DEVCRYPTO_HASH
+    WC_CRYPTODEV ctx;
+    byte*  msg;
+    word32 used;
+    word32 len;
 #endif
 #endif
 } wc_Sha256;

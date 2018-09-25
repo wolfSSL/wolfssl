@@ -104,7 +104,7 @@
     typedef struct memoryList {
         memHint* head;
         memHint* tail;
-        uint32_t count;
+        word32   count;
     } memoryList;
 #endif
 

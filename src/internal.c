@@ -5322,12 +5322,12 @@ void FreeHandshakeResources(WOLFSSL* ssl)
 #endif
 #if defined(WOLFSSL_TLS13)
     #if !defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-                                                          || ssl->options.tls1_3
+        || ssl->options.tls1_3
     #elif !defined(HAVE_SESSION_TICKET)
-             || (ssl->options.tls1_3 && ssl->options.side == WOLFSSL_SERVER_END)
+        || (ssl->options.tls1_3 && ssl->options.side == WOLFSSL_SERVER_END)
     #endif
 #endif
-                                                                             ) {
+    ) {
         if (ssl->options.weOwnRng) {
             wc_FreeRng(ssl->rng);
             XFREE(ssl->rng, ssl->heap, DYNAMIC_TYPE_RNG);
@@ -10704,10 +10704,17 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                                 !defined(NO_ED25519_CLIENT_AUTH)
         if (ssl->options.resuming || !IsAtLeastTLSv1_2(ssl) ||
                                                IsAtLeastTLSv1_3(ssl->version)) {
-            ssl->options.cacheMessages = 0;
-            if (ssl->hsHashes->messages != NULL) {
-                XFREE(ssl->hsHashes->messages, ssl->heap, DYNAMIC_TYPE_HASHES);
-                ssl->hsHashes->messages = NULL;
+
+        #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
+            if (ret != WC_PENDING_E && ret != OCSP_WANT_READ)
+        #endif
+            {
+                ssl->options.cacheMessages = 0;
+                if (ssl->hsHashes->messages != NULL) {
+                    XFREE(ssl->hsHashes->messages, ssl->heap,
+                        DYNAMIC_TYPE_HASHES);
+                    ssl->hsHashes->messages = NULL;
+                }
             }
         }
     #endif
@@ -10776,10 +10783,15 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
                                                 !defined(NO_ED25519_CLIENT_AUTH)
         if (ssl->options.resuming || !ssl->options.verifyPeer || \
                      !IsAtLeastTLSv1_2(ssl) || IsAtLeastTLSv1_3(ssl->version)) {
-            ssl->options.cacheMessages = 0;
-            if (ssl->hsHashes->messages != NULL) {
-                XFREE(ssl->hsHashes->messages, ssl->heap, DYNAMIC_TYPE_HASHES);
-                ssl->hsHashes->messages = NULL;
+        #if defined(WOLFSSL_ASYNC_CRYPT) || defined(WOLFSSL_NONBLOCK_OCSP)
+            if (ret != WC_PENDING_E && ret != OCSP_WANT_READ)
+        #endif
+            {
+                ssl->options.cacheMessages = 0;
+                if (ssl->hsHashes->messages != NULL) {
+                    XFREE(ssl->hsHashes->messages, ssl->heap, DYNAMIC_TYPE_HASHES);
+                    ssl->hsHashes->messages = NULL;
+                }
             }
         }
     #endif
@@ -18075,7 +18087,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     }
 
                     ssl->buffers.serverDH_P.buffer = (byte*)XMALLOC(length,
-                                                ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                                            ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                     if (ssl->buffers.serverDH_P.buffer) {
                         ssl->buffers.serverDH_P.length = length;
                     }
@@ -18102,7 +18114,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     }
 
                     ssl->buffers.serverDH_G.buffer = (byte*)XMALLOC(length,
-                                                ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                                            ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                     if (ssl->buffers.serverDH_G.buffer) {
                         ssl->buffers.serverDH_G.length = length;
                     }
@@ -18129,7 +18141,7 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                     }
 
                     ssl->buffers.serverDH_Pub.buffer = (byte*)XMALLOC(length,
-                                                ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
+                                            ssl->heap, DYNAMIC_TYPE_PUBLIC_KEY);
                     if (ssl->buffers.serverDH_Pub.buffer) {
                         ssl->buffers.serverDH_Pub.length = length;
                     }
@@ -18480,11 +18492,15 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                                 args->sigSz = (word16)ret;
                                 ret = 0;
                             }
-
-                            /* peerRsaKey */
-                            FreeKey(ssl, DYNAMIC_TYPE_RSA,
+                        #ifdef WOLFSSL_ASYNC_CRYPT
+                            if (ret != WC_PENDING_E)
+                        #endif
+                            {
+                                /* peerRsaKey */
+                                FreeKey(ssl, DYNAMIC_TYPE_RSA,
                                                       (void**)&ssl->peerRsaKey);
-                            ssl->peerRsaKeyPresent = 0;
+                                ssl->peerRsaKeyPresent = 0;
+                            }
                             break;
                         }
                     #endif /* !NO_RSA */
@@ -18503,10 +18519,15 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                             #endif
                             );
 
-                            /* peerEccDsaKey */
-                            FreeKey(ssl, DYNAMIC_TYPE_ECC,
+                        #ifdef WOLFSSL_ASYNC_CRYPT
+                            if (ret != WC_PENDING_E)
+                        #endif
+                            {
+                                /* peerEccDsaKey */
+                                FreeKey(ssl, DYNAMIC_TYPE_ECC,
                                                    (void**)&ssl->peerEccDsaKey);
-                            ssl->peerEccDsaKeyPresent = 0;
+                                ssl->peerEccDsaKeyPresent = 0;
+                            }
                             break;
                         }
                     #endif /* HAVE_ECC */
@@ -18525,10 +18546,15 @@ static int DoServerKeyExchange(WOLFSSL* ssl, const byte* input,
                             #endif
                             );
 
-                            /* peerEccDsaKey */
-                            FreeKey(ssl, DYNAMIC_TYPE_ED25519,
+                        #ifdef WOLFSSL_ASYNC_CRYPT
+                            if (ret != WC_PENDING_E)
+                        #endif
+                            {
+                                /* peerEccDsaKey */
+                                FreeKey(ssl, DYNAMIC_TYPE_ED25519,
                                                   (void**)&ssl->peerEd25519Key);
-                            ssl->peerEd25519KeyPresent = 0;
+                                ssl->peerEd25519KeyPresent = 0;
+                            }
                             break;
                         }
                     #endif /* HAVE_ED25519 */
@@ -19777,7 +19803,11 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                             &ssl->arrays->preMasterSz,
                             WOLFSSL_CLIENT_END
                         );
-                        if (ret == 0 && !ssl->specs.static_ecdh) {
+                        if (!ssl->specs.static_ecdh
+                        #ifdef WOLFSSL_ASYNC_CRYPT
+                            && ret != WC_PENDING_E
+                        #endif
+                        ) {
                             FreeKey(ssl, DYNAMIC_TYPE_CURVE25519,
                                                    (void**)&ssl->peerX25519Key);
                             ssl->peerX25519KeyPresent = 0;
@@ -19792,7 +19822,10 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         &ssl->arrays->preMasterSz,
                         WOLFSSL_CLIENT_END
                     );
-                    if (ret == 0) {
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                    if (ret != WC_PENDING_E)
+                #endif
+                    {
                         FreeKey(ssl, DYNAMIC_TYPE_ECC,
                                                       (void**)&ssl->peerEccKey);
                         ssl->peerEccKeyPresent = 0;
@@ -19842,7 +19875,11 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                             &ssl->arrays->preMasterSz,
                             WOLFSSL_CLIENT_END
                         );
-                        if (ret == 0 && !ssl->specs.static_ecdh) {
+                        if (!ssl->specs.static_ecdh
+                        #ifdef WOLFSSL_ASYNC_CRYPT
+                            && ret != WC_PENDING_E
+                        #endif
+                        ) {
                             FreeKey(ssl, DYNAMIC_TYPE_CURVE25519,
                                                    (void**)&ssl->peerX25519Key);
                             ssl->peerX25519KeyPresent = 0;
@@ -19861,7 +19898,11 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                         &ssl->arrays->preMasterSz,
                         WOLFSSL_CLIENT_END
                     );
-                    if (ret == 0 && !ssl->specs.static_ecdh) {
+                    if (!ssl->specs.static_ecdh
+                #ifdef WOLFSSL_ASYNC_CRYPT
+                        && ret != WC_PENDING_E
+                #endif
+                    ) {
                         FreeKey(ssl, DYNAMIC_TYPE_ECC,
                                                       (void**)&ssl->peerEccKey);
                         ssl->peerEccKeyPresent = 0;
@@ -25105,7 +25146,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             &ssl->arrays->preMasterSz,
                             WOLFSSL_SERVER_END
                         );
-                        if (ret == 0) {
+                    #ifdef WOLFSSL_ASYNC_CRYPT
+                        if (ret != WC_PENDING_E)
+                    #endif
+                        {
                             FreeKey(ssl, DYNAMIC_TYPE_ECC,
                                                       (void**)&ssl->peerEccKey);
                             ssl->peerEccKeyPresent = 0;
@@ -25154,7 +25198,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                 &args->sigSz,
                                 WOLFSSL_SERVER_END
                             );
-                            if (ret == 0) {
+                        #ifdef WOLFSSL_ASYNC_CRYPT
+                            if (ret != WC_PENDING_E)
+                        #endif
+                            {
                                 FreeKey(ssl, DYNAMIC_TYPE_CURVE25519,
                                                    (void**)&ssl->peerX25519Key);
                                 ssl->peerX25519KeyPresent = 0;
@@ -25170,7 +25217,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             &args->sigSz,
                             WOLFSSL_SERVER_END
                         );
-                        if (ret == 0 && !ssl->specs.static_ecdh) {
+                        if (!ssl->specs.static_ecdh
+                    #ifdef WOLFSSL_ASYNC_CRYPT
+                            && ret != WC_PENDING_E
+                    #endif
+                        ) {
                             FreeKey(ssl, DYNAMIC_TYPE_ECC,
                                                       (void**)&ssl->peerEccKey);
                             ssl->peerEccKeyPresent = 0;

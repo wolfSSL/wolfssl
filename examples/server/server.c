@@ -1110,7 +1110,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 
 #ifdef HAVE_NTRU
     if (useNtruKey) {
-        if (SSL_CTX_use_NTRUPrivateKey_file(ctx, ourKey)
+        if (wolfSSL_CTX_use_NTRUPrivateKey_file(ctx, ourKey)
                                 != WOLFSSL_SUCCESS)
             err_sys_ex(runWithErrors, "can't load ntru key file, "
                     "Please run from wolfSSL home dir");

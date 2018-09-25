@@ -73,6 +73,10 @@
 #include <sys/socket.h>
 #endif
 
+#if defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC)
+#include <wolfssl/wolfcrypt/port/devcrypto/wc_devcrypto.h>
+#endif
+
 #if defined(HAVE_AESGCM) && !defined(WC_NO_RNG)
     #include <wolfssl/wolfcrypt/random.h>
 #endif
@@ -115,7 +119,11 @@ enum {
     CCM_NONCE_MIN_SZ = 7,
     CCM_NONCE_MAX_SZ = 13,
     CTR_SZ   = 4,
-    AES_IV_FIXED_SZ = 4
+    AES_IV_FIXED_SZ = 4,
+
+#ifdef HAVE_PKCS11
+    AES_MAX_ID_LEN   = 32,
+#endif
 };
 
 
@@ -142,6 +150,13 @@ typedef struct Aes {
 #ifdef WOLFSSL_AESNI
     byte use_aesni;
 #endif /* WOLFSSL_AESNI */
+#ifdef WOLF_CRYPTO_DEV
+    int   devId;
+#endif
+#ifdef HAVE_PKCS11
+    byte id[AES_MAX_ID_LEN];
+    int  idLen;
+#endif
 #ifdef WOLFSSL_ASYNC_CRYPT
     word32 asyncKey[AES_MAX_KEY_SIZE/8/sizeof(word32)]; /* raw key */
     word32 asyncIv[AES_BLOCK_SIZE/sizeof(word32)]; /* raw IV */
@@ -161,6 +176,11 @@ typedef struct Aes {
     int rdFd; /* socket to read from */
     struct msghdr msg;
     int dir;  /* flag for encrpyt or decrypt */
+#endif
+#if defined(WOLFSSL_DEVCRYPTO) && \
+    (defined(WOLFSSL_DEVCRYPTO_AES) || defined(WOLFSSL_DEVCRYPTO_CBC))
+    word32       devKey[AES_MAX_KEY_SIZE/WOLFSSL_BIT_SIZE/sizeof(word32)]; /* raw key */
+    WC_CRYPTODEV ctx;
 #endif
     void*  heap; /* memory hint to use */
 } Aes;
@@ -328,8 +348,12 @@ WOLFSSL_API int wc_AesXtsFree(XtsAes* aes);
 
 WOLFSSL_API int wc_AesGetKeySize(Aes* aes, word32* keySize);
 
-WOLFSSL_API int  wc_AesInit(Aes*, void*, int);
-WOLFSSL_API void wc_AesFree(Aes*);
+WOLFSSL_API int  wc_AesInit(Aes* aes, void* heap, int devId);
+#ifdef HAVE_PKCS11
+WOLFSSL_API int  wc_AesInit_Id(Aes* aes, unsigned char* id, int len, void* heap,
+        int devId);
+#endif
+WOLFSSL_API void wc_AesFree(Aes* aes);
 
 #ifdef __cplusplus
     } /* extern "C" */

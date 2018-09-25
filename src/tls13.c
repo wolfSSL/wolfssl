@@ -5362,7 +5362,13 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
                     (RsaKey*)ssl->hsKey,
                     ssl->buffers.key
                 );
-                args->length = (word16)args->sigLen;
+                if (ret == 0) {
+                    args->length = (word16)args->sigLen;
+
+                    XMEMCPY(args->sigData,
+                        args->verify + HASH_SIG_SIZE + VERIFY_HEADER,
+                        args->sigLen);
+                }
             }
         #endif /* !NO_RSA */
 
@@ -5383,10 +5389,6 @@ static int SendTls13CertificateVerify(WOLFSSL* ssl)
         {
         #ifndef NO_RSA
             if (ssl->hsType == DYNAMIC_TYPE_RSA) {
-                XMEMCPY(args->sigData,
-                    args->verify + HASH_SIG_SIZE + VERIFY_HEADER,
-                    args->sigLen);
-
                 /* check for signature faults */
                 ret = VerifyRsaSign(ssl, args->sigData, args->sigLen,
                     sig->buffer, sig->length, args->sigAlgo,

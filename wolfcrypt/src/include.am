@@ -65,10 +65,23 @@ EXTRA_DIST += wolfcrypt/src/port/ti/ti-aes.c \
               wolfcrypt/src/port/st/stsafe.c \
               wolfcrypt/src/port/st/README.md \
               wolfcrypt/src/port/af_alg/afalg_aes.c \
-              wolfcrypt/src/port/af_alg/afalg_hash.c
+              wolfcrypt/src/port/af_alg/afalg_hash.c \
+              wolfcrypt/src/port/devcrypto/devcrypto_hash.c \
+              wolfcrypt/src/port/devcrypto/wc_devcrypto.c \
+              wolfcrypt/src/port/devcrypto/README.md
 
 if BUILD_CRYPTODEV
 src_libwolfssl_la_SOURCES += wolfcrypt/src/cryptodev.c
+endif
+
+if BUILD_PKCS11
+src_libwolfssl_la_SOURCES += wolfcrypt/src/wc_pkcs11.c
+endif
+
+if BUILD_DEVCRYPTO
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/devcrypto/devcrypto_hash.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/devcrypto/devcrypto_aes.c
+src_libwolfssl_la_SOURCES += wolfcrypt/src/port/devcrypto/wc_devcrypto.c
 endif
 
 if BUILD_CAVIUM

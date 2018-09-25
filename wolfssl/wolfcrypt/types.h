@@ -282,10 +282,10 @@
     /* declare/free variable handling for async */
     #ifdef WOLFSSL_ASYNC_CRYPT
         #define DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) \
-            VAR_TYPE* VAR_NAME = (VAR_TYPE*)XMALLOC(sizeof(VAR_TYPE) * VAR_SIZE, HEAP, DYNAMIC_TYPE_WOLF_BIGINT);
+            VAR_TYPE* VAR_NAME = (VAR_TYPE*)XMALLOC(sizeof(VAR_TYPE) * VAR_SIZE, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT);
         #define DECLARE_VAR_INIT(VAR_NAME, VAR_TYPE, VAR_SIZE, INIT_VALUE, HEAP) \
             VAR_TYPE* VAR_NAME = ({ \
-                VAR_TYPE* ptr = (VAR_TYPE*)XMALLOC(sizeof(VAR_TYPE) * VAR_SIZE, HEAP, DYNAMIC_TYPE_WOLF_BIGINT); \
+                VAR_TYPE* ptr = (VAR_TYPE*)XMALLOC(sizeof(VAR_TYPE) * VAR_SIZE, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT); \
                 if (ptr && INIT_VALUE) { \
                     XMEMCPY(ptr, INIT_VALUE, sizeof(VAR_TYPE) * VAR_SIZE); \
                 } \
@@ -295,13 +295,13 @@
             VAR_TYPE* VAR_NAME[VAR_ITEMS]; \
             int idx##VAR_NAME; \
             for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
-                VAR_NAME[idx##VAR_NAME] = (VAR_TYPE*)XMALLOC(VAR_SIZE, HEAP, DYNAMIC_TYPE_WOLF_BIGINT); \
+                VAR_NAME[idx##VAR_NAME] = (VAR_TYPE*)XMALLOC(VAR_SIZE, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT); \
             }
         #define FREE_VAR(VAR_NAME, HEAP) \
-            XFREE(VAR_NAME, HEAP, DYNAMIC_TYPE_WOLF_BIGINT);
+            XFREE(VAR_NAME, (HEAP), DYNAMIC_TYPE_WOLF_BIGINT);
         #define FREE_ARRAY(VAR_NAME, VAR_ITEMS, HEAP) \
             for (idx##VAR_NAME=0; idx##VAR_NAME<VAR_ITEMS; idx##VAR_NAME++) { \
-                XFREE(VAR_NAME[idx##VAR_NAME], HEAP, DYNAMIC_TYPE_WOLF_BIGINT); \
+                XFREE(VAR_NAME[idx##VAR_NAME], (HEAP), DYNAMIC_TYPE_WOLF_BIGINT); \
             }
     #else
         #define DECLARE_VAR(VAR_NAME, VAR_TYPE, VAR_SIZE, HEAP) \
@@ -575,8 +575,10 @@
         WC_PK_TYPE_ECDSA_VERIFY = 5,
         WC_PK_TYPE_ED25519 = 6,
         WC_PK_TYPE_CURVE25519 = 7,
+        WC_PK_TYPE_RSA_KEYGEN = 8,
+        WC_PK_TYPE_EC_KEYGEN = 9,
 
-        WC_PK_TYPE_MAX = WC_PK_TYPE_CURVE25519
+        WC_PK_TYPE_MAX = WC_PK_TYPE_EC_KEYGEN
     };
 
 
