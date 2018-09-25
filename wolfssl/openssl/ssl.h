@@ -811,8 +811,10 @@ typedef STACK_OF(WOLFSSL_ASN1_OBJECT) GENERAL_NAMES;
 
 #define SSL_CTRL_GET_EXTRA_CHAIN_CERTS          82
 
-#define SSL_ctrl                        wolfSSL_ctrl
-#define SSL_CTX_ctrl                    wolfSSL_CTX_ctrl
+#define SSL_CTRL_GET_SESSION_REUSED             0
+
+#define SSL_ctrl     wolfSSL_ctrl
+#define SSL_CTX_ctrl wolfSSL_CTX_ctrl
 
 #define SSL3_RANDOM_SIZE                32 /* same as RAN_LEN in internal.h */
 #if defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || defined(OPENSSL_EXTRA) \
@@ -927,28 +929,46 @@ typedef STACK_OF(WOLFSSL_ASN1_OBJECT) GENERAL_NAMES;
 #define SSL_CTRL_SET_TLSEXT_TICKET_KEY_CB 72
 #endif
 
-#define OPENSSL_config	                wolfSSL_OPENSSL_config
-#define OPENSSL_memdup                  wolfSSL_OPENSSL_memdup
-#define SSL_CTX_get_timeout             wolfSSL_SSL_CTX_get_timeout
-#define SSL_CTX_set_tmp_ecdh            wolfSSL_SSL_CTX_set_tmp_ecdh
-#define SSL_CTX_remove_session          wolfSSL_SSL_CTX_remove_session
-#define SSL_get_rbio                    wolfSSL_SSL_get_rbio
-#define SSL_get_wbio                    wolfSSL_SSL_get_wbio
-#define SSL_do_handshake                wolfSSL_SSL_do_handshake
-#define SSL_in_init                     wolfSSL_SSL_in_init
-#define SSL_get0_session                wolfSSL_SSL_get0_session
-#define SSL_CTX_set_tlsext_ticket_key_cb wolfSSL_CTX_set_tlsext_ticket_key_cb
-#define SSL_CTX_set_tlsext_status_cb    wolfSSL_CTX_set_tlsext_status_cb
-#define SSL_CTX_get_extra_chain_certs   wolfSSL_CTX_get_extra_chain_certs
-#define sk_OPENSSL_STRING_value         wolfSSL_sk_WOLFSSL_STRING_value
-#define SSL_get0_alpn_selected          wolfSSL_get0_alpn_selected
-#define SSL_select_next_proto           wolfSSL_select_next_proto
-#define SSL_CTX_set_alpn_select_cb      wolfSSL_CTX_set_alpn_select_cb
-#define SSL_CTX_set_next_protos_advertised_cb  wolfSSL_CTX_set_next_protos_advertised_cb
-#define SSL_CTX_set_next_proto_select_cb wolfSSL_CTX_set_next_proto_select_cb
-#define SSL_get0_next_proto_negotiated  wolfSSL_get0_next_proto_negotiated
-#define SSL_is_server                   wolfSSL_is_server
-#define SSL_CTX_set1_curves_list        wolfSSL_CTX_set1_curves_list
+#define OPENSSL_config	                  wolfSSL_OPENSSL_config
+#define OPENSSL_memdup                    wolfSSL_OPENSSL_memdup
+#define X509_get_ex_new_index             wolfSSL_X509_get_ex_new_index
+#define X509_get_ex_data                  wolfSSL_X509_get_ex_data
+#define X509_set_ex_data                  wolfSSL_X509_set_ex_data
+#define X509_NAME_digest                  wolfSSL_X509_NAME_digest
+#define SSL_CTX_get_timeout               wolfSSL_SSL_CTX_get_timeout
+#define SSL_CTX_set_tmp_ecdh              wolfSSL_SSL_CTX_set_tmp_ecdh
+#define SSL_CTX_remove_session            wolfSSL_SSL_CTX_remove_session
+#define SSL_get_rbio                      wolfSSL_SSL_get_rbio
+#define SSL_get_wbio                      wolfSSL_SSL_get_wbio
+#define SSL_do_handshake                  wolfSSL_SSL_do_handshake
+#define SSL_in_init                       wolfSSL_SSL_in_init
+#define SSL_get0_session                  wolfSSL_SSL_get0_session
+#define X509_check_host                   wolfSSL_X509_check_host
+#define i2a_ASN1_INTEGER                  wolfSSL_i2a_ASN1_INTEGER
+#define i2c_ASN1_INTEGER                  wolfSSL_i2c_ASN1_INTEGER
+#define ERR_peek_error_line_data          wolfSSL_ERR_peek_error_line_data
+#define ERR_load_BIO_strings              wolfSSL_ERR_load_BIO_strings
+#define SSL_CTX_set_tlsext_ticket_key_cb  wolfSSL_CTX_set_tlsext_ticket_key_cb
+#define X509_email_free                   wolfSSL_X509_email_free
+#define X509_get1_ocsp                    wolfSSL_X509_get1_ocsp
+#define SSL_CTX_set_tlsext_status_cb      wolfSSL_CTX_set_tlsext_status_cb
+#define X509_check_issued                 wolfSSL_X509_check_issued
+#define X509_dup                          wolfSSL_X509_dup
+#define X509_STORE_CTX_new                wolfSSL_X509_STORE_CTX_new
+#define X509_STORE_CTX_free               wolfSSL_X509_STORE_CTX_free
+#define X509_STORE_CTX_verify_cb          wolfSSL_X509_STORE_CTX_verify_cb
+#define SSL_CTX_get_extra_chain_certs     wolfSSL_CTX_get_extra_chain_certs
+#define X509_STORE_CTX_get1_issuer        wolfSSL_X509_STORE_CTX_get1_issuer
+#define sk_OPENSSL_STRING_value           wolfSSL_sk_WOLFSSL_STRING_value
+#define SSL_get0_alpn_selected            wolfSSL_get0_alpn_selected
+#define SSL_select_next_proto             wolfSSL_select_next_proto
+#define SSL_CTX_set_alpn_select_cb        wolfSSL_CTX_set_alpn_select_cb
+#define SSL_CTX_set_next_protos_advertised_cb wolfSSL_CTX_set_next_protos_advertised_cb
+#define SSL_CTX_set_next_proto_select_cb  wolfSSL_CTX_set_next_proto_select_cb
+#define SSL_get0_next_proto_negotiated    wolfSSL_get0_next_proto_negotiated
+#define SSL_is_server                     wolfSSL_is_server
+#define SSL_CTX_set1_curves_list          wolfSSL_CTX_set1_curves_list
+>>>>>>> f2d1c7d4c... Add placeholder defines and stubs
 
 #endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY || WOLFSSL_MYSQL_COMPATIBLE || 
           OPENSSL_ALL || HAVE_LIGHTY */

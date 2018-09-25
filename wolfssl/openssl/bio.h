@@ -48,6 +48,8 @@
 #define BIO_TYPE_MEM  WOLFSSL_BIO_MEMORY
 #define BIO_TYPE_BASE64 WOLFSSL_BIO_BASE64
 
+#define BIO_CTRL_PENDING BIO_CTRL_WPENDING
+
 
 #ifdef __cplusplus
     }  /* extern "C" */ 
@@ -55,4 +57,3 @@
 
 
 #endif /* WOLFSSL_BIO_H_ */
-
