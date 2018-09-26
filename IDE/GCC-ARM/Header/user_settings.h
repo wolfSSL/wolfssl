@@ -48,9 +48,6 @@ extern "C" {
 /* ------------------------------------------------------------------------- */
 /* Math Configuration */
 /* ------------------------------------------------------------------------- */
-#undef  USE_FAST_MATH
-#define USE_FAST_MATH
-
 #undef  SIZEOF_LONG_LONG
 #define SIZEOF_LONG_LONG 8
 
