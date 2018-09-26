@@ -8163,6 +8163,7 @@ static WC_INLINE int RestoreCertRow(WOLFSSL_CERT_MANAGER* cm, byte* current,
 
     while (listSz) {
         Signer* signer;
+        byte*   publicKey;
         byte*   start = current + idx;  /* for end checks on this signer */
         int     minSz = sizeof(signer->pubKeySize) + sizeof(signer->keyOID) +
                       sizeof(signer->nameLen) + sizeof(signer->subjectNameHash);
@@ -8192,14 +8193,15 @@ static WC_INLINE int RestoreCertRow(WOLFSSL_CERT_MANAGER* cm, byte* current,
             FreeSigner(signer, cm->heap);
             return BUFFER_E;
         }
-        signer->publicKey = (byte*)XMALLOC(signer->pubKeySize, cm->heap,
-                                           DYNAMIC_TYPE_KEY);
-        if (signer->publicKey == NULL) {
+        publicKey = (byte*)XMALLOC(signer->pubKeySize, cm->heap,
+                                   DYNAMIC_TYPE_KEY);
+        if (publicKey == NULL) {
             FreeSigner(signer, cm->heap);
             return MEMORY_E;
         }
 
-        XMEMCPY(signer->publicKey, current + idx, signer->pubKeySize);
+        XMEMCPY(publicKey, current + idx, signer->pubKeySize);
+        signer->publicKey = publicKey;
         idx += signer->pubKeySize;
 
         /* nameLen */
@@ -15502,7 +15504,7 @@ void wolfSSL_ASN1_OBJECT_free(WOLFSSL_ASN1_OBJECT* obj)
     if (obj->dynamic == 1) {
         if (obj->obj != NULL) {
             WOLFSSL_MSG("Freeing ASN1 OBJECT data");
-            XFREE(obj->obj, obj->heap, DYNAMIC_TYPE_ASN1);
+            XFREE((void*)obj->obj, obj->heap, DYNAMIC_TYPE_ASN1);
         }
     }
 
@@ -30170,7 +30172,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             wolfSSL_ASN1_OBJECT_free(obj);
             return NULL;
         }
-        XMEMCPY(obj->obj, objBuf, obj->objSz);
+        XMEMCPY((byte*)obj->obj, objBuf, obj->objSz);
 
         (void)type;
 
