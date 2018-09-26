@@ -970,7 +970,7 @@ typedef STACK_OF(WOLFSSL_ASN1_OBJECT) GENERAL_NAMES;
 #define X509_dup                          wolfSSL_X509_dup
 #define X509_STORE_CTX_new                wolfSSL_X509_STORE_CTX_new
 #define X509_STORE_CTX_free               wolfSSL_X509_STORE_CTX_free
-#define X509_STORE_CTX_verify_cb          wolfSSL_X509_STORE_CTX_verify_cb
+#define X509_STORE_CTX_verify_cb          WOLFSSL_X509_STORE_CTX_verify_cb
 #define SSL_CTX_get_extra_chain_certs     wolfSSL_CTX_get_extra_chain_certs
 #define X509_STORE_CTX_get1_issuer        wolfSSL_X509_STORE_CTX_get1_issuer
 #define sk_OPENSSL_STRING_value           wolfSSL_sk_WOLFSSL_STRING_value

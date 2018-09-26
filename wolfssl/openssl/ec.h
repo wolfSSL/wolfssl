@@ -102,10 +102,16 @@ struct WOLFSSL_EC_KEY {
     char           exSet;        /* external set from internal ? */
 };
 
-struct wolfSSL_EC_builtin_curve {
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
 
+struct wolfSSL_EC_builtin_curve {
+    int nid;
+    const char *comment;
 };
+typedef struct wolfSSL_EC_builtin_curve wolfSSL_EC_builtin_curve;
 #define EC_builtin_curve wolfSSL_EC_builtin_curve
+
+#endif /* WOLFSSL_QT */
 
 #define WOLFSSL_EC_KEY_LOAD_PRIVATE 1
 #define WOLFSSL_EC_KEY_LOAD_PUBLIC  2
