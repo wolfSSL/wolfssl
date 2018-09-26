@@ -3383,10 +3383,7 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
 #ifdef WOLFSSL_ATECC508A
    /* For SECP256R1 use hardware */
    if (private_key->dp->id == ECC_SECP256R1) {
-       err = atcatls_ecdh(private_key->slot, public_key->pubkey_raw, out);
-       if (err != ATCA_SUCCESS) {
-          err = BAD_COND_E;
-       }
+       err = atmel_ecc_create_pms(private_key->slot, public_key->pubkey_raw, out);
        *outlen = private_key->dp->size;
    }
    else {
@@ -3942,10 +3939,7 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
 
 #ifdef WOLFSSL_ATECC508A
    key->type = ECC_PRIVATEKEY;
-   err = atcatls_create_key(key->slot, key->pubkey_raw);
-   if (err != ATCA_SUCCESS) {
-      err = BAD_COND_E;
-   }
+   err = atmel_ecc_create_key(key->slot, key->pubkey_raw);
 
    /* populate key->pubkey */
    err = mp_read_unsigned_bin(key->pubkey.x, key->pubkey_raw,
@@ -4101,10 +4095,7 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
 #endif
 
 #ifdef WOLFSSL_ATECC508A
-    key->slot = atmel_ecc_alloc(ATMEL_SLOT_ANY);
-    if (key->slot == ATECC_INVALID_SLOT) {
-        return ECC_BAD_ARG_E;
-    }
+    key->slot = -1;
 #else
 #ifdef ALT_ECC_SIZE
     key->pubkey.x = (mp_int*)&key->pubkey.xyz[0];
@@ -4199,10 +4190,15 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
         }
 
     #if defined(WOLFSSL_ATECC508A)
+        key->slot = atmel_ecc_alloc(ATMEL_SLOT_DEVICE);
+        if (key->slot == ATECC_INVALID_SLOT) {
+            return ECC_BAD_ARG_E;
+        }
+
         /* Sign: Result is 32-bytes of R then 32-bytes of S */
-        err = atcatls_sign(key->slot, in, out);
-        if (err != ATCA_SUCCESS) {
-           return BAD_COND_E;
+        err = atmel_ecc_sign(key->slot, in, out);
+        if (err != 0) {
+           return err;
         }
     #elif defined(PLUTON_CRYPTO_ECC)
         {
@@ -5280,9 +5276,9 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
         return err;
     }
 
-    err = atcatls_verify(hash, sigRS, key->pubkey_raw, (bool*)res);
-    if (err != ATCA_SUCCESS) {
-       return BAD_COND_E;
+    err = atmel_ecc_verify(hash, sigRS, key->pubkey_raw, res);
+    if (err != 0) {
+       return err;
     }
     (void)hashlen;
 
@@ -6150,9 +6146,6 @@ int wc_ecc_check_key(ecc_key* key)
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_ATECC508A
-
-    if (key->slot == ATECC_INVALID_SLOT)
-        return ECC_BAD_ARG_E;
 
     err = 0; /* consider key check success on ATECC508A */
 
