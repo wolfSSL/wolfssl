@@ -557,7 +557,7 @@ int wolfSSL_BIO_gets(WOLFSSL_BIO* bio, char* buf, int sz)
     switch (bio->type) {
 #ifndef NO_FILESYSTEM
         case WOLFSSL_BIO_FILE:
-            if (bio->file == NULL) {
+            if (bio->file == XBADFILE) {
                 return WOLFSSL_BIO_ERROR;
             }
 
@@ -1068,7 +1068,7 @@ long wolfSSL_BIO_set_fp(WOLFSSL_BIO *bio, XFILE fp, int c)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_set_fp");
 
-    if (bio == NULL || fp == NULL) {
+    if (bio == NULL || fp == XBADFILE) {
         WOLFSSL_LEAVE("wolfSSL_BIO_set_fp", BAD_FUNC_ARG);
         return WOLFSSL_FAILURE;
     }
@@ -1088,7 +1088,7 @@ long wolfSSL_BIO_get_fp(WOLFSSL_BIO *bio, XFILE* fp)
 {
     WOLFSSL_ENTER("wolfSSL_BIO_get_fp");
 
-    if (bio == NULL || fp == NULL) {
+    if (bio == NULL || fp == XBADFILE) {
         return WOLFSSL_FAILURE;
     }
 
@@ -1111,12 +1111,12 @@ int wolfSSL_BIO_write_filename(WOLFSSL_BIO *bio, char *name)
     }
 
     if (bio->type == WOLFSSL_BIO_FILE) {
-        if (bio->file != NULL && bio->close == BIO_CLOSE) {
+        if (bio->file != XBADFILE && bio->close == BIO_CLOSE) {
             XFCLOSE(bio->file);
         }
 
         bio->file = XFOPEN(name, "w");
-        if (bio->file == NULL) {
+        if (bio->file == XBADFILE) {
             return WOLFSSL_FAILURE;
         }
         bio->close = BIO_CLOSE;

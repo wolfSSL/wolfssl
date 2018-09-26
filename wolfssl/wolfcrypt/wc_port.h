@@ -308,6 +308,8 @@ WOLFSSL_API int wolfCrypt_Cleanup(void);
     #define XSEEK_END  2
     #define XBADFILE   NULL
     #define XFGETS(b,s,f) -2 /* Not ported yet */
+#elif defined(WOLFSSL_USER_FILESYSTEM)
+    /* To be defined in user_settings.h */
 #else
     /* stdio, default case */
     #include <stdio.h>

@@ -538,6 +538,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define PEM_read_bio_X509 wolfSSL_PEM_read_bio_X509
 #define PEM_read_bio_X509_AUX wolfSSL_PEM_read_bio_X509_AUX
 #define PEM_read_X509_CRL wolfSSL_PEM_read_X509_CRL
+#define PEM_read_X509 wolfSSL_PEM_read_X509
 
 /*#if OPENSSL_API_COMPAT < 0x10100000L*/
 #define CONF_modules_free()
@@ -582,20 +583,6 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define X509_check_private_key wolfSSL_X509_check_private_key
 #define SSL_dup_CA_list wolfSSL_dup_CA_list
 #define X509_check_ca   wolfSSL_X509_check_ca
-
-
-/* NIDs */
-enum {
-    NID_des    = 66,
-    NID_des3   = 67,
-    NID_sha256 = 672,
-    NID_sha384 = 673,
-    NID_sha512 = 674,
-    NID_hw_name_oid = 73,
-    NID_id_pkix_OCSP_basic = 74,
-    NID_any_policy = 75,
-    NID_anyExtendedKeyUsage = 76,
-};
 
 enum {
     GEN_DNS   = 0x02, /* ASN_DNS_TYPE */
@@ -783,7 +770,6 @@ typedef STACK_OF(WOLFSSL_ASN1_OBJECT) GENERAL_NAMES;
 
 #define SSL_CTX_flush_sessions           wolfSSL_flush_sessions
 #define SSL_CTX_add_session              wolfSSL_CTX_add_session
-#define SSL_get_SSL_CTX                  wolfSSL_get_SSL_CTX
 #define SSL_version                      wolfSSL_version
 #define SSL_get_state                    wolfSSL_get_state
 #define SSL_state_string_long            wolfSSL_state_string_long
@@ -824,37 +810,6 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #endif /* HAVE_STUNNEL || WOLFSSL_NGINX */
 #define SSL_CTX_get_default_passwd_cb          wolfSSL_CTX_get_default_passwd_cb
 #define SSL_CTX_get_default_passwd_cb_userdata wolfSSL_CTX_get_default_passwd_cb_userdata
-
-/* certificate extension NIDs */
-#define NID_basic_constraints         133
-#define NID_key_usage                 129  /* 2.5.29.15 */
-#define NID_ext_key_usage             151  /* 2.5.29.37 */
-#define NID_subject_key_identifier    128
-#define NID_authority_key_identifier  149
-#define NID_private_key_usage_period  130  /* 2.5.29.16 */
-#define NID_subject_alt_name          131
-#define NID_issuer_alt_name           132
-#define NID_info_access               69
-#define NID_sinfo_access              79  /* id-pe 11 */
-#define NID_name_constraints          144 /* 2.5.29.30 */
-#define NID_certificate_policies      146
-#define NID_policy_mappings           147
-#define NID_policy_constraints        150
-#define NID_inhibit_any_policy        168 /* 2.5.29.54 */
-#define NID_tlsfeature                92  /* id-pe 24 */
-#define NID_commonName 0x03 /* matchs ASN_COMMON_NAME in asn.h */
-#define NID_domainComponent 0x19
-                            /* matchs ASN_DOMAIN_COMPONENT in asn.h */
-
- /* matchs ASN_..._NAME in asn.h */
-#define NID_surname      0x04,   /* SN */
-#define NID_serialNumber 0x05,   /* serialNumber */
-#define NID_countryName  0x06,   /* C  */
-#define NID_localityName 0x07,   /* L  */
-#define NID_stateOrProvinceName    0x08,   /* ST */
-#define NID_organizationName       0x0a,   /* O  */
-#define NID_organizationalUnitName 0x0b,   /* OU */
-
 
 #define SSL_CTX_set_msg_callback        wolfSSL_CTX_set_msg_callback
 #define SSL_set_msg_callback            wolfSSL_set_msg_callback
@@ -924,7 +879,6 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define SSL_get0_session                  wolfSSL_SSL_get0_session
 #define X509_check_host                   wolfSSL_X509_check_host
 #define i2a_ASN1_INTEGER                  wolfSSL_i2a_ASN1_INTEGER
-#define i2c_ASN1_INTEGER                  wolfSSL_i2c_ASN1_INTEGER
 #define ERR_peek_error_line_data          wolfSSL_ERR_peek_error_line_data
 #define ERR_load_BIO_strings              wolfSSL_ERR_load_BIO_strings
 #define SSL_CTX_set_tlsext_ticket_key_cb  wolfSSL_CTX_set_tlsext_ticket_key_cb
@@ -950,10 +904,30 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY || WOLFSSL_MYSQL_COMPATIBLE || 
           OPENSSL_ALL || HAVE_LIGHTY */
 
+#ifdef OPENSSL_EXTRA
 #define X509_STORE_CTX_set_time           wolfSSL_X509_STORE_CTX_set_time
 #define SSL_CTX_add_client_CA             wolfSSL_CTX_add_client_CA
 #define SSL_CTX_set_srp_password          wolfSSL_CTX_set_srp_password
 #define SSL_CTX_set_srp_username          wolfSSL_CTX_set_srp_username
+#define i2c_ASN1_INTEGER                  wolfSSL_i2c_ASN1_INTEGER
+#define X509_NAME_ENTRY_get_object        wolfSSL_X509_NAME_ENTRY_get_object
+#define SSL_get_SSL_CTX                   wolfSSL_get_SSL_CTX
+#define ERR_peek_last_error               wolfSSL_ERR_peek_last_error
+#define X509_get_version                  wolfSSL_X509_get_version
+
+
+#define ERR_NUM_ERRORS                  16
+#define EVP_PKEY_RSA                    6 
+#define EVP_PKEY_RSA2                   19
+#define SN_pkcs9_emailAddress           "Email"
+#define LN_pkcs9_emailAddress           "emailAddress"
+#define NID_pkcs9_emailAddress          48
+#define OBJ_pkcs9_emailAddress          1L,2L,840L,113539L,1L,9L,1L
+
+#define SSL_get_rbio                      wolfSSL_SSL_get_rbio
+#define SSL_get_wbio                      wolfSSL_SSL_get_wbio
+#define SSL_do_handshake                  wolfSSL_SSL_do_handshake
+#endif  /* OPENSSL_EXTRA */
 
 #ifdef __cplusplus
     } /* extern "C" */

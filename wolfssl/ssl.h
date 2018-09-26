@@ -217,8 +217,11 @@ struct WOLFSSL_ASN1_OBJECT {
     char   sName[WOLFSSL_MAX_SNAME];
     int    type; /* oid */
     int    grp;  /* type of OID, i.e. oidCertPolicyType */
+    int    nid;
     unsigned int  objSz;
     unsigned char dynamic; /* if 1 then obj was dynamiclly created, 0 otherwise */
+    #define WOLFSSL_ASN1_DYNAMIC 0x1
+    #define WOLFSSL_ASN1_DYNAMIC_DATA 0x2
     struct d { /* derefrenced */
         WOLFSSL_ASN1_STRING  ia5_internal;
         WOLFSSL_ASN1_STRING* ia5; /* points to ia5_internal */
@@ -1173,8 +1176,6 @@ enum {
     BIO_FLAGS_BASE64_NO_NL = 1,
     BIO_CLOSE   = 1,
     BIO_NOCLOSE = 0,
-
-    NID_undef = 0,
 
     X509_FILETYPE_PEM = 8,
     X509_LU_X509      = 9,
@@ -2531,7 +2532,7 @@ WOLFSSL_API int wolfSSL_accept_ex(WOLFSSL*, HandShakeCallBack, TimeoutCallBack,
 
 #include <wolfssl/openssl/asn1.h>
 struct WOLFSSL_X509_NAME_ENTRY {
-    WOLFSSL_ASN1_OBJECT* object; /* not defined yet */
+    WOLFSSL_ASN1_OBJECT  object;  /* static object just for keeping grp, type */
     WOLFSSL_ASN1_STRING  data;
     WOLFSSL_ASN1_STRING* value;  /* points to data, for lighttpd port */
     int nid; /* i.e. ASN_COMMON_NAME */
@@ -2571,6 +2572,7 @@ WOLFSSL_API char* wolfSSL_OBJ_nid2ln(int n);
 WOLFSSL_API int wolfSSL_OBJ_txt2nid(const char *sn);
 
 WOLFSSL_API WOLFSSL_ASN1_OBJECT* wolfSSL_OBJ_nid2obj(int n);
+WOLFSSL_LOCAL WOLFSSL_ASN1_OBJECT* wolfSSL_OBJ_nid2obj_ex(int n, WOLFSSL_ASN1_OBJECT *arg_obj);
 WOLFSSL_API int wolfSSL_OBJ_obj2txt(char *buf, int buf_len, WOLFSSL_ASN1_OBJECT *a, int no_name);
 
 WOLFSSL_API void wolfSSL_OBJ_cleanup(void);
@@ -2800,7 +2802,7 @@ WOLFSSL_API void wolfSSL_ERR_remove_thread_state(void*);
 #define WOLFSSL_ERR_remove_thread_state wolfSSL_ERR_remove_thread_state
 
 #ifndef NO_FILESYSTEM
-WOLFSSL_API void wolfSSL_print_all_errors_fp(XFILE *fp);
+WOLFSSL_API void wolfSSL_print_all_errors_fp(XFILE fp);
 #endif
 
 WOLFSSL_API void wolfSSL_THREADID_set_callback(void (*threadid_func)(void*));
@@ -2990,9 +2992,13 @@ WOLFSSL_API void wolfSSL_EC_POINT_dump(const char *msg, const WOLFSSL_EC_POINT *
 
 WOLFSSL_API const char *wolfSSL_ASN1_tag2str(int tag);
 WOLFSSL_API int wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str, unsigned long flags);
+WOLFSSL_API int wolfSSL_ASN1_TIME_get_length(WOLFSSL_ASN1_TIME *t);
+WOLFSSL_API unsigned char* wolfSSL_ASN1_TIME_get_data(WOLFSSL_ASN1_TIME *t);
 WOLFSSL_API WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_to_generalizedtime(WOLFSSL_ASN1_TIME *t,
                                                                 WOLFSSL_ASN1_TIME **out);
 WOLFSSL_API int wolfSSL_i2c_ASN1_INTEGER(WOLFSSL_ASN1_INTEGER *a, unsigned char **pp);
+WOLFSSL_API int wolfSSL_X509_CA_num(WOLFSSL_X509_STORE *store);
+WOLFSSL_API long wolfSSL_X509_get_version(const WOLFSSL_X509 *x);
 #endif /* OPENSSL_EXTRA */
 
 #ifdef HAVE_PK_CALLBACKS

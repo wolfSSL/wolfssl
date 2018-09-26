@@ -407,7 +407,7 @@ static const bench_alg bench_other_opt[] = {
 #endif
 
 #if defined(WOLFSSL_MDK_ARM)
-    extern FILE * wolfSSL_fopen(const char *fname, const char *mode);
+    extern XFILE wolfSSL_fopen(const char *fname, const char *mode);
     #define fopen wolfSSL_fopen
 #endif
 
