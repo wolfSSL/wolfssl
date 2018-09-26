@@ -18391,6 +18391,11 @@ static void test_wolfSSL_ERR_put_error(void)
     /* Empty and free up all error nodes */
     ERR_clear_error();
 
+    /* Verify all nodes are cleared */
+    ERR_put_error(0,SYS_F_ACCEPT, 0, "this file", 0);
+    ERR_clear_error();
+    AssertIntEQ(ERR_get_error_line(&file, &line), 0);
+
     printf(resultFmt, passed);
     #endif
 }
