@@ -50,30 +50,18 @@
 
 #include <wolfssl/wolfcrypt/port/atmel/atmel.h>
 
-static int mAtcaInitDone = 0;
-
 #ifdef WOLFSSL_ATECC508A
 
-/* Free slot handling */
+static int mAtcaInitDone = 0;
+
+/* ATECC slotId handling */
 static atmel_slot_alloc_cb mSlotAlloc;
 static atmel_slot_dealloc_cb mSlotDealloc;
-static int mSlotList[ATECC_MAX_SLOT+1];
-
-#ifndef ATECC_SLOT_I2C_ENC
-    #define ATECC_SLOT_I2C_ENC 0x04 /* Slot holding symmetric encryption key */
+static byte mSlotList[ATECC_MAX_SLOT];
+#ifndef SINGLE_THREADED
+static wolfSSL_Mutex mSlotMutex;
 #endif
 
-/**
- * \brief Structure to contain certificate information.
- */
-t_atcert atcert = {
-	.signer_ca_size = 512,
-	.signer_ca = { 0 },
-	.signer_ca_pubkey = { 0 },
-	.end_user_size = 512,
-	.end_user = { 0 },
-	.end_user_pubkey = { 0 }
-};
 #endif /* WOLFSSL_ATECC508A */
 
 
@@ -92,10 +80,9 @@ int atmel_get_random_number(uint32_t count, uint8_t* rand_out)
 		return -1;
 	}
 
-	while(i < count) {
-
-		ret = atcatls_random(rng_buffer);
-		if (ret != 0) {
+	while (i < count) {
+        ret = atcab_random(rng_buffer);
+		if (ret != ATCA_SUCCESS) {
 			WOLFSSL_MSG("Failed to create random number!");
 			return -1;
 		}
@@ -157,171 +144,290 @@ long atmel_get_curr_time_and_date(long* tm)
 
 #ifdef WOLFSSL_ATECC508A
 
-/* Function to set the slot allocator and deallocator */
+int atmel_ecc_translate_err(int status)
+{
+    switch (status) {
+        case ATCA_SUCCESS:
+            return 0;
+        case ATCA_BAD_PARAM:
+            return BAD_FUNC_ARG;
+        case ATCA_ALLOC_FAILURE:
+            return MEMORY_E;
+        default:
+        #ifdef WOLFSSL_ATECC508A_DEBUG
+            printf("ATECC Failure: %x\n", (word32)status);
+        #endif
+            break;
+    }
+    return WC_HW_E;
+}
+
+/* Function to set the slotId allocator and deallocator */
 int atmel_set_slot_allocator(atmel_slot_alloc_cb alloc,
                              atmel_slot_dealloc_cb dealloc)
 {
+#ifndef SINGLE_THREADED
+    wc_LockMutex(&mSlotMutex);
+#endif
     mSlotAlloc = alloc;
     mSlotDealloc = dealloc;
+#ifndef SINGLE_THREADED
+    wc_UnLockMutex(&mSlotMutex);
+#endif
     return 0;
 }
 
-/* Function to allocate new slot number */
+/* Function to allocate new slotId number */
 int atmel_ecc_alloc(int slotType)
 {
-    int slot = ATECC_INVALID_SLOT;
+    int slotId = ATECC_INVALID_SLOT, i;
+
+#ifndef SINGLE_THREADED
+    wc_LockMutex(&mSlotMutex);
+#endif
 
     if (mSlotAlloc) {
-        slot = mSlotAlloc(slotType);
+        slotId = mSlotAlloc(slotType);
     }
     else {
-        int i;
-
-        if (slotType == ATMEL_SLOT_ENCKEY) {
-            return ATECC_SLOT_I2C_ENC;
-        }
-
-        for (i=0; i <= ATECC_MAX_SLOT; i++) {
-            /* Find free slot */
-            if (mSlotList[i] == ATECC_INVALID_SLOT) {
-                mSlotList[i] = i;
-                slot = i;
+        switch (slotType) {
+            case ATMEL_SLOT_ENCKEY:
+                /* not reserved in mSlotList, so return */
+                slotId = ATECC_SLOT_I2C_ENC;
+                goto exit;
+            case ATMEL_SLOT_DEVICE:
+                /* not reserved in mSlotList, so return */
+                slotId = ATECC_SLOT_AUTH_PRIV;
+                goto exit;
+            case ATMEL_SLOT_ECDHE:
+                slotId = ATECC_SLOT_ECDHE_PRIV;
                 break;
-            }
-        }
-    }
-    return slot;
-}
-
-
-/* Function to return slot number to available list */
-void atmel_ecc_free(int slot)
-{
-    if (mSlotDealloc) {
-        mSlotDealloc(slot);
-    }
-    else if (slot >= 0 && slot <= ATECC_MAX_SLOT) {
-        /* Mark slot free */
-        mSlotList[slot] = ATECC_INVALID_SLOT;
-    }
-}
-
-
-/* The macros ATECC_GET_ENC_KEY can be set to override the default
-   encryption key with your own at build-time */
-#ifndef ATECC_GET_ENC_KEY
-    #define ATECC_GET_ENC_KEY atmel_get_enc_key
-
-    /**
-     * \brief Callback function for getting the current encryption key
-     */
-    static ATCA_STATUS atmel_get_enc_key(uint8_t* enckey, int16_t keysize)
-    {
-        if (enckey == NULL || keysize != ATECC_KEY_SIZE) {
-            return ATCA_BAD_PARAM;
+            case ATMEL_SLOT_ECDHE_ENC:
+                slotId = ATECC_SLOT_ENC_PARENT;
+                break;
+            case ATMEL_SLOT_ANY:
+                for (i=0; i < ATECC_MAX_SLOT; i++) {
+                    /* Find free slotId */
+                    if (mSlotList[i] == ATECC_INVALID_SLOT) {
+                        slotId = i;
+                        break;
+                    }
+                }
+                break;
         }
 
-        XMEMSET(enckey, 0xFF, keysize); /* use default value */
-
-        return ATCA_SUCCESS;
+        /* is slot available */
+        if (mSlotList[slotId] != ATECC_INVALID_SLOT) {
+            slotId = ATECC_INVALID_SLOT;
+        }
+        else {
+            mSlotList[slotId] = slotId;
+        }
     }
+
+exit:
+#ifndef SINGLE_THREADED
+    wc_UnLockMutex(&mSlotMutex);
 #endif
+
+    return slotId;
+}
+
+
+/* Function to return slotId number to available list */
+void atmel_ecc_free(int slotId)
+{
+#ifndef SINGLE_THREADED
+    wc_LockMutex(&mSlotMutex);
+#endif
+    if (mSlotDealloc) {
+        mSlotDealloc(slotId);
+    }
+    else if (slotId >= 0 && slotId < ATECC_MAX_SLOT) {
+        if (slotId != ATECC_SLOT_AUTH_PRIV && slotId != ATECC_SLOT_I2C_ENC) {
+            /* Mark slotId free */
+            mSlotList[slotId] = ATECC_INVALID_SLOT;
+        }
+    }
+#ifndef SINGLE_THREADED
+    wc_UnLockMutex(&mSlotMutex);
+#endif
+}
+
+
+/**
+ * \brief Callback function for getting the current encryption key
+ */
+int atmel_get_enc_key_default(byte* enckey, word16 keysize)
+{
+    if (enckey == NULL || keysize != ATECC_KEY_SIZE) {
+        return BAD_FUNC_ARG;
+    }
+
+    XMEMSET(enckey, 0xFF, keysize); /* use default value */
+
+    return 0;
+}
 
 /**
  * \brief Write enc key before.
  */
 static int atmel_init_enc_key(void)
 {
-	uint8_t ret = 0;
+    int ret;
 	uint8_t read_key[ATECC_KEY_SIZE];
-    int slot = atmel_ecc_alloc(ATMEL_SLOT_ENCKEY);
+    uint8_t writeBlock = 0;
+    uint8_t writeOffset = 0;
+    int slotId;
 
-    /* check for encryption key slot */
-    if (slot == ATECC_INVALID_SLOT)
-        return -1;
+    slotId = atmel_ecc_alloc(ATMEL_SLOT_ENCKEY);
+
+    /* check for encryption key slotId */
+    if (slotId == ATECC_INVALID_SLOT)
+        return BAD_FUNC_ARG;
 
     /* get encryption key */
     ATECC_GET_ENC_KEY(read_key, sizeof(read_key));
-    ret = atcatls_set_enckey(read_key, slot, 0);
-    ForceZero(read_key, sizeof(read_key));
-	if (ret != ATCA_SUCCESS) {
-		WOLFSSL_MSG("Failed to write key");
-		return -1;
-	}
 
-	ret = atcatlsfn_set_get_enckey(ATECC_GET_ENC_KEY);
-	if (ret != ATCA_SUCCESS) {
-		WOLFSSL_MSG("Failed to set enckey cb");
-		return -1;
-	}
+    ret = atcab_write_zone(ATCA_ZONE_DATA, slotId, writeBlock, writeOffset,
+        read_key, ATCA_BLOCK_SIZE);
+    ForceZero(read_key, sizeof(read_key));
+    ret = atmel_ecc_translate_err(ret);
 
 	return ret;
 }
 
-static void atmel_show_rev_info(void)
+int atmel_get_rev_info(byte* revision)
+{
+    int ret;
+    ret = atcab_info((uint8_t*)revision);
+    ret = atmel_ecc_translate_err(ret);
+    return ret;
+}
+
+void atmel_show_rev_info(void)
 {
 #ifdef WOLFSSL_ATECC508A_DEBUG
-    uint32_t revision = 0;
-    atcab_info((uint8_t*)&revision);
-    printf("ATECC508A Revision: %x\n", (unsigned int)revision);
+    byte revision = 0;
+    atmel_get_rev_info(&revision);
+    printf("ATECC508A Revision: %x\n", (word32)revision);
 #endif
+}
+
+int atmel_ecc_create_pms(int slotId, const uint8_t* peerKey, uint8_t* pms)
+{
+    int ret;
+    uint8_t read_key[ATECC_KEY_SIZE];
+    int slotIdEnc;
+
+    slotIdEnc = atmel_ecc_alloc(ATMEL_SLOT_ECDHE_ENC);
+    if (slotIdEnc != ATECC_INVALID_SLOT)
+        return BAD_FUNC_ARG;
+
+    /* get encryption key */
+    ATECC_GET_ENC_KEY(read_key, sizeof(read_key));
+
+    /* send the encrypted version of the ECDH command */
+    ret = atcab_ecdh_enc(slotId, peerKey, pms, read_key, slotIdEnc);
+    ret = atmel_ecc_translate_err(ret);
+    return ret;
+}
+
+int atmel_ecc_create_key(int slotId, byte* peerKey)
+{
+    int ret;
+
+    /* generate new ephemeral key on device */
+    ret = atcab_genkey(slotId, peerKey);
+    ret = atmel_ecc_translate_err(ret);
+    return ret;
+}
+
+int atmel_ecc_sign(int slotId, const byte* message, byte* signature)
+{
+    int ret;
+
+    ret = atcab_sign(slotId, message, signature);
+    ret = atmel_ecc_translate_err(ret);
+    return ret;
+}
+
+int atmel_ecc_verify(const byte* message, const byte* signature,
+    const byte* pubkey, int* verified)
+{
+    int ret;
+
+    ret = atcab_verify_extern(message, signature, pubkey, (bool*)verified);
+    ret = atmel_ecc_translate_err(ret);
+    return ret;
 }
 
 #endif /* WOLFSSL_ATECC508A */
 
 
 
-void atmel_init(void)
+int atmel_init(void)
 {
-    if (!mAtcaInitDone) {
+    int ret = 0;
+
 #ifdef WOLFSSL_ATECC508A
+    if (!mAtcaInitDone) {
+        ATCA_STATUS status;
         int i;
 
-        /* Init the free slot list */
+    #ifndef SINGLE_THREADED
+        wc_InitMutex(&mSlotMutex);
+    #endif
+
+        /* Init the free slotId list */
         for (i=0; i<=ATECC_MAX_SLOT; i++) {
-            if (i == 0 || i == 2 || i == 7) {
-                /* ECC Slots (mark avail) */
-                mSlotList[i] = ATECC_INVALID_SLOT;
+            if (i == ATECC_SLOT_AUTH_PRIV || i == ATECC_SLOT_I2C_ENC) {
+                mSlotList[i] = i;
             }
             else {
-                mSlotList[i] = i;
+                /* ECC Slots (mark avail) */
+                mSlotList[i] = ATECC_INVALID_SLOT;
             }
         }
 
         /* Initialize the CryptoAuthLib to communicate with ATECC508A */
-        atcatls_init(&cfg_ateccx08a_i2c_default);
+        status = atcab_init(&cfg_ateccx08a_i2c_default);
+        if (status != ATCA_SUCCESS) {
+            WOLFSSL_MSG("Failed to initialize atcab");
+            return WC_HW_E;
+        }
 
         /* Init the I2C pipe encryption key. */
         /* Value is generated/stored during pair for the ATECC508A and stored
             on micro flash */
         /* For this example its a fixed value */
-		if (atmel_init_enc_key() != ATCA_SUCCESS) {
+		if (atmel_init_enc_key() != 0) {
 			WOLFSSL_MSG("Failed to initialize transport key");
+            return WC_HW_E;
 		}
 
         /* show revision information */
         atmel_show_rev_info();
 
-        /* Configure the ECC508 for use with TLS API functions */
-    #if 0
-        atcatls_device_provision();
-    #else
-        atcatls_config_default();
-    #endif
-#endif /* WOLFSSL_ATECC508A */
-
         mAtcaInitDone = 1;
     }
+#endif /* WOLFSSL_ATECC508A */
+    return ret;
 }
 
 void atmel_finish(void)
 {
-    if (mAtcaInitDone) {
 #ifdef WOLFSSL_ATECC508A
-        atcatls_finish();
-#endif
+    if (mAtcaInitDone) {
+        atcab_release();
+
+    #ifndef SINGLE_THREADED
+        wc_FreeMutex(&mSlotMutex);
+    #endif
+
         mAtcaInitDone = 0;
     }
+#endif
 }
 
 
@@ -335,6 +441,7 @@ int atcatls_create_key_cb(WOLFSSL* ssl, ecc_key* key, word32 keySz,
     uint8_t peerKey[ATECC_PUBKEY_SIZE];
     uint8_t* qx = &peerKey[0];
     uint8_t* qy = &peerKey[ATECC_PUBKEY_SIZE/2];
+    int slotId;
 
     (void)ssl;
     (void)ctx;
@@ -344,22 +451,27 @@ int atcatls_create_key_cb(WOLFSSL* ssl, ecc_key* key, word32 keySz,
         return BAD_FUNC_ARG;
     }
 
+    slotId = atmel_ecc_alloc(ATMEL_SLOT_ECDHE);
+    if (slotId == ATECC_INVALID_SLOT)
+        return WC_HW_WAIT_E;
+
     /* generate new ephemeral key on device */
-    ret = atcatls_create_key(TLS_SLOT_ECDHE_PRIV, peerKey);
-    if (ret != ATCA_SUCCESS) {
-        ret = WC_HW_E; goto exit;
-    }
+    ret = atmel_ecc_create_key(slotId, peerKey);
 
     /* load generated ECC508A public key into key, used by wolfSSL */
-    ret = wc_ecc_import_unsigned(key, qx, qy, NULL, ECC_SECP256R1);
-
-exit:
-
-#ifdef WOLFSSL_ATECC508A_DEBUG
-    if (ret != 0) {
-        printf("atcatls_create_key_cb: ret %d\n", ret);
+    if (ret == 0) {
+        ret = wc_ecc_import_unsigned(key, qx, qy, NULL, ECC_SECP256R1);
     }
-#endif
+
+    if (ret == 0) {
+        key->slot = slotId;
+    }
+    else {
+        atmel_ecc_free(slotId);
+    #ifdef WOLFSSL_ATECC508A_DEBUG
+        printf("atcatls_create_key_cb: ret %d\n", ret);
+    #endif
+    }
 
     return ret;
 }
@@ -394,10 +506,15 @@ int atcatls_create_pms_cb(WOLFSSL* ssl, ecc_key* otherKey,
 
     /* for client: create and export public key */
     if (side == WOLFSSL_CLIENT_END) {
+        int slotId = atmel_ecc_alloc(ATMEL_SLOT_ECDHE);
+        if (slotId == ATECC_INVALID_SLOT)
+            return WC_HW_WAIT_E;
+        tmpKey.slot = slotId;
+
         /* generate new ephemeral key on device */
-        ret = atcatls_create_key(TLS_SLOT_ECDHE_PRIV, peerKey);
+        ret = atmel_ecc_create_key(slotId, peerKey);
         if (ret != ATCA_SUCCESS) {
-            ret = WC_HW_E; goto exit;
+            goto exit;
         }
 
         /* convert raw unsigned public key to X.963 format for TLS */
@@ -409,6 +526,8 @@ int atcatls_create_pms_cb(WOLFSSL* ssl, ecc_key* otherKey,
 
     /* for server: import public key */
     else if (side == WOLFSSL_SERVER_END) {
+        tmpKey.slot = otherKey->slot;
+
         /* import peer's key and export as raw unsigned for hardware */
         ret = wc_ecc_import_x963_ex(pubKeyDer, *pubKeySz, &tmpKey, ECC_SECP256R1);
         if (ret == 0) {
@@ -425,16 +544,7 @@ int atcatls_create_pms_cb(WOLFSSL* ssl, ecc_key* otherKey,
         goto exit;
     }
 
-#if 1
-    ret = atcatls_ecdh(TLS_SLOT_ECDHE_PRIV, peerKey, out);
-#else
-    /* other syntax for encrypted ECDH using key in another slot */
-    ret = atcatls_ecdh_enc(TLS_SLOT_ECDHE_PRIV, TLS_SLOT_FEATURE_PRIV,
-        peerKey, out);
-#endif
-    if (ret != ATCA_SUCCESS) {
-        ret = WC_HW_E;
-    }
+    ret = atmel_ecc_create_pms(tmpKey.slot, peerKey, out);
     *outlen = ATECC_SIG_SIZE;
 
 exit:
@@ -442,7 +552,7 @@ exit:
 
 #ifdef WOLFSSL_ATECC508A_DEBUG
     if (ret != 0) {
-        printf("atcatls_create_pms_cb: ret %d\n", ret);
+        printf("atcab_ecdh_enc: ret %d\n", ret);
     }
 #endif
 
@@ -458,6 +568,7 @@ int atcatls_sign_certificate_cb(WOLFSSL* ssl, const byte* in, word32 inSz,
 {
     int ret;
     byte sigRs[ATECC_SIG_SIZE*2];
+    int slotId;
 
     (void)ssl;
     (void)inSz;
@@ -469,7 +580,11 @@ int atcatls_sign_certificate_cb(WOLFSSL* ssl, const byte* in, word32 inSz,
         return BAD_FUNC_ARG;
     }
 
-    ret = atcatls_sign(TLS_SLOT_AUTH_PRIV, in, sigRs);
+    slotId = atmel_ecc_alloc(ATMEL_SLOT_DEVICE);
+    if (slotId == ATECC_INVALID_SLOT)
+        return WC_HW_WAIT_E;
+
+    ret = atmel_ecc_sign(slotId, in, sigRs);
     if (ret != ATCA_SUCCESS) {
         ret = WC_HW_E; goto exit;
     }
@@ -484,6 +599,8 @@ int atcatls_sign_certificate_cb(WOLFSSL* ssl, const byte* in, word32 inSz,
     }
 
 exit:
+
+    atmel_ecc_free(slotId);
 
 #ifdef WOLFSSL_ATECC508A_DEBUG
     if (ret != 0) {
@@ -546,7 +663,7 @@ int atcatls_verify_signature_cb(WOLFSSL* ssl, const byte* sig, word32 sigSz,
     (void)rSz;
     (void)sSz;
 
-    ret = atcatls_verify(hash, sigRs, peerKey, (bool*)result);
+    ret = atmel_ecc_verify(hash, sigRs, peerKey, result);
     if (ret != ATCA_SUCCESS || !*result) {
         ret = WC_HW_E; goto exit;
     }
