@@ -1369,12 +1369,22 @@ static void* benchmarks_do(void* args)
     #ifdef WOLFSSL_KEY_GEN
         if (bench_all || (bench_asym_algs & BENCH_RSA_KEYGEN)) {
         #ifndef NO_SW_BENCH
-            bench_rsaKeyGen(0);
+            if (bench_asym_algs & BENCH_RSA_SZ) {
+                bench_rsaKeyGen_size(0, bench_size);
+            }
+            else {
+                bench_rsaKeyGen(0);
+            }
         #endif
         #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
             /* async supported in simulator only */
             #ifdef WOLFSSL_ASYNC_CRYPT_TEST
+            if (bench_asym_algs & BENCH_RSA_SZ) {
+                bench_rsaKeyGen_size(1, bench_size);
+            }
+            else {
                 bench_rsaKeyGen(1);
+            }
             #endif
         #endif
         }
@@ -1390,7 +1400,12 @@ static void* benchmarks_do(void* args)
 
     #ifdef WOLFSSL_KEY_GEN
     if (bench_asym_algs & BENCH_RSA_SZ) {
+    #ifndef NO_SW_BENCH
         bench_rsa_key(0, bench_size);
+    #endif
+    #if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_RSA)
+        bench_rsa_key(1, bench_size);
+    #endif
     }
     #endif
 #endif
@@ -3696,58 +3711,65 @@ void bench_hmac_sha512(int doAsync)
 #ifndef NO_RSA
 
 #if defined(WOLFSSL_KEY_GEN)
-void bench_rsaKeyGen(int doAsync)
+static void bench_rsaKeyGen_helper(int doAsync, int keySz)
 {
     RsaKey genKey[BENCH_MAX_PENDING];
     double start;
     int    ret = 0, i, count = 0, times, pending = 0;
-    int    k, keySz;
-    const int  keySizes[2] = {1024, 2048};
     const long rsa_e_val = WC_RSA_EXPONENT;
 
     /* clear for done cleanup */
     XMEMSET(genKey, 0, sizeof(genKey));
 
-    for (k = 0; k < (int)(sizeof(keySizes)/sizeof(int)); k++) {
-        keySz = keySizes[k];
+    bench_stats_start(&count, &start);
+    do {
+        /* while free pending slots in queue, submit ops */
+        for (times = 0; times < genTimes || pending > 0; ) {
+            bench_async_poll(&pending);
 
-        bench_stats_start(&count, &start);
-        do {
-            /* while free pending slots in queue, submit ops */
-            for (times = 0; times < genTimes || pending > 0; ) {
-                bench_async_poll(&pending);
+            for (i = 0; i < BENCH_MAX_PENDING; i++) {
+                if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 0, &times, genTimes, &pending)) {
 
-                for (i = 0; i < BENCH_MAX_PENDING; i++) {
-                    if (bench_async_check(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 0, &times, genTimes, &pending)) {
-
-                        wc_FreeRsaKey(&genKey[i]);
-                        ret = wc_InitRsaKey_ex(&genKey[i], HEAP_HINT,
-                            doAsync ? devId : INVALID_DEVID);
-                        if (ret < 0) {
-                            goto exit;
-                        }
-
-                        ret = wc_MakeRsaKey(&genKey[i], keySz, rsa_e_val, &rng);
-                        if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 0, &times, &pending)) {
-                            goto exit;
-                        }
+                    wc_FreeRsaKey(&genKey[i]);
+                    ret = wc_InitRsaKey_ex(&genKey[i], HEAP_HINT,
+                        doAsync ? devId : INVALID_DEVID);
+                    if (ret < 0) {
+                        goto exit;
                     }
-                } /* for i */
-            } /* for times */
-            count += times;
-        } while (bench_stats_sym_check(start));
-    exit:
-        bench_stats_asym_finish("RSA", keySz, "key gen", doAsync, count, start, ret);
 
-        if (ret < 0) {
-            break;
-        }
-    }
+                    ret = wc_MakeRsaKey(&genKey[i], keySz, rsa_e_val, &rng);
+                    if (!bench_async_handle(&ret, BENCH_ASYNC_GET_DEV(&genKey[i]), 0, &times, &pending)) {
+                        goto exit;
+                    }
+                }
+            } /* for i */
+        } /* for times */
+        count += times;
+    } while (bench_stats_sym_check(start));
+exit:
+    bench_stats_asym_finish("RSA", keySz, "key gen", doAsync, count, start, ret);
 
     /* cleanup */
     for (i = 0; i < BENCH_MAX_PENDING; i++) {
         wc_FreeRsaKey(&genKey[i]);
     }
+}
+
+void bench_rsaKeyGen(int doAsync)
+{
+    int    k, keySz;
+    const int  keySizes[2] = {1024, 2048};
+
+    for (k = 0; k < (int)(sizeof(keySizes)/sizeof(int)); k++) {
+        keySz = keySizes[k];
+        bench_rsaKeyGen_helper(doAsync, keySz);
+    }
+}
+
+
+void bench_rsaKeyGen_size(int doAsync, int keySz)
+{
+    bench_rsaKeyGen_helper(doAsync, keySz);
 }
 #endif /* WOLFSSL_KEY_GEN */
 
@@ -3970,32 +3992,46 @@ exit_bench_rsa:
 /* bench any size of RSA key */
 void bench_rsa_key(int doAsync, int rsaKeySz)
 {
-    int         ret = 0, i;
-    RsaKey      rsaKey[BENCH_MAX_PENDING];
+    int     ret = 0, i, pending = 0;
+    RsaKey  rsaKey[BENCH_MAX_PENDING];
+    int     isPending[BENCH_MAX_PENDING];
+    int     exp = 65537;
 
     /* clear for done cleanup */
     XMEMSET(rsaKey, 0, sizeof(rsaKey));
+    XMEMSET(isPending, 0, sizeof(isPending));
 
     /* init keys */
-    for (i = 0; i < BENCH_MAX_PENDING; i++) {
-        /* setup an async context for each key */
-        if ((ret = wc_InitRsaKey_ex(&rsaKey[i], HEAP_HINT,
-                                        doAsync ? devId : INVALID_DEVID)) < 0) {
-            goto exit_bench_rsa_key;
-        }
+    do {
+        pending = 0;
+        for (i = 0; i < BENCH_MAX_PENDING; i++) {
+            if (!isPending[i]) { /* if making the key is pending then just call
+                                  * wc_MakeRsaKey again */
+                /* setup an async context for each key */
+                if ((ret = wc_InitRsaKey_ex(&rsaKey[i], HEAP_HINT,
+                                    doAsync ? devId : INVALID_DEVID)) < 0) {
+                    goto exit_bench_rsa_key;
+                }
 
-    #ifdef WC_RSA_BLINDING
-        ret = wc_RsaSetRNG(&rsaKey[i], &rng);
-        if (ret != 0)
-            goto exit_bench_rsa_key;
-    #endif
+            #ifdef WC_RSA_BLINDING
+                ret = wc_RsaSetRNG(&rsaKey[i], &rng);
+                if (ret != 0)
+                    goto exit_bench_rsa_key;
+            #endif
+            }
 
-        /* create the RSA key */
-        if ((ret = wc_MakeRsaKey(&rsaKey[i], rsaKeySz, 65537, &rng)) != 0) {
-            printf("wc_MakeRsaKey failed! %d\n", ret);
-            goto exit_bench_rsa_key;
-        }
-    }
+            /* create the RSA key */
+            ret = wc_MakeRsaKey(&rsaKey[i], rsaKeySz, exp, &rng);
+            if (ret == WC_PENDING_E) {
+                isPending[i] = 1;
+                pending      = 1;
+            }
+            else if (ret != 0) {
+                printf("wc_MakeRsaKey failed! %d\n", ret);
+                goto exit_bench_rsa_key;
+            }
+        } /* for i */
+    } while (pending > 0);
 
     bench_rsa_helper(doAsync, rsaKey, rsaKeySz);
 exit_bench_rsa_key:
