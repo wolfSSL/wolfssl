@@ -103,7 +103,7 @@ typedef struct PKCS7 {
     PKCS7Attrib* signedAttribs;
     byte*  content;               /* inner content, not owner             */
     byte*  singleCert;            /* recipient cert, DER, not owner       */
-    byte*  issuer;                /* issuer name of singleCert            */
+    const byte* issuer;           /* issuer name of singleCert            */
     byte*  privateKey;            /* private key, DER, not owner          */
     void*  heap;                  /* heap hint for dynamic memory         */
 #ifdef ASN_BER_TO_DER

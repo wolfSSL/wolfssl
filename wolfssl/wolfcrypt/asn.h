@@ -664,7 +664,7 @@ typedef struct CertSignCtx  CertSignCtx;
 
 
 struct DecodedCert {
-    byte*   publicKey;
+    const byte* publicKey;
     word32  pubKeySize;
     int     pubKeyStored;
     word32  certBegin;               /* offset to start of cert          */
@@ -684,25 +684,25 @@ struct DecodedCert {
 #ifdef HAVE_OCSP
     byte    issuerKeyHash[KEYID_SIZE]; /* hash of the public Key         */
 #endif /* HAVE_OCSP */
-    byte*   signature;               /* not owned, points into raw cert  */
+    const byte* signature;           /* not owned, points into raw cert  */
     char*   subjectCN;               /* CommonName                       */
     int     subjectCNLen;            /* CommonName Length                */
     char    subjectCNEnc;            /* CommonName Encoding              */
     char    issuer[ASN_NAME_MAX];    /* full name including common name  */
     char    subject[ASN_NAME_MAX];   /* full name including common name  */
     int     verify;                  /* Default to yes, but could be off */
-    byte*   source;                  /* byte buffer holder cert, NOT owner */
+    const byte* source;              /* byte buffer holder cert, NOT owner */
     word32  srcIdx;                  /* current offset into buffer       */
     word32  maxIdx;                  /* max offset based on init size    */
     void*   heap;                    /* for user memory overrides        */
     byte    serial[EXTERNAL_SERIAL_SIZE];  /* raw serial number          */
     int     serialSz;                /* raw serial bytes stored */
-    byte*   extensions;              /* not owned, points into raw cert  */
+    const byte* extensions;          /* not owned, points into raw cert  */
     int     extensionsSz;            /* length of cert extensions */
     word32  extensionsIdx;           /* if want to go back and parse later */
-    byte*   extAuthInfo;             /* Authority Information Access URI */
+    const byte* extAuthInfo;         /* Authority Information Access URI */
     int     extAuthInfoSz;           /* length of the URI                */
-    byte*   extCrlInfo;              /* CRL Distribution Points          */
+    const byte* extCrlInfo;          /* CRL Distribution Points          */
     int     extCrlInfoSz;            /* length of the URI                */
     byte    extSubjKeyId[KEYID_SIZE]; /* Subject Key ID                  */
     byte    extAuthKeyId[KEYID_SIZE]; /* Authority Key ID                */
@@ -711,28 +711,28 @@ struct DecodedCert {
     byte    extExtKeyUsage;          /* Extended Key usage bitfield      */
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
-    byte*   extExtKeyUsageSrc;
+    const byte* extExtKeyUsageSrc;
     word32  extExtKeyUsageSz;
     word32  extExtKeyUsageCount;
-    byte*   extAuthKeyIdSrc;
+    const byte* extAuthKeyIdSrc;
     word32  extAuthKeyIdSz;
-    byte*   extSubjKeyIdSrc;
+    const byte* extSubjKeyIdSrc;
     word32  extSubjKeyIdSz;
 #endif
 
 #if defined(HAVE_ECC) || defined(HAVE_ED25519)
     word32  pkCurveOID;           /* Public Key's curve OID */
 #endif /* HAVE_ECC */
-    byte*   beforeDate;
+    const byte* beforeDate;
     int     beforeDateLen;
-    byte*   afterDate;
+    const byte* afterDate;
     int     afterDateLen;
 #if defined(HAVE_PKCS7) || defined(WOLFSSL_CERT_EXT)
-    byte*   issuerRaw;               /* pointer to issuer inside source */
+    const byte* issuerRaw;           /* pointer to issuer inside source */
     int     issuerRawLen;
 #endif
 #ifndef IGNORE_NAME_CONSTRAINT
-    byte*   subjectRaw;               /* pointer to subject inside source */
+    const byte* subjectRaw;          /* pointer to subject inside source */
     int     subjectRawLen;
 #endif
 #if defined(WOLFSSL_CERT_GEN) || defined(WOLFSSL_CERT_EXT)
@@ -846,7 +846,7 @@ struct Signer {
     word16  keyUsage;
     byte    pathLength;
     byte    pathLengthSet;
-    byte*   publicKey;
+    const byte* publicKey;
     int     nameLen;
     char*   name;                    /* common name */
 #ifndef IGNORE_NAME_CONSTRAINTS
@@ -911,11 +911,12 @@ WOLFSSL_ASN_API void FreeAltNames(DNS_entry*, void*);
 #ifndef IGNORE_NAME_CONSTRAINTS
     WOLFSSL_ASN_API void FreeNameSubtrees(Base_entry*, void*);
 #endif /* IGNORE_NAME_CONSTRAINTS */
-WOLFSSL_ASN_API void InitDecodedCert(DecodedCert*, byte*, word32, void*);
+WOLFSSL_ASN_API void InitDecodedCert(DecodedCert*, const byte*, word32, void*);
 WOLFSSL_ASN_API void FreeDecodedCert(DecodedCert*);
 WOLFSSL_ASN_API int  ParseCert(DecodedCert*, int type, int verify, void* cm);
 
-WOLFSSL_LOCAL int DecodePolicyOID(char *o, word32 oSz, byte *in, word32 inSz);
+WOLFSSL_LOCAL int DecodePolicyOID(char *o, word32 oSz,
+                                  const byte *in, word32 inSz);
 WOLFSSL_API int CheckCertSignature(const byte*,word32,void*,void* cm);
 WOLFSSL_LOCAL int ParseCertRelative(DecodedCert*,int type,int verify,void* cm);
 WOLFSSL_LOCAL int DecodeToKey(DecodedCert*, int verify);
