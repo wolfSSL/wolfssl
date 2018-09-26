@@ -3681,7 +3681,8 @@ int fp_gcd(fp_int *a, fp_int *b, fp_int *c)
 
 
 #if defined(HAVE_ECC) || !defined(NO_PWDBASED) || defined(OPENSSL_EXTRA) || \
-    defined(WC_RSA_BLINDING)
+    defined(WC_RSA_BLINDING) || !defined(NO_DSA) || \
+    (!defined(NO_RSA) && !defined(NO_RSA_BOUNDS_CHECK))
 /* c = a + b */
 void fp_add_d(fp_int *a, fp_digit b, fp_int *c)
 {
@@ -3714,7 +3715,8 @@ int mp_add_d(fp_int *a, fp_digit b, fp_int *c)
     return MP_OKAY;
 }
 
-#endif  /* HAVE_ECC || !NO_PWDBASED */
+#endif  /* HAVE_ECC || !NO_PWDBASED || OPENSSL_EXTRA || WC_RSA_BLINDING ||
+  !NO_DSA || (!NO_RSA && !NO_RSA_BOUNDS_CHECK) */
 
 
 #if !defined(NO_DSA) || defined(HAVE_ECC) || defined(WOLFSSL_KEY_GEN) || \
