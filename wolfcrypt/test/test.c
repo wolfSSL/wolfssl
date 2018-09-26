@@ -360,6 +360,9 @@ int blob_test(void);
 #ifdef WOLF_CRYPTO_DEV
 int cryptodev_test(void);
 #endif
+#ifdef WOLFSSL_CERT_PIV
+int certpiv_test(void);
+#endif
 
 /* General big buffer size for many tests. */
 #define FOURK_BUF 4096
@@ -1015,6 +1018,13 @@ initDefaultName();
         return err_sys("crypto dev test failed!\n", ret);
     else
         printf( "crypto dev test passed!\n");
+#endif
+
+#ifdef WOLFSSL_CERT_PIV
+    if ( (ret = certpiv_test()) != 0)
+        return err_sys("cert piv test failed!\n", ret);
+    else
+        printf( "cert piv test passed!\n");
 #endif
 
 #ifdef WOLFSSL_ASYNC_CRYPT
@@ -20317,6 +20327,18 @@ int cryptodev_test(void)
     return ret;
 }
 #endif /* WOLF_CRYPTO_DEV */
+
+#ifdef WOLFSSL_CERT_PIV
+int certpiv_test(void)
+{
+    /* TODO: Add test for wc_ParseCertPIV */
+#if 0
+    wc_CertPIV piv;
+    ret = wc_ParseCertPIV(&piv, buf, totalSz);
+#endif
+    return 0;
+}
+#endif /* WOLFSSL_CERT_PIV */
 
 
 #undef ERROR_OUT

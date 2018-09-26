@@ -5803,6 +5803,9 @@ exit_cs:
 
 #endif /* !NO_ASN_CRYPT */
 
+    (void)keyOID;
+    (void)sigOID;
+
     WOLFSSL_LEAVE("ConfirmSignature", ret);
 
     if (ret != WC_PENDING_E) {
@@ -7454,7 +7457,7 @@ int CheckCertSignature(const byte* cert, word32 certSz, void* heap, void* cm)
 #endif
     return ret;
 }
-#endif
+#endif /* WOLFSSL_SMALL_CERT_VERIFY */
 
 int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 {
