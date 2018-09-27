@@ -62,6 +62,17 @@ static byte mSlotList[ATECC_MAX_SLOT];
 static wolfSSL_Mutex mSlotMutex;
 #endif
 
+/* Raspberry Pi uses /dev/i2c-1 */
+#ifndef ATECC_I2C_ADDR
+#define ATECC_I2C_ADDR 0xC0
+#endif
+#ifndef ATECC_I2C_BUS
+#define ATECC_I2C_BUS  1
+#endif
+#ifndef ATECC_DEV_TYPE
+#define ATECC_DEV_TYPE ATECC508A
+#endif
+static ATCAIfaceCfg cfg_ateccx08a_i2c_pi;
 #endif /* WOLFSSL_ATECC508A */
 
 
@@ -390,8 +401,18 @@ int atmel_init(void)
             }
         }
 
+        /* Setup the hardware interface */
+        XMEMSET(&cfg_ateccx08a_i2c_pi, 0, sizeof(cfg_ateccx08a_i2c_pi));
+        cfg_ateccx08a_i2c_pi.iface_type             = ATCA_I2C_IFACE;
+        cfg_ateccx08a_i2c_pi.devtype                = ATECC_DEV_TYPE;
+        cfg_ateccx08a_i2c_pi.atcai2c.slave_address  = ATECC_I2C_ADDR;
+        cfg_ateccx08a_i2c_pi.atcai2c.bus            = ATECC_I2C_BUS;
+        cfg_ateccx08a_i2c_pi.atcai2c.baud           = 400000;
+        cfg_ateccx08a_i2c_pi.wake_delay             = 1500;
+        cfg_ateccx08a_i2c_pi.rx_retries             = 20;
+
         /* Initialize the CryptoAuthLib to communicate with ATECC508A */
-        status = atcab_init(&cfg_ateccx08a_i2c_default);
+        status = atcab_init(&cfg_ateccx08a_i2c_pi);
         if (status != ATCA_SUCCESS) {
             WOLFSSL_MSG("Failed to initialize atcab");
             return WC_HW_E;

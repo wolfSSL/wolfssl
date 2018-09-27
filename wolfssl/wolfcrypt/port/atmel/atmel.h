@@ -31,11 +31,10 @@
     #undef  SHA_BLOCK_SIZE
     #define SHA_BLOCK_SIZE  SHA_BLOCK_SIZE_REMAP
     #include <cryptoauthlib.h>
-    #include <atcacert/atcacert_client.h>
     #undef SHA_BLOCK_SIZE
 #endif
 
-/* ATECC508A only supports ECC-256 */
+/* ATECC508A only supports ECC P-256 */
 #define ATECC_KEY_SIZE      (32)
 #define ATECC_PUBKEY_SIZE   (ATECC_KEY_SIZE*2) /* X and Y */
 #define ATECC_SIG_SIZE      (ATECC_KEY_SIZE*2) /* R and S */
