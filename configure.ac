@@ -817,11 +817,16 @@ AC_ARG_WITH([cryptoauthlib],
                 AC_MSG_ERROR([cryptoauthlib isn't found.
                 If it's already installed, specify its path using --with-cryptoauthlib=/dir/])
             fi
+
+            AM_LDFLAGS="$AM_LDFLAGS -L$trylibatcadir/lib"
+            AM_CFLAGS="$AM_CFLAGS -I$trylibatcadir/lib"
             AC_MSG_RESULT([yes])
         else
             AC_MSG_RESULT([yes])
         fi
+
         ENABLED_CRYPTOAUTHLIB="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ATECC508A"
     ]
 )
 AM_CONDITIONAL([BUILD_CRYPTOAUTHLIB], [test "x$ENABLED_CRYPTOAUTHLIB" = "xyes"])
