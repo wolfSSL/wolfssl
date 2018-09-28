@@ -94,7 +94,7 @@ int atmel_set_slot_allocator(atmel_slot_alloc_cb alloc,
     atmel_slot_dealloc_cb dealloc);
 
 int  atmel_ecc_translate_err(int status);
-int  atmel_get_rev_info(byte* revision);
+int  atmel_get_rev_info(word32* revision);
 void atmel_show_rev_info(void);
 
 /* The macro ATECC_GET_ENC_KEY can be set to override the default
