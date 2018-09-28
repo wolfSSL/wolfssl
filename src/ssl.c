@@ -22173,11 +22173,11 @@ WOLFSSL_BIGNUM* wolfSSL_BN_new(void)
     }
 
     InitwolfSSL_BigNum(external);
-    external->internal = mpi;
     if (mp_init(mpi) != MP_OKAY) {
         wolfSSL_BN_free(external);
         return NULL;
     }
+    external->internal = mpi;
 
     return external;
 }
@@ -22188,7 +22188,9 @@ void wolfSSL_BN_free(WOLFSSL_BIGNUM* bn)
     WOLFSSL_MSG("wolfSSL_BN_free");
     if (bn) {
         if (bn->internal) {
-            mp_forcezero((mp_int*)bn->internal);
+            mp_int* bni = (mp_int*)bn->internal;
+            mp_forcezero(bni);
+            mp_free(bni);
             XFREE(bn->internal, NULL, DYNAMIC_TYPE_BIGINT);
             bn->internal = NULL;
         }
@@ -27540,6 +27542,10 @@ WOLFSSL_ECDSA_SIG *wolfSSL_d2i_ECDSA_SIG(WOLFSSL_ECDSA_SIG **sig,
         if (s == NULL)
             return NULL;
     }
+
+    /* DecodeECC_DSA_Sig calls mp_init, so free these */
+    mp_free((mp_int*)s->r->internal);
+    mp_free((mp_int*)s->s->internal);
 
     if (DecodeECC_DSA_Sig(*pp, (word32)len, (mp_int*)s->r->internal,
                                           (mp_int*)s->s->internal) != MP_OKAY) {
