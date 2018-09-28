@@ -161,6 +161,8 @@ enum wolfSSL_ErrorCodes {
     PRF_MISSING                  = -430,   /* PRF not compiled in */
     DTLS_RETX_OVER_TX            = -431,   /* Retransmit DTLS flight over */
     DH_PARAMS_NOT_FFDHE_E        = -432,   /* DH params from server not FFDHE */
+    TCA_INVALID_ID_TYPE          = -433,   /* TLSX TCA ID type invalid */
+    TCA_ABSENT_ERROR             = -434,   /* TLSX TCA ID no response */
     /* add strings to wolfSSL_ERR_reason_error_string in internal.c !!!!! */
 
     /* begin negotiation parameter errors */

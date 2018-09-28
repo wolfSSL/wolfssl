@@ -2055,6 +2055,7 @@ typedef struct Keys {
 typedef enum {
     TLSX_SERVER_NAME                = 0x0000, /* a.k.a. SNI  */
     TLSX_MAX_FRAGMENT_LENGTH        = 0x0001,
+    TLSX_TRUSTED_CA_KEYS            = 0x0003,
     TLSX_TRUNCATED_HMAC             = 0x0004,
     TLSX_STATUS_REQUEST             = 0x0005, /* a.k.a. OCSP stapling   */
     TLSX_SUPPORTED_GROUPS           = 0x000a, /* a.k.a. Supported Curves */
@@ -2125,6 +2126,7 @@ WOLFSSL_LOCAL int   TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length,
 
 #elif defined(HAVE_SNI)                           \
    || defined(HAVE_MAX_FRAGMENT)                  \
+   || defined(HAVE_TRUSTED_CA)                    \
    || defined(HAVE_TRUNCATED_HMAC)                \
    || defined(HAVE_CERTIFICATE_STATUS_REQUEST)    \
    || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2) \
@@ -2166,6 +2168,24 @@ WOLFSSL_LOCAL int    TLSX_SNI_GetFromBuffer(const byte* buffer, word32 bufferSz,
 #endif
 
 #endif /* HAVE_SNI */
+
+/* Trusted CA Key Indication - RFC 6066 (section 6) */
+#ifdef HAVE_TRUSTED_CA
+
+typedef struct TCA {
+    byte                       type;    /* TCA Type            */
+    byte*                      id;      /* TCA identifier      */
+    word16                     idSz;    /* TCA identifier size */
+    struct TCA*                next;    /* List Behavior       */
+#ifndef NO_WOLFSSL_CLIENT
+    byte                       options; /* Behavior options    */
+#endif /* NO_WOLFSSL_CLIENT */
+} TCA;
+
+WOLFSSL_LOCAL int TLSX_UseTrustedCA(TLSX** extensions, byte type,
+                    const byte* id, word16 idSz, void* heap);
+
+#endif /* HAVE_TRUSTED_CA */
 
 /* Application-Layer Protocol Negotiation - RFC 7301 */
 #ifdef HAVE_ALPN

@@ -168,6 +168,7 @@ then
     enable_maxfragment=yes
     enable_alpn=yes
     enable_truncatedhmac=yes
+    enable_trusted_ca=yes
     enable_supportedcurves=yes
     enable_session_ticket=yes
     enable_tlsx=yes
@@ -2863,6 +2864,14 @@ then
     AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_MAX_FRAGMENT"
 fi
 
+# Trusted CA Indication Extension
+AC_ARG_ENABLE([trustedca],
+    [AS_HELP_STRING([--enable-trustedca],[Enable Trusted CA Indication (default: disabled)])],
+    [ ENABLED_TRUSTED_CA=$enableval ],[ ENABLED_TRUSTED_CA=no ])
+
+AS_IF([test "x$ENABLED_TRUSTED_CA" = "xyes"],
+      [AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_TRUSTED_CA"])
+
 # Truncated HMAC
 AC_ARG_ENABLE([truncatedhmac],
     [AS_HELP_STRING([--enable-truncatedhmac],[Enable Truncated HMAC (default: disabled)])],
@@ -2992,7 +3001,8 @@ then
     ENABLED_MAX_FRAGMENT=yes
     ENABLED_TRUNCATED_HMAC=yes
     ENABLED_ALPN=yes
-    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_ALPN"
+    ENABLED_TRUSTED_CA=yes
+    AM_CFLAGS="$AM_CFLAGS -DHAVE_TLS_EXTENSIONS -DHAVE_SNI -DHAVE_MAX_FRAGMENT -DHAVE_TRUNCATED_HMAC -DHAVE_ALPN -DHAVE_TRUSTED_CA"
     # Check the ECC supported curves prereq
     AS_IF([test "x$ENABLED_ECC" = "xyes" || test "x$ENABLED_CURVE25519" = "xyes"],
           [ENABLED_SUPPORTED_CURVES=yes
@@ -4930,6 +4940,7 @@ echo "   * Whitewood netRandom:        $ENABLED_WNR"
 echo "   * Server Name Indication:     $ENABLED_SNI"
 echo "   * ALPN:                       $ENABLED_ALPN"
 echo "   * Maximum Fragment Length:    $ENABLED_MAX_FRAGMENT"
+echo "   * Trusted CA Indication:      $ENABLED_TRUSTED_CA"
 echo "   * Truncated HMAC:             $ENABLED_TRUNCATED_HMAC"
 echo "   * Supported Elliptic Curves:  $ENABLED_SUPPORTED_CURVES"
 echo "   * FFDHE only in client:       $ENABLED_FFDHE_ONLY"

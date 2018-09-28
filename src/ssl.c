@@ -1960,6 +1960,30 @@ int wolfSSL_SNI_GetFromBuffer(const byte* clientHello, word32 helloSz,
 #endif /* HAVE_SNI */
 
 
+#ifdef HAVE_TRUSTED_CA
+
+WOLFSSL_API int wolfSSL_UseTrustedCA(WOLFSSL* ssl, byte type,
+            const byte* cert, word32 certSz)
+{
+    if (ssl == NULL)
+        return BAD_FUNC_ARG;
+
+    return TLSX_UseTrustedCA(&ssl->extensions, type, cert, certSz, ssl->heap);
+}
+
+
+WOLFSSL_API int wolfSSL_CTX_UseTrustedCA(WOLFSSL_CTX* ctx, byte type,
+            const byte* cert, word32 certSz)
+{
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    return TLSX_UseTrustedCA(&ctx->extensions, type, cert, certSz, ctx->heap);
+}
+
+#endif /* HAVE_TRUSTED_CA */
+
+
 #ifdef HAVE_MAX_FRAGMENT
 #ifndef NO_WOLFSSL_CLIENT
 

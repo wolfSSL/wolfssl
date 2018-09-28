@@ -2248,6 +2248,23 @@ WOLFSSL_API unsigned short wolfSSL_SNI_GetRequest(WOLFSSL *ssl,
 
 #endif /* HAVE_SNI */
 
+/* Trusted CA Key Indication - RFC 6066 (Section 6) */
+#ifdef HAVE_TRUSTED_CA
+
+/* TCA Identifier Type */
+enum {
+    WOLFSSL_TRUSTED_CA_PRE_AGREED = 0,
+    WOLFSSL_TRUSTED_CA_KEY_SHA1 = 1,
+    WOLFSSL_TRUSTED_CA_X509_NAME = 2,
+    WOLFSSL_TRUSTED_CA_CERT_SHA1 = 3
+};
+
+WOLFSSL_API int wolfSSL_UseTrustedCA(WOLFSSL* ssl, unsigned char type,
+            const unsigned char* cert, unsigned int certSz);
+WOLFSSL_API int wolfSSL_CTX_UseTrustedCA(WOLFSSL_CTX* ctx, unsigned char type,
+            const unsigned char* cert, unsigned int certSz);
+#endif /* HAVE_TRUSTED_CA */
+
 /* Application-Layer Protocol Negotiation */
 #ifdef HAVE_ALPN
 

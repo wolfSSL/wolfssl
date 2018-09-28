@@ -15947,6 +15947,12 @@ const char* wolfSSL_ERR_reason_error_string(unsigned long e)
     case DH_PARAMS_NOT_FFDHE_E:
         return "Server DH parameters were not from the FFDHE set as required";
 
+    case TCA_INVALID_ID_TYPE:
+        return "TLS Extension Trusted CA ID type invalid";
+
+    case TCA_ABSENT_ERROR:
+        return "TLS Extension Trusted CA ID response absent";
+
     default :
         return "unknown error number";
     }

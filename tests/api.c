@@ -3025,6 +3025,56 @@ static void test_wolfSSL_UseSNI(void)
 #endif
 }
 
+static void test_wolfSSL_UseTrustedCA(void)
+{
+#ifdef HAVE_TRUSTED_CA
+    WOLFSSL_CTX *ctx;
+    WOLFSSL     *ssl;
+    byte        id[20];
+
+    AssertNotNull((ctx = wolfSSL_CTX_new(wolfSSLv23_client_method())));
+    AssertNotNull((ssl = wolfSSL_new(ctx)));
+    XMEMSET(id, 0, sizeof(id));
+
+    /* error cases */
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_UseTrustedCA(NULL, 0, NULL, 0));
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(NULL, 0, NULL, 0));
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_UseTrustedCA(ctx,
+                WOLFSSL_TRUSTED_CA_CERT_SHA1+1, NULL, 0));
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
+                WOLFSSL_TRUSTED_CA_CERT_SHA1+1, NULL, 0));
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_UseTrustedCA(ctx,
+                WOLFSSL_TRUSTED_CA_CERT_SHA1, NULL, 0));
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
+                WOLFSSL_TRUSTED_CA_CERT_SHA1, NULL, 0));
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_UseTrustedCA(ctx,
+                WOLFSSL_TRUSTED_CA_CERT_SHA1, id, 5));
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
+                WOLFSSL_TRUSTED_CA_CERT_SHA1, id, 5));
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_UseTrustedCA(ctx,
+                WOLFSSL_TRUSTED_CA_X509_NAME, id, 0));
+    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
+                WOLFSSL_TRUSTED_CA_X509_NAME, id, 0));
+
+    /* success cases */
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_UseTrustedCA(ctx,
+                WOLFSSL_TRUSTED_CA_PRE_AGREED, NULL, 0));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
+                WOLFSSL_TRUSTED_CA_PRE_AGREED, NULL, 0));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_UseTrustedCA(ctx,
+                WOLFSSL_TRUSTED_CA_KEY_SHA1, id, sizeof(id)));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
+                WOLFSSL_TRUSTED_CA_KEY_SHA1, id, sizeof(id)));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_UseTrustedCA(ctx,
+                WOLFSSL_TRUSTED_CA_X509_NAME, id, 5));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
+                WOLFSSL_TRUSTED_CA_X509_NAME, id, 5));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif /* HAVE_TRUSTED_CA */
+}
+
 static void test_wolfSSL_UseMaxFragment(void)
 {
 #if defined(HAVE_MAX_FRAGMENT) && !defined(NO_WOLFSSL_CLIENT)
@@ -23409,6 +23459,7 @@ void ApiTest(void)
 
     /* TLS extensions tests */
     test_wolfSSL_UseSNI();
+    test_wolfSSL_UseTrustedCA();
     test_wolfSSL_UseMaxFragment();
     test_wolfSSL_UseTruncatedHMAC();
     test_wolfSSL_UseSupportedCurve();
