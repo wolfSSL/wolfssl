@@ -308,7 +308,7 @@ static int atmel_init_enc_key(void)
 	return ret;
 }
 
-int atmel_get_rev_info(byte* revision)
+int atmel_get_rev_info(word32* revision)
 {
     int ret;
     ret = atcab_info((uint8_t*)revision);
@@ -319,7 +319,7 @@ int atmel_get_rev_info(byte* revision)
 void atmel_show_rev_info(void)
 {
 #ifdef WOLFSSL_ATECC508A_DEBUG
-    byte revision = 0;
+    word32 revision = 0;
     atmel_get_rev_info(&revision);
     printf("ATECC508A Revision: %x\n", (word32)revision);
 #endif
