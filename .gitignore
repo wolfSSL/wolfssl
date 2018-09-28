@@ -230,6 +230,8 @@ wrapper/CSharp/x64/
 .vs
 Backup
 UpgradeLog.htm
+*.aps
+*.VC.db
 
 IDE/INTIME-RTOS/Debug_*
 IDE/VS-ARM/.vs
