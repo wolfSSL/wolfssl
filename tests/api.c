@@ -3037,36 +3037,21 @@ static void test_wolfSSL_UseTrustedCA(void)
     XMEMSET(id, 0, sizeof(id));
 
     /* error cases */
-    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_UseTrustedCA(NULL, 0, NULL, 0));
     AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(NULL, 0, NULL, 0));
-    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_UseTrustedCA(ctx,
-                WOLFSSL_TRUSTED_CA_CERT_SHA1+1, NULL, 0));
     AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
                 WOLFSSL_TRUSTED_CA_CERT_SHA1+1, NULL, 0));
-    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_UseTrustedCA(ctx,
-                WOLFSSL_TRUSTED_CA_CERT_SHA1, NULL, 0));
     AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
                 WOLFSSL_TRUSTED_CA_CERT_SHA1, NULL, 0));
-    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_UseTrustedCA(ctx,
-                WOLFSSL_TRUSTED_CA_CERT_SHA1, id, 5));
     AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
                 WOLFSSL_TRUSTED_CA_CERT_SHA1, id, 5));
-    AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_CTX_UseTrustedCA(ctx,
-                WOLFSSL_TRUSTED_CA_X509_NAME, id, 0));
     AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
                 WOLFSSL_TRUSTED_CA_X509_NAME, id, 0));
 
     /* success cases */
-    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_UseTrustedCA(ctx,
-                WOLFSSL_TRUSTED_CA_PRE_AGREED, NULL, 0));
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
                 WOLFSSL_TRUSTED_CA_PRE_AGREED, NULL, 0));
-    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_UseTrustedCA(ctx,
-                WOLFSSL_TRUSTED_CA_KEY_SHA1, id, sizeof(id)));
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
                 WOLFSSL_TRUSTED_CA_KEY_SHA1, id, sizeof(id)));
-    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_UseTrustedCA(ctx,
-                WOLFSSL_TRUSTED_CA_X509_NAME, id, 5));
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseTrustedCA(ssl,
                 WOLFSSL_TRUSTED_CA_X509_NAME, id, 5));
 

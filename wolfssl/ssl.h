@@ -2261,8 +2261,6 @@ enum {
 
 WOLFSSL_API int wolfSSL_UseTrustedCA(WOLFSSL* ssl, unsigned char type,
             const unsigned char* cert, unsigned int certSz);
-WOLFSSL_API int wolfSSL_CTX_UseTrustedCA(WOLFSSL_CTX* ctx, unsigned char type,
-            const unsigned char* cert, unsigned int certSz);
 #endif /* HAVE_TRUSTED_CA */
 
 /* Application-Layer Protocol Negotiation */
