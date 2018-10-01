@@ -1044,6 +1044,106 @@ static void test_wolfSSL_CTX_SetMinMaxDhKey_Sz(void)
 #endif
 }
 
+static void test_wolfSSL_CTX_der_load_verify_locations(void)
+{
+#ifdef WOLFSSL_DER_LOAD
+    WOLFSSL_CTX* ctx = NULL;
+    const char* derCert = "./certs/server-cert.der";
+    const char* nullPath = NULL;
+    const char* invalidPath = "./certs/this-cert-does-not-exist.der";
+    const char* emptyPath = "";
+
+    /* der load Case 1 ctx NULL */
+    AssertIntEQ(wolfSSL_CTX_der_load_verify_locations(ctx, derCert,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_FAILURE);
+
+  #ifndef NO_WOLFSSL_CLIENT
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+  #else
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+  #endif
+    /* Case 2 filePath NULL */
+    AssertIntEQ(wolfSSL_CTX_der_load_verify_locations(ctx, nullPath,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_FAILURE);
+    /* Case 3 invalid format */
+    AssertIntEQ(wolfSSL_CTX_der_load_verify_locations(ctx, derCert,
+                WOLFSSL_FILETYPE_PEM), WOLFSSL_FAILURE);
+    /* Case 4 filePath not valid */
+    AssertIntEQ(wolfSSL_CTX_der_load_verify_locations(ctx, invalidPath,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_FAILURE);
+    /* Case 5 filePath empty */
+    AssertIntEQ(wolfSSL_CTX_der_load_verify_locations(ctx, emptyPath,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_FAILURE);
+    /* Case 6 success case */
+    AssertIntEQ(wolfSSL_CTX_der_load_verify_locations(ctx, derCert,
+                WOLFSSL_FILETYPE_ASN1), WOLFSSL_SUCCESS);
+
+    wolfSSL_CTX_free(ctx);
+#endif
+}
+
+static void test_wolfSSL_CTX_enable_disable(void)
+{
+#ifndef NO_CERTS
+    WOLFSSL_CTX* ctx = NULL;
+
+  #ifdef HAVE_CRL
+    AssertIntEQ(wolfSSL_CTX_DisableCRL(ctx), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_CTX_EnableCRL(ctx, 0), BAD_FUNC_ARG);
+  #endif
+
+  #ifdef HAVE_OCSP
+    AssertIntEQ(wolfSSL_CTX_DisableOCSP(ctx), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_CTX_EnableOCSP(ctx, 0), BAD_FUNC_ARG);
+  #endif
+
+  #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+      defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    AssertIntEQ(wolfSSL_CTX_DisableOCSPStapling(ctx), BAD_FUNC_ARG);
+    AssertIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), BAD_FUNC_ARG);
+  #endif
+
+  #ifndef NO_WOLFSSL_CLIENT
+
+    #ifdef HAVE_EXTENDED_MASTER
+    AssertIntEQ(wolfSSL_CTX_DisableExtendedMasterSecret(ctx), BAD_FUNC_ARG);
+    #endif
+
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+
+    #ifdef HAVE_EXTENDED_MASTER
+    AssertIntEQ(wolfSSL_CTX_DisableExtendedMasterSecret(ctx), WOLFSSL_SUCCESS);
+    #endif
+
+  #elif !defined(NO_WOLFSSL_SERVER)
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+  #else
+    return;
+  #endif
+
+  #ifdef HAVE_CRL
+    AssertIntEQ(wolfSSL_CTX_DisableCRL(ctx), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_EnableCRL(ctx, 0), WOLFSSL_SUCCESS);
+  #endif
+
+  #ifdef HAVE_OCSP
+    AssertIntEQ(wolfSSL_CTX_DisableOCSP(ctx), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_EnableOCSP(ctx, WOLFSSL_OCSP_URL_OVERRIDE),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_EnableOCSP(ctx, WOLFSSL_OCSP_NO_NONCE),
+                WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_EnableOCSP(ctx, WOLFSSL_OCSP_CHECKALL),
+                WOLFSSL_SUCCESS);
+  #endif
+
+  #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) || \
+      defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
+    AssertIntEQ(wolfSSL_CTX_DisableOCSPStapling(ctx), WOLFSSL_SUCCESS);
+    AssertIntEQ(wolfSSL_CTX_EnableOCSPStapling(ctx), WOLFSSL_SUCCESS);
+  #endif
+    wolfSSL_CTX_free(ctx);
+#endif /* NO_CERTS */
+}
 /*----------------------------------------------------------------------------*
  | SSL
  *----------------------------------------------------------------------------*/
@@ -20886,7 +20986,6 @@ static void test_dh_ctx_setup(WOLFSSL_CTX* ctx) {
 #endif
 }
 
-
 static void test_dh_ssl_setup(WOLFSSL* ssl)
 {
     static int dh_test_ctx = 1;
@@ -20935,6 +21034,9 @@ static void test_DhCallbacks(void)
 #else
     AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
 #endif
+
+    AssertIntEQ(wolfSSL_CTX_set_cipher_list(NULL, "NONE"), WOLFSSL_FAILURE);
+
     wolfSSL_CTX_SetDhAgreeCb(ctx, &my_DhCallback);
 
     /* load client ca cert */
@@ -21470,6 +21572,8 @@ void ApiTest(void)
     test_wolfSSL_CTX_SetTmpDH_file();
     test_wolfSSL_CTX_SetTmpDH_buffer();
     test_wolfSSL_CTX_SetMinMaxDhKey_Sz();
+    test_wolfSSL_CTX_der_load_verify_locations();
+    test_wolfSSL_CTX_enable_disable();
     test_server_wolfSSL_new();
     test_client_wolfSSL_new();
     test_wolfSSL_SetTmpDH_file();
