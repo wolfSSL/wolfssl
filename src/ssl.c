@@ -16075,6 +16075,16 @@ WOLFSSL_EVP_PKEY* wolfSSL_X509_get_pubkey(WOLFSSL_X509* x509)
  * size of this subset and its memory usage */
 #endif /* OPENSSL_EXTRA_X509_SMALL */
 
+#if defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB)
+    int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b)
+    {
+        (void)a;
+        (void)b;
+        WOLFSSL_STUB("wolfSSL_X509_cmp");
+        return 0;
+    }
+#endif
+
 #if defined(OPENSSL_EXTRA)
 #if !defined(NO_CERTS)
     int wolfSSL_X509_ext_isSet_by_NID(WOLFSSL_X509* x509, int nid)

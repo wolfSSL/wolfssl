@@ -194,7 +194,7 @@ struct WOLFSSL_ASN1_INTEGER {
     unsigned char* data;
     unsigned int   dataMax;   /* max size of data buffer */
     unsigned int   isDynamic:1; /* flag for if data pointer dynamic (1 is yes 0 is no) */
-    
+
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     int length;
 #endif
@@ -2622,6 +2622,11 @@ WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_get_privatekey(const WOLFSSL *ssl);
 WOLFSSL_API int wolfSSL_use_RSAPrivateKey_ASN1(WOLFSSL* ssl, unsigned char* der,
                                                                 long derSz);
 #endif
+
+#ifdef WOLFSSL_QT
+    WOLFSSL_API int wolfSSL_X509_cmp(const WOLFSSL_X509 *a, const WOLFSSL_X509 *b);
+#endif
+
 #endif /* NO_CERTS */
 
 WOLFSSL_API WOLFSSL_DH *wolfSSL_DSA_dup_DH(const WOLFSSL_DSA *r);

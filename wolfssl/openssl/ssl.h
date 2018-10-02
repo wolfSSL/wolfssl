@@ -252,6 +252,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #ifdef WOLFSSL_QT
     #define SSL_MODE_RELEASE_BUFFERS    wolfSSL_SSL_MODE_RELEASE_BUFFERS
     #define SSL_CTRL_SET_TMP_ECDH       wolfSSL_SSL_CTRL_SET_TMP_ECDH
+    #define X509_cmp                    wolfSSl_X509_cmp
 #endif
 
 
