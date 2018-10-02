@@ -203,6 +203,10 @@ struct WOLFSSL_ASN1_TIME {
     /* MAX_DATA_SIZE is 32 */
     unsigned char data[32 + 2];
     /* ASN_TIME | LENGTH | date bytes */
+#if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
+    int length;
+    int type;
+#endif
 };
 
 struct WOLFSSL_ASN1_STRING {

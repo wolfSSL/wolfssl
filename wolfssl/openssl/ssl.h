@@ -40,9 +40,10 @@
 #include <wolfssl/openssl/crypto.h>
 #endif
 
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+#if defined(WOLFSSL_QT)
 #include <wolfssl/openssl/dh.h>
 #include <wolfssl/wolfcrypt/asn.h>
+#include <wolfssl/wolfcrypt/settings.h>
 #endif
 
 /* all NID_* values are in asn.h */
@@ -67,6 +68,7 @@ typedef WOLFSSL          SSL;
 typedef WOLFSSL_SESSION  SSL_SESSION;
 typedef WOLFSSL_METHOD   SSL_METHOD;
 typedef WOLFSSL_CTX      SSL_CTX;
+
 
 typedef WOLFSSL_X509       X509;
 typedef WOLFSSL_X509       X509_REQ;
@@ -217,7 +219,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
     #define SSL_use_RSAPrivateKey_file        wolfSSL_use_RSAPrivateKey_file
 #endif
 
-#define SSL_CTX_new                     wolfSSL_CTX_new
+#define SSL_CTX_new(x)                  wolfSSL_CTX_new((WOLFSSL_METHOD*) (x))
 #define SSL_new                         wolfSSL_new
 #define SSL_set_fd                      wolfSSL_set_fd
 #define SSL_get_fd                      wolfSSL_get_fd
@@ -237,7 +239,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_set_quiet_shutdown          wolfSSL_set_quiet_shutdown
 #define SSL_get_error                   wolfSSL_get_error
 #define SSL_set_session                 wolfSSL_set_session
-#define SSL_get_session                 wolfSSL_get_session
+#define SSL_get_session(x)              wolfSSL_get_session((WOLFSSL*) (x))
 #define SSL_flush_sessions              wolfSSL_flush_sessions
 /* assume unlimited temporarily */
 #define SSL_CTX_get_session_cache_mode(ctx) 0
@@ -517,7 +519,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define SSL_CTX_get_client_CA_list      wolfSSL_SSL_CTX_get_client_CA_list
 #define SSL_CTX_set_client_CA_list      wolfSSL_CTX_set_client_CA_list
 #define SSL_CTX_set_cert_store          wolfSSL_CTX_set_cert_store
-#define SSL_CTX_get_cert_store          wolfSSL_CTX_get_cert_store
+#define SSL_CTX_get_cert_store(x)       wolfSSL_CTX_get_cert_store(WOLFSSL_CTX* (x))
 #define SSL_get_ex_data_X509_STORE_CTX_idx wolfSSL_get_ex_data_X509_STORE_CTX_idx
 #define SSL_get_ex_data                 wolfSSL_get_ex_data
 
@@ -821,6 +823,7 @@ typedef STACK_OF(WOLFSSL_ASN1_OBJECT) GENERAL_NAMES;
 
 #define SSL_CTRL_SET_TMP_DH                     3
 #define SSL_CTRL_EXTRA_CHAIN_CERT               14
+#define SSL_CTRL_OPTIONS                        32
 
 #define SSL_CTRL_SET_SESS_CACHE_SIZE            42
 #define SSL_CTRL_GET_READ_AHEAD                 40
@@ -859,7 +862,7 @@ typedef STACK_OF(WOLFSSL_ASN1_OBJECT) GENERAL_NAMES;
 
 #define SSL_CTX_flush_sessions          wolfSSL_flush_sessions
 #define SSL_CTX_add_session             wolfSSL_CTX_add_session
-#define SSL_version                     wolfSSL_version
+#define SSL_version(x)                  wolfSSL_version ((WOLFSSL*) (x))
 #define SSL_get_state                   wolfSSL_get_state
 #define SSL_state_string_long           wolfSSL_state_string_long
 
