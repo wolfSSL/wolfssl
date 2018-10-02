@@ -75,6 +75,7 @@ typedef WOLFSSL_X509_CHAIN X509_CHAIN;
 
 #ifdef WOLFSSL_QT
     typedef struct WOLFSSL_X509_PUBKEY     X509_PUBKEY;
+    typedef struct WOLFSSL_X509_ALGOR      X509_ALGOR;
 #endif
 
 typedef WOLFSSL_STACK      EXTENDED_KEY_USAGE;
@@ -277,8 +278,12 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define SSL_SESSION_get_master_key_length wolfSSL_SESSION_get_master_key_length
 
 #ifdef WOLFSSL_QT
-#define SSL_MODE_RELEASE_BUFFERS    wolfSSL_SSL_MODE_RELEASE_BUFFERS
-#define SSL_CTRL_SET_TMP_ECDH       wolfSSL_SSL_CTRL_SET_TMP_ECDH
+    #define SSL_MODE_RELEASE_BUFFERS    wolfSSL_SSL_MODE_RELEASE_BUFFERS
+    #define SSL_CTRL_SET_TMP_ECDH       wolfSSL_SSL_CTRL_SET_TMP_ECDH
+    #define X509_cmp                    wolfSSL_X509_cmp
+    #define X509_get_ext                wolfSSL_X509_get_ext
+    #define X509_get_ext_count          wolfSSL_X509_get_ext_count
+    #define X509_PUBKEY_get             wolfSSL_X509_PUBKEY_get
 #endif
         
 #define DSA_dup_DH                      wolfSSL_DSA_dup_DH
@@ -983,7 +988,6 @@ typedef STACK_OF(WOLFSSL_ASN1_OBJECT) GENERAL_NAMES;
 #define SSL_get0_next_proto_negotiated    wolfSSL_get0_next_proto_negotiated
 #define SSL_is_server                     wolfSSL_is_server
 #define SSL_CTX_set1_curves_list          wolfSSL_CTX_set1_curves_list
->>>>>>> f2d1c7d4c... Add placeholder defines and stubs
 
 #endif /* WOLFSSL_NGINX || WOLFSSL_HAPROXY || WOLFSSL_MYSQL_COMPATIBLE || 
           OPENSSL_ALL || HAVE_LIGHTY */

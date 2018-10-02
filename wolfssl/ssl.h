@@ -193,7 +193,7 @@ struct WOLFSSL_ASN1_INTEGER {
     unsigned char* data;
     unsigned int   dataMax;   /* max size of data buffer */
     unsigned int   isDynamic:1; /* flag for if data pointer dynamic (1 is yes 0 is no) */
-    
+
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_QT)
     int length;
 #endif
@@ -323,9 +323,20 @@ struct WOLFSSL_X509_STORE {
 #endif
 };
 
-#ifdef WOLFSSL_QT
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
     #define wolfSSL_SSL_MODE_RELEASE_BUFFERS    0x00000010U
     #define wolfSSL_SSL_CTRL_SET_TMP_ECDH       4
+
+   typedef struct WOLFSSL_X509_ALGOR {
+        /* TODO: this  */
+    } WOLFSSL_X509_ALGOR;
+
+    typedef struct WOLFSSL_X509_PUBKEY {
+        WOLFSSL_X509_ALGOR* algor;
+        WOLFSSL_ASN1_BIT_STRING* public_key;
+        WOLFSSL_EVP_PKEY* pkey;
+    } WOLFSSL_X509_PUBKEY;
+
 #endif
 
 #ifdef OPENSSL_EXTRA
@@ -2704,6 +2715,14 @@ WOLFSSL_API WOLFSSL_EVP_PKEY *wolfSSL_get_privatekey(const WOLFSSL *ssl);
 WOLFSSL_API int wolfSSL_use_RSAPrivateKey_ASN1(WOLFSSL* ssl, unsigned char* der,
                                                                 long derSz);
 #endif
+
+#ifdef WOLFSSL_QT
+WOLFSSL_API int wolfSSL_X509_cmp(const WOLFSSL_X509* a, const WOLFSSL_X509* b);
+WOLFSSL_API WOLFSSL_X509_EXTENSION* wolfSSL_X509_get_ext(const WOLFSSL_X509* x, int loc);
+WOLFSSL_API int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* x);
+WOLFSSL_API WOLFSSL_EVP_PKEY* wolfSSL_X509_PUBKEY_get(WOLFSSL_X509_PUBKEY* key);
+#endif
+
 #endif /* NO_CERTS */
 
 WOLFSSL_API WOLFSSL_DH *wolfSSL_DSA_dup_DH(const WOLFSSL_DSA *r);
