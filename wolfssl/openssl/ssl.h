@@ -72,6 +72,7 @@ typedef WOLFSSL_X509_CHAIN X509_CHAIN;
 
 #ifdef WOLFSSL_QT
     typedef struct WOLFSSL_X509_PUBKEY     X509_PUBKEY;
+    typedef struct WOLFSSL_X509_ALGOR      X509_ALGOR;
 #endif
 
 
@@ -252,7 +253,10 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #ifdef WOLFSSL_QT
     #define SSL_MODE_RELEASE_BUFFERS    wolfSSL_SSL_MODE_RELEASE_BUFFERS
     #define SSL_CTRL_SET_TMP_ECDH       wolfSSL_SSL_CTRL_SET_TMP_ECDH
-    #define X509_cmp                    wolfSSl_X509_cmp
+    #define X509_cmp                    wolfSSL_X509_cmp
+    #define X509_get_ext                wolfSSL_X509_get_ext
+    #define X509_get_ext_count          wolfSSL_X509_get_ext_count
+    #define X509_PUBKEY_get             wolfSSL_X509_PUBKEY_get
 #endif
 
 

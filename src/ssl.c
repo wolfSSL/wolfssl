@@ -6882,6 +6882,24 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
     return ret;
 }
 
+#if defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB)
+    WOLFSSL_X509_EXTENSION* wolfSSL_X509_get_ext(const WOLFSSL_X509* x, int loc)
+    {
+        (void)x;
+        (void)loc;
+        WOLFSSL_STUB("wolfSSL_X509_get_ext");
+        return 0;
+    }
+
+    int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* x)
+    {
+        (void)x;
+        WOLFSSL_STUB("wolfSSL_X509_get_ext_count");
+        return 0;
+    }
+
+#endif /* defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB) */
+
 
 /* Looks for the extension matching the passed in nid
  *
@@ -20235,6 +20253,17 @@ WOLFSSL_API int X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg, const unsig
     return WOLFSSL_FAILURE;
 }
 #endif
+
+#if defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB)
+WOLFSSL_EVP_PKEY* wolfSSL_X509_PUBKEY_get(WOLFSSL_X509_PUBKEY* key)
+{
+    (void)key;
+    WOLFSSL_STUB("wolfSSL_X509_PUBKEY_get");
+    return 0;
+}
+
+#endif /* defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB) */
+
 
 #ifndef NO_WOLFSSL_STUB
 /*** TBD ***/
