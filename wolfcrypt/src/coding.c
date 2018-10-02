@@ -36,7 +36,8 @@
 enum {
     BAD         = 0xFF,  /* invalid encoding */
     PAD         = '=',
-    PEM_LINE_SZ = 64
+    PEM_LINE_SZ = 64,
+    START_HEX   = 0x2B
 };
 
 
@@ -59,7 +60,7 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
     word32 i = 0;
     word32 j = 0;
     word32 plainSz = inLen - ((inLen + (PEM_LINE_SZ - 1)) / PEM_LINE_SZ );
-    const byte maxIdx = (byte)sizeof(base64Decode) + 0x2B - 1;
+    const byte maxIdx = (byte)sizeof(base64Decode) + START_HEX - 1;
 
     plainSz = (plainSz * 3 + 3) / 4;
     if (plainSz > *outLen) return BAD_FUNC_ARG;
@@ -81,7 +82,7 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
         if (e4 == PAD)
             pad4 = 1;
 
-        if (e1 < 0x2B || e2 < 0x2B || e3 < 0x2B || e4 < 0x2B) {
+        if (e1 < START_HEX || e2 < START_HEX || e3 < START_HEX || e4 < START_HEX) {
             WOLFSSL_MSG("Bad Base64 Decode data, too small");
             return ASN_INPUT_E;
         }
@@ -91,10 +92,10 @@ int Base64_Decode(const byte* in, word32 inLen, byte* out, word32* outLen)
             return ASN_INPUT_E;
         }
 
-        e1 = base64Decode[e1 - 0x2B];
-        e2 = base64Decode[e2 - 0x2B];
-        e3 = (e3 == PAD) ? 0 : base64Decode[e3 - 0x2B];
-        e4 = (e4 == PAD) ? 0 : base64Decode[e4 - 0x2B];
+        e1 = base64Decode[e1 - START_HEX];
+        e2 = base64Decode[e2 - START_HEX];
+        e3 = (e3 == PAD) ? 0 : base64Decode[e3 - START_HEX];
+        e4 = (e4 == PAD) ? 0 : base64Decode[e4 - START_HEX];
 
         b1 = (byte)((e1 << 2) | (e2 >> 4));
         b2 = (byte)(((e2 & 0xF) << 4) | (e3 >> 2));
