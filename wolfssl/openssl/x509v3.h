@@ -23,6 +23,7 @@
 
 #include <wolfssl/openssl/conf.h>
 #include <wolfssl/openssl/bio.h>
+#include <wolfssl/openssl/objects.h>
 
 struct WOLFSSL_AUTHORITY_KEYID {
     WOLFSSL_ASN1_STRING *keyid;
@@ -58,4 +59,4 @@ struct WOLFSSL_ACCESS_DESCRIPTION {
 typedef WOLFSSL_AUTHORITY_KEYID AUTHORITY_KEYID;
 typedef WOLFSSL_ACCESS_DESCRIPTION ACCESS_DESCRIPTION;
 typedef STACK_OF(WOLFSSL_ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
-typedef struct WOLFSSL_v3_ext_method X509V3_EXT_METHOD;
+typedef WOLFSSL_v3_ext_method X509V3_EXT_METHOD;

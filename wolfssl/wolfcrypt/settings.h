@@ -1724,8 +1724,8 @@ extern void uITRON4_free(void *p) ;
     #endif
 #endif
 
-#if defined(WOLFSSL_NGINX)
-    #define SSL_CTRL_SET_TLSEXT_HOSTNAME
+#if defined(WOLFSSL_NGINX) || defined(WOLFSSL_QT)
+    #define SSL_CTRL_SET_TLSEXT_HOSTNAME 55
 #endif
 
 /* both CURVE and ED small math should be enabled */
