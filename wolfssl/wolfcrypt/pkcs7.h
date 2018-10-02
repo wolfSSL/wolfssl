@@ -102,6 +102,7 @@ typedef struct PKCS7 {
     WC_RNG* rng;
     PKCS7Attrib* signedAttribs;
     byte*  content;               /* inner content, not owner             */
+    byte*  contentDynamic;        /* content if constructed OCTET_STRING  */
     byte*  singleCert;            /* recipient cert, DER, not owner       */
     const byte* issuer;           /* issuer name of singleCert            */
     byte*  privateKey;            /* private key, DER, not owner          */
