@@ -613,6 +613,10 @@ static void Usage(void)
     printf("%s", msg[++msgId]);     /* -N */
     printf("%s", msg[++msgId]);     /* -S */
     printf("%s", msg[++msgId]);     /* -w */
+#ifdef HAVE_SECURE_RENEGOTIATION
+    printf("-M          Allow Secure Renegotiation\n");
+    printf("-m          Force Server Initiated Secure Renegotiation\n");
+#endif /* HAVE_SECURE_RENEGOTIATION */
 #ifdef HAVE_OCSP
     printf("%s", msg[++msgId]);     /* -o */
     printf("%s", msg[++msgId]);     /* -O */
@@ -780,6 +784,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_EARLY_DATA
     int earlyData = 0;
 #endif
+#ifdef HAVE_SECURE_RENEGOTIATION
+    int scr = 0;
+    int forceScr = 0;
+#endif /* HAVE_SECURE_RENEGOTIATION */
 #ifdef WOLFSSL_SEND_HRR_COOKIE
     int hrrCookie = 0;
 #endif
@@ -851,10 +859,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #ifdef WOLFSSL_VXWORKS
     useAnyAddr = 1;
 #else
-    /* Not Used: h, m, z, F, M, T, V, W, X */
-    while ((ch = mygetopt(argc, argv, "?:"
-                "abc:defgijk:l:nop:q:rstuv:wxy"
-                "A:B:C:D:E:GH:IJKL:NO:PQR:S:TUVYZ:"
+    /* Not Used: h, z, F, T, V, W, X */
+    while ((ch = mygetopt(argc, argv, "?"
+                "abc:defgijk:l:mnop:q:rstuv:wxy"
+                "A:B:C:D:E:GH:IJKL:MNO:PQR:S:TUVYZ:"
                 "01:23:")) != -1) {
         switch (ch) {
             case '?' :
@@ -1159,6 +1167,19 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             #ifdef WOLFSSL_SEND_HRR_COOKIE
                 hrrCookie = 1;
             #endif
+                break;
+
+            case 'M' :
+            #ifdef HAVE_SECURE_RENEGOTIATION
+                scr = 1;
+            #endif /* HAVE_SECURE_RENEGOTIATION */
+                break;
+
+            case 'm' :
+            #ifdef HAVE_SECURE_RENEGOTIATION
+                scr = 1;
+                forceScr = 1;
+            #endif /* HAVE_SECURE_RENEGOTIATION */
                 break;
 
             case '0' :
@@ -1639,7 +1660,15 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             err_sys("unable to set mcast secret");
 #endif
     }
-
+#if 0
+#ifdef HAVE_SECURE_RENEGOTIATION
+        if (scr) {
+            if (wolfSSL_UseSecureRenegotiation(ssl) != WOLFSSL_SUCCESS) {
+                err_sys_ex(runWithErrors, "can't enable secure renegotiation");
+            }
+        }
+#endif /* HAVE_SECURE_RENEGOTIATION */
+#endif
 #ifndef NO_HANDSHAKE_DONE_CB
         wolfSSL_SetHsDoneCb(ssl, myHsDoneCb, NULL);
 #endif
@@ -1956,6 +1985,25 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             ServerRead(ssl, input, sizeof(input)-1);
             err = SSL_get_error(ssl, 0);
         }
+
+#if defined(HAVE_SECURE_RENEGOTIATION) && \
+    defined(HAVE_SERVER_RENEGOTIATION_INFO)
+        if (scr && forceScr) {
+            if (nonBlocking) {
+                printf("not doing secure renegotiation on example with"
+                       " nonblocking yet");
+            } else {
+                if (wolfSSL_Rehandshake(ssl) != WOLFSSL_SUCCESS) {
+                    err = wolfSSL_get_error(ssl, 0);
+                    printf("err = %d, %s\n", err,
+                                    wolfSSL_ERR_error_string(err, buffer));
+                    wolfSSL_free(ssl); ssl = NULL;
+                    wolfSSL_CTX_free(ctx); ctx = NULL;
+                    err_sys("wolfSSL_Rehandshake failed");
+                }
+            }
+        }
+#endif /* HAVE_SECURE_RENEGOTIATION */
 
         if (err != WOLFSSL_ERROR_ZERO_RETURN && echoData == 0 &&
                                                               throughput == 0) {

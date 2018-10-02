@@ -4900,12 +4900,14 @@ int InitSSL(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
 #endif
 
 #ifdef HAVE_SECURE_RENEGOTIATION
+    if (ssl->options.side == WOLFSSL_CLIENT_END) {
     /* use secure renegotiation by default (not recommend) */
     #ifdef WOLFSSL_SECURE_RENEGOTIATION_ON_BY_DEFAULT
         ret = wolfSSL_UseSecureRenegotiation(ssl);
         if (ret != WOLFSSL_SUCCESS)
             return ret;
     #endif
+    }
 #endif
 
     return 0;
@@ -10250,6 +10252,9 @@ static int DoCertificateStatus(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     if (ret != 0)
         SendAlert(ssl, alert_fatal, bad_certificate_status_response);
 
+    if (IsEncryptionOn(ssl, 0))
+        *inOutIdx += ssl->keys.padSz;
+
     WOLFSSL_LEAVE("DoCertificateStatus", ret);
     WOLFSSL_END(WC_FUNC_CERTIFICATE_STATUS_DO);
 
@@ -10266,6 +10271,9 @@ static int DoHelloRequest(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                                                     word32 size, word32 totalSz)
 {
     (void)input;
+
+    WOLFSSL_START(WC_FUNC_HELLO_REQUEST_DO);
+    WOLFSSL_ENTER("DoFinished");
 
     if (size) /* must be 0 */
         return BUFFER_ERROR;
@@ -10285,6 +10293,8 @@ static int DoHelloRequest(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #ifdef HAVE_SECURE_RENEGOTIATION
     else if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled) {
         ssl->secure_renegotiation->startScr = 1;
+        WOLFSSL_LEAVE("DoHelloRequest", 0);
+        WOLFSSL_END(WC_FUNC_HELLO_REQUEST_DO);
         return 0;
     }
 #endif
@@ -10330,6 +10340,7 @@ int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx, word32 size,
         else
             XMEMCPY(ssl->secure_renegotiation->client_verify_data,
                     input + *inOutIdx, TLS_FINISHED_SZ);
+        ssl->secure_renegotiation->verifySet = 1;
     }
 #endif
 
@@ -10699,6 +10710,28 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     expectedIdx = *inOutIdx + size +
                   (ssl->keys.encryptionOn ? ssl->keys.padSz : 0);
 
+#if !defined(WOLFSSL_NO_SERVER) && \
+    defined(HAVE_SECURE_RENEGOTIATION) && \
+    defined(HAVE_SERVER_RENEGOTIATION_INFO)
+    if (ssl->options.handShakeDone && type == client_hello &&
+            ssl->secure_renegotiation &&
+            ssl->secure_renegotiation->enabled)
+    {
+        WOLFSSL_MSG("Reset handshake state");
+        XMEMSET(&ssl->msgsReceived, 0, sizeof(MsgsReceived));
+        ssl->options.serverState = NULL_STATE;
+        ssl->options.clientState = NULL_STATE;
+        ssl->options.connectState = CONNECT_BEGIN;
+        ssl->options.acceptState = ACCEPT_BEGIN;
+        ssl->options.handShakeState = NULL_STATE;
+        ssl->secure_renegotiation->cache_status = SCR_CACHE_NEEDED;
+
+        ret = InitHandshakeHashes(ssl);
+        if (ret != 0)
+            return ret;
+    }
+#endif
+
     /* sanity check msg received */
     if ( (ret = SanityCheckMsgReceived(ssl, type)) != 0) {
         WOLFSSL_MSG("Sanity Check on handshake message type received failed");
@@ -10881,6 +10914,13 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             }
         }
     #endif
+        if (IsEncryptionOn(ssl, 0)) {
+            /* access beyond input + size should be checked against totalSz */
+            if (*inOutIdx + ssl->keys.padSz > totalSz)
+                return BUFFER_E;
+
+            *inOutIdx += ssl->keys.padSz;
+        }
         break;
 
     case client_key_exchange:
@@ -14617,12 +14657,16 @@ int SendCertificateRequest(WOLFSSL* ssl)
 
     sendSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ + reqSz;
 
+    if (!ssl->options.dtls) {
+        if (IsEncryptionOn(ssl, 1))
+            sendSz += MAX_MSG_EXTRA;
+    }
+    else {
     #ifdef WOLFSSL_DTLS
-        if (ssl->options.dtls) {
-            sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-            i      += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-        }
+        sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
+        i      += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
     #endif
+    }
     /* check for available size */
     if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
         return ret;
@@ -14675,18 +14719,34 @@ int SendCertificateRequest(WOLFSSL* ssl)
 #endif
     (void)i;
 
-    #ifdef WOLFSSL_DTLS
-        if (IsDtlsNotSctpMode(ssl)) {
-            if ((ret = DtlsMsgPoolSave(ssl, output, sendSz)) != 0)
+        if (IsEncryptionOn(ssl, 1)) {
+            byte* input;
+            int   inputSz = i - RECORD_HEADER_SZ; /* build msg adds rec hdr */
+
+            input = (byte*)XMALLOC(inputSz, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+            if (input == NULL)
+                return MEMORY_E;
+
+            XMEMCPY(input, output + RECORD_HEADER_SZ, inputSz);
+            sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
+                                  handshake, 1, 0, 0);
+            XFREE(input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+
+            if (sendSz < 0)
+                return sendSz;
+        } else {
+            #ifdef WOLFSSL_DTLS
+                if (ssl->options.dtls)
+                    DtlsSEQIncrement(ssl, CUR_ORDER);
+                if (IsDtlsNotSctpMode(ssl)) {
+                    if ((ret = DtlsMsgPoolSave(ssl, output, sendSz)) != 0)
+                        return ret;
+                }
+            #endif
+            ret = HashOutput(ssl, output, sendSz, 0);
+            if (ret != 0)
                 return ret;
         }
-        if (ssl->options.dtls)
-            DtlsSEQIncrement(ssl, CUR_ORDER);
-    #endif
-
-    ret = HashOutput(ssl, output, sendSz, 0);
-    if (ret != 0)
-        return ret;
 
     #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
         if (ssl->hsInfoOn)
@@ -15197,10 +15257,10 @@ int ReceiveData(WOLFSSL* ssl, byte* output, int sz, int peek)
 startScr:
     if (ssl->secure_renegotiation && ssl->secure_renegotiation->startScr) {
         int err;
-        ssl->secure_renegotiation->startScr = 0;  /* only start once */
         WOLFSSL_MSG("Need to start scr, server requested");
         if ( (err = wolfSSL_Rehandshake(ssl)) != WOLFSSL_SUCCESS)
             return  err;
+        ssl->secure_renegotiation->startScr = 0;  /* only start once */
     }
 #endif
 
@@ -17162,6 +17222,10 @@ exit_dpk:
                 return sendSz;
         } else {
             #ifdef WOLFSSL_DTLS
+                if (IsDtlsNotSctpMode(ssl)) {
+                    if ((ret = DtlsMsgPoolSave(ssl, output, sendSz)) != 0)
+                        return ret;
+                }
                 if (ssl->options.dtls)
                     DtlsSEQIncrement(ssl, CUR_ORDER);
             #endif
@@ -17169,13 +17233,6 @@ exit_dpk:
             if (ret != 0)
                 return ret;
         }
-
-        #ifdef WOLFSSL_DTLS
-            if (IsDtlsNotSctpMode(ssl)) {
-                if ((ret = DtlsMsgPoolSave(ssl, output, sendSz)) != 0)
-                    return ret;
-            }
-        #endif
 
         ssl->options.clientState = CLIENT_HELLO_COMPLETE;
 #ifdef OPENSSL_EXTRA
@@ -21059,7 +21116,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
         #endif /* WOLFSSL_DTLS */
 
-        /* check for available size */
+        if (IsEncryptionOn(ssl, 1))
+            sendSz += MAX_MSG_EXTRA;
+
+        /* check for avalaible size */
         if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
             return ret;
 
@@ -21138,9 +21198,13 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         /* last, extensions */
 #ifdef HAVE_TLS_EXTENSIONS
-        ret = TLSX_WriteResponse(ssl, output + idx, server_hello, NULL);
-        if (ret != 0)
-            return ret;
+        {
+            word16 offset = 0;
+            ret = TLSX_WriteResponse(ssl, output + idx, server_hello, &offset);
+            if (ret != 0)
+                return ret;
+            idx += offset;
+        }
 #else
 #ifdef HAVE_EXTENDED_MASTER
         if (ssl->options.haveEMS) {
@@ -21157,21 +21221,30 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif
 #endif
 
-        ssl->buffers.outputBuffer.length += sendSz;
-        #ifdef WOLFSSL_DTLS
-            if (IsDtlsNotSctpMode(ssl)) {
-                if ((ret = DtlsMsgPoolSave(ssl, output, sendSz)) != 0)
-                    return ret;
-            }
+        if (IsEncryptionOn(ssl, 1)) {
+            byte* input;
+            int   inputSz = idx - RECORD_HEADER_SZ; /* build msg adds rec hdr */
 
-            if (ssl->options.dtls) {
-                DtlsSEQIncrement(ssl, CUR_ORDER);
-            }
-        #endif
+            input = (byte*)XMALLOC(inputSz, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+            if (input == NULL)
+                return MEMORY_E;
 
-        ret = HashOutput(ssl, output, sendSz, 0);
-        if (ret != 0)
-            return ret;
+            XMEMCPY(input, output + RECORD_HEADER_SZ, inputSz);
+            sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
+                                  handshake, 1, 0, 0);
+            XFREE(input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+
+            if (sendSz < 0)
+                return sendSz;
+        } else {
+            #ifdef WOLFSSL_DTLS
+                if (ssl->options.dtls)
+                    DtlsSEQIncrement(ssl, CUR_ORDER);
+            #endif
+            ret = HashOutput(ssl, output, sendSz, 0);
+            if (ret != 0)
+                return ret;
+        }
 
     #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
         if (ssl->hsInfoOn)
@@ -21182,6 +21255,18 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #endif
 
         ssl->options.serverState = SERVER_HELLO_COMPLETE;
+        ssl->buffers.outputBuffer.length += sendSz;
+
+    #ifdef WOLFSSL_DTLS
+        if (IsDtlsNotSctpMode(ssl)) {
+            if ((ret = DtlsMsgPoolSave(ssl, output, sendSz)) != 0)
+                return ret;
+        }
+
+        if (ssl->options.dtls) {
+            DtlsSEQIncrement(ssl, CUR_ORDER);
+        }
+    #endif
 
         if (ssl->options.groupMessages)
             ret = 0;
@@ -21294,6 +21379,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
     #ifndef NO_RSA
         byte*  verifySig;
     #endif
+        byte*  input;
         word32 idx;
         word32 tmpSigSz;
         word32 length;
@@ -21309,6 +21395,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         word32 qshSz;
     #endif
         int    sendSz;
+        int    inputSz;
     } SskeArgs;
 
     static void FreeSskeArgs(WOLFSSL* ssl, void* pArgs)
@@ -21606,6 +21693,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             args->idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
                         }
                     #endif
+
+                        if (IsEncryptionOn(ssl, 1)) {
+                            args->sendSz += MAX_MSG_EXTRA;
+                        }
+
                         /* check for available size */
                         if ((ret = CheckAvailableSize(ssl, args->sendSz)) != 0) {
                             goto exit_sske;
@@ -21664,6 +21756,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             args->idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
                         }
                     #endif
+
+                        if (IsEncryptionOn(ssl, 1)) {
+                            args->sendSz += MAX_MSG_EXTRA;
+                        }
 
                         /* check for available size */
                         if ((ret = CheckAvailableSize(ssl, args->sendSz)) != 0) {
@@ -21767,6 +21863,11 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             args->idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
                         }
                     #endif
+
+                        if (IsEncryptionOn(ssl, 1)) {
+                            args->sendSz += MAX_MSG_EXTRA;
+                        }
+
                         /* check for available size */
                         if ((ret = CheckAvailableSize(ssl, args->sendSz)) != 0) {
                             goto exit_sske;
@@ -21983,6 +22084,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             preSigIdx = args->idx;
                         }
                     #endif
+                        if (IsEncryptionOn(ssl, 1)) {
+                            args->sendSz += MAX_MSG_EXTRA;
+                        }
+
                         /* check for available size */
                         if ((ret = CheckAvailableSize(ssl, args->sendSz)) != 0) {
                             goto exit_sske;
@@ -22218,6 +22323,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             preSigIdx = args->idx;
                         }
                     #endif
+
+                        if (IsEncryptionOn(ssl, 1)) {
+                            args->sendSz += MAX_MSG_EXTRA;
+                        }
 
                         /* check for available size */
                         if ((ret = CheckAvailableSize(ssl, args->sendSz)) != 0) {
@@ -22697,20 +22806,45 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                 }
             #endif /* HAVE_ECC || HAVE_CURVE25519 */
 
-            #ifdef WOLFSSL_DTLS
-                if (IsDtlsNotSctpMode(ssl)) {
-                    if ((ret = DtlsMsgPoolSave(ssl, args->output, args->sendSz)) != 0) {
-                        goto exit_sske;
+                if (IsEncryptionOn(ssl, 1)) {
+                    args->inputSz = args->length + HANDSHAKE_HEADER_SZ;
+                                                     /* buildmsg adds rechdr */
+                    args->input = (byte*)XMALLOC(args->inputSz, ssl->heap,
+                                                        DYNAMIC_TYPE_IN_BUFFER);
+                    if (args->input == NULL) {
+                        ERROR_OUT(MEMORY_E, exit_sske);
+                    }
+
+                    XMEMCPY(args->input, args->output + RECORD_HEADER_SZ,
+                                                                 args->inputSz);
+                    ret = BuildMessage(ssl, args->output, args->sendSz,
+                                args->input, args->inputSz, handshake, 1, 0, 0);
+                    XFREE(args->input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+                    args->input = NULL;
+                        /* make sure its not double free'd on cleanup */
+
+                    if (ret >= 0) {
+                        args->sendSz = ret;
+                        ret = 0;
                     }
                 }
+                else {
+                #ifdef WOLFSSL_DTLS
+                    if (IsDtlsNotSctpMode(ssl)) {
+                        if ((ret = DtlsMsgPoolSave(ssl,
+                                            args->output, args->sendSz)) != 0) {
+                            goto exit_sske;
+                        }
+                    }
 
-                if (ssl->options.dtls)
-                    DtlsSEQIncrement(ssl, CUR_ORDER);
-            #endif
+                    if (ssl->options.dtls)
+                        DtlsSEQIncrement(ssl, CUR_ORDER);
+                #endif
 
-                ret = HashOutput(ssl, args->output, args->sendSz, 0);
-                if (ret != 0) {
-                    goto exit_sske;
+                    ret = HashOutput(ssl, args->output, args->sendSz, 0);
+                    if (ret != 0) {
+                        goto exit_sske;
+                    }
                 }
 
             #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
@@ -23745,6 +23879,12 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         }
         ret = MatchSuite(ssl, &clSuites);
 
+#ifdef HAVE_SECURE_RENEGOTIATION
+    if (ssl->secure_renegotiation && ssl->secure_renegotiation->enabled &&
+            IsEncryptionOn(ssl, 0)) {
+        ssl->secure_renegotiation->startScr = 1;
+    }
+#endif
         WOLFSSL_LEAVE("DoClientHello", ret);
         WOLFSSL_END(WC_FUNC_CLIENT_HELLO_DO);
 
@@ -24053,6 +24193,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
             case TLS_ASYNC_FINALIZE:
             {
+                if (IsEncryptionOn(ssl, 0)) {
+                    args->idx += ssl->keys.padSz;
+                }
+
                 ssl->options.havePeerVerify = 1;
 
                 /* Set final index */
@@ -24118,6 +24262,9 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
             sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
     #endif
 
+        if (IsEncryptionOn(ssl, 1))
+            sendSz += MAX_MSG_EXTRA;
+
         /* check for available size */
         if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
             return ret;
@@ -24128,19 +24275,34 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         AddHeaders(output, 0, server_hello_done, ssl);
 
-    #ifdef WOLFSSL_DTLS
-        if (IsDtlsNotSctpMode(ssl)) {
-            if ((ret = DtlsMsgPoolSave(ssl, output, sendSz)) != 0)
-                return 0;
-        }
+        if (IsEncryptionOn(ssl, 1)) {
+            byte* input;
+            int   inputSz = HANDSHAKE_HEADER_SZ; /* build msg adds rec hdr */
 
-        if (ssl->options.dtls)
-            DtlsSEQIncrement(ssl, CUR_ORDER);
-    #endif
+            input = (byte*)XMALLOC(inputSz, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+            if (input == NULL)
+                return MEMORY_E;
 
-        ret = HashOutput(ssl, output, sendSz, 0);
+            XMEMCPY(input, output + RECORD_HEADER_SZ, inputSz);
+            sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
+                                  handshake, 1, 0, 0);
+            XFREE(input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+
+            if (sendSz < 0)
+                return sendSz;
+        } else {
+            #ifdef WOLFSSL_DTLS
+                if (IsDtlsNotSctpMode(ssl)) {
+                    if ((ret = DtlsMsgPoolSave(ssl, output, sendSz)) != 0)
+                        return ret;
+                }
+                if (ssl->options.dtls)
+                    DtlsSEQIncrement(ssl, CUR_ORDER);
+            #endif
+            ret = HashOutput(ssl, output, sendSz, 0);
             if (ret != 0)
                 return ret;
+        }
 
     #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
         if (ssl->hsInfoOn)
@@ -24409,12 +24571,16 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
         length += ssl->session.ticketLen;
         sendSz = length + HANDSHAKE_HEADER_SZ + RECORD_HEADER_SZ;
 
+        if (!ssl->options.dtls) {
+            if (IsEncryptionOn(ssl, 1) && ssl->options.handShakeDone)
+                sendSz += MAX_MSG_EXTRA;
+        }
+        else {
         #ifdef WOLFSSL_DTLS
-        if (ssl->options.dtls) {
             sendSz += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
             idx    += DTLS_RECORD_EXTRA + DTLS_HANDSHAKE_EXTRA;
-        }
         #endif
+        }
         /* check for available size */
         if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
             return ret;
@@ -24435,19 +24601,38 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
         /* ticket */
         XMEMCPY(output + idx, ssl->session.ticket, ssl->session.ticketLen);
-        /* idx += ssl->session.ticketLen; */
+        idx += ssl->session.ticketLen;
 
-        #ifdef WOLFSSL_DTLS
-        if (ssl->options.dtls) {
-            if ((ret = DtlsMsgPoolSave(ssl, output, sendSz)) != 0)
-                return ret;
+        if (IsEncryptionOn(ssl, 1) && ssl->options.handShakeDone) {
+            byte* input;
+            int   inputSz = idx - RECORD_HEADER_SZ; /* build msg adds rec hdr */
 
-            DtlsSEQIncrement(ssl, CUR_ORDER);
+            input = (byte*)XMALLOC(inputSz, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+            if (input == NULL)
+                return MEMORY_E;
+
+            XMEMCPY(input, output + RECORD_HEADER_SZ, inputSz);
+            sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
+                                  handshake, 1, 0, 0);
+            XFREE(input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+
+            if (sendSz < 0)
+                return sendSz;
         }
-        #endif
+        else {
+            #ifdef WOLFSSL_DTLS
+            if (ssl->options.dtls) {
+                if ((ret = DtlsMsgPoolSave(ssl, output, sendSz)) != 0)
+                    return ret;
 
-        ret = HashOutput(ssl, output, sendSz, 0);
-        if (ret != 0) return ret;
+                DtlsSEQIncrement(ssl, CUR_ORDER);
+            }
+            #endif
+            ret = HashOutput(ssl, output, sendSz, 0);
+            if (ret != 0)
+                return ret;
+        }
+
         ssl->buffers.outputBuffer.length += sendSz;
 
         ret = SendBuffered(ssl);
@@ -24461,6 +24646,62 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif /* HAVE_SESSION_TICKET */
 
 #ifndef WOLFSSL_NO_TLS12
+
+#if defined(HAVE_SECURE_RENEGOTIATION) && \
+    defined(HAVE_SERVER_RENEGOTIATION_INFO) && \
+    !defined(WOLFSSL_NO_SERVER)
+
+    /* handle generation of server's hello_request (0) */
+    int SendHelloRequest(WOLFSSL* ssl)
+    {
+        byte* output;
+        int sendSz = RECORD_HEADER_SZ + HANDSHAKE_HEADER_SZ;
+        int ret;
+
+        WOLFSSL_START(WC_FUNC_HELLO_REQUEST_SEND);
+        WOLFSSL_ENTER("SendHelloRequest");
+
+        if (IsEncryptionOn(ssl, 1))
+            sendSz += MAX_MSG_EXTRA;
+
+        /* check for available size */
+        if ((ret = CheckAvailableSize(ssl, sendSz)) != 0)
+            return ret;
+
+        /* get output buffer */
+        output = ssl->buffers.outputBuffer.buffer +
+                 ssl->buffers.outputBuffer.length;
+
+        AddHeaders(output, 0, hello_request, ssl);
+
+        if (IsEncryptionOn(ssl, 1)) {
+            byte* input;
+            int   inputSz = HANDSHAKE_HEADER_SZ; /* build msg adds rec hdr */
+
+            input = (byte*)XMALLOC(inputSz, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+            if (input == NULL)
+                return MEMORY_E;
+
+            XMEMCPY(input, output + RECORD_HEADER_SZ, inputSz);
+            sendSz = BuildMessage(ssl, output, sendSz, input, inputSz,
+                                  handshake, 0, 0, 0);
+            XFREE(input, ssl->heap, DYNAMIC_TYPE_IN_BUFFER);
+
+            if (sendSz < 0)
+                return sendSz;
+        }
+
+        ssl->buffers.outputBuffer.length += sendSz;
+
+        ret = SendBuffered(ssl);
+
+        WOLFSSL_LEAVE("SendHelloRequest", ret);
+        WOLFSSL_END(WC_FUNC_HELLO_REQUEST_SEND);
+
+        return ret;
+    }
+
+#endif /* HAVE_SECURE_RENEGOTIATION && HAVE_SERVER_RENEGOTIATION_INFO */
 
 #ifdef WOLFSSL_DTLS
     /* handle generation of DTLS hello_verify_request (3) */
@@ -25547,6 +25788,10 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 
             case TLS_ASYNC_FINALIZE:
             {
+                if (IsEncryptionOn(ssl, 0)) {
+                    args->idx += ssl->keys.padSz;
+                }
+
             #ifdef HAVE_QSH
                 word16 name;
 
