@@ -40,8 +40,9 @@
 #include <wolfssl/openssl/crypto.h>
 #endif
 
-#ifdef WOLFSSL_QT
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
 #include <wolfssl/openssl/dh.h>
+#include <wolfssl/wolfcrypt/asn.h>
 #endif
 
 #ifdef __cplusplus
@@ -90,7 +91,6 @@ typedef WOLFSSL_ASN1_OBJECT    ASN1_OBJECT;
 typedef WOLFSSL_ASN1_STRING    ASN1_STRING;
 typedef WOLFSSL_dynlock_value  CRYPTO_dynlock_value;
 typedef WOLFSSL_BUF_MEM        BUF_MEM;
-typedef WOLFSSL_STACK          OPENSSL_STACK;
 
 
 /* GENERAL_NAME and BASIC_CONSTRAINTS structs may need implemented as
@@ -114,6 +114,8 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define CRYPTO_EX_free WOLFSSL_CRYPTO_EX_free
 
 #define STACK_OF(x) WOLFSSL_STACK
+#define OPENSSL_STACK WOLFSSL_STACK
+#define _STACK OPENSSL_STACK
 
 /* this function was used to set the default malloc, free, and realloc */
 #define CRYPTO_malloc_init() /* CRYPTO_malloc_init is not needed */
