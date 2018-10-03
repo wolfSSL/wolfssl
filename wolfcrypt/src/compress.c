@@ -67,7 +67,6 @@ static void myFree(void* opaque, void* memory)
 #endif
 
 
-int wc_Compress(byte* out, word32 outSz, const byte* in, word32 inSz, word32 flags)
 /*
  * out - pointer to destination buffer
  * outSz - size of destination buffer
@@ -84,6 +83,8 @@ int wc_Compress(byte* out, word32 outSz, const byte* in, word32 inSz, word32 fla
  * add to the size of the output. The libz code says the compressed
  * buffer should be srcSz + 0.1% + 12.
  */
+int wc_Compress_ex(byte* out, word32 outSz, const byte* in, word32 inSz,
+    word32 flags, word32 windowBits)
 {
     z_stream stream;
     int result = 0;
@@ -103,7 +104,8 @@ int wc_Compress(byte* out, word32 outSz, const byte* in, word32 inSz, word32 fla
     stream.opaque = (voidpf)0;
 
     if (deflateInit2(&stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED,
-                     DEFLATE_DEFAULT_WINDOWBITS, DEFLATE_DEFAULT_MEMLEVEL,
+                     DEFLATE_DEFAULT_WINDOWBITS | windowBits,
+                     DEFLATE_DEFAULT_MEMLEVEL,
                      flags ? Z_FIXED : Z_DEFAULT_STRATEGY) != Z_OK)
         return COMPRESS_INIT_E;
 
@@ -118,6 +120,11 @@ int wc_Compress(byte* out, word32 outSz, const byte* in, word32 inSz, word32 fla
         result = COMPRESS_E;
 
     return result;
+}
+
+int wc_Compress(byte* out, word32 outSz, const byte* in, word32 inSz, word32 flags)
+{
+    return wc_Compress_ex(out, outSz, in, inSz, flags, 0);
 }
 
 
@@ -163,7 +170,7 @@ int wc_DeCompress_ex(byte* out, word32 outSz, const byte* in, word32 inSz,
     stream.zfree = (free_func)myFree;
     stream.opaque = (voidpf)0;
 
-    if (inflateInit2(&stream, windowBits) != Z_OK)
+    if (inflateInit2(&stream, DEFLATE_DEFAULT_WINDOWBITS | windowBits) != Z_OK)
         return DECOMPRESS_INIT_E;
 
     result = inflate(&stream, Z_FINISH);
@@ -183,7 +190,7 @@ int wc_DeCompress_ex(byte* out, word32 outSz, const byte* in, word32 inSz,
 
 int wc_DeCompress(byte* out, word32 outSz, const byte* in, word32 inSz)
 {
-    return wc_DeCompress_ex(out, outSz, in, inSz, DEFLATE_DEFAULT_WINDOWBITS);
+    return wc_DeCompress_ex(out, outSz, in, inSz, 0);
 }
 
 
