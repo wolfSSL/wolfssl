@@ -37,9 +37,9 @@ struct WOLFSSL_AUTHORITY_KEYID {
 /* Forward reference */
 struct WOLFSSL_v3_ext_method;
 
-typedef STACK_OF(CONF_VALUE) * (*X509V3_EXT_I2V) (const struct v3_ext_method *method, void *ext, STACK_OF(CONF_VALUE) *extlist);
-typedef char *(*X509V3_EXT_I2S)(const struct WOLFSSL_v3_ext_method *method, void *ext);
-typedef int (*X509V3_EXT_I2R) (const struct WOLFSSL_v3_ext_method *method, void *ext, BIO *out, int indent);
+typedef STACK_OF(CONF_VALUE) *(*X509V3_EXT_I2V) (struct v3_ext_method *method, void *ext, STACK_OF(CONF_VALUE) *extlist);
+typedef char *(*X509V3_EXT_I2S)(struct WOLFSSL_v3_ext_method *method, void *ext);
+typedef int (*X509V3_EXT_I2R) (struct WOLFSSL_v3_ext_method *method, void *ext, BIO *out, int indent);
 
 /* currently stub function, may need to add more later */
 struct WOLFSSL_v3_ext_method {
@@ -60,3 +60,4 @@ typedef WOLFSSL_AUTHORITY_KEYID AUTHORITY_KEYID;
 typedef WOLFSSL_ACCESS_DESCRIPTION ACCESS_DESCRIPTION;
 typedef STACK_OF(WOLFSSL_ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
 typedef WOLFSSL_v3_ext_method X509V3_EXT_METHOD;
+#define SSL_CTX_get_cert_store(x)          wolfSSL_CTX_get_cert_store ((WOLFSSL_CTX*) (x))
