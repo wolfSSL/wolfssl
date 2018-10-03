@@ -258,6 +258,10 @@ struct WOLFSSL_EVP_PKEY {
         WOLFSSL_RSA* rsa;
         byte      ownRsa; /* if struct owns RSA and should free it */
     #endif
+    #ifndef NO_DSA
+        WOLFSSL_DSA* dsa;
+        byte      ownDsa; /* if struct owns DSA and should free it */
+    #endif
     #ifdef HAVE_ECC
         WOLFSSL_EC_KEY* ecc;
         byte      ownEcc; /* if struct owns ECC and should free it */
