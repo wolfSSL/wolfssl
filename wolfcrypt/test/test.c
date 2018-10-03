@@ -20335,7 +20335,7 @@ int certpiv_test(void)
     wc_CertPIV piv;
 
     /* Template for Identiv PIV cert, nonce and signature */
-    const byte pivCert[] = {
+    const byte pivCertIdentiv[] = {
         0x0A, 0x0D,
             0x53, 0x04,       /* NIST PIV Cert */
             0x70, 0x02,       /* Certificate */
@@ -20346,7 +20346,20 @@ int certpiv_test(void)
         0x0C, 0x01, 0x00,     /* Signed Nonce */
     };
 
-    ret = wc_ParseCertPIV(&piv, pivCert, sizeof(pivCert));
+    const byte pivCert[] = {
+        0x53, 0x04,       /* NIST PIV Cert */
+        0x70, 0x02,       /* Certificate */
+            0x30, 0x00,
+        0x71, 0x01, 0x00, /* Cert Info */
+        0xFE, 0x00,       /* Error Detection */
+    };
+
+    /* Test with identiv 0x0A, 0x0B and 0x0C markers */
+    ret = wc_ParseCertPIV(&piv, pivCertIdentiv, sizeof(pivCertIdentiv));
+    if (ret == 0) {
+        /* Test with NIST PIV format */
+        ret = wc_ParseCertPIV(&piv, pivCert, sizeof(pivCert));
+    }
 
     return ret;
 }
