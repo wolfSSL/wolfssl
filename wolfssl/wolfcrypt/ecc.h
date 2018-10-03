@@ -568,9 +568,9 @@ int wc_ecc_import_unsigned(ecc_key* key, byte* qx, byte* qy,
 #endif /* HAVE_ECC_KEY_IMPORT */
 
 #ifdef HAVE_ECC_KEY_EXPORT
-WOLFSSL_API 
+WOLFSSL_API
 int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
-                     byte* qy, word32* qyLen, byte* d, word32* dLen, 
+                     byte* qy, word32* qyLen, byte* d, word32* dLen,
                      int encType);
 WOLFSSL_API
 int wc_ecc_export_private_only(ecc_key* key, byte* out, word32* outLen);

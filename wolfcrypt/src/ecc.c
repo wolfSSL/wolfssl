@@ -1120,17 +1120,18 @@ const ecc_set_type ecc_sets[] = {
         #ifndef USE_WINDOWS_API
             NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
         #else
-            0, 0, 0, 0, 0, 0, 0, 0,
+            {0},{0},{0},{0},{0},{0},{0},{0},
         #endif
         0, 0, 0
     },
 #endif
     {
-        0, -1,
+        0,
+        ECC_CURVE_INVALID,
         #ifndef USE_WINDOWS_API
             NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
         #else
-            0, 0, 0, 0, 0, 0, 0, 0,
+            {0},{0},{0},{0},{0},{0},{0},{0},
         #endif
         0, 0, 0
     }
@@ -6459,7 +6460,7 @@ int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
 
     /* private key, d */
     if (d != NULL) {
-        if (dLen == NULL || 
+        if (dLen == NULL ||
             (key->type != ECC_PRIVATEKEY && key->type != ECC_PRIVATEKEY_ONLY))
             return BAD_FUNC_ARG;
 
