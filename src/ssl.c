@@ -19,7 +19,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
 #ifdef HAVE_CONFIG_H
     #include <config.h>
 #endif
@@ -22422,6 +22421,26 @@ int wolfSSL_BN_is_odd(const WOLFSSL_BIGNUM* bn)
         return WOLFSSL_SUCCESS;
 
     return WOLFSSL_FAILURE;
+}
+
+ /* stub for Qt */
+int wolfSSL_BN_is_word(const WOLFSSL_BIGNUM* bn, WOLFSSL_BN_ULONG w)
+{
+    WOLFSSL_MSG("wolfSSL_BN_is_word");
+    if (w) {
+
+    }
+    if (bn == NULL || bn->internal == NULL) {
+        WOLFSSL_MSG("bn NULL error");
+        return WOLFSSL_FAILURE;
+    }
+    /*
+     * if (mp_isword((mp_int*)bn->internal, w) != MP_OKAY) {
+     *     WOLFSSL_MSG("mp_isword error");
+     *     return WOLFSSL_FAILURE;
+     * }
+     */
+     return WOLFSSL_SUCCESS;
 }
 
 /* return compliant with OpenSSL

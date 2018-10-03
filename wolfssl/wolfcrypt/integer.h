@@ -229,6 +229,8 @@ typedef int ltm_prime_callback(unsigned char *dst, int len, void *dat);
 #define mp_isodd(a) \
     (((a)->used > 0 && (((a)->dp[0] & 1u) == 1u)) ? MP_YES : MP_NO)
 #define mp_isneg(a)  (((a)->sign != MP_ZPOS) ? MP_YES : MP_NO)
+/* incomplete stub for Qt and openssl compatibility layer */
+#define mp_isword(b,w) \
 
 /* number of primes */
 #ifdef MP_8BIT
