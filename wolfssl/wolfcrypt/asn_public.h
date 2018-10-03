@@ -486,14 +486,15 @@ typedef struct _wc_CertPIV {
     word32       certSz;
     const byte*  certErrDet;
     word32       certErrDetSz;
-    const byte*  nonce;
-    word32       nonceSz;
-    const byte*  signedNonce;
-    word32       signedNonceSz;
+    const byte*  nonce;         /* Identiv Only */
+    word32       nonceSz;       /* Identiv Only */
+    const byte*  signedNonce;   /* Identiv Only */
+    word32       signedNonceSz; /* Identiv Only */
 
     /* flags */
     word16       compression:2;
     word16       isX509:1;
+    word16       isIdentiv:1;
 } wc_CertPIV;
 
 WOLFSSL_API int wc_ParseCertPIV(wc_CertPIV* cert, const byte* buf, word32 totalSz);

@@ -20331,12 +20331,24 @@ int cryptodev_test(void)
 #ifdef WOLFSSL_CERT_PIV
 int certpiv_test(void)
 {
-    /* TODO: Add test for wc_ParseCertPIV */
-#if 0
+    int ret;
     wc_CertPIV piv;
-    ret = wc_ParseCertPIV(&piv, buf, totalSz);
-#endif
-    return 0;
+
+    /* Template for Identiv PIV cert, nonce and signature */
+    const byte pivCert[] = {
+        0x0A, 0x0D,
+            0x53, 0x04,       /* NIST PIV Cert */
+            0x70, 0x02,       /* Certificate */
+                0x30, 0x00,
+            0x71, 0x01, 0x00, /* Cert Info */
+            0xFE, 0x00,       /* Error Detection */
+        0x0B, 0x01, 0x00,     /* Nonce */
+        0x0C, 0x01, 0x00,     /* Signed Nonce */
+    };
+
+    ret = wc_ParseCertPIV(&piv, pivCert, sizeof(pivCert));
+
+    return ret;
 }
 #endif /* WOLFSSL_CERT_PIV */
 

@@ -14478,54 +14478,66 @@ int wc_ParseCertPIV(wc_CertPIV* piv, const byte* buf, word32 totalSz)
 
     XMEMSET(piv, 0, sizeof(wc_CertPIV));
 
-    /* Certificate - Total Length (0A 82 05FA) */
+    /* Detect Identiv PIV (with 0x0A, 0x0B and 0x0C sections) */
+    /* Certificate (0A 82 05FA) */
     if (GetASNHeader(buf, ASN_PIV_CERT, &idx, &length, totalSz) >= 0) {
-        /* Certificate Buffer (53 82 05F6) */
-        if (GetASNHeader(buf, ASN_APPLICATION | ASN_PRINTABLE_STRING, &idx,
-                                                       &length, totalSz) < 0) {
-            return ASN_PARSE_E;
-        }
-        /* PIV Certificate (70 82 05ED) */
-        if (GetASNHeader(buf, ASN_PIV_TAG_CERT, &idx, &length,
-                                                             totalSz) < 0) {
-            return ASN_PARSE_E;
-        }
+        /* Identiv Type PIV card */
+        piv->isIdentiv = 1;
 
-        /* Capture certificate buffer pointer and length */
         piv->cert =   &buf[idx];
         piv->certSz = length;
         idx += length;
 
-        /* PIV Certificate Info (71 01 00) */
-        if (GetASNHeader(buf, ASN_PIV_TAG_CERT_INFO, &idx, &length,
-                                                            totalSz) >= 0) {
-            if (length >= 1) {
-                piv->compression = (buf[idx] & ASN_PIV_CERT_INFO_COMPRESSED);
-                piv->isX509 =      (buf[idx] & ASN_PIV_CERT_INFO_ISX509);
-            }
+        /* Nonce (0B 14) */
+        if (GetASNHeader(buf, ASN_PIV_NONCE, &idx, &length, totalSz) >= 0) {
+            piv->nonce =   &buf[idx];
+            piv->nonceSz = length;
             idx += length;
         }
 
-        /* PIV Error Detection (FE 00) */
-        if (GetASNHeader(buf, ASN_PIV_TAG_ERR_DET, &idx, &length,
-                                                            totalSz) >= 0) {
-            piv->certErrDet =   &buf[idx];
-            piv->certErrDetSz = length;
+        /* Signed Nonce (0C 82 0100) */
+        if (GetASNHeader(buf, ASN_PIV_SIGNED_NONCE, &idx, &length, totalSz) >= 0) {
+            piv->signedNonce =   &buf[idx];
+            piv->signedNonceSz = length;
             idx += length;
         }
+
+        idx = 0;
+        buf = piv->cert;
+        totalSz = piv->certSz;
     }
 
-    /* Nonce (0B 14) */
-    if (GetASNHeader(buf, ASN_PIV_NONCE, &idx, &length, totalSz) >= 0) {
-        piv->nonce =   &buf[idx];
-        piv->nonceSz = length;
+    /* Certificate Buffer Total Size (53 82 05F6) */
+    if (GetASNHeader(buf, ASN_APPLICATION | ASN_PRINTABLE_STRING, &idx,
+                                                   &length, totalSz) < 0) {
+        return ASN_PARSE_E;
+    }
+    /* PIV Certificate (70 82 05ED) */
+    if (GetASNHeader(buf, ASN_PIV_TAG_CERT, &idx, &length,
+                                                         totalSz) < 0) {
+        return ASN_PARSE_E;
+    }
+
+    /* Capture certificate buffer pointer and length */
+    piv->cert =   &buf[idx];
+    piv->certSz = length;
+    idx += length;
+
+    /* PIV Certificate Info (71 01 00) */
+    if (GetASNHeader(buf, ASN_PIV_TAG_CERT_INFO, &idx, &length,
+                                                        totalSz) >= 0) {
+        if (length >= 1) {
+            piv->compression = (buf[idx] & ASN_PIV_CERT_INFO_COMPRESSED);
+            piv->isX509 =      (buf[idx] & ASN_PIV_CERT_INFO_ISX509);
+        }
         idx += length;
     }
 
-    /* Signed Nonce (0C 82 0100) */
-    if (GetASNHeader(buf, ASN_PIV_SIGNED_NONCE, &idx, &length, totalSz) >= 0) {
-        piv->signedNonce =   &buf[idx];
-        piv->signedNonceSz = length;
+    /* PIV Error Detection (FE 00) */
+    if (GetASNHeader(buf, ASN_PIV_TAG_ERR_DET, &idx, &length,
+                                                        totalSz) >= 0) {
+        piv->certErrDet =   &buf[idx];
+        piv->certErrDetSz = length;
         idx += length;
     }
 
