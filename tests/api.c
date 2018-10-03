@@ -21545,6 +21545,45 @@ static void test_wolfSSL_RSA_verify()
     printf(resultFmt, passed);
 #endif
 }
+
+static void test_stubs_are_stubs()
+{
+#if defined(OPENSSL_EXTRA) && !defined(NO_WOLFSSL_STUB)
+    WOLFSSL_CTX* ctx = NULL;
+    WOLFSSL_CTX* ctxN = NULL;
+  #ifndef NO_WOLFSSL_CLIENT
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+  #elif !defined(NO_WOLFSSL_SERVER)
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+  #else
+    return;
+  #endif
+
+    #define CHECKZERO_RET(x, y, z) AssertIntEQ((int) x(y), 0); \
+                     AssertIntEQ((int) x(z), 0)
+    #define CHECKONE_RET(x, y, z) AssertIntEQ((int) x(y), 0); \
+                     AssertIntEQ((int) x(z), WOLFSSL_SUCCESS)
+    /* test logic, all stubs return same result regardless of ctx being NULL
+     * as there are no sanity checks, it's just a stub! If at some
+     * point a stub is not a stub it should begin to return BAD_FUNC_ARG
+     * if invalid inputs are supplied. Test calling both
+     * with and without valid inputs, if a stub functionality remains unchanged.
+     */
+    CHECKZERO_RET(wolfSSL_CTX_sess_accept, ctx, ctxN);
+    CHECKZERO_RET(wolfSSL_CTX_sess_connect, ctx, ctxN);
+    CHECKZERO_RET(wolfSSL_CTX_sess_accept_good, ctx, ctxN);
+    CHECKZERO_RET(wolfSSL_CTX_sess_connect_good, ctx, ctxN);
+    CHECKZERO_RET(wolfSSL_CTX_sess_accept_renegotiate, ctx, ctxN);
+    CHECKZERO_RET(wolfSSL_CTX_sess_connect_renegotiate, ctx, ctxN);
+    CHECKZERO_RET(wolfSSL_CTX_sess_hits, ctx, ctxN);
+    CHECKZERO_RET(wolfSSL_CTX_sess_cb_hits, ctx, ctxN);
+    CHECKZERO_RET(wolfSSL_CTX_sess_cache_full, ctx, ctxN);
+    CHECKZERO_RET(wolfSSL_CTX_sess_misses, ctx, ctxN);
+    CHECKZERO_RET(wolfSSL_CTX_sess_timeouts, ctx, ctxN);
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+#endif /* OPENSSL_EXTRA && !NO_WOLFSSL_STUB */
+}
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -21915,6 +21954,11 @@ void ApiTest(void)
 
     AssertIntEQ(test_wolfSSL_Cleanup(), WOLFSSL_SUCCESS);
     wolfSSL_Cleanup();
+
+    /* If at some point a stub get implemented this test should fail indicating
+     * a need to implement a new test case
+     */
+    test_stubs_are_stubs();
 
     printf(" End API Tests\n");
 
