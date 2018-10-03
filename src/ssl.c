@@ -23154,7 +23154,6 @@ int wolfSSL_BN_print_fp(XFILE fp, const WOLFSSL_BIGNUM *bn)
 }
 #endif /* !NO_FILESYSTEM */
 
-
 WOLFSSL_BIGNUM *wolfSSL_BN_CTX_get(WOLFSSL_BN_CTX *ctx)
 {
     /* ctx is not used, return new Bignum */
@@ -25628,6 +25627,45 @@ int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *key)
 #endif /* NO_RSA */
 
 #ifndef NO_WOLFSSL_STUB
+
+#ifndef NO_DSA
+int wolfSSL_EVP_PKEY_set1_DSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DSA *key)
+{
+    if((pkey == NULL) || (key ==NULL))return WOLFSSL_FAILURE;
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_set1_DSA");
+    if (pkey->dsa != NULL && pkey->ownDsa == 1) {
+        wolfSSL_DSA_free(pkey->dsa);
+    }
+    pkey->dsa    = key;
+    pkey->ownDsa = 0; /* pkey does not own DSA */
+    pkey->type = EVP_PKEY_DSA;
+
+    return WOLFSSL_SUCCESS;
+}
+#endif /* NO_DSA */
+
+#endif /* NO_WOLFSSL_STUB */
+
+/* Stub for Qt */
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_EVP_PKEY_set1_EC_KEY(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_EC_KEY *key)
+{
+    if((pkey == NULL) || (key == NULL))return WOLFSSL_FAILURE;
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_set1_EC_KEY");
+    if (pkey->ecc != NULL) {
+        wolfSSL_EC_KEY_free(pkey->ecc);
+    }
+
+    pkey->ecc    = key;
+    pkey->ownEcc = 0; /* pkey does not own ECC */
+    pkey->type = EVP_PKEY_EC;
+    // pkey->pkey_curve =
+
+    return WOLFSSL_SUCCESS;
+}
+#endif
+
+#ifndef NO_WOLFSSL_STUB
 WOLFSSL_DSA* wolfSSL_EVP_PKEY_get1_DSA(WOLFSSL_EVP_PKEY* key)
 {
     (void)key;
@@ -25645,6 +25683,21 @@ WOLFSSL_EC_KEY* wolfSSL_EVP_PKEY_get1_EC_KEY(WOLFSSL_EVP_PKEY* key)
     WOLFSSL_MSG("wolfSSL_EVP_PKEY_get1_EC_KEY not implemented");
 
     return NULL;
+}
+#endif
+
+/* Stub for Qt */
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_EVP_PKEY_assign(WOLFSSL_EVP_PKEY *pkey, int type, void *key)
+{
+    if((pkey == NULL) || (key == NULL))return WOLFSSL_FAILURE;
+    WOLFSSL_ENTER("wolfSSL_EVP_assign");
+    pkey->type = type;
+    /*
+    pkey->heap = key;
+    */
+
+    return WOLFSSL_SUCCESS;
 }
 #endif
 
