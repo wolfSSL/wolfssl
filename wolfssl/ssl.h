@@ -153,6 +153,7 @@ typedef struct WOLFSSL_DSA            WOLFSSL_DSA;
 typedef struct WOLFSSL_EC_KEY         WOLFSSL_EC_KEY;
 typedef struct WOLFSSL_EC_POINT       WOLFSSL_EC_POINT;
 typedef struct WOLFSSL_EC_GROUP       WOLFSSL_EC_GROUP;
+typedef struct wolfSSL_EC_builtin_curve wolfSSL_EC_builtin_curve;
 #define WOLFSSL_EC_TYPE_DEFINED
 #endif
 
@@ -178,6 +179,20 @@ typedef struct WOLFSSL_ASN1_STRING      WOLFSSL_ASN1_STRING;
 typedef struct WOLFSSL_dynlock_value    WOLFSSL_dynlock_value;
 typedef struct WOLFSSL_DH               WOLFSSL_DH;
 typedef struct WOLFSSL_ASN1_BIT_STRING  WOLFSSL_ASN1_BIT_STRING;
+
+typedef struct WOLFSSL_AUTHORITY_KEYID  WOLFSSL_AUTHORITY_KEYID;
+typedef struct WOLFSSL_BASIC_CONSTRAINTS WOLFSSL_BASIC_CONSTRAINTS;
+
+struct WOLFSSL_AUTHORITY_KEYID {
+    WOLFSSL_ASN1_STRING *keyid;
+    WOLFSSL_ASN1_OBJECT *issuer;
+    WOLFSSL_ASN1_INTEGER *serial;
+};
+
+struct WOLFSSL_BASIC_CONSTRAINTS {
+    int ca;
+    WOLFSSL_ASN1_INTEGER *pathlen;
+};
 
 #define WOLFSSL_ASN1_UTCTIME          WOLFSSL_ASN1_TIME
 #define WOLFSSL_ASN1_GENERALIZEDTIME  WOLFSSL_ASN1_TIME

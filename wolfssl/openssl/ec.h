@@ -69,12 +69,14 @@ enum {
 typedef struct WOLFSSL_EC_KEY         WOLFSSL_EC_KEY;
 typedef struct WOLFSSL_EC_POINT       WOLFSSL_EC_POINT;
 typedef struct WOLFSSL_EC_GROUP       WOLFSSL_EC_GROUP;
+typedef struct wolfSSL_EC_builtin_curve wolfSSL_EC_builtin_curve;
 #define WOLFSSL_EC_TYPE_DEFINED
 #endif
 
 typedef WOLFSSL_EC_KEY                EC_KEY;
 typedef WOLFSSL_EC_GROUP              EC_GROUP;
 typedef WOLFSSL_EC_POINT              EC_POINT;
+typedef wolfSSL_EC_builtin_curve      EC_builtin_curve;
 
 struct WOLFSSL_EC_POINT {
     WOLFSSL_BIGNUM *X;
@@ -102,20 +104,18 @@ struct WOLFSSL_EC_KEY {
     char           exSet;        /* external set from internal ? */
 };
 
-#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
-
 struct wolfSSL_EC_builtin_curve {
     int nid;
     const char *comment;
 };
-typedef struct wolfSSL_EC_builtin_curve wolfSSL_EC_builtin_curve;
-#define EC_builtin_curve wolfSSL_EC_builtin_curve
-
-#endif /* WOLFSSL_QT */
 
 #define WOLFSSL_EC_KEY_LOAD_PRIVATE 1
 #define WOLFSSL_EC_KEY_LOAD_PUBLIC  2
 
+WOLFSSL_API
+size_t wolfSSL_EC_get_builtin_curves(wolfSSL_EC_builtin_curve *r, size_t nitems);
+WOLFSSL_API
+WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src);
 WOLFSSL_API
 int wolfSSL_ECPoint_i2d(const WOLFSSL_EC_GROUP *curve,
                         const WOLFSSL_EC_POINT *p,
@@ -202,6 +202,7 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
 #endif
 
 #define EC_KEY_new                      wolfSSL_EC_KEY_new
+#define EC_KEY_dup                      wolfSSL_EC_KEY_dup
 #define EC_KEY_free                     wolfSSL_EC_KEY_free
 #define EC_KEY_get0_public_key          wolfSSL_EC_KEY_get0_public_key
 #define EC_KEY_get0_group               wolfSSL_EC_KEY_get0_group
@@ -235,6 +236,8 @@ char* wolfSSL_EC_POINT_point2hex(const WOLFSSL_EC_GROUP* group,
 #endif
 
 #define EC_POINT_dump                   wolfSSL_EC_POINT_dump
+
+#define EC_get_builtin_curves wolfSSL_EC_get_builtin_curves
 
 #ifdef __cplusplus
 }  /* extern "C" */

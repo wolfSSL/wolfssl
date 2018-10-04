@@ -605,6 +605,7 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_VerifyInit                 wolfSSL_EVP_VerifyInit
 #define EVP_VerifyUpdate               wolfSSL_EVP_VerifyUpdate
 
+#define EVP_CIPHER_CTX_ctrl        wolfSSL_EVP_CIPHER_CTX_ctrl
 #define EVP_CIPHER_CTX_block_size  wolfSSL_EVP_CIPHER_CTX_block_size
 #define EVP_CIPHER_block_size      wolfSSL_EVP_CIPHER_block_size
 #define EVP_CIPHER_flags           wolfSSL_EVP_CIPHER_flags
@@ -615,17 +616,19 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_add_digest             wolfSSL_EVP_add_digest
 #define EVP_add_cipher             wolfSSL_EVP_add_cipher
 #define EVP_cleanup                wolfSSL_EVP_cleanup
+#define EVP_rc2_cbc                wolfSSL_EVP_rc2_cbc
+#define EVP_CTRL_SET_RC2_KEY_BITS  0x3
 
 #define OpenSSL_add_all_digests()  wolfCrypt_Init()
 #define OpenSSL_add_all_ciphers()  wolfCrypt_Init()
 #define OpenSSL_add_all_algorithms wolfSSL_add_all_algorithms
 #define OpenSSL_add_all_algorithms_noconf wolfSSL_OpenSSL_add_all_algorithms_noconf
-#define wolfSSL_OPENSSL_add_all_algorithms_noconf wolfSSL_OpenSSL_add_all_algorithms_noconf
+
+/* provides older OpenSSL API compatibility  */
+#define OPENSSL_add_all_algorithms OpenSSL_add_all_algorithms
+#define OPENSSL_add_all_algorithms_noconf OpenSSL_add_all_algorithms_noconf
 
 #define PKCS5_PBKDF2_HMAC_SHA1     wolfSSL_PKCS5_PBKDF2_HMAC_SHA1
-
-#define EVP_CTRL_SET_RC2_KEY_BITS  0x3
-#define EVP_rc2_cbc                 wolfSSL_EVP_rc2_cbc
 
 #ifndef EVP_MAX_MD_SIZE
     #define EVP_MAX_MD_SIZE   64     /* sha512 */

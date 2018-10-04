@@ -75,6 +75,8 @@
     #include <wolfssl/openssl/ecdsa.h>
     #include <wolfssl/openssl/ecdh.h>
     #include <wolfssl/openssl/rc4.h>
+    #include <wolfssl/openssl/stack.h>
+    #include <wolfssl/openssl/x509v3.h>
     /* openssl headers end, wolfssl internal headers next */
     #include <wolfssl/wolfcrypt/hmac.h>
     #include <wolfssl/wolfcrypt/random.h>
@@ -22211,6 +22213,152 @@ void* wolfSSL_sk_value(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, int i)
         return NULL;
     return (void*)sk->data.obj;
 }
+
+#if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
+
+#ifndef NO_WOLFSSL_STUB
+void wolfSSL_sk_free(WOLFSSL_STACK *st)
+{
+    (void)st;
+    WOLFSSL_ENTER("wolfSSL_sk_free");
+    WOLFSSL_STUB("OPENSSL_sk_free");
+}
+#endif
+
+#ifndef NO_WOLFSSL_STUB
+void wolfSSL_sk_pop_free(WOLFSSL_STACK *st, wolfSSL_sk_freefunc func)
+{
+    (void)st;
+    (void)func;
+    WOLFSSL_ENTER("wolfSSL_sk_pop_free");
+    WOLFSSL_STUB("OPENSSL_sk_pop_free");
+}
+#endif
+
+#ifndef NO_WOLFSSL_STUB
+WOLFSSL_STACK *wolfSSL_sk_new_null(void)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_new_null");
+    WOLFSSL_STUB("OPENSSL_sk_new_null");
+    return NULL;
+}
+#endif
+
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_sk_push(WOLFSSL_STACK *st, const void *data)
+{
+    (void)st;
+    (void)data;
+    WOLFSSL_ENTER("wolfSSL_sk_push");
+    WOLFSSL_STUB("OPENSSL_sk_push");
+    return WOLFSSL_FAILURE;
+}
+#endif
+
+#ifndef NO_WOLFSSL_STUB
+size_t wolfSSL_EC_get_builtin_curves(wolfSSL_EC_builtin_curve *r, size_t nitems)
+{
+    (void)r;
+    (void)nitems;
+    WOLFSSL_ENTER("wolfSSL_EC_get_builtin_curves");
+    WOLFSSL_STUB("EC_get_builtin_curves");
+    return WOLFSSL_FAILURE;
+}
+#endif
+
+#ifndef NO_WOLFSSL_STUB
+WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
+{
+    (void)src;
+    WOLFSSL_ENTER("wolfSSL_EC_KEY_dup");
+    WOLFSSL_STUB("EC_KEY_dup");
+    return NULL;
+}
+#endif
+
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes)
+{
+    (void)dh;
+    (void)codes;
+    WOLFSSL_ENTER("wolfSSL_DH_check");
+    WOLFSSL_STUB("DH_check");
+    return WOLFSSL_FAILURE;
+}
+#endif
+
+#ifndef NO_WOLFSSL_STUB
+WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **a, const unsigned char **pp,
+                                                                    long length)
+{
+    (void)a;
+    (void)pp;
+    (void)length;
+    WOLFSSL_ENTER("wolfSSL_d2i_DHparams");
+    WOLFSSL_STUB("d2i_DHparams");
+    return NULL;
+}
+#endif
+
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_i2d_DHparams(const WOLFSSL_DH *a, unsigned char **pp)
+{
+    (void)a;
+    (void)pp;
+    WOLFSSL_ENTER("wolfSSL_i2d_DHparams");
+    WOLFSSL_STUB("i2d_DHparams");
+    return WOLFSSL_FAILURE;
+}
+#endif
+
+void wolfSSL_BIO_clear_flags(WOLFSSL_BIO *bio, int flags)
+{
+    WOLFSSL_ENTER("wolfSSL_BIO_clear_flags");
+    bio->flags &= ~flags;
+}
+
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_BIO_set_ex_data(WOLFSSL_BIO *bio, int idx, void *data)
+{
+    (void)bio;
+    (void)idx;
+    (void)data;
+    WOLFSSL_ENTER("wolfSSL_BIO_set_ex_data");
+    WOLFSSL_STUB("BIO_set_ex_data");
+    return WOLFSSL_FAILURE;
+}
+#endif
+
+#ifndef NO_WOLFSSL_STUB
+void *wolfSSL_BIO_get_ex_data(WOLFSSL_BIO *bio, int idx)
+{
+    (void)bio;
+    (void)idx;
+    WOLFSSL_ENTER("wolfSSL_BIO_get_ex_data");
+    WOLFSSL_STUB("BIO_get_ex_data");
+    return NULL;
+}
+#endif
+
+#ifndef NO_WOLFSSL_STUB
+void wolfSSL_BASIC_CONSTRAINTS_free(WOLFSSL_BASIC_CONSTRAINTS *bc)
+{
+    (void)bc;
+    WOLFSSL_ENTER("wolfSSL_BASIC_CONSTRAINTS_free");
+    WOLFSSL_STUB("BASIC_CONSTRAINTS_free");
+}
+#endif
+
+#ifndef NO_WOLFSSL_STUB
+void wolfSSL_AUTHORITY_KEYID_free(WOLFSSL_AUTHORITY_KEYID *id)
+{
+    (void)id;
+    WOLFSSL_ENTER("wolfSSL_AUTHORITY_KEYID_free");
+    WOLFSSL_STUB("AUTHORITY_KEYID_free");
+}
+#endif
+
+#endif /* defined(WOLFSSL_QT) || defined(OPENSSL_ALL) */
 
 #endif /* OPENSSL_EXTRA */
 

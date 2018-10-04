@@ -48,9 +48,13 @@ struct WOLFSSL_DH {
 };
 
 
+WOLFSSL_API WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **a, 
+                                         const unsigned char **pp, long length);
+WOLFSSL_API int wolfSSL_i2d_DHparams(const WOLFSSL_DH *a, unsigned char **pp);
 WOLFSSL_API WOLFSSL_DH* wolfSSL_DH_new(void);
 WOLFSSL_API void       wolfSSL_DH_free(WOLFSSL_DH*);
 
+WOLFSSL_API int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes);
 WOLFSSL_API int wolfSSL_DH_size(WOLFSSL_DH*);
 WOLFSSL_API int wolfSSL_DH_generate_key(WOLFSSL_DH*);
 WOLFSSL_API int wolfSSL_DH_compute_key(unsigned char* key, WOLFSSL_BIGNUM* pub,
@@ -61,6 +65,9 @@ typedef WOLFSSL_DH DH;
 #define DH_new  wolfSSL_DH_new
 #define DH_free wolfSSL_DH_free
 
+#define d2i_DHparams    wolfSSL_d2i_DHparams
+#define i2d_DHparams    wolfSSL_i2d_DHparams
+#define DH_check        wolfSSL_DH_check
 #define DH_size         wolfSSL_DH_size
 #define DH_generate_key wolfSSL_DH_generate_key
 #define DH_compute_key  wolfSSL_DH_compute_key
