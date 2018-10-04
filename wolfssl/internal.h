@@ -1587,7 +1587,7 @@ typedef struct Suites Suites;
 WOLFSSL_LOCAL void InitSSL_Method(WOLFSSL_METHOD*, ProtocolVersion);
 
 WOLFSSL_LOCAL int InitSSL_Suites(WOLFSSL* ssl);
-WOLFSSL_LOCAL int InitSSL_Side(WOLFSSL* ssl, int side);
+WOLFSSL_LOCAL int InitSSL_Side(WOLFSSL* ssl, word16 side);
 
 /* for sniffer */
 WOLFSSL_LOCAL int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
