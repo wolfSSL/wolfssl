@@ -13074,6 +13074,24 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return WOLFSSL_SUCCESS;
     }
 
+    /* Stub for Qt */
+    int wolfSSL_EVP_CIPHER_CTX_ctrl(WOLFSSL_EVP_CIPHER_CTX *ctx, int type,
+                                                            int arg, void *ptr)
+    {
+        WOLFSSL_ENTER("EVP_CIPHER_CTX_ctrl");
+        /* use arguements to get ridden of compile time error */
+        if (ctx) {
+
+        }
+        if (type && arg) {
+
+        }
+        if (ptr == NULL) {
+
+        }
+        return WOLFSSL_SUCCESS;
+    }
+
 
     /* return WOLFSSL_SUCCESS on ok, 0 on failure to match API compatibility */
     int  wolfSSL_EVP_CipherInit(WOLFSSL_EVP_CIPHER_CTX* ctx,
