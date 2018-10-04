@@ -698,6 +698,12 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                     version = SERVER_DOWNGRADE_VERSION;
                     break;
                 }
+            #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
+                else if (myoptarg[0] == 'e') {
+                    version = EITHER_DOWNGRADE_VERSION;
+                    break;
+                }
+            #endif
                 version = atoi(myoptarg);
                 if (version < 0 || version > 4) {
                     Usage();
@@ -991,6 +997,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         case SERVER_DOWNGRADE_VERSION:
             method = wolfSSLv23_server_method_ex;
             break;
+    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
+        case EITHER_DOWNGRADE_VERSION:
+            method = wolfSSLv23_method_ex;
+            break;
+    #endif
 #endif /* NO_TLS */
 
 #ifdef WOLFSSL_DTLS

@@ -517,7 +517,8 @@ static void test_wolfSSL_Method_Allocators(void)
     #ifndef NO_WOLFSSL_CLIENT
         TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_1_client_method);
     #endif
-#endif
+#endif /* !NO_OLD_TLS */
+
 #ifndef WOLFSSL_NO_TLS12
     #ifndef NO_WOLFSSL_SERVER
         TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_2_server_method);
@@ -525,7 +526,8 @@ static void test_wolfSSL_Method_Allocators(void)
     #ifndef NO_WOLFSSL_CLIENT
         TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_2_client_method);
     #endif
-#endif
+#endif /* !WOLFSSL_NO_TLS12 */
+
 #ifdef WOLFSSL_TLS13
     #ifndef NO_WOLFSSL_SERVER
         TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_3_server_method);
@@ -533,27 +535,56 @@ static void test_wolfSSL_Method_Allocators(void)
     #ifndef NO_WOLFSSL_CLIENT
         TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_3_client_method);
     #endif
-#endif
+#endif /* WOLFSSL_TLS13 */
+
 #ifndef NO_WOLFSSL_SERVER
     TEST_VALID_METHOD_ALLOCATOR(wolfSSLv23_server_method);
 #endif
 #ifndef NO_WOLFSSL_CLIENT
     TEST_VALID_METHOD_ALLOCATOR(wolfSSLv23_client_method);
 #endif
+
 #ifdef WOLFSSL_DTLS
     #ifndef NO_OLD_TLS
         TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_server_method);
         TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_client_method);
     #endif
-    TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_2_server_method);
-    TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_2_client_method);
-#endif
+    #ifndef WOLFSSL_NO_TLS12
+        TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_2_server_method);
+        TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_2_client_method);
+    #endif
+#endif /* WOLFSSL_DTLS */
 
-#ifdef OPENSSL_EXTRA
+#if !defined(NO_OLD_TLS) && defined(OPENSSL_EXTRA)
+    /* Stubs */
     TEST_INVALID_METHOD_ALLOCATOR(wolfSSLv2_server_method);
     TEST_INVALID_METHOD_ALLOCATOR(wolfSSLv2_client_method);
 #endif
+
+    /* Test Either Method (client or server) */
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
+    TEST_VALID_METHOD_ALLOCATOR(wolfSSLv23_method);
+    #ifndef NO_OLD_TLS
+        #ifdef WOLFSSL_ALLOW_TLSV10
+            TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_method);
+        #endif
+        TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_1_method);
+    #endif /* !NO_OLD_TLS */
+    #ifndef WOLFSSL_NO_TLS12
+        TEST_VALID_METHOD_ALLOCATOR(wolfTLSv1_2_method);
+    #endif /* !WOLFSSL_NO_TLS12 */
+    #ifdef WOLFSSL_DTLS
+        TEST_VALID_METHOD_ALLOCATOR(wolfDTLS_method);
+        #ifndef NO_OLD_TLS
+            TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_method);
+        #endif /* !NO_OLD_TLS */
+        #ifndef WOLFSSL_NO_TLS12
+            TEST_VALID_METHOD_ALLOCATOR(wolfDTLSv1_2_method);
+        #endif /* !WOLFSSL_NO_TLS12 */
+    #endif /* WOLFSSL_DTLS */
+#endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE */
 }
+
 
 /*----------------------------------------------------------------------------*
  | Context
@@ -1351,11 +1382,7 @@ static int test_wolfSSL_SetMinVersion(void)
         const int versions[]  =  { WOLFSSL_TLSV1_3 };
     #endif
 
-    #ifndef WOLFSSL_NO_TLS12
-        ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
-    #else
-        ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
-    #endif
+    ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
     ssl = wolfSSL_new(ctx);
 
     printf(testingFmt, "wolfSSL_SetMinVersion()");
@@ -1647,7 +1674,6 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     word16 port;
 
     callback_functions* cbf = NULL;
-    WOLFSSL_METHOD* method = 0;
     WOLFSSL_CTX* ctx = 0;
     WOLFSSL* ssl = 0;
 
@@ -1655,6 +1681,7 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     char input[1024];
     int idx;
     int ret, err = 0;
+    int sharedCtx = 0;
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
@@ -1662,13 +1689,24 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 
     ((func_args*)args)->return_code = TEST_FAIL;
     cbf = ((func_args*)args)->callbacks;
-    if (cbf != NULL && cbf->method != NULL) {
-        method = cbf->method();
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
+    if (cbf != NULL && cbf->ctx) {
+        ctx = cbf->ctx;
+        sharedCtx = 1;
     }
-    else {
-        method = wolfSSLv23_server_method();
+    else
+#endif
+    {
+        WOLFSSL_METHOD* method = NULL;
+        if (cbf != NULL && cbf->method != NULL) {
+            method = cbf->method();
+        }
+        else {
+            method = wolfSSLv23_server_method();
+        }
+        ctx = wolfSSL_CTX_new(method);
     }
-    ctx = wolfSSL_CTX_new(method);
 
 #if defined(USE_WINDOWS_API)
     port = ((func_args*)args)->signal->port;
@@ -1686,27 +1724,25 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     CloseSocket(sockfd);
 
     wolfSSL_CTX_set_verify(ctx,
-                          WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
+                  WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
 
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
 #endif
 
-    if (wolfSSL_CTX_load_verify_locations(ctx, cliCertFile, 0) != WOLFSSL_SUCCESS)
-    {
+    if (wolfSSL_CTX_load_verify_locations(ctx, cliCertFile, 0)
+                                                           != WOLFSSL_SUCCESS) {
         /*err_sys("can't load ca file, Please run from wolfSSL home dir");*/
         goto done;
     }
-    if (wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, WOLFSSL_FILETYPE_PEM)
-            != WOLFSSL_SUCCESS)
-    {
+    if (!sharedCtx && wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
         /*err_sys("can't load server cert chain file, "
                 "Please run from wolfSSL home dir");*/
         goto done;
     }
-    if (wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, WOLFSSL_FILETYPE_PEM)
-            != WOLFSSL_SUCCESS)
-    {
+    if (!sharedCtx && wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
         /*err_sys("can't load server key file, "
                 "Please run from wolfSSL home dir");*/
         goto done;
@@ -1718,17 +1754,33 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
     }
 
     ssl = wolfSSL_new(ctx);
+    if (ssl == NULL) {
+        goto done;
+    }
+
+    if (sharedCtx && wolfSSL_use_certificate_file(ssl, svrCertFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+        /*err_sys("can't load server cert chain file, "
+                "Please run from wolfSSL home dir");*/
+        goto done;
+    }
+    if (sharedCtx && wolfSSL_use_PrivateKey_file(ssl, svrKeyFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+        /*err_sys("can't load server key file, "
+                "Please run from wolfSSL home dir");*/
+        goto done;
+    }
 
     if (wolfSSL_set_fd(ssl, clientfd) != WOLFSSL_SUCCESS) {
         /*err_sys("SSL_set_fd failed");*/
         goto done;
     }
 
-    #if !defined(NO_FILESYSTEM) && !defined(NO_DH)
-        wolfSSL_SetTmpDH_file(ssl, dhParamFile, WOLFSSL_FILETYPE_PEM);
-    #elif !defined(NO_DH)
-        SetDH(ssl);  /* will repick suites with DHE, higher priority than PSK */
-    #endif
+#if !defined(NO_FILESYSTEM) && !defined(NO_DH)
+    wolfSSL_SetTmpDH_file(ssl, dhParamFile, WOLFSSL_FILETYPE_PEM);
+#elif !defined(NO_DH)
+    SetDH(ssl);  /* will repick suites with DHE, higher priority than PSK */
+#endif
 
     /* call ssl setup callback */
     if (cbf != NULL && cbf->ssl_ready != NULL) {
@@ -1759,12 +1811,11 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 
     idx = wolfSSL_read(ssl, input, sizeof(input)-1);
     if (idx > 0) {
-        input[idx] = 0;
+        input[idx] = '\0';
         printf("Client message: %s\n", input);
     }
 
-    if (wolfSSL_write(ssl, msg, sizeof(msg)) != sizeof(msg))
-    {
+    if (wolfSSL_write(ssl, msg, sizeof(msg)) != sizeof(msg)) {
         /*err_sys("SSL_write failed");*/
 #ifdef WOLFSSL_TIRTOS
         return;
@@ -1782,7 +1833,8 @@ static THREAD_RETURN WOLFSSL_THREAD test_server_nofail(void* args)
 done:
     wolfSSL_shutdown(ssl);
     wolfSSL_free(ssl);
-    wolfSSL_CTX_free(ctx);
+    if (!sharedCtx)
+        wolfSSL_CTX_free(ctx);
 
     CloseSocket(clientfd);
 
@@ -1807,7 +1859,6 @@ static void test_client_nofail(void* args, void *cb)
     SOCKET_T sockfd = 0;
     callback_functions* cbf = NULL;
 
-    WOLFSSL_METHOD*  method  = 0;
     WOLFSSL_CTX*     ctx     = 0;
     WOLFSSL*         ssl     = 0;
     WOLFSSL_CIPHER*  cipher;
@@ -1818,23 +1869,33 @@ static void test_client_nofail(void* args, void *cb)
     int  msgSz = (int)XSTRLEN(msg);
     int  ret, err = 0;
     int  cipherSuite;
+    int  sharedCtx = 0;
     const char* cipherName1, *cipherName2;
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
 #endif
-    if (((func_args*)args)->callbacks != NULL) {
-        cbf = ((func_args*)args)->callbacks;
-    }
 
     ((func_args*)args)->return_code = TEST_FAIL;
-    if (cbf != NULL && cbf->method != NULL) {
-        method = cbf->method();
+    cbf = ((func_args*)args)->callbacks;
+
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
+    if (cbf != NULL && cbf->ctx) {
+        ctx = cbf->ctx;
+        sharedCtx = 1;
     }
-    else {
-        method = wolfSSLv23_client_method();
+    else
+#endif
+    {
+        WOLFSSL_METHOD* method  = NULL;
+        if (cbf != NULL && cbf->method != NULL) {
+            method = cbf->method();
+        }
+        else {
+            method = wolfSSLv23_client_method();
+        }
+        ctx = wolfSSL_CTX_new(method);
     }
-    ctx = wolfSSL_CTX_new(method);
 
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
@@ -1847,21 +1908,19 @@ static void test_client_nofail(void* args, void *cb)
     if (wolfSSL_CTX_load_verify_locations(ctx, caCertFile, 0) != WOLFSSL_SUCCESS)
     {
         /* err_sys("can't load ca file, Please run from wolfSSL home dir");*/
-        goto done2;
+        goto done;
     }
-    if (wolfSSL_CTX_use_certificate_file(ctx, cliCertFile, WOLFSSL_FILETYPE_PEM)
-            != WOLFSSL_SUCCESS)
-    {
+    if (!sharedCtx && wolfSSL_CTX_use_certificate_file(ctx, cliCertFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
         /*err_sys("can't load client cert file, "
                 "Please run from wolfSSL home dir");*/
-        goto done2;
+        goto done;
     }
-    if (wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile, WOLFSSL_FILETYPE_PEM)
-            != WOLFSSL_SUCCESS)
-    {
+    if (!sharedCtx && wolfSSL_CTX_use_PrivateKey_file(ctx, cliKeyFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
         /*err_sys("can't load client key file, "
                 "Please run from wolfSSL home dir");*/
-        goto done2;
+        goto done;
     }
 
     /* call ctx setup callback */
@@ -1870,9 +1929,26 @@ static void test_client_nofail(void* args, void *cb)
     }
 
     ssl = wolfSSL_new(ctx);
+    if (ssl == NULL) {
+        goto done;
+    }
+
+    if (sharedCtx && wolfSSL_use_certificate_file(ssl, cliCertFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+        /*err_sys("can't load client cert file, "
+                "Please run from wolfSSL home dir");*/
+        goto done;
+    }
+    if (sharedCtx && wolfSSL_use_PrivateKey_file(ssl, cliKeyFile,
+                                     WOLFSSL_FILETYPE_PEM) != WOLFSSL_SUCCESS) {
+        /*err_sys("can't load client key file, "
+                "Please run from wolfSSL home dir");*/
+        goto done;
+    }
+
     if (wolfSSL_set_fd(ssl, sockfd) != WOLFSSL_SUCCESS) {
         /*err_sys("SSL_set_fd failed");*/
-        goto done2;
+        goto done;
     }
 
     /* call ssl setup callback */
@@ -1899,7 +1975,7 @@ static void test_client_nofail(void* args, void *cb)
         char buff[WOLFSSL_MAX_ERROR_SZ];
         printf("error = %d, %s\n", err, wolfSSL_ERR_error_string(err, buff));
         /*err_sys("SSL_connect failed");*/
-        goto done2;
+        goto done;
     }
 
     /* test the various get cipher methods */
@@ -1920,26 +1996,26 @@ static void test_client_nofail(void* args, void *cb)
 #endif
 
 
-    if(cb != NULL)((cbType)cb)(ctx, ssl);
+    if (cb != NULL)
+        ((cbType)cb)(ctx, ssl);
 
-    if (wolfSSL_write(ssl, msg, msgSz) != msgSz)
-    {
+    if (wolfSSL_write(ssl, msg, msgSz) != msgSz) {
         /*err_sys("SSL_write failed");*/
-        goto done2;
+        goto done;
     }
 
     input = wolfSSL_read(ssl, reply, sizeof(reply)-1);
-    if (input > 0)
-    {
-        reply[input] = 0;
+    if (input > 0) {
+        reply[input] = '\0';
         printf("Server response: %s\n", reply);
     }
 
     ((func_args*)args)->return_code = TEST_SUCCESS;
 
-done2:
+done:
     wolfSSL_free(ssl);
-    wolfSSL_CTX_free(ctx);
+    if (!sharedCtx)
+        wolfSSL_CTX_free(ctx);
 
     CloseSocket(sockfd);
 
@@ -1987,7 +2063,7 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
 #endif
 
     wolfSSL_CTX_set_verify(ctx,
-                          WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
+                  WOLFSSL_VERIFY_PEER | WOLFSSL_VERIFY_FAIL_IF_NO_PEER_CERT, 0);
 
 #ifdef WOLFSSL_ENCRYPTED_KEYS
     wolfSSL_CTX_set_default_passwd_cb(ctx, PasswordCallBack);
@@ -1997,13 +2073,15 @@ static THREAD_RETURN WOLFSSL_THREAD run_wolfssl_server(void* args)
 #endif
 
 
-    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_load_verify_locations(ctx, cliCertFile, 0));
+    AssertIntEQ(WOLFSSL_SUCCESS,
+        wolfSSL_CTX_load_verify_locations(ctx, cliCertFile, 0));
 
     AssertIntEQ(WOLFSSL_SUCCESS,
-               wolfSSL_CTX_use_certificate_file(ctx, svrCertFile, WOLFSSL_FILETYPE_PEM));
+        wolfSSL_CTX_use_certificate_file(ctx, svrCertFile,
+            WOLFSSL_FILETYPE_PEM));
 
     AssertIntEQ(WOLFSSL_SUCCESS,
-                 wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, WOLFSSL_FILETYPE_PEM));
+        wolfSSL_CTX_use_PrivateKey_file(ctx, svrKeyFile, WOLFSSL_FILETYPE_PEM));
 
     if (callbacks->ctx_ready)
         callbacks->ctx_ready(ctx);
@@ -2591,44 +2669,44 @@ static void test_wolfSSL_UseSNI_connection(void)
     unsigned long i;
     callback_functions callbacks[] = {
         /* success case at ctx */
-        {0, use_SNI_at_ctx, 0, 0},
-        {0, use_SNI_at_ctx, 0, verify_SNI_real_matching},
+        {0, use_SNI_at_ctx, 0, 0, 0},
+        {0, use_SNI_at_ctx, 0, verify_SNI_real_matching, 0},
 
         /* success case at ssl */
-        {0, 0, use_SNI_at_ssl, verify_SNI_real_matching},
-        {0, 0, use_SNI_at_ssl, verify_SNI_real_matching},
+        {0, 0, use_SNI_at_ssl, verify_SNI_real_matching, 0},
+        {0, 0, use_SNI_at_ssl, verify_SNI_real_matching, 0},
 
         /* default missmatch behavior */
-        {0, 0, different_SNI_at_ssl, verify_FATAL_ERROR_on_client},
-        {0, 0, use_SNI_at_ssl,       verify_UNKNOWN_SNI_on_server},
+        {0, 0, different_SNI_at_ssl, verify_FATAL_ERROR_on_client, 0},
+        {0, 0, use_SNI_at_ssl,       verify_UNKNOWN_SNI_on_server, 0},
 
         /* continue on missmatch */
-        {0, 0, different_SNI_at_ssl,         0},
-        {0, 0, use_SNI_WITH_CONTINUE_at_ssl, verify_SNI_no_matching},
+        {0, 0, different_SNI_at_ssl,         0, 0},
+        {0, 0, use_SNI_WITH_CONTINUE_at_ssl, verify_SNI_no_matching, 0},
 
         /* fake answer on missmatch */
-        {0, 0, different_SNI_at_ssl,            0},
-        {0, 0, use_SNI_WITH_FAKE_ANSWER_at_ssl, verify_SNI_fake_matching},
+        {0, 0, different_SNI_at_ssl,            0, 0},
+        {0, 0, use_SNI_WITH_FAKE_ANSWER_at_ssl, verify_SNI_fake_matching, 0},
 
         /* sni abort - success */
-        {0, use_SNI_at_ctx,           0, 0},
-        {0, use_MANDATORY_SNI_at_ctx, 0, verify_SNI_real_matching},
+        {0, use_SNI_at_ctx,           0, 0, 0},
+        {0, use_MANDATORY_SNI_at_ctx, 0, verify_SNI_real_matching, 0},
 
         /* sni abort - abort when absent (ctx) */
-        {0, 0,                        0, verify_FATAL_ERROR_on_client},
-        {0, use_MANDATORY_SNI_at_ctx, 0, verify_SNI_ABSENT_on_server},
+        {0, 0,                        0, verify_FATAL_ERROR_on_client, 0},
+        {0, use_MANDATORY_SNI_at_ctx, 0, verify_SNI_ABSENT_on_server, 0},
 
         /* sni abort - abort when absent (ssl) */
-        {0, 0, 0,                        verify_FATAL_ERROR_on_client},
-        {0, 0, use_MANDATORY_SNI_at_ssl, verify_SNI_ABSENT_on_server},
+        {0, 0, 0,                        verify_FATAL_ERROR_on_client, 0},
+        {0, 0, use_MANDATORY_SNI_at_ssl, verify_SNI_ABSENT_on_server, 0},
 
         /* sni abort - success when overwriten */
-        {0, 0, 0, 0},
-        {0, use_MANDATORY_SNI_at_ctx, use_SNI_at_ssl, verify_SNI_no_matching},
+        {0, 0, 0, 0, 0},
+        {0, use_MANDATORY_SNI_at_ctx, use_SNI_at_ssl, verify_SNI_no_matching, 0},
 
         /* sni abort - success when allowing missmatches */
-        {0, 0, different_SNI_at_ssl, 0},
-        {0, use_PSEUDO_MANDATORY_SNI_at_ctx, 0, verify_SNI_fake_matching},
+        {0, 0, different_SNI_at_ssl, 0, 0},
+        {0, use_PSEUDO_MANDATORY_SNI_at_ctx, 0, verify_SNI_fake_matching, 0},
     };
 
     for (i = 0; i < sizeof(callbacks) / sizeof(callback_functions); i += 2) {
@@ -2837,7 +2915,7 @@ static void test_wolfSSL_UseTruncatedHMAC(void)
 
 static void test_wolfSSL_UseSupportedCurve(void)
 {
-#if defined(HAVE_SUPPORTED_CURVES) && !defined(NO_WOLFSSL_CLIENT)
+#if defined(HAVE_SUPPORTED_CURVES) && !defined(NO_WOLFSSL_CLIENT) && !defined(NO_TLS)
     WOLFSSL_CTX *ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
     WOLFSSL     *ssl = wolfSSL_new(ctx);
 
@@ -3003,37 +3081,37 @@ static void test_wolfSSL_UseALPN_connection(void)
     unsigned long i;
     callback_functions callbacks[] = {
         /* success case same list */
-        {0, 0, use_ALPN_all, 0},
-        {0, 0, use_ALPN_all, verify_ALPN_matching_http1},
+        {0, 0, use_ALPN_all, 0, 0},
+        {0, 0, use_ALPN_all, verify_ALPN_matching_http1, 0},
 
         /* success case only one for server */
-        {0, 0, use_ALPN_all, 0},
-        {0, 0, use_ALPN_one, verify_ALPN_matching_spdy2},
+        {0, 0, use_ALPN_all, 0, 0},
+        {0, 0, use_ALPN_one, verify_ALPN_matching_spdy2, 0},
 
         /* success case only one for client */
-        {0, 0, use_ALPN_one, 0},
-        {0, 0, use_ALPN_all, verify_ALPN_matching_spdy2},
+        {0, 0, use_ALPN_one, 0, 0},
+        {0, 0, use_ALPN_all, verify_ALPN_matching_spdy2, 0},
 
         /* success case none for client */
-        {0, 0, 0, 0},
-        {0, 0, use_ALPN_all, 0},
+        {0, 0, 0, 0, 0},
+        {0, 0, use_ALPN_all, 0, 0},
 
         /* success case missmatch behavior but option 'continue' set */
-        {0, 0, use_ALPN_all_continue, verify_ALPN_not_matching_continue},
-        {0, 0, use_ALPN_unknown_continue, 0},
+        {0, 0, use_ALPN_all_continue, verify_ALPN_not_matching_continue, 0},
+        {0, 0, use_ALPN_unknown_continue, 0, 0},
 
         /* success case read protocol send by client */
-        {0, 0, use_ALPN_all, 0},
-        {0, 0, use_ALPN_one, verify_ALPN_client_list},
+        {0, 0, use_ALPN_all, 0, 0},
+        {0, 0, use_ALPN_one, verify_ALPN_client_list, 0},
 
         /* missmatch behavior with same list
          * the first and only this one must be taken */
-        {0, 0, use_ALPN_all, 0},
-        {0, 0, use_ALPN_all, verify_ALPN_not_matching_spdy3},
+        {0, 0, use_ALPN_all, 0, 0},
+        {0, 0, use_ALPN_all, verify_ALPN_not_matching_spdy3, 0},
 
         /* default missmatch behavior */
-        {0, 0, use_ALPN_all, 0},
-        {0, 0, use_ALPN_unknown, verify_ALPN_FATAL_ERROR_on_client},
+        {0, 0, use_ALPN_all, 0, 0},
+        {0, 0, use_ALPN_unknown, verify_ALPN_FATAL_ERROR_on_client, 0},
     };
 
     for (i = 0; i < sizeof(callbacks) / sizeof(callback_functions); i += 2) {
@@ -3576,15 +3654,13 @@ static int test_wolfSSL_CTX_SetMinVersion(void)
         const int versions[]  = { WOLFSSL_TLSV1_2 };
     #elif defined(WOLFSSL_TLS13)
         const int versions[]  = { WOLFSSL_TLSV1_3 };
+    #else
+        const int versions[0];
     #endif
 
     failFlag = WOLFSSL_SUCCESS;
 
-#ifndef WOLFSSL_NO_TLS12
-    ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
-#else
-    ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
-#endif
+    ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
 
     printf(testingFmt, "wolfSSL_CTX_SetMinVersion()");
 
@@ -17869,6 +17945,133 @@ static void test_wolfSSL_msgCb(void)
 #endif
 }
 
+static void test_wolfSSL_either_side(void)
+{
+#if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)) && \
+    !defined(NO_FILESYSTEM) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
+
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    #ifndef SINGLE_THREADED
+    THREAD_TYPE serverThread;
+    #endif
+    callback_functions client_cb;
+    callback_functions server_cb;
+
+    printf(testingFmt, "test_wolfSSL_either_side");
+
+/* create a failed connection and inspect the error */
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&server_args, 0, sizeof(func_args));
+
+    StartTCP();
+    InitTcpReady(&ready);
+
+    XMEMSET(&client_cb, 0, sizeof(callback_functions));
+    XMEMSET(&server_cb, 0, sizeof(callback_functions));
+
+    /* Use same CTX for both client and server */
+    client_cb.ctx = wolfSSL_CTX_new(wolfSSLv23_method());
+    AssertNotNull(client_cb.ctx);
+    server_cb.ctx = client_cb.ctx;
+
+    server_args.signal    = &ready;
+    server_args.callbacks = &server_cb;
+    client_args.signal    = &ready;
+    client_args.callbacks = &client_cb;
+    client_args.return_code = TEST_FAIL;
+
+    #ifndef SINGLE_THREADED
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    test_client_nofail(&client_args, NULL);
+    join_thread(serverThread);
+    AssertTrue(client_args.return_code);
+    AssertTrue(server_args.return_code);
+    #endif
+
+    wolfSSL_CTX_free(client_cb.ctx);
+
+    FreeTcpReady(&ready);
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    printf(resultFmt, passed);
+
+#endif
+}
+
+static void test_wolfSSL_DTLS_either_side(void)
+{
+#if (defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)) && \
+    !defined(NO_FILESYSTEM) && defined(HAVE_IO_TESTS_DEPENDENCIES) && \
+    !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER) && \
+    defined(WOLFSSL_DTLS)
+
+    tcp_ready ready;
+    func_args client_args;
+    func_args server_args;
+    #ifndef SINGLE_THREADED
+    THREAD_TYPE serverThread;
+    #endif
+    callback_functions client_cb;
+    callback_functions server_cb;
+
+    printf(testingFmt, "test_wolfSSL_DTLS_either_side");
+
+/* create a failed connection and inspect the error */
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+    XMEMSET(&client_args, 0, sizeof(func_args));
+    XMEMSET(&server_args, 0, sizeof(func_args));
+
+    StartTCP();
+    InitTcpReady(&ready);
+
+    XMEMSET(&client_cb, 0, sizeof(callback_functions));
+    XMEMSET(&server_cb, 0, sizeof(callback_functions));
+
+    /* Use same CTX for both client and server */
+    client_cb.ctx = wolfSSL_CTX_new(wolfDTLS_method());
+    AssertNotNull(client_cb.ctx);
+    server_cb.ctx = client_cb.ctx;
+
+    server_args.signal    = &ready;
+    server_args.callbacks = &server_cb;
+    client_args.signal    = &ready;
+    client_args.callbacks = &client_cb;
+    client_args.return_code = TEST_FAIL;
+
+    #ifndef SINGLE_THREADED
+    start_thread(test_server_nofail, &server_args, &serverThread);
+    wait_tcp_ready(&server_args);
+    test_client_nofail(&client_args, NULL);
+    join_thread(serverThread);
+    AssertTrue(client_args.return_code);
+    AssertTrue(server_args.return_code);
+    #endif
+
+    wolfSSL_CTX_free(client_cb.ctx);
+
+    FreeTcpReady(&ready);
+
+#ifdef WOLFSSL_TIRTOS
+    fdOpenSession(Task_self());
+#endif
+
+    printf(resultFmt, passed);
+
+#endif
+}
+
 static void test_wolfSSL_set_options(void)
 {
     #if defined(OPENSSL_EXTRA) && !defined(NO_CERTS) && \
@@ -18663,7 +18866,7 @@ static void test_wolfSSL_OBJ(void)
         AssertTrue((bio = BIO_new(BIO_s_mem())) != NULL);
         for (j = 0; j < numNames; j++)
         {
-            AssertNotNull(x509NameEntry = X509_NAME_get_entry(x509Name, j));          
+            AssertNotNull(x509NameEntry = X509_NAME_get_entry(x509Name, j));
             AssertNotNull(asn1Name = X509_NAME_ENTRY_get_object(x509NameEntry));
             AssertTrue((nid = OBJ_obj2nid(asn1Name)) > 0);
         }
@@ -21309,7 +21512,7 @@ static void test_wolfSSL_X509_NAME_ENTRY_get_object()
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
     X509 *x509 = NULL;
     X509_NAME* name = NULL;
-    int idx = 0; 
+    int idx = 0;
     X509_NAME_ENTRY *ne = NULL;
     ASN1_OBJECT *object = NULL;
 
@@ -21323,7 +21526,7 @@ static void test_wolfSSL_X509_NAME_ENTRY_get_object()
     ne = X509_NAME_get_entry(name, idx);
     AssertNotNull(ne);
     AssertNotNull(object = X509_NAME_ENTRY_get_object(ne));
-    
+
     X509_free(x509);
 
     printf(resultFmt, passed);
@@ -21351,7 +21554,7 @@ static void test_wolfSSL_i2c_ASN1_INTEGER()
                 DYNAMIC_TYPE_TMP_BUFFER));
     tpp = pp;
     XMEMSET(pp, 0, ret + 1);
-    i2c_ASN1_INTEGER(a, &pp); 
+    i2c_ASN1_INTEGER(a, &pp);
     pp--;
     AssertIntEQ(*pp, 40);
     XFREE(tpp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -21508,7 +21711,7 @@ static void test_wolfSSL_RSA_verify()
     SHA256_Update(&c, text, strlen(text));
     SHA256_Final(hash, &c);
 
-    /* read privete key file */ 
+    /* read privete key file */
     fp = XFOPEN(svrKeyFile, "r");
     AssertTrue((fp != XBADFILE));
     XFSEEK(fp, 0, XSEEK_END);
@@ -21516,13 +21719,13 @@ static void test_wolfSSL_RSA_verify()
     XREWIND(fp);
     AssertNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
     AssertIntEQ(XFREAD(buf, 1, sz, fp), sz);
-    XFCLOSE(fp); 
+    XFCLOSE(fp);
 
     /* read private key and sign hash data */
     AssertNotNull(bio = BIO_new_mem_buf(buf, (int)sz));
     AssertNotNull(evpPkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL));
     AssertNotNull(pKey = EVP_PKEY_get1_RSA(evpPkey));
-    AssertIntEQ(RSA_sign(NID_sha256, hash, SHA256_DIGEST_LENGTH, 
+    AssertIntEQ(RSA_sign(NID_sha256, hash, SHA256_DIGEST_LENGTH,
                             signature, &signatureLength, pKey), SSL_SUCCESS);
 
     /* read public key and verify signed data */
@@ -21532,7 +21735,7 @@ static void test_wolfSSL_RSA_verify()
     XFCLOSE(fp);
     evpPubkey = X509_get_pubkey(cert);
     pubKey = EVP_PKEY_get1_RSA(evpPubkey);
-    AssertIntEQ(RSA_verify(NID_sha256, hash, SHA256_DIGEST_LENGTH, signature, 
+    AssertIntEQ(RSA_verify(NID_sha256, hash, SHA256_DIGEST_LENGTH, signature,
                                 signatureLength, pubKey), SSL_SUCCESS);
 
     RSA_free(pKey);
@@ -21635,6 +21838,8 @@ void ApiTest(void)
     test_wolfSSL_set_options();
     test_wolfSSL_X509_STORE_CTX();
     test_wolfSSL_msgCb();
+    test_wolfSSL_either_side();
+    test_wolfSSL_DTLS_either_side();
     test_wolfSSL_X509_STORE_set_flags();
     test_wolfSSL_X509_LOOKUP_load_file();
     test_wolfSSL_X509_NID();

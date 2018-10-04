@@ -10023,40 +10023,18 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
 #ifndef NO_WOLFSSL_CLIENT
 
 #ifndef NO_OLD_TLS
-
     #ifdef WOLFSSL_ALLOW_TLSV10
-    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
-    /* Gets a WOLFSL_METHOD type that is not set as client or server
-     *
-     * Returns a pointer to a WOLFSSL_METHOD struct
-     */
-    WOLFSSL_METHOD* wolfTLSv1_method(void) {
-        WOLFSSL_METHOD* m;
-        WOLFSSL_ENTER("wolfTLSv1_method");
-    #ifndef NO_WOLFSSL_CLIENT
-        m = wolfTLSv1_client_method();
-    #else
-        m = wolfTLSv1_server_method();
-    #endif
-        if (m != NULL) {
-            m->side = WOLFSSL_NEITHER_END;
-        }
-
-        return m;
-    }
-    #endif /* OPENSSL_EXTRA || OPENSSL_ALL*/
-
     WOLFSSL_METHOD* wolfTLSv1_client_method(void)
     {
         return wolfTLSv1_client_method_ex(NULL);
     }
-
     WOLFSSL_METHOD* wolfTLSv1_client_method_ex(void* heap)
     {
         WOLFSSL_METHOD* method =
                              (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
                                                      heap, DYNAMIC_TYPE_METHOD);
         (void)heap;
+        WOLFSSL_ENTER("TLSv1_client_method_ex");
         if (method)
             InitSSL_Method(method, MakeTLSv1());
         return method;
@@ -10067,38 +10045,35 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
     {
         return wolfTLSv1_1_client_method_ex(NULL);
     }
-
     WOLFSSL_METHOD* wolfTLSv1_1_client_method_ex(void* heap)
     {
         WOLFSSL_METHOD* method =
                               (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
                                                      heap, DYNAMIC_TYPE_METHOD);
         (void)heap;
+        WOLFSSL_ENTER("TLSv1_1_client_method_ex");
         if (method)
             InitSSL_Method(method, MakeTLSv1_1());
         return method;
     }
-
 #endif /* !NO_OLD_TLS */
 
 #ifndef WOLFSSL_NO_TLS12
-
     WOLFSSL_METHOD* wolfTLSv1_2_client_method(void)
     {
         return wolfTLSv1_2_client_method_ex(NULL);
     }
-
     WOLFSSL_METHOD* wolfTLSv1_2_client_method_ex(void* heap)
     {
         WOLFSSL_METHOD* method =
                               (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
                                                      heap, DYNAMIC_TYPE_METHOD);
         (void)heap;
+        WOLFSSL_ENTER("TLSv1_2_client_method_ex");
         if (method)
             InitSSL_Method(method, MakeTLSv1_2());
         return method;
     }
-
 #endif /* WOLFSSL_NO_TLS12 */
 
 #ifdef WOLFSSL_TLS13
@@ -10122,46 +10097,222 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                                  XMALLOC(sizeof(WOLFSSL_METHOD), heap,
                                          DYNAMIC_TYPE_METHOD);
         (void)heap;
+        WOLFSSL_ENTER("TLSv1_3_client_method_ex");
         if (method)
             InitSSL_Method(method, MakeTLSv1_3());
         return method;
     }
 #endif /* WOLFSSL_TLS13 */
 
+#ifdef WOLFSSL_DTLS
 
-    WOLFSSL_METHOD* wolfSSLv23_client_method(void)
+    WOLFSSL_METHOD* wolfDTLS_client_method(void)
     {
-        return wolfSSLv23_client_method_ex(NULL);
+        return wolfDTLS_client_method_ex(NULL);
     }
-
-
-    WOLFSSL_METHOD* wolfSSLv23_client_method_ex(void* heap)
+    WOLFSSL_METHOD* wolfDTLS_client_method_ex(void* heap)
     {
         WOLFSSL_METHOD* method =
                               (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
                                                      heap, DYNAMIC_TYPE_METHOD);
         (void)heap;
+        WOLFSSL_ENTER("DTLS_client_method_ex");
         if (method) {
-#if !defined(NO_SHA256) || defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
-#if defined(WOLFSSL_TLS13)
-            InitSSL_Method(method, MakeTLSv1_3());
-#else
-            InitSSL_Method(method, MakeTLSv1_2());
-#endif
-#else
-    #ifndef NO_OLD_TLS
-            InitSSL_Method(method, MakeTLSv1_1());
-    #endif
-#endif
-#if !defined(NO_OLD_TLS) || defined(WOLFSSL_TLS13)
+        #if !defined(WOLFSSL_NO_TLS12)
+            InitSSL_Method(method, MakeDTLSv1_2());
+        #elif !defined(NO_OLD_TLS)
+            InitSSL_Method(method, MakeDTLSv1());
+        #else
+            #error No DTLS version enabled!
+        #endif
+
             method->downgrade = 1;
-#endif
+            method->side      = WOLFSSL_CLIENT_END;
         }
         return method;
     }
 
+    #ifndef NO_OLD_TLS
+    WOLFSSL_METHOD* wolfDTLSv1_client_method(void)
+    {
+        return wolfDTLSv1_client_method_ex(NULL);
+    }
+    WOLFSSL_METHOD* wolfDTLSv1_client_method_ex(void* heap)
+    {
+        WOLFSSL_METHOD* method =
+                          (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
+                                                 heap, DYNAMIC_TYPE_METHOD);
+        (void)heap;
+        WOLFSSL_ENTER("DTLSv1_client_method_ex");
+        if (method)
+            InitSSL_Method(method, MakeDTLSv1());
+        return method;
+    }
+    #endif  /* NO_OLD_TLS */
+
+    #ifndef WOLFSSL_NO_TLS12
+    WOLFSSL_METHOD* wolfDTLSv1_2_client_method(void)
+    {
+        return wolfDTLSv1_2_client_method_ex(NULL);
+    }
+    WOLFSSL_METHOD* wolfDTLSv1_2_client_method_ex(void* heap)
+    {
+        WOLFSSL_METHOD* method =
+                          (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
+                                                 heap, DYNAMIC_TYPE_METHOD);
+        (void)heap;
+        WOLFSSL_ENTER("DTLSv1_2_client_method_ex");
+        if (method)
+            InitSSL_Method(method, MakeDTLSv1_2());
+        (void)heap;
+        return method;
+    }
+    #endif /* !WOLFSSL_NO_TLS12 */
+#endif /* WOLFSSL_DTLS */
+
 #endif /* NO_WOLFSSL_CLIENT */
 
+
+/* EITHER SIDE METHODS */
+#if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
+    #ifndef NO_OLD_TLS
+    #ifdef WOLFSSL_ALLOW_TLSV10
+    /* Gets a WOLFSL_METHOD type that is not set as client or server
+     *
+     * Returns a pointer to a WOLFSSL_METHOD struct
+     */
+    WOLFSSL_METHOD* wolfTLSv1_method(void)
+    {
+        return wolfTLSv1_method_ex(NULL);
+    }
+    WOLFSSL_METHOD* wolfTLSv1_method_ex(void* heap)
+    {
+        WOLFSSL_METHOD* m;
+        WOLFSSL_ENTER("TLSv1_method");
+    #ifndef NO_WOLFSSL_CLIENT
+        m = wolfTLSv1_client_method_ex(heap);
+    #else
+        m = wolfTLSv1_server_method_ex(heap);
+    #endif
+        if (m != NULL) {
+            m->side = WOLFSSL_NEITHER_END;
+        }
+
+        return m;
+    }
+    #endif /* WOLFSSL_ALLOW_TLSV10 */
+
+    /* Gets a WOLFSL_METHOD type that is not set as client or server
+     *
+     * Returns a pointer to a WOLFSSL_METHOD struct
+     */
+    WOLFSSL_METHOD* wolfTLSv1_1_method(void)
+    {
+        return wolfTLSv1_1_method_ex(NULL);
+    }
+    WOLFSSL_METHOD* wolfTLSv1_1_method_ex(void* heap)
+    {
+        WOLFSSL_METHOD* m;
+        WOLFSSL_ENTER("TLSv1_1_method");
+    #ifndef NO_WOLFSSL_CLIENT
+        m = wolfTLSv1_1_client_method_ex(heap);
+    #else
+        m = wolfTLSv1_1_server_method_ex(heap);
+    #endif
+        if (m != NULL) {
+            m->side = WOLFSSL_NEITHER_END;
+        }
+        return m;
+    }
+    #endif /* !NO_OLD_TLS */
+
+    #ifndef WOLFSSL_NO_TLS12
+    /* Gets a WOLFSL_METHOD type that is not set as client or server
+     *
+     * Returns a pointer to a WOLFSSL_METHOD struct
+     */
+    WOLFSSL_METHOD* wolfTLSv1_2_method(void)
+    {
+        return wolfTLSv1_2_method_ex(NULL);
+    }
+    WOLFSSL_METHOD* wolfTLSv1_2_method_ex(void* heap)
+    {
+        WOLFSSL_METHOD* m;
+        WOLFSSL_ENTER("TLSv1_2_method");
+    #ifndef NO_WOLFSSL_CLIENT
+        m = wolfTLSv1_2_client_method_ex(heap);
+    #else
+        m = wolfTLSv1_2_server_method_ex(heap);
+    #endif
+        if (m != NULL) {
+            m->side = WOLFSSL_NEITHER_END;
+        }
+        return m;
+    }
+    #endif /* !WOLFSSL_NO_TLS12 */
+
+#ifdef WOLFSSL_DTLS
+    WOLFSSL_METHOD* wolfDTLS_method(void)
+    {
+        return wolfDTLS_method_ex(NULL);
+    }
+    WOLFSSL_METHOD* wolfDTLS_method_ex(void* heap)
+    {
+        WOLFSSL_METHOD* m;
+        WOLFSSL_ENTER("DTLS_method_ex");
+    #ifndef NO_WOLFSSL_CLIENT
+        m = wolfDTLS_client_method_ex(heap);
+    #else
+        m = wolfDTLS_server_method_ex(heap);
+    #endif
+        if (m != NULL) {
+            m->side = WOLFSSL_NEITHER_END;
+        }
+        return m;
+    }
+
+    #ifndef NO_OLD_TLS
+    WOLFSSL_METHOD* wolfDTLSv1_method(void)
+    {
+        return wolfDTLSv1_method_ex(NULL);
+    }
+    WOLFSSL_METHOD* wolfDTLSv1_method_ex(void* heap)
+    {
+        WOLFSSL_METHOD* m;
+        WOLFSSL_ENTER("DTLSv1_method_ex");
+    #ifndef NO_WOLFSSL_CLIENT
+        m = wolfDTLSv1_client_method_ex(heap);
+    #else
+        m = wolfDTLSv1_server_method_ex(heap);
+    #endif
+        if (m != NULL) {
+            m->side = WOLFSSL_NEITHER_END;
+        }
+        return m;
+    }
+    #endif /* !NO_OLD_TLS */
+    #ifndef WOLFSSL_NO_TLS12
+    WOLFSSL_METHOD* wolfDTLSv1_2_method(void)
+    {
+        return wolfDTLSv1_2_method_ex(NULL);
+    }
+    WOLFSSL_METHOD* wolfDTLSv1_2_method_ex(void* heap)
+    {
+        WOLFSSL_METHOD* m;
+        WOLFSSL_ENTER("DTLSv1_2_method");
+    #ifndef NO_WOLFSSL_CLIENT
+        m = wolfDTLSv1_2_client_method_ex(heap);
+    #else
+        m = wolfDTLSv1_2_server_method_ex(heap);
+    #endif
+        if (m != NULL) {
+            m->side = WOLFSSL_NEITHER_END;
+        }
+        return m;
+    }
+    #endif /* !WOLFSSL_NO_TLS12 */
+#endif /* WOLFSSL_DTLS */
+#endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE */
 
 
 #ifndef NO_WOLFSSL_SERVER
@@ -10172,13 +10323,13 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
     {
         return wolfTLSv1_server_method_ex(NULL);
     }
-
     WOLFSSL_METHOD* wolfTLSv1_server_method_ex(void* heap)
     {
         WOLFSSL_METHOD* method =
                               (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
                                                      heap, DYNAMIC_TYPE_METHOD);
         (void)heap;
+        WOLFSSL_ENTER("TLSv1_server_method_ex");
         if (method) {
             InitSSL_Method(method, MakeTLSv1());
             method->side = WOLFSSL_SERVER_END;
@@ -10187,37 +10338,17 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
     }
     #endif /* WOLFSSL_ALLOW_TLSV10 */
 
-    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
-    /* Gets a WOLFSL_METHOD type that is not set as client or server
-     *
-     * Returns a pointer to a WOLFSSL_METHOD struct
-     */
-    WOLFSSL_METHOD* wolfTLSv1_1_method(void) {
-        WOLFSSL_METHOD* m;
-        WOLFSSL_ENTER("wolfTLSv1_1_method");
-    #ifndef NO_WOLFSSL_CLIENT
-        m = wolfTLSv1_1_client_method();
-    #else
-        m = wolfTLSv1_1_server_method();
-    #endif
-        if (m != NULL) {
-            m->side = WOLFSSL_NEITHER_END;
-        }
-        return m;
-    }
-    #endif /* OPENSSL_EXTRA || OPENSSL_ALL */
-
     WOLFSSL_METHOD* wolfTLSv1_1_server_method(void)
     {
         return wolfTLSv1_1_server_method_ex(NULL);
     }
-
     WOLFSSL_METHOD* wolfTLSv1_1_server_method_ex(void* heap)
     {
         WOLFSSL_METHOD* method =
                               (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
                                                      heap, DYNAMIC_TYPE_METHOD);
         (void)heap;
+        WOLFSSL_ENTER("TLSv1_1_server_method_ex");
         if (method) {
             InitSSL_Method(method, MakeTLSv1_1());
             method->side = WOLFSSL_SERVER_END;
@@ -10226,46 +10357,25 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
     }
 #endif /* !NO_OLD_TLS */
 
+
 #ifndef WOLFSSL_NO_TLS12
-
-    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL)
-    /* Gets a WOLFSL_METHOD type that is not set as client or server
-     *
-     * Returns a pointer to a WOLFSSL_METHOD struct
-     */
-    WOLFSSL_METHOD* wolfTLSv1_2_method(void) {
-        WOLFSSL_METHOD* m;
-        WOLFSSL_ENTER("wolfTLSv1_2_method");
-    #ifndef NO_WOLFSSL_CLIENT
-        m = wolfTLSv1_2_client_method();
-    #else
-        m = wolfTLSv1_2_server_method();
-    #endif
-        if (m != NULL) {
-            m->side = WOLFSSL_NEITHER_END;
-        }
-        return m;
-    }
-    #endif /* OPENSSL_EXTRA || OPENSSL_ALL */
-
     WOLFSSL_METHOD* wolfTLSv1_2_server_method(void)
     {
         return wolfTLSv1_2_server_method_ex(NULL);
     }
-
     WOLFSSL_METHOD* wolfTLSv1_2_server_method_ex(void* heap)
     {
         WOLFSSL_METHOD* method =
                               (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
                                                      heap, DYNAMIC_TYPE_METHOD);
         (void)heap;
+        WOLFSSL_ENTER("TLSv1_2_server_method_ex");
         if (method) {
             InitSSL_Method(method, MakeTLSv1_2());
             method->side = WOLFSSL_SERVER_END;
         }
         return method;
     }
-
 #endif /* !WOLFSSL_NO_TLS12 */
 
 #ifdef WOLFSSL_TLS13
@@ -10289,6 +10399,7 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
                               (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
                                                      heap, DYNAMIC_TYPE_METHOD);
         (void)heap;
+        WOLFSSL_ENTER("TLSv1_3_server_method_ex");
         if (method) {
             InitSSL_Method(method, MakeTLSv1_3());
             method->side = WOLFSSL_SERVER_END;
@@ -10297,40 +10408,76 @@ int TLSX_Parse(WOLFSSL* ssl, byte* input, word16 length, byte msgType,
     }
 #endif /* WOLFSSL_TLS13 */
 
-    WOLFSSL_METHOD* wolfSSLv23_server_method(void)
+#ifdef WOLFSSL_DTLS
+    WOLFSSL_METHOD* wolfDTLS_server_method(void)
     {
-        return wolfSSLv23_server_method_ex(NULL);
+        return wolfDTLS_server_method_ex(NULL);
     }
-
-    WOLFSSL_METHOD* wolfSSLv23_server_method_ex(void* heap)
+    WOLFSSL_METHOD* wolfDTLS_server_method_ex(void* heap)
     {
         WOLFSSL_METHOD* method =
                               (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
                                                      heap, DYNAMIC_TYPE_METHOD);
         (void)heap;
+        WOLFSSL_ENTER("DTLS_server_method_ex");
         if (method) {
-#if !defined(NO_SHA256) || defined(WOLFSSL_SHA384) || defined(WOLFSSL_SHA512)
-#ifdef WOLFSSL_TLS13
-            InitSSL_Method(method, MakeTLSv1_3());
-#else
-            InitSSL_Method(method, MakeTLSv1_2());
-#endif
-#else
-    #ifndef NO_OLD_TLS
-            InitSSL_Method(method, MakeTLSv1_1());
-    #else
-            #error Must have SHA256, SHA384 or SHA512 enabled for TLS 1.2
-    #endif
-#endif
-#if !defined(NO_OLD_TLS) || defined(WOLFSSL_TLS13)
+        #if !defined(WOLFSSL_NO_TLS12)
+            InitSSL_Method(method, MakeDTLSv1_2());
+        #elif !defined(NO_OLD_TLS)
+            InitSSL_Method(method, MakeDTLSv1());
+        #else
+            #error No DTLS version enabled!
+        #endif
+
             method->downgrade = 1;
-#endif
             method->side      = WOLFSSL_SERVER_END;
         }
         return method;
     }
 
+    #ifndef NO_OLD_TLS
+    WOLFSSL_METHOD* wolfDTLSv1_server_method(void)
+    {
+        return wolfDTLSv1_server_method_ex(NULL);
+    }
+    WOLFSSL_METHOD* wolfDTLSv1_server_method_ex(void* heap)
+    {
+        WOLFSSL_METHOD* method =
+                          (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
+                                                 heap, DYNAMIC_TYPE_METHOD);
+        (void)heap;
+        WOLFSSL_ENTER("DTLSv1_server_method_ex");
+        if (method) {
+            InitSSL_Method(method, MakeDTLSv1());
+            method->side = WOLFSSL_SERVER_END;
+        }
+        return method;
+    }
+    #endif /* !NO_OLD_TLS */
+
+    #ifndef WOLFSSL_NO_TLS12
+    WOLFSSL_METHOD* wolfDTLSv1_2_server_method(void)
+    {
+        return wolfDTLSv1_2_server_method_ex(NULL);
+    }
+    WOLFSSL_METHOD* wolfDTLSv1_2_server_method_ex(void* heap)
+    {
+        WOLFSSL_METHOD* method =
+                          (WOLFSSL_METHOD*) XMALLOC(sizeof(WOLFSSL_METHOD),
+                                                 heap, DYNAMIC_TYPE_METHOD);
+        WOLFSSL_ENTER("DTLSv1_2_server_method_ex");
+        (void)heap;
+        if (method) {
+            InitSSL_Method(method, MakeDTLSv1_2());
+            method->side = WOLFSSL_SERVER_END;
+        }
+        (void)heap;
+        return method;
+    }
+    #endif /* !WOLFSSL_NO_TLS12 */
+#endif /* WOLFSSL_DTLS */
 
 #endif /* NO_WOLFSSL_SERVER */
+
 #endif /* NO_TLS */
 #endif /* WOLFCRYPT_ONLY */

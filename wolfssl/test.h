@@ -236,6 +236,7 @@
 #define CLIENT_DTLS_DEFAULT_VERSION (-2)
 #define CLIENT_INVALID_VERSION (-99)
 #define CLIENT_DOWNGRADE_VERSION (-98)
+#define EITHER_DOWNGRADE_VERSION (-97)
 #if !defined(NO_FILESYSTEM) && defined(WOLFSSL_MAX_STRENGTH)
     #define DEFAULT_MIN_DHKEY_BITS 2048
     #define DEFAULT_MAX_DHKEY_BITS 3072
@@ -354,6 +355,7 @@ typedef struct callback_functions {
     ctx_callback ctx_ready;
     ssl_callback ssl_ready;
     ssl_callback on_result;
+    WOLFSSL_CTX* ctx;
 } callback_functions;
 
 typedef struct func_args {
