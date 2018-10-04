@@ -286,6 +286,9 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
     #define X509_get_ext                wolfSSL_X509_get_ext
     #define X509_get_ext_count          wolfSSL_X509_get_ext_count
     #define X509_PUBKEY_get             wolfSSL_X509_PUBKEY_get
+    #define X509_EXTENSION_get_object   wolfSSL_X509_EXTENSION_get_object
+    #define X509_EXTENSION_get_critical wolfSSL_X509_EXTENSION_get_critical
+    #define X509_EXTENSION_get_data     wolfSSL_X509_EXTENSION_get_data
 #endif
         
 #define DSA_dup_DH                      wolfSSL_DSA_dup_DH

@@ -7197,6 +7197,27 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
         return 0;
     }
 
+    WOLFSSL_ASN1_OBJECT* wolfSSL_X509_EXTENSION_get_object(WOLFSSL_X509_EXTENSION* ex)
+    {
+        (void)ex;
+        WOLFSSL_STUB("wolfSSL_X509_EXTENSION_get_object");
+        return 0;
+    }
+
+    WOLFSSL_API int wolfSSL_X509_EXTENSION_get_critical(const WOLFSSL_X509_EXTENSION* ex)
+    {
+        (void)ex;
+        WOLFSSL_STUB("wolfSSL_X509_EXTENSION_get_critical");
+        return 0;
+    }
+
+    WOLFSSL_ASN1_STRING* wolfSSL_X509_EXTENSION_get_data(WOLFSSL_X509_EXTENSION* ex)
+    {
+        (void)ex;
+        WOLFSSL_STUB("wolfSSL_X509_EXTENSION_get_data");
+        return 0;
+    }
+
 #endif /* defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB) */
 
 
