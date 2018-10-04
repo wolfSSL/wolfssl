@@ -21,27 +21,25 @@
 
 /* x509v3.h for openSSL */
 
+#ifndef WOLFSSL_x509v3_H_
+#define WOLFSSL_x509v3_H_
+
 #include <wolfssl/openssl/conf.h>
 #include <wolfssl/openssl/bio.h>
-#include <wolfssl/openssl/objects.h>
 
-struct WOLFSSL_AUTHORITY_KEYID {
-    WOLFSSL_ASN1_STRING *keyid;
-    GENERAL_NAME *issuer;
-    WOLFSSL_ASN1_INTEGER *serial;
-};
-
-#define ASN1_INTEGER        WOLFSSL_ASN1_INTEGER
-#define ASN1_OCTET_STRING   WOLFSSL_ASN1_STRING
+#ifdef __cplusplus
+    extern "C" {
+#endif
 
 /* Forward reference */
 struct WOLFSSL_v3_ext_method;
 
-typedef STACK_OF(CONF_VALUE) *(*X509V3_EXT_I2V) (struct v3_ext_method *method, void *ext, STACK_OF(CONF_VALUE) *extlist);
+typedef STACK_OF(CONF_VALUE) *(*X509V3_EXT_I2V) (struct WOLFSSL_v3_ext_method *method, 
+                                      void *ext, STACK_OF(CONF_VALUE) *extlist);
 typedef char *(*X509V3_EXT_I2S)(struct WOLFSSL_v3_ext_method *method, void *ext);
-typedef int (*X509V3_EXT_I2R) (struct WOLFSSL_v3_ext_method *method, void *ext, BIO *out, int indent);
+typedef int (*X509V3_EXT_I2R) (struct WOLFSSL_v3_ext_method *method, void *ext,
+                                                          BIO *out, int indent);
 
-/* currently stub function, may need to add more later */
 struct WOLFSSL_v3_ext_method {
     int ext_nid;
     int ext_flags;
@@ -56,8 +54,23 @@ struct WOLFSSL_ACCESS_DESCRIPTION {
     GENERAL_NAME *location;
 };
 
-typedef WOLFSSL_AUTHORITY_KEYID AUTHORITY_KEYID;
-typedef WOLFSSL_ACCESS_DESCRIPTION ACCESS_DESCRIPTION;
+typedef struct WOLFSSL_AUTHORITY_KEYID AUTHORITY_KEYID;
+typedef struct WOLFSSL_BASIC_CONSTRAINTS BASIC_CONSTRAINTS;
+typedef struct WOLFSSL_ACCESS_DESCRIPTION ACCESS_DESCRIPTION;
 typedef STACK_OF(WOLFSSL_ACCESS_DESCRIPTION) AUTHORITY_INFO_ACCESS;
-typedef WOLFSSL_v3_ext_method X509V3_EXT_METHOD;
-#define SSL_CTX_get_cert_store(x)          wolfSSL_CTX_get_cert_store ((WOLFSSL_CTX*) (x))
+typedef struct WOLFSSL_v3_ext_method X509V3_EXT_METHOD;
+
+WOLFSSL_API void wolfSSL_BASIC_CONSTRAINTS_free(WOLFSSL_BASIC_CONSTRAINTS *bc);
+WOLFSSL_API void wolfSSL_AUTHORITY_KEYID_free(WOLFSSL_AUTHORITY_KEYID *id);
+
+#define BASIC_CONSTRAINTS_free    wolfSSL_BASIC_CONSTRAINTS_free
+#define AUTHORITY_KEYID_free     wolfSSL_AUTHORITY_KEYID_free
+#define SSL_CTX_get_cert_store(x) wolfSSL_CTX_get_cert_store ((WOLFSSL_CTX*) (x))
+#define ASN1_INTEGER              WOLFSSL_ASN1_INTEGER
+#define ASN1_OCTET_STRING         WOLFSSL_ASN1_STRING
+
+#ifdef  __cplusplus
+}
+#endif
+
+#endif
