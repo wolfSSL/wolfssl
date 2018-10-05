@@ -23741,7 +23741,7 @@ WOLFSSL_RSA* wolfSSL_RSA_new(void)
 
 #if defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)
 /* when calling SetIndividualExternal, mpi should be cleared by caller if no
- * longer used. ie mp_clear(mpi). This is to free data when fastmath is
+ * longer used. ie mp_free(mpi). This is to free data when fastmath is
  * disabled since a copy of mpi is made by this function and placed into bn.
  */
 static int SetIndividualExternal(WOLFSSL_BIGNUM** bn, mp_int* mpi)
@@ -23777,6 +23777,10 @@ static int SetIndividualExternal(WOLFSSL_BIGNUM** bn, mp_int* mpi)
 #endif /* OPENSSL_EXTRA || OPENSSL_EXTRA_X509_SMALL */
 
 #ifdef OPENSSL_EXTRA /* only without X509_SMALL */
+/* when calling SetIndividualInternal, mpi should be cleared by caller if no
+ * longer used. ie mp_free(mpi). This is to free data when fastmath is
+ * disabled since a copy of mpi is made by this function and placed into bn.
+ */
 static int SetIndividualInternal(WOLFSSL_BIGNUM* bn, mp_int* mpi)
 {
     WOLFSSL_MSG("Entering SetIndividualInternal");
@@ -28536,9 +28540,12 @@ int wolfSSL_i2d_RSAPublicKey(WOLFSSL_RSA *rsa, const unsigned char **pp)
     WOLFSSL_ENTER("i2d_RSAPublicKey");
     if (rsa == NULL)
         return WOLFSSL_FATAL_ERROR;
-    if ((ret = SetRsaInternal(rsa)) != WOLFSSL_SUCCESS) {
-        WOLFSSL_MSG("SetRsaInternal Failed");
-        return ret;
+
+    if (rsa->inSet == 0) {
+        if ((ret = SetRsaInternal(rsa)) != WOLFSSL_SUCCESS) {
+            WOLFSSL_MSG("SetRsaInternal Failed");
+            return ret;
+        }
     }
     if ((derLen = RsaPublicKeyDerSize((RsaKey *)rsa->internal, 1)) < 0)
         return WOLFSSL_FATAL_ERROR;
