@@ -21584,6 +21584,43 @@ static void test_stubs_are_stubs()
     ctx = NULL;
 #endif /* OPENSSL_EXTRA && !NO_WOLFSSL_STUB */
 }
+
+static void test_wolfSSL_CTX_LoadCRL()
+{
+#ifdef HAVE_CRL
+    WOLFSSL_CTX* ctx = NULL;
+    const char* badPath = "dummypath";
+    const char* validPath = "./certs/crl";
+    int derType = WOLFSSL_FILETYPE_ASN1;
+    int rawType = WOLFSSL_FILETYPE_RAW;
+    int pemType = WOLFSSL_FILETYPE_PEM;
+    int monitor = WOLFSSL_CRL_MONITOR;
+
+    #define FAIL_T1(x, y, z, p, d) AssertIntEQ((int) x(y, z, p, d), \
+                                                BAD_FUNC_ARG)
+    #define SUCC_T(x, y, z, p, d) AssertIntEQ((int) x(y, z, p, d), \
+                                                WOLFSSL_SUCCESS)
+
+    FAIL_T1(wolfSSL_CTX_LoadCRL, ctx, validPath, pemType, monitor);
+
+  #ifndef NO_WOLFSSL_CLIENT
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+  #elif !defined(NO_WOLFSSL_SERVER)
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_server_method()));
+  #else
+    return;
+  #endif
+
+    SUCC_T (wolfSSL_CTX_LoadCRL, ctx, validPath, pemType, monitor);
+    SUCC_T (wolfSSL_CTX_LoadCRL, ctx, badPath, pemType, monitor);
+    SUCC_T (wolfSSL_CTX_LoadCRL, ctx, badPath, derType, monitor);
+    SUCC_T (wolfSSL_CTX_LoadCRL, ctx, badPath, rawType, monitor);
+
+    wolfSSL_CTX_free(ctx);
+    ctx = NULL;
+#endif
+}
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -21949,6 +21986,8 @@ void ApiTest(void)
     test_wc_PKCS7_VerifySignedData();
     test_wc_PKCS7_EncodeDecodeEnvelopedData();
     test_wc_PKCS7_EncodeEncryptedData();
+
+    test_wolfSSL_CTX_LoadCRL();
 
     AssertIntEQ(test_ForceZero(), 0);
 
