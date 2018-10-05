@@ -500,7 +500,7 @@ int wc_PeekErrorNode(int idx, const char **file, const char **reason,
  *
  * file   pointer to file that error was in. Can be NULL to return no file.
  * reason error string giving reason for error. Can be NULL to return no reason.
- * line   retrun line number of where error happened.
+ * line   return line number of where error happened.
  *
  * returns the error value on success and BAD_MUTEX_E or BAD_STATE_E on failure
  */
