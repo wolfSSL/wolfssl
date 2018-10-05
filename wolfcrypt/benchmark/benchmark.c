@@ -3549,7 +3549,7 @@ void bench_blake2(void)
 
 #ifdef WOLFSSL_CMAC
 
-void bench_cmac(void)
+static void bench_cmac_helper(int keySz, const char* outMsg)
 {
     Cmac    cmac;
     byte    digest[AES_BLOCK_SIZE];
@@ -3559,7 +3559,7 @@ void bench_cmac(void)
 
     bench_stats_start(&count, &start);
     do {
-        ret = wc_InitCmac(&cmac, bench_key, 16, WC_CMAC_AES, NULL);
+        ret = wc_InitCmac(&cmac, bench_key, keySz, WC_CMAC_AES, NULL);
         if (ret != 0) {
             printf("InitCmac failed, ret = %d\n", ret);
             return;
@@ -3580,9 +3580,19 @@ void bench_cmac(void)
         }
         count += i;
     } while (bench_stats_sym_check(start));
-    bench_stats_sym_finish("AES-CMAC", 0, count, bench_size, start, ret);
+    bench_stats_sym_finish(outMsg, 0, count, bench_size, start, ret);
 }
 
+void bench_cmac(void)
+{
+#ifdef WOLFSSL_AES_128
+    bench_cmac_helper(16, "AES-128-CMAC");
+#endif
+#ifdef WOLFSSL_AES_256
+    bench_cmac_helper(32, "AES-256-CMAC");
+#endif
+
+}
 #endif /* WOLFSSL_CMAC */
 
 #ifdef HAVE_SCRYPT
