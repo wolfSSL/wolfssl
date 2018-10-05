@@ -11677,6 +11677,16 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
         return  WOLFSSL_SUCCESS;
     }
 
+    /* Qt stub */
+    #ifndef NO_WOLFSSL_STUB
+    int wolfSSL_OpenSSL_add_all_algorithms_conf(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_OpenSSL_add_all_algorithms_conf");
+
+        return  WOLFSSL_SUCCESS;
+    }
+    #endif
+
    /* returns previous set cache size which stays constant */
     long wolfSSL_CTX_sess_set_cache_size(WOLFSSL_CTX* ctx, long sz)
     {

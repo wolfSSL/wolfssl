@@ -60,6 +60,7 @@ WOLFSSL_API void *wolfSSL_OPENSSL_malloc(size_t a);
 #ifdef WOLFSSL_QT
     #define OPENSSL_INIT_ADD_ALL_CIPHERS    0x00000004L
     #define OPENSSL_INIT_ADD_ALL_DIGESTS    0x00000008L
+    #define OPENSSL_INIT_LOAD_CONFIG        0x00000040L
 #endif
 
 #if defined(OPENSSL_ALL) || defined(HAVE_STUNNEL) || defined(WOLFSSL_NGINX) || \
