@@ -303,6 +303,7 @@ enum Misc_ASN {
     HEADER_ENCRYPTED_KEY_SIZE = 0,
 #endif
     TRAILING_ZERO       = 1,       /* Used for size of zero pad */
+    ASN_TAG_SZ          = 1,       /* single byte ASN.1 tag */
     MIN_VERSION_SZ      = 3,       /* Min bytes needed for GetMyVersion */
 #if defined(OPENSSL_ALL)  || defined(WOLFSSL_MYSQL_COMPATIBLE) || \
     defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \

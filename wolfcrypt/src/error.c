@@ -281,6 +281,9 @@ const char* wc_GetErrorString(int error)
     case PKCS7_RECIP_E:
         return "PKCS#7 error: no matching recipient found";
 
+    case WC_PKCS7_WANT_READ_E:
+        return "PKCS#7 operations wants more input, call again";
+
     case FIPS_NOT_ALLOWED_E:
         return "FIPS mode not allowed error";
 

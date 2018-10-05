@@ -20300,6 +20300,25 @@ int pkcs7encrypted_test(void)
         }
 
         /* decode encryptedData */
+#ifndef NO_PKCS7_STREAM
+        { /* test reading byte by byte */
+            int z;
+            for (z = 0; z < encryptedSz; z++) {
+                decodedSz = wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted + z, 1,
+                                                 decoded, sizeof(decoded));
+                if (decodedSz <= 0 && decodedSz != WC_PKCS7_WANT_READ_E) {
+                    printf("unexpected error %d\n", decodedSz);
+                    return -9402;
+                }
+            }
+            /* test decode result */
+            if (XMEMCMP(decoded, data, sizeof(data)) != 0) {
+                printf("stream read failed\n");
+                wc_PKCS7_Free(pkcs7);
+                return -9403;
+            }
+        }
+#endif
         decodedSz = wc_PKCS7_DecodeEncryptedData(pkcs7, encrypted, encryptedSz,
                                                  decoded, sizeof(decoded));
         if (decodedSz <= 0){

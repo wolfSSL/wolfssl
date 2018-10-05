@@ -15022,6 +15022,7 @@ static void test_wc_PKCS7_EncodeData (void)
 
     XMEMSET(output, 0, sizeof(output));
 
+    pkcs7.isDynamic = 0;
     AssertIntEQ(wc_PKCS7_Init(&pkcs7, HEAP_HINT, INVALID_DEVID), 0);
 
     AssertIntEQ(wc_PKCS7_InitWithCert(&pkcs7, (byte*)cert, certSz), 0);

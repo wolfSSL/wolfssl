@@ -86,6 +86,15 @@ enum PKCS7_TYPES {
     AUTH_ENVELOPED_DATA       = 692   /* 1.2.840.113549.1.9.16.1.23, RFC 5083 */
 };
 
+enum PKCS7_STATE {
+    WC_PKCS7_START = 0,
+    WC_PKCS7_STAGE2,
+    WC_PKCS7_STAGE3,
+    WC_PKCS7_STAGE4,
+    WC_PKCS7_STAGE5,
+    WC_PKCS7_STAGE6
+};
+
 enum Pkcs7_Misc {
     PKCS7_NONCE_SZ        = 16,
     MAX_ENCRYPTED_KEY_SZ  = 512,    /* max enc. key size, RSA <= 4096 */
@@ -131,6 +140,7 @@ typedef struct PKCS7DecodedAttrib {
     word32 valueSz;
 } PKCS7DecodedAttrib;
 
+typedef struct PKCS7State PKCS7State;
 typedef struct Pkcs7Cert Pkcs7Cert;
 typedef struct Pkcs7EncodedRecip Pkcs7EncodedRecip;
 typedef struct PKCS7 PKCS7;
@@ -221,6 +231,11 @@ typedef struct PKCS7 {
     word32 authAttribsSz;
     PKCS7Attrib* unauthAttribs;   /* unauthenticated attribs */
     word32 unauthAttribsSz;
+
+#ifndef NO_PKCS7_STREAM
+    PKCS7State* stream;
+#endif
+    enum PKCS7_STATE state;
 
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 } PKCS7;
