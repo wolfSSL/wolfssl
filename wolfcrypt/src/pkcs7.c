@@ -8295,6 +8295,7 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
             }
 #endif
             pkcs7->state = WC_PKCS7_STAGE2;
+            FALL_THROUGH
             /* end of stage 1 */
 
         case WC_PKCS7_STAGE2:
@@ -8335,6 +8336,7 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
             }
 #endif
             pkcs7->state = WC_PKCS7_STAGE3;
+            FALL_THROUGH
             /* end of stage 2 */
 
        case WC_PKCS7_STAGE3:
@@ -8390,6 +8392,7 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
             pkcs7->stream->vers = version;
 #endif
             pkcs7->state = WC_PKCS7_STAGE4;
+            FALL_THROUGH
             /* end of stage 3 */
 
         /* get block cipher IV, stored in OPTIONAL parameter of AlgoID */
@@ -8436,6 +8439,7 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
             }
 #endif
             pkcs7->state = WC_PKCS7_STAGE5;
+            FALL_THROUGH
             /* end of stage 4 */
 
        case WC_PKCS7_STAGE5:
@@ -8490,6 +8494,7 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
 
 #endif
             pkcs7->state = WC_PKCS7_STAGE6;
+            FALL_THROUGH
             /* end of stage 5 */
 
         case WC_PKCS7_STAGE6:
