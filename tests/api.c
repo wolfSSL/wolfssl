@@ -21561,8 +21561,6 @@ static void test_stubs_are_stubs()
 
     #define CHECKZERO_RET(x, y, z) AssertIntEQ((int) x(y), 0); \
                      AssertIntEQ((int) x(z), 0)
-    #define CHECKONE_RET(x, y, z) AssertIntEQ((int) x(y), 0); \
-                     AssertIntEQ((int) x(z), WOLFSSL_SUCCESS)
     /* test logic, all stubs return same result regardless of ctx being NULL
      * as there are no sanity checks, it's just a stub! If at some
      * point a stub is not a stub it should begin to return BAD_FUNC_ARG
