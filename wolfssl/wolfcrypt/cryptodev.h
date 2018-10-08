@@ -175,6 +175,8 @@ WOLFSSL_LOCAL int wc_CryptoDev_AesGcmDecrypt(Aes* aes, byte* out,
 
 #endif /* !NO_AES && HAVE_AESGCM */
 
+WOLFSSL_LOCAL int wc_CryptoDev_Sha256Hash(const byte* data, word32 len, byte* hash);
+
 #endif /* WOLF_CRYPTO_DEV */
 
 #ifdef __cplusplus

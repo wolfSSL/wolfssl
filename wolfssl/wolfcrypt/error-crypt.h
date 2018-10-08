@@ -216,7 +216,11 @@ enum {
     WC_AFALG_SOCK_E     = -264,  /* AF_ALG socket error */
     WC_DEVCRYPTO_E      = -265,  /* /dev/crypto error */
 
-    WC_LAST_E           = -265,  /* Update this to indicate last error */
+    ZLIB_INIT_ERROR     = -266,   /* zlib init error  */
+    ZLIB_COMPRESS_ERROR = -267,   /* zlib compression error  */
+    ZLIB_DECOMPRESS_ERROR = -268,  /* zlib decompression error  */
+
+    WC_LAST_E           = -268,  /* Update this to indicate last error */
     MIN_CODE_E          = -300   /* errors -101 - -299 */
 
     /* add new companion error id strings for any new error codes
