@@ -388,6 +388,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 
 #define X509_STORE_CTX_get_current_cert wolfSSL_X509_STORE_CTX_get_current_cert
 #define X509_STORE_CTX_set_verify_cb    wolfSSL_X509_STORE_CTX_set_verify_cb
+#define X509_STORE_CTX_set_verify_cb_func wolfSSL_X509_STORE_CTX_set_verify_cb_func
 #define X509_STORE_CTX_new              wolfSSL_X509_STORE_CTX_new
 #define X509_STORE_CTX_free             wolfSSL_X509_STORE_CTX_free
 #define X509_STORE_CTX_get_chain        wolfSSL_X509_STORE_CTX_get_chain
@@ -510,6 +511,7 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define ASN1_STRING_length              wolfSSL_ASN1_STRING_length
 #define ASN1_STRING_to_UTF8             wolfSSL_ASN1_STRING_to_UTF8
 #define ASN1_STRING_print_ex            wolfSSL_ASN1_STRING_print_ex
+#define ASN1_STRING_print               wolfSSL_ASN1_STRING_print
 
 #define ASN1_UTCTIME_pr                 wolfSSL_ASN1_UTCTIME_pr
 

@@ -970,6 +970,8 @@ WOLFSSL_API int   wolfSSL_X509_STORE_CTX_get_error_depth(WOLFSSL_X509_STORE_CTX*
 
 WOLFSSL_API void  wolfSSL_X509_STORE_CTX_set_verify_cb(WOLFSSL_X509_STORE_CTX *ctx,
                                   WOLFSSL_X509_STORE_CTX_verify_cb verify_cb);
+WOLFSSL_API void  wolfSSL_X509_STORE_CTX_set_verify_cb_func(WOLFSSL_X509_STORE *st,
+                                  WOLFSSL_X509_STORE_CTX_verify_cb verify_cb);
 WOLFSSL_API int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* n,
                                                            unsigned char** out);
 WOLFSSL_API int wolfSSL_X509_print(WOLFSSL_BIO* bio, WOLFSSL_X509* x509);
@@ -3092,7 +3094,13 @@ WOLFSSL_API char* wolfSSL_sk_WOLFSSL_STRING_value(
 WOLFSSL_API int PEM_write_bio_WOLFSSL_X509(WOLFSSL_BIO *bio,
     WOLFSSL_X509 *cert);
 
-#endif /* OPENSSL_ALL || WOLFSSL_NGINX || WOLFSSL_HAPROXY ||
+WOLFSSL_API int PEM_write_bio_WOLFSSL_DSA_PUBKEY(WOLFSSL_BIO *bio,
+    DSA_PUBKEY *cert);
+
+WOLFSSL_API int PEM_write_bio_WOLFSSL_EC_PUBKEY(WOLFSSL_BIO *bio,
+    EC_PUBKEY *cert);
+
+#endif /* OPENSSL_ALL || WOLFSSL_NGINX || WOLFSSL_HAPROXY || 
     OPENSSL_EXTRA || HAVE_LIGHTY*/
 
 WOLFSSL_API void wolfSSL_get0_alpn_selected(const WOLFSSL *ssl,
@@ -3152,6 +3160,7 @@ WOLFSSL_API void wolfSSL_EC_POINT_dump(const char *msg, const WOLFSSL_EC_POINT *
 
 WOLFSSL_API const char *wolfSSL_ASN1_tag2str(int tag);
 WOLFSSL_API int wolfSSL_ASN1_STRING_print_ex(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str, unsigned long flags);
+WOLFSSL_API int wolfSSL_ASN1_STRING_print(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str);
 WOLFSSL_API int wolfSSL_ASN1_TIME_get_length(WOLFSSL_ASN1_TIME *t);
 WOLFSSL_API unsigned char* wolfSSL_ASN1_TIME_get_data(WOLFSSL_ASN1_TIME *t);
 WOLFSSL_API WOLFSSL_ASN1_TIME *wolfSSL_ASN1_TIME_to_generalizedtime(WOLFSSL_ASN1_TIME *t,

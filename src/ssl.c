@@ -12293,11 +12293,23 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     void wolfSSL_X509_STORE_CTX_set_verify_cb(WOLFSSL_X509_STORE_CTX *ctx,
                                   WOLFSSL_X509_STORE_CTX_verify_cb verify_cb)
     {
-        WOLFSSL_ENTER("wolfSSL_X509_STORE_CTX_set_verify_cb");
+        WOLFSSL_ENTER("WOLFSSL_X509_STORE_CTX_set_verify_cb");
         if(ctx == NULL)
             return;
         ctx->verify_cb = verify_cb;
     }
+
+    /* stub for Qt */
+    #ifndef NO_WOLFSSL_STUB
+    void wolfSSL_X509_STORE_CTX_set_verify_cb_func(WOLFSSL_X509_STORE *st,
+                                  WOLFSSL_X509_STORE_CTX_verify_cb verify_cb){
+        (void)st;
+        (void)verify_cb;
+
+    }
+    #endif
+
+
 #endif /* !NO_CERTS */
 
     WOLFSSL_BIO_METHOD* wolfSSL_BIO_f_buffer(void)
@@ -36402,6 +36414,18 @@ err_exit:
         XFREE(typebuf, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     return WOLFSSL_FAILURE;
 }
+
+ /* stub for Qt */
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_ASN1_STRING_print(WOLFSSL_BIO *out, WOLFSSL_ASN1_STRING *str){
+    (void)out;
+    (void)str;
+    //openssl docs state "ASN1_STRING_print() is a legacy function
+    //which should be avoided in new applications"
+
+    return 0;
+}
+#endif
 
 #ifndef NO_ASN_TIME
 int wolfSSL_ASN1_TIME_get_length(WOLFSSL_ASN1_TIME *t)
