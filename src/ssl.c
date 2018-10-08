@@ -28993,6 +28993,61 @@ int wolfSSL_PEM_write_EC_PUBKEY(XFILE fp, WOLFSSL_EC_KEY *x)
 }
 #endif
 
+/* return code compliant with OpenSSL :
+ *   1 if success, 0 if error
+ */
+#ifndef NO_WOLFSSL_STUB
+WOLFSSL_EC_KEY* wolfSSL_PEM_read_bio_EC_PUBKEY(WOLFSSL_BIO* bio,
+                                                WOLFSSL_EC_KEY** ec,
+                                                pem_password_cb* cb, void *u)
+{
+    (void)bio;
+    (void)ec;
+    (void)cb;
+    (void)u;
+    WOLFSSL_STUB("PEM_read_bio_EC_PUBKEY");
+    WOLFSSL_MSG("wolfSSL_PEM_read_bio_EC_PUBKEY not implemented");
+
+    return WOLFSSL_FAILURE;
+}
+#endif
+
+/* return code compliant with OpenSSL :
+ *   1 if success, 0 if error
+ */
+#ifndef NO_WOLFSSL_STUB
+WOLFSSL_EC_KEY* wolfSSL_PEM_read_bio_ECPrivateKey(WOLFSSL_BIO* bio,
+                                                    WOLFSSL_EC_KEY** ec,
+                                                    pem_password_cb* cb,
+                                                    void *u)
+{
+    (void)bio;
+    (void)ec;
+    (void)cb;
+    (void)u;
+    WOLFSSL_STUB("PEM_read_bio_ECPrivateKey");
+    WOLFSSL_MSG("wolfSSL_PEM_read_bio_ECPrivateKey not implemented");
+
+    return WOLFSSL_FAILURE;
+}
+#endif
+
+/* return code compliant with OpenSSL :
+ *   1 if success, 0 if error
+ */
+#ifndef NO_WOLFSSL_STUB
+int wolfSSL_PEM_write_bio_EC_PUBKEY(WOLFSSL_BIO* bio,
+                                    WOLFSSL_EC_KEY* ec)
+{
+    (void)bio;
+    (void)ec;
+    WOLFSSL_STUB("PEM_write_bio_EC_PUBKEY");
+    WOLFSSL_MSG("wolfSSL_PEM_write_bio_EC_PUBKEY not implemented");
+
+    return WOLFSSL_FAILURE;
+}
+#endif
+
 #endif /* NO_FILESYSTEM */
 
 #if defined(WOLFSSL_KEY_GEN)
