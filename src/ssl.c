@@ -33435,7 +33435,18 @@ void wolfSSL_OPENSSL_config(char *config_name)
     (void)config_name;
     WOLFSSL_STUB("OPENSSL_config");
 }
-#endif
+
+#ifdef WOLFSSL_QT
+char* wolfSSL_CONF_get1_default_config_file(void)
+{
+    char *file = NULL;
+    (void)file;
+    WOLFSSL_STUB("wolfSSL_CONF_get1_default_config_file");
+    return file;
+}
+#endif /* WOLFSSL_QT */
+
+#endif /* NO_WOLFSSL_STUB */
 
 #endif
 
