@@ -11667,6 +11667,7 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return WOLFSSL_FATAL_ERROR;
     }
 
+    #ifndef NO_WOLFSSL_STUB
     int wolfSSL_OpenSSL_add_all_algorithms_noconf(void)
     {
         WOLFSSL_ENTER("wolfSSL_OpenSSL_add_all_algorithms_noconf");
@@ -11676,8 +11677,8 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
         return  WOLFSSL_SUCCESS;
     }
+    #endif
 
-    /* Qt stub */
     #ifndef NO_WOLFSSL_STUB
     int wolfSSL_OpenSSL_add_all_algorithms_conf(void)
     {
@@ -13686,23 +13687,18 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return WOLFSSL_SUCCESS;
     }
 
-    /* Stub for Qt */
+    #if defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB)
     int wolfSSL_EVP_CIPHER_CTX_ctrl(WOLFSSL_EVP_CIPHER_CTX *ctx, int type,
                                                             int arg, void *ptr)
     {
+        (void)ctx;
+        (void)type;
+        (void)arg;
+        (void)ptr;
         WOLFSSL_ENTER("EVP_CIPHER_CTX_ctrl");
-        /* use arguements to get ridden of compile time error */
-        if (ctx) {
-
-        }
-        if (type && arg) {
-
-        }
-        if (ptr == NULL) {
-
-        }
         return WOLFSSL_SUCCESS;
     }
+    #endif
 
 #ifndef NO_AES
     static int   AesSetKey_ex(Aes* aes, const byte* key, word32 len,
@@ -23506,13 +23502,12 @@ int wolfSSL_BN_is_odd(const WOLFSSL_BIGNUM* bn)
     return WOLFSSL_FAILURE;
 }
 
- /* stub for Qt */
+#if defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB)
 int wolfSSL_BN_is_word(const WOLFSSL_BIGNUM* bn, WOLFSSL_BN_ULONG w)
 {
+    (void) w;
     WOLFSSL_MSG("wolfSSL_BN_is_word");
-    if (w) {
 
-    }
     if (bn == NULL || bn->internal == NULL) {
         WOLFSSL_MSG("bn NULL error");
         return WOLFSSL_FAILURE;
@@ -23525,6 +23520,7 @@ int wolfSSL_BN_is_word(const WOLFSSL_BIGNUM* bn, WOLFSSL_BN_ULONG w)
      */
      return WOLFSSL_SUCCESS;
 }
+#endif
 
 /* return compliant with OpenSSL
  *   -1 if a < b, 0 if a == b and 1 if a > b
@@ -26724,9 +26720,7 @@ int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *key)
 }
 #endif /* NO_RSA */
 
-#ifndef NO_WOLFSSL_STUB
-
-#ifndef NO_DSA
+#if defined(WOLFSSL_QT) && !defined(NO_DSA) && !defined(NO_WOLFSSL_STUB)
 int wolfSSL_EVP_PKEY_set1_DSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DSA *key)
 {
     if((pkey == NULL) || (key ==NULL))return WOLFSSL_FAILURE;
@@ -26740,12 +26734,9 @@ int wolfSSL_EVP_PKEY_set1_DSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DSA *key)
 
     return WOLFSSL_SUCCESS;
 }
-#endif /* NO_DSA */
+#endif
 
-#endif /* NO_WOLFSSL_STUB */
-
-/* Stub for Qt */
-#ifndef NO_WOLFSSL_STUB
+#if defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB)
 int wolfSSL_EVP_PKEY_set1_EC_KEY(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_EC_KEY *key)
 {
     if((pkey == NULL) || (key == NULL))return WOLFSSL_FAILURE;
@@ -27281,6 +27272,31 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* key,
     return ret;
 }
 
+#if defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB)
+int wolfSSL_PEM_write_bio_RSA_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa)
+{
+    (void)bio;
+    (void)rsa;
+    WOLFSSL_ENTER("wolfSSL_PEM_write_bio_RSA_PUBKEY");
+    WOLFSSL_STUB("PEM_write_bio_RSA_PUBKEY");
+
+    return WOLFSSL_FAILURE;
+}
+
+WOLFSSL_RSA *wolfSSL_PEM_read_bio_RSA_PUBKEY(WOLFSSL_BIO* bio,WOLFSSL_RSA** rsa,
+                                                pem_password_cb* cb, void *u)
+{
+    (void)bio;
+    (void)rsa;
+    (void)cb;
+    (void)u;
+    WOLFSSL_ENTER("wolfSSL_PEM_read_bio_RSA_PUBKEY");
+    WOLFSSL_STUB("PEM_read_bio_RSA_PUBKEY");
+
+    return NULL;
+}
+
+#endif /* defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB) */
 #endif /* NO_RSA */
 
 
@@ -29167,6 +29183,8 @@ int wolfSSL_PEM_write_ECPrivateKey(XFILE fp, WOLFSSL_EC_KEY *ecc,
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
  */
+
+#ifndef NO_WOLFSSL_STUB
 int wolfSSL_PEM_write_bio_DSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_DSA* dsa,
                                        const EVP_CIPHER* cipher,
                                        unsigned char* passwd, int len,
@@ -29184,6 +29202,49 @@ int wolfSSL_PEM_write_bio_DSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_DSA* dsa,
 
     return WOLFSSL_FAILURE;
 }
+
+#ifdef WOLFSSL_QT
+WOLFSSL_DSA* wolfSSL_PEM_read_bio_DSAPrivateKey(WOLFSSL_BIO* bio,
+                                                WOLFSSL_DSA** dsa,
+                                                pem_password_cb* cb, void *u)
+{
+    (void)bio;
+    (void)dsa;
+    (void)cb;
+    (void)u;
+
+    WOLFSSL_ENTER("wolfSSL_PEM_read_bio_DSAPrivateKey");
+    WOLFSSL_STUB("PEM_read_bio_DSAPrivateKey");
+
+    return WOLFSSL_FAILURE;
+}
+
+int wolfSSL_PEM_write_bio_DSA_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_DSA* dsa)
+{
+    (void)bio;
+    (void)dsa;
+    WOLFSSL_ENTER("wolfSSL_PEM_write_bio_DSA_PUBKEY");
+    WOLFSSL_STUB("PEM_write_bio_DSA_PUBKEY");
+
+    return WOLFSSL_FAILURE;
+}
+
+WOLFSSL_DSA *wolfSSL_PEM_read_bio_DSA_PUBKEY(WOLFSSL_BIO* bio,WOLFSSL_DSA** dsa,
+                                                pem_password_cb* cb, void *u)
+{
+    (void)bio;
+    (void)dsa;
+    (void)cb;
+    (void)u;
+    WOLFSSL_ENTER("wolfSSL_PEM_read_bio_DSA_PUBKEY");
+    WOLFSSL_STUB("PEM_read_bio_DSA_PUBKEY");
+
+    return NULL;
+}
+#endif /* ifdef WOLFSSL_QT */
+
+#endif /* ifndef NO_WOLFSSL_STUB */
+
 
 /* return code compliant with OpenSSL :
  *   1 if success, 0 if error
@@ -35237,7 +35298,18 @@ void wolfSSL_OPENSSL_config(char *config_name)
     (void)config_name;
     WOLFSSL_STUB("OPENSSL_config");
 }
-#endif
+
+#ifdef WOLFSSL_QT
+char* wolfSSL_CONF_get1_default_config_file(void)
+{
+    WOLFSSL_ENTER("wolfSSL_CONF_get1_default_config_file");
+    WOLFSSL_STUB("CONF_get1_default_config_file");
+    return NULL;
+}
+#endif /* WOLFSSL_QT */
+
+#endif /* NO_WOLFSSL_STUB */
+
 #endif
 
 #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) \
