@@ -26343,6 +26343,31 @@ int wolfSSL_PEM_write_bio_RSAPrivateKey(WOLFSSL_BIO* bio, WOLFSSL_RSA* key,
     return ret;
 }
 
+#if defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB)
+int wolfSSL_PEM_write_bio_RSA_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_RSA* rsa)
+{
+    (void)bio;
+    (void)rsa;
+    WOLFSSL_ENTER("wolfSSL_PEM_write_bio_RSA_PUBKEY");
+    WOLFSSL_STUB("PEM_write_bio_RSA_PUBKEY");
+
+    return WOLFSSL_FAILURE;
+}
+
+WOLFSSL_RSA *wolfSSL_PEM_read_bio_RSA_PUBKEY(WOLFSSL_BIO* bio,WOLFSSL_RSA** rsa,
+                                                pem_password_cb* cb, void *u)
+{
+    (void)bio;
+    (void)rsa;
+    (void)cb;
+    (void)u;
+    WOLFSSL_ENTER("wolfSSL_PEM_read_bio_RSA_PUBKEY");
+    WOLFSSL_STUB("PEM_read_bio_RSA_PUBKEY");
+
+    return NULL;
+}
+
+#endif /* defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB) */
 
 int wolfSSL_PEM_write_bio_PrivateKey(WOLFSSL_BIO* bio, WOLFSSL_EVP_PKEY* key,
                                         const WOLFSSL_EVP_CIPHER* cipher,
@@ -33439,10 +33464,9 @@ void wolfSSL_OPENSSL_config(char *config_name)
 #ifdef WOLFSSL_QT
 char* wolfSSL_CONF_get1_default_config_file(void)
 {
-    char *file = NULL;
-    (void)file;
-    WOLFSSL_STUB("wolfSSL_CONF_get1_default_config_file");
-    return file;
+    WOLFSSL_ENTER("wolfSSL_CONF_get1_default_config_file");
+    WOLFSSL_STUB("CONF_get1_default_config_file");
+    return NULL;
 }
 #endif /* WOLFSSL_QT */
 
