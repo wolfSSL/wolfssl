@@ -138,7 +138,7 @@ int wolfSSL_PEM_write_ECPrivateKey(XFILE fp, WOLFSSL_EC_KEY *key,
                                    unsigned char *kstr, int klen,
                                    pem_password_cb *cb, void *u);
 WOLFSSL_API
-WOLFSSL_EC_KEY* wolfSSL_PEM_read_bio_EC_PUBKEY(WOLFSSL_BIO* bio, 
+WOLFSSL_EC_KEY* wolfSSL_PEM_read_bio_EC_PUBKEY(WOLFSSL_BIO* bio,
                                               WOLFSSL_EC_KEY** ec,
                                               pem_password_cb* cb, void *u);
 WOLFSSL_API

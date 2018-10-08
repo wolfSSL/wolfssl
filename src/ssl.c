@@ -27997,7 +27997,7 @@ int wolfSSL_PEM_write_EC_PUBKEY(XFILE fp, WOLFSSL_EC_KEY *x)
 #ifndef NO_WOLFSSL_STUB
 WOLFSSL_EC_KEY* wolfSSL_PEM_read_bio_EC_PUBKEY(WOLFSSL_BIO* bio,
                                                 WOLFSSL_EC_KEY** ec,
-                                                pem_password_cb* cb, void *u);
+                                                pem_password_cb* cb, void *u)
 {
     (void)bio;
     (void)ec;
@@ -28017,7 +28017,7 @@ WOLFSSL_EC_KEY* wolfSSL_PEM_read_bio_EC_PUBKEY(WOLFSSL_BIO* bio,
 WOLFSSL_EC_KEY* wolfSSL_PEM_read_bio_ECPrivateKey(WOLFSSL_BIO* bio,
                                                     WOLFSSL_EC_KEY** ec,
                                                     pem_password_cb* cb,
-                                                    void *u);
+                                                    void *u)
 {
     (void)bio;
     (void)ec;
@@ -28035,7 +28035,7 @@ WOLFSSL_EC_KEY* wolfSSL_PEM_read_bio_ECPrivateKey(WOLFSSL_BIO* bio,
  */
 #ifndef NO_WOLFSSL_STUB
 int wolfSSL_PEM_write_bio_EC_PUBKEY(WOLFSSL_BIO* bio,
-                                    WOLFSSL_EC_KEY* ec);
+                                    WOLFSSL_EC_KEY* ec)
 {
     (void)bio;
     (void)ec;
