@@ -31234,6 +31234,17 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 #endif
 
 #ifndef NO_WOLFSSL_STUB
+    int wolfSSL_OBJ_ln2nid(const char *s)
+    {
+        (void)s;
+        WOLFSSL_ENTER("wolfSSL_OBJ_ln2nid");
+        WOLFSSL_STUB("OBJ_ln2nid");
+
+        return 0;
+    }
+#endif
+
+#ifndef NO_WOLFSSL_STUB
     int wolfSSL_OBJ_txt2nid(const char* s)
     {
         (void)s;
