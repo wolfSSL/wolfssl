@@ -32791,6 +32791,17 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     }
 #endif
 
+#ifndef NO_WOLFSSL_STUB
+    int wolfSSL_OBJ_ln2nid(const char *s)
+    {
+        (void)s;
+        WOLFSSL_ENTER("wolfSSL_OBJ_ln2nid");
+        WOLFSSL_STUB("OBJ_ln2nid");
+
+        return 0;
+    }
+#endif
+
 #ifdef WOLFSSL_CERT_EXT
     /* Gets the NID value that is related to the OID string passed in. Example
      * string would be "2.5.29.14" for subject key ID.
