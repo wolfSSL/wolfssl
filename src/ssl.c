@@ -77,6 +77,7 @@
     #include <wolfssl/openssl/rc4.h>
     #include <wolfssl/openssl/stack.h>
     #include <wolfssl/openssl/x509v3.h>
+    #include <wolfssl/openssl/x509_vfy.h>
     /* openssl headers end, wolfssl internal headers next */
     #include <wolfssl/wolfcrypt/hmac.h>
     #include <wolfssl/wolfcrypt/random.h>
@@ -6930,6 +6931,14 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
     {
         (void)ex;
         WOLFSSL_STUB("wolfSSL_X509_EXT_d2i");
+        return 0;
+    }
+
+    int wolfSSL_X509_STORE_CTX_set_purpose(WOLFSSL_X509_STORE_CTX *ctx, int purpose)
+    {
+        (void)ctx;
+        (void)purpose;
+        WOLFSSL_STUB("wolfSSL_X509_STORE_CTX_set_purpose");
         return 0;
     }
 
