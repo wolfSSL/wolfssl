@@ -528,7 +528,7 @@ typedef WOLFSSL_ASN1_BIT_STRING         ASN1_BIT_STRING;
 #define SSL_CTX_get_client_CA_list      wolfSSL_SSL_CTX_get_client_CA_list
 #define SSL_CTX_set_client_CA_list      wolfSSL_CTX_set_client_CA_list
 #define SSL_CTX_set_cert_store          wolfSSL_CTX_set_cert_store
-#define SSL_CTX_get_cert_store(x)       wolfSSL_CTX_get_cert_store(WOLFSSL_CTX* (x))
+#define SSL_CTX_get_cert_store(x)       wolfSSL_CTX_get_cert_store ((WOLFSSL_CTX*) (x))
 #define SSL_get_ex_data_X509_STORE_CTX_idx wolfSSL_get_ex_data_X509_STORE_CTX_idx
 #define SSL_get_ex_data                 wolfSSL_get_ex_data
 

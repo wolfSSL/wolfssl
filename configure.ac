@@ -3307,13 +3307,18 @@ then
         AM_CFLAGS="-DOPENSSL_EXTRA -DOPENSSL_ALL $AM_CFLAGS"
     fi
     AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_QT -DWOLFSSL_ALLOW_TLSV10"
-    
+
     # Requires OCSP make sure on
     if test "x$ENABLED_OCSP" = "xno"
     then
         ENABLED_OCSP="yes"
         AM_CFLAGS="$AM_CFLAGS -DHAVE_OCSP"
         AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
+    fi
+
+    if test "x$ENABLED_PSK" = "xno"
+    then
+       ENABLED_PSK="yes"
     fi
 fi
 
