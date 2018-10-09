@@ -64,10 +64,12 @@ WOLFSSL_API void wolfSSL_BASIC_CONSTRAINTS_free(WOLFSSL_BASIC_CONSTRAINTS *bc);
 WOLFSSL_API void wolfSSL_AUTHORITY_KEYID_free(WOLFSSL_AUTHORITY_KEYID *id);
 
 #define BASIC_CONSTRAINTS_free    wolfSSL_BASIC_CONSTRAINTS_free
-#define AUTHORITY_KEYID_free     wolfSSL_AUTHORITY_KEYID_free
+#define AUTHORITY_KEYID_free      wolfSSL_AUTHORITY_KEYID_free
 #define SSL_CTX_get_cert_store(x) wolfSSL_CTX_get_cert_store ((WOLFSSL_CTX*) (x))
 #define ASN1_INTEGER              WOLFSSL_ASN1_INTEGER
 #define ASN1_OCTET_STRING         WOLFSSL_ASN1_STRING
+#define X509V3_EXT_get            wolfSSL_X509V3_EXT_get
+#define X509V3_EXT_d2i            wolfSSL_X509V3_EXT_d2i
 
 #ifdef  __cplusplus
 }

@@ -6906,7 +6906,7 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
         return 0;
     }
 
-    WOLFSSL_API int wolfSSL_X509_EXTENSION_get_critical(const WOLFSSL_X509_EXTENSION* ex)
+    int wolfSSL_X509_EXTENSION_get_critical(const WOLFSSL_X509_EXTENSION* ex)
     {
         (void)ex;
         WOLFSSL_STUB("wolfSSL_X509_EXTENSION_get_critical");
@@ -6917,6 +6917,19 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
     {
         (void)ex;
         WOLFSSL_STUB("wolfSSL_X509_EXTENSION_get_data");
+        return 0;
+    }
+
+    WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
+    {
+        (void)ex;
+        WOLFSSL_STUB("wolfSSL_X509V3_EXT_get");
+        return 0;
+    }
+    void* wolfSSL_X509V3_EXT_d2i(WOLFSSL_X509_EXTENSION* ex)
+    {
+        (void)ex;
+        WOLFSSL_STUB("wolfSSL_X509_EXT_d2i");
         return 0;
     }
 
