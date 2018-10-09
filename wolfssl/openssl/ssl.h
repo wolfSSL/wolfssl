@@ -353,6 +353,7 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define X509_STORE_set_flags            wolfSSL_X509_STORE_set_flags
 #define X509_STORE_CTX_set_verify_cb    wolfSSL_X509_STORE_CTX_set_verify_cb
 #define X509_STORE_CTX_set_verify_cb_func  wolfSSL_X509_STORE_CTX_set_verify_cb_func
+#define X509_STORE_set_verify_cb_func   wolfssl_X509_STORE_set_verify_cb_func
 #define X509_STORE_CTX_free             wolfSSL_X509_STORE_CTX_free
 #define X509_STORE_CTX_new              wolfSSL_X509_STORE_CTX_new
 #define X509_STORE_CTX_get_chain        wolfSSL_X509_STORE_CTX_get_chain
@@ -406,7 +407,8 @@ typedef WOLFSSL_X509_STORE_CTX X509_STORE_CTX;
 #define ASN1_TIME_adj                wolfSSL_ASN1_TIME_adj
 #define ASN1_GENERALIZEDTIME_free    wolfSSL_ASN1_GENERALIZEDTIME_free
 #define ASN1_STRING_print_ex         wolfSSL_ASN1_STRING_print_ex
-#define ASN1_STRING_print            wolfSSL_ASN1_STRING_print
+#define ASN1_STRING_print(x, y)      wolfSSL_ASN1_STRING_print ((WOLFSSL_BIO*)(x), (WOLFSSL_ASN1_STRING*)(y))
+#define SSL_version(x)                   wolfSSL_version ((WOLFSSL*) (x))
 #define ASN1_tag2str                 wolfSSL_ASN1_tag2str
 #define ASN1_TIME_to_generalizedtime wolfSSL_ASN1_TIME_to_generalizedtime
 
@@ -815,11 +817,11 @@ typedef STACK_OF(WOLFSSL_ASN1_OBJECT) GENERAL_NAMES;
 #define SSL_SESSION_get_ex_new_index     wolfSSL_SESSION_get_ex_new_index
 #define SSL_SESSION_get_id               wolfSSL_SESSION_get_id
 #define CRYPTO_dynlock_value             WOLFSSL_dynlock_value
-typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
+typedef WOLFSSL_ASN1_BIT_STRING          ASN1_BIT_STRING;
 #define X509_STORE_get1_certs            wolfSSL_X509_STORE_get1_certs
 #define sk_X509_pop_free                 wolfSSL_sk_X509_pop_free
 #define sk_GENERAL_NAME_pop_free         wolfSSL_sk_GENERAL_NAME_pop_free
-#define GENERAL_NAME_free                NULL
+#define GENERAL_NAME_free                wolfSSL_GENERAL_NAME_free
 
 #define SSL3_AL_FATAL                        2
 #define SSL_TLSEXT_ERR_OK                    0

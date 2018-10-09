@@ -11846,11 +11846,24 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
 
     /* stub for Qt */
     #ifndef NO_WOLFSSL_STUB
-    void wolfSSL_X509_STORE_CTX_set_verify_cb_func(WOLFSSL_X509_STORE *st,
-                                  WOLFSSL_X509_STORE_CTX_verify_cb verify_cb){
+    void wolfSSL_X509_STORE_set_verify_cb_func(WOLFSSL_X509_STORE *st,
+                                     WOLFSSL_X509_STORE_CTX_verify_cb verify_cb)
+    {
+        WOLFSSL_ENTER("WOLFSSL_X509_STORE_set_verify_cb_fun");
         (void)st;
         (void)verify_cb;
+        WOLFSSL_STUB("X509_STORE_set_verify_cb_func");
+    }
+    #endif
 
+    #ifndef NO_WOLFSSL_STUB
+    void wolfSSL_X509_STORE_CTX_set_verify_cb_func(WOLFSSL_X509_STORE *st,
+                                  WOLFSSL_X509_STORE_CTX_verify_cb verify_cb)
+    {
+        WOLFSSL_ENTER("WOLFSSL_X509_STORE_CTX_set_verify_cb_fun");
+        (void)st;
+        (void)verify_cb;
+        WOLFSSL_STUB("X509_STORE_CTX_set_verify_cb_func");
     }
     #endif
 
@@ -15286,6 +15299,18 @@ void wolfSSL_sk_GENERAL_NAME_pop_free(WOLFSSL_STACK* sk,
 
 
 }
+/* Frees GENERAL_NAME objects.
+   WOLFSSL_ASN1_OBJECT type is a placeholder until GENERAL_NAME is implemented.
+*/
+#ifndef NO_WOLFSSL_STUB
+void wolfSSL_GENERAL_NAME_free(WOLFSSL_ASN1_OBJECT* name)
+{
+    WOLFSSL_ENTER("wolfSSL_GENERAL_NAME_Free");
+    (void)name;
+    WOLFSSL_STUB("GENERAL_NAME_FREE");
+}
+#endif
+
 #endif /* OPENSSL_EXTRA */
 
 #ifndef NO_FILESYSTEM
