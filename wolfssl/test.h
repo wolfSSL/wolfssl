@@ -403,11 +403,11 @@ static const word16      wolfSSLPort = 11111;
 #endif
 
 
-static WC_INLINE 
+static WC_INLINE
 #ifdef WOLFSSL_FORCE_MALLOC_FAIL_TEST
 THREAD_RETURN
 #else
-WC_NORETURN void 
+WC_NORETURN void
 #endif
 err_sys(const char* msg)
 {
@@ -1421,6 +1421,48 @@ static WC_INLINE void OCSPRespFreeCb(void* ioCtx, unsigned char* response)
             free(buff);
     }
 
+    static WC_INLINE void load_ssl_buffer(WOLFSSL* ssl, const char* fname, int type)
+    {
+        int format = WOLFSSL_FILETYPE_PEM;
+        byte* buff = NULL;
+        size_t sz = 0;
+
+        if (load_file(fname, &buff, &sz) != 0) {
+            err_sys("can't open file for buffer load "
+                    "Please run from wolfSSL home directory if not");
+        }
+
+        /* determine format */
+        if (strstr(fname, ".der"))
+            format = WOLFSSL_FILETYPE_ASN1;
+
+        if (type == WOLFSSL_CA) {
+            /* verify certs (CA's) use the shared ctx->cm (WOLFSSL_CERT_MANAGER) */
+            WOLFSSL_CTX* ctx = wolfSSL_get_SSL_CTX(ssl);
+            if (wolfSSL_CTX_load_verify_buffer(ctx, buff, (long)sz, format)
+                                              != WOLFSSL_SUCCESS)
+                err_sys("can't load buffer ca file");
+        }
+        else if (type == WOLFSSL_CERT) {
+            if (wolfSSL_use_certificate_buffer(ssl, buff, (long)sz,
+                        format) != WOLFSSL_SUCCESS)
+                err_sys("can't load buffer cert file");
+        }
+        else if (type == WOLFSSL_KEY) {
+            if (wolfSSL_use_PrivateKey_buffer(ssl, buff, (long)sz,
+                        format) != WOLFSSL_SUCCESS)
+                err_sys("can't load buffer key file");
+        }
+        else if (type == WOLFSSL_CERT_CHAIN) {
+            if (wolfSSL_use_certificate_chain_buffer_format(ssl, buff,
+                    (long)sz, format) != WOLFSSL_SUCCESS)
+                err_sys("can't load cert chain buffer");
+        }
+
+        if (buff)
+            free(buff);
+    }
+
     #ifdef TEST_PK_PRIVKEY
     static WC_INLINE int load_key_file(const char* fname, byte** derBuf, word32* derLen)
     {
@@ -1473,7 +1515,7 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
      * store->store:        WOLFSSL_X509_STORE with CA cert chain
      * store->store->cm:    WOLFSSL_CERT_MANAGER
      * store->ex_data:      The WOLFSSL object pointer
-     * store->discardSessionCerts: When set to non-zero value session certs 
+     * store->discardSessionCerts: When set to non-zero value session certs
         will be discarded (only with SESSION_CERTS)
      */
 
@@ -2040,7 +2082,7 @@ typedef struct PkCbInfo {
 
 #ifdef HAVE_ECC
 
-static WC_INLINE int myEccKeyGen(WOLFSSL* ssl, ecc_key* key, word32 keySz, 
+static WC_INLINE int myEccKeyGen(WOLFSSL* ssl, ecc_key* key, word32 keySz,
     int ecc_curve, void* ctx)
 {
     int       ret;
@@ -2285,7 +2327,7 @@ static WC_INLINE int myEd25519Verify(WOLFSSL* ssl, const byte* sig, word32 sigSz
 #endif /* HAVE_ED25519 */
 
 #ifdef HAVE_CURVE25519
-static WC_INLINE int myX25519KeyGen(WOLFSSL* ssl, curve25519_key* key, 
+static WC_INLINE int myX25519KeyGen(WOLFSSL* ssl, curve25519_key* key,
     unsigned int keySz, void* ctx)
 {
     int       ret;

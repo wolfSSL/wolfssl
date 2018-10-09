@@ -18485,13 +18485,13 @@ int wolfSSL_X509_STORE_CTX_init(WOLFSSL_X509_STORE_CTX* ctx,
     if (ctx != NULL) {
         ctx->store = store;
         #ifndef WOLFSSL_X509_STORE_CERTS
-        ctx->current_cert = x509;        
+        ctx->current_cert = x509;
         #else
         if(x509 != NULL){
             ctx->current_cert = wolfSSL_X509_d2i(NULL, x509->derCert->buffer,x509->derCert->length);
             if(ctx->current_cert == NULL)
                 return WOLFSSL_FATAL_ERROR;
-        } else 
+        } else
             ctx->current_cert = NULL;
         #endif
 
@@ -29595,7 +29595,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         int pemSz;
         long  i = 0, l;
         void *newx509;
-        
+
         WOLFSSL_ENTER("wolfSSL_PEM_read_X509");
 
         if (fp == XBADFILE) {
@@ -29641,13 +29641,13 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
                 derSz = der->length;
                 if((newx509 = (void *)wolfSSL_d2i_X509_CRL(
                     (WOLFSSL_X509_CRL **)x, (const unsigned char *)der->buffer, derSz)) == NULL)
-                    goto err_exit;              
+                    goto err_exit;
                 FreeDer(&der);
                 break;
             }
         #endif
 
-        default: 
+        default:
             goto err_exit;
         }
         if (x != NULL) {
@@ -29679,7 +29679,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         return (WOLFSSL_X509_CRL* )wolfSSL_PEM_read_X509_ex(fp, (void **)crl, cb, u, CRL_TYPE);
     }
 #endif
-  
+
 #endif
 
     /*
@@ -29807,13 +29807,13 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
      * returns a pointer to a new WOLFSSL_ASN1_OBJECT struct on success and NULL
      *         on fail
      */
-    
+
     WOLFSSL_ASN1_OBJECT* wolfSSL_OBJ_nid2obj(int id)
     {
         return wolfSSL_OBJ_nid2obj_ex(id, NULL);
     }
 
-    WOLFSSL_LOCAL WOLFSSL_ASN1_OBJECT* wolfSSL_OBJ_nid2obj_ex(int id, 
+    WOLFSSL_LOCAL WOLFSSL_ASN1_OBJECT* wolfSSL_OBJ_nid2obj_ex(int id,
                                                 WOLFSSL_ASN1_OBJECT* arg_obj)
     {
         word32 oidSz = 0;
@@ -30978,7 +30978,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
 
         switch (loc)
         {
-        case 0: 
+        case 0:
             name->cnEntry.value->length = name->fullName.cnLen;
             name->cnEntry.value->data   = &name->fullName.fullName[name->fullName.cnIdx];
             break;
@@ -31083,7 +31083,7 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
             name->cnEntry.nid         = ASN_COMMON_NAME;
             name->cnEntry.set         = 1;
         }
-        
+
         return &name->cnEntry;
     }
 
@@ -32626,12 +32626,13 @@ unsigned long wolfSSL_ERR_peek_last_error(void)
 #endif
 }
 
+#endif /* OPENSSL_EXTRA */
+
 WOLFSSL_CTX* wolfSSL_get_SSL_CTX(WOLFSSL* ssl)
 {
     WOLFSSL_ENTER("wolfSSL_get_SSL_CTX");
     return ssl->ctx;
 }
-#endif /* OPENSSL_EXTRA */
 
 #if defined(OPENSSL_ALL) || \
     (defined(OPENSSL_EXTRA) && (defined(HAVE_STUNNEL) || \
@@ -34411,7 +34412,7 @@ long wolfSSL_X509_get_version(const WOLFSSL_X509 *x509){
     version = x509->version;
     if (version != 0)
         return (long)version - 1L;
-    
+
     return 0L;
 }
 #endif  /* OPENSSL_EXTRA */

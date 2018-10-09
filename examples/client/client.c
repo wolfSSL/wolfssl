@@ -1036,6 +1036,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
     int useX25519 = 0;
     int exitWithRet = 0;
+    int loadCertKeyIntoSSLObj = 0;
 
 #ifdef HAVE_WNR
     const char* wnrConfigFile = wnrConfig;
@@ -1094,6 +1095,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     (void)helloRetry;
     (void)onlyKeyShare;
     (void)useSupCurve;
+    (void)loadCertKeyIntoSSLObj;
 
     StackTrap();
 
@@ -1201,6 +1203,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
                 else if (myoptarg[0] == 'e') {
                     version = EITHER_DOWNGRADE_VERSION;
+                    loadCertKeyIntoSSLObj = 1;
                     break;
                 }
             #endif
@@ -1235,6 +1238,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
                 else if (XSTRNCMP(myoptarg, "useSupCurve", 11) == 0) {
                     printf("Test use supported curve\n");
                     useSupCurve = 1;
+                }
+                else if (XSTRNCMP(myoptarg, "loadSSL", 7) == 0) {
+                    printf("Load cert/key into wolfSSL object\n");
+                    loadCertKeyIntoSSLObj = 1;
                 }
                 else {
                     Usage();
@@ -1586,6 +1593,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         if (doDTLS) {
             if (version == 3)
                 version = -2;
+        #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
+            else if (version == EITHER_DOWNGRADE_VERSION)
+                version = -3;
+        #endif
             else
                 version = -1;
         }
@@ -1650,6 +1661,11 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #ifndef WOLFSSL_NO_TLS12
         case -2:
             method = wolfDTLSv1_2_client_method_ex;
+            break;
+    #endif
+    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
+        case -3:
+            method = wolfDTLSv1_2_method_ex;
             break;
     #endif
 #endif
@@ -1826,8 +1842,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
 #endif
 
 #ifndef NO_CERTS
-    if (useClientCert){
-    #ifndef NO_FILESYSTEM
+    if (useClientCert && !loadCertKeyIntoSSLObj){
+    #ifndef TEST_LOAD_BUFFER
         if (wolfSSL_CTX_use_certificate_chain_file(ctx, ourCert)
                                                            != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx); ctx = NULL;
@@ -1837,14 +1853,17 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #else
         load_buffer(ctx, ourCert, WOLFSSL_CERT_CHAIN);
     #endif
+    }
 
     #ifdef HAVE_PK_CALLBACKS
         pkCbInfo.ourKey = ourKey;
-        #ifdef TEST_PK_PRIVKEY
-        if (!pkCallbacks)
-        #endif
     #endif
-    #ifndef NO_FILESYSTEM
+    if (!loadCertKeyIntoSSLObj
+    #if defined(HAVE_PK_CALLBACKS) && defined(TEST_PK_PRIVKEY)
+        && !pkCallbacks
+    #endif
+    ) {
+    #ifndef TEST_LOAD_BUFFER
         if (wolfSSL_CTX_use_PrivateKey_file(ctx, ourKey, WOLFSSL_FILETYPE_PEM)
                                          != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx); ctx = NULL;
@@ -1857,7 +1876,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
 
     if (!usePsk && !useAnon && (!useVerifyCb || myVerifyFail)) {
-    #if !defined(NO_FILESYSTEM)
+    #ifndef TEST_LOAD_BUFFER
         if (wolfSSL_CTX_load_verify_locations(ctx, verifyCert, 0)
                                                            != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx); ctx = NULL;
@@ -1866,9 +1885,10 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #else
         load_buffer(ctx, verifyCert, WOLFSSL_CA);
     #endif  /* !NO_FILESYSTEM */
+
     #ifdef HAVE_ECC
         /* load ecc verify too, echoserver uses it by default w/ ecc */
-        #ifndef NO_FILESYSTEM
+        #ifndef TEST_LOAD_BUFFER
         if (wolfSSL_CTX_load_verify_locations(ctx, eccCertFile, 0)
                                                            != WOLFSSL_SUCCESS) {
             wolfSSL_CTX_free(ctx); ctx = NULL;
@@ -1876,7 +1896,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
         #else
         load_buffer(ctx, eccCertFile, WOLFSSL_CA);
-        #endif /* !NO_FILESYSTEM */
+        #endif /* !TEST_LOAD_BUFFER */
     #endif /* HAVE_ECC */
     #if defined(WOLFSSL_TRUST_PEER_CERT) && !defined(NO_FILESYSTEM)
         if (trustCert) {
@@ -2039,19 +2059,52 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         err_sys("unable to get SSL object");
     }
 
-    #ifdef OPENSSL_EXTRA
-    wolfSSL_KeepArrays(ssl);
+
+#ifndef NO_CERTS
+    if (useClientCert && loadCertKeyIntoSSLObj){
+    #ifndef TEST_LOAD_BUFFER
+        if (wolfSSL_use_certificate_chain_file(ssl, ourCert)
+                                                           != WOLFSSL_SUCCESS) {
+            wolfSSL_CTX_free(ctx); ctx = NULL;
+            err_sys("can't load client cert file, check file and run from"
+                    " wolfSSL home dir");
+        }
+    #else
+        load_ssl_buffer(ssl, ourCert, WOLFSSL_CERT_CHAIN);
     #endif
+    }
+
+    if (loadCertKeyIntoSSLObj
+    #if defined(HAVE_PK_CALLBACKS) && defined(TEST_PK_PRIVKEY)
+        && !pkCallbacks
+    #endif
+    ) {
+    #ifndef TEST_LOAD_BUFFER
+        if (wolfSSL_use_PrivateKey_file(ssl, ourKey, WOLFSSL_FILETYPE_PEM)
+                                         != WOLFSSL_SUCCESS) {
+            wolfSSL_CTX_free(ctx); ctx = NULL;
+            err_sys("can't load client private key file, check file and run "
+                    "from wolfSSL home dir");
+        }
+    #else
+        load_ssl_buffer(ssl, ourKey, WOLFSSL_KEY);
+    #endif
+    }
+#endif /* !NO_CERTS */
+
+#ifdef OPENSSL_EXTRA
+    wolfSSL_KeepArrays(ssl);
+#endif
 
 #if defined(WOLFSSL_STATIC_MEMORY) && defined(DEBUG_WOLFSSL)
-        fprintf(stderr, "After creating SSL\n");
-        if (wolfSSL_CTX_is_static_memory(ctx, &mem_stats) != 1)
-            err_sys("ctx not using static memory");
-        if (wolfSSL_PrintStats(&mem_stats) != 1) /* function in test.h */
+    fprintf(stderr, "After creating SSL\n");
+    if (wolfSSL_CTX_is_static_memory(ctx, &mem_stats) != 1)
+        err_sys("ctx not using static memory");
+    if (wolfSSL_PrintStats(&mem_stats) != 1) /* function in test.h */
             err_sys("error printing out memory stats");
 #endif
 
-    #ifdef WOLFSSL_TLS13
+#ifdef WOLFSSL_TLS13
     if (!helloRetry) {
         if (onlyKeyShare == 0 || onlyKeyShare == 2) {
         #ifdef HAVE_CURVE25519
@@ -2083,7 +2136,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     else {
         wolfSSL_NoKeyShares(ssl);
     }
-    #endif
+#endif
 
     if (doMcast) {
 #ifdef WOLFSSL_MULTICAST
