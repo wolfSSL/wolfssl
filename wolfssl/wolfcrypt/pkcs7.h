@@ -269,8 +269,6 @@ WOLFSSL_API int  wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
                                           word32* outputHeadSz,
                                           byte* outputFoot,
                                           word32* outputFootSz);
-WOLFSSL_API int  wc_PKCS7_EncodeSignedFirmwarePkgData(PKCS7* pkcs7,
-                                          byte* output, word32 outputSz);
 WOLFSSL_API void wc_PKCS7_AllowDegenerate(PKCS7* pkcs7, word16 flag);
 WOLFSSL_API int  wc_PKCS7_VerifySignedData(PKCS7* pkcs7,
                                           byte* pkiMsg, word32 pkiMsgSz);
@@ -278,6 +276,29 @@ WOLFSSL_API int  wc_PKCS7_VerifySignedData_ex(PKCS7* pkcs7, const byte* hashBuf,
                                           word32 hashSz, byte* pkiMsgHead,
                                           word32 pkiMsgHeadSz, byte* pkiMsgFoot,
                                           word32 pkiMsgFootSz);
+
+/* CMS single-shot API for Signed FirmwarePkgData */
+WOLFSSL_API int  wc_PKCS7_EncodeSignedFPD(PKCS7* pkcs7, byte* privateKey,
+                                          word32 privateKeySz, int signOID,
+                                          int hashOID, byte* content,
+                                          word32 contentSz,
+                                          PKCS7Attrib* signedAttribs,
+                                          word32 signedAttribsSz, byte* output,
+                                          word32 outputSz);
+#ifndef NO_PKCS7_ENCRYPTED_DATA
+/* CMS single-shot API for Signed Encrypted FirmwarePkgData */
+WOLFSSL_API int  wc_PKCS7_EncodeSignedEncryptedFPD(PKCS7* pkcs7,
+                                          byte* encryptKey, word32 encryptKeySz,
+                                          byte* privateKey, word32 privateKeySz,
+                                          int encryptOID, int signOID,
+                                          int hashOID, byte* content,
+                                          word32 contentSz,
+                                          PKCS7Attrib* unprotectedAttribs,
+                                          word32 unprotectedAttribsSz,
+                                          PKCS7Attrib* signedAttribs,
+                                          word32 signedAttribsSz,
+                                          byte* output, word32 outputSz);
+#endif /* NO_PKCS7_ENCRYPTED_DATA */
 
 /* EnvelopedData and AuthEnvelopedData RecipientInfo functions */
 WOLFSSL_API int  wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert,

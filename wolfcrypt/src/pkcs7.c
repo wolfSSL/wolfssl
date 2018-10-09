@@ -1873,19 +1873,181 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 }
 
 
-/* build PKCS#7 signedData content type with inner type set to FirmwarePkgData,
-   return size of generated bundle on success, negative upon error */
-int wc_PKCS7_EncodeSignedFirmwarePkgData(PKCS7* pkcs7, byte* output,
-                                         word32 outputSz)
+/* Single-shot API to generate a CMS SignedData bundle that encapsulates a
+ * content of type FirmwarePkgData. Any recipient certificates should be
+ * loaded into the PKCS7 structure prior to calling this function, using
+ * wc_PKCS7_InitWithCert() and/or wc_PKCS7_AddCertificate().
+ *
+ * pkcs7                - pointer to initialized PKCS7 struct
+ * privateKey           - private RSA/ECC key, used for signing SignedData
+ * privateKeySz         - size of privateKey, octets
+ * signOID              - public key algorithm OID, used for sign operation
+ * hashOID              - hash algorithm OID, used for signature generation
+ * content              - content to be encapsulated, of type FirmwarePkgData
+ * contentSz            - size of content, octets
+ * signedAttribs        - optional signed attributes
+ * signedAttribsSz      - number of PKCS7Attrib members in signedAttribs
+ * heap                 - user heap pointer, otherwise NULL if not needed
+ * devId                - dev ID if used, otherwise 0 if not needed
+ * output               - output buffer for final bundle
+ * outputSz             - size of output buffer, octets
+ *
+ * Returns length of generated bundle on success, negative upon error. */
+int wc_PKCS7_EncodeSignedFPD(PKCS7* pkcs7, byte* privateKey,
+                             word32 privateKeySz, int signOID, int hashOID,
+                             byte* content, word32 contentSz,
+                             PKCS7Attrib* signedAttribs, word32 signedAttribsSz,
+                             byte* output, word32 outputSz)
 {
-    if (pkcs7 == NULL || output == NULL || outputSz == 0)
+    int ret = 0;
+    WC_RNG rng;
+
+    if (pkcs7 == NULL || privateKey == NULL || privateKeySz == 0 ||
+        content == NULL || contentSz == 0 || output == NULL || outputSz == 0)
         return BAD_FUNC_ARG;
 
-    /* force content type to FirmwarePkgData */
-    pkcs7->contentOID = FIRMWARE_PKG_DATA;
+    ret = wc_InitRng(&rng);
+    if (ret != 0)
+        return ret;
 
-    return wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz);
+    pkcs7->rng = &rng;
+    pkcs7->content = content;
+    pkcs7->contentSz = contentSz;
+    pkcs7->contentOID = FIRMWARE_PKG_DATA;
+    pkcs7->hashOID = hashOID;
+    pkcs7->encryptOID = signOID;
+    pkcs7->privateKey = privateKey;
+    pkcs7->privateKeySz = privateKeySz;
+    pkcs7->signedAttribs = signedAttribs;
+    pkcs7->signedAttribsSz = signedAttribsSz;
+
+    ret = wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz);
+    if (ret <= 0) {
+        WOLFSSL_MSG("Error encoding CMS SignedData content type");
+        wc_FreeRng(&rng);
+        return ret;
+    }
+
+    wc_FreeRng(&rng);
+
+    return ret;
 }
+
+#ifndef NO_PKCS7_ENCRYPTED_DATA
+
+/* Single-shot API to generate a CMS SignedData bundle that encapsulates a
+ * CMS EncryptedData bundle. Content of inner EncryptedData is set to that
+ * of FirmwarePkgData. Any recipient certificates should be loaded into the
+ * PKCS7 structure prior to calling this function, using wc_PKCS7_InitWithCert()
+ * and/or wc_PKCS7_AddCertificate().
+ *
+ * pkcs7                - pointer to initialized PKCS7 struct
+ * encryptKey           - encryption key used for encrypting EncryptedData
+ * encryptKeySz         - size of encryptKey, octets
+ * privateKey           - private RSA/ECC key, used for signing SignedData
+ * privateKeySz         - size of privateKey, octets
+ * encryptOID           - encryption algorithm OID, to be used as encryption
+ *                        algorithm for EncryptedData
+ * signOID              - public key algorithm OID, to be used for sign
+ *                        operation in SignedData generation
+ * hashOID              - hash algorithm OID, to be used for signature in
+ *                        SignedData generation
+ * content              - content to be encapsulated
+ * contentSz            - size of content, octets
+ * unprotectedAttribs   - optional unprotected attributes, for EncryptedData
+ * unprotectedAttribsSz - number of PKCS7Attrib members in unprotectedAttribs
+ * signedAttribs        - optional signed attributes, for SignedData
+ * signedAttribsSz      - number of PKCS7Attrib members in signedAttribs
+ * heap                 - user heap pointer, otherwise NULL if not needed
+ * devId                - dev ID if used, otherwise 0 if not needed
+ * output               - output buffer for final bundle
+ * outputSz             - size of output buffer, octets
+ *
+ * Returns length of generated bundle on success, negative upon error. */
+int wc_PKCS7_EncodeSignedEncryptedFPD(PKCS7* pkcs7, byte* encryptKey,
+                                      word32 encryptKeySz, byte* privateKey,
+                                      word32 privateKeySz, int encryptOID,
+                                      int signOID, int hashOID,
+                                      byte* content, word32 contentSz,
+                                      PKCS7Attrib* unprotectedAttribs,
+                                      word32 unprotectedAttribsSz,
+                                      PKCS7Attrib* signedAttribs,
+                                      word32 signedAttribsSz,
+                                      byte* output, word32 outputSz)
+{
+    int ret = 0, encryptedSz = 0;
+    byte* encrypted = NULL;
+    WC_RNG rng;
+
+    if (pkcs7 == NULL || encryptKey == NULL || encryptKeySz == 0 ||
+        privateKey == NULL || privateKeySz == 0 || content == NULL ||
+        contentSz == 0 || output == NULL || outputSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* 1: build up EncryptedData using FirmwarePkgData type, use output
+     *    buffer as tmp for storage and to get size */
+
+    /* set struct elements, inner content type is FirmwarePkgData */
+    pkcs7->content = content;
+    pkcs7->contentSz = contentSz;
+    pkcs7->contentOID = FIRMWARE_PKG_DATA;
+    pkcs7->encryptOID = encryptOID;
+    pkcs7->encryptionKey = encryptKey;
+    pkcs7->encryptionKeySz = encryptKeySz;
+    pkcs7->unprotectedAttribs = unprotectedAttribs;
+    pkcs7->unprotectedAttribsSz = unprotectedAttribsSz;
+
+    encryptedSz = wc_PKCS7_EncodeEncryptedData(pkcs7, output, outputSz);
+    if (encryptedSz < 0) {
+        WOLFSSL_MSG("Error encoding CMS EncryptedData content type");
+        return encryptedSz;
+    }
+
+    /* save encryptedData, reset output buffer and struct */
+    encrypted = (byte*)XMALLOC(encryptedSz, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    if (encrypted == NULL) {
+        wc_PKCS7_Free(pkcs7);
+        return MEMORY_E;
+    }
+    XMEMSET(encrypted, 0, encryptedSz);
+
+    XMEMCPY(encrypted, output, encryptedSz);
+    ForceZero(output, outputSz);
+
+    ret = wc_InitRng(&rng);
+    if (ret != 0) {
+        XFREE(encrypted, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        return ret;
+    }
+
+    /* 2: build up SignedData, encapsulating EncryptedData */
+    pkcs7->rng = &rng;
+    pkcs7->content = encrypted;
+    pkcs7->contentSz = encryptedSz;
+    pkcs7->contentOID = ENCRYPTED_DATA;
+    pkcs7->hashOID = hashOID;
+    pkcs7->encryptOID = signOID;
+    pkcs7->privateKey = privateKey;
+    pkcs7->privateKeySz = privateKeySz;
+    pkcs7->signedAttribs = signedAttribs;
+    pkcs7->signedAttribsSz = signedAttribsSz;
+
+    ret = wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz);
+    if (ret <= 0) {
+        WOLFSSL_MSG("Error encoding CMS SignedData content type");
+        XFREE(encrypted, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        wc_FreeRng(&rng);
+        return ret;
+    }
+
+    XFREE(encrypted, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    wc_FreeRng(&rng);
+
+    return ret;
+}
+
+#endif /* NO_PKCS7_ENCRYPTED_DATA */
 
 
 #ifndef NO_RSA
@@ -2906,19 +3068,6 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
             WOLFSSL_MSG("PKCS#7 signerInfo version must be 1 or 3");
             return ASN_VERSION_E;
         }
-
-    /* Get the sequence of digestAlgorithm */
-    if (GetAlgoId(pkiMsg2, &idx, &hashOID, oidHashType, pkiMsg2Sz) < 0) {
-        return ASN_PARSE_E;
-    }
-    pkcs7->hashOID = (int)hashOID;
-
-        /* Get the sequence of IssuerAndSerialNumber */
-        if (GetSequence(pkiMsg2, &idx, &length, pkiMsg2Sz) < 0)
-            return ASN_PARSE_E;
-
-        /* Skip it */
-        idx += length;
 
         /* Get the sequence of digestAlgorithm */
         if (GetAlgoId(pkiMsg2, &idx, &hashOID, oidHashType, pkiMsg2Sz) < 0) {
