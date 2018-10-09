@@ -263,16 +263,21 @@ WOLFSSL_API int  wc_PKCS7_EncodeData(PKCS7* pkcs7, byte* output,
 
 /* CMS/PKCS#7 SignedData */
 WOLFSSL_API int  wc_PKCS7_EncodeSignedData(PKCS7* pkcs7,
-                                       byte* output, word32 outputSz);
+                                          byte* output, word32 outputSz);
 WOLFSSL_API int  wc_PKCS7_EncodeSignedData_ex(PKCS7* pkcs7, const byte* hashBuf, 
-    word32 hashSz, byte* outputHead, word32* outputHeadSz, byte* outputFoot, 
-    word32* outputFootSz);
+                                          word32 hashSz, byte* outputHead,
+                                          word32* outputHeadSz,
+                                          byte* outputFoot,
+                                          word32* outputFootSz);
+WOLFSSL_API int  wc_PKCS7_EncodeSignedFirmwarePkgData(PKCS7* pkcs7,
+                                          byte* output, word32 outputSz);
 WOLFSSL_API void wc_PKCS7_AllowDegenerate(PKCS7* pkcs7, word16 flag);
 WOLFSSL_API int  wc_PKCS7_VerifySignedData(PKCS7* pkcs7,
-                                       byte* pkiMsg, word32 pkiMsgSz);
+                                          byte* pkiMsg, word32 pkiMsgSz);
 WOLFSSL_API int  wc_PKCS7_VerifySignedData_ex(PKCS7* pkcs7, const byte* hashBuf, 
-    word32 hashSz, byte* pkiMsgHead, word32 pkiMsgHeadSz, byte* pkiMsgFoot, 
-    word32 pkiMsgFootSz);
+                                          word32 hashSz, byte* pkiMsgHead,
+                                          word32 pkiMsgHeadSz, byte* pkiMsgFoot,
+                                          word32 pkiMsgFootSz);
 
 /* EnvelopedData and AuthEnvelopedData RecipientInfo functions */
 WOLFSSL_API int  wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert,

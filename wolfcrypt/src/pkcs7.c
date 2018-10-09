@@ -1873,6 +1873,21 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 }
 
 
+/* build PKCS#7 signedData content type with inner type set to FirmwarePkgData,
+   return size of generated bundle on success, negative upon error */
+int wc_PKCS7_EncodeSignedFirmwarePkgData(PKCS7* pkcs7, byte* output,
+                                         word32 outputSz)
+{
+    if (pkcs7 == NULL || output == NULL || outputSz == 0)
+        return BAD_FUNC_ARG;
+
+    /* force content type to FirmwarePkgData */
+    pkcs7->contentOID = FIRMWARE_PKG_DATA;
+
+    return wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz);
+}
+
+
 #ifndef NO_RSA
 
 /* returns size of signature put into out, negative on error */
