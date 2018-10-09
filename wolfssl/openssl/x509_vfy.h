@@ -24,16 +24,14 @@
 #ifndef WOLFSSL_x509_vfy_H_
 #define WOLFSSL_x509_vfy_H_
 
-#ifndef WOLFSSL_OPENSSL_H_
-    #include <wolfssl/openssl.ssl.h>
-#endif
+#include <wolfssl/openssl/x509v3.h>
 
 #ifdef __cplusplus
     extern "C" {
 #endif
 
 #ifdef WOLFSSL_QT
-    int wolfSSL_X509_STORE_CTX_set_purpose(WOLFSSL_X509_STORE_CTX *ctx, int purpose);
+    WOLFSSL_API int wolfSSL_X509_STORE_CTX_set_purpose(WOLFSSL_X509_STORE_CTX *ctx, int purpose);
 #endif
 
 #ifdef WOLFSSL_QT

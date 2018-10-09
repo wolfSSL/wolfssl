@@ -842,6 +842,7 @@ WOLFSSL_API WOLFSSL_ASN1_OBJECT* wolfSSL_sk_GENERAL_NAME_value(
 WOLFSSL_API int wolfSSL_sk_GENERAL_NAME_num(WOLFSSL_STACK* sk);
 WOLFSSL_API void wolfSSL_sk_GENERAL_NAME_pop_free(WOLFSSL_STACK* sk,
         void f (WOLFSSL_ASN1_OBJECT*));
+WOLFSSL_API void wolfSSL_GENERAL_NAME_free(WOLFSSL_ASN1_OBJECT* name);
 WOLFSSL_API WOLFSSL_ASN1_OBJECT* wolfSSL_ASN1_OBJECT_new(void);
 WOLFSSL_API void wolfSSL_ASN1_OBJECT_free(WOLFSSL_ASN1_OBJECT* obj);
 WOLFSSL_API int wolfSSL_sk_ASN1_OBJECT_push(WOLF_STACK_OF(WOLFSSL_ASN1_OBJEXT)* sk,
@@ -850,6 +851,7 @@ WOLFSSL_API WOLFSSL_ASN1_OBJECT* wolfSSL_sk_ASN1_OBJECT_pop(
                                             WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk);
 WOLFSSL_API void wolfSSL_sk_ASN1_OBJECT_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk);
 WOLFSSL_API int wolfSSL_ASN1_STRING_to_UTF8(unsigned char **out, WOLFSSL_ASN1_STRING *in);
+
 
 WOLFSSL_API int  wolfSSL_set_ex_data(WOLFSSL*, int, void*);
 WOLFSSL_API int  wolfSSL_get_shutdown(const WOLFSSL*);
@@ -972,6 +974,8 @@ WOLFSSL_API void  wolfSSL_X509_STORE_CTX_set_verify_cb(WOLFSSL_X509_STORE_CTX *c
                                   WOLFSSL_X509_STORE_CTX_verify_cb verify_cb);
 WOLFSSL_API void  wolfSSL_X509_STORE_CTX_set_verify_cb_func(WOLFSSL_X509_STORE *st,
                                   WOLFSSL_X509_STORE_CTX_verify_cb verify_cb);
+WOLFSSL_API void wolfSSL_X509_STORE_set_verify_cb_func(WOLFSSL_X509_STORE *st,
+                                     WOLFSSL_X509_STORE_CTX_verify_cb verify_cb);
 WOLFSSL_API int wolfSSL_i2d_X509_NAME(WOLFSSL_X509_NAME* n,
                                                            unsigned char** out);
 WOLFSSL_API int wolfSSL_X509_print(WOLFSSL_BIO* bio, WOLFSSL_X509* x509);
@@ -1171,6 +1175,7 @@ WOLFSSL_API long wolfSSL_get_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *
 WOLFSSL_API long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *resp, int len);
 
 WOLFSSL_API void wolfSSL_CONF_modules_unload(int all);
+WOLFSSL_API char *wolfSSL_CONF_get1_default_config_file(void);
 WOLFSSL_API long wolfSSL_get_tlsext_status_exts(WOLFSSL *s, void *arg);
 WOLFSSL_API long wolfSSL_get_verify_result(const WOLFSSL *ssl);
 
