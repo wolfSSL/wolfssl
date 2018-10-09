@@ -6920,7 +6920,7 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
         return 0;
     }
 
-    WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
+    const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
     {
         (void)ex;
         WOLFSSL_STUB("wolfSSL_X509V3_EXT_get");
