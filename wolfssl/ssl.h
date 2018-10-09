@@ -1129,6 +1129,7 @@ WOLFSSL_API long wolfSSL_get_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *
 WOLFSSL_API long wolfSSL_set_tlsext_status_ocsp_resp(WOLFSSL *s, unsigned char *resp, int len);
 
 WOLFSSL_API void wolfSSL_CONF_modules_unload(int all);
+WOLFSSL_API char *wolfSSL_CONF_get1_default_config_file(void);
 WOLFSSL_API long wolfSSL_get_tlsext_status_exts(WOLFSSL *s, void *arg);
 WOLFSSL_API long wolfSSL_get_verify_result(const WOLFSSL *ssl);
 

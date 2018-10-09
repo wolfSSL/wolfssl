@@ -6942,6 +6942,13 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
         return 0;
     }
 
+    char* wolfSSL_CONF_get1_default_config_file(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_CONF_get1_default_config_file");
+        WOLFSSL_STUB("CONF_get1_default_config_file");
+        return NULL;
+    }
+
 #endif /* defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB) */
 
 
@@ -13166,6 +13173,13 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         WOLFSSL_ENTER("EVP_CIPHER_CTX_ctrl");
         return WOLFSSL_SUCCESS;
     }
+    const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_rc2_cbc(void)
+    {
+        WOLFSSL_ENTER("wolfSSL_EVP_rc2_cbc");
+        WOLFSSL_STUB("EVP_rc2_cbc");
+        return NULL;
+    }
+
     #endif
 
 
@@ -33619,16 +33633,6 @@ void wolfSSL_OPENSSL_config(char *config_name)
     (void)config_name;
     WOLFSSL_STUB("OPENSSL_config");
 }
-
-#ifdef WOLFSSL_QT
-char* wolfSSL_CONF_get1_default_config_file(void)
-{
-    WOLFSSL_ENTER("wolfSSL_CONF_get1_default_config_file");
-    WOLFSSL_STUB("CONF_get1_default_config_file");
-    return NULL;
-}
-#endif /* WOLFSSL_QT */
-
 #endif /* NO_WOLFSSL_STUB */
 
 #endif
