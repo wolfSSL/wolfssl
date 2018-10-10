@@ -20150,36 +20150,34 @@ static void test_wolfSSL_AES_cbc_encrypt()
 
     #define STRESS_T(a, b, c, d, e, f, g, h, i) \
             wolfSSL_AES_cbc_encrypt(a, b, c, d, e, f); \
-            AssertIntEQ(XMEMCMP(b, g, h), i)
+            AssertIntNE(XMEMCMP(b, g, h), i)
 
     printf(testingFmt, "Stressing wolfSSL_AES_cbc_encrypt()");
-    STRESS_T(pt128N, out, len, &aes, iv128, enc1, ct128, AES_BLOCK_SIZE, -1);
-    STRESS_T(pt128, out, len, &aes, iv128N, enc1, ct128, AES_BLOCK_SIZE, -1);
+    STRESS_T(pt128N, out, len, &aes, iv128, enc1, ct128, AES_BLOCK_SIZE, 0);
+    STRESS_T(pt128, out, len, &aes, iv128N, enc1, ct128, AES_BLOCK_SIZE, 0);
 
     wolfSSL_AES_cbc_encrypt(pt128, outN, len, &aes, iv128, enc1);
-    AssertIntEQ(XMEMCMP(out, ct128, AES_BLOCK_SIZE), -1);
+    AssertIntNE(XMEMCMP(out, ct128, AES_BLOCK_SIZE), 0);
     wolfSSL_AES_cbc_encrypt(pt128, out, len, aesN, iv128, enc1);
-    AssertIntEQ(XMEMCMP(out, ct128, AES_BLOCK_SIZE), -1);
+    AssertIntNE(XMEMCMP(out, ct128, AES_BLOCK_SIZE), 0);
 
-    STRESS_T(pt128, out, lenB, &aes, iv128, enc1, ct128, AES_BLOCK_SIZE, -1);
-    STRESS_T(pt128, out, lenN, &aes, iv128, enc1, ct128, AES_BLOCK_SIZE, -1);
+    STRESS_T(pt128, out, lenB, &aes, iv128, enc1, ct128, AES_BLOCK_SIZE, 0);
+    STRESS_T(pt128, out, lenN, &aes, iv128, enc1, ct128, AES_BLOCK_SIZE, 0);
     printf(resultFmt, "Stress Tests: passed");
 
     printf(testingFmt, "Stressing wolfSSL_AES_set_encrypt_key");
-    AssertIntEQ(wolfSSL_AES_set_encrypt_key(key128N, sizeof(key128)*8, &aes),
-                -1);
-    AssertIntEQ(wolfSSL_AES_set_encrypt_key(key128, sizeof(key128)*8, aesN),-1);
-    AssertIntEQ(wolfSSL_AES_set_encrypt_key(key128, keySz0, &aes), -1);
-    AssertIntEQ(wolfSSL_AES_set_encrypt_key(key128, keySzN, &aes), -1);
+    AssertIntNE(wolfSSL_AES_set_encrypt_key(key128N, sizeof(key128)*8, &aes),
+                0);
+    AssertIntNE(wolfSSL_AES_set_encrypt_key(key128, sizeof(key128)*8, aesN),0);
+    AssertIntNE(wolfSSL_AES_set_encrypt_key(key128, keySz0, &aes), 0);
+    AssertIntNE(wolfSSL_AES_set_encrypt_key(key128, keySzN, &aes), 0);
     printf(resultFmt, "Stress Tests: passed");
 
     printf(testingFmt, "Stressing wolfSSL_AES_set_decrypt_key");
-    AssertIntEQ(wolfSSL_AES_set_decrypt_key(key128N, sizeof(key128)*8, &aes),
-                -1);
-    AssertIntEQ(wolfSSL_AES_set_decrypt_key(key128N, sizeof(key128)*8, aesN),
-                -1);
-    AssertIntEQ(wolfSSL_AES_set_decrypt_key(key128, keySz0, &aes), -1);
-    AssertIntEQ(wolfSSL_AES_set_decrypt_key(key128, keySzN, &aes), -1);
+    AssertIntNE(wolfSSL_AES_set_decrypt_key(key128N, sizeof(key128)*8, &aes),0);
+    AssertIntNE(wolfSSL_AES_set_decrypt_key(key128N, sizeof(key128)*8, aesN),0);
+    AssertIntNE(wolfSSL_AES_set_decrypt_key(key128, keySz0, &aes), 0);
+    AssertIntNE(wolfSSL_AES_set_decrypt_key(key128, keySzN, &aes), 0);
     printf(resultFmt, "Stress Tests: passed");
 
   #ifdef WOLFSSL_AES_128
