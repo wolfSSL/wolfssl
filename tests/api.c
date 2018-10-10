@@ -12869,14 +12869,13 @@ static int test_wc_ed25519_exportKey (void)
  */
 static int test_wc_curve25519_init (void)
 {
-    int             ret = 0;
+    int ret = 0;
 
 #if defined(HAVE_CURVE25519)
 
     curve25519_key  key;
 
     printf(testingFmt, "wc_curve25519_init()");
-
     ret = wc_curve25519_init(&key);
 
     /* Test bad args for wc_curve25519_init */
@@ -12890,7 +12889,6 @@ static int test_wc_curve25519_init (void)
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
-
     /*  Test good args for wc_curve_25519_free */
     wc_curve25519_free(&key);
 
@@ -12900,9 +12898,9 @@ static int test_wc_curve25519_init (void)
     return ret;
 
 } /* END test_wc_curve25519_init and wc_curve_25519_free*/
-    /*
-     * Testing test_wc_curve25519_size.
-     */
+/*
+ * Testing test_wc_curve25519_size.
+ */
 static int test_wc_curve25519_size (void)
 {
     int ret = 0;
@@ -12916,21 +12914,17 @@ static int test_wc_curve25519_size (void)
     ret = wc_curve25519_init(&key);
 
     /*  Test good args for wc_curve25519_size */
-    ret = wc_curve25519_size(&key);
+    if (ret == 0) {
+        ret = wc_curve25519_size(&key);
+    }
 
     /* Test bad args for wc_curve25519_size */
-    if (ret == 0) {
+    if (ret != 0) {
         ret = wc_curve25519_size(NULL);
-        if (ret != 0) {
-            ret = SSL_FATAL_ERROR;
-        }
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
-
-
-    wc_curve25519_free(NULL);
-
+    wc_curve25519_free(&key);
 #endif
     return ret;
 
@@ -21980,10 +21974,8 @@ void ApiTest(void)
     AssertIntEQ(test_wc_ed25519_export(), 0);
     AssertIntEQ(test_wc_ed25519_size(), 0);
     AssertIntEQ(test_wc_ed25519_exportKey(), 0);
-
     AssertIntEQ(test_wc_curve25519_init(), 0);
     AssertIntEQ(test_wc_curve25519_size (), 0);
-
     AssertIntEQ(test_wc_ecc_make_key(), 0);
     AssertIntEQ(test_wc_ecc_init(), 0);
     AssertIntEQ(test_wc_ecc_check_key(), 0);
