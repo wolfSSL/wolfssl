@@ -264,6 +264,7 @@ typedef struct Cert {
     char     challengePw[CTC_NAME_SIZE];
 #endif
     void*   heap; /* heap hint */
+    int     yearsValid;                  /* validity years */
 } Cert;
 
 
