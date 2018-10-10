@@ -88,11 +88,44 @@ enum PKCS7_TYPES {
 
 enum PKCS7_STATE {
     WC_PKCS7_START = 0,
+
+    /* decode encrypted */
     WC_PKCS7_STAGE2,
     WC_PKCS7_STAGE3,
     WC_PKCS7_STAGE4,
     WC_PKCS7_STAGE5,
-    WC_PKCS7_STAGE6
+    WC_PKCS7_STAGE6,
+
+    /* parse info set */
+    WC_PKCS7_INFOSET_START,
+    WC_PKCS7_INFOSET_BER,
+    WC_PKCS7_INFOSET_STAGE1,
+    WC_PKCS7_INFOSET_STAGE2,
+    WC_PKCS7_INFOSET_END,
+
+    /* decode auth enveloped */
+    WC_PKCS7_AUTHENV_2,
+    WC_PKCS7_AUTHENV_3,
+    WC_PKCS7_AUTHENV_4,
+    WC_PKCS7_AUTHENV_5,
+    WC_PKCS7_AUTHENV_6,
+    WC_PKCS7_AUTHENV_ATRB,
+    WC_PKCS7_AUTHENV_ATRBEND,
+    WC_PKCS7_AUTHENV_7,
+
+    /* decryption state types */
+    WC_PKCS7_DECRYPT_KTRI,
+    WC_PKCS7_DECRYPT_KTRI_2,
+    WC_PKCS7_DECRYPT_KTRI_3,
+
+
+    WC_PKCS7_DECRYPT_KARI,
+    WC_PKCS7_DECRYPT_KEKRI,
+    WC_PKCS7_DECRYPT_PWRI,
+    WC_PKCS7_DECRYPT_ORI,
+
+    WC_PKCS7_DECRYPT_DONE,
+
 };
 
 enum Pkcs7_Misc {
@@ -235,7 +268,7 @@ typedef struct PKCS7 {
 #ifndef NO_PKCS7_STREAM
     PKCS7State* stream;
 #endif
-    enum PKCS7_STATE state;
+    word32 state;
 
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
 } PKCS7;

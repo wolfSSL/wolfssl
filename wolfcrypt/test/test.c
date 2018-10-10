@@ -19380,6 +19380,7 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         decodedSz = wc_PKCS7_DecodeEnvelopedData(pkcs7, enveloped, envelopedSz,
                                                  decoded, sizeof(decoded));
         if (decodedSz <= 0) {
+            printf("ret = %d\n", decodedSz);
             wc_PKCS7_Free(pkcs7);
             return -9325;
         }
@@ -19985,7 +19986,25 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
             wc_PKCS7_Free(pkcs7);
             return -9385;
         }
-
+#ifndef NO_PKCS7_STREAM
+        { /* test reading byte by byte */
+            int z;
+            for (z = 0; z < envelopedSz; z++) {
+                decodedSz = wc_PKCS7_DecodeAuthEnvelopedData(pkcs7,
+                        enveloped + z, 1, decoded, sizeof(decoded));
+                if (decodedSz <= 0 && decodedSz != WC_PKCS7_WANT_READ_E) {
+                    printf("unexpected error %d\n", decodedSz);
+                    return -9386;
+                }
+            }
+            /* test decode result */
+            if (XMEMCMP(decoded, data, sizeof(data)) != 0) {
+                printf("stream read compare failed\n");
+                wc_PKCS7_Free(pkcs7);
+                return -9387;
+            }
+        }
+#endif
         /* decode envelopedData */
         decodedSz = wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, enveloped,
                                                      envelopedSz, decoded,
