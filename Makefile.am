@@ -98,7 +98,22 @@ CLEANFILES+= cert.der \
              pkcs7signedData_ECDSA_SHA256_custom_contentType.der \
              pkcs7signedData_ECDSA_SHA256_SKID.der \
              pkcs7signedData_ECDSA_SHA384.der \
-             pkcs7signedData_ECDSA_SHA512.der
+             pkcs7signedData_ECDSA_SHA512.der \
+             pkcs7signedFirmwarePkgData_ECDSA_SHA256.der \
+             pkcs7signedFirmwarePkgData_ECDSA_SHA256_SKID.der \
+             pkcs7signedFirmwarePkgData_ECDSA_SHA256_noattr.der \
+             pkcs7signedFirmwarePkgData_RSA_SHA256.der \
+             pkcs7signedFirmwarePkgData_RSA_SHA256_SKID.der \
+             pkcs7signedFirmwarePkgData_RSA_SHA256_noattr.der \
+             pkcs7signedFirmwarePkgData_RSA_SHA256_with_ca_cert.der \
+             pkcs7signedCompressedFirmwarePkgData_ECDSA_SHA256.der \
+             pkcs7signedCompressedFirmwarePkgData_ECDSA_SHA256_noattr.der \
+             pkcs7signedCompressedFirmwarePkgData_RSA_SHA256.der \
+             pkcs7signedCompressedFirmwarePkgData_RSA_SHA256_noattr.der \
+             pkcs7signedEncryptedFirmwarePkgData_RSA_SHA256.der \
+             pkcs7signedEncryptedFirmwarePkgData_RSA_SHA256_noattr.der \
+             pkcs7signedEncryptedFirmwarePkgData_ECDSA_SHA256.der \
+             pkcs7signedEncryptedFirmwarePkgData_ECDSA_SHA256_noattr.der
 
 exampledir = $(docdir)/example
 dist_example_DATA=
