@@ -299,6 +299,16 @@ WOLFSSL_API int  wc_PKCS7_EncodeSignedEncryptedFPD(PKCS7* pkcs7,
                                           word32 signedAttribsSz,
                                           byte* output, word32 outputSz);
 #endif /* NO_PKCS7_ENCRYPTED_DATA */
+#if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
+/* CMS single-shot API for Signed Compressed FirmwarePkgData */
+WOLFSSL_API int  wc_PKCS7_EncodeSignedCompressedFPD(PKCS7* pkcs7,
+                                          byte* privateKey, word32 privateKeySz,
+                                          int signOID, int hashOID,
+                                          byte* content, word32 contentSz,
+                                          PKCS7Attrib* signedAttribs,
+                                          word32 signedAttribsSz, byte* output,
+                                          word32 outputSz);
+#endif /* HAVE_LIBZ && !NO_PKCS7_COMPRESSED_DATA */
 
 /* EnvelopedData and AuthEnvelopedData RecipientInfo functions */
 WOLFSSL_API int  wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert,

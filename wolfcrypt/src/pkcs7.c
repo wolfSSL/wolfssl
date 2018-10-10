@@ -1887,8 +1887,6 @@ int wc_PKCS7_EncodeSignedData(PKCS7* pkcs7, byte* output, word32 outputSz)
  * contentSz            - size of content, octets
  * signedAttribs        - optional signed attributes
  * signedAttribsSz      - number of PKCS7Attrib members in signedAttribs
- * heap                 - user heap pointer, otherwise NULL if not needed
- * devId                - dev ID if used, otherwise 0 if not needed
  * output               - output buffer for final bundle
  * outputSz             - size of output buffer, octets
  *
@@ -1958,8 +1956,6 @@ int wc_PKCS7_EncodeSignedFPD(PKCS7* pkcs7, byte* privateKey,
  * unprotectedAttribsSz - number of PKCS7Attrib members in unprotectedAttribs
  * signedAttribs        - optional signed attributes, for SignedData
  * signedAttribsSz      - number of PKCS7Attrib members in signedAttribs
- * heap                 - user heap pointer, otherwise NULL if not needed
- * devId                - dev ID if used, otherwise 0 if not needed
  * output               - output buffer for final bundle
  * outputSz             - size of output buffer, octets
  *
@@ -2048,6 +2044,103 @@ int wc_PKCS7_EncodeSignedEncryptedFPD(PKCS7* pkcs7, byte* encryptKey,
 }
 
 #endif /* NO_PKCS7_ENCRYPTED_DATA */
+
+#if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
+/* Single-shot API to generate a CMS SignedData bundle that encapsulates a
+ * CMS CompressedData bundle. Content of inner CompressedData is set to that
+ * of FirmwarePkgData. Any recipient certificates should be loaded into the
+ * PKCS7 structure prior to calling this function, using wc_PKCS7_InitWithCert()
+ * and/or wc_PKCS7_AddCertificate().
+ *
+ * pkcs7                - pointer to initialized PKCS7 struct
+ * privateKey           - private RSA/ECC key, used for signing SignedData
+ * privateKeySz         - size of privateKey, octets
+ * signOID              - public key algorithm OID, to be used for sign
+ *                        operation in SignedData generation
+ * hashOID              - hash algorithm OID, to be used for signature in
+ *                        SignedData generation
+ * content              - content to be encapsulated
+ * contentSz            - size of content, octets
+ * signedAttribs        - optional signed attributes, for SignedData
+ * signedAttribsSz      - number of PKCS7Attrib members in signedAttribs
+ * output               - output buffer for final bundle
+ * outputSz             - size of output buffer, octets
+ *
+ * Returns length of generated bundle on success, negative upon error. */
+int wc_PKCS7_EncodeSignedCompressedFPD(PKCS7* pkcs7, byte* privateKey,
+                                       word32 privateKeySz, int signOID,
+                                       int hashOID, byte* content,
+                                       word32 contentSz,
+                                       PKCS7Attrib* signedAttribs,
+                                       word32 signedAttribsSz, byte* output,
+                                       word32 outputSz)
+{
+    int ret = 0, compressedSz = 0;
+    byte* compressed = NULL;
+    WC_RNG rng;
+
+    if (pkcs7 == NULL || privateKey == NULL || privateKeySz == 0 ||
+        content == NULL || contentSz == 0 || output == NULL || outputSz == 0) {
+        return BAD_FUNC_ARG;
+    }
+
+    /* 1: build up CompressedData using FirmwarePkgData type, use output
+     *    buffer as tmp for storage and to get size */
+
+    /* set struct elements, inner content type is FirmwarePkgData */
+    pkcs7->content = content;
+    pkcs7->contentSz = contentSz;
+    pkcs7->contentOID = FIRMWARE_PKG_DATA;
+
+    compressedSz = wc_PKCS7_EncodeCompressedData(pkcs7, output, outputSz);
+    if (compressedSz < 0) {
+        WOLFSSL_MSG("Error encoding CMS CompressedData content type");
+        return compressedSz;
+    }
+
+    /* save compressedData, reset output buffer and struct */
+    compressed = (byte*)XMALLOC(compressedSz, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    if (compressed == NULL) {
+        wc_PKCS7_Free(pkcs7);
+        return MEMORY_E;
+    }
+    XMEMSET(compressed, 0, compressedSz);
+
+    XMEMCPY(compressed, output, compressedSz);
+    ForceZero(output, outputSz);
+
+    ret = wc_InitRng(&rng);
+    if (ret != 0) {
+        XFREE(compressed, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        return ret;
+    }
+
+    /* 2: build up SignedData, encapsulating EncryptedData */
+    pkcs7->rng = &rng;
+    pkcs7->content = compressed;
+    pkcs7->contentSz = compressedSz;
+    pkcs7->contentOID = COMPRESSED_DATA;
+    pkcs7->hashOID = hashOID;
+    pkcs7->encryptOID = signOID;
+    pkcs7->privateKey = privateKey;
+    pkcs7->privateKeySz = privateKeySz;
+    pkcs7->signedAttribs = signedAttribs;
+    pkcs7->signedAttribsSz = signedAttribsSz;
+
+    ret = wc_PKCS7_EncodeSignedData(pkcs7, output, outputSz);
+    if (ret <= 0) {
+        WOLFSSL_MSG("Error encoding CMS SignedData content type");
+        XFREE(compressed, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        wc_FreeRng(&rng);
+        return ret;
+    }
+
+    XFREE(compressed, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+    wc_FreeRng(&rng);
+
+    return ret;
+}
+#endif /* HAVE_LIBZ && !NO_PKCS7_COMPRESSED_DATA */
 
 
 #ifndef NO_RSA
