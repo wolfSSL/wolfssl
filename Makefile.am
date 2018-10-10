@@ -113,7 +113,11 @@ CLEANFILES+= cert.der \
              pkcs7signedEncryptedFirmwarePkgData_RSA_SHA256.der \
              pkcs7signedEncryptedFirmwarePkgData_RSA_SHA256_noattr.der \
              pkcs7signedEncryptedFirmwarePkgData_ECDSA_SHA256.der \
-             pkcs7signedEncryptedFirmwarePkgData_ECDSA_SHA256_noattr.der
+             pkcs7signedEncryptedFirmwarePkgData_ECDSA_SHA256_noattr.der \
+             pkcs7signedEncryptedCompressedFirmwarePkgData_ECDSA_SHA256.der \
+             pkcs7signedEncryptedCompressedFirmwarePkgData_ECDSA_SHA256_noattr.der \
+             pkcs7signedEncryptedCompressedFirmwarePkgData_RSA_SHA256.der \
+             pkcs7signedEncryptedCompressedFirmwarePkgData_RSA_SHA256_noattr.der
 
 exampledir = $(docdir)/example
 dist_example_DATA=

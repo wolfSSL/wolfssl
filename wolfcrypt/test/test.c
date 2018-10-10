@@ -21081,7 +21081,7 @@ static int pkcs7signed_run_SingleShotVectors(
          "pkcs7signedFirmwarePkgData_RSA_SHA256_with_ca_cert.der", 0, NULL,
          0, 0, 0, 0, NULL, 0, NULL, 0},
 
-    #ifdef WOLFSSL_AES_256
+    #if defined(WOLFSSL_AES_256) && !defined(NO_PKCS7_ENCRYPTED_DATA)
         /* Signed Encrypted FirmwarePkgData, RSA, SHA256, no attribs */
         {data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
          rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
@@ -21096,7 +21096,7 @@ static int pkcs7signed_run_SingleShotVectors(
          "pkcs7signedEncryptedFirmwarePkgData_RSA_SHA256.der", 0,
          NULL, 0, 0, AES256CBCb, 1, aes256Key, sizeof(aes256Key),
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib))},
-    #endif /* WOLFSSL_AES_256 */
+    #endif /* WOLFSSL_AES_256 && !NO_PKCS7_ENCRYPTED_DATA */
 
     #if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
         /* Signed Compressed FirmwarePkgData, RSA, SHA256, no attribs */
@@ -21112,6 +21112,26 @@ static int pkcs7signed_run_SingleShotVectors(
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedCompressedFirmwarePkgData_RSA_SHA256.der", 0,
          NULL, 0, 0, 0, 2, NULL, 0, NULL, 0},
+
+    #ifndef NO_PKCS7_ENCRYPTED_DATA
+        /* Signed Encrypted Compressed FirmwarePkgData, RSA, SHA256,
+           no attribs */
+        {data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
+         rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
+         NULL, 0,
+         "pkcs7signedEncryptedCompressedFirmwarePkgData_RSA_SHA256_noattr.der",
+         0, NULL, 0, 0, AES256CBCb, 3, aes256Key, sizeof(aes256Key), NULL, 0},
+
+        /* Signed Encrypted Compressed FirmwarePkgData, RSA, SHA256,
+           attribs */
+        {data, (word32)sizeof(data), SHA256h, RSAk, rsaClientPrivKeyBuf,
+         rsaClientPrivKeyBufSz, rsaClientCertBuf, rsaClientCertBufSz, NULL, 0,
+         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
+         "pkcs7signedEncryptedCompressedFirmwarePkgData_RSA_SHA256.der",
+         0, NULL, 0, 0, AES256CBCb, 3, aes256Key, sizeof(aes256Key),
+         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib))},
+    #endif /* !NO_PKCS7_ENCRYPTED_DATA */
+
     #endif /* HAVE_LIBZ && !NO_PKCS7_COMPRESSED_DATA */
 
     #endif /* NO_SHA256 */
@@ -21122,7 +21142,7 @@ static int pkcs7signed_run_SingleShotVectors(
         /* Signed FirmwarePkgData, ECDSA, SHA256, no attribs */
         {data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
          eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
-         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
+         NULL, 0,
          "pkcs7signedFirmwarePkgData_ECDSA_SHA256_noattr.der", 0, NULL,
          0, 0, 0, 0, NULL, 0, NULL, 0},
 
@@ -21140,7 +21160,7 @@ static int pkcs7signed_run_SingleShotVectors(
          "pkcs7signedFirmwarePkgData_ECDSA_SHA256_SKID.der", 0, NULL,
          0, CMS_SKID, 0, 0, NULL, 0, NULL, 0},
 
-    #ifdef WOLFSSL_AES_256
+    #if defined(WOLFSSL_AES_256) && !defined(NO_PKCS7_ENCRYPTED_DATA)
         /* Signed Encrypted FirmwarePkgData, ECDSA, SHA256, no attribs */
         {data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
          eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
@@ -21155,7 +21175,7 @@ static int pkcs7signed_run_SingleShotVectors(
          "pkcs7signedEncryptedFirmwarePkgData_ECDSA_SHA256.der", 0, NULL,
          0, 0, AES256CBCb, 1, aes256Key, sizeof(aes256Key),
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib))},
-    #endif /* WOLFSSL_AES_256 */
+    #endif /* WOLFSSL_AES_256 && !NO_PKCS7_ENCRYPTED_DATA */
 
     #if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
         /* Signed Compressed FirmwarePkgData, ECDSA, SHA256, no attribs */
@@ -21171,6 +21191,26 @@ static int pkcs7signed_run_SingleShotVectors(
          attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
          "pkcs7signedCompressedFirmwarePkgData_ECDSA_SHA256.der", 0, NULL,
          0, 0, 0, 2, NULL, 0, NULL, 0},
+
+    #ifndef NO_PKCS7_ENCRYPTED_DATA
+        /* Signed Encrypted Compressed FirmwarePkgData, ECDSA, SHA256,
+           no attribs */
+        {data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
+         eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
+         NULL, 0,
+        "pkcs7signedEncryptedCompressedFirmwarePkgData_ECDSA_SHA256_noattr.der",
+         0, NULL, 0, 0, AES256CBCb, 3, aes256Key, sizeof(aes256Key), NULL, 0},
+
+        /* Signed Encrypted Compressed FirmwarePkgData, ECDSA, SHA256,
+           attribs */
+        {data, (word32)sizeof(data), SHA256h, ECDSAk, eccClientPrivKeyBuf,
+         eccClientPrivKeyBufSz, eccClientCertBuf, eccClientCertBufSz, NULL, 0,
+         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib)),
+        "pkcs7signedEncryptedCompressedFirmwarePkgData_ECDSA_SHA256.der",
+         0, NULL, 0, 0, AES256CBCb, 3, aes256Key, sizeof(aes256Key),
+         attribs, (sizeof(attribs)/sizeof(PKCS7Attrib))},
+    #endif /* !NO_PKCS7_ENCRYPTED_DATA */
+
     #endif /* HAVE_LIBZ && !NO_PKCS7_COMPRESSED_DATA */
 
     #endif /* NO_SHA256 */
@@ -21182,14 +21222,14 @@ static int pkcs7signed_run_SingleShotVectors(
     outSz = FOURK_BUF;
     out = (byte*)XMALLOC(outSz, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
     if (out == NULL)
-        return -9510;
+        return -9550;
 
     XMEMSET(out, 0, outSz);
 
     ret = wc_PKCS7_PadData((byte*)data, sizeof(data), out, outSz, 16);
     if (ret < 0) {
         XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -9511;
+        return -9551;
     }
 
 #ifndef HAVE_FIPS
@@ -21199,13 +21239,13 @@ static int pkcs7signed_run_SingleShotVectors(
 #endif
     if (ret != 0) {
         XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
-        return -9512;
+        return -9552;
     }
 
     for (i = 0; i < testSz; i++) {
         pkcs7 = wc_PKCS7_New(HEAP_HINT, INVALID_DEVID);
         if (pkcs7 == NULL)
-            return -9513;
+            return -9553;
 
         pkcs7->heap = HEAP_HINT;
         pkcs7->devId = INVALID_DEVID;
@@ -21215,7 +21255,7 @@ static int pkcs7signed_run_SingleShotVectors(
         if (ret != 0) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(pkcs7);
-            return -9514;
+            return -9554;
         }
 
         /* load CA certificate, if present */
@@ -21225,7 +21265,7 @@ static int pkcs7signed_run_SingleShotVectors(
             if (ret != 0) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9515;
+                return -9555;
             }
         }
 
@@ -21236,7 +21276,7 @@ static int pkcs7signed_run_SingleShotVectors(
             if (ret != 0) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9516;
+                return -9556;
             }
         }
 
@@ -21253,7 +21293,7 @@ static int pkcs7signed_run_SingleShotVectors(
             if (encodedSz < 0) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9517;
+                return -9557;
             }
 
         } else if (testVectors[i].encCompFlag == 1) {
@@ -21272,7 +21312,7 @@ static int pkcs7signed_run_SingleShotVectors(
             if (encodedSz <= 0) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9518;
+                return -9558;
             }
 
     #if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
@@ -21289,15 +21329,37 @@ static int pkcs7signed_run_SingleShotVectors(
             if (encodedSz <= 0) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9519;
+                return -9559;
             }
+
+        #ifndef NO_PKCS7_ENCRYPTED_DATA
+        } else if (testVectors[i].encCompFlag == 3) {
+
+            /* encode Signed Encrypted Compressed FirmwarePkgData */
+            encodedSz = wc_PKCS7_EncodeSignedEncryptedCompressedFPD(pkcs7,
+                    testVectors[i].encryptKey, testVectors[i].encryptKeySz,
+                    testVectors[i].privateKey, testVectors[i].privateKeySz,
+                    testVectors[i].encryptOID, testVectors[i].signOID,
+                    testVectors[i].hashOID, (byte*)testVectors[i].content,
+                    testVectors[i].contentSz, testVectors[i].unprotectedAttribs,
+                    testVectors[i].unprotectedAttribsSz,
+                    testVectors[i].signedAttribs,
+                    testVectors[i].signedAttribsSz, out, outSz);
+
+            if (encodedSz <= 0) {
+                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                wc_PKCS7_Free(pkcs7);
+                return -9560;
+            }
+
+        #endif /* NO_PKCS7_ENCRYPTED_DATA */
     #endif /* HAVE_LIBZ && !NO_PKCS7_COMPRESSED_DATA */
 
         } else {
             /* unsupported SignedData single-shot combination */
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(pkcs7);
-            return -9520;
+            return -9561;
         }
 
     #ifdef PKCS7_OUTPUT_TEST_BUNDLES
@@ -21306,14 +21368,14 @@ static int pkcs7signed_run_SingleShotVectors(
         if (!file) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(pkcs7);
-            return -9522;
+            return -9562;
         }
         ret = (int)fwrite(out, 1, encodedSz, file);
         fclose(file);
         if (ret != (int)encodedSz) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(pkcs7);
-            return -9526;
+            return -9563;
         }
     #endif /* PKCS7_OUTPUT_TEST_BUNDLES */
 
@@ -21321,20 +21383,20 @@ static int pkcs7signed_run_SingleShotVectors(
 
         pkcs7 = wc_PKCS7_New(HEAP_HINT, INVALID_DEVID);
         if (pkcs7 == NULL)
-            return -9527;
+            return -9564;
         wc_PKCS7_InitWithCert(pkcs7, NULL, 0);
 
         ret = wc_PKCS7_VerifySignedData(pkcs7, out, outSz);
         if (ret < 0) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(pkcs7);
-            return -9528;
+            return -9565;
         }
 
         if (pkcs7->singleCert == NULL || pkcs7->singleCertSz == 0) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
             wc_PKCS7_Free(pkcs7);
-            return -9531;
+            return -9566;
         }
 
         if (testVectors[i].encCompFlag == 0) {
@@ -21344,7 +21406,7 @@ static int pkcs7signed_run_SingleShotVectors(
                         pkcs7->contentSz)) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9532;
+                return -9567;
             }
 
         } else if (testVectors[i].encCompFlag == 1) {
@@ -21358,7 +21420,7 @@ static int pkcs7signed_run_SingleShotVectors(
             if (ret < 0) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9533;
+                return -9568;
             }
 
             /* compare decrypted to expected */
@@ -21366,7 +21428,7 @@ static int pkcs7signed_run_SingleShotVectors(
                 XMEMCMP(out, testVectors[i].content, ret)) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9534;
+                return -9569;
             }
         }
     #if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
@@ -21378,7 +21440,7 @@ static int pkcs7signed_run_SingleShotVectors(
             if (ret < 0) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9535;
+                return -9570;
             }
 
             /* compare decompressed to expected */
@@ -21386,9 +21448,62 @@ static int pkcs7signed_run_SingleShotVectors(
                 XMEMCMP(out, testVectors[i].content, ret)) {
                 XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
                 wc_PKCS7_Free(pkcs7);
-                return -9536;
+                return -9571;
             }
         }
+    #ifndef NO_PKCS7_ENCRYPTED_DATA
+        else if (testVectors[i].encCompFlag == 3) {
+
+            byte* encryptedTmp;
+            int encryptedTmpSz;
+
+            encryptedTmpSz = FOURK_BUF;
+            encryptedTmp = (byte*)XMALLOC(encryptedTmpSz, HEAP_HINT,
+                                          DYNAMIC_TYPE_TMP_BUFFER);
+            if (encryptedTmp == NULL) {
+                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                wc_PKCS7_Free(pkcs7);
+                return -9572;
+            }
+
+            XMEMSET(encryptedTmp, 0, encryptedTmpSz);
+
+            /* decrypt inner encryptedData */
+            pkcs7->encryptionKey = testVectors[i].encryptKey;
+            pkcs7->encryptionKeySz = testVectors[i].encryptKeySz;
+
+            encryptedTmpSz = wc_PKCS7_DecodeEncryptedData(pkcs7, pkcs7->content,
+                                               pkcs7->contentSz, encryptedTmp,
+                                               encryptedTmpSz);
+
+            if (encryptedTmpSz < 0) {
+                XFREE(encryptedTmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                wc_PKCS7_Free(pkcs7);
+                return -9573;
+            }
+
+            /* decompress inner compressedData */
+            ret = wc_PKCS7_DecodeCompressedData(pkcs7, encryptedTmp,
+                                                encryptedTmpSz, out, outSz);
+            if (ret < 0) {
+                XFREE(encryptedTmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                wc_PKCS7_Free(pkcs7);
+                return -9574;
+            }
+
+            XFREE(encryptedTmp, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+
+            /* compare decompressed to expected */
+            if (((word32)ret != testVectors[i].contentSz) ||
+                XMEMCMP(out, testVectors[i].content, ret)) {
+                XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                wc_PKCS7_Free(pkcs7);
+                return -9575;
+            }
+        }
+    #endif /* NO_PKCS7_ENCRYPTED_DATA */
     #endif /* HAVE_LIBZ && !NO_PKCS7_COMPRESSED_DATA */
 
         wc_PKCS7_Free(pkcs7);
