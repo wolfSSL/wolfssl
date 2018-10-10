@@ -12869,14 +12869,13 @@ static int test_wc_ed25519_exportKey (void)
  */
 static int test_wc_curve25519_init (void)
 {
-    int             ret = 0;
+    int ret = 0;
 
 #if defined(HAVE_CURVE25519)
 
     curve25519_key  key;
 
     printf(testingFmt, "wc_curve25519_init()");
-
     ret = wc_curve25519_init(&key);
 
     /* Test bad args for wc_curve25519_init */
@@ -12890,7 +12889,6 @@ static int test_wc_curve25519_init (void)
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
-
     /*  Test good args for wc_curve_25519_free */
     wc_curve25519_free(&key);
 
@@ -12900,7 +12898,37 @@ static int test_wc_curve25519_init (void)
     return ret;
 
 } /* END test_wc_curve25519_init and wc_curve_25519_free*/
+/*
+ * Testing test_wc_curve25519_size.
+ */
+static int test_wc_curve25519_size (void)
+{
+    int ret = 0;
 
+#if defined(HAVE_CURVE25519)
+
+    curve25519_key  key;
+
+    printf(testingFmt, "wc_curve25519_size()");
+
+    ret = wc_curve25519_init(&key);
+
+    /*  Test good args for wc_curve25519_size */
+    if (ret == 0) {
+        ret = wc_curve25519_size(&key);
+    }
+
+    /* Test bad args for wc_curve25519_size */
+    if (ret != 0) {
+        ret = wc_curve25519_size(NULL);
+    }
+
+    printf(resultFmt, ret == 0 ? passed : failed);
+    wc_curve25519_free(&key);
+#endif
+    return ret;
+
+} /* END test_wc_curve25519_size*/
 /*
  * Testing wc_ecc_make_key.
  */
@@ -18663,7 +18691,7 @@ static void test_wolfSSL_OBJ(void)
         AssertTrue((bio = BIO_new(BIO_s_mem())) != NULL);
         for (j = 0; j < numNames; j++)
         {
-            AssertNotNull(x509NameEntry = X509_NAME_get_entry(x509Name, j));          
+            AssertNotNull(x509NameEntry = X509_NAME_get_entry(x509Name, j));
             AssertNotNull(asn1Name = X509_NAME_ENTRY_get_object(x509NameEntry));
             AssertTrue((nid = OBJ_obj2nid(asn1Name)) > 0);
         }
@@ -21309,7 +21337,7 @@ static void test_wolfSSL_X509_NAME_ENTRY_get_object()
 #if defined(OPENSSL_EXTRA) && !defined(NO_FILESYSTEM) && !defined(NO_RSA)
     X509 *x509 = NULL;
     X509_NAME* name = NULL;
-    int idx = 0; 
+    int idx = 0;
     X509_NAME_ENTRY *ne = NULL;
     ASN1_OBJECT *object = NULL;
 
@@ -21323,7 +21351,7 @@ static void test_wolfSSL_X509_NAME_ENTRY_get_object()
     ne = X509_NAME_get_entry(name, idx);
     AssertNotNull(ne);
     AssertNotNull(object = X509_NAME_ENTRY_get_object(ne));
-    
+
     X509_free(x509);
 
     printf(resultFmt, passed);
@@ -21351,7 +21379,7 @@ static void test_wolfSSL_i2c_ASN1_INTEGER()
                 DYNAMIC_TYPE_TMP_BUFFER));
     tpp = pp;
     XMEMSET(pp, 0, ret + 1);
-    i2c_ASN1_INTEGER(a, &pp); 
+    i2c_ASN1_INTEGER(a, &pp);
     pp--;
     AssertIntEQ(*pp, 40);
     XFREE(tpp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
@@ -21508,7 +21536,7 @@ static void test_wolfSSL_RSA_verify()
     SHA256_Update(&c, text, strlen(text));
     SHA256_Final(hash, &c);
 
-    /* read privete key file */ 
+    /* read privete key file */
     fp = XFOPEN(svrKeyFile, "r");
     AssertTrue((fp != XBADFILE));
     XFSEEK(fp, 0, XSEEK_END);
@@ -21516,13 +21544,13 @@ static void test_wolfSSL_RSA_verify()
     XREWIND(fp);
     AssertNotNull(buf = (byte*)XMALLOC(sz, NULL, DYNAMIC_TYPE_FILE));
     AssertIntEQ(XFREAD(buf, 1, sz, fp), sz);
-    XFCLOSE(fp); 
+    XFCLOSE(fp);
 
     /* read private key and sign hash data */
     AssertNotNull(bio = BIO_new_mem_buf(buf, (int)sz));
     AssertNotNull(evpPkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL));
     AssertNotNull(pKey = EVP_PKEY_get1_RSA(evpPkey));
-    AssertIntEQ(RSA_sign(NID_sha256, hash, SHA256_DIGEST_LENGTH, 
+    AssertIntEQ(RSA_sign(NID_sha256, hash, SHA256_DIGEST_LENGTH,
                             signature, &signatureLength, pKey), SSL_SUCCESS);
 
     /* read public key and verify signed data */
@@ -21532,7 +21560,7 @@ static void test_wolfSSL_RSA_verify()
     XFCLOSE(fp);
     evpPubkey = X509_get_pubkey(cert);
     pubKey = EVP_PKEY_get1_RSA(evpPubkey);
-    AssertIntEQ(RSA_verify(NID_sha256, hash, SHA256_DIGEST_LENGTH, signature, 
+    AssertIntEQ(RSA_verify(NID_sha256, hash, SHA256_DIGEST_LENGTH, signature,
                                 signatureLength, pubKey), SSL_SUCCESS);
 
     RSA_free(pKey);
@@ -21946,9 +21974,8 @@ void ApiTest(void)
     AssertIntEQ(test_wc_ed25519_export(), 0);
     AssertIntEQ(test_wc_ed25519_size(), 0);
     AssertIntEQ(test_wc_ed25519_exportKey(), 0);
-
     AssertIntEQ(test_wc_curve25519_init(), 0);
-
+    AssertIntEQ(test_wc_curve25519_size (), 0);
     AssertIntEQ(test_wc_ecc_make_key(), 0);
     AssertIntEQ(test_wc_ecc_init(), 0);
     AssertIntEQ(test_wc_ecc_check_key(), 0);
