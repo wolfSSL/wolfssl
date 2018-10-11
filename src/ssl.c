@@ -8880,7 +8880,12 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
     #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
         if (ssl->options.side == WOLFSSL_NEITHER_END) {
-            InitSSL_Side(ssl, WOLFSSL_CLIENT_END);
+            ssl->error = InitSSL_Side(ssl, WOLFSSL_CLIENT_END);
+            if (ssl->error != WOLFSSL_SUCCESS) {
+                WOLFSSL_ERROR(ssl->error);
+                return WOLFSSL_FATAL_ERROR;
+            }
+            ssl->error = 0; /* expected to be zero here */
         }
 
     #ifdef OPENSSL_EXTRA
@@ -9230,7 +9235,12 @@ int wolfSSL_DTLS_SetCookieSecret(WOLFSSL* ssl,
 
     #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
         if (ssl->options.side == WOLFSSL_NEITHER_END) {
-            InitSSL_Side(ssl, WOLFSSL_SERVER_END);
+            ssl->error = InitSSL_Side(ssl, WOLFSSL_SERVER_END);
+            if (ssl->error != WOLFSSL_SUCCESS) {
+                WOLFSSL_ERROR(ssl->error);
+                return WOLFSSL_FATAL_ERROR;
+            }
+            ssl->error = 0; /* expected to be zero here */
         }
     #endif /* OPENSSL_EXTRA || WOLFSSL_EITHER_SIDE */
 
