@@ -415,9 +415,9 @@ static const bench_alg bench_other_opt[] = {
 #endif
 
 static int lng_index = 0;
-static const char* bench_Usage_msg1[][11] = {
+static const char* bench_Usage_msg1[][10] = {
     /* 0 English  */
-    {"-?          Help, print this usage\n",
+    {   "-? <num>    Help, print this usage\n            0: English, 1: Japanese\n",
         "-csv        Print terminal output in csv format\n",
         "-base10     Display bytes as power of 10 (eg 1 kB = 1000 Bytes)\n",
         "-no_aad     No additional authentication data passed.\n",
@@ -427,10 +427,9 @@ static const char* bench_Usage_msg1[][11] = {
         "-<alg>      Algorithm to benchmark. Available algorithms include:\n",
         "-lng <num>  Display benchmark result by specified language.\n            0: English, 1: Japanese\n",
         "<num>       Size of block in bytes\n",
-        "\nNote:\n   benchmark -? 1 displays help in Japanese.\n"
     },
     /* 1 Japanese */
-    {"-?          ヘルプ, 使い方を表示します。\n",
+    {   "-? <num>    ヘルプ, 使い方を表示します。\n            0: 英語、 1: 日本語\n",
         "-csv        csv 形式で端末に出力します。\n",
         "-base10     バイトを10のべき乗で表示します。(例 1 kB = 1000 Bytes)\n",
         "-no_aad     追加の認証データを使用しません.\n",
@@ -440,7 +439,6 @@ static const char* bench_Usage_msg1[][11] = {
         "-<alg>      アルゴリズムのベンチマークを実施します。\n            利用可能なアルゴリズムは下記を含みます:\n",
         "-lng <num>  指定された言語でベンチマーク結果を表示します。\n            0: 英語、 1: 日本語\n",
         "<num>       ブロックサイズをバイト単位で指定します。\n",
-        "\nNote:\n   benchmark -? ヘルプを英語で表示します。\n"
     }, 
 };
 
@@ -5147,8 +5145,6 @@ static void Usage(void)
 #endif
     printf("%s", bench_Usage_msg1[lng_index][8]);    /* option -lng */
     printf("%s", bench_Usage_msg1[lng_index][9]);    /* option <num> */
-
-    printf("%s", bench_Usage_msg1[lng_index][10]);    /* usage another notification */
 }
 
 /* Match the command line argument with the string.
