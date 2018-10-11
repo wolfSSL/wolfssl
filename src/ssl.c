@@ -28342,7 +28342,7 @@ WOLFSSL_DSA* wolfSSL_PEM_read_bio_DSAPrivateKey(WOLFSSL_BIO* bio,
     WOLFSSL_ENTER("wolfSSL_PEM_read_bio_DSAPrivateKey");
     WOLFSSL_STUB("PEM_read_bio_DSAPrivateKey");
 
-    return WOLFSSL_FAILURE;
+    return NULL;
 }
 
 int wolfSSL_PEM_write_bio_DSA_PUBKEY(WOLFSSL_BIO* bio, WOLFSSL_DSA* dsa)
