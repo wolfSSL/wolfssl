@@ -448,7 +448,7 @@ static const char* bench_result_words1[][4] = {
 };
 
 #if defined(WOLFSSL_KEY_GEN) || defined(HAVE_NTRU) || \
-    defined(HAVE_ECC) || defined(HAVE_ECC) || defined(HAVE_ECC_ENCRYPT) || \
+    defined(HAVE_ECC) || !defined(NO_DH) || defined(HAVE_ECC_ENCRYPT) || \
     defined(HAVE_CURVE25519) || defined(HAVE_CURVE25519_SHARED_SECRET)  || \
     defined(HAVE_ED25519)
 
