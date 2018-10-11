@@ -1325,28 +1325,6 @@ then
   AM_CFLAGS="$AM_CFLAGS -DHAVE_X963_KDF"
 fi
 
-
-# DSA
-AC_ARG_ENABLE([dsa],
-    [AS_HELP_STRING([--enable-dsa],[Enable DSA (default: disabled)])],
-    [ ENABLED_DSA=$enableval ],
-    [ ENABLED_DSA=no ]
-    )
-
-if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WPAS" = "yes"
-then
-    ENABLED_DSA="yes"
-fi
-
-if test "$ENABLED_DSA" = "no"
-then
-    AM_CFLAGS="$AM_CFLAGS -DNO_DSA"
-fi
-
-AM_CONDITIONAL([BUILD_DSA], [test "x$ENABLED_DSA" = "xyes"])
-
-
-
 # ECC Shamir
 AC_ARG_ENABLE([eccshamir],
     [AS_HELP_STRING([--enable-eccshamir],[Enable ECC Shamir (default: enabled)])],
@@ -3185,7 +3163,8 @@ then
         ENABLED_OPENSSLEXTRA="yes"
         AM_CFLAGS="-DOPENSSL_EXTRA -DOPENSSL_ALL $AM_CFLAGS"
     fi
-    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_QT -DWOLFSSL_ALLOW_TLSV10"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_QT -DWOLFSSL_ALLOW_TLSV10 -DSESSION_CERTS"
+    AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ALLOW_SSLV3 -DWOLFSSL_KEY_GEN"
 
     # Requires OCSP make sure on
     if test "x$ENABLED_OCSP" = "xno"
@@ -3195,11 +3174,38 @@ then
         AM_CONDITIONAL([BUILD_OCSP], [test "x$ENABLED_OCSP" = "xyes"])
     fi
 
+    # Requires PSK make sure on
     if test "x$ENABLED_PSK" = "xno"
     then
        ENABLED_PSK="yes"
     fi
+    
+    # Requires DES3 make sure on
+    if test "x$ENABLED_DES3" = "xno"
+    then
+       ENABLED_DES3="yes"
+    fi
 fi
+
+# DSA
+AC_ARG_ENABLE([dsa],
+    [AS_HELP_STRING([--enable-dsa],[Enable DSA (default: disabled)])],
+    [ ENABLED_DSA=$enableval ],
+    [ ENABLED_DSA=no ]
+    )
+
+if test "$ENABLED_OPENSSH" = "yes" || test "$ENABLED_NGINX" = "yes" || test "$ENABLED_WPAS" = "yes" || test "$ENABLED_QT"
+then
+    ENABLED_DSA="yes"
+fi
+
+if test "$ENABLED_DSA" = "no"
+then
+    AM_CFLAGS="$AM_CFLAGS -DNO_DSA"
+fi
+
+AM_CONDITIONAL([BUILD_DSA], [test "x$ENABLED_DSA" = "xyes"])
+
 
 # Asio Support
 AC_ARG_ENABLE([asio],
