@@ -447,16 +447,18 @@ static const char* bench_result_words1[][4] = {
     { "を"   , "秒で処理", "1バイトあたりのサイクル数", NULL },     /* 1 Japanese */
 };
 
-static const char* bench_result_words2[][5] = {
-    { "ops took", "sec"     , "avg" , "ops/sec", NULL },            /* 0 English  */
-    { "回処理を", "秒で実施", "平均", "処理/秒", NULL },            /* 1 Japanese */
-};
+#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_NTRU) || \
+    defined(HAVE_ECC) || defined(HAVE_ECC) || defined(HAVE_ECC_ENCRYPT) || \
+    defined(HAVE_CURVE25519) || defined(HAVE_CURVE25519_SHARED_SECRET)  || \
+    defined(HAVE_ED25519)
 
 static const char* bench_desc_words[][9] = {
     /* 0           1          2         3        4        5         6            7            8 */
     {"public", "private", "key gen", "agree" , "sign", "verify", "encryption", "decryption", NULL}, /* 0 English */
     {"公開鍵", "秘密鍵" ,"鍵生成" , "鍵共有" , "署名", "検証"  , "暗号化"    , "復号化"    , NULL}, /* 1 Japanese */     
 };
+
+#endif
 
 #if defined(__GNUC__) && defined(__x86_64__) && !defined(NO_ASM) && !defined(WOLFSSL_SGX)
     #define HAVE_GET_CYCLES
@@ -567,6 +569,12 @@ static const char* bench_desc_words[][9] = {
     #define BENCH_ASYM
 #endif
 
+#if defined(BENCH_ASYM)
+static const char* bench_result_words2[][5] = {
+    { "ops took", "sec"     , "avg" , "ops/sec", NULL },            /* 0 English  */
+    { "回処理を", "秒で実施", "平均", "処理/秒", NULL },            /* 1 Japanese */
+};
+#endif
 
 /* Asynchronous helper macros */
 static THREAD_LS_T int devId = INVALID_DEVID;
