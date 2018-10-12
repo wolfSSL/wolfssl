@@ -391,35 +391,29 @@ static int PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
 
 int BuildTlsHandshakeHash(WOLFSSL* ssl, byte* hash, word32* hashLen)
 {
+    int ret = 0;
     word32 hashSz = FINISHED_SZ;
 
     if (ssl == NULL || hash == NULL || hashLen == NULL || *hashLen < HSHASH_SZ)
         return BAD_FUNC_ARG;
 
+    /* for constant timing perform these even if error */
 #ifndef NO_OLD_TLS
-    wc_Md5GetHash(&ssl->hsHashes->hashMd5, hash);
-    wc_ShaGetHash(&ssl->hsHashes->hashSha, &hash[WC_MD5_DIGEST_SIZE]);
+    ret |= wc_Md5GetHash(&ssl->hsHashes->hashMd5, hash);
+    ret |= wc_ShaGetHash(&ssl->hsHashes->hashSha, &hash[WC_MD5_DIGEST_SIZE]);
 #endif
 
     if (IsAtLeastTLSv1_2(ssl)) {
 #ifndef NO_SHA256
         if (ssl->specs.mac_algorithm <= sha256_mac ||
             ssl->specs.mac_algorithm == blake2b_mac) {
-            int ret = wc_Sha256GetHash(&ssl->hsHashes->hashSha256, hash);
-
-            if (ret != 0)
-                return ret;
-
+            ret |= wc_Sha256GetHash(&ssl->hsHashes->hashSha256, hash);
             hashSz = WC_SHA256_DIGEST_SIZE;
         }
 #endif
 #ifdef WOLFSSL_SHA384
         if (ssl->specs.mac_algorithm == sha384_mac) {
-            int ret = wc_Sha384GetHash(&ssl->hsHashes->hashSha384, hash);
-
-            if (ret != 0)
-                return ret;
-
+            ret |= wc_Sha384GetHash(&ssl->hsHashes->hashSha384, hash);
             hashSz = WC_SHA384_DIGEST_SIZE;
         }
 #endif
@@ -427,7 +421,10 @@ int BuildTlsHandshakeHash(WOLFSSL* ssl, byte* hash, word32* hashLen)
 
     *hashLen = hashSz;
 
-    return 0;
+    if (ret != 0)
+        ret = BUILD_MSG_ERROR;
+
+    return ret;
 }
 
 
