@@ -10913,7 +10913,7 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     }
 
     /* make sure async error is cleared */
-    if (ret == 0 && ssl->error == WC_PENDING_E) {
+    if (ret == 0 && (ssl->error == WC_PENDING_E || ssl->error == OCSP_WANT_READ)) {
         ssl->error = 0;
     }
 #endif /* WOLFSSL_ASYNC_CRYPT || WOLFSSL_NONBLOCK_OCSP */
