@@ -3680,7 +3680,11 @@ static int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
 {
 #ifndef WC_NO_RNG
     int err;
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
     DECLARE_VAR(buf, byte, ECC_MAXSIZE_GEN, rng->heap);
+#else
+    byte buf[ECC_MAXSIZE_GEN];
+#endif
 
     /*generate 8 extra bytes to mitigate bias from the modulo operation below*/
     /*see section A.1.2 in 'Suite B Implementor's Guide to FIPS 186-3 (ECDSA)'*/
@@ -3707,7 +3711,9 @@ static int wc_ecc_gen_k(WC_RNG* rng, int size, mp_int* k, mp_int* order)
     }
 
     ForceZero(buf, ECC_MAXSIZE);
+#if defined(WOLFSSL_ASYNC_CRYPT) && defined(WC_ASYNC_ENABLE_ECC)
     FREE_VAR(buf, rng->heap);
+#endif
 
     return err;
 #else
