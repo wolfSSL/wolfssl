@@ -5280,6 +5280,7 @@ int wc_PKCS7_AddRecipient_ORI(PKCS7* pkcs7, CallbackOriEncrypt oriEncryptCb,
                                         pkcs7->heap, DYNAMIC_TYPE_PKCS7);
     if (recip == NULL)
         return MEMORY_E;
+    XMEMSET(recip, 0, sizeof(Pkcs7EncodedRecip));
 
     /* get key size for content-encryption key based on algorithm */
     blockKeySz = wc_PKCS7_GetOIDKeySize(pkcs7->encryptOID);
@@ -9439,7 +9440,7 @@ static int wc_PKCS7_DecodeUnprotectedAttributes(PKCS7* pkcs7, byte* pkiMsg,
 int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
                                  byte* output, word32 outputSz)
 {
-    int ret = 0, version, length, haveAttribs;
+    int ret = 0, version, length, haveAttribs = 0;
     word32 idx = 0, tmpIdx = 0;
     word32 contentType, encOID;
 
@@ -9632,7 +9633,8 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
             expBlockSz = pkcs7->stream->varOne;
 
             /* use IV buffer from stream structure */
-            tmpIv = pkcs7->stream->tmpIv;
+            tmpIv  = pkcs7->stream->tmpIv;
+            length = pkcs7->stream->expected;
 #endif
             XMEMCPY(tmpIv, &pkiMsg[idx], length);
             idx += length;
@@ -9705,6 +9707,7 @@ int wc_PKCS7_DecodeEncryptedData(PKCS7* pkcs7, byte* in, word32 inSz,
             XMEMCPY(output, encryptedContent, encryptedContentSz - padLen);
 
             /* get implicit[1] unprotected attributes, optional */
+            wc_PKCS7_FreeDecodedAttrib(pkcs7->decodedAttrib, pkcs7->heap);
             pkcs7->decodedAttrib = NULL;
 #ifndef NO_PKCS7_STREAM
             if (pkcs7->stream->hasAtrib) {
