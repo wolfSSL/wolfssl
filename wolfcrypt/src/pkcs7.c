@@ -7181,7 +7181,7 @@ static int wc_PKCS7_DecryptPwri(PKCS7* pkcs7, byte* in, word32 inSz,
 
     byte tmpIv[MAX_CONTENT_IV_SIZE];
 
-    int ret = 0, length, saltSz, iterations, blockSz;
+    int ret = 0, length, saltSz, iterations, blockSz, kekKeySz;
     int hashOID = WC_SHA; /* default to SHA1 */
     word32 kdfAlgoId, pwriEncAlgoId, keyEncAlgoId, cekSz;
     byte* pkiMsg = in;
@@ -7262,6 +7262,13 @@ static int wc_PKCS7_DecryptPwri(PKCS7* pkcs7, byte* in, word32 inSz,
                 return blockSz;
             }
 
+            /* get content-encryption key size, based on algorithm */
+            kekKeySz = wc_PKCS7_GetOIDKeySize(pwriEncAlgoId);
+            if (kekKeySz < 0) {
+                XFREE(salt, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+                return kekKeySz;
+            }
+
             /* get block cipher IV, stored in OPTIONAL parameter of AlgoID */
             if ( (pkiMsgSz > ((*idx) + 1)) &&
                  (pkiMsg[(*idx)++] != ASN_OCTET_STRING) ) {
@@ -7304,7 +7311,7 @@ static int wc_PKCS7_DecryptPwri(PKCS7* pkcs7, byte* in, word32 inSz,
             }
 
             /* generate KEK */
-            kek = (byte*)XMALLOC(blockSz, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+            kek = (byte*)XMALLOC(kekKeySz, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
             if (kek == NULL) {
                 XFREE(salt, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 XFREE(cek, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -7313,7 +7320,7 @@ static int wc_PKCS7_DecryptPwri(PKCS7* pkcs7, byte* in, word32 inSz,
 
             ret = wc_PKCS7_GenerateKEK_PWRI(pkcs7, pkcs7->pass, pkcs7->passSz,
                                             salt, saltSz, kdfAlgoId, hashOID,
-                                            iterations, kek, blockSz);
+                                            iterations, kek, kekKeySz);
             if (ret < 0) {
                 XFREE(salt, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 XFREE(kek, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -7322,9 +7329,10 @@ static int wc_PKCS7_DecryptPwri(PKCS7* pkcs7, byte* in, word32 inSz,
             }
 
             /* decrypt CEK with KEK */
-            ret = wc_PKCS7_PwriKek_KeyUnWrap(pkcs7, kek, blockSz, pkiMsg + (*idx),
-                                               length, cek, cekSz, tmpIv,
-                                               blockSz, pwriEncAlgoId);
+            ret = wc_PKCS7_PwriKek_KeyUnWrap(pkcs7, kek, kekKeySz,
+                                             pkiMsg + (*idx), length, cek,
+                                             cekSz, tmpIv, blockSz,
+                                             pwriEncAlgoId);
             if (ret < 0) {
                 XFREE(salt, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
                 XFREE(kek, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
