@@ -8682,8 +8682,10 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
     #endif
         /* non-zero return code indicates failure override */
         if (ssl->verifyCallback(verify_ok, store)) {
-            WOLFSSL_MSG("Verify callback overriding error!");
-            ret = 0;
+            if (ret != 0) {
+                WOLFSSL_MSG("Verify callback overriding error!");
+                ret = 0;
+            }
         }
         else {
             /* induce error if one not present */
