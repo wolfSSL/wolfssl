@@ -572,6 +572,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
     int useX25519 = 0;
     int exitWithRet = 0;
+    int loadCertKeyIntoSSLObj = 0;
 
     ((func_args*)args)->return_code = -1; /* error state */
 
@@ -605,6 +606,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     (void)postHandAuth;
     (void)mcastID;
     (void)useX25519;
+    (void)loadCertKeyIntoSSLObj;
 
 #ifdef WOLFSSL_TIRTOS
     fdOpenSession(Task_self());
@@ -698,6 +700,13 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                     version = SERVER_DOWNGRADE_VERSION;
                     break;
                 }
+            #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
+                else if (myoptarg[0] == 'e') {
+                    version = EITHER_DOWNGRADE_VERSION;
+                    loadCertKeyIntoSSLObj = 1;
+                    break;
+                }
+            #endif
                 version = atoi(myoptarg);
                 if (version < 0 || version > 4) {
                     Usage();
@@ -721,6 +730,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 else if (XSTRNCMP(myoptarg, "verifyFail", 10) == 0) {
                     printf("Verify should fail\n");
                     myVerifyFail = 1;
+                }
+                else if (XSTRNCMP(myoptarg, "loadSSL", 7) == 0) {
+                    printf("Load cert/key into wolfSSL object\n");
+                    loadCertKeyIntoSSLObj = 1;
                 }
                 else {
                     Usage();
@@ -944,6 +957,10 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         if (doDTLS) {
             if (version == 3)
                 version = -2;
+        #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
+            else if (version == EITHER_DOWNGRADE_VERSION)
+                version = -3;
+        #endif
             else
                 version = -1;
         }
@@ -991,6 +1008,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         case SERVER_DOWNGRADE_VERSION:
             method = wolfSSLv23_server_method_ex;
             break;
+    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
+        case EITHER_DOWNGRADE_VERSION:
+            method = wolfSSLv23_method_ex;
+            break;
+    #endif
 #endif /* NO_TLS */
 
 #ifdef WOLFSSL_DTLS
@@ -1003,6 +1025,11 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     #ifndef WOLFSSL_NO_TLS12
         case -2:
             method = wolfDTLSv1_2_server_method_ex;
+            break;
+    #endif
+    #if defined(OPENSSL_EXTRA) || defined(WOLFSSL_EITHER_SIDE)
+        case -3:
+            method = wolfDTLSv1_2_method_ex;
             break;
     #endif
 #endif
@@ -1079,8 +1106,8 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
 
 #if !defined(NO_CERTS)
-    if ((!usePsk || usePskPlus) && !useAnon) {
-    #if !defined(NO_FILESYSTEM)
+    if ((!usePsk || usePskPlus) && !useAnon && !loadCertKeyIntoSSLObj) {
+    #ifndef TEST_LOAD_BUFFER
         if (SSL_CTX_use_certificate_chain_file(ctx, ourCert)
                                          != WOLFSSL_SUCCESS)
             err_sys_ex(runWithErrors, "can't load server cert file, check file and run from"
@@ -1117,14 +1144,15 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     }
 #endif
 #if !defined(NO_CERTS)
-#ifdef HAVE_PK_CALLBACKS
-    pkCbInfo.ourKey = ourKey;
-    #ifdef TEST_PK_PRIVKEY
-    if (!pkCallbacks)
+    #ifdef HAVE_PK_CALLBACKS
+        pkCbInfo.ourKey = ourKey;
     #endif
-#endif
-    if (!useNtruKey && (!usePsk || usePskPlus) && !useAnon) {
-    #if !defined(NO_FILESYSTEM)
+    if (!useNtruKey && (!usePsk || usePskPlus) && !useAnon && !loadCertKeyIntoSSLObj
+    #if defined(HAVE_PK_CALLBACKS) && defined(TEST_PK_PRIVKEY)
+        && !pkCallbacks
+    #endif /* HAVE_PK_CALLBACKS && TEST_PK_PRIVKEY */
+    ) {
+    #ifndef TEST_LOAD_BUFFER
         if (SSL_CTX_use_PrivateKey_file(ctx, ourKey, WOLFSSL_FILETYPE_PEM)
                                          != WOLFSSL_SUCCESS)
             err_sys_ex(runWithErrors, "can't load server private key file, check file and run "
@@ -1282,6 +1310,37 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
         #ifdef OPENSSL_EXTRA
         wolfSSL_KeepArrays(ssl);
         #endif
+
+    /* Support for loading private key and cert using WOLFSSL object */
+#if !defined(NO_CERTS)
+    if ((!usePsk || usePskPlus) && !useAnon && loadCertKeyIntoSSLObj) {
+    #ifndef TEST_LOAD_BUFFER
+        if (SSL_use_certificate_chain_file(ssl, ourCert)
+                                         != WOLFSSL_SUCCESS)
+            err_sys_ex(runWithErrors, "can't load server cert file, check file and run from"
+                    " wolfSSL home dir");
+    #else
+        /* loads cert chain file using buffer API */
+        load_ssl_buffer(ssl, ourCert, WOLFSSL_CERT_CHAIN);
+    #endif
+    }
+
+    if (!useNtruKey && (!usePsk || usePskPlus) && !useAnon && loadCertKeyIntoSSLObj
+    #if defined(HAVE_PK_CALLBACKS) && defined(TEST_PK_PRIVKEY)
+        && !pkCallbacks
+    #endif /* HAVE_PK_CALLBACKS && TEST_PK_PRIVKEY */
+    ) {
+    #ifndef TEST_LOAD_BUFFER
+        if (SSL_use_PrivateKey_file(ssl, ourKey, WOLFSSL_FILETYPE_PEM)
+                                         != WOLFSSL_SUCCESS)
+            err_sys_ex(runWithErrors, "can't load server private key file, check file and run "
+                "from wolfSSL home dir");
+    #else
+        /* loads private key file using buffer API */
+        load_ssl_buffer(ssl, ourKey, WOLFSSL_KEY);
+    #endif
+    }
+#endif /* !NO_CERTS */
 
 #ifdef WOLFSSL_SEND_HRR_COOKIE
         if (hrrCookie && wolfSSL_send_hrr_cookie(ssl, NULL, 0) != WOLFSSL_SUCCESS) {

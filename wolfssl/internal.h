@@ -1586,6 +1586,9 @@ typedef struct Suites Suites;
 /* defaults to client */
 WOLFSSL_LOCAL void InitSSL_Method(WOLFSSL_METHOD*, ProtocolVersion);
 
+WOLFSSL_LOCAL int InitSSL_Suites(WOLFSSL* ssl);
+WOLFSSL_LOCAL int InitSSL_Side(WOLFSSL* ssl, word16 side);
+
 /* for sniffer */
 WOLFSSL_LOCAL int DoFinished(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
                             word32 size, word32 totalSz, int sniff);
@@ -3466,7 +3469,7 @@ typedef struct DtlsMsg {
     DtlsFrag*       fragList;
     word32          fragSz;    /* Length of fragments received */
     word32          seq;       /* Handshake sequence number    */
-    word32          sz;        /* Length of whole mesage       */
+    word32          sz;        /* Length of whole message      */
     byte            type;
 } DtlsMsg;
 
@@ -3527,7 +3530,7 @@ typedef struct HS_Hashes {
 #endif
 #if defined(HAVE_ED25519) && !defined(WOLFSSL_NO_CLIENT_AUTH)
     byte*           messages;           /* handshake messages */
-    int             length;             /* length of handhsake messages' data */
+    int             length;             /* length of handshake messages' data */
     int             prevLen;            /* length of messages but last */
 #endif
 } HS_Hashes;
