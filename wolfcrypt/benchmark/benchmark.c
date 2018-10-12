@@ -447,7 +447,7 @@ static const char* bench_result_words1[][4] = {
     { "を"   , "秒で処理", "1バイトあたりのサイクル数", NULL },     /* 1 Japanese */
 };
 
-#if defined(WOLFSSL_KEY_GEN) || defined(HAVE_NTRU) || \
+#if !defined(NO_RSA)  ||defined(WOLFSSL_KEY_GEN) || defined(HAVE_NTRU) || \
     defined(HAVE_ECC) || !defined(NO_DH) || defined(HAVE_ECC_ENCRYPT) || \
     defined(HAVE_CURVE25519) || defined(HAVE_CURVE25519_SHARED_SECRET)  || \
     defined(HAVE_ED25519)
