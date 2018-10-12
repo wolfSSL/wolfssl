@@ -269,7 +269,13 @@ static int doPRF(byte* digest, word32 digLen, const byte* secret,word32 secLen,
     byte  md5_result[MAX_PRF_DIG];    /* digLen is real size */
     byte  sha_result[MAX_PRF_DIG];    /* digLen is real size */
 #endif
+#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
     DECLARE_VAR(labelSeed, byte, MAX_PRF_LABSEED, heap);
+    if (labelSeed == NULL)
+        return MEMORY_E;
+#else
+    byte labelSeed[MAX_PRF_LABSEED];
+#endif
 
     if (half > MAX_PRF_HALF)
         return BUFFER_E;
@@ -320,7 +326,9 @@ static int doPRF(byte* digest, word32 digLen, const byte* secret,word32 secLen,
     XFREE(sha_result, heap, DYNAMIC_TYPE_DIGEST);
 #endif
 
+#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
     FREE_VAR(labelSeed, heap);
+#endif
 
     return ret;
 }
@@ -339,8 +347,10 @@ static int PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
     int ret = 0;
 
     if (useAtLeastSha256) {
-    #ifndef WC_ASYNC_NO_HASH
+    #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
         DECLARE_VAR(labelSeed, byte, MAX_PRF_LABSEED, heap);
+        if (labelSeed == NULL)
+            return MEMORY_E;
     #else
         byte labelSeed[MAX_PRF_LABSEED];
     #endif
@@ -358,7 +368,7 @@ static int PRF(byte* digest, word32 digLen, const byte* secret, word32 secLen,
         ret = p_hash(digest, digLen, secret, secLen, labelSeed,
                      labLen + seedLen, hash_type, heap, devId);
 
-    #ifndef WC_ASYNC_NO_HASH
+    #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
         FREE_VAR(labelSeed, heap);
     #endif
     }
@@ -423,19 +433,20 @@ int BuildTlsHandshakeHash(WOLFSSL* ssl, byte* hash, word32* hashLen)
 
 int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
 {
-    int         ret;
+    int ret;
     const byte* side;
-    byte*       handshake_hash;
-    word32      hashSz = HSHASH_SZ;
-
-    /* using allocate here to allow async hardware to use buffer directly */
-    handshake_hash = (byte*)XMALLOC(hashSz, ssl->heap, DYNAMIC_TYPE_DIGEST);
+    word32 hashSz = HSHASH_SZ;
+#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
+    DECLARE_VAR(handshake_hash, byte, HSHASH_SZ, ssl->heap);
     if (handshake_hash == NULL)
         return MEMORY_E;
+#else
+    byte handshake_hash[HSHASH_SZ];
+#endif
 
     ret = BuildTlsHandshakeHash(ssl, handshake_hash, &hashSz);
     if (ret == 0) {
-        if ( XSTRNCMP((const char*)sender, (const char*)client, SIZEOF_SENDER) == 0)
+        if (XSTRNCMP((const char*)sender, (const char*)client, SIZEOF_SENDER) == 0)
             side = tls_client;
         else
             side = tls_server;
@@ -446,7 +457,9 @@ int BuildTlsFinished(WOLFSSL* ssl, Hashes* hashes, const byte* sender)
                    ssl->heap, ssl->devId);
     }
 
-    XFREE(handshake_hash, ssl->heap, DYNAMIC_TYPE_DIGEST);
+#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
+    FREE_VAR(handshake_hash, ssl->heap);
+#endif
 
     return ret;
 }
@@ -523,8 +536,10 @@ static int _DeriveTlsKeys(byte* key_dig, word32 key_dig_len,
                          void* heap, int devId)
 {
     int ret;
-#ifndef WC_ASYNC_NO_HASH
+#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
     DECLARE_VAR(seed, byte, SEED_LEN, heap);
+    if (seed == NULL)
+        return MEMORY_E;
 #else
     byte seed[SEED_LEN];
 #endif
@@ -535,7 +550,7 @@ static int _DeriveTlsKeys(byte* key_dig, word32 key_dig_len,
     ret = PRF(key_dig, key_dig_len, ms, msLen, key_label, KEY_LABEL_SZ,
                seed, SEED_LEN, tls1_2, hash_type, heap, devId);
 
-#ifndef WC_ASYNC_NO_HASH
+#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
     FREE_VAR(seed, heap);
 #endif
 
@@ -593,13 +608,26 @@ static int _MakeTlsMasterSecret(byte* ms, word32 msLen,
                                int tls1_2, int hash_type,
                                void* heap, int devId)
 {
-    byte  seed[SEED_LEN];
+    int ret;
+#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
+    DECLARE_VAR(seed, byte, SEED_LEN, heap);
+    if (seed == NULL)
+        return MEMORY_E;
+#else
+    byte seed[SEED_LEN];
+#endif
 
     XMEMCPY(seed,           cr, RAN_LEN);
     XMEMCPY(seed + RAN_LEN, sr, RAN_LEN);
 
-    return PRF(ms, msLen, pms, pmsLen, master_label, MASTER_LABEL_SZ,
+    ret = PRF(ms, msLen, pms, pmsLen, master_label, MASTER_LABEL_SZ,
                seed, SEED_LEN, tls1_2, hash_type, heap, devId);
+
+#if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
+    FREE_VAR(seed, heap);
+#endif
+
+    return ret;
 }
 
 /* External facing wrapper so user can call as well, 0 on success */
@@ -640,39 +668,43 @@ int wolfSSL_MakeTlsExtendedMasterSecret(byte* ms, word32 msLen,
 
 int MakeTlsMasterSecret(WOLFSSL* ssl)
 {
-    int    ret;
+    int ret;
+
 #ifdef HAVE_EXTENDED_MASTER
     if (ssl->options.haveEMS) {
-        byte*  handshake_hash;
         word32 hashSz = HSHASH_SZ;
-
-        handshake_hash = (byte*)XMALLOC(HSHASH_SZ, ssl->heap,
-                                        DYNAMIC_TYPE_DIGEST);
+    #ifdef WOLFSSL_SMALL_STACK
+        byte* handshake_hash = (byte*)XMALLOC(HSHASH_SZ, ssl->heap,
+                                              DYNAMIC_TYPE_DIGEST);
         if (handshake_hash == NULL)
             return MEMORY_E;
+    #else
+        byte handshake_hash[HSHASH_SZ];
+    #endif
 
         ret = BuildTlsHandshakeHash(ssl, handshake_hash, &hashSz);
-        if (ret < 0) {
-            XFREE(handshake_hash, ssl->heap, DYNAMIC_TYPE_DIGEST);
-            return ret;
-        }
-
-        ret = _MakeTlsExtendedMasterSecret(
+        if (ret == 0) {
+            ret = _MakeTlsExtendedMasterSecret(
                 ssl->arrays->masterSecret, SECRET_LEN,
                 ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz,
                 handshake_hash, hashSz,
                 IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm,
                 ssl->heap, ssl->devId);
+        }
 
+    #ifdef WOLFSSL_SMALL_STACK
         XFREE(handshake_hash, ssl->heap, DYNAMIC_TYPE_DIGEST);
-    } else
-#endif
-    ret = _MakeTlsMasterSecret(ssl->arrays->masterSecret, SECRET_LEN,
+    #endif
+    }
+    else
+#endif /* HAVE_EXTENDED_MASTER */
+    {
+        ret = _MakeTlsMasterSecret(ssl->arrays->masterSecret, SECRET_LEN,
               ssl->arrays->preMasterSecret, ssl->arrays->preMasterSz,
               ssl->arrays->clientRandom, ssl->arrays->serverRandom,
               IsAtLeastTLSv1_2(ssl), ssl->specs.mac_algorithm,
               ssl->heap, ssl->devId);
-
+    }
     if (ret == 0) {
     #ifdef SHOW_SECRETS
         int i;
@@ -681,7 +713,7 @@ int MakeTlsMasterSecret(WOLFSSL* ssl)
         for (i = 0; i < SECRET_LEN; i++)
             printf("%02x", ssl->arrays->masterSecret[i]);
         printf("\n");
-    #endif
+        #endif
 
         ret = DeriveTlsKeys(ssl);
     }
