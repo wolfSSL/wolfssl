@@ -1507,6 +1507,7 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
 
     /* Verify Callback Arguments:
      * preverify:           1=Verify Okay, 0=Failure
+     * store->error:        Failure error code (0 indicates no failure)
      * store->current_cert: Current WOLFSSL_X509 object (only with OPENSSL_EXTRA)
      * store->error_depth:  Current Index
      * store->domain:       Subject CN as string (null term)
@@ -1549,12 +1550,18 @@ static WC_INLINE int myVerify(int preverify, WOLFSSL_X509_STORE_CTX* store)
 
     printf("\tSubject's domain name at %d is %s\n", store->error_depth, store->domain);
 
-    printf("\tAllowing to continue anyway (shouldn't do this)\n");
+    /* Testing forced fail case by return zero */
+    if (myVerifyFail) {
+        return 0; /* test failure case */
+    }
+
+    /* If error indicate we are overriding it for testing purposes */
+    if (store->error != 0) {
+        printf("\tAllowing failed certificate check, testing only "
+            "(shouldn't do this in production)\n");
+    }
 
     /* A non-zero return code indicates failure override */
-    if (myVerifyFail)
-        return 0; /* test failure case */
-
     return 1;
 }
 
