@@ -663,6 +663,7 @@ typedef struct Pkcs7EncodedRecip {
     byte recip[MAX_RECIP_SZ];
     word32 recipSz;
     int recipType;
+    int recipVersion;
     Pkcs7EncodedRecip* next;
 } Pkcs7EncodedRecip;
 
@@ -732,6 +733,51 @@ static void wc_PKCS7_FreeEncodedRecipientSet(PKCS7* pkcs7)
     }
 
     return;
+}
+
+
+/* search through RecipientInfo list for specific type.
+ * return 1 if ANY recipient of type specified is present, otherwise
+ * return 0 */
+static int wc_PKCS7_RecipientListIncludesType(PKCS7* pkcs7, int type)
+{
+    Pkcs7EncodedRecip* tmp = NULL;
+
+    if (pkcs7 == NULL)
+        return BAD_FUNC_ARG;
+
+    tmp = pkcs7->recipList;
+
+    while (tmp != NULL) {
+        if (tmp->recipType == type)
+            return 1;
+
+        tmp = tmp->next;
+    }
+
+    return 0;
+}
+
+
+/* searches through RecipientInfo list, returns 1 if all structure
+ * versions are set to 0, otherwise returns 0 */
+static int wc_PKCS7_RecipientListVersionsAllZero(PKCS7* pkcs7)
+{
+    Pkcs7EncodedRecip* tmp = NULL;
+
+    if (pkcs7 == NULL)
+        return BAD_FUNC_ARG;
+
+    tmp = pkcs7->recipList;
+
+    while (tmp != NULL) {
+        if (tmp->recipVersion != 0)
+            return 0;
+
+        tmp = tmp->next;
+    }
+
+    return 1;
 }
 
 
@@ -3829,6 +3875,12 @@ static int wc_PKCS7_KariParseRecipCert(WC_PKCS7_KARI* kari, const byte* cert,
     if (ret < 0)
         return ret;
 
+    /* only supports ECDSA for now */
+    if (kari->decoded->keyOID != ECDSAk) {
+        WOLFSSL_MSG("CMS KARI only supports ECDSA key types");
+        return BAD_FUNC_ARG;
+    }
+
     /* make sure subject key id was read from cert */
     if (kari->decoded->extSubjKeyIdSet == 0) {
         WOLFSSL_MSG("Failed to read subject key ID from recipient cert");
@@ -4142,6 +4194,7 @@ int wc_PKCS7_AddRecipient_KARI(PKCS7* pkcs7, const byte* cert, word32 certSz,
 
     int ret = 0;
     int keySz, direction = 0;
+    int blockKeySz = 0;
 
     /* ASN.1 layout */
     int totalSz = 0;
@@ -4204,14 +4257,24 @@ int wc_PKCS7_AddRecipient_KARI(PKCS7* pkcs7, const byte* cert, word32 certSz,
     }
     XMEMSET(recip, 0, sizeof(Pkcs7EncodedRecip));
 
-    /* only supports ECDSA for now */
-    if (pkcs7->publicKeyOID != ECDSAk) {
-        WOLFSSL_MSG("CMS KARI only supports ECDSA key types");
+    /* get key size for content-encryption key based on algorithm */
+    blockKeySz = wc_PKCS7_GetOIDKeySize(pkcs7->encryptOID);
+    if (blockKeySz < 0) {
 #ifdef WOLFSSL_SMALL_STACK
         XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
         XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
-        return BAD_FUNC_ARG;
+        return blockKeySz;
+    }
+
+    /* generate random content encryption key, if needed */
+    ret = PKCS7_GenerateContentEncryptionKey(pkcs7, blockKeySz);
+    if (ret < 0) {
+#ifdef WOLFSSL_SMALL_STACK
+        XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_TMP_BUFFER);
+#endif
+        XFREE(recip, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
+        return ret;
     }
 
     /* set direction based on keyWrapAlgo */
@@ -4375,6 +4438,7 @@ int wc_PKCS7_AddRecipient_KARI(PKCS7* pkcs7, const byte* cert, word32 certSz,
     /* version, always 3 */
     verSz = SetMyVersion(3, ver, 0);
     totalSz += verSz;
+    recip->recipVersion = 3;
 
     /* outer IMPLICIT [1] kari */
     kariSeqSz = SetImplicit(ASN_SEQUENCE, 1, totalSz, kariSeq);
@@ -4608,6 +4672,7 @@ int wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert, word32 certSz,
 
         /* version, must be 0 for IssuerAndSerialNumber */
         verSz = SetMyVersion(0, ver, 0);
+        recip->recipVersion = 0;
 
         /* IssuerAndSerialNumber */
         if (decoded->issuerRaw == NULL || decoded->issuerRawLen == 0) {
@@ -4647,6 +4712,7 @@ int wc_PKCS7_AddRecipient_KTRI(PKCS7* pkcs7, const byte* cert, word32 certSz,
 
         /* version, must be 2 for SubjectKeyIdentifier */
         verSz = SetMyVersion(2, ver, 0);
+        recip->recipVersion = 2;
 
         issuerSKIDSz = SetOctetString(KEYID_SIZE, issuerSKID);
         issuerSKIDSeqSz = SetExplicit(0, issuerSKIDSz + KEYID_SIZE,
@@ -5327,6 +5393,7 @@ int wc_PKCS7_AddRecipient_ORI(PKCS7* pkcs7, CallbackOriEncrypt oriEncryptCb,
     /* store recipient size */
     recip->recipSz = idx;
     recip->recipType = PKCS7_ORI;
+    recip->recipVersion = 4;
 
     /* add recipient to recip list */
     if (pkcs7->recipList == NULL) {
@@ -5756,6 +5823,7 @@ int wc_PKCS7_AddRecipient_PWRI(PKCS7* pkcs7, byte* passwd, word32 pLen,
     /* set PasswordRecipientInfo CMSVersion, MUST be 0 */
     verSz = SetMyVersion(0, ver, 0);
     totalSz += verSz;
+    recip->recipVersion = 0;
 
     /* set PasswordRecipientInfo SEQ */
     recipSeqSz = SetImplicit(ASN_SEQUENCE, 3, totalSz, recipSeq);
@@ -5974,6 +6042,7 @@ int wc_PKCS7_AddRecipient_KEKRI(PKCS7* pkcs7, int keyWrapOID, byte* kek,
     /* version */
     verSz = SetMyVersion(4, ver, 0);
     totalSz += verSz;
+    recip->recipVersion = 4;
 
     /* KEKRecipientInfo SEQ */
     recipSeqSz = SetImplicit(ASN_SEQUENCE, 2, totalSz, recipSeq);
@@ -6035,6 +6104,47 @@ int wc_PKCS7_AddRecipient_KEKRI(PKCS7* pkcs7, int keyWrapOID, byte* kek,
 }
 
 
+static int wc_PKCS7_GetCMSVersion(PKCS7* pkcs7, int cmsContentType)
+{
+    int version = -1;
+
+    if (pkcs7 == NULL)
+        return BAD_FUNC_ARG;
+
+    switch (cmsContentType) {
+        case ENVELOPED_DATA:
+
+            /* NOTE: EnvelopedData does not currently support
+               originatorInfo or unprotectedAttributes. When either of these
+               are added, version checking below needs to be updated to match
+               Section 6.1 of RFC 5652 */
+
+            /* if RecipientInfos include pwri or ori, version is 3 */
+            if (wc_PKCS7_RecipientListIncludesType(pkcs7, PKCS7_PWRI) ||
+                wc_PKCS7_RecipientListIncludesType(pkcs7, PKCS7_ORI)) {
+                version = 3;
+                break;
+            }
+
+            /* if unprotectedAttrs is absent AND all RecipientInfo structs
+               are version 0, version is 0 */
+            if (wc_PKCS7_RecipientListVersionsAllZero(pkcs7)) {
+                version = 0;
+                break;
+            }
+
+            /* otherwise, version is 2 */
+            version = 2;
+            break;
+
+        default:
+            break;
+    }
+
+    return version;
+}
+
+
 /* build PKCS#7 envelopedData content type, return enveloped size */
 int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
 {
@@ -6046,6 +6156,7 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
     byte outerContentType[MAX_ALGO_SZ];
     byte outerContent[MAX_SEQ_SZ];
 
+    int kariVersion;
     int envDataSeqSz, verSz;
     byte envDataSeq[MAX_SEQ_SZ];
     byte ver[MAX_VERSION_SZ];
@@ -6089,16 +6200,6 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         return ret;
 
     outerContentTypeSz = ret;
-
-    /* version, defined as 0 in RFC 2315 */
-#ifdef HAVE_ECC
-    if (pkcs7->publicKeyOID == ECDSAk) {
-        verSz = SetMyVersion(2, ver, 0);
-    } else
-#endif
-    {
-        verSz = SetMyVersion(0, ver, 0);
-    }
 
     /* generate random content encryption key */
     ret = PKCS7_GenerateContentEncryptionKey(pkcs7, blockKeySz);
@@ -6145,6 +6246,15 @@ int wc_PKCS7_EncodeEnvelopedData(PKCS7* pkcs7, byte* output, word32 outputSz)
         return PKCS7_RECIP_E;
     }
     recipSetSz = SetSet(recipSz, recipSet);
+
+    /* version, defined in Section 6.1 of RFC 5652 */
+    kariVersion = wc_PKCS7_GetCMSVersion(pkcs7, ENVELOPED_DATA);
+    if (kariVersion < 0) {
+        WOLFSSL_MSG("Failed to set CMS EnvelopedData version");
+        return PKCS7_RECIP_E;
+    }
+
+    verSz = SetMyVersion(kariVersion, ver, 0);
 
     ret = wc_InitRng_ex(&rng, pkcs7->heap, pkcs7->devId);
     if (ret != 0)
@@ -6477,6 +6587,7 @@ static int wc_PKCS7_DecryptKtri(PKCS7* pkcs7, byte* in, word32 inSz,
             pkcs7->stream->expected = encryptedKeySz;
         #endif
             wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_DECRYPT_KTRI_3);
+            FALL_THROUGH;
 
         case WC_PKCS7_DECRYPT_KTRI_3:
         #ifndef NO_PKCS7_STREAM
@@ -7950,9 +8061,11 @@ static int wc_PKCS7_ParseToRecipientInfoSet(PKCS7* pkcs7, byte* in,
 
             if (type == ENVELOPED_DATA) {
                 /* TODO :: make this more accurate */
-                if ((pkcs7->publicKeyOID == RSAk && version != 0)
+                if ((pkcs7->publicKeyOID == RSAk &&
+                     (version != 0 && version != 2))
                 #ifdef HAVE_ECC
-                        || (pkcs7->publicKeyOID == ECDSAk && version != 2)
+                        || (pkcs7->publicKeyOID == ECDSAk &&
+                            (version != 0 && version != 2 && version != 3))
                 #endif
                         ) {
                     WOLFSSL_MSG("PKCS#7 envelopedData version incorrect");
