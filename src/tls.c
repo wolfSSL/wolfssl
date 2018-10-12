@@ -3627,8 +3627,13 @@ static int TLSX_SupportedCurve_Parse(WOLFSSL* ssl, byte* input, word16 length,
     word16 name;
     int ret;
 
-    if(!isRequest && !IsAtLeastTLSv1_3(ssl->version))
+    if(!isRequest && !IsAtLeastTLSv1_3(ssl->version)) {
+#ifdef WOLFSSL_ALLOW_SERVER_SC_EXT
+        return 0;
+#else
         return BUFFER_ERROR; /* servers doesn't send this extension. */
+#endif
+    }
 
     if (OPAQUE16_LEN > length || length % OPAQUE16_LEN)
         return BUFFER_ERROR;
