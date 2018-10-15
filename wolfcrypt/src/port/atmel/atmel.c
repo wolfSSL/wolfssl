@@ -455,6 +455,9 @@ void atmel_finish(void)
 /* Reference PK Callbacks */
 #ifdef HAVE_PK_CALLBACKS
 
+/**
+ * \brief Used on the server-side only for creating the ephemeral key for ECDH
+ */
 int atcatls_create_key_cb(WOLFSSL* ssl, ecc_key* key, word32 keySz,
     int ecc_curve, void* ctx)
 {
@@ -467,36 +470,49 @@ int atcatls_create_key_cb(WOLFSSL* ssl, ecc_key* key, word32 keySz,
     (void)ssl;
     (void)ctx;
 
-    /* only supports P-256 */
-    if (ecc_curve != ECC_SECP256R1 && keySz != ATECC_PUBKEY_SIZE/2) {
-        return BAD_FUNC_ARG;
-    }
+    /* ATECC508A only supports P-256 */
+    if (ecc_curve == ECC_SECP256R1) {
+        slotId = atmel_ecc_alloc(ATMEL_SLOT_ECDHE);
+        if (slotId == ATECC_INVALID_SLOT)
+            return WC_HW_WAIT_E;
 
-    slotId = atmel_ecc_alloc(ATMEL_SLOT_ECDHE);
-    if (slotId == ATECC_INVALID_SLOT)
-        return WC_HW_WAIT_E;
+        /* generate new ephemeral key on device */
+        ret = atmel_ecc_create_key(slotId, peerKey);
 
-    /* generate new ephemeral key on device */
-    ret = atmel_ecc_create_key(slotId, peerKey);
+        /* load generated ECC508A public key into key, used by wolfSSL */
+        if (ret == 0) {
+            ret = wc_ecc_import_unsigned(key, qx, qy, NULL, ECC_SECP256R1);
+        }
 
-    /* load generated ECC508A public key into key, used by wolfSSL */
-    if (ret == 0) {
-        ret = wc_ecc_import_unsigned(key, qx, qy, NULL, ECC_SECP256R1);
-    }
-
-    if (ret == 0) {
-        key->slot = slotId;
+        if (ret == 0) {
+            key->slot = slotId;
+        }
+        else {
+            atmel_ecc_free(slotId);
+        #ifdef WOLFSSL_ATECC508A_DEBUG
+            printf("atcatls_create_key_cb: ret %d\n", ret);
+        #endif
+        }
     }
     else {
-        atmel_ecc_free(slotId);
-    #ifdef WOLFSSL_ATECC508A_DEBUG
-        printf("atcatls_create_key_cb: ret %d\n", ret);
-    #endif
+    #ifndef WOLFSSL_ATECC508A_NOSOFTECC
+        /* use software for non P-256 cases */
+        WC_RNG rng;
+        ret = wc_InitRng(&rng);
+        if (ret == 0) {
+            ret = wc_ecc_make_key_ex(&rng, keySz, key, ecc_curve);
+            wc_FreeRng(&rng);
+        }
+    #else
+        ret = NOT_COMPILED_IN;
+    #endif /* !WOLFSSL_ATECC508A_NOSOFTECC */
     }
-
     return ret;
 }
 
+/**
+ * \brief Creates a shared secret using a peer public key and a device key
+ */
 int atcatls_create_pms_cb(WOLFSSL* ssl, ecc_key* otherKey,
         unsigned char* pubKeyDer, unsigned int* pubKeySz,
         unsigned char* out, unsigned int* outlen,
@@ -523,50 +539,106 @@ int atcatls_create_pms_cb(WOLFSSL* ssl, ecc_key* otherKey,
         return ret;
     }
 
-    XMEMSET(peerKey, 0, ATECC_PUBKEY_SIZE);
+    /* ATECC508A only supports P-256 */
+    if (otherKey->dp->id == ECC_SECP256R1) {
+        XMEMSET(peerKey, 0, ATECC_PUBKEY_SIZE);
 
-    /* for client: create and export public key */
-    if (side == WOLFSSL_CLIENT_END) {
-        int slotId = atmel_ecc_alloc(ATMEL_SLOT_ECDHE);
-        if (slotId == ATECC_INVALID_SLOT)
-            return WC_HW_WAIT_E;
-        tmpKey.slot = slotId;
+        /* for client: create and export public key */
+        if (side == WOLFSSL_CLIENT_END) {
+            int slotId = atmel_ecc_alloc(ATMEL_SLOT_ECDHE);
+            if (slotId == ATECC_INVALID_SLOT)
+                return WC_HW_WAIT_E;
+            tmpKey.slot = slotId;
 
-        /* generate new ephemeral key on device */
-        ret = atmel_ecc_create_key(slotId, peerKey);
-        if (ret != ATCA_SUCCESS) {
+            /* generate new ephemeral key on device */
+            ret = atmel_ecc_create_key(slotId, peerKey);
+            if (ret != ATCA_SUCCESS) {
+                goto exit;
+            }
+
+            /* convert raw unsigned public key to X.963 format for TLS */
+            ret = wc_ecc_import_unsigned(&tmpKey, qx, qy, NULL, ECC_SECP256R1);
+            if (ret == 0) {
+                ret = wc_ecc_export_x963(&tmpKey, pubKeyDer, pubKeySz);
+            }
+
+            /* export peer's key as raw unsigned for hardware */
+            if (ret == 0) {
+                ret = wc_ecc_export_public_raw(otherKey, qx, &qxLen, qy, &qyLen);
+            }
+        }
+
+        /* for server: import public key */
+        else if (side == WOLFSSL_SERVER_END) {
+            tmpKey.slot = otherKey->slot;
+
+            /* import peer's key and export as raw unsigned for hardware */
+            ret = wc_ecc_import_x963_ex(pubKeyDer, *pubKeySz, &tmpKey, ECC_SECP256R1);
+            if (ret == 0) {
+                ret = wc_ecc_export_public_raw(&tmpKey, qx, &qxLen, qy, &qyLen);
+            }
+        }
+        else {
+            ret = BAD_FUNC_ARG;
+        }
+
+        if (ret != 0) {
             goto exit;
         }
 
-        /* convert raw unsigned public key to X.963 format for TLS */
-        ret = wc_ecc_import_unsigned(&tmpKey, qx, qy, NULL, ECC_SECP256R1);
-        if (ret == 0) {
-            ret = wc_ecc_export_x963(&tmpKey, pubKeyDer, pubKeySz);
-        }
-    }
+        ret = atmel_ecc_create_pms(tmpKey.slot, peerKey, out);
+        *outlen = ATECC_SIG_SIZE;
 
-    /* for server: import public key */
-    else if (side == WOLFSSL_SERVER_END) {
-        tmpKey.slot = otherKey->slot;
+    #ifndef WOLFSSL_ATECC508A_NOIDLE
+        /* put chip into idle to prevent watchdog situation on chip */
+        atcab_idle();
+    #endif
 
-        /* import peer's key and export as raw unsigned for hardware */
-        ret = wc_ecc_import_x963_ex(pubKeyDer, *pubKeySz, &tmpKey, ECC_SECP256R1);
-        if (ret == 0) {
-            ret = wc_ecc_export_public_raw(&tmpKey, qx, &qxLen, qy, &qyLen);
-        }
         (void)qxLen;
         (void)qyLen;
     }
     else {
-        ret = BAD_FUNC_ARG;
-    }
+    #ifndef WOLFSSL_ATECC508A_NOSOFTECC
+        /* use software for non P-256 cases */
+        ecc_key*  privKey = NULL;
+        ecc_key*  pubKey = NULL;
 
-    if (ret != 0) {
-        goto exit;
-    }
+        /* for client: create and export public key */
+        if (side == WOLFSSL_CLIENT_END)
+        {
+            WC_RNG rng;
+            privKey = &tmpKey;
+            pubKey = otherKey;
 
-    ret = atmel_ecc_create_pms(tmpKey.slot, peerKey, out);
-    *outlen = ATECC_SIG_SIZE;
+            ret = wc_InitRng(&rng);
+            if (ret == 0) {
+                ret = wc_ecc_make_key_ex(&rng, 0, privKey, otherKey->dp->id);
+                if (ret == 0) {
+                    ret = wc_ecc_export_x963(privKey, pubKeyDer, pubKeySz);
+                }
+                wc_FreeRng(&rng);
+            }
+        }
+        /* for server: import public key */
+        else if (side == WOLFSSL_SERVER_END) {
+            privKey = otherKey;
+            pubKey = &tmpKey;
+
+            ret = wc_ecc_import_x963_ex(pubKeyDer, *pubKeySz, pubKey,
+                otherKey->dp->id);
+        }
+        else {
+            ret = BAD_FUNC_ARG;
+        }
+
+        /* generate shared secret and return it */
+        if (ret == 0) {
+            ret = wc_ecc_shared_secret(privKey, pubKey, out, outlen);
+        }
+    #else
+        ret = NOT_COMPILED_IN;
+    #endif /* !WOLFSSL_ATECC508A_NOSOFTECC */
+    }
 
 exit:
     wc_ecc_free(&tmpKey);
@@ -582,7 +654,7 @@ exit:
 
 
 /**
- * \brief Sign received digest so far for private key to be proved.
+ * \brief Sign received digest using private key on device
  */
 int atcatls_sign_certificate_cb(WOLFSSL* ssl, const byte* in, word32 inSz,
     byte* out, word32* outSz, const byte* key, word32 keySz, void* ctx)
@@ -605,10 +677,16 @@ int atcatls_sign_certificate_cb(WOLFSSL* ssl, const byte* in, word32 inSz,
     if (slotId == ATECC_INVALID_SLOT)
         return WC_HW_WAIT_E;
 
+    /* We can only sign with P-256 */
     ret = atmel_ecc_sign(slotId, in, sigRs);
     if (ret != ATCA_SUCCESS) {
         ret = WC_HW_E; goto exit;
     }
+
+#ifndef WOLFSSL_ATECC508A_NOIDLE
+    /* put chip into idle to prevent watchdog situation on chip */
+    atcab_idle();
+#endif
 
     /* Encode with ECDSA signature */
     ret = wc_ecc_rs_raw_to_sig(
@@ -658,36 +736,50 @@ int atcatls_verify_signature_cb(WOLFSSL* ssl, const byte* sig, word32 sigSz,
         return BAD_FUNC_ARG;
     }
 
-    /* import public key and export public as unsigned bin for hardware */
+    /* import public key */
     ret = wc_ecc_init(&tmpKey);
     if (ret == 0) {
         ret = wc_EccPublicKeyDecode(key, &idx, &tmpKey, keySz);
-        if (ret == 0) {
-            ret = wc_ecc_export_public_raw(&tmpKey, qx, &qxLen, qy, &qyLen);
-        }
+    }
+    if (ret != 0) {
+        goto exit;
+    }
+
+    if (tmpKey.dp->id == ECC_SECP256R1) {
+        /* export public as unsigned bin for hardware */
+        ret = wc_ecc_export_public_raw(&tmpKey, qx, &qxLen, qy, &qyLen);
         wc_ecc_free(&tmpKey);
 
-        (void)qxLen;
-        (void)qyLen;
+        /* decode the ECDSA signature */
+        ret = wc_ecc_sig_to_rs(sig, sigSz,
+            &sigRs[0], &rSz,
+            &sigRs[ATECC_SIG_SIZE], &sSz);
+        if (ret != 0) {
+            goto exit;
+        }
+
+        ret = atmel_ecc_verify(hash, sigRs, peerKey, result);
+        if (ret != ATCA_SUCCESS || !*result) {
+            ret = WC_HW_E; goto exit;
+        }
+
+    #ifndef WOLFSSL_ATECC508A_NOIDLE
+        /* put chip into idle to prevent watchdog situation on chip */
+        atcab_idle();
+    #endif
     }
-    if (ret != 0) {
-        goto exit;
+    else {
+    #ifndef WOLFSSL_ATECC508A_NOSOFTECC
+        ret = wc_ecc_verify_hash(sig, sigSz, hash, hashSz, result, &tmpKey);
+    #else
+        ret = NOT_COMPILED_IN;
+    #endif /* !WOLFSSL_ATECC508A_NOSOFTECC */
     }
 
-    /* decode the ECDSA signature */
-    ret = wc_ecc_sig_to_rs(sig, sigSz,
-        &sigRs[0], &rSz,
-        &sigRs[ATECC_SIG_SIZE], &sSz);
-    if (ret != 0) {
-        goto exit;
-    }
     (void)rSz;
     (void)sSz;
-
-    ret = atmel_ecc_verify(hash, sigRs, peerKey, result);
-    if (ret != ATCA_SUCCESS || !*result) {
-        ret = WC_HW_E; goto exit;
-    }
+    (void)qxLen;
+    (void)qyLen;
 
     ret = 0; /* success */
 
