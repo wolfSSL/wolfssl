@@ -283,12 +283,15 @@ static int doPRF(byte* digest, word32 digLen, const byte* secret,word32 secLen,
     byte labelSeed[MAX_PRF_LABSEED];
 #endif
 
-    if (half > MAX_PRF_HALF)
+    if (half > MAX_PRF_HALF ||
+        labLen + seedLen > MAX_PRF_LABSEED ||
+        digLen > MAX_PRF_DIG)
+    {
+    #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
+        FREE_VAR(labelSeed, heap);
+    #endif
         return BUFFER_E;
-    if (labLen + seedLen > MAX_PRF_LABSEED)
-        return BUFFER_E;
-    if (digLen > MAX_PRF_DIG)
-        return BUFFER_E;
+    }
 
 #ifdef WOLFSSL_SMALL_STACK
     md5_half   = (byte*)XMALLOC(MAX_PRF_HALF,    heap, DYNAMIC_TYPE_DIGEST);
@@ -302,7 +305,9 @@ static int doPRF(byte* digest, word32 digLen, const byte* secret,word32 secLen,
         if (sha_half)   XFREE(sha_half,   heap, DYNAMIC_TYPE_DIGEST);
         if (md5_result) XFREE(md5_result, heap, DYNAMIC_TYPE_DIGEST);
         if (sha_result) XFREE(sha_result, heap, DYNAMIC_TYPE_DIGEST);
+    #if defined(WOLFSSL_ASYNC_CRYPT) && !defined(WC_ASYNC_NO_HASH)
         FREE_VAR(labelSeed, heap);
+    #endif
 
         return MEMORY_E;
     }
