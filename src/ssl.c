@@ -6919,11 +6919,14 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
         return 0;
     }
 
-    WOLFSSL_ASN1_OBJECT* wolfSSL_X509_EXTENSION_get_object(WOLFSSL_X509_EXTENSION* ex)
+    WOLFSSL_ASN1_OBJECT* wolfSSL_X509_EXTENSION_get_object(
+                                                 WOLFSSL_X509_EXTENSION* exten)
     {
-        (void)ex;
-        WOLFSSL_STUB("wolfSSL_X509_EXTENSION_get_object");
-        return 0;
+        WOLFSSL_ENTER("wolfSSL_X509_EXTENSION_get_object");
+        if(exten == NULL)
+            return BAD_FUNC_ARG;
+        WOLFSSL_EXIT("wolfSSL_X509_EXTENSION_get_object");
+        return exten->object;
     }
 
     int wolfSSL_X509_EXTENSION_get_critical(const WOLFSSL_X509_EXTENSION* ex)
