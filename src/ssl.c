@@ -7209,16 +7209,18 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 
     int wolfSSL_X509_EXTENSION_get_critical(const WOLFSSL_X509_EXTENSION* ex)
     {
-        (void)ex;
         WOLFSSL_STUB("wolfSSL_X509_EXTENSION_get_critical");
-        return 0;
+        if (ex == NULL)
+            return BAD_FUNC_ARG;
+        return ex->crit;
     }
 
     WOLFSSL_ASN1_STRING* wolfSSL_X509_EXTENSION_get_data(WOLFSSL_X509_EXTENSION* ex)
     {
-        (void)ex;
         WOLFSSL_STUB("wolfSSL_X509_EXTENSION_get_data");
-        return 0;
+        if (ex == NULL)
+            return NULL;
+        return &ex->value;
     }
 
     const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
@@ -22396,28 +22398,35 @@ void wolfSSL_BIO_clear_flags(WOLFSSL_BIO *bio, int flags)
     bio->flags &= ~flags;
 }
 
-#ifndef NO_WOLFSSL_STUB
 int wolfSSL_BIO_set_ex_data(WOLFSSL_BIO *bio, int idx, void *data)
 {
+    WOLFSSL_ENTER("wolfSSL_BIO_set_ex_data");
+    #ifdef HAVE_EX_DATA
+    if (bio != NULL && idx < MAX_EX_DATA) {
+        bio->ex_data[idx] = data; 
+        return WOLFSSL_SUCCESS;
+    }
+    #else
     (void)bio;
     (void)idx;
     (void)data;
-    WOLFSSL_ENTER("wolfSSL_BIO_set_ex_data");
-    WOLFSSL_STUB("BIO_set_ex_data");
+    #endif
     return WOLFSSL_FAILURE;
 }
-#endif
 
-#ifndef NO_WOLFSSL_STUB
 void *wolfSSL_BIO_get_ex_data(WOLFSSL_BIO *bio, int idx)
 {
+    WOLFSSL_ENTER("wolfSSL_BIO_get_ex_data");
+    #ifdef HAVE_EX_DATA
+    if (bio != NULL && idx < MAX_EX_DATA && idx >= 0) {
+        return bio->ex_data[idx];
+    }
+    #else
     (void)bio;
     (void)idx;
-    WOLFSSL_ENTER("wolfSSL_BIO_get_ex_data");
-    WOLFSSL_STUB("BIO_get_ex_data");
+    #endif
     return NULL;
 }
-#endif
 
 #ifndef NO_WOLFSSL_STUB
 void wolfSSL_BASIC_CONSTRAINTS_free(WOLFSSL_BASIC_CONSTRAINTS *bc)
