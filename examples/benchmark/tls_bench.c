@@ -404,10 +404,8 @@ static void* client_thread(void* args)
     if (tls13)
         cli_ctx = wolfSSL_CTX_new(wolfTLSv1_3_client_method());
 #endif
-#ifndef WOLFSSL_NO_TLS12
     if (!tls13)
-        cli_ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
-#endif
+        cli_ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
     if (cli_ctx == NULL) err_sys("error creating ctx");
 
 #ifndef NO_CERTS
@@ -568,10 +566,8 @@ static void* server_thread(void* args)
     if (tls13)
         srv_ctx = wolfSSL_CTX_new(wolfTLSv1_3_server_method());
 #endif
-#ifndef WOLFSSL_NO_TLS12
     if (!tls13)
-        srv_ctx = wolfSSL_CTX_new(wolfTLSv1_2_server_method());
-#endif
+        srv_ctx = wolfSSL_CTX_new(wolfSSLv23_server_method());
     if (srv_ctx == NULL) err_sys("error creating server ctx");
 
 #ifndef NO_CERTS

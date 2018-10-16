@@ -58,6 +58,9 @@
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/asn_public.h>   /* public interface */
 
+#if defined(NO_SHA) && defined(NO_SHA256)
+    #define WC_SHA256_DIGEST_SIZE 32
+#endif
 
 #ifdef __cplusplus
     extern "C" {
@@ -85,6 +88,7 @@ enum ASN_Tags {
     ASN_UTF8STRING        = 0x0c,
     ASN_SEQUENCE          = 0x10,
     ASN_SET               = 0x11,
+    ASN_PRINTABLE_STRING  = 0x13,
     ASN_UTC_TIME          = 0x17,
     ASN_OTHER_TYPE        = 0x00,
     ASN_RFC822_TYPE       = 0x01,
@@ -99,6 +103,7 @@ enum ASN_Tags {
 
     /* ASN_Flags - Bitmask */
     ASN_CONSTRUCTED       = 0x20,
+    ASN_APPLICATION       = 0x40,
     ASN_CONTEXT_SPECIFIC  = 0x80,
 };
 
@@ -137,7 +142,7 @@ enum DN_Tags {
 #define WOLFSSL_BUS_CAT          "/businessCategory="
 #define WOLFSSL_JOI_C            "/jurisdictionC="
 #define WOLFSSL_JOI_ST           "/jurisdictionST="
-#define WOLFSSL_EMAIL_ADDR "/emailAddress="
+#define WOLFSSL_EMAIL_ADDR       "/emailAddress="
 
 /* NIDs */
 enum
@@ -185,6 +190,24 @@ enum ECC_TYPES
     ECC_PREFIX_0 = 160,
     ECC_PREFIX_1 = 161
 };
+
+#ifdef WOLFSSL_CERT_PIV
+    enum PIV_Tags {
+        ASN_PIV_CERT          = 0x0A,
+        ASN_PIV_NONCE         = 0x0B,
+        ASN_PIV_SIGNED_NONCE  = 0x0C,
+            
+        ASN_PIV_TAG_CERT      = 0x70,
+        ASN_PIV_TAG_CERT_INFO = 0x71,
+        ASN_PIV_TAG_MSCUID    = 0x72,
+        ASN_PIV_TAG_ERR_DET   = 0xFE,
+            
+        /* certificate info masks */
+        ASN_PIV_CERT_INFO_COMPRESSED = 0x03,
+        ASN_PIV_CERT_INFO_ISX509     = 0x04,
+    };
+#endif /* WOLFSSL_CERT_PIV */
+
 
 #define ASN_JOI_PREFIX "\x2b\x06\x01\x04\x01\x82\x37\x3c\x02\x01"
 #define ASN_JOI_C      0x3
@@ -896,11 +919,17 @@ struct TrustedPeerCert {
     #define WOLFSSL_ASN_API WOLFSSL_LOCAL
 #endif
 
-
-#ifdef NO_SHA
-    #define CalcHashId(data, len, hash)    wc_Sha256Hash(data, len, hash)
+/* Macro for calculating hashId */
+#if defined(NO_SHA) && defined(NO_SHA256)
+    #ifdef WOLF_CRYPTO_DEV
+        #define CalcHashId(data, len, hash) wc_CryptoDevSha256Hash(data, len, hash)
+    #else
+        #define CalcHashId(data, len, hash) NOT_COMPILED_IN
+    #endif
+#elif defined(NO_SHA)
+    #define CalcHashId(data, len, hash)     wc_Sha256Hash(data, len, hash)
 #else
-    #define CalcHashId(data, len, hash)    wc_ShaHash(data, len, hash)
+    #define CalcHashId(data, len, hash)     wc_ShaHash(data, len, hash)
 #endif
 
 

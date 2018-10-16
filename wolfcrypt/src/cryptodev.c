@@ -330,4 +330,13 @@ int wc_CryptoDev_AesGcmDecrypt(Aes* aes, byte* out,
 }
 #endif /* !NO_AES && HAVE_AESGCM */
 
+/* call to support callback for entire buffer hash */
+int wc_CryptoDev_Sha256Hash(const byte* data, word32 len, byte* hash)
+{
+    (void)data;
+    (void)len;
+    (void)hash;
+    return NOT_COMPILED_IN;
+}
+
 #endif /* WOLF_CRYPTO_DEV */
