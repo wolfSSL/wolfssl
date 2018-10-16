@@ -2875,11 +2875,13 @@ static void test_wolfSSL_UseMaxFragment(void)
     AssertIntNE(WOLFSSL_SUCCESS, wolfSSL_UseMaxFragment(ssl, 6));
 
     /* success case */
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_UseMaxFragment(ctx,  WOLFSSL_MFL_2_8));
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_UseMaxFragment(ctx,  WOLFSSL_MFL_2_9));
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_UseMaxFragment(ctx,  WOLFSSL_MFL_2_10));
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_UseMaxFragment(ctx,  WOLFSSL_MFL_2_11));
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_UseMaxFragment(ctx,  WOLFSSL_MFL_2_12));
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_UseMaxFragment(ctx,  WOLFSSL_MFL_2_13));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseMaxFragment(    ssl,  WOLFSSL_MFL_2_8));
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseMaxFragment(    ssl,  WOLFSSL_MFL_2_9));
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseMaxFragment(    ssl,  WOLFSSL_MFL_2_10));
     AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_UseMaxFragment(    ssl,  WOLFSSL_MFL_2_11));
