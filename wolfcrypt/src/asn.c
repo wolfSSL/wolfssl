@@ -9657,9 +9657,10 @@ static int CopyValidity(byte* output, Cert* cert)
 #endif
 
 
-/* Set Date validity from now until now + daysValid
+/* Set Date validity from now until now + daysValid + yearsValid
  * return size in bytes written to output, 0 on error */
-static int SetValidity(byte* output, int daysValid)
+/* Note, yearsValid does not take into account leap years. */
+static int SetValidity(byte* output, int daysValid, int yearsValid)
 {
     byte before[MAX_DATE_SIZE];
     byte  after[MAX_DATE_SIZE];
@@ -9717,7 +9718,7 @@ static int SetValidity(byte* output, int daysValid)
     localTime = *expandedTime;
 
     /* adjust */
-    localTime.tm_year += 1900;
+    localTime.tm_year += 1900 + yearsValid;
     localTime.tm_mon  +=    1;
 
     SetTime(&localTime, after + afterSz);
@@ -10683,7 +10684,8 @@ static int EncodeCert(Cert* cert, DerCert* der, RsaKey* rsaKey, ecc_key* eccKey,
 
     /* date validity */
     if (der->validitySz == 0) {
-        der->validitySz = SetValidity(der->validity, cert->daysValid);
+        der->validitySz = SetValidity(der->validity,
+                                      cert->daysValid, cert->yearsValid);
         if (der->validitySz <= 0)
             return DATE_E;
     }
