@@ -6928,16 +6928,18 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
 
     int wolfSSL_X509_EXTENSION_get_critical(const WOLFSSL_X509_EXTENSION* ex)
     {
-        (void)ex;
         WOLFSSL_STUB("wolfSSL_X509_EXTENSION_get_critical");
-        return 0;
+        if (ex == NULL)
+            return BAD_FUNC_ARG;
+        return ex->crit;
     }
 
     WOLFSSL_ASN1_STRING* wolfSSL_X509_EXTENSION_get_data(WOLFSSL_X509_EXTENSION* ex)
     {
-        (void)ex;
         WOLFSSL_STUB("wolfSSL_X509_EXTENSION_get_data");
-        return 0;
+        if (ex == NULL)
+            return NULL;
+        return &ex->value;
     }
 
     const WOLFSSL_v3_ext_method* wolfSSL_X509V3_EXT_get(WOLFSSL_X509_EXTENSION* ex)
