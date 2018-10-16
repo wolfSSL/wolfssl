@@ -2324,7 +2324,7 @@ int fp_to_unsigned_bin(fp_int *a, unsigned char *b)
 #ifdef WOLFSSL_SMALL_STACK
   XFREE(t, NULL, DYNAMIC_TYPE_TMP_BUFFER);
 #endif
-  return FP_OKAY; 
+  return FP_OKAY;
 }
 
 int fp_unsigned_bin_size(fp_int *a)

@@ -1806,6 +1806,12 @@ else
     then
         AM_CFLAGS="$AM_CFLAGS -DNO_ASN -DNO_CERTS -DNO_BIG_INT"
         ENABLED_ASN=no
+    else
+        if test "$ENABLED_ASN" = "nocrypt"
+        then
+            AM_CFLAGS="$AM_CFLAGS -DNO_ASN_CRYPT"
+            enable_pwdbased=no
+        fi
     fi
 fi
 
@@ -1826,7 +1832,7 @@ then
     ENABLED_SLOWMATH=no
 fi
 
-AM_CONDITIONAL([BUILD_ASN], [test "x$ENABLED_ASN" = "xyes"])
+AM_CONDITIONAL([BUILD_ASN], [test "x$ENABLED_ASN" != "xno"])
 
 
 # AES

@@ -2336,7 +2336,7 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
         return BAD_FUNC_ARG;
     }
 
-    #if !defined(NO_RSA)
+    #if !defined(NO_RSA) && !defined(NO_ASN_CRYPT)
     /* test if RSA key */
     if (der->keyOID == RSAk) {
     #ifdef WOLFSSL_SMALL_STACK
@@ -2404,9 +2404,9 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
     #endif
     }
     else
-    #endif /* NO_RSA */
+    #endif /* !NO_RSA && !NO_ASN_CRYPT */
 
-    #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
+    #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT)
     if (der->keyOID == ECDSAk) {
     #ifdef WOLFSSL_SMALL_STACK
         ecc_key* key_pair = NULL;
@@ -2469,9 +2469,9 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
     #endif
     }
     else
-    #endif /* HAVE_ECC */
+    #endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT && !NO_ASN_CRYPT */
 
-    #ifdef HAVE_ED25519
+    #if defined(HAVE_ED25519) && !defined(NO_ASN_CRYPT)
     if (der->keyOID == ED25519k) {
     #ifdef WOLFSSL_SMALL_STACK
         ed25519_key* key_pair = NULL;
@@ -2512,7 +2512,7 @@ int wc_CheckPrivateKey(byte* key, word32 keySz, DecodedCert* der)
     #endif
     }
     else
-    #endif
+    #endif /* HAVE_ED25519 && !NO_ASN_CRYPT */
     {
         ret = 0;
     }
@@ -2624,7 +2624,7 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
 
     *algoID = 0;
 
-    #ifndef NO_RSA
+    #if !defined(NO_RSA) && !defined(NO_ASN_CRYPT)
     {
         RsaKey rsa;
 
@@ -2637,8 +2637,8 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         }
         wc_FreeRsaKey(&rsa);
     }
-    #endif /* NO_RSA */
-    #ifdef HAVE_ECC
+    #endif /* !NO_RSA && !NO_ASN_CRYPT */
+    #if defined(HAVE_ECC) && !defined(NO_ASN_CRYPT)
     if (*algoID == 0) {
         ecc_key ecc;
 
@@ -2659,8 +2659,8 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
         }
         wc_ecc_free(&ecc);
     }
-#endif /* HAVE_ECC */
-#ifdef HAVE_ED25519
+#endif /* HAVE_ECC && !NO_ASN_CRYPT */
+#if defined(HAVE_ED25519) && !defined(NO_ASN_CRYPT)
     if (*algoID != RSAk && *algoID != ECDSAk) {
         ed25519_key ed25519;
 
@@ -2679,7 +2679,7 @@ int wc_GetKeyOID(byte* key, word32 keySz, const byte** curveOID, word32* oidSz,
             WOLFSSL_MSG("GetKeyOID wc_ed25519_init failed");
         }
     }
-#endif
+#endif /* HAVE_ED25519 && !NO_ASN_CRYPT */
 
     /* if flag is not set then is neither RSA or ECC key that could be
      * found */
@@ -5382,6 +5382,7 @@ void FreeSignatureCtx(SignatureCtx* sigCtx)
         sigCtx->plain = NULL;
     }
 #endif
+#ifndef NO_ASN_CRYPT
     if (sigCtx->key.ptr) {
         switch (sigCtx->keyOID) {
         #ifndef NO_RSA
@@ -5407,11 +5408,13 @@ void FreeSignatureCtx(SignatureCtx* sigCtx)
         } /* switch (keyOID) */
         sigCtx->key.ptr = NULL;
     }
+#endif
 
     /* reset state, we are done */
     sigCtx->state = SIG_STATE_BEGIN;
 }
 
+#ifndef NO_ASN_CRYPT
 static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
                             byte* digest, int* typeH, int* digestSz, int verify)
 {
@@ -5498,6 +5501,7 @@ static int HashForSignature(const byte* buf, word32 bufSz, word32 sigOID,
 
     return ret;
 }
+#endif /* !NO_ASN_CRYPT */
 
 /* Return codes: 0=Success, Negative (see error-crypt.h), ASN_SIG_CONFIRM_E */
 static int ConfirmSignature(SignatureCtx* sigCtx,
@@ -5519,6 +5523,7 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
 
     WOLFSSL_ENTER("ConfirmSignature");
 
+#ifndef NO_ASN_CRYPT
     switch (sigCtx->state) {
         case SIG_STATE_BEGIN:
         {
@@ -5795,6 +5800,11 @@ static int ConfirmSignature(SignatureCtx* sigCtx,
     } /* switch (sigCtx->state) */
 
 exit_cs:
+
+#endif /* !NO_ASN_CRYPT */
+
+    (void)keyOID;
+    (void)sigOID;
 
     WOLFSSL_LEAVE("ConfirmSignature", ret);
 
@@ -7447,7 +7457,7 @@ int CheckCertSignature(const byte* cert, word32 certSz, void* heap, void* cm)
 #endif
     return ret;
 }
-#endif
+#endif /* WOLFSSL_SMALL_CERT_VERIFY */
 
 int ParseCertRelative(DecodedCert* cert, int type, int verify, void* cm)
 {
@@ -9348,7 +9358,7 @@ static word32 SetUTF8String(word32 len, byte* output)
 
 #endif /* WOLFSSL_CERT_REQ */
 
-#endif /*WOLFSSL_CERT_GEN */
+#endif /* WOLFSSL_CERT_GEN */
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
 
@@ -9482,7 +9492,7 @@ int wc_EccPublicKeyToDer(ecc_key* key, byte* output, word32 inLen,
 
     return SetEccPublicKey(output, key, with_AlgCurve);
 }
-#endif /* HAVE_ECC */
+#endif /* HAVE_ECC && HAVE_ECC_KEY_EXPORT */
 
 #if defined(HAVE_ED25519) && (defined(WOLFSSL_CERT_GEN) || \
                               defined(WOLFSSL_KEY_GEN))
@@ -11769,7 +11779,7 @@ int wc_SetAuthKeyIdFromPublicKey(Cert *cert, RsaKey *rsakey, ecc_key *eckey)
 }
 
 
-#ifndef NO_FILESYSTEM
+#if !defined(NO_FILESYSTEM) && !defined(NO_ASN_CRYPT)
 
 /* Set SKID from public key file in PEM */
 int wc_SetSubjectKeyId(Cert *cert, const char* file)
@@ -11869,7 +11879,7 @@ int wc_SetSubjectKeyId(Cert *cert, const char* file)
     return ret;
 }
 
-#endif /* NO_FILESYSTEM */
+#endif /* !NO_FILESYSTEM && !NO_ASN_CRYPT */
 
 /* Set AKID from certificate contains in buffer (DER encoded) */
 int wc_SetAuthKeyIdFromCert(Cert *cert, const byte *der, int derSz)
@@ -13015,7 +13025,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
     return 0;
 }
 
-#if defined(HAVE_ECC_KEY_EXPORT)
+#if defined(HAVE_ECC_KEY_EXPORT) && !defined(NO_ASN_CRYPT)
 /* build DER formatted ECC key, include optional public key if requested,
  * return length on success, negative on error */
 static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 inLen,
@@ -13133,7 +13143,7 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 inLen,
     return totalSz;
 }
 
-
+#ifndef NO_ASN_CRYPT
 /* Write a Private ecc key, including public to DER format,
  * length on success else < 0 */
 int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen)
@@ -13148,6 +13158,7 @@ int wc_EccPrivateKeyToDer(ecc_key* key, byte* output, word32 inLen)
 {
     return wc_BuildEccKeyDer(key, output, inLen, 0);
 }
+#endif /* !NO_ASN_CRYPT */
 
 /* Write only private ecc key to unencrypted PKCS#8 format.
  *
@@ -14450,6 +14461,91 @@ int ParseCRL(DecodedCRL* dcrl, const byte* buff, word32 sz, void* cm)
 }
 
 #endif /* HAVE_CRL */
+
+
+
+#ifdef WOLFSSL_CERT_PIV
+
+int wc_ParseCertPIV(wc_CertPIV* piv, const byte* buf, word32 totalSz)
+{
+    int length = 0;
+    word32 idx = 0;
+
+    WOLFSSL_ENTER("wc_ParseCertPIV");
+
+    if (piv == NULL || buf == NULL || totalSz == 0)
+        return BAD_FUNC_ARG;
+
+    XMEMSET(piv, 0, sizeof(wc_CertPIV));
+
+    /* Detect Identiv PIV (with 0x0A, 0x0B and 0x0C sections) */
+    /* Certificate (0A 82 05FA) */
+    if (GetASNHeader(buf, ASN_PIV_CERT, &idx, &length, totalSz) >= 0) {
+        /* Identiv Type PIV card */
+        piv->isIdentiv = 1;
+
+        piv->cert =   &buf[idx];
+        piv->certSz = length;
+        idx += length;
+
+        /* Nonce (0B 14) */
+        if (GetASNHeader(buf, ASN_PIV_NONCE, &idx, &length, totalSz) >= 0) {
+            piv->nonce =   &buf[idx];
+            piv->nonceSz = length;
+            idx += length;
+        }
+
+        /* Signed Nonce (0C 82 0100) */
+        if (GetASNHeader(buf, ASN_PIV_SIGNED_NONCE, &idx, &length, totalSz) >= 0) {
+            piv->signedNonce =   &buf[idx];
+            piv->signedNonceSz = length;
+            idx += length;
+        }
+
+        idx = 0;
+        buf = piv->cert;
+        totalSz = piv->certSz;
+    }
+
+    /* Certificate Buffer Total Size (53 82 05F6) */
+    if (GetASNHeader(buf, ASN_APPLICATION | ASN_PRINTABLE_STRING, &idx,
+                                                   &length, totalSz) < 0) {
+        return ASN_PARSE_E;
+    }
+    /* PIV Certificate (70 82 05ED) */
+    if (GetASNHeader(buf, ASN_PIV_TAG_CERT, &idx, &length,
+                                                         totalSz) < 0) {
+        return ASN_PARSE_E;
+    }
+
+    /* Capture certificate buffer pointer and length */
+    piv->cert =   &buf[idx];
+    piv->certSz = length;
+    idx += length;
+
+    /* PIV Certificate Info (71 01 00) */
+    if (GetASNHeader(buf, ASN_PIV_TAG_CERT_INFO, &idx, &length,
+                                                        totalSz) >= 0) {
+        if (length >= 1) {
+            piv->compression = (buf[idx] & ASN_PIV_CERT_INFO_COMPRESSED);
+            piv->isX509 =      (buf[idx] & ASN_PIV_CERT_INFO_ISX509);
+        }
+        idx += length;
+    }
+
+    /* PIV Error Detection (FE 00) */
+    if (GetASNHeader(buf, ASN_PIV_TAG_ERR_DET, &idx, &length,
+                                                        totalSz) >= 0) {
+        piv->certErrDet =   &buf[idx];
+        piv->certErrDetSz = length;
+        idx += length;
+    }
+
+    return 0;
+}
+
+#endif /* WOLFSSL_CERT_PIV */
+
 
 #undef ERROR_OUT
 
