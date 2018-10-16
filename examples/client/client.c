@@ -858,7 +858,7 @@ static void Usage(void)
     printf("-S <str>    Use Host Name Indication\n");
 #endif
 #ifdef HAVE_MAX_FRAGMENT
-    printf("-F <num>    Use Maximum Fragment Length [1-5]\n");
+    printf("-F <num>    Use Maximum Fragment Length [0-5]\n");
 #endif
 #ifdef HAVE_TRUNCATED_HMAC
     printf("-T          Use Truncated HMAC\n");
@@ -1341,8 +1341,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             case 'F' :
                 #ifdef HAVE_MAX_FRAGMENT
                     maxFragment = atoi(myoptarg);
-                    if (maxFragment < WOLFSSL_MFL_2_9 ||
-                                               maxFragment > WOLFSSL_MFL_2_13) {
+                    if (maxFragment < WOLFSSL_MFL_MIN ||
+                                               maxFragment > WOLFSSL_MFL_MAX) {
                         Usage();
                         XEXIT_T(MY_EX_USAGE);
                     }
