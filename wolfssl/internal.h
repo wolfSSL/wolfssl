@@ -1567,6 +1567,9 @@ struct WOLFSSL_BIO {
     int         flags;
     byte        type;          /* method type */
     byte        close;         /* close flag */
+#ifdef HAVE_EX_DATA
+    void*           ex_data[MAX_EX_DATA];
+#endif
 };
 
 
