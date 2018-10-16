@@ -3325,6 +3325,9 @@ then
     then
        ENABLED_DES3="yes"
     fi
+
+    # requires oldnames disabled
+    enable_oldnames=no
 fi
 
 # DSA
