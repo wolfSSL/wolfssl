@@ -783,6 +783,29 @@ int SuiteTest(void)
     }
 #endif
 
+#ifdef HAVE_MAX_FRAGMENT
+    /* Max fragment cipher suite tests */
+    strcpy(argv0[1], "tests/test-maxfrag.conf");
+    printf("starting max fragment cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+
+    #ifdef WOLFSSL_DTLS
+    strcpy(argv0[1], "tests/test-maxfrag-dtls.conf");
+    printf("starting dtls max fragment cipher suite tests\n");
+    test_harness(&args);
+    if (args.return_code != 0) {
+        printf("error from script %d\n", args.return_code);
+        args.return_code = EXIT_FAILURE;
+        goto exit;
+    }
+    #endif
+#endif
+
     /* failure tests */
     args.argc = 3;
     strcpy(argv0[1], "tests/test-fails.conf");
