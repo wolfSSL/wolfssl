@@ -858,7 +858,7 @@ static void Usage(void)
     printf("-S <str>    Use Host Name Indication\n");
 #endif
 #ifdef HAVE_MAX_FRAGMENT
-    printf("-F <num>    Use Maximum Fragment Length [0-5]\n");
+    printf("-F <num>    Use Maximum Fragment Length [0-6]\n");
 #endif
 #ifdef HAVE_TRUNCATED_HMAC
     printf("-T          Use Truncated HMAC\n");
