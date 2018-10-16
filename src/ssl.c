@@ -15142,7 +15142,8 @@ int wolfSSL_sk_X509_push(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk, WOLFSSL_X509* x50
 }
 
 
-WOLFSSL_X509* wolfSSL_sk_X509_pop(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk) {
+WOLFSSL_X509* wolfSSL_sk_X509_pop(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)
+{
     WOLFSSL_STACK* node;
     WOLFSSL_X509*  x509;
 
@@ -15218,7 +15219,8 @@ void* wolfSSL_sk_X509_value(STACK_OF(WOLFSSL_X509)* sk, int i)
  * sk  stack to free nodes in
  * f   X509 free function
  */
-void wolfSSL_sk_X509_pop_free(STACK_OF(WOLFSSL_X509)* sk, void f (WOLFSSL_X509*)){
+void wolfSSL_sk_X509_pop_free(STACK_OF(WOLFSSL_X509)* sk, void f (WOLFSSL_X509*))
+{
     WOLFSSL_STACK* node;
 
     WOLFSSL_ENTER("wolfSSL_sk_X509_pop_free");
@@ -15247,7 +15249,8 @@ void wolfSSL_sk_X509_pop_free(STACK_OF(WOLFSSL_X509)* sk, void f (WOLFSSL_X509*)
 
 
 /* free structure for x509 stack */
-void wolfSSL_sk_X509_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk) {
+void wolfSSL_sk_X509_free(WOLF_STACK_OF(WOLFSSL_X509_NAME)* sk)
+{
     WOLFSSL_STACK* node;
 
     if (sk == NULL) {
@@ -15635,7 +15638,7 @@ int wolfSSL_sk_ASN1_OBJECT_push(WOLF_STACK_OF(WOLFSSL_ASN1_OBJEXT)* sk,
 }
 
 
-WOLFSSL_ASN1_OBJECT* wolfSSL_sk_ASN1_OBJCET_pop(
+WOLFSSL_ASN1_OBJECT* wolfSSL_sk_ASN1_OBJECT_pop(
                                             WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)
 {
     WOLFSSL_STACK* node;
@@ -15701,10 +15704,15 @@ void wolfSSL_ASN1_OBJECT_free(WOLFSSL_ASN1_OBJECT* obj)
 }
 
 
-/* free structure for x509 stack */
+/* Free the structure for ASN1_OBJECT stack
+ *
+ * sk  stack to free nodes in
+ */
 void wolfSSL_sk_ASN1_OBJECT_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)
 {
     WOLFSSL_STACK* node;
+
+    WOLFSSL_ENTER("wolfSSL_sk_ASN1_OBJECT_free");
 
     if (sk == NULL) {
         return;
@@ -15724,6 +15732,42 @@ void wolfSSL_sk_ASN1_OBJECT_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)
     /* free head of stack */
     if (sk->num == 1) {
         wolfSSL_ASN1_OBJECT_free(sk->data.obj);
+    }
+    XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
+}
+
+/* Free's all nodes in ASN1_OBJECT stack.
+ * This is different then wolfSSL_ASN1_OBJECT_free in that it allows for
+ * choosing the function to use when freeing an ASN1_OBJECT stack.
+ *
+ * sk  stack to free nodes in
+ * f   X509 free function
+ */
+void wolfSSL_sk_ASN1_OBJECT_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk,
+                                                  void f (WOLFSSL_ASN1_OBJECT*))
+{
+    WOLFSSL_STACK* node;
+
+    WOLFSSL_ENTER("wolfSSL_sk_ASN1_OBJECT_pop_free");
+
+    if (sk == NULL) {
+        return;
+    }
+
+    /* parse through stack freeing each node */
+    node = sk->next;
+    while (sk->num > 1) {
+        WOLFSSL_STACK* tmp = node;
+        node = node->next;
+
+        f(tmp->data.obj);
+        XFREE(tmp, NULL, DYNAMIC_TYPE_ASN1);
+        sk->num -= 1;
+    }
+
+    /* free head of stack */
+    if (sk->num == 1) {
+        f(sk->data.obj);
     }
     XFREE(sk, NULL, DYNAMIC_TYPE_ASN1);
 }
@@ -21470,24 +21514,32 @@ void* wolfSSL_sk_value(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, int i)
 
 #if defined(WOLFSSL_QT) || defined(OPENSSL_ALL)
 
-#ifndef NO_WOLFSSL_STUB
-void wolfSSL_sk_free(WOLFSSL_STACK *st)
+/* Free the structure for ASN1_OBJECT stack */
+void wolfSSL_sk_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk)
 {
-    (void)st;
     WOLFSSL_ENTER("wolfSSL_sk_free");
-    WOLFSSL_STUB("OPENSSL_sk_free");
-}
-#endif
 
-#ifndef NO_WOLFSSL_STUB
-void wolfSSL_sk_pop_free(WOLFSSL_STACK *st, wolfSSL_sk_freefunc func)
-{
-    (void)st;
-    (void)func;
-    WOLFSSL_ENTER("wolfSSL_sk_pop_free");
-    WOLFSSL_STUB("OPENSSL_sk_pop_free");
+    if (sk == NULL) {
+        WOLFSSL_MSG("Error, BAD_FUNC_ARG");
+        return;
+    }
+
+    wolfSSL_sk_ASN1_OBJECT_free(sk);
 }
-#endif
+
+/* Free all nodes in an ASN1_OBJECT stack */
+void wolfSSL_sk_pop_free(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, 
+                                                       wolfSSL_sk_freefunc func)
+{
+    WOLFSSL_ENTER("wolfSSL_sk_pop_free");
+
+    if (sk == NULL) {
+        WOLFSSL_MSG("Error, BAD_FUNC_ARG");
+        return;
+    }
+
+    wolfSSL_sk_ASN1_OBJECT_pop_free(sk, (void*)func);
+}
 
 #ifndef NO_WOLFSSL_STUB
 WOLFSSL_STACK *wolfSSL_sk_new_null(void)
@@ -21498,16 +21550,18 @@ WOLFSSL_STACK *wolfSSL_sk_new_null(void)
 }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
-int wolfSSL_sk_push(WOLFSSL_STACK *st, const void *data)
+
+/* return 1 on success 0 on fail */
+int wolfSSL_sk_push(WOLF_STACK_OF(WOLFSSL_ASN1_OBJECT)* sk, const void *data)
 {
-    (void)st;
-    (void)data;
     WOLFSSL_ENTER("wolfSSL_sk_push");
-    WOLFSSL_STUB("OPENSSL_sk_push");
+
+    if (wolfSSL_sk_ASN1_OBJECT_push(sk, (WOLFSSL_ASN1_OBJECT*) data) == 1) {
+        return WOLFSSL_SUCCESS;
+    }
+
     return WOLFSSL_FAILURE;
 }
-#endif
 
 #ifndef NO_WOLFSSL_STUB
 size_t wolfSSL_EC_get_builtin_curves(wolfSSL_EC_builtin_curve *r, size_t nitems)
