@@ -2464,6 +2464,7 @@ static int TLSX_MFL_Parse(WOLFSSL* ssl, byte* input, word16 length,
 #endif
 
     switch (*input) {
+        case WOLFSSL_MFL_2_8 : ssl->max_fragment =  256; break;
         case WOLFSSL_MFL_2_9 : ssl->max_fragment =  512; break;
         case WOLFSSL_MFL_2_10: ssl->max_fragment = 1024; break;
         case WOLFSSL_MFL_2_11: ssl->max_fragment = 2048; break;
@@ -2495,7 +2496,7 @@ int TLSX_UseMaxFragment(TLSX** extensions, byte mfl, void* heap)
     byte* data = NULL;
     int ret = 0;
 
-    if (extensions == NULL || mfl < WOLFSSL_MFL_2_9 || WOLFSSL_MFL_2_13 < mfl)
+    if (extensions == NULL || mfl < WOLFSSL_MFL_MIN || mfl > WOLFSSL_MFL_MAX)
         return BAD_FUNC_ARG;
 
     data = (byte*)XMALLOC(ENUM_LEN, heap, DYNAMIC_TYPE_TLSX);
