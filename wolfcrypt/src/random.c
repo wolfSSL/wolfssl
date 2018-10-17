@@ -308,7 +308,7 @@ static int Hash_df(DRBG* drbg, byte* out, word32 outSz, byte type,
 #endif
 
     (void)drbg;
-#ifdef WOLFSSL_ASYNC_CRYPT
+#ifdef WC_ASYNC_ENABLE_SHA256
     if (digest == NULL)
         return DRBG_FAILURE;
 #endif
