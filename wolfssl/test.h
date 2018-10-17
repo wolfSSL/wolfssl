@@ -608,9 +608,35 @@ static WC_INLINE void ShowX509Chain(WOLFSSL_X509_CHAIN* chain, int count,
 }
 #endif
 
-static WC_INLINE void showPeer(WOLFSSL* ssl)
+
+static const char* client_showpeer_msg[][7] = {
+    /* English */
+    {
+        "SSL version is",
+        "SSL cipher suite is",
+        "SSL curve name is",
+        "SSL DH size is",
+        "SSL reused session",
+        "Alternate cert chain used",
+        NULL
+    },
+    /* Japanese */
+    {
+        "SSL バージョンは",
+        "SSL 暗号スイートは",
+        "SSL 曲線名は",
+        "SSL DH サイズは",
+        "SSL 再利用セッション",
+        "代替証明チェーンを使用",
+        NULL
+    }
+};
+/* lng_index is to specify the language for displaying message. 0:English, 1:Japanese */
+static WC_INLINE void showPeerEx(WOLFSSL* ssl, int lng_index)
 {
     WOLFSSL_CIPHER* cipher;
+    const char** words = client_showpeer_msg[lng_index];
+
 #ifdef HAVE_ECC
     const char *name;
 #endif
@@ -629,28 +655,28 @@ static WC_INLINE void showPeer(WOLFSSL* ssl)
     ShowX509(wolfSSL_get_certificate(ssl), "our cert info:");
     printf("Peer verify result = %lu\n", wolfSSL_get_verify_result(ssl));
 #endif /* SHOW_CERTS */
-    printf("SSL version is %s\n", wolfSSL_get_version(ssl));
+    printf("%s %s\n", words[0], wolfSSL_get_version(ssl));
 
     cipher = wolfSSL_get_current_cipher(ssl);
 #ifdef HAVE_QSH
-    printf("SSL cipher suite is %s%s\n", (wolfSSL_isQSH(ssl))? "QSH:": "",
+    printf("%s %s%s\n", words[1], (wolfSSL_isQSH(ssl))? "QSH:": "",
             wolfSSL_CIPHER_get_name(cipher));
 #else
-    printf("SSL cipher suite is %s\n", wolfSSL_CIPHER_get_name(cipher));
+    printf("%s %s\n", words[1], wolfSSL_CIPHER_get_name(cipher));
 #endif
 #ifdef HAVE_ECC
     if ((name = wolfSSL_get_curve_name(ssl)) != NULL)
-        printf("SSL curve name is %s\n", name);
+        printf("%s %s\n", words[2], name);
 #endif
 #ifndef NO_DH
     if ((bits = wolfSSL_GetDhKey_Sz(ssl)) > 0)
-        printf("SSL DH size is %d bits\n", bits);
+        printf("%s %d bits\n", words[3], bits);
 #endif
     if (wolfSSL_session_reused(ssl))
-        printf("SSL reused session\n");
+        printf("%s\n", words[4]);
 #ifdef WOLFSSL_ALT_CERT_CHAINS
     if (wolfSSL_is_peer_alt_cert_chain(ssl))
-        printf("Alternate cert chain used\n");
+        printf("%s\n", words[5]);
 #endif
 
 #if defined(SESSION_CERTS) && defined(SHOW_CERTS)
@@ -670,7 +696,11 @@ static WC_INLINE void showPeer(WOLFSSL* ssl)
 #endif /* SESSION_CERTS && SHOW_CERTS */
   (void)ssl;
 }
-
+/* original showPeer to maintain compatibility */
+static WC_INLINE void showPeer(WOLFSSL* ssl)
+{
+    showPeerEx(ssl, 0);
+}
 
 static WC_INLINE void build_addr(SOCKADDR_IN_T* addr, const char* peer,
                               word16 port, int udp, int sctp)
