@@ -3529,24 +3529,33 @@ static WC_INLINE int PKCS8TestCallBack(char* passwd, int sz, int rw, void* userd
 }
 #endif
 
+
 /* Testing functions dealing with PKCS8 */
 static void test_wolfSSL_PKCS8(void)
 {
-#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
-        !defined(NO_DES3) && !defined(NO_FILESYSTEM) && \
-        !defined(NO_ASN) && !defined(NO_PWDBASED) && !defined(NO_RSA) && \
-        defined(WOLFSSL_ENCRYPTED_KEYS)
+#if !defined(NO_FILESYSTEM) && !defined(NO_ASN)
     byte buffer[FOURK_BUF];
     byte der[FOURK_BUF];
-    char file[] = "./certs/server-keyPkcs8Enc.pem";
+    const char eccPkcs8PrivKeyFile[] = "./certs/ecc-privkeyPkcs8.pem";
     XFILE f;
-    int  flag = 1;
-    int  bytes;
+    int bytes;
+#ifdef HAVE_ECC
+    ecc_key key;
+    word32 x = 0;
+#endif
+#if (defined(OPENSSL_EXTRA) || defined(OPENSSL_EXTRA_X509_SMALL)) && \
+     defined(WOLFSSL_ENCRYPTED_KEYS) && !defined(NO_DES3) && \
+    !defined(NO_PWDBASED) && !defined(NO_RSA)
+    #define TEST_PKCS8_ENC
+    const char serverKeyPkcs8EncFile[] = "./certs/server-keyPkcs8Enc.pem";
+    int flag = 1;
     WOLFSSL_CTX* ctx;
+#endif
 
     printf(testingFmt, "wolfSSL_PKCS8()");
 
-    f = XFOPEN(file, "rb");
+#ifdef TEST_PKCS8_ENC
+    f = XFOPEN(serverKeyPkcs8EncFile, "rb");
     AssertTrue((f != XBADFILE));
     bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
     XFCLOSE(f);
@@ -3579,14 +3588,29 @@ static void test_wolfSSL_PKCS8(void)
     wolfSSL_CTX_free(ctx);
 
     /* decrypt PKCS8 PEM to key in DER format with not using WOLFSSL_CTX */
-    AssertIntGT(wc_KeyPemToDer(buffer, bytes, der, FOURK_BUF, "yassl123"),
-                0);
+    AssertIntGT(wc_KeyPemToDer(buffer, bytes, der, FOURK_BUF, "yassl123"), 0);
 
     /* test that error value is returned with a bad password */
     AssertIntLT(wc_KeyPemToDer(buffer, bytes, der, FOURK_BUF, "bad"), 0);
+#endif /* TEST_PKCS8_ENC */
+
+    /* Test PKCS8 PEM ECC key no crypt */
+    f = XFOPEN(eccPkcs8PrivKeyFile, "rb");
+    AssertTrue((f != XBADFILE));
+    bytes = (int)XFREAD(buffer, 1, sizeof(buffer), f);
+    XFCLOSE(f);
+
+    /* decrypt PKCS8 PEM to key in DER format with not using WOLFSSL_CTX */
+#ifdef HAVE_ECC
+    AssertIntGT((bytes = wc_KeyPemToDer(buffer, bytes, der, FOURK_BUF, NULL)), 0);
+    AssertIntEQ(wc_EccPrivateKeyDecode(der, &x, &key, bytes), 0);
+#else
+    AssertIntEQ((bytes = wc_KeyPemToDer(buffer, bytes, der, FOURK_BUF, NULL)),
+        ASN_NO_PEM_HEADER);
+#endif
 
     printf(resultFmt, passed);
-#endif /* OPENSSL_EXTRA */
+#endif /* !NO_FILESYSTEM && !NO_ASN */
 }
 
 /* Testing functions dealing with PKCS5 */
