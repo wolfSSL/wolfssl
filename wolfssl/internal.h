@@ -670,7 +670,7 @@
                                                           defined(HAVE_ED25519))
             #define BUILD_TLS_ECDHE_ECDSA_WITH_CHACHA20_OLD_POLY1305_SHA256
         #endif
-        #ifndef NO_RSA
+        #if !defined(NO_RSA) && defined(HAVE_ECC)
             #define BUILD_TLS_ECDHE_RSA_WITH_CHACHA20_OLD_POLY1305_SHA256
         #endif
         #if !defined(NO_DH) && !defined(NO_RSA)
