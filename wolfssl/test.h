@@ -513,10 +513,53 @@ static WC_INLINE int PasswordCallBack(char* passwd, int sz, int rw, void* userda
 
 #endif
 
+static const char* client_showpeer_msg[][8] = {
+    /* English */
+    {
+        "SSL version is",
+        "SSL cipher suite is",
+        "SSL curve name is",
+        "SSL DH size is",
+        "SSL reused session",
+        "Alternate cert chain used",
+        "peer's cert info:",
+        NULL
+    },
+    /* Japanese */
+    {
+        "SSL バージョンは",
+        "SSL 暗号スイートは",
+        "SSL 曲線名は",
+        "SSL DH サイズは",
+        "SSL 再利用セッション",
+        "代替証明チェーンを使用",
+        "相手方証明書情報",
+        NULL
+    }
+};
 
 #if defined(KEEP_PEER_CERT) || defined(SESSION_CERTS)
+static const char* client_showx509_msg[][5] = {
+    /* English */
+    {
+        "issuer",
+        "subject",
+        "altname",
+        "serial number",
+        NULL
+    },
+    /* Japanese */
+    {
+        "発行者",
+        "サブジェクト",
+        "代替名",
+        "シリアル番号",
+        NULL
+    },
+};
 
-static WC_INLINE void ShowX509(WOLFSSL_X509* x509, const char* hdr)
+/* lng_index is to specify the language for displaying message. 0:English, 1:Japanese */
+static WC_INLINE void ShowX509Ex(WOLFSSL_X509* x509, const char* hdr, int lng_index)
 {
     char* altName;
     char* issuer;
@@ -524,21 +567,22 @@ static WC_INLINE void ShowX509(WOLFSSL_X509* x509, const char* hdr)
     byte  serial[32];
     int   ret;
     int   sz = sizeof(serial);
+    const char** words = client_showx509_msg[lng_index];
 
     if (x509 == NULL) {
         printf("%s No Cert\n", hdr);
         return;
     }
-
+    
     issuer  = wolfSSL_X509_NAME_oneline(
                                       wolfSSL_X509_get_issuer_name(x509), 0, 0);
     subject = wolfSSL_X509_NAME_oneline(
                                      wolfSSL_X509_get_subject_name(x509), 0, 0);
 
-    printf("%s\n issuer : %s\n subject: %s\n", hdr, issuer, subject);
+    printf("%s\n %s : %s\n %s: %s\n", hdr, words[0], issuer, words[1], subject);
 
     while ( (altName = wolfSSL_X509_get_next_altname(x509)) != NULL)
-        printf(" altname = %s\n", altName);
+        printf(" %s = %s\n", words[2], altName);
 
     ret = wolfSSL_X509_get_serial_number(x509, serial, &sz);
     if (ret == WOLFSSL_SUCCESS) {
@@ -548,7 +592,7 @@ static WC_INLINE void ShowX509(WOLFSSL_X509* x509, const char* hdr)
 
         /* testsuite has multiple threads writing to stdout, get output
            message ready to write once */
-        strLen = sprintf(serialMsg, " serial number");
+        strLen = sprintf(serialMsg, " %s", words[3]);
         for (i = 0; i < sz; i++)
             sprintf(serialMsg + strLen + (i*3), ":%02x ", serial[i]);
         printf("%s\n", serialMsg);
@@ -581,6 +625,11 @@ static WC_INLINE void ShowX509(WOLFSSL_X509* x509, const char* hdr)
     }
 #endif
 }
+/* original ShowX509 to maintain compatibility */
+static WC_INLINE void ShowX509(WOLFSSL_X509* x509, const char* hdr)
+{
+    ShowX509Ex(x509, hdr, 0);
+}
 
 #endif /* KEEP_PEER_CERT || SESSION_CERTS */
 
@@ -608,29 +657,6 @@ static WC_INLINE void ShowX509Chain(WOLFSSL_X509_CHAIN* chain, int count,
 }
 #endif
 
-
-static const char* client_showpeer_msg[][7] = {
-    /* English */
-    {
-        "SSL version is",
-        "SSL cipher suite is",
-        "SSL curve name is",
-        "SSL DH size is",
-        "SSL reused session",
-        "Alternate cert chain used",
-        NULL
-    },
-    /* Japanese */
-    {
-        "SSL バージョンは",
-        "SSL 暗号スイートは",
-        "SSL 曲線名は",
-        "SSL DH サイズは",
-        "SSL 再利用セッション",
-        "代替証明チェーンを使用",
-        NULL
-    }
-};
 /* lng_index is to specify the language for displaying message. 0:English, 1:Japanese */
 static WC_INLINE void showPeerEx(WOLFSSL* ssl, int lng_index)
 {
@@ -646,7 +672,7 @@ static WC_INLINE void showPeerEx(WOLFSSL* ssl, int lng_index)
 #ifdef KEEP_PEER_CERT
     WOLFSSL_X509* peer = wolfSSL_get_peer_certificate(ssl);
     if (peer)
-        ShowX509(peer, "peer's cert info:");
+        ShowX509Ex(peer, words[6], lng_index);
     else
         printf("peer has no cert!\n");
     wolfSSL_FreeX509(peer);

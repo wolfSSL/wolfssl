@@ -947,7 +947,7 @@ static const char* client_usage_msg[][59] = {
 #endif
         "-? <num>    ヘルプ, 使い方を表示\n            0: 英語、 1: 日本語\n",         /* 3 */
         "-h <host>   接続先ホスト, 既定値",                                            /* 4 */
-        "-p <num>    接続先ポート, not 0, 既定値",                                     /* 5 */
+        "-p <num>    接続先ポート, 0は無効, 既定値",                                   /* 5 */
 
 #ifndef WOLFSSL_TLS13
         "-v <num>    SSL バージョン [0-3], SSLv3(0) - TLS1.2(3)), 既定値",             /* 6 */
