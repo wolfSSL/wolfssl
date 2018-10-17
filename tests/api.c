@@ -20116,7 +20116,6 @@ static void test_wolfSSL_AES_cbc_encrypt()
     AES_KEY* aesN = NULL;
     size_t len = 0;
     size_t lenB = 0;
-    size_t lenN = -1;
     int keySz0 = 0;
     int keySzN = -1;
     byte out[AES_BLOCK_SIZE] = {0};
@@ -20167,7 +20166,6 @@ static void test_wolfSSL_AES_cbc_encrypt()
     AssertIntNE(XMEMCMP(out, ct128, AES_BLOCK_SIZE), 0);
 
     STRESS_T(pt128, out, lenB, &aes, iv128tmp, enc1, ct128, AES_BLOCK_SIZE, 0);
-    STRESS_T(pt128, out, lenN, &aes, iv128tmp, enc1, ct128, AES_BLOCK_SIZE, 0);
     printf(resultFmt, "Stress Tests: passed");
 
     printf(testingFmt, "Stressing wolfSSL_AES_set_encrypt_key");
