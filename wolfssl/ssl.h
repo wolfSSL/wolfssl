@@ -2275,7 +2275,10 @@ enum {
     WOLFSSL_MFL_2_10 = 2, /* 1024 bytes */
     WOLFSSL_MFL_2_11 = 3, /* 2048 bytes */
     WOLFSSL_MFL_2_12 = 4, /* 4096 bytes */
-    WOLFSSL_MFL_2_13 = 5  /* 8192 bytes *//* wolfSSL ONLY!!! */
+    WOLFSSL_MFL_2_13 = 5, /* 8192 bytes *//* wolfSSL ONLY!!! */
+    WOLFSSL_MFL_2_8  = 6, /*  256 bytes *//* wolfSSL ONLY!!! */
+    WOLFSSL_MFL_MIN  = WOLFSSL_MFL_2_9,
+    WOLFSSL_MFL_MAX  = WOLFSSL_MFL_2_8,
 };
 
 #ifndef NO_WOLFSSL_CLIENT
@@ -2284,7 +2287,7 @@ WOLFSSL_API int wolfSSL_UseMaxFragment(WOLFSSL* ssl, unsigned char mfl);
 WOLFSSL_API int wolfSSL_CTX_UseMaxFragment(WOLFSSL_CTX* ctx, unsigned char mfl);
 
 #endif
-#endif
+#endif /* HAVE_MAX_FRAGMENT */
 
 /* Truncated HMAC */
 #ifdef HAVE_TRUNCATED_HMAC
