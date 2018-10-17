@@ -172,7 +172,7 @@ static int IsValidCert(const char* line)
 
     begin = XSTRSTR(line, "-c ");
     if (begin == NULL)
-        return 0;
+        return 1;
 
     begin += 3;
     for (i = 0; i < sizeof(cert) - 1 && *begin != ' ' && *begin != '\0'; i++)
