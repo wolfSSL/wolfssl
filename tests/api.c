@@ -20131,20 +20131,23 @@ static void test_wolfSSL_AES_cbc_encrypt()
      *       documents/aes/KAT_AES.zip
      *   </end URL>
      */
-    const byte pt128[] = { 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-                           0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00 };
-    const byte* pt128N = NULL;
+    const byte* pt128N  = NULL;
+    byte* key128N       = NULL;
+    byte* iv128N        = NULL;
+    byte iv128tmp[AES_BLOCK_SIZE] = {0};
 
-    const byte ct128[] = { 0x87,0x85,0xb1,0xa7,0x5b,0x0f,0x3b,0xd9,
-                           0x58,0xdc,0xd0,0xe2,0x93,0x18,0xc5,0x21 };
+    const byte pt128[]  = { 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+                            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00 };
 
-    byte key128[] = { 0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
-                      0xff,0xff,0xf0,0x00,0x00,0x00,0x00,0x00 };
-    byte* key128N = NULL;
+    const byte ct128[]  = { 0x87,0x85,0xb1,0xa7,0x5b,0x0f,0x3b,0xd9,
+                            0x58,0xdc,0xd0,0xe2,0x93,0x18,0xc5,0x21 };
 
-    byte iv128[]  = { 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-                      0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00 };
-    byte* iv128N = NULL;
+    const byte iv128[]  = { 0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+                            0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00 };
+
+    byte key128[]       = { 0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,
+                            0xff,0xff,0xf0,0x00,0x00,0x00,0x00,0x00 };
+
 
     len = sizeof(pt128);
 
@@ -20152,22 +20155,23 @@ static void test_wolfSSL_AES_cbc_encrypt()
             wolfSSL_AES_cbc_encrypt(a, b, c, d, e, f); \
             AssertIntNE(XMEMCMP(b, g, h), i)
 
+    #define RESET_IV(x, y) XMEMCPY(x, y, AES_BLOCK_SIZE)
+
     printf(testingFmt, "Stressing wolfSSL_AES_cbc_encrypt()");
-    STRESS_T(pt128N, out, len, &aes, iv128, enc1, ct128, AES_BLOCK_SIZE, 0);
+    STRESS_T(pt128N, out, len, &aes, iv128tmp, enc1, ct128, AES_BLOCK_SIZE, 0);
     STRESS_T(pt128, out, len, &aes, iv128N, enc1, ct128, AES_BLOCK_SIZE, 0);
 
-    wolfSSL_AES_cbc_encrypt(pt128, outN, len, &aes, iv128, enc1);
+    wolfSSL_AES_cbc_encrypt(pt128, outN, len, &aes, iv128tmp, enc1);
     AssertIntNE(XMEMCMP(out, ct128, AES_BLOCK_SIZE), 0);
-    wolfSSL_AES_cbc_encrypt(pt128, out, len, aesN, iv128, enc1);
+    wolfSSL_AES_cbc_encrypt(pt128, out, len, aesN, iv128tmp, enc1);
     AssertIntNE(XMEMCMP(out, ct128, AES_BLOCK_SIZE), 0);
 
-    STRESS_T(pt128, out, lenB, &aes, iv128, enc1, ct128, AES_BLOCK_SIZE, 0);
-    STRESS_T(pt128, out, lenN, &aes, iv128, enc1, ct128, AES_BLOCK_SIZE, 0);
+    STRESS_T(pt128, out, lenB, &aes, iv128tmp, enc1, ct128, AES_BLOCK_SIZE, 0);
+    STRESS_T(pt128, out, lenN, &aes, iv128tmp, enc1, ct128, AES_BLOCK_SIZE, 0);
     printf(resultFmt, "Stress Tests: passed");
 
     printf(testingFmt, "Stressing wolfSSL_AES_set_encrypt_key");
-    AssertIntNE(wolfSSL_AES_set_encrypt_key(key128N, sizeof(key128)*8, &aes),
-                0);
+    AssertIntNE(wolfSSL_AES_set_encrypt_key(key128N, sizeof(key128)*8, &aes),0);
     AssertIntNE(wolfSSL_AES_set_encrypt_key(key128, sizeof(key128)*8, aesN),0);
     AssertIntNE(wolfSSL_AES_set_encrypt_key(key128, keySz0, &aes), 0);
     AssertIntNE(wolfSSL_AES_set_encrypt_key(key128, keySzN, &aes), 0);
@@ -20183,98 +20187,116 @@ static void test_wolfSSL_AES_cbc_encrypt()
   #ifdef WOLFSSL_AES_128
 
     printf(testingFmt, "wolfSSL_AES_cbc_encrypt() 128-bit");
+    XMEMSET(out, 0, AES_BLOCK_SIZE);
+    RESET_IV(iv128tmp, iv128);
 
     AssertIntEQ(wolfSSL_AES_set_encrypt_key(key128, sizeof(key128)*8, &aes), 0);
-    XMEMSET(out, 0, AES_BLOCK_SIZE);
-    wolfSSL_AES_cbc_encrypt(pt128, out, len, &aes, iv128, enc1);
+    wolfSSL_AES_cbc_encrypt(pt128, out, len, &aes, iv128tmp, enc1);
     AssertIntEQ(XMEMCMP(out, ct128, AES_BLOCK_SIZE), 0);
     printf(resultFmt, "passed");
 
     #ifdef HAVE_AES_DECRYPT
+
     printf(testingFmt, "wolfSSL_AES_cbc_encrypt() 128-bit in decrypt mode");
-    len = sizeof(ct128);
-    AssertIntEQ(wolfSSL_AES_set_decrypt_key(key128, sizeof(key128)*8, &aes), 0);
     XMEMSET(out, 0, AES_BLOCK_SIZE);
-    wolfSSL_AES_cbc_encrypt(ct128, out, len, &aes, iv128, enc2);
+    RESET_IV(iv128tmp, iv128);
+    len = sizeof(ct128);
+
+    AssertIntEQ(wolfSSL_AES_set_decrypt_key(key128, sizeof(key128)*8, &aes), 0);
+    wolfSSL_AES_cbc_encrypt(ct128, out, len, &aes, iv128tmp, enc2);
+    AssertIntEQ(XMEMCMP(out, pt128, AES_BLOCK_SIZE), 0);
     printf(resultFmt, "passed");
-// Currently not working for decrypt, possible input error.
-//    AssertIntEQ(XMEMCMP(out, pt128, AES_BLOCK_SIZE), 0);
+
     #endif
+
   #endif /* WOLFSSL_AES_128 */
   #ifdef WOLFSSL_AES_192
     /* Test vectors from NIST Special Publication 800-38A, 2001 Edition
      * Appendix F.2.3  */
 
-    const byte pt192[] = { 0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
-                           0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a };
+    byte iv192tmp[AES_BLOCK_SIZE] = {0};
 
-    const byte ct192[] = { 0x4f,0x02,0x1d,0xb2,0x43,0xbc,0x63,0x3d,
-                           0x71,0x78,0x18,0x3a,0x9f,0xa0,0x71,0xe8 };
+    const byte pt192[]  = { 0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+                            0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a };
 
-    byte key192[] = { 0x8e,0x73,0xb0,0xf7,0xda,0x0e,0x64,0x52,
-                      0xc8,0x10,0xf3,0x2b,0x80,0x90,0x79,0xe5,
-                      0x62,0xf8,0xea,0xd2,0x52,0x2c,0x6b,0x7b };
+    const byte ct192[]  = { 0x4f,0x02,0x1d,0xb2,0x43,0xbc,0x63,0x3d,
+                            0x71,0x78,0x18,0x3a,0x9f,0xa0,0x71,0xe8 };
 
-    byte iv192[]  = { 0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
-                      0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F };
+    const byte iv192[]  = { 0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+                            0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F };
+
+    byte key192[]       = { 0x8e,0x73,0xb0,0xf7,0xda,0x0e,0x64,0x52,
+                            0xc8,0x10,0xf3,0x2b,0x80,0x90,0x79,0xe5,
+                            0x62,0xf8,0xea,0xd2,0x52,0x2c,0x6b,0x7b };
 
     len = sizeof(pt192);
 
     printf(testingFmt, "wolfSSL_AES_cbc_encrypt() 192-bit");
+    XMEMSET(out, 0, AES_BLOCK_SIZE);
+    RESET_IV(iv192tmp, iv192);
 
     AssertIntEQ(wolfSSL_AES_set_encrypt_key(key192, sizeof(key192)*8, &aes), 0);
-    XMEMSET(out, 0, AES_BLOCK_SIZE);
-    wolfSSL_AES_cbc_encrypt(pt192, out, len, &aes, iv192, enc1);
+    wolfSSL_AES_cbc_encrypt(pt192, out, len, &aes, iv192tmp, enc1);
     AssertIntEQ(XMEMCMP(out, ct192, AES_BLOCK_SIZE), 0);
     printf(resultFmt, "passed");
 
     #ifdef HAVE_AES_DECRYPT
+
     printf(testingFmt, "wolfSSL_AES_cbc_encrypt() 192-bit in decrypt mode");
     len = sizeof(ct192);
-    AssertIntEQ(wolfSSL_AES_set_decrypt_key(key192, sizeof(key192)*8, &aes), 0);
+    RESET_IV(iv192tmp, iv192);
     XMEMSET(out, 0, AES_BLOCK_SIZE);
-    wolfSSL_AES_cbc_encrypt(ct192, out, len, &aes, iv192, enc2);
+
+    AssertIntEQ(wolfSSL_AES_set_decrypt_key(key192, sizeof(key192)*8, &aes), 0);
+    wolfSSL_AES_cbc_encrypt(ct192, out, len, &aes, iv192tmp, enc2);
+    AssertIntEQ(XMEMCMP(out, pt192, AES_BLOCK_SIZE), 0);
     printf(resultFmt, "passed");
-// Currently not working for decrypt, possible input error.
-//    AssertIntEQ(XMEMCMP(out, pt192, AES_BLOCK_SIZE), 0);
+
     #endif
   #endif /* WOLFSSL_AES_192 */
   #ifdef WOLFSSL_AES_256
     /* Test vectors from NIST Special Publication 800-38A, 2001 Edition,
      * Appendix F.2.5  */
-    const byte pt256[] = { 0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
-                           0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a };
+    byte iv256tmp[AES_BLOCK_SIZE] = {0};
 
-    const byte ct256[] = { 0xf5,0x8c,0x4c,0x04,0xd6,0xe5,0xf1,0xba,
-                           0x77,0x9e,0xab,0xfb,0x5f,0x7b,0xfb,0xd6 };
+    const byte pt256[]  = { 0x6b,0xc1,0xbe,0xe2,0x2e,0x40,0x9f,0x96,
+                            0xe9,0x3d,0x7e,0x11,0x73,0x93,0x17,0x2a };
 
-    byte key256[] = { 0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
-                      0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
-                      0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
-                      0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4 };
+    const byte ct256[]  = { 0xf5,0x8c,0x4c,0x04,0xd6,0xe5,0xf1,0xba,
+                            0x77,0x9e,0xab,0xfb,0x5f,0x7b,0xfb,0xd6 };
 
-    byte iv256[]  = { 0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
-                      0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F };
+    const byte iv256[]  = { 0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,
+                            0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x0E,0x0F };
+
+    byte key256[]       = { 0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,
+                            0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,
+                            0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,
+                            0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4 };
+
 
     len = sizeof(pt256);
 
     printf(testingFmt, "wolfSSL_AES_cbc_encrypt() 256-bit");
+    XMEMSET(out, 0, AES_BLOCK_SIZE);
+    RESET_IV(iv256tmp, iv256);
 
     AssertIntEQ(wolfSSL_AES_set_encrypt_key(key256, sizeof(key256)*8, &aes), 0);
-    XMEMSET(out, 0, AES_BLOCK_SIZE);
-    wolfSSL_AES_cbc_encrypt(pt256, out, len, &aes, iv256, enc1);
+    wolfSSL_AES_cbc_encrypt(pt256, out, len, &aes, iv256tmp, enc1);
     AssertIntEQ(XMEMCMP(out, ct256, AES_BLOCK_SIZE), 0);
     printf(resultFmt, "passed");
 
     #ifdef HAVE_AES_DECRYPT
+
     printf(testingFmt, "wolfSSL_AES_cbc_encrypt() 256-bit in decrypt mode");
     len = sizeof(ct256);
-    AssertIntEQ(wolfSSL_AES_set_decrypt_key(key256, sizeof(key256)*8, &aes), 0);
+    RESET_IV(iv256tmp, iv256);
     XMEMSET(out, 0, AES_BLOCK_SIZE);
-    wolfSSL_AES_cbc_encrypt(ct256, out, len, &aes, iv256, enc2);
+
+    AssertIntEQ(wolfSSL_AES_set_decrypt_key(key256, sizeof(key256)*8, &aes), 0);
+    wolfSSL_AES_cbc_encrypt(ct256, out, len, &aes, iv256tmp, enc2);
+    AssertIntEQ(XMEMCMP(out, pt256, AES_BLOCK_SIZE), 0);
     printf(resultFmt, "passed");
-// Currently not working for decrypt, possible input error.
-//    AssertIntEQ(XMEMCMP(out, pt256, AES_BLOCK_SIZE), 0);
+
     #endif
   #endif /* WOLFSSL_AES_256 */
 #endif
