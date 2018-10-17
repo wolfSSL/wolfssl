@@ -20451,15 +20451,20 @@ WOLFSSL_API int X509_PUBKEY_get0_param(WOLFSSL_ASN1_OBJECT **ppkalg, const unsig
 }
 #endif
 
-#if defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB)
+#if defined(WOLFSSL_QT)
 WOLFSSL_EVP_PKEY* wolfSSL_X509_PUBKEY_get(WOLFSSL_X509_PUBKEY* key)
 {
-    (void)key;
-    WOLFSSL_STUB("wolfSSL_X509_PUBKEY_get");
-    return 0;
+    WOLFSSL_ENTER("wolfSSL_X509_PUBKEY_get");
+
+    if(key == NULL || key->pkey == NULL){
+        return BAD_FUNC_ARG;
+    }
+
+    WOLFSSL_EXIT("wolfSSL_X509_PUBKEY_get");
+    return key->pkey;
 }
 
-#endif /* defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB) */
+#endif /* defined(WOLFSSL_QT) */
 
 
 #ifndef NO_WOLFSSL_STUB
