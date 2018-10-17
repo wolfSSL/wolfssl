@@ -3381,12 +3381,17 @@ int wc_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key, byte* out,
    }
 
 #ifdef WOLFSSL_ATECC508A
-   err = atcatls_ecdh(private_key->slot, public_key->pubkey_raw, out);
-   if (err != ATCA_SUCCESS) {
-      err = BAD_COND_E;
+   /* For SECP256R1 use hardware */
+   if (private_key->dp->id == ECC_SECP256R1) {
+       err = atmel_ecc_create_pms(private_key->slot, public_key->pubkey_raw, out);
+       *outlen = private_key->dp->size;
    }
-   *outlen = private_key->dp->size;
+   else {
+      err = NOT_COMPILED_IN;
+   }
+
 #else
+
    err = wc_ecc_shared_secret_ex(private_key, &public_key->pubkey, out, outlen);
 #endif /* WOLFSSL_ATECC508A */
 
@@ -3757,7 +3762,7 @@ static int wc_ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
 #endif
     ecc_point* pub;
     DECLARE_CURVE_SPECS(curve, ECC_CURVE_FIELD_COUNT);
-#endif
+#endif /* !WOLFSSL_ATECC508A */
 
     if (key == NULL) {
         return BAD_FUNC_ARG;
@@ -3857,9 +3862,7 @@ static int wc_ecc_make_pub_ex(ecc_key* key, ecc_curve_spec* curveIn,
     /* free up local curve */
     if (curveIn == NULL) {
         wc_ecc_curve_free(curve);
-    #ifndef WOLFSSL_ATECC508A
         FREE_CURVE_SPECS();
-    #endif
     }
 
 #else
@@ -3899,7 +3902,7 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
 #ifndef WOLFSSL_SP_MATH
     DECLARE_CURVE_SPECS(curve, ECC_CURVE_FIELD_COUNT);
 #endif
-#endif
+#endif /* !WOLFSSL_ATECC508A */
 
     if (key == NULL || rng == NULL) {
         return BAD_FUNC_ARG;
@@ -3942,10 +3945,7 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
 
 #ifdef WOLFSSL_ATECC508A
    key->type = ECC_PRIVATEKEY;
-   err = atcatls_create_key(key->slot, key->pubkey_raw);
-   if (err != ATCA_SUCCESS) {
-      err = BAD_COND_E;
-   }
+   err = atmel_ecc_create_key(key->slot, key->pubkey_raw);
 
    /* populate key->pubkey */
    err = mp_read_unsigned_bin(key->pubkey.x, key->pubkey_raw,
@@ -3999,9 +3999,7 @@ int wc_ecc_make_key_ex(WC_RNG* rng, int keysize, ecc_key* key, int curve_id)
 
         /* cleanup allocations */
         wc_ecc_curve_free(curve);
-    #ifndef WOLFSSL_ATECC508A
         FREE_CURVE_SPECS();
-    #endif
 #endif /* WOLFSSL_SP_MATH */
     }
 
@@ -4103,10 +4101,7 @@ int wc_ecc_init_ex(ecc_key* key, void* heap, int devId)
 #endif
 
 #ifdef WOLFSSL_ATECC508A
-    key->slot = atmel_ecc_alloc();
-    if (key->slot == ATECC_INVALID_SLOT) {
-        return ECC_BAD_ARG_E;
-    }
+    key->slot = -1;
 #else
 #ifdef ALT_ECC_SIZE
     key->pubkey.x = (mp_int*)&key->pubkey.xyz[0];
@@ -4201,10 +4196,15 @@ static int wc_ecc_sign_hash_hw(const byte* in, word32 inlen,
         }
 
     #if defined(WOLFSSL_ATECC508A)
+        key->slot = atmel_ecc_alloc(ATMEL_SLOT_DEVICE);
+        if (key->slot == ATECC_INVALID_SLOT) {
+            return ECC_BAD_ARG_E;
+        }
+
         /* Sign: Result is 32-bytes of R then 32-bytes of S */
-        err = atcatls_sign(key->slot, in, out);
-        if (err != ATCA_SUCCESS) {
-           return BAD_COND_E;
+        err = atmel_ecc_sign(key->slot, in, out);
+        if (err != 0) {
+           return err;
         }
     #elif defined(PLUTON_CRYPTO_ECC)
         {
@@ -5282,9 +5282,9 @@ int wc_ecc_verify_hash_ex(mp_int *r, mp_int *s, const byte* hash,
         return err;
     }
 
-    err = atcatls_verify(hash, sigRS, key->pubkey_raw, (bool*)res);
-    if (err != ATCA_SUCCESS) {
-       return BAD_COND_E;
+    err = atmel_ecc_verify(hash, sigRS, key->pubkey_raw, res);
+    if (err != 0) {
+       return err;
     }
     (void)hashlen;
 
@@ -5569,7 +5569,6 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
                             ecc_point* point)
 {
     int err = 0;
-#ifndef WOLFSSL_ATECC508A
     int compressed = 0;
     int keysize;
     byte pointType;
@@ -5618,11 +5617,6 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
 
     /* calculate key size based on inLen / 2 */
     keysize = inLen>>1;
-
-#ifdef WOLFSSL_ATECC508A
-    /* populate key->pubkey_raw */
-    XMEMCPY(key->pubkey_raw, (byte*)in, sizeof(key->pubkey_raw));
-#endif
 
     /* read data */
     if (err == MP_OKAY)
@@ -5703,14 +5697,6 @@ int wc_ecc_import_point_der(byte* in, word32 inLen, const int curve_idx,
         mp_clear(point->z);
     }
 
-#else
-    err = NOT_COMPILED_IN;
-    (void)in;
-    (void)inLen;
-    (void)curve_idx;
-    (void)point;
-#endif /* !WOLFSSL_ATECC508A */
-
     return err;
 }
 #endif /* HAVE_ECC_KEY_IMPORT */
@@ -5722,13 +5708,11 @@ int wc_ecc_export_point_der(const int curve_idx, ecc_point* point, byte* out,
 {
     int    ret = MP_OKAY;
     word32 numlen;
-#ifndef WOLFSSL_ATECC508A
 #ifdef WOLFSSL_SMALL_STACK
     byte*  buf;
 #else
     byte   buf[ECC_BUFSIZE];
 #endif
-#endif /* !WOLFSSL_ATECC508A */
 
     if ((curve_idx < 0) || (wc_ecc_is_valid_idx(curve_idx) == 0))
         return ECC_BAD_ARG_E;
@@ -5749,12 +5733,6 @@ int wc_ecc_export_point_der(const int curve_idx, ecc_point* point, byte* out,
         *outLen = 1 + 2*numlen;
         return BUFFER_E;
     }
-
-#ifdef WOLFSSL_ATECC508A
-   /* TODO: Implement equiv call to ATECC508A */
-   ret = BAD_COND_E;
-
-#else
 
     /* store byte point type */
     out[0] = ECC_POINT_UNCOMP;
@@ -5787,7 +5765,6 @@ done:
 #ifdef WOLFSSL_SMALL_STACK
     XFREE(buf, NULL, DYNAMIC_TYPE_ECC_BUFFER);
 #endif
-#endif /* WOLFSSL_ATECC508A */
 
     return ret;
 }
@@ -6086,8 +6063,8 @@ static int ecc_check_privkey_gen_helper(ecc_key* key)
         return BAD_FUNC_ARG;
 
 #ifdef WOLFSSL_ATECC508A
-    /* TODO: Implement equiv call to ATECC508A */
-    err = BAD_COND_E;
+    /* Hardware based private key, so this operation is not supported */
+    err = MP_OKAY; /* just report success */
 
 #else
     ALLOC_CURVE_SPECS(2);
@@ -6176,10 +6153,7 @@ int wc_ecc_check_key(ecc_key* key)
 
 #ifdef WOLFSSL_ATECC508A
 
-    if (key->slot == ATECC_INVALID_SLOT)
-        return ECC_BAD_ARG_E;
-
-    err = 0; /* consider key check success on ECC508A */
+    err = 0; /* consider key check success on ATECC508A */
 
 #else
     #ifdef USE_ECC_B_PARAM
@@ -6335,6 +6309,14 @@ int wc_ecc_import_x963_ex(const byte* in, word32 inLen, ecc_key* key,
     inLen -= 1;
     in += 1;
 
+#ifdef WOLFSSL_ATECC508A
+    /* For SECP256R1 only save raw public key for hardware */
+    if (curve_id == ECC_SECP256R1 && !compressed &&
+                                            inLen <= sizeof(key->pubkey_raw)) {
+        XMEMCPY(key->pubkey_raw, (byte*)in, inLen);
+    }
+#endif
+
     if (err == MP_OKAY) {
     #ifdef HAVE_COMP_KEY
         /* adjust inLen if compressed */
@@ -6472,7 +6454,7 @@ int wc_ecc_export_ex(ecc_key* key, byte* qx, word32* qxLen,
 
     #ifdef WOLFSSL_ATECC508A
         /* Hardware cannot export private portion */
-        return BAD_COND_E;
+        return NOT_COMPILED_IN;
     #else
         err = wc_export_int(&key->k, d, dLen, keySz, encType);
         if (err != MP_OKAY)
@@ -6573,8 +6555,8 @@ int wc_ecc_import_private_key_ex(const byte* priv, word32 privSz,
         return ret;
 
 #ifdef WOLFSSL_ATECC508A
-    /* TODO: Implement equiv call to ATECC508A */
-    return BAD_COND_E;
+    /* Hardware does not support loading private keys */
+    return NOT_COMPILED_IN;
 
 #else
 
@@ -6836,14 +6818,6 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
         return err;
     }
 
-#ifdef WOLFSSL_ATECC508A
-    /* TODO: Implement equiv call to ATECC508A */
-    err = BAD_COND_E;
-    (void)d;
-    (void)encType;
-
-#else
-
     /* init key */
 #ifdef ALT_ECC_SIZE
     key->pubkey.x = (mp_int*)&key->pubkey.xyz[0];
@@ -6882,9 +6856,25 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
     if (err == MP_OKAY)
         err = mp_set(key->pubkey.z, 1);
 
+#ifdef WOLFSSL_ATECC508A
+    /* For SECP256R1 only save raw public key for hardware */
+    if (err == MP_OKAY && curve_id == ECC_SECP256R1) {
+        word32 keySz = key->dp->size;
+        err = wc_export_int(key->pubkey.x, key->pubkey_raw,
+            &keySz, keySz, WC_TYPE_UNSIGNED_BIN);
+        if (err == MP_OKAY)
+            err = wc_export_int(key->pubkey.y, &key->pubkey_raw[keySz],
+                &keySz, keySz, WC_TYPE_UNSIGNED_BIN);
+    }
+#endif
+
     /* import private key */
     if (err == MP_OKAY) {
         if (d != NULL) {
+        #ifdef WOLFSSL_ATECC508A
+            /* Hardware doesn't support loading private key */
+            err = NOT_COMPILED_IN;
+        #else
             key->type = ECC_PRIVATEKEY;
 
             if (encType == WC_TYPE_HEX_STR)
@@ -6892,7 +6882,7 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
             else
                 err = mp_read_unsigned_bin(&key->k, (const byte*)d,
                     key->dp->size);
-
+        #endif /* WOLFSSL_ATECC508A */
         } else {
             key->type = ECC_PUBLICKEY;
         }
@@ -6909,7 +6899,6 @@ static int wc_ecc_import_raw_private(ecc_key* key, const char* qx,
         mp_clear(key->pubkey.z);
         mp_clear(&key->k);
     }
-#endif /* WOLFSSL_ATECC508A */
 
     return err;
 }
@@ -9404,12 +9393,6 @@ static int wc_ecc_export_x963_compressed(ecc_key* key, byte* out, word32* outLen
       return BUFFER_E;
    }
 
-#ifdef WOLFSSL_ATECC508A
-   /* TODO: Implement equiv call to ATECC508A */
-   ret = BAD_COND_E;
-
-#else
-
    /* store first byte */
    out[0] = mp_isodd(key->pubkey.y) == MP_YES ? ECC_POINT_COMP_ODD : ECC_POINT_COMP_EVEN;
 
@@ -9418,8 +9401,6 @@ static int wc_ecc_export_x963_compressed(ecc_key* key, byte* out, word32* outLen
    ret = mp_to_unsigned_bin(key->pubkey.x,
                        out+1 + (numlen - mp_unsigned_bin_size(key->pubkey.x)));
    *outLen = 1 + numlen;
-
-#endif /* WOLFSSL_ATECC508A */
 
    return ret;
 }

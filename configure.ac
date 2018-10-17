@@ -788,6 +788,50 @@ fi
 AM_CONDITIONAL([BUILD_PKCALLBACKS],   [ test "x$ENABLED_PKCALLBACKS" = "xyes" ])
 
 
+# Microchip/Atmel CryptoAuthLib
+ENABLED_CRYPTOAUTHLIB="no"
+trylibatcadir=""
+AC_ARG_WITH([cryptoauthlib],
+    [AS_HELP_STRING([--with-cryptoauthlib=PATH],[PATH to CryptoAuthLib install (default /usr/)])],
+    [
+        AC_MSG_CHECKING([for cryptoauthlib])
+        CPPFLAGS="$CPPFLAGS -DWOLFSSL_ATECC508A"
+        LIBS="$LIBS -lcryptoauth"
+
+        AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <cryptoauthlib.h>]], [[ atcab_init(0); ]])],[ libatca_linked=yes ],[ libatca_linked=no ])
+
+        if test "x$libatca_linked" == "xno" ; then
+            if test "x$withval" != "xno" ; then
+                trylibatcadir=$withval
+            fi
+            if test "x$withval" == "xyes" ; then
+                trylibatcadir="/usr"
+            fi
+
+            LDFLAGS="$LDFLAGS -L$trylibatcadir/lib"
+            CPPFLAGS="$CPPFLAGS -I$trylibatcadir/lib"
+
+            AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <cryptoauthlib.h>]], [[ atcab_init(0); ]])],[ libatca_linked=yes ],[ libatca_linked=no ])
+
+            if test "x$libatca_linked" == "xno" ; then
+                AC_MSG_ERROR([cryptoauthlib isn't found.
+                If it's already installed, specify its path using --with-cryptoauthlib=/dir/])
+            fi
+
+            AM_LDFLAGS="$AM_LDFLAGS -L$trylibatcadir/lib"
+            AM_CFLAGS="$AM_CFLAGS -I$trylibatcadir/lib"
+            AC_MSG_RESULT([yes])
+        else
+            AC_MSG_RESULT([yes])
+        fi
+
+        ENABLED_CRYPTOAUTHLIB="yes"
+        AM_CFLAGS="$AM_CFLAGS -DWOLFSSL_ATECC508A"
+    ]
+)
+AM_CONDITIONAL([BUILD_CRYPTOAUTHLIB], [test "x$ENABLED_CRYPTOAUTHLIB" = "xyes"])
+
+
 # sniffer doesn't work in maxstrength mode
 if test "$ENABLED_SNIFFER" = "yes" && test "$ENABLED_MAXSTRENGTH" = "yes"
 then
@@ -3528,7 +3572,7 @@ AC_ARG_WITH([libz],
                 trylibzdir="/usr"
             fi
 
-            AM_LDFLAGS="$AM_LDFLAGS -L$trylibzdir/lib"
+            LDFLAGS="$LDFLAGS -L$trylibzdir/lib"
             CPPFLAGS="$CPPFLAGS -I$trylibzdir/include"
 
             AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <zlib.h>]], [[ deflateInit(0, 8); ]])],[ libz_linked=yes ],[ libz_linked=no ])
