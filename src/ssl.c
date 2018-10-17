@@ -21343,8 +21343,7 @@ void wolfSSL_AES_cbc_encrypt(const unsigned char *in, unsigned char* out,
 
     WOLFSSL_ENTER("wolfSSL_AES_cbc_encrypt");
 
-    if (key == NULL || in == NULL || out == NULL || iv == NULL ||
-        (int) len <= 0 ) {
+    if (key == NULL || in == NULL || out == NULL || iv == NULL || len == 0) {
         WOLFSSL_MSG("Error, Null argument passed in");
         return;
     }
