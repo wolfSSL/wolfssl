@@ -22781,25 +22781,24 @@ int wolfSSL_BN_is_odd(const WOLFSSL_BIGNUM* bn)
     return WOLFSSL_FAILURE;
 }
 
-#if defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB)
+/* return compliant with OpenSSL
+ *   1 if BIGNUM is word, 0 else */
 int wolfSSL_BN_is_word(const WOLFSSL_BIGNUM* bn, WOLFSSL_BN_ULONG w)
 {
-    (void) w;
-    WOLFSSL_MSG("wolfSSL_BN_is_word");
+    WOLFSSL_ENTER("wolfSSL_BN_is_word");
 
     if (bn == NULL || bn->internal == NULL) {
         WOLFSSL_MSG("bn NULL error");
         return WOLFSSL_FAILURE;
     }
-    /*
-     * if (mp_isword((mp_int*)bn->internal, w) != MP_OKAY) {
-     *     WOLFSSL_MSG("mp_isword error");
-     *     return WOLFSSL_FAILURE;
-     * }
-     */
+
+     if (mp_isword((mp_int*)bn->internal, w) != MP_OKAY) {
+         WOLFSSL_MSG("mp_isword error");
+         return WOLFSSL_FAILURE;
+     }
+     
      return WOLFSSL_SUCCESS;
 }
-#endif
 
 /* return compliant with OpenSSL
  *   -1 if a < b, 0 if a == b and 1 if a > b
