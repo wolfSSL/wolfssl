@@ -170,9 +170,9 @@
 /* #define WOLFSSL_XILINX */
 
 /* Uncomment next four lines for using WICED Studio. */
-#if !defined(WOLFSSL_WICED)
-    #define WOLFSSL_WICED
-#endif
+/* #if !defined(WOLFSSL_WICED) */
+/*    #define WOLFSSL_WICED    */
+/* #endif  */
 
 #if defined(WOLFSSL_WICED)
     #undef WOLFSSL_USER_SETTINGS
