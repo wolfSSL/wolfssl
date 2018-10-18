@@ -40,6 +40,10 @@
 #include <wolfssl/openssl/crypto.h>
 #endif
 
+#if defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY)
+#include <wolfssl/wolfcrypt/asn.h>
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
