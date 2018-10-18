@@ -21411,6 +21411,20 @@ static int pkcs7signed_run_SingleShotVectors(
             wc_PKCS7_Free(pkcs7);
             return -9565;
         }
+#ifndef NO_PKCS7_STREAM
+        {
+            word32 z;
+            for (z = 0; z < outSz && ret != 0; z++) {
+                ret = wc_PKCS7_VerifySignedData(pkcs7, out + z, 1);
+                if (ret < 0 && ret != WC_PKCS7_WANT_READ_E) {
+                    XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);
+                    wc_PKCS7_Free(pkcs7);
+                    printf("unexpected error %d\n", ret);
+                    return -9565;
+                }
+            }
+        }
+#endif
 
         if (pkcs7->singleCert == NULL || pkcs7->singleCertSz == 0) {
             XFREE(out, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);

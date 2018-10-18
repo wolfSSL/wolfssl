@@ -15343,18 +15343,29 @@ static void test_wc_PKCS7_EncodeSignedData_ex(void)
 
     AssertIntEQ(wc_PKCS7_VerifySignedData_ex(NULL, hashBuf, hashSz, outputHead,
         outputHeadSz, outputFoot, outputFootSz), BAD_FUNC_ARG);
+
     AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, NULL, hashSz, outputHead,
-        outputHeadSz, outputFoot, outputFootSz), ASN_PARSE_E);
+        outputHeadSz, outputFoot, outputFootSz), BAD_FUNC_ARG);
+#ifndef NO_PKCS7_STREAM
     AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, 0, outputHead,
-        outputHeadSz, outputFoot, outputFootSz), ASN_PARSE_E);
+        outputHeadSz, outputFoot, outputFootSz), WC_PKCS7_WANT_READ_E);
+#else
+    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, 0, outputHead,
+        outputHeadSz, outputFoot, outputFootSz), BUFFER_E);
+#endif
     AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, hashSz, NULL,
         outputHeadSz, outputFoot, outputFootSz), BAD_FUNC_ARG);
     AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, hashSz,
         outputHead, 0, outputFoot, outputFootSz), BAD_FUNC_ARG);
     AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, hashSz,
-        outputHead, outputHeadSz, NULL, outputFootSz), ASN_PARSE_E);
+        outputHead, outputHeadSz, NULL, outputFootSz), BAD_FUNC_ARG);
+#ifndef NO_PKCS7_STREAM
     AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, hashSz,
-        outputHead, outputHeadSz, outputFoot, 0), ASN_PARSE_E);
+        outputHead, outputHeadSz, outputFoot, 0), WC_PKCS7_WANT_READ_E);
+#else
+    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, hashSz,
+        outputHead, outputHeadSz, outputFoot, 0), BUFFER_E);
+#endif
 
     printf(resultFmt, passed);
 
