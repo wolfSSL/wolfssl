@@ -866,7 +866,7 @@ static const char* client_usage_msg[][59] = {
         "-S <str>    Use Host Name Indication\n",                                       /* 35 */
 #endif
 #ifdef HAVE_MAX_FRAGMENT
-        "-F <num>    Use Maximum Fragment Length [1-5]\n",                              /* 36 */
+        "-F <num>    Use Maximum Fragment Length [1-6]\n",                              /* 36 */
 #endif
 #ifdef HAVE_TRUNCATED_HMAC
         "-T          Use Truncated HMAC\n",                                             /* 37 */
@@ -999,7 +999,7 @@ static const char* client_usage_msg[][59] = {
         "-S <str>    ホスト名表示を使用する\n",                                           /* 35 */
 #endif
 #ifdef HAVE_MAX_FRAGMENT
-        "-F <num>    最大フラグメント長[1-5]を設定する\n",                                /* 36 */
+        "-F <num>    最大フラグメント長[1-6]を設定する\n",                                /* 36 */
 #endif
 #ifdef HAVE_TRUNCATED_HMAC
         "-T          Truncated HMACを使用する\n",                                         /* 37 */
@@ -1632,8 +1632,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
             case 'F' :
                 #ifdef HAVE_MAX_FRAGMENT
                     maxFragment = atoi(myoptarg);
-                    if (maxFragment < WOLFSSL_MFL_2_9 ||
-                                               maxFragment > WOLFSSL_MFL_2_13) {
+                    if (maxFragment < WOLFSSL_MFL_MIN ||
+                                               maxFragment > WOLFSSL_MFL_MAX) {
                         Usage();
                         XEXIT_T(MY_EX_USAGE);
                     }

@@ -10259,9 +10259,11 @@ WOLFSSL_API int wolfSSL_UseMaxFragment(WOLFSSL* ssl, unsigned char mfl);
     \param ctx pointer to a SSL context, created with wolfSSL_CTX_new().
     \param mfl indicates which is the Maximum Fragment Length requested
     for the session. The available options are:
-    enum { WOLFSSL_MFL_2_9  = 1, 512 bytes WOLFSSL_MFL_2_10 = 2,
-    1024 bytes WOLFSSL_MFL_2_11 = 3, 2048 bytes WOLFSSL_MFL_2_12 = 4,
-    4096 bytes WOLFSSL_MFL_2_13 = 5, 8192 bytes wolfSSL ONLY!!! };
+    enum { WOLFSSL_MFL_2_9  = 1 512 bytes, WOLFSSL_MFL_2_10 = 2 1024 bytes,
+           WOLFSSL_MFL_2_11 = 3 2048 bytes WOLFSSL_MFL_2_12 = 4 4096 bytes,
+           WOLFSSL_MFL_2_13 = 5 8192 bytes wolfSSL ONLY!!!,
+           WOLFSSL_MFL_2_13 = 6  256 bytes wolfSSL ONLY!!!
+    };
 
     _Example_
     \code
