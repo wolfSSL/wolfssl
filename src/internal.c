@@ -8682,8 +8682,10 @@ static int DoVerifyCallback(WOLFSSL* ssl, int ret, ProcPeerCertArgs* args)
     #endif
         /* non-zero return code indicates failure override */
         if (ssl->verifyCallback(verify_ok, store)) {
-            WOLFSSL_MSG("Verify callback overriding error!");
-            ret = 0;
+            if (ret != 0) {
+                WOLFSSL_MSG("Verify callback overriding error!");
+                ret = 0;
+            }
         }
         else {
             /* induce error if one not present */
@@ -10908,6 +10910,11 @@ static int DoHandShakeMsgType(WOLFSSL* ssl, byte* input, word32* inOutIdx,
             *inOutIdx -= DTLS_HANDSHAKE_EXTRA;
         }
     #endif
+    }
+
+    /* make sure async error is cleared */
+    if (ret == 0 && (ssl->error == WC_PENDING_E || ssl->error == OCSP_WANT_READ)) {
+        ssl->error = 0;
     }
 #endif /* WOLFSSL_ASYNC_CRYPT || WOLFSSL_NONBLOCK_OCSP */
 
