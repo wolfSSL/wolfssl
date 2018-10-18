@@ -12,7 +12,7 @@
 #include <wolfssl/wolfcrypt/random.h>
 #include <wolfssl/wolfcrypt/mem_track.h>
 #if defined(OPENSSL_EXTRA) && defined(SHOW_CERTS)
-    #include <wolfssl/openssl/ssl.h> /* for domain component NID value */
+    #include <wolfssl/wolfcrypt/asn.h> /* for domain component NID value */
 #endif
 
 #ifdef ATOMIC_USER
