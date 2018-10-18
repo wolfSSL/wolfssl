@@ -10944,6 +10944,11 @@ static int DoHandShakeMsg(WOLFSSL* ssl, byte* input, word32* inOutIdx,
     }
 
     inputLength = ssl->buffers.inputBuffer.length - *inOutIdx;
+    if (ssl->arrays->pendingMsgSz != 0) {
+        inputLength = min(inputLength,
+                          ssl->arrays->pendingMsgSz - ssl->arrays->pendingMsgOffset);
+    }
+
 
     /* If there is a pending fragmented handshake message,
      * pending message size will be non-zero. */
