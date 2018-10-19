@@ -3540,6 +3540,7 @@ static void test_wolfSSL_PKCS8(void)
     XFILE f;
     int bytes;
 #ifdef HAVE_ECC
+    int ret;
     ecc_key key;
     word32 x = 0;
 #endif
@@ -3603,7 +3604,12 @@ static void test_wolfSSL_PKCS8(void)
     /* decrypt PKCS8 PEM to key in DER format with not using WOLFSSL_CTX */
 #ifdef HAVE_ECC
     AssertIntGT((bytes = wc_KeyPemToDer(buffer, bytes, der, FOURK_BUF, NULL)), 0);
-    AssertIntEQ(wc_EccPrivateKeyDecode(der, &x, &key, bytes), 0);
+    ret = wc_ecc_init(&key);
+    if (ret == 0) {
+        ret = wc_EccPrivateKeyDecode(der, &x, &key, bytes);
+        wc_ecc_free(&key);
+    }
+    AssertIntEQ(ret, 0);
 #else
     AssertIntEQ((bytes = wc_KeyPemToDer(buffer, bytes, der, FOURK_BUF, NULL)),
         ASN_NO_PEM_HEADER);
