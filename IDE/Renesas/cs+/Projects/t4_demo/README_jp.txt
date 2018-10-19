@@ -9,7 +9,7 @@ wolfSSL/AlphaProjectボードデモ　セットアップガイド
 　- 同じフォルダー下にwolfssl一式を解凍します。
 
 ２．wolfSSLのセットアップ
-　- CS*にてwolfssl\IDE\Renesas\cs+\Project下のwolfssl\lib.mtpjを開き
+　- CS+にてwolfssl\IDE\Renesas\cs+\Project下のwolfssl\lib.mtpjを開き
 　　wolfSSLライブラリーのビルドをします。
 　- 同じフォルダの下のt4_demo.mtpjを開き、デモプログラムのビルドをします。
 　このプログラムもライブラリー形式でビルドされます。
