@@ -7468,7 +7468,21 @@ int wolfSSL_use_certificate_chain_file_format(WOLFSSL* ssl, const char* file,
 /* Set Temp CTX EC-DHE size in octets, should be 20 - 66 for 160 - 521 bit */
 int wolfSSL_CTX_SetTmpEC_DHE_Sz(WOLFSSL_CTX* ctx, word16 sz)
 {
-    if (ctx == NULL || sz < ECC_MINSIZE || sz > ECC_MAXSIZE)
+    if (ctx == NULL)
+        return BAD_FUNC_ARG;
+
+    if (sz == 0) {
+        if (ctx->privateKeySz == 0)
+            return BAD_FUNC_ARG;
+
+        if (ctx->privateKeyType != ecc_dsa_sa_algo)
+            return WOLFSSL_SUCCESS;
+
+        sz = ctx->privateKeySz;
+    }
+
+    /* check size */
+    if (sz < ECC_MINSIZE || sz > ECC_MAXSIZE)
         return BAD_FUNC_ARG;
 
     ctx->eccTempKeySz = sz;

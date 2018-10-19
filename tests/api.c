@@ -22051,6 +22051,23 @@ static void test_wolfSSL_CTX_LoadCRL()
 #endif
 }
 
+static void test_SetTmpEC_DHE_Sz(void)
+{
+#if defined(HAVE_ECC) && !defined(NO_WOLFSSL_CLIENT)
+    WOLFSSL_CTX *ctx;
+    WOLFSSL *ssl;
+
+    AssertNotNull(ctx = wolfSSL_CTX_new(wolfSSLv23_client_method()));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_CTX_SetTmpEC_DHE_Sz(ctx, 32));
+    AssertNotNull(ssl = wolfSSL_new(ctx));
+    AssertIntEQ(WOLFSSL_SUCCESS, wolfSSL_SetTmpEC_DHE_Sz(ssl, 32));
+
+    wolfSSL_free(ssl);
+    wolfSSL_CTX_free(ctx);
+#endif
+}
+
+
 /*----------------------------------------------------------------------------*
  | Main
  *----------------------------------------------------------------------------*/
@@ -22085,6 +22102,7 @@ void ApiTest(void)
     test_wolfSSL_SetTmpDH_file();
     test_wolfSSL_SetTmpDH_buffer();
     test_wolfSSL_SetMinMaxDhKey_Sz();
+    test_SetTmpEC_DHE_Sz();
 #if !defined(NO_WOLFSSL_CLIENT) && !defined(NO_WOLFSSL_SERVER)
     test_wolfSSL_read_write();
 #endif
