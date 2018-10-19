@@ -917,8 +917,9 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define X509_NAME_ENTRY_get_object        wolfSSL_X509_NAME_ENTRY_get_object
 #define SSL_get_SSL_CTX                   wolfSSL_get_SSL_CTX
 #define ERR_peek_last_error               wolfSSL_ERR_peek_last_error
+#ifndef WOLFSSL_HAPROXY
 #define X509_get_version                  wolfSSL_X509_get_version
-
+#endif
 
 #define ERR_NUM_ERRORS                  16
 #define EVP_PKEY_RSA                    6 
