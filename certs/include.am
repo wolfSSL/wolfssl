@@ -14,8 +14,10 @@ EXTRA_DIST += \
 	     certs/ecc-privkey.pem \
 	     certs/ecc-privkeyPkcs8.pem \
 	     certs/ecc-keyPkcs8Enc.pem \
+	     certs/ecc-keyPkcs8Enc.der \
 	     certs/ecc-key-comp.pem \
 	     certs/ecc-keyPkcs8.pem \
+	     certs/ecc-keyPkcs8.der \
 	     certs/ecc-client-key.pem \
 	     certs/ecc-client-keyPub.pem \
 	     certs/client-ecc-cert.pem \
@@ -33,6 +35,7 @@ EXTRA_DIST += \
 	     certs/server-keyPkcs8Enc12.pem \
 	     certs/server-keyPkcs8Enc2.pem \
 	     certs/server-keyPkcs8Enc.pem \
+	     certs/server-keyPkcs8Enc.der \
 	     certs/server-keyPkcs8.pem \
 	     certs/server-revoked-cert.pem \
 	     certs/server-revoked-key.pem \

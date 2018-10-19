@@ -13124,7 +13124,7 @@ int openssl_test(void)
             return -7424;
 
     }  /* end evp_cipher test: EVP_aes_128_cbc*/
-#endif /* WOLFSSL_AES_128 */
+#endif /* WOLFSSL_AES_128 && HAVE_AES_CBC */
 
 #if defined(HAVE_AES_ECB) && defined(WOLFSSL_AES_256)
     {  /* evp_cipher test: EVP_aes_256_ecb*/
@@ -13641,7 +13641,7 @@ int openssl_test(void)
 
 
     }
-#endif /* WOLFSSL_AES_128 */
+#endif /* WOLFSSL_AES_128 && HAVE_AES_CBC */
 #endif /* ifndef NO_AES */
     return 0;
 }
