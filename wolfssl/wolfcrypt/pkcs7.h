@@ -109,6 +109,12 @@ enum PKCS7_STATE {
     WC_PKCS7_INFOSET_STAGE2,
     WC_PKCS7_INFOSET_END,
 
+    /* decode enveloped data */
+    WC_PKCS7_ENV_2,
+    WC_PKCS7_ENV_3,
+    WC_PKCS7_ENV_4,
+    WC_PKCS7_ENV_5,
+
     /* decode auth enveloped */
     WC_PKCS7_AUTHENV_2,
     WC_PKCS7_AUTHENV_3,
