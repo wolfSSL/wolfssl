@@ -833,6 +833,50 @@ static int GetLength(const byte* input, word32* inOutIdx, int* len,
     return length;
 }
 
+static int GetASNHeader(const byte* input, byte tag, word32* inOutIdx, int* len,
+                        word32 maxIdx)
+{
+    word32 idx = *inOutIdx;
+    byte   b;
+    int    length;
+
+    if ((idx + 1) > maxIdx)
+        return USER_CRYPTO_ERROR;
+
+    b = input[idx++];
+    if (b != tag)
+        return USER_CRYPTO_ERROR;
+
+    if (GetLength(input, &idx, &length, maxIdx) < 0)
+        return USER_CRYPTO_ERROR;
+
+    *len      = length;
+    *inOutIdx = idx;
+    return length;
+}
+
+static int GetASNInt(const byte* input, word32* inOutIdx, int* len,
+                     word32 maxIdx)
+{
+    int    ret;
+
+    ret = GetASNHeader(input, ASN_INTEGER, inOutIdx, len, maxIdx);
+    if (ret < 0)
+        return ret;
+
+    if (*len > 0) {
+        /* remove leading zero, unless there is only one 0x00 byte */
+        if ((input[*inOutIdx] == 0x00) && (*len > 1)) {
+            (*inOutIdx)++;
+            (*len)--;
+
+            if (*len > 0 && (input[*inOutIdx] & 0x80) == 0)
+                return USER_CRYPTO_ERROR;
+        }
+    }
+
+    return 0;
+}
 
 static int GetInt(IppsBigNumState** mpi, const byte* input, word32* inOutIdx,
                   word32 maxIdx)
@@ -1065,14 +1109,14 @@ int wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
 int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
                        word32 inSz)
 {
-    int  length;
-    int  ctxSz;
-    IppStatus ret;
+    IppStatus ret = 0;
+    int length;
+    int ctxSz;
 #if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
     byte b;
 #endif
 
-    if (input == NULL || inOutIdx == NULL || key == NULL) {
+    if (input == NULL || inOutIdx == NULL) {
         return USER_CRYPTO_ERROR;
     }
 
@@ -1081,7 +1125,8 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return USER_CRYPTO_ERROR;
 
-    key->type = RSA_PUBLIC;
+    if (key)
+        key->type = RSA_PUBLIC;
 
 #if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
     if ((*inOutIdx + 1) > inSz)
@@ -1133,60 +1178,83 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     }
 #endif /* OPENSSL_EXTRA || RSA_DECODE_EXTRA */
 
-    if (GetInt(&key->n,  input, inOutIdx, inSz) < 0 ||
-        GetInt(&key->e,  input, inOutIdx, inSz) < 0) {
-        return USER_CRYPTO_ERROR;
-    }
+    if (key) {
+        if (GetInt(&key->n,  input, inOutIdx, inSz) < 0 ||
+            GetInt(&key->e,  input, inOutIdx, inSz) < 0) {
+            return USER_CRYPTO_ERROR;
+        }
 
-    /* get sizes set for IPP BN states */
-    ret = ippsGetSize_BN(key->n, &key->nSz);
-    if (ret != ippStsNoErr) {
-        USER_DEBUG(("ippsGetSize_BN error %s\n", ippGetStatusString(ret)));
-        return USER_CRYPTO_ERROR;
-    }
+        /* get sizes set for IPP BN states */
+        ret = ippsGetSize_BN(key->n, &key->nSz);
+        if (ret != ippStsNoErr) {
+            USER_DEBUG(("ippsGetSize_BN error %s\n", ippGetStatusString(ret)));
+            return USER_CRYPTO_ERROR;
+        }
 
-    ret = ippsGetSize_BN(key->e, &key->eSz);
-    if (ret != ippStsNoErr) {
-        USER_DEBUG(("ippsGetSize_BN error %s\n", ippGetStatusString(ret)));
-        return USER_CRYPTO_ERROR;
-    }
+        ret = ippsGetSize_BN(key->e, &key->eSz);
+        if (ret != ippStsNoErr) {
+            USER_DEBUG(("ippsGetSize_BN error %s\n", ippGetStatusString(ret)));
+            return USER_CRYPTO_ERROR;
+        }
 
-    key->sz = key->nSz; /* set modulus size */
+        key->sz = key->nSz; /* set modulus size */
 
-    /* convert to size in bits */
-    key->nSz = key->nSz * 8;
-    key->eSz = key->eSz * 8;
+        /* convert to size in bits */
+        key->nSz = key->nSz * 8;
+        key->eSz = key->eSz * 8;
 
-    /* set up public key state */
-    ret = ippsRSA_GetSizePublicKey(key->nSz, key->eSz, &ctxSz);
-    if (ret != ippStsNoErr) {
-        USER_DEBUG(("ippsRSA_GetSizePublicKey error %s\n",
-                ippGetStatusString(ret)));
-        return USER_CRYPTO_ERROR;
-    }
-
-    key->pPub = (IppsRSAPublicKeyState*)XMALLOC(ctxSz, NULL,
-                                                      DYNAMIC_TYPE_USER_CRYPTO);
-    if (key->pPub == NULL)
-        return USER_CRYPTO_ERROR;
-
-    ret = ippsRSA_InitPublicKey(key->nSz, key->eSz, key->pPub, ctxSz);
-    if (ret != ippStsNoErr) {
-        USER_DEBUG(("ippsRSA_InitPublicKey error %s\n",
+        /* set up public key state */
+        ret = ippsRSA_GetSizePublicKey(key->nSz, key->eSz, &ctxSz);
+        if (ret != ippStsNoErr) {
+            USER_DEBUG(("ippsRSA_GetSizePublicKey error %s\n",
                     ippGetStatusString(ret)));
-        return USER_CRYPTO_ERROR;
+            return USER_CRYPTO_ERROR;
+        }
+
+        key->pPub = (IppsRSAPublicKeyState*)XMALLOC(ctxSz, NULL,
+                                                          DYNAMIC_TYPE_USER_CRYPTO);
+        if (key->pPub == NULL)
+            return USER_CRYPTO_ERROR;
+
+        ret = ippsRSA_InitPublicKey(key->nSz, key->eSz, key->pPub, ctxSz);
+        if (ret != ippStsNoErr) {
+            USER_DEBUG(("ippsRSA_InitPublicKey error %s\n",
+                        ippGetStatusString(ret)));
+            return USER_CRYPTO_ERROR;
+        }
+
+        ret = ippsRSA_SetPublicKey(key->n, key->e, key->pPub);
+        if (ret != ippStsNoErr) {
+            USER_DEBUG(("ippsRSA_SetPublicKey error %s\n",
+                        ippGetStatusString(ret)));
+            return USER_CRYPTO_ERROR;
+        }
+    }
+    else {
+        int keySz;
+
+        /* Get modulus size */
+        ret = GetASNInt(input, inOutIdx, &length, inSz);
+        if (ret < 0) {
+            return USER_CRYPTO_ERROR;
+        }
+        *inOutIdx += length;
+        keySz = length;
+
+        /* Get exponent */
+        ret = GetASNInt(input, inOutIdx, &length, inSz);
+        if (ret < 0) {
+            return USER_CRYPTO_ERROR;
+        }
+        *inOutIdx += length;
+
+        ret = keySz; /* return key size */
     }
 
-    ret = ippsRSA_SetPublicKey(key->n, key->e, key->pPub);
-    if (ret != ippStsNoErr) {
-        USER_DEBUG(("ippsRSA_SetPublicKey error %s\n",
-                    ippGetStatusString(ret)));
-        return USER_CRYPTO_ERROR;
-    }
 
     USER_DEBUG(("\tExit RsaPublicKeyDecode\n"));
 
-    return 0;
+    return ret;
 }
 
 

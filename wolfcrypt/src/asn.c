@@ -3441,19 +3441,20 @@ exit_dc:
 int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
                        word32 inSz)
 {
-    int  length;
+    int ret = 0;
+    int length;
 #if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
     byte b;
 #endif
-    int ret;
 
-    if (input == NULL || inOutIdx == NULL || key == NULL)
+    if (input == NULL || inOutIdx == NULL)
         return BAD_FUNC_ARG;
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
-    key->type = RSA_PUBLIC;
+    if (key)
+        key->type = RSA_PUBLIC;
 
 #if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
     if ((*inOutIdx + 1) > inSz)
@@ -3488,20 +3489,42 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     }
 #endif /* OPENSSL_EXTRA */
 
-    if (GetInt(&key->n,  input, inOutIdx, inSz) < 0)
-        return ASN_RSA_KEY_E;
-    if (GetInt(&key->e,  input, inOutIdx, inSz) < 0) {
-        mp_clear(&key->n);
-        return ASN_RSA_KEY_E;
+    if (key) {
+        if (GetInt(&key->n, input, inOutIdx, inSz) < 0)
+            return ASN_RSA_KEY_E;
+        if (GetInt(&key->e, input, inOutIdx, inSz) < 0) {
+            mp_clear(&key->n);
+            return ASN_RSA_KEY_E;
+        }
+    }
+    else {
+        int keySz;
+
+        /* Get modulus size */
+        ret = GetASNInt(input, inOutIdx, &length, inSz);
+        if (ret < 0) {
+            return ASN_RSA_KEY_E;
+        }
+        *inOutIdx += length;
+        keySz = length;
+
+        /* Get exponent */
+        ret = GetASNInt(input, inOutIdx, &length, inSz);
+        if (ret < 0) {
+            return ASN_RSA_KEY_E;
+        }
+        *inOutIdx += length;
+
+        ret = keySz; /* return key size */
     }
 
 #ifdef WOLFSSL_XILINX_CRYPT
-    if (wc_InitRsaHw(key) != 0) {
+    if (key && wc_InitRsaHw(key) != 0) {
         return BAD_STATE_E;
     }
 #endif
 
-    return 0;
+    return ret;
 }
 
 /* import RSA public key elements (n, e) into RsaKey structure (key) */

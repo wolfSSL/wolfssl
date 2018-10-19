@@ -378,7 +378,7 @@ WOLFSSL_API int  wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
     begins (usually 0). As a side effect of this function, inOutIdx will
     store the distance parsed through the input buffer
     \param key pointer to the RsaKey structure in which to store the decoded
-    public key
+    public key. If NULL then the modulus size is returned on successful parse
     \param inSz size of the input buffer
 
     _Example_

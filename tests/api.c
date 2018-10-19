@@ -10207,6 +10207,7 @@ static int test_wc_RsaPublicKeyDecode (void)
     byte*   tmp;
     word32  idx = 0;
     int     bytes = 0;
+    int     keySz = 0;
 
     tmp = (byte*)XMALLOC(GEN_BUF, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     if (tmp == NULL) {
@@ -10219,9 +10220,11 @@ static int test_wc_RsaPublicKeyDecode (void)
         #ifdef USE_CERT_BUFFERS_1024
             XMEMCPY(tmp, client_keypub_der_1024, sizeof_client_keypub_der_1024);
             bytes = sizeof_client_keypub_der_1024;
+            keySz = 1024;
         #else
             XMEMCPY(tmp, client_keypub_der_2048, sizeof_client_keypub_der_2048);
             bytes = sizeof_client_keypub_der_2048;
+            keySz = 2048;
         #endif
 
         printf(testingFmt, "wc_RsaPublicKeyDecode()");
@@ -10234,9 +10237,6 @@ static int test_wc_RsaPublicKeyDecode (void)
             ret = wc_RsaPublicKeyDecode(NULL, &idx, &keyPub, (word32)bytes);
             if (ret == BAD_FUNC_ARG) {
                 ret = wc_RsaPublicKeyDecode(tmp, NULL, &keyPub, (word32)bytes);
-            }
-            if (ret == BAD_FUNC_ARG) {
-                ret = wc_RsaPublicKeyDecode(tmp, &idx, NULL, (word32)bytes);
             }
             if (ret == BAD_FUNC_ARG) {
                 ret = 0;
@@ -10252,9 +10252,6 @@ static int test_wc_RsaPublicKeyDecode (void)
                 ret = wc_RsaPublicKeyDecode(tmp, NULL, &keyPub, (word32)bytes);
             }
             if (ret == USER_CRYPTO_ERROR) {
-                ret = wc_RsaPublicKeyDecode(tmp, &idx, NULL, (word32)bytes);
-            }
-            if (ret == USER_CRYPTO_ERROR) {
                 ret = 0;
             } else {
                 ret = WOLFSSL_FATAL_ERROR;
@@ -10262,11 +10259,19 @@ static int test_wc_RsaPublicKeyDecode (void)
         }
     #endif
 
-    if (tmp != NULL) {
-        XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
-    }
     if (wc_FreeRsaKey(&keyPub) || ret != 0) {
         ret = WOLFSSL_FATAL_ERROR;
+    }
+
+    if (ret == 0) {
+        /* Test for getting modulus key size */
+        idx = 0;
+        ret = wc_RsaPublicKeyDecode(tmp, &idx, NULL, (word32)bytes);
+        ret = (ret == keySz/8) ? 0 : WOLFSSL_FATAL_ERROR;
+    }
+
+    if (tmp != NULL) {
+        XFREE(tmp, NULL, DYNAMIC_TYPE_TMP_BUFFER);
     }
 
     printf(resultFmt, ret == 0 ? passed : failed);
