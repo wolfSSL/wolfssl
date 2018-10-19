@@ -7478,7 +7478,7 @@ int wolfSSL_CTX_SetTmpEC_DHE_Sz(WOLFSSL_CTX* ctx, word16 sz)
         if (ctx->privateKeyType != ecc_dsa_sa_algo)
             return WOLFSSL_SUCCESS;
 
-        sz = ctx->privateKeySz;
+        sz = (word16)ctx->privateKeySz;
     }
 
     /* check size */
