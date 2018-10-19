@@ -16513,8 +16513,54 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
             break;
         }
     #endif
+    #ifdef HAVE_ECC
+        if (sigAlgo == ssl->suites->sigAlgo && sigAlgo == ecc_dsa_sa_algo) {
+            word32 digestSz = 0;
+            switch (hashAlgo) {
+            #ifndef NO_SHA
+                case sha_mac:
+                    digestSz = WC_SHA_DIGEST_SIZE;
+                    break;
+            #endif
+            #ifndef NO_SHA256
+                case sha256_mac:
+                    digestSz = WC_SHA256_DIGEST_SIZE;
+                    break;
+            #endif
+            #ifdef WOLFSSL_SHA384
+                case sha384_mac:
+                    digestSz = WC_SHA384_DIGEST_SIZE;
+                    break;
+            #endif
+            #ifdef WOLFSSL_SHA512
+                case sha512_mac:
+                    digestSz = WC_SHA512_DIGEST_SIZE;
+                    break;
+            #endif
+                default:
+                    continue;
+            }
+
+            /* For ecc_dsa_sa_algo, pick hash algo that is curve size unless
+                algorithm in not compiled in, then choose next highest */
+            if (digestSz == ssl->eccTempKeySz) {
+                ssl->suites->hashAlgo = hashAlgo;
+                ssl->suites->sigAlgo = sigAlgo;
+                return; /* done selected sig/hash algorithms */
+            }
+            /* not strong enough, so keep checking hashSigAlso list */
+            if (digestSz < ssl->eccTempKeySz)
+                continue;
+
+            /* mark as highest and check remainder of hashSigAlgo list */
+            ssl->suites->hashAlgo = hashAlgo;
+            ssl->suites->sigAlgo = sigAlgo;
+        }
+        else
+    #endif
         if (sigAlgo == ssl->suites->sigAlgo || (sigAlgo == rsa_pss_sa_algo &&
                                          ssl->suites->sigAlgo == rsa_sa_algo)) {
+            /* pick highest available between both server and client */
             switch (hashAlgo) {
                 case sha_mac:
             #ifndef NO_SHA256
@@ -16526,8 +16572,10 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
             #ifdef WOLFSSL_SHA512
                 case sha512_mac:
             #endif
+                    /* not strong enough, so keep checking hashSigAlso list */
                     if (hashAlgo < ssl->suites->hashAlgo)
                         continue;
+                    /* mark as highest and check remainder of hashSigAlgo list */
                     ssl->suites->hashAlgo = hashAlgo;
                     ssl->suites->sigAlgo = sigAlgo;
                     break;
@@ -16540,13 +16588,12 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
             ssl->suites->hashAlgo = ssl->specs.mac_algorithm;
         }
     }
-
 }
 #endif /* !defined(NO_WOLFSSL_SERVER) || !defined(NO_CERTS) */
 
 #if defined(WOLFSSL_CALLBACKS) || defined(OPENSSL_EXTRA)
 
-    /* Initialisze HandShakeInfo */
+    /* Initialize HandShakeInfo */
     void InitHandShakeInfo(HandShakeInfo* info, WOLFSSL* ssl)
     {
         int i;
@@ -16599,7 +16646,7 @@ void PickHashSigAlgo(WOLFSSL* ssl, const byte* hashSigAlgo,
 
 
     #ifdef WOLFSSL_CALLBACKS
-    /* Initialisze TimeoutInfo */
+    /* Initialize TimeoutInfo */
     void InitTimeoutInfo(TimeoutInfo* info)
     {
         int i;
