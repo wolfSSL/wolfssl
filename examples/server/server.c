@@ -73,7 +73,7 @@ static const char webServerMsg[] =
     "</html>\n";
 
 int runWithErrors = 0; /* Used with -x flag to run err_sys vs. print errors */
-
+static int lng_index = 0;
 
 #ifdef WOLFSSL_CALLBACKS
     Timeval srvTo;
@@ -344,107 +344,311 @@ static void ServerWrite(WOLFSSL* ssl, const char* output, int outputLen)
         err_sys_ex(runWithErrors, "SSL_write failed");
     }
 }
+/* when adding new option, please follow the steps below: */
+/*  1. add new option message in English section          */
+/*  2. increase the number of the second dimention        */
+/*  3. add the same message into Japanese section         */
+/*     (will be translated later)                         */
+/*  4. add printf() into suitable position of Usage()     */
+static const char* server_usage_msg[][49] = {
+    /* English */
+    {
+        " NOTE: All files relative to wolfSSL home dir\n",          /* 0 */
+        "-? <num>    Help, print this usage\n            0: English, 1: Japanese\n",    /* 1 */
+        "-p <num>    Port to listen on, not 0, default",            /* 2 */
+#ifndef WOLFSSL_TLS13
+        "-v <num>    SSL version [0-3], SSLv3(0) - TLS1.2(3)), default",   /* 3 */
+#else
+        "-v <num>    SSL version [0-4], SSLv3(0) - TLS1.3(4)), default",    /* 3 */
+#endif
+        "-l <str>    Cipher suite list (: delimited)\n",                    /* 4 */
+        "-c <file>   Certificate file,           default",                  /* 5 */
+        "-k <file>   Key file,                   default",                  /* 6 */
+        "-A <file>   Certificate Authority file, default",                  /* 7 */
+        "-R <file>   Create Ready file for external monitor default none\n",  /* 8 */
+#ifndef NO_DH
+        "-D <file>   Diffie-Hellman Params file, default",          /* 9 */
+        "-Z <num>    Minimum DH key bits,        default",          /* 10 */
+#endif
+#ifdef HAVE_ALPN
+        "-L <str>    Application-Layer Protocol Negotiation ({C,F}:<list>)\n",  /* 11 */
+#endif
+        "-d          Disable client cert check\n",                  /* 12 */
+        "-b          Bind to any interface instead of localhost only\n",    /* 13 */
+        "-s          Use pre Shared keys\n",                        /* 14 */
+        "-u          Use UDP DTLS,"
+           " add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default)\n",   /* 15 */
+#ifdef WOLFSSL_SCTP
+        "-G          Use SCTP DTLS,"
+           " add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default)\n",   /* 16 */
+#endif
+        "-f          Fewer packets/group messages\n",               /* 17 */
+        "-r          Allow one client Resumption\n",                /* 18 */
+        "-N          Use Non-blocking sockets\n",                   /* 19 */
+        "-S <str>    Use Host Name Indication\n",                   /* 20 */
+        "-w          Wait for bidirectional shutdown\n",            /* 21 */
+#ifdef HAVE_OCSP
+        "-o          Perform OCSP lookup on peer certificate\n",        /* 22 */
+        "-O <url>    Perform OCSP lookup using <url> as responder\n",   /* 23 */
+#endif
+#ifdef HAVE_PK_CALLBACKS
+        "-P          Public Key Callbacks\n",                       /* 24 */
+#endif
+#ifdef HAVE_ANON
+        "-a          Anonymous server\n",                           /* 25 */
+#endif
+#ifndef NO_PSK
+        "-I          Do not send PSK identity hint\n",              /* 26 */
+#endif
+        "-x          Print server errors but do not close connection\n",    /* 27 */
+        "-i          Loop indefinitely (allow repeated connections)\n",     /* 28 */
+        "-e          Echo data mode (return raw bytes received)\n",         /* 29 */
+#ifdef HAVE_NTRU
+        "-n          Use NTRU key (needed for NTRU suites)\n",              /* 30 */
+#endif
+        "-B <num>    Benchmark throughput using <num> bytes and print stats\n",     /* 31 */
+#ifdef HAVE_CRL
+        "-V          Disable CRL\n",                            /* 32 */
+#endif
+#ifdef WOLFSSL_TRUST_PEER_CERT
+        "-E <file>   Path to load trusted peer cert\n",         /* 33 */
+#endif
+#ifdef HAVE_WNR
+        "-q <file>   Whitewood config file,      default",      /* 34 */
+#endif
+        "-g          Return basic HTML web page\n",             /* 35 */
+        "-C <num>    The number of connections to accept, default: 1\n",            /* 36 */
+        "-H <arg>    Internal tests [defCipherList, exitWithRet, verifyFail]\n",    /* 37 */
+#ifdef WOLFSSL_TLS13
+        "-U          Update keys and IVs before sending\n",     /* 38 */
+        "-K          Key Exchange for PSK not using (EC)DHE\n", /* 39 */
+#ifndef NO_DH
+        "-y          Pre-generate Key Share using FFDHE_2048 only\n",   /* 40 */
+#endif
+#ifdef HAVE_ECC
+        "-Y          Pre-generate Key Share using P-256 only \n",       /* 41 */
+#endif
+#ifdef HAVE_CURVE25519
+        "-t          Pre-generate Key share using Curve25519 only\n",   /* 42 */
+#endif
+#ifdef HAVE_SESSION_TICKET
+        "-T          Do not generate session ticket\n",                 /* 43 */
+#endif
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+        "-Q          Request certificate from client post-handshake\n",     /* 44 */
+#endif
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+        "-J          Server sends Cookie Extension containing state\n",     /* 45 */
+#endif
+#endif /* WOLFSSL_TLS13 */ 
+#ifdef WOLFSSL_EARLY_DATA
+        "-0          Early data read from client (0-RTT handshake)\n",      /* 46 */
+#endif
+#ifdef WOLFSSL_MULTICAST
+        "-3 <grpid>  Multicast, grpid < 256\n",     /* 47 */
+#endif
+        "-1 <num>    Display a result by specified language.\n            0: English, 1: Japanese\n", /* 48 */
+        NULL,
+    },
+    /* Japanese */
+    {
+        " 注意 : 全てのファイルは wolfSSL ホーム・ディレクトリからの相対です。\n",      /* 0 */
+        "-? <num>    ヘルプ, 使い方を表示\n            0: 英語、 1: 日本語\n",          /* 1 */
+        "-p <num>    接続先ポート, 0は無効, 既定値",                         /* 2 */
+#ifndef WOLFSSL_TLS13
+        "-v <num>    SSL バージョン [0-3], SSLv3(0) - TLS1.2(3)), 既定値",   /* 3 */
+#else
+        "-v <num>    SSL バージョン [0-4], SSLv3(0) - TLS1.3(4)), 既定値",   /* 3 */
+#endif
+        "-l <str>    暗号スイートリスト (区切り文字 :)\n",      /* 4 */
+        "-c <file>   証明書ファイル,  既定値",                  /* 5 */
+        "-k <file>   鍵ファイル,      既定値",                  /* 6 */
+        "-A <file>   認証局ファイル,  既定値",                  /* 7 */
+        "-R <file>   外部モニタ用の準備完了ファイルを作成する。既定値  なし\n",  /* 8 */
+#ifndef NO_DH
+        "-D <file>   ディフィー・ヘルマンのパラメータファイル, 既定値",          /* 9 */
+        "-Z <num>    最小 DH 鍵 ビット, 既定値",                    /* 10 */
+#endif
+#ifdef HAVE_ALPN
+        "-L <str>    アプリケーション層プロトコルネゴシエーションを行う ({C,F}:<list>)\n",  /* 11 */
+#endif
+        "-d          クライアント認証を無効とする\n",                               /* 12 */
+        "-b          ローカルホスト以外のインターフェースへもバインドする\n",       /* 13 */
+        "-s          事前共有鍵を使用する\n",                                       /* 14 */
+        "-u          UDP DTLSを使用する。-v 2 を追加指定すると DTLSv1, -v 3 を追加指定すると DTLSv1.2 (既定値)\n",      /* 15 */
+#ifdef WOLFSSL_SCTP
+        "-G          SCTP DTLSを使用する。-v 2 を追加指定すると DTLSv1, -v 3 を追加指定すると DTLSv1.2 (既定値)\n",     /* 16 */
+#endif
+        "-f          より少ないパケット/グループメッセージを使用する\n",                /* 17 */
+        "-r          クライアントの再開を許可する\n",                                   /* 18 */
+        "-N          ノンブロッキング・ソケットを使用する\n",                           /* 19 */
+        "-S <str>    ホスト名表示を使用する\n",                                         /* 20 */
+        "-w          双方向シャットダウンを待つ\n",                                     /* 21 */
+#ifdef HAVE_OCSP
+        "-o          OCSPルックアップをピア証明書で実施する\n",                         /* 22 */
+        "-O <url>    OCSPルックアップを、<url>を使用し応答者として実施する\n",          /* 23 */
+#endif
+#ifdef HAVE_PK_CALLBACKS
+        "-P          公開鍵コールバック\n",                                             /* 24 */
+#endif
+#ifdef HAVE_ANON
+        "-a          匿名サーバー\n",                                                   /* 25 */
+#endif
+#ifndef NO_PSK
+        "-I          PSKアイデンティティのヒントを送信しない\n",                        /* 26 */
+#endif
+        "-x          サーバーエラーを出力するが接続を切断しない\n",                     /* 27 */
+        "-i          無期限にループする(繰り返し接続を許可)\n",                         /* 28 */
+        "-e          エコー・データモード(受け取ったバイトデータを返す)\n",             /* 29 */
+#ifdef HAVE_NTRU
+        "-n          NTRU鍵を使用する(NTRUスイートに必要)\n",                           /* 30 */
+#endif
+        "-B <num>    <num> バイトを用いてのベンチマーク・スループット測定と結果を出力する\n",     /* 31 */
+#ifdef HAVE_CRL
+        "-V          CRLを無効とする\n",                                                /* 32 */
+#endif
+#ifdef WOLFSSL_TRUST_PEER_CERT
+        "-E <file>   信頼出来るピアの証明書ロードの為のパス\n\n",       /* 33 */
+#endif
+#ifdef HAVE_WNR
+        "-q <file>   Whitewood コンフィグファイル,      既定値",        /* 34 */
+#endif
+        "-g          基本的な Web ページを返す\n",                      /* 35 */
+        "-C <num>    アクセプト可能な接続数を指定する。既定値: 1\n",            /* 36 */
+        "-H <arg>    内部テスト [defCipherList, exitWithRet, verifyFail]\n",    /* 37 */
+#ifdef WOLFSSL_TLS13
+        "-U          データ送信前に、鍵とIVを更新する\n",               /* 38 */
+        "-K          鍵交換にPSKを使用、(EC)DHEは使用しない\n",         /* 39 */
+#ifndef NO_DH
+        "-y          FFDHE_2048のみを使用して鍵共有を事前生成する\n",   /* 40 */
+#endif
+#ifdef HAVE_ECC
+        "-Y          P-256のみを使用したキー共有の事前生成\n",          /* 41 */
+#endif
+#ifdef HAVE_CURVE25519
+        "-t          Curve25519のみを使用して鍵共有を事前生成する\n",   /* 42 */
+#endif
+#ifdef HAVE_SESSION_TICKET
+        "-T         セッションチケットを生成しない\n",                 /* 43 */
+#endif
+#ifdef WOLFSSL_POST_HANDSHAKE_AUTH
+        "-Q          クライアントのポストハンドシェイクから証明書を要求する\n",     /* 44 */
+#endif
+#ifdef WOLFSSL_SEND_HRR_COOKIE
+        "-J          サーバーの状態を含むTLS Cookie 拡張を送信する\n",     /* 45 */
+#endif
+#endif /* WOLFSSL_TLS13 */ 
+#ifdef WOLFSSL_EARLY_DATA
+        "-0          クライアントからの Early Data 読み取り（0-RTTハンドシェイク）\n",      /* 46 */
+#endif
+#ifdef WOLFSSL_MULTICAST
+        "-3 <grpid>  マルチキャスト, grpid < 256\n",     /* 47 */
+#endif
+        "-1 <num>    指定された言語で結果を表示します。\n            0: 英語、 1: 日本語\n", /* 48 */
+        NULL,
+    },
+
+};
 
 static void Usage(void)
 {
-    printf("server "    LIBWOLFSSL_VERSION_STRING
-           " NOTE: All files relative to wolfSSL home dir\n");
-    printf("-?          Help, print this usage\n");
-    printf("-p <num>    Port to listen on, not 0, default %d\n", wolfSSLPort);
+    int msgId = 0;
+    const char** msg = server_usage_msg[lng_index];
+
+    printf("%s%s%s", "server ", LIBWOLFSSL_VERSION_STRING, 
+           msg[msgId]);
+    printf("%s", msg[++msgId]);                     /* ? */
+    printf("%s %d\n", msg[++msgId], wolfSSLPort);   /* -p */
 #ifndef WOLFSSL_TLS13
-    printf("-v <num>    SSL version [0-3], SSLv3(0) - TLS1.2(3)), default %d\n",
-                                 SERVER_DEFAULT_VERSION);
+    printf("%s %d\n", msg[++msgId], SERVER_DEFAULT_VERSION); /* -v */
 #else
-    printf("-v <num>    SSL version [0-4], SSLv3(0) - TLS1.3(4)), default %d\n",
-                                 SERVER_DEFAULT_VERSION);
+    printf("%s %d\n", msg[++msgId], SERVER_DEFAULT_VERSION); /* -v */
 #endif
-    printf("-l <str>    Cipher suite list (: delimited)\n");
-    printf("-c <file>   Certificate file,           default %s\n", svrCertFile);
-    printf("-k <file>   Key file,                   default %s\n", svrKeyFile);
-    printf("-A <file>   Certificate Authority file, default %s\n", cliCertFile);
-    printf("-R <file>   Create Ready file for external monitor default none\n");
+    printf("%s", msg[++msgId]);     /* -l */
+    printf("%s %s\n", msg[++msgId], svrCertFile);    /* -c */
+    printf("%s %s\n", msg[++msgId], svrKeyFile);     /* -k */
+    printf("%s %s\n", msg[++msgId], cliCertFile);    /* -A */
+    printf("%s", msg[++msgId]);     /* -R */
 #ifndef NO_DH
-    printf("-D <file>   Diffie-Hellman Params file, default %s\n", dhParamFile);
-    printf("-Z <num>    Minimum DH key bits,        default %d\n",
-                                 DEFAULT_MIN_DHKEY_BITS);
+    printf("%s %s\n", msg[++msgId], dhParamFile);           /* -D */
+    printf("%s %d\n", msg[++msgId], DEFAULT_MIN_DHKEY_BITS);/* -Z */
 #endif
 #ifdef HAVE_ALPN
-    printf("-L <str>    Application-Layer Protocol Negotiation ({C,F}:<list>)\n");
+    printf("%s", msg[++msgId]);     /* -L */
 #endif
-    printf("-d          Disable client cert check\n");
-    printf("-b          Bind to any interface instead of localhost only\n");
-    printf("-s          Use pre Shared keys\n");
-    printf("-u          Use UDP DTLS,"
-           " add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default)\n");
+    printf("%s", msg[++msgId]);     /* -d */
+    printf("%s", msg[++msgId]);     /* -b */
+    printf("%s", msg[++msgId]);     /* -s */
+    printf("%s", msg[++msgId]);     /* -u */
 #ifdef WOLFSSL_SCTP
-    printf("-G          Use SCTP DTLS,"
-           " add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default)\n");
+    printf("%s", msg[++msgId]);     /* -G */
 #endif
-    printf("-f          Fewer packets/group messages\n");
-    printf("-r          Allow one client Resumption\n");
-    printf("-N          Use Non-blocking sockets\n");
-    printf("-S <str>    Use Host Name Indication\n");
-    printf("-w          Wait for bidirectional shutdown\n");
+    printf("%s", msg[++msgId]);     /* -f */
+    printf("%s", msg[++msgId]);     /* -r */
+    printf("%s", msg[++msgId]);     /* -N */
+    printf("%s", msg[++msgId]);     /* -S */
+    printf("%s", msg[++msgId]);     /* -w */
 #ifdef HAVE_OCSP
-    printf("-o          Perform OCSP lookup on peer certificate\n");
-    printf("-O <url>    Perform OCSP lookup using <url> as responder\n");
+    printf("%s", msg[++msgId]);     /* -o */
+    printf("%s", msg[++msgId]);     /* -O */
 #endif
 #ifdef HAVE_PK_CALLBACKS
-    printf("-P          Public Key Callbacks\n");
+    printf("%s", msg[++msgId]);     /* -P */
 #endif
 #ifdef HAVE_ANON
-    printf("-a          Anonymous server\n");
+    printf("%s", msg[++msgId]);     /* -a */
 #endif
 #ifndef NO_PSK
-    printf("-I          Do not send PSK identity hint\n");
+    printf("%s", msg[++msgId]);     /* -I */
 #endif
-    printf("-x          Print server errors but do not close connection\n");
-    printf("-i          Loop indefinitely (allow repeated connections)\n");
-    printf("-e          Echo data mode (return raw bytes received)\n");
+    printf("%s", msg[++msgId]);     /* -x */
+    printf("%s", msg[++msgId]);     /* -i */
+    printf("%s", msg[++msgId]);     /* -e */
 #ifdef HAVE_NTRU
-    printf("-n          Use NTRU key (needed for NTRU suites)\n");
+    printf("%s", msg[++msgId]);     /* -n */
 #endif
-    printf("-B <num>    Benchmark throughput using <num> bytes and print stats\n");
+    printf("%s", msg[++msgId]);     /* -B */
 #ifdef HAVE_CRL
-    printf("-V          Disable CRL\n");
+    printf("%s", msg[++msgId]);     /* -V */
 #endif
 #ifdef WOLFSSL_TRUST_PEER_CERT
-    printf("-E <file>   Path to load trusted peer cert\n");
+    printf("%s", msg[++msgId]);     /* -E */
 #endif
 #ifdef HAVE_WNR
-    printf("-q <file>   Whitewood config file,      default %s\n", wnrConfig);
+    printf("%s %s\n", msg[++msgId], wnrConfig);  /* -q */
 #endif
-    printf("-g          Return basic HTML web page\n");
-    printf("-C <num>    The number of connections to accept, default: 1\n");
-    printf("-H <arg>    Internal tests [defCipherList, exitWithRet, verifyFail]\n");
+    printf("%s", msg[++msgId]);     /* -g */
+    printf("%s", msg[++msgId]);     /* -C */
+   printf("%s", msg[++msgId]);      /* -H */
 #ifdef WOLFSSL_TLS13
-    printf("-U          Update keys and IVs before sending\n");
-    printf("-K          Key Exchange for PSK not using (EC)DHE\n");
+    printf("%s", msg[++msgId]);     /* -U */
+    printf("%s", msg[++msgId]);     /* -K */
 #ifndef NO_DH
-    printf("-y          Pre-generate Key Share using FFDHE_2048 only\n");
+    printf("%s", msg[++msgId]);     /* -y */
 #endif
 #ifdef HAVE_ECC
-    printf("-Y          Pre-generate Key Share using P-256 only \n");
+    printf("%s", msg[++msgId]);     /* -Y */
 #endif
 #ifdef HAVE_CURVE25519
-    printf("-t          Pre-generate Key share using Curve25519 only\n");
+    printf("%s", msg[++msgId]);     /* -t */
 #endif
 #ifdef HAVE_SESSION_TICKET
-    printf("-T          Do not generate session ticket\n");
+    printf("%s", msg[++msgId]);     /* -T */
 #endif
 #ifdef WOLFSSL_POST_HANDSHAKE_AUTH
-    printf("-Q          Request certificate from client post-handshake\n");
+    printf("%s", msg[++msgId]);     /* -Q */
 #endif
 #ifdef WOLFSSL_SEND_HRR_COOKIE
-    printf("-J          Server sends Cookie Extension containing state\n");
+    printf("%s", msg[++msgId]);     /* -J */
 #endif
 #endif /* WOLFSSL_TLS13 */
 #ifdef WOLFSSL_EARLY_DATA
-    printf("-0          Early data read from client (0-RTT handshake)\n");
+    printf("%s", msg[++msgId]);     /* -0 */
 #endif
 #ifdef WOLFSSL_MULTICAST
-    printf("-3 <grpid>  Multicast, grpid < 256\n");
+    printf("%s", msg[++msgId]);     /* -3 */
 #endif
+    printf("%s", msg[++msgId]);     /* -1 */
 }
 
 THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
@@ -616,12 +820,18 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
     useAnyAddr = 1;
 #else
     /* Not Used: h, m, z, F, M, T, V, W, X */
-    while ((ch = mygetopt(argc, argv, "?"
+    while ((ch = mygetopt(argc, argv, "?:"
                 "abc:defgijk:l:nop:q:rstuv:wxy"
                 "A:B:C:D:E:GH:IJKL:NO:PQR:S:TUVYZ:"
-                "03:")) != -1) {
+                "01:3:")) != -1) {
         switch (ch) {
             case '?' :
+                if(myoptarg!=NULL) {
+                    lng_index = atoi(myoptarg);
+                    if(lng_index<0||lng_index>1){
+                        lng_index = 0;
+                    }
+                }
                 Usage();
                 XEXIT_T(EXIT_SUCCESS);
 
@@ -924,7 +1134,12 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
                 earlyData = 1;
             #endif
                 break;
-
+            case '1' :
+                lng_index = atoi(myoptarg);
+                if(lng_index<0||lng_index>1){
+                    lng_index = 0;
+                }
+                break;
             case '3' :
                 #ifdef WOLFSSL_MULTICAST
                     doMcast = 1;
@@ -1590,7 +1805,7 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
             goto exit;
         }
 
-        showPeer(ssl);
+        showPeerEx(ssl, lng_index);
         if (SSL_state(ssl) != 0) {
             err_sys_ex(runWithErrors, "SSL in error state");
         }
