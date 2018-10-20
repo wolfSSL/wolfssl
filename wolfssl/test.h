@@ -558,8 +558,10 @@ static const char* client_showx509_msg[][5] = {
     },
 };
 
-/* lng_index is to specify the language for displaying message. 0:English, 1:Japanese */
-static WC_INLINE void ShowX509Ex(WOLFSSL_X509* x509, const char* hdr, int lng_index)
+/* lng_index is to specify the language for displaying message.              */
+/* 0:English, 1:Japanese                                                     */
+static WC_INLINE void ShowX509Ex(WOLFSSL_X509* x509, const char* hdr, 
+                                                                 int lng_index)
 {
     char* altName;
     char* issuer;
@@ -657,7 +659,8 @@ static WC_INLINE void ShowX509Chain(WOLFSSL_X509_CHAIN* chain, int count,
 }
 #endif
 
-/* lng_index is to specify the language for displaying message. 0:English, 1:Japanese */
+/* lng_index is to specify the language for displaying message.              */
+/* 0:English, 1:Japanese                                                     */
 static WC_INLINE void showPeerEx(WOLFSSL* ssl, int lng_index)
 {
     WOLFSSL_CIPHER* cipher;

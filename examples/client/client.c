@@ -816,252 +816,278 @@ static const char* client_usage_msg[][59] = {
 #else
         "INFINITE\n",                                               /* 2 */
 #endif
-        "-? <num>    Help, print this usage\n            0: English, 1: Japanese\n",   /* 3 */
+        "-? <num>    Help, print this usage\n"
+        "            0: English, 1: Japanese\n",                    /* 3 */
         "-h <host>   Host to connect to, default",                  /* 4 */
         "-p <num>    Port to connect on, not 0, default",           /* 5 */
 
 #ifndef WOLFSSL_TLS13
-        "-v <num>    SSL version [0-3], SSLv3(0) - TLS1.2(3)), default",        /* 6 */
-        "-V          Prints valid ssl version numbers, SSLv3(0) - TLS1.2(3)\n", /* 7 */
+        "-v <num>    SSL version [0-3], SSLv3(0) - TLS1.2(3)), default", /* 6 */
+        "-V          Prints valid ssl version numbers"
+                                             ", SSLv3(0) - TLS1.2(3)\n", /* 7 */
 #else
-        "-v <num>    SSL version [0-4], SSLv3(0) - TLS1.3(4)), default",   /* 6 */
-        "-V          Prints valid ssl version numbers, SSLv3(0) - TLS1.3(4)\n", /* 7 */
+        "-v <num>    SSL version [0-4], SSLv3(0) - TLS1.3(4)), default", /* 6 */
+        "-V          Prints valid ssl version numbers,"
+                                            " SSLv3(0) - TLS1.3(4)\n",   /* 7 */
 #endif
-        "-l <str>    Cipher suite list (: delimited)\n",                        /* 8 */
-        "-c <file>   Certificate file,           default",                      /* 9 */
-        "-k <file>   Key file,                   default",                      /* 10 */
-        "-A <file>   Certificate Authority file, default",                      /* 11 */
+        "-l <str>    Cipher suite list (: delimited)\n",                /* 8 */
+        "-c <file>   Certificate file,           default",              /* 9 */
+        "-k <file>   Key file,                   default",              /* 10 */
+        "-A <file>   Certificate Authority file, default",              /* 11 */
 #ifndef NO_DH
-        "-Z <num>    Minimum DH key bits,        default",                    /* 12 */
+        "-Z <num>    Minimum DH key bits,        default",              /* 12 */
 #endif
-        "-b <num>    Benchmark <num> connections and print stats\n",            /* 13 */
+        "-b <num>    Benchmark <num> connections and print stats\n",    /* 13 */
 #ifdef HAVE_ALPN
-        "-L <str>    Application-Layer Protocol Negotiation ({C,F}:<list>)\n",  /* 14 */
+        "-L <str>    Application-Layer Protocol"
+                                      " Negotiation ({C,F}:<list>)\n",  /* 14 */
 #endif
-        "-B <num>    Benchmark throughput using <num> bytes and print stats\n", /* 15 */
-        "-s          Use pre Shared keys\n",                                    /* 16 */
-        "-d          Disable peer checks\n",                                    /* 17 */
-        "-D          Override Date Errors example\n",                           /* 18 */
-        "-e          List Every cipher suite available, \n",                    /* 19 */
-        "-g          Send server HTTP GET\n",                                   /* 20 */
-        "-u          Use UDP DTLS, add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default)\n", /* 21 */
+        "-B <num>    Benchmark throughput"
+                                " using <num> bytes and print stats\n", /* 15 */
+        "-s          Use pre Shared keys\n",                            /* 16 */
+        "-d          Disable peer checks\n",                            /* 17 */
+        "-D          Override Date Errors example\n",                   /* 18 */
+        "-e          List Every cipher suite available, \n",            /* 19 */
+        "-g          Send server HTTP GET\n",                           /* 20 */
+        "-u          Use UDP DTLS,"
+                 " add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default)\n", /* 21 */
 #ifdef WOLFSSL_SCTP
-        "-G          Use SCTP DTLS, add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default)\n",    /* 22 */
+        "-G          Use SCTP DTLS,"
+                " add -v 2 for DTLSv1, -v 3 for DTLSv1.2 (default)\n",  /* 22 */
 #endif
-        "-m          Match domain name in cert\n",                                      /* 23 */
-        "-N          Use Non-blocking sockets\n",                                       /* 24 */
+        "-m          Match domain name in cert\n",                      /* 23 */
+        "-N          Use Non-blocking sockets\n",                       /* 24 */
 #ifndef NO_SESSION_CACHE
-        "-r          Resume session\n",                                                 /* 25 */
+        "-r          Resume session\n",                                 /* 25 */
 #endif 
-        "-w          Wait for bidirectional shutdown\n",                                /* 26 */
-        "-M <prot>   Use STARTTLS, using <prot> protocol (smtp)\n",                     /* 27 */
+        "-w          Wait for bidirectional shutdown\n",                /* 26 */
+        "-M <prot>   Use STARTTLS, using <prot> protocol (smtp)\n",     /* 27 */
 #ifdef HAVE_SECURE_RENEGOTIATION
-        "-R          Allow Secure Renegotiation\n",                                     /* 28 */
-        "-i          Force client Initiated Secure Renegotiation\n",                    /* 29 */
+        "-R          Allow Secure Renegotiation\n",                     /* 28 */
+        "-i          Force client Initiated Secure Renegotiation\n",    /* 29 */
 #endif
-        "-f          Fewer packets/group messages\n",                                   /* 30 */
-        "-x          Disable client cert/key loading\n",                                /* 31 */
-        "-X          Driven by eXternal test case\n",                                   /* 32 */
-        "-j          Use verify callback override\n",                                   /* 33 */
+        "-f          Fewer packets/group messages\n",                   /* 30 */
+        "-x          Disable client cert/key loading\n",                /* 31 */
+        "-X          Driven by eXternal test case\n",                   /* 32 */
+        "-j          Use verify callback override\n",                   /* 33 */
 #ifdef SHOW_SIZES
-        "-z          Print structure sizes\n",                                          /* 34 */
+        "-z          Print structure sizes\n",                          /* 34 */
 #endif
 #ifdef HAVE_SNI
-        "-S <str>    Use Host Name Indication\n",                                       /* 35 */
+        "-S <str>    Use Host Name Indication\n",                       /* 35 */
 #endif
 #ifdef HAVE_MAX_FRAGMENT
-        "-F <num>    Use Maximum Fragment Length [1-6]\n",                              /* 36 */
+        "-F <num>    Use Maximum Fragment Length [1-6]\n",              /* 36 */
 #endif
 #ifdef HAVE_TRUNCATED_HMAC
-        "-T          Use Truncated HMAC\n",                                             /* 37 */
+        "-T          Use Truncated HMAC\n",                             /* 37 */
 #endif
 #ifdef HAVE_EXTENDED_MASTER
-        "-n          Disable Extended Master Secret\n",                                 /* 38 */
+        "-n          Disable Extended Master Secret\n",                 /* 38 */
 #endif
 #ifdef HAVE_OCSP
-        "-o          Perform OCSP lookup on peer certificate\n",                        /* 39 */
-        "-O <url>    Perform OCSP lookup using <url> as responder\n",                   /* 40 */
+        "-o          Perform OCSP lookup on peer certificate\n",        /* 39 */
+        "-O <url>    Perform OCSP lookup using <url> as responder\n",   /* 40 */
 #endif
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
-        "-W <num>    Use OCSP Stapling (1 v1, 2 v2, 3 v2 multi)\n",                     /* 41 */
+        "-W <num>    Use OCSP Stapling (1 v1, 2 v2, 3 v2 multi)\n",     /* 41 */
 #endif
 #ifdef ATOMIC_USER
-        "-U          Atomic User Record Layer Callbacks\n",                             /* 42 */
+        "-U          Atomic User Record Layer Callbacks\n",             /* 42 */
 #endif
 #ifdef HAVE_PK_CALLBACKS
-        "-P          Public Key Callbacks\n",                                           /* 43 */
+        "-P          Public Key Callbacks\n",                           /* 43 */
 #endif
 #ifdef HAVE_ANON
-        "-a          Anonymous client\n",                                               /* 44 */
+        "-a          Anonymous client\n",                               /* 44 */
 #endif
 #ifdef HAVE_CRL
-        "-C          Disable CRL\n",                                                    /* 45 */
+        "-C          Disable CRL\n",                                    /* 45 */
 #endif
 #ifdef WOLFSSL_TRUST_PEER_CERT
-        "-E <file>   Path to load trusted peer cert\n",                                 /* 46 */
+        "-E <file>   Path to load trusted peer cert\n",                 /* 46 */
 #endif
 #ifdef HAVE_WNR
-        "-q <file>   Whitewood config file,      defaults\n",                           /* 47 */      
+        "-q <file>   Whitewood config file,      defaults\n",           /* 47 */      
 #endif
-        "-H <arg>    Internal tests [defCipherList, exitWithRet, verifyFail]\n",        /* 48 */
+        "-H <arg>    Internal tests"
+                  " [defCipherList, exitWithRet, verifyFail]\n",        /* 48 */
 #ifdef WOLFSSL_TLS13
-        "-J          Use HelloRetryRequest to choose group for KE\n",                   /* 49 */
-        "-K          Key Exchange for PSK not using (EC)DHE\n",                         /* 50 */
-        "-I          Update keys and IVs before sending data\n",                        /* 51 */
+        "-J          Use HelloRetryRequest to choose group for KE\n",   /* 49 */
+        "-K          Key Exchange for PSK not using (EC)DHE\n",         /* 50 */
+        "-I          Update keys and IVs before sending data\n",        /* 51 */
 #ifndef NO_DH
-        "-y          Key Share with FFDHE named groups only\n",                         /* 52 */
+        "-y          Key Share with FFDHE named groups only\n",         /* 52 */
 #endif
 #ifdef HAVE_ECC
-        "-Y          Key Share with ECC named groups only\n",                           /* 53 */
+        "-Y          Key Share with ECC named groups only\n",           /* 53 */
 #endif
 #endif /* WOLFSSL_TLS13 */
 #ifdef HAVE_CURVE25519
-        "-t          Use X25519 for key exchange\n",                                    /* 54 */
+        "-t          Use X25519 for key exchange\n",                    /* 54 */
 #endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-        "-Q          Support requesting certificate post-handshake\n",                  /* 55 */
+        "-Q          Support requesting certificate post-handshake\n",  /* 55 */
 #endif
 #ifdef WOLFSSL_EARLY_DATA
-        "-0          Early data sent to server (0-RTT handshake)\n",                    /* 56 */
+        "-0          Early data sent to server (0-RTT handshake)\n",    /* 56 */
 #endif
 #ifdef WOLFSSL_MULTICAST
-        "-3 <grpid>  Multicast, grpid < 256\n",                                         /* 57 */
+        "-3 <grpid>  Multicast, grpid < 256\n",                         /* 57 */
 #endif
-        "-1 <num>    Display a result by specified language.\n            0: English, 1: Japanese\n", /* 58 */
+        "-1 <num>    Display a result by specified language.\n"
+                               "            0: English, 1: Japanese\n", /* 58 */
         NULL,
     },
     /* Japanese */
         {
-        " 注意 : 全てのファイルは wolfSSL ホーム・ディレクトリからの相対です。\n",     /* 0 */
-        "RSAの最大ビットは次のように設定されています: ",                               /* 1 */
+        " 注意 : 全てのファイルは wolfSSL ホーム・ディレクトリからの相対です。"
+                                                               "\n",     /* 0 */
+        "RSAの最大ビットは次のように設定されています: ",                 /* 1 */
 #ifdef NO_RSA
-        "RSAはサポートされていません。\n",                                             /* 2 */
+        "RSAはサポートされていません。\n",                               /* 2 */
 #elif defined(WOLFSSL_SP_MATH) /* case of SP math only */
 #ifndef WOLFSSL_SP_NO_3072
-        "3072\n",                                                                      /* 2 */
+        "3072\n",                                                        /* 2 */
 #elif !defined(WOLFSSL_SP_NO_2048)
-        "2048\n",                                                                      /* 2 */
+        "2048\n",                                                        /* 2 */
 #else
-        "0\n",                                                                         /* 2 */
+        "0\n",                                                           /* 2 */
 #endif
 #elif defined(USE_FAST_MATH)
 #else
-        "無限\n",                                                                      /* 2 */
+        "無限\n",                                                        /* 2 */
 #endif
-        "-? <num>    ヘルプ, 使い方を表示\n            0: 英語、 1: 日本語\n",         /* 3 */
-        "-h <host>   接続先ホスト, 既定値",                                            /* 4 */
-        "-p <num>    接続先ポート, 0は無効, 既定値",                                   /* 5 */
+        "-? <num>    ヘルプ, 使い方を表示\n"
+                            "            0: 英語、 1: 日本語\n",         /* 3 */
+        "-h <host>   接続先ホスト, 既定値",                              /* 4 */
+        "-p <num>    接続先ポート, 0は無効, 既定値",                     /* 5 */
 
 #ifndef WOLFSSL_TLS13
-        "-v <num>    SSL バージョン [0-3], SSLv3(0) - TLS1.2(3)), 既定値",             /* 6 */
-        "-V          有効な ssl バージョン番号を出力, SSLv3(0) - TLS1.2(3)\n",         /* 7 */
+        "-v <num>    SSL バージョン [0-3], SSLv3(0) - TLS1.2(3)),"
+                                                              " 既定値", /* 6 */
+        "-V          有効な ssl バージョン番号を出力, SSLv3(0) -"
+                                                 " TLS1.2(3)\n",         /* 7 */
 #else
-        "-v <num>    SSL バージョン [0-4], SSLv3(0) - TLS1.3(4)), 既定値",           /* 6 */
-        "-V          有効な ssl バージョン番号を出力, SSLv3(0) - TLS1.3(4)\n",         /* 7 */
+        "-v <num>    SSL バージョン [0-4], SSLv3(0) - TLS1.3(4)),"
+                                                    " 既定値",           /* 6 */
+        "-V          有効な ssl バージョン番号を出力, SSLv3(0) -"
+                                                 " TLS1.3(4)\n",         /* 7 */
 #endif
-        "-l <str>    暗号スイートリスト (区切り文字 :)\n",                             /* 8 */
-        "-c <file>   証明書ファイル,  既定値",                                         /* 9 */
-        "-k <file>   鍵ファイル,      既定値",                                         /* 10 */
-        "-A <file>   認証局ファイル,  既定値",                                         /* 11 */
+        "-l <str>    暗号スイートリスト (区切り文字 :)\n",               /* 8 */
+        "-c <file>   証明書ファイル,  既定値",                           /* 9 */
+        "-k <file>   鍵ファイル,      既定値",                          /* 10 */
+        "-A <file>   認証局ファイル,  既定値",                          /* 11 */
 #ifndef NO_DH
-        "-Z <num>    最小 DH 鍵 ビット, 既定値",                                       /* 12 */
+        "-Z <num>    最小 DH 鍵 ビット, 既定値",                        /* 12 */
 #endif
-        "-b <num>    ベンチマーク <num> 接続及び結果出力する\n",                       /* 13 */
+        "-b <num>    ベンチマーク <num> 接続及び結果出力する\n",        /* 13 */
 #ifdef HAVE_ALPN
-        "-L <str>    アプリケーション層プロトコルネゴシエーションを行う ({C,F}:<list>)\n",   /* 14 */
+        "-L <str>    アプリケーション層プロトコルネゴシエーションを行う"
+                                                 " ({C,F}:<list>)\n",   /* 14 */
 #endif
-        "-B <num>    <num> バイトを用いてのベンチマーク・スループット測定と結果を出力する\n", /* 15 */
-        "-s          事前共有鍵を使用する\n",                                                 /* 16 */
-        "-d          ピア確認を無効とする\n",                                                 /* 17 */
-        "-D          日付エラー用コールバック例の上書きを行う\n",                             /* 18 */
-        "-e          利用可能な全ての暗号スイートをリスト, \n",                               /* 19 */
-        "-g          サーバーへ HTTP GET を送信\n",                                           /* 20 */
-        "-u          UDP DTLSを使用する。-v 2 を追加指定すると DTLSv1, -v 3 を追加指定すると DTLSv1.2 (既定値)\n",    /* 21 */
+        "-B <num>    <num> バイトを用いてのベンチマーク・スループット測定"
+                                                  "と結果を出力する\n", /* 15 */
+        "-s          事前共有鍵を使用する\n",                           /* 16 */
+        "-d          ピア確認を無効とする\n",                           /* 17 */
+        "-D          日付エラー用コールバック例の上書きを行う\n",       /* 18 */
+        "-e          利用可能な全ての暗号スイートをリスト, \n",         /* 19 */
+        "-g          サーバーへ HTTP GET を送信\n",                     /* 20 */
+        "-u          UDP DTLSを使用する。-v 2 を追加指定すると"
+               " DTLSv1, -v 3 を追加指定すると DTLSv1.2 (既定値)\n",    /* 21 */
 #ifdef WOLFSSL_SCTP
-        "-G          SCTP DTLSを使用する。-v 2 を追加指定すると DTLSv1, -v 3 を追加指定すると DTLSv1.2 (既定値)\n",   /* 22 */
+        "-G          SCTP DTLSを使用する。-v 2 を追加指定すると"
+                " DTLSv1, -v 3 を追加指定すると DTLSv1.2 (既定値)\n",   /* 22 */
 #endif
-        "-m          証明書内のドメイン名一致を確認する\n",                               /* 23 */
-        "-N          ノンブロッキング・ソケットを使用する\n",                             /* 24 */
+        "-m          証明書内のドメイン名一致を確認する\n",             /* 23 */
+        "-N          ノンブロッキング・ソケットを使用する\n",           /* 24 */
 #ifndef NO_SESSION_CACHE
-        "-r          セッションを継続する\n",                                             /* 25 */
+        "-r          セッションを継続する\n",                           /* 25 */
 #endif 
-        "-w          双方向シャットダウンを待つ\n",                                       /* 26 */
-        "-M <prot>   STARTTLSを使用する, <prot>プロトコル(smtp)を使用する\n",             /* 27 */
+        "-w          双方向シャットダウンを待つ\n",                     /* 26 */
+        "-M <prot>   STARTTLSを使用する, <prot>プロトコル(smtp)を"
+                                              "使用する\n",             /* 27 */
 #ifdef HAVE_SECURE_RENEGOTIATION
-        "-R          セキュアな再ネゴシエーションを許可する\n",                           /* 28 */
-        "-i          クライアント主導のネゴシエーションを強制する\n",                     /* 29 */
+        "-R          セキュアな再ネゴシエーションを許可する\n",         /* 28 */
+        "-i          クライアント主導のネゴシエーションを強制する\n",   /* 29 */
 #endif
-        "-f          より少ないパケット/グループメッセージを使用する\n",                  /* 30 */
-        "-x          クライアントの証明書/鍵のロードを無効する\n",                        /* 31 */
-        "-X          外部テスト・ケースにより動作する\n",                                 /* 32 */
-        "-j          コールバック・オーバーライドの検証を使用する\n",                     /* 33 */
+        "-f          より少ないパケット/グループメッセージを使用する\n",/* 30 */
+        "-x          クライアントの証明書/鍵のロードを無効する\n",      /* 31 */
+        "-X          外部テスト・ケースにより動作する\n",               /* 32 */
+        "-j          コールバック・オーバーライドの検証を使用する\n",   /* 33 */
 #ifdef SHOW_SIZES
-        "-z          構造体のサイズを表示する\n",                                         /* 34 */
+        "-z          構造体のサイズを表示する\n",                       /* 34 */
 #endif
 #ifdef HAVE_SNI
-        "-S <str>    ホスト名表示を使用する\n",                                           /* 35 */
+        "-S <str>    ホスト名表示を使用する\n",                         /* 35 */
 #endif
 #ifdef HAVE_MAX_FRAGMENT
-        "-F <num>    最大フラグメント長[1-6]を設定する\n",                                /* 36 */
+        "-F <num>    最大フラグメント長[1-6]を設定する\n",              /* 36 */
 #endif
 #ifdef HAVE_TRUNCATED_HMAC
-        "-T          Truncated HMACを使用する\n",                                         /* 37 */
+        "-T          Truncated HMACを使用する\n",                       /* 37 */
 #endif
 #ifdef HAVE_EXTENDED_MASTER
-        "-n          マスターシークレット拡張を無効にする\n",                             /* 38 */
+        "-n          マスターシークレット拡張を無効にする\n",           /* 38 */
 #endif
 #ifdef HAVE_OCSP
-        "-o          OCSPルックアップをピア証明書で実施する\n",                           /* 39 */
-        "-O <url>    OCSPルックアップを、<url>を使用し応答者として実施する\n",            /* 40 */
+        "-o          OCSPルックアップをピア証明書で実施する\n",         /* 39 */
+        "-O <url>    OCSPルックアップを、<url>を使用し"
+                                   "応答者として実施する\n",            /* 40 */
 #endif
 #if defined(HAVE_CERTIFICATE_STATUS_REQUEST) \
  || defined(HAVE_CERTIFICATE_STATUS_REQUEST_V2)
-        "-W <num>    OCSP Staplingを使用する (1 v1, 2 v2, 3 v2 multi)\n",                 /* 41 */
+        "-W <num>    OCSP Staplingを使用する"
+                                         " (1 v1, 2 v2, 3 v2 multi)\n", /* 41 */
 #endif
 #ifdef ATOMIC_USER
-        "-U          アトミック・ユーザー記録のコールバックを利用する\n",                 /* 42 */
+        "-U          アトミック・ユーザー記録の"
+                                           "コールバックを利用する\n",  /* 42 */
 #endif
 #ifdef HAVE_PK_CALLBACKS
-        "-P          公開鍵コールバック\n",                                               /* 43 */
+        "-P          公開鍵コールバック\n",                             /* 43 */
 #endif
 #ifdef HAVE_ANON
-        "-a          匿名クライアント\n",                                                 /* 44 */
+        "-a          匿名クライアント\n",                               /* 44 */
 #endif
 #ifdef HAVE_CRL
-        "-C          CRLを無効\n",                                                        /* 45 */
+        "-C          CRLを無効\n",                                      /* 45 */
 #endif
 #ifdef WOLFSSL_TRUST_PEER_CERT
-        "-E <file>   信頼出来るピアの証明書ロードの為のパス\n",                          /* 46 */
+        "-E <file>   信頼出来るピアの証明書ロードの為のパス\n",         /* 46 */
 #endif
 #ifdef HAVE_WNR
-        "-q <file>   Whitewood コンフィグファイル,      既定値\n",                        /* 47 */      
+        "-q <file>   Whitewood コンフィグファイル,      既定値\n",      /* 47 */      
 #endif
-        "-H <arg>    内部テスト [defCipherList, exitWithRet, verifyFail]\n",              /* 48 */
+        "-H <arg>    内部テスト"
+               " [defCipherList, exitWithRet, verifyFail]\n",           /* 48 */
 #ifdef WOLFSSL_TLS13
-        "-J          HelloRetryRequestをKEのグループ選択に使用する\n",                    /* 49 */
-        "-K          鍵交換にPSKを使用、(EC)DHEは使用しない\n",                           /* 50 */
-        "-I          データ送信前に、鍵とIVを更新する\n",                                 /* 51 */
+        "-J          HelloRetryRequestをKEのグループ選択に使用する\n",  /* 49 */
+        "-K          鍵交換にPSKを使用、(EC)DHEは使用しない\n",         /* 50 */
+        "-I          データ送信前に、鍵とIVを更新する\n",               /* 51 */
 #ifndef NO_DH
-        "-y          FFDHE名前付きグループとの鍵共有のみ\n",                              /* 52 */
+        "-y          FFDHE名前付きグループとの鍵共有のみ\n",            /* 52 */
 #endif
 #ifdef HAVE_ECC
-        "-Y          ECC名前付きグループとの鍵共有のみ\n",                                /* 53 */
+        "-Y          ECC名前付きグループとの鍵共有のみ\n",              /* 53 */
 #endif
 #endif /* WOLFSSL_TLS13 */
 #ifdef HAVE_CURVE25519
-        "-t          X25519を鍵交換に使用する\n",                                         /* 54 */
+        "-t          X25519を鍵交換に使用する\n",                       /* 54 */
 #endif
 #if defined(WOLFSSL_TLS13) && defined(WOLFSSL_POST_HANDSHAKE_AUTH)
-        "-Q          ポストハンドシェークの証明要求をサポートする\n",                     /* 55 */
+        "-Q          ポストハンドシェークの証明要求をサポートする\n",   /* 55 */
 #endif
 #ifdef WOLFSSL_EARLY_DATA
-        "-0          Early data をサーバーへ送信する（0-RTTハンドシェイク）\n",                /* 56 */
+        "-0          Early data をサーバーへ送信する"
+                            "（0-RTTハンドシェイク）\n",                /* 56 */
 #endif
 #ifdef WOLFSSL_MULTICAST
-        "-3 <grpid>  マルチキャスト, grpid < 256\n",                                      /* 57 */
+        "-3 <grpid>  マルチキャスト, grpid < 256\n",                    /* 57 */
 #endif
-        "-1 <num>    指定された言語で結果を表示します。\n            0: 英語、 1: 日本語\n", /* 58 */
+        "-1 <num>    指定された言語で結果を表示します。\n"
+                                   "            0: 英語、 1: 日本語\n", /* 58 */
         NULL,
     },
 
