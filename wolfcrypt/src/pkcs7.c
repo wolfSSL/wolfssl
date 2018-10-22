@@ -2223,87 +2223,88 @@ static int PKCS7_VerifySignedData(PKCS7* pkcs7, const byte* hashBuf,
     if (GetSet(pkiMsg2, &idx, &length, pkiMsg2Sz) < 0)
         return ASN_PARSE_E;
 
-    if (length > 0) {
-        /* Get the sequence of the first signerInfo */
-        if (GetSequence(pkiMsg2, &idx, &length, pkiMsg2Sz) < 0)
-            return ASN_PARSE_E;
+    if (length == 0)
+        return PKCS7_NO_SIGNER_E;
 
-        /* Get the version */
-        if (GetMyVersion(pkiMsg2, &idx, &version, pkiMsg2Sz) < 0)
-            return ASN_PARSE_E;
+    /* Get the sequence of the first signerInfo */
+    if (GetSequence(pkiMsg2, &idx, &length, pkiMsg2Sz) < 0)
+        return ASN_PARSE_E;
 
-        if (version != 1) {
-            WOLFSSL_MSG("PKCS#7 signerInfo needs to be of version 1");
-            return ASN_VERSION_E;
-        }
+    /* Get the version */
+    if (GetMyVersion(pkiMsg2, &idx, &version, pkiMsg2Sz) < 0)
+        return ASN_PARSE_E;
 
-        /* Get the sequence of IssuerAndSerialNumber */
-        if (GetSequence(pkiMsg2, &idx, &length, pkiMsg2Sz) < 0)
-            return ASN_PARSE_E;
-
-        /* Skip it */
-        idx += length;
-
-        /* Get the sequence of digestAlgorithm */
-        if (GetAlgoId(pkiMsg2, &idx, &hashOID, oidHashType, pkiMsg2Sz) < 0) {
-            return ASN_PARSE_E;
-        }
-        pkcs7->hashOID = (int)hashOID;
-
-        /* Get the IMPLICIT[0] SET OF signedAttributes */
-        if (pkiMsg2[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) {
-            idx++;
-
-            if (GetLength(pkiMsg2, &idx, &length, pkiMsg2Sz) < 0)
-                return ASN_PARSE_E;
-
-            /* save pointer and length */
-            signedAttrib = &pkiMsg2[idx];
-            signedAttribSz = length;
-
-            if (wc_PKCS7_ParseAttribs(pkcs7, signedAttrib, signedAttribSz) <0) {
-                WOLFSSL_MSG("Error parsing signed attributes");
-                return ASN_PARSE_E;
-            }
-
-            idx += length;
-        }
-
-        /* Get digestEncryptionAlgorithm */
-        if (GetAlgoId(pkiMsg2, &idx, &sigOID, oidSigType, pkiMsg2Sz) < 0) {
-            return ASN_PARSE_E;
-        }
-
-        /* store public key type based on digestEncryptionAlgorithm */
-        ret = wc_PKCS7_SetPublicKeyOID(pkcs7, sigOID);
-        if (ret <= 0) {
-            WOLFSSL_MSG("Failed to set public key OID from signature");
-            return ret;
-        }
-
-        /* Get the signature */
-        if (pkiMsg2[idx] == ASN_OCTET_STRING) {
-            idx++;
-
-            if (GetLength(pkiMsg2, &idx, &length, pkiMsg2Sz) < 0)
-                return ASN_PARSE_E;
-
-            /* save pointer and length */
-            sig = &pkiMsg2[idx];
-            sigSz = length;
-
-            idx += length;
-        }
-
-        pkcs7->content = content;
-        pkcs7->contentSz = contentSz;
-
-        ret = wc_PKCS7_SignedDataVerifySignature(pkcs7, sig, sigSz,
-                                                 signedAttrib, signedAttribSz,
-                                                 hashBuf, hashSz);
-        if (ret < 0)
-            return ret;
+    if (version != 1) {
+        WOLFSSL_MSG("PKCS#7 signerInfo needs to be of version 1");
+        return ASN_VERSION_E;
     }
+
+    /* Get the sequence of IssuerAndSerialNumber */
+    if (GetSequence(pkiMsg2, &idx, &length, pkiMsg2Sz) < 0)
+        return ASN_PARSE_E;
+
+    /* Skip it */
+    idx += length;
+
+    /* Get the sequence of digestAlgorithm */
+    if (GetAlgoId(pkiMsg2, &idx, &hashOID, oidHashType, pkiMsg2Sz) < 0) {
+        return ASN_PARSE_E;
+    }
+    pkcs7->hashOID = (int)hashOID;
+
+    /* Get the IMPLICIT[0] SET OF signedAttributes */
+    if (pkiMsg2[idx] == (ASN_CONSTRUCTED | ASN_CONTEXT_SPECIFIC | 0)) {
+        idx++;
+
+        if (GetLength(pkiMsg2, &idx, &length, pkiMsg2Sz) < 0)
+            return ASN_PARSE_E;
+
+        /* save pointer and length */
+        signedAttrib = &pkiMsg2[idx];
+        signedAttribSz = length;
+
+        if (wc_PKCS7_ParseAttribs(pkcs7, signedAttrib, signedAttribSz) <0) {
+            WOLFSSL_MSG("Error parsing signed attributes");
+            return ASN_PARSE_E;
+        }
+
+        idx += length;
+    }
+
+    /* Get digestEncryptionAlgorithm */
+    if (GetAlgoId(pkiMsg2, &idx, &sigOID, oidSigType, pkiMsg2Sz) < 0) {
+        return ASN_PARSE_E;
+    }
+
+    /* store public key type based on digestEncryptionAlgorithm */
+    ret = wc_PKCS7_SetPublicKeyOID(pkcs7, sigOID);
+    if (ret <= 0) {
+        WOLFSSL_MSG("Failed to set public key OID from signature");
+        return ret;
+    }
+
+    /* Get the signature */
+    if (pkiMsg2[idx] == ASN_OCTET_STRING) {
+        idx++;
+
+        if (GetLength(pkiMsg2, &idx, &length, pkiMsg2Sz) < 0)
+            return ASN_PARSE_E;
+
+        /* save pointer and length */
+        sig = &pkiMsg2[idx];
+        sigSz = length;
+
+        idx += length;
+    }
+
+    pkcs7->content = content;
+    pkcs7->contentSz = contentSz;
+
+    ret = wc_PKCS7_SignedDataVerifySignature(pkcs7, sig, sigSz,
+                                             signedAttrib, signedAttribSz,
+                                             hashBuf, hashSz);
+    if (ret < 0)
+        return ret;
 
     return 0;
 }
