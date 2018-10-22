@@ -78,6 +78,11 @@ typedef WOLFSSL_DH DH;
 #define DH_CHECK_P_NOT_SAFE_PRIME       0x02
 #define DH_NOT_SUITABLE_GENERATOR       0x08
 
+/* Temporary values for wolfSSL_DH_Check*/
+#define DH_CHECK_INVALID_Q_VALUE        0x10
+#define DH_CHECK_Q_NOT_PRIME            0x11
+/* end temp */
+
 #ifdef __cplusplus
     }  /* extern "C" */
 #endif
