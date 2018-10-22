@@ -22414,14 +22414,32 @@ WOLFSSL_EC_KEY *wolfSSL_EC_KEY_dup(const WOLFSSL_EC_KEY *src)
 }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
+#if defined(WOLFSSL_QT) && !defined(NO_DH)
 int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes)
 {
-    (void)dh;
-    (void)codes;
-    WOLFSSL_ENTER("wolfSSL_DH_check");
-    WOLFSSL_STUB("DH_check");
-    return WOLFSSL_FAILURE;
+    int ret, isPrime = 0;
+
+    WC_RNG rng;
+
+    if (dh == NULL)
+        return BAD_FUNC_ARG;
+
+    if (dh->q == NULL || dh->q->internal == NULL) {
+        *codes = DH_CHECK_INVALID_Q_VALUE;
+        return BAD_FUNC_ARG;
+    }
+
+    ret = wc_InitRng(&rng);
+    if (ret == 0 && *codes != DH_CHECK_INVALID_Q_VALUE)
+        ret = mp_prime_is_prime_ex((mp_int*)dh->q->internal, 8, &isPrime, &rng);
+
+    if (!isPrime) {
+        *codes = DH_CHECK_Q_NOT_PRIME;
+        return BAD_FUNC_ARG;
+    }
+
+    wc_FreeRng(&rng);
+    return WOLFSSL_SUCCESS;
 }
 #endif
 
