@@ -26012,7 +26012,7 @@ int wolfSSL_EVP_PKEY_set1_RSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_RSA *key)
 }
 #endif /* NO_RSA */
 
-#if defined(WOLFSSL_QT) && !defined(NO_DSA) && !defined(NO_WOLFSSL_STUB)
+#if defined(WOLFSSL_QT) && !defined(NO_DSA)
 int wolfSSL_EVP_PKEY_set1_DSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DSA *key)
 {
     if((pkey == NULL) || (key == NULL))return WOLFSSL_FAILURE;
@@ -26028,19 +26028,20 @@ int wolfSSL_EVP_PKEY_set1_DSA(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_DSA *key)
 }
 #endif
 
-#if defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB)
+#if defined(WOLFSSL_QT) && defined(HAVE_ECC)
 int wolfSSL_EVP_PKEY_set1_EC_KEY(WOLFSSL_EVP_PKEY *pkey, WOLFSSL_EC_KEY *key)
 {
     if((pkey == NULL) || (key == NULL))return WOLFSSL_FAILURE;
     WOLFSSL_ENTER("wolfSSL_EVP_PKEY_set1_EC_KEY");
-    if (pkey->ecc != NULL) {
+    if (pkey->ecc != NULL && pkey->ownEcc == 1) {
         wolfSSL_EC_KEY_free(pkey->ecc);
     }
-
     pkey->ecc    = key;
     pkey->ownEcc = 0; /* pkey does not own ECC */
     pkey->type = EVP_PKEY_EC;
-    // pkey->pkey_curve =
+
+    if(key->group != NULL)
+        pkey->pkey_curve = key->group->curve_oid;
 
     return WOLFSSL_SUCCESS;
 }
@@ -26067,16 +26068,9 @@ WOLFSSL_EC_KEY* wolfSSL_EVP_PKEY_get1_EC_KEY(WOLFSSL_EVP_PKEY* key)
 }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
+#ifdef WOLFSSL_QT
 int wolfSSL_EVP_PKEY_assign(WOLFSSL_EVP_PKEY *pkey, int type, void *key)
 {
-
-    (void)pkey;
-    (void)type;
-    (void)key;
-
-    WOLFSSL_STUB("wolfSSL_EVP_PKEY_assign");
-    /*
     int ret;
     switch(type) {
     #ifndef NO_RSA
@@ -26100,11 +26094,8 @@ int wolfSSL_EVP_PKEY_assign(WOLFSSL_EVP_PKEY *pkey, int type, void *key)
     }
 
     return ret;
-    */
-
-    return WOLFSSL_SUCCESS;
 }
-#endif
+#endif /* #ifdef WOLFSSL_QT */
 
 void* wolfSSL_EVP_X_STATE(const WOLFSSL_EVP_CIPHER_CTX* ctx)
 {
