@@ -8450,10 +8450,11 @@ int wolfSSL_write_early_data(WOLFSSL* ssl, const void* data, int sz, int* outSz)
     if (ssl->options.handShakeState == NULL_STATE) {
         ssl->earlyData = expecting_early_data;
         ret = wolfSSL_connect_TLSv13(ssl);
-        if (ret <= 0)
+        if (ret != WOLFSSL_SUCCESS)
             return WOLFSSL_FATAL_ERROR;
     }
-    if (ssl->options.handShakeState == CLIENT_HELLO_COMPLETE) {
+    if (ssl->options.handShakeState == CLIENT_HELLO_COMPLETE ||
+        ssl->options.handShakeState == HANDSHAKE_DONE) {
         ret = SendData(ssl, data, sz);
         if (ret > 0)
             *outSz = ret;
