@@ -40,6 +40,10 @@
 #include <wolfssl/openssl/crypto.h>
 #endif
 
+#if defined(WOLFSSL_ASIO) || defined(WOLFSSL_HAPROXY)
+#include <wolfssl/wolfcrypt/asn.h>
+#endif
+
 #ifdef __cplusplus
     extern "C" {
 #endif
@@ -913,8 +917,9 @@ typedef WOLFSSL_ASN1_BIT_STRING    ASN1_BIT_STRING;
 #define X509_NAME_ENTRY_get_object        wolfSSL_X509_NAME_ENTRY_get_object
 #define SSL_get_SSL_CTX                   wolfSSL_get_SSL_CTX
 #define ERR_peek_last_error               wolfSSL_ERR_peek_last_error
+#ifndef WOLFSSL_HAPROXY
 #define X509_get_version                  wolfSSL_X509_get_version
-
+#endif
 
 #define ERR_NUM_ERRORS                  16
 #define EVP_PKEY_RSA                    6 
