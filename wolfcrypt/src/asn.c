@@ -8512,12 +8512,20 @@ int PemToDer(const unsigned char* buff, long longSz, int type,
                       der->buffer, &der->length) < 0)
         return BUFFER_E;
 
-    if (header == BEGIN_PRIV_KEY && !encrypted_key) {
+    if ((header == BEGIN_PRIV_KEY
+#ifdef HAVE_ECC
+         || header == BEGIN_EC_PRIV
+#endif
+        ) && !encrypted_key)
+    {
         /* pkcs8 key, convert and adjust length */
-        if ((ret = ToTraditional(der->buffer, der->length)) < 0)
-            return ret;
+        if ((ret = ToTraditional(der->buffer, der->length)) > 0) {
+            der->length = ret;
+        }
+        else {
+            /* ignore failure here and assume key is not pkcs8 wrapped */
+        }
 
-        der->length = ret;
         return 0;
     }
 
