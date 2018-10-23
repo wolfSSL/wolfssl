@@ -11289,26 +11289,27 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
             return WOLFSSL_FATAL_ERROR;
     }
 
-    #ifndef NO_WOLFSSL_STUB
     int wolfSSL_OpenSSL_add_all_algorithms_noconf(void)
     {
         WOLFSSL_ENTER("wolfSSL_OpenSSL_add_all_algorithms_noconf");
 
-        if  (wolfSSL_add_all_algorithms() == WOLFSSL_FATAL_ERROR)
+        if  (wolfSSL_add_all_algorithms() == WOLFSSL_FATAL_ERROR) {
             return WOLFSSL_FATAL_ERROR;
+        }
 
         return  WOLFSSL_SUCCESS;
     }
-    #endif
 
-    #ifndef NO_WOLFSSL_STUB
+
     int wolfSSL_OpenSSL_add_all_algorithms_conf(void)
     {
         WOLFSSL_ENTER("wolfSSL_OpenSSL_add_all_algorithms_conf");
-
+        
+        if (wolfSSL_add_all_algorithms() == WOLFSSL_FATAL_ERROR) {
+            return WOLFSSL_FATAL_ERROR;
+        }
         return  WOLFSSL_SUCCESS;
     }
-    #endif
 
    /* returns previous set cache size which stays constant */
     long wolfSSL_CTX_sess_set_cache_size(WOLFSSL_CTX* ctx, long sz)
@@ -13194,24 +13195,32 @@ int wolfSSL_EVP_MD_type(const WOLFSSL_EVP_MD *md)
         return WOLFSSL_SUCCESS;
     }
 
-    #if defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB)
+    /* This function allows various  cipher  specific 
+    parameters to be determined and set. */
     int wolfSSL_EVP_CIPHER_CTX_ctrl(WOLFSSL_EVP_CIPHER_CTX *ctx, int type,
-                                                            int arg, void *ptr)
+                                                             int arg, void *ptr)
     {
-        (void)ctx;
-        (void)type;
-        (void)arg;
-        (void)ptr;
+        int ret = -1;
+
         WOLFSSL_ENTER("EVP_CIPHER_CTX_ctrl");
-        return WOLFSSL_SUCCESS;
+        if(ctx) {
+            if(ctx->cipher.ctrl) {
+                if((ret = ctx->cipher.ctrl(ctx, type, arg, ptr)) != -1) {
+                    return ret;
+                }
+            }
+        }
+        return WOLFSSL_FAILURE;
     }
+
+    /* Permanent stub for Qt compilation. */
+    #if defined(WOLFSSL_QT) && !defined(NO_WOLFSSL_STUB)
     const WOLFSSL_EVP_CIPHER* wolfSSL_EVP_rc2_cbc(void)
     {
         WOLFSSL_ENTER("wolfSSL_EVP_rc2_cbc");
         WOLFSSL_STUB("EVP_rc2_cbc");
         return NULL;
     }
-
     #endif
 
 
