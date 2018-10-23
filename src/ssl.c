@@ -22443,18 +22443,46 @@ int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes)
 }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
-WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **a, const unsigned char **pp,
+#ifndef NO_DH
+WOLFSSL_DH *wolfSSL_d2i_DHparams(WOLFSSL_DH **dh, const unsigned char **pp,
                                                                     long length)
 {
-    (void)a;
-    (void)pp;
-    (void)length;
     WOLFSSL_ENTER("wolfSSL_d2i_DHparams");
-    WOLFSSL_STUB("d2i_DHparams");
-    return NULL;
+
+    WOLFSSL_DH *newDH = NULL;
+    int ret; 
+    word32 idx = 0;
+
+    if (pp == NULL || length <= 0) {
+        WOLFSSL_MSG("bad argument");
+        return NULL;
+    }
+
+    if ((newDH = wolfSSL_DH_new()) == NULL) {
+        WOLFSSL_MSG("wolfSSL_DH_new() failed");
+        return NULL;
+    }    
+
+    ret = wc_DhKeyDecode(*pp, &idx, (DhKey*)newDH->internal, (word32)length);
+    if (ret != 0) {
+        WOLFSSL_MSG("DhKeyDecode() failed");
+        wolfSSL_DH_free(newDH);
+        return NULL;
+    }
+
+    if (setDhExternal(newDH) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("setDhExternal failed");
+        wolfSSL_DH_free(newDH);
+        return NULL;
+    }
+
+    *pp += length;
+    if (dh != NULL)
+        *dh = newDH;
+
+    return newDH;
 }
-#endif
+#endif /* NO_DH */
 
 #ifndef NO_WOLFSSL_STUB
 int wolfSSL_i2d_DHparams(const WOLFSSL_DH *a, unsigned char **pp)
@@ -25147,6 +25175,33 @@ WOLFSSL_DH *wolfSSL_DSA_dup_DH(const WOLFSSL_DSA *dsa)
 
 #endif /* OPENSSL_EXTRA */
 #endif /* !NO_RSA && !NO_DSA */
+
+#ifdef WOLFSSL_QT
+int setDhExternal(WOLFSSL_DH *dh) {
+    DhKey *key;
+    WOLFSSL_MSG("Entering setDhExternal");
+
+    if (dh == NULL || dh->internal == NULL) {
+        WOLFSSL_MSG("dh key NULL error");
+    }
+    
+    key = (DhKey*)dh->internal;
+
+    if (SetIndividualExternal(&dh->p, &key->p) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("dh param p error");
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    if (SetIndividualExternal(&dh->g, &key->g) != WOLFSSL_SUCCESS) {
+        WOLFSSL_MSG("dh param g error");
+        return WOLFSSL_FATAL_ERROR;
+    }
+
+    dh->exSet = 1; 
+ 
+    return WOLFSSL_SUCCESS;
+}
+#endif /* WOLFSSL_QT */
 
 #ifdef OPENSSL_EXTRA
 
