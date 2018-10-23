@@ -231,13 +231,14 @@ WOLFSSL_API int  wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
                                                                RsaKey*, word32);
 WOLFSSL_API int  wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx,
                                                                RsaKey*, word32);
-WOLFSSL_API int  wc_RsaPublicKeyDecodeSize(const byte* input, word32* inOutIdx,
-                                           word32 inSz);
 WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
                                         const byte* e, word32 eSz, RsaKey* key);
 #ifdef WOLFSSL_KEY_GEN
     WOLFSSL_API int wc_RsaKeyToDer(RsaKey*, byte* output, word32 inLen);
 #endif
+
+WOLFSSL_API int  wc_RsaPublicKeyDecodeSize(const byte* input, word32* inOutIdx,
+                                           word32 inSz);
 
 WOLFSSL_API int wc_RsaSetRNG(RsaKey* key, WC_RNG* rng);
 
