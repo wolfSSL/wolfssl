@@ -132,6 +132,7 @@ typedef union {
 } WOLFSSL_Hasher;
 
 typedef struct WOLFSSL_EVP_PKEY_CTX WOLFSSL_EVP_PKEY_CTX;
+typedef struct WOLFSSL_EVP_CIPHER_CTX WOLFSSL_EVP_CIPHER_CTX;
 
 typedef struct WOLFSSL_EVP_MD_CTX {
     union {
@@ -155,8 +156,9 @@ typedef union {
 #ifdef HAVE_IDEA
     Idea idea;
 #endif
-} WOLFSSL_Cipher;
 
+    int (*ctrl) (WOLFSSL_EVP_CIPHER_CTX *, int type, int arg, void *ptr);
+} WOLFSSL_Cipher;
 
 enum {
     AES_128_CBC_TYPE  = 1,
@@ -221,7 +223,7 @@ typedef struct WOLFSSL_EVP_CIPHER_CTX {
     /* working iv pointer into cipher */
     ALIGN16 unsigned char  iv[DES_BLOCK_SIZE];
 #endif
-    WOLFSSL_Cipher  cipher;
+    WOLFSSL_Cipher cipher;
     ALIGN16 byte buf[WOLFSSL_EVP_BUF_SIZE];
     int  bufUsed;
     ALIGN16 byte lastBlock[WOLFSSL_EVP_BUF_SIZE];
