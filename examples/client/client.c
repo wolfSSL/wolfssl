@@ -2290,14 +2290,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
     else {
 #ifdef WOLFSSL_EARLY_DATA
-    #ifndef HAVE_SESSION_TICKET
-        if (!usePsk) {
-        }
-        else
-    #endif
-        if (earlyData) {
+        if (usePsk && earlyData)
             EarlyData(ctx, ssl, msg, msgSz, buffer);
-        }
 #endif
         do {
             err = 0; /* reset error */
