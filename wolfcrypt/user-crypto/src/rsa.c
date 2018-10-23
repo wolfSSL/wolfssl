@@ -1239,7 +1239,6 @@ int wc_RsaPublicKeyDecodeSize(const byte* input, word32* inOutIdx, word32 inSz)
 {
     IppStatus ret = 0;
     int length;
-    int ctxSz;
     int keySz = 0;
 #if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
     byte b;
