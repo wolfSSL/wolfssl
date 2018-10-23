@@ -18731,7 +18731,7 @@ int wolfSSL_i2d_X509(WOLFSSL_X509* x509, unsigned char** out)
     const unsigned char* der;
     int derSz = 0;
 
-    if (x509 == NULL || out == NULL) {
+    if (x509 == NULL) {
         return BAD_FUNC_ARG;
     }
 
@@ -18740,14 +18740,15 @@ int wolfSSL_i2d_X509(WOLFSSL_X509* x509, unsigned char** out)
         return MEMORY_E;
     }
 
-    if (*out == NULL) {
+    if (out != NULL && *out == NULL) {
         *out = (unsigned char*)XMALLOC(derSz, NULL, DYNAMIC_TYPE_OPENSSL);
         if (*out == NULL) {
             return MEMORY_E;
         }
     }
 
-    XMEMCPY(*out, der, derSz);
+    if (out != NULL)
+        XMEMCPY(*out, der, derSz);
 
     return derSz;
 }
