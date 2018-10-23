@@ -60,6 +60,10 @@ WOLFSSL_API int wolfSSL_DH_generate_key(WOLFSSL_DH*);
 WOLFSSL_API int wolfSSL_DH_compute_key(unsigned char* key, WOLFSSL_BIGNUM* pub,
                                      WOLFSSL_DH*);
 
+#ifdef WOLFSSL_QT
+WOLFSSL_API int setDhExternal(WOLFSSL_DH *dh);
+#endif
+
 typedef WOLFSSL_DH DH;
 
 #define DH_new  wolfSSL_DH_new
