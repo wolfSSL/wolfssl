@@ -21710,23 +21710,39 @@ void *wolfSSL_BIO_get_ex_data(WOLFSSL_BIO *bio, int idx)
     return NULL;
 }
 
-#ifndef NO_WOLFSSL_STUB
+/* frees the wolfSSL_BASIC_CONSTRAINTS object */
 void wolfSSL_BASIC_CONSTRAINTS_free(WOLFSSL_BASIC_CONSTRAINTS *bc)
 {
-    (void)bc;
     WOLFSSL_ENTER("wolfSSL_BASIC_CONSTRAINTS_free");
-    WOLFSSL_STUB("BASIC_CONSTRAINTS_free");
+    if (bc == NULL) {
+        WOLFSSL_MSG("Argument is NULL");
+        return;
+    }
+    if(bc->pathlen) {
+        wolfSSL_ASN1_INTEGER_free(bc->pathlen);
+    }
+    XFREE(bc, NULL, DYNAMIC_TYPE_OPENSSL);
 }
-#endif
 
-#ifndef NO_WOLFSSL_STUB
+/* frees the wolfSSL_AUTHORITY_KEYID object */
 void wolfSSL_AUTHORITY_KEYID_free(WOLFSSL_AUTHORITY_KEYID *id)
 {
-    (void)id;
     WOLFSSL_ENTER("wolfSSL_AUTHORITY_KEYID_free");
-    WOLFSSL_STUB("AUTHORITY_KEYID_free");
+    if(id == NULL) {
+        WOLFSSL_MSG("Argument is NULL");
+        return;
+    }
+    if (id->keyid) {
+        wolfSSL_ASN1_STRING_free(id->keyid);
+    }
+    if (id->issuer) {
+        wolfSSL_ASN1_OBJECT_free(id->issuer);
+    }
+    if (id->serial) {
+        wolfSSL_ASN1_INTEGER_free(id->serial);
+    }
+    XFREE(id, NULL, DYNAMIC_TYPE_OPENSSL);
 }
-#endif
 
 #endif /* defined(WOLFSSL_QT) || defined(OPENSSL_ALL) */
 
