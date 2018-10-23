@@ -417,6 +417,11 @@ WOLFSSL_API void wc_FreeDer(DerBuffer** pDer);
                                 word32 outputSz, byte *cipherIno, int type);
 #endif
 
+#ifndef NO_RSA
+    WOLFSSL_API int wc_RsaPublicKeyDecodeSize(const byte* input, word32* inOutIdx,
+                                               word32 inSz);
+#endif
+
 #ifdef HAVE_ECC
     /* private key helpers */
     WOLFSSL_API int wc_EccPrivateKeyDecode(const byte*, word32*,
