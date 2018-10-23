@@ -9359,6 +9359,11 @@ static int rsa_decode_test(RsaKey* keyPub)
         ret = -6793;
         goto done;
     }
+    ret = wc_RsaPublicKeyDecode(good, &inOutIdx, NULL, inSz);
+    if (ret != BAD_FUNC_ARG) {
+        ret = -6794;
+        goto done;
+    }
 
     /* Use good data and offest to bad data. */
     inOutIdx = 2;

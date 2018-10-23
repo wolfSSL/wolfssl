@@ -10239,6 +10239,9 @@ static int test_wc_RsaPublicKeyDecode (void)
                 ret = wc_RsaPublicKeyDecode(tmp, NULL, &keyPub, (word32)bytes);
             }
             if (ret == BAD_FUNC_ARG) {
+                ret = wc_RsaPublicKeyDecode(tmp, &idx, NULL, (word32)bytes);
+            }
+            if (ret == BAD_FUNC_ARG) {
                 ret = 0;
             } else {
                 ret = WOLFSSL_FATAL_ERROR;
@@ -10250,6 +10253,9 @@ static int test_wc_RsaPublicKeyDecode (void)
             ret = wc_RsaPublicKeyDecode(NULL, &idx, &keyPub, (word32)bytes);
             if (ret == USER_CRYPTO_ERROR) {
                 ret = wc_RsaPublicKeyDecode(tmp, NULL, &keyPub, (word32)bytes);
+            }
+            if (ret == USER_CRYPTO_ERROR) {
+                ret = wc_RsaPublicKeyDecode(tmp, &idx, NULL, (word32)bytes);
             }
             if (ret == USER_CRYPTO_ERROR) {
                 ret = 0;
@@ -10266,7 +10272,7 @@ static int test_wc_RsaPublicKeyDecode (void)
     if (ret == 0) {
         /* Test for getting modulus key size */
         idx = 0;
-        ret = wc_RsaPublicKeyDecode(tmp, &idx, NULL, (word32)bytes);
+        ret = wc_RsaPublicKeyDecodeSize(tmp, &idx, (word32)bytes);
         ret = (ret == keySz/8) ? 0 : WOLFSSL_FATAL_ERROR;
     }
 

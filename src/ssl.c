@@ -4972,7 +4972,7 @@ int ProcessBuffer(WOLFSSL_CTX* ctx, const unsigned char* buff,
             #endif
                 /* Determine RSA key size by parsing public key */
                 idx = 0;
-                ret = wc_RsaPublicKeyDecode(cert->publicKey, &idx, NULL,
+                ret = wc_RsaPublicKeyDecodeSize(cert->publicKey, &idx,
                     cert->pubKeySize);
                 if (ret < 0)
                     break;

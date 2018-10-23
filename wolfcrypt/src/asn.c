@@ -3441,20 +3441,19 @@ exit_dc:
 int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
                        word32 inSz)
 {
-    int ret = 0;
-    int length;
+    int  length;
 #if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
     byte b;
 #endif
+    int ret;
 
-    if (input == NULL || inOutIdx == NULL)
+    if (input == NULL || inOutIdx == NULL || key == NULL)
         return BAD_FUNC_ARG;
 
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
-    if (key)
-        key->type = RSA_PUBLIC;
+    key->type = RSA_PUBLIC;
 
 #if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
     if ((*inOutIdx + 1) > inSz)
@@ -3489,40 +3488,86 @@ int wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx, RsaKey* key,
     }
 #endif /* OPENSSL_EXTRA */
 
-    if (key) {
-        if (GetInt(&key->n, input, inOutIdx, inSz) < 0)
-            return ASN_RSA_KEY_E;
-        if (GetInt(&key->e, input, inOutIdx, inSz) < 0) {
-            mp_clear(&key->n);
-            return ASN_RSA_KEY_E;
-        }
-    }
-    else {
-        int keySz;
-
-        /* Get modulus size */
-        ret = GetASNInt(input, inOutIdx, &length, inSz);
-        if (ret < 0) {
-            return ASN_RSA_KEY_E;
-        }
-        *inOutIdx += length;
-        keySz = length;
-
-        /* Get exponent */
-        ret = GetASNInt(input, inOutIdx, &length, inSz);
-        if (ret < 0) {
-            return ASN_RSA_KEY_E;
-        }
-        *inOutIdx += length;
-
-        ret = keySz; /* return key size */
+    if (GetInt(&key->n,  input, inOutIdx, inSz) < 0)
+        return ASN_RSA_KEY_E;
+    if (GetInt(&key->e,  input, inOutIdx, inSz) < 0) {
+        mp_clear(&key->n);
+        return ASN_RSA_KEY_E;
     }
 
 #ifdef WOLFSSL_XILINX_CRYPT
-    if (key && wc_InitRsaHw(key) != 0) {
+    if (wc_InitRsaHw(key) != 0) {
         return BAD_STATE_E;
     }
 #endif
+
+    return 0;
+}
+
+int wc_RsaPublicKeyDecodeSize(const byte* input, word32* inOutIdx, word32 inSz)
+{
+    int ret = 0;
+    int length;
+    int keySz = 0;
+#if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
+    byte b;
+#endif
+
+    if (input == NULL || inOutIdx == NULL)
+        return BAD_FUNC_ARG;
+
+    if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+        return ASN_PARSE_E;
+
+#if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
+    if ((*inOutIdx + 1) > inSz)
+        return BUFFER_E;
+
+    b = input[*inOutIdx];
+    if (b != ASN_INTEGER) {
+        /* not from decoded cert, will have algo id, skip past */
+        if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+            return ASN_PARSE_E;
+
+        if (SkipObjectId(input, inOutIdx, inSz) < 0)
+            return ASN_PARSE_E;
+
+        /* Option NULL ASN.1 tag */
+        if (*inOutIdx  >= inSz) {
+            return BUFFER_E;
+        }
+        if (input[*inOutIdx] == ASN_TAG_NULL) {
+            ret = GetASNNull(input, inOutIdx, inSz);
+            if (ret != 0)
+                return ret;
+        }
+
+        /* should have bit tag length and seq next */
+        ret = CheckBitString(input, inOutIdx, NULL, inSz, 1, NULL);
+        if (ret != 0)
+            return ret;
+
+        if (GetSequence(input, inOutIdx, &length, inSz) < 0)
+            return ASN_PARSE_E;
+    }
+#endif /* OPENSSL_EXTRA */
+
+    /* Get modulus size */
+    ret = GetASNInt(input, inOutIdx, &length, inSz);
+    if (ret < 0) {
+        return ASN_RSA_KEY_E;
+    }
+    *inOutIdx += length;
+    keySz = length;
+
+    /* Get exponent */
+    ret = GetASNInt(input, inOutIdx, &length, inSz);
+    if (ret < 0) {
+        return ASN_RSA_KEY_E;
+    }
+    *inOutIdx += length;
+
+    ret = keySz; /* return key size */
 
     return ret;
 }
@@ -3577,7 +3622,7 @@ int wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz, const byte* e,
     return 0;
 }
 #endif /* HAVE_USER_RSA */
-#endif
+#endif /* !NO_RSA */
 
 #ifndef NO_DH
 
@@ -4137,7 +4182,7 @@ WOLFSSL_LOCAL int OBJ_sn2nid(const char *sn)
         }
     }
     #endif
-    
+
     for(i=0; sn2nid[i].sn != NULL; i++) {
         if(XSTRNCMP(sn, sn2nid[i].sn, XSTRLEN(sn2nid[i].sn)) == 0) {
             return sn2nid[i].nid;
@@ -9134,7 +9179,6 @@ int RsaPublicKeyDerSize(RsaKey* key, int with_header)
 
 #if defined(WOLFSSL_KEY_GEN) && !defined(NO_RSA) && !defined(HAVE_USER_RSA)
 
-
 static mp_int* GetRsaInt(RsaKey* key, int idx)
 {
     if (idx == 0)
@@ -9250,7 +9294,7 @@ int wc_RsaKeyToPublicDer(RsaKey* key, byte* output, word32 inLen)
     return SetRsaPublicKey(output, key, inLen, 1);
 }
 
-#endif /* WOLFSSL_KEY_GEN && !NO_RSA && !HAVE_USER_RSA */
+#endif /* (WOLFSSL_KEY_GEN || OPENSSL_EXTRA) && !NO_RSA && !HAVE_USER_RSA */
 
 
 #ifdef WOLFSSL_CERT_GEN
@@ -9382,6 +9426,7 @@ static word32 SetUTF8String(word32 len, byte* output)
 #endif /* WOLFSSL_CERT_REQ */
 
 #endif /* WOLFSSL_CERT_GEN */
+
 
 #if defined(HAVE_ECC) && defined(HAVE_ECC_KEY_EXPORT)
 
@@ -11998,7 +12043,7 @@ int wc_SetAuthKeyId(Cert *cert, const char* file)
     return ret;
 }
 
-#endif /* NO_FILESYSTEM */
+#endif /* !NO_FILESYSTEM */
 
 /* Set KeyUsage from human readable string */
 int wc_SetKeyUsage(Cert *cert, const char *value)
@@ -12591,7 +12636,7 @@ int wc_SetAltNames(Cert* cert, const char* file)
 
 #endif /* WOLFSSL_ALT_NAMES */
 
-#endif /* NO_FILESYSTEM */
+#endif /* !NO_FILESYSTEM */
 
 /* Set cert issuer from DER buffer */
 int wc_SetIssuerBuffer(Cert* cert, const byte* der, int derSz)
@@ -12886,7 +12931,7 @@ static int ASNToHexString(const byte* input, word32* inOutIdx, char** out,
 
     return 0;
 }
-#endif
+#endif /* WOLFSSL_CUSTOM_CURVES */
 
 int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
                           ecc_key* key, word32 inSz)
@@ -13018,7 +13063,7 @@ int wc_EccPublicKeyDecode(const byte* input, word32* inOutIdx,
             return ret;
 #else
         return ASN_PARSE_E;
-#endif
+#endif /* WOLFSSL_CUSTOM_CURVES */
     }
     else {
         /* ecc params information */
@@ -13166,7 +13211,6 @@ static int wc_BuildEccKeyDer(ecc_key* key, byte* output, word32 inLen,
     return totalSz;
 }
 
-#ifndef NO_ASN_CRYPT
 /* Write a Private ecc key, including public to DER format,
  * length on success else < 0 */
 int wc_EccKeyToDer(ecc_key* key, byte* output, word32 inLen)
@@ -13181,7 +13225,6 @@ int wc_EccPrivateKeyToDer(ecc_key* key, byte* output, word32 inLen)
 {
     return wc_BuildEccKeyDer(key, output, inLen, 0);
 }
-#endif /* !NO_ASN_CRYPT */
 
 /* Write only private ecc key to unencrypted PKCS#8 format.
  *
@@ -13252,8 +13295,8 @@ int wc_EccPrivateKeyToPKCS8(ecc_key* key, byte* output, word32* outLen)
     return ret;
 }
 
-#endif /* HAVE_ECC_KEY_EXPORT */
-#endif  /* HAVE_ECC */
+#endif /* HAVE_ECC_KEY_EXPORT && !NO_ASN_CRYPT */
+#endif /* HAVE_ECC */
 
 
 #ifdef HAVE_ED25519
@@ -13430,7 +13473,7 @@ int wc_Ed25519PrivateKeyToDer(ed25519_key* key, byte* output, word32 inLen)
 
 #endif /* WOLFSSL_KEY_GEN */
 
-#endif  /* HAVE_ED25519 */
+#endif /* HAVE_ED25519 */
 
 
 #if defined(HAVE_OCSP) || defined(HAVE_CRL)
@@ -13453,7 +13496,7 @@ static int GetBasicDate(const byte* source, word32* idx, byte* date,
     return 0;
 }
 
-#endif
+#endif /* HAVE_OCSP || HAVE_CRL */
 
 
 #ifdef HAVE_OCSP
@@ -14211,7 +14254,7 @@ int CompareOcspReqResp(OcspRequest* req, OcspResponse* resp)
     return 0;
 }
 
-#endif
+#endif /* HAVE_OCSP */
 
 
 /* store WC_SHA hash of NAME */
