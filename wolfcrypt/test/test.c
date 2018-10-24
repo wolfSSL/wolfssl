@@ -19263,6 +19263,7 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
             }
 
         } else if (testVectors[i].password != NULL) {
+        #ifndef NO_PWDBASED
             /* PWRI recipient type */
 
             ret = wc_PKCS7_Init(pkcs7, pkcs7->heap, pkcs7->devId);
@@ -19297,6 +19298,7 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
                 wc_PKCS7_Free(pkcs7);
                 return -9317;
             }
+        #endif /* NO_PWDBASED */
 
         } else if (testVectors[i].isOri == 1) {
             /* ORI recipient type */
@@ -19880,6 +19882,7 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
             }
 
         } else if (testVectors[i].password != NULL) {
+        #ifndef NO_PWDBASED
             /* PWRI recipient type */
 
             ret = wc_PKCS7_Init(pkcs7, pkcs7->heap, pkcs7->devId);
@@ -19919,6 +19922,7 @@ static int pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
                 return -9378;
             }
 
+        #endif /* NO_PWDBASED */
         } else if (testVectors[i].isOri == 1) {
             /* ORI recipient type */
 

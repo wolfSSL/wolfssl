@@ -5754,7 +5754,6 @@ int wc_PKCS7_AddRecipient_ORI(PKCS7* pkcs7, CallbackOriEncrypt oriEncryptCb,
     return idx;
 }
 
-
 #ifndef NO_PWDBASED
 
 
@@ -7511,6 +7510,7 @@ static int wc_PKCS7_DecryptOri(PKCS7* pkcs7, byte* in, word32 inSz,
     return ret;
 }
 
+#ifndef NO_PWDBASED
 
 /* decode ASN.1 PasswordRecipientInfo (pwri), return 0 on success,
  * < 0 on error */
@@ -7718,6 +7718,7 @@ static int wc_PKCS7_DecryptPwri(PKCS7* pkcs7, byte* in, word32 inSz,
     return ret;
 }
 
+#endif /* NO_PWDBASED */
 
 /* decode ASN.1 KEKRecipientInfo (kekri), return 0 on success,
  * < 0 on error */
@@ -8062,8 +8063,12 @@ static int wc_PKCS7_DecryptRecipientInfos(PKCS7* pkcs7, byte* in,
                 break;
 
         case WC_PKCS7_DECRYPT_PWRI:
+        #ifndef NO_PWDBASED
                 ret = wc_PKCS7_DecryptPwri(pkcs7, in, inSz, idx,
                                       decryptedKey, decryptedKeySz, recipFound);
+        #else
+                return NOT_COMPILED_IN;
+        #endif
                 break;
 
         case WC_PKCS7_DECRYPT_ORI:
@@ -8174,6 +8179,7 @@ static int wc_PKCS7_DecryptRecipientInfos(PKCS7* pkcs7, byte* in,
             /* pwri is IMPLICIT[3] */
             } else if (pkiMsg[*idx] == (ASN_CONSTRUCTED |
                                         ASN_CONTEXT_SPECIFIC | 3)) {
+        #ifndef NO_PWDBASED
                 (*idx)++;
 
                 if (GetLength(pkiMsg, idx, &version, pkiMsgSz) < 0)
@@ -8199,6 +8205,9 @@ static int wc_PKCS7_DecryptRecipientInfos(PKCS7* pkcs7, byte* in,
                                            recipFound);
                 if (ret != 0)
                     return ret;
+        #else
+                return NOT_COMPILED_IN;
+        #endif
 
             /* ori is IMPLICIT[4] */
             } else if (pkiMsg[*idx] == (ASN_CONSTRUCTED |
