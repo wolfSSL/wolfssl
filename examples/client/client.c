@@ -2202,7 +2202,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     #endif
     }
 
-    if (!usePsk && !useAnon && (!useVerifyCb || myVerifyFail)) {
+    if (!usePsk && !useAnon && !useVerifyCb && !myVerifyFail) {
     #ifndef TEST_LOAD_BUFFER
         if (wolfSSL_CTX_load_verify_locations(ctx, verifyCert, 0)
                                                            != WOLFSSL_SUCCESS) {
@@ -2235,7 +2235,7 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
         }
     #endif /* WOLFSSL_TRUST_PEER_CERT && !NO_FILESYSTEM */
     }
-    if (useVerifyCb)
+    if (useVerifyCb || myVerifyFail)
         wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_PEER, myVerify);
     else if (!usePsk && !useAnon && doPeerCheck == 0)
         wolfSSL_CTX_set_verify(ctx, WOLFSSL_VERIFY_NONE, 0);
@@ -2617,14 +2617,8 @@ THREAD_RETURN WOLFSSL_THREAD client_test(void* args)
     }
     else {
 #ifdef WOLFSSL_EARLY_DATA
-    #ifndef HAVE_SESSION_TICKET
-        if (!usePsk) {
-        }
-        else
-    #endif
-        if (earlyData) {
+        if (usePsk && earlyData)
             EarlyData(ctx, ssl, msg, msgSz, buffer);
-        }
 #endif
         do {
             err = 0; /* reset error */

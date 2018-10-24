@@ -16359,7 +16359,7 @@ int SetCipherList(WOLFSSL_CTX* ctx, Suites* suites, const char* list)
 
     if (next[0] == 0 || XSTRNCMP(next, "ALL", 3) == 0 ||
                         XSTRNCMP(next, "DEFAULT", 7) == 0)
-        return 1; /* wolfSSL defualt */
+        return 1; /* wolfSSL default */
 
     do {
         char*  current = next;
@@ -20047,7 +20047,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     break;
                 }
             #endif /* !NO_DH && !NO_PSK */
-            #if defined(HAVE_ECC) && !defined(HAVE_CURVE25519) && \
+            #if (defined(HAVE_ECC) || defined(HAVE_CURVE25519)) && \
                                                                 !defined(NO_PSK)
                 case ecdhe_psk_kea:
                 {
@@ -20062,7 +20062,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     *args->output = (byte)args->length;
                     args->encSz += args->length + OPAQUE8_LEN;
 
-                    /* Create pre master secret is the concatination of
+                    /* Create pre master secret is the concatenation of
                        eccSize + eccSharedKey + pskSize + pskKey */
                     c16toa((word16)ssl->arrays->preMasterSz, pms);
                     ssl->arrays->preMasterSz += OPAQUE16_LEN;
@@ -20078,7 +20078,7 @@ int SendClientKeyExchange(WOLFSSL* ssl)
                     ssl->arrays->psk_keySz = 0; /* No further need */
                     break;
                 }
-            #endif /* (HAVE_ECC && !HAVE_CURVE25519) && !NO_PSK */
+            #endif /* (HAVE_ECC || HAVE_CURVE25519) && !NO_PSK */
             #ifdef HAVE_NTRU
                 case ntru_kea:
                 {
@@ -23501,7 +23501,7 @@ static int DoSessionTicket(WOLFSSL* ssl, const byte* input, word32* inOutIdx,
 #endif /* WOLFSSL_DTLS */
 
         {
-            /* copmression match types */
+            /* compression match types */
             int matchNo = 0;
             int matchZlib = 0;
 
