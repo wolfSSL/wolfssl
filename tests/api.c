@@ -15355,8 +15355,14 @@ static void test_wc_PKCS7_EncodeSignedData_ex(void)
 #endif
     AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, hashSz, NULL,
         outputHeadSz, outputFoot, outputFootSz), BAD_FUNC_ARG);
+#ifndef NO_PKCS7_STREAM
+    /* can pass in 0 buffer length with streaming API */
+    AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, hashSz,
+        outputHead, 0, outputFoot, outputFootSz), WC_PKCS7_WANT_READ_E);
+#else
     AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, hashSz,
         outputHead, 0, outputFoot, outputFootSz), BAD_FUNC_ARG);
+#endif
     AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, hashSz,
         outputHead, outputHeadSz, NULL, outputFootSz), BAD_FUNC_ARG);
 #ifndef NO_PKCS7_STREAM
@@ -15481,8 +15487,14 @@ static void test_wc_PKCS7_VerifySignedData(void)
     /* Test bad args. */
     AssertIntEQ(wc_PKCS7_VerifySignedData(NULL, output, outputSz), BAD_FUNC_ARG);
     AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, NULL, outputSz), BAD_FUNC_ARG);
+#ifndef NO_PKCS7_STREAM
+    /* can pass in 0 buffer length with streaming API */
+    AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, badOut,
+                                badOutSz), WC_PKCS7_WANT_READ_E);
+#else
     AssertIntEQ(wc_PKCS7_VerifySignedData(pkcs7, badOut,
                                 badOutSz), BAD_FUNC_ARG);
+#endif
 
     printf(resultFmt, passed);
 
