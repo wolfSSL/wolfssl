@@ -4980,6 +4980,10 @@ int GetAsnTimeString(void* currTime, byte* buf, word32 len)
         } else if (ts->tm_year >= 100 && ts->tm_year < 150) {
             year = ts->tm_year - 100;
         }
+        else {
+            WOLFSSL_MSG("unsupported year range");
+            return BAD_FUNC_ARG;
+        }
         mon  = ts->tm_mon + 1;
         day  = ts->tm_mday;
         hour = ts->tm_hour;
