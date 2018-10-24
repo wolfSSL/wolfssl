@@ -74,6 +74,8 @@
     /* do nothing */
 #elif defined(FREESCALE_FREE_RTOS)
     #include "fsl_os_abstraction.h"
+#elif defined(WOLFSSL_VXWORKS)
+    #include <semLib.h>
 #elif defined(WOLFSSL_uITRON4)
     #include "stddef.h"
     #include "kernel.h"
@@ -151,6 +153,8 @@
         typedef MUTEX_STRUCT wolfSSL_Mutex;
     #elif defined(FREESCALE_FREE_RTOS)
         typedef mutex_t wolfSSL_Mutex;
+    #elif defined(WOLFSSL_VXWORKS)
+        typedef SEM_ID wolfSSL_Mutex;
     #elif defined(WOLFSSL_uITRON4)
         typedef struct wolfSSL_Mutex {
             T_CSEM sem ;
