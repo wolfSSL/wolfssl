@@ -4021,7 +4021,8 @@ int TLSX_ValidateSupportedCurves(WOLFSSL* ssl, byte first, byte second) {
             defSz = octets;
         }
 
-        if (currOid == 0 && ssl->eccTempKeySz <= octets)
+        /* The eccTempKeySz is the preferred ephemeral key size */
+        if (currOid == 0 && ssl->eccTempKeySz == octets)
             currOid = oid;
         if ((nextOid == 0 || nextSz > octets) && ssl->eccTempKeySz <= octets) {
             nextOid = oid;
