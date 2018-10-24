@@ -7193,11 +7193,51 @@ int wolfSSL_check_private_key(const WOLFSSL* ssl)
         return 0;
     }
 
-    int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* x)
+    int wolfSSL_X509_get_ext_count(const WOLFSSL_X509* passed_cert)
     {
-        (void)x;
-        WOLFSSL_STUB("wolfSSL_X509_get_ext_count");
-        return 0;
+        int ext_count=0;//used to return total num extensions
+        int length;
+        int outSz;
+        const byte* rawCert;
+        rawCert = wolfSSL_X509_get_der((WOLFSSL_X509*)passed_cert, &outSz);
+
+        DecodedCert cert;
+        ParseCert(&cert, CA_TYPE, NO_VERIFY, NULL);
+        InitDecodedCert( &cert, rawCert, (word32)outSz, 0);
+
+        const byte* input = cert.extensions;
+        int sz = cert.extensionsSz;
+        word32 idx = 0;
+        WOLFSSL_ENTER("wolfSSL_X509_get_ext_count()");
+
+        if(passed_cert == NULL){//not passed a cert
+            return BAD_FUNC_ARG;
+        }
+
+        if (input == NULL || sz == 0)
+            return BAD_FUNC_ARG;
+
+        if (input[idx++] != ASN_EXTENSIONS) {
+            WOLFSSL_MSG("\tfail: should be an EXTENSIONS");
+            return ASN_PARSE_E;
+        }
+
+        if (GetLength(input, &idx, &length, sz) < 0) {
+            WOLFSSL_MSG("\tfail: invalid length");
+            return ASN_PARSE_E;
+        }
+
+        if (GetSequence(input, &idx, &length, sz) < 0) {
+            WOLFSSL_MSG("\tfail: should be a SEQUENCE (1)");
+            return ASN_PARSE_E;
+        }
+
+        while (idx < (word32)sz) {//iterate through total extension size
+            ext_count++;//increment count for num extenstions
+            idx += length;
+        }
+        FreeDecodedCert(&cert);
+        return ext_count;
     }
 
     WOLFSSL_ASN1_OBJECT* wolfSSL_X509_EXTENSION_get_object(WOLFSSL_X509_EXTENSION* ex)
