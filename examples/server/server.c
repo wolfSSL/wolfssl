@@ -1433,6 +1433,17 @@ THREAD_RETURN WOLFSSL_THREAD server_test(void* args)
 #endif
     }
 
+
+#ifdef HAVE_ECC
+    /* Use ECDHE key size that matches long term key.
+     * Zero means use ctx->privateKeySz.
+     * Default ECDHE_SIZE is 32 bytes
+     */
+    if (wolfSSL_CTX_SetTmpEC_DHE_Sz(ctx, 0) != WOLFSSL_SUCCESS){
+        err_sys_ex(runWithErrors, "Error setting ECDHE size");
+    }
+#endif
+
     if (useAnon) {
 #ifdef HAVE_ANON
         wolfSSL_CTX_allow_anon_cipher(ctx);

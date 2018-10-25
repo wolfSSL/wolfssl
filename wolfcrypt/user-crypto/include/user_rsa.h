@@ -100,6 +100,8 @@ WOLFSSL_API int  wc_RsaEncryptSize(RsaKey* key);
 
 WOLFSSL_API int  wc_RsaPrivateKeyDecode(const byte* input, word32* inOutIdx,
                                                                RsaKey*, word32);
+WOLFSSL_API int  wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx,
+        word32 inSz, const byte** n, word32* nSz, const byte** e, word32* eSz);
 WOLFSSL_API int  wc_RsaPublicKeyDecode(const byte* input, word32* inOutIdx,
                                                                RsaKey*, word32);
 WOLFSSL_API int  wc_RsaPublicKeyDecodeRaw(const byte* n, word32 nSz,
@@ -133,5 +135,3 @@ WOLFSSL_API int  wc_RsaSetRNG(RsaKey* key, WC_RNG* rng);
 
 #endif /* NO_RSA */
 #endif /* USER_WOLF_CRYPT_RSA_H */
-
-
