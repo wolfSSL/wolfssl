@@ -4076,12 +4076,22 @@ int DsaPublicKeyDecode(const byte* input, word32* inOutIdx, DsaKey* key,
     if (GetSequence(input, inOutIdx, &length, inSz) < 0)
         return ASN_PARSE_E;
 
+    {
+        int i;
+        for (i = 0; i<(int)inSz; i++)
+            printf("%02x", input[i]);
+        printf("\n");
+    }
+
+
     if (GetInt(&key->p,  input, inOutIdx, inSz) < 0 ||
         GetInt(&key->q,  input, inOutIdx, inSz) < 0 ||
         GetInt(&key->g,  input, inOutIdx, inSz) < 0 ||
         GetInt(&key->y,  input, inOutIdx, inSz) < 0 )
+    {
         return ASN_DH_KEY_E;
-
+        
+    }
     key->type = DSA_PUBLIC;
     return 0;
 }
