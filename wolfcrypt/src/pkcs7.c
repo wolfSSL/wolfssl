@@ -9663,7 +9663,6 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
                 }
             #endif
                 wc_PKCS7_ChangeState(pkcs7, WC_PKCS7_AUTHENV_ATRB);
-                FALL_THROUGH;
             }
             else {
             #ifndef NO_PKCS7_STREAM
@@ -9673,6 +9672,7 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
             #endif
                 goto authenv_atrbend; /* jump over attribute cases */
             }
+            FALL_THROUGH;
 
         case WC_PKCS7_AUTHENV_ATRB:
     #ifndef NO_PKCS7_STREAM
