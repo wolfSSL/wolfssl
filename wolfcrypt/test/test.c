@@ -21062,7 +21062,7 @@ static int pkcs7signed_run_SingleShotVectors(
         0x72,0x6c,0x64
     };
 
-#ifdef WOLFSSL_AES_256
+#if defined(WOLFSSL_AES_256) && !defined(NO_PKCS7_ENCRYPTED_DATA)
     byte aes256Key[] = {
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
         0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
@@ -21330,6 +21330,8 @@ static int pkcs7signed_run_SingleShotVectors(
                 return -9557;
             }
 
+    #ifndef NO_PKCS7_ENCRYPTED_DATA
+
         } else if (testVectors[i].encCompFlag == 1) {
 
             /* encode Signed Encrypted FirmwarePkgData */
@@ -21348,6 +21350,7 @@ static int pkcs7signed_run_SingleShotVectors(
                 wc_PKCS7_Free(pkcs7);
                 return -9558;
             }
+    #endif
 
     #if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
         } else if (testVectors[i].encCompFlag == 2) {
@@ -21457,7 +21460,9 @@ static int pkcs7signed_run_SingleShotVectors(
                 return -9567;
             }
 
-        } else if (testVectors[i].encCompFlag == 1) {
+        }
+    #ifndef NO_PKCS7_ENCRYPTED_DATA
+        else if (testVectors[i].encCompFlag == 1) {
 
             /* decrypt inner encryptedData */
             pkcs7->encryptionKey = testVectors[i].encryptKey;
@@ -21479,6 +21484,7 @@ static int pkcs7signed_run_SingleShotVectors(
                 return -9569;
             }
         }
+    #endif
     #if defined(HAVE_LIBZ) && !defined(NO_PKCS7_COMPRESSED_DATA)
         else if (testVectors[i].encCompFlag == 2) {
 
