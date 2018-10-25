@@ -15370,7 +15370,7 @@ static void test_wc_PKCS7_EncodeSignedData_ex(void)
         outputHead, outputHeadSz, outputFoot, 0), WC_PKCS7_WANT_READ_E);
 #else
     AssertIntEQ(wc_PKCS7_VerifySignedData_ex(pkcs7, hashBuf, hashSz,
-        outputHead, outputHeadSz, outputFoot, 0), BUFFER_E);
+        outputHead, outputHeadSz, outputFoot, 0), ASN_PARSE_E);
 #endif
 
     printf(resultFmt, passed);
