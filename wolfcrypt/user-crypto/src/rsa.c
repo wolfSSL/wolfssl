@@ -1095,7 +1095,6 @@ int wc_RsaPublicKeyDecode_ex(const byte* input, word32* inOutIdx,
 {
     IppStatus ret = 0;
     int length;
-    int keySz = 0;
 #if defined(OPENSSL_EXTRA) || defined(RSA_DECODE_EXTRA)
     byte b;
 #endif
