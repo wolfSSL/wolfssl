@@ -60,6 +60,10 @@ WOLFSSL_API int wolfSSL_DH_generate_key(WOLFSSL_DH*);
 WOLFSSL_API int wolfSSL_DH_compute_key(unsigned char* key, WOLFSSL_BIGNUM* pub,
                                      WOLFSSL_DH*);
 
+#ifdef WOLFSSL_QT
+WOLFSSL_API int setDhExternal(WOLFSSL_DH *dh);
+#endif
+
 typedef WOLFSSL_DH DH;
 
 #define DH_new  wolfSSL_DH_new
@@ -77,6 +81,11 @@ typedef WOLFSSL_DH DH;
 #define DH_CHECK_P_NOT_PRIME            0x01
 #define DH_CHECK_P_NOT_SAFE_PRIME       0x02
 #define DH_NOT_SUITABLE_GENERATOR       0x08
+
+/* Temporary values for wolfSSL_DH_Check*/
+#define DH_CHECK_INVALID_Q_VALUE        0x10
+#define DH_CHECK_Q_NOT_PRIME            0x11
+/* end temp */
 
 #ifdef __cplusplus
     }  /* extern "C" */

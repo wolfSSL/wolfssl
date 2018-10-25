@@ -130,6 +130,7 @@ typedef union {
 } WOLFSSL_Hasher;
 
 typedef struct WOLFSSL_EVP_PKEY_CTX WOLFSSL_EVP_PKEY_CTX;
+typedef struct WOLFSSL_EVP_CIPHER_CTX WOLFSSL_EVP_CIPHER_CTX;
 
 typedef struct WOLFSSL_EVP_MD_CTX {
     union {
@@ -153,8 +154,9 @@ typedef union {
 #ifdef HAVE_IDEA
     Idea idea;
 #endif
-} WOLFSSL_Cipher;
 
+    int (*ctrl) (WOLFSSL_EVP_CIPHER_CTX *, int type, int arg, void *ptr);
+} WOLFSSL_Cipher;
 
 enum {
     AES_128_CBC_TYPE  = 1,
@@ -219,7 +221,7 @@ typedef struct WOLFSSL_EVP_CIPHER_CTX {
     /* working iv pointer into cipher */
     ALIGN16 unsigned char  iv[DES_BLOCK_SIZE];
 #endif
-    WOLFSSL_Cipher  cipher;
+    WOLFSSL_Cipher cipher;
     ALIGN16 byte buf[WOLFSSL_EVP_BUF_SIZE];
     int  bufUsed;
     ALIGN16 byte lastBlock[WOLFSSL_EVP_BUF_SIZE];
@@ -556,10 +558,16 @@ typedef WOLFSSL_EVP_CIPHER_CTX EVP_CIPHER_CTX;
 #define EVP_PKEY_get1_RSA    wolfSSL_EVP_PKEY_get1_RSA
 #define EVP_PKEY_get1_DSA    wolfSSL_EVP_PKEY_get1_DSA
 #define EVP_PKEY_get1_EC_KEY wolfSSL_EVP_PKEY_get1_EC_KEY
+
 #define EVP_PKEY_set1_RSA    wolfSSL_EVP_PKEY_set1_RSA
 #define EVP_PKEY_set1_DSA    wolfSSL_EVP_PKEY_set1_DSA
 #define EVP_PKEY_set1_EC_KEY wolfSSL_EVP_PKEY_set1_EC_KEY
-#define EVP_PKEY_assign      wolfSSL_EVP_PKEY_assign
+
+#define EVP_PKEY_assign         wolfSSL_EVP_PKEY_assign
+#define EVP_PKEY_assign_RSA     wolfSSL_EVP_PKEY_set1_RSA
+#define EVP_PKEY_assign_DSA     wolfSSL_EVP_PKEY_set1_DSA
+#define EVP_PKEY_assign_EC_KEY  wolfSSL_EVP_PKEY_set1_EC_KEY
+
 #define EVP_PKEY_get0_hmac   wolfSSL_EVP_PKEY_get0_hmac
 #define EVP_PKEY_new_mac_key wolfSSL_EVP_PKEY_new_mac_key
 #define EVP_MD_CTX_copy     wolfSSL_EVP_MD_CTX_copy
