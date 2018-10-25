@@ -8168,10 +8168,13 @@ static int wc_PKCS7_DecryptKari(PKCS7* pkcs7, byte* in, word32 inSz,
 
     }
     return ret;
-#else
-    (void)pkcs7;
+
     (void)pkiMsg;
     (void)pkiMsgSz;
+#else
+    (void)in;
+    (void)inSz;
+    (void)pkcs7;
     (void)idx;
     (void)decryptedKey;
     (void)decryptedKeySz;
@@ -8206,8 +8209,12 @@ static int wc_PKCS7_DecryptRecipientInfos(PKCS7* pkcs7, byte* in,
         case WC_PKCS7_DECRYPT_KTRI:
         case WC_PKCS7_DECRYPT_KTRI_2:
         case WC_PKCS7_DECRYPT_KTRI_3:
+        #ifndef NO_RSA
             ret = wc_PKCS7_DecryptKtri(pkcs7, in, inSz, idx,
                                       decryptedKey, decryptedKeySz, recipFound);
+        #else
+            return NOT_COMPILED_IN;
+        #endif
             break;
 
         case WC_PKCS7_DECRYPT_KARI:

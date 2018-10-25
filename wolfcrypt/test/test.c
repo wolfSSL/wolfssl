@@ -329,7 +329,9 @@ int scrypt_test(void);
     #endif
     int pkcs7signed_test(void);
     int pkcs7enveloped_test(void);
-    int pkcs7authenveloped_test(void);
+    #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
+        int pkcs7authenveloped_test(void);
+    #endif
 #endif
 #if !defined(NO_ASN_TIME) && !defined(NO_RSA) && defined(WOLFSSL_TEST_CERT)
 int cert_test(void);
@@ -974,10 +976,12 @@ initDefaultName();
     else
         printf( "PKCS7enveloped  test passed!\n");
 
-    if ( (ret = pkcs7authenveloped_test()) != 0)
-        return err_sys("PKCS7authenveloped  test failed!\n", ret);
-    else
-        printf( "PKCS7authenveloped  test passed!\n");
+    #if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
+        if ( (ret = pkcs7authenveloped_test()) != 0)
+            return err_sys("PKCS7authenveloped  test failed!\n", ret);
+        else
+            printf( "PKCS7authenveloped  test passed!\n");
+    #endif
 #endif
 
 #ifdef HAVE_VALGRIND
@@ -19538,6 +19542,8 @@ int pkcs7enveloped_test(void)
 }
 
 
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
+
 typedef struct {
     const byte*  content;
     word32       contentSz;
@@ -20167,6 +20173,8 @@ int pkcs7authenveloped_test(void)
 
     return ret;
 }
+
+#endif /* HAVE_AESGCM || HAVE_AESCCM */
 
 
 #ifndef NO_PKCS7_ENCRYPTED_DATA
@@ -21011,13 +21019,6 @@ static int pkcs7signed_run_vectors(
     if (ret > 0)
         return 0;
 
-#ifndef HAVE_ECC
-    (void)eccCert;
-    (void)eccCertSz;
-    (void)eccPrivKey;
-    (void)eccPrivKeySz;
-#endif
-#ifdef NO_RSA
     (void)rsaClientCertBuf;
     (void)rsaClientCertBufSz;
     (void)rsaClientPrivKeyBuf;
@@ -21030,16 +21031,11 @@ static int pkcs7signed_run_vectors(
     (void)rsaCaCertBufSz;
     (void)rsaCaPrivKeyBuf;
     (void)rsaCaPrivKeyBufSz;
-#endif
+    (void)eccClientCertBuf;
+    (void)eccClientCertBufSz;
+    (void)eccClientPrivKeyBuf;
+    (void)eccClientPrivKeyBufSz;
 
-    (void)rsaServerCertBuf;
-    (void)rsaServerCertBufSz;
-    (void)rsaServerPrivKeyBuf;
-    (void)rsaServerPrivKeyBufSz;
-    (void)rsaCaCertBuf;
-    (void)rsaCaCertBufSz;
-    (void)rsaCaPrivKeyBuf;
-    (void)rsaCaPrivKeyBufSz;
     return ret;
 }
 
@@ -21570,13 +21566,11 @@ static int pkcs7signed_run_SingleShotVectors(
     if (ret > 0)
         return 0;
 
-#ifndef HAVE_ECC
-    (void)eccCert;
-    (void)eccCertSz;
-    (void)eccPrivKey;
-    (void)eccPrivKeySz;
-#endif
-#ifdef NO_RSA
+    (void)eccClientCertBuf;
+    (void)eccClientCertBufSz;
+    (void)eccClientPrivKeyBuf;
+    (void)eccClientPrivKeyBufSz;
+
     (void)rsaClientCertBuf;
     (void)rsaClientCertBufSz;
     (void)rsaClientPrivKeyBuf;
@@ -21589,16 +21583,7 @@ static int pkcs7signed_run_SingleShotVectors(
     (void)rsaCaCertBufSz;
     (void)rsaCaPrivKeyBuf;
     (void)rsaCaPrivKeyBufSz;
-#endif
 
-    (void)rsaServerCertBuf;
-    (void)rsaServerCertBufSz;
-    (void)rsaServerPrivKeyBuf;
-    (void)rsaServerPrivKeyBufSz;
-    (void)rsaCaCertBuf;
-    (void)rsaCaCertBufSz;
-    (void)rsaCaPrivKeyBuf;
-    (void)rsaCaPrivKeyBufSz;
     return ret;
 }
 
