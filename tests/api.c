@@ -15642,28 +15642,34 @@ static void test_wc_PKCS7_EncodeDecodeEnvelopedData (void)
             rsaCert, rsaCertSz, rsaPrivKey, rsaPrivKeySz},
     #endif /* NO_DES3 */
     #ifndef NO_AES
+        #ifndef NO_AES_128
         {(byte*)input, (word32)(sizeof(input)/sizeof(char)), DATA, AES128CBCb,
             0, 0, rsaCert, rsaCertSz, rsaPrivKey, rsaPrivKeySz},
+        #endif
+        #ifndef NO_AES_192
         {(byte*)input, (word32)(sizeof(input)/sizeof(char)), DATA, AES192CBCb,
             0, 0, rsaCert, rsaCertSz, rsaPrivKey, rsaPrivKeySz},
+        #endif
+        #ifndef NO_AES_256
         {(byte*)input, (word32)(sizeof(input)/sizeof(char)), DATA, AES256CBCb,
             0, 0, rsaCert, rsaCertSz, rsaPrivKey, rsaPrivKeySz},
+        #endif
     #endif /* NO_AES */
 
 #endif /* NO_RSA */
 #if defined(HAVE_ECC)
     #ifndef NO_AES
-        #ifndef NO_SHA
+        #if !defined(NO_SHA) && !defined(NO_AES_128)
             {(byte*)input, (word32)(sizeof(input)/sizeof(char)), DATA, AES128CBCb,
                 AES128_WRAP, dhSinglePass_stdDH_sha1kdf_scheme, eccCert,
                 eccCertSz, eccPrivKey, eccPrivKeySz},
         #endif
-        #ifndef NO_SHA256
+        #if !defined(NO_SHA256) && !defined(NO_AES_256)
             {(byte*)input, (word32)(sizeof(input)/sizeof(char)), DATA, AES256CBCb,
                 AES256_WRAP, dhSinglePass_stdDH_sha256kdf_scheme, eccCert,
                 eccCertSz, eccPrivKey, eccPrivKeySz},
         #endif
-        #ifdef WOLFSSL_SHA512
+        #if !defined(WOLFSSL_SHA512) && !defined(NO_AES_256)
             {(byte*)input, (word32)(sizeof(input)/sizeof(char)), DATA, AES256CBCb,
                 AES256_WRAP, dhSinglePass_stdDH_sha512kdf_scheme, eccCert,
                 eccCertSz, eccPrivKey, eccPrivKeySz},
@@ -15807,21 +15813,27 @@ static void test_wc_PKCS7_EncodeEncryptedData (void)
     #endif
 
     #ifndef NO_AES
+        #ifndef NO_AES_128
         byte aes128Key[] = {
             0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
             0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
         };
+        #endif
+        #ifndef NO_AES_192
         byte aes192Key[] = {
             0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
             0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
             0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
         };
+        #endif
+        #ifndef NO_AES_256
         byte aes256Key[] = {
             0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
             0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
             0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,
             0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08
         };
+        #endif
     #endif
     const pkcs7EncryptedVector testVectors[] =
     {
@@ -15831,14 +15843,20 @@ static void test_wc_PKCS7_EncodeEncryptedData (void)
         {data, (word32)sizeof(data), DATA, DESb, desKey, sizeof(desKey)},
     #endif /* NO_DES3 */
     #ifndef NO_AES
+        #ifndef NO_AES_128
         {data, (word32)sizeof(data), DATA, AES128CBCb, aes128Key,
          sizeof(aes128Key)},
+        #endif
 
+        #ifndef NO_AES_192
         {data, (word32)sizeof(data), DATA, AES192CBCb, aes192Key,
          sizeof(aes192Key)},
+        #endif
 
+        #ifndef NO_AES_256
         {data, (word32)sizeof(data), DATA, AES256CBCb, aes256Key,
          sizeof(aes256Key)},
+        #endif
 
     #endif /* NO_AES */
     };

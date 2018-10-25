@@ -19211,7 +19211,7 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         #endif
 #endif
 
-#ifndef NO_AES
+#if !defined(NO_AES) && !defined(NO_AES_128)
         /* ori (OtherRecipientInfo) recipient types */
         {data, (word32)sizeof(data), DATA, AES128CBCb, 0, 0, NULL, 0, NULL, 0,
          NULL, 0, 0, 0, NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0,
