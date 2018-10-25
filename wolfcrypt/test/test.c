@@ -19211,10 +19211,12 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         #endif
 #endif
 
+#ifndef NO_AES
         /* ori (OtherRecipientInfo) recipient types */
         {data, (word32)sizeof(data), DATA, AES128CBCb, 0, 0, NULL, 0, NULL, 0,
          NULL, 0, 0, 0, NULL, 0, NULL, 0, NULL, NULL, 0, NULL, 0, 0, NULL, 0,
          NULL, 0, 0, 0, 0, 0, 1, 0, "pkcs7envelopedDataAES128CBC_ORI.der"},
+#endif
     };
 
     testSz = sizeof(testVectors) / sizeof(pkcs7EnvelopedVector);
@@ -19435,20 +19437,15 @@ static int pkcs7enveloped_run_vectors(byte* rsaCert, word32 rsaCertSz,
         pkcs7 = NULL;
     }
 
-#if !defined(HAVE_ECC) || defined(NO_AES)
     (void)eccCert;
     (void)eccCertSz;
     (void)eccPrivKey;
     (void)eccPrivKeySz;
-    (void)secretKey;
-    (void)secretKeyId;
-#endif
-#ifdef NO_RSA
     (void)rsaCert;
     (void)rsaCertSz;
     (void)rsaPrivKey;
     (void)rsaPrivKeySz;
-#endif
+
     return 0;
 }
 

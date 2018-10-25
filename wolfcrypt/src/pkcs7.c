@@ -6427,7 +6427,7 @@ int wc_PKCS7_AddRecipient_KEKRI(PKCS7* pkcs7, int keyWrapOID, byte* kek,
     byte encryptedKey[MAX_ENCRYPTED_KEY_SZ];
 #endif
 
-    int blockKeySz = 0, ret = 0;
+    int blockKeySz = 0, ret = 0, direction;
     word32 idx = 0;
     word32 totalSz = 0;
     word32 recipSeqSz = 0, verSz = 0;
@@ -6474,9 +6474,15 @@ int wc_PKCS7_AddRecipient_KEKRI(PKCS7* pkcs7, int keyWrapOID, byte* kek,
     encryptedKeySz = MAX_ENCRYPTED_KEY_SZ;
     XMEMSET(encryptedKey, 0, encryptedKeySz);
 
+    #ifndef NO_AES
+        direction = AES_ENCRYPTION;
+    #else
+        direction = DES_ENCRYPTION;
+    #endif
+
     encryptedKeySz = wc_PKCS7_KeyWrap(pkcs7->cek, pkcs7->cekSz, kek, kekSz,
                                       encryptedKey, encryptedKeySz, keyWrapOID,
-                                      AES_ENCRYPTION);
+                                      direction);
     if (encryptedKeySz <= 0) {
     #ifdef WOLFSSL_SMALL_STACK
         XFREE(encryptedKey, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
@@ -7877,7 +7883,7 @@ static int wc_PKCS7_DecryptKekri(PKCS7* pkcs7, byte* in, word32 inSz,
                                word32* idx, byte* decryptedKey,
                                word32* decryptedKeySz, int* recipFound)
 {
-    int length, keySz, dateLen;
+    int length, keySz, dateLen, direction;
     byte* keyId = NULL;
     const byte* datePtr = NULL;
     byte  dateFormat;
@@ -7951,10 +7957,16 @@ static int wc_PKCS7_DecryptKekri(PKCS7* pkcs7, byte* in, word32 inSz,
             if (GetLength(pkiMsg, idx, &length, pkiMsgSz) < 0)
                 return ASN_PARSE_E;
 
+            #ifndef NO_AES
+                direction = AES_DECRYPTION;
+            #else
+                direction = DES_DECRYPTION;
+            #endif
+
             /* decrypt CEK with KEK */
             keySz = wc_PKCS7_KeyWrap(pkiMsg + *idx, length, pkcs7->privateKey,
                                      pkcs7->privateKeySz, decryptedKey, *decryptedKeySz,
-                                     keyWrapOID, AES_DECRYPTION);
+                                     keyWrapOID, direction);
             if (keySz <= 0)
                 return keySz;
 
@@ -8970,6 +8982,7 @@ WOLFSSL_API int wc_PKCS7_DecodeEnvelopedData(PKCS7* pkcs7, byte* in,
 int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
                                      word32 outputSz)
 {
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCCM)
     int ret, idx = 0;
     int totalSz, encryptedOutSz;
 
@@ -9402,6 +9415,15 @@ int wc_PKCS7_EncodeAuthEnvelopedData(PKCS7* pkcs7, byte* output,
     XFREE(encryptedContent, pkcs7->heap, DYNAMIC_TYPE_PKCS7);
 
     return idx;
+
+#else
+    WOLFSSL_MSG("AuthEnvelopedData requires AES-GCM or AES-CCM to be enabled");
+    (void)pkcs7;
+    (void)output;
+    (void)outputSz;
+
+    return NOT_COMPILED_IN;
+#endif /* HAVE_AESGCM | HAVE_AESCCM */
 }
 
 
@@ -9410,6 +9432,7 @@ WOLFSSL_API int wc_PKCS7_DecodeAuthEnvelopedData(PKCS7* pkcs7, byte* in,
                                                  word32 inSz, byte* output,
                                                  word32 outputSz)
 {
+#if defined(HAVE_AESGCM) || defined(HAVE_AESCC)
     int recipFound = 0;
     int ret = 0, length;
     word32 idx = 0;
@@ -9949,7 +9972,19 @@ authenv_atrbend:
         wc_PKCS7_ResetStream(pkcs7);
     }
 #endif
+
     return ret;
+
+#else
+    WOLFSSL_MSG("AuthEnvelopedData requires AES-GCM or AES-CCM to be enabled");
+    (void)pkcs7;
+    (void)in;
+    (void)inSz;
+    (void)output;
+    (void)outputSz;
+
+    return NOT_COMPILED_IN;
+#endif /* HAVE_AESGCM | HAVE_AESCCM */
 }
 
 
