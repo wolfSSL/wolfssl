@@ -21649,6 +21649,7 @@ int wolfSSL_DH_check(const WOLFSSL_DH *dh, int *codes)
 
     WC_RNG rng;
 
+    WOLFSSL_ENTER("wolfSSL_DH_check");
     if (dh == NULL)
         return BAD_FUNC_ARG;
 
@@ -26211,6 +26212,8 @@ WOLFSSL_EC_KEY* wolfSSL_EVP_PKEY_get1_EC_KEY(WOLFSSL_EVP_PKEY* key)
 int wolfSSL_EVP_PKEY_assign(WOLFSSL_EVP_PKEY *pkey, int type, void *key)
 {
     int ret;
+
+    WOLFSSL_ENTER("wolfSSL_EVP_PKEY_assign");
     switch(type) {
     #ifndef NO_RSA
         case EVP_PKEY_RSA:
