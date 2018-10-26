@@ -203,7 +203,7 @@ typedef int (*CallbackOriEncrypt)(PKCS7* pkcs7, byte* cek, word32 cekSz,
 /* Public Structure Warning:
  * Existing members must not be changed to maintain backwards compatibility! 
  */
-typedef struct PKCS7 {
+struct PKCS7 {
     WC_RNG* rng;
     PKCS7Attrib* signedAttribs;
     byte*  content;               /* inner content, not owner             */
@@ -283,7 +283,7 @@ typedef struct PKCS7 {
     word32 state;
 
     /* !! NEW DATA MEMBERS MUST BE ADDED AT END !! */
-} PKCS7;
+};
 
 
 WOLFSSL_API PKCS7* wc_PKCS7_New(void* heap, int devId);
