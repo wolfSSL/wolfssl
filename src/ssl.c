@@ -33677,14 +33677,50 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
         return oid2nid(oid, o->grp);
     }
 
-#ifndef NO_WOLFSSL_STUB
-    char * wolfSSL_OBJ_nid2ln(int n)
+#ifdef WOLFSSL_QT
+    const char* wolfSSL_OBJ_nid2ln(int n)
     {
-        (void)n;
+        const char* ln;
+        int i;
         WOLFSSL_ENTER("wolfSSL_OBJ_nid2ln");
-        WOLFSSL_STUB("OBJ_nid2ln");
 
-        return NULL;
+        switch(n)
+        {
+            case NID_commonName :
+                ln = WOLFSSL_LN_COMMON_NAME;
+                break;
+            case NID_countryName :
+                ln = WOLFSSL_LN_COUNTRY_NAME;
+                break;
+            case NID_localityName :
+                ln = WOLFSSL_LN_LOCALITY_NAME;
+                break;
+            case NID_stateOrProvinceName :
+                ln = WOLFSSL_LN_STATE_NAME;
+                break;
+            case NID_organizationName :
+                ln = WOLFSSL_LN_ORG_NAME;
+                break;
+            case NID_organizationalUnitName :
+                ln = WOLFSSL_LN_ORGUNIT_NAME;
+                break;
+            case NID_emailAddress :
+                ln = WOLFSSL_EMAIL_ADDR;
+                break;
+            default  :
+                ln = NULL;
+        }
+
+#ifdef HAVE_ECC
+        /* find based on NID and return name */
+        for (i = 0; i < ecc_sets[i].size; i++) {
+            if (n == ecc_sets[i].id) {
+                return ecc_sets[i].name;
+            }
+        }
+#endif /* HAVE_ECC */
+
+        return ln;
     }
 #endif
 
