@@ -31944,14 +31944,45 @@ void* wolfSSL_GetDhAgreeCtx(WOLFSSL* ssl)
     }
 #endif
 
-#ifndef NO_WOLFSSL_STUB
-    int wolfSSL_OBJ_ln2nid(const char *s)
+#if defined(WOLFSSL_QT)
+    int wolfSSL_OBJ_ln2nid(const char *ln)
     {
-        (void)s;
-        WOLFSSL_ENTER("wolfSSL_OBJ_ln2nid");
-        WOLFSSL_STUB("OBJ_ln2nid");
+        static const struct {
+            const char *ln;
+            int  nid;
+        } ln2nid[] = {
+            {WOLFSSL_LN_COMMON_NAME, NID_commonName},
+            {WOLFSSL_LN_COUNTRY_NAME, NID_countryName},
+            {WOLFSSL_LN_LOCALITY_NAME, NID_localityName},
+            {WOLFSSL_LN_STATE_NAME, NID_stateOrProvinceName},
+            {WOLFSSL_LN_ORG_NAME, NID_organizationName},
+            {WOLFSSL_LN_ORGUNIT_NAME, NID_organizationalUnitName},
+            {WOLFSSL_EMAIL_ADDR, NID_emailAddress},
+            {NULL, -1}};
 
-        return 0;
+        int i;
+        WOLFSSL_ENTER("wolfSSL_OBJ_ln2nid");
+#ifdef HAVE_ECC
+        /* Nginx uses this OpenSSL string. */
+        if (XSTRNCMP(ln, "prime256v1", 10) == 0)
+            ln = "SECP256R1";
+        if (XSTRNCMP(ln, "secp384r1", 10) == 0)
+            ln = "SECP384R1";
+        /* find based on name and return NID */
+        for (i = 0; i < ecc_sets[i].size; i++) {
+            if (XSTRNCMP(ln, ecc_sets[i].name, ECC_MAXNAME) == 0) {
+                return ecc_sets[i].id;
+            }
+        }
+#endif
+
+        for(i=0; ln2nid[i].ln != NULL; i++) {
+            if(XSTRNCMP(ln, ln2nid[i].ln, XSTRLEN(ln2nid[i].ln)) == 0) {
+                return ln2nid[i].nid;
+            }
+        }
+
+        return NID_undef;
     }
 #endif
 
