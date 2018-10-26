@@ -138,6 +138,14 @@ ASN Options:
 WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx)
 {
+    return GetLength_ex(input, inOutIdx, len, maxIdx, 1);
+}
+
+
+/* give option to check length value found against index. 1 to check 0 to not */
+WOLFSSL_LOCAL int GetLength_ex(const byte* input, word32* inOutIdx, int* len,
+                           word32 maxIdx, int check)
+{
     int     length = 0;
     word32  idx = *inOutIdx;
     byte    b;
@@ -166,7 +174,7 @@ WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
     else
         length = b;
 
-    if ((idx + length) > maxIdx) {   /* for user of length */
+    if (check && (idx + length) > maxIdx) {   /* for user of length */
         WOLFSSL_MSG("GetLength value exceeds buffer length");
         return BUFFER_E;
     }
@@ -175,6 +183,29 @@ WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
     if (length > 0)
         *len = length;
 
+    return length;
+}
+
+
+static int GetASNHeader_ex(const byte* input, byte tag, word32* inOutIdx, int* len,
+                        word32 maxIdx, int check)
+{
+    word32 idx = *inOutIdx;
+    byte   b;
+    int    length;
+
+    if ((idx + 1) > maxIdx)
+        return BUFFER_E;
+
+    b = input[idx++];
+    if (b != tag)
+        return ASN_PARSE_E;
+
+    if (GetLength_ex(input, &idx, &length, maxIdx, check) < 0)
+        return ASN_PARSE_E;
+
+    *len      = length;
+    *inOutIdx = idx;
     return length;
 }
 
@@ -193,30 +224,23 @@ WOLFSSL_LOCAL int GetLength(const byte* input, word32* inOutIdx, int* len,
 static int GetASNHeader(const byte* input, byte tag, word32* inOutIdx, int* len,
                         word32 maxIdx)
 {
-    word32 idx = *inOutIdx;
-    byte   b;
-    int    length;
-
-    if ((idx + 1) > maxIdx)
-        return BUFFER_E;
-
-    b = input[idx++];
-    if (b != tag)
-        return ASN_PARSE_E;
-
-    if (GetLength(input, &idx, &length, maxIdx) < 0)
-        return ASN_PARSE_E;
-
-    *len      = length;
-    *inOutIdx = idx;
-    return length;
+    return GetASNHeader_ex(input, tag, inOutIdx, len, maxIdx, 1);
 }
+
 
 WOLFSSL_LOCAL int GetSequence(const byte* input, word32* inOutIdx, int* len,
                            word32 maxIdx)
 {
     return GetASNHeader(input, ASN_SEQUENCE | ASN_CONSTRUCTED, inOutIdx, len,
                         maxIdx);
+}
+
+
+WOLFSSL_LOCAL int GetSequence_ex(const byte* input, word32* inOutIdx, int* len,
+                           word32 maxIdx, int check)
+{
+    return GetASNHeader_ex(input, ASN_SEQUENCE | ASN_CONSTRUCTED, inOutIdx, len,
+                        maxIdx, check);
 }
 
 
